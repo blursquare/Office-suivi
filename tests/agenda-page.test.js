@@ -173,3 +173,22 @@ test('jourSuivantAgenda : le dimanche est sauté dans les deux sens', () => {
   assert.equal(app.jourSuivantAgenda('2026-10-05', -1), '2026-10-03', 'lundi → samedi');
   assert.equal(app.jourSuivantAgenda('2026-10-01', 1), '2026-10-02');
 });
+
+test('infosRendezVousDossier : responsable, confrère, appel de fonds et décompte acquéreur (comme dans Outlook)', () => {
+  const base = { id: 'x', nom: 'DURAND / MARTIN', responsable: 'Bastien ANGLUMENT', notaireVendeur: 'Maître Sophie GOSSART', notaireAcquereur: 'Maître Paul LEBRUN' };
+  const rien = app.infosRendezVousDossier(base);
+  assert.equal(rien.responsable, 'Bastien');
+  assert.match(rien.confrere, /LEBRUN/);
+  assert.equal(rien.etats.map(x => `${x.cle}:${x.fait}`).join(','), 'appelFonds:false,decompte:false');
+
+  const faits = app.infosRendezVousDossier({ ...base, echeancesValidees: { appelFonds: true }, detectionsNas: { appelFondsFichier: 'Comptabilité/Appel de fonds DURAND.pdf' } });
+  assert.equal(faits.etats.map(x => `${x.cle}:${x.fait}`).join(','), 'appelFonds:true,decompte:true');
+
+  // Le décompte vaut aussi fait quand le montant attendu a été lu dans un courrier pour les fonds reçus.
+  assert.equal(app.decompteAcquereurFait({ fondsRecus: { attenduChemin: 'Comptabilité/Décompte.pdf' } }), true);
+  assert.equal(app.decompteAcquereurFait(null), false);
+
+  // Pas de confrère quand l'étude est seule au dossier.
+  assert.equal(app.infosRendezVousDossier({ responsable: 'Julie VASSELIN', notaireVendeur: 'Maître Sophie GOSSART', notaireAcquereur: 'Maître Sophie GOSSART' }).confrere, '');
+  assert.equal(app.infosRendezVousDossier(null), null);
+});

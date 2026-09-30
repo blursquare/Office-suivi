@@ -7093,105 +7093,13 @@ button.scan-nom:focus-visible { outline: 2px solid var(--focus); outline-offset:
 .reglages-rapport-apercu { margin: 10px 0 0; max-height: 360px; overflow: auto; padding: 12px 14px; background: var(--paper-sunk); border: 1px solid var(--line); border-radius: 8px; font-size: 12px; line-height: 1.45; white-space: pre-wrap; word-break: break-word; color: var(--ink-soft); }
 
 /* ==== Page Agenda (renderPageAgenda) ====
-   D'après l'exemple de design fourni par l'étude (30/09) : titre du mois, bascule Mois · Semaine ·
-   Jour, flèches et « Aujourd'hui » ; bande des jours en cartes (foncée = aujourd'hui ou le jour
-   affiché) ; grille sur fond gris où chaque rendez-vous est une carte de la couleur de sa catégorie
-   Outlook (fond clair, titre, heure et durée). À droite : le mois, la légende, les anticipations. */
-.ag-page { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 20px; align-items: start; }
-.ag-page > * { min-width: 0; }
-@media (max-width: 1180px) { .ag-page { grid-template-columns: minmax(0, 1fr); } }
-.ag-principal { background: var(--paper-card); border: 1px solid var(--line); border-radius: 18px; box-shadow: var(--shadow-card); padding: 16px 16px 14px; }
-.ag-barre { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; margin-bottom: 14px; }
-.ag-titre-bloc { flex: 1 1 220px; min-width: 0; }
-.ag-titre { margin: 0; font-size: 26px; font-weight: 700; letter-spacing: -0.02em; color: var(--ink); text-wrap: balance; }
-.ag-sous { display: block; margin-top: 2px; font-size: 12.5px; color: var(--muted); }
-.ag-vues { display: inline-flex; gap: 2px; padding: 3px; border-radius: 12px; background: var(--paper-sunk); }
-.ag-vue { font-family: inherit; font-size: 13px; font-weight: 600; color: var(--ink-soft); background: none; border: none; border-radius: 9px; padding: 6px 18px; cursor: pointer; }
-.ag-vue:hover { color: var(--ink); }
-.ag-vue.actif { background: var(--paper-card); color: var(--ink); box-shadow: 0 1px 3px rgba(20, 26, 38, 0.12); }
-.ag-nav { display: inline-flex; align-items: center; gap: 6px; }
-.ag-nav-btn {
-  font-family: inherit; font-size: 13px; font-weight: 600; color: var(--ink); background: var(--paper-sunk); border: none; border-radius: 10px;
-  min-width: 36px; height: 36px; padding: 0 10px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer;
-}
-.ag-nav-btn:hover { background: var(--line-soft); }
-.ag-nav-btn.ag-auj { padding: 0 16px; }
-.ag-nav-btn svg { width: 15px; height: 15px; }
-.bouton-ajout.ag-ajout { margin-top: 12px; }
-
-.ag-grille-defil { overflow-x: auto; }
-.ag-grille {
-  --ag-heure: 56px;
-  display: grid; grid-template-columns: 48px repeat(var(--ag-colonnes, 6), minmax(104px, 1fr)); min-width: 700px;
-}
-.ag-grille.ag-vue-jour { min-width: 0; }
-.ag-bande-ligne { grid-column: 1 / -1; display: grid; grid-template-columns: 48px minmax(0, 1fr); margin-bottom: 10px; }
-.ag-bande { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; }
-.ag-vue-jour .ag-bande-ligne { min-width: 0; }
-.ag-jour-carte {
-  font-family: inherit; cursor: pointer; border: none; border-radius: 14px; padding: 9px 6px 8px;
-  background: var(--paper-sunk); color: var(--ink); display: flex; flex-direction: column; align-items: center; gap: 1px; min-width: 0;
-}
-.ag-jour-carte:hover { background: var(--line-soft); }
-.ag-jour-nom { font-size: 12.5px; font-weight: 500; color: var(--ink-soft); }
-.ag-jour-num { font-size: 24px; font-weight: 700; line-height: 1.15; font-variant-numeric: tabular-nums; }
-.ag-jour-note { font-size: 10.5px; color: var(--muted); min-height: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
-.ag-jour-carte.aujourdhui:not(.choisi) .ag-jour-num { color: var(--focus); }
-.ag-jour-carte.choisi { background: var(--ink); color: var(--paper-card); }
-.ag-jour-carte.choisi .ag-jour-nom, .ag-jour-carte.choisi .ag-jour-note { color: var(--paper-card); opacity: 0.85; }
-.ag-jour-carte.ferie .ag-jour-note { color: var(--urgent); }
-.ag-coin { min-width: 0; }
-.ag-coin-journee { font-size: 10.5px; color: var(--muted); display: flex; align-items: center; justify-content: flex-end; padding-right: 6px; }
-.ag-journees { grid-column: 2 / -1; display: grid; grid-template-columns: repeat(var(--ag-colonnes, 6), minmax(0, 1fr)); gap: 0 6px; padding: 0 3px 6px; }
-.ag-journee { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
-.ag-journee-evt {
-  font-family: inherit; font-size: 11.5px; font-weight: 600; text-align: left; color: var(--ink); cursor: pointer;
-  border: none; border-radius: 8px; padding: 4px 8px;
-  background: color-mix(in srgb, var(--ag-teinte, var(--line)) 24%, var(--paper-card));
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-.ag-heures { display: flex; flex-direction: column; padding-top: 0; }
-.ag-heures span { height: var(--ag-heure); font-size: 11px; color: var(--muted); text-align: right; padding-right: 8px; transform: translateY(-7px); font-variant-numeric: tabular-nums; }
-.ag-heures span:first-child { transform: none; }
-.ag-corps {
-  grid-column: 2 / -1; display: grid; grid-template-columns: repeat(var(--ag-colonnes, 6), minmax(0, 1fr));
-  background: var(--paper-sunk); border-radius: 14px; overflow: hidden;
-}
-.ag-colonne { position: relative; display: flex; flex-direction: column; border-left: 1px solid var(--line-soft); }
-.ag-colonne:first-child { border-left: none; }
-.ag-case { height: var(--ag-heure); flex: none; border: none; border-bottom: 1px solid var(--line-soft); background: none; cursor: pointer; padding: 0; }
-.ag-case:hover { background: color-mix(in srgb, var(--paper-card) 70%, transparent); }
-.ag-case:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
-.ag-evt {
-  position: absolute; z-index: 1; overflow: hidden; display: flex; flex-direction: column; gap: 1px; min-height: 0;
-  font-family: inherit; text-align: left; cursor: pointer; padding: 5px 8px; box-sizing: border-box;
-  border: none; border-radius: 10px;
-  background: color-mix(in srgb, var(--ag-teinte, var(--line)) 26%, var(--paper-card));
-  box-shadow: 0 0 0 1.5px var(--paper-sunk);
-}
-.ag-evt:hover { background: color-mix(in srgb, var(--ag-teinte, var(--line)) 36%, var(--paper-card)); z-index: 2; }
-.ag-evt:focus-visible, .ag-journee-evt:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
-.ag-evt-titre { font-size: 12px; font-weight: 700; color: var(--ink); line-height: 1.25; overflow-wrap: anywhere; }
-.ag-evt-heure { font-size: 11px; color: var(--ink-soft); font-variant-numeric: tabular-nums; display: flex; align-items: center; gap: 2px 4px; flex-wrap: wrap; }
-.ag-evt-duree { margin-left: 2px; }
-.ag-evt-duree { color: var(--muted); }
-.ag-evt-duree::before { content: '·'; margin-right: 6px; }
-.ag-evt-lieu { font-size: 10.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.ag-evt-court { flex-direction: row; align-items: center; gap: 6px; padding-top: 2px; padding-bottom: 2px; }
-.ag-evt-court .ag-evt-titre { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1 1 auto; min-width: 0; }
-.ag-evt-court .ag-evt-heure { flex: none; flex-wrap: nowrap; white-space: nowrap; }
-.ag-evt-court .ag-evt-lieu, .ag-evt-court .ag-evt-fin, .ag-evt-court .ag-evt-duree { display: none; }
-/* Probabilité de tenue d'une signature : pastille dans le coin, le titre lui laisse la place. */
-.ag-evt .ag-proba { position: absolute; top: 4px; right: 4px; font-size: 10px; padding: 0 5px; }
-.ag-evt .ag-proba .dot { display: none; }
-.ag-evt-avec-proba:not(.ag-evt-court) .ag-evt-titre { padding-right: 30px; }
-.ag-evt-court .ag-proba { position: static; flex: none; }
-.ag-evt:not(.ag-evt-court) .ag-evt-titre { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; flex: none; }
-.ag-evt:not(.ag-evt-court) .ag-evt-heure { min-height: 0; overflow: hidden; }
-.ag-evt-etroit .ag-evt-heure, .ag-evt-etroit .ag-proba { display: none; }
-.ag-hors-agenda { background: var(--paper-card); border: 1.5px dashed var(--ag-teinte, var(--line)); }
-.ag-maintenant { position: absolute; left: 0; right: 0; height: 2px; background: var(--urgent); z-index: 3; pointer-events: none; }
-.ag-maintenant::before { content: ''; position: absolute; left: -4px; top: -3px; width: 8px; height: 8px; border-radius: 999px; background: var(--urgent); }
+   Sobre, à la manière d'Outlook (étude, 30/09 : « plus professionnel, qui ressemble à Outlook pour ne
+   pas dépayser les collaborateurs », sur un exemple fourni) : une seule carte ; en tête la pastille du
+   jour, la date, les flèches, « Aujourd'hui », la vue et « Nouveau rendez-vous » ; à gauche le mois, le
+   détail du rendez-vous choisi et les anticipations ; à droite la grille (en-têtes « Lundi / 28 sept.
+   2026 », colonne du jour teintée, trait de l'heure). Un rendez-vous = liseré gauche et fond clair de la
+   couleur de sa catégorie Outlook, texte foncé. */
+/* Teinte de chaque rendez-vous : couleur de catégorie Outlook, sinon type. */
 .ajd-office, .ajd-vert { --ag-teinte: var(--cat-vert); }
 .ajd-visio, .ajd-violet { --ag-teinte: var(--cat-violet); }
 .ajd-confrere, .ajd-orange { --ag-teinte: var(--cat-orange); }
@@ -7204,57 +7112,184 @@ button.scan-nom:focus-visible { outline: 2px solid var(--focus); outline-offset:
 .ajd-signature { --ag-teinte: var(--acte); }
 .ajd-absence { --ag-teinte: var(--muted); }
 .ajd-autre { --ag-teinte: var(--ventebien); }
-.ag-proba { font-size: 10.5px; font-weight: 700; }
-.ag-evt .ag-proba { padding: 0 6px; border-radius: 999px; background: var(--paper-card); }
+.ag-page { background: var(--paper-card); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow-card); overflow: hidden; }
+.ag-tete-page { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 14px; padding: 16px 18px; border-bottom: 1px solid var(--line); }
+.ag-pastille-date {
+  width: 54px; flex: none; border-radius: 10px; overflow: hidden; border: 1px solid var(--line); background: var(--paper-card);
+  display: flex; flex-direction: column; align-items: center; box-shadow: 0 1px 2px rgba(20, 26, 38, 0.08);
+}
+.ag-pastille-date span { width: 100%; text-align: center; font-size: 10.5px; font-weight: 700; letter-spacing: 0.06em; color: var(--on-accent); background: var(--focus); padding: 3px 0; }
+.ag-pastille-date b { font-size: 21px; font-weight: 700; color: var(--ink); line-height: 1.3; min-height: 27px; font-variant-numeric: tabular-nums; }
+.ag-titre-bloc { flex: 1 1 240px; min-width: 0; }
+.ag-titre { margin: 0; font-size: 20px; font-weight: 700; letter-spacing: -0.01em; color: var(--ink); }
+.ag-sous { display: block; margin-top: 2px; font-size: 12.5px; color: var(--muted); }
+.ag-nav { display: inline-flex; align-items: stretch; border: 1px solid var(--line); border-radius: 9px; overflow: hidden; }
+.ag-nav-btn {
+  font-family: inherit; font-size: 13px; font-weight: 600; color: var(--ink); background: var(--paper-card); border: none; border-left: 1px solid var(--line);
+  min-width: 36px; height: 34px; padding: 0 10px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer;
+}
+.ag-nav-btn:first-child { border-left: none; }
+.ag-nav-btn:hover { background: var(--paper-sunk); }
+.ag-nav-btn.ag-auj { padding: 0 16px; }
+.ag-nav-btn svg { width: 15px; height: 15px; }
+.ag-vue-choix select {
+  font: inherit; font-size: 13px; font-weight: 600; color: var(--ink); background: var(--paper-card);
+  border: 1px solid var(--line); border-radius: 9px; height: 36px; padding: 0 10px; cursor: pointer;
+}
+button.primary.ag-ajout { display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 14px; border-radius: 9px; font-size: 13px; }
+button.primary.ag-ajout svg { width: 14px; height: 14px; }
+.ag-page-corps { display: grid; grid-template-columns: 300px minmax(0, 1fr); align-items: start; }
+.ag-page-corps > * { min-width: 0; }
+.ag-cote { border-right: 1px solid var(--line); padding: 14px 16px 18px; display: flex; flex-direction: column; gap: 16px; }
+.ag-principal { padding: 0; }
+@media (max-width: 1100px) {
+  .ag-page-corps { grid-template-columns: minmax(0, 1fr); }
+  .ag-cote { order: 2; border-right: none; border-top: 1px solid var(--line); }
+}
 
-/* Vue Mois : une case par jour, trois rendez-vous au plus. */
-.ag-vue-mois { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
-.ag-vm-jsem { font-size: 11.5px; font-weight: 600; color: var(--muted); text-align: center; padding-bottom: 2px; }
-.ag-vm-case { min-width: 0; min-height: 104px; border-radius: 12px; background: var(--paper-sunk); padding: 6px; display: flex; flex-direction: column; gap: 3px; }
-.ag-vm-case.hors-mois { opacity: 0.5; }
+/* Grille de la semaine / du jour. */
+.ag-grille-defil { overflow-x: auto; }
+.ag-grille {
+  --ag-heure: 72px;
+  display: grid; grid-template-columns: 56px repeat(var(--ag-colonnes, 6), minmax(118px, 1fr)); min-width: 760px;
+}
+.ag-grille.ag-vue-jour { min-width: 0; }
+.ag-coin { border-bottom: 1px solid var(--line); min-width: 0; }
+.ag-tetes, .ag-journees { grid-column: 2 / -1; display: grid; grid-template-columns: repeat(var(--ag-colonnes, 6), minmax(0, 1fr)); }
+.ag-tete {
+  font-family: inherit; text-align: center; cursor: pointer; background: none; border: none; border-left: 1px solid var(--line-soft); border-bottom: 1px solid var(--line);
+  padding: 10px 4px 9px; display: flex; flex-direction: column; align-items: center; gap: 1px; min-width: 0; color: var(--ink-soft);
+}
+.ag-tete:hover { background: var(--paper-sunk); }
+.ag-tete-nom { font-size: 13px; font-weight: 500; }
+.ag-tete-date { font-size: 11.5px; color: var(--muted); }
+.ag-tete-note { font-size: 10.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.ag-tete.aujourdhui { background: color-mix(in srgb, var(--focus) 6%, var(--paper-card)); color: var(--ink); }
+.ag-tete.aujourdhui .ag-tete-nom, .ag-tete.aujourdhui .ag-tete-date { font-weight: 700; color: var(--ink); }
+.ag-tete.ferie .ag-tete-note { color: var(--urgent); }
+.ag-coin-journee { font-size: 10.5px; color: var(--muted); display: flex; align-items: center; justify-content: flex-end; padding-right: 8px; }
+.ag-journee { min-width: 0; padding: 3px 3px; border-left: 1px solid var(--line-soft); border-bottom: 1px solid var(--line); display: flex; flex-direction: column; gap: 2px; }
+.ag-journee.aujourdhui { background: color-mix(in srgb, var(--focus) 6%, var(--paper-card)); }
+.ag-journee-evt {
+  font-family: inherit; font-size: 11.5px; font-weight: 600; text-align: left; color: var(--ink); cursor: pointer;
+  border: none; border-left: 3px solid var(--ag-teinte, var(--line)); border-radius: 4px; padding: 3px 6px;
+  background: color-mix(in srgb, var(--ag-teinte, var(--line)) 16%, var(--paper-card));
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.ag-heures { display: flex; flex-direction: column; }
+.ag-heures span { height: var(--ag-heure); font-size: 11px; color: var(--muted); text-align: right; padding-right: 8px; transform: translateY(-7px); font-variant-numeric: tabular-nums; }
+.ag-heures span:first-child { transform: none; padding-top: 2px; }
+.ag-corps { grid-column: 2 / -1; position: relative; display: grid; grid-template-columns: repeat(var(--ag-colonnes, 6), minmax(0, 1fr)); }
+.ag-colonne { position: relative; display: flex; flex-direction: column; border-left: 1px solid var(--line-soft); }
+.ag-colonne.aujourdhui { background: color-mix(in srgb, var(--focus) 4%, var(--paper-card)); }
+.ag-case { height: var(--ag-heure); flex: none; border: none; border-bottom: 1px solid var(--line-soft); background: none; cursor: pointer; padding: 0; }
+.ag-case:hover { background: var(--paper-sunk); }
+.ag-case:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.ag-evt {
+  position: absolute; z-index: 1; overflow: hidden; display: flex; flex-direction: column; gap: 1px; min-height: 0;
+  font-family: inherit; text-align: left; cursor: pointer; padding: 3px 6px 3px 7px; box-sizing: border-box;
+  border: none; border-left: 4px solid var(--ag-teinte, var(--line)); border-radius: 4px;
+  background: color-mix(in srgb, var(--ag-teinte, var(--line)) 16%, var(--paper-card));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--ag-teinte, var(--line)) 30%, transparent);
+}
+.ag-evt:hover { background: color-mix(in srgb, var(--ag-teinte, var(--line)) 24%, var(--paper-card)); z-index: 2; }
+.ag-evt.selection, .ag-journee-evt.selection { box-shadow: 0 0 0 2px var(--ink); z-index: 2; }
+.ag-evt:focus-visible, .ag-journee-evt:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.ag-evt-titre { font-size: 12px; font-weight: 700; color: var(--ink); line-height: 1.25; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; flex: none; }
+.ag-evt-heure { font-size: 11px; color: var(--ink-soft); font-variant-numeric: tabular-nums; display: flex; align-items: center; gap: 0 4px; white-space: nowrap; overflow: hidden; flex: none; }
+.ag-evt-duree { color: var(--muted); margin-left: 2px; }
+.ag-evt-duree::before { content: '·'; margin-right: 5px; }
+.ag-evt-qui { font-size: 11px; color: var(--ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: none; }
+.ag-evt-etats { display: flex; flex-wrap: wrap; gap: 0 8px; overflow: hidden; flex: none; }
+.ag-etat { display: inline-flex; align-items: center; gap: 3px; font-size: 10.5px; font-weight: 600; white-space: nowrap; line-height: 1.2; }
+.ag-etat svg { width: 11px; height: 11px; }
+.ag-etat.fait { color: var(--success); }
+.ag-etat.afaire { color: var(--urgent); }
+.ag-evt-court { flex-direction: row; align-items: center; gap: 6px; padding-top: 1px; padding-bottom: 1px; }
+.ag-evt-court .ag-evt-titre { flex: 1 1 auto; min-width: 0; }
+/* Comme Outlook : le titre passe sur deux lignes quand la carte a la place (1 h 30 et plus). */
+.ag-evt-haut .ag-evt-titre { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow-wrap: anywhere; }
+.ag-evt-court .ag-evt-fin, .ag-evt-court .ag-evt-duree, .ag-evt-court .ag-evt-qui, .ag-evt-court .ag-evt-etats { display: none; }
+.ag-evt-etroit .ag-evt-heure, .ag-evt-etroit .ag-proba { display: none; }
+.ag-evt .ag-proba { position: absolute; top: 3px; right: 4px; font-size: 10px; padding: 0 5px; border-radius: 999px; background: var(--paper-card); }
+.ag-evt .ag-proba .dot { display: none; }
+.ag-evt-avec-proba:not(.ag-evt-court) .ag-evt-titre { padding-right: 32px; }
+.ag-evt-court .ag-proba { position: static; flex: none; }
+.ag-hors-agenda { background: var(--paper-card); border: 1.5px dashed var(--ag-teinte, var(--line)); border-left-width: 4px; }
+/* Trait de l'heure, avec l'heure dans une pastille à gauche. */
+.ag-maintenant { position: absolute; left: 0; right: 0; height: 0; border-top: 2px solid var(--ink); z-index: 3; pointer-events: none; }
+.ag-maintenant span {
+  position: absolute; left: 0; top: -11px; font-size: 10.5px; font-weight: 700; color: var(--paper-card); background: var(--ink);
+  border-radius: 4px; padding: 2px 6px; font-variant-numeric: tabular-nums;
+}
+.ag-proba { font-size: 10.5px; font-weight: 700; }
+
+/* Vue Mois, comme celle d'Outlook : un tableau de cases bordées. */
+.ag-vue-mois { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); border-top: 1px solid var(--line-soft); }
+.ag-vm-jsem { font-size: 12px; font-weight: 600; color: var(--muted); text-align: center; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.ag-vm-case { min-width: 0; min-height: 112px; padding: 5px; display: flex; flex-direction: column; gap: 2px; border-right: 1px solid var(--line-soft); border-bottom: 1px solid var(--line-soft); }
+.ag-vm-case:nth-child(7n) { border-right: none; }
+.ag-vm-case.hors-mois { background: var(--paper-sunk); }
+.ag-vm-case.hors-mois .ag-vm-num { color: var(--muted); }
+.ag-vm-case.aujourdhui { background: color-mix(in srgb, var(--focus) 5%, var(--paper-card)); }
 .ag-vm-num {
-  align-self: flex-start; font-family: inherit; font-size: 13px; font-weight: 700; color: var(--ink); background: none; border: none; cursor: pointer;
-  width: 26px; height: 26px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; font-variant-numeric: tabular-nums;
+  align-self: flex-start; font-family: inherit; font-size: 12.5px; font-weight: 600; color: var(--ink); background: none; border: none; cursor: pointer;
+  min-width: 24px; height: 24px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; font-variant-numeric: tabular-nums;
 }
 .ag-vm-num:hover { background: var(--line-soft); }
 .ag-vm-case.aujourdhui .ag-vm-num { background: var(--ink); color: var(--paper-card); }
 .ag-vm-evt {
-  font-family: inherit; font-size: 11px; text-align: left; color: var(--ink); cursor: pointer; border: none; border-radius: 6px; padding: 2px 6px;
-  background: color-mix(in srgb, var(--ag-teinte, var(--line)) 26%, var(--paper-card)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  font-family: inherit; font-size: 11px; text-align: left; color: var(--ink); cursor: pointer; border: none; border-left: 3px solid var(--ag-teinte, var(--line));
+  border-radius: 3px; padding: 1px 5px; background: color-mix(in srgb, var(--ag-teinte, var(--line)) 16%, var(--paper-card)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .ag-vm-evt b { font-variant-numeric: tabular-nums; }
-.ag-vm-plus { font-family: inherit; font-size: 11px; font-weight: 600; color: var(--focus); background: none; border: none; cursor: pointer; text-align: left; padding: 0 6px; }
+.ag-vm-plus { font-family: inherit; font-size: 11px; font-weight: 600; color: var(--ink-soft); background: none; border: none; cursor: pointer; text-align: left; padding: 0 5px; }
+.ag-vm-plus:hover { color: var(--focus); }
 @media (max-width: 640px) {
-  .ag-vue-mois { gap: 3px; }
   .ag-vm-jsem { font-size: 0; }
   .ag-vm-jsem::first-letter { font-size: 11px; }
   .ag-vm-case { min-height: 64px; padding: 3px; }
   .ag-vm-evt { font-size: 0; height: 6px; padding: 0; }
-  .ag-titre { font-size: 22px; }
+  .ag-titre { font-size: 18px; }
 }
-/* Légende des couleurs sous le calendrier du mois. */
-.ag-legende { list-style: none; margin: 10px 0 0; padding: 10px 0 0; border-top: 1px solid var(--line-soft); display: flex; flex-direction: column; gap: 5px; font-size: 12.5px; color: var(--ink-soft); }
-.ag-legende li { display: flex; align-items: center; gap: 8px; }
-.ag-legende i { width: 10px; height: 10px; border-radius: 999px; background: var(--ag-teinte, var(--line)); flex: none; }
 
-/* Colonne de droite : le mois, puis les anticipations. */
-.ag-cote { display: flex; flex-direction: column; gap: 14px; }
-.ag-mois, .ag-anticipe { background: var(--paper-card); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow-card); padding: 12px 14px; }
-.ag-mois-tete { display: flex; align-items: center; gap: 2px; margin-bottom: 6px; }
-.ag-mois-titre { flex: 1 1 auto; font-size: 14px; font-weight: 700; color: var(--ink); }
+/* Colonne de gauche : le mois, le détail du rendez-vous choisi, les anticipations. */
+.ag-mois-tete { display: flex; align-items: center; gap: 2px; margin-bottom: 8px; }
+.ag-mois-titre { flex: 1 1 auto; text-align: center; font-size: 14px; font-weight: 700; color: var(--ink); }
 .ag-mois-grille { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 2px; }
-.ag-mois-jsem { font-size: 10.5px; font-weight: 600; color: var(--muted); text-align: center; padding-bottom: 2px; }
+.ag-mois-jsem { font-size: 11.5px; font-weight: 600; color: var(--ink-soft); text-align: center; padding-bottom: 4px; }
 .ag-mois-jour {
-  font-family: inherit; font-size: 12.5px; color: var(--ink); background: none; border: none; border-radius: 8px; cursor: pointer;
-  height: 34px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font-variant-numeric: tabular-nums; padding: 0;
+  font-family: inherit; font-size: 13px; color: var(--ink); background: none; border: none; border-radius: 999px; cursor: pointer;
+  height: 36px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; font-variant-numeric: tabular-nums; padding: 0;
 }
-.ag-mois-jour:hover { background: var(--paper-sunk); }
-.ag-mois-jour.hors-mois { color: var(--muted); opacity: 0.6; }
-.ag-mois-jour.dans-semaine { background: color-mix(in srgb, var(--focus) 10%, transparent); }
-.ag-mois-jour.aujourdhui > span:first-child { color: var(--on-accent); background: var(--focus); border-radius: 999px; width: 22px; height: 22px; display: inline-flex; align-items: center; justify-content: center; font-weight: 700; }
-.ag-mois-points { height: 4px; display: flex; }
+.ag-mois-n { width: 28px; height: 28px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; }
+.ag-mois-jour:hover .ag-mois-n { background: var(--paper-sunk); }
+.ag-mois-jour.hors-mois { color: var(--muted); }
+.ag-mois-jour.dans-semaine .ag-mois-n { background: var(--paper-sunk); }
+.ag-mois-jour.aujourdhui .ag-mois-n { box-shadow: inset 0 0 0 1.5px var(--focus); font-weight: 700; }
+.ag-mois-jour.choisi .ag-mois-n { background: var(--ink); color: var(--paper-card); font-weight: 700; box-shadow: none; }
+.ag-mois-points { height: 4px; display: flex; margin-top: -3px; }
 .ag-mois-points i { width: 4px; height: 4px; border-radius: 999px; background: var(--muted); }
 .ag-mois-points i.sig { background: var(--acte); }
+.ag-legende { list-style: none; margin: 10px 0 0; padding: 10px 0 0; border-top: 1px solid var(--line-soft); display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px 10px; font-size: 12px; color: var(--ink-soft); }
+.ag-legende li { display: flex; align-items: center; gap: 7px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ag-legende i { width: 9px; height: 9px; border-radius: 2px; background: var(--ag-teinte, var(--line)); flex: none; }
+#agenda-detail:empty { display: none; }
+.ag-detail { border-top: 1px solid var(--line); padding-top: 14px; display: flex; flex-direction: column; gap: 7px; }
+.ag-detail-tete { display: flex; align-items: flex-start; gap: 8px; justify-content: space-between; margin-bottom: 2px; }
+.ag-detail-etiquette { display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--muted); }
+.ag-detail-etiquette i { width: 9px; height: 9px; border-radius: 2px; background: var(--ag-teinte, var(--line)); }
+.ag-detail-titre { margin: 2px 0 0; font-size: 16px; font-weight: 700; color: var(--ink); overflow-wrap: anywhere; }
+.ag-detail-ligne { display: flex; align-items: flex-start; gap: 8px; font-size: 12.5px; color: var(--ink-soft); }
+.ag-detail-ligne svg { width: 14px; height: 14px; flex: none; margin-top: 1px; color: var(--muted); }
+.ag-detail-ligne b { color: var(--ink); }
+.ag-detail-etats { display: flex; flex-wrap: wrap; gap: 4px 12px; padding: 2px 0; }
+.ag-detail-etats .ag-etat { font-size: 12px; }
+.ag-detail .ag-supprimer { align-self: flex-start; }
+.ag-cote .ag-anticipe { border-top: 1px solid var(--line); padding-top: 14px; }
+/* Colonne étroite : le bouton d'une ligne d'action garde son icône, le verbe est déjà dans le titre. */
+.ag-cote .ja .ja-go { padding: 6px 8px; }
+.ag-cote .ja .ja-go span { display: none; }
 .ag-anticipe .jour-section-titre { margin-bottom: 8px; }
 .ag-liste { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
 .ag-ligne {

@@ -13266,3 +13266,27 @@ rendez-vous à 9 h, entre 12 h et 14 h et après 18 h, sauf exception ; maximum 
   confirmation). Création manuelle depuis la page Agenda hors règles : « Créer ce rendez-vous malgré
   tout ? Il est exceptionnel : … ».
 - Tests : `motifCreneauExceptionnel`, créneaux normaux prioritaires, exception seulement à défaut.
+
+### 30/09/2026, 23 h 00 — Page Agenda à la manière d'Outlook
+
+- Demande de l'étude (sur un exemple d'agenda type Outlook) : « Finalement ce n'est pas assez professionnel
+  comme agenda fait plutôt quelque chose comme ça qui ressemble plus à Outlook pour ne pas dépayser les
+  collaborateurs. Dans le rendez-vous mettre comme dans Outlook le responsable du dossier, le nom du notaire
+  autre que nous. Si l'appel de fonds et le décompte a été fait. » Question posée : « décompte » = **décompte
+  acquéreur** (réponse de l'étude).
+- `renderPageAgenda` : une carte ; en-tête pastille du jour (mois abrégé, grand chiffre), titre, sous-titre
+  (semaine, dernière lecture), navigation segmentée ‹ Aujourd'hui ›, `select#agenda-vue`, bouton principal.
+  Corps en deux colonnes (300 px + grille ; empilées sous 1 100 px, grille d'abord) : à gauche
+  mini-calendrier (Lu → Di, jour choisi en rond foncé, aujourd'hui cerclé), légende, panneau de détail,
+  anticipations ; à droite grille semaine/jour ou mois.
+- Rendez-vous : liseré gauche 4 px + fond à 16 % de la couleur Outlook ; titre sur deux lignes à partir
+  d'1 h 30 (`ag-evt-haut`), une ligne sinon ; `infosRendezVousDossier(d)` → responsable (prénom), confrère
+  (`confrereLieuAgenda`), états `appelFonds` (`echeanceValidee`) et `decompte`
+  (`decompteAcquereurFait` = `courrierAppelFondsDossier(d)` ou `d.fondsRecus.attenduChemin`), coche verte /
+  croix rouge (`renderEtatsRendezVous`).
+- Détail : panneau à gauche (`agendaSelection`, `ouvrirDetailAgenda`, Échap le referme) au lieu d'une
+  fenêtre modale ; la modale ne sert plus qu'à la création.
+- Piège payé : un bloc CSS inséré après la première ligne d'un commentaire multiligne est avalé par le
+  commentaire et casse toute la feuille qui suit — insérer après le `*/`.
+- Vérifié dans Chromium (clair, sombre, téléphone, vues mois et jour, suppression confirmée, création,
+  créneau proposé) avec des dossiers inventés ; test `infosRendezVousDossier` ajouté.

@@ -268,10 +268,18 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
   (`scansPourCarte`). **OCR d'un scan : `page.render(… intent: 'print')`** — en « display », pdf.js 3.11 cadence
   le dessin sur `requestAnimationFrame`, arrêté fenêtre réduite/cachée (lecture bloquée sans fin). Un pré-état daté n'est
   pas un état daté (checklist corrigée le même jour).
-- **Page Agenda** (30/09, `renderPageAgenda`, dessin d'après l'exemple de l'étude ; lien juste sous le tableau de bord) : vues Mois ·
-  Semaine (lundi → samedi, 7 h – 20 h) · Jour (`agendaVue`, `agendaJour` ; Jour par défaut sur
-  téléphone), bande des jours en cartes, rendez-vous en cartes à la couleur Outlook avec heure de début,
-  de fin et durée (`dureeRendezVous`), calendrier du mois et légende des couleurs à droite ; rendez-vous lus par le serveur (stock `agenda-office`, tenu à jour à la création/suppression
+- **Page Agenda** (30/09, `renderPageAgenda`, **à la manière d'Outlook** — étude, 30/09 au soir : « plus
+  professionnel, pour ne pas dépayser les collaborateurs » ; lien juste sous le tableau de bord) : une carte,
+  en tête pastille du jour, date, ‹ Aujourd'hui ›, liste Vue mois/semaine/jour, « Nouveau rendez-vous » ;
+  Semaine (lundi → samedi, 7 h – 20 h) · Jour · Mois (`agendaVue`, `agendaJour` ; Jour par défaut sur
+  téléphone), en-têtes « Lundi / 28 sept. 2026 », colonne du jour teintée, trait de l'heure ; rendez-vous =
+  liseré gauche + fond clair de la couleur Outlook, heure de début, de fin et durée (`dureeRendezVous`) ;
+  **sur un rendez-vous d'un dossier, comme dans Outlook : responsable (prénom), confrère (`confrereLieuAgenda`),
+  appel de fonds fait (`echeanceValidee`) et décompte acquéreur fait** (`decompteAcquereurFait` : courrier
+  d'appel de fonds/décompte trouvé sur le NAS ou lu pour les fonds reçus — choix de l'étude) —
+  `infosRendezVousDossier`. Colonne de gauche : mini-calendrier du mois, légende, **panneau de détail du
+  rendez-vous choisi** (`agendaSelection`, `renderPanneauDetailAgenda` — plus de fenêtre modale sauf pour
+  la création), anticipations ; rendez-vous lus par le serveur (stock `agenda-office`, tenu à jour à la création/suppression
   depuis CLAIRE entre deux tours) ; signatures de CLAIRE absentes d'Outlook en pointillé. Agenda
   « intelligent », **sans IA, chaque point expliqué** : `probabiliteTenueSignature` (97 % moins des
   retraits pondérés par la proximité : financement, vente préalable, préemption, pièces, envois, fonds,
