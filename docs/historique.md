@@ -12964,3 +12964,18 @@ dossiers avec une notification remontent en haut de liste ».
   `piecesNotifications` (comportement existant), la confirmation des fonds lève le second signal.
 - Correctif : dans « Prévu en … », « En retard · Obtention du prêt » passe à la ligne au lieu de
   déborder de la carte des dates butoir. Tests `tests/stats-suivi.test.js` ; vérifié dans Chromium.
+
+### 30/09 18:16 — Suivi : « Prévu en … » en un seul bloc
+
+Retour de l'étude : « c'est mieux pour les blocs au-dessus, mais trouve une présentation plus
+harmonieuse d'un seul bloc et plus attractive ». Les quatre cartes deviennent une seule carte :
+- à gauche (fond légèrement teinté) : « Prévu en » + le mois en grand, quatre compteurs cliquables
+  (signatures, envois à faire, rendez-vous à fixer, dates butoir + retards) qui filtrent l'agenda,
+  puis les délais moyens ;
+- à droite, « Agenda du mois » (`agendaPrevuDuMois`, pure) : « À faire » — les tâches, datées
+  « avant le … » ou « en retard depuis le … » (dates butoir dépassées, envois appel de fonds/projet,
+  rendez-vous à placer) — puis « Au calendrier » jour par jour avec une pastille de date (jour de la
+  semaine + numéro, pleine couleur aujourd'hui, jours passés estompés) : signatures et dates butoir.
+  Couleurs = celles des échéances de la liste (`dl-<type>`), retard en rouge. Défilement interne au-delà
+  de 360 px ; replié, le bloc tient sur une ligne avec son résumé. Une colonne sous 900 px.
+- Tests `tests/stats-suivi.test.js` ; vérifié dans Chromium (clair, sombre, 390 px, filtres, repli).

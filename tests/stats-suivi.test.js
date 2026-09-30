@@ -76,3 +76,15 @@ test('partagerAVoirSuivi : les notifications d’abord, puis les fonds, le reste
   assert.equal(aVoir.map(x => x.d.id).join(','), 'piece,fonds');
   assert.equal(reste.map(d => d.id).join(','), 'calme,calme2');
 });
+
+test('agendaPrevuDuMois : à faire (retards, envois, rendez-vous) puis calendrier jour par jour, filtrable', () => {
+  const p = app.prevuDuMois(dossiers, dossiers, AUJ);
+  const ag = app.agendaPrevuDuMois(p, '');
+  assert.equal(ag.aFaire.map(x => `${x.d.id}:${x.type}${x.retard ? '!' : ''}`).join(' '), 'c:ventebien! a:appelFonds d:fixerRdv');
+  assert.equal(ag.jours.map(j => j.iso + '=' + j.items.map(x => x.d.id + ':' + x.type).join('+')).join(' '),
+    '2026-10-15=b:pret 2026-10-20=a:rendezVousSignature 2026-10-25=d:acte');
+  const sig = app.agendaPrevuDuMois(p, 'signatures');
+  assert.equal(`${sig.aFaire.length}/${sig.jours.length}`, '0/1');
+  const but = app.agendaPrevuDuMois(p, 'butoirs');
+  assert.equal(`${but.aFaire.length}/${but.jours.length}`, '1/2');
+});

@@ -147,10 +147,10 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
   réalisée (financement, comme l'offre) empêche « Complet » et « Prêt ». Couleurs : rouge, gris, ambre, bleu `--acte`
   (jamais l'accent, qui peut être orange ou vert), vert. **Suivi** (30/09, choix de l'étude) : statuts en pastilles
   de filtre dans la barre d'outils (`syntheseEtatsSuivi`, `renderEtatsSuivi`) ; au-dessus, « Prévu en
-  {mois} » (`prevuDuMois`, `renderStatsSuivi`, repliable) — angle voulu par l'étude : ce qui est prévu
-  ce mois-ci. Quatre listes de dossiers (signatures, envois appel de fonds/projet, rendez-vous à fixer,
-  dates butoir ; retards d'abord ; clic = fiche) + délais moyens depuis l'ouverture du dossier dans
-  CLAIRE. Mois suivant dans les 5 derniers jours (`moisPrevuSuivi`). Refusés par l'étude : graphique
+  {mois} » (`prevuDuMois`, `agendaPrevuDuMois`, `renderStatsSuivi`, repliable) — angle voulu par
+  l'étude : ce qui est prévu ce mois-ci, **en un seul bloc** : à gauche le mois, 4 compteurs-filtres et
+  les délais moyens (depuis l'ouverture du dossier dans CLAIRE) ; à droite « À faire » (retards,
+  envois, rendez-vous à placer) puis le calendrier jour par jour (signatures, dates butoir). Mois suivant dans les 5 derniers jours (`moisPrevuSuivi`). Refusés par l'étude : graphique
   par semaine, charge par collaborateur, montant des ventes, le mot « portefeuille ». **Liste « intelligente »**
   (30/09) : section « À voir en premier » en tête (`signauxDossierSuivi`, `partagerAVoirSuivi`) —
   notifications (`piecesNotifications` : offre, pièces nommées) puis fonds tous reçus non confirmés ;
