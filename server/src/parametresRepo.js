@@ -763,7 +763,28 @@ function assainirResumeEmails(brut) {
       dossierId: texteBorne(g && g.dossierId, 100), dossierNom: texteBorne(g && g.dossierNom, 200),
       responsable: texteBorne(g && g.responsable, 100), emails: emails(g && g.emails)
     })) : [],
-    autres: emails(b.autres)
+    autres: emails(b.autres),
+    ia: assainirSyntheseIaEmails(b.ia)
+  };
+}
+
+// Résumé des emails rédigé par l'IA locale (Ollama, voir emailsMatin.js) : le texte, les points
+// importants rattachés s'il y a lieu à un dossier, ou l'état (en cours, erreur). null s'il n'y en a pas.
+function assainirSyntheseIaEmails(brut) {
+  if (!brut || typeof brut !== 'object') return null;
+  if (brut.enCours) return { enCours: true };
+  if (brut.erreur) return { erreur: texteBorne(String(brut.erreur), 300) };
+  const priorites = ['haute', 'normale'];
+  return {
+    texte: texteBorne(brut.texte, 1500),
+    points: Array.isArray(brut.points) ? brut.points.slice(0, 10).map(pt => ({
+      texte: texteBorne(pt && pt.texte, 300),
+      priorite: priorites.includes(pt && pt.priorite) ? pt.priorite : 'normale',
+      dossierId: pt && pt.dossierId ? texteBorne(pt.dossierId, 100) : null,
+      dossierNom: pt && pt.dossierNom ? texteBorne(pt.dossierNom, 200) : null
+    })).filter(pt => pt.texte) : [],
+    modele: texteBorne(brut.modele, 80),
+    dureeMs: Number.isFinite(brut.dureeMs) ? Math.round(brut.dureeMs) : null
   };
 }
 

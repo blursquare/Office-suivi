@@ -84,7 +84,7 @@ prendrait pour un rendez-vous de signature). CLAIRE garde son identifiant sur le
   les éléments supprimés, récupérable) quand l'offre est reçue, la vente préalable réalisée, la
   date effacée ou le dossier archivé. Après un refus d'identifiants, le poste ne réessaie plus
   jusqu'à son prochain lancement.
-- **Au tour de lecture de l'agenda** (serveur, toutes les 15 minutes, `echeancesAgenda.js`) : ce qui
+- **Au tour de lecture de l'agenda** (serveur, toutes les 2 minutes, `echeancesAgenda.js`) : ce qui
   manque encore est posé — les dossiers existants à la mise à jour (reprise d'office), une création
   échouée côté poste. Avant de créer, le serveur cherche dans l'agenda qu'il vient de lire un
   événement « toute la journée » au **même titre et à la même date** : il l'adopte au lieu d'en
@@ -117,7 +117,7 @@ même agenda (plus de lien de publication à entretenir, plus de proxy ni de 503
 Objectif : reporter automatiquement sur un dossier la date d'un appel de fonds ou d'un projet
 d'acte envoyé, le rendez-vous de signature et les absences, sans ressaisie côté CLAIRE.
 
-**Lecture** : toutes les **15 minutes**, un `FindItem` en vue calendrier (lecture seule, les
+**Lecture** : toutes les **2 minutes**, un `FindItem` en vue calendrier (lecture seule, les
 rendez-vous récurrents sont développés) sur les **six prochains mois**, en trois tranches de
 62 jours pour rester sous la limite de résultats d'Exchange. Sont lus : titre, lieu, début, fin,
 « toute la journée », annulé, catégories — jamais le corps du rendez-vous. Une liste coupée par

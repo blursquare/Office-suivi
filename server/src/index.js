@@ -260,7 +260,8 @@ function demarrer() {
 
   // Résumé des emails du matin (voir emailsMatin.js) : 8 h 50 les jours ouvrés, un seul essai par
   // jour. Silencieux tant que la connexion Exchange n'est pas configurée. Démarré ici seulement.
-  demarrerResumeEmails(depot, parametresRepo);
+  // Le résumé en texte est rédigé par le modèle local d'Ollama (config.ollama), s'il est installé.
+  demarrerResumeEmails(depot, parametresRepo, undefined, config);
 
   // Rapport technique (voir rapportTechnique.js) : les erreurs et avertissements du serveur, lancé
   // sans fenêtre, sont gardés dans le journal technique ; à 12 h et 17 h les jours ouvrés, un

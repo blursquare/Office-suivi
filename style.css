@@ -52,6 +52,10 @@
        autres teintes sont prises — --pret (ambre), --acte (bleu nuit), --ventebien (bleu),
        --success (vert, rendez-vous de signature) — et --focus est réservé aux accents interactifs. */
     --appelfonds: #7C5CBF;
+    /* Couleurs des catégories Outlook, reprises telles que l'agenda de l'office les montre (page
+       Agenda, fenêtre du matin — étude, 30/09 : « reprends le code couleur des rendez-vous »). */
+    --cat-rouge: #C8323A; --cat-orange: #D9711C; --cat-jaune: #C29A0A; --cat-vert: #2F8F5B;
+    --cat-bleu: #2F6FD0; --cat-violet: #7C5CBF; --cat-gris: #7E879B; --cat-rose: #C94F86; --cat-marron: #8E562E;
     --projet: #B83E78;
     --ventebien-bg: #E3EEF7;
     --urgent: #C2410C;
@@ -98,6 +102,8 @@
     --acte-bg: #232736;
     --ventebien: #6FAEDB;
     --appelfonds: #A48BE0;
+    --cat-rouge: #F0706F; --cat-orange: #F09A4E; --cat-jaune: #E6C04A; --cat-vert: #5FBF87;
+    --cat-bleu: #6FA0EE; --cat-violet: #A48BE0; --cat-gris: #9AA0A8; --cat-rose: #EE8AB5; --cat-marron: #C28A62;
     --projet: #E58AB5;
     --ventebien-bg: #263238;
     --urgent: #F08C4B;
@@ -6218,41 +6224,51 @@ button.lien-action:hover { text-decoration: underline; }
 }
 [data-theme="dark"] .jour-overlay { background: rgba(0, 0, 0, 0.58); }
 .jour-fenetre {
-  width: min(980px, 100%); max-height: calc(100vh - 48px); display: flex; flex-direction: column; overflow: hidden;
+  width: min(900px, 100%); max-height: min(660px, calc(100vh - 48px)); display: flex; flex-direction: column; overflow: hidden;
   background: var(--paper-card); color: var(--ink); border: 1px solid var(--line); border-radius: 18px; box-shadow: var(--shadow-float);
 }
 .jour-fenetre-tete {
-  position: relative; padding: 18px 60px 16px 24px; border-bottom: 1px solid var(--line-soft);
-  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 20px;
+  position: relative; padding: 12px 56px 10px 22px; border-bottom: 1px solid var(--line-soft);
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 20px; flex: none;
 }
-.jour-fenetre-titre { margin: 2px 0 0; font-size: 26px; font-weight: 700; letter-spacing: -0.02em; }
-.jour-fenetre-x { position: absolute; top: 14px; right: 14px; }
+.jour-fenetre-titre { margin: 1px 0 0; font-size: 21px; font-weight: 700; letter-spacing: -0.02em; }
+.jour-fenetre-tete .jour-progres { gap: 10px; }
+.jour-fenetre-tete .jour-progres-texte b { font-size: 13.5px; }
+.jour-fenetre-x { position: absolute; top: 10px; right: 12px; }
+/* Deux colonnes qui défilent chacune : « À faire » à gauche, les onglets du jour à droite
+   (étude, 30/09 : la fenêtre prenait trop de place). */
 .jour-fenetre-corps {
-  overflow-y: auto; padding: 16px 18px 18px;
-  display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 22px;
+  flex: 1 1 auto; min-height: 0; overflow: hidden;
+  display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
 }
-.jour-fenetre-corps > * { min-width: 0; }
+.jour-fenetre-corps > * { min-width: 0; min-height: 0; }
 .jour-fenetre-corps .jour-section-titre { padding: 0 6px; }
-.jour-fenetre-rail { border-left: 1px solid var(--line-soft); padding-left: 20px; }
+.jour-col-faire { overflow-y: auto; padding: 12px 14px 14px; }
+.jour-fenetre-rail { border-left: 1px solid var(--line-soft); display: flex; flex-direction: column; overflow: hidden; }
+.jour-onglets { flex: none; display: flex; gap: 2px; padding: 0 12px; border-bottom: 1px solid var(--line-soft); overflow-x: auto; }
+.jour-onglets .jour-onglet { min-height: 40px; }
+.jour-panneau { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 12px 16px 14px; }
 .jour-fenetre-pied {
-  display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; padding: 12px 24px;
+  flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; padding: 9px 22px;
   border-top: 1px solid var(--line-soft); background: var(--paper-sunk); font-size: 12.5px; color: var(--muted);
 }
 .jour-espace { flex: 1 1 auto; }
 .jour-fenetre-pied button.primary, .jour-fenetre-pied button.secondary { padding: 8px 14px; font-size: 13px; border-radius: 8px; }
 
 @media (max-width: 860px) {
-  .jour-fenetre-corps { grid-template-columns: minmax(0, 1fr); }
-  .jour-fenetre-rail { border-left: none; padding-left: 6px; border-top: 1px solid var(--line-soft); padding-top: 14px; }
+  .jour-fenetre-corps { grid-template-columns: minmax(0, 1fr); overflow-y: auto; }
+  .jour-col-faire, .jour-fenetre-rail, .jour-panneau { overflow: visible; }
+  .jour-fenetre-rail { border-left: none; border-top: 1px solid var(--line-soft); }
 }
 /* Téléphone : le délai passe sous le titre, le bouton ne garde que son icône. */
 @media (max-width: 600px) {
   .jour-overlay { padding: 0; align-items: stretch; }
   .jour-fenetre { max-height: none; height: 100%; border-radius: 0; border: none; }
   .jour-fenetre-tete { padding-left: 16px; }
-  .jour-fenetre-corps { padding-left: 10px; padding-right: 10px; }
+  .jour-col-faire { padding-left: 10px; padding-right: 10px; }
+  .jour-panneau { padding-left: 14px; padding-right: 14px; }
   .jour-fenetre-pied { padding-left: 16px; padding-right: 16px; }
-  .jour-fenetre-titre { font-size: 23px; }
+  .jour-fenetre-titre { font-size: 20px; }
   .ja { grid-template-columns: 12px minmax(0, 1fr) auto auto; grid-template-areas: "p t go tard" "p d go tard"; row-gap: 0; }
   .ja > .dot-label { grid-area: p; }
   .ja > .ja-texte { grid-area: t; }
@@ -6461,7 +6477,7 @@ details.echanges-autres .ja-titre { font-weight: 500; }
 .ajd-heure { display: flex; flex-direction: column; font-variant-numeric: tabular-nums; line-height: 1.3; }
 .ajd-heure b { font-size: 13.5px; color: var(--ink); }
 .ajd-heure span { font-size: 12px; color: var(--muted); }
-.ajd-barre { border-radius: 3px; background: var(--line); }
+.ajd-barre { border-radius: 3px; background: var(--ag-teinte, var(--line)); }
 .ajd-texte { display: flex; flex-direction: column; min-width: 0; gap: 1px; padding: 1px 0; }
 .ajd-etiquette { font-size: 11px; color: var(--muted); }
 .ajd-titre { font-size: 13.5px; font-weight: 700; color: var(--ink); overflow-wrap: anywhere; }
@@ -6471,12 +6487,6 @@ details.echanges-autres .ja-titre { font-weight: 500; }
 .ajd-titre-lien { font-family: inherit; background: none; border: none; padding: 0; text-align: left; cursor: pointer; }
 .ajd-titre-lien:hover { color: var(--focus); text-decoration: underline; }
 .ajd-maintenant { margin-left: 4px; font-weight: 700; color: var(--focus); }
-.ajd-office .ajd-barre { background: var(--success); }
-.ajd-visio .ajd-barre { background: var(--appelfonds); }
-.ajd-confrere .ajd-barre { background: #E07B20; }
-.ajd-signature .ajd-barre { background: var(--acte); }
-.ajd-absence .ajd-barre { background: var(--muted); }
-.ajd-autre .ajd-barre { background: var(--ink-soft); opacity: 0.35; }
 .ajd-passe { opacity: 0.55; }
 
 /* « Point du matin » sur la carte Aujourd'hui : le soleil et son texte. */
@@ -7142,9 +7152,15 @@ button.scan-nom:focus-visible { outline: 2px solid var(--focus); outline-offset:
 .ag-hors-agenda { border-left-style: dashed; background: var(--paper-card); box-shadow: inset 0 0 0 1px var(--line); }
 .ag-maintenant { position: absolute; left: -1px; right: 0; height: 2px; background: var(--urgent); z-index: 3; pointer-events: none; }
 .ag-maintenant::before { content: ''; position: absolute; left: -4px; top: -3px; width: 8px; height: 8px; border-radius: 999px; background: var(--urgent); }
-.ajd-office { --ag-teinte: var(--success); }
-.ajd-visio { --ag-teinte: var(--appelfonds); }
-.ajd-confrere { --ag-teinte: #E07B20; }
+.ajd-office, .ajd-vert { --ag-teinte: var(--cat-vert); }
+.ajd-visio, .ajd-violet { --ag-teinte: var(--cat-violet); }
+.ajd-confrere, .ajd-orange { --ag-teinte: var(--cat-orange); }
+.ajd-rouge { --ag-teinte: var(--cat-rouge); }
+.ajd-jaune { --ag-teinte: var(--cat-jaune); }
+.ajd-bleu { --ag-teinte: var(--cat-bleu); }
+.ajd-gris { --ag-teinte: var(--cat-gris); }
+.ajd-rose { --ag-teinte: var(--cat-rose); }
+.ajd-marron { --ag-teinte: var(--cat-marron); }
 .ajd-signature { --ag-teinte: var(--acte); }
 .ajd-absence { --ag-teinte: var(--muted); }
 .ajd-autre { --ag-teinte: var(--ventebien); }
@@ -7226,3 +7242,14 @@ button.primary.ag-ouvrir-fiche { align-self: flex-start; display: inline-flex; a
 .ag-facultatif { font-weight: 400; color: var(--muted); }
 .ag-champs-ligne { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
 @media (max-width: 480px) { .ag-champs-ligne { grid-template-columns: minmax(0, 1fr); } .ag-modale { max-height: none; height: 100%; border-radius: 0; } }
+
+/* Résumé des emails rédigé par l'IA locale (renderSyntheseIaEmails). */
+.em-ia { border: 1px solid var(--line); border-radius: 12px; background: var(--paper-sunk); padding: 10px 12px; margin-bottom: 10px; }
+.em-ia-tete { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; color: var(--ink-soft); margin-bottom: 4px; }
+.em-ia-tete svg { width: 14px; height: 14px; color: var(--focus); }
+.em-ia-texte { margin: 0 0 6px; font-size: 13px; line-height: 1.45; color: var(--ink); max-width: 70ch; }
+.em-ia-points { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; color: var(--ink-soft); }
+.em-ia-points li { display: grid; grid-template-columns: 14px minmax(0, 1fr); gap: 4px; align-items: baseline; overflow-wrap: anywhere; }
+.em-ia-points .jour-fil-dossier { font-size: 12.5px; }
+.em-ia-attente { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--muted); background: none; border-style: dashed; }
+.em-ia-attente svg { width: 14px; height: 14px; }

@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-30 22:26';
+  const VERSION_APP = '2026-09-30 22:34';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-30 22:34', resume: "Agenda relu toutes les 2 minutes (au lieu de 15) : la page Agenda et la fenêtre du matin suivent Outlook de près. Emails du matin : l'IA locale (Llama, sur le serveur de l'office, rien ne sort du bureau) lit l'expéditeur, l'objet et le début de chaque email et rédige un résumé avec les points importants rattachés à leurs dossiers ; les chiffres et la liste restent dessous. Fenêtre du matin plus compacte : « À faire » à gauche, et à droite des onglets Agenda du jour · Emails · Nouveautés, chaque colonne défile seule. Couleurs des rendez-vous : celles des catégories Outlook (rouge, orange, jaune, vert, bleu, violet…), dans la page Agenda comme dans la fenêtre du matin." },
     { version: '2026-09-30 22:26', resume: "Nouveau : page Agenda (barre latérale). La semaine du lundi au samedi de 7 h à 20 h avec tous les rendez-vous de l'agenda de l'office, le calendrier du mois à droite pour naviguer. Un clic sur un rendez-vous l'ouvre : fiche du dossier, et suppression après confirmation (il part dans les éléments supprimés d'Outlook). Un clic sur une case vide, ou « Nouveau rendez-vous », en crée un (avec ou sans dossier ; case « rendez-vous de signature » pour le noter sur la fiche). Agenda intelligent : pour chaque signature, la probabilité qu'elle se tienne à sa date et ce qui la fait baisser ; pour chaque dossier prêt à signer sans rendez-vous, trois créneaux libres proposés (jours ouvrés, hors fériés et absences), placés en un clic ; relation client : confirmation et rappel du rendez-vous, questionnaire après la signature, un mot un an après, prêts à envoyer. Barre latérale : le trait du menu Outils est plus visible." },
     { version: '2026-09-30 22:06', resume: "Fenêtre du matin : nouvelle rubrique « Agenda du jour » avec tous les rendez-vous du jour de l'agenda de l'office (heure de début en gras et de fin dessous, liseré de la couleur du rendez-vous, type au-dessus du titre ; un clic sur un rendez-vous relié ouvre le dossier). Les emails depuis hier 18 h sont maintenant résumés : nombre d'emails, sujets qui comptent (urgent, offre de prêt, fonds, rendez-vous…) avec leurs dossiers, une ligne par dossier et les expéditeurs hors dossiers ; la liste complète reste dépliable. Sur la carte « Aujourd'hui », le soleil retrouve son texte « Point du matin »." },
     { version: '2026-09-30 20:19', resume: "Nouveau : rapport technique. Les jours ouvrés à 12 h et 17 h, CLAIRE dépose sur GitHub un résumé de la période (erreurs du serveur et des postes, signalements, champs corrigés à la main après une extraction, agenda, rappels, Claire Scan, sauvegarde), après avoir retiré noms, adresses, montants, chemins et noms de fichiers. Claude le relit ensuite et propose ses corrections, à valider sur GitHub. Réglages › Mise à jour : interrupteur, « Voir ce qui part » (le texte exact envoyé) et « Envoyer maintenant ». Le jeton GitHub doit avoir le droit « Issues : Read and write »." },
@@ -14740,7 +14741,7 @@
     // Date du jour et bornes de période posées au premier affichage seulement (voir initProrata).
     if (nom === 'prorata') initProrata();
     if (nom === 'scans') initScans();
-    // Agenda relu à chaque ouverture (tour de lecture du serveur toutes les 15 min), absences comprises.
+    // Agenda relu à chaque ouverture (tour de lecture du serveur toutes les 2 min), absences comprises.
     if (nom === 'agenda') { if (authToken) chargerAbsencesOffice(); initAgenda(); }
     if (nom !== 'agenda') renderModaleAgenda();
     // Date du jour, tableau vierge et chargement du modèle Word au premier affichage (voir
@@ -16391,7 +16392,7 @@
   }
 
   // Recharge la liste des absences depuis le serveur (mise à jour par le tour de surveillance de
-  // l'agenda, toutes les 15 min). Appelée au démarrage et à chaque ouverture du tableau de bord —
+  // l'agenda, toutes les 2 min). Appelée au démarrage et à chaque ouverture du tableau de bord —
   // les absences changent rarement, pas besoin de la rafraîchir à chaque sondage.
   async function chargerAbsencesOffice() {
     if (!authToken) return;
@@ -17833,6 +17834,7 @@
       resumeEmails = await reponse.json();
     } catch (e) { return; }
     const aujourdhui = isoAujourdhuiLocal();
+    suivreResumeIa();
     if (fenetreAujourdhuiOuverte) renderFenetreAujourdhui();
     // Le résumé du jour vient d'arriver (8 h 50) : la fenêtre du matin s'ouvre une fois pour le
     // montrer, même si elle avait déjà été vue plus tôt dans la matinée.
@@ -17853,11 +17855,37 @@
       const reponse = await fetchAvecAuth('/api/emails-matin/actualiser', { method: 'POST' });
       const corps = await reponse.json().catch(() => ({}));
       if (!reponse.ok) afficherToast(corps.erreur || 'Lecture de la boîte impossible.', 'OK', null);
-      else resumeEmails = corps;
+      else { resumeEmails = corps; suivreResumeIa(); }
     } catch (e) {
       afficherToast('Serveur injoignable.', 'OK', null);
     }
     if (fenetreAujourdhuiOuverte) renderFenetreAujourdhui();
+  }
+
+  // Résumé rédigé par le modèle local d'Ollama sur le serveur (voir emailsMatin.js) : en cours, en
+  // erreur (le résumé sans IA reste dessous), ou le texte et ses points importants.
+  function renderSyntheseIaEmails(ia) {
+    if (!ia) return '';
+    if (ia.enCours) return `<p class="em-ia em-ia-attente">${icone('spinner')} Résumé en cours de rédaction par l’IA locale…</p>`;
+    if (ia.erreur) return `<p class="jour-source">${escapeHtml(ia.erreur)}</p>`;
+    if (!ia.texte) return '';
+    const points = (ia.points || []).map(pt => {
+      const connu = pt.dossierId && dossiers.some(d => d.id === pt.dossierId);
+      return `<li><span class="dot-label ${pt.priorite === 'haute' ? 'dl-urgent' : 'dl-neutre'}"><span class="dot"></span></span>
+        <span>${escapeHtml(pt.texte)}${connu ? ` · <button type="button" class="jour-fil-dossier" onclick="executerFicheDossierJour('${escapeOnclickArg(pt.dossierId)}')">${escapeHtml(libelleDossierParNom(pt.dossierNom, pt.dossierId))}</button>` : ''}</span></li>`;
+    }).join('');
+    return `<div class="em-ia">
+        <div class="em-ia-tete">${icone('sparkle')} Résumé de l’IA ${infoBulle(`Rédigé sur le serveur de l’office par le modèle local${ia.modele ? ' (' + ia.modele + ')' : ''}, à partir de l’expéditeur, de l’objet et du début de chaque email — rien ne sort du bureau. À vérifier : il peut se tromper.`)}</div>
+        <p class="em-ia-texte">${escapeHtml(ia.texte)}</p>
+        ${points ? `<ul class="em-ia-points">${points}</ul>` : ''}
+      </div>`;
+  }
+
+  // Tant que l'IA rédige, le résumé est relu toutes les 20 s (une à deux minutes sur le CPU du serveur).
+  let minuteurResumeIa = null;
+  function suivreResumeIa() {
+    if (minuteurResumeIa || !resumeEmails || !resumeEmails.ia || !resumeEmails.ia.enCours) return;
+    minuteurResumeIa = setTimeout(() => { minuteurResumeIa = null; chargerResumeEmails(); }, 20000);
   }
 
   function renderLigneEmailMatin(e) {
@@ -17880,10 +17908,12 @@
       return `<p class="jour-vide"><span class="dot-label dl-alerte">${escapeHtml(r.erreur)}</span> ${actualiser}</p>`;
     }
     const { groupes, autres, nb } = emailsMatinPourPoste(r, dossiers.map(d => d.id), true);
+    const ia = renderSyntheseIaEmails(r.ia);
     const heure = r.genereLe ? new Date(r.genereLe).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }).replace(':', ' h ') : '';
     const source = `<p class="jour-source">Boîte lue à ${escapeHtml(heure)} · ${r.total || 0} email${(r.total || 0) > 1 ? 's' : ''} reçu${(r.total || 0) > 1 ? 's' : ''}. ${actualiser}</p>`;
     if (!nb) return source + '<p class="jour-vide">Aucun email depuis hier 18 h.</p>';
     return `${source}
+      ${ia}
       ${renderSyntheseEmailsMatin(groupes, autres)}
       <details class="echanges-autres em-detail"><summary>Voir les ${nb} emails</summary>
       <ul class="jour-fil">${groupes.map(g => `
@@ -17959,7 +17989,7 @@
   }
 
   // ---- Agenda du jour (étude, 30/09 : « insérer tous les rendez-vous de l'agenda du jour ») ----
-  // Les rendez-vous du calendrier de l'office lus par le serveur à chaque tour (toutes les 15 min),
+  // Les rendez-vous du calendrier de l'office lus par le serveur à chaque tour (toutes les 2 min),
   // tels qu'ils figurent dans l'agenda : heure de début en gras et de fin dessous, un liseré de
   // couleur, une étiquette au-dessus du titre. Pures : la liste du jour (null si l'agenda lu n'est
   // pas celui d'aujourd'hui), la teinte et l'étiquette d'un événement.
@@ -17968,17 +17998,49 @@
     return agenda.evenements;
   }
 
-  // Couleur du liseré : celle de la catégorie Outlook réglée pour les rendez-vous de signature
-  // (office, visio, confrère), sinon signature (bleu des actes), absence (gris), autre (neutre).
+  // Couleur d'un rendez-vous = celle qu'Outlook lui donne (étude, 30/09 : « reprends le code couleur
+  // des rendez-vous ») : la couleur nommée dans sa catégorie (« Catégorie Verte », « Rouge »…), sinon
+  // celle du type réglé pour les signatures (office vert, visio violet, confrère orange), sinon
+  // absence (gris), signature sans catégorie (bleu des actes), autre (bleu du calendrier).
+  var COULEURS_CATEGORIE_OUTLOOK = [
+    { cle: 'rouge', re: /\b(rouge|red)\b/ },
+    { cle: 'orange', re: /\borange\b/ },
+    { cle: 'jaune', re: /\b(jaune|yellow)\b/ },
+    { cle: 'vert', re: /\b(verte?|green)\b/ },
+    { cle: 'bleu', re: /\b(bleue?|blue)\b/ },
+    { cle: 'violet', re: /\b(violette?|pourpre|mauve|purple)\b/ },
+    { cle: 'gris', re: /\b(grise?|gray|grey|noire?|black)\b/ },
+    { cle: 'rose', re: /\b(rose|pink)\b/ },
+    { cle: 'marron', re: /\b(marron|brune?|brown)\b/ }
+  ];
+  function couleurCategorieOutlook(nom) {
+    const n = normaliserNomCategorie(nom);
+    const c = COULEURS_CATEGORIE_OUTLOOK.find(x => x.re.test(n));
+    return c ? c.cle : '';
+  }
+
+  // Type de signature (office / visio / confrère) d'après la catégorie réglée ; '' sinon.
+  function typeEvenementAgenda(e, categoriesRdv) {
+    const cats = ((e && e.categories) || []).map(normaliserNomCategorie);
+    const noms = categoriesRdv || {};
+    return Object.keys(TYPES_RDV).find(cle => noms[cle] && cats.indexOf(normaliserNomCategorie(noms[cle])) !== -1) || '';
+  }
+
   function teinteEvenementAgenda(e, categoriesRdv) {
     if (!e) return 'autre';
-    if (e.absence) return 'absence';
-    const cats = (e.categories || []).map(normaliserNomCategorie);
-    const noms = categoriesRdv || {};
-    for (const cle of Object.keys(TYPES_RDV)) {
-      if (noms[cle] && cats.indexOf(normaliserNomCategorie(noms[cle])) !== -1) return cle;
+    for (const c of e.categories || []) {
+      const couleur = couleurCategorieOutlook(c);
+      if (couleur) return couleur;
     }
+    const type = typeEvenementAgenda(e, categoriesRdv);
+    if (type) return type;
+    if (e.absence) return 'absence';
     return e.signature ? 'signature' : 'autre';
+  }
+
+  // Ce qui est écrit au-dessus du titre : le type de signature, l'absence, sinon la catégorie.
+  function natureEvenementAgenda(e, categoriesRdv) {
+    return typeEvenementAgenda(e, categoriesRdv) || (e && e.absence ? 'absence' : teinteEvenementAgenda(e, categoriesRdv));
   }
 
   function etiquetteEvenementAgenda(e, teinte) {
@@ -18025,12 +18087,23 @@
           <span class="ajd-heure">${heures}</span>
           <span class="ajd-barre" aria-hidden="true"></span>
           <span class="ajd-texte">
-            <span class="ajd-etiquette">${escapeHtml(etiquetteEvenementAgenda(e, teinte))}${moment === 'en-cours' ? ' <span class="ajd-maintenant">en cours</span>' : ''}</span>
+            <span class="ajd-etiquette">${escapeHtml(etiquetteEvenementAgenda(e, natureEvenementAgenda(e, categories)))}${moment === 'en-cours' ? ' <span class="ajd-maintenant">en cours</span>' : ''}</span>
             ${connu ? `<button type="button" class="ajd-titre ajd-titre-lien" onclick="${ouvrir}" title="Ouvrir la fiche du dossier">${titre}</button>` : `<span class="ajd-titre">${titre}</span>`}
             ${sous ? `<span class="ajd-sous">${sous}</span>` : ''}
           </span>
         </li>`;
     }).join('')}</ol>`;
+  }
+
+  // Colonne de droite de la fenêtre du matin en onglets (étude, 30/09 : « la pop-up prend trop de
+  // place, revoir la disposition ») : Agenda du jour, Emails (Bastien), Nouveautés — un seul visible,
+  // la fenêtre garde une hauteur raisonnable et chaque colonne défile seule.
+  var ONGLETS_FENETRE_JOUR = ['agenda', 'emails', 'nouveautes'];
+  let ongletFenetreJour = 'agenda';
+  function choisirOngletFenetreJour(cle) {
+    if (ONGLETS_FENETRE_JOUR.indexOf(cle) === -1) return;
+    ongletFenetreJour = cle;
+    renderFenetreAujourdhui();
   }
 
   function renderFenetreAujourdhui() {
@@ -18042,8 +18115,22 @@
     const { actions, traites } = etatAujourdhui();
     const groupes = evenementsDepuisVisite(perimetre, derniereVisitePrecedente, utilisateurPoste);
     const nbAgenda = (evenementsAgendaDuJour(agendaDuJourOffice, isoAujourdhuiLocal()) || []).length;
+    const avecEmails = recoitEmailsMatin(utilisateurPoste);
+    const nbEmails = avecEmails && resumeEmails && resumeEmails.date === isoAujourdhuiLocal()
+      ? emailsMatinPourPoste(resumeEmails, dossiers.map(d => d.id), true).nb : 0;
+    const onglets = [
+      { cle: 'agenda', libelle: 'Agenda du jour', nb: nbAgenda },
+      avecEmails ? { cle: 'emails', libelle: 'Emails', nb: nbEmails } : null,
+      { cle: 'nouveautes', libelle: 'Nouveautés', nb: groupes.length }
+    ].filter(Boolean);
+    if (!onglets.some(o => o.cle === ongletFenetreJour)) ongletFenetreJour = 'agenda';
+    const panneau = ongletFenetreJour === 'emails' ? renderEmailsMatin()
+      : ongletFenetreJour === 'nouveautes' ? `<p class="jour-source">${escapeHtml(libelleDepuisVisite())}.</p>${renderNouveautesListe(groupes)}`
+      : renderAgendaDuJour();
     const maintenant = new Date();
     const contenu = document.getElementById('aujourdhui-fenetre-contenu');
+    const defilement = contenu.querySelector('.jour-panneau');
+    const hautPanneau = defilement ? defilement.scrollTop : 0;
     contenu.innerHTML = `
       <header class="jour-fenetre-tete">
         <div>
@@ -18054,18 +18141,16 @@
         <button type="button" class="icon-btn jour-fenetre-x" id="jour-fenetre-fermer" onclick="fermerFenetreAujourdhui()" aria-label="Fermer">${icone('x')}</button>
       </header>
       <div class="jour-fenetre-corps">
-        <div>
+        <div class="jour-col-faire">
           <h3 class="jour-section-titre">À faire <span class="jour-onglet-nb">${actions.length}</span></h3>
           ${renderListeJour(actions, traites, global)}
         </div>
         <div class="jour-fenetre-rail">
-          <h3 class="jour-section-titre">Agenda du jour${nbAgenda ? ` <span class="jour-onglet-nb">${nbAgenda}</span>` : ''}</h3>
-          ${renderAgendaDuJour()}
-          ${recoitEmailsMatin(utilisateurPoste) ? `<h3 class="jour-section-titre jour-section-emails">Emails depuis hier 18 h</h3>
-          ${renderEmailsMatin()}` : ''}
-          <h3 class="jour-section-titre jour-section-suite">Nouveautés <span class="jour-onglet-nb">${groupes.length}</span></h3>
-          <p class="jour-source">${escapeHtml(libelleDepuisVisite())}.</p>
-          ${renderNouveautesListe(groupes)}
+          <div class="jour-onglets" role="tablist" aria-label="Le point du jour">
+            ${onglets.map(o => `<button type="button" role="tab" class="jour-onglet${o.cle === ongletFenetreJour ? ' actif' : ''}" aria-selected="${o.cle === ongletFenetreJour}"
+              onclick="choisirOngletFenetreJour('${o.cle}')">${escapeHtml(o.libelle)}${o.nb ? ` <span class="jour-onglet-nb">${o.nb}</span>` : ''}</button>`).join('')}
+          </div>
+          <div class="jour-panneau" role="tabpanel">${panneau}</div>
         </div>
       </div>
       <footer class="jour-fenetre-pied">
@@ -18073,6 +18158,8 @@
         <span class="jour-espace"></span>
         <button type="button" class="primary" onclick="fermerFenetreAujourdhui()">C’est noté</button>
       </footer>`;
+    const nouveau = contenu.querySelector('.jour-panneau');
+    if (nouveau && hautPanneau) nouveau.scrollTop = hautPanneau;
     overlay.style.display = 'flex';
   }
 
@@ -18081,7 +18168,7 @@
   // 20 h, tous les rendez-vous … ouvrir la fiche des dossiers présents dans CLAIRE … création et
   // suppression de rendez-vous, avec confirmation pour la suppression … un agenda intelligent et
   // proactif ». Les rendez-vous sont ceux du calendrier partagé de l'office, lus par le serveur à
-  // chaque tour EWS (15 min, GET /api/agenda/evenements) ; créer et supprimer passent par Exchange
+  // chaque tour EWS (2 min, GET /api/agenda/evenements) ; créer et supprimer passent par Exchange
   // (un seul essai ; une suppression part dans les éléments supprimés d'Outlook). L'« intelligence »
   // est un calcul transparent sur les dossiers, sans IA, chaque point expliqué : probabilité de tenue
   // d'une signature, créneaux proposés aux dossiers prêts à signer, gestes de relation client dus.
@@ -18631,7 +18718,7 @@
     return `<header class="ag-modale-tete ajd-${teinte}">
         <span class="ajd-barre" aria-hidden="true"></span>
         <div>
-          <div class="ajd-etiquette">${escapeHtml(e.horsAgenda ? 'Signature fixée dans CLAIRE — pas dans l’agenda Outlook' : etiquetteEvenementAgenda(e, teinte))}</div>
+          <div class="ajd-etiquette">${escapeHtml(e.horsAgenda ? 'Signature fixée dans CLAIRE — pas dans l’agenda Outlook' : etiquetteEvenementAgenda(e, natureEvenementAgenda(e, categoriesRdvReglees())))}</div>
           <h2 class="ag-modale-titre" id="agenda-modale-titre">${escapeHtml(e.sujet || '(sans titre)')}</h2>
           <div class="ag-modale-quand">${escapeHtml(quand.charAt(0).toUpperCase() + quand.slice(1))}</div>
           ${e.lieu ? `<div class="ag-modale-lieu">${icone('map-pin')} ${escapeHtml(e.lieu)}</div>` : ''}
@@ -21843,9 +21930,11 @@
     demarrerSurveillanceScans();
     // Absences des collaborateurs lues dans l'agenda (voir chargerAbsencesOffice) : chargées au
     // démarrage pour que l'agenda du tableau de bord les affiche d'emblée, puis rafraîchies au même
-    // rythme que le tour serveur (15 min) et à chaque ouverture du tableau de bord.
+    // rythme que le tour serveur (2 min) et à chaque ouverture du tableau de bord.
     chargerAbsencesOffice();
-    setInterval(chargerAbsencesOffice, 15 * 60 * 1000);
+    setInterval(chargerAbsencesOffice, 2 * 60 * 1000);
+    // Page Agenda ouverte : relue au même rythme que le tour de lecture du serveur (2 min).
+    setInterval(() => { if (ongletActuel === 'agenda' && !agendaModale) chargerAgendaSemaine(); }, 2 * 60 * 1000);
     await chargerEtatNas();
     // Avant toute relecture du NAS : un parcours lancé sans elles reconnaîtrait des fichiers que
     // l'étude a écartés.

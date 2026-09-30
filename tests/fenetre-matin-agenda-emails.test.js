@@ -13,13 +13,31 @@ test('evenementsAgendaDuJour : seulement l’agenda lu aujourd’hui', () => {
   assert.equal(app.evenementsAgendaDuJour(null, '2099-10-14'), null);
 });
 
-test('teinteEvenementAgenda : catégorie réglée, puis signature, absence, autre', () => {
-  const reglees = { office: 'Catégorie Verte', visio: 'Catégorie Violette', confrere: 'Catégorie Orange' };
-  assert.equal(app.teinteEvenementAgenda({ categories: ['catégorie verte'], signature: true }, reglees), 'office');
-  assert.equal(app.teinteEvenementAgenda({ categories: ['Catégorie Violette'] }, reglees), 'visio');
+test('teinteEvenementAgenda : la couleur de la catégorie Outlook d’abord, puis le type réglé, absence, signature, autre', () => {
+  const reglees = { office: 'Signature office', visio: 'Catégorie Violette', confrere: 'Chez confrère' };
+  assert.equal(app.teinteEvenementAgenda({ categories: ['catégorie verte'], signature: true }, reglees), 'vert');
+  assert.equal(app.teinteEvenementAgenda({ categories: ['Catégorie Jaune'] }, reglees), 'jaune');
+  assert.equal(app.teinteEvenementAgenda({ categories: ['Catégorie Rouge'], absence: true }, reglees), 'rouge', 'Outlook montre la couleur de la catégorie');
+  assert.equal(app.teinteEvenementAgenda({ categories: ['Signature office'] }, reglees), 'office', 'catégorie sans couleur dans son nom : le type réglé');
   assert.equal(app.teinteEvenementAgenda({ categories: [], signature: true }, reglees), 'signature');
-  assert.equal(app.teinteEvenementAgenda({ absence: true, categories: ['Catégorie Verte'] }, reglees), 'absence');
+  assert.equal(app.teinteEvenementAgenda({ absence: true, categories: [] }, reglees), 'absence');
   assert.equal(app.teinteEvenementAgenda({ categories: ['Perso'] }, reglees), 'autre');
+});
+
+test('couleurCategorieOutlook : noms français et anglais, accents et casse ignorés', () => {
+  assert.equal(app.couleurCategorieOutlook('Catégorie Bleue'), 'bleu');
+  assert.equal(app.couleurCategorieOutlook('Purple category'), 'violet');
+  assert.equal(app.couleurCategorieOutlook('Catégorie Grise'), 'gris');
+  assert.equal(app.couleurCategorieOutlook('Vertical'), '', 'jamais au milieu d’un mot');
+  assert.equal(app.couleurCategorieOutlook('Rendez-vous client'), '');
+});
+
+test('natureEvenementAgenda : le type réglé pour l’étiquette, même quand la couleur vient du nom', () => {
+  const reglees = { office: 'Catégorie Verte' };
+  const e = { categories: ['Catégorie Verte'], signature: true };
+  assert.equal(app.teinteEvenementAgenda(e, reglees), 'vert');
+  assert.equal(app.etiquetteEvenementAgenda(e, app.natureEvenementAgenda(e, reglees)), 'Signature · Office');
+  assert.equal(app.etiquetteEvenementAgenda({ categories: ['Catégorie Jaune'] }, app.natureEvenementAgenda({ categories: ['Catégorie Jaune'] }, reglees)), 'Catégorie Jaune');
 });
 
 test('etiquetteEvenementAgenda : ce qui s’affiche au-dessus du titre', () => {

@@ -745,7 +745,7 @@
      loyer mensuel). Outil de calcul à la volée, sans dossier associé ni enregistrement — même
      principe que le simulateur de provision. Convention fixée par l'étude : jours réels sur la
      période réelle, jour de l'acte à la charge de l'acquéreur. Voir calculerProrata(). -->
-<!-- Agenda de l'office : les rendez-vous du calendrier partagé (lus par le serveur toutes les 15 min),
+<!-- Agenda de l'office : les rendez-vous du calendrier partagé (lus par le serveur toutes les 2 min),
      la semaine du lundi au samedi de 7 h à 20 h, le calendrier du mois et les anticipations de
      CLAIRE (probabilité de tenue des signatures, créneaux proposés, relation client). Voir
      renderPageAgenda dans script.js. -->
@@ -754,7 +754,7 @@
     <div>
       <div class="dash-eyebrow">Office</div>
       <div class="dash-titre-ligne">
-        <h1 class="dash-titre">Agenda <span class="info-i" tabindex="0" data-info="Le calendrier partagé de l’office, relu toutes les 15 minutes. Un clic sur un rendez-vous l’ouvre (fiche du dossier, suppression) ; un clic sur une case vide en crée un. À droite, le mois et ce que CLAIRE anticipe."></span></h1>
+        <h1 class="dash-titre">Agenda <span class="info-i" tabindex="0" data-info="Le calendrier partagé de l’office, relu toutes les 2 minutes. Un clic sur un rendez-vous l’ouvre (fiche du dossier, suppression) ; un clic sur une case vide en crée un. À droite, le mois et ce que CLAIRE anticipe."></span></h1>
       </div>
     </div>
     <div class="dash-header-actions">
@@ -1654,7 +1654,7 @@
 
   <!-- ===== Agenda : connexion à l'agenda Outlook de l'office par EWS/NTLM (server/src/exchange/ews.js),
        qui sert à la fois à LIRE le calendrier partagé de Sophie (server/src/agendaOffice.js +
-       agendaWatch.js, toutes les 15 minutes) et à y ÉCRIRE (rendez-vous, dates butoir, mention d'envoi). ===== -->
+       agendaWatch.js, toutes les 2 minutes) et à y ÉCRIRE (rendez-vous, dates butoir, mention d'envoi). ===== -->
   <section class="reglages-panneau" id="reglages-panneau-agenda" role="tabpanel" aria-labelledby="reglages-onglet-agenda" hidden>
     <h2 class="reglages-titre">Agenda</h2>
     <div class="reglages-section">
@@ -1703,7 +1703,7 @@
     </div>
 
     <div class="reglages-section">
-      <h3 class="reglages-section-titre">Lecture de l'agenda <span class="info-i" tabindex="0" data-info="Toutes les 15 minutes, CLAIRE lit les six prochains mois du calendrier partagé. Un rendez-vous « VTE - NOM DU DOSSIER » ou « VENTE - NOM DU DOSSIER » (n'importe où dans le titre) remplit le rendez-vous de signature du dossier, sauf s'il porte un « ? ». Si son lieu indique « Appel de fonds envoyé » ou « Appel de fonds et projet envoyé », la date du jour est inscrite sur l'envoi correspondant. Les congés en journée entière nommant un collaborateur sont relevés comme absences. Les dates butoir d'obtention du prêt et de vente préalable qui n'y sont pas encore y sont posées."></span></h3>
+      <h3 class="reglages-section-titre">Lecture de l'agenda <span class="info-i" tabindex="0" data-info="Toutes les 2 minutes, CLAIRE lit la semaine passée et les six prochains mois du calendrier partagé. Un rendez-vous « VTE - NOM DU DOSSIER » ou « VENTE - NOM DU DOSSIER » (n'importe où dans le titre) remplit le rendez-vous de signature du dossier, sauf s'il porte un « ? ». Si son lieu indique « Appel de fonds envoyé » ou « Appel de fonds et projet envoyé », la date du jour est inscrite sur l'envoi correspondant. Les congés en journée entière nommant un collaborateur sont relevés comme absences. Les dates butoir d'obtention du prêt et de vente préalable qui n'y sont pas encore y sont posées."></span></h3>
       <div class="reglages-liste">
         <div class="reglages-champ">
           <div class="reglages-champ-libelle"><span>Calendrier lu</span></div>

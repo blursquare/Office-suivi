@@ -94,3 +94,54 @@ test('génération : un essai, résultat enregistré ; identifiants refusés →
     assert.doesNotMatch(JSON.stringify(repo.lireResumeEmails()), /secret/);
   } finally { db.close(); }
 });
+
+test('IA locale : emails des dossiers d’abord, aperçu lu mais jamais gardé, points rattachés à leur dossier', async () => {
+  const { demarrerFauxOllama } = require('./helpers/faux-ollama');
+  const { creerClientOllama } = require('../src/llm');
+  const { entreesSyntheseEmails, promptSyntheseEmails } = require('../src/emailsMatin');
+  const dossiers = [{ id: 'd2', nom: 'BERNARD / MARTIN', emailAcquereur: 'paul.martin@exemple.fr' }];
+  const entrees = entreesSyntheseEmails(parseFindEmails(REPONSE), dossiers, ['claire.office@gmail.com']);
+  assert.equal(entrees[0].dossierId, 'd2', 'emails des dossiers en tête');
+  assert.equal(entrees.length, 3, 'la copie envoyée par CLAIRE est écartée');
+  assert.match(promptSyntheseEmails(entrees), /\[1\] De : Paul MARTIN \| Objet : Question \| Dossier : VTE - BERNARD \/ MARTIN/);
+  assert.match(promptSyntheseEmails(entrees), /Début : Bonjour, pour la signature/);
+
+  const faux = await demarrerFauxOllama(JSON.stringify({
+    resume: 'Paul MARTIN pose une question sur la signature ; une offre de prêt est arrivée.',
+    points: [{ texte: 'Répondre à Paul MARTIN sur la signature', email: 1, priorite: 'haute' }, { texte: 'Offre reçue', email: 99 }]
+  }));
+  const db = ouvrirDb(':memory:');
+  try {
+    const repo = creerRepoParametres(db);
+    repo.ecrireReglagesExchange({ actif: true, email: 'bastien@office.fr', motDePasse: 'secret' });
+    const depot = { tousActifs: () => dossiers };
+    const ollama = creerClientOllama({ ollama: { url: faux.url } });
+    const r = await genererResumeEmails(depot, repo, new Date('2026-10-06T06:50:00Z'),
+      { poster: (o, cb) => cb(null, { statusCode: 200, body: REPONSE }), ollama, attendreIa: true });
+    assert.equal(faux.appels, 1);
+    assert.match(r.ia.texte, /Paul MARTIN pose une question/);
+    assert.equal(r.ia.points[0].priorite, 'haute');
+    assert.equal(r.ia.points[0].dossierId, 'd2');
+    assert.equal(r.ia.points[1].dossierId, null, 'un numéro inconnu ne rattache à aucun dossier');
+    assert.equal(r.total, 4);
+    const garde = JSON.stringify(repo.lireResumeEmails());
+    assert.ok(!garde.includes('Bonjour, pour la signature'), 'l’aperçu n’est jamais gardé');
+    assert.ok(!garde.includes('Veuillez trouver'));
+  } finally { db.close(); faux.serveur.close(); }
+});
+
+test('IA locale indisponible : le résumé sans IA reste, avec une erreur lisible', async () => {
+  const { creerClientOllama } = require('../src/llm');
+  const db = ouvrirDb(':memory:');
+  try {
+    const repo = creerRepoParametres(db);
+    repo.ecrireReglagesExchange({ actif: true, email: 'bastien@office.fr', motDePasse: 'secret' });
+    const depot = { tousActifs: () => [] };
+    const ollama = creerClientOllama({ ollama: { url: 'http://127.0.0.1:9' } });
+    const r = await genererResumeEmails(depot, repo, new Date('2026-10-06T06:50:00Z'),
+      { poster: (o, cb) => cb(null, { statusCode: 200, body: REPONSE }), ollama, attendreIa: true });
+    assert.equal(r.total, 4);
+    assert.match(r.ia.erreur, /Résumé par l’IA indisponible/);
+    assert.equal(repo.lireResumeEmails().autres.length, 4);
+  } finally { db.close(); }
+});

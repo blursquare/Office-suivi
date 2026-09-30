@@ -13208,3 +13208,25 @@ en premier : probabilité de tenue, créneaux proposés, relation client.
   `exchange-route`). Vérifié dans Chromium (clair, sombre, téléphone) avec un agenda inventé : création,
   suppression confirmée, créneau placé (routes Exchange simulées). **Non vérifié ici** : création et
   suppression réelles dans Exchange, volume réel de l'agenda lu.
+
+### 30/09/2026 soir — Agenda toutes les 2 min, résumé des emails par Llama, fenêtre du matin compacte, couleurs Outlook
+
+Demande de l'étude : « la récupération de l'agenda toutes les 2 minutes ; fais lire les emails à llama
+pour avoir un résumé, pour le rapport du matin ; la pop-up prend trop de place, revoir la disposition ;
+reprends le code couleur des rendez-vous ».
+- Agenda : `INTERVALLE_SURVEILLANCE_AGENDA_MS` = 2 min (15 auparavant) ; les postes relisent absences
+  et agenda du jour toutes les 2 min, la page Agenda aussi quand elle est ouverte. Le disjoncteur sur
+  identifiants refusés reste la garde contre le verrouillage du compte (un tour = 3 FindItem en lecture).
+- Emails du matin : `entreesSyntheseEmails` (emails des dossiers d'abord, 60 au plus, aperçu tronqué à
+  240 car.), `promptSyntheseEmails`, `normaliserSyntheseEmails` (6 points, priorité haute/normale,
+  dossier hérité de l'email cité), `completerSyntheseIa` (après l'écriture du résumé sans IA, même
+  `genereLe`, n'écrase pas un résumé plus récent ; Ollama absent → `ia.erreur`, rien d'autre ne change).
+  Classement factorisé (`contexteClassement`, `dossierDeEmail`). Client : `renderSyntheseIaEmails`
+  (bloc « Résumé de l'IA » en tête de l'onglet Emails), relecture toutes les 20 s tant que `ia.enCours`.
+  Tests avec le faux Ollama : aperçu jamais gardé, point sans email connu non rattaché, IA indisponible.
+- Fenêtre du matin : 900 × 660 px au plus, en-tête resserré ; « À faire » à gauche et onglets Agenda du
+  jour · Emails · Nouveautés à droite, chaque colonne défile seule (une seule colonne sur écran étroit).
+- Couleurs : `couleurCategorieOutlook` (rouge, orange, jaune, vert, bleu, violet, gris, rose, marron —
+  français/anglais, mot entier) prioritaire ; jetons `--cat-*` clair/sombre ; `typeEvenementAgenda` /
+  `natureEvenementAgenda` gardent l'étiquette « Signature · Office » quand la couleur vient du nom.
+- Non vérifié ici : Ollama et Exchange réels (temps de rédaction du résumé sur le CPU du serveur).

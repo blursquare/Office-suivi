@@ -10,7 +10,7 @@
 // LE SIGNALE.
 //
 // Disjoncteur (CLAUDE.md, contrainte 5) : un refus d'identifiants suspend la lecture AUTOMATIQUE
-// tant que les identifiants enregistrés restent les mêmes — sans lui, le tour de 15 minutes
+// tant que les identifiants enregistrés restent les mêmes — sans lui, le tour de 2 minutes
 // représenterait un mauvais mot de passe 96 fois par jour et verrouillerait le compte de messagerie.
 // Elle reprend d'elle-même dès que l'adresse ou le mot de passe change dans les Réglages, ou après
 // un « Tester maintenant » réussi. Seule une EMPREINTE des identifiants refusés est gardée, en
@@ -300,11 +300,12 @@ async function executerEtEnregistrerTourAgenda(depot, parametresRepo, injections
   return { ...compteRendu, calendrier };
 }
 
-// 15 minutes : ni aussi rapproché que le sondage de synchronisation du client (7 s, pensé pour un
-// travail collaboratif en direct), ni aussi espacé que la surveillance du NAS (10 min, un simple
-// nouveau fichier n'étant jamais urgent) — un appel de fonds ou un envoi de projet notés au
-// calendrier n'ont pas besoin d'être répercutés à la minute près sur la fiche du dossier.
-const INTERVALLE_SURVEILLANCE_AGENDA_MS = 15 * 60 * 1000;
+// 2 minutes (étude, 30/09 : « la récupération de l'agenda toutes les 2 minutes », pour que la page
+// Agenda et la fenêtre du matin suivent Outlook de près ; 15 min auparavant). Un tour = trois
+// FindItem en lecture (plus, rarement, la pose d'une date butoir manquante) ; le disjoncteur sur
+// identifiants refusés reste la garde contre le verrouillage du compte : un seul refus suspend la
+// lecture automatique jusqu'à la correction du mot de passe.
+const INTERVALLE_SURVEILLANCE_AGENDA_MS = 2 * 60 * 1000;
 
 function demarrerSurveillanceAgenda(depot, parametresRepo, injections, intervalleMs) {
   // Même garde-fou que la surveillance du NAS : un tour plus lent que l'intervalle (agenda

@@ -100,7 +100,7 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
    flux Power Automate → Teams. La copie gardée par Gmail est effacée **2 h après** (le flux relève
    la boîte Gmail elle-même : l'effacer tout de suite l'empêcherait de passer).
 5. **Agenda de l'office** (Exchange 2019 de Fichorga, `mail.authentic-connect.fr`), tout par EWS en
-   NTLMv2 (`httpntlm`) sur le **calendrier partagé de Sophie** : **lecture** toutes les 15 min
+   NTLMv2 (`httpntlm`) sur le **calendrier partagé de Sophie** : **lecture** toutes les 2 min (étude, 30/09)
    (`lireCalendrierExchange`, FindItem en vue calendrier, 6 mois en 3 tranches ; envois relevés,
    rendez-vous de signature, absences, catégories, et **tous les rendez-vous du jour** pour la fenêtre
    du matin — `agendaDuJourDepuisEvenements`, clé `agenda-du-jour`, rubrique « Agenda du jour » —, le lien
@@ -120,7 +120,11 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
    des emails du matin (`emailsMatin.js`, FindItem seul, sans IA) : seuls expéditeur, objet et
    heure sont gardés, jamais le corps ; affiché **pour Bastien seulement** (`DESTINATAIRES_EMAILS_MATIN`),
    en **résumé** (`syntheseEmailsMatin` : chiffres, sujets repérés avec leurs dossiers, une ligne par
-   dossier, expéditeurs hors dossiers — toujours sans IA), la liste complète dépliable.
+   dossier, expéditeurs hors dossiers), la liste complète dépliable. **Résumé en texte par l'IA locale**
+   (étude, 30/09 : « fais lire les emails à llama ») : Ollama lit expéditeur, objet, dossier reconnu et
+   l'aperçu Exchange (256 car.) de 60 emails au plus, rédige `ia.texte` + `ia.points` (rattachés au
+   dossier de l'email cité, jamais deviné) ; l'aperçu n'est jamais gardé, seul le résumé l'est ; rédigé
+   après l'écriture du résumé sans IA (`ia.enCours`, le poste relit toutes les 20 s).
 6. **Secrets** (mot de passe SMTP, clés API Mistral/Anthropic, mot de passe Exchange, jeton GitHub
    de mise à jour) : stockés en base, **jamais renvoyés par une route** (remplacés par un booléen
    « enregistré »), conservés si le formulaire ne les réémet pas, effacés sur chaîne vide explicite,
@@ -272,7 +276,11 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
   collaborateur absent), `creneauxProposesSignature` (dossiers de `dossiersAPlacer`, un créneau par jour
   ouvré, ≥ 14 jours, hors fériés `joursFeriesFrance`, absences, chevauchements, 3 signatures/jour),
   `gestesRelationClient` (rappel J-3…J-1, confirmation J-45…J-3 une fois par date `confirmationRdvPour`,
-  questionnaire J+1…J+14, un mot un an après — jamais au client d'un confrère). Emails de confirmation,
+  questionnaire J+1…J+14, un mot un an après — jamais au client d'un confrère). **Couleur d'un
+  rendez-vous = celle d'Outlook** (étude, 30/09) : couleur nommée dans la catégorie
+  (`couleurCategorieOutlook`, jetons `--cat-*`), sinon type réglé (office/visio/confrère), sinon
+  absence, signature, autre — page Agenda et fenêtre du matin. Fenêtre du matin : « À faire » à gauche,
+  onglets Agenda du jour · Emails · Nouveautés à droite (`ongletFenetreJour`), 660 px de haut au plus. Emails de confirmation,
   rappel et anniversaire = **premiers jets de CLAIRE**, à remplacer par les textes de l'étude.
 - **Mobilier** : le prix reste le prix total ; `d.prixMobilier` sort seulement de l'assiette des
   droits (frais d'acte, contrôle du barème).
