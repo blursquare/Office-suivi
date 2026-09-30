@@ -899,7 +899,44 @@
     .sidebar.repliee .sidebar-sousmenu-item::before {
       display: none;
     }
+    /* Barre repliée (étude, 30/09, sur un exemple) : le groupe Outils redevient une seule icône
+       (surlignée quand un outil est ouvert) ; ses outils s'ouvrent dans un volet flottant. */
+    .sidebar.repliee .sidebar-groupe-titre { display: flex; margin-top: 0; }
+    .sidebar.repliee .sidebar-groupe-titre .sidebar-link-icone { font-size: 17px; opacity: 1; }
+    .sidebar.repliee .sidebar-groupe-titre:has(+ .sidebar-sousmenu .actif),
+    .sidebar.repliee .sidebar-groupe-titre:hover { background: var(--sidebar-actif-bg); color: var(--ink); }
+    .sidebar.repliee .sidebar-groupe-titre:has(+ .sidebar-sousmenu .actif) { color: var(--ink); box-shadow: inset 3px 0 0 var(--focus); }
+    .sidebar.repliee .sidebar-groupe-chevron, .sidebar.repliee .sidebar-groupe-label { display: none; }
+    .sidebar.repliee .sidebar-sousmenu { display: none; }
+    .sidebar.repliee.volet-ouvert { z-index: 1150; }
+    .sidebar.repliee .sidebar-sousmenu.volet-ouvert {
+      display: flex; position: fixed; z-index: 1150; width: 250px; box-sizing: border-box;
+      margin: 0; padding: 12px 12px 12px 34px; gap: 4px;
+      background: var(--sidebar-bg); border: 1px solid var(--sidebar-border); border-radius: 20px;
+      box-shadow: 0 16px 36px -10px rgba(0, 0, 0, 0.55);
+    }
+    .sidebar.repliee .sidebar-sousmenu.volet-ouvert::before { display: block; left: 22px; top: 12px; bottom: 34px; }
+    .sidebar.repliee .sidebar-sousmenu.volet-ouvert .sidebar-sousmenu-item::before { display: block; }
+    .sidebar.repliee .sidebar-sousmenu.volet-ouvert .sidebar-link {
+      font-size: 14px; justify-content: flex-start; gap: 10px; padding: 11px 12px; border-radius: 12px;
+    }
+    .sidebar.repliee .sidebar-sousmenu.volet-ouvert .sidebar-link .sidebar-link-icone { display: none; }
+    .sidebar.repliee .sidebar-sousmenu.volet-ouvert .sidebar-link.actif { background: var(--sidebar-actif-bg); color: var(--ink); font-weight: 600; box-shadow: none; }
+    .sidebar.repliee .sidebar-sousmenu.volet-ouvert .sidebar-link.actif::after {
+      content: ''; margin-left: auto; width: 7px; height: 7px; flex: none;
+      border-top: 1.8px solid currentColor; border-right: 1.8px solid currentColor; transform: rotate(45deg);
+    }
   }
+  /* Bulle du libellé d'une icône de la barre repliée (et de la bannette Claire Scan). */
+  .sidebar-infobulle {
+    position: fixed; z-index: 1200; pointer-events: none; transform: translateY(-50%);
+    background: #1B1E23; color: #EDEEF0; border: 1px solid #2F343C; border-radius: 10px;
+    padding: 7px 12px; font-size: 13px; font-weight: 600; white-space: nowrap;
+    box-shadow: 0 8px 22px -8px rgba(0, 0, 0, 0.5); opacity: 0; visibility: hidden;
+    transition: opacity 0.12s ease;
+  }
+  .sidebar-infobulle.visible { opacity: 1; visibility: visible; }
+  @media (prefers-reduced-motion: reduce) { .sidebar-infobulle { transition: none; } }
 
   .app-main {
     flex: 1;

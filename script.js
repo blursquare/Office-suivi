@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-30 23:21';
+  const VERSION_APP = '2026-09-30 23:25';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-30 23:25', resume: "Barre latérale repliée : au survol d'une icône, son nom s'affiche dans une bulle sombre à côté ; les outils sont regroupés sous une seule icône « Outils » qui ouvre un volet sombre avec la liste des outils (l'outil ouvert surligné, avec une flèche), comme sur l'exemple fourni." },
     { version: '2026-09-30 23:21', resume: "Notifications : la bulle redevient noire, centrée en bas de l'écran, et passe au premier plan même quand la fiche d'un dossier est ouverte (elle ne se glisse plus sous le voile transparent)." },
     { version: '2026-09-30 23:19', resume: "Agenda : vues Semaine et Jour de 9 h à 19 h ; trait rouge de l'heure qui avance tout seul (appuyé sur la colonne d'aujourd'hui, l'heure dans une pastille) ; plus de légende des couleurs sous le calendrier du mois. Claire Scan devient une bannette à papier en haut de la barre latérale, sous le logo, avec la pastille du nombre de scans à ranger — visible aussi barre repliée et sur téléphone." },
     { version: '2026-09-30 23:12', resume: "Agenda : des notes dans chaque rendez-vous (crayon dans le détail, et à la création) — elles sont écrites dans le rendez-vous Outlook, donc visibles aussi dans Outlook, et une note tapée dans Outlook s'affiche dans CLAIRE. Pour un rendez-vous placé : la probabilité qu'il soit maintenu. Pour un dossier pas encore placé : CLAIRE calcule la semaine où la signature est probable (au plus tôt : offre de prêt attendue + 11 jours de réflexion, vente préalable, deux semaines pour l'appel de fonds et le projet) ; « Rendez-vous à placer » les liste à côté de l'agenda, et en arrivant sur cette semaine une carte en pointillé « Probable » propose un créneau libre — un clic pour le placer, après confirmation." },
@@ -14657,6 +14658,8 @@
     // Jamais fermé quand la sidebar est réduite : sans libellé de groupe visible, il n'y aurait
     // plus aucun moyen de rouvrir ces cinq outils.
     if (sousMenu) sousMenu.classList.toggle('ferme', !ouvert && !reduite);
+    if (!reduite) fermerVoletOutils(0);
+    masquerInfobulleSidebar();
     const chevronGroupe = document.getElementById('icon-groupe-outils-chevron');
     if (chevronGroupe) chevronGroupe.innerHTML = icone(ouvert ? 'chevron-up' : 'chevron-down');
     const btnGroupe = document.getElementById('sidebar-groupe-outils');
@@ -14673,8 +14676,133 @@
   }
   function toggleGroupeSidebar(nom) {
     if (nom !== 'outils') return;
+    // Barre repliée : le groupe s'ouvre en volet flottant à droite de son icône.
+    // Le clic l'ouvre toujours (le survol vient souvent de l'ouvrir) ; il se ferme en sortant du
+    // volet, par un clic ailleurs ou par Échap.
+    if (sidebarReduiteBureau()) { ouvrirVoletOutils(); return; }
     try { localStorage.setItem(CLE_SIDEBAR_GROUPE_OUTILS, groupeOutilsOuvert() ? '0' : '1'); } catch (e) {}
     appliquerEtatSidebar();
+  }
+
+  // ---- Barre repliée (étude, 30/09, sur un exemple) : le nom de chaque icône dans une bulle sombre
+  // au survol, et le groupe Outils en volet flottant (arborescence, outil ouvert surligné). ----
+  function sidebarReduiteBureau() {
+    const s = document.getElementById('sidebar');
+    return !!(s && s.classList.contains('repliee') && window.innerWidth > 900);
+  }
+
+  let voletOutilsMinuteur = null;
+  function ouvrirVoletOutils() {
+    const titre = document.getElementById('sidebar-groupe-outils');
+    const menu = document.getElementById('sidebar-sousmenu-outils');
+    const sidebar = document.getElementById('sidebar');
+    if (!titre || !menu || !sidebarReduiteBureau()) return;
+    clearTimeout(voletOutilsMinuteur);
+    masquerInfobulleSidebar();
+    sidebar.classList.add('volet-ouvert');
+    menu.classList.add('volet-ouvert');
+    const r = titre.getBoundingClientRect();
+    const h = menu.offsetHeight;
+    menu.style.left = `${Math.round(r.right + 14)}px`;
+    menu.style.top = `${Math.round(Math.max(12, Math.min(r.top - 10, window.innerHeight - h - 12)))}px`;
+    titre.setAttribute('aria-expanded', 'true');
+  }
+
+  function fermerVoletOutils(delai) {
+    clearTimeout(voletOutilsMinuteur);
+    const fermer = () => {
+      const menu = document.getElementById('sidebar-sousmenu-outils');
+      const sidebar = document.getElementById('sidebar');
+      if (menu) { menu.classList.remove('volet-ouvert'); menu.style.left = ''; menu.style.top = ''; }
+      if (sidebar) sidebar.classList.remove('volet-ouvert');
+      const titre = document.getElementById('sidebar-groupe-outils');
+      if (titre) titre.setAttribute('aria-expanded', String(groupeOutilsOuvert()));
+    };
+    if (delai) voletOutilsMinuteur = setTimeout(fermer, delai); else fermer();
+  }
+
+  // Le libellé d'un bouton de la barre : son aria-label, sinon son texte propre (sans les pastilles).
+  function libelleBoutonSidebar(el) {
+    const aria = el.getAttribute('aria-label');
+    if (aria) return aria;
+    return Array.from(el.childNodes).filter(n => n.nodeType === 3).map(n => n.textContent).join(' ').replace(/\s+/g, ' ').trim();
+  }
+
+  function infobulleSidebar() {
+    let bulle = document.getElementById('sidebar-infobulle');
+    if (!bulle) {
+      bulle = document.createElement('div');
+      bulle.id = 'sidebar-infobulle';
+      bulle.className = 'sidebar-infobulle';
+      bulle.setAttribute('role', 'tooltip');
+      document.body.appendChild(bulle);
+    }
+    return bulle;
+  }
+
+  function afficherInfobulleSidebar(el) {
+    const texte = libelleBoutonSidebar(el);
+    if (!texte) return;
+    const bulle = infobulleSidebar();
+    bulle.textContent = texte;
+    const r = el.getBoundingClientRect();
+    bulle.style.left = `${Math.round(r.right + 12)}px`;
+    bulle.style.top = `${Math.round(r.top + r.height / 2)}px`;
+    bulle.classList.add('visible');
+  }
+
+  function masquerInfobulleSidebar() {
+    const bulle = document.getElementById('sidebar-infobulle');
+    if (bulle) bulle.classList.remove('visible');
+  }
+
+  // Branché une fois au démarrage (délégation sur la barre).
+  function initSidebarRepliee() {
+    const sidebar = document.getElementById('sidebar');
+    if (!sidebar || sidebar.dataset.repliInit) return;
+    sidebar.dataset.repliInit = '1';
+    const cible = (e) => {
+      const el = e.target.closest && e.target.closest('.sidebar-link, .sidebar-scan-bannette, .sidebar-icon-btn, .sidebar-groupe-titre');
+      if (!el || el.closest('.sidebar-sousmenu.volet-ouvert')) return null;
+      // Barre ouverte : seule la bannette (icône sans texte) a besoin de sa bulle.
+      if (!sidebarReduiteBureau() && !el.classList.contains('sidebar-scan-bannette')) return null;
+      return el;
+    };
+    const survol = (e) => {
+      const el = cible(e);
+      if (!el) return;
+      if (el.id === 'sidebar-groupe-outils') { ouvrirVoletOutils(); return; }
+      afficherInfobulleSidebar(el);
+    };
+    sidebar.addEventListener('mouseover', survol);
+    sidebar.addEventListener('focusin', (e) => { const el = cible(e); if (el && el.id !== 'sidebar-groupe-outils') afficherInfobulleSidebar(el); });
+    sidebar.addEventListener('mouseout', (e) => {
+      const el = e.target.closest && e.target.closest('.sidebar-link, .sidebar-scan-bannette, .sidebar-icon-btn, .sidebar-groupe-titre');
+      if (el && !(e.relatedTarget && el.contains(e.relatedTarget))) masquerInfobulleSidebar();
+      const titre = document.getElementById('sidebar-groupe-outils');
+      const menu = document.getElementById('sidebar-sousmenu-outils');
+      const vers = e.relatedTarget;
+      if (menu && menu.classList.contains('volet-ouvert') && !(vers && (menu.contains(vers) || (titre && titre.contains(vers))))) {
+        if ((titre && titre.contains(e.target)) || menu.contains(e.target)) fermerVoletOutils(250);
+      }
+    });
+    sidebar.addEventListener('focusout', masquerInfobulleSidebar);
+    sidebar.addEventListener('scroll', () => { masquerInfobulleSidebar(); fermerVoletOutils(0); }, { passive: true });
+    const menu = document.getElementById('sidebar-sousmenu-outils');
+    if (menu) {
+      menu.addEventListener('mouseenter', () => clearTimeout(voletOutilsMinuteur));
+      // Un outil choisi : le volet se referme.
+      menu.addEventListener('click', (e) => { if (menu.classList.contains('volet-ouvert') && e.target.closest('.sidebar-link')) fermerVoletOutils(0); });
+    }
+    document.addEventListener('click', (e) => {
+      const m = document.getElementById('sidebar-sousmenu-outils');
+      if (m && m.classList.contains('volet-ouvert') && !e.target.closest('#sidebar-sousmenu-outils, #sidebar-groupe-outils')) fermerVoletOutils(0);
+    });
+    document.addEventListener('keydown', (e) => {
+      const m = document.getElementById('sidebar-sousmenu-outils');
+      if (e.key === 'Escape' && m && m.classList.contains('volet-ouvert')) fermerVoletOutils(0);
+    });
+    window.addEventListener('resize', () => { masquerInfobulleSidebar(); fermerVoletOutils(0); });
   }
 
   // Écran affiché, joint au contexte d'un signalement de problème (voir contexteSignalement).
@@ -34422,6 +34550,7 @@
   // État initial de la sidebar (réduite/épinglée/groupe Outils) — pose aussi l'icône du chevron
   // de repli, qu'initIconesStatiques() ne gère pas puisqu'elle change selon l'état.
   appliquerEtatSidebar();
+  initSidebarRepliee();
   initCalculateurFraisActe();
   initSelectDepartementAppelFonds();
 

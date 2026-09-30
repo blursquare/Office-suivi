@@ -13350,3 +13350,21 @@ rendez-vous à 9 h, entre 12 h et 14 h et après 18 h, sauf exception ; maximum 
   de la fenêtre du matin (950) et des confirmations (1000), sous les bulles d'aide (10000).
 - Vérifié dans Chromium, fiche ouverte : bulle centrée à 0 px près, `elementFromPoint` au centre de la bulle
   = la bulle (clair, sombre, téléphone).
+
+### 30/09/2026, soir — Barre latérale repliée : bulle du libellé et volet Outils
+
+- Demande de l'étude, sur un exemple (icônes seules, bulle « Courses » à côté de l'icône survolée, sous-menu
+  en carte sombre avec arborescence et élément actif surligné avec chevron) : « Pour la sidebar fermée ».
+- Barre repliée (bureau, > 900 px) : `initSidebarRepliee` (délégation sur la barre) affiche au survol ou au
+  focus d'une icône une bulle sombre `#sidebar-infobulle` (ajoutée au `body`, fixe, `z-index` 1200) avec
+  `libelleBoutonSidebar` (aria-label, sinon le texte propre du bouton, sans les pastilles) ; barre ouverte,
+  seule la bannette Claire Scan (icône sans texte) a sa bulle — son `title` natif est retiré.
+- Groupe Outils : en barre repliée, une seule icône (surlignée avec le trait d'accent quand un outil est
+  ouvert, `:has(+ .sidebar-sousmenu .actif)`) ; survol ou clic → `ouvrirVoletOutils` : le sous-menu devient
+  un volet fixe à droite de l'icône (carte sombre 250 px, arborescence, libellés sans icônes, outil actif
+  en aplat avec chevron). Fermeture : sortie du volet (250 ms), clic ailleurs, Échap, choix d'un outil,
+  défilement de la barre, redimensionnement, dépliage de la barre. La barre passe à `z-index` 1150 tant que
+  le volet est ouvert (sinon le contexte d'empilement de la barre collante le laisserait sous la page).
+- Vérifié dans Chromium (clair et sombre) : bulle « Agenda » / « Relecture d'actes », volet ouvert au
+  survol et au clic, maintenu en survolant un outil, refermé au choix d'un outil et à Échap, aucun effet
+  barre dépliée.
