@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-30 18:16';
+  const VERSION_APP = '2026-09-30 18:23';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-30 18:23', resume: "Suivi des dossiers : « Prévu en octobre » est plus compact (environ deux fois moins haut). Une seule ligne d'en-tête : le mois, les compteurs en pastilles (un clic filtre), les retards et les délais moyens. Dessous, « À faire » et « Au calendrier » côte à côte, une ligne par échéance (quand · type · dossier), avec défilement au-delà de six lignes." },
     { version: '2026-09-30 18:16', resume: "Suivi des dossiers : « Prévu en octobre » tient en un seul bloc. À gauche, le mois, quatre compteurs (signatures, envois à faire, rendez-vous à fixer, dates butoir — un clic filtre l'agenda) et les délais moyens ; à droite, l'agenda du mois : d'abord ce qui est à faire (retards, envois, rendez-vous à placer, avec « avant le … »), puis le calendrier jour par jour (signatures et dates butoir), aux couleurs des échéances. Un clic sur un dossier ouvre sa fiche ; replié, le bloc tient sur une ligne." },
     { version: '2026-09-30 18:13', resume: "Suivi des dossiers : les dossiers qui ont du nouveau remontent en tête de liste, dans une section « À voir en premier » (vue Échéances comme vue Tableau) — offre de prêt reçue, nouvelle pièce (avec son nom), tous les fonds reçus sans confirmation au client. Ils reprennent leur place dès que la fiche est ouverte (ou la réception des fonds confirmée). Dans « Prévu en octobre », le type d'une date butoir en retard ne déborde plus de la carte." },
     { version: '2026-09-30 18:09', resume: "Suivi des dossiers : la vue d'ensemble devient « Prévu en octobre » — quatre cartes listant les dossiers du mois : signatures, envois à faire (appel de fonds, projet), rendez-vous à fixer, dates butoir (les retards en premier). Un clic sur un dossier ouvre sa fiche. Les délais moyens restent, en une ligne. Le graphique, la charge par collaborateur et le montant des ventes sont retirés ; le surtitre « Portefeuille de l'office » devient « Dossier »." },
@@ -15250,65 +15251,54 @@
     const auj = isoAujourdhuiLocal();
     const dMois = new Date(p.mois.debut + 'T00:00:00');
     const nomMois = dMois.toLocaleDateString('fr-FR', { month: 'long' });
-    const annee = dMois.getFullYear();
-    if (repliees) {
-      zone.classList.add('repliee');
-      zone.innerHTML = `<div class="pv-replie"><span class="pv-replie-titre">Prévu en ${escapeHtml(nomMois)}</span>
-        <span class="pv-replie-resume">${p.signatures.length} signature${p.signatures.length > 1 ? 's' : ''} · ${p.envois.length + p.rdvAFixer.length} à faire · ${p.butoirs.length} date${p.butoirs.length > 1 ? 's' : ''} butoir</span>
-        <button type="button" class="st-replier" onclick="basculerStatsSuivi()" aria-expanded="false">Afficher${icone('chevron-down')}</button></div>`;
-      return;
-    }
-    zone.classList.remove('repliee');
     const retards = p.butoirs.filter(x => x.retard).length + p.envois.filter(x => x.retard).length;
-    const compteur = (cle, n, libelle, dl, note) => `<button type="button" class="pv-compteur${prevuFiltre === cle ? ' actif' : ''}${n ? '' : ' vide'}" onclick="filtrerPrevu('${cle}')" aria-pressed="${prevuFiltre === cle}">
-        <span class="pv-compteur-n">${n}</span>
-        <span class="pv-compteur-l"><span class="dot-label ${dl}"><span class="dot"></span></span>${escapeHtml(libelle)}${note ? `<span class="pv-compteur-note">${escapeHtml(note)}</span>` : ''}</span>
-      </button>`;
-    const resume = `<div class="pv-resume">
-        <div class="pv-mois"><span class="pv-mois-sur">Prévu en</span><span class="pv-mois-nom">${escapeHtml(nomMois)}</span><span class="pv-mois-annee">${annee}</span></div>
-        <div class="pv-compteurs">
+    // En-tête d'une ligne : le mois, les quatre compteurs (filtres), les délais, Masquer. Replié,
+    // seule cette ligne reste.
+    const compteur = (cle, n, libelle, dl) => `<button type="button" class="pv-compteur${prevuFiltre === cle ? ' actif' : ''}${n ? '' : ' vide'}" onclick="filtrerPrevu('${cle}')" aria-pressed="${prevuFiltre === cle}">
+        <span class="dot-label ${dl}"><span class="dot"></span></span><strong>${n}</strong>${escapeHtml(libelle)}</button>`;
+    const delais = [p.delais.offre === null ? '' : `<strong>${p.delais.offre} j</strong> offre de prêt`,
+      p.delais.signature === null ? '' : `<strong>${p.delais.signature} j</strong> signature`].filter(Boolean);
+    const tete = `<div class="pv-tete">
+        <h2 class="pv-mois">Prévu en ${escapeHtml(nomMois)}</h2>
+        <div class="pv-compteurs" role="group" aria-label="Filtrer l’agenda du mois">
           ${compteur('signatures', p.signatures.length, `signature${p.signatures.length > 1 ? 's' : ''}`, 'dl-rendezVousSignature')}
-          ${compteur('envois', p.envois.length, `envoi${p.envois.length > 1 ? 's' : ''} à faire`, 'dl-appelFonds')}
+          ${compteur('envois', p.envois.length, `envoi${p.envois.length > 1 ? 's' : ''}`, 'dl-appelFonds')}
           ${compteur('rdv', p.rdvAFixer.length, `rendez-vous à fixer`, 'dl-fixerRdv')}
-          ${compteur('butoirs', p.butoirs.length, `date${p.butoirs.length > 1 ? 's' : ''} butoir`, 'dl-pret', retards ? `${retards} en retard` : '')}
+          ${compteur('butoirs', p.butoirs.length, `date${p.butoirs.length > 1 ? 's' : ''} butoir`, 'dl-pret')}
+          ${retards ? `<span class="pv-retards">${retards} en retard</span>` : ''}
         </div>
-        ${p.delais.offre !== null || p.delais.signature !== null ? `<div class="pv-delais">
-          <span class="pv-delais-titre">Délais moyens ${infoBulle(`Depuis l’ouverture du dossier dans CLAIRE (la date du compromis n’est pas enregistrée) : ${p.delais.nOffre} offre${p.delais.nOffre > 1 ? 's' : ''} de prêt reçue${p.delais.nOffre > 1 ? 's' : ''}, ${p.delais.nSignature} signature${p.delais.nSignature > 1 ? 's' : ''} des 12 derniers mois.`)}</span>
-          ${p.delais.offre !== null ? `<span><strong>${p.delais.offre} j</strong> jusqu’à l’offre de prêt</span>` : ''}
-          ${p.delais.signature !== null ? `<span><strong>${p.delais.signature} j</strong> jusqu’à la signature</span>` : ''}
-        </div>` : ''}
+        ${delais.length && !repliees ? `<span class="pv-delais">Délais moyens : ${delais.join(' · ')}${infoBulle(`Depuis l’ouverture du dossier dans CLAIRE (la date du compromis n’est pas enregistrée) : ${p.delais.nOffre} offre${p.delais.nOffre > 1 ? 's' : ''} de prêt reçue${p.delais.nOffre > 1 ? 's' : ''}, ${p.delais.nSignature} signature${p.delais.nSignature > 1 ? 's' : ''} des 12 derniers mois.`)}</span>` : ''}
+        <button type="button" class="st-replier" onclick="basculerStatsSuivi()" aria-expanded="${!repliees}">${repliees ? 'Afficher' : 'Masquer'}${icone(repliees ? 'chevron-down' : 'chevron-up')}</button>
       </div>`;
+    zone.classList.toggle('repliee', repliees);
+    if (repliees) { zone.innerHTML = `<div class="pv-bloc">${tete}</div>`; return; }
 
     const ag = agendaPrevuDuMois(p, prevuFiltre);
     const jourCourt = iso => new Date(iso + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
-    const ligne = (x, avecDate) => `<button type="button" class="pv-ligne" onclick="ouvrirDossierDrawer('${escapeOnclickArg(x.d.id)}')" title="${escapeAttr(libelleDossierAffiche(x.d))}">
+    const ligneTache = x => `<button type="button" class="pv-ligne" onclick="ouvrirDossierDrawer('${escapeOnclickArg(x.d.id)}')" title="${escapeAttr(libelleDossierAffiche(x.d))}">
+        <span class="pv-quand${x.retard ? ' pv-retard' : ''}">${x.retard ? 'retard' : 'avant le'} ${escapeHtml(jourCourt(x.iso))}</span>
         <span class="dot-label ${x.retard ? 'dl-urgent' : 'dl-' + x.type} pv-type"><span class="dot"></span>${escapeHtml(x.libelle)}</span>
         <span class="pv-nom">${escapeHtml(x.d.nom || libelleDossierAffiche(x.d))}</span>
-        ${avecDate ? `<span class="pv-quand${x.retard ? ' pv-retard' : ''}">${x.retard ? 'en retard depuis le' : 'avant le'} ${escapeHtml(jourCourt(x.iso))}</span>` : ''}
       </button>`;
-    const aFaire = ag.aFaire.length ? `<div class="pv-groupe">
-        <div class="pv-groupe-titre">À faire${ag.aFaire.some(x => x.retard) ? '<span class="pv-groupe-alerte">dont des retards</span>' : ''}</div>
-        <div class="pv-taches">${ag.aFaire.map(x => ligne(x, true)).join('')}</div>
-      </div>` : '';
-    const calendrier = ag.jours.length ? `<div class="pv-groupe">
-        <div class="pv-groupe-titre">Au calendrier</div>
-        <ol class="pv-jours">${ag.jours.map(j => {
-          const dt = new Date(j.iso + 'T00:00:00');
-          const passe = j.iso < auj, estAuj = j.iso === auj;
-          return `<li class="pv-jour${passe ? ' passe' : ''}${estAuj ? ' aujourdhui' : ''}">
-            <span class="pv-date"><span class="pv-date-sem">${escapeHtml(dt.toLocaleDateString('fr-FR', { weekday: 'short' }).replace('.', ''))}</span><span class="pv-date-num">${dt.getDate()}</span></span>
-            <span class="pv-jour-items">${j.items.map(x => ligne(x, false)).join('')}</span>
-          </li>`;
-        }).join('')}</ol>
-      </div>` : '';
-    const vide = !aFaire && !calendrier ? `<p class="pv-rien">${prevuFiltre ? 'Rien dans cette catégorie' : 'Rien de prévu'} en ${escapeHtml(nomMois)}.</p>` : '';
-    zone.innerHTML = `<div class="pv-bloc">
-        ${resume}
-        <div class="pv-agenda">
-          <div class="pv-agenda-tete"><h2 class="pv-titre">${escapeHtml(prevuFiltre ? { signatures: 'Signatures', envois: 'Envois à faire', rdv: 'Rendez-vous à fixer', butoirs: 'Dates butoir' }[prevuFiltre] : 'Agenda du mois')}</h2>
-            ${prevuFiltre ? `<button type="button" class="pv-tout" onclick="filtrerPrevu('${prevuFiltre}')">Tout afficher</button>` : ''}
-            <button type="button" class="st-replier" onclick="basculerStatsSuivi()" aria-expanded="true">Masquer${icone('chevron-up')}</button></div>
-          <div class="pv-defile">${aFaire}${calendrier}${vide}</div>
+    const ligneJour = (x, iso, premier) => {
+      const dt = new Date(iso + 'T00:00:00');
+      const date = premier ? `${dt.toLocaleDateString('fr-FR', { weekday: 'short' }).replace('.', '')} ${dt.getDate()}` : '';
+      return `<button type="button" class="pv-ligne${iso < auj ? ' passe' : ''}${iso === auj ? ' aujourdhui' : ''}" onclick="ouvrirDossierDrawer('${escapeOnclickArg(x.d.id)}')" title="${escapeAttr(libelleDossierAffiche(x.d))}">
+        <span class="pv-quand pv-jour">${escapeHtml(date)}</span>
+        <span class="dot-label dl-${x.type} pv-type"><span class="dot"></span>${escapeHtml(x.libelle)}</span>
+        <span class="pv-nom">${escapeHtml(x.d.nom || libelleDossierAffiche(x.d))}</span>
+      </button>`;
+    };
+    const colonne = (titre, contenu, vide) => `<div class="pv-colonne">
+        <div class="pv-groupe-titre">${titre}</div>
+        <div class="pv-defile">${contenu || `<p class="pv-rien">${escapeHtml(vide)}</p>`}</div>
+      </div>`;
+    const aFaire = ag.aFaire.map(ligneTache).join('');
+    const calendrier = ag.jours.map(j => `<div class="pv-jour-groupe${j.iso === auj ? ' aujourdhui' : ''}">${j.items.map((x, i) => ligneJour(x, j.iso, i === 0)).join('')}</div>`).join('');
+    zone.innerHTML = `<div class="pv-bloc">${tete}
+        <div class="pv-corps">
+          ${colonne('À faire', aFaire, 'Rien à faire.')}
+          ${colonne('Au calendrier', calendrier, `Rien au calendrier en ${nomMois}.`)}
         </div>
       </div>`;
   }

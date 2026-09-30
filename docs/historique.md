@@ -12979,3 +12979,15 @@ harmonieuse d'un seul bloc et plus attractive ». Les quatre cartes deviennent u
   Couleurs = celles des échéances de la liste (`dl-<type>`), retard en rouge. Défilement interne au-delà
   de 360 px ; replié, le bloc tient sur une ligne avec son résumé. Une colonne sous 900 px.
 - Tests `tests/stats-suivi.test.js` ; vérifié dans Chromium (clair, sombre, 390 px, filtres, repli).
+
+### 30/09/2026 18 h 23 — « Prévu en … » plus compact
+
+Demande de l'étude : « Pour le suivi des dossier c'est bien mais fait plus compact pour que ça soit
+moins haut ». `renderStatsSuivi` réécrit : en-tête sur une seule ligne (`.pv-tete` : mois, compteurs
+`.pv-compteur` en pastilles qui appellent `filtrerPrevu`, « N en retard », délais moyens + pastille
+« i », Masquer), puis `.pv-corps` en deux colonnes « À faire » / « Au calendrier » ; chaque échéance
+tient sur une ligne `.pv-ligne` (quand · type · dossier, grille 78/150/1fr), le jour n'est écrit
+qu'en tête de son groupe (`.pv-jour-groupe`), défilement interne au-delà de 172 px. Replié : la seule
+ligne d'en-tête (50 px). Mesuré dans Chromium avec 11 dossiers inventés : 261 px déplié à 1 400 px
+(environ la moitié de la version précédente) ; une colonne sous 760 px, lignes toujours sur une
+ligne à 390 px (colonnes 76/118/1fr), sans défilement horizontal, clair et sombre.

@@ -148,9 +148,10 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
   (jamais l'accent, qui peut être orange ou vert), vert. **Suivi** (30/09, choix de l'étude) : statuts en pastilles
   de filtre dans la barre d'outils (`syntheseEtatsSuivi`, `renderEtatsSuivi`) ; au-dessus, « Prévu en
   {mois} » (`prevuDuMois`, `agendaPrevuDuMois`, `renderStatsSuivi`, repliable) — angle voulu par
-  l'étude : ce qui est prévu ce mois-ci, **en un seul bloc** : à gauche le mois, 4 compteurs-filtres et
-  les délais moyens (depuis l'ouverture du dossier dans CLAIRE) ; à droite « À faire » (retards,
-  envois, rendez-vous à placer) puis le calendrier jour par jour (signatures, dates butoir). Mois suivant dans les 5 derniers jours (`moisPrevuSuivi`). Refusés par l'étude : graphique
+  l'étude : ce qui est prévu ce mois-ci, **en un seul bloc compact** : une ligne d'en-tête (mois,
+  4 compteurs-filtres en pastilles, retards, délais moyens depuis l'ouverture du dossier dans CLAIRE),
+  puis « À faire » (retards, envois, rendez-vous à placer) et « Au calendrier » (signatures, dates
+  butoir, jour par jour) côte à côte, une ligne par échéance, défilement au-delà de 172 px. Mois suivant dans les 5 derniers jours (`moisPrevuSuivi`). Refusés par l'étude : graphique
   par semaine, charge par collaborateur, montant des ventes, le mot « portefeuille ». **Liste « intelligente »**
   (30/09) : section « À voir en premier » en tête (`signauxDossierSuivi`, `partagerAVoirSuivi`) —
   notifications (`piecesNotifications` : offre, pièces nommées) puis fonds tous reçus non confirmés ;
