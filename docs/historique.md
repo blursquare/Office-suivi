@@ -13337,3 +13337,16 @@ rendez-vous à 9 h, entre 12 h et 14 h et après 18 h, sauf exception ; maximum 
   menu suit aussi la bannette (`majPastilleMenuMobile`). L'ancien bouton du pied de barre est retiré.
 - Vérifié dans Chromium (horloge fixée à 14 h 20 : trait à 14:20 puis 14:30 après 10 min simulées ;
   clair, sombre, téléphone, barre repliée).
+
+### 30/09/2026, soir — Bulle de notification noire, centrée, au premier plan
+
+- Demande de l'étude (sur un exemple de carte sombre) : « Pour la bulle de notification, bien la centrer et
+  la remettre en noir, et quand la fiche dossier est ouverte mettre la notification au premier plan car elle
+  passe sous le film transparent. » Revient sur deux choix antérieurs (carte claire au pied de la barre
+  latérale ; toast volontairement sous le tiroir, z-index 890) : la demande du jour l'emporte.
+- `.toast` : centrée (`left/right: 0`, `margin: auto`, `width: fit-content`, 280–460 px), fond et palette de
+  la barre latérale (`.toast` ajouté au sélecteur des jetons sombres `.sidebar, .sidebar-burger`), texte
+  et « OK » blancs centrés, coins 14 px, filet de durée blanc ; `z-index: 1100`, au-dessus du tiroir (900),
+  de la fenêtre du matin (950) et des confirmations (1000), sous les bulles d'aide (10000).
+- Vérifié dans Chromium, fiche ouverte : bulle centrée à 0 px près, `elementFromPoint` au centre de la bulle
+  = la bulle (clair, sombre, téléphone).

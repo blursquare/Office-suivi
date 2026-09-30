@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-30 23:19';
+  const VERSION_APP = '2026-09-30 23:21';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-30 23:21', resume: "Notifications : la bulle redevient noire, centrée en bas de l'écran, et passe au premier plan même quand la fiche d'un dossier est ouverte (elle ne se glisse plus sous le voile transparent)." },
     { version: '2026-09-30 23:19', resume: "Agenda : vues Semaine et Jour de 9 h à 19 h ; trait rouge de l'heure qui avance tout seul (appuyé sur la colonne d'aujourd'hui, l'heure dans une pastille) ; plus de légende des couleurs sous le calendrier du mois. Claire Scan devient une bannette à papier en haut de la barre latérale, sous le logo, avec la pastille du nombre de scans à ranger — visible aussi barre repliée et sur téléphone." },
     { version: '2026-09-30 23:12', resume: "Agenda : des notes dans chaque rendez-vous (crayon dans le détail, et à la création) — elles sont écrites dans le rendez-vous Outlook, donc visibles aussi dans Outlook, et une note tapée dans Outlook s'affiche dans CLAIRE. Pour un rendez-vous placé : la probabilité qu'il soit maintenu. Pour un dossier pas encore placé : CLAIRE calcule la semaine où la signature est probable (au plus tôt : offre de prêt attendue + 11 jours de réflexion, vente préalable, deux semaines pour l'appel de fonds et le projet) ; « Rendez-vous à placer » les liste à côté de l'agenda, et en arrivant sur cette semaine une carte en pointillé « Probable » propose un créneau libre — un clic pour le placer, après confirmation." },
     { version: '2026-09-30 23:00', resume: "Page Agenda redessinée à la manière d'Outlook : une seule carte sobre, la date du jour en pastille, ‹ Aujourd'hui ›, la vue (mois, semaine, jour) et « Nouveau rendez-vous » en tête ; les jours en colonnes « Lundi / 28 sept. 2026 », le jour en cours teinté et le trait de l'heure ; chaque rendez-vous avec un liseré à la couleur de sa catégorie Outlook. Sur un rendez-vous de signature : le responsable du dossier, le notaire confrère, et si l'appel de fonds et le décompte acquéreur sont faits (coche verte ou croix rouge). Un clic ouvre le détail dans la colonne de gauche, sous le calendrier du mois." },
@@ -11158,7 +11159,7 @@
   let toastRestantMs = DUREE_TOAST_MS;
   let toastDemarreA = 0;
 
-  // Petite carte en bas de la sidebar (voir .toast dans style.css). Elle reste 6 s, se met en
+  // Bulle noire centrée en bas de l'écran, au-dessus des voiles (voir .toast dans style.css). Elle reste 6 s, se met en
   // pause tant que la souris est dessus (le temps de lire un nom de fichier long ou de viser
   // « Annuler »), puis s'efface en fondu avant d'être retirée du flux.
   function masquerToast() {

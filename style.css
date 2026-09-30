@@ -531,7 +531,7 @@
      ce sous-arbre sans dupliquer une seule règle de rendu. Partagés avec le bouton burger (mobile),
      qui ouvre ce panneau et doit donc lui ressembler. Panneau plat bordé, sans flou ni dégradé :
      l'effet « verre » a été retiré avec le passage au mode sombre de l'artefact de présentation. */
-  .sidebar, .sidebar-burger {
+  .sidebar, .sidebar-burger, .toast {
     --paper: #14161A; --paper-card: #1B1E23; --paper-sunk: #20232A;
     --ink: #EDEEF0; --ink-soft: #C3C7CD; --line: #2F343C; --line-soft: #24272D; --muted: #9AA0A8;
     --pret: #E0A93E; --pret-bg: #332B18; --acte: #8A9FD4; --acte-bg: #232736; --ventebien: #6FAEDB;
@@ -3143,70 +3143,70 @@
   .toolbar-btn:hover { border-color: var(--ink-soft); color: var(--ink); }
   .toolbar-btn-label { display: inline-flex; align-items: center; }
 
-  /* ---- toast : petite carte en bas de la sidebar ----
-     Demandé par l'étude : plutôt qu'une bulle sombre centrée en bas de l'écran (qui passait
-     par-dessus le contenu qu'on était en train de lire), une petite carte posée dans le pied de
-     la sidebar, vide depuis que le thème et « À propos » sont passés dans les Réglages. Même
-     largeur que les liens de navigation (252 - 2 x 16), fond de carte du thème, et un filet qui se
-     vide pendant l'affichage : il dit combien de temps la carte reste, sans chiffre à lire.
-     Sous 900px la sidebar est repliée : la carte passe alors en bas de l'écran, pleine largeur
-     moins les gouttières. */
+  /* ---- toast : bulle noire centrée en bas de l'écran ----
+     Étude, 30/09 au soir (sur un exemple de carte sombre) : « bien la centrer et la remettre en
+     noir », et « quand la fiche dossier est ouverte, mettre la notification au premier plan, elle
+     passe sous le film transparent » — elle se place donc AU-DESSUS des voiles (tiroir de fiche
+     900, fenêtre du matin 950, confirmation 1000), sous les seules bulles d'aide (10000). Noire
+     dans les deux thèmes (même fond que la barre latérale), texte blanc ; un filet qui se vide dit
+     combien de temps elle reste, sans chiffre à lire. */
   .toast {
     position: fixed;
-    left: 16px;
-    bottom: 16px;
-    width: 220px;
+    left: 0;
+    right: 0;
+    bottom: 24px;
+    margin: 0 auto;
+    width: fit-content;
+    min-width: min(280px, calc(100vw - 32px));
+    max-width: min(460px, calc(100vw - 32px));
     box-sizing: border-box;
-    background: var(--paper-card);
-    color: var(--ink);
-    border: 1px solid var(--line);
-    border-radius: 10px;
-    box-shadow: var(--shadow-float);
-    padding: 11px 12px 13px;
+    background: var(--sidebar-bg);
+    color: #fff;
+    border: 1px solid var(--sidebar-border);
+    border-radius: 14px;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.32);
+    padding: 13px 16px 15px;
     display: none;
     flex-direction: column;
     align-items: stretch;
     gap: 8px;
-    font-size: 12.5px;
-    line-height: 1.4;
+    font-size: 13px;
+    line-height: 1.45;
+    text-align: center;
     overflow: hidden;
     opacity: 0;
     transform: translateY(8px);
     transition: opacity 0.18s ease, transform 0.18s ease;
-    /* En retrait explicite du tiroir de fiche dossier (.drawer-overlay, z-index 900) : signalé
-       par l'étude, ce toast (ex. "Offre de prêt trouvée...", déclenché par "Revérifier" DEPUIS le
-       tiroir) ne doit jamais se superposer à son contenu — la checklist déjà visible dans le
-       tiroir montre le même résultat, ce toast n'est qu'un rappel ponctuel. */
-    z-index: 890;
+    z-index: 1100;
   }
   .toast.visible { opacity: 1; transform: none; }
   #toast-message { overflow-wrap: anywhere; }
   .toast-undo {
-    align-self: flex-end;
+    align-self: center;
     font-family: inherit;
     font-size: 12px;
-    font-weight: 600;
+    font-weight: 700;
     background: none;
     border: none;
-    color: var(--focus);
+    color: #fff;
     cursor: pointer;
     padding: 0;
   }
   .toast-undo:hover { text-decoration: underline; }
-  .toast-undo:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 3px; }
+  .toast-undo:focus-visible { outline: 2px solid #fff; outline-offset: 2px; border-radius: 3px; }
   .toast-duree {
     position: absolute;
     left: 0; right: 0; bottom: 0;
-    height: 2px;
-    background: var(--focus);
-    opacity: 0.55;
+    height: 3px;
+    background: #fff;
+    opacity: 0.45;
     transform-origin: left center;
   }
   .toast.visible .toast-duree { animation: toast-duree var(--toast-duree, 6s) linear forwards; }
   .toast.en-pause .toast-duree { animation-play-state: paused; }
   @keyframes toast-duree { from { transform: scaleX(1); } to { transform: scaleX(0); } }
   @media (max-width: 900px) {
-    .toast { left: 16px; right: 16px; width: auto; }
+    .toast { bottom: 16px; }
   }
   @media (prefers-reduced-motion: reduce) {
     .toast { transition: none; transform: none; }
