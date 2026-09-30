@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-30 18:23';
+  const VERSION_APP = '2026-09-30 18:26';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-30 18:26', resume: "Le classeur des scans du copieur s'appelle désormais « Claire Scan » (menu et titre de l'écran). Tableau de bord : la carte « Activité de l'étude » sur une rangée et deux colonnes montre tout le fil, qui défile dans la carte au lieu d'être coupé. Suivi des dossiers : la section « À voir en premier » devient « Nouveau », et le bouton « Échéances » passe avant « Tableau »." },
     { version: '2026-09-30 18:23', resume: "Suivi des dossiers : « Prévu en octobre » est plus compact (environ deux fois moins haut). Une seule ligne d'en-tête : le mois, les compteurs en pastilles (un clic filtre), les retards et les délais moyens. Dessous, « À faire » et « Au calendrier » côte à côte, une ligne par échéance (quand · type · dossier), avec défilement au-delà de six lignes." },
     { version: '2026-09-30 18:16', resume: "Suivi des dossiers : « Prévu en octobre » tient en un seul bloc. À gauche, le mois, quatre compteurs (signatures, envois à faire, rendez-vous à fixer, dates butoir — un clic filtre l'agenda) et les délais moyens ; à droite, l'agenda du mois : d'abord ce qui est à faire (retards, envois, rendez-vous à placer, avec « avant le … »), puis le calendrier jour par jour (signatures et dates butoir), aux couleurs des échéances. Un clic sur un dossier ouvre sa fiche ; replié, le bloc tient sur une ligne." },
     { version: '2026-09-30 18:13', resume: "Suivi des dossiers : les dossiers qui ont du nouveau remontent en tête de liste, dans une section « À voir en premier » (vue Échéances comme vue Tableau) — offre de prêt reçue, nouvelle pièce (avec son nom), tous les fonds reçus sans confirmation au client. Ils reprennent leur place dès que la fiche est ouverte (ou la réception des fonds confirmée). Dans « Prévu en octobre », le type d'une date butoir en retard ne déborde plus de la carte." },
@@ -14117,7 +14118,7 @@
         ${presentation === 'petit' ? '' : `<ul class="act-equipe" aria-label="Qui a agi aujourd’hui">${equipe}</ul>`}
       </div>`;
     const fil = lignes
-      ? `<ul class="activite-liste" ${presentation === 'grand' ? '' : 'data-ajuster="1"'}>${lignes}</ul>`
+      ? `<ul class="activite-liste">${lignes}</ul>`
       : '<p class="activite-vide">Rien pour l’instant : les actions des collaborateurs et les changements de l’agenda s’afficheront ici.</p>';
     // En petit, la dernière action de l'étude occupe le bas de la tuile.
     const derniere = entrees[0];
@@ -18242,7 +18243,7 @@
     return `
       <section class="semaine-groupe a-voir">
         <div class="semaine-entete">
-          <span class="section-eyebrow">À voir en premier ${infoBulle('Dossiers avec du nouveau : offre de prêt ou pièce trouvée depuis la dernière ouverture de la fiche, ou fonds tous reçus sans confirmation au client. Ils reprennent leur place dès que la fiche est ouverte (ou la réception confirmée).')}</span>
+          <span class="section-eyebrow">Nouveau ${infoBulle('Dossiers avec du nouveau : offre de prêt ou pièce trouvée depuis la dernière ouverture de la fiche, ou fonds tous reçus sans confirmation au client. Ils reprennent leur place dès que la fiche est ouverte (ou la réception confirmée).')}</span>
           <span class="semaine-compteur">${aVoir.length} dossier${aVoir.length > 1 ? 's' : ''}</span>
         </div>
         <div class="table-scroll">
@@ -32654,7 +32655,7 @@
           <span class="switch reglages-switch"><input type="checkbox" id="reglages-scans-actif"${r.actif ? ' checked' : ''}${inconnu ? ' disabled' : ''} onchange="enregistrerReglagesScans({ actif: this.checked })"><span class="slider"></span></span>
         </label>
         <label class="reglages-option" for="reglages-scans-auto">
-          <span class="reglages-option-texte"><span class="reglages-option-titre">Ranger automatiquement les scans reconnus ${infoBulle(`Sans validation, dès que la pièce est identifiée et que le dossier atteint le score de ${noteScoreScan(BAREME_SCORE_SCAN.seuil)} avec une marge sur le suivant : partie nommée ${BAREME_SCORE_SCAN.partie} points (deux au plus), adresse du bien ${BAREME_SCORE_SCAN.adresse}, parcelle ${BAREME_SCORE_SCAN.parcelle}. Il suffit qu’une fenêtre CLAIRE soit ouverte au bureau (celle du poste serveur en priorité). Les autres scans attendent dans « Scans à ranger ».`)}</span></span>
+          <span class="reglages-option-texte"><span class="reglages-option-titre">Ranger automatiquement les scans reconnus ${infoBulle(`Sans validation, dès que la pièce est identifiée et que le dossier atteint le score de ${noteScoreScan(BAREME_SCORE_SCAN.seuil)} avec une marge sur le suivant : partie nommée ${BAREME_SCORE_SCAN.partie} points (deux au plus), adresse du bien ${BAREME_SCORE_SCAN.adresse}, parcelle ${BAREME_SCORE_SCAN.parcelle}. Il suffit qu’une fenêtre CLAIRE soit ouverte au bureau (celle du poste serveur en priorité). Les autres scans attendent dans Claire Scan.`)}</span></span>
           <span class="switch reglages-switch"><input type="checkbox" id="reglages-scans-auto"${r.auto ? ' checked' : ''}${r.actif && !inconnu ? '' : ' disabled'} onchange="enregistrerReglagesScans({ auto: this.checked })"><span class="slider"></span></span>
         </label>
         <label class="reglages-option" for="reglages-scans-depuis">

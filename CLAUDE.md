@@ -153,7 +153,7 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
   puis « À faire » (retards, envois, rendez-vous à placer) et « Au calendrier » (signatures, dates
   butoir, jour par jour) côte à côte, une ligne par échéance, défilement au-delà de 172 px. Mois suivant dans les 5 derniers jours (`moisPrevuSuivi`). Refusés par l'étude : graphique
   par semaine, charge par collaborateur, montant des ventes, le mot « portefeuille ». **Liste « intelligente »**
-  (30/09) : section « À voir en premier » en tête (`signauxDossierSuivi`, `partagerAVoirSuivi`) —
+  (30/09) : section « Nouveau » (ex-« À voir en premier ») en tête (`signauxDossierSuivi`, `partagerAVoirSuivi`) —
   notifications (`piecesNotifications` : offre, pièces nommées) puis fonds tous reçus non confirmés ;
   le dossier en sort à l'ouverture de sa fiche, sans doublon dans la suite de la liste. L'échéance a sa propre colonne (« Prochaine
   échéance ») ; `statutDossier` (pièces trouvées) ne sert plus qu'aux points « À traiter ».
@@ -217,7 +217,7 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
   jamais les dates d'un acte de vente). Pièces reconnues par nom de document → reçues « à la main »
   (`piecesValideesManuellement`, case décochable). Succession reconnue (`typeAffaireAuthentic`) mais
   refusée tant que CLAIRE ne suit que des ventes.
-- **Classeur des scans du copieur** (30/09, `TYPES_SCAN`, `propositionScan`, `server/src/scans.js`) :
+- **Classeur des scans du copieur** — nom affiché **« Claire Scan »** (30/09, `TYPES_SCAN`, `propositionScan`, `server/src/scans.js`) :
   dossier du copieur = **`\\192.168.60.5\Scan`, partage à part** du NAS (étude, 30/09) — trouvé
   comme `\\serveur\Scan` du serveur de `nasRacine` (`partagesScansCandidats`), sinon un dossier
   « Scan » dans `nasRacine` ou ses parents, ou `nasScans` dans config.json. **Surveillance de fond dès le démarrage**

@@ -79,7 +79,7 @@
       </button>
       <!-- Scans du copieur à ranger (voir server/src/scans.js) : compteur des scans en attente. -->
       <button type="button" id="tab-scans" class="sidebar-link" role="tab" aria-selected="false" onclick="definirOnglet('scans')">
-        <span class="sidebar-link-icone" id="icon-nav-scans" aria-hidden="true"></span>Scans à ranger
+        <span class="sidebar-link-icone" id="icon-nav-scans" aria-hidden="true"></span>Claire Scan
         <span class="sidebar-badge-notif" id="badge-scans" style="display:none;"></span>
       </button>
       <!-- Outil 2, relecture d'un acte (règles déterministes, sans IA depuis le 23/09/2026) :
@@ -641,8 +641,8 @@
     <!-- Bascule d'affichage de la MÊME liste (mêmes filtres, même recherche) : le tableau habituel,
          ou les mêmes dossiers regroupés par semaine d'échéance. Voir definirVueSuivi(). -->
     <div class="vue-bascule" role="group" aria-label="Mode d'affichage de la liste">
-      <button type="button" class="vue-bascule-btn" id="vue-btn-tableau" onclick="definirVueSuivi('tableau')">Tableau</button>
       <button type="button" class="vue-bascule-btn actif" id="vue-btn-semaines" onclick="definirVueSuivi('semaines')">Échéances</button>
+      <button type="button" class="vue-bascule-btn" id="vue-btn-tableau" onclick="definirVueSuivi('tableau')">Tableau</button>
     </div>
   </div>
 
@@ -761,7 +761,7 @@
     <div>
       <div class="dash-eyebrow">Copieur</div>
       <div class="dash-titre-ligne">
-        <h1 class="dash-titre">Scans à ranger <span class="info-i" tabindex="0" data-info="Chaque scan du dossier « Scan » est lu, rattaché à un dossier client et à une pièce. « Ranger » en copie le PDF dans la rubrique du dossier sous un nom que la checklist reconnaît ; l’original est conservé dans « CLAIRE - scans rangés »."></span></h1>
+        <h1 class="dash-titre">Claire Scan <span class="info-i" tabindex="0" data-info="Chaque scan du dossier « Scan » est lu, rattaché à un dossier client et à une pièce. « Ranger » en copie le PDF dans la rubrique du dossier sous un nom que la checklist reconnaît ; l’original est conservé dans « CLAIRE - scans rangés »."></span></h1>
       </div>
     </div>
     <div class="dash-header-actions">

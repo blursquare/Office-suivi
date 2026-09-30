@@ -12991,3 +12991,20 @@ qu'en tête de son groupe (`.pv-jour-groupe`), défilement interne au-delà de 1
 ligne d'en-tête (50 px). Mesuré dans Chromium avec 11 dossiers inventés : 261 px déplié à 1 400 px
 (environ la moitié de la version précédente) ; une colonne sous 760 px, lignes toujours sur une
 ligne à 390 px (colonnes 76/118/1fr), sans défilement horizontal, clair et sombre.
+
+### 30/09/2026 18 h 26 — Claire Scan, fil d'activité qui défile, « Nouveau », Échéances en premier
+
+Quatre demandes de l'étude :
+- « Pour le scan trouve un nom un peu commercial » : l'écran « Scans à ranger » s'appelle
+  **« Claire Scan »** (menu, titre de l'écran, infobulle du réglage de rangement automatique) — même
+  nom que le suffixe déjà donné aux copies rangées (« État daté - Claire Scan »). Le sous-titre
+  « Scans à ranger · N » de la carte « Dernières pièces » reste : il décrit un état, pas l'outil.
+- « Pour le widget en direct sur une ligne et deux colonnes permet de pouvoir scroller dans la
+  liste » : carte « Activité de l'étude » (pastille « En direct ») en présentation `moyen` — le fil
+  n'est plus `data-ajuster` (coupé avec « Voir N de plus ») ; `.act-duo` prend la hauteur du corps
+  (`grid-template-rows: minmax(0, 1fr)`) et `.activite-liste` défile dedans. Sur téléphone (conteneur
+  ≤ 420 px, résumé au-dessus du fil) : l'équipe est masquée et le résumé réduit pour laisser ~2 lignes
+  au fil. Mesuré dans Chromium : 25 lignes, 161 px visibles à 1 400 px, 69 px à 390 px, défilement
+  effectif, rien ne dépasse de la carte, clair et sombre.
+- « Au lieu de à voir en premier met NOUVEAU » : libellé de la section (`renderAVoirSuivi`).
+- « Échange les deux boutons tableau et échéances » : « Échéances » (vue par défaut) en premier.

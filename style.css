@@ -6791,7 +6791,10 @@ button.w-plus { align-self: flex-start; margin-top: 2px; font-size: 12.5px; list
 .w-carte.activite-etude .act-filtres { margin: 0; }
 .w-carte.activite-etude .activite-liste { margin: 0; }
 .w-grand.activite-etude .activite-liste { flex: 1 1 0; min-height: 0; contain: none; overflow-y: auto; }
-.w-moyen.activite-etude .activite-liste { flex: none; min-height: 0; contain: none; overflow: visible; }
+/* Une rangée : la liste défile dans la hauteur de la carte (étude, 30/09) au lieu d'être coupée. */
+.w-moyen.activite-etude .act-duo { flex: 1 1 0; min-height: 0; grid-template-rows: minmax(0, 1fr); }
+.w-moyen.activite-etude .act-duo .act-resume { align-self: start; }
+.w-moyen.activite-etude .activite-liste { height: 100%; min-height: 0; contain: none; overflow-y: auto; overscroll-behavior: contain; }
 .w-carte.activite-etude .act-duo { display: grid; grid-template-columns: minmax(0, 190px) minmax(0, 1fr); gap: 14px; align-items: start; }
 .w-carte.activite-etude .act-duo .act-resume { grid-template-columns: auto minmax(0, 1fr); align-items: end; }
 .w-carte.activite-etude .act-duo .act-equipe { grid-column: 1 / -1; }
@@ -6818,6 +6821,12 @@ button.w-plus { align-self: flex-start; margin-top: 2px; font-size: 12.5px; list
 @container dashbloc (max-width: 420px) {
   .w-carte.portefeuille .pf-duo { grid-template-columns: minmax(0, 1fr); gap: 12px; }
   .w-carte.activite-etude .act-duo { grid-template-columns: minmax(0, 1fr); }
+  .w-moyen.activite-etude .act-duo { grid-template-rows: auto minmax(0, 1fr); gap: 8px; }
+  /* Une rangée sur téléphone : résumé réduit au compteur et à la semaine, la place va au fil. */
+  .w-moyen.activite-etude .act-equipe { display: none; }
+  .w-moyen.activite-etude .act-resume { padding: 6px 10px; gap: 10px; }
+  .w-moyen.activite-etude .act-semaine { height: 30px; }
+  .w-moyen.activite-etude .act-compteur-num { font-size: 22px; }
 }
 
 /* Personnalisation : la carte garde sa taille et frémit (repère « mode rangement » d'iOS) ; les
