@@ -13251,3 +13251,18 @@ bas de la sidebar sous forme de bouton ».
   même compteur `badge-scans`).
 - Tests : `tests/agenda-page.test.js` (durée, jour suivant). Vérifié dans Chromium : vues Semaine, Mois,
   Jour, navigation d'un jour, clair / sombre / téléphone.
+
+### 30/09/2026 soir — Agenda sous le tableau de bord, règles des créneaux de signature
+
+Demande de l'étude : « mettre agenda sous tableau de bord ; pour les propositions de rendez-vous, pas de
+rendez-vous à 9 h, entre 12 h et 14 h et après 18 h, sauf exception ; maximum de 6 rendez-vous par jour ;
+ça doit être exceptionnel ».
+- Barre latérale : Agenda juste sous « Tableau de bord », avant la rubrique Dossier.
+- Créneaux proposés : heures essayées 9 h 30 → 11 h et 14 h → 17 h (rendez-vous d'une heure, fin à
+  18 h au plus) ; un jour qui compte déjà 6 rendez-vous horaires est écarté (`MAX_RDV_JOUR`, la règle des
+  3 signatures par jour est remplacée). `motifCreneauExceptionnel` dit ce qu'un créneau enfreint (à 9 h,
+  entre 12 h et 14 h, après 18 h, déjà 6 rendez-vous). Second passage seulement s'il manque des
+  propositions : créneaux hors règles, marqués (triangle, bordure ambre, motif dans la bulle et dans la
+  confirmation). Création manuelle depuis la page Agenda hors règles : « Créer ce rendez-vous malgré
+  tout ? Il est exceptionnel : … ».
+- Tests : `motifCreneauExceptionnel`, créneaux normaux prioritaires, exception seulement à défaut.

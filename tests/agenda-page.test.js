@@ -87,24 +87,48 @@ test('dossiersAPlacer : financement, vente préalable et préemption levés, san
   assert.equal(app.dossiersAPlacer(liste).map(d => d.id).join(','), 'a');
 });
 
-test('creneauxProposesSignature : jours ouvrés, pas de férié, pas de chevauchement, un par jour', () => {
+test('motifCreneauExceptionnel : 9 h, 12 h – 14 h, après 18 h, 6 rendez-vous', () => {
+  assert.equal(app.motifCreneauExceptionnel('09:30', 60, 2), '');
+  assert.equal(app.motifCreneauExceptionnel('11:00', 60, 0), '', '11 h – 12 h ne touche pas la pause');
+  assert.equal(app.motifCreneauExceptionnel('17:00', 60, 0), '', 'fin à 18 h pile');
+  assert.equal(app.motifCreneauExceptionnel('09:00', 60, 0), 'à 9 h');
+  assert.equal(app.motifCreneauExceptionnel('11:30', 60, 0), 'entre 12 h et 14 h');
+  assert.equal(app.motifCreneauExceptionnel('13:30', 30, 0), 'entre 12 h et 14 h');
+  assert.equal(app.motifCreneauExceptionnel('17:30', 60, 0), 'après 18 h');
+  assert.equal(app.motifCreneauExceptionnel('10:00', 60, 6), 'déjà 6 rendez-vous ce jour-là');
+});
+
+test('creneauxProposesSignature : règles de l’étude, jours ouvrés, pas de férié, un créneau par jour', () => {
   const d = { id: 'a', responsable: 'Julie VASSELIN', acte: '2026-12-31' };
+  const six = ['09:30', '10:30', '11:30', '14:30', '15:30', '16:30'].map(h => ({ date: '2026-11-10', heure: h, heureFin: h.slice(0, 3) + '59' }));
   const evenements = [
-    { date: '2026-11-09', heure: '09:00', heureFin: '12:00' }, // lundi : 9 h et 10 h 30 pris → 14 h
-    { date: '2026-11-10', heure: '09:00', heureFin: '10:00', signature: true },
-    { date: '2026-11-10', heure: '10:30', heureFin: '11:30', signature: true },
-    { date: '2026-11-10', heure: '14:00', heureFin: '15:00', signature: true } // mardi : 3 signatures, complet
+    { date: '2026-11-09', heure: '09:30', heureFin: '12:00' }, // lundi matin pris → 14 h, jamais 12 h
+    ...six // mardi : 6 rendez-vous, complet
   ];
   const absences = [{ collaborateur: 'Julie VASSELIN', debut: '2026-11-12', fin: '2026-11-12' }];
-  // Aujourd'hui 26/10 → au plus tôt le 09/11 (lundi) ; 11/11 férié ; 12/11 Julie absente.
+  // Aujourd'hui 26/10 → au plus tôt le 09/11 (lundi) ; 10/11 six rendez-vous ; 11/11 férié ; 12/11 Julie absente.
   const c = app.creneauxProposesSignature(d, evenements, absences, '2026-10-26', 3);
-  assert.equal(c.map(x => `${x.date} ${x.heure}`).join(' | '), '2026-11-09 14:00 | 2026-11-13 09:00 | 2026-11-16 09:00');
-  assert.ok(c.every(x => !x.apresButoir));
+  assert.equal(c.map(x => `${x.date} ${x.heure}`).join(' | '), '2026-11-09 14:00 | 2026-11-13 09:30 | 2026-11-16 09:30');
+  assert.ok(c.every(x => !x.apresButoir && !x.exceptionnel), 'jamais 9 h, jamais exceptionnel quand un créneau normal existe');
+});
+
+test('creneauxProposesSignature : exceptionnel seulement à défaut de créneau normal, et marqué', () => {
+  // Butoir proche (lundi 26/10 + 3 → jeudi 29/10), journée pleine (6 rendez-vous).
+  const plein = ['09:30', '10:30', '14:00', '15:00', '16:00', '17:00'].map(h => ({ date: '2026-10-29', heure: h, heureFin: String(Number(h.slice(0, 2)) + 1).padStart(2, '0') + h.slice(2) }));
+  // Le collaborateur est absent tous les autres jours : le 29/10 est le seul jour possible.
+  const d = { acte: '2026-10-29', responsable: 'Julie VASSELIN' };
+  const absences = [{ collaborateur: 'Julie VASSELIN', debut: '2026-10-30', fin: '2027-01-31' }];
+  const c = app.creneauxProposesSignature(d, plein, absences, '2026-10-26', 1);
+  assert.equal(c.length, 1);
+  assert.equal(c[0].date, '2026-10-29');
+  assert.ok(c[0].exceptionnel, 'le seul créneau restant est hors règles');
+  assert.match(c[0].exceptionnel, /6 rendez-vous|9 h|12 h|18 h/);
 });
 
 test('creneauxProposesSignature : date butoir proche → au plus tôt dans 3 jours, signalé après butoir', () => {
   const c = app.creneauxProposesSignature({ acte: '2026-10-29' }, [], [], '2026-10-26', 3);
   assert.equal(c[0].date, '2026-10-29');
+  assert.equal(c[0].heure, '09:30');
   assert.equal(c[1].apresButoir, true);
 });
 

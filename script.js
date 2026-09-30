@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-30 22:46';
+  const VERSION_APP = '2026-09-30 22:45';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-30 22:45', resume: "Agenda placé juste sous le tableau de bord dans la barre latérale. Créneaux proposés pour les signatures : jamais à 9 h, ni entre 12 h et 14 h, ni après 18 h, et 6 rendez-vous par jour au plus (premier créneau essayé : 9 h 30). Une exception n'est proposée qu'à défaut de tout autre créneau, marquée d'un triangle, et la confirmation dit laquelle. Créer à la main un rendez-vous hors de ces règles reste possible, après confirmation." },
     { version: '2026-09-30 22:46', resume: "Page Agenda redessinée d'après l'exemple fourni : le mois en titre, les vues Mois · Semaine · Jour, les flèches et « Aujourd'hui » ; les jours de la semaine en cartes (foncée = aujourd'hui, ou le jour affiché ; un clic ouvre la vue Jour) ; chaque rendez-vous est une carte de la couleur de sa catégorie Outlook avec son titre, son heure de début et de fin et sa durée (« 10:00 – 11:00 · 1 h »). Vue Mois : trois rendez-vous par jour, « + N » ensuite. Légende des couleurs sous le calendrier du mois. La durée s'affiche aussi dans la fenêtre du matin et dans le détail d'un rendez-vous. Barre latérale : l'Agenda prend la place de Claire Scan, qui devient un bouton au pied de la barre, avec son compteur." },
     { version: '2026-09-30 22:34', resume: "Agenda relu toutes les 2 minutes (au lieu de 15) : la page Agenda et la fenêtre du matin suivent Outlook de près. Emails du matin : l'IA locale (Llama, sur le serveur de l'office, rien ne sort du bureau) lit l'expéditeur, l'objet et le début de chaque email et rédige un résumé avec les points importants rattachés à leurs dossiers ; les chiffres et la liste restent dessous. Fenêtre du matin plus compacte : « À faire » à gauche, et à droite des onglets Agenda du jour · Emails · Nouveautés, chaque colonne défile seule. Couleurs des rendez-vous : celles des catégories Outlook (rouge, orange, jaune, vert, bleu, violet…), dans la page Agenda comme dans la fenêtre du matin." },
     { version: '2026-09-30 22:26', resume: "Nouveau : page Agenda (barre latérale). La semaine du lundi au samedi de 7 h à 20 h avec tous les rendez-vous de l'agenda de l'office, le calendrier du mois à droite pour naviguer. Un clic sur un rendez-vous l'ouvre : fiche du dossier, et suppression après confirmation (il part dans les éléments supprimés d'Outlook). Un clic sur une case vide, ou « Nouveau rendez-vous », en crée un (avec ou sans dossier ; case « rendez-vous de signature » pour le noter sur la fiche). Agenda intelligent : pour chaque signature, la probabilité qu'elle se tienne à sa date et ce qui la fait baisser ; pour chaque dossier prêt à signer sans rendez-vous, trois créneaux libres proposés (jours ouvrés, hors fériés et absences), placés en un clic ; relation client : confirmation et rappel du rendez-vous, questionnaire après la signature, un mot un an après, prêts à envoyer. Barre latérale : le trait du menu Outils est plus visible." },
@@ -18315,11 +18316,38 @@
   }
 
   // ---- Créneaux proposés aux dossiers prêts à signer ----
-  var CRENEAUX_SIGNATURE = ['09:00', '10:30', '14:00', '15:30', '17:00'];
+  // Règles de l'étude (30/09) : pas de rendez-vous à 9 h, ni entre 12 h et 14 h, ni après 18 h, et
+  // 6 rendez-vous par jour au plus — « sauf exception, ça doit être exceptionnel ». Les créneaux
+  // normaux sont donc cherchés d'abord ; un créneau hors règles n'est proposé qu'à défaut de tout
+  // créneau normal, et marqué exceptionnel (avec la règle qu'il enfreint).
   var DUREE_CRENEAU_SIGNATURE = 60;
-  var MAX_SIGNATURES_JOUR = 3;
+  var MAX_RDV_JOUR = 6;
+  var DEBUT_JOURNEE_AGENDA = '09:00';
+  var FIN_JOURNEE_AGENDA = '18:00';
+  var PAUSE_MIDI_AGENDA = ['12:00', '14:00'];
+  // Heures de début essayées, dans l'ordre : les créneaux normaux d'abord.
+  var CRENEAUX_SIGNATURE = ['09:30', '10:00', '10:30', '11:00', '14:00', '14:30', '15:00', '15:30', '16:00', '16:30', '17:00'];
+  var CRENEAUX_EXCEPTIONNELS = ['09:00', '12:00', '12:30', '13:00', '13:30', '17:30', '18:00'];
   // Le temps d'envoyer l'appel de fonds (rappels J-15/J-10) et le projet avant la signature.
   var DELAI_MIN_SIGNATURE_JOURS = 14;
+
+  // Pure : les rendez-vous horaires d'un jour (hors journées entières), comme le compte la règle des 6.
+  function rendezVousHorairesJour(evenements, iso) {
+    return evenementsJourAgenda(evenements, iso).filter(e => !e.journeeEntiere && e.heure && e.date === iso);
+  }
+
+  // Pure : ce qui rend un créneau exceptionnel ('' s'il respecte les règles de l'étude).
+  function motifCreneauExceptionnel(heure, dureeMinutes, nbRdvJour) {
+    const a = minutesHeure(heure);
+    if (a === null) return '';
+    const b = a + (Number(dureeMinutes) || DUREE_CRENEAU_SIGNATURE);
+    const motifs = [];
+    if (a === minutesHeure(DEBUT_JOURNEE_AGENDA)) motifs.push('à 9 h');
+    if (a < minutesHeure(PAUSE_MIDI_AGENDA[1]) && b > minutesHeure(PAUSE_MIDI_AGENDA[0])) motifs.push('entre 12 h et 14 h');
+    if (b > minutesHeure(FIN_JOURNEE_AGENDA)) motifs.push('après 18 h');
+    if ((nbRdvJour || 0) >= MAX_RDV_JOUR) motifs.push(`déjà ${nbRdvJour} rendez-vous ce jour-là`);
+    return motifs.join(', ');
+  }
 
   // Pure : les dossiers prêts à signer sans rendez-vous — financement levé, vente préalable réalisée,
   // préemption purgée — ceux à qui CLAIRE propose des créneaux (étape « Fixer le rendez-vous »).
@@ -18329,36 +18357,55 @@
   }
 
   // Pure : jusqu'à `nombre` créneaux libres (un par jour), du lundi au vendredi hors jours fériés,
-  // dans l'agenda de l'office : ni chevauchement avec un rendez-vous horaire, ni responsable absent,
-  // ni plus de MAX_SIGNATURES_JOUR signatures le même jour. Au plus tôt dans DELAI_MIN_SIGNATURE_JOURS
-  // (3 jours si la date butoir est plus proche) ; `apresButoir` signale un créneau au-delà.
+  // dans l'agenda de l'office, sans chevauchement ni responsable absent. Au plus tôt dans
+  // DELAI_MIN_SIGNATURE_JOURS (3 jours si la date butoir est plus proche). Premier passage : les seuls
+  // créneaux normaux ; s'il en manque, second passage sur les créneaux hors règles, marqués
+  // `exceptionnel` (le motif). `apresButoir` signale un créneau au-delà de la date butoir.
   function creneauxProposesSignature(d, evenements, absences, aujourdhuiIso, nombre) {
     const auj = aujourdhuiIso || isoAujourdhuiLocal();
     const n = nombre || 3;
     let depuis = addDays(auj, DELAI_MIN_SIGNATURE_JOURS);
     if (d.acte && d.acte < depuis) depuis = addDays(auj, 3);
     const limite = addDays(depuis, 60);
-    const creneaux = [];
-    for (let iso = depuis; iso <= limite && creneaux.length < n; iso = addDays(iso, 1)) {
+    const joursPossibles = [];
+    for (let iso = depuis; iso <= limite; iso = addDays(iso, 1)) {
       const jourSemaine = new Date(iso + 'T00:00:00').getDay();
       if (jourSemaine === 0 || jourSemaine === 6 || estJourFerie(iso)) continue;
       if (d.responsable && responsableAbsentLeJour(absences, d.responsable, iso)) continue;
-      const duJour = evenementsJourAgenda(evenements, iso);
-      if (duJour.filter(e => e.signature).length >= MAX_SIGNATURES_JOUR) continue;
-      const pris = duJour.filter(e => !e.journeeEntiere && e.heure && e.date === iso).map(e => {
+      joursPossibles.push(iso);
+    }
+    const libreLe = (iso, heures, exceptionnel) => {
+      const horaires = rendezVousHorairesJour(evenements, iso);
+      if (!exceptionnel && horaires.length >= MAX_RDV_JOUR) return null;
+      const pris = horaires.map(e => {
         const a = minutesHeure(e.heure);
         let b = minutesHeure(e.heureFin);
         if (b === null || b <= a) b = a + 30;
         return [a, b];
       });
-      const libre = CRENEAUX_SIGNATURE.find(h => {
+      const heure = heures.find(h => {
         const a = minutesHeure(h);
         const b = a + DUREE_CRENEAU_SIGNATURE;
         return !pris.some(([x, y]) => x < b && a < y);
       });
-      if (libre) creneaux.push({ date: iso, heure: libre, apresButoir: !!(d.acte && iso > d.acte) });
+      if (!heure) return null;
+      const motif = motifCreneauExceptionnel(heure, DUREE_CRENEAU_SIGNATURE, horaires.length);
+      return { date: iso, heure, apresButoir: !!(d.acte && iso > d.acte), exceptionnel: motif };
+    };
+    const creneaux = [];
+    for (const iso of joursPossibles) {
+      if (creneaux.length >= n) break;
+      const c = libreLe(iso, CRENEAUX_SIGNATURE, false);
+      if (c) creneaux.push(c);
     }
-    return creneaux;
+    // Exceptionnel, seulement à défaut : les jours encore sans proposition, toutes heures confondues.
+    for (const iso of joursPossibles) {
+      if (creneaux.length >= n) break;
+      if (creneaux.some(c => c.date === iso)) continue;
+      const c = libreLe(iso, CRENEAUX_SIGNATURE.concat(CRENEAUX_EXCEPTIONNELS), true);
+      if (c) creneaux.push(c);
+    }
+    return creneaux.sort((x, y) => (x.exceptionnel ? 1 : 0) - (y.exceptionnel ? 1 : 0) || x.date.localeCompare(y.date));
   }
 
   // ---- Relation client ----
@@ -18563,14 +18610,16 @@
     const heures = `${e.heure}${e.heureFin ? ' – ' + e.heureFin : ''}`;
     const duree = dureeRendezVous(e.heure, e.heureFin);
     // Moins de 45 min à l'écran : une seule ligne (titre, heure de début) ; en colonne partagée, le titre seul.
-    const court = place.hauteur * (AGENDA_HEURE_FIN - AGENDA_HEURE_DEBUT) * 60 / 100 < 45;
+    const minutesAffichees = place.hauteur * (AGENDA_HEURE_FIN - AGENDA_HEURE_DEBUT) * 60 / 100;
+    const court = minutesAffichees < 45;
     const etroit = court && place.colonnes > 1;
+    const lieu = e.lieu && minutesAffichees >= 80 ? e.lieu : '';
     return `<button type="button" class="ag-evt ajd-${teinte}${e.horsAgenda ? ' ag-hors-agenda' : ''}${court ? ' ag-evt-court' : ''}${etroit ? ' ag-evt-etroit' : ''}${proba ? ' ag-evt-avec-proba' : ''}" style="${style}"
         onclick="ouvrirDetailAgenda('${escapeOnclickArg(cleEvenementAgenda(e))}')" title="${escapeAttr(`${heures}${duree ? ' (' + duree + ')' : ''} · ${e.sujet}${e.lieu ? ' · ' + e.lieu : ''}${proba ? ` · ${proba.pourcent} % de chances que la signature se tienne` : ''}`)}">
         ${proba ? renderPastilleProbabilite(proba) : ''}
         <span class="ag-evt-titre">${escapeHtml(e.sujet || '(sans titre)')}</span>
         <span class="ag-evt-heure"><span>${escapeHtml(e.heure)}</span>${e.heureFin ? `<span class="ag-evt-fin">– ${escapeHtml(e.heureFin)}</span>` : ''}${duree ? `<span class="ag-evt-duree">${escapeHtml(duree)}</span>` : ''}</span>
-        ${e.lieu ? `<span class="ag-evt-lieu">${escapeHtml(e.lieu)}</span>` : ''}
+        ${lieu ? `<span class="ag-evt-lieu">${escapeHtml(lieu)}</span>` : ''}
       </button>`;
   }
 
@@ -18717,15 +18766,15 @@
     const aPlacer = dossiersAPlacer(perimetre).sort((a, b) => (a.acte || '9999').localeCompare(b.acte || '9999')).slice(0, 6);
     const ecrire = exchangeAgendaPret();
     const blocPlacer = `<section class="ag-anticipe">
-        <h3 class="jour-section-titre">Rendez-vous à placer${aPlacer.length ? ` <span class="jour-onglet-nb">${aPlacer.length}</span>` : ''} ${infoBulle('Dossiers dont le financement, la vente préalable et la préemption sont levés, sans rendez-vous de signature. CLAIRE propose le premier créneau libre de trois jours ouvrés, au moins deux semaines après aujourd’hui (le temps de l’appel de fonds et du projet), hors jours fériés, absences du collaborateur et jours à trois signatures.')}</h3>
+        <h3 class="jour-section-titre">Rendez-vous à placer${aPlacer.length ? ` <span class="jour-onglet-nb">${aPlacer.length}</span>` : ''} ${infoBulle('Dossiers dont le financement, la vente préalable et la préemption sont levés, sans rendez-vous de signature. CLAIRE propose le premier créneau libre de trois jours ouvrés, au moins deux semaines après aujourd’hui (le temps de l’appel de fonds et du projet), hors jours fériés et absences du collaborateur. Jamais à 9 h, entre 12 h et 14 h ni après 18 h, et 6 rendez-vous par jour au plus : un créneau hors de ces règles n’est proposé qu’à défaut d’autre, marqué d’un triangle.')}</h3>
         ${aPlacer.length ? `<ul class="ag-liste">${aPlacer.map(d => {
           const creneaux = creneauxProposesSignature(d, agendaEvenements, absencesOffice, auj, 3);
           return `<li class="ag-placer">
               <button type="button" class="jour-fil-dossier" onclick="ouvrirDossierDepuisDashboard('${d.id}')">${escapeHtml(libelleDossierAffiche(d))}</button>
               <span class="ag-ligne-meta">${d.acte ? `Date butoir ${escapeHtml(formatDateFr(d.acte))}` : 'Pas de date butoir'}${d.responsable ? ' · ' + escapeHtml(prenomCollaborateur(d.responsable)) : ''}</span>
-              <span class="ag-creneaux">${creneaux.length ? creneaux.map(c => `<button type="button" class="action-rapide ag-creneau${c.apresButoir ? ' apres-butoir' : ''}"
+              <span class="ag-creneaux">${creneaux.length ? creneaux.map(c => `<button type="button" class="action-rapide ag-creneau${c.apresButoir ? ' apres-butoir' : ''}${c.exceptionnel ? ' exceptionnel' : ''}"
                   onclick="placerCreneauSignature('${d.id}', '${c.date}', '${c.heure}')" ${ecrire ? '' : 'disabled'}
-                  title="${escapeAttr(c.apresButoir ? 'Après la date butoir' : 'Placer le rendez-vous de signature à ce créneau')}">${escapeHtml(new Date(c.date + 'T00:00:00').toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' }).replace('.', ''))} ${escapeHtml(c.heure.replace(':', ' h '))}</button>`).join('') : '<span class="jour-vide">Aucun créneau libre dans les deux mois lus.</span>'}</span>
+                  title="${escapeAttr([c.exceptionnel ? 'Créneau exceptionnel : ' + c.exceptionnel : '', c.apresButoir ? 'Après la date butoir' : ''].filter(Boolean).join(' · ') || 'Placer le rendez-vous de signature à ce créneau')}">${c.exceptionnel ? icone('alert-triangle') : ''}${escapeHtml(new Date(c.date + 'T00:00:00').toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' }).replace('.', ''))} ${escapeHtml(c.heure.replace(':', ' h '))}</button>`).join('') : '<span class="jour-vide">Aucun créneau libre dans les deux mois lus.</span>'}</span>
             </li>`;
         }).join('')}</ul>` : '<p class="jour-vide">Aucun dossier prêt à signer sans rendez-vous.</p>'}
       </section>`;
@@ -18939,11 +18988,18 @@
     const d = dossiers.find(x => x.id === val('agenda-creation-dossier')) || null;
     const signature = !!(d && document.getElementById('agenda-creation-signature') && document.getElementById('agenda-creation-signature').checked);
     if (!sujet || !/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^\d{2}:\d{2}$/.test(heure)) { afficherToast('Titre, date et heure sont nécessaires.', 'OK', null); return; }
-    const bouton = document.getElementById('agenda-creation-ok');
-    if (bouton) { bouton.disabled = true; bouton.textContent = 'Création…'; }
-    const ok = await posterEvenementAgenda({ sujet, date, heure, dureeMinutes, lieu, typeRdv, dossier: d, signature });
-    if (bouton) { bouton.disabled = false; }
-    if (ok) { agendaModale = null; renderPageAgenda(); chargerAgendaSemaine(); }
+    const creer = async () => {
+      const bouton = document.getElementById('agenda-creation-ok');
+      if (bouton) { bouton.disabled = true; bouton.textContent = 'Création…'; }
+      const ok = await posterEvenementAgenda({ sujet, date, heure, dureeMinutes, lieu, typeRdv, dossier: d, signature });
+      if (bouton) { bouton.disabled = false; }
+      if (ok) { agendaModale = null; renderPageAgenda(); chargerAgendaSemaine(); }
+    };
+    // Règles de l'étude (9 h, 12 h – 14 h, après 18 h, 6 rendez-vous par jour) : une exception reste
+    // possible, mais elle se confirme.
+    const motif = motifCreneauExceptionnel(heure, dureeMinutes, rendezVousHorairesJour(agendaEvenements, date).length);
+    if (motif) demanderConfirmation(`Créer ce rendez-vous malgré tout ? Il est exceptionnel : ${motif}.`, creer, { bouton: 'Créer quand même', ton: 'valider' });
+    else creer();
   }
 
   // Écrit un rendez-vous dans l'agenda de l'office (un seul essai). Rendez-vous de signature d'un
@@ -18990,7 +19046,8 @@
   function placerCreneauSignature(id, date, heure) {
     const d = dossiers.find(x => x.id === id);
     if (!d) return;
-    demanderConfirmation(`Placer la signature de ${libelleDossierAffiche(d)} le ${dateAvecJourFr(date)} à ${heure.replace(':', ' h ')} dans l’agenda de l’office ?`, async () => {
+    const motif = motifCreneauExceptionnel(heure, DUREE_CRENEAU_SIGNATURE, rendezVousHorairesJour(agendaEvenements, date).length);
+    demanderConfirmation(`Placer la signature de ${libelleDossierAffiche(d)} le ${dateAvecJourFr(date)} à ${heure.replace(':', ' h ')} dans l’agenda de l’office ?${motif ? ` Créneau exceptionnel : ${motif}.` : ''}`, async () => {
       const typeRdv = typeRendezVous(d, categoriesRdvReglees()) || 'office';
       const ok = await posterEvenementAgenda({ sujet: libelleDossierAffiche(d), date, heure, dureeMinutes: DUREE_CRENEAU_SIGNATURE, lieu: lieuRdvAgenda(d), typeRdv, dossier: d, signature: true });
       if (ok) chargerAgendaSemaine();

@@ -268,7 +268,7 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
   (`scansPourCarte`). **OCR d'un scan : `page.render(… intent: 'print')`** — en « display », pdf.js 3.11 cadence
   le dessin sur `requestAnimationFrame`, arrêté fenêtre réduite/cachée (lecture bloquée sans fin). Un pré-état daté n'est
   pas un état daté (checklist corrigée le même jour).
-- **Page Agenda** (30/09, `renderPageAgenda`, dessin d'après l'exemple de l'étude) : vues Mois ·
+- **Page Agenda** (30/09, `renderPageAgenda`, dessin d'après l'exemple de l'étude ; lien juste sous le tableau de bord) : vues Mois ·
   Semaine (lundi → samedi, 7 h – 20 h) · Jour (`agendaVue`, `agendaJour` ; Jour par défaut sur
   téléphone), bande des jours en cartes, rendez-vous en cartes à la couleur Outlook avec heure de début,
   de fin et durée (`dureeRendezVous`), calendrier du mois et légende des couleurs à droite ; rendez-vous lus par le serveur (stock `agenda-office`, tenu à jour à la création/suppression
@@ -276,7 +276,10 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
   « intelligent », **sans IA, chaque point expliqué** : `probabiliteTenueSignature` (97 % moins des
   retraits pondérés par la proximité : financement, vente préalable, préemption, pièces, envois, fonds,
   collaborateur absent), `creneauxProposesSignature` (dossiers de `dossiersAPlacer`, un créneau par jour
-  ouvré, ≥ 14 jours, hors fériés `joursFeriesFrance`, absences, chevauchements, 3 signatures/jour),
+  ouvré, ≥ 14 jours, hors fériés `joursFeriesFrance`, absences, chevauchements ; **règles de l'étude,
+  30/09 : jamais à 9 h, ni entre 12 h et 14 h, ni après 18 h, 6 rendez-vous par jour au plus** —
+  `motifCreneauExceptionnel` ; une exception n'est proposée qu'à défaut de tout créneau normal, marquée,
+  et une création manuelle hors règles se confirme),
   `gestesRelationClient` (rappel J-3…J-1, confirmation J-45…J-3 une fois par date `confirmationRdvPour`,
   questionnaire J+1…J+14, un mot un an après — jamais au client d'un confrère). **Couleur d'un
   rendez-vous = celle d'Outlook** (étude, 30/09) : couleur nommée dans la catégorie

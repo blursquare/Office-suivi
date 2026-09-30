@@ -61,6 +61,10 @@
       <button type="button" id="tab-dashboard" class="sidebar-link actif" role="tab" aria-selected="true" onclick="definirOnglet('dashboard')">
         <span class="sidebar-link-icone" id="icon-nav-dashboard" aria-hidden="true"></span>Tableau de bord
       </button>
+      <!-- Agenda de l'office (page Agenda, 30/09), juste sous le tableau de bord (demandé le 30/09). -->
+      <button type="button" id="tab-agenda" class="sidebar-link" role="tab" aria-selected="false" onclick="definirOnglet('agenda')">
+        <span class="sidebar-link-icone" id="icon-nav-agenda" aria-hidden="true"></span>Agenda
+      </button>
 
       <span class="sidebar-nav-titre">Dossier</span>
       <button type="button" id="tab-suivi" class="sidebar-link" role="tab" aria-selected="false" onclick="definirOnglet('suivi')">
@@ -68,10 +72,6 @@
         <!-- Compteur de pièces reçues pas encore vues (voir majBadgeNotificationsSidebar/
              d.piecesNotifications dans script.js) : masqué tant qu'il n'y a rien à signaler. -->
         <span class="sidebar-badge-notif" id="badge-notif-suivi" style="display:none;"></span>
-      </button>
-      <!-- Agenda de l'office (page Agenda, 30/09) : la semaine du lundi au samedi, 7 h – 20 h. -->
-      <button type="button" id="tab-agenda" class="sidebar-link" role="tab" aria-selected="false" onclick="definirOnglet('agenda')">
-        <span class="sidebar-link-icone" id="icon-nav-agenda" aria-hidden="true"></span>Agenda
       </button>
       <!-- Outil 2, relecture d'un acte (règles déterministes, sans IA depuis le 23/09/2026) :
            distinct du wizard "Nouveau dossier" — ici on dépose l'acte ET ses annexes séparément
