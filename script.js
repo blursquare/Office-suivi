@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-30 15:53';
+  const VERSION_APP = '2026-09-30 16:13';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-30 16:13', resume: "Offre de prêt : la garantie est lue aussi quand le paragraphe s'intitule « 5 LES GARANTIES » (offres CIC) — une caution Crédit Logement s'affiche désormais sur la ligne « Obtention du prêt ». Le montant du prêt est lu aussi sous la forme « Le montant du crédit est de : … » (plusieurs prêts additionnés). Pour un dossier existant : « Revérifier » sur la fiche." },
     { version: '2026-09-30 15:53', resume: "Notifications Teams des pièces : une même pièce (même dossier, même fichier) n'est plus notifiée deux fois. Deux fenêtres CLAIRE qui relisaient le même dossier, ou une pièce qui repassait un instant « manquante », envoyaient un second message. Une pièce renouvelée (autre fichier) est toujours signalée." },
     { version: '2026-09-30 15:45', resume: "Tableau de bord, carte « Dernières pièces » : sous les pièces réceptionnées, les scans du copieur à ranger (un clic ouvre « Scans à ranger ») puis les scans rangés ces 14 derniers jours (un clic ouvre le dossier). En petit format, la carte affiche le nombre de scans à ranger." },
     { version: '2026-09-30 15:39', resume: "Scans du copieur : un avis de taxe foncière scanné est rangé dans la rubrique Comptabilité du dossier client (et non plus à sa racine)." },
@@ -1233,7 +1234,7 @@
   // prêt RELAIS : il se rembourse par la vente de l'ancien bien et ne finance pas l'achat — le
   // compter ferait ressortir un « prêt supérieur au prix » (constaté : 615 036 € empruntés dont
   // 294 000 € de relais).
-  var RE_MONTANT_PAR_PRET = /(?:montant\s+total\s+du\s+cr[ée]dit|montant\s+et\s+monnaie\s+du\s+pr[êe]t\s+[àa]\s+accorder|montant\s+du\s+pr[êe]t)\s*:\s*([\d][\d\s.]{0,14}(?:,\d{2})?)\s*(?:€|eur(?:os?)?\b)/gi;
+  var RE_MONTANT_PAR_PRET = /(?:montant\s+total\s+du\s+cr[ée]dit|le\s+montant\s+du\s+cr[ée]dit\s+est\s+de|montant\s+et\s+monnaie\s+du\s+pr[êe]t\s+[àa]\s+accorder|montant\s+du\s+pr[êe]t)\s*:\s*([\d][\d\s.]{0,14}(?:,\d{2})?)\s*(?:€|eur(?:os?)?\b)/gi;
   var RE_PRET_RELAIS = /\brelais\b/i;
 
   function detecterMontantPret(texte) {
@@ -22514,7 +22515,7 @@
   // ligne. Toujours ancré en DÉBUT DE LIGNE, et le deux-points est obligatoire dans le second cas
   // — sans quoi « les garanties sont acquises au prêteur » au fil d'une phrase passerait pour un
   // titre de paragraphe.
-  var RE_TITRE_GARANTIES = /^[^\S\n]*(?:(?:article|art\.?|§)[^\S\n]*)?\d{0,2}[^\S\n]*[-–—.)]?[^\S\n]*(?:garanties?|garantie\(s\)|s[ûu]ret[ée]s?|s[ûu]ret[ée]\(s\))(?:[^\S\n]+(?:du[^\S\n]+pr[êe]t|exig[ée]es?|r[ée]elles?))?[^\S\n]*(?::|$)/gim;
+  var RE_TITRE_GARANTIES = /^[^\S\n]*(?:(?:article|art\.?|§)[^\S\n]*)?\d{0,2}[^\S\n]*[-–—.)]?[^\S\n]*(?:(?:les|des)[^\S\n]+)?(?:garanties?|garantie\(s\)|s[ûu]ret[ée]s?|s[ûu]ret[ée]\(s\))(?:[^\S\n]+(?:du[^\S\n]+pr[êe]t|exig[ée]es?|r[ée]elles?))?[^\S\n]*(?::|$)/gim;
   // Fin du paragraphe : le titre de section suivant, ou à défaut une fenêtre généreuse — une
   // énumération de garanties tient largement dedans.
   // Le motif précédent (« une ligne courte entièrement en capitales ») exigeait une MAJUSCULE

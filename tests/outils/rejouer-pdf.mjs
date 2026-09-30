@@ -58,6 +58,7 @@ for (const fichier of fichiers) {
     },
     appelCharges: app.analyserAppelCharges(texte),
     etatDate: app.fondsTravauxDepuisEtatDate(texte),
+    offrePret: { montant: app.detecterMontantPret(texte), garanties: app.detecterGarantiesPret(texte) },
     releveCompte: (() => { const r = app.analyserReleveCompteClient(lignesPositions); return { titre: r.titre, nature: r.nature, ecritures: r.ecritures.length, recu: r.recu, reverse: r.reverse, tiers: r.tiers, solde: r.solde, ambigues: r.ambigues }; })()
   };
   console.log(JSON.stringify(resultats, null, 2));

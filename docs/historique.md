@@ -12777,3 +12777,21 @@ scans. »
 - Tests serveur : pur (même fichier 11 min après → rien ; autre fichier → envoyé ; autre dossier ;
   purge à 30 jours ; doublon dans un même appel) et route (deux POST identiques → un seul email).
   Vérifié dans Chromium : deux scans rangés → deux emails ; renvoi de la même pièce → aucun.
+
+### 30/09/2026 16:13 — Offre de prêt CIC : garantie « Caution » et montant enfin lus
+
+- Étude : offre réelle déposée (CIC, 14 pages, deux prêts), « ici caution » — rien ne s'affichait.
+  Rejouée avec `tests/outils/rejouer-pdf.mjs` (qui sort désormais aussi `offrePret: {montant,
+  garanties}`) : garanties `[]`, montant `null`.
+- Causes : le titre est « 5 LES GARANTIES » — l'article « LES » entre numéro et mot-clé n'était pas
+  admis par `RE_TITRE_GARANTIES`, aucun paragraphe trouvé ; le montant est écrit « Le montant du
+  crédit est de : 10 600,00 Euros » par prêt, tournure absente de `RE_MONTANT_PAR_PRET`.
+- Correctifs : article facultatif « les|des » dans le titre (le reste inchangé : « Les garanties ,
+  quotités … Assurance » au fil du texte n'est toujours pas un titre, faute de deux-points ou de
+  fin de ligne ; « 8 D EFINITION DES GARANTIES : » non plus) ; « le montant du crédit est de »
+  ajouté à `RE_MONTANT_PAR_PRET` (somme des prêts, doublons écartés). Sur l'offre réelle : caution
+  seule (la « promesse d'hypothéquer » des définitions n'est pas lue, hors paragraphe), 106 918 €
+  = « Total des crédits sollicités ». Test `tests/offre-pret.test.js` à structure réelle, montants
+  inventés.
+- Un dossier existant récupère la garantie au prochain parcours du NAS (l'offre est rouverte à
+  chaque parcours) : automatique si le dossier n'est pas complet, sinon « Revérifier ».

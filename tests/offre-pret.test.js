@@ -254,3 +254,32 @@ test('offre de prêt : contrat de prêt, contrat de crédit, offre de contrat de
     assert.equal(app.OFFRE_PRET_RE.test(t), true, t);
   }
 });
+
+test('offre CIC réelle (structure) : titre « 5 LES GARANTIES » et montant « Le montant du crédit est de : »', () => {
+  const app = chargerApplication();
+  // Structure d'une offre reçue le 30/09 (deux prêts, caution Crédit Logement), montants inventés.
+  const offre = [
+    '3 PLAN DE FINANCEMENT',
+    'PRET AIDE PREMIER ACHAT 12 000,00 Euros 10,000 %',
+    'Prêt immobilier modulable 108 000,00 Euros 90,000 %',
+    'Total des crédits sollicités Prêteur 120 000,00 Euros 100,000 %',
+    '4 CARACTERISTIQUES DES CREDITS',
+    '4.1.1. Montant :',
+    'Le montant du crédit est de : 12 000,00 Euros ( douze mille euros )',
+    'Frais de garantie 474,34 Euros',
+    '4.2.1. Montant :',
+    'Le montant du crédit est de : 108 000,00 Euros ( cent huit mille euros )',
+    '5 LES GARANTIES',
+    'Pour sûreté du (des) prêt(s) sollicité(s), le prêteur demande les garanties suivantes :',
+    '5.1.1. Garantie n° : 00000000001 - CAUTION DE CREDIT LOGEMENT',
+    'Toutes les garanties réelles et personnelles accordées bénéficieront également à l’Organisme de Caution.',
+    'Montant garanti : 120 000,00 Euros',
+    '6 ASSURANCE',
+    'Les garanties , quotités et dates d\'effet de l\' Assurance emprunteurs sont détaillées sur les documents de souscription',
+    '8 D EFINITION DES GARANTIES :',
+    '8.2. PROMESSE D’HYPOTHEQUER – ENGAGEMENT DE NE PAS HYPOTHEQUER',
+    'promet de consentir à l\'inscription d\'une hypothèque sur ledit immeuble sur première réquisition du prêteur'
+  ].join('\n');
+  assert.equal(app.detecterGarantiesPret(offre).join(','), 'caution');
+  assert.equal(app.detecterMontantPret(offre), 120000);
+});
