@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-30 23:00';
+  const VERSION_APP = '2026-09-30 23:12';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-30 23:12', resume: "Agenda : des notes dans chaque rendez-vous (crayon dans le détail, et à la création) — elles sont écrites dans le rendez-vous Outlook, donc visibles aussi dans Outlook, et une note tapée dans Outlook s'affiche dans CLAIRE. Pour un rendez-vous placé : la probabilité qu'il soit maintenu. Pour un dossier pas encore placé : CLAIRE calcule la semaine où la signature est probable (au plus tôt : offre de prêt attendue + 11 jours de réflexion, vente préalable, deux semaines pour l'appel de fonds et le projet) ; « Rendez-vous à placer » les liste à côté de l'agenda, et en arrivant sur cette semaine une carte en pointillé « Probable » propose un créneau libre — un clic pour le placer, après confirmation." },
     { version: '2026-09-30 23:00', resume: "Page Agenda redessinée à la manière d'Outlook : une seule carte sobre, la date du jour en pastille, ‹ Aujourd'hui ›, la vue (mois, semaine, jour) et « Nouveau rendez-vous » en tête ; les jours en colonnes « Lundi / 28 sept. 2026 », le jour en cours teinté et le trait de l'heure ; chaque rendez-vous avec un liseré à la couleur de sa catégorie Outlook. Sur un rendez-vous de signature : le responsable du dossier, le notaire confrère, et si l'appel de fonds et le décompte acquéreur sont faits (coche verte ou croix rouge). Un clic ouvre le détail dans la colonne de gauche, sous le calendrier du mois." },
     { version: '2026-09-30 22:45', resume: "Agenda placé juste sous le tableau de bord dans la barre latérale. Créneaux proposés pour les signatures : jamais à 9 h, ni entre 12 h et 14 h, ni après 18 h, et 6 rendez-vous par jour au plus (premier créneau essayé : 9 h 30). Une exception n'est proposée qu'à défaut de tout autre créneau, marquée d'un triangle, et la confirmation dit laquelle. Créer à la main un rendez-vous hors de ces règles reste possible, après confirmation." },
     { version: '2026-09-30 22:46', resume: "Page Agenda redessinée d'après l'exemple fourni : le mois en titre, les vues Mois · Semaine · Jour, les flèches et « Aujourd'hui » ; les jours de la semaine en cartes (foncée = aujourd'hui, ou le jour affiché ; un clic ouvre la vue Jour) ; chaque rendez-vous est une carte de la couleur de sa catégorie Outlook avec son titre, son heure de début et de fin et sa durée (« 10:00 – 11:00 · 1 h »). Vue Mois : trois rendez-vous par jour, « + N » ensuite. Légende des couleurs sous le calendrier du mois. La durée s'affiche aussi dans la fenêtre du matin et dans le détail d'un rendez-vous. Barre latérale : l'Agenda prend la place de Claire Scan, qui devient un bouton au pied de la barre, avec son compteur." },
@@ -18362,12 +18363,15 @@
   // DELAI_MIN_SIGNATURE_JOURS (3 jours si la date butoir est plus proche). Premier passage : les seuls
   // créneaux normaux ; s'il en manque, second passage sur les créneaux hors règles, marqués
   // `exceptionnel` (le motif). `apresButoir` signale un créneau au-delà de la date butoir.
-  function creneauxProposesSignature(d, evenements, absences, aujourdhuiIso, nombre) {
+  // `bornes` ({ depuis, limite }, facultatif) : chercher dans une période donnée — la semaine où la
+  // signature est probable (carte fantôme de la page Agenda).
+  function creneauxProposesSignature(d, evenements, absences, aujourdhuiIso, nombre, bornes) {
     const auj = aujourdhuiIso || isoAujourdhuiLocal();
     const n = nombre || 3;
     let depuis = addDays(auj, DELAI_MIN_SIGNATURE_JOURS);
     if (d.acte && d.acte < depuis) depuis = addDays(auj, 3);
-    const limite = addDays(depuis, 60);
+    if (bornes && bornes.depuis) depuis = bornes.depuis > auj ? bornes.depuis : addDays(auj, 1);
+    const limite = bornes && bornes.limite ? bornes.limite : addDays(depuis, 60);
     const joursPossibles = [];
     for (let iso = depuis; iso <= limite; iso = addDays(iso, 1)) {
       const jourSemaine = new Date(iso + 'T00:00:00').getDay();
@@ -18409,6 +18413,76 @@
     return creneaux.sort((x, y) => (x.exceptionnel ? 1 : 0) - (y.exceptionnel ? 1 : 0) || x.date.localeCompare(y.date));
   }
 
+  // ---- Semaine probable d'une signature pas encore placée ----
+  // Étude, 30/09 : « pour les dossiers pas encore placés, afficher quand on arrive sur cette semaine
+  // qu'il est probable que ce rendez-vous se tienne cette semaine-là — une manière proactive de placer
+  // le rendez-vous ». Choix de l'étude : AU PLUS TÔT, la première date où tout ce qu'on sait est levé :
+  //  - le délai d'envoi de l'appel de fonds et du projet (DELAI_MIN_SIGNATURE_JOURS) ;
+  //  - l'offre de prêt : attendue au plus tard à la date de la condition (ou dès aujourd'hui si elle
+  //    est dépassée), puis 11 jours — l'emprunteur ne peut l'accepter qu'après 10 jours de réflexion ;
+  //  - la vente préalable, à sa date.
+  // Jour ouvré (ni week-end ni férié). La préemption et les pièces ne fixent pas de date : elles
+  // pèsent sur la probabilité (celle de probabiliteTenueSignature à cette date, moins 10 points parce
+  // que le rendez-vous n'est pas fixé). Pure ; null pour un dossier archivé ou déjà placé.
+  var DELAI_REFLEXION_OFFRE_JOURS = 11;
+  function semaineProbableSignature(d, aujourdhuiIso, absences) {
+    if (!d || d.archive || d.rendezVousSignature) return null;
+    const auj = aujourdhuiIso || isoAujourdhuiLocal();
+    let date = addDays(auj, DELAI_MIN_SIGNATURE_JOURS);
+    let raison = `le temps d’envoyer l’appel de fonds et le projet (${DELAI_MIN_SIGNATURE_JOURS} jours)`;
+    const auPlusTot = (iso, libelle) => { if (iso && iso > date) { date = iso; raison = libelle; } };
+    if (!d.sansPret && !echeanceValidee(d, 'pret')) {
+      const attendue = d.pret && d.pret > auj ? d.pret : auj;
+      auPlusTot(addDays(attendue, DELAI_REFLEXION_OFFRE_JOURS),
+        d.pret && d.pret > auj
+          ? `offre de prêt attendue au plus tard le ${formatDateFr(d.pret)}, puis ${DELAI_REFLEXION_OFFRE_JOURS} jours de réflexion`
+          : `offre de prêt attendue, puis ${DELAI_REFLEXION_OFFRE_JOURS} jours de réflexion`);
+    }
+    if (d.ventebien && !echeanceValidee(d, 'ventebien') && d.ventebien > auj) {
+      auPlusTot(d.ventebien, `vente préalable prévue le ${formatDateFr(d.ventebien)}`);
+    }
+    for (let i = 0; i < 10; i++) {
+      const js = new Date(date + 'T00:00:00').getDay();
+      if (js !== 0 && js !== 6 && !estJourFerie(date)) break;
+      date = addDays(date, 1);
+    }
+    const tenue = probabiliteTenueSignature(Object.assign({}, d, { rendezVousSignature: date }), auj, absences);
+    const facteurs = (tenue ? tenue.facteurs : []).concat([{ libelle: 'Rendez-vous pas encore fixé', retrait: 10, ok: false, action: 'Placer le rendez-vous' }]);
+    const depasseButoir = !!(d.acte && date > d.acte);
+    if (depasseButoir) facteurs.push({ libelle: `Au-delà de la date butoir (${formatDateFr(d.acte)})`, retrait: 15, ok: false, action: 'Prévoir la prorogation' });
+    const retrait = facteurs.reduce((t, x) => t + x.retrait, 0);
+    const pourcent = Math.max(5, Math.min(97, 97 - retrait));
+    return {
+      date, lundi: debutSemaine(date), raison, depasseButoir, facteurs, pourcent,
+      niveau: pourcent >= 80 ? 'haute' : pourcent >= 55 ? 'moyenne' : 'basse'
+    };
+  }
+
+  // Pure : les cartes fantômes d'une semaine affichée — une par dossier dont la signature est probable
+  // cette semaine-là, posée sur le premier créneau libre de la semaine (à partir de la date au plus
+  // tôt), selon les règles de l'étude ; sans créneau libre, en « Journée » à sa date.
+  function fantomesSemaineAgenda(liste, evenements, absences, jours, aujourdhuiIso) {
+    if (!jours || !jours.length) return [];
+    const auj = aujourdhuiIso || isoAujourdhuiLocal();
+    const lundi = debutSemaine(jours[0]);
+    const fin = addDays(lundi, 5);
+    const fantomes = [];
+    (liste || []).forEach(d => {
+      const p = semaineProbableSignature(d, auj, absences);
+      if (!p || p.lundi !== lundi) return;
+      const creneau = creneauxProposesSignature(d, (evenements || []).concat(fantomes), absences, auj, 1, { depuis: p.date, limite: fin })[0] || null;
+      const debut = creneau ? minutesHeure(creneau.heure) : null;
+      const heureFin = debut === null ? null
+        : `${String(Math.floor((debut + DUREE_CRENEAU_SIGNATURE) / 60)).padStart(2, '0')}:${String((debut + DUREE_CRENEAU_SIGNATURE) % 60).padStart(2, '0')}`;
+      fantomes.push({
+        sujet: libelleDossierAffiche(d), lieu: '', date: creneau ? creneau.date : p.date, dateFin: creneau ? creneau.date : p.date,
+        heure: creneau ? creneau.heure : null, heureFin, journeeEntiere: !creneau, categories: [], signature: true,
+        absence: false, dossierId: d.id, dossierNom: d.nom, fantome: true, probable: p, creneau
+      });
+    });
+    return fantomes;
+  }
+
   // ---- Relation client ----
   // Pure : les emails de relation client dus aujourd'hui, du plus pressant au moins pressant.
   //  - rappel du rendez-vous à J-3…J-1 ; confirmation du rendez-vous de J-45 à J-3 (une fois par date) ;
@@ -18448,6 +18522,11 @@
   let agendaCharge = false;
   let agendaModale = null;         // { type: 'creation', date, heure } : fenêtre de création
   let agendaSelection = null;      // clé du rendez-vous affiché dans le panneau de détail
+  // Notes des rendez-vous (corps du rendez-vous dans Outlook), lues à l'ouverture du détail :
+  // itemId → { etat: 'chargement' | 'ok' | 'erreur', notes, changeKey, message }.
+  let notesAgenda = {};
+  let notesAgendaEdition = null;   // itemId dont la note est en cours d'écriture
+  let notesAgendaBrouillon = '';
 
   // Le mois du calendrier de droite : celui d'aujourd'hui si la semaine affichée le contient,
   // sinon celui du jeudi de la semaine (le mois qui en porte le plus de jours).
@@ -18565,6 +18644,7 @@
 
   // Clé stable d'un rendez-vous de la page (identifiant Exchange, sinon titre + date + heure).
   function cleEvenementAgenda(e) {
+    if (e && e.fantome) return 'probable:' + e.dossierId;
     return e.itemId || `${e.sujet}|${e.date}|${e.heure || ''}`;
   }
 
@@ -18590,6 +18670,14 @@
     return agendaEvenements.concat(signaturesHorsAgenda(dossiers, agendaEvenements, joursAffichesAgenda()));
   }
 
+  // Cartes fantômes de la semaine affichée (vues Semaine et Jour), pour les dossiers du périmètre.
+  function fantomesAffichesAgenda() {
+    if (agendaVue === 'mois') return [];
+    const perimetre = dossiersDuPerimetre(dossiers, utilisateurPoste, vueGlobaleDashboard());
+    const jours = joursSemaineAgenda(agendaVue === 'jour' ? debutSemaine(agendaJour) : agendaLundi);
+    return fantomesSemaineAgenda(perimetre, evenementsAffichesAgenda(), absencesOffice, jours, isoAujourdhuiLocal());
+  }
+
   function dossierDeEvenement(e) {
     return e && e.dossierId ? dossiers.find(d => d.id === e.dossierId) || null : null;
   }
@@ -18597,7 +18685,8 @@
   function renderPastilleProbabilite(p) {
     if (!p) return '';
     const dl = p.niveau === 'haute' ? 'dl-success' : p.niveau === 'moyenne' ? 'dl-pret' : 'dl-urgent';
-    return `<span class="ag-proba dot-label ${dl}" title="Probabilité que la signature se tienne à cette date"><span class="dot"></span>${p.pourcent} %</span>`;
+    const titre = p.lundi ? 'Probabilité que la signature se tienne cette semaine-là' : 'Probabilité que le rendez-vous soit maintenu à cette date';
+    return `<span class="ag-proba dot-label ${dl}" title="${titre}"><span class="dot"></span>${p.pourcent} %</span>`;
   }
 
   // ---- Ce qu'un rendez-vous d'un dossier dit de lui (comme la note du rendez-vous dans Outlook) ----
@@ -18631,6 +18720,7 @@
   // l'appel de fonds et le décompte (fait ou non) — autant de lignes que la hauteur en laisse.
   function renderEvenementGrille(place, auj) {
     const e = place.e;
+    if (e.fantome) return renderFantomeGrille(place);
     const teinte = teinteEvenementAgenda(e, categoriesRdvReglees());
     const d = dossierDeEvenement(e);
     const infos = infosRendezVousDossier(d);
@@ -18658,10 +18748,27 @@
       </button>`;
   }
 
+  // Carte fantôme : signature probable cette semaine, pas encore placée — un clic ouvre le détail
+  // (pourquoi cette semaine, créneaux, « Placer »).
+  function renderFantomeGrille(place) {
+    const e = place.e;
+    const p = e.probable;
+    const largeur = 100 / place.colonnes;
+    const style = `top:${place.haut.toFixed(2)}%;height:${place.hauteur.toFixed(2)}%;left:calc(${(place.colonne * largeur).toFixed(2)}% + 2px);width:calc(${largeur.toFixed(2)}% - 4px)`;
+    const selection = agendaSelection === cleEvenementAgenda(e);
+    return `<button type="button" class="ag-evt ag-fantome ajd-signature${selection ? ' selection' : ''}" style="${style}"
+        onclick="ouvrirDetailAgenda('${escapeOnclickArg(cleEvenementAgenda(e))}')"
+        title="${escapeAttr(`Il est probable que la signature de ${e.sujet} se tienne cette semaine-là (${p.pourcent} %). Proposé : ${e.heure}. Cliquer pour le placer.`)}">
+        <span class="ag-fantome-tete">${icone('sparkle')}Probable</span>
+        <span class="ag-evt-titre">${escapeHtml(e.sujet)}</span>
+        <span class="ag-evt-heure"><span>${escapeHtml(e.heure)}</span>${e.heureFin ? `<span class="ag-evt-fin">– ${escapeHtml(e.heureFin)}</span>` : ''}<span class="ag-evt-duree">${p.pourcent} %</span></span>
+      </button>`;
+  }
+
   function renderGrilleAgenda() {
     const auj = isoAujourdhuiLocal();
     const jours = agendaVue === 'jour' ? [agendaJour] : joursSemaineAgenda(agendaLundi);
-    const evenements = evenementsAffichesAgenda();
+    const evenements = evenementsAffichesAgenda().concat(fantomesAffichesAgenda());
     const heures = [];
     for (let h = AGENDA_HEURE_DEBUT; h < AGENDA_HEURE_FIN; h++) heures.push(h);
     // En-têtes des jours comme dans Outlook : le nom du jour, la date dessous ; aujourd'hui en gras.
@@ -18679,8 +18786,8 @@
     const journees = jours.map(iso => {
       const liste = evenementsJourAgenda(evenements, iso).filter(e => e.journeeEntiere || !e.heure || e.date !== iso);
       return `<div class="ag-journee${iso === auj ? ' aujourdhui' : ''}">${liste.map(e => `<button type="button"
-          class="ag-journee-evt ajd-${teinteEvenementAgenda(e, categoriesRdvReglees())}${e.horsAgenda ? ' ag-hors-agenda' : ''}${agendaSelection === cleEvenementAgenda(e) ? ' selection' : ''}"
-          onclick="ouvrirDetailAgenda('${escapeOnclickArg(cleEvenementAgenda(e))}')" title="${escapeAttr(e.sujet || '')}">${escapeHtml(e.sujet || '(sans titre)')}</button>`).join('')}</div>`;
+          class="ag-journee-evt ajd-${teinteEvenementAgenda(e, categoriesRdvReglees())}${e.horsAgenda ? ' ag-hors-agenda' : ''}${e.fantome ? ' ag-fantome' : ''}${agendaSelection === cleEvenementAgenda(e) ? ' selection' : ''}"
+          onclick="ouvrirDetailAgenda('${escapeOnclickArg(cleEvenementAgenda(e))}')" title="${escapeAttr(e.fantome ? `Signature probable cette semaine (${e.probable.pourcent} %) — aucun créneau libre` : e.sujet || '')}">${e.fantome ? `${icone('sparkle')}${escapeHtml(e.probable.pourcent + ' % · ')}` : ''}${escapeHtml(e.sujet || '(sans titre)')}</button>`).join('')}</div>`;
     }).join('');
     const maintenant = new Date();
     const minutes = maintenant.getHours() * 60 + maintenant.getMinutes();
@@ -18785,7 +18892,7 @@
       .map(d => ({ d, p: probabiliteTenueSignature(d, auj, absencesOffice) }))
       .filter(x => x.p).sort((a, b) => a.p.pourcent - b.p.pourcent);
     const blocSignatures = `<section class="ag-anticipe">
-        <h3 class="jour-section-titre">Signatures ${agendaVue === 'mois' ? 'du mois' : agendaVue === 'jour' ? 'du jour' : 'de la semaine'} ${infoBulle('Probabilité que chaque signature se tienne à sa date : 97 % moins les points de ce qui reste à faire (financement, préemption, pièces, envois, fonds, absence du collaborateur), d’autant plus que la date approche. Indicatif, sans IA : le détail est dans chaque rendez-vous.')}</h3>
+        <h3 class="jour-section-titre">Signatures ${agendaVue === 'mois' ? 'du mois' : agendaVue === 'jour' ? 'du jour' : 'de la semaine'} ${infoBulle('Probabilité que chaque rendez-vous soit maintenu à sa date : 97 % moins les points de ce qui reste à faire (financement, préemption, pièces, envois, fonds, absence du collaborateur), d’autant plus que la date approche. Indicatif, sans IA : le détail est dans chaque rendez-vous.')}</h3>
         ${signatures.length ? `<ul class="ag-liste">${signatures.map(({ d, p }) => {
           const reste = p.facteurs.filter(x => !x.ok);
           return `<li><button type="button" class="ag-ligne" onclick="ouvrirDetailDossierAgenda('${d.id}')">
@@ -18795,21 +18902,29 @@
             </button></li>`;
         }).join('')}</ul>` : `<p class="jour-vide">Aucune signature ${agendaVue === 'mois' ? 'ce mois-ci' : agendaVue === 'jour' ? 'ce jour-là' : 'cette semaine'}.</p>`}
       </section>`;
-    // Dossiers prêts à signer sans rendez-vous : trois créneaux libres chacun.
-    const aPlacer = dossiersAPlacer(perimetre).sort((a, b) => (a.acte || '9999').localeCompare(b.acte || '9999')).slice(0, 6);
+    // Dossiers sans rendez-vous, par semaine probable de signature (au plus tôt) : un clic affiche
+    // cette semaine, carte fantôme ouverte. Ceux qui sont prêts à signer gardent trois créneaux libres.
+    const prets = dossiersAPlacer(perimetre).map(d => d.id);
+    const probables = perimetre.map(d => ({ d, p: semaineProbableSignature(d, auj, absencesOffice) })).filter(x => x.p)
+      .sort((a, b) => a.p.date.localeCompare(b.p.date) || a.p.pourcent - b.p.pourcent);
+    const aPlacer = probables.slice(0, 8);
     const ecrire = exchangeAgendaPret();
     const blocPlacer = `<section class="ag-anticipe">
-        <h3 class="jour-section-titre">Rendez-vous à placer${aPlacer.length ? ` <span class="jour-onglet-nb">${aPlacer.length}</span>` : ''} ${infoBulle('Dossiers dont le financement, la vente préalable et la préemption sont levés, sans rendez-vous de signature. CLAIRE propose le premier créneau libre de trois jours ouvrés, au moins deux semaines après aujourd’hui (le temps de l’appel de fonds et du projet), hors jours fériés et absences du collaborateur. Jamais à 9 h, entre 12 h et 14 h ni après 18 h, et 6 rendez-vous par jour au plus : un créneau hors de ces règles n’est proposé qu’à défaut d’autre, marqué d’un triangle.')}</h3>
-        ${aPlacer.length ? `<ul class="ag-liste">${aPlacer.map(d => {
-          const creneaux = creneauxProposesSignature(d, agendaEvenements, absencesOffice, auj, 3);
+        <h3 class="jour-section-titre">Rendez-vous à placer${probables.length ? ` <span class="jour-onglet-nb">${probables.length}</span>` : ''} ${infoBulle('Dossiers sans rendez-vous de signature, par semaine probable : au plus tôt, une fois l’offre de prêt attendue reçue et ses 11 jours de réflexion passés, la vente préalable faite, et au moins deux semaines après aujourd’hui (appel de fonds et projet). Le pourcentage tient compte de ce qui reste à lever. Un clic affiche la semaine, où le rendez-vous est proposé en pointillé sur un créneau libre. Pour les dossiers prêts à signer, trois créneaux libres : jamais à 9 h, entre 12 h et 14 h ni après 18 h, 6 rendez-vous par jour au plus (triangle = exception).')}</h3>
+        ${aPlacer.length ? `<ul class="ag-liste">${aPlacer.map(({ d, p }) => {
+          const creneaux = prets.indexOf(d.id) !== -1 ? creneauxProposesSignature(d, agendaEvenements, absencesOffice, auj, 3) : [];
+          const semaine = new Date(p.lundi + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
           return `<li class="ag-placer">
-              <button type="button" class="jour-fil-dossier" onclick="ouvrirDossierDepuisDashboard('${d.id}')">${escapeHtml(libelleDossierAffiche(d))}</button>
-              <span class="ag-ligne-meta">${d.acte ? `Date butoir ${escapeHtml(formatDateFr(d.acte))}` : 'Pas de date butoir'}${d.responsable ? ' · ' + escapeHtml(prenomCollaborateur(d.responsable)) : ''}</span>
-              <span class="ag-creneaux">${creneaux.length ? creneaux.map(c => `<button type="button" class="action-rapide ag-creneau${c.apresButoir ? ' apres-butoir' : ''}${c.exceptionnel ? ' exceptionnel' : ''}"
+              <button type="button" class="ag-ligne${agendaSelection === 'probable:' + d.id ? ' selection' : ''}" onclick="allerSemaineProbableAgenda('${d.id}')" title="${escapeAttr(`Au plus tôt le ${formatDateFr(p.date)} : ${p.raison}. Afficher cette semaine.`)}">
+                ${renderPastilleProbabilite(p)}
+                <span class="ag-ligne-texte"><b>${escapeHtml(libelleDossierAffiche(d))}</b>
+                <span>Semaine du ${escapeHtml(semaine)}${p.depasseButoir ? ' · après la date butoir' : ''}${d.responsable ? ' · ' + escapeHtml(prenomCollaborateur(d.responsable)) : ''}</span></span>
+              </button>
+              ${creneaux.length ? `<span class="ag-creneaux">${creneaux.map(c => `<button type="button" class="action-rapide ag-creneau${c.apresButoir ? ' apres-butoir' : ''}${c.exceptionnel ? ' exceptionnel' : ''}"
                   onclick="placerCreneauSignature('${d.id}', '${c.date}', '${c.heure}')" ${ecrire ? '' : 'disabled'}
-                  title="${escapeAttr([c.exceptionnel ? 'Créneau exceptionnel : ' + c.exceptionnel : '', c.apresButoir ? 'Après la date butoir' : ''].filter(Boolean).join(' · ') || 'Placer le rendez-vous de signature à ce créneau')}">${c.exceptionnel ? icone('alert-triangle') : ''}${escapeHtml(new Date(c.date + 'T00:00:00').toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' }).replace('.', ''))} ${escapeHtml(c.heure.replace(':', ' h '))}</button>`).join('') : '<span class="jour-vide">Aucun créneau libre dans les deux mois lus.</span>'}</span>
+                  title="${escapeAttr([c.exceptionnel ? 'Créneau exceptionnel : ' + c.exceptionnel : '', c.apresButoir ? 'Après la date butoir' : ''].filter(Boolean).join(' · ') || 'Placer le rendez-vous de signature à ce créneau')}">${c.exceptionnel ? icone('alert-triangle') : ''}${escapeHtml(new Date(c.date + 'T00:00:00').toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' }).replace('.', ''))} ${escapeHtml(c.heure.replace(':', ' h '))}</button>`).join('')}</span>` : ''}
             </li>`;
-        }).join('')}</ul>` : '<p class="jour-vide">Aucun dossier prêt à signer sans rendez-vous.</p>'}
+        }).join('')}</ul>${probables.length > aPlacer.length ? `<p class="jour-vide">Et ${probables.length - aPlacer.length} autre${probables.length - aPlacer.length > 1 ? 's' : ''}, plus tard.</p>` : ''}` : '<p class="jour-vide">Tous les dossiers ont un rendez-vous de signature.</p>'}
       </section>`;
     // Relation client : les emails dus aujourd'hui.
     const gestes = gestesRelationClient(perimetre, auj).slice(0, 8);
@@ -18867,6 +18982,10 @@
         ? `Semaine du ${new Date(agendaLundi + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })} au ${new Date(samedi + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })} · ${source}`
         : `${escapeHtml((s => s.charAt(0).toUpperCase() + s.slice(1))(dRef.toLocaleDateString('fr-FR', { weekday: 'long' })))} · ${source}`;
     const moisCourt = dRef.toLocaleDateString('fr-FR', { month: 'short' }).replace('.', '').toUpperCase();
+    // Une note en cours d'écriture garde le focus et le curseur à travers les rafraîchissements
+    // automatiques (agenda relu toutes les 2 minutes, dossiers mis à jour par un autre poste).
+    const champNotes = document.activeElement && document.activeElement.id === 'agenda-notes-texte' ? document.activeElement : null;
+    const curseurNotes = champNotes ? [champNotes.selectionStart, champNotes.selectionEnd, champNotes.scrollTop] : null;
     zone.innerHTML = `<div class="ag-page">
         <div class="ag-tete-page">
           <div class="ag-pastille-date" aria-hidden="true"><span>${escapeHtml(moisCourt)}</span><b>${agendaVue === 'mois' ? '' : dRef.getDate()}</b></div>
@@ -18896,11 +19015,18 @@
           </div>
         </div>
       </div>`;
+    if (curseurNotes) {
+      const champ = document.getElementById('agenda-notes-texte');
+      if (champ) { champ.focus({ preventScroll: true }); champ.setSelectionRange(curseurNotes[0], curseurNotes[1]); champ.scrollTop = curseurNotes[2]; }
+    }
     renderModaleAgenda();
   }
 
   // ---- Détail d'un rendez-vous (panneau de gauche, comme le volet de lecture d'Outlook) ----
   function ouvrirDetailAgenda(cle) {
+    if (notesAgendaEdition && notesAgendaEdition !== cle) { notesAgendaEdition = null; notesAgendaBrouillon = ''; }
+    // La note peut avoir changé dans Outlook : relue à chaque ouverture.
+    if (cle !== agendaSelection && notesAgenda[cle] && notesAgenda[cle].etat !== 'chargement') delete notesAgenda[cle];
     agendaSelection = cle;
     renderPageAgenda();
     // Écran étroit : le panneau est sous le calendrier du mois, on l'amène à l'écran.
@@ -18921,12 +19047,14 @@
   // Ferme la fenêtre de création si elle est ouverte, sinon le détail du rendez-vous.
   function fermerModaleAgenda() {
     if (agendaModale) { agendaModale = null; renderModaleAgenda(); return; }
+    if (notesAgendaEdition) { annulerNotesAgenda(); return; }
     if (agendaSelection) { agendaSelection = null; renderPageAgenda(); }
   }
 
   function renderPanneauDetailAgenda() {
-    const e = agendaSelection ? evenementsAffichesAgenda().find(x => cleEvenementAgenda(x) === agendaSelection) : null;
+    const e = agendaSelection ? evenementsAffichesAgenda().concat(fantomesAffichesAgenda()).find(x => cleEvenementAgenda(x) === agendaSelection) : null;
     if (!e) return '';
+    if (e.fantome) return renderDetailFantomeAgenda(e);
     const auj = isoAujourdhuiLocal();
     const teinte = teinteEvenementAgenda(e, categoriesRdvReglees());
     const d = dossierDeEvenement(e);
@@ -18936,7 +19064,7 @@
     const horaire = e.journeeEntiere || !e.heure ? 'Toute la journée' : `${duree ? duree + ' ' : ''}(${e.heure}${e.heureFin ? ' – ' + e.heureFin : ''})`;
     const proba = d && e.signature ? probabiliteTenueSignature(d, auj, absencesOffice) : null;
     const blocProba = proba ? `<div class="ag-detail-proba">
-        <div class="ag-detail-proba-tete">${renderPastilleProbabilite(proba)} <b>de chances que la signature se tienne ce jour-là</b> ${infoBulle('Indicatif : 97 % moins les points de ce qui reste à faire, pondérés par la proximité de la date. Sans IA.')}</div>
+        <div class="ag-detail-proba-tete">${renderPastilleProbabilite(proba)} <b>de chances que le rendez-vous soit maintenu</b> ${infoBulle('Indicatif : 97 % moins les points de ce qui reste à faire avant la date (financement, préemption, pièces, envois, fonds, absence du collaborateur), pondérés par sa proximité. Sans IA.')}</div>
         <ul class="ag-facteurs">${proba.facteurs.map(x => `<li class="${x.ok ? 'ok' : 'ko'}">${icone(x.ok ? 'check' : 'alert-triangle')}<span>${escapeHtml(x.libelle)}${x.ok ? '' : ` <em>−${x.retrait} pts</em>`}</span></li>`).join('')}</ul>
       </div>` : '';
     const relation = d && e.signature && !d.archive && d.rendezVousSignature === e.date && e.date >= auj
@@ -18958,11 +19086,148 @@
         ${infos && infos.confrere ? ligne('users', `Confrère : <b>${escapeHtml(infos.confrere)}</b>`) : ''}
         ${infos ? `<div class="ag-detail-etats">${renderEtatsRendezVous(infos)}${echeanceValidee(d, 'projetEnvoye') ? `<span class="ag-etat fait">${icone('check')}Projet</span>` : `<span class="ag-etat afaire">${icone('x')}Projet</span>`}</div>` : ''}
         ${d ? `<button type="button" class="primary ag-ouvrir-fiche" onclick="ouvrirDossierDepuisDashboard('${d.id}')">${icone('folder')} Ouvrir la fiche</button>` : ''}
+        ${peutSupprimer ? renderNotesRendezVous(e) : ''}
         ${blocProba}
         ${relation}
         ${!d && e.dossierNom ? `<p class="jour-vide">Dossier « ${escapeHtml(e.dossierNom)} » archivé ou introuvable dans CLAIRE.</p>` : ''}
         ${peutSupprimer ? `<button type="button" class="lien-bouton ag-supprimer" onclick="supprimerEvenementAgenda('${escapeOnclickArg(cleEvenementAgenda(e))}')">${icone('trash')} Supprimer de l’agenda</button>` : ''}
       </section>`;
+  }
+
+  // Détail d'une carte fantôme : pourquoi cette semaine, ce qui reste à lever, et le geste pour placer.
+  function renderDetailFantomeAgenda(e) {
+    const d = dossierDeEvenement(e);
+    const p = e.probable;
+    if (!d || !p) return '';
+    const auj = isoAujourdhuiLocal();
+    const infos = infosRendezVousDossier(d);
+    const ecrire = exchangeAgendaPret();
+    const autres = creneauxProposesSignature(d, evenementsAffichesAgenda(), absencesOffice, auj, 4, { depuis: p.date, limite: addDays(p.lundi, 5) })
+      .filter(c => !e.creneau || c.date !== e.creneau.date || c.heure !== e.creneau.heure).slice(0, 3);
+    const libelleCreneau = (c) => `${new Date(c.date + 'T00:00:00').toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' }).replace('.', '')} ${c.heure.replace(':', ' h ')}`;
+    const ligne = (ic, html) => `<div class="ag-detail-ligne">${icone(ic)}<span>${html}</span></div>`;
+    const semaine = new Date(p.lundi + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' });
+    return `<section class="ag-detail ag-detail-fantome ajd-signature" aria-labelledby="agenda-detail-titre">
+        <div class="ag-detail-tete">
+          <div>
+            <div class="ag-detail-etiquette"><i></i>Signature probable — pas encore placée</div>
+            <h3 class="ag-detail-titre" id="agenda-detail-titre">${escapeHtml(e.sujet)}</h3>
+          </div>
+          <button type="button" class="icon-btn" onclick="fermerModaleAgenda()" aria-label="Fermer le détail">${icone('x')}</button>
+        </div>
+        <div class="ag-detail-proba">
+          <div class="ag-detail-proba-tete">${renderPastilleProbabilite(p)} <b>Il est probable que ce rendez-vous se tienne la semaine du ${escapeHtml(semaine)}</b></div>
+          <p class="ag-detail-raison">Au plus tôt le ${escapeHtml(dateAvecJourFr(p.date))} : ${escapeHtml(p.raison)}.</p>
+          <ul class="ag-facteurs">${p.facteurs.map(x => `<li class="${x.ok ? 'ok' : 'ko'}">${icone(x.ok ? 'check' : 'alert-triangle')}<span>${escapeHtml(x.libelle)}${x.ok ? '' : ` <em>−${x.retrait} pts</em>`}</span></li>`).join('')}</ul>
+        </div>
+        ${infos && infos.responsable ? ligne('user', `Responsable : <b>${escapeHtml(infos.responsable)}</b>`) : ''}
+        ${infos && infos.confrere ? ligne('users', `Confrère : <b>${escapeHtml(infos.confrere)}</b>`) : ''}
+        ${e.creneau ? `<button type="button" class="primary ag-ouvrir-fiche" onclick="placerCreneauSignature('${d.id}', '${e.creneau.date}', '${e.creneau.heure}')" ${ecrire ? '' : 'disabled title="Connexion à l’agenda Outlook à activer dans les Réglages"'}>${icone('calendar')} Placer le ${escapeHtml(libelleCreneau(e.creneau))}</button>`
+          : '<p class="jour-vide">Aucun créneau libre cette semaine dans les règles de l’office.</p>'}
+        ${autres.length ? `<div class="ag-creneaux">${autres.map(c => `<button type="button" class="action-rapide ag-creneau${c.exceptionnel ? ' exceptionnel' : ''}" onclick="placerCreneauSignature('${d.id}', '${c.date}', '${c.heure}')" ${ecrire ? '' : 'disabled'}
+            title="${escapeAttr(c.exceptionnel ? 'Créneau exceptionnel : ' + c.exceptionnel : 'Placer le rendez-vous de signature à ce créneau')}">${c.exceptionnel ? icone('alert-triangle') : ''}${escapeHtml(libelleCreneau(c))}</button>`).join('')}</div>` : ''}
+        <button type="button" class="lien-bouton" onclick="ouvrirDossierDepuisDashboard('${d.id}')">${icone('folder')} Ouvrir la fiche</button>
+      </section>`;
+  }
+
+  // Depuis « Rendez-vous à placer » : la semaine probable s'affiche, carte fantôme ouverte.
+  function allerSemaineProbableAgenda(id) {
+    const d = dossiers.find(x => x.id === id);
+    const p = semaineProbableSignature(d, isoAujourdhuiLocal(), absencesOffice);
+    if (!p) return;
+    if (agendaVue === 'mois') agendaVue = 'semaine';
+    positionnerAgenda(p.date);
+    agendaSelection = 'probable:' + id;
+    renderPageAgenda();
+    chargerAgendaSemaine();
+  }
+
+  // ---- Notes du rendez-vous (corps du rendez-vous dans Outlook, choix de l'étude du 30/09) ----
+  function renderNotesRendezVous(e) {
+    const n = notesAgenda[e.itemId];
+    if (!n) chargerNotesAgenda(e.itemId);
+    const edition = notesAgendaEdition === e.itemId;
+    const aide = infoBulle('La note est écrite dans le rendez-vous de l’agenda partagé : elle se lit aussi dans Outlook, et une note tapée dans Outlook s’affiche ici. Enregistrée en texte simple.');
+    let corps;
+    if (edition) {
+      corps = `<textarea id="agenda-notes-texte" class="ag-notes-champ" rows="5" maxlength="8000" oninput="notesAgendaBrouillon = this.value" aria-label="Notes du rendez-vous">${escapeHtml(notesAgendaBrouillon)}</textarea>`;
+    } else if (!n || n.etat === 'chargement') {
+      corps = '<p class="jour-vide">Lecture des notes…</p>';
+    } else if (n.etat === 'erreur') {
+      corps = `<p class="jour-vide">${escapeHtml(n.message || 'Notes illisibles.')}</p>`;
+    } else {
+      corps = n.notes ? `<div class="ag-notes-texte">${escapeHtml(n.notes)}</div>` : '<p class="jour-vide">Aucune note.</p>';
+    }
+    const cle = escapeOnclickArg(e.itemId);
+    const boutons = edition
+      ? `<button type="button" class="icon-btn" id="agenda-notes-ok" onclick="enregistrerNotesAgenda('${cle}')" aria-label="Enregistrer la note" title="Enregistrer dans le rendez-vous">${icone('check')}</button>
+         <button type="button" class="icon-btn" onclick="annulerNotesAgenda()" aria-label="Annuler" title="Annuler">${icone('x')}</button>`
+      : (n && n.etat === 'ok' ? `<button type="button" class="icon-btn" onclick="modifierNotesAgenda('${cle}')" aria-label="Modifier la note" title="Modifier la note">${icone('pencil')}</button>` : '');
+    return `<div class="ag-notes">
+        <div class="ag-notes-tete"><span class="ag-notes-titre">Notes</span> ${aide}<span class="jour-espace"></span>${boutons}</div>
+        ${corps}
+      </div>`;
+  }
+
+  async function chargerNotesAgenda(itemId) {
+    if (!itemId || (notesAgenda[itemId] && notesAgenda[itemId].etat === 'chargement')) return;
+    notesAgenda[itemId] = { etat: 'chargement' };
+    try {
+      const r = await fetchAvecAuth(`/api/exchange/evenement/notes?itemId=${encodeURIComponent(itemId)}`);
+      const corps = await r.json();
+      notesAgenda[itemId] = corps.ok
+        ? { etat: 'ok', notes: corps.notes || '', changeKey: corps.changeKey || '' }
+        : { etat: 'erreur', message: corps.message || 'Notes illisibles.' };
+    } catch (err) {
+      notesAgenda[itemId] = { etat: 'erreur', message: 'Serveur injoignable — notes non lues.' };
+    }
+    if (ongletActuel === 'agenda' && agendaSelection === itemId && notesAgendaEdition !== itemId) renderPageAgenda();
+  }
+
+  function modifierNotesAgenda(itemId) {
+    const n = notesAgenda[itemId];
+    notesAgendaEdition = itemId;
+    notesAgendaBrouillon = n && n.notes ? n.notes : '';
+    renderPageAgenda();
+    const champ = document.getElementById('agenda-notes-texte');
+    if (champ) { champ.focus({ preventScroll: true }); champ.setSelectionRange(champ.value.length, champ.value.length); }
+  }
+
+  function annulerNotesAgenda() {
+    notesAgendaEdition = null;
+    notesAgendaBrouillon = '';
+    renderPageAgenda();
+  }
+
+  async function enregistrerNotesAgenda(itemId) {
+    const champ = document.getElementById('agenda-notes-texte');
+    const texte = champ ? champ.value : notesAgendaBrouillon;
+    const n = notesAgenda[itemId] || {};
+    const e = agendaEvenements.find(x => x.itemId === itemId);
+    const bouton = document.getElementById('agenda-notes-ok');
+    if (bouton) bouton.disabled = true;
+    try {
+      const r = await fetchAvecAuth('/api/exchange/evenement/notes', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ itemId, changeKey: n.changeKey || (e && e.changeKey) || '', notes: texte })
+      });
+      const corps = await r.json();
+      if (!corps.ok) {
+        if (bouton) bouton.disabled = false;
+        afficherToast(corps.message || 'La note n’a pas été enregistrée.', 'OK', null);
+        return;
+      }
+      notesAgenda[itemId] = { etat: 'ok', notes: texte.trim(), changeKey: corps.changeKey || '' };
+      if (e && corps.changeKey) e.changeKey = corps.changeKey;
+      notesAgendaEdition = null;
+      notesAgendaBrouillon = '';
+      afficherToast('Note enregistrée dans le rendez-vous.', 'OK', null);
+      renderPageAgenda();
+    } catch (err) {
+      if (bouton) bouton.disabled = false;
+      afficherToast('Serveur injoignable — note non enregistrée.', 'OK', null);
+    }
   }
 
   // ---- Création d'un rendez-vous ----
@@ -19003,6 +19268,7 @@
             </select></label>
         </div>
         <label class="ag-champ">Lieu <input type="text" id="agenda-creation-lieu" maxlength="160" placeholder="Facultatif"></label>
+        <label class="ag-champ">Notes <textarea id="agenda-creation-notes" rows="3" maxlength="8000" placeholder="Facultatif — visibles aussi dans Outlook"></textarea></label>
         <div class="rdv-type-choix" role="radiogroup" aria-label="Couleur du rendez-vous">
           <label class="rdv-type-option"><input type="radio" name="agenda-creation-type" value="" checked><span class="rdv-type-pastille"></span>Sans catégorie</label>
           ${Object.entries(TYPES_RDV).map(([cle, t]) => `<label class="rdv-type-option"><input type="radio" name="agenda-creation-type" value="${cle}"><span class="rdv-type-pastille rdv-type-${cle}"></span>${t.libelle}</label>`).join('')}
@@ -19034,6 +19300,7 @@
     const heure = val('agenda-creation-heure');
     const dureeMinutes = parseInt(val('agenda-creation-duree'), 10) || 60;
     const lieu = val('agenda-creation-lieu');
+    const notes = val('agenda-creation-notes');
     const choix = document.querySelector('input[name="agenda-creation-type"]:checked');
     const typeRdv = choix && TYPES_RDV[choix.value] ? choix.value : '';
     const d = dossiers.find(x => x.id === val('agenda-creation-dossier')) || null;
@@ -19042,7 +19309,7 @@
     const creer = async () => {
       const bouton = document.getElementById('agenda-creation-ok');
       if (bouton) { bouton.disabled = true; bouton.textContent = 'Création…'; }
-      const ok = await posterEvenementAgenda({ sujet, date, heure, dureeMinutes, lieu, typeRdv, dossier: d, signature });
+      const ok = await posterEvenementAgenda({ sujet, date, heure, dureeMinutes, lieu, typeRdv, dossier: d, signature, notes });
       if (bouton) { bouton.disabled = false; }
       if (ok) { agendaModale = null; renderPageAgenda(); chargerAgendaSemaine(); }
     };
@@ -19055,7 +19322,7 @@
 
   // Écrit un rendez-vous dans l'agenda de l'office (un seul essai). Rendez-vous de signature d'un
   // dossier : la date et l'heure sont notées sur la fiche, comme depuis la fiche elle-même.
-  async function posterEvenementAgenda({ sujet, date, heure, dureeMinutes, lieu, typeRdv, dossier, signature }) {
+  async function posterEvenementAgenda({ sujet, date, heure, dureeMinutes, lieu, typeRdv, dossier, signature, notes }) {
     const categorie = typeRdv ? (categoriesRdvReglees()[typeRdv] || '') : '';
     try {
       const reponse = await fetchAvecAuth('/api/exchange/rendez-vous', {
@@ -19064,7 +19331,8 @@
         body: JSON.stringify({
           sujet, date, heure, dureeMinutes, lieu, categorie, signature,
           dossierId: dossier ? dossier.id : null, dossierNom: dossier ? dossier.nom : null,
-          corps: signature ? 'Rendez-vous de signature créé depuis l’agenda de CLAIRE.' : 'Rendez-vous créé depuis l’agenda de CLAIRE.'
+          // Les notes saisies deviennent le corps du rendez-vous dans Outlook.
+          corps: notes || (signature ? 'Rendez-vous de signature créé depuis l’agenda de CLAIRE.' : 'Rendez-vous créé depuis l’agenda de CLAIRE.')
         })
       });
       const corps = await reponse.json();

@@ -13290,3 +13290,31 @@ rendez-vous à 9 h, entre 12 h et 14 h et après 18 h, sauf exception ; maximum 
   commentaire et casse toute la feuille qui suit — insérer après le `*/`.
 - Vérifié dans Chromium (clair, sombre, téléphone, vues mois et jour, suppression confirmée, création,
   créneau proposé) avec des dossiers inventés ; test `infosRendezVousDossier` ajouté.
+
+### 30/09/2026, soir — Agenda : notes des rendez-vous, semaine probable des signatures à placer
+
+- Demande de l'étude : « De quoi mettre des notes dans le rendez-vous. Pour les probabilités de rendez-vous
+  indiquer pour les rendez-vous déjà placés la probabilité qu'il soit maintenu. Pour les dossiers pas encore
+  placés, les placer à côté de l'agenda et les afficher quand on arrive sur cette semaine et dire il est
+  probable que ce rendez-vous se tienne cette semaine-là. Une manière proactive de placer le rendez-vous. »
+- Questions posées, réponses : notes **dans Outlook** (corps du rendez-vous) ; semaine **au plus tôt** ;
+  affichage en **carte fantôme** dans la grille.
+- Serveur (`exchange/ews.js`) : `corpsLireNotes` (GetItem, `BodyType` Text, `item:Body`), `parseNotesEws`,
+  `corpsUpdateNotes` (UpdateItem du seul corps, `SendToNone`), `lireNotesExchange`,
+  `mettreAJourNotesExchange` (conflit `ErrorIrresolvableConflict` → message « rouvrez-le »), 8 000
+  caractères au plus. Routes `GET/PUT /api/exchange/evenement/notes` ; le ChangeKey rendu remplace celui de
+  l'événement gardé sous `agenda-office`. La création d'un rendez-vous prend les notes comme corps.
+- Client : `semaineProbableSignature` (délai 14 j, offre attendue + `DELAI_REFLEXION_OFFRE_JOURS` = 11,
+  vente préalable, jour ouvré ; facteurs de `probabiliteTenueSignature` à cette date + « Rendez-vous pas
+  encore fixé » −10 + « Au-delà de la date butoir » −15), `fantomesSemaineAgenda` (premier créneau libre
+  de la semaine via `creneauxProposesSignature(…, bornes)`, deux fantômes jamais sur le même créneau),
+  `renderFantomeGrille`, `renderDetailFantomeAgenda` (« Il est probable que ce rendez-vous se tienne la
+  semaine du … », raison de la date, facteurs, « Placer le … » + trois autres créneaux de la semaine),
+  `allerSemaineProbableAgenda`. « Rendez-vous à placer » : tous les dossiers sans rendez-vous, par semaine
+  probable (8 au plus), créneaux gardés pour ceux prêts à signer. Rendez-vous placé : « de chances que le
+  rendez-vous soit maintenu ». Notes : `renderNotesRendezVous` (crayon → zone de texte, ✓ / ×), relues à
+  chaque ouverture, focus et curseur gardés à travers les rafraîchissements automatiques.
+- Vérifié dans Chromium (clair, sombre, téléphone) avec des dossiers inventés et les routes Exchange
+  simulées : lecture et écriture d'une note, carte fantôme posée à 9 h 30 la bonne semaine, placement
+  confirmé qui la fait disparaître. **Non vérifié** : Exchange réel (forme du corps rendu par GetItem en
+  texte, corps HTML d'origine, notes d'une invitation reçue).

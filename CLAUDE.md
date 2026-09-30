@@ -288,6 +288,16 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
   30/09 : jamais à 9 h, ni entre 12 h et 14 h, ni après 18 h, 6 rendez-vous par jour au plus** —
   `motifCreneauExceptionnel` ; une exception n'est proposée qu'à défaut de tout créneau normal, marquée,
   et une création manuelle hors règles se confirme),
+  **semaine probable d'une signature pas encore placée** (étude, 30/09 : « au plus tôt ») —
+  `semaineProbableSignature` : max(aujourd'hui + 14 j, offre de prêt attendue — date de la condition ou
+  aujourd'hui si dépassée — + 11 j de réflexion, vente préalable), jour ouvré ; probabilité = celle de
+  `probabiliteTenueSignature` à cette date − 10 (non fixé) − 15 (après la date butoir) ; « Rendez-vous à
+  placer » les liste par semaine, et la semaine affichée porte une **carte fantôme** en pointillé
+  (`fantomesSemaineAgenda`, premier créneau libre dans les règles, clé `probable:<id>`) dont le détail
+  propose « Placer » (confirmé) ; **notes d'un rendez-vous = son corps dans Outlook** (choix de l'étude,
+  `GET/PUT /api/exchange/evenement/notes`, GetItem/UpdateItem du seul `item:Body` en texte brut, lues à
+  l'ouverture du détail, jamais journalisées ; la mise en forme HTML d'un corps n'est pas gardée à
+  l'écriture),
   `gestesRelationClient` (rappel J-3…J-1, confirmation J-45…J-3 une fois par date `confirmationRdvPour`,
   questionnaire J+1…J+14, un mot un an après — jamais au client d'un confrère). **Couleur d'un
   rendez-vous = celle d'Outlook** (étude, 30/09) : couleur nommée dans la catégorie

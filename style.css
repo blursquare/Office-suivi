@@ -7216,6 +7216,16 @@ button.primary.ag-ajout svg { width: 14px; height: 14px; }
 .ag-evt-avec-proba:not(.ag-evt-court) .ag-evt-titre { padding-right: 32px; }
 .ag-evt-court .ag-proba { position: static; flex: none; }
 .ag-hors-agenda { background: var(--paper-card); border: 1.5px dashed var(--ag-teinte, var(--line)); border-left-width: 4px; }
+/* Carte fantôme : signature probable cette semaine, pas encore placée (proposition de CLAIRE). */
+.ag-evt.ag-fantome, .ag-journee-evt.ag-fantome {
+  background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--ag-teinte) 7%, var(--paper-card)) 0 6px, var(--paper-card) 6px 12px);
+  border: 1.5px dashed var(--ag-teinte, var(--line)); border-left-width: 4px; box-shadow: none; opacity: 0.95;
+}
+.ag-evt.ag-fantome:hover { background: color-mix(in srgb, var(--ag-teinte) 14%, var(--paper-card)); }
+.ag-fantome-tete { display: inline-flex; align-items: center; gap: 3px; font-size: 10px; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; color: var(--ag-teinte); flex: none; white-space: nowrap; overflow: hidden; }
+.ag-evt.ag-fantome.selection, .ag-journee-evt.ag-fantome.selection { box-shadow: 0 0 0 2px var(--ink); }
+.ag-fantome-tete svg, .ag-journee-evt.ag-fantome svg { width: 11px; height: 11px; }
+.ag-journee-evt.ag-fantome { display: inline-flex; align-items: center; gap: 4px; }
 /* Trait de l'heure, avec l'heure dans une pastille à gauche. */
 .ag-maintenant { position: absolute; left: 0; right: 0; height: 0; border-top: 2px solid var(--ink); z-index: 3; pointer-events: none; }
 .ag-maintenant span {
@@ -7334,6 +7344,15 @@ button.primary.ag-ouvrir-fiche { align-self: flex-start; display: inline-flex; a
 .ag-detail-proba-tete { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; font-size: 13px; margin-bottom: 6px; }
 .ag-detail-proba-tete .ag-proba { font-size: 15px; }
 .ag-facteurs { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 3px; font-size: 12.5px; }
+.ag-detail-raison { margin: 0 0 6px; font-size: 12.5px; color: var(--ink-soft); }
+.ag-ligne.selection { background: var(--paper-sunk); box-shadow: inset 0 0 0 1px var(--line); }
+/* Notes du rendez-vous = corps du rendez-vous dans Outlook. */
+.ag-notes { border-top: 1px solid var(--line-soft); padding-top: 8px; display: flex; flex-direction: column; gap: 6px; }
+.ag-notes-tete { display: flex; align-items: center; gap: 4px; }
+.ag-notes-titre { font-size: 12px; font-weight: 700; color: var(--ink); text-transform: uppercase; letter-spacing: 0.04em; }
+.ag-notes-texte { font-size: 12.5px; color: var(--ink); white-space: pre-wrap; overflow-wrap: anywhere; max-height: 220px; overflow-y: auto; background: var(--paper-sunk); border-radius: 8px; padding: 8px 10px; }
+textarea.ag-notes-champ { width: 100%; box-sizing: border-box; font: inherit; font-size: 12.5px; resize: vertical; min-height: 90px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper-card); color: var(--ink); }
+textarea.ag-notes-champ:focus { outline: 2px solid var(--focus); outline-offset: 0; }
 .ag-facteurs li { display: flex; align-items: flex-start; gap: 6px; }
 .ag-facteurs svg { width: 13px; height: 13px; flex: none; margin-top: 2px; }
 .ag-facteurs li.ok { color: var(--ink-soft); }
@@ -7342,9 +7361,10 @@ button.primary.ag-ouvrir-fiche { align-self: flex-start; display: inline-flex; a
 .ag-facteurs em { font-style: normal; color: var(--muted); font-variant-numeric: tabular-nums; }
 .ag-detail-actions { display: flex; flex-direction: column; gap: 4px; }
 .ag-form .ag-champ { display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; font-weight: 600; color: var(--ink-soft); }
-.ag-form .ag-champ input[type="text"], .ag-form .ag-champ input[type="date"], .ag-form .ag-champ input[type="time"], .ag-form .ag-champ select {
+.ag-form .ag-champ input[type="text"], .ag-form .ag-champ input[type="date"], .ag-form .ag-champ input[type="time"], .ag-form .ag-champ select, .ag-form .ag-champ textarea {
   font: inherit; font-weight: 400; font-size: 13.5px; color: var(--ink); background: var(--paper); border: 1px solid var(--line); border-radius: 8px; padding: 7px 9px; min-width: 0;
 }
+.ag-form .ag-champ textarea { resize: vertical; }
 .ag-form .ag-case-signature { flex-direction: row; align-items: center; gap: 8px; font-weight: 500; }
 .ag-facultatif { font-weight: 400; color: var(--muted); }
 .ag-champs-ligne { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }

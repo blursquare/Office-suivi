@@ -401,3 +401,47 @@ test('parseCalendrierEws : sujet et lieu dés-échappés, catégories, journée 
   assert.match(requete, /FieldURI="item:Categories"/);
   assert.doesNotMatch(requete, /CreateItem|UpdateItem|DeleteItem/);
 });
+
+test('Notes d\'un rendez-vous : GetItem du corps en texte, UpdateItem du seul corps', async () => {
+  const {
+    corpsLireNotes, parseNotesEws, corpsUpdateNotes, lireNotesExchange, mettreAJourNotesExchange
+  } = require('../src/exchange/ews');
+  const lire = corpsLireNotes({ itemId: 'AAMk<1>' });
+  assert.match(lire, /<m:GetItem>/);
+  assert.match(lire, /<t:BodyType>Text<\/t:BodyType>/);
+  assert.match(lire, /FieldURI="item:Body"/);
+  assert.match(lire, /Id="AAMk&lt;1&gt;"/);
+
+  const reponse = '<m:ResponseCode>NoError</m:ResponseCode><t:CalendarItem><t:ItemId Id="ID1" ChangeKey="CK2"/>'
+    + '<t:Body BodyType="Text">Clés à remettre &amp; chèque\r\nApporter le RIB</t:Body></t:CalendarItem>';
+  const lu = parseNotesEws(reponse);
+  assert.equal(lu.notes, 'Clés à remettre & chèque\nApporter le RIB');
+  assert.equal(`${lu.itemId}/${lu.changeKey}`, 'ID1/CK2');
+  assert.equal(parseNotesEws('<t:ItemId Id="X"/><t:Body BodyType="Text"/>').notes, '');
+
+  const maj = corpsUpdateNotes({ itemId: 'ID1', changeKey: 'CK2', notes: 'A <b> & C' });
+  assert.match(maj, /SetItemField><t:FieldURI FieldURI="item:Body"\/>/);
+  assert.match(maj, /<t:Body BodyType="Text">A &lt;b&gt; &amp; C<\/t:Body>/);
+  assert.match(maj, /SendMeetingInvitationsOrCancellations="SendToNone"/);
+  assert.doesNotMatch(maj, /Subject|Location|Start/, 'rien d\'autre que le corps');
+
+  let envoye = '';
+  const poster = (opts, cb) => { envoye = opts.body; cb(null, { statusCode: 200, body: '<m:GetItemResponseMessage ResponseClass="Success">' + reponse }); };
+  const r = await lireNotesExchange({ url: 'https://x/EWS/Exchange.asmx', email: 'a@b.fr', motDePasse: 'SECRET', itemId: 'ID1' }, { poster });
+  assert.equal(r.ok, true);
+  assert.equal(r.notes.split('\n')[1], 'Apporter le RIB');
+  assert.match(envoye, /GetItem/);
+
+  const absent = await lireNotesExchange({ url: 'u', email: 'a', motDePasse: 'b', itemId: 'Z' },
+    { poster: (o, cb) => cb(null, { statusCode: 200, body: '<m:ResponseCode>ErrorItemNotFound</m:ResponseCode>' }) });
+  assert.equal(absent.introuvable, true);
+
+  const conflit = await mettreAJourNotesExchange({ url: 'u', email: 'a', motDePasse: 'SECRET', itemId: 'Z', changeKey: 'old', notes: 'x' },
+    { poster: (o, cb) => cb(null, { statusCode: 200, body: '<m:ResponseCode>ErrorIrresolvableConflict</m:ResponseCode>' }) });
+  assert.equal(conflit.raison, 'conflit');
+  assert.doesNotMatch(conflit.message, /SECRET/);
+
+  const ok = await mettreAJourNotesExchange({ url: 'u', email: 'a', motDePasse: 'b', itemId: 'ID1', changeKey: 'CK2', notes: 'x' },
+    { poster: (o, cb) => cb(null, { statusCode: 200, body: '<m:UpdateItemResponseMessage ResponseClass="Success"><t:ItemId Id="ID1" ChangeKey="CK3"/>' }) });
+  assert.equal(`${ok.ok}/${ok.changeKey}`, 'true/CK3');
+});

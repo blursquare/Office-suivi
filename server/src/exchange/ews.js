@@ -737,6 +737,72 @@ async function deplacerRendezVousExchange({ url, email, motDePasse, itemId, chan
     "Rendez-vous déplacé dans l'agenda.", 'Le déplacement du rendez-vous a échoué');
 }
 
+// --- Notes d'un rendez-vous (étude, 30/09 : « de quoi mettre des notes dans le rendez-vous ») ---
+//
+// La note EST le corps du rendez-vous dans Outlook (choix de l'étude) : on la voit dans Outlook comme
+// dans CLAIRE, et une note tapée dans Outlook remonte dans CLAIRE. FindItem ne renvoie jamais le corps :
+// GetItem sur le seul rendez-vous ouvert, en texte brut. L'écriture remplace le corps par du texte
+// brut (la mise en forme d'un corps HTML n'est pas gardée). Un seul essai à chaque fois.
+var TAILLE_MAX_NOTES = 8000;
+
+function corpsLireNotes({ itemId }) {
+  return ENVELOPPE_DEBUT
+    + '<m:GetItem><m:ItemShape><t:BaseShape>IdOnly</t:BaseShape><t:BodyType>Text</t:BodyType>'
+    + '<t:AdditionalProperties><t:FieldURI FieldURI="item:Body"/></t:AdditionalProperties></m:ItemShape>'
+    + '<m:ItemIds><t:ItemId Id="' + echapperXml(itemId) + '"/></m:ItemIds>'
+    + '</m:GetItem>' + ENVELOPPE_FIN;
+}
+
+// Réponse d'un GetItem → { notes, itemId, changeKey }. PURE. Retours à la ligne ramenés à \n.
+function parseNotesEws(corps) {
+  const texte = String(corps || '');
+  const idTag = (texte.match(/<t:ItemId\b[^>]*>/) || [])[0] || '';
+  const brut = (texte.match(/<t:Body\b[^>]*>([\s\S]*?)<\/t:Body>/) || [])[1] || '';
+  return {
+    notes: desechapperXml(brut).replace(/\r\n?/g, '\n').trim(),
+    itemId: (idTag.match(/\bId="([^"]+)"/) || [])[1] || '',
+    changeKey: (idTag.match(/\bChangeKey="([^"]+)"/) || [])[1] || ''
+  };
+}
+
+function corpsUpdateNotes({ itemId, changeKey, notes }) {
+  return ENVELOPPE_DEBUT
+    + '<m:UpdateItem ConflictResolution="AutoResolve" SendMeetingInvitationsOrCancellations="SendToNone">'
+    + '<m:ItemChanges><t:ItemChange>'
+    + '<t:ItemId Id="' + echapperXml(itemId) + '"' + (changeKey ? ' ChangeKey="' + echapperXml(changeKey) + '"' : '') + '/>'
+    + '<t:Updates>'
+    + '<t:SetItemField><t:FieldURI FieldURI="item:Body"/>'
+    + '<t:CalendarItem><t:Body BodyType="Text">' + echapperXml(String(notes || '').slice(0, TAILLE_MAX_NOTES)) + '</t:Body></t:CalendarItem>'
+    + '</t:SetItemField>'
+    + '</t:Updates>'
+    + '</t:ItemChange></m:ItemChanges>'
+    + '</m:UpdateItem>' + ENVELOPPE_FIN;
+}
+
+async function lireNotesExchange({ url, email, motDePasse, itemId, delaiMs }, injections) {
+  const r = await posterEws({ url, email, motDePasse, delaiMs, body: corpsLireNotes({ itemId }) }, injections);
+  if (r.echec) return r.echec;
+  const texte = String(r.corps || '');
+  if (/<m:ResponseCode>ErrorItemNotFound<\/m:ResponseCode>/.test(texte)) {
+    return { ok: false, introuvable: true, raison: 'ews', message: "Ce rendez-vous n'est plus dans l'agenda." };
+  }
+  const lu = interpreterReponseCreation(r.statut, r.corps, 'Notes lues.', 'La lecture des notes a échoué');
+  if (!lu.ok) return lu;
+  return { ok: true, ...parseNotesEws(texte) };
+}
+
+async function mettreAJourNotesExchange({ url, email, motDePasse, itemId, changeKey, notes, delaiMs }, injections) {
+  const r = await posterEws({ url, email, motDePasse, delaiMs, body: corpsUpdateNotes({ itemId, changeKey, notes }) }, injections);
+  if (r.echec) return r.echec;
+  if (/<m:ResponseCode>ErrorItemNotFound<\/m:ResponseCode>/.test(String(r.corps || ''))) {
+    return { ok: false, introuvable: true, raison: 'ews', message: "Ce rendez-vous n'est plus dans l'agenda." };
+  }
+  if (/<m:ResponseCode>ErrorIrresolvableConflict<\/m:ResponseCode>/.test(String(r.corps || ''))) {
+    return { ok: false, raison: 'conflit', message: 'Le rendez-vous a été modifié dans Outlook entre-temps : rouvrez-le pour relire les notes.' };
+  }
+  return interpreterReponseCreation(r.statut, r.corps, 'Notes enregistrées dans le rendez-vous.', "L'enregistrement des notes a échoué");
+}
+
 // Interprète la réponse d'Exchange. Fonction PURE (statut HTTP + corps), testable sans réseau ni
 // serveur réel — voir server/test/ews.test.js. Ne reçoit jamais le mot de passe.
 function interpreterReponseEws(statutHttp, corps) {
@@ -814,5 +880,6 @@ module.exports = {
   creerEcheanceExchange, mettreAJourEcheanceExchange, supprimerEcheanceExchange,
   heureParisDepuisInstant, horaireDeplace, corpsUpdateRendezVousHoraire, deplacerRendezVousExchange,
   posterEws, corpsLireCalendrier, parseCalendrierEws, lireCalendrierExchange,
-  JOURS_PAR_TRANCHE_CALENDRIER, TRANCHES_CALENDRIER
+  JOURS_PAR_TRANCHE_CALENDRIER, TRANCHES_CALENDRIER,
+  TAILLE_MAX_NOTES, corpsLireNotes, parseNotesEws, corpsUpdateNotes, lireNotesExchange, mettreAJourNotesExchange
 };

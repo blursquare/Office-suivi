@@ -225,3 +225,17 @@ test('heureFinDepuisDuree : heure de fin, jamais au-delà de 23:59', () => {
   assert.equal(heureFinDepuisDuree('17:45', 90), '19:15');
   assert.equal(heureFinDepuisDuree('23:30', 120), '23:59');
 });
+
+test('Notes d\'un rendez-vous : rendez-vous désigné et taille bornée avant tout appel réseau', async () => {
+  await appeler('/api/exchange/reglages', { method: 'PUT', body: JSON.stringify({ actif: false }) });
+  const inactif = await appeler('/api/exchange/evenement/notes?itemId=AAA');
+  assert.equal(inactif.status, 400);
+  await appeler('/api/exchange/reglages', { method: 'PUT', body: JSON.stringify({ actif: true, email: 'notaire@gossart.notaires.fr', motDePasse: 'SECRET123' }) });
+  const sansId = await appeler('/api/exchange/evenement/notes');
+  assert.equal(sansId.status, 400);
+  const sansNotes = await appeler('/api/exchange/evenement/notes', { method: 'PUT', body: JSON.stringify({ itemId: 'AAA' }) });
+  assert.equal(sansNotes.status, 400);
+  const tropLong = await appeler('/api/exchange/evenement/notes', { method: 'PUT', body: JSON.stringify({ itemId: 'AAA', notes: 'x'.repeat(8001) }) });
+  assert.equal(tropLong.status, 400);
+  assert.match((await tropLong.json()).message, /trop longues/);
+});

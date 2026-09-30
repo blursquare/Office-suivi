@@ -192,3 +192,53 @@ test('infosRendezVousDossier : responsable, confrère, appel de fonds et décomp
   assert.equal(app.infosRendezVousDossier({ responsable: 'Julie VASSELIN', notaireVendeur: 'Maître Sophie GOSSART', notaireAcquereur: 'Maître Sophie GOSSART' }).confrere, '');
   assert.equal(app.infosRendezVousDossier(null), null);
 });
+
+test('semaineProbableSignature : au plus tôt, offre de prêt + 11 jours, vente préalable, jour ouvré', () => {
+  const auj = '2026-09-30'; // mercredi
+  // Offre attendue au plus tard le 20/10 → 31/10 (samedi) → lundi 02/11 (le 01/11 est férié et dimanche).
+  const pret = app.semaineProbableSignature({ id: 'a', nom: 'A', pret: '2026-10-20', pieces: TOUS_RECUS }, auj, []);
+  assert.equal(pret.date, '2026-11-02');
+  assert.equal(pret.lundi, '2026-11-02');
+  assert.match(pret.raison, /offre de prêt attendue au plus tard le 20 octobre 2026, puis 11 jours de réflexion/);
+  assert.ok(pret.facteurs.some(f => f.libelle === 'Rendez-vous pas encore fixé'));
+
+  // Comptant, rien à attendre : le délai d'envoi (14 jours) seul → mercredi 14/10.
+  const comptant = app.semaineProbableSignature({ id: 'b', nom: 'B', sansPret: true, pieces: TOUS_RECUS }, auj, []);
+  assert.equal(comptant.date, '2026-10-14');
+  assert.equal(comptant.lundi, '2026-10-12');
+  assert.match(comptant.raison, /appel de fonds et le projet/);
+
+  // Vente préalable plus tardive que tout le reste.
+  const vente = app.semaineProbableSignature({ id: 'c', nom: 'C', sansPret: true, ventebien: '2026-11-18', pieces: TOUS_RECUS }, auj, []);
+  assert.equal(vente.date, '2026-11-18');
+  assert.match(vente.raison, /vente préalable/);
+
+  // Au-delà de la date butoir : signalé et pénalisé.
+  const butoir = app.semaineProbableSignature({ id: 'd', nom: 'D', pret: '2026-10-20', acte: '2026-10-25', pieces: TOUS_RECUS }, auj, []);
+  assert.equal(butoir.depasseButoir, true);
+  assert.ok(butoir.pourcent < pret.pourcent);
+
+  // Un dossier placé ou archivé n'a pas de semaine probable.
+  assert.equal(app.semaineProbableSignature({ id: 'e', rendezVousSignature: '2026-10-15' }, auj, []), null);
+  assert.equal(app.semaineProbableSignature({ id: 'f', archive: true }, auj, []), null);
+});
+
+test('fantomesSemaineAgenda : carte fantôme sur le premier créneau libre de la semaine probable', () => {
+  const auj = '2026-09-30';
+  const d = { id: 'b', nom: 'BLANC / NOIR', sansPret: true, pieces: TOUS_RECUS, responsable: 'Julie VASSELIN' };
+  const jours = app.joursSemaineAgenda('2026-10-12');
+  // Le 14/10, 09:30 et 10:00 sont pris : le fantôme prend 10:30 (jamais 9 h).
+  const evenements = [
+    { sujet: 'X', date: '2026-10-14', heure: '09:30', heureFin: '10:30' }
+  ];
+  const f = app.fantomesSemaineAgenda([d], evenements, [], jours, auj);
+  assert.equal(f.length, 1);
+  assert.equal(`${f[0].date} ${f[0].heure}-${f[0].heureFin}`, '2026-10-14 10:30-11:30');
+  assert.equal(f[0].fantome, true);
+  assert.equal(app.cleEvenementAgenda(f[0]), 'probable:b');
+  // Une autre semaine n'a pas de fantôme pour ce dossier.
+  assert.equal(app.fantomesSemaineAgenda([d], evenements, [], app.joursSemaineAgenda('2026-10-19'), auj).length, 0);
+  // Deux dossiers la même semaine : pas sur le même créneau.
+  const deux = app.fantomesSemaineAgenda([d, { ...d, id: 'c', nom: 'ROUGE / VERT' }], evenements, [], jours, auj);
+  assert.notEqual(`${deux[0].date}${deux[0].heure}`, `${deux[1].date}${deux[1].heure}`);
+});

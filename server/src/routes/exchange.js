@@ -20,7 +20,7 @@ const {
   testerConnexionExchange, creerRendezVousExchange, creerBrouillonExchange,
   fenetreJourneeParis, trouverRendezVousExchange, mettreAJourLieuExchange,
   creerEcheanceExchange, mettreAJourEcheanceExchange, supprimerEcheanceExchange,
-  horaireDeplace, deplacerRendezVousExchange
+  horaireDeplace, deplacerRendezVousExchange, lireNotesExchange, mettreAJourNotesExchange, TAILLE_MAX_NOTES
 } = require('../exchange/ews');
 const { extraireReferenceVte, dossierPourReferenceAgenda, composerLieuAgenda } = require('../agendaOffice');
 const { URL_EWS_DEFAUT } = require('../parametresRepo');
@@ -139,7 +139,7 @@ function creerRouteurExchange(parametresRepo) {
         heureStr,
         dureeMinutes,
         lieu: String(b.lieu || '').trim(),
-        corps: String(b.corps || '').trim(),
+        corps: String(b.corps || '').trim().slice(0, 8000),
         categorie: categorieValide(b.categorie),
         // Créer le rendez-vous dans le calendrier PARTAGÉ (celui de Sophie) quand il est configuré,
         // sinon dans le calendrier du compte de connexion. Voir ews.js/folderCalendrierXml.
@@ -219,6 +219,59 @@ function creerRouteurExchange(parametresRepo) {
     });
     if (r.ok && typeof parametresRepo.retirerEvenementAgendaOffice === 'function') parametresRepo.retirerEvenementAgendaOffice(itemId);
     res.json({ ok: !!r.ok, message: r.ok ? "Rendez-vous supprimé de l'agenda de l'office." : r.message, raison: r.raison || '' });
+  });
+
+  // Notes d'un rendez-vous = son corps dans Outlook (étude, 30/09). Lues à l'ouverture du rendez-vous
+  // dans la page Agenda (GetItem, un seul essai), écrites sur demande (UpdateItem du seul corps).
+  // Jamais journalisées : elles peuvent parler du client.
+  const reglagesPrets = (res) => {
+    const reglages = parametresRepo.lireReglagesExchange();
+    if (!reglages.actif) {
+      res.status(400).json({ ok: false, message: "La connexion à l'agenda n'est pas activée dans les Réglages." });
+      return null;
+    }
+    if (!reglages.email || !reglages.motDePasse) {
+      res.status(400).json({ ok: false, message: 'Identifiants de messagerie manquants dans les Réglages.' });
+      return null;
+    }
+    return reglages;
+  };
+  const identifiantValide = (v) => typeof v === 'string' && v.trim().length > 0 && v.length <= 1000;
+
+  routeur.get('/exchange/evenement/notes', async (req, res) => {
+    const itemId = String((req.query || {}).itemId || '');
+    if (!identifiantValide(itemId)) return res.status(400).json({ ok: false, message: 'Rendez-vous non désigné.' });
+    const reglages = reglagesPrets(res);
+    if (!reglages) return;
+    const r = await lireNotesExchange({ url: reglages.url, email: reglages.email, motDePasse: reglages.motDePasse, itemId: itemId.trim() });
+    if (!r.ok) return res.json({ ok: false, message: r.message, raison: r.raison || '', introuvable: !!r.introuvable });
+    res.json({ ok: true, notes: r.notes || '', itemId: r.itemId || itemId.trim(), changeKey: r.changeKey || '' });
+  });
+
+  routeur.put('/exchange/evenement/notes', async (req, res) => {
+    const b = req.body || {};
+    const itemId = String(b.itemId || '');
+    if (!identifiantValide(itemId)) return res.status(400).json({ ok: false, message: 'Rendez-vous non désigné.' });
+    if (typeof b.notes !== 'string') return res.status(400).json({ ok: false, message: 'Notes manquantes.' });
+    if (b.notes.length > TAILLE_MAX_NOTES) {
+      return res.status(400).json({ ok: false, message: `Notes trop longues (${TAILLE_MAX_NOTES} caractères au plus).` });
+    }
+    const reglages = reglagesPrets(res);
+    if (!reglages) return;
+    const r = await mettreAJourNotesExchange({
+      url: reglages.url, email: reglages.email, motDePasse: reglages.motDePasse,
+      itemId: itemId.trim(), changeKey: String(b.changeKey || '').trim(), notes: b.notes
+    });
+    // Le ChangeKey change à chaque écriture : l'événement gardé pour la page Agenda suit.
+    if (r.ok && r.changeKey && typeof parametresRepo.lireAgendaOffice === 'function') {
+      const stocke = ((parametresRepo.lireAgendaOffice() || {}).evenements || []).find((e) => e.itemId === itemId.trim());
+      if (stocke) {
+        parametresRepo.retirerEvenementAgendaOffice(stocke.itemId);
+        parametresRepo.ajouterEvenementAgendaOffice({ ...stocke, itemId: r.itemId || stocke.itemId, changeKey: r.changeKey });
+      }
+    }
+    res.json({ ok: !!r.ok, message: r.message, raison: r.raison || '', introuvable: !!r.introuvable,
+      itemId: r.itemId || itemId.trim(), changeKey: r.changeKey || '' });
   });
 
   // Déplace le rendez-vous de signature quand l'étude change sa date dans CLAIRE : même heure, même
