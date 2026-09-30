@@ -12557,3 +12557,27 @@ JavaScript dans CLAIRE (rien à installer à côté du .exe), l'OCR tesseract.js
   en rubrique Vendeur ; mode automatique : seul le cas sûr rangé ; 1440 px, 400 px, sombre. Non
   vérifiable ici : OCR tesseract.js (CDN), vrai NAS, droits d'écriture. 1 005 tests client, 500
   serveur.
+
+### 30/09 13:33 — Scans : rangement automatique par défaut, score affiché
+
+Demande : « J'aimerais que ça soit automatique pour ceux détectés, sans validation par un humain, et
+j'aimais bien le système de score. »
+- **Automatique par défaut** : `assainirReglagesScans` rend `auto: true` sauf « non » explicite ;
+  activer le classement suffit. Critère inchangé : dossier sûr (seuil ET marge), pièce identifiée,
+  dossier relié au NAS. Un scan à confirmer attend toujours dans « Scans à ranger ».
+- **Plus besoin que la fenêtre du poste serveur soit ouverte** : le rangement automatique passait
+  par `location.hostname === 'localhost'` ; si cette fenêtre était fermée, rien ne se rangeait. Il
+  passe maintenant par un relais serveur (`/api/scans/relais`, en mémoire) : une seule fenêtre
+  CLAIRE à la fois lit et range, la fenêtre du poste serveur (requête locale) le reprend toujours,
+  une fenêtre muette plus de 5 min le perd au profit d'une autre. Testé : accord, priorité locale,
+  expiration, refus quand le classement ou le mode automatique est coupé.
+- **Score** : barème du script d'origine repris en table (`BAREME_SCORE_SCAN` : partie 3, deux au
+  plus, adresse 4, parcelle 5, seuil 6, marge ×1,3 ; le numéro de dossier n'existe pas au NAS de
+  l'étude). Chaque raison porte ses points ; `explicationScoreScan` → « Score 7/6 : 1 partie nommée
+  +3, adresse du bien +4 », « — sous le seuil » ou « — un autre dossier est à 6 ». Affiché sous le
+  statut de chaque scan, à côté de chaque dossier suggéré dans la liste, et dans le journal
+  (« automatique · score 7 », champ `score` du journal serveur).
+- Vérifié en Chromium depuis une fenêtre ouverte par l'adresse IP (pas le poste serveur), réglages
+  par défaut : l'état daté (score 7) est rangé seul dans « 8 - COPRO et ETAT DATE › ETAT DATE »,
+  la pièce d'identité (score 3) et le courrier inconnu (score 0) attendent. 1 007 tests client,
+  503 serveur.

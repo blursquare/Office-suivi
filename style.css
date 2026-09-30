@@ -6903,3 +6903,5 @@ button.scan-nom:focus-visible { outline: 2px solid var(--focus); outline-offset:
   .scan-champs { grid-template-columns: minmax(0, 1fr); }
   .scans-journal li { grid-template-columns: minmax(0, 1fr); gap: 2px; }
 }
+.scan-statut { display: flex; align-items: center; gap: 4px 12px; flex-wrap: wrap; }
+.scan-score { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }

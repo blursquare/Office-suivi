@@ -115,7 +115,8 @@ test('dossier : l’adresse au format de CLAIRE et la parcelle sont reconnues', 
   const r = app.identifierDossierScan('IMMEUBLE SIS A : 12 RUE DES LILAS 41000 BLOIS, cadastré section AB n° 0123', DOSSIERS);
   assert.equal(r.dossier.id, 'd1');
   assert.equal(r.sur, true);
-  assert.equal(r.raisons.join(', '), 'adresse du bien, parcelle AB 123');
+  assert.equal(r.raisons.join(', '), 'adresse du bien +4, parcelle AB 123 +5');
+  assert.equal(r.score, 9);
 });
 
 test('dossier : une seule personne nommée reste une suggestion, avec son rôle', () => {
@@ -150,4 +151,30 @@ test('nom d’un scan non reconnu : « Scan du JJ-MM-AAAA »', () => {
   const app = chargerApplication();
   assert.equal(app.nomCibleScan(null, { date: '2026-10-01T08:00:00Z' }), 'Scan du 01-10-2026');
   assert.equal(app.nomCibleScan(null, {}), 'Scan');
+});
+
+test('score : barème du script de l’étude (partie 3, adresse 4, parcelle 5, seuil 6, marge ×1,3)', () => {
+  const app = chargerApplication();
+  const b = app.BAREME_SCORE_SCAN;
+  assert.equal([b.partie, b.partiesMax, b.adresse, b.parcelle, b.seuil, b.marge].join(','), '3,2,4,5,6,1.3');
+  // Deux parties nommées : 6, exactement le seuil — sûr.
+  const deux = app.propositionScan({ texte: 'Entre Monsieur Paul MARTIN et Madame Sophie DURAND' }, DOSSIERS, '2026-10-01');
+  assert.equal(app.explicationScoreScan(deux), 'Score 6/6 : 2 parties nommées +6');
+  // Une partie seule : 3, sous le seuil.
+  const une = app.propositionScan({ texte: 'CARTE NATIONALE D’IDENTITÉ Nom : LEROY Prénom(s) : Sophie' }, DOSSIERS, '2026-10-01');
+  assert.equal(app.explicationScoreScan(une), 'Score 3/6 : 1 partie nommée +3 — sous le seuil');
+  assert.equal(app.explicationScoreScan({ score: 0 }), 'Aucun dossier reconnu (score 0)');
+});
+
+test('score : deux dossiers trop proches ne se départagent pas, même au-dessus du seuil', () => {
+  const app = chargerApplication();
+  // Deux ventes d'une même famille : les mêmes vendeurs dans deux dossiers.
+  const famille = [
+    { id: 'a', nom: 'MARTIN / DURAND', nasDossier: 'A', parties: [{ nom: 'Paul MARTIN', role: 'VENDEUR' }, { nom: 'Sophie DURAND', role: 'VENDEUR' }] },
+    { id: 'b', nom: 'MARTIN / LEROY', nasDossier: 'B', parties: [{ nom: 'Paul MARTIN', role: 'VENDEUR' }, { nom: 'Sophie DURAND', role: 'VENDEUR' }, { nom: 'Luc LEROY', role: 'ACQUEREUR' }] }
+  ];
+  const p = app.propositionScan({ texte: 'ÉTAT DATÉ copropriétaire cédant Monsieur Paul MARTIN et Madame Sophie DURAND' }, famille, '2026-10-01');
+  assert.equal(p.dossierSur, false);
+  assert.equal(p.automatique, false);
+  assert.equal(app.explicationScoreScan(p), 'Score 6/6 : 2 parties nommées +6 — un autre dossier est à 6');
 });

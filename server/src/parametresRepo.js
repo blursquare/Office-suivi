@@ -612,7 +612,9 @@ const MAX_SCANS_ECARTES = 500;
 function assainirReglagesScans(brut) {
   const b = brut && typeof brut === 'object' ? brut : {};
   const depuis = typeof b.depuis === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(b.depuis) ? b.depuis : null;
-  return { actif: b.actif === true, auto: b.auto === true, depuis };
+  // Rangement automatique ACTIF par défaut (demandé par l'étude le 30/09 : « automatique pour
+  // ceux détectés, sans validation ») ; seul un « non » explicite le coupe.
+  return { actif: b.actif === true, auto: b.auto !== false, depuis };
 }
 function assainirEntreeJournalScans(e) {
   if (!e || typeof e !== 'object') return null;
@@ -621,7 +623,8 @@ function assainirEntreeJournalScans(e) {
   return {
     date: txt(e.date, 40), nom: txt(e.nom, 255), chemin: txt(e.chemin, 600), dossierId: txt(e.dossierId, 80),
     dossier: txt(e.dossier, 200), type: txt(e.type, 80), rubrique: txt(e.rubrique, 200), original: txt(e.original, 400),
-    auteur: txt(e.auteur, 80), auto: e.auto === true
+    auteur: txt(e.auteur, 80), auto: e.auto === true,
+    score: Number.isFinite(e.score) && e.score >= 0 ? Math.min(99, Math.round(e.score)) : null
   };
 }
 function assainirJournalScans(brut) {

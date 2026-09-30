@@ -7,6 +7,8 @@
 //   POST /api/scans/ranger         → { nom, dossierNas, rubriques[], nomCible, dossierId, dossier, type, auteur, auto }
 //   POST /api/scans/ecarter        → { nom, auteur } : laisser ce scan dans Scan, ne plus le proposer
 //   POST /api/scans/retablir       → { nom } : le reproposer
+//   POST /api/scans/relais         → { fenetre } : cette fenêtre CLAIRE fait-elle le rangement
+//                                    automatique ? (une seule à la fois, voir plus bas)
 
 const express = require('express');
 const fs = require('node:fs');
@@ -20,8 +22,27 @@ const routeAsync = (fn) => (req, res) => {
   });
 };
 
-function creerRouteurScans(config, parametresRepo) {
+// Le rangement automatique se fait dans une fenêtre CLAIRE (c'est elle qui lit et fait l'OCR) :
+// UNE seule à la fois, pour ne pas lire deux fois le même scan. Le relais est accordé à la première
+// fenêtre qui le demande et renouvelé à chaque tour ; sans nouvelle d'elle pendant DUREE_RELAIS_MS,
+// il passe à une autre fenêtre ouverte. La fenêtre du poste serveur (requête locale) le reprend
+// toujours : c'est celle qui reste ouverte toute la journée.
+const DUREE_RELAIS_MS = 5 * 60 * 1000;
+function estRequeteLocale(req) {
+  const ip = String((req.socket && req.socket.remoteAddress) || '');
+  return ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1';
+}
+function accorderRelais(relais, fenetre, locale, maintenant) {
+  const libre = !relais.fenetre || maintenant > relais.expire;
+  if (relais.fenetre === fenetre || libre || (locale && !relais.locale)) {
+    return { fenetre, locale, expire: maintenant + DUREE_RELAIS_MS };
+  }
+  return relais;
+}
+
+function creerRouteurScans(config, parametresRepo, horloge = () => Date.now()) {
   const routeur = express.Router();
+  let relais = { fenetre: null, locale: false, expire: 0 };
   // Deux fenêtres CLAIRE (ou un geste manuel pendant le rangement automatique) peuvent viser le
   // même scan : un seul rangement à la fois par nom.
   const enCours = new Set();
@@ -94,7 +115,8 @@ function creerRouteurScans(config, parametresRepo) {
       const entree = {
         date: new Date().toISOString(), nom, chemin: r.chemin, rubrique: r.rubrique, original: r.original || '',
         dossierId: typeof b.dossierId === 'string' ? b.dossierId : '', dossier: typeof b.dossier === 'string' ? b.dossier : '',
-        type: typeof b.type === 'string' ? b.type : '', auteur: typeof b.auteur === 'string' ? b.auteur : '', auto: b.auto === true
+        type: typeof b.type === 'string' ? b.type : '', auteur: typeof b.auteur === 'string' ? b.auteur : '', auto: b.auto === true,
+        score: Number.isFinite(b.score) ? b.score : null
       };
       parametresRepo.ecrireJournalScans(ajouterAuJournal(parametresRepo.lireJournalScans(), entree));
       res.json(Object.assign({ ok: true }, r));
@@ -102,6 +124,15 @@ function creerRouteurScans(config, parametresRepo) {
       enCours.delete(nom);
     }
   }));
+
+  routeur.post('/scans/relais', (req, res) => {
+    const fenetre = String((req.body || {}).fenetre || '');
+    if (!/^[a-z0-9-]{8,64}$/i.test(fenetre)) { res.status(400).json({ erreur: 'Fenêtre invalide.' }); return; }
+    const reglages = parametresRepo.lireReglagesScans();
+    if (!reglages.actif || !reglages.auto) { res.json({ accorde: false }); return; }
+    relais = accorderRelais(relais, fenetre, estRequeteLocale(req), horloge());
+    res.json({ accorde: relais.fenetre === fenetre });
+  });
 
   routeur.post('/scans/ecarter', routeAsync(async (req, res) => {
     const nom = String((req.body || {}).nom || '');
@@ -121,4 +152,4 @@ function creerRouteurScans(config, parametresRepo) {
   return routeur;
 }
 
-module.exports = { creerRouteurScans };
+module.exports = { creerRouteurScans, accorderRelais, DUREE_RELAIS_MS };

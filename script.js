@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-30 13:29';
+  const VERSION_APP = '2026-09-30 13:33';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-30 13:33', resume: "Scans du copieur : le rangement est désormais automatique, sans validation, pour chaque scan dont la pièce est identifiée et le dossier reconnu avec certitude (option activée d'office, désactivable dans Réglages › Pièces). Il suffit qu'une fenêtre CLAIRE soit ouverte au bureau, celle du poste serveur en priorité. Le score de chaque scan est affiché (partie nommée 3 points, adresse du bien 4, parcelle 5, rangé à partir de 6 avec une marge sur le dossier suivant), ainsi que dans la liste des dossiers et le journal des rangements." },
     { version: '2026-09-30 13:29', resume: "Nouveau : « Scans à ranger » (menu Dossier). CLAIRE lit chaque scan déposé par le copieur dans le dossier « Scan » du NAS, reconnaît le dossier client (parties, adresse du bien ou parcelle) et la pièce (état daté, CU, diagnostics, offre de prêt, compromis, pièce d'identité…), puis range une copie dans la bonne rubrique du dossier sous un nom que la checklist reconnaît : la pièce passe « reçue » toute seule. L'original est gardé dans « Scan/CLAIRE - scans rangés ». À activer dans Réglages › Pièces ; le rangement sans intervention des cas sûrs est une option à part. Au passage, un pré-état daté ne fait plus passer l'état daté « reçu »." },
     { version: '2026-09-30 09:44', resume: "Appel de fonds (décompte établi par l'office) : trois pièces à déposer en plus de l'avis de taxe foncière — l'appel de charges du syndic (prorata de charges du jour du rendez-vous à la fin de la période, hors cotisation au fonds de travaux), l'état daté (montant du fonds de travaux attaché au lot, repris si l'avant-contrat prévoit son remboursement) et le relevé de compte client (sommes déjà versées à l'étude, reversements au confrère signalés). Prorata : « Lire un appel de charges » remplit le montant et la période. Avis de taxe foncière : le montant est lu en page 1 et contrôlé en bas de page 2 (l'avis 2026 fourni n'était plus lu)." },
     { version: '2026-09-30 09:30', resume: "Tableau de bord, carte Avancement en détail : la jauge et le pourcentage sont alignés sous le badge d'état, quelle que soit sa largeur." },
@@ -30775,12 +30776,18 @@
       .filter(p => p.mots.length);
   }
 
-  var SEUIL_DOSSIER_SCAN = 6;
-  var MARGE_DOSSIER_SCAN = 1.3;
+  // Barème du score de dossier : celui du script Python fourni par l'étude (« j'aimais bien le
+  // système de score », 30/09), moins le numéro de dossier que les dossiers clients n'ont pas.
+  // Une personne compte si TOUS les mots de son nom figurent dans le scan (deux au plus) ; la voie
+  // de l'adresse du bien au format de CLAIRE ; une parcelle (section et numéro rapprochés). Sûr à
+  // partir du seuil ET avec une marge sur le deuxième dossier (deux dossiers d'une même famille ne
+  // se départagent pas par un seul nom). Modifier ici change le rangement automatique.
+  var BAREME_SCORE_SCAN = { partie: 3, partiesMax: 2, adresse: 4, parcelle: 5, seuil: 6, marge: 1.3 };
 
-  // Score d'un dossier pour un scan : personne nommée (tous ses mots) 3 points, deux au plus ;
-  // voie de l'adresse du bien 4 ; parcelle cadastrale (section et numéro rapprochés) 5. Pure.
+  // Score d'un dossier pour un scan, avec le détail des points (`raisons`, lisibles telles quelles
+  // à l'écran : « 2 parties nommées +6 »). Pure.
   function scoreDossierScan(d, mots) {
+    const b = BAREME_SCORE_SCAN;
     let score = 0;
     const raisons = [];
     const trouvees = [];
@@ -30792,14 +30799,15 @@
       if (present(p.mots) || parUsage) trouvees.push(p);
     }
     if (trouvees.length) {
-      score += 3 * Math.min(trouvees.length, 2);
-      raisons.push(trouvees.length > 1 ? 'deux parties nommées' : 'une partie nommée');
+      const n = Math.min(trouvees.length, b.partiesMax);
+      score += b.partie * n;
+      raisons.push(`${n > 1 ? n + ' parties nommées' : '1 partie nommée'} +${b.partie * n}`);
     }
     const voie = voieAdresseScan(d && d.adresseBien);
-    if (voie && mots.includes(' ' + voie + ' ')) { score += 4; raisons.push('adresse du bien'); }
+    if (voie && mots.includes(' ' + voie + ' ')) { score += b.adresse; raisons.push(`adresse du bien +${b.adresse}`); }
     for (const p of parcellesScan(d)) {
       const re = new RegExp(`\\s${p.section}\\s(?:\\S+\\s){0,3}?0*${p.numero}\\s`);
-      if (re.test(mots)) { score += 5; raisons.push('parcelle ' + p.section.toUpperCase() + ' ' + p.numero); break; }
+      if (re.test(mots)) { score += b.parcelle; raisons.push(`parcelle ${p.section.toUpperCase()} ${p.numero} +${b.parcelle}`); break; }
     }
     const roles = [...new Set(trouvees.map(p => p.role))];
     return { score, raisons, role: roles.length === 1 ? roles[0] : null, personnes: trouvees.map(p => p.nom) };
@@ -30808,16 +30816,28 @@
   // Le dossier d'un scan parmi `dossiers` (non archivés). `sur` seulement au-dessus du seuil ET
   // nettement devant le deuxième ; sinon le meilleur reste une suggestion à confirmer. Pure.
   function identifierDossierScan(texte, dossiersCandidats) {
+    const b = BAREME_SCORE_SCAN;
     const mots = texteMotsScan(texte);
     const classes = (dossiersCandidats || []).filter(d => d && !d.archive)
       .map(d => Object.assign({ dossier: d }, scoreDossierScan(d, mots)))
       .filter(c => c.score > 0)
-      .sort((a, b) => b.score - a.score);
-    if (!classes.length) return { dossier: null, sur: false, score: 0, raisons: [], role: null, candidats: [] };
+      .sort((a, b2) => b2.score - a.score);
+    if (!classes.length) return { dossier: null, sur: false, score: 0, second: 0, raisons: [], role: null, candidats: [] };
     const [premier, second] = classes;
-    const sur = premier.score >= SEUIL_DOSSIER_SCAN && (!second || premier.score >= second.score * MARGE_DOSSIER_SCAN);
-    return { dossier: premier.dossier, sur, score: premier.score, raisons: premier.raisons, role: premier.role, personnes: premier.personnes,
+    const sur = premier.score >= b.seuil && (!second || premier.score >= second.score * b.marge);
+    return { dossier: premier.dossier, sur, score: premier.score, second: second ? second.score : 0, raisons: premier.raisons, role: premier.role, personnes: premier.personnes,
       candidats: classes.slice(0, 5).map(c => ({ id: c.dossier.id, score: c.score })) };
+  }
+
+  // « Score 10/6 : 2 parties nommées +6, adresse du bien +4 », et ce qui manque quand ce n'est pas
+  // sûr (seuil non atteint, ou deuxième dossier trop proche). Pure.
+  function explicationScoreScan(p) {
+    if (!p || !p.score) return 'Aucun dossier reconnu (score 0)';
+    const b = BAREME_SCORE_SCAN;
+    const detail = `Score ${p.score}/${b.seuil} : ${p.raisons.join(', ')}`;
+    if (p.score < b.seuil) return `${detail} — sous le seuil`;
+    if (p.second && p.score < p.second * b.marge) return `${detail} — un autre dossier est à ${p.second}`;
+    return detail;
   }
 
   // Date « JJ-MM-AAAA » d'un ISO ou d'une date. Pure.
@@ -30866,7 +30886,7 @@
     const rubriques = rubriquesScan(type, id.role);
     const relie = !!(d && d.nasDossier);
     return {
-      dossierId: d ? d.id : null, dossierSur: id.sur, score: id.score, raisons: id.raisons, candidats: id.candidats,
+      dossierId: d ? d.id : null, dossierSur: id.sur, score: id.score, second: id.second, raisons: id.raisons, candidats: id.candidats,
       type: type ? type.cle : null, rubriques, nomCible: nomCibleScan(type, { date: dateIso, personne }),
       relie, automatique: !!(id.sur && type && relie)
     };
@@ -30888,11 +30908,18 @@
 
   function cleScan(s) { return s.nom + '|' + s.date; }
 
-  // Le rangement automatique ne tourne que dans la fenêtre CLAIRE du poste serveur (celui qui
-  // porte CLAIRE, réponse de l'étude du 30/09) : deux postes qui liraient et rangeraient les mêmes
-  // scans se gêneraient, et l'OCR est lourd pour un poste de travail.
-  function estPosteServeurScans() {
-    return ['localhost', '127.0.0.1', '::1', '[::1]'].includes(String(location.hostname || '').toLowerCase());
+  // Le rangement automatique se fait dans UNE fenêtre CLAIRE à la fois (c'est elle qui lit et fait
+  // l'OCR) : le serveur accorde le relais à une fenêtre, la fenêtre du poste serveur en priorité, et
+  // le passe à une autre si elle se tait (voir /api/scans/relais). Identifiant tiré au chargement.
+  var fenetreScans = 'f-' + Math.random().toString(36).slice(2, 12) + Date.now().toString(36);
+  var relaisScansAccorde = false;
+  async function demanderRelaisScans() {
+    relaisScansAccorde = false;
+    if (!etatScans.reglages.actif || !etatScans.reglages.auto) return;
+    try {
+      const r = await fetchAvecAuth('/api/scans/relais', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fenetre: fenetreScans }) });
+      relaisScansAccorde = r.ok && !!(await r.json()).accorde;
+    } catch (e) { relaisScansAccorde = false; }
   }
 
   function dossiersCandidatsScans() {
@@ -30907,6 +30934,7 @@
       etatScans = Object.assign(etatScans, await r.json());
     } catch (e) { return; }
     majBadgeScans();
+    await demanderRelaisScans();
     const presents = new Set((etatScans.scans || []).map(cleScan));
     Object.keys(lecturesScans).forEach(k => { if (!presents.has(k)) delete lecturesScans[k]; });
     const visible = ongletActuel === 'scans';
@@ -30963,7 +30991,7 @@
   var lectureScansEnCours = false;
   var relancerLectureScans = false;
   function rangementAutoScansActif() {
-    return !!(etatScans.reglages.actif && etatScans.reglages.auto && estPosteServeurScans());
+    return !!(etatScans.reglages.actif && etatScans.reglages.auto && relaisScansAccorde);
   }
   async function lireScansEnAttente() {
     if (lectureScansEnCours) { relancerLectureScans = true; return; }
@@ -31035,7 +31063,8 @@
       const r = await fetchAvecAuth('/api/scans/ranger', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ nom, dossierNas: d.nasDossier, rubriques: choix.rubriques, nomCible: choix.nomCible,
-          dossierId: d.id, dossier: libelleDossierAffiche(d), type: choix.type, auteur: auto ? 'CLAIRE' : (utilisateurPoste || ''), auto: !!auto })
+          dossierId: d.id, dossier: libelleDossierAffiche(d), type: choix.type, auteur: auto ? 'CLAIRE' : (utilisateurPoste || ''), auto: !!auto,
+          score: l && l.proposition && l.proposition.dossierId === d.id ? l.proposition.score : null })
       });
       const corps = await r.json().catch(() => ({}));
       if (!r.ok) {
@@ -31097,7 +31126,7 @@
           <span class="switch reglages-switch"><input type="checkbox" id="reglages-scans-actif"${r.actif ? ' checked' : ''} onchange="enregistrerReglagesScans({ actif: this.checked })"><span class="slider"></span></span>
         </label>
         <label class="reglages-option" for="reglages-scans-auto">
-          <span class="reglages-option-texte"><span class="reglages-option-titre">Ranger seuls les scans reconnus avec certitude ${infoBulle('Dossier reconnu sans ambiguïté (deux parties, ou l’adresse, ou la parcelle) et pièce identifiée. Le rangement se fait depuis la fenêtre CLAIRE du poste serveur ; les autres scans attendent dans « Scans à ranger ».')}</span></span>
+          <span class="reglages-option-texte"><span class="reglages-option-titre">Ranger automatiquement les scans reconnus ${infoBulle(`Sans validation, dès que la pièce est identifiée et que le dossier atteint le score de ${BAREME_SCORE_SCAN.seuil} avec une marge sur le suivant : partie nommée ${BAREME_SCORE_SCAN.partie} points (deux au plus), adresse du bien ${BAREME_SCORE_SCAN.adresse}, parcelle ${BAREME_SCORE_SCAN.parcelle}. Il suffit qu’une fenêtre CLAIRE soit ouverte au bureau (celle du poste serveur en priorité). Les autres scans attendent dans « Scans à ranger ».`)}</span></span>
           <span class="switch reglages-switch"><input type="checkbox" id="reglages-scans-auto"${r.auto ? ' checked' : ''}${r.actif ? '' : ' disabled'} onchange="enregistrerReglagesScans({ auto: this.checked })"><span class="slider"></span></span>
         </label>
         <label class="reglages-option" for="reglages-scans-depuis">
@@ -31112,7 +31141,7 @@
     const scores = new Map(((proposition && proposition.candidats) || []).map(c => [c.id, c.score]));
     const suggeres = candidats.filter(d => scores.has(d.id)).sort((a, b) => scores.get(b.id) - scores.get(a.id));
     const autres = candidats.filter(d => !scores.has(d.id));
-    const opt = d => `<option value="${escapeAttr(d.id)}"${d.id === choisi ? ' selected' : ''}>${escapeHtml(libelleDossierAffiche(d))}${d.nasDossier ? '' : ' (non relié au NAS)'}</option>`;
+    const opt = d => `<option value="${escapeAttr(d.id)}"${d.id === choisi ? ' selected' : ''}>${escapeHtml(libelleDossierAffiche(d))}${scores.has(d.id) ? ` — score ${scores.get(d.id)}` : ''}${d.nasDossier ? '' : ' (non relié au NAS)'}</option>`;
     return `<option value=""${choisi ? '' : ' selected'}>Choisir le dossier…</option>`
       + (suggeres.length ? `<optgroup label="Reconnus dans le scan">${suggeres.map(opt).join('')}</optgroup>` : '')
       + `<optgroup label="Tous les dossiers">${autres.map(opt).join('')}</optgroup>`;
@@ -31139,11 +31168,12 @@
     const enCours = scansEnRangement.has(scan.nom);
     let statut;
     if (l.statut === 'erreur') statut = `<span class="dot-label dl-urgent"><span class="dot"></span>${escapeHtml(l.erreur)}</span>`;
-    else if (p.automatique) statut = `<span class="dot-label dl-success"><span class="dot"></span>Reconnu : ${escapeHtml(p.raisons.join(', '))}</span>`;
-    else if (p.dossierId && !p.dossierSur) statut = `<span class="dot-label dl-pret"><span class="dot"></span>Dossier à confirmer (${escapeHtml(p.raisons.join(', '))})</span>`;
+    else if (p.automatique) statut = `<span class="dot-label dl-success"><span class="dot"></span>Reconnu, rangement automatique</span>`;
+    else if (p.dossierId && !p.dossierSur) statut = `<span class="dot-label dl-pret"><span class="dot"></span>Dossier à confirmer</span>`;
     else if (p.dossierId && !p.relie) statut = `<span class="dot-label dl-pret"><span class="dot"></span>Dossier non relié au NAS</span>`;
     else if (p.dossierId && !p.type) statut = `<span class="dot-label dl-pret"><span class="dot"></span>Pièce à préciser</span>`;
-    else statut = `<span class="dot-label dl-neutre"><span class="dot"></span>Dossier non reconnu${l.lecture && l.lecture.viaOcr ? ' (texte lu par OCR)' : ''}</span>`;
+    else statut = `<span class="dot-label dl-neutre"><span class="dot"></span>Dossier non reconnu</span>`;
+    if (l.statut !== 'erreur') statut += `<span class="scan-score">${escapeHtml(explicationScoreScan(p))}${l.lecture && l.lecture.viaOcr ? ' · texte lu par OCR' : ''}</span>`;
     return `<li class="scan-ligne">${tete}
       <div class="scan-statut">${statut}</div>
       <div class="scan-champs">
@@ -31181,7 +31211,7 @@
         <div class="dash-section-titre">Derniers rangements</div>
         <ul>${journal.map(j => `<li><span class="scan-date">${escapeHtml(new Date(j.date).toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }))}</span>
           <span>${escapeHtml(j.nom)} → <strong>${escapeHtml(j.dossier || '')}</strong>${j.rubrique ? ' › ' + escapeHtml(j.rubrique.replace(/[\\/]+/g, ' › ')) : ''}</span>
-          <span class="hint">${j.auto ? 'automatique' : escapeHtml(j.auteur || '')}</span></li>`).join('')}</ul>
+          <span class="hint">${j.auto ? 'automatique' : escapeHtml(j.auteur || '')}${j.score != null ? ' · score ' + j.score : ''}</span></li>`).join('')}</ul>
       </div>` : '';
     const ecartes = (e.ecartes || []);
     const ecartesHtml = ecartes.length ? `<details class="scans-ecartes"><summary>Laissés dans Scan (${ecartes.length})</summary>

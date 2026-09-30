@@ -195,14 +195,18 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
   la plus haute l'emporte ; un acte notarié (« L'AN DEUX MILLE… ») est une promesse/un compromis s'il
   le dit, sinon un titre de propriété — jamais compter les mots de tout le document (un compromis cite
   toutes les pièces : le script Python d'origine classait 5 états datés sur 5 en « règlement »).
-  **Dossier** : partie nommée (tous ses mots, ou nom d'usage + prénom) 3 pts, deux au plus ; voie de
-  l'adresse du bien 4 ; parcelle 5 ; sûr à 6 et ×1,3 devant le second, sinon suggestion. **Copie
+  **Dossier** : barème `BAREME_SCORE_SCAN` (celui du script de l'étude, qu'elle souhaite garder) —
+  partie nommée (tous ses mots, ou nom d'usage + prénom) 3 pts, deux au plus ; voie de l'adresse du
+  bien 4 ; parcelle 5 ; sûr à 6 et ×1,3 devant le second, sinon suggestion ; score et détail affichés
+  (`explicationScoreScan`) et journalisés. **Copie
   nommée du libellé de la pièce de la checklist** (« État daté - scan du JJ-MM-AAAA ») pour que le
   parcours du NAS la coche seul ; « Compromis signé » / « Promesse de vente signée » pour
   `choisirAvantContratNas`. **Rubrique retrouvée par son nom** (`RUBRIQUES_SCANS`, numéro ignoré),
   racine du dossier à défaut ; pièce d'identité / état civil / RIB → Vendeur ou Acquéreur selon la
-  partie reconnue. Rangement automatique (réglage séparé) : cas sûrs seulement, depuis la fenêtre
-  CLAIRE du poste serveur (`localhost`), jamais retenté seul après un échec. Un pré-état daté n'est
+  partie reconnue. **Rangement automatique sans validation** (demandé le 30/09, actif par défaut,
+  désactivable) : dossier sûr + pièce identifiée + dossier relié au NAS ; fait par UNE fenêtre CLAIRE
+  ouverte à la fois (relais `/api/scans/relais`, poste serveur prioritaire, relais repris par une
+  autre fenêtre après 5 min de silence) ; jamais retenté seul après un échec. Un pré-état daté n'est
   pas un état daté (checklist corrigée le même jour).
 - **Mobilier** : le prix reste le prix total ; `d.prixMobilier` sort seulement de l'assiette des
   droits (frais d'acte, contrôle du barème).

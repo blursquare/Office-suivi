@@ -12,6 +12,8 @@ const os = require('node:os');
 const path = require('node:path');
 
 const { creerApp } = require('../src/app');
+const { accorderRelais, DUREE_RELAIS_MS } = require('../src/routes/scans');
+const { assainirReglagesScans } = require('../src/parametresRepo');
 const { ouvrirDb } = require('../src/db');
 const {
   trouverDossierScans, parentsCandidats, nomScanValide, listerScans, nomRubriqueNormalise,
@@ -181,4 +183,35 @@ test('routes : un scan écarté n’est plus proposé, puis peut être rétabli'
   await envoyer('POST', '/api/scans/retablir', { nom: 'SCAN_0002.pdf' });
   etat = await (await fetch(url('/api/scans'))).json();
   assert.equal(etat.scans.map((s) => s.nom).join(','), 'SCAN_0002.pdf');
+});
+
+test('réglages : le rangement automatique est actif par défaut, seul un « non » explicite le coupe', () => {
+  assert.equal(assainirReglagesScans({ actif: true }).auto, true);
+  assert.equal(assainirReglagesScans({}).auto, true);
+  assert.equal(assainirReglagesScans({ auto: false }).auto, false);
+  assert.equal(assainirReglagesScans({}).actif, false, 'le classement lui-même reste à activer');
+});
+
+test('relais : une seule fenêtre range, le poste serveur le reprend, une fenêtre muette le perd', () => {
+  let r = { fenetre: null, locale: false, expire: 0 };
+  r = accorderRelais(r, 'fenetre-julie', false, 1000);
+  assert.equal(r.fenetre, 'fenetre-julie');
+  // Une autre fenêtre d'un poste du bureau attend son tour.
+  assert.equal(accorderRelais(r, 'fenetre-jeremy', false, 2000).fenetre, 'fenetre-julie');
+  // La fenêtre du poste serveur le reprend aussitôt, et le garde.
+  r = accorderRelais(r, 'fenetre-serveur', true, 3000);
+  assert.equal(r.fenetre, 'fenetre-serveur');
+  assert.equal(accorderRelais(r, 'fenetre-julie', false, 4000).fenetre, 'fenetre-serveur');
+  // Sans nouvelle du poste serveur pendant la durée du relais, une autre fenêtre prend la suite.
+  assert.equal(accorderRelais(r, 'fenetre-julie', false, 3000 + DUREE_RELAIS_MS + 1).fenetre, 'fenetre-julie');
+});
+
+test('route relais : refusé tant que le classement ou le mode automatique est coupé', async () => {
+  await envoyer('PUT', '/api/scans/reglages', { actif: true, auto: false });
+  let r = await (await envoyer('POST', '/api/scans/relais', { fenetre: 'fenetre-essai-1' })).json();
+  assert.equal(r.accorde, false);
+  await envoyer('PUT', '/api/scans/reglages', { auto: true });
+  r = await (await envoyer('POST', '/api/scans/relais', { fenetre: 'fenetre-essai-1' })).json();
+  assert.equal(r.accorde, true);
+  assert.equal((await envoyer('POST', '/api/scans/relais', { fenetre: '../x' })).status, 400);
 });
