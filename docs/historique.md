@@ -13368,3 +13368,19 @@ rendez-vous à 9 h, entre 12 h et 14 h et après 18 h, sauf exception ; maximum 
 - Vérifié dans Chromium (clair et sombre) : bulle « Agenda » / « Relecture d'actes », volet ouvert au
   survol et au clic, maintenu en survolant un outil, refermé au choix d'un outil et à Échap, aucun effet
   barre dépliée.
+
+### 30/09/2026, soir — Barre latérale : sans épingle, état au démarrage réglable, Outils fermé
+
+- Demande de l'étude : « Ferme le tiroir Outils de base. Aligner le logo sur Claire Scan. Retirer l'épingle,
+  elle ne sert à rien. Mettre une option dans les réglages pour savoir par défaut au redémarrage si on
+  préfère la sidebar ouverte ou fermée. »
+- Épingle retirée (bouton, `sidebarEpinglee`, `toggleSidebarEpinglee`, icône). Nouveau réglage Réglages ›
+  Général « Barre latérale au démarrage » (`#reglages-sidebar-demarrage`, `choisirSidebarDemarrage`) :
+  préférence du collaborateur `sidebarDemarrage` (`ouverte` | `fermee`, liste blanche
+  `SIDEBAR_PREFERENCES` dans `parametresRepo.js`), cache local `claire-sidebar-demarrage` lu avant toute
+  connexion (l'ancien repli `claire-sidebar-repliee` sert de valeur de départ). La flèche de la barre ne
+  change que la séance (`sidebarReplieeSeance`), jamais le réglage.
+- Groupe Outils fermé à chaque démarrage (`groupeOutilsOuvertSeance`, plus de mémoire locale) ; fermé avec un
+  outil ouvert, son titre est surligné (aplat + trait d'accent, `:has(+ .sidebar-sousmenu.ferme .actif)`).
+- Logo aligné sur la bannette : `.sidebar-brand` à 2 px de marge gauche (comme la rangée d'icônes), bannette
+  en 40 × 36 px — bords gauches et centres identiques, barre ouverte comme repliée (mesuré dans Chromium).

@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-30 23:25';
+  const VERSION_APP = '2026-09-30 23:28';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-30 23:28', resume: "Barre latérale : l'épingle est retirée ; nouveau réglage « Barre latérale au démarrage » (ouverte ou fermée) dans Réglages › Général — la flèche la replie ou la déplie pour la séance seulement. Le groupe Outils est fermé au démarrage (son titre est surligné quand un outil est ouvert). Le logo est aligné sur la bannette Claire Scan." },
     { version: '2026-09-30 23:25', resume: "Barre latérale repliée : au survol d'une icône, son nom s'affiche dans une bulle sombre à côté ; les outils sont regroupés sous une seule icône « Outils » qui ouvre un volet sombre avec la liste des outils (l'outil ouvert surligné, avec une flèche), comme sur l'exemple fourni." },
     { version: '2026-09-30 23:21', resume: "Notifications : la bulle redevient noire, centrée en bas de l'écran, et passe au premier plan même quand la fiche d'un dossier est ouverte (elle ne se glisse plus sous le voile transparent)." },
     { version: '2026-09-30 23:19', resume: "Agenda : vues Semaine et Jour de 9 h à 19 h ; trait rouge de l'heure qui avance tout seul (appuyé sur la colonne d'aujourd'hui, l'heure dans une pastille) ; plus de légende des couleurs sous le calendrier du mois. Claire Scan devient une bannette à papier en haut de la barre latérale, sous le logo, avec la pastille du nombre de scans à ranger — visible aussi barre repliée et sur téléphone." },
@@ -14602,61 +14603,50 @@
     scrim.classList.toggle('visible', ouverte);
   }
 
-  // ==== Sidebar réduite en icônes seules + épingle (demandé par l'étude) ====
+  // ==== Sidebar réduite en icônes seules (demandé par l'étude) ====
   //
-  // Deux préférences distinctes, retenues par poste (localStorage, jamais transmises au serveur —
-  // c'est un réglage d'affichage local, comme le thème clair/sombre) : la sidebar peut être
-  // explicitement RÉDUITE (un clic sur le chevron), et/ou ÉPINGLÉE (un clic sur l'épingle).
-  // L'épingle l'emporte toujours : une sidebar épinglée reste grande ouverte même si elle avait
-  // été réduite juste avant — c'est le sens même d'« épingler ». Sans rapport avec le repli mobile
-  // (toggleSidebarMobile ci-dessus, sous 900px) : les deux boutons sont masqués à cette largeur
-  // (voir style.css), la sidebar y étant déjà un panneau réductible par le burger.
-  var CLE_SIDEBAR_REPLIEE = 'claire-sidebar-repliee';
-  var CLE_SIDEBAR_EPINGLEE = 'claire-sidebar-epinglee';
-  var CLE_SIDEBAR_GROUPE_OUTILS = 'claire-sidebar-groupe-outils';
+  // Étude, 30/09 au soir : l'épingle est retirée (« elle ne sert à rien ») ; l'état de la barre AU
+  // DÉMARRAGE (ouverte ou fermée) est un réglage du collaborateur (Réglages › Général, préférence
+  // `sidebarDemarrage` en base, cache local lu avant toute connexion). Le chevron replie ou déplie
+  // la barre pour la séance seulement, sans changer ce réglage. Le groupe Outils est fermé à chaque
+  // démarrage (« ferme le tiroir outils de base »). Sans rapport avec le repli mobile (sous 900 px,
+  // la barre y est un panneau ouvert par le burger).
+  var CLE_SIDEBAR_DEMARRAGE = 'claire-sidebar-demarrage';
+  var SIDEBAR_DEMARRAGE = ['ouverte', 'fermee'];
+
+  function sidebarDemarrage() {
+    try {
+      const v = localStorage.getItem(CLE_SIDEBAR_DEMARRAGE);
+      if (SIDEBAR_DEMARRAGE.indexOf(v) !== -1) return v;
+      // Ancien repli retenu par poste (avant ce réglage) : repris comme choix de départ.
+      return localStorage.getItem('claire-sidebar-repliee') === '1' ? 'fermee' : 'ouverte';
+    } catch (e) { return 'ouverte'; }
+  }
+
+  let sidebarReplieeSeance = null;   // état de la séance (null : celui du réglage de démarrage)
+  let groupeOutilsOuvertSeance = false;
 
   function sidebarRepliee() {
-    try { return localStorage.getItem(CLE_SIDEBAR_REPLIEE) === '1'; } catch (e) { return false; }
+    return sidebarReplieeSeance === null ? sidebarDemarrage() === 'fermee' : sidebarReplieeSeance;
   }
-  function sidebarEpinglee() {
-    try { return localStorage.getItem(CLE_SIDEBAR_EPINGLEE) === '1'; } catch (e) { return false; }
-  }
-  // Ouvert par défaut (absence de préférence enregistrée) : ces cinq outils étaient jusqu'ici
-  // toujours visibles, les masquer d'entrée aurait surpris un usage déjà installé.
   function groupeOutilsOuvert() {
-    try {
-      const v = localStorage.getItem(CLE_SIDEBAR_GROUPE_OUTILS);
-      return v === null ? true : v === '1';
-    } catch (e) { return true; }
+    return groupeOutilsOuvertSeance;
   }
 
-  // Point d'entrée unique qui pose l'état réel de la sidebar (classes CSS + icônes), à partir des
-  // trois préférences ci-dessus — appelé au démarrage et après chaque bascule, jamais l'inverse
-  // (les fonctions toggle* ne touchent que le localStorage puis rappellent celle-ci).
+  // Point d'entrée unique qui pose l'état réel de la sidebar (classes CSS + icônes) — appelé au
+  // démarrage et après chaque bascule.
   function appliquerEtatSidebar() {
     const sidebar = document.getElementById('sidebar');
     if (!sidebar) return;
-    const epinglee = sidebarEpinglee();
-    const reduite = sidebarRepliee() && !epinglee;
+    const reduite = sidebarRepliee();
     sidebar.classList.toggle('repliee', reduite);
-    const btnPin = document.getElementById('sidebar-pin-btn');
-    if (btnPin) {
-      btnPin.setAttribute('aria-pressed', String(epinglee));
-      btnPin.classList.toggle('actif', epinglee);
-      btnPin.title = epinglee ? 'Détacher la sidebar (revenir au repli manuel)' : 'Épingler la sidebar (toujours ouverte)';
-    }
-    // Le bouton de repli n'a plus de sens tant que l'épingle force l'état ouvert : le masquer
-    // plutôt que le laisser cliquable sans effet visible.
     const btnCollapse = document.getElementById('sidebar-collapse-btn');
-    if (btnCollapse) btnCollapse.style.display = epinglee ? 'none' : '';
     const iconCollapse = document.getElementById('icon-sidebar-collapse');
     if (iconCollapse) iconCollapse.innerHTML = icone(reduite ? 'chevron-right' : 'chevron-left');
     if (btnCollapse) btnCollapse.title = reduite ? 'Agrandir la sidebar' : 'Réduire la sidebar';
     if (btnCollapse) btnCollapse.setAttribute('aria-label', reduite ? 'Agrandir la sidebar' : 'Réduire la sidebar');
     const ouvert = groupeOutilsOuvert();
     const sousMenu = document.getElementById('sidebar-sousmenu-outils');
-    // Jamais fermé quand la sidebar est réduite : sans libellé de groupe visible, il n'y aurait
-    // plus aucun moyen de rouvrir ces cinq outils.
     if (sousMenu) sousMenu.classList.toggle('ferme', !ouvert && !reduite);
     if (!reduite) fermerVoletOutils(0);
     masquerInfobulleSidebar();
@@ -14664,23 +14654,31 @@
     if (chevronGroupe) chevronGroupe.innerHTML = icone(ouvert ? 'chevron-up' : 'chevron-down');
     const btnGroupe = document.getElementById('sidebar-groupe-outils');
     if (btnGroupe) btnGroupe.setAttribute('aria-expanded', String(ouvert));
+    const choix = document.getElementById('reglages-sidebar-demarrage');
+    if (choix) choix.value = sidebarDemarrage();
   }
 
   function toggleSidebarRepliee() {
-    try { localStorage.setItem(CLE_SIDEBAR_REPLIEE, sidebarRepliee() ? '0' : '1'); } catch (e) {}
+    sidebarReplieeSeance = !sidebarRepliee();
     appliquerEtatSidebar();
   }
-  function toggleSidebarEpinglee() {
-    try { localStorage.setItem(CLE_SIDEBAR_EPINGLEE, sidebarEpinglee() ? '0' : '1'); } catch (e) {}
+
+  // Réglages › Général : état de la barre au démarrage, appliqué tout de suite.
+  function choisirSidebarDemarrage(valeur, enregistrer) {
+    if (SIDEBAR_DEMARRAGE.indexOf(valeur) === -1) return;
+    try { localStorage.setItem(CLE_SIDEBAR_DEMARRAGE, valeur); } catch (e) { /* cache local seulement */ }
+    sidebarReplieeSeance = null;
     appliquerEtatSidebar();
+    if (enregistrer !== false) enregistrerPreferenceCollaborateur({ sidebarDemarrage: valeur });
   }
+
   function toggleGroupeSidebar(nom) {
     if (nom !== 'outils') return;
     // Barre repliée : le groupe s'ouvre en volet flottant à droite de son icône.
     // Le clic l'ouvre toujours (le survol vient souvent de l'ouvrir) ; il se ferme en sortant du
     // volet, par un clic ailleurs ou par Échap.
     if (sidebarReduiteBureau()) { ouvrirVoletOutils(); return; }
-    try { localStorage.setItem(CLE_SIDEBAR_GROUPE_OUTILS, groupeOutilsOuvert() ? '0' : '1'); } catch (e) {}
+    groupeOutilsOuvertSeance = !groupeOutilsOuvertSeance;
     appliquerEtatSidebar();
   }
 
@@ -26373,6 +26371,12 @@
     } catch (e) { return; }
     if (serveur.theme) appliquerTheme(serveur.theme);
     if (serveur.accent) appliquerAccent(serveur.accent);
+    if (serveur.sidebarDemarrage && serveur.sidebarDemarrage !== sidebarDemarrage()) {
+      // Réglage d'un autre poste : pris comme cache ; appliqué seulement si la barre n'a pas été basculée.
+      try { localStorage.setItem(CLE_SIDEBAR_DEMARRAGE, serveur.sidebarDemarrage); } catch (e) { /* cache local */ }
+      if (sidebarReplieeSeance === null) appliquerEtatSidebar();
+      else { const choix = document.getElementById('reglages-sidebar-demarrage'); if (choix) choix.value = serveur.sidebarDemarrage; }
+    }
     // Disposition enregistrée pour une ancienne disposition par défaut : on repart de la nouvelle, une
     // fois (voir VERSION_DISPOSITION_WIDGETS) ; le collaborateur la réarrange ensuite à son goût.
     if (Array.isArray(serveur.widgets) && serveur.widgetsVersion === VERSION_DISPOSITION_WIDGETS) appliquerDispositionWidgets(serveur.widgets);
@@ -26385,6 +26389,7 @@
     const locales = preferencesLocales();
     if (!serveur.theme && locales.theme) manquant.theme = locales.theme;
     if (!serveur.accent && locales.accent) manquant.accent = locales.accent;
+    if (!serveur.sidebarDemarrage) manquant.sidebarDemarrage = sidebarDemarrage();
     if (Object.keys(manquant).length) enregistrerPreferenceCollaborateur(manquant);
   }
 
@@ -34538,8 +34543,7 @@
       'icon-pdf-recherche-prec': 'chevron-up',
       'icon-pdf-recherche-suiv': 'chevron-down',
       'icon-nav-reglages': 'settings',
-      'icon-nav-outils-groupe': 'package',
-      'icon-sidebar-pin': 'pin'
+      'icon-nav-outils-groupe': 'package'
     };
     for (const [id, nom] of Object.entries(cibles)) {
       const el = document.getElementById(id);

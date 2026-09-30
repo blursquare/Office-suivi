@@ -133,6 +133,8 @@ function assainirRappelsPerso(brut) {
 const CLE_PREFERENCES = 'preferences-collaborateurs';
 const THEMES_PREFERENCES = ['light', 'dark'];
 const ACCENTS_PREFERENCES = ['bordeaux', 'bleu', 'vert', 'orange', 'noir'];
+// État de la barre latérale au démarrage (Réglages › Général, étude 30/09).
+const SIDEBAR_PREFERENCES = ['ouverte', 'fermee'];
 
 // Widgets du tableau de bord (29/09) : ordre, taille et visibilité propres à chaque collaborateur.
 // Liste blanche des identifiants et des tailles : tout le reste est écarté ; un doublon garde sa
@@ -161,6 +163,7 @@ function assainirPreference(brut) {
   const out = {};
   if (THEMES_PREFERENCES.includes(b.theme)) out.theme = b.theme;
   if (ACCENTS_PREFERENCES.includes(b.accent)) out.accent = b.accent;
+  if (SIDEBAR_PREFERENCES.includes(b.sidebarDemarrage)) out.sidebarDemarrage = b.sidebarDemarrage;
   const widgets = assainirWidgetsPreference(b.widgets);
   if (widgets && widgets.length) out.widgets = widgets;
   // Version de la disposition par défaut à laquelle se rapporte `widgets` (le client repart de la

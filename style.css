@@ -618,7 +618,9 @@
     /* Espace au-dessus ET en dessous du logo, par rapport au menu de navigation juste en dessous
        (demandé par l'étude) — porté ici plutôt que sur le gap général de .sidebar, qui espacerait
        aussi tous les autres blocs de la sidebar (nav, pied de page) sans raison. */
-    padding: 16px 8px 18px;
+    /* À gauche, 2 px comme la rangée d'icônes dessous : le logo tombe à l'aplomb de la bannette
+       Claire Scan (étude, 30/09 : « aligner le logo sur Claire Scan »). */
+    padding: 16px 2px 18px;
   }
   .brand-mark { display: inline-flex; flex-shrink: 0; }
   /* Logo "CLAIRE" seul : Montserrat (choisie explicitement par l'étude, après un premier essai en
@@ -746,6 +748,8 @@
     transition: background-color 0.15s ease, color 0.15s ease;
   }
   .sidebar-groupe-titre:hover { background: var(--paper-sunk); color: var(--ink); }
+  /* Groupe fermé alors qu'un de ses outils est ouvert : le titre le signale. */
+  .sidebar-groupe-titre:has(+ .sidebar-sousmenu.ferme .actif) { color: var(--ink); background: var(--sidebar-actif-bg); box-shadow: inset 3px 0 0 var(--focus); }
   .sidebar-groupe-titre .sidebar-link-icone { opacity: 0.85; font-size: 14px; }
   .sidebar-groupe-label { flex: 1 1 auto; }
   .sidebar-groupe-chevron { display: inline-flex; flex-shrink: 0; font-size: 12px; opacity: 0.7; }
@@ -838,7 +842,7 @@
   .sidebar-controles-espace { flex: 1; }
   .sidebar-scan-bannette {
     position: relative; display: inline-flex; align-items: center; justify-content: center; flex: none;
-    width: 38px; height: 34px; padding: 0; border: 1px solid var(--sidebar-trait); border-radius: 10px;
+    width: 40px; height: 36px; padding: 0; border: 1px solid var(--sidebar-trait); border-radius: 10px;
     background: var(--sidebar-actif-bg); color: var(--ink); cursor: pointer; font-family: inherit;
     transition: border-color 0.15s ease, background-color 0.15s ease;
   }

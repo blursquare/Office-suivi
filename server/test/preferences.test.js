@@ -75,3 +75,11 @@ test('widgets du tableau de bord : liste blanche des identifiants et des tailles
   assert.equal(r.preferences.theme, 'dark');
   assert.equal(JSON.stringify(r.preferences.widgets), JSON.stringify([{ id: 'avancement', taille: 'grand', masque: false }]));
 });
+
+test('Préférence « barre latérale au démarrage » : ouverte ou fermée seulement', () => {
+  const { assainirPreferences } = require('../src/parametresRepo');
+  const p = assainirPreferences({ 'Julie VASSELIN': { sidebarDemarrage: 'fermee' }, 'Jérémy SAUJOT': { sidebarDemarrage: 'epinglee', theme: 'dark' } });
+  assert.equal(p['Julie VASSELIN'].sidebarDemarrage, 'fermee');
+  assert.equal(p['Jérémy SAUJOT'].sidebarDemarrage, undefined);
+  assert.equal(p['Jérémy SAUJOT'].theme, 'dark');
+});

@@ -52,9 +52,6 @@
         <span class="sidebar-scan-pastille" id="badge-scans" style="display:none;"></span>
       </button>
       <span class="sidebar-controles-espace"></span>
-      <button type="button" class="sidebar-icon-btn" id="sidebar-pin-btn" onclick="toggleSidebarEpinglee()" aria-pressed="false" title="Épingler la sidebar (toujours ouverte)">
-        <span id="icon-sidebar-pin" aria-hidden="true"></span>
-      </button>
       <button type="button" class="sidebar-icon-btn" id="sidebar-collapse-btn" onclick="toggleSidebarRepliee()" title="Réduire la sidebar" aria-label="Réduire la sidebar">
         <span id="icon-sidebar-collapse" aria-hidden="true"></span>
       </button>
@@ -1538,6 +1535,15 @@
             <input type="checkbox" id="reglages-theme-sombre" onchange="choisirTheme(this.checked ? 'dark' : 'light')">
             <span class="slider"></span>
           </span>
+        </label>
+        <label class="reglages-option" for="reglages-sidebar-demarrage">
+          <span class="reglages-option-texte">
+            <span class="reglages-option-titre">Barre latérale au démarrage <span class="info-i" tabindex="0" data-info="La flèche de la barre la replie ou la déplie pour la séance ; CLAIRE repart de ce choix à chaque ouverture."></span></span>
+          </span>
+          <select id="reglages-sidebar-demarrage" class="reglages-select-poste" onchange="choisirSidebarDemarrage(this.value)">
+            <option value="ouverte">Ouverte</option>
+            <option value="fermee">Fermée (icônes seules)</option>
+          </select>
         </label>
         <div class="reglages-option" role="group" aria-labelledby="reglages-accent-titre">
           <span class="reglages-option-texte">
