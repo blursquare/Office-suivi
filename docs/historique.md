@@ -12904,3 +12904,30 @@ Demande : « créer un répertoire avec les confrères et ce nouveau fichier. Cl
 - Téléphones/emails libellés (« Mainlevée : … ») ; téléphone cliquable (`numeroAppelable`), fax non.
   Icône `phone` ajoutée au jeu `ICONES`. Vérifié dans Chromium (clair, sombre, 390 px) ; tests
   `tests/repertoire.test.js` et `server/test/confreres.test.js`.
+
+### 30/09 17:59 — Suivi : vue d'ensemble (statistiques) et statuts en pastilles
+
+Retour de l'étude sur la bande des statuts : « je ne trouve pas ça très bien et joli ». Proposition
+faite (la bande redisait l'anneau « Dossiers ouverts » et la carte « Avancement » du tableau de bord) ;
+l'étude a retenu les quatre statistiques proposées et les statuts en pastilles de filtre.
+- **Vue d'ensemble** (`statsSuivi` pure + `renderStatsSuivi`), calculée sur la liste filtrée (mêmes
+  filtres sauf statut et semaine) ; mois et délais comptent aussi les dossiers archivés :
+  1. quatre chiffres dans une seule carte : signatures du mois (+ à venir, prochaine), montant des
+     ventes du mois (`prixVente`), offres de prêt attendues (dont échéance ≤ 15 j), dates butoir
+     ≤ 15 j (+ déjà dépassées). Dans les 5 derniers jours du mois, le mois suivant.
+  2. « Signatures à venir » : 8 semaines depuis le lundi en cours, barres groupées signatures / dates
+     butoir (`butoirsOuverts` : vente préalable, prêt, date butoir non levés), échelle entière
+     commune, valeur sur la barre des signatures, bulle au survol (dossiers de la semaine), un clic =
+     filtre de la liste sur la semaine (`dossierDansSemaine`).
+  3. « Charge par collaborateur » : dossiers, urgents (jauge rouge/bleu), prochaine signature ; un
+     clic règle le filtre Responsable.
+  4. Délais moyens depuis l'ouverture du dossier dans CLAIRE (historique « Dossier créé » ; aucune
+     date de compromis n'est enregistrée) jusqu'à l'offre de prêt (historique « Offre de prêt
+     retrouvée… » / « … marquée réalisée ») et jusqu'à la signature (signés sur 12 mois).
+- **Couleurs** : bleu `--ventebien` / ambre `--pret` de l'app en clair ; en sombre, les jetons de
+  l'app sortaient de la bande de luminosité → `#4A95D6` / `#B98420` (`--graph-signature`,
+  `--graph-butoir`), validés par le script du guide dataviz sur les surfaces réelles (#FFFFFF,
+  #1B1E23). Le bleu marine `--acte` échouait (trop sombre, trop gris) pour une barre.
+- **Statuts** : pastilles « Urgent 2 · À relier 1 · … » dans la barre d'outils (même filtre qu'avant).
+- Repli de la vue d'ensemble mémorisé par poste (`localStorage`). Vérifié dans Chromium (clair,
+  sombre, 390 px, survol, filtres semaine et collaborateur) ; tests `tests/stats-suivi.test.js`.

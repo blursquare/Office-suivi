@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-30 17:11';
+  const VERSION_APP = '2026-09-30 17:59';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-30 17:59', resume: "Suivi des dossiers : nouvelle vue d'ensemble au-dessus de la liste — quatre chiffres (signatures et montant des ventes du mois, offres de prêt attendues, dates butoir sous 15 jours), les signatures et dates butoir des 8 prochaines semaines (un clic sur une semaine filtre la liste), la charge de chaque collaborateur (un clic filtre sur lui) et les délais moyens jusqu'à l'offre de prêt et à la signature. Les statuts deviennent des pastilles de filtre dans la barre de recherche. La vue d'ensemble se masque d'un clic." },
     { version: '2026-09-30 17:11', resume: "Outils › Répertoire (remplace le Carnet des confrères) : les offices notariaux et une centaine de contacts repris du répertoire Word de l'étude, classés par thème — banques (prêts et mainlevées, successions), assurances et assurance-vie, retraite et aide sociale, tribunaux, impôts, mairies et urbanisme, département, agences immobilières, chambres consulaires. Recherche commune, une pastille par thème, téléphones et emails cliquables ; chaque contact se corrige, s'ajoute ou se retire sur place, pour tous les postes." },
     { version: '2026-09-30 16:38', resume: "Scans du copieur : la surveillance du dossier Scan démarre en arrière-plan dès l'ouverture de CLAIRE, sans passer par les Réglages. Si le dossier n'est pas encore joignable au démarrage (partage réseau pas prêt), CLAIRE réessaie toutes les 20 secondes jusqu'à le trouver, puis relit toutes les 2 minutes." },
     { version: '2026-09-30 16:35', resume: "Fonds reçus : un versement déjà retenu reste compté quand son fichier de reçus est supprimé du commun (icône boîte à côté du montant). Seul un fichier encore présent et relu peut retirer un versement ; un versement conservé peut être retiré à la main (croix), le retrait est noté dans l'historique." },
@@ -15115,24 +15116,224 @@
     render();
   }
 
-  var LIBELLES_COURTS_ETATS = { attente: 'Attente' };
+  // Statuts en pastilles de filtre dans la barre d'outils du Suivi (étude, 30/09 : la grande bande
+  // des statuts retirée) : « Urgent 2 · À relier 1 · … », un clic filtre, un second retire le filtre.
   function renderEtatsSuivi(synthese) {
-    const zone = document.getElementById('suivi-etats');
+    const zone = document.getElementById('suivi-statuts');
     if (!zone) return;
     const total = synthese.reduce((t, e) => t + e.nombre, 0);
     if (!total && !filtreEtatSuivi) { zone.innerHTML = ''; return; }
-    const barre = synthese.filter(e => e.nombre).map(e =>
-      `<span class="suivi-etats-seg pf-point pf-${e.cle}" style="flex-grow:${e.nombre}" title="${escapeAttr(`${e.texte} : ${e.nombre}`)}"></span>`).join('');
-    const cases = synthese.map(e => {
+    zone.innerHTML = synthese.map(e => {
       const actif = filtreEtatSuivi === e.cle;
-      return `<button type="button" class="suivi-etat${actif ? ' actif' : ''}${e.nombre ? '' : ' vide'}" data-etat="${e.cle}" aria-pressed="${actif}"
-          onclick="filtrerEtatSuivi('${e.cle}')" title="${escapeAttr((e.detail ? e.detail.charAt(0).toUpperCase() + e.detail.slice(1) + ' — ' : '') + (actif ? 'afficher tous les statuts' : `afficher seulement : ${e.texte}`))}">
-        <span class="suivi-etat-nombre">${e.nombre}</span>
-        <span class="suivi-etat-libelle"><span class="pf-point pf-${e.cle}"></span><span class="suivi-etat-long">${escapeHtml(e.texte)}</span><span class="suivi-etat-court">${escapeHtml(LIBELLES_COURTS_ETATS[e.cle] || e.texte)}</span></span>
-        <span class="suivi-etat-detail">${escapeHtml(e.detail)}</span>
+      return `<button type="button" class="suivi-statut${actif ? ' actif' : ''}${e.nombre ? '' : ' vide'}" data-etat="${e.cle}" aria-pressed="${actif}"
+        onclick="filtrerEtatSuivi('${e.cle}')" title="${escapeAttr((e.detail ? e.detail.charAt(0).toUpperCase() + e.detail.slice(1) + ' — ' : '') + (actif ? 'afficher tous les statuts' : `afficher seulement : ${e.texte}`))}">
+        <span class="pf-point pf-${e.cle}"></span>${escapeHtml(e.texte)}<span class="suivi-statut-n">${e.nombre}</span></button>`;
+    }).join('');
+  }
+
+  // ---- Statistiques du Suivi (étude, 30/09) : chiffres du mois, signatures par semaine, charge
+  // par collaborateur, délais moyens. Calculées sur les dossiers de la liste (mêmes filtres,
+  // sauf statut et semaine) ; le mois et les délais comptent aussi les dossiers archivés.
+  var SEMAINES_STATS_SUIVI = 8;
+  var filtreSemaineSuivi = '';
+
+  function lundiDeLaSemaine(iso) {
+    const d = new Date(iso + 'T00:00:00');
+    return addDays(iso, -((d.getDay() + 6) % 7));
+  }
+
+  // Pure : les dates butoir encore ouvertes d'un dossier (vente préalable, prêt, date butoir tant
+  // qu'aucun rendez-vous n'est fixé) — celles qui rendent un dossier « Urgent » une fois passées.
+  function butoirsOuverts(d) {
+    const out = [];
+    if (d.ventebien && !echeanceValidee(d, 'ventebien')) out.push({ type: 'ventebien', libelle: 'Vente préalable', iso: d.ventebien });
+    if (!d.sansPret && d.pret && !echeanceValidee(d, 'pret')) out.push({ type: 'pret', libelle: 'Obtention du prêt', iso: d.pret });
+    if (d.acte && !echeanceValidee(d, 'acte')) out.push({ type: 'acte', libelle: 'Date butoir', iso: d.acte });
+    return out;
+  }
+
+  // Pure : date (AAAA-MM-JJ) de l'ouverture du dossier dans CLAIRE et de la réception de l'offre de
+  // prêt, lues dans l'historique (aucun champ ne garde la date du compromis).
+  function dateOuvertureDossier(d) {
+    const h = (d.historique || []).find(x => x && x.texte === 'Dossier créé');
+    return h && h.date ? isoLocalDepuisDate(h.date) : null;
+  }
+  var RE_HISTORIQUE_OFFRE_RECUE = /offre de pr[eê]t (retrouv|re[cç]u|confirm)|obtention du pr[eê]t.*marqu[ée]e r[ée]alis[ée]e/i;
+  function dateOffreRecue(d) {
+    const dates = (d.historique || []).filter(x => x && RE_HISTORIQUE_OFFRE_RECUE.test(x.texte || '')).map(x => isoLocalDepuisDate(x.date)).filter(Boolean).sort();
+    return dates[0] || null;
+  }
+  function isoLocalDepuisDate(v) {
+    const d = new Date(v);
+    if (isNaN(d)) return null;
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }
+
+  // Pure. `actifs` : dossiers non archivés de la liste ; `tous` : les mêmes filtres, archives comprises.
+  function statsSuivi(actifs, tous, aujourdhuiIso) {
+    const auj = aujourdhuiIso || isoAujourdhuiLocal();
+    // Le mois en cours ; dans ses 5 derniers jours, le mois suivant (le 30/09, « signatures en
+    // septembre » ne dit plus rien).
+    const debutMoisSuivant = (() => { const d = new Date(auj.slice(0, 7) + '-01T00:00:00'); d.setMonth(d.getMonth() + 1); return isoLocalDepuisDate(d); })();
+    const moisCle = ecartJours(auj, debutMoisSuivant) <= 5 ? debutMoisSuivant.slice(0, 7) : auj.slice(0, 7);
+    const dans15 = addDays(auj, 15);
+    // Chiffres du mois : signatures du mois (passées et à venir), montant des ventes.
+    const duMois = (tous || []).filter(d => d.rendezVousSignature && d.rendezVousSignature.slice(0, 7) === moisCle);
+    const montant = duMois.reduce((t, d) => t + (Number(d.prixVente) > 0 ? Number(d.prixVente) : 0), 0);
+    const prochaine = (actifs || []).map(d => d.rendezVousSignature).filter(iso => iso && iso >= auj).sort()[0] || null;
+    const offres = (actifs || []).filter(d => !d.sansPret && !echeanceValidee(d, 'pret'));
+    const butoirs = [];
+    (actifs || []).forEach(d => butoirsOuverts(d).forEach(b => butoirs.push(Object.assign({ d }, b))));
+    // Signatures et dates butoir par semaine, de la semaine en cours à 8 semaines.
+    const premierLundi = lundiDeLaSemaine(auj);
+    const semaines = [];
+    for (let i = 0; i < SEMAINES_STATS_SUIVI; i++) {
+      const debut = addDays(premierLundi, i * 7);
+      const fin = addDays(debut, 6);
+      const dans = iso => iso && iso >= debut && iso <= fin;
+      semaines.push({
+        debut, fin,
+        signatures: (actifs || []).filter(d => dans(d.rendezVousSignature)),
+        butoirs: butoirs.filter(b => dans(b.iso) && b.iso >= auj)
+      });
+    }
+    // Charge par collaborateur.
+    const noms = RESPONSABLES.slice();
+    (actifs || []).forEach(d => { if (d.responsable && !noms.includes(d.responsable)) noms.push(d.responsable); });
+    const charge = noms.map(nom => {
+      const ds = (actifs || []).filter(d => d.responsable === nom);
+      return {
+        responsable: nom, nombre: ds.length,
+        urgents: ds.filter(d => etatDossier(d, auj).cle === 'urgent').length,
+        prochaine: ds.map(d => d.rendezVousSignature).filter(iso => iso && iso >= auj).sort()[0] || null
+      };
+    }).filter(c => c.nombre || RESPONSABLES.includes(c.responsable));
+    // Délais moyens, sur les dossiers signés ces 12 derniers mois.
+    const ilYaUnAn = addDays(auj, -365);
+    const signes = (tous || []).filter(d => d.rendezVousSignature && d.rendezVousSignature < auj && d.rendezVousSignature >= ilYaUnAn);
+    const moyenne = (valeurs) => valeurs.length ? Math.round(valeurs.reduce((t, v) => t + v, 0) / valeurs.length) : null;
+    const versSignature = signes.map(d => ecartJours(dateOuvertureDossier(d), d.rendezVousSignature)).filter(j => j !== null && j >= 0);
+    const versOffre = (tous || []).map(d => ecartJours(dateOuvertureDossier(d), dateOffreRecue(d))).filter(j => j !== null && j >= 0);
+    const moySignature = moyenne(versSignature);
+    const auDela = moySignature === null ? [] : (actifs || []).filter(d => {
+      if (d.rendezVousSignature && d.rendezVousSignature < auj) return false;
+      const j = ecartJours(dateOuvertureDossier(d), auj);
+      return j !== null && j > moySignature;
+    });
+    return {
+      mois: { cle: moisCle, signatures: duMois.length, aVenir: duMois.filter(d => d.rendezVousSignature >= auj).length, montant, prochaine },
+      offres: { attendues: offres.length, bientot: offres.filter(d => d.pret && d.pret <= dans15).length },
+      butoirs: { dans15: butoirs.filter(b => b.iso >= auj && b.iso <= dans15).length, depasses: butoirs.filter(b => b.iso < auj).length },
+      semaines, charge,
+      delais: { signature: moySignature, nSignature: versSignature.length, offre: moyenne(versOffre), nOffre: versOffre.length, auDela: auDela.length }
+    };
+  }
+
+  function filtrerSemaineSuivi(debut) {
+    filtreSemaineSuivi = filtreSemaineSuivi === debut ? '' : debut;
+    render();
+  }
+  function filtrerResponsableSuivi(nom) {
+    const sel = document.getElementById('filtre-responsable');
+    if (!sel) return;
+    sel.value = sel.value === nom ? '' : nom;
+    render();
+  }
+  // Un dossier est-il dans la semaine choisie (signature ou date butoir) ? Pure.
+  function dossierDansSemaine(d, debut) {
+    if (!debut) return true;
+    const fin = addDays(debut, 6);
+    const dans = iso => iso && iso >= debut && iso <= fin;
+    return dans(d.rendezVousSignature) || butoirsOuverts(d).some(b => dans(b.iso));
+  }
+
+  var CLE_STATS_SUIVI_REPLIEES = 'claire-suivi-stats-repliees';
+  function statsSuiviRepliees() {
+    try { return localStorage.getItem(CLE_STATS_SUIVI_REPLIEES) === '1'; } catch (e) { return false; }
+  }
+  function basculerStatsSuivi() {
+    try { localStorage.setItem(CLE_STATS_SUIVI_REPLIEES, statsSuiviRepliees() ? '0' : '1'); } catch (e) { /* sans importance */ }
+    render();
+  }
+
+  function renderStatsSuivi(st) {
+    const zone = document.getElementById('suivi-stats');
+    if (!zone) return;
+    const repliees = statsSuiviRepliees();
+    const nomMois = new Date(st.mois.cle + '-01T00:00:00').toLocaleDateString('fr-FR', { month: 'long' });
+    const jourCourt = iso => new Date(iso + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+    const tete = `<div class="st-tete">
+        <h2 class="st-titre">Vue d’ensemble</h2>
+        <button type="button" class="st-replier" onclick="basculerStatsSuivi()" aria-expanded="${!repliees}">${repliees ? 'Afficher' : 'Masquer'}${icone(repliees ? 'chevron-down' : 'chevron-up')}</button>
+      </div>`;
+    if (repliees) { zone.innerHTML = tete; zone.classList.add('repliee'); return; }
+    zone.classList.remove('repliee');
+
+    const tuile = (valeur, libelle, sous, alerte) => `<div class="st-tuile">
+        <div class="st-valeur${alerte ? ' st-alerte' : ''}">${valeur}</div>
+        <div class="st-libelle">${libelle}</div>
+        <div class="st-sous">${sous || '&nbsp;'}</div>
+      </div>`;
+    const tuiles = [
+      tuile(st.mois.signatures, `signature${st.mois.signatures > 1 ? 's' : ''} en ${nomMois}`,
+        st.mois.aVenir ? `${st.mois.aVenir} à venir${st.mois.prochaine ? ` · prochaine le ${jourCourt(st.mois.prochaine)}` : ''}` : (st.mois.prochaine ? `prochaine le ${jourCourt(st.mois.prochaine)}` : '')),
+      tuile(escapeHtml(formaterMontantEuros(st.mois.montant, 0)), `de ventes en ${nomMois}`, st.mois.signatures ? 'signées ou à signer' : ''),
+      tuile(st.offres.attendues, `offre${st.offres.attendues > 1 ? 's' : ''} de prêt attendue${st.offres.attendues > 1 ? 's' : ''}`,
+        st.offres.bientot ? `dont ${st.offres.bientot} à échéance sous 15 jours` : ''),
+      tuile(st.butoirs.dans15, `date${st.butoirs.dans15 > 1 ? 's' : ''} butoir sous 15 jours`,
+        st.butoirs.depasses ? `+ ${st.butoirs.depasses} déjà dépassée${st.butoirs.depasses > 1 ? 's' : ''}` : '', st.butoirs.depasses > 0)
+    ].join('');
+
+    // Signatures et dates butoir par semaine : barres groupées, une échelle entière commune.
+    const max = Math.max(1, ...st.semaines.map(s => Math.max(s.signatures.length, s.butoirs.length)));
+    const pas = max <= 4 ? 1 : Math.ceil(max / 4);
+    const haut = Math.ceil(max / pas) * pas;
+    const graduations = [];
+    for (let v = 0; v <= haut; v += pas) graduations.push(v);
+    const colonnes = st.semaines.map(s => {
+      const ns = s.signatures.length, nb = s.butoirs.length;
+      const actif = filtreSemaineSuivi === s.debut;
+      const noms = (liste) => liste.slice(0, 6).map(x => libelleDossierAffiche(x.d || x)).join(', ') + (liste.length > 6 ? `, +${liste.length - 6}` : '');
+      const bulle = [`Semaine du ${jourCourt(s.debut)}`,
+        ns ? `${ns} signature${ns > 1 ? 's' : ''} : ${noms(s.signatures)}` : 'Aucune signature',
+        nb ? `${nb} date${nb > 1 ? 's' : ''} butoir : ${noms(s.butoirs)}` : ''].filter(Boolean);
+      return `<button type="button" class="st-sem${actif ? ' actif' : ''}${ns || nb ? '' : ' vide'}" onclick="filtrerSemaineSuivi('${s.debut}')" aria-pressed="${actif}"
+          aria-label="${escapeAttr(bulle.join('. '))}">
+        <span class="st-barres">
+          <span class="st-barre st-barre-sig" style="height:${(ns / haut * 100).toFixed(1)}%">${ns ? `<span class="st-cap">${ns}</span>` : ''}</span>
+          <span class="st-barre st-barre-but" style="height:${(nb / haut * 100).toFixed(1)}%"></span>
+        </span>
+        <span class="st-sem-lib"><span class="st-long">${escapeHtml(jourCourt(s.debut))}</span><span class="st-court">${Number(s.debut.slice(8, 10))}/${Number(s.debut.slice(5, 7))}</span></span>
+        <span class="st-bulle" role="tooltip">${bulle.map(escapeHtml).join('<br>')}</span>
       </button>`;
     }).join('');
-    zone.innerHTML = `<div class="suivi-etats-barre" aria-hidden="true">${barre}</div><div class="suivi-etats-cases" role="group" aria-label="Dossiers par statut">${cases}</div>`;
+    const graphe = `<section class="st-carte st-graphe">
+        <div class="st-carte-tete"><h3>Signatures à venir</h3>
+          <span class="st-legende"><span class="st-cle st-cle-sig"></span>Signatures<span class="st-cle st-cle-but"></span>Dates butoir</span></div>
+        <div class="st-plot">
+          <div class="st-axe">${graduations.map(v => `<span style="bottom:calc(var(--base) + (100% - var(--base)) * ${(v / haut).toFixed(4)})">${v}</span>`).join('')}</div>
+          <div class="st-colonnes">${graduations.map(v => `<span class="st-ligne${v === 0 ? ' st-ligne-base' : ''}" style="bottom:calc(var(--base) + (100% - var(--base)) * ${(v / haut).toFixed(4)})"></span>`).join('')}${colonnes}</div>
+        </div>
+        ${filtreSemaineSuivi ? `<button type="button" class="st-effacer" onclick="filtrerSemaineSuivi('${filtreSemaineSuivi}')">${icone('x')}Semaine du ${escapeHtml(jourCourt(filtreSemaineSuivi))} — toutes les semaines</button>` : ''}
+      </section>`;
+
+    const maxCharge = Math.max(1, ...st.charge.map(c => c.nombre));
+    const filtreResp = (document.getElementById('filtre-responsable') || {}).value || '';
+    const charge = `<section class="st-carte st-charge">
+        <div class="st-carte-tete"><h3>Charge par collaborateur</h3></div>
+        ${st.charge.map(c => `<button type="button" class="st-coll${filtreResp === c.responsable ? ' actif' : ''}" onclick="filtrerResponsableSuivi('${escapeOnclickArg(c.responsable)}')" aria-pressed="${filtreResp === c.responsable}">
+            <span class="st-coll-nom">${escapeHtml(c.responsable)}</span>
+            <span class="st-coll-jauge"><span class="st-coll-urgent" style="width:${(c.urgents / maxCharge * 100).toFixed(1)}%"></span><span class="st-coll-reste" style="width:${((c.nombre - c.urgents) / maxCharge * 100).toFixed(1)}%"></span></span>
+            <span class="st-coll-chiffres"><strong>${c.nombre}</strong> dossier${c.nombre > 1 ? 's' : ''}${c.urgents ? ` · <span class="st-urgents">${c.urgents} urgent${c.urgents > 1 ? 's' : ''}</span>` : ''}${c.prochaine ? ` · signature le ${escapeHtml(jourCourt(c.prochaine))}` : ''}</span>
+          </button>`).join('')}
+        <div class="st-delais">
+          <div class="st-delai"><span class="st-delai-v">${st.delais.offre === null ? '—' : st.delais.offre + ' j'}</span><span class="st-delai-l">ouverture → offre de prêt</span></div>
+          <div class="st-delai"><span class="st-delai-v">${st.delais.signature === null ? '—' : st.delais.signature + ' j'}</span><span class="st-delai-l">ouverture → signature</span></div>
+          ${infoBulle(`Délais moyens depuis l’ouverture du dossier dans CLAIRE (la date du compromis n’est pas enregistrée) : ${st.delais.nOffre} offre${st.delais.nOffre > 1 ? 's' : ''} reçue${st.delais.nOffre > 1 ? 's' : ''}, ${st.delais.nSignature} signature${st.delais.nSignature > 1 ? 's' : ''} des 12 derniers mois.${st.delais.auDela ? ` ${st.delais.auDela} dossier${st.delais.auDela > 1 ? 's' : ''} en cours dépasse${st.delais.auDela > 1 ? 'nt' : ''} déjà le délai moyen jusqu’à la signature.` : ''}`)}
+        </div>
+      </section>`;
+
+    zone.innerHTML = tete + `<div class="st-tuiles">${tuiles}</div><div class="st-grille">${graphe}${charge}</div>`;
   }
 
   // « Revérifier tous les dossiers » (barre d'outils du Suivi), à la place de l'ancien bouton du
@@ -17907,7 +18108,7 @@
 
     const dossiersVisibles = voirArchives ? dossiers : dossiersActifs;
 
-    if (dossiers.length === 0 || dossiersVisibles.length === 0) renderEtatsSuivi([]);
+    if (dossiers.length === 0 || dossiersVisibles.length === 0) { renderEtatsSuivi([]); const z = document.getElementById('suivi-stats'); if (z) z.innerHTML = ''; }
     if (dossiers.length === 0) {
       count.textContent = '';
       list.innerHTML = '<div class="empty-state">Aucun dossier suivi pour le moment. Ajoutez votre premier dossier ci-dessus.</div>';
@@ -17919,7 +18120,7 @@
       return;
     }
 
-    const avantEtat = dossiersVisibles.filter(d => {
+    const passeFiltresSuivi = d => {
       if (recherche && !normaliserPourRecherche(libelleDossierAffiche(d) + ' ' + (d.responsable || '')).includes(recherche)) return false;
       if (filtreResponsable && d.responsable !== filtreResponsable) return false;
       if (filtreOffre) {
@@ -17932,10 +18133,12 @@
       }
       if (filtreRole && (d.roleNotaire || 'instrumentaire') !== filtreRole) return false;
       return true;
-    });
-    // Répartition par statut : mêmes filtres que la liste (sauf le statut lui-même), hors archives.
+    };
+    const avantEtat = dossiersVisibles.filter(passeFiltresSuivi);
+    // Statuts (pastilles) et statistiques : mêmes filtres que la liste (sauf statut et semaine).
     renderEtatsSuivi(syntheseEtatsSuivi(avantEtat.filter(d => !d.archive)));
-    const dossiersAffiches = filtreEtatSuivi ? avantEtat.filter(d => etatDossier(d).cle === filtreEtatSuivi) : avantEtat;
+    renderStatsSuivi(statsSuivi(avantEtat.filter(d => !d.archive), dossiers.filter(passeFiltresSuivi)));
+    const dossiersAffiches = avantEtat.filter(d => (!filtreEtatSuivi || etatDossier(d).cle === filtreEtatSuivi) && dossierDansSemaine(d, filtreSemaineSuivi));
 
     count.textContent = dossiersAffiches.length ? `${dossiersAffiches.length} dossier${dossiersAffiches.length > 1 ? 's' : ''}` : '';
 
