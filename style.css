@@ -832,13 +832,24 @@
     flex-direction: column;
     gap: 2px;
   }
-  /* Claire Scan en bouton au pied de la barre (étude, 30/09 : « décaler Claire Scan en bas de la
-     sidebar sous forme de bouton ») : cadre et fond du lien actif, compteur des scans à ranger. */
-  .sidebar-link.sidebar-scan-bouton {
-    border: 1px solid var(--sidebar-trait); background: var(--sidebar-actif-bg); border-radius: 10px; margin-bottom: 6px; font-weight: 600;
+  /* Claire Scan en bannette à papier (étude, 30/09 : « sous forme de logo de bannette à papier avec
+     pastille de notification ») : à gauche de la rangée d'icônes sous le logo, toujours visible ;
+     la pastille compte les scans à ranger (majBadgeScans). */
+  .sidebar-controles-espace { flex: 1; }
+  .sidebar-scan-bannette {
+    position: relative; display: inline-flex; align-items: center; justify-content: center; flex: none;
+    width: 38px; height: 34px; padding: 0; border: 1px solid var(--sidebar-trait); border-radius: 10px;
+    background: var(--sidebar-actif-bg); color: var(--ink); cursor: pointer; font-family: inherit;
+    transition: border-color 0.15s ease, background-color 0.15s ease;
   }
-  .sidebar-link.sidebar-scan-bouton:hover { border-color: var(--focus); }
-  .sidebar-link.sidebar-scan-bouton.actif { border-color: var(--focus); }
+  .sidebar-scan-bannette:hover, .sidebar-scan-bannette.actif { border-color: var(--focus); }
+  .sidebar-scan-bannette:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+  .sidebar-scan-icone { display: inline-flex; font-size: 20px; }
+  .sidebar-scan-pastille {
+    position: absolute; top: -7px; right: -8px; display: inline-flex; align-items: center; justify-content: center;
+    min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; background: var(--notif-nouveau);
+    color: var(--on-accent); font-size: 11px; font-weight: 700; line-height: 1; box-shadow: 0 0 0 2px var(--sidebar-bg);
+  }
   .sidebar-burger, .sidebar-scrim { display: none; }
 
   /* Sidebar réduite en icônes seules (voir appliquerEtatSidebar dans script.js) : le libellé de
@@ -869,7 +880,8 @@
       display: none;
     }
     .sidebar.repliee .sidebar-brand { justify-content: center; padding-left: 0; padding-right: 0; }
-    .sidebar.repliee .sidebar-controles { justify-content: center; }
+    .sidebar.repliee .sidebar-controles { justify-content: center; flex-wrap: wrap; gap: 8px 2px; }
+    .sidebar.repliee .sidebar-controles-espace { display: none; }
     .sidebar.repliee .sidebar-link,
     .sidebar.repliee .sidebar-groupe-titre {
       font-size: 0;
@@ -1762,7 +1774,7 @@
        confusion. Les règles de mise en forme de .sidebar.repliee sont scopées à
        @media (min-width: 901px) (voir plus haut) : sous cette largeur, un état "repliee" mémorisé
        depuis un poste desktop n'a donc aucun effet visuel, seuls les boutons restent à masquer. */
-    .sidebar-controles { display: none; }
+    .sidebar-controles .sidebar-icon-btn { display: none; }
   }
 
   .wrap-suivi { max-width: 1680px; margin: 0 auto; }
@@ -7150,7 +7162,7 @@ button.primary.ag-ajout svg { width: 14px; height: 14px; }
 /* Grille de la semaine / du jour. */
 .ag-grille-defil { overflow-x: auto; }
 .ag-grille {
-  --ag-heure: 72px;
+  --ag-heure: 80px;
   display: grid; grid-template-columns: 56px repeat(var(--ag-colonnes, 6), minmax(118px, 1fr)); min-width: 760px;
 }
 .ag-grille.ag-vue-jour { min-width: 0; }
@@ -7226,11 +7238,14 @@ button.primary.ag-ajout svg { width: 14px; height: 14px; }
 .ag-evt.ag-fantome.selection, .ag-journee-evt.ag-fantome.selection { box-shadow: 0 0 0 2px var(--ink); }
 .ag-fantome-tete svg, .ag-journee-evt.ag-fantome svg { width: 11px; height: 11px; }
 .ag-journee-evt.ag-fantome { display: inline-flex; align-items: center; gap: 4px; }
-/* Trait de l'heure, avec l'heure dans une pastille à gauche. */
-.ag-maintenant { position: absolute; left: 0; right: 0; height: 0; border-top: 2px solid var(--ink); z-index: 3; pointer-events: none; }
+/* Trait de l'heure (étude, 30/09) : rouge comme dans Outlook, fin sur la semaine, appuyé sur la
+   colonne d'aujourd'hui, l'heure dans une pastille à gauche ; il avance toutes les 30 s. */
+.ag-maintenant { position: absolute; left: 0; right: 0; height: 0; border-top: 1px solid color-mix(in srgb, var(--urgent) 45%, transparent); z-index: 3; pointer-events: none; }
+.ag-maintenant-jour { position: absolute; top: -2px; height: 3px; background: var(--urgent); border-radius: 2px; }
+.ag-maintenant-jour::before { content: ''; position: absolute; left: -5px; top: -4px; width: 11px; height: 11px; border-radius: 50%; background: var(--urgent); }
 .ag-maintenant span {
-  position: absolute; left: 0; top: -11px; font-size: 10.5px; font-weight: 700; color: var(--paper-card); background: var(--ink);
-  border-radius: 4px; padding: 2px 6px; font-variant-numeric: tabular-nums;
+  position: absolute; left: -54px; top: -10px; font-size: 10.5px; font-weight: 700; color: #fff; background: var(--urgent);
+  border-radius: 4px; padding: 2px 5px; font-variant-numeric: tabular-nums;
 }
 .ag-proba { font-size: 10.5px; font-weight: 700; }
 
@@ -7281,9 +7296,6 @@ button.primary.ag-ajout svg { width: 14px; height: 14px; }
 .ag-mois-points { height: 4px; display: flex; margin-top: -3px; }
 .ag-mois-points i { width: 4px; height: 4px; border-radius: 999px; background: var(--muted); }
 .ag-mois-points i.sig { background: var(--acte); }
-.ag-legende { list-style: none; margin: 10px 0 0; padding: 10px 0 0; border-top: 1px solid var(--line-soft); display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px 10px; font-size: 12px; color: var(--ink-soft); }
-.ag-legende li { display: flex; align-items: center; gap: 7px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ag-legende i { width: 9px; height: 9px; border-radius: 2px; background: var(--ag-teinte, var(--line)); flex: none; }
 #agenda-detail:empty { display: none; }
 .ag-detail { border-top: 1px solid var(--line); padding-top: 14px; display: flex; flex-direction: column; gap: 7px; }
 .ag-detail-tete { display: flex; align-items: flex-start; gap: 8px; justify-content: space-between; margin-bottom: 2px; }

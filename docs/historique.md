@@ -13318,3 +13318,22 @@ rendez-vous à 9 h, entre 12 h et 14 h et après 18 h, sauf exception ; maximum 
   simulées : lecture et écriture d'une note, carte fantôme posée à 9 h 30 la bonne semaine, placement
   confirmé qui la fait disparaître. **Non vérifié** : Exchange réel (forme du corps rendu par GetItem en
   texte, corps HTML d'origine, notes d'une invitation reçue).
+
+### 30/09/2026, soir — Agenda 9 h – 19 h, trait de l'heure, Claire Scan en bannette
+
+- Demande de l'étude : « Afficher à partir de 9 h jusqu'à 19 h en vue semaine. Mettre une barre du temps en
+  fonction de l'heure. Ne pas afficher les codes couleurs sous le calendrier. Trouver un endroit où mettre
+  Claire Scan sous forme de logo de bannette à papier avec pastille de notification. »
+- `AGENDA_HEURE_DEBUT = 9`, `AGENDA_HEURE_FIN = 19` (vues Semaine et Jour, même grille) ; lignes de 80 px ;
+  un rendez-vous qui déborde (formation à 8 h) est ramené au bord et garde ses vraies heures dans sa carte.
+- Trait de l'heure : `traitHeureAgenda` (pure : colonne d'aujourd'hui, hauteur, « HH:MM » ; null hors
+  9 h – 19 h ou hors semaine), `renderTraitHeureAgenda` (fin sur la semaine, appuyé et pointé sur la
+  colonne du jour, pastille rouge `--urgent` dans la colonne des heures), `majTraitHeureAgenda` toutes
+  les 30 s sans redessiner la grille (redessinée seulement quand le trait apparaît ou disparaît).
+- Légende des couleurs retirée (`renderLegendeAgenda` et `.ag-legende` supprimés).
+- Claire Scan : bouton `#tab-scans.sidebar-scan-bannette` (icône `bannette` ajoutée à `ICONES`) à gauche de
+  la rangée épingle/repli, pastille `#badge-scans` en coin (toujours visible, y compris barre repliée) ;
+  sur téléphone la rangée reste affichée, seules l'épingle et le repli sont masqués ; le point du bouton
+  menu suit aussi la bannette (`majPastilleMenuMobile`). L'ancien bouton du pied de barre est retiré.
+- Vérifié dans Chromium (horloge fixée à 14 h 20 : trait à 14:20 puis 14:30 après 10 min simulées ;
+  clair, sombre, téléphone, barre repliée).

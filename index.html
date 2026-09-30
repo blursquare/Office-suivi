@@ -44,6 +44,14 @@
          repli déjà mémorisé. Masqués sous 900px : la sidebar y est déjà un panneau réductible via
          le bouton burger, ce contrôle-ci n'a pas de sens par-dessus ce mécanisme mobile. -->
     <div class="sidebar-controles">
+      <!-- Claire Scan (étude, 30/09 : « trouver un endroit où mettre Claire Scan, sous forme de logo de
+           bannette à papier avec pastille de notification ») : en haut de la barre, sous le logo,
+           toujours visible (barre repliée et téléphone compris) ; la pastille compte les scans à ranger. -->
+      <button type="button" id="tab-scans" class="sidebar-scan-bannette" aria-selected="false" onclick="definirOnglet('scans')" title="Claire Scan — scans du copieur à ranger" aria-label="Claire Scan">
+        <span class="sidebar-scan-icone" id="icon-nav-scans" aria-hidden="true"></span>
+        <span class="sidebar-scan-pastille" id="badge-scans" style="display:none;"></span>
+      </button>
+      <span class="sidebar-controles-espace"></span>
       <button type="button" class="sidebar-icon-btn" id="sidebar-pin-btn" onclick="toggleSidebarEpinglee()" aria-pressed="false" title="Épingler la sidebar (toujours ouverte)">
         <span id="icon-sidebar-pin" aria-hidden="true"></span>
       </button>
@@ -135,12 +143,6 @@
     </nav>
 
     <div class="sidebar-footer">
-      <!-- Scans du copieur à ranger (voir server/src/scans.js), en bouton au pied de la barre depuis le
-           30/09 : compteur des scans en attente. -->
-      <button type="button" id="tab-scans" class="sidebar-link sidebar-scan-bouton" aria-selected="false" onclick="definirOnglet('scans')">
-        <span class="sidebar-link-icone" id="icon-nav-scans" aria-hidden="true"></span>Claire Scan
-        <span class="sidebar-badge-notif" id="badge-scans" style="display:none;"></span>
-      </button>
       <!-- Remontée des problèmes par les équipes (voir ouvrirSignalement dans script.js) : sur tous
            les écrans, et le signalement part vers l'étude, qui trie et transmet. -->
       <button type="button" class="sidebar-link sidebar-signaler" onclick="ouvrirSignalement()">

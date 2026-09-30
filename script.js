@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-30 23:12';
+  const VERSION_APP = '2026-09-30 23:19';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-30 23:19', resume: "Agenda : vues Semaine et Jour de 9 h à 19 h ; trait rouge de l'heure qui avance tout seul (appuyé sur la colonne d'aujourd'hui, l'heure dans une pastille) ; plus de légende des couleurs sous le calendrier du mois. Claire Scan devient une bannette à papier en haut de la barre latérale, sous le logo, avec la pastille du nombre de scans à ranger — visible aussi barre repliée et sur téléphone." },
     { version: '2026-09-30 23:12', resume: "Agenda : des notes dans chaque rendez-vous (crayon dans le détail, et à la création) — elles sont écrites dans le rendez-vous Outlook, donc visibles aussi dans Outlook, et une note tapée dans Outlook s'affiche dans CLAIRE. Pour un rendez-vous placé : la probabilité qu'il soit maintenu. Pour un dossier pas encore placé : CLAIRE calcule la semaine où la signature est probable (au plus tôt : offre de prêt attendue + 11 jours de réflexion, vente préalable, deux semaines pour l'appel de fonds et le projet) ; « Rendez-vous à placer » les liste à côté de l'agenda, et en arrivant sur cette semaine une carte en pointillé « Probable » propose un créneau libre — un clic pour le placer, après confirmation." },
     { version: '2026-09-30 23:00', resume: "Page Agenda redessinée à la manière d'Outlook : une seule carte sobre, la date du jour en pastille, ‹ Aujourd'hui ›, la vue (mois, semaine, jour) et « Nouveau rendez-vous » en tête ; les jours en colonnes « Lundi / 28 sept. 2026 », le jour en cours teinté et le trait de l'heure ; chaque rendez-vous avec un liseré à la couleur de sa catégorie Outlook. Sur un rendez-vous de signature : le responsable du dossier, le notaire confrère, et si l'appel de fonds et le décompte acquéreur sont faits (coche verte ou croix rouge). Un clic ouvre le détail dans la colonne de gauche, sous le calendrier du mois." },
     { version: '2026-09-30 22:45', resume: "Agenda placé juste sous le tableau de bord dans la barre latérale. Créneaux proposés pour les signatures : jamais à 9 h, ni entre 12 h et 14 h, ni après 18 h, et 6 rendez-vous par jour au plus (premier créneau essayé : 9 h 30). Une exception n'est proposée qu'à défaut de tout autre créneau, marquée d'un triangle, et la confirmation dit laquelle. Créer à la main un rendez-vous hors de ces règles reste possible, après confirmation." },
@@ -439,6 +440,8 @@
     layout: '<rect x="1.5" y="2" width="13" height="12" rx="1.6"/><line x1="6" y1="2" x2="6" y2="14"/>',
     plus: '<line x1="8" y1="3" x2="8" y2="13"/><line x1="3" y1="8" x2="13" y2="8"/>',
     minus: '<line x1="3.5" y1="8" x2="12.5" y2="8"/>',
+    // Bannette à papier (Claire Scan) : un plateau et deux feuilles.
+    bannette: '<path d="M1.8 9.2 3.4 5.2h9.2l1.6 4v3.6a.9.9 0 0 1-.9.9H2.7a.9.9 0 0 1-.9-.9z"/><path d="M1.8 9.2h3.6l.9 1.6h3.4l.9-1.6h3.6"/><path d="M4.6 5.2V2.6h6.8v2.6"/><line x1="6.2" y1="4" x2="9.8" y2="4"/>',
     list: '<circle cx="2.3" cy="4" r="0.9" fill="currentColor" stroke="none"/><line x1="5.4" y1="4" x2="14" y2="4"/><circle cx="2.3" cy="8" r="0.9" fill="currentColor" stroke="none"/><line x1="5.4" y1="8" x2="14" y2="8"/><circle cx="2.3" cy="12" r="0.9" fill="currentColor" stroke="none"/><line x1="5.4" y1="12" x2="14" y2="12"/>',
     menu: '<line x1="2.4" y1="4.5" x2="13.6" y2="4.5"/><line x1="2.4" y1="8" x2="13.6" y2="8"/><line x1="2.4" y1="11.5" x2="13.6" y2="11.5"/>',
     download: '<path d="M8 2v8"/><path d="M4.5 7 8 10.5 11.5 7"/><path d="M3 13.5h10"/>',
@@ -18178,8 +18181,10 @@
   // d'une signature, créneaux proposés aux dossiers prêts à signer, gestes de relation client dus.
   // Tout ce qui est pur est déclaré en `function`/`var` (testable, voir tests/agenda-page.test.js).
 
-  var AGENDA_HEURE_DEBUT = 7;
-  var AGENDA_HEURE_FIN = 20;
+  // Plage affichée en vues Semaine et Jour (étude, 30/09 : « de 9 h jusqu'à 19 h ») ; un rendez-vous
+  // qui en déborde est ramené au bord et garde ses vraies heures dans sa carte.
+  var AGENDA_HEURE_DEBUT = 9;
+  var AGENDA_HEURE_FIN = 19;
   var AGENDA_JOURS_SEMAINE = 6; // lundi → samedi
 
   // Pure : les jours (lundi → samedi) de la semaine qui commence au lundi donné.
@@ -18200,7 +18205,7 @@
     return (evenements || []).filter(e => e && e.date <= iso && (e.dateFin || e.date) >= iso);
   }
 
-  // Pure : place des rendez-vous horaires d'une journée dans la grille 7 h – 20 h (haut et hauteur
+  // Pure : place des rendez-vous horaires d'une journée dans la grille 9 h – 19 h (haut et hauteur
   // en % de la grille). Les rendez-vous qui se chevauchent se partagent la largeur en colonnes ; un
   // rendez-vous hors de la plage est ramené à son bord et signalé (`horsPlage`).
   function disposerEvenementsJour(evenements, iso) {
@@ -18765,6 +18770,42 @@
       </button>`;
   }
 
+  // Pure : le trait de l'heure (étude, 30/09 : « une barre du temps en fonction de l'heure ») —
+  // null si aujourd'hui n'est pas affiché ou si l'heure est hors de la plage 9 h – 19 h.
+  function traitHeureAgenda(maintenant, jours, aujourdhuiIso) {
+    const colonne = (jours || []).indexOf(aujourdhuiIso);
+    const minutes = maintenant.getHours() * 60 + maintenant.getMinutes();
+    if (colonne === -1 || minutes < AGENDA_HEURE_DEBUT * 60 || minutes > AGENDA_HEURE_FIN * 60) return null;
+    return {
+      haut: (minutes - AGENDA_HEURE_DEBUT * 60) / ((AGENDA_HEURE_FIN - AGENDA_HEURE_DEBUT) * 60) * 100,
+      colonne,
+      libelle: `${String(maintenant.getHours()).padStart(2, '0')}:${String(maintenant.getMinutes()).padStart(2, '0')}`
+    };
+  }
+
+  // Un trait fin sur toute la semaine, appuyé sur la colonne d'aujourd'hui, l'heure dans une pastille.
+  function renderTraitHeureAgenda(t, nbJours) {
+    const largeur = 100 / nbJours;
+    return `<div class="ag-maintenant" style="top:${t.haut.toFixed(2)}%" aria-hidden="true">
+        <i class="ag-maintenant-jour" style="left:${(t.colonne * largeur).toFixed(3)}%;width:${largeur.toFixed(3)}%"></i>
+        <span>${escapeHtml(t.libelle)}</span>
+      </div>`;
+  }
+
+  // Toutes les 30 s, page Agenda ouverte : le trait suit l'heure sans redessiner la grille ; il
+  // n'est redessiné que s'il doit apparaître ou disparaître (9 h, 19 h, minuit).
+  function majTraitHeureAgenda() {
+    if (ongletActuel !== 'agenda' || agendaVue === 'mois') return;
+    const jours = agendaVue === 'jour' ? [agendaJour] : joursSemaineAgenda(agendaLundi);
+    const t = traitHeureAgenda(new Date(), jours, isoAujourdhuiLocal());
+    const el = document.querySelector('#agenda-contenu .ag-maintenant');
+    if (!!t !== !!el) { renderPageAgenda(); return; }
+    if (!t) return;
+    el.style.top = t.haut.toFixed(2) + '%';
+    const pastille = el.querySelector('span');
+    if (pastille && pastille.textContent !== t.libelle) pastille.textContent = t.libelle;
+  }
+
   function renderGrilleAgenda() {
     const auj = isoAujourdhuiLocal();
     const jours = agendaVue === 'jour' ? [agendaJour] : joursSemaineAgenda(agendaLundi);
@@ -18789,11 +18830,7 @@
           class="ag-journee-evt ajd-${teinteEvenementAgenda(e, categoriesRdvReglees())}${e.horsAgenda ? ' ag-hors-agenda' : ''}${e.fantome ? ' ag-fantome' : ''}${agendaSelection === cleEvenementAgenda(e) ? ' selection' : ''}"
           onclick="ouvrirDetailAgenda('${escapeOnclickArg(cleEvenementAgenda(e))}')" title="${escapeAttr(e.fantome ? `Signature probable cette semaine (${e.probable.pourcent} %) — aucun créneau libre` : e.sujet || '')}">${e.fantome ? `${icone('sparkle')}${escapeHtml(e.probable.pourcent + ' % · ')}` : ''}${escapeHtml(e.sujet || '(sans titre)')}</button>`).join('')}</div>`;
     }).join('');
-    const maintenant = new Date();
-    const minutes = maintenant.getHours() * 60 + maintenant.getMinutes();
-    const dansPlage = minutes >= AGENDA_HEURE_DEBUT * 60 && minutes <= AGENDA_HEURE_FIN * 60 && jours.indexOf(auj) !== -1;
-    const hautMaintenant = ((minutes - AGENDA_HEURE_DEBUT * 60) / ((AGENDA_HEURE_FIN - AGENDA_HEURE_DEBUT) * 60) * 100).toFixed(2);
-    const libelleMaintenant = maintenant.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }).replace(':', ' h ');
+    const trait = traitHeureAgenda(new Date(), jours, auj);
     const colonnes = jours.map(iso => `<div class="ag-colonne${iso === auj ? ' aujourdhui' : ''}" data-jour="${iso}">
         ${heures.map(h => `<button type="button" class="ag-case" onclick="ouvrirCreationAgenda('${iso}', '${String(h).padStart(2, '0')}:00')" aria-label="Nouveau rendez-vous le ${escapeAttr(formatDateFr(iso))} à ${h} h"></button>`).join('')}
         ${disposerEvenementsJour(evenements, iso).map(p => renderEvenementGrille(p, auj)).join('')}
@@ -18805,7 +18842,7 @@
         <div class="ag-heures">${heures.map(h => `<span>${h} h</span>`).join('')}</div>
         <div class="ag-corps">
           ${colonnes}
-          ${dansPlage ? `<div class="ag-maintenant" style="top:${hautMaintenant}%"><span>${escapeHtml(libelleMaintenant)}</span></div>` : ''}
+          ${trait ? renderTraitHeureAgenda(trait, jours.length) : ''}
         </div>
       </div></div>`;
   }
@@ -18832,18 +18869,6 @@
             </div>`;
         }).join('')).join('')}
       </div>`;
-  }
-
-  // Couleurs vues dans la période affichée, avec leur catégorie (légende sous le calendrier du mois).
-  function renderLegendeAgenda() {
-    const vues = new Map();
-    evenementsAffichesAgenda().forEach(e => {
-      const teinte = teinteEvenementAgenda(e, categoriesRdvReglees());
-      if (vues.has(teinte)) return;
-      vues.set(teinte, etiquetteEvenementAgenda(e, natureEvenementAgenda(e, categoriesRdvReglees())).replace(/^Signature · /, 'Signature — '));
-    });
-    if (!vues.size) return '';
-    return `<ul class="ag-legende">${[...vues.entries()].map(([t, l]) => `<li class="ajd-${t}"><i></i>${escapeHtml(l)}</li>`).join('')}</ul>`;
   }
 
   // Calendrier du mois de la colonne de gauche : jour affiché en rond foncé, aujourd'hui cerclé,
@@ -18877,7 +18902,6 @@
               </button>`;
           }).join('')).join('')}
         </div>
-        ${renderLegendeAgenda()}
       </div>`;
   }
 
@@ -22433,6 +22457,7 @@
     setInterval(chargerAbsencesOffice, 2 * 60 * 1000);
     // Page Agenda ouverte : relue au même rythme que le tour de lecture du serveur (2 min).
     setInterval(() => { if (ongletActuel === 'agenda' && !agendaModale) chargerAgendaSemaine(); }, 2 * 60 * 1000);
+    setInterval(majTraitHeureAgenda, 30 * 1000);
     await chargerEtatNas();
     // Avant toute relecture du NAS : un parcours lancé sans elles reconnaîtrait des fichiers que
     // l'étude a écartés.
@@ -33989,7 +34014,7 @@
   function majPastilleMenuMobile() {
     const burger = document.getElementById('sidebar-burger');
     if (!burger) return;
-    burger.classList.toggle('a-notif', !!document.querySelector('.sidebar-link.a-notif'));
+    burger.classList.toggle('a-notif', !!document.querySelector('.sidebar-link.a-notif, #tab-scans.a-notif'));
   }
 
   // Surveillance de fond, lancée au démarrage sans rien ouvrir (étude, 30/09 : « obligé d'aller dans
@@ -34356,7 +34381,7 @@
       'icon-nav-dashboard': 'layout',
       'icon-nav-suivi': 'list',
       'icon-recherche-suivi': 'search',
-      'icon-nav-scans': 'printer',
+      'icon-nav-scans': 'bannette',
       'icon-nav-agenda': 'calendar',
       'icon-signaler': 'flag',
       'icon-install': 'download',
