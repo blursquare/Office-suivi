@@ -13074,3 +13074,19 @@ Regarde s'il n'y a pas des doublons, bien garder le choix du collaborateur. »
 - « Afficher les dossiers archivés » devient « Archivés » (même case).
 - Vérifié dans Chromium (clair, sombre, 1 400, 1 100 et 390 px) : pas de défilement horizontal,
   filtre Responsable resté sur le collaborateur du poste, recherche par nom de dossier.
+
+### 30/09/2026 soir — Dossiers archivés visibles dans la vue Échéances
+
+Demande de l'étude : « Quand un dossier est archivé, permettre de les voir dans la partie échéances
+pour s'y référer si besoin. Aujourd'hui on est obligé de passer par la vue tableau. »
+- Cause : un archivé n'a plus d'échéance en attente, `grouperEcheancesParSemaine` le sautait ; la
+  case « Archivés » ne changeait donc rien en vue Échéances.
+- Section « Archivés » en bas de la vue Échéances quand la case est cochée (`renderArchivesSemaines`),
+  mêmes colonnes que les semaines : date = signature (`rendezVousSignature`, libellé « Signé ») sinon
+  date d'archivage lue dans l'historique (`dateArchivageDossier`, « Archivé » avec cadenas) ; les plus
+  récents d'abord, un archivé sans date en dernier (`archivesPourEcheances`, `repereArchiveSuivi`,
+  pures, `tests/archives-echeances.test.js`). Un archivé n'entre plus jamais dans une semaine, même
+  s'il lui restait une échéance. Mêmes filtres et même recherche que le reste de la liste ; clic =
+  fiche.
+- Vérifié dans Chromium (deux archivés inventés, clair, sombre, 390 px) : section absente sans la
+  case, présente avec, aucune ligne archivée dans une semaine, fiche ouverte au clic.

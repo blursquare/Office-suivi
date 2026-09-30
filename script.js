@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-30 18:37';
+  const VERSION_APP = '2026-09-30 19:09';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-30 19:09', resume: "Suivi des dossiers, vue Échéances : en cochant « Archivés », les dossiers archivés apparaissent dans une section « Archivés » en bas de la liste, les plus récents d'abord, avec leur date de signature (ou d'archivage). Un clic ouvre la fiche, comme ailleurs : plus besoin de passer par la vue Tableau pour les retrouver." },
     { version: '2026-09-30 18:37', resume: "Suivi des dossiers : la barre au-dessus de la liste passe sur trois lignes. En haut, un grand champ de recherche (avec la bascule Échéances / Tableau). Dessous, les options pour affiner sur une seule ligne : responsable, échéance, offre de prêt, rôle, archivés. En bas, les statuts en couleur. Doublons retirés : la recherche porte sur le nom du dossier seulement (le collaborateur se choisit dans « Responsable », qui reste pré-réglé sur celui du poste) ; « Trier par » n'apparaît qu'en vue Tableau, la seule qu'il trie." },
     { version: '2026-09-30 18:34', resume: "La page « Aujourd'hui » est supprimée. La carte « Aujourd'hui » du tableau de bord et la fenêtre du point du matin restent : « Voir plus » dans la carte ouvre désormais cette fenêtre. Le classeur des scans s'appelle « Claire Scan » partout : barre latérale, écran, rubrique des Réglages, carte « Dernières pièces »." },
     { version: '2026-09-30 18:31', resume: "Partout dans CLAIRE, un dossier cité porte son type devant son nom : « VTE - DURAND / MARTIN » (et « SUCC - … » pour les successions, à venir). C'est désormais le cas aussi dans les cartes du tableau de bord (activité de l'étude, dernières pièces, à faire, signatures), dans « Prévu en … » du Suivi, dans le journal de Claire Scan et de l'agenda, dans les messages de CLAIRE et dans les rappels envoyés sur Teams." },
@@ -17986,7 +17987,11 @@
     const { aVoir, reste } = partagerAVoirSuivi(tries);
     const blocAVoir = renderAVoirSuivi(aVoir);
     if (vueSuivi === 'semaines') {
-      list.innerHTML = blocAVoir + (reste.length || !aVoir.length ? renderVueSemaines(reste) : '');
+      // Les archivés (case « Archivés » cochée) ont leur propre section en bas : jamais dans une semaine.
+      const enCours = reste.filter(d => !d.archive);
+      const archives = renderArchivesSemaines(reste, !enCours.length && !aVoir.length);
+      const semaines = enCours.length || (!aVoir.length && !archives) ? renderVueSemaines(enCours) : '';
+      list.innerHTML = blocAVoir + semaines + archives;
       return;
     }
 
@@ -18127,6 +18132,62 @@
         <td>${celluleEcheanceTableau(d)}</td>
       </tr>
     `;
+  }
+
+  // Dossiers archivés dans la vue « Échéances » (étude, 30/09 : « permettre de les voir dans la
+  // partie échéances pour s'y référer si besoin — aujourd'hui on est obligé de passer par la vue
+  // tableau ») : un archivé n'a plus d'échéance en attente, il n'entrait donc dans aucune semaine.
+  // Il vient dans une section « Archivés » en bas, quand la case « Archivés » est cochée, repéré par
+  // sa date de signature (sinon celle de l'archivage). Pures et testables.
+  function dateArchivageDossier(d) {
+    let iso = '';
+    for (const h of (d && d.historique) || []) {
+      if (!h || !h.date || !/^Dossier archivé/.test(h.texte || '')) continue;
+      const jour = isoLocalDepuisDate(h.date);
+      if (jour && jour > iso) iso = jour;
+    }
+    return iso;
+  }
+  function repereArchiveSuivi(d) {
+    if (d.rendezVousSignature) return { iso: d.rendezVousSignature, type: 'rendezVousSignature', label: 'Signé' };
+    const iso = dateArchivageDossier(d);
+    return { iso, type: 'archive', label: 'Archivé' };
+  }
+  // Les plus récents d'abord ; un archivé sans aucune date reste listé, en dernier.
+  function archivesPourEcheances(liste) {
+    return (liste || []).filter(d => d && d.archive)
+      .map(d => ({ dossier: d, repere: repereArchiveSuivi(d) }))
+      .sort((a, b) => (b.repere.iso || '').localeCompare(a.repere.iso || '') || String(a.dossier.nom || '').localeCompare(String(b.dossier.nom || ''), 'fr'));
+  }
+
+  function renderArchivesSemaines(liste, avecEntete) {
+    const items = archivesPourEcheances(liste);
+    if (!items.length) return '';
+    const lignes = items.map(({ dossier: d, repere: r }) => `
+          <tr class="ligne-resume est-archive${dossierOuvert === d.id ? ' ligne-active' : ''}" onclick="ouvrirDossierDrawer('${d.id}')">
+            <td><span class="echeance-jours calme">${r.iso ? formatDateFr(r.iso) : '—'}</span></td>
+            <td>${r.type === 'archive' ? `<span class="dot-label dl-neutre">${icone('lock')}${escapeHtml(r.label)}</span>` : `<span class="dot-label dl-${r.type}"><span class="dot"></span>${escapeHtml(r.label)}</span>`}</td>
+            <td><div class="dossier-nom-tableau">${escapeHtml(libelleDossierAffiche(d))}</div></td>
+            <td>${renderBadgeStatut(d)}</td>
+            <td class="dossier-responsable-tableau">${escapeHtml(d.responsable || '—')}</td>
+          </tr>`).join('');
+    const n = items.length;
+    return `
+        <section class="semaine-groupe semaine-archives">
+          <div class="semaine-entete">
+            <span class="section-eyebrow">Archivés</span>
+            <span class="semaine-compteur">${n} dossier${n > 1 ? 's' : ''}</span>
+          </div>
+          <div class="table-scroll">
+            <table class="dossiers-table echeances-table">
+              <colgroup>
+                <col class="col-echeance-date"><col class="col-echeance-type"><col><col class="col-echeance-statut"><col class="col-echeance-resp">
+              </colgroup>
+              ${avecEntete ? '<thead><tr><th>Date</th><th>Échéance</th><th>Dossier</th><th>Statut</th><th>Responsable</th></tr></thead>' : ''}
+              <tbody>${lignes}</tbody>
+            </table>
+          </div>
+        </section>`;
   }
 
   // Vue "Échéances" du Suivi : les mêmes dossiers (mêmes filtres, même recherche, même tiroir au
