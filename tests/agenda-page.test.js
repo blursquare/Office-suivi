@@ -252,3 +252,10 @@ test('traitHeureAgenda : trait de l\'heure seulement aujourd\'hui et entre 9 h e
   assert.equal(app.traitHeureAgenda(new Date(2026, 8, 30, 19, 1), jours, '2026-09-30'), null);
   assert.equal(app.traitHeureAgenda(new Date(2026, 9, 7, 14, 0), jours, '2026-10-07'), null, 'autre semaine');
 });
+
+test('heureCaseAgenda : clic dans la première ou la seconde moitié de la case', () => {
+  assert.equal(app.heureCaseAgenda(14, 10, 80), '14:00');
+  assert.equal(app.heureCaseAgenda(14, 40, 80), '14:30');
+  assert.equal(app.heureCaseAgenda(9, 79, 80), '09:30');
+  assert.equal(app.heureCaseAgenda(10, 0, 0), '10:00', 'au clavier : heure pleine');
+});

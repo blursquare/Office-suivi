@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-09-30 23:48';
+  const VERSION_APP = '2026-09-30 23:54';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-09-30 23:54', resume: "Agenda, comme dans Outlook : un clic sur une case vide surligne un créneau d'une heure (à la demi-heure près) ; un double-clic, ou un second clic sur le créneau surligné, ouvre « Nouveau rendez-vous » sur ce créneau, d'une durée d'1 h par défaut. Échap efface le créneau surligné." },
     { version: '2026-09-30 23:48', resume: "Agenda : la probabilité de maintien d'une signature passe en bas à gauche du rendez-vous, plus discrète (petit point de couleur et chiffre en gris, devant appel de fonds et décompte) ; le titre prend toute la largeur de la carte." },
     { version: '2026-09-30 23:46', resume: "Agenda : un clic sur un rendez-vous ouvre son détail dans une fenêtre posée à côté de lui sur l'agenda (plus dans la colonne de gauche) ; elle se ferme par la croix, Échap ou un clic ailleurs. Vue semaine : le nom du dossier s'affiche en entier sur plusieurs lignes, avec en dessous seulement l'heure de début et les initiales du collaborateur (l'heure de fin et la durée restent dans le détail)." },
     { version: '2026-09-30 23:29', resume: "Barre latérale fermée : le volet des outils s'ouvre sous l'icône Outils, aligné sur elle ; l'icône reste marquée ouverte avec son nom dans la bulle à côté tant que le volet est affiché." },
@@ -19001,6 +19002,49 @@
     if (pastille && pastille.textContent !== t.libelle) pastille.textContent = t.libelle;
   }
 
+  // ---- Créneau choisi, comme dans Outlook (étude, 30/09) : un clic sur une case vide surligne un
+  // créneau d'une heure à la demi-heure près ; un double-clic — ou un second clic sur le créneau
+  // surligné (téléphone, clavier) — ouvre « Nouveau rendez-vous » sur ce créneau, 1 h par défaut. ----
+  let agendaCaseChoisie = null;   // { date, heure }
+
+  // Pure : l'heure « HH:MM » d'un clic dans la case de l'heure h (première moitié → h:00, seconde → h:30).
+  function heureCaseAgenda(h, positionY, hauteurCase) {
+    const demi = hauteurCase > 0 && positionY >= hauteurCase / 2;
+    return `${String(h).padStart(2, '0')}:${demi ? '30' : '00'}`;
+  }
+
+  function renderCaseChoisieAgenda(iso) {
+    const c = agendaCaseChoisie;
+    if (!c || c.date !== iso) return '';
+    const debut = minutesHeure(c.heure);
+    const total = (AGENDA_HEURE_FIN - AGENDA_HEURE_DEBUT) * 60;
+    const haut = (debut - AGENDA_HEURE_DEBUT * 60) / total * 100;
+    const hauteur = Math.min(60, AGENDA_HEURE_FIN * 60 - debut) / total * 100;
+    const fin = debut + 60;
+    const libelleFin = `${String(Math.floor(fin / 60)).padStart(2, '0')}:${String(fin % 60).padStart(2, '0')}`;
+    return `<div class="ag-case-choisie" style="top:${haut.toFixed(2)}%;height:${hauteur.toFixed(2)}%" aria-hidden="true"><span>${icone('plus')}${escapeHtml(c.heure)} – ${escapeHtml(libelleFin)}</span></div>`;
+  }
+
+  function choisirCaseAgenda(evt, iso, h) {
+    const cible = evt && evt.currentTarget;
+    const r = cible && cible.getBoundingClientRect ? cible.getBoundingClientRect() : null;
+    // Au clavier (Entrée), pas de position : l'heure pleine.
+    const heure = r && evt.clientY ? heureCaseAgenda(h, evt.clientY - r.top, r.height) : heureCaseAgenda(h, 0, 0);
+    if (agendaCaseChoisie && agendaCaseChoisie.date === iso && agendaCaseChoisie.heure === heure) {
+      agendaCaseChoisie = null;
+      ouvrirCreationAgenda(iso, heure);
+      return;
+    }
+    agendaCaseChoisie = { date: iso, heure };
+    agendaSelection = null;
+    renderPageAgenda();
+    // Le focus revient sur la case, pour qu'un second Entrée crée le rendez-vous.
+    const col = document.querySelector(`#agenda-contenu .ag-colonne[data-jour="${iso}"]`);
+    const cases = col ? col.querySelectorAll('.ag-case') : [];
+    const i = h - AGENDA_HEURE_DEBUT;
+    if (cases[i]) cases[i].focus({ preventScroll: true });
+  }
+
   function renderGrilleAgenda() {
     const auj = isoAujourdhuiLocal();
     const jours = agendaVue === 'jour' ? [agendaJour] : joursSemaineAgenda(agendaLundi);
@@ -19027,7 +19071,8 @@
     }).join('');
     const trait = traitHeureAgenda(new Date(), jours, auj);
     const colonnes = jours.map(iso => `<div class="ag-colonne${iso === auj ? ' aujourdhui' : ''}" data-jour="${iso}">
-        ${heures.map(h => `<button type="button" class="ag-case" onclick="ouvrirCreationAgenda('${iso}', '${String(h).padStart(2, '0')}:00')" aria-label="Nouveau rendez-vous le ${escapeAttr(formatDateFr(iso))} à ${h} h"></button>`).join('')}
+        ${heures.map(h => `<button type="button" class="ag-case" onclick="choisirCaseAgenda(event, '${iso}', ${h})" aria-label="Créneau du ${escapeAttr(formatDateFr(iso))} à ${h} h — double-clic pour créer un rendez-vous"></button>`).join('')}
+        ${renderCaseChoisieAgenda(iso)}
         ${disposerEvenementsJour(evenements, iso).map(p => renderEvenementGrille(p, auj)).join('')}
       </div>`).join('');
     const avecJournees = jours.some(iso => evenementsJourAgenda(evenements, iso).some(e => e.journeeEntiere || !e.heure || e.date !== iso));
@@ -19493,6 +19538,7 @@
     const auj = isoAujourdhuiLocal();
     const jour = date || (agendaVue === 'jour' ? agendaJour : joursSemaineAgenda(agendaLundi).indexOf(auj) !== -1 ? auj : agendaLundi);
     agendaModale = { type: 'creation', date: jour, heure: heure || '09:00' };
+    agendaCaseChoisie = null;
     const contenu = document.getElementById('agenda-modale-contenu');
     if (contenu) contenu.innerHTML = '';
     renderModaleAgenda();
@@ -26558,6 +26604,10 @@
       } else if (fenetreAujourdhuiOuverte) {
         e.preventDefault();
         fermerFenetreAujourdhui();
+      } else if (ongletActuel === 'agenda' && agendaCaseChoisie && !agendaModale && !agendaSelection) {
+        e.preventDefault();
+        agendaCaseChoisie = null;
+        renderPageAgenda();
       } else if (ongletActuel === 'agenda' && (agendaModale || agendaSelection)) {
         e.preventDefault();
         fermerModaleAgenda();

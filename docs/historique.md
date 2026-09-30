@@ -13422,3 +13422,17 @@ rendez-vous à 9 h, entre 12 h et 14 h et après 18 h, sauf exception ; maximum 
   plus de fond ni de position absolue, point de 5 px à la couleur du niveau, chiffre en `--muted` 10 px. Le
   titre récupère la largeur que lui prenait la pastille en haut à droite. Détail, listes de gauche et
   carte « Probable » inchangés.
+
+### 30/09/2026, soir — Créer un rendez-vous au double-clic, comme dans Outlook
+
+- Question de l'étude : « On peut double-cliquer dans l'agenda pour créer un rdv ? » — non : un simple clic
+  sur une case vide ouvrait la création à l'heure pleine. Proposé et accepté : « Oui, fais-le comme [Outlook],
+  mais un rendez-vous d'une heure de base. »
+- Un clic sur une case vide surligne un créneau d'1 h (`.ag-case-choisie`, « + 13:30 – 14:30 »), à la
+  demi-heure près (`heureCaseAgenda` : moitié haute → h:00, moitié basse → h:30 ; au clavier, heure pleine),
+  et referme la fenêtre de détail ; un double-clic — ou un second clic / Entrée sur le créneau surligné,
+  pour le téléphone et le clavier — ouvre « Nouveau rendez-vous » sur ce créneau, durée 1 h présélectionnée.
+  Échap efface le créneau. Les règles de l'étude (9 h, 12 h – 14 h, après 18 h, 6 par jour) restent
+  vérifiées à la création (confirmation d'un créneau exceptionnel).
+- Vérifié dans Chromium : clic moitié basse de 13 h → 13:30 – 14:30 sans ouvrir la création, Échap efface,
+  double-clic sur 12 h → création au 02/10 à 12:00, durée 60 min.

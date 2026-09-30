@@ -7239,6 +7239,14 @@ button.primary.ag-ajout svg { width: 14px; height: 14px; }
 .ag-case { height: var(--ag-heure); flex: none; border: none; border-bottom: 1px solid var(--line-soft); background: none; cursor: pointer; padding: 0; }
 .ag-case:hover { background: var(--paper-sunk); }
 .ag-case:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+/* Créneau choisi d'un clic (1 h, à la demi-heure près) : un double-clic y crée le rendez-vous. */
+.ag-case-choisie {
+  position: absolute; left: 2px; right: 2px; z-index: 1; pointer-events: none; box-sizing: border-box;
+  border: 1.5px solid var(--focus); border-radius: 4px; background: color-mix(in srgb, var(--focus) 12%, transparent);
+  padding: 3px 6px; overflow: hidden;
+}
+.ag-case-choisie span { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; font-weight: 600; color: var(--focus); font-variant-numeric: tabular-nums; }
+.ag-case-choisie svg { width: 11px; height: 11px; }
 .ag-evt {
   position: absolute; z-index: 1; overflow: hidden; display: flex; flex-direction: column; gap: 1px; min-height: 0;
   font-family: inherit; text-align: left; cursor: pointer; padding: 3px 6px 3px 7px; box-sizing: border-box;
