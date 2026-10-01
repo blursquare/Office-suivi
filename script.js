@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-01 15:07';
+  const VERSION_APP = '2026-10-01 15:30';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-01 15:30', resume: "Aujourd'hui : une case ronde à cocher devant chaque tâche (la cocher la note faite) ; vos rappels notés à la main entrent dans « À faire » et y reviennent chaque jour tant qu'ils ne sont pas cochés (« Non fait hier »), y compris ceux sans échéance. Agenda : un clic place le créneau, un double-clic ouvre le formulaire du rendez-vous (un second clic simple déplace le créneau)." },
     { version: '2026-10-01 15:07', resume: "Agenda : un rendez-vous s'allonge ou se raccourcit en tirant son bord du bas (la fin) ou du haut (le début), au quart d'heure, comme dans Outlook — vues Semaine et Jour, à la souris, confirmé avant d'écrire dans l'agenda. La signature d'un dossier emmène l'heure de la fiche." },
     { version: '2026-10-01 14:46', resume: "Rapport technique : l'avertissement « SQLite expérimental » que Node affiche à chaque démarrage du serveur n'est plus compté comme une erreur du serveur (il remontait dans chaque rapport sans rien signaler de réel)." },
     { version: '2026-10-01 14:12', resume: "Rapport technique : quand GitHub refuse le rapport, le message distingue « le jeton ne voit pas le dépôt » (accès au dépôt) de « pas le droit d'écrire les issues » (permission) et reprend la réponse exacte de GitHub, pour trouver la cause sans deviner." },
@@ -17067,8 +17068,11 @@
     const lignes = liste.map(r => {
       if (r.id === rappelEnEdition) return formulaireRappel(r);
       const d = r.dossierId ? dossiers.find(x => x.id === r.dossierId) : null;
-      const quand = libelleEcheanceRappel(r.echeance, aujourdhui);
-      const enRetard = !r.fait && r.echeance && r.echeance < aujourdhui;
+      // Sans échéance, un rappel resté non fait depuis sa création le dit aussi (« Non fait hier »).
+      const creation = !r.fait && !r.echeance ? dateRappelJour(r) : '';
+      const dateJour = r.echeance || (creation && creation < aujourdhui ? creation : '');
+      const quand = libelleEcheanceRappel(dateJour, aujourdhui);
+      const enRetard = !r.fait && dateJour && dateJour < aujourdhui;
       const sous = [quand, d ? libelleDossierAffiche(d) : ''].filter(Boolean);
       return `
         <div class="rappel-perso${r.fait ? ' fait' : ''}">
@@ -17780,6 +17784,8 @@
   //   o = { categorie, categorieLabel, titre, titreHtml?, sous?, sousHtml?, delai?, delaiProche?,
   //         gravite?, bouton?: { libelle, icone? (html), onclick, titre? }, secondaires?: html,
   //         faite?, apercu?, detail?: html, detailOuvert?, classe? }
+  //   o.caseRonde = { onclick, libelle } : une case ronde à cocher à la place de la pastille (vue
+  //   « Aujourd'hui », étude 01/10), cerclée de la couleur de la catégorie ; la cocher fait la tâche.
   function renderLigneAction(o) {
     const ouverte = !!o.detailOuvert || !!(o.apercu && apercusJour.has(o.apercu));
     const sous = o.sousHtml != null ? o.sousHtml : (o.sous ? escapeHtml(o.sous) : '');
@@ -17791,10 +17797,13 @@
     const go = b
       ? `<button type="button" class="${o.faite ? 'ja-go ja-go-contour' : 'primary ja-go'}" onclick="${b.onclick}" title="${escapeAttr(b.titre || b.libelle)}">${b.icone || ''}<span>${escapeHtml(b.libelle)}</span></button>`
       : '<span class="ja-go ja-go-vide"></span>';
-    const classes = ['ja', o.gravite ? 'g-' + o.gravite : '', o.faite ? 'ja-faite' : '', ouverte ? 'ouverte' : '', o.classe || ''].filter(Boolean).join(' ');
+    const classes = ['ja', o.gravite ? 'g-' + o.gravite : '', o.faite ? 'ja-faite' : '', ouverte ? 'ouverte' : '', o.caseRonde ? 'ja-avec-case' : '', o.classe || ''].filter(Boolean).join(' ');
+    const pastille = o.caseRonde
+      ? `<span class="dot-label dl-${o.categorie || 'neutre'} ja-case-cadre"><button type="button" class="ja-case-ronde" role="checkbox" aria-checked="false" onclick="${o.caseRonde.onclick}" title="${escapeAttr(o.caseRonde.libelle)}" aria-label="${escapeAttr(o.caseRonde.libelle + ' : ' + o.titre)}">${icone('check')}</button></span>`
+      : `<span class="dot-label dl-${o.faite ? 'success' : (o.categorie || 'neutre')}" title="${escapeAttr(o.categorieLabel || '')}"><span class="dot"></span></span>`;
     return `
       <li class="${classes}">
-        <span class="dot-label dl-${o.faite ? 'success' : (o.categorie || 'neutre')}" title="${escapeAttr(o.categorieLabel || '')}"><span class="dot"></span></span>
+        ${pastille}
         ${texte}
         <span class="ja-delai${o.delaiProche ? ' proche' : ''}">${escapeHtml(o.delai || '')}</span>
         ${go}
@@ -17826,7 +17835,10 @@
       titreHtml: veilleJour.hier.has(a.cle) ? `<span class="ja-non-faite">${escapeHtml(libelleNonFaite(veilleJour.hierDate, isoAujourdhuiLocal()))}</span>` : '',
       sous, delai: delaiAction(a), delaiProche: a.gravite === 'critique',
       bouton: sansGeste ? null : { libelle: libelleCourtGeste(a), icone: iconeGeste(a), onclick: `executerActionJour('${cle}')`, titre: a.bouton },
-      secondaires: `<button type="button" class="icon-btn ja-fait-manuel" onclick="marquerFaitJour('${cle}')" title="Déjà fait — valider à la main" aria-label="Marquer comme déjà fait">${icone('check')}</button>
+      // Vue « Aujourd'hui » : la case ronde devant la tâche la valide à la main (étude, 01/10) ; la
+      // fiche garde sa pastille et le ✓ « Déjà fait » parmi les icônes.
+      caseRonde: dansFiche ? null : { onclick: `marquerFaitJour('${cle}')`, libelle: 'Fait — valider à la main' },
+      secondaires: `${dansFiche ? `<button type="button" class="icon-btn ja-fait-manuel" onclick="marquerFaitJour('${cle}')" title="Déjà fait — valider à la main" aria-label="Marquer comme déjà fait">${icone('check')}</button>` : ''}
           <button type="button" class="icon-btn ja-plus-tard" onclick="reporterActionJour('${cle}')" title="Plus tard (demain)" aria-label="Reporter à demain">${icone('clock')}</button>`,
       apercu: a.cle,
       detail: `<p>${escapeHtml(a.contexte)}</p>
@@ -17852,9 +17864,61 @@
       </li>`).join('');
   }
 
+  // Les rappels notés à la main (« Mes rappels ») dans la liste « À faire » de la fenêtre du jour
+  // (étude, 01/10 : « les rappels mis à la main se remettent le jour suivant tant que ce n'est pas
+  // fait ») : un rappel non coché revient chaque jour à partir de son échéance — de sa création s'il
+  // n'en a pas — et le dit (« Non fait hier »). Ceux cochés aujourd'hui restent, barrés. Pure.
+  function dateRappelJour(r) {
+    if (r && /^\d{4}-\d{2}-\d{2}$/.test(String(r.echeance || ''))) return r.echeance;
+    const cree = r && r.creeLe ? new Date(r.creeLe) : null;
+    if (!cree || isNaN(cree)) return '';
+    return `${cree.getFullYear()}-${String(cree.getMonth() + 1).padStart(2, '0')}-${String(cree.getDate()).padStart(2, '0')}`;
+  }
+  function rappelsDuJour(rappels, aujourdhuiIso) {
+    const l = Array.isArray(rappels) ? rappels : [];
+    const aFaire = rappelsAffiches(l.filter(r => !r.fait && (dateRappelJour(r) || aujourdhuiIso) <= aujourdhuiIso), aujourdhuiIso);
+    const faits = l.filter(r => r.fait && String(r.faitLe || '').slice(0, 10) === aujourdhuiIso);
+    return { aFaire, faits };
+  }
+
+  function renderRappelsJour(aujourdhuiIso) {
+    const { aFaire, faits } = rappelsDuJour(rappelsPerso, aujourdhuiIso);
+    const dossierDe = r => r.dossierId ? dossiers.find(x => x.id === r.dossierId) : null;
+    const lignes = aFaire.map(r => {
+      const d = dossierDe(r);
+      const date = dateRappelJour(r);
+      const retard = date && date < aujourdhuiIso ? libelleEcheanceRappel(date, aujourdhuiIso) : '';
+      return renderLigneAction({
+        categorie: 'neutre', categorieLabel: 'Rappel',
+        titre: r.texte,
+        titreHtml: retard ? `<span class="ja-non-faite">${escapeHtml(retard)}</span>` : '',
+        sousHtml: [d ? `<button type="button" class="lien-discret" onclick="executerFicheDossierJour('${escapeOnclickArg(d.id)}')">${escapeHtml(libelleDossierAffiche(d))}</button>` : '', 'Mon rappel'].filter(Boolean).join(' · '),
+        caseRonde: { onclick: `basculerRappelPerso('${escapeOnclickArg(r.id)}')`, libelle: 'Fait' },
+        bouton: rappelParleEmail(r.texte) ? { libelle: 'Email', icone: icone('mail'), onclick: `ouvrirEmailRappelPerso('${escapeOnclickArg(r.id)}')`, titre: "Préparer un email vierge avec la signature de l'office" } : null,
+        classe: 'ja-rappel'
+      });
+    }).join('');
+    const coches = faits.map(r => {
+      const d = dossierDe(r);
+      const dt = new Date(r.faitLe);
+      const heure = isNaN(dt) ? '' : `${String(dt.getHours()).padStart(2, '0')} h ${String(dt.getMinutes()).padStart(2, '0')}`;
+      return `
+      <li class="ja fait ja-rappel">
+        <span class="ja-coche" aria-hidden="true">${icone('check')}</span>
+        <span class="ja-texte-fait">
+          <span class="ja-titre">${escapeHtml(r.texte)}</span>
+          <span class="ja-sous">${[d ? libelleDossierAffiche(d) : '', 'Mon rappel', heure].filter(Boolean).map(escapeHtml).join(' · ')}</span>
+        </span>
+        <button type="button" class="lien-discret ja-annuler" onclick="basculerRappelPerso('${escapeOnclickArg(r.id)}')">Annuler</button>
+      </li>`;
+    }).join('');
+    return lignes + coches;
+  }
+
   function renderListeJour(actions, traites, global) {
-    if (!actions.length && !traites.length) return '<p class="jour-vide jour-vide-ok">✓ Rien à faire aujourd’hui sur vos dossiers.</p>';
-    return `<ul class="ja-liste">${actions.map(a => renderLigneActionJour(a, global)).join('')}${renderLignesTraitees(traites)}</ul>`;
+    const rappels = utilisateurPoste ? renderRappelsJour(isoAujourdhuiLocal()) : '';
+    if (!actions.length && !traites.length && !rappels) return '<p class="jour-vide jour-vide-ok">✓ Rien à faire aujourd’hui sur vos dossiers.</p>';
+    return `<ul class="ja-liste">${actions.map(a => renderLigneActionJour(a, global)).join('')}${rappels}${renderLignesTraitees(traites)}</ul>`;
   }
 
   function executerActionJourFiche(cle) {
@@ -18371,7 +18435,7 @@
       </header>
       <div class="jour-fenetre-corps">
         <div class="jour-col-faire">
-          <h3 class="jour-section-titre">À faire <span class="jour-onglet-nb">${actions.length}</span></h3>
+          <h3 class="jour-section-titre">À faire <span class="jour-onglet-nb">${actions.length + rappelsDuJour(rappelsPerso, isoAujourdhuiLocal()).aFaire.length}</span></h3>
           ${renderListeJour(actions, traites, global)}
         </div>
         <div class="jour-fenetre-rail">
@@ -19098,8 +19162,9 @@
   }
 
   // ---- Créneau choisi, comme dans Outlook (étude, 30/09) : un clic sur une case vide surligne un
-  // créneau d'une heure à la demi-heure près ; un double-clic — ou un second clic sur le créneau
-  // surligné (téléphone, clavier) — ouvre « Nouveau rendez-vous » sur ce créneau, 1 h par défaut. ----
+  // créneau d'une heure à la demi-heure près ; un double-clic — ou un second appui sur le créneau
+  // surligné (téléphone, clavier) — ouvre « Nouveau rendez-vous » sur ce créneau, 1 h par défaut.
+  // Étude, 01/10 : à la souris, un second clic simple déplace le créneau, il n'ouvre plus rien. ----
   let agendaCaseChoisie = null;   // { date, heure }
 
   // Pure : l'heure « HH:MM » d'un clic dans la case de l'heure h (première moitié → h:00, seconde → h:30).
@@ -19125,9 +19190,17 @@
     const r = cible && cible.getBoundingClientRect ? cible.getBoundingClientRect() : null;
     // Au clavier (Entrée), pas de position : l'heure pleine.
     const heure = r && evt.clientY ? heureCaseAgenda(h, evt.clientY - r.top, r.height) : heureCaseAgenda(h, 0, 0);
-    if (agendaCaseChoisie && agendaCaseChoisie.date === iso && agendaCaseChoisie.heure === heure) {
+    // Étude, 01/10 : « un clic pour placer le curseur du rendez-vous puis un double-clic pour ouvrir
+    // le formulaire ». À la souris, un clic place (ou déplace) le créneau, jamais plus ; le double-clic
+    // (second clic, evt.detail = 2) ouvre le formulaire sur le créneau placé au premier clic. Au clavier
+    // (evt.detail = 0) et au doigt, un second appui sur le créneau surligné l'ouvre.
+    const clics = evt && typeof evt.detail === 'number' ? evt.detail : 0;
+    const choisie = agendaCaseChoisie && agendaCaseChoisie.date === iso ? agendaCaseChoisie : null;
+    const auDoigt = typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+    if (clics >= 2 || ((clics === 0 || auDoigt) && choisie && choisie.heure === heure)) {
+      const h0 = clics >= 2 && choisie && Math.abs(minutesHeure(choisie.heure) - minutesHeure(heure)) <= 30 ? choisie.heure : heure;
       agendaCaseChoisie = null;
-      ouvrirCreationAgenda(iso, heure);
+      ouvrirCreationAgenda(iso, h0);
       return;
     }
     agendaCaseChoisie = { date: iso, heure };

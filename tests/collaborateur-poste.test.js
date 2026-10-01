@@ -128,6 +128,24 @@ test('rappels : libellé d’échéance et ordre d’affichage', () => {
   assert.equal(app.rappelsAffiches(l, '2026-09-25').map(r => r.id).join(','), '5,2,1,4');
 });
 
+test('rappelsDuJour : un rappel non coché revient chaque jour à partir de son échéance (ou de sa création)', () => {
+  const l = [
+    { id: 'hier', texte: 'échéance hier', echeance: '2026-09-30', fait: false, creeLe: '2026-09-28T08:00:00' },
+    { id: 'sans', texte: 'sans date, créé hier', echeance: '', fait: false, creeLe: '2026-09-30T15:00:00' },
+    { id: 'futur', texte: 'dans trois jours', echeance: '2026-10-04', fait: false, creeLe: '2026-09-30T15:00:00' },
+    { id: 'jour', texte: 'aujourd’hui', echeance: '2026-10-01', fait: false, creeLe: '2026-09-29T08:00:00' },
+    { id: 'coche', texte: 'coché ce jour', echeance: '2026-09-29', fait: true, faitLe: '2026-10-01T09:00:00' },
+    { id: 'vieux', texte: 'coché avant-hier', echeance: '2026-09-29', fait: true, faitLe: '2026-09-29T09:00:00' }
+  ];
+  const r = app.rappelsDuJour(l, '2026-10-01');
+  assert.equal(r.aFaire.map(x => x.id).join(','), 'hier,jour,sans');
+  assert.equal(r.faits.map(x => x.id).join(','), 'coche');
+  assert.equal(app.dateRappelJour(l[1]), '2026-09-30');
+  assert.equal(app.libelleEcheanceRappel(app.dateRappelJour(l[1]), '2026-10-01'), 'Non fait hier');
+  // Rien de daté à venir n'entre dans la journée ; un rappel sans date ni création y entre.
+  assert.equal(app.rappelsDuJour([{ id: 'x', texte: 't', fait: false }], '2026-10-01').aFaire.length, 1);
+});
+
 test('pointsATraiter : une ligne par dossier, le plus grave en titre, les autres en dessous', () => {
   const l = [
     // Même dossier : offre non reçue (J-3, critique) et butoir sans rendez-vous (J-10, vigilance).

@@ -296,7 +296,7 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
   entier sur plusieurs lignes (`lignesTitreEvenement`), puis heure de début + initiales du collaborateur
   (+ confrère), sans heure de fin ni durée (`renderEvenementSemaine`) ; **création comme dans Outlook** (étude, 30/09) : un clic
   sur une case vide surligne un créneau d'1 h à la demi-heure près (`choisirCaseAgenda`, `heureCaseAgenda`,
-  `agendaCaseChoisie`), un double-clic ou un second clic sur ce créneau ouvre « Nouveau rendez-vous », 1 h par défaut ; rendez-vous lus par le serveur (stock `agenda-office`, tenu à jour à la création/suppression
+  `agendaCaseChoisie`), un double-clic (01/10 : à la souris, un second clic simple déplace le créneau ; au clavier et au doigt, un second appui) ouvre « Nouveau rendez-vous », 1 h par défaut ; rendez-vous lus par le serveur (stock `agenda-office`, tenu à jour à la création/suppression
   depuis CLAIRE entre deux tours) ; signatures de CLAIRE absentes d'Outlook en pointillé. Agenda
   « intelligent », **sans IA, chaque point expliqué** : `probabiliteTenueSignature` (97 % moins des
   retraits pondérés par la proximité : financement, vente préalable, préemption, pièces, envois, fonds,

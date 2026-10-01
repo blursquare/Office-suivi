@@ -6040,7 +6040,7 @@ button.lien-action:hover { text-decoration: underline; }
 .rappel-perso-case {
   width: 20px; height: 20px; flex-shrink: 0; margin-top: 1px; padding: 0;
   display: inline-flex; align-items: center; justify-content: center;
-  background: var(--paper-card); border: 1.5px solid var(--muted); border-radius: 5px;
+  background: var(--paper-card); border: 1.5px solid var(--muted); border-radius: 50%;
   color: var(--on-accent); font-size: 12px; cursor: pointer;
 }
 .rappel-perso-case:hover { border-color: var(--focus); }
@@ -6162,6 +6162,21 @@ button.lien-action:hover { text-decoration: underline; }
 /* Ce qui est traité reste dans la liste, coché : la journée se voit avancer. */
 /* Pas d'animation par défaut : la liste est reconstruite à chaque rendu. Seule la ligne qu'on vient
    de cocher s'anime (vient-de-finir, voir vientDEtreTraitee). */
+/* Vue « Aujourd'hui » (étude, 01/10) : une case ronde à cocher devant la tâche, cerclée de la couleur
+   de sa catégorie (currentColor du .dot-label) ; la coche apparaît au survol, verte une fois cochée. */
+.ja.ja-avec-case { grid-template-columns: 20px minmax(0, 1fr) auto auto auto; }
+.dot-label.ja-case-cadre { display: inline-flex; align-items: center; justify-content: center; }
+.ja button.ja-case-ronde {
+  width: 20px; height: 20px; flex: none; padding: 0; margin: 0; box-sizing: border-box;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 1.75px solid currentColor; border-radius: 50%; background: var(--paper-card);
+  color: inherit; font-size: 11px; cursor: pointer; transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+.ja button.ja-case-ronde svg { opacity: 0; color: var(--success); transition: opacity 0.15s ease; }
+.ja button.ja-case-ronde:hover { border-color: var(--success); }
+.ja button.ja-case-ronde:hover svg { opacity: 1; }
+.ja button.ja-case-ronde:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.ja.g-critique button.ja-case-ronde { box-shadow: 0 0 0 3px color-mix(in srgb, var(--urgent) 18%, transparent); }
 .ja.fait { grid-template-columns: 20px minmax(0, 1fr) auto; }
 .ja.fait.vient-de-finir { animation: ja-fait 0.35s ease; }
 .ja.fait:hover { background: none; }
@@ -6180,6 +6195,7 @@ button.lien-action:hover { text-decoration: underline; }
 .w-tete-droite .jour-anneau svg { width: 44px; height: 44px; }
 .ja-compacte .ja { grid-template-columns: 12px minmax(0, 1fr) auto auto; grid-template-areas: "p t go tard" "p d go tard"; row-gap: 0; }
 .ja-compacte .ja > .dot-label { grid-area: p; }
+.ja-compacte .ja.ja-avec-case { grid-template-columns: 20px minmax(0, 1fr) auto auto; }
 .ja-compacte .ja > .ja-texte { grid-area: t; }
 .ja-compacte .ja > .ja-delai { grid-area: d; font-size: 11.5px; }
 .ja-compacte .ja > .ja-go { grid-area: go; }
@@ -6336,6 +6352,7 @@ button.lien-action:hover { text-decoration: underline; }
   .jour-fenetre-titre { font-size: 20px; }
   .ja { grid-template-columns: 12px minmax(0, 1fr) auto auto; grid-template-areas: "p t go tard" "p d go tard"; row-gap: 0; }
   .ja > .dot-label { grid-area: p; }
+  .ja.ja-avec-case { grid-template-columns: 20px minmax(0, 1fr) auto auto; }
   .ja > .ja-texte { grid-area: t; }
   .ja > .ja-delai { grid-area: d; font-size: 11.5px; }
   .ja > .ja-go { grid-area: go; }

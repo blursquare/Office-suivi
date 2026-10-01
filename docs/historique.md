@@ -13766,3 +13766,26 @@ matin) : confirmation « Changer l'horaire de « … » le … : 09 h 15 – 10 
 exceptionnel, + « L'heure de signature de la fiche suivra »), puis `modifierEvenementAgenda` (Start/End
 dans Outlook, fiche avec heure de fin, Teams au responsable si c'est un autre). Un simple clic sur une
 poignée ouvre toujours le détail. Vérifié dans Chromium (requêtes EWS lues).
+
+
+### 01/10/2026 15 h 30 — Aujourd'hui : case ronde, rappels reportés ; agenda : clic / double-clic
+
+Demandes de l'étude : « Dans la vue aujourd'hui met une case ronde à cocher devant la tâche » ; « il faut
+que les rappels mis à la main se remettent le jour suivant tant que ce n'est pas fait » ; « Dans
+l'agenda : un clic pour placer le curseur du rendez-vous puis un double-clic pour ouvrir le formulaire ».
+
+- `renderLigneAction` accepte `caseRonde: { onclick, libelle }` : une case ronde (`.ja-case-ronde`,
+  cerclée de la couleur de la catégorie par le `.dot-label` qui l'entoure, coche verte au survol) à la
+  place de la pastille. `renderLigneActionJour` la pose hors fiche (fenêtre du jour, carte Aujourd'hui)
+  sur `marquerFaitJour` ; le ✓ « Déjà fait » des icônes ne reste que dans la fiche (Prochaine étape).
+- Rappels : `dateRappelJour(r)` (échéance, sinon jour de création) et `rappelsDuJour(rappels, jour)`
+  (non cochés dont la date est passée ou du jour, + cochés aujourd'hui). `renderRappelsJour` les met
+  dans la liste « À faire » de la fenêtre du jour (après les actions, « Non fait hier » si en retard,
+  case ronde = `basculerRappelPerso`, bouton Email si le rappel parle d'écrire) ; le compteur « À faire »
+  les inclut, l'anneau et la fête restent sur les actions. « Mes rappels » de la carte : cases rondes, et
+  un rappel sans échéance resté non fait dit aussi « Non fait hier ». Les rappels n'étaient déjà jamais
+  perdus (un rappel non coché reste dans la liste) ; ils n'apparaissaient pas dans la fenêtre du jour.
+- Agenda (`choisirCaseAgenda`) : à la souris, `evt.detail === 1` place ou déplace le créneau, jamais
+  plus ; `evt.detail >= 2` (double-clic) ouvre « Nouveau rendez-vous » sur le créneau du premier clic
+  (à 30 min près). Au clavier (detail 0) et au doigt (`pointer: coarse`), un second appui sur le créneau
+  surligné l'ouvre comme avant. Vérifié dans Chromium : le compteur de clics survit au re-rendu.
