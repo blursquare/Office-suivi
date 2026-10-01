@@ -14179,3 +14179,17 @@ actualisé ». Le champ `#agenda-recherche` (en-tête de la page, à la place de
 (`.suivi-recherche-icone`), bord arrondi 10 px, ombre légère, anneau de focus ; jusqu'à 460 px de large,
 pleine largeur sur téléphone ; même texte d'invite que le Suivi. « Actualiser » reste une icône à côté
 de « Agenda de l'office lu … ».
+
+### 01/10/2026 22 h 06 — Agenda : la recherche filtre l'agenda (comme le Suivi) ; icône « fiche »
+
+Demande de l'étude : « ajoute l'icône fiche ; je veux que le champ de recherche fonctionne comme sur la
+page Suivi ». La question de cadrage (filtrer l'agenda / filtrer sans liste / liste seule) a été refusée
+sans réponse : retenu le choix recommandé. Taper dans `#agenda-recherche` filtre l'agenda affiché comme
+le Suivi filtre sa liste : `evenementsFiltresRecherche` (pure, testée ; titre, lieu, nom du dossier,
+sans accents ni casse) appliqué à la grille Semaine/Jour (cartes fantômes comprises), à la vue Mois et
+aux points du petit calendrier. Sous la date : « N rendez-vous pour « … » · Tout afficher »
+(`effacerRechercheAgenda`, aussi par Échap). La liste sous le champ reste ; chaque ligne a deux gestes :
+le nom (aller au rendez-vous, comme avant) et l'icône `file-text` « Ouvrir la fiche du dossier »
+(`ouvrirFicheDepuisRechercheAgenda` → `ouvrirDossierDepuisDashboard`). Vérifié dans Chromium (bureau et
+téléphone) : 6 rendez-vous → 1 avec « dupont », focus gardé pendant la frappe, l'icône ouvre le tiroir du
+dossier, « Tout afficher » rend les 6.

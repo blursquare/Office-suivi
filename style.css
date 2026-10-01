@@ -7284,10 +7284,20 @@ button.ag-actualiser.en-cours svg { animation: ag-tourne 0.9s linear infinite; }
   display: none; position: absolute; top: calc(100% + 6px); right: 0; width: max(100%, 320px); max-width: calc(100vw - 32px); z-index: 40;
   background: var(--paper-card); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow-card); max-height: 320px; overflow-y: auto;
 }
-.ag-recherche-ligne {
-  display: flex; flex-direction: column; align-items: flex-start; gap: 1px; width: 100%; font-family: inherit; text-align: left;
-  background: none; border: none; border-bottom: 1px solid var(--line); padding: 8px 12px; cursor: pointer; color: var(--ink);
+.ag-recherche-ligne { display: flex; align-items: center; border-bottom: 1px solid var(--line); }
+button.ag-recherche-aller {
+  flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 1px; font-family: inherit; text-align: left;
+  background: none; border: none; padding: 8px 6px 8px 12px; cursor: pointer; color: var(--ink);
 }
+/* Icône « fiche » au bout de la ligne (étude, 01/10) : ouvre la fiche sans passer par l'agenda. */
+button.ag-recherche-fiche {
+  flex: none; display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; margin-right: 8px;
+  border: 1px solid transparent; border-radius: 8px; background: none; color: var(--muted); cursor: pointer;
+}
+button.ag-recherche-fiche:hover { color: var(--ink); background: var(--paper-card); border-color: var(--line); }
+button.ag-recherche-fiche svg { width: 16px; height: 16px; }
+.ag-filtre { color: var(--ink); font-weight: 600; }
+.ag-filtre .lien-bouton { font-weight: 500; font-size: inherit; margin-left: 4px; }
 .ag-recherche-ligne:last-child { border-bottom: none; }
 .ag-recherche-ligne:hover, .ag-recherche-ligne.actif { background: var(--paper-sunk); }
 .ag-recherche-nom { font-size: 13.5px; font-weight: 600; }

@@ -301,3 +301,16 @@ test('resultatsRechercheAgenda : dossiers en cours d’abord, rendez-vous fixé 
   assert.equal(app.resultatsRechercheAgenda('  ', liste, '2026-10-01', []).length, 0);
   assert.equal(app.resultatsRechercheAgenda('martin', liste, '2026-10-01', [])[0].id, 'd');
 });
+
+test('evenementsFiltresRecherche : filtre l’agenda comme la recherche du Suivi (titre, lieu, dossier ; sans accents)', () => {
+  const ev = [
+    { sujet: 'VTE - DUPONT / MARTIN', lieu: 'BA', dossierNom: 'DUPONT / MARTIN' },
+    { sujet: 'Rendez-vous banque', lieu: 'Crédit Exemple' },
+    { sujet: 'Congés Jérémy' }
+  ];
+  assert.equal(app.evenementsFiltresRecherche(ev, '').length, 3);
+  assert.equal(app.evenementsFiltresRecherche(ev, 'martin').map(e => e.sujet).join('|'), 'VTE - DUPONT / MARTIN');
+  assert.equal(app.evenementsFiltresRecherche(ev, 'credit').length, 1);
+  assert.equal(app.evenementsFiltresRecherche(ev, 'JEREMY').length, 1);
+  assert.equal(app.evenementsFiltresRecherche(ev, 'inconnu').length, 0);
+});

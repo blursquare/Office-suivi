@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-01 22:00';
+  const VERSION_APP = '2026-10-01 22:06';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-01 22:06', resume: "Agenda : la recherche fonctionne comme sur le Suivi — taper un nom filtre l'agenda affiché (semaine, jour, mois et petit calendrier) ; le nombre de rendez-vous trouvés s'affiche sous la date, avec « Tout afficher » (ou Échap) pour revenir à tout l'agenda. Chaque dossier de la liste sous le champ porte une icône « fiche » qui ouvre directement sa fiche ; un clic sur son nom mène toujours à son rendez-vous." },
     { version: '2026-10-01 22:00', resume: "Agenda : le champ de recherche, à la place de l'ancien bouton « Actualiser » en haut à droite, prend l'aspect de celui du Suivi (grand champ arrondi avec la loupe, « Rechercher un dossier (vendeur, acquéreur)… »). « Actualiser » reste l'icône à côté de « Agenda de l'office lu … »." },
     { version: '2026-10-01 21:58', resume: "Agenda : le bouton « Nouveau rendez-vous » devient un bouton double — moitié « Nouveau rendez-vous », moitié « Proposer des dates ». La rubrique « Dates proposées » de la colonne de gauche n'apparaît plus que lorsqu'un sondage attend des réponses." },
     { version: '2026-10-01 21:55', resume: "Agenda : en haut à droite, à la place du bouton « Actualiser », un champ « Chercher un dossier ». Choisir un dossier mène l'agenda au jour de sa signature et en ouvre le détail ; sans rendez-vous, à la semaine où la signature est probable. « Actualiser » devient une petite icône à côté de « Agenda de l'office lu … »." },
@@ -19463,7 +19464,7 @@
   function renderGrilleAgenda() {
     const auj = isoAujourdhuiLocal();
     const jours = agendaVue === 'jour' ? [agendaJour] : joursSemaineAgenda(agendaLundi);
-    const evenements = evenementsAffichesAgenda().concat(fantomesAffichesAgenda());
+    const evenements = evenementsFiltresRecherche(evenementsAffichesAgenda().concat(fantomesAffichesAgenda()), agendaRecherche);
     const heures = [];
     for (let h = AGENDA_HEURE_DEBUT; h < AGENDA_HEURE_FIN; h++) heures.push(h);
     // En-têtes des jours comme dans Outlook : le nom du jour, la date dessous ; aujourd'hui en gras.
@@ -19505,7 +19506,7 @@
   // Vue Mois, comme celle d'Outlook : une case par jour, trois rendez-vous au plus, « + N » ensuite.
   function renderVueMoisAgenda() {
     const auj = isoAujourdhuiLocal();
-    const evenements = evenementsAffichesAgenda();
+    const evenements = evenementsFiltresRecherche(evenementsAffichesAgenda(), agendaRecherche);
     const semaines = grilleMoisAgenda(agendaMois);
     return `<div class="ag-vue-mois">
         ${['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'].map(j => `<span class="ag-vm-jsem">${j}</span>`).join('')}
@@ -19533,9 +19534,10 @@
     const semaines = grilleMoisAgenda(agendaMois);
     const titre = new Date(agendaMois + '-01T00:00:00').toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
     const periode = agendaVue === 'jour' ? [agendaJour] : agendaVue === 'semaine' ? joursSemaineAgenda(agendaLundi) : [];
-    const compte = (iso) => evenementsJourAgenda(agendaEvenements, iso).length;
-    const signature = (iso) => evenementsJourAgenda(agendaEvenements, iso).some(e => e.signature)
-      || dossiers.some(d => !d.archive && d.rendezVousSignature === iso);
+    const lus = evenementsFiltresRecherche(agendaEvenements, agendaRecherche);
+    const compte = (iso) => evenementsJourAgenda(lus, iso).length;
+    const signature = (iso) => evenementsJourAgenda(lus, iso).some(e => e.signature)
+      || (!agendaRecherche.trim() && dossiers.some(d => !d.archive && d.rendezVousSignature === iso));
     return `<div class="ag-mois">
         <div class="ag-mois-tete">
           <button type="button" class="icon-btn" onclick="naviguerMoisAgenda(-1)" aria-label="Mois précédent">${icone('chevron-left')}</button>
@@ -19706,6 +19708,14 @@
       });
   }
 
+  // Pure : les rendez-vous dont le titre, le lieu ou le dossier contient la recherche (sans accents ni
+  // casse) — tous si la recherche est vide. Filtre de l'agenda, comme la recherche du Suivi.
+  function evenementsFiltresRecherche(liste, texte) {
+    const q = normaliserPourRecherche(String(texte || '').trim());
+    if (!q) return liste || [];
+    return (liste || []).filter(e => e && normaliserPourRecherche([e.sujet, e.lieu, e.dossierNom].filter(Boolean).join(' ')).includes(q));
+  }
+
   var agendaRecherche = '';
   var agendaRechercheActif = 0;
   var agendaCibleDossier = null;
@@ -19713,6 +19723,22 @@
     agendaRecherche = valeur;
     agendaRechercheActif = 0;
     renderResultatsRechercheAgenda();
+    renderPageAgenda();
+  }
+
+  function effacerRechercheAgenda() {
+    agendaRecherche = '';
+    const champ = document.getElementById('agenda-recherche');
+    if (champ) champ.value = '';
+    renderResultatsRechercheAgenda();
+    renderPageAgenda();
+  }
+
+  // L'icône « fiche » d'une ligne de résultat : la fiche du dossier, sans quitter la recherche.
+  function ouvrirFicheDepuisRechercheAgenda(id) {
+    const bloc = document.getElementById('agenda-recherche-resultats');
+    if (bloc) bloc.style.display = 'none';
+    ouvrirDossierDepuisDashboard(id);
   }
 
   function renderResultatsRechercheAgenda() {
@@ -19725,10 +19751,13 @@
       : r.type === 'probable' ? `Signature probable semaine du ${formatDateFr(r.lundi)}` : 'Aucun rendez-vous';
     bloc.innerHTML = res.length === 0
       ? '<div class="ag-recherche-vide">Aucun dossier ne correspond.</div>'
-      : res.map((r, i) => `<button type="button" role="option" class="ag-recherche-ligne${i === agendaRechercheActif ? ' actif' : ''}" onmousedown="event.preventDefault()" onclick="allerAuDossierAgenda('${escapeOnclickArg(r.id)}')">
-          <span class="ag-recherche-nom">${escapeHtml(r.libelle)}${r.archive ? ' <span class="ag-recherche-archive">archivé</span>' : ''}</span>
-          <span class="ag-recherche-quand">${escapeHtml(quand(r))}</span>
-        </button>`).join('');
+      : res.map((r, i) => `<div class="ag-recherche-ligne${i === agendaRechercheActif ? ' actif' : ''}" role="option">
+          <button type="button" class="ag-recherche-aller" onmousedown="event.preventDefault()" onclick="allerAuDossierAgenda('${escapeOnclickArg(r.id)}')" title="${escapeAttr(r.type === 'aucun' ? 'Ouvrir la fiche' : 'Aller au rendez-vous dans l’agenda')}">
+            <span class="ag-recherche-nom">${escapeHtml(r.libelle)}${r.archive ? ' <span class="ag-recherche-archive">archivé</span>' : ''}</span>
+            <span class="ag-recherche-quand">${escapeHtml(quand(r))}</span>
+          </button>
+          <button type="button" class="ag-recherche-fiche" onmousedown="event.preventDefault()" onclick="ouvrirFicheDepuisRechercheAgenda('${escapeOnclickArg(r.id)}')" title="Ouvrir la fiche du dossier" aria-label="Ouvrir la fiche de ${escapeAttr(r.libelle)}">${icone('file-text')}</button>
+        </div>`).join('');
     bloc.style.display = 'block';
   }
 
@@ -19745,14 +19774,14 @@
   }
 
   function toucheRechercheAgenda(e) {
-    const lignes = document.querySelectorAll('#agenda-recherche-resultats .ag-recherche-ligne');
-    if (e.key === 'Escape') { agendaRecherche = ''; e.target.value = ''; renderResultatsRechercheAgenda(); return; }
+    const lignes = document.querySelectorAll('#agenda-recherche-resultats .ag-recherche-aller');
+    if (e.key === 'Escape') { effacerRechercheAgenda(); return; }
     if (e.key === 'Enter' && !lignes.length) e.preventDefault();
     if (!lignes.length) return;
     if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
       e.preventDefault();
       agendaRechercheActif = (agendaRechercheActif + (e.key === 'ArrowDown' ? 1 : lignes.length - 1)) % lignes.length;
-      lignes.forEach((l, i) => l.classList.toggle('actif', i === agendaRechercheActif));
+      lignes.forEach((l, i) => l.parentNode.classList.toggle('actif', i === agendaRechercheActif));
     } else if (e.key === 'Enter') {
       e.preventDefault();
       (lignes[agendaRechercheActif] || lignes[0]).click();
@@ -19818,7 +19847,15 @@
     // « Actualiser » (étude, 01/10) : une icône à côté de l'état de lecture, la recherche d'un dossier
     // ayant pris la place du bouton dans l'en-tête de la page.
     const actualiser = `<button type="button" class="ag-actualiser" onclick="actualiserAgenda(this)" title="Actualiser l’agenda" aria-label="Actualiser l’agenda">${icone('rotate-ccw')}</button>`;
-    const etat = `${source} ${actualiser}`;
+    // Recherche en cours (étude, 01/10 : « comme sur la page Suivi ») : l'agenda n'affiche que les
+    // rendez-vous qui correspondent ; le nombre trouvé sur la période affichée est dit ici.
+    const filtre = agendaRecherche.trim()
+      ? (() => {
+        const jours = joursAffichesAgenda();
+        const n = evenementsFiltresRecherche(evenementsAffichesAgenda(), agendaRecherche).filter(e => jours.indexOf(e.date) !== -1).length;
+        return ` · <span class="ag-filtre">${n} rendez-vous pour « ${escapeHtml(agendaRecherche.trim())} » <button type="button" class="lien-bouton" onclick="effacerRechercheAgenda()">Tout afficher</button></span>`;
+      })() : '';
+    const etat = `${source} ${actualiser}${filtre}`;
     const sous = agendaVue === 'mois' ? etat
       : agendaVue === 'semaine'
         ? `Semaine du ${new Date(agendaLundi + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })} au ${new Date(samedi + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })} · ${etat}`
