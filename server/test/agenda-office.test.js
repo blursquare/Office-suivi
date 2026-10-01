@@ -270,6 +270,13 @@ test('catégories Outlook : relevées sur le rendez-vous et listées sans doublo
 
 // --- Écriture dans le lieu du rendez-vous (composerLieuAgenda, l'inverse de la détection) ---
 
+test('composerLieuAgenda : initiales du responsable en tête si elles manquent, jamais en double', () => {
+  assert.equal(composerLieuAgenda('', { appelFonds: true, initiales: 'BA', confrere: 'Me DURAND en 2nd' }), 'BA - Me DURAND en 2nd - Appel de fonds envoyé');
+  assert.equal(composerLieuAgenda('Me DURAND', { projet: true, initiales: 'BA', confrere: 'Me DURAND en 1er' }), 'BA - Me DURAND en 1er - Projet envoyé');
+  assert.equal(composerLieuAgenda('BA - Appel de fonds envoyé', { appelFonds: true, projet: true, initiales: 'BA' }), 'BA - Appel de fonds et projet envoyé');
+  assert.equal(composerLieuAgenda('JV', { appelFonds: true, initiales: 'pas des initiales' }), 'JV - Appel de fonds envoyé');
+});
+
 test('composerLieuAgenda : ajoute la mention APRÈS les initiales, sans les toucher', () => {
   assert.equal(composerLieuAgenda('AL - ', { appelFonds: true }), 'AL - Appel de fonds envoyé');
   assert.equal(composerLieuAgenda('AL', { appelFonds: true }), 'AL - Appel de fonds envoyé');

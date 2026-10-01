@@ -13879,3 +13879,18 @@ particulier ? »
 - Tests : client (abrégé, objets, textes inchangés pour un dossier, `t=r`), serveur (titre obligatoire,
   plusieurs sondages sans dossier, options au nom du titre). Vérifié dans Chromium avec un faux Exchange :
   deux .eml (destinataire ; confrère), 2 options, placement = CreateItem « Point syndic » + 2 MoveToDeletedItems.
+
+
+### 01/10/2026 17 h 32 — Lieu Outlook : responsable, confrère, envois
+
+Demande de l'étude : « Quand un rendez-vous dans CLAIRE est créé dans l'agenda, renseigner dans l'agenda
+Outlook partagé le responsable du dossier, le nom du notaire en 2nd ou qui reçoit, et si appel de fonds
+fait et projet envoyé. » C'était déjà le cas pour une signature posée depuis la fiche, un créneau proposé
+ou un sondage placé (`lieuRdvAgenda` : « BA - Me DURAND en 2nd - Appel de fonds envoyé »), et la mention
+d'envoi se met à jour seule à la validation d'une date d'envoi (`noterEnvoiDansAgenda`). Manquaient :
+- le formulaire « Nouveau rendez-vous » de la page Agenda : le Lieu restait vide. `choisirDossierCreationAgenda`
+  le remplit avec `lieuRdvAgenda(d)` (tant qu'il est vide ou porte la proposition précédente ; un lieu tapé
+  à la main n'est jamais remplacé ; vidé si on retire le dossier) ;
+- `composerLieuAgenda` (serveur, route `/exchange/rendez-vous/lieu`) reçoit `initiales` et les met en tête
+  si elles manquent (rendez-vous tapé dans Outlook), jamais en double. Testé ; vérifié dans Chromium
+  (Location de la requête CreateItem).

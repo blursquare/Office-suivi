@@ -202,6 +202,13 @@ function composerLieuAgenda(lieuExistant, etat) {
     const reExistant = new RegExp(String.raw`(?<![A-Za-zÀ-ÿ])(?:M(?:e|a[iî]tre)\.?\s+)?` + famille + String.raw`(?![A-Za-zÀ-ÿ])(?:\s+en\s+(?:1er|2nd|premier|second))?`, 'i');
     base = reExistant.test(base) ? base.replace(reExistant, confrere) : (base ? base + ' - ' + confrere : confrere);
   }
+  // Les initiales du responsable du dossier en tête (étude, 01/10 : « renseigner le responsable du
+  // dossier ») : ajoutées seulement si elles n'y figurent pas déjà — un rendez-vous tapé dans Outlook
+  // sans initiales les reçoit, un lieu qui les porte n'est pas touché.
+  const initiales = typeof e.initiales === 'string' && /^[A-ZÀ-Ý]{2,4}$/.test(e.initiales.trim()) ? e.initiales.trim() : '';
+  if (initiales && !new RegExp(String.raw`(?<![A-Za-zÀ-ÿ])` + initiales + String.raw`(?![A-Za-zÀ-ÿ])`).test(base)) {
+    base = base ? initiales + ' - ' + base : initiales;
+  }
   const mention = (e.appelFonds && e.projet) ? MENTION_APPEL_PROJET
     : e.appelFonds ? MENTION_APPEL_SEUL
       : e.projet ? MENTION_PROJET_SEUL

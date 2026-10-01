@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-01 17:29';
+  const VERSION_APP = '2026-10-01 17:32';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-01 17:32', resume: "Agenda : un rendez-vous d'un dossier créé depuis « Nouveau rendez-vous » renseigne le Lieu dans Outlook comme une signature posée depuis la fiche — initiales du responsable, confrère « en 1er » (il reçoit) ou « en 2nd », appel de fonds et projet envoyés (« BA - Me DURAND en 2nd - Appel de fonds envoyé »), modifiable avant d'enregistrer. La mise à jour automatique du Lieu à l'envoi de l'appel de fonds ou du projet ajoute aussi les initiales si elles manquent." },
     { version: '2026-10-01 17:29', resume: "Agenda : proposer plusieurs dates pour un rendez-vous sans dossier — titre, durée, destinataires libres (dont un confrère, avec la formule d'usage), créneaux en option dans l'agenda. Depuis « Nouveau rendez-vous » (« Proposer plusieurs dates ») ou « Dates proposées » dans la colonne de l'agenda, où arrivent les réponses et où « Placer » crée le rendez-vous et retire les options." },
     { version: '2026-10-01 15:41', resume: "Agenda : « Envoyer le lien » de la visio — prépare l'email aux clients (ensemble) et/ou au confrère (le sien, formule d'usage), avec un bouton vers la visio et les informations de connexion relues dans la note du rendez-vous. Proposé aussi juste après l'ajout de l'invitation .ics. Texte : premier jet de CLAIRE." },
     { version: '2026-10-01 15:37', resume: "Agenda : visio ADNOV — sur un rendez-vous en visio, « Créer la visio » ouvre le site de la profession ; l'invitation .ics qu'il rend, déposée sur l'agenda (ou choisie dans le détail du rendez-vous), ajoute son lien aux notes du rendez-vous de même date et même heure, sans créer de doublon. Le détail montre ensuite « Rejoindre la visio ». Après la création d'un rendez-vous en visio, le message propose « Créer la visio »." },
@@ -13030,7 +13031,7 @@
       const reponse = await fetchAvecAuth('/api/exchange/rendez-vous/lieu', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ date: d.rendezVousSignature, reference: d.nom, appelFonds: af, projet: pj, confrere: confrereLieuAgenda(d) })
+        body: JSON.stringify({ date: d.rendezVousSignature, reference: d.nom, appelFonds: af, projet: pj, confrere: confrereLieuAgenda(d), initiales: initialesResponsable(d) })
       });
       const corps = await reponse.json();
       if (corps.ok) {
@@ -20146,6 +20147,15 @@
     if (d && titre && (!titre.value || RE_NOM_DEJA_PREFIXE.test(titre.value))) titre.value = libelleDossierAffiche(d);
     const sig = document.getElementById('agenda-creation-signature');
     if (sig && (!d || d.rendezVousSignature)) sig.checked = false;
+    // Le lieu reprend celui que CLAIRE écrit pour une signature (étude, 01/10 : responsable, confrère
+    // en 1er / en 2nd, appel de fonds et projet envoyés) : « BA - Me DURAND en 2nd - Appel de fonds
+    // envoyé ». Rempli tant qu'il est vide ou qu'il porte encore la proposition précédente ; un lieu
+    // tapé à la main n'est jamais remplacé.
+    const lieu = document.getElementById('agenda-creation-lieu');
+    if (lieu && (!lieu.value.trim() || lieu.value === lieu.dataset.propose)) {
+      lieu.value = d ? lieuRdvAgenda(d) : '';
+      lieu.dataset.propose = lieu.value;
+    }
     // « Proposer plusieurs dates » (étude, 01/10) : le sondage de créneaux du dossier (sans rendez-vous
     // de signature), ou un sondage sans dossier.
     const plusieurs = document.getElementById('agenda-creation-plusieurs');
