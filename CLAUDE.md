@@ -117,7 +117,10 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
    (Semaine/Jour, souris, confirmé au lâcher ; la signature d'un dossier emmène la fiche) ; la **catégorie** s'y change aussi
    (`item:Categories` remplacée, catégories manuelles gardées) dont **« Annulé / à replacer »** (jaune,
    `categoriesRdv.annule`) : une signature ainsi marquée — dans CLAIRE ou Outlook — quitte la fiche
-   (`rendezVousARemplacer`) et revient « à placer » ; retirer le jaune la rétablit. **Un seul essai par appel, aucun réessai automatique** (verrouillage du compte),
+   (`rendezVousARemplacer`) et revient « à placer » ; retirer le jaune la rétablit. **Teams au
+   responsable** (01/10) pour toute signature placée, déplacée ou mise « à replacer » par un autre :
+   par le poste depuis CLAIRE, par le serveur quand c'est relevé dans Outlook
+   (`notifierRendezVousRelevesAgenda`, sans savoir qui). **Un seul essai par appel, aucun réessai automatique** (verrouillage du compte),
    disjoncteur sur refus d'identifiants (côté client pour les écritures ; côté serveur, la lecture
    automatique est suspendue tant que les identifiants refusés restent enregistrés). Suppression = `MoveToDeletedItems`, jamais `HardDelete`.
    Microsoft Graph / Power Automate premium ne sont pas disponibles. **Lecture de la boîte de
@@ -278,7 +281,7 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
 - **Page Agenda** (30/09, `renderPageAgenda`, **à la manière d'Outlook** — étude, 30/09 au soir : « plus
   professionnel, pour ne pas dépayser les collaborateurs » ; lien juste sous le tableau de bord) : une carte,
   en tête pastille du jour, date, ‹ Aujourd'hui ›, liste Vue mois/semaine/jour, « Nouveau rendez-vous » ;
-  Semaine (lundi → samedi, **9 h – 19 h**, `AGENDA_HEURE_DEBUT/FIN`, étude 30/09) · Jour · Mois (`agendaVue`, `agendaJour` ; Jour par défaut sur
+  Semaine (lundi → samedi, **8 h – 19 h**, `AGENDA_HEURE_DEBUT/FIN`, étude 01/10 ; 60 px l'heure, `AGENDA_PX_HEURE` = `--ag-heure`) · Jour · Mois (`agendaVue`, `agendaJour` ; Jour par défaut sur
   téléphone), en-têtes « Lundi / 28 sept. 2026 », colonne du jour teintée, trait de l'heure ; rendez-vous =
   liseré gauche + fond clair de la couleur Outlook, heure de début, de fin et durée (`dureeRendezVous`) ;
   **sur un rendez-vous d'un dossier, comme dans Outlook : responsable (prénom), confrère (`confrereLieuAgenda`),

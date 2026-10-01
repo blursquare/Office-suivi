@@ -12,10 +12,10 @@ test('joursSemaineAgenda : lundi → samedi', () => {
   assert.equal(app.joursSemaineAgenda('2026-09-28').join(','), '2026-09-28,2026-09-29,2026-09-30,2026-10-01,2026-10-02,2026-10-03');
 });
 
-test('disposerEvenementsJour : position dans la grille 9 h – 19 h et colonnes des chevauchements', () => {
+test('disposerEvenementsJour : position dans la grille 8 h – 19 h et colonnes des chevauchements', () => {
   const places = app.disposerEvenementsJour([
-    { sujet: 'A', date: '2026-10-01', heure: '09:00', heureFin: '09:30' },
-    { sujet: 'B', date: '2026-10-01', heure: '09:15', heureFin: '10:15' },
+    { sujet: 'A', date: '2026-10-01', heure: '08:00', heureFin: '08:30' },
+    { sujet: 'B', date: '2026-10-01', heure: '08:15', heureFin: '09:15' },
     { sujet: 'C', date: '2026-10-01', heure: '13:30', heureFin: '14:00' },
     { sujet: 'Tôt', date: '2026-10-01', heure: '06:00', heureFin: '07:30' },
     { sujet: 'Journée', date: '2026-10-01', journeeEntiere: true },
@@ -23,8 +23,8 @@ test('disposerEvenementsJour : position dans la grille 9 h – 19 h et colonnes 
   ], '2026-10-01');
   const par = (s) => places.find(p => p.e.sujet === s);
   assert.equal(places.length, 4);
-  assert.equal(par('A').haut, 0, '9 h = haut de la grille');
-  assert.equal(Math.round(par('C').haut * 600 / 100), 270, '13 h 30 = 270 min après 9 h');
+  assert.equal(par('A').haut, 0, '8 h = haut de la grille');
+  assert.equal(Math.round(par('C').haut * 660 / 100), 330, '13 h 30 = 330 min après 8 h');
   assert.equal(`${par('A').colonne}/${par('A').colonnes}`, '0/2');
   assert.equal(`${par('B').colonne}/${par('B').colonnes}`, '1/2');
   assert.equal(`${par('C').colonne}/${par('C').colonnes}`, '0/1');
@@ -244,11 +244,11 @@ test('fantomesSemaineAgenda : carte fantôme sur le premier créneau libre de la
   assert.notEqual(`${deux[0].date}${deux[0].heure}`, `${deux[1].date}${deux[1].heure}`);
 });
 
-test('traitHeureAgenda : trait de l\'heure seulement aujourd\'hui et entre 9 h et 19 h', () => {
+test('traitHeureAgenda : trait de l\'heure seulement aujourd\'hui et entre 8 h et 19 h', () => {
   const jours = app.joursSemaineAgenda('2026-09-28');
   const t = app.traitHeureAgenda(new Date(2026, 8, 30, 14, 0), jours, '2026-09-30');
-  assert.equal(`${t.colonne} ${t.haut} ${t.libelle}`, '2 50 14:00');
-  assert.equal(app.traitHeureAgenda(new Date(2026, 8, 30, 8, 59), jours, '2026-09-30'), null);
+  assert.equal(`${t.colonne} ${Math.round(t.haut * 660 / 100)} ${t.libelle}`, '2 360 14:00', '14 h = 360 min après 8 h');
+  assert.equal(app.traitHeureAgenda(new Date(2026, 8, 30, 7, 59), jours, '2026-09-30'), null);
   assert.equal(app.traitHeureAgenda(new Date(2026, 8, 30, 19, 1), jours, '2026-09-30'), null);
   assert.equal(app.traitHeureAgenda(new Date(2026, 9, 7, 14, 0), jours, '2026-10-07'), null, 'autre semaine');
 });

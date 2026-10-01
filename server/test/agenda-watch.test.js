@@ -500,3 +500,43 @@ test('signature en jaune : un rendez-vous retiré à la main dans CLAIRE ne revi
   assert.equal(depot.trouverParId('d1').rendezVousSignature || '', '');
   db.close();
 });
+
+test('Teams : signature placée, déplacée ou mise « à replacer » dans Outlook → le responsable est prévenu', async () => {
+  const { notifierRendezVousRelevesAgenda } = require('../src/agendaWatch');
+  const { texteRendezVousAgenda } = require('../src/routes/notifications');
+  const db = ouvrirDb(':memory:');
+  const depot = creerDepot(db);
+  depot.creer({ id: 'd1', nom: 'DUPONT / MARTIN', responsable: 'Julie VASSELIN', rendezVousSignature: '2099-11-12', rendezVousSignatureHeure: '14:30' });
+  depot.creer({ id: 'd2', nom: 'LEROY', responsable: 'Julie VASSELIN', rendezVousARemplacer: { date: '2099-11-20', heure: '10:00' } });
+  depot.creer({ id: 'd3', nom: 'SANS RESPONSABLE', rendezVousSignature: '2099-11-12' });
+  const envois = [];
+  const repo = {
+    lireReglages: () => ({ emailActif: true, smtpHote: 'smtp.test', smtpUtilisateur: 'u', smtpMotDePasse: 'p', emailPasserelle: 'passerelle@etude.fr', emailsResponsables: { 'Julie VASSELIN': 'julie@etude.fr' } })
+  };
+  const envoyer = async (reglages, a, message) => { envois.push({ a, message }); return { ok: true }; };
+  await notifierRendezVousRelevesAgenda(depot, repo, [
+    { dossierId: 'd1', action: 'rendezVousSignature', dateIso: '2099-11-12', ancienneDate: '2099-11-10' },
+    { dossierId: 'd2', action: 'rendezVousARemplacer', dateIso: '2099-11-20' },
+    { dossierId: 'd3', action: 'rendezVousSignature', dateIso: '2099-11-12' },
+    { dossierId: 'd1', action: 'appelFonds', dateIso: '2099-11-01' }
+  ], { envoyer });
+  assert.equal(envois.length, 2, 'ni sans responsable, ni pour un envoi relevé');
+  assert.equal(envois[0].a, 'julie@etude.fr');
+  assert.equal(envois[0].message, '📅 CLAIRE — Rendez-vous de signature du dossier VTE - DUPONT / MARTIN déplacé dans l’agenda de l’office : du 10 novembre 2099 au 12 novembre 2099 à 14 h 30.');
+  assert.equal(envois[1].message, '⚠️ CLAIRE — Le rendez-vous de signature du dossier VTE - LEROY (prévu le 20 novembre 2099 à 10 h 00) est marqué « annulé / à replacer » dans l’agenda de l’office : il est à replacer.');
+  assert.equal(texteRendezVousAgenda({ dossierNom: 'VTE - X', action: 'place', date: '2099-11-12', heure: '' }), '📅 CLAIRE — Rendez-vous de signature du dossier VTE - X placé dans l’agenda de l’office : le 12 novembre 2099.');
+  assert.match(texteRendezVousAgenda({ dossierNom: 'VTE - X', auteur: 'Bastien ANGLUMENT', action: 'aReplacer', date: '2099-11-12', heure: '09:30' }), /^⚠️ CLAIRE — Bastien ANGLUMENT a marqué « annulé \/ à replacer » le rendez-vous de signature du dossier VTE - X \(prévu le 12 novembre 2099 à 09 h 30\)/);
+  // Envoi non configuré : rien ne part.
+  envois.length = 0;
+  await notifierRendezVousRelevesAgenda(depot, { lireReglages: () => ({ emailActif: false }) }, [{ dossierId: 'd1', action: 'rendezVousSignature', dateIso: '2099-11-12' }], { envoyer });
+  assert.equal(envois.length, 0);
+  db.close();
+});
+
+test('texteDateAjoutee : heures données (rendez-vous déplacé depuis la page Agenda)', async () => {
+  const { texteDateAjoutee } = require('../src/routes/notifications');
+  assert.equal(texteDateAjoutee('VTE - X', 'Bastien ANGLUMENT', 'Rendez-vous de signature', '2099-11-12', '2099-11-12', '14:00', '10:00'),
+    '📅 CLAIRE — Bastien ANGLUMENT a modifié une date du dossier VTE - X : Rendez-vous de signature passe du 12 novembre 2099 à 10 h 00 au 12 novembre 2099 à 14 h 00.');
+  assert.equal(texteDateAjoutee('VTE - X', 'Bastien ANGLUMENT', 'Rendez-vous de signature', '2099-11-12', ''),
+    '📅 CLAIRE — Bastien ANGLUMENT a ajouté une date au dossier VTE - X : Rendez-vous de signature le 12 novembre 2099.', 'sans heure : texte inchangé');
+});

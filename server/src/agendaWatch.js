@@ -23,6 +23,9 @@ const {
 } = require('./agendaOffice');
 const { lireCalendrierExchange } = require('./exchange/ews');
 const { poserEcheancesManquantes } = require('./echeancesAgenda');
+const { envoyerEmail, envoiConfigure } = require('./envoiEmail');
+const { texteRendezVousAgenda, envoyerAuResponsable } = require('./routes/notifications');
+const { libelleDossier } = require('./jobs/rappels');
 
 const CHAMP_PAR_ACTION = { appelFonds: 'appelFonds', projetEnvoye: 'projetEnvoye' };
 const LIBELLE_PAR_ACTION = { appelFonds: 'Envoi appel de fonds', projetEnvoye: 'Envoi projet' };
@@ -338,6 +341,7 @@ async function executerEtEnregistrerTourAgenda(depot, parametresRepo, injections
   if (resultat.ok && resultat.agendaOffice && typeof parametresRepo.ecrireAgendaOffice === 'function') {
     parametresRepo.ecrireAgendaOffice({ ...resultat.agendaOffice, lu: new Date().toISOString() });
   }
+  if (resultat.ok) await notifierRendezVousRelevesAgenda(depot, parametresRepo, resultat.misAJour, injections);
   const { absences, categories, agendaDuJour, agendaOffice, ...compteRendu } = resultat;
   const calendrier = reglages.calendrierPartage || reglages.email || '';
   parametresRepo.ecrireDernierTourAgenda({
@@ -347,6 +351,33 @@ async function executerEtEnregistrerTourAgenda(depot, parametresRepo, injections
     declenche: manuel ? 'manuel' : 'automatique'
   });
   return { ...compteRendu, calendrier };
+}
+
+// Signatures placées, déplacées ou marquées « annulé / à replacer » DANS OUTLOOK, relevées par ce
+// tour (étude, 01/10 : prévenir le responsable sur Teams). Ce que CLAIRE a fait elle-même n'arrive
+// jamais ici : la fiche porte déjà la date, le tour ne change rien. Un envoi impossible n'arrête
+// jamais le tour. `injections.envoyer` : faux envoi (tests).
+async function notifierRendezVousRelevesAgenda(depot, parametresRepo, misAJour, injections) {
+  const actions = (misAJour || []).filter((m) => m && (m.action === 'rendezVousSignature' || m.action === 'rendezVousARemplacer'));
+  if (!actions.length || typeof parametresRepo.lireReglages !== 'function') return;
+  const reglages = parametresRepo.lireReglages();
+  if (!envoiConfigure(reglages)) return;
+  const envoyer = (injections && injections.envoyer) || envoyerEmail;
+  for (const m of actions) {
+    const d = depot.trouverParId(m.dossierId);
+    if (!d || d.archive || !d.responsable) continue;
+    const aReplacer = m.action === 'rendezVousARemplacer';
+    const message = texteRendezVousAgenda({
+      dossierNom: libelleDossier(d), action: aReplacer ? 'aReplacer' : 'place', date: m.dateIso,
+      heure: aReplacer ? (d.rendezVousARemplacer && d.rendezVousARemplacer.heure) : d.rendezVousSignatureHeure,
+      ancienneDate: m.ancienneDate || ''
+    });
+    try {
+      await envoyerAuResponsable(parametresRepo, envoyer, reglages, d.responsable, message);
+    } catch (e) {
+      console.warn('[CLAIRE] Notification Teams du rendez-vous impossible :', e.message);
+    }
+  }
 }
 
 // 2 minutes (étude, 30/09 : « la récupération de l'agenda toutes les 2 minutes », pour que la page
@@ -379,6 +410,6 @@ function demarrerSurveillanceAgenda(depot, parametresRepo, injections, intervall
 
 module.exports = {
   appliquerDetectionsAgenda, appliquerRendezVousAgenda, rendezVousMarqueAnnule, marquerSignatureAReplacer, dateDuJourParis, executerTourSurveillanceAgenda,
-  executerEtEnregistrerTourAgenda, demarrerSurveillanceAgenda, INTERVALLE_SURVEILLANCE_AGENDA_MS,
+  executerEtEnregistrerTourAgenda, notifierRendezVousRelevesAgenda, demarrerSurveillanceAgenda, INTERVALLE_SURVEILLANCE_AGENDA_MS,
   connexionAgendaConfiguree, lectureAgendaSuspendue, reinitialiserDisjoncteurAgenda, signalerIdentifiantsRefuses
 };

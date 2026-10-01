@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-01 11:41';
+  const VERSION_APP = '2026-10-01 11:52';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-01 11:52', resume: "Teams : le responsable est prévenu quand un collègue déplace ou modifie la signature depuis la page Agenda (heure comprise) ou la marque « annulée / à replacer », et quand une signature est placée, déplacée ou passée en jaune directement dans Outlook (« … dans l'agenda de l'office »). Agenda : vues Semaine et Jour à partir de 8 h, grille moins haute ; sur une carte trop courte, les lignes Appel de fonds / Décompte / Projet restent dans le détail." },
     { version: '2026-10-01 11:41', resume: "Agenda : la catégorie d'un rendez-vous se change dans « Modifier » (à l'office, en visio, chez un confrère, sans catégorie) et une catégorie jaune « Annulé / à replacer » s'ajoute — posée sur une signature, elle retire la date de la fiche et remet le dossier dans « Rendez-vous à placer » (aussi quand le jaune est posé dans Outlook) ; retirer le jaune la rétablit. Dates butoir et absences en rose (absences rayées) pour les distinguer des rendez-vous." },
     { version: '2026-10-01 11:14', resume: "Claire Scan : chaque scan montre une vignette de sa première page ; un clic ouvre l'aperçu de toutes les pages, avec ce que CLAIRE a reconnu. « Ranger » et « Laisser dans Scan » tournent pendant le traitement. Fiche : l'encadré « Prochaine étape » ressort sur un fond teinté. Obtention du prêt : « Garantie non identifiée » quand l'offre est reçue sans garantie lue." },
     { version: '2026-10-01 11:02', resume: "Agenda : un rendez-vous se modifie (crayon dans son détail : titre, date, heures) et se déplace en le glissant dans la vue Semaine ou Jour, après confirmation. Le rendez-vous de signature d'un dossier emmène la date et l'heure de la fiche. Les notes d'un rendez-vous n'affichent plus « &#xD; »." },
@@ -18401,7 +18402,7 @@
 
   // Plage affichée en vues Semaine et Jour (étude, 30/09 : « de 9 h jusqu'à 19 h ») ; un rendez-vous
   // qui en déborde est ramené au bord et garde ses vraies heures dans sa carte.
-  var AGENDA_HEURE_DEBUT = 9;
+  var AGENDA_HEURE_DEBUT = 8;   // étude, 01/10 : « afficher l'agenda à partir de 8 h » (9 h le 30/09)
   var AGENDA_HEURE_FIN = 19;
   var AGENDA_JOURS_SEMAINE = 6; // lundi → samedi
 
@@ -18423,7 +18424,7 @@
     return (evenements || []).filter(e => e && e.date <= iso && (e.dateFin || e.date) >= iso);
   }
 
-  // Pure : place des rendez-vous horaires d'une journée dans la grille 9 h – 19 h (haut et hauteur
+  // Pure : place des rendez-vous horaires d'une journée dans la grille 8 h – 19 h (haut et hauteur
   // en % de la grille). Les rendez-vous qui se chevauchent se partagent la largeur en colonnes ; un
   // rendez-vous hors de la plage est ramené à son bord et signalé (`horsPlage`).
   function disposerEvenementsJour(evenements, iso) {
@@ -18962,12 +18963,19 @@
   // Vue Semaine (étude, 30/09 : « afficher le nom du dossier entier ou presque ; si trop long,
   // retirer l'heure de fin et la durée, laisser le début et mettre les initiales du collaborateur ») :
   // le titre passe sur autant de lignes que la carte en tient, puis une ligne « 10:00 · BA ».
+  // Hauteur d'une heure dans la grille, en pixels — la même que --ag-heure (style.css), 60 px depuis
+  // le 01/10 (étude : « réduis la hauteur de l'agenda », 90 px auparavant).
+  var AGENDA_PX_HEURE = 60;
+  // Pure : les lignes « Appel de fonds / Décompte / Projet » d'une signature ne s'affichent que si la
+  // carte peut les tenir sans les couper (≈ 80 px : 1 h 20 à 60 px l'heure).
+  function etatsTiennentAgenda(minutes) {
+    return minutes * AGENDA_PX_HEURE / 60 >= 81;
+  }
+  // Pure : lignes du titre d'une carte de la vue Semaine — la carte moins l'heure (« 10:00 · BA »),
+  // le rembourrage et, s'il y en a, les états ; 15 px par ligne, 1 à 6.
   function lignesTitreEvenement(minutes, avecEtats) {
-    if (minutes < 40) return 2;
-    if (minutes < 60) return 2;
-    if (minutes < 90) return avecEtats ? 2 : 4;
-    // 90 px par heure (--ag-heure) ; en bas : ligne « 10:00 · BA », états sur 2 lignes et probabilité.
-    return Math.min(6, Math.floor((minutes / 60 * 90 - (avecEtats ? 62 : 34)) / 15));
+    const px = minutes * AGENDA_PX_HEURE / 60;
+    return Math.max(1, Math.min(6, Math.floor((px - 24 - (avecEtats ? 42 : 0)) / 15)));
   }
 
   function renderEvenementSemaine(place, auj) {
@@ -18980,7 +18988,7 @@
     const style = `top:${place.haut.toFixed(2)}%;height:${place.hauteur.toFixed(2)}%;left:calc(${(place.colonne * largeur).toFixed(2)}% + 2px);width:calc(${largeur.toFixed(2)}% - 4px)`;
     const minutes = place.hauteur * (AGENDA_HEURE_FIN - AGENDA_HEURE_DEBUT) * 60 / 100;
     const court = minutes < 40;
-    const etats = infos && e.signature && !court;
+    const etats = infos && e.signature && !court && etatsTiennentAgenda(minutes);
     const lignes = lignesTitreEvenement(minutes, etats);
     const initiales = d && d.responsable ? initialesResponsable(d) : '';
     const meta = [initiales, infos && infos.confrere ? infos.confrere.replace(/\s+en 2nd$/, '') : ''].filter(Boolean);
@@ -19026,7 +19034,7 @@
         <span class="ag-evt-titre">${e.option ? `<span class="ag-fantome-tete ag-option-tete">Option ${escapeHtml(libelleOptionSondage(e.sujet).rang)}</span> ` : ''}${escapeHtml(e.option ? libelleOptionSondage(e.sujet).titre : (e.sujet || '(sans titre)'))}</span>
         <span class="ag-evt-heure"><span>${escapeHtml(e.heure)}</span>${e.heureFin ? `<span class="ag-evt-fin">– ${escapeHtml(e.heureFin)}</span>` : ''}${duree ? `<span class="ag-evt-duree">${escapeHtml(duree)}</span>` : ''}</span>
         ${qui ? `<span class="ag-evt-qui">${escapeHtml(qui)}</span>` : (e.lieu ? `<span class="ag-evt-qui">${escapeHtml(e.lieu)}</span>` : '')}
-        ${infos && e.signature ? `<span class="ag-evt-etats">${renderEtatsRendezVous(infos)}</span>` : ''}
+        ${infos && e.signature && etatsTiennentAgenda(minutesAffichees) ? `<span class="ag-evt-etats">${renderEtatsRendezVous(infos)}</span>` : ''}
         ${proba ? renderPastilleProbabilite(proba) : ''}
       </button>`;
   }
@@ -19049,7 +19057,7 @@
   }
 
   // Pure : le trait de l'heure (étude, 30/09 : « une barre du temps en fonction de l'heure ») —
-  // null si aujourd'hui n'est pas affiché ou si l'heure est hors de la plage 9 h – 19 h.
+  // null si aujourd'hui n'est pas affiché ou si l'heure est hors de la plage 8 h – 19 h.
   function traitHeureAgenda(maintenant, jours, aujourdhuiIso) {
     const colonne = (jours || []).indexOf(aujourdhuiIso);
     const minutes = maintenant.getHours() * 60 + maintenant.getMinutes();
@@ -19931,6 +19939,7 @@
         // Signature « annulée / à replacer » (étude, 01/10) : la date quitte la fiche, le dossier
         // revient « à placer » ; même effet que la lecture de l'agenda côté serveur.
         marquerSignatureAReplacerClient(d, e.date, e.heure || '');
+        notifierSignatureAReplacer(d, d.rendezVousARemplacer.date, d.rendezVousARemplacer.heure);
         sauvegarder(d);
         render();
         afficherToast(`Signature à replacer : ${libelleDossierAffiche(d)} revient dans « Rendez-vous à placer ».`, 'OK', null);
@@ -19949,6 +19958,7 @@
         d.confiance = d.confiance || {};
         d.confiance.rendezVousSignature = 'manuel';
         ajouterHistorique(d, `Rendez-vous de signature replacé depuis l’agenda : ${quand(e)}.`);
+        notifierDateAjoutee(d, LIBELLES_CATEGORIE.rendezVousSignature || 'Rendez-vous de signature', e.date, '', { heure: e.heure || '' });
         sauvegarder(d);
         render();
         afficherToast(`Signature de ${libelleDossierAffiche(d)} replacée le ${dateAvecJourFr(e.date)}.`, 'OK', null);
@@ -19963,6 +19973,9 @@
         d.confiance = d.confiance || {};
         d.confiance.rendezVousSignature = 'manuel';
         ajouterHistorique(d, `Rendez-vous de signature modifié depuis l’agenda : ${quand(avant)} → ${quand(e)}.`);
+        // Le responsable est prévenu comme pour une date changée sur la fiche (étude, 01/10).
+        notifierDateAjoutee(d, LIBELLES_CATEGORIE.rendezVousSignature || 'Rendez-vous de signature', e.date, avant.date,
+          { heure: e.heure || '', ancienneHeure: avant.heure || '' });
         sauvegarder(d);
         render();
       } else if (d) {
@@ -27295,23 +27308,38 @@
   // le collaborateur choisi sur ce poste : sans lui, on ne sait pas si le geste vient d'un autre,
   // et rien n'est envoyé. Une date vidée ne prévient personne, ni une date écrite par le serveur
   // (agenda, NAS) : ces chemins ne passent pas par ici. Pure, testable.
-  function doitNotifierDateAjoutee(d, auteur, nouvelleDate, ancienneDate) {
-    if (!d || d.archive || !nouvelleDate || nouvelleDate === ancienneDate) return false;
+  // `heures` ({ heure, ancienneHeure }, page Agenda) : un rendez-vous avancé le même jour compte aussi.
+  function doitNotifierDateAjoutee(d, auteur, nouvelleDate, ancienneDate, heures) {
+    const h = heures || {};
+    const memeMoment = nouvelleDate === ancienneDate && (h.heure || '') === (h.ancienneHeure || '');
+    if (!d || d.archive || !nouvelleDate || memeMoment) return false;
     if (!auteur || !d.responsable) return false;
     return auteur !== d.responsable;
   }
 
-  function notifierDateAjoutee(d, libelle, nouvelleDate, ancienneDate) {
-    if (!doitNotifierDateAjoutee(d, utilisateurPoste, nouvelleDate, ancienneDate || '')) return;
+  function notifierDateAjoutee(d, libelle, nouvelleDate, ancienneDate, heures) {
+    if (!doitNotifierDateAjoutee(d, utilisateurPoste, nouvelleDate, ancienneDate || '', heures)) return;
     // Fire-and-forget : un envoi impossible ne doit jamais faire échouer la saisie de la date.
     fetchAvecAuth('/api/notifications/date-ajoutee', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
         dossierNom: libelleDossierAffiche(d), responsable: d.responsable, auteur: utilisateurPoste,
-        libelle, date: nouvelleDate, ancienneDate: ancienneDate || ''
+        libelle, date: nouvelleDate, ancienneDate: ancienneDate || '',
+        ...(heures ? { heure: heures.heure || '', ancienneHeure: heures.ancienneHeure || '' } : {})
       })
     }).catch(e => console.warn('Notification « date ajoutée » impossible :', e.message));
+  }
+
+  // Signature marquée « annulé / à replacer » depuis la page Agenda : le responsable est prévenu
+  // (étude, 01/10), sauf si c'est lui.
+  function notifierSignatureAReplacer(d, date, heure) {
+    if (!d || !d.responsable || !utilisateurPoste || utilisateurPoste === d.responsable) return;
+    fetchAvecAuth('/api/notifications/rendez-vous-agenda', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ dossierNom: libelleDossierAffiche(d), responsable: d.responsable, auteur: utilisateurPoste, action: 'aReplacer', date, heure: heure || '' })
+    }).catch(e => console.warn('Notification « à replacer » impossible :', e.message));
   }
 
   // Une tâche faite sur le dossier d'un collègue : il est prévenu sur Teams (demandé par l'étude le

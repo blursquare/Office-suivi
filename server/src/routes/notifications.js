@@ -77,16 +77,38 @@ function dateLongueFr(iso) {
 // Une date d'envoi saisie vaut envoi fait : le message dit le geste, pas « une date ajoutée ».
 const ENVOIS_PAR_LIBELLE = { 'Envoi appel de fonds': 'l’appel de fonds', 'Envoi projet': 'le projet d’acte' };
 
-function texteDateAjoutee(dossierNom, auteur, libelle, date, ancienneDate) {
+function texteDateAjoutee(dossierNom, auteur, libelle, date, ancienneDate, heure, ancienneHeure) {
   const qui = auteur || 'Un collaborateur';
   const envoi = ENVOIS_PAR_LIBELLE[libelle];
   if (envoi && !ancienneDate) {
     return `✅ CLAIRE — ${qui} a envoyé ${envoi} du dossier ${dossierNom} (le ${dateLongueFr(date)}). La tâche est faite.`;
   }
+  // Heures (rendez-vous déplacé depuis la page Agenda, étude 01/10) : seulement si elles sont données.
+  const quand = (d, h) => `${dateLongueFr(d)}${heureValide(h) ? ` à ${heureFr(h)}` : ''}`;
   if (ancienneDate) {
-    return `📅 CLAIRE — ${qui} a modifié une date du dossier ${dossierNom} : ${libelle} passe du ${dateLongueFr(ancienneDate)} au ${dateLongueFr(date)}.`;
+    return `📅 CLAIRE — ${qui} a modifié une date du dossier ${dossierNom} : ${libelle} passe du ${quand(ancienneDate, ancienneHeure)} au ${quand(date, heure)}.`;
   }
-  return `📅 CLAIRE — ${qui} a ajouté une date au dossier ${dossierNom} : ${libelle} le ${dateLongueFr(date)}.`;
+  return `📅 CLAIRE — ${qui} a ajouté une date au dossier ${dossierNom} : ${libelle} le ${quand(date, heure)}.`;
+}
+
+function heureValide(h) { return /^\d{2}:\d{2}$/.test(String(h || '')); }
+function heureFr(h) { return String(h).replace(':', ' h '); }
+
+// Rendez-vous de signature vu dans l'agenda de l'office (étude, 01/10 : prévenir le responsable
+// quand un rendez-vous est placé, déplacé ou marqué « annulé / à replacer » sans qu'il l'ait fait).
+// `auteur` : le collaborateur qui l'a fait depuis CLAIRE ; vide quand c'est la lecture de l'agenda
+// qui le relève (fait dans Outlook — CLAIRE ne sait pas par qui). Pure.
+function texteRendezVousAgenda({ dossierNom, auteur, action, date, heure, ancienneDate }) {
+  const quand = (d, h) => `${dateLongueFr(d)}${heureValide(h) ? ` à ${heureFr(h)}` : ''}`;
+  if (action === 'aReplacer') {
+    return auteur
+      ? `⚠️ CLAIRE — ${auteur} a marqué « annulé / à replacer » le rendez-vous de signature du dossier ${dossierNom} (prévu le ${quand(date, heure)}) : il est à replacer.`
+      : `⚠️ CLAIRE — Le rendez-vous de signature du dossier ${dossierNom} (prévu le ${quand(date, heure)}) est marqué « annulé / à replacer » dans l’agenda de l’office : il est à replacer.`;
+  }
+  if (ancienneDate) {
+    return `📅 CLAIRE — Rendez-vous de signature du dossier ${dossierNom} déplacé dans l’agenda de l’office : du ${dateLongueFr(ancienneDate)} au ${quand(date, heure)}.`;
+  }
+  return `📅 CLAIRE — Rendez-vous de signature du dossier ${dossierNom} placé dans l’agenda de l’office : le ${quand(date, heure)}.`;
 }
 
 // Une pièce envoyée par le client : un libellé seul (ancienne forme), ou {label, chemin} quand le
@@ -239,7 +261,27 @@ function creerRouteurNotifications(parametresRepo, envoyerFn, options = {}) {
     if (auteur && auteur === responsable) return res.json({ ok: true, ignore: true });
     const reglages = parametresRepo.lireReglages();
     if (!envoiConfigure(reglages)) return res.json({ ok: true, ignore: true });
-    const message = texteDateAjoutee(dossierNom, auteur, libelle, date, /^\d{4}-\d{2}-\d{2}$/.test(ancienneDate) ? ancienneDate : '');
+    const message = texteDateAjoutee(dossierNom, auteur, libelle, date, /^\d{4}-\d{2}-\d{2}$/.test(ancienneDate) ? ancienneDate : '',
+      texteChamp(corps.heure), texteChamp(corps.ancienneHeure));
+    const sansCopiePour = auteur ? reglages.emailsResponsables[auteur] : null;
+    res.json(await envoyerAuResponsable(parametresRepo, envoyer, reglages, responsable, message, { sansCopiePour }));
+  });
+
+  // Signature marquée « annulé / à replacer » depuis la page Agenda (le poste ; la lecture de
+  // l'agenda prévient elle-même quand c'est fait dans Outlook, voir agendaWatch.js).
+  router.post('/notifications/rendez-vous-agenda', async (req, res) => {
+    const corps = req.body || {};
+    const texteChamp = (v) => (typeof v === 'string' ? v.trim().slice(0, 300) : '');
+    const dossierNom = texteChamp(corps.dossierNom);
+    const responsable = texteChamp(corps.responsable);
+    const auteur = texteChamp(corps.auteur);
+    const date = texteChamp(corps.date);
+    if (!dossierNom || !responsable || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return res.status(400).json({ erreur: 'dossierNom, responsable ou date manquant.' });
+    if (corps.action !== 'aReplacer') return res.status(400).json({ erreur: 'action inconnue.' });
+    if (auteur && auteur === responsable) return res.json({ ok: true, ignore: true });
+    const reglages = parametresRepo.lireReglages();
+    if (!envoiConfigure(reglages)) return res.json({ ok: true, ignore: true });
+    const message = texteRendezVousAgenda({ dossierNom, auteur, action: 'aReplacer', date, heure: texteChamp(corps.heure) });
     const sansCopiePour = auteur ? reglages.emailsResponsables[auteur] : null;
     res.json(await envoyerAuResponsable(parametresRepo, envoyer, reglages, responsable, message, { sansCopiePour }));
   });
@@ -265,4 +307,4 @@ function creerRouteurNotifications(parametresRepo, envoyerFn, options = {}) {
   return router;
 }
 
-module.exports = { creerRouteurNotifications, dedoublonnerPieces, texteNotificationPieces, htmlNotificationPieces, texteDossierComplet, texteDateAjoutee, texteTacheFaite };
+module.exports = { creerRouteurNotifications, dedoublonnerPieces, texteNotificationPieces, htmlNotificationPieces, texteDossierComplet, texteDateAjoutee, texteTacheFaite, texteRendezVousAgenda, envoyerAuResponsable };

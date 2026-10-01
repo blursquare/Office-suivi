@@ -13709,3 +13709,29 @@ Vérifié dans Chromium (vrai serveur, faux Exchange) : formulaire, confirmation
 (Catégorie Jaune / Verte / Violette), fiche à replacer puis rétablie, liste « à placer », couleurs ;
 clair, sombre, téléphone. Non vérifié sur le vrai Exchange : nom exact de la catégorie jaune dans la
 boîte de l'office.
+
+### 01/10/2026 11 h 52 — Teams pour les signatures placées par un autre ; agenda à partir de 8 h, moins haut
+
+Question de l'étude : « Y a-t-il des notifications Teams au collaborateur quand un rendez-vous est
+placé sur l'agenda mais pas par lui ? » — oui depuis la fiche et les placements de la page Agenda,
+mais rien pour (1) un rendez-vous posé dans Outlook et (2) les déplacements/modifications/passages en
+jaune faits depuis la page Agenda (ajoutés le matin même). « Fais le 1 et le 2. » Puis : « affiche
+l'agenda à partir de 8 h et réduis la hauteur de l'agenda ».
+
+- (2) Poste : `modifierEvenementAgenda` appelle `notifierDateAjoutee` (date et désormais **heure** :
+  `doitNotifierDateAjoutee(…, heures)`, un rendez-vous avancé le même jour compte), et
+  `notifierSignatureAReplacer` → `POST /api/notifications/rendez-vous-agenda` (action `aReplacer`) ;
+  signature replacée (sortie du jaune) → « a ajouté une date ». Jamais pour soi-même.
+- (1) Serveur : `notifierRendezVousRelevesAgenda` (agendaWatch.js), après chaque tour réussi, pour
+  les `misAJour` `rendezVousSignature` (placé ou déplacé) et `rendezVousARemplacer` — texte
+  `texteRendezVousAgenda` (« … placé / déplacé dans l’agenda de l’office », « … marqué « annulé /
+  à replacer » … : il est à replacer »), envoi `envoyerAuResponsable` (même passerelle que les
+  autres notifications, copie comprise). Ce que CLAIRE fait elle-même ne repasse pas : la fiche porte
+  déjà la date, le tour ne change rien. Limite : CLAIRE ne sait pas QUI a posé le rendez-vous dans
+  Outlook — le responsable est aussi prévenu de ce qu'il y pose lui-même.
+- Agenda : `AGENDA_HEURE_DEBUT` 9 → 8 ; `--ag-heure` 90 → 60 px (`AGENDA_PX_HEURE`, à tenir égal) ;
+  `etatsTiennentAgenda` (≥ 81 px) masque les lignes d'état d'une carte trop courte (elles restent
+  dans le détail), `lignesTitreEvenement` recalculé en pixels. Tests de la grille passés à 8 h.
+
+Vérifié dans Chromium : grille de 660 px à partir de 8 h, requêtes de notification capturées
+(modification d'heure, « à replacer ») ; tests serveur avec faux envoi pour les relevés Outlook.

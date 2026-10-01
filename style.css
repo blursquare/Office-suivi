@@ -7264,7 +7264,7 @@ button.primary.ag-ajout svg { width: 14px; height: 14px; }
 /* Grille de la semaine / du jour. */
 .ag-grille-defil { overflow-x: auto; }
 .ag-grille {
-  --ag-heure: 90px;
+  --ag-heure: 60px;   /* étude, 01/10 : agenda moins haut (90 px auparavant) */
   display: grid; grid-template-columns: 56px repeat(var(--ag-colonnes, 6), minmax(118px, 1fr)); min-width: 760px;
 }
 .ag-grille.ag-vue-jour { min-width: 0; }
