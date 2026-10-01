@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-01 17:58';
+  const VERSION_APP = '2026-10-01 18:04';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-01 18:04', resume: "Agenda : la suppression d'un rendez-vous échouait (« ErrorCannotDeleteObject ») — le compte de CLAIRE n'a pas accès aux éléments supprimés de la boîte de Sophie. Dans ce cas, CLAIRE retire le rendez-vous autrement : il reste récupérable dans Outlook par « Récupérer les éléments supprimés »." },
     { version: '2026-10-01 17:58', resume: "Relation client : retirée de la colonne de gauche de l'agenda. La confirmation et le rappel du rendez-vous, le questionnaire de satisfaction et le mot un an après sont dans l'onglet Échanges de la fiche du dossier, au bon moment — et seulement pour les clients qui ne sont pas accompagnés par un confrère." },
     { version: '2026-10-01 17:48', resume: "Agenda : dans la colonne de gauche, « Dates proposées » passe juste sous le calendrier du mois, et « Signatures de la semaine » est retiré (la probabilité de tenue reste dans le détail de chaque rendez-vous)." },
     { version: '2026-10-01 17:47', resume: "Agenda : l'historique — on peut remonter au 1er janvier et au-delà, toutes les années. Les rendez-vous passés sont lus dans Outlook mois par mois à la première consultation, puis gardés (pas de relecture ensuite) ; détail et notes consultables, sans modification. Nouveau : « Aller à une date » à côté de « Aujourd'hui »." },

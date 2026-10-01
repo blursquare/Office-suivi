@@ -123,7 +123,7 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
    par le poste depuis CLAIRE, par le serveur quand c'est relevé dans Outlook
    (`notifierRendezVousRelevesAgenda`, sans savoir qui). **Un seul essai par appel, aucun réessai automatique** (verrouillage du compte),
    disjoncteur sur refus d'identifiants (côté client pour les écritures ; côté serveur, la lecture
-   automatique est suspendue tant que les identifiants refusés restent enregistrés). Suppression = `MoveToDeletedItems`, jamais `HardDelete`.
+   automatique est suspendue tant que les identifiants refusés restent enregistrés). Suppression = `MoveToDeletedItems`, jamais `HardDelete` ; sur `ErrorCannotDeleteObject` (vu le 01/10 : compte délégué sans droit sur les éléments supprimés de Sophie), une seconde requête en `SoftDelete` (récupérable par « Récupérer les éléments supprimés »).
    Microsoft Graph / Power Automate premium ne sont pas disponibles. **Lecture de la boîte de
    réception** du même compte (celle de Bastien, qui reçoit tout en double) à 8 h 50 pour le résumé
    des emails du matin (`emailsMatin.js`, FindItem seul, sans IA) : seuls expéditeur, objet et

@@ -343,6 +343,29 @@ test('supprimerEcheanceExchange : identifiants refusés → raison auth', async 
   assert.equal(r.raison, 'auth');
 });
 
+test('supprimerEcheanceExchange : ErrorCannotDeleteObject (délégué) → une seconde requête en SoftDelete, jamais HardDelete', async () => {
+  const corps = [];
+  const repondre = (o, cb) => {
+    corps.push(o.body);
+    if (/MoveToDeletedItems/.test(o.body)) return cb(null, { statusCode: 200, body: '<m:DeleteItemResponseMessage ResponseClass="Error"><m:ResponseCode>ErrorCannotDeleteObject</m:ResponseCode></m:DeleteItemResponseMessage>' });
+    cb(null, { statusCode: 200, body: '<m:DeleteItemResponseMessage ResponseClass="Success"><m:ResponseCode>NoError</m:ResponseCode></m:DeleteItemResponseMessage>' });
+  };
+  const r = await supprimerEcheanceExchange({ url: 'https://x', email: 'a@b.fr', motDePasse: 's', itemId: 'ID1', changeKey: 'CK1' }, { poster: repondre });
+  assert.equal(r.ok, true);
+  assert.match(r.message, /Récupérer les éléments supprimés/);
+  assert.equal(corps.length, 2);
+  assert.match(corps[1], /DeleteType="SoftDelete"/);
+  assert.doesNotMatch(corps.join(''), /HardDelete/);
+  // Une autre erreur : aucun second essai.
+  const un = [];
+  const refus = await supprimerEcheanceExchange({ url: 'https://x', email: 'a@b.fr', motDePasse: 's', itemId: 'ID1' },
+    { poster: (o, cb) => { un.push(o.body); cb(null, { statusCode: 200, body: '<m:ResponseCode>ErrorAccessDenied</m:ResponseCode>' }); } });
+  assert.equal(refus.ok, false);
+  assert.equal(un.length, 1);
+  // Un type inconnu retombe sur MoveToDeletedItems.
+  assert.match(corpsDeleteEcheance({ itemId: 'A', typeSuppression: 'HardDelete' }), /DeleteType="MoveToDeletedItems"/);
+});
+
 test('rendez-vous : catégorie de couleur posée entre Body et le rappel, absente sans nom', () => {
   const ews = require('../src/exchange/ews');
   const avec = ews.corpsCreateRendezVous({ sujet: 'VTE - A', dateStr: '2026-10-14', heureStr: '14:30', dureeMinutes: 60, categorie: 'Catégorie <Verte>' });

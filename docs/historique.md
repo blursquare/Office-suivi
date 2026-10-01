@@ -13988,3 +13988,16 @@ dit l'échéance (« Signature dans 2 jours »). `gestesRelationClient` écarte 
 confrère (avant : la confirmation et le rappel allaient au confrère) ; même règle dans le détail d'un
 rendez-vous de l'agenda et pour le questionnaire dans Échanges. L'envoi reste `envoyerRelanceCiblee`
 (`confirmationRdvPour`, `rappelRdvPour`, `anniversaireEnvoyeLe`), partagé entre la fiche et l'agenda.
+
+### 01/10 — Suppression d'un rendez-vous : ErrorCannotDeleteObject
+
+Signalé par l'étude : « Le retrait de l'événement a échoué (ErrorCannotDeleteObject) ». Le compte de CLAIRE
+est délégué sur le calendrier partagé de Sophie ; `MoveToDeletedItems` range l'élément dans les éléments
+supprimés de SA boîte, où le délégué n'a pas de droit → Exchange refuse. `supprimerEcheanceExchange` (une
+seule fonction pour tous les retraits : rendez-vous, dates butoir, options « Provisoire » des sondages) fait,
+dans ce seul cas, une seconde requête en `SoftDelete` (`corpsDeleteEcheance({ typeSuppression })`, liste
+blanche `TYPES_SUPPRESSION_EWS` : jamais `HardDelete`) : l'élément va dans les éléments récupérables
+(« Récupérer les éléments supprimés » d'Outlook, durée de rétention réglée par Fichorga). Pas de risque de
+verrouillage : les identifiants viennent d'être acceptés ; toute autre erreur n'est pas retentée. Non
+vérifié contre le vrai Exchange (injoignable ici). Autre voie, côté Fichorga : donner au compte de CLAIRE
+le droit sur le dossier « Éléments supprimés » de Sophie.
