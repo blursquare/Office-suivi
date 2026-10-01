@@ -14262,3 +14262,11 @@ pure, testée : « Jeu », « Oct » en vue Mois), 27 px gras blanc, point final
 dégradé radial de `--accent-clair` (bordeaux du thème de l'étude, marine pour l'autre thème — mêmes
 couleurs en clair et en sombre, c'est une marque). La date en clair reste dans le titre à côté.
 Vérifié dans Chromium (clair, sombre, téléphone).
+
+### 01/10/2026 22 h 54 — Agenda : « Jeudi. » en toutes lettres, sans fond
+
+Retour de l'étude sur la tuile « Jeu. » : « en français, pas de fond de couleur ». `motPastilleAgenda`
+rend le jour en toutes lettres (« Jeudi », « Octobre » en vue Mois) ; `.ag-pastille-jour` perd son fond
+bordeaux en dégradé : 30 px très gras, couleur du texte (`--ink`), point final orange (`--cat-orange`).
+En vue Jour, le jour n'est plus répété dans la ligne sous la date. Vérifié dans Chromium (clair, sombre,
+téléphone).

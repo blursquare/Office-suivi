@@ -343,9 +343,9 @@ test('reponsesNonVuesSondages : réponses arrivées après le dernier passage, s
   assert.equal(app.reponsesNonVuesSondages(sondages, '2026-10-02T00:00:00Z').length, 0);
 });
 
-test('motPastilleAgenda : jour abrégé (« Jeu »), mois abrégé en vue Mois (« Oct »)', () => {
+test('motPastilleAgenda : jour en toutes lettres (« Jeudi »), mois en vue Mois (« Octobre »)', () => {
   const jeudi = new Date('2026-10-01T00:00:00');
-  assert.equal(app.motPastilleAgenda(jeudi, 'semaine'), 'Jeu');
-  assert.equal(app.motPastilleAgenda(jeudi, 'mois'), 'Oct');
-  assert.equal(app.motPastilleAgenda(new Date('2026-10-05T00:00:00'), 'jour'), 'Lun');
+  assert.equal(app.motPastilleAgenda(jeudi, 'semaine'), 'Jeudi');
+  assert.equal(app.motPastilleAgenda(jeudi, 'mois'), 'Octobre');
+  assert.equal(app.motPastilleAgenda(new Date('2026-10-05T00:00:00'), 'jour'), 'Lundi');
 });
