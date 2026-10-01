@@ -3431,10 +3431,6 @@
   /* Même taille que .echeance-jours (12px) sur la même ligne — demandé par l'étude, le nom du
      responsable ressortait visuellement plus gros que les dates à côté. */
   .ligne-resume .dossier-responsable-tableau { color: var(--ink-soft); font-size: 12px; }
-  /* Vue Tableau à côté de la colonne « Prévu » (étude, 01/10) : le nom du dossier garde au moins
-     240 px — « VTE - BERNARD / LAMBERT » sur une ligne —, le responsable tient sur une ligne et les
-     autres colonnes passent à la ligne au besoin. Un nom plus long que 240 px passe à la ligne. */
-  .suivi-principal .dossiers-table .ligne-resume td:first-child { min-width: 240px; }
   /* Responsable = initiales dans une pastille ronde (étude, 01/10). */
   .pastille-collab {
     display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 50%;
@@ -7195,7 +7191,6 @@ button.scan-nom:focus-visible { outline: 2px solid var(--focus); outline-offset:
 
 /* ---- Suivi : « À voir en premier » (30/09) — les dossiers avec du nouveau, en tête de liste ---- */
 .a-voir-table { table-layout: fixed; }
-.col-a-voir-echeance { width: 210px; }
 .a-voir .section-eyebrow { color: var(--notif-nouveau, var(--urgent)); display: inline-flex; align-items: center; gap: 6px; }
 .a-voir-signaux { display: flex; flex-wrap: wrap; gap: 2px 14px; margin-top: 4px; }
 .a-voir-table td .dot-label { white-space: normal; line-height: 1.3; }

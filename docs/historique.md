@@ -14321,3 +14321,15 @@ est dans le mois / le nombre de ventes (puis ensuite de successions) / réorgani
 Sous 1100 px les deux cartes passent côte à côte au-dessus de la liste, une seule colonne sous 700 px.
 Vérifié dans Chromium (clair, sombre, filtre « à placer » en vue Tableau, 400 px) avec 14 dossiers inventés
 dont une succession.
+
+### 01/10/2026 23:33 — Suivi : même ordre de colonnes partout
+
+Demande de l'étude : « Ordre des colonnes : Date, Dossier, Échéance, Collab, Statut — la même pour Échéances
+et Tableau ». Un seul jeu de colonnes (`COLGROUP_SUIVI`, `ENTETE_SUIVI`) pour la vue Échéances (semaines),
+la section « Nouveau », les « Archivés » et la vue Tableau, aux mêmes largeurs (`.echeances-table`, mise en
+page fixe) : les colonnes restent alignées quand on bascule d'une vue à l'autre. Vue Tableau : titres
+triables (Date = tri par échéance, Dossier, Resp., Statut) ; la colonne « Offre de prêt » (et son bouton
+« Revérifier » par ligne) est retirée pour avoir les mêmes colonnes — le filtre « Offre de prêt » de la barre,
+l'échéance « Obtention du prêt » et « Scanner le commun » restent. Date et libellé de la prochaine échéance
+en deux cellules (`celluleDateProchaineEcheance`, `celluleTypeProchaineEcheance`, remplacent
+`celluleEcheanceTableau`), le décompte J-n au survol de la date. Test ajouté (`tests/semaines.test.js`).

@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-01 23:27';
+  const VERSION_APP = '2026-10-01 23:33';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-01 23:33', resume: "Suivi des dossiers : mêmes colonnes, dans le même ordre, en vue Échéances et en vue Tableau (et dans « Nouveau » et « Archivés ») — Date, Dossier, Échéance, Resp., Statut. La vue Tableau perd la colonne « Offre de prêt » (le filtre « Offre de prêt » reste) ; ses titres restent triables." },
     { version: '2026-10-01 23:27', resume: "Suivi des dossiers : la colonne de gauche remplace « Prévu en … » par le mois en cours en quatre compteurs — dossiers à signer ce mois-ci, dossiers à placer (sans rendez-vous, date butoir dans le mois ou déjà dépassée), ventes et successions en cours ; un clic sur un compteur filtre la liste (« Tout afficher » pour revenir) — puis les dernières pièces rattachées sur le commun (14 jours, les nouvelles d'abord), qui ouvrent la fiche." },
     { version: '2026-10-01 23:12', resume: "Suivi des dossiers : le collaborateur responsable n'apparaît plus que par ses initiales dans une pastille ronde (nom complet au survol), en vue Échéances comme en vue Tableau ; le nom du dossier tient sur une ligne. Le bouton « Revérifier tous les dossiers » devient « Scanner le commun »." },
     { version: '2026-10-01 23:08', resume: "Suivi des dossiers : la date d'une échéance tient de nouveau sur une ligne (« 23 septembre 2026 ») depuis le passage de « Prévu » en colonne." },
@@ -21934,15 +21935,18 @@
 
     const flechesTri = { nom: '', responsable: '', statut: '', echeance: '' };
     flechesTri[tri] = ' <span class="tri-actif">▾</span>';
+    // Mêmes colonnes, dans le même ordre et aux mêmes largeurs que la vue Échéances (étude, 01/10 :
+    // « Date, Dossier, Échéance, Collab, Statut — la même pour Échéances et Tableau ») ; ici triables.
     list.innerHTML = `
       <div class="table-scroll">
-        <table class="dossiers-table">
+        <table class="dossiers-table echeances-table">
+          ${COLGROUP_SUIVI}
           <thead><tr>
+            <th class="th-triable" onclick="definirTri('echeance')">Date${flechesTri.echeance}</th>
             <th class="th-triable" onclick="definirTri('nom')">Dossier${flechesTri.nom}</th>
-            <th class="th-triable" onclick="definirTri('responsable')">Responsable${flechesTri.responsable}</th>
+            <th>Échéance</th>
+            <th class="th-triable" onclick="definirTri('responsable')" title="Responsable">Resp.${flechesTri.responsable}</th>
             <th class="th-triable" onclick="definirTri('statut')">Statut${flechesTri.statut}</th>
-            <th>Offre de prêt</th>
-            <th class="th-triable" onclick="definirTri('echeance')">Prochaine échéance${flechesTri.echeance}</th>
           </tr></thead>
           <tbody>${reste.map(renderLigneTableau).join('')}</tbody>
         </table>
@@ -22024,11 +22028,12 @@
     if (!aVoir.length) return '';
     const lignes = aVoir.map(({ d, s }) => `
       <tr class="ligne-resume${dossierOuvert === d.id ? ' ligne-active' : ''}" onclick="ouvrirDossierDrawer('${escapeOnclickArg(d.id)}')">
+        ${celluleDateProchaineEcheance(d)}
         <td><div class="dossier-nom-tableau">${escapeHtml(libelleDossierAffiche(d))}</div>
           <div class="a-voir-signaux">${s.map(x => `<span class="dot-label ${x.cle === 'fonds' ? 'dl-success' : 'dl-urgent notif-nouveau-tag'}"><span class="dot"></span>${escapeHtml(x.texte)}</span>`).join('')}</div></td>
-        <td>${celluleEcheanceTableau(d)}</td>
-        <td>${renderBadgeStatut(d)}</td>
+        ${celluleTypeProchaineEcheance(d)}
         <td class="dossier-responsable-tableau">${pastilleCollaborateur(d.responsable)}</td>
+        <td>${renderBadgeStatut(d)}</td>
       </tr>`).join('');
     return `
       <section class="semaine-groupe a-voir">
@@ -22037,36 +22042,42 @@
           <span class="semaine-compteur">${aVoir.length} dossier${aVoir.length > 1 ? 's' : ''}</span>
         </div>
         <div class="table-scroll">
-          <table class="dossiers-table a-voir-table">
-            <colgroup><col><col class="col-a-voir-echeance"><col class="col-echeance-statut"><col class="col-echeance-resp"></colgroup>
-            <thead><tr><th>Dossier et nouveauté</th><th>Prochaine échéance</th><th>Statut</th><th title="Responsable">Resp.</th></tr></thead>
+          <table class="dossiers-table echeances-table a-voir-table">
+            ${COLGROUP_SUIVI}
+            ${ENTETE_SUIVI}
             <tbody>${lignes}</tbody>
           </table>
         </div>
       </section>`;
   }
 
-  // Colonne « Prochaine échéance » : la plus proche en attente (prochaineEcheanceDetail), avec son
-  // décompte. Le statut (état général du dossier) a sa propre colonne depuis le 29/09 au soir.
-  function celluleEcheanceTableau(d) {
-    const prochaine = prochaineEcheanceDetail(d);
-    if (!prochaine) return '<span class="echeance-jours calme">—</span>';
-    return `<div class="etape-cellule"><span class="dot-label dl-${prochaine.type}"><span class="dot"></span>${escapeHtml(prochaine.label)}</span>
-      <span class="echeance-jours ${prochaine.jours <= 3 ? 'urgent' : 'calme'}">${formatDateFr(prochaine.iso)} (${prochaine.jours < 0 ? 'dépassée' : prochaine.jours === 0 ? "aujourd'hui" : 'J-' + prochaine.jours})</span></div>`;
+  // Colonnes des tableaux du Suivi (étude, 01/10 : « Date, Dossier, Échéance, Collab, Statut — la
+  // même pour Échéances et Tableau ») : un seul jeu de largeurs et de titres pour la vue Tableau, la
+  // section « Nouveau », les semaines et les archivés, pour que les colonnes s'alignent partout.
+  var COLGROUP_SUIVI = '<colgroup><col class="col-echeance-date"><col><col class="col-echeance-type"><col class="col-echeance-resp"><col class="col-echeance-statut"></colgroup>';
+  var ENTETE_SUIVI = '<thead><tr><th>Date</th><th>Dossier</th><th>Échéance</th><th title="Responsable">Resp.</th><th>Statut</th></tr></thead>';
+
+  // Date et libellé de la prochaine échéance en attente (prochaineEcheanceDetail), en deux cellules,
+  // comme une ligne de la vue Échéances : la date en rouge à 3 jours ou moins (et une fois passée).
+  function celluleDateProchaineEcheance(d) {
+    const p = prochaineEcheanceDetail(d);
+    if (!p) return '<td><span class="echeance-jours calme">—</span></td>';
+    return `<td><span class="echeance-jours ${p.jours <= 3 ? 'urgent' : 'calme'}" title="${escapeAttr(p.jours < 0 ? 'Dépassée' : p.jours === 0 ? "Aujourd'hui" : 'J-' + p.jours)}">${formatDateFr(p.iso)}</span></td>`;
+  }
+  function celluleTypeProchaineEcheance(d) {
+    const p = prochaineEcheanceDetail(d);
+    if (!p) return '<td><span class="echeance-jours calme">—</span></td>';
+    return `<td><span class="dot-label dl-${p.type}"><span class="dot"></span>${escapeHtml(p.label)}</span></td>`;
   }
 
   function renderLigneTableau(d) {
-    const offre = !d.sansPret ? statutOffreAffichage(d) : null;
     return `
       <tr class="ligne-resume${d.archive ? ' est-archive' : ''}${dossierOuvert === d.id ? ' ligne-active' : ''}" onclick="ouvrirDossierDrawer('${d.id}')">
+        ${celluleDateProchaineEcheance(d)}
         <td><div class="dossier-nom-tableau">${escapeHtml(libelleDossierAffiche(d))}${tagNotificationsDossier(d)}</div></td>
+        ${celluleTypeProchaineEcheance(d)}
         <td class="dossier-responsable-tableau">${pastilleCollaborateur(d.responsable)}</td>
         <td>${renderBadgeStatut(d)}</td>
-        <td>
-          ${d.sansPret ? '<span class="echeance-jours calme">Comptant — sans prêt</span>' : `<span class="dot-label ${offre.dl}"><span class="dot"></span>${offre.texte}</span>`}
-          ${(!d.sansPret && d.dossierLie) ? `<button type="button" class="action-rapide" onclick="event.stopPropagation(); verifierDossierLocalDepuisBouton('${d.id}', this)">Revérifier</button>` : ''}
-        </td>
-        <td>${celluleEcheanceTableau(d)}</td>
       </tr>
     `;
   }
@@ -22103,10 +22114,10 @@
     const lignes = items.map(({ dossier: d, repere: r }) => `
           <tr class="ligne-resume est-archive${dossierOuvert === d.id ? ' ligne-active' : ''}" onclick="ouvrirDossierDrawer('${d.id}')">
             <td><span class="echeance-jours calme">${r.iso ? formatDateFr(r.iso) : '—'}</span></td>
-            <td>${r.type === 'archive' ? `<span class="dot-label dl-neutre">${icone('lock')}${escapeHtml(r.label)}</span>` : `<span class="dot-label dl-${r.type}"><span class="dot"></span>${escapeHtml(r.label)}</span>`}</td>
             <td><div class="dossier-nom-tableau">${escapeHtml(libelleDossierAffiche(d))}</div></td>
-            <td>${renderBadgeStatut(d)}</td>
+            <td>${r.type === 'archive' ? `<span class="dot-label dl-neutre">${icone('lock')}${escapeHtml(r.label)}</span>` : `<span class="dot-label dl-${r.type}"><span class="dot"></span>${escapeHtml(r.label)}</span>`}</td>
             <td class="dossier-responsable-tableau">${pastilleCollaborateur(d.responsable)}</td>
+            <td>${renderBadgeStatut(d)}</td>
           </tr>`).join('');
     const n = items.length;
     return `
@@ -22117,10 +22128,8 @@
           </div>
           <div class="table-scroll">
             <table class="dossiers-table echeances-table">
-              <colgroup>
-                <col class="col-echeance-date"><col class="col-echeance-type"><col><col class="col-echeance-statut"><col class="col-echeance-resp">
-              </colgroup>
-              ${avecEntete ? '<thead><tr><th>Date</th><th>Échéance</th><th>Dossier</th><th>Statut</th><th title="Responsable">Resp.</th></tr></thead>' : ''}
+              ${COLGROUP_SUIVI}
+              ${avecEntete ? ENTETE_SUIVI : ''}
               <tbody>${lignes}</tbody>
             </table>
           </div>
@@ -22143,10 +22152,10 @@
         return `
           <tr class="ligne-resume${d.archive ? ' est-archive' : ''}${dossierOuvert === d.id ? ' ligne-active' : ''}" onclick="ouvrirDossierDrawer('${d.id}')">
             <td><span class="echeance-jours ${jours <= 3 ? 'urgent' : 'calme'}">${formatDateFr(e.iso)}</span></td>
-            <td><span class="dot-label dl-${e.type}"><span class="dot"></span>${escapeHtml(e.label)}</span></td>
             <td><div class="dossier-nom-tableau">${escapeHtml(libelleDossierAffiche(d))}${tagNotificationsDossier(d)}</div></td>
-            <td>${renderBadgeStatut(d)}</td>
+            <td><span class="dot-label dl-${e.type}"><span class="dot"></span>${escapeHtml(e.label)}</span></td>
             <td class="dossier-responsable-tableau">${pastilleCollaborateur(d.responsable)}</td>
+            <td>${renderBadgeStatut(d)}</td>
           </tr>`;
       }).join('');
       const n = g.items.length;
@@ -22162,10 +22171,8 @@
                  contenu — une date ou un libellé plus long dans une semaine décalait toute la
                  colonne par rapport aux semaines voisines (signalé par l'étude). -->
             <table class="dossiers-table echeances-table">
-              <colgroup>
-                <col class="col-echeance-date"><col class="col-echeance-type"><col><col class="col-echeance-statut"><col class="col-echeance-resp">
-              </colgroup>
-              ${indexGroupe === 0 ? '<thead><tr><th>Date</th><th>Échéance</th><th>Dossier</th><th>Statut</th><th title="Responsable">Resp.</th></tr></thead>' : ''}
+              ${COLGROUP_SUIVI}
+              ${indexGroupe === 0 ? ENTETE_SUIVI : ''}
               <tbody>${lignes}</tbody>
             </table>
           </div>

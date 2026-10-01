@@ -176,3 +176,16 @@ test('la vue Échéances porte des titres de colonne, une seule fois, en haut', 
   assert.ok(html.includes('class="pastille-collab" title="Julie VASSELIN"'));
   assert.ok(html.includes('>JV</span>'));
 });
+
+test('Suivi : mêmes colonnes, même ordre en vue Échéances et en vue Tableau (Date, Dossier, Échéance, Resp., Statut)', () => {
+  const app = chargerApplication();
+  const d = { id: 'a', nom: 'A / B', responsable: 'Julie VASSELIN', pret: '2099-06-10' };
+  const titres = (html) => (html.match(/<thead>[\s\S]*?<\/thead>/) || [''])[0].match(/<th(?:\s[^>]*)?>[^<]*/g).map(t => t.replace(/<th(?:\s[^>]*)?>/, '')).join('|');
+  assert.equal(titres(app.renderVueSemaines([d])), 'Date|Dossier|Échéance|Resp.|Statut');
+  assert.equal(titres(app.ENTETE_SUIVI), 'Date|Dossier|Échéance|Resp.|Statut');
+  // Une ligne de la vue Tableau : la date, puis le nom, puis le libellé de l'échéance, puis la pastille.
+  const ligne = app.renderLigneTableau(d);
+  const ordre = ['10 juin 2099', 'A / B', 'Obtention du prêt', 'pastille-collab', 'À relier'].map(x => ligne.indexOf(x));
+  assert.ok(ordre.every(i => i >= 0), ordre.join(','));
+  assert.equal(ordre.slice().sort((x, y) => x - y).join(','), ordre.join(','));
+});
