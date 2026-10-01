@@ -250,3 +250,10 @@ test('page de réponse aux sondages : https seulement, effaçable', async () => 
   const vide = await (await appeler('/api/exchange/reglages', { method: 'PUT', body: JSON.stringify({ pageSondage: '' }) })).json();
   assert.equal(vide.pageSondage, '');
 });
+
+test('relais Google des réponses : adresse de script Google seulement', async () => {
+  const ok = await (await appeler('/api/exchange/reglages', { method: 'PUT', body: JSON.stringify({ relaisSondage: 'https://script.google.com/macros/s/AKfycbx_ab-12/exec' }) })).json();
+  assert.equal(ok.relaisSondage, 'https://script.google.com/macros/s/AKfycbx_ab-12/exec');
+  const refuse = await (await appeler('/api/exchange/reglages', { method: 'PUT', body: JSON.stringify({ relaisSondage: 'https://exemple.fr/relais' }) })).json();
+  assert.equal(refuse.relaisSondage, '');
+});

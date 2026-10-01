@@ -136,3 +136,21 @@ test('page de réponse : un seul bouton, tout dans le lien après « # », objet
   assert.match(corps, /Choisir mes disponibilités/);
   assert.doesNotMatch(corps, /une seule fois/);
 });
+
+test('page + relais : un lien par destinataire (code personnel, rôle), « Réponse de … » à plusieurs', () => {
+  const s = Object.assign({}, SONDAGE, { participants: [
+    { role: 'vendeur', nom: 'Paul DURAND', email: 'paul.durand@exemple.fr', cle: 'AB2C' },
+    { role: 'acquereur', nom: 'Léa MARTIN', email: 'lea.martin@exemple.fr', cle: 'XY3Z' }
+  ] });
+  const relais = 'https://script.google.com/macros/s/AKfy_1/exec';
+  const b = app.boutonsSondage(s, { page: 'https://blursquare.github.io/Claire-rdv/', abrege: 'VTE - DUR./MAR.', relais, participants: s.participants });
+  assert.equal(b.length, 2);
+  assert.equal(b[0].libelle, 'Réponse de Paul DURAND');
+  assert.match(b[0].href, /&q=AB2C&w=vendeur&r=https%3A%2F%2Fscript\.google\.com%2Fmacros%2Fs%2FAKfy_1%2Fexec&/);
+  assert.match(b[1].href, /&q=XY3Z&w=acqu%C3%A9reur&/);
+  // Le nom n'est jamais dans le lien.
+  assert.doesNotMatch(b[0].href + b[1].href, /DURAND|MARTIN/);
+  const seul = app.boutonsSondage(s, { page: 'https://x.github.io/p/', participants: [s.participants[0]] });
+  assert.equal(seul[0].libelle, 'Choisir mes disponibilités');
+  assert.match(app.corpsEmailSondage(DOSSIER, s, false, false, true, true), /Chacun de vous clique sur le bouton à son nom/);
+});

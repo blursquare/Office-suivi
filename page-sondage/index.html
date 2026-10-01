@@ -129,6 +129,7 @@
       <h1>Rendez-vous de signature</h1>
       <ul class="meta">
         <li id="meta-dossier"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg><span>Dossier <b id="dossier"></b></span></li>
+        <li id="meta-role" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg><span>Vous répondez en tant que <b id="role"></b></span></li>
         <li id="meta-office"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 21h18"/><path d="M5 21V8l7-5 7 5v13"/><path d="M9 21v-6h6v6"/></svg><span id="office"></span></li>
         <li id="meta-limite" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span id="limite"></span></li>
       </ul>
@@ -152,8 +153,12 @@
         <button type="submit" id="envoyer" disabled>Envoyer ma réponse</button>
       </div>
     </form>
+    <div class="apres envoyee" id="envoyee" hidden>
+      <p class="ok"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8 12l3 3 5-6"/></svg>Votre réponse a bien été envoyée à l’étude. Merci !</p>
+      <p>Vous pouvez fermer cette page. Pour changer d’avis, modifiez vos choix et envoyez de nouveau.</p>
+    </div>
     <div class="apres" id="apres" hidden>
-      <p class="ok"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8 12l3 3 5-6"/></svg>Votre messagerie s’ouvre avec la réponse prête : il ne reste qu’à l’envoyer.</p>
+      <p class="ok" id="apres-titre"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8 12l3 3 5-6"/></svg><span id="apres-texte">Votre messagerie s’ouvre avec la réponse prête : il ne reste qu’à l’envoyer.</span></p>
       <p>Rien ne s’ouvre ? Écrivez simplement à l’étude, avec cet objet :</p>
       <dl class="copie">
         <dt>À</dt><dd id="copie-a"></dd>
@@ -179,6 +184,11 @@
   var office = (p.get('o') || 'Office notarial').slice(0, 80);
   var limite = p.get('l') || '';
   var duree = Math.min(600, Math.max(15, parseInt(p.get('m'), 10) || 60));
+  var cle = (p.get('q') || '').toUpperCase();
+  if (!/^[A-HJ-NP-Z2-9]{4}$/.test(cle)) cle = '';
+  var role = (p.get('w') || '').slice(0, 40);
+  var relais = p.get('r') || '';
+  if (!/^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec$/.test(relais) || !cle) relais = '';
   var NBSP = ' ';
   var hm = function (h, m) { return String(h).padStart(2, '0') + NBSP + 'h' + NBSP + String(m).padStart(2, '0'); };
   var creneaux = (p.get('s') || '').split(',').map(function (t, i) {
@@ -202,6 +212,7 @@
   document.getElementById('sondage').hidden = false;
   if (dossier) document.getElementById('dossier').textContent = dossier; else document.getElementById('meta-dossier').hidden = true;
   document.getElementById('office').textContent = office;
+  if (role) { document.getElementById('role').textContent = role; document.getElementById('meta-role').hidden = false; }
   if (/^\d{4}-\d{2}-\d{2}$/.test(limite)) {
     document.getElementById('limite').textContent = 'Réponse attendue avant le ' + jourLong(new Date(limite + 'T12:00:00'));
     document.getElementById('meta-limite').hidden = false;
@@ -285,9 +296,9 @@
     var resumeObjet = [];
     if (r.oui.length) resumeObjet.push('Oui : ' + court(r.oui));
     if (r.si.length) resumeObjet.push('Si nécessaire : ' + court(r.si));
-    var sujet = '[CLAIRE-' + code + '-' + jeton + '] ' + (dossier ? dossier + ' — ' : '')
+    var sujet = '[CLAIRE-' + code + '-' + jeton + (cle ? '-' + cle : '') + '] ' + (dossier ? dossier + ' — ' : '')
       + (resumeObjet.length ? resumeObjet.join(' · ') : 'Aucun créneau ne convient');
-    var corps = ['Bonjour,', '', 'Voici mes disponibilités pour le rendez-vous de signature' + (dossier ? ' (' + dossier + ')' : '') + ' :', '']
+    var corps = ['Bonjour,', '', 'Voici mes disponibilités pour le rendez-vous de signature' + (dossier ? ' (' + dossier + ')' : '') + (role ? ', en tant que ' + role : '') + ' :', '']
       .concat(creneaux.map(function (c) {
         var v = r.oui.indexOf(c.n) !== -1 ? '✓ Oui' : r.si.indexOf(c.n) !== -1 ? '(✓) Si nécessaire' : '✗ Non';
         return v + ' — ' + jourLong(c.date) + ' à ' + texte(c.heure);
@@ -295,10 +306,29 @@
     var mot = document.getElementById('mot').value.trim();
     if (mot) corps.push('', mot);
     corps.push('', 'Merci de ne pas modifier l’objet de cet email : il permet à l’étude d’enregistrer votre réponse.');
-    document.getElementById('copie-a').textContent = adresse;
-    document.getElementById('copie-objet').textContent = sujet;
-    document.getElementById('apres').hidden = false;
-    location.href = 'mailto:' + adresse + '?subject=' + encodeURIComponent(sujet) + '&body=' + encodeURIComponent(corps.join('\n'));
+    var parEmail = function (texteApres) {
+      document.getElementById('copie-a').textContent = adresse;
+      document.getElementById('copie-objet').textContent = sujet;
+      if (texteApres) document.getElementById('apres-texte').textContent = texteApres;
+      document.getElementById('apres').hidden = false;
+      location.href = 'mailto:' + adresse + '?subject=' + encodeURIComponent(sujet) + '&body=' + encodeURIComponent(corps.join('\n'));
+    };
+    if (!relais) { parEmail(); return; }
+    // Relais Google : un clic suffit. Corps en texte brut (requête simple, sans prévol CORS).
+    document.getElementById('apres').hidden = true;
+    document.getElementById('envoyee').hidden = true;
+    bouton.disabled = true;
+    bouton.textContent = 'Envoi…';
+    fetch(relais, { method: 'POST', body: JSON.stringify({ sujet: sujet, corps: corps.join('\n') }) })
+      .then(function (r) { return r.json(); })
+      .then(function (res) {
+        if (!res || !res.ok) throw new Error((res && res.erreur) || 'refus');
+        document.getElementById('envoyee').hidden = false;
+      })
+      .catch(function () {
+        parEmail('L’envoi direct n’a pas abouti : votre messagerie s’ouvre avec la réponse prête, il ne reste qu’à l’envoyer.');
+      })
+      .then(function () { bouton.textContent = 'Envoyer ma réponse'; maj(); });
   });
 })();
 </script>

@@ -14,7 +14,7 @@
 const express = require('express');
 const crypto = require('node:crypto');
 const {
-  MAX_CRENEAUX, MAX_PARTICIPANTS, JOURS_OUVRES_OPTION, codeSondage, joursOuvresApres, assainirSondage,
+  MAX_CRENEAUX, MAX_PARTICIPANTS, JOURS_OUVRES_OPTION, codeSondage, joursOuvresApres, assainirSondage, attribuerCles,
   syntheseSondage, executerTourSondages, clore, dateDuJourParis, connexionPrete, adresseValide
 } = require('../sondagesCreneaux');
 const { creerRendezVousExchange } = require('../exchange/ews');
@@ -71,7 +71,7 @@ function creerRouteurSondages(parametresRepo, injections = {}) {
       adresseReponse: reglages.email,
       typeRdv: b.typeRdv,
       creneaux: creneauxBruts.map((c, i) => ({ n: i + 1, date: c && c.date, heure: c && c.heure, dureeMinutes: c && c.dureeMinutes })),
-      participants: participantsBruts,
+      participants: attribuerCles(participantsBruts.map((p) => ({ ...(p || {}), cle: '' })), injections.aleatoire),
       reponses: []
     });
     if (!brouillon || brouillon.creneaux.length !== creneauxBruts.length) {

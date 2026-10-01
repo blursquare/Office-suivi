@@ -54,10 +54,12 @@ function jetonReponse(code, n) {
 // cochées d'un X dans le texte de l'email (voir choixDepuisTexteListe) ; rend { code, liste: true }.
 // « P » : réponse venue de la page de réponse (page-sondage/index.html, étude 01/10, vote à la
 // manière de Rallly) — « P13S2 » = oui aux créneaux 1 et 3, « si nécessaire » au 2 ; « P0 » = aucun ;
-// rend { code, page: true, choix, siBesoin }.
+// rend { code, page: true, choix, siBesoin, cle }. « -Q7AB » à la suite : le code personnel du
+// destinataire (lien à lui), qui le désigne quand la réponse arrive par le relais Google (expéditeur =
+// compte Gmail de l'étude, pas le client).
 function jetonsDansObjet(sujet) {
   const liste = [];
-  const re = /CLAIRE-([A-HJ-NP-Z2-9]{6})-(P(?:\d{1,5}(?:S\d{1,5})?|S\d{1,5})|L|\d)(?![0-9A-Za-z])/gi;
+  const re = /CLAIRE-([A-HJ-NP-Z2-9]{6})-(P(?:\d{1,5}(?:S\d{1,5})?|S\d{1,5})|L|\d)(?:-([A-HJ-NP-Z2-9]{4}))?(?![0-9A-Za-z])/gi;
   let m;
   const numeros = (t) => [...new Set(String(t || '').split('').map(Number).filter((n) => n > 0))].sort();
   while ((m = re.exec(String(sujet || ''))) !== null) {
@@ -66,7 +68,9 @@ function jetonsDansObjet(sujet) {
     else if (/^p/i.test(m[2])) {
       const [oui, si] = m[2].slice(1).toUpperCase().split('S');
       const choix = numeros(oui);
-      liste.push({ code, page: true, choix, siBesoin: numeros(si).filter((n) => !choix.includes(n)) });
+      const jeton = { code, page: true, choix, siBesoin: numeros(si).filter((n) => !choix.includes(n)) };
+      if (m[3]) jeton.cle = m[3].toUpperCase();
+      liste.push(jeton);
     } else liste.push({ code, n: Number(m[2]) });
   }
   return liste;
@@ -120,8 +124,24 @@ function assainirParticipant(p) {
     role: ROLES_PARTICIPANT.includes(p.role) ? p.role : 'autre',
     nom: texteBorne(p.nom, 120),
     email: p.email.trim().toLowerCase(),
-    confrere: !!p.confrere
+    confrere: !!p.confrere,
+    // Code personnel (4 caractères) du lien de ce destinataire vers la page de réponse.
+    cle: /^[A-HJ-NP-Z2-9]{4}$/.test(String(p.cle || '')) ? p.cle : ''
   };
+}
+
+// Codes personnels distincts pour chaque destinataire d'un sondage.
+function attribuerCles(participants, aleatoire) {
+  const pris = new Set();
+  return participants.map((p, i) => {
+    let cle = '';
+    for (let essai = 0; essai < 20 && (!cle || pris.has(cle)); essai++) {
+      const octets = aleatoire ? Buffer.from([...aleatoire].map((o) => (o + i * 7 + essai) % 256)) : crypto.randomBytes(6);
+      cle = codeSondage(octets).slice(0, 4);
+    }
+    pris.add(cle);
+    return { ...p, cle };
+  });
 }
 
 function assainirReponse(r) {
@@ -181,11 +201,18 @@ function appliquerReponses(sondages, emails) {
   const nouvelles = [];
   const tries = (emails || []).slice().sort((a, b) => String(a.recuLe || '').localeCompare(String(b.recuLe || '')));
   for (const e of tries) {
-    const adresse = String(e.deAdresse || '').trim().toLowerCase();
-    if (!adresseValide(adresse)) continue;
-    for (const { code, n, liste, page, choix, siBesoin } of jetonsDansObjet(e.sujet)) {
+    const expediteur = String(e.deAdresse || '').trim().toLowerCase();
+    for (const { code, n, liste, page, choix, siBesoin, cle } of jetonsDansObjet(e.sujet)) {
       const s = parCode.get(code);
       if (!s) continue;
+      // Code personnel : il désigne le destinataire (réponse relayée) ; un code inconnu est écarté.
+      let adresse = expediteur;
+      if (cle) {
+        const p = s.participants.find((x) => x.cle === cle);
+        if (!p) continue;
+        adresse = p.email;
+      }
+      if (!adresseValide(adresse)) continue;
       // Réponse « en une seule fois » : seulement si son texte a été lu et coche au moins un créneau.
       if (liste && !(Array.isArray(e.choixListe) && e.choixListe.length)) continue;
       if (n > 0 && !s.creneaux.some((c) => c.n === n)) continue;
@@ -467,7 +494,7 @@ function demarrerSurveillanceSondages(parametresRepo, injections, intervalleMs) 
 
 module.exports = {
   CLE_SONDAGES, MAX_CRENEAUX, MAX_PARTICIPANTS, JOURS_OUVRES_OPTION, ROLES_PARTICIPANT,
-  codeSondage, jetonReponse, jetonsDansObjet, joursOuvresApres, adresseValide,
+  codeSondage, jetonReponse, jetonsDansObjet, joursOuvresApres, adresseValide, attribuerCles,
   choixDepuisTexteListe, parseFindReponses, corpsLireTextesReponses, parseTextesReponses, reponsesListeALire,
   assainirSondage, assainirSondages, appliquerReponses, syntheseSondage, sondagesExpires,
   corpsFindReponsesSondages, executerTourSondages, demarrerSurveillanceSondages, clore, retirerOptions,

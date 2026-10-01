@@ -490,6 +490,11 @@ function pageSondageValide(v) {
   return /^https:\/\/[^\s"'<>#?]+$/i.test(t) ? t.slice(0, 300) : '';
 }
 
+function relaisSondageValide(v) {
+  const t = texteNettoye(v);
+  return /^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec$/.test(t) ? t : '';
+}
+
 function assainirReglagesExchange(brut, precedent) {
   const b = (brut && typeof brut === 'object') ? brut : {};
   const p = (precedent && typeof precedent === 'object') ? precedent : {};
@@ -511,7 +516,11 @@ function assainirReglagesExchange(brut, precedent) {
     // Adresse de la page de réponse aux sondages de créneaux (page-sondage/index.html publiée sur
     // GitHub Pages) — vide : les emails gardent un bouton par créneau. https seulement ; une chaîne
     // vide explicite l'efface.
-    pageSondage: pageSondageValide(typeof b.pageSondage === 'string' ? b.pageSondage : p.pageSondage)
+    pageSondage: pageSondageValide(typeof b.pageSondage === 'string' ? b.pageSondage : p.pageSondage),
+    // Relais des réponses (Google Apps Script déployé sur le compte Gmail de l'étude, voir
+    // page-sondage/relais-google-apps-script.gs) : la page lui envoie la réponse, qu'il transmet par
+    // email à la boîte de l'office. Vide : la réponse passe par la messagerie du client.
+    relaisSondage: relaisSondageValide(typeof b.relaisSondage === 'string' ? b.relaisSondage : p.relaisSondage)
   };
 }
 

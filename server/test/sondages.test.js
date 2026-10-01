@@ -250,6 +250,9 @@ test('sondage complet : création avec options, réponses relues, placement qui 
   assert.equal(cree.ok, true);
   const s = cree.sondage;
   assert.equal(s.adresseReponse, 'bastien@office.fr');
+  // Un code personnel distinct par destinataire.
+  assert.match(s.participants[0].cle, /^[A-HJ-NP-Z2-9]{4}$/);
+  assert.notEqual(s.participants[0].cle, s.participants[1].cle);
   assert.equal(s.creneaux.filter((c) => c.option).length, 2);
   assert.equal(appelsEws.length, 2);
   assert.match(appelsEws[0], /VTE - DURAND \? — option CLAIRE, créneau 1\/2/);
@@ -300,4 +303,45 @@ test('créneau invalide ou adresse invalide : 400', async () => {
   assert.equal(r1.status, 400);
   const r2 = await appeler('/api/sondages', { method: 'POST', body: JSON.stringify({ ...corpsCreation, dossierId: 'd3', participants: [{ role: 'vendeur', email: 'pas-une-adresse' }] }) });
   assert.equal(r2.status, 400);
+});
+
+test('code personnel : la réponse relayée (expéditeur = Gmail de l’étude) est rattachée au bon destinataire', () => {
+  const s = sondageExemple();
+  s.participants[0].cle = 'AB2C';
+  s.participants[1].cle = 'XY3Z';
+  const { nouvelles } = appliquerReponses([s], [
+    { sujet: '[CLAIRE-ABC234-P1S2-XY3Z] VTE - DUR. — Oui : …', deAdresse: 'relais.etude@gmail.com', recuLe: '2026-10-01T09:00:00Z' },
+    // Code inconnu : écarté (pas de réponse fantôme au nom de l'expéditeur).
+    { sujet: '[CLAIRE-ABC234-P2-ZZZZ] VTE - DUR.', deAdresse: 'relais.etude@gmail.com', recuLe: '2026-10-01T09:05:00Z' }
+  ]);
+  assert.equal(nouvelles.length, 1);
+  assert.equal(s.reponses.length, 1);
+  assert.equal(s.reponses[0].email, 'lea.martin@exemple.fr');
+  assert.equal(s.reponses[0].choix.join(','), '1');
+  assert.equal(s.reponses[0].siBesoin.join(','), '2');
+});
+
+test('relais Google : objet contrôlé, destinataire fixe, plafond horaire, rien d’autre', () => {
+  const fs = require('node:fs');
+  const vm = require('node:vm');
+  const code = fs.readFileSync(require('node:path').join(__dirname, '../../page-sondage/relais-google-apps-script.gs'), 'utf8');
+  const envoyes = [];
+  const cache = new Map();
+  const ctx = {
+    MailApp: { sendEmail: (o) => envoyes.push(o) },
+    CacheService: { getScriptCache: () => ({ get: (k) => cache.get(k) || null, put: (k, v) => cache.set(k, v) }) },
+    ContentService: { MimeType: { JSON: 'json' }, createTextOutput: (t) => ({ setMimeType: () => JSON.parse(t) }) }
+  };
+  vm.createContext(ctx);
+  vm.runInContext(code, ctx);
+  const poster = (corps) => ctx.doPost({ postData: { contents: JSON.stringify(corps) } });
+  assert.equal(poster({ sujet: '[CLAIRE-ABC234-P13S2-XY3Z] VTE - MOR./FAU. — Oui : mer. 14/10', corps: 'Bonjour', a: 'pirate@exemple.fr' }).ok, true);
+  assert.equal(envoyes.length, 1);
+  assert.equal(envoyes[0].to, ctx.DESTINATAIRE);
+  assert.equal(poster({ sujet: 'Bonjour', corps: 'spam' }).ok, false);
+  assert.equal(poster({ sujet: '[CLAIRE-ABC234-P1] sans code personnel', corps: '' }).ok, false);
+  assert.equal(poster({ sujet: '[CLAIRE-ABC234-P1-XY3Z] a\nBcc: x@y.fr', corps: '' }).ok, false);
+  cache.set('envois', '200');
+  assert.equal(poster({ sujet: '[CLAIRE-ABC234-P1-XY3Z] x', corps: '' }).ok, false);
+  assert.equal(envoyes.length, 1);
 });

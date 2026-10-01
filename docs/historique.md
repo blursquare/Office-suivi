@@ -13576,3 +13576,30 @@ design de Rallly. Reprends le logo de l'office si tu peux en en-tête. »
 
 Vérifié dans Chromium (fichier local) : clair, sombre, téléphone 390 px sans défilement horizontal,
 logo chargé, objet attendu, lien incomplet et injection de balises.
+
+### 01/10/2026 — Sondage : envoi direct par un relais Google Apps Script
+
+Demande de l'étude : « Au lieu de préparer ma réponse, marquer Envoyer ma réponse. Au lieu de recevoir
+un e-mail de réponse, GitHub ne peut pas nous retourner les réponses ? Pour éviter une étape en plus. »
+Le bouton portait déjà « Envoyer ma réponse » dans la version publiée (capture antérieure). Réponse :
+GitHub Pages ne reçoit rien ; écrire dans GitHub exigerait une clé d'accès dans une page publique. Choix
+de l'étude (question posée) : **relais Google Apps Script** sur le compte Gmail déjà utilisé pour les
+rappels.
+
+- `page-sondage/relais-google-apps-script.gs` : `doPost` reçoit `{ sujet, corps }`, n'accepte qu'un objet
+  `[CLAIRE-CODE-P…-CLÉ] …` sur une ligne, envoie à `DESTINATAIRE` (fixé dans le script), 200 envois/heure
+  (`CacheService`), ne garde rien ; `doGet` = vérification. Testé sous Node avec de faux services Google
+  (objet libre, sans code personnel ou avec saut de ligne refusés ; destinataire imposé ; plafond).
+- Page : paramètres `q` (code personnel), `w` (rôle), `r` (relais, `script.google.com/macros/s/…/exec`
+  seulement, et seulement avec un code personnel) ; envoi `fetch` POST en texte brut ; succès → « Votre
+  réponse a bien été envoyée à l'étude » ; échec → repli sur la messagerie (adresse et objet à recopier).
+- Serveur : `attribuerCles` à la création (4 caractères distincts par destinataire) ; `jetonsDansObjet`
+  lit `-CLÉ` ; `appliquerReponses` rattache la réponse au destinataire du code (l'expéditeur étant le
+  Gmail de l'étude), écarte un code inconnu. Réglage `relaisSondage` (réglages Exchange).
+- Client : un lien par destinataire ; l'email commun aux clients porte un bouton « Réponse de … » par
+  personne (le nom n'est que dans l'email, jamais dans le lien) ; réglage « Relais des réponses (Google) ».
+- Notice pas à pas : `page-sondage/LISEZMOI.md`. Page recopiée dans Claire-rdv.
+
+Vérifié dans Chromium avec un faux relais : envoi en texte brut, objet attendu, message de réussite ;
+relais en panne → repli sur la messagerie ; téléphone 390 px. **À faire par l'étude** : installer le
+script (Gmail de l'étude) et coller son adresse ; activer Pages sur Claire-rdv.

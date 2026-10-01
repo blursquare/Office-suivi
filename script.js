@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-01 07:49';
+  const VERSION_APP = '2026-10-01 07:59';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-01 07:59', resume: "Sondage de créneaux : avec le relais Google réglé (Réglages › Rappels et agenda), le client n'a plus qu'à cliquer sur « Envoyer ma réponse » — la réponse arrive directement dans la boîte de l'office, sans passer par sa messagerie. Chaque destinataire a son propre lien (« Réponse de … » quand l'email en vise plusieurs) ; la page n'affiche que son rôle." },
     { version: '2026-10-01 07:49', resume: "Sondage de créneaux : la page de réponse prend le style de Rallly avec le logo de l'office en tête — tuiles de date, et pour chaque créneau Oui / Si nécessaire / Non. Les « si nécessaire » s'affichent dans la fiche (coche entre parenthèses, en ambre) et un créneau possible pour tous est signalé. Page publiée dans le dépôt Claire-rdv (GitHub Pages à activer)." },
     { version: '2026-10-01 07:44', resume: "Sondage de créneaux : page de réponse avec de vraies cases à cocher (à publier sur GitHub Pages, adresse à coller dans Réglages › Rappels et agenda). L'email n'a plus qu'un bouton « Choisir mes disponibilités » ; le client coche, et un seul email de réponse part vers l'étude, avec en objet le dossier en abrégé et les créneaux choisis (« VTE - MOR./FAU. — Choix : mer. 14/10 10 h 30… »). La page ne garde aucune donnée. Les noms de dossier n'apparaissent qu'abrégés (3 lettres par nom), y compris dans l'objet des réponses par bouton." },
     { version: '2026-10-01 07:23', resume: "Sondage de créneaux : l'email propose aussi « Répondre en une seule fois » — un seul email de réponse, avec une case [ ] par créneau à cocher d'un X. CLAIRE lit le texte de ces réponses-là (et seulement celles-là) pour y relever les créneaux cochés. Les boutons d'un créneau et « Aucun créneau ne convient » restent." },
@@ -19755,6 +19756,11 @@
     const r = typeof exchangeReglages !== 'undefined' && exchangeReglages ? exchangeReglages : {};
     return /^https:\/\//i.test(r.pageSondage || '') ? r.pageSondage : '';
   }
+  // Relais Google des réponses (Réglages) ; '' : la réponse passe par la messagerie du client.
+  function relaisSondageRegle() {
+    const r = typeof exchangeReglages !== 'undefined' && exchangeReglages ? exchangeReglages : {};
+    return /^https:\/\/script\.google\.com\//.test(r.relaisSondage || '') ? r.relaisSondage : '';
+  }
 
   function sondageOuvertDossier(id) {
     return sondagesCreneaux.find(s => s.dossierId === id && s.statut === 'ouvert') || null;
@@ -19811,9 +19817,13 @@
 
   // Pur : le lien vers la page de réponse (page-sondage/index.html, publiée sur GitHub Pages). Tout
   // ce qu'elle affiche est après le « # », que le navigateur n'envoie jamais au serveur.
-  function lienPageSondage(page, s, abrege) {
+  // `participant` : son code personnel (q) et son rôle (w) ; `relais` : le relais Google (r).
+  function lienPageSondage(page, s, abrege, participant, relais) {
+    const p = participant || {};
     const champs = [
       ['v', '1'], ['c', s.code], ['a', s.adresseReponse], ['d', abrege || ''], ['l', s.expireLe || ''],
+      ...(p.cle ? [['q', p.cle]] : []), ...(p.role ? [['w', (LIBELLES_ROLE_SONDAGE[p.role] || '').toLowerCase()]] : []),
+      ...(relais ? [['r', relais]] : []),
       ['m', String((s.creneaux[0] && s.creneaux[0].dureeMinutes) || DUREE_CRENEAU_SIGNATURE)], ['o', OFFICE_PAGE_SONDAGE],
       ['s', s.creneaux.map(c => c.date.replace(/-/g, '') + c.heure.replace(':', '')).join(',')]
     ];
@@ -19836,7 +19846,14 @@
   // vers elle. Sinon : un par créneau, « en une seule fois », puis « aucun ».
   function boutonsSondage(s, options) {
     const o = options || {};
-    if (o.page) return [{ libelle: 'Choisir mes disponibilités', href: lienPageSondage(o.page, s, o.abrege) }];
+    if (o.page) {
+      // Un lien par destinataire (code personnel) : « Réponse de … » quand l'email en vise plusieurs.
+      const qui = (o.participants && o.participants.length) ? o.participants : [null];
+      return qui.map(p => ({
+        libelle: qui.length > 1 ? `Réponse de ${(p && p.nom) || LIBELLES_ROLE_SONDAGE[p && p.role] || 'destinataire'}` : 'Choisir mes disponibilités',
+        href: lienPageSondage(o.page, s, o.abrege, p, o.relais)
+      }));
+    }
     const majuscule = (t) => t.charAt(0).toUpperCase() + t.slice(1);
     const boutons = s.creneaux.map(c => ({ libelle: majuscule(libelleCreneauSondage(c)), href: lienReponseSondage(s.adresseReponse, sujetReponseSondage(s.code, c, o.abrege)) }));
     if (s.creneaux.length > 1) {
@@ -19848,7 +19865,7 @@
 
   // Pur : le texte de l'email ({{BOUTONS}} = emplacement des boutons). `relance` : second envoi.
   // `avecPage` : un seul bouton vers la page de réponse, où cocher les créneaux.
-  function corpsEmailSondage(d, s, confrere, relance, avecPage) {
+  function corpsEmailSondage(d, s, confrere, relance, avecPage, plusieurs) {
     const limite = s.expireLe ? new Date(s.expireLe + 'T00:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }) : '';
     const liste = s.creneaux.map(c => '– ' + libelleCreneauSondage(c).replace(/^./, x => x.toUpperCase())).join('\n');
     if (avecPage && confrere) {
@@ -19856,7 +19873,7 @@
         relance ? `Je me permets de revenir vers vous au sujet du rendez-vous de signature de la vente ${libelleDossierAffiche(d)}, pour lequel je vous ai proposé les créneaux suivants :`
           : `Afin de fixer le rendez-vous de signature de la vente ${libelleDossierAffiche(d)}, je vous propose les créneaux suivants :`,
         liste,
-        'Pourriez-vous m’indiquer ceux qui conviennent à votre client et à vous-même ? Le bouton ci-dessous permet de les cocher et prépare la réponse.',
+        'Pourriez-vous m’indiquer ceux qui conviennent à votre client et à vous-même ? Le bouton ci-dessous permet de répondre pour chaque créneau.',
         '{{BOUTONS}}',
         limite ? `Je vous remercie de votre réponse avant le ${limite}.` : ''
       ].filter(Boolean).join('\n\n');
@@ -19867,7 +19884,8 @@
         relance ? 'Nous revenons vers vous pour fixer le rendez-vous de signature de l’acte de vente : nous n’avons pas encore reçu vos disponibilités parmi les créneaux suivants :'
           : 'Afin de fixer le rendez-vous de signature de l’acte de vente, nous vous proposons les créneaux suivants :',
         liste,
-        'Cliquez sur « Choisir mes disponibilités », cochez les créneaux qui vous conviennent, puis envoyez l’email de réponse qui s’ouvre.',
+        plusieurs ? 'Chacun de vous clique sur le bouton à son nom, indique pour chaque créneau s’il lui convient, puis clique sur « Envoyer ma réponse ».'
+          : 'Cliquez sur « Choisir mes disponibilités », indiquez pour chaque créneau s’il vous convient, puis cliquez sur « Envoyer ma réponse ».',
         '{{BOUTONS}}',
         `Merci de nous répondre${limite ? ` avant le ${limite}` : ''}. Le rendez-vous vous sera confirmé dès que toutes les parties auront répondu.`
       ].join('\n\n');
@@ -20082,9 +20100,9 @@
       dernier = await livrerEmailDossier({
         destinataire: g.participants.map(p => p.email).join(', '),
         sujet: `${relance ? 'Relance — ' : ''}Rendez-vous de signature : vos disponibilités — ${libelleDossierAffiche(d)}`,
-        corps: corpsEmailSondage(d, s, g.confrere, relance, !!pageSondageReglee()),
+        corps: corpsEmailSondage(d, s, g.confrere, relance, !!pageSondageReglee(), g.participants.length > 1),
         confrere: g.confrere,
-        boutons: boutonsSondage(s, { page: pageSondageReglee(), abrege: abregeDossierSondage(d) }),
+        boutons: boutonsSondage(s, { page: pageSondageReglee(), abrege: abregeDossierSondage(d), relais: relaisSondageRegle(), participants: g.participants }),
         responsableSignature: d.responsable
       });
       if (!dernier.ok) { afficherToast(dernier.message || 'L’email n’a pas pu être préparé.', 'OK', null); return null; }
@@ -34059,6 +34077,8 @@
       if (partage && document.activeElement !== partage) partage.value = corps.calendrierPartage || '';
       const pageSondage = document.getElementById('exchange-page-sondage');
       if (pageSondage && document.activeElement !== pageSondage) pageSondage.value = corps.pageSondage || '';
+      const relaisSondage = document.getElementById('exchange-relais-sondage');
+      if (relaisSondage && document.activeElement !== relaisSondage) relaisSondage.value = corps.relaisSondage || '';
       const cats = corps.categoriesRdv || {};
       for (const cle of Object.keys(TYPES_RDV)) {
         const champ = document.getElementById(`exchange-cat-${cle}`);
@@ -34109,6 +34129,7 @@
       url: champUrl ? champUrl.value.trim() : '',
       calendrierPartage: champPartage ? champPartage.value.trim() : '',
       pageSondage: (document.getElementById('exchange-page-sondage') || { value: '' }).value.trim(),
+      relaisSondage: (document.getElementById('exchange-relais-sondage') || { value: '' }).value.trim(),
       categoriesRdv: Object.fromEntries(Object.keys(TYPES_RDV).map((cle) => {
         const champ = document.getElementById(`exchange-cat-${cle}`);
         return [cle, champ ? champ.value.trim() : ''];

@@ -324,7 +324,14 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
   `textContent`), à la manière de Rallly avec le logo de l'office (dépôt public **blursquare/Claire-rdv**,
   copie de `page-sondage/`), vote **Oui / Si nécessaire / Non** ; réponse par un seul email d'objet
   `[CLAIRE-CODE-P13S2] VTE - MOR./FAU. — Oui : … · Si nécessaire : …` (S = si nécessaire, P0 = aucun ;
-  remplace les choix ; « possible pour tous » = oui ou si nécessaire). Le dossier n'apparaît qu'**abrégé** (`abregeDossierSondage`,
+  remplace les choix ; « possible pour tous » = oui ou si nécessaire).
+  **Relais Google** (étude, 01/10 — `page-sondage/relais-google-apps-script.gs`, Apps Script déployé
+  sur le compte Gmail de l'étude, adresse `/exec` dans Réglages › Rappels et agenda, `relaisSondage`) :
+  la page lui poste la réponse (texte brut, sans prévol CORS), il l'envoie par email à une adresse FIXÉE
+  dans le script (jamais choisie par la page), objet contrôlé, 200/h ; repli sur la messagerie du client
+  s'il échoue. L'expéditeur devenant le Gmail de l'étude, chaque destinataire a un **code personnel**
+  (`cle`, 4 car., `attribuerCles`) dans son lien et dans l'objet (`…-P13S2-Q7AB]`) qui le désigne ; un
+  code inconnu est écarté. Le lien porte le rôle (`w`), jamais le nom. Le dossier n'apparaît qu'**abrégé** (`abregeDossierSondage`,
   3 lettres par nom de famille) sur la page et dans les objets de réponse. Réglage vide = boutons. Options
   « Provisoire » `VTE - NOM ? — option CLAIRE, créneau n/N` (le « ? » n'écrit rien sur la fiche),
   hachurées dans l'agenda, retirées (`MoveToDeletedItems`) au placement, à l'annulation ou après
