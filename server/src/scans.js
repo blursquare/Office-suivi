@@ -121,19 +121,43 @@ function nomScanValide(nom) {
   return /\.pdf$/i.test(n);
 }
 
+// Lecture du dossier du copieur (étude, 01/10 : « c'est lors du clic sur Laisser ou Ranger que c'est
+// long ») : chaque relecture interrogeait UN PAR UN, sur le partage réseau, tous les PDF du dossier —
+// y compris l'historique du copieur, plus ancien que l'activation et jamais traité. Désormais :
+//  - les fichiers plus anciens que `depuis` sont retenus en mémoire et ne sont plus interrogés
+//    (un nom de scan du copieur n'est jamais réutilisé ; la mémoire est vidée toutes les 10 minutes
+//    et dès que le dossier ou la date change, par prudence) ;
+//  - les autres sont interrogés EN PARALLÈLE, 16 à la fois (la latence du réseau, pas le disque,
+//    faisait la durée).
+const PARALLELE_STAT_SCANS = 16;
+const DUREE_MEMOIRE_ANCIENS_MS = 10 * 60 * 1000;
+let memoireAnciens = { cle: '', le: 0, noms: new Set() };
+
+function oublierScansAnciens() { memoireAnciens = { cle: '', le: 0, noms: new Set() }; }
+
 async function listerScans(dossierScans, depuisMs, maintenantMs = Date.now(), fsImpl = fsp) {
   let entrees;
   try { entrees = await fsImpl.readdir(dossierScans, { withFileTypes: true }); } catch (_) { return []; }
-  const scans = [];
-  for (const e of entrees) {
-    if (!e.isFile() || !nomScanValide(e.name)) continue;
-    let st;
-    try { st = await fsImpl.stat(path.join(dossierScans, e.name)); } catch (_) { continue; }
-    if (!(st.size > 0)) continue;
-    if (Number.isFinite(depuisMs) && st.mtimeMs < depuisMs) continue;
-    scans.push({ nom: e.name, taille: st.size, date: new Date(st.mtimeMs).toISOString(), stable: maintenantMs - st.mtimeMs >= DELAI_STABILITE_MS });
+  const cle = `${dossierScans}|${depuisMs}`;
+  if (memoireAnciens.cle !== cle || Date.now() - memoireAnciens.le > DUREE_MEMOIRE_ANCIENS_MS) {
+    memoireAnciens = { cle, le: Date.now(), noms: new Set() };
   }
-  return scans.sort((a, b) => b.date.localeCompare(a.date)).slice(0, MAX_SCANS);
+  const anciens = memoireAnciens.noms;
+  const aLire = entrees.filter((e) => e.isFile() && nomScanValide(e.name) && !anciens.has(e.name));
+  const scans = [];
+  let i = 0;
+  const ouvrier = async () => {
+    while (i < aLire.length) {
+      const e = aLire[i++];
+      let st;
+      try { st = await fsImpl.stat(path.join(dossierScans, e.name)); } catch (_) { continue; }
+      if (!(st.size > 0)) continue;
+      if (Number.isFinite(depuisMs) && st.mtimeMs < depuisMs) { anciens.add(e.name); continue; }
+      scans.push({ nom: e.name, taille: st.size, date: new Date(st.mtimeMs).toISOString(), stable: maintenantMs - st.mtimeMs >= DELAI_STABILITE_MS });
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(PARALLELE_STAT_SCANS, aLire.length) }, ouvrier));
+  return scans.sort((a, b) => b.date.localeCompare(a.date) || a.nom.localeCompare(b.nom)).slice(0, MAX_SCANS);
 }
 
 // ---- Rubriques du dossier client -------------------------------------------------------------
@@ -274,7 +298,7 @@ function ajouterAuJournal(journal, entree) {
 }
 
 module.exports = {
-  trouverDossierScans, parentsCandidats, partagesScansCandidats, depuisMsScans, nomScanValide, listerScans, nomRubriqueNormalise,
+  trouverDossierScans, parentsCandidats, partagesScansCandidats, depuisMsScans, nomScanValide, listerScans, oublierScansAnciens, nomRubriqueNormalise,
   resoudreRubrique, nomFichierSur, cheminLibre, rangerScan, ajouterAuJournal,
   RUBRIQUES_SCANS, NOM_ARCHIVE_SCANS, DELAI_STABILITE_MS, MAX_JOURNAL
 };

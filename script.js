@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-01 17:36';
+  const VERSION_APP = '2026-10-01 17:40';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-01 17:40', resume: "Claire Scan : « Ranger » et « Laisser dans Scan » ne font plus attendre — le scan quitte la liste dès la réponse du serveur, la relecture du dossier du copieur se fait ensuite en arrière-plan ; et cette relecture est bien plus rapide (l'historique du copieur n'est plus interrogé à chaque fois, le reste est lu en parallèle)." },
     { version: '2026-10-01 17:36', resume: "Agenda : à côté de « Agenda de l'office lu… », le nombre de rendez-vous de la semaine comparé à la même semaine l'an dernier — « +3 rendez-vous vs 2025 (hausse de 25 %) », en vert ou en rouge, détail dans la pastille i (dont signatures). L'an dernier est lu une fois dans l'agenda Outlook puis gardé." },
     { version: '2026-10-01 17:32', resume: "Agenda : un rendez-vous d'un dossier créé depuis « Nouveau rendez-vous » renseigne le Lieu dans Outlook comme une signature posée depuis la fiche — initiales du responsable, confrère « en 1er » (il reçoit) ou « en 2nd », appel de fonds et projet envoyés (« BA - Me DURAND en 2nd - Appel de fonds envoyé »), modifiable avant d'enregistrer. La mise à jour automatique du Lieu à l'envoi de l'appel de fonds ou du projet ajoute aussi les initiales si elles manquent." },
     { version: '2026-10-01 17:29', resume: "Agenda : proposer plusieurs dates pour un rendez-vous sans dossier — titre, durée, destinataires libres (dont un confrère, avec la formule d'usage), créneaux en option dans l'agenda. Depuis « Nouveau rendez-vous » (« Proposer plusieurs dates ») ou « Dates proposées » dans la colonne de l'agenda, où arrivent les réponses et où « Placer » crée le rendez-vous et retire les options." },
@@ -36158,6 +36159,7 @@
     if (!d.nasDossier) { if (!auto) afficherToast('Ce dossier n’est pas relié à son dossier du NAS : reliez-le depuis sa fiche.', 'OK', null); return; }
     scansEnRangement.add(nom);
     if (!auto) renderScans(true);
+    let range = false;
     try {
       const r = await fetchAvecAuth('/api/scans/ranger', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -36171,18 +36173,33 @@
         else afficherToast(corps.erreur || 'Rangement impossible.', 'OK', null);
         return;
       }
+      range = true;
       if (!auto) afficherToast(`Rangé dans ${libelleDossierAffiche(d)}${corps.rubrique ? ' › ' + corps.rubrique.replace(/[\\/]+/g, ' › ') : ''}.`, 'OK', null);
       // Pièce ajoutée/cochée et responsable prévenu tout de suite, sans attendre le parcours du NAS
-      // (relancé ensuite pour le reste : il ne renotifie pas une pièce déjà « reçue »).
-      try { await enregistrerPieceRangee(d, choix, corps, auto); } catch (e) { console.warn('Pièce rangée non enregistrée :', e.message); }
-      if (typeof verifierDossierLocal === 'function') verifierDossierLocal(d.id, false).catch(() => {});
+      // (relancé ensuite pour le reste : il ne renotifie pas une pièce déjà « reçue »). Ni l'un ni
+      // l'autre ne retient plus l'écran (étude, 01/10 : « c'est lors du clic que c'est long »).
+      enregistrerPieceRangee(d, choix, corps, auto)
+        .catch(e => console.warn('Pièce rangée non enregistrée :', e.message))
+        .then(() => { if (typeof verifierDossierLocal === 'function') verifierDossierLocal(d.id, false).catch(() => {}); });
     } finally {
-      // L'indicateur reste jusqu'à la liste relue : le scan rangé en sort, un échec le rend cliquable.
-      try { await chargerScans(true); } finally {
-        scansEnRangement.delete(nom);
-        if (ongletActuel === 'scans') renderScans(true);
-      }
+      finirGesteScan(nom, scansEnRangement, range ? 'range' : '');
     }
+  }
+
+  // Fin d'un geste sur un scan (ranger, laisser dans Scan) : la liste se met à jour TOUT DE SUITE
+  // d'après la réponse du serveur — le scan rangé en sort, le scan laissé passe dans « laissés de
+  // côté » — et la relecture du dossier du copieur se fait ensuite, en arrière-plan. Avant, le
+  // bouton tournait jusqu'à la fin de cette relecture (étude, 01/10).
+  function finirGesteScan(nom, enCours, resultat) {
+    enCours.delete(nom);
+    if (resultat) {
+      const scan = scanParNom(nom);
+      etatScans.scans = (etatScans.scans || []).filter(x => x.nom !== nom);
+      if (resultat === 'ecarte' && scan) etatScans.ecartes = [scan].concat((etatScans.ecartes || []).filter(x => x.nom !== nom));
+    }
+    majBadgeScans();
+    if (ongletActuel === 'scans') renderScans(true);
+    chargerScans(true).catch(() => {});
   }
 
   // Types rangés qui ne sont pas des « pièces » du dossier : l'offre de prêt et l'avant-contrat ont
@@ -36244,16 +36261,15 @@
     if (scansEnEcart.has(nom) || scansEnRangement.has(nom)) return;
     scansEnEcart.add(nom);
     renderScans(true);
+    let ecarte = false;
     try {
       const r = await fetchAvecAuth('/api/scans/ecarter', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nom, auteur: utilisateurPoste || '' }) });
       if (!r.ok) afficherToast('Le scan n’a pas pu être laissé de côté : réessayez.', 'OK', null);
+      else ecarte = true;
     } catch (e) {
       afficherToast('Serveur injoignable — scan non déplacé.', 'OK', null);
     } finally {
-      try { await chargerScans(true); } finally {
-        scansEnEcart.delete(nom);
-        if (ongletActuel === 'scans') renderScans(true);
-      }
+      finirGesteScan(nom, scansEnEcart, ecarte ? 'ecarte' : '');
     }
   }
 

@@ -13914,3 +13914,21 @@ de x %) ».
   2025 » / « (aucun l'an dernier) », vert / rouge, flèche `trend-up`/`trend-down`, détail en pastille « i »
   (`texteComparaisonAgenda`, pur, testé). Relu toutes les 2 min au plus par semaine affichée.
 - **Non vérifié au bureau** : volume réel de la semaine de l'an dernier dans le calendrier partagé.
+
+
+### 01/10/2026 17 h 40 — Claire Scan : « Ranger » / « Laisser dans Scan » rapides
+
+Question de l'étude : « comment accélérer le rangement des scans ? », précisée : « c'est lors du clic sur
+Laisser le scan ou Ranger le scan qui est long ». Mesures des rapports techniques : lecture d'un scan 6–7 s
+(OCR compris) — ce n'était pas elle. Cause : chaque geste attendait `chargerScans()`, donc `GET /api/scans`,
+donc `listerScans`, qui interrogeait (stat) UN PAR UN, sur le partage `\\192.168.60.5\Scan`, tous les PDF du
+dossier du copieur, historique compris (jamais traité, plus ancien que l'activation). « Laisser » ne fait
+pourtant qu'écrire en base.
+- Client : `finirGesteScan` — le scan quitte la liste (ou passe dans « laissés de côté ») dès la réponse du
+  geste ; la relecture du dossier part ensuite en arrière-plan. Après un rangement, l'enregistrement de la
+  pièce (sauvegarde du dossier, Teams) et le parcours du NAS ne retiennent plus l'écran.
+- Serveur (`listerScans`) : les fichiers plus anciens que `depuis` sont mémorisés et plus jamais interrogés
+  (mémoire vidée toutes les 10 min et au changement de dossier/date) ; les autres sont interrogés 16 à la
+  fois. Testé (41 stat au premier passage, 1 au second, parallèle ≤ 16).
+- Vérifié dans Chromium avec une relecture ralentie à 5 s : le scan quitte la liste en ~30 ms (contre 5 s et
+  plus), copie bien posée sur le NAS, pièce cochée.

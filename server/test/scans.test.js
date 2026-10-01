@@ -17,7 +17,7 @@ const { assainirReglagesScans } = require('../src/parametresRepo');
 const { ouvrirDb } = require('../src/db');
 const {
   partagesScansCandidats, depuisMsScans,
-  trouverDossierScans, parentsCandidats, nomScanValide, listerScans, nomRubriqueNormalise,
+  trouverDossierScans, parentsCandidats, nomScanValide, listerScans, oublierScansAnciens, nomRubriqueNormalise,
   resoudreRubrique, nomFichierSur, rangerScan, NOM_ARCHIVE_SCANS
 } = require('../src/scans');
 
@@ -105,6 +105,36 @@ test('listerScans : seuls les PDF posés directement dans Scan, depuis la date d
   assert.equal(tous.join(','), 'SCAN_0001.pdf,SCAN_0002.pdf,SCAN_2025.pdf');
   // Un scan qui vient d'arriver peut être encore en cours d'écriture par le copieur.
   assert.equal((await listerScans(scan, depuis, Date.now()))[0].stable, false);
+});
+
+test('listerScans : l’historique du copieur n’est interrogé qu’une fois, le reste en parallèle', async () => {
+  oublierScansAnciens();
+  const fichiers = [];
+  for (let k = 0; k < 40; k++) fichiers.push({ name: `VIEUX_${k}.pdf`, mtimeMs: Date.parse('2025-01-01T10:00:00') });
+  fichiers.push({ name: 'NOUVEAU.pdf', mtimeMs: Date.parse('2026-10-01T10:00:00') });
+  let stats = 0;
+  let enVol = 0;
+  let maxEnVol = 0;
+  const fauxFs = {
+    readdir: async () => fichiers.map((f) => ({ name: f.name, isFile: () => true })),
+    stat: async (chemin) => {
+      stats++; enVol++; maxEnVol = Math.max(maxEnVol, enVol);
+      await new Promise((r) => setTimeout(r, 5));
+      enVol--;
+      const f = fichiers.find((x) => chemin.endsWith(x.name));
+      return { size: 1000, mtimeMs: f.mtimeMs };
+    }
+  };
+  const depuis = Date.parse('2026-09-01T00:00:00');
+  const l1 = await listerScans('/scan', depuis, Date.parse('2026-10-01T12:00:00'), fauxFs);
+  assert.equal(l1.map((x) => x.nom).join(','), 'NOUVEAU.pdf');
+  assert.equal(stats, 41);
+  assert.ok(maxEnVol > 1 && maxEnVol <= 16, `en parallèle, 16 au plus (${maxEnVol})`);
+  stats = 0;
+  const l2 = await listerScans('/scan', depuis, Date.parse('2026-10-01T12:00:00'), fauxFs);
+  assert.equal(l2.map((x) => x.nom).join(','), 'NOUVEAU.pdf');
+  assert.equal(stats, 1, 'seul le scan récent est réinterrogé');
+  oublierScansAnciens();
 });
 
 test('resoudreRubrique suit l’arborescence réelle par le nom, numéro ignoré', async () => {
