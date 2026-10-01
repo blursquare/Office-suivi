@@ -233,3 +233,10 @@ test('routes : événements des postes, aperçu anonymisé, envoi sans jeton pui
   r = await appel('/api/rapport-technique', { method: 'PUT', body: JSON.stringify({ actif: false }) });
   assert.equal((await r.json()).actif, false);
 });
+
+test('messageErreurGithubRapport : 403 et 404 distingués, phrase de GitHub reprise', async () => {
+  assert.match(messageErreurGithubRapport(404, 'Not Found'), /ne voit pas le dépôt blursquare\/Office-suivi.*\[GitHub 404 : « Not Found »\]/);
+  assert.match(messageErreurGithubRapport(403, 'Resource not accessible by personal access token'), /Issues : lecture et écriture.*« Resource not accessible by personal access token »/);
+  const fetchFn = async () => ({ ok: false, status: 403, json: async () => ({ message: 'Resource not accessible by personal access token' }) });
+  await assert.rejects(envoyerIssue({ jeton: 'x', titre: 't', corps: 'c', fetchFn }), /Resource not accessible by personal access token/);
+});

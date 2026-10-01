@@ -324,11 +324,16 @@ function rassemblerDonnees({ journal, parametresRepo, depot, db, depuis, jusqua,
   };
 }
 
-function messageErreurGithubRapport(statut) {
-  if (statut === 401) return 'Jeton GitHub refusé : il a expiré ou a été révoqué (Réglages › Mise à jour).';
-  if (statut === 403 || statut === 404) return "Le jeton GitHub n'a pas le droit d'écrire les issues : ajoutez la permission « Issues : lecture et écriture » au jeton (github.com › Settings › Developer settings › Fine-grained tokens).";
-  if (statut === 410) return 'Les issues sont désactivées sur le dépôt GitHub.';
-  return `GitHub a refusé le rapport (HTTP ${statut}).`;
+// `messageGithub` : la phrase que GitHub renvoie (« Resource not accessible by personal access token »,
+// « Not Found »…) — jamais de secret dedans, elle dit souvent la vraie cause (étude, 01/10 : « pourtant
+// c'est activé »). Reprise telle quelle, bornée.
+function messageErreurGithubRapport(statut, messageGithub) {
+  const precision = messageGithub ? ` [GitHub ${statut} : « ${String(messageGithub).replace(/\s+/g, ' ').trim().slice(0, 160)} »]` : ` [GitHub ${statut}]`;
+  if (statut === 401) return 'Jeton GitHub refusé : il a expiré ou a été révoqué (Réglages › Mise à jour).' + precision;
+  if (statut === 404) return `Le jeton GitHub ne voit pas le dépôt ${DEPOT_GITHUB_RAPPORT} : dans le jeton, « Repository access » doit inclure ce dépôt (et « Resource owner » être son propriétaire).` + precision;
+  if (statut === 403) return "Le jeton GitHub n'a pas le droit d'écrire les issues : ajoutez la permission « Issues : lecture et écriture » au jeton (github.com › Settings › Developer settings › Fine-grained tokens), puis « Envoyer maintenant »." + precision;
+  if (statut === 410) return 'Les issues sont désactivées sur le dépôt GitHub.' + precision;
+  return `GitHub a refusé le rapport (HTTP ${statut}).` + precision;
 }
 
 // Dépose le rapport en issue. Une étiquette inconnue que le jeton ne peut pas créer fait échouer la
@@ -352,7 +357,11 @@ async function envoyerIssue({ jeton, titre, corps, fetchFn = fetch, depot = DEPO
   let r;
   try { r = await appel(true); if (r.status === 422) r = await appel(false); }
   catch (e) { throw new Error(e && e.name === 'AbortError' ? 'GitHub ne répond pas (délai dépassé).' : `GitHub injoignable : ${e.message}`); }
-  if (!r.ok) throw new Error(messageErreurGithubRapport(r.status));
+  if (!r.ok) {
+    let messageGithub = '';
+    try { messageGithub = ((await r.json()) || {}).message || ''; } catch (_) { /* corps illisible */ }
+    throw new Error(messageErreurGithubRapport(r.status, messageGithub));
+  }
   const json = await r.json();
   return { numero: json.number, url: json.html_url };
 }

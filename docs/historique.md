@@ -13735,3 +13735,13 @@ l'agenda à partir de 8 h et réduis la hauteur de l'agenda ».
 
 Vérifié dans Chromium : grille de 660 px à partir de 8 h, requêtes de notification capturées
 (modification d'heure, « à replacer ») ; tests serveur avec faux envoi pour les relevés Outlook.
+
+### 01/10/2026 14 h 12 — Rapport technique : message d'erreur GitHub précis
+
+Signalement : « Le dernier rapport n'est pas parti. Le jeton GitHub n'a pas le droit d'écrire les
+issues… — pourtant c'est activé sur blursquare/Office-suivi ». Le message regroupait 403 et 404 sous la
+même phrase et taisait la réponse de GitHub. `messageErreurGithubRapport(statut, messageGithub)` :
+404 → « le jeton ne voit pas le dépôt » (Repository access / Resource owner), 403 → permission Issues,
+et la phrase de GitHub reprise entre crochets (`[GitHub 403 : « Resource not accessible by personal
+access token »]`). Rappel donné à l'étude : l'erreur affichée est celle du dernier essai (aucune relance
+automatique) — « Envoyer maintenant » réessaie après la correction du jeton.
