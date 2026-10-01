@@ -14270,3 +14270,9 @@ rend le jour en toutes lettres (« Jeudi », « Octobre » en vue Mois) ; `.ag-p
 bordeaux en dégradé : 30 px très gras, couleur du texte (`--ink`), point final orange (`--cat-orange`).
 En vue Jour, le jour n'est plus répété dans la ligne sous la date. Vérifié dans Chromium (clair, sombre,
 téléphone).
+
+### 01/10/2026 22 h 56 — Agenda : « Jeu. », trois lettres et le point
+
+Retour de l'étude : « juste les 3 lettres et le point ». `motPastilleAgenda` rend les trois premières
+lettres du jour (« Jeu », « Lun »…) ou du mois en vue Mois (« Oct », « Aoû ») ; toujours sans fond,
+couleur du texte, point orange.
