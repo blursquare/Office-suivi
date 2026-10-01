@@ -13603,3 +13603,19 @@ rappels.
 Vérifié dans Chromium avec un faux relais : envoi en texte brut, objet attendu, message de réussite ;
 relais en panne → repli sur la messagerie ; téléphone 390 px. **À faire par l'étude** : installer le
 script (Gmail de l'étude) et coller son adresse ; activer Pages sur Claire-rdv.
+
+### 01/10/2026 10 h 10 — Teams « dossier complet » raccourci ; onglets de la fenêtre du matin
+
+Demande : « Dans la notification teams retirer : Il est prêt à être rédigé. bug d'affiche dans
+aujourd'hui » (capture : flèches ▲▼ et une croix rognée à droite des onglets Agenda du jour ·
+Emails · Nouveautés).
+
+- `texteDossierComplet` (`routes/notifications.js`) : « ✅ CLAIRE — Dossier … complet : offre de
+  prêt et pièces reçues. » — test ajusté (`liens-pieces.test.js`).
+- Cause du bug d'affichage : `.jour-onglets` défile en largeur (`overflow-x: auto`), ce qui rend
+  aussi `overflow-y` automatique ; l'onglet actif pose son soulignement à −1 px sur la bordure, le
+  contenu faisait 40 px pour 39 px visibles → Chrome sous Windows (barres classiques) dessinait une
+  barre verticale réduite à ses deux flèches. Mesuré dans Chromium avec les barres visibles
+  (`scrollHeight` 40 > `clientHeight` 39), reproduit puis corrigé : `overflow-y: hidden` et barre
+  masquée (`scrollbar-width: none`, le défilement au doigt/à la molette reste). Seul endroit du CSS
+  avec ce motif.

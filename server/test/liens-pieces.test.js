@@ -64,10 +64,11 @@ test('htmlNotificationPieces : le NOM de la pièce est le lien, le reste est éc
   assert.equal(html.split('http://x').length - 1, 1);
 });
 
-test('texteDossierComplet : nomme le dossier et dit qu\'il est prêt à être rédigé', () => {
+test('texteDossierComplet : nomme le dossier, sans « prêt à être rédigé » (étude, 01/10)', () => {
   const t = texteDossierComplet('DUPONT / MARTIN');
   assert.match(t, /DUPONT \/ MARTIN/);
-  assert.match(t, /prêt à être rédigé/);
+  assert.match(t, /complet : offre de prêt et pièces reçues\.$/);
+  assert.doesNotMatch(t, /rédigé/);
 });
 
 let db, serveurApp, baseUrl, jeton, racine;

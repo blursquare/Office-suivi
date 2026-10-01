@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-01 07:59';
+  const VERSION_APP = '2026-10-01 10:10';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-01 10:10', resume: "Fenêtre du matin : plus de barre de défilement (flèches ▲▼) à côté des onglets Agenda du jour · Emails · Nouveautés. Notification Teams « dossier complet » : la phrase « Il est prêt à être rédigé. » est retirée." },
     { version: '2026-10-01 07:59', resume: "Sondage de créneaux : avec le relais Google réglé (Réglages › Rappels et agenda), le client n'a plus qu'à cliquer sur « Envoyer ma réponse » — la réponse arrive directement dans la boîte de l'office, sans passer par sa messagerie. Chaque destinataire a son propre lien (« Réponse de … » quand l'email en vise plusieurs) ; la page n'affiche que son rôle." },
     { version: '2026-10-01 07:49', resume: "Sondage de créneaux : la page de réponse prend le style de Rallly avec le logo de l'office en tête — tuiles de date, et pour chaque créneau Oui / Si nécessaire / Non. Les « si nécessaire » s'affichent dans la fiche (coche entre parenthèses, en ambre) et un créneau possible pour tous est signalé. Page publiée dans le dépôt Claire-rdv (GitHub Pages à activer)." },
     { version: '2026-10-01 07:44', resume: "Sondage de créneaux : page de réponse avec de vraies cases à cocher (à publier sur GitHub Pages, adresse à coller dans Réglages › Rappels et agenda). L'email n'a plus qu'un bouton « Choisir mes disponibilités » ; le client coche, et un seul email de réponse part vers l'étude, avec en objet le dossier en abrégé et les créneaux choisis (« VTE - MOR./FAU. — Choix : mer. 14/10 10 h 30… »). La page ne garde aucune donnée. Les noms de dossier n'apparaissent qu'abrégés (3 lettres par nom), y compris dans l'objet des réponses par bouton." },

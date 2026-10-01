@@ -61,7 +61,7 @@ function htmlNotificationPieces(dossierNom, pieces, liens) {
 // Demandé par l'étude : prévenir le responsable dès qu'un dossier a tout reçu (offre de prêt et
 // pièces), pour qu'il sache qu'il peut commencer la rédaction de l'acte.
 function texteDossierComplet(dossierNom) {
-  return `✅ CLAIRE — Dossier ${dossierNom} complet : offre de prêt et pièces reçues. Il est prêt à être rédigé.`;
+  return `✅ CLAIRE — Dossier ${dossierNom} complet : offre de prêt et pièces reçues.`;
 }
 
 // Demandé par l'étude : prévenir le responsable d'un dossier quand un AUTRE collaborateur y ajoute
