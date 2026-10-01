@@ -176,13 +176,12 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
   (`.suivi-barre`) — grande recherche (nom du dossier seulement ; le collaborateur passe par le filtre
   « Responsable », pré-réglé sur celui du poste) + bascule de vue, filtres sur une ligne (« Trier par »
   en vue Tableau seulement ; « Archivés » cochée → section « Archivés » en bas de la vue Échéances,
-  `archivesPourEcheances`, date de signature sinon d'archivage, jamais dans une semaine), statuts en pastilles de filtre (`syntheseEtatsSuivi`, `renderEtatsSuivi`) ; **à gauche** (colonne de 300 px comme celle de l'agenda, étude 01/10, `.suivi-corps`/`.suivi-cote` ; au-dessus sous 1100 px), « Prévu en
-  {mois} » (`prevuDuMois`, `agendaPrevuDuMois`, `renderStatsSuivi`, repliable) — angle voulu par
-  l'étude : ce qui est prévu ce mois-ci, **en un seul bloc compact** : une ligne d'en-tête (mois,
-  4 compteurs-filtres en pastilles, retards, délais moyens depuis l'ouverture du dossier dans CLAIRE),
-  puis « À faire » (retards, envois, rendez-vous à placer) et « Au calendrier » (signatures, dates
-  butoir, jour par jour) côte à côte, une ligne par échéance, défilement au-delà de 172 px. Mois suivant dans les 5 derniers jours (`moisPrevuSuivi`). Refusés par l'étude : graphique
-  par semaine, charge par collaborateur, montant des ventes, le mot « portefeuille ». **Liste « intelligente »**
+  `archivesPourEcheances`, date de signature sinon d'archivage, jamais dans une semaine), statuts en pastilles de filtre (`syntheseEtatsSuivi`, `renderEtatsSuivi`) ; **à gauche** (colonne de 300 px comme celle de l'agenda, étude 01/10, `.suivi-corps`/`.suivi-cote` ; au-dessus sous 1100 px),
+  `renderColonneSuivi` (étude 01/10 au soir, remplace « Prévu en {mois} ») : le **mois civil en cours** en quatre
+  tuiles-filtres (`syntheseMoisSuivi`, `filtreMoisSuivi`) — à signer (rendez-vous dans le mois), à placer (sans
+  rendez-vous, date butoir dans le mois ou déjà dépassée), ventes, successions (`d.typeAffaire`) —, puis
+  « Dernières pièces » rattachées sur le commun (`dernieresPiecesTrouvees`, 14 jours, 10 au plus). Refusés par
+  l'étude : graphique par semaine, charge par collaborateur, montant des ventes, le mot « portefeuille ». **Liste « intelligente »**
   (30/09) : section « Nouveau » (ex-« À voir en premier ») en tête (`signauxDossierSuivi`, `partagerAVoirSuivi`) —
   notifications (`piecesNotifications` : offre, pièces nommées) puis fonds tous reçus non confirmés ;
   le dossier en sort à l'ouverture de sa fiche, sans doublon dans la suite de la liste. L'échéance a sa propre colonne (« Prochaine

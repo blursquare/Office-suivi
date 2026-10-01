@@ -14300,3 +14300,24 @@ les quatre cellules `.dossier-responsable-tableau` (vue Tableau, « Nouveau », 
 colonne de 72 px dans les tableaux d'échéances ; en vue Tableau, le nom du dossier garde au moins 240 px.
 Bouton de l'en-tête : « Scanner le commun » (même geste `reverifierTousLesDossiers`), toast « Commun
 scanné : n dossiers relus. ». Vérifié dans Chromium avec 12 dossiers inventés.
+
+### 01/10/2026 23:27 — Suivi : colonne de gauche « mois en cours + dernières pièces »
+
+Demande de l'étude : « Dans la sidebar suivi met plutôt les dernières pièces rattachées sur le commun / le
+nombre de dossiers ce mois-ci à signer / le nombre de dossiers qui restent à placer et dont la date butoir
+est dans le mois / le nombre de ventes (puis ensuite de successions) / réorganise ». Le bloc « Prévu en
+{mois} » (compteurs, À faire, Au calendrier, délais moyens, Masquer) est retiré avec ses fonctions
+(`prevuDuMois`, `agendaPrevuDuMois`, `moisPrevuSuivi`, `renderStatsSuivi`, `dateOuvertureDossier`,
+`dateOffreRecue`) et son CSS `.pv-*`. À la place, dans `#suivi-stats` (`renderColonneSuivi`) :
+- **carte du mois en cours** (le mois civil, plus le basculement des 5 derniers jours) : quatre tuiles
+  2 × 2 calculées par `syntheseMoisSuivi` (pure) sur la liste filtrée (mêmes filtres sauf statut) —
+  « à signer » (rendez-vous de signature dans le mois, « dont n passés »), « à placer » (sans rendez-vous,
+  date butoir dans le mois **ou déjà dépassée** — un dossier dont la butoir est passée le mois dernier reste
+  à placer —, « n butoir dépassée(s) » en rouge), « ventes » et « successions » en cours (`d.typeAffaire`,
+  absent = vente). Chaque tuile filtre la liste (`filtreMoisSuivi`, `dossiersFiltreMoisSuivi`), « Tout
+  afficher » dans le titre l'efface ;
+- **Dernières pièces** : `dernieresPiecesTrouvees` (paramètre `max` ajouté, 10 ici), pièces trouvées sur le
+  NAS ces 14 jours, les nouvelles (point rouge) d'abord ; un clic ouvre la fiche.
+Sous 1100 px les deux cartes passent côte à côte au-dessus de la liste, une seule colonne sous 700 px.
+Vérifié dans Chromium (clair, sombre, filtre « à placer » en vue Tableau, 400 px) avec 14 dossiers inventés
+dont une succession.

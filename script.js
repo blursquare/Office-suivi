@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-01 23:12';
+  const VERSION_APP = '2026-10-01 23:27';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-01 23:27', resume: "Suivi des dossiers : la colonne de gauche remplace « Prévu en … » par le mois en cours en quatre compteurs — dossiers à signer ce mois-ci, dossiers à placer (sans rendez-vous, date butoir dans le mois ou déjà dépassée), ventes et successions en cours ; un clic sur un compteur filtre la liste (« Tout afficher » pour revenir) — puis les dernières pièces rattachées sur le commun (14 jours, les nouvelles d'abord), qui ouvrent la fiche." },
     { version: '2026-10-01 23:12', resume: "Suivi des dossiers : le collaborateur responsable n'apparaît plus que par ses initiales dans une pastille ronde (nom complet au survol), en vue Échéances comme en vue Tableau ; le nom du dossier tient sur une ligne. Le bouton « Revérifier tous les dossiers » devient « Scanner le commun »." },
     { version: '2026-10-01 23:08', resume: "Suivi des dossiers : la date d'une échéance tient de nouveau sur une ligne (« 23 septembre 2026 ») depuis le passage de « Prévu » en colonne." },
     { version: '2026-10-01 23:06', resume: "Suivi des dossiers : « Prévu en octobre » passe dans une colonne à gauche, comme celle de l'agenda — compteurs, « À faire » et « Au calendrier » l'un sous l'autre ; la recherche, les filtres et la liste sont à droite. Sur un écran plus étroit, le bloc revient au-dessus de la liste." },
@@ -14307,7 +14308,7 @@
   var MAX_DERNIERES_PIECES = 6;   // demandé par l'étude : au plus 6 sur le tableau de bord
 
   // Pure et testable : une entrée par (dossier, pièce), les non vues d'abord puis la plus récente.
-  function dernieresPiecesTrouvees(dossiersActifs, maintenantMs) {
+  function dernieresPiecesTrouvees(dossiersActifs, maintenantMs, max) {
     const limite = (maintenantMs || Date.now()) - JOURS_DERNIERES_PIECES * 86400000;
     const entrees = [];
     for (const d of dossiersActifs) {
@@ -14322,7 +14323,7 @@
       }
     }
     entrees.sort((a, b) => (b.nouvelle - a.nouvelle) || String(b.le || '').localeCompare(String(a.le || '')));
-    return entrees.slice(0, MAX_DERNIERES_PIECES);
+    return entrees.slice(0, max || MAX_DERNIERES_PIECES);
   }
 
   // Pure : les pièces encore attendues sur les dossiers reliés (hors participation), regroupées par
@@ -15474,11 +15475,11 @@
     }).join('');
   }
 
-  // ---- « Prévu ce mois-ci » au-dessus du Suivi (étude, 30/09 : « retravaille sur un angle : quoi
-  // de prévu ce mois-ci » — sans graphique, sans charge par collaborateur ni montant des ventes).
-  // Quatre listes de dossiers (signatures, envois, rendez-vous à fixer, dates butoir) et les délais
-  // moyens. Calculé sur la liste filtrée (mêmes filtres sauf statut) ; les délais comptent aussi les
-  // dossiers archivés.
+  // ---- Colonne de gauche du Suivi (étude, 01/10 : « met plutôt les dernières pièces rattachées sur
+  // le commun, le nombre de dossiers à signer ce mois-ci, le nombre qui reste à placer et dont la date
+  // butoir est dans le mois, le nombre de ventes (puis ensuite de successions) ») — remplace « Prévu
+  // en {mois} ». Quatre compteurs du mois en cours, chacun filtre la liste ; puis les pièces trouvées
+  // sur le NAS ces 14 derniers jours. Calculé sur la liste filtrée (mêmes filtres sauf statut).
 
   // Pure : les dates butoir encore ouvertes d'un dossier (vente préalable, prêt, date butoir tant
   // qu'aucun rendez-vous n'est fixé) — celles qui rendent un dossier « Urgent » une fois passées.
@@ -15490,156 +15491,93 @@
     return out;
   }
 
-  // Pure : date (AAAA-MM-JJ) de l'ouverture du dossier dans CLAIRE et de la réception de l'offre de
-  // prêt, lues dans l'historique (aucun champ ne garde la date du compromis).
-  function dateOuvertureDossier(d) {
-    const h = (d.historique || []).find(x => x && x.texte === 'Dossier créé');
-    return h && h.date ? isoLocalDepuisDate(h.date) : null;
-  }
-  var RE_HISTORIQUE_OFFRE_RECUE = /offre de pr[eê]t (retrouv|re[cç]u|confirm)|obtention du pr[eê]t.*marqu[ée]e r[ée]alis[ée]e/i;
-  function dateOffreRecue(d) {
-    const dates = (d.historique || []).filter(x => x && RE_HISTORIQUE_OFFRE_RECUE.test(x.texte || '')).map(x => isoLocalDepuisDate(x.date)).filter(Boolean).sort();
-    return dates[0] || null;
-  }
   function isoLocalDepuisDate(v) {
     const d = new Date(v);
     if (isNaN(d)) return null;
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   }
 
-  // Pure : le mois regardé — le mois en cours, ou le suivant dans ses 5 derniers jours (le 30/09,
-  // « prévu en septembre » ne dit plus rien). { cle: 'AAAA-MM', debut, fin }.
-  function moisPrevuSuivi(aujourdhuiIso) {
+  // Pure. `actifs` : dossiers de la liste (les archivés sont écartés). Le mois est le mois en cours.
+  //  - aSigner : rendez-vous de signature dans le mois (par date), `signees` = ceux déjà passés ;
+  //  - aPlacer : sans rendez-vous, date butoir dans le mois ou déjà dépassée (un dossier dont la butoir
+  //    est passée le mois dernier reste à placer), par date ; `depassees` = butoir passée ;
+  //  - ventes / successions : par d.typeAffaire (absent = vente).
+  function syntheseMoisSuivi(actifs, aujourdhuiIso) {
     const auj = aujourdhuiIso || isoAujourdhuiLocal();
-    const suivant = (iso) => { const d = new Date(iso.slice(0, 7) + '-01T00:00:00'); d.setMonth(d.getMonth() + 1); return isoLocalDepuisDate(d); };
-    const debutSuivant = suivant(auj);
-    const debut = ecartJours(auj, debutSuivant) <= 5 ? debutSuivant : auj.slice(0, 7) + '-01';
-    return { cle: debut.slice(0, 7), debut, fin: addDays(suivant(debut), -1) };
-  }
-
-  // Pure. `actifs` : dossiers non archivés de la liste ; `tous` : mêmes filtres, archives comprises.
-  // Chaque liste : [{ d, iso, libelle, retard }] triée par date, les retards d'abord.
-  function prevuDuMois(actifs, tous, aujourdhuiIso) {
-    const auj = aujourdhuiIso || isoAujourdhuiLocal();
-    const mois = moisPrevuSuivi(auj);
-    const dansMois = iso => iso && iso >= mois.debut && iso <= mois.fin;
-    const tri = (a, b) => (b.retard - a.retard) || a.iso.localeCompare(b.iso);
-    const signatures = (actifs || []).filter(d => dansMois(d.rendezVousSignature))
-      .map(d => ({ d, iso: d.rendezVousSignature, type: 'rendezVousSignature', libelle: 'Signature', retard: false, passee: d.rendezVousSignature < auj })).sort(tri);
-    const envois = [], rdvAFixer = [];
-    (actifs || []).forEach(d => echeancesPlanning(d).forEach(it => {
-      const retard = it.iso < auj;
-      if ((it.type === 'appelFonds' || it.type === 'projetEnvoye') && (dansMois(it.iso) || retard)) {
-        envois.push({ d, iso: it.iso, type: it.type, libelle: it.type === 'appelFonds' ? 'Appel de fonds' : 'Projet d’acte', retard });
-      }
-      if (it.type === 'fixerRdv' && (it.iso <= mois.fin)) rdvAFixer.push({ d, iso: it.iso, type: 'fixerRdv', libelle: 'Rendez-vous à fixer', retard });
-    }));
-    const butoirs = [];
-    (actifs || []).forEach(d => butoirsOuverts(d).forEach(b => {
-      const retard = b.iso < auj;
-      if (dansMois(b.iso) || retard) butoirs.push({ d, iso: b.iso, type: b.type, libelle: b.libelle, retard });
-    }));
-    // Délais moyens, sur les dossiers signés ces 12 derniers mois.
-    const ilYaUnAn = addDays(auj, -365);
-    const signes = (tous || []).filter(d => d.rendezVousSignature && d.rendezVousSignature < auj && d.rendezVousSignature >= ilYaUnAn);
-    const moyenne = (valeurs) => valeurs.length ? Math.round(valeurs.reduce((t, v) => t + v, 0) / valeurs.length) : null;
-    const versSignature = signes.map(d => ecartJours(dateOuvertureDossier(d), d.rendezVousSignature)).filter(j => j !== null && j >= 0);
-    const versOffre = (tous || []).map(d => ecartJours(dateOuvertureDossier(d), dateOffreRecue(d))).filter(j => j !== null && j >= 0);
+    const debut = auj.slice(0, 7) + '-01';
+    const suivant = new Date(debut + 'T00:00:00');
+    suivant.setMonth(suivant.getMonth() + 1);
+    const fin = addDays(isoLocalDepuisDate(suivant), -1);
+    const dansMois = iso => !!iso && iso >= debut && iso <= fin;
+    const liste = (actifs || []).filter(d => d && !d.archive);
+    const aSigner = liste.filter(d => dansMois(d.rendezVousSignature))
+      .sort((a, b) => a.rendezVousSignature.localeCompare(b.rendezVousSignature));
+    const aPlacer = liste.filter(d => !d.rendezVousSignature && d.acte && (dansMois(d.acte) || d.acte < auj) && !echeanceValidee(d, 'acte'))
+      .sort((a, b) => a.acte.localeCompare(b.acte));
     return {
-      mois, signatures, envois: envois.sort(tri), rdvAFixer: rdvAFixer.sort(tri), butoirs: butoirs.sort(tri),
-      delais: { signature: moyenne(versSignature), nSignature: versSignature.length, offre: moyenne(versOffre), nOffre: versOffre.length }
+      mois: { cle: debut.slice(0, 7), debut, fin },
+      aSigner, signees: aSigner.filter(d => d.rendezVousSignature < auj).length,
+      aPlacer, depassees: aPlacer.filter(d => d.acte < auj).length,
+      ventes: liste.filter(d => d.typeAffaire !== 'succession'),
+      successions: liste.filter(d => d.typeAffaire === 'succession')
     };
   }
 
-  var CLE_STATS_SUIVI_REPLIEES = 'claire-suivi-stats-repliees';
-  var prevuFiltre = '';
-  function statsSuiviRepliees() {
-    try { return localStorage.getItem(CLE_STATS_SUIVI_REPLIEES) === '1'; } catch (e) { return false; }
-  }
-  function basculerStatsSuivi() {
-    try { localStorage.setItem(CLE_STATS_SUIVI_REPLIEES, statsSuiviRepliees() ? '0' : '1'); } catch (e) { /* sans importance */ }
-    render();
-  }
-  function filtrerPrevu(cle) { prevuFiltre = prevuFiltre === cle ? '' : cle; render(); }
-
-  // Pure : le bloc du mois en deux parties — « À faire » (retards, envois, rendez-vous à placer :
-  // des tâches, qu'on fait avant une date) puis le calendrier du mois, jour par jour (signatures et
-  // dates butoir : des événements datés). `filtre` : '', 'signatures', 'envois', 'rdv' ou 'butoirs'.
-  function agendaPrevuDuMois(p, filtre) {
-    const garder = (cle) => !filtre || filtre === cle;
-    const aFaire = [];
-    if (garder('butoirs')) p.butoirs.filter(x => x.retard).forEach(x => aFaire.push(x));
-    if (garder('envois')) p.envois.forEach(x => aFaire.push(x));
-    if (garder('rdv')) p.rdvAFixer.forEach(x => aFaire.push(x));
-    aFaire.sort((a, b) => (b.retard - a.retard) || a.iso.localeCompare(b.iso));
-    const datés = [];
-    if (garder('signatures')) p.signatures.forEach(x => datés.push(x));
-    if (garder('butoirs')) p.butoirs.filter(x => !x.retard).forEach(x => datés.push(x));
-    const jours = new Map();
-    datés.sort((a, b) => a.iso.localeCompare(b.iso) || (a.type === 'rendezVousSignature' ? -1 : 1)).forEach(x => {
-      if (!jours.has(x.iso)) jours.set(x.iso, []);
-      jours.get(x.iso).push(x);
-    });
-    return { aFaire, jours: [...jours.entries()].map(([iso, items]) => ({ iso, items })) };
+  // Filtre posé par un compteur de la colonne : '', 'signer', 'placer', 'vente' ou 'succession'.
+  var filtreMoisSuivi = '';
+  function filtrerMoisSuivi(cle) { filtreMoisSuivi = filtreMoisSuivi === cle ? '' : cle; render(); }
+  // Pure : les dossiers que garde le filtre `cle` (tous si aucun filtre).
+  function dossiersFiltreMoisSuivi(liste, cle, synthese) {
+    const garde = { signer: synthese.aSigner, placer: synthese.aPlacer, vente: synthese.ventes, succession: synthese.successions }[cle];
+    return garde ? (liste || []).filter(d => garde.includes(d)) : (liste || []);
   }
 
-  function renderStatsSuivi(p) {
+  var MAX_PIECES_COLONNE_SUIVI = 10;
+
+  function renderColonneSuivi(s, actifs) {
     const zone = document.getElementById('suivi-stats');
     if (!zone) return;
-    const repliees = statsSuiviRepliees();
-    const auj = isoAujourdhuiLocal();
-    const dMois = new Date(p.mois.debut + 'T00:00:00');
-    const nomMois = dMois.toLocaleDateString('fr-FR', { month: 'long' });
-    const retards = p.butoirs.filter(x => x.retard).length + p.envois.filter(x => x.retard).length;
-    // En-tête d'une ligne : le mois, les quatre compteurs (filtres), les délais, Masquer. Replié,
-    // seule cette ligne reste.
-    const compteur = (cle, n, libelle, dl) => `<button type="button" class="pv-compteur${prevuFiltre === cle ? ' actif' : ''}${n ? '' : ' vide'}" onclick="filtrerPrevu('${cle}')" aria-pressed="${prevuFiltre === cle}">
-        <span class="dot-label ${dl}"><span class="dot"></span></span><strong>${n}</strong>${escapeHtml(libelle)}</button>`;
-    const delais = [p.delais.offre === null ? '' : `<strong>${p.delais.offre} j</strong> offre de prêt`,
-      p.delais.signature === null ? '' : `<strong>${p.delais.signature} j</strong> signature`].filter(Boolean);
-    const tete = `<div class="pv-tete">
-        <h2 class="pv-mois">Prévu en ${escapeHtml(nomMois)}</h2>
-        <div class="pv-compteurs" role="group" aria-label="Filtrer l’agenda du mois">
-          ${compteur('signatures', p.signatures.length, `signature${p.signatures.length > 1 ? 's' : ''}`, 'dl-rendezVousSignature')}
-          ${compteur('envois', p.envois.length, `envoi${p.envois.length > 1 ? 's' : ''}`, 'dl-appelFonds')}
-          ${compteur('rdv', p.rdvAFixer.length, `rendez-vous à fixer`, 'dl-fixerRdv')}
-          ${compteur('butoirs', p.butoirs.length, `date${p.butoirs.length > 1 ? 's' : ''} butoir`, 'dl-pret')}
-          ${retards ? `<span class="pv-retards">${retards} en retard</span>` : ''}
-        </div>
-        ${delais.length && !repliees ? `<span class="pv-delais">Délais moyens : ${delais.join(' · ')}${infoBulle(`Depuis l’ouverture du dossier dans CLAIRE (la date du compromis n’est pas enregistrée) : ${p.delais.nOffre} offre${p.delais.nOffre > 1 ? 's' : ''} de prêt reçue${p.delais.nOffre > 1 ? 's' : ''}, ${p.delais.nSignature} signature${p.delais.nSignature > 1 ? 's' : ''} des 12 derniers mois.`)}</span>` : ''}
-        <button type="button" class="st-replier" onclick="basculerStatsSuivi()" aria-expanded="${!repliees}">${repliees ? 'Afficher' : 'Masquer'}${icone(repliees ? 'chevron-down' : 'chevron-up')}</button>
-      </div>`;
-    zone.classList.toggle('repliee', repliees);
-    if (repliees) { zone.innerHTML = `<div class="pv-bloc">${tete}</div>`; return; }
-
-    const ag = agendaPrevuDuMois(p, prevuFiltre);
-    const jourCourt = iso => new Date(iso + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
-    const ligneTache = x => `<button type="button" class="pv-ligne" onclick="ouvrirDossierDrawer('${escapeOnclickArg(x.d.id)}')" title="${escapeAttr(libelleDossierAffiche(x.d))}">
-        <span class="pv-quand${x.retard ? ' pv-retard' : ''}">${x.retard ? 'retard' : 'avant le'} ${escapeHtml(jourCourt(x.iso))}</span>
-        <span class="dot-label ${x.retard ? 'dl-urgent' : 'dl-' + x.type} pv-type"><span class="dot"></span>${escapeHtml(x.libelle)}</span>
-        <span class="pv-nom">${escapeHtml(libelleDossierAffiche(x.d))}</span>
-      </button>`;
-    const ligneJour = (x, iso, premier) => {
-      const dt = new Date(iso + 'T00:00:00');
-      const date = premier ? `${dt.toLocaleDateString('fr-FR', { weekday: 'short' }).replace('.', '')} ${dt.getDate()}` : '';
-      return `<button type="button" class="pv-ligne${iso < auj ? ' passe' : ''}${iso === auj ? ' aujourdhui' : ''}" onclick="ouvrirDossierDrawer('${escapeOnclickArg(x.d.id)}')" title="${escapeAttr(libelleDossierAffiche(x.d))}">
-        <span class="pv-quand pv-jour">${escapeHtml(date)}</span>
-        <span class="dot-label dl-${x.type} pv-type"><span class="dot"></span>${escapeHtml(x.libelle)}</span>
-        <span class="pv-nom">${escapeHtml(libelleDossierAffiche(x.d))}</span>
-      </button>`;
+    const nomMois = new Date(s.mois.debut + 'T00:00:00').toLocaleDateString('fr-FR', { month: 'long' });
+    const pluriel = (n, mot) => `${mot}${n > 1 ? 's' : ''}`;
+    const tuile = (cle, n, libelle, sous, alerte, aide) => {
+      const actif = filtreMoisSuivi === cle;
+      return `<button type="button" class="sm-tuile${actif ? ' actif' : ''}${n ? '' : ' vide'}" onclick="filtrerMoisSuivi('${cle}')" aria-pressed="${actif}"
+          title="${escapeAttr(actif ? 'Afficher tous les dossiers' : aide)}">
+          <span class="sm-n">${n}</span>
+          <span class="sm-lib">${escapeHtml(libelle)}</span>
+          <span class="sm-sous${alerte ? ' alerte' : ''}">${escapeHtml(sous)}</span>
+        </button>`;
     };
-    const colonne = (titre, contenu, vide) => `<div class="pv-colonne">
-        <div class="pv-groupe-titre">${titre}</div>
-        <div class="pv-defile">${contenu || `<p class="pv-rien">${escapeHtml(vide)}</p>`}</div>
-      </div>`;
-    const aFaire = ag.aFaire.map(ligneTache).join('');
-    const calendrier = ag.jours.map(j => `<div class="pv-jour-groupe${j.iso === auj ? ' aujourdhui' : ''}">${j.items.map((x, i) => ligneJour(x, j.iso, i === 0)).join('')}</div>`).join('');
-    zone.innerHTML = `<div class="pv-bloc">${tete}
-        <div class="pv-corps">
-          ${colonne('À faire', aFaire, 'Rien à faire.')}
-          ${colonne('Au calendrier', calendrier, `Rien au calendrier en ${nomMois}.`)}
-        </div>
-      </div>`;
+    const nS = s.aSigner.length, nP = s.aPlacer.length;
+    const tuiles = [
+      tuile('signer', nS, `à signer`, s.signees ? `dont ${s.signees} ${pluriel(s.signees, 'passé')}` : `en ${nomMois}`, false,
+        `Afficher les dossiers dont la signature est en ${nomMois}`),
+      tuile('placer', nP, `à placer`, s.depassees ? `${s.depassees} butoir ${pluriel(s.depassees, 'dépassée')}` : `butoir en ${nomMois}`, s.depassees > 0,
+        `Afficher les dossiers sans rendez-vous dont la date butoir est en ${nomMois} ou déjà dépassée`),
+      tuile('vente', s.ventes.length, pluriel(s.ventes.length, 'vente'), 'en cours', false, 'Afficher les ventes'),
+      tuile('succession', s.successions.length, pluriel(s.successions.length, 'succession'), 'en cours', false, 'Afficher les successions')
+    ].join('');
+
+    const pieces = dernieresPiecesTrouvees(actifs, undefined, MAX_PIECES_COLONNE_SUIVI);
+    const quand = iso => iso ? new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : '';
+    const lignes = pieces.map(e => {
+      const libelle = libelleNotificationPiece(e.dossier, e.cle);
+      return `<button type="button" class="sm-piece${e.nouvelle ? ' nouvelle' : ''}" onclick="ouvrirDossierDrawer('${escapeOnclickArg(e.dossier.id)}')"
+          title="${escapeAttr(libelle + ' — ' + libelleDossierAffiche(e.dossier) + (e.nouvelle ? ' (nouveau)' : ''))}">
+          <span class="sm-piece-point" aria-hidden="true"></span>
+          <span class="sm-piece-texte"><span class="sm-piece-titre">${escapeHtml(libelle)}</span><span class="sm-piece-dossier">${escapeHtml(libelleDossierAffiche(e.dossier))}</span></span>
+          <span class="sm-piece-date">${escapeHtml(quand(e.le))}</span>
+        </button>`;
+    }).join('');
+
+    zone.innerHTML = `<section class="sm-bloc" aria-label="Ce mois-ci">
+        <h2 class="sm-titre">${escapeHtml(nomMois.charAt(0).toUpperCase() + nomMois.slice(1))}${filtreMoisSuivi ? `<button type="button" class="sm-effacer" onclick="filtrerMoisSuivi('')">Tout afficher</button>` : ''}</h2>
+        <div class="sm-tuiles" role="group" aria-label="Filtrer la liste">${tuiles}</div>
+      </section>
+      <section class="sm-bloc" aria-label="Dernières pièces">
+        <h2 class="sm-titre">Dernières pièces${infoBulle(`Pièces rattachées sur le commun (NAS) ces ${JOURS_DERNIERES_PIECES} derniers jours, les nouvelles d’abord.`)}</h2>
+        ${lignes ? `<div class="sm-pieces">${lignes}</div>` : `<p class="sm-rien">Aucune pièce ces ${JOURS_DERNIERES_PIECES} derniers jours.</p>`}
+      </section>`;
   }
 
   // « Scanner le commun » (ex-« Revérifier tous les dossiers », renommé par l'étude le 01/10 ; barre d'outils du Suivi), à la place de l'ancien bouton du
@@ -21952,8 +21890,9 @@
     const avantEtat = dossiersVisibles.filter(passeFiltresSuivi);
     // Statuts (pastilles) et statistiques : mêmes filtres que la liste (sauf statut et semaine).
     renderEtatsSuivi(syntheseEtatsSuivi(avantEtat.filter(d => !d.archive)));
-    renderStatsSuivi(prevuDuMois(avantEtat.filter(d => !d.archive), dossiers.filter(passeFiltresSuivi)));
-    const dossiersAffiches = filtreEtatSuivi ? avantEtat.filter(d => etatDossier(d).cle === filtreEtatSuivi) : avantEtat;
+    const syntheseMois = syntheseMoisSuivi(avantEtat);
+    renderColonneSuivi(syntheseMois, avantEtat.filter(d => !d.archive));
+    const dossiersAffiches = dossiersFiltreMoisSuivi(filtreEtatSuivi ? avantEtat.filter(d => etatDossier(d).cle === filtreEtatSuivi) : avantEtat, filtreMoisSuivi, syntheseMois);
 
     count.textContent = dossiersAffiches.length ? `${dossiersAffiches.length} dossier${dossiersAffiches.length > 1 ? 's' : ''}` : '';
 

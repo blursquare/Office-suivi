@@ -7084,33 +7084,15 @@ button.scan-nom:focus-visible { outline: 2px solid var(--focus); outline-offset:
 .scan-statut { display: flex; align-items: center; gap: 4px 12px; flex-wrap: wrap; }
 .scan-score { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
 
-/* ---- Suivi des dossiers (30/09) : « Prévu en … » au-dessus de la liste, statuts en pastilles ----
-   Quatre cartes (signatures, envois, rendez-vous à fixer, dates butoir) listant les dossiers du mois ;
-   les cartes vides passent en dernier, sur une ligne. Aucune couleur de donnée : le retard seul
-   prend le rouge du statut « Urgent » (.dot-label). */
+/* ---- Suivi des dossiers : colonne de gauche (étude, 01/10), statuts en pastilles ----
+   Colonne de 300 px, collante, comme celle de l'agenda : le mois en cours en quatre compteurs
+   (à signer, à placer, ventes, successions — chacun filtre la liste), puis les dernières pièces
+   rattachées sur le commun. Aucune couleur de donnée : seule une date butoir dépassée prend le rouge. */
 .suivi-compte { font-size: 14px; color: var(--muted); font-variant-numeric: tabular-nums; }
-/* Suivi en deux colonnes (étude, 01/10 : « place le prévu du mois à gauche comme la sidebar de
-   l'agenda ») : « Prévu en {mois} » dans une colonne de 300 px, collante, ses blocs empilés. */
 .suivi-corps { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 20px; align-items: start; }
 .suivi-corps > * { min-width: 0; }
 .suivi-corps:has(.suivi-stats:empty) { grid-template-columns: minmax(0, 1fr); }
 .suivi-cote { position: sticky; top: 16px; }
-.suivi-cote .suivi-stats, .suivi-cote .suivi-stats.repliee { margin-bottom: 0; }
-@media (min-width: 1101px) {
-  .suivi-cote .suivi-stats, .suivi-cote .suivi-stats.repliee { margin-bottom: 0; }
-  .suivi-cote .pv-tete { flex-direction: column; align-items: stretch; gap: 8px; padding: 12px 14px; }
-  .suivi-cote .pv-tete .pv-mois { display: flex; }
-  .suivi-cote .suivi-stats button.st-replier { position: absolute; top: 12px; right: 12px; }
-  .suivi-cote .pv-bloc { position: relative; }
-  .suivi-cote .pv-delais { white-space: normal; flex-wrap: wrap; }
-  .suivi-cote .pv-corps { grid-template-columns: minmax(0, 1fr); }
-  .suivi-cote .pv-colonne + .pv-colonne { border-left: 0; border-top: 1px solid var(--line-soft); }
-  .suivi-cote .pv-defile { max-height: 340px; }
-  .suivi-cote .suivi-stats button.pv-ligne { grid-template-columns: auto minmax(0, 1fr); grid-template-areas: "quand type" "nom nom"; row-gap: 1px; column-gap: 8px; padding: 6px; }
-  .suivi-cote .pv-quand { grid-area: quand; }
-  .suivi-cote .pv-type { grid-area: type; }
-  .suivi-cote .pv-nom { grid-area: nom; }
-}
 /* À droite de la colonne, la place se resserre : filtres sur deux lignes au besoin, colonnes fixes du
    tableau plus étroites pour laisser le nom du dossier sur une ligne. */
 .suivi-principal .suivi-barre-filtres { flex-wrap: wrap; }
@@ -7118,66 +7100,48 @@ button.scan-nom:focus-visible { outline: 2px solid var(--focus); outline-offset:
 .suivi-principal .col-echeance-type { width: 162px; }
 .suivi-principal .col-echeance-statut { width: 124px; }
 .suivi-principal .col-echeance-resp { width: 72px; }
+.suivi-stats:empty { display: none; }
+.suivi-stats { display: flex; flex-direction: column; gap: 12px; }
+.sm-bloc { background: var(--paper-card); border: 1px solid var(--line); border-radius: 12px; padding: 12px; }
+.sm-titre { display: flex; align-items: center; gap: 6px; margin: 0 0 10px; padding: 0 2px; font-size: 14.5px; font-weight: 650; color: var(--ink); }
+.sm-titre button.sm-effacer { margin: 0 0 0 auto; padding: 0; border: 0; background: none; box-shadow: none; font: inherit; font-size: 12.5px; font-weight: 500; color: var(--focus); cursor: pointer; }
+.sm-titre button.sm-effacer:hover { text-decoration: underline; }
+.sm-tuiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.sm-tuiles button.sm-tuile { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; min-width: 0; margin: 0; padding: 9px 10px 8px; border: 1px solid var(--line); border-radius: 10px; background: var(--paper-sunk); font: inherit; text-align: left; color: var(--ink); cursor: pointer; box-shadow: none; }
+.sm-tuiles button.sm-tuile:hover { border-color: var(--ink-soft); }
+.sm-tuiles button.sm-tuile:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.sm-tuiles button.sm-tuile.actif { border-color: var(--focus); background: color-mix(in srgb, var(--focus) 10%, var(--paper-card)); }
+.sm-tuiles button.sm-tuile.vide .sm-n { color: var(--muted); }
+.sm-n { font-size: 24px; line-height: 1.1; font-weight: 650; font-variant-numeric: tabular-nums; }
+.sm-lib { font-size: 13px; font-weight: 600; color: var(--ink-soft); }
+.sm-sous { max-width: 100%; font-size: 11.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sm-sous.alerte { color: var(--urgent); font-weight: 500; }
+.sm-pieces { display: flex; flex-direction: column; max-height: 420px; overflow-y: auto; margin: 0 -4px; }
+.sm-pieces button.sm-piece { display: grid; grid-template-columns: 8px minmax(0, 1fr) auto; align-items: start; gap: 8px; width: 100%; margin: 0; padding: 6px 6px; border: 0; border-radius: 6px; background: transparent; font: inherit; text-align: left; color: var(--ink); cursor: pointer; box-shadow: none; }
+.sm-pieces button.sm-piece + button.sm-piece { border-top: 1px solid var(--line-soft); border-radius: 0; }
+.sm-pieces button.sm-piece:hover { background: color-mix(in srgb, var(--ink) 5%, transparent); }
+.sm-pieces button.sm-piece:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.sm-piece-point { width: 7px; height: 7px; margin-top: 6px; border-radius: 50%; background: var(--line); }
+.sm-piece.nouvelle .sm-piece-point { background: var(--notif-nouveau); }
+.sm-piece-texte { display: flex; flex-direction: column; min-width: 0; }
+.sm-piece-titre { font-size: 13px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sm-piece-dossier { font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sm-piece-date { padding-top: 1px; font-size: 12px; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.sm-rien { margin: 0 2px; font-size: 12.5px; color: var(--muted); }
 @media (max-width: 1100px) {
   .suivi-corps { grid-template-columns: minmax(0, 1fr); }
   .suivi-cote { position: static; }
+  .suivi-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
+  .sm-pieces { max-height: 200px; }
 }
-.suivi-stats:empty { display: none; }
-.suivi-stats { display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px; }
-.suivi-stats.repliee { margin-bottom: 8px; }
-.suivi-stats button.st-replier { margin: 0 0 0 auto; display: inline-flex; align-items: center; gap: 4px; padding: 2px 4px; border: 0; background: none; color: var(--muted); font: inherit; font-size: 12.5px; cursor: pointer; box-shadow: none; }
-.suivi-stats button.st-replier:hover { color: var(--ink); }
-/* Un seul bloc compact (étude, 30/09 : « plus compact, moins haut ») : une ligne d'en-tête (mois,
-   compteurs-filtres, délais), puis « À faire » et « Au calendrier » côte à côte, lignes serrées,
-   défilement interne. Couleurs = celles des échéances de la liste. */
-.pv-bloc { background: var(--paper-card); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
-.pv-tete { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 14px; padding: 10px 14px; }
-.suivi-stats:not(.repliee) .pv-tete { border-bottom: 1px solid var(--line-soft); }
-.pv-mois { margin: 0; font-size: 14.5px; font-weight: 650; color: var(--ink); white-space: nowrap; }
-.pv-compteurs { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; }
-.suivi-stats button.pv-compteur { display: inline-flex; align-items: center; gap: 5px; margin: 0; padding: 3px 9px 3px 7px; border: 1px solid var(--line); border-radius: 999px; background: var(--paper-card); font: inherit; font-size: 12.5px; color: var(--ink-soft); cursor: pointer; box-shadow: none; }
-.suivi-stats button.pv-compteur strong { color: var(--ink); font-weight: 650; font-variant-numeric: tabular-nums; }
-.suivi-stats button.pv-compteur:hover { border-color: var(--ink-soft); }
-.suivi-stats button.pv-compteur.actif { border-color: var(--focus); background: color-mix(in srgb, var(--focus) 10%, var(--paper-card)); color: var(--ink); }
-.suivi-stats button.pv-compteur.vide { opacity: 0.55; }
-.pv-compteur .dot-label { gap: 0; }
-.pv-retards { font-size: 12px; font-weight: 500; color: var(--urgent); padding-left: 2px; }
-.pv-delais { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: var(--muted); white-space: nowrap; }
-.pv-delais strong { color: var(--ink-soft); font-weight: 600; font-variant-numeric: tabular-nums; }
-.suivi-stats button.st-replier { margin: 0 0 0 auto; display: inline-flex; align-items: center; gap: 4px; padding: 2px 4px; border: 0; background: none; color: var(--muted); font: inherit; font-size: 12.5px; cursor: pointer; box-shadow: none; }
-.suivi-stats button.st-replier:hover { color: var(--ink); }
-.pv-corps { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.pv-corps > * { min-width: 0; }
-.pv-colonne { padding: 6px 8px 8px; }
-.pv-colonne + .pv-colonne { border-left: 1px solid var(--line-soft); }
-.pv-groupe-titre { padding: 2px 6px 4px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
-.pv-defile { max-height: 172px; overflow-y: auto; }
-.suivi-stats button.pv-ligne { display: grid; grid-template-columns: 78px 150px minmax(0, 1fr); align-items: center; gap: 8px; width: 100%; margin: 0; padding: 4px 6px; border: 0; border-radius: 6px; background: transparent; font: inherit; text-align: left; color: var(--ink); cursor: pointer; box-shadow: none; }
-.suivi-stats button.pv-ligne:hover { background: color-mix(in srgb, var(--ink) 5%, transparent); }
-.suivi-stats button.pv-ligne:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
-.suivi-stats button.pv-ligne.passe { opacity: 0.55; }
-.pv-quand { font-size: 12px; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
-.pv-quand.pv-retard { color: var(--urgent); font-weight: 500; }
-.pv-quand.pv-jour { color: var(--ink-soft); font-weight: 600; text-transform: capitalize; }
-.pv-jour-groupe.aujourdhui .pv-quand.pv-jour { color: var(--focus); }
-.pv-jour-groupe + .pv-jour-groupe { border-top: 1px solid var(--line-soft); }
-.pv-type { font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.pv-nom { font-size: 13px; font-weight: 550; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.pv-rien { margin: 4px 6px; font-size: 12.5px; color: var(--muted); }
-.suivi-stats.repliee { margin-bottom: 8px; }
-@media (max-width: 1100px) {
-  .suivi-stats button.pv-ligne { grid-template-columns: 86px 124px minmax(0, 1fr); gap: 6px; }
+@media (max-width: 700px) {
+  .suivi-stats { grid-template-columns: minmax(0, 1fr); }
+  .sm-tuiles { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .sm-tuiles button.sm-tuile { padding: 7px 8px; }
+  .sm-n { font-size: 20px; }
 }
 @media (max-width: 480px) {
-  .suivi-stats button.pv-ligne { grid-template-columns: 76px 118px minmax(0, 1fr); gap: 6px; padding: 4px 2px; }
-  .pv-quand, .pv-type { font-size: 11.5px; }
-  .pv-nom { font-size: 12.5px; }
-  .pv-defile { max-height: 150px; }
-}
-@media (max-width: 760px) {
-  .pv-corps { grid-template-columns: minmax(0, 1fr); }
-  .pv-colonne + .pv-colonne { border-left: 0; border-top: 1px solid var(--line-soft); }
-  .pv-delais { white-space: normal; }
+  .sm-tuiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 /* Statuts en pastilles (barre d'outils). */
 .suivi-statuts { display: flex; flex-wrap: wrap; gap: 6px; }
