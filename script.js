@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-01 18:16';
+  const VERSION_APP = '2026-10-01 18:29';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-01 18:29', resume: "Aujourd'hui : vos rappels en cours (échus ou sans date) sont en tête de « À faire », avec leur case ronde, et restent toujours visibles sur la carte du tableau de bord tant qu'ils ne sont pas cochés, quelle que soit sa taille. Le crayon les modifie ; ceux à venir restent sous « Mes rappels »." },
     { version: '2026-10-01 18:16', resume: "Téléphonie 3CX : bouton « Essayer » dans Réglages › Rappels, qui simule un appel sur le poste choisi (le bandeau « Appel entrant » doit apparaître dans sa fenêtre CLAIRE). Si l'essai marche mais pas un vrai appel, autoriser les fenêtres pop-up pour le client web 3CX dans Chrome/Edge. La fenêtre CLAIRE relève aussi les appels dès qu'elle revient au premier plan." },
     { version: '2026-10-01 18:05', resume: "Téléphonie 3CX : à chaque appel qui sonne, CLAIRE le note, reconnaît l'appelant (téléphone du vendeur ou de l'acquéreur saisi dans l'onglet Échanges, confrère du carnet, contact du répertoire), affiche « Appel entrant » et ouvre la fiche du dossier. Les appels de chaque dossier sont listés dans son onglet Échanges. L'adresse à coller dans 3CX pour chaque collaborateur est dans Réglages › Rappels." },
     { version: '2026-10-01 18:04', resume: "Agenda : la suppression d'un rendez-vous échouait (« ErrorCannotDeleteObject ») — le compte de CLAIRE n'a pas accès aux éléments supprimés de la boîte de Sophie. Dans ce cas, CLAIRE retire le rendez-vous autrement : il reste récupérable dans Outlook par « Récupérer les éléments supprimés »." },
@@ -17078,12 +17079,15 @@
     annoncerEmailPret(res, true);
   }
 
-  function renderMesRappels(perimetreActifs) {
+  // `sansDuJour` (carte « Aujourd'hui ») : les rappels déjà en tête de « À faire » (échus, non cochés,
+  // ou cochés aujourd'hui) n'y sont pas répétés ; restent ceux à venir, et l'ajout.
+  function renderMesRappels(perimetreActifs, sansDuJour) {
     if (!utilisateurPoste) {
       return `<div class="rappels-perso-vide">Pour noter vos rappels, <button type="button" class="lien-discret" onclick="ouvrirChoixPoste()">indiquez qui utilise ce poste</button>.</div>`;
     }
     const aujourdhui = isoAujourdhuiLocal();
-    const liste = rappelsAffiches(rappelsPerso, aujourdhui);
+    const dejaAffiches = sansDuJour ? (rd => new Set(rd.aFaire.concat(rd.faits).map(r => r.id)))(rappelsDuJour(rappelsPerso, aujourdhui)) : new Set();
+    const liste = rappelsAffiches(rappelsPerso, aujourdhui).filter(r => !dejaAffiches.has(r.id) || r.id === rappelEnEdition);
     const optionsDossiers = (selection) => perimetreActifs.slice().sort((a, b) => String(a.nom).localeCompare(String(b.nom)))
       .map(d => `<option value="${escapeAttr(d.id)}"${d.id === selection ? ' selected' : ''}>${escapeHtml(libelleDossierAffiche(d))}</option>`).join('');
     const formulaireRappel = (r) => {
@@ -17126,7 +17130,8 @@
         </div>`;
     }).join('');
     const formulaire = ajoutRappelOuvert ? formulaireRappel(null) : `<button type="button" class="bouton-ajout rappel-perso-ajout" onclick="ouvrirAjoutRappel(true)">Ajouter un rappel</button>`;
-    return `${lignes || (rappelsPersoCharges ? '<div class="rappels-perso-vide">Aucun rappel pour le moment.</div>' : '')}${formulaire}`;
+    const vide = !rappelsPersoCharges ? '' : dejaAffiches.size ? '' : '<div class="rappels-perso-vide">Aucun rappel pour le moment.</div>';
+    return `${lignes || vide}${formulaire}`;
   }
 
   // ==== AUJOURD'HUI ====
@@ -17920,7 +17925,10 @@
     return { aFaire, faits };
   }
 
-  function renderRappelsJour(aujourdhuiIso) {
+  // `fixe` : sur la carte du tableau de bord, un rappel non coché n'est jamais masqué faute de place
+  // (étude, 01/10 : « mes rappels en cours visibles tant qu'ils ne sont pas cochés »).
+  // `partie` : 'aFaire' ou 'faits' pour n'en rendre qu'une (la carte met les cochés après les actions).
+  function renderRappelsJour(aujourdhuiIso, fixe, partie) {
     const { aFaire, faits } = rappelsDuJour(rappelsPerso, aujourdhuiIso);
     const dossierDe = r => r.dossierId ? dossiers.find(x => x.id === r.dossierId) : null;
     const lignes = aFaire.map(r => {
@@ -17934,7 +17942,9 @@
         sousHtml: [d ? `<button type="button" class="lien-discret" onclick="executerFicheDossierJour('${escapeOnclickArg(d.id)}')">${escapeHtml(libelleDossierAffiche(d))}</button>` : '', 'Mon rappel'].filter(Boolean).join(' · '),
         caseRonde: { onclick: `basculerRappelPerso('${escapeOnclickArg(r.id)}')`, libelle: 'Fait' },
         bouton: rappelParleEmail(r.texte) ? { libelle: 'Email', icone: icone('mail'), onclick: `ouvrirEmailRappelPerso('${escapeOnclickArg(r.id)}')`, titre: "Préparer un email vierge avec la signature de l'office" } : null,
-        classe: 'ja-rappel'
+        classe: fixe ? 'ja-rappel w-fixe' : 'ja-rappel',
+        // Sur la carte, le crayon ouvre la modification sous « Mes rappels » (même formulaire).
+        secondaires: fixe ? `<button type="button" class="icon-btn" onclick="ouvrirEditionRappel('${escapeOnclickArg(r.id)}')" title="Modifier le rappel" aria-label="Modifier le rappel">${icone('pencil')}</button>` : ''
       });
     }).join('');
     const coches = faits.map(r => {
@@ -17951,13 +17961,13 @@
         <button type="button" class="lien-discret ja-annuler" onclick="basculerRappelPerso('${escapeOnclickArg(r.id)}')">Annuler</button>
       </li>`;
     }).join('');
-    return lignes + coches;
+    return partie === 'aFaire' ? lignes : partie === 'faits' ? coches : lignes + coches;
   }
 
   function renderListeJour(actions, traites, global) {
     const rappels = utilisateurPoste ? renderRappelsJour(isoAujourdhuiLocal()) : '';
     if (!actions.length && !traites.length && !rappels) return '<p class="jour-vide jour-vide-ok">✓ Rien à faire aujourd’hui sur vos dossiers.</p>';
-    return `<ul class="ja-liste">${actions.map(a => renderLigneActionJour(a, global)).join('')}${rappels}${renderLignesTraitees(traites)}</ul>`;
+    return `<ul class="ja-liste">${rappels}${actions.map(a => renderLigneActionJour(a, global)).join('')}${renderLignesTraitees(traites)}</ul>`;
   }
 
   function executerActionJourFiche(cle) {
@@ -18055,8 +18065,11 @@
         if (animer) marquerFeteJourCelebree(aujourdhui);
         feteHtml = renderFeteJour(animer);
       }
-      const liste = actions.length || traites.length
-        ? `<ul class="ja-liste" data-ajuster="1" data-min="1">${actions.map(a => renderLigneActionJour(a, global)).join('')}${renderLignesTraitees(traites)}${plusWidget(versPage)}</ul>`
+      // Rappels non cochés (échus ou du jour) en tête de « À faire », jamais masqués (w-fixe).
+      const rappelsJour = utilisateurPoste ? renderRappelsJour(aujourdhui, true, 'aFaire') : '';
+      const rappelsCoches = utilisateurPoste ? renderRappelsJour(aujourdhui, true, 'faits') : '';
+      const liste = actions.length || traites.length || rappelsJour || rappelsCoches
+        ? `<ul class="ja-liste" data-ajuster="1" data-min="1">${rappelsJour}${actions.map(a => renderLigneActionJour(a, global)).join('')}${rappelsCoches}${renderLignesTraitees(traites)}${plusWidget(versPage)}</ul>`
         : '<p class="jour-vide jour-vide-ok">✓ Rien à faire aujourd’hui sur vos dossiers.</p>';
       // Un rappel en cours de saisie (ajout ou modification) passe avant tout (étude, 01/10 : « quand je
       // clique sur Ajouter un rappel, il m'ouvre À venir ») : la carte pleine masquait toute la section
@@ -18072,7 +18085,7 @@
       corps = `${feteHtml}${liste}
         <div class="w-section dash-rappels-bloc">
           <h3 class="jour-carte-sous-titre">Mes rappels</h3>
-          <div class="rappels-perso" data-ajuster="${saisieRappel ? 0 : 2}"${saisieRappel ? ' data-garder' : ''}>${renderMesRappels(perimetreActifs)}</div>
+          <div class="rappels-perso" data-ajuster="${saisieRappel ? 0 : 2}"${saisieRappel ? ' data-garder' : ''}>${renderMesRappels(perimetreActifs, true)}</div>
         </div>
         ${aVenirHtml}`;
     }

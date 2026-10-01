@@ -14036,3 +14036,13 @@ serveur (le journal des Réglages reste vide). Ajouts : bouton « Essayer » par
 bloquée) pour séparer le côté CLAIRE du côté 3CX/navigateur ; consigne « autoriser les pop-up pour le site du
 client web 3CX » dans la pastille de la rubrique ; relève immédiate quand la fenêtre CLAIRE redevient visible
 (une fenêtre cachée longtemps n'est relevée qu'une fois par minute par Chrome). Non vérifié avec le vrai 3CX.
+
+### 01/10 — Rappels en cours toujours visibles dans « Aujourd'hui »
+
+Demande de l'étude : « remettre mes rappels en cours dans Aujourd'hui, visibles tant qu'ils ne sont pas cochés ».
+Sur la carte du tableau de bord, « Mes rappels » (priorité 2 d'`ajusterWidgets`) était masquée dès que les actions
+remplissaient la tuile. Les rappels dus (`rappelsDuJour` : échus, du jour ou sans date, non cochés) passent en tête
+de la liste « À faire » de la carte, marqués `w-fixe` (jamais masqués ; la carte défile au besoin), avec la case
+ronde et un crayon (`ouvrirEditionRappel`, formulaire sous « Mes rappels ») ; ceux cochés aujourd'hui vont après les
+actions (`renderRappelsJour(…, partie)`). « Mes rappels » de la carte n'y répète plus les rappels du jour
+(`renderMesRappels(…, sansDuJour)`) : restent ceux à venir et l'ajout. Fenêtre du matin : rappels en tête aussi.
