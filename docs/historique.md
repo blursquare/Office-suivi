@@ -14193,3 +14193,11 @@ le nom (aller au rendez-vous, comme avant) et l'icône `file-text` « Ouvrir la 
 (`ouvrirFicheDepuisRechercheAgenda` → `ouvrirDossierDepuisDashboard`). Vérifié dans Chromium (bureau et
 téléphone) : 6 rendez-vous → 1 avec « dupont », focus gardé pendant la frappe, l'icône ouvre le tiroir du
 dossier, « Tout afficher » rend les 6.
+
+### 01/10/2026 22 h 08 — Agenda : suppression d'un rendez-vous par une poubelle rouge
+
+Demande de l'étude : « Dans le rendez-vous pour supprimer juste une icône poubelle rouge ». Le bouton texte
+« Supprimer de l'agenda » du bas du détail (`renderPanneauDetailAgenda`) est retiré ; à sa place, une
+icône `trash` rouge (`button.icon-btn.ag-supprimer-ico`, `--urgent`, fond teinté au survol) dans
+`.ag-detail-outils`, entre le crayon et la croix. Même condition (`peutSupprimer`), même geste
+(`supprimerEvenementAgenda`) : la confirmation reste. Vérifié dans Chromium (clair, sombre, téléphone).

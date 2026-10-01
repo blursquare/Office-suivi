@@ -7576,6 +7576,9 @@ body.ag-redim-en-cours, body.ag-redim-en-cours * { cursor: ns-resize !important;
 .ag-modale-pied button.primary, .ag-modale-pied button.secondary { padding: 8px 14px; font-size: 13px; border-radius: 8px; }
 .ag-modale-pied-form { margin: 4px -20px -14px; }
 .ag-supprimer { color: var(--urgent); display: inline-flex; align-items: center; gap: 5px; }
+/* Suppression d'un rendez-vous (étude, 01/10) : une simple poubelle rouge à côté du crayon. */
+.ag-detail-outils button.icon-btn.ag-supprimer-ico { color: var(--urgent); }
+.ag-detail-outils button.icon-btn.ag-supprimer-ico:hover { color: var(--urgent); background: color-mix(in srgb, var(--urgent) 12%, transparent); }
 .ag-supprimer svg { width: 14px; height: 14px; }
 button.primary.ag-ouvrir-fiche { align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; font-size: 13px; border-radius: 8px; }
 .ag-detail-proba { border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; background: var(--paper-sunk); }

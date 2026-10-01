@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-01 22:06';
+  const VERSION_APP = '2026-10-01 22:08';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-01 22:08', resume: "Agenda : dans le détail d'un rendez-vous, « Supprimer de l'agenda » devient une simple poubelle rouge en haut, à côté du crayon. La confirmation avant suppression reste." },
     { version: '2026-10-01 22:06', resume: "Agenda : la recherche fonctionne comme sur le Suivi — taper un nom filtre l'agenda affiché (semaine, jour, mois et petit calendrier) ; le nombre de rendez-vous trouvés s'affiche sous la date, avec « Tout afficher » (ou Échap) pour revenir à tout l'agenda. Chaque dossier de la liste sous le champ porte une icône « fiche » qui ouvre directement sa fiche ; un clic sur son nom mène toujours à son rendez-vous." },
     { version: '2026-10-01 22:00', resume: "Agenda : le champ de recherche, à la place de l'ancien bouton « Actualiser » en haut à droite, prend l'aspect de celui du Suivi (grand champ arrondi avec la loupe, « Rechercher un dossier (vendeur, acquéreur)… »). « Actualiser » reste l'icône à côté de « Agenda de l'office lu … »." },
     { version: '2026-10-01 21:58', resume: "Agenda : le bouton « Nouveau rendez-vous » devient un bouton double — moitié « Nouveau rendez-vous », moitié « Proposer des dates ». La rubrique « Dates proposées » de la colonne de gauche n'apparaît plus que lorsqu'un sondage attend des réponses." },
@@ -20006,6 +20007,7 @@
           </div>
           <div class="ag-detail-outils">
             ${peutSupprimer && evenementModifiableAgenda(e) ? `<button type="button" class="icon-btn" onclick="ouvrirModificationAgenda('${escapeOnclickArg(cleEvenementAgenda(e))}')" aria-label="Modifier le rendez-vous" title="Modifier le titre, la date ou l’horaire${e.heure && !e.journeeEntiere ? ' — ou glisser le rendez-vous dans la grille' : ''}">${icone('pencil')}</button>` : ''}
+            ${peutSupprimer ? `<button type="button" class="icon-btn ag-supprimer-ico" onclick="supprimerEvenementAgenda('${escapeOnclickArg(cleEvenementAgenda(e))}')" aria-label="Supprimer le rendez-vous" title="Supprimer de l’agenda (après confirmation)">${icone('trash')}</button>` : ''}
             <button type="button" class="icon-btn" onclick="fermerModaleAgenda()" aria-label="Fermer le détail">${icone('x')}</button>
           </div>
         </div>
@@ -20022,7 +20024,6 @@
         ${blocProba}
         ${relation}
         ${!d && e.dossierNom ? `<p class="jour-vide">Dossier « ${escapeHtml(e.dossierNom)} » archivé ou introuvable dans CLAIRE.</p>` : ''}
-        ${peutSupprimer ? `<button type="button" class="lien-bouton ag-supprimer" onclick="supprimerEvenementAgenda('${escapeOnclickArg(cleEvenementAgenda(e))}')">${icone('trash')} Supprimer de l’agenda</button>` : ''}
       </section>`;
   }
 
