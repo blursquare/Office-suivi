@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-01 18:41';
+  const VERSION_APP = '2026-10-01 20:55';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,7 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
-    { version: '2026-10-01 18:41', resume: "Tableau de bord : bouton « Widgets » à côté de « Personnaliser », qui ouvre la liste de tous les widgets — ceux affichés avec « Retirer », ceux retirés avec « Ajouter », chacun décrit. En mode Personnaliser, la croix d'une carte la retire et « Ajouter un widget » rouvre la liste. Un widget retiré revient à sa taille d'avant. Choix propre à chaque collaborateur." },
+    { version: '2026-10-01 20:55', resume: "Tableau de bord : bouton « Widgets » à côté de « Personnaliser », qui ouvre la liste de tous les widgets — ceux affichés avec « Retirer », ceux retirés avec « Ajouter », chacun décrit. En mode Personnaliser, la croix d'une carte la retire et « Ajouter un widget » rouvre la liste. Un widget retiré revient à sa taille d'avant. Choix propre à chaque collaborateur." },
     { version: '2026-10-01 18:33', resume: "Téléphonie 3CX : l'adresse à coller dans 3CX utilise maintenant l'adresse du serveur sur le réseau du bureau (192.168.…), et non « localhost » quand les Réglages sont ouverts depuis la fenêtre CLAIRE du serveur — « localhost » ne mène au serveur que depuis ce poste. À recopier dans 3CX après la mise à jour." },
     { version: '2026-10-01 18:29', resume: "Aujourd'hui : vos rappels en cours (échus ou sans date) sont en tête de « À faire », avec leur case ronde, et restent toujours visibles sur la carte du tableau de bord tant qu'ils ne sont pas cochés, quelle que soit sa taille. Le crayon les modifie ; ceux à venir restent sous « Mes rappels »." },
     { version: '2026-10-01 18:16', resume: "Téléphonie 3CX : bouton « Essayer » dans Réglages › Rappels, qui simule un appel sur le poste choisi (le bandeau « Appel entrant » doit apparaître dans sa fenêtre CLAIRE). Si l'essai marche mais pas un vrai appel, autoriser les fenêtres pop-up pour le client web 3CX dans Chrome/Edge. La fenêtre CLAIRE relève aussi les appels dès qu'elle revient au premier plan." },
