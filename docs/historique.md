@@ -14129,3 +14129,10 @@ inconnue → non compté). Même règle pour les signatures. Les semaines de l'a
 `agenda-comparaison` portent désormais `regle: 'duree-1h'` (`REGLE_COMPTAGE_RENDEZ_VOUS`) ; une semaine
 comptée sous l'ancienne règle n'est plus montrée et est relue une fois dans Exchange (jamais deux
 règles comparées). Info-bulle de la comparaison mise à jour.
+
+### 01/10/2026 21 h 48 — Petit calendrier de l'agenda : le rond ne recouvre plus le point
+
+Signalé par l'étude : « le rond noir déborde sur le petit point ». Mesuré dans Chromium : le point des
+rendez-vous (`.ag-mois-points`, `margin-top: -3px`) entrait de 2 px dans le rond du jour (28 px). Rond
+ramené à 26 px, marge négative retirée, écart de 3 px (`gap`) : point 3 px sous le rond, mesuré en clair,
+sombre et téléphone, toujours dans la case du jour (36 px).

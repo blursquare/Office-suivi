@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-01 21:45';
+  const VERSION_APP = '2026-10-01 21:48';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-01 21:48', resume: "Agenda : dans le petit calendrier du mois, le rond du jour choisi ne recouvre plus le point qui signale les rendez-vous — le point est posé juste en dessous." },
     { version: '2026-10-01 21:45', resume: "Agenda : la comparaison avec l'an dernier ne compte plus que les rendez-vous d'une heure ou plus (les points de 30 ou 45 minutes ne sont plus comptés). Les semaines de l'an dernier déjà comptées sont relues une fois sous cette règle." },
     { version: '2026-10-01 21:42', resume: "Tableau de bord : le widget Agenda est relié à l'agenda partagé de l'office (calendrier de Sophie) — tous les rendez-vous du jour avec leur couleur Outlook (signatures, rendez-vous, absences, dates butoir), les signatures de CLAIRE pas encore dans Outlook en pointillé, puis les prochains rendez-vous. Un clic sur un rendez-vous ouvre la page Agenda à son jour, détail affiché ; l'icône calendrier ouvre l'agenda. Semaines précédente et suivantes (jusqu'à 8) consultables." },
     { version: '2026-10-01 21:36', resume: "Barre latérale : le liseré qui relie les outils à « Outils » est de retour quand le tiroir est ouvert." },

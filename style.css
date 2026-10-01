@@ -7446,15 +7446,16 @@ body.ag-redim-en-cours, body.ag-redim-en-cours * { cursor: ns-resize !important;
 .ag-mois-jsem { font-size: 11.5px; font-weight: 600; color: var(--ink-soft); text-align: center; padding-bottom: 4px; }
 .ag-mois-jour {
   font-family: inherit; font-size: 13px; color: var(--ink); background: none; border: none; border-radius: 999px; cursor: pointer;
-  height: 36px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; font-variant-numeric: tabular-nums; padding: 0;
+  height: 36px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; font-variant-numeric: tabular-nums; padding: 0;
 }
-.ag-mois-n { width: 28px; height: 28px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; }
+/* Rond du jour (26 px) et point des rendez-vous dessous, 3 px plus bas : le point ne touche jamais le rond. */
+.ag-mois-n { width: 26px; height: 26px; flex: 0 0 auto; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; }
 .ag-mois-jour:hover .ag-mois-n { background: var(--paper-sunk); }
 .ag-mois-jour.hors-mois { color: var(--muted); }
 .ag-mois-jour.dans-semaine .ag-mois-n { background: var(--paper-sunk); }
 .ag-mois-jour.aujourdhui .ag-mois-n { box-shadow: inset 0 0 0 1.5px var(--focus); font-weight: 700; }
 .ag-mois-jour.choisi .ag-mois-n { background: var(--ink); color: var(--paper-card); font-weight: 700; box-shadow: none; }
-.ag-mois-points { height: 4px; display: flex; margin-top: -3px; }
+.ag-mois-points { height: 4px; flex: 0 0 auto; display: flex; }
 .ag-mois-points i { width: 4px; height: 4px; border-radius: 999px; background: var(--muted); }
 .ag-mois-points i.sig { background: var(--acte); }
 /* Détail d'un rendez-vous en fenêtre posée sur l'agenda, à côté du rendez-vous cliqué. */
