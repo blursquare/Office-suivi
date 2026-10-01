@@ -13966,3 +13966,12 @@ des années entières relues à chaque tour de 2 min seraient lourdes pour Excha
   barre de navigation. Vérifié dans Chromium (semaine du 6 janvier 2026, détail et notes, clair et sombre).
 - La comparaison avec l'an dernier ne s'affiche que sur les semaines du stock (cette semaine-là comptée
   depuis le stock).
+
+
+### 01/10/2026 17 h 48 — Colonne de l'agenda réordonnée
+
+Demande de l'étude : « place Proposer des dates sous la vue mensuelle du mois dans la sidebar de l'agenda.
+Supprime Signatures de la semaine. » Colonne de gauche : calendrier du mois, « Dates proposées »
+(`renderSondagesSansDossierAgenda`, sorti de `renderAnticipationsAgenda`), « Rendez-vous à placer », « Relation
+client ». Le bloc « Signatures de la semaine/du mois/du jour » est retiré ; `probabiliteTenueSignature` reste
+dans le détail d'un rendez-vous et les cartes fantômes.

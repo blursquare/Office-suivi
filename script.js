@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-01 17:47';
+  const VERSION_APP = '2026-10-01 17:48';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-01 17:48', resume: "Agenda : dans la colonne de gauche, « Dates proposées » passe juste sous le calendrier du mois, et « Signatures de la semaine » est retiré (la probabilité de tenue reste dans le détail de chaque rendez-vous)." },
     { version: '2026-10-01 17:47', resume: "Agenda : l'historique — on peut remonter au 1er janvier et au-delà, toutes les années. Les rendez-vous passés sont lus dans Outlook mois par mois à la première consultation, puis gardés (pas de relecture ensuite) ; détail et notes consultables, sans modification. Nouveau : « Aller à une date » à côté de « Aujourd'hui »." },
     { version: '2026-10-01 17:44', resume: "Tableau de bord, carte « Aujourd'hui » : « Ajouter un rappel » ouvre bien le formulaire — sur une carte pleine, toute la section « Mes rappels » était masquée et « À venir » s'affichait à sa place. Le formulaire passe maintenant en premier, « À venir » se retire le temps de la saisie." },
     { version: '2026-10-01 17:40', resume: "Claire Scan : « Ranger » et « Laisser dans Scan » ne font plus attendre — le scan quitte la liste dès la réponse du serveur, la relecture du dossier du copieur se fait ensuite en arrière-plan ; et cette relecture est bien plus rapide (l'historique du copieur n'est plus interrogé à chaque fois, le reste est lu en parallèle)." },
@@ -19375,21 +19376,8 @@
     const global = vueGlobaleDashboard();
     const perimetre = dossiersDuPerimetre(dossiers, utilisateurPoste, global);
     const jours = joursAffichesAgenda();
-    // Signatures de la semaine affichée, de la moins probable à la plus probable.
-    const signatures = perimetre.filter(d => !d.archive && jours.indexOf(d.rendezVousSignature) !== -1)
-      .map(d => ({ d, p: probabiliteTenueSignature(d, auj, absencesOffice) }))
-      .filter(x => x.p).sort((a, b) => a.p.pourcent - b.p.pourcent);
-    const blocSignatures = `<section class="ag-anticipe">
-        <h3 class="jour-section-titre">Signatures ${agendaVue === 'mois' ? 'du mois' : agendaVue === 'jour' ? 'du jour' : 'de la semaine'} ${infoBulle('Probabilité que chaque rendez-vous soit maintenu à sa date : 97 % moins les points de ce qui reste à faire (financement, préemption, pièces, envois, fonds, absence du collaborateur), d’autant plus que la date approche. Indicatif, sans IA : le détail est dans chaque rendez-vous.')}</h3>
-        ${signatures.length ? `<ul class="ag-liste">${signatures.map(({ d, p }) => {
-          const reste = p.facteurs.filter(x => !x.ok);
-          return `<li><button type="button" class="ag-ligne" onclick="ouvrirDetailDossierAgenda('${d.id}')">
-              ${renderPastilleProbabilite(p)}
-              <span class="ag-ligne-texte"><b>${escapeHtml(libelleDossierAffiche(d))}</b>
-              <span>${escapeHtml(new Date(d.rendezVousSignature + 'T00:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric' }))}${d.rendezVousSignatureHeure ? ' · ' + escapeHtml(d.rendezVousSignatureHeure) : ''}${reste.length ? ' · ' + escapeHtml(reste[0].libelle) : ''}</span></span>
-            </button></li>`;
-        }).join('')}</ul>` : `<p class="jour-vide">Aucune signature ${agendaVue === 'mois' ? 'ce mois-ci' : agendaVue === 'jour' ? 'ce jour-là' : 'cette semaine'}.</p>`}
-      </section>`;
+    // « Signatures de la semaine » retiré à la demande de l'étude (01/10) ; la probabilité de tenue reste
+    // dans le détail de chaque rendez-vous.
     // Dossiers sans rendez-vous, par semaine probable de signature (au plus tôt) : un clic affiche
     // cette semaine, carte fantôme ouverte. Ceux qui sont prêts à signer gardent trois créneaux libres.
     const prets = dossiersAPlacer(perimetre).map(d => d.id);
@@ -19422,7 +19410,7 @@
         <h3 class="jour-section-titre">Relation client${gestes.length ? ` <span class="jour-onglet-nb">${gestes.length}</span>` : ''} ${infoBulle('Emails prêts à envoyer au bon moment : confirmation du rendez-vous dès qu’il est fixé, rappel trois jours avant, questionnaire de satisfaction après la signature, un mot un an après. Au client d’un confrère, les emails du rendez-vous vont au confrère ; ni questionnaire ni mot d’anniversaire.')}</h3>
         ${gestes.length ? gestes.map(g => renderGesteRelationClient(g)).join('') : '<p class="jour-vide">Rien à envoyer aujourd’hui.</p>'}
       </section>`;
-    return blocSignatures + blocPlacer + renderSondagesSansDossierAgenda() + blocRelation;
+    return blocPlacer + blocRelation;
   }
 
   // « Dates proposées » : les sondages sans dossier en cours (ceux d'un dossier vivent sur sa fiche),
@@ -19573,6 +19561,7 @@
         <div class="ag-page-corps">
           <aside class="ag-cote">
             ${renderMoisAgenda()}
+            ${renderSondagesSansDossierAgenda()}
             ${renderAnticipationsAgenda()}
           </aside>
           <div class="ag-principal">
