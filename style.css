@@ -806,15 +806,16 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-width: 18px;
-    height: 18px;
-    padding: 0 5px;
-    border-radius: 999px;
+    min-width: 24px;
+    height: 22px;
+    padding: 0 6px;
+    border-radius: 7px;
     background: var(--notif-nouveau);
     color: var(--on-accent);
-    font-size: 11px;
+    font-size: 11.5px;
     font-weight: 700;
     line-height: 1;
+    font-variant-numeric: tabular-nums;
   }
   /* Barre repliée (le nombre est masqué) et bouton du menu sur téléphone : un point de la même
      couleur signale qu'une pastille est allumée (majBadgeScans / majPastilleMenuMobile). */
@@ -851,8 +852,9 @@
   .sidebar-scan-icone { display: inline-flex; font-size: 20px; }
   .sidebar-scan-pastille {
     position: absolute; top: -7px; right: -8px; display: inline-flex; align-items: center; justify-content: center;
-    min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; background: var(--notif-nouveau);
+    min-width: 22px; height: 20px; padding: 0 5px; border-radius: 6px; background: var(--notif-nouveau);
     color: var(--on-accent); font-size: 11px; font-weight: 700; line-height: 1; box-shadow: 0 0 0 2px var(--sidebar-bg);
+    font-variant-numeric: tabular-nums;
   }
   .sidebar-burger, .sidebar-scrim { display: none; }
 
@@ -7739,3 +7741,54 @@ button.secondary.widgets-galerie-retirer svg { width: 13px; height: 13px; }
   .widgets-galerie-ligne { grid-template-columns: auto minmax(0, 1fr); }
   .widgets-galerie-ligne > button { grid-column: 1 / -1; justify-self: end; }
 }
+
+
+/* ---- Barre latérale sans titres de section (étude, 01/10, sur un exemple) : « Outils » est un lien
+   vers la page des outils, le + à sa droite ouvre le tiroir ; dans le tiroir, les outils sans icône,
+   alignés sur le texte des liens. ---- */
+.sidebar-outils-ligne { display: flex; align-items: center; gap: 2px; }
+.sidebar-outils-ligne #tab-outils { flex: 1 1 auto; min-width: 0; }
+button.sidebar-outils-plus {
+  display: inline-flex; align-items: center; justify-content: center; flex: none;
+  width: 32px; height: 32px; margin-right: 2px; padding: 0; border: none; border-radius: 8px;
+  background: none; color: var(--muted); font-size: 16px; cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+button.sidebar-outils-plus:hover, button.sidebar-outils-plus[aria-expanded="true"] { background: var(--paper-sunk); color: var(--ink); }
+button.sidebar-outils-plus:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+/* Un outil ouvert, tiroir fermé : le lien « Outils » le signale. */
+.sidebar-outils-ligne:has(+ .sidebar-sousmenu.ferme .actif) #tab-outils {
+  background: var(--sidebar-actif-bg); color: var(--ink); box-shadow: inset 3px 0 0 var(--focus);
+}
+.sidebar-sousmenu:not(.volet-ouvert) { margin-left: 0; padding-left: 0; }
+.sidebar-sousmenu:not(.volet-ouvert)::before,
+.sidebar-sousmenu:not(.volet-ouvert) .sidebar-sousmenu-item::before { display: none; }
+.sidebar-sousmenu:not(.volet-ouvert) .sidebar-sousmenu-item { padding-left: 41px; }
+.sidebar-sousmenu:not(.volet-ouvert) .sidebar-sousmenu-item .sidebar-link-icone { display: none; }
+@media (min-width: 901px) {
+  .sidebar.repliee button.sidebar-outils-plus { display: none; }
+  .sidebar.repliee .sidebar-sousmenu:not(.volet-ouvert) { display: none; }
+  .sidebar.repliee .sidebar-outils-ligne:has(+ .sidebar-sousmenu .actif) #tab-outils,
+  .sidebar.repliee #tab-outils.volet-ouvert { background: var(--sidebar-actif-bg); color: var(--ink); }
+  .sidebar.repliee .sidebar-outils-ligne:has(+ .sidebar-sousmenu .actif) #tab-outils { box-shadow: inset 3px 0 0 var(--focus); }
+}
+
+/* ---- Page Outils : une tuile par outil, grosse icône ---- */
+.outils-grille { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 16px; margin-top: 8px; }
+.outils-grille > * { min-width: 0; }
+button.outil-tuile {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 8px; text-align: left;
+  padding: 22px 20px 20px; border: 1px solid var(--line); border-radius: 16px; background: var(--paper-card);
+  color: var(--ink); font-family: inherit; cursor: pointer; box-shadow: var(--shadow-card);
+  transition: border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+}
+button.outil-tuile:hover { border-color: var(--focus); transform: translateY(-2px); box-shadow: var(--shadow-float); }
+button.outil-tuile:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.outil-tuile-icone {
+  display: inline-flex; align-items: center; justify-content: center; width: 60px; height: 60px; margin-bottom: 6px;
+  border-radius: 16px; background: color-mix(in srgb, var(--focus) 12%, var(--paper-card)); color: var(--focus); font-size: 28px;
+}
+.outil-tuile-titre { font-size: 16px; font-weight: 700; }
+.outil-tuile-texte { font-size: 13px; line-height: 1.4; color: var(--ink-soft); }
+@media (prefers-reduced-motion: reduce) { button.outil-tuile { transition: none; } button.outil-tuile:hover { transform: none; } }
+@media (max-width: 480px) { .outils-grille { grid-template-columns: 1fr 1fr; gap: 10px; } button.outil-tuile { padding: 16px 14px; } .outil-tuile-icone { width: 48px; height: 48px; font-size: 22px; } }

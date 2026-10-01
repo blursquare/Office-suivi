@@ -14084,3 +14084,16 @@ dernier tour) · Agenda et Outlook (connexion, lecture, section « Sondages de c
 poste » : notification d'une nouvelle pièce, puis Claire Scan, Fichiers écartés) · Relecture d'actes ·
 Signalements · Mise à jour et sauvegarde. Aucun identifiant de champ changé ; messages qui citaient l'ancienne
 rubrique mis à jour.
+
+### 01/10 — Barre latérale épurée, page Outils
+
+Demande de l'étude, sur un exemple (Products / Analytics / … / Posts + avec Drafts 10, Scheduled 2) : « retire les
+titres et garde juste les liens vers les pages ; la forme des notif et le + pour outils ; Outils n'est plus un
+titre et ouvre une page avec de gros icônes, mais laisse la possibilité d'ouvrir aussi le tiroir ». Fait : titres
+« Dossier » et « Admin » retirés ; « Outils » devient un lien (`#tab-outils`, onglet `outils`, page
+`#onglet-outils`, tuiles `renderPageOutils` depuis `OUTILS_PAGE` : icône 60 px, titre, une phrase) ; le + à sa
+droite (`#sidebar-groupe-outils`, devient − une fois ouvert) déplie le tiroir dans la barre, outils sans icône ni
+arborescence, alignés sur le texte des liens ; tiroir fermé avec un outil ouvert → « Outils » surligné. Barre
+repliée : le + disparaît, le survol de l'icône Outils ouvre le volet flottant (ancré désormais sur `#tab-outils`),
+le clic ouvre la page. Compteurs (`.sidebar-badge-notif`, pastille de Claire Scan) : carré arrondi (7 px) au lieu
+de la pilule, rouge gardé (choix antérieur de l'étude).

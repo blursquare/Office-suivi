@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-01 21:08';
+  const VERSION_APP = '2026-10-01 21:31';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-01 21:31', resume: "Barre latérale épurée : plus de titres de section, seulement les liens vers les pages. « Outils » ouvre une page où chaque outil a sa grosse icône et une phrase ; le + à sa droite déplie les outils dans la barre (barre repliée : survol de l'icône, comme avant). Les compteurs (pièces, signalements, scans) prennent une forme carrée aux coins arrondis." },
     { version: '2026-10-01 21:08', resume: "Réglages réorganisés, une rubrique par sujet : Général, Collaborateurs (adresse et fonction de chacun, avec son propre bouton Enregistrer), Signature des emails, Rappels Teams (envoi Gmail et dernier tour), Agenda et Outlook (connexion, lecture, et une section Sondages de créneaux), Téléphonie 3CX (rubrique à part), Pièces et Claire Scan (la notification d'une nouvelle pièce y est rangée), Relecture d'actes, Signalements, Mise à jour et sauvegarde." },
     { version: '2026-10-01 20:55', resume: "Tableau de bord : bouton « Widgets » à côté de « Personnaliser », qui ouvre la liste de tous les widgets — ceux affichés avec « Retirer », ceux retirés avec « Ajouter », chacun décrit. En mode Personnaliser, la croix d'une carte la retire et « Ajouter un widget » rouvre la liste. Un widget retiré revient à sa taille d'avant. Choix propre à chaque collaborateur." },
     { version: '2026-10-01 18:33', resume: "Téléphonie 3CX : l'adresse à coller dans 3CX utilise maintenant l'adresse du serveur sur le réseau du bureau (192.168.…), et non « localhost » quand les Réglages sont ouverts depuis la fenêtre CLAIRE du serveur — « localhost » ne mène au serveur que depuis ce poste. À recopier dans 3CX après la mise à jour." },
@@ -14740,9 +14741,14 @@
     if (!reduite) fermerVoletOutils(0);
     masquerInfobulleSidebar();
     const chevronGroupe = document.getElementById('icon-groupe-outils-chevron');
-    if (chevronGroupe) chevronGroupe.innerHTML = icone(ouvert ? 'chevron-up' : 'chevron-down');
+    if (chevronGroupe) chevronGroupe.innerHTML = icone(ouvert ? 'minus' : 'plus');
     const btnGroupe = document.getElementById('sidebar-groupe-outils');
-    if (btnGroupe) btnGroupe.setAttribute('aria-expanded', String(ouvert));
+    if (btnGroupe) {
+      btnGroupe.setAttribute('aria-expanded', String(ouvert));
+      const lib = ouvert ? 'Refermer les outils dans la barre' : 'Afficher les outils dans la barre';
+      btnGroupe.title = lib;
+      btnGroupe.setAttribute('aria-label', lib);
+    }
     const choix = document.getElementById('reglages-sidebar-demarrage');
     if (choix) choix.value = sidebarDemarrage();
   }
@@ -14780,7 +14786,8 @@
 
   let voletOutilsMinuteur = null;
   function ouvrirVoletOutils() {
-    const titre = document.getElementById('sidebar-groupe-outils');
+    // Ancré sur le lien « Outils » (le + est masqué quand la barre est repliée).
+    const titre = document.getElementById('tab-outils');
     const menu = document.getElementById('sidebar-sousmenu-outils');
     const sidebar = document.getElementById('sidebar');
     if (!titre || !menu || !sidebarReduiteBureau()) return;
@@ -14797,7 +14804,6 @@
     const top = dessous + h + 12 <= window.innerHeight ? dessous : Math.max(12, r.top - 8 - h);
     menu.style.left = `${Math.round(r.left)}px`;
     menu.style.top = `${Math.round(top)}px`;
-    titre.setAttribute('aria-expanded', 'true');
     afficherInfobulleSidebar(titre);
   }
 
@@ -14808,10 +14814,9 @@
       const sidebar = document.getElementById('sidebar');
       if (menu) { menu.classList.remove('volet-ouvert'); menu.style.left = ''; menu.style.top = ''; }
       if (sidebar) sidebar.classList.remove('volet-ouvert');
-      const titre = document.getElementById('sidebar-groupe-outils');
+      const titre = document.getElementById('tab-outils');
       if (titre) titre.classList.remove('volet-ouvert');
       masquerInfobulleSidebar();
-      if (titre) titre.setAttribute('aria-expanded', String(groupeOutilsOuvert()));
     };
     if (delai) voletOutilsMinuteur = setTimeout(fermer, delai); else fermer();
   }
@@ -14868,17 +14873,17 @@
     const survol = (e) => {
       const el = cible(e);
       if (!el) return;
-      if (el.id === 'sidebar-groupe-outils') { ouvrirVoletOutils(); return; }
+      if (el.id === 'tab-outils') { ouvrirVoletOutils(); return; }
       afficherInfobulleSidebar(el);
     };
     sidebar.addEventListener('mouseover', survol);
-    sidebar.addEventListener('focusin', (e) => { const el = cible(e); if (el && el.id !== 'sidebar-groupe-outils') afficherInfobulleSidebar(el); });
+    sidebar.addEventListener('focusin', (e) => { const el = cible(e); if (el && el.id !== 'tab-outils') afficherInfobulleSidebar(el); });
     sidebar.addEventListener('mouseout', (e) => {
       const el = e.target.closest && e.target.closest('.sidebar-link, .sidebar-scan-bannette, .sidebar-icon-btn, .sidebar-groupe-titre');
       // Le nom de l'icône Outils reste affiché tant que son volet est ouvert.
-      const voletOuvert = el && el.id === 'sidebar-groupe-outils' && el.classList.contains('volet-ouvert');
+      const voletOuvert = el && el.id === 'tab-outils' && el.classList.contains('volet-ouvert');
       if (el && !voletOuvert && !(e.relatedTarget && el.contains(e.relatedTarget))) masquerInfobulleSidebar();
-      const titre = document.getElementById('sidebar-groupe-outils');
+      const titre = document.getElementById('tab-outils');
       const menu = document.getElementById('sidebar-sousmenu-outils');
       const vers = e.relatedTarget;
       if (menu && menu.classList.contains('volet-ouvert') && !(vers && (menu.contains(vers) || (titre && titre.contains(vers))))) {
@@ -14895,7 +14900,7 @@
     }
     document.addEventListener('click', (e) => {
       const m = document.getElementById('sidebar-sousmenu-outils');
-      if (m && m.classList.contains('volet-ouvert') && !e.target.closest('#sidebar-sousmenu-outils, #sidebar-groupe-outils')) fermerVoletOutils(0);
+      if (m && m.classList.contains('volet-ouvert') && !e.target.closest('#sidebar-sousmenu-outils, #tab-outils')) fermerVoletOutils(0);
     });
     document.addEventListener('keydown', (e) => {
       const m = document.getElementById('sidebar-sousmenu-outils');
@@ -14904,13 +14909,34 @@
     window.addEventListener('resize', () => { masquerInfobulleSidebar(); fermerVoletOutils(0); });
   }
 
+  // ---- Page Outils (étude, 01/10) : chaque outil en grosse icône, avec ce qu'il fait. ----
+  var OUTILS_PAGE = [
+    { onglet: 'appel-fonds', titre: 'Appel de fonds', icone: 'mail', description: 'Le courrier de convocation et le décompte des sommes à virer.' },
+    { onglet: 'calculateur', titre: 'Simulateur de provision', icone: 'banknote', description: 'Une estimation des frais d’acte à demander.' },
+    { onglet: 'prorata', titre: 'Prorata & répartitions', icone: 'part-disque', description: 'Taxe foncière, charges de copropriété, loyers au jour de l’acte.' },
+    { onglet: 'quotites', titre: 'Quotités d’acquisition', icone: 'users', description: 'La part de chaque acquéreur et l’annexe des quotités.' },
+    { onglet: 'inventaire', titre: 'Arbitrage forfait mobilier', icone: 'scale', description: 'Forfait de 5 % ou prisée d’un commissaire de justice.' },
+    { onglet: 'confreres', titre: 'Répertoire', icone: 'book', description: 'Les offices du département et les interlocuteurs de l’étude.' }
+  ];
+
+  function renderPageOutils() {
+    const grille = document.getElementById('outils-grille');
+    if (!grille) return;
+    grille.innerHTML = OUTILS_PAGE.map(o => `
+      <button type="button" class="outil-tuile" onclick="definirOnglet('${o.onglet}')">
+        <span class="outil-tuile-icone" aria-hidden="true">${icone(o.icone)}</span>
+        <span class="outil-tuile-titre">${escapeHtml(o.titre)}</span>
+        <span class="outil-tuile-texte">${escapeHtml(o.description)}</span>
+      </button>`).join('');
+  }
+
   // Écran affiché, joint au contexte d'un signalement de problème (voir contexteSignalement).
   var ongletActuel = 'dashboard';
   var LIBELLES_ONGLETS = {
     dashboard: 'Tableau de bord', nouveau: 'Nouveau dossier', suivi: 'Suivi des dossiers',
     calculateur: 'Simulateur de provision', prorata: 'Prorata & répartitions', 'appel-fonds': 'Appel de fonds',
     scans: 'Claire Scan', inventaire: 'Arbitrage forfait mobilier', quotites: "Quotités d'acquisition", confreres: 'Répertoire', 'analyse-ia': "Relecture d'actes",
-    reglages: 'Réglages'
+    reglages: 'Réglages', outils: 'Outils'
   };
 
   function definirOnglet(nom) {
@@ -14932,6 +14958,10 @@
     document.getElementById('onglet-confreres').style.display = nom === 'confreres' ? '' : 'none';
     document.getElementById('onglet-analyse-ia').style.display = nom === 'analyse-ia' ? '' : 'none';
     document.getElementById('onglet-reglages').style.display = nom === 'reglages' ? '' : 'none';
+    document.getElementById('onglet-outils').style.display = nom === 'outils' ? '' : 'none';
+    document.getElementById('tab-outils').setAttribute('aria-selected', String(nom === 'outils'));
+    document.getElementById('tab-outils').classList.toggle('actif', nom === 'outils');
+    if (nom === 'outils') renderPageOutils();
     document.getElementById('tab-dashboard').setAttribute('aria-selected', String(nom === 'dashboard'));
     document.getElementById('tab-suivi').setAttribute('aria-selected', String(nom === 'suivi'));
     document.getElementById('tab-agenda').setAttribute('aria-selected', String(nom === 'agenda'));

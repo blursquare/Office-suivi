@@ -71,7 +71,6 @@
         <span class="sidebar-link-icone" id="icon-nav-agenda" aria-hidden="true"></span>Agenda
       </button>
 
-      <span class="sidebar-nav-titre">Dossier</span>
       <button type="button" id="tab-suivi" class="sidebar-link" role="tab" aria-selected="false" onclick="definirOnglet('suivi')">
         <span class="sidebar-link-icone" id="icon-nav-suivi" aria-hidden="true"></span>Suivi des dossiers
         <!-- Compteur de pièces reçues pas encore vues (voir majBadgeNotificationsSidebar/
@@ -85,17 +84,17 @@
         <span class="sidebar-link-icone" id="icon-nav-analyse-ia" aria-hidden="true"></span>Relecture d'actes<span class="stade-badge stade-badge-nav" title="Alpha : outil encore en test, à utiliser avec le mode commentaires.">Alpha</span>
       </button>
 
-      <!-- Groupe repliable (chevron + trait de connexion vers ses sous-items, sur le modèle fourni
-           par l'étude) — demandé pour "Outils" spécifiquement, pas pour les autres catégories.
-           toggleGroupeSidebar('outils') bascule #sidebar-sousmenu-outils ; l'état (ouvert/fermé)
-           est retenu par poste, mais toujours forcé ouvert quand la sidebar elle-même est réduite
-           en icônes (voir appliquerEtatSidebar) — sans quoi ces cinq outils disparaîtraient sans
-           qu'aucun libellé ne reste pour les rouvrir. -->
-      <button type="button" class="sidebar-groupe-titre" id="sidebar-groupe-outils" aria-expanded="true" aria-controls="sidebar-sousmenu-outils" onclick="toggleGroupeSidebar('outils')">
-        <span class="sidebar-link-icone" id="icon-nav-outils-groupe" aria-hidden="true"></span>
-        <span class="sidebar-groupe-label">Outils</span>
-        <span class="sidebar-groupe-chevron" id="icon-groupe-outils-chevron" aria-hidden="true"></span>
-      </button>
+      <!-- Outils (étude, 01/10, sur un exemple de barre sans titres de section) : « Outils » est un lien
+           vers la page des outils en grosses icônes ; le + à sa droite ouvre le tiroir des outils dans
+           la barre (toggleGroupeSidebar). Barre repliée : le survol de l'icône ouvre le tiroir en volet. -->
+      <div class="sidebar-outils-ligne">
+        <button type="button" id="tab-outils" class="sidebar-link" role="tab" aria-selected="false" onclick="definirOnglet('outils')">
+          <span class="sidebar-link-icone" id="icon-nav-outils-groupe" aria-hidden="true"></span>Outils
+        </button>
+        <button type="button" class="sidebar-outils-plus" id="sidebar-groupe-outils" aria-expanded="false" aria-controls="sidebar-sousmenu-outils" onclick="toggleGroupeSidebar('outils')" title="Afficher les outils dans la barre" aria-label="Afficher les outils dans la barre">
+          <span id="icon-groupe-outils-chevron" aria-hidden="true"></span>
+        </button>
+      </div>
       <div class="sidebar-sousmenu" id="sidebar-sousmenu-outils">
         <button type="button" id="tab-calculateur" class="sidebar-link sidebar-sousmenu-item" role="tab" aria-selected="false" onclick="definirOnglet('calculateur')">
           <span class="sidebar-link-icone" id="icon-nav-calculateur" aria-hidden="true"></span>Simulateur de provision
@@ -128,7 +127,6 @@
         </button>
       </div>
 
-      <span class="sidebar-nav-titre">Admin</span>
       <!-- Réglages de l'étude (URL du flux Power Automate + adresse email de chaque collaborateur) :
            une donnée métier que l'étude doit pouvoir modifier elle-même, sans passer par un fichier
            de configuration ni redemander à Claude Code — voir server/src/parametresRepo.js. -->
@@ -1461,6 +1459,16 @@
       <button type="button" class="secondary" onclick="viderAnalyseIa()">Nouvelle relecture</button>
     </div>
   </section>
+</div>
+
+<!-- Page Outils (étude, 01/10) : chaque outil en grosse icône (renderPageOutils, OUTILS_PAGE). -->
+<div class="onglet-panel" id="onglet-outils" style="display:none;">
+  <div class="dash-header">
+    <div>
+      <h1 class="dash-titre">Outils</h1>
+    </div>
+  </div>
+  <div class="outils-grille" id="outils-grille"></div>
 </div>
 
 <!-- Répertoire (étude, 30/09) — voir renderCarnetConfreres (script.js). Thème « Confrères » = le

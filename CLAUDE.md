@@ -456,6 +456,9 @@ Plainte principale de l'étude : **le bruit**, pas les oublis — ne pas élargi
   de « À faire », même titre et même verbe qu'elle pour le même geste) ; tout « Ajouter … » est un
   `button.bouton-ajout` ; l'édition d'une donnée passe par des icônes (crayon, ✓, ×) ; seuls les
   formulaires gardent des boutons classiques.
+  **Barre latérale** (01/10) : pas de titres de section, des liens seulement ; « Outils » = page à grosses
+  icônes (`OUTILS_PAGE`, `renderPageOutils`) — tout nouvel outil y est ajouté ET dans le tiroir
+  (`#sidebar-sousmenu-outils`, ouvert par le + `#sidebar-groupe-outils`) ; compteurs en carré arrondi rouge.
 - **Nom d'un dossier cité (étude, 30/09)** : partout (écrans, cartes, toasts, journaux, Teams), toujours
   par `libelleDossierAffiche(d)` — « VTE - NOM », « SUCC - NOM » pour une succession — ou
   `libelleDossierParNom(nom, id)` quand seul le nom a été gardé ; jamais `d.nom` brut à l'écran.
