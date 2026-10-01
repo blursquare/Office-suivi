@@ -282,7 +282,7 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
   pas un état daté (checklist corrigée le même jour).
 - **Page Agenda** (30/09, `renderPageAgenda`, **à la manière d'Outlook** — étude, 30/09 au soir : « plus
   professionnel, pour ne pas dépayser les collaborateurs » ; lien juste sous le tableau de bord) : une carte,
-  en tête pastille du jour, date, ‹ Aujourd'hui ›, liste Vue mois/semaine/jour, « Nouveau rendez-vous » ;
+  en tête tuile du jour (étude 01/10, d'après « Wed. » : « Jeu » blanc + point orange `--cat-orange` sur dégradé de `--accent-clair`, « Oct » en vue Mois — `motPastilleAgenda`, `.ag-pastille-jour`), date, ‹ Aujourd'hui ›, liste Vue mois/semaine/jour, « Nouveau rendez-vous » ;
   Semaine (lundi → samedi, **8 h – 19 h**, `AGENDA_HEURE_DEBUT/FIN`, étude 01/10 ; 60 px l'heure, `AGENDA_PX_HEURE` = `--ag-heure`) · Jour · Mois (`agendaVue`, `agendaJour` ; Jour par défaut sur
   téléphone), en-têtes « Lundi / 28 sept. 2026 », colonne du jour teintée, trait de l'heure ; rendez-vous =
   liseré gauche + fond clair de la couleur Outlook, heure de début, de fin et durée (`dureeRendezVous`) ;

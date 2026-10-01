@@ -7251,6 +7251,15 @@ button.scan-nom:focus-visible { outline: 2px solid var(--focus); outline-offset:
 .ajd-autre { --ag-teinte: var(--ventebien); }
 .ag-page { background: var(--paper-card); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow-card); overflow: hidden; }
 .ag-tete-page { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 14px; padding: 16px 18px; border-bottom: 1px solid var(--line); }
+/* Tuile du jour (étude, 01/10, d'après « Wed. ») : « Jeu » en blanc sur le bordeaux de l'étude en dégradé,
+   le point final en orange. Mêmes couleurs dans les deux thèmes : c'est une marque, pas une surface. */
+.ag-pastille-jour {
+  flex: none; display: inline-flex; align-items: baseline; justify-content: center; min-width: 74px; height: 54px; padding: 0 12px;
+  border-radius: 12px; color: #FFFFFF; font-size: 27px; font-weight: 800; letter-spacing: -0.02em; line-height: 54px;
+  background: radial-gradient(120% 140% at 70% 0%, color-mix(in srgb, var(--accent-clair) 82%, #FFFFFF) 0%, var(--accent-clair) 45%, color-mix(in srgb, var(--accent-clair) 55%, #000000) 100%);
+  box-shadow: 0 1px 2px rgba(20, 26, 38, 0.12);
+}
+.ag-pastille-jour i { width: 8px; height: 8px; margin-left: 2px; border-radius: 50%; background: var(--cat-orange); align-self: baseline; transform: translateY(-1px); }
 .ag-pastille-date {
   width: 54px; flex: none; border-radius: 10px; overflow: hidden; border: 1px solid var(--line); background: var(--paper-card);
   display: flex; flex-direction: column; align-items: center; box-shadow: 0 1px 2px rgba(20, 26, 38, 0.08);

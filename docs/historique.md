@@ -14253,3 +14253,12 @@ Demande de l'étude : « quand un dossier est déjà relié à Claire, ne pas af
 est relié à un dossier (`dossierDeEvenement(e)`) : ce Lieu n'y porte que les initiales du responsable
 et la note « Appel de fonds (et projet) envoyé », déjà montrés par « Responsable » et les états. Le Lieu
 reste écrit dans Outlook et affiché pour les rendez-vous sans dossier. Vérifié dans Chromium.
+
+### 01/10/2026 22 h 53 — Agenda : tuile « Jeu. » à la place de la pastille « OCT / 1 »
+
+Demande de l'étude, image à l'appui (« Wed. » blanc, point orange, fond bordeaux en dégradé) : « à la place
+du oct 1 mets quelque chose comme ça ». `.ag-pastille-jour` : jour abrégé en français (`motPastilleAgenda`,
+pure, testée : « Jeu », « Oct » en vue Mois), 27 px gras blanc, point final rond `--cat-orange`, fond en
+dégradé radial de `--accent-clair` (bordeaux du thème de l'étude, marine pour l'autre thème — mêmes
+couleurs en clair et en sombre, c'est une marque). La date en clair reste dans le titre à côté.
+Vérifié dans Chromium (clair, sombre, téléphone).

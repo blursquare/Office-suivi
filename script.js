@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-01 22:42';
+  const VERSION_APP = '2026-10-01 22:53';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-01 22:53', resume: "Agenda : la pastille « OCT / 1 » de l'en-tête devient une tuile bordeaux en dégradé avec le jour abrégé en blanc et un point orange — « Jeu. » (« Oct. » en vue Mois)." },
     { version: '2026-10-01 22:42', resume: "Agenda : dans le détail d'un rendez-vous relié à un dossier de CLAIRE, la ligne « lieu » n'est plus affichée (elle ne portait que les initiales et la note d'envoi). Elle reste pour les autres rendez-vous." },
     { version: '2026-10-01 22:29', resume: "Agenda : quand une réponse aux dates proposées revient, une pastille rouge s'allume à droite de « Agenda » dans la barre latérale (avec le nombre de réponses), et le lien « Dates proposées » l'indique aussi. Dans le volet, la carte concernée porte « Nouvelle réponse ». La pastille s'efface à l'ouverture de « Dates proposées »." },
     { version: '2026-10-01 22:25', resume: "Agenda : « Dates proposées » s'ouvre maintenant dans un volet à droite, comme la fiche d'un dossier, au lieu d'une fenêtre au centre." },
@@ -19962,6 +19963,13 @@
     champ.click();
   }
 
+  // Tuile de l'en-tête de l'agenda (étude, 01/10, d'après l'image « Wed. ») : le jour abrégé — « Jeu » —,
+  // ou le mois en vue Mois — « Oct » —, suivi d'un point orange. Pure.
+  function motPastilleAgenda(date, vue) {
+    const brut = date.toLocaleDateString('fr-FR', vue === 'mois' ? { month: 'short' } : { weekday: 'short' }).replace('.', '');
+    return brut.charAt(0).toUpperCase() + brut.slice(1);
+  }
+
   function renderPageAgenda() {
     const zone = document.getElementById('agenda-contenu');
     if (!zone) return;
@@ -19995,14 +20003,13 @@
       : agendaVue === 'semaine'
         ? `Semaine du ${new Date(agendaLundi + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })} au ${new Date(samedi + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })} · ${etat}`
         : `${escapeHtml((s => s.charAt(0).toUpperCase() + s.slice(1))(dRef.toLocaleDateString('fr-FR', { weekday: 'long' })))} · ${etat}`;
-    const moisCourt = dRef.toLocaleDateString('fr-FR', { month: 'short' }).replace('.', '').toUpperCase();
     // Une note en cours d'écriture garde le focus et le curseur à travers les rafraîchissements
     // automatiques (agenda relu toutes les 2 minutes, dossiers mis à jour par un autre poste).
     const champNotes = document.activeElement && document.activeElement.id === 'agenda-notes-texte' ? document.activeElement : null;
     const curseurNotes = champNotes ? [champNotes.selectionStart, champNotes.selectionEnd, champNotes.scrollTop] : null;
     zone.innerHTML = `<div class="ag-page">
         <div class="ag-tete-page">
-          <div class="ag-pastille-date" aria-hidden="true"><span>${escapeHtml(moisCourt)}</span><b>${agendaVue === 'mois' ? '' : dRef.getDate()}</b></div>
+          <div class="ag-pastille-jour" aria-hidden="true">${escapeHtml(motPastilleAgenda(dRef, agendaVue))}<i></i></div>
           <div class="ag-titre-bloc">
             <h2 class="ag-titre">${escapeHtml(titre.charAt(0).toUpperCase() + titre.slice(1))}</h2>
             <span class="ag-sous">${sous}</span>
