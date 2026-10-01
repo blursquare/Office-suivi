@@ -14136,3 +14136,12 @@ Signalé par l'étude : « le rond noir déborde sur le petit point ». Mesuré 
 rendez-vous (`.ag-mois-points`, `margin-top: -3px`) entrait de 2 px dans le rond du jour (28 px). Rond
 ramené à 26 px, marge négative retirée, écart de 3 px (`gap`) : point 3 px sous le rond, mesuré en clair,
 sombre et téléphone, toujours dans la case du jour (36 px).
+
+### 01/10/2026 21 h 50 — Agenda : plus de date affichée à côté de « Aujourd'hui »
+
+Demande de l'étude : « Ne pas afficher le jour à côté de aujourd'hui ». Le champ « Aller à une date »
+(`#agenda-aller`, `input type=date`) montrait la date en clair (« 10/01/2026 ») dans la barre ‹ Aujourd'hui ›.
+Il devient une icône calendrier (`.ag-aller-btn`) ; le champ date reste dans la page, invisible sous
+l'icône, et `ouvrirAllerDateAgenda` ouvre son sélecteur (`showPicker`, repli sur focus/clic). Vérifié dans
+Chromium (clair, sombre, téléphone) : la barre ne montre plus que ‹ Aujourd'hui › et l'icône, le choix
+d'une date mène bien à ce jour.

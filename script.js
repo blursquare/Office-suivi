@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-01 21:48';
+  const VERSION_APP = '2026-10-01 21:50';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-01 21:50', resume: "Agenda : la date n'est plus affichée à côté de « Aujourd'hui » ; à sa place, une icône calendrier ouvre le choix d'une date (pour aller à un autre jour, y compris dans l'historique)." },
     { version: '2026-10-01 21:48', resume: "Agenda : dans le petit calendrier du mois, le rond du jour choisi ne recouvre plus le point qui signale les rendez-vous — le point est posé juste en dessous." },
     { version: '2026-10-01 21:45', resume: "Agenda : la comparaison avec l'an dernier ne compte plus que les rendez-vous d'une heure ou plus (les points de 30 ou 45 minutes ne sont plus comptés). Les semaines de l'an dernier déjà comptées sont relues une fois sous cette règle." },
     { version: '2026-10-01 21:42', resume: "Tableau de bord : le widget Agenda est relié à l'agenda partagé de l'office (calendrier de Sophie) — tous les rendez-vous du jour avec leur couleur Outlook (signatures, rendez-vous, absences, dates butoir), les signatures de CLAIRE pas encore dans Outlook en pointillé, puis les prochains rendez-vous. Un clic sur un rendez-vous ouvre la page Agenda à son jour, détail affiché ; l'icône calendrier ouvre l'agenda. Semaines précédente et suivantes (jusqu'à 8) consultables." },
@@ -19674,6 +19675,18 @@
     return ` · <span class="ag-compare ag-compare-${t.sens}">${t.sens === 'egal' ? '' : icone(t.sens === 'hausse' ? 'trend-up' : 'trend-down')}${escapeHtml(t.texte)}</span> ${infoBulle(detail)}`;
   }
 
+  // « Aller à une date » : une icône calendrier à côté de « Aujourd’hui » (étude, 01/10 : la date affichée
+  // à côté du bouton faisait doublon) ; le champ date reste caché, son sélecteur s'ouvre au clic.
+  function ouvrirAllerDateAgenda() {
+    const champ = document.getElementById('agenda-aller');
+    if (!champ) return;
+    try {
+      if (typeof champ.showPicker === 'function') { champ.showPicker(); return; }
+    } catch (e) { /* showPicker refusé : repli sur le focus */ }
+    champ.focus();
+    champ.click();
+  }
+
   function renderPageAgenda() {
     const zone = document.getElementById('agenda-contenu');
     if (!zone) return;
@@ -19711,7 +19724,10 @@
             <button type="button" class="ag-nav-btn" onclick="naviguerAgenda(-1)" aria-label="Précédent">${icone('chevron-left')}</button>
             <button type="button" class="ag-nav-btn ag-auj" onclick="naviguerAgenda(0)">Aujourd’hui</button>
             <button type="button" class="ag-nav-btn" onclick="naviguerAgenda(1)" aria-label="Suivant">${icone('chevron-right')}</button>
-            <input type="date" class="ag-aller" id="agenda-aller" value="${escapeAttr(agendaJour || '')}" min="2000-01-01" onchange="if (this.value) allerAuJourAgenda(this.value)" aria-label="Aller à une date" title="Aller à une date — l’historique est lu dans Outlook à la première consultation">
+            <span class="ag-aller-zone">
+              <button type="button" class="ag-nav-btn ag-aller-btn" onclick="ouvrirAllerDateAgenda()" aria-label="Aller à une date" title="Aller à une date — l’historique est lu dans Outlook à la première consultation">${icone('calendar')}</button>
+              <input type="date" class="ag-aller" id="agenda-aller" value="${escapeAttr(agendaJour || '')}" min="2000-01-01" onchange="if (this.value) allerAuJourAgenda(this.value)" tabindex="-1" aria-hidden="true">
+            </span>
           </div>
           <label class="ag-vue-choix">
             <select id="agenda-vue" aria-label="Vue de l’agenda" onchange="choisirVueAgenda(this.value)">
