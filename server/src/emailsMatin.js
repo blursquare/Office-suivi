@@ -64,7 +64,8 @@ function echapperXml(v) {
 }
 function desechapperXml(s) {
   return String(s || '').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&apos;/g, "'")
-    .replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(Number(n))).replace(/&amp;/g, '&');
+    .replace(/&#(?:x([0-9a-f]{1,6})|(\d{1,7}));/gi, (t, h, n) => { const c = h ? parseInt(h, 16) : Number(n); return c > 0 && c <= 0x10ffff ? String.fromCodePoint(c) : t; })
+    .replace(/&amp;/g, '&');
 }
 
 // FindItem sur la boîte de réception du compte de connexion, depuis `depuisUtc`.

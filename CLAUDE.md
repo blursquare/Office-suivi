@@ -112,7 +112,9 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
    geste, le serveur pose ce qui manque à chaque tour de lecture (`echeancesAgenda.js`) en adoptant
    d'abord un événement de même titre et même date (jamais de doublon) ; depuis la **page Agenda**
    (30/09), création de tout rendez-vous et **suppression de n'importe lequel après confirmation**
-   (`POST /exchange/evenement/supprimer`, `MoveToDeletedItems`). **Un seul essai par appel, aucun réessai automatique** (verrouillage du compte),
+   (`POST /exchange/evenement/supprimer`, `MoveToDeletedItems`) ; **modification** (01/10, titre + Start/End
+   seulement, `POST /exchange/evenement/modifier`) par le crayon du détail ou en **glissant** le rendez-vous
+   (Semaine/Jour, souris, confirmé au lâcher ; la signature d'un dossier emmène la fiche). **Un seul essai par appel, aucun réessai automatique** (verrouillage du compte),
    disjoncteur sur refus d'identifiants (côté client pour les écritures ; côté serveur, la lecture
    automatique est suspendue tant que les identifiants refusés restent enregistrés). Suppression = `MoveToDeletedItems`, jamais `HardDelete`.
    Microsoft Graph / Power Automate premium ne sont pas disponibles. **Lecture de la boîte de

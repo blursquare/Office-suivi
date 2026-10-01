@@ -13619,3 +13619,34 @@ Emails · Nouveautés).
   (`scrollHeight` 40 > `clientHeight` 39), reproduit puis corrigé : `overflow-y: hidden` et barre
   masquée (`scrollbar-width: none`, le défilement au doigt/à la molette reste). Seul endroit du CSS
   avec ce motif.
+
+### 01/10/2026 11 h 02 — Agenda : modifier et glisser-déposer un rendez-vous ; « &#xD; » dans les notes
+
+Demande (notée dans un rendez-vous de l'agenda, lue telle quelle : « permettre de pouvoir modiifer un
+rendez-vous, titre, date horaire et glisser deposé les rendez-vous », précédée d'un « &#xD; » en clair).
+Choix de l'étude (questions posées) : **confirmation au lâcher** d'un glisser ; **la fiche suit** quand
+c'est le rendez-vous de signature d'un dossier.
+
+- **« &#xD; » dans les notes** : Exchange écrit le retour chariot du corps en référence numérique ;
+  `desechapperXml` (ews.js) ne décodait que les entités nommées. Décodage des références `&#…;` et
+  `&#x…;` (aussi dans les copies de `emailsMatin.js` et `sondagesCreneaux.js`, qui n'avaient que le
+  décimal). Une note relue avant la correction puis réenregistrée porte « &#xD; » en clair dans
+  Outlook : `parseNotesEws` le retire à la lecture (nettoyé au prochain enregistrement).
+- **Serveur** : `horaireModifie` (pur : bornes EWS d'un horaire saisi à Paris, journée entière comprise,
+  fin après début), `corpsModifierRendezVous` / `modifierRendezVousExchange` (un UpdateItem : titre,
+  Start, End — jamais lieu, catégorie, notes ; un seul essai ; introuvable / conflit reconnus),
+  `POST /api/exchange/evenement/modifier` (validation avant tout appel réseau, stock `agenda-office`
+  mis à jour). `creerApp({ exchange: { poster } })` : faux transport EWS pour les tests (notes et
+  modification).
+- **Client** : crayon dans le détail d'un rendez-vous → « Modifier le rendez-vous » (titre, date, début,
+  fin ; du/au pour une journée entière ; mêmes règles de créneau que la création, une exception se
+  confirme). Glisser-déposer dans les vues Semaine et Jour (souris ou stylet, pas au doigt : la grille
+  défile — « Modifier » sur téléphone) : copie qui suit au quart d'heure avec le nouvel horaire,
+  Échap annule, le clic qui suit un lâcher n'ouvre pas le détail, confirmation « Déplacer … au … à … ? »
+  (+ « La date de signature de la fiche suivra. », + créneau exceptionnel). Non modifiables : signature
+  absente d'Outlook (pointillé), carte fantôme, option d'un sondage. Fonctions pures testées :
+  `evenementModifiableAgenda`, `horaireGlisseAgenda`, `signatureSuitAgenda`, `heureDepuisMinutesAgenda`.
+- Vérifié dans Chromium avec un vrai serveur et un faux Exchange (requêtes EWS lues) : notes décodées,
+  modification du titre et de la fin, glisser d'un rendez-vous et d'une signature (fiche et historique
+  mis à jour), Échap, clic simple, stock serveur ; clair, sombre, téléphone. **Non vérifié** sur le vrai
+  Exchange de l'office.

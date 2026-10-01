@@ -20,7 +20,7 @@ const {
   testerConnexionExchange, creerRendezVousExchange, creerBrouillonExchange,
   fenetreJourneeParis, trouverRendezVousExchange, mettreAJourLieuExchange,
   creerEcheanceExchange, mettreAJourEcheanceExchange, supprimerEcheanceExchange,
-  horaireDeplace, deplacerRendezVousExchange, lireNotesExchange, mettreAJourNotesExchange, TAILLE_MAX_NOTES
+  horaireDeplace, deplacerRendezVousExchange, horaireModifie, modifierRendezVousExchange, lireNotesExchange, mettreAJourNotesExchange, TAILLE_MAX_NOTES
 } = require('../exchange/ews');
 const { extraireReferenceVte, dossierPourReferenceAgenda, composerLieuAgenda } = require('../agendaOffice');
 const { URL_EWS_DEFAUT } = require('../parametresRepo');
@@ -71,7 +71,8 @@ function reglagesExchangePublics(reglages) {
   return { ...reste, motDePasseEnregistre: !!motDePasse };
 }
 
-function creerRouteurExchange(parametresRepo) {
+// `injections.poster` : faux transport EWS pour les tests (notes et modification d'un rendez-vous).
+function creerRouteurExchange(parametresRepo, injections = {}) {
   const routeur = express.Router();
 
   routeur.get('/exchange/reglages', (req, res) => {
@@ -243,7 +244,7 @@ function creerRouteurExchange(parametresRepo) {
     if (!identifiantValide(itemId)) return res.status(400).json({ ok: false, message: 'Rendez-vous non désigné.' });
     const reglages = reglagesPrets(res);
     if (!reglages) return;
-    const r = await lireNotesExchange({ url: reglages.url, email: reglages.email, motDePasse: reglages.motDePasse, itemId: itemId.trim() });
+    const r = await lireNotesExchange({ url: reglages.url, email: reglages.email, motDePasse: reglages.motDePasse, itemId: itemId.trim() }, injections);
     if (!r.ok) return res.json({ ok: false, message: r.message, raison: r.raison || '', introuvable: !!r.introuvable });
     res.json({ ok: true, notes: r.notes || '', itemId: r.itemId || itemId.trim(), changeKey: r.changeKey || '' });
   });
@@ -261,13 +262,50 @@ function creerRouteurExchange(parametresRepo) {
     const r = await mettreAJourNotesExchange({
       url: reglages.url, email: reglages.email, motDePasse: reglages.motDePasse,
       itemId: itemId.trim(), changeKey: String(b.changeKey || '').trim(), notes: b.notes
-    });
+    }, injections);
     // Le ChangeKey change à chaque écriture : l'événement gardé pour la page Agenda suit.
     if (r.ok && r.changeKey && typeof parametresRepo.lireAgendaOffice === 'function') {
       const stocke = ((parametresRepo.lireAgendaOffice() || {}).evenements || []).find((e) => e.itemId === itemId.trim());
       if (stocke) {
         parametresRepo.retirerEvenementAgendaOffice(stocke.itemId);
         parametresRepo.ajouterEvenementAgendaOffice({ ...stocke, itemId: r.itemId || stocke.itemId, changeKey: r.changeKey });
+      }
+    }
+    res.json({ ok: !!r.ok, message: r.message, raison: r.raison || '', introuvable: !!r.introuvable,
+      itemId: r.itemId || itemId.trim(), changeKey: r.changeKey || '' });
+  });
+
+  // Modifie N'IMPORTE QUEL rendez-vous depuis la page Agenda (étude, 01/10) : titre, date, heures —
+  // formulaire « Modifier » ou glisser-déposer (confirmé côté client). Un seul essai. L'événement
+  // gardé pour la page Agenda suit jusqu'au prochain tour de lecture.
+  routeur.post('/exchange/evenement/modifier', async (req, res) => {
+    const b = req.body || {};
+    const itemId = String(b.itemId || '');
+    if (!identifiantValide(itemId)) return res.status(400).json({ ok: false, message: 'Rendez-vous non désigné.' });
+    let sujet;
+    if (b.sujet !== undefined) {
+      sujet = String(b.sujet || '').replace(/[\u0000-\u001f]/g, ' ').trim().slice(0, 200);
+      if (!sujet) return res.status(400).json({ ok: false, message: 'Le titre ne peut pas être vide.' });
+    }
+    const journeeEntiere = b.journeeEntiere === true;
+    const horaire = horaireModifie({ date: b.date, heure: b.heure, heureFin: b.heureFin, dateFin: b.dateFin, journeeEntiere });
+    if (!horaire) return res.status(400).json({ ok: false, message: 'Date ou heures invalides : la fin doit suivre le début.' });
+    const reglages = reglagesPrets(res);
+    if (!reglages) return;
+    const r = await modifierRendezVousExchange({
+      url: reglages.url, email: reglages.email, motDePasse: reglages.motDePasse,
+      itemId: itemId.trim(), changeKey: String(b.changeKey || '').trim(), sujet, debut: horaire.debut, fin: horaire.fin
+    }, injections);
+    if (r.ok && typeof parametresRepo.lireAgendaOffice === 'function') {
+      const stocke = ((parametresRepo.lireAgendaOffice() || {}).evenements || []).find((e) => e.itemId === itemId.trim());
+      if (stocke) {
+        parametresRepo.retirerEvenementAgendaOffice(stocke.itemId);
+        parametresRepo.ajouterEvenementAgendaOffice({
+          ...stocke, itemId: r.itemId || stocke.itemId, changeKey: r.changeKey || '',
+          sujet: sujet !== undefined ? sujet : stocke.sujet,
+          date: b.date, dateFin: journeeEntiere ? (b.dateFin || b.date) : b.date,
+          heure: journeeEntiere ? null : b.heure, heureFin: journeeEntiere ? null : b.heureFin, journeeEntiere
+        });
       }
     }
     res.json({ ok: !!r.ok, message: r.message, raison: r.raison || '', introuvable: !!r.introuvable,

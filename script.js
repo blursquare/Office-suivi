@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-01 10:10';
+  const VERSION_APP = '2026-10-01 11:02';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-01 11:02', resume: "Agenda : un rendez-vous se modifie (crayon dans son détail : titre, date, heures) et se déplace en le glissant dans la vue Semaine ou Jour, après confirmation. Le rendez-vous de signature d'un dossier emmène la date et l'heure de la fiche. Les notes d'un rendez-vous n'affichent plus « &#xD; »." },
     { version: '2026-10-01 10:10', resume: "Fenêtre du matin : plus de barre de défilement (flèches ▲▼) à côté des onglets Agenda du jour · Emails · Nouveautés. Notification Teams « dossier complet » : la phrase « Il est prêt à être rédigé. » est retirée." },
     { version: '2026-10-01 07:59', resume: "Sondage de créneaux : avec le relais Google réglé (Réglages › Rappels et agenda), le client n'a plus qu'à cliquer sur « Envoyer ma réponse » — la réponse arrive directement dans la boîte de l'office, sans passer par sa messagerie. Chaque destinataire a son propre lien (« Réponse de … » quand l'email en vise plusieurs) ; la page n'affiche que son rôle." },
     { version: '2026-10-01 07:49', resume: "Sondage de créneaux : la page de réponse prend le style de Rallly avec le logo de l'office en tête — tuiles de date, et pour chaque créneau Oui / Si nécessaire / Non. Les « si nécessaire » s'affichent dans la fiche (coche entre parenthèses, en ambre) et un créneau possible pour tous est signalé. Page publiée dans le dépôt Claire-rdv (GitHub Pages à activer)." },
@@ -18711,7 +18712,7 @@
   let agendaSource = null;
   let agendaErreur = '';
   let agendaCharge = false;
-  let agendaModale = null;         // { type: 'creation', date, heure } : fenêtre de création
+  let agendaModale = null;         // { type: 'creation', date, heure } ou { type: 'modification', cle }
   let agendaSelection = null;      // clé du rendez-vous affiché dans le panneau de détail
   // Notes des rendez-vous (corps du rendez-vous dans Outlook), lues à l'ouverture du détail :
   // itemId → { etat: 'chargement' | 'ok' | 'erreur', notes, changeKey, message }.
@@ -18959,7 +18960,7 @@
       proba ? `${proba.pourcent} % de chances que le rendez-vous soit maintenu` : ''].filter(Boolean).join(' · ');
     const heure = `<b class="ag-evt-debut">${escapeHtml(e.heure)}</b>`;
     return `<button type="button" class="ag-evt ag-evt-compact ajd-${teinte}${e.horsAgenda ? ' ag-hors-agenda' : ''}${e.option ? ' ag-option' : ''}${court ? ' ag-evt-court' : ''}${agendaSelection === cle ? ' selection' : ''}" style="${style}"
-        data-cle="${escapeAttr(cle)}" onclick="ouvrirDetailAgenda('${escapeOnclickArg(cle)}')" title="${escapeAttr(bulle)}">
+        data-cle="${escapeAttr(cle)}"${attributGlisseAgenda(e)} onclick="ouvrirDetailAgenda('${escapeOnclickArg(cle)}')" title="${escapeAttr(bulle)}">
         ${e.option && !court ? `<span class="ag-fantome-tete ag-option-tete">Option ${escapeHtml(libelleOptionSondage(e.sujet).rang)}</span>` : ''}
         <span class="ag-evt-titre" style="--lignes:${e.option && !court ? Math.max(1, lignes - 1) : lignes}">${court ? heure + ' ' : ''}${escapeHtml(e.option ? libelleOptionSondage(e.sujet).titre : (e.sujet || '(sans titre)'))}</span>
         ${court ? '' : `<span class="ag-evt-meta">${heure}${meta.length ? ` · ${escapeHtml(meta.join(' · '))}` : (e.lieu && !d ? ` · ${escapeHtml(e.lieu)}` : '')}</span>`}
@@ -18990,7 +18991,7 @@
       infos ? infos.etats.map(x => `${x.libelle} ${x.fait ? 'fait' : 'à faire'}`).join(', ') : '',
       proba ? `${proba.pourcent} % de chances que la signature se tienne` : ''].filter(Boolean).join(' · ');
     return `<button type="button" class="ag-evt ajd-${teinte}${e.horsAgenda ? ' ag-hors-agenda' : ''}${e.option ? ' ag-option' : ''}${court ? ' ag-evt-court' : ''}${haut ? ' ag-evt-haut' : ''}${etroit ? ' ag-evt-etroit' : ''}${selection ? ' selection' : ''}${proba ? ' ag-evt-avec-proba' : ''}" style="${style}"
-        data-cle="${escapeAttr(cleEvenementAgenda(e))}" onclick="ouvrirDetailAgenda('${escapeOnclickArg(cleEvenementAgenda(e))}')" title="${escapeAttr(bulle)}">
+        data-cle="${escapeAttr(cleEvenementAgenda(e))}"${attributGlisseAgenda(e)} onclick="ouvrirDetailAgenda('${escapeOnclickArg(cleEvenementAgenda(e))}')" title="${escapeAttr(bulle)}">
         <span class="ag-evt-titre">${e.option ? `<span class="ag-fantome-tete ag-option-tete">Option ${escapeHtml(libelleOptionSondage(e.sujet).rang)}</span> ` : ''}${escapeHtml(e.option ? libelleOptionSondage(e.sujet).titre : (e.sujet || '(sans titre)'))}</span>
         <span class="ag-evt-heure"><span>${escapeHtml(e.heure)}</span>${e.heureFin ? `<span class="ag-evt-fin">– ${escapeHtml(e.heureFin)}</span>` : ''}${duree ? `<span class="ag-evt-duree">${escapeHtml(duree)}</span>` : ''}</span>
         ${qui ? `<span class="ag-evt-qui">${escapeHtml(qui)}</span>` : (e.lieu ? `<span class="ag-evt-qui">${escapeHtml(e.lieu)}</span>` : '')}
@@ -19431,7 +19432,10 @@
             <div class="ag-detail-etiquette"><i></i>${escapeHtml(e.horsAgenda ? 'Signature fixée dans CLAIRE — pas dans l’agenda Outlook' : e.option ? 'Option — sondage de créneaux' : etiquetteEvenementAgenda(e, natureEvenementAgenda(e, categoriesRdvReglees())))}</div>
             <h3 class="ag-detail-titre" id="agenda-detail-titre">${escapeHtml(e.option ? libelleOptionSondage(e.sujet).titre : (e.sujet || '(sans titre)'))}</h3>
           </div>
-          <button type="button" class="icon-btn" onclick="fermerModaleAgenda()" aria-label="Fermer le détail">${icone('x')}</button>
+          <div class="ag-detail-outils">
+            ${peutSupprimer && evenementModifiableAgenda(e) ? `<button type="button" class="icon-btn" onclick="ouvrirModificationAgenda('${escapeOnclickArg(cleEvenementAgenda(e))}')" aria-label="Modifier le rendez-vous" title="Modifier le titre, la date ou l’horaire${e.heure && !e.journeeEntiere ? ' — ou glisser le rendez-vous dans la grille' : ''}">${icone('pencil')}</button>` : ''}
+            <button type="button" class="icon-btn" onclick="fermerModaleAgenda()" aria-label="Fermer le détail">${icone('x')}</button>
+          </div>
         </div>
         ${ligne('calendar', escapeHtml(jour.charAt(0).toUpperCase() + jour.slice(1)))}
         ${ligne('clock', escapeHtml(horaire))}
@@ -19730,6 +19734,264 @@
       if (ok) chargerAgendaSemaine();
     }, { bouton: 'Placer', ton: 'valider' });
   }
+
+  // ==== MODIFIER ET GLISSER-DÉPOSER UN RENDEZ-VOUS (étude, 01/10 : « permettre de pouvoir modifier un
+  // rendez-vous, titre, date horaire et glisser déposé les rendez-vous ») ====
+  // Titre, date et heures par « Modifier » dans le détail ; date et heure en glissant le rendez-vous
+  // dans les vues Semaine et Jour (souris ou stylet — au doigt, la grille défile : « Modifier »).
+  // Un glisser se confirme avant d'écrire dans l'agenda partagé (choix de l'étude). Le rendez-vous de
+  // signature d'un dossier emmène la date et l'heure de la fiche (choix de l'étude).
+
+  // Pure : un rendez-vous que CLAIRE sait modifier — lu dans l'agenda de l'office (identifiant
+  // Exchange), ni signature encore absente d'Outlook, ni carte fantôme, ni option d'un sondage (ses
+  // créneaux sont ceux proposés aux parties).
+  function evenementModifiableAgenda(e) {
+    return !!(e && e.itemId && !e.horsAgenda && !e.fantome && !e.option);
+  }
+
+  // Pure : minutes depuis minuit → « HH:MM ».
+  function heureDepuisMinutesAgenda(m) {
+    return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+  }
+
+  // Pure : horaire d'un rendez-vous glissé de `deltaMinutes` — décalage au quart d'heure, même durée,
+  // dans la journée. null si l'heure de départ est illisible.
+  function horaireGlisseAgenda(heure, heureFin, deltaMinutes) {
+    const debut = minutesHeure(heure);
+    if (debut == null) return null;
+    const finLue = minutesHeure(heureFin);
+    const duree = finLue != null && finLue > debut ? finLue - debut : 60;
+    const nouveau = Math.max(0, Math.min(debut + Math.round((Number(deltaMinutes) || 0) / 15) * 15, 24 * 60 - duree));
+    return { heure: heureDepuisMinutesAgenda(nouveau), heureFin: heureDepuisMinutesAgenda(Math.min(nouveau + duree, 23 * 60 + 59)) };
+  }
+
+  // Pure : le rendez-vous est la signature fixée sur la fiche du dossier — elle suivra la modification.
+  function signatureSuitAgenda(d, e) {
+    return !!(d && e && e.signature && !d.archive && d.rendezVousSignature === e.date);
+  }
+
+  function ouvrirModificationAgenda(cle) {
+    const e = agendaEvenements.find(x => cleEvenementAgenda(x) === cle);
+    if (!evenementModifiableAgenda(e)) return;
+    if (!exchangeAgendaPret()) { afficherToast('Connexion à l’agenda Outlook à activer dans les Réglages pour modifier un rendez-vous.', 'OK', null); return; }
+    agendaModale = { type: 'modification', cle };
+    // Le détail se ferme : sur téléphone, sa feuille passerait au-dessus du voile de la fenêtre.
+    agendaSelection = null;
+    renderPopoverAgenda();
+    const contenu = document.getElementById('agenda-modale-contenu');
+    if (contenu) contenu.innerHTML = '';
+    renderModaleAgenda();
+    const champ = document.getElementById('agenda-modif-titre');
+    if (champ) champ.focus({ preventScroll: true });
+  }
+
+  function renderModificationAgenda(m) {
+    const e = agendaEvenements.find(x => cleEvenementAgenda(x) === m.cle);
+    if (!e) return '';
+    const suit = signatureSuitAgenda(dossierDeEvenement(e), e);
+    const quand = e.journeeEntiere || !e.heure
+      ? `<div class="ag-champs-ligne ag-champs-deux">
+          <label class="ag-champ">Du <input type="date" id="agenda-modif-date" value="${escapeAttr(e.date)}" required></label>
+          <label class="ag-champ">Au <input type="date" id="agenda-modif-date-fin" value="${escapeAttr(e.dateFin || e.date)}" required></label>
+        </div>`
+      : `<div class="ag-champs-ligne">
+          <label class="ag-champ">Date <input type="date" id="agenda-modif-date" value="${escapeAttr(e.date)}" required></label>
+          <label class="ag-champ">Début <input type="time" id="agenda-modif-heure" value="${escapeAttr(e.heure)}" step="900" required></label>
+          <label class="ag-champ">Fin <input type="time" id="agenda-modif-heure-fin" value="${escapeAttr(e.heureFin || heureDepuisMinutesAgenda(Math.min(minutesHeure(e.heure) + 60, 23 * 60 + 59)))}" step="900" required></label>
+        </div>`;
+    return `<header class="ag-modale-tete">
+        <div><h2 class="ag-modale-titre" id="agenda-modale-titre">Modifier le rendez-vous</h2>
+        <div class="ag-modale-quand">Dans l’agenda partagé de l’office${suit ? ' · la date de signature de la fiche suivra' : ''}</div></div>
+        <button type="button" class="icon-btn ag-modale-x" onclick="fermerModaleAgenda()" aria-label="Fermer">${icone('x')}</button>
+      </header>
+      <form class="ag-modale-corps ag-form" onsubmit="event.preventDefault(); enregistrerModificationAgenda();">
+        <label class="ag-champ">Titre <input type="text" id="agenda-modif-titre" required maxlength="200" value="${escapeAttr(e.sujet || '')}"></label>
+        ${quand}
+        <footer class="ag-modale-pied ag-modale-pied-form">
+          <span class="jour-espace"></span>
+          <button type="button" class="secondary" onclick="fermerModaleAgenda()">Annuler</button>
+          <button type="submit" class="primary" id="agenda-modif-ok">${icone('check')} Enregistrer</button>
+        </footer>
+      </form>`;
+  }
+
+  function enregistrerModificationAgenda() {
+    const e = agendaModale && agendaModale.type === 'modification' ? agendaEvenements.find(x => cleEvenementAgenda(x) === agendaModale.cle) : null;
+    if (!e) return;
+    const val = (id) => { const el = document.getElementById(id); return el ? el.value.trim() : ''; };
+    const sujet = val('agenda-modif-titre');
+    const date = val('agenda-modif-date');
+    const journee = e.journeeEntiere || !e.heure;
+    const nouveau = journee
+      ? { sujet, date, dateFin: val('agenda-modif-date-fin') || date, journeeEntiere: true }
+      : { sujet, date, heure: val('agenda-modif-heure'), heureFin: val('agenda-modif-heure-fin') };
+    if (!sujet) { afficherToast('Le titre ne peut pas être vide.', 'OK', null); return; }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) { afficherToast('Date invalide.', 'OK', null); return; }
+    if (journee && nouveau.dateFin < date) { afficherToast('Le dernier jour doit suivre le premier.', 'OK', null); return; }
+    if (!journee && (!/^\d{2}:\d{2}$/.test(nouveau.heure) || !/^\d{2}:\d{2}$/.test(nouveau.heureFin) || nouveau.heureFin <= nouveau.heure)) {
+      afficherToast('L’heure de fin doit suivre l’heure de début.', 'OK', null); return;
+    }
+    const inchange = sujet === (e.sujet || '') && date === e.date
+      && (journee ? nouveau.dateFin === (e.dateFin || e.date) : nouveau.heure === e.heure && nouveau.heureFin === (e.heureFin || ''));
+    if (inchange) { fermerModaleAgenda(); return; }
+    const ecrire = async () => {
+      const bouton = document.getElementById('agenda-modif-ok');
+      if (bouton) bouton.disabled = true;
+      const ok = await modifierEvenementAgenda(e, nouveau);
+      if (bouton) bouton.disabled = false;
+      if (ok) { agendaModale = null; renderModaleAgenda(); }
+    };
+    // Mêmes règles de l'étude qu'à la création : une exception se confirme.
+    const motif = journee ? '' : motifCreneauExceptionnel(nouveau.heure, minutesHeure(nouveau.heureFin) - minutesHeure(nouveau.heure),
+      rendezVousHorairesJour(agendaEvenements.filter(x => x !== e), date).length);
+    if (motif) demanderConfirmation(`Enregistrer ce rendez-vous malgré tout ? Il est exceptionnel : ${motif}.`, ecrire, { bouton: 'Enregistrer quand même', ton: 'valider' });
+    else ecrire();
+  }
+
+  // Écrit la modification dans l'agenda de l'office (un seul essai), met la page et, pour la
+  // signature d'un dossier, la fiche à jour. `nouveau` : { sujet?, date, heure, heureFin } ou
+  // { sujet?, date, dateFin, journeeEntiere: true }.
+  async function modifierEvenementAgenda(e, nouveau) {
+    const avant = { sujet: e.sujet, date: e.date, heure: e.heure, heureFin: e.heureFin };
+    const d = dossierDeEvenement(e);
+    const suit = signatureSuitAgenda(d, e);
+    try {
+      const reponse = await fetchAvecAuth('/api/exchange/evenement/modifier', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ itemId: e.itemId, changeKey: e.changeKey || '', ...nouveau })
+      });
+      const corps = await reponse.json();
+      if (!corps.ok) {
+        afficherToast(corps.message || 'La modification du rendez-vous a échoué.', 'OK', null);
+        if (corps.introuvable || corps.raison === 'conflit') chargerAgendaSemaine();
+        return false;
+      }
+      const ancienneCle = cleEvenementAgenda(e);
+      if (nouveau.sujet !== undefined) e.sujet = nouveau.sujet;
+      e.date = nouveau.date;
+      if (nouveau.journeeEntiere) e.dateFin = nouveau.dateFin || nouveau.date;
+      else { e.dateFin = nouveau.date; e.heure = nouveau.heure; e.heureFin = nouveau.heureFin; }
+      if (corps.itemId) e.itemId = corps.itemId;
+      if (corps.changeKey) e.changeKey = corps.changeKey;
+      // La note relue garde son ChangeKey : il a changé avec l'écriture.
+      if (notesAgenda[e.itemId] && corps.changeKey) notesAgenda[e.itemId].changeKey = corps.changeKey;
+      if (agendaSelection === ancienneCle) agendaSelection = cleEvenementAgenda(e);
+      const quand = (x) => `${formatDateFr(x.date)}${x.heure ? ' à ' + x.heure : ''}`;
+      if (suit) {
+        d.rendezVousSignature = e.date;
+        if (e.heure && !nouveau.journeeEntiere) d.rendezVousSignatureHeure = e.heure;
+        d.rdvAgendaItem = { itemId: e.itemId, changeKey: e.changeKey || '', date: e.date };
+        d.confiance = d.confiance || {};
+        d.confiance.rendezVousSignature = 'manuel';
+        ajouterHistorique(d, `Rendez-vous de signature modifié depuis l’agenda : ${quand(avant)} → ${quand(e)}.`);
+        sauvegarder(d);
+        render();
+      } else if (d) {
+        ajouterHistorique(d, `Rendez-vous « ${e.sujet} » modifié dans l’agenda de l’office : ${quand(avant)} → ${quand(e)}.`);
+        sauvegarder(d);
+      }
+      afficherToast(suit ? 'Rendez-vous modifié — la fiche du dossier suit.' : 'Rendez-vous modifié dans l’agenda de l’office.', 'OK', null);
+      renderPageAgenda();
+      return true;
+    } catch (err) {
+      afficherToast('Serveur injoignable — rendez-vous non modifié.', 'OK', null);
+      return false;
+    }
+  }
+
+  // ---- Glisser-déposer dans la grille (vues Semaine et Jour) ----
+  let agendaGlisse = null;     // { e, el, x0, y0, actif, colonnes, minutesParPx, fantome, cible }
+  let agendaClicIgnore = false;
+
+  function attributGlisseAgenda(e) {
+    return evenementModifiableAgenda(e) && e.heure && !e.journeeEntiere && exchangeAgendaPret() ? ' data-glissable="1"' : '';
+  }
+
+  function finirGlisseAgenda(annule) {
+    const g = agendaGlisse;
+    agendaGlisse = null;
+    if (!g || !g.actif) return;
+    if (g.fantome && g.fantome.parentNode) g.fantome.parentNode.removeChild(g.fantome);
+    if (g.el) g.el.classList.remove('ag-glisse-origine');
+    document.body.classList.remove('ag-glisse-en-cours');
+    // Le clic qui suit le lâcher n'ouvre pas le détail.
+    agendaClicIgnore = true;
+    setTimeout(() => { agendaClicIgnore = false; }, 60);
+    const c = g.cible;
+    if (annule || !c || (c.date === g.e.date && c.heure === g.e.heure)) return;
+    const e = g.e;
+    const suit = signatureSuitAgenda(dossierDeEvenement(e), e);
+    const motif = motifCreneauExceptionnel(c.heure, minutesHeure(c.heureFin) - minutesHeure(c.heure),
+      rendezVousHorairesJour(agendaEvenements.filter(x => x !== e), c.date).length);
+    demanderConfirmation(`Déplacer « ${e.sujet || 'sans titre'} » au ${dateAvecJourFr(c.date)} à ${c.heure.replace(':', ' h ')} ?`
+      + `${suit ? ' La date de signature de la fiche suivra.' : ''}${motif ? ` Créneau exceptionnel : ${motif}.` : ''}`,
+      () => modifierEvenementAgenda(e, { date: c.date, heure: c.heure, heureFin: c.heureFin }), { bouton: 'Déplacer', ton: 'valider' });
+  }
+
+  function suivreGlisseAgenda(evt) {
+    const g = agendaGlisse;
+    if (!g) return;
+    if (!g.actif) {
+      if (Math.abs(evt.clientX - g.x0) + Math.abs(evt.clientY - g.y0) < 6) return;
+      const colonne = g.el.closest('.ag-colonne');
+      if (!colonne || !document.body.contains(g.el)) { agendaGlisse = null; return; }
+      g.actif = true;
+      g.colonnes = Array.from(document.querySelectorAll('#agenda-contenu .ag-colonne[data-jour]'))
+        .map(el => ({ iso: el.dataset.jour, el, rect: el.getBoundingClientRect() }));
+      g.minutesParPx = (AGENDA_HEURE_FIN - AGENDA_HEURE_DEBUT) * 60 / Math.max(1, colonne.getBoundingClientRect().height);
+      g.fantome = g.el.cloneNode(true);
+      ['onclick', 'data-cle', 'data-glissable', 'title', 'id'].forEach(a => g.fantome.removeAttribute(a));
+      g.fantome.classList.add('ag-glisse-fantome');
+      g.fantome.classList.remove('selection');
+      g.fantome.setAttribute('aria-hidden', 'true');
+      g.fantome.tabIndex = -1;
+      const etiquette = document.createElement('span');
+      etiquette.className = 'ag-glisse-heure';
+      g.fantome.appendChild(etiquette);
+      g.el.classList.add('ag-glisse-origine');
+      document.body.classList.add('ag-glisse-en-cours');
+      if (agendaSelection) { agendaSelection = null; renderPopoverAgenda(); }
+    }
+    if (!document.body.contains(g.el)) { finirGlisseAgenda(true); return; }
+    evt.preventDefault();
+    const x = evt.clientX;
+    const col = g.colonnes.find(c => x >= c.rect.left && x < c.rect.right)
+      || g.colonnes.reduce((a, c) => (Math.abs(x - (c.rect.left + c.rect.right) / 2) < Math.abs(x - (a.rect.left + a.rect.right) / 2) ? c : a));
+    const h = horaireGlisseAgenda(g.e.heure, g.e.heureFin, (evt.clientY - g.y0) * g.minutesParPx);
+    if (!h) return;
+    g.cible = { date: col.iso, heure: h.heure, heureFin: h.heureFin };
+    if (g.fantome.parentNode !== col.el) col.el.appendChild(g.fantome);
+    const total = (AGENDA_HEURE_FIN - AGENDA_HEURE_DEBUT) * 60;
+    g.fantome.style.top = `${((minutesHeure(h.heure) - AGENDA_HEURE_DEBUT * 60) / total * 100).toFixed(2)}%`;
+    g.fantome.style.left = '2px';
+    g.fantome.style.width = 'calc(100% - 4px)';
+    g.fantome.querySelector('.ag-glisse-heure').textContent = `${h.heure} – ${h.heureFin}`;
+    const debutAffiche = g.fantome.querySelector('.ag-evt-debut, .ag-evt-heure > span:first-child');
+    if (debutAffiche) debutAffiche.textContent = h.heure;
+  }
+
+  function installerGlisseAgenda() {
+    document.addEventListener('pointerdown', (evt) => {
+      if (evt.button !== 0 || evt.pointerType === 'touch' || ongletActuel !== 'agenda' || agendaVue === 'mois') return;
+      const el = evt.target && evt.target.closest ? evt.target.closest('#agenda-contenu .ag-corps .ag-evt[data-glissable]') : null;
+      if (!el) return;
+      const e = agendaEvenements.find(x => cleEvenementAgenda(x) === el.dataset.cle);
+      if (!e) return;
+      agendaGlisse = { e, el, x0: evt.clientX, y0: evt.clientY, actif: false };
+    });
+    window.addEventListener('pointermove', suivreGlisseAgenda, { passive: false });
+    window.addEventListener('pointerup', () => { if (agendaGlisse) finirGlisseAgenda(false); });
+    window.addEventListener('pointercancel', () => { if (agendaGlisse) finirGlisseAgenda(true); });
+    window.addEventListener('keydown', (evt) => { if (evt.key === 'Escape' && agendaGlisse && agendaGlisse.actif) { evt.stopPropagation(); finirGlisseAgenda(true); } }, true);
+    document.addEventListener('click', (evt) => {
+      if (!agendaClicIgnore) return;
+      agendaClicIgnore = false;
+      evt.stopPropagation();
+      evt.preventDefault();
+    }, true);
+  }
+  if (typeof document !== 'undefined' && document.addEventListener) installerGlisseAgenda();
 
   // ==== SONDAGE DE CRÉNEAUX (« comme un Doodle », étude 30/09) ====
   // Plusieurs créneaux proposés aux parties, qui votent par email : chaque bouton de l'email est un
@@ -20290,9 +20552,12 @@
   function renderModaleAgenda() {
     const overlay = document.getElementById('agenda-overlay');
     if (!overlay) return;
-    if (!agendaModale || agendaModale.type !== 'creation' || ongletActuel !== 'agenda') { overlay.style.display = 'none'; return; }
+    const types = { creation: [renderCreationAgenda, '#agenda-creation-titre'], modification: [renderModificationAgenda, '#agenda-modif-titre'] };
+    const type = agendaModale && types[agendaModale.type];
+    if (!type || ongletActuel !== 'agenda') { overlay.style.display = 'none'; return; }
     const contenu = document.getElementById('agenda-modale-contenu');
-    if (!contenu.querySelector('#agenda-creation-titre')) contenu.innerHTML = renderCreationAgenda(agendaModale);
+    if (!contenu.querySelector(type[1])) contenu.innerHTML = type[0](agendaModale);
+    if (!contenu.innerHTML) { agendaModale = null; overlay.style.display = 'none'; return; }
     overlay.style.display = 'flex';
   }
 

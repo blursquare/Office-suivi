@@ -7258,6 +7258,15 @@ button.primary.ag-ajout svg { width: 14px; height: 14px; }
 }
 .ag-evt:hover { background: color-mix(in srgb, var(--ag-teinte, var(--line)) 24%, var(--paper-card)); z-index: 2; }
 .ag-evt.selection, .ag-journee-evt.selection { box-shadow: 0 0 0 2px var(--ink); z-index: 2; }
+/* Glisser-déposer (étude, 01/10) : l'original s'estompe, une copie suit le pointeur avec le nouvel
+   horaire ; rien n'est écrit avant la confirmation. */
+.ag-evt.ag-glisse-origine { opacity: 0.35; }
+.ag-evt.ag-glisse-fantome { pointer-events: none; z-index: 5; box-shadow: var(--shadow-float); outline: 2px solid var(--focus); outline-offset: -1px; }
+.ag-glisse-heure {
+  position: absolute; right: 4px; bottom: 3px; padding: 1px 6px; border-radius: 999px;
+  background: var(--ink); color: var(--paper-card); font-size: 11px; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+body.ag-glisse-en-cours, body.ag-glisse-en-cours * { cursor: grabbing !important; user-select: none; }
 .ag-evt:focus-visible, .ag-journee-evt:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
 .ag-evt-titre { font-size: 12px; font-weight: 700; color: var(--ink); line-height: 1.25; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; flex: none; }
 .ag-evt-heure { font-size: 11px; color: var(--ink-soft); font-variant-numeric: tabular-nums; display: flex; align-items: center; gap: 0 4px; white-space: nowrap; overflow: hidden; flex: none; }
@@ -7368,6 +7377,7 @@ button.primary.ag-ajout svg { width: 14px; height: 14px; }
 .ag-popover.feuille { position: fixed; left: 8px; right: 8px; bottom: 8px; top: auto !important; width: auto; max-width: none; max-height: 78vh; z-index: 960; border-radius: 18px; }
 .ag-detail { border-top: 1px solid var(--line); padding-top: 14px; display: flex; flex-direction: column; gap: 7px; }
 .ag-detail-tete { display: flex; align-items: flex-start; gap: 8px; justify-content: space-between; margin-bottom: 2px; }
+.ag-detail-outils { display: flex; gap: 2px; flex: none; }
 .ag-detail-etiquette { display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--muted); }
 .ag-detail-etiquette i { width: 9px; height: 9px; border-radius: 2px; background: var(--ag-teinte, var(--line)); }
 .ag-detail-titre { margin: 2px 0 0; font-size: 16px; font-weight: 700; color: var(--ink); overflow-wrap: anywhere; }
@@ -7449,6 +7459,7 @@ textarea.ag-notes-champ:focus { outline: 2px solid var(--focus); outline-offset:
 .ag-form .ag-case-signature { flex-direction: row; align-items: center; gap: 8px; font-weight: 500; }
 .ag-facultatif { font-weight: 400; color: var(--muted); }
 .ag-champs-ligne { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
+.ag-champs-ligne.ag-champs-deux { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
 @media (max-width: 480px) { .ag-champs-ligne { grid-template-columns: minmax(0, 1fr); } .ag-modale { max-height: none; height: 100%; border-radius: 0; } }
 
 /* Résumé des emails rédigé par l'IA locale (renderSyntheseIaEmails). */

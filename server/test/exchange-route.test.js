@@ -19,10 +19,14 @@ function config() {
 }
 
 let db, serveurApp, baseUrl, jeton;
+// Faux transport EWS (modification d'un rendez-vous) : garde la dernière requête, répond `reponseEws`.
+const envoisEws = [];
+let reponseEws = '';
+const fauxPoster = (opts, cb) => { envoisEws.push(opts.body); cb(null, { statusCode: 200, body: reponseEws }); };
 
 before(async () => {
   db = ouvrirDb(':memory:');
-  const { app, gestionnaireAuth } = creerApp({ db, config: config() });
+  const { app, gestionnaireAuth } = creerApp({ db, config: config(), exchange: { poster: fauxPoster } });
   jeton = gestionnaireAuth.creerSession();
   serveurApp = app.listen(0);
   await new Promise((resolve) => serveurApp.once('listening', resolve));
@@ -256,4 +260,44 @@ test('relais Google des réponses : adresse de script Google seulement', async (
   assert.equal(ok.relaisSondage, 'https://script.google.com/macros/s/AKfycbx_ab-12/exec');
   const refuse = await (await appeler('/api/exchange/reglages', { method: 'PUT', body: JSON.stringify({ relaisSondage: 'https://exemple.fr/relais' }) })).json();
   assert.equal(refuse.relaisSondage, '');
+});
+
+test('POST /api/exchange/evenement/modifier : titre et horaire écrits, agenda gardé à jour', async () => {
+  const { creerRepoParametres } = require('../src/parametresRepo');
+  await appeler('/api/exchange/reglages', { method: 'PUT', body: JSON.stringify({ actif: true, email: 'notaire@gossart.notaires.fr', motDePasse: 'SECRET123' }) });
+  const repo = creerRepoParametres(db);
+  repo.ecrireAgendaOffice({ debut: '2026-10-05', lu: '', evenements: [
+    { itemId: 'ID1', changeKey: 'CK1', sujet: 'Point équipe', date: '2026-10-06', heure: '10:00', heureFin: '10:30', categories: ['Catégorie Verte'] }
+  ] });
+  const poster = (corps) => appeler('/api/exchange/evenement/modifier', { method: 'POST', body: JSON.stringify(corps) });
+  // Validation avant tout appel réseau.
+  const n0 = envoisEws.length;
+  assert.equal((await poster({ date: '2026-10-07', heure: '14:00', heureFin: '15:00' })).status, 400);
+  assert.equal((await poster({ itemId: 'ID1', sujet: '  ', date: '2026-10-07', heure: '14:00', heureFin: '15:00' })).status, 400);
+  const inverse = await poster({ itemId: 'ID1', date: '2026-10-07', heure: '15:00', heureFin: '14:00' });
+  assert.equal(inverse.status, 400);
+  assert.match((await inverse.json()).message, /fin doit suivre le début/);
+  assert.equal(envoisEws.length, n0, 'aucun appel EWS sur une requête invalide');
+
+  reponseEws = '<m:UpdateItemResponseMessage ResponseClass="Success"><m:ResponseCode>NoError</m:ResponseCode><t:ItemId Id="ID1" ChangeKey="CK2"/>';
+  const r = await (await poster({ itemId: 'ID1', changeKey: 'CK1', sujet: 'Point équipe & dossiers', date: '2026-10-07', heure: '14:00', heureFin: '15:30' })).json();
+  assert.equal(`${r.ok}/${r.changeKey}`, 'true/CK2');
+  const requete = envoisEws[envoisEws.length - 1];
+  assert.match(requete, /<t:Subject>Point équipe &amp; dossiers<\/t:Subject>/);
+  assert.match(requete, /<t:Start>2026-10-07T12:00:00Z<\/t:Start>/, '14 h à Paris en été = 12 h UTC');
+  assert.match(requete, /<t:End>2026-10-07T13:30:00Z<\/t:End>/);
+  assert.match(requete, /ChangeKey="CK1"/);
+  assert.doesNotMatch(requete, /Location|Categories|item:Body/, 'ni lieu, ni couleur, ni notes');
+  const garde = repo.lireAgendaOffice().evenements.find((e) => e.itemId === 'ID1');
+  assert.equal(`${garde.sujet}|${garde.date}|${garde.heure}|${garde.heureFin}|${garde.changeKey}|${garde.categories.join(',')}`,
+    'Point équipe & dossiers|2026-10-07|14:00|15:30|CK2|Catégorie Verte');
+
+  // Glisser-déposer : sans titre, seul l'horaire part.
+  await poster({ itemId: 'ID1', changeKey: 'CK2', date: '2026-10-08', heure: '09:30', heureFin: '11:00' });
+  assert.doesNotMatch(envoisEws[envoisEws.length - 1], /item:Subject/);
+
+  reponseEws = '<m:ResponseCode>ErrorItemNotFound</m:ResponseCode>';
+  const absent = await (await poster({ itemId: 'ZZ', date: '2026-10-08', heure: '09:30', heureFin: '11:00' })).json();
+  assert.equal(`${absent.ok}/${absent.introuvable}`, 'false/true');
+  assert.doesNotMatch(JSON.stringify(absent), /SECRET123/);
 });

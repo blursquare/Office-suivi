@@ -91,7 +91,7 @@ function seaOuNull() {
   try { return require('node:sea'); } catch (_) { return null; }
 }
 
-function creerApp({ db, config, envoyerEmailFn, creerClientClaude, appelerMistral, testerMistral, miseAJour, agenda, emailsMatin, rapportTechnique, sondages }) {
+function creerApp({ db, config, envoyerEmailFn, creerClientClaude, appelerMistral, testerMistral, miseAJour, agenda, emailsMatin, rapportTechnique, sondages, exchange }) {
   const app = express();
   const depot = creerDepot(db);
   const parametresRepo = creerRepoParametres(db);
@@ -158,7 +158,7 @@ function creerApp({ db, config, envoyerEmailFn, creerClientClaude, appelerMistra
   // identifiants de messagerie (mot de passe jamais renvoyé au navigateur), teste la connexion et
   // crée les rendez-vous de signature dans l'agenda. À valider sur un poste du bureau (l'Exchange
   // n'est joignable que depuis le réseau de l'étude).
-  app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurExchange(parametresRepo));
+  app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurExchange(parametresRepo, exchange || {}));
   // Sondage de créneaux de signature (voir sondagesCreneaux.js). `sondages.poster` : faux transport
   // EWS, tests seulement.
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurSondages(parametresRepo, sondages || {}));

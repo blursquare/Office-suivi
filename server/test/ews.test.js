@@ -445,3 +445,46 @@ test('Notes d\'un rendez-vous : GetItem du corps en texte, UpdateItem du seul co
     { poster: (o, cb) => cb(null, { statusCode: 200, body: '<m:UpdateItemResponseMessage ResponseClass="Success"><t:ItemId Id="ID1" ChangeKey="CK3"/>' }) });
   assert.equal(`${ok.ok}/${ok.changeKey}`, 'true/CK3');
 });
+
+test('desechapperXml : références numériques (« &#xD; » d\'Exchange), jamais un &amp; décodé deux fois', () => {
+  assert.equal(desechapperXml('ligne 1&#xD;\nligne 2'), 'ligne 1\r\nligne 2');
+  assert.equal(desechapperXml('a&#13;b &#233;t&#xE9;'), 'a\rb été');
+  assert.equal(desechapperXml('&amp;#xD;'), '&#xD;');
+  assert.equal(desechapperXml('&#x110000;'), '&#x110000;', 'hors Unicode : laissé tel quel');
+});
+
+test('Notes : le retour chariot d\'Exchange ne traîne plus en clair (étude, 01/10)', () => {
+  const { parseNotesEws } = require('../src/exchange/ews');
+  const reponse = '<t:ItemId Id="ID1" ChangeKey="CK"/><t:Body BodyType="Text">permettre de modifier un rendez-vous&#xD;\nglisser déposer</t:Body>';
+  assert.equal(parseNotesEws(reponse).notes, 'permettre de modifier un rendez-vous\nglisser déposer');
+  // Note relue avant la correction puis réenregistrée : « &#xD; » écrit en clair dans Outlook.
+  const ancienne = '<t:ItemId Id="ID1"/><t:Body BodyType="Text">A&amp;#xD;&#xD;\nB</t:Body>';
+  assert.equal(parseNotesEws(ancienne).notes, 'A\nB');
+});
+
+test('Modifier un rendez-vous : horaire à Paris, journée entière, incohérences refusées', async () => {
+  const { horaireModifie, corpsModifierRendezVous, modifierRendezVousExchange } = require('../src/exchange/ews');
+  assert.equal(JSON.stringify(horaireModifie({ date: '2026-12-03', heure: '09:30', heureFin: '10:15' })),
+    '{"debut":"2026-12-03T08:30:00Z","fin":"2026-12-03T09:15:00Z"}', 'hiver : UTC+1');
+  assert.equal(horaireModifie({ date: '2026-12-03', heure: '10:00', heureFin: '10:00' }), null);
+  assert.equal(horaireModifie({ date: '2026-12-03', heure: '25:00', heureFin: '26:00' }), null);
+  assert.equal(horaireModifie({ date: '03/12/2026', heure: '09:00', heureFin: '10:00' }), null);
+  assert.equal(JSON.stringify(horaireModifie({ date: '2026-10-05', dateFin: '2026-10-06', journeeEntiere: true })),
+    '{"debut":"2026-10-04T22:00:00Z","fin":"2026-10-06T22:00:00Z"}');
+  assert.equal(horaireModifie({ date: '2026-10-06', dateFin: '2026-10-05', journeeEntiere: true }), null);
+
+  const corps = corpsModifierRendezVous({ itemId: 'A<1>', changeKey: 'K', sujet: 'VTE - X & Y', debut: 'D', fin: 'F' });
+  assert.match(corps, /<m:UpdateItem ConflictResolution="AutoResolve" SendMeetingInvitationsOrCancellations="SendToNone">/);
+  assert.match(corps, /Id="A&lt;1&gt;" ChangeKey="K"/);
+  assert.match(corps, /FieldURI="item:Subject"\/><t:CalendarItem><t:Subject>VTE - X &amp; Y<\/t:Subject>/);
+  assert.match(corps, /<t:Start>D<\/t:Start>[\s\S]*<t:End>F<\/t:End>/);
+  assert.doesNotMatch(corpsModifierRendezVous({ itemId: 'A', debut: 'D', fin: 'F' }), /Subject|ChangeKey/);
+
+  const conflit = await modifierRendezVousExchange({ url: 'u', email: 'a', motDePasse: 'SECRET', itemId: 'A', debut: 'D', fin: 'F' },
+    { poster: (o, cb) => cb(null, { statusCode: 200, body: '<m:ResponseCode>ErrorIrresolvableConflict</m:ResponseCode>' }) });
+  assert.equal(conflit.raison, 'conflit');
+  const refus = await modifierRendezVousExchange({ url: 'u', email: 'a', motDePasse: 'SECRET', itemId: 'A', debut: 'D', fin: 'F' },
+    { poster: (o, cb) => cb(null, { statusCode: 401, body: '' }) });
+  assert.equal(refus.raison, 'auth');
+  assert.doesNotMatch(refus.message, /SECRET/);
+});

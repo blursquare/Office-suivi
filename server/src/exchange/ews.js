@@ -257,7 +257,10 @@ function creerRendezVousExchange({ url, email, motDePasse, rendezVous, delaiMs =
 function desechapperXml(s) {
   return String(s == null ? '' : s)
     .replace(/&lt;/g, '<').replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&#39;/g, "'")
+    .replace(/&quot;/g, '"').replace(/&apos;/g, "'")
+    // Références numériques : Exchange écrit le retour chariot d'un corps « &#xD; » (étude, 01/10 :
+    // il traînait en clair dans les notes d'un rendez-vous).
+    .replace(/&#(?:x([0-9a-f]{1,6})|(\d{1,7}));/gi, (t, h, n) => { const c = h ? parseInt(h, 16) : Number(n); return c > 0 && c <= 0x10ffff ? String.fromCodePoint(c) : t; })
     .replace(/&amp;/g, '&'); // &amp; en dernier pour ne pas re-décoder une entité déjà décodée
 }
 
@@ -739,6 +742,59 @@ async function deplacerRendezVousExchange({ url, email, motDePasse, itemId, chan
     "Rendez-vous déplacé dans l'agenda.", 'Le déplacement du rendez-vous a échoué');
 }
 
+// --- Modifier un rendez-vous depuis la page Agenda (étude, 01/10 : « modifier un rendez-vous, titre,
+// date horaire et glisser déposé les rendez-vous ») ---
+//
+// Titre, début et fin dans un seul UpdateItem ; rien d'autre n'est touché (lieu, catégorie de
+// couleur, notes, participants). Un seul essai.
+
+// Pure : bornes EWS d'un horaire saisi à Paris. Rendez-vous horodaté : début et fin le même jour,
+// fin après le début. Journée entière : minuit du premier jour → minuit du lendemain du dernier.
+// null si l'horaire est incohérent.
+function horaireModifie({ date, heure, heureFin, dateFin, journeeEntiere }) {
+  const jourOk = (v) => /^\d{4}-\d{2}-\d{2}$/.test(String(v || ''));
+  const heureOk = (v) => /^([01]\d|2[0-3]):[0-5]\d$/.test(String(v || ''));
+  if (!jourOk(date)) return null;
+  if (journeeEntiere) {
+    const dernier = jourOk(dateFin) ? dateFin : date;
+    if (dernier < date) return null;
+    return { debut: bornesJourneeEntiere(date).debut, fin: bornesJourneeEntiere(dernier).fin };
+  }
+  if (!heureOk(heure) || !heureOk(heureFin) || heureFin <= heure) return null;
+  return {
+    debut: formatEwsUtc(instantUtcDepuisParis(date, heure)),
+    fin: formatEwsUtc(instantUtcDepuisParis(date, heureFin))
+  };
+}
+
+function corpsModifierRendezVous({ itemId, changeKey, sujet, debut, fin }) {
+  const champ = (uri, xml) => '<t:SetItemField><t:FieldURI FieldURI="' + uri + '"/><t:CalendarItem>' + xml + '</t:CalendarItem></t:SetItemField>';
+  return ENVELOPPE_DEBUT
+    + '<m:UpdateItem ConflictResolution="AutoResolve" SendMeetingInvitationsOrCancellations="SendToNone">'
+    + '<m:ItemChanges><t:ItemChange>'
+    + '<t:ItemId Id="' + echapperXml(itemId) + '"' + (changeKey ? ' ChangeKey="' + echapperXml(changeKey) + '"' : '') + '/>'
+    + '<t:Updates>'
+    + (typeof sujet === 'string' ? champ('item:Subject', '<t:Subject>' + echapperXml(sujet) + '</t:Subject>') : '')
+    + champ('calendar:Start', '<t:Start>' + debut + '</t:Start>')
+    + champ('calendar:End', '<t:End>' + fin + '</t:End>')
+    + '</t:Updates>'
+    + '</t:ItemChange></m:ItemChanges>'
+    + '</m:UpdateItem>' + ENVELOPPE_FIN;
+}
+
+async function modifierRendezVousExchange({ url, email, motDePasse, itemId, changeKey, sujet, debut, fin, delaiMs }, injections) {
+  const r = await posterEws({ url, email, motDePasse, delaiMs, body: corpsModifierRendezVous({ itemId, changeKey, sujet, debut, fin }) }, injections);
+  if (r.echec) return r.echec;
+  const texte = String(r.corps || '');
+  if (/<m:ResponseCode>ErrorItemNotFound<\/m:ResponseCode>/.test(texte)) {
+    return { ok: false, introuvable: true, raison: 'ews', message: "Ce rendez-vous n'est plus dans l'agenda." };
+  }
+  if (/<m:ResponseCode>ErrorIrresolvableConflict<\/m:ResponseCode>/.test(texte)) {
+    return { ok: false, raison: 'conflit', message: 'Le rendez-vous a été modifié dans Outlook entre-temps : rechargez l’agenda puis recommencez.' };
+  }
+  return interpreterReponseCreation(r.statut, r.corps, 'Rendez-vous modifié dans l’agenda.', 'La modification du rendez-vous a échoué');
+}
+
 // --- Notes d'un rendez-vous (étude, 30/09 : « de quoi mettre des notes dans le rendez-vous ») ---
 //
 // La note EST le corps du rendez-vous dans Outlook (choix de l'étude) : on la voit dans Outlook comme
@@ -761,7 +817,9 @@ function parseNotesEws(corps) {
   const idTag = (texte.match(/<t:ItemId\b[^>]*>/) || [])[0] || '';
   const brut = (texte.match(/<t:Body\b[^>]*>([\s\S]*?)<\/t:Body>/) || [])[1] || '';
   return {
-    notes: desechapperXml(brut).replace(/\r\n?/g, '\n').trim(),
+    // « &#xD; » resté en clair : trace d'une note relue avant la correction du 01/10 puis réenregistrée
+    // (le texte « &#xD; » a alors été écrit tel quel dans Outlook) — retiré à la lecture.
+    notes: desechapperXml(brut).replace(/&#(?:x0*D|0*13);/gi, '').replace(/\r\n?/g, '\n').trim(),
     itemId: (idTag.match(/\bId="([^"]+)"/) || [])[1] || '',
     changeKey: (idTag.match(/\bChangeKey="([^"]+)"/) || [])[1] || ''
   };
@@ -883,5 +941,6 @@ module.exports = {
   heureParisDepuisInstant, horaireDeplace, corpsUpdateRendezVousHoraire, deplacerRendezVousExchange,
   posterEws, corpsLireCalendrier, parseCalendrierEws, lireCalendrierExchange,
   JOURS_PAR_TRANCHE_CALENDRIER, TRANCHES_CALENDRIER,
+  horaireModifie, corpsModifierRendezVous, modifierRendezVousExchange,
   TAILLE_MAX_NOTES, corpsLireNotes, parseNotesEws, corpsUpdateNotes, lireNotesExchange, mettreAJourNotesExchange
 };
