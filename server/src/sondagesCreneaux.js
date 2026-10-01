@@ -50,12 +50,31 @@ function jetonReponse(code, n) {
 }
 
 // Pure : les jetons d'un objet (« RE: [CLAIRE-ABC234-2] Créneau 2 … » → [{ code, n }]).
+// « L » : réponse « en une seule fois » (étude, 01/10) — les créneaux retenus sont les lignes
+// cochées d'un X dans le texte de l'email (voir choixDepuisTexteListe) ; rend { code, liste: true }.
 function jetonsDansObjet(sujet) {
   const liste = [];
-  const re = /CLAIRE-([A-HJ-NP-Z2-9]{6})-(\d)(?![0-9])/gi;
+  const re = /CLAIRE-([A-HJ-NP-Z2-9]{6})-(\d|L)(?![0-9A-Za-z])/gi;
   let m;
-  while ((m = re.exec(String(sujet || ''))) !== null) liste.push({ code: m[1].toUpperCase(), n: Number(m[2]) });
+  while ((m = re.exec(String(sujet || ''))) !== null) {
+    if (/^l$/i.test(m[2])) liste.push({ code: m[1].toUpperCase(), liste: true });
+    else liste.push({ code: m[1].toUpperCase(), n: Number(m[2]) });
+  }
   return liste;
+}
+
+// Pure : les créneaux cochés dans le texte d'une réponse « en une seule fois ». Une ligne
+// « [X] 2 - Mardi … » (X, x, ✓ ou ✔ entre les crochets) retient le créneau 2 ; « [ ] » non. Le texte
+// cité d'un autre email (lignes commençant par « > ») est ignoré.
+function choixDepuisTexteListe(texte, numeros) {
+  const valides = new Set(numeros || []);
+  const choix = new Set();
+  for (const ligne of String(texte || '').split(/\r?\n/)) {
+    if (/^\s*>/.test(ligne)) continue;
+    const m = /^\s*\[\s*[xX✓✔]\s*\]\s*(\d)(?![0-9])/.exec(ligne);
+    if (m && valides.has(Number(m[1]))) choix.add(Number(m[1]));
+  }
+  return [...choix].sort();
 }
 
 // Pure : n jours ouvrés (lundi → vendredi) après une date.
@@ -153,9 +172,11 @@ function appliquerReponses(sondages, emails) {
   for (const e of tries) {
     const adresse = String(e.deAdresse || '').trim().toLowerCase();
     if (!adresseValide(adresse)) continue;
-    for (const { code, n } of jetonsDansObjet(e.sujet)) {
+    for (const { code, n, liste } of jetonsDansObjet(e.sujet)) {
       const s = parCode.get(code);
       if (!s) continue;
+      // Réponse « en une seule fois » : seulement si son texte a été lu et coche au moins un créneau.
+      if (liste && !(Array.isArray(e.choixListe) && e.choixListe.length)) continue;
       if (n > 0 && !s.creneaux.some((c) => c.n === n)) continue;
       let r = s.reponses.find((x) => x.email === adresse);
       // Un email déjà compté (même heure de réception) ne recompte rien : la boîte est relue à
@@ -166,9 +187,14 @@ function appliquerReponses(sondages, emails) {
         r = { email: adresse, nom: (p && p.nom) || texteBorne(e.deNom, 120), choix: [], aucun: false, recuLe: '' };
         s.reponses.push(r);
       }
-      if (n === 0) { r.choix = []; r.aucun = true; } else if (!r.choix.includes(n)) { r.choix = [...r.choix, n].sort(); r.aucun = false; }
+      if (liste) {
+        // Remplace les choix précédents : c'est la réponse complète de la personne.
+        r.choix = e.choixListe.filter((x) => s.creneaux.some((c) => c.n === x)).sort();
+        r.aucun = false;
+        if (!r.choix.length) continue;
+      } else if (n === 0) { r.choix = []; r.aucun = true; } else if (!r.choix.includes(n)) { r.choix = [...r.choix, n].sort(); r.aucun = false; }
       r.recuLe = texteBorne(e.recuLe, 40);
-      nouvelles.push({ sondageId: s.id, dossierId: s.dossierId, email: adresse, n });
+      nouvelles.push({ sondageId: s.id, dossierId: s.dossierId, email: adresse, n: liste ? 'liste' : n });
     }
   }
   return { sondages, nouvelles };
@@ -222,6 +248,68 @@ function corpsFindReponsesSondages(depuisUtc) {
     + '</m:FindItem>' + ENVELOPPE_FIN;
 }
 
+function desechapperXml(s) {
+  return String(s || '').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&apos;/g, "'")
+    .replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(Number(n))).replace(/&amp;/g, '&');
+}
+
+// Pure : les messages d'une réponse FindItem, avec leur identifiant (pour lire, au besoin, le texte
+// d'une réponse « en une seule fois »).
+function parseFindReponses(corps) {
+  const liste = [];
+  const re = /<t:Message\b[\s\S]*?<\/t:Message>/g;
+  let m;
+  while ((m = re.exec(String(corps || ''))) !== null) {
+    const bloc = m[0];
+    const lire = (tag) => desechapperXml((bloc.match(new RegExp(`<t:${tag}>([\\s\\S]*?)</t:${tag}>`)) || [])[1] || '').trim();
+    const from = (bloc.match(/<t:From>([\s\S]*?)<\/t:From>/) || [])[1] || '';
+    liste.push({
+      itemId: desechapperXml((bloc.match(/<t:ItemId\b[^>]*\bId="([^"]+)"/) || [])[1] || ''),
+      sujet: lire('Subject'),
+      deNom: desechapperXml((from.match(/<t:Name>([\s\S]*?)<\/t:Name>/) || [])[1] || '').trim(),
+      deAdresse: desechapperXml((from.match(/<t:EmailAddress>([\s\S]*?)<\/t:EmailAddress>/) || [])[1] || '').trim().toLowerCase(),
+      recuLe: lire('DateTimeReceived')
+    });
+  }
+  return liste;
+}
+
+// GetItem du seul texte (BodyType Text) des réponses « en une seule fois » — jamais gardé : seuls
+// les numéros cochés en sont tirés.
+function corpsLireTextesReponses(itemIds) {
+  return ENVELOPPE_DEBUT
+    + '<m:GetItem><m:ItemShape><t:BaseShape>IdOnly</t:BaseShape><t:BodyType>Text</t:BodyType>'
+    + '<t:AdditionalProperties><t:FieldURI FieldURI="item:Body"/></t:AdditionalProperties></m:ItemShape>'
+    + '<m:ItemIds>' + itemIds.map((id) => `<t:ItemId Id="${echapperXml(id)}"/>`).join('') + '</m:ItemIds>'
+    + '</m:GetItem>' + ENVELOPPE_FIN;
+}
+
+// Pure : itemId → texte, d'une réponse GetItem.
+function parseTextesReponses(corps) {
+  const textes = new Map();
+  const re = /<t:Message\b[\s\S]*?<\/t:Message>/g;
+  let m;
+  while ((m = re.exec(String(corps || ''))) !== null) {
+    const id = desechapperXml((m[0].match(/<t:ItemId\b[^>]*\bId="([^"]+)"/) || [])[1] || '');
+    const texte = desechapperXml((m[0].match(/<t:Body\b[^>]*>([\s\S]*?)<\/t:Body>/) || [])[1] || '');
+    if (id) textes.set(id, texte);
+  }
+  return textes;
+}
+
+// Pure : les réponses « en une seule fois » dont il faut lire le texte — sondage ouvert, et pas
+// déjà comptées (même règle de date que appliquerReponses). Au plus 20 par tour.
+function reponsesListeALire(sondages, emails) {
+  const parCode = new Map(sondages.filter((s) => s.statut === 'ouvert').map((s) => [s.code, s]));
+  return emails.filter((e) => e.itemId && jetonsDansObjet(e.sujet).some((j) => {
+    if (!j.liste) return false;
+    const s = parCode.get(j.code);
+    if (!s) return false;
+    const r = s.reponses.find((x) => x.email === String(e.deAdresse || '').toLowerCase());
+    return !(r && r.recuLe && e.recuLe && r.recuLe >= e.recuLe);
+  })).slice(0, 20);
+}
+
 function dateDuJourParis(maintenant) {
   return new Date(maintenant || Date.now()).toLocaleDateString('sv-SE', { timeZone: 'Europe/Paris' });
 }
@@ -271,7 +359,6 @@ async function clore(s, statut, reglages, parametresRepo, injections, choisi) {
 async function executerTourSondages(parametresRepo, injections = {}, manuel = false) {
   const agendaWatch = require('./agendaWatch');
   const { posterEws } = require('./exchange/ews');
-  const { parseFindEmails } = require('./emailsMatin');
   const reglages = parametresRepo.lireReglagesExchange ? parametresRepo.lireReglagesExchange() : {};
   const sondages = parametresRepo.lireSondagesCreneaux();
   const resultat = { ok: false, lus: 0, nouvelles: [], expires: [], erreur: null };
@@ -295,8 +382,24 @@ async function executerTourSondages(parametresRepo, injections = {}, manuel = fa
       resultat.erreur = `Lecture des réponses impossible${code ? ' (' + code + ')' : ''}.`;
       return resultat;
     }
-    const emails = parseFindEmails(r.corps).map(({ sujet, deNom, deAdresse, recuLe }) => ({ sujet, deNom, deAdresse, recuLe }));
+    const emails = parseFindReponses(r.corps);
     resultat.lus = emails.length;
+    // Réponses « en une seule fois » : leur texte est lu (un seul GetItem pour toutes), pour y
+    // trouver les créneaux cochés d'un X. Le texte n'est ni gardé ni journalisé.
+    const aLire = reponsesListeALire(sondages, emails);
+    if (aLire.length) {
+      const g = await posterEws({ url: reglages.url, email: reglages.email, motDePasse: reglages.motDePasse, body: corpsLireTextesReponses(aLire.map((e) => e.itemId)) }, injections);
+      if (!g.echec && (g.statut === 401 || g.statut === 403)) {
+        agendaWatch.signalerIdentifiantsRefuses(reglages);
+        resultat.erreur = 'Identifiants de messagerie refusés : vérifiez les Réglages.';
+        return resultat;
+      }
+      const textes = g.echec ? new Map() : parseTextesReponses(g.corps);
+      for (const e of aLire) {
+        const s = sondages.find((x) => x.statut === 'ouvert' && jetonsDansObjet(e.sujet).some((j) => j.liste && j.code === x.code));
+        if (s && textes.has(e.itemId)) e.choixListe = choixDepuisTexteListe(textes.get(e.itemId), s.creneaux.map((c) => c.n));
+      }
+    }
     resultat.nouvelles = appliquerReponses(sondages, emails).nouvelles;
   }
 
@@ -339,6 +442,7 @@ function demarrerSurveillanceSondages(parametresRepo, injections, intervalleMs) 
 module.exports = {
   CLE_SONDAGES, MAX_CRENEAUX, MAX_PARTICIPANTS, JOURS_OUVRES_OPTION, ROLES_PARTICIPANT,
   codeSondage, jetonReponse, jetonsDansObjet, joursOuvresApres, adresseValide,
+  choixDepuisTexteListe, parseFindReponses, corpsLireTextesReponses, parseTextesReponses, reponsesListeALire,
   assainirSondage, assainirSondages, appliquerReponses, syntheseSondage, sondagesExpires,
   corpsFindReponsesSondages, executerTourSondages, demarrerSurveillanceSondages, clore, retirerOptions,
   dateDuJourParis, connexionPrete

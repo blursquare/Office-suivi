@@ -314,8 +314,10 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
 - **Sondage de créneaux de signature** (01/10, « comme un Doodle », `server/src/sondagesCreneaux.js`,
   `routes/sondages.js`, client `ouvrirSondageCreneaux`/`renderSondageDossier`) : rien d'hébergé — un
   `.eml` aux clients ensemble (et un par confrère, formule d'usage) dont chaque bouton est un `mailto:`
-  vers la boîte du compte Exchange, objet `[CLAIRE-CODE-n]` (0 = aucun) ; le serveur relit les **objets
-  seulement** (FindItem, 5 min, même disjoncteur que l'agenda), un email par créneau accepté. Options
+  vers la boîte du compte Exchange, objet `[CLAIRE-CODE-n]` (0 = aucun) ; le serveur relit les **objets**
+  (FindItem, 5 min, même disjoncteur que l'agenda), un email par créneau accepté ; plus « Répondre en une
+  seule fois » (`[CLAIRE-CODE-L]`, étude 01/10) : cases `[ ]` à cocher d'un X, seul cas où le **texte** d'un
+  email est lu (GetItem de ces réponses-là, numéros cochés gardés, texte jamais conservé). Options
   « Provisoire » `VTE - NOM ? — option CLAIRE, créneau n/N` (le « ? » n'écrit rien sur la fiche),
   hachurées dans l'agenda, retirées (`MoveToDeletedItems`) au placement, à l'annulation ou après
   5 jours ouvrés. Votants par défaut : les clients, ou le confrère qui représente une partie. Textes =

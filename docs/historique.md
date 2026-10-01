@@ -13502,3 +13502,19 @@ destinataires et 5 boutons, 3 réponses relues, placement du créneau accepté p
 fiche), 4 options retirées ; clair, sombre, téléphone (390 px sans défilement horizontal). **Non vérifié
 au bureau** : lecture réelle de la boîte (restriction `Contains` sur l'objet), rendu des boutons dans
 Outlook, statut « Provisoire » dans le calendrier partagé.
+
+### 01/10/2026 — Sondage : « Répondre en une seule fois »
+
+Demande de l'étude : « Est-il possible de permettre de cocher les créneaux qui nous conviennent et
+d'envoyer un seul e-mail ? » Réponse donnée : un email ne peut pas porter de vraies cases à cocher
+(Outlook et Gmail bloquent les formulaires) et CLAIRE n'a pas de page en ligne ; choix de l'étude
+(question posée) : **garder un bouton par créneau et ajouter « Répondre en une seule fois »**.
+
+Ce bouton ouvre une réponse d'objet `[CLAIRE-CODE-L] Mes disponibilités` dont le texte liste les
+créneaux (`[ ] 1 - Mardi 20 octobre à 10 h 00`, `corpsReponseListeSondage`) ; le client met un X
+entre les crochets. Côté serveur (`sondagesCreneaux.js`) : `jetonsDansObjet` reconnaît « L » ;
+`reponsesListeALire` retient les réponses pas encore comptées (20 au plus par tour), lues en un seul
+GetItem en texte brut (`corpsLireTextesReponses`, `parseTextesReponses`) — **seul cas où le texte d'un
+email est lu**, il n'est ni gardé ni journalisé ; `choixDepuisTexteListe` relève les lignes `[X] n`
+(X, x, ✓, ✔ ; lignes citées « > » ignorées). Une réponse groupée **remplace** les choix précédents de
+la personne ; sans aucune case cochée, elle ne change rien. Bouton absent s'il n'y a qu'un créneau.

@@ -55,13 +55,19 @@ test('objet de la réponse : le jeton en tête, puis le créneau en clair', () =
   assert.match(lien, /^mailto:office@exemple\.fr\?subject=%5BCLAIRE-ABC234-2%5D%20Cr%C3%A9neau%202&body=/);
 });
 
-test('boutons de l’email : un par créneau, puis « aucun » en secondaire', () => {
+test('boutons de l’email : un par créneau, « en une seule fois », puis « aucun » en secondaire', () => {
   const b = app.boutonsSondage(SONDAGE);
-  assert.equal(b.length, 3);
+  assert.equal(b.length, 4);
   assert.equal(b[0].libelle, 'Mardi 20 octobre à 10 h 00');
-  assert.equal(b[2].libelle, 'Aucun créneau ne convient');
-  assert.equal(b[2].secondaire, true);
   assert.match(b[1].href, /CLAIRE-ABC234-2/);
+  assert.equal(b[2].libelle, 'Répondre en une seule fois');
+  assert.equal(b[2].secondaire, true);
+  assert.match(b[2].href, /subject=%5BCLAIRE-ABC234-L%5D/);
+  assert.match(decodeURIComponent(b[2].href.split('&body=')[1]), /\[ \] 1 - Mardi 20 octobre à 10 h 00\n\[ \] 2 - Mercredi 21 octobre à 15 h 30$/);
+  assert.equal(b[3].libelle, 'Aucun créneau ne convient');
+  assert.equal(b[3].secondaire, true);
+  // Un seul créneau : pas de réponse groupée.
+  assert.equal(app.boutonsSondage(Object.assign({}, SONDAGE, { creneaux: [SONDAGE.creneaux[0]] })).length, 2);
 });
 
 test('emails : les clients ensemble, chaque confrère à part ; relance aux seuls sans réponse', () => {

@@ -9,7 +9,8 @@ const os = require('node:os');
 
 const {
   codeSondage, jetonReponse, jetonsDansObjet, joursOuvresApres, appliquerReponses, syntheseSondage,
-  sondagesExpires, corpsFindReponsesSondages, assainirSondage
+  sondagesExpires, corpsFindReponsesSondages, assainirSondage,
+  choixDepuisTexteListe, reponsesListeALire, corpsLireTextesReponses, parseTextesReponses, parseFindReponses
 } = require('../src/sondagesCreneaux');
 const { corpsCreateRendezVous } = require('../src/exchange/ews');
 const { evenementsAgendaOffice } = require('../src/agendaOffice');
@@ -75,6 +76,36 @@ test('réponses : un email par créneau s’ajoute, « aucun » efface, l’exp�
   assert.equal(synthese[0].tous, false);
 });
 
+test('réponse « en une seule fois » : les lignes cochées d’un X remplacent les choix', () => {
+  assert.equal(JSON.stringify(jetonsDansObjet('RE: [CLAIRE-ABC234-L] Mes disponibilités')), JSON.stringify([{ code: 'ABC234', liste: true }]));
+  const texte = 'Mettez un X…\r\n\r\n[X] 1 - Mardi 20 octobre\r\n[ ] 2 - Mercredi 21 octobre\r\n[ x ] 3 - inexistant\r\n> [X] 2 - cité\r\nCordialement';
+  assert.equal(choixDepuisTexteListe(texte, [1, 2]).join(','), '1');
+  assert.equal(choixDepuisTexteListe('[✓] 2 - Mercredi', [1, 2]).join(','), '2');
+  const s = sondageExemple();
+  // Choix précédent par bouton (créneau 2), puis réponse groupée qui coche le 1 seulement.
+  appliquerReponses([s], [{ sujet: '[CLAIRE-ABC234-2]', deAdresse: 'paul.durand@exemple.fr', recuLe: '2026-10-01T09:00:00Z' }]);
+  const emails = [{ itemId: 'M1', sujet: '[CLAIRE-ABC234-L] Mes disponibilités', deAdresse: 'paul.durand@exemple.fr', recuLe: '2026-10-01T10:00:00Z' }];
+  assert.equal(reponsesListeALire([s], emails).length, 1);
+  // Texte pas encore lu : rien ne change.
+  assert.equal(appliquerReponses([s], emails).nouvelles.length, 0);
+  emails[0].choixListe = [1];
+  assert.equal(appliquerReponses([s], emails).nouvelles.length, 1);
+  assert.equal(s.reponses[0].choix.join(','), '1');
+  // Déjà comptée : plus rien à lire.
+  assert.equal(reponsesListeALire([s], emails).length, 0);
+});
+
+test('lecture du texte : GetItem en texte brut ; identifiant et texte relus', () => {
+  const c = corpsLireTextesReponses(['ID&1']);
+  assert.match(c, /<t:BodyType>Text<\/t:BodyType>/);
+  assert.match(c, /<t:ItemId Id="ID&amp;1"\/>/);
+  const textes = parseTextesReponses('<m:Items><t:Message><t:ItemId Id="ID1" ChangeKey="k"/><t:Body BodyType="Text">[X] 1 - Mardi &amp; co</t:Body></t:Message></m:Items>');
+  assert.equal(textes.get('ID1'), '[X] 1 - Mardi & co');
+  const msgs = parseFindReponses('<t:Message><t:ItemId Id="ID9" ChangeKey="k"/><t:Subject>[CLAIRE-ABC234-L] Mes disponibilités</t:Subject><t:From><t:Mailbox><t:Name>Paul</t:Name><t:EmailAddress>Paul.Durand@exemple.fr</t:EmailAddress></t:Mailbox></t:From><t:DateTimeReceived>2026-10-01T10:00:00Z</t:DateTimeReceived></t:Message>');
+  assert.equal(msgs[0].itemId, 'ID9');
+  assert.equal(msgs[0].deAdresse, 'paul.durand@exemple.fr');
+});
+
 test('un créneau accepté par tous est signalé', () => {
   const s = sondageExemple();
   appliquerReponses([s], [
@@ -128,8 +159,12 @@ function fauxPoster(options, cb) {
     return cb(null, { statusCode: 200, body: `<m:CreateItemResponseMessage ResponseClass="Success"><m:ResponseCode>NoError</m:ResponseCode><t:ItemId Id="OPT${n}" ChangeKey="CK${n}"/></m:CreateItemResponseMessage>` });
   }
   if (/<m:DeleteItem/.test(body)) return cb(null, { statusCode: 200, body: '<m:DeleteItemResponseMessage ResponseClass="Success"><m:ResponseCode>NoError</m:ResponseCode></m:DeleteItemResponseMessage>' });
+  if (/<m:GetItem/.test(body)) {
+    const ids = [...body.matchAll(/<t:ItemId Id="([^"]+)"/g)].map((m) => m[1]);
+    return cb(null, { statusCode: 200, body: `<m:GetItemResponseMessage ResponseClass="Success"><m:ResponseCode>NoError</m:ResponseCode><m:Items>${ids.map((id) => `<t:Message><t:ItemId Id="${id}" ChangeKey="k"/><t:Body BodyType="Text">${(boite.find((m) => m.id === id) || {}).texte || ''}</t:Body></t:Message>`).join('')}</m:Items></m:GetItemResponseMessage>` });
+  }
   if (/<m:FindItem/.test(body)) {
-    const messages = boite.map((m) => `<t:Message><t:Subject>${m.sujet}</t:Subject><t:From><t:Mailbox><t:Name>${m.nom}</t:Name><t:EmailAddress>${m.adresse}</t:EmailAddress></t:Mailbox></t:From><t:DateTimeReceived>${m.recuLe}</t:DateTimeReceived></t:Message>`).join('');
+    const messages = boite.map((m) => `<t:Message><t:ItemId Id="${m.id || 'X'}" ChangeKey="k"/><t:Subject>${m.sujet}</t:Subject><t:From><t:Mailbox><t:Name>${m.nom}</t:Name><t:EmailAddress>${m.adresse}</t:EmailAddress></t:Mailbox></t:From><t:DateTimeReceived>${m.recuLe}</t:DateTimeReceived></t:Message>`).join('');
     return cb(null, { statusCode: 200, body: `<m:FindItemResponseMessage ResponseClass="Success"><m:ResponseCode>NoError</m:ResponseCode><m:RootFolder><t:Items>${messages}</t:Items></m:RootFolder></m:FindItemResponseMessage>` });
   }
   cb(null, { statusCode: 500, body: '' });
@@ -195,7 +230,7 @@ test('sondage complet : création avec options, réponses relues, placement qui 
 
   boite = [
     { sujet: `RE: [CLAIRE-${s.code}-2] Créneau 2`, nom: 'Paul', adresse: 'paul.durand@exemple.fr', recuLe: '2099-01-01T09:00:00Z' },
-    { sujet: `[CLAIRE-${s.code}-2] Créneau 2`, nom: 'Léa', adresse: 'lea.martin@exemple.fr', recuLe: '2099-01-01T09:10:00Z' }
+    { id: 'LISTE1', sujet: `[CLAIRE-${s.code}-L] Mes disponibilités`, nom: 'Léa', adresse: 'lea.martin@exemple.fr', recuLe: '2099-01-01T09:10:00Z', texte: '[ ] 1 - Mardi\n[X] 2 - Mercredi' }
   ];
   const relu = await (await appeler(`/api/sondages/${s.id}/relire`, { method: 'POST', body: '{}' })).json();
   assert.equal(relu.ok, true);

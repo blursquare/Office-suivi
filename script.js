@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-01 00:27';
+  const VERSION_APP = '2026-10-01 07:23';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-01 07:23', resume: "Sondage de créneaux : l'email propose aussi « Répondre en une seule fois » — un seul email de réponse, avec une case [ ] par créneau à cocher d'un X. CLAIRE lit le texte de ces réponses-là (et seulement celles-là) pour y relever les créneaux cochés. Les boutons d'un créneau et « Aucun créneau ne convient » restent." },
     { version: '2026-10-01 00:27', resume: "Sondage de créneaux de signature, comme un Doodle : depuis la fiche (onglet Échanges) ou l'agenda, « Proposer » choisit jusqu'à 5 créneaux libres et prépare un email aux clients (et un à chaque confrère) avec un bouton par créneau ; chaque clic prépare une réponse vers la boîte de l'office, que CLAIRE relit toutes les 5 minutes. Les réponses s'affichent en tableau (✓/✗) avec « Placer », « Relancer » et « Annuler ». Les créneaux peuvent être bloqués en option dans l'agenda (hachurés), retirés d'eux-mêmes au placement ou après 5 jours ouvrés. Nouveau champ « Email du vendeur » à la création d'un dossier et sur la fiche." },
     { version: '2026-09-30 23:57', resume: "Agenda : chaque signature montre aussi si le projet d'acte est envoyé (Appel de fonds, Décompte, Projet) ; la probabilité de maintien passe en bas à droite du rendez-vous, sous « Projet », en petit et en gris. Les heures de la grille sont un peu plus hautes pour que tout tienne dans un rendez-vous d'une heure." },
     { version: '2026-09-30 23:54', resume: "Agenda, comme dans Outlook : un clic sur une case vide surligne un créneau d'une heure (à la demi-heure près) ; un double-clic, ou un second clic sur le créneau surligné, ouvre « Nouveau rendez-vous » sur ce créneau, d'une durée d'1 h par défaut. Échap efface le créneau surligné." },
@@ -19782,15 +19783,27 @@
     return c ? `[CLAIRE-${code}-${c.n}] Créneau ${c.n} : ${libelleCreneauSondage(c)}` : `[CLAIRE-${code}-0] Aucun créneau ne convient`;
   }
 
-  function lienReponseSondage(adresse, sujet) {
-    return `mailto:${adresse}?subject=${encodeURIComponent(sujet)}&body=${encodeURIComponent('Réponse enregistrée par l’office : il suffit d’envoyer cet email, sans modifier son objet.')}`;
+  function lienReponseSondage(adresse, sujet, corps) {
+    return `mailto:${adresse}?subject=${encodeURIComponent(sujet)}&body=${encodeURIComponent(corps || 'Réponse enregistrée par l’office : il suffit d’envoyer cet email, sans modifier son objet.')}`;
+  }
+
+  // Pur : la réponse « en une seule fois » (étude, 01/10) — une case [ ] par créneau, à cocher d'un X.
+  // Le serveur lit le texte de ces seules réponses pour y trouver les lignes cochées.
+  function corpsReponseListeSondage(s) {
+    return ['Mettez un X entre les crochets de chaque créneau qui vous convient, puis envoyez cet email sans en modifier l’objet.', '']
+      .concat(s.creneaux.map(c => `[ ] ${c.n} - ${libelleCreneauSondage(c).replace(/^./, x => x.toUpperCase())}`))
+      .join('\n');
   }
 
   // Pur : les boutons de l'email (un par créneau, puis « aucun »).
   function boutonsSondage(s) {
     const majuscule = (t) => t.charAt(0).toUpperCase() + t.slice(1);
-    return s.creneaux.map(c => ({ libelle: majuscule(libelleCreneauSondage(c)), href: lienReponseSondage(s.adresseReponse, sujetReponseSondage(s.code, c)) }))
-      .concat([{ libelle: 'Aucun créneau ne convient', href: lienReponseSondage(s.adresseReponse, sujetReponseSondage(s.code, null)), secondaire: true }]);
+    const boutons = s.creneaux.map(c => ({ libelle: majuscule(libelleCreneauSondage(c)), href: lienReponseSondage(s.adresseReponse, sujetReponseSondage(s.code, c)) }));
+    if (s.creneaux.length > 1) {
+      boutons.push({ libelle: 'Répondre en une seule fois', secondaire: true,
+        href: lienReponseSondage(s.adresseReponse, `[CLAIRE-${s.code}-L] Mes disponibilités`, corpsReponseListeSondage(s)) });
+    }
+    return boutons.concat([{ libelle: 'Aucun créneau ne convient', href: lienReponseSondage(s.adresseReponse, sujetReponseSondage(s.code, null)), secondaire: true }]);
   }
 
   // Pur : le texte de l'email ({{BOUTONS}} = emplacement des boutons). `relance` : second envoi.
@@ -19800,7 +19813,7 @@
       return [
         relance ? `Je me permets de revenir vers vous au sujet du rendez-vous de signature de la vente ${libelleDossierAffiche(d)}, pour lequel je vous ai proposé les créneaux ci-dessous.`
           : `Afin de fixer le rendez-vous de signature de la vente ${libelleDossierAffiche(d)}, je vous propose les créneaux ci-dessous.`,
-        'Pourriez-vous m’indiquer ceux qui conviennent à votre client et à vous-même ? Un clic sur un créneau prépare la réponse : il suffit de l’envoyer sans en modifier l’objet (un email par créneau qui convient).',
+        'Pourriez-vous m’indiquer ceux qui conviennent à votre client et à vous-même ? Un clic sur un créneau prépare la réponse : il suffit de l’envoyer sans en modifier l’objet (un email par créneau qui convient). « Répondre en une seule fois » prépare un seul email, où cocher d’un X les créneaux retenus.',
         '{{BOUTONS}}',
         limite ? `Je vous remercie de votre réponse avant le ${limite}.` : ''
       ].filter(Boolean).join('\n\n');
@@ -19809,7 +19822,7 @@
       'Bonjour,',
       relance ? 'Nous revenons vers vous pour fixer le rendez-vous de signature de l’acte de vente : nous n’avons pas encore reçu votre choix parmi les créneaux ci-dessous.'
         : 'Afin de fixer le rendez-vous de signature de l’acte de vente, nous vous proposons les créneaux ci-dessous.',
-      'Cliquez sur chaque créneau qui vous convient : un email de réponse s’ouvre, il suffit de l’envoyer sans en modifier l’objet (un email par créneau). Si aucun ne vous convient, cliquez sur « Aucun créneau ne convient ».',
+      'Cliquez sur chaque créneau qui vous convient : un email de réponse s’ouvre, il suffit de l’envoyer sans en modifier l’objet (un email par créneau). Pour répondre en un seul email, cliquez sur « Répondre en une seule fois » et cochez d’un X les créneaux qui vous conviennent. Si aucun ne vous convient, cliquez sur « Aucun créneau ne convient ».',
       '{{BOUTONS}}',
       `Merci de nous répondre${limite ? ` avant le ${limite}` : ''}. Le rendez-vous vous sera confirmé dès que toutes les parties auront répondu.`
     ].join('\n\n');
