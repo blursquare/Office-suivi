@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-01 23:08';
+  const VERSION_APP = '2026-10-01 23:12';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-01 23:12', resume: "Suivi des dossiers : le collaborateur responsable n'apparaît plus que par ses initiales dans une pastille ronde (nom complet au survol), en vue Échéances comme en vue Tableau ; le nom du dossier tient sur une ligne. Le bouton « Revérifier tous les dossiers » devient « Scanner le commun »." },
     { version: '2026-10-01 23:08', resume: "Suivi des dossiers : la date d'une échéance tient de nouveau sur une ligne (« 23 septembre 2026 ») depuis le passage de « Prévu » en colonne." },
     { version: '2026-10-01 23:06', resume: "Suivi des dossiers : « Prévu en octobre » passe dans une colonne à gauche, comme celle de l'agenda — compteurs, « À faire » et « Au calendrier » l'un sous l'autre ; la recherche, les filtres et la liste sont à droite. Sur un écran plus étroit, le bloc revient au-dessus de la liste." },
     { version: '2026-10-01 22:56', resume: "Agenda : en tête, seulement les trois lettres du jour et le point orange — « Jeu. » (« Oct. » en vue Mois) —, sans fond." },
@@ -14133,6 +14134,14 @@
     return String(nom || '').split(/[\s-]+/).filter(Boolean).slice(0, 2).map(m => m[0].toUpperCase()).join('');
   }
 
+  // Collaborateur dans les vues Tableau et Échéances du Suivi (étude, 01/10) : ses initiales dans une
+  // pastille ronde, le nom complet au survol. Sans responsable : un tiret.
+  function pastilleCollaborateur(nom) {
+    const ini = initialesCollaborateur(nom);
+    if (!ini) return '<span class="echeance-jours calme">—</span>';
+    return `<span class="pastille-collab" title="${escapeAttr(nom)}" aria-label="${escapeAttr(nom)}">${escapeHtml(ini)}</span>`;
+  }
+
   // ---- Suivi en direct, version visuelle (demandé par l'étude : « plus visuel et graphique ») ----
   // Chaque entrée reçoit une catégorie d'après son texte (pure et testable) : une icône et une
   // couleur de catégorie déjà en place, jamais une couleur inventée. L'ordre des règles compte :
@@ -15633,7 +15642,7 @@
       </div>`;
   }
 
-  // « Revérifier tous les dossiers » (barre d'outils du Suivi), à la place de l'ancien bouton du
+  // « Scanner le commun » (ex-« Revérifier tous les dossiers », renommé par l'étude le 01/10 ; barre d'outils du Suivi), à la place de l'ancien bouton du
   // registre partagé — demandé par l'étude. Remplace aussi, et rend inutiles, le bandeau
   // « reconfirmer les accès », sa popup de démarrage et le bouton groupé qui les accompagnaient :
   // le NAS étant lu par le SERVEUR, il n'y a plus la moindre permission de navigateur à
@@ -15665,7 +15674,7 @@
         await verifierDossierLocal(aVerifier[i].id, false);
         await rendreLaMain();
       }
-      afficherToast(`${aVerifier.length} dossier${aVerifier.length > 1 ? 's' : ''} rev\u00e9rifi\u00e9${aVerifier.length > 1 ? 's' : ''} sur le NAS.`, 'OK', null);
+      afficherToast(`Commun scanné : ${aVerifier.length} dossier${aVerifier.length > 1 ? 's' : ''} relu${aVerifier.length > 1 ? 's' : ''}.`, 'OK', null);
     } finally {
       // Remis à zéro : le prochain tour automatique refixe son propre budget en démarrant, il ne
       // doit surtout pas hériter de l'illimité posé ci-dessus.
@@ -22080,7 +22089,7 @@
           <div class="a-voir-signaux">${s.map(x => `<span class="dot-label ${x.cle === 'fonds' ? 'dl-success' : 'dl-urgent notif-nouveau-tag'}"><span class="dot"></span>${escapeHtml(x.texte)}</span>`).join('')}</div></td>
         <td>${celluleEcheanceTableau(d)}</td>
         <td>${renderBadgeStatut(d)}</td>
-        <td class="dossier-responsable-tableau">${escapeHtml(d.responsable || '—')}</td>
+        <td class="dossier-responsable-tableau">${pastilleCollaborateur(d.responsable)}</td>
       </tr>`).join('');
     return `
       <section class="semaine-groupe a-voir">
@@ -22091,7 +22100,7 @@
         <div class="table-scroll">
           <table class="dossiers-table a-voir-table">
             <colgroup><col><col class="col-a-voir-echeance"><col class="col-echeance-statut"><col class="col-echeance-resp"></colgroup>
-            <thead><tr><th>Dossier et nouveauté</th><th>Prochaine échéance</th><th>Statut</th><th>Responsable</th></tr></thead>
+            <thead><tr><th>Dossier et nouveauté</th><th>Prochaine échéance</th><th>Statut</th><th title="Responsable">Resp.</th></tr></thead>
             <tbody>${lignes}</tbody>
           </table>
         </div>
@@ -22112,7 +22121,7 @@
     return `
       <tr class="ligne-resume${d.archive ? ' est-archive' : ''}${dossierOuvert === d.id ? ' ligne-active' : ''}" onclick="ouvrirDossierDrawer('${d.id}')">
         <td><div class="dossier-nom-tableau">${escapeHtml(libelleDossierAffiche(d))}${tagNotificationsDossier(d)}</div></td>
-        <td class="dossier-responsable-tableau">${escapeHtml(d.responsable || '—')}</td>
+        <td class="dossier-responsable-tableau">${pastilleCollaborateur(d.responsable)}</td>
         <td>${renderBadgeStatut(d)}</td>
         <td>
           ${d.sansPret ? '<span class="echeance-jours calme">Comptant — sans prêt</span>' : `<span class="dot-label ${offre.dl}"><span class="dot"></span>${offre.texte}</span>`}
@@ -22158,7 +22167,7 @@
             <td>${r.type === 'archive' ? `<span class="dot-label dl-neutre">${icone('lock')}${escapeHtml(r.label)}</span>` : `<span class="dot-label dl-${r.type}"><span class="dot"></span>${escapeHtml(r.label)}</span>`}</td>
             <td><div class="dossier-nom-tableau">${escapeHtml(libelleDossierAffiche(d))}</div></td>
             <td>${renderBadgeStatut(d)}</td>
-            <td class="dossier-responsable-tableau">${escapeHtml(d.responsable || '—')}</td>
+            <td class="dossier-responsable-tableau">${pastilleCollaborateur(d.responsable)}</td>
           </tr>`).join('');
     const n = items.length;
     return `
@@ -22172,7 +22181,7 @@
               <colgroup>
                 <col class="col-echeance-date"><col class="col-echeance-type"><col><col class="col-echeance-statut"><col class="col-echeance-resp">
               </colgroup>
-              ${avecEntete ? '<thead><tr><th>Date</th><th>Échéance</th><th>Dossier</th><th>Statut</th><th>Responsable</th></tr></thead>' : ''}
+              ${avecEntete ? '<thead><tr><th>Date</th><th>Échéance</th><th>Dossier</th><th>Statut</th><th title="Responsable">Resp.</th></tr></thead>' : ''}
               <tbody>${lignes}</tbody>
             </table>
           </div>
@@ -22198,7 +22207,7 @@
             <td><span class="dot-label dl-${e.type}"><span class="dot"></span>${escapeHtml(e.label)}</span></td>
             <td><div class="dossier-nom-tableau">${escapeHtml(libelleDossierAffiche(d))}${tagNotificationsDossier(d)}</div></td>
             <td>${renderBadgeStatut(d)}</td>
-            <td class="dossier-responsable-tableau">${escapeHtml(d.responsable || '—')}</td>
+            <td class="dossier-responsable-tableau">${pastilleCollaborateur(d.responsable)}</td>
           </tr>`;
       }).join('');
       const n = g.items.length;
@@ -22217,7 +22226,7 @@
               <colgroup>
                 <col class="col-echeance-date"><col class="col-echeance-type"><col><col class="col-echeance-statut"><col class="col-echeance-resp">
               </colgroup>
-              ${indexGroupe === 0 ? '<thead><tr><th>Date</th><th>Échéance</th><th>Dossier</th><th>Statut</th><th>Responsable</th></tr></thead>' : ''}
+              ${indexGroupe === 0 ? '<thead><tr><th>Date</th><th>Échéance</th><th>Dossier</th><th>Statut</th><th title="Responsable">Resp.</th></tr></thead>' : ''}
               <tbody>${lignes}</tbody>
             </table>
           </div>

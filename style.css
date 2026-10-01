@@ -3431,6 +3431,19 @@
   /* Même taille que .echeance-jours (12px) sur la même ligne — demandé par l'étude, le nom du
      responsable ressortait visuellement plus gros que les dates à côté. */
   .ligne-resume .dossier-responsable-tableau { color: var(--ink-soft); font-size: 12px; }
+  /* Vue Tableau à côté de la colonne « Prévu » (étude, 01/10) : le nom du dossier garde au moins
+     240 px — « VTE - BERNARD / LAMBERT » sur une ligne —, le responsable tient sur une ligne et les
+     autres colonnes passent à la ligne au besoin. Un nom plus long que 240 px passe à la ligne. */
+  .suivi-principal .dossiers-table .ligne-resume td:first-child { min-width: 240px; }
+  /* Responsable = initiales dans une pastille ronde (étude, 01/10). */
+  .pastille-collab {
+    display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 50%;
+    background: var(--paper-sunk); border: 1px solid var(--line); color: var(--ink); font-size: 11.5px; font-weight: 700;
+    letter-spacing: 0.02em; font-variant-numeric: tabular-nums; flex: none;
+  }
+  .suivi-principal .dossiers-table .ligne-resume .etape-cellule .dot-label,
+  .suivi-principal .dossiers-table .ligne-resume .echeance-jours { white-space: normal; }
+  .suivi-principal .dossiers-table .ligne-resume .echeance-jours { margin-left: 0; }
 
   .th-triable { cursor: pointer; }
   .th-triable:hover { color: var(--ink-soft); }
@@ -7104,7 +7117,7 @@ button.scan-nom:focus-visible { outline: 2px solid var(--focus); outline-offset:
 .suivi-principal .col-echeance-date { width: 146px; }
 .suivi-principal .col-echeance-type { width: 162px; }
 .suivi-principal .col-echeance-statut { width: 124px; }
-.suivi-principal .col-echeance-resp { width: 124px; }
+.suivi-principal .col-echeance-resp { width: 72px; }
 @media (max-width: 1100px) {
   .suivi-corps { grid-template-columns: minmax(0, 1fr); }
   .suivi-cote { position: static; }

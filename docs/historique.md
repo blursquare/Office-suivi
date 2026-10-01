@@ -14289,3 +14289,14 @@ seule colonne : le bloc reprend sa forme d'avant au-dessus de la liste. À droit
 la ligne au besoin et les colonnes fixes du tableau des échéances sont resserrées (146/162/124/124 px, la date en gras tenant sur une ligne — vérifié avec 12 dossiers)
 pour que le nom du dossier ne se casse plus. Colonne masquée si le bloc est vide. Vérifié dans Chromium
 (1440 clair et sombre, 1050, 400).
+
+### 01/10/2026 23 h 12 — Suivi : initiales du responsable en pastille, « Scanner le commun »
+
+Demandes de l'étude : « dans la vue Tableau et Échéances, mets pour les collaborateurs juste leurs initiales
+dans une pastille ronde » et « change le bouton Revérifier par Scanner le commun ». `pastilleCollaborateur(nom)`
+(initiales par `initialesCollaborateur`, nom complet en `title`/`aria-label`, tiret sans responsable) dans
+les quatre cellules `.dossier-responsable-tableau` (vue Tableau, « Nouveau », Archivés, semaines) ; pastille
+`.pastille-collab` 28 px, fond `--paper-sunk`, filet `--line`. En-tête « Resp. » (titre « Responsable ») et
+colonne de 72 px dans les tableaux d'échéances ; en vue Tableau, le nom du dossier garde au moins 240 px.
+Bouton de l'en-tête : « Scanner le commun » (même geste `reverifierTousLesDossiers`), toast « Commun
+scanné : n dossiers relus. ». Vérifié dans Chromium avec 12 dossiers inventés.
