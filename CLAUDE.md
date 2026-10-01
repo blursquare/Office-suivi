@@ -46,6 +46,7 @@ server/                              Serveur (son propre package.json ; le packa
   src/repertoire.js                  Répertoire hors notaires (relevé du répertoire Word de l'étude, par thème)
   src/ouvertureAuto.js               Installateur du relais « claire-ouvrir: » (ouverture auto des téléchargements)
   src/jobs/rappels.js                Rappels par email (miroir serveur du planning client)
+  src/appels3cx.js, routes/appels.js Appels reçus par 3CX (sonnerie → journal, appelant reconnu, fiche ouverte)
   src/nas.js, nasWatch.js            Lecture du NAS par le serveur, surveillance périodique
   src/scans.js, routes/scans.js      Classeur des scans du copieur (dossier « Scan » → dossiers clients)
   src/agendaOffice.js, agendaWatch.js  Lecture de l'agenda de l'office (EWS, toutes les 15 min)
@@ -356,6 +357,17 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
   5 jours ouvrés. Votants par défaut : les clients, ou le confrère qui représente une partie. Aussi offert depuis le formulaire « Nouveau rendez-vous » (« Proposer plusieurs dates », créneau saisi en tête, `proposerPlusieursDatesAgenda`). **Sans dossier** (01/10) : sondage au `titre` libre (destinataires libres, dont confrère ; options « Titre ? — option CLAIRE » ; page `t=r`), suivi dans « Dates proposées » de la colonne de l'agenda, « Placer » crée un rendez-vous ordinaire. Textes =
   premiers jets de CLAIRE. **Email du vendeur** (`d.emailVendeur`) : wizard, fiche, lecture de l'acte
   (`detecterEmailVendeur`) et d'Authentic ; masqué si le vendeur a son propre notaire, sauf déjà saisi.
+- **Appels 3CX** (01/10, choix de l'étude : « noter + ouvrir la fiche », téléphones sur les fiches) : 3CX
+  ne donne pas d'historique ; son « Intégration CRM » (client web, réglage de chaque collaborateur, CRM
+  personnalisé, « Informer lorsque : Sonnerie ») ouvre `/appel?numero=%CallerNumber%&nom=%CallerDisplayName%&poste=<prénom>`
+  (adresses à copier dans Réglages › Rappels, `adresseIntegration3cx` ; poste = prénom sans accent, jamais un
+  nom encodé que 3CX prendrait pour une variable). Le serveur note l'appel (`appels-recus`, 400 jours, hors
+  session, aucune donnée renvoyée, jamais journalisé) et reconnaît l'appelant (`reconnaitreAppelant` : 9
+  derniers chiffres ; `d.telephoneVendeur`/`d.telephoneAcquereur` — onglet Échanges, repris d'Authentic —,
+  puis carnet des confrères et ses dossiers, puis répertoire). La fenêtre CLAIRE relève toutes les 3 s, même
+  cachée (`releverAppels`), montre le bandeau « Appel entrant » et ouvre la fiche (Échanges) d'un seul dossier
+  en cours, jamais pendant une saisie ; l'onglet ouvert par 3CX se ferme si la fenêtre du poste est visible,
+  sinon il affiche CLAIRE sur l'appel (`#appel=`). Appels du dossier dans l'onglet Échanges.
 - **Mobilier** : le prix reste le prix total ; `d.prixMobilier` sort seulement de l'assiette des
   droits (frais d'acte, contrôle du barème).
 - **Prorata** : jours réels, jour de l'acte à la charge de l'acquéreur, arrondi du vendeur par
@@ -536,7 +548,8 @@ Plainte principale de l'étude : **le bruit**, pas les oublis — ne pas élargi
   ouverts dans Outlook), la création d'un nouveau dossier depuis l'export Authentic (ZIP) ; puis la
   mise à jour en un clic (Réglages › Mise à jour), le démarrage automatique de CLAIRE au lancement du
   serveur, le lien vers une pièce ouvert depuis une notification Teams et l'icône de l'exe (nette).
-- **Non vérifié au bureau** : la forme réelle du `.ics` de la visio ADNOV (aucun exemple reçu) ; le sondage de créneaux (lecture réelle des réponses dans la boîte, boutons
+- **Non vérifié au bureau** : la forme réelle du `.ics` de la visio ADNOV (aucun exemple reçu) ; l'intégration
+  3CX (forme réelle de %CallerNumber%, fermeture de l'onglet ouvert par 3CX) ; le repli `SoftDelete` d'une suppression ; le sondage de créneaux (lecture réelle des réponses dans la boîte, boutons
   dans Outlook, options « Provisoire », page de réponse publiée — dépôt public à créer par l'étude) ; le détail des écritures EWS (déplacement et suppression d'un
   rendez-vous, note du Lieu, dates butoir en journée entière, noms exacts des catégories de couleur,
   reprise des dates butoir existantes au premier tour — une seule fois chacune) et de la lecture

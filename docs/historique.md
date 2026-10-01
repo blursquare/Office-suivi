@@ -14001,3 +14001,26 @@ blanche `TYPES_SUPPRESSION_EWS` : jamais `HardDelete`) : l'élément va dans les
 verrouillage : les identifiants viennent d'être acceptés ; toute autre erreur n'est pas retentée. Non
 vérifié contre le vrai Exchange (injoignable ici). Autre voie, côté Fichorga : donner au compte de CLAIRE
 le droit sur le dossier « Éléments supprimés » de Sophie.
+
+### 01/10 — Appels reçus par 3CX
+
+Demande de l'étude : « Tu pourrais te connecter à 3cx pour récupérer les appels reçus à l'office ? », puis capture
+de l'« Intégration CRM » du client web 3CX (OFF / CRM côté serveur / CRM supporté / **CRM personnalisé** : une
+adresse avec %CallerNumber% et %CallerDisplayName%, « Informer lorsque : Sonnerie »). Choix de l'étude
+(AskUserQuestion) : « Noter + ouvrir la fiche » et « Ajouter les téléphones » sur les fiches.
+
+- Serveur (`appels3cx.js`, `routes/appels.js`) : `GET /appel?numero=&nom=&poste=` hors session (3CX n'a pas le
+  jeton), 60/min au plus, note l'appel dans `appels-recus` (400 jours, 3000 au plus) et ne renvoie aucune donnée :
+  la page se ferme (`window.close`, onglet ouvert par script) si la fenêtre CLAIRE du poste s'est signalée visible
+  dans les 15 s, sinon elle ouvre `/index.html#appel=<id>`. `reconnaitreAppelant` compare les 9 derniers
+  chiffres (+33, 0033, préfixe 0 de ligne extérieure) aux téléphones des parties (`d.telephoneVendeur`,
+  `d.telephoneAcquereur`, plusieurs numéros séparés par « / »), puis au carnet des confrères (et aux dossiers en
+  cours où un de leurs notaires est nommé), puis au répertoire. Rien n'est journalisé (numéros, noms).
+- Client : `releverAppels` toutes les 3 s, même fenêtre cachée (`/api/appels/nouveaux`, poste = prénom sans
+  accent, `clePosteAppels` — un nom encodé « %C3%A9 » risquerait d'être pris par 3CX pour une variable) ;
+  bandeau « Appel entrant » (2 min) ; ouverture de la fiche (onglet Échanges) d'un seul dossier en cours dont
+  l'appelant est partie (`dossierAOuvrirPourAppel`), jamais pendant une saisie ; téléphones et « Appels reçus »
+  dans l'onglet Échanges ; téléphones repris d'un export Authentic à la création ; Réglages › Rappels :
+  adresse de chaque collaborateur à copier (`adresseIntegration3cx`) et 20 derniers appels.
+- Limites dites à l'étude : seuls les appels qui sonnent sur un poste où le client web 3CX est ouvert sont
+  notés ; non vérifié avec un vrai 3CX (forme de %CallerNumber%, fermeture de l'onglet).

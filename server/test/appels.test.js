@@ -1,0 +1,109 @@
+'use strict';
+
+// Appels reçus par 3CX (voir src/appels3cx.js, src/routes/appels.js). Noms et numéros inventés.
+
+const { test, before, after } = require('node:test');
+const assert = require('node:assert/strict');
+const os = require('node:os');
+
+const {
+  normaliserNumero, cleNumero, formaterNumero, numerosDansTexte, reconnaitreAppelant,
+  assainirJournalAppels, creerEntreeAppel, pageSonnerie
+} = require('../src/appels3cx');
+const { creerApp } = require('../src/app');
+const { ouvrirDb } = require('../src/db');
+const { creerRepoParametres } = require('../src/parametresRepo');
+
+test('numéros : +33, 0033, espaces et points ramenés à la même clé', () => {
+  assert.equal(normaliserNumero('+33 6 12 34 56 78'), '0612345678');
+  assert.equal(normaliserNumero('0033612345678'), '0612345678');
+  assert.equal(normaliserNumero('00612345678'), '0612345678');
+  assert.equal(cleNumero('06.12.34.56.78'), cleNumero('+33612345678'));
+  assert.equal(cleNumero('123'), '');
+  assert.equal(formaterNumero('+33254000000'), '02 54 00 00 00');
+  assert.equal(numerosDansTexte('06 12 34 56 78 / 02.54.11.22.33').join(','), '612345678,254112233');
+});
+
+const dossiers = [
+  { id: 'd1', nom: 'DURANDEAU / MARCHAIS', telephoneVendeur: '06 11 22 33 44', telephoneAcquereur: '07 55 66 77 88 / 02 54 99 88 77' },
+  { id: 'd2', nom: 'VIEUX', telephoneAcquereur: '0755667788', archive: true },
+  { id: 'd3', nom: 'LOUVEL / PICARDIN', notaireAcquereur: 'Maître Julien BRISSAC (Cellettes)' }
+];
+const carnet = [{ office: 'Étude BRISSAC', notaires: ['Julien BRISSAC'], telephone: '02 54 70 70 70' }];
+const repertoire = [{ organisme: 'Banque Exemple', service: 'Crédits', telephones: ['09 69 00 00 01'] }];
+
+test('reconnaitreAppelant : partie d’un dossier (en cours d’abord), confrère et ses dossiers, répertoire', () => {
+  const acq = reconnaitreAppelant('+33 7 55 66 77 88', { dossiers, carnet, repertoire });
+  assert.equal(acq.dossiers.map(x => `${x.id}:${x.partie}`).join(','), 'd1:acquereur,d2:acquereur');
+  assert.equal(reconnaitreAppelant('0254998877', { dossiers }).dossiers[0].id, 'd1');
+  assert.equal(reconnaitreAppelant('0611223344', { dossiers }).dossiers[0].partie, 'vendeur');
+  const confrere = reconnaitreAppelant('0254707070', { dossiers, carnet, repertoire });
+  assert.equal(confrere.contact.type, 'confrere');
+  assert.equal(confrere.dossiers.map(x => x.id).join(','), 'd3');
+  assert.equal(reconnaitreAppelant('0969000001', { dossiers, carnet, repertoire }).contact.libelle, 'Banque Exemple — Crédits');
+  const inconnu = reconnaitreAppelant('0600000000', { dossiers, carnet, repertoire });
+  assert.equal(inconnu.dossiers.length, 0);
+  assert.equal(inconnu.contact, null);
+});
+
+test('creerEntreeAppel : numéro formaté, nom 3CX gardé sauf s’il répète le numéro', () => {
+  const e = creerEntreeAppel({ numero: '+33755667788', nom: 'MARCHAIS Paul', poste: 'bastien' }, { dossiers }, new Date('2026-10-01T08:00:00Z'));
+  assert.equal(e.numero, '07 55 66 77 88');
+  assert.equal(e.nom, 'MARCHAIS Paul');
+  assert.equal(e.dossiers[0].id, 'd1');
+  assert.equal(creerEntreeAppel({ numero: '0755667788', nom: '+33755667788' }, { dossiers }).nom, '');
+});
+
+test('assainirJournalAppels : plus récent d’abord, plus d’un an écarté', () => {
+  const j = assainirJournalAppels([
+    { id: 'a', t: '2026-09-30T08:00:00.000Z', numero: '1', dossiers: [{ id: 'd1', partie: 'x' }] },
+    { id: 'b', t: '2026-10-01T08:00:00.000Z', numero: '2' },
+    { id: 'c', t: '2024-01-01T08:00:00.000Z', numero: '3' },
+    { t: '2026-10-01T08:00:00.000Z' }
+  ], Date.parse('2026-10-01T10:00:00Z'));
+  assert.equal(j.map(a => a.id).join(','), 'b,a');
+  assert.equal(j[1].dossiers[0].partie, 'acquereur');
+});
+
+test('pageSonnerie : se ferme si la fenêtre CLAIRE est visible, sinon ouvre CLAIRE sur l’appel ; aucune donnée', () => {
+  assert.match(pageSonnerie({ id: 'ap-1', fenetreVisible: true }), /window\.close\(\)/);
+  assert.match(pageSonnerie({ id: 'ap-1', fenetreVisible: false }), /index\.html#appel=ap-1/);
+});
+
+let db, serveurApp, baseUrl, jeton, depot, parametresRepo;
+before(async () => {
+  db = ouvrirDb(':memory:');
+  const { app, gestionnaireAuth, depot: d } = creerApp({ db, config: { motDePasse: 'mdp-test', racineRepo: os.tmpdir(), port: 0 } });
+  depot = d;
+  parametresRepo = creerRepoParametres(db);
+  jeton = gestionnaireAuth.creerSession();
+  serveurApp = app.listen(0);
+  await new Promise((resolve) => serveurApp.once('listening', resolve));
+  baseUrl = `http://127.0.0.1:${serveurApp.address().port}`;
+});
+after(() => { serveurApp.close(); db.close(); });
+
+test('route : la sonnerie note l’appel sans session ; la fenêtre du poste le relève', async () => {
+  depot.creer({ id: 'd9', nom: 'TESTARD / BLANCHON', telephoneAcquereur: '06 98 76 54 32', historique: [] });
+  const auth = { authorization: `Bearer ${jeton}` };
+  // Aucune fenêtre CLAIRE visible : la page ouvre CLAIRE sur l'appel.
+  const r1 = await fetch(`${baseUrl}/appel?numero=%2B33698765432&nom=BLANCHON&poste=julie`);
+  assert.equal(r1.status, 200);
+  const page1 = await r1.text();
+  assert.match(page1, /#appel=ap-/);
+  assert.doesNotMatch(page1, /BLANCHON|TESTARD|98 76/);
+  // La fenêtre de Julie se signale visible, puis relève l'appel suivant ; celle de Bastien ne le voit pas.
+  const depuis = new Date(Date.now() - 1000).toISOString();
+  await fetch(`${baseUrl}/api/appels/nouveaux?poste=julie&visible=1&depuis=${encodeURIComponent(depuis)}`, { headers: auth });
+  const r2 = await fetch(`${baseUrl}/appel?numero=0698765432&nom=&poste=julie`);
+  assert.match(await r2.text(), /window\.close\(\)/);
+  const j = await (await fetch(`${baseUrl}/api/appels/nouveaux?poste=julie&visible=1&depuis=${encodeURIComponent(depuis)}`, { headers: auth })).json();
+  assert.equal(j.appels.length, 2);
+  assert.equal(j.appels[0].dossiers[0].id, 'd9');
+  const b = await (await fetch(`${baseUrl}/api/appels/nouveaux?poste=bastien&depuis=${encodeURIComponent(depuis)}`, { headers: auth })).json();
+  assert.equal(b.appels.length, 0);
+  // Journal du dossier ; sans session, refusé.
+  const jd = await (await fetch(`${baseUrl}/api/appels?dossierId=d9`, { headers: auth })).json();
+  assert.equal(jd.appels.length, 2);
+  assert.equal((await fetch(`${baseUrl}/api/appels`)).status, 401);
+});

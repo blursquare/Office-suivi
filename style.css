@@ -7668,3 +7668,43 @@ textarea.ag-notes-champ:focus { outline: 2px solid var(--focus); outline-offset:
   height: 34px; padding: 0 8px; width: 132px; border-radius: 0; color-scheme: light dark;
 }
 .ag-nav input.ag-aller[type="date"]:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+
+/* ---- Appels reçus (3CX, 01/10) : bandeau d'appel entrant, appels d'un dossier, journal des réglages ---- */
+.appel-entrant {
+  position: fixed; right: 16px; bottom: 16px; z-index: 2000; width: min(340px, calc(100vw - 32px));
+  background: var(--paper-card); color: var(--ink); border: 1px solid var(--line); border-left: 3px solid var(--success);
+  border-radius: 12px; box-shadow: var(--shadow-float); padding: 12px 14px; display: flex; flex-direction: column; gap: 6px;
+}
+.appel-entrant > * { min-width: 0; margin: 0; }
+.appel-entrant-tete { display: flex; align-items: center; gap: 10px; }
+.appel-entrant-icone {
+  display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; flex: none;
+  border-radius: 50%; background: var(--success-bg); color: var(--success);
+}
+.appel-entrant-icone svg { width: 16px; height: 16px; }
+.appel-entrant-titre { display: flex; flex-direction: column; flex: 1; min-width: 0; line-height: 1.25; }
+.appel-entrant-titre span { font-size: 12px; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+button.appel-entrant-fermer {
+  border: none; background: none; color: var(--ink-soft); padding: 4px; border-radius: 6px; cursor: pointer; display: inline-flex;
+}
+button.appel-entrant-fermer:hover { background: var(--paper-sunk); color: var(--ink); }
+button.appel-entrant-fermer svg { width: 14px; height: 14px; }
+.appel-entrant-numero { font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.appel-entrant-contact { font-size: 13px; color: var(--ink-soft); }
+.appel-entrant-dossiers { display: flex; flex-direction: column; gap: 6px; }
+.appel-entrant-dossiers .action-rapide { justify-content: flex-start; text-align: left; white-space: normal; }
+.appel-entrant-partie { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-soft); margin-right: 6px; }
+.appels-dossier { display: flex; flex-direction: column; gap: 6px; margin: 4px 0 8px; }
+.appels-liste { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.appels-liste li {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: baseline;
+  padding: 6px 0; border-bottom: 1px solid var(--line-soft); font-size: 13px;
+}
+.appels-liste li > * { min-width: 0; overflow-wrap: anywhere; }
+.appels-quand, .appels-numero { color: var(--ink-soft); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.appels-plus summary { cursor: pointer; font-size: 12px; color: var(--ink-soft); padding-top: 4px; }
+.reglages-sous-titre { margin: 14px 0 4px; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-soft); }
+@media (max-width: 600px) {
+  .appels-liste li { grid-template-columns: minmax(0, 1fr) auto; }
+  .appels-liste li .appels-numero { grid-column: 1 / -1; }
+}

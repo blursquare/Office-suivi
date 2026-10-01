@@ -13,6 +13,8 @@ const { MODELES_MISTRAL, MODELE_MISTRAL_PAR_DEFAUT, REGIONS_MISTRAL } = require(
 const { assainirCarnet, carnetInitial, avecOfficeEtude } = require('./carnetConfreres');
 const { assainirRepertoire, repertoireInitial } = require('./repertoire');
 const { CLE_SONDAGES, assainirSondages } = require('./sondagesCreneaux');
+const { assainirJournalAppels } = require('./appels3cx');
+const CLE_APPELS = 'appels-recus';
 
 const CLE_REGLAGES = 'reglages';
 
@@ -1152,6 +1154,8 @@ function creerRepoParametres(db) {
     return propre;
   }
 
+  function lireJournalAppels() { return lireJson(CLE_APPELS, assainirJournalAppels, []); }
+  function ecrireJournalAppels(l) { const p = assainirJournalAppels(l); ecrireStmt.run(CLE_APPELS, JSON.stringify(p)); return p; }
   function lireSondagesCreneaux() { return lireJson(CLE_SONDAGES, assainirSondages, []); }
   function ecrireSondagesCreneaux(l) { const p = assainirSondages(l); ecrireStmt.run(CLE_SONDAGES, JSON.stringify(p)); return p; }
 
@@ -1235,6 +1239,7 @@ function creerRepoParametres(db) {
     lireReglagesScans, ecrireReglagesScans, lireJournalScans, ecrireJournalScans, lireScansEcartes, ecrireScansEcartes,
     lirePiecesNotifiees, ecrirePiecesNotifiees,
     lireSondagesCreneaux, ecrireSondagesCreneaux,
+    lireJournalAppels, ecrireJournalAppels,
     lireCarnetConfreres, ecrireCarnetConfreres,
     lireRepertoire, ecrireRepertoire,
     lireResumeEmails, ecrireResumeEmails,

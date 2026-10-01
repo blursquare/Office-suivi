@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-01 18:04';
+  const VERSION_APP = '2026-10-01 18:05';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-01 18:05', resume: "Téléphonie 3CX : à chaque appel qui sonne, CLAIRE le note, reconnaît l'appelant (téléphone du vendeur ou de l'acquéreur saisi dans l'onglet Échanges, confrère du carnet, contact du répertoire), affiche « Appel entrant » et ouvre la fiche du dossier. Les appels de chaque dossier sont listés dans son onglet Échanges. L'adresse à coller dans 3CX pour chaque collaborateur est dans Réglages › Rappels." },
     { version: '2026-10-01 18:04', resume: "Agenda : la suppression d'un rendez-vous échouait (« ErrorCannotDeleteObject ») — le compte de CLAIRE n'a pas accès aux éléments supprimés de la boîte de Sophie. Dans ce cas, CLAIRE retire le rendez-vous autrement : il reste récupérable dans Outlook par « Récupérer les éléments supprimés »." },
     { version: '2026-10-01 17:58', resume: "Relation client : retirée de la colonne de gauche de l'agenda. La confirmation et le rappel du rendez-vous, le questionnaire de satisfaction et le mot un an après sont dans l'onglet Échanges de la fiche du dossier, au bon moment — et seulement pour les clients qui ne sont pas accompagnés par un confrère." },
     { version: '2026-10-01 17:48', resume: "Agenda : dans la colonne de gauche, « Dates proposées » passe juste sous le calendrier du mois, et « Signatures de la semaine » est retiré (la probabilité de tenue reste dans le détail de chaque rendez-vous)." },
@@ -10084,6 +10085,12 @@
     if (email) extraction.champs.emailAcquereur = champExtraction(email, origine);
     const emailV = parties.filter(p => p.role === 'VENDEUR').reduce((t, p) => t.concat(p.emails), [])[0];
     if (emailV) extraction.champs.emailVendeur = champExtraction(emailV, origine);
+    // Téléphones des parties (appels 3CX reconnus) : repris sur la fiche à la création, sans passer
+    // par le formulaire (modifiables ensuite dans l'onglet Échanges).
+    const tels = (role) => parties.filter(p => p.role === role).reduce((t, p) => t.concat(p.telephones || []), [])
+      .filter((x, i, l) => l.indexOf(x) === i).join(' / ');
+    if (tels('ACQUEREUR')) extraction.champs.telephoneAcquereur = champExtraction(tels('ACQUEREUR'), origine);
+    if (tels('VENDEUR')) extraction.champs.telephoneVendeur = champExtraction(tels('VENDEUR'), origine);
     if (bien && bien.type) extraction.champs.typeVente = champExtraction(bien.type, origine);
     const notaires = extraction.notaires || {};
     if (notaires.statut !== 'CONFIRMED') {
@@ -11025,6 +11032,8 @@
     const dossier = {
       id: (crypto.randomUUID ? crypto.randomUUID() : 'd-' + Date.now() + '-' + Math.random().toString(16).slice(2)),
       nom, responsable, emailAcquereur, emailVendeur,
+      telephoneAcquereur: (extractionActuelle && extractionActuelle.champs && extractionActuelle.champs.telephoneAcquereur && extractionActuelle.champs.telephoneAcquereur.valeur) || '',
+      telephoneVendeur: (extractionActuelle && extractionActuelle.champs && extractionActuelle.champs.telephoneVendeur && extractionActuelle.champs.telephoneVendeur.valeur) || '',
       questionnaireEnvoyeLe: null,
       receptionFondsConfirmeeLe: null,
       nomAgence,
@@ -24120,7 +24129,9 @@
           ${renderEmailVendeurDossier(d)}
           ${renderEmailAcquereurDossier(d)}
           ${hint ? `<p class="hint">${hint}</p>` : ''}
+          ${renderTelephonesDossier(d)}
         </div>
+        ${renderAppelsDossier(d)}
         ${renderSondageDossier(d)}
         ${lignesUtiles.length ? `<ul class="ja-liste">${lignesUtiles.join('')}</ul>` : '<p class="fiche-vide">Rien à envoyer à ce stade.</p>'}
       </div>
@@ -24128,6 +24139,221 @@
         <summary>Hors de ce stade (${lignesAutres.length})</summary>
         <ul class="ja-liste">${lignesAutres.join('')}</ul>
       </details>` : ''}`;
+  }
+
+  // ==== Appels reçus (3CX, étude 01/10) ====
+  // 3CX ouvre /appel?numero=…&nom=…&poste=… à la sonnerie (« Intégration CRM » du client web de
+  // chaque collaborateur, voir server/src/appels3cx.js). La fenêtre CLAIRE du collaborateur relève
+  // ses appels toutes les 3 s, même cachée (elle dit au serveur si elle est visible : sinon l'onglet
+  // ouvert par 3CX affiche CLAIRE lui-même), montre l'appel et ouvre la fiche du dossier reconnu.
+  // L'appelant est reconnu par les téléphones des parties (onglet Échanges), le carnet des confrères
+  // et le répertoire.
+  var INTERVALLE_APPELS_MS = 3000;
+  let curseurAppels = '';
+  const appelsMontres = new Set();
+  const appelsParDossier = {};     // id → journal du dossier (null pendant le chargement)
+  let appelEntrant = null;
+  let minuteurAppelEntrant = null;
+
+  // Pure : clé du poste dans l'adresse 3CX — le prénom sans accent (« jeremy ») : 3CX remplace les
+  // %…% de l'adresse, un nom encodé (%C3%A9…) risquerait d'être pris pour une variable.
+  function clePosteAppels(nom) {
+    return String(nom || '').trim().split(/\s+/)[0].normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z]/g, '');
+  }
+
+  // Pure : l'adresse à coller dans 3CX pour un collaborateur.
+  function adresseIntegration3cx(origine, collaborateur) {
+    return `${String(origine || '').replace(/\/+$/, '')}/appel?numero=%CallerNumber%&nom=%CallerDisplayName%&poste=${clePosteAppels(collaborateur)}`;
+  }
+
+  var LIBELLES_PARTIE_APPEL = { vendeur: 'Vendeur', acquereur: 'Acquéreur', confrere: 'Confrère' };
+
+  // Pure : les dossiers que l'appel désigne (encore connus du poste), dans l'ordre du serveur.
+  function dossiersDeLAppel(appel, liste) {
+    return ((appel && appel.dossiers) || [])
+      .map(x => ({ d: (liste || []).find(d => d.id === x.id), partie: LIBELLES_PARTIE_APPEL[x.partie] || '' }))
+      .filter(y => y.d);
+  }
+
+  // Pure : le dossier à ouvrir seul à la sonnerie — un seul dossier en cours dont l'appelant est
+  // partie (un confrère qui a plusieurs dossiers avec l'office : on montre la liste, on n'ouvre rien).
+  function dossierAOuvrirPourAppel(appel, liste) {
+    const enCours = dossiersDeLAppel(appel, liste).filter(y => !y.d.archive && y.partie !== 'Confrère');
+    return enCours.length === 1 ? enCours[0].d : null;
+  }
+
+  function heureAppel(t) {
+    const dt = new Date(t);
+    return dt.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }).replace(':', ' h ');
+  }
+
+  function dateHeureAppel(t) {
+    const dt = new Date(t);
+    const jour = dt.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }).replace('.', '');
+    return `${jour}, ${heureAppel(t)}`;
+  }
+
+  async function releverAppels() {
+    if (!authToken || !utilisateurPoste) return;
+    try {
+      const visible = document.visibilityState === 'visible' ? '1' : '0';
+      const r = await fetchAvecAuth(`/api/appels/nouveaux?poste=${encodeURIComponent(clePosteAppels(utilisateurPoste))}&visible=${visible}&depuis=${encodeURIComponent(curseurAppels)}`);
+      if (!r.ok) return;
+      const { appels, serverTime } = await r.json();
+      const premier = !curseurAppels;
+      curseurAppels = serverTime;
+      if (!premier) for (const a of (appels || []).slice().reverse()) montrerAppelEntrant(a, true);
+    } catch (e) { /* la relève suivante reprendra */ }
+  }
+
+  // Un appel ouvert par l'adresse « #appel=… » (onglet que 3CX a ouvert, fenêtre CLAIRE absente).
+  async function ouvrirAppelDepuisAdresse() {
+    const m = /(?:^|[#&])appel=([\w-]+)/.exec(location.hash || '');
+    if (!m) return;
+    try { history.replaceState(null, '', location.pathname + location.search); } catch (e) { /* adresse gardée */ }
+    try {
+      const r = await fetchAvecAuth('/api/appels?id=' + encodeURIComponent(m[1]));
+      if (!r.ok) return;
+      const { appels } = await r.json();
+      if (appels && appels[0]) montrerAppelEntrant(appels[0], true);
+    } catch (e) { /* rien à montrer */ }
+  }
+
+  function montrerAppelEntrant(appel, ouvrir) {
+    if (!appel || appelsMontres.has(appel.id)) return;
+    appelsMontres.add(appel.id);
+    for (const x of appel.dossiers || []) delete appelsParDossier[x.id];
+    appelEntrant = appel;
+    renderAppelEntrant();
+    clearTimeout(minuteurAppelEntrant);
+    minuteurAppelEntrant = setTimeout(fermerAppelEntrant, 2 * 60 * 1000);
+    const d = ouvrir ? dossierAOuvrirPourAppel(appel, dossiers) : null;
+    // Jamais pendant une saisie : la fiche s'ouvrira d'un clic sur le bandeau.
+    const saisie = document.activeElement && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName);
+    if (d && !saisie) ouvrirFicheAppel(d.id);
+  }
+
+  function ouvrirFicheAppel(id) {
+    ouvrirDossierDepuisDashboard(id);
+    try { definirOngletFiche('echanges'); } catch (e) { /* onglet par défaut */ }
+  }
+
+  function fermerAppelEntrant() {
+    appelEntrant = null;
+    clearTimeout(minuteurAppelEntrant);
+    const el = document.getElementById('appel-entrant');
+    if (el) el.remove();
+  }
+
+  function renderAppelEntrant() {
+    const a = appelEntrant;
+    let el = document.getElementById('appel-entrant');
+    if (!a) { if (el) el.remove(); return; }
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'appel-entrant';
+      el.className = 'appel-entrant';
+      el.setAttribute('role', 'status');
+      document.body.appendChild(el);
+    }
+    const ds = dossiersDeLAppel(a, dossiers);
+    const contact = a.contact && a.contact.libelle ? `<p class="appel-entrant-contact">${escapeHtml(a.contact.type === 'confrere' ? 'Confrère : ' : '')}${escapeHtml(a.contact.libelle)}</p>` : '';
+    el.innerHTML = `
+      <div class="appel-entrant-tete">
+        <span class="appel-entrant-icone">${icone('phone')}</span>
+        <span class="appel-entrant-titre"><b>Appel entrant</b><span>${escapeHtml(heureAppel(a.t))}</span></span>
+        <button type="button" class="appel-entrant-fermer" onclick="fermerAppelEntrant()" aria-label="Fermer">${icone('x')}</button>
+      </div>
+      <p class="appel-entrant-numero">${escapeHtml(a.numero || 'Numéro masqué')}${a.nom ? ` · ${escapeHtml(a.nom)}` : ''}</p>
+      ${contact}
+      ${ds.length ? `<div class="appel-entrant-dossiers">${ds.slice(0, 4).map(y => `<button type="button" class="action-rapide" onclick="ouvrirFicheAppel('${y.d.id}')">${y.partie ? `<span class="appel-entrant-partie">${escapeHtml(y.partie)}</span>` : ''}${escapeHtml(libelleDossierAffiche(y.d))}${y.d.archive ? ' · archivé' : ''}</button>`).join('')}</div>`
+        : (contact ? '' : `<p class="hint">Numéro inconnu de CLAIRE ${infoBulle('Saisissez-le dans l’onglet Échanges du dossier (téléphone du vendeur ou de l’acquéreur) : le prochain appel ouvrira la fiche.')}</p>`)}`;
+  }
+
+  // Fiche › Échanges : téléphones des parties (servent à reconnaître l'appelant).
+  function renderTelephonesDossier(d) {
+    const champ = (partie, libelle, valeur, aide) => `<div class="classif-champ champ-email-relance">
+      <label for="tel-${partie}-${d.id}">${libelle}${aide ? ' ' + infoBulle(aide) : ''}</label>
+      <input type="tel" id="tel-${partie}-${d.id}" class="input-classif" value="${escapeAttr(valeur || '')}"
+        placeholder="Non renseigné" autocomplete="off"
+        onblur="changerTelephoneDossier('${d.id}', '${partie}', this.value)"
+        onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">
+    </div>`;
+    return champ('vendeur', 'Téléphone du vendeur', d.telephoneVendeur, 'Reconnu quand il appelle (3CX) : la fiche s’ouvre. Plusieurs numéros : séparés par « / ».')
+      + champ('acquereur', 'Téléphone de l’acquéreur', d.telephoneAcquereur, '');
+  }
+
+  function changerTelephoneDossier(id, partie, valeur) {
+    const d = dossiers.find(x => x.id === id);
+    if (!d) return;
+    const champ = partie === 'vendeur' ? 'telephoneVendeur' : 'telephoneAcquereur';
+    const nouveau = String(valeur || '').trim().slice(0, 120);
+    if (nouveau === (d[champ] || '')) return;
+    d[champ] = nouveau;
+    ajouterHistorique(d, `Téléphone ${partie === 'vendeur' ? 'du vendeur' : 'de l’acquéreur'} : ${nouveau || '—'}`);
+    sauvegarder(d);
+    render();
+  }
+
+  // Fiche › Échanges : les appels reçus de ce dossier (journal du serveur, chargé à l'affichage).
+  function renderAppelsDossier(d) {
+    if (!(d.id in appelsParDossier)) { chargerAppelsDossier(d.id); return ''; }
+    const liste = appelsParDossier[d.id];
+    if (!liste || !liste.length) return '';
+    const ligne = (a) => {
+      const x = (a.dossiers || []).find(y => y.id === d.id);
+      return `<li><span class="appels-quand">${escapeHtml(dateHeureAppel(a.t))}</span><span>${escapeHtml(x ? LIBELLES_PARTIE_APPEL[x.partie] || '' : '')}${a.nom ? ` · ${escapeHtml(a.nom)}` : ''}</span><span class="appels-numero">${escapeHtml(a.numero || '')}</span></li>`;
+    };
+    return `<div class="appels-dossier">
+        <span class="section-eyebrow">Appels reçus <span class="jour-onglet-nb">${liste.length}</span></span>
+        <ul class="appels-liste">${liste.slice(0, 4).map(ligne).join('')}</ul>
+        ${liste.length > 4 ? `<details class="appels-plus"><summary>${liste.length - 4} de plus</summary><ul class="appels-liste">${liste.slice(4).map(ligne).join('')}</ul></details>` : ''}
+      </div>`;
+  }
+
+  async function chargerAppelsDossier(id) {
+    appelsParDossier[id] = null;
+    try {
+      const r = await fetchAvecAuth('/api/appels?dossierId=' + encodeURIComponent(id));
+      if (!r.ok) return;
+      const { appels } = await r.json();
+      appelsParDossier[id] = appels || [];
+      if (appelsParDossier[id].length) render();
+    } catch (e) { /* réessayé à la prochaine ouverture */ }
+  }
+
+  // Réglages › Général : l'adresse de chaque collaborateur pour 3CX, et les derniers appels notés.
+  async function renderReglages3cx() {
+    const liste = document.getElementById('reglages-3cx-liste');
+    if (!liste) return;
+    liste.innerHTML = RESPONSABLES.map((nom, i) => `
+      <div class="reglages-champ">
+        <div class="reglages-champ-libelle"><label for="reglages-3cx-${i}">${escapeHtml(nom)}</label></div>
+        <div class="reglages-champ-ligne">
+          <input type="text" id="reglages-3cx-${i}" readonly spellcheck="false" value="${escapeAttr(adresseIntegration3cx(location.origin, nom))}" onfocus="this.select()">
+          <button type="button" class="secondary" onclick="copierAdresse3cx(${i})">Copier</button>
+        </div>
+      </div>`).join('');
+    const journal = document.getElementById('reglages-3cx-journal');
+    if (!journal) return;
+    try {
+      const r = await fetchAvecAuth('/api/appels');
+      const { appels } = r.ok ? await r.json() : { appels: [] };
+      journal.innerHTML = appels && appels.length
+        ? `<ul class="appels-liste appels-journal">${appels.slice(0, 20).map(a => {
+            const ds = dossiersDeLAppel(a, dossiers);
+            const qui = ds.length ? ds.map(y => libelleDossierAffiche(y.d)).join(', ') : (a.contact && a.contact.libelle) || 'Inconnu';
+            return `<li><span class="appels-quand">${escapeHtml(dateHeureAppel(a.t))}</span><span>${escapeHtml(qui)}${a.nom ? ` · ${escapeHtml(a.nom)}` : ''}</span><span class="appels-numero">${escapeHtml(a.numero || '')}${a.poste ? ' → ' + escapeHtml(a.poste) : ''}</span></li>`;
+          }).join('')}</ul>`
+        : '<p class="hint">Aucun appel noté pour l’instant.</p>';
+    } catch (e) { journal.innerHTML = ''; }
+  }
+
+  function copierAdresse3cx(i) {
+    const champ = document.getElementById('reglages-3cx-' + i);
+    if (!champ) return;
+    champ.select();
+    afficherToast(copierTexteSilencieux(champ.value) ? 'Adresse copiée : à coller dans 3CX.' : 'Sélectionnez l’adresse puis Ctrl+C.', 'OK', null);
   }
 
   // ---- persistence (serveur intranet) ----
@@ -24474,6 +24700,10 @@
     // Sondages de créneaux : les réponses relues par le serveur toutes les 5 minutes.
     chargerSondages();
     setInterval(chargerSondages, 2 * 60 * 1000);
+    // Appels 3CX : relevés toutes les 3 s, même fenêtre cachée (c'est là qu'ils comptent).
+    releverAppels();
+    setInterval(releverAppels, INTERVALLE_APPELS_MS);
+    ouvrirAppelDepuisAdresse();
     // Reçus comptables des dossiers du poste : au démarrage, puis toutes les heures.
     setTimeout(() => verifierFondsRecusAuto().catch(e => console.error('Vérification des fonds', e)), 60 * 1000);
     setInterval(() => verifierFondsRecusAuto().catch(e => console.error('Vérification des fonds', e)), 60 * 60 * 1000);
@@ -25592,6 +25822,8 @@
       responsable: typeof d.responsable === 'string' ? d.responsable : '',
       emailAcquereur: typeof d.emailAcquereur === 'string' ? d.emailAcquereur : '',
       emailVendeur: typeof d.emailVendeur === 'string' ? d.emailVendeur : '',
+      telephoneAcquereur: typeof d.telephoneAcquereur === 'string' ? d.telephoneAcquereur : '',
+      telephoneVendeur: typeof d.telephoneVendeur === 'string' ? d.telephoneVendeur : '',
       // Contrairement aux statuts dérivés d'un scan du NAS (offrePretStatut, pieces...), l'envoi du
       // questionnaire est un fait réel déjà accompli par l'utilisateur : conservé tel quel.
       questionnaireEnvoyeLe: typeof d.questionnaireEnvoyeLe === 'string' ? d.questionnaireEnvoyeLe : null,
@@ -34686,6 +34918,7 @@
       document.getElementById('reglages-copie-email').value = reglages.copieEmail || '';
       memoriserReglagesEnregistres(reglages);
       renderReglagesEmails(reglages.emailsResponsables || {}, reglages.fonctionsResponsables || {});
+      renderReglages3cx();
       document.getElementById('reglages-etat').style.display = 'none';
       chargerDernierTourRappels();
       chargerReglagesAgenda();
