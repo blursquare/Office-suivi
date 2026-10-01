@@ -578,6 +578,20 @@ const MAX_ABSENCES_AGENDA = 200;
 // Rendez-vous du jour lus dans l'agenda de l'office (voir agendaOffice.js/agendaDuJourDepuisEvenements),
 // remplacés à chaque tour réussi : la fenêtre du matin les affiche tant que `jour` est aujourd'hui.
 const CLE_AGENDA_DU_JOUR = 'agenda-du-jour';
+// Semaines de l'an dernier déjà comptées (comparaison de la page Agenda) : { 'AAAA-MM-JJ': { rendezVous,
+// signatures, lu } }, 60 semaines au plus — une semaine passée ne change presque plus, une seule
+// lecture Exchange suffit.
+const CLE_AGENDA_COMPARAISON = 'agenda-comparaison';
+function assainirComparaisonAgenda(brut) {
+  const sortie = {};
+  const entrees = Object.entries(brut && typeof brut === 'object' ? brut : {})
+    .filter(([k, v]) => /^\d{4}-\d{2}-\d{2}$/.test(k) && v && Number.isInteger(v.rendezVous) && v.rendezVous >= 0)
+    .sort((a, b) => String(b[1].lu || '').localeCompare(String(a[1].lu || ''))).slice(0, 60);
+  for (const [k, v] of entrees) {
+    sortie[k] = { rendezVous: v.rendezVous, signatures: Number.isInteger(v.signatures) ? v.signatures : 0, lu: typeof v.lu === 'string' ? v.lu.slice(0, 40) : '' };
+  }
+  return sortie;
+}
 const MAX_AGENDA_DU_JOUR = 60;
 function assainirAgendaDuJour(brut) {
   const b = (brut && typeof brut === 'object') ? brut : {};
@@ -1141,6 +1155,9 @@ function creerRepoParametres(db) {
   function lireSondagesCreneaux() { return lireJson(CLE_SONDAGES, assainirSondages, []); }
   function ecrireSondagesCreneaux(l) { const p = assainirSondages(l); ecrireStmt.run(CLE_SONDAGES, JSON.stringify(p)); return p; }
 
+  function lireComparaisonAgenda() { return lireJson(CLE_AGENDA_COMPARAISON, assainirComparaisonAgenda, {}); }
+  function ecrireComparaisonAgenda(m) { const p = assainirComparaisonAgenda(m); ecrireStmt.run(CLE_AGENDA_COMPARAISON, JSON.stringify(p)); return p; }
+
   function lireJson(cle, assainir, defaut) {
     const ligne = lireStmt.get(cle);
     if (!ligne) return defaut;
@@ -1208,7 +1225,7 @@ function creerRepoParametres(db) {
     lireReglagesExchange, ecrireReglagesExchange,
     lireDernierTourAgenda, ecrireDernierTourAgenda,
     lireAbsencesAgenda, ecrireAbsencesAgenda, lireCategoriesAgenda, ecrireCategoriesAgenda,
-    lireAgendaDuJour, ecrireAgendaDuJour, lireAgendaOffice, ecrireAgendaOffice,
+    lireAgendaDuJour, ecrireAgendaDuJour, lireAgendaOffice, ecrireAgendaOffice, lireComparaisonAgenda, ecrireComparaisonAgenda,
     ajouterEvenementAgendaOffice, retirerEvenementAgendaOffice,
     lireReglageSauvegarde, ecrireReglageSauvegarde, lireEtatSauvegarde, ecrireEtatSauvegarde,
     lireReglages, ecrireReglages, lireDernierTour, ecrireDernierTour,

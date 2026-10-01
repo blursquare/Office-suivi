@@ -9,7 +9,12 @@
 // (faux transport EWS) est réservé aux tests.
 
 const express = require('express');
-const { executerEtEnregistrerTourAgenda, connexionAgendaConfiguree, lectureAgendaSuspendue } = require('../agendaWatch');
+const { executerEtEnregistrerTourAgenda, connexionAgendaConfiguree, lectureAgendaSuspendue, signalerIdentifiantsRefuses } = require('../agendaWatch');
+const { evenementsDepuisEws, compterRendezVousPeriode, lundiAnneePrecedente, decalerJours, ecartRendezVous } = require('../agendaOffice');
+const { lireCalendrierExchange } = require('../exchange/ews');
+
+// Une semaine de l'an dernier relue au plus une fois tous les 7 jours (elle ne change presque plus).
+const FRAICHEUR_COMPARAISON_MS = 7 * 24 * 3600 * 1000;
 
 function creerRouteurAgenda(parametresRepo, options) {
   const routeur = express.Router();
@@ -51,6 +56,55 @@ function creerRouteurAgenda(parametresRepo, options) {
     const agenda = typeof parametresRepo.lireAgendaOffice === 'function' ? parametresRepo.lireAgendaOffice() : null;
     const evenements = ((agenda && agenda.evenements) || []).filter((e) => e.date <= fin && (e.dateFin || e.date) >= debut);
     res.json({ lu: (agenda && agenda.lu) || '', debutLu: (agenda && agenda.debut) || '', source: source(), evenements });
+  });
+
+  // Comparaison avec la même semaine l'an dernier (étude, 01/10). `lundi` = la semaine affichée.
+  // Cette semaine : le stock du dernier tour de lecture. L'an dernier : lu UNE fois dans Exchange
+  // (une tranche de 6 jours, un seul essai, jamais pendant que la lecture est suspendue après un
+  // refus d'identifiants), puis gardé en base. Rend { actuel, anPasse, lundiAnPasse, ecart, pourcent }
+  // — un compte inconnu vaut null, jamais 0.
+  const lecturesEnCours = new Map();
+  routeur.get('/agenda/comparaison', async (req, res) => {
+    const lundi = String((req.query || {}).lundi || '');
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(lundi) || new Date(lundi + 'T12:00:00Z').getUTCDay() !== 1) {
+      return res.status(400).json({ erreur: 'Semaine invalide (le lundi, au format AAAA-MM-JJ).' });
+    }
+    const samedi = decalerJours(lundi, 5);
+    const agenda = typeof parametresRepo.lireAgendaOffice === 'function' ? parametresRepo.lireAgendaOffice() : null;
+    const couvert = agenda && agenda.debut && agenda.debut <= lundi;
+    const actuel = couvert ? compterRendezVousPeriode(agenda.evenements, lundi, samedi) : null;
+    const lundiAnPasse = lundiAnneePrecedente(lundi);
+    const samediAnPasse = decalerJours(lundiAnPasse, 5);
+    const memoire = parametresRepo.lireComparaisonAgenda();
+    let anPasse = memoire[lundiAnPasse] || null;
+    let message = '';
+    const frais = anPasse && Date.now() - Date.parse(anPasse.lu || 0) < FRAICHEUR_COMPARAISON_MS;
+    const r = typeof parametresRepo.lireReglagesExchange === 'function' ? parametresRepo.lireReglagesExchange() : {};
+    if (!frais && connexionAgendaConfiguree(r) && !lectureAgendaSuspendue(r)) {
+      if (!lecturesEnCours.has(lundiAnPasse)) {
+        lecturesEnCours.set(lundiAnPasse, lireCalendrierExchange({
+          url: r.url, email: r.email, motDePasse: r.motDePasse, mailbox: r.calendrierPartage,
+          aujourdHui: lundiAnPasse, tranches: 1, jours: 6
+        }, injections).finally(() => lecturesEnCours.delete(lundiAnPasse)));
+      }
+      const lu = await lecturesEnCours.get(lundiAnPasse);
+      if (lu && lu.ok) {
+        anPasse = { ...compterRendezVousPeriode(evenementsDepuisEws(lu.evenements), lundiAnPasse, samediAnPasse), lu: new Date().toISOString() };
+        parametresRepo.ecrireComparaisonAgenda({ ...parametresRepo.lireComparaisonAgenda(), [lundiAnPasse]: anPasse });
+      } else if (lu) {
+        if (lu.raison === 'auth') signalerIdentifiantsRefuses(r);
+        message = lu.message || '';
+      }
+    }
+    if (!anPasse && !message) {
+      message = !connexionAgendaConfiguree(r) ? "Connexion à l'agenda Outlook à configurer."
+        : lectureAgendaSuspendue(r) ? "Lecture de l'agenda suspendue après un refus des identifiants." : '';
+    }
+    const ecart = actuel && anPasse ? ecartRendezVous(actuel.rendezVous, anPasse.rendezVous) : null;
+    res.json({
+      lundi, lundiAnPasse, actuel, anPasse: anPasse ? { rendezVous: anPasse.rendezVous, signatures: anPasse.signatures } : null,
+      ecart: ecart ? ecart.ecart : null, pourcent: ecart ? ecart.pourcent : null, message
+    });
   });
 
   // Déclenche un vrai tour de lecture tout de suite — le chemin de production, pas une simulation.

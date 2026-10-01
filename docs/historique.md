@@ -13894,3 +13894,23 @@ d'envoi se met à jour seule à la validation d'une date d'envoi (`noterEnvoiDan
 - `composerLieuAgenda` (serveur, route `/exchange/rendez-vous/lieu`) reçoit `initiales` et les met en tête
   si elles manquent (rendez-vous tapé dans Outlook), jamais en double. Testé ; vérifié dans Chromium
   (Location de la requête CreateItem).
+
+
+### 01/10/2026 17 h 36 — Agenda : comparaison avec la même semaine l'an dernier
+
+Demande de l'étude : « À côté de Agenda de l'office lu jeu. 17 h 29, rajouter une statistique par rapport
+au nombre de rendez-vous par rapport à l'année dernière à la même semaine (+ x rendez-vous, hausse ou baisse
+de x %) ».
+- Compté (serveur, `compterRendezVousPeriode`) : les rendez-vous HORAIRES du lundi au samedi, ni journée
+  entière (absences, dates butoir), ni annulés, ni options d'un sondage ; signatures à part (détail).
+- Même semaine l'an dernier = 52 semaines plus tôt (`lundiAnneePrecedente`, 364 jours, même jour de semaine).
+- `GET /api/agenda/comparaison?lundi=` : cette semaine depuis le stock `agenda-office` (null si la semaine
+  n'est pas couverte), l'an dernier lu UNE fois dans Exchange (`lireCalendrierExchange` avec une tranche de
+  6 jours — paramètre `jours` ajouté), un seul essai, jamais pendant la suspension après refus d'identifiants
+  (un refus ouvre le même disjoncteur), puis gardé en base (`agenda-comparaison`, 60 semaines, relu après
+  7 jours) ; lectures simultanées de la même semaine fusionnées. Un compte inconnu vaut null, jamais 0.
+- Client : `renderComparaisonAgenda` (vues Semaine et Jour, pas Mois) après « Agenda de l'office lu … » :
+  « +3 rendez-vous vs 2025 (hausse de 25 %) » / « −2 … (baisse de 20 %) » / « Autant de rendez-vous qu'en
+  2025 » / « (aucun l'an dernier) », vert / rouge, flèche `trend-up`/`trend-down`, détail en pastille « i »
+  (`texteComparaisonAgenda`, pur, testé). Relu toutes les 2 min au plus par semaine affichée.
+- **Non vérifié au bureau** : volume réel de la semaine de l'an dernier dans le calendrier partagé.

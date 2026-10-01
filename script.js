@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-01 17:32';
+  const VERSION_APP = '2026-10-01 17:36';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-01 17:36', resume: "Agenda : à côté de « Agenda de l'office lu… », le nombre de rendez-vous de la semaine comparé à la même semaine l'an dernier — « +3 rendez-vous vs 2025 (hausse de 25 %) », en vert ou en rouge, détail dans la pastille i (dont signatures). L'an dernier est lu une fois dans l'agenda Outlook puis gardé." },
     { version: '2026-10-01 17:32', resume: "Agenda : un rendez-vous d'un dossier créé depuis « Nouveau rendez-vous » renseigne le Lieu dans Outlook comme une signature posée depuis la fiche — initiales du responsable, confrère « en 1er » (il reçoit) ou « en 2nd », appel de fonds et projet envoyés (« BA - Me DURAND en 2nd - Appel de fonds envoyé »), modifiable avant d'enregistrer. La mise à jour automatique du Lieu à l'envoi de l'appel de fonds ou du projet ajoute aussi les initiales si elles manquent." },
     { version: '2026-10-01 17:29', resume: "Agenda : proposer plusieurs dates pour un rendez-vous sans dossier — titre, durée, destinataires libres (dont un confrère, avec la formule d'usage), créneaux en option dans l'agenda. Depuis « Nouveau rendez-vous » (« Proposer plusieurs dates ») ou « Dates proposées » dans la colonne de l'agenda, où arrivent les réponses et où « Placer » crée le rendez-vous et retire les options." },
     { version: '2026-10-01 15:41', resume: "Agenda : « Envoyer le lien » de la visio — prépare l'email aux clients (ensemble) et/ou au confrère (le sien, formule d'usage), avec un bouton vers la visio et les informations de connexion relues dans la note du rendez-vous. Proposé aussi juste après l'ajout de l'invitation .ics. Texte : premier jet de CLAIRE." },
@@ -19432,6 +19433,50 @@
     });
   }
 
+  // ---- Comparaison avec la même semaine l'an dernier (étude, 01/10 : « + x rendez-vous, hausse ou
+  // baisse de x % ») : comptée par le serveur (GET /api/agenda/comparaison), l'an dernier lu une fois
+  // dans Exchange puis gardé. Une semaine par lundi, relue toutes les 2 minutes au plus. ----
+  var comparaisonsAgenda = {};
+  async function chargerComparaisonAgenda(lundi) {
+    const deja = comparaisonsAgenda[lundi];
+    if (deja && (deja.chargement || Date.now() - deja.t < 120000)) return;
+    comparaisonsAgenda[lundi] = Object.assign({}, deja || {}, { chargement: true, t: Date.now() });
+    try {
+      const r = await fetchAvecAuth('/api/agenda/comparaison?lundi=' + encodeURIComponent(lundi));
+      const corps = await r.json();
+      comparaisonsAgenda[lundi] = r.ok ? Object.assign({ t: Date.now() }, corps) : { t: Date.now(), message: corps.erreur || '' };
+    } catch (e) {
+      comparaisonsAgenda[lundi] = { t: Date.now(), message: 'Serveur injoignable.' };
+    }
+    if (ongletActuel === 'agenda' && agendaLundi === lundi) renderPageAgenda();
+  }
+
+  // Pure : le texte de la comparaison. `null` quand un des deux comptes manque (jamais un faux zéro).
+  function texteComparaisonAgenda(c) {
+    if (!c || !c.actuel || !c.anPasse || typeof c.ecart !== 'number') return null;
+    const annee = String(c.lundiAnPasse || '').slice(0, 4);
+    const n = Math.abs(c.ecart);
+    const rdv = `${n} rendez-vous`;
+    if (c.ecart === 0) return { sens: 'egal', texte: `Autant de rendez-vous qu’en ${annee}` };
+    const signe = c.ecart > 0 ? '+' : '−';
+    const pourcent = c.pourcent == null ? 'aucun l’an dernier' : `${c.ecart > 0 ? 'hausse' : 'baisse'} de ${Math.abs(c.pourcent)} %`;
+    return { sens: c.ecart > 0 ? 'hausse' : 'baisse', texte: `${signe}${rdv} vs ${annee} (${pourcent})` };
+  }
+
+  function renderComparaisonAgenda() {
+    if (agendaVue === 'mois' || !exchangeAgendaPret()) return '';
+    const c = comparaisonsAgenda[agendaLundi];
+    if (!c || Date.now() - c.t >= 120000) chargerComparaisonAgenda(agendaLundi);
+    const t = texteComparaisonAgenda(c);
+    if (!t) return '';
+    const debutAnPasse = new Date(c.lundiAnPasse + 'T00:00:00');
+    const finAnPasse = new Date(addDays(c.lundiAnPasse, 5) + 'T00:00:00');
+    const detail = `Comparé à la même semaine l’an dernier. Cette semaine : ${c.actuel.rendezVous} rendez-vous (dont ${c.actuel.signatures} signature${c.actuel.signatures > 1 ? 's' : ''}). `
+      + `Même semaine l’an dernier, du ${debutAnPasse.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })} au ${finAnPasse.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })} : ${c.anPasse.rendezVous} (dont ${c.anPasse.signatures} signature${c.anPasse.signatures > 1 ? 's' : ''}). `
+      + 'Rendez-vous horaires du lundi au samedi, lus dans l’agenda partagé ; journées entières (absences, dates butoir) et options de sondage non comptées.';
+    return ` · <span class="ag-compare ag-compare-${t.sens}">${t.sens === 'egal' ? '' : icone(t.sens === 'hausse' ? 'trend-up' : 'trend-down')}${escapeHtml(t.texte)}</span> ${infoBulle(detail)}`;
+  }
+
   function renderPageAgenda() {
     const zone = document.getElementById('agenda-contenu');
     if (!zone) return;
@@ -19441,7 +19486,7 @@
     const source = agendaErreur ? `<span class="dot-label dl-alerte"><span class="dot"></span>${escapeHtml(agendaErreur)}</span>`
       : !agendaCharge ? 'Lecture de l’agenda…'
       : agendaSource && !agendaSource.configuree ? 'Connexion à l’agenda Outlook à configurer (Réglages › Agenda).'
-      : lu ? `Agenda de l’office lu ${escapeHtml(lu)}` : 'Agenda pas encore lu par le serveur.';
+      : lu ? `Agenda de l’office lu ${escapeHtml(lu)}${renderComparaisonAgenda()}` : 'Agenda pas encore lu par le serveur.';
     // Titre à la manière d'Outlook : la pastille du jour (mois en tête, grand numéro), la date en
     // clair et, dessous, le jour ou la période affichée.
     const ref = agendaVue === 'mois' ? agendaMois + '-01' : agendaJour;

@@ -259,3 +259,13 @@ test('heureCaseAgenda : clic dans la première ou la seconde moitié de la case'
   assert.equal(app.heureCaseAgenda(9, 79, 80), '09:30');
   assert.equal(app.heureCaseAgenda(10, 0, 0), '10:00', 'au clavier : heure pleine');
 });
+
+test('texteComparaisonAgenda : hausse, baisse, égalité, an dernier vide, compte manquant', () => {
+  const c = (actuel, anPasse, ecart, pourcent) => ({ lundiAnPasse: '2025-10-06', actuel: { rendezVous: actuel, signatures: 0 }, anPasse: { rendezVous: anPasse, signatures: 0 }, ecart, pourcent });
+  assert.equal(app.texteComparaisonAgenda(c(12, 9, 3, 33)).texte, '+3 rendez-vous vs 2025 (hausse de 33 %)');
+  assert.equal(app.texteComparaisonAgenda(c(8, 10, -2, -20)).texte, '−2 rendez-vous vs 2025 (baisse de 20 %)');
+  assert.equal(app.texteComparaisonAgenda(c(8, 10, -2, -20)).sens, 'baisse');
+  assert.equal(app.texteComparaisonAgenda(c(5, 5, 0, 0)).texte, 'Autant de rendez-vous qu’en 2025');
+  assert.equal(app.texteComparaisonAgenda(c(4, 0, 4, null)).texte, '+4 rendez-vous vs 2025 (aucun l’an dernier)');
+  assert.equal(app.texteComparaisonAgenda({ actuel: { rendezVous: 3 }, anPasse: null, ecart: null }), null);
+});

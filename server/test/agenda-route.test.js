@@ -132,3 +132,43 @@ test('GET /api/agenda/evenements : période validée, événements qui la chevau
   const apres = await (await appeler('/api/agenda/evenements?debut=2099-10-12&fin=2099-10-17')).json();
   assert.equal(apres.evenements.map((e) => e.itemId).sort().join('|'), 'C|N');
 });
+
+// --- Comparaison avec la même semaine l'an dernier (étude, 01/10) ---
+function itemEws(sujet, debutUtc, finUtc, journee) {
+  return `<t:CalendarItem><t:ItemId Id="${sujet.replace(/\W/g, '')}${debutUtc}" ChangeKey="CK"/><t:Subject>${sujet}</t:Subject><t:Start>${debutUtc}</t:Start><t:End>${finUtc}</t:End><t:IsAllDayEvent>${journee ? 'true' : 'false'}</t:IsAllDayEvent><t:IsCancelled>false</t:IsCancelled></t:CalendarItem>`;
+}
+
+test('GET /api/agenda/comparaison : semaine de l’an dernier lue une fois puis gardée, écart et pourcentage', async () => {
+  reinitialiserDisjoncteurAgenda();
+  parametresRepo.ecrireReglagesExchange({ actif: true, email: 'bastien@etude.test', motDePasse: 'mdp-secret', calendrierPartage: 'sophie@etude.test' });
+  // Cette semaine (lundi 2026-10-05) : 3 rendez-vous horaires, dont une signature ; une journée entière et une option ne comptent pas.
+  parametresRepo.ecrireAgendaOffice({ debut: '2026-09-28', lu: new Date().toISOString(), evenements: [
+    { itemId: 'A', sujet: 'VTE - DUPONT / MARTIN', date: '2026-10-05', heure: '10:00', heureFin: '11:00', signature: true },
+    { itemId: 'B', sujet: 'Point équipe', date: '2026-10-06', heure: '09:30', heureFin: '10:00' },
+    { itemId: 'C', sujet: 'Client', date: '2026-10-10', heure: '10:00', heureFin: '11:00' },
+    { itemId: 'D', sujet: 'Congés JV', date: '2026-10-07', dateFin: '2026-10-07', journeeEntiere: true, absence: true },
+    { itemId: 'E', sujet: 'VTE - X ? — option CLAIRE, créneau 1/2', date: '2026-10-08', heure: '14:00', option: true },
+    { itemId: 'F', sujet: 'Dimanche', date: '2026-10-11', heure: '10:00' }
+  ] });
+  // L'an dernier (lundi 2025-10-06, 364 jours avant) : 2 rendez-vous horaires + une journée entière.
+  reponsesEws.length = 0;
+  reponsesEws.push({ statusCode: 200, body: findItem(
+    itemEws('VTE - LEROY', '2025-10-06T08:00:00Z', '2025-10-06T09:00:00Z')
+    + itemEws('Rendez-vous banque', '2025-10-08T12:00:00Z', '2025-10-08T13:00:00Z')
+    + itemEws('Congés BA', '2025-10-08T22:00:00Z', '2025-10-09T22:00:00Z', true)) });
+  const corps = await (await appeler('/api/agenda/comparaison?lundi=2026-10-05')).json();
+  assert.equal(corps.lundiAnPasse, '2025-10-06');
+  assert.equal(corps.actuel.rendezVous, 3);
+  assert.equal(corps.actuel.signatures, 1);
+  assert.equal(corps.anPasse.rendezVous, 2);
+  assert.equal(corps.anPasse.signatures, 1);
+  assert.equal(corps.ecart, 1);
+  assert.equal(corps.pourcent, 50);
+  // Second appel : gardé en base, aucune nouvelle lecture (la file de réponses resterait sinon consommée).
+  reponsesEws.push({ statusCode: 500, body: '' });
+  const encore = await (await appeler('/api/agenda/comparaison?lundi=2026-10-05')).json();
+  assert.equal(encore.anPasse.rendezVous, 2);
+  assert.equal(reponsesEws.length, 1, 'aucune lecture Exchange au second appel');
+  reponsesEws.length = 0;
+  assert.equal((await appeler('/api/agenda/comparaison?lundi=2026-10-06')).status, 400, 'pas un lundi');
+});

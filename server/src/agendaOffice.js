@@ -491,6 +491,42 @@ function lundiSemainePrecedente(jour) {
 // Agenda : l'identifiant Exchange (pour la suppression), le titre, le lieu, les dates et heures, les
 // catégories, et le dossier reconnu par la référence « VTE … ». Triés par date puis heure. Pure.
 const MAX_AGENDA_OFFICE = 3000;
+// Comparaison avec l'an dernier (étude, 01/10 : « le nombre de rendez-vous par rapport à l'année
+// dernière à la même semaine »). Pures et testables.
+// Un « rendez-vous » = un événement horaire de la période (lundi → samedi), ni journée entière
+// (absences, dates butoir), ni annulé, ni option d'un sondage de CLAIRE. Les signatures (référence
+// « VTE - … ») sont comptées à part. Accepte le modèle de evenementDepuisEws comme celui du stock.
+function compterRendezVousPeriode(evenements, debut, fin) {
+  let rendezVous = 0;
+  let signatures = 0;
+  for (const e of evenements || []) {
+    if (!e || e.annule || e.journeeEntiere || !e.heure || !e.date || e.date < debut || e.date > fin) continue;
+    if (e.option || RE_OPTION_SONDAGE.test(String(e.sujet || ''))) continue;
+    rendezVous++;
+    if (e.signature === true || (e.signature === undefined && referenceDossierEvenement(e) && estRendezVousSignature(e))) signatures++;
+  }
+  return { rendezVous, signatures };
+}
+
+// Le lundi de la même semaine l'an dernier : 52 semaines plus tôt (364 jours), même jour de semaine.
+function lundiAnneePrecedente(lundi) {
+  const d = new Date(lundi + 'T12:00:00Z');
+  d.setUTCDate(d.getUTCDate() - 364);
+  return d.toISOString().slice(0, 10);
+}
+
+function decalerJours(iso, n) {
+  const d = new Date(iso + 'T12:00:00Z');
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+
+// Écart et pourcentage (arrondi à l'unité) ; pourcentage null quand l'an dernier est à zéro.
+function ecartRendezVous(actuel, anPasse) {
+  if (!Number.isInteger(actuel) || !Number.isInteger(anPasse)) return null;
+  return { ecart: actuel - anPasse, pourcent: anPasse > 0 ? Math.round((actuel - anPasse) / anPasse * 100) : null };
+}
+
 function evenementsAgendaOffice(evenements, dossiersActifs) {
   const liste = [];
   for (const evt of evenements || []) {
@@ -527,7 +563,7 @@ module.exports = {
   momentParisDepuisIso, veilleDe, formatDateFr, evenementDepuisEws, evenementsDepuisEws,
   extraireReferenceVte, referenceDossierEvenement, detecteAppelDeFonds, detecteProjetEnvoye,
   detecterActionsEvenement, dossierPourReferenceAgenda, actionsDetecteesDepuisEvenements, motsVoisins,
-  estRendezVousSignature, composerLieuAgenda,
+  estRendezVousSignature, composerLieuAgenda, compterRendezVousPeriode, lundiAnneePrecedente, decalerJours, ecartRendezVous,
   absencesDepuisEvenements, estEvenementJourneeEntiere, collaborateursDansTexte, COLLABORATEURS_ABSENCE,
   categoriesDistinctes, agendaDuJourDepuisEvenements, lundiSemainePrecedente, evenementsAgendaOffice
 };

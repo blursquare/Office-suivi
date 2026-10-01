@@ -474,14 +474,16 @@ function parseCalendrierEws(corps) {
 // d'identifiants n'est jamais présenté une seconde fois dans le même tour. Chaque tranche est un
 // seul essai. Renvoie { ok:true, evenements } (dédoublonnés par ItemId : une absence à cheval sur
 // deux tranches revient deux fois) ou { ok:false, raison, message }.
-async function lireCalendrierExchange({ url, email, motDePasse, mailbox, aujourdHui, tranches, delaiMs }, injections) {
+async function lireCalendrierExchange({ url, email, motDePasse, mailbox, aujourdHui, tranches, jours, delaiMs }, injections) {
   const nb = tranches || TRANCHES_CALENDRIER;
+  // `jours` : longueur d'une tranche (une semaine pour la comparaison avec l'an dernier).
+  const joursTranche = Number.isInteger(jours) && jours > 0 ? Math.min(jours, JOURS_PAR_TRANCHE_CALENDRIER) : JOURS_PAR_TRANCHE_CALENDRIER;
   const vus = new Set();
   const evenements = [];
   let debut = aujourdHui;
   for (let i = 0; i < nb; i++) {
     let fin = debut;
-    for (let j = 0; j < JOURS_PAR_TRANCHE_CALENDRIER; j++) fin = dateSuivanteIso(fin);
+    for (let j = 0; j < joursTranche; j++) fin = dateSuivanteIso(fin);
     const r = await posterEws({
       url, email, motDePasse, delaiMs,
       body: corpsLireCalendrier({
