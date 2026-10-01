@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-01 22:25';
+  const VERSION_APP = '2026-10-01 22:29';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-01 22:29', resume: "Agenda : quand une réponse aux dates proposées revient, une pastille rouge s'allume à droite de « Agenda » dans la barre latérale (avec le nombre de réponses), et le lien « Dates proposées » l'indique aussi. Dans le volet, la carte concernée porte « Nouvelle réponse ». La pastille s'efface à l'ouverture de « Dates proposées »." },
     { version: '2026-10-01 22:25', resume: "Agenda : « Dates proposées » s'ouvre maintenant dans un volet à droite, comme la fiche d'un dossier, au lieu d'une fenêtre au centre." },
     { version: '2026-10-01 22:21', resume: "Agenda : nouveau lien « Dates proposées » sous le petit calendrier (avec le nombre en attente). Il ouvre une fenêtre qui suit toutes les dates de rendez-vous envoyées par email, avec ou sans dossier : en attente de réponse (qui a répondu, Placer, Relancer, Relire, Annuler), validées (date retenue, « Voir dans l'agenda »), et sans suite. Le nom d'un dossier ouvre sa fiche." },
     { version: '2026-10-01 22:10', resume: "Agenda : le bouton double « Nouveau rendez-vous | Proposer des dates » passe en haut de la page, à droite du champ de recherche (même hauteur). Sur téléphone, il s'étend sous la recherche." },
@@ -19612,11 +19613,55 @@
   function renderSondagesSansDossierAgenda() {
     if (!exchangeAgendaPret()) return '';
     const attente = sondagesCreneaux.filter(x => x.statut === 'ouvert').length;
-    return `<button type="button" class="ag-lien-dates" onclick="ouvrirSuiviDatesProposees()">
-        ${icone('users')}<span class="ag-lien-dates-texte">Dates proposées</span>
-        ${attente ? `<span class="jour-onglet-nb" title="En attente de réponse">${attente}</span>` : ''}
+    const nouvelles = reponsesNonVuesSondages(sondagesCreneaux, dateDatesVues()).length;
+    return `<button type="button" class="ag-lien-dates${nouvelles ? ' a-nouveau' : ''}" onclick="ouvrirSuiviDatesProposees()">
+        ${icone('users')}<span class="ag-lien-dates-texte">Dates proposées${nouvelles ? `<span class="ag-lien-dates-nouveau">${nouvelles} nouvelle${nouvelles > 1 ? 's' : ''} réponse${nouvelles > 1 ? 's' : ''}</span>` : ''}</span>
+        ${nouvelles ? `<span class="sidebar-badge-notif" title="Réponses pas encore vues">${nouvelles}</span>` : attente ? `<span class="jour-onglet-nb" title="En attente de réponse">${attente}</span>` : ''}
         ${icone('chevron-right')}
       </button>`;
+  }
+
+  // ---- Réponses aux dates proposées pas encore vues (étude, 01/10 : « une notification sur Agenda quand
+  // une réponse est revenue ») : pastille rouge sur « Agenda » dans la barre latérale et sur le lien
+  // « Dates proposées », effacée à l'ouverture du volet. Repère « vu le » propre au poste.
+  // Pure : les réponses reçues après `vuLe` sur les sondages encore ouverts.
+  function reponsesNonVuesSondages(sondages, vuLe) {
+    const depuis = Date.parse(vuLe || '') || 0;
+    const sortie = [];
+    for (const x of sondages || []) {
+      if (!x || x.statut !== 'ouvert') continue;
+      for (const r of x.reponses || []) {
+        const t = Date.parse(r && r.recuLe || '');
+        if (t && t > depuis) sortie.push({ id: x.id, email: r.email });
+      }
+    }
+    return sortie;
+  }
+
+  function cleDatesVues() { return 'claire-dates-vues:' + (utilisateurPoste || 'poste'); }
+  function dateDatesVues() {
+    try {
+      let v = localStorage.getItem(cleDatesVues());
+      // Premier passage sur ce poste : rien d'ancien n'est signalé.
+      if (!v) { v = new Date().toISOString(); localStorage.setItem(cleDatesVues(), v); }
+      return v;
+    } catch (e) { return ''; }
+  }
+  function marquerDatesVues() {
+    try { localStorage.setItem(cleDatesVues(), new Date().toISOString()); } catch (e) { /* stockage refusé */ }
+    majBadgeAgendaDates();
+  }
+
+  function majBadgeAgendaDates() {
+    const el = document.getElementById('badge-notif-agenda');
+    if (!el) return;
+    const n = reponsesNonVuesSondages(sondagesCreneaux, dateDatesVues()).length;
+    el.textContent = n > 99 ? '99+' : String(n);
+    el.style.display = n > 0 ? '' : 'none';
+    el.title = n ? `${n} réponse${n > 1 ? 's' : ''} aux dates proposées` : '';
+    const lien = el.closest('.sidebar-link');
+    if (lien) lien.classList.toggle('a-notif', n > 0);
+    majPastilleMenuMobile();
   }
 
   // ---- Suivi des dates proposées (tiroir à droite, comme une fiche) : en attente, validées, sans suite ----
@@ -19646,11 +19691,15 @@
     return d ? libelleDossierAffiche(d) : x.titre || libelleDossierParNom(x.dossierNom, x.dossierId) || 'Rendez-vous';
   }
 
+  var datesVuesAvantOuverture = '';
   function ouvrirSuiviDatesProposees() {
     const overlay = document.getElementById('dates-proposees-overlay');
     if (!overlay) return;
     overlay.style.display = 'flex';
     document.body.classList.add('tiroir-dates-ouvert');
+    datesVuesAvantOuverture = dateDatesVues();
+    marquerDatesVues();
+    if (ongletActuel === 'agenda') renderPageAgenda();
     renderSuiviDatesProposees();
     chargerSondages().then(renderSuiviDatesProposees);
   }
@@ -19691,10 +19740,11 @@
         : `<b class="dp-titre">${escapeHtml(libelleSondageSuivi(x))}</b>`;
     };
     const groupe = (texte, n, aide) => `<div class="widgets-galerie-groupe">${texte} <span class="jour-onglet-nb">${n}</span>${aide ? ' ' + infoBulle(aide) : ''}</div>`;
+    const nouvelles = new Set(reponsesNonVuesSondages(sondagesCreneaux, datesVuesAvantOuverture).map(r => r.id));
     const carteAttente = (x) => {
       const repondu = x.participants.length - sansReponseSondage(x).length;
-      return `<div class="sondage-panneau dp-carte">
-          <div class="sondage-tete">${titre(x)}<span class="hint">Envoyé le ${escapeHtml(dateCourte(x.creeLe))} · ${repondu}/${x.participants.length} réponse${x.participants.length > 1 ? 's' : ''}${x.expireLe ? ` · options jusqu’au ${escapeHtml(formatDateFr(x.expireLe))}` : ''}</span></div>
+      return `<div class="sondage-panneau dp-carte${nouvelles.has(x.id) ? ' dp-nouveau' : ''}">
+          <div class="sondage-tete">${titre(x)}${nouvelles.has(x.id) ? '<span class="dot-label dl-urgent dp-badge-nouveau"><span class="dot"></span>Nouvelle réponse</span>' : ''}<span class="hint">Envoyé le ${escapeHtml(dateCourte(x.creeLe))} · ${repondu}/${x.participants.length} réponse${x.participants.length > 1 ? 's' : ''}${x.expireLe ? ` · options jusqu’au ${escapeHtml(formatDateFr(x.expireLe))}` : ''}</span></div>
           ${renderTableSondage(x, true)}
           <div class="sondage-actions">
             <button type="button" class="lien-bouton" onclick="relancerSondage('${escapeOnclickArg(x.id)}')" ${sansReponseSondage(x).length ? '' : 'disabled'}>${icone('mail')} Relancer</button>
@@ -21385,6 +21435,7 @@
       const avant = JSON.stringify(sondagesCreneaux);
       const anciens = sondagesCreneaux;
       sondagesCreneaux = corps.sondages || [];
+      majBadgeAgendaDates();
       if (avant === JSON.stringify(sondagesCreneaux)) return;
       // Une nouvelle réponse : notification discrète.
       if (anciens.length) {

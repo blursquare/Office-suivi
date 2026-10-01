@@ -7812,7 +7812,12 @@ button.ag-lien-dates {
 }
 button.ag-lien-dates:hover { background: var(--paper-sunk); }
 button.ag-lien-dates svg { width: 15px; height: 15px; flex: none; color: var(--muted); }
-.ag-lien-dates-texte { flex: 1 1 auto; }
+.ag-lien-dates-texte { flex: 1 1 auto; display: flex; flex-direction: column; gap: 1px; }
+/* Réponse revenue pas encore vue (étude, 01/10) : pastille rouge et une ligne rouge sous le lien. */
+.ag-lien-dates-nouveau { font-size: 12px; font-weight: 600; color: var(--notif-nouveau); }
+button.ag-lien-dates.a-nouveau { border-color: color-mix(in srgb, var(--notif-nouveau) 45%, var(--line)); }
+.dates-proposees-box .dp-carte.dp-nouveau { border-color: color-mix(in srgb, var(--notif-nouveau) 55%, var(--line)); }
+.dates-proposees-box .dp-badge-nouveau { font-size: 12px; margin-right: auto; margin-left: 8px; }
 .confirm-box.widgets-galerie-box { max-width: 560px; width: 100%; max-height: min(86vh, 720px); overflow-y: auto; }
 .widgets-galerie-groupe {
   display: flex; align-items: center; gap: 6px; margin: 16px 0 6px;

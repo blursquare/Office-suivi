@@ -331,3 +331,14 @@ test('classerSuiviDatesProposees : en attente, validées (à venir d’abord), s
   assert.equal(r.valides[1].creneau.date, '2026-10-20');
   assert.equal(r.sansSuite.map(x => x.id).join(','), 'g,f');
 });
+
+test('reponsesNonVuesSondages : réponses arrivées après le dernier passage, sondages ouverts seulement', () => {
+  const sondages = [
+    { id: 'a', statut: 'ouvert', reponses: [{ email: 'x@e.test', recuLe: '2026-10-01T09:00:00Z' }, { email: 'y@e.test', recuLe: '2026-10-01T07:00:00Z' }] },
+    { id: 'b', statut: 'place', reponses: [{ email: 'z@e.test', recuLe: '2026-10-01T10:00:00Z' }] },
+    { id: 'c', statut: 'ouvert', reponses: [{ email: 'w@e.test', recuLe: '' }] }
+  ];
+  assert.equal(app.reponsesNonVuesSondages(sondages, '2026-10-01T08:00:00Z').map(r => r.id + ':' + r.email).join(','), 'a:x@e.test');
+  assert.equal(app.reponsesNonVuesSondages(sondages, '').length, 2);
+  assert.equal(app.reponsesNonVuesSondages(sondages, '2026-10-02T00:00:00Z').length, 0);
+});

@@ -14233,3 +14233,15 @@ droite comme un dossier ». `#dates-proposees-overlay` reprend la coque du tiroi
 (`.drawer-overlay` + `aside.drawer-panneau`, même largeur, même animation, voile sombre) avec une barre
 collante `.fiche-barre` (titre + croix). Défilement de la page bloqué pendant l'ouverture par
 `body.tiroir-dates-ouvert` (pas `drawer-ouvert`, réservé à l'impression de la fiche). Contenu inchangé.
+
+### 01/10/2026 22 h 29 — Pastille « Agenda » quand une réponse aux dates proposées revient
+
+Demande de l'étude : « mettre une notification dans la sidebar, à droite sur Agenda, quand une réponse est
+revenue ». `reponsesNonVuesSondages(sondages, vuLe)` (pure, testée) : réponses des sondages ouverts dont
+`recuLe` (date de l'email de réponse) est postérieure au dernier passage du poste (`claire-dates-vues:<poste>`
+en localStorage ; au premier passage, initialisé à maintenant pour ne rien signaler d'ancien). Pastille
+rouge `#badge-notif-agenda` (`sidebar-badge-notif`, point sur l'icône barre repliée et sur le menu du
+téléphone comme les autres) mise à jour à chaque relecture des sondages (toutes les 2 min) ; le lien
+« Dates proposées » montre « n nouvelle(s) réponse(s) » et la pastille rouge. Ouvrir le volet marque tout
+comme vu ; les cartes concernées y portent « Nouvelle réponse » (repère d'avant l'ouverture). Le toast
+existant « Nouvelle réponse au sondage » reste. Vérifié dans Chromium (clair, sombre, téléphone).
