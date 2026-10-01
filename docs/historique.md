@@ -14118,3 +14118,14 @@ reconnu). Appoint : « Prochains rendez-vous » (`prochainsEvenementsAgenda`, sa
 (`ouvrirEvenementDepuisWidgetAgenda` ; le clic d'origine est ignoré par la fermeture automatique du détail) ;
 titre et icône calendrier ouvrent l'agenda. Navigation d'une semaine en arrière à 8 en avant ; état de lecture
 dans le sous-titre (« Agenda Outlook non relié » si la connexion n'est pas réglée).
+
+### 01/10/2026 21 h 45 — Comparaison de l'agenda : rendez-vous d'une heure ou plus seulement
+
+Demande de l'étude : « Pour la statistique dans l'agenda sur le nombre de rdv prendre en compte
+uniquement les rendez-vous de une heure ou plus ». `compterRendezVousPeriode` (`server/src/agendaOffice.js`)
+écarte tout rendez-vous de moins de 60 minutes (`dureeRendezVousMinutes` : heure de fin − heure de
+début, jours entiers ajoutés si le rendez-vous finit un autre jour ; sans heure de fin lisible, durée
+inconnue → non compté). Même règle pour les signatures. Les semaines de l'an dernier gardées sous
+`agenda-comparaison` portent désormais `regle: 'duree-1h'` (`REGLE_COMPTAGE_RENDEZ_VOUS`) ; une semaine
+comptée sous l'ancienne règle n'est plus montrée et est relue une fois dans Exchange (jamais deux
+règles comparées). Info-bulle de la comparaison mise à jour.

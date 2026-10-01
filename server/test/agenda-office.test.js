@@ -370,3 +370,19 @@ test('evenementsAgendaOffice : tous les rendez-vous non annulés, avec identifia
   assert.equal(liste[1].signature, true);
   assert.equal(liste[2].heure, '14:00');
 });
+
+test('compterRendezVousPeriode : seuls les rendez-vous d’une heure ou plus comptent (étude, 01/10)', () => {
+  const { compterRendezVousPeriode, dureeRendezVousMinutes } = require('../src/agendaOffice');
+  assert.equal(dureeRendezVousMinutes({ date: '2026-10-05', heure: '09:30', heureFin: '10:30' }), 60);
+  assert.equal(dureeRendezVousMinutes({ date: '2026-10-05', heure: '17:00', dateFin: '2026-10-06', heureFin: '09:00' }), 960);
+  assert.equal(dureeRendezVousMinutes({ date: '2026-10-05', heure: '09:30' }), null);
+  const c = compterRendezVousPeriode([
+    { sujet: 'VTE - DUPONT / MARTIN', date: '2026-10-05', heure: '10:00', heureFin: '11:00', signature: true },
+    { sujet: 'VTE - LEROY', date: '2026-10-06', heure: '10:00', heureFin: '10:45', signature: true },
+    { sujet: 'Point', date: '2026-10-06', heure: '14:00', heureFin: '14:59' },
+    { sujet: 'Succession', date: '2026-10-07', heure: '14:00', heureFin: '16:30' },
+    { sujet: 'Sans fin', date: '2026-10-08', heure: '15:00' }
+  ], '2026-10-05', '2026-10-10');
+  assert.equal(c.rendezVous, 2);
+  assert.equal(c.signatures, 1);
+});

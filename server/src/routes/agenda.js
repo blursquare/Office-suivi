@@ -10,7 +10,7 @@
 
 const express = require('express');
 const { executerEtEnregistrerTourAgenda, connexionAgendaConfiguree, lectureAgendaSuspendue, signalerIdentifiantsRefuses } = require('../agendaWatch');
-const { evenementsDepuisEws, compterRendezVousPeriode, lundiAnneePrecedente, decalerJours, ecartRendezVous, moisDePeriode, archiveAgendaARelire, evenementsAgendaOffice } = require('../agendaOffice');
+const { evenementsDepuisEws, compterRendezVousPeriode, REGLE_COMPTAGE_RENDEZ_VOUS, lundiAnneePrecedente, decalerJours, ecartRendezVous, moisDePeriode, archiveAgendaARelire, evenementsAgendaOffice } = require('../agendaOffice');
 const { lireCalendrierExchange } = require('../exchange/ews');
 
 // Une semaine de l'an dernier relue au plus une fois tous les 7 jours (elle ne change presque plus).
@@ -134,7 +134,9 @@ function creerRouteurAgenda(parametresRepo, options) {
     const lundiAnPasse = lundiAnneePrecedente(lundi);
     const samediAnPasse = decalerJours(lundiAnPasse, 5);
     const memoire = parametresRepo.lireComparaisonAgenda();
-    let anPasse = memoire[lundiAnPasse] || null;
+    // Une semaine comptée sous une autre règle (avant la durée d'une heure) n'est pas montrée : elle
+    // est relue une fois (jamais deux règles comparées entre elles).
+    let anPasse = memoire[lundiAnPasse] && memoire[lundiAnPasse].regle === REGLE_COMPTAGE_RENDEZ_VOUS ? memoire[lundiAnPasse] : null;
     let message = '';
     const frais = anPasse && Date.now() - Date.parse(anPasse.lu || 0) < FRAICHEUR_COMPARAISON_MS;
     const r = typeof parametresRepo.lireReglagesExchange === 'function' ? parametresRepo.lireReglagesExchange() : {};
@@ -147,7 +149,7 @@ function creerRouteurAgenda(parametresRepo, options) {
       }
       const lu = await lecturesEnCours.get(lundiAnPasse);
       if (lu && lu.ok) {
-        anPasse = { ...compterRendezVousPeriode(evenementsDepuisEws(lu.evenements), lundiAnPasse, samediAnPasse), lu: new Date().toISOString() };
+        anPasse = { ...compterRendezVousPeriode(evenementsDepuisEws(lu.evenements), lundiAnPasse, samediAnPasse), lu: new Date().toISOString(), regle: REGLE_COMPTAGE_RENDEZ_VOUS };
         parametresRepo.ecrireComparaisonAgenda({ ...parametresRepo.lireComparaisonAgenda(), [lundiAnPasse]: anPasse });
       } else if (lu) {
         if (lu.raison === 'auth') signalerIdentifiantsRefuses(r);

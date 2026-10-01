@@ -581,7 +581,7 @@ const MAX_ABSENCES_AGENDA = 200;
 // remplacés à chaque tour réussi : la fenêtre du matin les affiche tant que `jour` est aujourd'hui.
 const CLE_AGENDA_DU_JOUR = 'agenda-du-jour';
 // Semaines de l'an dernier déjà comptées (comparaison de la page Agenda) : { 'AAAA-MM-JJ': { rendezVous,
-// signatures, lu } }, 60 semaines au plus — une semaine passée ne change presque plus, une seule
+// signatures, lu, regle } } (regle = règle de comptage, voir agendaOffice.js), 60 semaines au plus — une semaine passée ne change presque plus, une seule
 // lecture Exchange suffit.
 const CLE_AGENDA_COMPARAISON = 'agenda-comparaison';
 function assainirComparaisonAgenda(brut) {
@@ -590,7 +590,7 @@ function assainirComparaisonAgenda(brut) {
     .filter(([k, v]) => /^\d{4}-\d{2}-\d{2}$/.test(k) && v && Number.isInteger(v.rendezVous) && v.rendezVous >= 0)
     .sort((a, b) => String(b[1].lu || '').localeCompare(String(a[1].lu || ''))).slice(0, 60);
   for (const [k, v] of entrees) {
-    sortie[k] = { rendezVous: v.rendezVous, signatures: Number.isInteger(v.signatures) ? v.signatures : 0, lu: typeof v.lu === 'string' ? v.lu.slice(0, 40) : '' };
+    sortie[k] = { rendezVous: v.rendezVous, signatures: Number.isInteger(v.signatures) ? v.signatures : 0, lu: typeof v.lu === 'string' ? v.lu.slice(0, 40) : '', regle: typeof v.regle === 'string' ? v.regle.slice(0, 20) : '' };
   }
   return sortie;
 }

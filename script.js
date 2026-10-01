@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-01 21:42';
+  const VERSION_APP = '2026-10-01 21:45';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-01 21:45', resume: "Agenda : la comparaison avec l'an dernier ne compte plus que les rendez-vous d'une heure ou plus (les points de 30 ou 45 minutes ne sont plus comptés). Les semaines de l'an dernier déjà comptées sont relues une fois sous cette règle." },
     { version: '2026-10-01 21:42', resume: "Tableau de bord : le widget Agenda est relié à l'agenda partagé de l'office (calendrier de Sophie) — tous les rendez-vous du jour avec leur couleur Outlook (signatures, rendez-vous, absences, dates butoir), les signatures de CLAIRE pas encore dans Outlook en pointillé, puis les prochains rendez-vous. Un clic sur un rendez-vous ouvre la page Agenda à son jour, détail affiché ; l'icône calendrier ouvre l'agenda. Semaines précédente et suivantes (jusqu'à 8) consultables." },
     { version: '2026-10-01 21:36', resume: "Barre latérale : le liseré qui relie les outils à « Outils » est de retour quand le tiroir est ouvert." },
     { version: '2026-10-01 21:31', resume: "Barre latérale épurée : plus de titres de section, seulement les liens vers les pages. « Outils » ouvre une page où chaque outil a sa grosse icône et une phrase ; le + à sa droite déplie les outils dans la barre (barre repliée : survol de l'icône, comme avant). Les compteurs (pièces, signalements, scans) prennent une forme carrée aux coins arrondis." },
@@ -19668,7 +19669,7 @@
     const finAnPasse = new Date(addDays(c.lundiAnPasse, 5) + 'T00:00:00');
     const detail = `Comparé à la même semaine l’an dernier. Cette semaine : ${c.actuel.rendezVous} rendez-vous (dont ${c.actuel.signatures} signature${c.actuel.signatures > 1 ? 's' : ''}). `
       + `Même semaine l’an dernier, du ${debutAnPasse.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })} au ${finAnPasse.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })} : ${c.anPasse.rendezVous} (dont ${c.anPasse.signatures} signature${c.anPasse.signatures > 1 ? 's' : ''}). `
-      + 'Rendez-vous horaires du lundi au samedi, lus dans l’agenda partagé ; journées entières (absences, dates butoir) et options de sondage non comptées.';
+      + 'Rendez-vous d’une heure ou plus, du lundi au samedi, lus dans l’agenda partagé ; rendez-vous plus courts, journées entières (absences, dates butoir) et options de sondage non comptés.';
     return ` · <span class="ag-compare ag-compare-${t.sens}">${t.sens === 'egal' ? '' : icone(t.sens === 'hausse' ? 'trend-up' : 'trend-down')}${escapeHtml(t.texte)}</span> ${infoBulle(detail)}`;
   }
 

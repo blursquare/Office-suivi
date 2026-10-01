@@ -493,15 +493,36 @@ function lundiSemainePrecedente(jour) {
 const MAX_AGENDA_OFFICE = 3000;
 // Comparaison avec l'an dernier (étude, 01/10 : « le nombre de rendez-vous par rapport à l'année
 // dernière à la même semaine »). Pures et testables.
-// Un « rendez-vous » = un événement horaire de la période (lundi → samedi), ni journée entière
-// (absences, dates butoir), ni annulé, ni option d'un sondage de CLAIRE. Les signatures (référence
-// « VTE - … ») sont comptées à part. Accepte le modèle de evenementDepuisEws comme celui du stock.
+// Un « rendez-vous » = un événement horaire de la période (lundi → samedi) d'UNE HEURE OU PLUS (étude,
+// 01/10 : un point de 30 min n'est pas un rendez-vous), ni journée entière (absences, dates butoir),
+// ni annulé, ni option d'un sondage de CLAIRE. Sans heure de fin lisible, la durée est inconnue : pas
+// compté. Les signatures (référence « VTE - … ») sont comptées à part, sous la même règle. Accepte le
+// modèle de evenementDepuisEws comme celui du stock.
+const DUREE_MIN_RENDEZ_VOUS_COMPTE = 60;
+// Version de la règle de comptage, gardée avec chaque semaine de l'an dernier : une semaine comptée
+// sous une autre règle est relue une fois.
+const REGLE_COMPTAGE_RENDEZ_VOUS = 'duree-1h';
+function minutesHeure(h) {
+  const m = /^(\d{1,2}):(\d{2})/.exec(String(h || ''));
+  return m ? Number(m[1]) * 60 + Number(m[2]) : null;
+}
+function dureeRendezVousMinutes(e) {
+  if (!e || !e.heure || !e.date) return null;
+  const debut = minutesHeure(e.heure);
+  const fin = minutesHeure(e.heureFin);
+  if (debut == null || fin == null) return null;
+  const jours = e.dateFin && e.dateFin > e.date
+    ? Math.round((Date.parse(e.dateFin + 'T12:00:00Z') - Date.parse(e.date + 'T12:00:00Z')) / 86400000) : 0;
+  return jours * 1440 + fin - debut;
+}
 function compterRendezVousPeriode(evenements, debut, fin) {
   let rendezVous = 0;
   let signatures = 0;
   for (const e of evenements || []) {
     if (!e || e.annule || e.journeeEntiere || !e.heure || !e.date || e.date < debut || e.date > fin) continue;
     if (e.option || RE_OPTION_SONDAGE.test(String(e.sujet || ''))) continue;
+    const duree = dureeRendezVousMinutes(e);
+    if (duree == null || duree < DUREE_MIN_RENDEZ_VOUS_COMPTE) continue;
     rendezVous++;
     if (e.signature === true || (e.signature === undefined && referenceDossierEvenement(e) && estRendezVousSignature(e))) signatures++;
   }
@@ -591,7 +612,7 @@ module.exports = {
   momentParisDepuisIso, veilleDe, formatDateFr, evenementDepuisEws, evenementsDepuisEws,
   extraireReferenceVte, referenceDossierEvenement, detecteAppelDeFonds, detecteProjetEnvoye,
   detecterActionsEvenement, dossierPourReferenceAgenda, actionsDetecteesDepuisEvenements, motsVoisins,
-  estRendezVousSignature, composerLieuAgenda, compterRendezVousPeriode, lundiAnneePrecedente, decalerJours, ecartRendezVous, moisDePeriode, archiveAgendaARelire, evenementsAgendaOffice,
+  estRendezVousSignature, composerLieuAgenda, compterRendezVousPeriode, dureeRendezVousMinutes, REGLE_COMPTAGE_RENDEZ_VOUS, lundiAnneePrecedente, decalerJours, ecartRendezVous, moisDePeriode, archiveAgendaARelire, evenementsAgendaOffice,
   absencesDepuisEvenements, estEvenementJourneeEntiere, collaborateursDansTexte, COLLABORATEURS_ABSENCE,
   categoriesDistinctes, agendaDuJourDepuisEvenements, lundiSemainePrecedente, evenementsAgendaOffice
 };
