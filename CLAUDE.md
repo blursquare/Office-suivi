@@ -317,7 +317,13 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
   vers la boîte du compte Exchange, objet `[CLAIRE-CODE-n]` (0 = aucun) ; le serveur relit les **objets**
   (FindItem, 5 min, même disjoncteur que l'agenda), un email par créneau accepté ; plus « Répondre en une
   seule fois » (`[CLAIRE-CODE-L]`, étude 01/10) : cases `[ ]` à cocher d'un X, seul cas où le **texte** d'un
-  email est lu (GetItem de ces réponses-là, numéros cochés gardés, texte jamais conservé). Options
+  email est lu (GetItem de ces réponses-là, numéros cochés gardés, texte jamais conservé).
+  **Page de réponse** (étude, 01/10 — `page-sondage/index.html`, à publier dans un dépôt GitHub public
+  dédié avec Pages, adresse dans Réglages › Rappels et agenda, `pageSondage` des réglages Exchange) :
+  vraies cases à cocher, **aucune donnée côté GitHub** (tout est après le `#` du lien, rendu en
+  `textContent`), réponse par un seul email d'objet `[CLAIRE-CODE-P13] VTE - MOR./FAU. — Choix : …`
+  (P0 = aucun ; remplace les choix). Le dossier n'apparaît qu'**abrégé** (`abregeDossierSondage`,
+  3 lettres par nom de famille) sur la page et dans les objets de réponse. Réglage vide = boutons. Options
   « Provisoire » `VTE - NOM ? — option CLAIRE, créneau n/N` (le « ? » n'écrit rien sur la fiche),
   hachurées dans l'agenda, retirées (`MoveToDeletedItems`) au placement, à l'annulation ou après
   5 jours ouvrés. Votants par défaut : les clients, ou le confrère qui représente une partie. Textes =
@@ -504,7 +510,7 @@ Plainte principale de l'étude : **le bruit**, pas les oublis — ne pas élargi
   mise à jour en un clic (Réglages › Mise à jour), le démarrage automatique de CLAIRE au lancement du
   serveur, le lien vers une pièce ouvert depuis une notification Teams et l'icône de l'exe (nette).
 - **Non vérifié au bureau** : le sondage de créneaux (lecture réelle des réponses dans la boîte, boutons
-  dans Outlook, options « Provisoire ») ; le détail des écritures EWS (déplacement et suppression d'un
+  dans Outlook, options « Provisoire », page de réponse publiée — dépôt public à créer par l'étude) ; le détail des écritures EWS (déplacement et suppression d'un
   rendez-vous, note du Lieu, dates butoir en journée entière, noms exacts des catégories de couleur,
   reprise des dates butoir existantes au premier tour — une seule fois chacune) et de la lecture
   (forme réelle des journées entières, volume par tranche) ; service NSSM (si utilisé) ; reçus comptables (« Fonds reçus ») au-delà des

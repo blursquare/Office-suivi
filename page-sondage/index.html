@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<title>Rendez-vous de signature</title>
+<!--
+  Page de réponse au sondage de créneaux de CLAIRE (étude, 01/10/2026). Publiée telle quelle sur
+  GitHub Pages, dans un dépôt public qui ne contient QUE ce fichier : elle ne garde aucune donnée.
+  Tout ce qu'elle affiche vient du lien lui-même, après le « # » (que le navigateur n'envoie jamais
+  au serveur) : code du sondage, adresse de réponse de l'étude, dossier en abrégé (« VTE - MOR. »),
+  date limite et créneaux. La réponse repart par email vers l'étude, objet
+  « [CLAIRE-CODE-P13] … » (créneaux 1 et 3 ; P0 = aucun), que CLAIRE relit dans la boîte.
+  Aucune ressource extérieure (ni police, ni script, ni statistique). Source : dépôt de CLAIRE,
+  page-sondage/index.html — toute modification se fait là, puis se recopie dans le dépôt public.
+-->
+<style>
+  :root {
+    --fond: #F6F3F1; --carte: #FFFFFF; --encre: #241B1D; --doux: #6B5F62; --ligne: #E4DCD8;
+    --bordeaux: #6D2332; --bordeaux-clair: #F4E8EA; --or: #A88653; --ok: #2F7A4F;
+    color-scheme: light dark;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --fond: #1A1517; --carte: #241D20; --encre: #F2ECEC; --doux: #B6A9AC; --ligne: #3A3034;
+      --bordeaux: #D98A99; --bordeaux-clair: #3A2329; --or: #C9A876; --ok: #74C495;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--fond); color: var(--encre);
+    font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    padding: 24px 16px 40px;
+  }
+  main { max-width: 560px; margin: 0 auto; }
+  .entete { text-align: center; margin-bottom: 18px; }
+  .office { font-family: Georgia, "Times New Roman", serif; font-size: 15px; letter-spacing: 0.04em; color: var(--bordeaux); text-transform: uppercase; }
+  .filet { width: 48px; height: 2px; background: var(--or); margin: 10px auto 0; border: 0; }
+  .carte { background: var(--carte); border: 1px solid var(--ligne); border-radius: 14px; padding: 22px 20px; box-shadow: 0 1px 2px rgba(0,0,0,.04); }
+  h1 { font-family: Georgia, "Times New Roman", serif; font-weight: 400; font-size: 26px; line-height: 1.2; margin: 0 0 4px; text-wrap: balance; }
+  .dossier { color: var(--doux); font-size: 14px; margin: 0 0 16px; }
+  .consigne { margin: 0 0 14px; }
+  fieldset { border: 0; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+  legend { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .choix { display: flex; align-items: center; gap: 12px; padding: 13px 14px; border: 1.5px solid var(--ligne); border-radius: 10px; cursor: pointer; background: var(--carte); }
+  .choix:hover { border-color: var(--bordeaux); }
+  .choix input { width: 22px; height: 22px; accent-color: var(--bordeaux); flex: none; margin: 0; }
+  .choix.coche { border-color: var(--bordeaux); background: var(--bordeaux-clair); }
+  .choix .quand { font-weight: 600; }
+  .choix .quand::first-letter { text-transform: uppercase; }
+  .choix.aucun { margin-top: 6px; border-style: dashed; }
+  .choix.aucun .quand { font-weight: 500; color: var(--doux); }
+  button {
+    margin-top: 18px; width: 100%; font: inherit; font-weight: 600; font-size: 17px; color: #FFFFFF;
+    background: var(--bordeaux); border: 0; border-radius: 10px; padding: 14px 18px; cursor: pointer;
+  }
+  @media (prefers-color-scheme: dark) { button { color: #1A1517; } }
+  button:disabled { opacity: 0.45; cursor: not-allowed; }
+  button:focus-visible, .choix:focus-within { outline: 3px solid var(--or); outline-offset: 2px; }
+  .limite { font-size: 14px; color: var(--doux); margin: 12px 0 0; text-align: center; }
+  .apres { margin-top: 18px; padding: 14px; border-radius: 10px; background: var(--bordeaux-clair); font-size: 15px; }
+  .apres p { margin: 0 0 8px; }
+  .apres .ok { color: var(--ok); font-weight: 600; }
+  .copie { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 4px 10px; font-size: 14px; margin: 8px 0 0; }
+  .copie dt { color: var(--doux); }
+  .copie dd { margin: 0; overflow-wrap: anywhere; font-weight: 600; user-select: all; }
+  textarea { width: 100%; margin-top: 14px; font: inherit; font-size: 15px; color: var(--encre); background: var(--carte); border: 1.5px solid var(--ligne); border-radius: 10px; padding: 10px 12px; min-height: 70px; resize: vertical; }
+  label.mot { display: block; margin-top: 16px; font-size: 14px; color: var(--doux); }
+  label.mot textarea { margin-top: 6px; }
+  .erreur { text-align: center; color: var(--doux); }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<main>
+  <div class="entete">
+    <div class="office" id="office">Office notarial</div>
+    <hr class="filet">
+  </div>
+  <section class="carte" id="sondage" hidden>
+    <h1>Rendez-vous de signature</h1>
+    <p class="dossier" id="dossier"></p>
+    <p class="consigne">Cochez les créneaux qui vous conviennent, puis cliquez sur « Préparer ma réponse ».</p>
+    <form id="formulaire" novalidate>
+      <fieldset id="creneaux"><legend>Créneaux proposés</legend></fieldset>
+      <label class="mot" for="mot">Un mot pour l’étude <span>(facultatif)</span>
+        <textarea id="mot" maxlength="500" placeholder="Par exemple : plutôt en fin de matinée"></textarea>
+      </label>
+      <button type="submit" id="envoyer" disabled>Préparer ma réponse</button>
+    </form>
+    <p class="limite" id="limite" hidden></p>
+    <div class="apres" id="apres" hidden>
+      <p class="ok">Votre messagerie s’ouvre avec la réponse prête : il ne reste qu’à l’envoyer.</p>
+      <p>Rien ne s’ouvre ? Écrivez simplement à l’étude, avec cet objet :</p>
+      <dl class="copie">
+        <dt>À</dt><dd id="copie-a"></dd>
+        <dt>Objet</dt><dd id="copie-objet"></dd>
+      </dl>
+    </div>
+  </section>
+  <section class="carte erreur" id="invalide" hidden>
+    <p>Ce lien est incomplet. Utilisez le bouton de l’email reçu de l’étude, ou répondez directement à cet email.</p>
+  </section>
+</main>
+<script>
+(function () {
+  'use strict';
+  // Lecture du lien : #v=1&c=CODE&a=adresse&d=VTE - MOR.&l=2026-10-08&s=202610141030,202610150930&o=Office…
+  var p = new URLSearchParams(location.hash.replace(/^#/, ''));
+  var code = (p.get('c') || '').toUpperCase();
+  var adresse = (p.get('a') || '').trim();
+  var dossier = (p.get('d') || '').slice(0, 60);
+  var office = (p.get('o') || '').slice(0, 80);
+  var limite = p.get('l') || '';
+  var creneaux = (p.get('s') || '').split(',').map(function (t, i) {
+    var m = /^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})$/.exec(t);
+    if (!m) return null;
+    var date = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]), Number(m[4]), Number(m[5]));
+    return isNaN(date) ? null : { n: i + 1, date: date, heure: m[4] + '\u00a0h\u00a0' + m[5] };
+  });
+  var valide = /^[A-HJ-NP-Z2-9]{6}$/.test(code) && /^[^\s@<>"]+@[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)+$/.test(adresse)
+    && creneaux.length >= 1 && creneaux.length <= 5 && creneaux.every(Boolean);
+  if (office) document.getElementById('office').textContent = office;
+  if (!valide) { document.getElementById('invalide').hidden = false; return; }
+
+  var jourLong = function (d) { return d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }); };
+  var jourCourt = function (d) {
+    return d.toLocaleDateString('fr-FR', { weekday: 'short' }).replace('.', '') + '. '
+      + String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth() + 1).padStart(2, '0');
+  };
+  document.getElementById('sondage').hidden = false;
+  document.getElementById('dossier').textContent = dossier ? 'Dossier ' + dossier : '';
+  if (/^\d{4}-\d{2}-\d{2}$/.test(limite)) {
+    var dl = new Date(limite + 'T12:00:00');
+    var el = document.getElementById('limite');
+    el.textContent = 'Merci de répondre avant le ' + jourLong(dl) + '.';
+    el.hidden = false;
+  }
+
+  // Les cases : construites en DOM (textContent), jamais en HTML — le lien vient de l'extérieur.
+  var zone = document.getElementById('creneaux');
+  var cases = [];
+  var ligne = function (texte, valeur, classe) {
+    var label = document.createElement('label');
+    label.className = 'choix' + (classe ? ' ' + classe : '');
+    var input = document.createElement('input');
+    input.type = 'checkbox';
+    input.value = valeur;
+    var span = document.createElement('span');
+    span.className = 'quand';
+    span.textContent = texte;
+    label.appendChild(input);
+    label.appendChild(span);
+    zone.appendChild(label);
+    cases.push(input);
+    return input;
+  };
+  creneaux.forEach(function (c) { ligne(jourLong(c.date) + ' à ' + c.heure, String(c.n)); });
+  var aucun = ligne('Aucun de ces créneaux ne me convient', '0', 'aucun');
+
+  var bouton = document.getElementById('envoyer');
+  var choisis = function () { return cases.filter(function (c) { return c.checked && c !== aucun; }).map(function (c) { return Number(c.value); }); };
+  var maj = function (cible) {
+    if (cible === aucun && aucun.checked) cases.forEach(function (c) { if (c !== aucun) c.checked = false; });
+    if (cible && cible !== aucun && cible.checked) aucun.checked = false;
+    cases.forEach(function (c) { c.parentNode.classList.toggle('coche', c.checked); });
+    bouton.disabled = !aucun.checked && choisis().length === 0;
+  };
+  zone.addEventListener('change', function (e) { maj(e.target); });
+
+  document.getElementById('formulaire').addEventListener('submit', function (e) {
+    e.preventDefault();
+    if (bouton.disabled) return;
+    var liste = aucun.checked ? [] : choisis();
+    var sujet = '[CLAIRE-' + code + '-P' + (liste.length ? liste.join('') : '0') + '] '
+      + (dossier ? dossier + ' — ' : '')
+      + (liste.length
+        ? 'Choix : ' + liste.map(function (n) { var c = creneaux[n - 1]; return jourCourt(c.date) + ' ' + c.heure.replace(/\u00a0/g, ' '); }).join(', ')
+        : 'Aucun créneau ne convient');
+    var corps = ['Bonjour,', '', 'Voici mes disponibilités pour le rendez-vous de signature' + (dossier ? ' (' + dossier + ')' : '') + ' :', '']
+      .concat(creneaux.map(function (c) { return (liste.indexOf(c.n) !== -1 ? '✓ ' : '✗ ') + jourLong(c.date) + ' à ' + c.heure.replace(/\u00a0/g, ' '); }));
+    var mot = document.getElementById('mot').value.trim();
+    if (mot) corps.push('', mot);
+    corps.push('', 'Merci de ne pas modifier l’objet de cet email : il permet à l’étude d’enregistrer votre réponse.');
+    document.getElementById('copie-a').textContent = adresse;
+    document.getElementById('copie-objet').textContent = sujet;
+    document.getElementById('apres').hidden = false;
+    location.href = 'mailto:' + adresse + '?subject=' + encodeURIComponent(sujet) + '&body=' + encodeURIComponent(corps.join('\n'));
+  });
+})();
+</script>
+</body>
+</html>

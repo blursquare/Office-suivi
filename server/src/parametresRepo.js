@@ -485,6 +485,11 @@ function assainirCategoriesRdv(brut, precedent) {
   return res;
 }
 
+function pageSondageValide(v) {
+  const t = texteNettoye(v);
+  return /^https:\/\/[^\s"'<>#?]+$/i.test(t) ? t.slice(0, 300) : '';
+}
+
 function assainirReglagesExchange(brut, precedent) {
   const b = (brut && typeof brut === 'object') ? brut : {};
   const p = (precedent && typeof precedent === 'object') ? precedent : {};
@@ -502,7 +507,11 @@ function assainirReglagesExchange(brut, precedent) {
     // opérations EWS ciblent le calendrier de cette boîte (voir ews.js, folderCalendrierXml) : le
     // compte de connexion doit alors avoir un accès délégué en écriture sur ce calendrier.
     calendrierPartage: texteNettoye(b.calendrierPartage) || texteNettoye(p.calendrierPartage),
-    categoriesRdv: assainirCategoriesRdv(b.categoriesRdv, p.categoriesRdv)
+    categoriesRdv: assainirCategoriesRdv(b.categoriesRdv, p.categoriesRdv),
+    // Adresse de la page de réponse aux sondages de créneaux (page-sondage/index.html publiée sur
+    // GitHub Pages) — vide : les emails gardent un bouton par créneau. https seulement ; une chaîne
+    // vide explicite l'efface.
+    pageSondage: pageSondageValide(typeof b.pageSondage === 'string' ? b.pageSondage : p.pageSondage)
   };
 }
 

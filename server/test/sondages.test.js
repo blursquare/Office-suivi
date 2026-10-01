@@ -106,6 +106,18 @@ test('lecture du texte : GetItem en texte brut ; identifiant et texte relus', ()
   assert.equal(msgs[0].deAdresse, 'paul.durand@exemple.fr');
 });
 
+test('réponse venue de la page : « P13 » = créneaux 1 et 3, « P0 » = aucun, remplace les choix', () => {
+  assert.equal(JSON.stringify(jetonsDansObjet('RE: [CLAIRE-ABC234-P12] VTE - DUR./MAR. — Choix : mar. 20/10 10 h 00')), JSON.stringify([{ code: 'ABC234', page: true, choix: [1, 2] }]));
+  const s = sondageExemple();
+  appliquerReponses([s], [{ sujet: '[CLAIRE-ABC234-P2] VTE - DUR.', deAdresse: 'paul.durand@exemple.fr', recuLe: '2026-10-01T09:00:00Z' }]);
+  assert.equal(s.reponses[0].choix.join(','), '2');
+  appliquerReponses([s], [{ sujet: '[CLAIRE-ABC234-P12]', deAdresse: 'paul.durand@exemple.fr', recuLe: '2026-10-01T10:00:00Z' }]);
+  assert.equal(s.reponses[0].choix.join(','), '1,2');
+  appliquerReponses([s], [{ sujet: '[CLAIRE-ABC234-P0] VTE - DUR. — Aucun créneau ne convient', deAdresse: 'paul.durand@exemple.fr', recuLe: '2026-10-01T11:00:00Z' }]);
+  assert.equal(s.reponses[0].aucun, true);
+  assert.equal(s.reponses[0].choix.length, 0);
+});
+
 test('un créneau accepté par tous est signalé', () => {
   const s = sondageExemple();
   appliquerReponses([s], [

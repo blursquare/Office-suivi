@@ -239,3 +239,14 @@ test('Notes d\'un rendez-vous : rendez-vous désigné et taille bornée avant to
   assert.equal(tropLong.status, 400);
   assert.match((await tropLong.json()).message, /trop longues/);
 });
+
+test('page de réponse aux sondages : https seulement, effaçable', async () => {
+  const ok = await (await appeler('/api/exchange/reglages', { method: 'PUT', body: JSON.stringify({ pageSondage: 'https://blursquare.github.io/claire-rdv/' }) })).json();
+  assert.equal(ok.pageSondage, 'https://blursquare.github.io/claire-rdv/');
+  const garde = await (await appeler('/api/exchange/reglages', { method: 'PUT', body: JSON.stringify({ actif: true }) })).json();
+  assert.equal(garde.pageSondage, 'https://blursquare.github.io/claire-rdv/');
+  const refuse = await (await appeler('/api/exchange/reglages', { method: 'PUT', body: JSON.stringify({ pageSondage: 'javascript:alert(1)' }) })).json();
+  assert.equal(refuse.pageSondage, '');
+  const vide = await (await appeler('/api/exchange/reglages', { method: 'PUT', body: JSON.stringify({ pageSondage: '' }) })).json();
+  assert.equal(vide.pageSondage, '');
+});

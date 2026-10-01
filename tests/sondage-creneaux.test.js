@@ -114,3 +114,25 @@ test('titre d’une option dans l’agenda : le dossier et le rang du créneau',
   assert.equal(o.rang, '2/4');
   assert.equal(app.libelleOptionSondage('Réunion').titre, 'Réunion');
 });
+
+test('dossier en abrégé : trois lettres de chaque nom de famille, civilités et particules sautées', () => {
+  assert.equal(app.abregeDossierSondage({ nom: 'MOREAU / FAURE' }), 'VTE - MOR./FAU.');
+  assert.equal(app.abregeDossierSondage({ nom: 'VTE - Épouse LEFÈVRE / M. et Mme LI' }), 'VTE - LEF./LI');
+  assert.equal(app.abregeDossierSondage({ nom: 'DE SOUSA MARTINS / SCI LES PINS' }), 'VTE - SOU./PIN.');
+  assert.equal(app.abregeDossierSondage({ nom: 'DURAND', typeAffaire: 'succession' }), 'SUCC - DUR.');
+});
+
+test('page de réponse : un seul bouton, tout dans le lien après « # », objet abrégé sur les boutons', () => {
+  const page = 'https://blursquare.github.io/claire-rdv/';
+  const b = app.boutonsSondage(SONDAGE, { page, abrege: 'VTE - DUR./MAR.' });
+  assert.equal(b.length, 1);
+  assert.equal(b[0].libelle, 'Choisir mes disponibilités');
+  assert.equal(b[0].href, 'https://blursquare.github.io/claire-rdv/#v=1&c=ABC234&a=office%40exemple.fr&d=VTE%20-%20DUR.%2FMAR.&l=2026-10-08&o=Office%20notarial%20de%20la%20Salamandre&s=202610201000%2C202610211530');
+  // Sans page : le dossier abrégé apparaît dans l'objet des réponses.
+  const sans = app.boutonsSondage(SONDAGE, { abrege: 'VTE - DUR./MAR.' });
+  assert.match(decodeURIComponent(sans[0].href), /subject=\[CLAIRE-ABC234-1\] VTE - DUR\.\/MAR\. — Créneau 1 : mardi 20 octobre à 10 h 00/);
+  const corps = app.corpsEmailSondage(DOSSIER, SONDAGE, false, false, true);
+  assert.match(corps, /– Mardi 20 octobre à 10 h 00\n– Mercredi 21 octobre à 15 h 30/);
+  assert.match(corps, /Choisir mes disponibilités/);
+  assert.doesNotMatch(corps, /une seule fois/);
+});

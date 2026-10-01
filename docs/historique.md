@@ -13518,3 +13518,35 @@ GetItem en texte brut (`corpsLireTextesReponses`, `parseTextesReponses`) — **s
 email est lu**, il n'est ni gardé ni journalisé ; `choixDepuisTexteListe` relève les lignes `[X] n`
 (X, x, ✓, ✔ ; lignes citées « > » ignorées). Une réponse groupée **remplace** les choix précédents de
 la personne ; sans aucune case cochée, elle ne change rien. Bouton absent s'il n'y a qu'un créneau.
+
+### 01/10/2026 — Sondage : page de réponse sur GitHub Pages, dossier abrégé
+
+Échanges de l'étude : « Il est possible d'envoyer du HTML, on peut trouver un système plus simple ? »,
+puis « Regarde ce que fait rallly.co », « Possible de l'héberger sur GitHub ? », enfin « Il faudrait au
+moins que dans l'e-mail de retour je puisse voir rapidement les créneaux choisis. Pour les noms de
+dossier anonymes, mettre juste deux trois lettres du nom de famille. »
+
+Réponses données : un email HTML ne porte pas de formulaire (Outlook l'ignore, Gmail le désactive) ;
+Rallly = page Web + base (rallly.co : données aux États-Unis, API en offre Pro ; auto-hébergé : serveur
+joignable depuis Internet) ; GitHub Pages n'héberge que des pages fixes — d'où **une page fixe sans
+donnée** : `page-sondage/index.html`, à publier dans un dépôt public dédié (`page-sondage/LISEZMOI.md`).
+
+- Le lien porte tout après le `#` (jamais envoyé au serveur) : `v, c` (code), `a` (adresse de réponse),
+  `d` (dossier abrégé), `l` (date limite), `o` (office), `s` (créneaux `AAAAMMJJHHMM`). Rendu par
+  `textContent` (un lien piégé s'affiche en texte, vérifié). Aucune ressource extérieure.
+- Vraies cases, « Aucun de ces créneaux » exclusif, un mot facultatif pour l'étude ; « Préparer ma
+  réponse » ouvre un email d'objet `[CLAIRE-CODE-P13] VTE - MOR./FAU. — Choix : mer. 14/10 10 h 30,
+  ven. 16/10 09 h 30` (P0 = aucun), texte ✓/✗ par créneau ; adresse et objet affichés à recopier si la
+  messagerie ne s'ouvre pas (webmail sans messagerie par défaut).
+- Serveur : `jetonsDansObjet` reconnaît `P` + chiffres ; une telle réponse remplace les choix de la
+  personne. Objet seulement, comme les boutons.
+- Client : réglage `pageSondage` (réglages Exchange, https seulement, effaçable) ; s'il est rempli,
+  l'email a un seul bouton « Choisir mes disponibilités » et liste les créneaux en clair
+  (`lienPageSondage`, `corpsEmailSondage(…, avecPage)`). Sinon, le système par boutons reste, avec le
+  dossier abrégé dans l'objet des réponses (`sujetReponseSondage(code, c, abrege)`).
+- `abregeDossierSondage` : 3 premières lettres de chaque nom de famille (« MOREAU / FAURE » →
+  « VTE - MOR./FAU. »), civilités, formes de société, Épouse/Veuve/Née et particules sautées.
+
+Vérifié dans Chromium (fichier local) : clair, sombre, téléphone 390 px ; objet de retour attendu ; lien
+incomplet → message ; injection de balises affichée en texte. **À faire par l'étude** : créer le dépôt
+public et activer Pages, puis coller l'adresse dans les Réglages.
