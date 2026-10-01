@@ -14,6 +14,8 @@ test('adresse 3CX : variables de 3CX intactes, poste en prénom sans accent', ()
   assert.equal(app.clePosteAppels('Bastien ANGLUMENT'), 'bastien');
   assert.equal(app.adresseIntegration3cx('http://192.168.60.10:3000/', 'Julie VASSELIN'),
     'http://192.168.60.10:3000/appel?numero=%CallerNumber%&nom=%CallerDisplayName%&poste=julie');
+  assert.equal(app.adresseEssai3cx('http://192.168.60.10:3000', 'Jérémy SAUJOT'),
+    'http://192.168.60.10:3000/appel?numero=0600000000&nom=Essai%20CLAIRE&poste=jeremy');
 });
 
 test('dossierAOuvrirPourAppel : un seul dossier en cours dont l’appelant est partie, sinon rien', () => {

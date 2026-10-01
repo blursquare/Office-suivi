@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-01 18:05';
+  const VERSION_APP = '2026-10-01 18:16';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-01 18:16', resume: "Téléphonie 3CX : bouton « Essayer » dans Réglages › Rappels, qui simule un appel sur le poste choisi (le bandeau « Appel entrant » doit apparaître dans sa fenêtre CLAIRE). Si l'essai marche mais pas un vrai appel, autoriser les fenêtres pop-up pour le client web 3CX dans Chrome/Edge. La fenêtre CLAIRE relève aussi les appels dès qu'elle revient au premier plan." },
     { version: '2026-10-01 18:05', resume: "Téléphonie 3CX : à chaque appel qui sonne, CLAIRE le note, reconnaît l'appelant (téléphone du vendeur ou de l'acquéreur saisi dans l'onglet Échanges, confrère du carnet, contact du répertoire), affiche « Appel entrant » et ouvre la fiche du dossier. Les appels de chaque dossier sont listés dans son onglet Échanges. L'adresse à coller dans 3CX pour chaque collaborateur est dans Réglages › Rappels." },
     { version: '2026-10-01 18:04', resume: "Agenda : la suppression d'un rendez-vous échouait (« ErrorCannotDeleteObject ») — le compte de CLAIRE n'a pas accès aux éléments supprimés de la boîte de Sophie. Dans ce cas, CLAIRE retire le rendez-vous autrement : il reste récupérable dans Outlook par « Récupérer les éléments supprimés »." },
     { version: '2026-10-01 17:58', resume: "Relation client : retirée de la colonne de gauche de l'agenda. La confirmation et le rappel du rendez-vous, le questionnaire de satisfaction et le mot un an après sont dans l'onglet Échanges de la fiche du dossier, au bon moment — et seulement pour les clients qui ne sont pas accompagnés par un confrère." },
@@ -24332,6 +24333,7 @@
         <div class="reglages-champ-ligne">
           <input type="text" id="reglages-3cx-${i}" readonly spellcheck="false" value="${escapeAttr(adresseIntegration3cx(location.origin, nom))}" onfocus="this.select()">
           <button type="button" class="secondary" onclick="copierAdresse3cx(${i})">Copier</button>
+          <button type="button" class="secondary" onclick="essayerSonnerie3cx(${i})" title="Simule un appel sur ce poste, comme 3CX à la sonnerie">Essayer</button>
         </div>
       </div>`).join('');
     const journal = document.getElementById('reglages-3cx-journal');
@@ -24347,6 +24349,26 @@
           }).join('')}</ul>`
         : '<p class="hint">Aucun appel noté pour l’instant.</p>';
     } catch (e) { journal.innerHTML = ''; }
+  }
+
+  // Pure : l'adresse d'un essai — celle que 3CX ouvrirait, avec un numéro et un nom d'essai.
+  function adresseEssai3cx(origine, collaborateur) {
+    return adresseIntegration3cx(origine, collaborateur).replace('%CallerNumber%', '0600000000').replace('%CallerDisplayName%', encodeURIComponent('Essai CLAIRE'));
+  }
+
+  // Simule la sonnerie (même adresse que 3CX, ouverte d'un clic donc jamais bloquée) : si le bandeau
+  // « Appel entrant » apparaît dans la fenêtre CLAIRE du collaborateur, CLAIRE est prêt ; s'il apparaît
+  // ici mais jamais à un vrai appel, c'est 3CX ou le navigateur qui n'ouvre pas l'adresse (fenêtres
+  // pop-up bloquées pour le client web 3CX).
+  function essayerSonnerie3cx(i) {
+    const nom = RESPONSABLES[i];
+    if (!nom) return;
+    const fenetre = window.open(adresseEssai3cx(location.origin, nom), '_blank');
+    if (!fenetre) { afficherToast('Le navigateur a bloqué la fenêtre d’essai : autorisez les fenêtres pop-up.', 'OK', null); return; }
+    afficherToast(clePosteAppels(nom) === clePosteAppels(utilisateurPoste)
+      ? 'Appel d’essai envoyé : le bandeau « Appel entrant » doit apparaître dans quelques secondes.'
+      : `Appel d’essai envoyé au poste de ${prenomCollaborateur(nom)} : le bandeau apparaît dans sa fenêtre CLAIRE.`, 'OK', null);
+    setTimeout(renderReglages3cx, 2500);
   }
 
   function copierAdresse3cx(i) {
@@ -24703,6 +24725,9 @@
     // Appels 3CX : relevés toutes les 3 s, même fenêtre cachée (c'est là qu'ils comptent).
     releverAppels();
     setInterval(releverAppels, INTERVALLE_APPELS_MS);
+    // Une fenêtre cachée longtemps est ralentie par le navigateur (une relève par minute) : relever
+    // dès qu'elle revient au premier plan.
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') releverAppels(); });
     ouvrirAppelDepuisAdresse();
     // Reçus comptables des dossiers du poste : au démarrage, puis toutes les heures.
     setTimeout(() => verifierFondsRecusAuto().catch(e => console.error('Vérification des fonds', e)), 60 * 1000);

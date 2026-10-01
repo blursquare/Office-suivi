@@ -14024,3 +14024,15 @@ adresse avec %CallerNumber% et %CallerDisplayName%, « Informer lorsque : Sonner
   adresse de chaque collaborateur à copier (`adresseIntegration3cx`) et 20 derniers appels.
 - Limites dites à l'étude : seuls les appels qui sonnent sur un poste où le client web 3CX est ouvert sont
   notés ; non vérifié avec un vrai 3CX (forme de %CallerNumber%, fermeture de l'onglet).
+
+### 01/10 — 3CX : « rien ne se passe » avec la fenêtre CLAIRE
+
+Signalé par l'étude : « ça ne fonctionne pas pour ma fenêtre d'app hors navigateur » ; précisé (AskUserQuestion) :
+rien ne se passe (ni onglet, ni bandeau), client web 3CX dans le navigateur, fenêtre CLAIRE ouverte par le
+raccourci. Cause la plus probable : le client web 3CX ouvre l'adresse à la sonnerie, sans geste de l'utilisateur
+— Chrome/Edge bloquent cette fenêtre pop-up (icône à droite de la barre d'adresse), l'appel n'atteint jamais le
+serveur (le journal des Réglages reste vide). Ajouts : bouton « Essayer » par collaborateur (`essayerSonnerie3cx`,
+`adresseEssai3cx` : même adresse, numéro 06 00 00 00 00, nom « Essai CLAIRE », ouverte d'un clic donc jamais
+bloquée) pour séparer le côté CLAIRE du côté 3CX/navigateur ; consigne « autoriser les pop-up pour le site du
+client web 3CX » dans la pastille de la rubrique ; relève immédiate quand la fenêtre CLAIRE redevient visible
+(une fenêtre cachée longtemps n'est relevée qu'une fois par minute par Chrome). Non vérifié avec le vrai 3CX.
