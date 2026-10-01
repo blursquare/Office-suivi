@@ -127,7 +127,7 @@ test('page de réponse : un seul bouton, tout dans le lien après « # », objet
   const b = app.boutonsSondage(SONDAGE, { page, abrege: 'VTE - DUR./MAR.' });
   assert.equal(b.length, 1);
   assert.equal(b[0].libelle, 'Choisir mes disponibilités');
-  assert.equal(b[0].href, 'https://blursquare.github.io/claire-rdv/#v=1&c=ABC234&a=office%40exemple.fr&d=VTE%20-%20DUR.%2FMAR.&l=2026-10-08&o=Office%20notarial%20de%20la%20Salamandre&s=202610201000%2C202610211530');
+  assert.equal(b[0].href, 'https://blursquare.github.io/claire-rdv/#v=1&c=ABC234&a=office%40exemple.fr&d=VTE%20-%20DUR.%2FMAR.&l=2026-10-08&m=60&o=Office%20notarial%20de%20la%20Salamandre&s=202610201000%2C202610211530');
   // Sans page : le dossier abrégé apparaît dans l'objet des réponses.
   const sans = app.boutonsSondage(SONDAGE, { abrege: 'VTE - DUR./MAR.' });
   assert.match(decodeURIComponent(sans[0].href), /subject=\[CLAIRE-ABC234-1\] VTE - DUR\.\/MAR\. — Créneau 1 : mardi 20 octobre à 10 h 00/);

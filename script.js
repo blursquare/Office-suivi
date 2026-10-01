@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-01 07:44';
+  const VERSION_APP = '2026-10-01 07:49';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-01 07:49', resume: "Sondage de créneaux : la page de réponse prend le style de Rallly avec le logo de l'office en tête — tuiles de date, et pour chaque créneau Oui / Si nécessaire / Non. Les « si nécessaire » s'affichent dans la fiche (coche entre parenthèses, en ambre) et un créneau possible pour tous est signalé. Page publiée dans le dépôt Claire-rdv (GitHub Pages à activer)." },
     { version: '2026-10-01 07:44', resume: "Sondage de créneaux : page de réponse avec de vraies cases à cocher (à publier sur GitHub Pages, adresse à coller dans Réglages › Rappels et agenda). L'email n'a plus qu'un bouton « Choisir mes disponibilités » ; le client coche, et un seul email de réponse part vers l'étude, avec en objet le dossier en abrégé et les créneaux choisis (« VTE - MOR./FAU. — Choix : mer. 14/10 10 h 30… »). La page ne garde aucune donnée. Les noms de dossier n'apparaissent qu'abrégés (3 lettres par nom), y compris dans l'objet des réponses par bouton." },
     { version: '2026-10-01 07:23', resume: "Sondage de créneaux : l'email propose aussi « Répondre en une seule fois » — un seul email de réponse, avec une case [ ] par créneau à cocher d'un X. CLAIRE lit le texte de ces réponses-là (et seulement celles-là) pour y relever les créneaux cochés. Les boutons d'un créneau et « Aucun créneau ne convient » restent." },
     { version: '2026-10-01 00:27', resume: "Sondage de créneaux de signature, comme un Doodle : depuis la fiche (onglet Échanges) ou l'agenda, « Proposer » choisit jusqu'à 5 créneaux libres et prépare un email aux clients (et un à chaque confrère) avec un bouton par créneau ; chaque clic prépare une réponse vers la boîte de l'office, que CLAIRE relit toutes les 5 minutes. Les réponses s'affichent en tableau (✓/✗) avec « Placer », « Relancer » et « Annuler ». Les créneaux peuvent être bloqués en option dans l'agenda (hachurés), retirés d'eux-mêmes au placement ou après 5 jours ouvrés. Nouveau champ « Email du vendeur » à la création d'un dossier et sur la fiche." },
@@ -19812,7 +19813,8 @@
   // ce qu'elle affiche est après le « # », que le navigateur n'envoie jamais au serveur.
   function lienPageSondage(page, s, abrege) {
     const champs = [
-      ['v', '1'], ['c', s.code], ['a', s.adresseReponse], ['d', abrege || ''], ['l', s.expireLe || ''], ['o', OFFICE_PAGE_SONDAGE],
+      ['v', '1'], ['c', s.code], ['a', s.adresseReponse], ['d', abrege || ''], ['l', s.expireLe || ''],
+      ['m', String((s.creneaux[0] && s.creneaux[0].dureeMinutes) || DUREE_CRENEAU_SIGNATURE)], ['o', OFFICE_PAGE_SONDAGE],
       ['s', s.creneaux.map(c => c.date.replace(/-/g, '') + c.heure.replace(':', '')).join(',')]
     ];
     return String(page).replace(/#.*$/, '') + '#' + champs.map(([k, v]) => `${k}=${encodeURIComponent(v)}`).join('&');
@@ -20148,7 +20150,8 @@
     const c = s && s.creneaux.find(x => x.n === n);
     if (!s || !d || !c) return;
     const synthese = (s.synthese || []).find(x => x.n === n);
-    const reserve = synthese && !synthese.tous ? ` Seuls ${synthese.accepte} destinataire${synthese.accepte > 1 ? 's' : ''} sur ${synthese.total} l’ont accepté.` : '';
+    const possibles = synthese ? synthese.accepte + (synthese.siBesoin || 0) : 0;
+    const reserve = synthese && !synthese.tous ? ` Seuls ${possibles} destinataire${possibles > 1 ? 's' : ''} sur ${synthese.total} l’ont accepté.` : '';
     demanderConfirmation(`Placer la signature de ${libelleDossierAffiche(d)} le ${libelleCreneauSondage(c)} ?${reserve} Les autres options du sondage seront retirées de l’agenda.`, async () => {
       const typeRdv = typeRendezVous(d, categoriesRdvReglees()) || 'office';
       const ok = await posterEvenementAgenda({ sujet: libelleDossierAffiche(d), date: c.date, heure: c.heure, dureeMinutes: c.dureeMinutes || DUREE_CRENEAU_SIGNATURE, lieu: lieuRdvAgenda(d), typeRdv, dossier: d, signature: true });
@@ -20168,6 +20171,7 @@
       const r = (s.reponses || []).find(x => x.email === p.email);
       if (!r) return `<td class="sondage-attente" title="Pas encore de réponse">–</td>`;
       if (r.choix.indexOf(c.n) !== -1) return `<td class="sondage-oui" title="Convient">${icone('check')}</td>`;
+      if ((r.siBesoin || []).indexOf(c.n) !== -1) return `<td class="sondage-si" title="Si nécessaire">(${icone('check')})</td>`;
       return `<td class="sondage-non" title="${r.aucun ? 'Aucun créneau ne convient' : 'Ne convient pas'}">${icone('x')}</td>`;
     };
     const ouvert = s.statut === 'ouvert';
@@ -20196,7 +20200,7 @@
             <span class="section-eyebrow">Sondage de créneaux</span>
             <span class="hint">${repondu}/${s.participants.length} réponse${s.participants.length > 1 ? 's' : ''} · options jusqu’au ${escapeHtml(formatDateFr(s.expireLe))}</span>
           </div>
-          ${tous.length ? `<p class="sondage-accord">${icone('check')} ${tous.length > 1 ? 'Créneaux qui conviennent' : 'Créneau qui convient'} à tous : ${tous.map(x => escapeHtml(libelleCreneauSondage(x))).join(' · ')}</p>` : ''}
+          ${tous.length ? `<p class="sondage-accord">${icone('check')} ${tous.length > 1 ? 'Créneaux possibles' : 'Créneau possible'} pour tous : ${tous.map(x => escapeHtml(libelleCreneauSondage(x)) + (x.tousOui ? '' : ' (si nécessaire pour certains)')).join(' · ')}</p>` : ''}
           ${renderTableSondage(s, false)}
           ${autres.length ? `<p class="hint">Réponse d’une autre adresse : ${autres.map(r => `${escapeHtml(r.nom || r.email)} (${r.aucun ? 'aucun créneau' : r.choix.map(n => 'n° ' + n).join(', ')})`).join(' · ')}</p>` : ''}
           <div class="sondage-actions">
@@ -20222,11 +20226,11 @@
     const sy = (s.synthese || []).find(x => x.n === c.n);
     return `<div class="sondage-panneau sondage-panneau-agenda">
         <div class="sondage-tete"><span class="section-eyebrow">Sondage — créneau ${c.n}/${s.creneaux.length}</span>
-          <span class="hint">${sy ? `${sy.accepte}/${sy.total} l’acceptent` : ''}</span></div>
+          <span class="hint">${sy ? `${sy.accepte}/${sy.total} l’acceptent${sy.siBesoin ? ` · ${sy.siBesoin} si nécessaire` : ''}` : ''}</span></div>
         <ul class="sondage-reponses">${s.participants.map(p => {
           const r = (s.reponses || []).find(x => x.email === p.email);
-          const etat = !r ? 'attente' : r.choix.indexOf(c.n) !== -1 ? 'oui' : 'non';
-          return `<li class="sondage-${etat}">${icone(etat === 'oui' ? 'check' : etat === 'non' ? 'x' : 'clock')}<span>${escapeHtml(LIBELLES_ROLE_SONDAGE[p.role] || '')}${p.nom ? ' · ' + escapeHtml(p.nom) : ''}</span></li>`;
+          const etat = !r ? 'attente' : r.choix.indexOf(c.n) !== -1 ? 'oui' : (r.siBesoin || []).indexOf(c.n) !== -1 ? 'si' : 'non';
+          return `<li class="sondage-${etat}">${icone(etat === 'oui' || etat === 'si' ? 'check' : etat === 'non' ? 'x' : 'clock')}<span>${escapeHtml(LIBELLES_ROLE_SONDAGE[p.role] || '')}${p.nom ? ' · ' + escapeHtml(p.nom) : ''}${etat === 'si' ? ' <em>(si nécessaire)</em>' : ''}</span></li>`;
         }).join('')}</ul>
         <button type="button" class="primary ag-ouvrir-fiche" onclick="placerCreneauSondage('${escapeOnclickArg(s.id)}', ${c.n})" ${exchangeAgendaPret() ? '' : 'disabled'}>${icone('calendar')} Placer ce créneau</button>
       </div>`;

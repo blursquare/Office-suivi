@@ -52,17 +52,22 @@ function jetonReponse(code, n) {
 // Pure : les jetons d'un objet (« RE: [CLAIRE-ABC234-2] Créneau 2 … » → [{ code, n }]).
 // « L » : réponse « en une seule fois » (étude, 01/10) — les créneaux retenus sont les lignes
 // cochées d'un X dans le texte de l'email (voir choixDepuisTexteListe) ; rend { code, liste: true }.
-// « P » + chiffres : réponse venue de la page de réponse (page-sondage/index.html, étude 01/10) —
-// « P13 » = créneaux 1 et 3, « P0 » = aucun ; rend { code, page: true, choix }.
+// « P » : réponse venue de la page de réponse (page-sondage/index.html, étude 01/10, vote à la
+// manière de Rallly) — « P13S2 » = oui aux créneaux 1 et 3, « si nécessaire » au 2 ; « P0 » = aucun ;
+// rend { code, page: true, choix, siBesoin }.
 function jetonsDansObjet(sujet) {
   const liste = [];
-  const re = /CLAIRE-([A-HJ-NP-Z2-9]{6})-(P\d{1,5}|L|\d)(?![0-9A-Za-z])/gi;
+  const re = /CLAIRE-([A-HJ-NP-Z2-9]{6})-(P(?:\d{1,5}(?:S\d{1,5})?|S\d{1,5})|L|\d)(?![0-9A-Za-z])/gi;
   let m;
+  const numeros = (t) => [...new Set(String(t || '').split('').map(Number).filter((n) => n > 0))].sort();
   while ((m = re.exec(String(sujet || ''))) !== null) {
     const code = m[1].toUpperCase();
     if (/^l$/i.test(m[2])) liste.push({ code, liste: true });
-    else if (/^p/i.test(m[2])) liste.push({ code, page: true, choix: [...new Set(m[2].slice(1).split('').map(Number).filter((n) => n > 0))].sort() });
-    else liste.push({ code, n: Number(m[2]) });
+    else if (/^p/i.test(m[2])) {
+      const [oui, si] = m[2].slice(1).toUpperCase().split('S');
+      const choix = numeros(oui);
+      liste.push({ code, page: true, choix, siBesoin: numeros(si).filter((n) => !choix.includes(n)) });
+    } else liste.push({ code, n: Number(m[2]) });
   }
   return liste;
 }
@@ -126,7 +131,9 @@ function assainirReponse(r) {
     email: r.email.trim().toLowerCase(),
     nom: texteBorne(r.nom, 120),
     choix,
-    aucun: !!r.aucun && !choix.length,
+    // « Si nécessaire » (page de réponse) : possible, mais pas souhaité.
+    siBesoin: Array.isArray(r.siBesoin) ? [...new Set(r.siBesoin.filter((n) => Number.isInteger(n) && n > 0 && n <= MAX_CRENEAUX && !choix.includes(n)))].sort() : [],
+    aucun: !!r.aucun && !choix.length && !(Array.isArray(r.siBesoin) && r.siBesoin.length),
     recuLe: texteBorne(r.recuLe, 40)
   };
 }
@@ -176,7 +183,7 @@ function appliquerReponses(sondages, emails) {
   for (const e of tries) {
     const adresse = String(e.deAdresse || '').trim().toLowerCase();
     if (!adresseValide(adresse)) continue;
-    for (const { code, n, liste, page, choix } of jetonsDansObjet(e.sujet)) {
+    for (const { code, n, liste, page, choix, siBesoin } of jetonsDansObjet(e.sujet)) {
       const s = parCode.get(code);
       if (!s) continue;
       // Réponse « en une seule fois » : seulement si son texte a été lu et coche au moins un créneau.
@@ -188,19 +195,23 @@ function appliquerReponses(sondages, emails) {
       if (r && r.recuLe && e.recuLe && r.recuLe >= e.recuLe) continue;
       if (!r) {
         const p = s.participants.find((x) => x.email === adresse);
-        r = { email: adresse, nom: (p && p.nom) || texteBorne(e.deNom, 120), choix: [], aucun: false, recuLe: '' };
+        r = { email: adresse, nom: (p && p.nom) || texteBorne(e.deNom, 120), choix: [], siBesoin: [], aucun: false, recuLe: '' };
         s.reponses.push(r);
       }
       if (page) {
         // Réponse complète de la personne : remplace ses choix précédents (P0 = aucun).
         r.choix = choix.filter((x) => s.creneaux.some((c) => c.n === x)).sort();
-        r.aucun = !r.choix.length;
+        r.siBesoin = siBesoin.filter((x) => s.creneaux.some((c) => c.n === x)).sort();
+        r.aucun = !r.choix.length && !r.siBesoin.length;
       } else if (liste) {
         // Remplace les choix précédents : c'est la réponse complète de la personne.
         r.choix = e.choixListe.filter((x) => s.creneaux.some((c) => c.n === x)).sort();
+        r.siBesoin = [];
         r.aucun = false;
         if (!r.choix.length) continue;
-      } else if (n === 0) { r.choix = []; r.aucun = true; } else if (!r.choix.includes(n)) { r.choix = [...r.choix, n].sort(); r.aucun = false; }
+      } else if (n === 0) { r.choix = []; r.siBesoin = []; r.aucun = true; } else if (!r.choix.includes(n)) {
+        r.choix = [...r.choix, n].sort(); r.siBesoin = (r.siBesoin || []).filter((x) => x !== n); r.aucun = false;
+      }
       r.recuLe = texteBorne(e.recuLe, 40);
       nouvelles.push({ sondageId: s.id, dossierId: s.dossierId, email: adresse, n: page ? 'page' : liste ? 'liste' : n });
     }
@@ -208,12 +219,19 @@ function appliquerReponses(sondages, emails) {
   return { sondages, nouvelles };
 }
 
-// Pure : pour chaque créneau, qui l'accepte, et s'il convient à tous les participants.
+// Pure : pour chaque créneau, qui l'accepte (oui), qui le prendrait « si nécessaire », et s'il est
+// possible pour tous les participants (oui ou si nécessaire).
 function syntheseSondage(s) {
   const participants = s.participants || [];
+  const rep = (p) => (s.reponses || []).find((r) => r.email === p.email);
   return (s.creneaux || []).map((c) => {
-    const accepte = participants.filter((p) => (s.reponses || []).some((r) => r.email === p.email && r.choix.includes(c.n))).length;
-    return { n: c.n, date: c.date, heure: c.heure, accepte, total: participants.length, tous: participants.length > 0 && accepte === participants.length };
+    const accepte = participants.filter((p) => { const r = rep(p); return r && r.choix.includes(c.n); }).length;
+    const siBesoin = participants.filter((p) => { const r = rep(p); return r && (r.siBesoin || []).includes(c.n); }).length;
+    return {
+      n: c.n, date: c.date, heure: c.heure, accepte, siBesoin, total: participants.length,
+      tous: participants.length > 0 && accepte + siBesoin === participants.length,
+      tousOui: participants.length > 0 && accepte === participants.length
+    };
   });
 }
 

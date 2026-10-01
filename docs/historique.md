@@ -13550,3 +13550,29 @@ donnée** : `page-sondage/index.html`, à publier dans un dépôt public dédié
 Vérifié dans Chromium (fichier local) : clair, sombre, téléphone 390 px ; objet de retour attendu ; lien
 incomplet → message ; injection de balises affichée en texte. **À faire par l'étude** : créer le dépôt
 public et activer Pages, puis coller l'adresse dans les Réglages.
+
+### 01/10/2026 — Page de réponse : design Rallly, logo de l'office, dépôt Claire-rdv
+
+Demande de l'étude : « J'ai créé le repo git https://github.com/blursquare/Claire-rdv.git. Reprends le
+design de Rallly. Reprends le logo de l'office si tu peux en en-tête. »
+
+- Dépôt public **blursquare/Claire-rdv** relié à la session et alimenté : `index.html`,
+  `logo-office.png` (le logo de l'en-tête du courrier d'appel de fonds, `appel-de-fonds-modele.js`),
+  `.nojekyll`, `README.md`. **GitHub Pages reste à activer par l'étude** (Settings › Pages, branche
+  `main`, racine) ; l'adresse attendue `https://blursquare.github.io/Claire-rdv/` répondait 404 le 01/10.
+- Page refaite à la manière de Rallly : fond gris clair, carte blanche, en-tête titre + dossier abrégé
+  + office + date limite, tuiles de date (mois / jour / jour de la semaine), horaire début–fin (durée
+  passée dans le lien, `m`), vote **Oui / Si nécessaire / Non** par créneau (boutons segmentés, libellés
+  masqués sur téléphone), résumé « 2 oui, 1 si nécessaire sur 4 créneaux », commentaire facultatif,
+  « Envoyer ma réponse ». Logo sur fond blanc arrondi en mode sombre. Horaire court « 10h30–11h30 »
+  sur téléphone (sinon coupé par les boutons, constaté au rendu).
+- Objet de retour : `[CLAIRE-CODE-P13S2] VTE - MOR./FAU. — Oui : mer. 14/10 10 h 30, … · Si nécessaire :
+  jeu. 15/10 09 h 30` ; texte : ✓ Oui / (✓) Si nécessaire / ✗ Non par créneau.
+- Serveur : `S` + chiffres dans le jeton = « si nécessaire » (`siBesoin` sur la réponse) ;
+  `syntheseSondage` rend `siBesoin`, `tous` (oui ou si nécessaire pour tous) et `tousOui`. Un oui donné
+  par bouton efface le « si nécessaire » du même créneau.
+- Fiche : « si nécessaire » = coche entre parenthèses en ambre ; « Créneau possible pour tous … (si
+  nécessaire pour certains) » ; détail d'une option dans l'agenda : « (si nécessaire) ».
+
+Vérifié dans Chromium (fichier local) : clair, sombre, téléphone 390 px sans défilement horizontal,
+logo chargé, objet attendu, lien incomplet et injection de balises.

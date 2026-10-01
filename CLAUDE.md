@@ -321,8 +321,10 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
   **Page de réponse** (étude, 01/10 — `page-sondage/index.html`, à publier dans un dépôt GitHub public
   dédié avec Pages, adresse dans Réglages › Rappels et agenda, `pageSondage` des réglages Exchange) :
   vraies cases à cocher, **aucune donnée côté GitHub** (tout est après le `#` du lien, rendu en
-  `textContent`), réponse par un seul email d'objet `[CLAIRE-CODE-P13] VTE - MOR./FAU. — Choix : …`
-  (P0 = aucun ; remplace les choix). Le dossier n'apparaît qu'**abrégé** (`abregeDossierSondage`,
+  `textContent`), à la manière de Rallly avec le logo de l'office (dépôt public **blursquare/Claire-rdv**,
+  copie de `page-sondage/`), vote **Oui / Si nécessaire / Non** ; réponse par un seul email d'objet
+  `[CLAIRE-CODE-P13S2] VTE - MOR./FAU. — Oui : … · Si nécessaire : …` (S = si nécessaire, P0 = aucun ;
+  remplace les choix ; « possible pour tous » = oui ou si nécessaire). Le dossier n'apparaît qu'**abrégé** (`abregeDossierSondage`,
   3 lettres par nom de famille) sur la page et dans les objets de réponse. Réglage vide = boutons. Options
   « Provisoire » `VTE - NOM ? — option CLAIRE, créneau n/N` (le « ? » n'écrit rien sur la fiche),
   hachurées dans l'agenda, retirées (`MoveToDeletedItems`) au placement, à l'annulation ou après

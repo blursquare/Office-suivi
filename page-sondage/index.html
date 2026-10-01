@@ -7,92 +7,153 @@
 <meta name="referrer" content="no-referrer">
 <title>Rendez-vous de signature</title>
 <!--
-  Page de réponse au sondage de créneaux de CLAIRE (étude, 01/10/2026). Publiée telle quelle sur
-  GitHub Pages, dans un dépôt public qui ne contient QUE ce fichier : elle ne garde aucune donnée.
-  Tout ce qu'elle affiche vient du lien lui-même, après le « # » (que le navigateur n'envoie jamais
-  au serveur) : code du sondage, adresse de réponse de l'étude, dossier en abrégé (« VTE - MOR. »),
-  date limite et créneaux. La réponse repart par email vers l'étude, objet
-  « [CLAIRE-CODE-P13] … » (créneaux 1 et 3 ; P0 = aucun), que CLAIRE relit dans la boîte.
-  Aucune ressource extérieure (ni police, ni script, ni statistique). Source : dépôt de CLAIRE,
-  page-sondage/index.html — toute modification se fait là, puis se recopie dans le dépôt public.
+  Page de réponse au sondage de créneaux de CLAIRE (étude, 01/10/2026), à la manière de Rallly :
+  carte blanche, tuiles de date, vote Oui / Si nécessaire / Non par créneau. Publiée sur GitHub Pages
+  (dépôt public blursquare/Claire-rdv : ce fichier + logo-office.png). Elle ne garde AUCUNE donnée :
+  tout ce qu'elle affiche vient du lien, après le « # » (que le navigateur n'envoie jamais au
+  serveur) — code du sondage, adresse de réponse de l'étude, dossier en abrégé (« VTE - MOR. »), date
+  limite, durée et créneaux. La réponse repart par email vers l'étude, objet
+  « [CLAIRE-CODE-P13S2] … » (oui : 1 et 3 ; si nécessaire : 2 ; P0 = aucun), que CLAIRE relit.
+  Aucune ressource extérieure. Source : dépôt de CLAIRE, page-sondage/ — toute modification se fait
+  là, puis se recopie dans le dépôt public.
 -->
 <style>
   :root {
-    --fond: #F6F3F1; --carte: #FFFFFF; --encre: #241B1D; --doux: #6B5F62; --ligne: #E4DCD8;
-    --bordeaux: #6D2332; --bordeaux-clair: #F4E8EA; --or: #A88653; --ok: #2F7A4F;
+    --fond: #F3F4F6; --carte: #FFFFFF; --encre: #111827; --doux: #6B7280; --pale: #9CA3AF;
+    --ligne: #E5E7EB; --ligne-forte: #D1D5DB; --survol: #F9FAFB;
+    --accent: #6D2332; --accent-pale: #F6ECEE;
+    --oui: #16A34A; --oui-pale: #DCFCE7; --si: #D97706; --si-pale: #FEF3C7; --non: #6B7280; --non-pale: #F3F4F6;
     color-scheme: light dark;
   }
   @media (prefers-color-scheme: dark) {
     :root {
-      --fond: #1A1517; --carte: #241D20; --encre: #F2ECEC; --doux: #B6A9AC; --ligne: #3A3034;
-      --bordeaux: #D98A99; --bordeaux-clair: #3A2329; --or: #C9A876; --ok: #74C495;
+      --fond: #111113; --carte: #1C1C1F; --encre: #F4F4F5; --doux: #A1A1AA; --pale: #71717A;
+      --ligne: #2E2E33; --ligne-forte: #3F3F46; --survol: #232327;
+      --accent: #E0899A; --accent-pale: #3A2329;
+      --oui: #4ADE80; --oui-pale: #14321F; --si: #FBBF24; --si-pale: #3A2D0C; --non: #A1A1AA; --non-pale: #27272A;
     }
   }
   * { box-sizing: border-box; }
   body {
     margin: 0; background: var(--fond); color: var(--encre);
-    font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
-    padding: 24px 16px 40px;
+    font: 15px/1.5 Inter, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    padding: 24px 16px 48px; -webkit-font-smoothing: antialiased;
   }
-  main { max-width: 560px; margin: 0 auto; }
-  .entete { text-align: center; margin-bottom: 18px; }
-  .office { font-family: Georgia, "Times New Roman", serif; font-size: 15px; letter-spacing: 0.04em; color: var(--bordeaux); text-transform: uppercase; }
-  .filet { width: 48px; height: 2px; background: var(--or); margin: 10px auto 0; border: 0; }
-  .carte { background: var(--carte); border: 1px solid var(--ligne); border-radius: 14px; padding: 22px 20px; box-shadow: 0 1px 2px rgba(0,0,0,.04); }
-  h1 { font-family: Georgia, "Times New Roman", serif; font-weight: 400; font-size: 26px; line-height: 1.2; margin: 0 0 4px; text-wrap: balance; }
-  .dossier { color: var(--doux); font-size: 14px; margin: 0 0 16px; }
-  .consigne { margin: 0 0 14px; }
-  fieldset { border: 0; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
-  legend { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
-  .choix { display: flex; align-items: center; gap: 12px; padding: 13px 14px; border: 1.5px solid var(--ligne); border-radius: 10px; cursor: pointer; background: var(--carte); }
-  .choix:hover { border-color: var(--bordeaux); }
-  .choix input { width: 22px; height: 22px; accent-color: var(--bordeaux); flex: none; margin: 0; }
-  .choix.coche { border-color: var(--bordeaux); background: var(--bordeaux-clair); }
-  .choix .quand { font-weight: 600; }
-  .choix .quand::first-letter { text-transform: uppercase; }
-  .choix.aucun { margin-top: 6px; border-style: dashed; }
-  .choix.aucun .quand { font-weight: 500; color: var(--doux); }
+  main { max-width: 640px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
+  .logo { display: flex; justify-content: center; }
+  .logo img { width: 200px; max-width: 60%; height: auto; display: block; }
+  @media (prefers-color-scheme: dark) { .logo img { background: #FFFFFF; border-radius: 12px; padding: 6px 10px; } }
+  .carte { background: var(--carte); border: 1px solid var(--ligne); border-radius: 12px; box-shadow: 0 1px 2px rgba(0,0,0,.05); overflow: hidden; }
+  .tete { padding: 20px 20px 16px; border-bottom: 1px solid var(--ligne); }
+  h1 { margin: 0 0 10px; font-size: 20px; font-weight: 700; letter-spacing: -0.01em; text-wrap: balance; }
+  .meta { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; color: var(--doux); font-size: 14px; }
+  .meta li { display: flex; align-items: center; gap: 8px; }
+  .meta svg { width: 16px; height: 16px; flex: none; color: var(--pale); }
+  .meta b { color: var(--encre); font-weight: 600; }
+  .section-titre { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 14px 20px 8px; }
+  .section-titre h2 { margin: 0; font-size: 14px; font-weight: 600; }
+  .legende { display: flex; gap: 12px; font-size: 12px; color: var(--doux); flex-wrap: wrap; }
+  .legende span { display: inline-flex; align-items: center; gap: 4px; }
+  .options { list-style: none; margin: 0; padding: 0; }
+  .option { display: flex; align-items: center; gap: 14px; padding: 12px 20px; border-top: 1px solid var(--ligne); }
+  .option:first-child { border-top: 0; }
+  .tuile { width: 52px; flex: none; text-align: center; border: 1px solid var(--ligne); border-radius: 8px; overflow: hidden; background: var(--carte); line-height: 1.1; }
+  .tuile .mois { display: block; background: var(--accent); color: #FFFFFF; font-size: 10px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; padding: 3px 0; }
+  @media (prefers-color-scheme: dark) { .tuile .mois { color: #1C1C1F; } }
+  .tuile .jour { display: block; font-size: 20px; font-weight: 700; padding-top: 4px; }
+  .tuile .sem { display: block; font-size: 11px; color: var(--doux); padding: 1px 0 5px; }
+  .quand { flex: 1; min-width: 0; }
+  .quand .heure { font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .quand .h-court { display: none; }
+  @media (max-width: 480px) {
+    .option { gap: 10px; padding: 12px 16px; }
+    .quand .heure { font-size: 14px; }
+    .quand .long, .quand .h-long { display: none; }
+    .quand .h-court { display: inline; }
+    .section-titre { flex-direction: column; align-items: flex-start; gap: 4px; padding: 14px 16px 8px; }
+    .tete, .commentaire { padding-left: 16px; padding-right: 16px; }
+    .pied { padding: 14px 16px 18px; }
+    .vote label { min-width: 38px; padding: 0 7px; }
+  }
+  .quand .long { font-size: 13px; color: var(--doux); }
+  .quand .long::first-letter { text-transform: uppercase; }
+  .vote { display: inline-flex; border: 1px solid var(--ligne-forte); border-radius: 8px; overflow: hidden; flex: none; }
+  .vote label { position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-width: 44px; height: 38px; padding: 0 10px; cursor: pointer; color: var(--pale); font-size: 13px; font-weight: 500; border-left: 1px solid var(--ligne-forte); background: var(--carte); }
+  .vote label:first-child { border-left: 0; }
+  .vote label:hover { background: var(--survol); }
+  .vote input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+  .vote svg { width: 18px; height: 18px; flex: none; }
+  .vote .txt { display: none; }
+  @media (min-width: 560px) { .vote .txt { display: inline; } }
+  .vote label.oui:has(input:checked) { background: var(--oui-pale); color: var(--oui); }
+  .vote label.si:has(input:checked) { background: var(--si-pale); color: var(--si); }
+  .vote label.non:has(input:checked) { background: var(--non-pale); color: var(--non); }
+  .vote label:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: -2px; z-index: 1; }
+  .ic-oui { color: var(--oui); } .ic-si { color: var(--si); } .ic-non { color: var(--non); }
+  .commentaire { padding: 14px 20px 4px; border-top: 1px solid var(--ligne); }
+  .commentaire label { display: block; font-size: 14px; font-weight: 600; margin-bottom: 6px; }
+  .commentaire label span { font-weight: 400; color: var(--doux); }
+  textarea { width: 100%; font: inherit; color: var(--encre); background: var(--carte); border: 1px solid var(--ligne-forte); border-radius: 8px; padding: 9px 11px; min-height: 64px; resize: vertical; }
+  textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 0; border-color: transparent; }
+  .pied { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 14px 20px 18px; }
+  .resume { font-size: 13px; color: var(--doux); }
+  .resume b { color: var(--encre); }
   button {
-    margin-top: 18px; width: 100%; font: inherit; font-weight: 600; font-size: 17px; color: #FFFFFF;
-    background: var(--bordeaux); border: 0; border-radius: 10px; padding: 14px 18px; cursor: pointer;
+    font: inherit; font-weight: 600; font-size: 15px; color: #FFFFFF; background: var(--accent);
+    border: 0; border-radius: 8px; padding: 10px 18px; cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,.08);
   }
-  @media (prefers-color-scheme: dark) { button { color: #1A1517; } }
+  @media (prefers-color-scheme: dark) { button { color: #1C1C1F; } }
+  @media (max-width: 480px) { button { width: 100%; } }
+  button:hover:not(:disabled) { filter: brightness(1.08); }
   button:disabled { opacity: 0.45; cursor: not-allowed; }
-  button:focus-visible, .choix:focus-within { outline: 3px solid var(--or); outline-offset: 2px; }
-  .limite { font-size: 14px; color: var(--doux); margin: 12px 0 0; text-align: center; }
-  .apres { margin-top: 18px; padding: 14px; border-radius: 10px; background: var(--bordeaux-clair); font-size: 15px; }
-  .apres p { margin: 0 0 8px; }
-  .apres .ok { color: var(--ok); font-weight: 600; }
-  .copie { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 4px 10px; font-size: 14px; margin: 8px 0 0; }
+  button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .apres { margin: 0 20px 18px; padding: 14px 16px; border-radius: 10px; background: var(--oui-pale); font-size: 14px; }
+  .apres p { margin: 0 0 6px; }
+  .apres .ok { display: flex; align-items: center; gap: 8px; color: var(--oui); font-weight: 600; }
+  .apres .ok svg { width: 18px; height: 18px; flex: none; }
+  .copie { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 4px 10px; margin: 8px 0 0; }
   .copie dt { color: var(--doux); }
   .copie dd { margin: 0; overflow-wrap: anywhere; font-weight: 600; user-select: all; }
-  textarea { width: 100%; margin-top: 14px; font: inherit; font-size: 15px; color: var(--encre); background: var(--carte); border: 1.5px solid var(--ligne); border-radius: 10px; padding: 10px 12px; min-height: 70px; resize: vertical; }
-  label.mot { display: block; margin-top: 16px; font-size: 14px; color: var(--doux); }
-  label.mot textarea { margin-top: 6px; }
-  .erreur { text-align: center; color: var(--doux); }
+  .note { text-align: center; font-size: 12px; color: var(--pale); }
+  .invalide { padding: 24px 20px; text-align: center; color: var(--doux); }
   [hidden] { display: none !important; }
+  @media (prefers-reduced-motion: no-preference) { .vote label { transition: background .12s, color .12s; } }
 </style>
 </head>
 <body>
 <main>
-  <div class="entete">
-    <div class="office" id="office">Office notarial</div>
-    <hr class="filet">
-  </div>
+  <div class="logo"><img src="logo-office.png" alt="Me Sophie GOSSART — Office notarial de la Salamandre" width="200" height="117"></div>
+
   <section class="carte" id="sondage" hidden>
-    <h1>Rendez-vous de signature</h1>
-    <p class="dossier" id="dossier"></p>
-    <p class="consigne">Cochez les créneaux qui vous conviennent, puis cliquez sur « Préparer ma réponse ».</p>
+    <div class="tete">
+      <h1>Rendez-vous de signature</h1>
+      <ul class="meta">
+        <li id="meta-dossier"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg><span>Dossier <b id="dossier"></b></span></li>
+        <li id="meta-office"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 21h18"/><path d="M5 21V8l7-5 7 5v13"/><path d="M9 21v-6h6v6"/></svg><span id="office"></span></li>
+        <li id="meta-limite" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span id="limite"></span></li>
+      </ul>
+    </div>
     <form id="formulaire" novalidate>
-      <fieldset id="creneaux"><legend>Créneaux proposés</legend></fieldset>
-      <label class="mot" for="mot">Un mot pour l’étude <span>(facultatif)</span>
+      <div class="section-titre">
+        <h2>Vos disponibilités</h2>
+        <div class="legende" aria-hidden="true">
+          <span><svg class="ic-oui" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg>Oui</span>
+          <span><svg class="ic-si" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4C4 7 4 17 7 20M17 4c3 3 3 13 0 16"/><path d="M8.5 12l2.5 2.5L15.5 9.5"/></svg>Si nécessaire</span>
+          <span><svg class="ic-non" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>Non</span>
+        </div>
+      </div>
+      <ul class="options" id="options"></ul>
+      <div class="commentaire">
+        <label for="mot">Commentaire <span>(facultatif)</span></label>
         <textarea id="mot" maxlength="500" placeholder="Par exemple : plutôt en fin de matinée"></textarea>
-      </label>
-      <button type="submit" id="envoyer" disabled>Préparer ma réponse</button>
+      </div>
+      <div class="pied">
+        <span class="resume" id="resume">Indiquez vos disponibilités pour chaque créneau.</span>
+        <button type="submit" id="envoyer" disabled>Envoyer ma réponse</button>
+      </div>
     </form>
-    <p class="limite" id="limite" hidden></p>
     <div class="apres" id="apres" hidden>
-      <p class="ok">Votre messagerie s’ouvre avec la réponse prête : il ne reste qu’à l’envoyer.</p>
+      <p class="ok"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8 12l3 3 5-6"/></svg>Votre messagerie s’ouvre avec la réponse prête : il ne reste qu’à l’envoyer.</p>
       <p>Rien ne s’ouvre ? Écrivez simplement à l’étude, avec cet objet :</p>
       <dl class="copie">
         <dt>À</dt><dd id="copie-a"></dd>
@@ -100,29 +161,36 @@
       </dl>
     </div>
   </section>
-  <section class="carte erreur" id="invalide" hidden>
+
+  <section class="carte invalide" id="invalide" hidden>
     <p>Ce lien est incomplet. Utilisez le bouton de l’email reçu de l’étude, ou répondez directement à cet email.</p>
   </section>
+
+  <p class="note">Aucune donnée n’est enregistrée sur cette page : votre réponse part par email vers l’étude.</p>
 </main>
 <script>
 (function () {
   'use strict';
-  // Lecture du lien : #v=1&c=CODE&a=adresse&d=VTE - MOR.&l=2026-10-08&s=202610141030,202610150930&o=Office…
+  // Lien : #v=1&c=CODE&a=adresse&d=VTE - MOR.&l=2026-10-08&m=60&o=Office…&s=202610141030,202610150930
   var p = new URLSearchParams(location.hash.replace(/^#/, ''));
   var code = (p.get('c') || '').toUpperCase();
   var adresse = (p.get('a') || '').trim();
   var dossier = (p.get('d') || '').slice(0, 60);
-  var office = (p.get('o') || '').slice(0, 80);
+  var office = (p.get('o') || 'Office notarial').slice(0, 80);
   var limite = p.get('l') || '';
+  var duree = Math.min(600, Math.max(15, parseInt(p.get('m'), 10) || 60));
+  var NBSP = ' ';
+  var hm = function (h, m) { return String(h).padStart(2, '0') + NBSP + 'h' + NBSP + String(m).padStart(2, '0'); };
   var creneaux = (p.get('s') || '').split(',').map(function (t, i) {
-    var m = /^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})$/.exec(t);
-    if (!m) return null;
-    var date = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]), Number(m[4]), Number(m[5]));
-    return isNaN(date) ? null : { n: i + 1, date: date, heure: m[4] + '\u00a0h\u00a0' + m[5] };
+    var x = /^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})$/.exec(t);
+    if (!x) return null;
+    var date = new Date(Number(x[1]), Number(x[2]) - 1, Number(x[3]), Number(x[4]), Number(x[5]));
+    if (isNaN(date)) return null;
+    var fin = new Date(date.getTime() + duree * 60000);
+    return { n: i + 1, date: date, heure: hm(x[4], x[5]), fin: hm(fin.getHours(), fin.getMinutes()) };
   });
   var valide = /^[A-HJ-NP-Z2-9]{6}$/.test(code) && /^[^\s@<>"]+@[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)+$/.test(adresse)
     && creneaux.length >= 1 && creneaux.length <= 5 && creneaux.every(Boolean);
-  if (office) document.getElementById('office').textContent = office;
   if (!valide) { document.getElementById('invalide').hidden = false; return; }
 
   var jourLong = function (d) { return d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }); };
@@ -130,57 +198,100 @@
     return d.toLocaleDateString('fr-FR', { weekday: 'short' }).replace('.', '') + '. '
       + String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth() + 1).padStart(2, '0');
   };
+  var texte = function (s) { return s.replace(/ /g, ' '); };
   document.getElementById('sondage').hidden = false;
-  document.getElementById('dossier').textContent = dossier ? 'Dossier ' + dossier : '';
+  if (dossier) document.getElementById('dossier').textContent = dossier; else document.getElementById('meta-dossier').hidden = true;
+  document.getElementById('office').textContent = office;
   if (/^\d{4}-\d{2}-\d{2}$/.test(limite)) {
-    var dl = new Date(limite + 'T12:00:00');
-    var el = document.getElementById('limite');
-    el.textContent = 'Merci de répondre avant le ' + jourLong(dl) + '.';
-    el.hidden = false;
+    document.getElementById('limite').textContent = 'Réponse attendue avant le ' + jourLong(new Date(limite + 'T12:00:00'));
+    document.getElementById('meta-limite').hidden = false;
   }
 
-  // Les cases : construites en DOM (textContent), jamais en HTML — le lien vient de l'extérieur.
-  var zone = document.getElementById('creneaux');
-  var cases = [];
-  var ligne = function (texte, valeur, classe) {
-    var label = document.createElement('label');
-    label.className = 'choix' + (classe ? ' ' + classe : '');
-    var input = document.createElement('input');
-    input.type = 'checkbox';
-    input.value = valeur;
-    var span = document.createElement('span');
-    span.className = 'quand';
-    span.textContent = texte;
-    label.appendChild(input);
-    label.appendChild(span);
-    zone.appendChild(label);
-    cases.push(input);
-    return input;
+  // Les créneaux : construits en DOM (textContent), jamais en HTML — le lien vient de l'extérieur.
+  var ICONES = {
+    oui: '<path d="M5 12l5 5L20 7"/>',
+    si: '<path d="M7 4C4 7 4 17 7 20M17 4c3 3 3 13 0 16"/><path d="M8.5 12l2.5 2.5L15.5 9.5"/>',
+    non: '<path d="M6 6l12 12M18 6L6 18"/>'
   };
-  creneaux.forEach(function (c) { ligne(jourLong(c.date) + ' à ' + c.heure, String(c.n)); });
-  var aucun = ligne('Aucun de ces créneaux ne me convient', '0', 'aucun');
+  var LIBELLES = { oui: 'Oui', si: 'Si nécessaire', non: 'Non' };
+  var el = function (tag, classe, txt) { var e = document.createElement(tag); if (classe) e.className = classe; if (txt != null) e.textContent = txt; return e; };
+  var liste = document.getElementById('options');
+  creneaux.forEach(function (c) {
+    var li = el('li', 'option');
+    var tuile = el('div', 'tuile');
+    tuile.setAttribute('aria-hidden', 'true');
+    tuile.appendChild(el('span', 'mois', c.date.toLocaleDateString('fr-FR', { month: 'short' }).replace('.', '')));
+    tuile.appendChild(el('span', 'jour', String(c.date.getDate())));
+    tuile.appendChild(el('span', 'sem', c.date.toLocaleDateString('fr-FR', { weekday: 'short' }).replace('.', '')));
+    var quand = el('div', 'quand');
+    var heure = el('div', 'heure');
+    heure.appendChild(el('span', 'h-long', c.heure + ' – ' + c.fin));
+    heure.appendChild(el('span', 'h-court', (c.heure + '–' + c.fin).replace(/\u00a0/g, '')));
+    quand.appendChild(heure);
+    quand.appendChild(el('div', 'long', jourLong(c.date)));
+    var vote = el('div', 'vote');
+    vote.setAttribute('role', 'radiogroup');
+    vote.setAttribute('aria-label', jourLong(c.date) + ' à ' + texte(c.heure));
+    ['oui', 'si', 'non'].forEach(function (v) {
+      var lab = el('label', v);
+      lab.title = LIBELLES[v];
+      var input = el('input');
+      input.type = 'radio'; input.name = 'c' + c.n; input.value = v;
+      input.setAttribute('aria-label', LIBELLES[v]);
+      lab.appendChild(input);
+      var svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      svg.setAttribute('viewBox', '0 0 24 24'); svg.setAttribute('fill', 'none'); svg.setAttribute('stroke', 'currentColor');
+      svg.setAttribute('stroke-width', v === 'si' ? '2.5' : '3'); svg.setAttribute('stroke-linecap', 'round'); svg.setAttribute('stroke-linejoin', 'round');
+      svg.setAttribute('aria-hidden', 'true');
+      svg.innerHTML = ICONES[v];
+      lab.appendChild(svg);
+      lab.appendChild(el('span', 'txt', LIBELLES[v]));
+      vote.appendChild(lab);
+    });
+    li.appendChild(tuile); li.appendChild(quand); li.appendChild(vote);
+    liste.appendChild(li);
+  });
 
   var bouton = document.getElementById('envoyer');
-  var choisis = function () { return cases.filter(function (c) { return c.checked && c !== aucun; }).map(function (c) { return Number(c.value); }); };
-  var maj = function (cible) {
-    if (cible === aucun && aucun.checked) cases.forEach(function (c) { if (c !== aucun) c.checked = false; });
-    if (cible && cible !== aucun && cible.checked) aucun.checked = false;
-    cases.forEach(function (c) { c.parentNode.classList.toggle('coche', c.checked); });
-    bouton.disabled = !aucun.checked && choisis().length === 0;
+  var resume = document.getElementById('resume');
+  var reponses = function () {
+    var r = { oui: [], si: [], non: [], vide: 0 };
+    creneaux.forEach(function (c) {
+      var choisi = document.querySelector('input[name="c' + c.n + '"]:checked');
+      if (!choisi) r.vide++;
+      r[choisi ? choisi.value : 'non'].push(c.n);
+    });
+    return r;
   };
-  zone.addEventListener('change', function (e) { maj(e.target); });
+  var maj = function () {
+    var r = reponses();
+    bouton.disabled = r.vide === creneaux.length;
+    if (bouton.disabled) { resume.textContent = 'Indiquez vos disponibilités pour chaque créneau.'; return; }
+    var parts = [];
+    if (r.oui.length) parts.push(r.oui.length + ' oui');
+    if (r.si.length) parts.push(r.si.length + ' si nécessaire');
+    resume.textContent = '';
+    if (parts.length) { var b = el('b', null, parts.join(', ')); resume.appendChild(b); resume.appendChild(document.createTextNode(' sur ' + creneaux.length + ' créneau' + (creneaux.length > 1 ? 'x' : ''))); }
+    else resume.textContent = 'Aucun créneau ne vous convient.';
+  };
+  liste.addEventListener('change', maj);
 
   document.getElementById('formulaire').addEventListener('submit', function (e) {
     e.preventDefault();
     if (bouton.disabled) return;
-    var liste = aucun.checked ? [] : choisis();
-    var sujet = '[CLAIRE-' + code + '-P' + (liste.length ? liste.join('') : '0') + '] '
-      + (dossier ? dossier + ' — ' : '')
-      + (liste.length
-        ? 'Choix : ' + liste.map(function (n) { var c = creneaux[n - 1]; return jourCourt(c.date) + ' ' + c.heure.replace(/\u00a0/g, ' '); }).join(', ')
-        : 'Aucun créneau ne convient');
+    var r = reponses();
+    var jeton = (r.oui.length || r.si.length) ? 'P' + (r.oui.join('') || '') + (r.si.length ? 'S' + r.si.join('') : '') : 'P0';
+    var court = function (ns) { return ns.map(function (n) { var c = creneaux[n - 1]; return jourCourt(c.date) + ' ' + texte(c.heure); }).join(', '); };
+    var resumeObjet = [];
+    if (r.oui.length) resumeObjet.push('Oui : ' + court(r.oui));
+    if (r.si.length) resumeObjet.push('Si nécessaire : ' + court(r.si));
+    var sujet = '[CLAIRE-' + code + '-' + jeton + '] ' + (dossier ? dossier + ' — ' : '')
+      + (resumeObjet.length ? resumeObjet.join(' · ') : 'Aucun créneau ne convient');
     var corps = ['Bonjour,', '', 'Voici mes disponibilités pour le rendez-vous de signature' + (dossier ? ' (' + dossier + ')' : '') + ' :', '']
-      .concat(creneaux.map(function (c) { return (liste.indexOf(c.n) !== -1 ? '✓ ' : '✗ ') + jourLong(c.date) + ' à ' + c.heure.replace(/\u00a0/g, ' '); }));
+      .concat(creneaux.map(function (c) {
+        var v = r.oui.indexOf(c.n) !== -1 ? '✓ Oui' : r.si.indexOf(c.n) !== -1 ? '(✓) Si nécessaire' : '✗ Non';
+        return v + ' — ' + jourLong(c.date) + ' à ' + texte(c.heure);
+      }));
     var mot = document.getElementById('mot').value.trim();
     if (mot) corps.push('', mot);
     corps.push('', 'Merci de ne pas modifier l’objet de cet email : il permet à l’étude d’enregistrer votre réponse.');

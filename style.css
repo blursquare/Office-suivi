@@ -7513,3 +7513,6 @@ textarea.ag-notes-champ:focus { outline: 2px solid var(--focus); outline-offset:
 .sondage-reponses .sondage-attente svg { color: var(--muted); }
 .sondage-panneau-agenda { margin: 0; }
 .ag-option-tete { color: var(--ink-soft); }
+.sondage-table .sondage-si { color: var(--pret); white-space: nowrap; }
+.sondage-reponses .sondage-si svg { color: var(--pret); }
+.sondage-reponses em { font-style: normal; color: var(--muted); }
