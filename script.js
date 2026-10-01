@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-01 17:40';
+  const VERSION_APP = '2026-10-01 17:44';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-01 17:44', resume: "Tableau de bord, carte « Aujourd'hui » : « Ajouter un rappel » ouvre bien le formulaire — sur une carte pleine, toute la section « Mes rappels » était masquée et « À venir » s'affichait à sa place. Le formulaire passe maintenant en premier, « À venir » se retire le temps de la saisie." },
     { version: '2026-10-01 17:40', resume: "Claire Scan : « Ranger » et « Laisser dans Scan » ne font plus attendre — le scan quitte la liste dès la réponse du serveur, la relecture du dossier du copieur se fait ensuite en arrière-plan ; et cette relecture est bien plus rapide (l'historique du copieur n'est plus interrogé à chaque fois, le reste est lu en parallèle)." },
     { version: '2026-10-01 17:36', resume: "Agenda : à côté de « Agenda de l'office lu… », le nombre de rendez-vous de la semaine comparé à la même semaine l'an dernier — « +3 rendez-vous vs 2025 (hausse de 25 %) », en vert ou en rouge, détail dans la pastille i (dont signatures). L'an dernier est lu une fois dans l'agenda Outlook puis gardé." },
     { version: '2026-10-01 17:32', resume: "Agenda : un rendez-vous d'un dossier créé depuis « Nouveau rendez-vous » renseigne le Lieu dans Outlook comme une signature posée depuis la fiche — initiales du responsable, confrère « en 1er » (il reçoit) ou « en 2nd », appel de fonds et projet envoyés (« BA - Me DURAND en 2nd - Appel de fonds envoyé »), modifiable avant d'enregistrer. La mise à jour automatique du Lieu à l'envoi de l'appel de fonds ou du projet ajoute aussi les initiales si elles manquent." },
@@ -16309,7 +16310,8 @@
         const min = Number(x.l.dataset.min || 0);
         if (x.sec) {
           x.sec.style.display = '';
-          if (deborde() && !min) { x.sec.style.display = 'none'; return; }
+          // data-garder : une section en cours de saisie n'est jamais masquée (le corps défile).
+          if (deborde() && !min && !x.l.hasAttribute('data-garder')) { x.sec.style.display = 'none'; return; }
         }
         let montres = 0;
         for (const c of tous) {
@@ -16970,7 +16972,7 @@
     ajoutRappelOuvert = !!ouvrir;
     if (ajoutRappelOuvert) rappelEnEdition = null;
     renderAlertesDashboard(dossiersPerimetreDashboard());
-    if (ajoutRappelOuvert) setTimeout(() => { const c = document.getElementById('rappel-perso-texte'); if (c) c.focus(); }, 0);
+    if (ajoutRappelOuvert) amenerFormulaireRappel(false);
   }
 
   function ajouterRappelPerso() {
@@ -16998,7 +17000,21 @@
     rappelEnEdition = id || null;
     if (rappelEnEdition) ajoutRappelOuvert = false;
     renderAlertesDashboard(dossiersPerimetreDashboard());
-    if (rappelEnEdition) setTimeout(() => { const c = document.getElementById('rappel-perso-texte'); if (c) { c.focus(); c.select(); } }, 0);
+    if (rappelEnEdition) amenerFormulaireRappel(true);
+  }
+
+  // Le formulaire d'un rappel, une fois la carte ajustée (ajusterWidgets passe à l'image suivante) :
+  // ramené dans la partie visible de la carte, curseur dans le texte.
+  function amenerFormulaireRappel(selectionner) {
+    const placer = () => {
+      const c = document.getElementById('rappel-perso-texte');
+      if (!c) return;
+      const form = c.closest('.rappel-perso-form');
+      if (form && form.scrollIntoView) form.scrollIntoView({ block: 'nearest' });
+      c.focus({ preventScroll: true });
+      if (selectionner) c.select();
+    };
+    if (typeof requestAnimationFrame === 'function') requestAnimationFrame(() => requestAnimationFrame(placer)); else setTimeout(placer, 0);
   }
 
   function validerEditionRappel() {
@@ -18028,7 +18044,12 @@
       const liste = actions.length || traites.length
         ? `<ul class="ja-liste" data-ajuster="1" data-min="1">${actions.map(a => renderLigneActionJour(a, global)).join('')}${renderLignesTraitees(traites)}${plusWidget(versPage)}</ul>`
         : '<p class="jour-vide jour-vide-ok">✓ Rien à faire aujourd’hui sur vos dossiers.</p>';
-      const aVenirHtml = presentation === 'grand' && aVenir.length ? `<div class="w-section">
+      // Un rappel en cours de saisie (ajout ou modification) passe avant tout (étude, 01/10 : « quand je
+      // clique sur Ajouter un rappel, il m'ouvre À venir ») : la carte pleine masquait toute la section
+      // « Mes rappels », formulaire compris, et « À venir » prenait sa place. Le formulaire ouvert est
+      // rempli en premier (data-ajuster 0, jamais masqué), « À venir » se retire le temps de la saisie.
+      const saisieRappel = !!(ajoutRappelOuvert || rappelEnEdition);
+      const aVenirHtml = presentation === 'grand' && aVenir.length && !saisieRappel ? `<div class="w-section">
           <h3 class="jour-carte-sous-titre">À venir</h3>
           <ul class="w-lignes" data-ajuster="3">${aVenir.map(v => `<li><button type="button" class="w-ligne" onclick="ouvrirDossierDepuisDashboard('${v.dossier.id}')">
             <span class="w-ligne-texte"><b>${escapeHtml(v.titre)}</b> · ${escapeHtml(libelleDossierAffiche(v.dossier))}</span>
@@ -18037,7 +18058,7 @@
       corps = `${feteHtml}${liste}
         <div class="w-section dash-rappels-bloc">
           <h3 class="jour-carte-sous-titre">Mes rappels</h3>
-          <div class="rappels-perso" data-ajuster="2">${renderMesRappels(perimetreActifs)}</div>
+          <div class="rappels-perso" data-ajuster="${saisieRappel ? 0 : 2}"${saisieRappel ? ' data-garder' : ''}>${renderMesRappels(perimetreActifs)}</div>
         </div>
         ${aVenirHtml}`;
     }

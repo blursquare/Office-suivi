@@ -13932,3 +13932,15 @@ pourtant qu'écrire en base.
   fois. Testé (41 stat au premier passage, 1 au second, parallèle ≤ 16).
 - Vérifié dans Chromium avec une relecture ralentie à 5 s : le scan quitte la liste en ~30 ms (contre 5 s et
   plus), copie bien posée sur le NAS, pièce cochée.
+
+
+### 01/10/2026 17 h 44 — Bug : « Ajouter un rappel » ouvrait « À venir »
+
+Signalé par l'étude : « Dans Aujourd'hui, quand je clique sur Ajouter un rappel, il m'ouvre À venir. »
+Reproduit (carte grande, 2 rangées, 5 tâches) : le formulaire ouvert faisait déborder la carte, et
+`ajusterWidgets` masquait alors TOUTE la section « Mes rappels » (section d'appoint, `data-min` 0) — formulaire
+compris — puis remplissait la place avec « À venir » (priorité suivante). Correction : pendant une saisie
+(ajout ou modification), la liste des rappels passe en priorité 0 avec `data-garder` (jamais masquée, le corps
+défile au besoin), « À venir » n'est pas rendu, et le formulaire est ramené dans la partie visible, curseur
+dans le texte (`amenerFormulaireRappel`). Vérifié dans Chromium : formulaire visible, rappel enregistré, carte
+normale ensuite.
