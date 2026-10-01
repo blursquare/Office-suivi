@@ -5878,6 +5878,7 @@ button.scan-a-ranger-tag { border: 0; cursor: pointer; font: inherit; align-self
 .rdv-type-pastille.rdv-type-office { background: var(--success); }
 .rdv-type-pastille.rdv-type-visio { background: var(--appelfonds); }
 .rdv-type-pastille.rdv-type-confrere { background: #E07B20; }
+.rdv-type-pastille.rdv-type-annule { background: var(--cat-jaune); }
 .rdv-type-choix { display: flex; gap: 6px; flex-wrap: wrap; margin: 8px 0 2px; }
 .rdv-type-option {
   display: inline-flex; align-items: center; gap: 6px; cursor: pointer;
@@ -7216,7 +7217,14 @@ button.scan-nom:focus-visible { outline: 2px solid var(--focus); outline-offset:
 .ajd-rose { --ag-teinte: var(--cat-rose); }
 .ajd-marron { --ag-teinte: var(--cat-marron); }
 .ajd-signature { --ag-teinte: var(--acte); }
-.ajd-absence { --ag-teinte: var(--muted); }
+/* Absences et dates butoir en rose (étude, 01/10 : les distinguer des rendez-vous ; le violet est aux
+   visios) ; les absences rayées en plus, pour les séparer des butoirs. Annulé / à replacer : jaune. */
+.ajd-absence, .ajd-butoir { --ag-teinte: var(--cat-rose); }
+.ajd-annule { --ag-teinte: var(--cat-jaune); }
+.ag-journee-evt.ajd-absence, .ag-evt.ajd-absence, .ag-vm-evt.ajd-absence {
+  background-image: repeating-linear-gradient(135deg, transparent 0 6px, color-mix(in srgb, var(--cat-rose) 14%, transparent) 6px 8px);
+}
+.ech-a-replacer { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .ajd-autre { --ag-teinte: var(--ventebien); }
 .ag-page { background: var(--paper-card); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow-card); overflow: hidden; }
 .ag-tete-page { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 14px; padding: 16px 18px; border-bottom: 1px solid var(--line); }

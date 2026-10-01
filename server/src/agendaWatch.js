@@ -42,7 +42,7 @@ function dateDuJourParis() {
 //    réécrirait la date à chaque tour avec la date du jour.
 // Jamais non plus par-dessus une date DÉJÀ CONNUE (saisie manuelle) — le repère est alors posé quand
 // même, pour que l'action ne soit plus reconsidérée. `depot` injecté : testable sans base réelle.
-function appliquerDetectionsAgenda(depot, detections, aujourdHui) {
+function appliquerDetectionsAgenda(depot, detections, aujourdHui, categoriesRdv) {
   const jour = aujourdHui || dateDuJourParis();
   const resultat = { misAJour: [], dejaRenseignes: [], sansCorrespondance: [] };
   for (const det of detections || []) {
@@ -80,7 +80,7 @@ function appliquerDetectionsAgenda(depot, detections, aujourdHui) {
       resultat.misAJour.push({ dossierId: d.id, dossierNom: d.nom, action, dateIso: jour });
     }
   }
-  appliquerRendezVousAgenda(depot, detections, resultat);
+  appliquerRendezVousAgenda(depot, detections, resultat, categoriesRdv);
   if (typeof depot.tousActifs === 'function') signalerRendezVousDisparus(depot, detections, jour);
   return resultat;
 }
@@ -135,10 +135,50 @@ function poserHoraireRendezVous(d, det) {
   return avant !== cle(d);
 }
 
-function appliquerRendezVousAgenda(depot, detections, resultat) {
+// Catégorie « annulé / à replacer » (jaune, étude 01/10) d'après le nom réglé. Pure.
+function normaliserCategorie(t) {
+  return String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+}
+function rendezVousMarqueAnnule(det, categoriesRdv) {
+  const nom = normaliserCategorie(categoriesRdv && categoriesRdv.annule);
+  return !!nom && ((det && det.categories) || []).some((c) => normaliserCategorie(c) === nom);
+}
+
+// Signature marquée « annulé / à replacer » dans l'agenda (étude, 01/10 : le dossier revient « à
+// placer ») : seulement le rendez-vous à la date de la fiche. La date quitte la fiche, gardée dans
+// d.rendezVousARemplacer et l'historique ; le repère rendezVousRetire empêche l'agenda de la remettre
+// tant que le rendez-vous reste jaune. Rend vrai si le dossier a changé.
+function marquerSignatureAReplacer(d, det, jour) {
+  if (!d || d.archive || !d.rendezVousSignature || d.rendezVousSignature !== det.dateIso) return false;
+  d.rendezVousARemplacer = { date: d.rendezVousSignature, heure: d.rendezVousSignatureHeure || det.heure || '', le: jour };
+  d.detectionsAgenda = d.detectionsAgenda || {};
+  d.detectionsAgenda.rendezVousRetire = d.rendezVousSignature;
+  delete d.detectionsAgenda.rendezVousSignature;
+  d.historique = d.historique || [];
+  d.historique.push({
+    date: new Date().toISOString(),
+    texte: `Rendez-vous de signature du ${formatDateFr(d.rendezVousSignature)} marqué « annulé / à replacer » dans l’agenda de l’office — à replacer`
+  });
+  d.rendezVousSignature = null;
+  d.rendezVousSignatureHeure = '';
+  d.rendezVousSignatureHeureFin = '';
+  d.rendezVousSignatureCategories = [];
+  return true;
+}
+
+function appliquerRendezVousAgenda(depot, detections, resultat, categoriesRdv) {
   const plusProche = new Map();
+  const jour = dateDuJourParis();
   for (const det of detections || []) {
     if (!det.rendezVous || !det.dossierId || !det.dateIso) continue;
+    if (rendezVousMarqueAnnule(det, categoriesRdv)) {
+      const d = depot.trouverParId(det.dossierId);
+      if (marquerSignatureAReplacer(d, det, jour)) {
+        depot.remplacer(d.id, d);
+        resultat.misAJour.push({ dossierId: d.id, dossierNom: d.nom, action: 'rendezVousARemplacer', dateIso: det.dateIso });
+      }
+      continue;
+    }
     const actuel = plusProche.get(det.dossierId);
     if (!actuel || det.dateIso < actuel.dateIso) plusProche.set(det.dossierId, det);
   }
@@ -151,7 +191,10 @@ function appliquerRendezVousAgenda(depot, detections, resultat) {
     // Rendez-vous supprimé à la main dans CLAIRE : l'agenda peut le porter encore (s'il n'a pas pu
     // être retiré d'Outlook). Il ne doit pas revenir tout seul
     // sur la fiche ; seule une AUTRE date le relève à nouveau.
-    if (!actuel && d.detectionsAgenda.rendezVousRetire === det.dateIso) continue;
+    if (!actuel && d.detectionsAgenda.rendezVousRetire === det.dateIso) {
+      // Sorti du jaune dans Outlook à la même date : le rendez-vous est maintenu, la fiche le reprend.
+      if (!(d.rendezVousARemplacer && d.rendezVousARemplacer.date === det.dateIso)) continue;
+    }
     if (actuel === det.dateIso) {
       // Même date : l'heure, l'heure de fin et le lieu suivent l'agenda (affichés dans l'agenda du
       // tableau de bord) — un rendez-vous avancé de 9 h à 11 h le même jour doit s'y voir.
@@ -174,6 +217,7 @@ function appliquerRendezVousAgenda(depot, detections, resultat) {
     d.detectionsAgenda.rendezVousSignature = det.dateIso;
     delete d.detectionsAgenda.rendezVousDisparu;
     delete d.detectionsAgenda.rendezVousRetire;
+    delete d.rendezVousARemplacer;
     poserHoraireRendezVous(d, det);
     d.historique = d.historique || [];
     d.historique.push({
@@ -247,7 +291,7 @@ async function executerTourSurveillanceAgenda(depot, reglagesExchange, injection
     const dossiersActifs = depot.tousActifs().filter((d) => !d.archive);
     resultat.dossiersVerifies = dossiersActifs.length;
     const detections = actionsDetecteesDepuisEvenements(evenements, dossiersActifs, jour);
-    const applique = appliquerDetectionsAgenda(depot, detections, jour);
+    const applique = appliquerDetectionsAgenda(depot, detections, jour, r.categoriesRdv);
     resultat.ok = true;
     resultat.misAJour = applique.misAJour;
     resultat.dejaRenseignes = applique.dejaRenseignes;
@@ -334,7 +378,7 @@ function demarrerSurveillanceAgenda(depot, parametresRepo, injections, intervall
 }
 
 module.exports = {
-  appliquerDetectionsAgenda, appliquerRendezVousAgenda, dateDuJourParis, executerTourSurveillanceAgenda,
+  appliquerDetectionsAgenda, appliquerRendezVousAgenda, rendezVousMarqueAnnule, marquerSignatureAReplacer, dateDuJourParis, executerTourSurveillanceAgenda,
   executerEtEnregistrerTourAgenda, demarrerSurveillanceAgenda, INTERVALLE_SURVEILLANCE_AGENDA_MS,
   connexionAgendaConfiguree, lectureAgendaSuspendue, reinitialiserDisjoncteurAgenda, signalerIdentifiantsRefuses
 };

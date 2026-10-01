@@ -456,3 +456,47 @@ test('executerEtEnregistrerTourAgenda : garde les rendez-vous du jour pour la fe
   assert.equal(complet.evenements.map((e) => e.sujet).join('|'), 'VTE - DUPONT / MARTIN|Point équipe');
   db.close();
 });
+
+test('signature en jaune « annulé / à replacer » : la date quitte la fiche, puis revient si le jaune est retiré', () => {
+  const db = ouvrirDb(':memory:');
+  const depot = creerDepot(db);
+  depot.creer({ id: 'd1', nom: 'DUPONT / MARTIN' });
+  const cats = { office: 'Catégorie Verte', visio: 'Catégorie Violette', confrere: 'Catégorie Orange', annule: 'Catégorie Jaune' };
+  const det = (categories) => ({ dossierId: 'd1', dossierNom: 'x', reference: 'DUPONT', dateIso: '2099-11-10', rendezVous: true, appelFonds: false, projetEnvoye: false, heure: '10:30', heureFin: '11:30', categories });
+  appliquerDetectionsAgenda(depot, [det(['Catégorie Verte'])], '2026-09-25', cats);
+  assert.equal(depot.trouverParId('d1').rendezVousSignature, '2099-11-10');
+
+  // Passé en jaune dans Outlook (casse et accents ignorés).
+  let r = appliquerDetectionsAgenda(depot, [det(['catégorie jaune'])], '2026-09-26', cats);
+  let d = depot.trouverParId('d1');
+  assert.equal(d.rendezVousSignature, null);
+  assert.equal(`${d.rendezVousARemplacer.date}|${d.rendezVousARemplacer.heure}`, '2099-11-10|10:30');
+  assert.equal(d.detectionsAgenda.rendezVousRetire, '2099-11-10');
+  assert.match(d.historique[d.historique.length - 1].texte, /annulé \/ à replacer/);
+  assert.equal(r.misAJour[0].action, 'rendezVousARemplacer');
+  // Toujours jaune au tour suivant : rien ne bouge, rien n'est redit.
+  const n = d.historique.length;
+  appliquerDetectionsAgenda(depot, [det(['Catégorie Jaune'])], '2026-09-27', cats);
+  assert.equal(depot.trouverParId('d1').historique.length, n);
+  assert.equal(depot.trouverParId('d1').rendezVousSignature, null);
+
+  // Sorti du jaune à la même date : la fiche reprend la signature.
+  appliquerDetectionsAgenda(depot, [det(['Catégorie Verte'])], '2026-09-28', cats);
+  d = depot.trouverParId('d1');
+  assert.equal(d.rendezVousSignature, '2099-11-10');
+  assert.equal(d.rendezVousARemplacer, undefined);
+
+  // Sans nom réglé pour « annulé », le jaune ne veut rien dire.
+  appliquerDetectionsAgenda(depot, [det(['Catégorie Jaune'])], '2026-09-29', { office: 'Catégorie Verte' });
+  assert.equal(depot.trouverParId('d1').rendezVousSignature, '2099-11-10');
+  db.close();
+});
+
+test('signature en jaune : un rendez-vous retiré à la main dans CLAIRE ne revient pas', () => {
+  const db = ouvrirDb(':memory:');
+  const depot = creerDepot(db);
+  depot.creer({ id: 'd1', nom: 'DUPONT', detectionsAgenda: { rendezVousRetire: '2099-11-10' } });
+  appliquerDetectionsAgenda(depot, [{ dossierId: 'd1', reference: 'DUPONT', dateIso: '2099-11-10', rendezVous: true, categories: ['Catégorie Verte'] }], '2026-09-25', { annule: 'Catégorie Jaune' });
+  assert.equal(depot.trouverParId('d1').rendezVousSignature || '', '');
+  db.close();
+});

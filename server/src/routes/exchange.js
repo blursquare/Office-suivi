@@ -287,6 +287,11 @@ function creerRouteurExchange(parametresRepo, injections = {}) {
       sujet = String(b.sujet || '').replace(/[\u0000-\u001f]/g, ' ').trim().slice(0, 200);
       if (!sujet) return res.status(400).json({ ok: false, message: 'Le titre ne peut pas être vide.' });
     }
+    let categories;
+    if (b.categories !== undefined) {
+      if (!Array.isArray(b.categories) || b.categories.length > 5) return res.status(400).json({ ok: false, message: 'Catégories invalides.' });
+      categories = [...new Set(b.categories.map(categorieValide).filter(Boolean))];
+    }
     const journeeEntiere = b.journeeEntiere === true;
     const horaire = horaireModifie({ date: b.date, heure: b.heure, heureFin: b.heureFin, dateFin: b.dateFin, journeeEntiere });
     if (!horaire) return res.status(400).json({ ok: false, message: 'Date ou heures invalides : la fin doit suivre le début.' });
@@ -294,7 +299,7 @@ function creerRouteurExchange(parametresRepo, injections = {}) {
     if (!reglages) return;
     const r = await modifierRendezVousExchange({
       url: reglages.url, email: reglages.email, motDePasse: reglages.motDePasse,
-      itemId: itemId.trim(), changeKey: String(b.changeKey || '').trim(), sujet, debut: horaire.debut, fin: horaire.fin
+      itemId: itemId.trim(), changeKey: String(b.changeKey || '').trim(), sujet, debut: horaire.debut, fin: horaire.fin, categories
     }, injections);
     if (r.ok && typeof parametresRepo.lireAgendaOffice === 'function') {
       const stocke = ((parametresRepo.lireAgendaOffice() || {}).evenements || []).find((e) => e.itemId === itemId.trim());
@@ -304,7 +309,8 @@ function creerRouteurExchange(parametresRepo, injections = {}) {
           ...stocke, itemId: r.itemId || stocke.itemId, changeKey: r.changeKey || '',
           sujet: sujet !== undefined ? sujet : stocke.sujet,
           date: b.date, dateFin: journeeEntiere ? (b.dateFin || b.date) : b.date,
-          heure: journeeEntiere ? null : b.heure, heureFin: journeeEntiere ? null : b.heureFin, journeeEntiere
+          heure: journeeEntiere ? null : b.heure, heureFin: journeeEntiere ? null : b.heureFin, journeeEntiere,
+          ...(categories ? { categories } : {})
         });
       }
     }

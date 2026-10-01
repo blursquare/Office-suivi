@@ -472,7 +472,9 @@ const URL_EWS_DEFAUT = 'https://mail.authentic-connect.fr/EWS/Exchange.asmx';
 // couleur n'est pas dans l'événement mais dans la liste des catégories de la boîte : il faut donc le
 // NOM exact de la catégorie. Par défaut, les noms qu'Outlook donne en français aux catégories de
 // couleur ; l'étude les ajuste dans les Réglages si elle les a renommées.
-const CATEGORIES_RDV_DEFAUT = { office: 'Catégorie Verte', visio: 'Catégorie Violette', confrere: 'Catégorie Orange' };
+// `annule` (étude, 01/10) : rendez-vous annulé ou à replacer — jaune, la signature d'un dossier
+// marquée ainsi repasse « à placer » (voir agendaWatch.appliquerRendezVousAgenda).
+const CATEGORIES_RDV_DEFAUT = { office: 'Catégorie Verte', visio: 'Catégorie Violette', confrere: 'Catégorie Orange', annule: 'Catégorie Jaune' };
 
 function assainirCategoriesRdv(brut, precedent) {
   const b = (brut && typeof brut === 'object') ? brut : {};

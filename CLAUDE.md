@@ -114,7 +114,10 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
    (30/09), création de tout rendez-vous et **suppression de n'importe lequel après confirmation**
    (`POST /exchange/evenement/supprimer`, `MoveToDeletedItems`) ; **modification** (01/10, titre + Start/End
    seulement, `POST /exchange/evenement/modifier`) par le crayon du détail ou en **glissant** le rendez-vous
-   (Semaine/Jour, souris, confirmé au lâcher ; la signature d'un dossier emmène la fiche). **Un seul essai par appel, aucun réessai automatique** (verrouillage du compte),
+   (Semaine/Jour, souris, confirmé au lâcher ; la signature d'un dossier emmène la fiche) ; la **catégorie** s'y change aussi
+   (`item:Categories` remplacée, catégories manuelles gardées) dont **« Annulé / à replacer »** (jaune,
+   `categoriesRdv.annule`) : une signature ainsi marquée — dans CLAIRE ou Outlook — quitte la fiche
+   (`rendezVousARemplacer`) et revient « à placer » ; retirer le jaune la rétablit. **Un seul essai par appel, aucun réessai automatique** (verrouillage du compte),
    disjoncteur sur refus d'identifiants (côté client pour les écritures ; côté serveur, la lecture
    automatique est suspendue tant que les identifiants refusés restent enregistrés). Suppression = `MoveToDeletedItems`, jamais `HardDelete`.
    Microsoft Graph / Power Automate premium ne sont pas disponibles. **Lecture de la boîte de
@@ -312,7 +315,8 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
   questionnaire J+1…J+14, un mot un an après — jamais au client d'un confrère). **Couleur d'un
   rendez-vous = celle d'Outlook** (étude, 30/09) : couleur nommée dans la catégorie
   (`couleurCategorieOutlook`, jetons `--cat-*`), sinon type réglé (office/visio/confrère), sinon
-  absence, signature, autre — page Agenda et fenêtre du matin. Fenêtre du matin : « À faire » à gauche,
+  absence, signature, autre — page Agenda et fenêtre du matin. **Absences et dates butoir en rose** (étude, 01/10, avant la
+  couleur Outlook ; absences rayées ; `estDateButoirAgenda`). Fenêtre du matin : « À faire » à gauche,
   onglets Agenda du jour · Emails · Nouveautés à droite (`ongletFenetreJour`), 660 px de haut au plus. Emails de confirmation,
   rappel et anniversaire = **premiers jets de CLAIRE**, à remplacer par les textes de l'étude.
 - **Sondage de créneaux de signature** (01/10, « comme un Doodle », `server/src/sondagesCreneaux.js`,

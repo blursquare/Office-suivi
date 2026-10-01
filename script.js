@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-01 11:14';
+  const VERSION_APP = '2026-10-01 11:41';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-01 11:41', resume: "Agenda : la catégorie d'un rendez-vous se change dans « Modifier » (à l'office, en visio, chez un confrère, sans catégorie) et une catégorie jaune « Annulé / à replacer » s'ajoute — posée sur une signature, elle retire la date de la fiche et remet le dossier dans « Rendez-vous à placer » (aussi quand le jaune est posé dans Outlook) ; retirer le jaune la rétablit. Dates butoir et absences en rose (absences rayées) pour les distinguer des rendez-vous." },
     { version: '2026-10-01 11:14', resume: "Claire Scan : chaque scan montre une vignette de sa première page ; un clic ouvre l'aperçu de toutes les pages, avec ce que CLAIRE a reconnu. « Ranger » et « Laisser dans Scan » tournent pendant le traitement. Fiche : l'encadré « Prochaine étape » ressort sur un fond teinté. Obtention du prêt : « Garantie non identifiée » quand l'offre est reçue sans garantie lue." },
     { version: '2026-10-01 11:02', resume: "Agenda : un rendez-vous se modifie (crayon dans son détail : titre, date, heures) et se déplace en le glissant dans la vue Semaine ou Jour, après confirmation. Le rendez-vous de signature d'un dossier emmène la date et l'heure de la fiche. Les notes d'un rendez-vous n'affichent plus « &#xD; »." },
     { version: '2026-10-01 10:10', resume: "Fenêtre du matin : plus de barre de défilement (flèches ▲▼) à côté des onglets Agenda du jour · Emails · Nouveautés. Notification Teams « dossier complet » : la phrase « Il est prêt à être rédigé. » est retirée." },
@@ -12082,6 +12083,10 @@
     visio: { libelle: 'En visio', court: 'Visio' },
     confrere: { libelle: 'Chez un confrère', court: 'Confrère' }
   };
+  // Catégories qu'on peut poser sur un rendez-vous de l'agenda : le lieu (TYPES_RDV) et, en jaune,
+  // « Annulé / à replacer » (étude, 01/10) — la signature d'un dossier ainsi marquée repasse « à
+  // placer ». Nom Outlook de chacune réglé dans Réglages › Rappels et agenda (categoriesRdv).
+  var CATEGORIES_AGENDA = Object.assign({}, TYPES_RDV, { annule: { libelle: 'Annulé / à replacer', court: 'À replacer' } });
 
   function normaliserNomCategorie(t) {
     return String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
@@ -13239,7 +13244,9 @@
           iso ? true : echeanceValidee(d, cle), { etatSansDate: 'À envoyer', etatFait: '✓ Envoyé', sansValidation: true, action }) });
       });
     }
-    lignes.push({ iso: d.rendezVousSignature, html: renderLigneEcheance('rendezVousSignature', 'Signature', d.rendezVousSignature, d.id, null, null, null, false, renderSousRendezVous(d, butoirSousRdv), false, echeanceValidee(d, 'rendezVousSignature'), { fort: true, heure: plageHoraireRendezVous(d.rendezVousSignatureHeure, d.rendezVousSignatureHeureFin) }) });
+    const aReplacer = !d.rendezVousSignature && d.rendezVousARemplacer && d.rendezVousARemplacer.date ? d.rendezVousARemplacer : null;
+    const noteReplacer = aReplacer ? `<span class="ech-note ech-a-replacer"><span class="dot-label dl-pret"><span class="dot"></span>Annulé</span> prévu le ${escapeHtml(formatDateFr(aReplacer.date))}${aReplacer.heure ? ' à ' + escapeHtml(aReplacer.heure) : ''} — à replacer</span>` : '';
+    lignes.push({ iso: d.rendezVousSignature, html: renderLigneEcheance('rendezVousSignature', 'Signature', d.rendezVousSignature, d.id, null, null, null, false, noteReplacer + renderSousRendezVous(d, butoirSousRdv), false, echeanceValidee(d, 'rendezVousSignature'), { fort: true, heure: plageHoraireRendezVous(d.rendezVousSignatureHeure, d.rendezVousSignatureHeureFin), etatSansDate: aReplacer ? 'À replacer' : undefined }) });
     (d.autres || []).forEach((a, i) => lignes.push({ autre: true, iso: a.date, html: renderLigneEcheance('autre', escapeHtml(a.label), a.date, d.id, a.page, null, i, false, '', false, echeanceValidee(d, 'autre-' + i)) }));
     return `<ul class="ech-liste">${ordonnerEcheancesFiche(lignes).map(l => l.html).join('')}</ul>`;
   }
@@ -18218,11 +18225,33 @@
   function typeEvenementAgenda(e, categoriesRdv) {
     const cats = ((e && e.categories) || []).map(normaliserNomCategorie);
     const noms = categoriesRdv || {};
-    return Object.keys(TYPES_RDV).find(cle => noms[cle] && cats.indexOf(normaliserNomCategorie(noms[cle])) !== -1) || '';
+    // « Annulé / à replacer » l'emporte sur le lieu : un rendez-vous vert passé en jaune est annulé.
+    return ['annule'].concat(Object.keys(TYPES_RDV)).find(cle => noms[cle] && cats.indexOf(normaliserNomCategorie(noms[cle])) !== -1) || '';
+  }
+
+  // Pure : date butoir posée dans l'agenda (« Obtention du prêt — … », « Vente préalable — … », ou un
+  // titre qui le dit) — en rose avec les absences (étude, 01/10 : les distinguer des rendez-vous).
+  function estDateButoirAgenda(e) {
+    const t = String((e && e.sujet) || '');
+    return /^(obtention du pr[êe]t|vente pr[ée]alable)\s+[—–-]\s/i.test(t) || /date\s+butoir/i.test(t);
+  }
+
+  // Pure : les catégories à écrire quand on change celle d'un rendez-vous — celles qu'il portait,
+  // sans aucune des catégories réglées (lieu, annulé), plus la nouvelle. Les autres (posées à la main
+  // dans Outlook) restent.
+  function categoriesApresChangement(categories, categoriesRdv, nouvelleCle) {
+    const noms = categoriesRdv || {};
+    const reglees = Object.keys(CATEGORIES_AGENDA).map(cle => normaliserNomCategorie(noms[cle])).filter(Boolean);
+    const gardees = (categories || []).filter(c => reglees.indexOf(normaliserNomCategorie(c)) === -1);
+    const nouvelle = nouvelleCle && noms[nouvelleCle] ? [noms[nouvelleCle]] : [];
+    return nouvelle.concat(gardees).slice(0, 5);
   }
 
   function teinteEvenementAgenda(e, categoriesRdv) {
     if (!e) return 'autre';
+    // Absences et dates butoir avant la couleur Outlook : ce ne sont pas des rendez-vous (rose).
+    if (e.absence) return 'absence';
+    if (estDateButoirAgenda(e)) return 'butoir';
     for (const c of e.categories || []) {
       const couleur = couleurCategorieOutlook(c);
       if (couleur) return couleur;
@@ -18240,7 +18269,8 @@
 
   function etiquetteEvenementAgenda(e, teinte) {
     if (teinte === 'absence') return 'Absence';
-    if (TYPES_RDV[teinte]) return e.signature ? `Signature · ${TYPES_RDV[teinte].court}` : TYPES_RDV[teinte].libelle;
+    if (teinte === 'butoir' || estDateButoirAgenda(e)) return 'Date butoir';
+    if (CATEGORIES_AGENDA[teinte]) return e.signature ? `Signature · ${CATEGORIES_AGENDA[teinte].court}` : CATEGORIES_AGENDA[teinte].libelle;
     if (e.signature) return 'Signature';
     if ((e.categories || []).length) return e.categories[0];
     return e.journeeEntiere ? 'Journée entière' : 'Rendez-vous';
@@ -19790,6 +19820,7 @@
     const e = agendaEvenements.find(x => cleEvenementAgenda(x) === m.cle);
     if (!e) return '';
     const suit = signatureSuitAgenda(dossierDeEvenement(e), e);
+    const typeActuel = typeEvenementAgenda(e, categoriesRdvReglees());
     const quand = e.journeeEntiere || !e.heure
       ? `<div class="ag-champs-ligne ag-champs-deux">
           <label class="ag-champ">Du <input type="date" id="agenda-modif-date" value="${escapeAttr(e.date)}" required></label>
@@ -19808,6 +19839,10 @@
       <form class="ag-modale-corps ag-form" onsubmit="event.preventDefault(); enregistrerModificationAgenda();">
         <label class="ag-champ">Titre <input type="text" id="agenda-modif-titre" required maxlength="200" value="${escapeAttr(e.sujet || '')}"></label>
         ${quand}
+        <div class="rdv-type-choix" role="radiogroup" aria-label="Catégorie du rendez-vous">
+          <label class="rdv-type-option"><input type="radio" name="agenda-modif-type" value=""${typeActuel ? '' : ' checked'}><span class="rdv-type-pastille"></span>Sans catégorie</label>
+          ${Object.entries(CATEGORIES_AGENDA).map(([cle, t]) => `<label class="rdv-type-option"><input type="radio" name="agenda-modif-type" value="${cle}"${typeActuel === cle ? ' checked' : ''}><span class="rdv-type-pastille rdv-type-${cle}"></span>${t.libelle}</label>`).join('')}
+        </div>
         <footer class="ag-modale-pied ag-modale-pied-form">
           <span class="jour-espace"></span>
           <button type="button" class="secondary" onclick="fermerModaleAgenda()">Annuler</button>
@@ -19832,7 +19867,15 @@
     if (!journee && (!/^\d{2}:\d{2}$/.test(nouveau.heure) || !/^\d{2}:\d{2}$/.test(nouveau.heureFin) || nouveau.heureFin <= nouveau.heure)) {
       afficherToast('L’heure de fin doit suivre l’heure de début.', 'OK', null); return;
     }
-    const inchange = sujet === (e.sujet || '') && date === e.date
+    const choixType = document.querySelector('input[name="agenda-modif-type"]:checked');
+    const typeAvant = typeEvenementAgenda(e, categoriesRdvReglees());
+    const typeApres = choixType && CATEGORIES_AGENDA[choixType.value] ? choixType.value : '';
+    if (typeApres !== typeAvant) {
+      if (typeApres && !categoriesRdvReglees()[typeApres]) { afficherToast('Nom de la catégorie Outlook à régler d’abord (Réglages › Rappels et agenda).', 'OK', null); return; }
+      nouveau.categories = categoriesApresChangement(e.categories, categoriesRdvReglees(), typeApres);
+      nouveau.typeRdv = typeApres;
+    }
+    const inchange = sujet === (e.sujet || '') && date === e.date && typeApres === typeAvant
       && (journee ? nouveau.dateFin === (e.dateFin || e.date) : nouveau.heure === e.heure && nouveau.heureFin === (e.heureFin || ''));
     if (inchange) { fermerModaleAgenda(); return; }
     const ecrire = async () => {
@@ -19845,7 +19888,10 @@
     // Mêmes règles de l'étude qu'à la création : une exception se confirme.
     const motif = journee ? '' : motifCreneauExceptionnel(nouveau.heure, minutesHeure(nouveau.heureFin) - minutesHeure(nouveau.heure),
       rendezVousHorairesJour(agendaEvenements.filter(x => x !== e), date).length);
-    if (motif) demanderConfirmation(`Enregistrer ce rendez-vous malgré tout ? Il est exceptionnel : ${motif}.`, ecrire, { bouton: 'Enregistrer quand même', ton: 'valider' });
+    const d = dossierDeEvenement(e);
+    if (typeApres === 'annule' && typeAvant !== 'annule' && signatureSuitAgenda(d, e)) {
+      demanderConfirmation(`Marquer la signature de ${libelleDossierAffiche(d)} du ${dateAvecJourFr(e.date)} « annulée / à replacer » ? La date quitte la fiche et le dossier revient dans « Rendez-vous à placer ». Le rendez-vous reste dans Outlook, en jaune.`, ecrire, { bouton: 'Marquer à replacer', ton: 'valider' });
+    } else if (motif) demanderConfirmation(`Enregistrer ce rendez-vous malgré tout ? Il est exceptionnel : ${motif}.`, ecrire, { bouton: 'Enregistrer quand même', ton: 'valider' });
     else ecrire();
   }
 
@@ -19860,7 +19906,7 @@
       const reponse = await fetchAvecAuth('/api/exchange/evenement/modifier', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ itemId: e.itemId, changeKey: e.changeKey || '', ...nouveau })
+        body: JSON.stringify((({ typeRdv, ...envoi }) => envoi)({ itemId: e.itemId, changeKey: e.changeKey || '', ...nouveau }))
       });
       const corps = await reponse.json();
       if (!corps.ok) {
@@ -19873,12 +19919,43 @@
       e.date = nouveau.date;
       if (nouveau.journeeEntiere) e.dateFin = nouveau.dateFin || nouveau.date;
       else { e.dateFin = nouveau.date; e.heure = nouveau.heure; e.heureFin = nouveau.heureFin; }
+      if (Array.isArray(nouveau.categories)) e.categories = nouveau.categories.slice();
       if (corps.itemId) e.itemId = corps.itemId;
       if (corps.changeKey) e.changeKey = corps.changeKey;
       // La note relue garde son ChangeKey : il a changé avec l'écriture.
       if (notesAgenda[e.itemId] && corps.changeKey) notesAgenda[e.itemId].changeKey = corps.changeKey;
       if (agendaSelection === ancienneCle) agendaSelection = cleEvenementAgenda(e);
       const quand = (x) => `${formatDateFr(x.date)}${x.heure ? ' à ' + x.heure : ''}`;
+      const typeRdv = nouveau.typeRdv;
+      if (suit && typeRdv === 'annule') {
+        // Signature « annulée / à replacer » (étude, 01/10) : la date quitte la fiche, le dossier
+        // revient « à placer » ; même effet que la lecture de l'agenda côté serveur.
+        marquerSignatureAReplacerClient(d, e.date, e.heure || '');
+        sauvegarder(d);
+        render();
+        afficherToast(`Signature à replacer : ${libelleDossierAffiche(d)} revient dans « Rendez-vous à placer ».`, 'OK', null);
+        renderPageAgenda();
+        return true;
+      }
+      if (!suit && d && e.signature && typeRdv !== undefined && typeRdv !== 'annule' && !d.rendezVousSignature && d.rendezVousARemplacer) {
+        // Sorti du jaune : la signature est maintenue (ou replacée à la nouvelle date).
+        d.rendezVousSignature = e.date;
+        if (e.heure) d.rendezVousSignatureHeure = e.heure;
+        if (TYPES_RDV[typeRdv]) d.rendezVousType = typeRdv;
+        d.rdvAgendaItem = { itemId: e.itemId, changeKey: e.changeKey || '', date: e.date };
+        d.detectionsAgenda = Object.assign({}, d.detectionsAgenda || {}, { rendezVousSignature: e.date });
+        delete d.detectionsAgenda.rendezVousRetire;
+        delete d.rendezVousARemplacer;
+        d.confiance = d.confiance || {};
+        d.confiance.rendezVousSignature = 'manuel';
+        ajouterHistorique(d, `Rendez-vous de signature replacé depuis l’agenda : ${quand(e)}.`);
+        sauvegarder(d);
+        render();
+        afficherToast(`Signature de ${libelleDossierAffiche(d)} replacée le ${dateAvecJourFr(e.date)}.`, 'OK', null);
+        renderPageAgenda();
+        return true;
+      }
+      if (suit && TYPES_RDV[typeRdv]) d.rendezVousType = typeRdv;
       if (suit) {
         d.rendezVousSignature = e.date;
         if (e.heure && !nouveau.journeeEntiere) d.rendezVousSignatureHeure = e.heure;
@@ -19899,6 +19976,18 @@
       afficherToast('Serveur injoignable — rendez-vous non modifié.', 'OK', null);
       return false;
     }
+  }
+
+  // Signature marquée « annulé / à replacer » (miroir de marquerSignatureAReplacer, agendaWatch.js).
+  function marquerSignatureAReplacerClient(d, date, heure) {
+    d.rendezVousARemplacer = { date, heure: d.rendezVousSignatureHeure || heure || '', le: isoAujourdhuiLocal() };
+    d.detectionsAgenda = Object.assign({}, d.detectionsAgenda || {}, { rendezVousRetire: date });
+    delete d.detectionsAgenda.rendezVousSignature;
+    ajouterHistorique(d, `Rendez-vous de signature du ${formatDateFr(date)} marqué « annulé / à replacer » depuis l’agenda — à replacer.`);
+    d.rendezVousSignature = null;
+    d.rendezVousSignatureHeure = '';
+    d.rendezVousSignatureHeureFin = '';
+    d.rendezVousSignatureCategories = [];
   }
 
   // ---- Glisser-déposer dans la grille (vues Semaine et Jour) ----
@@ -24832,6 +24921,9 @@
       rendezVousSignatureLieu: typeof d.rendezVousSignatureLieu === 'string' ? d.rendezVousSignatureLieu.slice(0, 160) : '',
       rendezVousSignatureCategories: Array.isArray(d.rendezVousSignatureCategories)
         ? d.rendezVousSignatureCategories.filter((c) => typeof c === 'string').slice(0, 5) : [],
+      rendezVousARemplacer: d.rendezVousARemplacer && /^\d{4}-\d{2}-\d{2}$/.test(d.rendezVousARemplacer.date || '')
+        ? { date: d.rendezVousARemplacer.date, heure: /^\d{2}:\d{2}$/.test(d.rendezVousARemplacer.heure || '') ? d.rendezVousARemplacer.heure : '', le: typeof d.rendezVousARemplacer.le === 'string' ? d.rendezVousARemplacer.le.slice(0, 10) : '' }
+        : null,
       ventebien: dateValide(d.ventebien),
       autres: Array.isArray(d.autres)
         ? d.autres.filter(a => a && typeof a === 'object' && dateValide(a.date))
@@ -34358,7 +34450,7 @@
       const relaisSondage = document.getElementById('exchange-relais-sondage');
       if (relaisSondage && document.activeElement !== relaisSondage) relaisSondage.value = corps.relaisSondage || '';
       const cats = corps.categoriesRdv || {};
-      for (const cle of Object.keys(TYPES_RDV)) {
+      for (const cle of Object.keys(CATEGORIES_AGENDA)) {
         const champ = document.getElementById(`exchange-cat-${cle}`);
         if (champ && document.activeElement !== champ) champ.value = cats[cle] || '';
       }
@@ -34408,7 +34500,7 @@
       calendrierPartage: champPartage ? champPartage.value.trim() : '',
       pageSondage: (document.getElementById('exchange-page-sondage') || { value: '' }).value.trim(),
       relaisSondage: (document.getElementById('exchange-relais-sondage') || { value: '' }).value.trim(),
-      categoriesRdv: Object.fromEntries(Object.keys(TYPES_RDV).map((cle) => {
+      categoriesRdv: Object.fromEntries(Object.keys(CATEGORIES_AGENDA).map((cle) => {
         const champ = document.getElementById(`exchange-cat-${cle}`);
         return [cle, champ ? champ.value.trim() : ''];
       }))

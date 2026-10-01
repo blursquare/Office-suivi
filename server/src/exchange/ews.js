@@ -745,8 +745,8 @@ async function deplacerRendezVousExchange({ url, email, motDePasse, itemId, chan
 // --- Modifier un rendez-vous depuis la page Agenda (étude, 01/10 : « modifier un rendez-vous, titre,
 // date horaire et glisser déposé les rendez-vous ») ---
 //
-// Titre, début et fin dans un seul UpdateItem ; rien d'autre n'est touché (lieu, catégorie de
-// couleur, notes, participants). Un seul essai.
+// Titre, début, fin et — si le poste les envoie — catégories (couleur : office, visio, confrère,
+// annulé / à replacer) dans un seul UpdateItem ; ni lieu, ni notes, ni participants. Un seul essai.
 
 // Pure : bornes EWS d'un horaire saisi à Paris. Rendez-vous horodaté : début et fin le même jour,
 // fin après le début. Journée entière : minuit du premier jour → minuit du lendemain du dernier.
@@ -767,7 +767,7 @@ function horaireModifie({ date, heure, heureFin, dateFin, journeeEntiere }) {
   };
 }
 
-function corpsModifierRendezVous({ itemId, changeKey, sujet, debut, fin }) {
+function corpsModifierRendezVous({ itemId, changeKey, sujet, debut, fin, categories }) {
   const champ = (uri, xml) => '<t:SetItemField><t:FieldURI FieldURI="' + uri + '"/><t:CalendarItem>' + xml + '</t:CalendarItem></t:SetItemField>';
   return ENVELOPPE_DEBUT
     + '<m:UpdateItem ConflictResolution="AutoResolve" SendMeetingInvitationsOrCancellations="SendToNone">'
@@ -775,6 +775,12 @@ function corpsModifierRendezVous({ itemId, changeKey, sujet, debut, fin }) {
     + '<t:ItemId Id="' + echapperXml(itemId) + '"' + (changeKey ? ' ChangeKey="' + echapperXml(changeKey) + '"' : '') + '/>'
     + '<t:Updates>'
     + (typeof sujet === 'string' ? champ('item:Subject', '<t:Subject>' + echapperXml(sujet) + '</t:Subject>') : '')
+    // Catégories (couleur) : la liste entière est remplacée — le poste envoie celles à garder.
+    + (Array.isArray(categories)
+      ? (categories.length
+        ? champ('item:Categories', '<t:Categories>' + categories.map((c) => '<t:String>' + echapperXml(c) + '</t:String>').join('') + '</t:Categories>')
+        : '<t:DeleteItemField><t:FieldURI FieldURI="item:Categories"/></t:DeleteItemField>')
+      : '')
     + champ('calendar:Start', '<t:Start>' + debut + '</t:Start>')
     + champ('calendar:End', '<t:End>' + fin + '</t:End>')
     + '</t:Updates>'
@@ -782,8 +788,8 @@ function corpsModifierRendezVous({ itemId, changeKey, sujet, debut, fin }) {
     + '</m:UpdateItem>' + ENVELOPPE_FIN;
 }
 
-async function modifierRendezVousExchange({ url, email, motDePasse, itemId, changeKey, sujet, debut, fin, delaiMs }, injections) {
-  const r = await posterEws({ url, email, motDePasse, delaiMs, body: corpsModifierRendezVous({ itemId, changeKey, sujet, debut, fin }) }, injections);
+async function modifierRendezVousExchange({ url, email, motDePasse, itemId, changeKey, sujet, debut, fin, categories, delaiMs }, injections) {
+  const r = await posterEws({ url, email, motDePasse, delaiMs, body: corpsModifierRendezVous({ itemId, changeKey, sujet, debut, fin, categories }) }, injections);
   if (r.echec) return r.echec;
   const texte = String(r.corps || '');
   if (/<m:ResponseCode>ErrorItemNotFound<\/m:ResponseCode>/.test(texte)) {

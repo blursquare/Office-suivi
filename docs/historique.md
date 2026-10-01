@@ -13676,3 +13676,36 @@ Quatre demandes de l'étude dans la même matinée :
 Vérifié dans Chromium avec pdf.js 3.11.174 servi en local (le CDN est injoignable ici), un vrai
 serveur, un dossier Scan et un NAS de test : vignettes, aperçu de 3 pages, Échap, indicateurs pendant
 une réponse retardée, copie rangée sur le NAS, fiche (encadré, garantie) ; clair, sombre, téléphone.
+
+### 01/10/2026 11 h 41 — Agenda : changer la catégorie, « Annulé / à replacer » en jaune ; butoirs et absences en rose
+
+Demandes : « permettre une fois un rendez-vous créé de modifier la catégorie (visio, chez le confrère…)
+et rajouter une catégorie jaune : annulé ou à replacer » ; puis « pour les dates butoir et absences sur
+l'agenda mettre une autre couleur pour les distinguer des autres rdv (violet ?) ». Choix de l'étude
+(questions posées) : une signature passée en jaune **revient « à placer »** ; **rose** pour butoirs et
+absences (le violet est celui des visios).
+
+- **Catégorie d'un rendez-vous** : le formulaire « Modifier » propose Sans catégorie · À l'office · En
+  visio · Chez un confrère · Annulé / à replacer (`CATEGORIES_AGENDA` = `TYPES_RDV` + `annule`,
+  `typeEvenementAgenda` donne la priorité à `annule`). `categoriesApresChangement` (pur) retire toutes
+  les catégories réglées et pose la nouvelle, en gardant celles mises à la main dans Outlook.
+  Serveur : `corpsModifierRendezVous({ categories })` → SetItemField `item:Categories` (liste
+  remplacée) ou DeleteItemField si vide ; route `POST /exchange/evenement/modifier` accepte
+  `categories` (5 au plus). Nom Outlook réglable (Réglages › Rappels et agenda), défaut
+  `annule: 'Catégorie Jaune'` (`CATEGORIES_RDV_DEFAUT`).
+- **Signature « annulée / à replacer »** (confirmée côté poste) : la date quitte la fiche
+  (`rendezVousARemplacer = { date, heure, le }`, historique, repère `detectionsAgenda.rendezVousRetire`),
+  le dossier revient dans « Rendez-vous à placer » ; la fiche affiche « Annulé — prévu le … — à
+  replacer » sur la ligne Signature. Même effet quand le jaune est posé dans Outlook
+  (`agendaWatch.marquerSignatureAReplacer`, seulement le rendez-vous à la date de la fiche) ; sortir
+  du jaune (dans CLAIRE ou Outlook) rétablit la signature, à sa date — un rendez-vous retiré à la main
+  dans CLAIRE, lui, ne revient toujours pas. **Si l'étude utilise déjà le jaune pour autre chose**,
+  régler une catégorie dédiée.
+- **Couleurs** : absences et dates butoir (`estDateButoirAgenda` : « Obtention du prêt — … », « Vente
+  préalable — … », « date butoir ») en rose `--cat-rose`, avant la couleur Outlook ; absences rayées.
+  Annulé : jaune. Étiquette « Date butoir » dans le détail.
+
+Vérifié dans Chromium (vrai serveur, faux Exchange) : formulaire, confirmation, requête EWS
+(Catégorie Jaune / Verte / Violette), fiche à replacer puis rétablie, liste « à placer », couleurs ;
+clair, sombre, téléphone. Non vérifié sur le vrai Exchange : nom exact de la catégorie jaune dans la
+boîte de l'office.

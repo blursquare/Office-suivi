@@ -38,3 +38,20 @@ test('heureDepuisMinutesAgenda : « HH:MM »', () => {
   assert.equal(app.heureDepuisMinutesAgenda(9 * 60 + 5), '09:05');
   assert.equal(app.heureDepuisMinutesAgenda(0), '00:00');
 });
+
+test('catégorie « Annulé / à replacer » : l’emporte sur le lieu, et le changement garde les catégories posées à la main', () => {
+  const reglees = { office: 'Catégorie Verte', visio: 'Catégorie Violette', confrere: 'Catégorie Orange', annule: 'Catégorie Jaune' };
+  assert.equal(app.typeEvenementAgenda({ categories: ['Catégorie Verte', 'catégorie jaune'] }, reglees), 'annule');
+  assert.equal(app.typeEvenementAgenda({ categories: ['Catégorie Violette'] }, reglees), 'visio');
+  assert.equal(app.categoriesApresChangement(['Catégorie Verte', 'Important'], reglees, 'annule').join('|'), 'Catégorie Jaune|Important');
+  assert.equal(app.categoriesApresChangement(['Catégorie Jaune'], reglees, 'visio').join('|'), 'Catégorie Violette');
+  assert.equal(app.categoriesApresChangement(['Catégorie Verte', 'Important'], reglees, '').join('|'), 'Important', 'sans catégorie');
+});
+
+test('estDateButoirAgenda : les dates butoir posées par CLAIRE et les titres qui le disent', () => {
+  assert.equal(app.estDateButoirAgenda({ sujet: 'Obtention du prêt — MARTIN - Dossier DURAND / MARTIN' }), true);
+  assert.equal(app.estDateButoirAgenda({ sujet: 'Vente préalable — MARTIN - Dossier DURAND / MARTIN' }), true);
+  assert.equal(app.estDateButoirAgenda({ sujet: 'Date butoir LEROY' }), true);
+  assert.equal(app.estDateButoirAgenda({ sujet: 'VTE - DURAND / MARTIN' }), false);
+  assert.equal(app.estDateButoirAgenda({ sujet: 'Point sur l’obtention du prêt des clients' }), false);
+});

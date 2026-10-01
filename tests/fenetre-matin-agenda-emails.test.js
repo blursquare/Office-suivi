@@ -13,11 +13,13 @@ test('evenementsAgendaDuJour : seulement l’agenda lu aujourd’hui', () => {
   assert.equal(app.evenementsAgendaDuJour(null, '2099-10-14'), null);
 });
 
-test('teinteEvenementAgenda : la couleur de la catégorie Outlook d’abord, puis le type réglé, absence, signature, autre', () => {
+test('teinteEvenementAgenda : absence et date butoir d’abord, puis la couleur Outlook, le type réglé, signature, autre', () => {
   const reglees = { office: 'Signature office', visio: 'Catégorie Violette', confrere: 'Chez confrère' };
   assert.equal(app.teinteEvenementAgenda({ categories: ['catégorie verte'], signature: true }, reglees), 'vert');
   assert.equal(app.teinteEvenementAgenda({ categories: ['Catégorie Jaune'] }, reglees), 'jaune');
-  assert.equal(app.teinteEvenementAgenda({ categories: ['Catégorie Rouge'], absence: true }, reglees), 'rouge', 'Outlook montre la couleur de la catégorie');
+  // Étude, 01/10 : absences et dates butoir en rose, quelle que soit leur catégorie Outlook.
+  assert.equal(app.teinteEvenementAgenda({ categories: ['Catégorie Rouge'], absence: true }, reglees), 'absence');
+  assert.equal(app.teinteEvenementAgenda({ sujet: 'Obtention du prêt — MARTIN - Dossier DURAND / MARTIN', journeeEntiere: true, categories: ['Catégorie Bleue'] }, reglees), 'butoir');
   assert.equal(app.teinteEvenementAgenda({ categories: ['Signature office'] }, reglees), 'office', 'catégorie sans couleur dans son nom : le type réglé');
   assert.equal(app.teinteEvenementAgenda({ categories: [], signature: true }, reglees), 'signature');
   assert.equal(app.teinteEvenementAgenda({ absence: true, categories: [] }, reglees), 'absence');

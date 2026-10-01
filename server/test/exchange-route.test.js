@@ -301,3 +301,18 @@ test('POST /api/exchange/evenement/modifier : titre et horaire écrits, agenda g
   assert.equal(`${absent.ok}/${absent.introuvable}`, 'false/true');
   assert.doesNotMatch(JSON.stringify(absent), /SECRET123/);
 });
+
+test('POST /api/exchange/evenement/modifier : catégories remplacées (couleur), ou effacées', async () => {
+  await appeler('/api/exchange/reglages', { method: 'PUT', body: JSON.stringify({ actif: true, email: 'notaire@gossart.notaires.fr', motDePasse: 'SECRET123' }) });
+  const relu = await (await appeler('/api/exchange/reglages')).json();
+  assert.equal(relu.categoriesRdv.annule, 'Catégorie Jaune', 'catégorie « annulé / à replacer » par défaut');
+  reponseEws = '<m:UpdateItemResponseMessage ResponseClass="Success"><m:ResponseCode>NoError</m:ResponseCode><t:ItemId Id="ID9" ChangeKey="CK9"/>';
+  const poster = (corps) => appeler('/api/exchange/evenement/modifier', { method: 'POST', body: JSON.stringify(corps) });
+  assert.equal((await poster({ itemId: 'ID9', date: '2026-10-07', heure: '14:00', heureFin: '15:00', categories: 'Jaune' })).status, 400);
+  await poster({ itemId: 'ID9', date: '2026-10-07', heure: '14:00', heureFin: '15:00', categories: ['Catégorie Jaune', 'Important', 'Catégorie Jaune'] });
+  assert.match(envoisEws[envoisEws.length - 1], /FieldURI="item:Categories"\/><t:CalendarItem><t:Categories><t:String>Catégorie Jaune<\/t:String><t:String>Important<\/t:String><\/t:Categories>/);
+  await poster({ itemId: 'ID9', date: '2026-10-07', heure: '14:00', heureFin: '15:00', categories: [] });
+  assert.match(envoisEws[envoisEws.length - 1], /<t:DeleteItemField><t:FieldURI FieldURI="item:Categories"\/><\/t:DeleteItemField>/);
+  await poster({ itemId: 'ID9', date: '2026-10-07', heure: '14:00', heureFin: '15:00' });
+  assert.doesNotMatch(envoisEws[envoisEws.length - 1], /Categories/, 'catégories non envoyées : non touchées');
+});
