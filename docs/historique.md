@@ -14210,3 +14210,18 @@ bouton double quitte l'en-tête de la carte (`renderPageAgenda`) pour `#agenda-c
 `renderPageAgenda` (masqué si l'agenda Outlook n'est pas relié), hauteur 42 px comme le champ. Sous
 900 px : recherche puis bouton, chacun en pleine largeur, moitiés égales. Vérifié dans Chromium à 1400,
 1100 et 400 px.
+
+### 01/10/2026 22 h 21 — Agenda : fenêtre « Dates proposées » (suivi des dates envoyées)
+
+Demande de l'étude : « un lien pour accéder à une page qui permet de suivre les dates en attente de
+confirmation de rendez-vous envoyées ou déjà validées. À ouvrir dans un pop-up ». Dans la colonne de
+l'agenda, sous le petit calendrier, la rubrique « Dates proposées » (qui ne montrait que les sondages
+sans dossier en cours) devient un lien (`button.ag-lien-dates`, nombre en attente en pastille) qui ouvre
+`#dates-proposees-overlay` (`ouvrirSuiviDatesProposees`, relit `/api/sondages` à l'ouverture). Tous les
+sondages de créneaux, avec ou sans dossier, rangés par `classerSuiviDatesProposees` (pure, testée) :
+**En attente de réponse** (ouverts, plus récents d'abord : date d'envoi, réponses n/N, échéance des
+options, tableau des réponses `renderTableSondage` avec « Placer », puis Relancer / Relire / Annuler),
+**Validées** (placés, date retenue à venir d'abord puis passées ; « Voir dans l'agenda » ferme la fenêtre
+et va au jour), **Sans suite** (annulés/expirés, 20 au plus, repliés). Le nom d'un dossier ouvre sa fiche.
+La fenêtre se redessine à chaque relecture des sondages et après chaque action. Vérifié dans Chromium
+(clair, sombre, téléphone) avec des sondages inventés.

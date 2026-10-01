@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-01 22:10';
+  const VERSION_APP = '2026-10-01 22:21';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-01 22:21', resume: "Agenda : nouveau lien « Dates proposées » sous le petit calendrier (avec le nombre en attente). Il ouvre une fenêtre qui suit toutes les dates de rendez-vous envoyées par email, avec ou sans dossier : en attente de réponse (qui a répondu, Placer, Relancer, Relire, Annuler), validées (date retenue, « Voir dans l'agenda »), et sans suite. Le nom d'un dossier ouvre sa fiche." },
     { version: '2026-10-01 22:10', resume: "Agenda : le bouton double « Nouveau rendez-vous | Proposer des dates » passe en haut de la page, à droite du champ de recherche (même hauteur). Sur téléphone, il s'étend sous la recherche." },
     { version: '2026-10-01 22:08', resume: "Agenda : dans le détail d'un rendez-vous, « Supprimer de l'agenda » devient une simple poubelle rouge en haut, à côté du crayon. La confirmation avant suppression reste." },
     { version: '2026-10-01 22:06', resume: "Agenda : la recherche fonctionne comme sur le Suivi — taper un nom filtre l'agenda affiché (semaine, jour, mois et petit calendrier) ; le nombre de rendez-vous trouvés s'affiche sous la date, avec « Tout afficher » (ou Échap) pour revenir à tout l'agenda. Chaque dossier de la liste sous le champ porte une icône « fiche » qui ouvre directement sa fiche ; un clic sur son nom mène toujours à son rendez-vous." },
@@ -19605,35 +19606,113 @@
 
   // « Dates proposées » : les sondages sans dossier en cours (ceux d'un dossier vivent sur sa fiche),
   // leurs réponses, et le geste pour en lancer un (étude, 01/10).
+  // Lien de la colonne de l'agenda vers le suivi des dates proposées (étude, 01/10 : « un lien pour
+  // accéder à une page qui permet de suivre les dates en attente de confirmation ou déjà validées »).
   function renderSondagesSansDossierAgenda() {
     if (!exchangeAgendaPret()) return '';
-    const ouverts = sondagesCreneaux.filter(x => !x.dossierId && x.statut === 'ouvert');
-    // « Proposer des dates » est la moitié droite du bouton « Nouveau rendez-vous » (étude, 01/10) :
-    // la section ne s'affiche que s'il y a des dates proposées en attente.
-    if (!ouverts.length) return '';
-    return `<section class="ag-anticipe">
-        <h3 class="jour-section-titre">Dates proposées${ouverts.length ? ` <span class="jour-onglet-nb">${ouverts.length}</span>` : ''} ${infoBulle('Rendez-vous sans dossier dont plusieurs dates ont été proposées par email : les réponses arrivent ici. « Placer » crée le rendez-vous dans l’agenda et retire les options.')}</h3>
-        ${ouverts.map(x => {
-          const repondu = x.participants.length - sansReponseSondage(x).length;
-          return `<div class="sondage-panneau sondage-panneau-agenda">
-            <div class="sondage-tete"><b>${escapeHtml(x.titre || 'Rendez-vous')}</b><span class="hint">${repondu}/${x.participants.length} réponse${x.participants.length > 1 ? 's' : ''}</span></div>
-            <ul class="sondage-compact">${x.creneaux.map(c => {
-              const sy = (x.synthese || []).find(y => y.n === c.n);
-              const qui = x.participants.filter(p => { const r = (x.reponses || []).find(y => y.email === p.email); return r && (r.choix.indexOf(c.n) !== -1 || (r.siBesoin || []).indexOf(c.n) !== -1); }).map(p => libelleParticipantSondage(p));
-              return `<li class="${sy && sy.tous ? 'sondage-tous' : ''}">
-                <span class="sondage-compact-quand">${escapeHtml(new Date(c.date + 'T00:00:00').toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' }).replace('.', ''))} ${escapeHtml(c.heure.replace(':', ' h '))}
-                  <span class="hint" title="${escapeAttr(qui.length ? 'Possible pour : ' + qui.join(', ') : 'Personne n’a encore accepté ce créneau')}">${sy ? `${sy.accepte + (sy.siBesoin || 0)}/${sy.total}` : `0/${x.participants.length}`}</span></span>
-                <button type="button" class="action-rapide" onclick="placerCreneauSondage('${escapeOnclickArg(x.id)}', ${c.n})">Placer</button>
-              </li>`;
-            }).join('')}</ul>
-            <div class="sondage-actions">
-              <button type="button" class="lien-bouton" onclick="relancerSondage('${escapeOnclickArg(x.id)}')" ${sansReponseSondage(x).length ? '' : 'disabled'}>${icone('mail')} Relancer</button>
-              <button type="button" class="lien-bouton" onclick="relireSondage('${escapeOnclickArg(x.id)}')">${icone('rotate-ccw')} Relire</button>
-              <button type="button" class="lien-bouton" onclick="annulerSondage('${escapeOnclickArg(x.id)}')">${icone('x')} Annuler</button>
-            </div>
-          </div>`;
-        }).join('')}
-      </section>`;
+    const attente = sondagesCreneaux.filter(x => x.statut === 'ouvert').length;
+    return `<button type="button" class="ag-lien-dates" onclick="ouvrirSuiviDatesProposees()">
+        ${icone('users')}<span class="ag-lien-dates-texte">Dates proposées</span>
+        ${attente ? `<span class="jour-onglet-nb" title="En attente de réponse">${attente}</span>` : ''}
+        ${icone('chevron-right')}
+      </button>`;
+  }
+
+  // ---- Suivi des dates proposées (fenêtre) : en attente de réponse, validées, sans suite ----
+  // Pure : les sondages de créneaux rangés pour le suivi. En attente = ouverts (les plus récents
+  // d'abord) ; validées = placés, par date retenue (la plus proche à venir d'abord, puis les passées) ;
+  // sans suite = annulés ou expirés, les 20 plus récents.
+  function classerSuiviDatesProposees(sondages, aujourdhuiIso) {
+    const liste = Array.isArray(sondages) ? sondages : [];
+    const auj = aujourdhuiIso || isoAujourdhuiLocal();
+    const retenu = (x) => (x.creneaux || []).find(c => c.n === x.choisi) || null;
+    const attente = liste.filter(x => x.statut === 'ouvert')
+      .sort((a, b) => String(b.creeLe || '').localeCompare(String(a.creeLe || '')));
+    const valides = liste.filter(x => x.statut === 'place').map(x => ({ s: x, creneau: retenu(x) }))
+      .sort((a, b) => {
+        const da = a.creneau ? a.creneau.date : '', db = b.creneau ? b.creneau.date : '';
+        const fa = da >= auj, fb = db >= auj;
+        if (fa !== fb) return fa ? -1 : 1;
+        return fa ? da.localeCompare(db) : db.localeCompare(da);
+      });
+    const sansSuite = liste.filter(x => x.statut === 'annule' || x.statut === 'expire')
+      .sort((a, b) => String(b.closLe || '').localeCompare(String(a.closLe || ''))).slice(0, 20);
+    return { attente, valides, sansSuite };
+  }
+
+  function libelleSondageSuivi(x) {
+    const d = x.dossierId ? dossiers.find(y => y.id === x.dossierId) : null;
+    return d ? libelleDossierAffiche(d) : x.titre || libelleDossierParNom(x.dossierNom, x.dossierId) || 'Rendez-vous';
+  }
+
+  function ouvrirSuiviDatesProposees() {
+    const overlay = document.getElementById('dates-proposees-overlay');
+    if (!overlay) return;
+    overlay.style.display = 'flex';
+    renderSuiviDatesProposees();
+    chargerSondages().then(renderSuiviDatesProposees);
+  }
+
+  function fermerSuiviDatesProposees() {
+    const overlay = document.getElementById('dates-proposees-overlay');
+    if (overlay) overlay.style.display = 'none';
+  }
+  document.addEventListener('keydown', (e) => {
+    const overlay = document.getElementById('dates-proposees-overlay');
+    if (e.key === 'Escape' && overlay && overlay.style.display !== 'none' && !document.querySelector('#confirm-overlay[style*="flex"]')) fermerSuiviDatesProposees();
+  });
+
+  function voirDateProposeeDansAgenda(date) {
+    fermerSuiviDatesProposees();
+    positionnerAgenda(date);
+    if (ongletActuel !== 'agenda') definirOnglet('agenda');
+    else { renderPageAgenda(); chargerAgendaSemaine(); }
+  }
+
+  function ouvrirFicheDepuisDatesProposees(id) {
+    fermerSuiviDatesProposees();
+    ouvrirDossierDepuisDashboard(id);
+  }
+
+  function renderSuiviDatesProposees() {
+    const overlay = document.getElementById('dates-proposees-overlay');
+    const zone = document.getElementById('dates-proposees-liste');
+    if (!overlay || !zone || overlay.style.display === 'none') return;
+    const { attente, valides, sansSuite } = classerSuiviDatesProposees(sondagesCreneaux, isoAujourdhuiLocal());
+    const jourCourt = (iso) => new Date(iso + 'T00:00:00').toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' }).replace('.', '');
+    const dateCourte = (t) => t ? formatDateFr(String(t).slice(0, 10)) : '';
+    const titre = (x) => {
+      const d = x.dossierId ? dossiers.find(y => y.id === x.dossierId) : null;
+      return d
+        ? `<button type="button" class="lien-bouton dp-titre" onclick="ouvrirFicheDepuisDatesProposees('${d.id}')" title="Ouvrir la fiche du dossier">${escapeHtml(libelleSondageSuivi(x))} ${icone('file-text')}</button>`
+        : `<b class="dp-titre">${escapeHtml(libelleSondageSuivi(x))}</b>`;
+    };
+    const groupe = (texte, n, aide) => `<div class="widgets-galerie-groupe">${texte} <span class="jour-onglet-nb">${n}</span>${aide ? ' ' + infoBulle(aide) : ''}</div>`;
+    const carteAttente = (x) => {
+      const repondu = x.participants.length - sansReponseSondage(x).length;
+      return `<div class="sondage-panneau dp-carte">
+          <div class="sondage-tete">${titre(x)}<span class="hint">Envoyé le ${escapeHtml(dateCourte(x.creeLe))} · ${repondu}/${x.participants.length} réponse${x.participants.length > 1 ? 's' : ''}${x.expireLe ? ` · options jusqu’au ${escapeHtml(formatDateFr(x.expireLe))}` : ''}</span></div>
+          ${renderTableSondage(x, true)}
+          <div class="sondage-actions">
+            <button type="button" class="lien-bouton" onclick="relancerSondage('${escapeOnclickArg(x.id)}')" ${sansReponseSondage(x).length ? '' : 'disabled'}>${icone('mail')} Relancer</button>
+            <button type="button" class="lien-bouton" onclick="relireSondage('${escapeOnclickArg(x.id)}')">${icone('rotate-ccw')} Relire</button>
+            <button type="button" class="lien-bouton" onclick="annulerSondage('${escapeOnclickArg(x.id)}')">${icone('x')} Annuler</button>
+          </div>
+        </div>`;
+    };
+    const ligneValidee = ({ s: x, creneau }) => `<li class="dp-ligne">
+        <span class="dp-ligne-texte">${titre(x)}<span class="hint">${creneau ? `Validé : ${escapeHtml(jourCourt(creneau.date))} ${escapeHtml(creneau.heure.replace(':', ' h '))}` : 'Validé'}${x.closLe ? ` · le ${escapeHtml(dateCourte(x.closLe))}` : ''}</span></span>
+        ${creneau ? `<button type="button" class="action-rapide" onclick="voirDateProposeeDansAgenda('${creneau.date}')">${icone('calendar')} Voir dans l’agenda</button>` : ''}
+      </li>`;
+    const ligneSansSuite = (x) => `<li class="dp-ligne dp-sans-suite">
+        <span class="dp-ligne-texte">${titre(x)}<span class="hint">${x.statut === 'expire' ? 'Expiré sans réponse retenue' : 'Annulé'}${x.closLe ? ` le ${escapeHtml(dateCourte(x.closLe))}` : ''}</span></span>
+      </li>`;
+    zone.innerHTML = `
+      ${groupe('En attente de réponse', attente.length, 'Dates envoyées par email aux parties ou au confrère : les réponses arrivent toutes seules. « Placer » crée le rendez-vous et retire les options de l’agenda.')}
+      ${attente.length ? attente.map(carteAttente).join('') : '<p class="jour-vide">Aucune date en attente de réponse.</p>'}
+      ${groupe('Validées', valides.length)}
+      ${valides.length ? `<ul class="dp-liste">${valides.map(ligneValidee).join('')}</ul>` : '<p class="jour-vide">Aucune date validée pour l’instant.</p>'}
+      ${sansSuite.length ? `<details class="dp-details"><summary>${groupe('Sans suite', sansSuite.length)}</summary><ul class="dp-liste">${sansSuite.map(ligneSansSuite).join('')}</ul></details>` : ''}`;
   }
 
   var LIBELLES_GESTES_RELATION = {
@@ -21316,6 +21395,7 @@
       }
       renderDrawer();
       if (ongletActuel === 'agenda') renderPageAgenda();
+      renderSuiviDatesProposees();
     } catch (e) { /* serveur injoignable : on garde la dernière liste */ }
   }
 
@@ -21545,6 +21625,7 @@
       });
       const corps = await r.json();
       if (corps.sondage) sondagesCreneaux = sondagesCreneaux.filter(x => x.id !== id).concat([corps.sondage]);
+      renderSuiviDatesProposees();
       return corps;
     } catch (e) {
       return { ok: false, message: 'Serveur injoignable.' };

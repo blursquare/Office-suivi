@@ -314,3 +314,20 @@ test('evenementsFiltresRecherche : filtre l’agenda comme la recherche du Suivi
   assert.equal(app.evenementsFiltresRecherche(ev, 'JEREMY').length, 1);
   assert.equal(app.evenementsFiltresRecherche(ev, 'inconnu').length, 0);
 });
+
+test('classerSuiviDatesProposees : en attente, validées (à venir d’abord), sans suite', () => {
+  const sondages = [
+    { id: 'a', statut: 'ouvert', creeLe: '2026-09-28T08:00:00Z', creneaux: [] },
+    { id: 'b', statut: 'ouvert', creeLe: '2026-09-30T08:00:00Z', creneaux: [] },
+    { id: 'c', statut: 'place', choisi: 2, creneaux: [{ n: 1, date: '2026-10-08' }, { n: 2, date: '2026-10-20', heure: '10:00' }] },
+    { id: 'd', statut: 'place', choisi: 1, creneaux: [{ n: 1, date: '2026-10-05', heure: '14:00' }] },
+    { id: 'e', statut: 'place', choisi: 1, creneaux: [{ n: 1, date: '2026-09-15', heure: '14:00' }] },
+    { id: 'f', statut: 'annule', closLe: '2026-09-20T08:00:00Z', creneaux: [] },
+    { id: 'g', statut: 'expire', closLe: '2026-09-25T08:00:00Z', creneaux: [] }
+  ];
+  const r = app.classerSuiviDatesProposees(sondages, '2026-10-01');
+  assert.equal(r.attente.map(x => x.id).join(','), 'b,a');
+  assert.equal(r.valides.map(x => x.s.id).join(','), 'd,c,e');
+  assert.equal(r.valides[1].creneau.date, '2026-10-20');
+  assert.equal(r.sansSuite.map(x => x.id).join(','), 'g,f');
+});

@@ -7778,6 +7778,39 @@ button.appel-entrant-fermer svg { width: 14px; height: 14px; }
 }
 
 /* ---- Liste des widgets du tableau de bord (01/10) : ajouter / retirer ---- */
+/* Suivi des dates proposées (étude, 01/10) : fenêtre ouverte depuis la colonne de l'agenda. */
+.confirm-box.dates-proposees-box { max-width: 720px; width: 100%; max-height: min(88vh, 820px); overflow-y: auto; text-align: left; }
+.dates-proposees-tete { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 4px; }
+.dates-proposees-box .widgets-galerie-groupe { margin-top: 14px; }
+.dates-proposees-box .dp-carte { margin: 8px 0 0; background: var(--paper-card); }
+.dates-proposees-box .dp-titre { font-weight: 700; font-size: 13.5px; color: var(--ink); display: inline-flex; align-items: center; gap: 5px; text-decoration: none; }
+.dates-proposees-box button.lien-bouton.dp-titre svg { width: 13px; height: 13px; color: var(--muted); }
+.dates-proposees-box button.lien-bouton.dp-titre:hover svg { color: var(--ink); }
+.dp-liste { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.dp-ligne { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--paper-card); }
+.dp-ligne > * { min-width: 0; }
+.dp-ligne-texte { display: flex; flex-direction: column; gap: 2px; }
+.dp-ligne .action-rapide { flex: none; display: inline-flex; align-items: center; gap: 5px; }
+.dp-ligne .action-rapide svg { width: 13px; height: 13px; }
+.dp-sans-suite { opacity: 0.75; }
+.dates-proposees-box .hint { font-size: 12.5px; color: var(--muted); line-height: 1.4; }
+.dates-proposees-box .sondage-tete { align-items: baseline; }
+.dp-ligne-texte { align-items: flex-start; text-align: left; }
+.dates-proposees-box button.lien-bouton.dp-titre { text-align: left; padding: 0; }
+@media (max-width: 560px) {
+  .dp-ligne { flex-direction: column; align-items: stretch; }
+  .dp-ligne .action-rapide { justify-content: center; }
+}
+.dp-details > summary { list-style: none; cursor: pointer; }
+.dp-details > summary::-webkit-details-marker { display: none; }
+/* Lien de la colonne de l'agenda vers cette fenêtre. */
+button.ag-lien-dates {
+  display: flex; align-items: center; gap: 8px; width: 100%; margin-top: 14px; padding: 9px 12px; font-family: inherit; font-size: 13.5px; font-weight: 600;
+  color: var(--ink); background: var(--paper-card); border: 1px solid var(--line); border-radius: 10px; cursor: pointer; text-align: left;
+}
+button.ag-lien-dates:hover { background: var(--paper-sunk); }
+button.ag-lien-dates svg { width: 15px; height: 15px; flex: none; color: var(--muted); }
+.ag-lien-dates-texte { flex: 1 1 auto; }
 .confirm-box.widgets-galerie-box { max-width: 560px; width: 100%; max-height: min(86vh, 720px); overflow-y: auto; }
 .widgets-galerie-groupe {
   display: flex; align-items: center; gap: 6px; margin: 16px 0 6px;
