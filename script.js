@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-01 22:56';
+  const VERSION_APP = '2026-10-01 23:06';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-01 23:06', resume: "Suivi des dossiers : « Prévu en octobre » passe dans une colonne à gauche, comme celle de l'agenda — compteurs, « À faire » et « Au calendrier » l'un sous l'autre ; la recherche, les filtres et la liste sont à droite. Sur un écran plus étroit, le bloc revient au-dessus de la liste." },
     { version: '2026-10-01 22:56', resume: "Agenda : en tête, seulement les trois lettres du jour et le point orange — « Jeu. » (« Oct. » en vue Mois) —, sans fond." },
     { version: '2026-10-01 22:54', resume: "Agenda : en tête, le jour s'écrit en toutes lettres et en français — « Jeudi » suivi d'un point orange (« Octobre » en vue Mois) —, sans fond de couleur." },
     { version: '2026-10-01 22:53', resume: "Agenda : la pastille « OCT / 1 » de l'en-tête devient une tuile bordeaux en dégradé avec le jour abrégé en blanc et un point orange — « Jeu. » (« Oct. » en vue Mois)." },

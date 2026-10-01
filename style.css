@@ -7076,6 +7076,39 @@ button.scan-nom:focus-visible { outline: 2px solid var(--focus); outline-offset:
    les cartes vides passent en dernier, sur une ligne. Aucune couleur de donnée : le retard seul
    prend le rouge du statut « Urgent » (.dot-label). */
 .suivi-compte { font-size: 14px; color: var(--muted); font-variant-numeric: tabular-nums; }
+/* Suivi en deux colonnes (étude, 01/10 : « place le prévu du mois à gauche comme la sidebar de
+   l'agenda ») : « Prévu en {mois} » dans une colonne de 300 px, collante, ses blocs empilés. */
+.suivi-corps { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 20px; align-items: start; }
+.suivi-corps > * { min-width: 0; }
+.suivi-corps:has(.suivi-stats:empty) { grid-template-columns: minmax(0, 1fr); }
+.suivi-cote { position: sticky; top: 16px; }
+.suivi-cote .suivi-stats, .suivi-cote .suivi-stats.repliee { margin-bottom: 0; }
+@media (min-width: 1101px) {
+  .suivi-cote .suivi-stats, .suivi-cote .suivi-stats.repliee { margin-bottom: 0; }
+  .suivi-cote .pv-tete { flex-direction: column; align-items: stretch; gap: 8px; padding: 12px 14px; }
+  .suivi-cote .pv-tete .pv-mois { display: flex; }
+  .suivi-cote .suivi-stats button.st-replier { position: absolute; top: 12px; right: 12px; }
+  .suivi-cote .pv-bloc { position: relative; }
+  .suivi-cote .pv-delais { white-space: normal; flex-wrap: wrap; }
+  .suivi-cote .pv-corps { grid-template-columns: minmax(0, 1fr); }
+  .suivi-cote .pv-colonne + .pv-colonne { border-left: 0; border-top: 1px solid var(--line-soft); }
+  .suivi-cote .pv-defile { max-height: 340px; }
+  .suivi-cote .suivi-stats button.pv-ligne { grid-template-columns: auto minmax(0, 1fr); grid-template-areas: "quand type" "nom nom"; row-gap: 1px; column-gap: 8px; padding: 6px; }
+  .suivi-cote .pv-quand { grid-area: quand; }
+  .suivi-cote .pv-type { grid-area: type; }
+  .suivi-cote .pv-nom { grid-area: nom; }
+}
+/* À droite de la colonne, la place se resserre : filtres sur deux lignes au besoin, colonnes fixes du
+   tableau plus étroites pour laisser le nom du dossier sur une ligne. */
+.suivi-principal .suivi-barre-filtres { flex-wrap: wrap; }
+.suivi-principal .col-echeance-date { width: 128px; }
+.suivi-principal .col-echeance-type { width: 168px; }
+.suivi-principal .col-echeance-statut { width: 124px; }
+.suivi-principal .col-echeance-resp { width: 132px; }
+@media (max-width: 1100px) {
+  .suivi-corps { grid-template-columns: minmax(0, 1fr); }
+  .suivi-cote { position: static; }
+}
 .suivi-stats:empty { display: none; }
 .suivi-stats { display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px; }
 .suivi-stats.repliee { margin-bottom: 8px; }

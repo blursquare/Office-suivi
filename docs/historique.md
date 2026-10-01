@@ -14276,3 +14276,16 @@ téléphone).
 Retour de l'étude : « juste les 3 lettres et le point ». `motPastilleAgenda` rend les trois premières
 lettres du jour (« Jeu », « Lun »…) ou du mois en vue Mois (« Oct », « Aoû ») ; toujours sans fond,
 couleur du texte, point orange.
+
+### 01/10/2026 23 h 06 — Suivi : « Prévu en {mois} » dans une colonne à gauche
+
+Demande de l'étude : « place le prévu dans le mois à gauche comme la sidebar agenda ». Dans
+`#onglet-suivi`, `.suivi-corps` en deux colonnes (300 px | reste, comme `.ag-page-corps`) :
+`aside.suivi-cote` (collante) porte `#suivi-stats` ; `.suivi-principal` porte la barre de recherche, les
+filtres, les statuts et la liste. Dans la colonne (≥ 1101 px), le bloc s'empile : mois et « Masquer » en
+tête, compteurs-filtres sur deux lignes, puis « À faire » et « Au calendrier » l'un sous l'autre, chaque
+ligne sur deux rangs (quand + type, puis le dossier), défilement au-delà de 340 px. Sous 1100 px, une
+seule colonne : le bloc reprend sa forme d'avant au-dessus de la liste. À droite, les filtres passent à
+la ligne au besoin et les colonnes fixes du tableau des échéances sont resserrées (128/168/124/132 px)
+pour que le nom du dossier ne se casse plus. Colonne masquée si le bloc est vide. Vérifié dans Chromium
+(1440 clair et sombre, 1050, 400).
