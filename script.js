@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-01 23:34';
+  const VERSION_APP = '2026-10-01 23:47';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-01 23:47', resume: "Suivi des dossiers : un carré « Activité de l'étude — En direct » s'ajoute à la colonne de gauche, sous les dernières pièces — actions du jour, barres des 7 derniers jours, qui a agi, puis le fil des dernières actions de toute l'étude (collaborateurs, agenda, relevés de CLAIRE), qui ouvre la fiche au clic. Le même fil que sur le tableau de bord." },
     { version: '2026-10-01 23:34', resume: "Suivi des dossiers : le filtre « Responsable » est présélectionné sur le collaborateur du poste à l'ouverture de la session, administrateur compris (« Tous » reste à un clic et un choix fait à la main est gardé) ; changer de collaborateur repose le filtre sur le nouveau." },
     { version: '2026-10-01 23:33', resume: "Suivi des dossiers : mêmes colonnes, dans le même ordre, en vue Échéances et en vue Tableau (et dans « Nouveau » et « Archivés ») — Date, Dossier, Échéance, Resp., Statut. La vue Tableau perd la colonne « Offre de prêt » (le filtre « Offre de prêt » reste) ; ses titres restent triables." },
     { version: '2026-10-01 23:27', resume: "Suivi des dossiers : la colonne de gauche remplace « Prévu en … » par le mois en cours en quatre compteurs — dossiers à signer ce mois-ci, dossiers à placer (sans rendez-vous, date butoir dans le mois ou déjà dépassée), ventes et successions en cours ; un clic sur un compteur filtre la liste (« Tout afficher » pour revenir) — puis les dernières pièces rattachées sur le commun (14 jours, les nouvelles d'abord), qui ouvrent la fiche." },
@@ -14230,13 +14231,30 @@
   //  - moyen : ce résumé à gauche, le fil à droite (coupé à la hauteur de la tuile) ;
   //  - grand : résumé, filtres par catégorie et fil complet qui défile dans la carte.
   function renderActiviteEtude(tousDossiers, presentation) {
+    const p = partiesActiviteEtude(tousDossiers, presentation);
+    const corps = presentation === 'petit' ? p.resume + p.derniereHtml
+      : presentation === 'moyen' ? `<div class="act-duo">${p.resume}${p.fil}</div>`
+        : `${p.resume}${p.puces}${p.fil}`;
+    return carteWidget({
+      presentation: presentation || 'grand', classe: 'activite-etude', attributs: `data-filtre="${p.filtreCourant}"`,
+      titre: 'Activité de l’étude',
+      droite: '<span class="activite-direct"><span class="activite-direct-point"></span>En direct</span>',
+      corps
+    });
+  }
+
+  // Les morceaux de la carte « Activité de l'étude » (résumé du jour, filtres, fil, dernière action),
+  // partagés par le widget du tableau de bord et le carré de la colonne du Suivi (étude, 01/10).
+  // `max` : nombre d'entrées du fil (MAX_ACTIVITE_ETUDE par défaut).
+  function partiesActiviteEtude(tousDossiers, presentation, max) {
+    const limite = max || MAX_ACTIVITE_ETUDE;
     const maintenant = Date.now();
     const toutes = activiteEtude(tousDossiers, 5000);
     const rythme = rythmeActivite(toutes, maintenant);
     // Peu d'actions des collaborateurs : les relevés de CLAIRE complètent le fil (le rythme et
     // « qui a agi » restent ceux des collaborateurs).
-    const entrees = toutes.length >= MAX_ACTIVITE_ETUDE ? toutes.slice(0, MAX_ACTIVITE_ETUDE)
-      : toutes.concat(activiteAutomatique(tousDossiers, MAX_ACTIVITE_ETUDE - toutes.length))
+    const entrees = toutes.length >= limite ? toutes.slice(0, limite)
+      : toutes.concat(activiteAutomatique(tousDossiers, limite - toutes.length))
         .sort((a, b) => String(b.date).localeCompare(String(a.date)));
 
     // Barres des 7 jours : hauteur proportionnelle au jour le plus chargé ; aujourd'hui en accent.
@@ -14286,15 +14304,7 @@
     const derniereHtml = derniere ? `<div class="w-bas" data-ajuster="2"><button type="button" class="w-prochaine" onclick="ouvrirDossierDepuisDashboard('${derniere.dossierId}')">
         <span class="w-prochaine-sous">${escapeHtml(derniere.auteur ? prenomCollaborateur(derniere.auteur) : derniere.source === 'claire' ? 'CLAIRE' : 'Agenda')} · ${escapeHtml(ilYaActivite(derniere.date, maintenant))}</span>
         <span class="w-prochaine-titre">${escapeHtml(derniere.texte)}</span></button></div>` : '';
-    const corps = presentation === 'petit' ? resume + derniereHtml
-      : presentation === 'moyen' ? `<div class="act-duo">${resume}${fil}</div>`
-        : `${resume}${puces}${fil}`;
-    return carteWidget({
-      presentation: presentation || 'grand', classe: 'activite-etude', attributs: `data-filtre="${filtreCourant}"`,
-      titre: 'Activité de l’étude',
-      droite: '<span class="activite-direct"><span class="activite-direct-point"></span>En direct</span>',
-      corps
-    });
+    return { resume, puces, fil, derniereHtml, filtreCourant };
   }
 
 
@@ -15535,6 +15545,20 @@
   }
 
   var MAX_PIECES_COLONNE_SUIVI = 10;
+  var MAX_ACTIVITE_COLONNE_SUIVI = 12;
+
+  // Carré « Activité de l'étude » de la colonne du Suivi (étude, 01/10 : « l'activité en live de
+  // l'office en carré ») : le même fil que le widget du tableau de bord — tous les dossiers, tous les
+  // collaborateurs, sans les filtres de la liste —, résumé du jour puis les dernières actions, qui
+  // défilent dans le carré. Mis à jour à chaque sondage, comme le reste de la page.
+  function renderActiviteColonneSuivi() {
+    const p = partiesActiviteEtude(dossiers || [], 'grand', MAX_ACTIVITE_COLONNE_SUIVI);
+    return `<section class="sm-bloc sm-activite activite-etude" data-filtre="tout" aria-label="Activité de l’étude">
+        <h2 class="sm-titre">Activité de l’étude<span class="activite-direct"><span class="activite-direct-point"></span>En direct</span></h2>
+        ${p.resume}
+        <div class="sm-activite-fil">${p.fil}</div>
+      </section>`;
+  }
 
   function renderColonneSuivi(s, actifs) {
     const zone = document.getElementById('suivi-stats');
@@ -15579,7 +15603,8 @@
       <section class="sm-bloc" aria-label="Dernières pièces">
         <h2 class="sm-titre">Dernières pièces${infoBulle(`Pièces rattachées sur le commun (NAS) ces ${JOURS_DERNIERES_PIECES} derniers jours, les nouvelles d’abord.`)}</h2>
         ${lignes ? `<div class="sm-pieces">${lignes}</div>` : `<p class="sm-rien">Aucune pièce ces ${JOURS_DERNIERES_PIECES} derniers jours.</p>`}
-      </section>`;
+      </section>
+      ${renderActiviteColonneSuivi()}`;
   }
 
   // « Scanner le commun » (ex-« Revérifier tous les dossiers », renommé par l'étude le 01/10 ; barre d'outils du Suivi), à la place de l'ancien bouton du

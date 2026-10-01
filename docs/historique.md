@@ -14343,3 +14343,14 @@ poste à la première ouverture du Suivi de la session, pour tous ; un choix fai
 « Tous ») est gardé. `definirUtilisateurPoste` remet le filtre à « Tous » et, si le Suivi est affiché, le
 repose aussitôt sur le nouveau collaborateur. Le tableau de bord de l'administrateur reste en vue globale.
 Vérifié dans Chromium (Bastien → filtre Bastien ; « Tous » gardé au retour ; passage à Julie → Julie).
+
+### 01/10/2026 23:47 — Suivi : carré « Activité de l'étude » dans la colonne de gauche
+
+Demande de l'étude : « Rajouter dans la sidebar l'activité en live de l'office en carré » — placement confirmé :
+colonne de gauche du Suivi, sous « Dernières pièces ». `renderActiviteEtude` est découpée : `partiesActiviteEtude`
+(résumé du jour, filtres, fil, dernière action ; paramètre `max`) sert au widget du tableau de bord (inchangé)
+et au carré `renderActiviteColonneSuivi` (12 entrées, tous les dossiers, sans les filtres de la liste : c'est le
+fil de l'étude). Le carré montre les actions du jour, les barres des 7 jours, qui a agi, puis le fil qui défile
+(196 px), texte sur 3 lignes au plus pour garder le dossier lisible ; un clic ouvre la fiche. Mis à jour au
+sondage comme le reste de la page. « Dernières pièces » défile désormais au-delà de 232 px (la colonne est
+collante). Vérifié dans Chromium (clair, sombre, 400 px) avec un historique inventé.

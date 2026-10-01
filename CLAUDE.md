@@ -180,7 +180,7 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
   `renderColonneSuivi` (étude 01/10 au soir, remplace « Prévu en {mois} ») : le **mois civil en cours** en quatre
   tuiles-filtres (`syntheseMoisSuivi`, `filtreMoisSuivi`) — à signer (rendez-vous dans le mois), à placer (sans
   rendez-vous, date butoir dans le mois ou déjà dépassée), ventes, successions (`d.typeAffaire`) —, puis
-  « Dernières pièces » rattachées sur le commun (`dernieresPiecesTrouvees`, 14 jours, 10 au plus). Refusés par
+  « Dernières pièces » rattachées sur le commun (`dernieresPiecesTrouvees`, 14 jours, 10 au plus), puis le carré « Activité de l'étude — En direct » (même fil que le widget du tableau de bord, tous dossiers, `partiesActiviteEtude`, `renderActiviteColonneSuivi`). Refusés par
   l'étude : graphique par semaine, charge par collaborateur, montant des ventes, le mot « portefeuille ». **Liste « intelligente »**
   (30/09) : section « Nouveau » (ex-« À voir en premier ») en tête (`signauxDossierSuivi`, `partagerAVoirSuivi`) —
   notifications (`piecesNotifications` : offre, pièces nommées) puis fonds tous reçus non confirmés ;

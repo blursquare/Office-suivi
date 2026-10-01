@@ -7112,7 +7112,7 @@ button.scan-nom:focus-visible { outline: 2px solid var(--focus); outline-offset:
 .sm-lib { font-size: 13px; font-weight: 600; color: var(--ink-soft); }
 .sm-sous { max-width: 100%; font-size: 11.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .sm-sous.alerte { color: var(--urgent); font-weight: 500; }
-.sm-pieces { display: flex; flex-direction: column; max-height: 420px; overflow-y: auto; margin: 0 -4px; }
+.sm-pieces { display: flex; flex-direction: column; max-height: 232px; overflow-y: auto; margin: 0 -4px; }
 .sm-pieces button.sm-piece { display: grid; grid-template-columns: 8px minmax(0, 1fr) auto; align-items: start; gap: 8px; width: 100%; margin: 0; padding: 6px 6px; border: 0; border-radius: 6px; background: transparent; font: inherit; text-align: left; color: var(--ink); cursor: pointer; box-shadow: none; }
 .sm-pieces button.sm-piece + button.sm-piece { border-top: 1px solid var(--line-soft); border-radius: 0; }
 .sm-pieces button.sm-piece:hover { background: color-mix(in srgb, var(--ink) 5%, transparent); }
@@ -7124,6 +7124,15 @@ button.scan-nom:focus-visible { outline: 2px solid var(--focus); outline-offset:
 .sm-piece-dossier { font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sm-piece-date { padding-top: 1px; font-size: 12px; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
 .sm-rien { margin: 0 2px; font-size: 12.5px; color: var(--muted); }
+/* Carré « Activité de l'étude » (01/10) : le résumé du widget du tableau de bord (actions du jour,
+   barres des 7 jours, qui a agi), puis le fil qui défile dans le carré. */
+.sm-activite .sm-titre { margin-bottom: 4px; }
+.sm-activite .act-resume { margin: 0; padding: 10px; gap: 10px 12px; }
+.sm-activite-fil { max-height: 196px; overflow-y: auto; margin: 6px -4px 0; }
+.sm-activite-fil .activite-vide { margin: 8px 4px 2px; }
+.sm-activite .activite-ligne { align-items: start; }
+.sm-activite .activite-texte { white-space: normal; line-height: 1.35; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; }
+.sm-activite .activite-quand { padding-top: 2px; }
 @media (max-width: 1100px) {
   .suivi-corps { grid-template-columns: minmax(0, 1fr); }
   .suivi-cote { position: static; }
