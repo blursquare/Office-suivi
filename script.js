@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-01 17:44';
+  const VERSION_APP = '2026-10-01 17:47';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-01 17:47', resume: "Agenda : l'historique — on peut remonter au 1er janvier et au-delà, toutes les années. Les rendez-vous passés sont lus dans Outlook mois par mois à la première consultation, puis gardés (pas de relecture ensuite) ; détail et notes consultables, sans modification. Nouveau : « Aller à une date » à côté de « Aujourd'hui »." },
     { version: '2026-10-01 17:44', resume: "Tableau de bord, carte « Aujourd'hui » : « Ajouter un rappel » ouvre bien le formulaire — sur une carte pleine, toute la section « Mes rappels » était masquée et « À venir » s'affichait à sa place. Le formulaire passe maintenant en premier, « À venir » se retire le temps de la saisie." },
     { version: '2026-10-01 17:40', resume: "Claire Scan : « Ranger » et « Laisser dans Scan » ne font plus attendre — le scan quitte la liste dès la réponse du serveur, la relecture du dossier du copieur se fait ensuite en arrière-plan ; et cette relecture est bien plus rapide (l'historique du copieur n'est plus interrogé à chaque fois, le reste est lu en parallèle)." },
     { version: '2026-10-01 17:36', resume: "Agenda : à côté de « Agenda de l'office lu… », le nombre de rendez-vous de la semaine comparé à la même semaine l'an dernier — « +3 rendez-vous vs 2025 (hausse de 25 %) », en vert ou en rouge, détail dans la pastille i (dont signatures). L'an dernier est lu une fois dans l'agenda Outlook puis gardé." },
@@ -18911,23 +18912,48 @@
     return { debut, fin };
   }
 
+  // Historique (étude, 01/10 : « remonter jusqu'au 1er janvier, si possible toutes les années ») : avant
+  // le stock du serveur (lundi de la semaine dernière), les rendez-vous viennent de GET /api/agenda/passe,
+  // lus mois par mois dans Outlook à la première consultation puis gardés. En lecture seule (`archive`).
+  var agendaHistorique = { enCours: false, message: '' };
+  var jetonChargementAgenda = 0;
   async function chargerAgendaSemaine() {
     if (!authToken) return;
     const { debut, fin } = periodeChargeeAgenda();
+    const jeton = ++jetonChargementAgenda;
+    let debutStock = '';
     try {
       const r = await fetchAvecAuth(`/api/agenda/evenements?debut=${debut}&fin=${fin}`);
       const corps = await r.json();
+      if (jeton !== jetonChargementAgenda) return;
       if (!r.ok) { agendaErreur = corps.erreur || 'Lecture de l’agenda impossible.'; }
       else {
         agendaEvenements = Array.isArray(corps.evenements) ? corps.evenements : [];
         agendaLu = corps.lu || '';
         agendaSource = corps.source || null;
         agendaErreur = '';
+        debutStock = corps.debutLu || '';
       }
     } catch (e) {
       agendaErreur = 'Serveur injoignable.';
     }
     agendaCharge = true;
+    agendaHistorique = { enCours: !!(debutStock && debut < debutStock), message: '' };
+    if (ongletActuel === 'agenda') renderPageAgenda();
+    if (!agendaHistorique.enCours) return;
+    try {
+      const r = await fetchAvecAuth(`/api/agenda/passe?debut=${debut}&fin=${fin < debutStock ? fin : addDays(debutStock, -1)}`);
+      const corps = await r.json();
+      if (jeton !== jetonChargementAgenda) return;
+      const vus = new Set(agendaEvenements.map(e => e.itemId).filter(Boolean));
+      const passes = (r.ok && Array.isArray(corps.evenements) ? corps.evenements : [])
+        .filter(e => !e.itemId || !vus.has(e.itemId)).map(e => Object.assign({}, e, { archive: true }));
+      agendaEvenements = passes.concat(agendaEvenements);
+      agendaHistorique = { enCours: false, message: r.ok ? (corps.message || '') : (corps.erreur || 'Historique illisible.') };
+    } catch (e) {
+      if (jeton !== jetonChargementAgenda) return;
+      agendaHistorique = { enCours: false, message: 'Serveur injoignable — historique non lu.' };
+    }
     if (ongletActuel === 'agenda') renderPageAgenda();
   }
 
@@ -19508,7 +19534,7 @@
     const source = agendaErreur ? `<span class="dot-label dl-alerte"><span class="dot"></span>${escapeHtml(agendaErreur)}</span>`
       : !agendaCharge ? 'Lecture de l’agenda…'
       : agendaSource && !agendaSource.configuree ? 'Connexion à l’agenda Outlook à configurer (Réglages › Agenda).'
-      : lu ? `Agenda de l’office lu ${escapeHtml(lu)}${renderComparaisonAgenda()}` : 'Agenda pas encore lu par le serveur.';
+      : lu ? `Agenda de l’office lu ${escapeHtml(lu)}${agendaHistorique.enCours ? ' · Historique : lecture dans Outlook…' : agendaHistorique.message ? ` · <span class="dot-label dl-alerte"><span class="dot"></span>${escapeHtml(agendaHistorique.message)}</span>` : ''}${renderComparaisonAgenda()}` : 'Agenda pas encore lu par le serveur.';
     // Titre à la manière d'Outlook : la pastille du jour (mois en tête, grand numéro), la date en
     // clair et, dessous, le jour ou la période affichée.
     const ref = agendaVue === 'mois' ? agendaMois + '-01' : agendaJour;
@@ -19536,6 +19562,7 @@
             <button type="button" class="ag-nav-btn" onclick="naviguerAgenda(-1)" aria-label="Précédent">${icone('chevron-left')}</button>
             <button type="button" class="ag-nav-btn ag-auj" onclick="naviguerAgenda(0)">Aujourd’hui</button>
             <button type="button" class="ag-nav-btn" onclick="naviguerAgenda(1)" aria-label="Suivant">${icone('chevron-right')}</button>
+            <input type="date" class="ag-aller" id="agenda-aller" value="${escapeAttr(agendaJour || '')}" min="2000-01-01" onchange="if (this.value) allerAuJourAgenda(this.value)" aria-label="Aller à une date" title="Aller à une date — l’historique est lu dans Outlook à la première consultation">
           </div>
           <label class="ag-vue-choix">
             <select id="agenda-vue" aria-label="Vue de l’agenda" onchange="choisirVueAgenda(this.value)">
@@ -19646,7 +19673,9 @@
       </div>` : '';
     const relation = d && e.signature && !d.archive && d.rendezVousSignature === e.date && e.date >= auj
       ? `<div class="ag-detail-actions">${renderLigneEmailDossier(d, 'confirmationRdv')}${ecartJours(auj, e.date) <= 3 ? renderLigneEmailDossier(d, 'rappelRdv') : ''}</div>` : '';
-    const peutSupprimer = exchangeAgendaPret() && e.itemId && !e.horsAgenda;
+    // Un rendez-vous de l'historique (`archive`) se consulte (détail, notes) mais ne se modifie pas.
+    const peutSupprimer = exchangeAgendaPret() && e.itemId && !e.horsAgenda && !e.archive;
+    const notesLisibles = exchangeAgendaPret() && e.itemId && e.archive;
     const ligne = (ic, html) => `<div class="ag-detail-ligne">${icone(ic)}<span>${html}</span></div>`;
     return `<section class="ag-detail ajd-${teinte}" aria-labelledby="agenda-detail-titre">
         <div class="ag-detail-tete">
@@ -19668,7 +19697,7 @@
         ${e.option ? renderOptionSondageAgenda(e) : ''}
         ${peutSupprimer && !e.option ? renderVisioRendezVous(e) : ''}
         ${d ? `<button type="button" class="${e.option ? 'lien-bouton' : 'primary'} ag-ouvrir-fiche" onclick="ouvrirDossierDepuisDashboard('${d.id}')">${icone('folder')} Ouvrir la fiche</button>` : ''}
-        ${peutSupprimer && !e.option ? renderNotesRendezVous(e) : ''}
+        ${(peutSupprimer || notesLisibles) && !e.option ? renderNotesRendezVous(e, !peutSupprimer) : ''}
         ${blocProba}
         ${relation}
         ${!d && e.dossierNom ? `<p class="jour-vide">Dossier « ${escapeHtml(e.dossierNom)} » archivé ou introuvable dans CLAIRE.</p>` : ''}
@@ -20064,10 +20093,10 @@
   }
 
   // ---- Notes du rendez-vous (corps du rendez-vous dans Outlook, choix de l'étude du 30/09) ----
-  function renderNotesRendezVous(e) {
+  function renderNotesRendezVous(e, lectureSeule) {
     const n = notesAgenda[e.itemId];
     if (!n) chargerNotesAgenda(e.itemId);
-    const edition = notesAgendaEdition === e.itemId;
+    const edition = !lectureSeule && notesAgendaEdition === e.itemId;
     const aide = infoBulle('La note est écrite dans le rendez-vous de l’agenda partagé : elle se lit aussi dans Outlook, et une note tapée dans Outlook s’affiche ici. Enregistrée en texte simple.');
     let corps;
     if (edition) {
@@ -20083,7 +20112,7 @@
     const boutons = edition
       ? `<button type="button" class="icon-btn" id="agenda-notes-ok" onclick="enregistrerNotesAgenda('${cle}')" aria-label="Enregistrer la note" title="Enregistrer dans le rendez-vous">${icone('check')}</button>
          <button type="button" class="icon-btn" onclick="annulerNotesAgenda()" aria-label="Annuler" title="Annuler">${icone('x')}</button>`
-      : (n && n.etat === 'ok' ? `<button type="button" class="icon-btn" onclick="modifierNotesAgenda('${cle}')" aria-label="Modifier la note" title="Modifier la note">${icone('pencil')}</button>` : '');
+      : (n && n.etat === 'ok' && !lectureSeule ? `<button type="button" class="icon-btn" onclick="modifierNotesAgenda('${cle}')" aria-label="Modifier la note" title="Modifier la note">${icone('pencil')}</button>` : '');
     return `<div class="ag-notes">
         <div class="ag-notes-tete"><span class="ag-notes-titre">Notes</span> ${aide}<span class="jour-espace"></span>${boutons}</div>
         ${corps}
@@ -20347,7 +20376,7 @@
   // Exchange), ni signature encore absente d'Outlook, ni carte fantôme, ni option d'un sondage (ses
   // créneaux sont ceux proposés aux parties).
   function evenementModifiableAgenda(e) {
-    return !!(e && e.itemId && !e.horsAgenda && !e.fantome && !e.option);
+    return !!(e && e.itemId && !e.horsAgenda && !e.fantome && !e.option && !e.archive);
   }
 
   // Pure : minutes depuis minuit → « HH:MM ».

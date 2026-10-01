@@ -527,6 +527,34 @@ function ecartRendezVous(actuel, anPasse) {
   return { ecart: actuel - anPasse, pourcent: anPasse > 0 ? Math.round((actuel - anPasse) / anPasse * 100) : null };
 }
 
+// Mois couverts par une période (AAAA-MM), du plus ancien au plus récent. Pure.
+function moisDePeriode(debut, fin) {
+  const liste = [];
+  let a = Number(debut.slice(0, 4));
+  let m = Number(debut.slice(5, 7));
+  const af = Number(fin.slice(0, 4));
+  const mf = Number(fin.slice(5, 7));
+  while (a < af || (a === af && m <= mf)) {
+    liste.push(`${a}-${String(m).padStart(2, '0')}`);
+    m++;
+    if (m > 12) { m = 1; a++; }
+  }
+  return liste;
+}
+
+// Un mois d'historique est à relire dans Exchange s'il n'a jamais été lu, ou si sa dernière lecture
+// date d'avant la fin du mois + 7 jours (des rendez-vous ont pu y être corrigés juste après) et a
+// plus d'un jour. Un mois lu bien après sa fin ne bouge plus : jamais relu. Pure.
+function archiveAgendaARelire(archive, mois, maintenantMs) {
+  if (!archive || !archive.lu) return true;
+  const lu = Date.parse(archive.lu);
+  if (!Number.isFinite(lu)) return true;
+  const [a, m] = mois.split('-').map(Number);
+  const finMoisPlus7 = Date.UTC(a, m, 1) + 7 * 24 * 3600 * 1000;
+  if (lu >= finMoisPlus7) return false;
+  return maintenantMs - lu > 24 * 3600 * 1000;
+}
+
 function evenementsAgendaOffice(evenements, dossiersActifs) {
   const liste = [];
   for (const evt of evenements || []) {
@@ -563,7 +591,7 @@ module.exports = {
   momentParisDepuisIso, veilleDe, formatDateFr, evenementDepuisEws, evenementsDepuisEws,
   extraireReferenceVte, referenceDossierEvenement, detecteAppelDeFonds, detecteProjetEnvoye,
   detecterActionsEvenement, dossierPourReferenceAgenda, actionsDetecteesDepuisEvenements, motsVoisins,
-  estRendezVousSignature, composerLieuAgenda, compterRendezVousPeriode, lundiAnneePrecedente, decalerJours, ecartRendezVous,
+  estRendezVousSignature, composerLieuAgenda, compterRendezVousPeriode, lundiAnneePrecedente, decalerJours, ecartRendezVous, moisDePeriode, archiveAgendaARelire, evenementsAgendaOffice,
   absencesDepuisEvenements, estEvenementJourneeEntiere, collaborateursDansTexte, COLLABORATEURS_ABSENCE,
   categoriesDistinctes, agendaDuJourDepuisEvenements, lundiSemainePrecedente, evenementsAgendaOffice
 };

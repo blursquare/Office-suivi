@@ -13944,3 +13944,25 @@ compris — puis remplissait la place avec « À venir » (priorité suivante). 
 défile au besoin), « À venir » n'est pas rendu, et le formulaire est ramené dans la partie visible, curseur
 dans le texte (`amenerFormulaireRappel`). Vérifié dans Chromium : formulaire visible, rappel enregistré, carte
 normale ensuite.
+
+
+### 01/10/2026 17 h 47 — Agenda : historique (toutes les années, à la demande)
+
+Demande de l'étude : « que l'agenda puisse remonter jusqu'au 1er janvier de l'année pour pouvoir s'y référer ;
+si possible tous les rendez-vous de toutes les années, si ce n'est pas trop lourd ». Choix : lecture À LA
+DEMANDE plutôt qu'une reprise de toutes les années (le stock `agenda-office` couvre ~7 mois et 427 événements ;
+des années entières relues à chaque tour de 2 min seraient lourdes pour Exchange et inutiles).
+- Serveur `GET /api/agenda/passe?debut&fin` : pour la part de la période AVANT le stock (lundi de la semaine
+  dernière), chaque mois est lu dans Exchange (`lireCalendrierExchange`, une tranche de la longueur du mois,
+  un seul essai, jamais pendant la suspension après refus, refus → disjoncteur), converti comme le stock
+  (`evenementsAgendaOffice`, dossiers rapprochés, signatures reconnues) et gardé en base sous sa propre clé
+  `agenda-archive:AAAA-MM` (600 rendez-vous au plus). `archiveAgendaARelire` : un mois lu plus de 7 jours
+  après sa fin n'est plus jamais relu ; sinon relu au plus une fois par jour. 3 mois au plus par appel ;
+  lectures simultanées d'un même mois fusionnées. Testé.
+- Client : `chargerAgendaSemaine` complète la période affichée par l'historique (rendez-vous marqués
+  `archive`, fusion sans doublon d'identifiant, réponse périmée ignorée par jeton) ; « Historique : lecture
+  dans Outlook… » dans la ligne d'état ; rendez-vous d'archive en LECTURE SEULE (pas de crayon, de glisser,
+  de bord, ni de suppression ; notes lisibles sans crayon). « Aller à une date » (`#agenda-aller`) dans la
+  barre de navigation. Vérifié dans Chromium (semaine du 6 janvier 2026, détail et notes, clair et sombre).
+- La comparaison avec l'an dernier ne s'affiche que sur les semaines du stock (cette semaine-là comptée
+  depuis le stock).

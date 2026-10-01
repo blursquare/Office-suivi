@@ -7661,3 +7661,10 @@ textarea.ag-notes-champ:focus { outline: 2px solid var(--focus); outline-offset:
 .ag-compare-hausse { color: var(--success); }
 .ag-compare-baisse { color: var(--urgent); }
 .ag-compare-egal { color: var(--ink-soft); }
+
+/* « Aller à une date » dans la barre de navigation de l'agenda (étude, 01/10 : remonter au 1er janvier). */
+.ag-nav input.ag-aller[type="date"] {
+  font: inherit; font-size: 12.5px; color: var(--ink); background: var(--paper-card); border: none; border-left: 1px solid var(--line);
+  height: 34px; padding: 0 8px; width: 132px; border-radius: 0; color-scheme: light dark;
+}
+.ag-nav input.ag-aller[type="date"]:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }

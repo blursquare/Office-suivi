@@ -172,3 +172,27 @@ test('GET /api/agenda/comparaison : semaine de l’an dernier lue une fois puis 
   reponsesEws.length = 0;
   assert.equal((await appeler('/api/agenda/comparaison?lundi=2026-10-06')).status, 400, 'pas un lundi');
 });
+
+test('GET /api/agenda/passe : un mois d’historique lu une fois dans Exchange, puis gardé ; le stock n’est pas relu', async () => {
+  reinitialiserDisjoncteurAgenda();
+  parametresRepo.ecrireReglagesExchange({ actif: true, email: 'bastien@etude.test', motDePasse: 'mdp-secret', calendrierPartage: 'sophie@etude.test' });
+  parametresRepo.ecrireAgendaOffice({ debut: '2026-09-21', lu: new Date().toISOString(), evenements: [] });
+  reponsesEws.length = 0;
+  reponsesEws.push({ statusCode: 200, body: findItem(
+    itemEws('VTE - LEROY', '2026-01-06T08:00:00Z', '2026-01-06T09:00:00Z')
+    + itemEws('Rendez-vous banque', '2026-01-20T12:00:00Z', '2026-01-20T13:00:00Z')) });
+  const corps = await (await appeler('/api/agenda/passe?debut=2026-01-05&fin=2026-01-31')).json();
+  assert.equal(corps.limite, '2026-09-21');
+  assert.equal(corps.evenements.map((e) => `${e.date} ${e.heure} ${e.sujet}`).join(' | '), '2026-01-06 09:00 VTE - LEROY | 2026-01-20 13:00 Rendez-vous banque');
+  assert.equal(corps.evenements[0].signature, true);
+  // Janvier lu bien après sa fin : gardé, plus jamais relu.
+  reponsesEws.push({ statusCode: 500, body: '' });
+  const encore = await (await appeler('/api/agenda/passe?debut=2026-01-01&fin=2026-01-10')).json();
+  assert.equal(encore.evenements.length, 1);
+  assert.equal(reponsesEws.length, 1, 'aucune nouvelle lecture Exchange');
+  reponsesEws.length = 0;
+  // Une période dans le stock : rien à lire.
+  const dansStock = await (await appeler('/api/agenda/passe?debut=2026-09-28&fin=2026-10-03')).json();
+  assert.equal(dansStock.evenements.length, 0);
+  assert.equal((await appeler('/api/agenda/passe?debut=2026-01-01&fin=2026-06-30')).status, 400, 'six mois d’un coup : refusé');
+});

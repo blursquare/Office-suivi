@@ -1155,6 +1155,23 @@ function creerRepoParametres(db) {
   function lireSondagesCreneaux() { return lireJson(CLE_SONDAGES, assainirSondages, []); }
   function ecrireSondagesCreneaux(l) { const p = assainirSondages(l); ecrireStmt.run(CLE_SONDAGES, JSON.stringify(p)); return p; }
 
+  // Historique de l'agenda (étude, 01/10 : « remonter jusqu'au 1er janvier, si possible toutes les
+  // années ») : un mois passé lu une fois dans Exchange, gardé sous sa propre clé
+  // « agenda-archive:AAAA-MM » ({ lu, evenements }, 600 rendez-vous au plus) — jamais un seul gros bloc.
+  function lireArchiveAgenda(mois) {
+    if (!/^\d{4}-\d{2}$/.test(String(mois || ''))) return null;
+    return lireJson('agenda-archive:' + mois, (b) => (b && typeof b === 'object' ? {
+      lu: texteBorne(b.lu, 40),
+      evenements: Array.isArray(b.evenements) ? b.evenements.map(assainirEvenementAgenda).filter(Boolean).slice(0, 600) : []
+    } : null), null);
+  }
+  function ecrireArchiveAgenda(mois, archive) {
+    if (!/^\d{4}-\d{2}$/.test(String(mois || ''))) return null;
+    const propre = { lu: texteBorne(archive && archive.lu, 40), evenements: ((archive && archive.evenements) || []).map(assainirEvenementAgenda).filter(Boolean).slice(0, 600) };
+    ecrireStmt.run('agenda-archive:' + mois, JSON.stringify(propre));
+    return propre;
+  }
+
   function lireComparaisonAgenda() { return lireJson(CLE_AGENDA_COMPARAISON, assainirComparaisonAgenda, {}); }
   function ecrireComparaisonAgenda(m) { const p = assainirComparaisonAgenda(m); ecrireStmt.run(CLE_AGENDA_COMPARAISON, JSON.stringify(p)); return p; }
 
@@ -1225,7 +1242,7 @@ function creerRepoParametres(db) {
     lireReglagesExchange, ecrireReglagesExchange,
     lireDernierTourAgenda, ecrireDernierTourAgenda,
     lireAbsencesAgenda, ecrireAbsencesAgenda, lireCategoriesAgenda, ecrireCategoriesAgenda,
-    lireAgendaDuJour, ecrireAgendaDuJour, lireAgendaOffice, ecrireAgendaOffice, lireComparaisonAgenda, ecrireComparaisonAgenda,
+    lireAgendaDuJour, ecrireAgendaDuJour, lireAgendaOffice, ecrireAgendaOffice, lireComparaisonAgenda, ecrireComparaisonAgenda, lireArchiveAgenda, ecrireArchiveAgenda,
     ajouterEvenementAgendaOffice, retirerEvenementAgendaOffice,
     lireReglageSauvegarde, ecrireReglageSauvegarde, lireEtatSauvegarde, ecrireEtatSauvegarde,
     lireReglages, ecrireReglages, lireDernierTour, ecrireDernierTour,
