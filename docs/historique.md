@@ -13802,3 +13802,33 @@ le créneau saisi (date + heure, exception aux règles de l'étude signalée) vi
 créneaux de `creneauxProposesSignature` sans doublon (`creneauxSondageAvecTete`, pur, testé) ; 3 cochés
 sur 5 au plus comme avant. Sans dossier, le sondage n'a pas de destinataires : l'option n'est pas offerte.
 Vérifié dans Chromium (clair, sombre, téléphone).
+
+
+### 01/10/2026 15 h 37 — Visio ADNOV : créer la visio, rattacher l'invitation .ics
+
+Demande de l'étude : « le lien pour créer un rendez-vous visio à insérer après la création du rendez-vous
+pour pouvoir l'envoyer. Le site de la profession nous sort un .ics à ajouter dans notre agenda. »
+Réponses aux questions de cadrage : bouton qui ouvre le site — oui, https://ls.visio.adnov.fr/ ; le .ics
+repris dans le rendez-vous déjà créé plutôt qu'ajouté à part (doublon) — oui. (Email aux clients avec le
+lien : question restée sans réponse, rien de fait.)
+
+- `URL_VISIO_ADNOV`, `ouvrirSiteVisio()` (nouvelle fenêtre). Détail d'un rendez-vous en visio
+  (`estVisioAgenda` : catégorie visio réglée, ou signature d'un dossier `rendezVousType: 'visio'` sans
+  catégorie) : « Créer la visio » + « Ajouter l'invitation (.ics) » (choix de fichier). Une fois le lien
+  dans les notes : « Rejoindre la visio » (lien https seulement) + « Remplacer l'invitation ». Après la
+  création d'un rendez-vous en visio, le toast propose « Créer la visio ».
+- `lireInvitationIcs` (pur) : lignes repliées dépliées, échappements défaits ; lien = premier https:// de
+  URL, puis LOCATION, puis DESCRIPTION (jamais deviné, http refusé) ; DTSTART « …Z » converti à l'heure de
+  Paris (Intl), TZID ou flottant pris tel quel ; détails = lignes utiles de la description (code, numéro),
+  lignes qui annoncent seulement le lien retirées, 10 lignes / 800 caractères.
+- Dépôt d'un .ics n'importe où sur la page Agenda (`deposerIcsAgenda`) : sur le détail ouvert → ce
+  rendez-vous ; sinon `rendezVousPourInvitation` (même date et même heure, rendez-vous d'Outlook seulement,
+  ni option ni signature hors agenda) — un seul → confirmation « Ajouter le lien de la visio au rendez-vous
+  « … » le … ? » ; zéro ou plusieurs → message, l'agenda se place sur la date de l'invitation.
+- `ajouterVisioAuRendezVous` relit les notes (GET notes, pour ne rien écraser), `notesAvecVisio` (pur) ajoute
+  le bloc « Visio ADNOV : <lien> » + détails à la fin ou remplace le bloc précédent, puis PUT notes (corps du
+  rendez-vous, un seul essai). Ligne d'historique sur le dossier rattaché. Le fichier est lu dans le
+  navigateur ; seul le texte ajouté aux notes part vers l'agenda.
+- Tests `tests/agenda-visio.test.js` (invitations inventées). Vérifié dans Chromium avec un faux Exchange
+  (corps réécrit lu dans la requête UpdateItem), clair et sombre. **Non vérifié** : la forme réelle du .ics
+  rendu par ls.visio.adnov.fr (aucun exemple fourni) — à confirmer sur une vraie invitation.

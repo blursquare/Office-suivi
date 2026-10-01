@@ -315,6 +315,10 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
   `GET/PUT /api/exchange/evenement/notes`, GetItem/UpdateItem du seul `item:Body` en texte brut, lues à
   l'ouverture du détail, jamais journalisées ; la mise en forme HTML d'un corps n'est pas gardée à
   l'écriture),
+  **Visio ADNOV** (01/10) : sur un rendez-vous en visio, « Créer la visio » ouvre `https://ls.visio.adnov.fr/` ;
+  l'invitation `.ics` rendue, déposée sur l'agenda ou choisie dans le détail, n'est **jamais ajoutée à part** :
+  son lien (`lireInvitationIcs`) est écrit dans les notes du rendez-vous de même date et même heure
+  (`notesAvecVisio`, bloc « Visio ADNOV : … » remplacé à l’invitation suivante), puis « Rejoindre la visio ».
   `gestesRelationClient` (rappel J-3…J-1, confirmation J-45…J-3 une fois par date `confirmationRdvPour`,
   questionnaire J+1…J+14, un mot un an après — jamais au client d'un confrère). **Couleur d'un
   rendez-vous = celle d'Outlook** (étude, 30/09) : couleur nommée dans la catégorie
@@ -530,7 +534,7 @@ Plainte principale de l'étude : **le bruit**, pas les oublis — ne pas élargi
   ouverts dans Outlook), la création d'un nouveau dossier depuis l'export Authentic (ZIP) ; puis la
   mise à jour en un clic (Réglages › Mise à jour), le démarrage automatique de CLAIRE au lancement du
   serveur, le lien vers une pièce ouvert depuis une notification Teams et l'icône de l'exe (nette).
-- **Non vérifié au bureau** : le sondage de créneaux (lecture réelle des réponses dans la boîte, boutons
+- **Non vérifié au bureau** : la forme réelle du `.ics` de la visio ADNOV (aucun exemple reçu) ; le sondage de créneaux (lecture réelle des réponses dans la boîte, boutons
   dans Outlook, options « Provisoire », page de réponse publiée — dépôt public à créer par l'étude) ; le détail des écritures EWS (déplacement et suppression d'un
   rendez-vous, note du Lieu, dates butoir en journée entière, noms exacts des catégories de couleur,
   reprise des dates butoir existantes au premier tour — une seule fois chacune) et de la lecture

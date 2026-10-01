@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-01 15:32';
+  const VERSION_APP = '2026-10-01 15:37';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-01 15:37', resume: "Agenda : visio ADNOV — sur un rendez-vous en visio, « Créer la visio » ouvre le site de la profession ; l'invitation .ics qu'il rend, déposée sur l'agenda (ou choisie dans le détail du rendez-vous), ajoute son lien aux notes du rendez-vous de même date et même heure, sans créer de doublon. Le détail montre ensuite « Rejoindre la visio ». Après la création d'un rendez-vous en visio, le message propose « Créer la visio »." },
     { version: '2026-10-01 15:32', resume: "Agenda : « Proposer plusieurs dates » dans le formulaire d'un nouveau rendez-vous (dossier sans signature) — ouvre le sondage de créneaux du dossier avec le créneau saisi en tête, suivi des créneaux que CLAIRE propose ; d'autres s'ajoutent à la main." },
     { version: '2026-10-01 15:30', resume: "Aujourd'hui : une case ronde à cocher devant chaque tâche (la cocher la note faite) ; vos rappels notés à la main entrent dans « À faire » et y reviennent chaque jour tant qu'ils ne sont pas cochés (« Non fait hier »), y compris ceux sans échéance. Agenda : un clic place le créneau, un double-clic ouvre le formulaire du rendez-vous (un second clic simple déplace le créneau)." },
     { version: '2026-10-01 15:07', resume: "Agenda : un rendez-vous s'allonge ou se raccourcit en tirant son bord du bas (la fin) ou du haut (le début), au quart d'heure, comme dans Outlook — vues Semaine et Jour, à la souris, confirmé avant d'écrire dans l'agenda. La signature d'un dossier emmène l'heure de la fiche." },
@@ -460,6 +461,8 @@
   // graphiques. Dimensionnées en 1em (voir .icone dans style.css) : une icône suit la taille de
   // police du texte/bouton qui la contient, sans réglage au cas par cas à chaque usage.
   const ICONES = {
+    // Caméra (visio ADNOV).
+    video: '<rect x="1.5" y="4" width="9.5" height="8" rx="1.6"/><path d="M11 7.2 14.5 5v6L11 8.8"/>',
     layout: '<rect x="1.5" y="2" width="13" height="12" rx="1.6"/><line x1="6" y1="2" x2="6" y2="14"/>',
     plus: '<line x1="8" y1="3" x2="8" y2="13"/><line x1="3" y1="8" x2="13" y2="8"/>',
     minus: '<line x1="3.5" y1="8" x2="12.5" y2="8"/>',
@@ -19562,6 +19565,7 @@
         ${infos && infos.confrere ? ligne('users', `Confrère : <b>${escapeHtml(infos.confrere)}</b>`) : ''}
         ${infos && !e.option ? `<div class="ag-detail-etats">${renderEtatsRendezVous(infos)}</div>` : ''}
         ${e.option ? renderOptionSondageAgenda(e) : ''}
+        ${peutSupprimer && !e.option ? renderVisioRendezVous(e) : ''}
         ${d ? `<button type="button" class="${e.option ? 'lien-bouton' : 'primary'} ag-ouvrir-fiche" onclick="ouvrirDossierDepuisDashboard('${d.id}')">${icone('folder')} Ouvrir la fiche</button>` : ''}
         ${peutSupprimer && !e.option ? renderNotesRendezVous(e) : ''}
         ${blocProba}
@@ -19619,6 +19623,203 @@
     agendaSelection = 'probable:' + id;
     renderPageAgenda();
     chargerAgendaSemaine();
+  }
+
+  // ---- Visio ADNOV (étude, 01/10) ----
+  // « Le lien pour créer un rendez-vous visio … le site de la profession nous sort un .ics à ajouter
+  // dans notre agenda ». Après la création d'un rendez-vous en visio, « Créer la visio » ouvre le site
+  // ADNOV ; l'invitation .ics qu'il rend, déposée sur l'agenda (ou choisie dans le détail du rendez-vous),
+  // n'est PAS ajoutée comme un second rendez-vous : CLAIRE en lit le lien et l'écrit dans les notes (le
+  // corps dans Outlook) du rendez-vous existant de même date et même heure — jamais de doublon. Le
+  // fichier est lu dans le navigateur ; seul le texte ajouté aux notes part vers l'agenda.
+  var URL_VISIO_ADNOV = 'https://ls.visio.adnov.fr/';
+  var ENTETE_NOTES_VISIO = 'Visio ADNOV :';
+
+  function ouvrirSiteVisio() {
+    window.open(URL_VISIO_ADNOV, '_blank', 'noopener');
+  }
+
+  // Pure : un rendez-vous en visio — catégorie « visio » réglée, ou signature d'un dossier en visio.
+  function estVisioAgenda(e, categoriesRdv, d) {
+    if (!e) return false;
+    if (typeEvenementAgenda(e, categoriesRdv) === 'visio') return true;
+    return !!(d && e.signature && d.rendezVousType === 'visio' && !typeEvenementAgenda(e, categoriesRdv));
+  }
+
+  // Pure : lit une invitation .ics (RFC 5545) — lignes repliées dépliées, échappements défaits.
+  // Rend { lien, date, heure, heureFin, resume, details } ou null sans événement. Le lien est le premier
+  // https:// trouvé dans URL, puis LOCATION, puis DESCRIPTION (jamais deviné). Les heures sont celles de
+  // Paris : « …Z » (UTC) converti, TZID ou heure flottante pris tels quels.
+  function lireInvitationIcs(texte) {
+    const brut = String(texte || '').replace(/\r\n/g, '\n').replace(/\n[ \t]/g, '');
+    const debutEvt = brut.search(/^BEGIN:VEVENT$/m);
+    if (debutEvt === -1) return null;
+    const bloc = brut.slice(debutEvt, (brut.indexOf('END:VEVENT', debutEvt) + 1 || brut.length + 1) - 1);
+    const props = {};
+    for (const ligne of bloc.split('\n')) {
+      const m = /^([A-Z-]+)((?:;[^:]*)?):(.*)$/.exec(ligne);
+      if (m && props[m[1]] === undefined) props[m[1]] = { params: m[2], valeur: m[3] };
+    }
+    const texteIcs = (v) => String(v || '').replace(/\\n/gi, '\n').replace(/\\([,;\\])/g, '$1').trim();
+    const heureParis = (p) => {
+      if (!p) return null;
+      const m = /^(\d{4})(\d{2})(\d{2})(?:T(\d{2})(\d{2})\d{0,2}(Z?))?$/.exec(p.valeur.trim());
+      if (!m) return null;
+      if (!m[4]) return { date: `${m[1]}-${m[2]}-${m[3]}`, heure: '' };
+      if (m[6] === 'Z') {
+        const dt = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]));
+        const parts = new Intl.DateTimeFormat('fr-FR', { timeZone: 'Europe/Paris', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false })
+          .formatToParts(dt).reduce((a, x) => { a[x.type] = x.value; return a; }, {});
+        return { date: `${parts.year}-${parts.month}-${parts.day}`, heure: `${parts.hour === '24' ? '00' : parts.hour}:${parts.minute}` };
+      }
+      return { date: `${m[1]}-${m[2]}-${m[3]}`, heure: `${m[4]}:${m[5]}` };
+    };
+    const premierLien = (t) => { const m = /https:\/\/[^\s<>"')\]]+/i.exec(String(t || '')); return m ? m[0].replace(/[.,;]+$/, '') : ''; };
+    const description = texteIcs(props.DESCRIPTION && props.DESCRIPTION.valeur);
+    const lien = premierLien(props.URL && props.URL.valeur) || premierLien(texteIcs(props.LOCATION && props.LOCATION.valeur)) || premierLien(description);
+    const debut = heureParis(props.DTSTART);
+    const fin = heureParis(props.DTEND);
+    // Détails utiles (code de la réunion, numéro d'appel…) : les lignes non vides de la description,
+    // sans le lien déjà repris, 10 lignes et 800 caractères au plus.
+    // Une ligne qui ne fait qu'annoncer le lien (« Rejoindre la réunion : » ou « Rejoindre : https://… »)
+    // est retirée : le lien est déjà en tête du bloc.
+    const lignes = description.split('\n').map(l => l.trim());
+    const details = lignes.map((l, i) => {
+      const sansLien = lien ? l.split(lien).join('').replace(/[\s.,;]+$/, '').trim() : l;
+      if (lien && l.indexOf(lien) !== -1 && (!sansLien || /:$/.test(sansLien))) return '';
+      if (/:$/.test(l) && l.length <= 60 && lien && (lignes[i + 1] || '').indexOf(lien) === 0) return '';
+      return l;
+    }).filter(l => l && !/^[-_=*~]{3,}$/.test(l)).slice(0, 10).join('\n').slice(0, 800);
+    return {
+      lien, details,
+      resume: texteIcs(props.SUMMARY && props.SUMMARY.valeur).slice(0, 200),
+      date: debut ? debut.date : '', heure: debut ? debut.heure : '',
+      heureFin: fin && debut && fin.date === debut.date ? fin.heure : ''
+    };
+  }
+
+  // Pure : le lien de visio écrit par CLAIRE dans les notes (ligne « Visio ADNOV : https://… »).
+  function lienVisioDansNotes(notes) {
+    const m = new RegExp(ENTETE_NOTES_VISIO.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*(https://\\S+)').exec(String(notes || ''));
+    return m ? m[1] : '';
+  }
+
+  // Pure : les notes avec le bloc de la visio — remplacé s'il y en avait déjà un (nouvelle invitation),
+  // ajouté à la fin sinon ; le reste des notes est gardé tel quel.
+  function notesAvecVisio(notes, invitation) {
+    const bloc = [`${ENTETE_NOTES_VISIO} ${invitation.lien}`].concat(invitation.details ? [invitation.details] : []).join('\n');
+    const avant = String(notes || '').replace(/\r\n/g, '\n');
+    const i = avant.indexOf(ENTETE_NOTES_VISIO);
+    if (i !== -1) {
+      const fin = avant.indexOf('\n\n', i);
+      return (avant.slice(0, i) + bloc + (fin === -1 ? '' : avant.slice(fin))).trim();
+    }
+    return (avant.trim() ? avant.trim() + '\n\n' : '') + bloc;
+  }
+
+  // Pure : le(s) rendez-vous de l'agenda à la date et à l'heure de l'invitation (options et
+  // signatures hors agenda écartées : on ne peut écrire que dans un rendez-vous d'Outlook).
+  function rendezVousPourInvitation(evenements, invitation) {
+    if (!invitation || !invitation.date || !invitation.heure) return [];
+    return (evenements || []).filter(e => e && e.itemId && !e.option && !e.horsAgenda && !e.fantome && !e.journeeEntiere
+      && e.date === invitation.date && e.heure === invitation.heure);
+  }
+
+  function renderVisioRendezVous(e) {
+    const d = dossierDeEvenement(e);
+    const n = notesAgenda[e.itemId];
+    const lien = n && n.etat === 'ok' ? lienVisioDansNotes(n.notes) : '';
+    if (!lien && !estVisioAgenda(e, categoriesRdvReglees(), d)) return '';
+    const cle = escapeOnclickArg(cleEvenementAgenda(e));
+    const choisir = `<label class="lien-bouton ag-visio-ics" title="Choisir l’invitation .ics rendue par le site ADNOV — ou la déposer sur l’agenda">${icone('upload')} ${lien ? 'Remplacer l’invitation (.ics)' : 'Ajouter l’invitation (.ics)'}<input type="file" accept=".ics,text/calendar" hidden onchange="choisirIcsRendezVous('${cle}', this)"></label>`;
+    return `<div class="ag-visio">
+        ${lien ? `<a class="primary ag-visio-rejoindre" href="${escapeAttr(lien)}" target="_blank" rel="noopener">${icone('video')} Rejoindre la visio</a>`
+          : `<button type="button" class="secondary ag-visio-creer" onclick="ouvrirSiteVisio()" title="Ouvrir le site de visio de la profession (ADNOV)">${icone('video')} Créer la visio</button>`}
+        ${choisir}
+      </div>`;
+  }
+
+  async function choisirIcsRendezVous(cle, input) {
+    const f = input && input.files && input.files[0];
+    if (input) input.value = '';
+    if (!f) return;
+    const e = evenementsAffichesAgenda().find(x => cleEvenementAgenda(x) === cle);
+    const invitation = lireInvitationIcs(await f.text());
+    if (!invitation || !invitation.lien) { afficherToast('Aucun lien de visio trouvé dans ce fichier .ics.', 'OK', null); return; }
+    if (!e) return;
+    const ecart = invitation.date && (invitation.date !== e.date || (invitation.heure && invitation.heure !== e.heure));
+    const ajouter = () => ajouterVisioAuRendezVous(e, invitation);
+    if (ecart) demanderConfirmation(`L’invitation est prévue le ${formatDateFr(invitation.date)}${invitation.heure ? ' à ' + invitation.heure.replace(':', ' h ') : ''}, pas à l’heure de ce rendez-vous. Ajouter quand même son lien à « ${e.sujet} » ?`, ajouter, { bouton: 'Ajouter le lien', ton: 'valider' });
+    else ajouter();
+  }
+
+  function survolDepotIcsAgenda(evt) {
+    if (!evt.dataTransfer || Array.from(evt.dataTransfer.types || []).indexOf('Files') === -1) return;
+    evt.preventDefault();
+    const p = document.getElementById('onglet-agenda');
+    if (p) p.classList.add('ag-depot-ics');
+  }
+  function quitteDepotIcsAgenda(evt) {
+    const p = document.getElementById('onglet-agenda');
+    if (p && (!evt.relatedTarget || !p.contains(evt.relatedTarget))) p.classList.remove('ag-depot-ics');
+  }
+
+  // Une invitation déposée sur l'agenda : ajoutée au rendez-vous ouvert si on la pose sur son détail,
+  // sinon au rendez-vous de même date et même heure (confirmé). Jamais créée à part.
+  async function deposerIcsAgenda(evt) {
+    const fichiers = Array.from((evt.dataTransfer && evt.dataTransfer.files) || []);
+    const f = fichiers.find(x => /\.ics$/i.test(x.name) || x.type === 'text/calendar');
+    const p = document.getElementById('onglet-agenda');
+    if (p) p.classList.remove('ag-depot-ics');
+    if (!fichiers.length) return;
+    evt.preventDefault();
+    if (!f) { afficherToast('Déposez ici l’invitation de visio (.ics) rendue par le site ADNOV.', 'OK', null); return; }
+    if (!exchangeAgendaPret()) { afficherToast('Connexion à l’agenda Outlook à activer dans les Réglages.', 'OK', null); return; }
+    const invitation = lireInvitationIcs(await f.text());
+    if (!invitation || !invitation.lien) { afficherToast('Aucun lien de visio trouvé dans ce fichier .ics.', 'OK', null); return; }
+    const pop = document.getElementById('agenda-popover');
+    if (agendaSelection && pop && pop.contains(evt.target)) {
+      const e = evenementsAffichesAgenda().find(x => cleEvenementAgenda(x) === agendaSelection);
+      if (e && e.itemId && !e.option && !e.horsAgenda) { ajouterVisioAuRendezVous(e, invitation); return; }
+    }
+    const cibles = rendezVousPourInvitation(evenementsAffichesAgenda(), invitation);
+    const quand = invitation.date ? `le ${formatDateFr(invitation.date)}${invitation.heure ? ' à ' + invitation.heure.replace(':', ' h ') : ''}` : 'à une date illisible';
+    if (cibles.length !== 1) {
+      afficherToast(cibles.length
+        ? `Plusieurs rendez-vous ${quand} : ouvrez le bon puis déposez l’invitation sur son détail.`
+        : `Aucun rendez-vous de l’agenda ${quand}. Créez-le d’abord, ou ouvrez le rendez-vous et déposez l’invitation sur son détail.`, 'OK', null);
+      if (invitation.date) { positionnerAgenda(invitation.date); renderPageAgenda(); chargerAgendaSemaine(); }
+      return;
+    }
+    const e = cibles[0];
+    demanderConfirmation(`Ajouter le lien de la visio au rendez-vous « ${e.sujet} » ${quand} ? Il sera écrit dans ses notes, lisibles aussi dans Outlook.`,
+      () => ajouterVisioAuRendezVous(e, invitation), { bouton: 'Ajouter le lien', ton: 'valider' });
+  }
+
+  // Relit les notes du rendez-vous (pour ne rien écraser), y ajoute le bloc de la visio et les
+  // réécrit dans Outlook. Un seul essai, comme toute écriture EWS.
+  async function ajouterVisioAuRendezVous(e, invitation) {
+    try {
+      const lu = await (await fetchAvecAuth(`/api/exchange/evenement/notes?itemId=${encodeURIComponent(e.itemId)}`)).json();
+      if (!lu.ok) { afficherToast(lu.message || 'Les notes du rendez-vous n’ont pas pu être lues : lien non ajouté.', 'OK', null); return; }
+      const notes = notesAvecVisio(lu.notes || '', invitation);
+      const r = await fetchAvecAuth('/api/exchange/evenement/notes', {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ itemId: e.itemId, changeKey: lu.changeKey || e.changeKey || '', notes })
+      });
+      const corps = await r.json();
+      if (!corps.ok) { afficherToast(corps.message || 'Le lien de la visio n’a pas été ajouté.', 'OK', null); return; }
+      notesAgenda[e.itemId] = { etat: 'ok', notes, changeKey: corps.changeKey || '' };
+      const brut = agendaEvenements.find(x => x.itemId === e.itemId);
+      if (brut && corps.changeKey) brut.changeKey = corps.changeKey;
+      const d = dossierDeEvenement(e);
+      if (d) { ajouterHistorique(d, `Lien de la visio ajouté au rendez-vous du ${formatDateFr(e.date)} (notes du rendez-vous dans l’agenda).`); sauvegarder(d); }
+      afficherToast('Lien de la visio ajouté au rendez-vous.', 'OK', null);
+      agendaSelection = cleEvenementAgenda(e);
+      renderPageAgenda();
+    } catch (err) {
+      afficherToast('Serveur injoignable — lien de la visio non ajouté.', 'OK', null);
+    }
   }
 
   // ---- Notes du rendez-vous (corps du rendez-vous dans Outlook, choix de l'étude du 30/09) ----
@@ -19861,7 +20062,8 @@
         ajouterHistorique(dossier, `Rendez-vous « ${sujet} » créé dans l’agenda de l’office le ${formatDateFr(date)} à ${heure}.`);
         sauvegarder(dossier);
       }
-      afficherToast('Rendez-vous créé dans l’agenda de l’office.', 'OK', null);
+      if (typeRdv === 'visio') afficherToast('Rendez-vous créé. Créez la visio sur le site ADNOV, puis déposez son invitation (.ics) sur l’agenda.', 'Créer la visio', ouvrirSiteVisio);
+      else afficherToast('Rendez-vous créé dans l’agenda de l’office.', 'OK', null);
       render();
       return true;
     } catch (e) {

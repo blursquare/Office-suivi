@@ -756,12 +756,12 @@
      la semaine du lundi au samedi de 7 h à 20 h, le calendrier du mois et les anticipations de
      CLAIRE (probabilité de tenue des signatures, créneaux proposés, relation client). Voir
      renderPageAgenda dans script.js. -->
-<div class="onglet-panel" id="onglet-agenda" style="display:none;">
+<div class="onglet-panel" id="onglet-agenda" style="display:none;" ondragover="survolDepotIcsAgenda(event)" ondragleave="quitteDepotIcsAgenda(event)" ondrop="deposerIcsAgenda(event)">
   <div class="dash-header">
     <div>
       <div class="dash-eyebrow">Office</div>
       <div class="dash-titre-ligne">
-        <h1 class="dash-titre">Agenda <span class="info-i" tabindex="0" data-info="Le calendrier partagé de l’office, relu toutes les 2 minutes. Un clic sur un rendez-vous l’ouvre à côté de lui (notes, fiche du dossier, suppression) ; un double-clic sur une case vide en crée un (1 h). À gauche, le mois et ce que CLAIRE anticipe."></span></h1>
+        <h1 class="dash-titre">Agenda <span class="info-i" tabindex="0" data-info="Le calendrier partagé de l’office, relu toutes les 2 minutes. Un clic sur un rendez-vous l’ouvre à côté de lui (notes, fiche du dossier, suppression) ; un double-clic sur une case vide en crée un (1 h). Une invitation de visio (.ics) déposée ici ajoute son lien au rendez-vous de même date et même heure. À gauche, le mois et ce que CLAIRE anticipe."></span></h1>
       </div>
     </div>
     <div class="dash-header-actions">

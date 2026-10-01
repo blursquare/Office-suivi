@@ -7618,3 +7618,19 @@ textarea.ag-notes-champ:focus { outline: 2px solid var(--focus); outline-offset:
 .sondage-table .sondage-si { color: var(--pret); white-space: nowrap; }
 .sondage-reponses .sondage-si svg { color: var(--pret); }
 .sondage-reponses em { font-style: normal; color: var(--muted); }
+
+/* ---- Visio ADNOV dans le détail d'un rendez-vous (étude, 01/10) : « Créer la visio » ouvre le site
+   de la profession, l'invitation .ics rendue y est rattachée (lien écrit dans les notes). ---- */
+.ag-visio { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
+.ag-visio a.ag-visio-rejoindre, .ag-visio button.secondary.ag-visio-creer {
+  display: inline-flex; align-items: center; gap: 6px; padding: 7px 13px; font-size: 13px; font-weight: 600;
+  border-radius: 8px; text-decoration: none; cursor: pointer; font-family: inherit;
+}
+.ag-visio a.ag-visio-rejoindre { background: var(--focus); color: var(--on-accent); border: 1px solid var(--focus); }
+.ag-visio a.ag-visio-rejoindre:hover { background: var(--focus-hover); border-color: var(--focus-hover); }
+.ag-visio a.ag-visio-rejoindre:focus-visible, .ag-visio .ag-visio-ics:focus-within { outline: 2px solid var(--focus); outline-offset: 2px; }
+.ag-visio .ag-visio-ics { display: inline-flex; align-items: center; gap: 5px; font-size: 12.5px; color: var(--muted); text-decoration: underline; cursor: pointer; }
+.ag-visio .ag-visio-ics:hover { color: var(--ink); }
+.ag-visio svg { width: 14px; height: 14px; flex: none; }
+/* Un fichier glissé au-dessus de l'agenda : le cadre dit qu'on peut le déposer. */
+#onglet-agenda.ag-depot-ics #agenda-contenu { outline: 2px dashed var(--focus); outline-offset: 4px; border-radius: 12px; }
