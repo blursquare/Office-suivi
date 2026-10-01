@@ -13650,3 +13650,29 @@ c'est le rendez-vous de signature d'un dossier.
   modification du titre et de la fin, glisser d'un rendez-vous et d'une signature (fiche et historique
   mis à jour), Échap, clic simple, stock serveur ; clair, sombre, téléphone. **Non vérifié** sur le vrai
   Exchange de l'office.
+
+### 01/10/2026 11 h 14 — Claire Scan : aperçu et indicateurs ; Prochaine étape teintée ; « Garantie non identifiée »
+
+Quatre demandes de l'étude dans la même matinée :
+- « Mettre un aperçu des pièces scannées dans Claire Scan » : vignette de la page 1 (`imagePagePdf`,
+  176 px, JPEG, faite pendant `lireScan` sur le PDF déjà chargé, `apercusScans` cle → data: URL ou
+  'echec', nettoyé avec `lecturesScans`) à gauche de chaque ligne ; un clic (vignette ou nom du fichier)
+  ouvre `ouvrirApercuScan` : toutes les pages dessinées une à une à la largeur de la fenêtre (30 au
+  plus, au-delà « ouvrez dans un onglet »), en tête la date, le nombre de pages et ce que CLAIRE a
+  reconnu (pièce · dossier) ; bouton « Ouvrir dans un onglet » (l'ancien `ouvrirScan`), Échap ou clic
+  à côté pour fermer ; plein écran sur téléphone. Rendu `intent: 'print'` comme l'OCR.
+- « Quand on clique sur Ranger ou Laisser dans Scan, mettre un indicateur » : `scansEnEcart` à côté de
+  `scansEnRangement` ; dès le clic (`renderScans(true)` passe outre la garde du champ en cours de
+  saisie), le bouton cliqué tourne (« Rangement… » / « Déplacement… »), l'autre et les champs sont
+  désactivés, la ligne s'estompe ; l'indicateur reste jusqu'à la liste relue (`chargerScans(true)`).
+  « Laisser dans Scan » signale maintenant un échec (toast) au lieu de ne rien dire.
+- « Prochaine étape : faire ressortir la carte avec un fond » : fond et bordure teintés de la couleur
+  de l'échéance (`--prochaine-teinte` : accent du thème, ambre à 15 j, rouge à 3 j ou dépassée),
+  liseré 4 px, ombre de carte.
+- « Quand une garantie n'est pas identifiée pour un prêt, mettre : garantie non identifiée » :
+  `garantiesPretAffichees(d)` (pur, testé) — offre reçue ou à confirmer sans garantie lue → « Garantie
+  non identifiée » en ambre sur la ligne « Obtention du prêt » ; avant l'offre, rien.
+
+Vérifié dans Chromium avec pdf.js 3.11.174 servi en local (le CDN est injoignable ici), un vrai
+serveur, un dossier Scan et un NAS de test : vignettes, aperçu de 3 pages, Échap, indicateurs pendant
+une réponse retardée, copie rangée sur le NAS, fiche (encadré, garantie) ; clair, sombre, téléphone.

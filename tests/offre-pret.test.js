@@ -283,3 +283,14 @@ test('offre CIC réelle (structure) : titre « 5 LES GARANTIES » et montant « 
   assert.equal(app.detecterGarantiesPret(offre).join(','), 'caution');
   assert.equal(app.detecterMontantPret(offre), 120000);
 });
+
+test('garantiesPretAffichees : « Garantie non identifiée » quand l’offre est reçue sans garantie lue', () => {
+  const app = chargerApplication();
+  const g = (d) => { const r = app.garantiesPretAffichees(d); return r ? `${r.texte}|${r.identifiee}` : 'null'; };
+  assert.equal(g({ offrePretStatut: 'recue', garantiesPret: [] }), 'Garantie non identifiée|false');
+  assert.equal(g({ offrePretStatut: 'aconfirmer' }), 'Garantie non identifiée|false');
+  assert.equal(g({ offrePretStatut: 'recue', garantiesPret: ['caution'] }).endsWith('|true'), true);
+  assert.equal(g({ offrePretStatut: 'recue', garantiesPret: ['sansGarantie'] }), 'Sans garanties|true');
+  assert.equal(g({ offrePretStatut: 'attente', garantiesPret: [] }), 'null', 'avant l’offre : rien');
+  assert.equal(g({ sansPret: true, offrePretStatut: 'recue' }), 'null');
+});

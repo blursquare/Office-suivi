@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-01 11:02';
+  const VERSION_APP = '2026-10-01 11:14';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-01 11:14', resume: "Claire Scan : chaque scan montre une vignette de sa première page ; un clic ouvre l'aperçu de toutes les pages, avec ce que CLAIRE a reconnu. « Ranger » et « Laisser dans Scan » tournent pendant le traitement. Fiche : l'encadré « Prochaine étape » ressort sur un fond teinté. Obtention du prêt : « Garantie non identifiée » quand l'offre est reçue sans garantie lue." },
     { version: '2026-10-01 11:02', resume: "Agenda : un rendez-vous se modifie (crayon dans son détail : titre, date, heures) et se déplace en le glissant dans la vue Semaine ou Jour, après confirmation. Le rendez-vous de signature d'un dossier emmène la date et l'heure de la fiche. Les notes d'un rendez-vous n'affichent plus « &#xD; »." },
     { version: '2026-10-01 10:10', resume: "Fenêtre du matin : plus de barre de défilement (flèches ▲▼) à côté des onglets Agenda du jour · Emails · Nouveautés. Notification Teams « dossier complet » : la phrase « Il est prêt à être rédigé. » est retirée." },
     { version: '2026-10-01 07:59', resume: "Sondage de créneaux : avec le relais Google réglé (Réglages › Rappels et agenda), le client n'a plus qu'à cliquer sur « Envoyer ma réponse » — la réponse arrive directement dans la boîte de l'office, sans passer par sa messagerie. Chaque destinataire a son propre lien (« Réponse de … » quand l'email en vise plusieurs) ; la page n'affiche que son rôle." },
@@ -21571,9 +21572,9 @@
       // Garanties du prêt lues dans l'offre (caution, hypothèque légale de prêteur de deniers,
       // hypothèque conventionnelle — plusieurs possibles) : affichées ici, dans la carte
       // "Obtention du prêt", emplacement choisi par l'étude.
-      const garanties = libellesGarantiesPret(d.garantiesPret);
-      const garantiesBloc = garanties.length
-        ? `<span class="tab-garanties" title="Garantie(s) relevée(s) dans l’offre de prêt">${icone('key')} ${garanties.map(escapeHtml).join(' · ')}</span>`
+      const garanties = garantiesPretAffichees(d);
+      const garantiesBloc = garanties
+        ? `<span class="tab-garanties${garanties.identifiee ? '' : ' garantie-inconnue'}" title="${garanties.identifiee ? 'Garantie(s) relevée(s) dans l’offre de prêt' : 'Aucune garantie lue dans l’offre de prêt : à vérifier dans l’offre'}">${icone('key')} ${escapeHtml(garanties.texte)}</span>`
         : '';
       // Voir d.piecesNotifications/fermerDossierDrawer : l'offre de prêt partage le même
       // mécanisme "Nouveau" que les pièces de la checklist (pseudo-cle CLE_NOTIF_OFFRE_PRET).
@@ -25900,6 +25901,17 @@
     // listées par l'étude) que si l'un d'eux est bien celui du PRÊT : ceux de l'assurance
     // emprunteur ne disent rien des garanties du prêt.
     return paragraphes.some(p => !estParagrapheGarantiesAssurance(p)) ? ['sansGarantie'] : [];
+  }
+
+  // Pur : ce que la ligne « Obtention du prêt » dit des garanties. Offre reçue (ou à confirmer) sans
+  // garantie lue → « Garantie non identifiée » (étude, 01/10 : « aujourd'hui on ne voit rien ») ;
+  // avant l'offre, rien.
+  function garantiesPretAffichees(d) {
+    if (!d || d.sansPret) return null;
+    const libelles = libellesGarantiesPret(d.garantiesPret);
+    if (libelles.length) return { texte: libelles.join(' · '), identifiee: true };
+    if (d.offrePretStatut === 'recue' || d.offrePretStatut === 'aconfirmer') return { texte: 'Garantie non identifiée', identifiee: false };
+    return null;
   }
 
   function libellesGarantiesPret(cles) {
@@ -35117,8 +35129,14 @@
   var etatScans = { charge: false, configure: false, raison: '', dossier: '', reglages: { actif: false, auto: false, depuis: null }, scans: [], ecartes: [], journal: [] };
   var lecturesScans = {};           // cle → { statut: 'lecture'|'pret'|'erreur', lecture, proposition, choix }
   var scansEnRangement = new Set();
+  // « Laisser dans Scan » en cours (étude, 01/10 : un indicateur dès le clic, pendant que ça mouline).
+  var scansEnEcart = new Set();
   // Scans dont le rangement automatique a échoué : jamais retentés seuls (ils attendent un geste).
   var echecsAutoScans = new Set();
+  // Aperçu des scans (étude, 01/10 : « mettre un aperçu des pièces scannées dans Claire Scan ») :
+  // vignette de la page 1 faite pendant la lecture du scan (même PDF déjà chargé), cle → image
+  // JPEG en data: URL, ou 'echec'.
+  var apercusScans = {};
   var surveillanceScansLancee = false;
   var DELAI_SURVEILLANCE_SCANS = 2 * 60 * 1000;
   var PAGES_TEXTE_SCAN = 4;
@@ -35166,6 +35184,7 @@
     await demanderRelaisScans();
     const presents = new Set((etatScans.scans || []).map(cleScan));
     Object.keys(lecturesScans).forEach(k => { if (!presents.has(k)) delete lecturesScans[k]; });
+    Object.keys(apercusScans).forEach(k => { if (!presents.has(k)) delete apercusScans[k]; });
     const visible = ongletActuel === 'scans';
     if (visible) renderScans();
     if (visible || rangementAutoScansActif()) {
@@ -35228,11 +35247,14 @@
 
   // Lit un scan : texte de page 1 à part (le type s'y lit), texte des premières pages (le dossier),
   // OCR des deux premières pages si le PDF n'a pas de texte.
-  async function lireScan(scan) {
+  async function lireScan(scan, surApercu) {
     if (typeof pdfjsLib === 'undefined') throw new Error('Lecteur PDF indisponible');
     const r = await fetchAvecAuth('/api/scans/fichier?nom=' + encodeURIComponent(scan.nom));
     if (!r.ok) throw new Error('Scan introuvable');
     const pdf = await pdfjsLib.getDocument({ data: await r.arrayBuffer() }).promise;
+    if (surApercu) {
+      try { surApercu(await imagePagePdf(pdf, 1, LARGEUR_VIGNETTE_SCAN, 0.72)); } catch (e) { surApercu(''); }
+    }
     const pages = [];
     for (let p = 1; p <= Math.min(pdf.numPages, PAGES_TEXTE_SCAN); p++) {
       const page = await pdf.getPage(p);
@@ -35275,7 +35297,10 @@
           if (ongletActuel === 'scans') renderScans();
           try {
             const debutLecture = Date.now();
-            const lecture = await lireScan(scan);
+            const lecture = await lireScan(scan, (url) => {
+              apercusScans[cle] = url || 'echec';
+              if (ongletActuel === 'scans') renderScans();
+            });
             const proposition = propositionScan(lecture, dossiersCandidatsScans(), scan.date);
             noterJournalTechnique({ categorie: 'scan-lu', dureeMs: Date.now() - debutLecture, ocr: !!lecture.viaOcr, reconnu: !!(proposition && proposition.type), sur: !!(proposition && proposition.automatique), type: (proposition && proposition.type) || '' });
             lecturesScans[cle] = { statut: 'pret', lecture: { viaOcr: lecture.viaOcr, pages: lecture.pages, texte: lecture.texte }, proposition, choix: choixDepuisProposition(proposition) };
@@ -35330,7 +35355,7 @@
     if (!d) { if (!auto) afficherToast('Choisissez le dossier client avant de ranger ce scan.', 'OK', null); return; }
     if (!d.nasDossier) { if (!auto) afficherToast('Ce dossier n’est pas relié à son dossier du NAS : reliez-le depuis sa fiche.', 'OK', null); return; }
     scansEnRangement.add(nom);
-    if (!auto) renderScans();
+    if (!auto) renderScans(true);
     try {
       const r = await fetchAvecAuth('/api/scans/ranger', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -35350,8 +35375,11 @@
       try { await enregistrerPieceRangee(d, choix, corps, auto); } catch (e) { console.warn('Pièce rangée non enregistrée :', e.message); }
       if (typeof verifierDossierLocal === 'function') verifierDossierLocal(d.id, false).catch(() => {});
     } finally {
-      scansEnRangement.delete(nom);
-      await chargerScans();
+      // L'indicateur reste jusqu'à la liste relue : le scan rangé en sort, un échec le rend cliquable.
+      try { await chargerScans(true); } finally {
+        scansEnRangement.delete(nom);
+        if (ongletActuel === 'scans') renderScans(true);
+      }
     }
   }
 
@@ -35411,8 +35439,20 @@
   }
 
   async function ecarterScan(nom) {
-    await fetchAvecAuth('/api/scans/ecarter', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nom, auteur: utilisateurPoste || '' }) });
-    await chargerScans();
+    if (scansEnEcart.has(nom) || scansEnRangement.has(nom)) return;
+    scansEnEcart.add(nom);
+    renderScans(true);
+    try {
+      const r = await fetchAvecAuth('/api/scans/ecarter', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nom, auteur: utilisateurPoste || '' }) });
+      if (!r.ok) afficherToast('Le scan n’a pas pu être laissé de côté : réessayez.', 'OK', null);
+    } catch (e) {
+      afficherToast('Serveur injoignable — scan non déplacé.', 'OK', null);
+    } finally {
+      try { await chargerScans(true); } finally {
+        scansEnEcart.delete(nom);
+        if (ongletActuel === 'scans') renderScans(true);
+      }
+    }
   }
 
   async function retablirScan(nom) {
@@ -35492,20 +35532,122 @@
       + TYPES_SCAN.map(t => `<option value="${escapeAttr(t.cle)}"${t.cle === choisi ? ' selected' : ''}>${escapeHtml(t.label)}</option>`).join('');
   }
 
+  // ---- Aperçu d'un scan ----
+  var LARGEUR_VIGNETTE_SCAN = 176;   // px de l'image : nette à 88 px affichés sur un écran ×2
+  var MAX_PAGES_APERCU_SCAN = 30;
+
+  // Une page du PDF en image JPEG (data: URL), à `largeur` pixels. Fond blanc (un scan sans fond
+  // deviendrait noir en JPEG) ; intent 'print' : rendu même fenêtre réduite (voir ocrPage).
+  async function imagePagePdf(pdf, numero, largeur, qualite) {
+    const page = await pdf.getPage(numero);
+    const base = page.getViewport({ scale: 1 });
+    const viewport = page.getViewport({ scale: largeur / base.width });
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(viewport.width);
+    canvas.height = Math.round(viewport.height);
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    await page.render({ canvasContext: ctx, viewport, intent: 'print' }).promise;
+    return canvas.toDataURL('image/jpeg', qualite || 0.8);
+  }
+
+  function renderVignetteScan(scan) {
+    const apercu = apercusScans[cleScan(scan)];
+    const contenu = apercu && apercu !== 'echec'
+      ? `<img src="${apercu}" alt="">`
+      : `<span class="scan-vignette-vide">${scan.stable && !apercu ? icone('spinner', null, true) : icone('file-text')}</span>`;
+    return `<button type="button" class="scan-vignette" onclick="ouvrirApercuScan('${escapeOnclickArg(scan.nom)}')" title="Voir le scan" aria-label="Voir le scan ${escapeAttr(scan.nom)}">${contenu}</button>`;
+  }
+
+  // Fenêtre d'aperçu : toutes les pages, dessinées une à une à la largeur de la fenêtre ; ce que
+  // CLAIRE a reconnu en tête, pour vérifier avant de ranger.
+  var apercuScanOuvert = null;   // { nom, jeton }
+  async function ouvrirApercuScan(nom) {
+    const scan = (etatScans.scans || []).find(x => x.nom === nom) || { nom, date: '' };
+    let overlay = document.getElementById('scan-apercu-overlay');
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.id = 'scan-apercu-overlay';
+      overlay.className = 'scan-apercu-overlay';
+      overlay.addEventListener('click', (e) => { if (e.target === overlay) fermerApercuScan(); });
+      document.body.appendChild(overlay);
+    }
+    const jeton = {};
+    apercuScanOuvert = { nom, jeton };
+    const l = lecturesScans[cleScan(scan)];
+    const c = l && l.choix;
+    const d = c && c.dossierId ? dossiers.find(x => x.id === c.dossierId) : null;
+    const type = c && c.type ? (TYPES_SCAN.find(t => t.cle === c.type) || {}).label : '';
+    const reconnu = [type, d ? libelleDossierAffiche(d) : ''].filter(Boolean).join(' · ');
+    const quand = scan.date ? new Date(scan.date).toLocaleString('fr-FR', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }) : '';
+    overlay.innerHTML = `<div class="scan-apercu" role="dialog" aria-modal="true" aria-labelledby="scan-apercu-titre">
+        <header class="scan-apercu-tete">
+          <div class="scan-apercu-titres">
+            <h2 id="scan-apercu-titre">${escapeHtml(nom)}</h2>
+            <div class="scan-apercu-meta"><span id="scan-apercu-pages">${escapeHtml(quand)}</span>${reconnu ? `<span>${escapeHtml(reconnu)}</span>` : ''}</div>
+          </div>
+          <button type="button" class="icon-btn" onclick="ouvrirScan('${escapeOnclickArg(nom)}')" aria-label="Ouvrir dans un onglet" title="Ouvrir dans un onglet (imprimer, télécharger)">${icone('maximize')}</button>
+          <button type="button" class="icon-btn" onclick="fermerApercuScan()" aria-label="Fermer l’aperçu">${icone('x')}</button>
+        </header>
+        <div class="scan-apercu-corps" id="scan-apercu-corps"><p class="hint scan-etat">${icone('spinner', null, true)} Chargement du scan…</p></div>
+      </div>`;
+    overlay.style.display = 'flex';
+    const corps = document.getElementById('scan-apercu-corps');
+    const actif = () => apercuScanOuvert && apercuScanOuvert.jeton === jeton;
+    try {
+      if (typeof pdfjsLib === 'undefined') throw new Error('Lecteur PDF indisponible : ouvrez le scan dans un onglet.');
+      const r = await fetchAvecAuth('/api/scans/fichier?nom=' + encodeURIComponent(nom));
+      if (!r.ok) throw new Error('Ce scan n’est plus dans le dossier Scan.');
+      const pdf = await pdfjsLib.getDocument({ data: await r.arrayBuffer() }).promise;
+      if (!actif()) return;
+      const total = pdf.numPages;
+      const pagesMeta = document.getElementById('scan-apercu-pages');
+      if (pagesMeta) pagesMeta.textContent = [quand, `${total} page${total > 1 ? 's' : ''}`].filter(Boolean).join(' · ');
+      corps.innerHTML = '';
+      const largeur = Math.min(1600, Math.round(Math.max(320, corps.clientWidth - 32) * (window.devicePixelRatio || 1)));
+      for (let n = 1; n <= Math.min(total, MAX_PAGES_APERCU_SCAN); n++) {
+        const url = await imagePagePdf(pdf, n, largeur, 0.85);
+        if (!actif()) return;
+        const fig = document.createElement('figure');
+        fig.className = 'scan-apercu-page';
+        fig.innerHTML = `<img src="${url}" alt="Page ${n}"><figcaption>Page ${n} / ${total}</figcaption>`;
+        corps.appendChild(fig);
+      }
+      if (total > MAX_PAGES_APERCU_SCAN) {
+        corps.insertAdjacentHTML('beforeend', `<p class="hint scan-etat">${total - MAX_PAGES_APERCU_SCAN} pages de plus : ouvrez le scan dans un onglet.</p>`);
+      }
+    } catch (e) {
+      if (actif()) corps.innerHTML = `<p class="hint scan-etat">${icone('alert-triangle')} ${escapeHtml(e.message || 'Aperçu impossible.')}</p>`;
+    }
+  }
+
+  function fermerApercuScan() {
+    apercuScanOuvert = null;
+    const overlay = document.getElementById('scan-apercu-overlay');
+    if (overlay) { overlay.style.display = 'none'; overlay.innerHTML = ''; }
+  }
+  if (typeof document !== 'undefined' && document.addEventListener) {
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && apercuScanOuvert) { e.stopPropagation(); fermerApercuScan(); } }, true);
+  }
+
   function renderLigneScan(scan) {
     const l = lecturesScans[cleScan(scan)] || null;
     const nomArg = escapeOnclickArg(scan.nom);
     const quand = new Date(scan.date).toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
     const tete = `<div class="scan-tete">
-        <button type="button" class="scan-nom" onclick="ouvrirScan('${nomArg}')" title="Ouvrir le scan">${icone('file-text')}<span>${escapeHtml(scan.nom)}</span></button>
+        <button type="button" class="scan-nom" onclick="ouvrirApercuScan('${nomArg}')" title="Voir le scan">${icone('file-text')}<span>${escapeHtml(scan.nom)}</span></button>
         <span class="scan-date">${escapeHtml(quand)}</span>
       </div>`;
+    const vignette = renderVignetteScan(scan);
     if (!scan.stable || !l || l.statut === 'lecture') {
-      return `<li class="scan-ligne">${tete}<p class="hint scan-etat">${icone('spinner', null, true)} ${scan.stable ? 'Lecture du scan…' : 'Copie en cours depuis le copieur…'}</p></li>`;
+      return `<li class="scan-ligne">${vignette}<div class="scan-corps">${tete}<p class="hint scan-etat">${icone('spinner', null, true)} ${scan.stable ? 'Lecture du scan…' : 'Copie en cours depuis le copieur…'}</p></div></li>`;
     }
     const c = l.choix;
     const p = l.proposition;
     const enCours = scansEnRangement.has(scan.nom);
+    const ecart = scansEnEcart.has(scan.nom);
+    const occupe = enCours || ecart;
     let statut;
     if (l.statut === 'erreur') statut = `<span class="dot-label dl-urgent"><span class="dot"></span>${escapeHtml(l.erreur)}</span>`;
     else if (p.automatique) statut = `<span class="dot-label dl-success"><span class="dot"></span>Reconnu, rangement automatique</span>`;
@@ -35514,26 +35656,28 @@
     else if (p.dossierId && !p.type) statut = `<span class="dot-label dl-pret"><span class="dot"></span>Pièce à préciser</span>`;
     else statut = `<span class="dot-label dl-neutre"><span class="dot"></span>Dossier non reconnu</span>`;
     if (l.statut !== 'erreur') statut += `<span class="scan-score">${escapeHtml(explicationScoreScan(p))}${l.lecture && l.lecture.viaOcr ? ' · texte lu par OCR' : ''}</span>`;
-    return `<li class="scan-ligne">${tete}
+    const bloque = occupe ? ' disabled' : '';
+    return `<li class="scan-ligne${occupe ? ' scan-occupe' : ''}"${occupe ? ' aria-busy="true"' : ''}>${vignette}<div class="scan-corps">${tete}
       <div class="scan-statut">${statut}</div>
       <div class="scan-champs">
-        <label class="scan-champ"><span>Dossier</span><select onchange="changerChoixScan('${nomArg}', 'dossierId', this.value)">${optionsDossiersScan(c.dossierId, p)}</select></label>
-        <label class="scan-champ"><span>Pièce</span><select onchange="changerChoixScan('${nomArg}', 'type', this.value)">${optionsTypesScan(c.type)}</select></label>
-        <label class="scan-champ scan-champ-large"><span>Nom de la copie</span><input type="text" value="${escapeAttr(c.nomCible)}" oninput="changerChoixScan('${nomArg}', 'nomCible', this.value)" onchange="renderScans()"></label>
+        <label class="scan-champ"><span>Dossier</span><select onchange="changerChoixScan('${nomArg}', 'dossierId', this.value)"${bloque}>${optionsDossiersScan(c.dossierId, p)}</select></label>
+        <label class="scan-champ"><span>Pièce</span><select onchange="changerChoixScan('${nomArg}', 'type', this.value)"${bloque}>${optionsTypesScan(c.type)}</select></label>
+        <label class="scan-champ scan-champ-large"><span>Nom de la copie</span><input type="text" value="${escapeAttr(c.nomCible)}" oninput="changerChoixScan('${nomArg}', 'nomCible', this.value)" onchange="renderScans()"${bloque}></label>
       </div>
       <div class="scan-actions">
         <span class="hint">Rubrique : ${escapeHtml(libelleRubriquesScan(c.rubriques))}</span>
-        <button type="button" class="secondary" onclick="ecarterScan('${nomArg}')">Laisser dans Scan</button>
-        <button type="button" class="primary" onclick="rangerScanChoisi('${nomArg}', false)"${enCours || !c.dossierId ? ' disabled' : ''}>${enCours ? 'Rangement…' : 'Ranger'}</button>
+        <button type="button" class="secondary scan-bouton" onclick="ecarterScan('${nomArg}')"${bloque}>${ecart ? `${icone('spinner', null, true)} Déplacement…` : 'Laisser dans Scan'}</button>
+        <button type="button" class="primary scan-bouton" onclick="rangerScanChoisi('${nomArg}', false)"${occupe || !c.dossierId ? ' disabled' : ''}>${enCours ? `${icone('spinner', null, true)} Rangement…` : 'Ranger'}</button>
       </div>
-    </li>`;
+    </div></li>`;
   }
 
-  function renderScans() {
+  function renderScans(force) {
     const zone = document.getElementById('scans-contenu');
     if (!zone) return;
-    // Ne pas redessiner sous les doigts de quelqu'un qui tape le nom de la copie.
-    if (document.activeElement && zone.contains(document.activeElement) && document.activeElement.tagName === 'INPUT') return;
+    // Ne pas redessiner sous les doigts de quelqu'un qui tape le nom de la copie (sauf après un
+    // clic sur Ranger ou Laisser dans Scan : l'indicateur doit apparaître tout de suite).
+    if (force !== true && document.activeElement && zone.contains(document.activeElement) && document.activeElement.tagName === 'INPUT') return;
     const e = etatScans;
     if (!e.configure || !e.reglages.actif) {
       zone.innerHTML = `<div class="calc-card scans-vide">

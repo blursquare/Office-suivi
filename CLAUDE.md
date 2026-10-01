@@ -185,7 +185,8 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
   après l'échéance, jusqu'à réception de l'offre ou archivage.
 - **Offre de prêt** : reconnue par le nom du fichier, à défaut par le titre de la page de garde
   (≥ 6 pages) confirmé par l'IA locale ; « à confirmer » si le modèle est indisponible. Garanties
-  lues dans le seul paragraphe « GARANTIES », une garantie conditionnelle/future n'est pas comptée.
+  lues dans le seul paragraphe « GARANTIES », une garantie conditionnelle/future n'est pas comptée. Offre reçue sans garantie lue : « Garantie non identifiée »
+  (`garantiesPretAffichees`), jamais un blanc.
 - **Pièces du dossier** : reconnues **par le nom de fichier seulement** (`motifNom` +
   formes tolérantes `FORMES_NOM_PIECES`), jamais par le contenu (le compromis cite toutes les pièces).
   Une pièce validée à la main (`piecesValideesManuellement`) n'est jamais repassée en manquante.
@@ -267,7 +268,8 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
   personnalisée au libellé de la copie ajoutée puis cochée (`pieceDepuisScanRange`, validée à la main),
   fichier mémorisé, notification Teams immédiate (offre de prêt et avant-contrat exclus : parcours
   du NAS). Carte « Dernières pièces » : pièces reçues, puis scans à ranger et scans rangés sur 14 jours
-  (`scansPourCarte`). **OCR d'un scan : `page.render(… intent: 'print')`** — en « display », pdf.js 3.11 cadence
+  (`scansPourCarte`). **Aperçu** (01/10) : vignette de la page 1 sur chaque scan, fenêtre de toutes les pages au
+  clic (`ouvrirApercuScan`) ; « Ranger » / « Laisser dans Scan » tournent jusqu'à la liste relue. **OCR d'un scan : `page.render(… intent: 'print')`** — en « display », pdf.js 3.11 cadence
   le dessin sur `requestAnimationFrame`, arrêté fenêtre réduite/cachée (lecture bloquée sans fin). Un pré-état daté n'est
   pas un état daté (checklist corrigée le même jour).
 - **Page Agenda** (30/09, `renderPageAgenda`, **à la manière d'Outlook** — étude, 30/09 au soir : « plus

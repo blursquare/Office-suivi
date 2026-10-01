@@ -4288,6 +4288,7 @@
     color: var(--muted);
   }
   .tab-garanties .icone { flex: none; opacity: 0.75; }
+  .tab-garanties.garantie-inconnue { color: var(--pret); font-weight: 600; }
 
   /* ---- .dot-label : langage unique de statut dans tout l'outil ----
      Un point (ou une icône) coloré + un mot, jamais de fond ni de contour par défaut — remplace
@@ -6389,12 +6390,19 @@ button.lien-action:hover { text-decoration: underline; }
 .rdv-agenda-actions button.primary { padding: 6px 12px; font-size: 13px; border-radius: 7px; display: inline-flex; align-items: center; gap: 6px; }
 
 /* ---- Fiche › Échéances : encadré « Prochaine étape » (voir renderProchaineEtapeFiche) ---- */
+/* Fond teinté de la couleur de l'échéance (étude, 01/10 : « faire ressortir la carte avec un fond
+   pour mieux la voir ») : accent du thème, ambre à 15 jours, rouge à 3 jours ou dépassée. */
 .prochaine-etape {
-  margin: 4px 0 14px; padding: 12px 12px 6px; border: 1px solid var(--line);
-  border-left: 3px solid var(--line); border-radius: 10px; background: var(--paper-card);
+  --prochaine-teinte: var(--focus);
+  margin: 4px 0 14px; padding: 12px 12px 6px;
+  border: 1px solid color-mix(in srgb, var(--prochaine-teinte) 28%, var(--line));
+  border-left: 4px solid var(--prochaine-teinte); border-radius: 10px;
+  background: color-mix(in srgb, var(--prochaine-teinte) 9%, var(--paper-card));
+  box-shadow: var(--shadow-card);
 }
-.prochaine-etape.proche { border-left-color: var(--pret); }
-.prochaine-etape.urgent { border-left-color: var(--urgent); }
+.prochaine-etape.proche { --prochaine-teinte: var(--pret); }
+.prochaine-etape.urgent { --prochaine-teinte: var(--urgent); }
+.prochaine-etape .ja-liste { border-top-color: color-mix(in srgb, var(--prochaine-teinte) 22%, var(--line-soft)); }
 .prochaine-tete { display: flex; flex-direction: column; gap: 4px; padding: 0 6px 6px; }
 .prochaine-ligne { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; }
 .prochaine-ligne > .dot-label { align-self: center; }
@@ -6962,7 +6970,49 @@ button.widgets-personnaliser.actif { background: var(--focus); border-color: var
 /* ---- Scans à ranger (classeur des scans du copieur, 30/09) ---- */
 .scans-liste { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
 .scans-liste > .scan-ligne + .scan-ligne { border-top: 1px solid var(--line-soft); }
-.scan-ligne { display: flex; flex-direction: column; gap: 8px; padding: 14px 0; min-width: 0; }
+.scan-ligne { display: grid; grid-template-columns: 88px minmax(0, 1fr); gap: 14px; align-items: start; padding: 14px 0; min-width: 0; }
+.scan-corps { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+/* Vignette de la page 1 (étude, 01/10) : un clic ouvre l'aperçu. */
+.scan-vignette {
+  display: block; width: 88px; aspect-ratio: 210 / 297; padding: 0; overflow: hidden; cursor: zoom-in;
+  background: var(--paper-sunk); border: 1px solid var(--line); border-radius: 6px; box-shadow: var(--shadow-card);
+}
+.scan-vignette:hover { border-color: var(--focus); }
+.scan-vignette:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.scan-vignette img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: top; background: #fff; }
+.scan-vignette-vide { display: flex; width: 100%; height: 100%; align-items: center; justify-content: center; color: var(--muted); }
+.scan-vignette-vide .icone { width: 22px; height: 22px; }
+/* Ranger / Laisser dans Scan en cours : la ligne s'estompe, le bouton cliqué tourne. */
+.scan-ligne.scan-occupe .scan-champs, .scan-ligne.scan-occupe .scan-vignette { opacity: 0.55; }
+.scan-bouton { display: inline-flex; align-items: center; gap: 6px; }
+.scan-bouton:disabled { cursor: progress; }
+@media (max-width: 480px) {
+  .scan-ligne { grid-template-columns: 60px minmax(0, 1fr); gap: 10px; }
+  .scan-vignette { width: 60px; }
+}
+/* Fenêtre d'aperçu d'un scan : toutes les pages, à la largeur de la fenêtre. */
+.scan-apercu-overlay {
+  position: fixed; inset: 0; z-index: 955; display: none; align-items: center; justify-content: center;
+  padding: 24px 16px; background: rgba(20, 26, 38, 0.52);
+}
+[data-theme="dark"] .scan-apercu-overlay { background: rgba(0, 0, 0, 0.62); }
+.scan-apercu {
+  width: min(920px, 100%); height: min(1100px, calc(100vh - 48px)); display: flex; flex-direction: column; overflow: hidden;
+  background: var(--paper-card); color: var(--ink); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow-float);
+}
+.scan-apercu-tete { flex: none; display: flex; align-items: center; gap: 6px; padding: 12px 12px 12px 20px; border-bottom: 1px solid var(--line-soft); }
+.scan-apercu-titres { flex: 1 1 auto; min-width: 0; }
+.scan-apercu-titres h2 { margin: 0; font-size: 15px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.scan-apercu-meta { display: flex; flex-wrap: wrap; gap: 2px 12px; font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.scan-apercu-corps { flex: 1 1 auto; min-height: 0; overflow-y: auto; background: var(--paper-sunk); padding: 16px; display: flex; flex-direction: column; align-items: center; gap: 16px; }
+.scan-apercu-page { margin: 0; width: 100%; max-width: 860px; display: flex; flex-direction: column; gap: 6px; }
+.scan-apercu-page img { display: block; width: 100%; height: auto; background: #fff; border-radius: 3px; box-shadow: var(--shadow-card); }
+.scan-apercu-page figcaption { font-size: 11.5px; color: var(--muted); text-align: center; font-variant-numeric: tabular-nums; }
+@media (max-width: 600px) {
+  .scan-apercu-overlay { padding: 0; }
+  .scan-apercu { height: 100%; border-radius: 0; border: none; }
+  .scan-apercu-corps { padding: 10px; }
+}
 .scan-ligne:first-child { padding-top: 0; }
 .scan-tete { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; min-width: 0; }
 button.scan-nom {
