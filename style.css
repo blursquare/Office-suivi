@@ -7933,3 +7933,16 @@ button.w-jour-lien { border: none; background: none; padding: 0; cursor: pointer
 .w-note-alerte { color: var(--pret); }
 .ajd-compacte .ajd-heure b { font-size: 12.5px; }
 .ajd-compacte .ajd-journee .ajd-heure b, .ajd-compacte .ajd-heure b:only-child { font-size: 11px; }
+
+/* ---- Page d'Authentic reçue de l'extension Firefox (01/10) ---- */
+.authentic-box { max-width: 640px; width: calc(100vw - 32px); }
+.auth-etat { margin: 4px 0 10px; font-size: 13px; color: var(--muted); }
+.auth-liste { max-height: min(60vh, 520px); overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
+.auth-groupe-titre { margin: 0 0 4px; font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.auth-champs { margin: 0; display: flex; flex-direction: column; }
+.auth-champ { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); gap: 10px; padding: 4px 0; border-top: 1px solid var(--line-soft); font-size: 13px; }
+.auth-champ dt { color: var(--ink-soft); overflow-wrap: anywhere; }
+.auth-champ dd { margin: 0; color: var(--ink); font-weight: 550; overflow-wrap: anywhere; }
+.auth-tableau { border-collapse: collapse; font-size: 12.5px; }
+.auth-tableau th { padding: 3px 8px; border: 1px solid var(--line-soft); text-align: left; font-weight: 600; color: var(--ink-soft); white-space: nowrap; }
+.auth-tableau td { padding: 3px 8px; border: 1px solid var(--line-soft); color: var(--ink); white-space: nowrap; }

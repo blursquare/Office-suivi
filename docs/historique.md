@@ -14354,3 +14354,28 @@ fil de l'étude). Le carré montre les actions du jour, les barres des 7 jours, 
 (196 px), texte sur 3 lignes au plus pour garder le dossier lisible ; un clic ouvre la fiche. Mis à jour au
 sondage comme le reste de la page. « Dernières pièces » défile désormais au-delà de 232 px (la colonne est
 collante). Vérifié dans Chromium (clair, sombre, 400 px) avec un historique inventé.
+
+### 01/10/2026 23:59 — Extension Firefox « CLAIRE pour Authentic » (première version)
+
+Demande de l'étude : « un add-on Firefox pour connecter Authentic à Claire » ; Authentic s'ouvre dans Firefox ;
+usage choisi : « Envoyer à CLAIRE » (créer ou mettre à jour la fiche depuis le dossier Authentic ouvert). Aucune
+page d'Authentic n'est disponible ici : construit d'abord le transport et un outil de calibrage sans données.
+- `extension-firefox/` (Manifest V2, Firefox ≥ 109, `web-ext lint` : 0 erreur ; seul avertissement :
+  `permissions.request` absent de Firefox Android) : bouton → `capture.js` injecté dans tous les cadres (champs
+  `input/select/textarea` visibles avec libellé — `label[for]`, label parent, aria, cellule ou élément précédent —
+  et rubrique — légende du fieldset ou titre précédent —, paires `<dl>`, tableaux les plus intérieurs avec
+  en-tête `<th>` séparé, texte visible ; jamais password/hidden/file) → `POST /api/authentic/capture` → onglet
+  CLAIRE `#authentic=<id>` (réutilisé s'il est ouvert dans Firefox). Options : adresse de CLAIRE, permission
+  d'hôte demandée pour cette seule machine (`optional_permissions`), test `/api/health`.
+  `data_collection_permissions: websiteContent` déclaré (exigé à l'avenir par Mozilla).
+- Serveur `routes/authentic.js` : capture normalisée et bornée (`normaliserCaptureAuthentic`), mémoire seule,
+  30 min, 20 au plus, `application/json` obligatoire (415 sinon : une page web ne peut pas poster sans prévol),
+  jamais journalisée. Tests `server/test/authentic.test.js`.
+- Client : `ouvrirCaptureAuthenticDepuisAdresse` (chargement et `hashchange`), fenêtre « Page d'Authentic
+  reçue » (champs par rubrique, tableaux), « Copier la structure (sans données) » (`structureCaptureAuthentic` :
+  rubriques et libellés via `masquerLibelleAuthentic` — chiffres → 9, mots en capitales hors sigles → XXX, noms
+  après une civilité → XXX —, valeurs via `masquerValeurAuthentic` — [date], [montant], [texte, n mots]… —, seul
+  l'en-tête `<th>` d'un tableau garde ses libellés ; une première ligne de `<td>` gardée en clair aurait pu
+  laisser passer un nom, corrigé avant le commit). Tests `tests/extension-authentic.test.js` (« aucun nom ne sort »).
+- Vérifié dans Chromium : relevé d'une page inventée imitant un dossier, envoi au serveur, fenêtre CLAIRE (clair,
+  sombre). **Non vérifié** : vrai Firefox, vraies pages d'Authentic, signature Mozilla.

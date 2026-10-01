@@ -2202,6 +2202,18 @@
      qui n'apparaît qu'au moment où il est utile. Le rappel générique par email
      (ouvrirEmailRappel()) qui l'utilisait aussi a été retiré définitivement, remplacé par les
      rappels automatiques par email. -->
+<!-- Page d'Authentic reçue de l'extension Firefox (voir ouvrirCaptureAuthenticDepuisAdresse). -->
+<div class="confirm-overlay" id="authentic-overlay" style="display:none;" onclick="fermerCaptureAuthentic()">
+  <div class="confirm-box authentic-box" role="dialog" aria-labelledby="authentic-titre" onclick="event.stopPropagation()">
+    <div class="poste-titre" id="authentic-titre">Page d’Authentic reçue <span class="info-i" tabindex="0" data-info="La reprise dans une fiche sera branchée sur la structure des pages d’Authentic. « Copier la structure » ne copie que les libellés et le type de chaque valeur (date, montant, texte…), jamais une valeur : on peut l’envoyer sans donnée client."></span></div>
+    <div id="authentic-contenu"></div>
+    <div class="confirm-actions">
+      <button type="button" class="lien-discret" onclick="copierStructureAuthentic()">Copier la structure (sans données)</button>
+      <button type="button" class="btn-annuler" onclick="fermerCaptureAuthentic()">Fermer</button>
+    </div>
+  </div>
+</div>
+
 <div class="confirm-overlay" id="info-action-overlay" style="display:none;" onclick="fermerInfoAction()">
   <div class="confirm-box" onclick="event.stopPropagation()">
     <p><strong id="info-action-titre"></strong></p>

@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <title>CLAIRE pour Authentic</title>
+  <style>
+    :root { --ink: #111418; --muted: #5B6470; --line: #D5D8DD; --accent: #6D2332; --ok: #15803D; --err: #B91C1C; --fond: #fff; }
+    @media (prefers-color-scheme: dark) { :root { --ink: #ECEEF1; --muted: #9AA3AE; --line: #3A3F46; --accent: #E8A3B0; --ok: #4ADE80; --err: #F87171; --fond: #1C1F24; } }
+    body { margin: 0; padding: 16px; background: var(--fond); color: var(--ink); font: 14px/1.45 system-ui, sans-serif; }
+    label { display: block; font-weight: 600; margin-bottom: 6px; }
+    input { width: 100%; box-sizing: border-box; padding: 7px 9px; border: 1px solid var(--line); border-radius: 8px; background: transparent; color: inherit; font: inherit; }
+    .aide { color: var(--muted); font-size: 12.5px; margin: 6px 0 12px; }
+    .ligne { display: flex; gap: 8px; align-items: center; }
+    button { padding: 7px 14px; border: 0; border-radius: 8px; background: var(--accent); color: #fff; font: inherit; cursor: pointer; }
+    #etat { font-size: 13px; }
+    #etat.ok { color: var(--ok); } #etat.err { color: var(--err); }
+  </style>
+</head>
+<body>
+  <label for="serveur">Adresse de CLAIRE</label>
+  <input id="serveur" type="url" placeholder="http://192.168.60.10:3000" autocomplete="off">
+  <p class="aide">L’adresse affichée par le serveur CLAIRE au démarrage (celle de la fenêtre CLAIRE, sans ce qui suit le port). Firefox demande ensuite l’autorisation d’y envoyer les pages.</p>
+  <div class="ligne"><button id="enregistrer" type="button">Enregistrer et tester</button><span id="etat" role="status"></span></div>
+  <script src="options.js"></script>
+</body>
+</html>

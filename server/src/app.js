@@ -35,6 +35,7 @@ const { creerRouteurSondages } = require('./routes/sondages');
 const { creerRouteurEmailsMatin } = require('./routes/emailsMatin');
 const { creerRouteurRapportTechnique } = require('./routes/rapportTechnique');
 const { creerRouteurSonnerie, creerRouteurAppels, creerEtatAppels } = require('./routes/appels');
+const { creerRouteurAuthentic } = require('./routes/authentic');
 const { creerJournalTechnique } = require('./journalTechnique');
 const { COLLABORATEURS_ABSENCE } = require('./agendaOffice');
 const { lireBuildInstalle } = require('./miseAJour');
@@ -134,6 +135,8 @@ function creerApp({ db, config, envoyerEmailFn, creerClientClaude, appelerMistra
   const etatAppels = creerEtatAppels();
   app.use(creerRouteurSonnerie(parametresRepo, depot, etatAppels));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurAppels(parametresRepo, etatAppels));
+  // Pages d'Authentic envoyées par l'extension Firefox (extension-firefox/), gardées en mémoire 30 min.
+  app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurAuthentic());
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurDossiers(depot));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurExtractionIa(config));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurOffrePret(config));

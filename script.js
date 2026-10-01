@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-01 23:47';
+  const VERSION_APP = '2026-10-01 23:59';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-01 23:59', resume: "Nouvelle extension Firefox « CLAIRE pour Authentic » (première version) : sur une page de dossier d'Authentic, le bouton « Envoyer à CLAIRE » transmet ce que la page affiche au serveur CLAIRE du bureau (gardé 30 minutes en mémoire, jamais un mot de passe), et CLAIRE l'affiche. La reprise dans une fiche sera branchée une fois la structure des pages connue : « Copier la structure (sans données) » la copie sans aucune valeur de client." },
     { version: '2026-10-01 23:47', resume: "Suivi des dossiers : un carré « Activité de l'étude — En direct » s'ajoute à la colonne de gauche, sous les dernières pièces — actions du jour, barres des 7 derniers jours, qui a agi, puis le fil des dernières actions de toute l'étude (collaborateurs, agenda, relevés de CLAIRE), qui ouvre la fiche au clic. Le même fil que sur le tableau de bord." },
     { version: '2026-10-01 23:34', resume: "Suivi des dossiers : le filtre « Responsable » est présélectionné sur le collaborateur du poste à l'ouverture de la session, administrateur compris (« Tous » reste à un clic et un choix fait à la main est gardé) ; changer de collaborateur repose le filtre sur le nouveau." },
     { version: '2026-10-01 23:33', resume: "Suivi des dossiers : mêmes colonnes, dans le même ordre, en vue Échéances et en vue Tableau (et dans « Nouveau » et « Archivés ») — Date, Dossier, Échéance, Resp., Statut. La vue Tableau perd la colonne « Offre de prêt » (le filtre « Offre de prêt » reste) ; ses titres restent triables." },
@@ -24694,6 +24695,117 @@
     } catch (e) { /* la relève suivante reprendra */ }
   }
 
+  // ---- Pages d'Authentic reçues de l'extension Firefox « CLAIRE pour Authentic » (01/10) ----
+  // L'extension (extension-firefox/) relève la page d'Authentic affichée (champs avec libellé et
+  // rubrique, tableaux, texte) et l'envoie au serveur, qui la garde 30 min en mémoire ; elle ouvre
+  // CLAIRE sur « #authentic=<id> ». Tant que la structure des pages d'Authentic n'est pas connue,
+  // CLAIRE montre ce qu'elle a reçu et propose d'en copier la STRUCTURE SANS DONNÉES (libellés et
+  // types de valeurs, jamais une valeur) : c'est elle qui servira à brancher la reprise dans une fiche.
+  var SIGLES_STRUCTURE_AUTHENTIC = ['TVA', 'SCI', 'CU', 'DPE', 'ERP', 'PLU', 'SRU', 'IBAN', 'RIB', 'BIC', 'VTE', 'AAE', 'DIA', 'DPU', 'TF', 'CP', 'SIREN', 'SIRET', 'RCS', 'N°', 'HT', 'TTC', 'EUR'];
+
+  // Pure : le type d'une valeur, jamais la valeur.
+  function masquerValeurAuthentic(v) {
+    const s = String(v == null ? '' : v).trim();
+    if (!s) return '[vide]';
+    if (s === 'oui' || s === 'non') return s;
+    if (/^\d{1,2}[/.-]\d{1,2}[/.-]\d{2,4}$|^\d{4}-\d{2}-\d{2}/.test(s)) return '[date]';
+    if (/^[^@\s]+@[^@\s]+\.[a-z]{2,}$/i.test(s)) return '[email]';
+    if (/^(?:\+33\s?|0)\d(?:[\s.-]?\d{2}){4}$/.test(s)) return '[téléphone]';
+    if (/^-?\d[\d\s.  ]*(?:,\d+)?\s*(?:€|EUR|euros?)$/i.test(s) || /^-?\d{1,3}(?:[\s.  ]\d{3})+,\d{2}$/.test(s)) return '[montant]';
+    if (/^-?\d+(?:[.,]\d+)?\s*%$/.test(s)) return '[pourcentage]';
+    if (/^-?\d+(?:[.,]\d+)?$/.test(s)) return '[nombre]';
+    const mots = s.split(/\s+/).length;
+    return `[texte, ${mots} mot${mots > 1 ? 's' : ''}]`;
+  }
+
+  // Pure : un libellé ou un titre sans ce qui pourrait nommer un client — chiffres remplacés par 9,
+  // mots en capitales (hors sigles techniques) par XXX, emails masqués.
+  function masquerLibelleAuthentic(s) {
+    return String(s == null ? '' : s)
+      .replace(/[^@\s]+@[^@\s]+/g, '[email]')
+      .replace(/\b(Monsieur|Madame|Mademoiselle|Maître|Me|Mme|Mlle|M\.)(\s+[A-ZÀ-Ý][\wÀ-ɏ'’-]*)+/g, '$1 XXX')
+      .replace(/\d/g, '9')
+      .replace(/(?<![A-Za-zÀ-ɏ])[A-ZÀ-Ý][A-ZÀ-Ý'’-]+(?![A-Za-zÀ-ɏ])/g, m => SIGLES_STRUCTURE_AUTHENTIC.includes(m) ? m : 'XXX')
+      .trim();
+  }
+
+  // Pure : la structure d'une page reçue, en texte, à copier pour le calibrage.
+  function structureCaptureAuthentic(capture) {
+    const c = capture || {};
+    const lignes = [`Page Authentic — ${masquerLibelleAuthentic(c.titre) || 'sans titre'}`];
+    let groupe = null;
+    for (const ch of c.champs || []) {
+      if (ch.groupe !== groupe) { groupe = ch.groupe; lignes.push('', `## ${masquerLibelleAuthentic(groupe) || '(sans rubrique)'}`); }
+      lignes.push(`- ${masquerLibelleAuthentic(ch.libelle) || '(sans libellé)'} : ${masquerValeurAuthentic(ch.valeur)}`);
+    }
+    // Seule la ligne d'en-tête (<th>) garde ses libellés ; toute autre cellule n'est qu'un type.
+    (c.tableaux || []).forEach((t, i) => {
+      const corps = t.lignes || [];
+      lignes.push('', `## Tableau ${i + 1} (${corps.length} ligne${corps.length > 1 ? 's' : ''})`);
+      if ((t.entete || []).length) lignes.push('| ' + t.entete.map(masquerLibelleAuthentic).join(' | ') + ' |');
+      corps.slice(0, 6).forEach(l => lignes.push('| ' + l.map(masquerValeurAuthentic).join(' | ') + ' |'));
+      if (corps.length > 6) lignes.push('| …');
+    });
+    lignes.push('', `Texte visible : ${String(c.texte || '').length} caractères (non copié).`);
+    return lignes.join('\n');
+  }
+
+  let captureAuthentic = null;
+
+  async function ouvrirCaptureAuthenticDepuisAdresse() {
+    const m = /(?:^|[#&])authentic=([\w-]+)/.exec(location.hash || '');
+    if (!m) return;
+    try { history.replaceState(null, '', location.pathname + location.search); } catch (e) { /* adresse gardée */ }
+    let r;
+    try { r = await fetchAvecAuth('/api/authentic/capture/' + encodeURIComponent(m[1])); } catch (e) { r = null; }
+    if (!r || !r.ok) {
+      const j = r ? await r.json().catch(() => ({})) : {};
+      afficherToast(j.error || 'Page d’Authentic introuvable : renvoyez-la depuis Firefox.', 'OK', null);
+      return;
+    }
+    captureAuthentic = await r.json();
+    renderCaptureAuthentic();
+    document.getElementById('authentic-overlay').style.display = 'flex';
+  }
+
+  function fermerCaptureAuthentic() {
+    const o = document.getElementById('authentic-overlay');
+    if (o) o.style.display = 'none';
+    captureAuthentic = null;
+  }
+
+  function copierStructureAuthentic() {
+    if (!captureAuthentic) return;
+    const ok = copierTexteSilencieux(structureCaptureAuthentic(captureAuthentic));
+    afficherToast(ok ? 'Structure copiée, sans aucune valeur : collez-la dans la conversation avec Claude.' : 'Copie impossible sur ce poste.', 'OK', null);
+  }
+
+  function renderCaptureAuthentic() {
+    const zone = document.getElementById('authentic-contenu');
+    const c = captureAuthentic;
+    if (!zone || !c) return;
+    const parGroupe = [];
+    for (const ch of c.champs || []) {
+      const dernier = parGroupe[parGroupe.length - 1];
+      if (dernier && dernier.groupe === ch.groupe) dernier.champs.push(ch);
+      else parGroupe.push({ groupe: ch.groupe, champs: [ch] });
+    }
+    const nC = (c.champs || []).length, nT = (c.tableaux || []).length;
+    zone.innerHTML = `
+      <p class="auth-etat">${escapeHtml(c.titre || 'Page sans titre')} · ${nC} champ${nC > 1 ? 's' : ''}, ${nT} tableau${nT > 1 ? 'x' : ''}</p>
+      <div class="auth-liste">
+        ${parGroupe.map(g => `<section class="auth-groupe">
+          <h3 class="auth-groupe-titre">${escapeHtml(g.groupe || 'Sans rubrique')}</h3>
+          <dl class="auth-champs">${g.champs.map(ch => `<div class="auth-champ"><dt>${escapeHtml(ch.libelle || '—')}</dt><dd>${escapeHtml(ch.valeur || '—')}</dd></div>`).join('')}</dl>
+        </section>`).join('')}
+        ${(c.tableaux || []).map((t, i) => `<section class="auth-groupe">
+          <h3 class="auth-groupe-titre">Tableau ${i + 1}</h3>
+          <div class="table-scroll"><table class="auth-tableau">${(t.entete || []).length ? `<thead><tr>${t.entete.map(x => `<th>${escapeHtml(x)}</th>`).join('')}</tr></thead>` : ''}<tbody>${(t.lignes || []).slice(0, 30).map(l => `<tr>${l.map(x => `<td>${escapeHtml(x)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>
+        </section>`).join('')}
+        ${!nC && !nT ? `<p class="auth-etat">Aucun champ ni tableau lu : seul le texte de la page est arrivé (${String(c.texte || '').length} caractères).</p>` : ''}
+      </div>`;
+  }
+
   // Un appel ouvert par l'adresse « #appel=… » (onglet que 3CX a ouvert, fenêtre CLAIRE absente).
   async function ouvrirAppelDepuisAdresse() {
     const m = /(?:^|[#&])appel=([\w-]+)/.exec(location.hash || '');
@@ -25239,6 +25351,9 @@
     // dès qu'elle revient au premier plan.
     document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') releverAppels(); });
     ouvrirAppelDepuisAdresse();
+    // Page d'Authentic envoyée par l'extension Firefox (#authentic=…), au chargement ou dans un onglet déjà ouvert.
+    ouvrirCaptureAuthenticDepuisAdresse();
+    window.addEventListener('hashchange', ouvrirCaptureAuthenticDepuisAdresse);
     // Reçus comptables des dossiers du poste : au démarrage, puis toutes les heures.
     setTimeout(() => verifierFondsRecusAuto().catch(e => console.error('Vérification des fonds', e)), 60 * 1000);
     setInterval(() => verifierFondsRecusAuto().catch(e => console.error('Vérification des fonds', e)), 60 * 60 * 1000);

@@ -59,6 +59,8 @@ server/                              Serveur (son propre package.json ; le packa
   src/journalTechnique.js,           Journal technique (console.error/warn du serveur, événements des
        rapportTechnique.js           postes) et rapport anonymisé déposé en issue GitHub (12 h, 17 h)
   scripts/build-windows-exe.mjs      Construction du .exe (esbuild + SEA + postject + icône)
+extension-firefox/                   Extension Firefox « CLAIRE pour Authentic » (bouton « Envoyer à CLAIRE »,
+                                     POST /api/authentic/capture, routes/authentic.js ; LISEZMOI.md)
 tests/                               Tests client (node:test) ; server/test/ pour le serveur
 docs/historique.md                   Historique détaillé (voir plus haut)
 docs/spec-banc-essai-extraction.md   Cadrage du banc de mesure de l'extraction
@@ -576,6 +578,16 @@ Plainte principale de l'étude : **le bruit**, pas les oublis — ne pas élargi
   checklist et les emails devront dépendre d'un type d'affaire du dossier. L'import Authentic lit
   déjà tout export (personnes, parties et leurs qualités, documents) et reconnaît une succession :
   il restera à brancher la création d'un dossier de succession sur `lireExportAuthentic`.
+- **Extension Firefox « CLAIRE pour Authentic »** (01/10, `extension-firefox/`, Authentic s'ouvre dans Firefox) :
+  transport en place — relevé de la page (champs/libellés/rubriques, tableaux avec en-têtes `<th>`, texte ;
+  jamais mot de passe ni champ caché), `POST /api/authentic/capture` (mémoire seule, 30 min, 20 au plus, JSON
+  obligatoire), CLAIRE ouvre `#authentic=<id>` et affiche la page. **Reprise dans une fiche pas encore
+  branchée** : attendre la structure réelle copiée par « Copier la structure (sans données) »
+  (`structureCaptureAuthentic` : libellés masqués par `masquerLibelleAuthentic`, valeurs réduites à leur type par
+  `masquerValeurAuthentic`), puis mapper vers les champs du dossier comme `completerExtractionDepuisAuthentic`.
+  Non vérifié dans un vrai Firefox ni sur Authentic (relevé testé dans Chromium sur une page inventée) ;
+  installation durable = signature Mozilla « unlisted » ou stratégie d'entreprise ; non géré si `authActive`.
+  Demander à Fichorga si une API existe.
 - **Arborescence type des dossiers clients sur le NAS** (MAISON, COPRO, TERRAIN, SUCC, CESSION DE
   FONDS) : détaillée dans `docs/historique.md` (fin du fichier). L'avant-contrat signé est à la
   racine du dossier client ou sous « SRU » ; la rubrique « AAE » contient les pièces réunies entre
