@@ -14201,3 +14201,12 @@ Demande de l'étude : « Dans le rendez-vous pour supprimer juste une icône pou
 icône `trash` rouge (`button.icon-btn.ag-supprimer-ico`, `--urgent`, fond teinté au survol) dans
 `.ag-detail-outils`, entre le crayon et la croix. Même condition (`peutSupprimer`), même geste
 (`supprimerEvenementAgenda`) : la confirmation reste. Vérifié dans Chromium (clair, sombre, téléphone).
+
+### 01/10/2026 22 h 10 — Agenda : bouton double à droite de la recherche
+
+Demande de l'étude : « Mettre le double bouton créer rdv à côté du champ de recherche à droite ». Le
+bouton double quitte l'en-tête de la carte (`renderPageAgenda`) pour `#agenda-creation` dans
+`.dash-header-actions` de la page (index.html), juste après `#agenda-recherche` ; rempli par
+`renderPageAgenda` (masqué si l'agenda Outlook n'est pas relié), hauteur 42 px comme le champ. Sous
+900 px : recherche puis bouton, chacun en pleine largeur, moitiés égales. Vérifié dans Chromium à 1400,
+1100 et 400 px.

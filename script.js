@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-01 22:08';
+  const VERSION_APP = '2026-10-01 22:10';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-01 22:10', resume: "Agenda : le bouton double « Nouveau rendez-vous | Proposer des dates » passe en haut de la page, à droite du champ de recherche (même hauteur). Sur téléphone, il s'étend sous la recherche." },
     { version: '2026-10-01 22:08', resume: "Agenda : dans le détail d'un rendez-vous, « Supprimer de l'agenda » devient une simple poubelle rouge en haut, à côté du crayon. La confirmation avant suppression reste." },
     { version: '2026-10-01 22:06', resume: "Agenda : la recherche fonctionne comme sur le Suivi — taper un nom filtre l'agenda affiché (semaine, jour, mois et petit calendrier) ; le nombre de rendez-vous trouvés s'affiche sous la date, avec « Tout afficher » (ou Échap) pour revenir à tout l'agenda. Chaque dossier de la liste sous le champ porte une icône « fiche » qui ouvre directement sa fiche ; un clic sur son nom mène toujours à son rendez-vous." },
     { version: '2026-10-01 22:00', resume: "Agenda : le champ de recherche, à la place de l'ancien bouton « Actualiser » en haut à droite, prend l'aspect de celui du Suivi (grand champ arrondi avec la loupe, « Rechercher un dossier (vendeur, acquéreur)… »). « Actualiser » reste l'icône à côté de « Agenda de l'office lu … »." },
@@ -19886,10 +19887,6 @@
             <select id="agenda-vue" aria-label="Vue de l’agenda" onchange="choisirVueAgenda(this.value)">
               ${VUES_AGENDA.map(v => `<option value="${v}"${agendaVue === v ? ' selected' : ''}>${{ mois: 'Vue mois', semaine: 'Vue semaine', jour: 'Vue jour' }[v]}</option>`).join('')}
             </select></label>
-          ${exchangeAgendaPret() ? `<div class="ag-ajout-double" role="group" aria-label="Créer un rendez-vous">
-              <button type="button" class="primary ag-ajout" onclick="ouvrirCreationAgenda()">${icone('plus')} Nouveau rendez-vous</button>
-              <button type="button" class="primary ag-ajout ag-ajout-dates" onclick="ouvrirSondageSansDossier('', [])" title="Proposer plusieurs dates par email et placer celle qui convient à tous">${icone('users')} Proposer des dates</button>
-            </div>` : ''}
         </div>
         <div class="ag-page-corps">
           <aside class="ag-cote">
@@ -19902,6 +19899,16 @@
           </div>
         </div>
       </div>`;
+    // Bouton double « Nouveau rendez-vous | Proposer des dates » dans l'en-tête de la page, à droite du
+    // champ de recherche (étude, 01/10).
+    const zoneCreation = document.getElementById('agenda-creation');
+    if (zoneCreation) {
+      zoneCreation.innerHTML = exchangeAgendaPret() ? `<div class="ag-ajout-double" role="group" aria-label="Créer un rendez-vous">
+          <button type="button" class="primary ag-ajout" onclick="ouvrirCreationAgenda()">${icone('plus')} Nouveau rendez-vous</button>
+          <button type="button" class="primary ag-ajout ag-ajout-dates" onclick="ouvrirSondageSansDossier('', [])" title="Proposer plusieurs dates par email et placer celle qui convient à tous">${icone('users')} Proposer des dates</button>
+        </div>` : '';
+      zoneCreation.style.display = zoneCreation.innerHTML ? '' : 'none';
+    }
     renderPopoverAgenda();
     if (curseurNotes) {
       const champ = document.getElementById('agenda-notes-texte');

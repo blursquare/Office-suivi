@@ -3173,6 +3173,9 @@
     .dash-recherche { width: 100%; flex: none; max-width: none; }
     .dash-header-nouveau { width: 100%; }
     .dash-header-actions .ag-recherche { width: 100%; flex: 1 1 auto; }
+    #onglet-agenda .dash-header-actions { flex-wrap: wrap; }
+    .ag-creation, .ag-creation .ag-ajout-double { width: 100%; }
+    .ag-creation .ag-ajout-double button.primary.ag-ajout { flex: 1 1 0; justify-content: center; }
   }
 
   .toolbar-btn {
@@ -7269,7 +7272,9 @@ button.ag-actualiser.en-cours svg { animation: ag-tourne 0.9s linear infinite; }
 @media (prefers-reduced-motion: reduce) { button.ag-actualiser.en-cours svg { animation: none; opacity: 0.5; } }
 /* Recherche d'un dossier dans l'en-tête de la page Agenda, à la place du bouton « Actualiser » — le même
    champ que celui du Suivi (étude, 01/10 : « un champ comme sur Suivi ») : 42 px, loupe, ombre légère. */
-#onglet-agenda .dash-header-actions { flex: 1 1 340px; justify-content: flex-end; }
+#onglet-agenda .dash-header-actions { flex: 1 1 340px; justify-content: flex-end; flex-wrap: nowrap; }
+.ag-creation { flex: none; }
+.ag-creation button.primary.ag-ajout { height: 42px; }
 .ag-recherche { position: relative; flex: 0 1 460px; min-width: 0; display: flex; }
 .ag-recherche .suivi-recherche-icone svg { width: 17px; height: 17px; }
 .ag-recherche input[type="search"]#agenda-recherche {
