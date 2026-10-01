@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-01 23:33';
+  const VERSION_APP = '2026-10-01 23:34';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-01 23:34', resume: "Suivi des dossiers : le filtre « Responsable » est présélectionné sur le collaborateur du poste à l'ouverture de la session, administrateur compris (« Tous » reste à un clic et un choix fait à la main est gardé) ; changer de collaborateur repose le filtre sur le nouveau." },
     { version: '2026-10-01 23:33', resume: "Suivi des dossiers : mêmes colonnes, dans le même ordre, en vue Échéances et en vue Tableau (et dans « Nouveau » et « Archivés ») — Date, Dossier, Échéance, Resp., Statut. La vue Tableau perd la colonne « Offre de prêt » (le filtre « Offre de prêt » reste) ; ses titres restent triables." },
     { version: '2026-10-01 23:27', resume: "Suivi des dossiers : la colonne de gauche remplace « Prévu en … » par le mois en cours en quatre compteurs — dossiers à signer ce mois-ci, dossiers à placer (sans rendez-vous, date butoir dans le mois ou déjà dépassée), ventes et successions en cours ; un clic sur un compteur filtre la liste (« Tout afficher » pour revenir) — puis les dernières pièces rattachées sur le commun (14 jours, les nouvelles d'abord), qui ouvrent la fiche." },
     { version: '2026-10-01 23:12', resume: "Suivi des dossiers : le collaborateur responsable n'apparaît plus que par ses initiales dans une pastille ronde (nom complet au survol), en vue Échéances comme en vue Tableau ; le nom du dossier tient sur une ligne. Le bouton « Revérifier tous les dossiers » devient « Scanner le commun »." },
@@ -15995,6 +15996,11 @@
     if (select) select.value = valide;
     const resp = document.getElementById('f-responsable');
     if (resp && !resp.value && valide) resp.value = valide;
+    // Suivi déjà ouvert : le filtre passe tout de suite au nouveau collaborateur (« Tous » sans poste).
+    const filtreSuivi = document.getElementById('filtre-responsable');
+    if (filtreSuivi) filtreSuivi.value = '';
+    const ongletSuivi = document.getElementById('tab-suivi');
+    if (ongletSuivi && ongletSuivi.classList.contains('actif')) appliquerFiltreSuiviCollaborateur();
     fermerChoixPoste();
     ajoutRappelOuvert = false;
     rappelsPerso = [];
@@ -16053,12 +16059,16 @@
     render();
   }
 
-  // Filtre « Responsable » du Suivi posé sur le collaborateur, une seule fois par session.
+  // Filtre « Responsable » du Suivi posé sur le collaborateur du poste, une seule fois par session
+  // (étude, 01/10 : « quand un collaborateur est sur sa session, présélectionner sa catégorie » —
+  // l'administrateur compris, « Tous » reste à un clic). Un choix fait à la main ensuite est gardé ;
+  // changer de collaborateur repose le filtre sur le nouveau (definirUtilisateurPoste).
   function appliquerFiltreSuiviCollaborateur() {
-    if (filtreSuiviPose || !utilisateurPoste || estAdministrateur(utilisateurPoste)) return;
-    filtreSuiviPose = true;
+    if (filtreSuiviPose || !utilisateurPoste) return;
     const f = document.getElementById('filtre-responsable');
-    if (f && !f.value) f.value = utilisateurPoste;
+    if (!f) return;
+    filtreSuiviPose = true;
+    f.value = utilisateurPoste;
   }
 
   function renderAccueilDashboard(perimetreActifs, stats) {

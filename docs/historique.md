@@ -14333,3 +14333,13 @@ triables (Date = tri par échéance, Dossier, Resp., Statut) ; la colonne « Off
 l'échéance « Obtention du prêt » et « Scanner le commun » restent. Date et libellé de la prochaine échéance
 en deux cellules (`celluleDateProchaineEcheance`, `celluleTypeProchaineEcheance`, remplacent
 `celluleEcheanceTableau`), le décompte J-n au survol de la date. Test ajouté (`tests/semaines.test.js`).
+
+### 01/10/2026 23:34 — Suivi : filtre « Responsable » présélectionné pour tout collaborateur
+
+Demande de l'étude : « Quand un collaborateur est sur sa session, présélectionner sa catégorie sur la page
+Suivi ». `appliquerFiltreSuiviCollaborateur` existait mais écartait l'administrateur (Bastien ANGLUMENT, vue
+globale) et ne remplaçait pas une valeur déjà posée : il pose désormais le filtre sur le collaborateur du
+poste à la première ouverture du Suivi de la session, pour tous ; un choix fait ensuite à la main (dont
+« Tous ») est gardé. `definirUtilisateurPoste` remet le filtre à « Tous » et, si le Suivi est affiché, le
+repose aussitôt sur le nouveau collaborateur. Le tableau de bord de l'administrateur reste en vue globale.
+Vérifié dans Chromium (Bastien → filtre Bastien ; « Tous » gardé au retour ; passage à Julie → Julie).

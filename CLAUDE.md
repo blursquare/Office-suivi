@@ -174,7 +174,7 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
   réalisée (financement, comme l'offre) empêche « Complet » et « Prêt ». Couleurs : rouge, gris, ambre, bleu `--acte`
   (jamais l'accent, qui peut être orange ou vert), vert. **Suivi** (30/09, choix de l'étude) : barre en trois lignes
   (`.suivi-barre`) — grande recherche (nom du dossier seulement ; le collaborateur passe par le filtre
-  « Responsable », pré-réglé sur celui du poste) + bascule de vue, filtres sur une ligne (« Trier par »
+  « Responsable », pré-réglé sur celui du poste à chaque session, administrateur compris — `appliquerFiltreSuiviCollaborateur`, reposé au changement de poste) + bascule de vue, filtres sur une ligne (« Trier par »
   en vue Tableau seulement ; « Archivés » cochée → section « Archivés » en bas de la vue Échéances,
   `archivesPourEcheances`, date de signature sinon d'archivage, jamais dans une semaine), statuts en pastilles de filtre (`syntheseEtatsSuivi`, `renderEtatsSuivi`) ; **à gauche** (colonne de 300 px comme celle de l'agenda, étude 01/10, `.suivi-corps`/`.suivi-cote` ; au-dessus sous 1100 px),
   `renderColonneSuivi` (étude 01/10 au soir, remplace « Prévu en {mois} ») : le **mois civil en cours** en quatre
