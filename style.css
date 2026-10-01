@@ -7708,3 +7708,34 @@ button.appel-entrant-fermer svg { width: 14px; height: 14px; }
   .appels-liste li { grid-template-columns: minmax(0, 1fr) auto; }
   .appels-liste li .appels-numero { grid-column: 1 / -1; }
 }
+
+/* ---- Liste des widgets du tableau de bord (01/10) : ajouter / retirer ---- */
+.confirm-box.widgets-galerie-box { max-width: 560px; width: 100%; max-height: min(86vh, 720px); overflow-y: auto; }
+.widgets-galerie-groupe {
+  display: flex; align-items: center; gap: 6px; margin: 16px 0 6px;
+  font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-soft);
+}
+.widgets-galerie { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.widgets-galerie-ligne {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px;
+  padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--paper-card);
+}
+.widgets-galerie-ligne > * { min-width: 0; }
+.widgets-galerie-ligne.retire { background: var(--paper-sunk); border-style: dashed; }
+.widgets-galerie-icone {
+  display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px;
+  border-radius: 9px; background: var(--paper-sunk); color: var(--focus);
+}
+.widgets-galerie-ligne.retire .widgets-galerie-icone { background: var(--paper-card); color: var(--ink-soft); }
+.widgets-galerie-icone svg { width: 17px; height: 17px; }
+.widgets-galerie-texte { display: flex; flex-direction: column; gap: 2px; line-height: 1.3; }
+.widgets-galerie-texte b { font-size: 14px; color: var(--ink); }
+.widgets-galerie-texte span { font-size: 12.5px; color: var(--ink-soft); }
+button.secondary.widgets-galerie-retirer { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; font-size: 13px; white-space: nowrap; }
+button.secondary.widgets-galerie-retirer svg { width: 13px; height: 13px; }
+.widgets-galerie-ligne button.bouton-ajout { width: auto; margin: 0; white-space: nowrap; }
+.widgets-galerie-box .confirm-actions { justify-content: space-between; align-items: center; margin-top: 16px; }
+@media (max-width: 480px) {
+  .widgets-galerie-ligne { grid-template-columns: auto minmax(0, 1fr); }
+  .widgets-galerie-ligne > button { grid-column: 1 / -1; justify-self: end; }
+}

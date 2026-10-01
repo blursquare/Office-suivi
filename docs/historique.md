@@ -14058,3 +14058,15 @@ serveur que depuis ce poste-là — l'essai, lancé depuis la même fenêtre, ma
 adresse. Autres causes possibles laissées à vérifier par l'étude : fenêtres pop-up bloquées pour le client web
 3CX ; appel au standard (file d'attente ou standard automatique) qui ne fait pas sonner le poste — essayer en
 appelant le numéro direct du poste ; « Derniers appels » vide = 3CX n'a pas joint CLAIRE.
+
+### 01/10 — Liste des widgets : ajouter / retirer
+
+Demande de l'étude : « permettre de supprimer un widget et créer une liste de widgets à ajouter ou supprimer ».
+Bouton « Widgets » dans l'en-tête du tableau de bord (à côté de « Personnaliser ») → fenêtre « Widgets du tableau
+de bord » (`#widgets-overlay`, `ouvrirGalerieWidgets`, `renderGalerieWidgets`, pure `lignesGalerieWidgets`) :
+« Sur le tableau de bord » (Retirer) puis « À ajouter » (Ajouter, `button.bouton-ajout`), icône et description par
+widget (`icone`, `description` dans `WIDGETS_DASHBOARD`). Retirer = `masque: true` de la disposition (préférence
+`widgets`, aucun changement serveur) : le widget garde sa taille et sa place. En mode Personnaliser, la pastille
+« − » devient « × Retirer du tableau de bord » ; la rangée des widgets masqués sous la grille est remplacée par
+« Ajouter un widget (n) », qui ouvre la liste (aussi affiché hors de ce mode quand plus aucun widget n'est visible).
+Échap ou clic à côté ferment ; « Disposition d'origine » dans la fenêtre.

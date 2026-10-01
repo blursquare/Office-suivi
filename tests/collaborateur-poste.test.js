@@ -160,3 +160,13 @@ test('pointsATraiter : une ligne par dossier, le plus grave en titre, les autres
   // rendez-vous » tant qu'elle manque — l'attente et « Relier le dossier du NAS », en suivi.
   assert.equal([r[1].principal.titre].concat(r[1].autres.map(x => x.titre)).sort().join(','), 'Relier le dossier du NAS,Renonciation de préemption attendue');
 });
+
+test('lignesGalerieWidgets : tous les widgets, affichés d’abord puis retirés, chacun décrit', () => {
+  const app = chargerApplication();
+  const dispo = app.dispositionWidgetsDepuis([{ id: 'agenda', taille: 'moyen', hauteur: 1, masque: true }, { id: 'pieces', taille: 'petit', hauteur: 1, masque: true }]);
+  const lignes = app.lignesGalerieWidgets(dispo);
+  assert.equal(lignes.length, app.WIDGETS_DASHBOARD.length);
+  assert.equal(lignes.map(l => `${l.def.id}:${l.affiche ? 'oui' : 'non'}`).join(','),
+    'aujourdhui:oui,portefeuille:oui,avancement:oui,activite:oui,agenda:non,pieces:non');
+  assert.ok(lignes.every(l => l.def.description && l.def.icone));
+});

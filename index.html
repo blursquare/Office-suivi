@@ -2058,6 +2058,18 @@
   </div>
 </div>
 
+<!-- Liste des widgets du tableau de bord : ajouter / retirer (renderGalerieWidgets). -->
+<div class="confirm-overlay" id="widgets-overlay" style="display:none;" onclick="fermerGalerieWidgets()">
+  <div class="confirm-box widgets-galerie-box" role="dialog" aria-labelledby="widgets-galerie-titre" onclick="event.stopPropagation()">
+    <div class="poste-titre" id="widgets-galerie-titre">Widgets du tableau de bord <span class="info-i" tabindex="0" data-info="Un widget retiré garde sa taille : il revient tel quel si vous le rajoutez. Ordre et taille se règlent dans « Personnaliser ». Disposition propre à chaque collaborateur."></span></div>
+    <div id="widgets-galerie-liste"></div>
+    <div class="confirm-actions">
+      <button type="button" class="lien-discret" onclick="reinitialiserWidgets()">Disposition d’origine</button>
+      <button type="button" class="btn-annuler" onclick="fermerGalerieWidgets()">Fermer</button>
+    </div>
+  </div>
+</div>
+
 <div class="confirm-overlay" id="apropos-overlay" style="display:none;" onclick="fermerAPropos()">
   <div class="confirm-box apropos-box" onclick="event.stopPropagation()">
     <div class="apropos-header">

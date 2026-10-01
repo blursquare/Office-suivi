@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-01 18:33';
+  const VERSION_APP = '2026-10-01 18:41';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-01 18:41', resume: "Tableau de bord : bouton « Widgets » à côté de « Personnaliser », qui ouvre la liste de tous les widgets — ceux affichés avec « Retirer », ceux retirés avec « Ajouter », chacun décrit. En mode Personnaliser, la croix d'une carte la retire et « Ajouter un widget » rouvre la liste. Un widget retiré revient à sa taille d'avant. Choix propre à chaque collaborateur." },
     { version: '2026-10-01 18:33', resume: "Téléphonie 3CX : l'adresse à coller dans 3CX utilise maintenant l'adresse du serveur sur le réseau du bureau (192.168.…), et non « localhost » quand les Réglages sont ouverts depuis la fenêtre CLAIRE du serveur — « localhost » ne mène au serveur que depuis ce poste. À recopier dans 3CX après la mise à jour." },
     { version: '2026-10-01 18:29', resume: "Aujourd'hui : vos rappels en cours (échus ou sans date) sont en tête de « À faire », avec leur case ronde, et restent toujours visibles sur la carte du tableau de bord tant qu'ils ne sont pas cochés, quelle que soit sa taille. Le crayon les modifie ; ceux à venir restent sous « Mes rappels »." },
     { version: '2026-10-01 18:16', resume: "Téléphonie 3CX : bouton « Essayer » dans Réglages › Rappels, qui simule un appel sur le poste choisi (le bandeau « Appel entrant » doit apparaître dans sa fenêtre CLAIRE). Si l'essai marche mais pas un vrai appel, autoriser les fenêtres pop-up pour le client web 3CX dans Chrome/Edge. La fenêtre CLAIRE relève aussi les appels dès qu'elle revient au premier plan." },
@@ -16085,6 +16086,7 @@
           <button type="button" class="vue-bascule-btn${global ? ' actif' : ''}" aria-pressed="${global}" onclick="basculerVueDashboard(true)">Tous les dossiers</button>
         </div>
         <button type="button" class="lien-discret" onclick="ouvrirChoixPoste()">Pas ${escapeHtml(prenomCollaborateur(utilisateurPoste))} ? Changer</button>
+        <button type="button" class="widgets-personnaliser" onclick="ouvrirGalerieWidgets()" title="Ajouter ou retirer des widgets">${icone('list')}Widgets</button>
         <button type="button" class="widgets-personnaliser${modeEditionWidgets ? ' actif' : ''}" onclick="basculerEditionWidgets()" aria-pressed="${modeEditionWidgets}">${modeEditionWidgets ? `${icone('check')}Terminé` : `${icone('layout')}Personnaliser`}</button>
       </div>`;
   }
@@ -16110,12 +16112,12 @@
   var TAILLES_WIDGET = ['petit', 'moyen', 'grand'];
   var HAUTEURS_WIDGET = [1, 2, 3];
   var WIDGETS_DASHBOARD = [
-    { id: 'aujourdhui', titre: 'Aujourd’hui', tailles: TAILLES_WIDGET, defaut: 'moyen', hauteur: 2 },
-    { id: 'agenda', titre: 'Agenda', tailles: TAILLES_WIDGET, defaut: 'moyen', hauteur: 1 },
-    { id: 'portefeuille', titre: 'Dossiers ouverts', tailles: TAILLES_WIDGET, defaut: 'petit', hauteur: 1 },
-    { id: 'pieces', titre: 'Dernières pièces', tailles: TAILLES_WIDGET, defaut: 'petit', hauteur: 1 },
-    { id: 'avancement', titre: 'Avancement des dossiers', tailles: TAILLES_WIDGET, defaut: 'moyen', hauteur: 2 },
-    { id: 'activite', titre: 'Activité de l’étude', tailles: TAILLES_WIDGET, defaut: 'moyen', hauteur: 2 }
+    { id: 'aujourdhui', titre: 'Aujourd’hui', tailles: TAILLES_WIDGET, defaut: 'moyen', hauteur: 2, icone: 'sun', description: 'Ce qui est à faire aujourd’hui sur vos dossiers, et vos rappels.' },
+    { id: 'agenda', titre: 'Agenda', tailles: TAILLES_WIDGET, defaut: 'moyen', hauteur: 1, icone: 'calendar', description: 'La semaine de l’office et les prochaines signatures.' },
+    { id: 'portefeuille', titre: 'Dossiers ouverts', tailles: TAILLES_WIDGET, defaut: 'petit', hauteur: 1, icone: 'folder', description: 'Les dossiers en cours, par statut, et les signatures du mois.' },
+    { id: 'pieces', titre: 'Dernières pièces', tailles: TAILLES_WIDGET, defaut: 'petit', hauteur: 1, icone: 'file-text', description: 'Les pièces arrivées sur le NAS ou rangées par Claire Scan.' },
+    { id: 'avancement', titre: 'Avancement des dossiers', tailles: TAILLES_WIDGET, defaut: 'moyen', hauteur: 2, icone: 'list-check', description: 'Où en est chaque dossier : étapes, pièces, prochaine échéance.' },
+    { id: 'activite', titre: 'Activité de l’étude', tailles: TAILLES_WIDGET, defaut: 'moyen', hauteur: 2, icone: 'users', description: 'Ce que font les collaborateurs et ce que CLAIRE relève, en direct.' }
   ];
   var NOMS_TAILLE_WIDGET = { petit: 'Étroit (1 colonne)', moyen: 'Moyen (2 colonnes)', grand: 'Large (toute la ligne)' };
   var NOMS_HAUTEUR_WIDGET = { 1: 'Basse (1 rangée)', 2: 'Moyenne (2 rangées)', 3: 'Haute (3 rangées)' };
@@ -16259,6 +16261,54 @@
 
   function masquerWidget(id, masque) {
     enregistrerDispositionWidgets(dispositionWidgetsCourante().map(w => w.id === id ? Object.assign({}, w, { masque }) : w));
+    renderGalerieWidgets();
+  }
+
+  // ---- Liste des widgets (étude, 01/10 : « supprimer un widget et une liste de widgets à ajouter ou
+  // supprimer ») : tous les widgets, affichés ou retirés, avec Ajouter / Retirer. Retirer ne perd que
+  // la place sur le tableau de bord : le widget revient à sa taille d'avant quand on le rajoute. ----
+  // Pure : les lignes de la liste, dans l'ordre du catalogue — affichés d'abord, puis retirés.
+  function lignesGalerieWidgets(dispo) {
+    const parId = new Map((dispo || []).map(w => [w.id, w]));
+    const lignes = WIDGETS_DASHBOARD.map(def => ({ def, affiche: !(parId.get(def.id) || {}).masque }));
+    return lignes.filter(l => l.affiche).concat(lignes.filter(l => !l.affiche));
+  }
+
+  function ouvrirGalerieWidgets() {
+    const overlay = document.getElementById('widgets-overlay');
+    if (!overlay) return;
+    overlay.style.display = 'flex';
+    renderGalerieWidgets();
+  }
+
+  function fermerGalerieWidgets() {
+    const overlay = document.getElementById('widgets-overlay');
+    if (overlay) overlay.style.display = 'none';
+  }
+  document.addEventListener('keydown', (e) => {
+    const overlay = document.getElementById('widgets-overlay');
+    if (e.key === 'Escape' && overlay && overlay.style.display !== 'none') fermerGalerieWidgets();
+  });
+
+  function renderGalerieWidgets() {
+    const overlay = document.getElementById('widgets-overlay');
+    const liste = document.getElementById('widgets-galerie-liste');
+    if (!overlay || !liste || overlay.style.display === 'none') return;
+    const lignes = lignesGalerieWidgets(dispositionWidgetsCourante());
+    const nbAffiches = lignes.filter(l => l.affiche).length;
+    const titre = (texte, n) => `<div class="widgets-galerie-groupe">${texte} <span class="jour-onglet-nb">${n}</span></div>`;
+    const ligne = ({ def, affiche }) => `
+      <li class="widgets-galerie-ligne${affiche ? '' : ' retire'}">
+        <span class="widgets-galerie-icone" aria-hidden="true">${icone(def.icone || 'layout')}</span>
+        <span class="widgets-galerie-texte"><b>${escapeHtml(def.titre)}</b><span>${escapeHtml(def.description || '')}</span></span>
+        ${affiche
+          ? `<button type="button" class="secondary widgets-galerie-retirer" onclick="masquerWidget('${def.id}', true)" aria-label="Retirer ${escapeAttr(def.titre)} du tableau de bord">${icone('x')}Retirer</button>`
+          : `<button type="button" class="bouton-ajout bouton-ajout-court" onclick="masquerWidget('${def.id}', false)" aria-label="Ajouter ${escapeAttr(def.titre)} au tableau de bord">Ajouter</button>`}
+      </li>`;
+    const affiches = lignes.filter(l => l.affiche), retires = lignes.filter(l => !l.affiche);
+    liste.innerHTML = `${titre('Sur le tableau de bord', nbAffiches)}
+      ${affiches.length ? `<ul class="widgets-galerie">${affiches.map(ligne).join('')}</ul>` : '<p class="jour-vide">Aucun widget affiché.</p>'}
+      ${retires.length ? `${titre('À ajouter', retires.length)}<ul class="widgets-galerie">${retires.map(ligne).join('')}</ul>` : ''}`;
   }
 
   function decalerWidget(id, pas) {
@@ -16267,6 +16317,7 @@
 
   function reinitialiserWidgets() {
     enregistrerDispositionWidgets(dispositionWidgetsDepuis(null));
+    renderGalerieWidgets();
   }
 
   // Coque commune des cartes : en-tête (titre, précision, contrôles) et corps qui remplit le reste
@@ -16385,7 +16436,7 @@
     const cases = (n, sur, sens) => `<span class="widget-glyphe widget-glyphe-${sens}" aria-hidden="true">${Array.from({ length: sur }, (_, i) => `<i${i < n ? ' class="plein"' : ''}></i>`).join('')}</span>`;
     const largeurs = def.tailles.map(t => `<button type="button" class="widget-taille${w.taille === t ? ' actif' : ''}" aria-pressed="${w.taille === t}" onclick="changerTailleWidget('${def.id}', '${t}')" title="Largeur : ${NOMS_TAILLE_WIDGET[t]}" aria-label="Largeur ${NOMS_TAILLE_WIDGET[t]}">${cases(CASES_TAILLE_WIDGET[t], 4, 'l')}</button>`).join('');
     const hauteurs = HAUTEURS_WIDGET.map(h => `<button type="button" class="widget-taille${w.hauteur === h ? ' actif' : ''}" aria-pressed="${w.hauteur === h}" onclick="changerHauteurWidget('${def.id}', ${h})" title="Hauteur : ${NOMS_HAUTEUR_WIDGET[h]}" aria-label="Hauteur ${NOMS_HAUTEUR_WIDGET[h]}">${cases(h, 3, 'h')}</button>`).join('');
-    return `<button type="button" class="widget-retirer" onclick="masquerWidget('${def.id}', true)" title="Masquer" aria-label="Masquer ${escapeAttr(def.titre)}">${icone('minus')}</button>
+    return `<button type="button" class="widget-retirer" onclick="masquerWidget('${def.id}', true)" title="Retirer du tableau de bord" aria-label="Retirer ${escapeAttr(def.titre)} du tableau de bord">${icone('x')}</button>
       <button type="button" class="widget-outil widget-fleche widget-fleche-avant" onclick="decalerWidget('${def.id}', -1)" ${rang === 0 ? 'disabled' : ''} title="Avancer" aria-label="Avancer ${escapeAttr(def.titre)}">${icone('chevron-left')}</button>
       <button type="button" class="widget-outil widget-fleche widget-fleche-apres" onclick="decalerWidget('${def.id}', 1)" ${rang === total - 1 ? 'disabled' : ''} title="Reculer" aria-label="Reculer ${escapeAttr(def.titre)}">${icone('chevron-right')}</button>
       <div class="widget-barre">
@@ -16423,11 +16474,13 @@
     const masques = document.getElementById('widgets-masques');
     if (masques) {
       const liste = dispo.filter(w => w.masque);
-      masques.innerHTML = modeEditionWidgets
-        ? `${liste.map(w => `<button type="button" class="bouton-ajout bouton-ajout-court" onclick="masquerWidget('${w.id}', false)">${escapeHtml(defs.get(w.id).titre)}</button>`).join('')}
-           <button type="button" class="lien-discret widgets-reinitialiser" onclick="reinitialiserWidgets()">Disposition d’origine</button>`
+      // Personnaliser, ou tableau de bord vidé : « Ajouter un widget » ouvre la liste des widgets.
+      const montrer = modeEditionWidgets || !visibles.length;
+      masques.innerHTML = montrer
+        ? `<button type="button" class="bouton-ajout bouton-ajout-court" onclick="ouvrirGalerieWidgets()">Ajouter un widget${liste.length ? ` (${liste.length})` : ''}</button>
+           ${modeEditionWidgets ? '<button type="button" class="lien-discret widgets-reinitialiser" onclick="reinitialiserWidgets()">Disposition d’origine</button>' : ''}`
         : '';
-      masques.style.display = modeEditionWidgets ? '' : 'none';
+      masques.style.display = montrer ? '' : 'none';
     }
     planifierAjustementWidgets();
   }

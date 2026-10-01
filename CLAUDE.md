@@ -476,7 +476,9 @@ Plainte principale de l'étude : **le bruit**, pas les oublis — ne pas élargi
   `ajusterWidgets` les remplit par priorité (N petit d'abord) jusqu'à la hauteur de la tuile, avec
   « Voir N de plus » ; une carte qui a de la place reçoit du contenu d'appoint (à venir, prochaines
   signatures, pièces encore attendues…), pas un blanc. « Personnaliser » (ou appui long sur un titre) :
-  glisser-déposer au pointeur, largeur et hauteur, masquer. Disposition par collaborateur : préférence
+  glisser-déposer au pointeur, largeur et hauteur, retirer (×). **« Widgets »** (01/10) : liste de tous les widgets
+  (`lignesGalerieWidgets`, `#widgets-overlay`), Retirer / Ajouter — retirer = `masque`, taille gardée ; tout nouveau
+  widget de `WIDGETS_DASHBOARD` porte `icone` et `description`. Disposition par collaborateur : préférence
   `widgets` en base (liste blanche `WIDGETS_PREFERENCES` côté serveur, `WIDGETS_DASHBOARD` côté
   client — à modifier ensemble). Un nouveau bloc du tableau de bord = un nouveau widget. Disposition
   par défaut = rectangle plein (4 × 4, 2 × 8 sur téléphone, vérifié par `placementWidgets` dans les
