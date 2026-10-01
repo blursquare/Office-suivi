@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-01 22:29';
+  const VERSION_APP = '2026-10-01 22:42';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-01 22:42', resume: "Agenda : dans le détail d'un rendez-vous relié à un dossier de CLAIRE, la ligne « lieu » n'est plus affichée (elle ne portait que les initiales et la note d'envoi). Elle reste pour les autres rendez-vous." },
     { version: '2026-10-01 22:29', resume: "Agenda : quand une réponse aux dates proposées revient, une pastille rouge s'allume à droite de « Agenda » dans la barre latérale (avec le nombre de réponses), et le lien « Dates proposées » l'indique aussi. Dans le volet, la carte concernée porte « Nouvelle réponse ». La pastille s'efface à l'ouverture de « Dates proposées »." },
     { version: '2026-10-01 22:25', resume: "Agenda : « Dates proposées » s'ouvre maintenant dans un volet à droite, comme la fiche d'un dossier, au lieu d'une fenêtre au centre." },
     { version: '2026-10-01 22:21', resume: "Agenda : nouveau lien « Dates proposées » sous le petit calendrier (avec le nombre en attente). Il ouvre une fenêtre qui suit toutes les dates de rendez-vous envoyées par email, avec ou sans dossier : en attente de réponse (qui a répondu, Placer, Relancer, Relire, Annuler), validées (date retenue, « Voir dans l'agenda »), et sans suite. Le nom d'un dossier ouvre sa fiche." },
@@ -20152,7 +20153,8 @@
         </div>
         ${ligne('calendar', escapeHtml(jour.charAt(0).toUpperCase() + jour.slice(1)))}
         ${ligne('clock', escapeHtml(horaire))}
-        ${e.lieu ? ligne('map-pin', escapeHtml(e.lieu)) : ''}
+        ${/* Rendez-vous relié à un dossier de CLAIRE : pas de ligne « lieu » (étude, 01/10) — le Lieu Outlook n'y porte que les initiales et la note d'envoi, déjà dits par le responsable et les états. */ ''}
+        ${e.lieu && !d ? ligne('map-pin', escapeHtml(e.lieu)) : ''}
         ${infos && infos.responsable ? ligne('user', `Responsable : <b>${escapeHtml(infos.responsable)}</b>`) : ''}
         ${infos && infos.confrere ? ligne('users', `Confrère : <b>${escapeHtml(infos.confrere)}</b>`) : ''}
         ${infos && !e.option ? `<div class="ag-detail-etats">${renderEtatsRendezVous(infos)}</div>` : ''}

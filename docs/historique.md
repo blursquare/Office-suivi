@@ -14245,3 +14245,11 @@ téléphone comme les autres) mise à jour à chaque relecture des sondages (tou
 « Dates proposées » montre « n nouvelle(s) réponse(s) » et la pastille rouge. Ouvrir le volet marque tout
 comme vu ; les cartes concernées y portent « Nouvelle réponse » (repère d'avant l'ouverture). Le toast
 existant « Nouvelle réponse au sondage » reste. Vérifié dans Chromium (clair, sombre, téléphone).
+
+### 01/10/2026 22 h 42 — Détail d'un rendez-vous relié : plus de ligne « lieu »
+
+Demande de l'étude : « quand un dossier est déjà relié à Claire, ne pas afficher lieu ». Dans
+`renderPanneauDetailAgenda`, la ligne `map-pin` (Lieu Outlook) n'est plus rendue quand le rendez-vous
+est relié à un dossier (`dossierDeEvenement(e)`) : ce Lieu n'y porte que les initiales du responsable
+et la note « Appel de fonds (et projet) envoyé », déjà montrés par « Responsable » et les états. Le Lieu
+reste écrit dans Outlook et affiché pour les rendez-vous sans dossier. Vérifié dans Chromium.
