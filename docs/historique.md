@@ -14225,3 +14225,11 @@ options, tableau des réponses `renderTableSondage` avec « Placer », puis Rela
 et va au jour), **Sans suite** (annulés/expirés, 20 au plus, repliés). Le nom d'un dossier ouvre sa fiche.
 La fenêtre se redessine à chaque relecture des sondages et après chaque action. Vérifié dans Chromium
 (clair, sombre, téléphone) avec des sondages inventés.
+
+### 01/10/2026 22 h 25 — « Dates proposées » dans un volet à droite
+
+Demande de l'étude : « au lieu d'ouvrir ça dans une fenêtre, ouvre-le dans une sidebar qui s'ouvre à
+droite comme un dossier ». `#dates-proposees-overlay` reprend la coque du tiroir de la fiche
+(`.drawer-overlay` + `aside.drawer-panneau`, même largeur, même animation, voile sombre) avec une barre
+collante `.fiche-barre` (titre + croix). Défilement de la page bloqué pendant l'ouverture par
+`body.tiroir-dates-ouvert` (pas `drawer-ouvert`, réservé à l'impression de la fiche). Contenu inchangé.

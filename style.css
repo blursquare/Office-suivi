@@ -7778,9 +7778,11 @@ button.appel-entrant-fermer svg { width: 14px; height: 14px; }
 }
 
 /* ---- Liste des widgets du tableau de bord (01/10) : ajouter / retirer ---- */
-/* Suivi des dates proposées (étude, 01/10) : fenêtre ouverte depuis la colonne de l'agenda. */
-.confirm-box.dates-proposees-box { max-width: 720px; width: 100%; max-height: min(88vh, 820px); overflow-y: auto; text-align: left; }
-.dates-proposees-tete { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 4px; }
+/* Suivi des dates proposées (étude, 01/10) : tiroir à droite, comme la fiche d'un dossier. */
+.drawer-panneau.dates-proposees-box { text-align: left; }
+.dates-proposees-tete { margin-bottom: 4px; }
+.dates-proposees-tete .poste-titre { margin: 0; }
+body.tiroir-dates-ouvert { overflow: hidden; }
 .dates-proposees-box .widgets-galerie-groupe { margin-top: 14px; }
 .dates-proposees-box .dp-carte { margin: 8px 0 0; background: var(--paper-card); }
 .dates-proposees-box .dp-titre { font-weight: 700; font-size: 13.5px; color: var(--ink); display: inline-flex; align-items: center; gap: 5px; text-decoration: none; }

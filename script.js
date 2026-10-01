@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-01 22:21';
+  const VERSION_APP = '2026-10-01 22:25';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-01 22:25', resume: "Agenda : « Dates proposées » s'ouvre maintenant dans un volet à droite, comme la fiche d'un dossier, au lieu d'une fenêtre au centre." },
     { version: '2026-10-01 22:21', resume: "Agenda : nouveau lien « Dates proposées » sous le petit calendrier (avec le nombre en attente). Il ouvre une fenêtre qui suit toutes les dates de rendez-vous envoyées par email, avec ou sans dossier : en attente de réponse (qui a répondu, Placer, Relancer, Relire, Annuler), validées (date retenue, « Voir dans l'agenda »), et sans suite. Le nom d'un dossier ouvre sa fiche." },
     { version: '2026-10-01 22:10', resume: "Agenda : le bouton double « Nouveau rendez-vous | Proposer des dates » passe en haut de la page, à droite du champ de recherche (même hauteur). Sur téléphone, il s'étend sous la recherche." },
     { version: '2026-10-01 22:08', resume: "Agenda : dans le détail d'un rendez-vous, « Supprimer de l'agenda » devient une simple poubelle rouge en haut, à côté du crayon. La confirmation avant suppression reste." },
@@ -19618,7 +19619,7 @@
       </button>`;
   }
 
-  // ---- Suivi des dates proposées (fenêtre) : en attente de réponse, validées, sans suite ----
+  // ---- Suivi des dates proposées (tiroir à droite, comme une fiche) : en attente, validées, sans suite ----
   // Pure : les sondages de créneaux rangés pour le suivi. En attente = ouverts (les plus récents
   // d'abord) ; validées = placés, par date retenue (la plus proche à venir d'abord, puis les passées) ;
   // sans suite = annulés ou expirés, les 20 plus récents.
@@ -19649,6 +19650,7 @@
     const overlay = document.getElementById('dates-proposees-overlay');
     if (!overlay) return;
     overlay.style.display = 'flex';
+    document.body.classList.add('tiroir-dates-ouvert');
     renderSuiviDatesProposees();
     chargerSondages().then(renderSuiviDatesProposees);
   }
@@ -19656,6 +19658,7 @@
   function fermerSuiviDatesProposees() {
     const overlay = document.getElementById('dates-proposees-overlay');
     if (overlay) overlay.style.display = 'none';
+    document.body.classList.remove('tiroir-dates-ouvert');
   }
   document.addEventListener('keydown', (e) => {
     const overlay = document.getElementById('dates-proposees-overlay');
