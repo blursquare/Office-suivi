@@ -338,14 +338,14 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
   seule fois » (`[CLAIRE-CODE-L]`, étude 01/10) : cases `[ ]` à cocher d'un X, seul cas où le **texte** d'un
   email est lu (GetItem de ces réponses-là, numéros cochés gardés, texte jamais conservé).
   **Page de réponse** (étude, 01/10 — `page-sondage/index.html`, à publier dans un dépôt GitHub public
-  dédié avec Pages, adresse dans Réglages › Rappels et agenda, `pageSondage` des réglages Exchange) :
+  dédié avec Pages, adresse dans Réglages › Agenda et Outlook › Sondages de créneaux, `pageSondage` des réglages Exchange) :
   vraies cases à cocher, **aucune donnée côté GitHub** (tout est après le `#` du lien, rendu en
   `textContent`), à la manière de Rallly avec le logo de l'office (dépôt public **blursquare/Claire-rdv**,
   copie de `page-sondage/`), vote **Oui / Si nécessaire / Non** ; réponse par un seul email d'objet
   `[CLAIRE-CODE-P13S2] VTE - MOR./FAU. — Oui : … · Si nécessaire : …` (S = si nécessaire, P0 = aucun ;
   remplace les choix ; « possible pour tous » = oui ou si nécessaire).
   **Relais Google** (étude, 01/10 — `page-sondage/relais-google-apps-script.gs`, Apps Script déployé
-  sur le compte Gmail de l'étude, adresse `/exec` dans Réglages › Rappels et agenda, `relaisSondage`) :
+  sur le compte Gmail de l'étude, adresse `/exec` dans la même section, `relaisSondage`) :
   la page lui poste la réponse (texte brut, sans prévol CORS), il l'envoie par email à une adresse FIXÉE
   dans le script (jamais choisie par la page), objet contrôlé, 200/h ; repli sur la messagerie du client
   s'il échoue. L'expéditeur devenant le Gmail de l'étude, chaque destinataire a un **code personnel**
@@ -360,7 +360,7 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
 - **Appels 3CX** (01/10, choix de l'étude : « noter + ouvrir la fiche », téléphones sur les fiches) : 3CX
   ne donne pas d'historique ; son « Intégration CRM » (client web, réglage de chaque collaborateur, CRM
   personnalisé, « Informer lorsque : Sonnerie ») ouvre `/appel?numero=%CallerNumber%&nom=%CallerDisplayName%&poste=<prénom>`
-  (adresses à copier dans Réglages › Rappels, `adresseIntegration3cx` ; poste = prénom sans accent, jamais un
+  (adresses à copier dans Réglages › Téléphonie 3CX, `adresseIntegration3cx` ; poste = prénom sans accent, jamais un
   nom encodé que 3CX prendrait pour une variable). Le serveur note l'appel (`appels-recus`, 400 jours, hors
   session, aucune donnée renvoyée, jamais journalisé) et reconnaît l'appelant (`reconnaitreAppelant` : 9
   derniers chiffres ; `d.telephoneVendeur`/`d.telephoneAcquereur` — onglet Échanges, repris d'Authentic —,
@@ -490,7 +490,9 @@ Plainte principale de l'étude : **le bruit**, pas les oublis — ne pas élargi
   pastille « i » à côté du titre ou du libellé (`infoBulle(texte)` dans un gabarit, `<span
   class="info-i" tabindex="0" data-info="…">` en HTML, `definirInfoBulle` pour la changer). Restent
   en texte visible : un état, un résultat, une erreur, une liste vide. **Réglages** : rubriques à
-  gauche (`SOUS_ONGLETS_REGLAGES`), une colonne de lignes `.reglages-option` / `.reglages-champ`
+  gauche (`SOUS_ONGLETS_REGLAGES`, une par sujet depuis le 01/10 : Général, Collaborateurs, Signature des
+  emails, Rappels Teams, Agenda et Outlook, Téléphonie 3CX, Pièces et Claire Scan, Relecture d'actes,
+  Signalements, Mise à jour et sauvegarde ; chaque section qui enregistre a son propre bouton), une colonne de lignes `.reglages-option` / `.reglages-champ`
   dans des `.reglages-section` — pas de cartes en grille.
 - **Toute nouvelle fonction pure** : la déclarer `function` (ou `var` pour une table) pour la
   tester ; les fonctions qui touchent `dossiers`/le DOM se vérifient dans un vrai Chromium

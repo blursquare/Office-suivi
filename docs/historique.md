@@ -14070,3 +14070,17 @@ widget (`icone`, `description` dans `WIDGETS_DASHBOARD`). Retirer = `masque: tru
 « − » devient « × Retirer du tableau de bord » ; la rangée des widgets masqués sous la grille est remplacée par
 « Ajouter un widget (n) », qui ouvre la liste (aussi affiché hors de ce mode quand plus aucun widget n'est visible).
 Échap ou clic à côté ferment ; « Disposition d'origine » dans la fenêtre.
+
+### 01/10 — Réglages : une rubrique par sujet
+
+Demande de l'étude : « revoir les réglages pour l'organisation, savoir si tout est à sa place ». Constats :
+« Rappels Teams » mêlait l'envoi Gmail, l'adresse et la fonction de chaque collaborateur (sans bouton propre :
+enregistrées par le bouton de la section Gmail au-dessus), la téléphonie 3CX et le dernier tour ; « Agenda »
+mêlait la connexion Outlook et les réglages des sondages ; « Notification d'une nouvelle pièce » était sous
+« Documents et emails ». Nouvel ordre (`SOUS_ONGLETS_REGLAGES`) : Général · Collaborateurs (nouvelle rubrique,
+`#reglages-emails-liste` + Enregistrer → `enregistrerReglages`) · Signature des emails · Rappels Teams (Gmail,
+dernier tour) · Agenda et Outlook (connexion, lecture, section « Sondages de créneaux » avec son bouton —
+`enregistrerReglagesExchange(idResultat)`) · Téléphonie 3CX (nouvelle rubrique) · Pièces et Claire Scan (« Sur ce
+poste » : notification d'une nouvelle pièce, puis Claire Scan, Fichiers écartés) · Relecture d'actes ·
+Signalements · Mise à jour et sauvegarde. Aucun identifiant de champ changé ; messages qui citaient l'ancienne
+rubrique mis à jour.

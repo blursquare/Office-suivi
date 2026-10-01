@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-01 20:55';
+  const VERSION_APP = '2026-10-01 21:08';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-01 21:08', resume: "Réglages réorganisés, une rubrique par sujet : Général, Collaborateurs (adresse et fonction de chacun, avec son propre bouton Enregistrer), Signature des emails, Rappels Teams (envoi Gmail et dernier tour), Agenda et Outlook (connexion, lecture, et une section Sondages de créneaux), Téléphonie 3CX (rubrique à part), Pièces et Claire Scan (la notification d'une nouvelle pièce y est rangée), Relecture d'actes, Signalements, Mise à jour et sauvegarde." },
     { version: '2026-10-01 20:55', resume: "Tableau de bord : bouton « Widgets » à côté de « Personnaliser », qui ouvre la liste de tous les widgets — ceux affichés avec « Retirer », ceux retirés avec « Ajouter », chacun décrit. En mode Personnaliser, la croix d'une carte la retire et « Ajouter un widget » rouvre la liste. Un widget retiré revient à sa taille d'avant. Choix propre à chaque collaborateur." },
     { version: '2026-10-01 18:33', resume: "Téléphonie 3CX : l'adresse à coller dans 3CX utilise maintenant l'adresse du serveur sur le réseau du bureau (192.168.…), et non « localhost » quand les Réglages sont ouverts depuis la fenêtre CLAIRE du serveur — « localhost » ne mène au serveur que depuis ce poste. À recopier dans 3CX après la mise à jour." },
     { version: '2026-10-01 18:29', resume: "Aujourd'hui : vos rappels en cours (échus ou sans date) sont en tête de « À faire », avec leur case ronde, et restent toujours visibles sur la carte du tableau de bord tant qu'ils ne sont pas cochés, quelle que soit sa taille. Le crayon les modifie ; ceux à venir restent sous « Mes rappels »." },
@@ -12117,7 +12118,7 @@
   };
   // Catégories qu'on peut poser sur un rendez-vous de l'agenda : le lieu (TYPES_RDV) et, en jaune,
   // « Annulé / à replacer » (étude, 01/10) — la signature d'un dossier ainsi marquée repasse « à
-  // placer ». Nom Outlook de chacune réglé dans Réglages › Rappels et agenda (categoriesRdv).
+  // placer ». Nom Outlook de chacune réglé dans Réglages › Agenda et Outlook (categoriesRdv).
   var CATEGORIES_AGENDA = Object.assign({}, TYPES_RDV, { annule: { libelle: 'Annulé / à replacer', court: 'À replacer' } });
 
   function normaliserNomCategorie(t) {
@@ -19580,7 +19581,7 @@
     const lu = agendaLu ? new Date(agendaLu).toLocaleString('fr-FR', { weekday: 'short', hour: '2-digit', minute: '2-digit' }).replace(':', ' h ') : '';
     const source = agendaErreur ? `<span class="dot-label dl-alerte"><span class="dot"></span>${escapeHtml(agendaErreur)}</span>`
       : !agendaCharge ? 'Lecture de l’agenda…'
-      : agendaSource && !agendaSource.configuree ? 'Connexion à l’agenda Outlook à configurer (Réglages › Agenda).'
+      : agendaSource && !agendaSource.configuree ? 'Connexion à l’agenda Outlook à configurer (Réglages › Agenda et Outlook).'
       : lu ? `Agenda de l’office lu ${escapeHtml(lu)}${agendaHistorique.enCours ? ' · Historique : lecture dans Outlook…' : agendaHistorique.message ? ` · <span class="dot-label dl-alerte"><span class="dot"></span>${escapeHtml(agendaHistorique.message)}</span>` : ''}${renderComparaisonAgenda()}` : 'Agenda pas encore lu par le serveur.';
     // Titre à la manière d'Outlook : la pastille du jour (mois en tête, grand numéro), la date en
     // clair et, dessous, le jour ou la période affichée.
@@ -20536,7 +20537,7 @@
     const typeAvant = typeEvenementAgenda(e, categoriesRdvReglees());
     const typeApres = choixType && CATEGORIES_AGENDA[choixType.value] ? choixType.value : '';
     if (typeApres !== typeAvant) {
-      if (typeApres && !categoriesRdvReglees()[typeApres]) { afficherToast('Nom de la catégorie Outlook à régler d’abord (Réglages › Rappels et agenda).', 'OK', null); return; }
+      if (typeApres && !categoriesRdvReglees()[typeApres]) { afficherToast('Nom de la catégorie Outlook à régler d’abord (Réglages › Agenda et Outlook).', 'OK', null); return; }
       nouveau.categories = categoriesApresChangement(e.categories, categoriesRdvReglees(), typeApres);
       nouveau.typeRdv = typeApres;
     }
@@ -24403,7 +24404,7 @@
 
   let origine3cx = '';
 
-  // Réglages › Rappels : l'adresse de chaque collaborateur pour 3CX, et les derniers appels notés.
+  // Réglages › Téléphonie 3CX : l'adresse de chaque collaborateur pour 3CX, et les derniers appels notés.
   async function renderReglages3cx() {
     const liste = document.getElementById('reglages-3cx-liste');
     if (!liste) return;
@@ -25535,7 +25536,8 @@
   // est retenu sur ce poste — confort seulement, repli sur « Général » si le stockage manque.
   // Rubriques de la colonne de gauche, dans l'ordre (réorganisées le 29/09, à la manière des
   // réglages de Claude).
-  var SOUS_ONGLETS_REGLAGES = ['general', 'rappels', 'signature', 'agenda', 'relecture', 'pieces', 'signalements', 'systeme'];
+  // Ordre de la colonne de gauche (revu le 01/10 : une rubrique par sujet).
+  var SOUS_ONGLETS_REGLAGES = ['general', 'collaborateurs', 'signature', 'rappels', 'agenda', 'telephonie', 'pieces', 'relecture', 'signalements', 'systeme'];
   const CLE_SOUS_ONGLET_REGLAGES = 'reglages-sous-onglet';
 
   function sousOngletReglagesRetenu() {
@@ -28008,7 +28010,7 @@
             // TOUS les dossiers suivants portant un fichier de même nom — cas signalé par l'étude
             // (« Courriel alignement et numérotage.pdf » : numérotage relié, alignement jamais).
             exclusionsRencontrees.push({ cle: piece.cle, label: piece.label, nom: nomNormalise, fichier: fichier.nom });
-            diagnosticJournal.push(`${fichier.nom} → correspond à « ${piece.label} » mais écarté par une correction précédente (Réglages › Fichiers écartés pour rétablir)`);
+            diagnosticJournal.push(`${fichier.nom} → correspond à « ${piece.label} » mais écarté par une correction précédente (Réglages › Pièces et Claire Scan › Fichiers écartés pour rétablir)`);
           } else {
             correspond = true;
           }
@@ -35577,9 +35579,10 @@
     }
   }
 
-  async function enregistrerReglagesExchange() {
+  // `idResultat` : où dire « Enregistré » (la section Sondages a son propre bouton).
+  async function enregistrerReglagesExchange(idResultat) {
     const bouton = document.getElementById('exchange-enregistrer-btn');
-    const resultat = document.getElementById('exchange-resultat');
+    const resultat = document.getElementById(typeof idResultat === 'string' ? idResultat : 'exchange-resultat');
     const actif = document.getElementById('exchange-actif');
     const champEmail = document.getElementById('exchange-email');
     const champMdp = document.getElementById('exchange-motdepasse');

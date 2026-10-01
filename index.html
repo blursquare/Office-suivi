@@ -1513,11 +1513,13 @@
   <div class="reglages-corps">
     <nav class="reglages-nav" role="tablist" aria-label="Rubriques des réglages" aria-orientation="vertical">
       <button type="button" class="reglages-nav-btn actif" role="tab" id="reglages-onglet-general" aria-controls="reglages-panneau-general" aria-selected="true" onclick="definirSousOngletReglages('general')">Général</button>
-      <button type="button" class="reglages-nav-btn" role="tab" id="reglages-onglet-rappels" aria-controls="reglages-panneau-rappels" aria-selected="false" onclick="definirSousOngletReglages('rappels')">Rappels Teams</button>
+      <button type="button" class="reglages-nav-btn" role="tab" id="reglages-onglet-collaborateurs" aria-controls="reglages-panneau-collaborateurs" aria-selected="false" onclick="definirSousOngletReglages('collaborateurs')">Collaborateurs</button>
       <button type="button" class="reglages-nav-btn" role="tab" id="reglages-onglet-signature" aria-controls="reglages-panneau-signature" aria-selected="false" onclick="definirSousOngletReglages('signature')">Signature des emails</button>
-      <button type="button" class="reglages-nav-btn" role="tab" id="reglages-onglet-agenda" aria-controls="reglages-panneau-agenda" aria-selected="false" onclick="definirSousOngletReglages('agenda')">Agenda</button>
+      <button type="button" class="reglages-nav-btn" role="tab" id="reglages-onglet-rappels" aria-controls="reglages-panneau-rappels" aria-selected="false" onclick="definirSousOngletReglages('rappels')">Rappels Teams</button>
+      <button type="button" class="reglages-nav-btn" role="tab" id="reglages-onglet-agenda" aria-controls="reglages-panneau-agenda" aria-selected="false" onclick="definirSousOngletReglages('agenda')">Agenda et Outlook</button>
+      <button type="button" class="reglages-nav-btn" role="tab" id="reglages-onglet-telephonie" aria-controls="reglages-panneau-telephonie" aria-selected="false" onclick="definirSousOngletReglages('telephonie')">Téléphonie 3CX</button>
+      <button type="button" class="reglages-nav-btn" role="tab" id="reglages-onglet-pieces" aria-controls="reglages-panneau-pieces" aria-selected="false" onclick="definirSousOngletReglages('pieces')">Pièces et Claire Scan</button>
       <button type="button" class="reglages-nav-btn" role="tab" id="reglages-onglet-relecture" aria-controls="reglages-panneau-relecture" aria-selected="false" onclick="definirSousOngletReglages('relecture')">Relecture d'actes</button>
-      <button type="button" class="reglages-nav-btn" role="tab" id="reglages-onglet-pieces" aria-controls="reglages-panneau-pieces" aria-selected="false" onclick="definirSousOngletReglages('pieces')">Pièces</button>
       <button type="button" class="reglages-nav-btn" role="tab" id="reglages-onglet-signalements" aria-controls="reglages-panneau-signalements" aria-selected="false" onclick="definirSousOngletReglages('signalements')">Signalements<span class="reglages-onglet-compteur" id="reglages-onglet-compteur-signalements" hidden></span></button>
       <button type="button" class="reglages-nav-btn" role="tab" id="reglages-onglet-systeme" aria-controls="reglages-panneau-systeme" aria-selected="false" onclick="definirSousOngletReglages('systeme')">Mise à jour et sauvegarde</button>
     </nav>
@@ -1593,16 +1595,6 @@
             <option value="mailto">Messagerie par défaut</option>
           </select>
         </label>
-        <label class="reglages-option" for="reglages-notif-navigateur">
-          <span class="reglages-option-texte">
-            <span class="reglages-option-titre">Notification d'une nouvelle pièce <span class="info-i" tabindex="0" data-info="Notification Windows quand une pièce arrive sur le NAS. À activer sur chaque poste."></span></span>
-            <span class="hint" id="reglages-notif-navigateur-etat"></span>
-          </span>
-          <span class="switch reglages-switch">
-            <input type="checkbox" id="reglages-notif-navigateur" onchange="basculerNotifNavigateur(this.checked)">
-            <span class="slider"></span>
-          </span>
-        </label>
       </div>
     </div>
   </section>
@@ -1647,17 +1639,7 @@
       </div>
     </div>
 
-    <div class="reglages-section">
-      <h3 class="reglages-section-titre">Adresse email de chaque collaborateur</h3>
-      <div class="reglages-liste" id="reglages-emails-liste"></div>
-    </div>
 
-    <div class="reglages-section">
-      <h3 class="reglages-section-titre">Téléphonie 3CX <span class="info-i" tabindex="0" data-info="Dans le client web 3CX de chaque collaborateur : Paramètres › Intégration › Intégration CRM › « Ouvrir le contact dans un CRM personnalisé », coller son adresse ci-dessous, « Informer lorsque » : Sonnerie. Autoriser les fenêtres pop-up pour le site du client web 3CX dans Chrome/Edge (icône à droite de la barre d'adresse, ou Paramètres › Confidentialité › Paramètres des sites › Pop-up et redirections) : sans cela le navigateur bloque l'adresse et rien n'arrive. « Essayer » simule un appel. À chaque appel, CLAIRE le note, reconnaît l'appelant (téléphones saisis dans l'onglet Échanges des dossiers, carnet des confrères, répertoire) et ouvre la fiche dans la fenêtre CLAIRE. Seuls les appels qui sonnent sur un poste où le client web 3CX est ouvert sont notés."></span></h3>
-      <div class="reglages-liste" id="reglages-3cx-liste"></div>
-      <h4 class="reglages-sous-titre">Derniers appels</h4>
-      <div id="reglages-3cx-journal"></div>
-    </div>
 
     <div class="reglages-section">
       <h3 class="reglages-section-titre">Dernier tour de rappels <span class="info-i" tabindex="0" data-info="« Lancer un tour maintenant » envoie réellement les rappels dus : ils ne repartiront pas au tour suivant. Rien n'arrive dans Teams : voir l'historique du flux, puis les indésirables de la boîte-passerelle."></span></h3>
@@ -1665,6 +1647,31 @@
       <div class="reglages-actions">
         <button type="button" class="secondary" id="reglages-lancer-tour" onclick="lancerTourRappels()">Lancer un tour maintenant</button>
       </div>
+    </div>
+  </section>
+
+  <!-- ===== Collaborateurs : adresse email (destinataire des rappels Teams, adresse de la carte de
+       signature) et fonction (sous le nom dans la signature), enregistrées avec les réglages du serveur. ===== -->
+  <section class="reglages-panneau" id="reglages-panneau-collaborateurs" role="tabpanel" aria-labelledby="reglages-onglet-collaborateurs" hidden>
+    <h2 class="reglages-titre">Collaborateurs</h2>
+    <div class="reglages-section">
+      <h3 class="reglages-section-titre">Adresse email et fonction <span class="info-i" tabindex="0" data-info="L'adresse reçoit les rappels Teams du collaborateur et figure sur sa carte de signature ; la fonction est écrite sous son nom dans la signature des emails. « Tester » envoie un rappel d'essai avec les réglages déjà enregistrés."></span></h3>
+      <div class="reglages-liste" id="reglages-emails-liste"></div>
+      <div class="reglages-actions">
+        <button type="button" class="primary" onclick="enregistrerReglages()">Enregistrer</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== Téléphonie 3CX : adresse à coller dans l'« Intégration CRM » du client web de chaque
+       collaborateur, essai, et derniers appels notés (voir server/src/appels3cx.js). ===== -->
+  <section class="reglages-panneau" id="reglages-panneau-telephonie" role="tabpanel" aria-labelledby="reglages-onglet-telephonie" hidden>
+    <h2 class="reglages-titre">Téléphonie 3CX</h2>
+    <div class="reglages-section">
+      <h3 class="reglages-section-titre">Intégration CRM de 3CX <span class="info-i" tabindex="0" data-info="Dans le client web 3CX de chaque collaborateur : Paramètres › Intégration › Intégration CRM › « Ouvrir le contact dans un CRM personnalisé », coller son adresse ci-dessous, « Informer lorsque » : Sonnerie. Autoriser les fenêtres pop-up pour le site du client web 3CX dans Chrome/Edge (icône à droite de la barre d'adresse, ou Paramètres › Confidentialité › Paramètres des sites › Pop-up et redirections) : sans cela le navigateur bloque l'adresse et rien n'arrive. « Essayer » simule un appel. À chaque appel, CLAIRE le note, reconnaît l'appelant (téléphones saisis dans l'onglet Échanges des dossiers, carnet des confrères, répertoire) et ouvre la fiche dans la fenêtre CLAIRE. Seuls les appels qui sonnent sur un poste où le client web 3CX est ouvert sont notés."></span></h3>
+      <div class="reglages-liste" id="reglages-3cx-liste"></div>
+      <h4 class="reglages-sous-titre">Derniers appels</h4>
+      <div id="reglages-3cx-journal"></div>
     </div>
   </section>
 
@@ -1681,7 +1688,7 @@
        qui sert à la fois à LIRE le calendrier partagé de Sophie (server/src/agendaOffice.js +
        agendaWatch.js, toutes les 2 minutes) et à y ÉCRIRE (rendez-vous, dates butoir, mention d'envoi). ===== -->
   <section class="reglages-panneau" id="reglages-panneau-agenda" role="tabpanel" aria-labelledby="reglages-onglet-agenda" hidden>
-    <h2 class="reglages-titre">Agenda</h2>
+    <h2 class="reglages-titre">Agenda et Outlook</h2>
     <div class="reglages-section">
       <h3 class="reglages-section-titre">Agenda Outlook de l'office <span class="info-i" tabindex="0" data-info="Connexion à l'agenda Outlook de l'office (Fichorga) : CLAIRE y lit les rendez-vous et y écrit les rendez-vous de signature, les dates butoir et les mentions d'envoi. Le mot de passe n'est jamais réaffiché. À configurer et tester depuis un poste du bureau."></span></h3>
       <div class="reglages-liste">
@@ -1705,14 +1712,6 @@
         <div class="reglages-champ">
           <div class="reglages-champ-libelle"><label for="exchange-calendrier-partage">Calendrier partagé (Sophie)</label><span class="info-i" tabindex="0" data-info="Boîte dont le calendrier partagé contient les rendez-vous de l'office : c'est lui que CLAIRE lit et où elle écrit. Vide : calendrier du compte de connexion. Le compte de connexion doit pouvoir y écrire."></span></div>
           <input type="email" id="exchange-calendrier-partage" autocomplete="off" placeholder="sophie@gossart.notaires.fr">
-        </div>
-        <div class="reglages-champ">
-          <div class="reglages-champ-libelle"><label for="exchange-page-sondage">Page de réponse aux sondages</label><span class="info-i" tabindex="0" data-info="Adresse de la page publiée sur GitHub Pages (page-sondage/index.html du dépôt de CLAIRE), où les clients cochent les créneaux qui leur conviennent. Vide : l'email garde un bouton par créneau. La page ne garde aucune donnée : tout est dans le lien."></span></div>
-          <input type="text" inputmode="url" spellcheck="false" id="exchange-page-sondage" autocomplete="off" placeholder="https://blursquare.github.io/Claire-rdv/">
-        </div>
-        <div class="reglages-champ">
-          <div class="reglages-champ-libelle"><label for="exchange-relais-sondage">Relais des réponses (Google)</label><span class="info-i" tabindex="0" data-info="Adresse du script Google Apps Script déployé sur le compte Gmail de l'étude (page-sondage/relais-google-apps-script.gs). Le client n'a alors qu'à cliquer sur « Envoyer ma réponse » : le script transmet la réponse par email à la boîte de l'office. Vide : la messagerie du client s'ouvre avec l'email prêt."></span></div>
-          <input type="text" inputmode="url" spellcheck="false" id="exchange-relais-sondage" autocomplete="off" placeholder="https://script.google.com/macros/s/…/exec">
         </div>
         <div class="reglages-champ reglages-champ-haut">
           <div class="reglages-champ-libelle"><label>Couleurs des rendez-vous</label><span class="info-i" tabindex="0" id="exchange-categories-note" data-info="Nom exact de la catégorie dans Outlook. Un nom que la boîte ne connaît pas s'affiche sans couleur."></span></div>
@@ -1749,6 +1748,24 @@
         <span id="reglages-agenda-resultat" class="hint" style="margin:0;"></span>
       </div>
       <div id="reglages-agenda-dernier-tour" class="reglages-dernier-tour"></div>
+    </div>
+
+    <div class="reglages-section">
+      <h3 class="reglages-section-titre">Sondages de créneaux <span class="info-i" tabindex="0" data-info="Pour « Proposer des dates » : la page où les clients cochent leurs créneaux, et le relais qui renvoie leur réponse à l'office. Vides : l'email garde un bouton par créneau."></span></h3>
+      <div class="reglages-liste">
+        <div class="reglages-champ">
+          <div class="reglages-champ-libelle"><label for="exchange-page-sondage">Page de réponse aux sondages</label><span class="info-i" tabindex="0" data-info="Adresse de la page publiée sur GitHub Pages (page-sondage/index.html du dépôt de CLAIRE), où les clients cochent les créneaux qui leur conviennent. Vide : l'email garde un bouton par créneau. La page ne garde aucune donnée : tout est dans le lien."></span></div>
+          <input type="text" inputmode="url" spellcheck="false" id="exchange-page-sondage" autocomplete="off" placeholder="https://blursquare.github.io/Claire-rdv/">
+        </div>
+        <div class="reglages-champ">
+          <div class="reglages-champ-libelle"><label for="exchange-relais-sondage">Relais des réponses (Google)</label><span class="info-i" tabindex="0" data-info="Adresse du script Google Apps Script déployé sur le compte Gmail de l'étude (page-sondage/relais-google-apps-script.gs). Le client n'a alors qu'à cliquer sur « Envoyer ma réponse » : le script transmet la réponse par email à la boîte de l'office. Vide : la messagerie du client s'ouvre avec l'email prêt."></span></div>
+          <input type="text" inputmode="url" spellcheck="false" id="exchange-relais-sondage" autocomplete="off" placeholder="https://script.google.com/macros/s/…/exec">
+        </div>
+      </div>
+      <div class="reglages-actions">
+        <button type="button" class="primary" onclick="enregistrerReglagesExchange('exchange-sondage-resultat')">Enregistrer</button>
+        <span id="exchange-sondage-resultat" class="hint" style="margin:0;"></span>
+      </div>
     </div>
   </section>
 
@@ -1813,7 +1830,22 @@
   <!-- ===== Pièces : fichiers écartés à la main (bouton « Réinitialiser » d'une pièce mal reconnue),
        partagés par tout le bureau — voir retirerExclusionPiece() dans script.js. ===== -->
   <section class="reglages-panneau" id="reglages-panneau-pieces" role="tabpanel" aria-labelledby="reglages-onglet-pieces" hidden>
-    <h2 class="reglages-titre">Pièces</h2>
+    <h2 class="reglages-titre">Pièces et Claire Scan</h2>
+    <div class="reglages-section">
+      <h3 class="reglages-section-titre">Sur ce poste</h3>
+      <div class="reglages-liste">
+        <label class="reglages-option" for="reglages-notif-navigateur">
+          <span class="reglages-option-texte">
+            <span class="reglages-option-titre">Notification d'une nouvelle pièce <span class="info-i" tabindex="0" data-info="Notification Windows quand une pièce arrive sur le NAS. À activer sur chaque poste."></span></span>
+            <span class="hint" id="reglages-notif-navigateur-etat"></span>
+          </span>
+          <span class="switch reglages-switch">
+            <input type="checkbox" id="reglages-notif-navigateur" onchange="basculerNotifNavigateur(this.checked)">
+            <span class="slider"></span>
+          </span>
+        </label>
+      </div>
+    </div>
     <div class="reglages-section">
       <h3 class="reglages-section-titre">Claire Scan</h3>
       <div id="reglages-scans"></div>
