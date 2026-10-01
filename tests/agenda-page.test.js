@@ -141,6 +141,8 @@ test('gestesRelationClient : rappel, confirmation, questionnaire, un an après �
     { id: 'deplace', rendezVousSignature: '2026-10-22', confirmationRdvPour: '2026-10-15' },
     { id: 'signe', rendezVousSignature: '2026-09-25' },
     { id: 'signeConfrere', rendezVousSignature: '2026-09-25', notaireAcquereur: 'Maître DUPUIS' },
+    { id: 'rdvConfrere', rendezVousSignature: '2026-10-03', notaireAcquereur: 'Maître DUPUIS' },
+    { id: 'confirmeConfrere', rendezVousSignature: '2026-10-20', notaireAcquereur: 'Maître DUPUIS' },
     { id: 'questionnaireFait', rendezVousSignature: '2026-09-25', questionnaireEnvoyeLe: '2026-09-26' },
     { id: 'unAn', rendezVousSignature: '2025-10-01', archive: true },
     { id: 'loin', rendezVousSignature: '2026-12-31' }

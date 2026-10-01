@@ -320,7 +320,9 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
   son lien (`lireInvitationIcs`) est écrit dans les notes du rendez-vous de même date et même heure
   (`notesAvecVisio`, bloc « Visio ADNOV : … » remplacé à l’invitation suivante), puis « Rejoindre la visio ». « Envoyer le lien » prépare l'email aux clients et/ou au confrère (`corpsEmailVisio`, premier jet de CLAIRE) avec les informations de connexion relues dans la note (`blocVisioDansNotes`).
   `gestesRelationClient` (rappel J-3…J-1, confirmation J-45…J-3 une fois par date `confirmationRdvPour`,
-  questionnaire J+1…J+14, un mot un an après — jamais au client d'un confrère). **Couleur d'un
+  questionnaire J+1…J+14, un mot un an après — **jamais quand un confrère accompagne l'acquéreur**,
+  étude 01/10) : ces emails vivent dans l'**onglet Échanges de la fiche** (`echangesSelonStade`, utiles quand ils sont
+  dus ou faits), plus dans la barre de l'agenda (retirés le 01/10). **Couleur d'un
   rendez-vous = celle d'Outlook** (étude, 30/09) : couleur nommée dans la catégorie
   (`couleurCategorieOutlook`, jetons `--cat-*`), sinon type réglé (office/visio/confrère), sinon
   absence, signature, autre — page Agenda et fenêtre du matin. **Absences et dates butoir en rose** (étude, 01/10, avant la

@@ -13975,3 +13975,16 @@ Supprime Signatures de la semaine. » Colonne de gauche : calendrier du mois, «
 (`renderSondagesSansDossierAgenda`, sorti de `renderAnticipationsAgenda`), « Rendez-vous à placer », « Relation
 client ». Le bloc « Signatures de la semaine/du mois/du jour » est retiré ; `probabiliteTenueSignature` reste
 dans le détail d'un rendez-vous et les cartes fantômes.
+
+### 01/10 — Relation client dans la fiche (Échanges), sans confrère
+
+Demandes de l'étude : « relations client doit être connecté à la fiche du dossier avec échanges et que pour
+les clients non accompagnés par un confrère », puis « retirer de la sidebar relation client ». Le bloc
+« Relation client » quitte la colonne de gauche de l'agenda (`renderAnticipationsAgenda` ne rend plus que
+« Rendez-vous à placer » ; `renderGesteRelationClient` supprimé). `echangesSelonStade` range maintenant
+`confirmationRdv`, `rappelRdv` (rendez-vous fixé) et `anniversaire` (acte signé), utiles quand
+`gestesRelationClient` les dit dus ou quand ils sont déjà faits pour cette date, repliés sinon ; la ligne
+dit l'échéance (« Signature dans 2 jours »). `gestesRelationClient` écarte tout dossier dont l'acquéreur a un
+confrère (avant : la confirmation et le rappel allaient au confrère) ; même règle dans le détail d'un
+rendez-vous de l'agenda et pour le questionnaire dans Échanges. L'envoi reste `envoyerRelanceCiblee`
+(`confirmationRdvPour`, `rappelRdvPour`, `anniversaireEnvoyeLe`), partagé entre la fiche et l'agenda.

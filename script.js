@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-01 17:48';
+  const VERSION_APP = '2026-10-01 17:58';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-01 17:58', resume: "Relation client : retirée de la colonne de gauche de l'agenda. La confirmation et le rappel du rendez-vous, le questionnaire de satisfaction et le mot un an après sont dans l'onglet Échanges de la fiche du dossier, au bon moment — et seulement pour les clients qui ne sont pas accompagnés par un confrère." },
     { version: '2026-10-01 17:48', resume: "Agenda : dans la colonne de gauche, « Dates proposées » passe juste sous le calendrier du mois, et « Signatures de la semaine » est retiré (la probabilité de tenue reste dans le détail de chaque rendez-vous)." },
     { version: '2026-10-01 17:47', resume: "Agenda : l'historique — on peut remonter au 1er janvier et au-delà, toutes les années. Les rendez-vous passés sont lus dans Outlook mois par mois à la première consultation, puis gardés (pas de relecture ensuite) ; détail et notes consultables, sans modification. Nouveau : « Aller à une date » à côté de « Aujourd'hui »." },
     { version: '2026-10-01 17:44', resume: "Tableau de bord, carte « Aujourd'hui » : « Ajouter un rappel » ouvre bien le formulaire — sur une carte pleine, toute la section « Mes rappels » était masquée et « À venir » s'affichait à sa place. Le formulaire passe maintenant en premier, « À venir » se retire le temps de la saisie." },
@@ -18809,9 +18810,11 @@
   // ---- Relation client ----
   // Pure : les emails de relation client dus aujourd'hui, du plus pressant au moins pressant.
   //  - rappel du rendez-vous à J-3…J-1 ; confirmation du rendez-vous de J-45 à J-3 (une fois par date) ;
-  //  - questionnaire de satisfaction dans les 14 jours après la signature (jamais au client d'un
-  //    confrère, règle de l'étude) ;
-  //  - un mot un an après la signature (client de l'office seulement).
+  //  - questionnaire de satisfaction dans les 14 jours après la signature ;
+  //  - un mot un an après la signature.
+  // Jamais quand l'acquéreur est accompagné par un confrère (étude, 01/10 : « que pour les clients non
+  // accompagnés par un confrère ») — c'est alors son notaire qui tient la relation. Ces emails vivent
+  // dans l'onglet Échanges de la fiche (echangesSelonStade), plus dans la barre de l'agenda (01/10).
   var ORDRE_GESTES_RELATION = { rappelRdv: 0, confirmationRdv: 1, questionnaire: 2, anniversaire: 3 };
   function gestesRelationClient(liste, aujourdhuiIso) {
     const auj = aujourdhuiIso || isoAujourdhuiLocal();
@@ -18821,11 +18824,11 @@
       if (!rdv) continue;
       const j = ecartJours(auj, rdv);
       if (j === null) continue;
-      const confrere = notaireParticipantRepresenteAcquereur(d);
+      if (notaireParticipantRepresenteAcquereur(d)) continue;
       if (!d.archive && j >= 1 && j <= 3 && d.rappelRdvPour !== rdv) gestes.push({ d, type: 'rappelRdv', j });
       else if (!d.archive && j > 3 && j <= 45 && d.confirmationRdvPour !== rdv) gestes.push({ d, type: 'confirmationRdv', j });
-      if (j <= -1 && j >= -14 && !d.questionnaireEnvoyeLe && !confrere) gestes.push({ d, type: 'questionnaire', j });
-      if (j <= -358 && j >= -372 && !confrere && !d.anniversaireEnvoyeLe) gestes.push({ d, type: 'anniversaire', j });
+      if (j <= -1 && j >= -14 && !d.questionnaireEnvoyeLe) gestes.push({ d, type: 'questionnaire', j });
+      if (j <= -358 && j >= -372 && !d.anniversaireEnvoyeLe) gestes.push({ d, type: 'anniversaire', j });
     }
     return gestes.sort((a, b) => ORDRE_GESTES_RELATION[a.type] - ORDRE_GESTES_RELATION[b.type] || Math.abs(a.j) - Math.abs(b.j));
   }
@@ -19404,13 +19407,9 @@
             </li>`;
         }).join('')}</ul>${probables.length > aPlacer.length ? `<p class="jour-vide">Et ${probables.length - aPlacer.length} autre${probables.length - aPlacer.length > 1 ? 's' : ''}, plus tard.</p>` : ''}` : '<p class="jour-vide">Tous les dossiers ont un rendez-vous de signature.</p>'}
       </section>`;
-    // Relation client : les emails dus aujourd'hui.
-    const gestes = gestesRelationClient(perimetre, auj).slice(0, 8);
-    const blocRelation = `<section class="ag-anticipe">
-        <h3 class="jour-section-titre">Relation client${gestes.length ? ` <span class="jour-onglet-nb">${gestes.length}</span>` : ''} ${infoBulle('Emails prêts à envoyer au bon moment : confirmation du rendez-vous dès qu’il est fixé, rappel trois jours avant, questionnaire de satisfaction après la signature, un mot un an après. Au client d’un confrère, les emails du rendez-vous vont au confrère ; ni questionnaire ni mot d’anniversaire.')}</h3>
-        ${gestes.length ? gestes.map(g => renderGesteRelationClient(g)).join('') : '<p class="jour-vide">Rien à envoyer aujourd’hui.</p>'}
-      </section>`;
-    return blocPlacer + blocRelation;
+    // « Relation client » retiré de la barre (étude, 01/10) : ces emails sont dans l'onglet Échanges
+    // de la fiche du dossier (echangesSelonStade).
+    return blocPlacer;
   }
 
   // « Dates proposées » : les sondages sans dossier en cours (ceux d'un dossier vivent sur sa fiche),
@@ -19450,24 +19449,6 @@
     questionnaire: (g) => `Signé il y a ${-g.j} jour${-g.j > 1 ? 's' : ''}`,
     anniversaire: (g) => `Signé le ${formatDateFr(g.d.rendezVousSignature)}`
   };
-
-  function renderGesteRelationClient(g) {
-    const d = g.d;
-    if (g.type === 'questionnaire') {
-      return renderLigneAction({
-        categorie: 'neutre', categorieLabel: 'Après la signature', titre: 'Questionnaire de satisfaction',
-        sous: `${libelleDossierAffiche(d)} · ${LIBELLES_GESTES_RELATION.questionnaire(g)}${d.emailAcquereur ? '' : ' · email de l’acquéreur manquant'}`,
-        bouton: d.emailAcquereur ? { libelle: 'Envoyer', icone: icone('mail'), onclick: `envoyerQuestionnaireSatisfaction('${d.id}')`, titre: 'Prépare l’email avec le questionnaire joint, et archive le dossier' } : null
-      });
-    }
-    const a = ACTIONS_EMAIL_DOSSIER[g.type];
-    const destinataire = emailDestinataireRelance(d);
-    return renderLigneAction({
-      categorie: a.categorie, categorieLabel: a.categorieLabel, titre: a.titre,
-      sous: `${libelleDossierAffiche(d)} · ${LIBELLES_GESTES_RELATION[g.type](g)}${destinataire ? '' : ' · email manquant'}`,
-      bouton: destinataire ? { libelle: a.verbe, icone: icone('mail'), onclick: `envoyerRelanceCiblee('${d.id}', '${g.type}')`, titre: MODELES_EMAIL_RELANCE[g.type].libelle } : null
-    });
-  }
 
   // ---- Comparaison avec la même semaine l'an dernier (étude, 01/10 : « + x rendez-vous, hausse ou
   // baisse de x % ») : comptée par le serveur (GET /api/agenda/comparaison), l'an dernier lu une fois
@@ -19660,7 +19641,7 @@
         <div class="ag-detail-proba-tete">${renderPastilleProbabilite(proba)} <b>de chances que le rendez-vous soit maintenu</b> ${infoBulle('Indicatif : 97 % moins les points de ce qui reste à faire avant la date (financement, préemption, pièces, envois, fonds, absence du collaborateur), pondérés par sa proximité. Sans IA.')}</div>
         <ul class="ag-facteurs">${proba.facteurs.map(x => `<li class="${x.ok ? 'ok' : 'ko'}">${icone(x.ok ? 'check' : 'alert-triangle')}<span>${escapeHtml(x.libelle)}${x.ok ? '' : ` <em>−${x.retrait} pts</em>`}</span></li>`).join('')}</ul>
       </div>` : '';
-    const relation = d && e.signature && !d.archive && d.rendezVousSignature === e.date && e.date >= auj
+    const relation = d && e.signature && !d.archive && d.rendezVousSignature === e.date && e.date >= auj && !notaireParticipantRepresenteAcquereur(d)
       ? `<div class="ag-detail-actions">${renderLigneEmailDossier(d, 'confirmationRdv')}${ecartJours(auj, e.date) <= 3 ? renderLigneEmailDossier(d, 'rappelRdv') : ''}</div>` : '';
     // Un rendez-vous de l'historique (`archive`) se consulte (détail, notes) mais ne se modifie pas.
     const peutSupprimer = exchangeAgendaPret() && e.itemId && !e.horsAgenda && !e.archive;
@@ -23888,6 +23869,10 @@
     if (motif === 'fonds' && envoye) sous = `Réception des fonds confirmée le ${formatDateFr(envoye)}`;
     else if (envoye) sous = `${motif === 'pret' ? 'Dernière relance' : 'Envoyé'} le ${formatDateFr(envoye)}`;
     else if (motif === 'projet') sous = 'Le projet d’acte se joint dans Outlook';
+    else if (LIBELLES_GESTES_RELATION[motif] && d.rendezVousSignature) {
+      const j = ecartJours(isoAujourdhuiLocal(), d.rendezVousSignature);
+      if (j !== null && (motif === 'anniversaire' ? j < 0 : j > 0)) sous = LIBELLES_GESTES_RELATION[motif]({ d, j });
+    }
     // L'offre de prêt se relance tous les 10 jours : « faite » seulement tant que la dernière
     // relance est récente, sinon la ligne redevient une action à faire.
     const faite = !!envoye && (motif !== 'pret' || !relanceOffreDue(envoye, isoAujourdhuiLocal()));
@@ -24068,7 +24053,10 @@
   //   prêt         tant que l'offre est attendue et la condition non levée
   //   appel fonds  à préparer dès les conditions levées, et jusqu'à la signature
   //   fonds reçus (vérifier puis confirmer au client), RIB, note d'agenda : rendez-vous fixé
-  //   questionnaire : acte signé
+  //   confirmation, rappel du rendez-vous : rendez-vous fixé, utiles quand ils sont dus (ou faits)
+  //   questionnaire, un mot un an après : acte signé
+  // Relation client (confirmation, rappel, questionnaire, un an après) : jamais quand un confrère
+  // accompagne l'acquéreur (étude, 01/10), mêmes échéances que gestesRelationClient.
   function echangesSelonStade(d, aujourdhuiIso) {
     const stade = stadeDossier(d, aujourdhuiIso);
     const avantRdv = stade === 'conditions' || stade === 'rendezVous';
@@ -24087,7 +24075,13 @@
     ranger('fondsRecus', stade === 'signature');
     if (!confrere) ranger('rib', stade === 'signature');
     ranger('agenda', stade === 'signature');
-    ranger('questionnaire', stade === 'signe');
+    const dus = gestesRelationClient([d], aujourdhuiIso).map(g => g.type);
+    if (!confrere && stade === 'signature') {
+      ranger('confirmationRdv', dus.indexOf('confirmationRdv') !== -1 || d.confirmationRdvPour === d.rendezVousSignature);
+      ranger('rappelRdv', dus.indexOf('rappelRdv') !== -1 || d.rappelRdvPour === d.rendezVousSignature);
+    }
+    if (!confrere) ranger('questionnaire', stade === 'signe');
+    if (!confrere && stade === 'signe') ranger('anniversaire', dus.indexOf('anniversaire') !== -1 || !!d.anniversaireEnvoyeLe);
     return { stade, utiles, autres };
   }
 

@@ -486,11 +486,30 @@ test('echangesSelonStade : ce qui sert maintenant d’abord, le reste replié, r
 
   // Rendez-vous fixé : la provision passe « hors de ce stade », l'offre reçue ne se relance plus.
   const signature = app.echangesSelonStade(dossierBase(app, { sansPret: true, rendezVousSignature: '2026-10-15' }), auj);
-  assert.equal(signature.utiles.join(','), 'appelFonds,projet,fondsRecus,rib,agenda');
+  assert.equal(signature.utiles.join(','), 'appelFonds,projet,fondsRecus,rib,agenda,confirmationRdv');
   assert.ok(signature.autres.includes('provision'));
+  assert.ok(signature.autres.includes('rappelRdv'));
 
   const signe = app.echangesSelonStade(dossierBase(app, { sansPret: true, rendezVousSignature: '2026-09-15' }), auj);
   assert.equal(signe.utiles.join(','), 'questionnaire');
+  assert.ok(signe.autres.includes('anniversaire'));
+});
+
+test('relation client dans l’onglet Échanges : confirmation, rappel, un an après — jamais avec un confrère', () => {
+  const app = chargerApplication();
+  const auj = '2026-10-01';
+  // Rappel dû (J-2) : utile ; la confirmation déjà faite pour cette date reste visible, cochée.
+  const rappel = app.echangesSelonStade(dossierBase(app, { sansPret: true, rendezVousSignature: '2026-10-03', confirmationRdvPour: '2026-10-03' }), auj);
+  assert.ok(rappel.utiles.includes('rappelRdv') && rappel.utiles.includes('confirmationRdv'), rappel.utiles.join(','));
+  // Un an après : utile.
+  const unAn = app.echangesSelonStade(dossierBase(app, { sansPret: true, rendezVousSignature: '2025-10-01', archive: true }), auj);
+  assert.ok(unAn.utiles.includes('anniversaire'), unAn.utiles.join(','));
+  // Confrère : aucun email de relation client, ni utile ni replié.
+  const confrere = { roleNotaire: 'participant', notaireAcquereur: 'Maître DURAND', emailNotaireParticipant: 'durand@notaires.fr', sansPret: true };
+  for (const rdv of ['2026-10-03', '2026-10-15', '2026-09-15', '2025-10-01']) {
+    const e = app.echangesSelonStade(dossierBase(app, Object.assign({ rendezVousSignature: rdv }, confrere)), auj);
+    assert.doesNotMatch(e.utiles.concat(e.autres).join(','), /confirmationRdv|rappelRdv|questionnaire|anniversaire/, rdv);
+  }
 });
 
 test('renderEchangesDossier : le destinataire, le stade, puis les lignes utiles ; le reste replié', () => {
