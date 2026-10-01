@@ -98,6 +98,22 @@ test('capture de console.error / console.warn : journalisé, sans boucle', () =>
   db.close();
 });
 
+test('capture de la console : l\'avertissement « SQLite expérimental » de Node est affiché, jamais journalisé', () => {
+  const db = ouvrirDb(':memory:');
+  const journal = creerJournalTechnique(db);
+  const sorties = [];
+  const faux = { error: (...a) => sorties.push(a.join(' ')), warn: (...a) => sorties.push(a.join(' ')) };
+  const retirer = installerCaptureConsole(journal, faux);
+  faux.error('(node:4242) ExperimentalWarning: SQLite is an experimental feature and might change at any time\n(Use `CLAIRE-serveur --trace-warnings ...` to show where the warning was created)');
+  faux.error('(node:4242) ExperimentalWarning: une autre fonction expérimentale');
+  retirer();
+  const lues = journal.lire('', new Date(Date.now() + 1000).toISOString());
+  assert.equal(sorties.length, 2);
+  assert.equal(lues.length, 1);
+  assert.doesNotMatch(lues[0].message, /SQLite/);
+  db.close();
+});
+
 test('evenementPoste : liste blanche stricte (jamais de valeur de dossier)', () => {
   const c = evenementPoste({ categorie: 'correction-extraction', champ: 'prixVente', origine: 'regex', valeur: '250000', avant: 'DURAND' });
   assert.equal(JSON.stringify(c).includes('250000'), false);

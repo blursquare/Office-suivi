@@ -13745,3 +13745,12 @@ même phrase et taisait la réponse de GitHub. `messageErreurGithubRapport(statu
 et la phrase de GitHub reprise entre crochets (`[GitHub 403 : « Resource not accessible by personal
 access token »]`). Rappel donné à l'étude : l'erreur affichée est celle du dernier essai (aucune relance
 automatique) — « Envoyer maintenant » réessaie après la correction du jeton.
+
+### 01/10/2026 14 h 46 — Rapport technique : l'avertissement « SQLite expérimental » n'est plus une erreur
+
+Rapport n° 5 (01/10, 14 h) : « 5 erreur(s) du serveur », toutes `ExperimentalWarning: SQLite is an
+experimental feature…`. Node 22 l'écrit par `console.error` au premier chargement de `node:sqlite`,
+donc à chaque démarrage du serveur (5 démarrages sur la période : mises à jour). Bruit pur.
+`installerCaptureConsole` l'affiche toujours mais ne le journalise plus (`MESSAGES_NON_JOURNALISES`,
+`messageNonJournalise` dans `journalTechnique.js`) ; tout autre ExperimentalWarning reste journalisé.
+Vérifié avec le vrai avertissement de Node 22.22 : 1 entrée avant, 0 après ; test ajouté.
