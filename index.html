@@ -767,8 +767,8 @@
            côté de « Agenda de l'office lu … »). Hors de #agenda-contenu : les relectures de l'agenda ne
            la redessinent pas. -->
       <div class="ag-recherche">
-        <svg class="icone" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="7" cy="7" r="4.3"/><line x1="10.2" y1="10.2" x2="14" y2="14"/></svg>
-        <input type="search" id="agenda-recherche" placeholder="Chercher un dossier" aria-label="Chercher un dossier dans l’agenda" autocomplete="off"
+        <span class="suivi-recherche-icone" aria-hidden="true"><svg class="icone" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="7" cy="7" r="4.3"/><line x1="10.2" y1="10.2" x2="14" y2="14"/></svg></span>
+        <input type="search" id="agenda-recherche" placeholder="Rechercher un dossier (vendeur, acquéreur)…" aria-label="Rechercher un dossier dans l’agenda" autocomplete="off"
           oninput="changerRechercheAgenda(this.value)" onkeydown="toucheRechercheAgenda(event)" onblur="setTimeout(fermerRechercheAgendaSiHors, 150)">
         <div class="ag-recherche-resultats" id="agenda-recherche-resultats" role="listbox"></div>
       </div>

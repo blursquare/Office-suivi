@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-01 21:58';
+  const VERSION_APP = '2026-10-01 22:00';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-01 22:00', resume: "Agenda : le champ de recherche, à la place de l'ancien bouton « Actualiser » en haut à droite, prend l'aspect de celui du Suivi (grand champ arrondi avec la loupe, « Rechercher un dossier (vendeur, acquéreur)… »). « Actualiser » reste l'icône à côté de « Agenda de l'office lu … »." },
     { version: '2026-10-01 21:58', resume: "Agenda : le bouton « Nouveau rendez-vous » devient un bouton double — moitié « Nouveau rendez-vous », moitié « Proposer des dates ». La rubrique « Dates proposées » de la colonne de gauche n'apparaît plus que lorsqu'un sondage attend des réponses." },
     { version: '2026-10-01 21:55', resume: "Agenda : en haut à droite, à la place du bouton « Actualiser », un champ « Chercher un dossier ». Choisir un dossier mène l'agenda au jour de sa signature et en ouvre le détail ; sans rendez-vous, à la semaine où la signature est probable. « Actualiser » devient une petite icône à côté de « Agenda de l'office lu … »." },
     { version: '2026-10-01 21:50', resume: "Agenda : la date n'est plus affichée à côté de « Aujourd'hui » ; à sa place, une icône calendrier ouvre le choix d'une date (pour aller à un autre jour, y compris dans l'historique)." },

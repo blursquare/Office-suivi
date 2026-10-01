@@ -14170,3 +14170,12 @@ des dates » (icône `users`, `ouvrirSondageSansDossier('', [])` — le sondage 
 « Proposer des dates » de la rubrique « Dates proposées » est retiré (doublon) ; la rubrique ne
 s'affiche plus que s'il y a des sondages en cours. Texte sur une ligne, resserré sous 480 px. Vérifié
 dans Chromium (clair, sombre, téléphone) : la moitié droite ouvre bien « Proposer des dates ».
+
+### 01/10/2026 22 h 00 — Agenda : le champ de recherche prend l'aspect de celui du Suivi
+
+Retour de l'étude : « c'était un champ comme sur Suivi […] le champ de recherche va à la place de
+actualisé ». Le champ `#agenda-recherche` (en-tête de la page, à la place de l'ancien bouton
+« Actualiser ») reprend le style de `#recherche-dossiers` du Suivi : 42 px, police 15 px, loupe 17 px
+(`.suivi-recherche-icone`), bord arrondi 10 px, ombre légère, anneau de focus ; jusqu'à 460 px de large,
+pleine largeur sur téléphone ; même texte d'invite que le Suivi. « Actualiser » reste une icône à côté
+de « Agenda de l'office lu … ».

@@ -3172,7 +3172,7 @@
     .dash-header-actions { flex-direction: column; align-items: stretch; width: 100%; }
     .dash-recherche { width: 100%; flex: none; max-width: none; }
     .dash-header-nouveau { width: 100%; }
-    .dash-header-actions .ag-recherche { width: 100%; }
+    .dash-header-actions .ag-recherche { width: 100%; flex: 1 1 auto; }
   }
 
   .toolbar-btn {
@@ -7267,10 +7267,19 @@ button.ag-actualiser svg { width: 13px; height: 13px; }
 button.ag-actualiser.en-cours svg { animation: ag-tourne 0.9s linear infinite; }
 @keyframes ag-tourne { to { transform: rotate(-360deg); } }
 @media (prefers-reduced-motion: reduce) { button.ag-actualiser.en-cours svg { animation: none; opacity: 0.5; } }
-/* Recherche d'un dossier dans l'en-tête de la page Agenda (étude, 01/10 : à la place du bouton « Actualiser »). */
-.ag-recherche { position: relative; width: 280px; max-width: 100%; }
-.ag-recherche > svg { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); width: 14px; height: 14px; color: var(--muted); pointer-events: none; }
-.ag-recherche input[type="search"]#agenda-recherche { width: 100%; padding-left: 30px; border-radius: 8px; }
+/* Recherche d'un dossier dans l'en-tête de la page Agenda, à la place du bouton « Actualiser » — le même
+   champ que celui du Suivi (étude, 01/10 : « un champ comme sur Suivi ») : 42 px, loupe, ombre légère. */
+#onglet-agenda .dash-header-actions { flex: 1 1 340px; justify-content: flex-end; }
+.ag-recherche { position: relative; flex: 0 1 460px; min-width: 0; display: flex; }
+.ag-recherche .suivi-recherche-icone svg { width: 17px; height: 17px; }
+.ag-recherche input[type="search"]#agenda-recherche {
+  width: 100%; max-width: none; box-sizing: border-box; height: 42px; padding: 0 14px 0 38px;
+  font-family: inherit; font-size: 15px; color: var(--ink);
+  background: var(--paper-card); border: 1px solid var(--line); border-radius: 10px;
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--ink) 6%, transparent);
+}
+.ag-recherche input[type="search"]#agenda-recherche::placeholder { color: var(--muted); }
+.ag-recherche input[type="search"]#agenda-recherche:focus { outline: none; border-color: var(--focus); box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus) 18%, transparent); }
 .ag-recherche-resultats {
   display: none; position: absolute; top: calc(100% + 6px); right: 0; width: max(100%, 320px); max-width: calc(100vw - 32px); z-index: 40;
   background: var(--paper-card); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow-card); max-height: 320px; overflow-y: auto;
