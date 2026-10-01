@@ -14286,6 +14286,6 @@ filtres, les statuts et la liste. Dans la colonne (≥ 1101 px), le bloc s'empil
 tête, compteurs-filtres sur deux lignes, puis « À faire » et « Au calendrier » l'un sous l'autre, chaque
 ligne sur deux rangs (quand + type, puis le dossier), défilement au-delà de 340 px. Sous 1100 px, une
 seule colonne : le bloc reprend sa forme d'avant au-dessus de la liste. À droite, les filtres passent à
-la ligne au besoin et les colonnes fixes du tableau des échéances sont resserrées (128/168/124/132 px)
+la ligne au besoin et les colonnes fixes du tableau des échéances sont resserrées (146/162/124/124 px, la date en gras tenant sur une ligne — vérifié avec 12 dossiers)
 pour que le nom du dossier ne se casse plus. Colonne masquée si le bloc est vide. Vérifié dans Chromium
 (1440 clair et sombre, 1050, 400).

@@ -7101,10 +7101,10 @@ button.scan-nom:focus-visible { outline: 2px solid var(--focus); outline-offset:
 /* À droite de la colonne, la place se resserre : filtres sur deux lignes au besoin, colonnes fixes du
    tableau plus étroites pour laisser le nom du dossier sur une ligne. */
 .suivi-principal .suivi-barre-filtres { flex-wrap: wrap; }
-.suivi-principal .col-echeance-date { width: 128px; }
-.suivi-principal .col-echeance-type { width: 168px; }
+.suivi-principal .col-echeance-date { width: 146px; }
+.suivi-principal .col-echeance-type { width: 162px; }
 .suivi-principal .col-echeance-statut { width: 124px; }
-.suivi-principal .col-echeance-resp { width: 132px; }
+.suivi-principal .col-echeance-resp { width: 124px; }
 @media (max-width: 1100px) {
   .suivi-corps { grid-template-columns: minmax(0, 1fr); }
   .suivi-cote { position: static; }
