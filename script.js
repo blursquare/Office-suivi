@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-01 15:41';
+  const VERSION_APP = '2026-10-01 17:07';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-01 17:07', resume: "Rapport technique : dans « Corrections à la main après extraction », l'origine de la valeur corrigée (regex, IA, Authentic…) s'affiche en clair au lieu de « [nom] » ; c'est un mot technique d'une liste fermée, jamais une donnée du dossier." },
     { version: '2026-10-01 15:41', resume: "Agenda : « Envoyer le lien » de la visio — prépare l'email aux clients (ensemble) et/ou au confrère (le sien, formule d'usage), avec un bouton vers la visio et les informations de connexion relues dans la note du rendez-vous. Proposé aussi juste après l'ajout de l'invitation .ics. Texte : premier jet de CLAIRE." },
     { version: '2026-10-01 15:37', resume: "Agenda : visio ADNOV — sur un rendez-vous en visio, « Créer la visio » ouvre le site de la profession ; l'invitation .ics qu'il rend, déposée sur l'agenda (ou choisie dans le détail du rendez-vous), ajoute son lien aux notes du rendez-vous de même date et même heure, sans créer de doublon. Le détail montre ensuite « Rejoindre la visio ». Après la création d'un rendez-vous en visio, le message propose « Créer la visio »." },
     { version: '2026-10-01 15:32', resume: "Agenda : « Proposer plusieurs dates » dans le formulaire d'un nouveau rendez-vous (dossier sans signature) — ouvre le sondage de créneaux du dossier avec le créneau saisi en tête, suivi des créneaux que CLAIRE propose ; d'autres s'ajoutent à la main." },

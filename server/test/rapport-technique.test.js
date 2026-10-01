@@ -12,7 +12,7 @@ const { creerApp } = require('../src/app');
 const { ouvrirDb } = require('../src/db');
 const { creerJournalTechnique, installerCaptureConsole } = require('../src/journalTechnique');
 const {
-  motsSensibles, anonymiserTexte, creneauDu, construireRapport, envoyerIssue, messageErreurGithubRapport
+  motsSensibles, anonymiserTexte, origineExtractionAffichee, creneauDu, construireRapport, envoyerIssue, messageErreurGithubRapport
 } = require('../src/rapportTechnique');
 const { evenementPoste } = require('../src/routes/rapportTechnique');
 
@@ -112,6 +112,27 @@ test('capture de la console : l\'avertissement « SQLite expérimental » de Nod
   assert.equal(lues.length, 1);
   assert.doesNotMatch(lues[0].message, /SQLite/);
   db.close();
+});
+
+test('corrections après extraction : l\'origine (liste fermée) reste lisible même si le mot figure dans un dossier', () => {
+  // « Authentic » se trouve dans un champ sensible du dossier : il est dans les mots masqués.
+  const dossier = { id: 'd1', nom: 'DURAND / MARTIN', notaireAcquereur: 'Office Authentic Blois' };
+  const mots = motsSensibles([dossier], []);
+  assert.ok(mots.has('authentic'));
+  const r = construireRapport({
+    depuis: '2026-10-01T12:00:00.000Z', jusqua: '2026-10-01T15:00:00.000Z', mots, dossiers: [dossier],
+    evenements: [
+      { categorie: 'correction-extraction', message: 'adresseBien', fois: 1, derniere: '2026-10-01T13:00:00.000Z', details: { champ: 'adresseBien', origine: 'authentic' } },
+      { categorie: 'correction-extraction', message: 'prixVente', fois: 1, derniere: '2026-10-01T13:00:00.000Z', details: { champ: 'prixVente', origine: 'regexia' } },
+      { categorie: 'correction-extraction', message: 'nom', fois: 1, derniere: '2026-10-01T13:00:00.000Z', details: { champ: 'nom', origine: 'DURAND' } }
+    ]
+  });
+  assert.match(r.corps, /adresseBien \(proposé par authentic\) : 1/);
+  assert.match(r.corps, /prixVente \(proposé par regex\+ia\) : 1/);
+  assert.match(r.corps, /nom \(proposé par autre\) : 1/);
+  assert.ok(!/DURAND/i.test(r.corps));
+  assert.equal(origineExtractionAffichee(''), '');
+  assert.equal(origineExtractionAffichee('regex+ia'), 'regex+ia');
 });
 
 test('evenementPoste : liste blanche stricte (jamais de valeur de dossier)', () => {

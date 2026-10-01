@@ -13854,3 +13854,13 @@ Réponses de l'étude : email avec le lien de la visio — « OUI, ça peut êtr
 - Lecture du .ics : informations de connexion gardées plus largement (25 lignes, 2 000 caractères).
 - Vérifié dans Chromium : deux .eml (clients ; confrère « Mon Cher Maître, … Votre bien dévoué. »), corps
   relu dans les fichiers.
+
+### 01/10/2026 17 h 07 — Rapport technique : origine d'une correction lisible
+
+Rapport n° 7 (01/10, 17 h) : « adresseBien (proposé par [nom]) ». L'origine (`regex`, `ia`,
+`authentic`…) passait par `anonymiserTexte` ; « authentic » figure dans des champs sensibles des
+dossiers (`motsSensibles`) et ressortait masqué. `origineExtractionAffichee` (`rapportTechnique.js`) :
+liste fermée `ORIGINES_EXTRACTION` affichée telle quelle, toute autre valeur → « autre » ; seul le nom
+du champ passe encore par `anonymiserTexte`. « regexia » (le « + » retiré par la route) → « regex+ia ».
+Test : dossier inventé contenant « Authentic », aucune valeur nominative ne sort.
+Les 3 scans non reconnus du même rapport : dossiers hors vente (réponse de l'étude au rapport n° 5).
