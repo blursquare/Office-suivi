@@ -170,5 +170,9 @@ test('la vue Échéances porte des titres de colonne, une seule fois, en haut', 
   const html = app.renderVueSemaines(dossiers);
   assert.equal(html.split('<thead>').length - 1, 1);
   assert.ok(html.indexOf('<thead>') < html.indexOf('<tbody>'));
-  for (const titre of ['Date', 'Échéance', 'Dossier', 'Responsable']) assert.ok(html.includes(`<th>${titre}</th>`));
+  for (const titre of ['Date', 'Échéance', 'Dossier']) assert.ok(html.includes(`<th>${titre}</th>`));
+  // Responsable abrégé (étude, 01/10 : initiales en pastille, colonne étroite), nom entier au survol.
+  assert.ok(html.includes('<th title="Responsable">Resp.</th>'));
+  assert.ok(html.includes('class="pastille-collab" title="Julie VASSELIN"'));
+  assert.ok(html.includes('>JV</span>'));
 });
