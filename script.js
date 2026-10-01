@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-01 15:30';
+  const VERSION_APP = '2026-10-01 15:32';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-01 15:32', resume: "Agenda : « Proposer plusieurs dates » dans le formulaire d'un nouveau rendez-vous (dossier sans signature) — ouvre le sondage de créneaux du dossier avec le créneau saisi en tête, suivi des créneaux que CLAIRE propose ; d'autres s'ajoutent à la main." },
     { version: '2026-10-01 15:30', resume: "Aujourd'hui : une case ronde à cocher devant chaque tâche (la cocher la note faite) ; vos rappels notés à la main entrent dans « À faire » et y reviennent chaque jour tant qu'ils ne sont pas cochés (« Non fait hier »), y compris ceux sans échéance. Agenda : un clic place le créneau, un double-clic ouvre le formulaire du rendez-vous (un second clic simple déplace le créneau)." },
     { version: '2026-10-01 15:07', resume: "Agenda : un rendez-vous s'allonge ou se raccourcit en tirant son bord du bas (la fin) ou du haut (le début), au quart d'heure, comme dans Outlook — vues Semaine et Jour, à la souris, confirmé avant d'écrire dans l'agenda. La signature d'un dossier emmène l'heure de la fiche." },
     { version: '2026-10-01 14:46', resume: "Rapport technique : l'avertissement « SQLite expérimental » que Node affiche à chaque démarrage du serveur n'est plus compté comme une erreur du serveur (il remontait dans chaque rapport sans rien signaler de réel)." },
@@ -19753,6 +19754,7 @@
           ${Object.entries(TYPES_RDV).map(([cle, t]) => `<label class="rdv-type-option"><input type="radio" name="agenda-creation-type" value="${cle}"><span class="rdv-type-pastille rdv-type-${cle}"></span>${t.libelle}</label>`).join('')}
         </div>
         <footer class="ag-modale-pied ag-modale-pied-form">
+          <button type="button" class="secondary" id="agenda-creation-plusieurs" style="display:none" onclick="proposerPlusieursDatesAgenda()" title="Envoyer aux parties plusieurs créneaux, dont celui-ci : chacun indique ceux qui lui conviennent">${icone('users')} Proposer plusieurs dates</button>
           <span class="jour-espace"></span>
           <button type="button" class="secondary" onclick="fermerModaleAgenda()">Annuler</button>
           <button type="submit" class="primary" id="agenda-creation-ok">${icone('calendar')} Créer le rendez-vous</button>
@@ -19770,6 +19772,34 @@
     if (d && titre && (!titre.value || RE_NOM_DEJA_PREFIXE.test(titre.value))) titre.value = libelleDossierAffiche(d);
     const sig = document.getElementById('agenda-creation-signature');
     if (sig && (!d || d.rendezVousSignature)) sig.checked = false;
+    // « Proposer plusieurs dates » (étude, 01/10) : le sondage de créneaux, offert comme la case
+    // « signature » — un dossier sans rendez-vous de signature.
+    const plusieurs = document.getElementById('agenda-creation-plusieurs');
+    if (plusieurs) plusieurs.style.display = d && !d.rendezVousSignature ? '' : 'none';
+  }
+
+  // Étude, 01/10 : « lors de l'ajout d'un rendez-vous, proposer l'option pour proposer plusieurs
+  // dates ». Passe du formulaire au sondage de créneaux du dossier (ouvrirSondageCreneaux) : le créneau
+  // saisi vient en tête, coché, suivi des créneaux que CLAIRE propose ; d'autres s'ajoutent à la main.
+  function proposerPlusieursDatesAgenda() {
+    const val = (id) => { const el = document.getElementById(id); return el ? el.value.trim() : ''; };
+    const d = dossiers.find(x => x.id === val('agenda-creation-dossier'));
+    if (!d) { afficherToast('Choisissez d’abord le dossier.', 'OK', null); return; }
+    const date = val('agenda-creation-date');
+    const heure = val('agenda-creation-heure');
+    const enTete = /^\d{4}-\d{2}-\d{2}$/.test(date) && /^\d{2}:\d{2}$/.test(heure)
+      ? [{ date, heure, exceptionnel: motifCreneauExceptionnel(heure, DUREE_CRENEAU_SIGNATURE, rendezVousHorairesJour(agendaEvenements, date).length) || '' }] : [];
+    agendaModale = null;
+    renderModaleAgenda();
+    ouvrirSondageCreneaux(d.id, null, enTete);
+  }
+
+  // Pur : les créneaux du sondage — ceux mis en tête (saisis à la main), puis les propositions qui
+  // ne les répètent pas.
+  function creneauxSondageAvecTete(enTete, proposes, max) {
+    const tete = (enTete || []).filter(c => c && c.date && c.heure);
+    const reste = (proposes || []).filter(c => !tete.some(t => t.date === c.date && t.heure === c.heure));
+    return tete.concat(reste).slice(0, max);
   }
 
   async function creerEvenementAgenda() {
@@ -20446,7 +20476,7 @@
   }
 
   // ---- Fenêtre « Proposer des créneaux » ----
-  async function ouvrirSondageCreneaux(id, creneauxImposes) {
+  async function ouvrirSondageCreneaux(id, creneauxImposes, enTete) {
     const d = dossiers.find(x => x.id === id);
     if (!d) return;
     if (sondageOuvertDossier(id)) { afficherToast('Un sondage est déjà en cours pour ce dossier.', 'OK', null); return; }
@@ -20458,8 +20488,9 @@
       const corps = await r.json();
       if (corps && Array.isArray(corps.evenements)) evenements = corps.evenements;
     } catch (e) { /* l'agenda déjà chargé suffira */ }
-    const proposes = (creneauxImposes && creneauxImposes.length ? creneauxImposes : creneauxProposesSignature(d, evenements, absencesOffice, auj, 4))
-      .slice(0, MAX_CRENEAUX_SONDAGE);
+    const proposes = creneauxSondageAvecTete(enTete,
+      creneauxImposes && creneauxImposes.length ? creneauxImposes : creneauxProposesSignature(d, evenements, absencesOffice, auj, 4),
+      MAX_CRENEAUX_SONDAGE);
     sondageModale = {
       dossierId: id,
       creneaux: proposes.map((c, i) => ({ date: c.date, heure: c.heure, exceptionnel: c.exceptionnel || '', apresButoir: !!c.apresButoir, coche: i < 3 })),

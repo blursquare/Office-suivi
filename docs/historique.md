@@ -13789,3 +13789,16 @@ l'agenda : un clic pour placer le curseur du rendez-vous puis un double-clic pou
   plus ; `evt.detail >= 2` (double-clic) ouvre « Nouveau rendez-vous » sur le créneau du premier clic
   (à 30 min près). Au clavier (detail 0) et au doigt (`pointer: coarse`), un second appui sur le créneau
   surligné l'ouvre comme avant. Vérifié dans Chromium : le compteur de clics survit au re-rendu.
+
+
+### 01/10/2026 15 h 32 — Nouveau rendez-vous : « Proposer plusieurs dates »
+
+Demande de l'étude : « Lors de l'ajout d'un rendez-vous proposer l'option pour proposer plusieurs dates. »
+Le sondage de créneaux existait déjà (fiche › Échanges, « Rendez-vous à placer » de l'agenda). Le
+formulaire « Nouveau rendez-vous » porte maintenant, à gauche du pied, « Proposer plusieurs dates »
+(montré comme la case « signature » : un dossier choisi sans rendez-vous de signature).
+`proposerPlusieursDatesAgenda` ferme le formulaire et appelle `ouvrirSondageCreneaux(id, null, enTete)` :
+le créneau saisi (date + heure, exception aux règles de l'étude signalée) vient en tête, coché, puis les
+créneaux de `creneauxProposesSignature` sans doublon (`creneauxSondageAvecTete`, pur, testé) ; 3 cochés
+sur 5 au plus comme avant. Sans dossier, le sondage n'a pas de destinataires : l'option n'est pas offerte.
+Vérifié dans Chromium (clair, sombre, téléphone).

@@ -154,3 +154,11 @@ test('page + relais : un lien par destinataire (code personnel, rôle), « Répo
   assert.equal(seul[0].libelle, 'Choisir mes disponibilités');
   assert.match(app.corpsEmailSondage(DOSSIER, s, false, false, true, true), /Chacun de vous clique sur le bouton à son nom/);
 });
+
+test('creneauxSondageAvecTete : le créneau saisi au formulaire vient en tête, sans doublon', () => {
+  const tete = [{ date: '2026-10-21', heure: '15:00' }];
+  const proposes = [{ date: '2026-10-15', heure: '09:30' }, { date: '2026-10-21', heure: '15:00' }, { date: '2026-10-16', heure: '10:00' }];
+  assert.equal(app.creneauxSondageAvecTete(tete, proposes, 5).map(c => c.date + ' ' + c.heure).join(','), '2026-10-21 15:00,2026-10-15 09:30,2026-10-16 10:00');
+  assert.equal(app.creneauxSondageAvecTete(null, proposes, 2).length, 2);
+  assert.equal(app.creneauxSondageAvecTete([{ date: '', heure: '' }], proposes, 5).length, 3);
+});
