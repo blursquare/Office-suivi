@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-01 15:41';
+  const VERSION_APP = '2026-10-01 17:29';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-01 17:29', resume: "Agenda : proposer plusieurs dates pour un rendez-vous sans dossier — titre, durée, destinataires libres (dont un confrère, avec la formule d'usage), créneaux en option dans l'agenda. Depuis « Nouveau rendez-vous » (« Proposer plusieurs dates ») ou « Dates proposées » dans la colonne de l'agenda, où arrivent les réponses et où « Placer » crée le rendez-vous et retire les options." },
     { version: '2026-10-01 15:41', resume: "Agenda : « Envoyer le lien » de la visio — prépare l'email aux clients (ensemble) et/ou au confrère (le sien, formule d'usage), avec un bouton vers la visio et les informations de connexion relues dans la note du rendez-vous. Proposé aussi juste après l'ajout de l'invitation .ics. Texte : premier jet de CLAIRE." },
     { version: '2026-10-01 15:37', resume: "Agenda : visio ADNOV — sur un rendez-vous en visio, « Créer la visio » ouvre le site de la profession ; l'invitation .ics qu'il rend, déposée sur l'agenda (ou choisie dans le détail du rendez-vous), ajoute son lien aux notes du rendez-vous de même date et même heure, sans créer de doublon. Le détail montre ensuite « Rejoindre la visio ». Après la création d'un rendez-vous en visio, le message propose « Créer la visio »." },
     { version: '2026-10-01 15:32', resume: "Agenda : « Proposer plusieurs dates » dans le formulaire d'un nouveau rendez-vous (dossier sans signature) — ouvre le sondage de créneaux du dossier avec le créneau saisi en tête, suivi des créneaux que CLAIRE propose ; d'autres s'ajoutent à la main." },
@@ -19371,7 +19372,38 @@
         <h3 class="jour-section-titre">Relation client${gestes.length ? ` <span class="jour-onglet-nb">${gestes.length}</span>` : ''} ${infoBulle('Emails prêts à envoyer au bon moment : confirmation du rendez-vous dès qu’il est fixé, rappel trois jours avant, questionnaire de satisfaction après la signature, un mot un an après. Au client d’un confrère, les emails du rendez-vous vont au confrère ; ni questionnaire ni mot d’anniversaire.')}</h3>
         ${gestes.length ? gestes.map(g => renderGesteRelationClient(g)).join('') : '<p class="jour-vide">Rien à envoyer aujourd’hui.</p>'}
       </section>`;
-    return blocSignatures + blocPlacer + blocRelation;
+    return blocSignatures + blocPlacer + renderSondagesSansDossierAgenda() + blocRelation;
+  }
+
+  // « Dates proposées » : les sondages sans dossier en cours (ceux d'un dossier vivent sur sa fiche),
+  // leurs réponses, et le geste pour en lancer un (étude, 01/10).
+  function renderSondagesSansDossierAgenda() {
+    if (!exchangeAgendaPret()) return '';
+    const ouverts = sondagesCreneaux.filter(x => !x.dossierId && x.statut === 'ouvert');
+    return `<section class="ag-anticipe">
+        <h3 class="jour-section-titre">Dates proposées${ouverts.length ? ` <span class="jour-onglet-nb">${ouverts.length}</span>` : ''} ${infoBulle('Rendez-vous sans dossier dont plusieurs dates ont été proposées par email : les réponses arrivent ici. « Placer » crée le rendez-vous dans l’agenda et retire les options.')}</h3>
+        ${ouverts.map(x => {
+          const repondu = x.participants.length - sansReponseSondage(x).length;
+          return `<div class="sondage-panneau sondage-panneau-agenda">
+            <div class="sondage-tete"><b>${escapeHtml(x.titre || 'Rendez-vous')}</b><span class="hint">${repondu}/${x.participants.length} réponse${x.participants.length > 1 ? 's' : ''}</span></div>
+            <ul class="sondage-compact">${x.creneaux.map(c => {
+              const sy = (x.synthese || []).find(y => y.n === c.n);
+              const qui = x.participants.filter(p => { const r = (x.reponses || []).find(y => y.email === p.email); return r && (r.choix.indexOf(c.n) !== -1 || (r.siBesoin || []).indexOf(c.n) !== -1); }).map(p => libelleParticipantSondage(p));
+              return `<li class="${sy && sy.tous ? 'sondage-tous' : ''}">
+                <span class="sondage-compact-quand">${escapeHtml(new Date(c.date + 'T00:00:00').toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' }).replace('.', ''))} ${escapeHtml(c.heure.replace(':', ' h '))}
+                  <span class="hint" title="${escapeAttr(qui.length ? 'Possible pour : ' + qui.join(', ') : 'Personne n’a encore accepté ce créneau')}">${sy ? `${sy.accepte + (sy.siBesoin || 0)}/${sy.total}` : `0/${x.participants.length}`}</span></span>
+                <button type="button" class="action-rapide" onclick="placerCreneauSondage('${escapeOnclickArg(x.id)}', ${c.n})">Placer</button>
+              </li>`;
+            }).join('')}</ul>
+            <div class="sondage-actions">
+              <button type="button" class="lien-bouton" onclick="relancerSondage('${escapeOnclickArg(x.id)}')" ${sansReponseSondage(x).length ? '' : 'disabled'}>${icone('mail')} Relancer</button>
+              <button type="button" class="lien-bouton" onclick="relireSondage('${escapeOnclickArg(x.id)}')">${icone('rotate-ccw')} Relire</button>
+              <button type="button" class="lien-bouton" onclick="annulerSondage('${escapeOnclickArg(x.id)}')">${icone('x')} Annuler</button>
+            </div>
+          </div>`;
+        }).join('')}
+        <button type="button" class="bouton-ajout" onclick="ouvrirSondageSansDossier('', [])">Proposer des dates</button>
+      </section>`;
   }
 
   var LIBELLES_GESTES_RELATION = {
@@ -20096,7 +20128,7 @@
           ${Object.entries(TYPES_RDV).map(([cle, t]) => `<label class="rdv-type-option"><input type="radio" name="agenda-creation-type" value="${cle}"><span class="rdv-type-pastille rdv-type-${cle}"></span>${t.libelle}</label>`).join('')}
         </div>
         <footer class="ag-modale-pied ag-modale-pied-form">
-          <button type="button" class="secondary" id="agenda-creation-plusieurs" style="display:none" onclick="proposerPlusieursDatesAgenda()" title="Envoyer aux parties plusieurs créneaux, dont celui-ci : chacun indique ceux qui lui conviennent">${icone('users')} Proposer plusieurs dates</button>
+          <button type="button" class="secondary" id="agenda-creation-plusieurs" onclick="proposerPlusieursDatesAgenda()" title="Envoyer aux parties plusieurs créneaux, dont celui-ci : chacun indique ceux qui lui conviennent">${icone('users')} Proposer plusieurs dates</button>
           <span class="jour-espace"></span>
           <button type="button" class="secondary" onclick="fermerModaleAgenda()">Annuler</button>
           <button type="submit" class="primary" id="agenda-creation-ok">${icone('calendar')} Créer le rendez-vous</button>
@@ -20114,10 +20146,10 @@
     if (d && titre && (!titre.value || RE_NOM_DEJA_PREFIXE.test(titre.value))) titre.value = libelleDossierAffiche(d);
     const sig = document.getElementById('agenda-creation-signature');
     if (sig && (!d || d.rendezVousSignature)) sig.checked = false;
-    // « Proposer plusieurs dates » (étude, 01/10) : le sondage de créneaux, offert comme la case
-    // « signature » — un dossier sans rendez-vous de signature.
+    // « Proposer plusieurs dates » (étude, 01/10) : le sondage de créneaux du dossier (sans rendez-vous
+    // de signature), ou un sondage sans dossier.
     const plusieurs = document.getElementById('agenda-creation-plusieurs');
-    if (plusieurs) plusieurs.style.display = d && !d.rendezVousSignature ? '' : 'none';
+    if (plusieurs) plusieurs.style.display = !d || !d.rendezVousSignature ? '' : 'none';
   }
 
   // Étude, 01/10 : « lors de l'ajout d'un rendez-vous, proposer l'option pour proposer plusieurs
@@ -20126,14 +20158,16 @@
   function proposerPlusieursDatesAgenda() {
     const val = (id) => { const el = document.getElementById(id); return el ? el.value.trim() : ''; };
     const d = dossiers.find(x => x.id === val('agenda-creation-dossier'));
-    if (!d) { afficherToast('Choisissez d’abord le dossier.', 'OK', null); return; }
     const date = val('agenda-creation-date');
     const heure = val('agenda-creation-heure');
     const enTete = /^\d{4}-\d{2}-\d{2}$/.test(date) && /^\d{2}:\d{2}$/.test(heure)
       ? [{ date, heure, exceptionnel: motifCreneauExceptionnel(heure, DUREE_CRENEAU_SIGNATURE, rendezVousHorairesJour(agendaEvenements, date).length) || '' }] : [];
+    const titre = val('agenda-creation-titre');
     agendaModale = null;
     renderModaleAgenda();
-    ouvrirSondageCreneaux(d.id, null, enTete);
+    // Sans dossier (étude, 01/10) : un sondage libre, au titre saisi.
+    if (d) ouvrirSondageCreneaux(d.id, null, enTete);
+    else ouvrirSondageSansDossier(titre, enTete);
   }
 
   // Pur : les créneaux du sondage — ceux mis en tête (saisis à la main), puis les propositions qui
@@ -20633,6 +20667,35 @@
     return /^https:\/\/script\.google\.com\//.test(r.relaisSondage || '') ? r.relaisSondage : '';
   }
 
+  // Sondage sans dossier (étude, 01/10 : « plusieurs propositions de rendez-vous sans être lié à un
+  // dossier ») : le titre du rendez-vous tient lieu de dossier. Purs et testables.
+  function libelleSondage(s, d) {
+    return d ? libelleDossierAffiche(d) : ((s && s.titre) || 'Rendez-vous');
+  }
+  var MOTS_SAUTES_TITRE_SONDAGE = new Set(['RENDEZ', 'VOUS', 'RDV', 'AVEC', 'POUR', 'CHEZ', 'SUR', 'UNE', 'UN']);
+  // « Réunion avec l’agence DUPONT » → « REU./AGE. » : comme le dossier, jamais le titre en clair sur
+  // la page de réponse ni dans l'objet des réponses.
+  function abregeTitreSondage(titre) {
+    const mots = String(titre || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().split(/[^A-Z]+/)
+      .filter(m => m.length >= 3 && !MOTS_SAUTES_ABREGE.has(m) && !MOTS_SAUTES_TITRE_SONDAGE.has(m)).slice(0, 2);
+    return mots.length ? mots.map(m => m.slice(0, 3) + '.').join('/') : 'RDV';
+  }
+  function abregeSondage(s, d) {
+    return d ? abregeDossierSondage(d) : abregeTitreSondage(s && s.titre);
+  }
+  // Ce que l'email propose de fixer : la signature d'un dossier, ou le rendez-vous nommé.
+  function objetsEmailSondage(d, titre) {
+    if (d) return { client: 'rendez-vous de signature de l’acte de vente', confrere: `rendez-vous de signature de la vente ${libelleDossierAffiche(d)}` };
+    const t = `rendez-vous « ${String(titre || '').trim() || 'proposé'} »`;
+    return { client: t, confrere: t };
+  }
+  // Le nom affiché d'un destinataire : « Vendeur · NOM », ou le nom saisi pour un sondage sans dossier.
+  function libelleParticipantSondage(p, avecNom) {
+    if (!p) return '';
+    if (p.role === 'autre') return p.nom || p.email || 'Destinataire';
+    return (LIBELLES_ROLE_SONDAGE[p.role] || '') + (avecNom && p.nom ? ' · ' + p.nom : '');
+  }
+
   function sondageOuvertDossier(id) {
     return sondagesCreneaux.find(s => s.dossierId === id && s.statut === 'ouvert') || null;
   }
@@ -20693,6 +20756,8 @@
     const p = participant || {};
     const champs = [
       ['v', '1'], ['c', s.code], ['a', s.adresseReponse], ['d', abrege || ''], ['l', s.expireLe || ''],
+      // t=r : un rendez-vous (sondage sans dossier, qui porte un titre), pas une signature.
+      ...(!s.dossierId && s.titre ? [['t', 'r']] : []),
       ...(p.cle ? [['q', p.cle]] : []), ...(p.role ? [['w', (LIBELLES_ROLE_SONDAGE[p.role] || '').toLowerCase()]] : []),
       ...(relais ? [['r', relais]] : []),
       ['m', String((s.creneaux[0] && s.creneaux[0].dureeMinutes) || DUREE_CRENEAU_SIGNATURE)], ['o', OFFICE_PAGE_SONDAGE],
@@ -20721,7 +20786,7 @@
       // Un lien par destinataire (code personnel) : « Réponse de … » quand l'email en vise plusieurs.
       const qui = (o.participants && o.participants.length) ? o.participants : [null];
       return qui.map(p => ({
-        libelle: qui.length > 1 ? `Réponse de ${(p && p.nom) || LIBELLES_ROLE_SONDAGE[p && p.role] || 'destinataire'}` : 'Choisir mes disponibilités',
+        libelle: qui.length > 1 ? `Réponse de ${(p && p.nom) || (p && p.role !== 'autre' && LIBELLES_ROLE_SONDAGE[p.role]) || (p && p.email) || 'destinataire'}` : 'Choisir mes disponibilités',
         href: lienPageSondage(o.page, s, o.abrege, p, o.relais)
       }));
     }
@@ -20738,13 +20803,14 @@
   // `avecPage` : un seul bouton vers la page de réponse, où cocher les créneaux.
   function corpsEmailSondage(d, s, confrere, relance, avecPage, plusieurs) {
     const limite = s.expireLe ? new Date(s.expireLe + 'T00:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }) : '';
+    const o = objetsEmailSondage(d, s.titre);
     const liste = s.creneaux.map(c => '– ' + libelleCreneauSondage(c).replace(/^./, x => x.toUpperCase())).join('\n');
     if (avecPage && confrere) {
       return [
-        relance ? `Je me permets de revenir vers vous au sujet du rendez-vous de signature de la vente ${libelleDossierAffiche(d)}, pour lequel je vous ai proposé les créneaux suivants :`
-          : `Afin de fixer le rendez-vous de signature de la vente ${libelleDossierAffiche(d)}, je vous propose les créneaux suivants :`,
+        relance ? `Je me permets de revenir vers vous au sujet du ${o.confrere}, pour lequel je vous ai proposé les créneaux suivants :`
+          : `Afin de fixer le ${o.confrere}, je vous propose les créneaux suivants :`,
         liste,
-        'Pourriez-vous m’indiquer ceux qui conviennent à votre client et à vous-même ? Le bouton ci-dessous permet de répondre pour chaque créneau.',
+        `Pourriez-vous m’indiquer ${d ? 'ceux qui conviennent à votre client et à vous-même' : 'ceux qui vous conviennent'} ? Le bouton ci-dessous permet de répondre pour chaque créneau.`,
         '{{BOUTONS}}',
         limite ? `Je vous remercie de votre réponse avant le ${limite}.` : ''
       ].filter(Boolean).join('\n\n');
@@ -20752,8 +20818,8 @@
     if (avecPage) {
       return [
         'Bonjour,',
-        relance ? 'Nous revenons vers vous pour fixer le rendez-vous de signature de l’acte de vente : nous n’avons pas encore reçu vos disponibilités parmi les créneaux suivants :'
-          : 'Afin de fixer le rendez-vous de signature de l’acte de vente, nous vous proposons les créneaux suivants :',
+        relance ? `Nous revenons vers vous pour fixer le ${o.client} : nous n’avons pas encore reçu vos disponibilités parmi les créneaux suivants :`
+          : `Afin de fixer le ${o.client}, nous vous proposons les créneaux suivants :`,
         liste,
         plusieurs ? 'Chacun de vous clique sur le bouton à son nom, indique pour chaque créneau s’il lui convient, puis clique sur « Envoyer ma réponse ».'
           : 'Cliquez sur « Choisir mes disponibilités », indiquez pour chaque créneau s’il vous convient, puis cliquez sur « Envoyer ma réponse ».',
@@ -20763,17 +20829,17 @@
     }
     if (confrere) {
       return [
-        relance ? `Je me permets de revenir vers vous au sujet du rendez-vous de signature de la vente ${libelleDossierAffiche(d)}, pour lequel je vous ai proposé les créneaux ci-dessous.`
-          : `Afin de fixer le rendez-vous de signature de la vente ${libelleDossierAffiche(d)}, je vous propose les créneaux ci-dessous.`,
-        'Pourriez-vous m’indiquer ceux qui conviennent à votre client et à vous-même ? Un clic sur un créneau prépare la réponse : il suffit de l’envoyer sans en modifier l’objet (un email par créneau qui convient). « Répondre en une seule fois » prépare un seul email, où cocher d’un X les créneaux retenus.',
+        relance ? `Je me permets de revenir vers vous au sujet du ${o.confrere}, pour lequel je vous ai proposé les créneaux ci-dessous.`
+          : `Afin de fixer le ${o.confrere}, je vous propose les créneaux ci-dessous.`,
+        `Pourriez-vous m’indiquer ${d ? 'ceux qui conviennent à votre client et à vous-même' : 'ceux qui vous conviennent'} ? Un clic sur un créneau prépare la réponse : il suffit de l’envoyer sans en modifier l’objet (un email par créneau qui convient). « Répondre en une seule fois » prépare un seul email, où cocher d’un X les créneaux retenus.`,
         '{{BOUTONS}}',
         limite ? `Je vous remercie de votre réponse avant le ${limite}.` : ''
       ].filter(Boolean).join('\n\n');
     }
     return [
       'Bonjour,',
-      relance ? 'Nous revenons vers vous pour fixer le rendez-vous de signature de l’acte de vente : nous n’avons pas encore reçu votre choix parmi les créneaux ci-dessous.'
-        : 'Afin de fixer le rendez-vous de signature de l’acte de vente, nous vous proposons les créneaux ci-dessous.',
+      relance ? `Nous revenons vers vous pour fixer le ${o.client} : nous n’avons pas encore reçu votre choix parmi les créneaux ci-dessous.`
+        : `Afin de fixer le ${o.client}, nous vous proposons les créneaux ci-dessous.`,
       'Cliquez sur chaque créneau qui vous convient : un email de réponse s’ouvre, il suffit de l’envoyer sans en modifier l’objet (un email par créneau). Pour répondre en un seul email, cliquez sur « Répondre en une seule fois » et cochez d’un X les créneaux qui vous conviennent. Si aucun ne vous convient, cliquez sur « Aucun créneau ne convient ».',
       '{{BOUTONS}}',
       `Merci de nous répondre${limite ? ` avant le ${limite}` : ''}. Le rendez-vous vous sera confirmé dès que toutes les parties auront répondu.`
@@ -20809,7 +20875,7 @@
           const a = anciens.find(x => x.id === s.id);
           if (a && (s.reponses || []).length > (a.reponses || []).length) {
             const d = dossiers.find(x => x.id === s.dossierId);
-            afficherToast(`Nouvelle réponse au sondage de créneaux — ${d ? libelleDossierAffiche(d) : libelleDossierParNom(s.dossierNom, s.dossierId)}.`, 'OK', null);
+            afficherToast(`Nouvelle réponse au sondage de créneaux — ${d ? libelleDossierAffiche(d) : s.titre || libelleDossierParNom(s.dossierNom, s.dossierId)}.`, 'OK', null);
           }
         }
       }
@@ -20843,6 +20909,34 @@
     renderModaleSondage();
   }
 
+  // Sondage sans dossier, depuis l'agenda : titre, durée et destinataires libres (étude, 01/10).
+  function ouvrirSondageSansDossier(titre, enTete) {
+    if (!exchangeAgendaPret()) { afficherToast('Connexion à l’agenda Outlook à activer dans les Réglages.', 'OK', null); return; }
+    const tete = creneauxSondageAvecTete(enTete, [], MAX_CRENEAUX_SONDAGE);
+    sondageModale = {
+      dossierId: '', titre: String(titre || '').replace(/[?]/g, ' ').trim(), duree: 60,
+      creneaux: tete.map(c => ({ date: c.date, heure: c.heure, exceptionnel: c.exceptionnel || '', apresButoir: false, coche: true })),
+      participants: [{ role: 'autre', nom: '', email: '', confrere: false, coche: true }],
+      options: true
+    };
+    renderModaleSondage();
+    setTimeout(() => { const c = document.getElementById(sondageModale && sondageModale.titre ? 'sondage-ajout-date' : 'sondage-titre'); if (c) c.focus(); }, 0);
+  }
+
+  function ajouterDestinataireSondage() {
+    if (!sondageModale || sondageModale.participants.length >= 6) return;
+    sondageModale.participants.push({ role: 'autre', nom: '', email: '', confrere: false, coche: true });
+    renderModaleSondage();
+    const champ = document.getElementById(`sondage-nom-${sondageModale.participants.length - 1}`);
+    if (champ) champ.focus();
+  }
+
+  function retirerDestinataireSondage(i) {
+    if (!sondageModale || sondageModale.participants.length <= 1) return;
+    sondageModale.participants.splice(i, 1);
+    renderModaleSondage();
+  }
+
   function fermerModaleSondage() {
     sondageModale = null;
     renderModaleSondage();
@@ -20852,16 +20946,33 @@
     const overlay = document.getElementById('sondage-overlay');
     if (!overlay) return;
     if (!sondageModale) { overlay.style.display = 'none'; return; }
-    const d = dossiers.find(x => x.id === sondageModale.dossierId);
-    if (!d) { overlay.style.display = 'none'; return; }
+    const d = sondageModale.dossierId ? dossiers.find(x => x.id === sondageModale.dossierId) : null;
+    if (sondageModale.dossierId && !d) { overlay.style.display = 'none'; return; }
     const m = sondageModale;
     const nbCoches = m.creneaux.filter(c => c.coche).length;
+    // Le focus et le curseur d'un champ libre survivent au rendu (ajout d'un créneau, d'un destinataire).
+    const actif = document.activeElement && document.activeElement.id && document.getElementById('sondage-modale-contenu').contains(document.activeElement)
+      ? { id: document.activeElement.id, debut: document.activeElement.selectionStart, fin: document.activeElement.selectionEnd } : null;
+    const destinatairesLibres = `<ul class="sondage-participants sondage-libres">${m.participants.map((p, i) => `<li>
+            <input type="text" class="sondage-email" id="sondage-nom-${i}" value="${escapeAttr(p.nom)}" maxlength="120" placeholder="Nom" oninput="sondageModale.participants[${i}].nom = this.value" aria-label="Nom du destinataire ${i + 1}">
+            <input type="email" class="sondage-email" id="sondage-email-${i}" value="${escapeAttr(p.email)}" placeholder="Adresse email" oninput="sondageModale.participants[${i}].email = this.value.trim()" aria-label="Email du destinataire ${i + 1}">
+            <label class="sondage-case sondage-confrere" title="Un confrère reçoit son propre email, avec la formule d’usage"><input type="checkbox" ${p.confrere ? 'checked' : ''} onchange="sondageModale.participants[${i}].confrere = this.checked"> Confrère</label>
+            ${m.participants.length > 1 ? `<button type="button" class="icon-btn" onclick="retirerDestinataireSondage(${i})" aria-label="Retirer ce destinataire" title="Retirer">${icone('x')}</button>` : '<span></span>'}
+          </li>`).join('')}</ul>
+          ${m.participants.length < 6 ? '<button type="button" class="bouton-ajout" onclick="ajouterDestinataireSondage()">Ajouter un destinataire</button>' : ''}`;
     document.getElementById('sondage-modale-contenu').innerHTML = `<header class="ag-modale-tete">
-        <div><h2 class="ag-modale-titre" id="sondage-modale-titre">Proposer des créneaux</h2>
-        <div class="ag-modale-quand">${escapeHtml(libelleDossierAffiche(d))} ${infoBulle('Les parties reçoivent un email avec un bouton par créneau : chacun clique sur ceux qui lui conviennent, et l’email de réponse arrive dans la boîte de l’office, où CLAIRE lit les réponses. Vous placez ensuite le rendez-vous d’un clic.')}</div></div>
+        <div><h2 class="ag-modale-titre" id="sondage-modale-titre">${d ? 'Proposer des créneaux' : 'Proposer des dates'}</h2>
+        <div class="ag-modale-quand">${d ? escapeHtml(libelleDossierAffiche(d)) : 'Sans dossier'} ${infoBulle('Les destinataires reçoivent un email avec un bouton par créneau : chacun clique sur ceux qui lui conviennent, et l’email de réponse arrive dans la boîte de l’office, où CLAIRE lit les réponses. Vous placez ensuite le rendez-vous d’un clic.')}</div></div>
         <button type="button" class="icon-btn ag-modale-x" onclick="fermerModaleSondage()" aria-label="Fermer">${icone('x')}</button>
       </header>
       <form class="ag-modale-corps ag-form" onsubmit="event.preventDefault(); lancerSondageCreneaux();">
+        ${d ? '' : `<div class="ag-champs-ligne sondage-titre-ligne">
+          <label class="ag-champ">Titre du rendez-vous <input type="text" id="sondage-titre" required maxlength="120" value="${escapeAttr(m.titre)}" placeholder="Ex. : Rendez-vous client, réunion…" oninput="sondageModale.titre = this.value"></label>
+          <label class="ag-champ">Durée
+            <select id="sondage-duree" onchange="sondageModale.duree = parseInt(this.value, 10) || 60">
+              ${[30, 60, 90, 120, 180].map(v => `<option value="${v}"${m.duree === v ? ' selected' : ''}>${v < 60 ? v + ' min' : Math.floor(v / 60) + ' h' + (v % 60 ? ' 30' : '')}</option>`).join('')}
+            </select></label>
+        </div>`}
         <div class="sondage-bloc">
           <div class="sondage-bloc-titre">Créneaux <span class="hint">${nbCoches}/${MAX_CRENEAUX_SONDAGE}</span></div>
           ${m.creneaux.length ? `<ul class="sondage-creneaux">${m.creneaux.map((c, i) => `<li><label class="sondage-case">
@@ -20869,7 +20980,7 @@
             <span>${escapeHtml(libelleCreneauSondage(c).replace(/^./, x => x.toUpperCase()))}</span>
             ${c.exceptionnel ? `<span class="sondage-note">${icone('alert-triangle')} ${escapeHtml(c.exceptionnel)}</span>` : ''}
             ${c.apresButoir ? '<span class="sondage-note">après la date butoir</span>' : ''}
-          </label></li>`).join('')}</ul>` : '<p class="jour-vide">Aucun créneau libre trouvé : ajoutez-en un.</p>'}
+          </label></li>`).join('')}</ul>` : (d ? '<p class="jour-vide">Aucun créneau libre trouvé : ajoutez-en un.</p>' : '<p class="jour-vide">Ajoutez les dates à proposer.</p>')}
           <div class="ag-champs-ligne sondage-ajout">
             <label class="ag-champ">Date <input type="date" id="sondage-ajout-date" min="${escapeAttr(isoAujourdhuiLocal())}"></label>
             <label class="ag-champ">Heure <input type="time" id="sondage-ajout-heure" step="1800" value="10:00"></label>
@@ -20878,11 +20989,12 @@
         </div>
         <div class="sondage-bloc">
           <div class="sondage-bloc-titre">Destinataires</div>
-          <ul class="sondage-participants">${m.participants.map((p, i) => `<li>
+          ${d ? '' : destinatairesLibres}
+          ${!d ? '' : `<ul class="sondage-participants">${m.participants.map((p, i) => `<li>
             <label class="sondage-case"><input type="checkbox" ${p.coche ? 'checked' : ''} onchange="sondageModale.participants[${i}].coche = this.checked">
               <span><b>${escapeHtml(LIBELLES_ROLE_SONDAGE[p.role] || '')}</b>${p.nom ? ' · ' + escapeHtml(p.nom) : ''}</span></label>
             <input type="email" class="sondage-email" id="sondage-email-${i}" value="${escapeAttr(p.email)}" placeholder="Adresse email" oninput="sondageModale.participants[${i}].email = this.value.trim()" aria-label="Email — ${escapeAttr(LIBELLES_ROLE_SONDAGE[p.role] || '')}">
-          </li>`).join('')}</ul>
+          </li>`).join('')}</ul>`}
         </div>
         <label class="ag-champ ag-case-signature"><input type="checkbox" id="sondage-options" ${m.options ? 'checked' : ''} ${exchangeAgendaPret() ? '' : 'disabled'} onchange="sondageModale.options = this.checked">
           Bloquer ces créneaux en option dans l’agenda ${infoBulle('Rendez-vous provisoires « VTE - … ? » dans l’agenda partagé, retirés d’eux-mêmes au placement du rendez-vous, à l’annulation du sondage ou après 5 jours ouvrés sans décision.')}</label>
@@ -20893,6 +21005,10 @@
         </footer>
       </form>`;
     overlay.style.display = 'flex';
+    if (actif) {
+      const champ = document.getElementById(actif.id);
+      if (champ) { champ.focus({ preventScroll: true }); try { if (actif.debut != null) champ.setSelectionRange(actif.debut, actif.fin); } catch (e) { /* champ sans curseur */ } }
+    }
   }
 
   function cocherCreneauSondage(i, coche) {
@@ -20908,7 +21024,7 @@
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^\d{2}:\d{2}$/.test(heure)) { afficherToast('Choisissez une date et une heure.', 'OK', null); return; }
     if (sondageModale.creneaux.some(c => c.date === date && c.heure === heure)) return;
     const coches = sondageModale.creneaux.filter(c => c.coche).length;
-    const motif = motifCreneauExceptionnel(heure, DUREE_CRENEAU_SIGNATURE, 0);
+    const motif = motifCreneauExceptionnel(heure, sondageModale.dossierId ? DUREE_CRENEAU_SIGNATURE : (sondageModale.duree || 60), 0);
     sondageModale.creneaux.push({ date, heure, exceptionnel: motif || '', apresButoir: false, coche: coches < MAX_CRENEAUX_SONDAGE });
     sondageModale.creneaux.sort((a, b) => a.date.localeCompare(b.date) || a.heure.localeCompare(b.heure));
     renderModaleSondage();
@@ -20917,17 +21033,20 @@
   async function lancerSondageCreneaux() {
     const m = sondageModale;
     if (!m) return;
-    const d = dossiers.find(x => x.id === m.dossierId);
-    if (!d) return;
+    const d = m.dossierId ? dossiers.find(x => x.id === m.dossierId) : null;
+    if (m.dossierId && !d) return;
+    const titre = d ? '' : String(m.titre || '').replace(/[?]/g, ' ').replace(/\s+/g, ' ').trim();
+    if (!d && !titre) { afficherToast('Donnez un titre au rendez-vous.', 'OK', null); return; }
     const creneaux = m.creneaux.filter(c => c.coche);
-    const participants = m.participants.filter(p => p.coche);
+    // Sans dossier : chaque ligne qui porte une adresse est un destinataire.
+    const participants = d ? m.participants.filter(p => p.coche) : m.participants.filter(p => (p.email || '').trim()).map(p => Object.assign({}, p, { nom: String(p.nom || '').trim() }));
     if (!creneaux.length) { afficherToast('Cochez au moins un créneau.', 'OK', null); return; }
     if (!participants.length) { afficherToast('Cochez au moins un destinataire.', 'OK', null); return; }
     const sansAdresse = participants.find(p => !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(p.email || ''));
-    if (sansAdresse) { afficherToast(`Adresse email manquante ou invalide : ${LIBELLES_ROLE_SONDAGE[sansAdresse.role]}.`, 'OK', null); return; }
+    if (sansAdresse) { afficherToast(`Adresse email manquante ou invalide : ${libelleParticipantSondage(sansAdresse)}.`, 'OK', null); return; }
     // Une adresse saisie ici pour le vendeur ou l'acquéreur est gardée sur la fiche.
     let modifie = false;
-    for (const p of participants) {
+    for (const p of (d ? participants : [])) {
       if (p.role === 'vendeur' && p.email !== (d.emailVendeur || '')) { d.emailVendeur = p.email; ajouterHistorique(d, `Email du vendeur : ${p.email}`); modifie = true; }
       if (p.role === 'acquereur' && p.email !== (d.emailAcquereur || '')) { d.emailAcquereur = p.email; ajouterHistorique(d, `Email de l’acquéreur : ${p.email}`); modifie = true; }
     }
@@ -20938,10 +21057,10 @@
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          dossierId: d.id, dossierNom: d.nom, libelle: libelleDossierAffiche(d), creePar: utilisateurPoste || '',
-          typeRdv: typeRendezVous(d, categoriesRdvReglees()) || 'office',
+          dossierId: d ? d.id : '', dossierNom: d ? d.nom : '', titre, libelle: d ? libelleDossierAffiche(d) : titre, creePar: utilisateurPoste || '',
+          typeRdv: d ? (typeRendezVous(d, categoriesRdvReglees()) || 'office') : '',
           poserOptions: !!m.options && exchangeAgendaPret(),
-          creneaux: creneaux.map(c => ({ date: c.date, heure: c.heure, dureeMinutes: DUREE_CRENEAU_SIGNATURE })),
+          creneaux: creneaux.map(c => ({ date: c.date, heure: c.heure, dureeMinutes: d ? DUREE_CRENEAU_SIGNATURE : (m.duree || 60) })),
           participants: participants.map(p => ({ role: p.role, nom: p.nom, email: p.email, confrere: p.confrere }))
         })
       });
@@ -20949,19 +21068,21 @@
       if (!corps.ok) { if (bouton) bouton.disabled = false; afficherToast(corps.message || 'Le sondage n’a pas pu être créé.', 'OK', null); return; }
       const s = corps.sondage;
       sondagesCreneaux = sondagesCreneaux.filter(x => x.id !== s.id).concat([s]);
-      ajouterHistorique(d, `Sondage de créneaux envoyé (${s.creneaux.map(c => formatDateFr(c.date) + ' ' + c.heure).join(', ')})${s.creneaux.some(c => c.option) ? ', créneaux en option dans l’agenda' : ''}.`);
-      modifie = true;
+      if (d) {
+        ajouterHistorique(d, `Sondage de créneaux envoyé (${s.creneaux.map(c => formatDateFr(c.date) + ' ' + c.heure).join(', ')})${s.creneaux.some(c => c.option) ? ', créneaux en option dans l’agenda' : ''}.`);
+        modifie = true;
+      }
       sondageModale = null;
       renderModaleSondage();
       const envoi = await preparerEmailsSondage(d, s, null, false);
       if (corps.avertissement) afficherToast(corps.avertissement, 'OK', null);
       else if (envoi) annoncerEmailPret(envoi, true, s.creneaux.some(c => c.option) ? 'Créneaux mis en option dans l’agenda.' : '');
-      if (ongletActuel === 'agenda') chargerAgendaSemaine();
+      if (ongletActuel === 'agenda') { renderPageAgenda(); chargerAgendaSemaine(); }
     } catch (e) {
       if (bouton) bouton.disabled = false;
       afficherToast('Serveur injoignable — sondage non créé.', 'OK', null);
     } finally {
-      if (modifie) { sauvegarder(d); render(); }
+      if (modifie && d) { sauvegarder(d); render(); }
     }
   }
 
@@ -20971,11 +21092,11 @@
     for (const g of groupesEmailSondage(s.participants, filtre)) {
       dernier = await livrerEmailDossier({
         destinataire: g.participants.map(p => p.email).join(', '),
-        sujet: `${relance ? 'Relance — ' : ''}Rendez-vous de signature : vos disponibilités — ${libelleDossierAffiche(d)}`,
+        sujet: `${relance ? 'Relance — ' : ''}${d ? 'Rendez-vous de signature' : 'Rendez-vous'} : vos disponibilités — ${libelleSondage(s, d)}`,
         corps: corpsEmailSondage(d, s, g.confrere, relance, !!pageSondageReglee(), g.participants.length > 1),
         confrere: g.confrere,
-        boutons: boutonsSondage(s, { page: pageSondageReglee(), abrege: abregeDossierSondage(d), relais: relaisSondageRegle(), participants: g.participants }),
-        responsableSignature: d.responsable
+        boutons: boutonsSondage(s, { page: pageSondageReglee(), abrege: abregeSondage(s, d), relais: relaisSondageRegle(), participants: g.participants }),
+        responsableSignature: d ? d.responsable : ''
       });
       if (!dernier.ok) { afficherToast(dernier.message || 'L’email n’a pas pu être préparé.', 'OK', null); return null; }
     }
@@ -21004,17 +21125,17 @@
 
   function relancerSondage(id) {
     const s = sondagesCreneaux.find(x => x.id === id);
-    const d = s && dossiers.find(x => x.id === s.dossierId);
-    if (!s || !d) return;
+    const d = s && s.dossierId ? dossiers.find(x => x.id === s.dossierId) : null;
+    if (!s || (s.dossierId && !d)) return;
     const cibles = sansReponseSondage(s).map(p => p.email);
     if (!cibles.length) { afficherToast('Tout le monde a répondu.', 'OK', null); return; }
     preparerEmailsSondage(d, s, cibles, true).then(async (r) => {
       if (!r) return;
       await actionSondage(id, 'relance');
-      ajouterHistorique(d, 'Sondage de créneaux : relance de ceux qui n’ont pas répondu.');
-      sauvegarder(d);
+      if (d) { ajouterHistorique(d, 'Sondage de créneaux : relance de ceux qui n’ont pas répondu.'); sauvegarder(d); }
       annoncerEmailPret(r, true, '');
       renderDrawer();
+      if (ongletActuel === 'agenda') renderPageAgenda();
     });
   }
 
@@ -21023,7 +21144,7 @@
     const d = s && dossiers.find(x => x.id === s.dossierId);
     if (!s) return;
     const options = s.creneaux.some(c => c.option);
-    demanderConfirmation(`Annuler le sondage de créneaux${d ? ' de ' + libelleDossierAffiche(d) : ''} ?${options ? ' Les options posées dans l’agenda seront retirées.' : ''} Les réponses qui arriveraient ensuite ne seront plus lues.`, async () => {
+    demanderConfirmation(`Annuler le sondage de créneaux${d ? ' de ' + libelleDossierAffiche(d) : s.titre ? ' « ' + s.titre + ' »' : ''} ?${options ? ' Les options posées dans l’agenda seront retirées.' : ''} Les réponses qui arriveraient ensuite ne seront plus lues.`, async () => {
       const r = await actionSondage(id, 'annuler');
       if (!r.ok) { afficherToast(r.message || 'Annulation impossible.', 'OK', null); return; }
       if (d) { ajouterHistorique(d, 'Sondage de créneaux annulé.'); sauvegarder(d); }
@@ -21036,19 +21157,19 @@
   // Place le rendez-vous de signature au créneau choisi, puis clôt le sondage (options retirées).
   function placerCreneauSondage(id, n) {
     const s = sondagesCreneaux.find(x => x.id === id);
-    const d = s && dossiers.find(x => x.id === s.dossierId);
+    const d = s && s.dossierId ? dossiers.find(x => x.id === s.dossierId) : null;
     const c = s && s.creneaux.find(x => x.n === n);
-    if (!s || !d || !c) return;
+    if (!s || !c || (s.dossierId && !d)) return;
     const synthese = (s.synthese || []).find(x => x.n === n);
     const possibles = synthese ? synthese.accepte + (synthese.siBesoin || 0) : 0;
     const reserve = synthese && !synthese.tous ? ` Seuls ${possibles} destinataire${possibles > 1 ? 's' : ''} sur ${synthese.total} l’ont accepté.` : '';
-    demanderConfirmation(`Placer la signature de ${libelleDossierAffiche(d)} le ${libelleCreneauSondage(c)} ?${reserve} Les autres options du sondage seront retirées de l’agenda.`, async () => {
-      const typeRdv = typeRendezVous(d, categoriesRdvReglees()) || 'office';
-      const ok = await posterEvenementAgenda({ sujet: libelleDossierAffiche(d), date: c.date, heure: c.heure, dureeMinutes: c.dureeMinutes || DUREE_CRENEAU_SIGNATURE, lieu: lieuRdvAgenda(d), typeRdv, dossier: d, signature: true });
+    demanderConfirmation(`${d ? `Placer la signature de ${libelleDossierAffiche(d)}` : `Placer « ${s.titre} »`} le ${libelleCreneauSondage(c)} ?${reserve} Les autres options du sondage seront retirées de l’agenda.`, async () => {
+      const ok = d
+        ? await posterEvenementAgenda({ sujet: libelleDossierAffiche(d), date: c.date, heure: c.heure, dureeMinutes: c.dureeMinutes || DUREE_CRENEAU_SIGNATURE, lieu: lieuRdvAgenda(d), typeRdv: typeRendezVous(d, categoriesRdvReglees()) || 'office', dossier: d, signature: true })
+        : await posterEvenementAgenda({ sujet: s.titre || 'Rendez-vous', date: c.date, heure: c.heure, dureeMinutes: c.dureeMinutes || 60, lieu: '', typeRdv: TYPES_RDV[s.typeRdv] ? s.typeRdv : '', dossier: null, signature: false });
       if (!ok) return;
       const r = await actionSondage(id, 'placer', { n });
-      ajouterHistorique(d, `Sondage de créneaux clos : créneau ${n} retenu.`);
-      sauvegarder(d);
+      if (d) { ajouterHistorique(d, `Sondage de créneaux clos : créneau ${n} retenu.`); sauvegarder(d); }
       if (r.message) afficherToast(r.message, 'OK', null);
       render();
       if (ongletActuel === 'agenda') chargerAgendaSemaine();
@@ -21066,7 +21187,7 @@
     };
     const ouvert = s.statut === 'ouvert';
     return `<div class="sondage-table-cadre"><table class="sondage-table">
-        <thead><tr><th scope="col">Créneau</th>${s.participants.map(p => `<th scope="col" title="${escapeAttr(p.email)}">${escapeHtml(LIBELLES_ROLE_SONDAGE[p.role] || '')}${!compact && p.nom ? `<span>${escapeHtml(p.nom)}</span>` : ''}</th>`).join('')}${ouvert ? '<th></th>' : ''}</tr></thead>
+        <thead><tr><th scope="col">Créneau</th>${s.participants.map(p => `<th scope="col" title="${escapeAttr(p.email)}">${p.role === 'autre' ? escapeHtml(libelleParticipantSondage(p)) : `${escapeHtml(LIBELLES_ROLE_SONDAGE[p.role] || '')}${!compact && p.nom ? `<span>${escapeHtml(p.nom)}</span>` : ''}`}</th>`).join('')}${ouvert ? '<th></th>' : ''}</tr></thead>
         <tbody>${s.creneaux.map(c => {
           const sy = (s.synthese || []).find(x => x.n === c.n);
           return `<tr class="${sy && sy.tous ? 'sondage-tous' : ''}${s.choisi === c.n ? ' sondage-choisi' : ''}">
@@ -21120,7 +21241,7 @@
         <ul class="sondage-reponses">${s.participants.map(p => {
           const r = (s.reponses || []).find(x => x.email === p.email);
           const etat = !r ? 'attente' : r.choix.indexOf(c.n) !== -1 ? 'oui' : (r.siBesoin || []).indexOf(c.n) !== -1 ? 'si' : 'non';
-          return `<li class="sondage-${etat}">${icone(etat === 'oui' || etat === 'si' ? 'check' : etat === 'non' ? 'x' : 'clock')}<span>${escapeHtml(LIBELLES_ROLE_SONDAGE[p.role] || '')}${p.nom ? ' · ' + escapeHtml(p.nom) : ''}${etat === 'si' ? ' <em>(si nécessaire)</em>' : ''}</span></li>`;
+          return `<li class="sondage-${etat}">${icone(etat === 'oui' || etat === 'si' ? 'check' : etat === 'non' ? 'x' : 'clock')}<span>${escapeHtml(libelleParticipantSondage(p, true))}${etat === 'si' ? ' <em>(si nécessaire)</em>' : ''}</span></li>`;
         }).join('')}</ul>
         <button type="button" class="primary ag-ouvrir-fiche" onclick="placerCreneauSondage('${escapeOnclickArg(s.id)}', ${c.n})" ${exchangeAgendaPret() ? '' : 'disabled'}>${icone('calendar')} Placer ce créneau</button>
       </div>`;

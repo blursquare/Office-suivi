@@ -13854,3 +13854,28 @@ Réponses de l'étude : email avec le lien de la visio — « OUI, ça peut êtr
 - Lecture du .ics : informations de connexion gardées plus largement (25 lignes, 2 000 caractères).
 - Vérifié dans Chromium : deux .eml (clients ; confrère « Mon Cher Maître, … Votre bien dévoué. »), corps
   relu dans les fichiers.
+
+
+### 01/10/2026 17 h 29 — Sondage de dates sans dossier
+
+Demande de l'étude : « Peut-on créer plusieurs propositions de rendez-vous sans être lié à un dossier en
+particulier ? »
+- Serveur (`routes/sondages.js`, `sondagesCreneaux.js`) : champ `titre` (120 car., sans « ? », réservé aux
+  options) ; `dossierId` facultatif quand un titre est donné (400 sinon) ; l'unicité « un sondage ouvert par
+  dossier » ne vaut que pour un dossier — plusieurs sondages sans dossier peuvent être ouverts ; options
+  « Titre ? — option CLAIRE, créneau n/N ». `POST /exchange/rendez-vous` reçoit maintenant les injections
+  (`poster` EWS) comme les autres routes, pour être vérifiable sans Exchange.
+- Client : `ouvrirSondageSansDossier(titre, enTete)` — modale « Proposer des dates » : titre + durée,
+  créneaux, destinataires libres (nom, email, case « Confrère », ×, « Ajouter un destinataire », 6 au plus),
+  options dans l'agenda. Emails : `objetsEmailSondage` (« rendez-vous « Titre » » au lieu de la signature),
+  confrère « ceux qui vous conviennent » ; objet « Rendez-vous : vos disponibilités — Titre » ; abrégé
+  `abregeTitreSondage` (« REU./AGE. », jamais le titre en clair dans les objets de réponse ni sur la page) ;
+  lien de la page avec `t=r` (titre « Rendez-vous », « Objet » au lieu de « Dossier » — page-sondage/index.html,
+  à republier dans Claire-rdv). Placement : `posterEvenementAgenda` sans dossier, au titre et à la durée du
+  sondage, puis options retirées.
+- Entrées : « Proposer plusieurs dates » du formulaire « Nouveau rendez-vous », désormais aussi sans dossier
+  (le titre saisi suit) ; bloc « Dates proposées » de la colonne de l'agenda (`renderSondagesSansDossierAgenda` :
+  un créneau par ligne, réponses favorables n/N, « Placer », Relancer/Relire/Annuler, « Proposer des dates »).
+- Tests : client (abrégé, objets, textes inchangés pour un dossier, `t=r`), serveur (titre obligatoire,
+  plusieurs sondages sans dossier, options au nom du titre). Vérifié dans Chromium avec un faux Exchange :
+  deux .eml (destinataire ; confrère), 2 options, placement = CreateItem « Point syndic » + 2 MoveToDeletedItems.

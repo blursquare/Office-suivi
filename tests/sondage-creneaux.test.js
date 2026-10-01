@@ -162,3 +162,30 @@ test('creneauxSondageAvecTete : le créneau saisi au formulaire vient en tête, 
   assert.equal(app.creneauxSondageAvecTete(null, proposes, 2).length, 2);
   assert.equal(app.creneauxSondageAvecTete([{ date: '', heure: '' }], proposes, 5).length, 3);
 });
+
+test('sondage sans dossier : titre, abrégé, objet des emails, nom des destinataires', () => {
+  assert.equal(app.abregeTitreSondage('Réunion avec l’agence DUPONT'), 'REU./AGE.');
+  assert.equal(app.abregeTitreSondage('Rendez-vous'), 'RDV');
+  assert.equal(app.libelleSondage({ titre: 'Point syndic' }, null), 'Point syndic');
+  const o = app.objetsEmailSondage(null, 'Point syndic');
+  assert.equal(o.client, 'rendez-vous « Point syndic »');
+  const s = { code: 'ABCDEF', titre: 'Point syndic', expireLe: '2026-10-08', adresseReponse: 'office@exemple.test',
+    creneaux: [{ n: 1, date: '2026-10-12', heure: '10:00' }], participants: [] };
+  const client = app.corpsEmailSondage(null, s, false, false, false, false);
+  assert.match(client, /Afin de fixer le rendez-vous « Point syndic », nous vous proposons/);
+  assert.doesNotMatch(client, /signature/);
+  const confrere = app.corpsEmailSondage(null, s, true, true, false, false);
+  assert.match(confrere, /au sujet du rendez-vous « Point syndic »/);
+  assert.equal(app.libelleParticipantSondage({ role: 'autre', nom: 'Agence Exemple', email: 'a@exemple.test' }), 'Agence Exemple');
+  assert.equal(app.libelleParticipantSondage({ role: 'vendeur', nom: 'DUPONT' }, true), 'Vendeur · DUPONT');
+  // Lien de la page : t=r (rendez-vous, pas une signature) sans dossier, jamais avec.
+  assert.match(app.lienPageSondage('https://exemple.github.io/rdv/', s, 'POI./SYN.', null, ''), /[#&]t=r(&|$)/);
+  assert.doesNotMatch(app.lienPageSondage('https://exemple.github.io/rdv/', Object.assign({}, s, { dossierId: 'd1' }), 'X', null, ''), /[#&]t=r/);
+});
+
+test('sondage d’un dossier : les textes de signature restent inchangés', () => {
+  const d = { id: 'd1', nom: 'MOREAU / FAURE' };
+  const s = { code: 'ABCDEF', expireLe: '', adresseReponse: 'office@exemple.test', creneaux: [{ n: 1, date: '2026-10-12', heure: '10:00' }], participants: [] };
+  assert.match(app.corpsEmailSondage(d, s, false, false, false, false), /fixer le rendez-vous de signature de l’acte de vente, nous vous proposons/);
+  assert.match(app.corpsEmailSondage(d, s, true, false, false, false), /rendez-vous de signature de la vente VTE - MOREAU \/ FAURE/);
+});

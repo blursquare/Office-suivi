@@ -146,7 +146,7 @@ function creerRouteurExchange(parametresRepo, injections = {}) {
         // sinon dans le calendrier du compte de connexion. Voir ews.js/folderCalendrierXml.
         mailbox: reglages.calendrierPartage
       }
-    });
+    }, injections);
     // Visible tout de suite dans la page Agenda de tous les postes, sans attendre le tour de lecture.
     if (resultat.ok && typeof parametresRepo.ajouterEvenementAgendaOffice === 'function') {
       parametresRepo.ajouterEvenementAgendaOffice({

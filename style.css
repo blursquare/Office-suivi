@@ -7634,3 +7634,23 @@ textarea.ag-notes-champ:focus { outline: 2px solid var(--focus); outline-offset:
 .ag-visio svg { width: 14px; height: 14px; flex: none; }
 /* Un fichier glissé au-dessus de l'agenda : le cadre dit qu'on peut le déposer. */
 #onglet-agenda.ag-depot-ics #agenda-contenu { outline: 2px dashed var(--focus); outline-offset: 4px; border-radius: 12px; }
+
+/* Sondage sans dossier (étude, 01/10) : nom, adresse, « Confrère », retirer — une ligne par destinataire. */
+.sondage-participants.sondage-libres li { grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) auto 30px; }
+.sondage-libres .sondage-confrere { font-size: 12.5px; color: var(--ink-soft); white-space: nowrap; }
+.sondage-libres button.icon-btn { width: 30px; height: 30px; display: inline-flex; align-items: center; justify-content: center; padding: 0; color: var(--muted); text-decoration: none; }
+.sondage-libres button.icon-btn:hover { color: var(--ink); }
+@media (max-width: 520px) {
+  .sondage-participants.sondage-libres li { grid-template-columns: minmax(0, 1fr) auto 30px; }
+  .sondage-libres li > input[id^="sondage-nom-"] { grid-column: 1 / -1; }
+}
+.ag-anticipe .sondage-panneau-agenda + .sondage-panneau-agenda { margin-top: 8px; }
+.ag-anticipe > .bouton-ajout { margin-top: 8px; }
+.ag-champs-ligne.sondage-titre-ligne { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 10px; }
+.ag-champs-ligne.sondage-titre-ligne > * { min-width: 0; }
+@media (max-width: 520px) { .ag-champs-ligne.sondage-titre-ligne { grid-template-columns: minmax(0, 1fr); } }
+/* Colonne de l'agenda : un créneau par ligne, le nombre de réponses favorables, « Placer ». */
+.sondage-compact { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.sondage-compact li { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12.5px; color: var(--ink); }
+.sondage-compact li.sondage-tous .sondage-compact-quand { color: var(--success); font-weight: 600; }
+.sondage-compact-quand { display: inline-flex; align-items: baseline; gap: 6px; font-variant-numeric: tabular-nums; }
