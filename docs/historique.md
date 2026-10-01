@@ -14160,3 +14160,13 @@ Outlook comprise) ; sans rendez-vous, à la semaine probable avec sa carte fant�
 vue Mois était affichée) ; sans rien à montrer, la fiche s'ouvre. « Actualiser » devient une icône
 (`button.ag-actualiser`, tourne jusqu'à l'agenda relu) juste après « Agenda de l'office lu … ».
 Vérifié dans Chromium (clair, sombre, téléphone) avec des dossiers inventés.
+
+### 01/10/2026 21 h 58 — Agenda : bouton double « Nouveau rendez-vous | Proposer des dates »
+
+Demande de l'étude : « Faire un bouton moitié nouveau rendez-vous moitié proposer des dates ». Dans
+l'en-tête de la page Agenda, `.ag-ajout-double` réunit deux boutons principaux collés (un seul bloc
+arrondi, filet clair entre les deux) : « Nouveau rendez-vous » (`ouvrirCreationAgenda`) et « Proposer
+des dates » (icône `users`, `ouvrirSondageSansDossier('', [])` — le sondage sans dossier). Le bouton
+« Proposer des dates » de la rubrique « Dates proposées » est retiré (doublon) ; la rubrique ne
+s'affiche plus que s'il y a des sondages en cours. Texte sur une ligne, resserré sous 480 px. Vérifié
+dans Chromium (clair, sombre, téléphone) : la moitié droite ouvre bien « Proposer des dates ».

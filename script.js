@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-01 21:55';
+  const VERSION_APP = '2026-10-01 21:58';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-01 21:58', resume: "Agenda : le bouton « Nouveau rendez-vous » devient un bouton double — moitié « Nouveau rendez-vous », moitié « Proposer des dates ». La rubrique « Dates proposées » de la colonne de gauche n'apparaît plus que lorsqu'un sondage attend des réponses." },
     { version: '2026-10-01 21:55', resume: "Agenda : en haut à droite, à la place du bouton « Actualiser », un champ « Chercher un dossier ». Choisir un dossier mène l'agenda au jour de sa signature et en ouvre le détail ; sans rendez-vous, à la semaine où la signature est probable. « Actualiser » devient une petite icône à côté de « Agenda de l'office lu … »." },
     { version: '2026-10-01 21:50', resume: "Agenda : la date n'est plus affichée à côté de « Aujourd'hui » ; à sa place, une icône calendrier ouvre le choix d'une date (pour aller à un autre jour, y compris dans l'historique)." },
     { version: '2026-10-01 21:48', resume: "Agenda : dans le petit calendrier du mois, le rond du jour choisi ne recouvre plus le point qui signale les rendez-vous — le point est posé juste en dessous." },
@@ -19602,6 +19603,9 @@
   function renderSondagesSansDossierAgenda() {
     if (!exchangeAgendaPret()) return '';
     const ouverts = sondagesCreneaux.filter(x => !x.dossierId && x.statut === 'ouvert');
+    // « Proposer des dates » est la moitié droite du bouton « Nouveau rendez-vous » (étude, 01/10) :
+    // la section ne s'affiche que s'il y a des dates proposées en attente.
+    if (!ouverts.length) return '';
     return `<section class="ag-anticipe">
         <h3 class="jour-section-titre">Dates proposées${ouverts.length ? ` <span class="jour-onglet-nb">${ouverts.length}</span>` : ''} ${infoBulle('Rendez-vous sans dossier dont plusieurs dates ont été proposées par email : les réponses arrivent ici. « Placer » crée le rendez-vous dans l’agenda et retire les options.')}</h3>
         ${ouverts.map(x => {
@@ -19624,7 +19628,6 @@
             </div>
           </div>`;
         }).join('')}
-        <button type="button" class="bouton-ajout" onclick="ouvrirSondageSansDossier('', [])">Proposer des dates</button>
       </section>`;
   }
 
@@ -19844,7 +19847,10 @@
             <select id="agenda-vue" aria-label="Vue de l’agenda" onchange="choisirVueAgenda(this.value)">
               ${VUES_AGENDA.map(v => `<option value="${v}"${agendaVue === v ? ' selected' : ''}>${{ mois: 'Vue mois', semaine: 'Vue semaine', jour: 'Vue jour' }[v]}</option>`).join('')}
             </select></label>
-          ${exchangeAgendaPret() ? `<button type="button" class="primary ag-ajout" onclick="ouvrirCreationAgenda()">${icone('plus')} Nouveau rendez-vous</button>` : ''}
+          ${exchangeAgendaPret() ? `<div class="ag-ajout-double" role="group" aria-label="Créer un rendez-vous">
+              <button type="button" class="primary ag-ajout" onclick="ouvrirCreationAgenda()">${icone('plus')} Nouveau rendez-vous</button>
+              <button type="button" class="primary ag-ajout ag-ajout-dates" onclick="ouvrirSondageSansDossier('', [])" title="Proposer plusieurs dates par email et placer celle qui convient à tous">${icone('users')} Proposer des dates</button>
+            </div>` : ''}
         </div>
         <div class="ag-page-corps">
           <aside class="ag-cote">

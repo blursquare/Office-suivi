@@ -7301,6 +7301,12 @@ button.ag-actualiser.en-cours svg { animation: ag-tourne 0.9s linear infinite; }
 }
 button.primary.ag-ajout { display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 14px; border-radius: 9px; font-size: 13px; }
 button.primary.ag-ajout svg { width: 14px; height: 14px; }
+/* Bouton double (étude, 01/10) : moitié « Nouveau rendez-vous », moitié « Proposer des dates », un seul
+   bloc à la couleur des boutons principaux, séparé par un filet clair. */
+.ag-ajout-double { display: inline-flex; align-items: stretch; border-radius: 9px; overflow: hidden; }
+.ag-ajout-double button.primary.ag-ajout { border-radius: 0; margin: 0; white-space: nowrap; }
+@media (max-width: 480px) { .ag-ajout-double button.primary.ag-ajout { padding: 0 10px; gap: 5px; font-size: 12.5px; } }
+.ag-ajout-double button.primary.ag-ajout-dates { border-left: 1px solid color-mix(in srgb, var(--paper-card) 45%, transparent); }
 .ag-page-corps { display: grid; grid-template-columns: 300px minmax(0, 1fr); align-items: start; }
 .ag-page-corps > * { min-width: 0; }
 .ag-cote { border-right: 1px solid var(--line); padding: 14px 16px 18px; display: flex; flex-direction: column; gap: 16px; }
