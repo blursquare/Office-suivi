@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-01 14:46';
+  const VERSION_APP = '2026-10-01 15:07';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-01 15:07', resume: "Agenda : un rendez-vous s'allonge ou se raccourcit en tirant son bord du bas (la fin) ou du haut (le début), au quart d'heure, comme dans Outlook — vues Semaine et Jour, à la souris, confirmé avant d'écrire dans l'agenda. La signature d'un dossier emmène l'heure de la fiche." },
     { version: '2026-10-01 14:46', resume: "Rapport technique : l'avertissement « SQLite expérimental » que Node affiche à chaque démarrage du serveur n'est plus compté comme une erreur du serveur (il remontait dans chaque rapport sans rien signaler de réel)." },
     { version: '2026-10-01 14:12', resume: "Rapport technique : quand GitHub refuse le rapport, le message distingue « le jeton ne voit pas le dépôt » (accès au dépôt) de « pas le droit d'écrire les issues » (permission) et reprend la réponse exacte de GitHub, pour trouver la cause sans deviner." },
     { version: '2026-10-01 11:52', resume: "Teams : le responsable est prévenu quand un collègue déplace ou modifie la signature depuis la page Agenda (heure comprise) ou la marque « annulée / à replacer », et quand une signature est placée, déplacée ou passée en jaune directement dans Outlook (« … dans l'agenda de l'office »). Agenda : vues Semaine et Jour à partir de 8 h, grille moins haute ; sur une carte trop courte, les lignes Appel de fonds / Décompte / Projet restent dans le détail." },
@@ -19007,6 +19008,7 @@
         ${court ? '' : `<span class="ag-evt-meta">${heure}${meta.length ? ` · ${escapeHtml(meta.join(' · '))}` : (e.lieu && !d ? ` · ${escapeHtml(e.lieu)}` : '')}</span>`}
         ${etats ? `<span class="ag-evt-etats">${renderEtatsRendezVous(infos)}</span>` : ''}
         ${proba && !court ? renderPastilleProbabilite(proba) : ''}
+        ${poigneesAgenda(e)}
       </button>`;
   }
 
@@ -19038,6 +19040,7 @@
         ${qui ? `<span class="ag-evt-qui">${escapeHtml(qui)}</span>` : (e.lieu ? `<span class="ag-evt-qui">${escapeHtml(e.lieu)}</span>` : '')}
         ${infos && e.signature && etatsTiennentAgenda(minutesAffichees) ? `<span class="ag-evt-etats">${renderEtatsRendezVous(infos)}</span>` : ''}
         ${proba ? renderPastilleProbabilite(proba) : ''}
+        ${poigneesAgenda(e)}
       </button>`;
   }
 
@@ -19806,6 +19809,24 @@
     return { heure: heureDepuisMinutesAgenda(nouveau), heureFin: heureDepuisMinutesAgenda(Math.min(nouveau + duree, 23 * 60 + 59)) };
   }
 
+  // Pure : horaire d'un rendez-vous dont on tire le bord du haut (le début) ou du bas (la fin)
+  // (étude, 01/10 : « réduire ou agrandir un rendez-vous en chopant le bas ou le haut ») — au quart
+  // d'heure, 15 min au moins, dans la journée. null si l'heure de départ est illisible.
+  function horaireRedimensionneAgenda(heure, heureFin, bord, deltaMinutes) {
+    const debut = minutesHeure(heure);
+    if (debut == null) return null;
+    const finLue = minutesHeure(heureFin);
+    const fin = finLue != null && finLue > debut ? finLue : Math.min(debut + 60, 23 * 60 + 59);
+    const pas = Math.round((Number(deltaMinutes) || 0) / 15) * 15;
+    if (bord === 'bas') {
+      return { heure: heureDepuisMinutesAgenda(debut), heureFin: heureDepuisMinutesAgenda(Math.max(debut + 15, Math.min(fin + pas, 23 * 60 + 59))) };
+    }
+    if (bord === 'haut') {
+      return { heure: heureDepuisMinutesAgenda(Math.min(fin - 15, Math.max(0, debut + pas))), heureFin: heureDepuisMinutesAgenda(fin) };
+    }
+    return null;
+  }
+
   // Pure : le rendez-vous est la signature fixée sur la fiche du dossier — elle suivra la modification.
   function signatureSuitAgenda(d, e) {
     return !!(d && e && e.signature && !d.archive && d.rendezVousSignature === e.date);
@@ -19970,7 +19991,7 @@
       if (suit && TYPES_RDV[typeRdv]) d.rendezVousType = typeRdv;
       if (suit) {
         d.rendezVousSignature = e.date;
-        if (e.heure && !nouveau.journeeEntiere) d.rendezVousSignatureHeure = e.heure;
+        if (e.heure && !nouveau.journeeEntiere) { d.rendezVousSignatureHeure = e.heure; d.rendezVousSignatureHeureFin = e.heureFin || ''; }
         d.rdvAgendaItem = { itemId: e.itemId, changeKey: e.changeKey || '', date: e.date };
         d.confiance = d.confiance || {};
         d.confiance.rendezVousSignature = 'manuel';
@@ -20006,11 +20027,18 @@
   }
 
   // ---- Glisser-déposer dans la grille (vues Semaine et Jour) ----
-  let agendaGlisse = null;     // { e, el, x0, y0, actif, colonnes, minutesParPx, fantome, cible }
+  let agendaGlisse = null;     // { e, el, x0, y0, actif, mode: 'deplacer'|'haut'|'bas', colonnes, minutesParPx, fantome, cible }
   let agendaClicIgnore = false;
 
   function attributGlisseAgenda(e) {
     return evenementModifiableAgenda(e) && e.heure && !e.journeeEntiere && exchangeAgendaPret() ? ' data-glissable="1"' : '';
+  }
+
+  // Poignées du haut et du bas d'une carte glissable : on les tire pour changer le début ou la fin.
+  function poigneesAgenda(e) {
+    return attributGlisseAgenda(e)
+      ? '<span class="ag-poignee ag-poignee-haut" data-poignee="haut" aria-hidden="true"></span><span class="ag-poignee ag-poignee-bas" data-poignee="bas" aria-hidden="true"></span>'
+      : '';
   }
 
   function finirGlisseAgenda(annule) {
@@ -20024,6 +20052,18 @@
     agendaClicIgnore = true;
     setTimeout(() => { agendaClicIgnore = false; }, 60);
     const c = g.cible;
+    document.body.classList.remove('ag-redim-en-cours');
+    if (g.mode !== 'deplacer') {
+      if (annule || !c || (c.heure === g.e.heure && c.heureFin === g.e.heureFin)) return;
+      const e = g.e;
+      const suitR = signatureSuitAgenda(dossierDeEvenement(e), e);
+      const duree = minutesHeure(c.heureFin) - minutesHeure(c.heure);
+      const motifR = motifCreneauExceptionnel(c.heure, duree, rendezVousHorairesJour(agendaEvenements.filter(x => x !== e), e.date).length);
+      demanderConfirmation(`Changer l’horaire de « ${e.sujet || 'sans titre'} » le ${dateAvecJourFr(e.date)} : ${c.heure.replace(':', ' h ')} – ${c.heureFin.replace(':', ' h ')} (${dureeRendezVous(c.heure, c.heureFin)}) ?`
+        + `${suitR && c.heure !== e.heure ? ' L’heure de signature de la fiche suivra.' : ''}${motifR ? ` Créneau exceptionnel : ${motifR}.` : ''}`,
+        () => modifierEvenementAgenda(e, { date: e.date, heure: c.heure, heureFin: c.heureFin }), { bouton: 'Modifier', ton: 'valider' });
+      return;
+    }
     if (annule || !c || (c.date === g.e.date && c.heure === g.e.heure)) return;
     const e = g.e;
     const suit = signatureSuitAgenda(dossierDeEvenement(e), e);
@@ -20055,11 +20095,28 @@
       etiquette.className = 'ag-glisse-heure';
       g.fantome.appendChild(etiquette);
       g.el.classList.add('ag-glisse-origine');
-      document.body.classList.add('ag-glisse-en-cours');
+      document.body.classList.add(g.mode === 'deplacer' ? 'ag-glisse-en-cours' : 'ag-redim-en-cours');
+      g.colonneDepart = colonne;
       if (agendaSelection) { agendaSelection = null; renderPopoverAgenda(); }
     }
     if (!document.body.contains(g.el)) { finirGlisseAgenda(true); return; }
     evt.preventDefault();
+    const total = (AGENDA_HEURE_FIN - AGENDA_HEURE_DEBUT) * 60;
+    if (g.mode !== 'deplacer') {
+      // Bord du haut ou du bas : même jour, même colonne, seule la durée change.
+      const r = horaireRedimensionneAgenda(g.e.heure, g.e.heureFin, g.mode, (evt.clientY - g.y0) * g.minutesParPx);
+      if (!r) return;
+      g.cible = { date: g.e.date, heure: r.heure, heureFin: r.heureFin };
+      if (g.fantome.parentNode !== g.colonneDepart) g.colonneDepart.appendChild(g.fantome);
+      const haut = Math.max(0, minutesHeure(r.heure) - AGENDA_HEURE_DEBUT * 60);
+      const bas = Math.min(total, minutesHeure(r.heureFin) - AGENDA_HEURE_DEBUT * 60);
+      g.fantome.style.top = `${(haut / total * 100).toFixed(2)}%`;
+      g.fantome.style.height = `${(Math.max(15, bas - haut) / total * 100).toFixed(2)}%`;
+      g.fantome.querySelector('.ag-glisse-heure').textContent = `${r.heure} – ${r.heureFin}`;
+      const debutR = g.fantome.querySelector('.ag-evt-debut, .ag-evt-heure > span:first-child');
+      if (debutR) debutR.textContent = r.heure;
+      return;
+    }
     const x = evt.clientX;
     const col = g.colonnes.find(c => x >= c.rect.left && x < c.rect.right)
       || g.colonnes.reduce((a, c) => (Math.abs(x - (c.rect.left + c.rect.right) / 2) < Math.abs(x - (a.rect.left + a.rect.right) / 2) ? c : a));
@@ -20067,7 +20124,6 @@
     if (!h) return;
     g.cible = { date: col.iso, heure: h.heure, heureFin: h.heureFin };
     if (g.fantome.parentNode !== col.el) col.el.appendChild(g.fantome);
-    const total = (AGENDA_HEURE_FIN - AGENDA_HEURE_DEBUT) * 60;
     g.fantome.style.top = `${((minutesHeure(h.heure) - AGENDA_HEURE_DEBUT * 60) / total * 100).toFixed(2)}%`;
     g.fantome.style.left = '2px';
     g.fantome.style.width = 'calc(100% - 4px)';
@@ -20083,7 +20139,8 @@
       if (!el) return;
       const e = agendaEvenements.find(x => cleEvenementAgenda(x) === el.dataset.cle);
       if (!e) return;
-      agendaGlisse = { e, el, x0: evt.clientX, y0: evt.clientY, actif: false };
+      const poignee = evt.target.closest('[data-poignee]');
+      agendaGlisse = { e, el, x0: evt.clientX, y0: evt.clientY, actif: false, mode: poignee ? poignee.dataset.poignee : 'deplacer' };
     });
     window.addEventListener('pointermove', suivreGlisseAgenda, { passive: false });
     window.addEventListener('pointerup', () => { if (agendaGlisse) finirGlisseAgenda(false); });

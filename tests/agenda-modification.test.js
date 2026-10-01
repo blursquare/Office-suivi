@@ -55,3 +55,15 @@ test('estDateButoirAgenda : les dates butoir posées par CLAIRE et les titres qu
   assert.equal(app.estDateButoirAgenda({ sujet: 'VTE - DURAND / MARTIN' }), false);
   assert.equal(app.estDateButoirAgenda({ sujet: 'Point sur l’obtention du prêt des clients' }), false);
 });
+
+test('horaireRedimensionneAgenda : bord du bas = fin, bord du haut = début, au quart d’heure, 15 min au moins', () => {
+  const r = (a, b, bord, d) => { const x = app.horaireRedimensionneAgenda(a, b, bord, d); return x ? `${x.heure}-${x.heureFin}` : 'null'; };
+  assert.equal(r('10:00', '11:00', 'bas', 32), '10:00-11:30');
+  assert.equal(r('10:00', '11:00', 'bas', -50), '10:00-10:15', 'raccourci : jamais moins de 15 min');
+  assert.equal(r('10:00', '11:00', 'haut', -60), '09:00-11:00', 'agrandi par le haut');
+  assert.equal(r('10:00', '11:00', 'haut', 120), '10:45-11:00', 'le début ne dépasse pas la fin');
+  assert.equal(r('23:00', '23:30', 'bas', 120), '23:00-23:59');
+  assert.equal(r('10:00', '', 'bas', 30), '10:00-11:30', 'sans fin connue : 1 h');
+  assert.equal(r('10:00', '11:00', 'milieu', 30), 'null');
+  assert.equal(r('', '11:00', 'bas', 30), 'null');
+});

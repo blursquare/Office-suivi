@@ -7325,6 +7325,20 @@ button.primary.ag-ajout svg { width: 14px; height: 14px; }
   background: var(--ink); color: var(--paper-card); font-size: 11px; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap;
 }
 body.ag-glisse-en-cours, body.ag-glisse-en-cours * { cursor: grabbing !important; user-select: none; }
+/* Poignées du haut et du bas (étude, 01/10) : tirer pour changer le début ou la fin. Un trait
+   apparaît au survol ; la zone saisissable fait 6 px. */
+.ag-poignee { position: absolute; left: 0; right: 0; height: 6px; z-index: 3; cursor: ns-resize; }
+.ag-poignee-haut { top: 0; }
+.ag-poignee-bas { bottom: 0; }
+.ag-poignee::after {
+  content: ''; position: absolute; left: 50%; width: 20px; height: 2px; margin-left: -10px; border-radius: 1px;
+  background: var(--ag-teinte, var(--line)); opacity: 0; transition: opacity 0.12s;
+}
+.ag-poignee-haut::after { top: 2px; }
+.ag-poignee-bas::after { bottom: 2px; }
+.ag-evt:hover .ag-poignee::after { opacity: 0.9; }
+.ag-glisse-fantome .ag-poignee { display: none; }
+body.ag-redim-en-cours, body.ag-redim-en-cours * { cursor: ns-resize !important; user-select: none; }
 .ag-evt:focus-visible, .ag-journee-evt:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
 .ag-evt-titre { font-size: 12px; font-weight: 700; color: var(--ink); line-height: 1.25; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; flex: none; }
 .ag-evt-heure { font-size: 11px; color: var(--ink-soft); font-variant-numeric: tabular-nums; display: flex; align-items: center; gap: 0 4px; white-space: nowrap; overflow: hidden; flex: none; }

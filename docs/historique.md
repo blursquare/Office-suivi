@@ -13754,3 +13754,15 @@ donc à chaque démarrage du serveur (5 démarrages sur la période : mises à j
 `installerCaptureConsole` l'affiche toujours mais ne le journalise plus (`MESSAGES_NON_JOURNALISES`,
 `messageNonJournalise` dans `journalTechnique.js`) ; tout autre ExperimentalWarning reste journalisé.
 Vérifié avec le vrai avertissement de Node 22.22 : 1 entrée avant, 0 après ; test ajouté.
+
+### 01/10/2026 15 h 07 — Agenda : allonger ou raccourcir un rendez-vous par ses bords
+
+Demande : « permettre de réduire la taille d'un rendez-vous en chopant le bas du rendez-vous ou le haut
+pour le réduire ou l'agrandir ». Deux poignées de 6 px (`poigneesAgenda`, `.ag-poignee-haut/-bas`, trait
+au survol, curseur ns-resize) sur les cartes glissables ; le glisser existant prend un `mode`
+('deplacer' | 'haut' | 'bas'). `horaireRedimensionneAgenda` (pur, testé) : bas = fin, haut = début, au
+quart d'heure, 15 min au moins, dans la journée. Même règle que le déplacement (choix de l'étude du
+matin) : confirmation « Changer l'horaire de « … » le … : 09 h 15 – 10 h 45 (1 h 30) ? » (+ créneau
+exceptionnel, + « L'heure de signature de la fiche suivra »), puis `modifierEvenementAgenda` (Start/End
+dans Outlook, fiche avec heure de fin, Teams au responsable si c'est un autre). Un simple clic sur une
+poignée ouvre toujours le détail. Vérifié dans Chromium (requêtes EWS lues).

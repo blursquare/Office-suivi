@@ -114,7 +114,8 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
    (30/09), création de tout rendez-vous et **suppression de n'importe lequel après confirmation**
    (`POST /exchange/evenement/supprimer`, `MoveToDeletedItems`) ; **modification** (01/10, titre + Start/End
    seulement, `POST /exchange/evenement/modifier`) par le crayon du détail ou en **glissant** le rendez-vous
-   (Semaine/Jour, souris, confirmé au lâcher ; la signature d'un dossier emmène la fiche) ; la **catégorie** s'y change aussi
+   (Semaine/Jour, souris, confirmé au lâcher ; la signature d'un dossier emmène la fiche) ou en **tirant son
+   bord** haut/bas pour changer début/fin (`horaireRedimensionneAgenda`, même confirmation) ; la **catégorie** s'y change aussi
    (`item:Categories` remplacée, catégories manuelles gardées) dont **« Annulé / à replacer »** (jaune,
    `categoriesRdv.annule`) : une signature ainsi marquée — dans CLAIRE ou Outlook — quitte la fiche
    (`rendezVousARemplacer`) et revient « à placer » ; retirer le jaune la rétablit. **Teams au
