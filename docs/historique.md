@@ -14145,3 +14145,18 @@ Il devient une icône calendrier (`.ag-aller-btn`) ; le champ date reste dans la
 l'icône, et `ouvrirAllerDateAgenda` ouvre son sélecteur (`showPicker`, repli sur focus/clic). Vérifié dans
 Chromium (clair, sombre, téléphone) : la barre ne montre plus que ‹ Aujourd'hui › et l'icône, le choix
 d'une date mène bien à ce jour.
+
+### 01/10/2026 21 h 55 — Agenda : recherche d'un dossier à la place du bouton « Actualiser »
+
+Demande de l'étude : « À la place de actualisé placer un champ de recherche de dossier. Placer actualisé
+l'agenda ailleurs ». Dans l'en-tête de la page Agenda (`index.html`, hors de `#agenda-contenu` pour
+que les relectures de l'agenda toutes les 2 min ne le redessinent pas), le bouton « Actualiser » laisse
+la place à « Chercher un dossier » (`#agenda-recherche`). `resultatsRechercheAgenda` (pure, testée) :
+nom sans accents ni casse, dossiers en cours avant les archivés, 8 au plus, chacun avec sa signature
+fixée ou, à défaut, la semaine probable (`semaineProbableSignature`). Flèches + Entrée, Échap. Un
+choix (`allerAuDossierAgenda`) mène au jour de la signature et en ouvre le détail une fois les
+rendez-vous lus (`agendaCibleDossier`, `selectionnerCibleDossierAgenda`, signature de CLAIRE hors
+Outlook comprise) ; sans rendez-vous, à la semaine probable avec sa carte fantôme (vue Semaine si la
+vue Mois était affichée) ; sans rien à montrer, la fiche s'ouvre. « Actualiser » devient une icône
+(`button.ag-actualiser`, tourne jusqu'à l'agenda relu) juste après « Agenda de l'office lu … ».
+Vérifié dans Chromium (clair, sombre, téléphone) avec des dossiers inventés.

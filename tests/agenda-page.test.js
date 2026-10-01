@@ -285,3 +285,19 @@ test('widget Agenda : jours, rendez-vous du jour triés comme Outlook, prochains
   assert.equal(app.evenementsTriesJour(evts, '2026-10-01').map(e => e.sujet).join(' | '), 'Congés Julie | VTE - A | VTE - B');
   assert.equal(app.prochainsEvenementsAgenda(evts, '2026-10-01', 5).map(e => e.sujet).join(' | '), 'VTE - D | Réunion');
 });
+
+test('resultatsRechercheAgenda : dossiers en cours d’abord, rendez-vous fixé ou semaine probable, sans accents ni casse', () => {
+  const liste = [
+    { id: 'a', nom: 'LÉGER / PETIT', rendezVousSignature: '2026-10-20', rendezVousSignatureHeure: '10:00', sansPret: true },
+    { id: 'b', nom: 'LEGRAND / ROUX', sansPret: true },
+    { id: 'c', nom: 'LEGOFF / MARIN', archive: true, rendezVousSignature: '2026-03-02' },
+    { id: 'd', nom: 'DUPONT / MARTIN', sansPret: true }
+  ];
+  const r = app.resultatsRechercheAgenda('leg', liste, '2026-10-01', []);
+  assert.equal(r.map(x => `${x.id}:${x.type}`).join(','), 'a:rdv,b:probable,c:rdv');
+  assert.equal(r[0].heure, '10:00');
+  assert.equal(r[1].lundi, '2026-10-12');
+  assert.equal(r[2].archive, true);
+  assert.equal(app.resultatsRechercheAgenda('  ', liste, '2026-10-01', []).length, 0);
+  assert.equal(app.resultatsRechercheAgenda('martin', liste, '2026-10-01', [])[0].id, 'd');
+});

@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-01 21:50';
+  const VERSION_APP = '2026-10-01 21:55';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-01 21:55', resume: "Agenda : en haut à droite, à la place du bouton « Actualiser », un champ « Chercher un dossier ». Choisir un dossier mène l'agenda au jour de sa signature et en ouvre le détail ; sans rendez-vous, à la semaine où la signature est probable. « Actualiser » devient une petite icône à côté de « Agenda de l'office lu … »." },
     { version: '2026-10-01 21:50', resume: "Agenda : la date n'est plus affichée à côté de « Aujourd'hui » ; à sa place, une icône calendrier ouvre le choix d'une date (pour aller à un autre jour, y compris dans l'historique)." },
     { version: '2026-10-01 21:48', resume: "Agenda : dans le petit calendrier du mois, le rond du jour choisi ne recouvre plus le point qui signale les rendez-vous — le point est posé juste en dessous." },
     { version: '2026-10-01 21:45', resume: "Agenda : la comparaison avec l'an dernier ne compte plus que les rendez-vous d'une heure ou plus (les points de 30 ou 45 minutes ne sont plus comptés). Les semaines de l'an dernier déjà comptées sont relues une fois sous cette règle." },
@@ -19074,7 +19075,7 @@
       if (ongletActuel !== 'agenda' || !agendaSelection || agendaModale || notesAgendaEdition) return;
       if (!document.body.contains(e.target)) return;
       // Le clic venu d'ailleurs (widget Agenda du tableau de bord) qui vient d'ouvrir un rendez-vous ne le referme pas.
-      if (e.target.closest('#agenda-popover, .ag-evt, .ag-journee-evt, .ag-vm-evt, .ag-ligne, .ag-placer, .confirm-overlay, #agenda-overlay, #sondage-overlay, .toast, #onglet-dashboard')) return;
+      if (e.target.closest('#agenda-popover, .ag-evt, .ag-journee-evt, .ag-vm-evt, .ag-ligne, .ag-placer, .confirm-overlay, #agenda-overlay, #sondage-overlay, .toast, #onglet-dashboard, .ag-recherche')) return;
       agendaSelection = null;
       renderPageAgenda();
     });
@@ -19123,9 +19124,10 @@
       agendaErreur = 'Serveur injoignable.';
     }
     agendaCharge = true;
+    selectionnerCibleDossierAgenda();
     agendaHistorique = { enCours: !!(debutStock && debut < debutStock), message: '' };
     if (ongletActuel === 'agenda') renderPageAgenda();
-    if (!agendaHistorique.enCours) return;
+    if (!agendaHistorique.enCours) { agendaCibleDossier = null; return; }
     try {
       const r = await fetchAvecAuth(`/api/agenda/passe?debut=${debut}&fin=${fin < debutStock ? fin : addDays(debutStock, -1)}`);
       const corps = await r.json();
@@ -19134,6 +19136,8 @@
       const passes = (r.ok && Array.isArray(corps.evenements) ? corps.evenements : [])
         .filter(e => !e.itemId || !vus.has(e.itemId)).map(e => Object.assign({}, e, { archive: true }));
       agendaEvenements = passes.concat(agendaEvenements);
+      selectionnerCibleDossierAgenda();
+      agendaCibleDossier = null;
       agendaHistorique = { enCours: false, message: r.ok ? (corps.message || '') : (corps.erreur || 'Historique illisible.') };
     } catch (e) {
       if (jeton !== jetonChargementAgenda) return;
@@ -19675,6 +19679,109 @@
     return ` · <span class="ag-compare ag-compare-${t.sens}">${t.sens === 'egal' ? '' : icone(t.sens === 'hausse' ? 'trend-up' : 'trend-down')}${escapeHtml(t.texte)}</span> ${infoBulle(detail)}`;
   }
 
+  // ---- Recherche d'un dossier dans l'agenda (étude, 01/10) ----
+  // Pure : les dossiers dont le nom contient la recherche (sans accents ni casse), en cours d'abord, avec
+  // leur rendez-vous de signature (fixé) ou, à défaut, la semaine probable de la signature. 8 au plus.
+  function resultatsRechercheAgenda(texte, liste, aujourdhuiIso, absences) {
+    const q = normaliserPourRecherche(String(texte || '').trim());
+    if (!q) return [];
+    return (liste || [])
+      .filter(d => d && normaliserPourRecherche(libelleDossierAffiche(d) + ' ' + (d.nom || '')).includes(q))
+      .sort((a, b) => (a.archive ? 1 : 0) - (b.archive ? 1 : 0)
+        || String(a.rendezVousSignature || '9999').localeCompare(String(b.rendezVousSignature || '9999'))
+        || libelleDossierAffiche(a).localeCompare(libelleDossierAffiche(b)))
+      .slice(0, 8)
+      .map(d => {
+        if (d.rendezVousSignature) {
+          return { id: d.id, libelle: libelleDossierAffiche(d), archive: !!d.archive, type: 'rdv', date: d.rendezVousSignature, heure: d.rendezVousSignatureHeure || '' };
+        }
+        const probable = semaineProbableSignature(d, aujourdhuiIso, absences);
+        return probable
+          ? { id: d.id, libelle: libelleDossierAffiche(d), archive: !!d.archive, type: 'probable', date: probable.date, lundi: probable.lundi }
+          : { id: d.id, libelle: libelleDossierAffiche(d), archive: !!d.archive, type: 'aucun', date: '' };
+      });
+  }
+
+  var agendaRecherche = '';
+  var agendaRechercheActif = 0;
+  var agendaCibleDossier = null;
+  function changerRechercheAgenda(valeur) {
+    agendaRecherche = valeur;
+    agendaRechercheActif = 0;
+    renderResultatsRechercheAgenda();
+  }
+
+  function renderResultatsRechercheAgenda() {
+    const bloc = document.getElementById('agenda-recherche-resultats');
+    if (!bloc) return;
+    if (!agendaRecherche.trim()) { bloc.style.display = 'none'; bloc.innerHTML = ''; return; }
+    const res = resultatsRechercheAgenda(agendaRecherche, dossiers, isoAujourdhuiLocal(), absencesOffice);
+    const quand = (r) => r.type === 'rdv'
+      ? `Signature le ${formatDateFr(r.date)}${r.heure ? ' à ' + r.heure.replace(':', ' h ') : ''}`
+      : r.type === 'probable' ? `Signature probable semaine du ${formatDateFr(r.lundi)}` : 'Aucun rendez-vous';
+    bloc.innerHTML = res.length === 0
+      ? '<div class="ag-recherche-vide">Aucun dossier ne correspond.</div>'
+      : res.map((r, i) => `<button type="button" role="option" class="ag-recherche-ligne${i === agendaRechercheActif ? ' actif' : ''}" onmousedown="event.preventDefault()" onclick="allerAuDossierAgenda('${escapeOnclickArg(r.id)}')">
+          <span class="ag-recherche-nom">${escapeHtml(r.libelle)}${r.archive ? ' <span class="ag-recherche-archive">archivé</span>' : ''}</span>
+          <span class="ag-recherche-quand">${escapeHtml(quand(r))}</span>
+        </button>`).join('');
+    bloc.style.display = 'block';
+  }
+
+  function fermerRechercheAgendaSiHors() {
+    const zone = document.querySelector('.ag-recherche');
+    const bloc = document.getElementById('agenda-recherche-resultats');
+    if (bloc && zone && !zone.contains(document.activeElement)) bloc.style.display = 'none';
+  }
+
+  // L'icône « Actualiser » tourne jusqu'à l'agenda relu.
+  async function actualiserAgenda(bouton) {
+    if (bouton) bouton.classList.add('en-cours');
+    await chargerAgendaSemaine();
+  }
+
+  function toucheRechercheAgenda(e) {
+    const lignes = document.querySelectorAll('#agenda-recherche-resultats .ag-recherche-ligne');
+    if (e.key === 'Escape') { agendaRecherche = ''; e.target.value = ''; renderResultatsRechercheAgenda(); return; }
+    if (e.key === 'Enter' && !lignes.length) e.preventDefault();
+    if (!lignes.length) return;
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      agendaRechercheActif = (agendaRechercheActif + (e.key === 'ArrowDown' ? 1 : lignes.length - 1)) % lignes.length;
+      lignes.forEach((l, i) => l.classList.toggle('actif', i === agendaRechercheActif));
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      (lignes[agendaRechercheActif] || lignes[0]).click();
+    }
+  }
+
+  // Un dossier choisi : l'agenda va au jour de sa signature et en ouvre le détail ; sans rendez-vous, à
+  // la semaine probable (carte fantôme) ; sans rien à montrer, sa fiche s'ouvre.
+  function allerAuDossierAgenda(id) {
+    const d = dossiers.find(x => x.id === id);
+    agendaRecherche = '';
+    const champ = document.getElementById('agenda-recherche');
+    if (champ) { champ.value = ''; champ.blur(); }
+    renderResultatsRechercheAgenda();
+    if (!d) { renderPageAgenda(); return; }
+    const r = resultatsRechercheAgenda(d.nom || libelleDossierAffiche(d), [d], isoAujourdhuiLocal(), absencesOffice)[0];
+    if (!r || r.type === 'aucun') { renderPageAgenda(); ouvrirDossierDepuisDashboard(id); return; }
+    if (agendaVue === 'mois' && r.type === 'probable') agendaVue = 'semaine';
+    positionnerAgenda(r.date);
+    agendaSelection = r.type === 'probable' ? 'probable:' + id : null;
+    agendaCibleDossier = r.type === 'rdv' ? { id, date: r.date } : null;
+    selectionnerCibleDossierAgenda();
+    renderPageAgenda();
+    chargerAgendaSemaine();
+  }
+
+  // Le rendez-vous du dossier cherché, une fois les rendez-vous de sa période lus.
+  function selectionnerCibleDossierAgenda() {
+    if (!agendaCibleDossier) return;
+    const e = evenementsAffichesAgenda().find(x => x.dossierId === agendaCibleDossier.id && x.date === agendaCibleDossier.date);
+    if (e) { agendaSelection = cleEvenementAgenda(e); agendaCibleDossier = null; }
+  }
+
   // « Aller à une date » : une icône calendrier à côté de « Aujourd’hui » (étude, 01/10 : la date affichée
   // à côté du bouton faisait doublon) ; le champ date reste caché, son sélecteur s'ouvre au clic.
   function ouvrirAllerDateAgenda() {
@@ -19692,7 +19799,7 @@
     if (!zone) return;
     if (!agendaJour) positionnerAgenda(isoAujourdhuiLocal());
     const samedi = addDays(agendaLundi, 5);
-    const lu = agendaLu ? new Date(agendaLu).toLocaleString('fr-FR', { weekday: 'short', hour: '2-digit', minute: '2-digit' }).replace(':', ' h ') : '';
+    const lu = agendaLu ? new Date(agendaLu).toLocaleString('fr-FR', { weekday: 'short', hour: '2-digit', minute: '2-digit' }).replace(':', '\u00a0h\u00a0').replace(/ (\d)/, '\u00a0$1') : '';
     const source = agendaErreur ? `<span class="dot-label dl-alerte"><span class="dot"></span>${escapeHtml(agendaErreur)}</span>`
       : !agendaCharge ? 'Lecture de l’agenda…'
       : agendaSource && !agendaSource.configuree ? 'Connexion à l’agenda Outlook à configurer (Réglages › Agenda et Outlook).'
@@ -19704,10 +19811,14 @@
     const titre = agendaVue === 'mois'
       ? dRef.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })
       : dRef.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
-    const sous = agendaVue === 'mois' ? source
+    // « Actualiser » (étude, 01/10) : une icône à côté de l'état de lecture, la recherche d'un dossier
+    // ayant pris la place du bouton dans l'en-tête de la page.
+    const actualiser = `<button type="button" class="ag-actualiser" onclick="actualiserAgenda(this)" title="Actualiser l’agenda" aria-label="Actualiser l’agenda">${icone('rotate-ccw')}</button>`;
+    const etat = `${source} ${actualiser}`;
+    const sous = agendaVue === 'mois' ? etat
       : agendaVue === 'semaine'
-        ? `Semaine du ${new Date(agendaLundi + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })} au ${new Date(samedi + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })} · ${source}`
-        : `${escapeHtml((s => s.charAt(0).toUpperCase() + s.slice(1))(dRef.toLocaleDateString('fr-FR', { weekday: 'long' })))} · ${source}`;
+        ? `Semaine du ${new Date(agendaLundi + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })} au ${new Date(samedi + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })} · ${etat}`
+        : `${escapeHtml((s => s.charAt(0).toUpperCase() + s.slice(1))(dRef.toLocaleDateString('fr-FR', { weekday: 'long' })))} · ${etat}`;
     const moisCourt = dRef.toLocaleDateString('fr-FR', { month: 'short' }).replace('.', '').toUpperCase();
     // Une note en cours d'écriture garde le focus et le curseur à travers les rafraîchissements
     // automatiques (agenda relu toutes les 2 minutes, dossiers mis à jour par un autre poste).

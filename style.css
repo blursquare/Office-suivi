@@ -3172,6 +3172,7 @@
     .dash-header-actions { flex-direction: column; align-items: stretch; width: 100%; }
     .dash-recherche { width: 100%; flex: none; max-width: none; }
     .dash-header-nouveau { width: 100%; }
+    .dash-header-actions .ag-recherche { width: 100%; }
   }
 
   .toolbar-btn {
@@ -7256,6 +7257,35 @@ button.scan-nom:focus-visible { outline: 2px solid var(--focus); outline-offset:
 .ag-titre-bloc { flex: 1 1 240px; min-width: 0; }
 .ag-titre { margin: 0; font-size: 20px; font-weight: 700; letter-spacing: -0.01em; color: var(--ink); }
 .ag-sous { display: block; margin-top: 2px; font-size: 12.5px; color: var(--muted); }
+/* « Actualiser » en icône à côté de « Agenda de l'office lu … » (étude, 01/10). */
+button.ag-actualiser {
+  display: inline-flex; align-items: center; justify-content: center; vertical-align: middle; width: 22px; height: 22px; padding: 0; margin-left: 2px;
+  border: none; border-radius: 6px; background: none; color: var(--muted); cursor: pointer;
+}
+button.ag-actualiser:hover { background: var(--paper-sunk); color: var(--ink); }
+button.ag-actualiser svg { width: 13px; height: 13px; }
+button.ag-actualiser.en-cours svg { animation: ag-tourne 0.9s linear infinite; }
+@keyframes ag-tourne { to { transform: rotate(-360deg); } }
+@media (prefers-reduced-motion: reduce) { button.ag-actualiser.en-cours svg { animation: none; opacity: 0.5; } }
+/* Recherche d'un dossier dans l'en-tête de la page Agenda (étude, 01/10 : à la place du bouton « Actualiser »). */
+.ag-recherche { position: relative; width: 280px; max-width: 100%; }
+.ag-recherche > svg { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); width: 14px; height: 14px; color: var(--muted); pointer-events: none; }
+.ag-recherche input[type="search"]#agenda-recherche { width: 100%; padding-left: 30px; border-radius: 8px; }
+.ag-recherche-resultats {
+  display: none; position: absolute; top: calc(100% + 6px); right: 0; width: max(100%, 320px); max-width: calc(100vw - 32px); z-index: 40;
+  background: var(--paper-card); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow-card); max-height: 320px; overflow-y: auto;
+}
+.ag-recherche-ligne {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 1px; width: 100%; font-family: inherit; text-align: left;
+  background: none; border: none; border-bottom: 1px solid var(--line); padding: 8px 12px; cursor: pointer; color: var(--ink);
+}
+.ag-recherche-ligne:last-child { border-bottom: none; }
+.ag-recherche-ligne:hover, .ag-recherche-ligne.actif { background: var(--paper-sunk); }
+.ag-recherche-nom { font-size: 13.5px; font-weight: 600; }
+.ag-recherche-archive { font-size: 11.5px; font-weight: 500; color: var(--muted); }
+.ag-recherche-quand { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.ag-recherche-vide { padding: 12px; font-size: 13px; color: var(--muted); }
+
 .ag-nav { display: inline-flex; align-items: stretch; border: 1px solid var(--line); border-radius: 9px; overflow: hidden; }
 .ag-nav-btn {
   font-family: inherit; font-size: 13px; font-weight: 600; color: var(--ink); background: var(--paper-card); border: none; border-left: 1px solid var(--line);
