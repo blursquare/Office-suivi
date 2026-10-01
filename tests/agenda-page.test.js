@@ -271,3 +271,17 @@ test('texteComparaisonAgenda : hausse, baisse, égalité, an dernier vide, compt
   assert.equal(app.texteComparaisonAgenda(c(4, 0, 4, null)).texte, '+4 rendez-vous vs 2025 (aucun l’an dernier)');
   assert.equal(app.texteComparaisonAgenda({ actuel: { rendezVous: 3 }, anPasse: null, ecart: null }), null);
 });
+
+test('widget Agenda : jours, rendez-vous du jour triés comme Outlook, prochains sans absences ni dates butoir', () => {
+  assert.equal(app.joursDepuis('2026-09-28', 3).join(','), '2026-09-28,2026-09-29,2026-09-30');
+  const evts = [
+    { sujet: 'VTE - B', date: '2026-10-01', heure: '14:30' },
+    { sujet: 'Congés Julie', date: '2026-09-30', dateFin: '2026-10-02', journeeEntiere: true, absence: true },
+    { sujet: 'VTE - A', date: '2026-10-01', heure: '10:00' },
+    { sujet: 'Obtention du prêt — VTE - C', date: '2026-10-05', journeeEntiere: true },
+    { sujet: 'Réunion', date: '2026-10-03', heure: '09:30' },
+    { sujet: 'VTE - D', date: '2026-10-02', heure: '11:00' }
+  ];
+  assert.equal(app.evenementsTriesJour(evts, '2026-10-01').map(e => e.sujet).join(' | '), 'Congés Julie | VTE - A | VTE - B');
+  assert.equal(app.prochainsEvenementsAgenda(evts, '2026-10-01', 5).map(e => e.sujet).join(' | '), 'VTE - D | Réunion');
+});

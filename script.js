@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-01 21:36';
+  const VERSION_APP = '2026-10-01 21:42';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-01 21:42', resume: "Tableau de bord : le widget Agenda est relié à l'agenda partagé de l'office (calendrier de Sophie) — tous les rendez-vous du jour avec leur couleur Outlook (signatures, rendez-vous, absences, dates butoir), les signatures de CLAIRE pas encore dans Outlook en pointillé, puis les prochains rendez-vous. Un clic sur un rendez-vous ouvre la page Agenda à son jour, détail affiché ; l'icône calendrier ouvre l'agenda. Semaines précédente et suivantes (jusqu'à 8) consultables." },
     { version: '2026-10-01 21:36', resume: "Barre latérale : le liseré qui relie les outils à « Outils » est de retour quand le tiroir est ouvert." },
     { version: '2026-10-01 21:31', resume: "Barre latérale épurée : plus de titres de section, seulement les liens vers les pages. « Outils » ouvre une page où chaque outil a sa grosse icône et une phrase ; le + à sa droite déplie les outils dans la barre (barre repliée : survol de l'icône, comme avant). Les compteurs (pièces, signalements, scans) prennent une forme carrée aux coins arrondis." },
     { version: '2026-10-01 21:08', resume: "Réglages réorganisés, une rubrique par sujet : Général, Collaborateurs (adresse et fonction de chacun, avec son propre bouton Enregistrer), Signature des emails, Rappels Teams (envoi Gmail et dernier tour), Agenda et Outlook (connexion, lecture, et une section Sondages de créneaux), Téléphonie 3CX (rubrique à part), Pièces et Claire Scan (la notification d'une nouvelle pièce y est rangée), Relecture d'actes, Signalements, Mise à jour et sauvegarde." },
@@ -14997,6 +14998,8 @@
     // Relu à chaque retour sur le tableau de bord : un rappel ajouté depuis un autre poste.
     if (nom === 'dashboard' && typeof chargerRappelsPerso === 'function' && authToken) chargerRappelsPerso();
     if (nom === 'dashboard' && authToken) chargerAbsencesOffice();
+    // Le widget Agenda relit l'agenda de l'office à chaque retour (un rendez-vous a pu être posé depuis).
+    if (nom === 'dashboard') agendaWidget.t = 0;
     if (nom === 'suivi' || nom === 'dashboard') render();
     // Vérifiée à chaque ouverture (appel léger) plutôt qu'une fois pour toutes : Ollama a pu être
     // installé/démarré/arrêté sur le serveur depuis la dernière visite de cet onglet.
@@ -16651,7 +16654,9 @@
   // liste montre les rendez-vous des 15 prochains jours ; cliquer sur un jour la limite à ce jour.
   // L'heure et le lieu viennent de l'agenda de l'office (voir agendaWatch.js côté serveur) — une
   // date saisie à la main n'en a pas, la ligne le dit simplement en ne les affichant pas.
-  var SEMAINES_AGENDA_MAX = 2;
+  // Le widget lit le stock de l'agenda de l'office : du lundi de la semaine passée à 6 mois.
+  var SEMAINES_AGENDA_MAX = 8;
+  var SEMAINES_AGENDA_MIN = -1;
   let agendaDecalageSemaine = 0;
   let agendaJourSelectionne = null;
   // Absences des collaborateurs lues dans l'agenda de l'office (voir absencesDepuisIcs côté serveur,
@@ -16664,7 +16669,7 @@
   let agendaDuJourOffice = null;
 
   function decalerSemaineAgenda(pas) {
-    agendaDecalageSemaine = Math.max(0, Math.min(SEMAINES_AGENDA_MAX, agendaDecalageSemaine + pas));
+    agendaDecalageSemaine = Math.max(SEMAINES_AGENDA_MIN, Math.min(SEMAINES_AGENDA_MAX, agendaDecalageSemaine + pas));
     agendaJourSelectionne = null;
     render();
   }
@@ -16777,49 +16782,112 @@
     }).join('');
   }
 
-  // Carte « Agenda », selon la présentation du widget (presentationWidget) :
-  //  - petit : le jour (comme l'icône Calendrier), les signatures du jour et la prochaine ;
-  //  - moyen : la bande de la semaine, les signatures du jour choisi, puis les prochaines ;
-  //  - grand : la même chose en détail (horaire, lieu, envois faits ou non, absences).
+  // Carte « Agenda » reliée à l'agenda partagé de l'office (étude, 01/10 : « lier le widget agenda avec
+  // l'agenda CLAIRE / Sophie partagé ») : les rendez-vous du calendrier de Sophie lus par le serveur
+  // (stock `agenda-office`, GET /api/agenda/evenements, le même que la page Agenda), plus les signatures
+  // fixées dans CLAIRE qui n'y sont pas encore (en pointillé). Un rendez-vous s'ouvre dans la page
+  // Agenda, à son jour, son détail affiché.
+  //  - petit : le jour, ses rendez-vous, le prochain ;
+  //  - moyen / grand : la bande de la semaine (un point par jour qui a un rendez-vous), les rendez-vous
+  //    du jour choisi, puis les prochains rendez-vous et les prochaines échéances en appoint.
+  var JOURS_WIDGET_AGENDA = 42;
+  let agendaWidget = { evenements: [], debut: '', fin: '', lu: '', charge: false, enCours: false, t: 0 };
+
+  // Pure : les jours ISO de `debut` (compris) à `debut + n - 1`.
+  function joursDepuis(debut, n) {
+    const out = [];
+    for (let i = 0; i < n; i++) out.push(addDays(debut, i));
+    return out;
+  }
+
+  // Pure : les rendez-vous d'une journée triés comme dans Outlook — journées entières d'abord, puis par heure.
+  function evenementsTriesJour(evenements, iso) {
+    return evenementsJourAgenda(evenements, iso).slice().sort((a, b) => {
+      const ja = a.journeeEntiere || !a.heure ? 0 : 1;
+      const jb = b.journeeEntiere || !b.heure ? 0 : 1;
+      return ja - jb || String(a.heure || '').localeCompare(String(b.heure || '')) || String(a.sujet || '').localeCompare(String(b.sujet || ''));
+    });
+  }
+
+  // Pure : les prochains rendez-vous horaires après le jour `apresIso` (absences et dates butoir à part),
+  // par date puis heure.
+  function prochainsEvenementsAgenda(evenements, apresIso, limite) {
+    return (evenements || []).filter(e => e && e.date > apresIso && !e.absence && !estDateButoirAgenda(e))
+      .sort((a, b) => (a.date + (a.heure || '')).localeCompare(b.date + (b.heure || '')))
+      .slice(0, limite || 20);
+  }
+
+  async function chargerAgendaWidget(forcer) {
+    if (!authToken || agendaWidget.enCours) return;
+    const lundi = debutSemaine(addDays(isoAujourdhuiLocal(), 7 * agendaDecalageSemaine));
+    const debut = addDays(lundi, 0);
+    const fin = addDays(lundi, JOURS_WIDGET_AGENDA);
+    if (!forcer && agendaWidget.charge && agendaWidget.debut === debut && Date.now() - agendaWidget.t < 120000) return;
+    agendaWidget.enCours = true;
+    try {
+      const r = await fetchAvecAuth(`/api/agenda/evenements?debut=${debut}&fin=${fin}`);
+      const corps = await r.json();
+      if (r.ok) agendaWidget = { evenements: Array.isArray(corps.evenements) ? corps.evenements : [], debut, fin, lu: corps.lu || '', source: corps.source || null, charge: true, enCours: false, t: Date.now() };
+    } catch (e) { /* le widget garde ce qu'il avait */ }
+    agendaWidget.enCours = false;
+    if (ongletActuel === 'dashboard') renderRendezVousDashboard(dossiersPerimetreDashboard());
+  }
+
+  // Un rendez-vous du widget : la page Agenda s'ouvre sur son jour, son détail affiché.
+  function ouvrirEvenementDepuisWidgetAgenda(cle, date) {
+    positionnerAgenda(date);
+    agendaSelection = cle;
+    definirOnglet('agenda');
+  }
+
+  function ouvrirAgendaDepuisWidget(date) {
+    positionnerAgenda(date || isoAujourdhuiLocal());
+    agendaSelection = null;
+    definirOnglet('agenda');
+  }
+
   function renderRendezVousDashboard(perimetreActifs) {
     const bloc = document.getElementById('agenda-dashboard');
     if (!bloc) return;
     const aujourdhui = isoAujourdhuiLocal();
-    const global = vueGlobaleDashboard();
     const presentation = presentationWidget('agenda');
+    const lundi = debutSemaine(addDays(aujourdhui, 7 * agendaDecalageSemaine));
+    if (!agendaWidget.charge || agendaWidget.debut !== lundi || Date.now() - agendaWidget.t > 120000) chargerAgendaWidget();
+    const joursCharges = joursDepuis(agendaWidget.debut || lundi, JOURS_WIDGET_AGENDA + 1);
+    const evenements = agendaWidget.evenements.concat(signaturesHorsAgenda(perimetreActifs, agendaWidget.evenements, joursCharges));
+    const source = agendaWidget.source;
+    const nonRelie = agendaWidget.charge && source && source.configuree === false;
+    const lu = agendaWidget.lu ? new Date(agendaWidget.lu) : null;
+    const etatLecture = nonRelie ? 'Agenda Outlook non relié (Réglages › Agenda et Outlook)'
+      : lu && !isNaN(lu) ? `Agenda de l’office · lu à ${String(lu.getHours()).padStart(2, '0')} h ${String(lu.getMinutes()).padStart(2, '0')}` : 'Agenda de l’office';
+    const versPage = `ouvrirAgendaDepuisWidget('${agendaJourSelectionne || aujourdhui}')`;
+    const boutonPage = `<button type="button" class="icon-btn" onclick="${versPage}" title="Ouvrir l’agenda" aria-label="Ouvrir l’agenda">${icone('calendar')}</button>`;
+
     if (presentation === 'petit') {
       const dt = new Date(aujourdhui + 'T00:00:00');
-      const duJour = perimetreActifs.filter(d => d.rendezVousSignature === aujourdhui);
-      const suivante = prochainesSignatures(perimetreActifs, aujourdhui, aujourdhui, 1)[0];
+      const duJour = evenementsTriesJour(evenements, aujourdhui);
+      const suivant = prochainsEvenementsAgenda(evenements, aujourdhui, 1)[0];
       const nomJour = dt.toLocaleDateString('fr-FR', { weekday: 'long' });
       bloc.innerHTML = carteWidget({
         presentation, classe: 'w-agenda-petit',
         titre: escapeHtml(nomJour.charAt(0).toUpperCase() + nomJour.slice(1)),
         sous: escapeHtml(dt.toLocaleDateString('fr-FR', { month: 'long' })),
-        droite: `<span class="w-jour-num">${dt.getDate()}</span>`,
-        corps: `<ul class="w-lignes" data-ajuster="1">${duJour.length ? lignesProchainesSignatures(duJour, aujourdhui, global) : '<li class="w-message">Aucune signature aujourd’hui.</li>'}${plusWidget("definirOnglet('suivi')")}</ul>
-          ${suivante ? `<div class="w-bas" data-ajuster="2"><button type="button" class="w-prochaine" onclick="ouvrirDossierDepuisDashboard('${suivante.id}')">
-            <span class="w-prochaine-sous">Prochaine signature · ${escapeHtml(new Date(suivante.rendezVousSignature + 'T00:00:00').toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' }))}</span>
-            <span class="w-prochaine-titre">${escapeHtml(libelleDossierAffiche(suivante))}</span></button></div>` : ''}`
+        droite: `<button type="button" class="w-jour-num w-jour-lien" onclick="${versPage}" title="Ouvrir l’agenda">${dt.getDate()}</button>`,
+        corps: `<ol class="ajd-liste ajd-compacte" data-ajuster="1">${duJour.length ? lignesEvenementsAgendaJour(duJour, true, true) : '<li class="w-message">Aucun rendez-vous aujourd’hui.</li>'}${plusWidget(versPage)}</ol>
+          ${suivant ? `<div class="w-bas" data-ajuster="2"><button type="button" class="w-prochaine" onclick="ouvrirEvenementDepuisWidgetAgenda('${escapeOnclickArg(cleEvenementAgenda(suivant))}', '${suivant.date}')">
+            <span class="w-prochaine-sous">Prochain · ${escapeHtml(new Date(suivant.date + 'T00:00:00').toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' }))}${suivant.heure ? ' · ' + escapeHtml(suivant.heure.replace(':', ' h ')) : ''}</span>
+            <span class="w-prochaine-titre">${escapeHtml(suivant.sujet || '')}</span></button></div>` : ''}`
       });
       planifierAjustementWidgets();
       return;
     }
-    const semaine = semaineAgenda(perimetreActifs, aujourdhui, agendaDecalageSemaine);
+
+    const jourAffiche = agendaJourSelectionne || aujourdhui;
+    const semaine = joursDepuis(lundi, 7).map(iso => ({
+      iso, nombre: evenementsJourAgenda(evenements, iso).length, passe: iso < aujourdhui, aujourdhui: iso === aujourdhui
+    }));
     const moisRef = new Date((agendaJourSelectionne || semaine[3].iso) + 'T00:00:00');
     const mois = moisRef.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
-
-    // Le jour effectivement affiché : celui cliqué dans la bande, sinon AUJOURD'HUI. Demandé par
-    // l'étude — l'agenda du tableau de bord ne montre par défaut que les rendez-vous du jour (la
-    // bande reste cliquable pour consulter un autre jour), et non plus les N jours à venir en bloc.
-    const jourAffiche = agendaJourSelectionne || aujourdhui;
-    const liste = trierRendezVous(perimetreActifs
-      .filter(d => d.rendezVousSignature === jourAffiche)
-      .map(d => rendezVousDepuisDossier(d, ecartJours(aujourdhui, jourAffiche))));
-    const titreListe = jourAffiche === aujourdhui
-      ? "Aujourd'hui"
-      : new Date(jourAffiche + 'T00:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
-
     const bande = semaine.map(j => {
       const dt = new Date(j.iso + 'T00:00:00');
       const nomJour = dt.toLocaleDateString('fr-FR', { weekday: 'short' }).replace('.', '').slice(0, 3);
@@ -16834,56 +16902,46 @@
           <span class="agenda-jour-point${j.nombre ? ' present' : ''}" aria-hidden="true"></span>
         </button>`;
     }).join('');
-
+    const duJour = evenementsTriesJour(evenements, jourAffiche);
+    const titreListe = jourAffiche === aujourdhui ? "Aujourd'hui"
+      : new Date(jourAffiche + 'T00:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
     const absentsSemaine = collaborateursAbsentsSemaine(absencesOffice, semaine);
-    const etat = (ok, fait, reste) => `<span class="dot-label ${ok ? 'dl-success' : 'dl-pret'}"><span class="dot"></span>${ok ? fait : reste}</span>`;
-    const detaille = presentation === 'grand';
-    const lignes = liste.length ? liste.map(r => {
-      const plage = plageHoraireRendezVous(r.heure, r.heureFin);
-      const delai = r.jours === 0 ? "aujourd'hui" : r.jours > 0 ? `J-${r.jours}` : '';
-      // Le jour est déjà porté par le titre de la liste (« Aujourd'hui » ou la date sélectionnée) :
-      // seuls l'horaire et le décompte sont utiles ici.
-      const meta = [plage, delai].filter(Boolean).join(' · ');
-      const lieu = [r.lieu, global && r.dossier.responsable ? prenomCollaborateur(r.dossier.responsable) : ''].filter(Boolean);
-      // Le responsable de ce dossier est-il absent le jour affiché ? Un rendez-vous de signature ne
-      // peut pas se tenir sans lui — on le signale pour le déplacer.
-      const responsableAbsent = responsableAbsentLeJour(absencesOffice, r.dossier.responsable, jourAffiche);
-      return `
-        <button type="button" class="agenda-rdv ton-${tonRendezVous(r)}${responsableAbsent ? ' rdv-absent' : ''}" onclick="ouvrirDossierDepuisDashboard('${r.dossier.id}')">
-          <span class="agenda-rdv-titre">${escapeHtml(libelleDossierAffiche(r.dossier))}</span>
-          <span class="agenda-rdv-meta">${escapeHtml(meta)}${(() => { const t = typeRendezVous(r.dossier, categoriesRdvReglees()); return t ? ` <span class="rdv-type-etiquette"><span class="rdv-type-pastille rdv-type-${t}"></span>${TYPES_RDV[t].court}</span>` : ''; })()}</span>
-          ${detaille && lieu.length ? `<span class="agenda-rdv-lieu">${lieu.map(escapeHtml).join(' · ')}</span>` : ''}
-          ${responsableAbsent ? `<span class="agenda-rdv-alerte">${icone('alert-triangle')} ${escapeHtml(prenomCollaborateur(r.dossier.responsable))} absent(e) ce jour</span>` : ''}
-          ${detaille ? `<span class="agenda-rdv-etats">${etat(r.appelFondsEnvoye, 'Appel de fonds envoyé', 'Appel de fonds à envoyer')}${etat(r.projetEnvoye, 'Projet envoyé', 'Projet à envoyer')}</span>` : ''}
-        </button>`;
-    }).join('') : '';
-    const suivantes = prochainesSignatures(perimetreActifs, aujourdhui, jourAffiche, 20);
+    const suivants = prochainsEvenementsAgenda(evenements, jourAffiche, 20);
     const echeances = prochainesEcheancesAgenda(perimetreActifs, aujourdhui, 20);
     const revenir = agendaJourSelectionne ? '<button type="button" class="lien-discret" onclick="selectionnerJourAgenda(null)">Revenir à aujourd’hui</button>' : '';
+    const ligneSuivant = (e) => {
+      const j = ecartJours(aujourdhui, e.date);
+      const quand = j === 0 ? "Aujourd'hui" : j === 1 ? 'Demain' : new Date(e.date + 'T00:00:00').toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' });
+      const teinte = teinteEvenementAgenda(e, categoriesRdvReglees());
+      return `<li><button type="button" class="w-ligne" onclick="ouvrirEvenementDepuisWidgetAgenda('${escapeOnclickArg(cleEvenementAgenda(e))}', '${e.date}')">
+        <span class="w-ligne-date">${escapeHtml(quand)}</span>
+        <span class="w-agenda-pastille ajd-${teinte}${e.horsAgenda ? ' ajd-hors-agenda' : ''}" aria-hidden="true"></span>
+        <span class="w-ligne-texte">${escapeHtml(e.sujet || '(sans titre)')}</span>
+        <span class="w-ligne-meta">${escapeHtml(e.heure ? e.heure.replace(':', ' h ') : 'Journée')}</span></button></li>`;
+    };
 
     bloc.innerHTML = carteWidget({
       presentation,
-      titre: 'Agenda',
-      sous: escapeHtml(mois.charAt(0).toUpperCase() + mois.slice(1)),
+      titre: `<button type="button" class="w-titre-lien" onclick="${versPage}" title="Ouvrir l’agenda">Agenda</button>`,
+      sous: `${escapeHtml(mois.charAt(0).toUpperCase() + mois.slice(1))} · <span class="${nonRelie ? 'w-note-alerte' : ''}">${escapeHtml(etatLecture)}</span>`,
       droite: `<div class="agenda-nav">
-          <button type="button" class="icon-btn" onclick="decalerSemaineAgenda(-1)" ${agendaDecalageSemaine <= 0 ? 'disabled' : ''} aria-label="Semaine précédente">${icone('chevron-left')}</button>
+          <button type="button" class="icon-btn" onclick="decalerSemaineAgenda(-1)" ${agendaDecalageSemaine <= SEMAINES_AGENDA_MIN ? 'disabled' : ''} aria-label="Semaine précédente">${icone('chevron-left')}</button>
           <button type="button" class="icon-btn" onclick="decalerSemaineAgenda(1)" ${agendaDecalageSemaine >= SEMAINES_AGENDA_MAX ? 'disabled' : ''} aria-label="Semaine suivante">${icone('chevron-right')}</button>
+          ${boutonPage}
         </div>`,
       corps: `<div class="agenda-bande w-fixe" role="group" aria-label="Jours de la semaine">${bande}</div>
-      ${detaille && absentsSemaine.length ? `<div class="agenda-absences">${icone('alert-triangle')} Absent cette semaine : ${absentsSemaine.map(n => escapeHtml(prenomCollaborateur(n))).join(', ')}</div>` : ''}
-      ${lignes ? `<div class="w-section">
+      ${presentation === 'grand' && absentsSemaine.length ? `<div class="agenda-absences">${icone('alert-triangle')} Absent cette semaine : ${absentsSemaine.map(n => escapeHtml(prenomCollaborateur(n))).join(', ')}</div>` : ''}
+      <div class="w-section">
         <div class="agenda-liste-titre">
           <span class="section-eyebrow">${escapeHtml(titreListe)}</span>
+          ${duJour.length ? '' : `<span class="w-note">${agendaWidget.charge ? 'Aucun rendez-vous' : 'Lecture…'}</span>`}
           ${revenir}
         </div>
-        <div class="agenda-liste" data-ajuster="1" data-min="1">${lignes}</div>
-      </div>` : ''}
-      ${suivantes.length || !lignes ? `<div class="w-section${lignes ? '' : ' w-section-seule'}">
-        <div class="agenda-liste-titre">
-          <span class="section-eyebrow">Prochaines signatures</span>
-          ${lignes ? '' : `<span class="w-note">${jourAffiche === aujourdhui ? 'Aucune aujourd’hui' : 'Aucune ce jour-là'}</span>${revenir}`}
-        </div>
-        ${suivantes.length ? `<ul class="w-lignes" data-ajuster="${lignes ? 2 : 1}">${lignesProchainesSignatures(suivantes, aujourdhui, global)}</ul>` : '<p class="w-message w-fixe">Aucune signature prévue.</p>'}
+        ${duJour.length ? `<ol class="ajd-liste ajd-compacte" data-ajuster="1" data-min="1">${lignesEvenementsAgendaJour(duJour, jourAffiche === aujourdhui, true)}${plusWidget(`ouvrirAgendaDepuisWidget('${jourAffiche}')`)}</ol>` : ''}
+      </div>
+      ${suivants.length ? `<div class="w-section">
+        <div class="agenda-liste-titre"><span class="section-eyebrow">Prochains rendez-vous</span></div>
+        <ul class="w-lignes" data-ajuster="2">${suivants.map(ligneSuivant).join('')}</ul>
       </div>` : ''}
       ${echeances.length ? `<div class="w-section">
         <div class="agenda-liste-titre"><span class="section-eyebrow">Prochaines échéances</span></div>
@@ -18500,12 +18558,19 @@
     const liste = evenementsAgendaDuJour(agendaDuJourOffice, isoAujourdhuiLocal());
     if (!liste) return '<p class="jour-vide">L’agenda de l’office n’a pas encore été lu aujourd’hui.</p>';
     if (!liste.length) return '<p class="jour-vide">Aucun rendez-vous aujourd’hui.</p>';
+    return `<ol class="ajd-liste">${lignesEvenementsAgendaJour(liste, true, false)}</ol>`;
+  }
+
+  // Les rendez-vous d'une journée en lignes « ajd » (heure, liseré de la couleur Outlook, étiquette,
+  // titre) — fenêtre du matin et widget Agenda. `estAujourdhui` : passé / en cours selon l'heure ;
+  // `versAgenda` : le titre ouvre le rendez-vous dans la page Agenda (le nom du dossier, sa fiche).
+  function lignesEvenementsAgendaJour(liste, estAujourdhui, versAgenda) {
     const maintenant = new Date();
-    const heureActuelle = String(maintenant.getHours()).padStart(2, '0') + ':' + String(maintenant.getMinutes()).padStart(2, '0');
+    const heureActuelle = estAujourdhui ? String(maintenant.getHours()).padStart(2, '0') + ':' + String(maintenant.getMinutes()).padStart(2, '0') : '';
     const categories = categoriesRdvReglees();
-    return `<ol class="ajd-liste">${liste.map(e => {
+    return liste.map(e => {
       const teinte = teinteEvenementAgenda(e, categories);
-      const moment = momentEvenementAgenda(e, heureActuelle);
+      const moment = estAujourdhui ? momentEvenementAgenda(e, heureActuelle) : (e.journeeEntiere || !e.heure ? 'journee' : 'a-venir');
       const heures = e.journeeEntiere || !e.heure
         ? '<b>Journée</b>'
         : `<b>${escapeHtml(e.heure)}</b>${e.heureFin && e.heureFin !== e.heure ? `<span>${escapeHtml(e.heureFin)}</span>` : ''}${dureeRendezVous(e.heure, e.heureFin) ? `<span class="ajd-duree">${escapeHtml(dureeRendezVous(e.heure, e.heureFin))}</span>` : ''}`;
@@ -18513,22 +18578,24 @@
       // Dossier reconnu : le titre ouvre sa fiche ; son nom n'est ajouté dessous que si le titre de
       // l'agenda ne le cite pas déjà (« VTE - DUPONT » n'est pas répété).
       const ouvrir = connu ? `executerFicheDossierJour('${escapeOnclickArg(e.dossierId)}')` : '';
+      const ouvrirAgenda = versAgenda ? `ouvrirEvenementDepuisWidgetAgenda('${escapeOnclickArg(cleEvenementAgenda(e))}', '${e.date}')` : '';
       const dejaCite = connu && normaliserPourRecherche(e.sujet || '').indexOf(normaliserPourRecherche(e.dossierNom || '')) !== -1;
       const sous = [
         e.lieu ? `<span>${escapeHtml(e.lieu)}</span>` : '',
-        connu && !dejaCite ? `<button type="button" class="ajd-dossier" onclick="${ouvrir}">${escapeHtml(libelleDossierParNom(e.dossierNom, e.dossierId))}</button>` : ''
+        connu && (!dejaCite || versAgenda) ? `<button type="button" class="ajd-dossier" onclick="${ouvrir}" title="Ouvrir la fiche du dossier">${versAgenda ? 'Fiche' : escapeHtml(libelleDossierParNom(e.dossierNom, e.dossierId))}</button>` : ''
       ].filter(Boolean).join('<span aria-hidden="true"> · </span>');
       const titre = escapeHtml(e.sujet || '(sans titre)');
-      return `<li class="ajd-evt ajd-${teinte} ajd-${moment}">
+      return `<li class="ajd-evt ajd-${teinte} ajd-${moment}${e.horsAgenda ? ' ajd-hors-agenda' : ''}">
           <span class="ajd-heure">${heures}</span>
           <span class="ajd-barre" aria-hidden="true"></span>
           <span class="ajd-texte">
             <span class="ajd-etiquette">${escapeHtml(etiquetteEvenementAgenda(e, natureEvenementAgenda(e, categories)))}${moment === 'en-cours' ? ' <span class="ajd-maintenant">en cours</span>' : ''}</span>
-            ${connu ? `<button type="button" class="ajd-titre ajd-titre-lien" onclick="${ouvrir}" title="Ouvrir la fiche du dossier">${titre}</button>` : `<span class="ajd-titre">${titre}</span>`}
+            ${ouvrirAgenda ? `<button type="button" class="ajd-titre ajd-titre-lien" onclick="${ouvrirAgenda}" title="Voir le rendez-vous dans l’agenda">${titre}</button>`
+              : connu ? `<button type="button" class="ajd-titre ajd-titre-lien" onclick="${ouvrir}" title="Ouvrir la fiche du dossier">${titre}</button>` : `<span class="ajd-titre">${titre}</span>`}
             ${sous ? `<span class="ajd-sous">${sous}</span>` : ''}
           </span>
         </li>`;
-    }).join('')}</ol>`;
+    }).join('');
   }
 
   // Colonne de droite de la fenêtre du matin en onglets (étude, 30/09 : « la pop-up prend trop de
@@ -19003,7 +19070,8 @@
     document.addEventListener('click', (e) => {
       if (ongletActuel !== 'agenda' || !agendaSelection || agendaModale || notesAgendaEdition) return;
       if (!document.body.contains(e.target)) return;
-      if (e.target.closest('#agenda-popover, .ag-evt, .ag-journee-evt, .ag-vm-evt, .ag-ligne, .ag-placer, .confirm-overlay, #agenda-overlay, #sondage-overlay, .toast')) return;
+      // Le clic venu d'ailleurs (widget Agenda du tableau de bord) qui vient d'ouvrir un rendez-vous ne le referme pas.
+      if (e.target.closest('#agenda-popover, .ag-evt, .ag-journee-evt, .ag-vm-evt, .ag-ligne, .ag-placer, .confirm-overlay, #agenda-overlay, #sondage-overlay, .toast, #onglet-dashboard')) return;
       agendaSelection = null;
       renderPageAgenda();
     });
@@ -24811,6 +24879,7 @@
     setInterval(chargerAbsencesOffice, 2 * 60 * 1000);
     // Page Agenda ouverte : relue au même rythme que le tour de lecture du serveur (2 min).
     setInterval(() => { if (ongletActuel === 'agenda' && !agendaModale) chargerAgendaSemaine(); }, 2 * 60 * 1000);
+    setInterval(() => { if (ongletActuel === 'dashboard') chargerAgendaWidget(true); }, 2 * 60 * 1000);
     setInterval(majTraitHeureAgenda, 30 * 1000);
     await chargerEtatNas();
     // Avant toute relecture du NAS : un parcours lancé sans elles reconnaîtrait des fichiers que

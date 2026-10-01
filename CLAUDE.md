@@ -479,7 +479,9 @@ Plainte principale de l'étude : **le bruit**, pas les oublis — ne pas élargi
   `ajusterWidgets` les remplit par priorité (N petit d'abord) jusqu'à la hauteur de la tuile, avec
   « Voir N de plus » ; une carte qui a de la place reçoit du contenu d'appoint (à venir, prochaines
   signatures, pièces encore attendues…), pas un blanc. « Personnaliser » (ou appui long sur un titre) :
-  glisser-déposer au pointeur, largeur et hauteur, retirer (×). **« Widgets »** (01/10) : liste de tous les widgets
+  glisser-déposer au pointeur, largeur et hauteur, retirer (×). **Widget Agenda** (01/10) = l'agenda partagé de l'office (stock `agenda-office`, `chargerAgendaWidget`,
+  + `signaturesHorsAgenda`), lignes `lignesEvenementsAgendaJour` ; un clic ouvre la page Agenda au rendez-vous
+  (`ouvrirEvenementDepuisWidgetAgenda`). **« Widgets »** (01/10) : liste de tous les widgets
   (`lignesGalerieWidgets`, `#widgets-overlay`), Retirer / Ajouter — retirer = `masque`, taille gardée ; tout nouveau
   widget de `WIDGETS_DASHBOARD` porte `icone` et `description`. Disposition par collaborateur : préférence
   `widgets` en base (liste blanche `WIDGETS_PREFERENCES` côté serveur, `WIDGETS_DASHBOARD` côté

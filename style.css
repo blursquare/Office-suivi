@@ -7790,3 +7790,19 @@ button.outil-tuile:focus-visible { outline: 2px solid var(--focus); outline-offs
 .outil-tuile-texte { font-size: 13px; line-height: 1.4; color: var(--ink-soft); }
 @media (prefers-reduced-motion: reduce) { button.outil-tuile { transition: none; } button.outil-tuile:hover { transform: none; } }
 @media (max-width: 480px) { .outils-grille { grid-template-columns: 1fr 1fr; gap: 10px; } button.outil-tuile { padding: 16px 14px; } .outil-tuile-icone { width: 48px; height: 48px; font-size: 22px; } }
+
+
+/* ---- Widget Agenda relié à l'agenda de l'office (01/10) ---- */
+.ajd-liste.ajd-compacte { gap: 8px; }
+.ajd-compacte .ajd-evt { grid-template-columns: 44px 3px minmax(0, 1fr); gap: 8px; }
+.ajd-compacte .ajd-heure .ajd-duree { display: none; }
+.ajd-compacte .ajd-titre { font-size: 13px; }
+.ajd-hors-agenda .ajd-barre { background: none; border: 1.5px dashed var(--ag-teinte, var(--line)); }
+.w-agenda-pastille { width: 4px; height: 16px; flex: none; border-radius: 2px; background: var(--ag-teinte, var(--line)); }
+.w-agenda-pastille.ajd-hors-agenda { background: none; border: 1.5px dashed var(--ag-teinte, var(--line)); width: 2px; }
+button.w-titre-lien { font: inherit; color: inherit; background: none; border: none; padding: 0; cursor: pointer; }
+button.w-titre-lien:hover { color: var(--focus); }
+button.w-jour-lien { border: none; background: none; padding: 0; cursor: pointer; font-family: inherit; }
+.w-note-alerte { color: var(--pret); }
+.ajd-compacte .ajd-heure b { font-size: 12.5px; }
+.ajd-compacte .ajd-journee .ajd-heure b, .ajd-compacte .ajd-heure b:only-child { font-size: 11px; }

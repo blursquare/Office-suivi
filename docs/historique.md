@@ -14103,3 +14103,18 @@ de la pilule, rouge gardé (choix antérieur de l'étude).
 Demande de l'étude : « dans la sidebar ouverte, tiroir ouvert, remettre le liseré ». Les règles qui retiraient le
 tronc et les branches (`.sidebar-sousmenu::before`, `.sidebar-sousmenu-item::before`) et l'indentation du tiroir
 sont retirées ; seules les icônes des outils restent masquées, le texte tombant à l'aplomb de celui des liens.
+
+### 01/10 — Widget Agenda relié à l'agenda partagé de l'office
+
+Demande de l'étude : « lier le widget agenda avec l'agenda CLAIRE / Sophie partagé ». Le widget ne montrait que les
+signatures fixées dans les dossiers. Il lit désormais le stock de l'agenda de l'office (calendrier de Sophie, lu
+toutes les 2 min par le serveur) par `GET /api/agenda/evenements` (`chargerAgendaWidget`, 6 semaines à partir du
+lundi affiché, relu toutes les 2 min sur le tableau de bord et à chaque retour), plus les signatures de CLAIRE
+absentes d'Outlook (`signaturesHorsAgenda`, en pointillé). Bande de la semaine : un point par jour qui a un
+rendez-vous (tous types). Jour choisi : tous ses rendez-vous triés comme Outlook (`evenementsTriesJour`) dans les
+lignes de la fenêtre du matin (`lignesEvenementsAgendaJour`, couleur Outlook, étiquette, « Fiche » pour un dossier
+reconnu). Appoint : « Prochains rendez-vous » (`prochainsEvenementsAgenda`, sans absences ni dates butoir) puis
+« Prochaines échéances ». Un clic ouvre la page Agenda au jour du rendez-vous, détail ouvert
+(`ouvrirEvenementDepuisWidgetAgenda` ; le clic d'origine est ignoré par la fermeture automatique du détail) ;
+titre et icône calendrier ouvrent l'agenda. Navigation d'une semaine en arrière à 8 en avant ; état de lecture
+dans le sous-titre (« Agenda Outlook non relié » si la connexion n'est pas réglée).
