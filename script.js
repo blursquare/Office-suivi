@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-01 21:31';
+  const VERSION_APP = '2026-10-01 21:36';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-01 21:36', resume: "Barre latérale : le liseré qui relie les outils à « Outils » est de retour quand le tiroir est ouvert." },
     { version: '2026-10-01 21:31', resume: "Barre latérale épurée : plus de titres de section, seulement les liens vers les pages. « Outils » ouvre une page où chaque outil a sa grosse icône et une phrase ; le + à sa droite déplie les outils dans la barre (barre repliée : survol de l'icône, comme avant). Les compteurs (pièces, signalements, scans) prennent une forme carrée aux coins arrondis." },
     { version: '2026-10-01 21:08', resume: "Réglages réorganisés, une rubrique par sujet : Général, Collaborateurs (adresse et fonction de chacun, avec son propre bouton Enregistrer), Signature des emails, Rappels Teams (envoi Gmail et dernier tour), Agenda et Outlook (connexion, lecture, et une section Sondages de créneaux), Téléphonie 3CX (rubrique à part), Pièces et Claire Scan (la notification d'une nouvelle pièce y est rangée), Relecture d'actes, Signalements, Mise à jour et sauvegarde." },
     { version: '2026-10-01 20:55', resume: "Tableau de bord : bouton « Widgets » à côté de « Personnaliser », qui ouvre la liste de tous les widgets — ceux affichés avec « Retirer », ceux retirés avec « Ajouter », chacun décrit. En mode Personnaliser, la croix d'une carte la retire et « Ajouter un widget » rouvre la liste. Un widget retiré revient à sa taille d'avant. Choix propre à chaque collaborateur." },

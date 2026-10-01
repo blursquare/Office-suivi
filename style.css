@@ -7745,7 +7745,7 @@ button.secondary.widgets-galerie-retirer svg { width: 13px; height: 13px; }
 
 /* ---- Barre latérale sans titres de section (étude, 01/10, sur un exemple) : « Outils » est un lien
    vers la page des outils, le + à sa droite ouvre le tiroir ; dans le tiroir, les outils sans icône,
-   alignés sur le texte des liens. ---- */
+   reliés par le liseré. ---- */
 .sidebar-outils-ligne { display: flex; align-items: center; gap: 2px; }
 .sidebar-outils-ligne #tab-outils { flex: 1 1 auto; min-width: 0; }
 button.sidebar-outils-plus {
@@ -7760,10 +7760,8 @@ button.sidebar-outils-plus:focus-visible { outline: 2px solid var(--focus); outl
 .sidebar-outils-ligne:has(+ .sidebar-sousmenu.ferme .actif) #tab-outils {
   background: var(--sidebar-actif-bg); color: var(--ink); box-shadow: inset 3px 0 0 var(--focus);
 }
-.sidebar-sousmenu:not(.volet-ouvert) { margin-left: 0; padding-left: 0; }
-.sidebar-sousmenu:not(.volet-ouvert)::before,
-.sidebar-sousmenu:not(.volet-ouvert) .sidebar-sousmenu-item::before { display: none; }
-.sidebar-sousmenu:not(.volet-ouvert) .sidebar-sousmenu-item { padding-left: 41px; }
+/* Liseré gardé (étude, 01/10 : « remettre le liseré ») : le tronc part sous l'icône Outils, une branche
+   par outil ; le texte des outils, sans icône, tombe à l'aplomb de celui des liens. */
 .sidebar-sousmenu:not(.volet-ouvert) .sidebar-sousmenu-item .sidebar-link-icone { display: none; }
 @media (min-width: 901px) {
   .sidebar.repliee button.sidebar-outils-plus { display: none; }

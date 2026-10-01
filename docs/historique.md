@@ -14097,3 +14097,9 @@ arborescence, alignés sur le texte des liens ; tiroir fermé avec un outil ouve
 repliée : le + disparaît, le survol de l'icône Outils ouvre le volet flottant (ancré désormais sur `#tab-outils`),
 le clic ouvre la page. Compteurs (`.sidebar-badge-notif`, pastille de Claire Scan) : carré arrondi (7 px) au lieu
 de la pilule, rouge gardé (choix antérieur de l'étude).
+
+### 01/10 — Tiroir Outils : liseré rétabli
+
+Demande de l'étude : « dans la sidebar ouverte, tiroir ouvert, remettre le liseré ». Les règles qui retiraient le
+tronc et les branches (`.sidebar-sousmenu::before`, `.sidebar-sousmenu-item::before`) et l'indentation du tiroir
+sont retirées ; seules les icônes des outils restent masquées, le texte tombant à l'aplomb de celui des liens.
