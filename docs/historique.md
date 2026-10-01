@@ -13832,3 +13832,25 @@ lien : question restée sans réponse, rien de fait.)
 - Tests `tests/agenda-visio.test.js` (invitations inventées). Vérifié dans Chromium avec un faux Exchange
   (corps réécrit lu dans la requête UpdateItem), clair et sombre. **Non vérifié** : la forme réelle du .ics
   rendu par ls.visio.adnov.fr (aucun exemple fourni) — à confirmer sur une vraie invitation.
+
+
+### 01/10/2026 15 h 41 — Visio : envoyer le lien aux clients et/ou au confrère
+
+Réponses de l'étude : email avec le lien de la visio — « OUI, ça peut être les deux » (clients, confrère) ;
+« le rendez-vous contient une note avec les informations pour se connecter ».
+- Détail d'un rendez-vous dont la note porte le bloc « Visio ADNOV : … » : « Envoyer le lien » (aussi en
+  bouton du toast juste après l'ajout de l'invitation). `ouvrirEnvoiVisio` RELIT la note du rendez-vous
+  (GET notes) et en tire le bloc (`blocVisioDansNotes` : lien + informations de connexion jusqu'à la ligne
+  vide) — une note retouchée dans Outlook est prise telle quelle.
+- Fenêtre « Envoyer le lien de la visio » (modale de l'agenda, type `envoiVisio`) : destinataires
+  `destinatairesVisio` (ceux du sondage — clients, ou confrère qui représente une partie — plus une ligne
+  « Confrère » libre décochée s'il n'y en a pas ; sans dossier, un client et un confrère libres ; saisir une
+  adresse coche la ligne), et les informations de connexion affichées telles qu'elles partiront.
+- `preparerEmailsVisio` : `groupesEmailSondage` (clients ensemble, chaque confrère à part),
+  `corpsEmailVisio` (pur, premier jet de CLAIRE à remplacer par le texte de l'étude ; pièce d'identité
+  demandée pour une signature) + bouton « Rejoindre la visioconférence » ; `livrerEmailDossier` (.eml
+  prêt à envoyer, formule du confrère par `adapterCorpsEmail`). Adresses vendeur/acquéreur saisies gardées
+  sur la fiche, ligne d'historique.
+- Lecture du .ics : informations de connexion gardées plus largement (25 lignes, 2 000 caractères).
+- Vérifié dans Chromium : deux .eml (clients ; confrère « Mon Cher Maître, … Votre bien dévoué. »), corps
+  relu dans les fichiers.

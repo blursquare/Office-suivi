@@ -79,3 +79,28 @@ test('estVisioAgenda : catégorie visio réglée, ou signature d’un dossier en
   assert.equal(app.estVisioAgenda({ signature: true, categories: [] }, cats, { rendezVousType: 'visio' }), true);
   assert.equal(app.estVisioAgenda({ categories: [] }, cats, null), false);
 });
+
+test('blocVisioDansNotes : le lien et les informations de connexion qui le suivent, jusqu’à la ligne vide', () => {
+  const notes = 'Apporter le RIB.\n\nVisio ADNOV : https://ls.visio.adnov.fr/call/7\nCode : 7\nPar téléphone : 01 00 00 00 00\n\nAppel de fonds envoyé.';
+  const b = app.blocVisioDansNotes(notes);
+  assert.equal(b.lien, 'https://ls.visio.adnov.fr/call/7');
+  assert.equal(b.details, 'Code : 7\nPar téléphone : 01 00 00 00 00');
+  assert.equal(app.blocVisioDansNotes('Sans visio'), null);
+});
+
+test('corpsEmailVisio : clients (bonjour, pièce d’identité pour une signature) et confrère (sans formule, posée ensuite)', () => {
+  const client = app.corpsEmailVisio({ confrere: false, signature: true, quand: 'jeudi 21 octobre à 15 h 00', dossier: 'VTE - DUPONT / MARTIN', details: 'Code : 7' });
+  assert.match(client, /^Bonjour,\n\nVotre rendez-vous de signature de la vente VTE - DUPONT \/ MARTIN du jeudi 21 octobre à 15 h 00 se tiendra en visioconférence\./);
+  assert.match(client, /pièce d’identité/);
+  assert.match(client, /\{\{BOUTONS\}\}\n\nInformations de connexion :\nCode : 7$/);
+  const confrere = app.corpsEmailVisio({ confrere: true, signature: false, quand: 'lundi 5 octobre à 10 h 00', dossier: '', details: '' });
+  assert.equal(confrere, 'Le rendez-vous du lundi 5 octobre à 10 h 00 se tiendra en visioconférence. Vous trouverez ci-dessous le lien pour rejoindre la réunion.\n\n{{BOUTONS}}');
+  assert.match(app.adapterCorpsEmail(confrere, true), /^Mon Cher Maître,/);
+});
+
+test('destinatairesVisio : clients du dossier + confrère libre décoché ; sans dossier, client et confrère libres', () => {
+  const d = { id: 'd1', nom: 'DUPONT / MARTIN', parties: [], emailVendeur: 'v@exemple.test', emailAcquereur: 'a@exemple.test' };
+  const l = app.destinatairesVisio(d, []);
+  assert.equal(l.map(p => `${p.role}:${p.coche}`).join(','), 'vendeur:true,acquereur:true,confrere-libre:false');
+  assert.equal(app.destinatairesVisio(null, []).map(p => `${p.role}:${p.confrere}:${p.coche}`).join(','), 'autre:false:true,confrere-libre:true:false');
+});

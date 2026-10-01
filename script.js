@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-01 15:37';
+  const VERSION_APP = '2026-10-01 15:41';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-01 15:41', resume: "Agenda : « Envoyer le lien » de la visio — prépare l'email aux clients (ensemble) et/ou au confrère (le sien, formule d'usage), avec un bouton vers la visio et les informations de connexion relues dans la note du rendez-vous. Proposé aussi juste après l'ajout de l'invitation .ics. Texte : premier jet de CLAIRE." },
     { version: '2026-10-01 15:37', resume: "Agenda : visio ADNOV — sur un rendez-vous en visio, « Créer la visio » ouvre le site de la profession ; l'invitation .ics qu'il rend, déposée sur l'agenda (ou choisie dans le détail du rendez-vous), ajoute son lien aux notes du rendez-vous de même date et même heure, sans créer de doublon. Le détail montre ensuite « Rejoindre la visio ». Après la création d'un rendez-vous en visio, le message propose « Créer la visio »." },
     { version: '2026-10-01 15:32', resume: "Agenda : « Proposer plusieurs dates » dans le formulaire d'un nouveau rendez-vous (dossier sans signature) — ouvre le sondage de créneaux du dossier avec le créneau saisi en tête, suivi des créneaux que CLAIRE propose ; d'autres s'ajoutent à la main." },
     { version: '2026-10-01 15:30', resume: "Aujourd'hui : une case ronde à cocher devant chaque tâche (la cocher la note faite) ; vos rappels notés à la main entrent dans « À faire » et y reviennent chaque jour tant qu'ils ne sont pas cochés (« Non fait hier »), y compris ceux sans échéance. Agenda : un clic place le créneau, un double-clic ouvre le formulaire du rendez-vous (un second clic simple déplace le créneau)." },
@@ -19679,8 +19680,8 @@
     const lien = premierLien(props.URL && props.URL.valeur) || premierLien(texteIcs(props.LOCATION && props.LOCATION.valeur)) || premierLien(description);
     const debut = heureParis(props.DTSTART);
     const fin = heureParis(props.DTEND);
-    // Détails utiles (code de la réunion, numéro d'appel…) : les lignes non vides de la description,
-    // sans le lien déjà repris, 10 lignes et 800 caractères au plus.
+    // Informations de connexion (code de la réunion, numéro d'appel…) : les lignes non vides de la
+    // description, sans le lien déjà repris, 25 lignes et 2 000 caractères au plus.
     // Une ligne qui ne fait qu'annoncer le lien (« Rejoindre la réunion : » ou « Rejoindre : https://… »)
     // est retirée : le lien est déjà en tête du bloc.
     const lignes = description.split('\n').map(l => l.trim());
@@ -19689,7 +19690,7 @@
       if (lien && l.indexOf(lien) !== -1 && (!sansLien || /:$/.test(sansLien))) return '';
       if (/:$/.test(l) && l.length <= 60 && lien && (lignes[i + 1] || '').indexOf(lien) === 0) return '';
       return l;
-    }).filter(l => l && !/^[-_=*~]{3,}$/.test(l)).slice(0, 10).join('\n').slice(0, 800);
+    }).filter(l => l && !/^[-_=*~]{3,}$/.test(l)).slice(0, 25).join('\n').slice(0, 2000);
     return {
       lien, details,
       resume: texteIcs(props.SUMMARY && props.SUMMARY.valeur).slice(0, 200),
@@ -19702,6 +19703,50 @@
   function lienVisioDansNotes(notes) {
     const m = new RegExp(ENTETE_NOTES_VISIO.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*(https://\\S+)').exec(String(notes || ''));
     return m ? m[1] : '';
+  }
+
+  // Pure : le bloc de la visio des notes — le lien et les informations de connexion qui le suivent
+  // (jusqu'à la ligne vide). Rend { lien, details } ou null.
+  function blocVisioDansNotes(notes) {
+    const t = String(notes || '').replace(/\r\n/g, '\n');
+    const i = t.indexOf(ENTETE_NOTES_VISIO);
+    const lien = lienVisioDansNotes(t);
+    if (i === -1 || !lien) return null;
+    const fin = t.indexOf('\n\n', i);
+    const lignes = t.slice(i, fin === -1 ? t.length : fin).split('\n').slice(1).map(l => l.trim()).filter(Boolean);
+    return { lien, details: lignes.join('\n') };
+  }
+
+  // Pur : l'email qui envoie le lien de la visio — premier jet de CLAIRE (étude, 01/10 : « ça peut être
+  // les deux », clients et confrère), à remplacer par le texte de l'étude. Le bouton porte le lien ; les
+  // informations de connexion de la note suivent. La formule du confrère est posée par adapterCorpsEmail.
+  function corpsEmailVisio({ confrere, signature, quand, dossier, details }) {
+    const objet = signature ? `rendez-vous de signature${dossier ? ' de la vente ' + dossier : ''}` : `rendez-vous${dossier ? ' (' + dossier + ')' : ''}`;
+    const infos = details ? `Informations de connexion :\n${details}` : '';
+    if (confrere) {
+      return [
+        `Le ${objet} du ${quand} se tiendra en visioconférence. Vous trouverez ci-dessous le lien pour rejoindre la réunion.`,
+        '{{BOUTONS}}',
+        infos
+      ].filter(Boolean).join('\n\n');
+    }
+    return [
+      'Bonjour,',
+      `Votre ${objet} du ${quand} se tiendra en visioconférence.`,
+      `Quelques minutes avant l’heure, cliquez sur le bouton ci-dessous pour rejoindre la réunion depuis un ordinateur, une tablette ou un téléphone équipé d’une caméra et d’un micro.${signature ? ' Merci de vous munir de votre pièce d’identité.' : ''}`,
+      '{{BOUTONS}}',
+      infos
+    ].filter(Boolean).join('\n\n');
+  }
+
+  // Pure : les destinataires proposés — ceux du dossier (clients, ou le confrère qui représente une
+  // partie), plus une ligne « confrère » libre, décochée, s'il n'y en a pas ; sans dossier, un client et
+  // un confrère libres.
+  function destinatairesVisio(d, carnet) {
+    const base = d ? participantsSondage(d, carnet).map(p => Object.assign({}, p, { coche: true }))
+      : [{ role: 'autre', nom: '', email: '', confrere: false, coche: true }];
+    if (!base.some(p => p.confrere)) base.push({ role: 'confrere-libre', nom: '', email: '', confrere: true, coche: false });
+    return base;
   }
 
   // Pure : les notes avec le bloc de la visio — remplacé s'il y en avait déjà un (nouvelle invitation),
@@ -19733,7 +19778,8 @@
     const cle = escapeOnclickArg(cleEvenementAgenda(e));
     const choisir = `<label class="lien-bouton ag-visio-ics" title="Choisir l’invitation .ics rendue par le site ADNOV — ou la déposer sur l’agenda">${icone('upload')} ${lien ? 'Remplacer l’invitation (.ics)' : 'Ajouter l’invitation (.ics)'}<input type="file" accept=".ics,text/calendar" hidden onchange="choisirIcsRendezVous('${cle}', this)"></label>`;
     return `<div class="ag-visio">
-        ${lien ? `<a class="primary ag-visio-rejoindre" href="${escapeAttr(lien)}" target="_blank" rel="noopener">${icone('video')} Rejoindre la visio</a>`
+        ${lien ? `<a class="primary ag-visio-rejoindre" href="${escapeAttr(lien)}" target="_blank" rel="noopener">${icone('video')} Rejoindre la visio</a>
+          <button type="button" class="secondary ag-visio-creer" onclick="ouvrirEnvoiVisio('${cle}')" title="Préparer l’email aux clients et/ou au confrère, avec le lien et les informations de connexion">${icone('mail')} Envoyer le lien</button>`
           : `<button type="button" class="secondary ag-visio-creer" onclick="ouvrirSiteVisio()" title="Ouvrir le site de visio de la profession (ADNOV)">${icone('video')} Créer la visio</button>`}
         ${choisir}
       </div>`;
@@ -19814,12 +19860,107 @@
       if (brut && corps.changeKey) brut.changeKey = corps.changeKey;
       const d = dossierDeEvenement(e);
       if (d) { ajouterHistorique(d, `Lien de la visio ajouté au rendez-vous du ${formatDateFr(e.date)} (notes du rendez-vous dans l’agenda).`); sauvegarder(d); }
-      afficherToast('Lien de la visio ajouté au rendez-vous.', 'OK', null);
-      agendaSelection = cleEvenementAgenda(e);
+      const cleEvt = cleEvenementAgenda(e);
+      afficherToast('Lien de la visio ajouté au rendez-vous.', 'Envoyer le lien', () => ouvrirEnvoiVisio(cleEvt));
+      agendaSelection = cleEvt;
       renderPageAgenda();
     } catch (err) {
       afficherToast('Serveur injoignable — lien de la visio non ajouté.', 'OK', null);
     }
+  }
+
+  // Envoi du lien (étude, 01/10) : les informations de connexion sont RELUES dans la note du rendez-vous
+  // au moment d'ouvrir la fenêtre (une note retouchée dans Outlook est prise telle quelle).
+  async function ouvrirEnvoiVisio(cle) {
+    const e = evenementsAffichesAgenda().find(x => cleEvenementAgenda(x) === cle);
+    if (!e || !e.itemId) return;
+    let notes = '';
+    try {
+      const lu = await (await fetchAvecAuth(`/api/exchange/evenement/notes?itemId=${encodeURIComponent(e.itemId)}`)).json();
+      if (!lu.ok) { afficherToast(lu.message || 'Les notes du rendez-vous n’ont pas pu être lues.', 'OK', null); return; }
+      notes = lu.notes || '';
+      notesAgenda[e.itemId] = { etat: 'ok', notes, changeKey: lu.changeKey || '' };
+    } catch (err) { afficherToast('Serveur injoignable — notes du rendez-vous non lues.', 'OK', null); return; }
+    const bloc = blocVisioDansNotes(notes);
+    if (!bloc) { afficherToast('Aucun lien de visio dans les notes de ce rendez-vous : ajoutez d’abord l’invitation (.ics).', 'OK', null); return; }
+    const d = dossierDeEvenement(e);
+    agendaSelection = null;
+    renderPageAgenda();
+    agendaModale = { type: 'envoiVisio', cle, bloc, dossierId: d ? d.id : '', participants: destinatairesVisio(d, typeof carnetConfreres !== 'undefined' ? carnetConfreres : []) };
+    const contenu = document.getElementById('agenda-modale-contenu');
+    if (contenu) contenu.innerHTML = '';
+    renderModaleAgenda();
+  }
+
+  function renderEnvoiVisio(m) {
+    const e = evenementsAffichesAgenda().find(x => cleEvenementAgenda(x) === m.cle);
+    if (!e) return '';
+    const libelleRole = (p) => p.role === 'confrere-libre' ? 'Confrère' : p.role === 'autre' ? 'Client' : (LIBELLES_ROLE_SONDAGE[p.role] || '');
+    return `<header class="ag-modale-tete" id="agenda-visio-envoi">
+        <div><h2 class="ag-modale-titre" id="agenda-modale-titre">Envoyer le lien de la visio</h2>
+        <div class="ag-modale-quand">${escapeHtml(e.sujet || '')} · ${escapeHtml(libelleCreneauSondage({ date: e.date, heure: e.heure }))} ${infoBulle('Les clients reçoivent un email ensemble, chaque confrère le sien (formule d’usage). L’email porte un bouton vers la visio et les informations de connexion de la note du rendez-vous. Texte : premier jet de CLAIRE.')}</div></div>
+        <button type="button" class="icon-btn ag-modale-x" onclick="fermerModaleAgenda()" aria-label="Fermer">${icone('x')}</button>
+      </header>
+      <form class="ag-modale-corps ag-form" onsubmit="event.preventDefault(); preparerEmailsVisio();">
+        <div class="sondage-bloc">
+          <div class="sondage-bloc-titre">Destinataires</div>
+          <ul class="sondage-participants">${m.participants.map((p, i) => `<li>
+            <label class="sondage-case"><input type="checkbox" id="visio-dest-${i}" ${p.coche ? 'checked' : ''} onchange="agendaModale.participants[${i}].coche = this.checked">
+              <span><b>${escapeHtml(libelleRole(p))}</b>${p.nom ? ' · ' + escapeHtml(p.nom) : ''}</span></label>
+            <input type="email" class="sondage-email" id="visio-email-${i}" value="${escapeAttr(p.email)}" placeholder="Adresse email" oninput="agendaModale.participants[${i}].email = this.value.trim(); if (this.value.trim()) { agendaModale.participants[${i}].coche = true; document.getElementById('visio-dest-${i}').checked = true; }" aria-label="Email — ${escapeAttr(libelleRole(p))}">
+          </li>`).join('')}</ul>
+        </div>
+        <div class="sondage-bloc">
+          <div class="sondage-bloc-titre">Informations de connexion</div>
+          <div class="ag-notes-texte">${escapeHtml([m.bloc.lien].concat(m.bloc.details ? [m.bloc.details] : []).join('\n'))}</div>
+        </div>
+        <footer class="ag-modale-pied ag-modale-pied-form">
+          <span class="jour-espace"></span>
+          <button type="button" class="secondary" onclick="fermerModaleAgenda()">Annuler</button>
+          <button type="submit" class="primary" id="visio-envoi-ok">${icone('mail')} Préparer les emails</button>
+        </footer>
+      </form>`;
+  }
+
+  async function preparerEmailsVisio() {
+    const m = agendaModale;
+    if (!m || m.type !== 'envoiVisio') return;
+    const e = evenementsAffichesAgenda().find(x => cleEvenementAgenda(x) === m.cle);
+    if (!e) return;
+    const d = m.dossierId ? dossiers.find(x => x.id === m.dossierId) : null;
+    const retenus = m.participants.filter(p => p.coche);
+    if (!retenus.length) { afficherToast('Cochez au moins un destinataire.', 'OK', null); return; }
+    const invalide = retenus.find(p => !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(p.email || ''));
+    if (invalide) { afficherToast('Adresse email manquante ou invalide pour un destinataire coché.', 'OK', null); return; }
+    const bouton = document.getElementById('visio-envoi-ok');
+    if (bouton) bouton.disabled = true;
+    const quand = libelleCreneauSondage({ date: e.date, heure: e.heure });
+    const signature = !!e.signature;
+    const sujet = `Rendez-vous en visioconférence du ${new Date(e.date + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}${d ? ' — ' + libelleDossierAffiche(d) : ''}`;
+    let dernier = null;
+    for (const g of groupesEmailSondage(retenus)) {
+      dernier = await livrerEmailDossier({
+        destinataire: g.participants.map(p => p.email).join(', '),
+        sujet,
+        corps: corpsEmailVisio({ confrere: g.confrere, signature, quand, dossier: d ? libelleDossierAffiche(d) : '', details: m.bloc.details }),
+        confrere: g.confrere,
+        boutons: [{ libelle: 'Rejoindre la visioconférence', href: m.bloc.lien }],
+        responsableSignature: d ? d.responsable : ''
+      });
+      if (!dernier.ok) { if (bouton) bouton.disabled = false; afficherToast(dernier.message || 'L’email n’a pas pu être préparé.', 'OK', null); return; }
+    }
+    if (d) {
+      // Une adresse saisie ici pour le vendeur ou l'acquéreur est gardée sur la fiche (comme le sondage).
+      for (const p of retenus) {
+        if (p.role === 'vendeur' && p.email !== (d.emailVendeur || '')) { d.emailVendeur = p.email; ajouterHistorique(d, `Email du vendeur : ${p.email}`); }
+        if (p.role === 'acquereur' && p.email !== (d.emailAcquereur || '')) { d.emailAcquereur = p.email; ajouterHistorique(d, `Email de l’acquéreur : ${p.email}`); }
+      }
+      ajouterHistorique(d, `Lien de la visio du ${formatDateFr(e.date)} : email préparé (${groupesEmailSondage(retenus).map(g => g.confrere ? 'confrère' : 'clients').join(', ')}).`);
+      sauvegarder(d);
+    }
+    agendaModale = null;
+    renderModaleAgenda();
+    annoncerEmailPret(dernier, true, '');
   }
 
   // ---- Notes du rendez-vous (corps du rendez-vous dans Outlook, choix de l'étude du 30/09) ----
@@ -21020,7 +21161,7 @@
   function renderModaleAgenda() {
     const overlay = document.getElementById('agenda-overlay');
     if (!overlay) return;
-    const types = { creation: [renderCreationAgenda, '#agenda-creation-titre'], modification: [renderModificationAgenda, '#agenda-modif-titre'] };
+    const types = { creation: [renderCreationAgenda, '#agenda-creation-titre'], modification: [renderModificationAgenda, '#agenda-modif-titre'], envoiVisio: [renderEnvoiVisio, '#agenda-visio-envoi'] };
     const type = agendaModale && types[agendaModale.type];
     if (!type || ongletActuel !== 'agenda') { overlay.style.display = 'none'; return; }
     const contenu = document.getElementById('agenda-modale-contenu');
