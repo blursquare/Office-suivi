@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-01 14:12';
+  const VERSION_APP = '2026-10-01 14:46';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-01 14:46', resume: "Rapport technique : l'avertissement « SQLite expérimental » que Node affiche à chaque démarrage du serveur n'est plus compté comme une erreur du serveur (il remontait dans chaque rapport sans rien signaler de réel)." },
     { version: '2026-10-01 14:12', resume: "Rapport technique : quand GitHub refuse le rapport, le message distingue « le jeton ne voit pas le dépôt » (accès au dépôt) de « pas le droit d'écrire les issues » (permission) et reprend la réponse exacte de GitHub, pour trouver la cause sans deviner." },
     { version: '2026-10-01 11:52', resume: "Teams : le responsable est prévenu quand un collègue déplace ou modifie la signature depuis la page Agenda (heure comprise) ou la marque « annulée / à replacer », et quand une signature est placée, déplacée ou passée en jaune directement dans Outlook (« … dans l'agenda de l'office »). Agenda : vues Semaine et Jour à partir de 8 h, grille moins haute ; sur une carte trop courte, les lignes Appel de fonds / Décompte / Projet restent dans le détail." },
     { version: '2026-10-01 11:41', resume: "Agenda : la catégorie d'un rendez-vous se change dans « Modifier » (à l'office, en visio, chez un confrère, sans catégorie) et une catégorie jaune « Annulé / à replacer » s'ajoute — posée sur une signature, elle retire la date de la fiche et remet le dossier dans « Rendez-vous à placer » (aussi quand le jaune est posé dans Outlook) ; retirer le jaune la rétablit. Dates butoir et absences en rose (absences rayées) pour les distinguer des rendez-vous." },

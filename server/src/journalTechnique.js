@@ -79,6 +79,17 @@ function messageDepuisArguments(args) {
   }).join(' ');
 }
 
+// Avertissements connus et sans conséquence, affichés mais jamais journalisés (ils remonteraient dans le
+// rapport comme « erreur du serveur » à chaque démarrage) : `node:sqlite` est marqué expérimental par
+// Node 22, ce que Node signale par console.error au premier chargement.
+const MESSAGES_NON_JOURNALISES = [
+  /ExperimentalWarning: SQLite is an experimental feature/,
+];
+
+function messageNonJournalise(message) {
+  return MESSAGES_NON_JOURNALISES.some((motif) => motif.test(message));
+}
+
 function installerCaptureConsole(journal, cons = console) {
   let enCours = false;
   const envelopper = (nom, categorie) => {
@@ -87,7 +98,10 @@ function installerCaptureConsole(journal, cons = console) {
       original(...args);
       if (enCours) return;
       enCours = true;
-      try { journal.noter({ source: 'serveur', categorie, message: messageDepuisArguments(args) }); } catch (_) { /* jamais bloquant */ }
+      try {
+        const message = messageDepuisArguments(args);
+        if (!messageNonJournalise(message)) journal.noter({ source: 'serveur', categorie, message });
+      } catch (_) { /* jamais bloquant */ }
       finally { enCours = false; }
     };
     return original;
@@ -96,4 +110,4 @@ function installerCaptureConsole(journal, cons = console) {
   return () => { cons.error = originaux.error; cons.warn = originaux.warn; };
 }
 
-module.exports = { creerJournalTechnique, installerCaptureConsole, messageDepuisArguments, CATEGORIES, CONSERVATION_JOURS };
+module.exports = { creerJournalTechnique, installerCaptureConsole, messageDepuisArguments, messageNonJournalise, CATEGORIES, CONSERVATION_JOURS };
