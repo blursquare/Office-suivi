@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-01 18:29';
+  const VERSION_APP = '2026-10-01 18:33';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-01 18:33', resume: "Téléphonie 3CX : l'adresse à coller dans 3CX utilise maintenant l'adresse du serveur sur le réseau du bureau (192.168.…), et non « localhost » quand les Réglages sont ouverts depuis la fenêtre CLAIRE du serveur — « localhost » ne mène au serveur que depuis ce poste. À recopier dans 3CX après la mise à jour." },
     { version: '2026-10-01 18:29', resume: "Aujourd'hui : vos rappels en cours (échus ou sans date) sont en tête de « À faire », avec leur case ronde, et restent toujours visibles sur la carte du tableau de bord tant qu'ils ne sont pas cochés, quelle que soit sa taille. Le crayon les modifie ; ceux à venir restent sous « Mes rappels »." },
     { version: '2026-10-01 18:16', resume: "Téléphonie 3CX : bouton « Essayer » dans Réglages › Rappels, qui simule un appel sur le poste choisi (le bandeau « Appel entrant » doit apparaître dans sa fenêtre CLAIRE). Si l'essai marche mais pas un vrai appel, autoriser les fenêtres pop-up pour le client web 3CX dans Chrome/Edge. La fenêtre CLAIRE relève aussi les appels dès qu'elle revient au premier plan." },
     { version: '2026-10-01 18:05', resume: "Téléphonie 3CX : à chaque appel qui sonne, CLAIRE le note, reconnaît l'appelant (téléphone du vendeur ou de l'acquéreur saisi dans l'onglet Échanges, confrère du carnet, contact du répertoire), affiche « Appel entrant » et ouvre la fiche du dossier. Les appels de chaque dossier sont listés dans son onglet Échanges. L'adresse à coller dans 3CX pour chaque collaborateur est dans Réglages › Rappels." },
@@ -24336,15 +24337,36 @@
     } catch (e) { /* réessayé à la prochaine ouverture */ }
   }
 
-  // Réglages › Général : l'adresse de chaque collaborateur pour 3CX, et les derniers appels notés.
+  // Pure : l'adresse du serveur à donner à 3CX. Ouverte sur localhost (fenêtre du poste serveur),
+  // l'adresse de la page ne mène au serveur que depuis ce poste : on prend son adresse sur le réseau
+  // du bureau (192.168.… d'abord), même port.
+  function origineServeurPour3cx(loc, adresses) {
+    const hote = String(loc && loc.hostname || '');
+    if (!/^(localhost|127\.\d+\.\d+\.\d+|\[?::1\]?)$/i.test(hote)) return loc.origin;
+    const liste = (adresses || []).filter(Boolean);
+    const ip = liste.find(a => /^192\.168\./.test(a)) || liste.find(a => /^10\.|^172\.(1[6-9]|2\d|3[01])\./.test(a)) || liste[0];
+    return ip ? `${loc.protocol}//${ip}${loc.port ? ':' + loc.port : ''}` : loc.origin;
+  }
+
+  let origine3cx = '';
+
+  // Réglages › Rappels : l'adresse de chaque collaborateur pour 3CX, et les derniers appels notés.
   async function renderReglages3cx() {
     const liste = document.getElementById('reglages-3cx-liste');
     if (!liste) return;
+    if (!origine3cx) {
+      let adresses = [];
+      try {
+        const r = await fetchAvecAuth('/api/appels/adresses-serveur');
+        if (r.ok) adresses = (await r.json()).adresses || [];
+      } catch (e) { /* adresse de la page à défaut */ }
+      origine3cx = origineServeurPour3cx(location, adresses);
+    }
     liste.innerHTML = RESPONSABLES.map((nom, i) => `
       <div class="reglages-champ">
         <div class="reglages-champ-libelle"><label for="reglages-3cx-${i}">${escapeHtml(nom)}</label></div>
         <div class="reglages-champ-ligne">
-          <input type="text" id="reglages-3cx-${i}" readonly spellcheck="false" value="${escapeAttr(adresseIntegration3cx(location.origin, nom))}" onfocus="this.select()">
+          <input type="text" id="reglages-3cx-${i}" readonly spellcheck="false" value="${escapeAttr(adresseIntegration3cx(origine3cx, nom))}" onfocus="this.select()">
           <button type="button" class="secondary" onclick="copierAdresse3cx(${i})">Copier</button>
           <button type="button" class="secondary" onclick="essayerSonnerie3cx(${i})" title="Simule un appel sur ce poste, comme 3CX à la sonnerie">Essayer</button>
         </div>
@@ -24376,7 +24398,8 @@
   function essayerSonnerie3cx(i) {
     const nom = RESPONSABLES[i];
     if (!nom) return;
-    const fenetre = window.open(adresseEssai3cx(location.origin, nom), '_blank');
+    // L'adresse réseau, comme 3CX : l'essai vérifie aussi que le serveur y répond.
+    const fenetre = window.open(adresseEssai3cx(origine3cx || location.origin, nom), '_blank');
     if (!fenetre) { afficherToast('Le navigateur a bloqué la fenêtre d’essai : autorisez les fenêtres pop-up.', 'OK', null); return; }
     afficherToast(clePosteAppels(nom) === clePosteAppels(utilisateurPoste)
       ? 'Appel d’essai envoyé : le bandeau « Appel entrant » doit apparaître dans quelques secondes.'

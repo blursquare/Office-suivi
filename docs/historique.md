@@ -14046,3 +14046,15 @@ de la liste « À faire » de la carte, marqués `w-fixe` (jamais masqués ; la 
 ronde et un crayon (`ouvrirEditionRappel`, formulaire sous « Mes rappels ») ; ceux cochés aujourd'hui vont après les
 actions (`renderRappelsJour(…, partie)`). « Mes rappels » de la carte n'y répète plus les rappels du jour
 (`renderMesRappels(…, sansDuJour)`) : restent ceux à venir et l'ajout. Fenêtre du matin : rappels en tête aussi.
+
+### 01/10 — 3CX : l'adresse à coller ne doit pas être « localhost »
+
+Retour de l'étude : « j'ai la notification d'appel du test, mais j'ai mis mon numéro dans une fiche et appelé le
+standard, toujours rien ». La fenêtre CLAIRE du poste serveur est ouverte sur `http://localhost:<port>/`
+(`index.js`), et Réglages › Rappels construisait l'adresse 3CX sur `location.origin` : « localhost » ne mène au
+serveur que depuis ce poste-là — l'essai, lancé depuis la même fenêtre, marchait. Désormais
+`origineServeurPour3cx` remplace localhost/127.x par l'adresse du serveur sur le réseau (`GET
+/api/appels/adresses-serveur`, `adressesLan`, 192.168.… d'abord, même port), et « Essayer » passe par cette
+adresse. Autres causes possibles laissées à vérifier par l'étude : fenêtres pop-up bloquées pour le client web
+3CX ; appel au standard (file d'attente ou standard automatique) qui ne fait pas sonner le poste — essayer en
+appelant le numéro direct du poste ; « Derniers appels » vide = 3CX n'a pas joint CLAIRE.

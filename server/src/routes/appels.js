@@ -10,6 +10,7 @@
 
 const express = require('express');
 const { creerEntreeAppel, pageSonnerie } = require('../appels3cx');
+const { adressesLan } = require('../reseau');
 
 var FENETRE_VUE_MS = 15000;
 
@@ -59,6 +60,12 @@ function creerRouteurAppels(parametresRepo, etat) {
     const journal = parametresRepo.lireJournalAppels();
     const appels = depuis ? journal.filter(a => a.t >= depuis && (!a.poste || a.poste === poste)).slice(0, 5) : [];
     res.json({ appels, serverTime });
+  });
+  // Adresses du serveur sur le réseau du bureau : la fenêtre CLAIRE du poste serveur est ouverte sur
+  // http://localhost, adresse qui ne mène au serveur que depuis ce poste-là — l'adresse à coller dans
+  // 3CX doit être celle du réseau.
+  routeur.get('/appels/adresses-serveur', (req, res) => {
+    res.json({ adresses: (etat.adressesLan || adressesLan)() });
   });
   routeur.get('/appels', (req, res) => {
     const journal = parametresRepo.lireJournalAppels();

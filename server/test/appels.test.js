@@ -107,3 +107,9 @@ test('route : la sonnerie note l’appel sans session ; la fenêtre du poste le 
   assert.equal(jd.appels.length, 2);
   assert.equal((await fetch(`${baseUrl}/api/appels`)).status, 401);
 });
+
+test('route : adresses du serveur sur le réseau (pour l’adresse à coller dans 3CX)', async () => {
+  const r = await (await fetch(`${baseUrl}/api/appels/adresses-serveur`, { headers: { authorization: `Bearer ${jeton}` } })).json();
+  assert.ok(Array.isArray(r.adresses));
+  assert.ok(r.adresses.every(a => !/^127\./.test(a)));
+});

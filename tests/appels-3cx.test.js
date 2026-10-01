@@ -27,3 +27,11 @@ test('dossierAOuvrirPourAppel : un seul dossier en cours dont l’appelant est p
   assert.equal(app.dossierAOuvrirPourAppel({ dossiers: [{ id: 'inconnu', partie: 'vendeur' }] }, liste), null);
   assert.equal(app.dossiersDeLAppel(un, liste).map(y => y.partie).join(','), 'Acquéreur,Acquéreur');
 });
+
+test('origineServeurPour3cx : localhost remplacé par l’adresse du serveur sur le réseau du bureau', () => {
+  const loc = (h, p) => ({ hostname: h, port: p, protocol: 'http:', origin: `http://${h}${p ? ':' + p : ''}` });
+  assert.equal(app.origineServeurPour3cx(loc('localhost', '3000'), ['172.20.0.2', '192.168.60.12']), 'http://192.168.60.12:3000');
+  assert.equal(app.origineServeurPour3cx(loc('127.0.0.1', '3000'), ['10.0.0.5']), 'http://10.0.0.5:3000');
+  assert.equal(app.origineServeurPour3cx(loc('192.168.60.12', '3000'), ['10.0.0.5']), 'http://192.168.60.12:3000');
+  assert.equal(app.origineServeurPour3cx(loc('localhost', '3000'), []), 'http://localhost:3000');
+});
