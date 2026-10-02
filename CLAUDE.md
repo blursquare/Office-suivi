@@ -43,6 +43,7 @@ server/                              Serveur (son propre package.json ; le packa
                                      relectureClaude, relectures, extractionIa, offrePret,
                                      signatureImages — images de la signature des emails, …)
   src/carnetConfreres.js             Carnet des confrères (relevé initial des offices du 41, liste blanche)
+  src/annuaireNotaires.js            Notaires de France par département (data/annuaire-notaires.json, lecture seule)
   src/repertoire.js                  Répertoire hors notaires (relevé du répertoire Word de l'étude, par thème)
   src/ouvertureAuto.js               Installateur du relais « claire-ouvrir: » (ouverture auto des téléchargements)
   src/jobs/rappels.js                Rappels par email (miroir serveur du planning client)
@@ -411,7 +412,11 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
 - **Barème du simulateur de provision : jamais audité.** Indicatif seulement, jamais recopié dans
   un courrier ; le contrôle du barème de l'appel de fonds est un signal, il ne remplit rien.
 - **Répertoire** (Outils, 30/09) : thème « Confrères » = le carnet des confrères (inchangé, rapproché
-  des fiches) ; autres thèmes = `repertoire.js` (clé `repertoire-contacts`, relevé du répertoire Word
+  des fiches) ; **« Notaires de France »** (02/10, `server/src/annuaireNotaires.js`, données
+  `server/src/data/annuaire-notaires.json`, relevé immonot de 7 202 offices par `server/scripts/releve-annuaire-notaires.py`) :
+  référence en lecture seule par département, jamais versée d'office dans le carnet (homonymes) — « Ajouter au carnet » office
+  par office ; recherche nationale (50 au plus) ; repli de 3CX (`carnetEtAnnuaire`) ; `require` au chemin littéral (un chemin
+  calculé ne serait pas embarqué dans le .exe, un fichier absent casse la construction) ; autres thèmes = `repertoire.js` (clé `repertoire-contacts`, relevé du répertoire Word
   de l'étude du 02/09/2026, coordonnées d'organismes, jamais de client) — `THEMES_REPERTOIRE` côté
   serveur, repli identique dans `repertoireThemes` côté client. Rien n'y est deviné : une adresse
   douteuse du document est signalée en note, pas corrigée.

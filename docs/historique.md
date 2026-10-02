@@ -15072,3 +15072,25 @@ dossiers ; après : un). `creationDossierEnCours` + bouton `#btn-ajouter-dossier
 dossier ? » ; jamais deux fois le même id dans `dossiers` (synchronisation reçue pendant l'enregistrement, import JSON).
 Le compromis et Authentic se complétaient déjà dans le même dossier (`exportAuthenticActuel` gardé au dépôt du PDF en mode
 « Dossier Authentic », « Compléter » en mode PDF) : le doublon venait de la double création, pas d'un dossier par source.
+
+### 02/10/2026 17 h 52 — Notaires de France par département
+
+Étude : « essaie de compléter le répertoire par tous les notaires de France classés par département ». Relevé de l'annuaire
+public immonot (même source que le carnet du 41 du 29/09 ; notaires.fr refuse la lecture automatique, aucun jeu de données
+ouvert sur data.gouv.fr) : page de chaque département (données structurées ItemList/LocalBusiness : office, téléphone,
+email, adresse), puis fiche de chaque office (notaires `id="NOT…"`, bureaux secondaires). 105 départements (la page
+d'accueil de l'annuaire omet 78, 85, 86, 88, 89 : ajoutés à la main), 7 202 offices, 16 933 notaires, 0 fiche en erreur ;
+contrôle sur le 41 : les 35 offices du carnet retrouvés + le nôtre, écarts = codes postaux changés depuis. Script :
+`server/scripts/releve-annuaire-notaires.py` (à la main, reprend où il s'est arrêté). Données :
+`server/src/data/annuaire-notaires.json` (≈ 2,1 Mo), chargé par `annuaireNotaires.js` avec un `require` au chemin écrit en
+toutes lettres (esbuild l'embarque ; un fichier absent fait échouer la construction du .exe — d'où le fichier vide poussé
+pendant le relevé). Choix : une RÉFÉRENCE en lecture seule, distincte du carnet (qui reste la liste des offices avec qui
+l'étude traite, rapprochée des fiches — y verser 7 000 offices multiplierait les homonymes et rendrait le rapprochement
+par nom de famille ambigu). Routes `GET /api/annuaire/departements`, `/annuaire/departement/:code`, `/annuaire/recherche?q=`
+(50 au plus) — jamais tout l'annuaire au navigateur. Client : pastille « Notaires de France » du Répertoire
+(`renderAnnuaireNotaires` : départements en pastilles `renderPastilleDepartement`, puis offices `renderOfficeAnnuaire`),
+« Ajouter au carnet » (`ajouterOfficeAnnuaireAuCarnet`, `officeCarnetDepuisAnnuaire`, identifiant `annuaire-N` gardé) ;
+recherche du répertoire ≥ 3 caractères → section « Notaires de France » des offices hors carnet
+(`programmerRechercheAnnuaire`) ; « Ajouter au répertoire » d'une fiche cherche le notaire dans l'annuaire et pré-remplit
+l'office s'il n'en désigne qu'un (`officeAnnuairePourNotaire`, même règle que `trouverOfficeConfrere`). 3CX :
+`carnetEtAnnuaire` — le carnet d'abord, puis l'annuaire, pour reconnaître un office hors carnet.

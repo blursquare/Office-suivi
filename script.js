@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-02 17:28';
+  const VERSION_APP = '2026-10-02 17:52';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-02 17:52', resume: "Répertoire : « Notaires de France » — les 7 202 offices notariaux de France (16 933 notaires), classés par département (annuaire public immonot, relevé du 02/10/2026). Un clic sur un département liste ses offices (notaires, adresse, bureaux, téléphone, email) ; « Ajouter au carnet » en fait un office du carnet des confrères. La recherche du répertoire cherche aussi dans toute la France ; « Ajouter au répertoire » depuis une fiche pré-remplit l'office quand le notaire n'exerce que dans un seul ; 3CX reconnaît aussi un office hors carnet." },
     { version: '2026-10-02 17:28', resume: "Nouveau dossier : un second clic sur « Ajouter le dossier » (ou Ctrl+S) pendant l'enregistrement créait un second dossier — le bouton passe en « Enregistrement… » et ne répond plus jusqu'à la fin. Si un dossier en cours porte déjà le même nom ou le même numéro Authentic, CLAIRE demande avant d'en créer un second. Le dossier n'apparaît jamais deux fois dans la liste." },
     { version: '2026-10-02 17:18', resume: "Add-on Authentic : le message « plusieurs dossiers possibles · Choisir » reste affiché sans minuterie, jusqu'à ce que la fiche soit rangée dans un dossier ou qu'on le ferme par la croix. Un autre message peut passer devant ; celui-ci revient ensuite." },
     { version: '2026-10-02 17:15', resume: "Agenda : avant de calculer la semaine probable d'une signature, CLAIRE regarde si le dossier a déjà un rendez-vous « ?? » (en attente de confirmation) dans l'agenda. Si oui, c'est sa date qui compte : plus de carte fantôme ailleurs ni de créneaux proposés, « À confirmer : jeu 22 oct. 15 h » dans « Rendez-vous à placer » et la recherche, et le pourcentage s'affiche sur le rendez-vous lui-même (« Rendez-vous en attente de confirmation », −5 pts). Authentic : pour la RHF et les demandes d'urbanisme, la date retenue est aussi la date d'envoi (2e date de la ligne), comme pour la SAFER." },
