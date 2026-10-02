@@ -868,3 +868,22 @@ test('dossierDejaPresentPourCreation : même numéro Authentic ou même nom, en 
   assert.equal(app.dossierDejaPresentPourCreation('BRUN', '', liste), null);
   assert.equal(app.dossierDejaPresentPourCreation('NOUVEAU', '1900', liste), null);
 });
+
+test('notaires de France : département filtré, office repris au format du carnet, notaire retrouvé seulement s’il est seul (noms inventés)', () => {
+  const deps = [{ code: '37', nom: 'Indre-et-Loire', offices: 2 }, { code: '41', nom: 'Loir-et-Cher', offices: 36 }, { code: '2A', nom: 'Corse-du-Sud', offices: 1 }];
+  assert.equal(app.departementsAnnuaireFiltres(deps, 'loir').map(d => d.code).join(), '37,41');
+  assert.equal(app.departementsAnnuaireFiltres(deps, '2a').map(d => d.code).join(), '2A');
+  assert.equal(app.departementsAnnuaireFiltres(deps, '').length, 3);
+  const offices = [
+    { id: 'annuaire-1', office: 'SCP MARTEL et FOURNIER', notaires: ['Paul MARTEL', 'Anne FOURNIER'], ville: 'Tours', bureaux: [] },
+    { id: 'annuaire-2', office: 'Me Luc MARTEL', notaires: ['Luc MARTEL'], ville: 'Ajaccio', bureaux: [] }
+  ];
+  assert.equal(app.officeAnnuairePourNotaire('Maître Anne FOURNIER', offices).id, 'annuaire-1');
+  assert.equal(app.officeAnnuairePourNotaire('Maître Paul MARTEL', offices).id, 'annuaire-1');
+  assert.equal(app.officeAnnuairePourNotaire('Maître MARTEL', offices), null);
+  assert.equal(app.officeAnnuairePourNotaire('Maître Jean NOIR', offices), null);
+  const c = app.officeCarnetDepuisAnnuaire(Object.assign({ departement: '37', url: '/x' }, offices[0]), 'Annuaire de test');
+  assert.equal(c.id, 'annuaire-1');
+  assert.equal(c.source, 'Annuaire de test');
+  assert.equal('departement' in c || 'url' in c, false);
+});

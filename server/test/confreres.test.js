@@ -142,3 +142,36 @@ test('routes /api/repertoire : relevé initial à la première lecture, ajout, m
   j = await r.json();
   assert.equal(j.contacts.length, REPERTOIRE_INITIAL.length);
 });
+
+test('annuaire des notaires de France : départements, offices d’un département, recherche (noms inventés)', async () => {
+  const annuaire = require('../src/annuaireNotaires');
+  annuaire.definirDonneesAnnuaire({
+    source: 'Annuaire de test', releveLe: '2026-10-02',
+    offices: [
+      { id: 'annuaire-1', office: 'SCP MARTEL et FOURNIER', notaires: ['Paul MARTEL', 'Anne FOURNIER'], email: 'scp.martel@notaires.fr', telephone: '02 47 00 00 01', adresse: '1 rue Nationale', codePostal: '37000', ville: 'Tours', departement: '37', bureaux: [] },
+      { id: 'annuaire-2', office: 'Me Luc ROUX', notaires: ['Luc ROUX'], email: '', telephone: '04 95 00 00 02', adresse: '2 cours Napoléon', codePostal: '20000', ville: 'Ajaccio', departement: '2A', bureaux: [] },
+      { id: 'annuaire-3', office: 'Me Léa BRUN', notaires: ['Léa BRUN'], email: '', telephone: '', adresse: '', codePostal: '37100', ville: 'Amboise', departement: '37', bureaux: ['37400 Montlouis 3 place du Marché'] },
+      { id: 'annuaire-4', office: 'Me Jean VERT', notaires: ['Jean VERT'], email: '', telephone: '', adresse: '', codePostal: '97400', ville: 'Saint-Denis', departement: '974', bureaux: [] }
+    ]
+  });
+  try {
+    assert.equal(annuaire.departementsAnnuaire().map((d) => `${d.code}:${d.offices}`).join(' '), '2A:1 37:2 974:1');
+    let r = await appeler('/api/annuaire/departements');
+    let j = await r.json();
+    assert.equal(j.offices, 4);
+    assert.equal(j.departements.find((d) => d.code === '37').nom, 'Indre-et-Loire');
+    r = await appeler('/api/annuaire/departement/37');
+    j = await r.json();
+    assert.equal(j.offices.map((o) => o.ville).join(), 'Amboise,Tours');
+    assert.equal((await appeler('/api/annuaire/departement/2a')).status, 200);
+    assert.equal((await appeler('/api/annuaire/departement/..%2Fx')).status, 400);
+    r = await appeler('/api/annuaire/recherche?q=' + encodeURIComponent('fournier tours'));
+    assert.equal((await r.json()).offices.map((o) => o.id).join(), 'annuaire-1');
+    r = await appeler('/api/annuaire/recherche?q=montlouis');
+    assert.equal((await r.json()).offices.map((o) => o.id).join(), 'annuaire-3');
+    r = await appeler('/api/annuaire/recherche?q=a');
+    assert.equal((await r.json()).offices.length, 0);
+  } finally {
+    annuaire.definirDonneesAnnuaire(null);
+  }
+});

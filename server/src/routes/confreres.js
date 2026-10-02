@@ -7,6 +7,7 @@
 const express = require('express');
 const { assainirOffice, MAX_OFFICES, ID_OFFICE_ETUDE } = require('../carnetConfreres');
 const { assainirContact, MAX_CONTACTS, THEMES_REPERTOIRE } = require('../repertoire');
+const annuaire = require('../annuaireNotaires');
 
 function creerRouteurConfreres(parametresRepo) {
   const routeur = express.Router();
@@ -30,6 +31,23 @@ function creerRouteurConfreres(parametresRepo) {
     if (req.params.id === ID_OFFICE_ETUDE) return res.status(400).json({ erreur: 'Notre office reste dans le carnet.' });
     const carnet = parametresRepo.lireCarnetConfreres();
     res.json({ offices: parametresRepo.ecrireCarnetConfreres(carnet.filter((o) => o.id !== req.params.id)) });
+  });
+
+  // Annuaire des notaires de France (annuaireNotaires.js), en lecture seule : la liste des
+  // départements, les offices d'un département, ou une recherche (50 au plus) — jamais tout d'un coup.
+  routeur.get('/annuaire/departements', (req, res) => {
+    res.json(Object.assign(annuaire.infosAnnuaire(), { departements: annuaire.departementsAnnuaire() }));
+  });
+
+  routeur.get('/annuaire/departement/:code', (req, res) => {
+    const code = String(req.params.code || '').toUpperCase();
+    if (!/^(\d{2,3}|2[AB])$/.test(code)) return res.status(400).json({ erreur: 'Département inconnu.' });
+    res.json({ code, nom: annuaire.DEPARTEMENTS[code] || code, offices: annuaire.officesDepartement(code) });
+  });
+
+  routeur.get('/annuaire/recherche', (req, res) => {
+    const q = String((req.query && req.query.q) || '').slice(0, 120);
+    res.json({ offices: annuaire.chercherAnnuaire(q, 50) });
   });
 
   // Répertoire (repertoire.js) : mêmes règles que le carnet — un contact à la fois, fusionné par

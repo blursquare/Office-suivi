@@ -14,6 +14,13 @@
 const express = require('express');
 const { creerEntreeAppel, pageSonnerie, clePoste } = require('../appels3cx');
 const { adressesLan } = require('../reseau');
+const { officesAnnuaire } = require('../annuaireNotaires');
+
+// Le carnet, suivi des offices de l'annuaire qui n'y sont pas déjà (même identifiant).
+function carnetEtAnnuaire(carnet) {
+  const ids = new Set((carnet || []).map(o => o && o.id));
+  return (carnet || []).concat(officesAnnuaire().filter(o => !ids.has(o.id)));
+}
 
 var FENETRE_VUE_MS = 15000;
 
@@ -44,7 +51,8 @@ function creerRouteurSonnerie(parametresRepo, depot, etat) {
     try {
       entree = creerEntreeAppel({ numero: q.numero, nom: q.nom, poste: q.poste }, {
         dossiers: depot.tousActifs(),
-        carnet: parametresRepo.lireCarnetConfreres(),
+        // Le carnet d'abord, puis l'annuaire de France (un confrère d'un office hors carnet).
+        carnet: carnetEtAnnuaire(parametresRepo.lireCarnetConfreres()),
         repertoire: parametresRepo.lireRepertoire()
       });
       parametresRepo.ecrireJournalAppels([entree].concat(parametresRepo.lireJournalAppels()));

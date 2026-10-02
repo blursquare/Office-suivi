@@ -12458,17 +12458,29 @@
   }
 
   // « Ajouter au carnet » depuis une fiche : le formulaire s'ouvre avec le notaire déjà écrit.
-  function ajouterAuCarnetDepuisFiche(nom) {
+  // Le notaire est d'abord cherché dans les notaires de France : s'il n'exerce que dans un office,
+  // le formulaire s'ouvre rempli avec cet office (à valider) ; sinon, avec le seul nom.
+  async function ajouterAuCarnetDepuisFiche(nom) {
     const brut = String(nom || '');
     const ville = (brut.match(/\(([^)]*)\)/) || [])[1] || '';
     const notaire = brut.replace(/\([^)]*\)/g, ' ').replace(/^\s*(ma[iî]tre|me)\.?\s+/i, '').replace(/\s+/g, ' ').trim();
+    let trouve = null;
+    const cible = decomposerNomNotaire(brut);
+    if (cible.famille) {
+      try {
+        const r = await fetchAvecAuth('/api/annuaire/recherche?q=' + encodeURIComponent(cible.famille));
+        if (r.ok) trouve = officeAnnuairePourNotaire(brut, (await r.json()).offices || []);
+      } catch (e) { /* formulaire avec le seul nom */ }
+    }
     carnetRecherche = '';
     repertoireTheme = 'confreres';
     repertoireEdition = null;
     carnetEdition = 'nouveau';
-    carnetBrouillon = { office: '', notaires: [notaire], ville: ville ? ville.charAt(0) + ville.slice(1).toLowerCase() : '' };
+    carnetBrouillon = trouve ? officeCarnetDepuisAnnuaire(trouve, annuaireInfos && annuaireInfos.source)
+      : { office: '', notaires: [notaire], ville: ville ? ville.charAt(0) + ville.slice(1).toLowerCase() : '' };
     fermerDossierDrawer();
     definirOnglet('confreres');
+    if (trouve) afficherToast(`Me ${notaire} trouvé dans les notaires de France : vérifiez puis enregistrez.`, 'OK', null);
   }
 
   // Page « Répertoire » (étude, 30/09 : « un répertoire avec les confrères et ce nouveau fichier,
@@ -12492,10 +12504,14 @@
     const compte = document.getElementById('carnet-compte');
     if (compte) compte.textContent = carnetRecherche ? `${total} sur ${totalTout} contacts` : `${totalTout} contacts`;
     const bouton = document.getElementById('repertoire-ajouter');
-    if (bouton) bouton.textContent = repertoireTheme === 'confreres' ? 'Ajouter un office' : 'Ajouter un contact';
+    if (bouton) bouton.textContent = repertoireTheme === 'confreres' || repertoireTheme === 'annuaire' ? 'Ajouter un office' : 'Ajouter un contact';
 
     const pastille = (cle, libelle, n) => `<button type="button" class="rep-theme${repertoireTheme === cle ? ' actif' : ''}${n ? '' : ' vide'}" aria-pressed="${repertoireTheme === cle}" onclick="choisirThemeRepertoire('${cle}')">${escapeHtml(libelle)}<span class="rep-theme-n">${n}</span></button>`;
-    const pastilles = `<div class="rep-themes" role="group" aria-label="Thèmes du répertoire">${pastille('', 'Tout', total)}${repertoireThemes.map(t => pastille(t.cle, t.libelle, nombre(t.cle))).join('')}</div>`;
+    const pastilles = `<div class="rep-themes" role="group" aria-label="Thèmes du répertoire">${pastille('', 'Tout', total)}${repertoireThemes.map(t => pastille(t.cle, t.libelle, nombre(t.cle))).join('')}${annuaireInfos && annuaireInfos.offices ? pastille('annuaire', 'Notaires de France', annuaireInfos.offices) : ''}</div>`;
+    if (repertoireTheme === 'annuaire') {
+      zone.innerHTML = pastilles + renderAnnuaireNotaires();
+      return;
+    }
 
     const formNouveau = carnetEdition === 'nouveau' ? renderFormOfficeCarnet(carnetBrouillon || {})
       : repertoireEdition === 'nouveau' ? renderFormContactRepertoire(repertoireBrouillon || {}) : '';
@@ -12509,9 +12525,15 @@
           <div class="carnet-liste">${cartes.join('')}</div>
         </section>`;
     }).join('');
-    const vide = !sections && !formNouveau
+    // Une recherche cherche aussi dans les notaires de France (offices hors carnet).
+    const horsCarnet = (!repertoireTheme || repertoireTheme === 'confreres') ? resultatsAnnuaireHorsCarnet() : [];
+    const sectionAnnuaire = horsCarnet.length ? `<section class="rep-section">
+          <h2 class="rep-section-titre">Notaires de France<span class="rep-section-n">${horsCarnet.length}${horsCarnet.length >= 50 ? '+' : ''}</span></h2>
+          <div class="carnet-liste">${horsCarnet.map(renderOfficeAnnuaire).join('')}</div>
+        </section>` : '';
+    const vide = !sections && !formNouveau && !sectionAnnuaire
       ? `<p class="carnet-vide">${totalTout ? 'Aucun contact ne correspond à cette recherche.' : 'Le répertoire est vide.'}</p>` : '';
-    zone.innerHTML = pastilles + (formNouveau ? `<div class="carnet-liste rep-nouveau">${formNouveau}</div>` : '') + sections + vide;
+    zone.innerHTML = pastilles + (formNouveau ? `<div class="carnet-liste rep-nouveau">${formNouveau}</div>` : '') + sections + sectionAnnuaire + vide;
   }
 
   // ---- Répertoire hors offices notariaux (server/src/repertoire.js) ----
@@ -12543,6 +12565,153 @@
       if (Array.isArray(j.themes) && j.themes.length) repertoireThemes = j.themes;
       if (ongletActuel === 'confreres') renderCarnetConfreres();
     } catch (e) { console.warn('Répertoire indisponible :', e.message); }
+  }
+
+  // ---- Notaires de France (server/src/annuaireNotaires.js, étude 02/10) ----
+  // « Compléter le répertoire par tous les notaires de France classés par département » : une
+  // référence en lecture seule, consultée par département (une pastille par département, puis ses
+  // offices) ou par la recherche du répertoire ; « Ajouter au carnet » en fait un office du carnet
+  // (modifiable, rapproché des fiches). Jamais chargé en entier : un département ou 50 résultats.
+  var annuaireInfos = null;          // { source, releveLe, offices, departements: [{ code, nom, offices }] }
+  var annuaireDepartement = '';      // code du département affiché
+  var annuaireOfficesParDep = {};    // code → offices
+  var annuaireRecherche = { q: '', offices: [] };
+  let minuteurRechercheAnnuaire = null;
+
+  async function chargerAnnuaireDepartements() {
+    if (annuaireInfos) return;
+    try {
+      const r = await fetchAvecAuth('/api/annuaire/departements');
+      if (!r.ok) return;
+      annuaireInfos = await r.json();
+      if (ongletActuel === 'confreres') renderCarnetConfreres();
+    } catch (e) { console.warn('Annuaire des notaires indisponible :', e.message); }
+  }
+
+  async function choisirDepartementAnnuaire(code) {
+    annuaireDepartement = code || '';
+    renderCarnetConfreres();
+    if (!code || annuaireOfficesParDep[code]) return;
+    try {
+      const r = await fetchAvecAuth('/api/annuaire/departement/' + encodeURIComponent(code));
+      if (!r.ok) return;
+      annuaireOfficesParDep[code] = (await r.json()).offices || [];
+      if (ongletActuel === 'confreres') renderCarnetConfreres();
+    } catch (e) { console.warn('Annuaire des notaires indisponible :', e.message); }
+  }
+
+  // Recherche dans toute la France, 300 ms après la dernière frappe, 3 caractères au moins.
+  function programmerRechercheAnnuaire() {
+    clearTimeout(minuteurRechercheAnnuaire);
+    const q = String(carnetRecherche || '').trim();
+    if (q.length < 3) { annuaireRecherche = { q: '', offices: [] }; return; }
+    minuteurRechercheAnnuaire = setTimeout(async () => {
+      try {
+        const r = await fetchAvecAuth('/api/annuaire/recherche?q=' + encodeURIComponent(q));
+        if (!r.ok) return;
+        const offices = (await r.json()).offices || [];
+        if (String(carnetRecherche || '').trim() !== q) return;
+        annuaireRecherche = { q, offices };
+        if (ongletActuel === 'confreres') renderCarnetConfreres();
+      } catch (e) { /* recherche du carnet seule */ }
+    }, 300);
+  }
+
+  // Les résultats de la recherche nationale qui ne sont pas déjà dans le carnet.
+  function resultatsAnnuaireHorsCarnet() {
+    const q = String(carnetRecherche || '').trim();
+    if (q.length < 3 || annuaireRecherche.q !== q) return [];
+    const ids = new Set(carnetConfreres.map(o => o.id));
+    return annuaireRecherche.offices.filter(o => !ids.has(o.id));
+  }
+
+  // Pure : les départements dont le nom ou le code contient le texte (sans accents ni casse).
+  function departementsAnnuaireFiltres(departements, texte) {
+    const q = normaliserPourRecherche(String(texte || '').trim());
+    if (!q) return departements || [];
+    return (departements || []).filter(d => normaliserPourRecherche(d.nom + ' ' + d.code).indexOf(q) !== -1);
+  }
+
+  function renderAnnuaireNotaires() {
+    if (!annuaireInfos) return '<p class="carnet-vide">Chargement de l’annuaire…</p>';
+    const source = annuaireInfos.source ? `<p class="annuaire-source">${escapeHtml(annuaireInfos.source)} · ${annuaireInfos.offices} offices ${infoBulle('Annuaire public des offices notariaux, relevé une fois : il peut avoir vieilli. « Ajouter au carnet » copie l’office dans le carnet de l’étude, où il se corrige et se rapproche des fiches.')}</p>` : '';
+    const q = String(carnetRecherche || '').trim();
+    // Une recherche de 3 caractères ou plus : dans toute la France.
+    if (q.length >= 3) {
+      const res = annuaireRecherche.q === q ? annuaireRecherche.offices : null;
+      const deps = departementsAnnuaireFiltres(annuaireInfos.departements, q);
+      return source + (deps.length ? `<div class="annuaire-deps">${deps.map(renderPastilleDepartement).join('')}</div>` : '')
+        + (res === null ? '<p class="carnet-vide">Recherche…</p>'
+          : res.length ? `<div class="carnet-liste">${res.map(renderOfficeAnnuaire).join('')}</div>${res.length >= 50 ? '<p class="carnet-vide">50 premiers résultats : précisez la recherche.</p>' : ''}`
+            : deps.length ? '' : '<p class="carnet-vide">Aucun office ne correspond.</p>');
+    }
+    if (!annuaireDepartement) {
+      return source + `<div class="annuaire-deps">${annuaireInfos.departements.map(renderPastilleDepartement).join('')}</div>`;
+    }
+    const dep = annuaireInfos.departements.find(d => d.code === annuaireDepartement) || { code: annuaireDepartement, nom: annuaireDepartement, offices: 0 };
+    const offices = annuaireOfficesParDep[annuaireDepartement];
+    return source + `<div class="annuaire-dep-tete">
+        <button type="button" class="lien-bouton" onclick="choisirDepartementAnnuaire('')">${icone('chevron-left')}Tous les départements</button>
+        <h2 class="rep-section-titre">${escapeHtml(dep.nom)} (${escapeHtml(dep.code)})<span class="rep-section-n">${dep.offices}</span></h2>
+      </div>`
+      + (offices ? `<div class="carnet-liste">${offices.map(renderOfficeAnnuaire).join('')}</div>` : '<p class="carnet-vide">Chargement…</p>');
+  }
+
+  function renderPastilleDepartement(d) {
+    return `<button type="button" class="annuaire-dep" onclick="choisirDepartementAnnuaire('${escapeOnclickArg(d.code)}')">
+        <span class="annuaire-dep-code">${escapeHtml(d.code)}</span><span class="annuaire-dep-nom">${escapeHtml(d.nom)}</span><span class="annuaire-dep-n">${d.offices}</span>
+      </button>`;
+  }
+
+  function renderOfficeAnnuaire(o) {
+    const adresse = normaliserAdresse([o.adresse, [o.codePostal, o.ville].filter(Boolean).join(' ')].filter(Boolean).join(', '));
+    const contacts = [
+      o.telephone ? `<a href="tel:${escapeAttr(o.telephone.replace(/\s+/g, ''))}">${escapeHtml(o.telephone)}</a>` : '',
+      o.email ? `<a href="mailto:${escapeAttr(o.email)}">${escapeHtml(o.email)}</a>` : ''
+    ].filter(Boolean).join('<span class="carnet-sep">·</span>');
+    const dansCarnet = carnetConfreres.some(x => x.id === o.id);
+    return `<article class="carnet-office carnet-office-annuaire">
+      <div class="carnet-office-tete">
+        <h3 class="carnet-office-nom">${escapeHtml(o.office || (o.notaires || [])[0] || '')}</h3>
+        ${dansCarnet ? '<span class="dot-label dl-success"><span class="dot"></span>Dans le carnet</span>' : ''}
+      </div>
+      ${memeNomOfficeNotaire(o) ? '' : `<div class="carnet-notaires">${(o.notaires || []).map(n => `<span>Me ${escapeHtml(n)}</span>`).join('')}</div>`}
+      ${adresse ? `<div class="carnet-ligne">${icone('map-pin')}${escapeHtml(adresse)}</div>` : ''}
+      ${(o.bureaux || []).length ? `<div class="carnet-ligne carnet-bureaux">Bureaux : ${o.bureaux.map(escapeHtml).join(' ; ')}</div>` : ''}
+      ${contacts ? `<div class="carnet-ligne carnet-contacts">${icone('mail')}${contacts}</div>` : ''}
+      ${dansCarnet ? '' : `<button type="button" class="bouton-ajout bouton-ajout-court" onclick="ajouterOfficeAnnuaireAuCarnet('${escapeOnclickArg(o.id)}')">Ajouter au carnet</button>`}
+    </article>`;
+  }
+
+  function officeAnnuaireConnu(id) {
+    const listes = Object.keys(annuaireOfficesParDep).map(k => annuaireOfficesParDep[k]).concat([annuaireRecherche.offices]);
+    for (const l of listes) { const o = (l || []).find(x => x.id === id); if (o) return o; }
+    return null;
+  }
+
+  // Pure : l'office de l'annuaire au format du carnet (source datée).
+  function officeCarnetDepuisAnnuaire(o, source) {
+    return { id: o.id, office: o.office || '', notaires: (o.notaires || []).slice(), email: o.email || '', telephone: o.telephone || '',
+      adresse: o.adresse || '', codePostal: o.codePostal || '', ville: o.ville || '', bureaux: (o.bureaux || []).slice(), source: source || 'Annuaire des notaires de France' };
+  }
+
+  async function ajouterOfficeAnnuaireAuCarnet(id) {
+    const o = officeAnnuaireConnu(id);
+    if (!o) return;
+    try {
+      await enregistrerOfficeCarnet(officeCarnetDepuisAnnuaire(o, annuaireInfos && annuaireInfos.source));
+      renderCarnetConfreres();
+      render();
+      afficherToast(`${o.office || 'Office'} ajouté au carnet.`, 'OK', null);
+    } catch (e) {
+      afficherToast(e.message || 'Ajout impossible.', 'OK', null);
+    }
+  }
+
+  // Pure : parmi des offices de l'annuaire, le seul où exerce ce notaire (nom de famille, puis
+  // prénom, puis ville) — null s'il y en a plusieurs ou aucun. Même règle que trouverOfficeConfrere.
+  function officeAnnuairePourNotaire(nom, offices) {
+    return (trouverOfficeConfrere(nom, offices || []) || {}).office || null;
   }
 
   // Pure : les contacts qui répondent à tous les mots cherchés (organisme, service, personnes,
@@ -12644,7 +12813,7 @@
   }
 
   function ajouterAuRepertoire() {
-    if (repertoireTheme === 'confreres') { repertoireEdition = null; nouvelOfficeCarnet(); return; }
+    if (repertoireTheme === 'confreres' || repertoireTheme === 'annuaire') { repertoireEdition = null; if (repertoireTheme === 'annuaire') repertoireTheme = 'confreres'; nouvelOfficeCarnet(); return; }
     carnetEdition = null;
     repertoireEdition = 'nouveau';
     repertoireBrouillon = { theme: repertoireTheme || '' };
@@ -12796,7 +12965,10 @@
   async function validerOfficeCarnet() {
     const val = id => (document.getElementById(id) || {}).value || '';
     const existant = carnetEdition && carnetEdition !== 'nouveau' ? carnetConfreres.find(o => o.id === carnetEdition) : null;
-    const office = Object.assign({}, existant || { id: 'saisie-' + Date.now().toString(36), source: 'Saisi par l’étude' }, {
+    const depuisAnnuaire = !existant && carnetEdition === 'nouveau' && carnetBrouillon && carnetBrouillon.id
+      && !carnetConfreres.some(o => o.id === carnetBrouillon.id)
+      ? { id: carnetBrouillon.id, source: carnetBrouillon.source, bureaux: carnetBrouillon.bureaux || [] } : null;
+    const office = Object.assign({}, existant || depuisAnnuaire || { id: 'saisie-' + Date.now().toString(36), source: 'Saisi par l’étude' }, {
       office: val('carnet-f-office').trim(),
       notaires: val('carnet-f-notaires').split(/\n+/).map(s => s.replace(/^\s*(ma[iî]tre|me)\.?\s+/i, '').trim()).filter(Boolean),
       adresse: val('carnet-f-adresse').trim(),
@@ -12844,6 +13016,7 @@
   function rechercherCarnet(valeur) {
     carnetRecherche = valeur;
     renderCarnetConfreres();
+    programmerRechercheAnnuaire();
   }
 
   // Un email de confrère saisi sur un dossier complète l'office du carnet qui n'en avait pas.
@@ -15290,7 +15463,7 @@
     // ne doit pas effacer une saisie en cours.
     if (nom === 'quotites') initQuotites();
     // Relu à chaque ouverture : un collègue a pu compléter le carnet depuis un autre poste.
-    if (nom === 'confreres') { renderCarnetConfreres(); if (authToken) { chargerCarnetConfreres(); chargerRepertoire(); } }
+    if (nom === 'confreres') { renderCarnetConfreres(); if (authToken) { chargerCarnetConfreres(); chargerRepertoire(); chargerAnnuaireDepartements(); } }
     // Premier passage : coûts habituels posés, droits vides — le verdict et le message d'invite
     // sont posés dans la foulée (voir initInventaire / reinitialiserInventaire).
     if (nom === 'inventaire') initInventaire();
