@@ -215,3 +215,24 @@ test('dateSignatureEnVert : date de signature d’un dossier complet ou prêt, j
   assert.equal(app.classeDateEcheanceSuivi(d, { type: 'rendezVousSignature', iso: '2026-10-20' }, 1), 'urgent');
   assert.equal(app.classeDateEcheanceSuivi(d, { type: 'rendezVousSignature', iso: '2026-10-20' }, 9), 'calme');
 });
+
+test('acte signé : section « Signés » (après les semaines, avant « Sans échéance datée ») et « Signé le … » à la place de la date', () => {
+  const app = chargerApplication();
+  const signeAuth = { id: 's1', nom: 'MARTEL / FOURNIER', pret: '2026-10-20', authentic: { acte: { etat: 'signe', libelle: 'Acte signé', date: '2026-09-30' } } };
+  const signeMain = { id: 's2', nom: 'LEROY / DURAND', rendezVousSignature: '2026-09-25', echeancesValidees: { appelFonds: true, projetEnvoye: true, rendezVousSignature: true } };
+  const enCours = { id: 'c', nom: 'PETIT / ROUX', pret: '2026-10-20' };
+  const sansDate = { id: 'n', nom: 'BLANC / NOIR' };
+  const groupes = app.grouperEcheancesParSemaine([sansDate, signeMain, enCours, signeAuth], '2026-10-02');
+  assert.equal(groupes.map(g => g.cle).join(','), 's-2026-10-19,signes,sans-date');
+  const signes = groupes.find(g => g.cle === 'signes');
+  // Le plus récemment signé d'abord.
+  assert.equal(signes.items.map(i => i.dossier.id).join(','), 's1,s2');
+  assert.equal(app.libelleSemaine(signes, '2026-10-02'), 'Signés');
+  assert.equal(app.texteSigneSuivi(app.signatureFaiteSuivi(signeAuth)), 'Signé le 30 septembre 2026');
+  assert.equal(app.texteSigneSuivi(app.signatureFaiteSuivi(signeMain)), 'Signé le 25 septembre 2026');
+  assert.equal(app.signatureFaiteSuivi(enCours), null);
+  // Rendez-vous placé mais signature pas marquée faite : pas signé.
+  assert.equal(app.signatureFaiteSuivi({ rendezVousSignature: '2026-10-10' }), null);
+  // Archivé signé : même texte.
+  assert.equal(app.archivesPourEcheances([Object.assign({}, signeAuth, { archive: true })])[0].repere.signe.iso, '2026-09-30');
+});

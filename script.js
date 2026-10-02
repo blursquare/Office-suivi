@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-02 12:03';
+  const VERSION_APP = '2026-10-02 12:06';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-02 12:06', resume: "Suivi : un acte signé (signé dans Authentic, ou signature marquée faite) affiche « Signé le … » en vert à la place de la date, et « Acte signé » dans la colonne Échéance — vues Échéances et Tableau, archivés compris. Vue Échéances : les dossiers signés ont leur section « Signés » (le plus récent d'abord), avant « Sans échéance datée »." },
     { version: '2026-10-02 12:03', resume: "Authentic : un dossier noté « Consorts » (ou « consort », « CONSORTS ») devant le vendeur ou l'acquéreur est reconnu — « Vente Consorts MARTEL/FOURNIER » retrouve la fiche « MARTEL / FOURNIER », et inversement." },
     { version: '2026-10-02 11:58', resume: "Authentic : un acte « signé le … » dans Authentic marque la signature comme faite sur la fiche, avec toutes les étapes d'avant (vente préalable, prêt, appel de fonds, projet, date butoir) — plus rien au planning ni aux rappels ; chaque validation reste annulable sur la fiche." },
     { version: '2026-10-02 11:54', resume: "Authentic : seules les pièces qui arrivent vraiment dans Authentic sont reprises de la page du dossier — actes d'état civil, casiers judiciaires et réponse SAFER ; le reste (urbanisme, diagnostics…) arrive par email ou courrier et n'est jamais coché depuis Authentic. « Signé le … » sur la page du dossier fait passer l'acte en « signé » (sauf avant-contrat, procuration, mandat, courrier…)." },
@@ -15510,10 +15511,13 @@
       // Un dossier sans échéance datée en attente (rendez-vous à fixer sans date butoir, tout validé…)
       // n'est jamais omis (étude, 02/10 : « il faut afficher tous les dossiers ») : section « Sans
       // échéance datée » en dernier.
+      // Acte signé (étude, 02/10) : section « Signés », la date affichée est celle de la signature.
+      const signe = signatureFaiteSuivi(d);
+      if (signe) { ajouter('signes', 3, 'Signés', { dossier: d, echeance: null, signe }); continue; }
       const echeances = toutesEcheances(d).filter(x => x && x.iso).sort((x, y) => x.iso.localeCompare(y.iso));
       const e = echeances[0];
       const semaine = e ? debutSemaine(e.iso) : null;
-      if (!e || !semaine) { ajouter('sans-date', 3, 'Sans échéance datée', { dossier: d, echeance: null }); continue; }
+      if (!e || !semaine) { ajouter('sans-date', 4, 'Sans échéance datée', { dossier: d, echeance: null }); continue; }
       const item = { dossier: d, echeance: e };
       if (semaineCourante && semaine < semaineCourante) ajouter('retard', 0, 'En retard', item);
       else if (limite && semaine >= limite) ajouter('plus-tard', 2, 'Plus tard', item);
@@ -15524,6 +15528,7 @@
     // semaines entre elles (une date ISO se trie comme une chaîne).
     const ordonnes = [...groupes.values()].sort((a, b) => (a.rang - b.rang) || a.cle.localeCompare(b.cle));
     for (const g of ordonnes) {
+      if (g.cle === 'signes') { g.items.sort((a, b) => (b.signe.iso || '').localeCompare(a.signe.iso || '') || String(a.dossier.nom || '').localeCompare(String(b.dossier.nom || ''), 'fr')); continue; }
       g.items.sort((a, b) => ((a.echeance && a.echeance.iso) || '').localeCompare((b.echeance && b.echeance.iso) || '') || String(a.dossier.nom || '').localeCompare(String(b.dossier.nom || ''), 'fr'));
     }
     return ordonnes;
@@ -15536,6 +15541,7 @@
     if (groupe.cle === 'retard') return 'En retard';
     if (groupe.cle === 'plus-tard') return 'Plus tard';
     if (groupe.cle === 'sans-date') return 'Sans échéance datée';
+    if (groupe.cle === 'signes') return 'Signés';
     const debut = new Date(groupe.libelle + 'T00:00:00');
     const memeAnnee = aujourdHui && debut.getFullYear() === new Date(aujourdHui + 'T00:00:00').getFullYear();
     const options = memeAnnee ? { day: 'numeric', month: 'long' } : { day: 'numeric', month: 'long', year: 'numeric' };
@@ -22528,12 +22534,29 @@
     return jours <= 3 ? 'urgent' : 'calme';
   }
 
+  // Pure : l'acte est-il signé ? — signé dans Authentic (« signé le … »), ou signature marquée faite
+  // sur un rendez-vous daté. { iso } (date de signature, '' si inconnue) ou null.
+  function signatureFaiteSuivi(d) {
+    if (!d) return null;
+    const a = d.authentic && d.authentic.acte;
+    if (a && a.etat === 'signe') return { iso: a.date || d.rendezVousSignature || '' };
+    if (d.echeancesValidees && d.echeancesValidees.rendezVousSignature && d.rendezVousSignature) return { iso: d.rendezVousSignature };
+    return null;
+  }
+  // Pure : « Signé le 30 septembre 2026 » (étude, 02/10 : à la place de la date dans le Suivi).
+  function texteSigneSuivi(signe) {
+    return signe && signe.iso ? `Signé le ${formatDateFr(signe.iso)}` : 'Signé';
+  }
+
   function celluleDateProchaineEcheance(d) {
+    const signe = signatureFaiteSuivi(d);
+    if (signe) return `<td><span class="echeance-jours signature-ok">${escapeHtml(texteSigneSuivi(signe))}</span></td>`;
     const p = prochaineEcheanceDetail(d);
     if (!p) return '<td><span class="echeance-jours calme">—</span></td>';
     return `<td><span class="echeance-jours ${classeDateEcheanceSuivi(d, p, p.jours)}" title="${escapeAttr(p.jours < 0 ? 'Dépassée' : p.jours === 0 ? "Aujourd'hui" : 'J-' + p.jours)}">${formatDateFr(p.iso)}</span></td>`;
   }
   function celluleTypeProchaineEcheance(d) {
+    if (signatureFaiteSuivi(d)) return '<td><span class="dot-label dl-success"><span class="dot"></span>Acte signé</span></td>';
     const p = prochaineEcheanceDetail(d);
     if (!p) return '<td><span class="echeance-jours calme">—</span></td>';
     return `<td><span class="dot-label dl-${p.type}"><span class="dot"></span>${escapeHtml(p.label)}</span></td>`;
@@ -22566,6 +22589,8 @@
     return iso;
   }
   function repereArchiveSuivi(d) {
+    const signe = signatureFaiteSuivi(d);
+    if (signe) return { iso: signe.iso, type: 'rendezVousSignature', label: 'Signé', signe };
     if (d.rendezVousSignature) return { iso: d.rendezVousSignature, type: 'rendezVousSignature', label: 'Signé' };
     const iso = dateArchivageDossier(d);
     return { iso, type: 'archive', label: 'Archivé' };
@@ -22582,7 +22607,7 @@
     if (!items.length) return '';
     const lignes = items.map(({ dossier: d, repere: r }) => `
           <tr class="ligne-resume est-archive${dossierOuvert === d.id ? ' ligne-active' : ''}" onclick="ouvrirDossierDrawer('${d.id}')">
-            <td><span class="echeance-jours calme">${r.iso ? formatDateFr(r.iso) : '—'}</span></td>
+            <td>${r.signe ? `<span class="echeance-jours signature-ok">${escapeHtml(texteSigneSuivi(r.signe))}</span>` : `<span class="echeance-jours calme">${r.iso ? formatDateFr(r.iso) : '—'}</span>`}</td>
             <td><div class="dossier-nom-tableau">${escapeHtml(libelleDossierAffiche(d))}</div></td>
             <td>${r.type === 'archive' ? `<span class="dot-label dl-neutre">${icone('lock')}${escapeHtml(r.label)}</span>` : `<span class="dot-label dl-${r.type}"><span class="dot"></span>${escapeHtml(r.label)}</span>`}</td>
             <td class="dossier-responsable-tableau">${pastilleCollaborateur(d.responsable)}</td>
@@ -22633,7 +22658,7 @@
         <section class="semaine-groupe${g.cle === 'retard' ? ' semaine-retard' : ''}">
           <div class="semaine-entete">
             <span class="section-eyebrow">${escapeHtml(libelleSemaine(g, aujourdHui))}</span>
-            <span class="semaine-compteur">${n} ${g.cle === 'sans-date' ? 'dossier' : 'échéance'}${n > 1 ? 's' : ''}</span>
+            <span class="semaine-compteur">${n} ${g.cle === 'sans-date' || g.cle === 'signes' ? 'dossier' : 'échéance'}${n > 1 ? 's' : ''}</span>
           </div>
           <div class="table-scroll">
             <!-- Largeurs de colonnes FIXES et identiques d'un groupe à l'autre : chaque semaine est

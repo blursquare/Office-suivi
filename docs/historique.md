@@ -14659,3 +14659,13 @@ l'intitulé ET du nom du dossier CLAIRE avant de comparer : « Vente Consorts MA
 et « Vente MARTEL/FOURNIER » ↔ « Consorts MARTEL / FOURNIER ». Les deux noms doivent toujours être les mêmes. Les rôles
 des fiches client (`roleClientAuthenticDansDossier`, `partiesExportAuthentic`) cherchaient déjà le nom à l'intérieur
 de chaque côté : « Consorts » ne les gênait pas.
+
+### 02/10/2026 12:06 — Suivi : « Signé le … » à la place de la date
+
+Étude : « quand un acte est signé, mettre dans le suivi échéance et tableau, à la place de la date : signé le et la
+date ». `signatureFaiteSuivi(d)` : acte signé dans Authentic (`d.authentic.acte.etat === 'signe'`, date de l'acte, à
+défaut le rendez-vous) ou signature marquée faite sur un rendez-vous daté. Colonne Date : « Signé le 30 septembre 2026 »
+en vert (`texteSigneSuivi`, classe `signature-ok`) ; colonne Échéance : « Acte signé » — vue Tableau, section « Nouveau »,
+vue Échéances et section « Archivés ». Vue Échéances : groupe **« Signés »** (rang 3, le plus récemment signé d'abord) ;
+« Sans échéance datée » passe au rang 4. Vérifié dans Chromium (deux dossiers signés inventés, un en cours). Le statut
+reste celui d'`etatDossier` (ex. « Attente de pièces » si une pièce manque).
