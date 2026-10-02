@@ -14963,3 +14963,18 @@ s'est mis dans PETIT. Et je n'étais même pas dans le bon dossier SIMOND, c'ét
 Étude : « annule mon changement pour la question de l'apport ». La ligne Financement de la fiche montre de nouveau
 l'apport signé (« Apport -20.323,00 € (-10 %) » quand le prêt dépasse le prix), comme avant l'entrée « Apport sans
 signe moins » ci-dessus.
+
+### 02/10/2026 après-midi — Numéro du dossier Authentic comme identifiant
+
+Étude : « dans la structure du dossier Authentic tu n'as pas un numéro d'identification ? … du type 1861 … pour le
+dossier WALTER c'était le 1836 » ; « pas obligé de l'afficher ». C'est le nombre devant l'intitulé de la page du
+dossier (« 1836 - Vente MOUSTAFA-GAUTHIER/WALTER » ; la copie de structure le réduisait à « 9 - Vente XXX/XXX ») — le
+même que le n° de sous-dossier des exports ZIP (« EXPORT_SousDossier-1791 »). CLAIRE le lisait (`m[1]`) et le jetait.
+- `numeroDossierAuthentic(capture)`, `intitulesNumerotesAuthentic` (fiche client : dossiers cités avec leur numéro).
+- `d.numeroAuthentic` (chaîne de chiffres) : retenu à la première reconnaissance d'une page du dossier
+  (`retenirNumeroAuthentic`, historique « Dossier Authentic n° … rattaché » ; jamais par-dessus un numéro existant,
+  jamais un numéro déjà porté par un autre dossier) et à la création depuis Authentic (`g.numero`, `export.numero`).
+- `dossierPourIntituleAuthentic(intitule, liste, adresse, numero)` : un dossier portant ce numéro → retenu tout de
+  suite (même intitulé changé) ; sinon score, en excluant les dossiers rattachés à un autre numéro.
+  `dossierPourNavigationAuthentic` : numéro d'abord (tout type de dossier). Non affiché (étude).
+- Vérifié : tests ; Chromium (relevé simulé : numéro retenu, fiche client du vendeur sur la vente en cours).

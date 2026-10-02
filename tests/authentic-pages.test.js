@@ -762,3 +762,29 @@ test('navigation dans Authentic : l\'intitulé seul désigne le dossier consult�
   assert.equal(app.dossierPourNavigationAuthentic('15 - Donation SIMOND', [vente]), null);
   assert.equal(app.dossierPourNavigationAuthentic('', [vente]), null);
 });
+
+test('numéro du dossier Authentic (« 1836 - Vente … ») : retenu, puis prioritaire sur les noms', () => {
+  const page = { champs: [{ groupe: '', libelle: '1836 - Vente MOREAU-GILLET/WALDEN', valeur: '' }], tableaux: [], texte: '1836 - Vente MOREAU-GILLET/WALDEN Importer\nComparants' };
+  assert.equal(app.numeroDossierAuthentic(page), '1836');
+  assert.equal(app.numeroDossierAuthentic(gestion), '12');
+  const a = { id: 'a', nom: 'MOREAU-GILLET / WALDEN', historique: [] };
+  const homonyme = { id: 'h', nom: 'MOREAU-GILLET / WALDEN', historique: [], numeroAuthentic: '1700' };
+  // Le dossier rattaché à un autre numéro est écarté : seul « a » reste.
+  assert.equal(app.dossierPourIntituleAuthentic('Vente MOREAU-GILLET / WALDEN', [a, homonyme], '', '1836').id, 'a');
+  assert.equal(app.retenirNumeroAuthentic(a, '1836', [a, homonyme]), true);
+  assert.equal(a.numeroAuthentic, '1836');
+  assert.match(a.historique[0].texte, /n° 1836/);
+  // Jamais deux fois, jamais un numéro déjà pris.
+  assert.equal(app.retenirNumeroAuthentic(a, '1900', [a]), false);
+  const b = { id: 'b', nom: 'X / Y', historique: [] };
+  assert.equal(app.retenirNumeroAuthentic(b, '1836', [a, b]), false);
+  // Le numéro l'emporte même si l'intitulé a changé dans Authentic.
+  assert.equal(app.dossierPourIntituleAuthentic('Vente MOREAU / WALDEN-PETIT', [a, homonyme], '', '1836').id, 'a');
+  // Navigation : par le numéro, quel que soit le type de dossier.
+  assert.equal(app.dossierPourNavigationAuthentic('1836 - Avenant WALDEN', [a, homonyme]).id, 'a');
+  assert.equal(app.dossierPourNavigationAuthentic('1999 - Donation WALDEN', [a, homonyme]), null);
+  // Création depuis les pages : le numéro suit le dossier relevé.
+  const g = app.dossiersDepuisRelevesAuthentic([{ recueLe: '2026-10-02T10:00:00Z', capture: Object.assign({}, gestion) }])[0];
+  assert.equal(g.numero, '12');
+  assert.equal(g.export.numero, '12');
+});
