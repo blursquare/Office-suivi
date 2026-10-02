@@ -15510,3 +15510,18 @@ CLAIRE aussi. »
   clignotement (`rafraichirEmailsFicheOuverte`) ; pièces jointes rangées chaque minute (`rangerPiecesJointesReconnues`).
 Vérifié : tests (serveur : lecture à la demande, rien gardé, tours simultanés = un seul) ; Chromium : fenêtre de lecture
 760 px, téléphone, sombre, Échap. Non vérifié : Exchange réel (charge d'un tour par minute, rendu texte des emails HTML).
+
+### 02/10/2026 23:35 — Bloc « Emails » allégé (liste façon boîte de réception)
+Demande : « Reprends la présentation car pour un dossier on peut recevoir une multitude d'emails. Allège aussi car trop
+d'info. Respecte l'UI/UX de CLAIRE. »
+- `renderEmailsDossier` réécrit : une ligne par email (`button.email-rang-btn` : icône reçu/envoyé, correspondant,
+  objet + résumé IA sur une ligne, nombre de pièces jointes, `dateCourteEmail` — heure du jour, sinon « 2 oct. », année si
+  différente) ; filtres Tous/Reçus/Envoyés en pastilles du Suivi (`suivi-statut`, `filtrerSensEmails`) ; recherche sans
+  re-rendu (`rechercherEmailsDossier`, `data-texte`) dès plus de 8 emails ; 8 lignes puis « Voir 20 de plus »
+  (`voirPlusEmails`, `EMAILS_PAR_PAGE`) ; emails préparés en attente repliés dans une ligne `details`.
+- Un seul geste en tête : « Confirmer la réception » pour le plus récent des reçus avec documents des 30 derniers jours
+  non confirmés (`emailsAConfirmer`, « N autres à confirmer »).
+- Fenêtre de lecture : pièces jointes avec leur rangement et « Ranger… » (`htmlPieceJointeEmail`, redessinées après un
+  rangement — `rafraichirPiecesJointesLecture`), état « Réception confirmée — préparée/envoyée le … », bouton « Renvoyer
+  la confirmation ». Échap écouté en capture : ferme la fenêtre sans fermer la fiche derrière (bug vu en test).
+Vérifié : tests ; Chromium avec 25 emails (8 visibles, recherche « banque » → 6, filtre Reçus), clair, sombre, 390 px.

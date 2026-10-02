@@ -96,3 +96,22 @@ test('expediteurConfrere : notaires.fr, notaire participant, office du carnet', 
   assert.equal(app.expediteurConfrere({}, 'accueil@scp-exemple.fr', [{ email: 'accueil@scp-exemple.fr' }]), true);
   assert.equal(app.expediteurConfrere({}, 'l.faure@exemple.fr', []), false);
 });
+
+// Étude 02/10 : « pour un dossier on peut recevoir une multitude d'emails ; allège ».
+test('dateCourteEmail : heure du jour, sinon jour et mois, l’année si elle diffère', () => {
+  const maintenant = '2026-10-02T15:00:00Z';
+  assert.match(app.dateCourteEmail('2026-10-02T08:05:00Z', maintenant), /^\d{2} h 05$/); // heure locale du poste
+  assert.equal(app.dateCourteEmail('2026-09-28T08:05:00Z', maintenant), '28 sept.');
+  assert.equal(app.dateCourteEmail('2025-12-20T08:05:00Z', maintenant), '20 déc. 2025');
+  assert.equal(app.dateCourteEmail('pas une date', maintenant), '');
+});
+
+test('emailsAConfirmer : reçus avec documents, 30 jours, pas encore confirmés, le plus récent d’abord', () => {
+  const maintenant = '2026-10-02T15:00:00Z';
+  const recu = (id, date, pj) => ({ id, sens: 'recu', date, de: { adresse: 'a@exemple.fr' }, pj });
+  const emails = [recu('e3', '2026-10-02T09:00:00Z', [{ nom: 'RIB.pdf' }]), recu('e2', '2026-09-30T09:00:00Z', [{ nom: 'DPE.pdf' }]),
+    recu('e1', '2026-08-01T09:00:00Z', [{ nom: 'CNI.pdf' }]), recu('e0', '2026-10-01T09:00:00Z', []),
+    { id: 's1', sens: 'envoye', date: '2026-10-02T10:00:00Z', de: { adresse: 'b@office.fr' }, pj: [{ nom: 'Appel.pdf' }] }];
+  const prepares = [{ geste: 'accuseReception:e2' }];
+  assert.equal(app.emailsAConfirmer(emails, prepares, maintenant).map(e => e.id).join(','), 'e3');
+});

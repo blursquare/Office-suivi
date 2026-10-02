@@ -148,7 +148,9 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
    écartées) ; « Éléments envoyés » du compte relié et de chaque collaborateur des Réglages (accès délégué « Relecteur » à
    donner dans Outlook, sinon « Accès non donné ») → objet, destinataires, date seulement ; un email préparé par CLAIRE
    (`livrerEmailDossier` → `POST /api/emails-prepares`) retrouvé (même objet, un destinataire commun, après la préparation)
-   passe « envoyé le … ». Onglet Échanges : bloc « Emails » (`renderEmailsDossier`, fiche ouverte relue chaque minute) ;
+   passe « envoyé le … ». Onglet Échanges : bloc « Emails » (`renderEmailsDossier`, fiche ouverte relue chaque minute ; étude 02/10 « une
+   multitude d'emails, allège » : une ligne par email façon boîte de réception, filtres Tous/Reçus/Envoyés, recherche, 8 puis
+   « Voir plus », un seul « Confirmer la réception » en tête — `emailsAConfirmer` —, tout le détail dans la fenêtre de lecture) ;
    **email lisible en entier** (étude 02/10) en cliquant son objet : `ouvrirEmailComplet` → `GET /api/emails-dossiers/contenu`
    (`lireEmailComplet`, GetItem relu à chaque ouverture, jamais gardé ni journalisé, affiché en texte échappé, jamais en HTML). **Toute pièce jointe reçue est rangée
    seule** (étude 02/10 : « dans les bons sous-dossiers, sinon à la racine » ; `rangerPiecesJointesReconnues`, dossiers

@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-02 23:25';
+  const VERSION_APP = '2026-10-02 23:35';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-02 23:35', resume: "Emails de la fiche allégés : une ligne par email comme dans une boîte de réception (correspondant, objet, résumé, pièces jointes, date), filtres Tous / Reçus / Envoyés, recherche, 8 emails puis « Voir plus ». Un seul « Confirmer la réception » en tête, pour le dernier envoi de documents. Le détail — texte entier, pièces jointes et où elles ont été rangées, confirmation — est dans la fenêtre de lecture. Échap ferme la fenêtre sans fermer la fiche." },
     { version: '2026-10-02 23:25', resume: "Emails des dossiers relevés toutes les minutes (boîte de réception et éléments envoyés) ; la fiche ouverte affiche les nouveaux emails d'elle-même, et les pièces jointes sont rangées dans la minute. Un clic sur l'objet d'un email l'ouvre en entier dans CLAIRE (texte, destinataires, pièces jointes, « Confirmer la réception ») : il est relu dans la messagerie à chaque ouverture, jamais gardé par CLAIRE." },
     { version: '2026-10-02 23:21', resume: "Onglet Échanges : sous chaque email reçu avec des documents, « Confirmer la réception » prépare la réponse (même objet précédé de RE:, documents listés, signature de l'office ; « Mon Cher Maître » si l'expéditeur est un confrère), puis indique « préparé », et « envoyé le … » une fois retrouvée dans les envois. Réglages › Pièces et Claire Scan › « Noms de fichiers reconnus » : toutes les variantes de nom acceptées pour chaque pièce. Une pièce jointe au nom approchant (« CU.pdf ») est reconnue comme sur le NAS ; « Titre de séjour » n'est plus pris pour un titre de propriété." },
     { version: '2026-10-02 23:16', resume: "Pièces jointes des emails : chacune est maintenant copiée dans le dossier client du NAS, même quand CLAIRE ne la reconnaît pas — dans le bon sous-dossier d'après son nom (diagnostics, copropriété, titre, travaux, comptabilité, AAE… ; pièce d'identité ou RIB chez le Vendeur ou l'Acquéreur selon l'expéditeur), sinon à la racine du dossier. L'onglet Échanges dit où chaque pièce a été rangée. Nouveau : Réglages › Général › « CLAIRE en application » installe sur le poste d'un collaborateur un raccourci (bureau et menu Démarrer) qui ouvre CLAIRE dans sa propre fenêtre, comme sur le poste serveur." },
@@ -28763,65 +28764,127 @@
     setTimeout(() => chargerEmailsDossier(dossierId), 800);
   }
 
+  // Pure : date d'un email dans la liste — l'heure s'il est du jour, sinon « 2 oct. », et l'année si ce
+  // n'est pas celle en cours.
+  function dateCourteEmail(iso, maintenant) {
+    const t = Date.parse(iso);
+    if (Number.isNaN(t)) return '';
+    const dt = new Date(t), n = maintenant ? new Date(maintenant) : new Date();
+    const jour = (x) => x.toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris' });
+    if (jour(dt) === jour(n)) return heureAppel(t);
+    const opts = { day: 'numeric', month: 'short', timeZone: 'Europe/Paris' };
+    if (dt.toLocaleDateString('fr-FR', { year: 'numeric', timeZone: 'Europe/Paris' }) !== n.toLocaleDateString('fr-FR', { year: 'numeric', timeZone: 'Europe/Paris' })) opts.year = 'numeric';
+    return dt.toLocaleDateString('fr-FR', opts);
+  }
+
+  // Pure : emails reçus avec des documents dont la réception n'a pas encore été confirmée (30 derniers
+  // jours, le plus récent d'abord).
+  function emailsAConfirmer(emails, prepares, maintenant) {
+    const limite = (maintenant ? Date.parse(maintenant) : Date.now()) - 30 * 86400000;
+    const faits = new Set((prepares || []).map(p => String(p.geste || '')).filter(g => g.startsWith('accuseReception:')).map(g => g.slice('accuseReception:'.length)));
+    return (emails || []).filter(e => e.sens === 'recu' && e.de && e.de.adresse && documentsEmailRecu(e).length
+      && !faits.has(e.id) && Date.parse(e.date) >= limite);
+  }
+
+  // Une pièce jointe dans la fenêtre de lecture : l'ouvrir, où elle a été rangée, ou « Ranger… ».
+  function htmlPieceJointeEmail(d, e, pj, checklist) {
+    const ouvrir = `<button type="button" class="lien-action email-pj-nom" onclick="ouvrirPieceJointeEmail('${escapeOnclickArg(e.id)}', '${escapeOnclickArg(pj.id)}')" title="Ouvrir la pièce jointe">${icone('file-text')}${escapeHtml(pj.nom)}</button>`;
+    if (pj.rangee) return `<span class="email-pj">${ouvrir}<span class="dot-label dl-success" title="${escapeAttr(pj.rangee.chemin || '')}"><span class="dot"></span>${escapeHtml(pj.rangee.pieceLabel ? pj.rangee.pieceLabel + ' — ' : 'Rangée — ')}${escapeHtml(emplacementPieceRangee(d, pj.rangee.chemin))}</span></span>`;
+    if (pj.ignoree || e.sens !== 'recu') return `<span class="email-pj${pj.ignoree ? ' email-pj-ecartee' : ''}">${ouvrir}</span>`;
+    const piece = pieceDePieceJointe(pj.nom, checklist, (cle, nn) => estNomExcluPourPiece(cle, nn));
+    const geste = !d.nasDossier
+      ? (piece && !piece.offre ? `<button type="button" class="lien-action" onclick="cocherPieceDepuisEmail('${d.id}', '${escapeOnclickArg(piece.cle)}', '${escapeOnclickArg(pj.nom)}')">Cocher « ${escapeHtml(piece.label)} » reçue</button>` : '')
+      : `<select class="email-pj-ranger" aria-label="Ranger la pièce jointe dans le dossier" onchange="rangerPieceJointeEmail('${d.id}', '${escapeOnclickArg(e.id)}', '${escapeOnclickArg(pj.id)}', this.value, false)">
+          <option value="">${pj.echec ? 'Échec — ranger…' : 'Ranger…'}</option>
+          ${piece ? `<option value="${escapeAttr(piece.cle)}">Comme « ${escapeHtml(piece.label)} »</option>` : ''}
+          ${checklist.filter(p => !piece || p.cle !== piece.cle).map(p => `<option value="${escapeAttr(p.cle)}">${escapeHtml(p.label)}</option>`).join('')}
+          <option value="__nom">Sous son nom</option>
+          <option value="__ecarter">Pas une pièce du dossier</option>
+        </select>`;
+    return `<span class="email-pj">${ouvrir}${geste}</span>`;
+  }
+
+  // Filtre de la liste par dossier : sens (tous, reçus, envoyés) et nombre de lignes montrées.
+  const filtresEmailsDossier = {};
+  var EMAILS_PAR_PAGE = 8;
+  function filtrerSensEmails(dossierId, sens) {
+    filtresEmailsDossier[dossierId] = { sens, n: EMAILS_PAR_PAGE };
+    render();
+  }
+  function voirPlusEmails(dossierId) {
+    const f = filtresEmailsDossier[dossierId] || { sens: 'tous', n: EMAILS_PAR_PAGE };
+    filtresEmailsDossier[dossierId] = { ...f, n: f.n + 20 };
+    render();
+  }
+  // Recherche dans la liste sans re-rendu (le champ garde le focus) : tout ce qui correspond est montré.
+  function rechercherEmailsDossier(champ) {
+    const bloc = champ.closest('.emails-dossier');
+    if (!bloc) return;
+    const q = normaliserPourRecherche(champ.value || '').trim();
+    let vus = 0;
+    bloc.querySelectorAll('.email-rang').forEach((li) => {
+      const ok = q ? li.dataset.texte.includes(q) : li.dataset.page === '1';
+      li.hidden = !ok;
+      if (ok) vus++;
+    });
+    const plus = bloc.querySelector('.emails-plus');
+    if (plus) plus.hidden = !!q;
+    const vide = bloc.querySelector('.emails-aucun');
+    if (vide) vide.hidden = vus > 0;
+  }
+
+  // Onglet Échanges, bloc « Emails » (étude 02/10 : « pour un dossier on peut recevoir une multitude
+  // d'emails ; allège ») : une ligne par email comme une boîte de réception (sens, correspondant, objet,
+  // résumé d'une ligne, pièces jointes, date), filtres Tous/Reçus/Envoyés, recherche, 8 lignes puis
+  // « Voir plus ». Le détail (texte entier, pièces jointes et leur rangement, accusé) est dans la fenêtre
+  // de lecture. Un seul geste en tête : confirmer la réception du dernier envoi de documents.
   function renderEmailsDossier(d) {
     if (!(d.id in emailsParDossier)) { chargerEmailsDossier(d.id); return ''; }
     const donnees = emailsParDossier[d.id];
     if (!donnees) return '';
     const { emails, prepares, etat } = donnees;
-    // Les accusés de réception se suivent sur la ligne de l'email reçu.
     const enAttente = prepares.filter(p => !p.envoyeLe && !String(p.geste || '').startsWith('accuseReception:'));
     if (!emails.length && !enAttente.length) return '';
-    const checklist = checklistPieces(d.typeVente, d);
-    const estExclu = (cle, nn) => estNomExcluPourPiece(cle, nn);
-    const prepareParId = new Map(prepares.map(p => [p.id, p]));
-    const pjHtml = (e, pj) => {
-      const ouvrir = `<button type="button" class="lien-action email-pj-nom" onclick="ouvrirPieceJointeEmail('${escapeOnclickArg(e.id)}', '${escapeOnclickArg(pj.id)}')" title="Ouvrir la pièce jointe">${icone('file-text')}${escapeHtml(pj.nom)}</button>`;
-      if (pj.rangee) return `<span class="email-pj">${ouvrir}<span class="dot-label dl-success" title="${escapeAttr(pj.rangee.chemin || '')}"><span class="dot"></span>${escapeHtml(pj.rangee.pieceLabel ? pj.rangee.pieceLabel + ' — ' : 'Rangée — ')}${escapeHtml(emplacementPieceRangee(d, pj.rangee.chemin))}</span></span>`;
-      if (pj.ignoree) return `<span class="email-pj email-pj-ecartee">${ouvrir}</span>`;
-      const piece = pieceDePieceJointe(pj.nom, checklist, estExclu);
-      const geste = !d.nasDossier
-        ? (piece && !piece.offre ? `<button type="button" class="lien-action" onclick="cocherPieceDepuisEmail('${d.id}', '${escapeOnclickArg(piece.cle)}', '${escapeOnclickArg(pj.nom)}')">Cocher « ${escapeHtml(piece.label)} » reçue</button>` : '')
-        : `<select class="email-pj-ranger" aria-label="Ranger la pièce jointe dans le dossier" onchange="rangerPieceJointeEmail('${d.id}', '${escapeOnclickArg(e.id)}', '${escapeOnclickArg(pj.id)}', this.value, false)">
-            <option value="">${pj.echec ? 'Échec — ranger…' : 'Ranger…'}</option>
-            ${piece ? `<option value="${escapeAttr(piece.cle)}">Comme « ${escapeHtml(piece.label)} »</option>` : ''}
-            ${checklist.filter(p => !piece || p.cle !== piece.cle).map(p => `<option value="${escapeAttr(p.cle)}">${escapeHtml(p.label)}</option>`).join('')}
-            <option value="__nom">Sous son nom</option>
-            <option value="__ecarter">Pas une pièce du dossier</option>
-          </select>`;
-      return `<span class="email-pj">${ouvrir}${piece ? `<span class="dot-label dl-pret"><span class="dot"></span>${escapeHtml(piece.label)}</span>` : ''}${geste}</span>`;
+    const f = filtresEmailsDossier[d.id] || { sens: 'tous', n: EMAILS_PAR_PAGE };
+    const recus = emails.filter(e => e.sens === 'recu').length;
+    const liste = f.sens === 'tous' ? emails : emails.filter(e => e.sens === f.sens);
+    const pastille = (sens, libelle, nombre) => `<button type="button" class="suivi-statut${f.sens === sens ? ' actif' : ''}${nombre ? '' : ' vide'}" aria-pressed="${f.sens === sens}" onclick="filtrerSensEmails('${d.id}', '${sens}')">${libelle} <span class="suivi-statut-n">${nombre}</span></button>`;
+    const ligne = (e, i) => {
+      const qui = e.sens === 'recu' ? (e.de.nom || e.de.adresse) : `À ${e.a[0] || '—'}${e.a.length > 1 ? ` +${e.a.length - 1}` : ''}`;
+      const pjs = e.pj.filter(p => !p.ignoree).length;
+      const texte = normaliserPourRecherche([qui, e.objet, e.resume, e.de.adresse, ...e.pj.map(p => p.nom)].filter(Boolean).join(' '));
+      return `<li class="email-rang" data-texte="${escapeAttr(texte)}" data-page="${i < f.n ? '1' : '0'}"${i < f.n ? '' : ' hidden'}>
+          <button type="button" class="email-rang-btn email-${e.sens}" onclick="ouvrirEmailComplet('${d.id}', '${escapeOnclickArg(e.id)}')" title="Lire l’email en entier">
+            <span class="email-rang-sens" aria-label="${e.sens === 'recu' ? 'Reçu' : 'Envoyé'}">${icone(e.sens === 'recu' ? 'download' : 'upload')}</span>
+            <span class="email-rang-qui">${escapeHtml(qui)}</span>
+            <span class="email-rang-corps"><span class="email-rang-objet">${escapeHtml(e.objet || '(sans objet)')}</span>${e.resume ? `<span class="email-rang-resume">${escapeHtml(e.resume)}</span>` : ''}</span>
+            <span class="email-rang-meta">${pjs ? `<span class="email-rang-pj" title="${pjs} pièce${pjs > 1 ? 's' : ''} jointe${pjs > 1 ? 's' : ''}">${icone('file-text')}${pjs}</span>` : ''}<span class="email-rang-date">${escapeHtml(dateCourteEmail(e.date))}</span></span>
+          </button>
+        </li>`;
     };
-    // Accusé de réception d'un email reçu avec des documents : ligne d'action, « faite » une fois préparé
-    // (puis « envoyé le … » quand il est retrouvé dans les « Éléments envoyés »).
-    const accuseHtml = (e) => {
-      if (e.sens !== 'recu' || !documentsEmailRecu(e).length || !e.de || !e.de.adresse) return '';
-      const prep = prepares.find(p => p.geste === 'accuseReception:' + e.id);
-      const sous = prep
-        ? (prep.envoyeLe ? `Envoyé le ${dateHeureAppel(Date.parse(prep.envoyeLe))}` : `Préparé le ${dateHeureAppel(Date.parse(prep.prepareLe))}`)
-        : `À ${e.de.nom || e.de.adresse}, avec la signature de l’office`;
-      return `<ul class="ja-liste email-accuse">${renderLigneAction({
-        categorie: 'acte', titre: 'Confirmer la réception', sous, faite: !!prep,
-        bouton: { libelle: prep ? 'Renvoyer' : 'Préparer', icone: icone('mail'), onclick: `confirmerReceptionEmail('${d.id}', '${escapeOnclickArg(e.id)}')`, titre: 'Préparer l’email d’accusé de réception' }
-      })}</ul>`;
-    };
-    const ligne = (e) => {
-      const p = e.prepareId ? prepareParId.get(e.prepareId) : null;
-      const qui = e.sens === 'recu' ? `De ${escapeHtml(e.de.nom || e.de.adresse)}` : `Envoyé par ${escapeHtml((e.collaborateur || '').split(' ')[0] || e.de.adresse)}${e.a.length ? ` à ${escapeHtml(e.a.slice(0, 2).join(', '))}${e.a.length > 2 ? '…' : ''}` : ''}`;
-      return `<li class="email-ligne email-${e.sens}">
-        <div class="email-tete"><span class="email-sens">${e.sens === 'recu' ? 'Reçu' : 'Envoyé'}</span><span class="appels-quand">${escapeHtml(dateHeureAppel(Date.parse(e.date)))}</span><span class="email-qui">${qui}</span>${p ? '<span class="dot-label dl-success"><span class="dot"></span>Préparé par CLAIRE</span>' : ''}</div>
-        <button type="button" class="email-objet email-objet-lien" onclick="ouvrirEmailComplet('${d.id}', '${escapeOnclickArg(e.id)}')" title="Lire l’email en entier">${escapeHtml(e.objet || '(sans objet)')}<span class="email-lire">Lire</span></button>
-        ${e.resume ? `<div class="email-resume">${escapeHtml(e.resume)}</div>` : ''}
-        ${e.pj.length ? `<div class="email-pjs">${e.pj.map(pj => pjHtml(e, pj)).join('')}</div>` : ''}
-        ${accuseHtml(e)}
-      </li>`;
-    };
-    const attente = enAttente.map(p => {
+    const aConfirmer = emailsAConfirmer(emails, prepares);
+    const premier = aConfirmer[0];
+    const accuse = premier ? `<ul class="ja-liste email-accuse">${renderLigneAction({
+      categorie: 'acte', titre: 'Confirmer la réception',
+      sous: `${premier.de.nom || premier.de.adresse} · ${documentsEmailRecu(premier).length} document${documentsEmailRecu(premier).length > 1 ? 's' : ''} · ${dateCourteEmail(premier.date)}${aConfirmer.length > 1 ? ` · ${aConfirmer.length - 1} autre${aConfirmer.length > 2 ? 's' : ''} à confirmer` : ''}`,
+      bouton: { libelle: 'Préparer', icone: icone('mail'), onclick: `confirmerReceptionEmail('${d.id}', '${escapeOnclickArg(premier.id)}')`, titre: 'Préparer l’email d’accusé de réception, avec la signature de l’office' }
+    })}</ul>` : '';
+    const attente = enAttente.length ? `<details class="appels-plus emails-attente"><summary>${enAttente.length} email${enAttente.length > 1 ? 's' : ''} préparé${enAttente.length > 1 ? 's' : ''}, pas encore retrouvé${enAttente.length > 1 ? 's' : ''} dans les envois</summary><ul class="appels-liste">${enAttente.map(p => {
       const st = etatEmailPrepare(p, etat && etat.envoyes);
-      return `<li class="email-ligne email-prepare"><div class="email-tete"><span class="email-sens">Préparé</span><span class="appels-quand">${escapeHtml(dateHeureAppel(Date.parse(p.prepareLe)))}</span><span class="email-qui">par ${escapeHtml((p.collaborateur || '').split(' ')[0] || '—')}</span><span class="dot-label ${st.classe}"><span class="dot"></span>${escapeHtml(st.texte)}</span></div><div class="email-objet">${escapeHtml(p.objet)}</div></li>`;
-    }).join('');
+      return `<li><span class="appels-quand">${escapeHtml(dateCourteEmail(p.prepareLe))}</span><span>${escapeHtml(p.objet)}</span><span class="dot-label ${st.classe}"><span class="dot"></span>${escapeHtml(st.texte)}</span></li>`;
+    }).join('')}</ul></details>` : '';
+    const reste = liste.length - Math.min(f.n, liste.length);
     return `<div class="emails-dossier">
-        <span class="section-eyebrow">Emails <span class="jour-onglet-nb">${emails.length}</span> ${infoBulle('Emails reçus dans la boîte de l’office et envoyés par les collaborateurs, rattachés à ce dossier (relevés chaque minute). Cliquer l’objet pour lire l’email en entier : il est relu dans la messagerie à chaque ouverture, jamais gardé par CLAIRE. Chaque pièce jointe est copiée dans le dossier du NAS : dans le sous-dossier que son nom désigne (pièce d’identité, RIB : Vendeur ou Acquéreur selon l’expéditeur), sinon à la racine.')}</span>
-        <ul class="emails-liste">${attente}${emails.slice(0, 5).map(ligne).join('')}</ul>
-        ${emails.length > 5 ? `<details class="appels-plus"><summary>${emails.length - 5} de plus</summary><ul class="emails-liste">${emails.slice(5).map(ligne).join('')}</ul></details>` : ''}
+        <div class="emails-tete">
+          <span class="section-eyebrow">Emails <span class="jour-onglet-nb">${emails.length}</span> ${infoBulle('Emails de la boîte de l’office et des collaborateurs rattachés à ce dossier, relevés chaque minute. Cliquer un email pour le lire en entier (relu dans la messagerie, jamais gardé par CLAIRE) et voir où ses pièces jointes ont été rangées sur le NAS.')}</span>
+          ${emails.length > EMAILS_PAR_PAGE ? `<input type="search" class="emails-recherche" placeholder="Rechercher un email" aria-label="Rechercher dans les emails du dossier" oninput="rechercherEmailsDossier(this)">` : ''}
+        </div>
+        ${recus && recus < emails.length ? `<div class="suivi-statuts emails-filtres">${pastille('tous', 'Tous', emails.length)}${pastille('recu', 'Reçus', recus)}${pastille('envoye', 'Envoyés', emails.length - recus)}</div>` : ''}
+        ${accuse}
+        <ul class="emails-liste">${liste.map(ligne).join('')}</ul>
+        <p class="hint emails-aucun" hidden>Aucun email ne correspond.</p>
+        ${reste > 0 ? `<button type="button" class="lien-discret emails-plus" onclick="voirPlusEmails('${d.id}')">Voir ${Math.min(reste, 20)} de plus${reste > 20 ? ` (${reste} en tout)` : ''}</button>` : ''}
+        ${attente}
       </div>`;
   }
 
@@ -28863,7 +28926,10 @@
         <div class="email-lecture-meta">${email.sens === 'recu' ? `De ${escapeHtml(email.de.nom ? `${email.de.nom} <${email.de.adresse}>` : email.de.adresse)}` : `Envoyé par ${escapeHtml(email.collaborateur || email.de.adresse || '')}`}
           · ${escapeHtml(dateHeureAppel(Date.parse(email.date)))}${(texte && texte.a || email.a || []).length ? `<br>À ${escapeHtml((texte && texte.a || email.a).join(', '))}` : ''}</div>
       </div>`;
-    const pjs = email.pj.length ? `<div class="email-pjs email-lecture-pjs">${email.pj.map(pj => `<button type="button" class="lien-action email-pj-nom" onclick="ouvrirPieceJointeEmail('${escapeOnclickArg(email.id)}', '${escapeOnclickArg(pj.id)}')">${icone('file-text')}${escapeHtml(pj.nom)}</button>`).join('')}</div>` : '';
+    const checklist = d ? checklistPieces(d.typeVente, d) : [];
+    const pjs = email.pj.length ? `<div class="email-pjs email-lecture-pjs">${email.pj.map(pj => d ? htmlPieceJointeEmail(d, email, pj, checklist) : '').join('')}</div>` : '';
+    const prep = ((emailsParDossier[dossierId] || {}).prepares || []).find(p => p.geste === 'accuseReception:' + email.id);
+    const etatAccuse = prep ? `<span class="dot-label dl-success"><span class="dot"></span>Réception confirmée — ${prep.envoyeLe ? 'envoyée le ' + escapeHtml(dateHeureAppel(Date.parse(prep.envoyeLe))) : 'préparée le ' + escapeHtml(dateHeureAppel(Date.parse(prep.prepareLe)))}</span>` : '';
     zone.innerHTML = entete(null) + '<p class="hint">Lecture de l’email dans la messagerie…</p>';
     const actions0 = document.getElementById('email-lecture-actions');
     if (actions0) actions0.innerHTML = '';
@@ -28873,8 +28939,8 @@
       const corps = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(corps.erreur || 'statut ' + r.status);
       const accuse = d && email.sens === 'recu' && documentsEmailRecu(email).length
-        ? `<button type="button" class="primary" onclick="fermerEmailComplet(); confirmerReceptionEmail('${d.id}', '${escapeOnclickArg(email.id)}')">${icone('mail')}Confirmer la réception</button>` : '';
-      zone.innerHTML = entete(corps) + pjs
+        ? `<button type="button" class="${prep ? 'secondary' : 'primary'}" onclick="fermerEmailComplet(); confirmerReceptionEmail('${d.id}', '${escapeOnclickArg(email.id)}')">${icone('mail')}${prep ? 'Renvoyer la confirmation' : 'Confirmer la réception'}</button>` : '';
+      zone.innerHTML = entete(corps) + (etatAccuse ? `<div>${etatAccuse}</div>` : '') + pjs
         + `<div class="email-lecture-texte">${escapeHtml(String(corps.texte || '').replace(/\r\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim() || '(email sans texte)')}</div>`;
       const actions = document.getElementById('email-lecture-actions');
       if (actions) actions.innerHTML = accuse;
@@ -28882,16 +28948,28 @@
       zone.innerHTML = entete(null) + pjs + `<p class="hint">Email illisible : ${escapeHtml(e.message)}</p>`;
     }
   }
+  // La fenêtre de lecture ouverte sur cet email : ses pièces jointes redessinées (après un rangement).
+  function rafraichirPiecesJointesLecture(dossierId, emailId) {
+    const overlay = document.getElementById('email-lecture-overlay');
+    const zone = document.querySelector('#email-lecture-contenu .email-lecture-pjs');
+    const d = dossiers.find(x => x.id === dossierId);
+    const email = ((emailsParDossier[dossierId] || {}).emails || []).find(e => e.id === emailId);
+    if (!overlay || overlay.style.display === 'none' || !zone || !d || !email) return;
+    const checklist = checklistPieces(d.typeVente, d);
+    zone.innerHTML = email.pj.map(pj => htmlPieceJointeEmail(d, email, pj, checklist)).join('');
+  }
+
   function fermerEmailComplet() {
     const overlay = document.getElementById('email-lecture-overlay');
     if (overlay) overlay.style.display = 'none';
     const zone = document.getElementById('email-lecture-contenu');
     if (zone) zone.innerHTML = ''; // le texte ne reste pas dans la page
   }
-  document.addEventListener('keydown', (e) => {
+  // Échap ferme la seule fenêtre de lecture, pas la fiche ouverte derrière (écouteur en capture).
+  window.addEventListener('keydown', (e) => {
     const overlay = document.getElementById('email-lecture-overlay');
-    if (e.key === 'Escape' && overlay && overlay.style.display !== 'none') fermerEmailComplet();
-  });
+    if (e.key === 'Escape' && overlay && overlay.style.display !== 'none') { e.stopPropagation(); fermerEmailComplet(); }
+  }, true);
 
   async function ouvrirPieceJointeEmail(emailId, pjId) {
     const fenetre = window.open('', '_blank');
@@ -28943,6 +29021,7 @@
       await fetchAvecAuth('/api/emails-dossiers/pj/marquer', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ emailId, pjId, ignoree: true }) }).catch(() => null);
       await chargerEmailsDossier(dossierId);
       render();
+      rafraichirPiecesJointesLecture(dossierId, emailId);
       return false;
     }
     const checklist = checklistPieces(d.typeVente, d);
@@ -28964,6 +29043,7 @@
       if (!auto) afficherToast(`Pièce jointe rangée : ${emplacementPieceRangee(d, corps.chemin)}`, 'OK', null);
       await chargerEmailsDossier(dossierId);
       render();
+      if (!auto) rafraichirPiecesJointesLecture(dossierId, emailId);
       return true;
     } catch (e) {
       if (!auto) afficherToast('Rangement impossible : ' + e.message, 'OK', null);
