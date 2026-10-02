@@ -15356,3 +15356,18 @@ valeurs lues dans l'extraction (`CHAMPS_REVISION` adossé à `extractionActuelle
 - Bloc « Dossier » : ses lignes passent en `revision-double` (masquées quand le panneau est là) ; reste la case des pièces.
 Vérifié : tests client 1198 ; Chromium : 15 données à valider dont les 6 du dossier avec leur source ; correction du notaire de
 l'acquéreur et du type dans le panneau → champs, rôle recalculé et dossier enregistré à jour.
+
+### 02/10/2026 22:18 — Échéances du document retirées, vente préalable et « Sans prêt » dans le panneau, engagements en entier
+Demande : « Échéances et date du document fait doublon avec pré-remplie, à retirer, et mettre dans pré-remplie vente
+préalable. Mets les engagements en entier. »
+- index.html : `details.wizard-plus` masqué (gardé dans le DOM : interrupteurs, chips et échéances personnalisées restent
+  lus par le code d'import et d'enregistrement).
+- script.js : `synchroniserChampFormulaire` active l'échéance prêt/acte/vente préalable dès qu'une date est saisie dans le
+  panneau (le champ `f-ventebien` restait désactivé : la date était ignorée à l'enregistrement), vente préalable vidée =
+  échéance retirée ; `CLES_REVISION_TOUJOURS_VISIBLES` (ventebien) : ligne montrée même vide, sans être comptée ;
+  `basculerSansPretRevision` + case « Sans prêt » sur « Obtention du prêt » (remplace l'interrupteur ; achat comptant
+  détecté → ligne « Achat sans prêt » à valider) ; `renderEngagement` dans l'assistant : clause en entier.
+- Perdu à la création (choix assumé, à dire à l'étude) : échéances personnalisées et reclassement des dates repérées
+  (chips) ; les échéances personnalisées s'ajoutent sur la fiche.
+Vérifié : tests client 1198 / serveur ; Chromium : vente préalable saisie dans le panneau puis « Sans prêt » → dossier
+enregistré avec `ventebien` = 2026-10-30, `sansPret` = true, prêt vide ; engagement affiché en entier ; clair, sombre, 390 px.

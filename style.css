@@ -8404,3 +8404,8 @@ body.wizard-avance #nouveau-intro { display: none !important; }
 /* Données du dossier dans le panneau (étude 02/10 au soir) : le bloc « Dossier » ne garde que les gestes. */
 #panel.avec-revision #wizard-bloc-dossier { border-top: 0; padding-top: 0; margin-top: 12px; }
 #panel.avec-revision #wizard-bloc-dossier .wizard-bloc-titre { display: none; }
+/* « Sans prêt » sur la ligne « Obtention du prêt » du panneau (étude 02/10 au soir). */
+.revision-option { display: inline-flex; align-items: center; gap: 6px; margin-top: 6px; font-size: 13px; color: var(--ink-soft); cursor: pointer; }
+.revision-corps > .revision-option { grid-column: 2; }
+#wizard-bloc-analyse .analyse-engagement-texte { white-space: normal; line-height: 1.45; }
+@media (max-width: 560px) { .revision-corps > .revision-option { grid-column: 1; } }

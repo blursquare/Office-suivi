@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-02 22:15';
+  const VERSION_APP = '2026-10-02 22:18';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-02 22:18', resume: "Nouveau dossier : « Échéances et dates du document » retiré (doublon des données pré-remplies). La vente préalable est toujours dans les données pré-remplies (une date saisie l'active) et la ligne « Obtention du prêt » porte une case « Sans prêt ». Les engagements du vendeur s'affichent en entier, la page du document à un clic." },
     { version: '2026-10-02 22:15', resume: "Nouveau dossier : le type de vente, le responsable, les deux notaires, le notaire qui reçoit l'acte et le rôle de l'étude rejoignent les « Données pré-remplies », avec leur source (Lue dans l'acte, Reprise d'Authentic, Déduit des notaires, Par défaut) et leur case à valider ; ils se corrigent dans le panneau comme les autres données." },
     { version: '2026-10-02 22:10', resume: "Nouveau dossier en trois étapes : Importer, Vérifier, Valider. « Vérifier » réunit les données lues (à valider d'une case, la page du document à un clic), le dossier (type, responsable, notaires, rôle, pièces d'Authentic) et l'avant-contrat (engagements du vendeur en une ligne courte, la clause au survol). « Valider » récapitule le dossier avant « Ajouter le dossier » et signale ce qui reste à valider ou à compléter." },
     { version: '2026-10-02 22:04', resume: "Nouveau dossier épuré : à l'étape Vérifier, chaque donnée tient sur une ligne (libellé, source, valeur, case à valider), sans explication ni extrait ; vendeurs et acquéreurs en deux lignes ; les champs en double sont masqués et « Échéances et dates du document » est replié. À l'étape Finaliser : type de vente, responsable, notaires et une seule case pour les pièces d'Authentic — les pièces de base et le choix des rappels ne s'affichent plus (rappels J-15/J-7 par défaut). Le notaire lu dans Authentic est posé des deux côtés (il reçoit l'acte) quand aucun n'est rempli. L'encadré « Ce que CLAIRE repère » disparaît après l'import." },
@@ -7972,9 +7973,8 @@
       const tag = et.auto ? '<span class="piece-tag">pièce reçue</span>' : '';
       return `<div class="analyse-engagement-ligne avec-case${et.fait ? ' fait' : ''}">${caseHtml}${etiquette}<span class="analyse-engagement-texte">${escapeHtml(phrase)}</span>${tag}${marqueurManuel}${boutonVoir}${boutonEditer}${boutonSupprimer}</div>`;
     }
-    // Nouveau dossier (étude, 02/10 au soir : « pas besoin de l'extrait, je me réfère au document en
-    // cliquant sur la page ») : l'objet de l'engagement seul, la clause entière au survol.
-    return `<div class="analyse-engagement-ligne"><span class="analyse-engagement-texte" title="${escapeAttr(phrase)}">${escapeHtml(libelleCourtEngagement(e))}</span>${etiquette}${boutonVoir}${boutonEditer}${boutonSupprimer}</div>`;
+    // Clause en entier (étude, 02/10 au soir : « mets les engagements en entier »), page à un clic.
+    return `<div class="analyse-engagement-ligne"><span class="analyse-engagement-texte">${escapeHtml(phrase)}</span>${etiquette}${boutonVoir}${boutonEditer}${boutonSupprimer}</div>`;
   }
 
   // Document relevé dans l'avant-contrat, sur une fiche enregistrée : une ligne cochable. S'il est
@@ -8981,6 +8981,12 @@
     if (!definition || !definition.champId) return;
     const champ = document.getElementById(definition.champId);
     if (!champ) return;
+    // Dates butoir : plus d'interrupteurs à la création (étude, 02/10 au soir) — une date saisie active
+    // l'échéance ; une vente préalable vidée la retire.
+    if (['pret', 'acte', 'ventebien'].includes(cle)) {
+      if (valeur) definirEcheanceActive(cle, true);
+      else if (cle === 'ventebien') definirEcheanceActive(cle, false);
+    }
     champ.value = valeur === null || valeur === undefined ? '' : String(valeur);
     // Champ du dossier : une saisie, que CLAIRE ne doit plus remplacer.
     if (definition.formulaire) delete valeursAppliquees[definition.champId];
@@ -9020,6 +9026,17 @@
     item.active = true;
     if (typeof renderChips === 'function') renderChips();
     return true;
+  }
+
+  // « Sans prêt » sur la ligne « Obtention du prêt » (remplace l'interrupteur des échéances, retiré).
+  function basculerSansPretRevision(sansPret) {
+    definirEcheanceActive('pret', !sansPret);
+    if (!sansPret && extractionActuelle) {
+      const champ = champRevision(extractionActuelle, 'pret');
+      if (champ && champ.valeur) document.getElementById('f-pret').value = champ.valeur;
+    }
+    if (sansPret) verificationsRevision.pret = true; // cocher « Sans prêt », c'est l'avoir relu
+    if (extractionActuelle) renderPanneauRevision(extractionActuelle);
   }
 
   function basculerVerificationRevision(cle, coche, sansRendu) {
@@ -9078,6 +9095,7 @@
 
   function renderLigneRevision(definition, champ) {
     const cle = definition.cle;
+    let autresOptions = '';
     const origine = origineRevision(champ);
     const marque = origine.icone ? icone(origine.icone) : '<span class="dot"></span>';
     const page = boutonPageRevision(champ && champ.source);
@@ -9104,6 +9122,21 @@
     // "Redemander à l'IA" n'est plus rendu ; redemanderChampIa/CLES_CIBLE_IA restent en place, sans
     // appelant, pour un éventuel retour arrière. La correction d'un champ reste manuelle.
     const vide = !champ || champ.valeur === null || champ.valeur === undefined || champ.valeur === '';
+    if (cle === 'pret') {
+      const sansPret = !!(champ && champ.sansPret);
+      const option = `<label class="revision-option"><input type="checkbox" ${sansPret ? 'checked' : ''} onchange="basculerSansPretRevision(this.checked)"> Sans prêt</label>`;
+      if (sansPret) {
+        const ok = !!champ.verifie;
+        return `<div class="revision-ligne${ok ? ' revision-verifiee' : ''}">
+          <button type="button" class="revision-check${ok ? ' coche' : ''}" role="checkbox" aria-checked="${ok}" aria-label="${ok ? 'Retirer la validation de' : 'Valider'} ${escapeAttr(definition.libelle)}" onclick="basculerVerificationRevision('pret', ${!ok})">${ok ? icone('check') : ''}</button>
+          <div class="revision-corps">
+            <div class="revision-tete"><span class="revision-libelle">${escapeHtml(definition.libelle)}</span><span class="revision-source">Achat sans prêt</span></div>
+            ${option}
+          </div>
+        </div>`;
+      }
+      autresOptions = option;
+    }
     // Source d'origine, même une fois validée (« Lu dans l'acte », « Repris d'Authentic »…).
     const source = origineRevision(champ ? Object.assign({}, champ, { verifie: false }) : champ);
     const libelleAria = `${verifie ? 'Retirer la validation de' : 'Valider'} ${definition.libelle}`;
@@ -9123,7 +9156,7 @@
           ${page}
         </div>
         ${champSaisieRevision(definition, champ)}
-        ${autres}${proposition}
+        ${autresOptions}${autres}${proposition}
       </div>
     </div>`;
   }
@@ -9136,11 +9169,19 @@
 
   // Pure : les lignes du panneau réparties — à valider (pré-remplies, pas encore relues), validées,
   // à compléter (rien de trouvé).
-  function groupesRevision(extraction) {
-    const g = { aValider: [], validees: [], aCompleter: [] };
+  // Toujours montrées, même vides (étude, 02/10 au soir : la vente préalable dans les données pré-remplies).
+  var CLES_REVISION_TOUJOURS_VISIBLES = ['ventebien'];
+  function groupesRevision(extraction, sansPret) {
+    const g = { aValider: [], validees: [], aCompleter: [], visibles: [] };
     CHAMPS_REVISION.forEach(definition => {
+      if (definition.cle === 'pret' && sansPret) {
+        const verifie = !!(typeof verificationsRevision !== 'undefined' && verificationsRevision.pret);
+        (verifie ? g.validees : g.aValider).push({ definition, champ: { valeur: null, verifie, sansPret: true } });
+        return;
+      }
       const champ = champRevision(extraction, definition.cle);
       const rempli = !!champ && champ.valeur !== null && champ.valeur !== undefined && champ.valeur !== '';
+      if (!rempli && CLES_REVISION_TOUJOURS_VISIBLES.includes(definition.cle)) { g.visibles.push({ definition, champ }); return; }
       (!rempli ? g.aCompleter : champ.verifie ? g.validees : g.aValider).push({ definition, champ });
     });
     return g;
@@ -9166,7 +9207,7 @@
       return;
     }
 
-    const groupes = groupesRevision(extraction);
+    const groupes = groupesRevision(extraction, typeof echeanceActive !== 'undefined' && echeanceActive.pret === false);
     const renseignees = groupes.aValider.length + groupes.validees.length;
     const verifiees = groupes.validees.length;
     etatRevision = { aValider: groupes.aValider.length, validees: verifiees, vides: groupes.aCompleter.length };
@@ -9185,8 +9226,10 @@
     ).join('');
 
     const pourcent = renseignees ? Math.round(100 * verifiees / renseignees) : 0;
-    const groupe = (titre, aide, liste, classe) => liste.length
-      ? `<div class="revision-groupe ${classe}"><div class="revision-groupe-titre">${escapeHtml(titre)} <span class="revision-groupe-nombre">${liste.length}</span>${aide ? ' ' + infoBulle(aide) : ''}</div><div class="revision-liste">${lignesDe(liste)}</div></div>`
+    // Une ligne toujours visible (vente préalable vide) suit « À valider », sinon « Validées », sans être comptée.
+    const enPlus = groupes.visibles;
+    const groupe = (titre, aide, liste, classe, supplement) => (liste.length || (supplement && supplement.length))
+      ? `<div class="revision-groupe ${classe}"><div class="revision-groupe-titre">${escapeHtml(titre)} <span class="revision-groupe-nombre">${liste.length}</span>${aide ? ' ' + infoBulle(aide) : ''}</div><div class="revision-liste">${lignesDe(liste)}${supplement ? lignesDe(supplement) : ''}</div></div>`
       : '';
     panneau.innerHTML = `
       <div class="revision-entete">
@@ -9199,8 +9242,8 @@
       </div>
       ${alertes}
       ${parties ? `<div class="revision-parties">${parties}</div>` : ''}
-      ${groupe('À valider', 'Pré-remplies depuis le compromis ou Authentic, pas encore relues.', groupes.aValider, 'a-valider')}
-      ${groupe('Validées', '', groupes.validees, 'validees')}
+      ${groupe('À valider', 'Pré-remplies depuis le compromis ou Authentic, pas encore relues.', groupes.aValider, 'a-valider', groupes.aValider.length || !groupes.validees.length ? enPlus : null)}
+      ${groupe('Validées', '', groupes.validees, 'validees', groupes.aValider.length || !groupes.validees.length ? null : enPlus)}
       ${groupes.aCompleter.length ? `<details class="revision-groupe a-completer"${revisionCompleterOuvert ? ' open' : ''} ontoggle="revisionCompleterOuvert = this.open">
         <summary class="revision-groupe-titre">À compléter si besoin <span class="revision-groupe-nombre">${groupes.aCompleter.length}</span></summary>
         <div class="revision-liste">${lignesDe(groupes.aCompleter)}</div></details>` : ''}

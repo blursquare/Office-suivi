@@ -263,8 +263,11 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
   par `originesDossierWizard` — acte, Authentic, « Déduit des notaires », « Par défaut », à la main ; un choix à la main n'est jamais
   remplacé, `choixManuelDossierWizard`), puis la case « pièces d'Authentic » (champs doublant le panneau masqués,
   `#panel.avec-revision .revision-double`), bloc
-  « Avant-contrat » à plat (engagements en libellé court `libelleCourtEngagement`, clause au survol, page à un clic ;
-  documents identifiés), « Échéances et dates du document » replié (`details.wizard-plus`). Valider = récapitulatif
+  « Avant-contrat » à plat (engagements **en entier**, étude 02/10 au soir, page à un clic ;
+  documents identifiés). « Échéances et dates du document » **retiré** (étude 02/10 au soir, doublon ; `details.wizard-plus`
+  gardé masqué pour le code) : vente préalable toujours visible dans le panneau (`CLES_REVISION_TOUJOURS_VISIBLES`, une date
+  saisie active l'échéance, vidée la retire), case « Sans prêt » sur la ligne du prêt (`basculerSansPretRevision`) ;
+  échéances personnalisées et reclassement des dates repérées : sur la fiche, plus à la création. Valider = récapitulatif
   (`lignesRecapWizard`, `renderRecapWizard` : vide = « À compléter », données non validées signalées) + « Ajouter le dossier ».
   Succession : Vérifier réduit (panneau, avant-contrat et échéances masqués). **Pièces de base et choix des rappels plus
   montrés à la création** (`#pieces-apercu`, `#rappel-fieldset` masqués, rappels par défaut J-15/J-7 appliqués) ; sous-titres
