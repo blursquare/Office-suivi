@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-02 15:54';
+  const VERSION_APP = '2026-10-02 15:59';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-02 15:59', resume: "Add-on Authentic : quand une fiche client correspond à plusieurs dossiers en cours, le message porte un bouton « Choisir » : il liste ces dossiers (avec le côté vendeur/acquéreur) et un clic y range la fiche ; ce dossier devient le dossier en consultation pour les fiches suivantes." },
     { version: '2026-10-02 15:54', resume: "Agenda : « ‹ Aujourd’hui › » et « Aller à une date » sont à côté de la date, sur sa ligne ; la date a une largeur fixe, les boutons ne bougent plus sous la souris d'une semaine à l'autre." },
     { version: '2026-10-02 15:50', resume: "Add-on Authentic, fiche client du vendeur (cas CHAHUNEAU) : quand sa fiche cite son ancien dossier (archivé) et pas la vente en cours, les coordonnées partaient dans l'ancien. La vente en cours où la personne est partie passe désormais toujours avant. Chaque fiche client lue sans effet le dit maintenant (aucun dossier, plusieurs possibles, ni téléphone ni email sur la fiche Authentic, déjà à jour)." },
     { version: '2026-10-02 15:39', resume: "Add-on Authentic : le numéro du dossier dans Authentic (« 1836 » de « 1836 - Vente … ») est retenu sur la fiche dès que le dossier est reconnu ou créé, puis il sert en priorité pour reconnaître le dossier — avant les noms et l'adresse, même si l'intitulé change ; un dossier déjà rattaché à un autre numéro n'est plus jamais pris pour celui-là. Non affiché." },
@@ -26817,9 +26818,66 @@
     const personne = clientDepuisFicheAuthentic(capture);
     if (!personne) return '';
     const qui = [personne.prenom, personne.nom].filter(Boolean).join(' ');
-    const enCours = (liste || []).filter(d => d && !d.deleted && !d.archive && !signatureFaiteSuivi(d) && roleClientAuthenticDansDossier(d, personne));
-    if (enCours.length > 1) return `fiche de ${qui} : plusieurs dossiers en cours la comptent (${enCours.slice(0, 3).map(libelleDossierAffiche).join(', ')}) — ouvrez d'abord la page du bon dossier dans Authentic`;
+    const enCours = dossiersCandidatsFicheClient(capture, liste);
+    if (enCours.length > 1) return `fiche de ${qui} : plusieurs dossiers en cours la comptent (${enCours.slice(0, 3).map(libelleDossierAffiche).join(', ')}) — choisissez le bon`;
     return `fiche de ${qui} : aucun dossier en cours de CLAIRE ne compte cette personne parmi ses parties (nom, nom d'usage ou conjoint)`;
+  }
+
+  // Pure : les dossiers en cours dont la personne d'une fiche client est partie, avec son côté.
+  function dossiersCandidatsFicheClient(capture, liste) {
+    const personne = clientDepuisFicheAuthentic(capture);
+    if (!personne) return [];
+    return (liste || []).filter(d => d && !d.deleted && !d.archive && !signatureFaiteSuivi(d) && roleClientAuthenticDansDossier(d, personne));
+  }
+
+  // Fiches client en attente d'un choix de dossier (mémoire du poste seulement, 10 au plus).
+  var fichesClientEnAttente = new Map();
+  let numeroFicheEnAttente = 0;
+
+  function ouvrirChoixFicheClientAuthentic(cle) {
+    const attente = fichesClientEnAttente.get(cle);
+    const overlay = document.getElementById('authentic-choix-overlay');
+    const liste = document.getElementById('authentic-choix-liste');
+    const intro = document.getElementById('authentic-choix-intro');
+    if (!attente || !overlay || !liste) return;
+    const personne = clientDepuisFicheAuthentic(attente.capture);
+    const qui = personne ? [personne.prenom, personne.nom].filter(Boolean).join(' ') : 'cette personne';
+    if (intro) intro.textContent = `Fiche de ${qui} lue dans Authentic : dans quel dossier la ranger ?`;
+    const candidats = dossiersCandidatsFicheClient(attente.capture, dossiers);
+    liste.innerHTML = candidats.length ? candidats.map(d => {
+      const role = personne ? roleClientAuthenticDansDossier(d, personne) : '';
+      return `<button type="button" class="nas-choix-item" onclick="rangerFicheClientAuthentic('${escapeOnclickArg(cle)}', '${escapeOnclickArg(d.id)}')">`
+        + `<span class="nas-choix-nom">${escapeHtml(libelleDossierAffiche(d))}</span>`
+        + (role ? `<span class="nas-choix-marque">${role === 'VENDEUR' ? 'vendeur' : role === 'ACQUEREUR' ? 'acquéreur' : 'partie'}</span>` : '')
+        + `</button>`;
+    }).join('') : '<p class="nas-choix-vide">Plus aucun dossier en cours ne compte cette personne.</p>';
+    overlay.style.display = 'flex';
+    const premier = liste.querySelector('button');
+    if (premier) premier.focus();
+  }
+
+  function fermerChoixFicheClientAuthentic() {
+    const overlay = document.getElementById('authentic-choix-overlay');
+    if (overlay) overlay.style.display = 'none';
+  }
+
+  // La fiche va dans le dossier choisi, qui devient le dossier en consultation : les fiches suivantes
+  // des mêmes personnes y vont sans redemander.
+  async function rangerFicheClientAuthentic(cle, id) {
+    fermerChoixFicheClientAuthentic();
+    const attente = fichesClientEnAttente.get(cle);
+    const d = dossiers.find(x => x.id === id);
+    if (!attente || !d) return;
+    fichesClientEnAttente.delete(cle);
+    dossierCourantAuthentic = { id: d.id, t: Date.now() };
+    const r = appliquerReleveSurDossier(d, attente.capture);
+    if (r.modifie) {
+      await sauvegarder(d);
+      render();
+      afficherToast(`Authentic · ${libelleDossierAffiche(d)} : ${r.textes[0] || 'fiche client reprise'}${r.textes.length > 1 ? ` (+${r.textes.length - 1})` : ''}.`, 'Voir', () => ouvrirDossierDrawer(d.id));
+    } else {
+      afficherToast(`Authentic · ${libelleDossierAffiche(d)} : ${raisonFicheClientSansChangement(attente.capture)}.`, 'Voir', () => ouvrirDossierDrawer(d.id));
+    }
   }
 
   // Pure : ce qu'une fiche client a apporté, quand rien n'a changé — dit à l'étude.
@@ -26870,7 +26928,16 @@
       if (d) dossierCourantAuthentic = { id: d.id, t: Date.now() };
       if (!d) {
         const raison = raisonFicheClientSansDossier(capture, dossiers);
-        if (raison) afficherToast(`Authentic · ${raison}.`, 'OK', null);
+        if (dossiersCandidatsFicheClient(capture, dossiers).length > 1) {
+          // Plusieurs dossiers possibles (étude, 02/10 : « comment lui dire lequel est le bon ») : la fiche
+          // attend, le bouton du message ouvre le choix.
+          const cle = 'f' + (++numeroFicheEnAttente);
+          fichesClientEnAttente.set(cle, { capture });
+          while (fichesClientEnAttente.size > 10) fichesClientEnAttente.delete(fichesClientEnAttente.keys().next().value);
+          afficherToast(`Authentic · ${raison}.`, 'Choisir', () => ouvrirChoixFicheClientAuthentic(cle));
+        } else if (raison) {
+          afficherToast(`Authentic · ${raison}.`, 'OK', null);
+        }
         return 0;
       }
       const r0 = appliquerReleveSurDossier(d, capture);

@@ -14999,3 +14999,13 @@ barre ‹ Aujourd'hui › + « Aller à une date » quitte la droite de l'en-tê
 (`.ag-titre-ligne`), avant la ligne « Semaine du … · Agenda de l'office lu … ». Date en `min-width: 9.6em`
 (« 28 septembre 2026 » au plus) : les boutons restent au même pixel d'une semaine à l'autre (mesuré : 639,138 sur
 quatre semaines). Téléphone : le bloc reste à côté du mot du jour, les boutons sous la date.
+
+### 02/10/2026 fin d'après-midi — Fiche client dans plusieurs dossiers : choisir le bon
+
+Étude : « j'ai bien l'alerte client dans plusieurs dossiers, mais comment lui dire lequel est le bon ? ». Le toast
+« plusieurs dossiers en cours la comptent » porte maintenant « Choisir » : fenêtre `#authentic-choix-overlay` (patron
+du choix du dossier NAS) listant les dossiers en cours où la personne est partie, avec son côté
+(`dossiersCandidatsFicheClient`) ; un clic applique la fiche à ce dossier (`rangerFicheClientAuthentic`) et en fait le
+dossier en consultation. La fiche attend en mémoire du poste (`fichesClientEnAttente`, 10 au plus). Vérifié dans
+Chromium (deux ventes en cours, même personne vendeur dans l'une, acquéreur dans l'autre : email repris côté
+acquéreur du dossier choisi, rien dans l'autre).

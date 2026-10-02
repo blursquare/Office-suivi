@@ -2094,6 +2094,18 @@
      les pièces d'une vente dans celles d'une autre. Remplace l'ancienne popup « accès à
      reconfirmer », devenue sans objet depuis que le serveur lit le NAS (plus aucune permission
      navigateur à redemander). Même patron .confirm-overlay que les autres fenêtres de l'outil. -->
+<!-- Fiche client d'Authentic dont la personne est partie de plusieurs dossiers en cours (étude, 02/10 :
+     « comment lui dire lequel est le bon ») : un clic range la fiche dans le dossier choisi. -->
+<div class="confirm-overlay" id="authentic-choix-overlay" style="display:none;" onmousedown="if (event.target === this) this.dataset.fond = '1'" onclick="if (event.target === this && this.dataset.fond) fermerChoixFicheClientAuthentic(); this.dataset.fond = ''">
+  <div class="confirm-box nas-choix-box" role="dialog" aria-modal="true" aria-labelledby="authentic-choix-intro">
+    <p id="authentic-choix-intro"></p>
+    <div id="authentic-choix-liste" class="nas-choix-liste"></div>
+    <div class="confirm-actions">
+      <button type="button" class="btn-annuler" onclick="fermerChoixFicheClientAuthentic()">Annuler</button>
+    </div>
+  </div>
+</div>
+
 <div class="confirm-overlay" id="nas-choix-overlay" style="display:none;">
   <div class="confirm-box nas-choix-box">
     <p id="nas-choix-intro"></p>
