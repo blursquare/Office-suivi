@@ -15137,3 +15137,46 @@ carnet, tous départements, groupé par ville ; choisir un département la déco
 « Ailleurs en France » (carnet hors écran + annuaire national, sans doublon). Fiche → « voir dans le répertoire »
 (`ouvrirOfficeCarnet`) et « Ajouter au répertoire » ouvrent cette vue. Vue « Tout » : section « Notaires — mes confrères ».
 Colonnes en fractions (3fr / 2fr / action) pour que le nom ne soit plus écrasé.
+
+### 02/10/2026 (20 h 54) — Authentic : pourquoi des pages ne remontaient pas (audit et corrections)
+
+Demande : « Il faut que l'on revoit le fonctionnement de la détection d'un dossier dans authentic pourquoi parfois
+les données ne remontent pas ? ». Audit de toute la chaîne (extension → serveur → fenêtre CLAIRE), causes de perte
+SILENCIEUSE trouvées et corrigées :
+1. **Fenêtre cachée sur copie ancienne** (la plus grave) : le polling des dossiers s'arrête quand la fenêtre est
+   cachée/réduite (`gererVisibilitePolling`), mais la boucle d'attente des relevés (02/10) continue — la fenêtre du
+   poste serveur, réduite toute la journée, prenait donc les pages avec une liste de dossiers vieille de plusieurs
+   heures : dossier créé depuis sur un autre poste → introuvable (rien dit) ; fiche trouvée → PUT de la copie
+   ancienne qui écrasait les changements faits ailleurs. Correctif : `rattraperDossiersDistants()` (même lecture
+   `?since=` que le polling) avant chaque lot de pages (`appliquerRelevesAuthentic`).
+2. **Page prise par la fenêtre d'un collègue** : la file était servie à la première fenêtre en attente, de n'importe
+   quel poste — message sur le mauvais écran, et la fiche client suivante, lue par une autre fenêtre, n'avait plus
+   le « dossier en consultation ». Correctif serveur : chaque relevé porte l'adresse réseau de l'extension
+   (`origineRequete` : loopback ou une adresse du serveur = « local ») ; une fenêtre ne prend que les pages de son
+   poste (`prendrePour`), sauf celles d'un poste sans fenêtre CLAIRE vue depuis 90 s (`DUREE_FENETRE_VUE_MS`) ou en
+   attente. Les fenêtres envoient leur collaborateur (`poste`) pour le journal.
+3. **Page revue jamais relue** : le serveur gardait l'empreinte de chaque page et, au retour, ne mettait en file que
+   l'intitulé (navigation) — une page lue avant la création ou le rattachement du dossier ne passait plus jamais.
+   Désormais remise en file avec son contenu (`revu: true`, pas de message « rien de neuf ») ; seul un doublon de
+   moins de 15 s est écarté (`DUREE_DOUBLON_MS`). Les récents gardent une seule version de la page.
+4. **Page de dossier sans dossier reconnu : aucun message**. Désormais `raisonDossierAuthenticIntrouvable`
+   (intitulé non lu / aucun dossier ne porte ces noms / « le plus proche, X, n'a que N points sur 6 (détail) » /
+   déjà rattaché à un autre n° / deux dossiers aussi proches) dans un message fixe « Choisir » (une fois par page et
+   par fenêtre toutes les 30 min, `messagesDossierIntrouvable`) → fenêtre de choix (`candidatsDossierAuthentic` : en
+   cours, les plus ressemblants d'abord, recherche au-delà de 6) → `rattacherNumeroAuthentic` (choix à la main :
+   passe avant tout, le numéro quitte le dossier qui le portait, historique des deux) puis application.
+5. **Extension : page non arrivée jamais renvoyée** (empreinte retenue même si l'envoi échouait). Extension 0.3.6 :
+   `fond.js` répond `{ ok }`, `auto.js` oublie l'empreinte et renvoie 30 s plus tard ; « ! » rouge sur le bouton
+   tant que CLAIRE ne répond pas.
+6. **Rien de visible** : journal en mémoire du serveur (12 h, 100 lignes, vidé au redémarrage — contient les
+   intitulés, jamais en base ni journalisé) : reçue (poste d'origine), prise (par qui), résultat rapporté par la
+   fenêtre (`POST /api/authentic/releves/resultats` : applique, rattache, sans-changement, sans-dossier, a-choisir,
+   erreur), « expirée » après 60 min sans fenêtre. `GET /api/authentic/journal`, `GET /api/authentic/releves/:id`
+   (page encore en mémoire, pour « Choisir le dossier » depuis le journal). Affiché dans **Réglages › Authentic**
+   (nouvelle rubrique, `renderReglagesAuthentic`, `ligneJournalAuthentic`) avec les fenêtres CLAIRE à l'écoute.
+Reste vrai : une page n'est lue que si une fenêtre CLAIRE est ouverte quelque part (même réduite) ; la file est en
+mémoire (perdue au redémarrage du serveur, par exemple pendant une mise à jour).
+Vérifié : tests serveur (routage par poste, doublon, page revue, expiration, journal) et client (motifs, candidats,
+rattachement, lignes du journal) ; Chromium avec serveur réel et dossiers inventés (dossier créé « sur un autre
+poste » pendant que la fenêtre ne sondait plus → retrouvé ; page non reconnue → message, choix, numéro retenu ;
+journal clair/sombre/téléphone). Non vérifié : vraie extension dans Firefox, adresses réseau réelles des postes.

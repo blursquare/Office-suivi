@@ -925,3 +925,57 @@ test('Notaires : un office du carnet remplace sa ligne de l’annuaire, les sais
   assert.equal(r.map(x => `${x.office.id}:${x.carnet ? 'c' : 'a'}`).join(), 'annuaire-1:c,annuaire-2:a,etude-x:c,saisie-1:c');
   assert.equal(r[0].office.office, 'SCP MARTEL (corrigé)');
 });
+
+test('raisonDossierAuthenticIntrouvable : le motif dit à l’étude, jamais un silence', () => {
+  const dossiers = [
+    { id: 'a', nom: 'MARTEL / FOURNIER', parties: [] },
+    { id: 'b', nom: 'DURAND / ROUX', numeroAuthentic: '77', parties: [] },
+    { id: 'c', nom: 'LEROY / PETIT', parties: [] },
+    { id: 'd', nom: 'LEROY / PETIT', parties: [] }
+  ];
+  assert.equal(app.raisonDossierAuthenticIntrouvable('', dossiers, '', ''), 'intitulé du dossier non lu sur la page');
+  assert.equal(app.raisonDossierAuthenticIntrouvable('Vente BERNARD/THOMAS', dossiers, '', '5'), 'aucun dossier de CLAIRE ne porte ces noms');
+  // Un seul côté reconnu : sous le seuil, avec le détail des points.
+  assert.match(app.raisonDossierAuthenticIntrouvable('Vente MARTEL/THOMAS', dossiers, '', '5'), /le plus proche, VTE - MARTEL \/ FOURNIER, n'a que 3 points sur 6 \(vendeur identique \(\+3\)\)/);
+  // Les noms d'un dossier déjà rattaché à un autre numéro d'Authentic.
+  assert.match(app.raisonDossierAuthenticIntrouvable('Vente DURAND/ROUX', dossiers, '', '12'), /déjà rattaché au dossier Authentic n° 77/);
+  // Deux dossiers identiques : jamais deviné entre eux.
+  assert.match(app.raisonDossierAuthenticIntrouvable('Vente LEROY/PETIT', dossiers, '', '9'), /^deux dossiers aussi proches/);
+});
+
+test('candidatsDossierAuthentic : dossiers en cours, les plus ressemblants d’abord', () => {
+  const dossiers = [
+    { id: 'z', nom: 'AUBERT / BLANC', parties: [] },
+    { id: 'a', nom: 'MARTEL / FOURNIER', parties: [] },
+    { id: 'x', nom: 'MARTEL / FOURNIER', archive: true, parties: [] },
+    { id: 'y', nom: 'COLIN / DUPUIS', deleted: true, parties: [] }
+  ];
+  assert.equal(app.candidatsDossierAuthentic('Vente MARTEL/THOMAS', '', dossiers).map(x => x.d.id).join(','), 'a,z');
+});
+
+test('rattacherNumeroAuthentic : le choix à la main passe avant tout, le numéro quitte l’ancien dossier', () => {
+  const ancien = { id: 'b', nom: 'DURAND / ROUX', numeroAuthentic: '12', historique: [] };
+  const choisi = { id: 'a', nom: 'MARTEL / FOURNIER', numeroAuthentic: '30', historique: [] };
+  const quittes = app.rattacherNumeroAuthentic(choisi, '12', [ancien, choisi]);
+  assert.equal(quittes.length, 1);
+  assert.equal(ancien.numeroAuthentic, undefined);
+  assert.equal(choisi.numeroAuthentic, '12');
+  assert.match(choisi.historique[0].texte, /n° 12 rattaché à la main/);
+  assert.match(ancien.historique[0].texte, /n° 12 rattaché à VTE - MARTEL \/ FOURNIER à la main/);
+  assert.equal(app.rattacherNumeroAuthentic(choisi, '', [choisi]).length, 0);
+});
+
+test('ligneJournalAuthentic : page, postes, état et choix à la main', () => {
+  const dossiers = [{ id: 'a', nom: 'MARTEL / FOURNIER' }];
+  const l = app.ligneJournalAuthentic({ id: 'r1', recueLe: '2026-10-02T10:05:00.000Z', nature: 'dossier', intitule: '12 - Vente MARTEL/FOURNIER Importer avec 2e SENS', origine: '10.0.0.2', posteOrigine: 'Julie VASSELIN', prisPar: 'Jérémy SAUJOT', etat: 'sans-dossier', texte: 'aucun dossier de CLAIRE ne porte ces noms', enMemoire: true }, dossiers);
+  assert.equal(l.page, 'Dossier « 12 - Vente MARTEL/FOURNIER »');
+  assert.equal(l.qui, 'de Julie · lue par Jérémy');
+  assert.equal(l.etat.texte, 'Aucun dossier');
+  assert.equal(l.choisir, true);
+  const ok = app.ligneJournalAuthentic({ id: 'r2', nature: 'client', origine: 'local', etat: 'applique', dossierId: 'a', texte: 'téléphone repris', prisPar: '', revu: true }, dossiers);
+  assert.equal(ok.qui, 'de poste serveur · lue par une fenêtre · revue');
+  assert.equal(ok.detail, 'VTE - MARTEL / FOURNIER : téléphone repris');
+  assert.equal(ok.choisir, false);
+  assert.equal(ok.dossierId, 'a');
+  assert.equal(app.ligneJournalAuthentic({ etat: 'expire', nature: 'dossier', enMemoire: true }, []).etat.texte, 'Perdue : aucune fenêtre CLAIRE ouverte');
+});

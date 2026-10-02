@@ -10,6 +10,7 @@
   let minuteur = null;
   let derniere = '';
   let derniereNavigation = '';
+  let minuteurReprise = null;
   function releverEtEnvoyer() {
     minuteur = null;
     let c = null;
@@ -34,7 +35,15 @@
     const empreinte = JSON.stringify([c.champs, c.tableaux]);
     if (empreinte === derniere) return;
     derniere = empreinte;
-    browser.runtime.sendMessage({ type: 'releve', capture: c }).catch(() => {});
+    // Page non arrivée à CLAIRE (éteinte, réseau) : renvoyée dans 30 s si elle est toujours affichée
+    // (0.3.6 — avant, elle n'était plus renvoyée tant qu'elle ne changeait pas).
+    const echec = () => {
+      if (derniere !== empreinte) return;
+      derniere = '';
+      clearTimeout(minuteurReprise);
+      minuteurReprise = setTimeout(programmer, 30000);
+    };
+    browser.runtime.sendMessage({ type: 'releve', capture: c }).then(rep => { if (!rep || !rep.ok) echec(); }, echec);
   }
   function pageConnue(c) {
     const re = /(?:^|[^\w])\d{1,6}\s*-\s*(?:(?:Vente|VTE)\s+[^\n\/]*\S\s*\/\s*\S|(?:Succession|SUCC)\.?\s+\S)/i;

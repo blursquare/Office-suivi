@@ -9,8 +9,20 @@
 //    et met la fiche du dossier à jour (pièces reçues) — ou l'attend (POST /api/authentic/releves/attendre :
 //    requête gardée ouverte jusqu'à 25 s, rendue dès qu'une page arrive ; une fenêtre cachée, que le
 //    navigateur ne réveille plus qu'une fois par minute, est ainsi servie tout de suite) ; elle reste aussi 60 min parmi les relevés
-//    récents (GET /api/authentic/releves/recents) pour créer un dossier depuis Authentic. Une page
-//    identique à l'une des précédentes n'est pas remise en file.
+//    récents (GET /api/authentic/releves/recents) pour créer un dossier depuis Authentic.
+//
+// Fiabilité (étude, 02/10 : « pourquoi parfois les données ne remontent pas ? ») :
+//  - Une page revue est REMISE en file avec son contenu (avant : l'intitulé seul) : si la première
+//    lecture n'avait trouvé aucun dossier (dossier créé depuis, rattaché à la main), la seconde passe.
+//    L'application est sans effet quand rien n'a changé. Seul un doublon de moins de 15 s (cadres
+//    de la page, deux envois) est écarté.
+//  - Une page est servie d'abord à une fenêtre CLAIRE du MÊME poste (adresse réseau de l'extension =
+//    adresse de la fenêtre ; le poste serveur, en local ou par son adresse réseau, compte pour un) :
+//    avant, la fenêtre d'un collègue pouvait la prendre — message sur son écran, fiche client suivante
+//    rangée sans le dossier ouvert. Sans fenêtre de ce poste vue depuis 90 s, n'importe laquelle la prend.
+//  - Un journal en mémoire (12 h, 100 lignes) suit chaque page : reçue, prise par quel poste, et ce que
+//    la fenêtre en a fait (POST /api/authentic/releves/resultats) — GET /api/authentic/journal, affiché
+//    dans Réglages › Authentic. Une page restée 60 min sans fenêtre y est marquée « expirée ».
 // Une capture contient des données de clients : gardée en MÉMOIRE seulement (30 min, 20 au plus),
 // jamais en base, jamais journalisée, jamais reprise dans un message d'erreur. Le corps doit être en
 // application/json : une page web d'un autre site ne peut pas en poster sans prévol CORS (auquel le
@@ -18,6 +30,7 @@
 
 const express = require('express');
 const crypto = require('node:crypto');
+const { adressesLan } = require('../reseau');
 
 var DUREE_CAPTURE_MS = 30 * 60 * 1000;
 var MAX_CAPTURES = 20;
@@ -54,10 +67,35 @@ function normaliserCaptureAuthentic(corps) {
 }
 
 var DUREE_ATTENTE_RELEVES_MS = 25 * 1000;
+var DUREE_FENETRE_VUE_MS = 90 * 1000;
+var DUREE_DOUBLON_MS = 15 * 1000;
+var DUREE_JOURNAL_MS = 12 * 60 * 60 * 1000;
+var MAX_JOURNAL = 100;
+var ETATS_RESULTAT = ['applique', 'sans-changement', 'sans-dossier', 'a-choisir', 'erreur', 'rattache'];
+
+// Le poste d'une requête : son adresse réseau, « local » pour le poste serveur (en local ou par l'une
+// de ses propres adresses — l'extension du poste serveur peut viser son adresse réseau).
+function origineRequete(req, adresses) {
+  const ip = String((req && req.socket && req.socket.remoteAddress) || '').replace(/^::ffff:/, '');
+  if (!ip || ip === '127.0.0.1' || ip === '::1') return 'local';
+  let propres = [];
+  try { propres = adresses() || []; } catch (e) { /* adresses inconnues */ }
+  return propres.includes(ip) ? 'local' : ip;
+}
+
+// Pure : nature d'une page relevée, pour le journal (sans rien de son contenu sinon l'intitulé).
+function naturePageAuthentic(capture) {
+  const libelles = ((capture && capture.champs) || []).map(ch => String(ch.libelle || ''));
+  if (libelles.some(l => /ficheClientPhysique/i.test(l))) return 'client';
+  if (libelles.some(l => /ficheImmeuble/i.test(l))) return 'bien';
+  return 'dossier';
+}
 
 function creerRouteurAuthentic(options) {
   const maintenant = (options && options.maintenant) || (() => Date.now());
   const dureeAttente = (options && options.dureeAttenteMs) || DUREE_ATTENTE_RELEVES_MS;
+  const adresses = (options && options.adressesLan) || adressesLan;
+  const origineDe = (req) => (options && options.origine) ? options.origine(req) : origineRequete(req, adresses);
   const captures = new Map();
   const purger = () => {
     const t = maintenant();
@@ -82,20 +120,58 @@ function creerRouteurAuthentic(options) {
   let recents = [];
   // Fenêtres en attente d'un relevé (la plus ancienne servie la première : une seule prend la file).
   const attentes = [];
-  const servirAttente = () => {
-    if (!aTraiter.length) return;
-    const a = attentes.shift();
-    if (!a) return;
-    clearTimeout(a.minuterie);
-    const pris = aTraiter;
-    aTraiter = [];
-    a.repondre(pris);
+  // Fenêtres CLAIRE vues, par poste : { vu, poste } (poste = collaborateur choisi sur la fenêtre).
+  const fenetres = new Map();
+  // Journal des pages reçues (mémoire seule).
+  let journal = [];
+  const noter = (releve, champs) => {
+    const e = journal.find(x => x.id === releve.id);
+    if (e) Object.assign(e, champs);
   };
-  const empreintes = [];
+  const posteDe = (origine) => (fenetres.get(origine) || {}).poste || '';
+  const vueRecemment = (origine) => {
+    if (attentes.some(a => a.origine === origine)) return true;
+    const f = fenetres.get(origine);
+    return !!f && maintenant() - f.vu <= DUREE_FENETRE_VUE_MS;
+  };
+  // Les relevés pour une fenêtre de ce poste : les siens, et ceux d'un poste sans fenêtre CLAIRE.
+  const prendrePour = (origine, poste) => {
+    const pris = [];
+    const reste = [];
+    for (const r of aTraiter) {
+      if (r.origine === origine || !r.origine || !vueRecemment(r.origine)) pris.push(r); else reste.push(r);
+    }
+    aTraiter = reste;
+    const t = new Date(maintenant()).toISOString();
+    pris.forEach(r => { if (r.capture) noter(r, { etat: 'pris', prisLe: t, prisPar: poste || '' }); });
+    return pris;
+  };
+  const voir = (req) => {
+    const origine = origineDe(req);
+    const poste = String((req.body && req.body.poste) || '').slice(0, 80) || posteDe(origine);
+    fenetres.set(origine, { vu: maintenant(), poste });
+    return { origine, poste };
+  };
+  const servirAttente = () => {
+    for (let i = 0; i < attentes.length && aTraiter.length;) {
+      const a = attentes[i];
+      const pris = prendrePour(a.origine, a.poste);
+      if (!pris.length) { i++; continue; }
+      attentes.splice(i, 1);
+      clearTimeout(a.minuterie);
+      a.repondre(pris);
+    }
+  };
+  // Empreinte → dernière réception (doublons rapprochés seulement).
+  const empreintes = new Map();
   const purgerReleves = () => {
     const t = maintenant();
+    const expires = aTraiter.filter(r => t - Date.parse(r.recueLe) > DUREE_RELEVE_MS);
+    expires.forEach(r => noter(r, { etat: 'expire' }));
     recents = recents.filter(r => t - Date.parse(r.recueLe) <= DUREE_RELEVE_MS).slice(-MAX_RELEVES);
     aTraiter = aTraiter.filter(r => t - Date.parse(r.recueLe) <= DUREE_RELEVE_MS).slice(-MAX_RELEVES);
+    journal = journal.filter(e => t - Date.parse(e.recueLe) <= DUREE_JOURNAL_MS).slice(-MAX_JOURNAL);
+    for (const [k, v] of empreintes) if (t - v > DUREE_RELEVE_MS) empreintes.delete(k);
   };
   routeur.post('/authentic/releve', (req, res) => {
     if (!req.is('application/json')) { res.status(415).json({ error: 'Corps JSON attendu.' }); return; }
@@ -105,18 +181,19 @@ function creerRouteurAuthentic(options) {
     // pages dont tu as la structure, pour ne pas surcharger ») : page du dossier, fiche client, fiche bien.
     if (!pageAuthenticConnue(capture)) { res.json({ ok: true, ignore: true }); return; }
     const empreinte = crypto.createHash('sha1').update(JSON.stringify([capture.champs, capture.tableaux])).digest('hex');
-    if (empreintes.includes(empreinte)) {
-      // Page déjà vue : rien à relire, mais on y est revenu — le poste suit le dossier ouvert.
-      const intitule = intitulePageAuthentic(capture);
-      if (intitule) { mettreEnFile({ id: crypto.randomBytes(9).toString('base64url'), recueLe: new Date(maintenant()).toISOString(), navigation: intitule }); }
-      res.json({ ok: true, deja: true });
-      return;
-    }
-    empreintes.push(empreinte);
-    if (empreintes.length > MAX_RELEVES) empreintes.shift();
-    const releve = { id: crypto.randomBytes(9).toString('base64url'), recueLe: new Date(maintenant()).toISOString(), capture };
+    const t = maintenant();
+    const deja = empreintes.has(empreinte);
+    if (deja && t - empreintes.get(empreinte) < DUREE_DOUBLON_MS) { res.json({ ok: true, deja: true }); return; }
+    empreintes.set(empreinte, t);
+    const origine = origineDe(req);
+    const releve = { id: crypto.randomBytes(9).toString('base64url'), recueLe: new Date(t).toISOString(), origine, capture };
+    // Page revue : relue (voir l'en-tête) ; le poste ne répète pas un message « rien de neuf ».
+    if (deja) releve.revu = true;
     aTraiter.push(releve);
-    recents.push(releve);
+    // Parmi les récents, la page revue remplace sa version précédente.
+    recents = recents.filter(r => r.empreinte !== empreinte);
+    recents.push(Object.assign({ empreinte }, releve));
+    journal.push({ id: releve.id, recueLe: releve.recueLe, origine, posteOrigine: posteDe(origine), nature: naturePageAuthentic(capture), intitule: intitulePageAuthentic(capture), revu: !!deja, etat: 'en-file' });
     purgerReleves();
     servirAttente();
     res.json({ ok: true, id: releve.id });
@@ -132,14 +209,16 @@ function creerRouteurAuthentic(options) {
     if (!req.is('application/json')) { res.status(415).json({ error: 'Corps JSON attendu.' }); return; }
     const intitule = chaine(req.body && req.body.intitule, 200);
     if (!/^\d{1,6}\s*-\s*\S/.test(intitule)) { res.status(400).json({ error: 'Intitulé de dossier attendu.' }); return; }
-    mettreEnFile({ id: crypto.randomBytes(9).toString('base64url'), recueLe: new Date(maintenant()).toISOString(), navigation: intitule });
+    mettreEnFile({ id: crypto.randomBytes(9).toString('base64url'), recueLe: new Date(maintenant()).toISOString(), origine: origineDe(req), navigation: intitule });
     res.json({ ok: true });
   });
   routeur.post('/authentic/releves/attendre', (req, res) => {
     purgerReleves();
     res.setHeader('Cache-Control', 'no-store');
-    if (aTraiter.length) { const pris = aTraiter; aTraiter = []; res.json({ releves: pris }); return; }
-    const a = { repondre: (pris) => { if (!res.writableEnded) res.json({ releves: pris }); } };
+    const { origine, poste } = voir(req);
+    const deja = prendrePour(origine, poste);
+    if (deja.length) { res.json({ releves: deja }); return; }
+    const a = { origine, poste, repondre: (pris) => { if (!res.writableEnded) res.json({ releves: pris }); } };
     a.minuterie = setTimeout(() => {
       const i = attentes.indexOf(a);
       if (i >= 0) attentes.splice(i, 1);
@@ -154,15 +233,47 @@ function creerRouteurAuthentic(options) {
   });
   routeur.post('/authentic/releves/prendre', (req, res) => {
     purgerReleves();
-    const pris = aTraiter;
-    aTraiter = [];
+    const { origine, poste } = voir(req);
     res.setHeader('Cache-Control', 'no-store');
-    res.json({ releves: pris });
+    res.json({ releves: prendrePour(origine, poste) });
+  });
+  // Ce que la fenêtre a fait de chaque page : { resultats: [{ id, etat, dossierId, texte }] }.
+  routeur.post('/authentic/releves/resultats', (req, res) => {
+    const liste = Array.isArray(req.body && req.body.resultats) ? req.body.resultats.slice(0, 50) : [];
+    for (const r of liste) {
+      if (!r || !ETATS_RESULTAT.includes(r.etat)) continue;
+      noter({ id: String(r.id || '') }, {
+        etat: r.etat,
+        dossierId: chaine(r.dossierId, 80),
+        texte: chaine(r.texte, 300),
+        traiteLe: new Date(maintenant()).toISOString()
+      });
+    }
+    res.json({ ok: true });
+  });
+  routeur.get('/authentic/journal', (req, res) => {
+    purgerReleves();
+    res.setHeader('Cache-Control', 'no-store');
+    const t = maintenant();
+    const enMemoire = new Set(recents.map(r => r.id));
+    res.json({
+      entrees: journal.slice().reverse().map(e => Object.assign({}, e, { posteOrigine: e.posteOrigine || posteDe(e.origine), enMemoire: enMemoire.has(e.id) })),
+      fenetres: Array.from(fenetres, ([origine, f]) => ({ origine, poste: f.poste, vuIlYa: t - f.vu, enAttente: attentes.some(a => a.origine === origine) }))
+    });
   });
   routeur.get('/authentic/releves/recents', (req, res) => {
     purgerReleves();
     res.setHeader('Cache-Control', 'no-store');
-    res.json({ releves: recents });
+    res.json({ releves: recents.map(({ empreinte, ...r }) => r) });
+  });
+  // Une page encore en mémoire (60 min), pour la ranger à la main depuis le journal.
+  routeur.get('/authentic/releves/:id', (req, res) => {
+    purgerReleves();
+    const r = recents.find(x => x.id === String(req.params.id || ''));
+    if (!r) { res.status(404).json({ error: 'Page plus en mémoire (1 h) : rouvrez-la dans Authentic.' }); return; }
+    res.setHeader('Cache-Control', 'no-store');
+    const { empreinte, ...releve } = r;
+    res.json(releve);
   });
   routeur.get('/authentic/capture/:id', (req, res) => {
     purger();
@@ -196,4 +307,4 @@ function pageAuthenticConnue(capture) {
   return libelles.some(l => RE_INTITULE_PAGE.test(l)) || RE_INTITULE_PAGE.test(String(c.texte || ''));
 }
 
-module.exports = { creerRouteurAuthentic, pageAuthenticConnue, normaliserCaptureAuthentic, DUREE_CAPTURE_MS, MAX_CAPTURES, DUREE_RELEVE_MS, DUREE_ATTENTE_RELEVES_MS };
+module.exports = { creerRouteurAuthentic, pageAuthenticConnue, normaliserCaptureAuthentic, origineRequete, naturePageAuthentic, DUREE_CAPTURE_MS, MAX_CAPTURES, DUREE_RELEVE_MS, DUREE_ATTENTE_RELEVES_MS, DUREE_FENETRE_VUE_MS, DUREE_DOUBLON_MS };

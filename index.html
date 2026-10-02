@@ -1569,6 +1569,7 @@
       <button type="button" class="reglages-nav-btn" role="tab" id="reglages-onglet-rappels" aria-controls="reglages-panneau-rappels" aria-selected="false" onclick="definirSousOngletReglages('rappels')">Rappels Teams</button>
       <button type="button" class="reglages-nav-btn" role="tab" id="reglages-onglet-agenda" aria-controls="reglages-panneau-agenda" aria-selected="false" onclick="definirSousOngletReglages('agenda')">Agenda et Outlook</button>
       <button type="button" class="reglages-nav-btn" role="tab" id="reglages-onglet-telephonie" aria-controls="reglages-panneau-telephonie" aria-selected="false" onclick="definirSousOngletReglages('telephonie')">Téléphonie 3CX</button>
+      <button type="button" class="reglages-nav-btn" role="tab" id="reglages-onglet-authentic" aria-controls="reglages-panneau-authentic" aria-selected="false" onclick="definirSousOngletReglages('authentic')">Authentic</button>
       <button type="button" class="reglages-nav-btn" role="tab" id="reglages-onglet-pieces" aria-controls="reglages-panneau-pieces" aria-selected="false" onclick="definirSousOngletReglages('pieces')">Pièces et Claire Scan</button>
       <button type="button" class="reglages-nav-btn" role="tab" id="reglages-onglet-relecture" aria-controls="reglages-panneau-relecture" aria-selected="false" onclick="definirSousOngletReglages('relecture')">Relecture d'actes</button>
       <button type="button" class="reglages-nav-btn" role="tab" id="reglages-onglet-signalements" aria-controls="reglages-panneau-signalements" aria-selected="false" onclick="definirSousOngletReglages('signalements')">Signalements<span class="reglages-onglet-compteur" id="reglages-onglet-compteur-signalements" hidden></span></button>
@@ -1723,6 +1724,17 @@
       <div class="reglages-liste" id="reglages-3cx-liste"></div>
       <h4 class="reglages-sous-titre">Derniers appels</h4>
       <div id="reglages-3cx-journal"></div>
+    </div>
+  </section>
+
+  <!-- ===== Authentic : journal des pages relevées par l'extension Firefox (étude, 02/10 : « pourquoi
+       parfois les données ne remontent pas ? ») — voir renderReglagesAuthentic et routes/authentic.js. ===== -->
+  <section class="reglages-panneau" id="reglages-panneau-authentic" role="tabpanel" aria-labelledby="reglages-onglet-authentic" hidden>
+    <h2 class="reglages-titre">Authentic</h2>
+    <div class="reglages-section">
+      <h3 class="reglages-section-titre">Pages lues dans Authentic <span class="info-i" tabindex="0" data-info="Chaque page d'Authentic relevée par l'extension Firefox : le poste qui l'a envoyée, la fenêtre CLAIRE qui l'a lue (celle du même poste d'abord) et ce qu'elle en a fait. « Aucun dossier » : ni le numéro ni les noms de l'intitulé n'ont désigné un dossier — « Choisir le dossier » la range à la main, et le numéro d'Authentic est retenu pour la suite. Une page n'est lue que si une fenêtre CLAIRE est ouverte (même réduite). Journal en mémoire du serveur : 12 heures, vidé au redémarrage."></span></h3>
+      <div class="authentic-fenetres" id="reglages-authentic-fenetres"></div>
+      <div id="reglages-authentic-journal"></div>
     </div>
   </section>
 
@@ -2105,6 +2117,7 @@
 <div class="confirm-overlay" id="authentic-choix-overlay" style="display:none;" onmousedown="if (event.target === this) this.dataset.fond = '1'" onclick="if (event.target === this && this.dataset.fond) fermerChoixFicheClientAuthentic(); this.dataset.fond = ''">
   <div class="confirm-box nas-choix-box" role="dialog" aria-modal="true" aria-labelledby="authentic-choix-intro">
     <p id="authentic-choix-intro"></p>
+    <input type="search" id="authentic-choix-recherche" class="authentic-choix-recherche" placeholder="Rechercher un dossier" autocomplete="off" oninput="filtrerChoixAuthentic(this.value)" style="display:none;">
     <div id="authentic-choix-liste" class="nas-choix-liste"></div>
     <div class="confirm-actions">
       <button type="button" class="btn-annuler" onclick="fermerChoixFicheClientAuthentic()">Annuler</button>

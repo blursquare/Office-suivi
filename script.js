@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-02 20:26';
+  const VERSION_APP = '2026-10-02 20:54';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-02 20:54', resume: "Authentic, pages qui ne remontaient pas : une fenêtre CLAIRE cachée ou réduite (qui ne relit plus les dossiers) prenait les pages d'Authentic sur une copie ancienne — un dossier créé depuis sur un autre poste restait introuvable, et la fiche enregistrée pouvait écraser des changements faits ailleurs ; les dossiers sont désormais relus avant chaque page. Une page est servie d'abord à la fenêtre CLAIRE du poste qui consulte Authentic (avant : n'importe laquelle, parfois celle d'un collègue). Une page revue est relue avec son contenu (avant : seulement le changement de dossier). La page d'un dossier qu'aucun dossier de CLAIRE ne reconnaît le dit, avec le motif (noms absents, points insuffisants, deux dossiers trop proches, numéro déjà pris) et « Choisir » pour la ranger à la main — le numéro d'Authentic est alors retenu. Nouveau : Réglages › Authentic, journal de chaque page reçue (poste, fenêtre qui l'a lue, résultat). Extension 0.3.6 : une page non arrivée à CLAIRE est renvoyée." },
     { version: '2026-10-02 20:26', resume: "Répertoire : le carnet des confrères et les notaires de France ne font plus doublon — une seule entrée « Notaires ». Par département, chaque office du carnet remplace sa ligne de l'annuaire (corrigé, avec notes, dossiers en cours, crayon et ×) ; les autres offices s'ajoutent d'un clic (« Au carnet »). « Mes confrères seulement » affiche tout le carnet, tous départements. Le carnet continue de servir à reconnaître le notaire d'une fiche." },
     { version: '2026-10-02 20:15', resume: "Répertoire, présentation revue en entier : les thèmes passent dans une colonne à gauche (Tout ; Notaires : Carnet des confrères, Notaires de France ; Interlocuteurs : banques, assurances…), avec leur nombre qui suit la recherche ; chaque office ou interlocuteur tient sur une ligne compacte — nom, notaires ou service, adresse à gauche, téléphones et emails cliquables à droite, crayon et × au bout —, comme les Notaires de France ; la modification s'ouvre dans la ligne. Sur téléphone, les thèmes défilent en haut." },
     { version: '2026-10-02 20:10', resume: "Notaires de France, présentation revue : la page s'ouvre directement sur le Loir-et-Cher (puis sur le dernier département consulté), choisi dans une liste ou d'un clic parmi les départements voisins (37, 45, 18, 36, 72, 28) ; les offices s'affichent en lignes compactes groupées par ville, téléphone et email cliquables à droite ; la recherche filtre aussitôt le département affiché, puis montre « Ailleurs en France ». Notre office et ceux déjà au carnet sont reconnus (même email ou même téléphone)." },
@@ -26185,6 +26186,59 @@
     return archives === undefined ? null : archives;
   }
 
+  // Pure : pourquoi la page d'un dossier d'Authentic n'a trouvé aucun dossier de CLAIRE (étude, 02/10 :
+  // « pourquoi parfois les données ne remontent pas ? » — avant, rien n'était dit).
+  function raisonDossierAuthenticIntrouvable(intitule, liste, adresse, numero) {
+    if (!intitule) return 'intitulé du dossier non lu sur la page';
+    const vivants = (liste || []).filter(d => d && !d.deleted);
+    const notes = vivants.map(d => ({ d, s: scoreDossierAuthentic(intitule, adresse, d) }))
+      .filter(x => x.s.nomsTrouves >= 1).sort((a, b) => b.s.score - a.s.score);
+    if (!notes.length) return 'aucun dossier de CLAIRE ne porte ces noms';
+    const autreNumero = (d) => !!numero && !!d.numeroAuthentic && d.numeroAuthentic !== String(numero);
+    const eligibles = notes.filter(x => !autreNumero(x.d));
+    const retenus = eligibles.filter(x => x.s.score >= SEUIL_DOSSIER_AUTHENTIC);
+    if (!retenus.length && autreNumero(notes[0].d)) {
+      return `${libelleDossierAffiche(notes[0].d)} porte ces noms mais est déjà rattaché au dossier Authentic n° ${notes[0].d.numeroAuthentic}`;
+    }
+    if (!retenus.length) {
+      const m = eligibles[0];
+      return `le plus proche, ${libelleDossierAffiche(m.d)}, n'a que ${Math.max(0, m.s.score)} point${m.s.score > 1 ? 's' : ''} sur ${SEUIL_DOSSIER_AUTHENTIC} (${m.s.details.join(', ')})`;
+    }
+    if (retenus.length > 1 && retenus[0].s.score - retenus[1].s.score < 2) {
+      return `deux dossiers aussi proches : ${retenus.slice(0, 2).map(x => `${libelleDossierAffiche(x.d)} (${x.s.score} pts)`).join(', ')}`;
+    }
+    return 'dossier non retrouvé';
+  }
+
+  // Pure : les dossiers proposés pour ranger à la main la page d'un dossier d'Authentic — en cours,
+  // les plus ressemblants d'abord.
+  function candidatsDossierAuthentic(intitule, adresse, liste) {
+    return (liste || []).filter(d => d && !d.deleted && !d.archive)
+      .map(d => ({ d, s: scoreDossierAuthentic(intitule || '', adresse || '', d) }))
+      .sort((a, b) => (b.s.nomsTrouves ? b.s.score + 100 : 0) - (a.s.nomsTrouves ? a.s.score + 100 : 0)
+        || libelleDossierAffiche(a.d).localeCompare(libelleDossierAffiche(b.d), 'fr'));
+  }
+
+  // Pure (modifie les dossiers passés) : rattachement CHOISI À LA MAIN d'un numéro d'Authentic — il
+  // passe avant tout (le numéro est quitté par le dossier qui le portait). → les autres dossiers modifiés.
+  function rattacherNumeroAuthentic(d, numero, liste) {
+    if (!d || !numero) return [];
+    const n = String(numero);
+    const quittes = (liste || []).filter(x => x && x !== d && !x.deleted && x.numeroAuthentic === n);
+    const t = new Date().toISOString();
+    quittes.forEach(x => {
+      delete x.numeroAuthentic;
+      x.historique = x.historique || [];
+      x.historique.push({ date: t, texte: `Dossier Authentic n° ${n} rattaché à ${libelleDossierAffiche(d)} à la main` });
+    });
+    if (d.numeroAuthentic !== n) {
+      d.numeroAuthentic = n;
+      d.historique = d.historique || [];
+      d.historique.push({ date: t, texte: `Dossier Authentic n° ${n} rattaché à la main` });
+    }
+    return quittes;
+  }
+
   // Pure : les lignes de documents des tableaux de la page de gestion — intitulé (première cellule
   // de texte), date (première date), état (dernière cellule de texte), texte de toute la ligne.
   function lignesDocumentsAuthentic(capture) {
@@ -27287,26 +27341,60 @@
   var fichesClientEnAttente = new Map();
   let numeroFicheEnAttente = 0;
 
+  // Fenêtre du choix : une fiche client (plusieurs dossiers possibles) ou la page d'un dossier qu'aucun
+  // dossier de CLAIRE n'a reconnu (étude, 02/10) — rangée à la main, son numéro est retenu.
   function ouvrirChoixFicheClientAuthentic(cle) {
     const attente = fichesClientEnAttente.get(cle);
     const overlay = document.getElementById('authentic-choix-overlay');
     const liste = document.getElementById('authentic-choix-liste');
     const intro = document.getElementById('authentic-choix-intro');
+    const recherche = document.getElementById('authentic-choix-recherche');
     if (!attente || !overlay || !liste) return;
-    const personne = clientDepuisFicheAuthentic(attente.capture);
-    const qui = personne ? [personne.prenom, personne.nom].filter(Boolean).join(' ') : 'cette personne';
-    if (intro) intro.textContent = `Fiche de ${qui} lue dans Authentic : dans quel dossier la ranger ?`;
-    const candidats = dossiersCandidatsFicheClient(attente.capture, dossiers);
+    let candidats = [];
+    let marque = () => '';
+    if (attente.nature === 'dossier') {
+      const intitule = intituleDossierAuthentic(attente.capture);
+      const numero = numeroDossierAuthentic(attente.capture);
+      if (intro) intro.textContent = `Page « ${[numero, intitule].filter(Boolean).join(' - ')} » lue dans Authentic : dans quel dossier de CLAIRE la ranger ? Le numéro sera retenu pour les pages suivantes.`;
+      const notes = candidatsDossierAuthentic(intitule, adresseBienPageAuthentic(attente.capture), dossiers);
+      candidats = notes.map(x => x.d);
+      marque = (d) => {
+        const x = notes.find(n => n.d === d);
+        return x && x.s.nomsTrouves ? x.s.details.filter(t => !/−/.test(t)).slice(0, 2).join(' · ').replace(/\s*\(\+\d+\)/g, '') : '';
+      };
+    } else {
+      const personne = clientDepuisFicheAuthentic(attente.capture);
+      const qui = personne ? [personne.prenom, personne.nom].filter(Boolean).join(' ') : 'cette personne';
+      if (intro) intro.textContent = `Fiche de ${qui} lue dans Authentic : dans quel dossier la ranger ?`;
+      candidats = dossiersCandidatsFicheClient(attente.capture, dossiers);
+      marque = (d) => {
+        const role = personne ? roleClientAuthenticDansDossier(d, personne) : '';
+        return role === 'VENDEUR' ? 'vendeur' : role === 'ACQUEREUR' ? 'acquéreur' : role ? 'partie' : '';
+      };
+      // Partie d'aucun dossier : tous les dossiers en cours (elle y sera « à rattacher »).
+      if (!candidats.length) candidats = candidatsDossierAuthentic('', '', dossiers).map(x => x.d);
+    }
     liste.innerHTML = candidats.length ? candidats.map(d => {
-      const role = personne ? roleClientAuthenticDansDossier(d, personne) : '';
-      return `<button type="button" class="nas-choix-item" onclick="rangerFicheClientAuthentic('${escapeOnclickArg(cle)}', '${escapeOnclickArg(d.id)}')">`
+      const m = marque(d);
+      return `<button type="button" class="nas-choix-item" data-cherche="${escapeAttr(normaliserPourRecherche(libelleDossierAffiche(d) + ' ' + (d.nom || '')))}" onclick="rangerFicheClientAuthentic('${escapeOnclickArg(cle)}', '${escapeOnclickArg(d.id)}')">`
         + `<span class="nas-choix-nom">${escapeHtml(libelleDossierAffiche(d))}</span>`
-        + (role ? `<span class="nas-choix-marque">${role === 'VENDEUR' ? 'vendeur' : role === 'ACQUEREUR' ? 'acquéreur' : 'partie'}</span>` : '')
+        + (m ? `<span class="nas-choix-marque">${escapeHtml(m)}</span>` : '')
         + `</button>`;
-    }).join('') : '<p class="nas-choix-vide">Plus aucun dossier en cours ne compte cette personne.</p>';
+    }).join('') : '<p class="nas-choix-vide">Aucun dossier en cours.</p>';
+    if (recherche) {
+      recherche.value = '';
+      recherche.style.display = candidats.length > 6 ? '' : 'none';
+    }
     overlay.style.display = 'flex';
-    const premier = liste.querySelector('button');
+    const premier = recherche && recherche.style.display !== 'none' ? recherche : liste.querySelector('button');
     if (premier) premier.focus();
+  }
+
+  function filtrerChoixAuthentic(texte) {
+    const q = normaliserPourRecherche(texte || '').trim();
+    document.querySelectorAll('#authentic-choix-liste .nas-choix-item').forEach(b => {
+      b.style.display = !q || (b.dataset.cherche || '').includes(q) ? '' : 'none';
+    });
   }
 
   function fermerChoixFicheClientAuthentic() {
@@ -27314,8 +27402,8 @@
     if (overlay) overlay.style.display = 'none';
   }
 
-  // La fiche va dans le dossier choisi, qui devient le dossier en consultation : les fiches suivantes
-  // des mêmes personnes y vont sans redemander.
+  // La page va dans le dossier choisi, qui devient le dossier en consultation : les fiches suivantes
+  // des mêmes personnes y vont sans redemander ; la page d'un dossier lui laisse son numéro.
   async function rangerFicheClientAuthentic(cle, id) {
     fermerChoixFicheClientAuthentic();
     fermerToastFixe(cle);
@@ -27324,14 +27412,31 @@
     if (!attente || !d) return;
     fichesClientEnAttente.delete(cle);
     dossierCourantAuthentic = { id: d.id, t: Date.now() };
-    const r = appliquerReleveSurDossier(d, attente.capture);
-    if (r.modifie) {
-      await sauvegarder(d);
-      render();
-      afficherToast(`Authentic · ${libelleDossierAffiche(d)} : ${r.textes[0] || 'fiche client reprise'}${r.textes.length > 1 ? ` (+${r.textes.length - 1})` : ''}.`, 'Voir', () => ouvrirDossierDrawer(d.id));
-    } else {
-      afficherToast(`Authentic · ${libelleDossierAffiche(d)} : ${raisonFicheClientSansChangement(attente.capture)}.`, 'Voir', () => ouvrirDossierDrawer(d.id));
+    if (attente.nature === 'dossier') {
+      const quittes = rattacherNumeroAuthentic(d, numeroDossierAuthentic(attente.capture), dossiers);
+      for (const x of quittes) await sauvegarder(x);
     }
+    const r = appliquerReleveSurDossier(d, attente.capture);
+    await sauvegarder(d);
+    render();
+    const texte = r.modifie ? `${r.textes[0] || 'page reprise'}${r.textes.length > 1 ? ` (+${r.textes.length - 1})` : ''}`
+      : attente.nature === 'dossier' ? 'dossier rattaché, rien de neuf sur la page' : raisonFicheClientSansChangement(attente.capture);
+    afficherToast(`Authentic · ${libelleDossierAffiche(d)} : ${texte}.`, 'Voir', () => ouvrirDossierDrawer(d.id));
+    if (attente.releveId) rapporterResultatsAuthentic([{ id: attente.releveId, etat: 'rattache', dossierId: d.id, texte }]);
+  }
+
+  // Depuis le journal (Réglages › Authentic) : la page, encore en mémoire du serveur, est rangée à la main.
+  async function choisirDossierPourReleveAuthentic(releveId) {
+    let rel = null;
+    try {
+      const r = await fetchAvecAuth('/api/authentic/releves/' + encodeURIComponent(releveId));
+      if (r.ok) rel = await r.json();
+    } catch (e) { /* serveur injoignable */ }
+    if (!rel || !rel.capture) { afficherToast('Page plus en mémoire (1 h) : rouvrez-la dans Authentic.', 'OK', null); return; }
+    const cle = 'f' + (++numeroFicheEnAttente);
+    fichesClientEnAttente.set(cle, { capture: rel.capture, releveId, nature: typePageAuthentic(rel.capture) === 'client' ? 'client' : 'dossier' });
+    while (fichesClientEnAttente.size > 10) fichesClientEnAttente.delete(fichesClientEnAttente.keys().next().value);
+    ouvrirChoixFicheClientAuthentic(cle);
   }
 
   // Pure : ce qu'une fiche client a apporté, quand rien n'a changé — dit à l'étude.
@@ -27373,8 +27478,27 @@
     dossierCourantAuthentic = { id: d ? d.id : '', t: Date.now() };
   }
 
-  async function appliquerReleveAuthentic(capture) {
+  // Un message « aucun dossier » par page et par fenêtre toutes les 30 min, pas à chaque retour sur la page.
+  var messagesDossierIntrouvable = new Map();
+  function direPageSansDossierAuthentic(capture, rel, raison) {
+    const intitule = intituleDossierAuthentic(capture);
+    const numero = numeroDossierAuthentic(capture);
+    const cleMessage = numero || intitule;
+    const deja = messagesDossierIntrouvable.get(cleMessage);
+    if (deja && Date.now() - deja < DUREE_DOSSIER_COURANT_AUTHENTIC_MS) return;
+    messagesDossierIntrouvable.set(cleMessage, Date.now());
+    const cle = 'f' + (++numeroFicheEnAttente);
+    fichesClientEnAttente.set(cle, { capture, releveId: rel && rel.id, nature: 'dossier' });
+    while (fichesClientEnAttente.size > 10) fichesClientEnAttente.delete(fichesClientEnAttente.keys().next().value);
+    afficherToast(`Authentic · « ${[numero, intitule].filter(Boolean).join(' - ')} » : ${raison}.`, 'Choisir', () => ouvrirChoixFicheClientAuthentic(cle), { fixe: true, cle });
+  }
+
+  // Applique une page relevée → { etat, dossierId, texte } pour le journal (Réglages › Authentic) :
+  // applique, sans-changement, sans-dossier, a-choisir. `rel.revu` : page revue, sans message « rien
+  // de neuf ».
+  async function appliquerReleveAuthentic(capture, rel) {
     let d = null;
+    const revu = !!(rel && rel.revu);
     const courantValide = Date.now() - dossierCourantAuthentic.t < DUREE_DOSSIER_COURANT_AUTHENTIC_MS;
     if (typePageAuthentic(capture) === 'client') {
       const courant = courantValide ? dossiers.find(x => x.id === dossierCourantAuthentic.id) || null : null;
@@ -27386,38 +27510,44 @@
           // Plusieurs dossiers possibles (étude, 02/10 : « comment lui dire lequel est le bon ») : la fiche
           // attend, le bouton du message ouvre le choix.
           const cle = 'f' + (++numeroFicheEnAttente);
-          fichesClientEnAttente.set(cle, { capture });
+          fichesClientEnAttente.set(cle, { capture, releveId: rel && rel.id, nature: 'client' });
           while (fichesClientEnAttente.size > 10) fichesClientEnAttente.delete(fichesClientEnAttente.keys().next().value);
           afficherToast(`Authentic · ${raison}.`, 'Choisir', () => ouvrirChoixFicheClientAuthentic(cle), { fixe: true, cle });
-        } else if (raison) {
-          afficherToast(`Authentic · ${raison}.`, 'OK', null);
+          return { etat: 'a-choisir', texte: raison };
         }
-        return 0;
+        if (raison && !revu) afficherToast(`Authentic · ${raison}.`, 'OK', null);
+        return { etat: 'sans-dossier', texte: raison || 'fiche client illisible' };
       }
       const r0 = appliquerReleveSurDossier(d, capture);
       if (!r0.modifie) {
         const raison = raisonFicheClientSansChangement(capture);
-        if (raison) afficherToast(`Authentic · ${libelleDossierAffiche(d)} : ${raison}.`, 'Voir', () => ouvrirDossierDrawer(d.id));
-        return 0;
+        if (raison && !revu) afficherToast(`Authentic · ${libelleDossierAffiche(d)} : ${raison}.`, 'Voir', () => ouvrirDossierDrawer(d.id));
+        return { etat: 'sans-changement', dossierId: d.id, texte: raison || 'rien de neuf' };
       }
       await sauvegarder(d);
       render();
       if (r0.textes.length) afficherToast(`Authentic · ${libelleDossierAffiche(d)} : ${r0.textes[0]}${r0.textes.length > 1 ? ` (+${r0.textes.length - 1})` : ''}.`, 'Voir', () => ouvrirDossierDrawer(d.id));
-      return r0.textes.length;
+      return { etat: 'applique', dossierId: d.id, texte: r0.textes.join(' · ') || 'fiche client reprise' };
     }
     const lu = intituleDossierAuthentic(capture);
     const numero = numeroDossierAuthentic(capture);
+    const adresse = adresseBienPageAuthentic(capture);
     let numeroNote = false;
     if (lu) {
-      d = dossierPourIntituleAuthentic(lu, dossiers, adresseBienPageAuthentic(capture), numero);
+      d = dossierPourIntituleAuthentic(lu, dossiers, adresse, numero);
       dossierCourantAuthentic = { id: d ? d.id : '', t: Date.now() };
       numeroNote = !!d && retenirNumeroAuthentic(d, numero, dossiers);
-    } else if (Date.now() - dossierCourantAuthentic.t < DUREE_DOSSIER_COURANT_AUTHENTIC_MS) {
+    } else if (courantValide) {
       d = dossiers.find(x => x.id === dossierCourantAuthentic.id) || null;
     }
-    if (!d) return 0;
+    if (!d) {
+      // Jamais en silence (étude, 02/10) : le motif, et le choix à la main.
+      const raison = lu ? raisonDossierAuthenticIntrouvable(lu, dossiers, adresse, numero) : (typePageAuthentic(capture) === 'bien' ? 'fiche bien gardée pour « Nouveau dossier »' : 'aucun dossier ouvert dans Authentic juste avant');
+      if (lu) direPageSansDossierAuthentic(capture, rel, raison);
+      return { etat: lu ? 'sans-dossier' : 'sans-changement', texte: raison };
+    }
     const r = appliquerReleveSurDossier(d, capture);
-    if (!r.modifie && !numeroNote) return 0;
+    if (!r.modifie && !numeroNote) return { etat: 'sans-changement', dossierId: d.id, texte: 'rien de neuf' };
     await sauvegarder(d);
     render();
     // Comme une validation à la main : les dates butoir levées quittent l'agenda.
@@ -27436,7 +27566,7 @@
         : r.textes[0] + (r.textes.length > 1 ? ` (+${r.textes.length - 1})` : '');
       afficherToast(`Authentic · ${libelleDossierAffiche(d)} : ${resume}.`, 'Voir', () => ouvrirDossierDrawer(d.id));
     }
-    return r.textes.length;
+    return { etat: 'applique', dossierId: d.id, texte: r.textes.join(' · ') || `dossier Authentic n° ${numero} rattaché` };
   }
 
   // SAFER sans réponse : le délai s'écoule même sans nouvelle page d'Authentic — vérifié au démarrage
@@ -27484,10 +27614,23 @@
   let fileRelevesAuthentic = Promise.resolve();
   function appliquerRelevesAuthentic(releves) {
     fileRelevesAuthentic = fileRelevesAuthentic.then(async () => {
+      // Étude, 02/10 : « pourquoi parfois les données ne remontent pas ? ». Une fenêtre cachée ou réduite
+      // ne relit plus les dossiers (polling arrêté) mais prend encore les pages d'Authentic : sur sa copie
+      // ancienne, un dossier créé depuis sur un autre poste restait introuvable, et la fiche enregistrée
+      // écrasait les changements faits ailleurs. Les dossiers sont donc relus avant chaque page.
+      if ((releves || []).some(rel => rel && rel.capture)) await rattraperDossiersDistants();
+      const resultats = [];
       for (const rel of releves || []) {
         if (rel && rel.navigation) { suivreNavigationAuthentic(rel.navigation); continue; }
-        try { await appliquerReleveAuthentic(rel.capture); } catch (e) { console.error('Relevé Authentic non appliqué', e && e.message); }
+        try {
+          const res = await appliquerReleveAuthentic(rel.capture, rel);
+          if (res && rel.id) resultats.push(Object.assign({ id: rel.id }, res));
+        } catch (e) {
+          console.error('Relevé Authentic non appliqué', e && e.message);
+          if (rel && rel.id) resultats.push({ id: rel.id, etat: 'erreur', texte: 'erreur dans CLAIRE : ' + String((e && e.message) || e).slice(0, 120) });
+        }
       }
+      if (resultats.length) rapporterResultatsAuthentic(resultats);
       // « Nouveau dossier » ouvert à l'étape 1 : la liste « Depuis Authentic » suit les pages vues.
       const etape1 = document.getElementById('wizard-step-1');
       if (etape1 && etape1.classList.contains('actif') && etape1.offsetParent) chargerRelevesAuthenticRecents();
@@ -27495,12 +27638,34 @@
     return fileRelevesAuthentic;
   }
 
+  // Les dossiers changés sur le serveur depuis le dernier sondage (même lecture que le polling).
+  async function rattraperDossiersDistants() {
+    try {
+      const reponse = await fetchAvecAuth(`/api/dossiers?since=${curseurSynchro}`);
+      if (!reponse.ok) return false;
+      const { dossiers: changements, serverTime } = await reponse.json();
+      if (changements.length) appliquerChangementsDistants(changements);
+      curseurSynchro = serverTime;
+      return true;
+    } catch (e) { return false; }
+  }
+
+  // Ce que la fenêtre a fait de chaque page, pour le journal du serveur (Réglages › Authentic).
+  function rapporterResultatsAuthentic(resultats) {
+    Promise.resolve().then(() => fetchAvecAuth('/api/authentic/releves/resultats', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ resultats })
+    })).then(() => {
+      const panneau = document.getElementById('reglages-panneau-authentic');
+      if (panneau && !panneau.hidden && panneau.offsetParent) renderReglagesAuthentic();
+    }).catch(() => { /* journal facultatif */ });
+  }
+
   // Relève de secours (et retour au premier plan) : ce qui est en file, tout de suite.
   async function releverPagesAuthentic() {
     if (!authToken || releveAuthenticEnCours) return;
     releveAuthenticEnCours = true;
     try {
-      const r = await fetchAvecAuth('/api/authentic/releves/prendre', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+      const r = await fetchAvecAuth('/api/authentic/releves/prendre', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ poste: utilisateurPoste || '' }) });
       if (!r.ok) return;
       const { releves } = await r.json();
       await appliquerRelevesAuthentic(releves);
@@ -27524,7 +27689,8 @@
       if (!authToken) { await pause(5000); continue; }
       let releves = null;
       try {
-        const r = await fetchAvecAuth('/api/authentic/releves/attendre', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+        // Le collaborateur du poste : le serveur sert d'abord la fenêtre du poste qui consulte Authentic.
+        const r = await fetchAvecAuth('/api/authentic/releves/attendre', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ poste: utilisateurPoste || '' }) });
         if (r.ok) releves = (await r.json()).releves || [];
       } catch (e) { /* serveur injoignable : on réessaie plus bas */ }
       if (releves === null) { await pause(10000); continue; }
@@ -27951,6 +28117,78 @@
           }).join('')}</ul>`
         : '<p class="hint">Aucun appel noté pour l’instant.</p>';
     } catch (e) { journal.innerHTML = ''; }
+  }
+
+  // ---- Réglages › Authentic : journal des pages lues (étude, 02/10 : « pourquoi parfois les données ne
+  // remontent pas ? ») — chaque page reçue de l'extension, le poste qui l'a prise et ce qu'il en a fait. ----
+  var ETATS_JOURNAL_AUTHENTIC = {
+    'en-file': { classe: 'dl-pret', texte: 'En attente d’une fenêtre CLAIRE' },
+    pris: { classe: 'dl-neutre', texte: 'Prise, sans réponse de la fenêtre' },
+    applique: { classe: 'dl-success', texte: 'Reprise' },
+    rattache: { classe: 'dl-success', texte: 'Rangée à la main' },
+    'sans-changement': { classe: 'dl-neutre', texte: 'Rien de neuf' },
+    'sans-dossier': { classe: 'dl-urgent', texte: 'Aucun dossier' },
+    'a-choisir': { classe: 'dl-pret', texte: 'Dossier à choisir' },
+    erreur: { classe: 'dl-urgent', texte: 'Erreur' },
+    expire: { classe: 'dl-urgent', texte: 'Perdue : aucune fenêtre CLAIRE ouverte' }
+  };
+
+  // Pure : le nom d'un poste du journal — prénom du collaborateur de sa fenêtre, sinon le poste serveur
+  // ou son adresse réseau.
+  function libellePosteAuthentic(poste, origine) {
+    if (poste) return prenomCollaborateur(poste);
+    return origine === 'local' ? 'poste serveur' : (origine || 'poste inconnu');
+  }
+
+  // Pure : une ligne du journal → { quand, page, etat, detail, choisir, dossierId }.
+  function ligneJournalAuthentic(e, liste) {
+    const page = e.nature === 'client' ? 'Fiche client' : e.nature === 'bien' ? 'Fiche bien'
+      : `Dossier ${e.intitule ? '« ' + e.intitule.replace(/\s+(?:Importer|Comparants|Immeubles)\b.*$/i, '') + ' »' : ''}`.trim();
+    const d = e.dossierId ? (liste || []).find(x => x && x.id === e.dossierId && !x.deleted) : null;
+    const etat = ETATS_JOURNAL_AUTHENTIC[e.etat] || { classe: 'dl-neutre', texte: e.etat || '' };
+    const qui = [`de ${libellePosteAuthentic(e.posteOrigine, e.origine)}`];
+    if (e.prisPar !== undefined && e.etat !== 'en-file') qui.push(`lue par ${e.prisPar ? prenomCollaborateur(e.prisPar) : 'une fenêtre'}`);
+    if (e.revu) qui.push('revue');
+    return {
+      quand: e.recueLe ? heureAppel(Date.parse(e.recueLe)) : '',
+      page,
+      etat,
+      detail: [d ? libelleDossierAffiche(d) : '', e.texte || ''].filter(Boolean).join(' : '),
+      qui: qui.join(' · '),
+      choisir: !!e.enMemoire && ['sans-dossier', 'a-choisir', 'expire', 'pris', 'en-file'].includes(e.etat) && e.nature !== 'bien',
+      dossierId: d ? d.id : ''
+    };
+  }
+
+  async function renderReglagesAuthentic() {
+    const bloc = document.getElementById('reglages-authentic-journal');
+    const fen = document.getElementById('reglages-authentic-fenetres');
+    if (!bloc || !authToken) return;
+    let donnees = null;
+    try {
+      const r = await fetchAvecAuth('/api/authentic/journal');
+      if (r.ok) donnees = await r.json();
+    } catch (e) { /* serveur injoignable */ }
+    if (!donnees) { bloc.innerHTML = '<p class="hint">Journal indisponible (serveur injoignable).</p>'; return; }
+    if (fen) {
+      const fenetres = (donnees.fenetres || []).filter(f => f.vuIlYa < 10 * 60 * 1000);
+      fen.innerHTML = fenetres.length
+        ? fenetres.map(f => `<span class="dot-label ${f.enAttente || f.vuIlYa < 90000 ? 'dl-success' : 'dl-neutre'}"><span class="dot"></span>${escapeHtml(libellePosteAuthentic(f.poste, f.origine))}${f.enAttente || f.vuIlYa < 90000 ? '' : ' (vue il y a ' + Math.round(f.vuIlYa / 60000) + ' min)'}</span>`).join('')
+        : '<span class="dot-label dl-urgent"><span class="dot"></span>Aucune fenêtre CLAIRE à l’écoute : les pages d’Authentic attendent</span>';
+      fen.innerHTML = `<span class="authentic-fenetres-titre">Fenêtres à l’écoute</span>${fen.innerHTML}<button type="button" class="icon-btn" onclick="renderReglagesAuthentic()" title="Actualiser le journal" aria-label="Actualiser le journal">${icone('rotate-ccw')}</button>`;
+    }
+    const entrees = donnees.entrees || [];
+    bloc.innerHTML = entrees.length
+      ? `<ul class="appels-liste authentic-journal">${entrees.slice(0, 60).map(e => {
+          const l = ligneJournalAuthentic(e, dossiers);
+          return `<li><span class="appels-quand">${escapeHtml(l.quand)}</span>`
+            + `<span class="authentic-journal-page"><span>${escapeHtml(l.page)}</span><span class="authentic-journal-qui">${escapeHtml(l.qui)}</span>${l.detail ? `<span class="authentic-journal-detail">${escapeHtml(l.detail)}</span>` : ''}</span>`
+            + `<span class="authentic-journal-etat"><span class="dot-label ${l.etat.classe}"><span class="dot"></span>${escapeHtml(l.etat.texte)}</span>`
+            + (l.choisir ? `<button type="button" class="secondary" onclick="choisirDossierPourReleveAuthentic('${escapeOnclickArg(e.id)}')">Choisir le dossier</button>` : '')
+            + (l.dossierId ? `<button type="button" class="lien-discret" onclick="ouvrirDossierDrawer('${escapeOnclickArg(l.dossierId)}')">Voir</button>` : '')
+            + `</span></li>`;
+        }).join('')}</ul>`
+      : '<p class="hint">Aucune page reçue d’Authentic depuis le démarrage du serveur.</p>';
   }
 
   // Pure : l'adresse d'un essai — celle que 3CX ouvrirait, avec un numéro et un nom d'essai.
@@ -29063,7 +29301,7 @@
   // Rubriques de la colonne de gauche, dans l'ordre (réorganisées le 29/09, à la manière des
   // réglages de Claude).
   // Ordre de la colonne de gauche (revu le 01/10 : une rubrique par sujet).
-  var SOUS_ONGLETS_REGLAGES = ['general', 'collaborateurs', 'signature', 'rappels', 'agenda', 'telephonie', 'pieces', 'relecture', 'signalements', 'systeme'];
+  var SOUS_ONGLETS_REGLAGES = ['general', 'collaborateurs', 'signature', 'rappels', 'agenda', 'telephonie', 'authentic', 'pieces', 'relecture', 'signalements', 'systeme'];
   const CLE_SOUS_ONGLET_REGLAGES = 'reglages-sous-onglet';
 
   function sousOngletReglagesRetenu() {
@@ -29085,6 +29323,7 @@
       }
     }
     try { localStorage.setItem(CLE_SOUS_ONGLET_REGLAGES, cle); } catch (e) { /* confort seulement */ }
+    if (cle === 'authentic') renderReglagesAuthentic();
   }
 
   // Compteur rouge sur « Réglages » : signalements encore à trier. Sur tous les postes — il n'y a
@@ -38611,6 +38850,7 @@
       memoriserReglagesEnregistres(reglages);
       renderReglagesEmails(reglages.emailsResponsables || {}, reglages.fonctionsResponsables || {});
       renderReglages3cx();
+      renderReglagesAuthentic();
       document.getElementById('reglages-etat').style.display = 'none';
       chargerDernierTourRappels();
       chargerReglagesAgenda();

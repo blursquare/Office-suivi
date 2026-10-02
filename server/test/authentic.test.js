@@ -137,12 +137,13 @@ test('attente des relevés : rendue dès qu\'une page arrive, vide après le dé
   }
 });
 
-test('navigation : l\'intitulé seul mis en file ; retour sur une page déjà vue → navigation ; refus sans intitulé', async () => {
+test('navigation : l\'intitulé seul mis en file ; page revue → relue avec son contenu, doublon rapproché écarté', async () => {
   const express = require('express');
-  const { creerRouteurAuthentic } = require('../src/routes/authentic');
+  const { creerRouteurAuthentic, DUREE_DOUBLON_MS } = require('../src/routes/authentic');
+  let t = 5_000_000;
   const appli = express();
   appli.use(express.json({ limit: '2mb' }));
-  appli.use('/api', creerRouteurAuthentic({ dureeAttenteMs: 200 }));
+  appli.use('/api', creerRouteurAuthentic({ dureeAttenteMs: 200, maintenant: () => t }));
   const s = appli.listen(0);
   await new Promise(r => s.once('listening', r));
   const b = 'http://127.0.0.1:' + s.address().port;
@@ -155,19 +156,110 @@ test('navigation : l\'intitulé seul mis en file ; retour sur une page déjà vu
     assert.equal(file.length, 1);
     assert.equal(file[0].navigation, '15 - Donation SIMOND');
     assert.equal(file[0].capture, undefined);
-    // Page de dossier connue : relevée une fois, puis navigation seule au retour.
+    // Page de dossier connue : relevée ; renvoyée aussitôt (cadres, double envoi) → écartée.
     const page = { champs: [{ groupe: '', libelle: '12 - Vente PETIT/BOSQUET', valeur: '' }], tableaux: [], texte: '12 - Vente PETIT/BOSQUET' };
     await post('releve', page);
     file = await prendre();
     assert.ok(file[0].capture);
+    assert.equal(file[0].revu, undefined);
+    assert.equal((await (await post('releve', page)).json()).deja, true);
+    assert.equal((await prendre()).length, 0);
+    // Revue plus tard : remise en file AVEC son contenu (la première lecture a pu ne trouver aucun dossier).
+    t += DUREE_DOUBLON_MS + 1;
     await post('releve', page);
     file = await prendre();
     assert.equal(file.length, 1);
-    assert.match(file[0].navigation, /^12 - Vente PETIT\/BOSQUET/);
-    // Jamais parmi les relevés récents (rien à créer depuis un intitulé).
+    assert.ok(file[0].capture);
+    assert.equal(file[0].revu, true);
+    // Parmi les récents, une seule version de la page (la dernière).
     const recents = await fetch(b + '/api/authentic/releves/recents').then(r => r.json());
+    assert.equal(recents.releves.length, 1);
+    assert.equal(recents.releves[0].id, file[0].id);
+    assert.equal(recents.releves[0].empreinte, undefined);
     assert.ok(recents.releves.every(r => !r.navigation));
   } finally {
     s.close();
   }
+});
+
+test('page servie d\'abord à une fenêtre du même poste ; sans fenêtre de ce poste depuis 90 s, à n\'importe laquelle', async () => {
+  const express = require('express');
+  const { creerRouteurAuthentic, DUREE_FENETRE_VUE_MS } = require('../src/routes/authentic');
+  let t = 9_000_000;
+  const appli = express();
+  appli.use(express.json({ limit: '2mb' }));
+  // Le poste de chaque requête vient d'un en-tête (au bureau : son adresse réseau).
+  appli.use('/api', creerRouteurAuthentic({ dureeAttenteMs: 300, maintenant: () => t, origine: (req) => req.get('x-poste') || 'local' }));
+  const s = appli.listen(0);
+  await new Promise(r => s.once('listening', r));
+  const b = 'http://127.0.0.1:' + s.address().port;
+  const post = (chemin, corps, poste) => fetch(b + '/api/authentic/' + chemin, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-poste': poste }, body: JSON.stringify(corps) }).then(r => r.json());
+  const page = (nom) => ({ champs: [{ groupe: '', libelle: 'j:ficheClientPhysiqueIdentite:x', valeur: 'oui' }, { groupe: '', libelle: 'Nom de famille', valeur: nom }] });
+  try {
+    // Les deux fenêtres se sont montrées (relève de secours, vide).
+    await post('releves/prendre', { poste: 'Julie VASSELIN' }, '10.0.0.2');
+    await post('releves/prendre', { poste: 'Jérémy SAUJOT' }, '10.0.0.3');
+    // Jérémy attend ; une page arrive de l'extension de Julie : pas pour lui.
+    const aJeremy = post('releves/attendre', {}, '10.0.0.3');
+    await post('releve', page('MARTEL'), '10.0.0.2');
+    assert.equal((await aJeremy).releves.length, 0);
+    // La fenêtre de Julie la prend.
+    const pourJulie = await post('releves/prendre', {}, '10.0.0.2');
+    assert.equal(pourJulie.releves.length, 1);
+    assert.equal(pourJulie.releves[0].capture.champs[1].valeur, 'MARTEL');
+    // Fenêtre de Julie fermée depuis plus de 90 s : sa page va à Jérémy plutôt que de se perdre.
+    await post('releve', page('FOURNIER'), '10.0.0.2');
+    t += DUREE_FENETRE_VUE_MS + 1;
+    const pourJeremy = await post('releves/prendre', {}, '10.0.0.3');
+    assert.equal(pourJeremy.releves.length, 1);
+    assert.equal(pourJeremy.releves[0].capture.champs[1].valeur, 'FOURNIER');
+    // Journal : reçue de quel poste, prise par qui, résultat rapporté par la fenêtre.
+    await post('releves/resultats', { resultats: [{ id: pourJeremy.releves[0].id, etat: 'sans-dossier', texte: 'aucun dossier ne porte ces noms' }, { id: 'x', etat: 'pirate' }] }, '10.0.0.3');
+    const j = await fetch(b + '/api/authentic/journal').then(r => r.json());
+    assert.equal(j.entrees.length, 2);
+    assert.equal(j.entrees[0].etat, 'sans-dossier');
+    assert.equal(j.entrees[0].prisPar, 'Jérémy SAUJOT');
+    assert.equal(j.entrees[0].posteOrigine, 'Julie VASSELIN');
+    assert.equal(j.entrees[0].nature, 'client');
+    assert.equal(j.entrees[0].enMemoire, true);
+    assert.equal(j.entrees[1].etat, 'pris');
+    assert.ok(j.fenetres.some(f => f.poste === 'Julie VASSELIN'));
+    // Une page encore en mémoire se relit par son identifiant (rangement à la main).
+    const r = await fetch(b + '/api/authentic/releves/' + pourJeremy.releves[0].id).then(x => x.json());
+    assert.equal(r.capture.champs[1].valeur, 'FOURNIER');
+    assert.equal((await fetch(b + '/api/authentic/releves/inconnu')).status, 404);
+  } finally {
+    s.close();
+  }
+});
+
+test('page restée sans fenêtre 60 min : marquée « expirée » au journal', async () => {
+  const express = require('express');
+  const { creerRouteurAuthentic, DUREE_RELEVE_MS } = require('../src/routes/authentic');
+  let t = 20_000_000;
+  const appli = express();
+  appli.use(express.json());
+  appli.use('/api', creerRouteurAuthentic({ maintenant: () => t }));
+  const s = appli.listen(0);
+  await new Promise(r => s.once('listening', r));
+  const b = 'http://127.0.0.1:' + s.address().port;
+  try {
+    await fetch(b + '/api/authentic/releve', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ champs: [{ groupe: '', libelle: '3 - Vente DURAND/ROUX', valeur: '' }] }) });
+    t += DUREE_RELEVE_MS + 1;
+    const j = await fetch(b + '/api/authentic/journal').then(r => r.json());
+    assert.equal(j.entrees[0].etat, 'expire');
+    assert.match(j.entrees[0].intitule, /^3 - Vente DURAND\/ROUX/);
+  } finally {
+    s.close();
+  }
+});
+
+test('origineRequete : le poste serveur (local ou par sa propre adresse) compte pour un', () => {
+  const { origineRequete } = require('../src/routes/authentic');
+  const req = (ip) => ({ socket: { remoteAddress: ip } });
+  const propres = () => ['192.168.60.10'];
+  assert.equal(origineRequete(req('127.0.0.1'), propres), 'local');
+  assert.equal(origineRequete(req('::ffff:127.0.0.1'), propres), 'local');
+  assert.equal(origineRequete(req('::ffff:192.168.60.10'), propres), 'local');
+  assert.equal(origineRequete(req('::ffff:192.168.60.21'), propres), '192.168.60.21');
 });

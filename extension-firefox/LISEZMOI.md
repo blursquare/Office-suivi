@@ -8,8 +8,12 @@ l'envoie au serveur CLAIRE du bureau, puis ouvre CLAIRE sur la page reçue.
 - Jamais un mot de passe ni un champ caché de la page.
 - Le serveur garde la page **30 minutes en mémoire** seulement (ni base, ni journal).
 
-## État (02/10/2026) — version 0.3.5
+## État (02/10/2026) — version 0.3.6
 
+- **0.3.6** : une page qui n'est pas arrivée à CLAIRE (serveur éteint ou injoignable) est renvoyée 30 s plus
+  tard tant qu'elle est affichée — avant, elle n'était plus envoyée tant qu'elle ne changeait pas. Le bouton
+  porte un « ! » rouge tant que CLAIRE ne répond pas. Dans CLAIRE, Réglages › Authentic montre chaque page
+  reçue et ce qu'elle a donné.
 - **0.3.5** : en passant d'un dossier à l'autre dans Authentic, l'intitulé du dossier ouvert (« 15 - Donation
   SIMOND »…) part SEUL vers CLAIRE (aucune donnée de la page) quand c'est un dossier d'un type que CLAIRE ne lit
   pas : CLAIRE cesse alors de ranger les fiches client suivantes dans le dossier précédent.

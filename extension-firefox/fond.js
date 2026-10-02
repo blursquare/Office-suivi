@@ -57,28 +57,46 @@ browser.browserAction.onClicked.addListener(async (onglet) => {
 });
 
 // Relevés automatiques envoyés par auto.js (pages d'Authentic) : transmis à CLAIRE sans rien ouvrir.
-// Un échec (CLAIRE éteinte, réseau) est silencieux : la page suivante sera relevée à son tour.
+// La réponse dit à auto.js si la page est arrivée : sinon (CLAIRE éteinte, réseau), auto.js la renvoie
+// un peu plus tard (0.3.6 — avant, une page non arrivée n'était plus renvoyée tant qu'elle ne changeait
+// pas). Le bouton passe au rouge tant que CLAIRE ne répond pas.
+let derniereErreur = 0;
+function signalerEnvoi(ok) {
+  if (ok) {
+    if (derniereErreur) { derniereErreur = 0; browser.browserAction.setBadgeText({ text: '' }); }
+    const h = new Date();
+    browser.browserAction.setTitle({ title: `Envoyer à CLAIRE — page relevée automatiquement à ${String(h.getHours()).padStart(2, '0')} h ${String(h.getMinutes()).padStart(2, '0')}` });
+    return;
+  }
+  derniereErreur = Date.now();
+  browser.browserAction.setBadgeText({ text: '!' });
+  browser.browserAction.setBadgeBackgroundColor({ color: '#B91C1C' });
+  browser.browserAction.setTitle({ title: 'Envoyer à CLAIRE — CLAIRE ne répond pas : la page sera renvoyée' });
+}
+
 browser.runtime.onMessage.addListener(async (message) => {
   if (message && message.type === 'navigation' && typeof message.intitule === 'string') {
     const { serveur, auto } = await browser.storage.local.get(['serveur', 'auto']);
-    if (!serveur || auto === false) return;
+    if (!serveur || auto === false) return { ok: true };
     try {
       await fetch(serveur + '/api/authentic/navigation', {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ intitule: message.intitule })
       });
     } catch (e) { /* CLAIRE injoignable : sans suite */ }
-    return;
+    return { ok: true };
   }
-  if (!message || message.type !== 'releve' || !message.capture) return;
+  if (!message || message.type !== 'releve' || !message.capture) return undefined;
   const { serveur, auto } = await browser.storage.local.get(['serveur', 'auto']);
-  if (!serveur || auto === false) return;
+  // Rien de réglé : inutile de renvoyer.
+  if (!serveur || auto === false) return { ok: true };
   try {
     const r = await fetch(serveur + '/api/authentic/releve', {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(message.capture)
     });
-    if (r.ok) {
-      const h = new Date();
-      browser.browserAction.setTitle({ title: `Envoyer à CLAIRE — page relevée automatiquement à ${String(h.getHours()).padStart(2, '0')} h ${String(h.getMinutes()).padStart(2, '0')}` });
-    }
-  } catch (e) { /* CLAIRE injoignable : sans suite */ }
+    signalerEnvoi(r.ok);
+    return { ok: r.ok };
+  } catch (e) {
+    signalerEnvoi(false);
+    return { ok: false };
+  }
 });
