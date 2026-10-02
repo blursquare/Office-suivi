@@ -2,7 +2,7 @@
 
 // Pages d'Authentic envoyées par l'extension Firefox « CLAIRE pour Authentic » (extension-firefox/) :
 //  - POST /api/authentic/capture : { titre, adresse, champs: [{ groupe, libelle, valeur }],
-//    tableaux: [{ entete: [titre de colonne, …], lignes: [[cellule, …], …] }], texte } → { id }
+//    tableaux: [{ titre, entete: [titre de colonne, …], lignes: [[cellule, …], …] }], texte } → { id }
 //  - GET  /api/authentic/capture/:id : la capture, pour la fenêtre CLAIRE qui l'affiche.
 // Une capture contient des données de clients : gardée en MÉMOIRE seulement (30 min, 20 au plus),
 // jamais en base, jamais journalisée, jamais reprise dans un message d'erreur. Le corps doit être en
@@ -30,6 +30,7 @@ function normaliserCaptureAuthentic(corps) {
   const ligne = l => (Array.isArray(l) ? l : []).slice(0, L.cellules).map(v => chaine(v, L.cellule));
   const tableaux = (Array.isArray(c.tableaux) ? c.tableaux : []).slice(0, L.tableaux)
     .map(t => ({
+      titre: chaine(t && t.titre, L.libelle),
       entete: ligne(t && t.entete),
       lignes: (t && Array.isArray(t.lignes) ? t.lignes : []).slice(0, L.lignes).map(ligne)
     }))

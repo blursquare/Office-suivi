@@ -14490,3 +14490,16 @@ Choix de l'étude : **fermeture automatique**. `DUREE_BANDEAU_APPEL_MS` = 45 s a
 en pause au survol (`mouseenter`), 10 s après la sortie (`DUREE_BANDEAU_APPEL_APRES_SURVOL_MS`), et fermé au clic sur
 un dossier du bandeau. Quand la fiche s'ouvre seule à la sonnerie (un seul dossier), le bandeau reste ses 45 s.
 Vérifié dans Chromium (durées raccourcies) : fermeture seule, survol, clic.
+
+### 02/10/2026 — Structure Authentic : fuite de prénoms corrigée ; extension 0.2.0
+
+Première structure copiée de la « page de gestion du dossier » d'Authentic : deux prénoms de clients y étaient passés
+(« personM. XXX Alexandre et Mme XXX personMme XXX Camille… » — « person » est le texte d'une icône Material collé à la
+civilité, le motif de civilité ne s'appliquait donc pas). `masquerLibelleAuthentic` : civilité reconnue sans frontière de
+mot avant, nom et prénoms qui la suivent masqués (sans reprendre un « et » : « et M. Paul Duval » fuyait au premier essai,
+vu par le test) ; tout libellé de plus de 8 mots (`MOTS_MAX_LIBELLE_AUTHENTIC`) réduit à « [texte, N mots] ». Test avec la
+forme exacte du cas réel (noms inventés). Extension 0.2.0 : titre de chaque tableau (`titreTableau` : légende,
+aria-label, texte court qui précède, rubrique), en-tête reconnu aussi dans un `<thead>` ou par role=columnheader, cellule
+sans texte = titre de son icône (« ⟦icône⟧ … », `masquerCelluleAuthentic`) ; le serveur garde `titre` par tableau. La page
+de gestion relevée montre 12 tableaux de 5 colonnes sans en-tête (texte, vide, date, date parfois, texte court) : à
+réinterpréter avec la prochaine copie.

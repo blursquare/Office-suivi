@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-02 09:51';
+  const VERSION_APP = '2026-10-02 10:25';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-02 10:25', resume: "Extension Firefox « CLAIRE pour Authentic » : « Copier la structure (sans données) » masque désormais les nom et prénoms qui suivent M. / Mme même collés au mot précédent, et réduit tout texte de plus de 8 mots à son nombre de mots (deux prénoms étaient passés). Les tableaux reçus portent leur titre ; extension 0.2.0 (titre des tableaux, en-têtes, titre des icônes)." },
     { version: '2026-10-02 09:51', resume: "Bandeau « Appel entrant » : il se ferme seul 45 secondes après la sonnerie (3CX ne prévient pas CLAIRE de la fin d'un appel), reste ouvert tant que la souris est dessus, et se ferme dès qu'on ouvre la fiche d'un dossier depuis le bandeau. La croix reste disponible." },
     { version: '2026-10-02 09:49', resume: "Fiche d'un dossier : sélectionner un email ou un téléphone à la souris ne ferme plus la fiche quand on relâche le bouton hors de la fiche (même correction pour toutes les fenêtres à fond grisé). Le bandeau « Appel entrant » s'affiche maintenant en bas à gauche de l'écran." },
     { version: '2026-10-02 09:37', resume: "Widget « Statistiques » : les délais moyens (obtention du prêt, renonciation au droit de préemption, signature) sont maintenant calculés sur tous les dossiers de l'étude, archivés compris, sans limite de date et quel que soit le périmètre du tableau de bord (et non plus sur les 12 derniers mois). Le nombre de dossiers mesurés reste affiché à côté de chaque délai." },
@@ -25141,14 +25142,33 @@
   }
 
   // Pure : un libellé ou un titre sans ce qui pourrait nommer un client — chiffres remplacés par 9,
-  // mots en capitales (hors sigles techniques) par XXX, emails masqués.
+  // mots en capitales (hors sigles techniques) par XXX, emails masqués, nom et prénoms après une
+  // civilité masqués même collée au mot précédent (« personM. MARTEL Alexandre » : texte d'icône
+  // d'Authentic, étude 02/10 — deux prénoms étaient passés). Un « libellé » de plus de 8 mots n'en est
+  // pas un (texte de la page pris faute de vrai libellé) : seul son nombre de mots est gardé.
+  var MOTS_MAX_LIBELLE_AUTHENTIC = 8;
   function masquerLibelleAuthentic(s) {
-    return String(s == null ? '' : s)
+    const brut = String(s == null ? '' : s).replace(/\s+/g, ' ').trim();
+    if (!brut) return '';
+    const mots = brut.split(' ').length;
+    if (mots > MOTS_MAX_LIBELLE_AUTHENTIC) return `[texte, ${mots} mots]`;
+    return brut
       .replace(/[^@\s]+@[^@\s]+/g, '[email]')
-      .replace(/\b(Monsieur|Madame|Mademoiselle|Maître|Me|Mme|Mlle|M\.)(\s+[A-ZÀ-Ý][\wÀ-ɏ'’-]*)+/g, '$1 XXX')
+      .replace(/(Monsieur|Madame|Mademoiselle|Maître|Mme|Mlle|Me|M\.)((?:\s+[A-ZÀ-Ý][\wÀ-ɏ'’-]*)+)/g, '$1 XXX')
       .replace(/\d/g, '9')
       .replace(/(?<![A-Za-zÀ-ɏ])[A-ZÀ-Ý][A-ZÀ-Ý'’-]+(?![A-Za-zÀ-ɏ])/g, m => SIGLES_STRUCTURE_AUTHENTIC.includes(m) ? m : 'XXX')
       .trim();
+  }
+
+  // Pure : une cellule « icône » relevée par l'extension (cellule sans texte, titre de l'icône) :
+  // « ⟦icône⟧ Signé électroniquement ». Le titre d'une icône est du vocabulaire d'Authentic, pas une
+  // donnée : il passe dans la structure, masqué comme un libellé.
+  var MARQUE_ICONE_AUTHENTIC = '⟦icône⟧ ';
+  function masquerCelluleAuthentic(v) {
+    const s = String(v == null ? '' : v);
+    return s.startsWith(MARQUE_ICONE_AUTHENTIC)
+      ? `[icône : ${masquerLibelleAuthentic(s.slice(MARQUE_ICONE_AUTHENTIC.length)) || 'sans titre'}]`
+      : masquerValeurAuthentic(s);
   }
 
   // Pure : la structure d'une page reçue, en texte, à copier pour le calibrage.
@@ -25163,9 +25183,10 @@
     // Seule la ligne d'en-tête (<th>) garde ses libellés ; toute autre cellule n'est qu'un type.
     (c.tableaux || []).forEach((t, i) => {
       const corps = t.lignes || [];
-      lignes.push('', `## Tableau ${i + 1} (${corps.length} ligne${corps.length > 1 ? 's' : ''})`);
+      const titre = masquerLibelleAuthentic(t.titre);
+      lignes.push('', `## Tableau ${i + 1}${titre ? ` — ${titre}` : ''} (${corps.length} ligne${corps.length > 1 ? 's' : ''})`);
       if ((t.entete || []).length) lignes.push('| ' + t.entete.map(masquerLibelleAuthentic).join(' | ') + ' |');
-      corps.slice(0, 6).forEach(l => lignes.push('| ' + l.map(masquerValeurAuthentic).join(' | ') + ' |'));
+      corps.slice(0, 6).forEach(l => lignes.push('| ' + l.map(masquerCelluleAuthentic).join(' | ') + ' |'));
       if (corps.length > 6) lignes.push('| …');
     });
     lignes.push('', `Texte visible : ${String(c.texte || '').length} caractères (non copié).`);
@@ -25221,7 +25242,7 @@
           <dl class="auth-champs">${g.champs.map(ch => `<div class="auth-champ"><dt>${escapeHtml(ch.libelle || '—')}</dt><dd>${escapeHtml(ch.valeur || '—')}</dd></div>`).join('')}</dl>
         </section>`).join('')}
         ${(c.tableaux || []).map((t, i) => `<section class="auth-groupe">
-          <h3 class="auth-groupe-titre">Tableau ${i + 1}</h3>
+          <h3 class="auth-groupe-titre">${escapeHtml(t.titre || `Tableau ${i + 1}`)}</h3>
           <div class="table-scroll"><table class="auth-tableau">${(t.entete || []).length ? `<thead><tr>${t.entete.map(x => `<th>${escapeHtml(x)}</th>`).join('')}</tr></thead>` : ''}<tbody>${(t.lignes || []).slice(0, 30).map(l => `<tr>${l.map(x => `<td>${escapeHtml(x)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>
         </section>`).join('')}
         ${!nC && !nT ? `<p class="auth-etat">Aucun champ ni tableau lu : seul le texte de la page est arrivé (${String(c.texte || '').length} caractères).</p>` : ''}
