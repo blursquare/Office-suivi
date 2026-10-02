@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-02 14:48';
+  const VERSION_APP = '2026-10-02 14:54';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-02 14:54', resume: "Fiche : une partie déjà connue d'un ancien dossier (vendeur, acquéreur — un ancien acquéreur qui revend —, partie d'une succession, archivés compris) est signalée « Déjà connu » sur la première page, avec ce qu'elle apporterait (téléphone, email, situation matrimoniale) ; « Reprendre » le copie, × l'écarte. Jamais repris d'office." },
     { version: '2026-10-02 14:48', resume: "Authentic, fiche client : les adresses email écrites à la suite (« a@x.fr;b@y.fr », envoi groupé) sont reprises au lieu d'être ignorées, et s'ajoutent à celles déjà connues ; une épouse sous son propre nom est rattachée au côté de son conjoint (« VTE CHAHUNEAU / … » : Mme mariée à M. CHAHUNEAU → vendeur) ; une fiche dont le côté reste inconnu apparaît « À rattacher » sur la fiche (Vendeur, Acquéreur ou écarter). Emails : plusieurs adresses séparées par « ; » acceptées partout (brouillon Outlook, sondage — une adresse = un votant —, visio). Le questionnaire de satisfaction envoyé au vendeur archive aussi le dossier." },
     { version: '2026-10-02 14:11', resume: "Nouveau dossier : l'import d'un export ZIP d'Authentic est retiré (la lecture des pages d'Authentic le remplace) ; à sa place, « Dossier Authentic seul » crée un dossier sans compromis. Successions : un dossier « N - Succession NOM » ouvert dans Authentic (page du dossier, fiches client, fiche bien) se crée en un clic — parties avec téléphones et emails, biens avec cadastre, pièces reçues dans Authentic ; la fiche n'affiche ni prêt, ni date butoir, ni emails de vente. Questionnaire de satisfaction : il peut aussi être envoyé au vendeur (onglet Échanges), sauf si un confrère le représente. Tableau de bord, widget Agenda : la liste du jour n'est plus coupée, elle défile sur toute la journée, ouverte sur le rendez-vous en cours." },
     { version: '2026-10-02 13:58', resume: "Tableau de bord, carte « Aujourd'hui » : « Mes rappels » est resserré — une ligne par rappel, l'échéance et le dossier à droite du texte, sans espace réparti entre les lignes. Téléphonie 3CX : un interrupteur par collaborateur dans Réglages › Téléphonie 3CX ; coupé, ses appels ne sont plus notés, sa fenêtre CLAIRE n'affiche plus « Appel entrant » et l'onglet ouvert par 3CX se referme aussitôt." },
@@ -16053,6 +16054,7 @@
       <dl class="fiche-proprietes fiche-coordonnees">
         ${coordonneesPartiesDossier(d).map(c => ligne(c.partie === 'vendeur' ? 'user' : 'users', c.libelle, champsCoordonneesPartie(d, c, 'fiche'), c.parNotaire ? `fiche-tel-${c.partie}-${d.id}` : `fiche-email-${c.partie}-${d.id}`, 'prop-pleine')).join('')}
         ${renderClientsAPlacer(d, ligne)}
+        ${renderPersonnesConnues(d, ligne)}
       </dl>
       <dl class="fiche-proprietes">
         ${ligne('map-pin', 'Adresse', saisie('adresse', normaliserAdresse(d.adresseBien), 'changerAdresseBien'), `adresse-${d.id}`, 'prop-pleine')}
@@ -26331,10 +26333,158 @@
   function renderClientsAPlacer(d, ligne) {
     const liste = (d && d.authentic && d.authentic.clientsAPlacer) || [];
     if (!liste.length) return '';
-    return ligne('alert-triangle', 'À rattacher', `<span class="notaires-a-placer">${liste.map((c, i) => `<span class="notaires-a-placer-ligne"><span class="prop-texte">${escapeHtml(c.nom)}${c.nomUsage ? ` <span class="hint">(${escapeHtml(c.nomUsage)})</span>` : ''}${[...(c.telephones || []), ...(c.emails || [])].length ? ` <span class="hint">· ${[...(c.telephones || []), ...(c.emails || [])].map(escapeHtml).join(' · ')}</span>` : ''}</span>
+    return ligne('alert-triangle', 'À rattacher', `<span class="notaires-a-placer">${liste.map((c, i) => `<span class="notaires-a-placer-ligne"><span class="prop-texte texte-retour">${escapeHtml(c.nom)}${c.nomUsage ? ` <span class="hint">(${escapeHtml(c.nomUsage)})</span>` : ''}${[...(c.telephones || []), ...(c.emails || [])].length ? ` <span class="hint">· ${[...(c.telephones || []), ...(c.emails || [])].map(escapeHtml).join(' · ')}</span>` : ''}</span>
           <button type="button" class="lien-action" onclick="placerClientAuthentic('${d.id}', ${i}, 'VENDEUR')">Vendeur</button>
           <button type="button" class="lien-action" onclick="placerClientAuthentic('${d.id}', ${i}, 'ACQUEREUR')">Acquéreur</button>
           <button type="button" class="icon-btn" onclick="ecarterClientAuthentic('${d.id}', ${i})" title="Écarter : cette personne n’est pas partie au dossier" aria-label="Écarter ${escapeAttr(c.nom)}">${icone('x')}</button></span>`).join('')}</span>`, null, 'prop-pleine');
+  }
+
+  // ---- Personnes déjà connues (étude, 02/10 : « détecter si le vendeur est déjà connu, reprendre sa
+  // fiche déjà complétée dans un futur dossier ») ----
+  // Toute partie d'un dossier (vendeur, acquéreur, partie d'une succession) est cherchée dans les autres
+  // dossiers, archivés compris — un ancien acquéreur de l'étude qui revend est le cas courant. Choix de
+  // l'étude : PROPOSÉ, jamais repris d'office (homonyme, adresse d'un ex-conjoint) : une ligne « Déjà
+  // connu » sur la fiche, « Reprendre » copie ce qui manque (téléphones, emails, situation matrimoniale).
+
+  var MOTS_HORS_IDENTITE = new Set(['m', 'mr', 'mme', 'mlle', 'monsieur', 'madame', 'mademoiselle', 'nee', 'ne', 'epouse', 'epoux', 'veuve', 'veuf', 'et', 'consorts', 'consort']);
+
+  // Pure : les mots qui identifient une personne (« Madame Odile MARCHAIS née BERTIN » → odile, marchais, bertin).
+  function motsIdentitePersonne(nom) {
+    return [...new Set(normaliserPourRecherche(nom || '').replace(/[^a-z0-9]+/g, ' ').trim().split(' ')
+      .filter(m => m.length > 1 && !MOTS_HORS_IDENTITE.has(m)))];
+  }
+
+  // Pure : même personne si l'un des deux noms est contenu dans l'autre, sur deux mots au moins
+  // (« Jean DUPONT » = « DUPONT Jean » = « Monsieur Jean Pierre DUPONT »).
+  function memePersonneParNom(a, b) {
+    const ma = motsIdentitePersonne(a), mb = motsIdentitePersonne(b);
+    const [petit, grand] = ma.length <= mb.length ? [ma, mb] : [mb, ma];
+    return petit.length >= 2 && petit.every(m => grand.includes(m));
+  }
+
+  // Pure : les personnes d'un dossier avec ce que CLAIRE sait d'elles. Les coordonnées d'une vente sont
+  // celles du côté (un couple les partage) ; celles d'une partie de succession lui sont propres.
+  function personnesDuDossier(d) {
+    if (!d) return [];
+    const chiffres = (t) => String(t || '').replace(/\D/g, '');
+    const telsCote = (role) => String(d[role === 'VENDEUR' ? 'telephoneVendeur' : 'telephoneAcquereur'] || '').split('/').map(t => t.trim()).filter(t => chiffres(t).length >= 9);
+    const emailsCote = (role) => emailsDepuisTexte(d[role === 'VENDEUR' ? 'emailVendeur' : 'emailAcquereur']);
+    const fiches = (d.authentic && d.authentic.personnes) || [];
+    const situation = (nom) => { const f = fiches.find(x => x && memePersonneParNom(x.nom, nom)); return (f && f.situationMatrimoniale) || null; };
+    const liste = [];
+    const ajouter = (nom, role, extra) => {
+      if (!nom || motsIdentitePersonne(nom).length < 2 || liste.some(x => memePersonneParNom(x.nom, nom))) return;
+      const cote = role === 'VENDEUR' || role === 'ACQUEREUR';
+      liste.push(Object.assign({
+        nom, role,
+        telephones: cote ? telsCote(role) : (extra.telephones || []),
+        emails: cote ? emailsCote(role) : (extra.emails || []),
+        situationMatrimoniale: extra.situationMatrimoniale || situation(nom)
+      }, extra.nomUsage ? { nomUsage: extra.nomUsage } : {}));
+    };
+    (Array.isArray(d.parties) ? d.parties : []).forEach(p => p && ajouter(p.nom, p.role, p));
+    fiches.forEach(f => f && ajouter(f.nom, f.role, f));
+    return liste;
+  }
+
+  function dateReferenceDossier(d) {
+    return String((d && (d.acte || d.rendezVousSignature || dateOuvertureDossier(d))) || '');
+  }
+
+  // Pure : ce qu'une personne connue d'un ancien dossier apporterait à la fiche (ce qui y manque).
+  function apportPersonneConnue(actuelle, ancienne) {
+    const chiffres = (t) => String(t || '').replace(/\D/g, '').slice(-9);
+    const telsConnus = actuelle.telephones.map(chiffres);
+    const emailsConnus = actuelle.emails.map(e => e.toLowerCase());
+    return {
+      telephones: ancienne.telephones.filter((t, i, l) => !telsConnus.includes(chiffres(t)) && l.findIndex(x => chiffres(x) === chiffres(t)) === i),
+      emails: ancienne.emails.filter(e => !emailsConnus.includes(e.toLowerCase())),
+      situationMatrimoniale: !actuelle.situationMatrimoniale && ancienne.situationMatrimoniale ? ancienne.situationMatrimoniale : null
+    };
+  }
+
+  // Pure : pour chaque personne du dossier, l'ancien dossier le plus récent qui la connaît ET apporte
+  // quelque chose. → [{ cle, personne, role, ancienDossier, ancienRole, apport }]
+  function personnesConnuesPourDossier(d, tous) {
+    if (!d) return [];
+    const ecartees = new Set(d.personnesConnuesEcartees || []);
+    const autres = (tous || []).filter(o => o && o.id !== d.id)
+      .sort((a, b) => dateReferenceDossier(b).localeCompare(dateReferenceDossier(a)));
+    const resultat = [];
+    personnesDuDossier(d).forEach(p => {
+      for (const o of autres) {
+        const q = personnesDuDossier(o).find(x => memePersonneParNom(x.nom, p.nom));
+        if (!q) continue;
+        const cle = o.id + '|' + motsIdentitePersonne(p.nom).sort().join(' ');
+        if (ecartees.has(cle)) continue;
+        const apport = apportPersonneConnue(p, q);
+        if (!apport.telephones.length && !apport.emails.length && !apport.situationMatrimoniale) continue;
+        resultat.push({ cle, personne: p.nom, role: p.role, ancienDossier: o.id, ancienRole: q.role, apport });
+        break;
+      }
+    });
+    return resultat;
+  }
+
+  // Pure (modifie le dossier passé) : reprend l'apport d'une personne connue sur la fiche.
+  function appliquerPersonneConnue(d, connue, noter) {
+    const a = connue.apport;
+    const cote = connue.role === 'VENDEUR' || connue.role === 'ACQUEREUR';
+    if (cote) {
+      const champTel = connue.role === 'VENDEUR' ? 'telephoneVendeur' : 'telephoneAcquereur';
+      const champEmail = connue.role === 'VENDEUR' ? 'emailVendeur' : 'emailAcquereur';
+      if (a.telephones.length) d[champTel] = [d[champTel], ...a.telephones].filter(Boolean).join(' / ');
+      if (a.emails.length) d[champEmail] = [String(d[champEmail] || '').trim().replace(/[;,]\s*$/, ''), ...a.emails].filter(Boolean).join('; ');
+    } else {
+      d.parties = (d.parties || []).map(p => p && memePersonneParNom(p.nom, connue.personne)
+        ? Object.assign({}, p, { telephones: [...(p.telephones || []), ...a.telephones].slice(0, 3), emails: [...(p.emails || []), ...a.emails].slice(0, 3) }, a.situationMatrimoniale && !p.situationMatrimoniale ? { situationMatrimoniale: a.situationMatrimoniale } : {})
+        : p);
+    }
+    if (a.situationMatrimoniale && cote) {
+      const avant = d.authentic || {};
+      const personnes = (avant.personnes || []).filter(x => !(x && memePersonneParNom(x.nom, connue.personne)));
+      d.authentic = Object.assign({}, avant, { personnes: personnes.concat({ nom: connue.personne, role: connue.role, situationMatrimoniale: a.situationMatrimoniale }) });
+    }
+    const repris = [
+      a.telephones.length ? `téléphone ${a.telephones.join(' / ')}` : '',
+      a.emails.length ? `email ${a.emails.join('; ')}` : '',
+      a.situationMatrimoniale ? `situation matrimoniale (${libelleSituationMatrimoniale(a.situationMatrimoniale)})` : ''
+    ].filter(Boolean).join(', ');
+    noter(`Fiche de ${connue.personne} reprise d’un ancien dossier : ${repris}`);
+    return d;
+  }
+
+  var LIBELLES_ROLE_CONNU = { VENDEUR: 'vendeur', ACQUEREUR: 'acquéreur', PARTIE: 'partie' };
+
+  function renderPersonnesConnues(d, ligne) {
+    const liste = personnesConnuesPourDossier(d, dossiers);
+    if (!liste.length) return '';
+    return ligne('users', 'Déjà connu', `<span class="notaires-a-placer">${liste.map(c => {
+      const o = dossiers.find(x => x.id === c.ancienDossier);
+      const quand = o && o.acte ? ` · signé le ${formatDateFr(o.acte)}` : '';
+      const apport = [...c.apport.telephones, ...c.apport.emails, c.apport.situationMatrimoniale ? libelleSituationMatrimoniale(c.apport.situationMatrimoniale) : ''].filter(Boolean);
+      return `<span class="notaires-a-placer-ligne"><span class="prop-texte texte-retour">${escapeHtml(c.personne)} <span class="hint">— ${LIBELLES_ROLE_CONNU[c.ancienRole] || 'partie'} dans <button type="button" class="lien-action" onclick="ouvrirDossierDrawer('${escapeOnclickArg(c.ancienDossier)}')">${escapeHtml(o ? libelleDossierAffiche(o) : 'un ancien dossier')}</button>${quand} · ${apport.map(escapeHtml).join(' · ')}</span></span>
+          <button type="button" class="lien-action" onclick="reprendrePersonneConnue('${d.id}', '${escapeOnclickArg(c.cle)}')">Reprendre</button>
+          <button type="button" class="icon-btn" onclick="ecarterPersonneConnue('${d.id}', '${escapeOnclickArg(c.cle)}')" title="Écarter : ce n’est pas la même personne" aria-label="Écarter ${escapeAttr(c.personne)}">${icone('x')}</button></span>`;
+    }).join('')}</span>`, null, 'prop-pleine');
+  }
+
+  async function reprendrePersonneConnue(id, cle) {
+    const d = dossiers.find(x => x.id === id);
+    const c = d && personnesConnuesPourDossier(d, dossiers).find(x => x.cle === cle);
+    if (!c) return;
+    appliquerPersonneConnue(d, c, (texte) => ajouterHistorique(d, texte));
+    await sauvegarder(d);
+    render();
+    afficherToast(`${c.personne} : fiche reprise de l’ancien dossier.`, 'OK', null);
+  }
+
+  async function ecarterPersonneConnue(id, cle) {
+    const d = dossiers.find(x => x.id === id);
+    if (!d) return;
+    d.personnesConnuesEcartees = [...(d.personnesConnuesEcartees || []).filter(x => x !== cle), cle].slice(-40);
+    await sauvegarder(d);
+    render();
   }
 
   // Une fiche « à rattacher » étrangère au dossier : retirée, et plus jamais reproposée.
@@ -28521,6 +28671,7 @@
       emailVendeur: typeof d.emailVendeur === 'string' ? d.emailVendeur : '',
       telephoneAcquereur: typeof d.telephoneAcquereur === 'string' ? d.telephoneAcquereur : '',
       telephoneVendeur: typeof d.telephoneVendeur === 'string' ? d.telephoneVendeur : '',
+      personnesConnuesEcartees: Array.isArray(d.personnesConnuesEcartees) ? d.personnesConnuesEcartees.filter(x => typeof x === 'string').slice(-40) : [],
       // Contrairement aux statuts dérivés d'un scan du NAS (offrePretStatut, pieces...), l'envoi du
       // questionnaire est un fait réel déjà accompli par l'utilisateur : conservé tel quel.
       questionnaireEnvoyeLe: typeof d.questionnaireEnvoyeLe === 'string' ? d.questionnaireEnvoyeLe : null,

@@ -14841,3 +14841,22 @@ pour un envoi groupé » ; « archiver le dossier quand le questionnaire est env
   partie reste proposé sur le dossier archivé.
 - Vérifié dans Chromium (serveur réel, dossier inventé) : ligne « À rattacher », placement côté vendeur, `.eml` du
   questionnaire `To: a@…, b@…`, dossier archivé. Non vérifié : une vraie fiche client d'Authentic avec deux adresses.
+
+### 02/10/2026 après-midi — Personne déjà connue reprise d'un ancien dossier
+
+Étude : « détecter si le vendeur est déjà connu, reprendre sa fiche déjà complétée dans un futur dossier ». Cadrage
+(AskUserQuestion) : **proposé en un clic** (pas d'office — homonyme, adresse d'un ex-conjoint) ; **toute partie**
+cherchée, y compris un ancien acquéreur de l'étude qui revend.
+- `personnesDuDossier(d)` : parties (`d.parties`) et fiches clients relevées (`d.authentic.personnes`), avec les
+  coordonnées du côté (vente : partagées par un couple) ou propres (succession) et la situation matrimoniale.
+- `memePersonneParNom` : mots d'identité (`motsIdentitePersonne`, civilités, « née », « épouse », « et » retirés),
+  l'un contenu dans l'autre sur **deux mots au moins** (« Monsieur VASSEUR » seul ne reconnaît personne).
+- `personnesConnuesPourDossier(d, tous)` : pour chaque personne, l'ancien dossier le plus récent (acte, rendez-vous,
+  ouverture) qui la connaît et apporte quelque chose (`apportPersonneConnue` : téléphones et emails absents, situation
+  matrimoniale si inconnue) ; écartées par `d.personnesConnuesEcartees` (`ancienDossier|mots`).
+- Fiche, première page, sous les coordonnées : « Déjà connu » — nom, rôle dans l'ancien dossier (lien qui l'ouvre),
+  date de signature, ce qui serait repris ; « Reprendre » (`appliquerPersonneConnue`, noté dans l'historique) ou ×.
+  La ligne disparaît d'elle-même quand il n'y a plus rien à apporter. Description en retour à la ligne
+  (`.texte-retour`), aussi pour « À rattacher » (coupée sur téléphone).
+- Limite : un dossier sans parties lues (ni compromis ni Authentic) n'a que « NOM / NOM » — rien n'est cherché.
+- Vérifié dans Chromium (1440 clair, 390 sombre ; dossiers inventés) : proposition, reprise, disparition.

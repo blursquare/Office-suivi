@@ -8091,6 +8091,8 @@ button.w-jour-lien { border: none; background: none; padding: 0; cursor: pointer
 .role-deduit { font-weight: 400; color: var(--muted); font-size: 12px; }
 .notaires-a-placer { display: flex; flex-direction: column; gap: 4px; }
 .notaires-a-placer-ligne { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; }
+/* Personne « déjà connue » / « à rattacher » : la description revient à la ligne au lieu d'être coupée. */
+.notaires-a-placer-ligne .prop-texte.texte-retour { white-space: normal; overflow-wrap: anywhere; }
 
 /* Coordonnées des parties : email et téléphone sur une ligne (fiche et onglet Échanges, étude 02/10). */
 .coord-paire { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 8px; width: 100%; align-items: center; }

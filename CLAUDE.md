@@ -649,6 +649,10 @@ Plainte principale de l'étude : **le bruit**, pas les oublis — ne pas élargi
   « À rattacher » sur la fiche (`clientsAPlacer` : Vendeur / Acquéreur / ×), jamais deviné ; **emails groupés**
   « a@x.fr;b@y.fr » (`emailsDepuisTexte`) ajoutés à ceux du côté — partout un champ email peut porter plusieurs
   adresses (`destinatairesEmail` : « a, b » dans le `.eml`, un votant par adresse au sondage) ;
+  **personne déjà connue** (étude 02/10, choix : proposé, jamais d'office ; toute partie, archivés compris) — ligne
+  « Déjà connu » de la fiche (`personnesConnuesPourDossier` : même personne = un nom contenu dans l'autre sur 2 mots au
+  moins, `memePersonneParNom` ; ancien dossier le plus récent qui apporte quelque chose), « Reprendre »
+  (`appliquerPersonneConnue` : téléphones, emails, situation matrimoniale manquants) ou × (`personnesConnuesEcartees`) ;
   livret de famille et décès seulement en succession. « Informations financières » et « Parties prenantes » (sous les
   vendeurs/acquéreurs de la page de gestion) s'affichent en **texte seul** : lus dans `capture.texte` (« Capital » puis le
   montant ; lignes après « Parties prenantes »), la copie de structure y ajoute le texte réduit à son vocabulaire

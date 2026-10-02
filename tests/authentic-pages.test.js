@@ -646,3 +646,35 @@ test('adressesEmailValides et participantsParAdresse : envoi groupé accepté, u
   const l = app.participantsParAdresse([{ role: 'vendeur', nom: 'M. et Mme MARCHAIS', email: 'a@x.fr; b@y.fr' }, { role: 'acquereur', nom: 'LEBON', email: 'c@z.fr' }]);
   assert.equal(l.map(p => p.role + ':' + p.email).join(','), 'vendeur:a@x.fr,vendeur:b@y.fr,acquereur:c@z.fr');
 });
+
+test('personnes déjà connues : un ancien acquéreur qui revend, proposé puis repris ; homonyme partiel et écarté', () => {
+  const sm = { situation: 'Marié(e)', date: '2015-06-20', conjoint: 'ROUSSEL Claire', contrat: '', regime: '', dateMariage: '' };
+  const ancien = { id: 'old', nom: 'GARNIER / VASSEUR', acte: '2021-04-12', archive: true,
+    parties: [{ nom: 'Monsieur Paul GARNIER', role: 'VENDEUR' }, { nom: 'Monsieur Hugo VASSEUR', role: 'ACQUEREUR' }],
+    telephoneAcquereur: '06 44 55 66 77', emailAcquereur: 'hugo.vasseur@exemple.fr',
+    authentic: { personnes: [{ nom: 'Hugo VASSEUR', role: 'ACQUEREUR', situationMatrimoniale: sm }] }, historique: [] };
+  const nouveau = { id: 'new', nom: 'VASSEUR / MERCIER', parties: [{ nom: 'VASSEUR Hugo', role: 'VENDEUR' }, { nom: 'Madame Léa MERCIER', role: 'ACQUEREUR' }],
+    emailVendeur: '', telephoneVendeur: '', pieces: {}, historique: [] };
+  const homonyme = { id: 'h', nom: 'VASSEUR / X', parties: [{ nom: 'Madame Inès VASSEUR', role: 'VENDEUR' }], emailVendeur: 'ines@exemple.fr', historique: [] };
+  const liste = app.personnesConnuesPourDossier(nouveau, [ancien, nouveau, homonyme]);
+  assert.equal(liste.length, 1);
+  assert.equal([liste[0].personne, liste[0].role, liste[0].ancienDossier, liste[0].ancienRole].join('|'), 'VASSEUR Hugo|VENDEUR|old|ACQUEREUR');
+  // Rien n'est écrit tant que l'étude n'a pas cliqué « Reprendre ».
+  assert.equal(nouveau.emailVendeur, '');
+  const notes = [];
+  app.appliquerPersonneConnue(nouveau, liste[0], t => notes.push(t));
+  assert.equal(nouveau.telephoneVendeur, '06 44 55 66 77');
+  assert.equal(nouveau.emailVendeur, 'hugo.vasseur@exemple.fr');
+  assert.equal(nouveau.authentic.personnes[0].situationMatrimoniale.conjoint, 'ROUSSEL Claire');
+  assert.match(notes[0], /Fiche de VASSEUR Hugo reprise/);
+  // Plus rien à apporter : la proposition disparaît.
+  assert.equal(app.personnesConnuesPourDossier(nouveau, [ancien, nouveau]).length, 0);
+  // Écartée : plus jamais reproposée.
+  const autre = { id: 'n2', nom: 'VASSEUR / B', parties: [{ nom: 'Hugo VASSEUR', role: 'VENDEUR' }], historique: [] };
+  const c = app.personnesConnuesPourDossier(autre, [ancien, autre])[0];
+  autre.personnesConnuesEcartees = [c.cle];
+  assert.equal(app.personnesConnuesPourDossier(autre, [ancien, autre]).length, 0);
+  // Un seul mot en commun ne suffit jamais.
+  assert.equal(app.memePersonneParNom('Monsieur VASSEUR', 'Hugo VASSEUR'), false);
+  assert.equal(app.memePersonneParNom('Monsieur Hugo Jean VASSEUR', 'VASSEUR Hugo'), true);
+});
