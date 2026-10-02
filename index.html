@@ -211,19 +211,19 @@
 
       <div class="wizard-stepper" id="wizard-stepper">
         <button type="button" class="wizard-step-btn actif" id="wizard-step-btn-1" onclick="definirEtapeWizard(1)">
-          <span class="wizard-step-num">1</span><span class="wizard-step-libelle">Importer</span>
+          <span class="wizard-step-num">1</span><span class="wizard-step-texte"><span class="wizard-step-libelle">Importer</span><span class="wizard-step-sous" id="wizard-step-sous-1"></span></span>
         </button>
         <span class="wizard-step-trait"></span>
         <button type="button" class="wizard-step-btn" id="wizard-step-btn-2" onclick="definirEtapeWizard(2)">
-          <span class="wizard-step-num">2</span><span class="wizard-step-libelle">Vérifier</span>
+          <span class="wizard-step-num">2</span><span class="wizard-step-texte"><span class="wizard-step-libelle">Vérifier</span><span class="wizard-step-sous" id="wizard-step-sous-2"></span></span>
         </button>
         <span class="wizard-step-trait"></span>
         <button type="button" class="wizard-step-btn" id="wizard-step-btn-3" onclick="definirEtapeWizard(3)">
-          <span class="wizard-step-num">3</span><span class="wizard-step-libelle">Analyse juridique</span>
+          <span class="wizard-step-num">3</span><span class="wizard-step-texte"><span class="wizard-step-libelle">Analyse juridique</span><span class="wizard-step-sous" id="wizard-step-sous-3"></span></span>
         </button>
         <span class="wizard-step-trait"></span>
         <button type="button" class="wizard-step-btn" id="wizard-step-btn-4" onclick="definirEtapeWizard(4)">
-          <span class="wizard-step-num">4</span><span class="wizard-step-libelle">Finaliser</span>
+          <span class="wizard-step-num">4</span><span class="wizard-step-texte"><span class="wizard-step-libelle">Finaliser</span><span class="wizard-step-sous" id="wizard-step-sous-4"></span></span>
         </button>
       </div>
 
@@ -401,18 +401,18 @@
 
         <div class="field-row">
           <div>
-            <label for="f-adresse-bien">Adresse du bien (détectée automatiquement)</label>
+            <label for="f-adresse-bien">Adresse du bien</label>
             <input type="text" id="f-adresse-bien" placeholder="Ex. 12 rue de la République, 45000 Orléans">
           </div>
           <div class="vente-seul">
-            <label for="f-prix-vente">Prix de vente (détecté automatiquement)</label>
+            <label for="f-prix-vente">Prix de vente</label>
             <input type="text" id="f-prix-vente" inputmode="numeric" placeholder="Ex. 250000">
           </div>
         </div>
 
         <div class="field-row vente-seul">
           <div>
-            <label for="f-nom-agence">Agence immobilière (détectée automatiquement)</label>
+            <label for="f-nom-agence">Agence immobilière</label>
             <input type="text" id="f-nom-agence" placeholder="Ex. CENTURY 21 Les Tilleuls">
           </div>
           <div>
@@ -423,7 +423,7 @@
 
         <div class="field-row vente-seul">
           <div>
-            <label for="f-depot-garantie">Dépôt de garantie / acompte (détecté automatiquement)</label>
+            <label for="f-depot-garantie">Dépôt de garantie / acompte</label>
             <input type="text" id="f-depot-garantie" inputmode="numeric" placeholder="Ex. 10000">
           </div>
           <div>

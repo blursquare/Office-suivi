@@ -4537,7 +4537,8 @@
   .wizard-step-btn {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
+    text-align: left;
     font-family: inherit;
     font-size: 13px;
     font-weight: 600;
@@ -4549,20 +4550,31 @@
   }
   .wizard-step-btn:hover { color: var(--ink-soft); }
   .wizard-step-btn.actif { color: var(--ink); }
+  /* Étapes (étude, 02/10, d'après une capture : « Getting started / Add company info… ») : case carrée
+     arrondie, coche blanche sur fond d'accent quand l'étape est faite, titre et une ligne d'état. */
   .wizard-step-num {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 22px;
-    height: 22px;
-    border-radius: 50%;
-    background: var(--line-soft);
+    width: 30px;
+    height: 30px;
+    border-radius: 9px;
+    background: var(--paper-sunk);
+    border: 1px solid var(--line);
     color: var(--muted);
-    font-size: 11.5px;
+    font-size: 12.5px;
     font-weight: 700;
     flex: 0 0 auto;
+    box-sizing: border-box;
   }
-  .wizard-step-btn.actif .wizard-step-num { background: var(--focus); color: var(--on-accent); }
+  .wizard-step-num .icone, .wizard-step-num svg { width: 15px; height: 15px; stroke-width: 2.4; }
+  .wizard-step-btn.actif .wizard-step-num { background: var(--paper-card); border: 2px solid var(--focus); color: var(--focus); }
+  .wizard-step-btn.fait .wizard-step-num { background: var(--focus); border-color: var(--focus); color: var(--on-accent); }
+  .wizard-step-texte { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+  .wizard-step-libelle { line-height: 1.2; }
+  .wizard-step-sous { font-size: 11.5px; font-weight: 400; color: var(--muted); line-height: 1.25; white-space: nowrap; }
+  .wizard-step-btn.actif .wizard-step-sous { color: var(--ink-soft); }
+  .wizard-step-btn.fait { color: var(--ink-soft); }
 
   /* Sur téléphone, les quatre étapes ne tiennent pas côte à côte : la quatrière ("Finaliser")
      débordait, coupée par le bord de l'écran. On ne garde alors que le libellé de l'étape EN COURS
@@ -4573,7 +4585,8 @@
     .wizard-stepper { gap: 8px; justify-content: space-between; }
     .wizard-step-trait { display: none; }
     .wizard-step-btn { font-size: 12px; padding: 6px 0; min-width: 0; }
-    .wizard-step-btn:not(.actif) .wizard-step-libelle { display: none; }
+    .wizard-step-btn:not(.actif) .wizard-step-texte { display: none; }
+    .wizard-step-sous { display: none; }
     .wizard-step-btn.actif .wizard-step-libelle {
       overflow: hidden;
       text-overflow: ellipsis;
@@ -8272,3 +8285,57 @@ button.w-jour-lien { border: none; background: none; padding: 0; cursor: pointer
 #import-boite.import-boite-lu .pdf-dropzone { flex-direction: row; justify-content: flex-start; padding: 10px 14px; gap: 12px; min-height: 0; }
 #import-boite.import-boite-lu .pdf-dropzone-icone { display: none; }
 #import-boite.import-boite-lu .pdf-dropzone-hint { font-size: 12px; }
+
+/* ---- « Nouveau dossier » › Vérifier : données pré-remplies à valider (étude, 02/10) ----
+   Trois groupes — à valider, validées, à compléter — ; chaque donnée a sa case carrée (comme les
+   étapes) : vide = à relire, pleine avec la coche = validée par l'étude. Les cases d'un groupe sont
+   reliées par un trait, comme une liste d'étapes. */
+.panneau-revision .revision-progression { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.revision-barre { width: 90px; height: 6px; border-radius: 3px; background: var(--line-soft); overflow: hidden; }
+.revision-barre > span { display: block; height: 100%; background: var(--success); border-radius: 3px; }
+.revision-groupe { margin-top: 14px; }
+.revision-groupe-titre { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-soft); margin-bottom: 6px; }
+details.revision-groupe > summary.revision-groupe-titre { cursor: pointer; list-style: none; }
+details.revision-groupe > summary.revision-groupe-titre::-webkit-details-marker { display: none; }
+details.revision-groupe > summary.revision-groupe-titre::after { content: '▸'; font-size: 11px; color: var(--muted); }
+details.revision-groupe[open] > summary.revision-groupe-titre::after { content: '▾'; }
+.revision-groupe-nombre { display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 6px; background: var(--paper-card); border: 1px solid var(--line); font-size: 11px; letter-spacing: 0; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.revision-liste { display: flex; flex-direction: column; position: relative; }
+.panneau-revision .revision-ligne { display: grid; grid-template-columns: 26px minmax(0, 1fr); gap: 12px; align-items: start; background: none; border: none; border-radius: 0; padding: 8px 0; position: relative; }
+.panneau-revision .revision-ligne > * { min-width: 0; }
+/* Trait qui relie une case à la suivante. */
+.revision-liste .revision-ligne:not(:last-child)::before { content: ''; position: absolute; left: 12.5px; top: 36px; bottom: -8px; width: 1px; background: var(--line); }
+.revision-check { width: 26px; height: 26px; border-radius: 8px; border: 1.5px solid var(--focus); background: var(--paper-card); color: var(--on-accent); display: inline-flex; align-items: center; justify-content: center; padding: 0; cursor: pointer; margin-top: 2px; position: relative; z-index: 1; }
+.revision-check:hover { background: color-mix(in srgb, var(--focus) 10%, var(--paper-card)); }
+.revision-check:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.revision-check.coche { background: var(--focus); }
+.revision-check svg { width: 14px; height: 14px; stroke-width: 2.6; }
+.revision-check.vide { border: 1.5px dashed var(--line); background: transparent; cursor: default; }
+.panneau-revision .revision-tete { margin-bottom: 4px; gap: 8px; }
+.panneau-revision .revision-libelle { font-size: 13.5px; font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--ink); flex: 0 1 auto; }
+.revision-source { font-size: 12px; color: var(--muted); }
+.revision-source::before { content: '· '; }
+.revision-verifiee .revision-libelle { color: var(--ink-soft); }
+.revision-verifiee .revision-source { color: var(--success); }
+.panneau-revision .revision-ligne.revision-verifiee { border-color: transparent; }
+.revision-vide .revision-libelle { font-weight: 500; color: var(--ink-soft); }
+.revision-extrait-pli { margin-top: 4px; }
+.revision-extrait-pli > summary { cursor: pointer; font-size: 12px; color: var(--muted); }
+.revision-extrait-pli[open] > summary { margin-bottom: 2px; }
+/* Finaliser : champ rempli par CLAIRE, pas encore retouché. */
+.marque-pre-rempli { display: inline-block; margin-left: 8px; padding: 1px 7px; border-radius: 6px; font-size: 11px; font-weight: 600; color: var(--focus); background: color-mix(in srgb, var(--focus) 10%, transparent); vertical-align: 1px; }
+/* Les <summary> du panneau ne prennent pas le style du titre de la carte (.panel summary : 19 px,
+   marges) — sélecteurs à 3 classes pour passer devant. */
+.panel .panneau-revision details.revision-groupe > summary.revision-groupe-titre { display: flex; justify-content: flex-start; padding: 4px 0; font-size: 12px; font-weight: 600; font-family: inherit; }
+.panel .panneau-revision .revision-extrait-pli > summary { display: inline-flex; padding: 2px 0; font-size: 12px; font-weight: 500; font-family: inherit; justify-content: flex-start; }
+/* Étapes : quatre colonnes égales — case, puis titre et état dessous ; un trait relie les cases. */
+.panel .wizard-stepper { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; align-items: start; }
+.panel .wizard-stepper .wizard-step-trait { display: none; }
+.panel .wizard-stepper .wizard-step-btn { flex-direction: column; align-items: flex-start; gap: 6px; padding: 2px 0; position: relative; min-width: 0; }
+.panel .wizard-stepper .wizard-step-btn:not(:last-child)::after { content: ''; position: absolute; top: 17px; left: 38px; right: -2px; height: 1px; background: var(--line); }
+.panel .wizard-stepper .wizard-step-btn.fait:not(:last-child)::after { background: var(--focus); }
+.panel .wizard-stepper .wizard-step-sous { white-space: normal; }
+@media (max-width: 640px) {
+  .panel .wizard-stepper .wizard-step-btn { align-items: center; }
+  .panel .wizard-stepper .wizard-step-btn:not(:last-child)::after { left: calc(50% + 19px); right: calc(-50% + 15px); }
+}

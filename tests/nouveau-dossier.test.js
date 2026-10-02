@@ -66,3 +66,15 @@ test('groupesAuthenticPourCompromis : le dossier Authentic du compromis lu vient
   // Sans compromis lu : l'ordre reçu (le plus récent d'abord).
   assert.equal(app.groupesAuthenticPourCompromis(groupes, '').map(x => x.i).join(), '0,1');
 });
+
+test('etatStepperWizard : étapes faites et leur état, « Vérifier » faite seulement quand tout est validé', () => {
+  const e = app.etatStepperWizard({ etape: 4, compromis: true, authentic: true, revision: { aValider: 3, validees: 6 } });
+  assert.equal(e.map(x => x.fait ? 'x' : '-').join(''), 'x-x-');
+  assert.equal(e[0].sous, 'Compromis + Authentic');
+  assert.equal(e[1].sous, '3 à valider');
+  const tout = app.etatStepperWizard({ etape: 2, authentic: true, revision: { aValider: 0, validees: 5 } });
+  assert.equal(tout[1].fait, true);
+  assert.equal(tout[1].sous, 'Tout est validé');
+  assert.equal(tout[0].sous, 'Repris d’Authentic');
+  assert.equal(app.etatStepperWizard({ etape: 1 })[0].fait, false);
+});

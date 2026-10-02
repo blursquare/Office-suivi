@@ -15282,3 +15282,25 @@ signature de l'avant-contrat relevée sur la page (`dateAvantContratAuthentic`) 
 (`infosAuthenticACreation`) ; désormais `appliquerTypeVenteAuthentic` la passe à `corrigerDateCompromis` (ancre des
 délais, champ `f-date-compromis`) si le compromis ne l'a pas donnée ou seulement estimée. Restent au compromis seul :
 dates butoir (prêt, vente préalable, acte), agence, dépôt de garantie, séquestre, mobilier.
+
+### 02/10/2026 (21 h 56) — Nouveau dossier : étapes et champs pré-remplis à valider, présentation revue
+
+Étude, avec une capture d'une liste d'étapes (cases carrées arrondies, coche blanche sur fond de couleur, titre et une
+ligne de description, trait entre les cases) : « Revois la présentation aussi des champs pré-remplis et remplis à
+valider ».
+- Étapes (`#wizard-stepper`) : quatre colonnes égales (une colonne verticale aurait pris la place du formulaire) —
+  case 30 px arrondie (faite : accent + coche, en cours : contour accent, à venir : neutre), titre, ligne d'état
+  (`etatStepperWizard`, `majStepperWizard` : « Compromis + Authentic », « 3 à valider » / « Tout est validé »,
+  « Engagements du vendeur », « Responsable, notaires, pièces ») ; trait coloré entre deux étapes faites ; « Vérifier »
+  n'est cochée que si plus rien n'est à valider. Téléphone : cases seules, titre de l'étape en cours.
+- Panneau « Données pré-remplies » (`renderPanneauRevision`, `groupesRevision`) : « À valider » (rempli, pas relu),
+  « Validées », « À compléter si besoin » (rien trouvé, replié — état gardé entre deux rendus,
+  `revisionCompleterOuvert`) ; chaque ligne : case carrée cliquable (`.revision-check`, rôle checkbox) reliée à la
+  suivante par un trait, libellé, source d'origine même après validation, champ modifiable, extrait du document replié
+  (`.revision-extrait-pli`, pas pour Authentic) ; en-tête : « n / N validées », barre, « Tout valider »
+  (`validerToutRevision`, `basculerVerificationRevision(cle, coche, sansRendu)`).
+- Finaliser : « Pré-rempli » à côté du libellé d'un champ rempli par CLAIRE et pas retouché
+  (`majMarquesPreRemplies`, `CHAMPS_PRE_REMPLIS_FINALISER`, retiré à la frappe) ; « (détecté automatiquement) » retiré
+  des libellés.
+Vérifié : test `etatStepperWizard` ; Chromium (compromis simulé + Authentic : case, « Tout valider », étape cochée,
+clair, sombre, téléphone 390 px sans débordement).

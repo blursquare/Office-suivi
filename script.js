@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-02 21:50';
+  const VERSION_APP = '2026-10-02 21:56';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-02 21:56', resume: "Nouveau dossier, présentation revue : les quatre étapes en cases carrées, cochées une fois faites, avec une ligne d'état sous chacune (« Compromis + Authentic », « 3 à valider »…). À l'étape Vérifier, les données pré-remplies sont rangées en « À valider », « Validées » et « À compléter si besoin » (replié) : chaque donnée a sa case à cocher, sa source (lue dans l'acte, reprise d'Authentic) et son extrait du document à déplier ; « Tout valider » coche tout d'un geste, une barre suit l'avancement. À l'étape Finaliser, un champ rempli par CLAIRE et pas retouché porte « Pré-rempli »." },
     { version: '2026-10-02 21:50', resume: "Nouveau dossier complété depuis Authentic : la date de signature de l'avant-contrat relevée sur la page du dossier (« Promesse/Compromis… signé le … ») remplit le champ et sert d'ancre aux délais, si le compromis ne l'a pas donnée. Elle n'arrivait jusqu'ici sur la fiche qu'à l'enregistrement." },
     { version: '2026-10-02 21:45', resume: "Nouveau dossier : deux entrées. « Compromis (PDF) » : une fois le compromis lu, on reste sur la première étape — « Compléter depuis Authentic (facultatif) » liste les dossiers ouverts dans Authentic, celui du compromis en tête (« Correspond au compromis »), ou « Continuer sans Authentic ». « Depuis Authentic » : sans PDF, pour une vente ou une succession. L'ancienne entrée « Dossier Authentic » (Authentic puis le compromis) est retirée." },
     { version: '2026-10-02 21:36', resume: "Emails et téléphones repris d'Authentic : on garde les deux. À la création d'un dossier, les adresses de TOUTES les parties du côté (deux acquéreurs = deux emails) s'ajoutent à celle lue dans le compromis au lieu de la remplacer — avant, seul le premier email d'Authentic était repris et il écrasait celui du compromis ; un email tapé à la main dans le formulaire est gardé, les autres s'y ajoutent. Sur la fiche, l'email de l'acquéreur reste affiché quand un confrère le représente (il était enregistré mais caché derrière « Par son notaire »)." },
@@ -8945,7 +8946,7 @@
     return true;
   }
 
-  function basculerVerificationRevision(cle, coche) {
+  function basculerVerificationRevision(cle, coche, sansRendu) {
     if (!extractionActuelle) return;
     verificationsRevision[cle] = !!coche;
     if (cle === 'adresseBien' && extractionActuelle.bien && extractionActuelle.bien.adresse) {
@@ -8956,7 +8957,7 @@
       const objet = champRevision(extractionActuelle, cle);
       if (objet) objet.verifie = !!coche;
     }
-    renderPanneauRevision(extractionActuelle);
+    if (!sansRendu) renderPanneauRevision(extractionActuelle);
   }
 
   // Adopte la valeur proposée par le modèle local. Explicite et réversible : rien de ce que le
@@ -9020,19 +9021,53 @@
     // l'étude, le modèle local ne participe plus à la relecture d'un nouveau dossier. Le bouton
     // "Redemander à l'IA" n'est plus rendu ; redemanderChampIa/CLES_CIBLE_IA restent en place, sans
     // appelant, pour un éventuel retour arrière. La correction d'un champ reste manuelle.
-    const boutonCible = '';
-    return `<div class="revision-ligne${verifie ? ' revision-verifiee' : ''}">
-      <div class="revision-tete">
-        <span class="revision-libelle">${escapeHtml(definition.libelle)}</span>
-        <span class="dot-label ${origine.dl}">${marque}${escapeHtml(origine.texte)}</span>
-        ${page}
-        <label class="revision-coche" title="Cocher une fois la donnée contrôlée dans le document">
-          <input type="checkbox"${verifie ? ' checked' : ''} onchange="basculerVerificationRevision('${cle}', this.checked)"> vérifié
-        </label>
+    const vide = !champ || champ.valeur === null || champ.valeur === undefined || champ.valeur === '';
+    // Source d'origine, même une fois validée (« Lu dans l'acte », « Repris d'Authentic »…).
+    const source = origineRevision(champ ? Object.assign({}, champ, { verifie: false }) : champ);
+    const libelleAria = `${verifie ? 'Retirer la validation de' : 'Valider'} ${definition.libelle}`;
+    const coche = vide
+      ? '<span class="revision-check vide" aria-hidden="true"></span>'
+      : `<button type="button" class="revision-check${verifie ? ' coche' : ''}" role="checkbox" aria-checked="${verifie}" aria-label="${escapeAttr(libelleAria)}" title="${verifie ? 'Validée — cliquer pour revenir à « à valider »' : 'Valider : donnée relue dans le document'}" onclick="basculerVerificationRevision('${cle}', ${!verifie})">${verifie ? icone('check') : ''}</button>`;
+    // L'extrait du document, utile pour relire, se déplie à la demande (la page du PDF reste à un clic).
+    const extraitPli = extrait && !(champ && champ.origine === 'authentic')
+      ? `<details class="revision-extrait-pli"><summary>Extrait du document</summary>${extrait}</details>` : '';
+    return `<div class="revision-ligne${verifie ? ' revision-verifiee' : ''}${vide ? ' revision-vide' : ''}">
+      ${coche}
+      <div class="revision-corps">
+        <div class="revision-tete">
+          <span class="revision-libelle">${escapeHtml(definition.libelle)}</span>
+          ${vide ? '' : `<span class="revision-source">${escapeHtml(source.texte)}</span>`}
+          ${page}
+        </div>
+        ${champSaisieRevision(definition, champ)}
+        ${methode}${raison}${autres}${proposition}${extraitPli}
       </div>
-      ${champSaisieRevision(definition, champ)}
-      ${methode}${raison}${autres}${proposition}${extrait}${boutonCible}
     </div>`;
+  }
+
+  // Groupe « À compléter » du panneau : ouvert ou fermé, gardé d'un rendu à l'autre (le panneau se
+  // redessine à chaque correction).
+  var revisionCompleterOuvert = false;
+  // Compteurs du dernier rendu (sous-titre de l'étape « Vérifier »).
+  var etatRevision = { aValider: 0, validees: 0, vides: 0 };
+
+  // Pure : les lignes du panneau réparties — à valider (pré-remplies, pas encore relues), validées,
+  // à compléter (rien de trouvé).
+  function groupesRevision(extraction) {
+    const g = { aValider: [], validees: [], aCompleter: [] };
+    CHAMPS_REVISION.forEach(definition => {
+      const champ = champRevision(extraction, definition.cle);
+      const rempli = !!champ && champ.valeur !== null && champ.valeur !== undefined && champ.valeur !== '';
+      (!rempli ? g.aCompleter : champ.verifie ? g.validees : g.aValider).push({ definition, champ });
+    });
+    return g;
+  }
+
+  // « Tout valider » : chaque donnée pré-remplie est marquée relue, en un geste.
+  function validerToutRevision() {
+    if (!extractionActuelle) return;
+    groupesRevision(extractionActuelle).aValider.forEach(x => basculerVerificationRevision(x.definition.cle, true, true));
+    renderPanneauRevision(extractionActuelle);
   }
 
   function renderPanneauRevision(extraction) {
@@ -9046,14 +9081,11 @@
       return;
     }
 
-    let renseignees = 0;
-    let verifiees = 0;
-    const lignes = CHAMPS_REVISION.map(definition => {
-      const champ = champRevision(extraction, definition.cle);
-      if (champ && champ.valeur !== null && champ.valeur !== undefined && champ.valeur !== '') renseignees++;
-      if (champ && champ.verifie) verifiees++;
-      return renderLigneRevision(definition, champ);
-    }).join('');
+    const groupes = groupesRevision(extraction);
+    const renseignees = groupes.aValider.length + groupes.validees.length;
+    const verifiees = groupes.validees.length;
+    etatRevision = { aValider: groupes.aValider.length, validees: verifiees, vides: groupes.aCompleter.length };
+    const lignesDe = (liste) => liste.map(x => renderLigneRevision(x.definition, x.champ)).join('');
 
     const parties = (extraction.parties || []).map(p =>
       `<li>${escapeHtml(p.nom)}${p.nomUsage ? ` (nom d’usage ${escapeHtml(p.nomUsage)})` : ''} — <strong>${p.role === 'VENDEUR' ? 'vendeur' : 'acquéreur'}</strong> (${p.origine === 'authentic' ? 'repris d’Authentic' : `désigné « ${escapeHtml(p.qualiteActe)} » dans l’acte`}${p.qualitePersonne === 'morale' ? ', personne morale' : ''})${p.representant ? `, représenté par ${escapeHtml(p.representant)}` : ''}${p.origine === 'ia' ? ' — <em>proposé par l’IA</em>' : ''}${p.societe ? `<div class="revision-raison">${escapeHtml(libelleIdentiteSociete(p.societe))}</div>` : ''}</li>`
@@ -9068,19 +9100,32 @@
       `<div class="revision-alerte ${a.gravite === 'critique' ? 'critique' : ''}">${icone('alert-triangle')}<span>${escapeHtml(a.message)}</span></div>`
     ).join('');
 
+    const pourcent = renseignees ? Math.round(100 * verifiees / renseignees) : 0;
+    const groupe = (titre, aide, liste, classe) => liste.length
+      ? `<div class="revision-groupe ${classe}"><div class="revision-groupe-titre">${escapeHtml(titre)} <span class="revision-groupe-nombre">${liste.length}</span>${aide ? ' ' + infoBulle(aide) : ''}</div><div class="revision-liste">${lignesDe(liste)}</div></div>`
+      : '';
     panneau.innerHTML = `
       <div class="revision-entete">
-        <div class="section-eyebrow">Ce que l’outil a compris ${infoBulle("L’outil indique seulement d’où vient chaque donnée : il ne garantit rien. Corrigez directement ci-dessous — la valeur part aussi dans le formulaire — puis cochez « vérifié » quand vous l’avez contrôlée dans le document.")}</div>
-        <span class="revision-compteur">${verifiees} / ${renseignees} donnée${renseignees > 1 ? 's' : ''} vérifiée${renseignees > 1 ? 's' : ''}</span>
+        <div class="section-eyebrow">Données pré-remplies ${infoBulle("L’outil indique seulement d’où vient chaque donnée : il ne garantit rien. Relisez, corrigez directement dans le champ — la valeur part aussi dans le formulaire — puis cochez la case une fois la donnée contrôlée.")}</div>
+        <div class="revision-progression">
+          <span class="revision-compteur">${verifiees} / ${renseignees} validée${verifiees > 1 ? 's' : ''}</span>
+          <span class="revision-barre" aria-hidden="true"><span style="width:${pourcent}%"></span></span>
+          ${groupes.aValider.length ? '<button type="button" class="lien-action" onclick="validerToutRevision()">Tout valider</button>' : ''}
+        </div>
       </div>
       ${alertes}
       ${parties ? `<div class="revision-parties"><ul>${parties}</ul></div>` : ''}
       ${ligneNotaires}
       ${extraction.honoraires ? `<div class="revision-raison">${escapeHtml(libelleHonoraires(extraction.honoraires))}</div>` : ''}
       ${extraction.fondsTravaux ? `<div class="revision-raison">Fonds de travaux (loi ALUR) : ${escapeHtml(libelleFondsTravaux(extraction.fondsTravaux).toLowerCase())}</div>` : ''}
-      <div class="revision-grille">${lignes}</div>
+      ${groupe('À valider', 'Pré-remplies depuis le compromis ou Authentic, pas encore relues.', groupes.aValider, 'a-valider')}
+      ${groupe('Validées', '', groupes.validees, 'validees')}
+      ${groupes.aCompleter.length ? `<details class="revision-groupe a-completer"${revisionCompleterOuvert ? ' open' : ''} ontoggle="revisionCompleterOuvert = this.open">
+        <summary class="revision-groupe-titre">À compléter si besoin <span class="revision-groupe-nombre">${groupes.aCompleter.length}</span></summary>
+        <div class="revision-liste">${lignesDe(groupes.aCompleter)}</div></details>` : ''}
     `;
     panneau.style.display = 'block';
+    majStepperWizard();
 
     // Les alertes sont rappelées à l'étape "Finaliser", au moment d'enregistrer.
     if (rappel) {
@@ -15276,12 +15321,69 @@
       document.getElementById('wizard-step-' + i).classList.toggle('actif', i === n);
       document.getElementById('wizard-step-btn-' + i).classList.toggle('actif', i === n);
     }
+    majStepperWizard();
+    if (n === 4) majMarquesPreRemplies();
     if (n === 4) {
       remplirListeNotairesWizard(notairesProposesWizard().map(x => x.nom));
       majApercuPieces();
     }
     const wrap = document.querySelector('.wrap');
     if (wrap) wrap.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  // Pure : l'état de chaque étape de « Nouveau dossier » — faite, et ce qu'elle dit (sous-titre).
+  function etatStepperWizard(e) {
+    const x = e || {};
+    const source = x.compromis && x.authentic ? 'Compromis + Authentic' : x.compromis ? 'Compromis lu'
+      : x.authentic ? 'Repris d’Authentic' : 'Compromis ou Authentic';
+    const r = x.revision || {};
+    const verifier = !(x.compromis || x.authentic) ? 'Données pré-remplies'
+      : r.aValider ? `${r.aValider} à valider` : r.validees ? 'Tout est validé' : 'Rien de pré-rempli';
+    return [
+      { fait: !!(x.compromis || x.authentic) && x.etape > 1, sous: source },
+      // Faite seulement quand plus rien n'est à valider (passer l'étape ne suffit pas).
+      { fait: !!(x.compromis || x.authentic) && !r.aValider && !!r.validees, sous: verifier },
+      { fait: x.etape > 3, sous: 'Engagements du vendeur' },
+      { fait: false, sous: 'Responsable, notaires, pièces' }
+    ];
+  }
+
+  function majStepperWizard() {
+    const etats = etatStepperWizard({
+      etape: etapeWizardActuelle, compromis: !!dernierTexteTraite, authentic: !!exportAuthenticActuel, revision: etatRevision
+    });
+    etats.forEach((e, i) => {
+      const btn = document.getElementById('wizard-step-btn-' + (i + 1));
+      const sous = document.getElementById('wizard-step-sous-' + (i + 1));
+      const num = btn && btn.querySelector('.wizard-step-num');
+      if (!btn) return;
+      btn.classList.toggle('fait', e.fait);
+      if (num) num.innerHTML = e.fait ? icone('check') : String(i + 1);
+      if (sous) sous.textContent = e.sous;
+    });
+  }
+
+  // Étape « Finaliser » : un champ rempli par CLAIRE (compromis, Authentic) et pas retouché porte
+  // « Pré-rempli » à côté de son libellé — à relire avant d'enregistrer.
+  var CHAMPS_PRE_REMPLIS_FINALISER = ['f-nom', 'f-adresse-bien', 'f-prix-vente', 'f-nom-agence', 'f-prix-mobilier', 'f-depot-garantie', 'f-sequestre-depot', 'f-email-vendeur', 'f-email-acquereur'];
+  function majMarquesPreRemplies() {
+    CHAMPS_PRE_REMPLIS_FINALISER.forEach(id => {
+      const champ = document.getElementById(id);
+      const label = document.querySelector(`label[for="${id}"]`);
+      if (!champ || !label) return;
+      const pre = !!champ.value && valeursAppliquees[id] !== undefined && String(valeursAppliquees[id]) === champ.value.trim();
+      let marque = label.querySelector('.marque-pre-rempli');
+      if (pre && !marque) {
+        marque = document.createElement('span');
+        marque.className = 'marque-pre-rempli';
+        marque.textContent = 'Pré-rempli';
+        label.appendChild(marque);
+      } else if (!pre && marque) marque.remove();
+      if (!champ.dataset.marqueEcoute) {
+        champ.dataset.marqueEcoute = '1';
+        champ.addEventListener('input', majMarquesPreRemplies);
+      }
+    });
   }
 
   // Aperçu (lecture seule) de la checklist de pièces attendue pour le type de vente choisi à
@@ -27971,6 +28073,7 @@
     if (boite) boite.classList.toggle('import-boite-lu', compromisLu);
     renderRelevesAuthenticWizard();
     majBoutonSuivantEtape1();
+    majStepperWizard();
   }
 
   // Le bouton de l'étape 1 dit le choix en cours : après le compromis, sans Authentic, on continue sans.
