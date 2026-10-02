@@ -411,8 +411,9 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
   à remplacer par le texte de l'étude dès qu'elle le fournit.
 - **Barème du simulateur de provision : jamais audité.** Indicatif seulement, jamais recopié dans
   un courrier ; le contrôle du barème de l'appel de fonds est un signal, il ne remplit rien.
-- **Répertoire** (Outils, 30/09) : thème « Confrères » = le carnet des confrères (inchangé, rapproché
-  des fiches) ; **« Notaires de France »** (02/10, `server/src/annuaireNotaires.js`, données
+- **Répertoire** (Outils, 30/09 ; présentation revue le 02/10 : thèmes dans une colonne à gauche `renderNavRepertoire`, une
+  ligne compacte par office/interlocuteur `renderLigneOfficeCarnet`/`renderLigneContactRepertoire`, modification dans la ligne) :
+  thème « Carnet des confrères » = le carnet des confrères (inchangé, rapproché des fiches) ; **« Notaires de France »** (02/10, `server/src/annuaireNotaires.js`, données
   `server/src/data/annuaire-notaires.json`, relevé immonot de 7 202 offices par `server/scripts/releve-annuaire-notaires.py`) :
   référence en lecture seule par département (un à la fois : 41 puis le dernier consulté, voisins d'un clic, lignes compactes par ville, recherche qui filtre le département puis « Ailleurs en France » — `renderAnnuaireNotaires`), jamais versée d'office dans le carnet (homonymes ; déjà au carnet = même id, email ou téléphone, `officeCarnetPourAnnuaire`) — « Ajouter au carnet » office
   par office ; recherche nationale (50 au plus) ; repli de 3CX (`carnetEtAnnuaire`) ; `require` au chemin littéral (un chemin

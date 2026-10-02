@@ -15108,3 +15108,16 @@ département affiché sans attendre (`filtrerOfficesAnnuaire`, « 5 sur 36 »), 
 nationale, 3 caractères) et « Afficher <département> » quand le texte nomme un département. Office déjà au carnet reconnu
 par identifiant, email ou téléphone (`officeCarnetPourAnnuaire` — notre office a son propre identifiant). Même ligne compacte
 pour la section « Notaires de France » de la recherche générale.
+
+### 02/10/2026 20 h 15 — Répertoire : présentation revue en entier
+
+Étude : « reprends la présentation du répertoire en entier ». Avant : 13 pastilles de thèmes sur trois lignes au-dessus de
+la recherche, puis des cartes en grille (une carte haute par contact). Après : `.rep-corps` en deux colonnes comme le
+Suivi et l'Agenda — à gauche `#rep-nav` (`renderNavRepertoire` : Tout ; « Notaires » = Carnet des confrères
+(`libelleThemeRepertoire`, ex-« Confrères ») et Notaires de France ; « Interlocuteurs » = les thèmes de `repertoire.js` ;
+nombres filtrés par la recherche ; un clic choisit le thème, sans bascule), en rangée qui défile sous 900 px ; à droite la
+recherche (texte d'appel selon le thème) puis des listes compactes, une par thème : `renderLigneOfficeCarnet` et
+`renderLigneContactRepertoire` reprennent la ligne de l'annuaire (`.annuaire-ligne.rep-ligne` : nom + notaires/service +
+adresse/bureaux/notes + dossiers en cours ; téléphones et emails avec leurs libellés, cliquables ; crayon et ×) —
+`renderOfficeCarnet` et `renderContactRepertoire` (cartes) retirés ; formulaire de modification ouvert dans la ligne
+(`.rep-ligne-form`), formulaire « Ajouter » en tête. Notre office en ligne teintée, pastille « Notre office ».

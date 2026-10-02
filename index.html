@@ -1518,20 +1518,25 @@
     <div>
       <div class="dash-eyebrow">Outils</div>
       <div class="dash-titre-ligne">
-        <h1 class="dash-titre">Répertoire <span class="info-i" tabindex="0" data-info="Confrères : notre office, puis les offices du Loir-et-Cher relevés le 29/09/2026 sur l'annuaire public immonot. Autres thèmes : le répertoire Word de l'étude (02/09/2026). Partagé entre les postes : une correction faite ici vaut pour tous, à vérifier au fil des dossiers."></span></h1>
+        <h1 class="dash-titre">Répertoire <span class="info-i" tabindex="0" data-info="Carnet des confrères : notre office et les offices avec qui l'étude traite (rapprochés des fiches). Notaires de France : l'annuaire public immonot, relevé le 02/10/2026, à ajouter au carnet office par office. Interlocuteurs : le répertoire Word de l'étude (02/09/2026). Partagé entre les postes : une correction faite ici vaut pour tous."></span></h1>
       </div>
     </div>
     <div class="dash-header-actions">
       <button type="button" class="bouton-ajout" id="repertoire-ajouter" onclick="ajouterAuRepertoire()">Ajouter un contact</button>
     </div>
   </div>
-  <div class="carnet-outils">
-    <div class="dash-recherche carnet-recherche">
-      <input type="search" id="carnet-recherche" placeholder="Rechercher un organisme, un nom, une ville, un email…" oninput="rechercherCarnet(this.value)" autocomplete="off" aria-label="Rechercher dans le répertoire">
+  <div class="rep-corps">
+    <nav class="rep-nav" id="rep-nav" aria-label="Thèmes du répertoire"></nav>
+    <div class="rep-principal">
+      <div class="carnet-outils">
+        <div class="dash-recherche carnet-recherche">
+          <input type="search" id="carnet-recherche" placeholder="Rechercher un organisme, un nom, une ville, un email…" oninput="rechercherCarnet(this.value)" autocomplete="off" aria-label="Rechercher dans le répertoire">
+        </div>
+        <span class="carnet-compte" id="carnet-compte"></span>
+      </div>
+      <div id="carnet-liste" class="rep-page"></div>
     </div>
-    <span class="carnet-compte" id="carnet-compte"></span>
   </div>
-  <div id="carnet-liste" class="rep-page"></div>
 </div>
 
 <!-- Réglages : URL du flux Power Automate + adresse email de chaque responsable (voir

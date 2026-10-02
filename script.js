@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-02 20:10';
+  const VERSION_APP = '2026-10-02 20:15';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-02 20:15', resume: "Répertoire, présentation revue en entier : les thèmes passent dans une colonne à gauche (Tout ; Notaires : Carnet des confrères, Notaires de France ; Interlocuteurs : banques, assurances…), avec leur nombre qui suit la recherche ; chaque office ou interlocuteur tient sur une ligne compacte — nom, notaires ou service, adresse à gauche, téléphones et emails cliquables à droite, crayon et × au bout —, comme les Notaires de France ; la modification s'ouvre dans la ligne. Sur téléphone, les thèmes défilent en haut." },
     { version: '2026-10-02 20:10', resume: "Notaires de France, présentation revue : la page s'ouvre directement sur le Loir-et-Cher (puis sur le dernier département consulté), choisi dans une liste ou d'un clic parmi les départements voisins (37, 45, 18, 36, 72, 28) ; les offices s'affichent en lignes compactes groupées par ville, téléphone et email cliquables à droite ; la recherche filtre aussitôt le département affiché, puis montre « Ailleurs en France ». Notre office et ceux déjà au carnet sont reconnus (même email ou même téléphone)." },
     { version: '2026-10-02 17:52', resume: "Répertoire : « Notaires de France » — les 7 202 offices notariaux de France (16 933 notaires), classés par département (annuaire public immonot, relevé du 02/10/2026). Un clic sur un département liste ses offices (notaires, adresse, bureaux, téléphone, email) ; « Ajouter au carnet » en fait un office du carnet des confrères. La recherche du répertoire cherche aussi dans toute la France ; « Ajouter au répertoire » depuis une fiche pré-remplit l'office quand le notaire n'exerce que dans un seul ; 3CX reconnaît aussi un office hors carnet." },
     { version: '2026-10-02 17:28', resume: "Nouveau dossier : un second clic sur « Ajouter le dossier » (ou Ctrl+S) pendant l'enregistrement créait un second dossier — le bouton passe en « Enregistrement… » et ne répond plus jusqu'à la fin. Si un dossier en cours porte déjà le même nom ou le même numéro Authentic, CLAIRE demande avant d'en créer un second. Le dossier n'apparaît jamais deux fois dans la liste." },
@@ -12503,29 +12504,29 @@
     const nombre = (cle) => (parTheme[cle] || []).length + (cle === 'confreres' ? offices.length : 0);
     const total = offices.length + contacts.length;
     const totalTout = carnetConfreres.length + repertoireContacts.length;
+    const annuaire = repertoireTheme === 'annuaire';
     const compte = document.getElementById('carnet-compte');
-    if (compte) compte.textContent = repertoireTheme === 'annuaire' ? '' : carnetRecherche ? `${total} sur ${totalTout} contacts` : `${totalTout} contacts`;
+    if (compte) compte.textContent = annuaire ? '' : carnetRecherche ? `${total} sur ${totalTout}` : '';
     const bouton = document.getElementById('repertoire-ajouter');
-    if (bouton) bouton.textContent = repertoireTheme === 'confreres' || repertoireTheme === 'annuaire' ? 'Ajouter un office' : 'Ajouter un contact';
-
-    const pastille = (cle, libelle, n) => `<button type="button" class="rep-theme${repertoireTheme === cle ? ' actif' : ''}${n ? '' : ' vide'}" aria-pressed="${repertoireTheme === cle}" onclick="choisirThemeRepertoire('${cle}')">${escapeHtml(libelle)}<span class="rep-theme-n">${n}</span></button>`;
-    const pastilles = `<div class="rep-themes" role="group" aria-label="Thèmes du répertoire">${pastille('', 'Tout', total)}${repertoireThemes.map(t => pastille(t.cle, t.libelle, nombre(t.cle))).join('')}${annuaireInfos && annuaireInfos.offices ? pastille('annuaire', 'Notaires de France', Number(annuaireInfos.offices).toLocaleString('fr-FR')) : ''}</div>`;
-    if (champ) champ.placeholder = repertoireTheme === 'annuaire' ? 'Rechercher un notaire, un office, une ville…' : 'Rechercher un organisme, un nom, une ville, un email…';
-    if (repertoireTheme === 'annuaire') {
-      zone.innerHTML = pastilles + renderAnnuaireNotaires();
+    if (bouton) bouton.textContent = repertoireTheme === 'confreres' || annuaire ? 'Ajouter un office' : 'Ajouter un contact';
+    if (champ) champ.placeholder = annuaire ? 'Rechercher un notaire, un office, une ville…'
+      : repertoireTheme === 'confreres' ? 'Rechercher un office, un notaire, une ville…' : 'Rechercher un organisme, un nom, une ville, un email…';
+    renderNavRepertoire(nombre, total);
+    if (annuaire) {
+      zone.innerHTML = renderAnnuaireNotaires();
       return;
     }
 
     const formNouveau = carnetEdition === 'nouveau' ? renderFormOfficeCarnet(carnetBrouillon || {})
       : repertoireEdition === 'nouveau' ? renderFormContactRepertoire(repertoireBrouillon || {}) : '';
     const sections = repertoireThemes.filter(t => !repertoireTheme || t.cle === repertoireTheme).map(t => {
-      const cartes = (t.cle === 'confreres'
-        ? offices.map(o => carnetEdition === o.id ? renderFormOfficeCarnet(o) : renderOfficeCarnet(o, parOffice[o.id] || []))
-        : []).concat(parTheme[t.cle].map(c => repertoireEdition === c.id ? renderFormContactRepertoire(c) : renderContactRepertoire(c)));
-      if (!cartes.length) return '';
+      const lignes = (t.cle === 'confreres'
+        ? offices.map(o => carnetEdition === o.id ? `<div class="rep-ligne-form">${renderFormOfficeCarnet(o)}</div>` : renderLigneOfficeCarnet(o, parOffice[o.id] || []))
+        : []).concat(parTheme[t.cle].map(c => repertoireEdition === c.id ? `<div class="rep-ligne-form">${renderFormContactRepertoire(c)}</div>` : renderLigneContactRepertoire(c)));
+      if (!lignes.length) return '';
       return `<section class="rep-section">
-          <h2 class="rep-section-titre">${escapeHtml(t.libelle)}<span class="rep-section-n">${nombre(t.cle)}</span></h2>
-          <div class="carnet-liste">${cartes.join('')}</div>
+          <h2 class="rep-section-titre">${escapeHtml(libelleThemeRepertoire(t))}<span class="rep-section-n">${nombre(t.cle)}</span></h2>
+          <div class="annuaire-liste">${lignes.join('')}</div>
         </section>`;
     }).join('');
     // Une recherche cherche aussi dans les notaires de France (offices hors carnet).
@@ -12536,7 +12537,80 @@
         </section>` : '';
     const vide = !sections && !formNouveau && !sectionAnnuaire
       ? `<p class="carnet-vide">${totalTout ? 'Aucun contact ne correspond à cette recherche.' : 'Le répertoire est vide.'}</p>` : '';
-    zone.innerHTML = pastilles + (formNouveau ? `<div class="carnet-liste rep-nouveau">${formNouveau}</div>` : '') + sections + sectionAnnuaire + vide;
+    zone.innerHTML = (formNouveau ? `<div class="annuaire-liste rep-nouveau"><div class="rep-ligne-form">${formNouveau}</div></div>` : '') + sections + sectionAnnuaire + vide;
+  }
+
+  // Le thème « Confrères » s'appelle « Carnet des confrères » dans la page (à côté de « Notaires de France »).
+  function libelleThemeRepertoire(t) {
+    return t.cle === 'confreres' ? 'Carnet des confrères' : t.libelle;
+  }
+
+  // Colonne de gauche : Tout, puis les notaires (carnet, France), puis les autres interlocuteurs ;
+  // sur téléphone, une rangée qui défile (CSS). Les nombres suivent la recherche.
+  function renderNavRepertoire(nombre, total) {
+    const nav = document.getElementById('rep-nav');
+    if (!nav) return;
+    const lien = (cle, libelle, n, ic) => `<button type="button" class="rep-nav-lien${repertoireTheme === cle ? ' actif' : ''}${n === 0 ? ' vide' : ''}" aria-pressed="${repertoireTheme === cle}" onclick="choisirThemeRepertoire('${cle}')">${ic ? icone(ic) : ''}<span class="rep-nav-libelle">${escapeHtml(libelle)}</span><span class="rep-nav-n">${n}</span></button>`;
+    const france = annuaireInfos && annuaireInfos.offices ? Number(annuaireInfos.offices).toLocaleString('fr-FR') : '';
+    nav.innerHTML = lien('', 'Tout', total, 'book')
+      + '<div class="rep-nav-groupe">Notaires</div>'
+      + lien('confreres', 'Carnet des confrères', nombre('confreres'), 'users')
+      + (france ? lien('annuaire', 'Notaires de France', france, 'map-pin') : '')
+      + '<div class="rep-nav-groupe">Interlocuteurs</div>'
+      + repertoireThemes.filter(t => t.cle !== 'confreres').map(t => lien(t.cle, t.libelle, nombre(t.cle), '')).join('');
+  }
+
+  // Une ligne du carnet : office, notaires, adresse et bureaux, notes, dossiers en cours ; téléphone et
+  // email ; crayon et ×. Même forme que les lignes de l'annuaire.
+  function renderLigneOfficeCarnet(o, dossiersOffice) {
+    const notaires = memeNomOfficeNotaire(o) ? '' : (o.notaires || []).map(n => 'Me ' + n).join(', ');
+    const lieu = normaliserAdresse([o.adresse, [o.codePostal, o.ville].filter(Boolean).join(' ')].filter(Boolean).join(', '));
+    const enCours = dossiersOffice.length
+      ? `<div class="rep-ligne-dossiers">${dossiersOffice.slice(0, 4).map(d => `<button type="button" class="carnet-dossier" onclick="ouvrirDossierDepuisDashboard('${escapeOnclickArg(d.id)}')">${escapeHtml(libelleDossierAffiche(d))}</button>`).join('')}${dossiersOffice.length > 4 ? `<span>+${dossiersOffice.length - 4}</span>` : ''}</div>` : '';
+    return `<div class="annuaire-ligne rep-ligne${o.etude ? ' rep-ligne-etude' : ''}">
+        <div class="annuaire-ligne-qui">
+          <div class="annuaire-ligne-nom">${escapeHtml(o.office || (o.notaires || [])[0] || '')}${o.etude ? ' <span class="dot-label dl-success"><span class="dot"></span>Notre office</span>' : ''}</div>
+          ${notaires ? `<div class="annuaire-ligne-notaires">${escapeHtml(notaires)}</div>` : ''}
+          ${lieu || (o.bureaux || []).length ? `<div class="annuaire-ligne-lieu">${escapeHtml(lieu)}${(o.bureaux || []).length ? `${lieu ? ' · ' : ''}bureaux : ${escapeHtml(o.bureaux.join(' ; '))}` : ''}</div>` : ''}
+          ${o.notes ? `<div class="annuaire-ligne-lieu rep-ligne-notes">${escapeHtml(o.notes)}</div>` : ''}
+          ${enCours}
+        </div>
+        <div class="annuaire-ligne-contact">
+          ${o.telephone ? `<a href="tel:${escapeAttr(o.telephone.replace(/\s+/g, ''))}" title="Appeler">${icone('phone')}<span>${escapeHtml(o.telephone)}</span></a>` : ''}
+          ${o.email ? `<a href="mailto:${escapeAttr(o.email)}" title="${escapeAttr(o.email)}">${icone('mail')}<span>${escapeHtml(o.email)}</span></a>` : '<span class="carnet-manque">Email non renseigné</span>'}
+        </div>
+        <div class="annuaire-ligne-action rep-ligne-icones">
+          <button type="button" class="ech-ico" onclick="modifierOfficeCarnet('${escapeOnclickArg(o.id)}')" title="Modifier" aria-label="Modifier cet office">${icone('pencil')}</button>
+          ${o.etude ? '' : `<button type="button" class="ech-ico ech-ico-suppr" onclick="retirerOfficeCarnet('${escapeOnclickArg(o.id)}')" title="Retirer du carnet" aria-label="Retirer cet office du carnet">${icone('x')}</button>`}
+        </div>
+      </div>`;
+  }
+
+  // Une ligne d'interlocuteur : organisme et service, personnes, adresse, notes ; téléphones (avec leur
+  // libellé), emails et liens ; crayon et ×.
+  function renderLigneContactRepertoire(c) {
+    const valeurs = (liste, rendu) => (liste || []).map(x => { const { libelle, valeur } = valeurLibelleeRepertoire(x); return rendu(libelle, valeur); });
+    const tels = valeurs(c.telephones, (libelle, valeur) => {
+      const num = numeroAppelable(valeur);
+      const texte = `<span>${libelle ? `<span class="rep-libelle">${escapeHtml(libelle)}</span> ` : ''}${escapeHtml(valeur)}</span>`;
+      return num && !/^fax$/i.test(libelle) ? `<a href="tel:${escapeAttr(num)}" title="Appeler">${icone('phone')}${texte}</a>` : `<span class="rep-ligne-valeur">${icone('phone')}${texte}</span>`;
+    });
+    const mails = valeurs(c.emails, (libelle, valeur) => `<a href="mailto:${escapeAttr(valeur)}" title="${escapeAttr(valeur)}">${icone('mail')}<span>${libelle ? `<span class="rep-libelle">${escapeHtml(libelle)}</span> ` : ''}${escapeHtml(valeur)}</span></a>`);
+    const liens = (c.liens || []).map(l => `<a href="${escapeAttr(l)}" target="_blank" rel="noopener" title="${escapeAttr(l)}">${icone('link')}<span>${escapeHtml(l.replace(/^https?:\/\//, '').replace(/\/$/, ''))}</span></a>`);
+    const sous = [c.service, (c.personnes || []).join(', ')].filter(Boolean).join(' · ');
+    return `<div class="annuaire-ligne rep-ligne">
+        <div class="annuaire-ligne-qui">
+          <div class="annuaire-ligne-nom">${escapeHtml(c.organisme || (c.personnes || [])[0] || '')}</div>
+          ${sous ? `<div class="annuaire-ligne-notaires">${escapeHtml(sous)}</div>` : ''}
+          ${c.adresse ? `<div class="annuaire-ligne-lieu">${escapeHtml(c.adresse)}</div>` : ''}
+          ${c.notes ? `<div class="annuaire-ligne-lieu rep-ligne-notes">${escapeHtml(c.notes)}</div>` : ''}
+        </div>
+        <div class="annuaire-ligne-contact">${tels.concat(mails, liens).join('') || '<span class="carnet-manque">Aucune coordonnée</span>'}</div>
+        <div class="annuaire-ligne-action rep-ligne-icones">
+          <button type="button" class="ech-ico" onclick="modifierContactRepertoire('${escapeOnclickArg(c.id)}')" title="Modifier" aria-label="Modifier ce contact">${icone('pencil')}</button>
+          <button type="button" class="ech-ico ech-ico-suppr" onclick="retirerContactRepertoire('${escapeOnclickArg(c.id)}')" title="Retirer du répertoire" aria-label="Retirer ce contact du répertoire">${icone('x')}</button>
+        </div>
+      </div>`;
   }
 
   // ---- Répertoire hors offices notariaux (server/src/repertoire.js) ----
@@ -12828,39 +12902,7 @@
     return m ? m[0].replace(/[ .]/g, '') : '';
   }
 
-  function renderContactRepertoire(c) {
-    const lignes = [];
-    if ((c.personnes || []).length) lignes.push(`<div class="carnet-ligne">${icone('user')}<span>${c.personnes.map(escapeHtml).join(' · ')}</span></div>`);
-    if (c.adresse) lignes.push(`<div class="carnet-ligne">${icone('map-pin')}<span>${escapeHtml(c.adresse)}</span></div>`);
-    const tel = (c.telephones || []).map(t => {
-      const { libelle, valeur } = valeurLibelleeRepertoire(t);
-      const num = numeroAppelable(valeur);
-      const lien = num && !/^fax$/i.test(libelle) ? `<a href="tel:${escapeAttr(num)}">${escapeHtml(valeur)}</a>` : escapeHtml(valeur);
-      return `<span class="rep-valeur">${libelle ? `<span class="rep-libelle">${escapeHtml(libelle)}</span>` : ''}${lien}</span>`;
-    });
-    if (tel.length) lignes.push(`<div class="carnet-ligne carnet-contacts">${icone('phone')}<span class="rep-valeurs">${tel.join('')}</span></div>`);
-    const mails = (c.emails || []).map(e => {
-      const { libelle, valeur } = valeurLibelleeRepertoire(e);
-      return `<span class="rep-valeur">${libelle ? `<span class="rep-libelle">${escapeHtml(libelle)}</span>` : ''}<a href="mailto:${escapeAttr(valeur)}">${escapeHtml(valeur)}</a></span>`;
-    });
-    if (mails.length) lignes.push(`<div class="carnet-ligne carnet-contacts">${icone('mail')}<span class="rep-valeurs">${mails.join('')}</span></div>`);
-    const liens = (c.liens || []).map(l => `<a href="${escapeAttr(l)}" target="_blank" rel="noopener">${escapeHtml(l.replace(/^https?:\/\//, '').replace(/\/$/, '').slice(0, 60))}${l.length > 70 ? '…' : ''}</a>`);
-    if (liens.length) lignes.push(`<div class="carnet-ligne carnet-contacts">${icone('link')}<span class="rep-valeurs">${liens.join('')}</span></div>`);
-    if (c.notes) lignes.push(`<div class="carnet-ligne carnet-notes">${escapeHtml(c.notes)}</div>`);
-    return `<article class="carnet-office rep-contact">
-      <div class="carnet-office-tete">
-        <div class="rep-contact-titres">
-          <h3 class="carnet-office-nom">${escapeHtml(c.organisme || (c.personnes || [])[0] || '')}</h3>
-          ${c.service ? `<div class="rep-contact-service">${escapeHtml(c.service)}</div>` : ''}
-        </div>
-        <span class="carnet-office-icones">
-          <button type="button" class="ech-ico" onclick="modifierContactRepertoire('${escapeOnclickArg(c.id)}')" title="Modifier" aria-label="Modifier ce contact">${icone('pencil')}</button>
-          <button type="button" class="ech-ico ech-ico-suppr" onclick="retirerContactRepertoire('${escapeOnclickArg(c.id)}')" title="Retirer du répertoire" aria-label="Retirer ce contact du répertoire">${icone('x')}</button>
-        </span>
-      </div>
-      ${lignes.join('')}
-    </article>`;
-  }
+
 
   function renderFormContactRepertoire(c) {
     const v = x => escapeAttr(x || '');
@@ -12896,7 +12938,7 @@
   }
 
   function choisirThemeRepertoire(cle) {
-    repertoireTheme = repertoireTheme === cle ? '' : cle;
+    repertoireTheme = cle || '';
     renderCarnetConfreres();
   }
 
@@ -12970,32 +13012,7 @@
     return (o.notaires || []).length === 1 && normaliserPourRecherche(o.office || '') === normaliserPourRecherche('Me ' + o.notaires[0]);
   }
 
-  function renderOfficeCarnet(o, dossiersOffice) {
-    const adresse = normaliserAdresse([o.adresse, [o.codePostal, o.ville].filter(Boolean).join(' ')].filter(Boolean).join(', '));
-    const contacts = [
-      o.telephone ? `<a href="tel:${escapeAttr(o.telephone.replace(/\s+/g, ''))}">${escapeHtml(o.telephone)}</a>` : '',
-      o.email ? `<a href="mailto:${escapeAttr(o.email)}">${escapeHtml(o.email)}</a>` : '<span class="carnet-manque">Email non renseigné</span>'
-    ].filter(Boolean).join('<span class="carnet-sep">·</span>');
-    const enCours = dossiersOffice.length
-      ? `<div class="carnet-dossiers">${icone('folder')}${dossiersOffice.slice(0, 4).map(d => `<button type="button" class="carnet-dossier" onclick="ouvrirDossierDepuisDashboard('${escapeOnclickArg(d.id)}')">${escapeHtml(libelleDossierAffiche(d))}</button>`).join('')}${dossiersOffice.length > 4 ? `<span>+${dossiersOffice.length - 4}</span>` : ''}</div>`
-      : '';
-    return `<article class="carnet-office${o.etude ? ' carnet-office-etude' : ''}">
-      ${o.etude ? '<span class="dot-label dl-success carnet-etude-badge"><span class="dot"></span>Notre office</span>' : ''}
-      <div class="carnet-office-tete">
-        <h3 class="carnet-office-nom">${escapeHtml(o.office || o.notaires[0] || '')}</h3>
-        <span class="carnet-office-icones">
-          <button type="button" class="ech-ico" onclick="modifierOfficeCarnet('${escapeOnclickArg(o.id)}')" title="Modifier" aria-label="Modifier cet office">${icone('pencil')}</button>
-          ${o.etude ? '' : `<button type="button" class="ech-ico ech-ico-suppr" onclick="retirerOfficeCarnet('${escapeOnclickArg(o.id)}')" title="Retirer du carnet" aria-label="Retirer cet office du carnet">${icone('x')}</button>`}
-        </span>
-      </div>
-      ${memeNomOfficeNotaire(o) ? '' : `<div class="carnet-notaires">${(o.notaires || []).map(n => `<span>Me ${escapeHtml(n)}</span>`).join('')}</div>`}
-      ${adresse ? `<div class="carnet-ligne">${icone('map-pin')}${escapeHtml(adresse)}</div>` : ''}
-      ${(o.bureaux || []).length ? `<div class="carnet-ligne carnet-bureaux">Bureaux : ${o.bureaux.map(escapeHtml).join(' ; ')}</div>` : ''}
-      <div class="carnet-ligne carnet-contacts">${icone('mail')}${contacts}</div>
-      ${o.notes ? `<div class="carnet-ligne carnet-notes">${escapeHtml(o.notes)}</div>` : ''}
-      ${enCours}
-    </article>`;
-  }
+
 
   function renderFormOfficeCarnet(o) {
     const v = x => escapeAttr(x || '');
