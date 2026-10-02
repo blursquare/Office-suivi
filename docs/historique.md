@@ -14978,3 +14978,16 @@ même que le n° de sous-dossier des exports ZIP (« EXPORT_SousDossier-1791 »)
   suite (même intitulé changé) ; sinon score, en excluant les dossiers rattachés à un autre numéro.
   `dossierPourNavigationAuthentic` : numéro d'abord (tout type de dossier). Non affiché (étude).
 - Vérifié : tests ; Chromium (relevé simulé : numéro retenu, fiche client du vendeur sur la vente en cours).
+
+### 02/10/2026 fin d'après-midi — CHAHUNEAU : « toujours buggé, rien côté vendeur »
+
+Étude : rien côté vendeur (ni M. CHAHUNEAU ni son épouse, Mme BARBIER) ; « dans CLAIRE il n'y a que le nom du mari
+CHAHUNEAU, vendeur ». Cause trouvée dans `dossierPourFicheClientAuthentic` (version de 14 h 30) : les dossiers CITÉS
+sur la fiche client passaient avant le dossier consulté ; un vendeur déjà client de l'étude a son ancien achat cité
+(archivé, présent dans CLAIRE) sans la vente en cours → `unique(citesPartie)` rendait l'ancien dossier et les
+coordonnées y partaient. Nouvel ordre : un dossier EN COURS où la personne est partie (consulté, puis le seul cité,
+puis le seul de CLAIRE), puis seulement un dossier terminé. Test du cas (noms inventés : mari seul nommé vendeur,
+épouse sous son nom reconnue par son conjoint, ancien dossier archivé cité) — échouait avec l'ancien ordre.
+Diagnostic désormais visible : toast pour chaque fiche client lue sans effet (`raisonFicheClientSansDossier` :
+aucun dossier en cours / plusieurs possibles ; `raisonFicheClientSansChangement` : ni téléphone ni email dans
+Authentic / déjà à jour). Non vérifié sur les vraies fiches CHAHUNEAU/BARBIER.

@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-02 15:39';
+  const VERSION_APP = '2026-10-02 15:50';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-02 15:50', resume: "Add-on Authentic, fiche client du vendeur (cas CHAHUNEAU) : quand sa fiche cite son ancien dossier (archivé) et pas la vente en cours, les coordonnées partaient dans l'ancien. La vente en cours où la personne est partie passe désormais toujours avant. Chaque fiche client lue sans effet le dit maintenant (aucun dossier, plusieurs possibles, ni téléphone ni email sur la fiche Authentic, déjà à jour)." },
     { version: '2026-10-02 15:39', resume: "Add-on Authentic : le numéro du dossier dans Authentic (« 1836 » de « 1836 - Vente … ») est retenu sur la fiche dès que le dossier est reconnu ou créé, puis il sert en priorité pour reconnaître le dossier — avant les noms et l'adresse, même si l'intitulé change ; un dossier déjà rattaché à un autre numéro n'est plus jamais pris pour celui-là. Non affiché." },
     { version: '2026-10-02 15:32', resume: "Fiche : l'apport retrouve son affichage d'avant (signe moins quand le prêt dépasse le prix), à la demande de l'étude." },
     { version: '2026-10-02 15:29', resume: "Add-on Authentic (0.3.5, à réinstaller) : quand on passe d'un dossier à l'autre dans Authentic — y compris un dossier que CLAIRE ne suit pas (donation, divers…) —, CLAIRE suit le dossier ouvert : les fiches client consultées ensuite ne sont plus rangées dans le dossier précédent. Seul l'intitulé du dossier part, aucune donnée de la page." },
@@ -26790,17 +26791,41 @@
     const partie = (d) => !!personne && !!roleClientAuthenticDansDossier(d, personne);
     const unique = (l) => l.length === 1 ? l[0] : null;
     const enCours = (l) => l.filter(d => !d.archive && !signatureFaiteSuivi(d));
-    // 1. Un dossier où la personne est partie : cité sur sa fiche, puis celui en consultation, puis le
-    //    seul dossier en cours où elle l'est.
+    // 1. Un dossier EN COURS où la personne est partie : celui en consultation, puis le seul cité sur sa
+    //    fiche, puis le seul de CLAIRE. Un ancien dossier (archivé, signé) cité sur sa fiche ne passe
+    //    jamais devant (étude, 02/10 : « toujours buggé pour CHAHUNEAU — rien côté vendeur » : un vendeur
+    //    déjà client a son ancien achat cité sur sa fiche).
+    if (courant && enCours([courant]).length && partie(courant)) return courant;
     const citesPartie = cites.filter(partie);
-    const choix = unique(enCours(citesPartie)) || unique(citesPartie.filter(d => !d.archive)) || unique(citesPartie);
+    const choix = unique(enCours(citesPartie)) || unique(enCours(actifs.filter(partie)));
     if (choix) return choix;
-    if (courant && partie(courant) && (!cites.length || cites.includes(courant))) return courant;
-    if (!cites.length) { const seul = unique(enCours(actifs.filter(partie))); if (seul) return seul; }
-    // 2. Partie nulle part : seulement si sa fiche cite le dossier en consultation (« à rattacher »).
+    // 2. Sinon un dossier terminé où elle est partie (consulté, puis cité).
+    if (courant && partie(courant)) return courant;
+    const termine = unique(citesPartie.filter(d => !d.archive)) || unique(citesPartie);
+    if (termine) return termine;
+    // 3. Partie nulle part : seulement si sa fiche cite le dossier en consultation (« à rattacher »).
     //    Une fiche ouverte juste après un autre dossier n'y est jamais rangée (étude, 02/10 : « pourquoi
     //    proposer SIMOND pour ce dossier ? »).
     return courant && cites.includes(courant) ? courant : null;
+  }
+
+  // Pure : pourquoi une fiche client n'a été rangée dans aucun dossier — dit à l'étude, jamais en silence.
+  function raisonFicheClientSansDossier(capture, liste) {
+    const personne = clientDepuisFicheAuthentic(capture);
+    if (!personne) return '';
+    const qui = [personne.prenom, personne.nom].filter(Boolean).join(' ');
+    const enCours = (liste || []).filter(d => d && !d.deleted && !d.archive && !signatureFaiteSuivi(d) && roleClientAuthenticDansDossier(d, personne));
+    if (enCours.length > 1) return `fiche de ${qui} : plusieurs dossiers en cours la comptent (${enCours.slice(0, 3).map(libelleDossierAffiche).join(', ')}) — ouvrez d'abord la page du bon dossier dans Authentic`;
+    return `fiche de ${qui} : aucun dossier en cours de CLAIRE ne compte cette personne parmi ses parties (nom, nom d'usage ou conjoint)`;
+  }
+
+  // Pure : ce qu'une fiche client a apporté, quand rien n'a changé — dit à l'étude.
+  function raisonFicheClientSansChangement(capture) {
+    const personne = clientDepuisFicheAuthentic(capture);
+    if (!personne) return '';
+    const qui = [personne.prenom, personne.nom].filter(Boolean).join(' ');
+    if (!(personne.telephones || []).length && !(personne.emails || []).length) return `fiche de ${qui} lue : elle ne porte ni téléphone ni email dans Authentic`;
+    return `fiche de ${qui} lue : téléphone et email déjà sur la fiche`;
   }
 
   // Pure (modifie le dossier passé) : le numéro d'Authentic retenu sur la fiche la première fois que le
@@ -26840,9 +26865,17 @@
       const courant = courantValide ? dossiers.find(x => x.id === dossierCourantAuthentic.id) || null : null;
       d = dossierPourFicheClientAuthentic(capture, dossiers, courant);
       if (d) dossierCourantAuthentic = { id: d.id, t: Date.now() };
-      if (!d) return 0;
+      if (!d) {
+        const raison = raisonFicheClientSansDossier(capture, dossiers);
+        if (raison) afficherToast(`Authentic · ${raison}.`, 'OK', null);
+        return 0;
+      }
       const r0 = appliquerReleveSurDossier(d, capture);
-      if (!r0.modifie) return 0;
+      if (!r0.modifie) {
+        const raison = raisonFicheClientSansChangement(capture);
+        if (raison) afficherToast(`Authentic · ${libelleDossierAffiche(d)} : ${raison}.`, 'Voir', () => ouvrirDossierDrawer(d.id));
+        return 0;
+      }
       await sauvegarder(d);
       render();
       if (r0.textes.length) afficherToast(`Authentic · ${libelleDossierAffiche(d)} : ${r0.textes[0]}${r0.textes.length > 1 ? ` (+${r0.textes.length - 1})` : ''}.`, 'Voir', () => ouvrirDossierDrawer(d.id));

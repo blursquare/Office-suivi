@@ -788,3 +788,32 @@ test('numéro du dossier Authentic (« 1836 - Vente … ») : retenu, puis prior
   assert.equal(g.numero, '12');
   assert.equal(g.export.numero, '12');
 });
+
+test('vendeur déjà client (ancien dossier archivé cité sur sa fiche) et épouse sous son nom : tout va à la vente en cours', () => {
+  const ID2 = 'j_idt9:';
+  const fiche = (nom, prenom, email, conjoint, texte) => ({ titre: 'Authentic', champs: [
+    { groupe: '', libelle: ID2 + 'tabView:ficheClientPhysiqueIdentite:civilite:selectOneRadio', valeur: 'Monsieur' },
+    { groupe: '', libelle: 'Nom de famille*', valeur: nom }, { groupe: '', libelle: 'Prénom*', valeur: prenom },
+    { groupe: '', libelle: ID2 + 'tabView:ficheClientPhysiqueIdentite:naissanceDate:naissanceDate', valeur: '01/01/1960' },
+    { groupe: '', libelle: ID2 + 'tabView:x:coordonneePrincipaleW1:Telephone:inputTelephone', valeur: '06 55 44 33 22' },
+    { groupe: '', libelle: 'Email', valeur: email }
+  ], tableaux: conjoint ? [{ titre: '', entete: ['Situation', 'Date', 'Conjoint'], lignes: [['Marié(e)', '12/05/1990', conjoint]] }] : [], texte: texte || '' });
+  // Dans CLAIRE : seul le mari est nommé vendeur ; son ancien achat est archivé.
+  const ancien = { id: 'old', nom: 'ROUX / CHARVET', archive: true, acte: '2015-03-01', parties: [{ nom: 'Monsieur Gérard CHARVET', role: 'ACQUEREUR' }], historique: [] };
+  const vente = { id: 'v', nom: 'CHARVET / LENOIR', parties: [{ nom: 'Monsieur Gérard CHARVET', role: 'VENDEUR' }, { nom: 'Madame Inès LENOIR', role: 'ACQUEREUR' }], pieces: {}, historique: [] };
+  const liste = [ancien, vente];
+  // Sa fiche cite l'ancien dossier seulement (la vente n'y est pas encore listée).
+  const mari = fiche('Charvet', 'Gérard', 'gerard.charvet@exemple.fr', 'BRUNEAU Lucie', '1203 - Vente ROUX/CHARVET');
+  const femme = fiche('Bruneau', 'Lucie', 'lucie.bruneau@exemple.fr', 'CHARVET Gérard', '1203 - Vente ROUX/CHARVET');
+  for (const courant of [vente, null]) {
+    assert.equal(app.dossierPourFicheClientAuthentic(mari, liste, courant).id, 'v');
+    assert.equal(app.dossierPourFicheClientAuthentic(femme, liste, courant).id, 'v');
+  }
+  app.appliquerReleveSurDossier(vente, mari);
+  app.appliquerReleveSurDossier(vente, femme);
+  assert.equal(vente.emailVendeur, 'gerard.charvet@exemple.fr; lucie.bruneau@exemple.fr');
+  assert.equal(vente.telephoneVendeur, '06 55 44 33 22');
+  // Raison dite quand rien n'est rangé.
+  assert.match(app.raisonFicheClientSansDossier(fiche('Inconnu', 'Paul', 'p@x.fr'), liste), /aucun dossier en cours/);
+  assert.match(app.raisonFicheClientSansChangement(mari), /déjà sur la fiche/);
+});
