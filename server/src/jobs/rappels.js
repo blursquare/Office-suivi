@@ -34,7 +34,10 @@ const SEUILS_RAPPELS_PAR_TYPE = {
   pret: [15, 7],
   ventebien: [15, 7],
   appelFonds: [15, 10],
-  rendezVousSignature: [25, 15]
+  rendezVousSignature: [25, 15],
+  // Délai SAFER (étude, 02/10) : une date butoir du planning, sans rappel — à son terme la
+  // non-préemption est acquise d'elle-même (appliquerSaferTacite côté client).
+  safer: []
   // `projetEnvoye` (ajoutée après coup, voir agendaWatch.js) n'a pas de couple donné par l'étude —
   // retombe sur SEUILS_RAPPELS_DEFAUT via seuilsPourType(), comme une échéance personnalisée.
 };
@@ -62,6 +65,32 @@ function echeanceValidee(d, type) {
   return !!(d.echeancesValidees && d.echeancesValidees[type]);
 }
 
+// Miroir de saferLevee / echeanceSaferDossier (script.js) — à modifier ensemble. 2 mois depuis la
+// prise en compte (à défaut l'envoi), 1 mois ou 8 jours si l'étude a coché « réponse rapide » /
+// « très rapide » sous la pièce « Réponse SAFER ».
+function saferLevee(d) {
+  if (!d || d.roleNotaire === 'participant') return true;
+  const sa = d.authentic && d.authentic.safer;
+  if (sa && sa.decision === 'non_preemption') return true;
+  const piece = (d.piecesPersonnalisees || []).find((p) => p && /safer/i.test(p.label || ''));
+  if (piece && d.pieces && d.pieces[piece.cle] === 'recue') return true;
+  return !sa && !piece;
+}
+function echeanceSaferDossier(d) {
+  if (saferLevee(d)) return '';
+  const sa = d.authentic && d.authentic.safer;
+  const depart = sa && (sa.priseEnCompteLe || sa.notifieeLe);
+  if (!depart || !/^\d{4}-\d{2}-\d{2}$/.test(depart)) return '';
+  const [a, m, j] = depart.split('-').map(Number);
+  if (sa.delaiManuel === 'tres_rapide') {
+    return new Date(Date.UTC(a, m - 1, j + 8)).toISOString().slice(0, 10);
+  }
+  const mois = sa.delaiManuel === 'rapide' ? 1 : 2;
+  // Même règle que ajouterMois côté client : jour gardé, ramené au dernier jour du mois s'il n'existe pas.
+  const dernier = new Date(Date.UTC(a, m - 1 + mois + 1, 0)).getUTCDate();
+  return new Date(Date.UTC(a, m - 1 + mois, Math.min(j, dernier))).toISOString().slice(0, 10);
+}
+
 function toutesEcheances(d) {
   const autres = (Array.isArray(d.autres) ? d.autres : [])
     .map((a, i) => ({ type: `autre-${i}`, label: a.label, iso: a.date }))
@@ -86,6 +115,8 @@ function toutesEcheances(d) {
   const items = [];
   if (!echeanceValidee(d, 'ventebien')) items.push({ type: 'ventebien', label: 'Vente préalable', iso: d.ventebien });
   if (!echeanceValidee(d, 'pret')) items.push({ type: 'pret', label: 'Obtention du prêt', iso: d.pret });
+  const echeanceSafer = echeanceSaferDossier(d);
+  if (echeanceSafer) items.push({ type: 'safer', label: 'Délai SAFER', iso: echeanceSafer });
   // Offre reçue (ou achat comptant) sans rendez-vous : placer le rendez-vous vient avant l'appel
   // de fonds (étude, 28/09). Ancré sur la date butoir ; seuils par défaut (15/7).
   let etape = null;
@@ -101,9 +132,9 @@ function toutesEcheances(d) {
       : (d.piecesRetirees || []).includes('renonciationPreemption')
         || !!(d.pieces && d.pieces.renonciationPreemption === 'recue'));
   if (!d.rendezVousSignature && pretLeve && !d.appelFonds && !echeanceValidee(d, 'appelFonds')) {
-    etape = preemptionLevee
-      ? { type: 'fixerRdv', label: 'Fixer le rendez-vous', iso: d.acte }
-      : { type: 'preemption', label: 'Renonciation préemption attendue', iso: null };
+    etape = !preemptionLevee ? { type: 'preemption', label: 'Renonciation préemption attendue', iso: null }
+      : !saferLevee(d) ? (echeanceSafer ? null : { type: 'safer', label: 'Réponse SAFER attendue', iso: null })
+        : { type: 'fixerRdv', label: 'Fixer le rendez-vous', iso: d.acte };
   } else if (!echeanceValidee(d, 'appelFonds')) {
     etape = { type: 'appelFonds', label: 'Envoi appel de fonds', iso: d.appelFonds || d.rendezVousSignature };
   } else if (!echeanceValidee(d, 'projetEnvoye')) {
@@ -388,7 +419,7 @@ function libelleDossier(d) {
 
 module.exports = {
   libelleDossier,
-  SEUILS_RAPPELS_PAR_TYPE, SEUILS_RAPPELS_DEFAUT, seuilsPourType, echeanceValidee, toutesEcheances, joursRestants,
+  SEUILS_RAPPELS_PAR_TYPE, SEUILS_RAPPELS_DEFAUT, seuilsPourType, echeanceValidee, toutesEcheances, joursRestants, echeanceSaferDossier,
   calculerRappelsDus, texteRappel, executerTacheRappels, demarrerTacheRappels,
   bilanFonds, jourSemaine, alertesFondsDues, texteAlerteFonds
 };

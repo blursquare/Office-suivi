@@ -691,3 +691,22 @@ test('libelleDossier : type d’affaire devant le nom, sans doublon (miroir de l
   assert.equal(libelleDossier({ nom: 'LEROY', typeAffaire: 'succession' }), 'SUCC - LEROY');
   assert.equal(libelleDossier({ nom: 'VTE - DURAND' }), 'VTE - DURAND');
 });
+
+test('SAFER en attente (miroir de echeancesPlanning) : « Délai SAFER » daté, sans rappel, pas de « Fixer le rendez-vous »', () => {
+  const { toutesEcheances, echeanceSaferDossier, calculerRappelsDus } = require('../src/jobs/rappels');
+  const d = {
+    id: 's1', nom: 'DUPONT / MARTIN', responsable: 'Julie VASSELIN', typeVente: 'maison', sansPret: true, acte: '2026-12-20',
+    pieces: { renonciationPreemption: 'recue', 'perso-safer': 'manquante' },
+    piecesPersonnalisees: [{ cle: 'perso-safer', label: 'Réponse SAFER' }],
+    authentic: { safer: { notifieeLe: '2026-09-01', priseEnCompteLe: '2026-09-05' } }
+  };
+  assert.equal(toutesEcheances(d).map(e => `${e.type}:${e.iso}`).join(','), 'safer:2026-11-05');
+  assert.equal(echeanceSaferDossier(Object.assign({}, d, { authentic: { safer: Object.assign({}, d.authentic.safer, { delaiManuel: 'rapide' }) } })), '2026-10-05');
+  assert.equal(echeanceSaferDossier(Object.assign({}, d, { authentic: { safer: Object.assign({}, d.authentic.safer, { delaiManuel: 'tres_rapide' }) } })), '2026-09-13');
+  // Aucun rappel Teams sur ce délai, même à J-15 ou J-7.
+  assert.equal(calculerRappelsDus([d], '2026-10-21', new Set()).length, 0);
+  assert.equal(calculerRappelsDus([d], '2026-10-29', new Set()).length, 0);
+  // Non-préemption acquise : retour à « Fixer le rendez-vous ».
+  const levee = Object.assign({}, d, { authentic: { safer: Object.assign({}, d.authentic.safer, { decision: 'non_preemption' }) } });
+  assert.equal(toutesEcheances(levee).map(e => e.type).join(','), 'fixerRdv');
+});

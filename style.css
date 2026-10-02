@@ -4374,6 +4374,7 @@
   .dot-label.dl-projetEnvoye { color: var(--projet); }
   .dot-label.dl-fixerRdv { color: var(--acte); }
   .dot-label.dl-preemption { color: var(--pret); }
+  .dot-label.dl-safer { color: var(--pret); }
   .dot-label.dl-pret { color: var(--pret); }
   .dot-label.dl-acte { color: var(--acte); }
   .dot-label.dl-ventebien { color: var(--ventebien); }
@@ -6527,6 +6528,7 @@ button.ech-ico.ech-ico-suppr:hover { color: var(--urgent); }
 .ech-sous .tab-garanties { display: inline-flex; margin: 0; }
 .ech-sous .lien-action { font-size: 12px; }
 .ech-note { display: inline-flex; align-items: center; gap: 5px; color: var(--muted); }
+.ech-note.ech-alerte { color: var(--urgent); }
 .ech-butoir { display: inline-flex; align-items: center; color: var(--ink-soft); }
 .ech-butoir.alerte { color: var(--urgent); font-weight: 600; }
 .ech-butoir-aff { display: inline-flex; align-items: center; gap: 2px; }
@@ -8039,6 +8041,10 @@ button.w-jour-lien { border: none; background: none; padding: 0; cursor: pointer
 .authentic-info .dot-label { white-space: normal; align-items: baseline; line-height: 1.4; }
 .authentic-info .dot-label .dot { flex: none; transform: translateY(-1px); }
 .piece-libelle .piece-tag.piece-tag-long { display: block; white-space: normal; margin-left: 0; }
+/* Délai de réponse de la SAFER : deux cases sous « Réponse SAFER » (2 mois si aucune n'est cochée). */
+.piece-libelle .safer-delai { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 4px; font-size: 12px; color: var(--muted); }
+.safer-delai-case { display: inline-flex; align-items: center; gap: 5px; cursor: pointer; }
+.safer-delai-case input { margin: 0; }
 
 /* « Nouveau dossier » : trois façons de commencer (étude, 02/10). */
 .import-choix { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 4px; }

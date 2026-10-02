@@ -14751,3 +14751,22 @@ sous la pièce ; ne lire que les pages dont CLAIRE a la structure ; ne pas repas
   quand elles changent ; le serveur refait le même tri (`pageAuthenticConnue`, `/authentic/releve` ignore le reste) ;
   ce qui est acquis (positif coché, SAFER décidée) n'est plus modifié par un relevé.
 - Non vérifié sur le vrai Authentic (libellés exacts « Positif »/« Négatif », « réponse rapide »).
+
+### 02/10/2026 après-midi — Délai SAFER : 2 mois de base, cases « rapide » / « très rapide », date butoir du dossier
+
+Demande de l'étude : « de base deux mois » ; la date de fin du délai compte dans la probabilité et la proposition de
+rendez-vous et dans la timeline comme une date butoir, « comme pour un droit de préemption de la mairie » ; réponse rapide
+ou très rapide = deux cases à cocher sous la réponse de la SAFER, le délai se recalcule.
+- Délai : `delaiSafer` (2 mois sauf `d.authentic.safer.delaiManuel` = 'rapide' 1 mois / 'tres_rapide' 8 jours) — l'intitulé
+  d'Authentic ne choisit plus le délai. Cases : `renderDelaiSafer` sous la pièce, `changerDelaiSafer` /
+  `changerDelaiSaferDossier` (pure) : une non-préemption tirée du délai est défaite si le nouveau délai court encore
+  (pièce rendue manquante si c'est le délai qui l'avait cochée, `pieceCocheeTacite`), posée s'il est écoulé.
+- Comme la renonciation de la mairie : `saferLevee` (non-préemption, pièce « Réponse SAFER » reçue, participation, ou pas
+  de SAFER) conditionne « Fixer le rendez-vous » ; `echeanceSaferDossier` = date butoir. Planning (`echeancesPlanning` et
+  son miroir serveur `toutesEcheances`) : item `safer` « Délai SAFER » daté, ou étape « Réponse SAFER attendue » sans
+  date ; seuils de rappel `safer: []` (aucun Teams). Fiche : ligne « Délai SAFER » (calculée, non modifiable).
+  `probabiliteTenueSignature` : −40 si le délai finit le jour du rendez-vous ou après, sinon −10/−5 ;
+  `semaineProbableSignature` et `creneauxProposesSignature` : au plus tôt le lendemain du délai ; `actionsDuJour` :
+  « Réponse SAFER attendue » à la place de « Fixer le rendez-vous ».
+- Vérifié dans Chromium (dossier inventé) : ligne d'échéance, prochaine étape « Délai SAFER », cases 2 mois → 1 mois →
+  8 jours (non-préemption, pièce cochée) → décochée (retour à 2 mois, pièce manquante), tableau de bord.

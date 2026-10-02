@@ -163,8 +163,8 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
 - **Planning** (`echeancesPlanning`, miroir serveur `toutesEcheances` dans `jobs/rappels.js` — à
   modifier **toujours ensemble**) : vente préalable → obtention du prêt → *renonciation au droit de
   préemption* (bloquante hors copropriété, sauf pièce retirée ou participation ; en copropriété
-  seulement si une pièce personnalisée « préemption/DPU/DIA » a été ajoutée) → fixer le rendez-vous
-  → envoi appel de fonds → envoi projet → signature. La **date butoir** est informative dès qu'un
+  seulement si une pièce personnalisée « préemption/DPU/DIA » a été ajoutée) → *délai SAFER*
+  (date butoir tirée d'Authentic, voir l'extension) → fixer le rendez-vous → envoi appel de fonds → envoi projet → signature. La **date butoir** est informative dès qu'un
   rendez-vous est fixé (hors planning et hors rappels). Une date d'envoi saisie vaut envoi fait.
 - **Statut affiché d'un dossier = son état général** (étude, 29/09 au soir : `etatDossier`,
   `renderBadgeStatut`) : un seul badge partout (tableau de bord, Suivi, fiche, recherche) —
@@ -642,8 +642,11 @@ Plainte principale de l'étude : **le bruit**, pas les oublis — ne pas élargi
   `d.authentic.etatsCivils`) — « pris en compte »/en attente et **« négatif »** (erreur, rien délivré) laissent la pièce
   non cochée avec l'état dessous (`etatAuthenticPiece`), seul **« positif »** coche ; **SAFER** : envoyée, prise en compte,
   puis **non-préemption tacite** à l'issue du délai depuis la prise en compte (sinon l'envoi) — 2 mois, 1 mois en réponse
-  rapide, 8 jours en très rapide (`DELAIS_SAFER`, `appliquerSaferTacite`, `verifierSaferTacites` au démarrage puis
-  toutes les heures) ; **demandes** (alignement, numérotage, DIA…, `demandesUrbanismeAuthentic`) jamais cochées,
+  rapide, 8 jours en très rapide — **2 mois de base, les deux autres se cochent sous « Réponse SAFER »** (`delaiManuel`,
+  `renderDelaiSafer`, jamais lu dans l'intitulé ; `DELAIS_SAFER`, `appliquerSaferTacite`, `verifierSaferTacites` au démarrage puis
+  toutes les heures) ; **fin du délai = date butoir, comme la préemption de la mairie** (`saferLevee`,
+  `echeanceSaferDossier`) : item « Délai SAFER » du planning (miroir serveur, sans rappel), ligne de la fiche, pas de
+  « Fixer le rendez-vous » avant, semaine probable / créneaux au plus tôt le lendemain, retrait de probabilité ; **demandes** (alignement, numérotage, DIA…, `demandesUrbanismeAuthentic`) jamais cochées,
   « Demande envoyée le … » sous la pièce ; ce qui est acquis (positif, SAFER décidée) n'est plus touché. **Seules les
   pages de structure connue** sont envoyées (extension 0.3.3, `pageConnue`) et gardées (`pageAuthenticConnue`).
   Aperçu d'un document Comedec : pas de lien relevé. **Coordonnées** (étude 02/10) : email + téléphone de chaque

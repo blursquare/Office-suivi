@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-02 12:43';
+  const VERSION_APP = '2026-10-02 13:50';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-02 13:50', resume: "SAFER : le délai de réponse est de 2 mois par défaut ; deux cases sous « Réponse SAFER » (onglet Pièces) le passent à 1 mois (réponse rapide) ou 8 jours (très rapide), et la date se recalcule. La fin du délai est une date butoir du dossier, comme la préemption de la mairie : ligne « Délai SAFER » dans les échéances de la fiche, pas de « Fixer le rendez-vous » avant (tableau de bord : « Réponse SAFER attendue »), semaine probable et créneaux proposés au plus tôt le lendemain, probabilité de tenue réduite (fortement si le rendez-vous tombe avant la fin du délai). Pas de rappel Teams sur ce délai : la non-préemption est acquise d'elle-même." },
     { version: '2026-10-02 12:43', resume: "Fiche : l'email et le téléphone du vendeur et de l'acquéreur sont sur la première page (une ligne par partie, modifiables) et, dans Échanges, sur une seule ligne. Authentic : un état civil virtuel (Comedec) « pris en compte » reste à recevoir, « négatif » reste non coché avec « Comedec : négatif » sous la pièce, « positif » est coché ; la SAFER affiche l'envoi, la prise en compte et, sans réponse à l'issue du délai (2 mois, 1 mois en réponse rapide, 8 jours en réponse très rapide), passe seule en non-préemption ; les demandes (alignement, numérotage, DIA…) ne cochent rien mais s'affichent « Demande envoyée le … » sous la pièce. L'extension (0.3.3) et le serveur n'envoient plus que les pages dont CLAIRE connaît la structure." },
     { version: '2026-10-02 12:33', resume: "Nouveau dossier : trois façons de commencer — « Compromis (PDF) » (puis « Compléter depuis Authentic », le bon dossier en tête), « Export Authentic (.zip) », « Dossier Authentic » (repris des pages ouvertes dans Authentic, puis le compromis déposé dessous pour les dates butoir et les engagements, sans rien perdre d'Authentic). Les étapes Vérifier et Finaliser rappellent ce qui vient du compromis et d'Authentic. Notaires : ceux lus dans l'acte ou dans Authentic se placent d'un clic (vendeur, acquéreur, les deux) ; « Notaire qui reçoit l'acte » se choisit et le rôle de l'étude s'en déduit. Corrigé : un notaire cité sans son côté n'apparaissait plus sur la fiche (ligne repliée) — il s'affiche « Lus, à placer »." },
     { version: '2026-10-02 12:15', resume: "Authentic : le dossier CLAIRE est retrouvé par un score — noms du vendeur et de l'acquéreur, puis adresse du bien (rubrique « Immeubles » de la page : code postal, commune, voie, numéro). Deux ventes en cours avec les mêmes noms sont départagées par l'adresse ; une adresse qui ne correspond pas écarte le dossier ; à égalité, rien n'est choisi." },
@@ -13529,6 +13530,14 @@
     // La date butoir n'a sa propre ligne que tant qu'aucun rendez-vous n'est fixé : ensuite elle
     // n'est plus qu'indicative, et devient une précision sous le rendez-vous (voir plus bas).
     const butoirSousRdv = !!(d.rendezVousSignature && d.acte);
+    const saferFiche = d.authentic && d.authentic.safer;
+    const echeanceSaferFiche = saferFiche && d.roleNotaire !== 'participant' ? echeanceSaferTacite(saferFiche) : '';
+    if (echeanceSaferFiche) {
+      const levee = saferLevee(d);
+      const avantRdv = !levee && d.rendezVousSignature && echeanceSaferFiche >= d.rendezVousSignature;
+      const note = `<span class="ech-note${avantRdv ? ' ech-alerte' : ''}">${escapeHtml(avantRdv ? 'Après le rendez-vous de signature : la SAFER peut encore préempter ce jour-là' : suiviSaferPiece(d))}</span>`;
+      lignes.push({ iso: echeanceSaferFiche, html: renderLigneEcheance('safer', 'Délai SAFER', echeanceSaferFiche, null, null, null, null, false, note, false, levee, { etatFait: '✓ Non-préemption' }) });
+    }
     if (!butoirSousRdv) lignes.push({ iso: d.acte, html: renderLigneEcheance('acte', 'Date butoir', d.acte, d.id, d.actePage, confiance.acte, null, false, '', false, echeanceValidee(d, 'acte')) });
     if (d.appelFonds || d.projetEnvoye || d.rendezVousSignature || dossierEntierementComplet(d)) {
       ENVOIS_AVANT_SIGNATURE.forEach(({ cle, label }) => {
@@ -13674,6 +13683,7 @@
   // de l'étape « Fixer le rendez-vous » (pas de rendez-vous sans elle).
   function actionLieeEtape(a, typeEtape) {
     if (!a || !typeEtape) return false;
+    if (/safer/i.test(a.titre || '')) return typeEtape === 'safer' || typeEtape === 'fixerRdv';
     if (/pr[ée]emption/i.test(a.titre || '')) return typeEtape === 'preemption' || typeEtape === 'fixerRdv';
     if (typeEtape === 'fixerRdv' || typeEtape === 'preemption') return a.categorie === 'rendezVousSignature' || /rendez-vous/i.test(a.titre || '');
     return a.categorie === typeEtape;
@@ -13789,7 +13799,7 @@
   // demandé que son nom le dise et qu'elle disparaîsse du planning (voir echeancesPlanning).
   const LIBELLES_CATEGORIE = {
     pret: 'Obtention du prêt', acte: 'Date butoir', ventebien: 'Vente préalable',
-    fixerRdv: 'Fixer le rendez-vous', preemption: 'Renonciation préemption attendue',
+    fixerRdv: 'Fixer le rendez-vous', preemption: 'Renonciation préemption attendue', safer: 'Délai SAFER',
     appelFonds: 'Envoi appel de fonds', projetEnvoye: 'Envoi projet',
     rendezVousSignature: 'Rendez-vous de signature'
   };
@@ -15533,6 +15543,10 @@
     // Une offre déjà reçue clôt cette échéance : la garder ici referait apparaître « Obtention du
     // prêt » comme la prochaine chose à surveiller alors qu'il n'y a plus rien à y suivre.
     if (!echeanceValidee(d, 'pret')) items.push({ type: 'pret', label: 'Obtention du prêt', iso: d.pret });
+    // SAFER notifiée (relevée dans Authentic) : la date où, sans réponse, la non-préemption est acquise
+    // est une date butoir du dossier (étude, 02/10) — jusqu'à elle, pas de « Fixer le rendez-vous ».
+    const echeanceSafer = echeanceSaferDossier(d);
+    if (echeanceSafer) items.push({ type: 'safer', label: 'Délai SAFER', iso: echeanceSafer });
 
     // L'étape courante avant signature : appel de fonds, puis projet d'acte envoyé, puis signature.
     // À défaut de date propre, elle prend celle du rendez-vous de signature (elle doit de toute
@@ -15551,9 +15565,9 @@
     // cette attente, SANS date propre : elle ne ressort que par le filet de sécurité ci-dessous
     // (dossier qui n'a plus rien d'autre à surveiller), ancrée sur la date butoir.
     if (!d.rendezVousSignature && pretLeve(d) && !d.appelFonds && !echeanceValidee(d, 'appelFonds')) {
-      etape = preemptionLevee(d)
-        ? { type: 'fixerRdv', label: 'Fixer le rendez-vous', iso: d.acte }
-        : { type: 'preemption', label: 'Renonciation préemption attendue', iso: null };
+      etape = !preemptionLevee(d) ? { type: 'preemption', label: 'Renonciation préemption attendue', iso: null }
+        : !saferLevee(d) ? (echeanceSafer ? null : { type: 'safer', label: 'Réponse SAFER attendue', iso: null })
+          : { type: 'fixerRdv', label: 'Fixer le rendez-vous', iso: d.acte };
     } else if (!echeanceValidee(d, 'appelFonds')) {
       etape = { type: 'appelFonds', label: 'Envoi appel de fonds', iso: d.appelFonds || d.rendezVousSignature };
     } else if (!echeanceValidee(d, 'projetEnvoye')) {
@@ -17512,7 +17526,9 @@
       } else if (d.acte && ecartJours(aujourdhuiIso, d.acte) !== null && ecartJours(aujourdhuiIso, d.acte) <= 15) {
         // Date butoir proche, et aucun rendez-vous de signature fixé.
         const j = ecartJours(aujourdhuiIso, d.acte);
-        if (preemptionLevee(d)) ajouter(d, j <= 5 ? 'critique' : 'vigilance', 'Fixer le rendez-vous', `Aucun rendez-vous · butoir le ${court(d.acte)}`, j);
+        const safer = saferLevee(d) ? '' : (echeanceSaferDossier(d) || 'attendue');
+        if (preemptionLevee(d) && !safer) ajouter(d, j <= 5 ? 'critique' : 'vigilance', 'Fixer le rendez-vous', `Aucun rendez-vous · butoir le ${court(d.acte)}`, j);
+        else if (preemptionLevee(d)) ajouter(d, j <= 5 ? 'critique' : 'vigilance', 'Réponse SAFER attendue', `${safer === 'attendue' ? 'Rendez-vous impossible avant sa réponse' : `Délai SAFER jusqu’au ${court(safer)}`} · butoir le ${court(d.acte)}`, j);
         else ajouter(d, j <= 5 ? 'critique' : 'vigilance', 'Obtenir la renonciation de préemption', `Rendez-vous impossible sans elle · butoir le ${court(d.acte)}`, j);
       } else if (pretLeve(d)) {
         // Offre reçue (ou achat comptant) : placer le rendez-vous est l'étape suivante, avant
@@ -17521,7 +17537,9 @@
         const detail = d.sansPret ? 'Achat comptant' : 'Offre de prêt reçue';
         // À faire (vigilance) quand l'offre vient d'arriver ; simple suivi sur un achat comptant,
         // où rien ne s'est produit qui appelle un geste aujourd'hui.
-        if (preemptionLevee(d)) ajouter(d, d.sansPret ? 'info' : 'vigilance', 'Fixer le rendez-vous', d.acte ? `${detail} · butoir le ${court(d.acte)}` : detail, j);
+        const safer = saferLevee(d) ? '' : (echeanceSaferDossier(d) || 'attendue');
+        if (preemptionLevee(d) && !safer) ajouter(d, d.sansPret ? 'info' : 'vigilance', 'Fixer le rendez-vous', d.acte ? `${detail} · butoir le ${court(d.acte)}` : detail, j);
+        else if (preemptionLevee(d)) ajouter(d, 'info', 'Réponse SAFER attendue', `${detail} · ${safer === 'attendue' ? 'rendez-vous à fixer ensuite' : `délai SAFER jusqu’au ${court(safer)}`}`, safer === 'attendue' ? j : ecartJours(aujourdhuiIso, safer));
         else ajouter(d, 'info', 'Renonciation de préemption attendue', `${detail} · rendez-vous à fixer ensuite`, j);
       }
       // Vente préalable qui approche sans être confirmée.
@@ -19304,6 +19322,12 @@
       else f('Vente préalable non réalisée', jours <= 15 ? 35 : 25, 'Relancer la vente préalable');
     }
     if (!preemptionLevee(d)) f('Renonciation au droit de préemption attendue', 20, 'Obtenir la renonciation');
+    if (!saferLevee(d)) {
+      const echeanceSafer = echeanceSaferDossier(d);
+      if (!echeanceSafer) f('Réponse de la SAFER attendue', 20, 'Suivre la SAFER dans Authentic');
+      else if (echeanceSafer >= d.rendezVousSignature) f(`Délai SAFER jusqu’au ${formatDateFr(echeanceSafer)}, après le rendez-vous`, 40, 'Déplacer le rendez-vous');
+      else f(`Délai SAFER jusqu’au ${formatDateFr(echeanceSafer)}`, jours <= 15 ? 10 : 5, 'Suivre la SAFER dans Authentic');
+    }
     const engagementsEnAttente = elementsAnalyseEnAttente(d).engagements;
     const pieces = piecesAttenduesDossier(d).filter(p => p !== 'Offre de prêt' && p !== 'Vente préalable' && !engagementsEnAttente.includes(p));
     if (pieces.length) {
@@ -19391,6 +19415,9 @@
     let depuis = addDays(auj, DELAI_MIN_SIGNATURE_JOURS);
     if (d.acte && d.acte < depuis) depuis = addDays(auj, 3);
     if (bornes && bornes.depuis) depuis = bornes.depuis > auj ? bornes.depuis : addDays(auj, 1);
+    // Pas de signature avant la fin du délai de la SAFER (étude, 02/10).
+    const echeanceSafer = echeanceSaferDossier(d);
+    if (echeanceSafer && addDays(echeanceSafer, 1) > depuis) depuis = addDays(echeanceSafer, 1);
     const limite = bornes && bornes.limite ? bornes.limite : addDays(depuis, 60);
     const joursPossibles = [];
     for (let iso = depuis; iso <= limite; iso = addDays(iso, 1)) {
@@ -19461,6 +19488,8 @@
     if (d.ventebien && !echeanceValidee(d, 'ventebien') && d.ventebien > auj) {
       auPlusTot(d.ventebien, `vente préalable prévue le ${formatDateFr(d.ventebien)}`);
     }
+    const echeanceSafer = echeanceSaferDossier(d);
+    if (echeanceSafer) auPlusTot(addDays(echeanceSafer, 1), `délai SAFER jusqu’au ${formatDateFr(echeanceSafer)}`);
     for (let i = 0; i < 10; i++) {
       const js = new Date(date + 'T00:00:00').getDay();
       if (js !== 0 && js !== 6 && !estJourFerie(date)) break;
@@ -23001,7 +23030,8 @@
         : `<span class="piece-nom"${titreNom}>${escapeHtml(p.label)}</span>`;
       const tags = (notifs.includes(p.cle) ? '<span class="dot-label dl-urgent notif-nouveau-tag">Nouveau</span>' : '')
         + (valideeMain ? `<span class="piece-tag">${(d.piecesAuthentic || []).includes(p.cle) ? 'dans Authentic' : 'à la main'}</span>` : '')
-        + (() => { const e = etatAuthenticPiece(d, p); return e && e.texte ? `<span class="piece-tag piece-tag-long${e.classe ? ' ' + e.classe : ''}">${escapeHtml(e.texte)}</span>` : ''; })();
+        + (() => { const e = etatAuthenticPiece(d, p); return e && e.texte ? `<span class="piece-tag piece-tag-long${e.classe ? ' ' + e.classe : ''}">${escapeHtml(e.texte)}</span>` : ''; })()
+        + (/safer/i.test(p.label) ? renderDelaiSafer(d) : '');
       const reinit = (!p.personnalisee && !valideeMain && recue)
         ? `<button type="button" class="piece-action" onclick="reinitialiserStatutPieceStandard('${d.id}', '${p.cle}', '${arg}')" title="Réinitialiser (mauvaise correspondance ou fichier renommé)" aria-label="Réinitialiser le statut de cette pièce">${icone('rotate-ccw')}</button>`
         : '';
@@ -23037,7 +23067,7 @@
       sa.priseEnCompteLe ? `prise en compte le ${formatDateFr(sa.priseEnCompteLe)}` : (sa.priseEnCompte ? 'prise en compte' : ''),
       sa.decision === 'non_preemption' ? `non-préemption${sa.tacite ? ' (délai écoulé)' : ''}${sa.decisionLe ? ` le ${formatDateFr(sa.decisionLe)}` : ''}`
         : sa.decision === 'preemption' ? 'préemption exercée'
-          : (echeance ? `sans réponse : non-préemption le ${formatDateFr(echeance)} (${(DELAIS_SAFER[sa.delai] || DELAIS_SAFER.normal).libelle})` : '')]
+          : (echeance ? `sans réponse : non-préemption le ${formatDateFr(echeance)} (${DELAIS_SAFER[delaiSafer(sa)].libelle})` : '')]
       .filter(Boolean).join(', ');
   }
 
@@ -26028,13 +26058,9 @@
   function suiviSaferAuthentic(lignes) {
     const lignesSafer = (lignes || []).filter(l => /safer/i.test(l.texte || ''));
     if (!lignesSafer.length) return null;
-    const r = { notifieeLe: '', priseEnCompteLe: '', priseEnCompte: '', delai: '', decision: '', decisionLe: '', titre: lignesSafer[0].titre };
+    const r = { notifieeLe: '', priseEnCompteLe: '', priseEnCompte: '', decision: '', decisionLe: '', titre: lignesSafer[0].titre };
     lignesSafer.forEach(l => {
       const texte = normaliserPourRecherche(l.texte || '');
-      // Délai de réponse de la SAFER (étude, 02/10) : 2 mois, 1 mois en « réponse rapide », 8 jours
-      // en « réponse très rapide ».
-      if (/tres\s+rapide/.test(texte)) r.delai = 'tres_rapide';
-      else if (!r.delai && /rapide/.test(texte)) r.delai = 'rapide';
       if (/pris(?:e)?\s+en\s+compte/.test(texte)) r.priseEnCompte = 'oui';
       const dates = l.dates || (l.date ? [l.date] : []);
       if (!r.notifieeLe && dates[0]) r.notifieeLe = dates[0];
@@ -26049,13 +26075,35 @@
 
   // Pure : délai de réponse de la SAFER et date à laquelle, sans réponse, la non-préemption est
   // acquise (étude, 02/10) — compté de la prise en compte, à défaut de l'envoi. '' si inconnue.
+  // 2 mois de base ; « réponse rapide » (1 mois) ou « très rapide » (8 jours) se cochent sous la pièce
+  // « Réponse SAFER » (`delaiManuel`), jamais devinés.
   var DELAIS_SAFER = { normal: { mois: 2, libelle: '2 mois' }, rapide: { mois: 1, libelle: '1 mois, réponse rapide' }, tres_rapide: { jours: 8, libelle: '8 jours, réponse très rapide' } };
+  function delaiSafer(safer) {
+    return safer && DELAIS_SAFER[safer.delaiManuel] ? safer.delaiManuel : 'normal';
+  }
   function echeanceSaferTacite(safer) {
     if (!safer) return '';
     const depart = safer.priseEnCompteLe || safer.notifieeLe;
     if (!depart) return '';
-    const delai = DELAIS_SAFER[safer.delai] || DELAIS_SAFER.normal;
+    const delai = DELAIS_SAFER[delaiSafer(safer)];
     return delai.jours ? addDays(depart, delai.jours) : ajouterMois(depart, delai.mois);
+  }
+
+  // Pure : la SAFER ne retient plus la signature — non-préemption (reçue ou délai écoulé), pièce
+  // « Réponse SAFER » reçue, participation, ou aucune SAFER dans le dossier. Comme la renonciation
+  // de la mairie (preemptionLevee), elle conditionne « Fixer le rendez-vous » (étude, 02/10).
+  function saferLevee(d) {
+    if (!d || d.roleNotaire === 'participant') return true;
+    const sa = d.authentic && d.authentic.safer;
+    if (sa && sa.decision === 'non_preemption') return true;
+    const piece = (d.piecesPersonnalisees || []).find(p => p && /safer/i.test(p.label || ''));
+    if (piece && d.pieces && d.pieces[piece.cle] === 'recue') return true;
+    return !sa && !piece;
+  }
+
+  // Pure : date jusqu'à laquelle la SAFER peut encore préempter ('' si levée ou sans date connue).
+  function echeanceSaferDossier(d) {
+    return saferLevee(d) ? '' : echeanceSaferTacite(d.authentic && d.authentic.safer);
   }
 
   // Pure (modifie le dossier passé) : SAFER sans réponse au-delà de son délai → non-préemption tacite,
@@ -26074,13 +26122,62 @@
       const cle = piece ? piece.cle : 'perso-safer';
       if (!piece) d.piecesPersonnalisees = (d.piecesPersonnalisees || []).concat({ cle, label: 'Réponse SAFER' });
       d.pieces = d.pieces || {};
+      if (d.pieces[cle] !== 'recue') sa.pieceCocheeTacite = 'oui';
       d.pieces[cle] = 'recue';
       d.piecesAuthentic = Array.from(new Set([...(d.piecesAuthentic || []), cle]));
       d.piecesTrouveesLe = Object.assign({}, d.piecesTrouveesLe, { [cle]: echeance + 'T12:00:00' });
     }
     d.historique = d.historique || [];
-    d.historique.push({ date: maintenant, texte: `SAFER : délai écoulé le ${formatDateFr(echeance)} sans réponse (${(DELAIS_SAFER[sa.delai] || DELAIS_SAFER.normal).libelle}) — non-préemption` });
+    d.historique.push({ date: maintenant, texte: `SAFER : délai écoulé le ${formatDateFr(echeance)} sans réponse (${DELAIS_SAFER[delaiSafer(sa)].libelle}) — non-préemption` });
     return true;
+  }
+
+  // Pure (modifie le dossier) : délai coché sous « Réponse SAFER » ('normal', 'rapide', 'tres_rapide').
+  // Une non-préemption tirée du délai est recalculée : défaite si le nouveau délai court encore
+  // (pièce rendue manquante si c'est le délai qui l'avait cochée), posée s'il est écoulé.
+  // → true si quelque chose a changé.
+  function changerDelaiSaferDossier(d, delai, aujourdhui, maintenantIso) {
+    const sa = d && d.authentic && d.authentic.safer;
+    if (!sa || !DELAIS_SAFER[delai]) return false;
+    const avant = delaiSafer(sa);
+    if (delai === 'normal') delete sa.delaiManuel; else sa.delaiManuel = delai;
+    if (avant === delai) return false;
+    const maintenant = maintenantIso || new Date().toISOString();
+    d.historique = d.historique || [];
+    d.historique.push({ date: maintenant, texte: `SAFER : délai de réponse ${DELAIS_SAFER[delai].libelle}` });
+    if (sa.tacite && sa.decision === 'non_preemption') {
+      const echeance = echeanceSaferTacite(sa);
+      if (echeance && !(aujourdhui > echeance)) {
+        sa.decision = ''; sa.decisionLe = ''; delete sa.tacite;
+        if (sa.pieceCocheeTacite) {
+          const piece = (d.piecesPersonnalisees || []).find(p => p && /safer/i.test(p.label || ''));
+          if (piece && d.pieces) d.pieces[piece.cle] = 'manquante';
+          delete sa.pieceCocheeTacite;
+        }
+        d.historique.push({ date: maintenant, texte: `SAFER : délai pas encore écoulé (jusqu’au ${formatDateFr(echeance)}) — non-préemption retirée` });
+      } else if (echeance) sa.decisionLe = echeance;
+    }
+    appliquerSaferTacite(d, aujourdhui, maintenant);
+    return true;
+  }
+
+  async function changerDelaiSafer(id, delai, coche) {
+    const d = dossiers.find(x => x.id === id);
+    if (!d) return;
+    // La pièce reste à l'écran même cochée par le délai (sinon repliée parmi les reçues).
+    piecesToutesVisibles = true;
+    if (!changerDelaiSaferDossier(d, coche ? delai : 'normal', isoAujourdhuiLocal())) { render(); return; }
+    await sauvegarder(d);
+    render();
+  }
+
+  // Les deux cases sous « Réponse SAFER » (onglet Pièces) : 2 mois si aucune n'est cochée.
+  function renderDelaiSafer(d) {
+    const sa = d && d.authentic && d.authentic.safer;
+    if (!sa || sa.decision === 'preemption' || (sa.decision === 'non_preemption' && !sa.tacite)) return '';
+    const actuel = delaiSafer(sa);
+    const caseDelai = (cle, libelle) => `<label class="safer-delai-case"><input type="checkbox" id="safer-${cle}-${d.id}" ${actuel === cle ? 'checked' : ''} onchange="changerDelaiSafer('${d.id}', '${cle}', this.checked)"> ${libelle}</label>`;
+    return `<span class="safer-delai">${caseDelai('rapide', 'Réponse rapide (1 mois)')}${caseDelai('tres_rapide', 'Très rapide (8 jours)')}</span>`;
   }
 
   // Pure : réquisition hors formalité — envoyée, retour.
@@ -28425,7 +28522,7 @@
       ? Object.fromEntries(Object.entries(o).slice(0, 40).filter(([k, v]) => /^[\w-]{1,80}$/.test(k) && v && typeof v === 'object').map(([k, v]) => [k, sous(v, cles)])) : null;
     const r = {
       acte: sous(a.acte, ['etat', 'libelle', 'date']), rhf: sous(a.rhf, ['envoyeeLe', 'retourLe']),
-      safer: sous(a.safer, ['notifieeLe', 'priseEnCompteLe', 'priseEnCompte', 'delai', 'decision', 'decisionLe', 'tacite', 'titre']),
+      safer: sous(a.safer, ['notifieeLe', 'priseEnCompteLe', 'priseEnCompte', 'delaiManuel', 'decision', 'decisionLe', 'tacite', 'pieceCocheeTacite', 'titre']),
       etatsCivils: carte(a.etatsCivils, ['label', 'etat', 'date']), demandes: carte(a.demandes, ['date', 'titre']),
       prix: Number.isFinite(a.prix) && a.prix > 0 ? a.prix : null, collaborateur: texte(a.collaborateur), notaire: texte(a.notaire),
       personnes: Array.isArray(a.personnes) ? a.personnes.filter(p => p && typeof p.nom === 'string').slice(0, 12)

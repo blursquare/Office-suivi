@@ -452,25 +452,62 @@ test('rapprochement par score : noms des parties + adresse du bien (deux ventes 
 });
 
 
-test('SAFER : délai 2 mois / 1 mois (rapide) / 8 jours (très rapide), puis non-préemption tacite une fois', () => {
+test('SAFER : 2 mois de base, réponse rapide / très rapide cochées sur la fiche, puis non-préemption tacite une fois', () => {
   assert.equal(app.echeanceSaferTacite({ notifieeLe: '2026-09-10', priseEnCompteLe: '2026-09-15' }), '2026-11-15');
-  assert.equal(app.echeanceSaferTacite({ notifieeLe: '2026-09-10', delai: 'rapide' }), '2026-10-10');
-  assert.equal(app.echeanceSaferTacite({ notifieeLe: '2026-09-10', priseEnCompteLe: '2026-09-12', delai: 'tres_rapide' }), '2026-09-20');
+  assert.equal(app.echeanceSaferTacite({ notifieeLe: '2026-09-10', delaiManuel: 'rapide' }), '2026-10-10');
+  assert.equal(app.echeanceSaferTacite({ notifieeLe: '2026-09-10', priseEnCompteLe: '2026-09-12', delaiManuel: 'tres_rapide' }), '2026-09-20');
+  // L'intitulé d'Authentic ne choisit jamais le délai : 2 mois tant que rien n'est coché.
   const lignes = [{ titre: 'Notification SAFER réponse très rapide', dates: ['2026-09-10'], etat: 'Pris en compte', texte: 'Notification SAFER réponse très rapide · 10/09/2026 · Pris en compte' }];
   const sa = app.suiviSaferAuthentic(lignes);
-  assert.equal([sa.delai, sa.priseEnCompte].join('|'), 'tres_rapide|oui');
+  assert.equal(sa.priseEnCompte, 'oui');
+  assert.equal(app.echeanceSaferTacite(sa), '2026-11-10');
   const d = { id: 'a', nom: 'MARTEL / FOURNIER', typeVente: 'maison', pieces: {}, historique: [] };
   app.appliquerReleveSurDossier(d, { champs: [{ libelle: '12 - Vente MARTEL/FOURNIER', valeur: '' }], tableaux: [{ entete: [], lignes: [['Notification SAFER réponse très rapide', '', '10/09/2026', '', 'Pris en compte']] }], texte: '' }, '2026-09-15T09:00:00Z');
   assert.equal(d.pieces['perso-safer'], 'manquante');
-  // Prise en compte sans date : le délai court de l'envoi (10/09 + 8 jours = 18/09) ; le 18 il n'est pas dépassé.
-  assert.equal(app.appliquerSaferTacite(d, '2026-09-18'), false);
-  assert.equal(app.appliquerSaferTacite(d, '2026-09-21', '2026-09-21T08:00:00Z'), true);
+  assert.equal(app.appliquerSaferTacite(d, '2026-09-21'), false);
+  // « Très rapide » coché : 10/09 + 8 jours = 18/09, déjà écoulé le 21 → non-préemption, pièce cochée.
+  assert.equal(app.changerDelaiSaferDossier(d, 'tres_rapide', '2026-09-21', '2026-09-21T08:00:00Z'), true);
   assert.equal(d.pieces['perso-safer'], 'recue');
   assert.equal(d.authentic.safer.decision, 'non_preemption');
   assert.match(app.suiviSaferPiece(d), /non-préemption \(délai écoulé\) le 18 septembre 2026/);
   assert.match(d.historique[d.historique.length - 1].texte, /délai écoulé le 18 septembre 2026 sans réponse \(8 jours, réponse très rapide\) — non-préemption/);
-  // Une seule fois.
   assert.equal(app.appliquerSaferTacite(d, '2026-09-30'), false);
+  // Case décochée : retour à 2 mois, le délai court encore → non-préemption retirée, pièce rendue manquante.
+  assert.equal(app.changerDelaiSaferDossier(d, 'normal', '2026-09-21', '2026-09-21T08:05:00Z'), true);
+  assert.equal(d.authentic.safer.decision, '');
+  assert.equal(d.pieces['perso-safer'], 'manquante');
+  assert.equal(app.echeanceSaferDossier(d), '2026-11-10');
+  assert.equal(app.saferLevee(d), false);
+  assert.ok(app.renderDelaiSafer(d).includes('safer-rapide-a'));
+});
+
+test('SAFER en attente : date butoir du planning, pas de « Fixer le rendez-vous », créneaux après le délai', () => {
+  const base = { id: 'b', nom: 'DUPONT / MARTIN', typeVente: 'maison', sansPret: true, acte: '2026-12-20', pieces: { renonciationPreemption: 'recue' },
+    piecesPersonnalisees: [{ cle: 'perso-safer', label: 'Réponse SAFER' }], authentic: { safer: { notifieeLe: '2026-09-01', priseEnCompteLe: '2026-09-05' } } };
+  base.pieces['perso-safer'] = 'manquante';
+  const types = app.echeancesPlanning(base).map(e => `${e.type}:${e.iso}`).join(',');
+  assert.equal(types, 'safer:2026-11-05');
+  // Comme la renonciation de la mairie : levée → « Fixer le rendez-vous » revient.
+  const levee = Object.assign({}, base, { authentic: { safer: Object.assign({}, base.authentic.safer, { decision: 'non_preemption' }) } });
+  assert.equal(app.echeancesPlanning(levee).map(e => e.type).join(','), 'fixerRdv');
+  // Sans date connue : attente sans date, ancrée sur la date butoir par le filet de sécurité.
+  const sansDate = Object.assign({}, base, { authentic: { safer: { priseEnCompte: 'oui' } } });
+  assert.equal(app.echeancesPlanning(sansDate).map(e => `${e.type}:${e.iso}`).join(','), 'safer:2026-12-20');
+  // Probabilité : rendez-vous avant la fin du délai → gros retrait.
+  const p = app.probabiliteTenueSignature(Object.assign({}, base, { rendezVousSignature: '2026-11-03' }), '2026-10-01', []);
+  assert.ok(p.facteurs.some(f => /Délai SAFER jusqu’au 5 novembre 2026, après le rendez-vous/.test(f.libelle) && f.retrait === 40));
+  // Semaine probable et créneaux proposés : au plus tôt le lendemain du délai.
+  const s = app.semaineProbableSignature(base, '2026-10-01', []);
+  assert.equal(s.date, '2026-11-06');
+  assert.match(s.raison, /délai SAFER/);
+  const c = app.creneauxProposesSignature(base, [], [], '2026-10-01', 1);
+  assert.ok(c[0].date >= '2026-11-06', c[0].date);
+  // Participation : la SAFER ne retient rien.
+  assert.equal(app.saferLevee(Object.assign({}, base, { roleNotaire: 'participant' })), true);
+  // Tableau de bord : « Réponse SAFER attendue » à la place de « Fixer le rendez-vous ».
+  const av = app.actionsDuJour([Object.assign({}, base, { responsable: 'Bastien ANGLUMENT' })], '2026-10-01').aVenir.map(x => `${x.titre} — ${x.detail}`).join(' | ');
+  assert.match(av, /Réponse SAFER attendue — Achat comptant · délai SAFER jusqu’au/);
+  assert.doesNotMatch(av, /Fixer le rendez-vous/);
 });
 
 test('état civil Comedec : en attente / négatif non cochés avec leur état, positif coché', () => {
