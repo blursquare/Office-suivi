@@ -620,8 +620,11 @@ Plainte principale de l'étude : **le bruit**, pas les oublis — ne pas élargi
   compte le ; RHF envoyée / retour ; état de l'acte ; prix « Capital » (rempli s'il manque) ; collaborateur et notaire des
   « Parties prenantes » — gardés dans `d.authentic`, bloc « Dans Authentic » de l'onglet Pièces ; fiche client →
   téléphone/email manquants et situation matrimoniale, alerte si un vendeur marié/pacsé vend sans son conjoint ;
-  livret de famille et décès seulement en succession. **Onglets « Informations financières » et « Parties prenantes »
-  lus de façon générique : structure réelle à demander**, sens de la 2e date SAFER/RHF à confirmer.
+  livret de famille et décès seulement en succession. « Informations financières » et « Parties prenantes » (sous les
+  vendeurs/acquéreurs de la page de gestion) s'affichent en **texte seul** : lus dans `capture.texte` (« Capital » puis le
+  montant ; lignes après « Parties prenantes »), la copie de structure y ajoute le texte réduit à son vocabulaire
+  (`texteVocabulaireAuthentic`, `VOCABULAIRE_AUTHENTIC`, test « aucun nom ne sort ») ; « Retour le » = prise en compte
+  SAFER / retour RHF (étude, 02/10).
 - **Arborescence type des dossiers clients sur le NAS** (MAISON, COPRO, TERRAIN, SUCC, CESSION DE
   FONDS) : détaillée dans `docs/historique.md` (fin du fichier). L'avant-contrat signé est à la
   racine du dossier client ou sous « SRU » ; la rubrique « AAE » contient les pièces réunies entre

@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-02 11:26';
+  const VERSION_APP = '2026-10-02 11:32';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-02 11:32', resume: "Authentic : « Informations financières » (Capital) et « Parties prenantes » (collaborateur, notaire) sont aussi lues quand elles s'affichent en texte seul, sous les vendeurs et acquéreurs. « Copier la structure » inclut désormais le texte visible réduit à son vocabulaire (noms, dates, montants et coordonnées masqués). « Retour le … » : date de prise en compte de la SAFER, date de retour de la réquisition hors formalité." },
     { version: '2026-10-02 11:26', resume: "Authentic (suite) : une SAFER notifiée sans réponse ajoute « Réponse SAFER » aux pièces manquantes, avec sa date de notification et de prise en compte, puis la coche à la non-préemption. L'onglet Pièces montre « Dans Authentic » : état de l'acte (pas encore rédigé, en cours de rédaction, signé), réquisition hors formalité (envoyée, retour), SAFER, prix (Capital — repris sur la fiche s'il manque), collaborateur et notaire des parties prenantes. Fiches client : téléphone, email et situation matrimoniale (régime, conjoint) ; alerte si un vendeur marié ou pacsé vend sans son conjoint (résidence de la famille). Livret de famille et acte de décès seulement pour une succession." },
     { version: '2026-10-02 11:01', resume: "Authentic, avec l'extension Firefox 0.3.0 : chaque page d'Authentic affichée est relevée automatiquement. Page de gestion d'un dossier : les pièces reçues sont cochées « dans Authentic » sur la fiche CLAIRE du même dossier (un acte de naissance, de mariage ou de décès et une réponse SAFER de non-préemption sont ajoutés aux pièces) ; une demande ou une pièce en attente ne compte jamais. Fiches client et fiches bien : « Nouveau dossier » › « Depuis Authentic » crée le dossier pré-rempli (vendeurs, acquéreurs, bien, cadastre, téléphones, emails, pièces présentes)." },
     { version: '2026-10-02 10:38', resume: "Authentic : « Copier la structure (sans données) » laisse désormais lisible le vocabulaire des tableaux (« Acte de naissance de M. XXX », « Notification SAFER », « Reçu le 99/99/9999 ») : noms, prénoms et chiffres restent masqués. Étape préalable à la mise à jour automatique des pièces depuis Authentic." },
@@ -25348,8 +25349,54 @@
       corps.slice(0, 6).forEach(l => lignes.push('| ' + l.map(masquerCelluleAuthentic).join(' | ') + ' |'));
       if (corps.length > 6) lignes.push('| …');
     });
-    lignes.push('', `Texte visible : ${String(c.texte || '').length} caractères (non copié).`);
+    // Texte visible (étude, 02/10 : « Informations financières » et « Parties prenantes » s'affichent
+    // sans champ de saisie, seulement en texte) : chaque ligne réduite à son vocabulaire.
+    const texte = texteVocabulaireAuthentic(c.texte);
+    lignes.push('', `## Texte visible (${String(c.texte || '').length} caractères, vocabulaire seulement)`);
+    texte.forEach(l => lignes.push('  ' + l));
     return lignes.join('\n');
+  }
+
+  // Mots d'Authentic gardés tels quels dans le texte visible, même suivis d'une valeur (« Capital
+  // [montant] ») : du vocabulaire de l'outil, jamais un nom.
+  var VOCABULAIRE_AUTHENTIC = ['Capital', 'Prix', 'Notaire', 'Notaires', 'Collaborateur', 'Collaboratrice', 'Clerc', 'Rédacteur',
+    'Rédactrice', 'Responsable', 'Retour', 'Envoi', 'Envoyé', 'Envoyée', 'Réquisition', 'Informations', 'Parties', 'Acte', 'Actes',
+    'Statut', 'État', 'Etat', 'Date', 'Signé', 'Signée', 'Montant', 'Frais', 'Honoraires', 'Prêt', 'Vendeur', 'Vendeurs', 'Acquéreur',
+    'Acquéreurs', 'Comparants', 'Immeubles', 'Négociateur', 'Agence', 'Office', 'Étude', 'Intervenants', 'Intervenant', 'Rôle', 'Type',
+    'Nature', 'Total', 'Dépôt', 'Séquestre', 'Financement', 'Banque', 'Organisme', 'Taux', 'Durée', 'Commission', 'Rédaction',
+    'Projet', 'Minute', 'Répertoire', 'Dossier', 'Ouverture', 'Clôture', 'Notification', 'Demande', 'Réponse', 'Pièces', 'Documents',
+    'Prénom', 'Nom', 'Téléphone', 'Email', 'Adresse', 'Mandataire', 'Diagnostiqueur', 'Géomètre', 'Syndic', 'Prise', 'Reçu', 'Reçue',
+    'Mobilier', 'Apport', 'Emprunt', 'Prêteur', 'Garantie', 'Compte', 'Solde', 'Provision', 'Provisions', 'Débit', 'Crédit'];
+
+  // Pure : le texte visible d'une page, ligne à ligne, réduit à son vocabulaire (dates, montants,
+  // emails, téléphones → leur type ; noms → XXX). 150 lignes au plus, sans doublon consécutif.
+  function texteVocabulaireAuthentic(texte) {
+    const lignes = [];
+    String(texte || '').split(/\n+/).forEach(brut => {
+      let l = brut.replace(/\s+/g, ' ').trim();
+      if (!l) return;
+      l = l.replace(/[^@\s]+@[^@\s]+\.[a-z]{2,}/gi, '[email]')
+        .replace(/\d{1,2}[\/.-]\d{1,2}[\/.-]\d{2,4}/g, '[date]')
+        .replace(/(?:\+33\s?|(?<!\d)0)\d(?:[\s.-]?\d{2}){4}(?!\d)/g, '[téléphone]')
+        .replace(/-?\d[\d\s.  ]*,\d{2}\s*(?:€|EUR|euros?)?|-?\d[\d\s.  ]*\s*(?:€|EUR|euros?)/gi, '[montant] ');
+      const mots = l.split(' ');
+      const masque = mots.length > MOTS_MAX_CELLULE_AUTHENTIC ? `[texte, ${mots.length} mots]`
+        : mots.map((m, i) => {
+          if (/^\[|\]$/.test(m)) return m;
+          const n = m.replace(/^[^A-Za-zÀ-ɏ]+|[^A-Za-zÀ-ɏ°]+$/g, '');
+          const fin = (m.match(/[^A-Za-zÀ-ɏ°]+$/) || [''])[0].replace(/\d/g, '9');
+          if (!n) return m.replace(/\d/g, '9');
+          if (VOCABULAIRE_AUTHENTIC.includes(n) || (SIGLES_STRUCTURE_AUTHENTIC.includes(n.toUpperCase()) && n === n.toUpperCase())) return m.replace(/\d/g, '9');
+          if (/^[a-zà-ÿœæ'’-]+$/.test(n)) return m.replace(/\d/g, '9');
+          // Premier mot à majuscule : gardé seulement devant un mot en minuscules (« Acte de… ») —
+          // seul sur sa ligne, il peut être un nom.
+          const suivant = (mots[i + 1] || '').replace(/^[^A-Za-zÀ-ɏ]+|[^A-Za-zÀ-ɏ]+$/g, '');
+          if (i === 0 && /^[A-ZÀ-Ý][a-zà-ÿœæ'’-]+$/.test(n) && /^[a-zà-ÿœæ'’-]+$/.test(suivant)) return m.replace(/\d/g, '9');
+          return 'XXX' + fin;
+        }).join(' ').replace(/XXX(\s+XXX)+/g, 'XXX').trim();
+      if (masque && masque !== lignes[lignes.length - 1]) lignes.push(masque);
+    });
+    return lignes.slice(0, 150);
   }
 
   let captureAuthentic = null;
@@ -25647,7 +25694,7 @@
       const texte = normaliserPourRecherche(l.texte || '');
       const dates = l.dates || (l.date ? [l.date] : []);
       if (!r.notifieeLe && dates[0]) r.notifieeLe = dates[0];
-      const mPec = /pris(?:e)?\s+en\s+compte\D{0,12}(\d{1,2}[\/.-]\d{1,2}[\/.-]\d{4})/.exec(texte);
+      const mPec = /(?:pris(?:e)?\s+en\s+compte|retour)\s*(?:le)?\D{0,6}(\d{1,2}[\/.-]\d{1,2}[\/.-]\d{4})/.exec(texte);
       if (mPec) r.priseEnCompteLe = dateIsoDepuisFr(mPec[1]);
       else if (!r.priseEnCompteLe && dates[1]) r.priseEnCompteLe = dates[1];
       if (RE_SAFER_NON_PREEMPTION.test(texte)) { r.decision = 'non_preemption'; r.decisionLe = dates[dates.length - 1] || ''; }
@@ -25665,7 +25712,9 @@
       const dates = l.dates || (l.date ? [l.date] : []);
       const etat = normaliserPourRecherche(l.etat || '');
       if (!r.envoyeeLe && dates[0]) r.envoyeeLe = dates[0];
-      if (/re[cç]u|retour|delivr|repon/.test(etat) || /^(?:reponse|retour|etat hypothecaire)/.test(normaliserPourRecherche(l.titre))) r.retourLe = dates[dates.length - 1] || r.retourLe;
+      const mRetour = /retour\s*(?:le)?\D{0,6}(\d{1,2}[\/.-]\d{1,2}[\/.-]\d{4})/.exec(normaliserPourRecherche(l.texte || ''));
+      if (mRetour) r.retourLe = dateIsoDepuisFr(mRetour[1]);
+      else if (/re[cç]u|retour|delivr|repon/.test(etat) || /^(?:reponse|retour|etat hypothecaire)/.test(normaliserPourRecherche(l.titre))) r.retourLe = dates[dates.length - 1] || r.retourLe;
       else if (dates[1]) r.retourLe = dates[1];
     });
     return r;
@@ -25695,6 +25744,11 @@
       const i = (t.entete || []).map(libelleNetAuthentic).findIndex(e => /^capital/.test(e));
       if (i >= 0 && !brut) brut = ((t.lignes || [])[0] || [])[i] || '';
     });
+    if (!brut) {
+      // Rubrique en texte seul (« Capital » puis le montant, sur la même ligne ou la suivante).
+      const m = /(?:^|\n)\s*Capital\s*:?\s*(?:\n\s*)?(-?\d[\d\s.  ]*(?:,\d{1,2})?)\s*(?:€|EUR|euros?)?/i.exec(String(c.texte || ''));
+      if (m) brut = m[1];
+    }
     const v = brut ? eurosDepuisSaisie(String(brut)) : null;
     return Number.isFinite(v) && v > 0 ? v : null;
   }
@@ -25707,6 +25761,14 @@
     const textes = [];
     (c.champs || []).filter(ch => re.test(ch.groupe || '')).forEach(ch => textes.push([ch.libelle, ch.valeur].filter(Boolean).join(' : ')));
     (c.tableaux || []).filter(t => re.test(t.titre || '')).forEach(t => (t.lignes || []).forEach(l => textes.push(l.filter(Boolean).join(' · '))));
+    // Rubrique en texte seul : les lignes qui suivent son titre, jusqu'à la rubrique suivante.
+    const texte = String(c.texte || '');
+    const m = /(?:^|\n)\s*(?:parties?\s+prenantes?|intervenants?)\s*(?:\(\d+\))?\s*\n/i.exec(texte);
+    if (m) {
+      const suite = texte.slice(m.index + m[0].length, m.index + m[0].length + 1200);
+      const fin = /\n\s*(?:informations\s+financi|comparants|immeubles|documents|pi[eè]ces|notes|historique)/i.exec(suite);
+      (fin ? suite.slice(0, fin.index) : suite).split(/\n+/).map(l => l.replace(/\s+/g, ' ').trim()).filter(Boolean).forEach(l => textes.push(l));
+    }
     return textes;
   }
 

@@ -14602,3 +14602,17 @@ parties prenantes. Prendre le nom du notaire. Pour les fiches clients reprendre 
 - Vérifié dans Chromium (serveur réel, pages inventées MARTEL/FOURNIER envoyées à `/api/authentic/releve`) : SAFER
   manquante avec dates, RHF, acte, prix, collaborateur, notaire, téléphone, email, situation matrimoniale et alerte
   conjoint ; clair, sombre, 400 px sans débordement.
+
+### 02/10/2026 11:32 — Authentic : rubriques en texte seul, structure avec vocabulaire du texte, « Retour le »
+
+Retour de l'étude : « Le copier des données qui ressortent de la structure ne le prend pas en compte, c'est bizarre,
+c'est sous les infos vendeur et acquéreur » ; « pour le RHF il faut prendre le champ Retour le 14/09/2026, pour la
+SAFER le champ Retour le 15/09/2026 ». Cause : l'extension ne relève comme champs que les zones de saisie, les `<dl>`
+et les tableaux ; « Informations financières » et « Parties prenantes » sont du texte affiché, présent seulement dans
+`capture.texte`, que la copie de structure ne montrait pas (« non copié »). Sans changer l'extension (0.3.1 en cours de
+signature chez Mozilla) : `prixAuthentic` lit aussi « Capital » puis le montant dans le texte ;
+`textesPartiesPrenantesAuthentic` prend les lignes qui suivent « Parties prenantes » jusqu'à la rubrique suivante ;
+`structureCaptureAuthentic` ajoute le texte visible ligne à ligne réduit à son vocabulaire (`texteVocabulaireAuthentic` :
+dates, montants, emails, téléphones → leur type ; mot à majuscule masqué sauf `VOCABULAIRE_AUTHENTIC`, sigle, ou
+premier mot suivi d'un mot en minuscules — un mot seul sur sa ligne peut être un nom). « Retour le <date> » explicite :
+prise en compte de la SAFER, retour de la RHF (la 2e date de la ligne reste le repli).

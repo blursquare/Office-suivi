@@ -318,3 +318,54 @@ test('création depuis les pages : infos agrégées, prix repris, SAFER attendue
   assert.equal(persiste.inconnu, undefined);
   assert.equal(persiste.saferPieceAjoutee, true);
 });
+
+// Rubriques affichées en texte seul (étude, 02/10 : « Informations financières » et « Parties
+// prenantes », sous les vendeurs et acquéreurs, absentes de la copie de structure).
+const texteDossier = `12 - Vente MARTEL/FOURNIER
+Comparants (3)
+M. MARTEL Alexandre et Mme MARTEL Nadia
+Vendeur
+Mme FOURNIER Camille
+Acquéreur
+Informations financières
+Capital
+245 000,00 €
+Parties prenantes
+Notaire
+Maître Sophie GOSSART
+Collaborateur
+Julie VASSELIN
+Immeubles (1)
+Martel
+Julie
+Tél. 06 12 34 56 78 camille@exemple.fr
+Réquisition hors formalité envoyée le 01/09/2026 Retour le 14/09/2026`;
+
+test('texte seul : prix (Capital), collaborateur et notaire des parties prenantes', () => {
+  const cap = { champs: [], tableaux: [], texte: texteDossier };
+  assert.equal(app.prixAuthentic(cap), 245000);
+  assert.equal(app.prixAuthentic({ texte: 'Capital : 312 500,00 €' }), 312500);
+  assert.equal(app.collaborateurAuthentic(cap), 'Julie VASSELIN');
+  assert.equal(app.notaireAuthentic(cap), 'Sophie GOSSART');
+  // Un collaborateur nommé hors de la rubrique ne compte pas.
+  assert.equal(app.collaborateurAuthentic({ texte: 'Notes\nappeler Julie VASSELIN' }), '');
+});
+
+test('structure copiée : texte visible réduit à son vocabulaire, aucun nom ne sort', () => {
+  const lignes = app.texteVocabulaireAuthentic(texteDossier);
+  const tout = lignes.join('\n');
+  assert.ok(lignes.includes('Informations financières') && lignes.includes('Parties prenantes') && lignes.includes('Collaborateur'), tout);
+  assert.ok(lignes.includes('[montant]'), tout);
+  assert.match(tout, /Réquisition hors formalité envoyée le \[date\] Retour le \[date\]/);
+  for (const nom of ['MARTEL', 'Martel', 'FOURNIER', 'Camille', 'Alexandre', 'Nadia', 'Sophie', 'GOSSART', 'Julie', 'VASSELIN', 'camille', '06 12']) {
+    assert.ok(!tout.includes(nom), nom + ' est sorti :\n' + tout);
+  }
+  assert.ok(!app.structureCaptureAuthentic({ titre: 'Authentic', champs: [], tableaux: [], texte: texteDossier }).match(/MARTEL|Julie|GOSSART/));
+});
+
+test('« Retour le … » : prise en compte de la SAFER, retour de la RHF', () => {
+  const rhf = app.suiviRhfAuthentic([{ titre: 'Réquisition hors formalité', dates: ['2026-09-01'], etat: 'Retour le 14/09/2026', texte: 'Réquisition hors formalité · 01/09/2026 · Retour le 14/09/2026' }]);
+  assert.equal(rhf.retourLe, '2026-09-14');
+  const sa = app.suiviSaferAuthentic([{ titre: 'Notification SAFER', dates: ['2026-09-10'], etat: 'Retour le 15/09/2026', texte: 'Notification SAFER · 10/09/2026 · Retour le 15/09/2026' }]);
+  assert.equal(sa.priseEnCompteLe, '2026-09-15');
+});
