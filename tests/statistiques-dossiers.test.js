@@ -42,8 +42,8 @@ test('statistiquesDelaisDossiers : moyenne, médiane et nombre de dossiers mesur
   assert.equal(`${s.signature.moyenne}/${s.signature.n}`, '90/1');
   const vide = app.statistiquesDelaisDossiers([], AUJ);
   assert.equal(`${vide.pret.moyenne}/${vide.pret.n}`, 'null/0');
-  // Au-delà de 12 mois, un événement ne compte plus.
-  assert.equal(app.statistiquesDelaisDossiers(dossiers, '2027-10-01').pret.n, 0);
+  // Tous les dossiers, sans fenêtre de dates : un événement ancien compte toujours.
+  assert.equal(app.statistiquesDelaisDossiers(dossiers, '2028-10-01').pret.n, 2);
 });
 
 test('comparaisonDossiersOuverts : ce mois, le précédent, le même mois l’an dernier (« — » avant CLAIRE)', () => {

@@ -14462,3 +14462,13 @@ Diagnostic dans Réglages › Téléphonie 3CX (`GET /api/appels/postes`, `etatP
 CLAIRE ouverte / fermée sur ce poste » et « Dernière sonnerie reçue de 3CX : … » ou « Aucune sonnerie reçue de 3CX » — après
 un vrai appel, ce dernier état veut dire que 3CX n'a rien ouvert (réglage ou pop-up), pas une panne de CLAIRE. Aucune donnée
 d'appel dans cette route. Aide (pastille « i ») réécrite avec ces conditions.
+
+### 02/10/2026 — Statistiques : délais moyens sur tous les dossiers
+
+Demande de l'étude : « les délais moyens d'obtention de prêt, DIA et signature : la moyenne sur tous les dossiers, pas le
+mois en cours ». `statistiquesDelaisDossiers` ne garde plus de fenêtre de 12 mois (`JOURS_STATISTIQUES` retiré) et
+`renderStatistiquesDashboard` lui passe tous les dossiers (archivés compris), plus le périmètre du tableau de bord ; le
+titre devient « Délai moyen, tous dossiers », le survol dit « Moyenne sur N dossiers ». Les tuiles « Dossiers ouverts »
+(mois / précédent / N-1) restent sur le périmètre. L'ouverture reste l'entrée « Dossier créé » : la date de signature de
+l'avant-contrat n'est pas enregistrée sur la fiche (seul son état d'extraction l'est). Vérifié dans Chromium avec le poste
+de Julie et un ancien dossier archivé.

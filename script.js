@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-02 09:32';
+  const VERSION_APP = '2026-10-02 09:37';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-02 09:37', resume: "Widget « Statistiques » : les délais moyens (obtention du prêt, renonciation au droit de préemption, signature) sont maintenant calculés sur tous les dossiers de l'étude, archivés compris, sans limite de date et quel que soit le périmètre du tableau de bord (et non plus sur les 12 derniers mois). Le nombre de dossiers mesurés reste affiché à côté de chaque délai." },
     { version: '2026-10-02 09:32', resume: "Téléphonie 3CX : Réglages › Téléphonie 3CX montre sous chaque collaborateur si sa fenêtre CLAIRE est ouverte et quand 3CX a ouvert son adresse pour la dernière fois (« Aucune sonnerie reçue de 3CX » après un vrai appel = 3CX n'a rien envoyé : réglage du client web ou pop-up bloquées). CLAIRE accepte aussi ce qu'envoie la version 20 de 3CX : nom « undefined », numéro « +33… » non encodé, prénom avec majuscule ou accent dans l'adresse. Aide mise à jour avec le nom du réglage dans la V20 (« Lancer automatiquement une URL de contact personnalisée »)." },
     { version: '2026-10-02 09:26', resume: "Agenda : la fenêtre d'une signature probable (carte en pointillé) rappelle la date butoir du dossier, avec le nombre de jours restants — en rose, en rouge quand il reste moins de 7 jours de marge après le créneau proposé ou quand le créneau la dépasse (« prévoir la prorogation ») ; les autres créneaux proposés au-delà de la butoir sont en pointillé." },
     { version: '2026-10-02 08:14', resume: "Fiche d'un dossier agrandie : la colonne de droite montre les dernières pièces reçues (6 au plus, les nouvelles d'abord puis la plus récente, avec leur date et « à la main » si elles ont été validées hors NAS), au-dessus de l'activité récente. Un clic ouvre le fichier trouvé sur le NAS ; « 6/9 » mène à l'onglet Pièces." },
@@ -14176,7 +14177,6 @@
   // précédent et au même mois de l'année précédente). Tout vient de ce que CLAIRE a déjà noté — l'entrée
   // « Dossier créé » de l'historique pour l'ouverture (la date du compromis n'est pas enregistrée) —,
   // rien n'est deviné : un dossier sans l'une des deux dates n'entre pas dans la moyenne.
-  var JOURS_STATISTIQUES = 365;   // délais : les événements des 12 derniers mois
   var RE_HISTORIQUE_PRET_OBTENU = /offre de pr[eê]t (?:retrouv|re[cç]u|confirm)|obtention du pr[eê]t.*marqu[ée]e r[ée]alis[ée]e/i;
   var RE_HISTORIQUE_PREEMPTION = /pr[ée]emption/i;
 
@@ -14212,16 +14212,16 @@
   }
 
   // Pure : { pret, preemption, signature } → { moyenne, mediane, n, min, max } en jours depuis
-  // l'ouverture, sur les événements des 12 derniers mois ; moyenne null sans aucun dossier mesurable.
+  // l'ouverture, sur TOUS les dossiers mesurables (étude, 02/10 : « la moyenne sur tous les dossiers,
+  // pas le mois en cours » — archivés compris, sans fenêtre de dates) ; moyenne null sans aucun dossier.
   function statistiquesDelaisDossiers(liste, aujourdhuiIso) {
     const auj = aujourdhuiIso || isoAujourdhuiLocal();
-    const depuis = addDays(auj, -JOURS_STATISTIQUES);
     const mesurer = (dateDe) => {
       const ecarts = [];
       (liste || []).forEach(d => {
         const ouverture = dateOuvertureDossier(d);
         const fin = dateDe(d);
-        if (!ouverture || !fin || fin < depuis || fin > auj) return;
+        if (!ouverture || !fin || fin > auj) return;
         const j = ecartJours(ouverture, fin);
         if (j !== null && j >= 0) ecarts.push(j);
       });
@@ -14264,7 +14264,8 @@
     if (!bloc) return;
     const presentation = presentationWidget('statistiques');
     const auj = isoAujourdhuiLocal();
-    const delais = statistiquesDelaisDossiers(perimetreTous, auj);
+    // Délais : tous les dossiers de l'étude, quel que soit le périmètre du tableau de bord.
+    const delais = statistiquesDelaisDossiers(dossiers, auj);
     const cmp = comparaisonDossiersOuverts(perimetreTous, auj);
     const annee = auj.slice(0, 4);
     const court = presentation !== 'grand';   // « sept. », « oct. 25 » quand la place manque
@@ -14276,7 +14277,7 @@
     const max = Math.max(1, ...lignesDelais.map(l => l.s.moyenne || 0));
     const ligneDelai = (l) => {
       const s = l.s;
-      const aide = s.n ? `${s.n} dossier${s.n > 1 ? 's' : ''} sur 12 mois · médiane ${s.mediane} j · de ${s.min} à ${s.max} j` : 'Aucun dossier mesurable sur 12 mois';
+      const aide = s.n ? `Moyenne sur ${s.n} dossier${s.n > 1 ? 's' : ''} · médiane ${s.mediane} j · de ${s.min} à ${s.max} j` : 'Aucun dossier mesurable';
       return `<li class="st-delai" title="${escapeAttr(aide)}">
           <span class="st-delai-lib">${escapeHtml(l.libelle)}</span>
           <span class="st-delai-val">${s.n ? `<b>${s.moyenne}</b> j` : '—'}</span>
@@ -14300,7 +14301,7 @@
       </div>
       <div class="st-ecarts w-fixe">${ecart(cmp.mois, cmp.precedent)} vs mois précédent · ${ecart(cmp.mois, cmp.anPasse)} vs l’an dernier</div>`;
     const sectionDelais = `<div class="w-section st-section">
-        <h3 class="jour-carte-sous-titre">Délai moyen depuis l’ouverture${infoBulle('En jours, depuis l’ouverture du dossier dans CLAIRE (la date du compromis n’est pas enregistrée), sur les événements des 12 derniers mois. Prêt : offre reçue ou obtention marquée réalisée. Préemption : renonciation trouvée sur le NAS ou validée à la main. Signature : date du rendez-vous passée.')}</h3>
+        <h3 class="jour-carte-sous-titre">Délai moyen, tous dossiers${infoBulle('En jours, depuis l’ouverture du dossier dans CLAIRE (la date du compromis n’est pas enregistrée), moyenne sur tous les dossiers de l’étude (archivés compris). Prêt : offre reçue ou obtention marquée réalisée. Préemption : renonciation trouvée sur le NAS ou validée à la main. Signature : date du rendez-vous passée.')}</h3>
         <ul class="st-delais">${lignesDelais.map(ligneDelai).join('')}</ul>
       </div>`;
     const sectionNouveaux = `<div class="w-section st-section">

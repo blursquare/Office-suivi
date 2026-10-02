@@ -501,8 +501,8 @@ Plainte principale de l'étude : **le bruit**, pas les oublis — ne pas élargi
   **Widget « Statistiques »** (étude, 02/10, `renderStatistiquesDashboard`, grand × 1 rangée en fin de grille) : délais
   moyens depuis l'ouverture (`dateOuvertureDossier` = entrée « Dossier créé ») jusqu'au prêt (`dateObtentionPret`,
   historique), à la renonciation de préemption (`dateRenonciationPreemption` : `piecesTrouveesLe` puis historique) et
-  à la signature passée — `statistiquesDelaisDossiers`, 12 mois, moyenne/médiane/n ; dossiers ouverts ce mois / mois
-  précédent / même mois N-1 (`comparaisonDossiersOuverts`, « — » avant le premier dossier noté). Périmètre du tableau de
+  à la signature passée — `statistiquesDelaisDossiers`, **tous les dossiers de l'étude, archivés compris, sans fenêtre de dates ni périmètre** (étude 02/10), moyenne/médiane/n ; dossiers ouverts ce mois / mois
+  précédent / même mois N-1 (`comparaisonDossiersOuverts`, « — » avant le premier dossier noté), sur le périmètre du tableau de
   bord (mes dossiers / tous).
 - **Texte d'aide** : ne décrit pas ce que le bouton dit déjà ; il dit ce qui manque. Une toute
   nouvelle confirmation commence par son verbe d'action (`boutonConfirmation`). **Une explication
