@@ -61,36 +61,26 @@ test('momentEvenementAgenda : passé, en cours, à venir', () => {
   assert.equal(app.momentEvenementAgenda({ journeeEntiere: true }, '23:00'), 'journee');
 });
 
-test('syntheseEmailsMatin : chiffres, sujets avec leurs dossiers, lignes par dossier, expéditeurs hors dossiers', () => {
-  const groupes = [
-    { dossierId: 'd1', dossierNom: 'DURAND / MARTIN', emails: [
-      { de: 'Banque Exemple', sujets: ['Offre de prêt'], pj: true },
-      { de: 'Me LEFEVRE', sujets: ['Rendez-vous'] }
-    ] },
-    { dossierId: 'd2', dossierNom: 'PETIT', emails: [
-      { de: 'Banque Exemple', sujets: ['Offre de prêt', 'Urgent'] },
-      { de: 'Agence du Centre', sujets: [] },
-      { de: 'Agence du Centre', sujets: ['Pièces'], pj: true }
-    ] }
-  ];
-  const autres = [
-    { de: 'Fournisseur', sujets: [] }, { de: 'Fournisseur', sujets: ['Urgent'] }, { de: 'Syndic Exemple', sujets: [] }
-  ];
-  const s = app.syntheseEmailsMatin(groupes, autres);
-  assert.equal(s.nb, 8);
-  assert.equal(s.nbDossiers, 2);
-  assert.equal(s.nbDansDossiers, 5);
-  assert.equal(s.nbAutres, 3);
-  assert.equal(s.nbPj, 2);
-  assert.equal(s.themes.map(t => `${t.libelle}:${t.dossiers.map(d => d.dossierId).join('+')}:${t.horsDossier}`).join('|'),
-    'Urgent:d2:1|Offre de prêt:d1+d2:0|Rendez-vous:d1:0|Pièces:d2:0');
-  assert.equal(s.parDossier.map(g => `${g.dossierId}:${g.nb}:${g.expediteurs.join('+')}`).join('|'),
-    'd2:3:Agence du Centre+Banque Exemple|d1:2:Banque Exemple+Me LEFEVRE');
-  assert.equal(s.expediteursAutres.map(x => `${x.de}:${x.nb}`).join('|'), 'Fournisseur:2|Syndic Exemple:1');
+// Fenêtre du matin, colonne « Depuis hier 18 h » (étude 02/10).
+test('debutDepuisHier18h : 18 h le jour ouvré précédent, le vendredi pour un lundi', () => {
+  const d = (iso) => new Date(app.debutDepuisHier18h(new Date(iso)));
+  const mardi = d('2026-10-06T09:00:00');
+  assert.equal(`${mardi.getDate()}/${mardi.getMonth() + 1} ${mardi.getHours()}h`, '5/10 18h');
+  const lundi = d('2026-10-05T09:00:00');
+  assert.equal(`${lundi.getDate()}/${lundi.getMonth() + 1} ${lundi.getHours()}h`, '2/10 18h');
+  assert.equal(app.libelleDepuisHier18h(app.debutDepuisHier18h(new Date('2026-10-06T09:00:00')), new Date('2026-10-06T09:00:00')), 'Depuis hier 18 h');
+  assert.equal(app.libelleDepuisHier18h(app.debutDepuisHier18h(new Date('2026-10-05T09:00:00')), new Date('2026-10-05T09:00:00')), 'Depuis vendredi 18 h');
 });
 
-test('syntheseEmailsMatin : aucun email', () => {
-  const s = app.syntheseEmailsMatin([], []);
-  assert.equal(s.nb, 0);
-  assert.equal(s.themes.length, 0);
+test('documentsDepuis : pièces reçues et cochées depuis hier 18 h, les plus récentes d’abord', () => {
+  const d1 = { id: 'd1', nom: 'MARTEL / FAURE', typeVente: 'maison', pieces: { erp: 'recue', titrePropriete: 'recue', diagnosticsTechniques: 'manquante' },
+    piecesTrouveesLe: { erp: '2026-10-06T07:10:00Z', titrePropriete: '2026-10-05T08:00:00Z', diagnosticsTechniques: '2026-10-06T07:30:00Z' } };
+  const d2 = { id: 'd2', nom: 'PETIT', typeVente: 'maison', pieces: {}, piecesTrouveesLe: { 'offre-pret': '2026-10-06T06:00:00Z' } };
+  const docs = app.documentsDepuis([d1, d2], '2026-10-05T16:00:00Z');
+  assert.equal(docs.map(x => `${x.dossier.id}:${x.libelle}`).join('|'), 'd1:ERP (état des risques et pollution)|d2:Offre de prêt');
+});
+
+test('libelleEmailsExclus : total et détail par motif', () => {
+  assert.equal(app.libelleEmailsExclus({ total: 9, parMotif: { SPF: 5, 'Publicité': 2, CRIDON: 2 } }), '9 écartés : SPF 5, publicités 2, CRIDON 2');
+  assert.equal(app.libelleEmailsExclus({ total: 0, parMotif: {} }), '');
 });

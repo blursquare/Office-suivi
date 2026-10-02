@@ -15525,3 +15525,27 @@ d'info. Respecte l'UI/UX de CLAIRE. »
   rangement — `rafraichirPiecesJointesLecture`), état « Réception confirmée — préparée/envoyée le … », bouton « Renvoyer
   la confirmation ». Échap écouté en capture : ferme la fenêtre sans fermer la fiche derrière (bug vu en test).
 Vérifié : tests ; Chromium avec 25 emails (8 visibles, recherche « banque » → 6, filtre Reçus), clair, sombre, 390 px.
+
+### 02/10/2026 23:50 — Fenêtre du matin : « Depuis hier 18 h »
+Demande : « Pour le pop-up Aujourd'hui, revoir la partie de droite. Mettre ce qui s'est passé depuis hier 18 h : nouveaux
+documents reçus et cochés, et les lister ; le nombre d'emails reçus ; un résumé llama sous forme de liste des demandes par
+email ; ne pas prendre en compte les courriels des SPFE ou SPF, publicité, spam, CRIDON, INFN, INAFON… »
+- Poste : onglets « Depuis hier 18 h » (par défaut ; `debutDepuisHier18h` = 18 h le jour ouvré précédent,
+  `libelleDepuisHier18h`) et « Agenda du jour » ; les anciens onglets « Emails » et « Nouveautés » disparaissent
+  (`renderEmailsMatin`, `renderSyntheseIaEmails`, `renderSyntheseEmailsMatin`, `syntheseEmailsMatin` retirés).
+  `renderDepuisHier18h` : documents reçus et cochés (`documentsDepuis` sur `d.piecesTrouveesLe`, pièce « reçue » ou offre de
+  prêt, libellé + dossier + heure), emails (Bastien seulement : total, `libelleEmailsExclus`, heure de lecture, Actualiser ;
+  « Demandes » de l'IA avec expéditeur, dossier, heure, point rouge si urgent ; liste complète repliée), autres nouveautés
+  (`evenementsDepuisVisite` depuis 18 h, hors pièces) repliées. Réglages › Agenda et Outlook : « Écartés du résumé du
+  matin » (`enregistrerExclusionsResume`, `GET/PUT /api/emails-matin/exclusions`).
+- Serveur (`emailsMatin.js`) : `MOTIFS_EXCLUSION_RESUME`/`motifExclusionResume`/`separerEmailsExclus` (SPF/SPFE,
+  publicité foncière, CRIDON, INFN, INAFON, newsletter/no-reply/désinscription…, termes des Réglages) ; `total` = tous
+  les emails, `exclus` = comptés par motif, les retenus seuls classés et lus par l'IA ; prompt « LISTE DES DEMANDES »
+  (`{demandes:[{email, demande, priorite}]}`), `normaliserSyntheseEmails` rattache chaque demande à son email
+  (expéditeur, heure, dossier) ; `resumeDu` : dès 7 h 30, toutes les 30 min jusqu'à midi, jamais après une erreur ni
+  pendant une rédaction ; `signature` (nombre + dernier reçu) : liste gardée sans rappeler l'IA ; `demarrerResumeEmails`
+  ne lit pas pendant que la lecture de l'agenda est suspendue. `parametresRepo` garde `exclus`, `signature`, `de`/`heure`
+  des points (40 au plus).
+Vérifié : tests (serveur : exclusions — jamais un client, un confrère ou une banque —, relectures, liste gardée ; poste :
+fenêtre 18 h, documents, libellé des exclus) ; Chromium : fenêtre du matin clair, sombre, 390 px. Non vérifié : Ollama réel
+(qualité de la liste des demandes), formes réelles des expéditeurs SPF/CRIDON/INFN/INAFON de l'étude.

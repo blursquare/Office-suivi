@@ -131,15 +131,17 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
    disjoncteur sur refus d'identifiants (côté client pour les écritures ; côté serveur, la lecture
    automatique est suspendue tant que les identifiants refusés restent enregistrés). Suppression = `MoveToDeletedItems`, jamais `HardDelete` ; sur `ErrorCannotDeleteObject` (vu le 01/10 : compte délégué sans droit sur les éléments supprimés de Sophie), une seconde requête en `SoftDelete` (récupérable par « Récupérer les éléments supprimés »).
    Microsoft Graph / Power Automate premium ne sont pas disponibles. **Lecture de la boîte de
-   réception** du même compte (celle de Bastien, qui reçoit tout en double) à 8 h 50 pour le résumé
-   des emails du matin (`emailsMatin.js`, FindItem seul, sans IA) : seuls expéditeur, objet et
-   heure sont gardés, jamais le corps ; affiché **pour Bastien seulement** (`DESTINATAIRES_EMAILS_MATIN`),
-   en **résumé** (`syntheseEmailsMatin` : chiffres, sujets repérés avec leurs dossiers, une ligne par
-   dossier, expéditeurs hors dossiers), la liste complète dépliable. **Résumé en texte par l'IA locale**
-   (étude, 30/09 : « fais lire les emails à llama ») : Ollama lit expéditeur, objet, dossier reconnu et
-   l'aperçu Exchange (256 car.) de 60 emails au plus, rédige `ia.texte` + `ia.points` (rattachés au
-   dossier de l'email cité, jamais deviné) ; l'aperçu n'est jamais gardé, seul le résumé l'est ; rédigé
-   après l'écriture du résumé sans IA (`ia.enCours`, le poste relit toutes les 20 s).
+   réception** du même compte (celle de Bastien, qui reçoit tout en double) **depuis la veille 18 h** pour le résumé
+   des emails du matin (`emailsMatin.js`, FindItem seul ; étude 02/10 : dès 7 h 30, relu toutes les 30 min jusqu'à midi,
+   jamais pendant que la lecture de l'agenda est suspendue, un seul essai après une erreur) : seuls expéditeur, objet et
+   heure sont gardés, jamais le corps ; affiché **pour Bastien seulement** (`DESTINATAIRES_EMAILS_MATIN`).
+   **Écartés du résumé** (étude 02/10 : « SPFE ou SPF, publicité, spam, CRIDON, INFN, INAFON… ») : `MOTIFS_EXCLUSION_RESUME`
+   (expéditeur + objet, lien de désinscription dans l'aperçu) + termes de Réglages › Agenda et Outlook (clé
+   `resume-emails-exclusions`) — comptés (`exclus.parMotif`), jamais listés ni lus par l'IA. **Liste des demandes par
+   l'IA locale** (étude 02/10, remplace le résumé en texte du 30/09) : Ollama lit expéditeur, objet, dossier reconnu et
+   l'aperçu Exchange (256 car.) de 60 emails au plus, rend `{ demandes: [{ email, demande, priorite }] }` → `ia.points`
+   (texte, priorité, expéditeur, heure, dossier de l'email cité, jamais deviné ; une demande sans email connu est écartée) ;
+   l'aperçu n'est jamais gardé ; liste gardée telle quelle à la relecture si aucun email nouveau (`signature`).
    **Emails des dossiers** (étude 02/10 : « tu peux lire le contenu », « lire les emails envoyés pour confirmer » ;
    choix : repérer, ranger sur le NAS, résumé IA ; « boîte de chacun ») — `server/src/emailsDossiers.js`, **toutes les minutes** (étude 02/10, un seul tour à la fois, résumés IA en file),
    même disjoncteur, lecture seule (FindItem/GetItem/GetAttachment) : boîte de réception du compte relié → emails
@@ -404,7 +406,9 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
   (`couleurCategorieOutlook`, jetons `--cat-*`), sinon type réglé (office/visio/confrère), sinon
   absence, signature, autre — page Agenda et fenêtre du matin. **Absences et dates butoir en rose** (étude, 01/10, avant la
   couleur Outlook ; absences rayées ; `estDateButoirAgenda`). Fenêtre du matin : « À faire » à gauche,
-  onglets Agenda du jour · Emails · Nouveautés à droite (`ongletFenetreJour`), 660 px de haut au plus. Emails de confirmation,
+  à droite (étude 02/10 : « ce qui s'est passé depuis hier 18 h ») onglets **« Depuis hier 18 h »** (`renderDepuisHier18h` :
+  documents reçus et cochés listés — `documentsDepuis`, `d.piecesTrouveesLe` ; nombre d'emails reçus et écartés ; liste des
+  demandes de l'IA ; autres nouveautés repliées) · Agenda du jour (`ongletFenetreJour`), 660 px de haut au plus. Emails de confirmation,
   rappel et anniversaire = **premiers jets de CLAIRE**, à remplacer par les textes de l'étude.
 - **Sondage de créneaux de signature** (01/10, « comme un Doodle », `server/src/sondagesCreneaux.js`,
   `routes/sondages.js`, client `ouvrirSondageCreneaux`/`renderSondageDossier`) : rien d'hébergé — un

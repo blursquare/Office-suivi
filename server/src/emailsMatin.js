@@ -17,14 +17,21 @@
 // plus un résumé en texte (voir « Résumé par l'IA locale » plus bas) : il lit l'aperçu, qui n'est
 // toujours pas gardé ; seul son texte l'est.
 //
-// EWS : lecture seule (FindItem sur la boîte de réception du compte), un seul essai par jour à
-// 8 h 50 — jamais de nouvelle tentative automatique après un échec (verrouillage du compte en cas
-// d'identifiants refusés, même règle que l'agenda). « Actualiser » dans la fenêtre refait UN essai.
+// EWS : lecture seule (FindItem sur la boîte de réception du compte). Depuis le 02/10 (étude : la
+// fenêtre du matin montre « ce qui s'est passé depuis hier 18 h »), premier tour à 7 h 30, puis relu
+// toutes les 30 minutes jusqu'à midi (l'IA ne réécrit la liste que s'il est arrivé un email) — jamais
+// pendant que la lecture de l'agenda est suspendue (identifiants refusés : verrouillage du compte),
+// jamais de nouvel essai après une erreur le même jour. « Actualiser » dans la fenêtre refait UN essai.
+//
+// Emails écartés du résumé (étude 02/10 : « ne pas prendre en compte les courriels des SPFE ou SPF,
+// publicité, spam, CRIDON, INFN, INAFON… ») : comptés à part, jamais lus par l'IA ni listés.
 
 const { creerClientOllama } = require('./llm');
 
 const CLE_RESUME_EMAILS = 'resume-emails-matin';
-const HEURE_RESUME = '08:50';
+const HEURE_RESUME = '07:30';
+const HEURE_FIN_RELECTURES = '12:00';
+const MINUTES_ENTRE_RELECTURES = 30;
 const MAX_EMAILS = 200;
 
 const ENVELOPPE_DEBUT = '<?xml version="1.0" encoding="utf-8"?>'
@@ -194,6 +201,50 @@ function classerEmails(emails, dossiers, adressesIgnorees) {
   return { dossiers: [...groupes.values()], autres };
 }
 
+// ---- Emails écartés du résumé (étude 02/10) ----
+// Testés sur l'expéditeur (nom et adresse) et l'objet, sans accent ni majuscule ; l'aperçu seulement pour
+// les marques d'une lettre d'information (lien de désinscription). `termes` : ajouts de l'étude
+// (Réglages), un mot ou une adresse par entrée, cherchés tels quels.
+var MOTIFS_EXCLUSION_RESUME = [
+  { libelle: 'SPF', re: /(?:^|[^a-z0-9])spfe?(?:[^a-z]|$)|publicite fonciere|service de la publicite/ },
+  { libelle: 'CRIDON', re: /cridon/ },
+  { libelle: 'INFN', re: /(?:^|[^a-z0-9])infn(?:[^a-z]|$)/ },
+  { libelle: 'INAFON', re: /inafon/ },
+  { libelle: 'Publicité', re: /newsletter|lettre d.information|no-?reply|ne-?pas-?repondre|noreply|mailing|marketing|offre speciale|webinaire?|publicite/ }
+];
+const RE_LETTRE_INFORMATION = /desinscri|desabonn|unsubscribe|ne plus recevoir/;
+
+function sansAccent(t) {
+  return String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+}
+
+// Pure : le motif qui écarte un email du résumé, ou null.
+function motifExclusionResume(e, termes) {
+  if (!e) return null;
+  const tete = sansAccent(`${e.deNom || ''} ${e.deAdresse || ''} ${e.sujet || ''}`);
+  for (const m of MOTIFS_EXCLUSION_RESUME) if (m.re.test(tete)) return m.libelle;
+  for (const t of termes || []) {
+    const x = sansAccent(t).trim();
+    if (x && tete.includes(x)) return 'Écarté (Réglages)';
+  }
+  if (RE_LETTRE_INFORMATION.test(sansAccent(e.apercu))) return 'Publicité';
+  return null;
+}
+
+// Pure : { retenus, exclus: { total, parMotif } }.
+function separerEmailsExclus(emails, termes) {
+  const retenus = [];
+  const parMotif = {};
+  let total = 0;
+  for (const e of emails || []) {
+    const m = motifExclusionResume(e, termes);
+    if (!m) { retenus.push(e); continue; }
+    total++;
+    parMotif[m] = (parMotif[m] || 0) + 1;
+  }
+  return { retenus, exclus: { total, parMotif } };
+}
+
 // ---- Résumé par l'IA locale (demandé par l'étude le 30/09 : « fais lire les emails à llama ») ----
 // Le modèle local (Ollama, sur le serveur de l'étude : rien ne quitte le bureau) lit l'expéditeur,
 // l'objet, le dossier reconnu et le DÉBUT de chaque email (l'aperçu d'Exchange, 256 caractères au
@@ -213,6 +264,7 @@ function entreesSyntheseEmails(emails, dossiers, adressesIgnorees) {
       sujet: String(e.sujet || '(sans objet)').slice(0, 150),
       apercu: String(e.apercu || '').replace(/\s+/g, ' ').trim().slice(0, 240),
       pj: !!e.pj,
+      heure: e.recuLe ? momentParis(e.recuLe).heure.replace(':', ' h ') : '',
       dossierId: d ? d.id : null,
       dossierNom: d ? d.nom : null
     });
@@ -221,6 +273,8 @@ function entreesSyntheseEmails(emails, dossiers, adressesIgnorees) {
   return entrees.slice(0, MAX_EMAILS_IA).map((x, i) => ({ ...x, numero: i + 1 }));
 }
 
+// Étude 02/10 : « un résumé sous forme de liste des demandes par email ». Une ligne par email qui
+// demande ou apprend quelque chose à l'office ; rien pour un email sans enjeu.
 function promptSyntheseEmails(entrees) {
   const lignes = entrees.map(x => `[${x.numero}] De : ${x.de} | Objet : ${x.sujet} | Dossier : ${x.dossierNom ? 'VTE - ' + x.dossierNom : 'aucun'}${x.pj ? ' | pièce jointe' : ''}\n    Début : ${x.apercu || '(vide)'}`);
   return [
@@ -229,35 +283,38 @@ function promptSyntheseEmails(entrees) {
     '',
     lignes.join('\n'),
     '',
-    'Rédige en français le résumé du matin pour le notaire, UNIQUEMENT à partir de ces informations — n’invente rien, ne devine aucun montant ni aucune date absents du texte.',
-    'Ignore publicités, lettres d’information et notifications automatiques sans enjeu.',
+    'Dresse en français la LISTE DES DEMANDES : pour chaque email qui demande quelque chose à l’office (ou lui transmet un document ou une information à traiter), une phrase courte qui dit ce qui est demandé ou transmis — commence par le verbe (« Demande… », « Transmet… », « Signale… », « Propose… »).',
+    'UNIQUEMENT à partir de ces informations — n’invente rien, ne devine aucun montant ni aucune date absents du texte. Ignore les emails sans demande ni information utile.',
     'Réponds avec un objet JSON exactement de cette forme :',
-    '{"resume": "2 à 4 phrases qui disent l’essentiel de la matinée", "points": [{"texte": "une action ou une information importante, en une phrase", "email": 3, "priorite": "haute"}]}',
-    '"points" : 6 au plus, les plus utiles d’abord ; "email" = le numéro entre crochets ; "priorite" = "haute" seulement pour ce qui est urgent ou bloque une signature (offre de prêt, fonds, rendez-vous, pièce manquante), sinon "normale".'
+    '{"demandes": [{"email": 3, "demande": "Demande la date du rendez-vous de signature.", "priorite": "normale"}]}',
+    '"email" = le numéro entre crochets (un email peut porter deux demandes) ; "priorite" = "haute" seulement pour ce qui est urgent ou bloque une signature (offre de prêt, fonds, rendez-vous, pièce manquante), sinon "normale". Dans l’ordre des emails.'
   ].join('\n');
 }
 
 function validerSyntheseEmails(o) {
   if (!o || typeof o !== 'object') return 'la réponse doit être un objet JSON';
-  if (typeof o.resume !== 'string' || !o.resume.trim()) return 'le champ "resume" (texte) est obligatoire';
-  if (o.points !== undefined && !Array.isArray(o.points)) return 'le champ "points" doit être une liste';
+  if (!Array.isArray(o.demandes)) return 'le champ "demandes" (liste) est obligatoire';
   return null;
 }
 
-// Pure : la réponse du modèle ramenée à ce qui est gardé ; un point rattaché à un email hérite de
-// son dossier (jamais d'un dossier « deviné » par le modèle).
+const MAX_DEMANDES = 40;
+
+// Pure : la réponse du modèle ramenée à ce qui est gardé ; chaque demande est rattachée à SON email
+// (expéditeur, heure, dossier reconnu par l'outil — jamais un dossier « deviné » par le modèle) ; une
+// demande qui ne cite aucun email connu est écartée.
 function normaliserSyntheseEmails(o, entrees, modele, dureeMs) {
   const parNumero = new Map(entrees.map(x => [x.numero, x]));
-  const points = (Array.isArray(o.points) ? o.points : []).slice(0, 6).map(pt => {
-    const x = parNumero.get(Number(pt && pt.email)) || null;
+  const points = (Array.isArray(o.demandes) ? o.demandes : []).map(pt => {
+    const x = parNumero.get(Number(pt && pt.email));
+    if (!x) return null;
     return {
-      texte: String((pt && pt.texte) || '').trim().slice(0, 300),
+      texte: String((pt && (pt.demande || pt.texte)) || '').trim().slice(0, 300),
       priorite: pt && pt.priorite === 'haute' ? 'haute' : 'normale',
-      dossierId: x ? x.dossierId : null,
-      dossierNom: x ? x.dossierNom : null
+      email: x.numero, de: x.de, heure: x.heure || '',
+      dossierId: x.dossierId, dossierNom: x.dossierNom
     };
-  }).filter(pt => pt.texte);
-  return { texte: String(o.resume).trim().slice(0, 1500), points, modele: modele || '', dureeMs };
+  }).filter(pt => pt && pt.texte).slice(0, MAX_DEMANDES);
+  return { points, modele: modele || '', dureeMs };
 }
 
 // Complète le résumé du jour (même `genereLe`) par celui de l'IA locale. Ne jette jamais : un
@@ -282,6 +339,12 @@ async function completerSyntheseIa(parametresRepo, genereLe, entrees, ollama) {
 // ---- Tâche ----
 function lireResume(parametresRepo) {
   return parametresRepo.lireResumeEmails ? parametresRepo.lireResumeEmails() : null;
+}
+
+const CLE_EXCLUSIONS_RESUME = 'resume-emails-exclusions';
+function lireTermesExclus(parametresRepo) {
+  const v = parametresRepo.lireJsonBrut ? parametresRepo.lireJsonBrut(CLE_EXCLUSIONS_RESUME) : null;
+  return Array.isArray(v) ? v.filter((x) => typeof x === 'string' && x.trim()).map((x) => x.trim().slice(0, 80)).slice(0, 100) : [];
 }
 
 function adressesDeClaire(parametresRepo) {
@@ -309,11 +372,19 @@ async function genererResumeEmails(depot, parametresRepo, maintenant, injections
       const code = (String(r.corps || '').match(/<m:ResponseCode>([^<]+)<\/m:ResponseCode>/) || [])[1] || String(r.statut || '');
       resume = { ...base, erreur: `Lecture de la boîte de réception impossible${code ? ' (' + code + ')' : ''}.` };
     } else {
-      const emails = parseFindEmails(r.corps);
+      const tous = parseFindEmails(r.corps);
+      const { retenus: emails, exclus } = separerEmailsExclus(tous, lireTermesExclus(parametresRepo));
       const dossiers = depot.tousActifs();
-      resume = { ...base, total: emails.length, ...classerEmails(emails, dossiers, adressesDeClaire(parametresRepo)) };
+      const signature = `${emails.length}|${emails.reduce((m, e) => (e.recuLe > m ? e.recuLe : m), '')}`;
+      resume = { ...base, total: tous.length, exclus, signature, ...classerEmails(emails, dossiers, adressesDeClaire(parametresRepo)) };
+      // Relecture du matin sans nouvel email : la liste des demandes déjà rédigée est gardée telle quelle.
+      const precedent = lireResume(parametresRepo);
+      if (precedent && precedent.date === date && precedent.signature === signature && precedent.ia && !precedent.ia.enCours && !precedent.ia.erreur) {
+        resume.ia = precedent.ia;
+        return parametresRepo.ecrireResumeEmails ? parametresRepo.ecrireResumeEmails(resume) : resume;
+      }
       // Résumé par l'IA locale, rédigé APRÈS l'écriture du résumé sans IA (un modèle 8B sur CPU
-      // prend une à deux minutes) : la fenêtre du matin montre d'abord les chiffres, puis le texte.
+      // prend une à deux minutes) : la fenêtre du matin montre d'abord les chiffres, puis la liste.
       const ollama = injections.ollama || (injections.config ? creerClientOllama(injections.config) : null);
       const entrees = ollama ? entreesSyntheseEmails(emails, dossiers, adressesDeClaire(parametresRepo)) : [];
       if (ollama && entrees.length && parametresRepo.ecrireResumeEmails) {
@@ -329,19 +400,26 @@ async function genererResumeEmails(depot, parametresRepo, maintenant, injections
   return parametresRepo.ecrireResumeEmails ? parametresRepo.ecrireResumeEmails(resume) : resume;
 }
 
-// Pure : faut-il générer maintenant ? Jours ouvrés, à partir de 8 h 50, une fois par jour.
+// Pure : faut-il lire maintenant ? Jours ouvrés, à partir de 7 h 30 ; puis toutes les 30 minutes
+// jusqu'à midi, sauf après une erreur (un seul essai par jour après un échec).
 function resumeDu(maintenant, dernier) {
   const { date, heure } = momentParis(maintenant);
   const jour = new Date(date + 'T12:00:00Z').getUTCDay();
   if (jour === 0 || jour === 6) return false;
   if (heure < HEURE_RESUME) return false;
-  return !(dernier && dernier.date === date);
+  if (!(dernier && dernier.date === date)) return true;
+  if (dernier.erreur || heure >= HEURE_FIN_RELECTURES) return false;
+  if (dernier.ia && dernier.ia.enCours) return false;
+  const depuis = Date.parse(dernier.genereLe || '');
+  return !Number.isFinite(depuis) || new Date(maintenant).getTime() - depuis >= MINUTES_ENTRE_RELECTURES * 60000;
 }
 
 function demarrerResumeEmails(depot, parametresRepo, intervalleMs = 60 * 1000, config) {
   let enCours = false;
   const tour = async () => {
     if (enCours || !resumeDu(new Date(), lireResume(parametresRepo))) return;
+    const reglages = parametresRepo.lireReglagesExchange ? parametresRepo.lireReglagesExchange() : {};
+    if (require('./agendaWatch').lectureAgendaSuspendue(reglages)) return;
     enCours = true;
     try { await genererResumeEmails(depot, parametresRepo, new Date(), config ? { config } : {}); }
     catch (e) { console.warn('[CLAIRE] Résumé des emails du matin interrompu :', e.message); }
@@ -355,5 +433,6 @@ module.exports = {
   contexteClassement, dossierDeEmail, normaliser, SUJETS_EMAIL, desechapperXml, echapperXml, ENVELOPPE_DEBUT, ENVELOPPE_FIN,
   CLE_RESUME_EMAILS, debutFenetreEmails, corpsFindEmails, parseFindEmails, classerEmails, motsDuDossier,
   genererResumeEmails, lireResume, resumeDu, demarrerResumeEmails, momentParis,
-  entreesSyntheseEmails, promptSyntheseEmails, validerSyntheseEmails, normaliserSyntheseEmails, completerSyntheseIa
+  entreesSyntheseEmails, promptSyntheseEmails, validerSyntheseEmails, normaliserSyntheseEmails, completerSyntheseIa,
+  MOTIFS_EXCLUSION_RESUME, motifExclusionResume, separerEmailsExclus, CLE_EXCLUSIONS_RESUME, lireTermesExclus
 };

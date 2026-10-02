@@ -836,6 +836,12 @@ function assainirResumeEmails(brut) {
       responsable: texteBorne(g && g.responsable, 100), emails: emails(g && g.emails)
     })) : [],
     autres: emails(b.autres),
+    // Emails écartés du résumé (SPF, CRIDON, INFN, INAFON, publicités… — comptés, jamais listés).
+    exclus: b.exclus && typeof b.exclus === 'object' ? {
+      total: Number.isFinite(b.exclus.total) ? b.exclus.total : 0,
+      parMotif: Object.fromEntries(Object.entries(b.exclus.parMotif || {}).filter(([k, v]) => typeof k === 'string' && Number.isFinite(v)).slice(0, 20).map(([k, v]) => [texteBorne(k, 40), v]))
+    } : { total: 0, parMotif: {} },
+    signature: texteBorne(b.signature, 80),
     ia: assainirSyntheseIaEmails(b.ia)
   };
 }
@@ -849,9 +855,11 @@ function assainirSyntheseIaEmails(brut) {
   const priorites = ['haute', 'normale'];
   return {
     texte: texteBorne(brut.texte, 1500),
-    points: Array.isArray(brut.points) ? brut.points.slice(0, 10).map(pt => ({
+    // Liste des demandes par email (étude 02/10) : une ligne par demande, son expéditeur et son heure.
+    points: Array.isArray(brut.points) ? brut.points.slice(0, 40).map(pt => ({
       texte: texteBorne(pt && pt.texte, 300),
       priorite: priorites.includes(pt && pt.priorite) ? pt.priorite : 'normale',
+      de: texteBorne(pt && pt.de, 120), heure: texteBorne(pt && pt.heure, 20),
       dossierId: pt && pt.dossierId ? texteBorne(pt.dossierId, 100) : null,
       dossierNom: pt && pt.dossierNom ? texteBorne(pt.dossierNom, 200) : null
     })).filter(pt => pt.texte) : [],

@@ -3,8 +3,10 @@
 // Résumé des emails du matin (voir emailsMatin.js) : lu par la fenêtre « Aujourd'hui ».
 //   GET  /api/emails-matin              → le dernier résumé ({ date: null } s'il n'y en a jamais eu)
 //   POST /api/emails-matin/actualiser   → UN nouvel essai tout de suite (bouton « Actualiser »)
+//   GET/PUT /api/emails-matin/exclusions → expéditeurs ou mots écartés du résumé, en plus des SPF,
+//                                          CRIDON, INFN, INAFON et publicités (Réglages)
 const express = require('express');
-const { genererResumeEmails } = require('../emailsMatin');
+const { genererResumeEmails, CLE_EXCLUSIONS_RESUME, lireTermesExclus } = require('../emailsMatin');
 
 function creerRouteurEmailsMatin(parametresRepo, depot, injections = {}) {
   const router = express.Router();
@@ -24,6 +26,18 @@ function creerRouteurEmailsMatin(parametresRepo, depot, injections = {}) {
     } finally {
       enCours = false;
     }
+  });
+
+  router.get('/emails-matin/exclusions', (req, res) => {
+    res.json({ termes: lireTermesExclus(parametresRepo) });
+  });
+
+  router.put('/emails-matin/exclusions', (req, res) => {
+    const brut = req.body && Array.isArray(req.body.termes) ? req.body.termes : null;
+    if (!brut) return res.status(400).json({ erreur: 'Liste attendue.' });
+    const termes = [...new Set(brut.filter((x) => typeof x === 'string').map((x) => x.trim().slice(0, 80)).filter(Boolean))].slice(0, 100);
+    parametresRepo.ecrireJsonBrut(CLE_EXCLUSIONS_RESUME, termes);
+    res.json({ termes });
   });
 
   return router;

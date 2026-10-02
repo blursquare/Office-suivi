@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-02 23:35';
+  const VERSION_APP = '2026-10-02 23:50';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-02 23:50', resume: "Fenêtre du matin, partie droite : un onglet « Depuis hier 18 h » (vendredi 18 h un lundi) avec les documents reçus et cochés depuis, listés par dossier ; le nombre d'emails reçus, ceux écartés (SPF/SPFE, CRIDON, INFN, INAFON, publicités) étant comptés à part ; la liste des demandes par email rédigée par l'IA locale ; les autres nouveautés repliées. La boîte est lue dès 7 h 30 puis toutes les 30 minutes jusqu'à midi. Réglages › Agenda et Outlook : d'autres expéditeurs à écarter du résumé." },
     { version: '2026-10-02 23:35', resume: "Emails de la fiche allégés : une ligne par email comme dans une boîte de réception (correspondant, objet, résumé, pièces jointes, date), filtres Tous / Reçus / Envoyés, recherche, 8 emails puis « Voir plus ». Un seul « Confirmer la réception » en tête, pour le dernier envoi de documents. Le détail — texte entier, pièces jointes et où elles ont été rangées, confirmation — est dans la fenêtre de lecture. Échap ferme la fenêtre sans fermer la fiche." },
     { version: '2026-10-02 23:25', resume: "Emails des dossiers relevés toutes les minutes (boîte de réception et éléments envoyés) ; la fiche ouverte affiche les nouveaux emails d'elle-même, et les pièces jointes sont rangées dans la minute. Un clic sur l'objet d'un email l'ouvre en entier dans CLAIRE (texte, destinataires, pièces jointes, « Confirmer la réception ») : il est relu dans la messagerie à chaque ouverture, jamais gardé par CLAIRE." },
     { version: '2026-10-02 23:21', resume: "Onglet Échanges : sous chaque email reçu avec des documents, « Confirmer la réception » prépare la réponse (même objet précédé de RE:, documents listés, signature de l'office ; « Mon Cher Maître » si l'expéditeur est un confrère), puis indique « préparé », et « envoyé le … » une fois retrouvée dans les envois. Réglages › Pièces et Claire Scan › « Noms de fichiers reconnus » : toutes les variantes de nom acceptées pour chaque pièce. Une pièce jointe au nom approchant (« CU.pdf ») est reconnue comme sur le NAS ; « Titre de séjour » n'est plus pris pour un titre de propriété." },
@@ -19411,23 +19412,6 @@
 
   // Résumé rédigé par le modèle local d'Ollama sur le serveur (voir emailsMatin.js) : en cours, en
   // erreur (le résumé sans IA reste dessous), ou le texte et ses points importants.
-  function renderSyntheseIaEmails(ia) {
-    if (!ia) return '';
-    if (ia.enCours) return `<p class="em-ia em-ia-attente">${icone('spinner')} Résumé en cours de rédaction par l’IA locale…</p>`;
-    if (ia.erreur) return `<p class="jour-source">${escapeHtml(ia.erreur)}</p>`;
-    if (!ia.texte) return '';
-    const points = (ia.points || []).map(pt => {
-      const connu = pt.dossierId && dossiers.some(d => d.id === pt.dossierId);
-      return `<li><span class="dot-label ${pt.priorite === 'haute' ? 'dl-urgent' : 'dl-neutre'}"><span class="dot"></span></span>
-        <span>${escapeHtml(pt.texte)}${connu ? ` · <button type="button" class="jour-fil-dossier" onclick="executerFicheDossierJour('${escapeOnclickArg(pt.dossierId)}')">${escapeHtml(libelleDossierParNom(pt.dossierNom, pt.dossierId))}</button>` : ''}</span></li>`;
-    }).join('');
-    return `<div class="em-ia">
-        <div class="em-ia-tete">${icone('sparkle')} Résumé de l’IA ${infoBulle(`Rédigé sur le serveur de l’office par le modèle local${ia.modele ? ' (' + ia.modele + ')' : ''}, à partir de l’expéditeur, de l’objet et du début de chaque email — rien ne sort du bureau. À vérifier : il peut se tromper.`)}</div>
-        <p class="em-ia-texte">${escapeHtml(ia.texte)}</p>
-        ${points ? `<ul class="em-ia-points">${points}</ul>` : ''}
-      </div>`;
-  }
-
   // Tant que l'IA rédige, le résumé est relu toutes les 20 s (une à deux minutes sur le CPU du serveur).
   let minuteurResumeIa = null;
   function suivreResumeIa() {
@@ -19443,97 +19427,7 @@
     </li>`;
   }
 
-  function renderEmailsMatin() {
-    const aujourdhui = isoAujourdhuiLocal();
-    const actualiser = '<button type="button" class="lien-action" onclick="actualiserResumeEmails(this)">Actualiser</button>';
-    const r = resumeEmails;
-    if (!r || r.date !== aujourdhui) {
-      const avant = new Date().getHours() * 60 + new Date().getMinutes() < 8 * 60 + 50;
-      return `<p class="jour-vide">${avant ? 'Le résumé des emails arrive à 8 h 50.' : 'Pas encore de résumé aujourd’hui.'} ${avant ? '' : actualiser}</p>`;
-    }
-    if (r.erreur) {
-      return `<p class="jour-vide"><span class="dot-label dl-alerte">${escapeHtml(r.erreur)}</span> ${actualiser}</p>`;
-    }
-    const { groupes, autres, nb } = emailsMatinPourPoste(r, dossiers.map(d => d.id), true);
-    const ia = renderSyntheseIaEmails(r.ia);
-    const heure = r.genereLe ? new Date(r.genereLe).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }).replace(':', ' h ') : '';
-    const source = `<p class="jour-source">Boîte lue à ${escapeHtml(heure)} · ${r.total || 0} email${(r.total || 0) > 1 ? 's' : ''} reçu${(r.total || 0) > 1 ? 's' : ''}. ${actualiser}</p>`;
-    if (!nb) return source + '<p class="jour-vide">Aucun email depuis hier 18 h.</p>';
-    return `${source}
-      ${ia}
-      ${renderSyntheseEmailsMatin(groupes, autres)}
-      <details class="echanges-autres em-detail"><summary>Voir les ${nb} emails</summary>
-      <ul class="jour-fil">${groupes.map(g => `
-        <li class="jour-fil-groupe">
-          <button type="button" class="jour-fil-dossier" onclick="executerFicheDossierJour('${escapeOnclickArg(g.dossierId)}')">${escapeHtml(libelleDossierParNom(g.dossierNom, g.dossierId))}</button>
-          <ul>${g.emails.map(renderLigneEmailMatin).join('')}</ul>
-        </li>`).join('')}</ul>
-      ${autres.length ? `<details class="echanges-autres email-matin-autres"><summary>Hors dossiers (${autres.length})</summary>
-        <ul class="jour-fil"><li class="jour-fil-groupe"><ul>${autres.map(renderLigneEmailMatin).join('')}</ul></li></ul></details>` : ''}
-      </details>`;
-  }
-
-  // ---- Résumé des emails du matin (étude, 30/09 : « faire un résumé des emails ») ----
-  // Sans IA, comme la lecture de la boîte : le résumé se tire de ce que le serveur garde (expéditeur,
-  // objet, heure, sujets repérés, pièce jointe) — les chiffres, les sujets qui comptent avec leurs
-  // dossiers, une ligne par dossier, les expéditeurs hors dossiers. La liste complète reste dépliable.
-  var ORDRE_SUJETS_EMAIL = ['Urgent', 'Offre de prêt', 'Fonds', 'RIB', 'Rendez-vous', 'Projet d’acte', 'Pièces'];
-
-  function syntheseEmailsMatin(groupes, autres) {
-    const gs = groupes || [];
-    const hors = autres || [];
-    const tous = gs.reduce((t, g) => t.concat(g.emails || []), []).concat(hors);
-    const aSujet = (e, libelle) => (e.sujets || []).indexOf(libelle) !== -1;
-    const themes = ORDRE_SUJETS_EMAIL.map(libelle => ({
-      libelle,
-      dossiers: gs.filter(g => (g.emails || []).some(e => aSujet(e, libelle))).map(g => ({ dossierId: g.dossierId, dossierNom: g.dossierNom })),
-      horsDossier: hors.filter(e => aSujet(e, libelle)).length
-    })).filter(t => t.dossiers.length || t.horsDossier);
-    const expediteurs = (liste) => {
-      const n = new Map();
-      for (const e of liste) { const de = e.de || 'Expéditeur inconnu'; n.set(de, (n.get(de) || 0) + 1); }
-      return [...n.entries()].map(([de, nb]) => ({ de, nb })).sort((a, b) => b.nb - a.nb || a.de.localeCompare(b.de, 'fr'));
-    };
-    const parDossier = gs.map(g => ({
-      dossierId: g.dossierId, dossierNom: g.dossierNom, nb: (g.emails || []).length,
-      pj: (g.emails || []).filter(e => e.pj).length,
-      expediteurs: expediteurs(g.emails || []).map(x => x.de),
-      sujets: ORDRE_SUJETS_EMAIL.filter(l => (g.emails || []).some(e => aSujet(e, l)))
-    })).sort((a, b) => b.nb - a.nb);
-    return {
-      nb: tous.length, nbDossiers: gs.length, nbDansDossiers: tous.length - hors.length, nbAutres: hors.length,
-      nbPj: tous.filter(e => e.pj).length, themes, parDossier, expediteursAutres: expediteurs(hors)
-    };
-  }
-
   function pluriel(n, mot, motPluriel) { return `${n} ${n > 1 ? (motPluriel || mot + 's') : mot}`; }
-
-  function renderSyntheseEmailsMatin(groupes, autres) {
-    const s = syntheseEmailsMatin(groupes, autres);
-    const lienDossier = (id, nom) => `<button type="button" class="jour-fil-dossier" onclick="executerFicheDossierJour('${escapeOnclickArg(id)}')">${escapeHtml(libelleDossierParNom(nom, id))}</button>`;
-    const chiffres = [
-      s.nbDossiers ? `${s.nbDansDossiers} sur ${pluriel(s.nbDossiers, 'dossier')}` : '',
-      s.nbAutres ? `${s.nbAutres} hors dossiers` : '',
-      s.nbPj ? `${s.nbPj} avec pièce jointe` : ''
-    ].filter(Boolean);
-    const themes = s.themes.length ? `<ul class="em-themes">${s.themes.map(t => `<li>
-        <span class="email-matin-sujet${t.libelle === 'Urgent' ? ' em-urgent' : ''}">${escapeHtml(t.libelle)}</span>
-        <span class="em-theme-texte">${t.dossiers.map(d => lienDossier(d.dossierId, d.dossierNom)).join(', ')}${t.horsDossier ? `${t.dossiers.length ? ' · ' : ''}<span class="em-discret">${pluriel(t.horsDossier, 'email')} hors dossiers</span>` : ''}</span>
-      </li>`).join('')}</ul>` : '';
-    const lignes = s.parDossier.map(g => `<li>
-        ${lienDossier(g.dossierId, g.dossierNom)}
-        <span class="em-discret">${pluriel(g.nb, 'email')} · ${escapeHtml(g.expediteurs.slice(0, 3).join(', '))}${g.expediteurs.length > 3 ? '…' : ''}</span>
-      </li>`);
-    if (s.nbAutres) {
-      const ex = s.expediteursAutres.slice(0, 4).map(x => x.nb > 1 ? `${x.de} (${x.nb})` : x.de).join(', ');
-      lignes.push(`<li><span class="em-hors">Hors dossiers</span> <span class="em-discret">${pluriel(s.nbAutres, 'email')} · ${escapeHtml(ex)}${s.expediteursAutres.length > 4 ? '…' : ''}</span></li>`);
-    }
-    return `<div class="em-synthese">
-        <p class="em-chiffres"><b>${pluriel(s.nb, 'email')}</b>${chiffres.length ? ' · ' + chiffres.join(' · ') : ''}</p>
-        ${themes}
-        ${lignes.length ? `<ul class="em-dossiers">${lignes.join('')}</ul>` : ''}
-      </div>`;
-  }
 
   // ---- Agenda du jour (étude, 30/09 : « insérer tous les rendez-vous de l'agenda du jour ») ----
   // Les rendez-vous du calendrier de l'office lus par le serveur à chaque tour (toutes les 2 min),
@@ -19677,8 +19571,102 @@
   // Colonne de droite de la fenêtre du matin en onglets (étude, 30/09 : « la pop-up prend trop de
   // place, revoir la disposition ») : Agenda du jour, Emails (Bastien), Nouveautés — un seul visible,
   // la fenêtre garde une hauteur raisonnable et chaque colonne défile seule.
-  var ONGLETS_FENETRE_JOUR = ['agenda', 'emails', 'nouveautes'];
-  let ongletFenetreJour = 'agenda';
+  // Étude 02/10 : « revoir la partie de droite : ce qui s'est passé depuis hier 18 h — nouveaux documents
+  // reçus et cochés, listés ; le nombre d'emails reçus ; la liste des demandes par email (IA locale), sans
+  // les SPF, publicités, CRIDON, INFN, INAFON… ». Deux onglets : « Depuis hier 18 h » (d'abord) et
+  // « Agenda du jour ».
+  var ONGLETS_FENETRE_JOUR = ['depuis', 'agenda'];
+  let ongletFenetreJour = 'depuis';
+
+  // Pure : 18 h (heure du poste) le jour ouvré précédent — le vendredi pour un lundi, comme le serveur
+  // (emailsMatin.debutFenetreEmails).
+  function debutDepuisHier18h(maintenant) {
+    const d = new Date(maintenant || Date.now());
+    d.setHours(12, 0, 0, 0);
+    do { d.setDate(d.getDate() - 1); } while (d.getDay() === 0 || d.getDay() === 6);
+    d.setHours(18, 0, 0, 0);
+    return d.toISOString();
+  }
+  function libelleDepuisHier18h(debutIso, maintenant) {
+    const d = new Date(debutIso), n = new Date(maintenant || Date.now());
+    const hier = new Date(n); hier.setDate(n.getDate() - 1);
+    const jour = d.toDateString() === hier.toDateString() ? 'hier' : d.toLocaleDateString('fr-FR', { weekday: 'long' });
+    return `Depuis ${jour} 18 h`;
+  }
+
+  // Pure : documents reçus et cochés depuis `debutIso` (pièce trouvée sur le NAS, rangée depuis un email
+  // ou Claire Scan, reçue dans Authentic — d.piecesTrouveesLe), les plus récents d'abord.
+  function documentsDepuis(dossiersPerimetre, debutIso) {
+    return piecesDepuisVisite(dossiersPerimetre, debutIso)
+      .filter(x => x.cle === CLE_NOTIF_OFFRE_PRET || (x.dossier.pieces || {})[x.cle] === 'recue')
+      .map(x => ({ dossier: x.dossier, cle: x.cle, le: x.le, libelle: libelleNotificationPiece(x.dossier, x.cle) }))
+      .sort((a, b) => String(b.le).localeCompare(String(a.le)));
+  }
+
+  // Pure : « 9 écartés : SPF 5, CRIDON 2, publicités 2 ».
+  function libelleEmailsExclus(exclus) {
+    if (!exclus || !exclus.total) return '';
+    const noms = { 'Publicité': 'publicités', 'Écarté (Réglages)': 'écartés dans les Réglages' };
+    const detail = Object.entries(exclus.parMotif || {}).sort((a, b) => b[1] - a[1]).map(([m, n]) => `${noms[m] || m} ${n}`).join(', ');
+    return `${exclus.total} écarté${exclus.total > 1 ? 's' : ''}${detail ? ' : ' + detail : ''}`;
+  }
+
+  function renderDepuisHier18h(perimetre) {
+    const debut = debutDepuisHier18h();
+    const docs = documentsDepuis(perimetre, debut);
+    const lienDossier = (d) => `<button type="button" class="jour-fil-dossier" onclick="executerFicheDossierJour('${escapeOnclickArg(d.id)}')">${escapeHtml(libelleDossierAffiche(d))}</button>`;
+    const heure = (iso) => new Date(iso).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }).replace(':', ' h ');
+    const blocDocs = `<section class="depuis-bloc">
+        <h4 class="depuis-titre">Documents reçus <span class="jour-onglet-nb">${docs.length}</span></h4>
+        ${docs.length ? `<ul class="depuis-liste">${docs.map(x => `<li>
+            <span class="dot-label dl-success"><span class="dot"></span></span>
+            <span class="depuis-texte"><b>${escapeHtml(x.libelle)}</b> · ${lienDossier(x.dossier)}</span>
+            <span class="depuis-heure">${escapeHtml(heure(x.le))}</span></li>`).join('')}</ul>`
+          : '<p class="jour-vide">Aucun document reçu.</p>'}
+      </section>`;
+    let blocEmails = '';
+    if (recoitEmailsMatin(utilisateurPoste)) {
+      const r = resumeEmails;
+      const actualiser = '<button type="button" class="lien-action" onclick="actualiserResumeEmails(this)">Actualiser</button>';
+      let corps;
+      if (!r || r.date !== isoAujourdhuiLocal()) {
+        const avant = new Date().getHours() * 60 + new Date().getMinutes() < 7 * 60 + 30;
+        corps = `<p class="jour-vide">${avant ? 'Boîte de réception lue à partir de 7 h 30.' : 'Boîte de réception pas encore lue.'} ${avant ? '' : actualiser}</p>`;
+      } else if (r.erreur) {
+        corps = `<p class="jour-vide"><span class="dot-label dl-alerte">${escapeHtml(r.erreur)}</span> ${actualiser}</p>`;
+      } else {
+        const retenus = (r.total || 0) - ((r.exclus && r.exclus.total) || 0);
+        const lu = r.genereLe ? heure(r.genereLe) : '';
+        const ia = r.ia;
+        const demandes = ia && ia.points && ia.points.length ? `<ul class="depuis-liste depuis-demandes">${ia.points.map(pt => {
+            const connu = pt.dossierId && dossiers.some(d => d.id === pt.dossierId);
+            return `<li>
+              <span class="dot-label ${pt.priorite === 'haute' ? 'dl-urgent' : 'dl-neutre'}" title="${pt.priorite === 'haute' ? 'Urgent' : ''}"><span class="dot"></span></span>
+              <span class="depuis-texte">${escapeHtml(pt.texte)}<span class="depuis-meta">${escapeHtml(pt.de || '')}${connu ? ` · ${lienDossier({ id: pt.dossierId, nom: pt.dossierNom, typeAffaire: (dossiers.find(d => d.id === pt.dossierId) || {}).typeAffaire })}` : ''}</span></span>
+              <span class="depuis-heure">${escapeHtml(pt.heure || '')}</span></li>`;
+          }).join('')}</ul>`
+          : ia && ia.enCours ? `<p class="em-ia em-ia-attente">${icone('spinner')} Liste des demandes en cours de rédaction par l’IA locale…</p>`
+          : ia && ia.erreur ? `<p class="jour-source">${escapeHtml(ia.erreur)}</p>`
+          : retenus ? '<p class="jour-vide">Aucune demande relevée.</p>' : '';
+        const { groupes, autres, nb } = emailsMatinPourPoste(r, dossiers.map(d => d.id), true);
+        corps = `<p class="depuis-chiffres"><b>${r.total || 0} email${(r.total || 0) > 1 ? 's' : ''} reçu${(r.total || 0) > 1 ? 's' : ''}</b>${r.exclus && r.exclus.total ? ` · <span title="Ni lus par l’IA ni listés">${escapeHtml(libelleEmailsExclus(r.exclus))}</span>` : ''}${lu ? ` · lue à ${escapeHtml(lu)}` : ''} ${actualiser}</p>
+          ${demandes ? `<div class="depuis-sous-titre">${icone('sparkle')} Demandes ${infoBulle(`Une ligne par demande, rédigée sur le serveur de l’office par l’IA locale${ia && ia.modele ? ' (' + ia.modele + ')' : ''} à partir de l’expéditeur, de l’objet et du début de chaque email — rien ne sort du bureau. Les emails des SPF, CRIDON, INFN, INAFON et les publicités sont écartés (Réglages › Agenda et Outlook pour en ajouter). À vérifier : l’IA peut se tromper.`)}</div>${demandes}` : ''}
+          ${nb ? `<details class="echanges-autres em-detail"><summary>Voir les ${nb} emails</summary>
+            <ul class="jour-fil">${groupes.map(g => `
+              <li class="jour-fil-groupe">
+                <button type="button" class="jour-fil-dossier" onclick="executerFicheDossierJour('${escapeOnclickArg(g.dossierId)}')">${escapeHtml(libelleDossierParNom(g.dossierNom, g.dossierId))}</button>
+                <ul>${g.emails.map(renderLigneEmailMatin).join('')}</ul>
+              </li>`).join('')}${autres.length ? `<li class="jour-fil-groupe"><span class="em-hors">Hors dossiers</span><ul>${autres.map(renderLigneEmailMatin).join('')}</ul></li>` : ''}</ul>
+          </details>` : ''}`;
+      }
+      blocEmails = `<section class="depuis-bloc"><h4 class="depuis-titre">Emails</h4>${corps}</section>`;
+    }
+    // Le reste de ce qui s'est passé (gestes des collègues, rendez-vous, Authentic…), replié.
+    const autresEvts = evenementsDepuisVisite(perimetre, debut, utilisateurPoste)
+      .map(g => ({ ...g, lignes: g.lignes.filter(l => l.type !== 'pieces') })).filter(g => g.lignes.length);
+    const blocAutres = autresEvts.length ? `<details class="echanges-autres depuis-autres"><summary>Autres nouveautés sur les dossiers (${autresEvts.length})</summary>${renderNouveautesListe(autresEvts)}</details>` : '';
+    return `${blocDocs}${blocEmails}${blocAutres}`;
+  }
   function choisirOngletFenetreJour(cle) {
     if (ONGLETS_FENETRE_JOUR.indexOf(cle) === -1) return;
     ongletFenetreJour = cle;
@@ -19692,20 +19680,16 @@
     const perimetre = dossiersPerimetreJour();
     const global = vueGlobaleDashboard();
     const { actions, traites } = etatAujourdhui();
-    const groupes = evenementsDepuisVisite(perimetre, derniereVisitePrecedente, utilisateurPoste);
     const nbAgenda = (evenementsAgendaDuJour(agendaDuJourOffice, isoAujourdhuiLocal()) || []).length;
-    const avecEmails = recoitEmailsMatin(utilisateurPoste);
-    const nbEmails = avecEmails && resumeEmails && resumeEmails.date === isoAujourdhuiLocal()
-      ? emailsMatinPourPoste(resumeEmails, dossiers.map(d => d.id), true).nb : 0;
+    const nbDocs = documentsDepuis(perimetre, debutDepuisHier18h()).length;
+    const nbDemandes = recoitEmailsMatin(utilisateurPoste) && resumeEmails && resumeEmails.date === isoAujourdhuiLocal() && resumeEmails.ia && resumeEmails.ia.points
+      ? resumeEmails.ia.points.length : 0;
     const onglets = [
-      { cle: 'agenda', libelle: 'Agenda du jour', nb: nbAgenda },
-      avecEmails ? { cle: 'emails', libelle: 'Emails', nb: nbEmails } : null,
-      { cle: 'nouveautes', libelle: 'Nouveautés', nb: groupes.length }
-    ].filter(Boolean);
-    if (!onglets.some(o => o.cle === ongletFenetreJour)) ongletFenetreJour = 'agenda';
-    const panneau = ongletFenetreJour === 'emails' ? renderEmailsMatin()
-      : ongletFenetreJour === 'nouveautes' ? `<p class="jour-source">${escapeHtml(libelleDepuisVisite())}.</p>${renderNouveautesListe(groupes)}`
-      : renderAgendaDuJour();
+      { cle: 'depuis', libelle: libelleDepuisHier18h(debutDepuisHier18h()), nb: nbDocs + nbDemandes },
+      { cle: 'agenda', libelle: 'Agenda du jour', nb: nbAgenda }
+    ];
+    if (!onglets.some(o => o.cle === ongletFenetreJour)) ongletFenetreJour = 'depuis';
+    const panneau = ongletFenetreJour === 'depuis' ? renderDepuisHier18h(perimetre) : renderAgendaDuJour();
     const maintenant = new Date();
     const contenu = document.getElementById('aujourdhui-fenetre-contenu');
     const defilement = contenu.querySelector('.jour-panneau');
@@ -29112,7 +29096,32 @@
         ${(e.envoyes || []).map(b => ligneBoite(`Éléments envoyés — ${b.collaborateur}`, b)).join('')}
       </ul>
       <p class="hint">${e.nombre.recus} reçu(s) et ${e.nombre.envoyes} envoyé(s) rattachés aux dossiers${e.dernierTour ? ` · dernier tour ${escapeHtml(ilYaActivite(e.dernierTour, Date.now()))}` : ''}${e.erreur ? ` · ${escapeHtml(e.erreur)}` : ''}</p>
-      <button type="button" class="action-rapide" onclick="lireEmailsDossiersMaintenant(this)">Lire maintenant</button>`;
+      <button type="button" class="action-rapide" onclick="lireEmailsDossiersMaintenant(this)">Lire maintenant</button>
+      <div class="reglages-champ">
+        <div class="reglages-champ-libelle"><label for="reglages-emails-exclus">Écartés du résumé du matin</label>${infoBulle('Déjà écartés d’office : SPF et SPFE, CRIDON, INFN, INAFON, publicités et lettres d’information. Ajoutez ici d’autres expéditeurs (adresse, domaine ou nom) ou mots de l’objet, séparés par des virgules. Ces emails sont comptés, jamais listés ni lus par l’IA.')}</div>
+        <input type="text" id="reglages-emails-exclus" placeholder="ex. adnov.fr, Notaires de France, webinaire">
+      </div>
+      <button type="button" class="action-rapide" onclick="enregistrerExclusionsResume(this)">Enregistrer</button>`;
+    try {
+      const r = await fetchAvecAuth('/api/emails-matin/exclusions');
+      const champ = document.getElementById('reglages-emails-exclus');
+      if (r.ok && champ) champ.value = ((await r.json()).termes || []).join(', ');
+    } catch (_) { /* champ laissé vide */ }
+  }
+
+  async function enregistrerExclusionsResume(bouton) {
+    const champ = document.getElementById('reglages-emails-exclus');
+    if (!champ) return;
+    const termes = champ.value.split(/[,;\n]/).map(x => x.trim()).filter(Boolean);
+    if (bouton) bouton.disabled = true;
+    try {
+      const r = await fetchAvecAuth('/api/emails-matin/exclusions', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ termes }) });
+      if (!r.ok) throw new Error('statut ' + r.status);
+      champ.value = ((await r.json()).termes || []).join(', ');
+      afficherToast('Exclusions enregistrées : elles s’appliquent à la prochaine lecture de la boîte.', 'OK', null);
+    } catch (e) {
+      afficherToast('Enregistrement impossible : ' + e.message, 'OK', null);
+    } finally { if (bouton) bouton.disabled = false; }
   }
 
   async function basculerEmailsDossiers(actif) {

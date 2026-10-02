@@ -7833,12 +7833,6 @@ textarea.ag-notes-champ:focus { outline: 2px solid var(--focus); outline-offset:
 
 /* Résumé des emails rédigé par l'IA locale (renderSyntheseIaEmails). */
 .em-ia { border: 1px solid var(--line); border-radius: 12px; background: var(--paper-sunk); padding: 10px 12px; margin-bottom: 10px; }
-.em-ia-tete { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; color: var(--ink-soft); margin-bottom: 4px; }
-.em-ia-tete svg { width: 14px; height: 14px; color: var(--focus); }
-.em-ia-texte { margin: 0 0 6px; font-size: 13px; line-height: 1.45; color: var(--ink); max-width: 70ch; }
-.em-ia-points { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; color: var(--ink-soft); }
-.em-ia-points li { display: grid; grid-template-columns: 14px minmax(0, 1fr); gap: 4px; align-items: baseline; overflow-wrap: anywhere; }
-.em-ia-points .jour-fil-dossier { font-size: 12.5px; }
 .em-ia-attente { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--muted); background: none; border-style: dashed; }
 .em-ia-attente svg { width: 14px; height: 14px; }
 
@@ -8480,3 +8474,23 @@ button.email-rang-btn:focus-visible { outline: 2px solid var(--focus); outline-o
   .email-rang-meta { grid-column: 3; grid-row: 1; }
   .email-rang-corps { grid-column: 2 / 4; grid-row: 2; }
 }
+
+/* Fenêtre du matin › « Depuis hier 18 h » (renderDepuisHier18h, étude 02/10) */
+.depuis-bloc { padding: 10px 0; border-top: 1px solid var(--line-soft); }
+.depuis-bloc:first-of-type { border-top: 0; padding-top: 0; }
+.depuis-titre { margin: 0 0 6px; font-size: 13px; font-weight: 600; color: var(--ink); display: flex; align-items: center; gap: 6px; }
+.depuis-liste { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 5px; }
+.depuis-liste li { display: grid; grid-template-columns: 14px minmax(0, 1fr) auto; gap: 6px; align-items: baseline; font-size: 13px; }
+.depuis-liste li > * { min-width: 0; }
+.depuis-texte { overflow-wrap: anywhere; color: var(--ink); }
+.depuis-texte .jour-fil-dossier { font-size: 13px; font-weight: 500; }
+.depuis-meta { display: block; font-size: 12px; color: var(--muted); }
+.depuis-meta .jour-fil-dossier { font-size: 12px; color: var(--ink-soft); }
+.depuis-heure { font-size: 12px; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.depuis-chiffres { margin: 0 0 8px; font-size: 13px; color: var(--ink-soft); }
+.depuis-chiffres b { color: var(--ink); }
+.depuis-sous-titre { display: flex; align-items: center; gap: 6px; margin: 4px 0 6px; font-size: 12px; font-weight: 600; color: var(--ink-soft); }
+.depuis-sous-titre svg { width: 14px; height: 14px; color: var(--focus); }
+.depuis-demandes li { padding: 4px 0; border-top: 1px solid var(--line-soft); }
+.depuis-demandes li:first-child { border-top: 0; }
+.depuis-autres { margin-top: 8px; }

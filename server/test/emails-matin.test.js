@@ -68,11 +68,38 @@ test('classement : « VENTE - NOM » cité dans l’objet rattache au dossier co
   assert.equal(r.dossiers.find(g => g.dossierId === 'd1').emails.length, 1);
 });
 
-test('résumé : une fois par jour ouvré, à partir de 8 h 50 (Paris)', () => {
-  assert.equal(resumeDu(new Date('2026-10-06T06:49:00Z'), null), false); // 8 h 49
-  assert.equal(resumeDu(new Date('2026-10-06T06:50:00Z'), null), true);  // 8 h 50
-  assert.equal(resumeDu(new Date('2026-10-06T08:00:00Z'), { date: '2026-10-06' }), false);
+test('résumé : jours ouvrés dès 7 h 30 (Paris), relu toutes les 30 min jusqu’à midi, jamais après une erreur', () => {
+  assert.equal(resumeDu(new Date('2026-10-06T05:29:00Z'), null), false); // 7 h 29
+  assert.equal(resumeDu(new Date('2026-10-06T05:30:00Z'), null), true);  // 7 h 30
+  const lu = { date: '2026-10-06', genereLe: '2026-10-06T05:30:00Z' };
+  assert.equal(resumeDu(new Date('2026-10-06T05:50:00Z'), lu), false); // 20 min après
+  assert.equal(resumeDu(new Date('2026-10-06T06:00:00Z'), lu), true);  // 30 min après
+  assert.equal(resumeDu(new Date('2026-10-06T06:00:00Z'), { ...lu, erreur: 'refus' }), false);
+  assert.equal(resumeDu(new Date('2026-10-06T06:00:00Z'), { ...lu, ia: { enCours: true } }), false);
+  assert.equal(resumeDu(new Date('2026-10-06T10:00:00Z'), lu), false); // midi passé
   assert.equal(resumeDu(new Date('2026-10-10T08:00:00Z'), null), false); // samedi
+});
+
+test('exclus du résumé : SPF/SPFE, CRIDON, INFN, INAFON, publicités, termes des Réglages — comptés à part', () => {
+  const { motifExclusionResume, separerEmailsExclus } = require('../src/emailsMatin');
+  const e = (deNom, deAdresse, sujet, apercu) => ({ deNom, deAdresse, sujet, apercu: apercu || '' });
+  assert.equal(motifExclusionResume(e('SPF BLOIS 1', 'spf.blois1@dgfip.finances.gouv.fr', 'Rejet de formalité')), 'SPF');
+  assert.equal(motifExclusionResume(e('Service de la publicité foncière', 'x@dgfip.fr', 'Dépôt')), 'SPF');
+  assert.equal(motifExclusionResume(e('SPFE Tours', 'spfe.tours@dgfip.finances.gouv.fr', 'Hypothèque')), 'SPF');
+  assert.equal(motifExclusionResume(e('Cridon Ouest', 'consultations@cridon-ouest.fr', 'Réponse')), 'CRIDON');
+  assert.equal(motifExclusionResume(e('INFN', 'formation@infn.fr', 'Programme')), 'INFN');
+  assert.equal(motifExclusionResume(e('Inafon', 'contact@inafon.fr', 'Stage')), 'INAFON');
+  assert.equal(motifExclusionResume(e('Logiciel X', 'noreply@logiciel.fr', 'Nouveautés')), 'Publicité');
+  assert.equal(motifExclusionResume(e('Boutique', 'contact@boutique.fr', 'Octobre', '… cliquez ici pour vous désinscrire')), 'Publicité');
+  assert.equal(motifExclusionResume(e('Agence', 'contact@agence.fr', 'Visite'), ['agence.fr']), 'Écarté (Réglages)');
+  // Jamais un client ou un confrère.
+  assert.equal(motifExclusionResume(e('Paul MARTIN', 'paul.martin@exemple.fr', 'Question sur la signature')), null);
+  assert.equal(motifExclusionResume(e('Me DURAND', 'office.durand@notaires.fr', 'VTE - MARTIN / BERNARD')), null);
+  assert.equal(motifExclusionResume(e('Banque', 'credit@banque.fr', 'Offre de prêt', 'Veuillez trouver')), null);
+  const s = separerEmailsExclus([e('SPF', 'spf@dgfip.fr', 'a'), e('Paul', 'p@x.fr', 'b'), e('Cridon', 'c@cridon.fr', 'c')]);
+  assert.equal(s.retenus.length, 1);
+  assert.equal(s.exclus.total, 2);
+  assert.equal(JSON.stringify(s.exclus.parMotif), '{"SPF":1,"CRIDON":1}');
 });
 
 test('génération : un essai, résultat enregistré ; identifiants refusés → erreur gardée pour la journée', async () => {
@@ -106,9 +133,9 @@ test('IA locale : emails des dossiers d’abord, aperçu lu mais jamais gardé, 
   assert.match(promptSyntheseEmails(entrees), /\[1\] De : Paul MARTIN \| Objet : Question \| Dossier : VTE - BERNARD \/ MARTIN/);
   assert.match(promptSyntheseEmails(entrees), /Début : Bonjour, pour la signature/);
 
+  assert.match(promptSyntheseEmails(entrees), /LISTE DES DEMANDES/);
   const faux = await demarrerFauxOllama(JSON.stringify({
-    resume: 'Paul MARTIN pose une question sur la signature ; une offre de prêt est arrivée.',
-    points: [{ texte: 'Répondre à Paul MARTIN sur la signature', email: 1, priorite: 'haute' }, { texte: 'Offre reçue', email: 99 }]
+    demandes: [{ email: 1, demande: 'Demande la date de la signature.', priorite: 'haute' }, { email: 2, demande: 'Transmet l’offre de prêt.' }, { email: 99, demande: 'Inventé' }]
   }));
   const db = ouvrirDb(':memory:');
   try {
@@ -119,11 +146,19 @@ test('IA locale : emails des dossiers d’abord, aperçu lu mais jamais gardé, 
     const r = await genererResumeEmails(depot, repo, new Date('2026-10-06T06:50:00Z'),
       { poster: (o, cb) => cb(null, { statusCode: 200, body: REPONSE }), ollama, attendreIa: true });
     assert.equal(faux.appels, 1);
-    assert.match(r.ia.texte, /Paul MARTIN pose une question/);
+    assert.equal(r.ia.points.length, 2, 'une demande qui ne cite aucun email connu est écartée');
+    assert.equal(r.ia.points[0].texte, 'Demande la date de la signature.');
     assert.equal(r.ia.points[0].priorite, 'haute');
     assert.equal(r.ia.points[0].dossierId, 'd2');
-    assert.equal(r.ia.points[1].dossierId, null, 'un numéro inconnu ne rattache à aucun dossier');
+    assert.equal(r.ia.points[0].de, 'Paul MARTIN');
+    assert.equal(r.ia.points[0].heure, '08 h 10');
     assert.equal(r.total, 4);
+    assert.equal(r.exclus.total, 1, 'la lettre d’information est écartée');
+    // Relecture du matin sans nouvel email : la liste est gardée, l'IA n'est pas rappelée.
+    const r2 = await genererResumeEmails(depot, repo, new Date('2026-10-06T07:30:00Z'),
+      { poster: (o, cb) => cb(null, { statusCode: 200, body: REPONSE }), ollama, attendreIa: true });
+    assert.equal(faux.appels, 1);
+    assert.equal(r2.ia.points.length, 2);
     const garde = JSON.stringify(repo.lireResumeEmails());
     assert.ok(!garde.includes('Bonjour, pour la signature'), 'l’aperçu n’est jamais gardé');
     assert.ok(!garde.includes('Veuillez trouver'));
@@ -142,6 +177,6 @@ test('IA locale indisponible : le résumé sans IA reste, avec une erreur lisibl
       { poster: (o, cb) => cb(null, { statusCode: 200, body: REPONSE }), ollama, attendreIa: true });
     assert.equal(r.total, 4);
     assert.match(r.ia.erreur, /Résumé par l’IA indisponible/);
-    assert.equal(repo.lireResumeEmails().autres.length, 4);
+    assert.equal(repo.lireResumeEmails().autres.length, 3, 'la lettre d’information n’est pas listée');
   } finally { db.close(); }
 });
