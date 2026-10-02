@@ -15371,3 +15371,18 @@ préalable. Mets les engagements en entier. »
   (chips) ; les échéances personnalisées s'ajoutent sur la fiche.
 Vérifié : tests client 1198 / serveur ; Chromium : vente préalable saisie dans le panneau puis « Sans prêt » → dossier
 enregistré avec `ventebien` = 2026-10-30, `sansPret` = true, prêt vide ; engagement affiché en entier ; clair, sombre, 390 px.
+### 02/10/2026 22 h 31 — Rapport technique : origine d'une correction lisible, scans hors vente
+
+Rapport n° 7 (01/10, 17 h) : « adresseBien (proposé par [nom]) ». L'origine (`regex`, `ia`,
+`authentic`…) passait par `anonymiserTexte` ; « authentic » figure dans des champs sensibles des
+dossiers (`motsSensibles`) et ressortait masqué. `origineExtractionAffichee` (`rapportTechnique.js`) :
+liste fermée `ORIGINES_EXTRACTION` affichée telle quelle, toute autre valeur → « autre » ; seul le nom
+du champ passe encore par `anonymiserTexte`. « regexia » (le « + » retiré par la route) → « regex+ia ».
+Test : dossier inventé contenant « Authentic », aucune valeur nominative ne sort.
+Les 3 scans non reconnus du même rapport : dossiers hors vente (réponse de l'étude au rapport n° 5).
+Rapports n° 9 et 10 : les scans non reconnus (dossiers hors vente, que l'étude laisse dans Scan)
+faisaient passer chaque rapport en « point à examiner ». Accord de l'étude (02/10, « oui ») : ils
+ne comptent plus que s'ils dépassent le nombre de scans écartés ou rangés à la main sur la période
+(les lectures sont anonymes, aucun lien scan par scan) ; toujours comptés dans la section Claire Scan.
+Rapport n° 7 (adresseBien) : l'étude ne peut pas savoir de quel dossier il s'agit (rapport anonymisé),
+point clos sans correction.

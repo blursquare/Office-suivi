@@ -76,6 +76,20 @@ function motsSensibles(dossiers, extras = []) {
   return mots;
 }
 
+// Origines possibles d'une valeur proposée par l'extraction (`origine` côté client), clé sans
+// ponctuation (la route du journal retire le « + » de « regex+ia »). Toute autre valeur → « autre ».
+const ORIGINES_EXTRACTION = {
+  regex: 'regex', ia: 'ia', regexia: 'regex+ia', authentic: 'authentic', texte: 'texte',
+  dossier: 'dossier', defaut: 'defaut', manuel: 'manuel'
+};
+
+// Pure : origine d'extraction affichable dans le rapport (liste fermée), '' si absente.
+function origineExtractionAffichee(origine) {
+  const cle = sansAccents(String(origine || '')).toLowerCase().replace(/[^a-z]/g, '');
+  if (!cle) return '';
+  return Object.prototype.hasOwnProperty.call(ORIGINES_EXTRACTION, cle) ? ORIGINES_EXTRACTION[cle] : 'autre';
+}
+
 // Pure : un texte sans donnée nominative. `mots` = motsSensibles(...).
 function anonymiserTexte(texte, mots) {
   let s = String(texte == null ? '' : texte);
@@ -194,7 +208,12 @@ function construireRapport(d) {
   if (rappels && rappels.erreurs && rappels.erreurs.length) aExaminer.push(`${rappels.erreurs.length} erreur(s) au dernier tour des rappels`);
   if (sauvegarde && sauvegarde.derniereTentative && !sauvegarde.derniereTentative.ok) aExaminer.push('la dernière sauvegarde a échoué');
   const nonReconnus = scansLus.filter((e) => e.details && e.details.reconnu === false);
-  if (nonReconnus.length) aExaminer.push(`${nonReconnus.length} scan(s) dont le type n'a pas été reconnu`);
+  // Étude, 02/10 : un scan non reconnu que l'étude a laissé dans Scan (le plus souvent un dossier
+  // autre qu'une vente) ou rangé elle-même n'est plus « à examiner » ; il reste compté plus bas.
+  // Les lectures sont anonymes : on retranche le nombre de scans écartés ou rangés à la main.
+  const scansTraitesALaMain = ecartes.length + rangements.filter((j) => !j.auto).length;
+  const nonReconnusRestants = Math.max(0, nonReconnus.length - scansTraitesALaMain);
+  if (nonReconnusRestants) aExaminer.push(`${nonReconnusRestants} scan(s) dont le type n'a pas été reconnu, ni rangé(s) ni laissé(s) dans Scan`);
   const calme = aExaminer.length === 0;
 
   const { date: jourFin, heure: heureFin } = momentParis(new Date(jusqua));
@@ -244,10 +263,13 @@ function construireRapport(d) {
     L.push('Champs que l\'étude a dû corriger (la valeur n\'est jamais envoyée) :');
     const parChamp = {};
     for (const c of corrections) {
-      const cle = `${(c.details && c.details.champ) || c.message}${c.details && c.details.origine ? ` (proposé par ${c.details.origine})` : ''}`;
+      // L'origine vient d'une liste fermée de mots techniques : affichée telle quelle, jamais passée par
+      // anonymiserTexte (« authentic » est aussi un mot des dossiers et ressortait en « [nom] »).
+      const origine = origineExtractionAffichee(c.details && c.details.origine);
+      const cle = `${anonymiserTexte((c.details && c.details.champ) || c.message, mots)}${origine ? ` (proposé par ${origine})` : ''}`;
       parChamp[cle] = (parChamp[cle] || 0) + (c.fois || 1);
     }
-    for (const [k, n] of Object.entries(parChamp).sort((x, y) => y[1] - x[1])) L.push(`- ${anonymiserTexte(k, mots)} : ${n}`);
+    for (const [k, n] of Object.entries(parChamp).sort((x, y) => y[1] - x[1])) L.push(`- ${k} : ${n}`);
   }
 
   L.push('', '## Agenda (dernier tour de lecture)');
@@ -413,6 +435,6 @@ function demarrerRapportTechnique(options, intervalleMs = 60 * 1000) {
 
 module.exports = {
   DEPOT_GITHUB_RAPPORT, ETIQUETTE_RAPPORT, CRENEAUX_RAPPORT, SIGLES_TECHNIQUES,
-  motsSensibles, anonymiserTexte, creneauDu, construireRapport, rassemblerDonnees,
+  motsSensibles, anonymiserTexte, origineExtractionAffichee, creneauDu, construireRapport, rassemblerDonnees,
   envoyerIssue, messageErreurGithubRapport, executerRapportTechnique, demarrerRapportTechnique
 };

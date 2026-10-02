@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-02 22:18';
+  const VERSION_APP = '2026-10-02 22:31';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-02 22:31', resume: "Rapport technique : dans « Corrections à la main après extraction », l'origine de la valeur corrigée (regex, IA, Authentic…) s'affiche en clair au lieu de « [nom] » ; c'est un mot technique d'une liste fermée, jamais une donnée du dossier. Les scans non reconnus que l'étude a laissés dans Scan (ou rangés elle-même) ne font plus passer le rapport en « point à examiner »." },
     { version: '2026-10-02 22:18', resume: "Nouveau dossier : « Échéances et dates du document » retiré (doublon des données pré-remplies). La vente préalable est toujours dans les données pré-remplies (une date saisie l'active) et la ligne « Obtention du prêt » porte une case « Sans prêt ». Les engagements du vendeur s'affichent en entier, la page du document à un clic." },
     { version: '2026-10-02 22:15', resume: "Nouveau dossier : le type de vente, le responsable, les deux notaires, le notaire qui reçoit l'acte et le rôle de l'étude rejoignent les « Données pré-remplies », avec leur source (Lue dans l'acte, Reprise d'Authentic, Déduit des notaires, Par défaut) et leur case à valider ; ils se corrigent dans le panneau comme les autres données." },
     { version: '2026-10-02 22:10', resume: "Nouveau dossier en trois étapes : Importer, Vérifier, Valider. « Vérifier » réunit les données lues (à valider d'une case, la page du document à un clic), le dossier (type, responsable, notaires, rôle, pièces d'Authentic) et l'avant-contrat (engagements du vendeur en une ligne courte, la clause au survol). « Valider » récapitule le dossier avant « Ajouter le dossier » et signale ce qui reste à valider ou à compléter." },

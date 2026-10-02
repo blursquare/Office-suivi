@@ -12,7 +12,7 @@ const { creerApp } = require('../src/app');
 const { ouvrirDb } = require('../src/db');
 const { creerJournalTechnique, installerCaptureConsole } = require('../src/journalTechnique');
 const {
-  motsSensibles, anonymiserTexte, creneauDu, construireRapport, envoyerIssue, messageErreurGithubRapport
+  motsSensibles, anonymiserTexte, origineExtractionAffichee, creneauDu, construireRapport, envoyerIssue, messageErreurGithubRapport
 } = require('../src/rapportTechnique');
 const { evenementPoste } = require('../src/routes/rapportTechnique');
 
@@ -112,6 +112,41 @@ test('capture de la console : l\'avertissement « SQLite expérimental » de Nod
   assert.equal(lues.length, 1);
   assert.doesNotMatch(lues[0].message, /SQLite/);
   db.close();
+});
+
+test('corrections après extraction : l\'origine (liste fermée) reste lisible même si le mot figure dans un dossier', () => {
+  // « Authentic » se trouve dans un champ sensible du dossier : il est dans les mots masqués.
+  const dossier = { id: 'd1', nom: 'DURAND / MARTIN', notaireAcquereur: 'Office Authentic Blois' };
+  const mots = motsSensibles([dossier], []);
+  assert.ok(mots.has('authentic'));
+  const r = construireRapport({
+    depuis: '2026-10-01T12:00:00.000Z', jusqua: '2026-10-01T15:00:00.000Z', mots, dossiers: [dossier],
+    evenements: [
+      { categorie: 'correction-extraction', message: 'adresseBien', fois: 1, derniere: '2026-10-01T13:00:00.000Z', details: { champ: 'adresseBien', origine: 'authentic' } },
+      { categorie: 'correction-extraction', message: 'prixVente', fois: 1, derniere: '2026-10-01T13:00:00.000Z', details: { champ: 'prixVente', origine: 'regexia' } },
+      { categorie: 'correction-extraction', message: 'nom', fois: 1, derniere: '2026-10-01T13:00:00.000Z', details: { champ: 'nom', origine: 'DURAND' } }
+    ]
+  });
+  assert.match(r.corps, /adresseBien \(proposé par authentic\) : 1/);
+  assert.match(r.corps, /prixVente \(proposé par regex\+ia\) : 1/);
+  assert.match(r.corps, /nom \(proposé par autre\) : 1/);
+  assert.ok(!/DURAND/i.test(r.corps));
+  assert.equal(origineExtractionAffichee(''), '');
+  assert.equal(origineExtractionAffichee('regex+ia'), 'regex+ia');
+});
+
+test('scans non reconnus : plus « à examiner » quand l\'étude les a laissés dans Scan ou rangés elle-même', () => {
+  const depuis = '2026-10-02T10:00:00.000Z';
+  const jusqua = '2026-10-02T15:00:00.000Z';
+  const lu = (reconnu) => ({ categorie: 'scan-lu', message: 'Scan lu', fois: 1, derniere: '2026-10-02T11:00:00.000Z', details: { dureeMs: 5000, ocr: true, reconnu } });
+  const evenements = [lu(false), lu(false), lu(false), lu(true)];
+  const ecarte = { date: '2026-10-02T11:30:00.000Z' };
+  const tous = construireRapport({ depuis, jusqua, mots: new Set(), dossiers: [], evenements, scansEcartes: [ecarte, ecarte], journalScans: [{ date: '2026-10-02T11:40:00.000Z', type: '', auto: false }] });
+  assert.equal(tous.calme, true);
+  assert.match(tous.corps, /type non reconnu : 3/);
+  const reste = construireRapport({ depuis, jusqua, mots: new Set(), dossiers: [], evenements, scansEcartes: [ecarte] });
+  assert.equal(reste.calme, false);
+  assert.match(reste.corps, /- 2 scan\(s\) dont le type n'a pas été reconnu, ni rangé\(s\) ni laissé\(s\) dans Scan/);
 });
 
 test('evenementPoste : liste blanche stricte (jamais de valeur de dossier)', () => {
