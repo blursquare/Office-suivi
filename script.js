@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-02 13:50';
+  const VERSION_APP = '2026-10-02 13:58';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-02 13:58', resume: "Tableau de bord, carte « Aujourd'hui » : « Mes rappels » est resserré — une ligne par rappel, l'échéance et le dossier à droite du texte, sans espace réparti entre les lignes. Téléphonie 3CX : un interrupteur par collaborateur dans Réglages › Téléphonie 3CX ; coupé, ses appels ne sont plus notés, sa fenêtre CLAIRE n'affiche plus « Appel entrant » et l'onglet ouvert par 3CX se referme aussitôt." },
     { version: '2026-10-02 13:50', resume: "SAFER : le délai de réponse est de 2 mois par défaut ; deux cases sous « Réponse SAFER » (onglet Pièces) le passent à 1 mois (réponse rapide) ou 8 jours (très rapide), et la date se recalcule. La fin du délai est une date butoir du dossier, comme la préemption de la mairie : ligne « Délai SAFER » dans les échéances de la fiche, pas de « Fixer le rendez-vous » avant (tableau de bord : « Réponse SAFER attendue »), semaine probable et créneaux proposés au plus tôt le lendemain, probabilité de tenue réduite (fortement si le rendez-vous tombe avant la fin du délai). Pas de rappel Teams sur ce délai : la non-préemption est acquise d'elle-même." },
     { version: '2026-10-02 12:43', resume: "Fiche : l'email et le téléphone du vendeur et de l'acquéreur sont sur la première page (une ligne par partie, modifiables) et, dans Échanges, sur une seule ligne. Authentic : un état civil virtuel (Comedec) « pris en compte » reste à recevoir, « négatif » reste non coché avec « Comedec : négatif » sous la pièce, « positif » est coché ; la SAFER affiche l'envoi, la prise en compte et, sans réponse à l'issue du délai (2 mois, 1 mois en réponse rapide, 8 jours en réponse très rapide), passe seule en non-préemption ; les demandes (alignement, numérotage, DIA…) ne cochent rien mais s'affichent « Demande envoyée le … » sous la pièce. L'extension (0.3.3) et le serveur n'envoient plus que les pages dont CLAIRE connaît la structure." },
     { version: '2026-10-02 12:33', resume: "Nouveau dossier : trois façons de commencer — « Compromis (PDF) » (puis « Compléter depuis Authentic », le bon dossier en tête), « Export Authentic (.zip) », « Dossier Authentic » (repris des pages ouvertes dans Authentic, puis le compromis déposé dessous pour les dates butoir et les engagements, sans rien perdre d'Authentic). Les étapes Vérifier et Finaliser rappellent ce qui vient du compromis et d'Authentic. Notaires : ceux lus dans l'acte ou dans Authentic se placent d'un clic (vendeur, acquéreur, les deux) ; « Notaire qui reçoit l'acte » se choisit et le rôle de l'étude s'en déduit. Corrigé : un notaire cité sans son côté n'apparaissait plus sur la fiche (ligne repliée) — il s'affiche « Lus, à placer »." },
@@ -25448,6 +25449,23 @@
     return `${jour}, ${heureAppel(t)}`;
   }
 
+  // Intégration 3CX coupée collaborateur par collaborateur (Réglages › Téléphonie 3CX, étude 02/10 ; le
+  // serveur fait foi : pour un poste coupé, il ne note ni ne rend plus aucun appel).
+  let postes3cxCoupes = [];
+
+  async function basculerTelephonie3cx(i, actif) {
+    const nom = RESPONSABLES[i];
+    if (!nom) return;
+    try {
+      const r = await fetchAvecAuth('/api/appels/reglages', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ poste: clePosteAppels(nom), actif: !!actif }) });
+      if (r.ok) postes3cxCoupes = (await r.json()).postesCoupes || [];
+    } catch (e) { /* état affiché relu ci-dessous */ }
+    const coupe = postes3cxCoupes.includes(clePosteAppels(nom));
+    if (coupe && nom === utilisateurPoste) fermerAppelEntrant();
+    afficherToast(`${prenomCollaborateur(nom)} : intégration 3CX ${coupe ? 'coupée — ses appels ne sont plus notés' : 'activée'}.`, 'OK', null);
+    renderReglages3cx();
+  }
+
   async function releverAppels() {
     if (!authToken || !utilisateurPoste) return;
     try {
@@ -26972,6 +26990,10 @@
   async function renderReglages3cx() {
     const liste = document.getElementById('reglages-3cx-liste');
     if (!liste) return;
+    try {
+      const r = await fetchAvecAuth('/api/appels/reglages');
+      if (r.ok) postes3cxCoupes = (await r.json()).postesCoupes || [];
+    } catch (e) { /* dernier état connu */ }
     if (!origine3cx) {
       let adresses = [];
       try {
@@ -26986,16 +27008,23 @@
       if (r.ok) postes = (await r.json()).postes || {};
     } catch (e) { /* état inconnu : rien d'affiché */ }
     const maintenant = Date.now();
-    liste.innerHTML = RESPONSABLES.map((nom, i) => `
-      <div class="reglages-champ">
-        <div class="reglages-champ-libelle"><label for="reglages-3cx-${i}">${escapeHtml(nom)}</label>
-          <span class="reglages-3cx-etat">${etatPoste3cx(postes[clePosteAppels(nom)], maintenant).map(e => `<span class="dot-label ${e.classe}">${escapeHtml(e.texte)}</span>`).join('')}</span></div>
+    liste.innerHTML = RESPONSABLES.map((nom, i) => {
+      const actif = !postes3cxCoupes.includes(clePosteAppels(nom));
+      return `
+      <div class="reglages-champ${actif ? '' : ' reglages-3cx-coupe'}">
+        <div class="reglages-champ-libelle"><span class="reglages-3cx-tete"><label for="reglages-3cx-${i}">${escapeHtml(nom)}</label>
+          <label class="switch reglages-switch reglages-3cx-switch" title="${actif ? 'Couper 3CX pour ce collaborateur' : 'Activer 3CX pour ce collaborateur'}">
+            <input type="checkbox" id="reglages-3cx-actif-${i}" ${actif ? 'checked' : ''} onchange="basculerTelephonie3cx(${i}, this.checked)" aria-label="Intégration 3CX de ${escapeAttr(nom)}">
+            <span class="slider"></span>
+          </label></span>
+          <span class="reglages-3cx-etat">${actif ? etatPoste3cx(postes[clePosteAppels(nom)], maintenant).map(e => `<span class="dot-label ${e.classe}">${escapeHtml(e.texte)}</span>`).join('') : '<span class="dot-label dl-neutre"><span class="dot"></span>3CX coupé : appels non notés</span>'}</span></div>
         <div class="reglages-champ-ligne">
           <input type="text" id="reglages-3cx-${i}" readonly spellcheck="false" value="${escapeAttr(adresseIntegration3cx(origine3cx, nom))}" onfocus="this.select()">
           <button type="button" class="secondary" onclick="copierAdresse3cx(${i})">Copier</button>
-          <button type="button" class="secondary" onclick="essayerSonnerie3cx(${i})" title="Simule un appel sur ce poste, comme 3CX à la sonnerie">Essayer</button>
+          <button type="button" class="secondary" onclick="essayerSonnerie3cx(${i})" title="Simule un appel sur ce poste, comme 3CX à la sonnerie"${actif ? '' : ' disabled'}>Essayer</button>
         </div>
-      </div>`).join('');
+      </div>`;
+    }).join('');
     const journal = document.getElementById('reglages-3cx-journal');
     if (!journal) return;
     try {

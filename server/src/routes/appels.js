@@ -7,12 +7,20 @@
 //  - GET /api/appels/nouveaux?poste=&depuis=&visible= : la fenêtre CLAIRE relève ses appels toutes les
 //    3 s (même cachée) et signale si elle est visible.
 //  - GET /api/appels?dossierId= : le journal (50 derniers, ou ceux d'un dossier).
+//  - GET /api/appels/reglages → { postesCoupes } ; PUT { poste, actif } : intégration coupée pour un
+//    collaborateur (étude, 02/10) — /appel de son poste ne note plus rien et la page se ferme, sa
+//    fenêtre ne relève plus d'appel.
 
 const express = require('express');
 const { creerEntreeAppel, pageSonnerie, clePoste } = require('../appels3cx');
 const { adressesLan } = require('../reseau');
 
 var FENETRE_VUE_MS = 15000;
+
+function posteCoupe(parametresRepo, poste) {
+  const cle = clePoste(poste);
+  return !!cle && parametresRepo.lireReglagesTelephonie().postesCoupes.includes(cle);
+}
 
 function creerEtatAppels() {
   return { fenetres: new Map(), sonneries: [] };
@@ -21,6 +29,12 @@ function creerEtatAppels() {
 function creerRouteurSonnerie(parametresRepo, depot, etat) {
   const routeur = express.Router();
   routeur.get('/appel', (req, res) => {
+    // Téléphonie coupée pour ce collaborateur dans les Réglages : rien n'est noté, la page se ferme.
+    if (posteCoupe(parametresRepo, (req.query || {}).poste)) {
+      res.setHeader('Cache-Control', 'no-store');
+      res.type('html').send(pageSonnerie({ id: '', fenetreVisible: true }));
+      return;
+    }
     const maintenant = Date.now();
     etat.sonneries = etat.sonneries.filter(t => maintenant - t < 60000);
     if (etat.sonneries.length >= 60) { res.status(429).type('text/plain').send('Trop d’appels.'); return; }
@@ -50,7 +64,17 @@ function creerRouteurSonnerie(parametresRepo, depot, etat) {
 
 function creerRouteurAppels(parametresRepo, etat) {
   const routeur = express.Router();
+  // Réglages › Téléphonie 3CX : intégration coupée collaborateur par collaborateur.
+  routeur.get('/appels/reglages', (req, res) => res.json(parametresRepo.lireReglagesTelephonie()));
+  routeur.put('/appels/reglages', (req, res) => {
+    const poste = clePoste((req.body || {}).poste);
+    if (!poste) { res.status(400).json({ error: 'Collaborateur attendu.' }); return; }
+    const coupes = new Set(parametresRepo.lireReglagesTelephonie().postesCoupes);
+    if ((req.body || {}).actif === false) coupes.add(poste); else coupes.delete(poste);
+    res.json(parametresRepo.ecrireReglagesTelephonie({ postesCoupes: [...coupes] }));
+  });
   routeur.get('/appels/nouveaux', (req, res) => {
+    if (posteCoupe(parametresRepo, req.query.poste)) { res.json({ appels: [], serverTime: new Date().toISOString(), coupe: true }); return; }
     const poste = clePoste(req.query.poste);
     const depuis = String(req.query.depuis || '');
     if (poste) etat.fenetres.set(poste, { t: Date.now(), visible: req.query.visible === '1' });

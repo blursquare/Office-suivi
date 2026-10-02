@@ -14770,3 +14770,15 @@ ou très rapide = deux cases à cocher sous la réponse de la SAFER, le délai s
   « Réponse SAFER attendue » à la place de « Fixer le rendez-vous ».
 - Vérifié dans Chromium (dossier inventé) : ligne d'échéance, prochaine étape « Délai SAFER », cases 2 mois → 1 mois →
   8 jours (non-préemption, pièce cochée) → décochée (retour à 2 mois, pièce manquante), tableau de bord.
+
+### 02/10/2026 après-midi — « Mes rappels » resserré ; 3CX coupé collaborateur par collaborateur
+
+- Étude : « trop d'espace blanc entre chaque ligne » dans « Mes rappels » de la carte Aujourd'hui. Cause : la liste coupée
+  par `ajusterWidgets` (`.w-coupee`) répartit les lignes sur la hauteur (`justify-content: space-between`) ; « Mes
+  rappels » reste en haut (`.rappels-perso.w-coupee`), lignes serrées, échéance et dossier sur la ligne du rappel dans
+  la carte (`.dash-rappels-bloc .rappel-perso-texte` en ligne).
+- Étude : « permettre d'activer ou désactiver 3CX dans les réglages » puis « pas global, plutôt collab par collab ».
+  Clé `telephonie-3cx` = `{ postesCoupes: [clé de poste] }` (`lireReglagesTelephonie`) ; `GET /api/appels/reglages`,
+  `PUT { poste, actif }`. Poste coupé : `/appel` ne note rien et renvoie la page qui se ferme ; `/appels/nouveaux` rend
+  `{ coupe: true }` sans appel. Réglages › Téléphonie 3CX : interrupteur à côté de chaque nom (`basculerTelephonie3cx`),
+  « 3CX coupé : appels non notés », Copier/Essayer grisés.

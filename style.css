@@ -5046,6 +5046,8 @@ table.af-table .af-verif-ecart { background: #f6e3c9; color: #8a5417; }
 /* Téléphonie 3CX : état du poste sous le nom du collaborateur (fenêtre CLAIRE, dernière sonnerie). */
 .reglages-champ-libelle:has(.reglages-3cx-etat) { flex-direction: column; align-items: flex-start; gap: 4px; }
 .reglages-3cx-etat { display: flex; flex-direction: column; gap: 2px; font-size: 12px; font-weight: 400; }
+.reglages-3cx-tete { display: flex; align-items: center; gap: 10px; }
+.reglages-3cx-coupe .reglages-champ-ligne { opacity: 0.55; }
 .reglages-champ-pile .hint:empty { display: none; }
 .reglages-champ-pile .hint { margin: 0; }
 .reglages-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding-top: 14px; }
@@ -6084,9 +6086,10 @@ button.lien-action:hover { text-decoration: underline; }
 .alerte-ligne.g-info .alerte-icone, .alerte-ligne.g-info .alerte-gravite { color: var(--focus); }
 .alertes-liste .urgent-groupe-reste { margin: 8px 18px 0; align-self: flex-start; }
 
-.rappels-perso { padding: 14px 18px 16px; display: flex; flex-direction: column; gap: 8px; }
+/* Lignes serrées (étude, 02/10 : « trop d'espace blanc entre chaque ligne »). */
+.rappels-perso { padding: 10px 18px 12px; display: flex; flex-direction: column; gap: 2px; }
 .rappels-perso-vide { font-size: 13px; color: var(--muted); }
-.rappel-perso { display: flex; align-items: flex-start; gap: 12px; padding: 4px 0; }
+.rappel-perso { display: flex; align-items: flex-start; gap: 12px; padding: 2px 0; }
 .rappel-perso-case {
   width: 20px; height: 20px; flex-shrink: 0; margin-top: 1px; padding: 0;
   display: inline-flex; align-items: center; justify-content: center;
@@ -6111,7 +6114,7 @@ button.lien-action:hover { text-decoration: underline; }
 .rappel-perso-modif:hover { color: var(--focus); }
 .rappel-perso .rappel-perso-modif { font-size: 12px; }
 @media (hover: none) { .rappel-perso-suppr { opacity: 1; } }
-.rappel-perso-ajout { align-self: flex-start; margin-top: 2px; }
+.rappel-perso-ajout { align-self: flex-start; margin-top: 6px; }
 /* Rappel qui parle d'écrire : un email vierge, signature comprise (voir ouvrirEmailRappelPerso). */
 .rappel-perso button.icon-btn.rappel-perso-email { color: var(--focus); font-size: 14px; padding: 2px 4px; flex: none; }
 /* Tâche du jour restée non faite la veille (voir majVeilleJour). */
@@ -6826,6 +6829,12 @@ button.confrere-carnet-office:focus-visible, button.carnet-dossier:focus-visible
 .w-corps > .w-coupee { flex: 1 1 auto; }
 .w-corps .w-coupee:not(.w-section) { display: flex; flex-direction: column; justify-content: space-between; }
 .w-corps .w-section.w-coupee > .w-coupee { flex: 1 1 auto; }
+/* « Mes rappels » reste serré en haut, même quand la carte a de la place (étude, 02/10). */
+/* Carte du tableau de bord : échéance et dossier sur la même ligne que le rappel. */
+.dash-rappels-bloc .rappel-perso { align-items: center; padding: 1px 0; }
+.dash-rappels-bloc .rappel-perso-case { margin-top: 0; }
+.dash-rappels-bloc .rappel-perso-texte { flex-direction: row; flex-wrap: wrap; align-items: baseline; column-gap: 8px; }
+.w-corps .rappels-perso.w-coupee { justify-content: flex-start; }
 
 /* Chiffre clé des petites tuiles. */
 .w-chiffre-bloc { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }

@@ -1154,6 +1154,14 @@ function creerRepoParametres(db) {
     return propre;
   }
 
+  // Téléphonie 3CX coupée collaborateur par collaborateur (étude, 02/10) : la liste des postes coupés
+  // (clé de poste, voir clePoste) ; active pour tous par défaut.
+  function assainirReglagesTelephonie(r) {
+    const postes = Array.isArray(r && r.postesCoupes) ? r.postesCoupes : [];
+    return { postesCoupes: [...new Set(postes.map(x => String(x || '').toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 40)).filter(Boolean))].slice(0, 30) };
+  }
+  function lireReglagesTelephonie() { return lireJson('telephonie-3cx', assainirReglagesTelephonie, { postesCoupes: [] }); }
+  function ecrireReglagesTelephonie(r) { const p = assainirReglagesTelephonie(r); ecrireStmt.run('telephonie-3cx', JSON.stringify(p)); return p; }
   function lireJournalAppels() { return lireJson(CLE_APPELS, assainirJournalAppels, []); }
   function ecrireJournalAppels(l) { const p = assainirJournalAppels(l); ecrireStmt.run(CLE_APPELS, JSON.stringify(p)); return p; }
   function lireSondagesCreneaux() { return lireJson(CLE_SONDAGES, assainirSondages, []); }
@@ -1239,7 +1247,7 @@ function creerRepoParametres(db) {
     lireReglagesScans, ecrireReglagesScans, lireJournalScans, ecrireJournalScans, lireScansEcartes, ecrireScansEcartes,
     lirePiecesNotifiees, ecrirePiecesNotifiees,
     lireSondagesCreneaux, ecrireSondagesCreneaux,
-    lireJournalAppels, ecrireJournalAppels,
+    lireJournalAppels, ecrireJournalAppels, lireReglagesTelephonie, ecrireReglagesTelephonie,
     lireCarnetConfreres, ecrireCarnetConfreres,
     lireRepertoire, ecrireRepertoire,
     lireResumeEmails, ecrireResumeEmails,

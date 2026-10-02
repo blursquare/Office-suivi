@@ -385,7 +385,7 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
   puis carnet des confrères et ses dossiers, puis répertoire). La fenêtre CLAIRE relève toutes les 3 s, même
   cachée (`releverAppels`), montre le bandeau « Appel entrant » (en bas à gauche ; fermé seul 45 s après la sonnerie — 3CX ne signale pas la fin d'un appel, choix de l'étude 02/10 contre le journal CRM de 3CX —, en pause au survol, fermé à l'ouverture d'une fiche depuis le bandeau) et ouvre la fiche (Échanges) d'un seul dossier
   en cours, jamais pendant une saisie ; l'onglet ouvert par 3CX se ferme si la fenêtre du poste est visible,
-  sinon il affiche CLAIRE sur l'appel (`#appel=`). Appels du dossier dans l'onglet Échanges.
+  sinon il affiche CLAIRE sur l'appel (`#appel=`). Appels du dossier dans l'onglet Échanges. **Coupé collaborateur par collaborateur** (étude 02/10, interrupteur sur sa ligne dans Réglages › Téléphonie 3CX, clé `telephonie-3cx` `postesCoupes`) : ses sonneries ne sont plus notées, sa fenêtre ne relève plus rien.
 - **Mobilier** : le prix reste le prix total ; `d.prixMobilier` sort seulement de l'assiette des
   droits (frais d'acte, contrôle du barème).
 - **Prorata** : jours réels, jour de l'acte à la charge de l'acquéreur, arrondi du vendeur par

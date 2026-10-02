@@ -137,3 +137,22 @@ test('route : adresses du serveur sur le réseau (pour l’adresse à coller dan
   assert.ok(Array.isArray(r.adresses));
   assert.ok(r.adresses.every(a => !/^127\./.test(a)));
 });
+
+test('route : téléphonie coupée pour un collaborateur — ses appels ne sont ni notés ni relevés, les autres si', async () => {
+  const auth = { authorization: `Bearer ${jeton}` };
+  const json = { ...auth, 'Content-Type': 'application/json' };
+  assert.equal((await (await fetch(`${baseUrl}/api/appels/reglages`, { headers: auth })).json()).postesCoupes.length, 0);
+  assert.equal((await fetch(`${baseUrl}/api/appels/reglages`, { method: 'PUT', headers: json, body: JSON.stringify({ actif: false }) })).status, 400);
+  const r = await (await fetch(`${baseUrl}/api/appels/reglages`, { method: 'PUT', headers: json, body: JSON.stringify({ poste: 'Julie', actif: false }) })).json();
+  assert.equal(r.postesCoupes.join(','), 'julie');
+  const nb = async () => (await (await fetch(`${baseUrl}/api/appels`, { headers: auth })).json()).appels.length;
+  const avant = await nb();
+  assert.match(await (await fetch(`${baseUrl}/appel?numero=0611111111&poste=julie`)).text(), /window\.close/);
+  assert.equal(await nb(), avant);
+  assert.equal((await (await fetch(`${baseUrl}/api/appels/nouveaux?poste=julie&depuis=2000-01-01`, { headers: auth })).json()).coupe, true);
+  // Bastien n'est pas coupé.
+  await fetch(`${baseUrl}/appel?numero=0611111112&poste=bastien`);
+  assert.equal(await nb(), avant + 1);
+  await fetch(`${baseUrl}/api/appels/reglages`, { method: 'PUT', headers: json, body: JSON.stringify({ poste: 'julie', actif: true }) });
+  assert.equal((await (await fetch(`${baseUrl}/api/appels/reglages`, { headers: auth })).json()).postesCoupes.length, 0);
+});
