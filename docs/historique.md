@@ -15271,3 +15271,14 @@ avec Authentic sinon on continue sans. Et création depuis Authentic sans PDF. �
 - « Depuis Authentic » : « Reprendre » → « Vérifier » (vente) ou « Finaliser » (succession), comme avant.
 Vérifié : tests ; Chromium (compromis simulé — pdf.js injoignable ici — puis liste Authentic, « Compléter », mode
 « Depuis Authentic »).
+
+### 02/10/2026 (21 h 50) — Nouveau dossier : champs pré-remplis par « Compléter »
+
+Étude : « Si on complète, les champs suivants doivent être pré-remplis. » Parcours rejoué dans Chromium (compromis
+inventé + page du dossier, fiches vendeur et acquéreur, fiche bien) : pré-remplis — nom, adresse du bien, prix
+(« Capital »), type de bien, responsable (collaborateur des « Parties prenantes »), emails vendeur et acquéreur, pièces
+reçues ; notaire d'Authentic PROPOSÉ (Vendeur / Acquéreur / Les deux — côté jamais deviné). Manquait : la date de
+signature de l'avant-contrat relevée sur la page (`dateAvantContratAuthentic`) n'était posée qu'à l'enregistrement
+(`infosAuthenticACreation`) ; désormais `appliquerTypeVenteAuthentic` la passe à `corrigerDateCompromis` (ancre des
+délais, champ `f-date-compromis`) si le compromis ne l'a pas donnée ou seulement estimée. Restent au compromis seul :
+dates butoir (prêt, vente préalable, acte), agence, dépôt de garantie, séquestre, mobilier.

@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-02 21:45';
+  const VERSION_APP = '2026-10-02 21:50';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-02 21:50', resume: "Nouveau dossier complété depuis Authentic : la date de signature de l'avant-contrat relevée sur la page du dossier (« Promesse/Compromis… signé le … ») remplit le champ et sert d'ancre aux délais, si le compromis ne l'a pas donnée. Elle n'arrivait jusqu'ici sur la fiche qu'à l'enregistrement." },
     { version: '2026-10-02 21:45', resume: "Nouveau dossier : deux entrées. « Compromis (PDF) » : une fois le compromis lu, on reste sur la première étape — « Compléter depuis Authentic (facultatif) » liste les dossiers ouverts dans Authentic, celui du compromis en tête (« Correspond au compromis »), ou « Continuer sans Authentic ». « Depuis Authentic » : sans PDF, pour une vente ou une succession. L'ancienne entrée « Dossier Authentic » (Authentic puis le compromis) est retirée." },
     { version: '2026-10-02 21:36', resume: "Emails et téléphones repris d'Authentic : on garde les deux. À la création d'un dossier, les adresses de TOUTES les parties du côté (deux acquéreurs = deux emails) s'ajoutent à celle lue dans le compromis au lieu de la remplacer — avant, seul le premier email d'Authentic était repris et il écrasait celui du compromis ; un email tapé à la main dans le formulaire est gardé, les autres s'y ajoutent. Sur la fiche, l'email de l'acquéreur reste affiché quand un confrère le représente (il était enregistré mais caché derrière « Par son notaire »)." },
     { version: '2026-10-02 21:32', resume: "Authentic, Réglages › Authentic : chaque page reprise dit comment son dossier a été retrouvé — par son numéro, ou par les noms de l'intitulé vérifiés par l'adresse du bien (code postal, voie, numéro), avec les points obtenus. Des noms identiques sur un autre bien (autre code postal ou autre voie) ne désignent pas le dossier." },
@@ -10209,6 +10210,15 @@
     const collab = donnees && donnees.infosAuthentic && donnees.infosAuthentic.collaborateur;
     const resp = document.getElementById('f-responsable');
     if (collab && resp && [...resp.options].some(o => o.value === collab)) resp.value = collab;
+    // Date de signature de l'avant-contrat relevée sur la page du dossier (étude, 02/10 : « si on complète,
+    // les champs suivants doivent être pré-remplis ») : l'ancre des délais, si le compromis ne l'a pas
+    // donnée (ou seulement estimée). Avant, elle n'arrivait sur la fiche qu'à l'enregistrement.
+    const ac = donnees && donnees.infosAuthentic && donnees.infosAuthentic.avantContratLe;
+    if (ac && (!dateCompromisDetectee || dateCompromisEstimee)) {
+      corrigerDateCompromis(ac);
+      const champ = document.getElementById('f-date-compromis');
+      if (champ) champ.value = ac;
+    }
   }
 
   // Compte rendu de l'import sous la zone de dépôt, et pièces reprises à l'étape Finaliser.
