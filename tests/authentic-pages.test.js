@@ -262,7 +262,7 @@ test('appliquerReleveSurDossier : SAFER notifiée sans réponse → « Réponse 
   assert.equal(d.authentic.safer.priseEnCompteLe, '2026-09-15');
   assert.equal(d.authentic.acte.etat, 'redaction');
   assert.equal(d.authentic.rhf.envoyeeLe, '2026-09-01');
-  assert.equal(app.suiviSaferPiece(d), 'notifiée le 10 septembre 2026, prise en compte le 15 septembre 2026');
+  assert.equal(app.suiviSaferPiece(d), 'envoyée le 10 septembre 2026, prise en compte le 15 septembre 2026, sans réponse : non-préemption le 15 novembre 2026 (2 mois)');
   const n = d.historique.length;
   // Même page relue : rien de nouveau.
   app.appliquerReleveSurDossier(d, gestionAttente, '2026-10-02T10:05:00.000Z');
@@ -449,4 +449,69 @@ test('rapprochement par score : noms des parties + adresse du bien (deux ventes 
   assert.match(s.details.join(', '), /vendeur identique \(\+3\), acquéreur identique \(\+3\), code postal \(\+1\), adresse \(blois lilas\) \(\+4\), numéro \(\+1\)/);
   // Adresse lue sur la page de gestion, rubrique « Immeubles (n) ».
   assert.equal(app.adresseBienPageAuthentic({ champs: [], texte: '12 - Vente MARTEL/FOURNIER\nComparants (3)\nM. MARTEL\nImmeubles (1)\n41000 BLOIS\n8 rue des Lilas\nDocuments' }), '41000 BLOIS 8 rue des Lilas');
+});
+
+
+test('SAFER : délai 2 mois / 1 mois (rapide) / 8 jours (très rapide), puis non-préemption tacite une fois', () => {
+  assert.equal(app.echeanceSaferTacite({ notifieeLe: '2026-09-10', priseEnCompteLe: '2026-09-15' }), '2026-11-15');
+  assert.equal(app.echeanceSaferTacite({ notifieeLe: '2026-09-10', delai: 'rapide' }), '2026-10-10');
+  assert.equal(app.echeanceSaferTacite({ notifieeLe: '2026-09-10', priseEnCompteLe: '2026-09-12', delai: 'tres_rapide' }), '2026-09-20');
+  const lignes = [{ titre: 'Notification SAFER réponse très rapide', dates: ['2026-09-10'], etat: 'Pris en compte', texte: 'Notification SAFER réponse très rapide · 10/09/2026 · Pris en compte' }];
+  const sa = app.suiviSaferAuthentic(lignes);
+  assert.equal([sa.delai, sa.priseEnCompte].join('|'), 'tres_rapide|oui');
+  const d = { id: 'a', nom: 'MARTEL / FOURNIER', typeVente: 'maison', pieces: {}, historique: [] };
+  app.appliquerReleveSurDossier(d, { champs: [{ libelle: '12 - Vente MARTEL/FOURNIER', valeur: '' }], tableaux: [{ entete: [], lignes: [['Notification SAFER réponse très rapide', '', '10/09/2026', '', 'Pris en compte']] }], texte: '' }, '2026-09-15T09:00:00Z');
+  assert.equal(d.pieces['perso-safer'], 'manquante');
+  // Prise en compte sans date : le délai court de l'envoi (10/09 + 8 jours = 18/09) ; le 18 il n'est pas dépassé.
+  assert.equal(app.appliquerSaferTacite(d, '2026-09-18'), false);
+  assert.equal(app.appliquerSaferTacite(d, '2026-09-21', '2026-09-21T08:00:00Z'), true);
+  assert.equal(d.pieces['perso-safer'], 'recue');
+  assert.equal(d.authentic.safer.decision, 'non_preemption');
+  assert.match(app.suiviSaferPiece(d), /non-préemption \(délai écoulé\) le 18 septembre 2026/);
+  assert.match(d.historique[d.historique.length - 1].texte, /délai écoulé le 18 septembre 2026 sans réponse \(8 jours, réponse très rapide\) — non-préemption/);
+  // Une seule fois.
+  assert.equal(app.appliquerSaferTacite(d, '2026-09-30'), false);
+});
+
+test('état civil Comedec : en attente / négatif non cochés avec leur état, positif coché', () => {
+  const page = (etat) => ({ champs: [{ libelle: '12 - Vente MARTEL/FOURNIER', valeur: '' }], tableaux: [{ entete: [], lignes: [['ECV Acte de naissance de M. MARTEL Alexandre', '', '03/09/2026', '', etat]] }], texte: '' });
+  const d = { id: 'a', nom: 'MARTEL / FOURNIER', typeVente: 'maison', pieces: {}, historique: [] };
+  app.appliquerReleveSurDossier(d, page('Pris en compte'), '2026-09-04T09:00:00Z');
+  const cle = d.piecesPersonnalisees[0].cle;
+  assert.equal(d.pieces[cle], 'manquante');
+  assert.equal(app.etatAuthenticPiece(d, { cle, label: 'x' }).texte, 'Comedec : pris en compte, en attente');
+  app.appliquerReleveSurDossier(d, page('Négatif'), '2026-09-06T09:00:00Z');
+  assert.equal(d.pieces[cle], 'manquante');
+  assert.equal(app.etatAuthenticPiece(d, { cle, label: 'x' }).classe, 'dl-urgent');
+  assert.ok(d.historique.some(h => /Comedec négatif/.test(h.texte)));
+  app.appliquerReleveSurDossier(d, page('Positif'), '2026-09-09T09:00:00Z');
+  assert.equal(d.pieces[cle], 'recue');
+  assert.equal(app.etatAuthenticPiece(d, { cle, label: 'x' }).texte, 'Comedec : positif');
+  // Positif et coché : relu, rien ne change.
+  const n = d.historique.length;
+  app.appliquerReleveSurDossier(d, page('Positif'), '2026-09-10T09:00:00Z');
+  assert.equal(d.historique.length, n);
+});
+
+test('demandes d’alignement, de numérotage et DIA : jamais cochées, « Demande envoyée le … » sous la pièce', () => {
+  const lignes = [
+    { titre: 'Demande de certificat d’alignement', date: '2026-09-01', etat: 'Envoyé', texte: '' },
+    { titre: 'Courrier certificat de numérotage', date: '2026-09-02', etat: '', texte: '' },
+    { titre: 'Déclaration d’intention d’aliéner', date: '2026-09-03', etat: 'En attente', texte: '' }
+  ];
+  const dm = app.demandesUrbanismeAuthentic(lignes);
+  assert.equal(Object.keys(dm).sort().join(','), 'certificatAlignement,certificatNumerotage,renonciationPreemption');
+  const d = { id: 'a', nom: 'MARTEL / FOURNIER', typeVente: 'maison', pieces: {}, historique: [] };
+  app.appliquerReleveSurDossier(d, { champs: [{ libelle: '12 - Vente MARTEL/FOURNIER', valeur: '' }], tableaux: [{ entete: [], lignes: lignes.map(l => [l.titre, '', l.date.split('-').reverse().join('/'), '', l.etat]) }], texte: '' }, '2026-09-05T09:00:00Z');
+  assert.ok(!d.pieces.certificatAlignement);
+  assert.equal(app.etatAuthenticPiece(d, { cle: 'certificatAlignement', label: 'Certificat d’alignement' }).texte, 'Demande envoyée le 1 septembre 2026');
+  assert.equal(app.etatAuthenticPiece(d, { cle: 'renonciationPreemption', label: 'x' }).texte, 'DIA envoyée le 3 septembre 2026');
+  // Reçue ensuite (NAS) : la mention s'efface.
+  d.pieces.certificatAlignement = 'recue';
+  assert.equal(app.etatAuthenticPiece(d, { cle: 'certificatAlignement', label: 'x' }), null);
+});
+
+test('coordonneesPartiesDossier : email et téléphone par partie ; « par son notaire » si un confrère la représente', () => {
+  const c = app.coordonneesPartiesDossier({ emailVendeur: 'v@ex.fr', telephoneVendeur: '0601020304', emailAcquereur: '', telephoneAcquereur: '' });
+  assert.equal(c.map(x => `${x.libelle}:${x.email}:${x.tel}:${x.parNotaire}`).join('|'), 'Vendeur:v@ex.fr:0601020304:false|Acquéreur:::false');
 });

@@ -638,7 +638,17 @@ Plainte principale de l'étude : **le bruit**, pas les oublis — ne pas élargi
   vendeurs/acquéreurs de la page de gestion) s'affichent en **texte seul** : lus dans `capture.texte` (« Capital » puis le
   montant ; lignes après « Parties prenantes »), la copie de structure y ajoute le texte réduit à son vocabulaire
   (`texteVocabulaireAuthentic`, `VOCABULAIRE_AUTHENTIC`, test « aucun nom ne sort ») ; « Retour le » = prise en compte
-  SAFER / retour RHF (étude, 02/10).
+  SAFER / retour RHF (étude, 02/10). **Troisième passe (02/10 midi)** : **Comedec** (`etatEtatCivilAuthentic`,
+  `d.authentic.etatsCivils`) — « pris en compte »/en attente et **« négatif »** (erreur, rien délivré) laissent la pièce
+  non cochée avec l'état dessous (`etatAuthenticPiece`), seul **« positif »** coche ; **SAFER** : envoyée, prise en compte,
+  puis **non-préemption tacite** à l'issue du délai depuis la prise en compte (sinon l'envoi) — 2 mois, 1 mois en réponse
+  rapide, 8 jours en très rapide (`DELAIS_SAFER`, `appliquerSaferTacite`, `verifierSaferTacites` au démarrage puis
+  toutes les heures) ; **demandes** (alignement, numérotage, DIA…, `demandesUrbanismeAuthentic`) jamais cochées,
+  « Demande envoyée le … » sous la pièce ; ce qui est acquis (positif, SAFER décidée) n'est plus touché. **Seules les
+  pages de structure connue** sont envoyées (extension 0.3.3, `pageConnue`) et gardées (`pageAuthenticConnue`).
+  Aperçu d'un document Comedec : pas de lien relevé. **Coordonnées** (étude 02/10) : email + téléphone de chaque
+  partie sur la première page de la fiche (`fiche-coordonnees`, `champsCoordonneesPartie`) et en une ligne par partie
+  dans Échanges (`renderCoordonneesEchanges`).
 - **Arborescence type des dossiers clients sur le NAS** (MAISON, COPRO, TERRAIN, SUCC, CESSION DE
   FONDS) : détaillée dans `docs/historique.md` (fin du fichier). L'avant-contrat signé est à la
   racine du dossier client ou sous « SRU » ; la rubrique « AAE » contient les pièces réunies entre

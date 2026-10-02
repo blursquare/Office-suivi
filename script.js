@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-02 12:33';
+  const VERSION_APP = '2026-10-02 12:43';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-02 12:43', resume: "Fiche : l'email et le téléphone du vendeur et de l'acquéreur sont sur la première page (une ligne par partie, modifiables) et, dans Échanges, sur une seule ligne. Authentic : un état civil virtuel (Comedec) « pris en compte » reste à recevoir, « négatif » reste non coché avec « Comedec : négatif » sous la pièce, « positif » est coché ; la SAFER affiche l'envoi, la prise en compte et, sans réponse à l'issue du délai (2 mois, 1 mois en réponse rapide, 8 jours en réponse très rapide), passe seule en non-préemption ; les demandes (alignement, numérotage, DIA…) ne cochent rien mais s'affichent « Demande envoyée le … » sous la pièce. L'extension (0.3.3) et le serveur n'envoient plus que les pages dont CLAIRE connaît la structure." },
     { version: '2026-10-02 12:33', resume: "Nouveau dossier : trois façons de commencer — « Compromis (PDF) » (puis « Compléter depuis Authentic », le bon dossier en tête), « Export Authentic (.zip) », « Dossier Authentic » (repris des pages ouvertes dans Authentic, puis le compromis déposé dessous pour les dates butoir et les engagements, sans rien perdre d'Authentic). Les étapes Vérifier et Finaliser rappellent ce qui vient du compromis et d'Authentic. Notaires : ceux lus dans l'acte ou dans Authentic se placent d'un clic (vendeur, acquéreur, les deux) ; « Notaire qui reçoit l'acte » se choisit et le rôle de l'étude s'en déduit. Corrigé : un notaire cité sans son côté n'apparaissait plus sur la fiche (ligne repliée) — il s'affiche « Lus, à placer »." },
     { version: '2026-10-02 12:15', resume: "Authentic : le dossier CLAIRE est retrouvé par un score — noms du vendeur et de l'acquéreur, puis adresse du bien (rubrique « Immeubles » de la page : code postal, commune, voie, numéro). Deux ventes en cours avec les mêmes noms sont départagées par l'adresse ; une adresse qui ne correspond pas écarte le dossier ; à égalité, rien n'est choisi." },
     { version: '2026-10-02 12:07', resume: "Authentic : une ligne d'état civil précédée de « APR » (demande envoyée par papier) n'est jamais cochée ; « ECV » (état civil virtuel) l'est, et la pièce prend l'intitulé sans « ECV »." },
@@ -16307,6 +16308,9 @@
         ${ligne('folder', 'Dossier NAS', nas, null, 'prop-pleine')}
         ${ligne('file-text', 'Avant-contrat', avantContrat, null, 'prop-pleine')}
       </dl>
+      <dl class="fiche-proprietes fiche-coordonnees">
+        ${coordonneesPartiesDossier(d).map(c => ligne(c.partie === 'vendeur' ? 'user' : 'users', c.libelle, champsCoordonneesPartie(d, c, 'fiche'), c.parNotaire ? `fiche-tel-${c.partie}-${d.id}` : `fiche-email-${c.partie}-${d.id}`, 'prop-pleine')).join('')}
+      </dl>
       <dl class="fiche-proprietes">
         ${ligne('map-pin', 'Adresse', saisie('adresse', normaliserAdresse(d.adresseBien), 'changerAdresseBien'), `adresse-${d.id}`, 'prop-pleine')}
         ${ligne('banknote', 'Prix', saisie('prix', d.prixVente ? formaterPrix(d.prixVente) : '', 'changerPrixVente', ' inputmode="numeric"'), `prix-${d.id}`)}
@@ -22997,7 +23001,7 @@
         : `<span class="piece-nom"${titreNom}>${escapeHtml(p.label)}</span>`;
       const tags = (notifs.includes(p.cle) ? '<span class="dot-label dl-urgent notif-nouveau-tag">Nouveau</span>' : '')
         + (valideeMain ? `<span class="piece-tag">${(d.piecesAuthentic || []).includes(p.cle) ? 'dans Authentic' : 'à la main'}</span>` : '')
-        + (/safer/i.test(p.label) && suiviSaferPiece(d) ? `<span class="piece-tag piece-tag-long">${escapeHtml(suiviSaferPiece(d))}</span>` : '');
+        + (() => { const e = etatAuthenticPiece(d, p); return e && e.texte ? `<span class="piece-tag piece-tag-long${e.classe ? ' ' + e.classe : ''}">${escapeHtml(e.texte)}</span>` : ''; })();
       const reinit = (!p.personnalisee && !valideeMain && recue)
         ? `<button type="button" class="piece-action" onclick="reinitialiserStatutPieceStandard('${d.id}', '${p.cle}', '${arg}')" title="Réinitialiser (mauvaise correspondance ou fichier renommé)" aria-label="Réinitialiser le statut de cette pièce">${icone('rotate-ccw')}</button>`
         : '';
@@ -23028,9 +23032,31 @@
   function suiviSaferPiece(d) {
     const sa = d && d.authentic && d.authentic.safer;
     if (!sa) return '';
-    return [sa.notifieeLe ? `notifiée le ${formatDateFr(sa.notifieeLe)}` : '',
-      sa.priseEnCompteLe ? `prise en compte le ${formatDateFr(sa.priseEnCompteLe)}` : (sa.notifieeLe ? 'prise en compte non indiquée' : '')]
+    const echeance = echeanceSaferTacite(sa);
+    return [sa.notifieeLe ? `envoyée le ${formatDateFr(sa.notifieeLe)}` : 'envoyée',
+      sa.priseEnCompteLe ? `prise en compte le ${formatDateFr(sa.priseEnCompteLe)}` : (sa.priseEnCompte ? 'prise en compte' : ''),
+      sa.decision === 'non_preemption' ? `non-préemption${sa.tacite ? ' (délai écoulé)' : ''}${sa.decisionLe ? ` le ${formatDateFr(sa.decisionLe)}` : ''}`
+        : sa.decision === 'preemption' ? 'préemption exercée'
+          : (echeance ? `sans réponse : non-préemption le ${formatDateFr(echeance)} (${(DELAIS_SAFER[sa.delai] || DELAIS_SAFER.normal).libelle})` : '')]
       .filter(Boolean).join(', ');
+  }
+
+  // Pure : ce qu'Authentic dit d'une pièce de l'onglet Pièces (sous son nom) — état Comedec d'un
+  // acte d'état civil, demande envoyée d'une pièce d'urbanisme, suivi SAFER. { texte, classe } ou null.
+  function etatAuthenticPiece(d, p) {
+    const a = (d && d.authentic) || {};
+    if (/safer/i.test(p.label) && a.safer) return { texte: suiviSaferPiece(d), classe: '' };
+    const ec = (a.etatsCivils || {})[p.cle];
+    if (ec) {
+      if (ec.etat === 'negatif') return { texte: 'Comedec : négatif — erreur, document non délivré', classe: 'dl-urgent' };
+      if (ec.etat === 'attente') return { texte: 'Comedec : pris en compte, en attente', classe: 'dl-pret' };
+      return { texte: 'Comedec : positif', classe: '' };
+    }
+    const dm = (a.demandes || {})[p.cle];
+    if (dm && !(d.pieces && d.pieces[p.cle] === 'recue')) {
+      return { texte: `${p.cle === 'renonciationPreemption' ? 'DIA envoyée' : 'Demande envoyée'}${dm.date ? ` le ${formatDateFr(dm.date)}` : ''}`, classe: '' };
+    }
+    return null;
   }
 
   // Pure : les lignes « Dans Authentic » de l'onglet Pièces — [{ libelle, valeur, classe }].
@@ -23041,9 +23067,7 @@
     if (a.rhf) lignes.push({ libelle: 'Réquisition hors formalité', valeur: [a.rhf.envoyeeLe ? `envoyée le ${formatDateFr(a.rhf.envoyeeLe)}` : 'envoyée', a.rhf.retourLe ? `retour le ${formatDateFr(a.rhf.retourLe)}` : 'retour attendu'].join(' · '), classe: a.rhf.retourLe ? 'dl-success' : 'dl-pret' });
     if (a.safer) {
       const sa = a.safer;
-      const decision = sa.decision === 'non_preemption' ? `non-préemption${sa.decisionLe ? ` le ${formatDateFr(sa.decisionLe)}` : ''}`
-        : sa.decision === 'preemption' ? `préemption exercée${sa.decisionLe ? ` le ${formatDateFr(sa.decisionLe)}` : ''}` : 'réponse attendue';
-      lignes.push({ libelle: 'SAFER', valeur: [suiviSaferPiece(d), decision].filter(Boolean).join(' · '), classe: sa.decision === 'non_preemption' ? 'dl-success' : sa.decision === 'preemption' ? 'dl-urgent' : 'dl-pret' });
+      lignes.push({ libelle: 'SAFER', valeur: suiviSaferPiece(d), classe: sa.decision === 'non_preemption' ? 'dl-success' : sa.decision === 'preemption' ? 'dl-urgent' : 'dl-pret' });
     }
     if (a.prix) {
       const ecart = Number(d.prixVente) > 0 && Math.abs(Number(d.prixVente) - a.prix) >= 1;
@@ -25319,10 +25343,8 @@
           <span class="echanges-stade" title="Stade du dossier, lu dans ses dates">${escapeHtml(STADES_DOSSIER[stade])}</span>
         </div>
         <div class="echanges-destinataire">
-          ${renderEmailVendeurDossier(d)}
-          ${renderEmailAcquereurDossier(d)}
+          ${renderCoordonneesEchanges(d)}
           ${hint ? `<p class="hint">${hint}</p>` : ''}
-          ${renderTelephonesDossier(d)}
         </div>
         ${renderAppelsDossier(d)}
         ${renderSondageDossier(d)}
@@ -25803,6 +25825,61 @@
     return lignes;
   }
 
+  // Pure : état d'une ligne d'état civil ou de casier (étude, 02/10 — état civil virtuel « ECV » par
+  // Comedec : « pris en compte » / « en attente », puis « positif » = document reçu, « négatif » =
+  // erreur, Comedec n'a pas pu répondre). Une ligne sans état et sans « ECV » est un document
+  // déposé : reçu.
+  function etatEtatCivilAuthentic(l) {
+    const t = normaliserPourRecherche([l.etat, l.texte].filter(Boolean).join(' '));
+    if (/negati/.test(t)) return 'negatif';
+    if (/positi|re[cç]u|delivr/.test(t)) return 'positif';
+    if (/pris(?:e)?\s+en\s+compte|attente|en\s+cours|envoy|transmis|demand/.test(t)) return 'attente';
+    return /^\s*ecv(?![a-z0-9])/i.test(l.titre || '') ? 'attente' : 'positif';
+  }
+
+  // Pure : les actes d'état civil et casiers vus sur la page, avec leur état Comedec —
+  // { cle: { label, etat, date } } (même clé que la pièce du dossier). Jamais une ligne « APR »
+  // (demande papier) ni une demande.
+  function suiviEtatsCivilsAuthentic(lignes, typeAffaire) {
+    const reEtatCivil = typeAffaire === 'succession' ? RE_ETAT_CIVIL_SUCCESSION_AUTHENTIC : RE_ETAT_CIVIL_VENTE_AUTHENTIC;
+    const r = {};
+    (lignes || []).forEach(l => {
+      if (RE_DEMANDE_AUTHENTIC.test(normaliserPourRecherche(l.titre || ''))) return;
+      if (!reEtatCivil.test(l.titre || '') && !RE_CASIER_AUTHENTIC.test(l.titre || '')) return;
+      const label = labelPieceEtatCivilAuthentic(l.titre);
+      r[clePieceEtatCivilAuthentic(label)] = { label, etat: etatEtatCivilAuthentic(l), date: l.date || '' };
+    });
+    return r;
+  }
+  function labelPieceEtatCivilAuthentic(titre) {
+    return String(titre || '').replace(/^\s*ECV(?![A-Za-z0-9])\s*[-:–]?\s*/i, '').slice(0, 90);
+  }
+  function clePieceEtatCivilAuthentic(label) {
+    return 'perso-authentic-' + normaliserPourRecherche(label).replace(/[^a-z0-9]+/g, '-').slice(0, 40);
+  }
+
+  // Pure : demandes d'urbanisme vues sur la page (étude, 02/10 : « courriers d'alignement et de
+  // numérotage : ne pas cocher, c'est une demande ; marquer envoyée sous la pièce ») —
+  // { cle de la pièce : { date, titre } }. La DIA est la demande de renonciation au droit de préemption.
+  function demandesUrbanismeAuthentic(lignes) {
+    const r = {};
+    (lignes || []).forEach(l => {
+      const titre = String(l.titre || '');
+      const net = normaliserPourRecherche(titre);
+      const estDemande = RE_DEMANDE_AUTHENTIC.test(net) || /envoy|attente|demand/.test(normaliserPourRecherche(l.etat || ''));
+      let cle = '';
+      if (/intention\s+d.?\s*alien|(?:^|[^a-z])dia(?:[^a-z]|$)/.test(net)) cle = 'renonciationPreemption';
+      else if (estDemande) {
+        const sansDemande = titre.replace(/^\s*(?:demande|courrier|lettre|relance|envoi|envoy[ée]e?s?|mail|e-?mail)\s*(?:de|d['’]|du|pour)?\s*/i, '');
+        const nom = normaliserNomPourMotif(sansDemande + '.pdf');
+        const piece = PIECES_URBANISME.find(p => correspondancePieceNom(p, nom) === 'exact');
+        if (piece) cle = piece.cle;
+      }
+      if (cle && !r[cle]) r[cle] = { date: l.date || '', titre: titre.slice(0, 90) };
+    });
+    return r;
+  }
+
   function ligneAuthenticRecue(l) {
     return !!l && !RE_DEMANDE_AUTHENTIC.test(normaliserPourRecherche(l.titre)) && !RE_ETAT_NON_RECU_AUTHENTIC.test(normaliserPourRecherche(l.etat || ''));
   }
@@ -25830,11 +25907,13 @@
         return;
       }
       if (reEtatCivil.test(l.titre) || RE_CASIER_AUTHENTIC.test(l.titre)) {
-        const label = l.titre.replace(/^\s*ECV(?![A-Za-z0-9])\s*[-:–]?\s*/i, '').slice(0, 90);
+        // Comedec : seul « positif » (ou un document déposé) est une pièce reçue.
+        if (etatEtatCivilAuthentic(l) !== 'positif') return;
+        const label = labelPieceEtatCivilAuthentic(l.titre);
         const cleLabel = normaliserPourRecherche(label);
         const existante = liste.find(p => p.personnalisee && normaliserPourRecherche(p.label) === cleLabel);
         ajouter(existante ? { cle: existante.cle, label: existante.label, nouvelle: false, date: l.date, titre: l.titre }
-          : { cle: 'perso-authentic-' + cleLabel.replace(/[^a-z0-9]+/g, '-').slice(0, 40), label, nouvelle: true, date: l.date, titre: l.titre });
+          : { cle: clePieceEtatCivilAuthentic(label), label, nouvelle: true, date: l.date, titre: l.titre });
       }
     });
     return resultat;
@@ -25949,9 +26028,14 @@
   function suiviSaferAuthentic(lignes) {
     const lignesSafer = (lignes || []).filter(l => /safer/i.test(l.texte || ''));
     if (!lignesSafer.length) return null;
-    const r = { notifieeLe: '', priseEnCompteLe: '', decision: '', decisionLe: '', titre: lignesSafer[0].titre };
+    const r = { notifieeLe: '', priseEnCompteLe: '', priseEnCompte: '', delai: '', decision: '', decisionLe: '', titre: lignesSafer[0].titre };
     lignesSafer.forEach(l => {
       const texte = normaliserPourRecherche(l.texte || '');
+      // Délai de réponse de la SAFER (étude, 02/10) : 2 mois, 1 mois en « réponse rapide », 8 jours
+      // en « réponse très rapide ».
+      if (/tres\s+rapide/.test(texte)) r.delai = 'tres_rapide';
+      else if (!r.delai && /rapide/.test(texte)) r.delai = 'rapide';
+      if (/pris(?:e)?\s+en\s+compte/.test(texte)) r.priseEnCompte = 'oui';
       const dates = l.dates || (l.date ? [l.date] : []);
       if (!r.notifieeLe && dates[0]) r.notifieeLe = dates[0];
       const mPec = /(?:pris(?:e)?\s+en\s+compte|retour)\s*(?:le)?\D{0,6}(\d{1,2}[\/.-]\d{1,2}[\/.-]\d{4})/.exec(texte);
@@ -25961,6 +26045,42 @@
       else if (!r.decision && RE_SAFER_PREEMPTION_EXERCEE.test(texte)) { r.decision = 'preemption'; r.decisionLe = dates[dates.length - 1] || ''; }
     });
     return r;
+  }
+
+  // Pure : délai de réponse de la SAFER et date à laquelle, sans réponse, la non-préemption est
+  // acquise (étude, 02/10) — compté de la prise en compte, à défaut de l'envoi. '' si inconnue.
+  var DELAIS_SAFER = { normal: { mois: 2, libelle: '2 mois' }, rapide: { mois: 1, libelle: '1 mois, réponse rapide' }, tres_rapide: { jours: 8, libelle: '8 jours, réponse très rapide' } };
+  function echeanceSaferTacite(safer) {
+    if (!safer) return '';
+    const depart = safer.priseEnCompteLe || safer.notifieeLe;
+    if (!depart) return '';
+    const delai = DELAIS_SAFER[safer.delai] || DELAIS_SAFER.normal;
+    return delai.jours ? addDays(depart, delai.jours) : ajouterMois(depart, delai.mois);
+  }
+
+  // Pure (modifie le dossier passé) : SAFER sans réponse au-delà de son délai → non-préemption tacite,
+  // « Réponse SAFER » cochée, une seule fois. → true si le dossier a changé.
+  function appliquerSaferTacite(d, aujourdhui, maintenantIso) {
+    const sa = d && d.authentic && d.authentic.safer;
+    if (!sa || sa.decision) return false;
+    const echeance = echeanceSaferTacite(sa);
+    if (!echeance || !(aujourdhui > echeance)) return false;
+    sa.decision = 'non_preemption';
+    sa.decisionLe = echeance;
+    sa.tacite = 'oui';
+    const maintenant = maintenantIso || new Date().toISOString();
+    if (d.roleNotaire !== 'participant') {
+      const piece = checklistPieces(d.typeVente, d).find(p => p.personnalisee && /safer/i.test(p.label));
+      const cle = piece ? piece.cle : 'perso-safer';
+      if (!piece) d.piecesPersonnalisees = (d.piecesPersonnalisees || []).concat({ cle, label: 'Réponse SAFER' });
+      d.pieces = d.pieces || {};
+      d.pieces[cle] = 'recue';
+      d.piecesAuthentic = Array.from(new Set([...(d.piecesAuthentic || []), cle]));
+      d.piecesTrouveesLe = Object.assign({}, d.piecesTrouveesLe, { [cle]: echeance + 'T12:00:00' });
+    }
+    d.historique = d.historique || [];
+    d.historique.push({ date: maintenant, texte: `SAFER : délai écoulé le ${formatDateFr(echeance)} sans réponse (${(DELAIS_SAFER[sa.delai] || DELAIS_SAFER.normal).libelle}) — non-préemption` });
+    return true;
   }
 
   // Pure : réquisition hors formalité — envoyée, retour.
@@ -26063,13 +26183,14 @@
   }
 
   // Pure : tout ce qu'une page du dossier dit du dossier (hors fiches client et bien).
-  function infosDossierAuthentic(capture) {
+  function infosDossierAuthentic(capture, typeAffaire) {
     const lignes = lignesDocumentsAuthentic(capture);
     const r = {
       acte: etatActeAuthentic(capture), rhf: suiviRhfAuthentic(lignes), safer: suiviSaferAuthentic(lignes),
-      prix: prixAuthentic(capture), collaborateur: collaborateurAuthentic(capture), notaire: notaireAuthentic(capture)
+      prix: prixAuthentic(capture), collaborateur: collaborateurAuthentic(capture), notaire: notaireAuthentic(capture),
+      etatsCivils: suiviEtatsCivilsAuthentic(lignes, typeAffaire), demandes: demandesUrbanismeAuthentic(lignes)
     };
-    Object.keys(r).forEach(k => { if (!r[k]) delete r[k]; });
+    Object.keys(r).forEach(k => { if (!r[k] || (typeof r[k] === 'object' && !Object.keys(r[k]).length)) delete r[k]; });
     return r;
   }
 
@@ -26257,7 +26378,7 @@
     resultat.pieces = pieces;
 
     // Informations du dossier.
-    const infos = infosDossierAuthentic(capture);
+    const infos = infosDossierAuthentic(capture, d.typeAffaire);
     const apres = fusionnerInfosAuthentic(avant, infos);
     const nouveau = (k, kk) => apres[k] && apres[k][kk] && apres[k][kk] !== (avant[k] || {})[kk];
     if (nouveau('acte', 'etat')) noter(`Acte dans Authentic : ${apres.acte.libelle}${apres.acte.date ? ` le ${formatDateFr(apres.acte.date)}` : ''}`);
@@ -26294,10 +26415,37 @@
       noter('« Réponse SAFER » ajoutée aux pièces manquantes (SAFER notifiée dans Authentic, pas encore de réponse)');
     }
 
-    if (Object.keys(infos).length || pieces.length || apres.saferPieceAjoutee !== avant.saferPieceAjoutee) {
+    // État civil virtuel (Comedec) en attente ou négatif : la pièce figure, non cochée, avec son état.
+    let etatsChanges = false;
+    if (d.roleNotaire !== 'participant') {
+      Object.entries(infos.etatsCivils || {}).forEach(([cle, ec]) => {
+        const ancien = ((avant.etatsCivils || {})[cle] || {}).etat;
+        if (ec.etat === 'positif' || d.pieces[cle] === 'recue') return;
+        if (!(d.piecesPersonnalisees || []).some(x => x.cle === cle)) d.piecesPersonnalisees = (d.piecesPersonnalisees || []).concat({ cle, label: ec.label });
+        if (!d.pieces[cle]) d.pieces[cle] = 'manquante';
+        if (ancien !== ec.etat) {
+          etatsChanges = true;
+          noter(ec.etat === 'negatif'
+            ? `« ${ec.label} » : Comedec négatif — erreur, le document n’a pas pu être délivré (Authentic)`
+            : `« ${ec.label} » : demande Comedec prise en compte, en attente (Authentic)`);
+        }
+      });
+    }
+    Object.entries(infos.demandes || {}).forEach(([cle, dm]) => {
+      if ((avant.demandes || {})[cle]) return;
+      noter(`Demande envoyée${dm.date ? ` le ${formatDateFr(dm.date)}` : ''} : « ${dm.titre} » (Authentic)`);
+    });
+
+    if (Object.keys(infos).length || pieces.length || etatsChanges || apres.saferPieceAjoutee !== avant.saferPieceAjoutee) {
       apres.releveLe = maintenant;
       d.authentic = apres;
       resultat.modifie = true;
+    }
+    // SAFER sans réponse au-delà de son délai : non-préemption (pièce cochée).
+    const nbHist = (d.historique || []).length;
+    if (appliquerSaferTacite(d, maintenant.slice(0, 10), maintenant)) {
+      resultat.modifie = true;
+      resultat.textes.push(d.historique[nbHist].texte);
     }
     return resultat;
   }
@@ -26339,6 +26487,19 @@
       afficherToast(`Authentic · ${libelleDossierAffiche(d)} : ${resume}.`, 'Voir', () => ouvrirDossierDrawer(d.id));
     }
     return r.textes.length;
+  }
+
+  // SAFER sans réponse : le délai s'écoule même sans nouvelle page d'Authentic — vérifié au démarrage
+  // puis toutes les heures (appliquerSaferTacite ne change un dossier qu'une fois).
+  async function verifierSaferTacites() {
+    const aujourdhui = isoAujourdhuiLocal();
+    for (const d of dossiers || []) {
+      if (!d || d.archive || !d.authentic || !d.authentic.safer || d.authentic.safer.decision) continue;
+      if (!appliquerSaferTacite(d, aujourdhui)) continue;
+      await sauvegarder(d);
+      afficherToast(`${libelleDossierAffiche(d)} : SAFER sans réponse dans le délai — non-préemption.`, 'Voir', () => ouvrirDossierDrawer(d.id));
+    }
+    render();
   }
 
   async function releverPagesAuthentic() {
@@ -26599,6 +26760,37 @@
       ${contact}
       ${ds.length ? `<div class="appel-entrant-dossiers">${ds.slice(0, 4).map(y => `<button type="button" class="action-rapide" onclick="ouvrirFicheAppel('${y.d.id}'); fermerAppelEntrant()">${y.partie ? `<span class="appel-entrant-partie">${escapeHtml(y.partie)}</span>` : ''}${escapeHtml(libelleDossierAffiche(y.d))}${y.d.archive ? ' · archivé' : ''}</button>`).join('')}</div>`
         : (contact ? '' : `<p class="hint">Numéro inconnu de CLAIRE ${infoBulle('Saisissez-le dans l’onglet Échanges du dossier (téléphone du vendeur ou de l’acquéreur) : le prochain appel ouvrira la fiche.')}</p>`)}`;
+  }
+
+  // Coordonnées des parties sur une ligne par partie (étude, 02/10 : « les emails et téléphones dès
+  // la première page de la fiche » et, dans Échanges, « sur la même ligne, ça prend moins de place »).
+  // Pure : ce qu'on montre pour chaque partie — l'email est remplacé par « Par son notaire » quand un
+  // autre office la représente (déontologie, voir renderEmailAcquereurDossier).
+  function coordonneesPartiesDossier(d) {
+    return [
+      { partie: 'vendeur', libelle: 'Vendeur', email: d.emailVendeur || '', tel: d.telephoneVendeur || '',
+        parNotaire: confrereRepresenteVendeur(d) && !d.emailVendeur, changerEmail: 'changerEmailVendeur' },
+      { partie: 'acquereur', libelle: 'Acquéreur', email: d.emailAcquereur || '', tel: d.telephoneAcquereur || '',
+        parNotaire: !!notaireParticipantRepresenteAcquereur(d), changerEmail: 'changerEmailAcquereur' }
+    ];
+  }
+
+  // Les deux champs (email, téléphone) d'une partie, côte à côte ; `prefixe` distingue les deux
+  // endroits où ils s'affichent en même temps (fiche, onglet Échanges).
+  function champsCoordonneesPartie(d, c, prefixe) {
+    const entree = `onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}"`;
+    const email = c.parNotaire
+      ? `<span class="prop-texte vide" title="Un autre office représente cette partie : on écrit à son notaire.">Par son notaire</span>`
+      : `<input type="email" id="${prefixe}-email-${c.partie}-${d.id}" class="prop-champ coord-email" value="${escapeAttr(c.email)}" placeholder="Email" aria-label="Email ${c.libelle === 'Vendeur' ? 'du vendeur' : 'de l’acquéreur'}" onblur="${c.changerEmail}('${d.id}', this.value)" ${entree}>`;
+    const tel = `<input type="tel" id="${prefixe}-tel-${c.partie}-${d.id}" class="prop-champ coord-tel" value="${escapeAttr(c.tel)}" placeholder="Téléphone" autocomplete="off" aria-label="Téléphone ${c.libelle === 'Vendeur' ? 'du vendeur' : 'de l’acquéreur'}" title="Reconnu quand il appelle (3CX). Plusieurs numéros : séparés par « / »." onblur="changerTelephoneDossier('${d.id}', '${c.partie}', this.value)" ${entree}>`;
+    return `<span class="coord-paire">${email}${tel}</span>`;
+  }
+
+  // Onglet Échanges : une ligne par partie (libellé, email, téléphone).
+  function renderCoordonneesEchanges(d) {
+    return `<div class="coord-echanges">${coordonneesPartiesDossier(d).map(c => `<div class="coord-ligne">
+        <span class="coord-libelle">${escapeHtml(c.libelle)}</span>${champsCoordonneesPartie(d, c, 'ech')}
+      </div>`).join('')}</div>`;
   }
 
   // Fiche › Échanges : téléphones des parties (servent à reconnaître l'appelant).
@@ -27044,6 +27236,8 @@
     try { renderChoixImport(); } catch (e) { /* page sans « Nouveau dossier » */ }
     initUtilisateurPoste();
     await charger();
+    verifierSaferTacites().catch(() => {});
+    setInterval(() => { verifierSaferTacites().catch(() => {}); }, 60 * 60 * 1000);
     demanderUtilisateurPosteSiInconnu();
     // Première connexion de la journée : le point du matin (voir « Aujourd'hui »).
     ouvrirFenetreAujourdhuiSiPremiereFois();
@@ -28227,9 +28421,12 @@
     if (!a || typeof a !== 'object') return null;
     const texte = (v) => typeof v === 'string' ? v.slice(0, 160) : '';
     const sous = (o, cles) => o && typeof o === 'object' ? Object.fromEntries(cles.filter(k => typeof o[k] === 'string' && o[k]).map(k => [k, texte(o[k])])) : null;
+    const carte = (o, cles) => o && typeof o === 'object' && !Array.isArray(o)
+      ? Object.fromEntries(Object.entries(o).slice(0, 40).filter(([k, v]) => /^[\w-]{1,80}$/.test(k) && v && typeof v === 'object').map(([k, v]) => [k, sous(v, cles)])) : null;
     const r = {
       acte: sous(a.acte, ['etat', 'libelle', 'date']), rhf: sous(a.rhf, ['envoyeeLe', 'retourLe']),
-      safer: sous(a.safer, ['notifieeLe', 'priseEnCompteLe', 'decision', 'decisionLe', 'titre']),
+      safer: sous(a.safer, ['notifieeLe', 'priseEnCompteLe', 'priseEnCompte', 'delai', 'decision', 'decisionLe', 'tacite', 'titre']),
+      etatsCivils: carte(a.etatsCivils, ['label', 'etat', 'date']), demandes: carte(a.demandes, ['date', 'titre']),
       prix: Number.isFinite(a.prix) && a.prix > 0 ? a.prix : null, collaborateur: texte(a.collaborateur), notaire: texte(a.notaire),
       personnes: Array.isArray(a.personnes) ? a.personnes.filter(p => p && typeof p.nom === 'string').slice(0, 12)
         .map(p => ({ nom: texte(p.nom), role: p.role === 'ACQUEREUR' ? 'ACQUEREUR' : 'VENDEUR', situationMatrimoniale: situationMatrimonialePersistable(p.situationMatrimoniale) })) : [],

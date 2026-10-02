@@ -8076,3 +8076,18 @@ button.w-jour-lien { border: none; background: none; padding: 0; cursor: pointer
 .role-deduit { font-weight: 400; color: var(--muted); font-size: 12px; }
 .notaires-a-placer { display: flex; flex-direction: column; gap: 4px; }
 .notaires-a-placer-ligne { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; }
+
+/* Coordonnées des parties : email et téléphone sur une ligne (fiche et onglet Échanges, étude 02/10). */
+.coord-paire { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 8px; width: 100%; align-items: center; }
+.coord-paire > * { min-width: 0; }
+.coord-echanges { display: grid; gap: 6px; margin: 4px 0 10px; }
+.coord-ligne { display: grid; grid-template-columns: 82px minmax(0, 1fr); gap: 10px; align-items: center; font-size: 13px; }
+.coord-ligne > * { min-width: 0; }
+/* Le champ téléphone n'est pas dans la règle générale des champs (input[type="tel"]) : même allure que l'email. */
+.coord-echanges input.coord-tel { width: 100%; box-sizing: border-box; font-family: inherit; font-size: 14.5px; color: var(--ink); background: var(--paper-card); border: 1px solid var(--line); border-radius: 4px; padding: 10px 12px; transition: border-color 0.15s ease; }
+.coord-echanges input.coord-tel:hover { border-color: var(--muted); }
+.coord-libelle { color: var(--muted); }
+@media (max-width: 560px) {
+  .coord-paire { grid-template-columns: 1fr; gap: 4px; }
+  .coord-ligne { grid-template-columns: 1fr; gap: 2px; }
+}

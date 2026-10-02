@@ -79,15 +79,25 @@ test('une capture expire après 30 minutes', () => {
 });
 
 test('relevé automatique : file prise une seule fois, récents gardés, page identique ignorée', async () => {
-  const releve = { titre: 'Authentic', champs: [{ groupe: '', libelle: 'Nom de famille*', valeur: 'FOURNIER' }], tableaux: [], texte: 'x' };
+  const releve = { titre: 'Authentic', champs: [{ groupe: '', libelle: 'ui:ficheClientPhysiqueIdentite:nom', valeur: '' }, { groupe: '', libelle: 'Nom de famille*', valeur: 'FOURNIER' }], tableaux: [], texte: 'x' };
   const post = (u, corps) => fetch(base + u, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corps || {}) });
+  // Page dont CLAIRE ne connaît pas la structure : ignorée, jamais gardée.
+  assert.equal((await (await post('/api/authentic/releve', { titre: 'Authentic', champs: [{ groupe: '', libelle: 'Rechercher', valeur: 'x' }], tableaux: [], texte: 'Agenda' })).json()).ignore, true);
   assert.equal((await (await post('/api/authentic/releve', releve)).json()).ok, true);
   assert.equal((await (await post('/api/authentic/releve', releve)).json()).deja, true);
   const pris = await (await post('/api/authentic/releves/prendre')).json();
   assert.equal(pris.releves.length, 1);
-  assert.equal(pris.releves[0].capture.champs[0].valeur, 'FOURNIER');
+  assert.equal(pris.releves[0].capture.champs[1].valeur, 'FOURNIER');
   assert.equal((await (await post('/api/authentic/releves/prendre')).json()).releves.length, 0);
   const recents = await (await fetch(base + '/api/authentic/releves/recents')).json();
   assert.equal(recents.releves.length, 1);
   assert.equal((await fetch(base + '/api/authentic/releve', { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: 'x' })).status, 415);
+});
+
+test('pageAuthenticConnue : page du dossier, fiche client, fiche bien — rien d’autre', () => {
+  const { pageAuthenticConnue } = require('../src/routes/authentic');
+  assert.equal(pageAuthenticConnue({ champs: [{ libelle: '12 - Vente MARTEL/FOURNIER Importer', valeur: '' }] }), true);
+  assert.equal(pageAuthenticConnue({ champs: [], texte: '7 - Vente Consorts DUPONT / MARTIN\nComparants' }), true);
+  assert.equal(pageAuthenticConnue({ champs: [{ libelle: 'x:ficheImmeubleTabView:y', valeur: '' }] }), true);
+  assert.equal(pageAuthenticConnue({ champs: [{ libelle: 'Rechercher', valeur: '' }], texte: 'Agenda de l’office' }), false);
 });

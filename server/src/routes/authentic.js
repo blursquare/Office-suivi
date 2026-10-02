@@ -85,6 +85,9 @@ function creerRouteurAuthentic(options) {
     if (!req.is('application/json')) { res.status(415).json({ error: 'Corps JSON attendu.' }); return; }
     const capture = normaliserCaptureAuthentic(req.body);
     if (!capture.champs.length && !capture.tableaux.length) { res.json({ ok: true, ignore: true }); return; }
+    // Seules les pages dont CLAIRE connaît la structure sont gardées (étude, 02/10 : « ne lire que les
+    // pages dont tu as la structure, pour ne pas surcharger ») : page du dossier, fiche client, fiche bien.
+    if (!pageAuthenticConnue(capture)) { res.json({ ok: true, ignore: true }); return; }
     const empreinte = crypto.createHash('sha1').update(JSON.stringify([capture.champs, capture.tableaux])).digest('hex');
     if (empreintes.includes(empreinte)) { res.json({ ok: true, deja: true }); return; }
     empreintes.push(empreinte);
@@ -117,4 +120,14 @@ function creerRouteurAuthentic(options) {
   return routeur;
 }
 
-module.exports = { creerRouteurAuthentic, normaliserCaptureAuthentic, DUREE_CAPTURE_MS, MAX_CAPTURES, DUREE_RELEVE_MS };
+// Page du dossier (intitulé « N - Vente X/Y »), fiche client (personne physique), fiche bien — le
+// même test que l'extension (auto.js) et que typePageAuthentic côté poste.
+const RE_INTITULE_PAGE = /(?:^|[^\w])\d{1,6}\s*-\s*(?:Vente|VTE)\s+[^\n\/]*\S\s*\/\s*\S/i;
+function pageAuthenticConnue(capture) {
+  const c = capture || {};
+  const libelles = (c.champs || []).map(ch => String(ch.libelle || '') + ' ' + String(ch.valeur || ''));
+  if (libelles.some(l => /ficheClientPhysique|ficheImmeuble/i.test(l))) return true;
+  return libelles.some(l => RE_INTITULE_PAGE.test(l)) || RE_INTITULE_PAGE.test(String(c.texte || ''));
+}
+
+module.exports = { creerRouteurAuthentic, pageAuthenticConnue, normaliserCaptureAuthentic, DUREE_CAPTURE_MS, MAX_CAPTURES, DUREE_RELEVE_MS };

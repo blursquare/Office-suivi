@@ -14727,3 +14727,27 @@ Choisir le notaire et s'il est instrumentaire ou en participation dès la créat
   compromis est passé à `traiterTexte`) : Reprendre → compromis → dates 15/11 et 15/12, prix, adresse, parties avec
   téléphones, responsable Julie (parties prenantes), acte de naissance ECV en pièce reçue, engagement du vendeur ;
   notaires placés, côté et rôle déduit enregistrés ; second dossier sans placement → fiche « Lus, à placer ».
+
+### 02/10/2026 12 h 43 — Coordonnées sur la fiche, Comedec, délais SAFER, demandes, pages connues seulement
+
+Demande de l'étude : emails et téléphones visibles dès la première page de la fiche, plus compacts dans Échanges ;
+état civil virtuel (Comedec) « pris en compte / en attente » puis « positif » (reçu) ou « négatif » (erreur, rien
+délivré) ; SAFER envoyée → prise en compte → non-préemption à l'issue du délai (2 mois, 1 mois en réponse rapide,
+8 jours en réponse très rapide) ; courriers d'alignement/numérotage = demandes, jamais cochés, « envoyé » affiché
+sous la pièce ; ne lire que les pages dont CLAIRE a la structure ; ne pas repasser sur ce qui est acquis.
+- Fiche : groupe `fiche-coordonnees` avant l'adresse (`coordonneesPartiesDossier`, `champsCoordonneesPartie`) — email
+  remplacé par « Par son notaire » quand un confrère représente la partie ; Échanges : `renderCoordonneesEchanges`,
+  une ligne par partie (libellé, email, téléphone).
+- Comedec : `etatEtatCivilAuthentic` (négatif / positif / attente — un ECV sans état = attente), `suiviEtatsCivilsAuthentic`
+  gardé dans `d.authentic.etatsCivils` ; seule une ligne positive coche la pièce ; attente et négatif posent la pièce
+  « manquante » (historique). Étiquette sous la pièce : `etatAuthenticPiece`. Aperçu ou lien du document : impossible
+  aujourd'hui (l'extension ne relève pas les liens, et rien n'indique qu'Authentic en donne un direct).
+- SAFER : `DELAIS_SAFER`, `echeanceSaferTacite` (depuis la prise en compte, sinon l'envoi), `appliquerSaferTacite`
+  (non-préemption tacite, pièce cochée hors participation, historique) à chaque relevé et `verifierSaferTacites` au
+  démarrage puis toutes les heures ; `suiviSaferPiece` réécrit.
+- Demandes : `demandesUrbanismeAuthentic` (PIECES_URBANISME après retrait des mots de demande ; DIA →
+  `renonciationPreemption`), `d.authentic.demandes`, « Demande envoyée le … » tant que la pièce n'est pas reçue.
+- « Ne pas repasser » : l'extension n'envoie que les pages connues (`pageConnue` dans `auto.js`, 0.3.3) et seulement
+  quand elles changent ; le serveur refait le même tri (`pageAuthenticConnue`, `/authentic/releve` ignore le reste) ;
+  ce qui est acquis (positif coché, SAFER décidée) n'est plus modifié par un relevé.
+- Non vérifié sur le vrai Authentic (libellés exacts « Positif »/« Négatif », « réponse rapide »).
