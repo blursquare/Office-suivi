@@ -14877,3 +14877,23 @@ cherchée, y compris un ancien acquéreur de l'étude qui revend.
   (création « Dossier Authentic »).
 - Vérifié dans Chromium (relevé simulé : deux fiches, ancien dossier archivé cité en premier) : coordonnées sur la
   vente en cours, ancien dossier intact. À confirmer sur une vraie fiche client d'un vendeur déjà client.
+
+### 02/10/2026 après-midi — Relevés d'Authentic appliqués en arrière-plan
+
+Étude : « j'ai l'impression que je suis obligé d'ouvrir la fiche dossier dans CLAIRE et de regarder la fenêtre pour
+que les données se mettent à jour. Ça peut pas le faire en arrière-plan ? »
+- Cause : les pages envoyées par l'add-on sont mises en file par le serveur et appliquées par une fenêtre CLAIRE qui
+  relevait la file toutes les 5 s (`setInterval`). Chrome ralentit les minuteries d'une fenêtre cachée ou réduite
+  (une fois par minute, davantage après un moment) : la page n'était appliquée qu'au retour au premier plan.
+- Serveur : `POST /api/authentic/releves/attendre` — requête gardée ouverte jusqu'à 25 s
+  (`DUREE_ATTENTE_RELEVES_MS`, réglable pour les tests), rendue dès qu'un relevé arrive ; plusieurs fenêtres en
+  attente : la plus ancienne prend la file, les autres repartent vides ; fenêtre fermée → attente retirée
+  (`res.on('close')`).
+- Poste : `boucleRelevesAuthentic` (requête rouverte aussitôt rendue — la réponse d'une requête n'est pas ralentie
+  comme une minuterie), `appliquerRelevesAuthentic` sérialise les applications (boucle et secours confondus) ;
+  `releverPagesAuthentic` (`releves/prendre`) reste en secours toutes les 60 s et au retour au premier plan.
+- Limite : sans AUCUNE fenêtre CLAIRE ouverte, les pages attendent 60 min en file (mémoire du serveur) puis sont
+  perdues — le serveur n'applique pas lui-même un relevé (toute la logique est dans `script.js`).
+- Vérifié : test serveur (servie immédiatement, vide après le délai, une seule fenêtre servie) ; Chromium : fiche
+  client appliquée et enregistrée 0,3 s après l'envoi alors que la relève de secours ne passe que toutes les 60 s.
+  Non reproductible ici : le ralentissement réel d'une fenêtre cachée (Chromium headless la garde « visible »).

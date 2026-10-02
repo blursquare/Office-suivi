@@ -6,7 +6,9 @@
 //  - GET  /api/authentic/capture/:id : la capture, pour la fenêtre CLAIRE qui l'affiche.
 //  - POST /api/authentic/releve : page relevée AUTOMATIQUEMENT à l'affichage dans Authentic (étude,
 //    02/10). Mise en file : une seule fenêtre CLAIRE la prend (POST /api/authentic/releves/prendre)
-//    et met la fiche du dossier à jour (pièces reçues) ; elle reste aussi 60 min parmi les relevés
+//    et met la fiche du dossier à jour (pièces reçues) — ou l'attend (POST /api/authentic/releves/attendre :
+//    requête gardée ouverte jusqu'à 25 s, rendue dès qu'une page arrive ; une fenêtre cachée, que le
+//    navigateur ne réveille plus qu'une fois par minute, est ainsi servie tout de suite) ; elle reste aussi 60 min parmi les relevés
 //    récents (GET /api/authentic/releves/recents) pour créer un dossier depuis Authentic. Une page
 //    identique à l'une des précédentes n'est pas remise en file.
 // Une capture contient des données de clients : gardée en MÉMOIRE seulement (30 min, 20 au plus),
@@ -51,8 +53,11 @@ function normaliserCaptureAuthentic(corps) {
   };
 }
 
+var DUREE_ATTENTE_RELEVES_MS = 25 * 1000;
+
 function creerRouteurAuthentic(options) {
   const maintenant = (options && options.maintenant) || (() => Date.now());
+  const dureeAttente = (options && options.dureeAttenteMs) || DUREE_ATTENTE_RELEVES_MS;
   const captures = new Map();
   const purger = () => {
     const t = maintenant();
@@ -75,6 +80,17 @@ function creerRouteurAuthentic(options) {
   // Relevés automatiques : file à traiter (une fenêtre la prend) et relevés récents (création).
   let aTraiter = [];
   let recents = [];
+  // Fenêtres en attente d'un relevé (la plus ancienne servie la première : une seule prend la file).
+  const attentes = [];
+  const servirAttente = () => {
+    if (!aTraiter.length) return;
+    const a = attentes.shift();
+    if (!a) return;
+    clearTimeout(a.minuterie);
+    const pris = aTraiter;
+    aTraiter = [];
+    a.repondre(pris);
+  };
   const empreintes = [];
   const purgerReleves = () => {
     const t = maintenant();
@@ -96,7 +112,25 @@ function creerRouteurAuthentic(options) {
     aTraiter.push(releve);
     recents.push(releve);
     purgerReleves();
+    servirAttente();
     res.json({ ok: true, id: releve.id });
+  });
+  routeur.post('/authentic/releves/attendre', (req, res) => {
+    purgerReleves();
+    res.setHeader('Cache-Control', 'no-store');
+    if (aTraiter.length) { const pris = aTraiter; aTraiter = []; res.json({ releves: pris }); return; }
+    const a = { repondre: (pris) => { if (!res.writableEnded) res.json({ releves: pris }); } };
+    a.minuterie = setTimeout(() => {
+      const i = attentes.indexOf(a);
+      if (i >= 0) attentes.splice(i, 1);
+      a.repondre([]);
+    }, dureeAttente);
+    attentes.push(a);
+    // Fenêtre fermée ou rechargée : son attente est retirée, le relevé ira à une autre.
+    res.on('close', () => {
+      const i = attentes.indexOf(a);
+      if (i >= 0) { attentes.splice(i, 1); clearTimeout(a.minuterie); }
+    });
   });
   routeur.post('/authentic/releves/prendre', (req, res) => {
     purgerReleves();
@@ -131,4 +165,4 @@ function pageAuthenticConnue(capture) {
   return libelles.some(l => RE_INTITULE_PAGE.test(l)) || RE_INTITULE_PAGE.test(String(c.texte || ''));
 }
 
-module.exports = { creerRouteurAuthentic, pageAuthenticConnue, normaliserCaptureAuthentic, DUREE_CAPTURE_MS, MAX_CAPTURES, DUREE_RELEVE_MS };
+module.exports = { creerRouteurAuthentic, pageAuthenticConnue, normaliserCaptureAuthentic, DUREE_CAPTURE_MS, MAX_CAPTURES, DUREE_RELEVE_MS, DUREE_ATTENTE_RELEVES_MS };

@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-02 15:00';
+  const VERSION_APP = '2026-10-02 15:05';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-02 15:05', resume: "Add-on Authentic : les pages relevées sont appliquées en arrière-plan, dans la seconde, même quand la fenêtre CLAIRE est cachée ou réduite (le navigateur ne la réveillait plus qu'une fois par minute : il fallait la regarder pour voir la fiche se mettre à jour). Il suffit qu'une fenêtre CLAIRE soit ouverte quelque part — celle du serveur suffit." },
     { version: '2026-10-02 15:00', resume: "Add-on Authentic, fiche client du vendeur : quand sa fiche cite plusieurs dossiers (un vendeur déjà client de l'étude : son ancien achat et la vente en cours), CLAIRE retenait le premier cité — l'ancien. Elle prend maintenant le dossier en consultation s'il est cité, sinon la vente en cours où la personne est partie (et, sans aucun dossier cité ni consulté, le seul dossier en cours où elle est partie). Création depuis Authentic : l'épouse absente de l'intitulé prend le côté de son conjoint." },
     { version: '2026-10-02 14:54', resume: "Fiche : une partie déjà connue d'un ancien dossier (vendeur, acquéreur — un ancien acquéreur qui revend —, partie d'une succession, archivés compris) est signalée « Déjà connu » sur la première page, avec ce qu'elle apporterait (téléphone, email, situation matrimoniale) ; « Reprendre » le copie, × l'écarte. Jamais repris d'office." },
     { version: '2026-10-02 14:48', resume: "Authentic, fiche client : les adresses email écrites à la suite (« a@x.fr;b@y.fr », envoi groupé) sont reprises au lieu d'être ignorées, et s'ajoutent à celles déjà connues ; une épouse sous son propre nom est rattachée au côté de son conjoint (« VTE CHAHUNEAU / … » : Mme mariée à M. CHAHUNEAU → vendeur) ; une fiche dont le côté reste inconnu apparaît « À rattacher » sur la fiche (Vendeur, Acquéreur ou écarter). Emails : plusieurs adresses séparées par « ; » acceptées partout (brouillon Outlook, sondage — une adresse = un votant —, visio). Le questionnaire de satisfaction envoyé au vendeur archive aussi le dossier." },
@@ -26234,7 +26235,7 @@
   // Authentic » (validées à la main, donc décochables et jamais repassées en manquantes par le NAS),
   // historique, notification. Une pièce déjà reprise une fois ne l'est plus (d.piecesAuthentic) : la
   // décocher reste la décision de l'étude. Jamais pour une participation (pièces suivies par le confrère).
-  var INTERVALLE_RELEVES_AUTHENTIC_MS = 5000;
+  var INTERVALLE_RELEVES_AUTHENTIC_MS = 60 * 1000;
   let releveAuthenticEnCours = false;
 
   // Pure : ce qu'un relevé de la page de gestion change sur un dossier (pièces à cocher).
@@ -26755,6 +26756,22 @@
     render();
   }
 
+  // Les relevés s'appliquent l'un après l'autre (boucle d'attente et relève de secours confondues) :
+  // deux pages du même dossier ne s'écrivent jamais en même temps.
+  let fileRelevesAuthentic = Promise.resolve();
+  function appliquerRelevesAuthentic(releves) {
+    fileRelevesAuthentic = fileRelevesAuthentic.then(async () => {
+      for (const rel of releves || []) {
+        try { await appliquerReleveAuthentic(rel.capture); } catch (e) { console.error('Relevé Authentic non appliqué', e && e.message); }
+      }
+      // « Nouveau dossier » ouvert à l'étape 1 : la liste « Depuis Authentic » suit les pages vues.
+      const etape1 = document.getElementById('wizard-step-1');
+      if (etape1 && etape1.classList.contains('actif') && etape1.offsetParent) chargerRelevesAuthenticRecents();
+    });
+    return fileRelevesAuthentic;
+  }
+
+  // Relève de secours (et retour au premier plan) : ce qui est en file, tout de suite.
   async function releverPagesAuthentic() {
     if (!authToken || releveAuthenticEnCours) return;
     releveAuthenticEnCours = true;
@@ -26762,15 +26779,33 @@
       const r = await fetchAvecAuth('/api/authentic/releves/prendre', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
       if (!r.ok) return;
       const { releves } = await r.json();
-      for (const rel of releves || []) {
-        try { await appliquerReleveAuthentic(rel.capture); } catch (e) { console.error('Relevé Authentic non appliqué', e && e.message); }
-      }
+      await appliquerRelevesAuthentic(releves);
     } catch (e) { /* le relevé suivant reprendra */ } finally {
       releveAuthenticEnCours = false;
     }
-    // « Nouveau dossier » ouvert à l'étape 1 : la liste « Depuis Authentic » suit les pages vues.
-    const etape1 = document.getElementById('wizard-step-1');
-    if (etape1 && etape1.classList.contains('actif') && etape1.offsetParent) chargerRelevesAuthenticRecents();
+  }
+
+  // Étude, 02/10 : « je suis obligé d'ouvrir la fiche dans CLAIRE et de regarder la fenêtre pour que les
+  // données se mettent à jour ». Une fenêtre cachée ou réduite n'est plus réveillée par le navigateur
+  // qu'une fois par minute (voire moins) : une relève toutes les 5 s n'y passait plus. La fenêtre garde
+  // donc une requête ouverte que le serveur rend dès qu'une page d'Authentic arrive (25 s au plus, puis
+  // elle repart aussitôt) — la réponse d'une requête n'est pas ralentie, la page est appliquée en
+  // arrière-plan dans la seconde.
+  let boucleRelevesAuthenticLancee = false;
+  async function boucleRelevesAuthentic() {
+    if (boucleRelevesAuthenticLancee) return;
+    boucleRelevesAuthenticLancee = true;
+    const pause = (ms) => new Promise(r => setTimeout(r, ms));
+    for (;;) {
+      if (!authToken) { await pause(5000); continue; }
+      let releves = null;
+      try {
+        const r = await fetchAvecAuth('/api/authentic/releves/attendre', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+        if (r.ok) releves = (await r.json()).releves || [];
+      } catch (e) { /* serveur injoignable : on réessaie plus bas */ }
+      if (releves === null) { await pause(10000); continue; }
+      if (releves.length) await appliquerRelevesAuthentic(releves);
+    }
   }
 
   // ---- « Nouveau dossier » depuis les pages relevées dans Authentic (étude, 02/10) ----
@@ -27577,8 +27612,11 @@
     // dès qu'elle revient au premier plan.
     document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') releverAppels(); });
     ouvrirAppelDepuisAdresse();
-    // Pages d'Authentic relevées automatiquement par l'extension : pièces reçues reportées sur la fiche.
+    // Pages d'Authentic relevées automatiquement par l'extension : pièces reçues reportées sur la fiche,
+    // même fenêtre cachée (boucle d'attente) ; relève de secours et au retour au premier plan.
+    boucleRelevesAuthentic();
     setInterval(releverPagesAuthentic, INTERVALLE_RELEVES_AUTHENTIC_MS);
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') releverPagesAuthentic(); });
     // Page d'Authentic envoyée par l'extension Firefox (#authentic=…), au chargement ou dans un onglet déjà ouvert.
     ouvrirCaptureAuthenticDepuisAdresse();
     window.addEventListener('hashchange', ouvrirCaptureAuthenticDepuisAdresse);

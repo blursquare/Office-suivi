@@ -102,3 +102,37 @@ test('pageAuthenticConnue : page du dossier, fiche client, fiche bien — rien d
   assert.equal(pageAuthenticConnue({ champs: [{ libelle: '15 - Succession DUPONT Jean Importer', valeur: '' }] }), true);
   assert.equal(pageAuthenticConnue({ champs: [{ libelle: 'Rechercher', valeur: '' }], texte: 'Agenda de l’office' }), false);
 });
+
+test('attente des relevés : rendue dès qu\'une page arrive, vide après le délai, une seule fenêtre servie', async () => {
+  const express = require('express');
+  const { creerRouteurAuthentic } = require('../src/routes/authentic');
+  const appli = express();
+  appli.use(express.json({ limit: '2mb' }));
+  appli.use('/api', creerRouteurAuthentic({ dureeAttenteMs: 300 }));
+  const s = appli.listen(0);
+  await new Promise(r => s.once('listening', r));
+  const b = 'http://127.0.0.1:' + s.address().port;
+  try {
+    const attendre = () => fetch(b + '/api/authentic/releves/attendre', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }).then(r => r.json());
+    // Rien n'arrive : réponse vide au bout du délai.
+    const t0 = Date.now();
+    assert.equal((await attendre()).releves.length, 0);
+    assert.ok(Date.now() - t0 >= 250);
+    // Deux fenêtres attendent ; une page arrive : la première la prend, la seconde repart vide.
+    let servieLe = 0;
+    const a1 = attendre().then(r => { servieLe = Date.now(); return r; }), a2 = attendre();
+    await new Promise(r => setTimeout(r, 50));
+    const page = { champs: [{ groupe: '', libelle: 'j:ficheClientPhysiqueIdentite:x', valeur: 'oui' }, { groupe: '', libelle: 'Nom de famille', valeur: 'TEST' }] };
+    const t1 = Date.now();
+    await fetch(b + '/api/authentic/releve', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(page) });
+    const [r1, r2] = await Promise.all([a1, a2]);
+    assert.equal(r1.releves.length, 1);
+    assert.ok(servieLe - t1 < 200, 'servie tout de suite, pas au bout du délai');
+    assert.equal(r2.releves.length, 0);
+    // Une page arrivée sans fenêtre en attente est rendue à la suivante, immédiatement.
+    await fetch(b + '/api/authentic/releve', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(Object.assign({}, page, { texte: 'x', champs: page.champs.concat({ groupe: '', libelle: 'Prénom', valeur: 'A' }) })) });
+    assert.equal((await attendre()).releves.length, 1);
+  } finally {
+    s.close();
+  }
+});
