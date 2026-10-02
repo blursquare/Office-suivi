@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-02 09:49';
+  const VERSION_APP = '2026-10-02 09:51';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-02 09:51', resume: "Bandeau « Appel entrant » : il se ferme seul 45 secondes après la sonnerie (3CX ne prévient pas CLAIRE de la fin d'un appel), reste ouvert tant que la souris est dessus, et se ferme dès qu'on ouvre la fiche d'un dossier depuis le bandeau. La croix reste disponible." },
     { version: '2026-10-02 09:49', resume: "Fiche d'un dossier : sélectionner un email ou un téléphone à la souris ne ferme plus la fiche quand on relâche le bouton hors de la fiche (même correction pour toutes les fenêtres à fond grisé). Le bandeau « Appel entrant » s'affiche maintenant en bas à gauche de l'écran." },
     { version: '2026-10-02 09:37', resume: "Widget « Statistiques » : les délais moyens (obtention du prêt, renonciation au droit de préemption, signature) sont maintenant calculés sur tous les dossiers de l'étude, archivés compris, sans limite de date et quel que soit le périmètre du tableau de bord (et non plus sur les 12 derniers mois). Le nombre de dossiers mesurés reste affiché à côté de chaque délai." },
     { version: '2026-10-02 09:32', resume: "Téléphonie 3CX : Réglages › Téléphonie 3CX montre sous chaque collaborateur si sa fenêtre CLAIRE est ouverte et quand 3CX a ouvert son adresse pour la dernière fois (« Aucune sonnerie reçue de 3CX » après un vrai appel = 3CX n'a rien envoyé : réglage du client web ou pop-up bloquées). CLAIRE accepte aussi ce qu'envoie la version 20 de 3CX : nom « undefined », numéro « +33… » non encodé, prénom avec majuscule ou accent dans l'adresse. Aide mise à jour avec le nom du réglage dans la V20 (« Lancer automatiquement une URL de contact personnalisée »)." },
@@ -25054,6 +25055,16 @@
   const appelsParDossier = {};     // id → journal du dossier (null pendant le chargement)
   let appelEntrant = null;
   let minuteurAppelEntrant = null;
+  // 3CX ne prévient CLAIRE qu'à la sonnerie, jamais à la fin de l'appel : le bandeau se ferme seul
+  // 45 s après (le temps de décrocher), en pause tant que la souris est dessus, et dès que la fiche
+  // est ouverte depuis le bandeau (étude, 02/10).
+  var DUREE_BANDEAU_APPEL_MS = 45000;
+  var DUREE_BANDEAU_APPEL_APRES_SURVOL_MS = 10000;
+
+  function programmerFermetureAppelEntrant(ms) {
+    clearTimeout(minuteurAppelEntrant);
+    minuteurAppelEntrant = setTimeout(fermerAppelEntrant, ms);
+  }
 
   // Pure : clé du poste dans l'adresse 3CX — le prénom sans accent (« jeremy ») : 3CX remplace les
   // %…% de l'adresse, un nom encodé (%C3%A9…) risquerait d'être pris pour une variable.
@@ -25236,8 +25247,7 @@
     for (const x of appel.dossiers || []) delete appelsParDossier[x.id];
     appelEntrant = appel;
     renderAppelEntrant();
-    clearTimeout(minuteurAppelEntrant);
-    minuteurAppelEntrant = setTimeout(fermerAppelEntrant, 2 * 60 * 1000);
+    programmerFermetureAppelEntrant(DUREE_BANDEAU_APPEL_MS);
     const d = ouvrir ? dossierAOuvrirPourAppel(appel, dossiers) : null;
     // Jamais pendant une saisie : la fiche s'ouvrira d'un clic sur le bandeau.
     const saisie = document.activeElement && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName);
@@ -25265,6 +25275,8 @@
       el.id = 'appel-entrant';
       el.className = 'appel-entrant';
       el.setAttribute('role', 'status');
+      el.addEventListener('mouseenter', () => clearTimeout(minuteurAppelEntrant));
+      el.addEventListener('mouseleave', () => programmerFermetureAppelEntrant(DUREE_BANDEAU_APPEL_APRES_SURVOL_MS));
       document.body.appendChild(el);
     }
     const ds = dossiersDeLAppel(a, dossiers);
@@ -25277,7 +25289,7 @@
       </div>
       <p class="appel-entrant-numero">${escapeHtml(a.numero || 'Numéro masqué')}${a.nom ? ` · ${escapeHtml(a.nom)}` : ''}</p>
       ${contact}
-      ${ds.length ? `<div class="appel-entrant-dossiers">${ds.slice(0, 4).map(y => `<button type="button" class="action-rapide" onclick="ouvrirFicheAppel('${y.d.id}')">${y.partie ? `<span class="appel-entrant-partie">${escapeHtml(y.partie)}</span>` : ''}${escapeHtml(libelleDossierAffiche(y.d))}${y.d.archive ? ' · archivé' : ''}</button>`).join('')}</div>`
+      ${ds.length ? `<div class="appel-entrant-dossiers">${ds.slice(0, 4).map(y => `<button type="button" class="action-rapide" onclick="ouvrirFicheAppel('${y.d.id}'); fermerAppelEntrant()">${y.partie ? `<span class="appel-entrant-partie">${escapeHtml(y.partie)}</span>` : ''}${escapeHtml(libelleDossierAffiche(y.d))}${y.d.archive ? ' · archivé' : ''}</button>`).join('')}</div>`
         : (contact ? '' : `<p class="hint">Numéro inconnu de CLAIRE ${infoBulle('Saisissez-le dans l’onglet Échanges du dossier (téléphone du vendeur ou de l’acquéreur) : le prochain appel ouvrira la fiche.')}</p>`)}`;
   }
 

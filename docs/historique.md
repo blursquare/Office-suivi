@@ -14484,3 +14484,9 @@ Appliqué aux 11 fonds de `index.html` (fiche, dates proposées, widgets, à pro
 fenêtre du matin, sondage, agenda) et à l'aperçu d'un scan. Un vrai clic sur le fond ferme toujours.
 Bandeau « Appel entrant » : `left: 16px` au lieu de `right` (étude). Fermeture à la fin de l'appel : 3CX n'envoie à
 CLAIRE que la sonnerie (URL du client web) — question posée à l'étude sur l'installation 3CX (voir la suite).
+Suite (même jour) : question posée sur la fin d'appel — journal CRM de 3CX (scénario « ReportCall » d'un modèle CRM
+dans la console d'administration, possible seulement si le standard joint le serveur CLAIRE) ou fermeture automatique.
+Choix de l'étude : **fermeture automatique**. `DUREE_BANDEAU_APPEL_MS` = 45 s après la sonnerie (au lieu de 2 min),
+en pause au survol (`mouseenter`), 10 s après la sortie (`DUREE_BANDEAU_APPEL_APRES_SURVOL_MS`), et fermé au clic sur
+un dossier du bandeau. Quand la fiche s'ouvre seule à la sonnerie (un seul dossier), le bandeau reste ses 45 s.
+Vérifié dans Chromium (durées raccourcies) : fermeture seule, survol, clic.

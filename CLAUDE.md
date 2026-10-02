@@ -374,7 +374,7 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
   session, aucune donnée renvoyée, jamais journalisé) et reconnaît l'appelant (`reconnaitreAppelant` : 9
   derniers chiffres ; `d.telephoneVendeur`/`d.telephoneAcquereur` — onglet Échanges, repris d'Authentic —,
   puis carnet des confrères et ses dossiers, puis répertoire). La fenêtre CLAIRE relève toutes les 3 s, même
-  cachée (`releverAppels`), montre le bandeau « Appel entrant » et ouvre la fiche (Échanges) d'un seul dossier
+  cachée (`releverAppels`), montre le bandeau « Appel entrant » (en bas à gauche ; fermé seul 45 s après la sonnerie — 3CX ne signale pas la fin d'un appel, choix de l'étude 02/10 contre le journal CRM de 3CX —, en pause au survol, fermé à l'ouverture d'une fiche depuis le bandeau) et ouvre la fiche (Échanges) d'un seul dossier
   en cours, jamais pendant une saisie ; l'onglet ouvert par 3CX se ferme si la fenêtre du poste est visible,
   sinon il affiche CLAIRE sur l'appel (`#appel=`). Appels du dossier dans l'onglet Échanges.
 - **Mobilier** : le prix reste le prix total ; `d.prixMobilier` sort seulement de l'assiette des
@@ -504,6 +504,7 @@ Plainte principale de l'étude : **le bruit**, pas les oublis — ne pas élargi
   à la signature passée — `statistiquesDelaisDossiers`, **tous les dossiers de l'étude, archivés compris, sans fenêtre de dates ni périmètre** (étude 02/10), moyenne/médiane/n ; dossiers ouverts ce mois / mois
   précédent / même mois N-1 (`comparaisonDossiersOuverts`, « — » avant le premier dossier noté), sur le périmètre du tableau de
   bord (mes dossiers / tous).
+- **Fond grisé d'une fenêtre** (02/10) : il ne ferme que par `clicSurFond(event)` (appui ET clic sur le fond) — sinon une sélection de texte relâchée hors de la fiche la fermait.
 - **Texte d'aide** : ne décrit pas ce que le bouton dit déjà ; il dit ce qui manque. Une toute
   nouvelle confirmation commence par son verbe d'action (`boutonConfirmation`). **Une explication
   n'est jamais un paragraphe** (étude, 29/09 : « ça charge trop l'interface ») : elle va dans une
