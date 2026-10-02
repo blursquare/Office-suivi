@@ -8039,3 +8039,40 @@ button.w-jour-lien { border: none; background: none; padding: 0; cursor: pointer
 .authentic-info .dot-label { white-space: normal; align-items: baseline; line-height: 1.4; }
 .authentic-info .dot-label .dot { flex: none; transform: translateY(-1px); }
 .piece-libelle .piece-tag.piece-tag-long { display: block; white-space: normal; margin-left: 0; }
+
+/* « Nouveau dossier » : trois façons de commencer (étude, 02/10). */
+.import-choix { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 4px; }
+.import-choix > * { min-width: 0; }
+.import-choix-carte {
+  display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto auto; column-gap: 10px; row-gap: 2px;
+  text-align: left; padding: 12px 14px; border: 1px solid var(--line); border-radius: 10px;
+  background: var(--paper-card); color: var(--ink); cursor: pointer; font: inherit;
+}
+.import-choix-carte:hover { border-color: var(--focus); }
+.import-choix-carte:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.import-choix-carte.actif { border-color: var(--focus); box-shadow: inset 0 0 0 1px var(--focus); }
+.import-choix-icone { grid-row: 1 / span 2; display: flex; align-items: center; color: var(--ink-soft); }
+.import-choix-carte.actif .import-choix-icone { color: var(--focus); }
+.import-choix-icone svg { width: 20px; height: 20px; }
+.import-choix-titre { font-weight: 600; font-size: 14px; }
+.import-choix-sous { font-size: 12px; color: var(--muted); line-height: 1.35; }
+@media (max-width: 720px) { .import-choix { grid-template-columns: 1fr; } }
+.authentic-releves-vide { margin: 4px 0 0; font-size: 13px; color: var(--muted); }
+
+/* Ce qui a nourri le dossier en cours de création (étapes Vérifier et Finaliser). */
+.sources-import { display: flex; flex-direction: column; gap: 4px; margin: 0 0 12px; font-size: 13px; }
+.sources-import:empty { display: none; }
+.sources-import-ligne { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; }
+.sources-import .dot-label { white-space: normal; }
+
+/* Notaires lus dans l'acte ou dans Authentic, à placer d'un clic. */
+.notaires-wizard:empty { display: none; }
+.notaires-wizard { margin: -4px 0 12px; font-size: 13px; }
+.notaires-wizard-titre { display: flex; align-items: center; gap: 8px; color: var(--ink-soft); font-weight: 600; margin-bottom: 4px; }
+.notaires-wizard-liste { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.notaires-wizard-ligne { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 12px; }
+.notaires-wizard-ligne > * { min-width: 0; }
+.notaires-wizard-gestes { display: flex; gap: 10px; }
+.role-deduit { font-weight: 400; color: var(--muted); font-size: 12px; }
+.notaires-a-placer { display: flex; flex-direction: column; gap: 4px; }
+.notaires-a-placer-ligne { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; }

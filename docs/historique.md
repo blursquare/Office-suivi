@@ -14691,3 +14691,39 @@ retenu. Les fiches client (et onglets sans intitulé) suivent le dernier dossier
 et non plus le dernier intitulé. « Nouveau dossier › Depuis Authentic » passe aussi l'adresse (`g.adresse`, sinon celle de la
 fiche bien). Tests : deux ventes MARTEL/FOURNIER départagées par l'adresse, adresse contraire, nom proche + voie, adresse seule
 jamais suffisante.
+
+### 02/10/2026 12 h 33 — « Nouveau dossier » : trois façons de commencer, notaires à placer, bug du notaire « disparu »
+
+Étude : « lors de la création d'un nouveau dossier, avoir trois choix : uploader seul le compromis en PDF (une partie des
+données repérée, puis un bouton récupérer depuis Authentic qui complète) ; uploader le zip sorti d'Authentic ; récupérer
+un dossier d'Authentic (je l'ouvre, la page de l'acquéreur, du bien, du vendeur, du notaire) — tu me proposes les données,
+je l'intègre, j'uploade aussi le compromis pour les dates butoir ; synthèse avec les champs pré-remplis d'Authentic, les
+dates butoir et les engagements trouvés. […] Des données disparaissent dans la fiche ensuite, je crois le notaire. […]
+Choisir le notaire et s'il est instrumentaire ou en participation dès la création. »
+
+- Étape 1 : trois cartes (`MODES_IMPORT`, `renderChoixImport`, `choisirModeImport`) qui règlent libellé, indice et
+  `accept` de la zone de dépôt et l'affichage de « Depuis Authentic » (`renderRelevesAuthenticWizard`) :
+  - PDF : la liste « Compléter depuis Authentic » n'apparaît qu'une fois le compromis lu, classée par
+    `groupesAuthenticPourCompromis` (score du nom lu) ;
+  - ZIP : la liste est cachée ; déposer un ZIP dans n'importe quel mode bascule en ZIP ;
+  - Dossier Authentic : liste toujours visible (état vide expliqué) ; « Reprendre » reste à l'étape 1 (statut « déposez
+    le compromis ci-dessous… »), la ligne reprise est marquée « Repris » ; un PDF déposé ensuite garde
+    `exportAuthenticActuel` (gererUploadPdf/gererDepotPdf : remis à zéro seulement en mode PDF) : dates butoir et
+    engagements du compromis + parties, état civil, téléphones, bien, prix d'Authentic.
+- Étapes 2 et 4 : `#sources-import-2/4` (`sourcesImportWizard`, `renderSourcesImport`) — « Compromis « … » : dates butoir,
+  engagements, prix » / « Authentic « … » : parties, état civil, bien… », ou ce qui manque avec le geste pour l'ajouter.
+- Bug du notaire « disparu » reproduit : un acte qui cite deux notaires sans dire qui représente qui (« Les parties ont
+  désigné Maître A… et Maître B… », ou « avec la participation de ») laisse volontairement les deux champs vides
+  (`cotesNotairesPourDossier`, règle de l'étude : rien deviné) ; à l'étape Finaliser les noms n'étaient que dans une
+  liste déroulante, et sur la fiche une ligne notaire vide est REPLIÉE derrière « Compléter la fiche » — le notaire lu
+  n'était visible nulle part. Corrigé : étape Finaliser, bloc « Notaires lus » (`notairesProposesWizard` : acte + notaire
+  des parties prenantes d'Authentic, rôle lu « reçoit l'acte / participe », « Côté non précisé : à placer ») avec
+  Vendeur / Acquéreur / Les deux (`placerNotaireWizard`) ; « Notaire qui reçoit l'acte » (`f-cote-instrumentaire`,
+  pré-rempli quand l'acte le dit, enregistré tel quel) ; rôle de l'étude déduit (`roleEtudeDeduitWizard`, mention
+  « déduit des notaires »). Fiche : ligne « Lus, à placer » (`notairesNonPlacesDossier`, `placerNotaireFiche` →
+  `affecterNotaire`) tant qu'un côté est vide — jamais repliée. Au passage : « (ORLÉANS et) » → « (ORLÉANS) »
+  (`libelleNotaire`). Notaire d'Authentic ajouté à `notairesDetectes` à la création.
+- Vérifié dans Chromium (serveur réel, pages Authentic et compromis inventés ; pdf.js injoignable ici, le texte du
+  compromis est passé à `traiterTexte`) : Reprendre → compromis → dates 15/11 et 15/12, prix, adresse, parties avec
+  téléphones, responsable Julie (parties prenantes), acte de naissance ECV en pièce reçue, engagement du vendeur ;
+  notaires placés, côté et rôle déduit enregistrés ; second dossier sans placement → fiche « Lus, à placer ».

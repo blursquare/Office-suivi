@@ -247,6 +247,15 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
   de compte client JurisWeb (`analyserReleveCompteClient`, colonne Débit/Crédit par position des
   items) → acomptes sur prix et sur frais versés à l'étude, qui **remplacent** la ligne d'acompte du
   dossier (même somme), reversements au confrère signalés. Rien n'est enregistré sur le dossier.
+- **« Nouveau dossier » : trois façons de commencer** (étude, 02/10, `MODES_IMPORT`, `choisirModeImport`,
+  `renderChoixImport`) — « Compromis (PDF) » puis « Compléter depuis Authentic » (`groupesAuthenticPourCompromis` :
+  le dossier du compromis lu en tête) ; « Export Authentic (.zip) » ; « Dossier Authentic » : un dossier relevé est
+  « Repris » sans quitter l'étape 1, puis le compromis déposé dessous le complète (`exportAuthenticActuel` gardé hors
+  mode PDF). Étapes Vérifier/Finaliser : `sourcesImportWizard` (ce qui vient du compromis / d'Authentic, ce qui manque).
+  Notaires à la création : lus dans l'acte et dans Authentic (`notairesProposesWizard`), placés d'un clic (vendeur,
+  acquéreur, les deux), « Notaire qui reçoit l'acte » (`f-cote-instrumentaire`), rôle de l'étude déduit
+  (`roleEtudeDeduitWizard`). **Un notaire cité sans son côté reste vide (jamais deviné) mais n'est plus caché** : fiche
+  « Lus, à placer » (`notairesNonPlacesDossier`, `placerNotaireFiche`) au lieu d'une ligne repliée.
 - **Import d'un export Authentic** (30/09, « Nouveau dossier », même zone de dépôt que le PDF) : ZIP
   d'un sous-dossier (`DATA.xml` au format notaires.fr + pièces + Word de l'acte en cours), lu dans le
   navigateur (`entreesZip`, `arbreXml`, `lireExportAuthentic`). Parties par les références du flux,

@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-02 12:15';
+  const VERSION_APP = '2026-10-02 12:33';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-02 12:33', resume: "Nouveau dossier : trois façons de commencer — « Compromis (PDF) » (puis « Compléter depuis Authentic », le bon dossier en tête), « Export Authentic (.zip) », « Dossier Authentic » (repris des pages ouvertes dans Authentic, puis le compromis déposé dessous pour les dates butoir et les engagements, sans rien perdre d'Authentic). Les étapes Vérifier et Finaliser rappellent ce qui vient du compromis et d'Authentic. Notaires : ceux lus dans l'acte ou dans Authentic se placent d'un clic (vendeur, acquéreur, les deux) ; « Notaire qui reçoit l'acte » se choisit et le rôle de l'étude s'en déduit. Corrigé : un notaire cité sans son côté n'apparaissait plus sur la fiche (ligne repliée) — il s'affiche « Lus, à placer »." },
     { version: '2026-10-02 12:15', resume: "Authentic : le dossier CLAIRE est retrouvé par un score — noms du vendeur et de l'acquéreur, puis adresse du bien (rubrique « Immeubles » de la page : code postal, commune, voie, numéro). Deux ventes en cours avec les mêmes noms sont départagées par l'adresse ; une adresse qui ne correspond pas écarte le dossier ; à égalité, rien n'est choisi." },
     { version: '2026-10-02 12:07', resume: "Authentic : une ligne d'état civil précédée de « APR » (demande envoyée par papier) n'est jamais cochée ; « ECV » (état civil virtuel) l'est, et la pièce prend l'intitulé sans « ECV »." },
     { version: '2026-10-02 12:06', resume: "Suivi : un acte signé (signé dans Authentic, ou signature marquée faite) affiche « Signé le … » en vert à la place de la date, et « Acte signé » dans la colonne Échéance — vues Échéances et Tableau, archivés compris. Vue Échéances : les dossiers signés ont leur section « Signés » (le plus récent d'abord), avant « Sans échéance datée »." },
@@ -3374,7 +3375,7 @@
   function libelleNotaire(n) {
     if (!n || !n.nom) return '';
     const nom = /^ma[îi]tre\b/i.test(n.nom.trim()) ? n.nom.trim() : `Maître ${n.nom.trim()}`;
-    const office = String(n.office || n.commune || '').trim();
+    const office = String(n.office || n.commune || '').trim().replace(/[\s,]+(?:et|ainsi|avec|de)$/i, '').trim();
     return office ? `${nom} (${office})` : nom;
   }
 
@@ -8544,8 +8545,83 @@
     const cotes = cotesNotairesPourDossier(extraction.notaires);
     appliquerValeurChamp('f-notaire-vendeur', completerNomNotaire(cotes.vendeur, carnetConfreres));
     appliquerValeurChamp('f-notaire-acquereur', completerNomNotaire(cotes.acquereur, carnetConfreres));
-    remplirListeNotairesWizard(cotes.detectes.map(n => n.nom));
+    if (cotes.coteInstrumentaire) appliquerValeurChamp('f-cote-instrumentaire', cotes.coteInstrumentaire);
+    remplirListeNotairesWizard(notairesProposesWizard().map(n => n.nom));
     majApercuPieces();
+  }
+
+  // ---- Notaires à la création (étude, 02/10 : « choisir le notaire et s'il est instrumentaire ou en
+  // participation dès la création ») : les notaires lus dans l'acte ET dans Authentic sont listés,
+  // chacun se place d'un clic du côté du vendeur, de l'acquéreur ou des deux ; un notaire nommé sans
+  // son côté n'est plus « perdu » dans la liste déroulante. Le rôle de l'étude se déduit du côté qui
+  // reçoit l'acte, comme sur la fiche (deduireRoleNotaireDossier).
+  function notairesProposesWizard() {
+    const c = cotesNotairesPourDossier(extractionActuelle ? extractionActuelle.notaires : null);
+    const liste = c.detectes.map(n => ({ nom: completerNomNotaire(n.nom, carnetConfreres), role: n.role, source: 'acte' }));
+    const auth = exportAuthenticActuel && exportAuthenticActuel.infosAuthentic && exportAuthenticActuel.infosAuthentic.notaire;
+    if (auth) {
+      const nom = /^ma[iî]tre\b/i.test(auth) ? auth : 'Maître ' + auth;
+      const cle = normaliserPourRecherche(auth).replace(/[^a-z]+/g, ' ').trim();
+      if (!liste.some(n => normaliserPourRecherche(n.nom).includes(cle))) liste.push({ nom, role: null, source: 'authentic' });
+    }
+    return liste.filter((n, i, l) => n.nom && l.findIndex(x => x.nom === n.nom) === i);
+  }
+
+  // Pure : rôle de l'étude d'après les deux notaires et le côté qui reçoit l'acte ; null si l'étude
+  // n'est reconnue d'aucun côté ou si personne ne reçoit encore l'acte.
+  function roleEtudeDeduitWizard(notaireVendeur, notaireAcquereur, coteInstrumentaire) {
+    const etude = notaireVendeur && estEtude({ nom: notaireVendeur }) ? 'vendeur'
+      : (notaireAcquereur && estEtude({ nom: notaireAcquereur }) ? 'acquereur' : null);
+    if (!etude || !coteInstrumentaire) return null;
+    if (etude === 'vendeur' && notaireAcquereur && estEtude({ nom: notaireAcquereur })) return 'instrumentaire';
+    return etude === coteInstrumentaire ? 'instrumentaire' : 'participant';
+  }
+
+  function placerNotaireWizard(index, cote) {
+    const n = notairesProposesWizard()[index];
+    if (!n) return;
+    if (cote === 'vendeur' || cote === 'deux') document.getElementById('f-notaire-vendeur').value = n.nom;
+    if (cote === 'acquereur' || cote === 'deux') document.getElementById('f-notaire-acquereur').value = n.nom;
+    // Un seul notaire pour les deux parties : c'est lui qui reçoit l'acte.
+    const sel = document.getElementById('f-cote-instrumentaire');
+    if (cote === 'deux' && sel && !sel.value) sel.value = 'vendeur';
+    else if (n.role === 'instrumentaire' && sel && !sel.value && cote !== 'deux') sel.value = cote;
+    majApercuPieces();
+  }
+
+  function renderNotairesWizard() {
+    const bloc = document.getElementById('notaires-wizard');
+    if (!bloc) return;
+    const liste = notairesProposesWizard();
+    if (!liste.length) { bloc.innerHTML = ''; return; }
+    const v = (document.getElementById('f-notaire-vendeur') || {}).value || '';
+    const a = (document.getElementById('f-notaire-acquereur') || {}).value || '';
+    const place = (nom) => [v === nom ? 'vendeur' : '', a === nom ? 'acquéreur' : ''].filter(Boolean).join(' et ');
+    const aPlacer = liste.some(n => !place(n.nom));
+    bloc.innerHTML = `
+      <div class="notaires-wizard-titre">Notaires lus ${aPlacer && !v && !a ? '<span class="dot-label dl-pret"><span class="dot"></span>Côté non précisé : à placer</span>' : ''}</div>
+      <ul class="notaires-wizard-liste">${liste.map((n, i) => {
+        const p = place(n.nom);
+        return `<li class="notaires-wizard-ligne">
+          <span class="notaires-wizard-nom">${escapeHtml(n.nom)}<span class="hint"> · ${n.source === 'authentic' ? 'Authentic' : 'compromis'}${n.role === 'instrumentaire' ? ', reçoit l’acte' : n.role === 'participant' ? ', participe' : ''}${p ? ` · ${p}` : ''}</span></span>
+          <span class="notaires-wizard-gestes">
+            <button type="button" class="lien-action" onclick="placerNotaireWizard(${i}, 'vendeur')">Vendeur</button>
+            <button type="button" class="lien-action" onclick="placerNotaireWizard(${i}, 'acquereur')">Acquéreur</button>
+            <button type="button" class="lien-action" onclick="placerNotaireWizard(${i}, 'deux')">Les deux</button>
+          </span>
+        </li>`;
+      }).join('')}</ul>`;
+  }
+
+  function deduireRoleEtudeWizard() {
+    const v = (document.getElementById('f-notaire-vendeur') || {}).value || '';
+    const a = (document.getElementById('f-notaire-acquereur') || {}).value || '';
+    const cote = (document.getElementById('f-cote-instrumentaire') || {}).value || '';
+    const role = roleEtudeDeduitWizard(v.trim(), a.trim(), cote);
+    const select = document.getElementById('f-role-notaire');
+    const marque = document.getElementById('role-etude-deduit');
+    if (role && select) select.value = role;
+    if (marque) marque.textContent = role ? '· déduit des notaires' : '';
   }
 
   // Liste proposée sous les deux champs notaire de l'assistant : les notaires lus dans l'acte,
@@ -9815,10 +9891,12 @@
   async function gererUploadPdf(event) {
     const file = event.target.files[0];
     if (!file) return;
-    if (estExportAuthentic(file)) { await traiterExportAuthentic(file); return; }
-    exportAuthenticActuel = null;
+    if (estExportAuthentic(file)) { modeImport = 'zip'; renderChoixImport(); await traiterExportAuthentic(file); return; }
+    // Mode « Dossier Authentic » (ou export déjà lu) : le compromis complète, Authentic est gardé.
+    if (!(exportAuthenticActuel && modeImport !== 'pdf')) exportAuthenticActuel = null;
     majPiecesAuthentic();
     await traiterFichierPdf(file);
+    renderChoixImport();
   }
 
   function gererSurvolDepot(event) {
@@ -9838,13 +9916,13 @@
     if (!fichiers || fichiers.length === 0) return;
     const file = fichiers[0];
     const status = document.getElementById('pdf-status');
-    if (estExportAuthentic(file)) { await traiterExportAuthentic(file); return; }
+    if (estExportAuthentic(file)) { modeImport = 'zip'; renderChoixImport(); await traiterExportAuthentic(file); return; }
     if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
       status.className = 'pdf-status err';
       status.textContent = `« ${file.name} » n'est ni un PDF ni un export Authentic (.zip).`;
       return;
     }
-    exportAuthenticActuel = null;
+    if (!(exportAuthenticActuel && modeImport !== 'pdf')) exportAuthenticActuel = null;
     majPiecesAuthentic();
     // Synchronise le champ de fichier natif, pour rester cohérent si le formulaire est réinitialisé.
     try {
@@ -9853,6 +9931,7 @@
       document.getElementById('f-pdf').files = dt.files;
     } catch (e) { /* DataTransfer non disponible sur certains navigateurs : sans conséquence */ }
     await traiterFichierPdf(file);
+    renderChoixImport();
   }
 
   // ==== Import d'un export Authentic (« Nouveau dossier ») ====
@@ -11058,11 +11137,13 @@
     document.getElementById('f-responsable').value = utilisateurPoste || '';
     document.getElementById('f-type-vente').value = 'maison';
     document.getElementById('f-role-notaire').value = 'instrumentaire';
+    document.getElementById('f-cote-instrumentaire').value = '';
     majApercuPieces();
     document.getElementById('f-email-acquereur').value = '';
     document.getElementById('f-email-vendeur').value = '';
     document.getElementById('f-notaire-vendeur').value = '';
     document.getElementById('f-notaire-acquereur').value = '';
+    document.getElementById('f-cote-instrumentaire').value = '';
     remplirListeNotairesWizard([]);
     document.getElementById('f-nom-agence').value = '';
     document.getElementById('f-adresse-bien').value = '';
@@ -11221,8 +11302,10 @@
       // dans notairesDetectes, à l'étude de les affecter.
       notaireVendeur,
       notaireAcquereur,
-      coteInstrumentaire: coteInstrumentaireNouveauDossier(cotesNotaires, notaireVendeur, notaireAcquereur, roleNotaire),
-      notairesDetectes: cotesNotaires.detectes,
+      coteInstrumentaire: ['vendeur', 'acquereur'].includes(document.getElementById('f-cote-instrumentaire').value)
+        ? document.getElementById('f-cote-instrumentaire').value
+        : coteInstrumentaireNouveauDossier(cotesNotaires, notaireVendeur, notaireAcquereur, roleNotaire),
+      notairesDetectes: cotesNotaires.detectes.concat(notairesProposesWizard().filter(n => n.source === 'authentic').map(n => ({ nom: n.nom, role: null }))),
       // Email de l'office du notaire de l'acquéreur, à renseigner UNIQUEMENT quand cet office est
       // distinct du nôtre (voir notaireParticipantRepresenteAcquereur/emailDestinataireRelance) :
       // la déontologie interdit alors à l'instrumentaire de contacter directement l'acquéreur, les
@@ -13910,6 +13993,23 @@
 
   // Affecte un notaire à un côté depuis la fiche. Champ libre : l'étude peut corriger une lecture
   // fausse, ou saisir un notaire que l'acte ne nommait pas du tout.
+  // Pure : notaires lus à la création qui ne sont ni notaire du vendeur ni notaire de l'acquéreur,
+  // tant que l'un des deux champs est vide.
+  function notairesNonPlacesDossier(d) {
+    if (!d || (d.notaireVendeur && d.notaireAcquereur)) return [];
+    const cle = (x) => normaliserPourRecherche(String(x || '').replace(/\([^)]*\)/g, ' ')).replace(/^\s*(?:maitre|me)\s+/, '').replace(/[^a-z]+/g, ' ').trim();
+    const places = [cle(d.notaireVendeur), cle(d.notaireAcquereur)].filter(Boolean);
+    return (Array.isArray(d.notairesDetectes) ? d.notairesDetectes : []).filter(n => n && n.nom && !places.includes(cle(n.nom)));
+  }
+
+  function placerNotaireFiche(id, index, cote) {
+    const d = dossiers.find(x => x.id === id);
+    const n = d && (Array.isArray(d.notairesDetectes) ? d.notairesDetectes : []).filter(x => x && x.nom)[index];
+    if (!n) return;
+    if (cote === 'vendeur' || cote === 'deux') affecterNotaire(id, 'vendeur', n.nom);
+    if (cote === 'acquereur' || cote === 'deux') affecterNotaire(id, 'acquereur', n.nom);
+  }
+
   function affecterNotaire(id, cote, valeur) {
     const d = dossiers.find(x => x.id === id);
     if (!d) return;
@@ -14968,14 +15068,14 @@
   let etapeWizardActuelle = 1;
   function definirEtapeWizard(n) {
     etapeWizardActuelle = n;
-    if (n === 1) chargerRelevesAuthenticRecents();
+    if (n === 1) { renderChoixImport(); chargerRelevesAuthenticRecents(); }
+    if (n === 2 || n === 4) renderSourcesImport();
     for (let i = 1; i <= 4; i++) {
       document.getElementById('wizard-step-' + i).classList.toggle('actif', i === n);
       document.getElementById('wizard-step-btn-' + i).classList.toggle('actif', i === n);
     }
     if (n === 4) {
-      const c = cotesNotairesPourDossier(extractionActuelle ? extractionActuelle.notaires : null);
-      remplirListeNotairesWizard(c.detectes.map(x => x.nom));
+      remplirListeNotairesWizard(notairesProposesWizard().map(x => x.nom));
       majApercuPieces();
     }
     const wrap = document.querySelector('.wrap');
@@ -14987,6 +15087,7 @@
   // soit pas un choix fait à l'aveugle. Les vraies pièces ne sont vérifiées qu'une fois le dossier
   // enregistré et relié à un dossier local (voir renderPiecesDossier/verifierPiecesDossier).
   function majApercuPieces() {
+    try { deduireRoleEtudeWizard(); renderNotairesWizard(); } catch (e) { /* étape Finaliser absente */ }
     majPiecesAuthentic();
     const select = document.getElementById('f-type-vente');
     const roleSelect = document.getElementById('f-role-notaire');
@@ -16169,6 +16270,9 @@
     // Groupe 3 — les notaires. Le bouton « Reçoit l'acte » EST le contrôle (voir
     // basculerCoteInstrumentaire), sur les deux lignes au même endroit.
     const detectes = (Array.isArray(d.notairesDetectes) ? d.notairesDetectes : []).filter(n => n && n.nom);
+    // Notaires lus dans l'acte et pas encore placés (étude, 02/10 : « le notaire était dans le
+    // compromis mais a disparu de la fiche ») — visibles, à placer d'un clic, jamais repliés.
+    const nonPlaces = notairesNonPlacesDossier(d);
     const listeId = `notaires-detectes-${d.id}`;
     // Liste déroulante : les notaires lus dans l'acte d'abord, puis ceux du carnet des confrères.
     const nomsDetectes = detectes.map(n => n.nom);
@@ -16214,8 +16318,12 @@
         ${d.fondsTravaux ? ligne('package', 'Fonds de travaux', `<span class="prop-texte">${escapeHtml(libelleFondsTravaux(d.fondsTravaux))}</span>`, null, 'prop-pleine') : ''}
       </dl>
       <dl class="fiche-proprietes">
-        ${ligne('scale', 'Notaire vendeur', notaire('vendeur', d.notaireVendeur), `not-vendeur-${d.id}`, 'prop-pleine' + siVide(!d.notaireVendeur && d.coteInstrumentaire !== 'vendeur'))}
-        ${ligne('scale', 'Notaire acquéreur', notaire('acquereur', d.notaireAcquereur), `not-acquereur-${d.id}`, 'prop-pleine' + siVide(!d.notaireAcquereur && d.coteInstrumentaire !== 'acquereur'))}
+        ${ligne('scale', 'Notaire vendeur', notaire('vendeur', d.notaireVendeur), `not-vendeur-${d.id}`, 'prop-pleine' + siVide(!d.notaireVendeur && d.coteInstrumentaire !== 'vendeur' && !nonPlaces.length))}
+        ${ligne('scale', 'Notaire acquéreur', notaire('acquereur', d.notaireAcquereur), `not-acquereur-${d.id}`, 'prop-pleine' + siVide(!d.notaireAcquereur && d.coteInstrumentaire !== 'acquereur' && !nonPlaces.length))}
+        ${nonPlaces.length ? ligne('scale', 'Lus, à placer', `<span class="notaires-a-placer">${nonPlaces.map(n => `<span class="notaires-a-placer-ligne"><span class="prop-texte">${escapeHtml(n.nom)}${n.role === 'instrumentaire' ? ' <span class="hint">· reçoit l’acte</span>' : n.role === 'participant' ? ' <span class="hint">· participe</span>' : ''}</span>
+          <button type="button" class="lien-action" onclick="placerNotaireFiche('${d.id}', ${detectes.indexOf(n)}, 'vendeur')">Vendeur</button>
+          <button type="button" class="lien-action" onclick="placerNotaireFiche('${d.id}', ${detectes.indexOf(n)}, 'acquereur')">Acquéreur</button>
+          <button type="button" class="lien-action" onclick="placerNotaireFiche('${d.id}', ${detectes.indexOf(n)}, 'deux')">Les deux</button></span>`).join('')}</span>`, null, 'prop-pleine') : ''}
         ${emailParticipant}
         ${ligne('flag', 'Notre étude', ligneRole)}
       </dl>
@@ -26283,27 +26391,111 @@
     return morceaux.join(' · ');
   }
 
+  // ---- « Nouveau dossier » : trois façons de commencer (étude, 02/10) ----
+  //  - « Compromis (PDF) » : dates butoir, engagements du vendeur, parties lues dans l'acte ; puis
+  //    « Compléter depuis Authentic » (dossiers ouverts dans Authentic, les plus proches d'abord) ;
+  //  - « Export Authentic (.zip) » : le sous-dossier exporté (parties, bien, pièces, avant-contrat) ;
+  //  - « Dossier Authentic » : un dossier ouvert dans Authentic (page du dossier, fiches vendeur,
+  //    acquéreur, bien), repris d'un clic, puis le compromis déposé dessous pour les dates butoir et
+  //    les engagements — les données d'Authentic sont gardées.
+  var MODES_IMPORT = [
+    { cle: 'pdf', icone: 'file-text', titre: 'Compromis (PDF)', sous: 'Dates butoir et engagements, puis Authentic' },
+    { cle: 'zip', icone: 'package', titre: 'Export Authentic (.zip)', sous: 'Parties, bien, pièces, avant-contrat' },
+    { cle: 'authentic', icone: 'link', titre: 'Dossier Authentic', sous: 'Ouvert dans Authentic, puis le compromis' }
+  ];
+  let modeImport = 'pdf';
+
+  function choisirModeImport(mode) {
+    if (!MODES_IMPORT.some(m => m.cle === mode)) return;
+    modeImport = mode;
+    renderChoixImport();
+    if (mode !== 'zip') chargerRelevesAuthenticRecents();
+  }
+
+  function renderChoixImport() {
+    const choix = document.getElementById('import-choix');
+    if (choix) {
+      choix.innerHTML = MODES_IMPORT.map(m => `<button type="button" class="import-choix-carte${m.cle === modeImport ? ' actif' : ''}" role="radio" aria-checked="${m.cle === modeImport}" onclick="choisirModeImport('${m.cle}')">
+          <span class="import-choix-icone" aria-hidden="true">${icone(m.icone)}</span>
+          <span class="import-choix-titre">${escapeHtml(m.titre)}</span>
+          <span class="import-choix-sous">${escapeHtml(m.sous)}</span>
+        </button>`).join('');
+    }
+    const libelle = document.getElementById('import-libelle');
+    const indice = document.getElementById('import-indice');
+    const input = document.getElementById('f-pdf');
+    const avecAuthentic = !!exportAuthenticActuel;
+    const textes = {
+      pdf: ['Importer le PDF du compromis', 'PDF du compromis — ou glissez-déposez le fichier ici', 'application/pdf'],
+      zip: ['Importer l’export Authentic', 'Fichier .zip du sous-dossier exporté d’Authentic — ou glissez-déposez-le ici', '.zip,application/zip'],
+      authentic: [avecAuthentic ? 'Ajouter le compromis (PDF) : dates butoir et engagements du vendeur' : 'Puis le compromis (PDF), pour les dates butoir et les engagements', 'PDF du compromis — les données d’Authentic sont gardées', 'application/pdf']
+    }[modeImport];
+    if (libelle) libelle.textContent = textes[0];
+    if (indice) indice.textContent = textes[1];
+    if (input) input.setAttribute('accept', textes[2]);
+    renderRelevesAuthenticWizard();
+  }
+
+  // Pure : les dossiers ouverts dans Authentic classés pour un compromis déjà lu — les plus proches
+  // du nom lu dans l'acte d'abord (même score que le rapprochement d'un dossier).
+  function groupesAuthenticPourCompromis(groupes, nomLu) {
+    const ref = { nom: nomLu || '' };
+    return (groupes || []).map((g, i) => ({ g, i, s: nomLu ? scoreDossierAuthentic(g.intitule, '', ref).score : 0 }))
+      .sort((a, b) => b.s - a.s || a.i - b.i);
+  }
+
   function renderRelevesAuthenticWizard() {
     const bloc = document.getElementById('authentic-releves');
     if (!bloc) return;
-    if (!groupesAuthenticRecents.length) { bloc.style.display = 'none'; bloc.innerHTML = ''; return; }
-    const avecPdf = !!dernierTexteTraite && !exportAuthenticActuel;
+    const avecPdf = !!dernierTexteTraite;
+    const repris = exportAuthenticActuel && exportAuthenticActuel.origine === 'pages' ? exportAuthenticActuel.intitule : '';
+    const afficher = modeImport === 'authentic' || (modeImport === 'pdf' && avecPdf && !exportAuthenticActuel && groupesAuthenticRecents.length);
+    if (!afficher) { bloc.style.display = 'none'; bloc.innerHTML = ''; return; }
     bloc.style.display = '';
+    const nomLu = (document.getElementById('f-nom') || {}).value || '';
+    const tries = groupesAuthenticPourCompromis(groupesAuthenticRecents, avecPdf ? nomLu : '');
+    const titre = modeImport === 'pdf' ? 'Compléter depuis Authentic' : 'Dossiers ouverts dans Authentic';
+    const aide = 'Dossiers ouverts dans Authentic depuis une heure (extension « CLAIRE pour Authentic ») : ouvrez la page du dossier, puis les fiches vendeur, acquéreur et bien — CLAIRE les rassemble. Parties, état civil, bien, cadastre, prix et pièces reçues viennent d’Authentic ; dates butoir et engagements du vendeur, du compromis.';
+    const lignes = tries.slice(0, 6).map(({ g, i }) => {
+      const existant = dossierPourIntituleAuthentic(g.intitule, dossiers, g.adresse);
+      const nom = g.intitule.replace(/^\s*(?:vente|vte)\s+/i, '');
+      const estRepris = repris && repris === g.intitule;
+      return renderLigneAction({
+        titre: libelleDossierParNom(nom),
+        sous: (existant ? 'Déjà suivi dans CLAIRE · ' : '') + (estRepris ? 'Repris · ' : '') + resumeGroupeAuthentic(g),
+        delai: g.derniere ? heureAppel(g.derniere) : '',
+        categorie: existant || estRepris ? 'neutre' : 'acte',
+        bouton: existant
+          ? { libelle: 'Ouvrir la fiche', onclick: `ouvrirDossierDepuisDashboard('${escapeOnclickArg(existant.id)}')` }
+          : estRepris ? null
+            : { libelle: avecPdf ? 'Compléter' : 'Reprendre', onclick: `creerDepuisAuthentic(${i})`, icone: icone('plus') }
+      });
+    }).join('');
     bloc.innerHTML = `
-      <h3 class="authentic-releves-titre">Depuis Authentic ${infoBulle('Dossiers ouverts dans Authentic depuis une heure (extension « CLAIRE pour Authentic »). Ouvrez dans Authentic la page du dossier, puis chaque fiche client et chaque fiche bien : CLAIRE les rassemble. Les dates et le prix viennent de l’avant-contrat : déposez-le d’abord ci-dessus si vous l’avez, puis « Compléter ».')}</h3>
-      <ul class="ja-liste">${groupesAuthenticRecents.slice(0, 6).map((g, i) => {
-        const existant = dossierPourIntituleAuthentic(g.intitule, dossiers, g.adresse);
-        const nom = g.intitule.replace(/^\s*(?:vente|vte)\s+/i, '');
-        return renderLigneAction({
-          titre: libelleDossierParNom(nom),
-          sous: (existant ? 'Déjà suivi dans CLAIRE · ' : '') + resumeGroupeAuthentic(g),
-          delai: g.derniere ? heureAppel(g.derniere) : '',
-          categorie: existant ? 'neutre' : 'acte',
-          bouton: existant
-            ? { libelle: 'Ouvrir la fiche', onclick: `ouvrirDossierDepuisDashboard('${escapeOnclickArg(existant.id)}')` }
-            : { libelle: avecPdf ? 'Compléter' : 'Créer', onclick: `creerDepuisAuthentic(${i})`, icone: icone('plus') }
-        });
-      }).join('')}</ul>`;
+      <h3 class="authentic-releves-titre">${escapeHtml(titre)} ${infoBulle(aide)}</h3>
+      ${lignes ? `<ul class="ja-liste">${lignes}</ul>` : '<p class="authentic-releves-vide">Aucun dossier ouvert dans Authentic depuis une heure. Ouvrez-y la page du dossier, puis les fiches vendeur, acquéreur et bien : il apparaîtra ici.</p>'}`;
+  }
+
+  // Pure : ce qui a nourri le dossier en cours de création — compromis et Authentic.
+  function sourcesImportWizard(etat) {
+    const e = etat || {};
+    const sources = [];
+    sources.push(e.compromis
+      ? { ok: true, texte: `Compromis « ${e.compromis} » : dates butoir, engagements du vendeur, prix` }
+      : { ok: false, texte: 'Pas de compromis : dates butoir et engagements à saisir', geste: 'Ajouter le compromis' });
+    if (e.authentic) sources.push({ ok: true, texte: `Authentic « ${e.authentic} » : parties, état civil, bien, cadastre, téléphones, pièces reçues${e.prixAuthentic ? ', prix (Capital)' : ''}` });
+    else sources.push({ ok: false, texte: 'Pas de données Authentic', geste: 'Compléter depuis Authentic' });
+    return sources;
+  }
+
+  function renderSourcesImport() {
+    const etat = {
+      compromis: dernierTexteTraite ? (compromisNomFichierImporte || 'déposé') : '',
+      authentic: exportAuthenticActuel ? String(exportAuthenticActuel.intitule || '').replace(/^\s*(?:vente|vte)\s+/i, '') : '',
+      prixAuthentic: !!(exportAuthenticActuel && exportAuthenticActuel.infosAuthentic && exportAuthenticActuel.infosAuthentic.prix)
+    };
+    const html = sourcesImportWizard(etat).map(x => `<span class="sources-import-ligne"><span class="dot-label ${x.ok ? 'dl-success' : 'dl-neutre'}">${x.ok ? icone('check') : '<span class="dot"></span>'}${escapeHtml(x.texte)}</span>${x.geste ? ` <button type="button" class="lien-action" onclick="choisirModeImport('${x.geste === 'Ajouter le compromis' && exportAuthenticActuel ? 'authentic' : x.geste === 'Ajouter le compromis' ? 'pdf' : (dernierTexteTraite ? 'pdf' : 'authentic')}'); definirEtapeWizard(1)">${escapeHtml(x.geste)}</button>` : ''}</span>`).join('');
+    ['sources-import-2', 'sources-import-4'].forEach(id => { const el = document.getElementById(id); if (el) el.innerHTML = html; });
   }
 
   function creerDepuisAuthentic(i) {
@@ -26321,7 +26513,8 @@
       exportAuthenticActuel = donnees;
       recalculerExtractionRegex();
       appliquerTypeVenteAuthentic(donnees);
-      afficherImportAuthentic(donnees, 'dates et prix lus dans l’avant-contrat déposé.');
+      afficherImportAuthentic(donnees, 'dates butoir et engagements lus dans le compromis déposé.');
+      renderChoixImport();
       definirEtapeWizard(2);
       return;
     }
@@ -26337,8 +26530,10 @@
     recalculerExtractionRegex();
     majProgression(-1);
     appliquerTypeVenteAuthentic(donnees);
-    afficherImportAuthentic(donnees, '');
-    definirEtapeWizard(2);
+    // On reste à l'étape 1 : le compromis se dépose juste dessous (dates butoir, engagements).
+    modeImport = 'authentic';
+    afficherImportAuthentic(donnees, 'déposez le compromis ci-dessous pour les dates butoir et les engagements du vendeur, ou passez à « Vérifier ».');
+    renderChoixImport();
   }
 
   // Un appel ouvert par l'adresse « #appel=… » (onglet que 3CX a ouvert, fenêtre CLAIRE absente).
@@ -26846,6 +27041,7 @@
   // La popup « accès à reconfirmer » qui vivait ici a disparu avec le mécanisme de permissions du
   // navigateur : le serveur lit le NAS, il n'y a plus rien à reconfirmer.
   async function demarrerApplication() {
+    try { renderChoixImport(); } catch (e) { /* page sans « Nouveau dossier » */ }
     initUtilisateurPoste();
     await charger();
     demanderUtilisateurPosteSiInconnu();

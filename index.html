@@ -228,23 +228,24 @@
       </div>
 
       <div class="wizard-step actif" id="wizard-step-1">
-        <div class="extract-box">
-          <label for="f-pdf">Importer le PDF du compromis ou un export Authentic <span class="info-i" tabindex="0" data-info="Export Authentic : le fichier .zip d’un sous-dossier (« EXPORT_SousDossier-… »). CLAIRE y lit les parties, l’adresse et le type du bien, les notaires, l’email de l’acquéreur et les pièces déjà présentes ; les dates et le prix viennent de l’avant-contrat qu’il contient (PDF signé, sinon le Word de l’acte). Rien ne quitte le poste."></span></label>
+        <!-- Trois façons de créer un dossier (étude, 02/10) : le compromis seul (puis « Compléter
+             depuis Authentic »), l'export ZIP d'Authentic, ou un dossier ouvert dans Authentic
+             (pages relevées par l'extension) complété par le compromis. Voir choisirModeImport. -->
+        <div class="import-choix" id="import-choix" role="radiogroup" aria-label="Source du nouveau dossier"></div>
+        <div class="authentic-releves" id="authentic-releves" style="display:none;"></div>
+        <div class="extract-box" id="import-boite">
+          <label for="f-pdf" id="import-libelle">Importer le PDF du compromis</label>
           <div class="pdf-dropzone" id="pdf-dropzone" ondragover="gererSurvolDepot(event)" ondragleave="gererQuitteDepot(event)" ondrop="gererDepotPdf(event)">
             <span class="pdf-dropzone-icone" id="icon-dropzone" aria-hidden="true"></span>
             <label for="f-pdf" class="file-btn">Choisir un fichier</label>
             <input type="file" id="f-pdf" accept="application/pdf,.zip,application/zip" onchange="gererUploadPdf(event)">
-            <span class="pdf-dropzone-hint">PDF du compromis ou export Authentic (.zip) — ou glissez-déposez le fichier ici</span>
+            <span class="pdf-dropzone-hint" id="import-indice">PDF du compromis — ou glissez-déposez le fichier ici</span>
           </div>
           <div id="pdf-status" class="pdf-status"></div>
           <div class="progress-bar" id="pdf-progress"><div class="progress-bar-fill" id="pdf-progress-fill"></div></div>
 
           <div id="cash-note" class="cash-note" style="display:none;"></div>
         </div>
-
-        <!-- Dossiers relevés dans Authentic par l'extension Firefox (dernière heure) : « Nouveau
-             dossier » pré-rempli comme depuis l'export ZIP (renderRelevesAuthenticWizard). -->
-        <div class="authentic-releves" id="authentic-releves" style="display:none;"></div>
 
         <div class="wizard-nav">
           <span></span>
@@ -253,6 +254,7 @@
       </div>
 
       <div class="wizard-step" id="wizard-step-2">
+        <div class="sources-import" id="sources-import-2"></div>
         <!-- Date de signature du compromis, déplacée ici depuis l'étape "Importer" : c'est la date
              de référence à partir de laquelle sont calculées les échéances exprimées en délai
              (voir reDelai/reAuPlusTardDelai/reAuPlusTardApres) — elle se vérifie et se corrige
@@ -385,6 +387,7 @@
       </div>
 
       <div class="wizard-step" id="wizard-step-4">
+        <div class="sources-import" id="sources-import-4"></div>
         <!-- Le champ "Email de rappel" (envoi manuel générique, voir ouvrirEmailRappel() dans
              CLAUDE.md) a été retiré définitivement — les rappels automatiques par email, avec
              copie systématique à l'étude (voir Réglages), le remplacent. Le nom du dossier occupe
@@ -460,6 +463,26 @@
           </div>
           <datalist id="f-notaires-liste"></datalist>
         </div>
+        <!-- Notaires lus dans l'acte ou dans Authentic, à placer d'un clic (étude, 02/10 : un notaire
+             nommé sans son côté laissait les deux champs vides, il semblait avoir disparu). -->
+        <div class="notaires-wizard" id="notaires-wizard"></div>
+        <div class="field-row">
+          <div>
+            <label for="f-cote-instrumentaire">Notaire qui reçoit l'acte</label>
+            <select id="f-cote-instrumentaire" onchange="majApercuPieces()">
+              <option value="">— Non précisé —</option>
+              <option value="vendeur">Le notaire du vendeur</option>
+              <option value="acquereur">Le notaire de l'acquéreur</option>
+            </select>
+          </div>
+          <div>
+            <label for="f-role-notaire">Rôle de l'étude sur ce dossier <span class="role-deduit" id="role-etude-deduit"></span></label>
+            <select id="f-role-notaire" onchange="majApercuPieces()">
+              <option value="instrumentaire">Notaire instrumentaire (dossier complet)</option>
+              <option value="participant">Notaire participant / concourant (prêt + engagements vendeur)</option>
+            </select>
+          </div>
+        </div>
 
         <div class="field-row">
           <div id="champ-email-vendeur">
@@ -469,16 +492,6 @@
           <div id="champ-email-acquereur">
             <label for="f-email-acquereur">Email de l'acquéreur (pour relance prêt)</label>
             <input type="email" id="f-email-acquereur" placeholder="acquereur@exemple.fr">
-          </div>
-        </div>
-
-        <div class="field-row">
-          <div>
-            <label for="f-role-notaire">Rôle de l'étude sur ce dossier</label>
-            <select id="f-role-notaire" onchange="majApercuPieces()">
-              <option value="instrumentaire">Notaire instrumentaire (dossier complet)</option>
-              <option value="participant">Notaire participant / concourant (prêt + engagements vendeur)</option>
-            </select>
           </div>
         </div>
 
