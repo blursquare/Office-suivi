@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-02 12:06';
+  const VERSION_APP = '2026-10-02 12:07';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-02 12:07', resume: "Authentic : une ligne d'état civil précédée de « APR » (demande envoyée par papier) n'est jamais cochée ; « ECV » (état civil virtuel) l'est, et la pièce prend l'intitulé sans « ECV »." },
     { version: '2026-10-02 12:06', resume: "Suivi : un acte signé (signé dans Authentic, ou signature marquée faite) affiche « Signé le … » en vert à la place de la date, et « Acte signé » dans la colonne Échéance — vues Échéances et Tableau, archivés compris. Vue Échéances : les dossiers signés ont leur section « Signés » (le plus récent d'abord), avant « Sans échéance datée »." },
     { version: '2026-10-02 12:03', resume: "Authentic : un dossier noté « Consorts » (ou « consort », « CONSORTS ») devant le vendeur ou l'acquéreur est reconnu — « Vente Consorts MARTEL/FOURNIER » retrouve la fiche « MARTEL / FOURNIER », et inversement." },
     { version: '2026-10-02 11:58', resume: "Authentic : un acte « signé le … » dans Authentic marque la signature comme faite sur la fiche, avec toutes les étapes d'avant (vente préalable, prêt, appel de fonds, projet, date butoir) — plus rien au planning ni aux rappels ; chaque validation reste annulable sur la fiche." },
@@ -25516,7 +25517,9 @@
   // (« ficheImmeuble… », cadastre en tableau). Toutes pures : la capture est passée en paramètre.
   var RE_INTITULE_DOSSIER_AUTHENTIC = /(?:^|[^\w])(\d{1,6})\s*-\s*((?:Vente|VTE)\s+[^\n\/]*?\S\s*\/\s*[^\n]*?\S)(?=\s+(?:Importer|Comparants|Immeubles)\b|\s*\n|\s*$)/i;
   // Une ligne qui annonce une demande ou un envoi n'est pas une pièce reçue.
-  var RE_DEMANDE_AUTHENTIC = /^\s*(?:demande|courrier|lettre|relance|envoi|envoy|requisition|réquisition|mail|e-?mail|convocation|projet|modele|modèle)/i;
+  // « APR » en tête (étude, 02/10) : demande d'état civil envoyée par papier — jamais une pièce reçue
+  // (« ECV », état civil virtuel, l'est).
+  var RE_DEMANDE_AUTHENTIC = /^\s*(?:demande|courrier|lettre|relance|envoi|envoy|requisition|réquisition|mail|e-?mail|convocation|projet|modele|modèle|apr(?![a-z0-9]))/i;
   var RE_ETAT_NON_RECU_AUTHENTIC = /attente|demand|envoy|a recevoir|à recevoir|relanc|non re[cç]u|manquant|a faire|à faire/i;
   // État civil ajouté aux pièces : naissance et mariage pour une vente ; décès et livret de famille
   // seulement pour une succession (étude, 02/10).
@@ -25633,7 +25636,7 @@
         return;
       }
       if (reEtatCivil.test(l.titre) || RE_CASIER_AUTHENTIC.test(l.titre)) {
-        const label = l.titre.slice(0, 90);
+        const label = l.titre.replace(/^\s*ECV(?![A-Za-z0-9])\s*[-:–]?\s*/i, '').slice(0, 90);
         const cleLabel = normaliserPourRecherche(label);
         const existante = liste.find(p => p.personnalisee && normaliserPourRecherche(p.label) === cleLabel);
         ajouter(existante ? { cle: existante.cle, label: existante.label, nouvelle: false, date: l.date, titre: l.titre }

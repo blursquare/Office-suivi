@@ -14669,3 +14669,9 @@ en vert (`texteSigneSuivi`, classe `signature-ok`) ; colonne Échéance : « Act
 vue Échéances et section « Archivés ». Vue Échéances : groupe **« Signés »** (rang 3, le plus récemment signé d'abord) ;
 « Sans échéance datée » passe au rang 4. Vérifié dans Chromium (deux dossiers signés inventés, un en cours). Le statut
 reste celui d'`etatDossier` (ex. « Attente de pièces » si une pièce manque).
+
+### 02/10/2026 12:07 — Authentic : « APR » = demande papier, « ECV » = état civil virtuel
+
+Étude : « si une demande d'état civil est précédée de APR, ne pas la noter comme cochée car c'est un envoi papier ; ECV :
+état civil virtuel ». `RE_DEMANDE_AUTHENTIC` exclut une ligne dont l'intitulé commence par le mot « APR » (pas « Après… ») ;
+une ligne « ECV … » reste reçue et la pièce prend l'intitulé sans « ECV ».

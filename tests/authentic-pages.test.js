@@ -416,3 +416,14 @@ test('« Consorts » devant le vendeur ou l’acquéreur : même dossier, avec o
   assert.equal(app.intituleDossierAuthentic({ champs: [], texte: '12 - Vente Consorts MARTEL/FOURNIER\nComparants' }), 'Vente Consorts MARTEL / FOURNIER');
   assert.equal(app.roleClientAuthenticDansDossier({ nom: 'Consorts MARTEL / FOURNIER' }, { nom: 'MARTEL', prenom: 'Alexandre' }), 'VENDEUR');
 });
+
+test('état civil : « APR » (demande papier) jamais coché, « ECV » (état civil virtuel) reçu', () => {
+  const r = app.piecesRecuesAuthentic([
+    { titre: 'APR Acte de naissance de M. MARTEL Alexandre', date: '2026-09-02', etat: '', texte: 'APR Acte de naissance de M. MARTEL Alexandre · 02/09/2026' },
+    { titre: 'APR - Acte de mariage', date: '2026-09-02', etat: 'Reçu', texte: 'APR - Acte de mariage · 02/09/2026 · Reçu' },
+    { titre: 'ECV Acte de naissance de Mme FOURNIER Camille', date: '2026-09-04', etat: 'Reçu', texte: 'ECV Acte de naissance de Mme FOURNIER Camille · 04/09/2026 · Reçu' }
+  ], []);
+  assert.equal(r.map(x => x.label).join(' | '), 'Acte de naissance de Mme FOURNIER Camille');
+  // « Après » ou un mot qui commence par « apr » n'est pas « APR ».
+  assert.equal(app.ligneAuthenticRecue({ titre: 'Après-vente : acte de naissance', etat: '' }), true);
+});

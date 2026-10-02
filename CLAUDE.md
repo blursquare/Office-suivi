@@ -610,7 +610,7 @@ Plainte principale de l'étude : **le bruit**, pas les oublis — ne pas élargi
   **gestion du dossier** (intitulé « N - Vente VENDEUR/ACQUÉREUR », tableaux intitulé/date/état —
   `lignesDocumentsAuthentic`) → dossier retrouvé par les deux noms (`dossierPourIntituleAuthentic`, jamais deviné ; « consort(s) » devant un nom ignoré, étude 02/10)
   → pièces cochées « dans Authentic » (`piecesRecuesAuthentic` : même reconnaissance par le nom que l'export ZIP ;
-  **pages : seuls l'état civil, les casiers judiciaires (`RE_CASIER_AUTHENTIC`) et la SAFER**, reçus dans Authentic — le
+  **pages : seuls l'état civil (« APR » en tête = demande papier, jamais reçue ; « ECV » = état civil virtuel, reçu), les casiers judiciaires (`RE_CASIER_AUTHENTIC`) et la SAFER**, reçus dans Authentic — le
   reste arrive par email/courrier, la page n'en montre que les demandes (étude 02/10) ; **export ZIP d'une vente : jamais
   les pièces d'urbanisme** (`pieceUrbanismeIgnoreeAuthentic`) ; « signé le … » sur la page = acte signé (`etatActeAuthentic`,
   hors avant-contrat/procuration/mandat/courrier) **et marqué fait** : au passage à « signé », `echeancesValidees` de
