@@ -14650,3 +14650,12 @@ dans `d.echeancesValidees` (`resultat.echeancesFaites`) — le planning (et son 
 rien ; historique « Signature de l'acte marquée réalisée (acte signé dans Authentic le …) ». Comme une validation à la
 main, les dates butoir prêt/vente préalable levées sont retirées de l'agenda (`synchroniserEcheanceAgenda(d, t, false)`).
 Chaque validation reste annulable sur la fiche ; rien n'est archivé, aucune date de rendez-vous n'est inventée.
+
+### 02/10/2026 12:03 — Authentic : « Consorts » devant un nom
+
+Étude : « prendre en compte un dossier s'il y a noté devant le vendeur ou acquéreur Consorts, avec ou sans majuscule
+ou s ». `dossierPourIntituleAuthentic` retire « consort »/« consorts » (toute casse, mot entier) de chaque côté de
+l'intitulé ET du nom du dossier CLAIRE avant de comparer : « Vente Consorts MARTEL/FOURNIER » ↔ « MARTEL / FOURNIER »,
+et « Vente MARTEL/FOURNIER » ↔ « Consorts MARTEL / FOURNIER ». Les deux noms doivent toujours être les mêmes. Les rôles
+des fiches client (`roleClientAuthenticDansDossier`, `partiesExportAuthentic`) cherchaient déjà le nom à l'intérieur
+de chaque côté : « Consorts » ne les gênait pas.

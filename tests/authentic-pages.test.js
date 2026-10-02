@@ -403,3 +403,16 @@ test('« signé le … » sur la page du dossier : acte signé ; jamais pour l�
   app.appliquerReleveSurDossier(avecDates, { champs: [], tableaux: [], texte: 'Signé le 30/09/2026' });
   assert.equal(avecDates.historique.length, n);
 });
+
+test('« Consorts » devant le vendeur ou l’acquéreur : même dossier, avec ou sans majuscule ni s', () => {
+  const dossiers = [{ id: 'a', nom: 'MARTEL / FOURNIER' }, { id: 'b', nom: 'Consorts LEROY / DURAND' }];
+  assert.equal(app.dossierPourIntituleAuthentic('Vente Consorts MARTEL/FOURNIER', dossiers).id, 'a');
+  assert.equal(app.dossierPourIntituleAuthentic('Vente MARTEL / consort FOURNIER', dossiers).id, 'a');
+  assert.equal(app.dossierPourIntituleAuthentic('Vente CONSORTS MARTEL/CONSORTS FOURNIER', dossiers).id, 'a');
+  assert.equal(app.dossierPourIntituleAuthentic('Vente LEROY/DURAND', dossiers).id, 'b');
+  // Le mot seul ne suffit pas : les noms doivent rester les mêmes.
+  assert.equal(app.dossierPourIntituleAuthentic('Vente Consorts MARTIN/FOURNIER', dossiers), null);
+  // Intitulé lu sur la page et rôles des fiches client.
+  assert.equal(app.intituleDossierAuthentic({ champs: [], texte: '12 - Vente Consorts MARTEL/FOURNIER\nComparants' }), 'Vente Consorts MARTEL / FOURNIER');
+  assert.equal(app.roleClientAuthenticDansDossier({ nom: 'Consorts MARTEL / FOURNIER' }, { nom: 'MARTEL', prenom: 'Alexandre' }), 'VENDEUR');
+});

@@ -608,7 +608,7 @@ Plainte principale de l'étude : **le bruit**, pas les oublis — ne pas élargi
   → `POST /api/authentic/releve` (mémoire seule : file prise par UNE fenêtre via `releves/prendre`, et relevés
   récents 60 min via `releves/recents`). Pages reconnues par leur structure réelle (`typePageAuthentic`) :
   **gestion du dossier** (intitulé « N - Vente VENDEUR/ACQUÉREUR », tableaux intitulé/date/état —
-  `lignesDocumentsAuthentic`) → dossier retrouvé par les deux noms (`dossierPourIntituleAuthentic`, jamais deviné)
+  `lignesDocumentsAuthentic`) → dossier retrouvé par les deux noms (`dossierPourIntituleAuthentic`, jamais deviné ; « consort(s) » devant un nom ignoré, étude 02/10)
   → pièces cochées « dans Authentic » (`piecesRecuesAuthentic` : même reconnaissance par le nom que l'export ZIP ;
   **pages : seuls l'état civil, les casiers judiciaires (`RE_CASIER_AUTHENTIC`) et la SAFER**, reçus dans Authentic — le
   reste arrive par email/courrier, la page n'en montre que les demandes (étude 02/10) ; **export ZIP d'une vente : jamais

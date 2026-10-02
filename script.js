@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-02 11:58';
+  const VERSION_APP = '2026-10-02 12:03';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-02 12:03', resume: "Authentic : un dossier noté « Consorts » (ou « consort », « CONSORTS ») devant le vendeur ou l'acquéreur est reconnu — « Vente Consorts MARTEL/FOURNIER » retrouve la fiche « MARTEL / FOURNIER », et inversement." },
     { version: '2026-10-02 11:58', resume: "Authentic : un acte « signé le … » dans Authentic marque la signature comme faite sur la fiche, avec toutes les étapes d'avant (vente préalable, prêt, appel de fonds, projet, date butoir) — plus rien au planning ni aux rappels ; chaque validation reste annulable sur la fiche." },
     { version: '2026-10-02 11:54', resume: "Authentic : seules les pièces qui arrivent vraiment dans Authentic sont reprises de la page du dossier — actes d'état civil, casiers judiciaires et réponse SAFER ; le reste (urbanisme, diagnostics…) arrive par email ou courrier et n'est jamais coché depuis Authentic. « Signé le … » sur la page du dossier fait passer l'acte en « signé » (sauf avant-contrat, procuration, mandat, courrier…)." },
     { version: '2026-10-02 11:51', resume: "Authentic, dossiers de vente : les pièces d'urbanisme (certificat d'urbanisme, alignement, numérotage, assainissement, renonciation au droit de préemption) ne sont plus reprises d'Authentic — elles se cochent par le NAS ou à la main. Seule la réponse SAFER l'est encore. Même règle pour l'import d'un export ZIP." },
@@ -25543,7 +25544,10 @@
   function dossierPourIntituleAuthentic(intitule, liste) {
     const m = /^\s*(?:vte|vente)\s+(.+?)\s*\/\s*(.+?)\s*$/i.exec(intitule || '');
     if (!m) return null;
-    const cle = (a, b) => [a, b].map(x => normaliserPourRecherche(x).replace(/[^a-z0-9]+/g, ' ').trim()).join('/');
+    // « Consorts » / « consort » devant un nom (étude, 02/10) ne compte pas : « Vente Consorts
+    // MARTEL/FOURNIER » est le dossier « MARTEL / FOURNIER », et inversement.
+    const cle = (a, b) => [a, b].map(x => normaliserPourRecherche(x).replace(/[^a-z0-9]+/g, ' ')
+      .replace(/(?:^|\s)consorts?(?=\s|$)/g, ' ').replace(/\s+/g, ' ').trim()).join('/');
     const voulu = cle(m[1], m[2]);
     const candidats = (liste || []).filter(d => {
       if (!d || d.deleted) return false;
