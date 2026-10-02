@@ -521,10 +521,10 @@ Plainte principale de l'étude : **le bruit**, pas les oublis — ne pas élargi
   tests), les plus utiles d'abord ; la changer = incrémenter `VERSION_DISPOSITION_WIDGETS` (chaque
   collaborateur y est ramené une fois).
   **Widget « Statistiques »** (étude, 02/10, `renderStatistiquesDashboard`, grand × 1 rangée en fin de grille) : délais
-  moyens depuis l'ouverture (`dateOuvertureDossier` = entrée « Dossier créé ») jusqu'au prêt (`dateObtentionPret`,
+  moyens depuis la **signature de l'avant-contrat** (étude 02/10 : `d.dateAvantContrat` — gardée à la création, lue sur le NAS avec le mobilier, reprise d'Authentic, saisissable sur la fiche — à défaut l'ouverture, `debutDossierStatistiques`) ; ouverture = `dateOuvertureDossier` (entrée « Dossier créé ») jusqu'au prêt (`dateObtentionPret`,
   historique), à la renonciation de préemption (`dateRenonciationPreemption` : `piecesTrouveesLe` puis historique) et
-  à la signature passée — `statistiquesDelaisDossiers`, **tous les dossiers de l'étude, archivés compris, sans fenêtre de dates ni périmètre** (étude 02/10), moyenne/médiane/n ; dossiers ouverts ce mois / mois
-  précédent / même mois N-1 (`comparaisonDossiersOuverts`, « — » avant le premier dossier noté), sur le périmètre du tableau de
+  à la signature passée — `statistiquesDelaisDossiers`, **tous les dossiers de l'étude, archivés compris, sans fenêtre de dates ni périmètre** (étude 02/10), moyenne/médiane/n ; avant-contrats signés ce mois / mois
+  précédent / même mois N-1 (`comparaisonDossiersOuverts`, au mois de l'avant-contrat, « — » avant le premier dossier noté), sur le périmètre du tableau de
   bord (mes dossiers / tous).
 - **Fond grisé d'une fenêtre** (02/10) : il ne ferme que par `clicSurFond(event)` (appui ET clic sur le fond) — sinon une sélection de texte relâchée hors de la fiche la fermait.
 - **Texte d'aide** : ne décrit pas ce que le bouton dit déjà ; il dit ce qui manque. Une toute

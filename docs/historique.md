@@ -14897,3 +14897,22 @@ que les données se mettent à jour. Ça peut pas le faire en arrière-plan ? »
 - Vérifié : test serveur (servie immédiatement, vide après le délai, une seule fenêtre servie) ; Chromium : fiche
   client appliquée et enregistrée 0,3 s après l'envoi alors que la relève de secours ne passe que toutes les 60 s.
   Non reproductible ici : le ralentissement réel d'une fenêtre cachée (Chromium headless la garde « visible »).
+
+### 02/10/2026 après-midi — Statistiques à partir de la signature de l'avant-contrat
+
+Étude : « pour le widget stat, prends plutôt en compte la date de signature de l'avant-contrat que la date de création
+du dossier ».
+- La date n'était pas gardée sur le dossier (seulement lue dans l'assistant). Nouveau champ `d.dateAvantContrat` :
+  - à la création (`dateAvantContratWizard` : date lue ou corrigée dans l'assistant) ;
+  - dossiers existants : lue dans l'avant-contrat du NAS (`detecterDateCompromis`) par la lecture légère déjà faite
+    pour le mobilier à l'ouverture de la fiche (`lireMobilierDepuisAvantContrat`, repère `dateAvantContratLueLe`, une fois) ;
+  - add-on Authentic : `dateAvantContratAuthentic` (ligne compromis/promesse/avant-contrat « signé le … » ou marquée
+    signée avec une seule date ; jamais projet/demande/envoi) → `infos.avantContratLe`, remplit la fiche si vide ;
+  - fiche : ligne « Avant-contrat signé le » (date modifiable, `changerDateAvantContrat`, historique ; repliée
+    avec les champs vides tant qu'elle n'est pas connue ; absente d'une succession).
+- `debutDossierStatistiques` : avant-contrat, à défaut ouverture. `statistiquesDelaisDossiers` compte
+  `parAvantContrat` (info-bulle : « N comptés depuis l'ouverture… »). `comparaisonDossiersOuverts` : au mois de
+  l'avant-contrat ; « — » toujours décidé par le premier dossier ouvert dans CLAIRE. Rubrique renommée
+  « Avant-contrats signés ».
+- Vérifié dans Chromium (dossiers inventés) : délai 92 j depuis l'avant-contrat au lieu de 62 depuis l'ouverture,
+  info-bulle, champ de la fiche enregistré.

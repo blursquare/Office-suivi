@@ -702,3 +702,30 @@ test('fiche client d\'un vendeur déjà client : la vente en cours, pas son anci
   const fiche2 = Object.assign({}, clientMarie, { texte: '12 - Vente MARTEL/FOURNIER\n14 - Vente MARTEL/BRUN' });
   assert.equal(app.dossierPourFicheClientAuthentic(fiche2, [signee, vente2], null).id, 'w');
 });
+
+test('statistiques : départ à la signature de l\'avant-contrat, à défaut à l\'ouverture ; date lue dans Authentic', () => {
+  const h = (iso) => [{ date: iso + 'T09:00:00', texte: 'Dossier créé' }];
+  const a = { id: 'a', dateAvantContrat: '2026-06-01', historique: h('2026-07-01'), rendezVousSignature: '2026-09-01' };
+  const b = { id: 'b', historique: h('2026-08-01'), rendezVousSignature: '2026-09-01' };
+  const s = app.statistiquesDelaisDossiers([a, b], '2026-10-02');
+  // a : 92 jours depuis l'avant-contrat (et non 62 depuis l'ouverture) ; b : 31 jours depuis l'ouverture.
+  assert.equal(s.signature.n, 2);
+  assert.equal(s.signature.max, 92);
+  assert.equal(s.signature.min, 31);
+  assert.equal(s.signature.parAvantContrat, 1);
+  // Compté au mois de l'avant-contrat ; « — » avant le premier dossier ouvert dans CLAIRE.
+  const c = app.comparaisonDossiersOuverts([a, b], '2026-08-15');
+  assert.equal(c.mois.n, 1);          // b, ouvert en août
+  assert.equal(c.precedent.n, 0);     // juillet : a compte en juin, pas en juillet
+  assert.equal(c.precedent.disponible, true);
+  const juin = app.comparaisonDossiersOuverts([a, b], '2026-06-20');
+  assert.equal(juin.mois.disponible, false);   // avant le premier dossier ouvert (juillet)
+  // Page du dossier dans Authentic.
+  const lignes = [
+    { titre: 'Projet de compromis', etat: 'Envoyé', dates: ['2026-05-20'], texte: 'Projet de compromis · 20/05/2026 · Envoyé' },
+    { titre: 'Compromis de vente', etat: 'Signé', dates: ['2026-06-01'], texte: 'Compromis de vente · 01/06/2026 · Signé' }
+  ];
+  assert.equal(app.dateAvantContratAuthentic(lignes), '2026-06-01');
+  assert.equal(app.dateAvantContratAuthentic([{ titre: 'Promesse de vente', etat: '', dates: ['2026-03-02', '2026-03-10'], texte: 'Promesse de vente signée le 10/03/2026' }]), '2026-03-10');
+  assert.equal(app.dateAvantContratAuthentic([{ titre: 'Acte de vente', etat: 'Signé', dates: ['2026-09-01'], texte: 'Acte de vente · Signé' }]), '');
+});

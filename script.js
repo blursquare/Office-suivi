@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-02 15:05';
+  const VERSION_APP = '2026-10-02 15:11';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-02 15:11', resume: "Widget Statistiques : les délais (prêt, préemption, signature) se comptent depuis la signature de l'avant-contrat, et les dossiers du mois au mois de l'avant-contrat (« Avant-contrats signés ») — à défaut de date, depuis l'ouverture dans CLAIRE. La date de l'avant-contrat est désormais gardée sur la fiche (« Avant-contrat signé le », modifiable) : lue à la création, relue dans l'avant-contrat du NAS pour les dossiers existants, reprise de la page du dossier dans Authentic." },
     { version: '2026-10-02 15:05', resume: "Add-on Authentic : les pages relevées sont appliquées en arrière-plan, dans la seconde, même quand la fenêtre CLAIRE est cachée ou réduite (le navigateur ne la réveillait plus qu'une fois par minute : il fallait la regarder pour voir la fiche se mettre à jour). Il suffit qu'une fenêtre CLAIRE soit ouverte quelque part — celle du serveur suffit." },
     { version: '2026-10-02 15:00', resume: "Add-on Authentic, fiche client du vendeur : quand sa fiche cite plusieurs dossiers (un vendeur déjà client de l'étude : son ancien achat et la vente en cours), CLAIRE retenait le premier cité — l'ancien. Elle prend maintenant le dossier en consultation s'il est cité, sinon la vente en cours où la personne est partie (et, sans aucun dossier cité ni consulté, le seul dossier en cours où elle est partie). Création depuis Authentic : l'épouse absente de l'intitulé prend le côté de son conjoint." },
     { version: '2026-10-02 14:54', resume: "Fiche : une partie déjà connue d'un ancien dossier (vendeur, acquéreur — un ancien acquéreur qui revend —, partie d'une succession, archivés compris) est signalée « Déjà connu » sur la première page, avec ce qu'elle apporterait (téléphone, email, situation matrimoniale) ; « Reprendre » le copie, × l'écarte. Jamais repris d'office." },
@@ -10875,6 +10876,13 @@
     return days.sort((a, b) => b - a);
   }
 
+  // La date de signature de l'avant-contrat lue (ou corrigée) dans l'assistant, sinon null.
+  function dateAvantContratWizard() {
+    const sig = extractionActuelle && extractionActuelle.dates && extractionActuelle.dates.SIGNATURE_AVANT_CONTRAT;
+    const v = (sig && sig.valeur) || dateCompromisDetectee || '';
+    return /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null;
+  }
+
   async function ajouterDossier() {
     const nom = document.getElementById('f-nom').value.trim();
     const typeVente = document.getElementById('f-type-vente').value;
@@ -10977,6 +10985,8 @@
       // la déontologie interdit alors à l'instrumentaire de contacter directement l'acquéreur, les
       // relances (prêt, RIB) doivent transiter par son confrère. Jamais préremplie automatiquement.
       emailNotaireParticipant: '',
+      // Date de signature de l'avant-contrat (étude, 02/10 : point de départ des statistiques).
+      dateAvantContrat: dateAvantContratWizard(),
       pieces: {},
       // Notifications "nouvelle pièce trouvée" non encore vues (voir verifierDossierLocal/
       // fermerDossierDrawer) : vide à la création, rien n'a encore été cherché.
@@ -11105,6 +11115,7 @@
   // SAFER notifiée sans réponse ajoute « Réponse SAFER » aux pièces manquantes.
   function infosAuthenticACreation(dossier, infos) {
     if (!dossier || !infos || !Object.keys(infos).length) return dossier;
+    if (infos.avantContratLe && !dossier.dateAvantContrat) dossier.dateAvantContrat = infos.avantContratLe;
     dossier.authentic = Object.assign({}, infos, { releveLe: new Date().toISOString() });
     const sa = infos.safer;
     if (sa && sa.decision !== 'non_preemption' && dossier.roleNotaire !== 'participant'
@@ -13616,6 +13627,17 @@
     render();
   }
 
+  function changerDateAvantContrat(id, valeur) {
+    const d = dossiers.find(x => x.id === id);
+    if (!d) return;
+    const v = /^\d{4}-\d{2}-\d{2}$/.test(valeur || '') ? valeur : null;
+    if (v === (d.dateAvantContrat || null)) return;
+    ajouterHistorique(d, `Date de signature de l’avant-contrat : ${v ? formatDateFr(v) : '—'}`);
+    d.dateAvantContrat = v;
+    sauvegarder(d);
+    render();
+  }
+
   function changerPrixVente(id, valeur) {
     const d = dossiers.find(x => x.id === id);
     if (!d) return;
@@ -13659,6 +13681,15 @@
         const montant = detecterPrixMobilier(texte);
         const courant = dossiers.find(x => x.id === id);
         if (!courant) return;
+        // La date de signature de l'avant-contrat, pour les dossiers créés avant qu'elle soit gardée.
+        if (!courant.dateAvantContrat) {
+          const date = detecterDateCompromis(texte);
+          if (date && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
+            courant.dateAvantContrat = date;
+            ajouterHistorique(courant, `Date de signature de l’avant-contrat lue dans ${trouve.nom} : ${formatDateFr(date)}`);
+          }
+        }
+        courant.dateAvantContratLueLe = new Date().toISOString().slice(0, 10);
         courant.mobilierLuLe = new Date().toISOString().slice(0, 10);
         if (courant.prixMobilier) {
           // Saisi entre-temps : on ne touche à rien.
@@ -14058,6 +14089,15 @@
   var RE_HISTORIQUE_PRET_OBTENU = /offre de pr[eê]t (?:retrouv|re[cç]u|confirm)|obtention du pr[eê]t.*marqu[ée]e r[ée]alis[ée]e/i;
   var RE_HISTORIQUE_PREEMPTION = /pr[ée]emption/i;
 
+  // Pure : point de départ des statistiques (étude, 02/10 : « prends plutôt la date de signature de
+  // l'avant-contrat que la date de création du dossier ») — la date de l'avant-contrat, à défaut
+  // l'ouverture dans CLAIRE. → { date, source: 'avant-contrat' | 'ouverture' } ou null.
+  function debutDossierStatistiques(d) {
+    if (d && /^\d{4}-\d{2}-\d{2}$/.test(d.dateAvantContrat || '')) return { date: d.dateAvantContrat, source: 'avant-contrat' };
+    const o = dateOuvertureDossier(d);
+    return o ? { date: o, source: 'ouverture' } : null;
+  }
+
   // Pure : date (AAAA-MM-JJ) de l'ouverture du dossier dans CLAIRE, ou null.
   function dateOuvertureDossier(d) {
     const h = ((d && d.historique) || []).find(x => x && x.texte === 'Dossier créé');
@@ -14096,18 +14136,19 @@
     const auj = aujourdhuiIso || isoAujourdhuiLocal();
     const mesurer = (dateDe) => {
       const ecarts = [];
+      let parAvantContrat = 0;
       (liste || []).forEach(d => {
-        const ouverture = dateOuvertureDossier(d);
+        const debut = debutDossierStatistiques(d);
         const fin = dateDe(d);
-        if (!ouverture || !fin || fin > auj) return;
-        const j = ecartJours(ouverture, fin);
-        if (j !== null && j >= 0) ecarts.push(j);
+        if (!debut || !fin || fin > auj) return;
+        const j = ecartJours(debut.date, fin);
+        if (j !== null && j >= 0) { ecarts.push(j); if (debut.source === 'avant-contrat') parAvantContrat++; }
       });
       ecarts.sort((a, b) => a - b);
       const n = ecarts.length;
-      if (!n) return { moyenne: null, mediane: null, n: 0, min: null, max: null };
+      if (!n) return { moyenne: null, mediane: null, n: 0, min: null, max: null, parAvantContrat: 0 };
       const mediane = n % 2 ? ecarts[(n - 1) / 2] : Math.round((ecarts[n / 2 - 1] + ecarts[n / 2]) / 2);
-      return { moyenne: Math.round(ecarts.reduce((t, x) => t + x, 0) / n), mediane, n, min: ecarts[0], max: ecarts[n - 1] };
+      return { moyenne: Math.round(ecarts.reduce((t, x) => t + x, 0) / n), mediane, n, min: ecarts[0], max: ecarts[n - 1], parAvantContrat };
     };
     return {
       pret: mesurer(dateObtentionPret),
@@ -14121,8 +14162,10 @@
   // ouverture notée avant sa fin) : on affiche alors « — », pas un zéro trompeur.
   function comparaisonDossiersOuverts(liste, aujourdhuiIso) {
     const auj = aujourdhuiIso || isoAujourdhuiLocal();
-    const ouvertures = (liste || []).map(dateOuvertureDossier).filter(Boolean).sort();
-    const premiere = ouvertures[0] || null;
+    // Compté au mois de signature de l'avant-contrat (à défaut d'ouverture) ; « — » pour un mois
+    // d'avant le premier dossier ouvert dans CLAIRE (un avant-contrat plus ancien n'y change rien).
+    const ouvertures = (liste || []).map(d => { const x = debutDossierStatistiques(d); return x && x.date; }).filter(Boolean).sort();
+    const premiere = (liste || []).map(dateOuvertureDossier).filter(Boolean).sort()[0] || null;
     const moisDecale = (n) => { const x = new Date(auj.slice(0, 7) + '-01T00:00:00'); x.setMonth(x.getMonth() + n); return isoLocalDepuisDate(x).slice(0, 7); };
     const periode = (cle) => {
       const n = ouvertures.filter(o => o.slice(0, 7) === cle).length;
@@ -14155,7 +14198,7 @@
     const max = Math.max(1, ...lignesDelais.map(l => l.s.moyenne || 0));
     const ligneDelai = (l) => {
       const s = l.s;
-      const aide = s.n ? `Moyenne sur ${s.n} dossier${s.n > 1 ? 's' : ''} · médiane ${s.mediane} j · de ${s.min} à ${s.max} j` : 'Aucun dossier mesurable';
+      const aide = s.n ? `Moyenne sur ${s.n} dossier${s.n > 1 ? 's' : ''} · médiane ${s.mediane} j · de ${s.min} à ${s.max} j${s.parAvantContrat < s.n ? ` · ${s.n - s.parAvantContrat} compté${s.n - s.parAvantContrat > 1 ? 's' : ''} depuis l’ouverture dans CLAIRE (date de l’avant-contrat inconnue)` : ''}` : 'Aucun dossier mesurable';
       return `<li class="st-delai" title="${escapeAttr(aide)}">
           <span class="st-delai-lib">${escapeHtml(l.libelle)}</span>
           <span class="st-delai-val">${s.n ? `<b>${s.moyenne}</b> j` : '—'}</span>
@@ -14179,18 +14222,18 @@
       </div>
       <div class="st-ecarts w-fixe">${ecart(cmp.mois, cmp.precedent)} vs mois précédent · ${ecart(cmp.mois, cmp.anPasse)} vs l’an dernier</div>`;
     const sectionDelais = `<div class="w-section st-section">
-        <h3 class="jour-carte-sous-titre">Délai moyen, tous dossiers${infoBulle('En jours, depuis l’ouverture du dossier dans CLAIRE (la date du compromis n’est pas enregistrée), moyenne sur tous les dossiers de l’étude (archivés compris). Prêt : offre reçue ou obtention marquée réalisée. Préemption : renonciation trouvée sur le NAS ou validée à la main. Signature : date du rendez-vous passée.')}</h3>
+        <h3 class="jour-carte-sous-titre">Délai moyen, tous dossiers${infoBulle('En jours, depuis la signature de l’avant-contrat (à défaut, l’ouverture du dossier dans CLAIRE), moyenne sur tous les dossiers de l’étude (archivés compris). Prêt : offre reçue ou obtention marquée réalisée. Préemption : renonciation trouvée sur le NAS ou validée à la main. Signature : date du rendez-vous passée.')}</h3>
         <ul class="st-delais">${lignesDelais.map(ligneDelai).join('')}</ul>
       </div>`;
     const sectionNouveaux = `<div class="w-section st-section">
-        <h3 class="jour-carte-sous-titre">Dossiers ouverts${infoBulle(cmp.premiere ? `Dossiers ouverts dans CLAIRE chaque mois. « — » : CLAIRE ne suivait pas encore de dossier ce mois-là (premier dossier ouvert le ${formatDateFr(cmp.premiere)}). Le mois en cours est compté au jour d’aujourd’hui.` : 'Aucun dossier ouvert noté.')}</h3>
+        <h3 class="jour-carte-sous-titre">Avant-contrats signés${infoBulle(cmp.premiere ? `Dossiers par mois de signature de l’avant-contrat (à défaut, d’ouverture dans CLAIRE). « — » : CLAIRE ne suivait pas encore de dossier ce mois-là (premier dossier ouvert le ${formatDateFr(cmp.premiere)}). Le mois en cours est compté au jour d’aujourd’hui.` : 'Aucun dossier ouvert noté.')}</h3>
         ${nouveaux}
       </div>`;
     const corps = presentation === 'petit'
       ? `<ul class="st-delais">${lignesDelais.map(ligneDelai).join('')}</ul>
-         <div class="st-ecarts w-fixe"><b>${cmp.mois.n}</b> ouvert${cmp.mois.n > 1 ? 's' : ''} en ${escapeHtml(nomMoisStatistiques(cmp.mois.cle, annee))} · ${ecart(cmp.mois, cmp.precedent)}</div>`
+         <div class="st-ecarts w-fixe"><b>${cmp.mois.n}</b> avant-contrat${cmp.mois.n > 1 ? 's' : ''} en ${escapeHtml(nomMoisStatistiques(cmp.mois.cle, annee))} · ${ecart(cmp.mois, cmp.precedent)}</div>`
       : `<div class="st-duo">${sectionDelais}${sectionNouveaux}</div>`;
-    bloc.innerHTML = carteWidget({ presentation, classe: 'statistiques', titre: 'Statistiques', sous: 'Délais et dossiers ouverts', corps });
+    bloc.innerHTML = carteWidget({ presentation, classe: 'statistiques', titre: 'Statistiques', sous: 'Délais et avant-contrats signés', corps });
   }
 
   // ---- Activité de l'étude (Tableau de bord) : suivi en direct, tous collaborateurs ----
@@ -16059,6 +16102,7 @@
         ${ligne('home', 'Type de vente', typeVente, `tv-${d.id}`)}
         ${ligne('folder', 'Dossier NAS', nas, null, 'prop-pleine')}
         ${ligne('file-text', 'Avant-contrat', avantContrat, null, 'prop-pleine')}
+        ${estSuccession(d) ? '' : ligne('calendar', 'Avant-contrat signé le', `<input type="date" id="date-ac-${d.id}" class="prop-champ" value="${escapeAttr(d.dateAvantContrat || '')}" onchange="changerDateAvantContrat('${d.id}', this.value)">`, `date-ac-${d.id}`, siVide(!d.dateAvantContrat).trim())}
       </dl>
       <dl class="fiche-proprietes fiche-coordonnees">
         ${coordonneesPartiesDossier(d).map(c => ligne(c.partie === 'vendeur' ? 'user' : 'users', c.libelle, champsCoordonneesPartie(d, c, 'fiche'), c.parNotaire ? `fiche-tel-${c.partie}-${d.id}` : `fiche-email-${c.partie}-${d.id}`, 'prop-pleine')).join('')}
@@ -22619,7 +22663,7 @@
     diagnosticParcoursOuvert = false;
     rdvAgendaOuvert = false;
     render();
-    if (d && !d.prixMobilier && !d.mobilierLuLe && d.dossierLie && d.nasDossier) lireMobilierDepuisAvantContrat(id, false);
+    if (d && ((!d.prixMobilier && !d.mobilierLuLe) || (!d.dateAvantContrat && !d.dateAvantContratLueLe)) && d.dossierLie && d.nasDossier) lireMobilierDepuisAvantContrat(id, false);
   }
 
   // Un clic sur le fond grisé d'une fenêtre la ferme — seulement si l'appui A COMMENCÉ sur ce fond.
@@ -26136,13 +26180,30 @@
     return '';
   }
 
+  // Pure : date de signature de l'avant-contrat d'après la page du dossier — une ligne « compromis »,
+  // « promesse » ou « avant-contrat » qui dit « signé le … », ou marquée signée avec une seule date.
+  // Jamais une demande, un envoi ni un projet.
+  function dateAvantContratAuthentic(lignes) {
+    for (const l of lignes || []) {
+      const t = normaliserPourRecherche([l.titre, l.etat, l.texte].filter(Boolean).join(' '));
+      if (!/compromis|promesse|avant[\s-]*contrat/.test(normaliserPourRecherche(l.titre || ''))) continue;
+      if (/projet|demande|envoi|envoye|brouillon|annul/.test(t)) continue;
+      const m = /sign[a-z]*\s+(?:electroniquement\s+)?le\s+(\d{1,2}[\/.-]\d{1,2}[\/.-]\d{4})/.exec(t);
+      if (m) return dateIsoDepuisFr(m[1]);
+      const dates = l.dates || [];
+      if (/sign/.test(normaliserPourRecherche(l.etat || '')) && dates.length === 1) return dates[0];
+    }
+    return '';
+  }
+
   // Pure : tout ce qu'une page du dossier dit du dossier (hors fiches client et bien).
   function infosDossierAuthentic(capture, typeAffaire) {
     const lignes = lignesDocumentsAuthentic(capture);
     const r = {
       acte: etatActeAuthentic(capture), rhf: suiviRhfAuthentic(lignes), safer: suiviSaferAuthentic(lignes),
       prix: prixAuthentic(capture), collaborateur: collaborateurAuthentic(capture), notaire: notaireAuthentic(capture),
-      etatsCivils: suiviEtatsCivilsAuthentic(lignes, typeAffaire), demandes: demandesUrbanismeAuthentic(lignes)
+      etatsCivils: suiviEtatsCivilsAuthentic(lignes, typeAffaire), demandes: demandesUrbanismeAuthentic(lignes),
+      avantContratLe: dateAvantContratAuthentic(lignes)
     };
     Object.keys(r).forEach(k => { if (!r[k] || (typeof r[k] === 'object' && !Object.keys(r[k]).length)) delete r[k]; });
     return r;
@@ -26599,6 +26660,10 @@
     if (apres.prix && !(Number(d.prixVente) > 0)) {
       d.prixVente = apres.prix;
       noter(`Prix de vente repris d’Authentic (Capital) : ${formaterPrix(apres.prix)}`);
+    }
+    if (apres.avantContratLe && !d.dateAvantContrat) {
+      d.dateAvantContrat = apres.avantContratLe;
+      noter(`Date de signature de l’avant-contrat reprise d’Authentic : ${formatDateFr(apres.avantContratLe)}`);
     }
 
     // SAFER notifiée, sans réponse : « Réponse SAFER » parmi les pièces manquantes (une fois — la
@@ -28746,6 +28811,7 @@
       safer: sous(a.safer, ['notifieeLe', 'priseEnCompteLe', 'priseEnCompte', 'delaiManuel', 'decision', 'decisionLe', 'tacite', 'pieceCocheeTacite', 'titre']),
       etatsCivils: carte(a.etatsCivils, ['label', 'etat', 'date']), demandes: carte(a.demandes, ['date', 'titre']),
       prix: Number.isFinite(a.prix) && a.prix > 0 ? a.prix : null, collaborateur: texte(a.collaborateur), notaire: texte(a.notaire),
+      avantContratLe: /^\d{4}-\d{2}-\d{2}$/.test(a.avantContratLe || '') ? a.avantContratLe : '',
       personnes: Array.isArray(a.personnes) ? a.personnes.filter(p => p && typeof p.nom === 'string').slice(0, 12)
         .map(p => ({ nom: texte(p.nom), role: p.role === 'ACQUEREUR' ? 'ACQUEREUR' : 'VENDEUR', situationMatrimoniale: situationMatrimonialePersistable(p.situationMatrimoniale) })) : [],
       saferPieceAjoutee: a.saferPieceAjoutee === true, releveLe: texte(a.releveLe),
@@ -28774,6 +28840,8 @@
       emailVendeur: typeof d.emailVendeur === 'string' ? d.emailVendeur : '',
       telephoneAcquereur: typeof d.telephoneAcquereur === 'string' ? d.telephoneAcquereur : '',
       telephoneVendeur: typeof d.telephoneVendeur === 'string' ? d.telephoneVendeur : '',
+      dateAvantContrat: typeof d.dateAvantContrat === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d.dateAvantContrat) ? d.dateAvantContrat : null,
+      dateAvantContratLueLe: typeof d.dateAvantContratLueLe === 'string' ? d.dateAvantContratLueLe : null,
       personnesConnuesEcartees: Array.isArray(d.personnesConnuesEcartees) ? d.personnesConnuesEcartees.filter(x => typeof x === 'string').slice(-40) : [],
       // Contrairement aux statuts dérivés d'un scan du NAS (offrePretStatut, pieces...), l'envoi du
       // questionnaire est un fait réel déjà accompli par l'utilisateur : conservé tel quel.
