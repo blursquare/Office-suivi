@@ -14860,3 +14860,20 @@ cherchée, y compris un ancien acquéreur de l'étude qui revend.
   (`.texte-retour`), aussi pour « À rattacher » (coupée sur téléphone).
 - Limite : un dossier sans parties lues (ni compromis ni Authentic) n'a que « NOM / NOM » — rien n'est cherché.
 - Vérifié dans Chromium (1440 clair, 390 sombre ; dossiers inventés) : proposition, reprise, disparition.
+
+### 02/10/2026 après-midi — Add-on : la fiche client du vendeur rattachée au bon dossier
+
+Étude : « ça fonctionne bien pour l'acquéreur mais pas pour le vendeur » — « pour l'add on ».
+- Cause probable (non vue sur une vraie page) : la fiche client d'Authentic liste les dossiers de la personne. Un
+  vendeur déjà client de l'étude en a plusieurs (son ancien achat, la vente en cours) ; `appliquerReleveAuthentic`
+  prenait le **premier intitulé cité** (`intituleDossierAuthentic`), souvent l'ancien dossier — rien n'arrivait sur
+  la vente, et le « dossier en consultation » était même remplacé par l'ancien. L'acquéreur, nouveau client, n'a
+  qu'un dossier : d'où la différence.
+- `intitulesDossierAuthentic` (tous les intitulés : champs, cellules, lignes du texte) ; `dossierPourFicheClientAuthentic` :
+  dossier consulté (30 min) s'il est cité ou si rien n'est cité ; sinon le seul dossier cité **en cours** (ni
+  archivé ni signé, `signatureFaiteSuivi`) où la personne est partie ; sinon le seul dossier en cours où elle est
+  partie. Jamais deviné entre deux.
+- `partiesExportAuthentic` : une personne mariée/pacsée absente de l'intitulé prend le côté de son conjoint déjà placé
+  (création « Dossier Authentic »).
+- Vérifié dans Chromium (relevé simulé : deux fiches, ancien dossier archivé cité en premier) : coordonnées sur la
+  vente en cours, ancien dossier intact. À confirmer sur une vraie fiche client d'un vendeur déjà client.

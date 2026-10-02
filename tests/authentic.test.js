@@ -237,3 +237,11 @@ test('pièces de la checklist reconnues par le nom des documents de l’export',
   assert.ok(succ.includes('renonciationPreemption') && succ.includes('certificatUrbanisme'), succ);
   assert.strictEqual(app.piecesExportAuthentic(Object.assign({}, d, { intitule: 'SUCC DURAND' }), app.checklistPieces('maison')).find(p => p.cle === 'renonciationPreemption').fichier, 'Renonciation au DPU.pdf');
 });
+
+test('partiesExportAuthentic : l\'épouse absente de l\'intitulé prend le côté de son conjoint', () => {
+  const p = (nom, prenom, conjoint) => ({ id: '', nom, prenom, nomUsage: '', emails: [], telephones: [], documents: [],
+    situationMatrimoniale: conjoint ? { situation: 'Marié(e)', date: '', conjoint, contrat: '', regime: '', dateMariage: '' } : null });
+  const d = { intitule: 'VTE MARCHAIS / LEBON', personnes: [p('MARCHAIS', 'Paul', 'BERTIN Odile'), p('BERTIN', 'Odile', 'MARCHAIS Paul'), p('LEBON', 'Lucie'), p('INCONNU', 'Tom', 'NUL Personne')], parties: [] };
+  const parties = app.partiesExportAuthentic(d);
+  assert.equal(parties.map(x => x.nom + ':' + x.role).join(','), 'Paul MARCHAIS:VENDEUR,Odile BERTIN:VENDEUR,Lucie LEBON:ACQUEREUR');
+});

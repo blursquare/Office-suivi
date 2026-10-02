@@ -678,3 +678,27 @@ test('personnes déjà connues : un ancien acquéreur qui revend, proposé puis 
   assert.equal(app.memePersonneParNom('Monsieur VASSEUR', 'Hugo VASSEUR'), false);
   assert.equal(app.memePersonneParNom('Monsieur Hugo Jean VASSEUR', 'VASSEUR Hugo'), true);
 });
+
+test('fiche client d\'un vendeur déjà client : la vente en cours, pas son ancien achat cité en premier', () => {
+  const ancien = { id: 'a', nom: 'GARNIER / MARTEL', archive: true, parties: [{ nom: 'Alexandre MARTEL', role: 'ACQUEREUR' }], historique: [] };
+  const vente = { id: 'v', nom: 'MARTEL / FOURNIER', parties: [{ nom: 'Monsieur Alexandre MARTEL', role: 'VENDEUR' }], historique: [] };
+  const autre = { id: 'x', nom: 'LEROY / DURAND', historique: [] };
+  const fiche = Object.assign({}, clientMarie, { texte: 'Dossiers\n8 - Vente GARNIER/MARTEL\n12 - Vente MARTEL/FOURNIER' });
+  assert.equal(app.intitulesDossierAuthentic(fiche).join('|'), 'Vente GARNIER / MARTEL|Vente MARTEL / FOURNIER');
+  const liste = [ancien, vente, autre];
+  // Sans dossier en consultation : le seul dossier cité en cours où il est partie.
+  assert.equal(app.dossierPourFicheClientAuthentic(fiche, liste, null).id, 'v');
+  // Le dossier en consultation l'emporte s'il est cité, même archivé.
+  assert.equal(app.dossierPourFicheClientAuthentic(fiche, liste, ancien).id, 'a');
+  // En consultation mais non cité : la vente citée en cours.
+  assert.equal(app.dossierPourFicheClientAuthentic(fiche, liste, autre).id, 'v');
+  // Rien de cité, rien en consultation : le seul dossier en cours où la personne est partie.
+  assert.equal(app.dossierPourFicheClientAuthentic(clientMarie, liste, null).id, 'v');
+  // Deux ventes en cours où il est partie : rien n'est deviné.
+  const vente2 = { id: 'w', nom: 'MARTEL / BRUN', parties: [{ nom: 'Alexandre MARTEL', role: 'VENDEUR' }], historique: [] };
+  assert.equal(app.dossierPourFicheClientAuthentic(clientMarie, liste.concat(vente2), null), null);
+  // La vente cité étant signée, l'autre en cours est retenue parmi les cités.
+  const signee = Object.assign({}, vente, { id: 's', archive: false, authentic: { acte: { etat: 'signe', date: '2026-09-01' } } });
+  const fiche2 = Object.assign({}, clientMarie, { texte: '12 - Vente MARTEL/FOURNIER\n14 - Vente MARTEL/BRUN' });
+  assert.equal(app.dossierPourFicheClientAuthentic(fiche2, [signee, vente2], null).id, 'w');
+});

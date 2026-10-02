@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-02 14:54';
+  const VERSION_APP = '2026-10-02 15:00';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-02 15:00', resume: "Add-on Authentic, fiche client du vendeur : quand sa fiche cite plusieurs dossiers (un vendeur déjà client de l'étude : son ancien achat et la vente en cours), CLAIRE retenait le premier cité — l'ancien. Elle prend maintenant le dossier en consultation s'il est cité, sinon la vente en cours où la personne est partie (et, sans aucun dossier cité ni consulté, le seul dossier en cours où elle est partie). Création depuis Authentic : l'épouse absente de l'intitulé prend le côté de son conjoint." },
     { version: '2026-10-02 14:54', resume: "Fiche : une partie déjà connue d'un ancien dossier (vendeur, acquéreur — un ancien acquéreur qui revend —, partie d'une succession, archivés compris) est signalée « Déjà connu » sur la première page, avec ce qu'elle apporterait (téléphone, email, situation matrimoniale) ; « Reprendre » le copie, × l'écarte. Jamais repris d'office." },
     { version: '2026-10-02 14:48', resume: "Authentic, fiche client : les adresses email écrites à la suite (« a@x.fr;b@y.fr », envoi groupé) sont reprises au lieu d'être ignorées, et s'ajoutent à celles déjà connues ; une épouse sous son propre nom est rattachée au côté de son conjoint (« VTE CHAHUNEAU / … » : Mme mariée à M. CHAHUNEAU → vendeur) ; une fiche dont le côté reste inconnu apparaît « À rattacher » sur la fiche (Vendeur, Acquéreur ou écarter). Emails : plusieurs adresses séparées par « ; » acceptées partout (brouillon Outlook, sondage — une adresse = un votant —, visio). Le questionnaire de satisfaction envoyé au vendeur archive aussi le dossier." },
     { version: '2026-10-02 14:11', resume: "Nouveau dossier : l'import d'un export ZIP d'Authentic est retiré (la lecture des pages d'Authentic le remplace) ; à sa place, « Dossier Authentic seul » crée un dossier sans compromis. Successions : un dossier « N - Succession NOM » ouvert dans Authentic (page du dossier, fiches client, fiche bien) se crée en un clic — parties avec téléphones et emails, biens avec cadastre, pièces reçues dans Authentic ; la fiche n'affiche ni prêt, ni date butoir, ni emails de vente. Questionnaire de satisfaction : il peut aussi être envoyé au vendeur (onglet Échanges), sauf si un confrère le représente. Tableau de bord, widget Agenda : la liste du jour n'est plus coupée, elle défile sur toute la journée, ouverte sur le rendez-vous en cours." },
@@ -9995,6 +9996,13 @@
         });
       }
     }
+    // Une personne mariée ou pacsée absente de l'intitulé (« VTE CHAHUNEAU / … », Mme sous son propre
+    // nom) prend le côté de son conjoint déjà placé (étude, 02/10).
+    personnes.filter(p => !roles.has(p) && p.situationMatrimoniale && p.situationMatrimoniale.conjoint).forEach(p => {
+      const conj = motsIdentitePersonne(p.situationMatrimoniale.conjoint);
+      const cotes = new Set([...roles.entries()].filter(([q]) => conj.length >= 2 && conj.every(m => motsIdentitePersonne([q.prenom, q.nom, q.nomUsage].filter(Boolean).join(' ')).includes(m))).map(([, r]) => r));
+      if (cotes.size === 1) roles.set(p, [...cotes][0]);
+    });
     return personnes.filter(p => roles.has(p)).map(p => {
       const role = roles.get(p);
       return Object.assign({
@@ -26644,9 +26652,66 @@
   var DUREE_DOSSIER_COURANT_AUTHENTIC_MS = 30 * 60 * 1000;
   let dossierCourantAuthentic = { id: '', t: 0 };
 
+  // Pure : tous les intitulés de dossier cités sur une page (une fiche client liste tous les dossiers
+  // de la personne : son ancien achat ET la vente en cours).
+  function intitulesDossierAuthentic(capture) {
+    const c = capture || {};
+    const sources = [];
+    (c.champs || []).forEach(ch => { sources.push(ch.libelle || ''); sources.push(ch.valeur || ''); });
+    (c.tableaux || []).forEach(t => (t.lignes || []).forEach(l => (l || []).forEach(x => sources.push(String(x || '')))));
+    sources.push(...String(c.texte || '').split('\n'));
+    const re = new RegExp(RE_INTITULE_DOSSIER_AUTHENTIC.source, 'gi');
+    const vus = [];
+    sources.forEach(s => {
+      for (const m of String(s).matchAll(re)) {
+        const i = m[2].replace(/\s*\/\s*/, ' / ').replace(/\s+/g, ' ').trim();
+        if (!vus.includes(i)) vus.push(i);
+      }
+    });
+    return vus;
+  }
+
+  // Pure : le dossier d'une fiche client (étude, 02/10 : « ça fonctionne pour l'acquéreur mais pas pour
+  // le vendeur » — un vendeur déjà client de l'étude a plusieurs dossiers dans Authentic, et le premier
+  // intitulé cité sur sa fiche était son ANCIEN dossier). Dans l'ordre : le dossier en cours de
+  // consultation s'il est cité (ou si rien n'est cité) ; sinon le seul dossier cité où la personne est
+  // partie (les dossiers en cours d'abord) ; sinon le seul dossier en cours où elle est partie.
+  // Jamais deviné entre deux.
+  function dossierPourFicheClientAuthentic(capture, liste, courant) {
+    const personne = clientDepuisFicheAuthentic(capture);
+    const actifs = (liste || []).filter(d => d && !d.deleted);
+    const cites = [];
+    intitulesDossierAuthentic(capture).forEach(i => {
+      const d = dossierPourIntituleAuthentic(i, actifs, '');
+      if (d && !cites.includes(d)) cites.push(d);
+    });
+    if (courant && (!cites.length || cites.includes(courant))) return courant;
+    const partie = (d) => !!personne && !!roleClientAuthenticDansDossier(d, personne);
+    const unique = (l) => l.length === 1 ? l[0] : null;
+    const citesPartie = cites.filter(partie);
+    const enCours = (l) => l.filter(d => !d.archive && !signatureFaiteSuivi(d));
+    const choix = unique(enCours(citesPartie)) || unique(citesPartie.filter(d => !d.archive)) || unique(citesPartie);
+    if (choix) return choix;
+    if (cites.length) return courant || null;
+    return courant || unique(enCours(actifs.filter(partie)));
+  }
+
   async function appliquerReleveAuthentic(capture) {
-    const lu = intituleDossierAuthentic(capture);
     let d = null;
+    const courantValide = Date.now() - dossierCourantAuthentic.t < DUREE_DOSSIER_COURANT_AUTHENTIC_MS;
+    if (typePageAuthentic(capture) === 'client') {
+      const courant = courantValide ? dossiers.find(x => x.id === dossierCourantAuthentic.id) || null : null;
+      d = dossierPourFicheClientAuthentic(capture, dossiers, courant);
+      if (d) dossierCourantAuthentic = { id: d.id, t: Date.now() };
+      if (!d) return 0;
+      const r0 = appliquerReleveSurDossier(d, capture);
+      if (!r0.modifie) return 0;
+      await sauvegarder(d);
+      render();
+      if (r0.textes.length) afficherToast(`Authentic · ${libelleDossierAffiche(d)} : ${r0.textes[0]}${r0.textes.length > 1 ? ` (+${r0.textes.length - 1})` : ''}.`, 'Voir', () => ouvrirDossierDrawer(d.id));
+      return r0.textes.length;
+    }
+    const lu = intituleDossierAuthentic(capture);
     if (lu) {
       d = dossierPourIntituleAuthentic(lu, dossiers, adresseBienPageAuthentic(capture));
       dossierCourantAuthentic = { id: d ? d.id : '', t: Date.now() };
