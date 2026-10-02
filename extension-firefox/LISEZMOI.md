@@ -8,12 +8,13 @@ l'envoie au serveur CLAIRE du bureau, puis ouvre CLAIRE sur la page reçue.
 - Jamais un mot de passe ni un champ caché de la page.
 - Le serveur garde la page **30 minutes en mémoire** seulement (ni base, ni journal).
 
-## État (02/10/2026) — version 0.3.3
+## État (02/10/2026) — version 0.3.4
 
 - **Relevé automatique** (étude, 02/10) : sur Authentic (`www.cloud-fichorga.fr`), chaque page affichée est
   relevée dès qu'elle est stable (2,5 s) et envoyée à CLAIRE — seulement si son contenu a changé.
   Désactivable dans les options (« Relever automatiquement les pages d'Authentic »).
   - **Page de gestion du dossier** : CLAIRE retrouve le dossier par l'intitulé « Vente VENDEUR/ACQUÉREUR »
+    (ou « Succession NOM » depuis la 0.3.4)
     et coche les pièces reçues (« dans Authentic », décochables) ; un acte d'état civil ou une réponse SAFER
     de non-préemption est ajouté aux pièces du dossier. Une demande, un envoi ou une pièce « en attente »
     n'est jamais compté.

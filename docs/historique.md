@@ -14782,3 +14782,38 @@ ou très rapide = deux cases à cocher sous la réponse de la SAFER, le délai s
   `PUT { poste, actif }`. Poste coupé : `/appel` ne note rien et renvoie la page qui se ferme ; `/appels/nouveaux` rend
   `{ coupe: true }` sans appel. Réglages › Téléphonie 3CX : interrupteur à côté de chaque nom (`basculerTelephonie3cx`),
   « 3CX coupé : appels non notés », Copier/Essayer grisés.
+
+### 02/10/2026 après-midi — Fin de l'import ZIP, « Dossier Authentic seul », successions, questionnaire au vendeur, widget Agenda
+
+Demandes de l'étude : retirer l'import ZIP (« la lecture d'Authentic le remplace ») et dire ce qu'il apportait de plus ;
+le remplacer par une création depuis Authentic sans compromis — « pour les successions, il n'y a pas de document
+initial, juste des parties et éventuellement des biens » ; questionnaire de satisfaction au vendeur aussi ; widget
+Agenda : « voir toute la journée ».
+- ZIP retiré : `traiterExportAuthentic`, lecture du ZIP (`entreesZip`, `contenuEntreeZip`), du XML (`arbreXml`,
+  `lireExportAuthentic`…) et du Word (`texteDepuisDocumentWord`, `acteAuthenticEstAvantContrat`,
+  `avantContratExportAuthentic`). Un .zip déposé : message « n'est plus lu — choisissez Dossier Authentic ». Les tests
+  des fonctions communes (`partiesExportAuthentic`, `completerExtractionDepuisAuthentic`, `piecesExportAuthentic`…)
+  partent d'un objet `DONNEES` littéral (ce que produisait la lecture du DATA.xml d'essai).
+- Ce que le ZIP donnait et que les pages ne donnent pas : les FICHIERS (avant-contrat signé lu sans déposer le
+  compromis, PDF des pièces, Word de l'acte en cours), les qualités Disposant/Bénéficiaire, le notaire de chaque partie
+  et son rôle (participation), la date de création du dossier, la surface habitable. La liste des pièces, elle, est sur
+  la page de gestion (avec leur état, que le ZIP n'avait pas).
+- Mode `seul` « Dossier Authentic seul » : pas de zone de dépôt ; « Reprendre » → « Vérifier » (vente, aucune date
+  exigée quand le dossier vient d'Authentic) ou « Finaliser » (succession).
+- Successions : `RE_INTITULE_DOSSIER_AUTHENTIC` accepte « N - Succession NOM » / « SUCC NOM » (forme supposée) — de même
+  `pageAuthenticConnue` (serveur) et `pageConnue` (extension 0.3.4) ; `scoreDossierAuthentic` compare le nom aux seuls
+  dossiers de succession. `partiesExportAuthentic` : en succession, toutes les personnes (rôle `PARTIE`) ;
+  `partiesSuccessionDepuisAuthentic`, `biensDepuisAuthentic`. À la création : `typeAffaire`, `parties`, `biens`,
+  `sansPret`. `estSuccession(d)` : `echeancesPlanning` (+ miroir serveur), `checklistPieces`, `preemptionLevee`,
+  `dossiersAPlacer`, `actionsDuJour`, `echangesSelonStade`, `etapesAvancement`, `echeancesOrdonneesFiche`,
+  `renderProprietesDossier` (parties et biens), `renderCoordonneesEchanges`. 3CX : téléphones des parties d'une
+  succession reconnus (`reconnaitreAppelant`, partie « Partie »). Assistant : `#panel.wizard-succession` masque les
+  `.vente-seul` et les étapes 2-3.
+- Questionnaire au vendeur : `envoyerQuestionnaireSatisfaction(id, discret, 'vendeur')`, `renderQuestionnaireVendeur`,
+  `d.questionnaireVendeurEnvoyeLe` ; même texte et même PDF, pas d'archivage ; jamais si `confrereRepresenteVendeur`.
+  Un acquéreur représenté par un confrère n'empêche plus la ligne du vendeur (test mis à jour).
+- Widget Agenda : `data-defiler` — `ajusterWidgets` ne coupe plus la liste du jour, elle défile dans la place restante,
+  ouverte sur le rendez-vous en cours ou à venir (plus de « Voir N de plus »).
+- Vérifié dans Chromium (serveur réel, pages inventées) : succession reprise → Finaliser → fiche (2 parties avec
+  coordonnées, bien et parcelle, acte de décès reçu, aucune échéance de vente), vente sans compromis créée, widget de
+  10 rendez-vous défilant. Non vérifié : la forme réelle d'une page de succession dans Authentic.

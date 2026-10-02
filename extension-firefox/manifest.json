@@ -1,7 +1,7 @@
 {
   "manifest_version": 2,
   "name": "CLAIRE pour Authentic",
-  "version": "0.3.3",
+  "version": "0.3.4",
   "description": "Relève les pages d'Authentic pour CLAIRE (pièces reçues, création de dossier), sur le réseau de l'office.",
   "browser_specific_settings": {
     "gecko": {

@@ -552,3 +552,41 @@ test('coordonneesPartiesDossier : email et téléphone par partie ; « par son n
   const c = app.coordonneesPartiesDossier({ emailVendeur: 'v@ex.fr', telephoneVendeur: '0601020304', emailAcquereur: '', telephoneAcquereur: '' });
   assert.equal(c.map(x => `${x.libelle}:${x.email}:${x.tel}:${x.parNotaire}`).join('|'), 'Vendeur:v@ex.fr:0601020304:false|Acquéreur:::false');
 });
+
+test('succession depuis Authentic : intitulé reconnu, parties sans qualité devinée, biens, rien d’une vente', () => {
+  const gestionSucc = {
+    titre: 'Authentic',
+    champs: [{ groupe: '', libelle: '15 - Succession DUPONT Jean Importer avec 2e SENSComparants (2)', valeur: '' }],
+    tableaux: [{ titre: '', entete: [], lignes: [['ECV Acte de décès de M. DUPONT Jean', '', '03/09/2026', '', 'Positif']] }],
+    texte: '15 - Succession DUPONT Jean\nComparants'
+  };
+  const heritier = JSON.parse(JSON.stringify(client));
+  heritier.champs.find(c => c.libelle === 'Nom de famille*').valeur = 'Dupont';
+  heritier.champs.find(c => c.libelle === 'Prénom*').valeur = 'Marie';
+  assert.equal(app.intituleDossierAuthentic(gestionSucc), 'Succession DUPONT Jean');
+  assert.equal(app.typePageAuthentic(gestionSucc), 'gestion');
+  const g = app.dossiersDepuisRelevesAuthentic([
+    { recueLe: '2026-10-02T09:00:00Z', capture: gestionSucc },
+    { recueLe: '2026-10-02T09:01:00Z', capture: heritier },
+    { recueLe: '2026-10-02T09:02:00Z', capture: bien }
+  ])[0].export;
+  assert.equal(app.typeAffaireAuthentic(g), 'succession');
+  const parties = app.partiesSuccessionDepuisAuthentic(g);
+  assert.equal(parties.map(p => `${p.nom}:${p.role}`).join('|'), 'Marie DUPONT:PARTIE');
+  assert.equal(parties[0].telephones[0], '06 12 34 56 78');
+  const biens = app.biensDepuisAuthentic(g);
+  assert.equal(biens.length, 1);
+  assert.match(biens[0].adresse, /VINEUIL \(41350\), 3 chemin des Vignes/);
+  const e = app.completerExtractionDepuisAuthentic(app.construireExtractionRegex('', '', [], ''), g);
+  assert.equal(e.champs.nom.valeur, 'DUPONT Jean');
+  // Le dossier de succession : rien du planning, de la checklist ni des emails d'une vente.
+  const d = { id: 's', nom: 'DUPONT Jean', typeAffaire: 'succession', sansPret: true, parties, biens, pieces: {}, piecesPersonnalisees: [{ cle: 'perso-deces', label: 'Acte de décès de M. DUPONT Jean' }] };
+  assert.equal(app.echeancesPlanning(d).length, 0);
+  assert.equal(app.echeancesPlanning(Object.assign({}, d, { rendezVousSignature: '2026-11-05' })).map(x => x.type).join(','), 'rendezVousSignature');
+  assert.equal(app.checklistPieces('maison', d).map(p => p.cle).join(','), 'perso-deces');
+  assert.equal(app.echangesSelonStade(d, '2026-10-02').utiles.length + app.echangesSelonStade(d, '2026-10-02').autres.length, 0);
+  assert.equal(app.dossiersAPlacer([d]).length, 0);
+  assert.equal(app.libelleDossierAffiche(d), 'SUCC - DUPONT Jean');
+  // Rapprochement : même nom de succession = le dossier ; une vente du même nom, jamais.
+  assert.equal(app.dossierPourIntituleAuthentic('Succession DUPONT Jean', [d, { id: 'v', nom: 'DUPONT Jean / MARTIN' }], '').id, 's');
+});

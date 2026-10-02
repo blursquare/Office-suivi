@@ -112,6 +112,12 @@ function toutesEcheances(d) {
   // le rendez-vous n'est pas encore placé n'avait plus aucune échéance, donc plus aucun rappel, au
   // moment précis où il faut placer le rendez-vous. Si rien ne reste, on garde l'étape courante
   // ancrée sur la date butoir. Le butoir ne crée jamais SA PROPRE échéance (aucun item de type `acte`).
+  // Succession (miroir de echeancesPlanning) : la signature si placée et les échéances ajoutées.
+  if (d.typeAffaire === 'succession') {
+    const sig = d.rendezVousSignature && !echeanceValidee(d, 'rendezVousSignature')
+      ? [{ type: 'rendezVousSignature', label: 'Signature de l’acte', iso: d.rendezVousSignature }] : [];
+    return sig.concat(autres).filter((it) => it.iso);
+  }
   const items = [];
   if (!echeanceValidee(d, 'ventebien')) items.push({ type: 'ventebien', label: 'Vente préalable', iso: d.ventebien });
   if (!echeanceValidee(d, 'pret')) items.push({ type: 'pret', label: 'Obtention du prêt', iso: d.pret });

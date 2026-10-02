@@ -238,7 +238,7 @@
           <div class="pdf-dropzone" id="pdf-dropzone" ondragover="gererSurvolDepot(event)" ondragleave="gererQuitteDepot(event)" ondrop="gererDepotPdf(event)">
             <span class="pdf-dropzone-icone" id="icon-dropzone" aria-hidden="true"></span>
             <label for="f-pdf" class="file-btn">Choisir un fichier</label>
-            <input type="file" id="f-pdf" accept="application/pdf,.zip,application/zip" onchange="gererUploadPdf(event)">
+            <input type="file" id="f-pdf" accept="application/pdf" onchange="gererUploadPdf(event)">
             <span class="pdf-dropzone-hint" id="import-indice">PDF du compromis — ou glissez-déposez le fichier ici</span>
           </div>
           <div id="pdf-status" class="pdf-status"></div>
@@ -404,13 +404,13 @@
             <label for="f-adresse-bien">Adresse du bien (détectée automatiquement)</label>
             <input type="text" id="f-adresse-bien" placeholder="Ex. 12 rue de la République, 45000 Orléans">
           </div>
-          <div>
+          <div class="vente-seul">
             <label for="f-prix-vente">Prix de vente (détecté automatiquement)</label>
             <input type="text" id="f-prix-vente" inputmode="numeric" placeholder="Ex. 250000">
           </div>
         </div>
 
-        <div class="field-row">
+        <div class="field-row vente-seul">
           <div>
             <label for="f-nom-agence">Agence immobilière (détectée automatiquement)</label>
             <input type="text" id="f-nom-agence" placeholder="Ex. CENTURY 21 Les Tilleuls">
@@ -421,7 +421,7 @@
           </div>
         </div>
 
-        <div class="field-row">
+        <div class="field-row vente-seul">
           <div>
             <label for="f-depot-garantie">Dépôt de garantie / acompte (détecté automatiquement)</label>
             <input type="text" id="f-depot-garantie" inputmode="numeric" placeholder="Ex. 10000">
@@ -433,7 +433,7 @@
         </div>
 
         <div class="field-row">
-          <div>
+          <div class="vente-seul">
             <label for="f-type-vente">Type de vente</label>
             <select id="f-type-vente" onchange="majApercuPieces()">
               <option value="maison">Maison</option>
@@ -452,7 +452,7 @@
           </div>
         </div>
 
-        <div class="field-row">
+        <div class="field-row vente-seul">
           <div>
             <label for="f-notaire-vendeur">Notaire du vendeur</label>
             <input type="text" id="f-notaire-vendeur" list="f-notaires-liste" placeholder="Ex. Maître Sophie GOSSART (Blois)" oninput="majApercuPieces()">
@@ -465,8 +465,8 @@
         </div>
         <!-- Notaires lus dans l'acte ou dans Authentic, à placer d'un clic (étude, 02/10 : un notaire
              nommé sans son côté laissait les deux champs vides, il semblait avoir disparu). -->
-        <div class="notaires-wizard" id="notaires-wizard"></div>
-        <div class="field-row">
+        <div class="notaires-wizard vente-seul" id="notaires-wizard"></div>
+        <div class="field-row vente-seul">
           <div>
             <label for="f-cote-instrumentaire">Notaire qui reçoit l'acte</label>
             <select id="f-cote-instrumentaire" onchange="majApercuPieces()">
@@ -484,7 +484,7 @@
           </div>
         </div>
 
-        <div class="field-row">
+        <div class="field-row vente-seul">
           <div id="champ-email-vendeur">
             <label for="f-email-vendeur">Email du vendeur</label>
             <input type="email" id="f-email-vendeur" placeholder="vendeur@exemple.fr">
@@ -495,10 +495,10 @@
           </div>
         </div>
 
-        <div class="pieces-apercu" id="pieces-apercu"></div>
+        <div class="pieces-apercu vente-seul" id="pieces-apercu"></div>
         <div class="pieces-authentic" id="pieces-authentic" style="display:none;"></div>
 
-        <fieldset id="rappel-fieldset">
+        <fieldset id="rappel-fieldset" class="vente-seul">
           <legend>Envoyer un rappel</legend>
           <div class="reminder-days" id="reminder-days">
             <label><input type="checkbox" value="15" checked> 15 jours avant</label>
@@ -517,7 +517,7 @@
         <div id="form-error" class="form-error"></div>
 
         <div class="wizard-nav">
-          <button type="button" class="secondary" onclick="definirEtapeWizard(3)">← Précédent</button>
+          <button type="button" class="secondary" onclick="definirEtapeWizard(successionEnCoursWizard() ? 1 : 3)">← Précédent</button>
           <div class="actions-row">
             <button type="button" class="secondary" onclick="reinitialiserFormulaire()">Effacer</button>
             <button type="button" class="primary" onclick="ajouterDossier()">Ajouter le dossier</button>

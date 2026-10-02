@@ -99,5 +99,6 @@ test('pageAuthenticConnue : page du dossier, fiche client, fiche bien — rien d
   assert.equal(pageAuthenticConnue({ champs: [{ libelle: '12 - Vente MARTEL/FOURNIER Importer', valeur: '' }] }), true);
   assert.equal(pageAuthenticConnue({ champs: [], texte: '7 - Vente Consorts DUPONT / MARTIN\nComparants' }), true);
   assert.equal(pageAuthenticConnue({ champs: [{ libelle: 'x:ficheImmeubleTabView:y', valeur: '' }] }), true);
+  assert.equal(pageAuthenticConnue({ champs: [{ libelle: '15 - Succession DUPONT Jean Importer', valeur: '' }] }), true);
   assert.equal(pageAuthenticConnue({ champs: [{ libelle: 'Rechercher', valeur: '' }], texte: 'Agenda de l’office' }), false);
 });

@@ -120,9 +120,10 @@ function creerRouteurAuthentic(options) {
   return routeur;
 }
 
-// Page du dossier (intitulé « N - Vente X/Y »), fiche client (personne physique), fiche bien — le
+// Page du dossier (intitulé « N - Vente X/Y » ou « N - Succession X »), fiche client (personne physique), fiche bien — le
 // même test que l'extension (auto.js) et que typePageAuthentic côté poste.
-const RE_INTITULE_PAGE = /(?:^|[^\w])\d{1,6}\s*-\s*(?:Vente|VTE)\s+[^\n\/]*\S\s*\/\s*\S/i;
+// « N - Succession NOM » aussi (étude, 02/10 : dossiers de succession créés depuis Authentic).
+const RE_INTITULE_PAGE = /(?:^|[^\w])\d{1,6}\s*-\s*(?:(?:Vente|VTE)\s+[^\n\/]*\S\s*\/\s*\S|(?:Succession|SUCC)\.?\s+\S)/i;
 function pageAuthenticConnue(capture) {
   const c = capture || {};
   const libelles = (c.champs || []).map(ch => String(ch.libelle || '') + ' ' + String(ch.valeur || ''));

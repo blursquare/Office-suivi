@@ -8106,3 +8106,12 @@ button.w-jour-lien { border: none; background: none; padding: 0; cursor: pointer
   .coord-paire { grid-template-columns: 1fr; gap: 4px; }
   .coord-ligne { grid-template-columns: 1fr; gap: 2px; }
 }
+
+/* « Nouveau dossier » pour une succession reprise d'Authentic (étude, 02/10) : ni prix, ni agence, ni
+   notaires vendeur/acquéreur, ni checklist de vente — seulement le nom, le bien et le responsable. */
+#panel.wizard-succession .vente-seul,
+#panel.wizard-succession #wizard-step-btn-2,
+#panel.wizard-succession #wizard-step-btn-3,
+#panel.wizard-succession #wizard-step-btn-2 + .wizard-step-trait,
+#panel.wizard-succession #wizard-step-btn-3 + .wizard-step-trait { display: none; }
+#panel.wizard-succession .pieces-authentic { margin-top: 12px; }

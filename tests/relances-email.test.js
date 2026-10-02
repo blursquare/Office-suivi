@@ -508,8 +508,17 @@ test('relation client dans l’onglet Échanges : confirmation, rappel, un an ap
   const confrere = { roleNotaire: 'participant', notaireAcquereur: 'Maître DURAND', emailNotaireParticipant: 'durand@notaires.fr', sansPret: true };
   for (const rdv of ['2026-10-03', '2026-10-15', '2026-09-15', '2025-10-01']) {
     const e = app.echangesSelonStade(dossierBase(app, Object.assign({ rendezVousSignature: rdv }, confrere)), auj);
-    assert.doesNotMatch(e.utiles.concat(e.autres).join(','), /confirmationRdv|rappelRdv|questionnaire|anniversaire/, rdv);
+    assert.doesNotMatch(e.utiles.concat(e.autres).join(','), /confirmationRdv|rappelRdv|anniversaire/, rdv);
   }
+  // Questionnaire (étude, 02/10 : « au vendeur aussi ») : jamais à l'acquéreur du confrère, mais au
+  // vendeur, notre client ; et plus du tout si un confrère représente aussi le vendeur.
+  const d = dossierBase(app, Object.assign({ rendezVousSignature: '2026-09-15', emailVendeur: 'vendeur@exemple.fr', emailAcquereur: 'acq@exemple.fr' }, confrere));
+  const html = app.renderQuestionnaireSatisfaction(d);
+  assert.match(html, /Questionnaire de satisfaction au vendeur/);
+  assert.doesNotMatch(html, /'acquereur'|envoyerQuestionnaireSatisfaction\('d1'\)/);
+  const deuxConfreres = Object.assign({}, d, { notaireVendeur: 'Maître MARTIN' });
+  assert.equal(app.renderQuestionnaireSatisfaction(deuxConfreres), '');
+  assert.doesNotMatch(app.echangesSelonStade(deuxConfreres, auj).utiles.concat(app.echangesSelonStade(deuxConfreres, auj).autres).join(','), /questionnaire/);
 });
 
 test('renderEchangesDossier : le destinataire, le stade, puis les lignes utiles ; le reste replié', () => {

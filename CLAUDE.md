@@ -157,7 +157,9 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
   géographique (`REGLES_NOTAIRE_INSTRUMENTAIRE`, bien dans le 41) > ordre dans la zone attendue ;
   sinon rien n'est deviné. Le rôle de l'étude (instrumentaire/participant) est déduit du côté qui
   reçoit l'acte ; si un autre office représente l'acquéreur, les emails vont **au confrère**
-  (« Mon Cher Maître, … Votre bien dévoué. ») et le questionnaire de satisfaction n'est jamais proposé.
+  (« Mon Cher Maître, … Votre bien dévoué. ») et le questionnaire de satisfaction n'est jamais proposé à
+  l'acquéreur ; il peut l'être **au vendeur** quand l'étude le représente (étude 02/10, `renderQuestionnaireVendeur`,
+  `d.questionnaireVendeurEnvoyeLe`, sans archiver le dossier).
 - **Responsables** : liste fermée (Bastien ANGLUMENT — administrateur, vue globale —, Julie
   VASSELIN, Jérémy SAUJOT).
 - **Planning** (`echeancesPlanning`, miroir serveur `toutesEcheances` dans `jobs/rappels.js` — à
@@ -249,23 +251,34 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
   dossier (même somme), reversements au confrère signalés. Rien n'est enregistré sur le dossier.
 - **« Nouveau dossier » : trois façons de commencer** (étude, 02/10, `MODES_IMPORT`, `choisirModeImport`,
   `renderChoixImport`) — « Compromis (PDF) » puis « Compléter depuis Authentic » (`groupesAuthenticPourCompromis` :
-  le dossier du compromis lu en tête) ; « Export Authentic (.zip) » ; « Dossier Authentic » : un dossier relevé est
+  le dossier du compromis lu en tête) ; « Dossier Authentic » : un dossier relevé est
   « Repris » sans quitter l'étape 1, puis le compromis déposé dessous le complète (`exportAuthenticActuel` gardé hors
-  mode PDF). Étapes Vérifier/Finaliser : `sourcesImportWizard` (ce qui vient du compromis / d'Authentic, ce qui manque).
+  mode PDF) ; **« Dossier Authentic seul »** (`seul`, étude 02/10, à la place de l'export ZIP retiré) : sans compromis,
+  repris d'un clic puis « Vérifier » (vente : aucune date exigée) ou directement « Finaliser » (succession, assistant
+  réduit `#panel.wizard-succession` : nom, bien, responsable, pièces d'Authentic — `.vente-seul` masqués). Étapes Vérifier/Finaliser : `sourcesImportWizard` (ce qui vient du compromis / d'Authentic, ce qui manque).
   Notaires à la création : lus dans l'acte et dans Authentic (`notairesProposesWizard`), placés d'un clic (vendeur,
   acquéreur, les deux), « Notaire qui reçoit l'acte » (`f-cote-instrumentaire`), rôle de l'étude déduit
   (`roleEtudeDeduitWizard`). **Un notaire cité sans son côté reste vide (jamais deviné) mais n'est plus caché** : fiche
   « Lus, à placer » (`notairesNonPlacesDossier`, `placerNotaireFiche`) au lieu d'une ligne repliée.
-- **Import d'un export Authentic** (30/09, « Nouveau dossier », même zone de dépôt que le PDF) : ZIP
-  d'un sous-dossier (`DATA.xml` au format notaires.fr + pièces + Word de l'acte en cours), lu dans le
-  navigateur (`entreesZip`, `arbreXml`, `lireExportAuthentic`). Parties par les références du flux,
-  sinon par l'intitulé « VTE VENDEUR / ACQUÉREUR » (une personne absente de l'intitulé — ex-conjoint —
-  n'est pas partie) ; Disposant = vendeur, Bénéficiaire = acquéreur. Les données structurées priment
-  sur le texte (`completerExtractionDepuisAuthentic`, origine « Reprise d'Authentic ») ; dates et prix
-  viennent de l'avant-contrat (PDF signé de l'export, sinon le Word si c'est l'avant-contrat —
-  jamais les dates d'un acte de vente). Pièces reconnues par nom de document → reçues « à la main »
-  (`piecesValideesManuellement`, case décochable). Succession reconnue (`typeAffaireAuthentic`) mais
-  refusée tant que CLAIRE ne suit que des ventes.
+- **Données d'un dossier Authentic** (format commun `{ intitule, personnes, immeubles, parties, documents,
+  infosAuthentic }`, construit depuis les pages relevées par `dossiersDepuisRelevesAuthentic`) : parties par
+  l'intitulé « VTE VENDEUR / ACQUÉREUR » (une personne absente de l'intitulé n'est pas partie) ; les données
+  structurées priment sur le texte (`completerExtractionDepuisAuthentic`, origine « Reprise d'Authentic ») ; pièces
+  reconnues par nom → reçues « à la main ». **L'import d'un export ZIP (30/09) est retiré depuis le 02/10** (étude :
+  la lecture d'Authentic le remplace ; un .zip déposé est refusé avec un message) — perdu par rapport au ZIP : les
+  fichiers eux-mêmes (avant-contrat signé lu sans dépôt du compromis, PDF des pièces, Word de l'acte en cours), les
+  qualités Disposant/Bénéficiaire du flux, le notaire de chaque partie et son rôle (participation), la date de création
+  du dossier Authentic, la surface habitable.
+- **Successions** (étude 02/10 : « juste des parties et éventuellement des biens ») : intitulé « N - Succession NOM »
+  (ou « SUCC NOM », **forme supposée, à confirmer sur une vraie page**) reconnu par le poste
+  (`RE_INTITULE_DOSSIER_AUTHENTIC`, `RE_INTITULE_SUCCESSION_AUTHENTIC`), le serveur (`pageAuthenticConnue`) et
+  l'extension (0.3.4) ; rapproché par le nom (`scoreDossierAuthentic` : identique 6, proche 4, dossiers de succession
+  seulement). Dossier `typeAffaire: 'succession'`, `sansPret`, `parties` = toutes les personnes ouvertes (rôle
+  `PARTIE`, qualité jamais devinée, téléphones/emails gardés — reconnus par 3CX), `biens` (`biensDepuisAuthentic` :
+  adresse, type, parcelles). **`estSuccession(d)`** neutralise la vente : planning = signature placée + échéances
+  ajoutées (miroir serveur `toutesEcheances`), checklist = pièces personnalisées seules, pas de préemption ni de
+  créneaux proposés ni d'emails de vente, fiche = responsable, NAS, parties, biens. Planning et checklist propres aux
+  successions : à définir avec l'étude.
 - **Classeur des scans du copieur** — nom affiché **« Claire Scan »**, **bannette à papier** (icône `bannette`, `#tab-scans`) avec pastille du nombre de scans à ranger, dans la rangée d'icônes sous le logo de la barre latérale (étude, 30/09 — visible barre repliée et sur téléphone) (30/09, `TYPES_SCAN`, `propositionScan`, `server/src/scans.js`) :
   dossier du copieur = **`\\192.168.60.5\Scan`, partage à part** du NAS (étude, 30/09) — trouvé
   comme `\\serveur\Scan` du serveur de `nasRacine` (`partagesScansCandidats`), sinon un dossier
@@ -497,7 +510,7 @@ Plainte principale de l'étude : **le bruit**, pas les oublis — ne pas élargi
   `ajusterWidgets` les remplit par priorité (N petit d'abord) jusqu'à la hauteur de la tuile, avec
   « Voir N de plus » ; une carte qui a de la place reçoit du contenu d'appoint (à venir, prochaines
   signatures, pièces encore attendues…), pas un blanc. « Personnaliser » (ou appui long sur un titre) :
-  glisser-déposer au pointeur, largeur et hauteur, retirer (×). **Widget Agenda** (01/10) = l'agenda partagé de l'office (stock `agenda-office`, `chargerAgendaWidget`,
+  glisser-déposer au pointeur, largeur et hauteur, retirer (×). **Widget Agenda** (01/10) = l'agenda partagé de l'office (liste du jour **jamais coupée : elle défile**, ouverte sur le rendez-vous en cours, `data-defiler` dans `ajusterWidgets`, étude 02/10) (stock `agenda-office`, `chargerAgendaWidget`,
   + `signaturesHorsAgenda`), lignes `lignesEvenementsAgendaJour` ; un clic ouvre la page Agenda au rendez-vous
   (`ouvrirEvenementDepuisWidgetAgenda`). **« Widgets »** (01/10) : liste de tous les widgets
   (`lignesGalerieWidgets`, `#widgets-overlay`), Retirer / Ajouter — retirer = `masque`, taille gardée ; tout nouveau
@@ -597,12 +610,10 @@ Plainte principale de l'étude : **le bruit**, pas les oublis — ne pas élargi
   (`changerCategorie`) ; panneau de gestion des mémoires apprises ; mémoriser le compte client
   (`compte : N`) des reçus comptables ; exploiter le journal `corrections-extraction` pour resserrer
   les motifs (phase 3 de l'extraction).
-- **Dossiers de succession à venir** : aujourd'hui tous les dossiers sont des ventes, affichés
-  « VTE - NOM » (`libelleDossierAffiche`, préfixe tiré de `d.typeAffaire` par `PREFIXES_TYPE_AFFAIRE` :
-  vente → VTE, succession → SUCC ; miroir serveur `libelleDossier` dans `jobs/rappels.js`). À l'arrivée des successions, ce préfixe, le planning, la
-  checklist et les emails devront dépendre d'un type d'affaire du dossier. L'import Authentic lit
-  déjà tout export (personnes, parties et leurs qualités, documents) et reconnaît une succession :
-  il restera à brancher la création d'un dossier de succession sur `lireExportAuthentic`.
+- **Successions** : créées depuis Authentic (voir « Successions » plus haut), « SUCC - NOM »
+  (`libelleDossierAffiche`, `PREFIXES_TYPE_AFFAIRE`, miroir serveur `libelleDossier`). Reste à définir avec l'étude :
+  échéances (déclaration de succession…), checklist de pièces, emails, qualité des parties (défunt, héritiers) — la
+  structure réelle d'une page de succession d'Authentic n'a pas encore été fournie.
 - **Extension Firefox « CLAIRE pour Authentic »** (01/10, `extension-firefox/`, Authentic s'ouvre dans Firefox) :
   transport en place — relevé de la page (champs/libellés/rubriques, tableaux avec en-têtes `<th>`, texte ;
   jamais mot de passe ni champ caché), `POST /api/authentic/capture` (mémoire seule, 30 min, 20 au plus, JSON

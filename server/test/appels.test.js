@@ -156,3 +156,9 @@ test('route : téléphonie coupée pour un collaborateur — ses appels ne sont 
   await fetch(`${baseUrl}/api/appels/reglages`, { method: 'PUT', headers: json, body: JSON.stringify({ poste: 'julie', actif: true }) });
   assert.equal((await (await fetch(`${baseUrl}/api/appels/reglages`, { headers: auth })).json()).postesCoupes.length, 0);
 });
+
+test('reconnaitreAppelant : partie d’une succession reconnue par ses téléphones repris d’Authentic', () => {
+  const { reconnaitreAppelant } = require('../src/appels3cx');
+  const r = reconnaitreAppelant('06 12 34 56 78', { dossiers: [{ id: 's', typeAffaire: 'succession', parties: [{ nom: 'Marie DUPONT', telephones: ['06 12 34 56 78'] }] }] });
+  assert.equal(r.dossiers.map(x => `${x.id}:${x.partie}`).join(','), 's:partie');
+});

@@ -710,3 +710,10 @@ test('SAFER en attente (miroir de echeancesPlanning) : « Délai SAFER » daté,
   const levee = Object.assign({}, d, { authentic: { safer: Object.assign({}, d.authentic.safer, { decision: 'non_preemption' }) } });
   assert.equal(toutesEcheances(levee).map(e => e.type).join(','), 'fixerRdv');
 });
+
+test('succession (miroir de echeancesPlanning) : seulement la signature placée et les échéances ajoutées', () => {
+  const { toutesEcheances } = require('../src/jobs/rappels');
+  const d = { id: 's', nom: 'DUPONT Jean', typeAffaire: 'succession', sansPret: true, acte: '2026-12-01', autres: [{ label: 'Déclaration de succession', date: '2027-01-15' }] };
+  assert.equal(toutesEcheances(d).map(e => `${e.type}:${e.iso}`).join(','), 'autre-0:2027-01-15');
+  assert.equal(toutesEcheances(Object.assign({}, d, { rendezVousSignature: '2026-11-05' })).map(e => e.type).join(','), 'rendezVousSignature,autre-0');
+});
