@@ -14512,3 +14512,6 @@ rendez-vous à fixer sans date butoir, dates toutes validées, signature passée
 corrigé : groupe `sans-date` (rang 3, « Sans échéance datée », ligne de la vue Tableau `renderLigneTableau`, compteur en
 « dossiers »). Le test qui encodait l'ancienne règle (« n'apparaît nulle part ») est inversé. « Plus tard » (au-delà de
 8 semaines) inchangé. Rappel : le filtre « Responsable » est pré-réglé sur le collaborateur du poste (choix du 02/10).
+Suite : « remets-moi l'affichage par défaut de tous les dossiers pour Bastien » — `filtreSuiviParDefaut(utilisateur)` :
+le collaborateur du poste, sauf l'administrateur (`estAdministrateur`) → « Tous ». Revient sur la règle du 01-02/10
+(« administrateur compris »), à la demande de l'étude.

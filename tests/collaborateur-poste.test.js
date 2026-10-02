@@ -170,3 +170,10 @@ test('lignesGalerieWidgets : tous les widgets, affichés d’abord puis retirés
     'aujourdhui:oui,portefeuille:oui,avancement:oui,activite:oui,statistiques:oui,agenda:non,pieces:non');
   assert.ok(lignes.every(l => l.def.description && l.def.icone));
 });
+
+test('filtreSuiviParDefaut : le collaborateur du poste, tous les dossiers pour l’administrateur', () => {
+  const app = require('./helpers/load-app.js').chargerApplication();
+  assert.equal(app.filtreSuiviParDefaut('Julie VASSELIN'), 'Julie VASSELIN');
+  assert.equal(app.filtreSuiviParDefaut('Bastien ANGLUMENT'), '');
+  assert.equal(app.filtreSuiviParDefaut(''), '');
+});
