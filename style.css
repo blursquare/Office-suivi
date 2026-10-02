@@ -2825,6 +2825,25 @@
     font-weight: 700;
   }
   .analyse-engagement-ligne:first-child { border-top: none; }
+  /* Fiche enregistrée (02/10) : une case « réalisé / reçu » remplace la coche décorative. */
+  .analyse-engagement-ligne.avec-case { align-items: flex-start; }
+  .analyse-engagement-ligne.avec-case::before { content: none; }
+  .analyse-case { margin-top: 2px; }
+  .analyse-engagement-ligne.avec-case .analyse-engagement-texte { flex: 1; min-width: 0; }
+  .analyse-engagement-ligne.fait .piece-case, .analyse-doc-ligne.recu .piece-case { background: var(--success); border-color: var(--success); }
+  .analyse-engagement-ligne.fait .analyse-engagement-texte, .analyse-doc-ligne.recu .analyse-doc-nom { color: var(--muted); }
+  .analyse-engagement-ligne .piece-tag { white-space: nowrap; align-self: flex-start; margin-top: 2px; }
+  .analyse-documents-cases { display: flex; flex-direction: column; }
+  .analyse-doc-ligne { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-top: 1px solid var(--line-soft); font-size: 13px; color: var(--ink); }
+  .analyse-doc-ligne:first-child { border-top: none; }
+  .analyse-doc-ligne .analyse-case { margin-top: 0; }
+  .analyse-doc-nom { flex: 1; min-width: 0; }
+  .analyse-doc-ligne .analyse-doc-suppr { margin-left: auto; }
+  /* Téléphone : case, type et outils sur une ligne, le texte de l'engagement en pleine largeur dessous. */
+  @media (max-width: 600px) {
+    .analyse-engagement-ligne.avec-case { flex-wrap: wrap; row-gap: 4px; }
+    .analyse-engagement-ligne.avec-case .analyse-engagement-texte { flex: 1 1 100%; order: 10; padding-left: 25px; }
+  }
 
   /* Édition d'un engagement (voir activerEditionEngagement() dans script.js) : pas de puce
      "✓" devant un formulaire, contrairement à la ligne de lecture. */

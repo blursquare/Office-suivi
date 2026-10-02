@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-01 23:59';
+  const VERSION_APP = '2026-10-02 07:40';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-02 07:40', resume: "Fiche d'un dossier, onglet Analyse : chaque engagement du vendeur et chaque document relevé dans l'avant-contrat a désormais une case à cocher (réalisé / reçu). Ce qui n'est pas coché garde le dossier « Attente de pièces » et baisse la probabilité de tenue du rendez-vous (« Relancer le vendeur ») ; l'onglet affiche « faits / total ». Un document qui est aussi une pièce de la checklist partage sa case avec l'onglet Pièces ; un engagement dont la pièce est reçue se coche seul, et cocher des travaux valide la pièce « Travaux de remise en état » qui en découle." },
     { version: '2026-10-01 23:59', resume: "Nouvelle extension Firefox « CLAIRE pour Authentic » (première version) : sur une page de dossier d'Authentic, le bouton « Envoyer à CLAIRE » transmet ce que la page affiche au serveur CLAIRE du bureau (gardé 30 minutes en mémoire, jamais un mot de passe), et CLAIRE l'affiche. La reprise dans une fiche sera branchée une fois la structure des pages connue : « Copier la structure (sans données) » la copie sans aucune valeur de client." },
     { version: '2026-10-01 23:47', resume: "Suivi des dossiers : un carré « Activité de l'étude — En direct » s'ajoute à la colonne de gauche, sous les dernières pièces — actions du jour, barres des 7 derniers jours, qui a agi, puis le fil des dernières actions de toute l'étude (collaborateurs, agenda, relevés de CLAIRE), qui ouvre la fiche au clic. Le même fil que sur le tableau de bord." },
     { version: '2026-10-01 23:34', resume: "Suivi des dossiers : le filtre « Responsable » est présélectionné sur le collaborateur du poste à l'ouverture de la session, administrateur compris (« Tous » reste à un clic et un choix fait à la main est gardé) ; changer de collaborateur repose le filtre sur le nouveau." },
@@ -7896,7 +7897,93 @@
     const boutonSupprimer = `<button type="button" class="engagement-suppr" onclick="${appelSuppr}" title="Retirer cet engagement" aria-label="Retirer cet engagement">${icone('x')}</button>`;
     const appelEditer = dossierId ? `activerEditionEngagement('${dossierId}', ${index})` : `activerEditionEngagement(null, ${index})`;
     const boutonEditer = `<button type="button" class="icon-crayon" onclick="${appelEditer}" title="Modifier cet engagement" aria-label="Modifier cet engagement">${icone('pencil')}</button>`;
+    // Fiche enregistrée : une case « réalisé » (étude, 02/10), comptée dans le statut du dossier.
+    const d = dossierId ? dossiers.find(x => x.id === dossierId) : null;
+    if (d) {
+      const et = etatEngagementAnalyse(d, e);
+      const intitule = `Engagement du vendeur : ${libelleCourtEngagement(e)}`;
+      const caseHtml = et.auto
+        ? `<span class="piece-case analyse-case" role="checkbox" aria-checked="true" aria-disabled="true" aria-label="${escapeAttr(intitule)}" title="${escapeAttr(et.motif)}">${icone('check')}</span>`
+        : `<button type="button" class="piece-case analyse-case" role="checkbox" aria-checked="${et.fait}" aria-label="${escapeAttr(intitule)}" title="${escapeAttr(et.fait ? `${et.motif} — cliquer pour le remettre à faire` : 'Cocher une fois réalisé (justificatif reçu, travaux faits)')}" onclick="basculerEngagementFait('${dossierId}', ${index})">${et.fait ? icone('check') : ''}</button>`;
+      const tag = et.auto ? '<span class="piece-tag">pièce reçue</span>' : '';
+      return `<div class="analyse-engagement-ligne avec-case${et.fait ? ' fait' : ''}">${caseHtml}${etiquette}<span class="analyse-engagement-texte">${escapeHtml(phrase)}</span>${tag}${marqueurManuel}${boutonVoir}${boutonEditer}${boutonSupprimer}</div>`;
+    }
     return `<div class="analyse-engagement-ligne">${etiquette}<span>${escapeHtml(phrase)}</span>${marqueurManuel}${boutonVoir}${boutonEditer}${boutonSupprimer}</div>`;
+  }
+
+  // Document relevé dans l'avant-contrat, sur une fiche enregistrée : une ligne cochable. S'il est
+  // aussi une pièce de la checklist, la case est celle de la pièce (même état que l'onglet Pièces).
+  function renderDocumentAnalyse(d, doc, index) {
+    const label = typeof doc === 'string' ? doc : doc.label;
+    const cle = cleChecklistDocumentAnalyse(d, doc);
+    const recu = documentAnalyseRecu(d, doc);
+    const trouveeNas = cle && recu && !(d.piecesValideesManuellement || []).includes(cle);
+    const titre = trouveeNas ? 'Reçue — trouvée dans le dossier du NAS'
+      : recu ? `Reçu${doc && doc.recuLe ? ` (coché le ${formatDateFr(String(doc.recuLe).slice(0, 10))})` : ' (validé à la main)'} — cliquer pour le remettre à recevoir`
+        : 'Cocher une fois reçu';
+    const caseHtml = trouveeNas
+      ? `<span class="piece-case analyse-case" role="checkbox" aria-checked="true" aria-disabled="true" aria-label="${escapeAttr(label)}" title="${escapeAttr(titre)}">${icone('check')}</span>`
+      : `<button type="button" class="piece-case analyse-case" role="checkbox" aria-checked="${recu}" aria-label="${escapeAttr(label)}" title="${escapeAttr(titre)}" onclick="basculerDocumentAnalyseRecu('${d.id}', ${index})">${recu ? icone('check') : ''}</button>`;
+    return `<div class="analyse-doc-ligne${recu ? ' recu' : ''}">${caseHtml}<span class="analyse-doc-nom">${escapeHtml(label)}</span>${cle ? '<span class="piece-tag" title="Même pièce que dans l’onglet Pièces">checklist</span>' : ''}<button type="button" class="analyse-doc-suppr" onclick="supprimerDocumentDossier('${d.id}', ${index})" title="Retirer ce document de la liste" aria-label="Retirer ce document">${icone('x')}</button></div>`;
+  }
+
+  function basculerEngagementFait(dossierId, index) {
+    const d = dossiers.find(x => x.id === dossierId);
+    const liste = d && d.analyseJuridique && d.analyseJuridique.engagements;
+    if (!liste || liste[index] === undefined) return;
+    if (typeof liste[index] === 'string') liste[index] = { phrase: liste[index], type: null, page: null };
+    const e = liste[index];
+    if (etatEngagementAnalyse(d, e).auto) return;
+    e.fait = !e.fait;
+    d.pieces = d.pieces || {};
+    if (e.fait) {
+      e.faitLe = new Date().toISOString();
+      // Les pièces de la checklist que cet engagement fait réclamer (« Travaux de remise en état »…)
+      // suivent : validées à la main, sans quoi le dossier les attendrait encore. Retenues sur
+      // l'engagement pour être rendues si on le décoche.
+      const cles = Array.from(new Set(documentsDepuisClause(e).map(doc => cleChecklistDocumentAnalyse(d, doc)).filter(Boolean)))
+        .filter(cle => d.pieces[cle] !== 'recue');
+      cles.forEach(cle => {
+        d.pieces[cle] = 'recue';
+        d.piecesValideesManuellement = Array.from(new Set([...(d.piecesValideesManuellement || []), cle]));
+      });
+      if (cles.length) e.piecesValidees = cles; else delete e.piecesValidees;
+    } else {
+      delete e.faitLe;
+      (e.piecesValidees || []).forEach(cle => {
+        if (!(d.piecesValideesManuellement || []).includes(cle)) return;
+        d.piecesValideesManuellement = d.piecesValideesManuellement.filter(c => c !== cle);
+        d.pieces[cle] = 'manquante';
+      });
+      delete e.piecesValidees;
+    }
+    ajouterHistorique(d, `${e.fait ? 'Engagement du vendeur réalisé' : 'Engagement du vendeur remis à faire'} : « ${libelleCourtEngagement(e)} »`);
+    signalerSiDossierDevenuComplet(d);
+    sauvegarder(d);
+    render();
+  }
+
+  function basculerDocumentAnalyseRecu(dossierId, index) {
+    const d = dossiers.find(x => x.id === dossierId);
+    const liste = d && d.analyseJuridique && d.analyseJuridique.documents;
+    if (!liste || liste[index] === undefined) return;
+    const cle = cleChecklistDocumentAnalyse(d, liste[index]);
+    if (cle) {
+      // Pièce de la checklist : mêmes gestes que dans l'onglet Pièces (avec leur confirmation).
+      const piece = checklistPieces(d.typeVente, d).find(p => p.cle === cle);
+      const recue = (d.pieces || {})[cle] === 'recue';
+      if (!recue) validerPieceManuellement(d.id, cle, piece.label);
+      else if ((d.piecesValideesManuellement || []).includes(cle)) retirerValidationManuellePiece(d.id, cle, piece.label);
+      return;
+    }
+    if (typeof liste[index] === 'string') liste[index] = { label: liste[index], cat: '' };
+    const doc = liste[index];
+    doc.recu = !doc.recu;
+    if (doc.recu) doc.recuLe = new Date().toISOString(); else delete doc.recuLe;
+    ajouterHistorique(d, `${doc.recu ? 'Document reçu' : 'Document remis à recevoir'} (analyse de l’avant-contrat) : « ${doc.label} »`);
+    signalerSiDossierDevenuComplet(d);
+    sauvegarder(d);
+    render();
   }
 
   function activerEditionEngagement(dossierId, index) {
@@ -15401,9 +15488,80 @@
     return depassees;
   }
 
+  // ---- Onglet Analyse de la fiche : engagements du vendeur et documents relevés, cochés reçus ou
+  // réalisés (étude, 02/10 : « le rendre coché pour indiquer si c'est reçu/réalisé ou non et le
+  // prendre en compte dans la complétude du dossier et la probabilité de tenue du rendez-vous »).
+  //  - Un document relevé qui est aussi une pièce de la checklist (cleChecklist) partage son état :
+  //    le cocher valide la pièce à la main (piecesValideesManuellement), comme dans l'onglet Pièces —
+  //    il n'est compté qu'une fois, par la checklist.
+  //  - Un autre document : `doc.recu` (+ recuLe), sur le document lui-même.
+  //  - Un engagement : `e.fait` (+ faitLe). Un engagement dont toutes les pièces qu'il fait réclamer
+  //    sont reçues (justificatif d'entretien, facture des travaux…) est réalisé de lui-même (case
+  //    grisée) ; sans pièce reconnue, il ne se coche qu'à la main.
+  // Rien n'est compté pour un dossier en participation (l'étude n'y suit pas la checklist).
+
+  // Pure : la clé de la pièce de la checklist que ce document désigne, si elle y figure encore.
+  function cleChecklistDocumentAnalyse(d, doc) {
+    const cle = clesChecklistDepuisDocuments([doc])[0];
+    if (!cle) return '';
+    return checklistPieces(d.typeVente, d).some(p => p.cle === cle) ? cle : '';
+  }
+
+  // Pure : document relevé reçu ?
+  function documentAnalyseRecu(d, doc) {
+    const cle = cleChecklistDocumentAnalyse(d, doc);
+    if (cle) return (d.pieces || {})[cle] === 'recue';
+    return !!(doc && typeof doc === 'object' && doc.recu);
+  }
+
+  // Pure : { fait, auto, motif } d'un engagement. `auto` : réalisé parce que ses pièces sont reçues.
+  function etatEngagementAnalyse(d, e) {
+    if (e && typeof e === 'object' && e.fait) {
+      return { fait: true, auto: false, motif: e.faitLe ? `Coché le ${formatDateFr(String(e.faitLe).slice(0, 10))}` : 'Coché à la main' };
+    }
+    const releves = (d.analyseJuridique && d.analyseJuridique.documents) || [];
+    const pieces = documentsDepuisClause(e).map(doc => releves.find(x => cleDocumentIdentifie(x) === cleDocumentIdentifie(doc)) || doc);
+    if (pieces.length && pieces.every(doc => documentAnalyseRecu(d, doc))) {
+      return { fait: true, auto: true, motif: `Pièce reçue : ${pieces.map(doc => typeof doc === 'string' ? doc : doc.label).join(', ')}` };
+    }
+    return { fait: false, auto: false, motif: '' };
+  }
+
+  var RE_ANCRE_ENGAGEMENT = /^.*?\b(?:s['’]\s*engage(?:\s+à)?|s['’]\s*oblige(?:\s+à)?|devra|remettra|produira|fournira|communiquera|justifiera|fera\s+son\s+affaire(?:\s+de)?)\s+/i;
+
+  // Pure : l'objet d'un engagement, sans « Le PROMETTANT s'engage à » — pour une liste d'attente.
+  function libelleCourtEngagement(e) {
+    const phrase = String(typeof e === 'string' ? e : (e && e.phrase) || '').replace(/\s+/g, ' ').trim();
+    let s = (phrase.replace(RE_ANCRE_ENGAGEMENT, '') || phrase).replace(/[.;:,]\s*$/, '');
+    if (s.length > 60) s = s.slice(0, 58).replace(/\s+\S*$/, '') + '…';
+    return s.charAt(0).toUpperCase() + s.slice(1);
+  }
+
+  // Pure : ce que l'analyse attend encore — engagements non réalisés, documents hors checklist non
+  // reçus (ceux de la checklist sont déjà comptés par elle). Libellés prêts à afficher.
+  function elementsAnalyseEnAttente(d) {
+    const vide = { engagements: [], documents: [] };
+    if (!d || d.roleNotaire === 'participant' || !d.analyseJuridique) return vide;
+    const engagements = (d.analyseJuridique.engagements || [])
+      .filter(e => !etatEngagementAnalyse(d, e).fait)
+      .map(e => `Engagement : ${libelleCourtEngagement(e)}`);
+    const documents = (d.analyseJuridique.documents || [])
+      .filter(doc => !cleChecklistDocumentAnalyse(d, doc) && !documentAnalyseRecu(d, doc))
+      .map(doc => (typeof doc === 'string' ? doc : doc.label));
+    return { engagements, documents };
+  }
+
+  // Pure : { faits, total } de l'onglet Analyse (compteur de l'onglet).
+  function avancementAnalyse(d) {
+    const a = (d && d.analyseJuridique) || {};
+    const engs = a.engagements || [], docs = a.documents || [];
+    const faits = engs.filter(e => etatEngagementAnalyse(d, e).fait).length + docs.filter(doc => documentAnalyseRecu(d, doc)).length;
+    return { faits, total: engs.length + docs.length };
+  }
+
   // Pure : ce qui manque encore (libellés) — le financement d'abord (vente préalable non réalisée,
-  // offre de prêt non reçue), puis les pièces de la checklist non reçues (sauf participation, où
-  // l'étude ne suit pas la checklist). La vente préalable compte comme l'offre : elle finance
+  // offre de prêt non reçue), puis les pièces de la checklist non reçues, puis ce que l'onglet
+  // Analyse attend encore (sauf participation, où l'étude ne suit pas la checklist). La vente préalable compte comme l'offre : elle finance
   // l'achat, un dossier qui l'attend n'est pas complet (étude, 29/09 au soir).
   function piecesAttenduesDossier(d) {
     const manque = [];
@@ -15412,6 +15570,9 @@
     if (d.roleNotaire !== 'participant') {
       const pieces = d.pieces || {};
       checklistPieces(d.typeVente, d).forEach(p => { if (pieces[p.cle] !== 'recue') manque.push(p.label); });
+      // Documents relevés dans l'avant-contrat (hors checklist) et engagements du vendeur non cochés.
+      const analyse = elementsAnalyseEnAttente(d);
+      manque.push(...analyse.documents, ...analyse.engagements);
     }
     return manque;
   }
@@ -18796,11 +18957,20 @@
       else f('Vente préalable non réalisée', jours <= 15 ? 35 : 25, 'Relancer la vente préalable');
     }
     if (!preemptionLevee(d)) f('Renonciation au droit de préemption attendue', 20, 'Obtenir la renonciation');
-    const pieces = piecesAttenduesDossier(d).filter(p => p !== 'Offre de prêt' && p !== 'Vente préalable');
+    const engagementsEnAttente = elementsAnalyseEnAttente(d).engagements;
+    const pieces = piecesAttenduesDossier(d).filter(p => p !== 'Offre de prêt' && p !== 'Vente préalable' && !engagementsEnAttente.includes(p));
     if (pieces.length) {
       f(`${pieces.length} pièce${pieces.length > 1 ? 's' : ''} manquante${pieces.length > 1 ? 's' : ''} : ${pieces.slice(0, 3).join(', ')}${pieces.length > 3 ? '…' : ''}`,
         Math.min(20, pieces.length * (jours <= 10 ? 6 : 3)), 'Réclamer les pièces');
     } else if (d.roleNotaire !== 'participant') f('Pièces du dossier reçues', 0);
+    // Engagements du vendeur (onglet Analyse) : des travaux ou un entretien non faits peuvent
+    // repousser la signature autant qu'une pièce.
+    const nbEngagements = d.roleNotaire === 'participant' ? 0 : ((d.analyseJuridique && d.analyseJuridique.engagements) || []).length;
+    if (engagementsEnAttente.length) {
+      const n = engagementsEnAttente.length;
+      f(`${n} engagement${n > 1 ? 's' : ''} du vendeur non réalisé${n > 1 ? 's' : ''} : ${engagementsEnAttente.slice(0, 2).map(x => x.replace(/^Engagement : /, '')).join(', ')}${n > 2 ? '…' : ''}`,
+        Math.min(15, n * (jours <= 10 ? 6 : 3)), 'Relancer le vendeur');
+    } else if (nbEngagements) f('Engagements du vendeur réalisés', 0);
     const appelFait = echeanceValidee(d, 'appelFonds');
     if (appelFait) f('Appel de fonds envoyé', 0);
     else if (jours <= 20) f('Appel de fonds à envoyer', jours <= 10 ? 15 : 8, 'Envoyer l’appel de fonds');
@@ -22910,10 +23080,11 @@
       // (échéances), ce qu'on attend (pièces), ce que dit l'acte, ce qu'on écrit, ce qui s'est
       // passé. Le compteur dit ce qu'il y a dedans sans l'ouvrir ; la pastille rouge, qu'il y a du
       // nouveau (même signal « Nouveau » que partout ailleurs, voir d.piecesNotifications).
+      const avAnalyse = avancementAnalyse(d);
       const ongletsFiche = [
         { cle: 'echeances', libelle: 'Échéances', compteur: nbEcheancesAVenir ? String(nbEcheancesAVenir) : '', titre: `${nbEcheancesAVenir} échéance(s) à venir`, nouveau: notifications.includes(CLE_NOTIF_OFFRE_PRET) },
         avecPieces ? { cle: 'pieces', libelle: 'Pièces', compteur: `${nbPiecesRecues}/${checklist.length}`, titre: `${nbPiecesRecues} pièce(s) reçue(s) sur ${checklist.length}`, complet: checklist.length > 0 && nbPiecesRecues === checklist.length, nouveau: notifPieces } : null,
-        { cle: 'analyse', libelle: 'Analyse', compteur: analyse.engagements.length ? String(analyse.engagements.length) : '', titre: `${analyse.engagements.length} obligation(s) du vendeur` },
+        { cle: 'analyse', libelle: 'Analyse', compteur: avAnalyse.total ? `${avAnalyse.faits}/${avAnalyse.total}` : '', titre: `${avAnalyse.faits} reçu(s) ou réalisé(s) sur ${avAnalyse.total} : obligations du vendeur et documents relevés dans l’avant-contrat`, complet: avAnalyse.total > 0 && avAnalyse.faits === avAnalyse.total },
         { cle: 'echanges', libelle: 'Échanges', compteur: '', titre: 'Emails au client, questionnaire, appel de fonds' },
         { cle: 'historique', libelle: 'Historique', compteur: historique.length ? String(historique.length) : '', titre: `${historique.length} entrée(s)` }
       ].filter(Boolean);
@@ -22979,15 +23150,15 @@
               <div class="analyse-juridique">
                 ${analyse.engagements.length > 0 ? `
                   <div class="analyse-section">
-                    <div class="analyse-sous-titre">Engagements du vendeur <span class="analyse-compteur">${analyse.engagements.length}</span></div>
+                    <div class="analyse-sous-titre">Engagements du vendeur <span class="analyse-compteur">${analyse.engagements.filter(e => etatEngagementAnalyse(d, e).fait).length}/${analyse.engagements.length}</span>${infoBulle('Cochez un engagement une fois réalisé (justificatif reçu, travaux faits). Un engagement non coché garde le dossier « Attente de pièces » et baisse la probabilité de tenue du rendez-vous. Un engagement dont la pièce est reçue se coche seul.')}</div>
                     ${analyse.engagements.map((e, i) => renderEngagement(e, i, d.id)).join('')}
                   </div>
                 ` : ''}
                 <div class="analyse-section">
-                  <div class="analyse-sous-titre">Documents et pièces identifiés <span class="analyse-compteur">${analyse.documents.length}</span></div>
-                  <div class="analyse-documents-liste">
+                  <div class="analyse-sous-titre">Documents et pièces identifiés <span class="analyse-compteur">${analyse.documents.filter(doc => documentAnalyseRecu(d, doc)).length}/${analyse.documents.length}</span>${infoBulle('Cochez un document une fois reçu. S’il figure aussi dans la checklist (« checklist »), c’est la même case que dans l’onglet Pièces.')}</div>
+                  <div class="analyse-documents-cases">
                     ${analyse.documents.length > 0
-                      ? analyse.documents.map((doc, i) => renderDocBadge(doc, i, d.id)).join('')
+                      ? analyse.documents.map((doc, i) => renderDocumentAnalyse(d, doc, i)).join('')
                       : '<span class="analyse-vide">Aucun document type reconnu automatiquement.</span>'}
                   </div>
                 </div>
@@ -28961,7 +29132,8 @@
 
   function signalerSiDossierDevenuComplet(d) {
     if (!d) return;
-    if (!dossierEntierementComplet(d)) {
+    const analyse = elementsAnalyseEnAttente(d);
+    if (!dossierEntierementComplet(d) || analyse.engagements.length || analyse.documents.length) {
       if (d.completNotifieLe) d.completNotifieLe = null;
       return;
     }

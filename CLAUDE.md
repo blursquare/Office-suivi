@@ -203,6 +203,15 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
   **Notification d'une pièce trouvée : une seule fois** par dossier + pièce + fichier (registre
   serveur `pieces-notifiees`, 30 jours, `dedoublonnerPieces` dans `routes/notifications.js`) ; une
   seule vérification NAS à la fois par dossier et par fenêtre (`verificationsDossierEnCours`).
+- **Onglet Analyse de la fiche** (étude, 02/10) : chaque engagement du vendeur (`e.fait`, `faitLe`) et chaque
+  document relevé (`doc.recu`, `recuLe`) se coche réalisé/reçu ; non coché → compté dans `piecesAttenduesDossier`
+  (« Attente de pièces », libellé « Engagement : … » par `libelleCourtEngagement`) et dans
+  `probabiliteTenueSignature` (facteur « engagement(s) du vendeur non réalisé(s) », « Relancer le vendeur ») ; jamais
+  pour une participation (`elementsAnalyseEnAttente`). Un document qui est une pièce de la checklist
+  (`cleChecklistDocumentAnalyse`) partage la case de l'onglet Pièces (validation à la main) et n'est compté qu'une
+  fois ; un engagement dont toutes les pièces sont reçues est réalisé de lui-même (`etatEngagementAnalyse`, case
+  grisée) ; cocher un engagement valide à la main les pièces de la checklist qu'il fait réclamer (`e.piecesValidees`,
+  rendues au décochage). Notification Teams « dossier complet » seulement si l'analyse ne laisse rien en attente.
 - **Dépôt de garantie** : toujours déduit de l'appel de fonds (l'agence reverse la somme) ; le
   détenteur dit seulement quoi réclamer.
 - **Fonds reçus** (reçus comptables du NAS) : le client est le **titulaire** en début de ligne, et

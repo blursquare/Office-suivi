@@ -14379,3 +14379,28 @@ page d'Authentic n'est disponible ici : construit d'abord le transport et un out
   laisser passer un nom, corrigé avant le commit). Tests `tests/extension-authentic.test.js` (« aucun nom ne sort »).
 - Vérifié dans Chromium : relevé d'une page inventée imitant un dossier, envoi au serveur, fenêtre CLAIRE (clair,
   sombre). **Non vérifié** : vrai Firefox, vraies pages d'Authentic, signature Mozilla.
+
+### 02/10/2026 07:40 — Fiche, onglet Analyse : engagements et documents cochés reçus/réalisés
+
+Demande de l'étude : « Revoir la partie Analyse de la fiche d'un dossier. Quand une pièce est trouvée dans
+Analyse ou un engagement, le rendre cochable pour indiquer si c'est reçu/réalisé ou non, et le prendre en compte
+dans la complétude du dossier et la probabilité de tenue du rendez-vous. »
+- Fonctions pures : `cleChecklistDocumentAnalyse`, `documentAnalyseRecu`, `etatEngagementAnalyse` ({ fait, auto,
+  motif }), `libelleCourtEngagement` (objet sans « Le PROMETTANT s'engage à »), `elementsAnalyseEnAttente`,
+  `avancementAnalyse`. `piecesAttenduesDossier` y ajoute les documents hors checklist non reçus et les
+  engagements non réalisés (hors participation) → `etatDossier` « Attente de pièces » tant qu'il en reste.
+  `probabiliteTenueSignature` : facteur distinct pour les engagements (3 points chacun, 6 à 10 jours ou moins,
+  15 au plus, « Relancer le vendeur »), sans les recompter comme pièces manquantes.
+- Un document relevé qui est une pièce de la checklist partage son état (case = celle de l'onglet Pièces, avec la
+  confirmation de `validerPieceManuellement` / `retirerValidationManuellePiece` ; grisée si trouvée sur le NAS).
+  Un engagement dont toutes les pièces dérivées (`documentsDepuisClause`) sont reçues est réalisé de lui-même.
+  Cocher un engagement valide à la main les pièces de la checklist qu'il fait réclamer (constaté dans Chromium :
+  sans cela, cocher des travaux laissait « Travaux de remise en état » en attente, compté deux fois) ; elles sont
+  mémorisées sur l'engagement (`piecesValidees`) et rendues au décochage.
+- Fiche : case devant chaque engagement (« pièce reçue » si coché seul), documents en lignes cochables (étiquette
+  « checklist »), compteurs « faits/total » des deux sections et de l'onglet (vert quand tout est fait), infobulles.
+  Historique : « Engagement du vendeur réalisé / remis à faire », « Document reçu / remis à recevoir ».
+  Teams « dossier complet » attend aussi que l'analyse soit entièrement cochée.
+- Effet attendu à la mise à jour : les dossiers dont l'analyse relève des engagements ou documents passent
+  « Attente de pièces » tant qu'ils ne sont pas cochés (ou retirés par la croix s'ils ne sont pas pertinents).
+- Tests `tests/analyse-cases.test.js` ; vérifié dans Chromium (clair, sombre, 400 px) sur un dossier inventé.
