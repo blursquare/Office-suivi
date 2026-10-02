@@ -1058,3 +1058,21 @@ test('commentDossierRetrouveAuthentic : numéro, sinon noms vérifiés par l’a
   assert.equal(app.dossierPourIntituleAuthentic('Vente MARTEL / FOURNIER', [d], '5 route de Tours 37000 TOURS', ''), null);
   assert.equal(app.dossierPourIntituleAuthentic('Vente MARTEL / FOURNIER', [d], '12 rue des Lilas 41000 BLOIS', '').id, 'a');
 });
+
+test('garder les deux : emails et téléphones d’Authentic ajoutés à ceux déjà lus, jamais à leur place', () => {
+  assert.equal(app.fusionnerEmailsTexte('jean@exemple.fr', ['Jean@Exemple.fr', 'marie@exemple.fr']), 'jean@exemple.fr; marie@exemple.fr');
+  assert.equal(app.fusionnerEmailsTexte('', ['a@x.fr;b@y.fr']), 'a@x.fr; b@y.fr');
+  assert.equal(app.fusionnerTelephonesTexte('06 12 34 56 78', ['+33 6 12 34 56 78', '02 54 00 00 00']), '06 12 34 56 78 / 02 54 00 00 00');
+  // Création : le compromis donnait un email, Authentic en donne deux autres (un par acquéreur).
+  const extraction = { champs: { emailAcquereur: { valeur: 'compromis@exemple.fr' } } };
+  app.completerExtractionDepuisAuthentic(extraction, {
+    intitule: 'VTE MARTEL / FOURNIER', immeubles: [], documents: [], parties: [],
+    personnes: [
+      { id: 'p1', nom: 'MARTEL', prenom: 'Alexandre', emails: [], telephones: [] },
+      { id: 'p2', nom: 'FOURNIER', prenom: 'Camille', emails: ['camille@exemple.fr'], telephones: [] },
+      { id: 'p3', nom: 'FOURNIER', prenom: 'Paul', emails: ['paul@exemple.fr'], telephones: ['06 11 22 33 44'] }
+    ]
+  });
+  assert.equal(extraction.champs.emailAcquereur.valeur, 'compromis@exemple.fr; camille@exemple.fr; paul@exemple.fr');
+  assert.equal(extraction.champs.telephoneAcquereur.valeur, '06 11 22 33 44');
+});

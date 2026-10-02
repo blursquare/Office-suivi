@@ -15240,3 +15240,17 @@ Rendu visible : `commentDossierRetrouveAuthentic` → texte du journal (Réglage
 numéro Authentic (N) » ou « retrouvé par les noms (vendeur identique, acquéreur identique), adresse : code postal,
 adresse (…), numéro — 9 points » (« adresse non affichée sur la page » quand la page ne la montre pas). Test du cas
 mêmes noms / autre bien.
+
+### 02/10/2026 (21 h 36) — Emails déjà présents « pas réécrits » : garder les deux
+
+Étude : « Parfois quand une donnée est déjà présente, par exemple adresse email, elle n'est pas réécrite. » Question
+posée (remplacer / remplacer sauf saisie / proposer / garder les deux) → **« Garder les deux (actuel) »**. La fiche
+client lue après création ajoutait déjà les adresses nouvelles (`appliquerClientAuthentic`). Trois pertes trouvées :
+- création (`completerExtractionDepuisAuthentic`) : seul le PREMIER email d'Authentic du côté était repris, et il
+  REMPLAÇAIT celui du compromis (le second acquéreur perdu) ; idem téléphones du compromis. Désormais
+  `fusionnerEmailsTexte` / `fusionnerTelephonesTexte` (compromis d'abord, puis toutes les parties, sans doublon :
+  casse ignorée, 9 derniers chiffres) ;
+- formulaire (`appliquerEmailsChamp`) : un email tapé à la main n'était jamais complété — il est gardé, les adresses
+  lues s'y ajoutent ;
+- fiche : l'email de l'acquéreur représenté par un confrère était enregistré mais caché (« Par son notaire ») — il
+  s'affiche désormais dès qu'il est connu, comme pour le vendeur (`coordonneesPartiesDossier`).

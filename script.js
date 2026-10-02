@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-02 21:32';
+  const VERSION_APP = '2026-10-02 21:36';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-02 21:36', resume: "Emails et téléphones repris d'Authentic : on garde les deux. À la création d'un dossier, les adresses de TOUTES les parties du côté (deux acquéreurs = deux emails) s'ajoutent à celle lue dans le compromis au lieu de la remplacer — avant, seul le premier email d'Authentic était repris et il écrasait celui du compromis ; un email tapé à la main dans le formulaire est gardé, les autres s'y ajoutent. Sur la fiche, l'email de l'acquéreur reste affiché quand un confrère le représente (il était enregistré mais caché derrière « Par son notaire »)." },
     { version: '2026-10-02 21:32', resume: "Authentic, Réglages › Authentic : chaque page reprise dit comment son dossier a été retrouvé — par son numéro, ou par les noms de l'intitulé vérifiés par l'adresse du bien (code postal, voie, numéro), avec les points obtenus. Des noms identiques sur un autre bien (autre code postal ou autre voie) ne désignent pas le dossier." },
     { version: '2026-10-02 21:18', resume: "Authentic : un dossier identifié par « VTE VENDEURS / ACQUÉREURS », sans numéro devant, est reconnu — en titre de l'onglet ouvert comme en en-tête de la page — et retrouvé par les noms ; le numéro, caché dans les données du dossier, est repris quand la page le porte (devant l'en-tête ou dans un champ « N° de dossier ») et sert ensuite d'identifiant. Une fiche client ouverte dans l'onglet d'un dossier est rangée dans ce dossier. Extension 0.3.8." },
     { version: '2026-10-02 21:15', resume: "Authentic, d'après l'usage de l'étude : plusieurs dossiers ouverts en même temps — seul l'onglet actif désigne la page, jamais un autre dossier ouvert à côté (extension 0.3.7) ; une liste de résultats de recherche ne désigne plus aucun dossier. La page d'un dossier est lue quelle que soit la formulation de son intitulé : l'affaire est retrouvée par son numéro, commun à la promesse et à la vente, puis par les noms. Un ancien dossier des mêmes clients (acte signé avant le dossier en cours) n'est jamais appliqué ni ne prend le numéro, et ne fait plus apparaître « Choisir » ; ce message n'apparaît que si un dossier en cours sans numéro porte ces noms." },
@@ -8526,14 +8527,26 @@
     return true;
   }
 
+  // Un champ email déjà rempli à la main garde son adresse ; celles lues (compromis, Authentic) s'y
+  // ajoutent (étude, 02/10 : « garder les deux »).
+  function appliquerEmailsChamp(id, valeur) {
+    if (appliquerValeurChamp(id, valeur)) return true;
+    const champ = document.getElementById(id);
+    if (!champ || !valeur) return false;
+    const fusion = fusionnerEmailsTexte(champ.value, [valeur]);
+    if (fusion === (champ.value || '').trim()) return false;
+    champ.value = fusion;
+    return true;
+  }
+
   function appliquerExtractionAuFormulaire(extraction) {
     if (!extraction) return;
     const champs = extraction.champs || {};
     if (champs.nom) appliquerValeurChamp('f-nom', champs.nom.valeur);
     if (champs.prixVente) appliquerValeurChamp('f-prix-vente', champs.prixVente.valeur);
     if (champs.prixMobilier) appliquerValeurChamp('f-prix-mobilier', champs.prixMobilier.valeur);
-    if (champs.emailAcquereur) appliquerValeurChamp('f-email-acquereur', champs.emailAcquereur.valeur);
-    if (champs.emailVendeur) appliquerValeurChamp('f-email-vendeur', champs.emailVendeur.valeur);
+    if (champs.emailAcquereur) appliquerEmailsChamp('f-email-acquereur', champs.emailAcquereur.valeur);
+    if (champs.emailVendeur) appliquerEmailsChamp('f-email-vendeur', champs.emailVendeur.valeur);
     if (champs.nomAgence) appliquerValeurChamp('f-nom-agence', champs.nomAgence.valeur);
     if (champs.depotGarantie) appliquerValeurChamp('f-depot-garantie', champs.depotGarantie.valeur);
     if (champs.sequestreDepot) appliquerValeurChamp('f-sequestre-depot', champs.sequestreDepot.valeur);
@@ -10085,6 +10098,21 @@
   // l'export, plus sûres que la lecture d'un texte : parties et état civil, adresse et type du bien,
   // email de l'acquéreur, nom du dossier ; notaires seulement si le texte n'a rien établi. Les
   // dates et le prix restent ceux du texte. Modifie et renvoie `extraction`. Pure (hors objets passés).
+  // Pure : « a@x.fr; b@y.fr » — les adresses déjà là, puis les nouvelles (sans doublon, casse ignorée).
+  function fusionnerEmailsTexte(texte, emails) {
+    const tous = emailsDepuisTexte(texte || '');
+    (emails || []).forEach(e => emailsDepuisTexte(e).forEach(x => { if (!tous.some(y => y.toLowerCase() === x.toLowerCase())) tous.push(x); }));
+    return tous.join('; ');
+  }
+
+  // Pure : « 06 … / 02 … » — les numéros déjà là, puis les nouveaux (comparés sur leurs 9 derniers chiffres).
+  function fusionnerTelephonesTexte(texte, telephones) {
+    const cle = (t) => String(t || '').replace(/\D/g, '').slice(-9);
+    const tous = String(texte || '').split('/').map(t => t.trim()).filter(Boolean);
+    (telephones || []).forEach(t => { if (cle(t).length === 9 && !tous.some(x => cle(x) === cle(t))) tous.push(String(t).trim()); });
+    return tous.join(' / ');
+  }
+
   function completerExtractionDepuisAuthentic(extraction, donnees) {
     if (!extraction || !donnees) return extraction;
     const origine = { origine: 'authentic', source: { extrait: 'Export Authentic', index: null, page: null } };
@@ -10106,16 +10134,22 @@
     extraction.champs = extraction.champs || {};
     const nom = String(donnees.intitule || '').replace(/^\s*(?:vte|vente|succession|succ)\b\.?\s*[-:]?\s*/i, '').trim();
     if (nom) extraction.champs.nom = champExtraction(nom, origine);
-    const email = parties.filter(p => p.role === 'ACQUEREUR').reduce((t, p) => t.concat(p.emails), [])[0];
-    if (email) extraction.champs.emailAcquereur = champExtraction(email, origine);
-    const emailV = parties.filter(p => p.role === 'VENDEUR').reduce((t, p) => t.concat(p.emails), [])[0];
-    if (emailV) extraction.champs.emailVendeur = champExtraction(emailV, origine);
+    // Emails et téléphones : ceux de TOUTES les parties du côté, ajoutés à ceux déjà lus dans le compromis
+    // (étude, 02/10 : « garder les deux » — avant, seul le premier email d'Authentic était repris, et il
+    // remplaçait celui du compromis).
+    const valeur = (cle) => (extraction.champs[cle] && extraction.champs[cle].valeur) || '';
+    const emailsCote = (role) => parties.filter(p => p.role === role).reduce((t, p) => t.concat(p.emails || []), []);
+    const telsCote = (role) => parties.filter(p => p.role === role).reduce((t, p) => t.concat(p.telephones || []), []);
+    [['emailAcquereur', 'ACQUEREUR'], ['emailVendeur', 'VENDEUR']].forEach(([cle, role]) => {
+      const fusion = fusionnerEmailsTexte(valeur(cle), emailsCote(role));
+      if (fusion && fusion !== valeur(cle)) extraction.champs[cle] = champExtraction(fusion, origine);
+    });
     // Téléphones des parties (appels 3CX reconnus) : repris sur la fiche à la création, sans passer
     // par le formulaire (modifiables ensuite dans l'onglet Échanges).
-    const tels = (role) => parties.filter(p => p.role === role).reduce((t, p) => t.concat(p.telephones || []), [])
-      .filter((x, i, l) => l.indexOf(x) === i).join(' / ');
-    if (tels('ACQUEREUR')) extraction.champs.telephoneAcquereur = champExtraction(tels('ACQUEREUR'), origine);
-    if (tels('VENDEUR')) extraction.champs.telephoneVendeur = champExtraction(tels('VENDEUR'), origine);
+    [['telephoneAcquereur', 'ACQUEREUR'], ['telephoneVendeur', 'VENDEUR']].forEach(([cle, role]) => {
+      const fusion = fusionnerTelephonesTexte(valeur(cle), telsCote(role));
+      if (fusion && fusion !== valeur(cle)) extraction.champs[cle] = champExtraction(fusion, origine);
+    });
     if (bien && bien.type) extraction.champs.typeVente = champExtraction(bien.type, origine);
     // Prix « Capital » des informations financières d'Authentic : seulement si le texte n'en donne pas.
     const prixAuth = donnees.infosAuthentic && donnees.infosAuthentic.prix;
@@ -28107,7 +28141,7 @@
       { partie: 'vendeur', libelle: 'Vendeur', email: d.emailVendeur || '', tel: d.telephoneVendeur || '',
         parNotaire: confrereRepresenteVendeur(d) && !d.emailVendeur, changerEmail: 'changerEmailVendeur' },
       { partie: 'acquereur', libelle: 'Acquéreur', email: d.emailAcquereur || '', tel: d.telephoneAcquereur || '',
-        parNotaire: !!notaireParticipantRepresenteAcquereur(d), changerEmail: 'changerEmailAcquereur' }
+        parNotaire: !!notaireParticipantRepresenteAcquereur(d) && !d.emailAcquereur, changerEmail: 'changerEmailAcquereur' }
     ];
   }
 

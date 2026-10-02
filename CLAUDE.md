@@ -655,7 +655,7 @@ Plainte principale de l'étude : **le bruit**, pas les oublis — ne pas élargi
   téléphone/email manquants et situation matrimoniale, alerte si un vendeur marié/pacsé vend sans son conjoint ;
   côté de la fiche par nom de famille, nom d'usage puis **conjoint** (`roleConjointAuthenticDansDossier`), sinon
   « À rattacher » sur la fiche (`clientsAPlacer` : Vendeur / Acquéreur / ×), jamais deviné ; **emails groupés**
-  « a@x.fr;b@y.fr » (`emailsDepuisTexte`) ajoutés à ceux du côté — partout un champ email peut porter plusieurs
+  « a@x.fr;b@y.fr » (`emailsDepuisTexte`) ajoutés à ceux du côté — **jamais remplacés** (étude 02/10, « garder les deux » : à la création aussi, `fusionnerEmailsTexte`/`fusionnerTelephonesTexte`, toutes les parties du côté + compromis ; email tapé dans le formulaire complété, `appliquerEmailsChamp`) — partout un champ email peut porter plusieurs
   adresses (`destinatairesEmail` : « a, b » dans le `.eml`, un votant par adresse au sondage) ;
   **personne déjà connue** (étude 02/10, choix : proposé, jamais d'office ; toute partie, archivés compris) — ligne
   « Déjà connu » de la fiche (`personnesConnuesPourDossier` : même personne = un nom contenu dans l'autre sur 2 mots au
