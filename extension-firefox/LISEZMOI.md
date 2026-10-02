@@ -8,7 +8,7 @@ l'envoie au serveur CLAIRE du bureau, puis ouvre CLAIRE sur la page reçue.
 - Jamais un mot de passe ni un champ caché de la page.
 - Le serveur garde la page **30 minutes en mémoire** seulement (ni base, ni journal).
 
-## État (02/10/2026) — version 0.3.1
+## État (02/10/2026) — version 0.3.2
 
 - **Relevé automatique** (étude, 02/10) : sur Authentic (`www.cloud-fichorga.fr`), chaque page affichée est
   relevée dès qu'elle est stable (2,5 s) et envoyée à CLAIRE — seulement si son contenu a changé.
@@ -40,9 +40,10 @@ Signature privée, sans publication sur le catalogue :
 2. `npx web-ext sign --channel=unlisted --api-key=… --api-secret=…` dans ce dossier.
 3. Installer le `.xpi` signé obtenu sur chaque poste (glisser le fichier dans Firefox).
 
-Firefox 140 au moins (142 sur Android) : c'est la version qui connaît la déclaration de données
-`data_collection_permissions` exigée par Mozilla — avec une version minimale plus ancienne, la
-validation de Mozilla affiche trois avertissements (0.3.1 corrige `strict_min_version`).
+Firefox 128 au moins (postes du bureau en Firefox 128, étude 02/10 — 0.3.1 exigeait 140 et refusait de
+s'installer). La déclaration de données `data_collection_permissions` exigée par Mozilla n'est comprise qu'à
+partir de Firefox 140 : avant, elle est simplement ignorée. La validation de Mozilla le signale par deux
+avertissements sur la version minimale, **qui ne bloquent pas la signature**.
 
 Autre voie : une stratégie Firefox d'entreprise (`policies.json`, `ExtensionSettings`) peut
 l'installer sur tous les postes.

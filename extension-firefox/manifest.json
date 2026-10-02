@@ -1,12 +1,12 @@
 {
   "manifest_version": 2,
   "name": "CLAIRE pour Authentic",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "Relève les pages d'Authentic pour CLAIRE (pièces reçues, création de dossier), sur le réseau de l'office.",
   "browser_specific_settings": {
     "gecko": {
       "id": "claire-authentic@etude-gossart.local",
-      "strict_min_version": "140.0",
+      "strict_min_version": "128.0",
       "data_collection_permissions": {
         "required": [
           "websiteContent"
