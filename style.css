@@ -3271,6 +3271,19 @@
   }
   .toast.visible .toast-duree { animation: toast-duree var(--toast-duree, 6s) linear forwards; }
   .toast.en-pause .toast-duree { animation-play-state: paused; }
+  /* Message fixe (choix du dossier d'une fiche client) : pas de filet de durée, une croix pour fermer. */
+  .toast.fixe { padding-left: 32px; padding-right: 32px; }
+  .toast.fixe .toast-duree { display: none; }
+  .toast-fermer {
+    position: absolute; top: 6px; right: 6px;
+    width: 24px; height: 24px; padding: 0;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: none; border: none; border-radius: 6px;
+    color: #fff; opacity: 0.75; cursor: pointer;
+  }
+  .toast-fermer:hover { opacity: 1; background: rgba(255, 255, 255, 0.12); }
+  .toast-fermer:focus-visible { outline: 2px solid #fff; outline-offset: 1px; }
+  .toast-fermer svg { width: 14px; height: 14px; }
   @keyframes toast-duree { from { transform: scaleX(1); } to { transform: scaleX(0); } }
   @media (max-width: 900px) {
     .toast { bottom: 16px; }

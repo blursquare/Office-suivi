@@ -15053,3 +15053,10 @@ comportement inchangé.
 `dateEnvoiLigneAuthentic(l)` = 2e date s'il y en a deux, sinon la seule. RHF : `envoyeeLe` = date d'envoi (d'une ligne
 qui n'est pas un retour), `retourLe` = « retour le … », ligne de réponse/reçue, sinon 3e date. Demandes d'urbanisme
 (`demandesUrbanismeAuthentic`) : « Demande envoyée le … » = date d'envoi.
+
+### 02/10/2026 17 h 18 — Message « Choisir » fixe
+
+Étude : « quand on a le choix du dossier, laisse la notif fixe sans temps d'expiration ». `afficherToast(…, { fixe: true, cle })` :
+pas de minuterie ni de filet de durée, croix `#toast-fermer-btn` (`fermerToastFixe`) ; le bouton « Choisir » ouvre le choix
+sans fermer le message ; `rangerFicheClientAuthentic` le ferme (`fermerToastFixe(cle)`). Un message ordinaire passe devant,
+puis le message fixe revient (`toastFixe`, rappelé par `masquerToast`). Seul usage : fiche client à plusieurs dossiers en cours.

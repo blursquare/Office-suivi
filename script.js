@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-02 17:15';
+  const VERSION_APP = '2026-10-02 17:18';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-02 17:18', resume: "Add-on Authentic : le message « plusieurs dossiers possibles · Choisir » reste affiché sans minuterie, jusqu'à ce que la fiche soit rangée dans un dossier ou qu'on le ferme par la croix. Un autre message peut passer devant ; celui-ci revient ensuite." },
     { version: '2026-10-02 17:15', resume: "Agenda : avant de calculer la semaine probable d'une signature, CLAIRE regarde si le dossier a déjà un rendez-vous « ?? » (en attente de confirmation) dans l'agenda. Si oui, c'est sa date qui compte : plus de carte fantôme ailleurs ni de créneaux proposés, « À confirmer : jeu 22 oct. 15 h » dans « Rendez-vous à placer » et la recherche, et le pourcentage s'affiche sur le rendez-vous lui-même (« Rendez-vous en attente de confirmation », −5 pts). Authentic : pour la RHF et les demandes d'urbanisme, la date retenue est aussi la date d'envoi (2e date de la ligne), comme pour la SAFER." },
     { version: '2026-10-02 16:11', resume: "SAFER (Authentic) : la ligne porte la date de création puis la date d'envoi, puis l'état (« Pris en compte », « Non préemption SAFER »). Le délai part maintenant de la date d'ENVOI ; « prise en compte » n'a plus de date inventée et la non-préemption ne prend plus la date d'envoi pour date de décision. Fiche : « envoyée le … , prise en compte ». Dossiers déjà relevés : même date de départ qu'avant (c'était déjà l'envoi)." },
     { version: '2026-10-02 16:02', resume: "Date de l'avant-contrat : CLAIRE ne la relit plus d'elle-même dans un PDF du NAS (elle a pu poser une date différente de celle validée à l'import) ; les dates posées ainsi sont retirées (l'historique le dit), sauf si elles ont été saisies ou reprises d'Authentic depuis. Restent : la date validée à la création, la saisie sur la fiche (« Signé le ») et Authentic (seulement si vide)." },
@@ -11230,13 +11231,28 @@
   // Bulle noire centrée en bas de l'écran, au-dessus des voiles (voir .toast dans style.css). Elle reste 6 s, se met en
   // pause tant que la souris est dessus (le temps de lire un nom de fichier long ou de viser
   // « Annuler »), puis s'efface en fondu avant d'être retirée du flux.
+  // Message fixe (étude, 02/10 : « quand on a le choix du dossier, laisse la notif fixe sans temps
+  // d'expiration ») : sans minuterie, fermé par son bouton ou la croix. Un message ordinaire arrivé
+  // entre-temps passe devant, puis le message fixe revient.
+  let toastFixe = null;
   function masquerToast() {
     clearTimeout(dernierSupprimeTimeout);
     const toast = document.getElementById('toast');
     if (!toast) return;
     toast.classList.remove('visible', 'en-pause');
     clearTimeout(toastMasquageTimeout);
-    toastMasquageTimeout = setTimeout(() => { toast.style.display = 'none'; }, 200);
+    toastMasquageTimeout = setTimeout(() => {
+      toast.style.display = 'none';
+      if (toastFixe && !toast.classList.contains('fixe')) afficherToast(toastFixe.message, toastFixe.texteBouton, toastFixe.onUndo, { fixe: true, cle: toastFixe.cle });
+    }, 200);
+  }
+
+  // `cle` (facultatif) : ne ferme que le message fixe de cette affaire.
+  function fermerToastFixe(cle) {
+    if (!toastFixe || (cle && toastFixe.cle !== cle)) return;
+    toastFixe = null;
+    const toast = document.getElementById('toast');
+    if (toast && toast.classList.contains('fixe')) masquerToast();
   }
 
   function programmerMasquageToast(delaiMs) {
@@ -11246,19 +11262,29 @@
     dernierSupprimeTimeout = setTimeout(masquerToast, delaiMs);
   }
 
-  function afficherToast(message, texteBouton, onUndo) {
+  function afficherToast(message, texteBouton, onUndo, options) {
     const toast = document.getElementById('toast');
     if (!toast) return;
+    const fixe = !!(options && options.fixe);
+    if (fixe) toastFixe = { message, texteBouton, onUndo, cle: options.cle || '' };
     clearTimeout(toastMasquageTimeout);
     document.getElementById('toast-message').textContent = message;
     const btn = document.getElementById('toast-undo-btn');
     btn.textContent = texteBouton;
+    // Le bouton d'un message fixe ne le ferme pas : il reste jusqu'à ce que son affaire soit réglée
+    // (fermerToastFixe) ou qu'on le ferme par la croix.
     btn.onclick = () => {
-      masquerToast();
+      if (!fixe) masquerToast();
       if (onUndo) onUndo();
     };
+    const fermer = document.getElementById('toast-fermer-btn');
+    if (fermer) {
+      fermer.style.display = fixe ? '' : 'none';
+      if (fixe && !fermer.innerHTML) fermer.innerHTML = icone('x');
+    }
+    toast.classList.toggle('fixe', fixe);
     toast.onmouseenter = () => {
-      if (!toast.classList.contains('visible')) return;
+      if (fixe || !toast.classList.contains('visible')) return;
       clearTimeout(dernierSupprimeTimeout);
       toastRestantMs = Math.max(0, toastRestantMs - (Date.now() - toastDemarreA));
       toast.classList.add('en-pause');
@@ -11275,7 +11301,8 @@
     toast.style.display = 'flex';
     void toast.offsetWidth;
     toast.classList.add('visible');
-    programmerMasquageToast(DUREE_TOAST_MS);
+    if (fixe) clearTimeout(dernierSupprimeTimeout);
+    else programmerMasquageToast(DUREE_TOAST_MS);
   }
 
   async function supprimerDossier(id) {
@@ -26931,6 +26958,7 @@
   // des mêmes personnes y vont sans redemander.
   async function rangerFicheClientAuthentic(cle, id) {
     fermerChoixFicheClientAuthentic();
+    fermerToastFixe(cle);
     const attente = fichesClientEnAttente.get(cle);
     const d = dossiers.find(x => x.id === id);
     if (!attente || !d) return;
@@ -27000,7 +27028,7 @@
           const cle = 'f' + (++numeroFicheEnAttente);
           fichesClientEnAttente.set(cle, { capture });
           while (fichesClientEnAttente.size > 10) fichesClientEnAttente.delete(fichesClientEnAttente.keys().next().value);
-          afficherToast(`Authentic · ${raison}.`, 'Choisir', () => ouvrirChoixFicheClientAuthentic(cle));
+          afficherToast(`Authentic · ${raison}.`, 'Choisir', () => ouvrirChoixFicheClientAuthentic(cle), { fixe: true, cle });
         } else if (raison) {
           afficherToast(`Authentic · ${raison}.`, 'OK', null);
         }
