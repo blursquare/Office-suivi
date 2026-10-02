@@ -38,7 +38,7 @@ test('structureCaptureAuthentic : rubriques, libellés et types ; aucune valeur 
   assert.ok(s.includes('- Nom : [texte, 1 mot]'));
   assert.ok(s.includes('- Prix : [montant]'));
   assert.ok(s.includes('| Section | Numéro | Contenance |'));
-  assert.ok(s.includes('| [texte, 1 mot] | [nombre] | [texte, 2 mots] |'));
+  assert.ok(s.includes('| « XXX » | [nombre] | « 99a 99ca » |'), s);
 });
 
 test('masquerLibelleAuthentic : civilité collée au mot précédent (texte d’icône), prénoms masqués ; texte long réduit', () => {
@@ -61,6 +61,30 @@ test('structureCaptureAuthentic : titre de tableau masqué, icônes nommées, va
     texte: ''
   });
   assert.ok(s.includes('## Tableau 1 — Courriers envoyés (1 ligne)'), s);
-  assert.ok(s.includes('| [texte, 5 mots] | [icône : Signé électroniquement] | [date] |'), s);
+  assert.ok(s.includes('| « Lettre à M. XXX » | [icône : Signé électroniquement] | [date] |'), s);
   assert.ok(!s.includes('Martel') && !s.includes('Alexandre'));
+});
+
+test('vocabulaireCelluleAuthentic : le vocabulaire d’Authentic reste lisible, jamais un client', () => {
+  const v = app.vocabulaireCelluleAuthentic;
+  assert.equal(v('Acte de naissance de Monsieur Jean MARTEL'), 'Acte de naissance de Monsieur XXX');
+  assert.equal(v('Notification SAFER - non préemption'), 'Notification SAFER - non préemption');
+  assert.equal(v('Reçu le 12/03/2026'), 'Reçu le 99/99/9999');
+  assert.equal(v('Demande d’acte de naissance MARTEL Jean'), 'Demande d’acte de naissance XXX');
+  // Un nom en premier mot n'est jamais gardé (le mot suivant n'est pas en minuscules).
+  assert.equal(v('Martel Jean - acte de naissance'), 'XXX - acte de naissance');
+  assert.equal(v('DURAND / FOURNIER'), 'XXX / XXX');
+  assert.equal(v('Courrier à Me Dupont, notaire'), 'Courrier à Me XXX, notaire');
+  for (const s of ['Acte de naissance Jean Martel', 'Courrier Mme Camille Duval', 'pièce de jean.martel@exemple.fr']) {
+    const m = v(s);
+    for (const secret of ['Jean', 'Martel', 'Camille', 'Duval', 'jean.martel']) assert.ok(!m.includes(secret), `${s} → ${m}`);
+  }
+  assert.equal(v('un deux trois quatre cinq six sept huit neuf dix onze douze treize'), '[texte, 13 mots]');
+});
+
+test('structureCaptureAuthentic : cellules de texte en vocabulaire, entre guillemets', () => {
+  const s = app.structureCaptureAuthentic({ titre: 'Authentic', champs: [], texte: '',
+    tableaux: [{ titre: 'Pièces', entete: [], lignes: [['Acte de naissance de Mme Camille DUVAL', '', '12/03/2026', '', 'Reçu']] }] });
+  assert.ok(s.includes('| « Acte de naissance de Mme XXX » | [vide] | [date] | [vide] | « Reçu » |'), s);
+  assert.ok(!s.includes('Camille') && !s.includes('DUVAL'));
 });

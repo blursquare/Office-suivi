@@ -14523,3 +14523,15 @@ l'échéance affichée est la signature (type `rendezVousSignature`, ou date ég
 appel de fonds / projet prennent la date du rendez-vous à défaut de la leur) et `etatDossier(d).cle` vaut `complet` ou
 `pret` ; `classeDateEcheanceSuivi` → `signature-ok` (`--success`, gras), prioritaire sur le rouge des 3 jours. Vues
 Échéances et Tableau. Vérifié dans Chromium (clair, sombre).
+
+### 02/10/2026 — Authentic : pièces reçues automatiquement, création de dossier — cadrage
+
+Demande : « rendre automatique la mise à jour d'une pièce reçue (acte de naissance, notification SAFER passée en non
+préemption) et l'indiquer dans la fiche ; créer un dossier depuis Authentic (vendeur, acquéreurs, bien, notaire,
+agence) ». Questions posées, réponses : pièce **séparée « Réponse SAFER »** ; mise à jour **automatique à l'affichage** ;
+création par **« Nouveau dossier » pré-rempli**. L'étude précise que fiches client et fiches bien s'ouvrent une à une.
+Rien n'est encore branché : la copie de structure réduisait chaque cellule à « [texte, N mots] », ce qui empêchait de voir
+qu'une ligne est un acte de naissance ou une notification SAFER. `vocabulaireCelluleAuthentic` : cellule de 12 mots au
+plus, mots en minuscules et sigles gardés (SAFER, DIA, LRAR… ajoutés à `SIGLES_STRUCTURE_AUTHENTIC`), premier mot à
+majuscule gardé seulement si le suivant est en minuscules ou un sigle, tout autre mot à majuscule → XXX, nom après civilité
+→ XXX, chiffres → 9 ; tests de non-fuite (« Martel Jean - acte de naissance » → « XXX - acte de naissance »).

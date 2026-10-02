@@ -603,7 +603,13 @@ Plainte principale de l'étude : **le bruit**, pas les oublis — ne pas élargi
   `masquerValeurAuthentic`), puis mapper vers les champs du dossier comme `completerExtractionDepuisAuthentic`.
   Non vérifié dans un vrai Firefox ni sur Authentic (relevé testé dans Chromium sur une page inventée) ;
   installation durable = signature Mozilla « unlisted » ou stratégie d'entreprise ; non géré si `authActive`.
-  Demander à Fichorga si une API existe.
+  Demander à Fichorga si une API existe. **Choix de l'étude (02/10) pour la suite** : mise à jour **automatique à
+  l'affichage** d'une page d'Authentic (sans clic, pièces cochées « reçue dans Authentic », décochables, historique) ;
+  une notification SAFER de non-préemption = **pièce séparée « Réponse SAFER »** (jamais la DIA/DPU de la commune) ;
+  création depuis Authentic = **« Nouveau dossier » pré-rempli à vérifier** (comme le ZIP), en assemblant plusieurs
+  pages relevées (le dossier, puis chaque fiche client et chaque fiche bien, qui s'ouvrent une à une). Attend la
+  structure réelle : page de gestion du dossier (avec un acte de naissance reçu et une notification SAFER), fiches
+  client, fiches bien, notaires/agence. Cellules de tableau copiées en **vocabulaire** (`vocabulaireCelluleAuthentic`).
 - **Arborescence type des dossiers clients sur le NAS** (MAISON, COPRO, TERRAIN, SUCC, CESSION DE
   FONDS) : détaillée dans `docs/historique.md` (fin du fichier). L'avant-contrat signé est à la
   racine du dossier client ou sous « SRU » ; la rubrique « AAE » contient les pièces réunies entre

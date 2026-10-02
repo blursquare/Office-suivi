@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-02 10:31';
+  const VERSION_APP = '2026-10-02 10:38';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-02 10:38', resume: "Authentic : « Copier la structure (sans données) » laisse désormais lisible le vocabulaire des tableaux (« Acte de naissance de M. XXX », « Notification SAFER », « Reçu le 99/99/9999 ») : noms, prénoms et chiffres restent masqués. Étape préalable à la mise à jour automatique des pièces depuis Authentic." },
     { version: '2026-10-02 10:31', resume: "Suivi des dossiers : la date de signature s'affiche en vert quand le dossier est « Complet » ou « Prêt » (vues Échéances et Tableau). Les autres dates gardent leur couleur (rouge à 3 jours ou moins)." },
     { version: '2026-10-02 10:28', resume: "Suivi des dossiers : sur le poste de Bastien (administrateur), le filtre « Responsable » revient à « Tous » par défaut : tous les dossiers de l'étude sont affichés à l'ouverture. Les autres collaborateurs gardent leurs propres dossiers présélectionnés." },
     { version: '2026-10-02 10:27', resume: "Suivi des dossiers, vue Échéances : tous les dossiers sont affichés. Un dossier sans échéance datée en attente (rendez-vous à fixer sans date butoir, toutes les dates validées…) était omis ; il apparaît maintenant dans une section « Sans échéance datée » en bas de la liste. Les échéances au-delà de 8 semaines restent sous « Plus tard »." },
@@ -25155,7 +25156,7 @@
   // CLAIRE sur « #authentic=<id> ». Tant que la structure des pages d'Authentic n'est pas connue,
   // CLAIRE montre ce qu'elle a reçu et propose d'en copier la STRUCTURE SANS DONNÉES (libellés et
   // types de valeurs, jamais une valeur) : c'est elle qui servira à brancher la reprise dans une fiche.
-  var SIGLES_STRUCTURE_AUTHENTIC = ['TVA', 'SCI', 'CU', 'DPE', 'ERP', 'PLU', 'SRU', 'IBAN', 'RIB', 'BIC', 'VTE', 'AAE', 'DIA', 'DPU', 'TF', 'CP', 'SIREN', 'SIRET', 'RCS', 'N°', 'HT', 'TTC', 'EUR'];
+  var SIGLES_STRUCTURE_AUTHENTIC = ['TVA', 'SCI', 'CU', 'DPE', 'ERP', 'PLU', 'SRU', 'IBAN', 'RIB', 'BIC', 'VTE', 'AAE', 'DIA', 'DPU', 'TF', 'CP', 'SIREN', 'SIRET', 'RCS', 'N°', 'HT', 'TTC', 'EUR', 'SAFER', 'PDF', 'LRAR', 'AR', 'SPANC', 'ASL', 'AFUL', 'SPF', 'CSN', 'PV', 'AG'];
 
   // Pure : le type d'une valeur, jamais la valeur.
   function masquerValeurAuthentic(v) {
@@ -25191,6 +25192,39 @@
       .trim();
   }
 
+  // Pure : le texte d'une cellule de tableau réduit à son VOCABULAIRE (étude, 02/10 : pour reconnaître
+  // « Acte de naissance — reçu », « Notification SAFER — non préemption » sans jamais voir un client).
+  // Gardés : les mots en minuscules, les sigles connus, le premier mot s'il commence par une majuscule
+  // et que le suivant est en minuscules ou un sigle (« Acte de… », « Notification SAFER »). Masqués :
+  // tout autre mot à majuscule (noms, prénoms) → XXX, le nom après une civilité, chiffres → 9,
+  // emails. Plus de 12 mots : le nombre de mots seulement.
+  var MOTS_MAX_CELLULE_AUTHENTIC = 12;
+  function vocabulaireCelluleAuthentic(v) {
+    const brut = String(v == null ? '' : v).replace(/\s+/g, ' ').trim();
+    if (!brut) return '';
+    const mots = brut.split(' ');
+    if (mots.length > MOTS_MAX_CELLULE_AUTHENTIC) return `[texte, ${mots.length} mots]`;
+    const nu = m => m.replace(/^[^A-Za-zÀ-ɏ]+|[^A-Za-zÀ-ɏ°]+$/g, '');
+    const sigle = m => SIGLES_STRUCTURE_AUTHENTIC.includes(nu(m).toUpperCase()) && nu(m) === nu(m).toUpperCase();
+    const minuscule = m => /^[a-zà-ÿœæ'’-]+$/.test(nu(m));
+    const civilite = /^(Monsieur|Madame|Mademoiselle|Maître|Mme|Mlle|Me|M\.?)$/;
+    let apresCivilite = false;
+    return mots.map((m, i) => {
+      const n = nu(m);
+      if (/@/.test(m)) return '[email]';
+      if (!n) return m.replace(/\d/g, '9');
+      if (civilite.test(m) || civilite.test(n)) { apresCivilite = true; return m; }
+      const majuscule = /^[A-ZÀ-Ý]/.test(n);
+      const fin = (m.match(/[^A-Za-zÀ-ɏ°]+$/) || [''])[0].replace(/\d/g, '9');
+      if (apresCivilite && majuscule && !sigle(m)) return 'XXX' + fin;
+      apresCivilite = false;
+      if (minuscule(m) || sigle(m)) return m.replace(/\d/g, '9');
+      const suivant = mots[i + 1];
+      if (i === 0 && /^[A-ZÀ-Ý][a-zà-ÿœæ'’-]+$/.test(n) && (!suivant || minuscule(suivant) || sigle(suivant))) return m.replace(/\d/g, '9');
+      return 'XXX' + fin;
+    }).join(' ').replace(/\d/g, '9').replace(/XXX(\s+XXX)+/g, 'XXX');
+  }
+
   // Pure : une cellule « icône » relevée par l'extension (cellule sans texte, titre de l'icône) :
   // « ⟦icône⟧ Signé électroniquement ». Le titre d'une icône est du vocabulaire d'Authentic, pas une
   // donnée : il passe dans la structure, masqué comme un libellé.
@@ -25199,7 +25233,7 @@
     const s = String(v == null ? '' : v);
     return s.startsWith(MARQUE_ICONE_AUTHENTIC)
       ? `[icône : ${masquerLibelleAuthentic(s.slice(MARQUE_ICONE_AUTHENTIC.length)) || 'sans titre'}]`
-      : masquerValeurAuthentic(s);
+      : (masquerValeurAuthentic(s).startsWith('[texte') ? `« ${vocabulaireCelluleAuthentic(s)} »` : masquerValeurAuthentic(s));
   }
 
   // Pure : la structure d'une page reçue, en texte, à copier pour le calibrage.
