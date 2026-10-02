@@ -266,7 +266,7 @@ function demarrer() {
   demarrerResumeEmails(depot, parametresRepo, undefined, config);
   // Sondages de créneaux : réponses relues dans la boîte, options expirées retirées (5 min).
   demarrerSurveillanceSondages(parametresRepo);
-  // Emails des dossiers : boîte de réception et « Éléments envoyés » relus toutes les 10 minutes.
+  // Emails des dossiers : boîte de réception et « Éléments envoyés » relus toutes les minutes.
   demarrerSurveillanceEmailsDossiers(depot, parametresRepo, config);
 
   // Rapport technique (voir rapportTechnique.js) : les erreurs et avertissements du serveur, lancé

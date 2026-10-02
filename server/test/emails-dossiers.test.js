@@ -139,3 +139,28 @@ test('route : pièce jointe rangée une seule fois dans le dossier client, jamai
     assert.equal(prep.status, 201);
   } finally { serveur.close(); db.close(); fs.rmSync(racine, { recursive: true, force: true }); }
 });
+
+test('email lu en entier : relu dans Exchange à la demande, jamais gardé ; un seul tour à la fois', async () => {
+  const { db, repo, depot } = preparer();
+  try {
+    const etat = E.lireEtat(repo);
+    etat.emails.push({ id: 'e1', itemId: 'IN9', dossierId: 'd1', sens: 'recu', date: '2026-10-02T08:00:00Z', objet: 'RIB', de: { nom: 'Alex MARTEL', adresse: 'alex.martel@exemple.fr' }, a: ['bastien@office.fr'], pj: [] });
+    E.ecrireEtat(repo, E.assainirEmailsDossiers(etat));
+    const poster = (o, cb) => /GetItem/.test(o.body) && /IN9/.test(o.body)
+      ? cb(null, { statusCode: 200, body: getItems([{ id: 'IN9', corps: 'Bonjour,\n\nVoici mon RIB &amp; ma pièce d’identité.\n\nAlex', a: ['bastien@office.fr', 'julie@office.fr'] }]) })
+      : cb(null, { statusCode: 200, body: find([]) });
+    const r = await E.lireEmailComplet(repo, 'e1', { poster });
+    assert.equal(r.texte, 'Bonjour,\n\nVoici mon RIB & ma pièce d’identité.\n\nAlex');
+    assert.equal(r.a.join(','), 'bastien@office.fr,julie@office.fr');
+    assert.doesNotMatch(JSON.stringify(E.lireEtat(repo)), /Voici mon RIB/);
+    assert.equal((await E.lireEmailComplet(repo, 'inconnu', { poster })).statut, 404);
+    // Deux appels simultanés = un seul tour.
+    let finds = 0;
+    const posterCompte = (o, cb) => { if (/FindItem/.test(o.body)) finds++; setTimeout(() => cb(null, { statusCode: 200, body: find([]) }), 5); };
+    const [a, b] = await Promise.all([E.executerTourEmailsDossiers(depot, repo, { poster: posterCompte }), E.executerTourEmailsDossiers(depot, repo, { poster: posterCompte })]);
+    assert.equal(a, b);
+    const findsUnTour = finds;
+    await E.executerTourEmailsDossiers(depot, repo, { poster: posterCompte });
+    assert.equal(finds, findsUnTour * 2);
+  } finally { db.close(); }
+});

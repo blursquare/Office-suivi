@@ -3,7 +3,7 @@
 // envoyés pour confirmer » ; choix : repérer, ranger les pièces jointes sur le NAS, résumé par l'IA locale ;
 // « boîte de chacun » pour les envois) ----
 //
-// Toutes les 10 minutes, par EWS (mêmes identifiants et même disjoncteur que l'agenda, un seul essai par
+// Toutes les minutes (étude 02/10), par EWS (mêmes identifiants et même disjoncteur que l'agenda, un seul essai par
 // appel) :
 //   - BOÎTE DE RÉCEPTION du compte relié (celle de Bastien, qui « reçoit tout en double ») : chaque email
 //     rattaché à un dossier (expéditeur = client ou confrère du dossier, sinon « VTE - NOM » ou un nom du
@@ -30,7 +30,7 @@ const MAX_EMAILS = 3000;
 const MAX_PREPARES = 500;
 const MAX_LECTURES_TOUR = 30;
 const JOURS_PREMIERE_LECTURE = 7;
-const INTERVALLE_EMAILS_MS = 10 * 60 * 1000;
+const INTERVALLE_EMAILS_MS = 60 * 1000; // étude 02/10 : « relevés toutes les minutes »
 const TAILLE_MAX_PJ = 20 * 1024 * 1024;
 const CODES_ACCES_REFUSE = /ErrorAccessDenied|ErrorNonExistentMailbox|ErrorFolderNotFound|ErrorInvalidSmtpAddress|ErrorMailboxMoveInProgress|ErrorImpersonat|ErrorInvalidUser/;
 
@@ -269,7 +269,17 @@ async function resumerEnArrierePlan(parametresRepo, aResumer, ollama) {
 // ---- Tour ----
 function connexionPrete(r) { return Boolean(r && r.actif && r.url && r.email && r.motDePasse); }
 
-async function executerTourEmailsDossiers(depot, parametresRepo, injections = {}, manuel = false) {
+// Un seul tour à la fois (relève automatique chaque minute et « Lire maintenant » partagent le même) : un
+// second appel pendant un tour reçoit le résultat de celui en cours.
+let tourCourant = null;
+let fileResumes = Promise.resolve();
+function executerTourEmailsDossiers(depot, parametresRepo, injections = {}, manuel = false) {
+  if (tourCourant) return tourCourant;
+  tourCourant = tourEmailsDossiers(depot, parametresRepo, injections, manuel).finally(() => { tourCourant = null; });
+  return tourCourant;
+}
+
+async function tourEmailsDossiers(depot, parametresRepo, injections = {}, manuel = false) {
   const agendaWatch = require('./agendaWatch');
   const { posterEws } = require('./exchange/ews');
   const reglages = parametresRepo.lireReglagesExchange ? parametresRepo.lireReglagesExchange() : {};
@@ -369,7 +379,9 @@ async function executerTourEmailsDossiers(depot, parametresRepo, injections = {}
   resultat.ok = !resultat.erreur;
 
   const ollama = injections.ollama || (injections.config ? require('./llm').creerClientOllama(injections.config) : null);
-  const suite = resumerEnArrierePlan(parametresRepo, aResumer, ollama);
+  // Relève chaque minute : les résumés s'enchaînent dans une seule file (l'IA locale ne traite qu'un email
+  // à la fois), le tour suivant n'attend jamais l'IA.
+  const suite = fileResumes = fileResumes.catch(() => {}).then(() => resumerEnArrierePlan(parametresRepo, aResumer, ollama));
   if (injections.attendreIa) await suite; else suite.catch(() => {});
   return resultat;
 }
@@ -392,6 +404,23 @@ async function lirePieceJointe(parametresRepo, emailId, pjId, injections = {}) {
   return { nom: f.nom || pj.nom, contenu: f.contenu, type: pj.type, email, pj };
 }
 
+// L'email en entier (étude 02/10 : « lisibles en entier dans CLAIRE »), relu dans Exchange à chaque ouverture
+// et JAMAIS gardé ni journalisé : texte (Exchange convertit un email HTML en texte), destinataires, pièces
+// jointes. Rend { texte, a, de, objet, date } ou { erreur, statut }.
+async function lireEmailComplet(parametresRepo, emailId, injections = {}) {
+  const { posterEws } = require('./exchange/ews');
+  const reglages = parametresRepo.lireReglagesExchange ? parametresRepo.lireReglagesExchange() : {};
+  if (!connexionPrete(reglages)) return { erreur: 'La connexion Exchange n’est pas configurée.', statut: 503 };
+  const email = lireEtat(parametresRepo).emails.find((e) => e.id === emailId);
+  if (!email || !email.itemId) return { erreur: 'Email inconnu.', statut: 404 };
+  const r = await posterEws({ url: reglages.url, email: reglages.email, motDePasse: reglages.motDePasse, body: corpsGetItems([email.itemId], true), delaiMs: 30000 }, injections);
+  if (r.echec) return { erreur: r.echec.message, statut: 502 };
+  if (r.statut === 401 || r.statut === 403) return { erreur: 'Identifiants de messagerie refusés.', statut: 502 };
+  const lu = succes(r.corps) ? parseGetItems(r.corps).get(email.itemId) : null;
+  if (!lu) return { erreur: `Email introuvable dans la boîte (${codeReponse(r.corps) || r.statut}) : il a peut-être été déplacé ou supprimé.`, statut: 404 };
+  return { texte: lu.corps, a: lu.a.length ? lu.a : email.a, de: email.de, objet: email.objet, date: email.date, sens: email.sens };
+}
+
 function demarrerSurveillanceEmailsDossiers(depot, parametresRepo, config, intervalleMs) {
   let enCours = false;
   const tour = async () => {
@@ -404,7 +433,7 @@ function demarrerSurveillanceEmailsDossiers(depot, parametresRepo, config, inter
       console.warn('[CLAIRE] Emails des dossiers interrompus :', e.message);
     } finally { enCours = false; }
   };
-  setTimeout(tour, 60 * 1000);
+  setTimeout(tour, 20 * 1000);
   return setInterval(tour, intervalleMs || INTERVALLE_EMAILS_MS);
 }
 
@@ -412,5 +441,5 @@ module.exports = {
   CLE_EMAILS_DOSSIERS, MAX_EMAILS, TAILLE_MAX_PJ, assainirEmailsDossiers, assainirPrepare, lireEtat, ecrireEtat, idCourt,
   normaliserObjet, correspondAuPrepare, dossierDeEmailEnvoye, texteSansCitation, boitesEnvoyes,
   corpsFind, corpsGetItems, corpsGetAttachment, parseFind, parseGetItems, parseGetAttachment, promptResumeEmail,
-  executerTourEmailsDossiers, lirePieceJointe, demarrerSurveillanceEmailsDossiers
+  executerTourEmailsDossiers, lirePieceJointe, lireEmailComplet, demarrerSurveillanceEmailsDossiers
 };

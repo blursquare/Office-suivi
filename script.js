@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-02 23:21';
+  const VERSION_APP = '2026-10-02 23:25';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-02 23:25', resume: "Emails des dossiers relevés toutes les minutes (boîte de réception et éléments envoyés) ; la fiche ouverte affiche les nouveaux emails d'elle-même, et les pièces jointes sont rangées dans la minute. Un clic sur l'objet d'un email l'ouvre en entier dans CLAIRE (texte, destinataires, pièces jointes, « Confirmer la réception ») : il est relu dans la messagerie à chaque ouverture, jamais gardé par CLAIRE." },
     { version: '2026-10-02 23:21', resume: "Onglet Échanges : sous chaque email reçu avec des documents, « Confirmer la réception » prépare la réponse (même objet précédé de RE:, documents listés, signature de l'office ; « Mon Cher Maître » si l'expéditeur est un confrère), puis indique « préparé », et « envoyé le … » une fois retrouvée dans les envois. Réglages › Pièces et Claire Scan › « Noms de fichiers reconnus » : toutes les variantes de nom acceptées pour chaque pièce. Une pièce jointe au nom approchant (« CU.pdf ») est reconnue comme sur le NAS ; « Titre de séjour » n'est plus pris pour un titre de propriété." },
     { version: '2026-10-02 23:16', resume: "Pièces jointes des emails : chacune est maintenant copiée dans le dossier client du NAS, même quand CLAIRE ne la reconnaît pas — dans le bon sous-dossier d'après son nom (diagnostics, copropriété, titre, travaux, comptabilité, AAE… ; pièce d'identité ou RIB chez le Vendeur ou l'Acquéreur selon l'expéditeur), sinon à la racine du dossier. L'onglet Échanges dit où chaque pièce a été rangée. Nouveau : Réglages › Général › « CLAIRE en application » installe sur le poste d'un collaborateur un raccourci (bureau et menu Démarrer) qui ouvre CLAIRE dans sa propre fenêtre, comme sur le poste serveur." },
     { version: '2026-10-02 23:01', resume: "Emails des dossiers : CLAIRE relit toutes les 10 minutes la boîte de réception de l'office et les « Éléments envoyés » de chaque collaborateur. Dans l'onglet Échanges : les emails reçus et envoyés du dossier, un résumé d'une phrase par l'IA locale (le texte n'est jamais gardé), les pièces jointes — reconnues par leur nom, elles sont rangées dans le dossier du NAS et cochées reçues. Un email préparé par CLAIRE passe « envoyé le … » dès qu'il est retrouvé dans les envois. Réglages › Agenda et Outlook : l'état de chaque boîte. Simulateur de provision : barème validé, l'avertissement est retiré." },
@@ -28807,7 +28808,7 @@
       const qui = e.sens === 'recu' ? `De ${escapeHtml(e.de.nom || e.de.adresse)}` : `Envoyé par ${escapeHtml((e.collaborateur || '').split(' ')[0] || e.de.adresse)}${e.a.length ? ` à ${escapeHtml(e.a.slice(0, 2).join(', '))}${e.a.length > 2 ? '…' : ''}` : ''}`;
       return `<li class="email-ligne email-${e.sens}">
         <div class="email-tete"><span class="email-sens">${e.sens === 'recu' ? 'Reçu' : 'Envoyé'}</span><span class="appels-quand">${escapeHtml(dateHeureAppel(Date.parse(e.date)))}</span><span class="email-qui">${qui}</span>${p ? '<span class="dot-label dl-success"><span class="dot"></span>Préparé par CLAIRE</span>' : ''}</div>
-        <div class="email-objet">${escapeHtml(e.objet || '(sans objet)')}</div>
+        <button type="button" class="email-objet email-objet-lien" onclick="ouvrirEmailComplet('${d.id}', '${escapeOnclickArg(e.id)}')" title="Lire l’email en entier">${escapeHtml(e.objet || '(sans objet)')}<span class="email-lire">Lire</span></button>
         ${e.resume ? `<div class="email-resume">${escapeHtml(e.resume)}</div>` : ''}
         ${e.pj.length ? `<div class="email-pjs">${e.pj.map(pj => pjHtml(e, pj)).join('')}</div>` : ''}
         ${accuseHtml(e)}
@@ -28818,7 +28819,7 @@
       return `<li class="email-ligne email-prepare"><div class="email-tete"><span class="email-sens">Préparé</span><span class="appels-quand">${escapeHtml(dateHeureAppel(Date.parse(p.prepareLe)))}</span><span class="email-qui">par ${escapeHtml((p.collaborateur || '').split(' ')[0] || '—')}</span><span class="dot-label ${st.classe}"><span class="dot"></span>${escapeHtml(st.texte)}</span></div><div class="email-objet">${escapeHtml(p.objet)}</div></li>`;
     }).join('');
     return `<div class="emails-dossier">
-        <span class="section-eyebrow">Emails <span class="jour-onglet-nb">${emails.length}</span> ${infoBulle('Emails reçus dans la boîte de l’office et envoyés par les collaborateurs, rattachés à ce dossier (relus toutes les 10 minutes). Le texte n’est jamais gardé : seul le résumé de l’IA locale l’est. Chaque pièce jointe est copiée dans le dossier du NAS : dans le sous-dossier que son nom désigne (pièce d’identité, RIB : Vendeur ou Acquéreur selon l’expéditeur), sinon à la racine.')}</span>
+        <span class="section-eyebrow">Emails <span class="jour-onglet-nb">${emails.length}</span> ${infoBulle('Emails reçus dans la boîte de l’office et envoyés par les collaborateurs, rattachés à ce dossier (relevés chaque minute). Cliquer l’objet pour lire l’email en entier : il est relu dans la messagerie à chaque ouverture, jamais gardé par CLAIRE. Chaque pièce jointe est copiée dans le dossier du NAS : dans le sous-dossier que son nom désigne (pièce d’identité, RIB : Vendeur ou Acquéreur selon l’expéditeur), sinon à la racine.')}</span>
         <ul class="emails-liste">${attente}${emails.slice(0, 5).map(ligne).join('')}</ul>
         ${emails.length > 5 ? `<details class="appels-plus"><summary>${emails.length - 5} de plus</summary><ul class="emails-liste">${emails.slice(5).map(ligne).join('')}</ul></details>` : ''}
       </div>`;
@@ -28833,6 +28834,64 @@
       if (emailsParDossier[id].emails.length || emailsParDossier[id].prepares.length) render();
     } catch (e) { /* réessayé à la prochaine ouverture */ }
   }
+
+  // Fiche ouverte : ses emails relus sans vider le bloc (pas de clignotement), rendu seulement s'ils ont changé.
+  async function rafraichirEmailsFicheOuverte() {
+    const id = dossierOuvert;
+    if (!id || !(id in emailsParDossier) || !emailsParDossier[id]) return;
+    try {
+      const r = await fetchAvecAuth('/api/emails-dossiers?dossierId=' + encodeURIComponent(id));
+      if (!r.ok) return;
+      const neuf = await r.json();
+      const avant = JSON.stringify(emailsParDossier[id]);
+      emailsParDossier[id] = neuf;
+      if (JSON.stringify(neuf) !== avant && dossierOuvert === id) render();
+    } catch (e) { /* tour suivant */ }
+  }
+
+  // Lecture d'un email en entier (étude 02/10 : « lisibles en entier dans CLAIRE ») : relu dans Exchange à
+  // chaque ouverture, jamais gardé ; affiché en texte (jamais le HTML de l'expéditeur dans la page).
+  async function ouvrirEmailComplet(dossierId, emailId) {
+    const d = dossiers.find(x => x.id === dossierId);
+    const email = ((emailsParDossier[dossierId] || {}).emails || []).find(e => e.id === emailId);
+    const overlay = document.getElementById('email-lecture-overlay');
+    const zone = document.getElementById('email-lecture-contenu');
+    if (!overlay || !zone || !email) return;
+    const entete = (texte) => `
+      <div class="email-lecture-tete">
+        <div class="poste-titre" id="email-lecture-titre">${escapeHtml(email.objet || '(sans objet)')}</div>
+        <div class="email-lecture-meta">${email.sens === 'recu' ? `De ${escapeHtml(email.de.nom ? `${email.de.nom} <${email.de.adresse}>` : email.de.adresse)}` : `Envoyé par ${escapeHtml(email.collaborateur || email.de.adresse || '')}`}
+          · ${escapeHtml(dateHeureAppel(Date.parse(email.date)))}${(texte && texte.a || email.a || []).length ? `<br>À ${escapeHtml((texte && texte.a || email.a).join(', '))}` : ''}</div>
+      </div>`;
+    const pjs = email.pj.length ? `<div class="email-pjs email-lecture-pjs">${email.pj.map(pj => `<button type="button" class="lien-action email-pj-nom" onclick="ouvrirPieceJointeEmail('${escapeOnclickArg(email.id)}', '${escapeOnclickArg(pj.id)}')">${icone('file-text')}${escapeHtml(pj.nom)}</button>`).join('')}</div>` : '';
+    zone.innerHTML = entete(null) + '<p class="hint">Lecture de l’email dans la messagerie…</p>';
+    const actions0 = document.getElementById('email-lecture-actions');
+    if (actions0) actions0.innerHTML = '';
+    overlay.style.display = 'flex';
+    try {
+      const r = await fetchAvecAuth('/api/emails-dossiers/contenu?emailId=' + encodeURIComponent(emailId));
+      const corps = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(corps.erreur || 'statut ' + r.status);
+      const accuse = d && email.sens === 'recu' && documentsEmailRecu(email).length
+        ? `<button type="button" class="primary" onclick="fermerEmailComplet(); confirmerReceptionEmail('${d.id}', '${escapeOnclickArg(email.id)}')">${icone('mail')}Confirmer la réception</button>` : '';
+      zone.innerHTML = entete(corps) + pjs
+        + `<div class="email-lecture-texte">${escapeHtml(String(corps.texte || '').replace(/\r\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim() || '(email sans texte)')}</div>`;
+      const actions = document.getElementById('email-lecture-actions');
+      if (actions) actions.innerHTML = accuse;
+    } catch (e) {
+      zone.innerHTML = entete(null) + pjs + `<p class="hint">Email illisible : ${escapeHtml(e.message)}</p>`;
+    }
+  }
+  function fermerEmailComplet() {
+    const overlay = document.getElementById('email-lecture-overlay');
+    if (overlay) overlay.style.display = 'none';
+    const zone = document.getElementById('email-lecture-contenu');
+    if (zone) zone.innerHTML = ''; // le texte ne reste pas dans la page
+  }
+  document.addEventListener('keydown', (e) => {
+    const overlay = document.getElementById('email-lecture-overlay');
+    if (e.key === 'Escape' && overlay && overlay.style.display !== 'none') fermerEmailComplet();
+  });
 
   async function ouvrirPieceJointeEmail(emailId, pjId) {
     const fenetre = window.open('', '_blank');
@@ -29522,10 +29581,14 @@
     // Sondages de créneaux : les réponses relues par le serveur toutes les 5 minutes.
     chargerSondages();
     setInterval(chargerSondages, 2 * 60 * 1000);
-    // Emails des dossiers : pièces jointes reconnues rangées sur le NAS (toutes les 5 minutes) ; la fiche
-    // ouverte relit ses emails à chaque tour.
+    // Emails des dossiers (relevés chaque minute par le serveur, étude 02/10) : pièces jointes rangées sur
+    // le NAS et emails de la fiche ouverte relus chaque minute ; les autres fiches relisent à l'ouverture.
     setTimeout(rangerPiecesJointesReconnues, 30 * 1000);
-    setInterval(() => { Object.keys(emailsParDossier).forEach(k => delete emailsParDossier[k]); rangerPiecesJointesReconnues(); }, 5 * 60 * 1000);
+    setInterval(() => {
+      Object.keys(emailsParDossier).forEach(k => { if (k !== dossierOuvert) delete emailsParDossier[k]; });
+      rafraichirEmailsFicheOuverte();
+      rangerPiecesJointesReconnues();
+    }, 60 * 1000);
     // Appels 3CX : relevés toutes les 3 s, même fenêtre cachée (c'est là qu'ils comptent).
     releverAppels();
     setInterval(releverAppels, INTERVALLE_APPELS_MS);

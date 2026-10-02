@@ -141,14 +141,16 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
    dossier de l'email cité, jamais deviné) ; l'aperçu n'est jamais gardé, seul le résumé l'est ; rédigé
    après l'écriture du résumé sans IA (`ia.enCours`, le poste relit toutes les 20 s).
    **Emails des dossiers** (étude 02/10 : « tu peux lire le contenu », « lire les emails envoyés pour confirmer » ;
-   choix : repérer, ranger sur le NAS, résumé IA ; « boîte de chacun ») — `server/src/emailsDossiers.js`, toutes les 10 min,
+   choix : repérer, ranger sur le NAS, résumé IA ; « boîte de chacun ») — `server/src/emailsDossiers.js`, **toutes les minutes** (étude 02/10, un seul tour à la fois, résumés IA en file),
    même disjoncteur, lecture seule (FindItem/GetItem/GetAttachment) : boîte de réception du compte relié → emails
    rattachés à un dossier (mêmes règles que le résumé du matin, champs à plusieurs adresses compris) relus en entier,
    **texte jamais gardé** (résumé d'une phrase par l'IA locale, puis jeté), pièces jointes listées (images intégrées
    écartées) ; « Éléments envoyés » du compte relié et de chaque collaborateur des Réglages (accès délégué « Relecteur » à
    donner dans Outlook, sinon « Accès non donné ») → objet, destinataires, date seulement ; un email préparé par CLAIRE
    (`livrerEmailDossier` → `POST /api/emails-prepares`) retrouvé (même objet, un destinataire commun, après la préparation)
-   passe « envoyé le … ». Onglet Échanges : bloc « Emails » (`renderEmailsDossier`). **Toute pièce jointe reçue est rangée
+   passe « envoyé le … ». Onglet Échanges : bloc « Emails » (`renderEmailsDossier`, fiche ouverte relue chaque minute) ;
+   **email lisible en entier** (étude 02/10) en cliquant son objet : `ouvrirEmailComplet` → `GET /api/emails-dossiers/contenu`
+   (`lireEmailComplet`, GetItem relu à chaque ouverture, jamais gardé ni journalisé, affiché en texte échappé, jamais en HTML). **Toute pièce jointe reçue est rangée
    seule** (étude 02/10 : « dans les bons sous-dossiers, sinon à la racine » ; `rangerPiecesJointesReconnues`, dossiers
    reliés au NAS, une seule fois, un échec jamais retenté seul, jamais en participation) : reconnue par son NOM
    (`pieceDePieceJointe`, mêmes motifs et exclusions que le NAS) → rubrique de la pièce (`rubriquesPourPiece` + 

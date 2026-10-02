@@ -6,7 +6,7 @@
 const express = require('express');
 const crypto = require('node:crypto');
 const {
-  lireEtat, ecrireEtat, assainirPrepare, executerTourEmailsDossiers, lirePieceJointe, boitesEnvoyes
+  lireEtat, ecrireEtat, assainirPrepare, executerTourEmailsDossiers, lirePieceJointe, lireEmailComplet, boitesEnvoyes
 } = require('../emailsDossiers');
 const { copierDansDossierClient, extensionPieceJointe } = require('../scans');
 
@@ -77,6 +77,14 @@ function creerRouteurEmailsDossiers(parametresRepo, depot, options = {}) {
     ecrireEtat(parametresRepo, etat);
     res.status(201).json({ prepare });
   });
+
+  // L'email en entier, relu dans Exchange (jamais gardé ni journalisé par le serveur).
+  routeur.get('/emails-dossiers/contenu', routeAsync(async (req, res) => {
+    const r = await lireEmailComplet(parametresRepo, String(req.query.emailId || ''), injections);
+    if (r.erreur) { res.status(r.statut || 400).json({ erreur: r.erreur }); return; }
+    res.setHeader('Cache-Control', 'no-store');
+    res.json(r);
+  }));
 
   // Ouvrir une pièce jointe (relue dans Exchange, jamais gardée par le serveur).
   routeur.get('/emails-dossiers/pj', routeAsync(async (req, res) => {

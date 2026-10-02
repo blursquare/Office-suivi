@@ -15492,3 +15492,21 @@ avec signature de l'office » (les deux premières lignes du message, déjà tra
   `nomDitOffrePret` pour l'offre ; `correspondancePieceNom` : « titre de séjour » n'est jamais un titre de propriété.
 Vérifié : tests ; Chromium (faux Exchange) : .eml de l'accusé adressé à l'expéditeur, objet « RE: Pièces pour la vente »,
 4 documents listés, signature ; ligne « Préparé le … » ; liste des noms affichée. Non vérifié : Outlook réel.
+
+### 02/10/2026 23:25 — Emails relevés chaque minute ; email lisible en entier
+Demande : « Il faut que les emails soient relevés toutes les minutes. Et que les emails soient lisibles en entier dans
+CLAIRE aussi. »
+- Serveur : `INTERVALLE_EMAILS_MS` = 60 s (premier tour 20 s après le démarrage) ; `executerTourEmailsDossiers` ne lance
+  qu'un tour à la fois (relève automatique et « Lire maintenant » partagent le même, `tourCourant`) ; résumés de l'IA
+  locale enchaînés dans une file (`fileResumes`), le tour suivant ne les attend jamais. Coût par minute : un FindItem sur la
+  boîte de réception + un par boîte d'« Éléments envoyés » (GetItem seulement pour les nouveaux emails) ; même disjoncteur.
+- Lecture en entier : `lireEmailComplet` (GetItem du seul email, `item:Body` en texte — Exchange convertit le HTML —,
+  destinataires), route `GET /api/emails-dossiers/contenu?emailId` (`Cache-Control: no-store`). **Choix : relu à chaque
+  ouverture, jamais gardé ni journalisé** (la règle « le texte n'est jamais gardé » tient) ; un email déplacé ou supprimé
+  de la boîte n'est plus lisible (message clair). Poste : l'objet de chaque email est un lien « Lire » →
+  `ouvrirEmailComplet` (fenêtre `#email-lecture-overlay` : objet, expéditeur, date, destinataires, pièces jointes, texte en
+  `pre-wrap` échappé — jamais le HTML de l'expéditeur dans la page —, « Confirmer la réception » pour un reçu avec
+  documents ; Échap / fond / Fermer, texte retiré de la page à la fermeture). Fiche ouverte relue chaque minute sans
+  clignotement (`rafraichirEmailsFicheOuverte`) ; pièces jointes rangées chaque minute (`rangerPiecesJointesReconnues`).
+Vérifié : tests (serveur : lecture à la demande, rien gardé, tours simultanés = un seul) ; Chromium : fenêtre de lecture
+760 px, téléphone, sombre, Échap. Non vérifié : Exchange réel (charge d'un tour par minute, rendu texte des emails HTML).
