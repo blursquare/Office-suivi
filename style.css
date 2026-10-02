@@ -8339,3 +8339,46 @@ details.revision-groupe[open] > summary.revision-groupe-titre::after { content: 
   .panel .wizard-stepper .wizard-step-btn { align-items: center; }
   .panel .wizard-stepper .wizard-step-btn:not(:last-child)::after { left: calc(50% + 19px); right: calc(-50% + 15px); }
 }
+
+/* ---- « Nouveau dossier » épuré (étude, 02/10 : « trop brouillon, trop de texte ») ---- */
+/* Étape 4 : ce qui se vérifie déjà à l'étape 2 n'y est pas répété. */
+#panel.avec-revision .revision-double { display: none; }
+/* Parties : une ligne par côté. */
+.panneau-revision .revision-parties { display: flex; flex-direction: column; gap: 4px; margin: 10px 0 2px; font-size: 13.5px; color: var(--ink); }
+.revision-partie { display: grid; grid-template-columns: 90px minmax(0, 1fr); gap: 10px; }
+.revision-partie-role { font-size: 12px; color: var(--muted); padding-top: 1px; }
+.revision-pastille { font-size: 11px; color: var(--muted); border: 1px solid var(--line); border-radius: 6px; padding: 0 5px; margin-left: 4px; }
+/* Une donnée = une ligne : case · libellé et source · champ. */
+.panneau-revision .revision-corps { display: grid; grid-template-columns: minmax(0, 170px) minmax(0, 1fr); gap: 4px 12px; align-items: center; }
+.panneau-revision .revision-corps > .revision-tete { margin: 0; flex-direction: column; align-items: flex-start; gap: 0; }
+.panneau-revision .revision-corps > .revision-raison,
+.panneau-revision .revision-corps > .revision-proposition { grid-column: 2; }
+.panneau-revision .revision-ligne { padding: 6px 0; align-items: center; }
+.panneau-revision .revision-check { margin-top: 0; }
+.revision-liste .revision-ligne:not(:last-child)::before { top: 32px; bottom: -6px; }
+.panneau-revision .revision-source { font-size: 11.5px; }
+.panneau-revision .revision-source::before { content: ''; }
+.panneau-revision .revision-tete .voir-pdf-btn, .panneau-revision .revision-tete .chip-page { margin-top: 2px; }
+@media (max-width: 560px) {
+  .panneau-revision .revision-corps { grid-template-columns: minmax(0, 1fr); }
+  .panneau-revision .revision-corps > .revision-raison,
+  .panneau-revision .revision-corps > .revision-proposition { grid-column: 1; }
+}
+/* Échéances détaillées : repliées. */
+.panel details.wizard-plus { margin: 14px 0 4px; border: 1px solid var(--line-soft); border-radius: 10px; padding: 0 14px; }
+.panel details.wizard-plus > summary { padding: 12px 0; font-size: 13.5px; font-weight: 600; justify-content: flex-start; gap: 8px; color: var(--ink-soft); }
+.panel details.wizard-plus > summary::after { content: '▸'; font-size: 11px; color: var(--muted); }
+.panel details.wizard-plus[open] > summary::after { content: '▾'; }
+.panel details.wizard-plus[open] { padding-bottom: 12px; }
+.pieces-authentic .checkbox-inline { font-size: 13.5px; }
+/* Rôle de l'étude : la mention « déduit des notaires » décalait la ligne. */
+#wizard-step-4 .role-deduit { display: none; }
+#wizard-step-4 .pieces-authentic { margin: 16px 0 8px; }
+body.wizard-avance #nouveau-intro { display: none !important; }
+.wizard-step-sous:empty { display: none; }
+.wizard-nav button { white-space: nowrap; }
+@media (max-width: 560px) {
+  .wizard-nav { flex-wrap: wrap; gap: 8px; }
+  .wizard-nav .actions-row { flex: 1 1 100%; display: flex; gap: 8px; }
+  .wizard-nav .actions-row .primary { flex: 1; }
+}

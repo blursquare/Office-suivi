@@ -15304,3 +15304,20 @@ valider ».
   des libellés.
 Vérifié : test `etatStepperWizard` ; Chromium (compromis simulé + Authentic : case, « Tout valider », étape cochée,
 clair, sombre, téléphone 390 px sans débordement).
+
+### 02/10/2026 22:04 — Nouveau dossier épuré (« trop de texte… trop brouillon »)
+Demande : « Il y a trop de texte aussi dans les champs à remplir. Le notaire était vide. Ne plus afficher les pièces de
+base et le choix des rappels. La présentation est trop brouillon. » Réponse à la question du notaire : « Les deux côtés ».
+- Vérifier : `renderLigneRevision` n'affiche plus méthode, raison ni extrait (source en une ligne, « Aussi trouvé : … ») ;
+  parties en lignes `.revision-partie` ; notaires, honoraires et fonds de travaux retirés du panneau ; `#panel.avec-revision`
+  masque les champs du formulaire qui doublent le panneau (`.revision-double`) ; chips + dates butoir dans
+  `details.wizard-plus` « Échéances et dates du document », replié.
+- Finaliser : `#pieces-apercu` et `#rappel-fieldset` masqués (rappels par défaut inchangés) ; `renderSourcesImport` plus
+  appelé ; pièces d'Authentic en une case (liste dans une pastille « i ») ; bloc « Notaires lus » caché une fois tout placé ;
+  `placerNotaireAuthenticParDefaut` (appelé à l'étape 4) : notaire relevé dans Authentic → vendeur ET acquéreur,
+  « Notaire qui reçoit l'acte » = vendeur, seulement si les deux champs sont vides.
+- Stepper : sous-titre seulement s'il dit un état (`etatStepperWizard`) ; encadré « Ce que CLAIRE repère » retiré dès
+  l'étape 2 (`body.wizard-avance`), sa note passée en pastille « i » ; boutons du bas sur une ligne sans retour, empilés
+  sous 560 px.
+Vérifié : tests client 1196 / serveur 599 ; Chromium (compromis simulé + Authentic, et Authentic seul) en clair, sombre
+et 390 px. Non vérifié : un vrai compromis PDF (pdf.js injoignable ici).

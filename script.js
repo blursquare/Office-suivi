@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-02 21:56';
+  const VERSION_APP = '2026-10-02 22:04';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-02 22:04', resume: "Nouveau dossier épuré : à l'étape Vérifier, chaque donnée tient sur une ligne (libellé, source, valeur, case à valider), sans explication ni extrait ; vendeurs et acquéreurs en deux lignes ; les champs en double sont masqués et « Échéances et dates du document » est replié. À l'étape Finaliser : type de vente, responsable, notaires et une seule case pour les pièces d'Authentic — les pièces de base et le choix des rappels ne s'affichent plus (rappels J-15/J-7 par défaut). Le notaire lu dans Authentic est posé des deux côtés (il reçoit l'acte) quand aucun n'est rempli. L'encadré « Ce que CLAIRE repère » disparaît après l'import." },
     { version: '2026-10-02 21:56', resume: "Nouveau dossier, présentation revue : les quatre étapes en cases carrées, cochées une fois faites, avec une ligne d'état sous chacune (« Compromis + Authentic », « 3 à valider »…). À l'étape Vérifier, les données pré-remplies sont rangées en « À valider », « Validées » et « À compléter si besoin » (replié) : chaque donnée a sa case à cocher, sa source (lue dans l'acte, reprise d'Authentic) et son extrait du document à déplier ; « Tout valider » coche tout d'un geste, une barre suit l'avancement. À l'étape Finaliser, un champ rempli par CLAIRE et pas retouché porte « Pré-rempli »." },
     { version: '2026-10-02 21:50', resume: "Nouveau dossier complété depuis Authentic : la date de signature de l'avant-contrat relevée sur la page du dossier (« Promesse/Compromis… signé le … ») remplit le champ et sert d'ancre aux délais, si le compromis ne l'a pas donnée. Elle n'arrivait jusqu'ici sur la fiche qu'à l'enregistrement." },
     { version: '2026-10-02 21:45', resume: "Nouveau dossier : deux entrées. « Compromis (PDF) » : une fois le compromis lu, on reste sur la première étape — « Compléter depuis Authentic (facultatif) » liste les dossiers ouverts dans Authentic, celui du compromis en tête (« Correspond au compromis »), ou « Continuer sans Authentic ». « Depuis Authentic » : sans PDF, pour une vente ou une succession. L'ancienne entrée « Dossier Authentic » (Authentic puis le compromis) est retirée." },
@@ -8414,8 +8415,9 @@
   // sans effet. `getSelectedReminderDays()` n'est de toute façon plus lue dans ce cas (voir
   // ajouterDossier), ce masquage évite seulement de laisser des cases à cocher trompeuses.
   function majVisibiliteRappels() {
+    // Rappels plus affichés à la création (étude, 02/10) : les valeurs par défaut (15 et 7 jours) s'appliquent.
     const fieldset = document.getElementById('rappel-fieldset');
-    if (fieldset) fieldset.style.display = echeanceActive.pret ? '' : 'none';
+    if (fieldset) fieldset.style.display = 'none';
   }
 
   function definirEcheanceActive(type, actif) {
@@ -8624,6 +8626,22 @@
     return etude === coteInstrumentaire ? 'instrumentaire' : 'participant';
   }
 
+  // Étude, 02/10 : « le notaire était vide ». Le notaire du dossier dans Authentic (« Parties prenantes »),
+  // quand ni le compromis ni la saisie n'ont placé de notaire, va des deux côtés et reçoit l'acte
+  // (choix de l'étude : « les deux côtés » ; un confrère se corrige à la main).
+  function placerNotaireAuthenticParDefaut() {
+    const v = document.getElementById('f-notaire-vendeur');
+    const a = document.getElementById('f-notaire-acquereur');
+    if (!v || !a || v.value.trim() || a.value.trim()) return false;
+    const n = notairesProposesWizard().find(x => x.source === 'authentic');
+    if (!n) return false;
+    appliquerValeurChamp('f-notaire-vendeur', n.nom);
+    appliquerValeurChamp('f-notaire-acquereur', n.nom);
+    const sel = document.getElementById('f-cote-instrumentaire');
+    if (sel && !sel.value) sel.value = 'vendeur';
+    return true;
+  }
+
   function placerNotaireWizard(index, cote) {
     const n = notairesProposesWizard()[index];
     if (!n) return;
@@ -8645,6 +8663,8 @@
     const a = (document.getElementById('f-notaire-acquereur') || {}).value || '';
     const place = (nom) => [v === nom ? 'vendeur' : '', a === nom ? 'acquéreur' : ''].filter(Boolean).join(' et ');
     const aPlacer = liste.some(n => !place(n.nom));
+    // Tous les notaires lus sont déjà dans les champs : rien à proposer (étude, 02/10 : « brouillon »).
+    if (!aPlacer) { bloc.innerHTML = ''; return; }
     bloc.innerHTML = `
       <div class="notaires-wizard-titre">Notaires lus ${aPlacer && !v && !a ? '<span class="dot-label dl-pret"><span class="dot"></span>Côté non précisé : à placer</span>' : ''}</div>
       <ul class="notaires-wizard-liste">${liste.map((n, i) => {
@@ -9004,7 +9024,7 @@
       ? `<div class="revision-raison">${champ.valeur ? 'Calculée' : 'Délai trouvé'} : ${escapeHtml(String(champ.calcul.delai ? champ.calcul.delai.valeur + ' ' + champ.calcul.delai.unite : ''))} ${escapeHtml(libellePointDepart(champ.calcul.pointDepart))}.</div>` : '';
     const raison = champ && champ.raison ? `<div class="revision-raison">${escapeHtml(champ.raison)}</div>` : '';
     const autres = champ && (champ.candidats || []).length > 1
-      ? `<div class="revision-raison">Autres valeurs trouvées dans l’acte : ${champ.candidats.map(c => escapeHtml(String(c.valeur))).join(', ')}</div>`
+      ? `<div class="revision-raison">Aussi trouvé : ${champ.candidats.map(c => escapeHtml(String(c.valeur))).join(', ')}</div>`
       : '';
     const extrait = champ && champ.source && champ.source.extrait
       ? `<div class="revision-extrait">« ${escapeHtml(String(champ.source.extrait).slice(0, 240))} »</div>` : '';
@@ -9029,8 +9049,9 @@
       ? '<span class="revision-check vide" aria-hidden="true"></span>'
       : `<button type="button" class="revision-check${verifie ? ' coche' : ''}" role="checkbox" aria-checked="${verifie}" aria-label="${escapeAttr(libelleAria)}" title="${verifie ? 'Validée — cliquer pour revenir à « à valider »' : 'Valider : donnée relue dans le document'}" onclick="basculerVerificationRevision('${cle}', ${!verifie})">${verifie ? icone('check') : ''}</button>`;
     // L'extrait du document, utile pour relire, se déplie à la demande (la page du PDF reste à un clic).
-    const extraitPli = extrait && !(champ && champ.origine === 'authentic')
-      ? `<details class="revision-extrait-pli"><summary>Extrait du document</summary>${extrait}</details>` : '';
+    // Étude, 02/10 : « trop de texte dans les champs » — ni raison, ni calcul, ni extrait sous la
+    // valeur ; la source tient dans l'étiquette, la page du PDF reste à un clic.
+    void methode; void raison; void extrait;
     return `<div class="revision-ligne${verifie ? ' revision-verifiee' : ''}${vide ? ' revision-vide' : ''}">
       ${coche}
       <div class="revision-corps">
@@ -9040,7 +9061,7 @@
           ${page}
         </div>
         ${champSaisieRevision(definition, champ)}
-        ${methode}${raison}${autres}${proposition}${extraitPli}
+        ${autres}${proposition}
       </div>
     </div>`;
   }
@@ -9077,6 +9098,8 @@
     if (!extraction) {
       panneau.style.display = 'none';
       panneau.innerHTML = '';
+      const carte = document.getElementById('panel');
+      if (carte) carte.classList.remove('avec-revision');
       if (rappel) { rappel.style.display = 'none'; rappel.innerHTML = ''; }
       return;
     }
@@ -9087,14 +9110,13 @@
     etatRevision = { aValider: groupes.aValider.length, validees: verifiees, vides: groupes.aCompleter.length };
     const lignesDe = (liste) => liste.map(x => renderLigneRevision(x.definition, x.champ)).join('');
 
-    const parties = (extraction.parties || []).map(p =>
-      `<li>${escapeHtml(p.nom)}${p.nomUsage ? ` (nom d’usage ${escapeHtml(p.nomUsage)})` : ''} — <strong>${p.role === 'VENDEUR' ? 'vendeur' : 'acquéreur'}</strong> (${p.origine === 'authentic' ? 'repris d’Authentic' : `désigné « ${escapeHtml(p.qualiteActe)} » dans l’acte`}${p.qualitePersonne === 'morale' ? ', personne morale' : ''})${p.representant ? `, représenté par ${escapeHtml(p.representant)}` : ''}${p.origine === 'ia' ? ' — <em>proposé par l’IA</em>' : ''}${p.societe ? `<div class="revision-raison">${escapeHtml(libelleIdentiteSociete(p.societe))}</div>` : ''}</li>`
-    ).join('');
+    // Parties : une ligne par côté (étude, 02/10 : moins de texte).
+    const cotes = [['VENDEUR', 'Vendeur'], ['ACQUEREUR', 'Acquéreur']].map(([role, libelle]) => {
+      const noms = (extraction.parties || []).filter(p => p.role === role).map(p => escapeHtml(p.nom) + (p.qualitePersonne === 'morale' ? ' <span class="revision-pastille">société</span>' : ''));
+      return noms.length ? `<div class="revision-partie"><span class="revision-partie-role">${libelle}</span><span>${noms.join(', ')}</span></div>` : '';
+    }).join('');
+    const parties = cotes;
 
-    const notaires = extraction.notaires || {};
-    const ligneNotaires = notaires.instrumentaire
-      ? `<div class="revision-raison">Notaire qui reçoit l’acte : ${escapeHtml(notaires.instrumentaire.nom)}${notaires.instrumentaire.office ? ` (${escapeHtml(notaires.instrumentaire.office)})` : ''}.</div>`
-      : '';
 
     const alertes = (extraction.alertes || []).map(a =>
       `<div class="revision-alerte ${a.gravite === 'critique' ? 'critique' : ''}">${icone('alert-triangle')}<span>${escapeHtml(a.message)}</span></div>`
@@ -9114,10 +9136,7 @@
         </div>
       </div>
       ${alertes}
-      ${parties ? `<div class="revision-parties"><ul>${parties}</ul></div>` : ''}
-      ${ligneNotaires}
-      ${extraction.honoraires ? `<div class="revision-raison">${escapeHtml(libelleHonoraires(extraction.honoraires))}</div>` : ''}
-      ${extraction.fondsTravaux ? `<div class="revision-raison">Fonds de travaux (loi ALUR) : ${escapeHtml(libelleFondsTravaux(extraction.fondsTravaux).toLowerCase())}</div>` : ''}
+      ${parties ? `<div class="revision-parties">${parties}</div>` : ''}
       ${groupe('À valider', 'Pré-remplies depuis le compromis ou Authentic, pas encore relues.', groupes.aValider, 'a-valider')}
       ${groupe('Validées', '', groupes.validees, 'validees')}
       ${groupes.aCompleter.length ? `<details class="revision-groupe a-completer"${revisionCompleterOuvert ? ' open' : ''} ontoggle="revisionCompleterOuvert = this.open">
@@ -9125,6 +9144,8 @@
         <div class="revision-liste">${lignesDe(groupes.aCompleter)}</div></details>` : ''}
     `;
     panneau.style.display = 'block';
+    const carte = document.getElementById('panel');
+    if (carte) carte.classList.add('avec-revision');
     majStepperWizard();
 
     // Les alertes sont rappelées à l'étape "Finaliser", au moment d'enregistrer.
@@ -10285,10 +10306,11 @@
     if (!exportAuthenticActuel || (role && role.value === 'participant')) { bloc.style.display = 'none'; bloc.innerHTML = ''; return; }
     const pieces = piecesExportAuthentic(exportAuthenticActuel, checklistPieces(document.getElementById('f-type-vente').value));
     bloc.style.display = '';
-    bloc.innerHTML = `<label class="checkbox-inline"><input type="checkbox" id="f-pieces-authentic" ${pieces.length ? 'checked' : 'disabled'}>
-        Pièces présentes dans Authentic : ${pieces.length ? 'les marquer reçues' : 'aucune reconnue dans la checklist'}
-        ${infoBulle('Reconnues par le nom du fichier dans l’export, comme sur le NAS. Marquées reçues « à la main » : le parcours du NAS ne les repassera pas en manquantes.')}</label>
-      ${pieces.length ? `<ul class="pieces-authentic-liste">${pieces.map(p => `<li>${escapeHtml(p.label)} <span class="jour-meta">${escapeHtml(p.fichier)}</span></li>`).join('')}</ul>` : ''}`;
+    // Une ligne (étude, 02/10 : « trop brouillon ») ; la liste des pièces passe dans la bulle « i ».
+    if (!pieces.length) { bloc.style.display = 'none'; bloc.innerHTML = ''; return; }
+    bloc.innerHTML = `<label class="checkbox-inline"><input type="checkbox" id="f-pieces-authentic" checked>
+        Marquer reçue${pieces.length > 1 ? 's' : ''} ${pieces.length > 1 ? `les ${pieces.length} pièces présentes` : 'la pièce présente'} dans Authentic
+        ${infoBulle(pieces.map(p => p.label).join(' · '))}</label>`;
   }
 
   async function traiterFichierPdf(file) {
@@ -15316,15 +15338,18 @@
     const panneau = document.getElementById('panel');
     if (panneau) panneau.classList.toggle('wizard-succession', successionEnCoursWizard());
     if (n === 1) { renderChoixImport(); chargerRelevesAuthenticRecents(); }
-    if (n === 2 || n === 4) renderSourcesImport();
+    // Ce qui a nourri le dossier se lit sous chaque étape du haut : plus de lignes de sources ici.
     for (let i = 1; i <= 4; i++) {
       document.getElementById('wizard-step-' + i).classList.toggle('actif', i === n);
       document.getElementById('wizard-step-btn-' + i).classList.toggle('actif', i === n);
     }
     majStepperWizard();
+    // L'encadré « Ce que CLAIRE repère » ne sert qu'avant l'import : retiré dès l'étape 2.
+    document.body.classList.toggle('wizard-avance', n > 1);
     if (n === 4) majMarquesPreRemplies();
     if (n === 4) {
       remplirListeNotairesWizard(notairesProposesWizard().map(x => x.nom));
+      placerNotaireAuthenticParDefaut();
       majApercuPieces();
     }
     const wrap = document.querySelector('.wrap');
@@ -15334,17 +15359,18 @@
   // Pure : l'état de chaque étape de « Nouveau dossier » — faite, et ce qu'elle dit (sous-titre).
   function etatStepperWizard(e) {
     const x = e || {};
+    // Sous-titre = un état seulement (étude 02/10 : « trop de texte ») ; rien tant qu'il n'y a rien à dire.
     const source = x.compromis && x.authentic ? 'Compromis + Authentic' : x.compromis ? 'Compromis lu'
-      : x.authentic ? 'Repris d’Authentic' : 'Compromis ou Authentic';
+      : x.authentic ? 'Repris d’Authentic' : '';
     const r = x.revision || {};
-    const verifier = !(x.compromis || x.authentic) ? 'Données pré-remplies'
-      : r.aValider ? `${r.aValider} à valider` : r.validees ? 'Tout est validé' : 'Rien de pré-rempli';
+    const verifier = !(x.compromis || x.authentic) ? ''
+      : r.aValider ? `${r.aValider} à valider` : r.validees ? 'Tout est validé' : '';
     return [
       { fait: !!(x.compromis || x.authentic) && x.etape > 1, sous: source },
       // Faite seulement quand plus rien n'est à valider (passer l'étape ne suffit pas).
       { fait: !!(x.compromis || x.authentic) && !r.aValider && !!r.validees, sous: verifier },
-      { fait: x.etape > 3, sous: 'Engagements du vendeur' },
-      { fait: false, sous: 'Responsable, notaires, pièces' }
+      { fait: x.etape > 3, sous: '' },
+      { fait: false, sous: '' }
     ];
   }
 

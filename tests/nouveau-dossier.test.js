@@ -77,4 +77,6 @@ test('etatStepperWizard : étapes faites et leur état, « Vérifier » faite se
   assert.equal(tout[1].sous, 'Tout est validé');
   assert.equal(tout[0].sous, 'Repris d’Authentic');
   assert.equal(app.etatStepperWizard({ etape: 1 })[0].fait, false);
+  // Rien à dire = pas de sous-titre (étude 02/10 : « trop de texte »).
+  assert.equal(app.etatStepperWizard({ etape: 1 }).map(x => x.sous).join(''), '');
 });

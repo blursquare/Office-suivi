@@ -288,6 +288,11 @@
              auparavant toute la hauteur au-dessus du panneau « Ce que l'outil a compris », qui est
              pourtant ce qu'on vient lire en premier — demandé par l'étude. Rien n'est perdu : le
              classement d'une date se corrige toujours ici, une fois le bloc déplié. -->
+        <!-- Étude, 02/10 : « trop brouillon ». Les dates butoir se vérifient dans le panneau ci-dessus ;
+             l'activation des échéances, les échéances personnalisées et le détail des dates repérées
+             passent dans un seul bloc replié. -->
+        <details class="wizard-plus">
+          <summary>Échéances et dates du document</summary>
         <details class="chips-repliable">
           <summary>Toutes les dates repérées dans le document <span class="info-i" tabindex="0" data-info="Diagnostics et dates passées sont écartés automatiquement. Cliquez sur une catégorie pour corriger un classement."></span></summary>
           <div class="chips" id="chips"></div>
@@ -333,6 +338,7 @@
 
           <button type="button" class="bouton-ajout add-autre-btn" onclick="ajouterAutreVide()">Ajouter une échéance personnalisée</button>
         </fieldset>
+        </details>
 
         <div class="wizard-nav">
           <button type="button" class="secondary" onclick="definirEtapeWizard(1)">← Précédent</button>
@@ -392,14 +398,14 @@
              CLAUDE.md) a été retiré définitivement — les rappels automatiques par email, avec
              copie systématique à l'étude (voir Réglages), le remplacent. Le nom du dossier occupe
              donc seul cette ligne, sur toute sa largeur. -->
-        <div class="field-row">
+        <div class="field-row revision-double">
           <div style="grid-column: 1 / -1;">
             <label for="f-nom">Nom du dossier</label>
             <input type="text" id="f-nom" placeholder="Ex. DUPONT / MARTIN (vendeur / acquéreur)">
           </div>
         </div>
 
-        <div class="field-row">
+        <div class="field-row revision-double">
           <div>
             <label for="f-adresse-bien">Adresse du bien</label>
             <input type="text" id="f-adresse-bien" placeholder="Ex. 12 rue de la République, 45000 Orléans">
@@ -410,7 +416,7 @@
           </div>
         </div>
 
-        <div class="field-row vente-seul">
+        <div class="field-row vente-seul revision-double">
           <div>
             <label for="f-nom-agence">Agence immobilière</label>
             <input type="text" id="f-nom-agence" placeholder="Ex. CENTURY 21 Les Tilleuls">
@@ -421,7 +427,7 @@
           </div>
         </div>
 
-        <div class="field-row vente-seul">
+        <div class="field-row vente-seul revision-double">
           <div>
             <label for="f-depot-garantie">Dépôt de garantie / acompte</label>
             <input type="text" id="f-depot-garantie" inputmode="numeric" placeholder="Ex. 10000">
@@ -484,7 +490,7 @@
           </div>
         </div>
 
-        <div class="field-row vente-seul">
+        <div class="field-row vente-seul revision-double">
           <div id="champ-email-vendeur">
             <label for="f-email-vendeur">Email du vendeur</label>
             <input type="email" id="f-email-vendeur" placeholder="vendeur@exemple.fr">
@@ -495,10 +501,11 @@
           </div>
         </div>
 
-        <div class="pieces-apercu vente-seul" id="pieces-apercu"></div>
+        <div class="pieces-apercu" id="pieces-apercu" hidden style="display:none;"></div>
         <div class="pieces-authentic" id="pieces-authentic" style="display:none;"></div>
 
-        <fieldset id="rappel-fieldset" class="vente-seul">
+        <!-- Rappels : plus affichés (étude, 02/10) ; les valeurs par défaut (15 et 7 jours) s'appliquent. -->
+        <fieldset id="rappel-fieldset" hidden style="display:none;">
           <legend>Envoyer un rappel</legend>
           <div class="reminder-days" id="reminder-days">
             <label><input type="checkbox" value="15" checked> 15 jours avant</label>
@@ -536,7 +543,7 @@
      import, ce qui donnait l'impression d'une page inachevée plutôt que sobre. Contenu réel (ce
      que l'outil détecte effectivement), pas un habillage décoratif. -->
 <aside class="pdf-viewer nouveau-intro" id="nouveau-intro">
-  <div class="nouveau-intro-titre">Ce que CLAIRE repère automatiquement</div>
+  <div class="nouveau-intro-titre">Ce que CLAIRE repère automatiquement <span class="info-i" tabindex="0" data-info="Chaque valeur reste à vérifier et modifiable avant l'enregistrement. Seul le compromis est lu, sans ses annexes ; le PDF reste sur ce poste."></span></div>
   <ul class="nouveau-intro-liste">
     <li><span class="nouveau-intro-icone" id="icon-intro-dates" aria-hidden="true"></span>Les dates butoir (prêt, acte, vente préalable)</li>
     <li><span class="nouveau-intro-icone" id="icon-intro-doc" aria-hidden="true"></span>Les engagements et documents attendus du vendeur</li>
@@ -544,7 +551,6 @@
     <li><span class="nouveau-intro-icone" id="icon-intro-mail" aria-hidden="true"></span>L'email de l'acquéreur, pour les relances</li>
     <li><span class="nouveau-intro-icone" id="icon-intro-adresse" aria-hidden="true"></span>L'adresse du bien et le prix de vente</li>
   </ul>
-  <p class="nouveau-intro-note">Chaque valeur reste à vérifier et modifiable avant l'enregistrement. Seul le compromis est lu, sans ses annexes ; le PDF reste sur ce poste.</p>
 </aside>
 
 <aside class="pdf-viewer" id="pdf-viewer">
