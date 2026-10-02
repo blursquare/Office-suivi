@@ -256,12 +256,16 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
   « Continuer sans Authentic → » (`majBoutonSuivantEtape1`) ; **« Depuis Authentic »** (`seul`, sans PDF) : repris d'un
   clic puis « Vérifier » (vente : aucune date exigée) ou directement « Finaliser » (succession, assistant réduit
   `#panel.wizard-succession` : nom, bien, responsable, pièces d'Authentic — `.vente-seul` masqués). L'ancienne entrée
-  « Dossier Authentic » (Authentic puis le compromis) est retirée. **Un seul dossier par création** (étude 02/10) : `creationDossierEnCours` (bouton « Enregistrement… »), confirmation si un dossier en cours a le même nom ou le même numéro Authentic (`dossierDejaPresentPourCreation`). **Présentation épurée** (étude 02/10 au soir, « trop de texte… trop brouillon ») : étape Vérifier = le panneau des données
-  pré-remplies seul (cases à valider, source en une ligne, jamais méthode/extrait), champs en double masqués
-  (`#panel.avec-revision .revision-double`), « Échéances et dates du document » replié (`details.wizard-plus`) ; étape Finaliser
-  = type, responsable, notaires, rôle et une case « pièces d'Authentic » ; **pièces de base et choix des rappels plus montrés
-  à la création** (`#pieces-apercu`, `#rappel-fieldset` masqués, rappels par défaut J-15/J-7 appliqués) ; sous-titres de
-  l'étape seulement s'ils disent un état ; encadré « Ce que CLAIRE repère » retiré dès l'étape 2 (`body.wizard-avance`).
+  « Dossier Authentic » (Authentic puis le compromis) est retirée. **Un seul dossier par création** (étude 02/10) : `creationDossierEnCours` (bouton « Enregistrement… »), confirmation si un dossier en cours a le même nom ou le même numéro Authentic (`dossierDejaPresentPourCreation`). **Trois étapes** (étude 02/10 au soir : « mets l'étape 2 et 3 ensemble, les données de la 4 dans la 2, une étape pour
+  terminer et valider ») : **Importer · Vérifier · Valider**. Vérifier = panneau des données pré-remplies (cases à valider,
+  source en une ligne, page du document à un clic, jamais méthode ni extrait), bloc « Dossier » (type, responsable, notaires,
+  rôle, case « pièces d'Authentic » ; champs doublant le panneau masqués, `#panel.avec-revision .revision-double`), bloc
+  « Avant-contrat » à plat (engagements en libellé court `libelleCourtEngagement`, clause au survol, page à un clic ;
+  documents identifiés), « Échéances et dates du document » replié (`details.wizard-plus`). Valider = récapitulatif
+  (`lignesRecapWizard`, `renderRecapWizard` : vide = « À compléter », données non validées signalées) + « Ajouter le dossier ».
+  Succession : Vérifier réduit (panneau, avant-contrat et échéances masqués). **Pièces de base et choix des rappels plus
+  montrés à la création** (`#pieces-apercu`, `#rappel-fieldset` masqués, rappels par défaut J-15/J-7 appliqués) ; sous-titres
+  du bandeau seulement s'ils disent un état ; encadré « Ce que CLAIRE repère » retiré dès l'étape 2 (`body.wizard-avance`).
   Notaires à la création : lus dans l'acte et dans Authentic (`notairesProposesWizard`) ; **le notaire relevé dans Authentic
   est posé des deux côtés, notaire du vendeur recevant l'acte, quand aucun côté n'est rempli** (étude 02/10,
   `placerNotaireAuthenticParDefaut`) ; sinon placés d'un clic (vendeur, acquéreur, les deux), « Notaire qui reçoit l'acte » (`f-cote-instrumentaire`), rôle de l'étude déduit

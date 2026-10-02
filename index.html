@@ -219,11 +219,7 @@
         </button>
         <span class="wizard-step-trait"></span>
         <button type="button" class="wizard-step-btn" id="wizard-step-btn-3" onclick="definirEtapeWizard(3)">
-          <span class="wizard-step-num">3</span><span class="wizard-step-texte"><span class="wizard-step-libelle">Analyse juridique</span><span class="wizard-step-sous" id="wizard-step-sous-3"></span></span>
-        </button>
-        <span class="wizard-step-trait"></span>
-        <button type="button" class="wizard-step-btn" id="wizard-step-btn-4" onclick="definirEtapeWizard(4)">
-          <span class="wizard-step-num">4</span><span class="wizard-step-texte"><span class="wizard-step-libelle">Finaliser</span><span class="wizard-step-sous" id="wizard-step-sous-4"></span></span>
+          <span class="wizard-step-num">3</span><span class="wizard-step-texte"><span class="wizard-step-libelle">Valider</span><span class="wizard-step-sous" id="wizard-step-sous-3"></span></span>
         </button>
       </div>
 
@@ -291,113 +287,10 @@
         <!-- Étude, 02/10 : « trop brouillon ». Les dates butoir se vérifient dans le panneau ci-dessus ;
              l'activation des échéances, les échéances personnalisées et le détail des dates repérées
              passent dans un seul bloc replié. -->
-        <details class="wizard-plus">
-          <summary>Échéances et dates du document</summary>
-        <details class="chips-repliable">
-          <summary>Toutes les dates repérées dans le document <span class="info-i" tabindex="0" data-info="Diagnostics et dates passées sont écartés automatiquement. Cliquez sur une catégorie pour corriger un classement."></span></summary>
-          <div class="chips" id="chips"></div>
-        </details>
-
-        <fieldset>
-          <legend>Dates butoir</legend>
-
-          <div class="date-block pret" id="bloc-pret">
-            <div class="label-line">
-              <label class="switch">
-                <input type="checkbox" id="toggle-pret" checked onchange="toggleEcheance('pret', this.checked)">
-                <span class="slider"></span>
-              </label>
-              <span>Obtention du prêt (condition suspensive)</span>
-            </div>
-            <input type="date" id="f-pret" onchange="apprendreDateSaisie('pret', this.value)">
-          </div>
-
-          <div class="date-block acte" id="bloc-acte">
-            <div class="label-line">
-              <label class="switch">
-                <input type="checkbox" id="toggle-acte" checked onchange="toggleEcheance('acte', this.checked)">
-                <span class="slider"></span>
-              </label>
-              <span>Signature de l'acte</span>
-            </div>
-            <input type="date" id="f-acte" onchange="apprendreDateSaisie('acte', this.value)">
-          </div>
-
-          <div class="date-block ventebien inactive" id="bloc-ventebien">
-            <div class="label-line">
-              <label class="switch">
-                <input type="checkbox" id="toggle-ventebien" onchange="toggleEcheance('ventebien', this.checked)">
-                <span class="slider"></span>
-              </label>
-              <span>Vente préalable</span>
-            </div>
-            <input type="date" id="f-ventebien" disabled onchange="apprendreDateSaisie('ventebien', this.value)">
-          </div>
-
-          <div id="autres-list"></div>
-
-          <button type="button" class="bouton-ajout add-autre-btn" onclick="ajouterAutreVide()">Ajouter une échéance personnalisée</button>
-        </fieldset>
-        </details>
-
-        <div class="wizard-nav">
-          <button type="button" class="secondary" onclick="definirEtapeWizard(1)">← Précédent</button>
-          <button type="button" class="primary" onclick="definirEtapeWizard(3)">Suivant : Analyse juridique →</button>
-        </div>
-      </div>
-
-      <div class="wizard-step" id="wizard-step-3">
-        <div id="analyse-juridique" class="analyse-juridique">
-          <div id="analyse-vide-etat" class="analyse-vide-etat" style="display:none;">
-            Aucune analyse disponible pour l'instant — importez un PDF à l'étape « Importer » pour
-            extraire automatiquement les conditions, les engagements du vendeur et les documents
-            attendus. Cette étape reste consultable même sans PDF importé.
-          </div>
-
-          <!-- Ajout manuel d'un engagement du vendeur, sans passer par la sélection de texte dans
-               le PDF (voir gererSelectionPdf()) — utile quand aucun PDF n'est chargé, ou pour une
-               obligation qui n'apparaît pas littéralement dans le texte (accord oral rapporté par
-               le vendeur, par ex.). Toujours visible, y compris quand rien n'a encore été détecté
-               automatiquement — voir afficherFormAjoutEngagementManuel()/
-               ajouterEngagementDepuisFormulaire() dans script.js. -->
-          <button type="button" class="bouton-ajout" id="ajout-engagement-manuel-btn" onclick="afficherFormAjoutEngagementManuel()">Ajouter un engagement du vendeur</button>
-          <div id="ajout-engagement-manuel-form" class="ajout-engagement-manuel-form" style="display:none;">
-            <input type="text" id="nouvel-engagement-texte" placeholder="Décrire l'engagement (ex. Justifier de l'entretien annuel de la chaudière)">
-            <select id="nouvel-engagement-type">
-              <option value="entretien">Entretien</option>
-              <option value="travaux">Travaux</option>
-              <option value="document">Document</option>
-              <option value="autre">Autres</option>
-            </select>
-            <button type="button" class="icon-valider" onclick="ajouterEngagementDepuisFormulaire()" title="Ajouter" aria-label="Ajouter">✓</button>
-            <button type="button" class="secondary" onclick="masquerFormAjoutEngagementManuel()">Annuler</button>
-          </div>
-
-          <div class="analyse-section" id="analyse-section-engagements">
-            <div class="analyse-sous-titre">Engagements du vendeur <span class="analyse-compteur" id="analyse-nb-engagements"></span></div>
-            <div id="analyse-engagements-liste"></div>
-          </div>
-
-          <div class="analyse-section" id="analyse-section-documents">
-            <div class="analyse-sous-titre">Documents et pièces identifiés <span class="analyse-compteur" id="analyse-nb-documents"></span></div>
-            <div id="analyse-documents-liste" class="analyse-documents-liste"></div>
-          </div>
-
-          <div id="analyse-note" class="analyse-note" style="display:none;"></div>
-        </div>
-
-        <div class="wizard-nav">
-          <button type="button" class="secondary" onclick="definirEtapeWizard(2)">← Précédent</button>
-          <button type="button" class="primary" onclick="definirEtapeWizard(4)">Suivant : Finaliser →</button>
-        </div>
-      </div>
-
-      <div class="wizard-step" id="wizard-step-4">
-        <div class="sources-import" id="sources-import-4"></div>
-        <!-- Le champ "Email de rappel" (envoi manuel générique, voir ouvrirEmailRappel() dans
-             CLAUDE.md) a été retiré définitivement — les rappels automatiques par email, avec
-             copie systématique à l'étude (voir Réglages), le remplacent. Le nom du dossier occupe
-             donc seul cette ligne, sur toute sa largeur. -->
+        <!-- Étude, 02/10 au soir : « Vérifier » réunit les données lues, les champs de l'ancienne étape
+             « Finaliser » et l'analyse de l'avant-contrat ; « Valider » ne fait plus que récapituler. -->
+        <div class="wizard-bloc" id="wizard-bloc-dossier">
+          <div class="wizard-bloc-titre">Dossier</div>
         <div class="field-row revision-double">
           <div style="grid-column: 1 / -1;">
             <label for="f-nom">Nom du dossier</label>
@@ -516,6 +409,107 @@
           </div>
         </fieldset>
 
+        </div>
+
+        <div class="wizard-bloc vente-seul" id="wizard-bloc-analyse">
+          <div class="wizard-bloc-titre">Avant-contrat</div>
+        <div id="analyse-juridique" class="analyse-juridique">
+          <div id="analyse-vide-etat" class="analyse-vide-etat" style="display:none;">
+            Aucun engagement du vendeur relevé.
+          </div>
+
+          <div class="analyse-section" id="analyse-section-engagements">
+            <div class="analyse-sous-titre">Engagements du vendeur <span class="analyse-compteur" id="analyse-nb-engagements"></span></div>
+            <div id="analyse-engagements-liste"></div>
+          </div>
+
+          <div class="analyse-section" id="analyse-section-documents">
+            <div class="analyse-sous-titre">Documents et pièces identifiés <span class="analyse-compteur" id="analyse-nb-documents"></span></div>
+            <div id="analyse-documents-liste" class="analyse-documents-liste"></div>
+          </div>
+
+          <div id="analyse-note" class="analyse-note" style="display:none;"></div>
+          <!-- Ajout manuel d'un engagement du vendeur, sans passer par la sélection de texte dans
+               le PDF (voir gererSelectionPdf()) — utile quand aucun PDF n'est chargé, ou pour une
+               obligation qui n'apparaît pas littéralement dans le texte (accord oral rapporté par
+               le vendeur, par ex.). Toujours visible, y compris quand rien n'a encore été détecté
+               automatiquement — voir afficherFormAjoutEngagementManuel()/
+               ajouterEngagementDepuisFormulaire() dans script.js. -->
+          <button type="button" class="bouton-ajout" id="ajout-engagement-manuel-btn" onclick="afficherFormAjoutEngagementManuel()">Ajouter un engagement du vendeur</button>
+          <div id="ajout-engagement-manuel-form" class="ajout-engagement-manuel-form" style="display:none;">
+            <input type="text" id="nouvel-engagement-texte" placeholder="Décrire l'engagement (ex. Justifier de l'entretien annuel de la chaudière)">
+            <select id="nouvel-engagement-type">
+              <option value="entretien">Entretien</option>
+              <option value="travaux">Travaux</option>
+              <option value="document">Document</option>
+              <option value="autre">Autres</option>
+            </select>
+            <button type="button" class="icon-valider" onclick="ajouterEngagementDepuisFormulaire()" title="Ajouter" aria-label="Ajouter">✓</button>
+            <button type="button" class="secondary" onclick="masquerFormAjoutEngagementManuel()">Annuler</button>
+          </div>
+
+        </div>
+
+        </div>
+
+        <details class="wizard-plus">
+          <summary>Échéances et dates du document</summary>
+        <details class="chips-repliable">
+          <summary>Toutes les dates repérées dans le document <span class="info-i" tabindex="0" data-info="Diagnostics et dates passées sont écartés automatiquement. Cliquez sur une catégorie pour corriger un classement."></span></summary>
+          <div class="chips" id="chips"></div>
+        </details>
+
+        <fieldset>
+          <legend>Dates butoir</legend>
+
+          <div class="date-block pret" id="bloc-pret">
+            <div class="label-line">
+              <label class="switch">
+                <input type="checkbox" id="toggle-pret" checked onchange="toggleEcheance('pret', this.checked)">
+                <span class="slider"></span>
+              </label>
+              <span>Obtention du prêt (condition suspensive)</span>
+            </div>
+            <input type="date" id="f-pret" onchange="apprendreDateSaisie('pret', this.value)">
+          </div>
+
+          <div class="date-block acte" id="bloc-acte">
+            <div class="label-line">
+              <label class="switch">
+                <input type="checkbox" id="toggle-acte" checked onchange="toggleEcheance('acte', this.checked)">
+                <span class="slider"></span>
+              </label>
+              <span>Signature de l'acte</span>
+            </div>
+            <input type="date" id="f-acte" onchange="apprendreDateSaisie('acte', this.value)">
+          </div>
+
+          <div class="date-block ventebien inactive" id="bloc-ventebien">
+            <div class="label-line">
+              <label class="switch">
+                <input type="checkbox" id="toggle-ventebien" onchange="toggleEcheance('ventebien', this.checked)">
+                <span class="slider"></span>
+              </label>
+              <span>Vente préalable</span>
+            </div>
+            <input type="date" id="f-ventebien" disabled onchange="apprendreDateSaisie('ventebien', this.value)">
+          </div>
+
+          <div id="autres-list"></div>
+
+          <button type="button" class="bouton-ajout add-autre-btn" onclick="ajouterAutreVide()">Ajouter une échéance personnalisée</button>
+        </fieldset>
+        </details>
+
+        <div class="wizard-nav">
+          <button type="button" class="secondary" onclick="definirEtapeWizard(1)">← Précédent</button>
+          <button type="button" class="primary" onclick="definirEtapeWizard(3)">Suivant : Valider →</button>
+        </div>
+      </div>
+
+      <div class="wizard-step" id="wizard-step-3">
+        <div class="recap-wizard" id="recap-wizard"></div>
+
         <!-- Rappel des alertes de cohérence juste avant l'enregistrement : le panneau complet vit à
              l'étape "Vérifier", mais une contradiction (prêt après l'acte, parties possiblement
              interverties…) doit se voir au moment où l'on crée le dossier. -->
@@ -524,7 +518,7 @@
         <div id="form-error" class="form-error"></div>
 
         <div class="wizard-nav">
-          <button type="button" class="secondary" onclick="definirEtapeWizard(successionEnCoursWizard() ? 1 : 3)">← Précédent</button>
+          <button type="button" class="secondary" onclick="definirEtapeWizard(2)">← Précédent</button>
           <div class="actions-row">
             <button type="button" class="secondary" onclick="reinitialiserFormulaire()">Effacer</button>
             <button type="button" class="primary" id="btn-ajouter-dossier" onclick="ajouterDossier()">Ajouter le dossier</button>

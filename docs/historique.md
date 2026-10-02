@@ -15321,3 +15321,22 @@ base et le choix des rappels. La présentation est trop brouillon. » Réponse �
   sous 560 px.
 Vérifié : tests client 1196 / serveur 599 ; Chromium (compromis simulé + Authentic, et Authentic seul) en clair, sombre
 et 390 px. Non vérifié : un vrai compromis PDF (pdf.js injoignable ici).
+
+### 02/10/2026 22:10 — Nouveau dossier en trois étapes (Importer · Vérifier · Valider)
+Demande : « Pas besoin de l'extrait, je me réfère aux documents en cliquant sur la page. Pourquoi ne pas scinder vérifier et
+finaliser ? Allège l'interface et suis les guidelines de Claire. Mets l'étape 2 et 3 ensemble, mets les données de la 4 dans
+la 2, et une étape 4 qui permet de terminer et valider. » Lu comme : fusion Vérifier + Analyse juridique + champs de
+Finaliser en une étape, puis une dernière étape de récapitulatif et d'enregistrement (3 étapes au total).
+- index.html : `#wizard-step-btn-4`/`#wizard-step-4` retirés ; `#wizard-step-2` = panneau + `#wizard-bloc-dossier` (champs de
+  l'ancienne étape 4) + `#wizard-bloc-analyse` (ancienne étape 3, « Ajouter un engagement » sous les listes, texte vide réduit
+  à « Aucun engagement du vendeur relevé. ») + échéances repliées ; `#wizard-step-3` = `#recap-wizard`, alertes, erreur,
+  Précédent / Effacer / Ajouter le dossier.
+- script.js : `definirEtapeWizard` sur 3 étapes (notaires, marques pré-remplies et pièces à l'étape 2, récapitulatif à la 3) ;
+  `etatStepperWizard` à 3 entrées ; succession → étape 2 (plus 4) ; `renderEngagement` dans l'assistant : libellé court
+  (`libelleCourtEngagement`), clause entière en `title`, page à un clic, plus de marqueur de provenance ; note d'analyse
+  raccourcie ; `lignesRecapWizard` (pure, testée) + `renderRecapWizard` ; `data-nombre` sur la case des pièces d'Authentic.
+- style.css : bandeau en 3 colonnes ; `.wizard-bloc`, récapitulatif `.recap-*` ; avant-contrat à plat dans l'assistant ;
+  succession : panneau, avant-contrat et échéances masqués, champs `.revision-double` réaffichés.
+Vérifié : tests client 1197 / serveur 599 ; Chromium (compromis simulé + Authentic avec un engagement, Authentic seul) en
+clair, sombre et 390 px ; création depuis « Valider » (nom, responsable, notaires des deux côtés, côté qui reçoit l'acte,
+type, engagement enregistrés). Non vérifié : un vrai compromis PDF (pdf.js injoignable ici) et une succession réelle.

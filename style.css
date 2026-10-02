@@ -8254,10 +8254,9 @@ button.w-jour-lien { border: none; background: none; padding: 0; cursor: pointer
 /* « Nouveau dossier » pour une succession reprise d'Authentic (étude, 02/10) : ni prix, ni agence, ni
    notaires vendeur/acquéreur, ni checklist de vente — seulement le nom, le bien et le responsable. */
 #panel.wizard-succession .vente-seul,
-#panel.wizard-succession #wizard-step-btn-2,
-#panel.wizard-succession #wizard-step-btn-3,
-#panel.wizard-succession #wizard-step-btn-2 + .wizard-step-trait,
-#panel.wizard-succession #wizard-step-btn-3 + .wizard-step-trait { display: none; }
+#panel.wizard-succession #panneau-revision,
+#panel.wizard-succession details.wizard-plus { display: none; }
+#panel.wizard-succession .revision-double { display: grid; }
 #panel.wizard-succession .pieces-authentic { margin-top: 12px; }
 
 /* ---- Réglages › Authentic : journal des pages lues (étude, 02/10) ---- */
@@ -8329,7 +8328,7 @@ details.revision-groupe[open] > summary.revision-groupe-titre::after { content: 
 .panel .panneau-revision details.revision-groupe > summary.revision-groupe-titre { display: flex; justify-content: flex-start; padding: 4px 0; font-size: 12px; font-weight: 600; font-family: inherit; }
 .panel .panneau-revision .revision-extrait-pli > summary { display: inline-flex; padding: 2px 0; font-size: 12px; font-weight: 500; font-family: inherit; justify-content: flex-start; }
 /* Étapes : quatre colonnes égales — case, puis titre et état dessous ; un trait relie les cases. */
-.panel .wizard-stepper { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; align-items: start; }
+.panel .wizard-stepper { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; align-items: start; }
 .panel .wizard-stepper .wizard-step-trait { display: none; }
 .panel .wizard-stepper .wizard-step-btn { flex-direction: column; align-items: flex-start; gap: 6px; padding: 2px 0; position: relative; min-width: 0; }
 .panel .wizard-stepper .wizard-step-btn:not(:last-child)::after { content: ''; position: absolute; top: 17px; left: 38px; right: -2px; height: 1px; background: var(--line); }
@@ -8372,8 +8371,8 @@ details.revision-groupe[open] > summary.revision-groupe-titre::after { content: 
 .panel details.wizard-plus[open] { padding-bottom: 12px; }
 .pieces-authentic .checkbox-inline { font-size: 13.5px; }
 /* Rôle de l'étude : la mention « déduit des notaires » décalait la ligne. */
-#wizard-step-4 .role-deduit { display: none; }
-#wizard-step-4 .pieces-authentic { margin: 16px 0 8px; }
+#wizard-step-2 .role-deduit { display: none; }
+#wizard-step-2 .pieces-authentic { margin: 16px 0 8px; }
 body.wizard-avance #nouveau-intro { display: none !important; }
 .wizard-step-sous:empty { display: none; }
 .wizard-nav button { white-space: nowrap; }
@@ -8382,3 +8381,23 @@ body.wizard-avance #nouveau-intro { display: none !important; }
   .wizard-nav .actions-row { flex: 1 1 100%; display: flex; gap: 8px; }
   .wizard-nav .actions-row .primary { flex: 1; }
 }
+
+/* « Nouveau dossier » en trois étapes (étude, 02/10 au soir) : blocs de l'étape Vérifier, récapitulatif. */
+.wizard-bloc { margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--line-soft); }
+.wizard-bloc-titre { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-soft); margin-bottom: 12px; }
+#wizard-bloc-analyse .analyse-section { margin-top: 10px; }
+#wizard-step-2 .analyse-engagement-ligne { align-items: center; }
+#wizard-step-2 .analyse-engagement-texte { flex: 1; min-width: 0; }
+.recap-etat { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+.recap-liste { margin: 0; display: grid; gap: 0; border: 1px solid var(--line-soft); border-radius: 10px; overflow: hidden; }
+.recap-ligne { display: grid; grid-template-columns: minmax(0, 180px) minmax(0, 1fr); gap: 12px; padding: 10px 14px; border-top: 1px solid var(--line-soft); font-size: 14px; }
+.recap-ligne:first-child { border-top: 0; }
+.recap-ligne dt { color: var(--muted); }
+.recap-ligne dd { margin: 0; color: var(--ink); font-weight: 500; overflow-wrap: anywhere; }
+.recap-ligne dd.recap-manque { color: var(--muted); font-weight: 400; font-style: italic; }
+@media (max-width: 560px) { .recap-ligne { grid-template-columns: 1fr; gap: 2px; } }
+/* Avant-contrat dans « Vérifier » : listes à plat, sans cadres imbriqués (étude 02/10 : « trop brouillon »). */
+#wizard-bloc-analyse .analyse-juridique,
+#wizard-bloc-analyse .analyse-section { background: none; border: 0; box-shadow: none; padding: 0; margin: 0 0 14px; }
+#wizard-bloc-analyse .analyse-vide-etat { padding: 0; margin: 0 0 10px; background: none; border: 0; color: var(--muted); font-size: 13.5px; }
+#wizard-bloc-analyse .analyse-sous-titre { font-size: 13px; margin-bottom: 6px; }

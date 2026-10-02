@@ -69,7 +69,8 @@ test('groupesAuthenticPourCompromis : le dossier Authentic du compromis lu vient
 
 test('etatStepperWizard : étapes faites et leur état, « Vérifier » faite seulement quand tout est validé', () => {
   const e = app.etatStepperWizard({ etape: 4, compromis: true, authentic: true, revision: { aValider: 3, validees: 6 } });
-  assert.equal(e.map(x => x.fait ? 'x' : '-').join(''), 'x-x-');
+  assert.equal(e.length, 3);
+  assert.equal(e.map(x => x.fait ? 'x' : '-').join(''), 'x--');
   assert.equal(e[0].sous, 'Compromis + Authentic');
   assert.equal(e[1].sous, '3 à valider');
   const tout = app.etatStepperWizard({ etape: 2, authentic: true, revision: { aValider: 0, validees: 5 } });
@@ -79,4 +80,17 @@ test('etatStepperWizard : étapes faites et leur état, « Vérifier » faite se
   assert.equal(app.etatStepperWizard({ etape: 1 })[0].fait, false);
   // Rien à dire = pas de sous-titre (étude 02/10 : « trop de texte »).
   assert.equal(app.etatStepperWizard({ etape: 1 }).map(x => x.sous).join(''), '');
+});
+
+test('lignesRecapWizard : une ligne par donnée, vide = à compléter, facultatif omis, succession sans vente', () => {
+  const l = app.lignesRecapWizard({ nom: 'MARTEL / FOURNIER', vendeurs: ['Alexandre MARTEL'], acquereurs: [], prix: 245000,
+    notaireVendeur: 'Maître Sophie GOSSART', notaireAcquereur: 'Maître Sophie GOSSART', pret: '2026-11-15', nbEngagements: 2 });
+  const parLibelle = Object.fromEntries(l.map(x => [x.libelle, x.valeur]));
+  assert.equal(parLibelle['Acquéreur'], '');
+  assert.equal(parLibelle['Notaires'], 'Maître Sophie GOSSART (les deux côtés)');
+  assert.equal(parLibelle['Engagements du vendeur'], '2');
+  assert.ok(!('Vente préalable' in parLibelle));
+  assert.ok(!('Pièces d’Authentic' in parLibelle));
+  const succ = app.lignesRecapWizard({ nom: 'DURAND', succession: true, responsable: 'Julie VASSELIN' });
+  assert.equal(succ.map(x => x.libelle).join('|'), 'Dossier|Bien|Responsable');
 });

@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-02 22:04';
+  const VERSION_APP = '2026-10-02 22:10';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-02 22:10', resume: "Nouveau dossier en trois étapes : Importer, Vérifier, Valider. « Vérifier » réunit les données lues (à valider d'une case, la page du document à un clic), le dossier (type, responsable, notaires, rôle, pièces d'Authentic) et l'avant-contrat (engagements du vendeur en une ligne courte, la clause au survol). « Valider » récapitule le dossier avant « Ajouter le dossier » et signale ce qui reste à valider ou à compléter." },
     { version: '2026-10-02 22:04', resume: "Nouveau dossier épuré : à l'étape Vérifier, chaque donnée tient sur une ligne (libellé, source, valeur, case à valider), sans explication ni extrait ; vendeurs et acquéreurs en deux lignes ; les champs en double sont masqués et « Échéances et dates du document » est replié. À l'étape Finaliser : type de vente, responsable, notaires et une seule case pour les pièces d'Authentic — les pièces de base et le choix des rappels ne s'affichent plus (rappels J-15/J-7 par défaut). Le notaire lu dans Authentic est posé des deux côtés (il reçoit l'acte) quand aucun n'est rempli. L'encadré « Ce que CLAIRE repère » disparaît après l'import." },
     { version: '2026-10-02 21:56', resume: "Nouveau dossier, présentation revue : les quatre étapes en cases carrées, cochées une fois faites, avec une ligne d'état sous chacune (« Compromis + Authentic », « 3 à valider »…). À l'étape Vérifier, les données pré-remplies sont rangées en « À valider », « Validées » et « À compléter si besoin » (replié) : chaque donnée a sa case à cocher, sa source (lue dans l'acte, reprise d'Authentic) et son extrait du document à déplier ; « Tout valider » coche tout d'un geste, une barre suit l'avancement. À l'étape Finaliser, un champ rempli par CLAIRE et pas retouché porte « Pré-rempli »." },
     { version: '2026-10-02 21:50', resume: "Nouveau dossier complété depuis Authentic : la date de signature de l'avant-contrat relevée sur la page du dossier (« Promesse/Compromis… signé le … ») remplit le champ et sert d'ancre aux délais, si le compromis ne l'a pas donnée. Elle n'arrivait jusqu'ici sur la fiche qu'à l'enregistrement." },
@@ -7970,7 +7971,9 @@
       const tag = et.auto ? '<span class="piece-tag">pièce reçue</span>' : '';
       return `<div class="analyse-engagement-ligne avec-case${et.fait ? ' fait' : ''}">${caseHtml}${etiquette}<span class="analyse-engagement-texte">${escapeHtml(phrase)}</span>${tag}${marqueurManuel}${boutonVoir}${boutonEditer}${boutonSupprimer}</div>`;
     }
-    return `<div class="analyse-engagement-ligne">${etiquette}<span>${escapeHtml(phrase)}</span>${marqueurManuel}${boutonVoir}${boutonEditer}${boutonSupprimer}</div>`;
+    // Nouveau dossier (étude, 02/10 au soir : « pas besoin de l'extrait, je me réfère au document en
+    // cliquant sur la page ») : l'objet de l'engagement seul, la clause entière au survol.
+    return `<div class="analyse-engagement-ligne"><span class="analyse-engagement-texte" title="${escapeAttr(phrase)}">${escapeHtml(libelleCourtEngagement(e))}</span>${etiquette}${boutonVoir}${boutonEditer}${boutonSupprimer}</div>`;
   }
 
   // Document relevé dans l'avant-contrat, sur une fiche enregistrée : une ligne cochable. S'il est
@@ -8138,8 +8141,8 @@
       // Le liseré ambre de .analyse-note (voir style.css) porte déjà l'avertissement : un préfixe
       // "⚠️" en plus ne faisait que répéter ce que la couleur dit déjà.
       note.textContent = documents.length === 0
-        ? `${engagements.length} clause${engagements.length > 1 ? 's' : ''} d'engagement relevée${engagements.length > 1 ? 's' : ''}, mais aucun document type reconnu : lisez les clauses ci-dessus pour identifier les pièces attendues.`
-        : `Liste possiblement incomplète : ${engagements.length} clauses d'engagement relevées pour ${documents.length} document${documents.length > 1 ? 's' : ''} identifié${documents.length > 1 ? 's' : ''}. Relisez les clauses ci-dessus.`;
+        ? 'Aucun document type reconnu dans ces engagements.'
+        : `Liste peut-être incomplète : ${engagements.length} engagements pour ${documents.length} document${documents.length > 1 ? 's' : ''}.`;
     } else {
       note.style.display = 'none';
     }
@@ -10308,7 +10311,7 @@
     bloc.style.display = '';
     // Une ligne (étude, 02/10 : « trop brouillon ») ; la liste des pièces passe dans la bulle « i ».
     if (!pieces.length) { bloc.style.display = 'none'; bloc.innerHTML = ''; return; }
-    bloc.innerHTML = `<label class="checkbox-inline"><input type="checkbox" id="f-pieces-authentic" checked>
+    bloc.innerHTML = `<label class="checkbox-inline"><input type="checkbox" id="f-pieces-authentic" data-nombre="${pieces.length}" checked>
         Marquer reçue${pieces.length > 1 ? 's' : ''} ${pieces.length > 1 ? `les ${pieces.length} pièces présentes` : 'la pièce présente'} dans Authentic
         ${infoBulle(pieces.map(p => p.label).join(' · '))}</label>`;
   }
@@ -15339,21 +15342,73 @@
     if (panneau) panneau.classList.toggle('wizard-succession', successionEnCoursWizard());
     if (n === 1) { renderChoixImport(); chargerRelevesAuthenticRecents(); }
     // Ce qui a nourri le dossier se lit sous chaque étape du haut : plus de lignes de sources ici.
-    for (let i = 1; i <= 4; i++) {
+    // Trois étapes (étude, 02/10 au soir) : Importer · Vérifier (données, dossier, avant-contrat) · Valider.
+    for (let i = 1; i <= 3; i++) {
       document.getElementById('wizard-step-' + i).classList.toggle('actif', i === n);
       document.getElementById('wizard-step-btn-' + i).classList.toggle('actif', i === n);
     }
     majStepperWizard();
     // L'encadré « Ce que CLAIRE repère » ne sert qu'avant l'import : retiré dès l'étape 2.
     document.body.classList.toggle('wizard-avance', n > 1);
-    if (n === 4) majMarquesPreRemplies();
-    if (n === 4) {
+    if (n === 2) {
+      majMarquesPreRemplies();
       remplirListeNotairesWizard(notairesProposesWizard().map(x => x.nom));
       placerNotaireAuthenticParDefaut();
       majApercuPieces();
     }
+    if (n === 3) renderRecapWizard();
     const wrap = document.querySelector('.wrap');
     if (wrap) wrap.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  // Pure : le récapitulatif de l'étape « Valider » — une ligne par donnée, vide = « À compléter ».
+  function lignesRecapWizard(v) {
+    const x = v || {};
+    const date = iso => iso ? formatDateFr(iso) : '';
+    const lignes = [
+      { libelle: 'Dossier', valeur: x.nom || '' },
+      { libelle: 'Vendeur', valeur: (x.vendeurs || []).join(', '), vente: true },
+      { libelle: 'Acquéreur', valeur: (x.acquereurs || []).join(', '), vente: true },
+      { libelle: 'Bien', valeur: [x.adresse, x.typeVente].filter(Boolean).join(' · ') },
+      { libelle: 'Prix', valeur: x.prix ? formaterPrix(x.prix) : '', vente: true },
+      { libelle: 'Responsable', valeur: x.responsable || '' },
+      { libelle: 'Notaires', valeur: x.notaireVendeur && x.notaireVendeur === x.notaireAcquereur
+        ? `${x.notaireVendeur} (les deux côtés)`
+        : [x.notaireVendeur && `${x.notaireVendeur} (vendeur)`, x.notaireAcquereur && `${x.notaireAcquereur} (acquéreur)`].filter(Boolean).join(' · '), vente: true },
+      { libelle: 'Obtention du prêt', valeur: x.sansPret ? 'Sans prêt' : date(x.pret), vente: true },
+      { libelle: 'Vente préalable', valeur: date(x.ventebien), vente: true, facultatif: true },
+      { libelle: 'Signature de l’acte', valeur: date(x.acte), vente: true },
+      { libelle: 'Engagements du vendeur', valeur: x.nbEngagements ? String(x.nbEngagements) : '', vente: true, facultatif: true },
+      { libelle: 'Pièces d’Authentic', valeur: x.piecesAuthentic ? `${x.piecesAuthentic} marquée${x.piecesAuthentic > 1 ? 's' : ''} reçue${x.piecesAuthentic > 1 ? 's' : ''}` : '', facultatif: true }
+    ];
+    return lignes.filter(l => !(x.succession && l.vente)).filter(l => l.valeur || !l.facultatif);
+  }
+
+  function renderRecapWizard() {
+    const cible = document.getElementById('recap-wizard');
+    if (!cible) return;
+    const val = id => { const el = document.getElementById(id); return el ? String(el.value || '').trim() : ''; };
+    const texteOption = id => { const el = document.getElementById(id); return el && el.selectedIndex >= 0 && el.value ? el.options[el.selectedIndex].text : ''; };
+    const parties = role => ((extractionActuelle && extractionActuelle.parties) || []).filter(p => p.role === role).map(p => p.nom);
+    const caseAuthentic = document.getElementById('f-pieces-authentic');
+    const nbAuthentic = caseAuthentic && caseAuthentic.checked ? (Number(caseAuthentic.dataset.nombre) || 1) : 0;
+    const togglePret = document.getElementById('toggle-pret');
+    const toggleVente = document.getElementById('toggle-ventebien');
+    const lignes = lignesRecapWizard({
+      nom: val('f-nom'), vendeurs: parties('VENDEUR'), acquereurs: parties('ACQUEREUR'),
+      adresse: val('f-adresse-bien'), typeVente: texteOption('f-type-vente'), prix: eurosDepuisSaisie(val('f-prix-vente')),
+      responsable: val('f-responsable'), notaireVendeur: val('f-notaire-vendeur'), notaireAcquereur: val('f-notaire-acquereur'),
+      sansPret: togglePret ? !togglePret.checked : false, pret: val('f-pret'), acte: val('f-acte'),
+      ventebien: toggleVente && toggleVente.checked ? val('f-ventebien') : '',
+      nbEngagements: (analyseJuridiqueActuelle.engagements || []).length, piecesAuthentic: nbAuthentic,
+      succession: successionEnCoursWizard()
+    });
+    const reste = etatRevision && extractionActuelle ? etatRevision.aValider : 0;
+    const etat = reste
+      ? `<div class="recap-etat"><span class="dot-label dl-pret"><span class="dot"></span>${reste} donnée${reste > 1 ? 's' : ''} pas encore validée${reste > 1 ? 's' : ''}</span><button type="button" class="lien-action" onclick="definirEtapeWizard(2)">Revenir à Vérifier</button></div>`
+      : '';
+    cible.innerHTML = `${etat}<dl class="recap-liste">${lignes.map(l =>
+      `<div class="recap-ligne"><dt>${escapeHtml(l.libelle)}</dt><dd${l.valeur ? '' : ' class="recap-manque"'}>${escapeHtml(l.valeur || 'À compléter')}</dd></div>`).join('')}</dl>`;
   }
 
   // Pure : l'état de chaque étape de « Nouveau dossier » — faite, et ce qu'elle dit (sous-titre).
@@ -15369,7 +15424,6 @@
       { fait: !!(x.compromis || x.authentic) && x.etape > 1, sous: source },
       // Faite seulement quand plus rien n'est à valider (passer l'étape ne suffit pas).
       { fait: !!(x.compromis || x.authentic) && !r.aValider && !!r.validees, sous: verifier },
-      { fait: x.etape > 3, sous: '' },
       { fait: false, sous: '' }
     ];
   }
@@ -28178,7 +28232,7 @@
       succession: successionEnCoursWizard()
     };
     const html = sourcesImportWizard(etat).map(x => `<span class="sources-import-ligne"><span class="dot-label ${x.ok ? 'dl-success' : 'dl-neutre'}">${x.ok ? icone('check') : '<span class="dot"></span>'}${escapeHtml(x.texte)}</span>${x.geste ? ` <button type="button" class="lien-action" onclick="choisirModeImport('${x.geste === 'Ajouter le compromis' || dernierTexteTraite ? 'pdf' : 'seul'}'); definirEtapeWizard(1)">${escapeHtml(x.geste)}</button>` : ''}</span>`).join('');
-    ['sources-import-2', 'sources-import-4'].forEach(id => { const el = document.getElementById(id); if (el) el.innerHTML = html; });
+    ['sources-import-2'].forEach(id => { const el = document.getElementById(id); if (el) el.innerHTML = html; });
   }
 
   function creerDepuisAuthentic(i) {
@@ -28215,7 +28269,7 @@
     if (modeImport === 'seul') {
       afficherImportAuthentic(donnees, succession ? 'succession : parties et biens repris d’Authentic.' : 'sans compromis : dates butoir à saisir si besoin.');
       renderChoixImport();
-      definirEtapeWizard(succession ? 4 : 2);
+      definirEtapeWizard(2);
       return;
     }
     afficherImportAuthentic(donnees, 'dates butoir à saisir si besoin.');
