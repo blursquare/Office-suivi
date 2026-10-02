@@ -15405,3 +15405,14 @@ localStorage) et affiché dans « À propos › Qualité de l'extraction » : ch
 - Non repris : la mémoire locale des constats de l'ancien Outil 2 (`memoireAuditConstats`, navigateur seulement).
 Vérifié : tests client et serveur ; Chromium (journal de 5 corrections + 1 locale reprise, 2 clauses, 1 commentaire) en
 clair, sombre, 390 px ; « Oublier » retire la clause sur le serveur.
+
+### 02/10/2026 22:35 — « Ce que CLAIRE a appris » dans le rapport technique ; « Rappels Teams » → « Rappels »
+Demande : « Il faut que ces données remontent dans les rapports envoyés à Claude. Renomme Rappels Teams en Rappels. »
+- `server/src/rapportTechnique.js` : `rassemblerDonnees` lit aussi corrections apprises, exclusions de pièces et
+  commentaires de relecture ; `sectionApprentissage` (section « Ce que CLAIRE a appris » : état, erreurs de lecture de la
+  période — champ, origine, type d'acte, `natureCorrection`, clause lue —, classements retenus/confirmés dans la période
+  avec leur clause, fichiers écartés comptés par pièce sans nom de fichier, commentaires de relecture de la période avec
+  verdict, portée, gravité, titre, commentaire et clause citée) ; « À examiner » compte les reclassements et commentaires.
+  Tout texte passe par `anonymiserTexte` ; aucune valeur (date, montant, nom) lue ou saisie n'est envoyée — un écart de
+  date en jours seulement. Test « aucun nom ne sort » dans `server/test/journal-corrections.test.js`.
+- Réglages : rubrique et titre « Rappels » (était « Rappels Teams »).

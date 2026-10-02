@@ -87,3 +87,40 @@ test('rapport technique : section « Erreurs de lecture fréquentes », sans auc
   assert.doesNotMatch(r.corps, /245000|250000/);
   assert.equal(r.calme, false);
 });
+
+test('rapport technique : « Ce que CLAIRE a appris » — clauses et commentaires anonymisés, aucune valeur ni aucun nom ne sort', () => {
+  const { construireRapport, motsSensibles, natureCorrection } = require('../src/rapportTechnique');
+  const dossiers = [{ id: 'd1', nom: 'MARTEL / FOURNIER', adresseBien: 'VINEUIL (41350), 3 chemin des Vignes',
+    parties: [{ role: 'VENDEUR', nom: 'Alexandre Martel' }, { role: 'ACQUEREUR', nom: 'Camille Fournier' }], notaireAcquereur: 'Maître Jean Dupuis' }];
+  const mots = motsSensibles(dossiers, ['Julie VASSELIN']);
+  const jusqua = '2026-10-02T10:00:00Z';
+  const r = construireRapport({
+    depuis: '2026-10-01T00:00:00Z', jusqua, evenements: [], dossiers, mots,
+    journalCorrections: [
+      { champ: 'pret', origine: 'regex', typeActe: 'PROMESSE_DE_VENTE', valeurExtraite: '2026-11-15', valeurCorrigee: '2026-11-30', date: '2026-10-01T09:00:00Z',
+        extrait: "Monsieur Alexandre Martel s'oblige à obtenir le prêt au plus tard le 15 novembre 2026 auprès de la banque." },
+      { champ: 'prixVente', origine: 'authentic', valeurExtraite: '250000', valeurCorrigee: '245000', date: '2026-10-01T10:00:00Z', extrait: 'Prix : 250.000,00 euros payé par Camille Fournier' },
+      { champ: 'notaireAcquereur', valeurExtraite: null, valeurCorrigee: 'Maître Jean Dupuis', date: '2026-10-01T11:00:00Z' }
+    ],
+    correctionsApprises: [{ id: 'c1', categorie: 'date', classification: 'acte', nbConfirmations: 2, dateMaj: '2026-10-01T12:00:00Z',
+      contexteExemple: 'La réitération par acte authentique avec Madame FOURNIER aura lieu au plus tard le 15 décembre 2026' }],
+    exclusionsPieces: { 'etat-date': ['etat date martel'] },
+    retoursAudit: [{ id: 'r1', verdict: 'faux_positif', portee: 'tous', date: '2026-10-01T13:00:00Z', mode: 'compromis',
+      commentaire: 'La clause parle de la vente précédente de Monsieur Martel, 3 chemin des Vignes',
+      constat: { titre: 'Servitude non reprise (Fournier)', categorie: 'servitudes', gravite: 'IMPORTANT', phrase: 'Le fonds de M. MARTEL est grevé' } }]
+  });
+  const c = r.corps;
+  assert.match(c, /## Ce que CLAIRE a appris/);
+  assert.match(c, /pret \(proposé par regex\).*lu, date décalée de \+15 j/);
+  assert.match(c, /notaireAcquereur : non trouvé, saisi à la main/);
+  assert.match(c, /Clause lue : `Monsieur \[nom\] s'oblige à obtenir le prêt/);
+  assert.match(c, /date → acte \(confirmé 2 fois\)/);
+  assert.match(c, /etat-date : 1/);
+  assert.match(c, /faux positif · tous les dossiers/);
+  assert.match(c, /reclassé/);
+  for (const interdit of [/martel/i, /fournier/i, /dupuis/i, /vignes/i, /vineuil/i, /250\.?000/, /245\.?000/, /2026-11-30/, /Alexandre/, /Camille/]) {
+    assert.doesNotMatch(c, interdit, `fuite : ${interdit}`);
+  }
+  assert.equal(natureCorrection({ valeurExtraite: 'A', valeurCorrigee: '' }), 'lu, effacé');
+  assert.equal(natureCorrection({ valeurExtraite: 'A', valeurCorrigee: 'B' }), 'lu, changé');
+});

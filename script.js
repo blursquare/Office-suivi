@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-02 22:32';
+  const VERSION_APP = '2026-10-02 22:35';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-02 22:35', resume: "Le rapport technique (12 h et 17 h) reprend désormais ce que CLAIRE a appris, anonymisé : erreurs de lecture de la période avec la nature de la correction et la clause lue, classements retenus, fichiers écartés par pièce, commentaires de relecture. Réglages : « Rappels Teams » devient « Rappels »." },
     { version: '2026-10-02 22:32', resume: "Nouvelle rubrique Réglages › « Ce que CLAIRE a appris » : les erreurs de lecture (données d'un compromis corrigées à la main, « Fréquente » à 3 fois en 30 jours), les clauses reconnues d'après vos corrections (à oublier d'un clic si l'une est fausse), les fichiers écartés des pièces et vos commentaires de relecture. Le journal des corrections est désormais commun à tous les postes (il était gardé sur chaque poste, dans « À propos »), et les erreurs fréquentes remontent dans le rapport technique." },
     { version: '2026-10-02 22:31', resume: "Rapport technique : dans « Corrections à la main après extraction », l'origine de la valeur corrigée (regex, IA, Authentic…) s'affiche en clair au lieu de « [nom] » ; c'est un mot technique d'une liste fermée, jamais une donnée du dossier. Les scans non reconnus que l'étude a laissés dans Scan (ou rangés elle-même) ne font plus passer le rapport en « point à examiner »." },
     { version: '2026-10-02 22:18', resume: "Nouveau dossier : « Échéances et dates du document » retiré (doublon des données pré-remplies). La vente préalable est toujours dans les données pré-remplies (une date saisie l'active) et la ligne « Obtention du prêt » porte une case « Sans prêt ». Les engagements du vendeur s'affichent en entier, la page du document à un clic." },

@@ -447,7 +447,10 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
   **sur le serveur**, clé `corrections-extraction`, 500 entrées, `GET/POST/DELETE /api/corrections-extraction` — il était
   dans le navigateur de chaque poste et dans « À propos » ; reprise unique des entrées locales), « Fréquente » = 3
   corrections ou plus en 30 jours (`syntheseJournalCorrections`, miroir serveur `erreursFrequentesJournal`, section du
-  rapport technique : nom du champ et nombre seulement) ; clauses apprises avec « Oublier »
+  rapport technique) ; **tout remonte au rapport technique** (étude 02/10, `sectionApprentissage` : erreurs de la période
+  avec `natureCorrection` — trouvé ou non, effacé, changé, écart en jours — et la clause lue anonymisée, classements retenus
+  ou confirmés avec leur clause, fichiers écartés comptés par pièce, commentaires de relecture ; jamais une valeur lue ou
+  saisie, test « aucun nom ne sort ») ; clauses apprises avec « Oublier »
   (`DELETE /api/corrections-apprises/:id`) ; fichiers écartés des pièces ; commentaires de relecture d'actes.
 
 ## Relecture d'actes (Outil 2) — état actuel
@@ -564,7 +567,7 @@ Plainte principale de l'étude : **le bruit**, pas les oublis — ne pas élargi
   class="info-i" tabindex="0" data-info="…">` en HTML, `definirInfoBulle` pour la changer). Restent
   en texte visible : un état, un résultat, une erreur, une liste vide. **Réglages** : rubriques à
   gauche (`SOUS_ONGLETS_REGLAGES`, une par sujet depuis le 01/10 : Général, Collaborateurs, Signature des
-  emails, Rappels Teams, Agenda et Outlook, Téléphonie 3CX, Authentic, Pièces et Claire Scan, Relecture d'actes,
+  emails, Rappels, Agenda et Outlook, Téléphonie 3CX, Authentic, Pièces et Claire Scan, Relecture d'actes,
   Signalements, Mise à jour et sauvegarde ; chaque section qui enregistre a son propre bouton), une colonne de lignes `.reglages-option` / `.reglages-champ`
   dans des `.reglages-section` — pas de cartes en grille.
 - **Toute nouvelle fonction pure** : la déclarer `function` (ou `var` pour une table) pour la

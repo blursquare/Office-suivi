@@ -180,6 +180,71 @@ function mediane(nombres) {
 
 // Pure : le rapport (titre + corps Markdown) à partir des données rassemblées. Rien de nominatif
 // n'y entre qui ne soit passé par anonymiserTexte.
+// Pure : ce que l'étude a fait d'une valeur lue (jamais la valeur elle-même) — trouvée ou non, effacée,
+// changée ; pour une date, l'écart en jours, qui dit souvent la règle à revoir (délai mal compté…).
+function natureCorrection(e) {
+  const vide = (v) => v === null || v === undefined || v === '';
+  if (!e) return '';
+  if (vide(e.valeurExtraite)) return 'non trouvé, saisi à la main';
+  if (vide(e.valeurCorrigee)) return 'lu, effacé';
+  const re = /^\d{4}-\d{2}-\d{2}$/;
+  if (re.test(String(e.valeurExtraite)) && re.test(String(e.valeurCorrigee))) {
+    const j = Math.round((Date.parse(e.valeurCorrigee) - Date.parse(e.valeurExtraite)) / 86400000);
+    return `lu, date décalée de ${j > 0 ? '+' : ''}${j} j`;
+  }
+  return 'lu, changé';
+}
+
+const LIBELLES_VERDICT_RAPPORT = { juste: 'juste', faux_positif: 'faux positif', mal_formule: 'mal formulé', gravite: 'gravité à revoir', manque: 'oubli de la relecture' };
+
+// « Ce que CLAIRE a appris » (étude, 02/10 : « il faut que ces données remontent dans les rapports envoyés à
+// Claude ») : erreurs de lecture de la période avec la clause lue, classements retenus, fichiers écartés,
+// commentaires de relecture. Tout texte venu d'un acte passe par anonymiserTexte ; aucune valeur lue ou saisie.
+function sectionApprentissage(d, mots, dansLaPeriode) {
+  const L = [];
+  const entrees = (d.journalCorrections || []).filter((e) => dansLaPeriode(e.date));
+  const apprises = d.correctionsApprises || [];
+  const nouvelles = apprises.filter((c) => dansLaPeriode(c.dateMaj));
+  const exclusions = d.exclusionsPieces || {};
+  const nbExclus = Object.values(exclusions).reduce((n, l) => n + (Array.isArray(l) ? l.length : 0), 0);
+  const retours = (d.retoursAudit || []).filter((r) => dansLaPeriode(r.date));
+  if (!entrees.length && !nouvelles.length && !retours.length && !apprises.length && !nbExclus) return L;
+  const citer = (t, n) => anonymiserTexte(String(t || '').replace(/\s+/g, ' ').slice(0, n), mots).replace(/`/g, 'ˋ');
+  L.push('', '## Ce que CLAIRE a appris');
+  const parCat = apprises.reduce((m, c) => { m[c.categorie || 'date'] = (m[c.categorie || 'date'] || 0) + 1; return m; }, {});
+  L.push(`- État : ${apprises.length} classement(s) retenu(s) (dates : ${parCat.date || 0}, engagements : ${parCat.engagement || 0}), ${nbExclus} fichier(s) écarté(s) des pièces, ${(d.retoursAudit || []).length} commentaire(s) de relecture.`);
+  if (entrees.length) {
+    L.push('', `### Erreurs de lecture sur la période (${entrees.length})`);
+    for (const e of entrees.slice(-40)) {
+      const origine = origineExtractionAffichee(e.origine);
+      L.push(`- ${anonymiserTexte(e.champ, mots)}${origine ? ` (proposé par ${origine})` : ''}${e.typeActe ? ` · ${anonymiserTexte(e.typeActe, mots)}` : ''} : ${natureCorrection(e)}`);
+      if (e.extrait) L.push(`  - Clause lue : \`${citer(e.extrait, 220)}\``);
+    }
+  }
+  if (nouvelles.length) {
+    L.push('', `### Classements retenus ou confirmés sur la période (${nouvelles.length})`);
+    for (const c of nouvelles.slice(0, 30)) {
+      L.push(`- ${c.categorie === 'engagement' ? 'engagement' : 'date'} → ${anonymiserTexte(c.classification, mots)}${c.nbConfirmations > 1 ? ` (confirmé ${c.nbConfirmations} fois)` : ''}`);
+      if (c.contexteExemple) L.push(`  - Clause : \`${citer(c.contexteExemple, 220)}\``);
+    }
+  }
+  if (nbExclus) {
+    L.push('', '### Fichiers écartés des pièces (par pièce)');
+    for (const [cle, l] of Object.entries(exclusions).filter(([, l]) => Array.isArray(l) && l.length)) L.push(`- ${anonymiserTexte(cle, mots)} : ${l.length}`);
+  }
+  if (retours.length) {
+    L.push('', `### Commentaires de relecture d'actes sur la période (${retours.length})`);
+    for (const r of retours.slice(0, 30)) {
+      const c = r.constat || {};
+      const meta = [LIBELLES_VERDICT_RAPPORT[r.verdict] || r.verdict, r.portee === 'dossier' ? 'ce dossier' : 'tous les dossiers', r.mode, r.typeBien, c.categorie, c.gravite && `gravité ${c.gravite}${r.graviteSouhaitee ? ` → ${r.graviteSouhaitee}` : ''}`].filter(Boolean).map((x) => anonymiserTexte(String(x), mots)).join(' · ');
+      L.push(`- **${meta}**${c.titre ? ` — ${citer(c.titre, 200)}` : ''}`);
+      if (r.commentaire) L.push(`  - Commentaire : ${citer(r.commentaire, 600)}`);
+      if (c.phrase) L.push(`  - Clause citée : \`${citer(c.phrase, 220)}\``);
+    }
+  }
+  return L;
+}
+
 // Pure : les champs corrigés au moins `seuil` fois sur les `jours` derniers jours, du plus corrigé au moins.
 const SEUIL_ERREUR_FREQUENTE = 3;
 function erreursFrequentesJournal(journal, maintenant, jours = 30, seuil = SEUIL_ERREUR_FREQUENTE) {
@@ -230,6 +295,10 @@ function construireRapport(d) {
   const nonReconnusRestants = Math.max(0, nonReconnus.length - scansTraitesALaMain);
   if (nonReconnusRestants) aExaminer.push(`${nonReconnusRestants} scan(s) dont le type n'a pas été reconnu, ni rangé(s) ni laissé(s) dans Scan`);
   const frequentes = erreursFrequentesJournal(d.journalCorrections || [], jusqua);
+  const reclassements = (d.correctionsApprises || []).filter((c) => dansPeriode(c.dateMaj, depuis, jusqua)).length;
+  if (reclassements) aExaminer.push(`${reclassements} date(s) ou engagement(s) reclassé(s) par l'étude (voir « Ce que CLAIRE a appris »)`);
+  const retoursPeriode = (d.retoursAudit || []).filter((r) => dansPeriode(r.date, depuis, jusqua)).length;
+  if (retoursPeriode) aExaminer.push(`${retoursPeriode} commentaire(s) de relecture d'actes`);
   if (frequentes.length) aExaminer.push(`${frequentes.length} champ(s) souvent corrigé(s) à la main (erreur de lecture à corriger)`);
   const calme = aExaminer.length === 0;
 
@@ -295,6 +364,8 @@ function construireRapport(d) {
     L.push('', '## Erreurs de lecture fréquentes (30 derniers jours, tous postes)');
     for (const f of frequentes) L.push(`- ${anonymiserTexte(f.champ, mots)} : ${f.nombre} correction(s)`);
   }
+
+  L.push(...sectionApprentissage(d, mots, (date) => dansPeriode(date, depuis, jusqua)));
 
   L.push('', '## Agenda (dernier tour de lecture)');
   if (!agenda || !agenda.at) L.push('- Aucun tour enregistré (connexion Exchange non configurée ?).');
@@ -366,6 +437,9 @@ function rassemblerDonnees({ journal, parametresRepo, depot, db, depuis, jusqua,
     dernierTourRappels: parametresRepo.lireDernierTour ? parametresRepo.lireDernierTour() : null,
     etatSauvegarde: parametresRepo.lireEtatSauvegarde ? parametresRepo.lireEtatSauvegarde() : null,
     journalCorrections: parametresRepo.lireJournalCorrections ? parametresRepo.lireJournalCorrections() : [],
+    correctionsApprises: parametresRepo.lireCorrectionsApprises ? parametresRepo.lireCorrectionsApprises() : [],
+    exclusionsPieces: parametresRepo.lireExclusionsPieces ? parametresRepo.lireExclusionsPieces() : {},
+    retoursAudit: parametresRepo.lireRetoursAudit ? parametresRepo.lireRetoursAudit() : [],
     dossiers,
     mots: motsSensibles(dossiers, collaborateurs || [])
   };
@@ -459,7 +533,7 @@ function demarrerRapportTechnique(options, intervalleMs = 60 * 1000) {
 }
 
 module.exports = {
-  erreursFrequentesJournal, SEUIL_ERREUR_FREQUENTE,
+  erreursFrequentesJournal, SEUIL_ERREUR_FREQUENTE, natureCorrection, sectionApprentissage,
   DEPOT_GITHUB_RAPPORT, ETIQUETTE_RAPPORT, CRENEAUX_RAPPORT, SIGLES_TECHNIQUES,
   motsSensibles, anonymiserTexte, origineExtractionAffichee, creneauDu, construireRapport, rassemblerDonnees,
   envoyerIssue, messageErreurGithubRapport, executerRapportTechnique, demarrerRapportTechnique
