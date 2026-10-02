@@ -659,8 +659,7 @@ Plainte principale de l'étude : **le bruit**, pas les oublis — ne pas élargi
   (`texteVocabulaireAuthentic`, `VOCABULAIRE_AUTHENTIC`, test « aucun nom ne sort ») ; « Retour le » = prise en compte
   SAFER / retour RHF (étude, 02/10). **Troisième passe (02/10 midi)** : **Comedec** (`etatEtatCivilAuthentic`,
   `d.authentic.etatsCivils`) — « pris en compte »/en attente et **« négatif »** (erreur, rien délivré) laissent la pièce
-  non cochée avec l'état dessous (`etatAuthenticPiece`), seul **« positif »** coche ; **SAFER** : envoyée, prise en compte,
-  puis **non-préemption tacite** à l'issue du délai depuis la prise en compte (sinon l'envoi) — 2 mois, 1 mois en réponse
+  non cochée avec l'état dessous (`etatAuthenticPiece`), seul **« positif »** coche ; **SAFER** : ligne « date de création · date d'envoi · état » (étude 02/10 — état « Pris en compte » / « Non préemption SAFER », sans date ; `creeeLe`, `envoyeeLe`, date de décision seulement sur une ligne de réponse à une date ou en 3e date), puis **non-préemption tacite** à l'issue du délai **depuis la date d'envoi** (`envoyeeLe` ; relevés antérieurs : leur `priseEnCompteLe` était l'envoi ; miroir serveur `echeanceSaferDossier`) — 2 mois, 1 mois en réponse
   rapide, 8 jours en très rapide — **2 mois de base, les deux autres se cochent sous « Réponse SAFER »** (`delaiManuel`,
   `renderDelaiSafer`, jamais lu dans l'intitulé ; `DELAIS_SAFER`, `appliquerSaferTacite`, `verifierSaferTacites` au démarrage puis
   toutes les heures) ; **fin du délai = date butoir, comme la préemption de la mairie** (`saferLevee`,

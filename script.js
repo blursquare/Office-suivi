@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-02 16:02';
+  const VERSION_APP = '2026-10-02 16:11';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-02 16:11', resume: "SAFER (Authentic) : la ligne porte la date de création puis la date d'envoi, puis l'état (« Pris en compte », « Non préemption SAFER »). Le délai part maintenant de la date d'ENVOI ; « prise en compte » n'a plus de date inventée et la non-préemption ne prend plus la date d'envoi pour date de décision. Fiche : « envoyée le … , prise en compte ». Dossiers déjà relevés : même date de départ qu'avant (c'était déjà l'envoi)." },
     { version: '2026-10-02 16:02', resume: "Date de l'avant-contrat : CLAIRE ne la relit plus d'elle-même dans un PDF du NAS (elle a pu poser une date différente de celle validée à l'import) ; les dates posées ainsi sont retirées (l'historique le dit), sauf si elles ont été saisies ou reprises d'Authentic depuis. Restent : la date validée à la création, la saisie sur la fiche (« Signé le ») et Authentic (seulement si vide)." },
     { version: '2026-10-02 15:59', resume: "Add-on Authentic : quand une fiche client correspond à plusieurs dossiers en cours, le message porte un bouton « Choisir » : il liste ces dossiers (avec le côté vendeur/acquéreur) et un clic y range la fiche ; ce dossier devient le dossier en consultation pour les fiches suivantes." },
     { version: '2026-10-02 15:54', resume: "Agenda : « ‹ Aujourd’hui › » et « Aller à une date » sont à côté de la date, sur sa ligne ; la date a une largeur fixe, les boutons ne bougent plus sous la souris d'une semaine à l'autre." },
@@ -22878,8 +22879,10 @@
     const sa = d && d.authentic && d.authentic.safer;
     if (!sa) return '';
     const echeance = echeanceSaferTacite(sa);
-    return [sa.notifieeLe ? `envoyée le ${formatDateFr(sa.notifieeLe)}` : 'envoyée',
-      sa.priseEnCompteLe ? `prise en compte le ${formatDateFr(sa.priseEnCompteLe)}` : (sa.priseEnCompte ? 'prise en compte' : ''),
+    const envoi = sa.envoyeeLe || sa.priseEnCompteLe || sa.notifieeLe;
+    const pec = sa.envoyeeLe && sa.priseEnCompteLe && sa.priseEnCompteLe !== sa.envoyeeLe ? sa.priseEnCompteLe : '';
+    return [envoi ? `envoyée le ${formatDateFr(envoi)}` : 'envoyée',
+      pec ? `prise en compte le ${formatDateFr(pec)}` : (sa.priseEnCompte ? 'prise en compte' : ''),
       sa.decision === 'non_preemption' ? `non-préemption${sa.tacite ? ' (délai écoulé)' : ''}${sa.decisionLe ? ` le ${formatDateFr(sa.decisionLe)}` : ''}`
         : sa.decision === 'preemption' ? 'préemption exercée'
           : (echeance ? `sans réponse : non-préemption le ${formatDateFr(echeance)} (${DELAIS_SAFER[delaiSafer(sa)].libelle})` : '')]
@@ -25985,17 +25988,26 @@
   function suiviSaferAuthentic(lignes) {
     const lignesSafer = (lignes || []).filter(l => /safer/i.test(l.texte || ''));
     if (!lignesSafer.length) return null;
-    const r = { notifieeLe: '', priseEnCompteLe: '', priseEnCompte: '', decision: '', decisionLe: '', titre: lignesSafer[0].titre };
+    // Colonnes de la ligne (étude, 02/10) : date de création, puis date d'ENVOI — celle qui fait partir
+    // le délai. Une troisième date est le retour (prise en compte).
+    const r = { creeeLe: '', envoyeeLe: '', notifieeLe: '', priseEnCompteLe: '', priseEnCompte: '', decision: '', decisionLe: '', titre: lignesSafer[0].titre };
     lignesSafer.forEach(l => {
       const texte = normaliserPourRecherche(l.texte || '');
       if (/pris(?:e)?\s+en\s+compte/.test(texte)) r.priseEnCompte = 'oui';
       const dates = l.dates || (l.date ? [l.date] : []);
-      if (!r.notifieeLe && dates[0]) r.notifieeLe = dates[0];
+      if (!r.envoyeeLe && dates.length) {
+        if (dates.length >= 2) r.creeeLe = dates[0];
+        r.envoyeeLe = dates.length >= 2 ? dates[1] : dates[0];
+        r.notifieeLe = r.envoyeeLe;
+      }
       const mPec = /(?:pris(?:e)?\s+en\s+compte|retour)\s*(?:le)?\D{0,6}(\d{1,2}[\/.-]\d{1,2}[\/.-]\d{4})/.exec(texte);
       if (mPec) r.priseEnCompteLe = dateIsoDepuisFr(mPec[1]);
-      else if (!r.priseEnCompteLe && dates[1]) r.priseEnCompteLe = dates[1];
-      if (RE_SAFER_NON_PREEMPTION.test(texte)) { r.decision = 'non_preemption'; r.decisionLe = dates[dates.length - 1] || ''; }
-      else if (!r.decision && RE_SAFER_PREEMPTION_EXERCEE.test(texte)) { r.decision = 'preemption'; r.decisionLe = dates[dates.length - 1] || ''; }
+      else if (!r.priseEnCompteLe && dates[2]) r.priseEnCompteLe = dates[2];
+      // L'état (« Pris en compte », « Non préemption SAFER ») suit les dates sans date propre : la date
+      // de la décision n'est connue que sur une ligne de réponse à une seule date, ou en 3e date.
+      const dateDecision = dates.length === 1 ? dates[0] : (dates[2] || '');
+      if (RE_SAFER_NON_PREEMPTION.test(texte)) { r.decision = 'non_preemption'; r.decisionLe = dateDecision || r.decisionLe; }
+      else if (!r.decision && RE_SAFER_PREEMPTION_EXERCEE.test(texte)) { r.decision = 'preemption'; r.decisionLe = dateDecision; }
     });
     return r;
   }
@@ -26010,7 +26022,9 @@
   }
   function echeanceSaferTacite(safer) {
     if (!safer) return '';
-    const depart = safer.priseEnCompteLe || safer.notifieeLe;
+    // Départ = date d'envoi (étude, 02/10). Relevés d'avant cette règle (sans envoyeeLe) : leur
+    // « prise en compte » était la 2e date de la ligne, donc déjà l'envoi.
+    const depart = safer.envoyeeLe || safer.priseEnCompteLe || safer.notifieeLe;
     if (!depart) return '';
     const delai = DELAIS_SAFER[delaiSafer(safer)];
     return delai.jours ? addDays(depart, delai.jours) : ajouterMois(depart, delai.mois);
@@ -26666,11 +26680,16 @@
     // Informations du dossier.
     const infos = infosDossierAuthentic(capture, d.typeAffaire);
     const apres = fusionnerInfosAuthentic(avant, infos);
+    // SAFER relue au nouveau format (envoi = 2e date) : l'ancienne « prise en compte », qui était cet
+    // envoi, ne reste pas affichée en double.
+    if (infos.safer && infos.safer.envoyeeLe && apres.safer && !infos.safer.priseEnCompteLe && !avant.safer?.envoyeeLe) {
+      apres.safer.priseEnCompteLe = '';
+    }
     const nouveau = (k, kk) => apres[k] && apres[k][kk] && apres[k][kk] !== (avant[k] || {})[kk];
     if (nouveau('acte', 'etat') && !(d.roleNotaire === 'participant' && apres.acte.etat !== 'signe')) noter(`Acte dans Authentic : ${apres.acte.libelle}${apres.acte.date ? ` le ${formatDateFr(apres.acte.date)}` : ''}`);
     if (nouveau('rhf', 'envoyeeLe')) noter(`Réquisition hors formalité envoyée le ${formatDateFr(apres.rhf.envoyeeLe)} (Authentic)`);
     if (nouveau('rhf', 'retourLe')) noter(`Retour de la réquisition hors formalité le ${formatDateFr(apres.rhf.retourLe)} (Authentic)`);
-    if (nouveau('safer', 'notifieeLe')) noter(`SAFER notifiée le ${formatDateFr(apres.safer.notifieeLe)} (Authentic)`);
+    if (nouveau('safer', 'envoyeeLe')) noter(`Notification SAFER envoyée le ${formatDateFr(apres.safer.envoyeeLe)} (Authentic)`);
     if (nouveau('safer', 'priseEnCompteLe')) noter(`Notification SAFER prise en compte le ${formatDateFr(apres.safer.priseEnCompteLe)} (Authentic)`);
     if (nouveau('safer', 'decision') && apres.safer.decision === 'preemption') noter(`SAFER : préemption exercée${apres.safer.decisionLe ? ` (${formatDateFr(apres.safer.decisionLe)})` : ''} — à vérifier dans Authentic`);
     // Acte signé dans Authentic (étude, 02/10 : « marque-le comme fait ») : la signature et toutes
@@ -29006,7 +29025,7 @@
       ? Object.fromEntries(Object.entries(o).slice(0, 40).filter(([k, v]) => /^[\w-]{1,80}$/.test(k) && v && typeof v === 'object').map(([k, v]) => [k, sous(v, cles)])) : null;
     const r = {
       acte: sous(a.acte, ['etat', 'libelle', 'date']), rhf: sous(a.rhf, ['envoyeeLe', 'retourLe']),
-      safer: sous(a.safer, ['notifieeLe', 'priseEnCompteLe', 'priseEnCompte', 'delaiManuel', 'decision', 'decisionLe', 'tacite', 'pieceCocheeTacite', 'titre']),
+      safer: sous(a.safer, ['creeeLe', 'envoyeeLe', 'notifieeLe', 'priseEnCompteLe', 'priseEnCompte', 'delaiManuel', 'decision', 'decisionLe', 'tacite', 'pieceCocheeTacite', 'titre']),
       etatsCivils: carte(a.etatsCivils, ['label', 'etat', 'date']), demandes: carte(a.demandes, ['date', 'titre']),
       prix: Number.isFinite(a.prix) && a.prix > 0 ? a.prix : null, collaborateur: texte(a.collaborateur), notaire: texte(a.notaire),
       avantContratLe: /^\d{4}-\d{2}-\d{2}$/.test(a.avantContratLe || '') ? a.avantContratLe : '',

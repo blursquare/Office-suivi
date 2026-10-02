@@ -79,7 +79,8 @@ function saferLevee(d) {
 function echeanceSaferDossier(d) {
   if (saferLevee(d)) return '';
   const sa = d.authentic && d.authentic.safer;
-  const depart = sa && (sa.priseEnCompteLe || sa.notifieeLe);
+  // Départ = date d'envoi (étude, 02/10) ; relevés plus anciens : leur « prise en compte » était l'envoi.
+  const depart = sa && (sa.envoyeeLe || sa.priseEnCompteLe || sa.notifieeLe);
   if (!depart || !/^\d{4}-\d{2}-\d{2}$/.test(depart)) return '';
   const [a, m, j] = depart.split('-').map(Number);
   if (sa.delaiManuel === 'tres_rapide') {

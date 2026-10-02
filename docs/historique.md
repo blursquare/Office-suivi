@@ -15020,3 +15020,16 @@ de l'import (OCR, métadonnées, validation). Retirée : le mobilier seul est re
 (au démarrage) retire les dates posées ainsi — même date que l'entrée « lue dans … » de l'historique et aucune saisie
 ni reprise d'Authentic depuis — avec une entrée d'historique. La date validée à l'import n'a pas pu être retrouvée
 (elle n'était stockée nulle part) : à saisir sur la fiche (« Signé le ») ; Authentic la remplit si elle manque.
+
+### 02/10/2026 fin d'après-midi — SAFER : le délai part de la date d'envoi
+
+Étude : « pour la date de départ de la SAFER, il y a dans la ligne : date de création puis date d'envoi. C'est la date
+d'envoi qui nous intéresse » ; « puis après il est écrit Pris en compte ou Non préemption SAFER ». `suiviSaferAuthentic`
+lisait la 1re date comme « notifiée » et la 2e comme « prise en compte » (délai compté de la 2e, donc déjà de l'envoi,
+mais libellés faux) et prenait la dernière date comme date de décision (= l'envoi). Désormais : `creeeLe` = 1re date,
+`envoyeeLe` (= `notifieeLe`) = 2e date (seule date s'il n'y en a qu'une), `priseEnCompteLe` seulement « pris en compte
+le … / retour le … » écrit ou 3e date, état « Pris en compte » → `priseEnCompte: 'oui'` sans date ; `decisionLe` = date
+d'une ligne de réponse à une seule date ou 3e date, sinon vide. Départ du délai (`echeanceSaferTacite`, miroir serveur
+`echeanceSaferDossier`) = `envoyeeLe || priseEnCompteLe || notifieeLe` (anciens relevés inchangés). Relevé au nouveau
+format : l'ancienne « prise en compte » (= l'envoi) est effacée pour ne pas s'afficher en double. Historique : « Notification
+SAFER envoyée le … ». Fiche : « envoyée le 15 septembre 2026, prise en compte, sans réponse : non-préemption le … ».

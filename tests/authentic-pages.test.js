@@ -210,9 +210,16 @@ const clientMarie = {
 };
 
 test('suiviSaferAuthentic et suiviRhfAuthentic : notifiée, prise en compte, réponse ; RHF envoyée, retour', () => {
+  // Ligne SAFER (étude, 02/10) : date de création, date d'ENVOI (départ du délai), puis l'état sans date.
   const sa = app.suiviSaferAuthentic(app.lignesDocumentsAuthentic(gestionAttente));
-  assert.equal([sa.notifieeLe, sa.priseEnCompteLe, sa.decision].join('|'), '2026-09-10|2026-09-15|');
-  assert.equal(app.suiviSaferAuthentic(app.lignesDocumentsAuthentic(gestion)).decision, 'non_preemption');
+  assert.equal([sa.creeeLe, sa.envoyeeLe, sa.priseEnCompte, sa.priseEnCompteLe, sa.decision].join('|'), '2026-09-10|2026-09-15|oui||');
+  assert.equal(app.echeanceSaferTacite(sa), '2026-11-15');
+  const np = app.suiviSaferAuthentic(app.lignesDocumentsAuthentic(gestion));
+  assert.equal([np.decision, np.envoyeeLe, np.decisionLe].join('|'), 'non_preemption|2026-09-25|');
+  // Ligne de réponse à une seule date : c'est la date de la décision.
+  assert.equal(app.suiviSaferAuthentic([{ titre: 'Réponse SAFER non préemption', dates: ['2026-09-25'], etat: 'Reçu', texte: 'Réponse SAFER non préemption · 25/09/2026 · Reçu' }]).decisionLe, '2026-09-25');
+  // Relevé d'avant cette règle (sans envoyeeLe) : sa « prise en compte » était l'envoi.
+  assert.equal(app.echeanceSaferTacite({ notifieeLe: '2026-09-10', priseEnCompteLe: '2026-09-15' }), '2026-11-15');
   const rhf = app.suiviRhfAuthentic(app.lignesDocumentsAuthentic(gestionAttente));
   assert.equal([rhf.envoyeeLe, rhf.retourLe].join('|'), '2026-09-01|');
   const retour = app.suiviRhfAuthentic([{ titre: 'Réquisition hors formalité', dates: ['2026-09-01', '2026-09-12'], etat: 'Reçue', texte: 'Réquisition hors formalité · 01/09/2026 · 12/09/2026 · Reçue' }]);
@@ -259,10 +266,10 @@ test('appliquerReleveSurDossier : SAFER notifiée sans réponse → « Réponse 
   assert.ok(r.modifie);
   assert.equal(d.pieces['perso-safer'], 'manquante');
   assert.ok(d.piecesPersonnalisees.some(p => p.cle === 'perso-safer' && p.label === 'Réponse SAFER'));
-  assert.equal(d.authentic.safer.priseEnCompteLe, '2026-09-15');
+  assert.equal(d.authentic.safer.envoyeeLe, '2026-09-15');
   assert.equal(d.authentic.acte.etat, 'redaction');
   assert.equal(d.authentic.rhf.envoyeeLe, '2026-09-01');
-  assert.equal(app.suiviSaferPiece(d), 'envoyée le 10 septembre 2026, prise en compte le 15 septembre 2026, sans réponse : non-préemption le 15 novembre 2026 (2 mois)');
+  assert.equal(app.suiviSaferPiece(d), 'envoyée le 15 septembre 2026, prise en compte, sans réponse : non-préemption le 15 novembre 2026 (2 mois)');
   const n = d.historique.length;
   // Même page relue : rien de nouveau.
   app.appliquerReleveSurDossier(d, gestionAttente, '2026-10-02T10:05:00.000Z');
@@ -367,7 +374,7 @@ test('création depuis les pages : infos agrégées, prix repris, SAFER attendue
   const infos = g.export.infosAuthentic;
   assert.equal(infos.prix, 245000);
   assert.equal(infos.collaborateur, 'Julie VASSELIN');
-  assert.equal(infos.safer.priseEnCompteLe, '2026-09-15');
+  assert.equal(infos.safer.envoyeeLe, '2026-09-15');
   const dossier = { pieces: {}, piecesPersonnalisees: [] };
   app.infosAuthenticACreation(dossier, infos);
   assert.equal(dossier.pieces['perso-safer'], 'manquante');
