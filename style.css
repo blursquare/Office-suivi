@@ -7325,6 +7325,16 @@ button.scan-nom:focus-visible { outline: 2px solid var(--focus); outline-offset:
 .ag-pastille-date b { font-size: 21px; font-weight: 700; color: var(--ink); line-height: 1.3; min-height: 27px; font-variant-numeric: tabular-nums; }
 .ag-titre-bloc { flex: 1 1 240px; min-width: 0; }
 .ag-titre { margin: 0; font-size: 20px; font-weight: 700; letter-spacing: -0.01em; color: var(--ink); }
+/* La date, puis « ‹ Aujourd'hui › » à côté (étude, 02/10) ; largeur fixe de la date pour que les boutons
+   restent sous la souris d'une semaine à l'autre. */
+.ag-titre-ligne { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
+.ag-titre-ligne .ag-titre { min-width: 9.6em; font-variant-numeric: tabular-nums; }
+/* Téléphone : le bloc de la date reste à côté du mot du jour (il ne passe plus dessous certains jours) ;
+   les boutons vont sous la date. */
+@media (max-width: 640px) {
+  .ag-titre-bloc { flex: 1 1 0; }
+  .ag-titre-ligne .ag-titre { min-width: 0; flex-basis: 100%; }
+}
 .ag-sous { display: block; margin-top: 2px; font-size: 12.5px; color: var(--muted); }
 /* « Actualiser » en icône à côté de « Agenda de l'office lu … » (étude, 01/10). */
 button.ag-actualiser {

@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-02 15:50';
+  const VERSION_APP = '2026-10-02 15:54';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-02 15:54', resume: "Agenda : « ‹ Aujourd’hui › » et « Aller à une date » sont à côté de la date, sur sa ligne ; la date a une largeur fixe, les boutons ne bougent plus sous la souris d'une semaine à l'autre." },
     { version: '2026-10-02 15:50', resume: "Add-on Authentic, fiche client du vendeur (cas CHAHUNEAU) : quand sa fiche cite son ancien dossier (archivé) et pas la vente en cours, les coordonnées partaient dans l'ancien. La vente en cours où la personne est partie passe désormais toujours avant. Chaque fiche client lue sans effet le dit maintenant (aucun dossier, plusieurs possibles, ni téléphone ni email sur la fiche Authentic, déjà à jour)." },
     { version: '2026-10-02 15:39', resume: "Add-on Authentic : le numéro du dossier dans Authentic (« 1836 » de « 1836 - Vente … ») est retenu sur la fiche dès que le dossier est reconnu ou créé, puis il sert en priorité pour reconnaître le dossier — avant les noms et l'adresse, même si l'intitulé change ; un dossier déjà rattaché à un autre numéro n'est plus jamais pris pour celui-là. Non affiché." },
     { version: '2026-10-02 15:32', resume: "Fiche : l'apport retrouve son affichage d'avant (signe moins quand le prêt dépasse le prix), à la demande de l'étude." },
@@ -20356,17 +20357,19 @@
         <div class="ag-tete-page">
           <div class="ag-pastille-jour" aria-hidden="true">${escapeHtml(motPastilleAgenda(dRef, agendaVue))}<i></i></div>
           <div class="ag-titre-bloc">
-            <h2 class="ag-titre">${escapeHtml(titre.charAt(0).toUpperCase() + titre.slice(1))}</h2>
+            <div class="ag-titre-ligne">
+              <h2 class="ag-titre">${escapeHtml(titre.charAt(0).toUpperCase() + titre.slice(1))}</h2>
+              <div class="ag-nav" role="group" aria-label="Se déplacer dans l’agenda">
+                <button type="button" class="ag-nav-btn" onclick="naviguerAgenda(-1)" aria-label="Précédent">${icone('chevron-left')}</button>
+                <button type="button" class="ag-nav-btn ag-auj" onclick="naviguerAgenda(0)">Aujourd’hui</button>
+                <button type="button" class="ag-nav-btn" onclick="naviguerAgenda(1)" aria-label="Suivant">${icone('chevron-right')}</button>
+                <span class="ag-aller-zone">
+                  <button type="button" class="ag-nav-btn ag-aller-btn" onclick="ouvrirAllerDateAgenda()" aria-label="Aller à une date" title="Aller à une date — l’historique est lu dans Outlook à la première consultation">${icone('calendar')}</button>
+                  <input type="date" class="ag-aller" id="agenda-aller" value="${escapeAttr(agendaJour || '')}" min="2000-01-01" onchange="if (this.value) allerAuJourAgenda(this.value)" tabindex="-1" aria-hidden="true">
+                </span>
+              </div>
+            </div>
             <span class="ag-sous">${sous}</span>
-          </div>
-          <div class="ag-nav">
-            <button type="button" class="ag-nav-btn" onclick="naviguerAgenda(-1)" aria-label="Précédent">${icone('chevron-left')}</button>
-            <button type="button" class="ag-nav-btn ag-auj" onclick="naviguerAgenda(0)">Aujourd’hui</button>
-            <button type="button" class="ag-nav-btn" onclick="naviguerAgenda(1)" aria-label="Suivant">${icone('chevron-right')}</button>
-            <span class="ag-aller-zone">
-              <button type="button" class="ag-nav-btn ag-aller-btn" onclick="ouvrirAllerDateAgenda()" aria-label="Aller à une date" title="Aller à une date — l’historique est lu dans Outlook à la première consultation">${icone('calendar')}</button>
-              <input type="date" class="ag-aller" id="agenda-aller" value="${escapeAttr(agendaJour || '')}" min="2000-01-01" onchange="if (this.value) allerAuJourAgenda(this.value)" tabindex="-1" aria-hidden="true">
-            </span>
           </div>
           <label class="ag-vue-choix">
             <select id="agenda-vue" aria-label="Vue de l’agenda" onchange="choisirVueAgenda(this.value)">

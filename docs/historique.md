@@ -14991,3 +14991,11 @@ puis le seul de CLAIRE), puis seulement un dossier terminé. Test du cas (noms i
 Diagnostic désormais visible : toast pour chaque fiche client lue sans effet (`raisonFicheClientSansDossier` :
 aucun dossier en cours / plusieurs possibles ; `raisonFicheClientSansChangement` : ni téléphone ni email dans
 Authentic / déjà à jour). Non vérifié sur les vraies fiches CHAHUNEAU/BARBIER.
+
+### 02/10/2026 fin d'après-midi — Agenda : navigation à côté de la date
+
+Étude : « agenda : placer le aujourd'hui et le système pour se déplacer dans les semaines à côté de la date ». La
+barre ‹ Aujourd'hui › + « Aller à une date » quitte la droite de l'en-tête pour la ligne de la date
+(`.ag-titre-ligne`), avant la ligne « Semaine du … · Agenda de l'office lu … ». Date en `min-width: 9.6em`
+(« 28 septembre 2026 » au plus) : les boutons restent au même pixel d'une semaine à l'autre (mesuré : 639,138 sur
+quatre semaines). Téléphone : le bloc reste à côté du mot du jour, les boutons sous la date.
