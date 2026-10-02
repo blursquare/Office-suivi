@@ -255,7 +255,7 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
   « Repris » sans quitter l'étape 1, puis le compromis déposé dessous le complète (`exportAuthenticActuel` gardé hors
   mode PDF) ; **« Dossier Authentic seul »** (`seul`, étude 02/10, à la place de l'export ZIP retiré) : sans compromis,
   repris d'un clic puis « Vérifier » (vente : aucune date exigée) ou directement « Finaliser » (succession, assistant
-  réduit `#panel.wizard-succession` : nom, bien, responsable, pièces d'Authentic — `.vente-seul` masqués). Étapes Vérifier/Finaliser : `sourcesImportWizard` (ce qui vient du compromis / d'Authentic, ce qui manque).
+  réduit `#panel.wizard-succession` : nom, bien, responsable, pièces d'Authentic — `.vente-seul` masqués). **Un seul dossier par création** (étude 02/10) : `creationDossierEnCours` (bouton « Enregistrement… »), confirmation si un dossier en cours a le même nom ou le même numéro Authentic (`dossierDejaPresentPourCreation`). Étapes Vérifier/Finaliser : `sourcesImportWizard` (ce qui vient du compromis / d'Authentic, ce qui manque).
   Notaires à la création : lus dans l'acte et dans Authentic (`notairesProposesWizard`), placés d'un clic (vendeur,
   acquéreur, les deux), « Notaire qui reçoit l'acte » (`f-cote-instrumentaire`), rôle de l'étude déduit
   (`roleEtudeDeduitWizard`). **Un notaire cité sans son côté reste vide (jamais deviné) mais n'est plus caché** : fiche

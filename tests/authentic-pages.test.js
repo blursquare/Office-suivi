@@ -855,3 +855,16 @@ test('ligne Authentic « création · envoi · état » : RHF et demandes datée
   const dm = app.demandesUrbanismeAuthentic([{ titre: 'Demande de certificat d’alignement', date: '2026-09-01', dates: ['2026-09-01', '2026-09-03'], etat: 'Envoyé', texte: '' }]);
   assert.equal(dm.certificatAlignement.date, '2026-09-03');
 });
+
+test('dossierDejaPresentPourCreation : même numéro Authentic ou même nom, en cours seulement (étude, 02/10)', () => {
+  const liste = [
+    { id: 'a', nom: 'MARTEL / FOURNIER', numeroAuthentic: '1836' },
+    { id: 'b', nom: 'Léger / Roux', archive: true },
+    { id: 'c', nom: 'BRUN', deleted: true }
+  ];
+  assert.equal(app.dossierDejaPresentPourCreation('Autre nom', '1836', liste).id, 'a');
+  assert.equal(app.dossierDejaPresentPourCreation('martel / fournier', '', liste).id, 'a');
+  assert.equal(app.dossierDejaPresentPourCreation('LEGER / ROUX', '', liste), null);
+  assert.equal(app.dossierDejaPresentPourCreation('BRUN', '', liste), null);
+  assert.equal(app.dossierDejaPresentPourCreation('NOUVEAU', '1900', liste), null);
+});

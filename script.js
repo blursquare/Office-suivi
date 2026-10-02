@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-02 17:18';
+  const VERSION_APP = '2026-10-02 17:28';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-02 17:28', resume: "Nouveau dossier : un second clic sur « Ajouter le dossier » (ou Ctrl+S) pendant l'enregistrement créait un second dossier — le bouton passe en « Enregistrement… » et ne répond plus jusqu'à la fin. Si un dossier en cours porte déjà le même nom ou le même numéro Authentic, CLAIRE demande avant d'en créer un second. Le dossier n'apparaît jamais deux fois dans la liste." },
     { version: '2026-10-02 17:18', resume: "Add-on Authentic : le message « plusieurs dossiers possibles · Choisir » reste affiché sans minuterie, jusqu'à ce que la fiche soit rangée dans un dossier ou qu'on le ferme par la croix. Un autre message peut passer devant ; celui-ci revient ensuite." },
     { version: '2026-10-02 17:15', resume: "Agenda : avant de calculer la semaine probable d'une signature, CLAIRE regarde si le dossier a déjà un rendez-vous « ?? » (en attente de confirmation) dans l'agenda. Si oui, c'est sa date qui compte : plus de carte fantôme ailleurs ni de créneaux proposés, « À confirmer : jeu 22 oct. 15 h » dans « Rendez-vous à placer » et la recherche, et le pourcentage s'affiche sur le rendez-vous lui-même (« Rendez-vous en attente de confirmation », −5 pts). Authentic : pour la RHF et les demandes d'urbanisme, la date retenue est aussi la date d'envoi (2e date de la ligne), comme pour la SAFER." },
     { version: '2026-10-02 16:11', resume: "SAFER (Authentic) : la ligne porte la date de création puis la date d'envoi, puis l'état (« Pris en compte », « Non préemption SAFER »). Le délai part maintenant de la date d'ENVOI ; « prise en compte » n'a plus de date inventée et la non-préemption ne prend plus la date d'envoi pour date de décision. Fiche : « envoyée le … , prise en compte ». Dossiers déjà relevés : même date de départ qu'avant (c'était déjà l'envoi)." },
@@ -10896,7 +10897,21 @@
     return /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null;
   }
 
-  async function ajouterDossier() {
+  // Création en cours (étude, 02/10 : « il a créé deux dossiers ») : un second clic, ou Ctrl+S, pendant
+  // que le serveur enregistre ne crée pas un second dossier.
+  var creationDossierEnCours = false;
+
+  // Pure : un dossier en cours déjà présent pour une création — même numéro Authentic, ou même nom
+  // (sans accents ni casse). null sinon.
+  function dossierDejaPresentPourCreation(nom, numeroAuthentic, liste) {
+    const cle = normaliserPourRecherche(String(nom || '').trim());
+    return (liste || []).find(x => x && !x.deleted && !x.archive && (
+      (numeroAuthentic && x.numeroAuthentic === String(numeroAuthentic))
+      || (cle && normaliserPourRecherche(String(x.nom || '').trim()) === cle))) || null;
+  }
+
+  async function ajouterDossier(doublonConfirme) {
+    if (creationDossierEnCours) return;
     const nom = document.getElementById('f-nom').value.trim();
     const typeVente = document.getElementById('f-type-vente').value;
     const roleNotaire = document.getElementById('f-role-notaire').value;
@@ -10924,6 +10939,12 @@
     const successionAuthentic = !!exportAuthenticActuel && typeAffaireAuthentic(exportAuthenticActuel) === 'succession';
     if (!exportAuthenticActuel && !pret && !acte && !ventebien && autres.length === 0) { afficherErreurFormulaire('Renseignez au moins une date butoir active.'); return; }
     masquerErreurFormulaire();
+    const existant = doublonConfirme ? null : dossierDejaPresentPourCreation(nom, exportAuthenticActuel && exportAuthenticActuel.numero, dossiers);
+    if (existant) {
+      demanderConfirmation(`Créer un second dossier ? « ${libelleDossierAffiche(existant)} » existe déjà dans CLAIRE${exportAuthenticActuel && exportAuthenticActuel.numero && existant.numeroAuthentic === String(exportAuthenticActuel.numero) ? ' pour ce dossier Authentic' : ''}.`,
+        () => ajouterDossier(true), { bouton: 'Créer quand même' });
+      return;
+    }
 
     // "auto" = date reprise d'un chip détecté dans le texte ; "manuel" = saisie/correction à la
     // main ; "incertain" = choisie automatiquement parmi plusieurs candidates de même catégorie
@@ -11089,12 +11110,22 @@
       utilisateurPoste ? { auteur: utilisateurPoste } : {}));
     }
 
-    const cree = await sauvegarderNouveauDossier(dossier);
+    creationDossierEnCours = true;
+    const bouton = document.getElementById('btn-ajouter-dossier');
+    if (bouton) { bouton.disabled = true; bouton.textContent = 'Enregistrement…'; }
+    let cree = false;
+    try {
+      cree = await sauvegarderNouveauDossier(dossier);
+    } finally {
+      creationDossierEnCours = false;
+      if (bouton) { bouton.disabled = false; bouton.textContent = 'Ajouter le dossier'; }
+    }
     if (!cree) {
       afficherToast("Impossible d'enregistrer le dossier — vérifiez la connexion au serveur intranet.", 'OK', null);
       return;
     }
-    dossiers.push(dossier);
+    // La synchronisation a pu le recevoir pendant l'enregistrement : jamais deux fois dans la liste.
+    if (!dossiers.some(x => x.id === dossier.id)) dossiers.push(dossier);
     reinitialiserFormulaire();
     document.getElementById('panel').open = false;
     definirOnglet('suivi');
@@ -29361,7 +29392,7 @@
         let reussis = 0;
         for (const d of importes) {
           const ok = await sauvegarderNouveauDossier(d);
-          if (ok) { dossiers.push(d); reussis++; }
+          if (ok) { if (!dossiers.some(x => x.id === d.id)) dossiers.push(d); reussis++; }
         }
         render();
         const echoues = importes.length - reussis;

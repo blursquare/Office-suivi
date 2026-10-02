@@ -15060,3 +15060,15 @@ qui n'est pas un retour), `retourLe` = « retour le … », ligne de réponse/re
 pas de minuterie ni de filet de durée, croix `#toast-fermer-btn` (`fermerToastFixe`) ; le bouton « Choisir » ouvre le choix
 sans fermer le message ; `rangerFicheClientAuthentic` le ferme (`fermerToastFixe(cle)`). Un message ordinaire passe devant,
 puis le message fixe revient (`toastFixe`, rappelé par `masquerToast`). Seul usage : fiche client à plusieurs dossiers en cours.
+
+### 02/10/2026 17 h 28 — Deux dossiers créés d'un coup
+
+Étude : « j'ai lancé la création d'un nouveau dossier avec Authentic et un PDF et il a créé deux dossiers » ; « il faut que
+les deux soient liés et se complètent ». Seul `ajouterDossier` crée un dossier (POST) ; il n'avait aucun verrou : un second
+clic ou Ctrl+S pendant l'enregistrement (plus long depuis que la fenêtre garde des requêtes ouvertes — attente des relevés
+Authentic) en créait un second, d'un autre id. Reproduit dans Chromium (POST retardé de 1,5 s, trois appels → trois
+dossiers ; après : un). `creationDossierEnCours` + bouton `#btn-ajouter-dossier` « Enregistrement… » désactivé ; garde-fou
+`dossierDejaPresentPourCreation` (même numéro Authentic ou même nom, dossiers en cours) → confirmation « Créer un second
+dossier ? » ; jamais deux fois le même id dans `dossiers` (synchronisation reçue pendant l'enregistrement, import JSON).
+Le compromis et Authentic se complétaient déjà dans le même dossier (`exportAuthenticActuel` gardé au dépôt du PDF en mode
+« Dossier Authentic », « Compléter » en mode PDF) : le doublon venait de la double création, pas d'un dossier par source.
