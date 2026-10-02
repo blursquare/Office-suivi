@@ -46,6 +46,7 @@ server/                              Serveur (son propre package.json ; le packa
   src/annuaireNotaires.js            Notaires de France par département (data/annuaire-notaires.json, lecture seule)
   src/repertoire.js                  Répertoire hors notaires (relevé du répertoire Word de l'étude, par thème)
   src/ouvertureAuto.js               Installateur du relais « claire-ouvrir: » (ouverture auto des téléchargements)
+  src/installationPoste.js           Installateur « CLAIRE en application » d'un poste (raccourcis --app, voir plus bas)
   src/jobs/rappels.js                Rappels par email (miroir serveur du planning client)
   src/appels3cx.js, routes/appels.js Appels reçus par 3CX (sonnerie → journal, appelant reconnu, fiche ouverte)
   src/nas.js, nasWatch.js            Lecture du NAS par le serveur, surveillance périodique
@@ -147,10 +148,13 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
    écartées) ; « Éléments envoyés » du compte relié et de chaque collaborateur des Réglages (accès délégué « Relecteur » à
    donner dans Outlook, sinon « Accès non donné ») → objet, destinataires, date seulement ; un email préparé par CLAIRE
    (`livrerEmailDossier` → `POST /api/emails-prepares`) retrouvé (même objet, un destinataire commun, après la préparation)
-   passe « envoyé le … ». Onglet Échanges : bloc « Emails » (`renderEmailsDossier`). Pièce jointe reconnue par son NOM
-   (`pieceDePieceJointe`, mêmes motifs et exclusions que le NAS) rangée automatiquement dans la rubrique de Claire Scan
-   (`rangerPiecesJointesReconnues`, dossiers reliés au NAS, une seule fois, un échec jamais retenté seul) et cochée reçue ;
-   sinon « Ranger… » (pièce choisie, sous son nom, ou écartée). Réglages › Agenda et Outlook › Emails des dossiers : état
+   passe « envoyé le … ». Onglet Échanges : bloc « Emails » (`renderEmailsDossier`). **Toute pièce jointe reçue est rangée
+   seule** (étude 02/10 : « dans les bons sous-dossiers, sinon à la racine » ; `rangerPiecesJointesReconnues`, dossiers
+   reliés au NAS, une seule fois, un échec jamais retenté seul, jamais en participation) : reconnue par son NOM
+   (`pieceDePieceJointe`, mêmes motifs et exclusions que le NAS) → rubrique de la pièce (`rubriquesPourPiece` + 
+   `RUBRIQUES_PIECES_HORS_SCAN`), cochée reçue ; sinon (`pieceJointeRangeeSeule` : PDF/Word/Excel, photo ≥ 30 Ko, jamais
+   « image001 ») sous son nom, sous-dossier deviné du nom (`RUBRIQUES_NOM_PIECE_JOINTE`, identité/RIB → Vendeur ou Acquéreur
+   par l'expéditeur, `rubriquesPieceJointe`), sinon racine ; « Ranger… » reste pour corriger (pièce choisie, ou écartée). Réglages › Agenda et Outlook › Emails des dossiers : état
    de chaque boîte, interrupteur, « Lire maintenant ». Clé `emails-dossiers` (3 000 emails, 500 préparés).
 6. **Secrets** (mot de passe SMTP, clés API Mistral/Anthropic, mot de passe Exchange, jeton GitHub
    de mise à jour) : stockés en base, **jamais renvoyés par une route** (remplacés par un booléen
@@ -573,6 +577,12 @@ Plainte principale de l'étude : **le bruit**, pas les oublis — ne pas élargi
   à la signature passée — `statistiquesDelaisDossiers`, **tous les dossiers de l'étude, archivés compris, sans fenêtre de dates ni périmètre** (étude 02/10), moyenne/médiane/n ; avant-contrats signés ce mois / mois
   précédent / même mois N-1 (`comparaisonDossiersOuverts`, au mois de l'avant-contrat, « — » avant le premier dossier noté), sur le périmètre du tableau de
   bord (mes dossiers / tous).
+- **CLAIRE en application sur les postes** (étude 02/10) : pas de PWA (Chrome n'installe qu'en HTTPS ou sur localhost,
+  les postes ouvrent `http://<IP>`) ni de logiciel Windows (la page vient du serveur : rien à mettre à jour sur un poste).
+  Réglages › Général › « Ce poste » (masqué sur localhost) télécharge `Installer-CLAIRE-sur-ce-poste.vbs`
+  (`installationPoste.js`) : raccourcis bureau + menu Démarrer, Chrome sinon Edge `--profile-directory="Claire"
+  --app=<adresse du serveur>`, AppUserModelID posé par PowerShell (`scriptPowerShellRaccourcisPoste`) pour l'icône nette,
+  icône `GET /api/poste/icone.ico` (hors session, `.ico` embarqué dans l'exe). Non vérifié sur un vrai Windows.
 - **Fond grisé d'une fenêtre** (02/10) : il ne ferme que par `clicSurFond(event)` (appui ET clic sur le fond) — sinon une sélection de texte relâchée hors de la fiche la fermait.
 - **Texte d'aide** : ne décrit pas ce que le bouton dit déjà ; il dit ce qui manque. Une toute
   nouvelle confirmation commence par son verbe d'action (`boutonConfirmation`). **Une explication
@@ -642,7 +652,8 @@ Plainte principale de l'étude : **le bruit**, pas les oublis — ne pas élargi
   ouverts dans Outlook), la création d'un nouveau dossier depuis l'export Authentic (ZIP) ; puis la
   mise à jour en un clic (Réglages › Mise à jour), le démarrage automatique de CLAIRE au lancement du
   serveur, le lien vers une pièce ouvert depuis une notification Teams et l'icône de l'exe (nette).
-- **Non vérifié au bureau** : les emails des dossiers (réponses EWS réelles, accès délégué aux « Éléments envoyés » des
+- **Non vérifié au bureau** : l'installateur « CLAIRE en application » d'un poste (`.vbs`, PowerShell, icône servie
+  par l'exe) ; les emails des dossiers (réponses EWS réelles, accès délégué aux « Éléments envoyés » des
   collaborateurs, pièces jointes réelles, résumé par Ollama) ; la forme réelle du `.ics` de la visio ADNOV (aucun exemple reçu) ; l'intégration
   3CX (forme réelle de %CallerNumber%, fermeture de l'onglet ouvert par 3CX) ; le repli `SoftDelete` d'une suppression ; le sondage de créneaux (lecture réelle des réponses dans la boîte, boutons
   dans Outlook, options « Provisoire », page de réponse publiée — dépôt public à créer par l'étude) ; le détail des écritures EWS (déplacement et suppression d'un

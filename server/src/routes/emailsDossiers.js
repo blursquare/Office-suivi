@@ -33,14 +33,14 @@ function creerRouteurEmailsDossiers(parametresRepo, depot, options = {}) {
     });
   });
 
-  // Pièces jointes reçues pas encore rangées (ni écartées, ni en échec) : la fenêtre CLAIRE les reconnaît
-  // par leur nom et range celles des dossiers reliés au NAS.
+  // Pièces jointes reçues pas encore rangées (ni écartées, ni en échec) : la fenêtre CLAIRE les range
+  // dans les dossiers reliés au NAS (sous-dossier d'après le nom de la pièce, sinon racine du dossier).
   routeur.get('/emails-dossiers/pieces-jointes', (req, res) => {
     const etat = lireEtat(parametresRepo);
     const liste = [];
     for (const e of etat.emails) {
       if (e.sens !== 'recu') continue;
-      for (const p of e.pj) if (!p.rangee && !p.ignoree && !p.echec) liste.push({ emailId: e.id, dossierId: e.dossierId, pjId: p.id, nom: p.nom, date: e.date });
+      for (const p of e.pj) if (!p.rangee && !p.ignoree && !p.echec) liste.push({ emailId: e.id, dossierId: e.dossierId, pjId: p.id, nom: p.nom, taille: p.taille || 0, de: (e.de && e.de.adresse) || '', date: e.date });
     }
     res.json({ piecesJointes: liste.slice(-200) });
   });

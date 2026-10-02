@@ -169,6 +169,15 @@ async function main() {
     commit: process.env.CLAIRE_COMMIT || '',
     date: new Date().toISOString()
   }));
+  // Icône Windows construite ici (avant le blob) : posée sur l'exe à l'étape 6 ET embarquée, pour que
+  // l'installateur d'un poste la télécharge (GET /api/poste/icone.ico, voir src/installationPoste.js).
+  let ico = null;
+  try {
+    ico = construireIcoDepuisSvg(path.join(ROOT_DIR, 'icone.svg'));
+    fs.writeFileSync(path.join(BUILD_DIR, 'icone.ico'), ico);
+  } catch (err) {
+    console.warn(`Icône Windows non construite (${err.message.split('\n')[0]}).`);
+  }
   const seaConfig = {
     main: 'build/claire-server.cjs',
     output: 'build/sea-prep.blob',
@@ -184,7 +193,8 @@ async function main() {
       'manifest.json': '../manifest.json',
       'sw.js': '../sw.js',
       'icone.svg': '../icone.svg',
-      'build-info.json': 'build/build-info.json'
+      'build-info.json': 'build/build-info.json',
+      ...(ico ? { 'icone.ico': 'build/icone.ico' } : {})
     }
   };
   const seaConfigPath = path.join(SERVER_DIR, 'sea-config.json');
@@ -225,7 +235,7 @@ async function main() {
   // garde-fou dans poserIconeWindows() vérifie en plus que le blob SEA survit avant de remplacer
   // le fichier.
   try {
-    const ico = construireIcoDepuisSvg(path.join(ROOT_DIR, 'icone.svg'));
+    if (!ico) throw new Error('icône non construite');
     poserIconeWindows(exePath, ico);
     console.log(`Icône posée (${TAILLES_ICONE.join('/')} px), blob SEA préservé.`);
   } catch (err) {

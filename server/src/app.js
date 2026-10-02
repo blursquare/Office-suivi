@@ -21,7 +21,7 @@ const { creerRouteurNotifications } = require('./routes/notifications');
 const { creerRouteurExclusionsPieces } = require('./routes/exclusionsPieces');
 const { creerRouteurCorrectionsApprises } = require('./routes/correctionsApprises');
 const { creerRouteurConfreres } = require('./routes/confreres');
-const { creerRouteurPoste } = require('./routes/poste');
+const { creerRouteurPoste, creerRouteurIconePoste } = require('./routes/poste');
 const { creerRouteurSignatureImages } = require('./routes/signatureImages');
 const { creerRouteurRappelsPerso } = require('./routes/rappelsPerso');
 const { creerRouteurPreferences } = require('./routes/preferences');
@@ -135,6 +135,8 @@ function creerApp({ db, config, envoyerEmailFn, creerClientClaude, appelerMistra
   // et ne renvoie aucune donnée — voir routes/appels.js.
   const etatAppels = creerEtatAppels();
   app.use(creerRouteurSonnerie(parametresRepo, depot, etatAppels));
+  // Icône de CLAIRE pour l'installateur d'un poste (installationPoste.js), lue sans session.
+  app.use('/api', creerRouteurIconePoste());
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurAppels(parametresRepo, etatAppels));
   // Pages d'Authentic envoyées par l'extension Firefox (extension-firefox/), gardées en mémoire 30 min.
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurAuthentic());

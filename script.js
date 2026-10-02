@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-02 23:01';
+  const VERSION_APP = '2026-10-02 23:16';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-02 23:16', resume: "Pièces jointes des emails : chacune est maintenant copiée dans le dossier client du NAS, même quand CLAIRE ne la reconnaît pas — dans le bon sous-dossier d'après son nom (diagnostics, copropriété, titre, travaux, comptabilité, AAE… ; pièce d'identité ou RIB chez le Vendeur ou l'Acquéreur selon l'expéditeur), sinon à la racine du dossier. L'onglet Échanges dit où chaque pièce a été rangée. Nouveau : Réglages › Général › « CLAIRE en application » installe sur le poste d'un collaborateur un raccourci (bureau et menu Démarrer) qui ouvre CLAIRE dans sa propre fenêtre, comme sur le poste serveur." },
     { version: '2026-10-02 23:01', resume: "Emails des dossiers : CLAIRE relit toutes les 10 minutes la boîte de réception de l'office et les « Éléments envoyés » de chaque collaborateur. Dans l'onglet Échanges : les emails reçus et envoyés du dossier, un résumé d'une phrase par l'IA locale (le texte n'est jamais gardé), les pièces jointes — reconnues par leur nom, elles sont rangées dans le dossier du NAS et cochées reçues. Un email préparé par CLAIRE passe « envoyé le … » dès qu'il est retrouvé dans les envois. Réglages › Agenda et Outlook : l'état de chaque boîte. Simulateur de provision : barème validé, l'avertissement est retiré." },
     { version: '2026-10-02 22:35', resume: "Le rapport technique (12 h et 17 h) reprend désormais ce que CLAIRE a appris, anonymisé : erreurs de lecture de la période avec la nature de la correction et la clause lue, classements retenus, fichiers écartés par pièce, commentaires de relecture. Réglages : « Rappels Teams » devient « Rappels »." },
     { version: '2026-10-02 22:32', resume: "Nouvelle rubrique Réglages › « Ce que CLAIRE a appris » : les erreurs de lecture (données d'un compromis corrigées à la main, « Fréquente » à 3 fois en 30 jours), les clauses reconnues d'après vos corrections (à oublier d'un clic si l'une est fausse), les fichiers écartés des pièces et vos commentaires de relecture. Le journal des corrections est désormais commun à tous les postes (il était gardé sur chaque poste, dans « À propos »), et les erreurs fréquentes remontent dans le rapport technique." },
@@ -17090,6 +17091,8 @@
     if (modeEmail) modeEmail.value = modeEmailPoste();
     const ouvertureAuto = document.getElementById('reglages-ouverture-auto');
     if (ouvertureAuto) ouvertureAuto.checked = ouvertureAutoActive();
+    const sectionApplication = document.getElementById('reglages-section-application');
+    if (sectionApplication) sectionApplication.style.display = estAdresseLocale(location.hostname) ? 'none' : '';
   }
 
   function ouvrirChoixPoste() {
@@ -25235,6 +25238,31 @@
     }
   }
 
+  // CLAIRE en application sur un poste (étude 02/10) : un installateur Windows pose les raccourcis du
+  // bureau et du menu Démarrer qui ouvrent CLAIRE dans sa propre fenêtre (server/src/installationPoste.js).
+  // Une PWA ne s'installe pas sur une adresse http du réseau ; sur le poste serveur (localhost), CLAIRE
+  // s'ouvre déjà ainsi : l'option y est masquée.
+  function estAdresseLocale(hote) {
+    return /^(localhost|127(\.\d+){3}|\[?::1\]?)$/i.test(String(hote || ''));
+  }
+  async function telechargerInstallateurApplication() {
+    try {
+      const r = await fetchAvecAuth('/api/poste/installer-application');
+      if (!r.ok) throw new Error('statut ' + r.status);
+      const blob = await r.blob();
+      const lien = document.createElement('a');
+      lien.href = URL.createObjectURL(blob);
+      lien.download = 'Installer-CLAIRE-sur-ce-poste.vbs';
+      document.body.appendChild(lien);
+      lien.click();
+      document.body.removeChild(lien);
+      setTimeout(() => URL.revokeObjectURL(lien.href), 60000);
+      afficherInfoAction('Installateur téléchargé', 'Ouvrez le fichier téléchargé (le navigateur peut demander de le conserver) : CLAIRE s’ouvre dans sa propre fenêtre et un raccourci est posé sur le bureau et dans le menu Démarrer. Choisissez une première fois le collaborateur du poste, puis fermez cet onglet. Pour l’avoir toujours sous la main : clic droit sur son icône dans la barre des tâches, « Épingler à la barre des tâches ».');
+    } catch (e) {
+      afficherToast('Téléchargement de l’installateur impossible : ' + e.message, 'OK', null);
+    }
+  }
+
   // Images de la signature : reprises des logos de l'en-tête du courrier d'appel de fonds
   // (appel-de-fonds-modele.js, chargé à la demande). Sans elles, la signature part en texte seul.
   var IMAGES_SIGNATURE_EMAIL = { logoOffice: 'claire-logo-office', logoNotaires: 'claire-logo-notaires', iconVisio: 'claire-visio', iconFacebook: 'claire-facebook', iconInstagram: 'claire-instagram' };
@@ -28569,10 +28597,97 @@
     return null;
   }
 
-  // Pure : rubriques du NAS où ranger une pièce (celles de Claire Scan pour la même pièce).
+  // Pure : rubriques du NAS où ranger une pièce (celles de Claire Scan pour la même pièce, sinon celles
+  // des pièces de la checklist que Claire Scan ne reconnaît pas).
   function rubriquesPourPiece(cle) {
     const t = TYPES_SCAN.find(x => x.piece === cle || x.cle === cle);
-    return t && t.rubriques ? t.rubriques.slice() : [];
+    if (t && t.rubriques) return t.rubriques.slice();
+    return (RUBRIQUES_PIECES_HORS_SCAN[cle] || []).slice();
+  }
+
+  // Rubriques des pièces de la checklist absentes de TYPES_SCAN (rangées comme leurs voisines : entretien
+  // et justificatifs en « AAE », travaux en « TRAVAUX », diagnostics en « DIAGNOSTICS »). Clés de
+  // RUBRIQUES_SCANS (server/src/scans.js), essayées dans l'ordre ; aucune trouvée = racine du dossier.
+  var RUBRIQUES_PIECES_HORS_SCAN = {
+    entretienClim: ['aae'], entretienAdoucisseur: ['aae'], debroussaillage: ['aae'], travauxRemiseEtat: ['travaux', 'aae'],
+    miseEnConformite: ['travaux', 'aae'], cuveCiterne: ['aae'], debarras: ['aae'], resiliationContrat: ['aae'],
+    securitePiscine: ['aae'], attestationConformite: ['travaux', 'aae'], facturesTravaux: ['travaux', 'aae'],
+    etatParasitaire: ['diagnostics', 'aae'], auditEnergetique: ['diagnostics', 'aae']
+  };
+
+  // Étude 02/10 : « classe les documents dans les bons sous-dossiers, sinon à la racine du dossier ».
+  // Une pièce jointe qui n'est pas une pièce de la checklist est rangée d'après son NOM (premier motif
+  // trouvé) ; `partie` = pièce d'une personne (identité, état civil, RIB…), rangée chez le vendeur ou
+  // l'acquéreur selon l'expéditeur. Rien de reconnu : racine du dossier client.
+  var RUBRIQUES_NOM_PIECE_JOINTE = [
+    { motif: /\b(offres? (de )?(pret|credit)|contrat de (pret|credit)|accord de pret)\b/, rubriques: ['pret', 'comptabilite'] },
+    { motif: /\bpre ?etat date\b/, rubriques: ['preEtatDate', 'copro'] },
+    { motif: /\b(etat date|article 20)\b/, rubriques: ['etatDate', 'copro'] },
+    { motif: /\b(syndic|copro\w*|assemblee generale|proces verbal|pv (d )?ag|carnet d ?entretien|fiche synthetique|edd|appel de (fonds|charges|provisions?))\b/, rubriques: ['copro'] },
+    { motif: /\b(erp|etat des risques|georisques)\b/, rubriques: ['environnement', 'diagnostics', 'aae'] },
+    { motif: /\b(dpe|ddt|diag\w*|amiante|plomb|crep|termites?|merule|parasitaire|carrez|boutin|mesurage|superficie|electricite|audit energetique)\b/, rubriques: ['diagnostics', 'aae'] },
+    { motif: /\b(titre de propriete|attestation (de propriete|immobiliere)|acte d ?(achat|acquisition)|donation|partage)\b/, rubriques: ['titre'] },
+    { motif: /\b(etat hypothecaire|hors formalites?|sur formalites?|publicite fonciere)\b/, rubriques: ['hypotheque'] },
+    { motif: /\b(permis de construire|declaration prealable|daact|achevement des travaux|etude (de sol|geotechnique))\b/, rubriques: ['construction', 'travaux', 'aae'] },
+    { motif: /\b(factures?|devis|decennale|dommages? ouvrage|travaux|consuel|conformite)\b/, rubriques: ['travaux', 'aae'] },
+    { motif: /\b(cni|carte (nationale )?d ?identite|identite|passeport|titre de sejour|permis de conduire|livret de famille|acte de (naissance|mariage|deces)|pacs|contrat de mariage|divorce|rib|iban|releve d ?identite bancaire|justificatif de domicile)\b/, partie: true },
+    { motif: /\b(urbanisme|cu|certificat d ?urbanisme|alignement|numerotage|preemption|dia|dpu|assainissement|spanc|safer|servitudes?)\b/, rubriques: ['aae'] },
+    { motif: /\b(entretien|ramonage|chaudiere|pompe a chaleur|pac|vidange|fosse|piscine|cuve|citerne|climatisation|adoucisseur|debroussaillage|elagage)\b/, rubriques: ['aae'] },
+    { motif: /\b(taxe fonciere|avis tf|decompte|releve de compte|virement|avis d ?operation|appel de fonds)\b/, rubriques: ['comptabilite'] }
+  ];
+
+  // Pure : nom de pièce jointe ramené à des mots sans accent ni séparateur (« DPE_Maison-2024.pdf » →
+  // « dpe maison 2024 »).
+  function motsNomPieceJointe(nom) {
+    return String(nom || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+      .replace(/\.[a-z0-9]{2,5}$/, '').replace(/[^a-z0-9]+/g, ' ').trim();
+  }
+
+  // Pure : le côté (« vendeur » / « acquereur ») dont l'adresse email a envoyé la pièce, sinon ''.
+  function cotePieceJointeExpediteur(d, adresse) {
+    const a = String(adresse || '').trim().toLowerCase();
+    if (!d || !a) return '';
+    const dans = (champ) => destinatairesEmail(champ || '').some(x => x.toLowerCase() === a);
+    if (dans(d.emailVendeur)) return 'vendeur';
+    if (dans(d.emailAcquereur)) return 'acquereur';
+    return '';
+  }
+
+  // Pure : rubriques où ranger une pièce jointe — celles de la pièce de la checklist qu'elle désigne,
+  // sinon d'après son nom (et l'expéditeur pour une pièce d'une personne) ; [] = racine du dossier.
+  function rubriquesPieceJointe(d, nom, piece, expediteur) {
+    if (piece) {
+      const r = rubriquesPourPiece(piece.cle);
+      if (r.length) return r;
+    }
+    const mots = motsNomPieceJointe([piece && piece.label, nom].filter(Boolean).join(' '));
+    const regle = RUBRIQUES_NOM_PIECE_JOINTE.find(x => x.motif.test(mots));
+    if (!regle) return [];
+    if (regle.partie) {
+      const cote = cotePieceJointeExpediteur(d, expediteur);
+      return cote ? [cote] : [];
+    }
+    return regle.rubriques.slice();
+  }
+
+  // Pure : où la pièce a été copiée, dit depuis le dossier client (« 9 - AAE », « racine du dossier »).
+  function emplacementPieceRangee(d, chemin) {
+    const net = (x) => String(x || '').replace(/\\/g, '/').replace(/^\/+|\/+$/g, '');
+    const c = net(chemin), base = net(d && d.nasDossier);
+    const relatif = base && c.toLowerCase().startsWith(base.toLowerCase() + '/') ? c.slice(base.length + 1) : c;
+    const dossier = relatif.split('/').slice(0, -1).join(' › ');
+    return dossier || 'racine du dossier';
+  }
+
+  // Pure : une pièce jointe non reconnue est-elle rangée seule ? Documents (PDF, Word, Excel) oui ;
+  // photos de 30 Ko au moins (une photo de pièce, pas un logo de signature) ; jamais « image001.png ».
+  function pieceJointeRangeeSeule(nom, taille) {
+    const n = String(nom || '').toLowerCase();
+    const ext = (/\.([a-z0-9]+)$/.exec(n) || [])[1] || '';
+    if (/^(image\d*|logo|signature|outlook)[\s._-]/.test(n)) return false;
+    if (['pdf', 'doc', 'docx', 'odt', 'xls', 'xlsx'].includes(ext)) return true;
+    if (['jpg', 'jpeg', 'png', 'tif', 'tiff'].includes(ext)) return Number(taille) >= 30 * 1024;
+    return false;
   }
 
   // Pure : l'état d'un email préparé — envoyé (quand, par qui), en attente dans une boîte lue, ou boîte
@@ -28596,7 +28711,7 @@
     const prepareParId = new Map(prepares.map(p => [p.id, p]));
     const pjHtml = (e, pj) => {
       const ouvrir = `<button type="button" class="lien-action email-pj-nom" onclick="ouvrirPieceJointeEmail('${escapeOnclickArg(e.id)}', '${escapeOnclickArg(pj.id)}')" title="Ouvrir la pièce jointe">${icone('file-text')}${escapeHtml(pj.nom)}</button>`;
-      if (pj.rangee) return `<span class="email-pj">${ouvrir}<span class="dot-label dl-success"><span class="dot"></span>${escapeHtml(pj.rangee.pieceLabel || 'Rangée')} — sur le NAS</span></span>`;
+      if (pj.rangee) return `<span class="email-pj">${ouvrir}<span class="dot-label dl-success" title="${escapeAttr(pj.rangee.chemin || '')}"><span class="dot"></span>${escapeHtml(pj.rangee.pieceLabel ? pj.rangee.pieceLabel + ' — ' : 'Rangée — ')}${escapeHtml(emplacementPieceRangee(d, pj.rangee.chemin))}</span></span>`;
       if (pj.ignoree) return `<span class="email-pj email-pj-ecartee">${ouvrir}</span>`;
       const piece = pieceDePieceJointe(pj.nom, checklist, estExclu);
       const geste = !d.nasDossier
@@ -28625,7 +28740,7 @@
       return `<li class="email-ligne email-prepare"><div class="email-tete"><span class="email-sens">Préparé</span><span class="appels-quand">${escapeHtml(dateHeureAppel(Date.parse(p.prepareLe)))}</span><span class="email-qui">par ${escapeHtml((p.collaborateur || '').split(' ')[0] || '—')}</span><span class="dot-label ${st.classe}"><span class="dot"></span>${escapeHtml(st.texte)}</span></div><div class="email-objet">${escapeHtml(p.objet)}</div></li>`;
     }).join('');
     return `<div class="emails-dossier">
-        <span class="section-eyebrow">Emails <span class="jour-onglet-nb">${emails.length}</span> ${infoBulle('Emails reçus dans la boîte de l’office et envoyés par les collaborateurs, rattachés à ce dossier (relus toutes les 10 minutes). Le texte n’est jamais gardé : seul le résumé de l’IA locale l’est. Une pièce jointe reconnue par son nom est rangée dans le dossier du NAS.')}</span>
+        <span class="section-eyebrow">Emails <span class="jour-onglet-nb">${emails.length}</span> ${infoBulle('Emails reçus dans la boîte de l’office et envoyés par les collaborateurs, rattachés à ce dossier (relus toutes les 10 minutes). Le texte n’est jamais gardé : seul le résumé de l’IA locale l’est. Chaque pièce jointe est copiée dans le dossier du NAS : dans le sous-dossier que son nom désigne (pièce d’identité, RIB : Vendeur ou Acquéreur selon l’expéditeur), sinon à la racine.')}</span>
         <ul class="emails-liste">${attente}${emails.slice(0, 5).map(ligne).join('')}</ul>
         ${emails.length > 5 ? `<details class="appels-plus"><summary>${emails.length - 5} de plus</summary><ul class="emails-liste">${emails.slice(5).map(ligne).join('')}</ul></details>` : ''}
       </div>`;
@@ -28686,6 +28801,7 @@
     if (!d || !choix) return false;
     const email = ((emailsParDossier[dossierId] || {}).emails || []).find(e => e.id === emailId);
     const pj = email && email.pj.find(p => p.id === pjId);
+    const expediteur = email && email.sens === 'recu' && email.de ? email.de.adresse : '';
     if (choix === '__ecarter') {
       await fetchAvecAuth('/api/emails-dossiers/pj/marquer', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ emailId, pjId, ignoree: true }) }).catch(() => null);
       await chargerEmailsDossier(dossierId);
@@ -28698,13 +28814,17 @@
     try {
       if (pj && pj.echec && !auto) await fetchAvecAuth('/api/emails-dossiers/pj/marquer', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ emailId, pjId, retenter: true }) });
       const r = await fetchAvecAuth('/api/emails-dossiers/pj/ranger', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
-        emailId, pjId, dossierNas: d.nasDossier, rubriques: piece ? rubriquesPourPiece(piece.cle) : [],
+        emailId, pjId, dossierNas: d.nasDossier, rubriques: rubriquesPieceJointe(d, pj ? pj.nom : '', piece, expediteur),
         nomCible: piece ? piece.label : (pj ? pj.nom.replace(/\.[a-z0-9]{2,5}$/i, '') : ''), pieceCle: piece ? piece.cle : '', pieceLabel: piece ? piece.label : '', auto: !!auto
       }) });
       const corps = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(corps.erreur || 'statut ' + r.status);
       if (!corps.deja && piece) await enregistrerPieceDepuisEmail(d, piece, corps.chemin, auto);
-      if (!auto) afficherToast(`Pièce jointe rangée : ${corps.chemin}`, 'OK', null);
+      else if (!corps.deja) {
+        ajouterHistorique(d, `Pièce jointe « ${pj ? pj.nom : ''} » rangée sur le NAS (${emplacementPieceRangee(d, corps.chemin)})${auto ? ', automatiquement' : ''}`);
+        await sauvegarder(d);
+      }
+      if (!auto) afficherToast(`Pièce jointe rangée : ${emplacementPieceRangee(d, corps.chemin)}`, 'OK', null);
       await chargerEmailsDossier(dossierId);
       render();
       return true;
@@ -28716,8 +28836,8 @@
     }
   }
 
-  // Rangement automatique : les pièces jointes reconnues par leur nom, dans les dossiers en cours reliés
-  // au NAS. Une à la fois ; le serveur garantit qu'une pièce jointe n'est rangée qu'une fois (même avec
+  // Rangement automatique : toutes les pièces jointes reçues (reconnues ou non, voir pieceJointeRangeeSeule),
+  // dans les dossiers en cours reliés au NAS. Une à la fois ; le serveur garantit qu'une pièce jointe n'est rangée qu'une fois (même avec
   // plusieurs fenêtres ouvertes) et marque un échec, jamais retenté seul.
   let rangementEmailsEnCours = false;
   async function rangerPiecesJointesReconnues() {
@@ -28731,9 +28851,11 @@
         const d = dossiers.find(y => y.id === x.dossierId);
         if (!d || d.archive || !d.nasDossier || d.roleNotaire === 'participant') continue;
         const piece = pieceDePieceJointe(x.nom, checklistPieces(d.typeVente, d), (cle, nn) => estNomExcluPourPiece(cle, nn));
-        if (!piece) continue;
+        // Non reconnue : rangée quand même (étude 02/10), sous son nom, dans le sous-dossier que son nom
+        // désigne, sinon à la racine du dossier client.
+        if (!piece && !pieceJointeRangeeSeule(x.nom, x.taille)) continue;
         if (!(d.id in emailsParDossier) || !emailsParDossier[d.id]) await chargerEmailsDossier(d.id);
-        await rangerPieceJointeEmail(d.id, x.emailId, x.pjId, piece.cle, true);
+        await rangerPieceJointeEmail(d.id, x.emailId, x.pjId, piece ? piece.cle : '__nom', true);
       }
     } catch (e) { /* tour suivant */ } finally { rangementEmailsEnCours = false; }
   }

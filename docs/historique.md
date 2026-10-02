@@ -15439,3 +15439,36 @@ confirmer).
 Vérifié : tests client et serveur ; Chromium avec un faux Exchange et un NAS de test (2 reçus rattachés, état daté rangé
 dans « 8 - COPRO/ETAT DATE » et coché, offre rangée, accès refusé de Julie affiché), clair, sombre, 390 px. Non vérifié :
 Exchange réel (formes des réponses, délégation), Ollama, vraies pièces jointes.
+
+### 02/10/2026 23:16 — Pièces jointes classées par sous-dossier, sinon racine ; CLAIRE en application sur les postes
+Demande : « Classe les documents dans les bons sous-dossiers sinon à la racine du dossier » ; « que les collaborateurs
+puissent utiliser CLAIRE comme une app séparée de Chrome, comme sur mon poste localhost. PWA, ou dis-moi s'il vaut mieux un
+vrai logiciel Windows avec possibilité de mise à jour ». Réponse à la question : pièce jointe non reconnue = « ranger seule
+à la racine » (recommandé).
+- Classement (`script.js`) : `rubriquesPieceJointe(d, nom, piece, expediteur)` — pièce de la checklist : rubriques de
+  Claire Scan (`rubriquesPourPiece`), complétées pour les pièces absentes de `TYPES_SCAN` (`RUBRIQUES_PIECES_HORS_SCAN` :
+  entretiens, débarras, piscine… en AAE, factures/conformité en TRAVAUX, parasitaire/audit en DIAGNOSTICS) ; sinon
+  `RUBRIQUES_NOM_PIECE_JOINTE` sur le nom (`motsNomPieceJointe`) ; pièce d'une personne (CNI, RIB, livret…) → Vendeur ou
+  Acquéreur selon l'adresse de l'expéditeur (`cotePieceJointeExpediteur`, `d.emailVendeur`/`d.emailAcquereur`), sinon
+  racine ; rien de reconnu → racine (`resoudreRubrique` serveur inchangé : un niveau absent arrête la descente).
+  `rangerPiecesJointesReconnues` range aussi les non reconnues (`pieceJointeRangeeSeule` : PDF/Word/Excel, photos ≥ 30 Ko,
+  jamais « image001 »/logo/signature) sous leur nom, entrée d'historique ; jamais en participation (inchangé).
+  `emplacementPieceRangee` affiche « 9 - AAE », « 8 - COPRO › ETAT DATE » ou « racine du dossier ». Route
+  `/emails-dossiers/pieces-jointes` : taille et expéditeur en plus.
+- Application sur les postes : une PWA ne s'installe qu'en HTTPS ou sur localhost — les postes ouvrent CLAIRE en
+  `http://<IP>:<port>`, Chrome refuse donc l'installation (un certificat reconnu par chaque poste serait nécessaire, pour
+  aucun gain : pas de hors-ligne utile). Un logiciel Windows (Electron…) ajouterait ~100 Mo par poste et une mise à jour
+  propre au poste. Retenu : la même fenêtre « --app » que le poste serveur. `server/src/installationPoste.js`
+  (`scriptInstallationAppPoste`, `adresseClairePoste` : adresse tirée de l'en-tête Host, refusée si elle n'a pas la forme
+  d'une adresse) → `.vbs` (Réglages › Général › « Ce poste », masqué sur localhost — `estAdresseLocale`) : Chrome sinon
+  Edge, icône téléchargée (`GET /api/poste/icone.ico`, hors session, `.ico` embarqué dans l'exe par
+  `build-windows-exe.mjs`, construit avant le blob), script PowerShell écrit localement
+  (`raccourciWindows.scriptPowerShellRaccourcisPoste` : menu Démarrer + bureau, AppUserModelID de Chrome ou d'Edge pour
+  l'URL et le profil « Claire »), repli `WScript.Shell.CreateShortcut` si PowerShell échoue, puis ouverture de CLAIRE.
+  Rien à mettre à jour sur le poste : la page vient du serveur.
+Vérifié : tests client (1 208) et serveur (615, dont `server/test/installation-poste.test.js`) ; Chromium avec faux
+Exchange et NAS de test : état daté → « 8 - COPRO/ETAT DATE », offre → « 7 - COMPTABILITE/PRET », « DPE maison.pdf » →
+« 5 - DIAGNOSTICS », « CNI recto verso.pdf » du vendeur → « 1 - Vendeur », « scan_0042.pdf » → racine ; installateur
+téléchargé depuis une adresse réseau (URL du poste dans le script), section masquée sur localhost. Non vérifié : le `.vbs`
+et le PowerShell sur un vrai Windows (aucun Windows ici), l'icône servie par un vrai exe, une stratégie de groupe qui
+bloquerait PowerShell (le repli crée alors des raccourcis sans identifiant de fenêtre).

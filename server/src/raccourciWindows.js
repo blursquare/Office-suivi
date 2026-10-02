@@ -50,7 +50,34 @@ function psTexte(s) {
 // WScript.Shell ne sait pas poser, d'où l'appel COM (IShellLinkW + IPropertyStore). Pure.
 function scriptPowerShellRaccourci({ chemin, cible, argumentsLigne, icone, aumid, description }) {
   return `$ErrorActionPreference = 'Stop'
-$code = @"
+${CODE_RACCOURCI_PS}
+[ClaireRaccourci]::Creer(${psTexte(chemin)}, ${psTexte(cible)}, ${psTexte(argumentsLigne)}, ${psTexte(icone)}, ${psTexte(aumid)}, ${psTexte(description)})
+`;
+}
+
+// Raccourcis d'un POSTE de collaborateur (étude 02/10 : « utiliser CLAIRE comme une app séparée de
+// Chrome, comme sur mon poste ») : menu Démarrer et bureau, fenêtre « --app » sur l'adresse du serveur
+// dans un profil dédié (« Claire »), avec l'identifiant que Chrome ou Edge donnera à cette fenêtre —
+// d'où une icône nette dans la barre des tâches, comme sur le poste serveur. Le navigateur et l'icône
+// ne sont connus que sur le poste : passés en paramètres par l'installateur (installationPoste.js).
+// Textes en ASCII : le script est écrit sur le poste par un .vbs (ANSI). Pure.
+function scriptPowerShellRaccourcisPoste({ url, profil, description }) {
+  const args = `--profile-directory="${profil}" --app="${url}"`;
+  const aumid = (base) => appUserModelIdFenetreApp({ baseAppId: base, url, dossierDonnees: 'User Data', profil });
+  return `param([string]$cible, [string]$icone)
+$ErrorActionPreference = 'Stop'
+${CODE_RACCOURCI_PS}
+$aumid = if ($cible -match 'msedge\\.exe$') { ${psTexte(aumid('MSEdge'))} } else { ${psTexte(aumid('Chrome'))} }
+if (-not $icone -or -not (Test-Path $icone)) { $icone = $cible }
+$menu = Join-Path $env:APPDATA 'Microsoft\\Windows\\Start Menu\\Programs\\CLAIRE.lnk'
+$bureau = Join-Path ([Environment]::GetFolderPath('Desktop')) 'CLAIRE.lnk'
+foreach ($lnk in @($menu, $bureau)) {
+  [ClaireRaccourci]::Creer($lnk, $cible, ${psTexte(args)}, $icone, $aumid, ${psTexte(description)})
+}
+`;
+}
+
+const CODE_RACCOURCI_PS = `$code = @"
 using System;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -102,11 +129,9 @@ public static class ClaireRaccourci {
   }
 }
 "@
-Add-Type -TypeDefinition $code
-[ClaireRaccourci]::Creer(${psTexte(chemin)}, ${psTexte(cible)}, ${psTexte(argumentsLigne)}, ${psTexte(icone)}, ${psTexte(aumid)}, ${psTexte(description)})
-`;
-}
+Add-Type -TypeDefinition $code`;
 
 module.exports = {
-  construireAppUserModelId, appUserModelIdFenetreApp, baseAppIdNavigateur, scriptPowerShellRaccourci
+  construireAppUserModelId, appUserModelIdFenetreApp, baseAppIdNavigateur, scriptPowerShellRaccourci,
+  scriptPowerShellRaccourcisPoste
 };

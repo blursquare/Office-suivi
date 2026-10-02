@@ -1618,6 +1618,20 @@
       </div>
     </div>
 
+    <!-- CLAIRE en application sur un poste (voir server/src/installationPoste.js) : masqué sur le poste
+         serveur, où CLAIRE s'ouvre déjà dans sa propre fenêtre. -->
+    <div class="reglages-section" id="reglages-section-application">
+      <h3 class="reglages-section-titre">Ce poste</h3>
+      <div class="reglages-liste">
+        <div class="reglages-option">
+          <span class="reglages-option-texte">
+            <span class="reglages-option-titre">CLAIRE en application <span class="info-i" tabindex="0" data-info="CLAIRE s'ouvre dans sa propre fenêtre, sans onglet ni barre d'adresse, depuis un raccourci du bureau et du menu Démarrer, comme sur le poste serveur. Rien à mettre à jour sur ce poste : chaque mise à jour du serveur s'y applique d'elle-même."></span></span>
+          </span>
+          <button type="button" class="action-rapide" onclick="telechargerInstallateurApplication()">Installer sur ce poste</button>
+        </div>
+      </div>
+    </div>
+
     <div class="reglages-section">
       <h3 class="reglages-section-titre">Documents et emails</h3>
       <div class="reglages-liste">
@@ -1831,7 +1845,7 @@
     </div>
 
     <div class="reglages-section">
-      <h3 class="reglages-section-titre">Emails des dossiers <span class="info-i" tabindex="0" data-info="CLAIRE relit toutes les 10 minutes la boîte de réception du compte relié et les « Éléments envoyés » de chaque collaborateur (adresses de la rubrique Collaborateurs). Elle garde l'expéditeur, l'objet, la date, les pièces jointes et un résumé de l'IA locale — jamais le texte. Pour que les envois d'un collaborateur soient lus : dans son Outlook, clic droit sur « Éléments envoyés » › Propriétés › Autorisations › ajouter le compte relié en « Relecteur » (et « Dossier visible » sur la boîte elle-même)."></span></h3>
+      <h3 class="reglages-section-titre">Emails des dossiers <span class="info-i" tabindex="0" data-info="CLAIRE relit toutes les 10 minutes la boîte de réception du compte relié et les « Éléments envoyés » de chaque collaborateur (adresses de la rubrique Collaborateurs). Elle garde l'expéditeur, l'objet, la date, les pièces jointes et un résumé de l'IA locale — jamais le texte. Chaque pièce jointe reçue est copiée dans le dossier client du NAS (dossier relié), dans le sous-dossier que son nom désigne, sinon à la racine. Pour que les envois d'un collaborateur soient lus : dans son Outlook, clic droit sur « Éléments envoyés » › Propriétés › Autorisations › ajouter le compte relié en « Relecteur » (et « Dossier visible » sur la boîte elle-même)."></span></h3>
       <div id="reglages-emails-dossiers"></div>
     </div>
     <div class="reglages-section">
