@@ -14957,3 +14957,9 @@ s'est mis dans PETIT. Et je n'étais même pas dans le bon dossier SIMOND, c'ét
   celui de l'intitulé, ou aucun. Combiné au correctif précédent (`dossierPourFicheClientAuthentic`), une fiche
   client va au dossier dont la personne est partie (le dossier SIMOND de CLAIRE s'il existe), jamais au précédent.
 - À réinstaller sur les postes (zip / signature, voir `extension-firefox/LISEZMOI.md`).
+
+### 02/10/2026 après-midi — Apport : retour à l'affichage d'origine
+
+Étude : « annule mon changement pour la question de l'apport ». La ligne Financement de la fiche montre de nouveau
+l'apport signé (« Apport -20.323,00 € (-10 %) » quand le prêt dépasse le prix), comme avant l'entrée « Apport sans
+signe moins » ci-dessus.

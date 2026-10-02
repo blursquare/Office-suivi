@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-02 15:29';
+  const VERSION_APP = '2026-10-02 15:32';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-02 15:32', resume: "Fiche : l'apport retrouve son affichage d'avant (signe moins quand le prêt dépasse le prix), à la demande de l'étude." },
     { version: '2026-10-02 15:29', resume: "Add-on Authentic (0.3.5, à réinstaller) : quand on passe d'un dossier à l'autre dans Authentic — y compris un dossier que CLAIRE ne suit pas (donation, divers…) —, CLAIRE suit le dossier ouvert : les fiches client consultées ensuite ne sont plus rangées dans le dossier précédent. Seul l'intitulé du dossier part, aucune donnée de la page." },
     { version: '2026-10-02 15:25', resume: "Add-on Authentic : la fiche client d'une personne qui n'est partie d'aucun dossier n'est plus proposée « À rattacher » au dernier dossier consulté (cas SIMOND) — seulement si sa fiche cite ce dossier. Une personne partie d'un dossier va toujours à celui-là. Fiche : « Avant-contrat signé le » devient « Signé le » (libellé coupé)." },
     { version: '2026-10-02 15:22', resume: "Fiche : l'apport s'affiche sans signe moins (« Apport 20.323,00 € (10 %) ») ; quand le prêt dépasse le prix, la pastille reste rouge et la bulle le dit." },
@@ -16044,9 +16045,7 @@
     const financement = d.sansPret
       ? `<span class="dot-label dl-pret" title="Achat comptant, sans prêt">${icone('banknote')}Comptant</span>`
       : apport
-        // Jamais de signe « - » (étude, 02/10) : un prêt supérieur au prix reste signalé par la pastille
-        // rouge et dit dans la bulle.
-        ? `<span class="prop-texte" title="Prêt de ${escapeAttr(formaterPrix(d.montantPret))}${apport.montant < 0 ? ` : il dépasse le prix de ${escapeAttr(formaterPrix(-apport.montant))}` : ''}"><span class="apport-cercle apport-${apport.niveau}"></span> Apport ${formaterPrix(Math.abs(apport.montant))} (${Math.abs(apport.pourcentage)} %)</span>`
+        ? `<span class="prop-texte" title="Prêt de ${escapeAttr(formaterPrix(d.montantPret))}"><span class="apport-cercle apport-${apport.niveau}"></span> Apport ${formaterPrix(apport.montant)} (${apport.pourcentage} %)</span>`
         : `<span class="dot-label ${offre.dl}" title="Prêt — statut de l’offre"><span class="dot"></span>Offre ${offre.texte.toLowerCase()}</span>`;
 
     // Groupe 3 — les notaires. Le bouton « Reçoit l'acte » EST le contrôle (voir
