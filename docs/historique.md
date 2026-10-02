@@ -15121,3 +15121,19 @@ recherche (texte d'appel selon le thème) puis des listes compactes, une par th�
 adresse/bureaux/notes + dossiers en cours ; téléphones et emails avec leurs libellés, cliquables ; crayon et ×) —
 `renderOfficeCarnet` et `renderContactRepertoire` (cartes) retirés ; formulaire de modification ouvert dans la ligne
 (`.rep-ligne-form`), formulaire « Ajouter » en tête. Notre office en ligne teintée, pastille « Notre office ».
+
+### 02/10/2026 20 h 26 — Notaires : carnet et annuaire en une seule entrée
+
+Étude : « le carnet dans Confrères fait doublon avec le répertoire des notaires » ; choix (question posée) : « Une seule entrée
+Notaires ». Le carnet reste la donnée de travail (corrections, notes, rapprochement des fiches par nom de famille sans les
+homonymes de toute la France, 3CX en premier) ; il devient, à l'écran, une marque sur les offices. `renderAnnuaireNotaires`
+(thème `annuaire`, libellé « Notaires » dans la colonne ; l'ancien thème `confreres` y mène avec « Mes confrères » cochée) :
+par département, `officesNotairesDepartement` — chaque office de l'annuaire remplacé par sa fiche du carnet
+(`officeCarnetPourAnnuaire` : id, email ou téléphone ; une fiche n'apparaît qu'une fois), puis les offices du carnet du
+département absents de l'annuaire (saisis à la main, département par `departementDepuisCodePostal` existant) ; lignes du
+carnet = `renderLigneOfficeCarnet` (crayon, ×, dossiers, modification dans la ligne), autres = `renderLigneAnnuaire`
+(« Au carnet ») ; titre « Loir-et-Cher (41) 36 · 36 au carnet ». « Mes confrères seulement » (`annuaireMesConfreres`) : tout le
+carnet, tous départements, groupé par ville ; choisir un département la décoche. Recherche : l'écran affiché, puis
+« Ailleurs en France » (carnet hors écran + annuaire national, sans doublon). Fiche → « voir dans le répertoire »
+(`ouvrirOfficeCarnet`) et « Ajouter au répertoire » ouvrent cette vue. Vue « Tout » : section « Notaires — mes confrères ».
+Colonnes en fractions (3fr / 2fr / action) pour que le nom ne soit plus écrasé.

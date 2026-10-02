@@ -7281,7 +7281,14 @@ button.rep-nav-lien.vide { opacity: 0.55; }
 .rep-principal { display: flex; flex-direction: column; gap: 14px; }
 .rep-principal .carnet-outils { margin-bottom: 0; }
 .rep-ligne-icones { display: flex; gap: 2px; }
-.annuaire-ligne.rep-ligne { grid-template-columns: minmax(0, 1fr) minmax(0, 340px) 64px; }
+.annuaire-ligne.rep-ligne { grid-template-columns: minmax(0, 3fr) minmax(0, 2fr) 64px; }
+/* Vue Notaires : lignes du carnet et de l'annuaire mêlées — même colonne d'action pour que les coordonnées s'alignent. */
+.rep-notaires { display: flex; flex-direction: column; gap: 14px; }
+.rep-notaires .annuaire-ligne.rep-ligne { grid-template-columns: minmax(0, 3fr) minmax(0, 2fr) 104px; }
+.rep-notaires .rep-ligne-icones { justify-content: flex-end; }
+.annuaire-choix.inactif, .annuaire-proches.inactif { opacity: 0.55; }
+.annuaire-mes { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--ink-soft); cursor: pointer; }
+.annuaire-mes-n { font-size: 11.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .rep-ligne-notes { font-style: italic; }
 .rep-ligne-dossiers { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; margin-top: 5px; font-size: 12px; color: var(--muted); }
 .rep-ligne-etude { background: color-mix(in srgb, var(--success) 6%, var(--paper-card)); }
@@ -7321,7 +7328,7 @@ button.annuaire-proche.actif { background: var(--focus); border-color: var(--foc
 }
 .annuaire-ville span { font-weight: 500; color: var(--muted); letter-spacing: 0; font-variant-numeric: tabular-nums; }
 .annuaire-ligne {
-  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 340px) 112px; gap: 4px 16px; align-items: center;
+  display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr) 104px; gap: 4px 16px; align-items: center;
   padding: 9px 14px; border-top: 1px solid var(--line-soft); font-size: 13px;
 }
 .annuaire-ligne > * { min-width: 0; }
@@ -7344,7 +7351,7 @@ button.annuaire-proche.actif { background: var(--focus); border-color: var(--foc
 .annuaire-ligne-action { justify-self: end; }
 .annuaire-ligne-action .bouton-ajout { margin: 0; }
 @media (max-width: 760px) {
-  .annuaire-ligne, .annuaire-ligne.rep-ligne { grid-template-columns: minmax(0, 1fr) auto; }
+  .annuaire-ligne, .annuaire-ligne.rep-ligne, .rep-notaires .annuaire-ligne.rep-ligne { grid-template-columns: minmax(0, 1fr) auto; }
   .annuaire-ligne-action { justify-self: end; }
   .annuaire-ligne-contact { grid-column: 1 / -1; grid-row: 2; flex-direction: row; flex-wrap: wrap; gap: 2px 14px; }
   .annuaire-ligne-action { grid-column: 2; grid-row: 1; align-self: start; }

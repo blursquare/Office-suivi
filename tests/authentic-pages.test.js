@@ -908,3 +908,20 @@ test('officeCarnetPourAnnuaire : même identifiant, sinon même email ou même t
   assert.equal(app.officeCarnetPourAnnuaire({ id: 'annuaire-9' }, carnet).id, 'annuaire-9');
   assert.equal(app.officeCarnetPourAnnuaire({ id: 'annuaire-3', email: '', telephone: '' }, carnet), null);
 });
+
+test('Notaires : un office du carnet remplace sa ligne de l’annuaire, les saisies à la main du département s’ajoutent (noms inventés)', () => {
+  const annuaire = [
+    { id: 'annuaire-1', office: 'SCP MARTEL', email: 'scp.martel@notaires.fr', telephone: '02 54 00 00 01', codePostal: '41000', ville: 'Blois' },
+    { id: 'annuaire-2', office: 'Me ROUX', email: 'roux@notaires.fr', telephone: '', codePostal: '41200', ville: 'Romorantin' },
+    { id: 'annuaire-3', office: 'Me BRUN', email: 'office.x@notaires.fr', telephone: '', codePostal: '41000', ville: 'Blois' }
+  ];
+  const carnet = [
+    { id: 'annuaire-1', office: 'SCP MARTEL (corrigé)', email: 'scp.martel@notaires.fr', codePostal: '41000', ville: 'Blois', notes: 'clerc : Paul' },
+    { id: 'etude-x', office: 'Notre office', email: 'office.x@notaires.fr', codePostal: '41000', ville: 'Blois', etude: true },
+    { id: 'saisie-1', office: 'Me VERT', email: '', codePostal: '41100', ville: 'Vendôme' },
+    { id: 'saisie-2', office: 'Me NOIR', email: '', codePostal: '37000', ville: 'Tours' }
+  ];
+  const r = app.officesNotairesDepartement('41', annuaire, carnet);
+  assert.equal(r.map(x => `${x.office.id}:${x.carnet ? 'c' : 'a'}`).join(), 'annuaire-1:c,annuaire-2:a,etude-x:c,saisie-1:c');
+  assert.equal(r[0].office.office, 'SCP MARTEL (corrigé)');
+});
