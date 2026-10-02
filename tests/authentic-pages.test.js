@@ -874,6 +874,15 @@ test('notaires de France : département filtré, office repris au format du carn
   assert.equal(app.departementsAnnuaireFiltres(deps, 'loir').map(d => d.code).join(), '37,41');
   assert.equal(app.departementsAnnuaireFiltres(deps, '2a').map(d => d.code).join(), '2A');
   assert.equal(app.departementsAnnuaireFiltres(deps, '').length, 3);
+  const liste = [
+    { id: 'a', office: 'Me Paul MARTEL', notaires: ['Paul MARTEL'], ville: 'Tours', codePostal: '37000' },
+    { id: 'b', office: 'SCP ROUX', notaires: ['Léa ROUX', 'Marc VERT'], ville: 'Amboise', codePostal: '37400', bureaux: ['37530 Nazelles 1 rue Haute'] },
+    { id: 'c', office: 'Me Anne BRUN', notaires: ['Anne BRUN'], ville: 'tours', codePostal: '37100' }
+  ];
+  assert.equal(app.filtrerOfficesAnnuaire(liste, 'vert amboise').map(o => o.id).join(), 'b');
+  assert.equal(app.filtrerOfficesAnnuaire(liste, 'nazelles').map(o => o.id).join(), 'b');
+  assert.equal(app.filtrerOfficesAnnuaire(liste, '').length, 3);
+  assert.equal(app.officesParVilleAnnuaire(liste).map(g => `${g.ville}:${g.offices.length}`).join(), 'Amboise:1,Tours:2');
   const offices = [
     { id: 'annuaire-1', office: 'SCP MARTEL et FOURNIER', notaires: ['Paul MARTEL', 'Anne FOURNIER'], ville: 'Tours', bureaux: [] },
     { id: 'annuaire-2', office: 'Me Luc MARTEL', notaires: ['Luc MARTEL'], ville: 'Ajaccio', bureaux: [] }
@@ -886,4 +895,16 @@ test('notaires de France : département filtré, office repris au format du carn
   assert.equal(c.id, 'annuaire-1');
   assert.equal(c.source, 'Annuaire de test');
   assert.equal('departement' in c || 'url' in c, false);
+});
+
+test('officeCarnetPourAnnuaire : même identifiant, sinon même email ou même téléphone (noms inventés)', () => {
+  const carnet = [
+    { id: 'etude-x', office: 'Notre office', email: 'office.x@notaires.fr', telephone: '02 54 00 00 01', etude: true },
+    { id: 'saisie-1', office: 'Me ROUX', email: '', telephone: '02.47.00.00.02' },
+    { id: 'annuaire-9', office: 'Me VERT', email: '', telephone: '' }
+  ];
+  assert.equal(app.officeCarnetPourAnnuaire({ id: 'annuaire-1', email: 'Office.X@notaires.fr', telephone: '' }, carnet).id, 'etude-x');
+  assert.equal(app.officeCarnetPourAnnuaire({ id: 'annuaire-2', email: '', telephone: '+33 2 47 00 00 02' }, carnet).id, 'saisie-1');
+  assert.equal(app.officeCarnetPourAnnuaire({ id: 'annuaire-9' }, carnet).id, 'annuaire-9');
+  assert.equal(app.officeCarnetPourAnnuaire({ id: 'annuaire-3', email: '', telephone: '' }, carnet), null);
 });

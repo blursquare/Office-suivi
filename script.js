@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-02 17:52';
+  const VERSION_APP = '2026-10-02 20:10';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-02 20:10', resume: "Notaires de France, présentation revue : la page s'ouvre directement sur le Loir-et-Cher (puis sur le dernier département consulté), choisi dans une liste ou d'un clic parmi les départements voisins (37, 45, 18, 36, 72, 28) ; les offices s'affichent en lignes compactes groupées par ville, téléphone et email cliquables à droite ; la recherche filtre aussitôt le département affiché, puis montre « Ailleurs en France ». Notre office et ceux déjà au carnet sont reconnus (même email ou même téléphone)." },
     { version: '2026-10-02 17:52', resume: "Répertoire : « Notaires de France » — les 7 202 offices notariaux de France (16 933 notaires), classés par département (annuaire public immonot, relevé du 02/10/2026). Un clic sur un département liste ses offices (notaires, adresse, bureaux, téléphone, email) ; « Ajouter au carnet » en fait un office du carnet des confrères. La recherche du répertoire cherche aussi dans toute la France ; « Ajouter au répertoire » depuis une fiche pré-remplit l'office quand le notaire n'exerce que dans un seul ; 3CX reconnaît aussi un office hors carnet." },
     { version: '2026-10-02 17:28', resume: "Nouveau dossier : un second clic sur « Ajouter le dossier » (ou Ctrl+S) pendant l'enregistrement créait un second dossier — le bouton passe en « Enregistrement… » et ne répond plus jusqu'à la fin. Si un dossier en cours porte déjà le même nom ou le même numéro Authentic, CLAIRE demande avant d'en créer un second. Le dossier n'apparaît jamais deux fois dans la liste." },
     { version: '2026-10-02 17:18', resume: "Add-on Authentic : le message « plusieurs dossiers possibles · Choisir » reste affiché sans minuterie, jusqu'à ce que la fiche soit rangée dans un dossier ou qu'on le ferme par la croix. Un autre message peut passer devant ; celui-ci revient ensuite." },
@@ -12503,12 +12504,13 @@
     const total = offices.length + contacts.length;
     const totalTout = carnetConfreres.length + repertoireContacts.length;
     const compte = document.getElementById('carnet-compte');
-    if (compte) compte.textContent = carnetRecherche ? `${total} sur ${totalTout} contacts` : `${totalTout} contacts`;
+    if (compte) compte.textContent = repertoireTheme === 'annuaire' ? '' : carnetRecherche ? `${total} sur ${totalTout} contacts` : `${totalTout} contacts`;
     const bouton = document.getElementById('repertoire-ajouter');
     if (bouton) bouton.textContent = repertoireTheme === 'confreres' || repertoireTheme === 'annuaire' ? 'Ajouter un office' : 'Ajouter un contact';
 
     const pastille = (cle, libelle, n) => `<button type="button" class="rep-theme${repertoireTheme === cle ? ' actif' : ''}${n ? '' : ' vide'}" aria-pressed="${repertoireTheme === cle}" onclick="choisirThemeRepertoire('${cle}')">${escapeHtml(libelle)}<span class="rep-theme-n">${n}</span></button>`;
-    const pastilles = `<div class="rep-themes" role="group" aria-label="Thèmes du répertoire">${pastille('', 'Tout', total)}${repertoireThemes.map(t => pastille(t.cle, t.libelle, nombre(t.cle))).join('')}${annuaireInfos && annuaireInfos.offices ? pastille('annuaire', 'Notaires de France', annuaireInfos.offices) : ''}</div>`;
+    const pastilles = `<div class="rep-themes" role="group" aria-label="Thèmes du répertoire">${pastille('', 'Tout', total)}${repertoireThemes.map(t => pastille(t.cle, t.libelle, nombre(t.cle))).join('')}${annuaireInfos && annuaireInfos.offices ? pastille('annuaire', 'Notaires de France', Number(annuaireInfos.offices).toLocaleString('fr-FR')) : ''}</div>`;
+    if (champ) champ.placeholder = repertoireTheme === 'annuaire' ? 'Rechercher un notaire, un office, une ville…' : 'Rechercher un organisme, un nom, une ville, un email…';
     if (repertoireTheme === 'annuaire') {
       zone.innerHTML = pastilles + renderAnnuaireNotaires();
       return;
@@ -12530,7 +12532,7 @@
     const horsCarnet = (!repertoireTheme || repertoireTheme === 'confreres') ? resultatsAnnuaireHorsCarnet() : [];
     const sectionAnnuaire = horsCarnet.length ? `<section class="rep-section">
           <h2 class="rep-section-titre">Notaires de France<span class="rep-section-n">${horsCarnet.length}${horsCarnet.length >= 50 ? '+' : ''}</span></h2>
-          <div class="carnet-liste">${horsCarnet.map(renderOfficeAnnuaire).join('')}</div>
+          <div class="annuaire-liste">${horsCarnet.map(o => renderLigneAnnuaire(o, true)).join('')}</div>
         </section>` : '';
     const vide = !sections && !formNouveau && !sectionAnnuaire
       ? `<p class="carnet-vide">${totalTout ? 'Aucun contact ne correspond à cette recherche.' : 'Le répertoire est vide.'}</p>` : '';
@@ -12576,6 +12578,7 @@
   var annuaireInfos = null;          // { source, releveLe, offices, departements: [{ code, nom, offices }] }
   var annuaireDepartement = '';      // code du département affiché
   var annuaireOfficesParDep = {};    // code → offices
+  var annuaireDepEnCours = new Set(); // départements en cours de lecture
   var annuaireRecherche = { q: '', offices: [] };
   let minuteurRechercheAnnuaire = null;
 
@@ -12590,15 +12593,20 @@
   }
 
   async function choisirDepartementAnnuaire(code) {
-    annuaireDepartement = code || '';
-    renderCarnetConfreres();
-    if (!code || annuaireOfficesParDep[code]) return;
+    if (code && code !== annuaireDepartement) {
+      annuaireDepartement = code;
+      try { localStorage.setItem(CLE_DEPARTEMENT_ANNUAIRE, code); } catch (e) { /* stockage indisponible */ }
+      renderCarnetConfreres();
+    }
+    if (!code || annuaireOfficesParDep[code] || annuaireDepEnCours.has(code)) return;
+    annuaireDepEnCours.add(code);
     try {
       const r = await fetchAvecAuth('/api/annuaire/departement/' + encodeURIComponent(code));
       if (!r.ok) return;
       annuaireOfficesParDep[code] = (await r.json()).offices || [];
       if (ongletActuel === 'confreres') renderCarnetConfreres();
     } catch (e) { console.warn('Annuaire des notaires indisponible :', e.message); }
+    finally { annuaireDepEnCours.delete(code); }
   }
 
   // Recherche dans toute la France, 300 ms après la dernière frappe, 3 caractères au moins.
@@ -12622,8 +12630,7 @@
   function resultatsAnnuaireHorsCarnet() {
     const q = String(carnetRecherche || '').trim();
     if (q.length < 3 || annuaireRecherche.q !== q) return [];
-    const ids = new Set(carnetConfreres.map(o => o.id));
-    return annuaireRecherche.offices.filter(o => !ids.has(o.id));
+    return annuaireRecherche.offices.filter(o => !officeCarnetPourAnnuaire(o, carnetConfreres));
   }
 
   // Pure : les départements dont le nom ou le code contient le texte (sans accents ni casse).
@@ -12633,55 +12640,135 @@
     return (departements || []).filter(d => normaliserPourRecherche(d.nom + ' ' + d.code).indexOf(q) !== -1);
   }
 
+  // Départements proposés d'un clic : le nôtre et ses voisins (étude, 02/10 : « plus facile à utiliser »).
+  var DEPARTEMENTS_PROCHES_ANNUAIRE = ['41', '37', '45', '18', '36', '72', '28'];
+  var CLE_DEPARTEMENT_ANNUAIRE = 'claire-annuaire-departement';
+
+  // Le département affiché : le dernier choisi sur ce poste, sinon le nôtre.
+  function departementAnnuaireAffiche() {
+    if (annuaireDepartement) return annuaireDepartement;
+    let memorise = '';
+    try { memorise = localStorage.getItem(CLE_DEPARTEMENT_ANNUAIRE) || ''; } catch (e) { /* stockage indisponible */ }
+    return memorise || '41';
+  }
+
+  // Pure : les offices dont l'office, un notaire, la ville, le code postal, un bureau ou l'email
+  // contient tous les mots cherchés (sans accents ni casse).
+  function filtrerOfficesAnnuaire(offices, texte) {
+    const mots = normaliserPourRecherche(String(texte || '')).split(/\s+/).filter(Boolean);
+    if (!mots.length) return offices || [];
+    return (offices || []).filter(o => {
+      const botte = normaliserPourRecherche([o.office, (o.notaires || []).join(' '), o.ville, o.codePostal, (o.bureaux || []).join(' '), o.email].join(' '));
+      return mots.every(m => botte.indexOf(m) !== -1);
+    });
+  }
+
+  // Pure : les offices regroupés par ville, dans l'ordre alphabétique des villes — [{ ville, offices }].
+  function officesParVilleAnnuaire(offices) {
+    const groupes = new Map();
+    for (const o of offices || []) {
+      const ville = String(o.ville || '').trim() || 'Ville non renseignée';
+      const cle = normaliserPourRecherche(ville);
+      if (!groupes.has(cle)) groupes.set(cle, { ville, offices: [] });
+      groupes.get(cle).offices.push(o);
+    }
+    return Array.from(groupes.values()).sort((a, b) => a.ville.localeCompare(b.ville, 'fr'));
+  }
+
+  // Pure : les départements dont le nom ou le code contient le texte (sans accents ni casse).
+  function departementsAnnuaireFiltres(departements, texte) {
+    const q = normaliserPourRecherche(String(texte || '').trim());
+    if (!q) return departements || [];
+    return (departements || []).filter(d => normaliserPourRecherche(d.nom + ' ' + d.code).indexOf(q) !== -1);
+  }
+
+  // Vue « Notaires de France » : un département à la fois (liste déroulante + voisins d'un clic), ses
+  // offices en lignes compactes groupées par ville ; la recherche du répertoire filtre ce département
+  // tout de suite, puis montre le reste de la France (3 caractères ou plus).
   function renderAnnuaireNotaires() {
     if (!annuaireInfos) return '<p class="carnet-vide">Chargement de l’annuaire…</p>';
-    const source = annuaireInfos.source ? `<p class="annuaire-source">${escapeHtml(annuaireInfos.source)} · ${annuaireInfos.offices} offices ${infoBulle('Annuaire public des offices notariaux, relevé une fois : il peut avoir vieilli. « Ajouter au carnet » copie l’office dans le carnet de l’étude, où il se corrige et se rapproche des fiches.')}</p>` : '';
+    const code = departementAnnuaireAffiche();
+    if (!annuaireOfficesParDep[code]) setTimeout(() => choisirDepartementAnnuaire(code), 0);
+    const deps = annuaireInfos.departements || [];
+    const dep = deps.find(d => d.code === code) || { code, nom: code, offices: 0 };
     const q = String(carnetRecherche || '').trim();
-    // Une recherche de 3 caractères ou plus : dans toute la France.
+    const proches = DEPARTEMENTS_PROCHES_ANNUAIRE.map(c => deps.find(d => d.code === c)).filter(Boolean);
+    const barre = `<div class="annuaire-barre">
+        <label class="annuaire-choix" for="annuaire-departement"><span>Département</span>
+          <select id="annuaire-departement" onchange="choisirDepartementAnnuaire(this.value)">
+            ${deps.map(d => `<option value="${escapeAttr(d.code)}"${d.code === code ? ' selected' : ''}>${escapeHtml(d.code)} — ${escapeHtml(d.nom)} (${d.offices})</option>`).join('')}
+          </select>
+        </label>
+        <div class="annuaire-proches" role="group" aria-label="Départements voisins">
+          ${proches.map(d => `<button type="button" class="annuaire-proche${d.code === code ? ' actif' : ''}" aria-pressed="${d.code === code}" onclick="choisirDepartementAnnuaire('${escapeOnclickArg(d.code)}')" title="${escapeAttr(d.nom)}">${escapeHtml(d.code)}</button>`).join('')}
+        </div>
+        <span class="annuaire-source">${escapeHtml(Number(annuaireInfos.offices).toLocaleString('fr-FR') + ' offices en France')} ${infoBulle((annuaireInfos.source || 'Annuaire public des offices notariaux') + ' : relevé une fois, il peut avoir vieilli. « Carnet » copie l’office dans le carnet de l’étude, où il se corrige et se rapproche des fiches. La recherche filtre le département affiché, puis cherche dans toute la France.')}</span>
+      </div>`;
+    // Un nom de département tapé dans la recherche : y aller d'un clic.
+    const depsCherches = q.length >= 3 ? departementsAnnuaireFiltres(deps, q).filter(d => d.code !== code).slice(0, 4) : [];
+    const allerA = depsCherches.length ? `<div class="annuaire-aller">${depsCherches.map(d => `<button type="button" class="lien-bouton" onclick="choisirDepartementAnnuaire('${escapeOnclickArg(d.code)}'); viderRechercheCarnet()">Afficher ${escapeHtml(d.nom)} (${escapeHtml(d.code)})</button>`).join('')}</div>` : '';
+
+    const offices = annuaireOfficesParDep[code];
+    let liste;
+    if (!offices) liste = '<p class="carnet-vide">Chargement…</p>';
+    else {
+      const trouves = filtrerOfficesAnnuaire(offices, q);
+      const titre = `<h2 class="rep-section-titre">${escapeHtml(dep.nom)} (${escapeHtml(dep.code)})<span class="rep-section-n">${q ? `${trouves.length} sur ${offices.length}` : offices.length}</span></h2>`;
+      liste = titre + (trouves.length
+        ? `<div class="annuaire-liste">${officesParVilleAnnuaire(trouves).map(g => `<div class="annuaire-ville">${escapeHtml(g.ville.toUpperCase())}<span>${g.offices.length}</span></div>${g.offices.map(o => renderLigneAnnuaire(o, false)).join('')}`).join('')}</div>`
+        : `<p class="carnet-vide">Aucun office ${escapeHtml(dep.nom.match(/^[AEIOUYÉ]/i) ? 'd’' : 'de ')}${escapeHtml(dep.nom)} ne correspond.</p>`);
+    }
+    // Le reste de la France.
+    let ailleurs = '';
     if (q.length >= 3) {
-      const res = annuaireRecherche.q === q ? annuaireRecherche.offices : null;
-      const deps = departementsAnnuaireFiltres(annuaireInfos.departements, q);
-      return source + (deps.length ? `<div class="annuaire-deps">${deps.map(renderPastilleDepartement).join('')}</div>` : '')
+      const res = annuaireRecherche.q === q ? annuaireRecherche.offices.filter(o => o.departement !== code) : null;
+      ailleurs = `<h2 class="rep-section-titre">Ailleurs en France<span class="rep-section-n">${res === null ? '…' : res.length + (annuaireRecherche.offices.length >= 50 ? '+' : '')}</span></h2>`
         + (res === null ? '<p class="carnet-vide">Recherche…</p>'
-          : res.length ? `<div class="carnet-liste">${res.map(renderOfficeAnnuaire).join('')}</div>${res.length >= 50 ? '<p class="carnet-vide">50 premiers résultats : précisez la recherche.</p>' : ''}`
-            : deps.length ? '' : '<p class="carnet-vide">Aucun office ne correspond.</p>');
+          : res.length ? `<div class="annuaire-liste">${res.map(o => renderLigneAnnuaire(o, true)).join('')}</div>${annuaireRecherche.offices.length >= 50 ? '<p class="carnet-vide">50 premiers résultats : précisez la recherche.</p>' : ''}`
+            : '<p class="carnet-vide">Rien ailleurs en France.</p>');
     }
-    if (!annuaireDepartement) {
-      return source + `<div class="annuaire-deps">${annuaireInfos.departements.map(renderPastilleDepartement).join('')}</div>`;
-    }
-    const dep = annuaireInfos.departements.find(d => d.code === annuaireDepartement) || { code: annuaireDepartement, nom: annuaireDepartement, offices: 0 };
-    const offices = annuaireOfficesParDep[annuaireDepartement];
-    return source + `<div class="annuaire-dep-tete">
-        <button type="button" class="lien-bouton" onclick="choisirDepartementAnnuaire('')">${icone('chevron-left')}Tous les départements</button>
-        <h2 class="rep-section-titre">${escapeHtml(dep.nom)} (${escapeHtml(dep.code)})<span class="rep-section-n">${dep.offices}</span></h2>
-      </div>`
-      + (offices ? `<div class="carnet-liste">${offices.map(renderOfficeAnnuaire).join('')}</div>` : '<p class="carnet-vide">Chargement…</p>');
+    return barre + allerA + `<section class="rep-section">${liste}</section>` + (ailleurs ? `<section class="rep-section">${ailleurs}</section>` : '');
   }
 
-  function renderPastilleDepartement(d) {
-    return `<button type="button" class="annuaire-dep" onclick="choisirDepartementAnnuaire('${escapeOnclickArg(d.code)}')">
-        <span class="annuaire-dep-code">${escapeHtml(d.code)}</span><span class="annuaire-dep-nom">${escapeHtml(d.nom)}</span><span class="annuaire-dep-n">${d.offices}</span>
-      </button>`;
+  function viderRechercheCarnet() {
+    carnetRecherche = '';
+    const champ = document.getElementById('carnet-recherche');
+    if (champ) champ.value = '';
+    annuaireRecherche = { q: '', offices: [] };
+    renderCarnetConfreres();
   }
 
-  function renderOfficeAnnuaire(o) {
-    const adresse = normaliserAdresse([o.adresse, [o.codePostal, o.ville].filter(Boolean).join(' ')].filter(Boolean).join(', '));
-    const contacts = [
-      o.telephone ? `<a href="tel:${escapeAttr(o.telephone.replace(/\s+/g, ''))}">${escapeHtml(o.telephone)}</a>` : '',
-      o.email ? `<a href="mailto:${escapeAttr(o.email)}">${escapeHtml(o.email)}</a>` : ''
-    ].filter(Boolean).join('<span class="carnet-sep">·</span>');
-    const dansCarnet = carnetConfreres.some(x => x.id === o.id);
-    return `<article class="carnet-office carnet-office-annuaire">
-      <div class="carnet-office-tete">
-        <h3 class="carnet-office-nom">${escapeHtml(o.office || (o.notaires || [])[0] || '')}</h3>
-        ${dansCarnet ? '<span class="dot-label dl-success"><span class="dot"></span>Dans le carnet</span>' : ''}
-      </div>
-      ${memeNomOfficeNotaire(o) ? '' : `<div class="carnet-notaires">${(o.notaires || []).map(n => `<span>Me ${escapeHtml(n)}</span>`).join('')}</div>`}
-      ${adresse ? `<div class="carnet-ligne">${icone('map-pin')}${escapeHtml(adresse)}</div>` : ''}
-      ${(o.bureaux || []).length ? `<div class="carnet-ligne carnet-bureaux">Bureaux : ${o.bureaux.map(escapeHtml).join(' ; ')}</div>` : ''}
-      ${contacts ? `<div class="carnet-ligne carnet-contacts">${icone('mail')}${contacts}</div>` : ''}
-      ${dansCarnet ? '' : `<button type="button" class="bouton-ajout bouton-ajout-court" onclick="ajouterOfficeAnnuaireAuCarnet('${escapeOnclickArg(o.id)}')">Ajouter au carnet</button>`}
-    </article>`;
+  // Une ligne d'office : nom et notaires, adresse (et bureaux) dessous ; téléphone, email et
+  // « Carnet » à droite. `avecDepartement` : la ville porte son département (résultats nationaux).
+  // Pure : l'office du carnet qui correspond à un office de l'annuaire — même identifiant, sinon même
+  // email ou même téléphone (notre office et ceux saisis à la main ont leur propre identifiant).
+  function officeCarnetPourAnnuaire(o, carnet) {
+    const chiffres = t => String(t || '').replace(/\D/g, '').slice(-9);
+    const email = String(o.email || '').trim().toLowerCase();
+    const tel = chiffres(o.telephone);
+    return (carnet || []).find(x => x && (x.id === o.id
+      || (email && String(x.email || '').trim().toLowerCase() === email)
+      || (tel.length === 9 && chiffres(x.telephone) === tel))) || null;
+  }
+
+  function renderLigneAnnuaire(o, avecDepartement) {
+    const dansCarnet = officeCarnetPourAnnuaire(o, carnetConfreres);
+    const notaires = memeNomOfficeNotaire(o) ? '' : (o.notaires || []).map(n => 'Me ' + n).join(', ');
+    const lieu = [o.adresse, [o.codePostal, o.ville].filter(Boolean).join(' ')].filter(Boolean).join(', ');
+    return `<div class="annuaire-ligne">
+        <div class="annuaire-ligne-qui">
+          <div class="annuaire-ligne-nom">${escapeHtml(o.office || (o.notaires || [])[0] || '')}${avecDepartement && o.departement ? ` <span class="annuaire-ligne-dep">${escapeHtml(o.departement)}</span>` : ''}</div>
+          ${notaires ? `<div class="annuaire-ligne-notaires">${escapeHtml(notaires)}</div>` : ''}
+          <div class="annuaire-ligne-lieu">${escapeHtml(lieu)}${(o.bureaux || []).length ? ` · bureaux : ${escapeHtml(o.bureaux.join(' ; '))}` : ''}</div>
+        </div>
+        <div class="annuaire-ligne-contact">
+          ${o.telephone ? `<a href="tel:${escapeAttr(o.telephone.replace(/\s+/g, ''))}" title="Appeler">${icone('phone')}<span>${escapeHtml(o.telephone)}</span></a>` : ''}
+          ${o.email ? `<a href="mailto:${escapeAttr(o.email)}" title="${escapeAttr(o.email)}">${icone('mail')}<span>${escapeHtml(o.email)}</span></a>` : ''}
+        </div>
+        <div class="annuaire-ligne-action">${dansCarnet
+          ? `<span class="dot-label dl-success" title="Déjà dans le carnet des confrères"><span class="dot"></span>${dansCarnet.etude ? 'Notre office' : 'Au carnet'}</span>`
+          : `<button type="button" class="bouton-ajout bouton-ajout-court" onclick="ajouterOfficeAnnuaireAuCarnet('${escapeOnclickArg(o.id)}')" title="Ajouter cet office au carnet des confrères">Au carnet</button>`}</div>
+      </div>`;
   }
 
   function officeAnnuaireConnu(id) {

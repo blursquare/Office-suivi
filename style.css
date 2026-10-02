@@ -7253,23 +7253,59 @@ button.scan-nom:focus-visible { outline: 2px solid var(--focus); outline-offset:
   .rep-themes { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 4px; }
   .rep-themes .rep-theme { flex: none; }
 }
-/* Notaires de France (02/10) : les départements en pastilles, puis les offices du département. */
-.annuaire-source { margin: 0; display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
-.annuaire-deps { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 6px; }
-.annuaire-deps > * { min-width: 0; }
-button.annuaire-dep {
-  display: flex; align-items: baseline; gap: 8px; margin: 0; padding: 7px 10px;
-  border: 1px solid var(--line); border-radius: 8px; background: var(--paper-card);
-  color: var(--ink); font: inherit; font-size: 13px; text-align: left; cursor: pointer;
+/* Notaires de France (02/10) : un département à la fois — liste déroulante et voisins d'un clic —,
+   ses offices en lignes compactes groupées par ville (comme un annuaire papier). */
+.annuaire-barre { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
+.annuaire-choix { display: inline-flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--ink-soft); }
+.annuaire-choix select { max-width: 100%; min-width: 0; font: inherit; font-size: 13px; color: var(--ink); }
+.annuaire-proches { display: flex; flex-wrap: wrap; gap: 4px; }
+button.annuaire-proche {
+  margin: 0; padding: 3px 9px; border: 1px solid var(--line); border-radius: 999px; background: var(--paper-card);
+  color: var(--ink-soft); font: inherit; font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; cursor: pointer;
 }
-button.annuaire-dep:hover { border-color: var(--ink-soft); }
-button.annuaire-dep:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
-.annuaire-dep-code { flex: none; min-width: 2.2em; font-weight: 650; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
-.annuaire-dep-nom { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.annuaire-dep-n { flex: none; font-size: 11.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
-.annuaire-dep-tete { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
-.annuaire-dep-tete .rep-section-titre { align-self: stretch; }
-.carnet-office-annuaire .bouton-ajout { align-self: flex-start; margin-top: 2px; }
+button.annuaire-proche:hover { border-color: var(--ink-soft); color: var(--ink); }
+button.annuaire-proche:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+button.annuaire-proche.actif { background: var(--focus); border-color: var(--focus); color: var(--on-accent); }
+.annuaire-source { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
+.annuaire-aller { display: flex; flex-wrap: wrap; gap: 4px 14px; }
+.annuaire-liste { display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: 10px; background: var(--paper-card); overflow: hidden; }
+.annuaire-ville {
+  display: flex; align-items: baseline; gap: 8px; padding: 6px 14px; background: var(--line-soft);
+  font-size: 11.5px; font-weight: 650; letter-spacing: 0.05em; color: var(--ink-soft);
+}
+.annuaire-ville span { font-weight: 500; color: var(--muted); letter-spacing: 0; font-variant-numeric: tabular-nums; }
+.annuaire-ligne {
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 280px) 112px; gap: 4px 16px; align-items: center;
+  padding: 9px 14px; border-top: 1px solid var(--line-soft); font-size: 13px;
+}
+.annuaire-ligne > * { min-width: 0; }
+.annuaire-ville + .annuaire-ligne, .annuaire-liste > .annuaire-ligne:first-child { border-top: none; }
+.annuaire-ligne:hover { background: color-mix(in srgb, var(--line-soft) 45%, transparent); }
+.annuaire-ligne-nom { font-weight: 650; color: var(--ink); line-height: 1.3; }
+.annuaire-ligne-dep {
+  display: inline-block; margin-left: 4px; padding: 0 6px; border-radius: 4px; background: var(--line-soft);
+  font-size: 11px; font-weight: 600; color: var(--ink-soft); font-variant-numeric: tabular-nums;
+}
+.annuaire-ligne-notaires { color: var(--ink-soft); }
+.annuaire-ligne-lieu { font-size: 12px; color: var(--muted); }
+.annuaire-ligne-contact { display: flex; flex-direction: column; gap: 2px; }
+.annuaire-ligne-contact a {
+  display: inline-flex; align-items: center; gap: 6px; min-width: 0; color: var(--focus); text-decoration: none; font-size: 12.5px;
+}
+.annuaire-ligne-contact a span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.annuaire-ligne-contact a:hover span { text-decoration: underline; }
+.annuaire-ligne-contact .icone { flex: none; color: var(--muted); }
+.annuaire-ligne-action { justify-self: end; }
+.annuaire-ligne-action .bouton-ajout { margin: 0; }
+@media (max-width: 760px) {
+  .annuaire-ligne { grid-template-columns: minmax(0, 1fr) auto; }
+  .annuaire-ligne-action { justify-self: end; }
+  .annuaire-ligne-contact { grid-column: 1 / -1; grid-row: 2; flex-direction: row; flex-wrap: wrap; gap: 2px 14px; }
+  .annuaire-ligne-action { grid-column: 2; grid-row: 1; align-self: start; }
+  .annuaire-source { margin-left: 0; }
+  .annuaire-choix { flex: 1 1 100%; }
+  .annuaire-choix select { flex: 1; }
+}
 .rep-contact .carnet-ligne.carnet-contacts { flex-wrap: nowrap; }
 .rep-contact .rep-valeurs { flex: 1; }
 

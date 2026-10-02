@@ -15094,3 +15094,17 @@ recherche du répertoire ≥ 3 caractères → section « Notaires de France » 
 (`programmerRechercheAnnuaire`) ; « Ajouter au répertoire » d'une fiche cherche le notaire dans l'annuaire et pré-remplit
 l'office s'il n'en désigne qu'un (`officeAnnuairePourNotaire`, même règle que `trouverOfficeConfrere`). 3CX :
 `carnetEtAnnuaire` — le carnet d'abord, puis l'annuaire, pour reconnaître un office hors carnet.
+
+### 02/10/2026 20 h 10 — Notaires de France : présentation revue
+
+Étude : « repense la présentation, pour que ça soit plus facile à utiliser ». Avant : 105 pastilles de départements à
+parcourir, puis des cartes hautes (une par office, 409 pour Paris). Après (`renderAnnuaireNotaires`) : un département à la
+fois, ouvert d'office sur le 41 puis sur le dernier consulté (`claire-annuaire-departement` en localStorage,
+`departementAnnuaireAffiche`), liste déroulante de tous les départements + voisins d'un clic
+(`DEPARTEMENTS_PROCHES_ANNUAIRE` : 41, 37, 45, 18, 36, 72, 28) ; offices en lignes compactes groupées par ville comme un
+annuaire papier (`officesParVilleAnnuaire`, `renderLigneAnnuaire` : nom, notaires, adresse et bureaux à gauche ; téléphone et
+email cliquables ; « Au carnet » / « Notre office » ou bouton « Au carnet ») ; la recherche du répertoire filtre le
+département affiché sans attendre (`filtrerOfficesAnnuaire`, « 5 sur 36 »), puis « Ailleurs en France » (recherche
+nationale, 3 caractères) et « Afficher <département> » quand le texte nomme un département. Office déjà au carnet reconnu
+par identifiant, email ou téléphone (`officeCarnetPourAnnuaire` — notre office a son propre identifiant). Même ligne compacte
+pour la section « Notaires de France » de la recherche générale.
