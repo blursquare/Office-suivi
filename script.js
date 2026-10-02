@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-02 14:11';
+  const VERSION_APP = '2026-10-02 14:48';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-02 14:48', resume: "Authentic, fiche client : les adresses email écrites à la suite (« a@x.fr;b@y.fr », envoi groupé) sont reprises au lieu d'être ignorées, et s'ajoutent à celles déjà connues ; une épouse sous son propre nom est rattachée au côté de son conjoint (« VTE CHAHUNEAU / … » : Mme mariée à M. CHAHUNEAU → vendeur) ; une fiche dont le côté reste inconnu apparaît « À rattacher » sur la fiche (Vendeur, Acquéreur ou écarter). Emails : plusieurs adresses séparées par « ; » acceptées partout (brouillon Outlook, sondage — une adresse = un votant —, visio). Le questionnaire de satisfaction envoyé au vendeur archive aussi le dossier." },
     { version: '2026-10-02 14:11', resume: "Nouveau dossier : l'import d'un export ZIP d'Authentic est retiré (la lecture des pages d'Authentic le remplace) ; à sa place, « Dossier Authentic seul » crée un dossier sans compromis. Successions : un dossier « N - Succession NOM » ouvert dans Authentic (page du dossier, fiches client, fiche bien) se crée en un clic — parties avec téléphones et emails, biens avec cadastre, pièces reçues dans Authentic ; la fiche n'affiche ni prêt, ni date butoir, ni emails de vente. Questionnaire de satisfaction : il peut aussi être envoyé au vendeur (onglet Échanges), sauf si un confrère le représente. Tableau de bord, widget Agenda : la liste du jour n'est plus coupée, elle défile sur toute la journée, ouverte sur le rendez-vous en cours." },
     { version: '2026-10-02 13:58', resume: "Tableau de bord, carte « Aujourd'hui » : « Mes rappels » est resserré — une ligne par rappel, l'échéance et le dossier à droite du texte, sans espace réparti entre les lignes. Téléphonie 3CX : un interrupteur par collaborateur dans Réglages › Téléphonie 3CX ; coupé, ses appels ne sont plus notés, sa fenêtre CLAIRE n'affiche plus « Appel entrant » et l'onglet ouvert par 3CX se referme aussitôt." },
     { version: '2026-10-02 13:50', resume: "SAFER : le délai de réponse est de 2 mois par défaut ; deux cases sous « Réponse SAFER » (onglet Pièces) le passent à 1 mois (réponse rapide) ou 8 jours (très rapide), et la date se recalcule. La fin du délai est une date butoir du dossier, comme la préemption de la mairie : ligne « Délai SAFER » dans les échéances de la fiche, pas de « Fixer le rendez-vous » avant (tableau de bord : « Réponse SAFER attendue »), semaine probable et créneaux proposés au plus tôt le lendemain, probabilité de tenue réduite (fortement si le rendez-vous tombe avant la fin du délai). Pas de rappel Teams sur ce délai : la non-préemption est acquise d'elle-même." },
@@ -16051,6 +16052,7 @@
       </dl>
       <dl class="fiche-proprietes fiche-coordonnees">
         ${coordonneesPartiesDossier(d).map(c => ligne(c.partie === 'vendeur' ? 'user' : 'users', c.libelle, champsCoordonneesPartie(d, c, 'fiche'), c.parNotaire ? `fiche-tel-${c.partie}-${d.id}` : `fiche-email-${c.partie}-${d.id}`, 'prop-pleine')).join('')}
+        ${renderClientsAPlacer(d, ligne)}
       </dl>
       <dl class="fiche-proprietes">
         ${ligne('map-pin', 'Adresse', saisie('adresse', normaliserAdresse(d.adresseBien), 'changerAdresseBien'), `adresse-${d.id}`, 'prop-pleine')}
@@ -20827,7 +20829,7 @@
     const d = m.dossierId ? dossiers.find(x => x.id === m.dossierId) : null;
     const retenus = m.participants.filter(p => p.coche);
     if (!retenus.length) { afficherToast('Cochez au moins un destinataire.', 'OK', null); return; }
-    const invalide = retenus.find(p => !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(p.email || ''));
+    const invalide = retenus.find(p => !adressesEmailValides(p.email));
     if (invalide) { afficherToast('Adresse email manquante ou invalide pour un destinataire coché.', 'OK', null); return; }
     const bouton = document.getElementById('visio-envoi-ok');
     if (bouton) bouton.disabled = true;
@@ -21918,7 +21920,7 @@
     const participants = d ? m.participants.filter(p => p.coche) : m.participants.filter(p => (p.email || '').trim()).map(p => Object.assign({}, p, { nom: String(p.nom || '').trim() }));
     if (!creneaux.length) { afficherToast('Cochez au moins un créneau.', 'OK', null); return; }
     if (!participants.length) { afficherToast('Cochez au moins un destinataire.', 'OK', null); return; }
-    const sansAdresse = participants.find(p => !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(p.email || ''));
+    const sansAdresse = participants.find(p => !adressesEmailValides(p.email));
     if (sansAdresse) { afficherToast(`Adresse email manquante ou invalide : ${libelleParticipantSondage(sansAdresse)}.`, 'OK', null); return; }
     // Une adresse saisie ici pour le vendeur ou l'acquéreur est gardée sur la fiche.
     let modifie = false;
@@ -21937,7 +21939,8 @@
           typeRdv: d ? (typeRendezVous(d, categoriesRdvReglees()) || 'office') : '',
           poserOptions: !!m.options && exchangeAgendaPret(),
           creneaux: creneaux.map(c => ({ date: c.date, heure: c.heure, dureeMinutes: d ? DUREE_CRENEAU_SIGNATURE : (m.duree || 60) })),
-          participants: participants.map(p => ({ role: p.role, nom: p.nom, email: p.email, confrere: p.confrere }))
+          // Envoi groupé (« a@x.fr; b@y.fr ») : chaque adresse vote pour elle-même (un code chacune).
+          participants: participantsParAdresse(participants).map(p => ({ role: p.role, nom: p.nom, email: p.email, confrere: p.confrere }))
         })
       });
       const corps = await r.json();
@@ -21960,6 +21963,14 @@
     } finally {
       if (modifie && d) { sauvegarder(d); render(); }
     }
+  }
+
+  // Pure : un participant par adresse (« a@x.fr; b@y.fr » → deux votants de même rôle et même nom).
+  function participantsParAdresse(participants) {
+    return (participants || []).reduce((l, p) => {
+      const adresses = destinatairesEmail(p.email);
+      return l.concat(adresses.length > 1 ? adresses.map(email => Object.assign({}, p, { email })) : [p]);
+    }, []);
   }
 
   // Un email par groupe (clients ensemble, chaque confrère à part). Rend le dernier résultat.
@@ -24302,7 +24313,7 @@
         `Content-Type: ${p.type || 'application/octet-stream'}; ${nomFichierEntete(p.nom).replace(/; filename.*$/, '')}${L}Content-Transfer-Encoding: base64${L}Content-Disposition: attachment; ${nomFichierEntete(p.nom).replace(/^name="[^"]*"; /, '')}${L}${L}${plierBase64(p.contenuBase64)}`)]);
     }
     const entetes = [];
-    if (destinataire) entetes.push(`To: ${String(destinataire).replace(/[\r\n]+/g, ' ')}`);
+    if (destinataire) entetes.push(`To: ${destinatairesEmail(destinataire).join(', ') || String(destinataire).replace(/[\r\n]+/g, ' ')}`);
     entetes.push(`Subject: ${enteteEncodee(sujet)}`, 'X-Unsent: 1', 'MIME-Version: 1.0');
     return entetes.join(L) + L + corps + L;
   }
@@ -24457,9 +24468,21 @@
     return false;
   }
 
+  // Pure : les adresses d'un champ « destinataire » saisi comme l'étude l'écrit (« a@x.fr; b@y.fr »).
+  function destinatairesEmail(texte) {
+    return emailsDepuisTexte(texte);
+  }
+
+  // Pure : vrai si le champ porte au moins une adresse et seulement des adresses bien formées.
+  function adressesEmailValides(texte) {
+    const morceaux = String(texte || '').split(/[;,\s]+/).map(e => e.trim()).filter(Boolean);
+    return morceaux.length > 0 && morceaux.every(e => emailsDepuisTexte(e).length === 1);
+  }
+
   function ouvrirBrouillonEmail(destinataire, sujet, corps) {
     const copie = copierTexteSilencieux(corps);
-    window.location.href = `mailto:${encodeURIComponent(destinataire)}?subject=${encodeURIComponent(sujet)}&body=${encodeURIComponent(corps)}`;
+    const adresses = destinatairesEmail(destinataire);
+    window.location.href = `mailto:${adresses.length ? adresses.map(encodeURIComponent).join(',') : encodeURIComponent(destinataire)}?subject=${encodeURIComponent(sujet)}&body=${encodeURIComponent(corps)}`;
     return copie;
   }
 
@@ -24957,28 +24980,27 @@
     if (!r.ok) { afficherToast(r.message || "L'email n'a pas pu être préparé.", 'OK', null); return; }
     // Le fichier .eml porte le PDF ; en mode mailto (texte seul), il est téléchargé à côté, à joindre.
     const pdfTelecharge = r.mode === 'mailto' ? telechargerPdfQuestionnaire() : false;
+    // Les deux envois archivent le dossier (étude, 02/10 : « archiver le dossier quand le
+    // questionnaire est envoyé aussi au vendeur ») ; le second reste proposé une fois archivé.
+    const dejaArchive = !!d.archive;
     if (vendeur) {
       d.questionnaireVendeurEnvoyeLe = new Date().toISOString().slice(0, 10);
       ajouterHistorique(d, 'Questionnaire de satisfaction envoyé au vendeur');
-      sauvegarder(d);
-      render();
-      let detailVendeur = '';
-      if (r.mode === 'eml' && !pdfDispo) detailVendeur = 'Le PDF du questionnaire n’a pas pu être joint.';
-      if (r.mode === 'mailto') detailVendeur = pdfTelecharge ? 'Joignez le PDF du questionnaire, qui vient d’être téléchargé.' : 'Le PDF du questionnaire n’a pas pu être téléchargé.';
-      annoncerEmailPret(r, discret, detailVendeur);
-      return;
+    } else {
+      d.questionnaireEnvoyeLe = new Date().toISOString().slice(0, 10);
+      ajouterHistorique(d, 'Questionnaire de satisfaction envoyé');
+      notifierTacheFaite(d, 'Envoyer le questionnaire de satisfaction', dejaArchive ? '' : 'dossier archivé');
     }
-    d.questionnaireEnvoyeLe = new Date().toISOString().slice(0, 10);
-    ajouterHistorique(d, 'Questionnaire de satisfaction envoyé');
-    notifierTacheFaite(d, 'Envoyer le questionnaire de satisfaction', 'dossier archivé');
-    d.archive = true;
-    ajouterHistorique(d, 'Dossier archivé automatiquement (questionnaire de satisfaction envoyé)');
+    if (!dejaArchive) {
+      d.archive = true;
+      ajouterHistorique(d, `Dossier archivé automatiquement (questionnaire de satisfaction envoyé${vendeur ? ' au vendeur' : ''})`);
+    }
     sauvegarder(d);
     render();
-    let detail = 'Dossier archivé.';
+    let detail = dejaArchive ? '' : 'Dossier archivé.';
     if (r.mode === 'eml' && !pdfDispo) detail += ' Le PDF du questionnaire n’a pas pu être joint.';
     if (r.mode === 'mailto') detail += pdfTelecharge ? ' Joignez le PDF du questionnaire, qui vient d’être téléchargé.' : ' Le PDF du questionnaire n’a pas pu être téléchargé.';
-    annoncerEmailPret(r, discret, detail);
+    annoncerEmailPret(r, discret, detail.trim());
   }
 
   // Affichée juste après "Écrire par email" : absente pour un dossier déjà archivé (l'action n'a
@@ -24990,14 +25012,14 @@
     return renderQuestionnaireAcquereur(d) + renderQuestionnaireVendeur(d);
   }
 
-  // Questionnaire au vendeur : même texte et même PDF, sans archiver le dossier. Proposé une fois une
+  // Questionnaire au vendeur : même texte et même PDF, archive le dossier comme celui de l'acquéreur. Proposé une fois une
   // date de signature connue, et encore après l'archivage dû au questionnaire de l'acquéreur.
   function renderQuestionnaireVendeur(d) {
     if (confrereRepresenteVendeur(d)) return '';
     const base = { categorie: 'neutre', categorieLabel: 'Clôture du dossier', titre: 'Questionnaire de satisfaction au vendeur' };
     if (d.questionnaireVendeurEnvoyeLe) {
       return renderLigneAction(Object.assign(base, {
-        sous: `Envoyé le ${formatDateFr(d.questionnaireVendeurEnvoyeLe)}`, faite: true,
+        sous: `Envoyé le ${formatDateFr(d.questionnaireVendeurEnvoyeLe)}${d.archive ? ' — dossier archivé' : ''}`, faite: true,
         bouton: d.emailVendeur ? { libelle: 'Renvoyer', icone: icone('mail'), onclick: `envoyerQuestionnaireSatisfaction('${d.id}', false, 'vendeur')` } : null
       }));
     }
@@ -25006,7 +25028,7 @@
     if (!d.emailVendeur) return renderLigneAction(Object.assign(base, { sous: 'Renseignez l’email du vendeur.' }));
     return renderLigneAction(Object.assign(base, {
       sous: 'Le PDF est joint',
-      bouton: { libelle: 'Envoyer', icone: icone('mail'), onclick: `envoyerQuestionnaireSatisfaction('${d.id}', false, 'vendeur')`, titre: modeEmailPoste() === 'mailto' ? 'Ouvre le brouillon et télécharge le PDF à joindre' : 'Prépare l’email avec le questionnaire joint' }
+      bouton: { libelle: 'Envoyer', icone: icone('mail'), onclick: `envoyerQuestionnaireSatisfaction('${d.id}', false, 'vendeur')`, titre: (modeEmailPoste() === 'mailto' ? 'Ouvre le brouillon et télécharge le PDF à joindre' : 'Prépare l’email avec le questionnaire joint') + (d.archive ? '' : ', et archive le dossier') }
     }));
   }
 
@@ -25022,7 +25044,7 @@
         bouton: d.emailAcquereur ? { libelle: 'Renvoyer', icone: icone('mail'), onclick: `envoyerQuestionnaireSatisfaction('${d.id}')` } : null
       }));
     }
-    if (d.archive) return '';
+    if (d.archive && !d.questionnaireVendeurEnvoyeLe) return '';
     // Demandé par l'étude : proposé seulement une fois une date de signature connue (rendez-vous,
     // à défaut date butoir) — avant, le dossier n'est pas fini et le questionnaire n'a pas d'objet.
     // Avant la signature elle-même, il reste replié « hors de ce stade » (echangesSelonStade).
@@ -25782,14 +25804,23 @@
   }
 
   // Pure : la fiche client (personne physique) → personne au format de l'export ZIP.
+  // Pure : les adresses email d'un texte — une seule, ou plusieurs à la suite séparées par « ; » ou
+  // « , » pour un envoi groupé (étude, 02/10). Adresses mal formées écartées, doublons retirés.
+  function emailsDepuisTexte(texte) {
+    const liste = [];
+    String(texte || '').split(/[;,\s]+/).map(e => e.trim().replace(/^<|>$/g, '')).forEach(e => {
+      if (/^[^@\s;,<>]+@[^@\s;,<>]+\.[^@\s;,<>]+$/.test(e) && !liste.some(x => x.toLowerCase() === e.toLowerCase())) liste.push(e);
+    });
+    return liste;
+  }
+
   function clientDepuisFicheAuthentic(capture) {
     const champs = (capture && capture.champs) || [];
     const nom = valeurChampAuthentic(champs, n => n === 'nom de famille');
     if (!nom) return null;
     const emails = [];
     champs.filter(c => libelleNetAuthentic(c.libelle) === 'email').forEach(c => {
-      const e = String(c.valeur || '').trim();
-      if (/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e) && !emails.includes(e)) emails.push(e);
+      emailsDepuisTexte(c.valeur).forEach(e => { if (!emails.some(x => x.toLowerCase() === e.toLowerCase())) emails.push(e); });
     });
     const telephones = champs.filter(c => /inputTelephone/i.test(c.libelle || '')).map(c => String(c.valeur || '').trim()).filter(Boolean)
       .filter((x, i, l) => l.indexOf(x) === i);
@@ -26207,9 +26238,43 @@
 
   // Pure : le côté d'une personne d'une fiche client dans le dossier — d'après ses parties, sinon
   // d'après le nom du dossier « VENDEUR / ACQUÉREUR ». 'VENDEUR' | 'ACQUEREUR' | '' (jamais deviné).
+  // Le nom de famille d'Authentic est le nom de NAISSANCE : une vendeuse mariée figure souvent au
+  // dossier sous son nom d'usage (« Dénomination d'usage ») — essayé ensuite (étude, 02/10 : « ça ne
+  // remonte pas côté vendeur »).
   function roleClientAuthenticDansDossier(d, personne) {
     if (!d || !personne || !personne.nom) return '';
+    for (const nom of [personne.nom, personne.nomUsage].filter(Boolean)) {
+      const role = roleClientAuthenticParNom(d, nom, personne.prenom);
+      if (role) return role;
+    }
+    return roleConjointAuthenticDansDossier(d, personne);
+  }
+
+  // Pure : une personne mariée ou pacsée dont le nom n'est pas au dossier (« VTE CHAHUNEAU / … »,
+  // Mme sous son propre nom) prend le côté de son conjoint quand celui-ci y est — nommé en entier
+  // parmi les parties ou les fiches déjà reprises, sinon d'un seul côté du nom du dossier.
+  function roleConjointAuthenticDansDossier(d, personne) {
+    const sm = personne && personne.situationMatrimoniale;
+    if (!sm || !sm.conjoint || !/mari|pacs|pacte civil/i.test(normaliserPourRecherche(sm.situation || 'marie'))) return '';
+    const mots = (x) => normaliserPourRecherche(x || '').replace(/[^a-z0-9]+/g, ' ').trim();
+    const contient = (texte, m) => (' ' + mots(texte) + ' ').includes(' ' + m + ' ');
+    const conj = mots(sm.conjoint).split(' ').filter(m => m.length > 1 && !/^(m|mme|monsieur|madame|mr|mlle)$/.test(m));
+    if (!conj.length) return '';
+    const roles = new Set();
+    [...(Array.isArray(d.parties) ? d.parties : []), ...((d.authentic && d.authentic.personnes) || [])].forEach(p => {
+      if (p && (p.role === 'VENDEUR' || p.role === 'ACQUEREUR') && conj.every(m => contient(p.nom, m))) roles.add(p.role);
+    });
+    if (roles.size === 1) return [...roles][0];
+    if (roles.size > 1) return '';
+    const m = /^\s*(.+?)\s*\/\s*(.+?)\s*$/.exec(String(d.nom || ''));
+    if (!m) return '';
+    const v = conj.some(x => contient(m[1], x)), a = conj.some(x => contient(m[2], x));
+    return v && !a ? 'VENDEUR' : a && !v ? 'ACQUEREUR' : '';
+  }
+
+  function roleClientAuthenticParNom(d, nomBrut, prenomBrut) {
     const mots = (x) => ' ' + normaliserPourRecherche(x || '').replace(/[^a-z0-9]+/g, ' ').trim() + ' ';
+    const personne = { nom: nomBrut, prenom: prenomBrut };
     const nom = mots(personne.nom).trim();
     const prenom = mots(personne.prenom).trim().split(' ')[0] || '';
     const contient = (texte, m) => !!m && mots(texte).includes(' ' + m + ' ');
@@ -26223,6 +26288,79 @@
     if (!m) return '';
     const v = nom.split(' ').every(x => contient(m[1], x)), a = nom.split(' ').every(x => contient(m[2], x));
     return v && !a ? 'VENDEUR' : a && !v ? 'ACQUEREUR' : '';
+  }
+
+  // Pure (modifie le dossier passé) : téléphones et email d'une fiche client reportés sur le côté
+  // `role` du dossier (s'ils manquent), situation matrimoniale gardée ; la fiche quitte « à rattacher ».
+  function appliquerClientAuthentic(d, personne, role, noter, resultat, maintenant) {
+    const avant = d.authentic || {};
+    const qui = role === 'VENDEUR' ? 'du vendeur' : 'de l’acquéreur';
+    const champTel = role === 'VENDEUR' ? 'telephoneVendeur' : 'telephoneAcquereur';
+    const champEmail = role === 'VENDEUR' ? 'emailVendeur' : 'emailAcquereur';
+    const chiffres = (t) => String(t || '').replace(/\D/g, '').slice(-9);
+    const connus = String(d[champTel] || '').split('/').map(chiffres).filter(Boolean);
+    const nouveaux = (personne.telephones || []).filter(t => chiffres(t).length === 9 && !connus.includes(chiffres(t)));
+    if (nouveaux.length) {
+      d[champTel] = [d[champTel], ...nouveaux].filter(Boolean).join(' / ');
+      noter(`Téléphone ${qui} repris d’Authentic : ${nouveaux.join(' / ')}`);
+    }
+    const emailsConnus = emailsDepuisTexte(d[champEmail]).map(e => e.toLowerCase());
+    const emailsNouveaux = (personne.emails || []).filter(e => !emailsConnus.includes(String(e).toLowerCase()));
+    if (emailsNouveaux.length) {
+      d[champEmail] = [String(d[champEmail] || '').trim().replace(/[;,]\s*$/, ''), ...emailsNouveaux].filter(Boolean).join('; ');
+      noter(`Email ${qui} repris d’Authentic : ${emailsNouveaux.join('; ')}`);
+    }
+    const nomComplet = [personne.prenom, personne.nom].filter(Boolean).join(' ');
+    const cle = normaliserPourRecherche(nomComplet).replace(/[^a-z0-9]+/g, ' ').trim();
+    const personnes = (avant.personnes || []).filter(p => normaliserPourRecherche(p.nom).replace(/[^a-z0-9]+/g, ' ').trim() !== cle);
+    const ancienne = (avant.personnes || []).find(p => normaliserPourRecherche(p.nom).replace(/[^a-z0-9]+/g, ' ').trim() === cle);
+    const sm = personne.situationMatrimoniale || null;
+    if (sm && (!ancienne || JSON.stringify(ancienne.situationMatrimoniale) !== JSON.stringify(sm))) {
+      noter(`Situation matrimoniale ${qui} (${nomComplet}) dans Authentic : ${libelleSituationMatrimoniale(sm)}`);
+    }
+    d.authentic = Object.assign({}, avant, { personnes: personnes.concat({ nom: nomComplet, role, situationMatrimoniale: sm }), releveLe: maintenant });
+    const nomFiche = [personne.prenom, personne.nom].filter(Boolean).join(' ');
+    const reste = (d.authentic.clientsAPlacer || []).filter(c => c.nom !== nomFiche);
+    if (reste.length) d.authentic.clientsAPlacer = reste; else delete d.authentic.clientsAPlacer;
+    resultat.modifie = true;
+    return resultat;
+  }
+
+  // Fiches client d'Authentic dont le côté n'a pas pu être reconnu : une ligne « À rattacher » sur la
+  // première page de la fiche, un clic les place (comme « Lus, à placer » pour les notaires).
+  function renderClientsAPlacer(d, ligne) {
+    const liste = (d && d.authentic && d.authentic.clientsAPlacer) || [];
+    if (!liste.length) return '';
+    return ligne('alert-triangle', 'À rattacher', `<span class="notaires-a-placer">${liste.map((c, i) => `<span class="notaires-a-placer-ligne"><span class="prop-texte">${escapeHtml(c.nom)}${c.nomUsage ? ` <span class="hint">(${escapeHtml(c.nomUsage)})</span>` : ''}${[...(c.telephones || []), ...(c.emails || [])].length ? ` <span class="hint">· ${[...(c.telephones || []), ...(c.emails || [])].map(escapeHtml).join(' · ')}</span>` : ''}</span>
+          <button type="button" class="lien-action" onclick="placerClientAuthentic('${d.id}', ${i}, 'VENDEUR')">Vendeur</button>
+          <button type="button" class="lien-action" onclick="placerClientAuthentic('${d.id}', ${i}, 'ACQUEREUR')">Acquéreur</button>
+          <button type="button" class="icon-btn" onclick="ecarterClientAuthentic('${d.id}', ${i})" title="Écarter : cette personne n’est pas partie au dossier" aria-label="Écarter ${escapeAttr(c.nom)}">${icone('x')}</button></span>`).join('')}</span>`, null, 'prop-pleine');
+  }
+
+  // Une fiche « à rattacher » étrangère au dossier : retirée, et plus jamais reproposée.
+  async function ecarterClientAuthentic(id, index) {
+    const d = dossiers.find(x => x.id === id);
+    const c = d && d.authentic && (d.authentic.clientsAPlacer || [])[index];
+    if (!c) return;
+    const reste = d.authentic.clientsAPlacer.filter((x, i) => i !== index);
+    d.authentic = Object.assign({}, d.authentic, { clientsEcartes: [...(d.authentic.clientsEcartes || []).filter(n => n !== c.nom), c.nom].slice(-20) });
+    if (reste.length) d.authentic.clientsAPlacer = reste; else delete d.authentic.clientsAPlacer;
+    await sauvegarder(d);
+    render();
+  }
+
+  // Une fiche client « à rattacher » placée d'un clic côté vendeur ou acquéreur.
+  async function placerClientAuthentic(id, index, role) {
+    const d = dossiers.find(x => x.id === id);
+    const c = d && d.authentic && (d.authentic.clientsAPlacer || [])[index];
+    if (!c || (role !== 'VENDEUR' && role !== 'ACQUEREUR')) return;
+    const personne = { prenom: c.prenom, nom: c.nomFamille || c.nom, nomUsage: c.nomUsage, telephones: c.telephones || [], emails: c.emails || [], situationMatrimoniale: c.situationMatrimoniale || null };
+    const maintenant = new Date().toISOString();
+    const noter = (texte) => { d.historique = d.historique || []; d.historique.push(Object.assign({ date: maintenant, texte }, utilisateurPoste ? { auteur: utilisateurPoste } : {})); };
+    appliquerClientAuthentic(d, personne, role, noter, { pieces: [], textes: [], modifie: false, echeancesFaites: [] }, maintenant);
+    await sauvegarder(d);
+    render();
+    afficherToast(`${c.nom} : coordonnées reprises côté ${role === 'VENDEUR' ? 'vendeur' : 'acquéreur'}.`, 'OK', null);
   }
 
   // Pure (modifie le dossier passé) : une page d'Authentic appliquée à la fiche d'un dossier.
@@ -26243,33 +26381,21 @@
 
     if (type === 'client') {
       const personne = clientDepuisFicheAuthentic(capture);
+      if (!personne) return resultat;
       const role = roleClientAuthenticDansDossier(d, personne);
-      if (!role) return resultat;
-      const qui = role === 'VENDEUR' ? 'du vendeur' : 'de l’acquéreur';
-      const champTel = role === 'VENDEUR' ? 'telephoneVendeur' : 'telephoneAcquereur';
-      const champEmail = role === 'VENDEUR' ? 'emailVendeur' : 'emailAcquereur';
-      const chiffres = (t) => String(t || '').replace(/\D/g, '').slice(-9);
-      const connus = String(d[champTel] || '').split('/').map(chiffres).filter(Boolean);
-      const nouveaux = (personne.telephones || []).filter(t => chiffres(t).length === 9 && !connus.includes(chiffres(t)));
-      if (nouveaux.length) {
-        d[champTel] = [d[champTel], ...nouveaux].filter(Boolean).join(' / ');
-        noter(`Téléphone ${qui} repris d’Authentic : ${nouveaux.join(' / ')}`);
+      if (!role) {
+        // Côté inconnu (jamais deviné) : la fiche est gardée « à rattacher » sur la fiche du dossier,
+        // un clic la place côté vendeur ou acquéreur (placerClientAuthentic).
+        const nomComplet = [personne.prenom, personne.nom].filter(Boolean).join(' ');
+        const deja = avant.clientsAPlacer || [];
+        if ((avant.clientsEcartes || []).includes(nomComplet)) return resultat;
+        const fiche = { nom: nomComplet, prenom: personne.prenom || '', nomFamille: personne.nom, nomUsage: personne.nomUsage || '', telephones: (personne.telephones || []).slice(0, 3), emails: (personne.emails || []).slice(0, 3), situationMatrimoniale: personne.situationMatrimoniale || null };
+        if (!deja.some(c => c.nom === nomComplet)) noter(`Fiche client de ${nomComplet} relevée dans Authentic : à rattacher (vendeur ou acquéreur)`);
+        d.authentic = Object.assign({}, avant, { clientsAPlacer: deja.filter(c => c.nom !== nomComplet).concat(fiche).slice(-6), releveLe: maintenant });
+        resultat.modifie = true;
+        return resultat;
       }
-      if (!d[champEmail] && personne.emails && personne.emails[0]) {
-        d[champEmail] = personne.emails[0];
-        noter(`Email ${qui} repris d’Authentic : ${personne.emails[0]}`);
-      }
-      const nomComplet = [personne.prenom, personne.nom].filter(Boolean).join(' ');
-      const cle = normaliserPourRecherche(nomComplet).replace(/[^a-z0-9]+/g, ' ').trim();
-      const personnes = (avant.personnes || []).filter(p => normaliserPourRecherche(p.nom).replace(/[^a-z0-9]+/g, ' ').trim() !== cle);
-      const ancienne = (avant.personnes || []).find(p => normaliserPourRecherche(p.nom).replace(/[^a-z0-9]+/g, ' ').trim() === cle);
-      const sm = personne.situationMatrimoniale || null;
-      if (sm && (!ancienne || JSON.stringify(ancienne.situationMatrimoniale) !== JSON.stringify(sm))) {
-        noter(`Situation matrimoniale ${qui} (${nomComplet}) dans Authentic : ${libelleSituationMatrimoniale(sm)}`);
-      }
-      d.authentic = Object.assign({}, avant, { personnes: personnes.concat({ nom: nomComplet, role, situationMatrimoniale: sm }), releveLe: maintenant });
-      resultat.modifie = true;
-      return resultat;
+      return appliquerClientAuthentic(d, personne, role, noter, resultat, maintenant);
     }
     if (type === 'bien') return resultat;
 
@@ -28369,7 +28495,14 @@
       prix: Number.isFinite(a.prix) && a.prix > 0 ? a.prix : null, collaborateur: texte(a.collaborateur), notaire: texte(a.notaire),
       personnes: Array.isArray(a.personnes) ? a.personnes.filter(p => p && typeof p.nom === 'string').slice(0, 12)
         .map(p => ({ nom: texte(p.nom), role: p.role === 'ACQUEREUR' ? 'ACQUEREUR' : 'VENDEUR', situationMatrimoniale: situationMatrimonialePersistable(p.situationMatrimoniale) })) : [],
-      saferPieceAjoutee: a.saferPieceAjoutee === true, releveLe: texte(a.releveLe)
+      saferPieceAjoutee: a.saferPieceAjoutee === true, releveLe: texte(a.releveLe),
+      clientsAPlacer: Array.isArray(a.clientsAPlacer) ? a.clientsAPlacer.filter(c => c && typeof c.nom === 'string').slice(0, 6).map(c => ({
+        nom: texte(c.nom), prenom: texte(c.prenom), nomFamille: texte(c.nomFamille), nomUsage: texte(c.nomUsage),
+        telephones: Array.isArray(c.telephones) ? c.telephones.filter(t => typeof t === 'string').slice(0, 3).map(texte) : [],
+        emails: Array.isArray(c.emails) ? c.emails.filter(t => typeof t === 'string').slice(0, 3).map(texte) : [],
+        situationMatrimoniale: situationMatrimonialePersistable(c.situationMatrimoniale)
+      })) : [],
+      clientsEcartes: Array.isArray(a.clientsEcartes) ? a.clientsEcartes.filter(n => typeof n === 'string').slice(-20).map(texte) : []
     };
     Object.keys(r).forEach(k => { const v = r[k]; if (v == null || v === '' || v === false || (typeof v === 'object' && !Object.keys(v).length)) delete r[k]; });
     return Object.keys(r).length ? r : null;

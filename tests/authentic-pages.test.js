@@ -304,10 +304,58 @@ test('appliquerReleveSurDossier : fiche client → téléphone, email, situation
   assert.equal(d.emailVendeur, 'alex.martel@exemple.fr');
   assert.equal(d.authentic.personnes.find(p => p.role === 'VENDEUR').situationMatrimoniale.conjoint, 'DUVAL Nadia');
   assert.equal(app.alertesConjointDossier(d).length, 1);
-  // Une personne étrangère au dossier n'est jamais reprise.
+  // Une personne dont le côté n'est pas reconnu n'est jamais reprise d'office : elle attend « à
+  // rattacher » (vendeur, acquéreur ou écartée d'un clic).
   const autre = { id: 'c', nom: 'LEROY / DURAND', pieces: {}, historique: [] };
+  assert.equal(app.appliquerReleveSurDossier(autre, client).modifie, true);
+  assert.ok(!autre.emailAcquereur && !autre.emailVendeur && !autre.telephoneAcquereur);
+  assert.equal(autre.authentic.clientsAPlacer.map(c => c.nom).join(','), 'Camille FOURNIER');
+  assert.equal(app.authenticPersistable(autre.authentic).clientsAPlacer[0].emails.join(','), 'camille.fournier@exemple.fr');
+  autre.authentic.clientsEcartes = ['Camille FOURNIER'];
+  delete autre.authentic.clientsAPlacer;
   assert.equal(app.appliquerReleveSurDossier(autre, client).modifie, false);
-  assert.ok(!autre.emailAcquereur);
+});
+
+test('fiche client : épouse sous son propre nom rattachée par son conjoint ; emails groupés « ; »', () => {
+  // « VTE MARCHAIS / LEBON » : M MARCHAIS et Mme BERTIN, mariés, vendent.
+  const d = { id: 'm', nom: 'MARCHAIS / LEBON', typeVente: 'maison', pieces: {}, historique: [] };
+  const epouse = {
+    titre: 'Authentic',
+    champs: [
+      { groupe: '', libelle: 'Nom de famille*', valeur: 'Bertin' },
+      { groupe: '', libelle: 'Prénom*', valeur: 'Odile' },
+      { groupe: '', libelle: ID + 'tabView:ficheClientPhysiqueIdentite:naissanceDate:naissanceDate', valeur: '08/09/1968' },
+      { groupe: '', libelle: ID + 'tabView:ficheClientPhysiqueAdresseContainer:coordooneesPrincipale:coordonneePrincipaleW1:Telephone:inputTelephone', valeur: '06 11 22 33 44' },
+      { groupe: '', libelle: 'Email', valeur: 'odile.bertin@exemple.fr;famille.marchais@exemple.fr' }
+    ],
+    tableaux: [{ titre: '', entete: ['Situation', 'Date', 'Conjoint'], lignes: [['Marié(e)', '20/05/1995', 'MARCHAIS Paul']] }],
+    texte: ''
+  };
+  assert.equal(app.clientDepuisFicheAuthentic(epouse).emails.join(','), 'odile.bertin@exemple.fr,famille.marchais@exemple.fr');
+  app.appliquerReleveSurDossier(d, epouse);
+  assert.equal(d.telephoneVendeur, '06 11 22 33 44');
+  assert.equal(d.emailVendeur, 'odile.bertin@exemple.fr; famille.marchais@exemple.fr');
+  assert.ok(!d.authentic.clientsAPlacer);
+  // Le mari ensuite : son adresse s'ajoute, l'adresse commune n'est pas répétée.
+  const mari = { titre: 'Authentic', champs: [
+    { groupe: '', libelle: 'Nom de famille*', valeur: 'Marchais' },
+    { groupe: '', libelle: 'Prénom*', valeur: 'Paul' },
+    { groupe: '', libelle: ID + 'tabView:ficheClientPhysiqueIdentite:naissanceDate:naissanceDate', valeur: '03/04/1965' },
+    { groupe: '', libelle: 'Email', valeur: 'paul.marchais@exemple.fr ; famille.marchais@exemple.fr' }
+  ], tableaux: [], texte: '' };
+  app.appliquerReleveSurDossier(d, mari);
+  assert.equal(d.emailVendeur, 'odile.bertin@exemple.fr; famille.marchais@exemple.fr; paul.marchais@exemple.fr');
+  // Un conjoint présent des deux côtés, ou absent du dossier : rien n'est deviné.
+  const ailleurs = { id: 'n', nom: 'DURAND / MOREAU', pieces: {}, historique: [] };
+  app.appliquerReleveSurDossier(ailleurs, epouse);
+  assert.ok(!ailleurs.emailVendeur && !ailleurs.emailAcquereur);
+});
+
+test('emailsDepuisTexte et destinatairesEmail : envoi groupé', () => {
+  assert.equal(app.emailsDepuisTexte('a@x.fr;b@y.fr').join('|'), 'a@x.fr|b@y.fr');
+  assert.equal(app.emailsDepuisTexte(' a@x.fr ; A@X.fr , <c@z.fr> pas-un-email ').join('|'), 'a@x.fr|c@z.fr');
+  assert.equal(app.emailsDepuisTexte('').length, 0);
+  assert.equal(app.destinatairesEmail('a@x.fr; b@y.fr').join(', '), 'a@x.fr, b@y.fr');
 });
 
 test('création depuis les pages : infos agrégées, prix repris, SAFER attendue ; persistance', () => {
@@ -589,4 +637,12 @@ test('succession depuis Authentic : intitulé reconnu, parties sans qualité dev
   assert.equal(app.libelleDossierAffiche(d), 'SUCC - DUPONT Jean');
   // Rapprochement : même nom de succession = le dossier ; une vente du même nom, jamais.
   assert.equal(app.dossierPourIntituleAuthentic('Succession DUPONT Jean', [d, { id: 'v', nom: 'DUPONT Jean / MARTIN' }], '').id, 's');
+});
+
+test('adressesEmailValides et participantsParAdresse : envoi groupé accepté, un votant par adresse', () => {
+  assert.equal(app.adressesEmailValides('a@x.fr;b@y.fr'), true);
+  assert.equal(app.adressesEmailValides('a@x.fr; pas-une-adresse'), false);
+  assert.equal(app.adressesEmailValides(''), false);
+  const l = app.participantsParAdresse([{ role: 'vendeur', nom: 'M. et Mme MARCHAIS', email: 'a@x.fr; b@y.fr' }, { role: 'acquereur', nom: 'LEBON', email: 'c@z.fr' }]);
+  assert.equal(l.map(p => p.role + ':' + p.email).join(','), 'vendeur:a@x.fr,vendeur:b@y.fr,acquereur:c@z.fr');
 });

@@ -14817,3 +14817,27 @@ Agenda : « voir toute la journée ».
 - Vérifié dans Chromium (serveur réel, pages inventées) : succession reprise → Finaliser → fiche (2 parties avec
   coordonnées, bien et parcelle, acte de décès reçu, aucune échéance de vente), vente sans compromis créée, widget de
   10 rendez-vous défilant. Non vérifié : la forme réelle d'une page de succession dans Authentic.
+
+### 02/10/2026 14 h 48 — Fiche client côté vendeur, emails groupés, questionnaire vendeur archivé
+
+Étude : « ça ne remonte pas côté vendeur » — « le dossier est VTE CHAHUNEAU / LEBERT et les vendeurs sont mariés,
+M CHAHUNEAU et Madame BABIER (nom d'épouse) » ; « parfois il y a deux adresses email à la suite séparées par un ;
+pour un envoi groupé » ; « archiver le dossier quand le questionnaire est envoyé aussi au vendeur ».
+- Causes : `clientDepuisFicheAuthentic` n'acceptait une adresse que seule dans le champ — « a@x.fr;b@y.fr » était
+  écarté en bloc ; et le côté d'une fiche client se cherchait par le « Nom de famille » (nom de naissance) dans les
+  parties ou le nom du dossier « VENDEUR / ACQUÉREUR » — Mme BABIER n'y figure pas, sa fiche était ignorée.
+- `emailsDepuisTexte` (découpe sur « ; », « , », espaces ; doublons et adresses mal formées retirés),
+  `destinatairesEmail`, `adressesEmailValides`. Les emails repris d'une fiche s'**ajoutent** (« ; ») à ceux du côté,
+  jamais à la place. `.eml` : en-tête `To:` en « a, b » (RFC 5322) ; `mailto:` en « a,b ».
+- Côté d'une fiche : nom de famille, puis nom d'usage (`roleClientAuthenticDansDossier`), puis **conjoint**
+  (`roleConjointAuthenticDansDossier` : marié/pacsé, conjoint nommé en entier parmi les parties ou les fiches déjà
+  reprises, sinon d'un seul côté du nom du dossier). Sinon la fiche est gardée « **À rattacher** »
+  (`d.authentic.clientsAPlacer`, 6 au plus) sur la première page de la fiche : Vendeur / Acquéreur
+  (`placerClientAuthentic`) ou × (`ecarterClientAuthentic`, `clientsEcartes`, plus jamais reproposée). Rien n'est
+  jamais reporté sans côté reconnu ou choisi.
+- Sondage de créneaux : une adresse groupée donne un votant par adresse (`participantsParAdresse`) ; visio et sondage
+  acceptent « a;b ».
+- `envoyerQuestionnaireSatisfaction` : l'envoi au vendeur archive aussi le dossier ; le questionnaire de l'autre
+  partie reste proposé sur le dossier archivé.
+- Vérifié dans Chromium (serveur réel, dossier inventé) : ligne « À rattacher », placement côté vendeur, `.eml` du
+  questionnaire `To: a@…, b@…`, dossier archivé. Non vérifié : une vraie fiche client d'Authentic avec deux adresses.

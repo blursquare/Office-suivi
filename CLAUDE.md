@@ -159,7 +159,7 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
   reçoit l'acte ; si un autre office représente l'acquéreur, les emails vont **au confrère**
   (« Mon Cher Maître, … Votre bien dévoué. ») et le questionnaire de satisfaction n'est jamais proposé à
   l'acquéreur ; il peut l'être **au vendeur** quand l'étude le représente (étude 02/10, `renderQuestionnaireVendeur`,
-  `d.questionnaireVendeurEnvoyeLe`, sans archiver le dossier).
+  `d.questionnaireVendeurEnvoyeLe` ; chaque envoi archive le dossier, l'autre reste proposé).
 - **Responsables** : liste fermée (Bastien ANGLUMENT — administrateur, vue globale —, Julie
   VASSELIN, Jérémy SAUJOT).
 - **Planning** (`echeancesPlanning`, miroir serveur `toutesEcheances` dans `jobs/rappels.js` — à
@@ -645,6 +645,10 @@ Plainte principale de l'étude : **le bruit**, pas les oublis — ne pas élargi
   compte le ; RHF envoyée / retour ; état de l'acte ; prix « Capital » (rempli s'il manque) ; collaborateur et notaire des
   « Parties prenantes » — gardés dans `d.authentic`, bloc « Dans Authentic » de l'onglet Pièces ; fiche client →
   téléphone/email manquants et situation matrimoniale, alerte si un vendeur marié/pacsé vend sans son conjoint ;
+  côté de la fiche par nom de famille, nom d'usage puis **conjoint** (`roleConjointAuthenticDansDossier`), sinon
+  « À rattacher » sur la fiche (`clientsAPlacer` : Vendeur / Acquéreur / ×), jamais deviné ; **emails groupés**
+  « a@x.fr;b@y.fr » (`emailsDepuisTexte`) ajoutés à ceux du côté — partout un champ email peut porter plusieurs
+  adresses (`destinatairesEmail` : « a, b » dans le `.eml`, un votant par adresse au sondage) ;
   livret de famille et décès seulement en succession. « Informations financières » et « Parties prenantes » (sous les
   vendeurs/acquéreurs de la page de gestion) s'affichent en **texte seul** : lus dans `capture.texte` (« Capital » puis le
   montant ; lignes après « Parties prenantes »), la copie de structure y ajoute le texte réduit à son vocabulaire
