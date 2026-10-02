@@ -667,7 +667,7 @@ Plainte principale de l'étude : **le bruit**, pas les oublis — ne pas élargi
   `echeanceSaferDossier`) : item « Délai SAFER » du planning (miroir serveur, sans rappel), ligne de la fiche, pas de
   « Fixer le rendez-vous » avant, semaine probable / créneaux au plus tôt le lendemain, retrait de probabilité ; **demandes** (alignement, numérotage, DIA…, `demandesUrbanismeAuthentic`) jamais cochées,
   « Demande envoyée le … » sous la pièce ; ce qui est acquis (positif, SAFER décidée) n'est plus touché. **Seules les
-  pages de structure connue** sont envoyées (extension 0.3.3, `pageConnue`) et gardées (`pageAuthenticConnue`).
+  pages de structure connue** sont envoyées (extension 0.3.3, `pageConnue`) et gardées (`pageAuthenticConnue`). **Navigation** (0.3.5, étude 02/10) : sur une page de dossier d'un autre type (« 15 - Donation SIMOND »), l'extension n'envoie que l'intitulé (`POST /api/authentic/navigation`, mis en file sans contenu ; une page connue déjà vue renvoie aussi sa navigation) → `suivreNavigationAuthentic` change le dossier en consultation (aucun s'il n'est pas suivi).
   Aperçu d'un document Comedec : pas de lien relevé. **Coordonnées** (étude 02/10) : email + téléphone de chaque
   partie sur la première page de la fiche (`fiche-coordonnees`, `champsCoordonneesPartie`) et en une ligne par partie
   dans Échanges (`renderCoordonneesEchanges`).

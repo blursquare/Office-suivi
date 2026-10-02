@@ -14939,3 +14939,21 @@ dossier où la personne est partie (cité sur sa fiche, en cours d'abord ; puis 
 cours) ; partie de rien → le dossier en consultation seulement si la fiche le cite, sinon rien. L'entrée SIMOND déjà
 rangée s'écarte d'un clic (×). Libellé « Avant-contrat signé le » coupé sur la fiche → « Signé le » (sous la ligne
 « Avant-contrat »).
+
+### 02/10/2026 après-midi — Suivre la navigation d'un dossier à l'autre dans Authentic (extension 0.3.5)
+
+Étude : « parfois dans Authentic je peux naviguer d'un dossier à l'autre. J'étais dans le dossier SIMOND mais ça
+s'est mis dans PETIT. Et je n'étais même pas dans le bon dossier SIMOND, c'était dans un autre dossier à leur nom. »
+- Cause : l'extension n'envoie que les pages de structure connue (dossier « Vente X/Y » ou « Succession X », fiche
+  client, fiche bien). Un dossier d'un autre type (donation, divers…) n'envoyait rien : CLAIRE gardait PETIT comme
+  dossier en consultation, et la fiche client lue ensuite y était rangée. Revenir sur une page déjà envoyée ne
+  renvoyait rien non plus (dédoublonnage), le dossier en consultation ne suivait pas.
+- Extension 0.3.5 (`auto.js` `intituleDossier`, `fond.js`) : sur une page non lue, si elle porte un intitulé
+  « N - … » (libellé sans valeur, ou 1re ligne du texte), seul cet intitulé part (`type: 'navigation'`), une fois
+  par changement.
+- Serveur : `POST /api/authentic/navigation` (JSON, intitulé « N - … » ≤ 200 car., sinon 400) → élément
+  `{ navigation }` mis en file (jamais parmi les récents) ; une page connue déjà vue met aussi sa navigation en file.
+- Poste : `suivreNavigationAuthentic` / `dossierPourNavigationAuthentic` — le dossier en consultation devient
+  celui de l'intitulé, ou aucun. Combiné au correctif précédent (`dossierPourFicheClientAuthentic`), une fiche
+  client va au dossier dont la personne est partie (le dossier SIMOND de CLAIRE s'il existe), jamais au précédent.
+- À réinstaller sur les postes (zip / signature, voir `extension-firefox/LISEZMOI.md`).

@@ -9,6 +9,7 @@
   window.__claireAutoActif = true;
   let minuteur = null;
   let derniere = '';
+  let derniereNavigation = '';
   function releverEtEnvoyer() {
     minuteur = null;
     let c = null;
@@ -16,7 +17,19 @@
     if (!c || (!c.champs.length && !c.tableaux.length)) return;
     // Seules les pages dont CLAIRE connaît la structure partent (étude, 02/10) : page du dossier
     // (intitulé « N - Vente X/Y » ou « N - Succession X »), fiche client, fiche bien. Le reste d'Authentic n'est pas envoyé.
-    if (!pageConnue(c)) return;
+    if (!pageConnue(c)) {
+      // Un dossier d'un autre type (donation, divers…) : seul son intitulé part, sans rien de la page,
+      // pour que CLAIRE sache que l'on a quitté le dossier précédent (étude, 02/10 : « j'étais dans le
+      // dossier SIMOND mais ça s'est mis dans PETIT »).
+      const intitule = intituleDossier(c);
+      if (intitule && intitule !== derniereNavigation) {
+        derniereNavigation = intitule;
+        derniere = '';
+        browser.runtime.sendMessage({ type: 'navigation', intitule }).catch(() => {});
+      }
+      return;
+    }
+    derniereNavigation = '';
     // Empreinte sans le texte libre (qui bouge avec l'horloge ou les notifications d'Authentic).
     const empreinte = JSON.stringify([c.champs, c.tableaux]);
     if (empreinte === derniere) return;
@@ -28,6 +41,17 @@
     const libelles = (c.champs || []).map(ch => String(ch.libelle || '') + ' ' + String(ch.valeur || ''));
     if (libelles.some(l => /ficheClientPhysique|ficheImmeuble/i.test(l))) return true;
     return libelles.some(l => re.test(l)) || re.test(String(c.texte || ''));
+  }
+  // L'intitulé « N - … » du dossier ouvert : un libellé seul (sans valeur), sinon la première ligne du texte.
+  function intituleDossier(c) {
+    const re = /^\s*\d{1,6}\s*-\s*[A-Za-zÀ-ÿ][^\n]{1,120}$/;
+    for (const ch of c.champs || []) {
+      const l = String(ch.libelle || '').trim();
+      if (!String(ch.valeur || '').trim() && re.test(l)) return l.slice(0, 200);
+    }
+    const premiere = String(c.texte || '').split('\n').map(l => l.trim()).find(Boolean) || '';
+    const m = /^\d{1,6}\s*-\s*[A-Za-zÀ-ÿ].{1,120}?(?=\s+(?:Importer|Comparants|Immeubles)\b|$)/.exec(premiere);
+    return m ? m[0].trim().slice(0, 200) : '';
   }
   function programmer() {
     clearTimeout(minuteur);

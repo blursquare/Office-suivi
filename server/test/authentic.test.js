@@ -136,3 +136,38 @@ test('attente des relevés : rendue dès qu\'une page arrive, vide après le dé
     s.close();
   }
 });
+
+test('navigation : l\'intitulé seul mis en file ; retour sur une page déjà vue → navigation ; refus sans intitulé', async () => {
+  const express = require('express');
+  const { creerRouteurAuthentic } = require('../src/routes/authentic');
+  const appli = express();
+  appli.use(express.json({ limit: '2mb' }));
+  appli.use('/api', creerRouteurAuthentic({ dureeAttenteMs: 200 }));
+  const s = appli.listen(0);
+  await new Promise(r => s.once('listening', r));
+  const b = 'http://127.0.0.1:' + s.address().port;
+  const post = (chemin, corps) => fetch(b + '/api/authentic/' + chemin, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corps) });
+  const prendre = () => post('releves/prendre', {}).then(r => r.json()).then(j => j.releves);
+  try {
+    assert.equal((await post('navigation', { intitule: 'Donation SIMOND' })).status, 400);
+    assert.equal((await post('navigation', { intitule: '15 - Donation SIMOND' })).status, 200);
+    let file = await prendre();
+    assert.equal(file.length, 1);
+    assert.equal(file[0].navigation, '15 - Donation SIMOND');
+    assert.equal(file[0].capture, undefined);
+    // Page de dossier connue : relevée une fois, puis navigation seule au retour.
+    const page = { champs: [{ groupe: '', libelle: '12 - Vente PETIT/BOSQUET', valeur: '' }], tableaux: [], texte: '12 - Vente PETIT/BOSQUET' };
+    await post('releve', page);
+    file = await prendre();
+    assert.ok(file[0].capture);
+    await post('releve', page);
+    file = await prendre();
+    assert.equal(file.length, 1);
+    assert.match(file[0].navigation, /^12 - Vente PETIT\/BOSQUET/);
+    // Jamais parmi les relevés récents (rien à créer depuis un intitulé).
+    const recents = await fetch(b + '/api/authentic/releves/recents').then(r => r.json());
+    assert.ok(recents.releves.every(r => !r.navigation));
+  } finally {
+    s.close();
+  }
+});

@@ -755,3 +755,10 @@ test('fiche client d\'un inconnu ouverte après un dossier : jamais rangée « �
   const petit = Object.assign({}, clientMarie, { champs: clientMarie.champs.map(c => /Nom de famille/.test(c.libelle) ? Object.assign({}, c, { valeur: 'Petit' }) : /Prénom/.test(c.libelle) ? Object.assign({}, c, { valeur: 'Sylvain' }) : c), tableaux: [] });
   assert.equal(app.dossierPourFicheClientAuthentic(petit, [vente], vente).id, 'v');
 });
+
+test('navigation dans Authentic : l\'intitulé seul désigne le dossier consulté, ou aucun', () => {
+  const vente = { id: 'v', nom: 'PETIT / BOSQUET', parties: [{ nom: 'Sylvain PETIT', role: 'VENDEUR' }, { nom: 'Samuel BOSQUET', role: 'ACQUEREUR' }], historique: [] };
+  assert.equal(app.dossierPourNavigationAuthentic('12 - Vente PETIT/BOSQUET', [vente]).id, 'v');
+  assert.equal(app.dossierPourNavigationAuthentic('15 - Donation SIMOND', [vente]), null);
+  assert.equal(app.dossierPourNavigationAuthentic('', [vente]), null);
+});

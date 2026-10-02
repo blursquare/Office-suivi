@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-02 15:25';
+  const VERSION_APP = '2026-10-02 15:29';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-02 15:29', resume: "Add-on Authentic (0.3.5, à réinstaller) : quand on passe d'un dossier à l'autre dans Authentic — y compris un dossier que CLAIRE ne suit pas (donation, divers…) —, CLAIRE suit le dossier ouvert : les fiches client consultées ensuite ne sont plus rangées dans le dossier précédent. Seul l'intitulé du dossier part, aucune donnée de la page." },
     { version: '2026-10-02 15:25', resume: "Add-on Authentic : la fiche client d'une personne qui n'est partie d'aucun dossier n'est plus proposée « À rattacher » au dernier dossier consulté (cas SIMOND) — seulement si sa fiche cite ce dossier. Une personne partie d'un dossier va toujours à celui-là. Fiche : « Avant-contrat signé le » devient « Signé le » (libellé coupé)." },
     { version: '2026-10-02 15:22', resume: "Fiche : l'apport s'affiche sans signe moins (« Apport 20.323,00 € (10 %) ») ; quand le prêt dépasse le prix, la pastille reste rouge et la bulle le dit." },
     { version: '2026-10-02 15:16', resume: "Notaire en second (participation) : l'état de rédaction de l'acte relevé dans Authentic (« En cours de rédaction », « Pas encore rédigé ») n'est plus affiché ni noté dans l'historique ; seul « Acte signé » reste." },
@@ -26774,6 +26775,21 @@
     return courant && cites.includes(courant) ? courant : null;
   }
 
+  // Pure : le dossier de CLAIRE ouvert dans Authentic d'après l'intitulé seul (« 15 - Donation SIMOND »,
+  // « 12 - Vente PETIT/BOSQUET ») — null pour un dossier que CLAIRE ne suit pas.
+  function dossierPourNavigationAuthentic(intitule, liste) {
+    const lu = intituleDossierAuthentic({ champs: [], tableaux: [], texte: String(intitule || '') });
+    return lu ? dossierPourIntituleAuthentic(lu, liste, '') : null;
+  }
+
+  // L'utilisateur a changé de dossier dans Authentic (étude, 02/10 : « je peux naviguer d'un dossier à
+  // l'autre… j'étais dans le dossier SIMOND mais ça s'est mis dans PETIT ») : le dossier en
+  // consultation devient celui-là — ou aucun, s'il n'est pas suivi dans CLAIRE.
+  function suivreNavigationAuthentic(intitule) {
+    const d = dossierPourNavigationAuthentic(intitule, dossiers);
+    dossierCourantAuthentic = { id: d ? d.id : '', t: Date.now() };
+  }
+
   async function appliquerReleveAuthentic(capture) {
     let d = null;
     const courantValide = Date.now() - dossierCourantAuthentic.t < DUREE_DOSSIER_COURANT_AUTHENTIC_MS;
@@ -26839,6 +26855,7 @@
   function appliquerRelevesAuthentic(releves) {
     fileRelevesAuthentic = fileRelevesAuthentic.then(async () => {
       for (const rel of releves || []) {
+        if (rel && rel.navigation) { suivreNavigationAuthentic(rel.navigation); continue; }
         try { await appliquerReleveAuthentic(rel.capture); } catch (e) { console.error('Relevé Authentic non appliqué', e && e.message); }
       }
       // « Nouveau dossier » ouvert à l'étape 1 : la liste « Depuis Authentic » suit les pages vues.

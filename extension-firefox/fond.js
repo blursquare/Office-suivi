@@ -59,6 +59,16 @@ browser.browserAction.onClicked.addListener(async (onglet) => {
 // Relevés automatiques envoyés par auto.js (pages d'Authentic) : transmis à CLAIRE sans rien ouvrir.
 // Un échec (CLAIRE éteinte, réseau) est silencieux : la page suivante sera relevée à son tour.
 browser.runtime.onMessage.addListener(async (message) => {
+  if (message && message.type === 'navigation' && typeof message.intitule === 'string') {
+    const { serveur, auto } = await browser.storage.local.get(['serveur', 'auto']);
+    if (!serveur || auto === false) return;
+    try {
+      await fetch(serveur + '/api/authentic/navigation', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ intitule: message.intitule })
+      });
+    } catch (e) { /* CLAIRE injoignable : sans suite */ }
+    return;
+  }
   if (!message || message.type !== 'releve' || !message.capture) return;
   const { serveur, auto } = await browser.storage.local.get(['serveur', 'auto']);
   if (!serveur || auto === false) return;

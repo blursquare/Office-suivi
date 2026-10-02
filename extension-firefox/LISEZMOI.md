@@ -8,7 +8,11 @@ l'envoie au serveur CLAIRE du bureau, puis ouvre CLAIRE sur la page reçue.
 - Jamais un mot de passe ni un champ caché de la page.
 - Le serveur garde la page **30 minutes en mémoire** seulement (ni base, ni journal).
 
-## État (02/10/2026) — version 0.3.4
+## État (02/10/2026) — version 0.3.5
+
+- **0.3.5** : en passant d'un dossier à l'autre dans Authentic, l'intitulé du dossier ouvert (« 15 - Donation
+  SIMOND »…) part SEUL vers CLAIRE (aucune donnée de la page) quand c'est un dossier d'un type que CLAIRE ne lit
+  pas : CLAIRE cesse alors de ranger les fiches client suivantes dans le dossier précédent.
 
 - **Relevé automatique** (étude, 02/10) : sur Authentic (`www.cloud-fichorga.fr`), chaque page affichée est
   relevée dès qu'elle est stable (2,5 s) et envoyée à CLAIRE — seulement si son contenu a changé.

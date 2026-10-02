@@ -105,7 +105,13 @@ function creerRouteurAuthentic(options) {
     // pages dont tu as la structure, pour ne pas surcharger ») : page du dossier, fiche client, fiche bien.
     if (!pageAuthenticConnue(capture)) { res.json({ ok: true, ignore: true }); return; }
     const empreinte = crypto.createHash('sha1').update(JSON.stringify([capture.champs, capture.tableaux])).digest('hex');
-    if (empreintes.includes(empreinte)) { res.json({ ok: true, deja: true }); return; }
+    if (empreintes.includes(empreinte)) {
+      // Page déjà vue : rien à relire, mais on y est revenu — le poste suit le dossier ouvert.
+      const intitule = intitulePageAuthentic(capture);
+      if (intitule) { mettreEnFile({ id: crypto.randomBytes(9).toString('base64url'), recueLe: new Date(maintenant()).toISOString(), navigation: intitule }); }
+      res.json({ ok: true, deja: true });
+      return;
+    }
     empreintes.push(empreinte);
     if (empreintes.length > MAX_RELEVES) empreintes.shift();
     const releve = { id: crypto.randomBytes(9).toString('base64url'), recueLe: new Date(maintenant()).toISOString(), capture };
@@ -114,6 +120,20 @@ function creerRouteurAuthentic(options) {
     purgerReleves();
     servirAttente();
     res.json({ ok: true, id: releve.id });
+  });
+  const mettreEnFile = (element) => {
+    aTraiter.push(element);
+    purgerReleves();
+    servirAttente();
+  };
+  // Changement de dossier dans Authentic (dossier d'un type que CLAIRE ne lit pas) : l'intitulé SEUL,
+  // pour que le poste cesse de ranger les fiches suivantes dans le dossier précédent (étude, 02/10).
+  routeur.post('/authentic/navigation', (req, res) => {
+    if (!req.is('application/json')) { res.status(415).json({ error: 'Corps JSON attendu.' }); return; }
+    const intitule = chaine(req.body && req.body.intitule, 200);
+    if (!/^\d{1,6}\s*-\s*\S/.test(intitule)) { res.status(400).json({ error: 'Intitulé de dossier attendu.' }); return; }
+    mettreEnFile({ id: crypto.randomBytes(9).toString('base64url'), recueLe: new Date(maintenant()).toISOString(), navigation: intitule });
+    res.json({ ok: true });
   });
   routeur.post('/authentic/releves/attendre', (req, res) => {
     purgerReleves();
@@ -158,6 +178,17 @@ function creerRouteurAuthentic(options) {
 // même test que l'extension (auto.js) et que typePageAuthentic côté poste.
 // « N - Succession NOM » aussi (étude, 02/10 : dossiers de succession créés depuis Authentic).
 const RE_INTITULE_PAGE = /(?:^|[^\w])\d{1,6}\s*-\s*(?:(?:Vente|VTE)\s+[^\n\/]*\S\s*\/\s*\S|(?:Succession|SUCC)\.?\s+\S)/i;
+// L'intitulé « N - Vente X/Y » (ou succession) d'une page, ou ''.
+function intitulePageAuthentic(capture) {
+  const c = capture || {};
+  const sources = (c.champs || []).map(ch => String(ch.libelle || '') + ' ' + String(ch.valeur || '')).concat(String(c.texte || '').split('\n'));
+  for (const s of sources) {
+    const m = RE_INTITULE_PAGE.exec(s);
+    if (m) return chaine(s.slice(m.index).replace(/^[^\d]*/, ''), 200);
+  }
+  return '';
+}
+
 function pageAuthenticConnue(capture) {
   const c = capture || {};
   const libelles = (c.champs || []).map(ch => String(ch.libelle || '') + ' ' + String(ch.valeur || ''));
