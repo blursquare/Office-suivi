@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-02 23:16';
+  const VERSION_APP = '2026-10-02 23:21';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-02 23:21', resume: "Onglet Échanges : sous chaque email reçu avec des documents, « Confirmer la réception » prépare la réponse (même objet précédé de RE:, documents listés, signature de l'office ; « Mon Cher Maître » si l'expéditeur est un confrère), puis indique « préparé », et « envoyé le … » une fois retrouvée dans les envois. Réglages › Pièces et Claire Scan › « Noms de fichiers reconnus » : toutes les variantes de nom acceptées pour chaque pièce. Une pièce jointe au nom approchant (« CU.pdf ») est reconnue comme sur le NAS ; « Titre de séjour » n'est plus pris pour un titre de propriété." },
     { version: '2026-10-02 23:16', resume: "Pièces jointes des emails : chacune est maintenant copiée dans le dossier client du NAS, même quand CLAIRE ne la reconnaît pas — dans le bon sous-dossier d'après son nom (diagnostics, copropriété, titre, travaux, comptabilité, AAE… ; pièce d'identité ou RIB chez le Vendeur ou l'Acquéreur selon l'expéditeur), sinon à la racine du dossier. L'onglet Échanges dit où chaque pièce a été rangée. Nouveau : Réglages › Général › « CLAIRE en application » installe sur le poste d'un collaborateur un raccourci (bureau et menu Démarrer) qui ouvre CLAIRE dans sa propre fenêtre, comme sur le poste serveur." },
     { version: '2026-10-02 23:01', resume: "Emails des dossiers : CLAIRE relit toutes les 10 minutes la boîte de réception de l'office et les « Éléments envoyés » de chaque collaborateur. Dans l'onglet Échanges : les emails reçus et envoyés du dossier, un résumé d'une phrase par l'IA locale (le texte n'est jamais gardé), les pièces jointes — reconnues par leur nom, elles sont rangées dans le dossier du NAS et cochées reçues. Un email préparé par CLAIRE passe « envoyé le … » dès qu'il est retrouvé dans les envois. Réglages › Agenda et Outlook : l'état de chaque boîte. Simulateur de provision : barème validé, l'avertissement est retiré." },
     { version: '2026-10-02 22:35', resume: "Le rapport technique (12 h et 17 h) reprend désormais ce que CLAIRE a appris, anonymisé : erreurs de lecture de la période avec la nature de la correction et la clause lue, classements retenus, fichiers écartés par pièce, commentaires de relecture. Réglages : « Rappels Teams » devient « Rappels »." },
@@ -28585,14 +28586,18 @@
   const emailsParDossier = {};      // id → { emails, prepares, etat } (null pendant le chargement)
 
   // Pure : la pièce de la checklist qu'un nom de pièce jointe désigne (même règle que le parcours du
-  // NAS : le nom seul, motif exact, exclusions de l'étude respectées), l'offre de prêt à part ; ou null.
+  // NAS : le nom seul, motif exact puis forme approchante, exclusions de l'étude respectées), l'offre de
+  // prêt à part ; ou null.
   function pieceDePieceJointe(nom, checklist, estExclu) {
     const nn = normaliserNomPourMotif(String(nom || ''));
-    if (OFFRE_PRET_RE.test(nn)) return { cle: 'offrePret', label: 'Offre de prêt', offre: true };
-    for (const p of checklist || []) {
-      if (correspondancePieceNom(p, nn) !== 'exact') continue;
-      if (estExclu && estExclu(p.cle, nn)) continue;
-      return { cle: p.cle, label: p.label, offre: false };
+    if (nomDitOffrePret(nn)) return { cle: 'offrePret', label: 'Offre de prêt', offre: true };
+    // Nom exact d'abord, puis forme approchante (même règle que le parcours du NAS).
+    for (const niveau of ['exact', 'approche']) {
+      for (const p of checklist || []) {
+        if (correspondancePieceNom(p, nn) !== niveau) continue;
+        if (estExclu && estExclu(p.cle, nn)) continue;
+        return { cle: p.cle, label: p.label, offre: false };
+      }
     }
     return null;
   }
@@ -28699,12 +28704,71 @@
     return { classe: 'dl-pret', texte: 'Pas encore retrouvé dans les envois' };
   }
 
+  // Pure : l'expéditeur est-il un confrère (adresse @notaires.fr, notaire participant du dossier, office du
+  // carnet) ? Formule « Mon Cher Maître » dans la réponse.
+  function expediteurConfrere(d, adresse, carnet) {
+    const a = String(adresse || '').trim().toLowerCase();
+    if (!a) return false;
+    if (/@notaires\.fr$/.test(a)) return true;
+    if (d && destinatairesEmail(d.emailNotaireParticipant || '').some(x => x.toLowerCase() === a)) return true;
+    return (carnet || []).some(o => destinatairesEmail(o.email || '').some(x => x.toLowerCase() === a));
+  }
+
+  // Pure : documents d'un email reçu, nommés pour la réponse (libellé de la pièce reconnue, sinon nom du
+  // fichier sans extension), sans les pièces écartées ni les doublons.
+  function documentsEmailRecu(email) {
+    const noms = (email && email.pj || []).filter(p => !p.ignoree)
+      .map(p => (p.rangee && p.rangee.pieceLabel) || String(p.nom || '').replace(/\.[a-z0-9]{2,5}$/i, '').trim())
+      .filter(Boolean);
+    return Array.from(new Set(noms));
+  }
+
+  // Pure : réponse « accusé de réception » à un email du client (ou d'un confrère) qui nous transmet des
+  // documents (étude 02/10). Même objet précédé de « RE: » (retrouvé ainsi dans les « Éléments envoyés »).
+  // Texte : premier jet de CLAIRE, à remplacer mot pour mot par celui de l'étude dès qu'elle le donne.
+  function construireEmailAccuseReception(d, email, confrere) {
+    const docs = documentsEmailRecu(email);
+    const objet = String(email.objet || '').trim();
+    const sujet = /^(re|r[ée]p|aw)\s*:/i.test(objet) ? objet : `RE: ${objet || libelleDossierAffiche(d)}`;
+    const le = email.date ? new Date(email.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Europe/Paris' }) : '';
+    const liste = docs.length > 1 ? ' :\n' + docs.map(x => '- ' + x).join('\n') : (docs.length ? ` (${docs[0]}).` : '.');
+    const quoi = docs.length > 1 ? 'des documents' : 'du document';
+    if (confrere) {
+      return { sujet, corps: [
+        `Je vous remercie de votre email${le ? ' du ' + le : ''} et accuse bonne réception ${quoi} transmis${liste}`,
+        'Je ne manquerai pas de revenir vers vous si un complément était nécessaire.'
+      ].join('\n\n') };
+    }
+    return { sujet, corps: [
+      'Bonjour,',
+      `Nous accusons bonne réception ${quoi} que vous nous avez transmis${le ? ' le ' + le : ''}${liste}`,
+      `${docs.length > 1 ? 'Ils ont été joints' : 'Il a été joint'} à votre dossier. Nous ne manquerons pas de revenir vers vous si un complément était nécessaire.`,
+      'Bien cordialement,'
+    ].join('\n\n') };
+  }
+
+  // Prépare l'accusé de réception (.eml avec la signature de l'office, ou brouillon selon le poste).
+  async function confirmerReceptionEmail(dossierId, emailId) {
+    const d = dossiers.find(x => x.id === dossierId);
+    const email = d && ((emailsParDossier[dossierId] || {}).emails || []).find(e => e.id === emailId);
+    if (!email || !email.de || !email.de.adresse) { afficherToast('Adresse de l’expéditeur inconnue.', 'OK', null); return; }
+    const confrere = expediteurConfrere(d, email.de.adresse, carnetConfreres);
+    const { sujet, corps } = construireEmailAccuseReception(d, email, confrere);
+    const r = await livrerEmailDossier({ destinataire: email.de.adresse, sujet, corps, confrere, responsableSignature: d.responsable, dossierId: d.id, geste: 'accuseReception:' + email.id });
+    if (!r.ok) { afficherToast(r.message || "L'email n'a pas pu être préparé.", 'OK', null); return; }
+    ajouterHistorique(d, `Email préparé — accusé de réception des documents de ${email.de.nom || email.de.adresse}`);
+    await sauvegarder(d);
+    annoncerEmailPret(r, true);
+    setTimeout(() => chargerEmailsDossier(dossierId), 800);
+  }
+
   function renderEmailsDossier(d) {
     if (!(d.id in emailsParDossier)) { chargerEmailsDossier(d.id); return ''; }
     const donnees = emailsParDossier[d.id];
     if (!donnees) return '';
     const { emails, prepares, etat } = donnees;
-    const enAttente = prepares.filter(p => !p.envoyeLe);
+    // Les accusés de réception se suivent sur la ligne de l'email reçu.
+    const enAttente = prepares.filter(p => !p.envoyeLe && !String(p.geste || '').startsWith('accuseReception:'));
     if (!emails.length && !enAttente.length) return '';
     const checklist = checklistPieces(d.typeVente, d);
     const estExclu = (cle, nn) => estNomExcluPourPiece(cle, nn);
@@ -28725,6 +28789,19 @@
           </select>`;
       return `<span class="email-pj">${ouvrir}${piece ? `<span class="dot-label dl-pret"><span class="dot"></span>${escapeHtml(piece.label)}</span>` : ''}${geste}</span>`;
     };
+    // Accusé de réception d'un email reçu avec des documents : ligne d'action, « faite » une fois préparé
+    // (puis « envoyé le … » quand il est retrouvé dans les « Éléments envoyés »).
+    const accuseHtml = (e) => {
+      if (e.sens !== 'recu' || !documentsEmailRecu(e).length || !e.de || !e.de.adresse) return '';
+      const prep = prepares.find(p => p.geste === 'accuseReception:' + e.id);
+      const sous = prep
+        ? (prep.envoyeLe ? `Envoyé le ${dateHeureAppel(Date.parse(prep.envoyeLe))}` : `Préparé le ${dateHeureAppel(Date.parse(prep.prepareLe))}`)
+        : `À ${e.de.nom || e.de.adresse}, avec la signature de l’office`;
+      return `<ul class="ja-liste email-accuse">${renderLigneAction({
+        categorie: 'acte', titre: 'Confirmer la réception', sous, faite: !!prep,
+        bouton: { libelle: prep ? 'Renvoyer' : 'Préparer', icone: icone('mail'), onclick: `confirmerReceptionEmail('${d.id}', '${escapeOnclickArg(e.id)}')`, titre: 'Préparer l’email d’accusé de réception' }
+      })}</ul>`;
+    };
     const ligne = (e) => {
       const p = e.prepareId ? prepareParId.get(e.prepareId) : null;
       const qui = e.sens === 'recu' ? `De ${escapeHtml(e.de.nom || e.de.adresse)}` : `Envoyé par ${escapeHtml((e.collaborateur || '').split(' ')[0] || e.de.adresse)}${e.a.length ? ` à ${escapeHtml(e.a.slice(0, 2).join(', '))}${e.a.length > 2 ? '…' : ''}` : ''}`;
@@ -28733,6 +28810,7 @@
         <div class="email-objet">${escapeHtml(e.objet || '(sans objet)')}</div>
         ${e.resume ? `<div class="email-resume">${escapeHtml(e.resume)}</div>` : ''}
         ${e.pj.length ? `<div class="email-pjs">${e.pj.map(pj => pjHtml(e, pj)).join('')}</div>` : ''}
+        ${accuseHtml(e)}
       </li>`;
     };
     const attente = enAttente.map(p => {
@@ -30302,6 +30380,7 @@
     if (cle === 'authentic') renderReglagesAuthentic();
     if (cle === 'agenda') renderReglagesEmailsDossiers();
     if (cle === 'apprentissage') ouvrirPageApprentissage();
+    if (cle === 'pieces') renderNomsReconnus();
   }
 
   // Compteur rouge sur « Réglages » : signalements encore à trier. Sur tous les postes — il n'y a
@@ -31490,6 +31569,9 @@
       if (String(nomNormalise).toLowerCase().includes(String(piece.label || '').toLowerCase())) return 'exact';
       return correspondFormeNom(piece.label, tokensNomFichier(nomNormalise)) ? 'approche' : null;
     }
+    // « Titre de séjour » (pièce d'identité) n'est pas un titre de propriété (étude 02/10, pièces jointes
+    // rangées seules).
+    if (piece.cle === 'titrePropriete' && /titre\s*(?:de\s*)?s[ée]jour/i.test(nomNormalise)) return null;
     if (piece.motifNom && piece.motifNom.test(nomNormalise)) return 'exact';
     // « Pré-état daté » contient les mots « état daté » : la forme tolérante le prendrait.
     if (piece.cle === 'etatDate' && RE_PRE_ETAT_DATE.test(nomNormalise)) return null;
@@ -31535,6 +31617,67 @@
     securitePiscine: ['piscine'],
     resiliationContrat: ['resiliation']
   };
+
+  // Noms de fichiers reconnus, pièce par pièce (étude 02/10 : « donne-moi toutes les variantes de nom
+  // pour les fichiers à reconnaître ») : exemples lisibles de ce que motifNom et FORMES_NOM_PIECES
+  // acceptent — majuscules, accents, tirets et « _ » indifférents, un mot de plus (nom du client, date)
+  // ne gêne pas, une faute de frappe légère est tolérée sur les formes de plusieurs lettres. Chaque
+  // exemple est vérifié par tests/noms-reconnus.test.js : la liste affichée ne peut pas mentir.
+  // `pas` = noms volontairement NON reconnus pour cette pièce.
+  var EXEMPLES_NOMS_PIECES = [
+    { cle: 'certificatUrbanisme', noms: ["Certificat d'urbanisme", 'Certificat urbanisme', 'CU a)', 'CU', "Réponse d'urbanisme", 'Réponse urbanisme'] },
+    { cle: 'certificatAlignement', noms: ["Certificat d'alignement", 'Arrêté d’alignement', 'Courriel alignement', 'Alignement et numérotage', 'Numérotage alignement'] },
+    { cle: 'certificatNumerotage', noms: ['Certificat de numérotage', 'Numérotage', 'Numerotage'] },
+    { cle: 'reponseAssainissement', noms: ['Assainissement', 'Réponse assainissement', 'Asainissement', 'SPANC', 'Contrôle SPANC'] },
+    { cle: 'renonciationPreemption', noms: ['Renonciation préemption', 'Préemption', 'DPU', 'DIA', "Déclaration d'intention d'aliéner"] },
+    { cle: 'diagnosticsTechniques', noms: ['Diagnostics', 'Diagnostic', 'Diagnostique', 'DDT', 'Dossier de diagnostics techniques'] },
+    { cle: 'erp', noms: ['ERP', 'État des risques', 'Etat des risques et pollutions'] },
+    { cle: 'avisTaxeFonciere', noms: ['Taxe foncière', 'Taxes foncières 2025', 'TF', 'Avis TF'] },
+    { cle: 'titrePropriete', noms: ['Titre de propriété', 'Titre', 'Titre vendeur'], pas: ['Titre de séjour'] },
+    { cle: 'etatDate', noms: ['État daté', 'Etat date', 'ETAT-DATE'], pas: ['Pré-état daté', 'Pre etat date'] },
+    { cle: 'article20', noms: ['Article 20-II', 'Article 20 II', 'Article 20.2', 'Article20-2'] },
+    { cle: 'ribCopro', noms: ['RIB syndic', 'RIB copropriété', 'Syndic RIB', 'Copropriété RIB'] },
+    { cle: 'etudeSol', noms: ['Étude de sol', 'Etude sol', 'G1', 'G2'] },
+    { cle: 'ramonage', noms: ['Ramonage', 'Facture ramonage', 'Attestation de ramonage'] },
+    { cle: 'entretienChaudiere', noms: ['Entretien chaudière', 'Chaudière entretien', 'Contrat chaudière', 'Entretien de la chaudière'] },
+    { cle: 'entretienPac', noms: ['Entretien PAC', 'Entretien pompe à chaleur', 'PAC entretien'] },
+    { cle: 'entretienClim', noms: ['Climatisation', 'Entretien clim', 'Clim'] },
+    { cle: 'vidangeFosse', noms: ['Vidange', 'Fosse septique', 'Vidange fosse'] },
+    { cle: 'entretienAdoucisseur', noms: ['Adoucisseur', "Entretien adoucisseur d'eau"] },
+    { cle: 'debroussaillage', noms: ['Débroussaillage', 'Debroussaillement', 'Élagage'] },
+    { cle: 'travauxRemiseEtat', noms: ['Remise en état', 'Travaux remise en etat'] },
+    { cle: 'miseEnConformite', noms: ['Mise en conformité', 'Régularisation'] },
+    { cle: 'cuveCiterne', noms: ['Citerne', 'Cuve fioul', 'Cuve à mazout', 'Dégazage'] },
+    { cle: 'debarras', noms: ['Débarras', 'Encombrants'] },
+    { cle: 'attestationConformite', noms: ['Consuel', 'Attestation de conformité', 'Certificat de conformité'] },
+    { cle: 'garantieDecennale', noms: ['Décennale', 'Attestation décennale', 'Garantie decennale'] },
+    { cle: 'dommageOuvrage', noms: ['Dommage ouvrage', 'Dommages-ouvrage', 'Assurance dommage-ouvrage'] },
+    { cle: 'facturesTravaux', noms: ['Factures travaux', 'Facture des travaux', 'Travaux factures'] },
+    { cle: 'etatParasitaire', noms: ['État parasitaire', 'Mérule', 'Termites', 'Termite'] },
+    { cle: 'auditEnergetique', noms: ['Audit énergétique', 'Audit energetique'] },
+    { cle: 'securitePiscine', noms: ['Piscine', 'Sécurité piscine'] },
+    { cle: 'resiliationContrat', noms: ['Résiliation', 'Résiliation contrat'] },
+    { cle: 'offrePret', noms: ['Offre de prêt', 'OffreDePret', 'Offre de crédit', 'Offre préalable de crédit', 'Offre de contrat de prêt', 'Offre de financement', 'Accord de prêt', 'Contrat de prêt', 'Contrat de crédit immobilier'], pas: ['Décompte de remboursement éco prêt'] }
+  ];
+
+  // Pure : les lignes de la liste « Noms de fichiers reconnus » (libellé, noms, contre-exemples), dans
+  // l'ordre des pièces, plus l'avant-contrat (choisirAvantContratNas).
+  function lignesNomsReconnus() {
+    const libelles = {};
+    [...PIECES_URBANISME, ...PIECES_COPROPRIETE, ...PIECES_AUTRES, ...PIECES_TERRAIN_AUTRES, ...PIECES_ENGAGEMENTS_AUTO].forEach(p => { if (!libelles[p.cle]) libelles[p.cle] = p.label; });
+    libelles.offrePret = 'Offre de prêt';
+    return [
+      ...EXEMPLES_NOMS_PIECES.map(e => ({ label: libelles[e.cle] || e.cle, noms: e.noms, pas: e.pas || [] })),
+      { label: 'Avant-contrat signé', noms: ['Compromis', 'Compromis signé', 'Promesse de vente', 'Promesse'], pas: [] }
+    ];
+  }
+  function renderNomsReconnus() {
+    const zone = document.getElementById('reglages-noms-reconnus');
+    if (!zone) return;
+    zone.innerHTML = `<ul class="noms-reconnus">${lignesNomsReconnus().map(l => `
+      <li><span class="noms-reconnus-piece">${escapeHtml(l.label)}</span>
+        <span class="noms-reconnus-noms">${l.noms.map(n => `<code>${escapeHtml(n)}</code>`).join(' ')}${l.pas.length ? `<span class="noms-reconnus-pas">jamais : ${l.pas.map(n => `<code>${escapeHtml(n)}</code>`).join(' ')}</span>` : ''}</span></li>`).join('')}</ul>`;
+  }
 
   // Offre de prêt : même second essai que les pièces. Chaque forme exige le mot qui DIT de quel
   // document il s'agit (offre, contrat, accord) à côté de « prêt »/« crédit » : un « Décompte de

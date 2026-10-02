@@ -15472,3 +15472,23 @@ Exchange et NAS de test : état daté → « 8 - COPRO/ETAT DATE », offre → �
 téléchargé depuis une adresse réseau (URL du poste dans le script), section masquée sur localhost. Non vérifié : le `.vbs`
 et le PowerShell sur un vrai Windows (aucun Windows ici), l'icône servie par un vrai exe, une stratégie de groupe qui
 bloquerait PowerShell (le repli crée alors des raccourcis sans identifiant de fenêtre).
+
+### 02/10/2026 23:21 — Accusé de réception des documents ; liste des noms de fichiers reconnus
+Demande : « Donne-moi toutes les variantes de nom pour les fichiers à reconnaître » ; « pour un email envoyé par un client
+pour nous communiquer un document, ajouter un bouton de réponse d'envoi de l'email de confirmation de réception du document
+avec signature de l'office » (les deux premières lignes du message, déjà traitées à 23:16, ont été répétées).
+- Accusé de réception (`script.js`) : `construireEmailAccuseReception(d, email, confrere)` — objet « RE: » + objet reçu
+  (retrouvé ainsi par `correspondAuPrepare` dans les envois), documents de `documentsEmailRecu` (libellé de la pièce reconnue,
+  sinon nom du fichier, pièces écartées exclues), date de l'email ; formule confrère si `expediteurConfrere` (@notaires.fr,
+  `d.emailNotaireParticipant`, office du carnet). **Premier jet de CLAIRE**, à remplacer par le texte de l'étude.
+  `confirmerReceptionEmail` → `livrerEmailDossier` (.eml HTML + signature de l'office, ou brouillon selon le poste),
+  geste `accuseReception:<id de l'email>`, entrée d'historique. Ligne d'action « Confirmer la réception » sous chaque email
+  reçu avec documents (Préparer → « Préparé le … » → « Envoyé le … »), accusés retirés de la liste « Préparé » du haut.
+- Noms reconnus : `EXEMPLES_NOMS_PIECES` (variantes lisibles par pièce + contre-exemples), `lignesNomsReconnus`,
+  `renderNomsReconnus` (Réglages › Pièces et Claire Scan › « Noms de fichiers reconnus ») ; `tests/noms-reconnus.test.js`
+  vérifie chaque exemple (seul et complété d'un nom de client et d'une date), chaque contre-exemple, et qu'aucune pièce
+  standard ne manque.
+- `pieceDePieceJointe` : forme approchante acceptée après le motif exact (même règle que le parcours du NAS),
+  `nomDitOffrePret` pour l'offre ; `correspondancePieceNom` : « titre de séjour » n'est jamais un titre de propriété.
+Vérifié : tests ; Chromium (faux Exchange) : .eml de l'accusé adressé à l'expéditeur, objet « RE: Pièces pour la vente »,
+4 documents listés, signature ; ligne « Préparé le … » ; liste des noms affichée. Non vérifié : Outlook réel.

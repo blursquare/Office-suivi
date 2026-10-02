@@ -8428,6 +8428,7 @@ body.wizard-avance #nouveau-intro { display: none !important; }
 
 /* ---- Emails des dossiers (onglet Échanges, étude 02/10) ---- */
 .emails-dossier { margin: 14px 0; }
+.email-accuse { margin: 6px 0 0; padding: 0; list-style: none; }
 .emails-liste { list-style: none; margin: 6px 0 0; padding: 0; display: grid; }
 .email-ligne { padding: 8px 0; border-top: 1px solid var(--line-soft); display: grid; gap: 3px; font-size: 13.5px; min-width: 0; }
 .email-ligne:first-child { border-top: 0; }
@@ -8446,3 +8447,13 @@ body.wizard-avance #nouveau-intro { display: none !important; }
 select.email-pj-ranger { font-size: 12.5px; padding: 3px 6px; max-width: 220px; }
 .emails-boites { list-style: none; margin: 4px 0 8px; padding: 0; display: grid; gap: 6px; }
 .emails-boite { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 12px; font-size: 13.5px; }
+
+/* Réglages › Pièces et Claire Scan › Noms de fichiers reconnus */
+.noms-reconnus { list-style: none; margin: 0; padding: 0; }
+.noms-reconnus li { display: grid; grid-template-columns: minmax(150px, 230px) 1fr; gap: 4px 14px; padding: 8px 0; border-bottom: 1px solid var(--line-soft); }
+.noms-reconnus li > * { min-width: 0; }
+.noms-reconnus-piece { font-weight: 600; font-size: 13px; }
+.noms-reconnus-noms { display: flex; flex-wrap: wrap; gap: 4px; align-items: baseline; font-size: 12px; }
+.noms-reconnus-noms code { background: var(--paper-sunk); color: var(--ink); border-radius: 4px; padding: 1px 6px; font-family: inherit; }
+.noms-reconnus-pas { flex-basis: 100%; color: var(--muted); }
+@media (max-width: 600px) { .noms-reconnus li { grid-template-columns: 1fr; } }

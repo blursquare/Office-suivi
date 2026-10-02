@@ -154,7 +154,10 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
    (`pieceDePieceJointe`, mêmes motifs et exclusions que le NAS) → rubrique de la pièce (`rubriquesPourPiece` + 
    `RUBRIQUES_PIECES_HORS_SCAN`), cochée reçue ; sinon (`pieceJointeRangeeSeule` : PDF/Word/Excel, photo ≥ 30 Ko, jamais
    « image001 ») sous son nom, sous-dossier deviné du nom (`RUBRIQUES_NOM_PIECE_JOINTE`, identité/RIB → Vendeur ou Acquéreur
-   par l'expéditeur, `rubriquesPieceJointe`), sinon racine ; « Ranger… » reste pour corriger (pièce choisie, ou écartée). Réglages › Agenda et Outlook › Emails des dossiers : état
+   par l'expéditeur, `rubriquesPieceJointe`), sinon racine ; « Ranger… » reste pour corriger (pièce choisie, ou écartée).
+   **Accusé de réception** (étude 02/10) : « Confirmer la réception » sous chaque email reçu avec documents
+   (`construireEmailAccuseReception`, RE: + objet, documents listés, signature de l'office, formule confrère par
+   `expediteurConfrere` ; geste `accuseReception:<id>`, suivi préparé → envoyé) — premier jet de CLAIRE. Réglages › Agenda et Outlook › Emails des dossiers : état
    de chaque boîte, interrupteur, « Lire maintenant ». Clé `emails-dossiers` (3 000 emails, 500 préparés).
 6. **Secrets** (mot de passe SMTP, clés API Mistral/Anthropic, mot de passe Exchange, jeton GitHub
    de mise à jour) : stockés en base, **jamais renvoyés par une route** (remplacés par un booléen
@@ -218,6 +221,9 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
   (`garantiesPretAffichees`), jamais un blanc.
 - **Pièces du dossier** : reconnues **par le nom de fichier seulement** (`motifNom` +
   formes tolérantes `FORMES_NOM_PIECES`), jamais par le contenu (le compromis cite toutes les pièces).
+  **Liste des noms reconnus** : `EXEMPLES_NOMS_PIECES` (Réglages › Pièces et Claire Scan), vérifiée par
+  `tests/noms-reconnus.test.js` — tout changement de `motifNom`/`FORMES_NOM_PIECES` s'y reflète. « Titre de séjour » n'est
+  jamais un titre de propriété.
   Une pièce validée à la main (`piecesValideesManuellement`) n'est jamais repassée en manquante.
   Une exclusion (« Réinitialiser ») est globale et stockée en base — elle est la première cause
   d'une pièce « jamais reconnue » malgré un nom correct.

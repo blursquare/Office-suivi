@@ -73,3 +73,26 @@ test('estAdresseLocale : le poste serveur (localhost) n’a pas besoin de l’in
   assert.equal(app.estAdresseLocale('127.0.0.1'), true);
   assert.equal(app.estAdresseLocale('192.168.60.10'), false);
 });
+
+// Étude 02/10 : accusé de réception d'un email du client qui nous transmet des documents.
+test('construireEmailAccuseReception : RE: objet, documents listés, formule client ou confrère', () => {
+  const d = { nom: 'MARTEL / FAURE' };
+  const email = { objet: 'Pièces pour la vente', date: '2026-10-01T08:30:00Z', de: { adresse: 'l.faure@exemple.fr' },
+    pj: [{ nom: 'Etat date.pdf', rangee: { pieceLabel: 'État daté' } }, { nom: 'scan_0042.pdf' }, { nom: 'logo.png', ignoree: true }] };
+  const c = app.construireEmailAccuseReception(d, email, false);
+  assert.equal(c.sujet, 'RE: Pièces pour la vente');
+  assert.match(c.corps, /^Bonjour,/);
+  assert.match(c.corps, /accusons bonne réception des documents que vous nous avez transmis le 1 octobre 2026 :\n- État daté\n- scan_0042/);
+  assert.doesNotMatch(c.corps, /logo/);
+  const un = app.construireEmailAccuseReception(d, { ...email, objet: 'RE: Offre', pj: [{ nom: 'Offre de pret.pdf' }] }, true);
+  assert.equal(un.sujet, 'RE: Offre');
+  assert.match(un.corps, /accuse bonne réception du document transmis \(Offre de pret\)\./);
+  assert.doesNotMatch(un.corps, /Bonjour/);
+});
+
+test('expediteurConfrere : notaires.fr, notaire participant, office du carnet', () => {
+  assert.equal(app.expediteurConfrere({}, 'office.dupont@notaires.fr', []), true);
+  assert.equal(app.expediteurConfrere({ emailNotaireParticipant: 'clerc@etude-exemple.fr' }, 'Clerc@etude-exemple.fr', []), true);
+  assert.equal(app.expediteurConfrere({}, 'accueil@scp-exemple.fr', [{ email: 'accueil@scp-exemple.fr' }]), true);
+  assert.equal(app.expediteurConfrere({}, 'l.faure@exemple.fr', []), false);
+});
