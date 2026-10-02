@@ -14616,3 +14616,13 @@ signature chez Mozilla) : `prixAuthentic` lit aussi « Capital » puis le montan
 dates, montants, emails, téléphones → leur type ; mot à majuscule masqué sauf `VOCABULAIRE_AUTHENTIC`, sigle, ou
 premier mot suivi d'un mot en minuscules — un mot seul sur sa ligne peut être un nom). « Retour le <date> » explicite :
 prise en compte de la SAFER, retour de la RHF (la 2e date de la ligne reste le repli).
+
+### 02/10/2026 11:51 — Authentic : pas de pièces d'urbanisme pour une vente, sauf la SAFER
+
+Demande de l'étude : « pour les dossiers de vente ne pas prendre en compte les pièces d'urbanisme sauf la safer ».
+`pieceUrbanismeIgnoreeAuthentic(cle, typeAffaire)` : pour tout dossier qui n'est pas une succession, les pièces de
+`PIECES_URBANISME` (certificat d'urbanisme, alignement, numérotage, courrier assainissement, renonciation au droit de
+préemption) ne sont jamais cochées depuis Authentic — pages relevées (`piecesRecuesAuthentic`) comme export ZIP
+(`piecesExportAuthentic`). La « Réponse SAFER » reste reprise. Au passage, une ligne SAFER est désormais lue AVANT la
+checklist : « Réponse SAFER — non préemption » aurait sinon coché la renonciation au droit de préemption urbain (son motif
+de nom contient « préemption »). Rien ne change pour le NAS ni pour la validation à la main.

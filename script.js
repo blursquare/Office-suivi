@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-02 11:32';
+  const VERSION_APP = '2026-10-02 11:51';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-02 11:51', resume: "Authentic, dossiers de vente : les pièces d'urbanisme (certificat d'urbanisme, alignement, numérotage, assainissement, renonciation au droit de préemption) ne sont plus reprises d'Authentic — elles se cochent par le NAS ou à la main. Seule la réponse SAFER l'est encore. Même règle pour l'import d'un export ZIP." },
     { version: '2026-10-02 11:32', resume: "Authentic : « Informations financières » (Capital) et « Parties prenantes » (collaborateur, notaire) sont aussi lues quand elles s'affichent en texte seul, sous les vendeurs et acquéreurs. « Copier la structure » inclut désormais le texte visible réduit à son vocabulaire (noms, dates, montants et coordonnées masqués). « Retour le … » : date de prise en compte de la SAFER, date de retour de la réquisition hors formalité." },
     { version: '2026-10-02 11:26', resume: "Authentic (suite) : une SAFER notifiée sans réponse ajoute « Réponse SAFER » aux pièces manquantes, avec sa date de notification et de prise en compte, puis la coche à la non-préemption. L'onglet Pièces montre « Dans Authentic » : état de l'acte (pas encore rédigé, en cours de rédaction, signé), réquisition hors formalité (envoyée, retour), SAFER, prix (Capital — repris sur la fiche s'il manque), collaborateur et notaire des parties prenantes. Fiches client : téléphone, email et situation matrimoniale (régime, conjoint) ; alerte si un vendeur marié ou pacsé vend sans son conjoint (résidence de la famille). Livret de famille et acte de décès seulement pour une succession." },
     { version: '2026-10-02 11:01', resume: "Authentic, avec l'extension Firefox 0.3.0 : chaque page d'Authentic affichée est relevée automatiquement. Page de gestion d'un dossier : les pièces reçues sont cochées « dans Authentic » sur la fiche CLAIRE du même dossier (un acte de naissance, de mariage ou de décès et une réponse SAFER de non-préemption sont ajoutés aux pièces) ; une demande ou une pièce en attente ne compte jamais. Fiches client et fiches bien : « Nouveau dossier » › « Depuis Authentic » crée le dossier pré-rempli (vendeurs, acquéreurs, bien, cadastre, téléphones, emails, pièces présentes)." },
@@ -10244,11 +10245,20 @@
   // Pièces de la checklist présentes dans Authentic, reconnues par le nom de leur fichier ou leur
   // intitulé (même règle que sur le NAS : jamais par le contenu). Une pièce = une ligne, avec le
   // document qui la porte. Pure.
+  // Pièces d'urbanisme (certificat d'urbanisme, alignement, numérotage, assainissement, renonciation
+  // au droit de préemption) : jamais reprises d'Authentic pour une vente (étude, 02/10 : « ne pas
+  // prendre en compte les pièces d'urbanisme sauf la SAFER ») — elles se cochent par le NAS ou à la main.
+  function pieceUrbanismeIgnoreeAuthentic(cle, typeAffaire) {
+    return typeAffaire !== 'succession' && PIECES_URBANISME.some(p => p.cle === cle);
+  }
+
   function piecesExportAuthentic(donnees, checklist) {
     const docs = ((donnees && donnees.documents) || []).concat((donnees && donnees.documentsPersonnes) || []);
+    const typeAffaire = typeAffaireAuthentic(donnees || {});
     const trouvees = [];
     for (const piece of checklist || []) {
       if (!piece || !piece.cle || trouvees.some(t => t.cle === piece.cle)) continue;
+      if (pieceUrbanismeIgnoreeAuthentic(piece.cle, typeAffaire)) continue;
       const doc = docs.find(dc => [dc.nomFichier, dc.intitule].filter(Boolean)
         .some(n => correspondancePieceNom(piece, normaliserNomPourMotif(/\.[a-z0-9]{2,4}$/i.test(n) ? n : n + '.pdf')) === 'exact'));
       if (doc) trouvees.push({ cle: piece.cle, label: piece.label, fichier: doc.nomFichier || doc.intitule });
@@ -25561,14 +25571,18 @@
     const ajouter = (o) => { if (!resultat.some(r => r.cle === o.cle)) resultat.push(o); };
     (lignes || []).filter(ligneAuthenticRecue).forEach(l => {
       const nom = normaliserNomPourMotif(l.titre + '.pdf');
-      const piece = liste.find(p => p && p.cle && correspondancePieceNom(p, nom) === 'exact');
-      if (piece) { ajouter({ cle: piece.cle, label: piece.label, nouvelle: false, date: l.date, titre: l.titre }); return; }
-      if (/safer/i.test(l.texte) && RE_SAFER_NON_PREEMPTION.test(normaliserPourRecherche(l.texte))) {
+      // La SAFER d'abord : « Réponse SAFER — non préemption » ne doit jamais passer pour la
+      // renonciation au droit de préemption (urbain) de la checklist.
+      if (/safer/i.test(l.texte)) {
+        if (!RE_SAFER_NON_PREEMPTION.test(normaliserPourRecherche(l.texte))) return;
         const existante = liste.find(p => p.personnalisee && /safer/i.test(p.label));
         ajouter(existante ? { cle: existante.cle, label: existante.label, nouvelle: false, date: l.date, titre: l.titre }
           : { cle: 'perso-safer', label: 'Réponse SAFER', nouvelle: true, date: l.date, titre: l.titre });
         return;
       }
+      const piece = liste.find(p => p && p.cle && correspondancePieceNom(p, nom) === 'exact');
+      if (piece && pieceUrbanismeIgnoreeAuthentic(piece.cle, typeAffaire)) return;
+      if (piece) { ajouter({ cle: piece.cle, label: piece.label, nouvelle: false, date: l.date, titre: l.titre }); return; }
       if (reEtatCivil.test(l.titre)) {
         const label = l.titre.slice(0, 90);
         const cleLabel = normaliserPourRecherche(label);

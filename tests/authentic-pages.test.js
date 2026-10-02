@@ -83,7 +83,8 @@ test('piecesRecuesAuthentic : pièce de la checklist, acte de naissance et répo
   assert.equal(lignes.length, 5);
   const r = app.piecesRecuesAuthentic(lignes, app.checklistPieces('maison'));
   const cles = r.map(x => x.cle).join(',');
-  assert.ok(cles.includes('certificatUrbanisme'), cles);
+  // Vente : pièces d'urbanisme jamais reprises d'Authentic, sauf la SAFER (étude, 02/10).
+  assert.ok(!cles.includes('certificatUrbanisme'), cles);
   assert.ok(!cles.includes('renonciationPreemption'), 'DIA en attente : non reçue');
   const safer = r.find(x => x.cle === 'perso-safer');
   assert.equal(safer.label, 'Réponse SAFER');
@@ -92,9 +93,13 @@ test('piecesRecuesAuthentic : pièce de la checklist, acte de naissance et répo
   const naissance = r.find(x => /naissance/i.test(x.label));
   assert.equal(naissance.nouvelle, true);
   assert.equal(naissance.date, '2026-09-03');
-  // Une seule entrée par pièce : la demande de CU ne compte pas, le CU reçu oui.
-  assert.equal(r.filter(x => x.cle === 'certificatUrbanisme').length, 1);
-  assert.equal(r.find(x => x.cle === 'certificatUrbanisme').date, '2026-09-20');
+  // Succession : le CU reçu compte, une seule fois (la demande de CU ne compte pas).
+  const succ = app.piecesRecuesAuthentic(lignes, app.checklistPieces('maison'), 'succession');
+  assert.equal(succ.filter(x => x.cle === 'certificatUrbanisme').length, 1);
+  assert.equal(succ.find(x => x.cle === 'certificatUrbanisme').date, '2026-09-20');
+  // « Réponse SAFER — non préemption » n'est jamais la renonciation au droit de préemption urbain.
+  const rs = app.piecesRecuesAuthentic([{ titre: 'Réponse SAFER non préemption', date: '2026-09-25', etat: 'Reçu', texte: 'Réponse SAFER non préemption · 25/09/2026 · Reçu' }], app.checklistPieces('maison'), 'succession');
+  assert.equal(rs.map(x => x.cle).join(','), 'perso-safer');
   // Notification SAFER sans non-préemption : rien.
   const sansDecision = app.piecesRecuesAuthentic([{ titre: 'Notification SAFER', date: '2026-09-10', etat: '', texte: 'Notification SAFER · 10/09/2026' }], []);
   assert.equal(sansDecision.length, 0);
@@ -143,12 +148,17 @@ test('dossiersDepuisRelevesAuthentic : pages regroupées par dossier ; parties r
   assert.equal(parties.map(p => `${p.nom}:${p.role}`).join(','), 'Alexandre MARTEL:VENDEUR,Camille FOURNIER:ACQUEREUR');
   assert.equal(parties[1].telephones.length, 2);
   assert.equal(app.bienExportAuthentic(ex).type, 'maison');
-  // Pièces présentes : celles de la page de gestion (le CU reçu, pas la demande).
-  assert.ok(app.piecesExportAuthentic(ex, app.checklistPieces('maison')).some(p => p.cle === 'certificatUrbanisme'));
+  // Pièces présentes : vente → jamais une pièce d'urbanisme.
+  assert.ok(!app.piecesExportAuthentic(ex, app.checklistPieces('maison')).some(p => p.cle === 'certificatUrbanisme'));
 });
 
 test('piecesAuthenticAAppliquer : une fois par pièce, jamais déjà reçue ni retirée, jamais en participation', () => {
-  const d = { id: 'a', nom: 'MARTEL / FOURNIER', typeVente: 'maison', pieces: {}, historique: [] };
+  // Vente : la SAFER et l'acte de naissance, jamais le certificat d'urbanisme.
+  const v = { id: 'v', nom: 'MARTEL / FOURNIER', typeVente: 'maison', pieces: {}, historique: [] };
+  const clesVente = app.piecesAuthenticAAppliquer(v, gestion).map(p => p.cle);
+  assert.ok(clesVente.includes('perso-safer') && !clesVente.includes('certificatUrbanisme'), clesVente.join(','));
+  // Succession : le certificat d'urbanisme compte (règles de reprise vérifiées sur lui).
+  const d = { id: 'a', nom: 'MARTEL / FOURNIER', typeVente: 'maison', typeAffaire: 'succession', pieces: {}, historique: [] };
   const cles = app.piecesAuthenticAAppliquer(d, gestion).map(p => p.cle);
   assert.ok(cles.includes('certificatUrbanisme') && cles.includes('perso-safer'), cles.join(','));
   // Déjà reprise une fois (puis décochée par l'étude) : plus reprise.

@@ -228,9 +228,12 @@ test('pièces de la checklist reconnues par le nom des documents de l’export',
   const d = app.lireExportAuthentic(DATA_XML);
   const pieces = app.piecesExportAuthentic(d, app.checklistPieces('maison'));
   const cles = pieces.map(p => p.cle).join(',');
-  assert.ok(cles.includes('renonciationPreemption'), cles);
-  assert.ok(cles.includes('certificatUrbanisme'), cles);
-  assert.strictEqual(pieces.find(p => p.cle === 'renonciationPreemption').fichier, 'Renonciation au DPU.pdf');
+  // Vente : les pièces d'urbanisme ne sont jamais reprises d'Authentic (étude, 02/10).
+  assert.ok(!cles.includes('renonciationPreemption') && !cles.includes('certificatUrbanisme'), cles);
+  // Succession : reprises.
+  const succ = app.piecesExportAuthentic(Object.assign({}, d, { intitule: 'SUCC DURAND' }), app.checklistPieces('maison')).map(p => p.cle).join(',');
+  assert.ok(succ.includes('renonciationPreemption') && succ.includes('certificatUrbanisme'), succ);
+  assert.strictEqual(app.piecesExportAuthentic(Object.assign({}, d, { intitule: 'SUCC DURAND' }), app.checklistPieces('maison')).find(p => p.cle === 'renonciationPreemption').fichier, 'Renonciation au DPU.pdf');
 });
 
 test('Word de l’acte : texte par paragraphe, codes de fusion d’Authentic retirés', () => {
