@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-02 15:16';
+  const VERSION_APP = '2026-10-02 15:22';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-02 15:22', resume: "Fiche : l'apport s'affiche sans signe moins (« Apport 20.323,00 € (10 %) ») ; quand le prêt dépasse le prix, la pastille reste rouge et la bulle le dit." },
     { version: '2026-10-02 15:16', resume: "Notaire en second (participation) : l'état de rédaction de l'acte relevé dans Authentic (« En cours de rédaction », « Pas encore rédigé ») n'est plus affiché ni noté dans l'historique ; seul « Acte signé » reste." },
     { version: '2026-10-02 15:11', resume: "Widget Statistiques : les délais (prêt, préemption, signature) se comptent depuis la signature de l'avant-contrat, et les dossiers du mois au mois de l'avant-contrat (« Avant-contrats signés ») — à défaut de date, depuis l'ouverture dans CLAIRE. La date de l'avant-contrat est désormais gardée sur la fiche (« Avant-contrat signé le », modifiable) : lue à la création, relue dans l'avant-contrat du NAS pour les dossiers existants, reprise de la page du dossier dans Authentic." },
     { version: '2026-10-02 15:05', resume: "Add-on Authentic : les pages relevées sont appliquées en arrière-plan, dans la seconde, même quand la fenêtre CLAIRE est cachée ou réduite (le navigateur ne la réveillait plus qu'une fois par minute : il fallait la regarder pour voir la fiche se mettre à jour). Il suffit qu'une fenêtre CLAIRE soit ouverte quelque part — celle du serveur suffit." },
@@ -16041,7 +16042,9 @@
     const financement = d.sansPret
       ? `<span class="dot-label dl-pret" title="Achat comptant, sans prêt">${icone('banknote')}Comptant</span>`
       : apport
-        ? `<span class="prop-texte" title="Prêt de ${escapeAttr(formaterPrix(d.montantPret))}"><span class="apport-cercle apport-${apport.niveau}"></span> Apport ${formaterPrix(apport.montant)} (${apport.pourcentage} %)</span>`
+        // Jamais de signe « - » (étude, 02/10) : un prêt supérieur au prix reste signalé par la pastille
+        // rouge et dit dans la bulle.
+        ? `<span class="prop-texte" title="Prêt de ${escapeAttr(formaterPrix(d.montantPret))}${apport.montant < 0 ? ` : il dépasse le prix de ${escapeAttr(formaterPrix(-apport.montant))}` : ''}"><span class="apport-cercle apport-${apport.niveau}"></span> Apport ${formaterPrix(Math.abs(apport.montant))} (${Math.abs(apport.pourcentage)} %)</span>`
         : `<span class="dot-label ${offre.dl}" title="Prêt — statut de l’offre"><span class="dot"></span>Offre ${offre.texte.toLowerCase()}</span>`;
 
     // Groupe 3 — les notaires. Le bouton « Reçoit l'acte » EST le contrôle (voir

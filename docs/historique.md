@@ -14923,3 +14923,9 @@ du dossier ».
 'participant'`, `lignesAuthenticDossier` ne montre plus « Acte de vente : En cours de rédaction / Pas encore rédigé »
 et `appliquerReleveSurDossier` ne le note plus dans l'historique ; « Acte signé » reste (il marque les échéances
 faites). L'état reste gardé dans `d.authentic.acte` (réapparaît si le dossier repasse en instrumentaire).
+
+### 02/10/2026 après-midi — Apport sans signe moins
+
+Étude : « Apport -20.323,00 € (-10 %) : ne pas mettre de moins devant ». La ligne Financement de la fiche montre la
+valeur absolue (montant et pourcentage) ; un prêt supérieur au prix garde la pastille rouge (`apport-urgent`) et la
+bulle précise « il dépasse le prix de … ». `calculerApport` inchangé (le signe sert au niveau).
