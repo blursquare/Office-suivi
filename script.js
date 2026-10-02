@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-02 11:54';
+  const VERSION_APP = '2026-10-02 11:58';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-02 11:58', resume: "Authentic : un acte « signé le … » dans Authentic marque la signature comme faite sur la fiche, avec toutes les étapes d'avant (vente préalable, prêt, appel de fonds, projet, date butoir) — plus rien au planning ni aux rappels ; chaque validation reste annulable sur la fiche." },
     { version: '2026-10-02 11:54', resume: "Authentic : seules les pièces qui arrivent vraiment dans Authentic sont reprises de la page du dossier — actes d'état civil, casiers judiciaires et réponse SAFER ; le reste (urbanisme, diagnostics…) arrive par email ou courrier et n'est jamais coché depuis Authentic. « Signé le … » sur la page du dossier fait passer l'acte en « signé » (sauf avant-contrat, procuration, mandat, courrier…)." },
     { version: '2026-10-02 11:51', resume: "Authentic, dossiers de vente : les pièces d'urbanisme (certificat d'urbanisme, alignement, numérotage, assainissement, renonciation au droit de préemption) ne sont plus reprises d'Authentic — elles se cochent par le NAS ou à la main. Seule la réponse SAFER l'est encore. Même règle pour l'import d'un export ZIP." },
     { version: '2026-10-02 11:32', resume: "Authentic : « Informations financières » (Capital) et « Parties prenantes » (collaborateur, notaire) sont aussi lues quand elles s'affichent en texte seul, sous les vendeurs et acquéreurs. « Copier la structure » inclut désormais le texte visible réduit à son vocabulaire (noms, dates, montants et coordonnées masqués). « Retour le … » : date de prise en compte de la SAFER, date de retour de la réquisition hors formalité." },
@@ -25972,7 +25973,7 @@
   //  - fiche client : téléphones et email de la partie s'ils manquent, situation matrimoniale.
   // Chaque fait nouveau entre une fois dans l'historique. → { pieces, textes, modifie }
   function appliquerReleveSurDossier(d, capture, maintenantIso) {
-    const resultat = { pieces: [], textes: [], modifie: false };
+    const resultat = { pieces: [], textes: [], modifie: false, echeancesFaites: [] };
     if (!d || !capture) return resultat;
     const maintenant = maintenantIso || new Date().toISOString();
     const noter = (texte) => { resultat.textes.push(texte); d.historique = d.historique || []; d.historique.push({ date: maintenant, texte }); };
@@ -26037,6 +26038,18 @@
     if (nouveau('safer', 'notifieeLe')) noter(`SAFER notifiée le ${formatDateFr(apres.safer.notifieeLe)} (Authentic)`);
     if (nouveau('safer', 'priseEnCompteLe')) noter(`Notification SAFER prise en compte le ${formatDateFr(apres.safer.priseEnCompteLe)} (Authentic)`);
     if (nouveau('safer', 'decision') && apres.safer.decision === 'preemption') noter(`SAFER : préemption exercée${apres.safer.decisionLe ? ` (${formatDateFr(apres.safer.decisionLe)})` : ''} — à vérifier dans Authentic`);
+    // Acte signé dans Authentic (étude, 02/10 : « marque-le comme fait ») : la signature et toutes
+    // les étapes qui la précèdent sont faites — plus rien au planning ni aux rappels. Une seule fois,
+    // au passage à « signé » ; chaque validation reste annulable sur la fiche.
+    if (nouveau('acte', 'etat') && apres.acte.etat === 'signe') {
+      d.echeancesValidees = d.echeancesValidees || {};
+      ['ventebien', 'pret', 'appelFonds', 'projetEnvoye', 'rendezVousSignature', 'acte'].forEach(type => {
+        if (echeanceValidee(d, type)) return;
+        d.echeancesValidees[type] = true;
+        resultat.echeancesFaites.push(type);
+      });
+      if (resultat.echeancesFaites.length) noter(`Signature de l’acte marquée réalisée (acte signé dans Authentic${apres.acte.date ? ` le ${formatDateFr(apres.acte.date)}` : ''})`);
+    }
     if (apres.prix && !(Number(d.prixVente) > 0)) {
       d.prixVente = apres.prix;
       noter(`Prix de vente repris d’Authentic (Capital) : ${formaterPrix(apres.prix)}`);
@@ -26077,6 +26090,10 @@
     if (!r.modifie) return 0;
     await sauvegarder(d);
     render();
+    // Comme une validation à la main : les dates butoir levées quittent l'agenda.
+    r.echeancesFaites.filter(t => t === 'pret' || t === 'ventebien').forEach(t => {
+      Promise.resolve().then(() => synchroniserEcheanceAgenda(d, t, false)).catch(() => { /* agenda facultatif */ });
+    });
     const cles = r.pieces.map(p => p.cle);
     if (cles.length) {
       try { notifierNouvellesPiecesTrouvees(d, cles); } catch (e) { /* notification facultative */ }

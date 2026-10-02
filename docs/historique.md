@@ -14641,3 +14641,12 @@ sans l'urbanisme pour une vente. `etatActeAuthentic` : « signé le JJ/MM/AAAA �
 n'importe quelle ligne de la page → acte signé avec sa date, sauf ligne citant un autre document
 (`RE_AUTRE_DOCUMENT_SIGNE_AUTHENTIC` : compromis, promesse, avant-contrat, procuration, mandat, offre, courrier, lettre,
 demande, attestation, convention, pouvoir, avenant…). Rien d'autre ne change sur la fiche (ni archivage ni rendez-vous).
+
+### 02/10/2026 11:58 — Authentic : acte signé = signature marquée faite
+
+Étude : « marque-le comme fait ». Dans `appliquerReleveSurDossier`, au passage de l'acte à « signé » (une seule fois),
+chaque échéance pas encore validée parmi ventebien, pret, appelFonds, projetEnvoye, rendezVousSignature et acte passe
+dans `d.echeancesValidees` (`resultat.echeancesFaites`) — le planning (et son miroir serveur des rappels) ne propose plus
+rien ; historique « Signature de l'acte marquée réalisée (acte signé dans Authentic le …) ». Comme une validation à la
+main, les dates butoir prêt/vente préalable levées sont retirées de l'agenda (`synchroniserEcheanceAgenda(d, t, false)`).
+Chaque validation reste annulable sur la fiche ; rien n'est archivé, aucune date de rendez-vous n'est inventée.

@@ -390,4 +390,16 @@ test('« signé le … » sur la page du dossier : acte signé ; jamais pour l�
   app.appliquerReleveSurDossier(d, { champs: [], tableaux: [], texte: '12 - Vente MARTEL/FOURNIER\nSigné le 30/09/2026' });
   assert.equal(d.authentic.acte.etat, 'signe');
   assert.ok(d.historique.some(h => h.texte === 'Acte dans Authentic : Acte signé le 30 septembre 2026'), d.historique.map(h => h.texte).join('\n'));
+  // « Marque-le comme fait » : signature et étapes d'avant faites, plus rien au planning.
+  assert.equal(d.echeancesValidees.rendezVousSignature, true);
+  assert.equal(d.echeancesValidees.appelFonds, true);
+  assert.ok(d.historique.some(h => /^Signature de l’acte marquée réalisée \(acte signé dans Authentic le 30 septembre 2026\)$/.test(h.texte)));
+  const avecDates = { id: 'b', nom: 'MARTEL / FOURNIER', typeVente: 'maison', pieces: {}, historique: [], pret: '2026-09-01', acte: '2026-10-15', rendezVousSignature: '2026-09-30', offrePretStatut: 'recue' };
+  assert.ok(app.echeancesPlanning(avecDates).length > 0);
+  app.appliquerReleveSurDossier(avecDates, { champs: [], tableaux: [], texte: 'Signé le 30/09/2026' });
+  assert.equal(app.echeancesPlanning(avecDates).length, 0);
+  // Relu : rien de plus.
+  const n = avecDates.historique.length;
+  app.appliquerReleveSurDossier(avecDates, { champs: [], tableaux: [], texte: 'Signé le 30/09/2026' });
+  assert.equal(avecDates.historique.length, n);
 });
