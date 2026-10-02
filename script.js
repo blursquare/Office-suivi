@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-02 12:07';
+  const VERSION_APP = '2026-10-02 12:15';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-02 12:15', resume: "Authentic : le dossier CLAIRE est retrouvé par un score — noms du vendeur et de l'acquéreur, puis adresse du bien (rubrique « Immeubles » de la page : code postal, commune, voie, numéro). Deux ventes en cours avec les mêmes noms sont départagées par l'adresse ; une adresse qui ne correspond pas écarte le dossier ; à égalité, rien n'est choisi." },
     { version: '2026-10-02 12:07', resume: "Authentic : une ligne d'état civil précédée de « APR » (demande envoyée par papier) n'est jamais cochée ; « ECV » (état civil virtuel) l'est, et la pièce prend l'intitulé sans « ECV »." },
     { version: '2026-10-02 12:06', resume: "Suivi : un acte signé (signé dans Authentic, ou signature marquée faite) affiche « Signé le … » en vert à la place de la date, et « Acte signé » dans la colonne Échéance — vues Échéances et Tableau, archivés compris. Vue Échéances : les dossiers signés ont leur section « Signés » (le plus récent d'abord), avant « Sans échéance datée »." },
     { version: '2026-10-02 12:03', resume: "Authentic : un dossier noté « Consorts » (ou « consort », « CONSORTS ») devant le vendeur ou l'acquéreur est reconnu — « Vente Consorts MARTEL/FOURNIER » retrouve la fiche « MARTEL / FOURNIER », et inversement." },
@@ -25567,24 +25568,109 @@
     return '';
   }
 
-  // Pure : le dossier CLAIRE de cet intitulé — mêmes noms des deux côtés de la barre, un seul
-  // dossier (en cours de préférence) ; sinon null (jamais deviné).
-  function dossierPourIntituleAuthentic(intitule, liste) {
+  // ---- Rapprochement d'un dossier Authentic avec CLAIRE : un score (étude, 02/10 : « comparer nom des
+  // parties et adresse du bien vendu, au cas où il y ait deux ventes en même temps ») ----
+  // Noms : 3 points par côté quand les mots du nom sont les mêmes (« consort(s) », « et », « époux »…
+  // ignorés), 2 si l'un contient l'autre (« MARTEL » ↔ « MARTEL ET DURAND »), cherchés dans le nom du
+  // dossier puis dans ses parties. Adresse du bien (« Immeubles » de la page) : code postal 1, commune
+  // 1, voie 3, numéro 1 ; une adresse qui ne correspond pas (autre voie ou autre code postal, les deux
+  // connues) retire des points. Retenu : 6 points au moins (les deux noms, ou un nom et la voie), avec
+  // 2 points d'avance sur le suivant — sinon rien (jamais deviné). Un dossier archivé ne compte que si
+  // aucun dossier en cours n'est retenu.
+  var MOTS_IGNORES_NOM_AUTHENTIC = new Set(['consort', 'consorts', 'et', 'epoux', 'm', 'mme', 'mr', 'monsieur', 'madame', 'les', 'indivision', 'succession', 'sci', 'de', 'du', 'des', 'la', 'le']);
+  var MOTS_IGNORES_ADRESSE_AUTHENTIC = new Set(['rue', 'route', 'avenue', 'av', 'chemin', 'allee', 'allees', 'impasse', 'place', 'boulevard', 'bd', 'quai', 'cours', 'lieu', 'dit', 'lieudit', 'lotissement', 'residence', 'hameau', 'square', 'passage', 'sentier', 'rte', 'ch', 'imp', 'pl', 'de', 'du', 'des', 'la', 'le', 'les', 'l', 'd', 'a', 'au', 'aux', 'en', 'et', 'sur', 'sous', 'bis', 'ter', 'cedex', 'france']);
+
+  function motsNomAuthentic(s) {
+    return normaliserPourRecherche(String(s || '')).replace(/[^a-z0-9]+/g, ' ').trim().split(' ')
+      .filter(m => m && m.length > 1 && !MOTS_IGNORES_NOM_AUTHENTIC.has(m));
+  }
+
+  // Pure : { codePostal, commune: [mots], voie: [mots], numero } d'une adresse en texte libre.
+  function elementsAdresseAuthentic(texte) {
+    const brut = normaliserPourRecherche(String(texte || '')).replace(/[^a-z0-9]+/g, ' ').trim();
+    if (!brut) return null;
+    const cp = (/(?:^|\s)(\d{5})(?=\s|$)/.exec(brut) || [])[1] || '';
+    const mots = brut.split(' ').filter(m => m && m !== cp);
+    const numero = (mots.find(m => /^\d{1,4}$/.test(m)) || '');
+    const utiles = mots.filter(m => !/^\d+$/.test(m) && m.length > 1 && !MOTS_IGNORES_ADRESSE_AUTHENTIC.has(m));
+    return { codePostal: cp, numero, mots: utiles };
+  }
+
+  // Pure : l'adresse du (des) bien(s) affichée sur la page du dossier, rubrique « Immeubles (n) ».
+  function adresseBienPageAuthentic(capture) {
+    const c = capture || {};
+    const sources = [c.texte || ''].concat((c.champs || []).map(ch => (ch.libelle || '') + ' ' + (ch.valeur || '')));
+    for (const src of sources) {
+      const m = /Immeubles?\s*\(\d+\)\s*/i.exec(String(src));
+      if (!m) continue;
+      let suite = String(src).slice(m.index + m[0].length, m.index + m[0].length + 240);
+      const fin = /\n\s*(?:Documents?|Parties|Informations|Comparants|Notes?|Rechercher|Filtrer|Mod[eè]le|Importer|Pi[eè]ces)/i.exec(suite);
+      if (fin) suite = suite.slice(0, fin.index);
+      suite = suite.replace(/\s+/g, ' ').trim();
+      if (suite) return suite;
+    }
+    return '';
+  }
+
+  function texteAdresseDossierAuthentic(d) {
+    const a = (d && d.bien && d.bien.adresse) || {};
+    return [d && d.adresseBien, a.adresseComplete, a.numero, a.typeVoie, a.nomVoie, a.lieuDit, a.codePostal, a.commune].filter(Boolean).join(' ');
+  }
+
+  // Pure : score d'un dossier CLAIRE pour un intitulé (« Vente X / Y ») et une adresse de bien.
+  // → { score, nomsTrouves, details: [texte] }
+  function scoreDossierAuthentic(intitule, adresse, d) {
+    const r = { score: 0, nomsTrouves: 0, details: [] };
     const m = /^\s*(?:vte|vente)\s+(.+?)\s*\/\s*(.+?)\s*$/i.exec(intitule || '');
-    if (!m) return null;
-    // « Consorts » / « consort » devant un nom (étude, 02/10) ne compte pas : « Vente Consorts
-    // MARTEL/FOURNIER » est le dossier « MARTEL / FOURNIER », et inversement.
-    const cle = (a, b) => [a, b].map(x => normaliserPourRecherche(x).replace(/[^a-z0-9]+/g, ' ')
-      .replace(/(?:^|\s)consorts?(?=\s|$)/g, ' ').replace(/\s+/g, ' ').trim()).join('/');
-    const voulu = cle(m[1], m[2]);
-    const candidats = (liste || []).filter(d => {
-      if (!d || d.deleted) return false;
-      const n = /^\s*(.+?)\s*\/\s*(.+?)\s*$/.exec(String(d.nom || ''));
-      return n && cle(n[1], n[2]) === voulu;
+    if (!m || !d) return r;
+    const n = /^\s*(.+?)\s*\/\s*(.+?)\s*$/.exec(String(d.nom || ''));
+    const parties = Array.isArray(d.parties) ? d.parties : [];
+    [[m[1], n && n[1], 'VENDEUR', 'vendeur'], [m[2], n && n[2], 'ACQUEREUR', 'acquéreur']].forEach(([cote, coteDossier, role, libelle]) => {
+      const voulus = motsNomAuthentic(cote);
+      if (!voulus.length) return;
+      const egal = (a, b) => a.length && b.length && a.length === b.length && a.every(x => b.includes(x));
+      const inclus = (a, b) => a.length && b.length && (a.every(x => b.includes(x)) || b.every(x => a.includes(x)));
+      const dossierMots = motsNomAuthentic(coteDossier);
+      const partiesMots = parties.filter(p => p && p.role === role).map(p => motsNomAuthentic([p.nom, p.nomUsage].filter(Boolean).join(' ')));
+      let pts = 0;
+      if (egal(voulus, dossierMots)) pts = 3;
+      else if (inclus(voulus, dossierMots) || partiesMots.some(pm => voulus.every(x => pm.includes(x)))) pts = 2;
+      if (pts) { r.score += pts; r.nomsTrouves++; r.details.push(`${libelle} ${pts === 3 ? 'identique' : 'proche'} (+${pts})`); }
     });
-    const enCours = candidats.filter(d => !d.archive);
-    if (enCours.length === 1) return enCours[0];
-    return !enCours.length && candidats.length === 1 ? candidats[0] : null;
+    const page = elementsAdresseAuthentic(adresse);
+    const dossier = elementsAdresseAuthentic(texteAdresseDossierAuthentic(d));
+    if (page && dossier && (page.mots.length || page.codePostal)) {
+      const communs = page.mots.filter(x => dossier.mots.includes(x));
+      const cpEgal = page.codePostal && dossier.codePostal && page.codePostal === dossier.codePostal;
+      const cpDifferent = page.codePostal && dossier.codePostal && page.codePostal !== dossier.codePostal;
+      if (cpEgal) { r.score += 1; r.details.push('code postal (+1)'); }
+      if (communs.length >= 2) { r.score += 4; r.details.push(`adresse (${communs.join(' ')}) (+4)`); }
+      else if (communs.length === 1) { r.score += 2; r.details.push(`adresse (${communs[0]}) (+2)`); }
+      if (communs.length && page.numero && page.numero === dossier.numero) { r.score += 1; r.details.push('numéro (+1)'); }
+      if (cpDifferent) { r.score -= 3; r.details.push('autre code postal (−3)'); }
+      else if (!communs.length && page.mots.length && dossier.mots.length) { r.score -= 2; r.details.push('autre adresse (−2)'); }
+    }
+    return r;
+  }
+
+  var SEUIL_DOSSIER_AUTHENTIC = 6;
+  // Pure : le dossier CLAIRE de cet intitulé (et de cette adresse de bien, si la page la montre) ;
+  // null si aucun n'atteint le seuil ou si deux sont trop proches (jamais deviné).
+  function dossierPourIntituleAuthentic(intitule, liste, adresse) {
+    if (!/^\s*(?:vte|vente)\s+.+\/.+$/i.test(intitule || '')) return null;
+    const notes = (liste || []).filter(d => d && !d.deleted)
+      .map(d => ({ d, s: scoreDossierAuthentic(intitule, adresse, d) }))
+      .filter(x => x.s.nomsTrouves >= 1 && x.s.score >= SEUIL_DOSSIER_AUTHENTIC);
+    const choisir = (cands) => {
+      const tries = cands.slice().sort((a, b) => b.s.score - a.s.score);
+      if (!tries.length) return undefined;
+      if (tries.length > 1 && tries[0].s.score - tries[1].s.score < 2) return null;
+      return tries[0].d;
+    };
+    const enCours = choisir(notes.filter(x => !x.d.archive));
+    if (enCours !== undefined) return enCours;
+    const archives = choisir(notes.filter(x => x.d.archive));
+    return archives === undefined ? null : archives;
   }
 
   // Pure : les lignes de documents des tableaux de la page de gestion — intitulé (première cellule
@@ -25935,8 +26021,9 @@
       const intitule = intituleDossierAuthentic(cap) || courant;
       if (intituleDossierAuthentic(cap)) courant = intituleDossierAuthentic(cap);
       if (!intitule || (type === 'autre' && !intituleDossierAuthentic(cap))) return;
-      if (!groupes.has(intitule)) groupes.set(intitule, { intitule, derniere: '', personnes: new Map(), immeubles: new Map(), documents: new Map(), infos: {} });
+      if (!groupes.has(intitule)) groupes.set(intitule, { intitule, derniere: '', personnes: new Map(), immeubles: new Map(), documents: new Map(), infos: {}, adresse: '' });
       const g = groupes.get(intitule);
+      if (intituleDossierAuthentic(cap) && adresseBienPageAuthentic(cap)) g.adresse = adresseBienPageAuthentic(cap);
       g.derniere = r.recueLe || g.derniere;
       if (type === 'client') { const p = clientDepuisFicheAuthentic(cap); if (p) g.personnes.set(p.id, p); }
       if (type === 'bien') { const b = bienDepuisFicheAuthentic(cap); if (b) g.immeubles.set(b.id, b); }
@@ -25947,8 +26034,9 @@
     return [...groupes.values()].map(g => {
       const personnes = [...g.personnes.values()].map((p, i) => Object.assign({}, p, { index: i }));
       const immeubles = [...g.immeubles.values()];
+      const adresseBien = g.adresse || (immeubles[0] && immeubles[0].adresse && immeubles[0].adresse.texte) || '';
       return {
-        intitule: g.intitule, derniere: g.derniere,
+        intitule: g.intitule, derniere: g.derniere, adresse: adresseBien,
         export: {
           intitule: g.intitule, type: '', dateCreation: '', personnes, immeubles, parties: [], intervenants: [],
           biens: immeubles.map(im => im.id), documents: [...g.documents.values()], documentsPersonnes: [], acte: null, notaireRedacteur: null,
@@ -26110,13 +26198,17 @@
   // depuis ce dossier lui appartient — la fiche client n'est reprise que si la personne est l'une
   // de ses parties (roleClientAuthenticDansDossier).
   var DUREE_DOSSIER_COURANT_AUTHENTIC_MS = 30 * 60 * 1000;
-  let dossierCourantAuthentic = { intitule: '', t: 0 };
+  let dossierCourantAuthentic = { id: '', t: 0 };
 
   async function appliquerReleveAuthentic(capture) {
     const lu = intituleDossierAuthentic(capture);
-    if (lu) dossierCourantAuthentic = { intitule: lu, t: Date.now() };
-    const intitule = lu || (Date.now() - dossierCourantAuthentic.t < DUREE_DOSSIER_COURANT_AUTHENTIC_MS ? dossierCourantAuthentic.intitule : '');
-    const d = dossierPourIntituleAuthentic(intitule, dossiers);
+    let d = null;
+    if (lu) {
+      d = dossierPourIntituleAuthentic(lu, dossiers, adresseBienPageAuthentic(capture));
+      dossierCourantAuthentic = { id: d ? d.id : '', t: Date.now() };
+    } else if (Date.now() - dossierCourantAuthentic.t < DUREE_DOSSIER_COURANT_AUTHENTIC_MS) {
+      d = dossiers.find(x => x.id === dossierCourantAuthentic.id) || null;
+    }
     if (!d) return 0;
     const r = appliquerReleveSurDossier(d, capture);
     if (!r.modifie) return 0;
@@ -26200,7 +26292,7 @@
     bloc.innerHTML = `
       <h3 class="authentic-releves-titre">Depuis Authentic ${infoBulle('Dossiers ouverts dans Authentic depuis une heure (extension « CLAIRE pour Authentic »). Ouvrez dans Authentic la page du dossier, puis chaque fiche client et chaque fiche bien : CLAIRE les rassemble. Les dates et le prix viennent de l’avant-contrat : déposez-le d’abord ci-dessus si vous l’avez, puis « Compléter ».')}</h3>
       <ul class="ja-liste">${groupesAuthenticRecents.slice(0, 6).map((g, i) => {
-        const existant = dossierPourIntituleAuthentic(g.intitule, dossiers);
+        const existant = dossierPourIntituleAuthentic(g.intitule, dossiers, g.adresse);
         const nom = g.intitule.replace(/^\s*(?:vente|vte)\s+/i, '');
         return renderLigneAction({
           titre: libelleDossierParNom(nom),

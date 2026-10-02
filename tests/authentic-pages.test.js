@@ -427,3 +427,26 @@ test('état civil : « APR » (demande papier) jamais coché, « ECV » (état c
   // « Après » ou un mot qui commence par « apr » n'est pas « APR ».
   assert.equal(app.ligneAuthenticRecue({ titre: 'Après-vente : acte de naissance', etat: '' }), true);
 });
+
+test('rapprochement par score : noms des parties + adresse du bien (deux ventes en même temps)', () => {
+  const vignes = { id: 'v', nom: 'MARTEL / FOURNIER', adresseBien: 'VINEUIL (41350), 3 chemin des Vignes' };
+  const lilas = { id: 'l', nom: 'MARTEL / FOURNIER', adresseBien: 'BLOIS (41000), 8 rue des Lilas' };
+  // Mêmes noms, deux dossiers en cours : sans adresse, rien n'est choisi ; l'adresse de la page tranche.
+  assert.equal(app.dossierPourIntituleAuthentic('Vente MARTEL/FOURNIER', [vignes, lilas]), null);
+  assert.equal(app.dossierPourIntituleAuthentic('Vente MARTEL/FOURNIER', [vignes, lilas], '41000 BLOIS 8 rue des Lilas').id, 'l');
+  assert.equal(app.dossierPourIntituleAuthentic('Vente MARTEL/FOURNIER', [vignes, lilas], '41350 VINEUIL Chemin des Vignes').id, 'v');
+  // Un seul dossier, mais la page montre un autre bien (autre code postal) : pas ce dossier-là.
+  assert.equal(app.dossierPourIntituleAuthentic('Vente MARTEL/FOURNIER', [vignes], '37000 TOURS 12 rue Nationale'), null);
+  // Un seul dossier, adresse absente de la page : les deux noms suffisent.
+  assert.equal(app.dossierPourIntituleAuthentic('Vente MARTEL/FOURNIER', [vignes], '').id, 'v');
+  // Un nom proche (« FOURNIER-DUPONT ») et la voie : retenu ; le nom proche seul : non.
+  assert.equal(app.dossierPourIntituleAuthentic('Vente MARTEL/FOURNIER-DUPONT', [vignes], '41350 VINEUIL 3 chemin des Vignes').id, 'v');
+  assert.equal(app.dossierPourIntituleAuthentic('Vente MARTEL/FOURNIER-DUPONT', [vignes]), null);
+  // L'adresse seule ne suffit jamais.
+  assert.equal(app.dossierPourIntituleAuthentic('Vente LEROY/DURAND', [vignes], '41350 VINEUIL 3 chemin des Vignes'), null);
+  // Le score s'explique.
+  const s = app.scoreDossierAuthentic('Vente MARTEL/FOURNIER', '41000 BLOIS 8 rue des Lilas', lilas);
+  assert.match(s.details.join(', '), /vendeur identique \(\+3\), acquéreur identique \(\+3\), code postal \(\+1\), adresse \(blois lilas\) \(\+4\), numéro \(\+1\)/);
+  // Adresse lue sur la page de gestion, rubrique « Immeubles (n) ».
+  assert.equal(app.adresseBienPageAuthentic({ champs: [], texte: '12 - Vente MARTEL/FOURNIER\nComparants (3)\nM. MARTEL\nImmeubles (1)\n41000 BLOIS\n8 rue des Lilas\nDocuments' }), '41000 BLOIS 8 rue des Lilas');
+});

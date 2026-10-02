@@ -14675,3 +14675,19 @@ reste celui d'`etatDossier` (ex. « Attente de pièces » si une pièce manque).
 Étude : « si une demande d'état civil est précédée de APR, ne pas la noter comme cochée car c'est un envoi papier ; ECV :
 état civil virtuel ». `RE_DEMANDE_AUTHENTIC` exclut une ligne dont l'intitulé commence par le mot « APR » (pas « Après… ») ;
 une ligne « ECV … » reste reçue et la pièce prend l'intitulé sans « ECV ».
+
+### 02/10/2026 12:15 — Authentic : rapprochement d'un dossier par score (noms + adresse du bien)
+
+Étude : « pour le rapprochement d'un dossier entre Authentic et CLAIRE, il faut fonctionner avec un score en comparant nom
+des parties et l'adresse du bien vendu, au cas où il y ait deux ventes en même temps ». `dossierPourIntituleAuthentic(intitule,
+liste, adresse)` ne compare plus des noms à l'identique : `scoreDossierAuthentic` donne par côté (vendeur, acquéreur) 3 points
+si les mots du nom sont les mêmes (`MOTS_IGNORES_NOM_AUTHENTIC` : consort(s), et, époux, M., Mme…), 2 si l'un contient
+l'autre ou si une partie du dossier de ce rôle porte ces mots ; adresse du bien lue sous « Immeubles (n) » sur la page
+(`adresseBienPageAuthentic`, texte visible puis libellés) comparée à `d.adresseBien` + `d.bien.adresse`
+(`elementsAdresseAuthentic` : code postal, mots de la voie et de la commune sans les mots de liaison) : code postal +1,
+deux mots communs +4 (un seul +2), numéro +1, autre code postal −3, aucune voie commune −2. Retenu : ≥ 6 points avec au
+moins un nom, et 2 points d'avance sur le suivant — sinon rien ; un archivé seulement si aucun dossier en cours n'est
+retenu. Les fiches client (et onglets sans intitulé) suivent le dernier dossier RETROUVÉ (`dossierCourantAuthentic.id`)
+et non plus le dernier intitulé. « Nouveau dossier › Depuis Authentic » passe aussi l'adresse (`g.adresse`, sinon celle de la
+fiche bien). Tests : deux ventes MARTEL/FOURNIER départagées par l'adresse, adresse contraire, nom proche + voie, adresse seule
+jamais suffisante.
