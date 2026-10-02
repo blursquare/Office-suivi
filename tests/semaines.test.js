@@ -140,9 +140,18 @@ test('dans une semaine, les échéances sont triées par date puis par nom', () 
   assert.equal(groupes[0].items.map(i => i.dossier.nom).join(','), 'BALZAC,ARAGON,ZOLA');
 });
 
-test('un dossier sans aucune échéance datée n’apparaît nulle part', () => {
+test('un dossier sans aucune échéance datée apparaît quand même, en dernier (« Sans échéance datée »)', () => {
+  // Étude, 02/10 : « il faut afficher tous les dossiers » — l'ancienne règle les omettait.
   const app = chargerApplication();
-  assert.equal(app.grouperEcheancesParSemaine([dossier('VIDE', {})], AUJOURDHUI).length, 0);
+  const groupes = app.grouperEcheancesParSemaine([
+    dossier('VIDE', {}),
+    dossier('X', { autres: [{ label: 'Échéance', date: '2026-09-17' }] }),
+    dossier('LOIN', { autres: [{ label: 'Échéance', date: '2027-06-17' }] })
+  ], AUJOURDHUI);
+  assert.equal(groupes.map(g => g.cle).join(','), 's-2026-09-14,plus-tard,sans-date');
+  assert.equal(groupes[2].items[0].dossier.nom, 'VIDE');
+  assert.equal(groupes[2].items[0].echeance, null);
+  assert.equal(app.libelleSemaine(groupes[2], AUJOURDHUI), 'Sans échéance datée');
 });
 
 test('libelleSemaine nomme les groupes en français, année tue si c’est la même', () => {

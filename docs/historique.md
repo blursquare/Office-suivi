@@ -14503,3 +14503,12 @@ aria-label, texte court qui précède, rubrique), en-tête reconnu aussi dans un
 sans texte = titre de son icône (« ⟦icône⟧ … », `masquerCelluleAuthentic`) ; le serveur garde `titre` par tableau. La page
 de gestion relevée montre 12 tableaux de 5 colonnes sans en-tête (texte, vide, date, date parfois, texte court) : à
 réinterpréter avec la prochaine copie.
+
+### 02/10/2026 — Suivi : « afficher tous les dossiers, pas que ceux du mois ou suivant »
+
+Vue Échéances : `grouperEcheancesParSemaine` sautait (`if (!e) continue`) tout dossier sans échéance datée en attente —
+rendez-vous à fixer sans date butoir, dates toutes validées, signature passée non archivée… Le compteur disait
+« N dossiers » et la liste en montrait moins. Rejoué dans Chromium sur l'ancien code (5 dossiers comptés, 4 listés) puis
+corrigé : groupe `sans-date` (rang 3, « Sans échéance datée », ligne de la vue Tableau `renderLigneTableau`, compteur en
+« dossiers »). Le test qui encodait l'ancienne règle (« n'apparaît nulle part ») est inversé. « Plus tard » (au-delà de
+8 semaines) inchangé. Rappel : le filtre « Responsable » est pré-réglé sur le collaborateur du poste (choix du 02/10).

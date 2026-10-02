@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-02 10:25';
+  const VERSION_APP = '2026-10-02 10:27';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-02 10:27', resume: "Suivi des dossiers, vue Échéances : tous les dossiers sont affichés. Un dossier sans échéance datée en attente (rendez-vous à fixer sans date butoir, toutes les dates validées…) était omis ; il apparaît maintenant dans une section « Sans échéance datée » en bas de la liste. Les échéances au-delà de 8 semaines restent sous « Plus tard »." },
     { version: '2026-10-02 10:25', resume: "Extension Firefox « CLAIRE pour Authentic » : « Copier la structure (sans données) » masque désormais les nom et prénoms qui suivent M. / Mme même collés au mot précédent, et réduit tout texte de plus de 8 mots à son nombre de mots (deux prénoms étaient passés). Les tableaux reçus portent leur titre ; extension 0.2.0 (titre des tableaux, en-têtes, titre des icônes)." },
     { version: '2026-10-02 09:51', resume: "Bandeau « Appel entrant » : il se ferme seul 45 secondes après la sonnerie (3CX ne prévient pas CLAIRE de la fin d'un appel), reste ouvert tant que la souris est dessus, et se ferme dès qu'on ouvre la fiche d'un dossier depuis le bandeau. La croix reste disponible." },
     { version: '2026-10-02 09:49', resume: "Fiche d'un dossier : sélectionner un email ou un téléphone à la souris ne ferme plus la fiche quand on relâche le bouton hors de la fiche (même correction pour toutes les fenêtres à fond grisé). Le bandeau « Appel entrant » s'affiche maintenant en bas à gauche de l'écran." },
@@ -15443,12 +15444,14 @@
       // mois alors que sa condition de prêt n'était pas encore levée. On ne montre que ce qu'il y a
       // à faire maintenant ; la suivante apparaît quand celle-ci est passée ou validée (voir
       // echeanceValidee / validerEcheance).
-      const echeances = toutesEcheances(d).sort((x, y) => x.iso.localeCompare(y.iso));
+      // Un dossier sans échéance datée en attente (rendez-vous à fixer sans date butoir, tout validé…)
+      // n'est jamais omis (étude, 02/10 : « il faut afficher tous les dossiers ») : section « Sans
+      // échéance datée » en dernier.
+      const echeances = toutesEcheances(d).filter(x => x && x.iso).sort((x, y) => x.iso.localeCompare(y.iso));
       const e = echeances[0];
-      if (!e) continue;
-      const semaine = debutSemaine(e.iso);
+      const semaine = e ? debutSemaine(e.iso) : null;
+      if (!e || !semaine) { ajouter('sans-date', 3, 'Sans échéance datée', { dossier: d, echeance: null }); continue; }
       const item = { dossier: d, echeance: e };
-      if (!semaine) continue;
       if (semaineCourante && semaine < semaineCourante) ajouter('retard', 0, 'En retard', item);
       else if (limite && semaine >= limite) ajouter('plus-tard', 2, 'Plus tard', item);
       else ajouter('s-' + semaine, 1, semaine, item);
@@ -15458,7 +15461,7 @@
     // semaines entre elles (une date ISO se trie comme une chaîne).
     const ordonnes = [...groupes.values()].sort((a, b) => (a.rang - b.rang) || a.cle.localeCompare(b.cle));
     for (const g of ordonnes) {
-      g.items.sort((a, b) => a.echeance.iso.localeCompare(b.echeance.iso) || a.dossier.nom.localeCompare(b.dossier.nom, 'fr'));
+      g.items.sort((a, b) => ((a.echeance && a.echeance.iso) || '').localeCompare((b.echeance && b.echeance.iso) || '') || String(a.dossier.nom || '').localeCompare(String(b.dossier.nom || ''), 'fr'));
     }
     return ordonnes;
   }
@@ -15469,6 +15472,7 @@
   function libelleSemaine(groupe, aujourdHui) {
     if (groupe.cle === 'retard') return 'En retard';
     if (groupe.cle === 'plus-tard') return 'Plus tard';
+    if (groupe.cle === 'sans-date') return 'Sans échéance datée';
     const debut = new Date(groupe.libelle + 'T00:00:00');
     const memeAnnee = aujourdHui && debut.getFullYear() === new Date(aujourdHui + 'T00:00:00').getFullYear();
     const options = memeAnnee ? { day: 'numeric', month: 'long' } : { day: 'numeric', month: 'long', year: 'numeric' };
@@ -22526,6 +22530,7 @@
     }
     return groupes.map((g, indexGroupe) => {
       const lignes = g.items.map(({ dossier: d, echeance: e }) => {
+        if (!e) return renderLigneTableau(d);
         const jours = joursRestants(e.iso);
         return `
           <tr class="ligne-resume${d.archive ? ' est-archive' : ''}${dossierOuvert === d.id ? ' ligne-active' : ''}" onclick="ouvrirDossierDrawer('${d.id}')">
@@ -22541,7 +22546,7 @@
         <section class="semaine-groupe${g.cle === 'retard' ? ' semaine-retard' : ''}">
           <div class="semaine-entete">
             <span class="section-eyebrow">${escapeHtml(libelleSemaine(g, aujourdHui))}</span>
-            <span class="semaine-compteur">${n} échéance${n > 1 ? 's' : ''}</span>
+            <span class="semaine-compteur">${n} ${g.cle === 'sans-date' ? 'dossier' : 'échéance'}${n > 1 ? 's' : ''}</span>
           </div>
           <div class="table-scroll">
             <!-- Largeurs de colonnes FIXES et identiques d'un groupe à l'autre : chaque semaine est
