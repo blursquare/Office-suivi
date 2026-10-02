@@ -843,3 +843,15 @@ test('date de l\'avant-contrat relue automatiquement sur le NAS : retirée, sauf
   const e = lue('2026-04-01', '10 septembre 2025');
   assert.equal(app.retirerDateAvantContratLueNas(e), false);
 });
+
+test('ligne Authentic « création · envoi · état » : RHF et demandes datées de l’envoi (étude, 02/10)', () => {
+  assert.equal(app.dateEnvoiLigneAuthentic({ dates: ['2026-09-01', '2026-09-04'] }), '2026-09-04');
+  assert.equal(app.dateEnvoiLigneAuthentic({ date: '2026-09-01' }), '2026-09-01');
+  assert.equal(app.dateEnvoiLigneAuthentic({}), '');
+  const rhf = app.suiviRhfAuthentic([{ titre: 'Réquisition hors formalité', dates: ['2026-09-01', '2026-09-04'], etat: 'Pris en compte', texte: 'Réquisition hors formalité · 01/09/2026 · 04/09/2026 · Pris en compte' }]);
+  assert.equal([rhf.envoyeeLe, rhf.retourLe].join('|'), '2026-09-04|');
+  const rhf3 = app.suiviRhfAuthentic([{ titre: 'Réquisition hors formalité', dates: ['2026-09-01', '2026-09-04', '2026-09-20'], etat: '', texte: 'Réquisition hors formalité · 01/09/2026 · 04/09/2026 · 20/09/2026' }]);
+  assert.equal([rhf3.envoyeeLe, rhf3.retourLe].join('|'), '2026-09-04|2026-09-20');
+  const dm = app.demandesUrbanismeAuthentic([{ titre: 'Demande de certificat d’alignement', date: '2026-09-01', dates: ['2026-09-01', '2026-09-03'], etat: 'Envoyé', texte: '' }]);
+  assert.equal(dm.certificatAlignement.date, '2026-09-03');
+});

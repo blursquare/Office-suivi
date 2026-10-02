@@ -15033,3 +15033,23 @@ d'une ligne de réponse à une seule date ou 3e date, sinon vide. Départ du dé
 `echeanceSaferDossier`) = `envoyeeLe || priseEnCompteLe || notifieeLe` (anciens relevés inchangés). Relevé au nouveau
 format : l'ancienne « prise en compte » (= l'envoi) est effacée pour ne pas s'afficher en double. Historique : « Notification
 SAFER envoyée le … ». Fiche : « envoyée le 15 septembre 2026, prise en compte, sans réponse : non-préemption le … ».
+
+
+### 02/10/2026 17 h 15 — Rendez-vous « ?? » en attente de confirmation ; date d'envoi pour la RHF et les demandes
+
+Étude : « pour les probabilités de rendez-vous vérifier avant si un rendez-vous n'est pas en attente de confirmation avec
+des ?? ». Un rendez-vous de l'agenda dont le titre (ou le lieu) porte un « ? » n'écrit rien sur la fiche
+(`estRendezVousSignature` côté serveur) ; il n'était donc pas vu par la semaine probable, qui posait une carte fantôme
+ailleurs. `rendezVousAConfirmerDossier(d, evenements, auj)` (pur) : prochain rendez-vous horaire à venir du dossier
+(`e.dossierId`), « ? » dans le titre ou le lieu, jamais une option de sondage (« option CLAIRE », `e.option`) ni une
+carte fantôme. `semaineProbableSignature(d, auj, absences, evenements)` : s'il existe, sa date fait la semaine probable
+(`aConfirmer`, `heure`), facteur « Rendez-vous en attente de confirmation (« ? » dans l'agenda) » −5 au lieu de « pas
+encore fixé » −10 ; `fantomesSemaineAgenda` n'en pose pas ; « Rendez-vous à placer » : « À confirmer : jeu 22 oct.
+15 h », sans créneaux proposés, le clic ouvre le vrai rendez-vous ; recherche de l'agenda : type `aConfirmer` ;
+`probabiliteEvenementAgenda` met le pourcentage sur le rendez-vous « ?? » (grille et détail). Sans l'agenda passé,
+comportement inchangé.
+
+« oui pareil » (après la SAFER) : la même ligne « création · envoi · état » vaut pour les autres documents.
+`dateEnvoiLigneAuthentic(l)` = 2e date s'il y en a deux, sinon la seule. RHF : `envoyeeLe` = date d'envoi (d'une ligne
+qui n'est pas un retour), `retourLe` = « retour le … », ligne de réponse/reçue, sinon 3e date. Demandes d'urbanisme
+(`demandesUrbanismeAuthentic`) : « Demande envoyée le … » = date d'envoi.

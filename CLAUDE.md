@@ -342,7 +342,7 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
   aujourd'hui si dépassée — + 11 j de réflexion, vente préalable), jour ouvré ; probabilité = celle de
   `probabiliteTenueSignature` à cette date − 10 (non fixé) − 15 (après la date butoir) ; « Rendez-vous à
   placer » les liste par semaine, et la semaine affichée porte une **carte fantôme** en pointillé
-  (`fantomesSemaineAgenda`, premier créneau libre dans les règles, clé `probable:<id>`) dont le détail
+  (`fantomesSemaineAgenda`, premier créneau libre dans les règles, clé `probable:<id>`) — **sauf rendez-vous « ?? » en attente de confirmation** dans l'agenda (étude 02/10, `rendezVousAConfirmerDossier` : sa date fait la semaine probable, « À confirmer », pourcentage sur le rendez-vous, −5 pts, ni fantôme ni créneaux) dont le détail
   propose « Placer » (confirmé) et **rappelle la date butoir** (étude 02/10, `rappelButoirSignatureProbable` : jours restants, marge < 7 j ou dépassement en rouge) ; **notes d'un rendez-vous = son corps dans Outlook** (choix de l'étude,
   `GET/PUT /api/exchange/evenement/notes`, GetItem/UpdateItem du seul `item:Body` en texte brut, lues à
   l'ouverture du détail, jamais journalisées ; la mise en forme HTML d'un corps n'est pas gardée à
@@ -659,7 +659,7 @@ Plainte principale de l'étude : **le bruit**, pas les oublis — ne pas élargi
   (`texteVocabulaireAuthentic`, `VOCABULAIRE_AUTHENTIC`, test « aucun nom ne sort ») ; « Retour le » = prise en compte
   SAFER / retour RHF (étude, 02/10). **Troisième passe (02/10 midi)** : **Comedec** (`etatEtatCivilAuthentic`,
   `d.authentic.etatsCivils`) — « pris en compte »/en attente et **« négatif »** (erreur, rien délivré) laissent la pièce
-  non cochée avec l'état dessous (`etatAuthenticPiece`), seul **« positif »** coche ; **SAFER** : ligne « date de création · date d'envoi · état » (étude 02/10 — état « Pris en compte » / « Non préemption SAFER », sans date ; `creeeLe`, `envoyeeLe`, date de décision seulement sur une ligne de réponse à une date ou en 3e date), puis **non-préemption tacite** à l'issue du délai **depuis la date d'envoi** (`envoyeeLe` ; relevés antérieurs : leur `priseEnCompteLe` était l'envoi ; miroir serveur `echeanceSaferDossier`) — 2 mois, 1 mois en réponse
+  non cochée avec l'état dessous (`etatAuthenticPiece`), seul **« positif »** coche ; **SAFER** : ligne « date de création · date d'envoi · état » (étude 02/10 — état « Pris en compte » / « Non préemption SAFER », sans date ; même ligne pour la RHF et les demandes, `dateEnvoiLigneAuthentic` ; `creeeLe`, `envoyeeLe`, date de décision seulement sur une ligne de réponse à une date ou en 3e date), puis **non-préemption tacite** à l'issue du délai **depuis la date d'envoi** (`envoyeeLe` ; relevés antérieurs : leur `priseEnCompteLe` était l'envoi ; miroir serveur `echeanceSaferDossier`) — 2 mois, 1 mois en réponse
   rapide, 8 jours en très rapide — **2 mois de base, les deux autres se cochent sous « Réponse SAFER »** (`delaiManuel`,
   `renderDelaiSafer`, jamais lu dans l'intitulé ; `DELAIS_SAFER`, `appliquerSaferTacite`, `verifierSaferTacites` au démarrage puis
   toutes les heures) ; **fin du délai = date butoir, comme la préemption de la mairie** (`saferLevee`,
