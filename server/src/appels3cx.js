@@ -18,6 +18,8 @@ function normaliserNumero(numero) {
   if (n.startsWith('+33')) n = '0' + n.slice(3);
   else if (n.startsWith('0033')) n = '0' + n.slice(4);
   n = n.replace(/\D/g, '');
+  // « +33… » non encodé dans l'adresse ouverte par 3CX : le « + » y est lu comme une espace.
+  if (n.length === 11 && n.startsWith('33')) n = '0' + n.slice(2);
   // 3CX préfixe parfois le 0 de la ligne extérieure (« 006… ») : on retire un 0 en trop.
   if (n.length === 11 && n.startsWith('00')) n = n.slice(1);
   return n;
@@ -107,18 +109,32 @@ function assainirJournalAppels(liste, maintenant = Date.now()) {
     .slice(0, MAX_JOURNAL);
 }
 
+// Pure : clé d'un poste — le prénom sans accent, en minuscules (« Jérémy SAUJOT », « Jeremy »,
+// « jeremy » → « jeremy ») : l'adresse saisie dans 3CX et la fenêtre CLAIRE se retrouvent toujours.
+function clePoste(poste) {
+  return String(poste || '').trim().split(/\s+/)[0].normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z]/g, '').slice(0, 40);
+}
+
+// Pure : une variable 3CX non remplie (« undefined » : %CallerDisplayName% dans la V20, « %CallerNumber% »
+// laissé tel quel) ne vaut rien.
+function valeur3cx(v) {
+  const s = texteCourt(v, 200);
+  return /^(undefined|null|%\w+%)$/i.test(s) ? '' : s;
+}
+
 // Pure : l'appel tel qu'il est noté.
 function creerEntreeAppel({ numero, nom, poste }, sources, maintenant = new Date()) {
+  numero = valeur3cx(numero);
   const n = normaliserNumero(numero);
   const reconnu = reconnaitreAppelant(n, sources);
   // 3CX met le numéro dans le nom affiché quand il n'a pas de nom : inutile de le répéter.
-  const nomAffiche = texteCourt(nom, 120);
+  const nomAffiche = texteCourt(valeur3cx(nom), 120);
   return {
     id: 'ap-' + maintenant.getTime().toString(36) + '-' + Math.random().toString(36).slice(2, 7),
     t: maintenant.toISOString(),
     numero: formaterNumero(n) || texteCourt(numero, 30),
     nom: normaliserNumero(nomAffiche) === n ? '' : nomAffiche,
-    poste: texteCourt(poste, 80),
+    poste: clePoste(poste),
     dossiers: reconnu.dossiers,
     contact: reconnu.contact
   };
@@ -141,5 +157,5 @@ function pageSonnerie({ id, fenetreVisible }) {
 
 module.exports = {
   normaliserNumero, cleNumero, formaterNumero, numerosDansTexte, reconnaitreAppelant,
-  assainirJournalAppels, creerEntreeAppel, pageSonnerie, DUREE_JOURNAL_JOURS
+  assainirJournalAppels, creerEntreeAppel, pageSonnerie, clePoste, valeur3cx, DUREE_JOURNAL_JOURS
 };

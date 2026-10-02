@@ -8,7 +8,7 @@ const os = require('node:os');
 
 const {
   normaliserNumero, cleNumero, formaterNumero, numerosDansTexte, reconnaitreAppelant,
-  assainirJournalAppels, creerEntreeAppel, pageSonnerie
+  assainirJournalAppels, creerEntreeAppel, pageSonnerie, clePoste, valeur3cx
 } = require('../src/appels3cx');
 const { creerApp } = require('../src/app');
 const { ouvrirDb } = require('../src/db');
@@ -52,6 +52,20 @@ test('creerEntreeAppel : numéro formaté, nom 3CX gardé sauf s’il répète l
   assert.equal(e.nom, 'MARCHAIS Paul');
   assert.equal(e.dossiers[0].id, 'd1');
   assert.equal(creerEntreeAppel({ numero: '0755667788', nom: '+33755667788' }, { dossiers }).nom, '');
+});
+
+test('3CX V20 : « undefined » et variable non remplie ignorés, « +33 » lu comme une espace, poste écrit autrement', () => {
+  assert.equal(valeur3cx('undefined'), '');
+  assert.equal(valeur3cx('%CallerDisplayName%'), '');
+  assert.equal(valeur3cx('MARCHAIS Paul'), 'MARCHAIS Paul');
+  // ?numero=+33755667788 non encodé : Express lit « 33755667788 » précédé d'une espace.
+  const e = creerEntreeAppel({ numero: ' 33755667788', nom: 'undefined', poste: 'Jérémy SAUJOT' }, { dossiers });
+  assert.equal(e.numero, '07 55 66 77 88');
+  assert.equal(e.nom, '');
+  assert.equal(e.poste, 'jeremy');
+  assert.equal(e.dossiers[0].id, 'd1');
+  assert.equal(clePoste('Jeremy'), clePoste('jérémy'));
+  assert.equal(creerEntreeAppel({ numero: '%CallerNumber%' }, { dossiers }).numero, '');
 });
 
 test('assainirJournalAppels : plus récent d’abord, plus d’un an écarté', () => {
@@ -106,6 +120,16 @@ test('route : la sonnerie note l’appel sans session ; la fenêtre du poste le 
   const jd = await (await fetch(`${baseUrl}/api/appels?dossierId=d9`, { headers: auth })).json();
   assert.equal(jd.appels.length, 2);
   assert.equal((await fetch(`${baseUrl}/api/appels`)).status, 401);
+  // Adresse saisie à la main dans 3CX avec une majuscule ou un accent : relevée quand même.
+  await fetch(`${baseUrl}/appel?numero=0600000001&poste=Julie`);
+  const j3 = await (await fetch(`${baseUrl}/api/appels/nouveaux?poste=julie&visible=1&depuis=${encodeURIComponent(depuis)}`, { headers: auth })).json();
+  assert.equal(j3.appels.length, 3);
+  // Diagnostic des postes : fenêtre de Julie vue, dernière sonnerie notée ; aucune donnée d'appel.
+  const p = await (await fetch(`${baseUrl}/api/appels/postes`, { headers: auth })).json();
+  assert.equal(p.postes.julie.fenetre, true);
+  assert.ok(p.postes.julie.derniereSonnerie);
+  assert.equal(p.postes.bastien.visible, false);
+  assert.doesNotMatch(JSON.stringify(p), /0600000001|BLANCHON|numero/);
 });
 
 test('route : adresses du serveur sur le réseau (pour l’adresse à coller dans 3CX)', async () => {

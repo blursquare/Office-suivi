@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-02 09:26';
+  const VERSION_APP = '2026-10-02 09:32';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-02 09:32', resume: "Téléphonie 3CX : Réglages › Téléphonie 3CX montre sous chaque collaborateur si sa fenêtre CLAIRE est ouverte et quand 3CX a ouvert son adresse pour la dernière fois (« Aucune sonnerie reçue de 3CX » après un vrai appel = 3CX n'a rien envoyé : réglage du client web ou pop-up bloquées). CLAIRE accepte aussi ce qu'envoie la version 20 de 3CX : nom « undefined », numéro « +33… » non encodé, prénom avec majuscule ou accent dans l'adresse. Aide mise à jour avec le nom du réglage dans la V20 (« Lancer automatiquement une URL de contact personnalisée »)." },
     { version: '2026-10-02 09:26', resume: "Agenda : la fenêtre d'une signature probable (carte en pointillé) rappelle la date butoir du dossier, avec le nombre de jours restants — en rose, en rouge quand il reste moins de 7 jours de marge après le créneau proposé ou quand le créneau la dépasse (« prévoir la prorogation ») ; les autres créneaux proposés au-delà de la butoir sont en pointillé." },
     { version: '2026-10-02 08:14', resume: "Fiche d'un dossier agrandie : la colonne de droite montre les dernières pièces reçues (6 au plus, les nouvelles d'abord puis la plus récente, avec leur date et « à la main » si elles ont été validées hors NAS), au-dessus de l'activité récente. Un clic ouvre le fichier trouvé sur le NAS ; « 6/9 » mène à l'onglet Pièces." },
     { version: '2026-10-02 08:11', resume: "Tableau de bord : nouveau widget « Statistiques » (en bas, toute la largeur ; « Widgets » pour le déplacer ou le retirer). Délai moyen depuis l'ouverture du dossier dans CLAIRE jusqu'à l'obtention du prêt, la renonciation au droit de préemption et la signature de l'acte (12 derniers mois, nombre de dossiers et médiane au survol), et dossiers ouverts ce mois-ci comparés au mois précédent et au même mois de l'an dernier (« — » quand CLAIRE ne suivait pas encore de dossier)." },
@@ -25331,6 +25332,19 @@
 
   let origine3cx = '';
 
+  // Pure : l'état d'un poste pour 3CX (Réglages) — sa fenêtre CLAIRE relève-t-elle ses appels, et quand
+  // 3CX a-t-il ouvert son adresse pour la dernière fois. Sépare une panne de 3CX d'une panne de CLAIRE.
+  function etatPoste3cx(info, maintenantMs) {
+    const i = info || {};
+    const fenetre = i.fenetre
+      ? { classe: 'dl-success', texte: 'Fenêtre CLAIRE ouverte' + (i.visible ? '' : ' (en arrière-plan)') }
+      : { classe: 'dl-neutre', texte: 'Fenêtre CLAIRE fermée sur ce poste' };
+    const sonnerie = i.derniereSonnerie
+      ? { classe: 'dl-success', texte: `Dernière sonnerie reçue de 3CX : ${ilYaActivite(i.derniereSonnerie, maintenantMs)}` }
+      : { classe: 'dl-pret', texte: 'Aucune sonnerie reçue de 3CX' };
+    return [fenetre, sonnerie];
+  }
+
   // Réglages › Téléphonie 3CX : l'adresse de chaque collaborateur pour 3CX, et les derniers appels notés.
   async function renderReglages3cx() {
     const liste = document.getElementById('reglages-3cx-liste');
@@ -25343,9 +25357,16 @@
       } catch (e) { /* adresse de la page à défaut */ }
       origine3cx = origineServeurPour3cx(location, adresses);
     }
+    let postes = {};
+    try {
+      const r = await fetchAvecAuth('/api/appels/postes');
+      if (r.ok) postes = (await r.json()).postes || {};
+    } catch (e) { /* état inconnu : rien d'affiché */ }
+    const maintenant = Date.now();
     liste.innerHTML = RESPONSABLES.map((nom, i) => `
       <div class="reglages-champ">
-        <div class="reglages-champ-libelle"><label for="reglages-3cx-${i}">${escapeHtml(nom)}</label></div>
+        <div class="reglages-champ-libelle"><label for="reglages-3cx-${i}">${escapeHtml(nom)}</label>
+          <span class="reglages-3cx-etat">${etatPoste3cx(postes[clePosteAppels(nom)], maintenant).map(e => `<span class="dot-label ${e.classe}">${escapeHtml(e.texte)}</span>`).join('')}</span></div>
         <div class="reglages-champ-ligne">
           <input type="text" id="reglages-3cx-${i}" readonly spellcheck="false" value="${escapeAttr(adresseIntegration3cx(origine3cx, nom))}" onfocus="this.select()">
           <button type="button" class="secondary" onclick="copierAdresse3cx(${i})">Copier</button>

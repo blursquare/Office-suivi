@@ -35,3 +35,13 @@ test('origineServeurPour3cx : localhost remplacé par l’adresse du serveur sur
   assert.equal(app.origineServeurPour3cx(loc('192.168.60.12', '3000'), ['10.0.0.5']), 'http://192.168.60.12:3000');
   assert.equal(app.origineServeurPour3cx(loc('localhost', '3000'), []), 'http://localhost:3000');
 });
+
+test('etatPoste3cx : fenêtre CLAIRE du poste et dernière sonnerie reçue de 3CX (diagnostic des Réglages)', () => {
+
+  const maintenant = Date.parse('2026-10-02T09:00:00Z');
+  const rien = app.etatPoste3cx(undefined, maintenant);
+  assert.equal(rien.map(e => e.texte).join(' | '), 'Fenêtre CLAIRE fermée sur ce poste | Aucune sonnerie reçue de 3CX');
+  assert.equal(rien[1].classe, 'dl-pret');
+  const ok = app.etatPoste3cx({ fenetre: true, visible: false, derniereSonnerie: '2026-10-02T08:55:00Z' }, maintenant);
+  assert.equal(ok.map(e => e.texte).join(' | '), 'Fenêtre CLAIRE ouverte (en arrière-plan) | Dernière sonnerie reçue de 3CX : il y a 5 min');
+});

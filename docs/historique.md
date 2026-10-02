@@ -14447,3 +14447,18 @@ sous la raison de la semaine probable, dans `renderDetailFantomeAgenda` ; niveau
 dépasse : prévoir la prorogation », rouge), `inconnue` (« Date butoir non renseignée sur la fiche »). Les autres créneaux de la
 fenêtre au-delà de la butoir prennent le pointillé `apres-butoir` et le disent au survol. Test dans
 `tests/agenda-page.test.js` ; vérifié dans Chromium (clair, sombre).
+
+### 02/10/2026 — 3CX : « j'ai essayé d'appeler mais rien ne s'affiche »
+
+Chemin complet rejoué dans Chromium (sonnerie → `/appel` → relève de la fenêtre du poste → bandeau → fiche ouverte sur
+Échanges) : il fonctionne. Recherche sur la V20 de 3CX (forum 3CX) : le réglage du client web s'appelle « Auto launch a
+Custom Contact URL using variables » (Paramètres › Intégration) ; `%CallerDisplayName%` y est remplacé par « undefined » ;
+l'application Windows V20 n'ouvre pas d'URL personnalisée (client web seulement) ; si un CRM est réglé sur le standard, la
+fenêtre ne s'ouvre qu'au décroché ; un appel de file d'attente non pris ne déclenche rien ; les pop-up doivent être autorisées
+pour le site du client web. Durci côté serveur : `valeur3cx` (« undefined », variable non remplie → vide), « +33… » non
+encodé (le « + » lu comme une espace) ramené à « 0… » dans `normaliserNumero`, poste ramené à sa clé (`clePoste`, prénom
+sans accent en minuscules) à la sonnerie comme à la relève — une adresse saisie à la main « poste=Bastien » est relevée.
+Diagnostic dans Réglages › Téléphonie 3CX (`GET /api/appels/postes`, `etatPoste3cx`) : sous chaque collaborateur, « Fenêtre
+CLAIRE ouverte / fermée sur ce poste » et « Dernière sonnerie reçue de 3CX : … » ou « Aucune sonnerie reçue de 3CX » — après
+un vrai appel, ce dernier état veut dire que 3CX n'a rien ouvert (réglage ou pop-up), pas une panne de CLAIRE. Aucune donnée
+d'appel dans cette route. Aide (pastille « i ») réécrite avec ces conditions.

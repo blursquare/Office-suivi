@@ -5040,6 +5040,9 @@ table.af-table .af-verif-ecart { background: #f6e3c9; color: #8a5417; }
 .reglages-champ-pile { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .reglages-champ-ligne { display: flex; gap: 8px; align-items: center; }
 .reglages-champ-ligne input { flex: 1; min-width: 0; }
+/* Téléphonie 3CX : état du poste sous le nom du collaborateur (fenêtre CLAIRE, dernière sonnerie). */
+.reglages-champ-libelle:has(.reglages-3cx-etat) { flex-direction: column; align-items: flex-start; gap: 4px; }
+.reglages-3cx-etat { display: flex; flex-direction: column; gap: 2px; font-size: 12px; font-weight: 400; }
 .reglages-champ-pile .hint:empty { display: none; }
 .reglages-champ-pile .hint { margin: 0; }
 .reglages-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding-top: 14px; }

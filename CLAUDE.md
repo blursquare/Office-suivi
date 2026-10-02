@@ -370,7 +370,7 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
   ne donne pas d'historique ; son « Intégration CRM » (client web, réglage de chaque collaborateur, CRM
   personnalisé, « Informer lorsque : Sonnerie ») ouvre `/appel?numero=%CallerNumber%&nom=%CallerDisplayName%&poste=<prénom>`
   (adresses à copier dans Réglages › Téléphonie 3CX, `adresseIntegration3cx` ; poste = prénom sans accent, jamais un
-  nom encodé que 3CX prendrait pour une variable). Le serveur note l'appel (`appels-recus`, 400 jours, hors
+  nom encodé que 3CX prendrait pour une variable). Réglage V20 : client web seulement (« Auto launch a Custom Contact URL », pop-up autorisées), `%CallerDisplayName%` y vaut « undefined » (`valeur3cx`) ; le serveur compare les postes par `clePoste` ; Réglages › Téléphonie 3CX montre, par collaborateur, fenêtre CLAIRE ouverte et dernière sonnerie reçue (`GET /api/appels/postes`) — « Aucune sonnerie reçue » après un appel = côté 3CX. Le serveur note l'appel (`appels-recus`, 400 jours, hors
   session, aucune donnée renvoyée, jamais journalisé) et reconnaît l'appelant (`reconnaitreAppelant` : 9
   derniers chiffres ; `d.telephoneVendeur`/`d.telephoneAcquereur` — onglet Échanges, repris d'Authentic —,
   puis carnet des confrères et ses dossiers, puis répertoire). La fenêtre CLAIRE relève toutes les 3 s, même

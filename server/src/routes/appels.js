@@ -9,7 +9,7 @@
 //  - GET /api/appels?dossierId= : le journal (50 derniers, ou ceux d'un dossier).
 
 const express = require('express');
-const { creerEntreeAppel, pageSonnerie } = require('../appels3cx');
+const { creerEntreeAppel, pageSonnerie, clePoste } = require('../appels3cx');
 const { adressesLan } = require('../reseau');
 
 var FENETRE_VUE_MS = 15000;
@@ -51,15 +51,31 @@ function creerRouteurSonnerie(parametresRepo, depot, etat) {
 function creerRouteurAppels(parametresRepo, etat) {
   const routeur = express.Router();
   routeur.get('/appels/nouveaux', (req, res) => {
-    const poste = String(req.query.poste || '').slice(0, 80);
+    const poste = clePoste(req.query.poste);
     const depuis = String(req.query.depuis || '');
     if (poste) etat.fenetres.set(poste, { t: Date.now(), visible: req.query.visible === '1' });
     // Heure prise AVANT la lecture : un appel noté entre les deux sera relevé la fois suivante
     // (la fenêtre écarte un appel déjà montré par son identifiant).
     const serverTime = new Date().toISOString();
     const journal = parametresRepo.lireJournalAppels();
-    const appels = depuis ? journal.filter(a => a.t >= depuis && (!a.poste || a.poste === poste)).slice(0, 5) : [];
+    const appels = depuis ? journal.filter(a => a.t >= depuis && (!a.poste || clePoste(a.poste) === poste)).slice(0, 5) : [];
     res.json({ appels, serverTime });
+  });
+  // Réglages › Téléphonie 3CX : la fenêtre CLAIRE de chaque poste relève-t-elle ses appels ? Et quand
+  // l'adresse de 3CX a-t-elle été ouverte pour ce poste pour la dernière fois ? (diagnostic, aucune donnée)
+  routeur.get('/appels/postes', (req, res) => {
+    const maintenant = Date.now();
+    const postes = {};
+    for (const [poste, vue] of etat.fenetres) {
+      postes[poste] = { fenetre: maintenant - vue.t < FENETRE_VUE_MS, visible: !!vue.visible && maintenant - vue.t < FENETRE_VUE_MS, vueIlYaMs: maintenant - vue.t };
+    }
+    for (const a of parametresRepo.lireJournalAppels()) {
+      const p = clePoste(a.poste);
+      if (!p) continue;
+      postes[p] = postes[p] || { fenetre: false, visible: false, vueIlYaMs: null };
+      if (!postes[p].derniereSonnerie) postes[p].derniereSonnerie = a.t;
+    }
+    res.json({ postes });
   });
   // Adresses du serveur sur le réseau du bureau : la fenêtre CLAIRE du poste serveur est ouverte sur
   // http://localhost, adresse qui ne mène au serveur que depuis ce poste-là — l'adresse à coller dans
