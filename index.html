@@ -680,16 +680,9 @@
   <div class="dash-header">
     <div>
       <div class="dash-eyebrow">Frais d'acte</div>
-      <!-- Avertissement "barème non audité" redéplacé une 4e fois, à la demande de l'étude :
-           d'un bandeau pleine largeur (en tête d'onglet, puis au-dessus de "Régime appliqué", puis
-           sous "Paramètres de l'acquisition" — voir CLAUDE.md) à un petit label directement à côté
-           du titre de la page, plus discret qu'un bandeau mais visible dès le premier coup d'œil. -->
+      <!-- Barème validé par l'étude le 02/10/2026 : l'avertissement « montant à valider » est retiré. -->
       <div class="dash-titre-ligne">
         <h1 class="dash-titre">Calculateur de provision</h1>
-        <span class="calc-warning-label" title="Le barème/les taux de ce simulateur sont repris d'un document fourni par l'étude, sans audit indépendant — voir « Régime appliqué » ci-dessous.">
-          <span id="icon-calc-warning" aria-hidden="true"></span>
-          Montant à valider avant envoi
-        </span>
       </div>
     </div>
   </div>
@@ -770,7 +763,7 @@
     <div class="dash-section-titre">Règles et références</div>
     <p><strong>Primo-accédant :</strong> la hausse temporaire du taux départemental ne s'applique pas lorsque le bien constitue la première propriété de l'acquéreur et est destiné à sa résidence principale (art. L. 31-10-3 du CCH).</p>
     <p><strong>Barème :</strong> taux départementaux DGFiP applicables au 1er juin 2026. Le tarif réglementé des notaires est fixé pour la période du 1er mars 2026 au 29 février 2028 (art. A444-91 du Code de commerce). L'article 116 de la loi de finances pour 2025 permet une hausse temporaire du taux départemental jusqu'à 5 % du 1er avril 2025 au 31 mars 2028, avec exception pour les primo-accédants achetant leur résidence principale (condition de première propriété appréciée notamment sur les deux années précédentes, cf. BOFiP).</p>
-    <p>Outil indicatif de provision — vérifier les paramètres fiscaux et les débours propres au dossier avant émission.</p>
+    <p>Barème validé par l'étude (02/10/2026). Les débours propres au dossier restent à vérifier avant émission.</p>
   </div>
 </div>
 
@@ -1837,6 +1830,10 @@
       <div id="reglages-agenda-dernier-tour" class="reglages-dernier-tour"></div>
     </div>
 
+    <div class="reglages-section">
+      <h3 class="reglages-section-titre">Emails des dossiers <span class="info-i" tabindex="0" data-info="CLAIRE relit toutes les 10 minutes la boîte de réception du compte relié et les « Éléments envoyés » de chaque collaborateur (adresses de la rubrique Collaborateurs). Elle garde l'expéditeur, l'objet, la date, les pièces jointes et un résumé de l'IA locale — jamais le texte. Pour que les envois d'un collaborateur soient lus : dans son Outlook, clic droit sur « Éléments envoyés » › Propriétés › Autorisations › ajouter le compte relié en « Relecteur » (et « Dossier visible » sur la boîte elle-même)."></span></h3>
+      <div id="reglages-emails-dossiers"></div>
+    </div>
     <div class="reglages-section">
       <h3 class="reglages-section-titre">Sondages de créneaux <span class="info-i" tabindex="0" data-info="Pour « Proposer des dates » : la page où les clients cochent leurs créneaux, et le relais qui renvoie leur réponse à l'office. Vides : l'email garde un bouton par créneau."></span></h3>
       <div class="reglages-liste">

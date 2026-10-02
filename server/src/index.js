@@ -63,6 +63,7 @@ const { demarrerSurveillanceAgenda } = require('./agendaWatch');
 const { demarrerTacheRappels } = require('./jobs/rappels');
 const { demarrerResumeEmails } = require('./emailsMatin');
 const { demarrerSurveillanceSondages } = require('./sondagesCreneaux');
+const { demarrerSurveillanceEmailsDossiers } = require('./emailsDossiers');
 const { demarrerSauvegardeAutomatique } = require('./sauvegarde');
 const { installerCaptureConsole } = require('./journalTechnique');
 const { demarrerRapportTechnique } = require('./rapportTechnique');
@@ -265,6 +266,8 @@ function demarrer() {
   demarrerResumeEmails(depot, parametresRepo, undefined, config);
   // Sondages de créneaux : réponses relues dans la boîte, options expirées retirées (5 min).
   demarrerSurveillanceSondages(parametresRepo);
+  // Emails des dossiers : boîte de réception et « Éléments envoyés » relus toutes les 10 minutes.
+  demarrerSurveillanceEmailsDossiers(depot, parametresRepo, config);
 
   // Rapport technique (voir rapportTechnique.js) : les erreurs et avertissements du serveur, lancé
   // sans fenêtre, sont gardés dans le journal technique ; à 12 h et 17 h les jours ouvrés, un

@@ -33,6 +33,7 @@ const { creerRouteurAgenda } = require('./routes/agenda');
 const { creerRouteurExchange } = require('./routes/exchange');
 const { creerRouteurSondages } = require('./routes/sondages');
 const { creerRouteurEmailsMatin } = require('./routes/emailsMatin');
+const { creerRouteurEmailsDossiers } = require('./routes/emailsDossiers');
 const { creerRouteurRapportTechnique } = require('./routes/rapportTechnique');
 const { creerRouteurSonnerie, creerRouteurAppels, creerEtatAppels } = require('./routes/appels');
 const { creerRouteurAuthentic } = require('./routes/authentic');
@@ -93,7 +94,7 @@ function seaOuNull() {
   try { return require('node:sea'); } catch (_) { return null; }
 }
 
-function creerApp({ db, config, envoyerEmailFn, creerClientClaude, appelerMistral, testerMistral, miseAJour, agenda, emailsMatin, rapportTechnique, sondages, exchange }) {
+function creerApp({ db, config, envoyerEmailFn, creerClientClaude, appelerMistral, testerMistral, miseAJour, agenda, emailsMatin, rapportTechnique, sondages, exchange, emailsDossiers }) {
   const app = express();
   const depot = creerDepot(db);
   const parametresRepo = creerRepoParametres(db);
@@ -146,6 +147,8 @@ function creerApp({ db, config, envoyerEmailFn, creerClientClaude, appelerMistra
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurSauvegarde(parametresRepo, db, config));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurNotifications(parametresRepo, envoyerEmailFn));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurEmailsMatin(parametresRepo, depot, { config, ...(emailsMatin || {}) }));
+  // Emails des dossiers (voir emailsDossiers.js) : reçus et envoyés rattachés aux dossiers, pièces jointes.
+  app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurEmailsDossiers(parametresRepo, depot, { config, injections: emailsDossiers || {} }));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurAuditRetours(parametresRepo));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurExclusionsPieces(parametresRepo));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurCorrectionsApprises(parametresRepo));

@@ -15416,3 +15416,26 @@ Demande : « Il faut que ces données remontent dans les rapports envoyés à Cl
   Tout texte passe par `anonymiserTexte` ; aucune valeur (date, montant, nom) lue ou saisie n'est envoyée — un écart de
   date en jours seulement. Test « aucun nom ne sort » dans `server/test/journal-corrections.test.js`.
 - Réglages : rubrique et titre « Rappels » (était « Rappels Teams »).
+
+### 02/10/2026 23:01 — Emails des dossiers (contenu, envois, pièces jointes sur le NAS) ; barème validé
+Demande : « CLAIRE ne lit pas le contenu des emails… Tu peux lire le contenu. » ; « Un email préparé n'est pas forcément
+envoyé… Tu peux lire les emails envoyés pour confirmer. » ; « Barème des frais jamais audité. Le prorata du fonds de
+travaux reste à confirmer. C'est validé. » Réponses aux questions : reçus = « les trois » (repérer et proposer, ranger sur
+le NAS, résumé par l'IA locale) ; envoyés = « boîte de chacun » ; validé = « barème seul » (le fonds de travaux reste à
+confirmer).
+- Serveur : `src/emailsDossiers.js` (tour toutes les 10 min, même disjoncteur que l'agenda ; boîte de réception →
+  GetItem texte + pièces jointes pour les seuls emails rattachés à un dossier, texte jeté après le résumé Ollama ;
+  « Éléments envoyés » de chaque boîte de `emailsResponsables`, `DistinguishedFolderId sentitems` + Mailbox pour les
+  autres, ErrorAccessDenied… → « refuse » ; `correspondAuPrepare`), `routes/emailsDossiers.js` (emails d'un dossier,
+  pièces jointes à ranger, état, lecture à la demande, emails préparés, ouvrir / ranger / marquer une pièce jointe),
+  `scans.copierDansDossierClient` (copie confinée, `wx`, « Nom (2) »), `emailsMatin.contexteClassement` : champs à
+  plusieurs adresses ; `parametresRepo.lireJsonBrut/ecrireJsonBrut`. Tests `server/test/emails-dossiers.test.js`.
+- Poste : bloc « Emails » de l'onglet Échanges (`renderEmailsDossier`, préparés en attente, reçus/envoyés, résumé, pièces
+  jointes : rangée / reconnue / « Ranger… »), `pieceDePieceJointe`, `rubriquesPourPiece`, `etatEmailPrepare`,
+  `rangerPiecesJointesReconnues` (30 s après le démarrage puis toutes les 5 min), `enregistrerPieceDepuisEmail`,
+  `noterEmailPrepare` appelé par `livrerEmailDossier` (paramètres `dossierId`, `geste` passés par chaque appelant) ;
+  Réglages › Agenda et Outlook › « Emails des dossiers ». Tests `tests/emails-dossiers.test.js`.
+- Barème : « Montant à valider avant envoi » retiré du simulateur, note « Barème validé par l'étude (02/10/2026) ».
+Vérifié : tests client et serveur ; Chromium avec un faux Exchange et un NAS de test (2 reçus rattachés, état daté rangé
+dans « 8 - COPRO/ETAT DATE » et coché, offre rangée, accès refusé de Julie affiché), clair, sombre, 390 px. Non vérifié :
+Exchange réel (formes des réponses, délégation), Ollama, vraies pièces jointes.

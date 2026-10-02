@@ -140,8 +140,11 @@ function contexteClassement(dossiers, adressesIgnorees) {
   const actifs = (dossiers || []).filter(d => d && !d.archive);
   const parAdresse = new Map();
   for (const d of actifs) {
-    for (const a of [d.emailAcquereur, d.emailVendeur, d.emailNotaireParticipant]) {
-      if (typeof a === 'string' && a.trim()) parAdresse.set(a.trim().toLowerCase(), d);
+    // Un champ peut porter plusieurs adresses (« a@x.fr; b@y.fr », étude 02/10).
+    for (const champ of [d.emailAcquereur, d.emailVendeur, d.emailNotaireParticipant]) {
+      for (const a of String(champ || '').split(/[;,\s]+/)) {
+        if (/@/.test(a)) parAdresse.set(a.trim().toLowerCase(), d);
+      }
     }
   }
   return { ignorees, actifs, parAdresse };
@@ -349,6 +352,7 @@ function demarrerResumeEmails(depot, parametresRepo, intervalleMs = 60 * 1000, c
 }
 
 module.exports = {
+  contexteClassement, dossierDeEmail, normaliser, SUJETS_EMAIL, desechapperXml, echapperXml, ENVELOPPE_DEBUT, ENVELOPPE_FIN,
   CLE_RESUME_EMAILS, debutFenetreEmails, corpsFindEmails, parseFindEmails, classerEmails, motsDuDossier,
   genererResumeEmails, lireResume, resumeDu, demarrerResumeEmails, momentParis,
   entreesSyntheseEmails, promptSyntheseEmails, validerSyntheseEmails, normaliserSyntheseEmails, completerSyntheseIa

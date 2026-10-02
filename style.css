@@ -8425,3 +8425,24 @@ body.wizard-avance #nouveau-intro { display: none !important; }
 .appris-exemples { margin: 8px 0 0; padding-left: 16px; display: grid; gap: 4px; color: var(--ink-soft); overflow-wrap: anywhere; }
 .appris-actions { margin-top: 10px; }
 .appris-oublier { flex-shrink: 0; }
+
+/* ---- Emails des dossiers (onglet Échanges, étude 02/10) ---- */
+.emails-dossier { margin: 14px 0; }
+.emails-liste { list-style: none; margin: 6px 0 0; padding: 0; display: grid; }
+.email-ligne { padding: 8px 0; border-top: 1px solid var(--line-soft); display: grid; gap: 3px; font-size: 13.5px; min-width: 0; }
+.email-ligne:first-child { border-top: 0; }
+.email-tete { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; color: var(--muted); font-size: 12.5px; }
+.email-sens { font-weight: 600; text-transform: uppercase; letter-spacing: .04em; font-size: 11px; color: var(--ink-soft); }
+.email-recu .email-sens { color: var(--acte); }
+.email-qui { color: var(--ink-soft); overflow-wrap: anywhere; }
+.email-objet { color: var(--ink); font-weight: 500; overflow-wrap: anywhere; }
+.email-resume { color: var(--ink-soft); font-style: italic; }
+.email-pjs { display: grid; gap: 4px; margin-top: 2px; }
+.email-pj { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; min-width: 0; }
+.email-pj-nom { display: inline-flex; align-items: center; gap: 5px; overflow-wrap: anywhere; text-align: left; }
+.email-pj-nom svg { width: 13px; height: 13px; flex-shrink: 0; }
+.email-pj-ecartee { opacity: .55; }
+.email-prepare .email-sens { color: var(--muted); }
+select.email-pj-ranger { font-size: 12.5px; padding: 3px 6px; max-width: 220px; }
+.emails-boites { list-style: none; margin: 4px 0 8px; padding: 0; display: grid; gap: 6px; }
+.emails-boite { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 12px; font-size: 13.5px; }

@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-02 22:35';
+  const VERSION_APP = '2026-10-02 23:01';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-02 23:01', resume: "Emails des dossiers : CLAIRE relit toutes les 10 minutes la boîte de réception de l'office et les « Éléments envoyés » de chaque collaborateur. Dans l'onglet Échanges : les emails reçus et envoyés du dossier, un résumé d'une phrase par l'IA locale (le texte n'est jamais gardé), les pièces jointes — reconnues par leur nom, elles sont rangées dans le dossier du NAS et cochées reçues. Un email préparé par CLAIRE passe « envoyé le … » dès qu'il est retrouvé dans les envois. Réglages › Agenda et Outlook : l'état de chaque boîte. Simulateur de provision : barème validé, l'avertissement est retiré." },
     { version: '2026-10-02 22:35', resume: "Le rapport technique (12 h et 17 h) reprend désormais ce que CLAIRE a appris, anonymisé : erreurs de lecture de la période avec la nature de la correction et la clause lue, classements retenus, fichiers écartés par pièce, commentaires de relecture. Réglages : « Rappels Teams » devient « Rappels »." },
     { version: '2026-10-02 22:32', resume: "Nouvelle rubrique Réglages › « Ce que CLAIRE a appris » : les erreurs de lecture (données d'un compromis corrigées à la main, « Fréquente » à 3 fois en 30 jours), les clauses reconnues d'après vos corrections (à oublier d'un clic si l'une est fausse), les fichiers écartés des pièces et vos commentaires de relecture. Le journal des corrections est désormais commun à tous les postes (il était gardé sur chaque poste, dans « À propos »), et les erreurs fréquentes remontent dans le rapport technique." },
     { version: '2026-10-02 22:31', resume: "Rapport technique : dans « Corrections à la main après extraction », l'origine de la valeur corrigée (regex, IA, Authentic…) s'affiche en clair au lieu de « [nom] » ; c'est un mot technique d'une liste fermée, jamais une donnée du dossier. Les scans non reconnus que l'étude a laissés dans Scan (ou rangés elle-même) ne font plus passer le rapport en « point à examiner »." },
@@ -18287,7 +18288,7 @@
     if (!r) return;
     const d = r.dossierId ? dossiers.find(x => x.id === r.dossierId) : null;
     const adresse = (String(r.texte).match(EMAIL_RE) || [''])[0];
-    const res = await livrerEmailDossier({ destinataire: adresse, sujet: d ? libelleDossierAffiche(d) : '', corps: 'Bonjour,\n\n' });
+    const res = await livrerEmailDossier({ destinataire: adresse, sujet: d ? libelleDossierAffiche(d) : '', corps: 'Bonjour,\n\n', dossierId: d ? d.id : '', geste: 'email' });
     if (!res.ok) { afficherToast(res.message || "L'email n'a pas pu être préparé.", 'OK', null); return; }
     annoncerEmailPret(res, true);
   }
@@ -21677,7 +21678,7 @@
     const sujet = `Rendez-vous en visioconférence du ${new Date(e.date + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}${d ? ' — ' + libelleDossierAffiche(d) : ''}`;
     let dernier = null;
     for (const g of groupesEmailSondage(retenus)) {
-      dernier = await livrerEmailDossier({
+      dernier = await livrerEmailDossier({ dossierId: d ? d.id : '',
         destinataire: g.participants.map(p => p.email).join(', '),
         sujet,
         corps: corpsEmailVisio({ confrere: g.confrere, signature, quand, dossier: d ? libelleDossierAffiche(d) : '', details: m.bloc.details }),
@@ -22816,7 +22817,7 @@
   async function preparerEmailsSondage(d, s, filtre, relance) {
     let dernier = null;
     for (const g of groupesEmailSondage(s.participants, filtre)) {
-      dernier = await livrerEmailDossier({
+      dernier = await livrerEmailDossier({ dossierId: d ? d.id : '',
         destinataire: g.participants.map(p => p.email).join(', '),
         sujet: `${relance ? 'Relance — ' : ''}${d ? 'Rendez-vous de signature' : 'Rendez-vous'} : vos disponibilités — ${libelleSondage(s, d)}`,
         corps: corpsEmailSondage(d, s, g.confrere, relance, !!pageSondageReglee(), g.participants.length > 1),
@@ -25349,9 +25350,10 @@
     return reglagesSignatureCache || {};
   }
 
-  async function livrerEmailDossier({ destinataire, sujet, corps, pieces = [], confrere = false, responsableSignature = '', boutons = null }) {
+  async function livrerEmailDossier({ destinataire, sujet, corps, pieces = [], confrere = false, responsableSignature = '', boutons = null, dossierId = '', geste = '' }) {
     const corpsFinal = adapterCorpsEmail(corps, confrere);
     if (modeEmailPoste() === 'mailto') {
+      noterEmailPrepare({ dossierId, sujet, destinataire, geste });
       const copie = ouvrirBrouillonEmail(destinataire, sujet, texteSansMarques(texteAvecBoutons(corpsFinal, boutons)));
       return { ok: true, mode: 'mailto', copie, piecesNonJointes: pieces.length > 0 };
     }
@@ -25366,6 +25368,7 @@
         pieces
       });
       telechargerFichier(eml, nomFichierEml(sujet), 'message/rfc822');
+      noterEmailPrepare({ dossierId, sujet, destinataire, geste });
       return { ok: true, mode: 'eml' };
     } catch (e) {
       console.error(e);
@@ -25604,7 +25607,7 @@
       return;
     }
     const { sujet, corps } = modele.construire(d);
-    const r = await livrerEmailDossier({ destinataire, sujet, corps, confrere: notaireParticipantRepresenteAcquereur(d), responsableSignature: d.responsable });
+    const r = await livrerEmailDossier({ destinataire, sujet, corps, confrere: notaireParticipantRepresenteAcquereur(d), responsableSignature: d.responsable, dossierId: d.id, geste: type });
     // Préparation impossible : ne rien marquer sur le dossier, l'email n'est pas parti.
     if (!r.ok) { afficherToast(r.message || "L'email n'a pas pu être préparé.", 'OK', null); return; }
     ajouterHistorique(d, modele.historique);
@@ -25819,7 +25822,7 @@
     const { sujet, corps } = construireEmailQuestionnaireSatisfaction(d);
     const pdfDispo = typeof QUESTIONNAIRE_SATISFACTION_PDF_BASE64 === 'string' && QUESTIONNAIRE_SATISFACTION_PDF_BASE64;
     const pieces = pdfDispo ? [{ nom: 'Enquete_satisfaction.pdf', type: 'application/pdf', contenuBase64: QUESTIONNAIRE_SATISFACTION_PDF_BASE64 }] : [];
-    const r = await livrerEmailDossier({ destinataire, sujet, corps, pieces, responsableSignature: d.responsable });
+    const r = await livrerEmailDossier({ destinataire, sujet, corps, pieces, responsableSignature: d.responsable, dossierId: d.id, geste: 'questionnaire' });
     if (!r.ok) { afficherToast(r.message || "L'email n'a pas pu être préparé.", 'OK', null); return; }
     // Le fichier .eml porte le PDF ; en mode mailto (texte seul), il est téléchargé à côté, à joindre.
     const pdfTelecharge = r.mode === 'mailto' ? telechargerPdfQuestionnaire() : false;
@@ -26027,6 +26030,7 @@
           ${hint ? `<p class="hint">${hint}</p>` : ''}
         </div>
         ${renderAppelsDossier(d)}
+        ${renderEmailsDossier(d)}
         ${renderSondageDossier(d)}
         ${lignesUtiles.length ? `<ul class="ja-liste">${lignesUtiles.join('')}</ul>` : '<p class="fiche-vide">Rien à envoyer à ce stade.</p>'}
       </div>
@@ -28544,6 +28548,251 @@
     } catch (e) { /* réessayé à la prochaine ouverture */ }
   }
 
+  // ==== Emails des dossiers (étude, 02/10 : « tu peux lire le contenu », « lire les emails envoyés pour
+  // confirmer ») ====
+  // Le serveur relit la boîte de réception du compte relié et les « Éléments envoyés » de chaque
+  // collaborateur (server/src/emailsDossiers.js) : emails rattachés au dossier, résumé de l'IA locale,
+  // pièces jointes, emails préparés par CLAIRE retrouvés dans les envois. Le texte d'un email n'est
+  // jamais gardé. Les pièces jointes reconnues par leur NOM sont rangées dans le dossier client du NAS.
+  const emailsParDossier = {};      // id → { emails, prepares, etat } (null pendant le chargement)
+
+  // Pure : la pièce de la checklist qu'un nom de pièce jointe désigne (même règle que le parcours du
+  // NAS : le nom seul, motif exact, exclusions de l'étude respectées), l'offre de prêt à part ; ou null.
+  function pieceDePieceJointe(nom, checklist, estExclu) {
+    const nn = normaliserNomPourMotif(String(nom || ''));
+    if (OFFRE_PRET_RE.test(nn)) return { cle: 'offrePret', label: 'Offre de prêt', offre: true };
+    for (const p of checklist || []) {
+      if (correspondancePieceNom(p, nn) !== 'exact') continue;
+      if (estExclu && estExclu(p.cle, nn)) continue;
+      return { cle: p.cle, label: p.label, offre: false };
+    }
+    return null;
+  }
+
+  // Pure : rubriques du NAS où ranger une pièce (celles de Claire Scan pour la même pièce).
+  function rubriquesPourPiece(cle) {
+    const t = TYPES_SCAN.find(x => x.piece === cle || x.cle === cle);
+    return t && t.rubriques ? t.rubriques.slice() : [];
+  }
+
+  // Pure : l'état d'un email préparé — envoyé (quand, par qui), en attente dans une boîte lue, ou boîte
+  // non lue (accès non donné).
+  function etatEmailPrepare(p, boitesEtat) {
+    if (p.envoyeLe) return { classe: 'dl-success', texte: `Envoyé le ${dateHeureAppel(Date.parse(p.envoyeLe))}` };
+    const boite = Object.entries(boitesEtat || {}).find(([, b]) => b.collaborateur === p.collaborateur);
+    if (boite && boite[1].statut === 'refuse') return { classe: 'dl-neutre', texte: `Envois de ${p.collaborateur.split(' ')[0]} non lus` };
+    return { classe: 'dl-pret', texte: 'Pas encore retrouvé dans les envois' };
+  }
+
+  function renderEmailsDossier(d) {
+    if (!(d.id in emailsParDossier)) { chargerEmailsDossier(d.id); return ''; }
+    const donnees = emailsParDossier[d.id];
+    if (!donnees) return '';
+    const { emails, prepares, etat } = donnees;
+    const enAttente = prepares.filter(p => !p.envoyeLe);
+    if (!emails.length && !enAttente.length) return '';
+    const checklist = checklistPieces(d.typeVente, d);
+    const estExclu = (cle, nn) => estNomExcluPourPiece(cle, nn);
+    const prepareParId = new Map(prepares.map(p => [p.id, p]));
+    const pjHtml = (e, pj) => {
+      const ouvrir = `<button type="button" class="lien-action email-pj-nom" onclick="ouvrirPieceJointeEmail('${escapeOnclickArg(e.id)}', '${escapeOnclickArg(pj.id)}')" title="Ouvrir la pièce jointe">${icone('file-text')}${escapeHtml(pj.nom)}</button>`;
+      if (pj.rangee) return `<span class="email-pj">${ouvrir}<span class="dot-label dl-success"><span class="dot"></span>${escapeHtml(pj.rangee.pieceLabel || 'Rangée')} — sur le NAS</span></span>`;
+      if (pj.ignoree) return `<span class="email-pj email-pj-ecartee">${ouvrir}</span>`;
+      const piece = pieceDePieceJointe(pj.nom, checklist, estExclu);
+      const geste = !d.nasDossier
+        ? (piece && !piece.offre ? `<button type="button" class="lien-action" onclick="cocherPieceDepuisEmail('${d.id}', '${escapeOnclickArg(piece.cle)}', '${escapeOnclickArg(pj.nom)}')">Cocher « ${escapeHtml(piece.label)} » reçue</button>` : '')
+        : `<select class="email-pj-ranger" aria-label="Ranger la pièce jointe dans le dossier" onchange="rangerPieceJointeEmail('${d.id}', '${escapeOnclickArg(e.id)}', '${escapeOnclickArg(pj.id)}', this.value, false)">
+            <option value="">${pj.echec ? 'Échec — ranger…' : 'Ranger…'}</option>
+            ${piece ? `<option value="${escapeAttr(piece.cle)}">Comme « ${escapeHtml(piece.label)} »</option>` : ''}
+            ${checklist.filter(p => !piece || p.cle !== piece.cle).map(p => `<option value="${escapeAttr(p.cle)}">${escapeHtml(p.label)}</option>`).join('')}
+            <option value="__nom">Sous son nom</option>
+            <option value="__ecarter">Pas une pièce du dossier</option>
+          </select>`;
+      return `<span class="email-pj">${ouvrir}${piece ? `<span class="dot-label dl-pret"><span class="dot"></span>${escapeHtml(piece.label)}</span>` : ''}${geste}</span>`;
+    };
+    const ligne = (e) => {
+      const p = e.prepareId ? prepareParId.get(e.prepareId) : null;
+      const qui = e.sens === 'recu' ? `De ${escapeHtml(e.de.nom || e.de.adresse)}` : `Envoyé par ${escapeHtml((e.collaborateur || '').split(' ')[0] || e.de.adresse)}${e.a.length ? ` à ${escapeHtml(e.a.slice(0, 2).join(', '))}${e.a.length > 2 ? '…' : ''}` : ''}`;
+      return `<li class="email-ligne email-${e.sens}">
+        <div class="email-tete"><span class="email-sens">${e.sens === 'recu' ? 'Reçu' : 'Envoyé'}</span><span class="appels-quand">${escapeHtml(dateHeureAppel(Date.parse(e.date)))}</span><span class="email-qui">${qui}</span>${p ? '<span class="dot-label dl-success"><span class="dot"></span>Préparé par CLAIRE</span>' : ''}</div>
+        <div class="email-objet">${escapeHtml(e.objet || '(sans objet)')}</div>
+        ${e.resume ? `<div class="email-resume">${escapeHtml(e.resume)}</div>` : ''}
+        ${e.pj.length ? `<div class="email-pjs">${e.pj.map(pj => pjHtml(e, pj)).join('')}</div>` : ''}
+      </li>`;
+    };
+    const attente = enAttente.map(p => {
+      const st = etatEmailPrepare(p, etat && etat.envoyes);
+      return `<li class="email-ligne email-prepare"><div class="email-tete"><span class="email-sens">Préparé</span><span class="appels-quand">${escapeHtml(dateHeureAppel(Date.parse(p.prepareLe)))}</span><span class="email-qui">par ${escapeHtml((p.collaborateur || '').split(' ')[0] || '—')}</span><span class="dot-label ${st.classe}"><span class="dot"></span>${escapeHtml(st.texte)}</span></div><div class="email-objet">${escapeHtml(p.objet)}</div></li>`;
+    }).join('');
+    return `<div class="emails-dossier">
+        <span class="section-eyebrow">Emails <span class="jour-onglet-nb">${emails.length}</span> ${infoBulle('Emails reçus dans la boîte de l’office et envoyés par les collaborateurs, rattachés à ce dossier (relus toutes les 10 minutes). Le texte n’est jamais gardé : seul le résumé de l’IA locale l’est. Une pièce jointe reconnue par son nom est rangée dans le dossier du NAS.')}</span>
+        <ul class="emails-liste">${attente}${emails.slice(0, 5).map(ligne).join('')}</ul>
+        ${emails.length > 5 ? `<details class="appels-plus"><summary>${emails.length - 5} de plus</summary><ul class="emails-liste">${emails.slice(5).map(ligne).join('')}</ul></details>` : ''}
+      </div>`;
+  }
+
+  async function chargerEmailsDossier(id) {
+    emailsParDossier[id] = null;
+    try {
+      const r = await fetchAvecAuth('/api/emails-dossiers?dossierId=' + encodeURIComponent(id));
+      if (!r.ok) return;
+      emailsParDossier[id] = await r.json();
+      if (emailsParDossier[id].emails.length || emailsParDossier[id].prepares.length) render();
+    } catch (e) { /* réessayé à la prochaine ouverture */ }
+  }
+
+  async function ouvrirPieceJointeEmail(emailId, pjId) {
+    const fenetre = window.open('', '_blank');
+    try {
+      const r = await fetchAvecAuth(`/api/emails-dossiers/pj?emailId=${encodeURIComponent(emailId)}&pjId=${encodeURIComponent(pjId)}`);
+      if (!r.ok) throw new Error((await r.json().catch(() => ({}))).erreur || 'statut ' + r.status);
+      const url = URL.createObjectURL(await r.blob());
+      if (fenetre) fenetre.location.href = url; else window.open(url, '_blank');
+    } catch (e) {
+      if (fenetre) fenetre.close();
+      afficherToast('Pièce jointe impossible à ouvrir : ' + e.message, 'OK', null);
+    }
+  }
+
+  // Pièce jointe → pièce cochée reçue sur la fiche (rangée sur le NAS, ou simple coche sans NAS).
+  async function enregistrerPieceDepuisEmail(d, piece, chemin, auto) {
+    if (!d || !piece || piece.offre) return;
+    d.pieces = d.pieces || {};
+    d.pieces[piece.cle] = 'recue';
+    if (chemin) memoriserFichierTrouve(d, NAS_CLE_PIECE(piece.cle), String(chemin).replace(/\\/g, '/'));
+    else d.piecesValideesManuellement = Array.from(new Set([...(d.piecesValideesManuellement || []), piece.cle]));
+    d.piecesTrouveesLe = Object.assign({}, d.piecesTrouveesLe, { [piece.cle]: new Date().toISOString() });
+    d.piecesNotifications = Array.from(new Set([...(d.piecesNotifications || []), piece.cle]));
+    ajouterHistorique(d, `Pièce reçue par email : « ${piece.label} »${chemin ? (auto ? ', rangée automatiquement sur le NAS' : ', rangée sur le NAS') : ''}`);
+    await sauvegarder(d);
+    render();
+    notifierNouvellesPiecesTrouvees(d, [piece.cle]);
+    notifierNavigateurPieces(d, [piece.cle]);
+    signalerSiDossierDevenuComplet(d);
+  }
+
+  async function cocherPieceDepuisEmail(dossierId, cle, nomPj) {
+    const d = dossiers.find(x => x.id === dossierId);
+    const p = d && checklistPieces(d.typeVente, d).find(x => x.cle === cle);
+    if (!p) return;
+    await enregistrerPieceDepuisEmail(d, { cle: p.cle, label: p.label }, null, false);
+    afficherToast(`« ${p.label} » cochée reçue (${nomPj}).`, 'OK', null);
+  }
+
+  // Range une pièce jointe dans le dossier du NAS : comme une pièce de la checklist (nommée de son
+  // libellé, pour que le parcours du NAS la retrouve), sous son nom, ou l'écarte.
+  async function rangerPieceJointeEmail(dossierId, emailId, pjId, choix, auto) {
+    const d = dossiers.find(x => x.id === dossierId);
+    if (!d || !choix) return false;
+    const email = ((emailsParDossier[dossierId] || {}).emails || []).find(e => e.id === emailId);
+    const pj = email && email.pj.find(p => p.id === pjId);
+    if (choix === '__ecarter') {
+      await fetchAvecAuth('/api/emails-dossiers/pj/marquer', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ emailId, pjId, ignoree: true }) }).catch(() => null);
+      await chargerEmailsDossier(dossierId);
+      render();
+      return false;
+    }
+    const checklist = checklistPieces(d.typeVente, d);
+    const p = choix === '__nom' ? null : (choix === 'offrePret' ? { cle: 'offrePret', label: 'Offre de prêt', offre: true } : checklist.find(x => x.cle === choix));
+    const piece = p ? { cle: p.cle, label: p.label, offre: !!p.offre } : null;
+    try {
+      if (pj && pj.echec && !auto) await fetchAvecAuth('/api/emails-dossiers/pj/marquer', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ emailId, pjId, retenter: true }) });
+      const r = await fetchAvecAuth('/api/emails-dossiers/pj/ranger', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
+        emailId, pjId, dossierNas: d.nasDossier, rubriques: piece ? rubriquesPourPiece(piece.cle) : [],
+        nomCible: piece ? piece.label : (pj ? pj.nom.replace(/\.[a-z0-9]{2,5}$/i, '') : ''), pieceCle: piece ? piece.cle : '', pieceLabel: piece ? piece.label : '', auto: !!auto
+      }) });
+      const corps = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(corps.erreur || 'statut ' + r.status);
+      if (!corps.deja && piece) await enregistrerPieceDepuisEmail(d, piece, corps.chemin, auto);
+      if (!auto) afficherToast(`Pièce jointe rangée : ${corps.chemin}`, 'OK', null);
+      await chargerEmailsDossier(dossierId);
+      render();
+      return true;
+    } catch (e) {
+      if (!auto) afficherToast('Rangement impossible : ' + e.message, 'OK', null);
+      await chargerEmailsDossier(dossierId);
+      render();
+      return false;
+    }
+  }
+
+  // Rangement automatique : les pièces jointes reconnues par leur nom, dans les dossiers en cours reliés
+  // au NAS. Une à la fois ; le serveur garantit qu'une pièce jointe n'est rangée qu'une fois (même avec
+  // plusieurs fenêtres ouvertes) et marque un échec, jamais retenté seul.
+  let rangementEmailsEnCours = false;
+  async function rangerPiecesJointesReconnues() {
+    if (rangementEmailsEnCours || !utilisateurPoste) return;
+    rangementEmailsEnCours = true;
+    try {
+      const r = await fetchAvecAuth('/api/emails-dossiers/pieces-jointes');
+      if (!r.ok) return;
+      const { piecesJointes } = await r.json();
+      for (const x of piecesJointes || []) {
+        const d = dossiers.find(y => y.id === x.dossierId);
+        if (!d || d.archive || !d.nasDossier || d.roleNotaire === 'participant') continue;
+        const piece = pieceDePieceJointe(x.nom, checklistPieces(d.typeVente, d), (cle, nn) => estNomExcluPourPiece(cle, nn));
+        if (!piece) continue;
+        if (!(d.id in emailsParDossier) || !emailsParDossier[d.id]) await chargerEmailsDossier(d.id);
+        await rangerPieceJointeEmail(d.id, x.emailId, x.pjId, piece.cle, true);
+      }
+    } catch (e) { /* tour suivant */ } finally { rangementEmailsEnCours = false; }
+  }
+
+  // Un email préparé par CLAIRE est noté sur le serveur : retrouvé dans les « Éléments envoyés », il
+  // passe « envoyé le … ».
+  function noterEmailPrepare({ dossierId, sujet, destinataire, geste }) {
+    if (!sujet) return;
+    fetchAvecAuth('/api/emails-prepares', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
+      dossierId: dossierId || '', objet: sujet, destinataires: destinatairesEmail(destinataire || ''), collaborateur: utilisateurPoste || '', geste: geste || ''
+    }) }).then(() => { if (dossierId) delete emailsParDossier[dossierId]; }).catch(() => {});
+  }
+
+  // Réglages › Agenda et Outlook › Emails des dossiers : boîtes lues et leur état.
+  async function renderReglagesEmailsDossiers() {
+    const zone = document.getElementById('reglages-emails-dossiers');
+    if (!zone) return;
+    let e;
+    try {
+      const r = await fetchAvecAuth('/api/emails-dossiers/etat');
+      if (!r.ok) throw new Error();
+      e = await r.json();
+    } catch (_) { zone.innerHTML = '<p class="hint">État indisponible.</p>'; return; }
+    const ligneBoite = (titre, b) => {
+      const st = b.statut === 'ok' ? ['dl-success', `Lue ${b.luLe ? ilYaActivite(b.luLe, Date.now()) : ''}`]
+        : b.statut === 'refuse' ? ['dl-pret', 'Accès non donné au compte relié']
+        : b.statut === 'erreur' ? ['dl-urgent', b.message || 'Erreur de lecture'] : ['dl-neutre', 'Pas encore lue'];
+      return `<li class="emails-boite"><span>${escapeHtml(titre)}</span><span class="dot-label ${st[0]}"><span class="dot"></span>${escapeHtml(st[1])}</span></li>`;
+    };
+    zone.innerHTML = `
+      <label class="reglages-option" for="emails-dossiers-actif">
+        <span class="reglages-option-texte"><span class="reglages-option-titre">Lire les emails des dossiers</span></span>
+        <span class="switch reglages-switch"><input type="checkbox" id="emails-dossiers-actif" ${e.reglages.actif ? 'checked' : ''} onchange="basculerEmailsDossiers(this.checked)"><span class="slider"></span></span>
+      </label>
+      <ul class="emails-boites">
+        ${ligneBoite('Boîte de réception du compte relié', e.recus || {})}
+        ${(e.envoyes || []).map(b => ligneBoite(`Éléments envoyés — ${b.collaborateur}`, b)).join('')}
+      </ul>
+      <p class="hint">${e.nombre.recus} reçu(s) et ${e.nombre.envoyes} envoyé(s) rattachés aux dossiers${e.dernierTour ? ` · dernier tour ${escapeHtml(ilYaActivite(e.dernierTour, Date.now()))}` : ''}${e.erreur ? ` · ${escapeHtml(e.erreur)}` : ''}</p>
+      <button type="button" class="action-rapide" onclick="lireEmailsDossiersMaintenant(this)">Lire maintenant</button>`;
+  }
+
+  async function basculerEmailsDossiers(actif) {
+    await fetchAvecAuth('/api/emails-dossiers/reglages', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ actif }) }).catch(() => null);
+    renderReglagesEmailsDossiers();
+  }
+
+  async function lireEmailsDossiersMaintenant(btn) {
+    if (btn) { btn.disabled = true; btn.textContent = 'Lecture…'; }
+    try {
+      const r = await fetchAvecAuth('/api/emails-dossiers/lire', { method: 'POST' });
+      const x = await r.json().catch(() => ({}));
+      afficherToast(x.erreur ? 'Lecture des emails : ' + x.erreur : `Emails lus : ${x.recus || 0} reçu(s), ${x.envoyes || 0} envoyé(s), ${x.confirmes || 0} envoi(s) confirmé(s).`, 'OK', null);
+      Object.keys(emailsParDossier).forEach(k => delete emailsParDossier[k]);
+      rangerPiecesJointesReconnues();
+    } catch (e) { afficherToast('Serveur injoignable.', 'OK', null); }
+    renderReglagesEmailsDossiers();
+  }
+
   // Pure : l'adresse du serveur à donner à 3CX. Ouverte sur localhost (fenêtre du poste serveur),
   // l'adresse de la page ne mène au serveur que depuis ce poste : on prend son adresse sur le réseau
   // du bureau (192.168.… d'abord), même port.
@@ -29073,6 +29322,10 @@
     // Sondages de créneaux : les réponses relues par le serveur toutes les 5 minutes.
     chargerSondages();
     setInterval(chargerSondages, 2 * 60 * 1000);
+    // Emails des dossiers : pièces jointes reconnues rangées sur le NAS (toutes les 5 minutes) ; la fiche
+    // ouverte relit ses emails à chaque tour.
+    setTimeout(rangerPiecesJointesReconnues, 30 * 1000);
+    setInterval(() => { Object.keys(emailsParDossier).forEach(k => delete emailsParDossier[k]); rangerPiecesJointesReconnues(); }, 5 * 60 * 1000);
     // Appels 3CX : relevés toutes les 3 s, même fenêtre cachée (c'est là qu'ils comptent).
     releverAppels();
     setInterval(releverAppels, INTERVALLE_APPELS_MS);
@@ -29925,6 +30178,7 @@
     }
     try { localStorage.setItem(CLE_SOUS_ONGLET_REGLAGES, cle); } catch (e) { /* confort seulement */ }
     if (cle === 'authentic') renderReglagesAuthentic();
+    if (cle === 'agenda') renderReglagesEmailsDossiers();
     if (cle === 'apprentissage') ouvrirPageApprentissage();
   }
 
@@ -32748,7 +33002,7 @@
 
     const subject = `Relance — Offre de prêt attendue — ${libelleDossierAffiche(d)}`;
     const body = corpsRelanceOffreManquante(d.nom, d.pret, jours);
-    livrerEmailDossier({ destinataire, sujet: subject, corps: body, confrere: notaireParticipantRepresenteAcquereur(d), responsableSignature: d.responsable })
+    livrerEmailDossier({ destinataire, sujet: subject, corps: body, confrere: notaireParticipantRepresenteAcquereur(d), responsableSignature: d.responsable, dossierId: d.id, geste: 'relancePret' })
       .then(r => afficherToast(r.ok
         ? `Relance « offre de prêt » prête pour ${d.nom} — ${r.mode === 'eml' ? 'ouvrez le fichier téléchargé' : 'vérifiez'} puis envoyez.`
         : `Relance « offre de prêt » de ${libelleDossierAffiche(d)} non préparée.`, 'OK', null));
@@ -39293,6 +39547,7 @@
         destinataire,
         confrere,
         responsableSignature: d.responsable,
+        dossierId: d.id, geste: 'appelFonds',
         sujet: `Appel de fonds — rendez-vous de signature — ${libelleDossierAffiche(d)}`,
         corps: confrere
           ? 'Veuillez trouver ci-joint le courrier de convocation et d’appel de fonds destiné à votre client, en vue du rendez-vous de signature.'

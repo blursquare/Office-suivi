@@ -991,6 +991,10 @@ function creerRepoParametres(db) {
     return propre;
   }
 
+  // Stockage brut d'un état produit par un module qui l'assainit lui-même (emailsDossiers.js).
+  function lireJsonBrut(cle, defaut) { return lireJson(cle, (v) => v, defaut); }
+  function ecrireJsonBrut(cle, valeur) { ecrireStmt.run(cle, JSON.stringify(valeur)); return valeur; }
+
   function lireJournalCorrections() { return lireJson(CLE_JOURNAL_CORRECTIONS, assainirJournalCorrections, []); }
   function ecrireJournalCorrections(j) { const p = assainirJournalCorrections(j); ecrireStmt.run(CLE_JOURNAL_CORRECTIONS, JSON.stringify(p)); return p; }
 
@@ -1295,7 +1299,7 @@ function creerRepoParametres(db) {
     lireCopiesEnAttente, ecrireCopiesEnAttente, lireRetoursAudit, ecrireRetoursAudit,
     lireReglagesClaude, ecrireReglagesClaude, lireSecretLiens,
     lireExclusionsPieces, ecrireExclusionsPieces, lireCorrectionsApprises, ecrireCorrectionsApprises,
-    lireJournalCorrections, ecrireJournalCorrections,
+    lireJournalCorrections, ecrireJournalCorrections, lireJsonBrut, ecrireJsonBrut,
     lireRappelsPerso, ecrireRappelsPerso, lirePreferences, ecrirePreferences
   };
 }

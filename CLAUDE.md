@@ -89,7 +89,8 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
 3. **Le serveur lit le NAS** (`config.nasRacine`, jamais devinée). L'API File System Access du
    navigateur est abandonnée : elle n'existe pas sur une adresse IP. Chemins confinés à la racine
    (`resoudreCheminNas`, liens symboliques résolus avant contrôle, PDF seulement). **Seule écriture
-   sur le NAS : le classeur des scans** (accord de l'étude du 30/09) — une COPIE dans le dossier
+   sur le NAS : le classeur des scans** (accord de l'étude du 30/09) **et les pièces jointes des emails des
+   dossiers** (étude 02/10, `scans.copierDansDossierClient`, mêmes règles) — une COPIE dans le dossier
    client (`COPYFILE_EXCL`, « Nom (2).pdf » plutôt qu'écraser), l'original déplacé dans
    « Scan/CLAIRE - scans rangés/AAAA-MM », jamais supprimé ; nom de scan = simple nom de fichier,
    dossier client confiné par `resoudreCheminNas`. Tout accès disque
@@ -138,6 +139,19 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
    l'aperçu Exchange (256 car.) de 60 emails au plus, rédige `ia.texte` + `ia.points` (rattachés au
    dossier de l'email cité, jamais deviné) ; l'aperçu n'est jamais gardé, seul le résumé l'est ; rédigé
    après l'écriture du résumé sans IA (`ia.enCours`, le poste relit toutes les 20 s).
+   **Emails des dossiers** (étude 02/10 : « tu peux lire le contenu », « lire les emails envoyés pour confirmer » ;
+   choix : repérer, ranger sur le NAS, résumé IA ; « boîte de chacun ») — `server/src/emailsDossiers.js`, toutes les 10 min,
+   même disjoncteur, lecture seule (FindItem/GetItem/GetAttachment) : boîte de réception du compte relié → emails
+   rattachés à un dossier (mêmes règles que le résumé du matin, champs à plusieurs adresses compris) relus en entier,
+   **texte jamais gardé** (résumé d'une phrase par l'IA locale, puis jeté), pièces jointes listées (images intégrées
+   écartées) ; « Éléments envoyés » du compte relié et de chaque collaborateur des Réglages (accès délégué « Relecteur » à
+   donner dans Outlook, sinon « Accès non donné ») → objet, destinataires, date seulement ; un email préparé par CLAIRE
+   (`livrerEmailDossier` → `POST /api/emails-prepares`) retrouvé (même objet, un destinataire commun, après la préparation)
+   passe « envoyé le … ». Onglet Échanges : bloc « Emails » (`renderEmailsDossier`). Pièce jointe reconnue par son NOM
+   (`pieceDePieceJointe`, mêmes motifs et exclusions que le NAS) rangée automatiquement dans la rubrique de Claire Scan
+   (`rangerPiecesJointesReconnues`, dossiers reliés au NAS, une seule fois, un échec jamais retenté seul) et cochée reçue ;
+   sinon « Ranger… » (pièce choisie, sous son nom, ou écartée). Réglages › Agenda et Outlook › Emails des dossiers : état
+   de chaque boîte, interrupteur, « Lire maintenant ». Clé `emails-dossiers` (3 000 emails, 500 préparés).
 6. **Secrets** (mot de passe SMTP, clés API Mistral/Anthropic, mot de passe Exchange, jeton GitHub
    de mise à jour) : stockés en base, **jamais renvoyés par une route** (remplacés par un booléen
    « enregistré »), conservés si le formulaire ne les réémet pas, effacés sur chaîne vide explicite,
@@ -425,8 +439,8 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
   Même règle pour `PROCEDURE_FONDS` et les clauses de l'annexe des quotités. Exception : l'email
   d'envoi du **projet d'acte** (`construireEmailProjetActe`, 30/09) est un premier jet de CLAIRE,
   à remplacer par le texte de l'étude dès qu'elle le fournit.
-- **Barème du simulateur de provision : jamais audité.** Indicatif seulement, jamais recopié dans
-  un courrier ; le contrôle du barème de l'appel de fonds est un signal, il ne remplit rien.
+- **Barème du simulateur de provision : validé par l'étude le 02/10/2026** (avertissement « montant à valider »
+  retiré). Le contrôle du barème de l'appel de fonds reste un signal, il ne remplit rien ; débours du dossier à vérifier.
 - **Répertoire** (Outils, 30/09 ; présentation revue le 02/10 : thèmes dans une colonne à gauche `renderNavRepertoire`, une
   ligne compacte par office/interlocuteur `renderLigneOfficeCarnet`/`renderLigneContactRepertoire`, modification dans la ligne) :
   **une seule entrée « Notaires »** (étude 02/10, carnet et annuaire faisaient doublon) : par département, chaque office du
@@ -604,7 +618,7 @@ Plainte principale de l'étude : **le bruit**, pas les oublis — ne pas élargi
   l'image dans `word/document.xml` + `word/media/` et régénérer le base64, et déclarer tout nouveau
   fichier dans les deux listes d'assets.
 - **Appel de fonds** : aperçu de pagination A4 non repris ; frais et droits de l'acte de vente à
-  saisir à la main (barème non audité). **Encore à lire, en attente d'exemples réels** : montant des
+  saisir à la main (barème validé par l'étude le 02/10). **Encore à lire, en attente d'exemples réels** : montant des
   frais de garantie dans l'offre de prêt.
   **À confirmer par l'étude** : exclusion de la cotisation au fonds de travaux du prorata de charges
   (choix par défaut, décochable). Piste : reporter le fonds de travaux lu dans l'état daté trouvé sur
@@ -628,7 +642,8 @@ Plainte principale de l'étude : **le bruit**, pas les oublis — ne pas élargi
   ouverts dans Outlook), la création d'un nouveau dossier depuis l'export Authentic (ZIP) ; puis la
   mise à jour en un clic (Réglages › Mise à jour), le démarrage automatique de CLAIRE au lancement du
   serveur, le lien vers une pièce ouvert depuis une notification Teams et l'icône de l'exe (nette).
-- **Non vérifié au bureau** : la forme réelle du `.ics` de la visio ADNOV (aucun exemple reçu) ; l'intégration
+- **Non vérifié au bureau** : les emails des dossiers (réponses EWS réelles, accès délégué aux « Éléments envoyés » des
+  collaborateurs, pièces jointes réelles, résumé par Ollama) ; la forme réelle du `.ics` de la visio ADNOV (aucun exemple reçu) ; l'intégration
   3CX (forme réelle de %CallerNumber%, fermeture de l'onglet ouvert par 3CX) ; le repli `SoftDelete` d'une suppression ; le sondage de créneaux (lecture réelle des réponses dans la boîte, boutons
   dans Outlook, options « Provisoire », page de réponse publiée — dépôt public à créer par l'étude) ; le détail des écritures EWS (déplacement et suppression d'un
   rendez-vous, note du Lieu, dates butoir en journée entière, noms exacts des catégories de couleur,

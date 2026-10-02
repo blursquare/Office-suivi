@@ -292,12 +292,44 @@ async function rangerScan({ dossierScans, nasRacine, nom, dossierNas, rubriques,
   };
 }
 
+// Pièce jointe d'un email rangée dans le dossier client (étude, 02/10 : « repérer + ranger sur le NAS ») :
+// mêmes règles que pour un scan — dossier client confiné à la racine du NAS, rubrique retrouvée par son
+// nom, COPIE sans jamais écraser (« Nom (2).ext »). Extensions de documents seulement.
+const EXTENSIONS_PIECE_JOINTE = ['pdf', 'jpg', 'jpeg', 'png', 'tif', 'tiff', 'doc', 'docx', 'odt', 'xls', 'xlsx'];
+
+function extensionPieceJointe(nom) {
+  const m = String(nom || '').toLowerCase().match(/\.([a-z0-9]{2,5})$/);
+  return m && EXTENSIONS_PIECE_JOINTE.includes(m[1]) ? m[1] : null;
+}
+
+async function copierDansDossierClient({ nasRacine, dossierNas, rubriques, nomCible, extension, contenu }, fsImpl = fsp) {
+  if (!Buffer.isBuffer(contenu) || !contenu.length) return { erreur: 'Pièce jointe vide.', statut: 400 };
+  if (!extension || !EXTENSIONS_PIECE_JOINTE.includes(extension)) return { erreur: 'Type de fichier non rangé.', statut: 400 };
+  if (!dossierNas || !String(dossierNas).trim()) return { erreur: 'Dossier client manquant.', statut: 400 };
+  const dossierClient = await resoudreCheminNas(nasRacine, dossierNas, fsImpl);
+  if (!dossierClient || dossierClient === path.resolve(nasRacine)) return { erreur: 'Dossier client hors du NAS configuré.', statut: 400 };
+  let st;
+  try { st = await fsImpl.stat(dossierClient); } catch (_) { st = null; }
+  if (!st || !st.isDirectory()) return { erreur: 'Dossier client introuvable sur le NAS.', statut: 404 };
+  const rubrique = await resoudreRubrique(dossierClient, rubriques, (d) => listerSousDossiers(d, fsImpl));
+  const base = nomFichierSur(nomCible, 'Pièce jointe').replace(/\.pdf$/i, '');
+  const cible = await cheminLibre(path.join(dossierClient, rubrique), `${base}.${extension}`, fsImpl);
+  try {
+    await fsImpl.writeFile(cible, contenu, { flag: 'wx' });
+  } catch (e) {
+    try { await fsImpl.unlink(cible); } catch (_) { /* rien à retirer */ }
+    return { erreur: 'La copie dans le dossier client a échoué : ' + (e && e.code ? e.code : 'erreur d’écriture'), statut: 500 };
+  }
+  return { chemin: path.relative(path.resolve(nasRacine), cible), rubrique };
+}
+
 // Pure : journal borné, le plus récent en tête.
 function ajouterAuJournal(journal, entree) {
   return [entree, ...(Array.isArray(journal) ? journal : [])].slice(0, MAX_JOURNAL);
 }
 
 module.exports = {
+  copierDansDossierClient, extensionPieceJointe, EXTENSIONS_PIECE_JOINTE,
   trouverDossierScans, parentsCandidats, partagesScansCandidats, depuisMsScans, nomScanValide, listerScans, oublierScansAnciens, nomRubriqueNormalise,
   resoudreRubrique, nomFichierSur, cheminLibre, rangerScan, ajouterAuJournal,
   RUBRIQUES_SCANS, NOM_ARCHIVE_SCANS, DELAI_STABILITE_MS, MAX_JOURNAL
