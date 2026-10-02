@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-02 10:27';
+  const VERSION_APP = '2026-10-02 10:28';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,7 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
-    { version: '2026-10-02 10:27', resume: "Suivi des dossiers : sur le poste de Bastien (administrateur), le filtre « Responsable » revient à « Tous » par défaut : tous les dossiers de l'étude sont affichés à l'ouverture. Les autres collaborateurs gardent leurs propres dossiers présélectionnés." },
+    { version: '2026-10-02 10:28', resume: "Suivi des dossiers : sur le poste de Bastien (administrateur), le filtre « Responsable » revient à « Tous » par défaut : tous les dossiers de l'étude sont affichés à l'ouverture. Les autres collaborateurs gardent leurs propres dossiers présélectionnés." },
     { version: '2026-10-02 10:27', resume: "Suivi des dossiers, vue Échéances : tous les dossiers sont affichés. Un dossier sans échéance datée en attente (rendez-vous à fixer sans date butoir, toutes les dates validées…) était omis ; il apparaît maintenant dans une section « Sans échéance datée » en bas de la liste. Les échéances au-delà de 8 semaines restent sous « Plus tard »." },
     { version: '2026-10-02 10:25', resume: "Extension Firefox « CLAIRE pour Authentic » : « Copier la structure (sans données) » masque désormais les nom et prénoms qui suivent M. / Mme même collés au mot précédent, et réduit tout texte de plus de 8 mots à son nombre de mots (deux prénoms étaient passés). Les tableaux reçus portent leur titre ; extension 0.2.0 (titre des tableaux, en-têtes, titre des icônes)." },
     { version: '2026-10-02 09:51', resume: "Bandeau « Appel entrant » : il se ferme seul 45 secondes après la sonnerie (3CX ne prévient pas CLAIRE de la fin d'un appel), reste ouvert tant que la souris est dessus, et se ferme dès qu'on ouvre la fiche d'un dossier depuis le bandeau. La croix reste disponible." },
