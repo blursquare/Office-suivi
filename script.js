@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-02 22:10';
+  const VERSION_APP = '2026-10-02 22:15';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-02 22:15', resume: "Nouveau dossier : le type de vente, le responsable, les deux notaires, le notaire qui reçoit l'acte et le rôle de l'étude rejoignent les « Données pré-remplies », avec leur source (Lue dans l'acte, Reprise d'Authentic, Déduit des notaires, Par défaut) et leur case à valider ; ils se corrigent dans le panneau comme les autres données." },
     { version: '2026-10-02 22:10', resume: "Nouveau dossier en trois étapes : Importer, Vérifier, Valider. « Vérifier » réunit les données lues (à valider d'une case, la page du document à un clic), le dossier (type, responsable, notaires, rôle, pièces d'Authentic) et l'avant-contrat (engagements du vendeur en une ligne courte, la clause au survol). « Valider » récapitule le dossier avant « Ajouter le dossier » et signale ce qui reste à valider ou à compléter." },
     { version: '2026-10-02 22:04', resume: "Nouveau dossier épuré : à l'étape Vérifier, chaque donnée tient sur une ligne (libellé, source, valeur, case à valider), sans explication ni extrait ; vendeurs et acquéreurs en deux lignes ; les champs en double sont masqués et « Échéances et dates du document » est replié. À l'étape Finaliser : type de vente, responsable, notaires et une seule case pour les pièces d'Authentic — les pièces de base et le choix des rappels ne s'affichent plus (rappels J-15/J-7 par défaut). Le notaire lu dans Authentic est posé des deux côtés (il reçoit l'acte) quand aucun n'est rempli. L'encadré « Ce que CLAIRE repère » disparaît après l'import." },
     { version: '2026-10-02 21:56', resume: "Nouveau dossier, présentation revue : les quatre étapes en cases carrées, cochées une fois faites, avec une ligne d'état sous chacune (« Compromis + Authentic », « 3 à valider »…). À l'étape Vérifier, les données pré-remplies sont rangées en « À valider », « Validées » et « À compléter si besoin » (replié) : chaque donnée a sa case à cocher, sa source (lue dans l'acte, reprise d'Authentic) et son extrait du document à déplier ; « Tout valider » coche tout d'un geste, une barre suit l'avancement. À l'étape Finaliser, un champ rempli par CLAIRE et pas retouché porte « Pré-rempli »." },
@@ -8487,8 +8488,9 @@
     // pas l'inverse (une vente de maison individuelle ne les mentionne simplement jamais), donc on
     // ne force jamais "maison" par défaut ici, on ne fait que corriger vers "copropriété" quand
     // c'en est manifestement une.
-    if (detecterTypeVenteCopropriete(texte)) {
+    if (detecterTypeVenteCopropriete(texte) && !choixManuelDossierWizard('f-type-vente')) {
       document.getElementById('f-type-vente').value = 'copropriete';
+      noterOrigineDossierWizard('f-type-vente', 'acte');
     }
     majApercuPieces();
 
@@ -8586,18 +8588,19 @@
     const notaires = extraction.notaires || {};
     if (notaires.statut === 'CONFIRMED' && notaires.roleEtude && notaires.origine !== 'ia') {
       const select = document.getElementById('f-role-notaire');
-      if (select && (!valeursAppliquees['f-role-notaire'] || select.value === valeursAppliquees['f-role-notaire'])) {
+      if (select && !choixManuelDossierWizard('f-role-notaire') && (!valeursAppliquees['f-role-notaire'] || select.value === valeursAppliquees['f-role-notaire'])) {
         select.value = notaires.roleEtude;
         valeursAppliquees['f-role-notaire'] = notaires.roleEtude;
+        noterOrigineDossierWizard('f-role-notaire', 'acte');
         majApercuPieces();
       }
     }
     // Notaire de chaque côté, lu dans l'acte et complété par le carnet : proposé dans les deux
     // champs de l'étape Finaliser, où l'étude le corrige avant d'enregistrer.
     const cotes = cotesNotairesPourDossier(extraction.notaires);
-    appliquerValeurChamp('f-notaire-vendeur', completerNomNotaire(cotes.vendeur, carnetConfreres));
-    appliquerValeurChamp('f-notaire-acquereur', completerNomNotaire(cotes.acquereur, carnetConfreres));
-    if (cotes.coteInstrumentaire) appliquerValeurChamp('f-cote-instrumentaire', cotes.coteInstrumentaire);
+    if (appliquerValeurChamp('f-notaire-vendeur', completerNomNotaire(cotes.vendeur, carnetConfreres))) noterOrigineDossierWizard('f-notaire-vendeur', 'acte');
+    if (appliquerValeurChamp('f-notaire-acquereur', completerNomNotaire(cotes.acquereur, carnetConfreres))) noterOrigineDossierWizard('f-notaire-acquereur', 'acte');
+    if (cotes.coteInstrumentaire && appliquerValeurChamp('f-cote-instrumentaire', cotes.coteInstrumentaire)) noterOrigineDossierWizard('f-cote-instrumentaire', 'acte');
     remplirListeNotairesWizard(notairesProposesWizard().map(n => n.nom));
     majApercuPieces();
   }
@@ -8638,23 +8641,24 @@
     if (!v || !a || v.value.trim() || a.value.trim()) return false;
     const n = notairesProposesWizard().find(x => x.source === 'authentic');
     if (!n) return false;
-    appliquerValeurChamp('f-notaire-vendeur', n.nom);
-    appliquerValeurChamp('f-notaire-acquereur', n.nom);
+    if (appliquerValeurChamp('f-notaire-vendeur', n.nom)) noterOrigineDossierWizard('f-notaire-vendeur', 'authentic');
+    if (appliquerValeurChamp('f-notaire-acquereur', n.nom)) noterOrigineDossierWizard('f-notaire-acquereur', 'authentic');
     const sel = document.getElementById('f-cote-instrumentaire');
-    if (sel && !sel.value) sel.value = 'vendeur';
+    if (sel && !sel.value) { sel.value = 'vendeur'; noterOrigineDossierWizard('f-cote-instrumentaire', 'authentic'); }
     return true;
   }
 
   function placerNotaireWizard(index, cote) {
     const n = notairesProposesWizard()[index];
     if (!n) return;
-    if (cote === 'vendeur' || cote === 'deux') document.getElementById('f-notaire-vendeur').value = n.nom;
-    if (cote === 'acquereur' || cote === 'deux') document.getElementById('f-notaire-acquereur').value = n.nom;
+    if (cote === 'vendeur' || cote === 'deux') { document.getElementById('f-notaire-vendeur').value = n.nom; noterOrigineDossierWizard('f-notaire-vendeur', 'manuel'); }
+    if (cote === 'acquereur' || cote === 'deux') { document.getElementById('f-notaire-acquereur').value = n.nom; noterOrigineDossierWizard('f-notaire-acquereur', 'manuel'); }
     // Un seul notaire pour les deux parties : c'est lui qui reçoit l'acte.
     const sel = document.getElementById('f-cote-instrumentaire');
-    if (cote === 'deux' && sel && !sel.value) sel.value = 'vendeur';
-    else if (n.role === 'instrumentaire' && sel && !sel.value && cote !== 'deux') sel.value = cote;
+    if (cote === 'deux' && sel && !sel.value) { sel.value = 'vendeur'; noterOrigineDossierWizard('f-cote-instrumentaire', 'manuel'); }
+    else if (n.role === 'instrumentaire' && sel && !sel.value && cote !== 'deux') { sel.value = cote; noterOrigineDossierWizard('f-cote-instrumentaire', 'manuel'); }
     majApercuPieces();
+    if (extractionActuelle) renderPanneauRevision(extractionActuelle);
   }
 
   function renderNotairesWizard() {
@@ -8690,7 +8694,10 @@
     const role = roleEtudeDeduitWizard(v.trim(), a.trim(), cote);
     const select = document.getElementById('f-role-notaire');
     const marque = document.getElementById('role-etude-deduit');
-    if (role && select) select.value = role;
+    if (role && select && !choixManuelDossierWizard('f-role-notaire')) {
+      if (select.value !== role || !originesDossierWizard['f-role-notaire'] || originesDossierWizard['f-role-notaire'] === 'defaut') noterOrigineDossierWizard('f-role-notaire', 'deduit');
+      select.value = role;
+    }
     if (marque) marque.textContent = role ? '· déduit des notaires' : '';
   }
 
@@ -8735,6 +8742,8 @@
     arbitre: { texte: 'Plusieurs valeurs possibles', dl: 'dl-alerte' },
     concordant: { texte: 'Lue dans l’acte, même lecture par l’IA', dl: 'dl-neutre' },
     authentic: { texte: 'Reprise d’Authentic', dl: 'dl-neutre' },
+    deduit: { texte: 'Déduit des notaires', dl: 'dl-neutre' },
+    defaut: { texte: 'Par défaut', dl: 'dl-neutre' },
     lu: { texte: 'Lue dans l’acte', dl: 'dl-neutre' }
   };
 
@@ -8751,6 +8760,8 @@
     if (champ.methode === 'CALCULATED') return ORIGINES_REVISION.calcule;
     if (champ.origine === 'regex+ia') return ORIGINES_REVISION.concordant;
     if (champ.origine === 'authentic') return ORIGINES_REVISION.authentic;
+    if (champ.origine === 'deduit') return ORIGINES_REVISION.deduit;
+    if (champ.origine === 'defaut') return ORIGINES_REVISION.defaut;
     return ORIGINES_REVISION.lu;
   }
 
@@ -8760,6 +8771,10 @@
   var CHAMPS_REVISION = [
     { cle: 'typeActe', libelle: 'Type d’acte', type: 'select', champId: null },
     { cle: 'nom', libelle: 'Nom du dossier', type: 'texte', champId: 'f-nom' },
+    // Données du dossier (étude, 02/10 au soir : « pourquoi les données de dossier ne sont pas dans les données
+    // pré-remplies ? ») : lues dans le formulaire, leur source suivie par originesDossierWizard.
+    { cle: 'typeVente', libelle: 'Type de vente', type: 'select', champId: 'f-type-vente', formulaire: true },
+    { cle: 'responsable', libelle: 'Responsable', type: 'select', champId: 'f-responsable', formulaire: true },
     { cle: 'signature', libelle: 'Signature de l’avant-contrat', type: 'date', champId: null },
     { cle: 'pret', libelle: 'Obtention du prêt', type: 'date', champId: 'f-pret' },
     { cle: 'acte', libelle: 'Réitération de l’acte', type: 'date', champId: 'f-acte' },
@@ -8772,8 +8787,32 @@
     { cle: 'nomAgence', libelle: 'Agence immobilière', type: 'texte', champId: 'f-nom-agence' },
     { cle: 'depotGarantie', libelle: 'Dépôt de garantie / acompte', type: 'nombre', champId: 'f-depot-garantie' },
     { cle: 'sequestreDepot', libelle: 'Dépôt versé à', type: 'texte', champId: 'f-sequestre-depot' },
-    { cle: 'roleNotaire', libelle: 'Rôle de l’étude', type: 'select', champId: 'f-role-notaire' }
+    { cle: 'notaireVendeur', libelle: 'Notaire du vendeur', type: 'texte', champId: 'f-notaire-vendeur', formulaire: true, liste: 'f-notaires-liste' },
+    { cle: 'notaireAcquereur', libelle: 'Notaire de l’acquéreur', type: 'texte', champId: 'f-notaire-acquereur', formulaire: true, liste: 'f-notaires-liste' },
+    { cle: 'coteInstrumentaire', libelle: 'Notaire qui reçoit l’acte', type: 'select', champId: 'f-cote-instrumentaire', formulaire: true },
+    { cle: 'roleNotaire', libelle: 'Rôle de l’étude', type: 'select', champId: 'f-role-notaire', formulaire: true }
   ];
+
+  // D'où vient la valeur d'un champ « dossier » du formulaire : 'acte', 'authentic', 'deduit' (des
+  // notaires), 'defaut' (valeur de départ), 'manuel'. Vidé à chaque nouveau dossier.
+  var originesDossierWizard = {};
+  function noterOrigineDossierWizard(champId, origine) {
+    if (originesDossierWizard[champId] === 'manuel' && origine !== 'manuel') return false;
+    originesDossierWizard[champId] = origine;
+    return true;
+  }
+  // Une valeur posée par CLAIRE ne remplace jamais un choix fait à la main.
+  function choixManuelDossierWizard(champId) { return originesDossierWizard[champId] === 'manuel'; }
+
+  // Pure : la ligne du panneau d'un champ « dossier » d'après sa valeur, sa source et sa relecture.
+  function champFormulaireRevision(valeur, origine, verifie, source) {
+    const v = valeur === undefined || valeur === null || valeur === '' ? null : String(valeur);
+    return {
+      valeur: v, statut: v ? 'CONFIRMED' : 'NOT_FOUND', methode: null,
+      origine: origine === 'acte' ? 'regex' : (origine || 'defaut'),
+      source: source || null, candidats: [], raison: '', verifie: !!verifie, propositionIa: null
+    };
+  }
 
   var OPTIONS_REVISION = {
     typeActe: [
@@ -8796,6 +8835,16 @@
 
   function champRevision(extraction, cle) {
     if (!extraction) return null;
+    const defForm = CHAMPS_REVISION.find(c => c.cle === cle && c.formulaire);
+    const elForm = defForm && typeof document !== 'undefined' ? document.getElementById(defForm.champId) : null;
+    if (elForm && typeof elForm.value === 'string' && (cle !== 'roleNotaire' || elForm.value)) {
+      const n = extraction.notaires || {};
+      const page = cle === 'notaireVendeur' && n.vendeur ? n.vendeur.source
+        : cle === 'notaireAcquereur' && n.acquereur ? n.acquereur.source
+        : (cle === 'coteInstrumentaire' || cle === 'roleNotaire') && n.instrumentaire ? n.instrumentaire.source : null;
+      const origine = originesDossierWizard[defForm.champId];
+      return champFormulaireRevision(elForm.value.trim(), origine, verificationsRevision[cle], origine === 'acte' ? page : null);
+    }
     const dates = extraction.dates || {};
     const champs = extraction.champs || {};
     if (cle === 'typeActe') return extraction.typeActe || null;
@@ -8851,6 +8900,8 @@
     };
     extraction.champs = extraction.champs || {};
     extraction.dates = extraction.dates || {};
+    const defForm = CHAMPS_REVISION.find(c => c.cle === cle && c.formulaire);
+    if (defForm) originesDossierWizard[defForm.champId] = 'manuel';
     if (cle === 'typeActe') { extraction.typeActe = extraction.typeActe || champExtraction(null); marquer(extraction.typeActe); }
     else if (cle === 'nom') { extraction.champs.nom = extraction.champs.nom || champExtraction(null); marquer(extraction.champs.nom); }
     else if (cle === 'prixVente') { extraction.champs.prixVente = extraction.champs.prixVente || champExtraction(null); marquer(extraction.champs.prixVente); }
@@ -8931,8 +8982,10 @@
     const champ = document.getElementById(definition.champId);
     if (!champ) return;
     champ.value = valeur === null || valeur === undefined ? '' : String(valeur);
-    valeursAppliquees[definition.champId] = champ.value;
-    if (definition.champId === 'f-role-notaire') majApercuPieces();
+    // Champ du dossier : une saisie, que CLAIRE ne doit plus remplacer.
+    if (definition.formulaire) delete valeursAppliquees[definition.champId];
+    else valeursAppliquees[definition.champId] = champ.value;
+    if (definition.formulaire) majApercuPieces();
   }
 
   // Une correction faite dans le panneau alimente la mémoire des corrections, au même titre qu'un
@@ -9003,6 +9056,12 @@
   function champSaisieRevision(definition, champ) {
     const brut = champ && champ.valeur !== null && champ.valeur !== undefined ? String(champ.valeur) : '';
     const cle = definition.cle;
+    if (definition.type === 'select' && definition.formulaire) {
+      const el = typeof document !== 'undefined' ? document.getElementById(definition.champId) : null;
+      const opts = el && el.options ? [...el.options].map(o => ({ valeur: o.value, libelle: o.text })) : [];
+      return `<select class="revision-saisie" onchange="modifierDonneeRevision('${cle}', this.value)">${opts.map(o =>
+        `<option value="${escapeAttr(o.valeur)}"${o.valeur === brut ? ' selected' : ''}>${escapeHtml(o.libelle)}</option>`).join('')}</select>`;
+    }
     if (definition.type === 'select') {
       const options = (OPTIONS_REVISION[cle] || []).map(o =>
         `<option value="${escapeAttr(o.valeur)}"${o.valeur === brut ? ' selected' : ''}>${escapeHtml(o.libelle)}</option>`
@@ -9013,7 +9072,7 @@
     const type = definition.type === 'date' ? 'date' : (definition.type === 'nombre' ? 'number' : 'text');
     // onchange (et non oninput) : le panneau se redessine à chaque modification, une saisie
     // caractère par caractère perdrait le focus au premier appui sur une touche.
-    return `<input type="${type}" class="revision-saisie" value="${escapeAttr(brut)}"
+    return `<input type="${type}" class="revision-saisie" value="${escapeAttr(brut)}"${definition.liste ? ` list="${definition.liste}"` : ''}
       placeholder="Non renseigné" onchange="modifierDonneeRevision('${cle}', this.value)">`;
   }
 
@@ -10274,11 +10333,11 @@
   function appliquerTypeVenteAuthentic(donnees) {
     const bien = bienExportAuthentic(donnees);
     const select = document.getElementById('f-type-vente');
-    if (bien && bien.type && select) { select.value = bien.type; majApercuPieces(); }
+    if (bien && bien.type && select && !choixManuelDossierWizard('f-type-vente')) { select.value = bien.type; noterOrigineDossierWizard('f-type-vente', 'authentic'); majApercuPieces(); }
     // Collaborateur en charge (parties prenantes d'Authentic) : responsable proposé.
     const collab = donnees && donnees.infosAuthentic && donnees.infosAuthentic.collaborateur;
     const resp = document.getElementById('f-responsable');
-    if (collab && resp && [...resp.options].some(o => o.value === collab)) resp.value = collab;
+    if (collab && resp && !choixManuelDossierWizard('f-responsable') && [...resp.options].some(o => o.value === collab)) { resp.value = collab; noterOrigineDossierWizard('f-responsable', 'authentic'); }
     // Date de signature de l'avant-contrat relevée sur la page du dossier (étude, 02/10 : « si on complète,
     // les champs suivants doivent être pré-remplis ») : l'ancre des délais, si le compromis ne l'a pas
     // donnée (ou seulement estimée). Avant, elle n'arrivait sur la fiche qu'à l'enregistrement.
@@ -10977,6 +11036,7 @@
     valeursAppliquees = {};
     correctionsRevision = {};
     verificationsRevision = {};
+    originesDossierWizard = {};
     renderPanneauRevision(null);
     afficherAnalyseJuridique();
     masquerBoutonAjoutEngagement();
@@ -15355,6 +15415,7 @@
       remplirListeNotairesWizard(notairesProposesWizard().map(x => x.nom));
       placerNotaireAuthenticParDefaut();
       majApercuPieces();
+      if (extractionActuelle) renderPanneauRevision(extractionActuelle);
     }
     if (n === 3) renderRecapWizard();
     const wrap = document.querySelector('.wrap');

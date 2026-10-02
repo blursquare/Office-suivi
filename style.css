@@ -8401,3 +8401,6 @@ body.wizard-avance #nouveau-intro { display: none !important; }
 #wizard-bloc-analyse .analyse-section { background: none; border: 0; box-shadow: none; padding: 0; margin: 0 0 14px; }
 #wizard-bloc-analyse .analyse-vide-etat { padding: 0; margin: 0 0 10px; background: none; border: 0; color: var(--muted); font-size: 13.5px; }
 #wizard-bloc-analyse .analyse-sous-titre { font-size: 13px; margin-bottom: 6px; }
+/* Données du dossier dans le panneau (étude 02/10 au soir) : le bloc « Dossier » ne garde que les gestes. */
+#panel.avec-revision #wizard-bloc-dossier { border-top: 0; padding-top: 0; margin-top: 12px; }
+#panel.avec-revision #wizard-bloc-dossier .wizard-bloc-titre { display: none; }

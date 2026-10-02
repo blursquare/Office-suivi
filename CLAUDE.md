@@ -258,8 +258,11 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
   `#panel.wizard-succession` : nom, bien, responsable, pièces d'Authentic — `.vente-seul` masqués). L'ancienne entrée
   « Dossier Authentic » (Authentic puis le compromis) est retirée. **Un seul dossier par création** (étude 02/10) : `creationDossierEnCours` (bouton « Enregistrement… »), confirmation si un dossier en cours a le même nom ou le même numéro Authentic (`dossierDejaPresentPourCreation`). **Trois étapes** (étude 02/10 au soir : « mets l'étape 2 et 3 ensemble, les données de la 4 dans la 2, une étape pour
   terminer et valider ») : **Importer · Vérifier · Valider**. Vérifier = panneau des données pré-remplies (cases à valider,
-  source en une ligne, page du document à un clic, jamais méthode ni extrait), bloc « Dossier » (type, responsable, notaires,
-  rôle, case « pièces d'Authentic » ; champs doublant le panneau masqués, `#panel.avec-revision .revision-double`), bloc
+  source en une ligne, page du document à un clic, jamais méthode ni extrait), **type de vente, responsable, notaires, notaire qui reçoit l'acte et
+  rôle aussi dans le panneau** (étude 02/10 au soir ; `formulaire: true` dans `CHAMPS_REVISION` : valeur lue dans le champ, source suivie
+  par `originesDossierWizard` — acte, Authentic, « Déduit des notaires », « Par défaut », à la main ; un choix à la main n'est jamais
+  remplacé, `choixManuelDossierWizard`), puis la case « pièces d'Authentic » (champs doublant le panneau masqués,
+  `#panel.avec-revision .revision-double`), bloc
   « Avant-contrat » à plat (engagements en libellé court `libelleCourtEngagement`, clause au survol, page à un clic ;
   documents identifiés), « Échéances et dates du document » replié (`details.wizard-plus`). Valider = récapitulatif
   (`lignesRecapWizard`, `renderRecapWizard` : vide = « À compléter », données non validées signalées) + « Ajouter le dossier ».

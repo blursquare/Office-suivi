@@ -15340,3 +15340,19 @@ Finaliser en une étape, puis une dernière étape de récapitulatif et d'enregi
 Vérifié : tests client 1197 / serveur 599 ; Chromium (compromis simulé + Authentic avec un engagement, Authentic seul) en
 clair, sombre et 390 px ; création depuis « Valider » (nom, responsable, notaires des deux côtés, côté qui reçoit l'acte,
 type, engagement enregistrés). Non vérifié : un vrai compromis PDF (pdf.js injoignable ici) et une succession réelle.
+
+### 02/10/2026 22:15 — Données du dossier dans « Données pré-remplies »
+Question : « Pourquoi les données de dossier ne sont pas dans données pré-remplies ? » Raison : le panneau ne listait que les
+valeurs lues dans l'extraction (`CHAMPS_REVISION` adossé à `extractionActuelle`) ; type de vente, responsable et notaires
+étaient de simples champs du formulaire, sans source suivie. Fait :
+- `CHAMPS_REVISION` : typeVente, responsable (après le nom), notaireVendeur, notaireAcquereur, coteInstrumentaire (avant
+  roleNotaire) marqués `formulaire: true` ; roleNotaire aussi lu dans le formulaire (repli sur l'extraction sans champ).
+- `originesDossierWizard` / `noterOrigineDossierWizard` / `choixManuelDossierWizard` : source de chaque champ (acte —
+  copropriété lue, notaires lus, rôle confirmé —, Authentic — type, collaborateur, notaire posé des deux côtés —, déduit —
+  rôle d'après les notaires —, manuel — panneau ou « Vendeur/Acquéreur/Les deux »), « Par défaut » sinon ; une valeur posée
+  par CLAIRE ne remplace plus un choix manuel (type, rôle, responsable).
+- `champFormulaireRevision` (pure, testée), origines « Déduit des notaires » et « Par défaut » ; selects du panneau repris des
+  options du formulaire, notaires avec la liste des notaires ; page du document pour un notaire lu dans l'acte.
+- Bloc « Dossier » : ses lignes passent en `revision-double` (masquées quand le panneau est là) ; reste la case des pièces.
+Vérifié : tests client 1198 ; Chromium : 15 données à valider dont les 6 du dossier avec leur source ; correction du notaire de
+l'acquéreur et du type dans le panneau → champs, rôle recalculé et dossier enregistré à jour.

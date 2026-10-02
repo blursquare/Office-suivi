@@ -72,7 +72,7 @@ test('chaque donnée du panneau est lisible et pilote un champ du formulaire ou 
   const app = chargerApplication();
   const e = app.construireExtractionRegex(ACTE, '2026-09-15');
   const cles = app.CHAMPS_REVISION.map(c => c.cle).join(',');
-  assert.equal(cles, 'typeActe,nom,signature,pret,acte,ventebien,adresseBien,prixVente,prixMobilier,emailAcquereur,emailVendeur,nomAgence,depotGarantie,sequestreDepot,roleNotaire');
+  assert.equal(cles, 'typeActe,nom,typeVente,responsable,signature,pret,acte,ventebien,adresseBien,prixVente,prixMobilier,emailAcquereur,emailVendeur,nomAgence,depotGarantie,sequestreDepot,notaireVendeur,notaireAcquereur,coteInstrumentaire,roleNotaire');
   for (const definition of app.CHAMPS_REVISION) {
     // champRevision doit savoir résoudre CHAQUE clé déclarée : une entrée de la table sans
     // résolution afficherait une ligne morte, impossible à corriger.
@@ -149,4 +149,16 @@ test('une valeur absente du texte ne produit aucune fausse référence', () => {
   const app = chargerApplication();
   assert.equal(app.sourcePourValeur(ACTE, 'nom', 'INTROUVABLE / NULLEPART'), null);
   assert.equal(app.localiserValeur(ACTE, 'ab'), -1, 'une aiguille trop courte ne doit rien ancrer');
+});
+
+test('données du dossier dans le panneau : valeur du formulaire, source suivie, « Par défaut » sinon', () => {
+  const app = chargerApplication();
+  const c = app.champFormulaireRevision('Maître Sophie GOSSART', 'authentic', false, null);
+  assert.equal(c.valeur, 'Maître Sophie GOSSART');
+  assert.equal(app.origineRevision(c).texte, 'Reprise d’Authentic');
+  assert.equal(app.origineRevision(app.champFormulaireRevision('maison', undefined, false)).texte, 'Par défaut');
+  assert.equal(app.origineRevision(app.champFormulaireRevision('instrumentaire', 'deduit', false)).texte, 'Déduit des notaires');
+  assert.equal(app.origineRevision(app.champFormulaireRevision('copropriete', 'acte', false)).texte, 'Lue dans l’acte');
+  assert.equal(app.champFormulaireRevision('', 'acte', false).valeur, null);
+  assert.equal(app.origineRevision(app.champFormulaireRevision('maison', 'manuel', true)).dl, 'dl-success');
 });
