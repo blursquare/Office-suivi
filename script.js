@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-02 07:40';
+  const VERSION_APP = '2026-10-02 08:11';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-02 08:11', resume: "Tableau de bord : nouveau widget « Statistiques » (en bas, toute la largeur ; « Widgets » pour le déplacer ou le retirer). Délai moyen depuis l'ouverture du dossier dans CLAIRE jusqu'à l'obtention du prêt, la renonciation au droit de préemption et la signature de l'acte (12 derniers mois, nombre de dossiers et médiane au survol), et dossiers ouverts ce mois-ci comparés au mois précédent et au même mois de l'an dernier (« — » quand CLAIRE ne suivait pas encore de dossier)." },
     { version: '2026-10-02 07:40', resume: "Fiche d'un dossier, onglet Analyse : chaque engagement du vendeur et chaque document relevé dans l'avant-contrat a désormais une case à cocher (réalisé / reçu). Ce qui n'est pas coché garde le dossier « Attente de pièces » et baisse la probabilité de tenue du rendez-vous (« Relancer le vendeur ») ; l'onglet affiche « faits / total ». Un document qui est aussi une pièce de la checklist partage sa case avec l'onglet Pièces ; un engagement dont la pièce est reçue se coche seul, et cocher des travaux valide la pièce « Travaux de remise en état » qui en découle." },
     { version: '2026-10-01 23:59', resume: "Nouvelle extension Firefox « CLAIRE pour Authentic » (première version) : sur une page de dossier d'Authentic, le bouton « Envoyer à CLAIRE » transmet ce que la page affiche au serveur CLAIRE du bureau (gardé 30 minutes en mémoire, jamais un mot de passe), et CLAIRE l'affiche. La reprise dans une fiche sera branchée une fois la structure des pages connue : « Copier la structure (sans données) » la copie sans aucune valeur de client." },
     { version: '2026-10-01 23:47', resume: "Suivi des dossiers : un carré « Activité de l'étude — En direct » s'ajoute à la colonne de gauche, sous les dernières pièces — actions du jour, barres des 7 derniers jours, qui a agi, puis le fil des dernières actions de toute l'étude (collaborateurs, agenda, relevés de CLAIRE), qui ouvre la fiche au clic. Le même fil que sur le tableau de bord." },
@@ -540,6 +541,7 @@
     x: '<line x1="3.5" y1="3.5" x2="12.5" y2="12.5"/><line x1="12.5" y1="3.5" x2="3.5" y2="12.5"/>',
     check: '<path d="M3 8.4 6.4 11.8 13 4.6" stroke-linejoin="round"/>',
     'list-check': '<path d="M1.8 4.2 3 5.4 5.2 3M1.8 8.2 3 9.4 5.2 7M1.8 12.2 3 13.4 5.2 11"/><path d="M7.6 4.3H14M7.6 8.3H14M7.6 12.3H14"/>',
+    'bar-chart': '<path d="M3 13.5V8.5M8 13.5V3.5M13 13.5V6.5" stroke-linecap="round"/><path d="M1.8 13.8h12.4"/>',
     'trend-up': '<path d="M2.5 12 6.8 7.7 9.3 10.2 13.5 6"/><path d="M9.5 6h4v4"/>',
     'trend-down': '<path d="M2.5 4 6.8 8.3 9.3 5.8 13.5 10"/><path d="M9.5 10h4v-4"/>',
     info: '<circle cx="8" cy="8" r="6.2"/><line x1="8" y1="7.2" x2="8" y2="11.3"/><circle cx="8" cy="4.9" r="0.9" fill="currentColor" stroke="none"/>',
@@ -14166,6 +14168,149 @@
     planifierAjustementWidgets();
   }
 
+  // ---- Widget « Statistiques » (étude, 02/10 : délais entre l'ouverture du dossier et l'obtention du
+  // prêt, la renonciation au droit de préemption, la signature ; nombre de dossiers par rapport au mois
+  // précédent et au même mois de l'année précédente). Tout vient de ce que CLAIRE a déjà noté — l'entrée
+  // « Dossier créé » de l'historique pour l'ouverture (la date du compromis n'est pas enregistrée) —,
+  // rien n'est deviné : un dossier sans l'une des deux dates n'entre pas dans la moyenne.
+  var JOURS_STATISTIQUES = 365;   // délais : les événements des 12 derniers mois
+  var RE_HISTORIQUE_PRET_OBTENU = /offre de pr[eê]t (?:retrouv|re[cç]u|confirm)|obtention du pr[eê]t.*marqu[ée]e r[ée]alis[ée]e/i;
+  var RE_HISTORIQUE_PREEMPTION = /pr[ée]emption/i;
+
+  // Pure : date (AAAA-MM-JJ) de l'ouverture du dossier dans CLAIRE, ou null.
+  function dateOuvertureDossier(d) {
+    const h = ((d && d.historique) || []).find(x => x && x.texte === 'Dossier créé');
+    return h && h.date ? isoLocalDepuisDate(h.date) : null;
+  }
+  // Pure : la plus ancienne entrée d'historique qui répond au motif (et à `filtre`), en AAAA-MM-JJ.
+  function premiereDateHistorique(d, re, filtre) {
+    const dates = ((d && d.historique) || []).filter(x => x && x.date && re.test(x.texte || '') && (!filtre || filtre(x.texte)))
+      .map(x => isoLocalDepuisDate(x.date)).filter(Boolean).sort();
+    return dates[0] || null;
+  }
+  // Pure : offre de prêt reçue (ou obtention du prêt marquée réalisée) — jamais pour un achat comptant.
+  function dateObtentionPret(d) {
+    if (!d || d.sansPret) return null;
+    return premiereDateHistorique(d, RE_HISTORIQUE_PRET_OBTENU);
+  }
+  // Pure : renonciation au droit de préemption reçue — trouvée sur le NAS ou rangée (piecesTrouveesLe),
+  // sinon validée à la main (historique).
+  function dateRenonciationPreemption(d) {
+    if (!d) return null;
+    const trouvee = d.piecesTrouveesLe && d.piecesTrouveesLe.renonciationPreemption;
+    if (trouvee) return isoLocalDepuisDate(trouvee);
+    if (!(d.pieces && d.pieces.renonciationPreemption === 'recue')) return null;
+    return premiereDateHistorique(d, RE_HISTORIQUE_PREEMPTION, t => /re[cç]u|valid|trouv|rang/i.test(t));
+  }
+  // Pure : jour de la signature, une fois passée.
+  function dateSignatureFaite(d, aujourdhuiIso) {
+    const auj = aujourdhuiIso || isoAujourdhuiLocal();
+    return d && d.rendezVousSignature && d.rendezVousSignature <= auj ? d.rendezVousSignature : null;
+  }
+
+  // Pure : { pret, preemption, signature } → { moyenne, mediane, n, min, max } en jours depuis
+  // l'ouverture, sur les événements des 12 derniers mois ; moyenne null sans aucun dossier mesurable.
+  function statistiquesDelaisDossiers(liste, aujourdhuiIso) {
+    const auj = aujourdhuiIso || isoAujourdhuiLocal();
+    const depuis = addDays(auj, -JOURS_STATISTIQUES);
+    const mesurer = (dateDe) => {
+      const ecarts = [];
+      (liste || []).forEach(d => {
+        const ouverture = dateOuvertureDossier(d);
+        const fin = dateDe(d);
+        if (!ouverture || !fin || fin < depuis || fin > auj) return;
+        const j = ecartJours(ouverture, fin);
+        if (j !== null && j >= 0) ecarts.push(j);
+      });
+      ecarts.sort((a, b) => a - b);
+      const n = ecarts.length;
+      if (!n) return { moyenne: null, mediane: null, n: 0, min: null, max: null };
+      const mediane = n % 2 ? ecarts[(n - 1) / 2] : Math.round((ecarts[n / 2 - 1] + ecarts[n / 2]) / 2);
+      return { moyenne: Math.round(ecarts.reduce((t, x) => t + x, 0) / n), mediane, n, min: ecarts[0], max: ecarts[n - 1] };
+    };
+    return {
+      pret: mesurer(dateObtentionPret),
+      preemption: mesurer(dateRenonciationPreemption),
+      signature: mesurer(d => dateSignatureFaite(d, auj))
+    };
+  }
+
+  // Pure : dossiers ouverts dans CLAIRE ce mois-ci, le mois précédent et le même mois de l'année
+  // précédente. `disponible` = false quand CLAIRE ne suivait encore aucun dossier ce mois-là (aucune
+  // ouverture notée avant sa fin) : on affiche alors « — », pas un zéro trompeur.
+  function comparaisonDossiersOuverts(liste, aujourdhuiIso) {
+    const auj = aujourdhuiIso || isoAujourdhuiLocal();
+    const ouvertures = (liste || []).map(dateOuvertureDossier).filter(Boolean).sort();
+    const premiere = ouvertures[0] || null;
+    const moisDecale = (n) => { const x = new Date(auj.slice(0, 7) + '-01T00:00:00'); x.setMonth(x.getMonth() + n); return isoLocalDepuisDate(x).slice(0, 7); };
+    const periode = (cle) => {
+      const n = ouvertures.filter(o => o.slice(0, 7) === cle).length;
+      return { cle, n, disponible: !!premiere && premiere.slice(0, 7) <= cle };
+    };
+    return { mois: periode(auj.slice(0, 7)), precedent: periode(moisDecale(-1)), anPasse: periode(moisDecale(-12)), premiere };
+  }
+
+  // Pure : « octobre », « octobre 2025 » (l'année seulement si ce n'est pas celle de référence).
+  function nomMoisStatistiques(cle, anneeRef, court) {
+    const nom = new Date(cle + '-01T00:00:00').toLocaleDateString('fr-FR', { month: court ? 'short' : 'long' });
+    return cle.slice(0, 4) === String(anneeRef) ? nom : `${nom} ${court ? cle.slice(2, 4) : cle.slice(0, 4)}`;
+  }
+
+  function renderStatistiquesDashboard(perimetreTous) {
+    const bloc = document.getElementById('kpi-statistiques');
+    if (!bloc) return;
+    const presentation = presentationWidget('statistiques');
+    const auj = isoAujourdhuiLocal();
+    const delais = statistiquesDelaisDossiers(perimetreTous, auj);
+    const cmp = comparaisonDossiersOuverts(perimetreTous, auj);
+    const annee = auj.slice(0, 4);
+    const court = presentation !== 'grand';   // « sept. », « oct. 25 » quand la place manque
+    const lignesDelais = [
+      { cle: 'pret', libelle: 'Obtention du prêt', s: delais.pret, classe: 'pret' },
+      { cle: 'preemption', libelle: 'Renonciation au droit de préemption', s: delais.preemption, classe: 'preemption' },
+      { cle: 'signature', libelle: 'Signature de l’acte', s: delais.signature, classe: 'signature' }
+    ];
+    const max = Math.max(1, ...lignesDelais.map(l => l.s.moyenne || 0));
+    const ligneDelai = (l) => {
+      const s = l.s;
+      const aide = s.n ? `${s.n} dossier${s.n > 1 ? 's' : ''} sur 12 mois · médiane ${s.mediane} j · de ${s.min} à ${s.max} j` : 'Aucun dossier mesurable sur 12 mois';
+      return `<li class="st-delai" title="${escapeAttr(aide)}">
+          <span class="st-delai-lib">${escapeHtml(l.libelle)}</span>
+          <span class="st-delai-val">${s.n ? `<b>${s.moyenne}</b> j` : '—'}</span>
+          <span class="st-barre"><span class="st-barre-${l.classe}" style="width:${s.n ? Math.max(4, Math.round(100 * s.moyenne / max)) : 0}%"></span></span>
+          ${presentation === 'petit' ? '' : `<span class="st-delai-n">${s.n ? `${s.n} dossier${s.n > 1 ? 's' : ''}` : ''}</span>`}
+        </li>`;
+    };
+    const ecart = (a, b) => {
+      if (!b.disponible) return '<span class="st-ecart">—</span>';
+      const t = formaterTendance(a.n - b.n);
+      return `<span class="st-ecart">${t.icone}${t.texte}</span>`;
+    };
+    const tuile = (p, lib, principal) => `<div class="st-tuile${principal ? ' principal' : ''}">
+        <span class="st-tuile-n">${p.disponible || principal ? p.n : '—'}</span>
+        <span class="st-tuile-lib">${escapeHtml(lib)}</span>
+      </div>`;
+    const nouveaux = `<div class="st-tuiles">
+        ${tuile(cmp.mois, nomMoisStatistiques(cmp.mois.cle, annee, court), true)}
+        ${tuile(cmp.precedent, nomMoisStatistiques(cmp.precedent.cle, annee, court))}
+        ${tuile(cmp.anPasse, nomMoisStatistiques(cmp.anPasse.cle, annee, court))}
+      </div>
+      <div class="st-ecarts w-fixe">${ecart(cmp.mois, cmp.precedent)} vs mois précédent · ${ecart(cmp.mois, cmp.anPasse)} vs l’an dernier</div>`;
+    const sectionDelais = `<div class="w-section st-section">
+        <h3 class="jour-carte-sous-titre">Délai moyen depuis l’ouverture${infoBulle('En jours, depuis l’ouverture du dossier dans CLAIRE (la date du compromis n’est pas enregistrée), sur les événements des 12 derniers mois. Prêt : offre reçue ou obtention marquée réalisée. Préemption : renonciation trouvée sur le NAS ou validée à la main. Signature : date du rendez-vous passée.')}</h3>
+        <ul class="st-delais">${lignesDelais.map(ligneDelai).join('')}</ul>
+      </div>`;
+    const sectionNouveaux = `<div class="w-section st-section">
+        <h3 class="jour-carte-sous-titre">Dossiers ouverts${infoBulle(cmp.premiere ? `Dossiers ouverts dans CLAIRE chaque mois. « — » : CLAIRE ne suivait pas encore de dossier ce mois-là (premier dossier ouvert le ${formatDateFr(cmp.premiere)}). Le mois en cours est compté au jour d’aujourd’hui.` : 'Aucun dossier ouvert noté.')}</h3>
+        ${nouveaux}
+      </div>`;
+    const corps = presentation === 'petit'
+      ? `<ul class="st-delais">${lignesDelais.map(ligneDelai).join('')}</ul>
+         <div class="st-ecarts w-fixe"><b>${cmp.mois.n}</b> ouvert${cmp.mois.n > 1 ? 's' : ''} en ${escapeHtml(nomMoisStatistiques(cmp.mois.cle, annee))} · ${ecart(cmp.mois, cmp.precedent)}</div>`
+      : `<div class="st-duo">${sectionDelais}${sectionNouveaux}</div>`;
+    bloc.innerHTML = carteWidget({ presentation, classe: 'statistiques', titre: 'Statistiques', sous: 'Délais et dossiers ouverts', corps });
+  }
+
   // ---- Activité de l'étude (Tableau de bord) : suivi en direct, tous collaborateurs ----
   // Une seule source : l'historique des dossiers, déjà synchronisé entre les postes par le sondage
   // (toutes les 7 s) — la carte se met donc à jour toute seule, sans mécanisme de plus. On garde :
@@ -16315,7 +16460,8 @@
     { id: 'portefeuille', titre: 'Dossiers ouverts', tailles: TAILLES_WIDGET, defaut: 'petit', hauteur: 1, icone: 'folder', description: 'Les dossiers en cours, par statut, et les signatures du mois.' },
     { id: 'pieces', titre: 'Dernières pièces', tailles: TAILLES_WIDGET, defaut: 'petit', hauteur: 1, icone: 'file-text', description: 'Les pièces arrivées sur le NAS ou rangées par Claire Scan.' },
     { id: 'avancement', titre: 'Avancement des dossiers', tailles: TAILLES_WIDGET, defaut: 'moyen', hauteur: 2, icone: 'list-check', description: 'Où en est chaque dossier : étapes, pièces, prochaine échéance.' },
-    { id: 'activite', titre: 'Activité de l’étude', tailles: TAILLES_WIDGET, defaut: 'moyen', hauteur: 2, icone: 'users', description: 'Ce que font les collaborateurs et ce que CLAIRE relève, en direct.' }
+    { id: 'activite', titre: 'Activité de l’étude', tailles: TAILLES_WIDGET, defaut: 'moyen', hauteur: 2, icone: 'users', description: 'Ce que font les collaborateurs et ce que CLAIRE relève, en direct.' },
+    { id: 'statistiques', titre: 'Statistiques', tailles: TAILLES_WIDGET, defaut: 'grand', hauteur: 1, icone: 'bar-chart', description: 'Délais depuis l’ouverture du dossier (prêt, préemption, signature) et dossiers ouverts par mois.' }
   ];
   var NOMS_TAILLE_WIDGET = { petit: 'Étroit (1 colonne)', moyen: 'Moyen (2 colonnes)', grand: 'Large (toute la ligne)' };
   var NOMS_HAUTEUR_WIDGET = { 1: 'Basse (1 rangée)', 2: 'Moyenne (2 rangées)', 3: 'Haute (3 rangées)' };
@@ -22051,6 +22197,7 @@
     const perimetreActifs = perimetreTous.filter(d => !d.archive);
     renderAvancementDossiers(perimetreActifs);
     renderKpisDashboard(perimetreActifs, perimetreTous);
+    renderStatistiquesDashboard(perimetreTous);
     renderAccueilDashboard(perimetreActifs, calculerStatsPortefeuille(perimetreActifs));
     renderRendezVousDashboard(perimetreActifs);
     renderAlertesDashboard(perimetreActifs);

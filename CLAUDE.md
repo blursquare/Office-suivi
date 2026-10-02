@@ -498,6 +498,12 @@ Plainte principale de l'étude : **le bruit**, pas les oublis — ne pas élargi
   par défaut = rectangle plein (4 × 4, 2 × 8 sur téléphone, vérifié par `placementWidgets` dans les
   tests), les plus utiles d'abord ; la changer = incrémenter `VERSION_DISPOSITION_WIDGETS` (chaque
   collaborateur y est ramené une fois).
+  **Widget « Statistiques »** (étude, 02/10, `renderStatistiquesDashboard`, grand × 1 rangée en fin de grille) : délais
+  moyens depuis l'ouverture (`dateOuvertureDossier` = entrée « Dossier créé ») jusqu'au prêt (`dateObtentionPret`,
+  historique), à la renonciation de préemption (`dateRenonciationPreemption` : `piecesTrouveesLe` puis historique) et
+  à la signature passée — `statistiquesDelaisDossiers`, 12 mois, moyenne/médiane/n ; dossiers ouverts ce mois / mois
+  précédent / même mois N-1 (`comparaisonDossiersOuverts`, « — » avant le premier dossier noté). Périmètre du tableau de
+  bord (mes dossiers / tous).
 - **Texte d'aide** : ne décrit pas ce que le bouton dit déjà ; il dit ce qui manque. Une toute
   nouvelle confirmation commence par son verbe d'action (`boutonConfirmation`). **Une explication
   n'est jamais un paragraphe** (étude, 29/09 : « ça charge trop l'interface ») : elle va dans une

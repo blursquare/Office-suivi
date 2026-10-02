@@ -14404,3 +14404,25 @@ dans la complétude du dossier et la probabilité de tenue du rendez-vous. »
 - Effet attendu à la mise à jour : les dossiers dont l'analyse relève des engagements ou documents passent
   « Attente de pièces » tant qu'ils ne sont pas cochés (ou retirés par la croix s'ils ne sont pas pertinents).
 - Tests `tests/analyse-cases.test.js` ; vérifié dans Chromium (clair, sombre, 400 px) sur un dossier inventé.
+
+### 02/10/2026 08:11 — Tableau de bord : widget « Statistiques »
+
+Demande de l'étude : « Crée un widget de statistiques : délai entre l'ouverture du dossier et l'obtention du prêt,
+idem pour la réception du droit de préemption, idem pour la signature de l'acte ; le nombre de dossiers par rapport au
+mois précédent et au mois de l'année précédente. »
+- Ouverture = entrée « Dossier créé » de l'historique (la date du compromis n'est pas enregistrée ; un dossier sans
+  cette entrée n'est jamais compté). Prêt = première entrée « Offre de prêt retrouvée/reçue/confirmée » ou
+  « Obtention du prêt marquée réalisée » (jamais pour un comptant). Préemption = `piecesTrouveesLe.renonciationPreemption`
+  (NAS, Claire Scan), sinon l'entrée d'historique de la validation à la main, pièce reçue seulement. Signature = date du
+  rendez-vous une fois passée. Délais en jours, événements des 12 derniers mois, moyenne + médiane + min/max + nombre de
+  dossiers (`statistiquesDelaisDossiers`).
+- Dossiers ouverts par mois (`comparaisonDossiersOuverts`) : ce mois (au jour), le précédent, le même mois l'an
+  dernier ; « — » pour un mois antérieur au premier dossier noté (CLAIRE ne suivait rien), jamais un zéro trompeur ;
+  écarts en flèche + nombre (`formaterTendance`, sans couleur de jugement).
+- Widget `statistiques` (WIDGETS_DASHBOARD + WIDGETS_PREFERENCES serveur + section dans index.html), défaut grand × 1
+  (la disposition par défaut reste un rectangle plein : 4 × 5, 2 × 9 sur téléphone ; ajouté en fin de grille pour les
+  dispositions existantes, sans changer VERSION_DISPOSITION_WIDGETS). Petit : les trois délais + nombre du mois ; moyen et
+  grand : délais en barres (prêt ambre, préemption bleu `--acte`, signature vert) et trois tuiles de mois ; mois abrégés
+  hors grand ; sur téléphone, le corps défile. Icône `bar-chart` ajoutée au jeu.
+- Tests `tests/statistiques-dossiers.test.js` (+ tests de disposition mis à jour) ; vérifié dans Chromium (grand,
+  moyen, petit sombre, 400 px) avec 14 dossiers inventés.

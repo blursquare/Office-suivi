@@ -167,6 +167,6 @@ test('lignesGalerieWidgets : tous les widgets, affichés d’abord puis retirés
   const lignes = app.lignesGalerieWidgets(dispo);
   assert.equal(lignes.length, app.WIDGETS_DASHBOARD.length);
   assert.equal(lignes.map(l => `${l.def.id}:${l.affiche ? 'oui' : 'non'}`).join(','),
-    'aujourdhui:oui,portefeuille:oui,avancement:oui,activite:oui,agenda:non,pieces:non');
+    'aujourdhui:oui,portefeuille:oui,avancement:oui,activite:oui,statistiques:oui,agenda:non,pieces:non');
   assert.ok(lignes.every(l => l.def.description && l.def.icone));
 });

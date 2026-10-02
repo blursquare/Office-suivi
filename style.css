@@ -7965,3 +7965,34 @@ button.w-jour-lien { border: none; background: none; padding: 0; cursor: pointer
 .auth-tableau { border-collapse: collapse; font-size: 12.5px; }
 .auth-tableau th { padding: 3px 8px; border: 1px solid var(--line-soft); text-align: left; font-weight: 600; color: var(--ink-soft); white-space: nowrap; }
 .auth-tableau td { padding: 3px 8px; border: 1px solid var(--line-soft); color: var(--ink); white-space: nowrap; }
+
+/* ---- Widget « Statistiques » (02/10) : délais moyens depuis l'ouverture (barres à l'échelle du plus
+   long) et dossiers ouverts par mois (ce mois, le précédent, le même mois l'an dernier). ---- */
+.w-carte.statistiques .st-duo { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 18px; align-items: start; }
+.w-carte.statistiques .st-duo > .st-section { border-top: 0; padding-top: 0; }
+.st-delais { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.st-delai { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "lib val" "barre barre"; column-gap: 8px; row-gap: 3px; font-size: 12.5px; }
+.w-moyen .st-delai, .w-grand .st-delai { grid-template-columns: minmax(0, 1fr) auto auto; grid-template-areas: "lib val n" "barre barre barre"; }
+.st-delai-lib { grid-area: lib; color: var(--ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.st-delai-val { grid-area: val; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.st-delai-val b { color: var(--ink); font-size: 14px; font-weight: 650; }
+.st-delai-n { grid-area: n; color: var(--muted); font-size: 11.5px; font-variant-numeric: tabular-nums; white-space: nowrap; min-width: 66px; text-align: right; }
+.st-barre { grid-area: barre; height: 6px; border-radius: 999px; background: color-mix(in srgb, var(--line) 60%, transparent); overflow: hidden; }
+.st-barre > span { display: block; height: 100%; border-radius: inherit; }
+.st-barre-pret { background: var(--pret); }
+.st-barre-preemption { background: var(--acte); }
+.st-barre-signature { background: var(--success); }
+.st-tuiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.st-tuile { display: flex; flex-direction: column; gap: 1px; min-width: 0; padding: 7px 8px; border-radius: 8px; background: var(--paper-sunk); }
+.st-tuile-n { font-size: 20px; line-height: 1.1; font-weight: 650; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.st-tuile.principal .st-tuile-n { color: var(--ink); }
+.st-tuile-lib { font-size: 11.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.st-ecarts { margin-top: 6px; font-size: 12px; color: var(--muted); }
+.st-ecarts b { color: var(--ink); }
+.st-ecart { display: inline-flex; align-items: center; gap: 2px; color: var(--ink-soft); font-weight: 600; font-variant-numeric: tabular-nums; }
+@media (max-width: 700px) {
+  .w-carte.statistiques .st-duo { grid-template-columns: minmax(0, 1fr); }
+  .w-carte.statistiques .st-duo > .st-section + .st-section { border-top: 1px solid var(--line-soft); padding-top: 8px; }
+  /* Sur une colonne, les deux sections dépassent une rangée : le corps défile plutôt que de couper. */
+  .w-carte.statistiques .w-corps { overflow-y: auto; }
+}
