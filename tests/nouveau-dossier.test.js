@@ -53,8 +53,11 @@ test('sourcesImportWizard : ce qui a nourri le dossier, et ce qui manque', () =>
   assert.match(deux[1].texte, /prix \(Capital\)/);
   const pdfSeul = app.sourcesImportWizard({ compromis: 'Compromis.pdf' });
   assert.equal(pdfSeul[1].geste, 'Compléter depuis Authentic');
+  // Créé depuis Authentic, sans PDF (étude, 02/10) : plus d'ajout du compromis ensuite.
   const authSeul = app.sourcesImportWizard({ authentic: 'DUPONT / MARTIN' });
-  assert.equal(authSeul[0].geste, 'Ajouter le compromis');
+  assert.equal(authSeul[0].geste, undefined);
+  assert.equal(app.sourcesImportWizard({})[0].geste, 'Ajouter le compromis');
+  assert.equal(app.MODES_IMPORT.map(m => m.cle).join(), 'pdf,seul');
 });
 
 test('groupesAuthenticPourCompromis : le dossier Authentic du compromis lu vient en tête', () => {

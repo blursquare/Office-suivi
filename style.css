@@ -8185,7 +8185,7 @@ button.w-jour-lien { border: none; background: none; padding: 0; cursor: pointer
 .safer-delai-case input { margin: 0; }
 
 /* « Nouveau dossier » : trois façons de commencer (étude, 02/10). */
-.import-choix { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 4px; }
+.import-choix { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 4px; }
 .import-choix > * { min-width: 0; }
 .import-choix-carte {
   display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto auto; column-gap: 10px; row-gap: 2px;
@@ -8266,3 +8266,9 @@ button.w-jour-lien { border: none; background: none; padding: 0; cursor: pointer
   .appels-liste.authentic-journal li { grid-template-columns: auto minmax(0, 1fr); }
   .authentic-journal-etat { grid-column: 1 / -1; flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: flex-start; }
 }
+
+/* « Nouveau dossier » : compromis déjà lu — la zone de dépôt se réduit à une ligne (remplacer le PDF),
+   le choix d'Authentic passe devant (étude, 02/10 : « option de compléter avec Authentic »). */
+#import-boite.import-boite-lu .pdf-dropzone { flex-direction: row; justify-content: flex-start; padding: 10px 14px; gap: 12px; min-height: 0; }
+#import-boite.import-boite-lu .pdf-dropzone-icone { display: none; }
+#import-boite.import-boite-lu .pdf-dropzone-hint { font-size: 12px; }

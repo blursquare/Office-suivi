@@ -15254,3 +15254,20 @@ client lue après création ajoutait déjà les adresses nouvelles (`appliquerCl
   lues s'y ajoutent ;
 - fiche : l'email de l'acquéreur représenté par un confrère était enregistré mais caché (« Par son notaire ») — il
   s'affiche désormais dès qu'il est connu, comme pour le vendeur (`coordonneesPartiesDossier`).
+
+### 02/10/2026 (21 h 45) — Nouveau dossier : deux entrées
+
+Étude : « On passe à l'ajout d'un nouveau dossier. On va partir sur deux entrées. Upload de PDF + option de compléter
+avec Authentic sinon on continue sans. Et création depuis Authentic sans PDF. »
+- `MODES_IMPORT` : `pdf` « Compromis (PDF) » (« Puis Authentic pour compléter, si besoin ») et `seul` « Depuis
+  Authentic » (« Sans PDF : vente ou succession »). L'entrée `authentic` (Authentic repris, puis le compromis déposé
+  dessous) est retirée, avec son geste « Ajouter le compromis » après une reprise d'Authentic (`sourcesImportWizard` :
+  « Sans compromis : dates butoir et engagements à saisir »).
+- Compromis lu : on ne passe plus seul à « Vérifier » (`traiterFichierPdf`) ; l'étape 1 montre « Compléter depuis
+  Authentic (facultatif) » même sans dossier ouvert (le dire, « ou continuez sans Authentic »), le dossier du compromis
+  signalé « Correspond au compromis » (score des noms ≥ 6), « Compléter » → Authentic ajouté puis « Vérifier » ; le
+  bouton de l'étape devient « Continuer sans Authentic → » (`majBoutonSuivantEtape1`, `#wizard-suivant-1`) ; la zone
+  de dépôt se réduit à une ligne « Compromis lu — déposez un autre PDF pour le remplacer » (`.import-boite-lu`).
+- « Depuis Authentic » : « Reprendre » → « Vérifier » (vente) ou « Finaliser » (succession), comme avant.
+Vérifié : tests ; Chromium (compromis simulé — pdf.js injoignable ici — puis liste Authentic, « Compléter », mode
+« Depuis Authentic »).

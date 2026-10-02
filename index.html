@@ -228,9 +228,9 @@
       </div>
 
       <div class="wizard-step actif" id="wizard-step-1">
-        <!-- Trois façons de créer un dossier (étude, 02/10) : le compromis seul (puis « Compléter
-             depuis Authentic »), l'export ZIP d'Authentic, ou un dossier ouvert dans Authentic
-             (pages relevées par l'extension) complété par le compromis. Voir choisirModeImport. -->
+        <!-- Deux façons de créer un dossier (étude, 02/10) : le compromis (PDF), complété ou non par un
+             dossier ouvert dans Authentic, ou un dossier ouvert dans Authentic sans PDF. Voir
+             choisirModeImport. -->
         <div class="import-choix" id="import-choix" role="radiogroup" aria-label="Source du nouveau dossier"></div>
         <div class="authentic-releves" id="authentic-releves" style="display:none;"></div>
         <div class="extract-box" id="import-boite">
@@ -249,7 +249,7 @@
 
         <div class="wizard-nav">
           <span></span>
-          <button type="button" class="primary" onclick="definirEtapeWizard(2)">Suivant : Vérifier →</button>
+          <button type="button" class="primary" id="wizard-suivant-1" onclick="definirEtapeWizard(2)">Suivant : Vérifier →</button>
         </div>
       </div>
 

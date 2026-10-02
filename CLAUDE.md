@@ -250,13 +250,13 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
   de compte client JurisWeb (`analyserReleveCompteClient`, colonne Débit/Crédit par position des
   items) → acomptes sur prix et sur frais versés à l'étude, qui **remplacent** la ligne d'acompte du
   dossier (même somme), reversements au confrère signalés. Rien n'est enregistré sur le dossier.
-- **« Nouveau dossier » : trois façons de commencer** (étude, 02/10, `MODES_IMPORT`, `choisirModeImport`,
-  `renderChoixImport`) — « Compromis (PDF) » puis « Compléter depuis Authentic » (`groupesAuthenticPourCompromis` :
-  le dossier du compromis lu en tête) ; « Dossier Authentic » : un dossier relevé est
-  « Repris » sans quitter l'étape 1, puis le compromis déposé dessous le complète (`exportAuthenticActuel` gardé hors
-  mode PDF) ; **« Dossier Authentic seul »** (`seul`, étude 02/10, à la place de l'export ZIP retiré) : sans compromis,
-  repris d'un clic puis « Vérifier » (vente : aucune date exigée) ou directement « Finaliser » (succession, assistant
-  réduit `#panel.wizard-succession` : nom, bien, responsable, pièces d'Authentic — `.vente-seul` masqués). **Un seul dossier par création** (étude 02/10) : `creationDossierEnCours` (bouton « Enregistrement… »), confirmation si un dossier en cours a le même nom ou le même numéro Authentic (`dossierDejaPresentPourCreation`). Étapes Vérifier/Finaliser : `sourcesImportWizard` (ce qui vient du compromis / d'Authentic, ce qui manque).
+- **« Nouveau dossier » : deux entrées** (étude, 02/10 au soir, `MODES_IMPORT`, `choisirModeImport`,
+  `renderChoixImport`) — **« Compromis (PDF) »** : le compromis lu, on reste sur l'étape 1 : « Compléter depuis Authentic
+  (facultatif) » (`groupesAuthenticPourCompromis` : le dossier du compromis en tête, « Correspond au compromis ») ou
+  « Continuer sans Authentic → » (`majBoutonSuivantEtape1`) ; **« Depuis Authentic »** (`seul`, sans PDF) : repris d'un
+  clic puis « Vérifier » (vente : aucune date exigée) ou directement « Finaliser » (succession, assistant réduit
+  `#panel.wizard-succession` : nom, bien, responsable, pièces d'Authentic — `.vente-seul` masqués). L'ancienne entrée
+  « Dossier Authentic » (Authentic puis le compromis) est retirée. **Un seul dossier par création** (étude 02/10) : `creationDossierEnCours` (bouton « Enregistrement… »), confirmation si un dossier en cours a le même nom ou le même numéro Authentic (`dossierDejaPresentPourCreation`). Étapes Vérifier/Finaliser : `sourcesImportWizard` (ce qui vient du compromis / d'Authentic, ce qui manque).
   Notaires à la création : lus dans l'acte et dans Authentic (`notairesProposesWizard`), placés d'un clic (vendeur,
   acquéreur, les deux), « Notaire qui reçoit l'acte » (`f-cote-instrumentaire`), rôle de l'étude déduit
   (`roleEtudeDeduitWizard`). **Un notaire cité sans son côté reste vide (jamais deviné) mais n'est plus caché** : fiche

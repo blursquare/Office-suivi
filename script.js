@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-02 21:36';
+  const VERSION_APP = '2026-10-02 21:45';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-02 21:45', resume: "Nouveau dossier : deux entrées. « Compromis (PDF) » : une fois le compromis lu, on reste sur la première étape — « Compléter depuis Authentic (facultatif) » liste les dossiers ouverts dans Authentic, celui du compromis en tête (« Correspond au compromis »), ou « Continuer sans Authentic ». « Depuis Authentic » : sans PDF, pour une vente ou une succession. L'ancienne entrée « Dossier Authentic » (Authentic puis le compromis) est retirée." },
     { version: '2026-10-02 21:36', resume: "Emails et téléphones repris d'Authentic : on garde les deux. À la création d'un dossier, les adresses de TOUTES les parties du côté (deux acquéreurs = deux emails) s'ajoutent à celle lue dans le compromis au lieu de la remplacer — avant, seul le premier email d'Authentic était repris et il écrasait celui du compromis ; un email tapé à la main dans le formulaire est gardé, les autres s'y ajoutent. Sur la fiche, l'email de l'acquéreur reste affiché quand un confrère le représente (il était enregistré mais caché derrière « Par son notaire »)." },
     { version: '2026-10-02 21:32', resume: "Authentic, Réglages › Authentic : chaque page reprise dit comment son dossier a été retrouvé — par son numéro, ou par les noms de l'intitulé vérifiés par l'adresse du bien (code postal, voie, numéro), avec les points obtenus. Des noms identiques sur un autre bien (autre code postal ou autre voie) ne désignent pas le dossier." },
     { version: '2026-10-02 21:18', resume: "Authentic : un dossier identifié par « VTE VENDEURS / ACQUÉREURS », sans numéro devant, est reconnu — en titre de l'onglet ouvert comme en en-tête de la page — et retrouvé par les noms ; le numéro, caché dans les données du dossier, est repris quand la page le porte (devant l'en-tête ou dans un champ « N° de dossier ») et sert ensuite d'identifiant. Une fiche client ouverte dans l'onglet d'un dossier est rangée dans ce dossier. Extension 0.3.8." },
@@ -10289,9 +10290,11 @@
       // (la fonction et la route /api/extraction-ia restent en place, sans appelant, pour un
       // éventuel retour arrière ou un usage futur — voir aussi "Redemander à l'IA" retiré du
       // panneau de révision). Le modèle local ne sert plus qu'à l'Outil 2 (relecture d'actes).
-      // Bascule automatiquement vers l'étape "Vérifier" : les dates/chips sont déjà là, plus besoin
-      // de cliquer soi-même sur "Suivant" après un import qui vient de réussir.
-      definirEtapeWizard(2);
+      // Étude, 02/10 au soir : « upload de PDF + option de compléter avec Authentic, sinon on continue
+      // sans ». L'import fait, on reste sur l'étape 1 : « Compléter depuis Authentic » (le dossier du
+      // compromis en tête) ou « Continuer sans Authentic ». Avant, on passait seul à « Vérifier ».
+      renderChoixImport();
+      chargerRelevesAuthenticRecents();
 
       // Ouvre le panneau d'aperçu, à côté du formulaire, limité au compromis (annexes exclues).
       pdfActuel = pdf;
@@ -27910,19 +27913,16 @@
     return morceaux.join(' · ');
   }
 
-  // ---- « Nouveau dossier » : trois façons de commencer (étude, 02/10) ----
-  //  - « Compromis (PDF) » : dates butoir, engagements du vendeur, parties lues dans l'acte ; puis
-  //    « Compléter depuis Authentic » (dossiers ouverts dans Authentic, les plus proches d'abord) ;
-  //  - « Dossier Authentic » : un dossier ouvert dans Authentic (page du dossier, fiches vendeur,
-  //    acquéreur, bien), repris d'un clic, puis le compromis déposé dessous pour les dates butoir et
-  //    les engagements — les données d'Authentic sont gardées ;
-  //  - « Dossier Authentic seul » (étude, 02/10, à la place de l'export ZIP) : sans compromis — une
-  //    succession n'a pas d'acte initial, seulement des parties et des biens ; repris d'un clic, on
-  //    passe directement à « Vérifier ».
+  // ---- « Nouveau dossier » : deux façons de commencer (étude, 02/10 au soir : « deux entrées ») ----
+  //  - « Compromis (PDF) » : dates butoir, engagements du vendeur, parties lues dans l'acte ; l'import
+  //    fait, on reste sur l'étape 1 : « Compléter depuis Authentic » (facultatif, dossiers ouverts dans
+  //    Authentic, celui du compromis d'abord) ou « Continuer sans Authentic » ;
+  //  - « Depuis Authentic » : sans PDF — un dossier ouvert dans Authentic (page du dossier, fiches
+  //    vendeur, acquéreur, bien) repris d'un clic, puis « Vérifier » (une succession : « Finaliser »).
+  // L'ancienne entrée « Dossier Authentic » (Authentic puis le compromis) est retirée.
   var MODES_IMPORT = [
-    { cle: 'pdf', icone: 'file-text', titre: 'Compromis (PDF)', sous: 'Dates butoir et engagements, puis Authentic' },
-    { cle: 'authentic', icone: 'link', titre: 'Dossier Authentic', sous: 'Ouvert dans Authentic, puis le compromis' },
-    { cle: 'seul', icone: 'users', titre: 'Dossier Authentic seul', sous: 'Sans compromis : succession, parties et biens' }
+    { cle: 'pdf', icone: 'file-text', titre: 'Compromis (PDF)', sous: 'Puis Authentic pour compléter, si besoin' },
+    { cle: 'seul', icone: 'link', titre: 'Depuis Authentic', sous: 'Sans PDF : vente ou succession' }
   ];
   let modeImport = 'pdf';
 
@@ -27948,16 +27948,27 @@
     const avecAuthentic = !!exportAuthenticActuel;
     const textes = {
       pdf: ['Importer le PDF du compromis', 'PDF du compromis — ou glissez-déposez le fichier ici', 'application/pdf'],
-      seul: ['', '', 'application/pdf'],
-      authentic: [avecAuthentic ? 'Ajouter le compromis (PDF) : dates butoir et engagements du vendeur' : 'Puis le compromis (PDF), pour les dates butoir et les engagements', 'PDF du compromis — les données d’Authentic sont gardées', 'application/pdf']
-    }[modeImport];
-    if (libelle) libelle.textContent = textes[0];
-    if (indice) indice.textContent = textes[1];
+      seul: ['', '', 'application/pdf']
+    }[modeImport] || ['', '', 'application/pdf'];
+    void avecAuthentic;
+    const compromisLu = modeImport === 'pdf' && !!dernierTexteTraite;
+    if (libelle) libelle.textContent = compromisLu ? 'Compromis lu' : textes[0];
+    if (indice) indice.textContent = compromisLu ? 'Déposez un autre PDF pour le remplacer' : textes[1];
     if (input) input.setAttribute('accept', textes[2]);
     // Sans compromis : pas de zone de dépôt, seulement les dossiers ouverts dans Authentic.
     const boite = document.getElementById('import-boite');
     if (boite) boite.style.display = modeImport === 'seul' ? 'none' : '';
+    if (boite) boite.classList.toggle('import-boite-lu', compromisLu);
     renderRelevesAuthenticWizard();
+    majBoutonSuivantEtape1();
+  }
+
+  // Le bouton de l'étape 1 dit le choix en cours : après le compromis, sans Authentic, on continue sans.
+  function majBoutonSuivantEtape1() {
+    const bouton = document.getElementById('wizard-suivant-1');
+    if (!bouton) return;
+    bouton.textContent = modeImport === 'pdf' && dernierTexteTraite && !exportAuthenticActuel
+      ? 'Continuer sans Authentic →' : 'Suivant : Vérifier →';
   }
 
   // Pure : les dossiers ouverts dans Authentic classés pour un compromis déjà lu — les plus proches
@@ -27973,12 +27984,16 @@
     if (!bloc) return;
     const avecPdf = !!dernierTexteTraite;
     const repris = exportAuthenticActuel && exportAuthenticActuel.origine === 'pages' ? exportAuthenticActuel.intitule : '';
-    const afficher = modeImport === 'authentic' || modeImport === 'seul' || (modeImport === 'pdf' && avecPdf && !exportAuthenticActuel && groupesAuthenticRecents.length);
+    // Après le compromis : Authentic proposé en complément (même sans dossier ouvert : le dire) ;
+    // « Depuis Authentic » : la liste des dossiers ouverts.
+    const afficher = modeImport === 'seul' || (modeImport === 'pdf' && avecPdf && !exportAuthenticActuel);
     if (!afficher) { bloc.style.display = 'none'; bloc.innerHTML = ''; return; }
     bloc.style.display = '';
     const nomLu = (document.getElementById('f-nom') || {}).value || '';
     const tries = groupesAuthenticPourCompromis(groupesAuthenticRecents, avecPdf ? nomLu : '');
-    const titre = modeImport === 'pdf' ? 'Compléter depuis Authentic' : 'Dossiers ouverts dans Authentic';
+    const titre = modeImport === 'pdf' ? 'Compléter depuis Authentic (facultatif)' : 'Dossiers ouverts dans Authentic';
+    // Le dossier Authentic du compromis lu (mêmes noms) est signalé.
+    const correspond = (g) => avecPdf && nomLu && scoreDossierAuthentic(g.intitule, '', { nom: nomLu }).score >= SEUIL_DOSSIER_AUTHENTIC;
     const aide = 'Dossiers ouverts dans Authentic depuis une heure (extension « CLAIRE pour Authentic ») : ouvrez la page du dossier, puis les fiches vendeur, acquéreur et bien — CLAIRE les rassemble. Parties, état civil, bien, cadastre, prix et pièces reçues viennent d’Authentic ; dates butoir et engagements du vendeur, du compromis.';
     const lignes = tries.slice(0, 6).map(({ g, i }) => {
       const existant = dossierPourIntituleAuthentic(g.intitule, dossiers, g.adresse);
@@ -27987,7 +28002,7 @@
       const estRepris = repris && repris === g.intitule;
       return renderLigneAction({
         titre: succ ? `${PREFIXES_TYPE_AFFAIRE.succession} - ${nom}` : libelleDossierParNom(nom),
-        sous: (existant ? 'Déjà suivi dans CLAIRE · ' : '') + (estRepris ? 'Repris · ' : '') + resumeGroupeAuthentic(g),
+        sous: (existant ? 'Déjà suivi dans CLAIRE · ' : '') + (estRepris ? 'Repris · ' : '') + (!existant && correspond(g) ? 'Correspond au compromis · ' : '') + resumeGroupeAuthentic(g),
         delai: g.derniere ? heureAppel(g.derniere) : '',
         categorie: existant || estRepris ? 'neutre' : 'acte',
         bouton: existant
@@ -27998,7 +28013,7 @@
     }).join('');
     bloc.innerHTML = `
       <h3 class="authentic-releves-titre">${escapeHtml(titre)} ${infoBulle(aide)}</h3>
-      ${lignes ? `<ul class="ja-liste">${lignes}</ul>` : '<p class="authentic-releves-vide">Aucun dossier ouvert dans Authentic depuis une heure. Ouvrez-y la page du dossier, puis les fiches vendeur, acquéreur et bien : il apparaîtra ici.</p>'}`;
+      ${lignes ? `<ul class="ja-liste">${lignes}</ul>` : `<p class="authentic-releves-vide">Aucun dossier ouvert dans Authentic depuis une heure. Ouvrez-y la page du dossier, puis les fiches vendeur, acquéreur et bien : il apparaîtra ici${modeImport === 'pdf' ? ' — ou continuez sans Authentic' : ''}.</p>`}`;
   }
 
   // Pure : ce qui a nourri le dossier en cours de création — compromis et Authentic.
@@ -28008,7 +28023,9 @@
     if (e.succession) return [{ ok: true, texte: `Authentic « ${e.authentic} » : succession — parties, état civil, téléphones, biens, cadastre, pièces reçues` }];
     sources.push(e.compromis
       ? { ok: true, texte: `Compromis « ${e.compromis} » : dates butoir, engagements du vendeur, prix` }
-      : { ok: false, texte: 'Pas de compromis : dates butoir et engagements à saisir', geste: 'Ajouter le compromis' });
+      : e.authentic
+        ? { ok: false, texte: 'Sans compromis : dates butoir et engagements à saisir' }
+        : { ok: false, texte: 'Pas de compromis : dates butoir et engagements à saisir', geste: 'Ajouter le compromis' });
     if (e.authentic) sources.push({ ok: true, texte: `Authentic « ${e.authentic} » : parties, état civil, bien, cadastre, téléphones, pièces reçues${e.prixAuthentic ? ', prix (Capital)' : ''}` });
     else sources.push({ ok: false, texte: 'Pas de données Authentic', geste: 'Compléter depuis Authentic' });
     return sources;
@@ -28021,7 +28038,7 @@
       prixAuthentic: !!(exportAuthenticActuel && exportAuthenticActuel.infosAuthentic && exportAuthenticActuel.infosAuthentic.prix),
       succession: successionEnCoursWizard()
     };
-    const html = sourcesImportWizard(etat).map(x => `<span class="sources-import-ligne"><span class="dot-label ${x.ok ? 'dl-success' : 'dl-neutre'}">${x.ok ? icone('check') : '<span class="dot"></span>'}${escapeHtml(x.texte)}</span>${x.geste ? ` <button type="button" class="lien-action" onclick="choisirModeImport('${x.geste === 'Ajouter le compromis' && exportAuthenticActuel ? 'authentic' : x.geste === 'Ajouter le compromis' ? 'pdf' : (dernierTexteTraite ? 'pdf' : 'authentic')}'); definirEtapeWizard(1)">${escapeHtml(x.geste)}</button>` : ''}</span>`).join('');
+    const html = sourcesImportWizard(etat).map(x => `<span class="sources-import-ligne"><span class="dot-label ${x.ok ? 'dl-success' : 'dl-neutre'}">${x.ok ? icone('check') : '<span class="dot"></span>'}${escapeHtml(x.texte)}</span>${x.geste ? ` <button type="button" class="lien-action" onclick="choisirModeImport('${x.geste === 'Ajouter le compromis' || dernierTexteTraite ? 'pdf' : 'seul'}'); definirEtapeWizard(1)">${escapeHtml(x.geste)}</button>` : ''}</span>`).join('');
     ['sources-import-2', 'sources-import-4'].forEach(id => { const el = document.getElementById(id); if (el) el.innerHTML = html; });
   }
 
@@ -28031,7 +28048,8 @@
     const donnees = g.export;
     // Une succession n'a pas d'acte initial : toujours reprise « seule » (parties et biens).
     const succession = typeAffaireAuthentic(donnees) === 'succession';
-    if (succession) modeImport = 'seul';
+    // Sans compromis lu, c'est une création « Depuis Authentic » ; une succession l'est toujours.
+    if (succession || !dernierTexteTraite) modeImport = 'seul';
     // Un avant-contrat déjà lu : Authentic le complète (parties, bien, téléphones, pièces).
     if (!succession && modeImport !== 'seul' && dernierTexteTraite && !exportAuthenticActuel) {
       exportAuthenticActuel = donnees;
@@ -28061,10 +28079,9 @@
       definirEtapeWizard(succession ? 4 : 2);
       return;
     }
-    // On reste à l'étape 1 : le compromis se dépose juste dessous (dates butoir, engagements).
-    modeImport = 'authentic';
-    afficherImportAuthentic(donnees, 'déposez le compromis ci-dessous pour les dates butoir et les engagements du vendeur, ou passez à « Vérifier ».');
+    afficherImportAuthentic(donnees, 'dates butoir à saisir si besoin.');
     renderChoixImport();
+    definirEtapeWizard(2);
   }
 
   // Un appel ouvert par l'adresse « #appel=… » (onglet que 3CX a ouvert, fenêtre CLAIRE absente).
