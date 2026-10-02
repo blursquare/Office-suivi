@@ -688,8 +688,8 @@ test('fiche client d\'un vendeur déjà client : la vente en cours, pas son anci
   const liste = [ancien, vente, autre];
   // Sans dossier en consultation : le seul dossier cité en cours où il est partie.
   assert.equal(app.dossierPourFicheClientAuthentic(fiche, liste, null).id, 'v');
-  // Le dossier en consultation l'emporte s'il est cité, même archivé.
-  assert.equal(app.dossierPourFicheClientAuthentic(fiche, liste, ancien).id, 'a');
+  // Même en consultant l'ancien dossier, la vente en cours où il est partie l'emporte.
+  assert.equal(app.dossierPourFicheClientAuthentic(fiche, liste, ancien).id, 'v');
   // En consultation mais non cité : la vente citée en cours.
   assert.equal(app.dossierPourFicheClientAuthentic(fiche, liste, autre).id, 'v');
   // Rien de cité, rien en consultation : le seul dossier en cours où la personne est partie.
@@ -740,4 +740,18 @@ test('notaire en second : l\'état de rédaction de l\'acte n\'est ni affiché n
   assert.ok(app.lignesAuthenticDossier(d).some(l => l.libelle === 'Acte de vente'));
   const i = Object.assign({}, d, { roleNotaire: 'instrumentaire', authentic: { acte: { etat: 'redaction', libelle: 'En cours de rédaction', date: '' } } });
   assert.ok(app.lignesAuthenticDossier(i).some(l => l.libelle === 'Acte de vente'));
+});
+
+test('fiche client d\'un inconnu ouverte après un dossier : jamais rangée « à rattacher » sans que sa fiche le cite', () => {
+  const vente = { id: 'v', nom: 'PETIT / BOSQUET', parties: [{ nom: 'Sylvain PETIT', role: 'VENDEUR' }, { nom: 'Samuel BOSQUET', role: 'ACQUEREUR' }], historique: [] };
+  // clientMarie = Alexandre MARTEL, partie de rien.
+  assert.equal(app.dossierPourFicheClientAuthentic(clientMarie, [vente], vente), null);
+  const autreDossier = Object.assign({}, clientMarie, { texte: '30 - Vente MARTEL/NOEL' });
+  assert.equal(app.dossierPourFicheClientAuthentic(autreDossier, [vente], vente), null);
+  // Sa fiche cite le dossier consulté : proposé « à rattacher ».
+  const citeVente = Object.assign({}, clientMarie, { texte: '12 - Vente PETIT/BOSQUET' });
+  assert.equal(app.dossierPourFicheClientAuthentic(citeVente, [vente], vente).id, 'v');
+  // Partie du dossier consulté (fiche sans intitulé) : ce dossier.
+  const petit = Object.assign({}, clientMarie, { champs: clientMarie.champs.map(c => /Nom de famille/.test(c.libelle) ? Object.assign({}, c, { valeur: 'Petit' }) : /Prénom/.test(c.libelle) ? Object.assign({}, c, { valeur: 'Sylvain' }) : c), tableaux: [] });
+  assert.equal(app.dossierPourFicheClientAuthentic(petit, [vente], vente).id, 'v');
 });

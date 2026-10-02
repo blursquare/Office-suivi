@@ -14929,3 +14929,13 @@ faites). L'état reste gardé dans `d.authentic.acte` (réapparaît si le dossie
 Étude : « Apport -20.323,00 € (-10 %) : ne pas mettre de moins devant ». La ligne Financement de la fiche montre la
 valeur absolue (montant et pourcentage) ; un prêt supérieur au prix garde la pastille rouge (`apport-urgent`) et la
 bulle précise « il dépasse le prix de … ». `calculerApport` inchangé (le signe sert au niveau).
+
+### 02/10/2026 après-midi — « Pourquoi proposer SIMOND pour ce dossier ? »
+
+Capture de l'étude : « VTE - PETIT / BOSQUET & TESTUD », ligne « À rattacher : Thomas SIMOND ». Cause : la fiche client
+d'une personne partie d'aucun dossier de CLAIRE, lue dans Authentic moins de 30 min après la page de ce dossier, allait
+au « dossier en consultation » puis, côté inconnu, « à rattacher ». `dossierPourFicheClientAuthentic` revu : d'abord un
+dossier où la personne est partie (cité sur sa fiche, en cours d'abord ; puis celui en consultation ; puis le seul en
+cours) ; partie de rien → le dossier en consultation seulement si la fiche le cite, sinon rien. L'entrée SIMOND déjà
+rangée s'écarte d'un clic (×). Libellé « Avant-contrat signé le » coupé sur la fiche → « Signé le » (sous la ligne
+« Avant-contrat »).

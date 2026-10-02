@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-02 15:22';
+  const VERSION_APP = '2026-10-02 15:25';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-02 15:25', resume: "Add-on Authentic : la fiche client d'une personne qui n'est partie d'aucun dossier n'est plus proposée « À rattacher » au dernier dossier consulté (cas SIMOND) — seulement si sa fiche cite ce dossier. Une personne partie d'un dossier va toujours à celui-là. Fiche : « Avant-contrat signé le » devient « Signé le » (libellé coupé)." },
     { version: '2026-10-02 15:22', resume: "Fiche : l'apport s'affiche sans signe moins (« Apport 20.323,00 € (10 %) ») ; quand le prêt dépasse le prix, la pastille reste rouge et la bulle le dit." },
     { version: '2026-10-02 15:16', resume: "Notaire en second (participation) : l'état de rédaction de l'acte relevé dans Authentic (« En cours de rédaction », « Pas encore rédigé ») n'est plus affiché ni noté dans l'historique ; seul « Acte signé » reste." },
     { version: '2026-10-02 15:11', resume: "Widget Statistiques : les délais (prêt, préemption, signature) se comptent depuis la signature de l'avant-contrat, et les dossiers du mois au mois de l'avant-contrat (« Avant-contrats signés ») — à défaut de date, depuis l'ouverture dans CLAIRE. La date de l'avant-contrat est désormais gardée sur la fiche (« Avant-contrat signé le », modifiable) : lue à la création, relue dans l'avant-contrat du NAS pour les dossiers existants, reprise de la page du dossier dans Authentic." },
@@ -16106,7 +16107,7 @@
         ${ligne('home', 'Type de vente', typeVente, `tv-${d.id}`)}
         ${ligne('folder', 'Dossier NAS', nas, null, 'prop-pleine')}
         ${ligne('file-text', 'Avant-contrat', avantContrat, null, 'prop-pleine')}
-        ${estSuccession(d) ? '' : ligne('calendar', 'Avant-contrat signé le', `<input type="date" id="date-ac-${d.id}" class="prop-champ" value="${escapeAttr(d.dateAvantContrat || '')}" onchange="changerDateAvantContrat('${d.id}', this.value)">`, `date-ac-${d.id}`, siVide(!d.dateAvantContrat).trim())}
+        ${estSuccession(d) ? '' : ligne('calendar', 'Signé le', `<input type="date" id="date-ac-${d.id}" class="prop-champ" value="${escapeAttr(d.dateAvantContrat || '')}" onchange="changerDateAvantContrat('${d.id}', this.value)">`, `date-ac-${d.id}`, siVide(!d.dateAvantContrat).trim())}
       </dl>
       <dl class="fiche-proprietes fiche-coordonnees">
         ${coordonneesPartiesDossier(d).map(c => ligne(c.partie === 'vendeur' ? 'user' : 'users', c.libelle, champsCoordonneesPartie(d, c, 'fiche'), c.parNotaire ? `fiche-tel-${c.partie}-${d.id}` : `fiche-email-${c.partie}-${d.id}`, 'prop-pleine')).join('')}
@@ -26757,15 +26758,20 @@
       const d = dossierPourIntituleAuthentic(i, actifs, '');
       if (d && !cites.includes(d)) cites.push(d);
     });
-    if (courant && (!cites.length || cites.includes(courant))) return courant;
     const partie = (d) => !!personne && !!roleClientAuthenticDansDossier(d, personne);
     const unique = (l) => l.length === 1 ? l[0] : null;
-    const citesPartie = cites.filter(partie);
     const enCours = (l) => l.filter(d => !d.archive && !signatureFaiteSuivi(d));
+    // 1. Un dossier où la personne est partie : cité sur sa fiche, puis celui en consultation, puis le
+    //    seul dossier en cours où elle l'est.
+    const citesPartie = cites.filter(partie);
     const choix = unique(enCours(citesPartie)) || unique(citesPartie.filter(d => !d.archive)) || unique(citesPartie);
     if (choix) return choix;
-    if (cites.length) return courant || null;
-    return courant || unique(enCours(actifs.filter(partie)));
+    if (courant && partie(courant) && (!cites.length || cites.includes(courant))) return courant;
+    if (!cites.length) { const seul = unique(enCours(actifs.filter(partie))); if (seul) return seul; }
+    // 2. Partie nulle part : seulement si sa fiche cite le dossier en consultation (« à rattacher »).
+    //    Une fiche ouverte juste après un autre dossier n'y est jamais rangée (étude, 02/10 : « pourquoi
+    //    proposer SIMOND pour ce dossier ? »).
+    return courant && cites.includes(courant) ? courant : null;
   }
 
   async function appliquerReleveAuthentic(capture) {
