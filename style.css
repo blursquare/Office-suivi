@@ -3829,6 +3829,16 @@
   .fiche-carte-titre { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
   .fiche-lien { font-family: inherit; font-size: 12px; color: var(--focus); background: none; border: none; padding: 0; cursor: pointer; }
   .fiche-lien:hover { text-decoration: underline; text-underline-offset: 2px; }
+  /* Fiche agrandie : dernières pièces reçues (02/10), une ligne par pièce, la plus récente d'abord. */
+  .fiche-pieces-recues { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+  .fiche-pieces-recues li + li { border-top: 1px solid var(--line-soft); }
+  button.fiche-piece-recue { display: grid; grid-template-columns: 7px minmax(0, 1fr) auto; align-items: center; gap: 8px; width: 100%; margin: 0; padding: 6px 2px; border: 0; background: none; font: inherit; text-align: left; color: var(--ink); cursor: pointer; box-shadow: none; border-radius: 6px; }
+  button.fiche-piece-recue:hover .fiche-piece-nom { text-decoration: underline; text-underline-offset: 2px; }
+  button.fiche-piece-recue:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+  .fiche-piece-point { width: 7px; height: 7px; border-radius: 50%; background: var(--success); }
+  .fiche-piece-recue.nouvelle .fiche-piece-point { background: var(--notif-nouveau); }
+  .fiche-piece-nom { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .fiche-piece-meta { font-size: 11.5px; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
   .fiche-barre-pct { height: 6px; border-radius: 3px; background: var(--line-soft); overflow: hidden; }
   .fiche-barre-pct > span { display: block; height: 100%; background: var(--success); border-radius: 3px; }
   .fiche-etapes { list-style: none; margin: 12px 0 0; padding: 0; }

@@ -14426,3 +14426,14 @@ mois précédent et au mois de l'année précédente. »
   hors grand ; sur téléphone, le corps défile. Icône `bar-chart` ajoutée au jeu.
 - Tests `tests/statistiques-dossiers.test.js` (+ tests de disposition mis à jour) ; vérifié dans Chromium (grand,
   moyen, petit sombre, 400 px) avec 14 dossiers inventés.
+
+### 02/10/2026 08:14 — Fiche agrandie : « Dernières pièces reçues » dans la colonne de droite
+
+Demande de l'étude : « Dans la fiche dossier étendue, ajoute les dernières pièces reçues à droite au-dessus de
+l'historique. » Carte `renderPiecesRecuesFiche` entre l'avancement et « Activité récente » (`.fiche-laterale`, mode
+agrandi seulement). `piecesRecuesDossier` (pure) : pièces de la checklist reçues (date `piecesTrouveesLe` — NAS ou
+Claire Scan —, sinon l'entrée « validée à la main » de l'historique), offre de prêt reçue (première entrée d'historique),
+documents de l'analyse cochés reçus hors checklist (`recuLe`) ; les nouvelles (`piecesNotifications`) d'abord, puis la
+plus récente, sans date en dernier ; 6 au plus. Point vert, rouge si nouvelle ; « à la main » + date. Clic : fichier du NAS
+(`ouvrirPieceTrouvee` / `ouvrirOffreTrouvee`), sinon l'onglet concerné ; « n/total » ouvre l'onglet Pièces. Test
+`tests/fiche-pieces-recues.test.js` ; vérifié dans Chromium (clair, sombre).

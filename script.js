@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-02 08:11';
+  const VERSION_APP = '2026-10-02 08:14';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-02 08:14', resume: "Fiche d'un dossier agrandie : la colonne de droite montre les dernières pièces reçues (6 au plus, les nouvelles d'abord puis la plus récente, avec leur date et « à la main » si elles ont été validées hors NAS), au-dessus de l'activité récente. Un clic ouvre le fichier trouvé sur le NAS ; « 6/9 » mène à l'onglet Pièces." },
     { version: '2026-10-02 08:11', resume: "Tableau de bord : nouveau widget « Statistiques » (en bas, toute la largeur ; « Widgets » pour le déplacer ou le retirer). Délai moyen depuis l'ouverture du dossier dans CLAIRE jusqu'à l'obtention du prêt, la renonciation au droit de préemption et la signature de l'acte (12 derniers mois, nombre de dossiers et médiane au survol), et dossiers ouverts ce mois-ci comparés au mois précédent et au même mois de l'an dernier (« — » quand CLAIRE ne suivait pas encore de dossier)." },
     { version: '2026-10-02 07:40', resume: "Fiche d'un dossier, onglet Analyse : chaque engagement du vendeur et chaque document relevé dans l'avant-contrat a désormais une case à cocher (réalisé / reçu). Ce qui n'est pas coché garde le dossier « Attente de pièces » et baisse la probabilité de tenue du rendez-vous (« Relancer le vendeur ») ; l'onglet affiche « faits / total ». Un document qui est aussi une pièce de la checklist partage sa case avec l'onglet Pièces ; un engagement dont la pièce est reçue se coche seul, et cocher des travaux valide la pièce « Travaux de remise en état » qui en découle." },
     { version: '2026-10-01 23:59', resume: "Nouvelle extension Firefox « CLAIRE pour Authentic » (première version) : sur une page de dossier d'Authentic, le bouton « Envoyer à CLAIRE » transmet ce que la page affiche au serveur CLAIRE du bureau (gardé 30 minutes en mémoire, jamais un mot de passe), et CLAIRE l'affiche. La reprise dans une fiche sera branchée une fois la structure des pages connue : « Copier la structure (sans données) » la copie sans aucune valeur de client." },
@@ -23327,6 +23328,7 @@
                actions, toujours sous les yeux quel que soit l'onglet ouvert. -->
           <aside class="fiche-laterale">
             ${renderEtapesFiche(etapes, prochaineEtape, avancement)}
+            ${renderPiecesRecuesFiche(d, nbPiecesRecues, avecPieces ? checklist.length : 0)}
             <div class="fiche-carte">
               <div class="fiche-carte-titre"><span class="section-eyebrow">Activité récente</span>
                 ${historique.length > 5 ? `<button type="button" class="fiche-lien" onclick="definirOngletFiche('historique')">Tout voir</button>` : ''}</div>
@@ -23408,6 +23410,63 @@
   // Historique en fil d'activité, le plus récent en haut : le texte d'abord, la date et l'auteur
   // dessous, en plus petit. Utilisé par l'onglet « Historique » (tout) et la colonne de droite
   // du mode agrandi (les cinq dernières).
+  // ---- Fiche agrandie : « Dernières pièces reçues » dans la colonne de droite, au-dessus de
+  // l'activité récente (étude, 02/10). Pure : les pièces reçues du dossier, la plus récente d'abord —
+  // checklist (date de la trouvaille sur le NAS ou par Claire Scan, sinon de la validation à la main),
+  // offre de prêt, documents relevés dans l'avant-contrat cochés reçus. Une pièce sans date connue
+  // (reprise d'Authentic, dossier ancien) vient en dernier. { cle, label, le, nouvelle, main, type }.
+  function piecesRecuesDossier(d, max) {
+    if (!d) return [];
+    const pieces = d.pieces || {};
+    const trouveesLe = d.piecesTrouveesLe || {};
+    const nouvelles = new Set(d.piecesNotifications || []);
+    const manuelles = new Set(d.piecesValideesManuellement || []);
+    const dateHistorique = (label) => {
+      const h = (d.historique || []).filter(x => x && x.date && /valid/i.test(x.texte || '') && (x.texte || '').includes(`« ${label} »`))
+        .map(x => x.date).sort().pop();
+      return h || null;
+    };
+    const out = [];
+    checklistPieces(d.typeVente, d).forEach(p => {
+      if (pieces[p.cle] !== 'recue') return;
+      const main = manuelles.has(p.cle) || !!p.personnalisee;
+      out.push({ cle: p.cle, label: p.label, le: trouveesLe[p.cle] || dateHistorique(p.label), nouvelle: nouvelles.has(p.cle), main, type: 'piece' });
+    });
+    if (!d.sansPret && d.offrePretStatut === 'recue') {
+      const le = premiereDateHistorique(d, RE_HISTORIQUE_PRET_OBTENU);
+      out.push({ cle: CLE_NOTIF_OFFRE_PRET, label: 'Offre de prêt', le: le ? le + 'T12:00:00' : null, nouvelle: nouvelles.has(CLE_NOTIF_OFFRE_PRET), main: false, type: 'offre' });
+    }
+    ((d.analyseJuridique && d.analyseJuridique.documents) || []).forEach(doc => {
+      if (!doc || typeof doc !== 'object' || !doc.recu || cleChecklistDocumentAnalyse(d, doc)) return;
+      out.push({ cle: '', label: doc.label, le: doc.recuLe || null, nouvelle: false, main: true, type: 'analyse' });
+    });
+    out.sort((a, b) => (b.nouvelle - a.nouvelle) || String(b.le || '').localeCompare(String(a.le || '')));
+    return max ? out.slice(0, max) : out;
+  }
+
+  var MAX_PIECES_FICHE_LATERALE = 6;
+
+  function renderPiecesRecuesFiche(d, nbRecues, nbTotal) {
+    const liste = piecesRecuesDossier(d, MAX_PIECES_FICHE_LATERALE);
+    const ligne = (p) => {
+      const quand = p.le ? new Date(p.le).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : '';
+      const clic = p.type === 'offre' ? (fichierTrouve(d, NAS_CLE_OFFRE) ? `ouvrirOffreTrouvee('${escapeOnclickArg(d.id)}')` : "definirOngletFiche('echeances')")
+        : p.type === 'piece' && !p.main ? `ouvrirPieceTrouvee('${escapeOnclickArg(d.id)}', '${escapeOnclickArg(p.cle)}')`
+          : `definirOngletFiche('${p.type === 'analyse' ? 'analyse' : 'pieces'}')`;
+      const titre = `${p.label}${p.main ? ' — validée à la main' : ' — ouvrir le fichier'}${p.nouvelle ? ' (nouveau)' : ''}`;
+      return `<li><button type="button" class="fiche-piece-recue${p.nouvelle ? ' nouvelle' : ''}" onclick="${clic}" title="${escapeAttr(titre)}">
+          <span class="fiche-piece-point" aria-hidden="true"></span>
+          <span class="fiche-piece-nom">${escapeHtml(p.label)}</span>
+          <span class="fiche-piece-meta">${p.main ? 'à la main' : ''}${p.main && quand ? ' · ' : ''}${escapeHtml(quand)}</span>
+        </button></li>`;
+    };
+    return `<div class="fiche-carte">
+        <div class="fiche-carte-titre"><span class="section-eyebrow">Dernières pièces reçues</span>
+          ${nbTotal ? `<button type="button" class="fiche-lien" onclick="definirOngletFiche('pieces')" title="Voir toutes les pièces">${nbRecues}/${nbTotal}</button>` : ''}</div>
+        ${liste.length ? `<ul class="fiche-pieces-recues">${liste.map(ligne).join('')}</ul>` : '<p class="fiche-vide">Aucune pièce reçue pour l’instant.</p>'}
+      </div>`;
+  }
+
   function renderActiviteFiche(historique) {
     if (!historique.length) return '<p class="fiche-vide">Aucune activité enregistrée.</p>';
     return `<ol class="fiche-activite">${historique.slice().reverse().map(h => `
