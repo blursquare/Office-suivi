@@ -270,6 +270,13 @@ test('catégories Outlook : relevées sur le rendez-vous et listées sans doublo
 
 // --- Écriture dans le lieu du rendez-vous (composerLieuAgenda, l'inverse de la détection) ---
 
+test('composerLieuAgenda : initiales du responsable en tête si elles manquent, jamais en double', () => {
+  assert.equal(composerLieuAgenda('', { appelFonds: true, initiales: 'BA', confrere: 'Me DURAND en 2nd' }), 'BA - Me DURAND en 2nd - Appel de fonds envoyé');
+  assert.equal(composerLieuAgenda('Me DURAND', { projet: true, initiales: 'BA', confrere: 'Me DURAND en 1er' }), 'BA - Me DURAND en 1er - Projet envoyé');
+  assert.equal(composerLieuAgenda('BA - Appel de fonds envoyé', { appelFonds: true, projet: true, initiales: 'BA' }), 'BA - Appel de fonds et projet envoyé');
+  assert.equal(composerLieuAgenda('JV', { appelFonds: true, initiales: 'pas des initiales' }), 'JV - Appel de fonds envoyé');
+});
+
 test('composerLieuAgenda : ajoute la mention APRÈS les initiales, sans les toucher', () => {
   assert.equal(composerLieuAgenda('AL - ', { appelFonds: true }), 'AL - Appel de fonds envoyé');
   assert.equal(composerLieuAgenda('AL', { appelFonds: true }), 'AL - Appel de fonds envoyé');
@@ -362,4 +369,20 @@ test('evenementsAgendaOffice : tous les rendez-vous non annulés, avec identifia
   assert.equal(liste[1].dossierId, 'd1');
   assert.equal(liste[1].signature, true);
   assert.equal(liste[2].heure, '14:00');
+});
+
+test('compterRendezVousPeriode : seuls les rendez-vous d’une heure ou plus comptent (étude, 01/10)', () => {
+  const { compterRendezVousPeriode, dureeRendezVousMinutes } = require('../src/agendaOffice');
+  assert.equal(dureeRendezVousMinutes({ date: '2026-10-05', heure: '09:30', heureFin: '10:30' }), 60);
+  assert.equal(dureeRendezVousMinutes({ date: '2026-10-05', heure: '17:00', dateFin: '2026-10-06', heureFin: '09:00' }), 960);
+  assert.equal(dureeRendezVousMinutes({ date: '2026-10-05', heure: '09:30' }), null);
+  const c = compterRendezVousPeriode([
+    { sujet: 'VTE - DUPONT / MARTIN', date: '2026-10-05', heure: '10:00', heureFin: '11:00', signature: true },
+    { sujet: 'VTE - LEROY', date: '2026-10-06', heure: '10:00', heureFin: '10:45', signature: true },
+    { sujet: 'Point', date: '2026-10-06', heure: '14:00', heureFin: '14:59' },
+    { sujet: 'Succession', date: '2026-10-07', heure: '14:00', heureFin: '16:30' },
+    { sujet: 'Sans fin', date: '2026-10-08', heure: '15:00' }
+  ], '2026-10-05', '2026-10-10');
+  assert.equal(c.rendezVous, 2);
+  assert.equal(c.signatures, 1);
 });

@@ -9,7 +9,12 @@
 // (faux transport EWS) est réservé aux tests.
 
 const express = require('express');
-const { executerEtEnregistrerTourAgenda, connexionAgendaConfiguree, lectureAgendaSuspendue } = require('../agendaWatch');
+const { executerEtEnregistrerTourAgenda, connexionAgendaConfiguree, lectureAgendaSuspendue, signalerIdentifiantsRefuses } = require('../agendaWatch');
+const { evenementsDepuisEws, compterRendezVousPeriode, REGLE_COMPTAGE_RENDEZ_VOUS, lundiAnneePrecedente, decalerJours, ecartRendezVous, moisDePeriode, archiveAgendaARelire, evenementsAgendaOffice } = require('../agendaOffice');
+const { lireCalendrierExchange } = require('../exchange/ews');
+
+// Une semaine de l'an dernier relue au plus une fois tous les 7 jours (elle ne change presque plus).
+const FRAICHEUR_COMPARAISON_MS = 7 * 24 * 3600 * 1000;
 
 function creerRouteurAgenda(parametresRepo, options) {
   const routeur = express.Router();
@@ -51,6 +56,115 @@ function creerRouteurAgenda(parametresRepo, options) {
     const agenda = typeof parametresRepo.lireAgendaOffice === 'function' ? parametresRepo.lireAgendaOffice() : null;
     const evenements = ((agenda && agenda.evenements) || []).filter((e) => e.date <= fin && (e.dateFin || e.date) >= debut);
     res.json({ lu: (agenda && agenda.lu) || '', debutLu: (agenda && agenda.debut) || '', source: source(), evenements });
+  });
+
+  // Historique de l'agenda (étude, 01/10 : « remonter jusqu'au 1er janvier de l'année, si possible tous
+  // les rendez-vous de toutes les années si ce n'est pas trop lourd »). Le stock du tour de lecture part
+  // du lundi de la semaine dernière ; avant, chaque MOIS affiché est lu à la demande dans Exchange (une
+  // tranche, un seul essai, jamais pendant la suspension après un refus d'identifiants), puis gardé en
+  // base sous sa propre clé — un mois passé n'est plus relu une fois stabilisé (archiveAgendaARelire).
+  // On ne lit donc que ce qu'on regarde : aucune lecture massive de toutes les années. 3 mois au plus
+  // par appel (la vue Mois en couvre au plus 2).
+  const lecturesArchive = new Map();
+  routeur.get('/agenda/passe', async (req, res) => {
+    const date = (v) => (/^\d{4}-\d{2}-\d{2}$/.test(String(v || '')) ? String(v) : '');
+    const debut = date(req.query.debut);
+    let fin = date(req.query.fin);
+    if (!debut || !fin || fin < debut || debut < '2000-01-01') return res.status(400).json({ erreur: 'Période invalide.' });
+    const agenda = typeof parametresRepo.lireAgendaOffice === 'function' ? parametresRepo.lireAgendaOffice() : null;
+    const limite = agenda && agenda.debut;
+    if (!limite) return res.json({ evenements: [], limite: '', message: "L'agenda n'a pas encore été lu par le serveur." });
+    const veilleLimite = decalerJours(limite, -1);
+    if (fin > veilleLimite) fin = veilleLimite;
+    if (debut > fin) return res.json({ evenements: [], limite, message: '' });
+    const mois = moisDePeriode(debut, fin);
+    if (mois.length > 3) return res.status(400).json({ erreur: 'Trois mois au plus à la fois.' });
+    const r = typeof parametresRepo.lireReglagesExchange === 'function' ? parametresRepo.lireReglagesExchange() : {};
+    const lisible = connexionAgendaConfiguree(r) && !lectureAgendaSuspendue(r);
+    let message = '';
+    const evenements = [];
+    for (const m of mois) {
+      let archive = parametresRepo.lireArchiveAgenda(m);
+      if (archiveAgendaARelire(archive, m, Date.now()) && lisible && !message) {
+        if (!lecturesArchive.has(m)) {
+          const [a, n] = m.split('-').map(Number);
+          const jours = new Date(Date.UTC(a, n, 0)).getUTCDate();
+          lecturesArchive.set(m, lireCalendrierExchange({
+            url: r.url, email: r.email, motDePasse: r.motDePasse, mailbox: r.calendrierPartage,
+            aujourdHui: `${m}-01`, tranches: 1, jours
+          }, injections).finally(() => lecturesArchive.delete(m)));
+        }
+        const lu = await lecturesArchive.get(m);
+        if (lu && lu.ok) {
+          const dossiersConnus = depot ? depot.tousActifs() : [];
+          archive = parametresRepo.ecrireArchiveAgenda(m, {
+            lu: new Date().toISOString(),
+            evenements: evenementsAgendaOffice(evenementsDepuisEws(lu.evenements), dossiersConnus).filter((e) => e.date.slice(0, 7) === m)
+          });
+        } else if (lu) {
+          if (lu.raison === 'auth') signalerIdentifiantsRefuses(r);
+          message = lu.message || "L'historique n'a pas pu être lu dans l'agenda.";
+        }
+      }
+      if (!archive && !lisible && !message) {
+        message = !connexionAgendaConfiguree(r) ? "Connexion à l'agenda Outlook à configurer." : "Lecture de l'agenda suspendue après un refus des identifiants.";
+      }
+      for (const e of (archive && archive.evenements) || []) {
+        if (e.date <= fin && (e.dateFin || e.date) >= debut) evenements.push(e);
+      }
+    }
+    res.json({ evenements, limite, message });
+  });
+
+  // Comparaison avec la même semaine l'an dernier (étude, 01/10). `lundi` = la semaine affichée.
+  // Cette semaine : le stock du dernier tour de lecture. L'an dernier : lu UNE fois dans Exchange
+  // (une tranche de 6 jours, un seul essai, jamais pendant que la lecture est suspendue après un
+  // refus d'identifiants), puis gardé en base. Rend { actuel, anPasse, lundiAnPasse, ecart, pourcent }
+  // — un compte inconnu vaut null, jamais 0.
+  const lecturesEnCours = new Map();
+  routeur.get('/agenda/comparaison', async (req, res) => {
+    const lundi = String((req.query || {}).lundi || '');
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(lundi) || new Date(lundi + 'T12:00:00Z').getUTCDay() !== 1) {
+      return res.status(400).json({ erreur: 'Semaine invalide (le lundi, au format AAAA-MM-JJ).' });
+    }
+    const samedi = decalerJours(lundi, 5);
+    const agenda = typeof parametresRepo.lireAgendaOffice === 'function' ? parametresRepo.lireAgendaOffice() : null;
+    const couvert = agenda && agenda.debut && agenda.debut <= lundi;
+    const actuel = couvert ? compterRendezVousPeriode(agenda.evenements, lundi, samedi) : null;
+    const lundiAnPasse = lundiAnneePrecedente(lundi);
+    const samediAnPasse = decalerJours(lundiAnPasse, 5);
+    const memoire = parametresRepo.lireComparaisonAgenda();
+    // Une semaine comptée sous une autre règle (avant la durée d'une heure) n'est pas montrée : elle
+    // est relue une fois (jamais deux règles comparées entre elles).
+    let anPasse = memoire[lundiAnPasse] && memoire[lundiAnPasse].regle === REGLE_COMPTAGE_RENDEZ_VOUS ? memoire[lundiAnPasse] : null;
+    let message = '';
+    const frais = anPasse && Date.now() - Date.parse(anPasse.lu || 0) < FRAICHEUR_COMPARAISON_MS;
+    const r = typeof parametresRepo.lireReglagesExchange === 'function' ? parametresRepo.lireReglagesExchange() : {};
+    if (!frais && connexionAgendaConfiguree(r) && !lectureAgendaSuspendue(r)) {
+      if (!lecturesEnCours.has(lundiAnPasse)) {
+        lecturesEnCours.set(lundiAnPasse, lireCalendrierExchange({
+          url: r.url, email: r.email, motDePasse: r.motDePasse, mailbox: r.calendrierPartage,
+          aujourdHui: lundiAnPasse, tranches: 1, jours: 6
+        }, injections).finally(() => lecturesEnCours.delete(lundiAnPasse)));
+      }
+      const lu = await lecturesEnCours.get(lundiAnPasse);
+      if (lu && lu.ok) {
+        anPasse = { ...compterRendezVousPeriode(evenementsDepuisEws(lu.evenements), lundiAnPasse, samediAnPasse), lu: new Date().toISOString(), regle: REGLE_COMPTAGE_RENDEZ_VOUS };
+        parametresRepo.ecrireComparaisonAgenda({ ...parametresRepo.lireComparaisonAgenda(), [lundiAnPasse]: anPasse });
+      } else if (lu) {
+        if (lu.raison === 'auth') signalerIdentifiantsRefuses(r);
+        message = lu.message || '';
+      }
+    }
+    if (!anPasse && !message) {
+      message = !connexionAgendaConfiguree(r) ? "Connexion à l'agenda Outlook à configurer."
+        : lectureAgendaSuspendue(r) ? "Lecture de l'agenda suspendue après un refus des identifiants." : '';
+    }
+    const ecart = actuel && anPasse ? ecartRendezVous(actuel.rendezVous, anPasse.rendezVous) : null;
+    res.json({
+      lundi, lundiAnPasse, actuel, anPasse: anPasse ? { rendezVous: anPasse.rendezVous, signatures: anPasse.signatures } : null,
+      ecart: ecart ? ecart.ecart : null, pourcent: ecart ? ecart.pourcent : null, message
+    });
   });
 
   // Déclenche un vrai tour de lecture tout de suite — le chemin de production, pas une simulation.

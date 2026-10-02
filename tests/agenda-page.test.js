@@ -141,6 +141,8 @@ test('gestesRelationClient : rappel, confirmation, questionnaire, un an après �
     { id: 'deplace', rendezVousSignature: '2026-10-22', confirmationRdvPour: '2026-10-15' },
     { id: 'signe', rendezVousSignature: '2026-09-25' },
     { id: 'signeConfrere', rendezVousSignature: '2026-09-25', notaireAcquereur: 'Maître DUPUIS' },
+    { id: 'rdvConfrere', rendezVousSignature: '2026-10-03', notaireAcquereur: 'Maître DUPUIS' },
+    { id: 'confirmeConfrere', rendezVousSignature: '2026-10-20', notaireAcquereur: 'Maître DUPUIS' },
     { id: 'questionnaireFait', rendezVousSignature: '2026-09-25', questionnaireEnvoyeLe: '2026-09-26' },
     { id: 'unAn', rendezVousSignature: '2025-10-01', archive: true },
     { id: 'loin', rendezVousSignature: '2026-12-31' }
@@ -258,4 +260,108 @@ test('heureCaseAgenda : clic dans la première ou la seconde moitié de la case'
   assert.equal(app.heureCaseAgenda(14, 40, 80), '14:30');
   assert.equal(app.heureCaseAgenda(9, 79, 80), '09:30');
   assert.equal(app.heureCaseAgenda(10, 0, 0), '10:00', 'au clavier : heure pleine');
+});
+
+test('texteComparaisonAgenda : hausse, baisse, égalité, an dernier vide, compte manquant', () => {
+  const c = (actuel, anPasse, ecart, pourcent) => ({ lundiAnPasse: '2025-10-06', actuel: { rendezVous: actuel, signatures: 0 }, anPasse: { rendezVous: anPasse, signatures: 0 }, ecart, pourcent });
+  assert.equal(app.texteComparaisonAgenda(c(12, 9, 3, 33)).texte, '+3 rendez-vous vs 2025 (hausse de 33 %)');
+  assert.equal(app.texteComparaisonAgenda(c(8, 10, -2, -20)).texte, '−2 rendez-vous vs 2025 (baisse de 20 %)');
+  assert.equal(app.texteComparaisonAgenda(c(8, 10, -2, -20)).sens, 'baisse');
+  assert.equal(app.texteComparaisonAgenda(c(5, 5, 0, 0)).texte, 'Autant de rendez-vous qu’en 2025');
+  assert.equal(app.texteComparaisonAgenda(c(4, 0, 4, null)).texte, '+4 rendez-vous vs 2025 (aucun l’an dernier)');
+  assert.equal(app.texteComparaisonAgenda({ actuel: { rendezVous: 3 }, anPasse: null, ecart: null }), null);
+});
+
+test('widget Agenda : jours, rendez-vous du jour triés comme Outlook, prochains sans absences ni dates butoir', () => {
+  assert.equal(app.joursDepuis('2026-09-28', 3).join(','), '2026-09-28,2026-09-29,2026-09-30');
+  const evts = [
+    { sujet: 'VTE - B', date: '2026-10-01', heure: '14:30' },
+    { sujet: 'Congés Julie', date: '2026-09-30', dateFin: '2026-10-02', journeeEntiere: true, absence: true },
+    { sujet: 'VTE - A', date: '2026-10-01', heure: '10:00' },
+    { sujet: 'Obtention du prêt — VTE - C', date: '2026-10-05', journeeEntiere: true },
+    { sujet: 'Réunion', date: '2026-10-03', heure: '09:30' },
+    { sujet: 'VTE - D', date: '2026-10-02', heure: '11:00' }
+  ];
+  assert.equal(app.evenementsTriesJour(evts, '2026-10-01').map(e => e.sujet).join(' | '), 'Congés Julie | VTE - A | VTE - B');
+  assert.equal(app.prochainsEvenementsAgenda(evts, '2026-10-01', 5).map(e => e.sujet).join(' | '), 'VTE - D | Réunion');
+});
+
+test('resultatsRechercheAgenda : dossiers en cours d’abord, rendez-vous fixé ou semaine probable, sans accents ni casse', () => {
+  const liste = [
+    { id: 'a', nom: 'LÉGER / PETIT', rendezVousSignature: '2026-10-20', rendezVousSignatureHeure: '10:00', sansPret: true },
+    { id: 'b', nom: 'LEGRAND / ROUX', sansPret: true },
+    { id: 'c', nom: 'LEGOFF / MARIN', archive: true, rendezVousSignature: '2026-03-02' },
+    { id: 'd', nom: 'DUPONT / MARTIN', sansPret: true }
+  ];
+  const r = app.resultatsRechercheAgenda('leg', liste, '2026-10-01', []);
+  assert.equal(r.map(x => `${x.id}:${x.type}`).join(','), 'a:rdv,b:probable,c:rdv');
+  assert.equal(r[0].heure, '10:00');
+  assert.equal(r[1].lundi, '2026-10-12');
+  assert.equal(r[2].archive, true);
+  assert.equal(app.resultatsRechercheAgenda('  ', liste, '2026-10-01', []).length, 0);
+  assert.equal(app.resultatsRechercheAgenda('martin', liste, '2026-10-01', [])[0].id, 'd');
+});
+
+test('evenementsFiltresRecherche : filtre l’agenda comme la recherche du Suivi (titre, lieu, dossier ; sans accents)', () => {
+  const ev = [
+    { sujet: 'VTE - DUPONT / MARTIN', lieu: 'BA', dossierNom: 'DUPONT / MARTIN' },
+    { sujet: 'Rendez-vous banque', lieu: 'Crédit Exemple' },
+    { sujet: 'Congés Jérémy' }
+  ];
+  assert.equal(app.evenementsFiltresRecherche(ev, '').length, 3);
+  assert.equal(app.evenementsFiltresRecherche(ev, 'martin').map(e => e.sujet).join('|'), 'VTE - DUPONT / MARTIN');
+  assert.equal(app.evenementsFiltresRecherche(ev, 'credit').length, 1);
+  assert.equal(app.evenementsFiltresRecherche(ev, 'JEREMY').length, 1);
+  assert.equal(app.evenementsFiltresRecherche(ev, 'inconnu').length, 0);
+});
+
+test('classerSuiviDatesProposees : en attente, validées (à venir d’abord), sans suite', () => {
+  const sondages = [
+    { id: 'a', statut: 'ouvert', creeLe: '2026-09-28T08:00:00Z', creneaux: [] },
+    { id: 'b', statut: 'ouvert', creeLe: '2026-09-30T08:00:00Z', creneaux: [] },
+    { id: 'c', statut: 'place', choisi: 2, creneaux: [{ n: 1, date: '2026-10-08' }, { n: 2, date: '2026-10-20', heure: '10:00' }] },
+    { id: 'd', statut: 'place', choisi: 1, creneaux: [{ n: 1, date: '2026-10-05', heure: '14:00' }] },
+    { id: 'e', statut: 'place', choisi: 1, creneaux: [{ n: 1, date: '2026-09-15', heure: '14:00' }] },
+    { id: 'f', statut: 'annule', closLe: '2026-09-20T08:00:00Z', creneaux: [] },
+    { id: 'g', statut: 'expire', closLe: '2026-09-25T08:00:00Z', creneaux: [] }
+  ];
+  const r = app.classerSuiviDatesProposees(sondages, '2026-10-01');
+  assert.equal(r.attente.map(x => x.id).join(','), 'b,a');
+  assert.equal(r.valides.map(x => x.s.id).join(','), 'd,c,e');
+  assert.equal(r.valides[1].creneau.date, '2026-10-20');
+  assert.equal(r.sansSuite.map(x => x.id).join(','), 'g,f');
+});
+
+test('reponsesNonVuesSondages : réponses arrivées après le dernier passage, sondages ouverts seulement', () => {
+  const sondages = [
+    { id: 'a', statut: 'ouvert', reponses: [{ email: 'x@e.test', recuLe: '2026-10-01T09:00:00Z' }, { email: 'y@e.test', recuLe: '2026-10-01T07:00:00Z' }] },
+    { id: 'b', statut: 'place', reponses: [{ email: 'z@e.test', recuLe: '2026-10-01T10:00:00Z' }] },
+    { id: 'c', statut: 'ouvert', reponses: [{ email: 'w@e.test', recuLe: '' }] }
+  ];
+  assert.equal(app.reponsesNonVuesSondages(sondages, '2026-10-01T08:00:00Z').map(r => r.id + ':' + r.email).join(','), 'a:x@e.test');
+  assert.equal(app.reponsesNonVuesSondages(sondages, '').length, 2);
+  assert.equal(app.reponsesNonVuesSondages(sondages, '2026-10-02T00:00:00Z').length, 0);
+});
+
+test('motPastilleAgenda : trois lettres du jour (« Jeu »), du mois en vue Mois (« Oct »)', () => {
+  const jeudi = new Date('2026-10-01T00:00:00');
+  assert.equal(app.motPastilleAgenda(jeudi, 'semaine'), 'Jeu');
+  assert.equal(app.motPastilleAgenda(jeudi, 'mois'), 'Oct');
+  assert.equal(app.motPastilleAgenda(new Date('2026-10-05T00:00:00'), 'jour'), 'Lun');
+  assert.equal(app.motPastilleAgenda(new Date('2026-08-05T00:00:00'), 'mois'), 'Aoû');
+});
+
+test('rappelButoirSignatureProbable : date butoir rappelée, marge, dépassement, absente', () => {
+  const app = require('./helpers/load-app.js').chargerApplication();
+  const auj = '2026-10-02';
+  const d = { acte: '2026-11-12' };
+  const ok = app.rappelButoirSignatureProbable(d, { date: '2026-10-19' }, { date: '2026-10-20', heure: '10:00' }, auj);
+  assert.equal(ok.niveau, 'ok');
+  assert.match(ok.html, /Date butoir : <b>jeudi 12 novembre 2026<\/b> \(dans 41 jours\)/);
+  assert.equal(app.rappelButoirSignatureProbable(d, { date: '2026-11-09' }, null, auj).niveau, 'proche');
+  const depasse = app.rappelButoirSignatureProbable(d, { date: '2026-11-16' }, { date: '2026-11-17', heure: '14:00' }, auj);
+  assert.equal(depasse.niveau, 'depasse');
+  assert.match(depasse.html, /ce créneau la dépasse : prévoir la prorogation/);
+  assert.match(app.rappelButoirSignatureProbable({ acte: '2026-09-28' }, { date: '2026-10-16' }, null, auj).html, /dépassée depuis 4 jours/);
+  assert.equal(app.rappelButoirSignatureProbable({}, { date: '2026-10-16' }, null, auj).niveau, 'inconnue');
 });

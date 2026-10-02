@@ -13855,7 +13855,811 @@ Réponses de l'étude : email avec le lien de la visio — « OUI, ça peut êtr
 - Vérifié dans Chromium : deux .eml (clients ; confrère « Mon Cher Maître, … Votre bien dévoué. »), corps
   relu dans les fichiers.
 
-### 01/10/2026 17 h 07 — Rapport technique : origine d'une correction lisible
+
+### 01/10/2026 17 h 29 — Sondage de dates sans dossier
+
+Demande de l'étude : « Peut-on créer plusieurs propositions de rendez-vous sans être lié à un dossier en
+particulier ? »
+- Serveur (`routes/sondages.js`, `sondagesCreneaux.js`) : champ `titre` (120 car., sans « ? », réservé aux
+  options) ; `dossierId` facultatif quand un titre est donné (400 sinon) ; l'unicité « un sondage ouvert par
+  dossier » ne vaut que pour un dossier — plusieurs sondages sans dossier peuvent être ouverts ; options
+  « Titre ? — option CLAIRE, créneau n/N ». `POST /exchange/rendez-vous` reçoit maintenant les injections
+  (`poster` EWS) comme les autres routes, pour être vérifiable sans Exchange.
+- Client : `ouvrirSondageSansDossier(titre, enTete)` — modale « Proposer des dates » : titre + durée,
+  créneaux, destinataires libres (nom, email, case « Confrère », ×, « Ajouter un destinataire », 6 au plus),
+  options dans l'agenda. Emails : `objetsEmailSondage` (« rendez-vous « Titre » » au lieu de la signature),
+  confrère « ceux qui vous conviennent » ; objet « Rendez-vous : vos disponibilités — Titre » ; abrégé
+  `abregeTitreSondage` (« REU./AGE. », jamais le titre en clair dans les objets de réponse ni sur la page) ;
+  lien de la page avec `t=r` (titre « Rendez-vous », « Objet » au lieu de « Dossier » — page-sondage/index.html,
+  à republier dans Claire-rdv). Placement : `posterEvenementAgenda` sans dossier, au titre et à la durée du
+  sondage, puis options retirées.
+- Entrées : « Proposer plusieurs dates » du formulaire « Nouveau rendez-vous », désormais aussi sans dossier
+  (le titre saisi suit) ; bloc « Dates proposées » de la colonne de l'agenda (`renderSondagesSansDossierAgenda` :
+  un créneau par ligne, réponses favorables n/N, « Placer », Relancer/Relire/Annuler, « Proposer des dates »).
+- Tests : client (abrégé, objets, textes inchangés pour un dossier, `t=r`), serveur (titre obligatoire,
+  plusieurs sondages sans dossier, options au nom du titre). Vérifié dans Chromium avec un faux Exchange :
+  deux .eml (destinataire ; confrère), 2 options, placement = CreateItem « Point syndic » + 2 MoveToDeletedItems.
+
+
+### 01/10/2026 17 h 32 — Lieu Outlook : responsable, confrère, envois
+
+Demande de l'étude : « Quand un rendez-vous dans CLAIRE est créé dans l'agenda, renseigner dans l'agenda
+Outlook partagé le responsable du dossier, le nom du notaire en 2nd ou qui reçoit, et si appel de fonds
+fait et projet envoyé. » C'était déjà le cas pour une signature posée depuis la fiche, un créneau proposé
+ou un sondage placé (`lieuRdvAgenda` : « BA - Me DURAND en 2nd - Appel de fonds envoyé »), et la mention
+d'envoi se met à jour seule à la validation d'une date d'envoi (`noterEnvoiDansAgenda`). Manquaient :
+- le formulaire « Nouveau rendez-vous » de la page Agenda : le Lieu restait vide. `choisirDossierCreationAgenda`
+  le remplit avec `lieuRdvAgenda(d)` (tant qu'il est vide ou porte la proposition précédente ; un lieu tapé
+  à la main n'est jamais remplacé ; vidé si on retire le dossier) ;
+- `composerLieuAgenda` (serveur, route `/exchange/rendez-vous/lieu`) reçoit `initiales` et les met en tête
+  si elles manquent (rendez-vous tapé dans Outlook), jamais en double. Testé ; vérifié dans Chromium
+  (Location de la requête CreateItem).
+
+
+### 01/10/2026 17 h 36 — Agenda : comparaison avec la même semaine l'an dernier
+
+Demande de l'étude : « À côté de Agenda de l'office lu jeu. 17 h 29, rajouter une statistique par rapport
+au nombre de rendez-vous par rapport à l'année dernière à la même semaine (+ x rendez-vous, hausse ou baisse
+de x %) ».
+- Compté (serveur, `compterRendezVousPeriode`) : les rendez-vous HORAIRES du lundi au samedi, ni journée
+  entière (absences, dates butoir), ni annulés, ni options d'un sondage ; signatures à part (détail).
+- Même semaine l'an dernier = 52 semaines plus tôt (`lundiAnneePrecedente`, 364 jours, même jour de semaine).
+- `GET /api/agenda/comparaison?lundi=` : cette semaine depuis le stock `agenda-office` (null si la semaine
+  n'est pas couverte), l'an dernier lu UNE fois dans Exchange (`lireCalendrierExchange` avec une tranche de
+  6 jours — paramètre `jours` ajouté), un seul essai, jamais pendant la suspension après refus d'identifiants
+  (un refus ouvre le même disjoncteur), puis gardé en base (`agenda-comparaison`, 60 semaines, relu après
+  7 jours) ; lectures simultanées de la même semaine fusionnées. Un compte inconnu vaut null, jamais 0.
+- Client : `renderComparaisonAgenda` (vues Semaine et Jour, pas Mois) après « Agenda de l'office lu … » :
+  « +3 rendez-vous vs 2025 (hausse de 25 %) » / « −2 … (baisse de 20 %) » / « Autant de rendez-vous qu'en
+  2025 » / « (aucun l'an dernier) », vert / rouge, flèche `trend-up`/`trend-down`, détail en pastille « i »
+  (`texteComparaisonAgenda`, pur, testé). Relu toutes les 2 min au plus par semaine affichée.
+- **Non vérifié au bureau** : volume réel de la semaine de l'an dernier dans le calendrier partagé.
+
+
+### 01/10/2026 17 h 40 — Claire Scan : « Ranger » / « Laisser dans Scan » rapides
+
+Question de l'étude : « comment accélérer le rangement des scans ? », précisée : « c'est lors du clic sur
+Laisser le scan ou Ranger le scan qui est long ». Mesures des rapports techniques : lecture d'un scan 6–7 s
+(OCR compris) — ce n'était pas elle. Cause : chaque geste attendait `chargerScans()`, donc `GET /api/scans`,
+donc `listerScans`, qui interrogeait (stat) UN PAR UN, sur le partage `\\192.168.60.5\Scan`, tous les PDF du
+dossier du copieur, historique compris (jamais traité, plus ancien que l'activation). « Laisser » ne fait
+pourtant qu'écrire en base.
+- Client : `finirGesteScan` — le scan quitte la liste (ou passe dans « laissés de côté ») dès la réponse du
+  geste ; la relecture du dossier part ensuite en arrière-plan. Après un rangement, l'enregistrement de la
+  pièce (sauvegarde du dossier, Teams) et le parcours du NAS ne retiennent plus l'écran.
+- Serveur (`listerScans`) : les fichiers plus anciens que `depuis` sont mémorisés et plus jamais interrogés
+  (mémoire vidée toutes les 10 min et au changement de dossier/date) ; les autres sont interrogés 16 à la
+  fois. Testé (41 stat au premier passage, 1 au second, parallèle ≤ 16).
+- Vérifié dans Chromium avec une relecture ralentie à 5 s : le scan quitte la liste en ~30 ms (contre 5 s et
+  plus), copie bien posée sur le NAS, pièce cochée.
+
+
+### 01/10/2026 17 h 44 — Bug : « Ajouter un rappel » ouvrait « À venir »
+
+Signalé par l'étude : « Dans Aujourd'hui, quand je clique sur Ajouter un rappel, il m'ouvre À venir. »
+Reproduit (carte grande, 2 rangées, 5 tâches) : le formulaire ouvert faisait déborder la carte, et
+`ajusterWidgets` masquait alors TOUTE la section « Mes rappels » (section d'appoint, `data-min` 0) — formulaire
+compris — puis remplissait la place avec « À venir » (priorité suivante). Correction : pendant une saisie
+(ajout ou modification), la liste des rappels passe en priorité 0 avec `data-garder` (jamais masquée, le corps
+défile au besoin), « À venir » n'est pas rendu, et le formulaire est ramené dans la partie visible, curseur
+dans le texte (`amenerFormulaireRappel`). Vérifié dans Chromium : formulaire visible, rappel enregistré, carte
+normale ensuite.
+
+
+### 01/10/2026 17 h 47 — Agenda : historique (toutes les années, à la demande)
+
+Demande de l'étude : « que l'agenda puisse remonter jusqu'au 1er janvier de l'année pour pouvoir s'y référer ;
+si possible tous les rendez-vous de toutes les années, si ce n'est pas trop lourd ». Choix : lecture À LA
+DEMANDE plutôt qu'une reprise de toutes les années (le stock `agenda-office` couvre ~7 mois et 427 événements ;
+des années entières relues à chaque tour de 2 min seraient lourdes pour Exchange et inutiles).
+- Serveur `GET /api/agenda/passe?debut&fin` : pour la part de la période AVANT le stock (lundi de la semaine
+  dernière), chaque mois est lu dans Exchange (`lireCalendrierExchange`, une tranche de la longueur du mois,
+  un seul essai, jamais pendant la suspension après refus, refus → disjoncteur), converti comme le stock
+  (`evenementsAgendaOffice`, dossiers rapprochés, signatures reconnues) et gardé en base sous sa propre clé
+  `agenda-archive:AAAA-MM` (600 rendez-vous au plus). `archiveAgendaARelire` : un mois lu plus de 7 jours
+  après sa fin n'est plus jamais relu ; sinon relu au plus une fois par jour. 3 mois au plus par appel ;
+  lectures simultanées d'un même mois fusionnées. Testé.
+- Client : `chargerAgendaSemaine` complète la période affichée par l'historique (rendez-vous marqués
+  `archive`, fusion sans doublon d'identifiant, réponse périmée ignorée par jeton) ; « Historique : lecture
+  dans Outlook… » dans la ligne d'état ; rendez-vous d'archive en LECTURE SEULE (pas de crayon, de glisser,
+  de bord, ni de suppression ; notes lisibles sans crayon). « Aller à une date » (`#agenda-aller`) dans la
+  barre de navigation. Vérifié dans Chromium (semaine du 6 janvier 2026, détail et notes, clair et sombre).
+- La comparaison avec l'an dernier ne s'affiche que sur les semaines du stock (cette semaine-là comptée
+  depuis le stock).
+
+
+### 01/10/2026 17 h 48 — Colonne de l'agenda réordonnée
+
+Demande de l'étude : « place Proposer des dates sous la vue mensuelle du mois dans la sidebar de l'agenda.
+Supprime Signatures de la semaine. » Colonne de gauche : calendrier du mois, « Dates proposées »
+(`renderSondagesSansDossierAgenda`, sorti de `renderAnticipationsAgenda`), « Rendez-vous à placer », « Relation
+client ». Le bloc « Signatures de la semaine/du mois/du jour » est retiré ; `probabiliteTenueSignature` reste
+dans le détail d'un rendez-vous et les cartes fantômes.
+
+### 01/10 — Relation client dans la fiche (Échanges), sans confrère
+
+Demandes de l'étude : « relations client doit être connecté à la fiche du dossier avec échanges et que pour
+les clients non accompagnés par un confrère », puis « retirer de la sidebar relation client ». Le bloc
+« Relation client » quitte la colonne de gauche de l'agenda (`renderAnticipationsAgenda` ne rend plus que
+« Rendez-vous à placer » ; `renderGesteRelationClient` supprimé). `echangesSelonStade` range maintenant
+`confirmationRdv`, `rappelRdv` (rendez-vous fixé) et `anniversaire` (acte signé), utiles quand
+`gestesRelationClient` les dit dus ou quand ils sont déjà faits pour cette date, repliés sinon ; la ligne
+dit l'échéance (« Signature dans 2 jours »). `gestesRelationClient` écarte tout dossier dont l'acquéreur a un
+confrère (avant : la confirmation et le rappel allaient au confrère) ; même règle dans le détail d'un
+rendez-vous de l'agenda et pour le questionnaire dans Échanges. L'envoi reste `envoyerRelanceCiblee`
+(`confirmationRdvPour`, `rappelRdvPour`, `anniversaireEnvoyeLe`), partagé entre la fiche et l'agenda.
+
+### 01/10 — Suppression d'un rendez-vous : ErrorCannotDeleteObject
+
+Signalé par l'étude : « Le retrait de l'événement a échoué (ErrorCannotDeleteObject) ». Le compte de CLAIRE
+est délégué sur le calendrier partagé de Sophie ; `MoveToDeletedItems` range l'élément dans les éléments
+supprimés de SA boîte, où le délégué n'a pas de droit → Exchange refuse. `supprimerEcheanceExchange` (une
+seule fonction pour tous les retraits : rendez-vous, dates butoir, options « Provisoire » des sondages) fait,
+dans ce seul cas, une seconde requête en `SoftDelete` (`corpsDeleteEcheance({ typeSuppression })`, liste
+blanche `TYPES_SUPPRESSION_EWS` : jamais `HardDelete`) : l'élément va dans les éléments récupérables
+(« Récupérer les éléments supprimés » d'Outlook, durée de rétention réglée par Fichorga). Pas de risque de
+verrouillage : les identifiants viennent d'être acceptés ; toute autre erreur n'est pas retentée. Non
+vérifié contre le vrai Exchange (injoignable ici). Autre voie, côté Fichorga : donner au compte de CLAIRE
+le droit sur le dossier « Éléments supprimés » de Sophie.
+
+### 01/10 — Appels reçus par 3CX
+
+Demande de l'étude : « Tu pourrais te connecter à 3cx pour récupérer les appels reçus à l'office ? », puis capture
+de l'« Intégration CRM » du client web 3CX (OFF / CRM côté serveur / CRM supporté / **CRM personnalisé** : une
+adresse avec %CallerNumber% et %CallerDisplayName%, « Informer lorsque : Sonnerie »). Choix de l'étude
+(AskUserQuestion) : « Noter + ouvrir la fiche » et « Ajouter les téléphones » sur les fiches.
+
+- Serveur (`appels3cx.js`, `routes/appels.js`) : `GET /appel?numero=&nom=&poste=` hors session (3CX n'a pas le
+  jeton), 60/min au plus, note l'appel dans `appels-recus` (400 jours, 3000 au plus) et ne renvoie aucune donnée :
+  la page se ferme (`window.close`, onglet ouvert par script) si la fenêtre CLAIRE du poste s'est signalée visible
+  dans les 15 s, sinon elle ouvre `/index.html#appel=<id>`. `reconnaitreAppelant` compare les 9 derniers
+  chiffres (+33, 0033, préfixe 0 de ligne extérieure) aux téléphones des parties (`d.telephoneVendeur`,
+  `d.telephoneAcquereur`, plusieurs numéros séparés par « / »), puis au carnet des confrères (et aux dossiers en
+  cours où un de leurs notaires est nommé), puis au répertoire. Rien n'est journalisé (numéros, noms).
+- Client : `releverAppels` toutes les 3 s, même fenêtre cachée (`/api/appels/nouveaux`, poste = prénom sans
+  accent, `clePosteAppels` — un nom encodé « %C3%A9 » risquerait d'être pris par 3CX pour une variable) ;
+  bandeau « Appel entrant » (2 min) ; ouverture de la fiche (onglet Échanges) d'un seul dossier en cours dont
+  l'appelant est partie (`dossierAOuvrirPourAppel`), jamais pendant une saisie ; téléphones et « Appels reçus »
+  dans l'onglet Échanges ; téléphones repris d'un export Authentic à la création ; Réglages › Rappels :
+  adresse de chaque collaborateur à copier (`adresseIntegration3cx`) et 20 derniers appels.
+- Limites dites à l'étude : seuls les appels qui sonnent sur un poste où le client web 3CX est ouvert sont
+  notés ; non vérifié avec un vrai 3CX (forme de %CallerNumber%, fermeture de l'onglet).
+
+### 01/10 — 3CX : « rien ne se passe » avec la fenêtre CLAIRE
+
+Signalé par l'étude : « ça ne fonctionne pas pour ma fenêtre d'app hors navigateur » ; précisé (AskUserQuestion) :
+rien ne se passe (ni onglet, ni bandeau), client web 3CX dans le navigateur, fenêtre CLAIRE ouverte par le
+raccourci. Cause la plus probable : le client web 3CX ouvre l'adresse à la sonnerie, sans geste de l'utilisateur
+— Chrome/Edge bloquent cette fenêtre pop-up (icône à droite de la barre d'adresse), l'appel n'atteint jamais le
+serveur (le journal des Réglages reste vide). Ajouts : bouton « Essayer » par collaborateur (`essayerSonnerie3cx`,
+`adresseEssai3cx` : même adresse, numéro 06 00 00 00 00, nom « Essai CLAIRE », ouverte d'un clic donc jamais
+bloquée) pour séparer le côté CLAIRE du côté 3CX/navigateur ; consigne « autoriser les pop-up pour le site du
+client web 3CX » dans la pastille de la rubrique ; relève immédiate quand la fenêtre CLAIRE redevient visible
+(une fenêtre cachée longtemps n'est relevée qu'une fois par minute par Chrome). Non vérifié avec le vrai 3CX.
+
+### 01/10 — Rappels en cours toujours visibles dans « Aujourd'hui »
+
+Demande de l'étude : « remettre mes rappels en cours dans Aujourd'hui, visibles tant qu'ils ne sont pas cochés ».
+Sur la carte du tableau de bord, « Mes rappels » (priorité 2 d'`ajusterWidgets`) était masquée dès que les actions
+remplissaient la tuile. Les rappels dus (`rappelsDuJour` : échus, du jour ou sans date, non cochés) passent en tête
+de la liste « À faire » de la carte, marqués `w-fixe` (jamais masqués ; la carte défile au besoin), avec la case
+ronde et un crayon (`ouvrirEditionRappel`, formulaire sous « Mes rappels ») ; ceux cochés aujourd'hui vont après les
+actions (`renderRappelsJour(…, partie)`). « Mes rappels » de la carte n'y répète plus les rappels du jour
+(`renderMesRappels(…, sansDuJour)`) : restent ceux à venir et l'ajout. Fenêtre du matin : rappels en tête aussi.
+
+### 01/10 — 3CX : l'adresse à coller ne doit pas être « localhost »
+
+Retour de l'étude : « j'ai la notification d'appel du test, mais j'ai mis mon numéro dans une fiche et appelé le
+standard, toujours rien ». La fenêtre CLAIRE du poste serveur est ouverte sur `http://localhost:<port>/`
+(`index.js`), et Réglages › Rappels construisait l'adresse 3CX sur `location.origin` : « localhost » ne mène au
+serveur que depuis ce poste-là — l'essai, lancé depuis la même fenêtre, marchait. Désormais
+`origineServeurPour3cx` remplace localhost/127.x par l'adresse du serveur sur le réseau (`GET
+/api/appels/adresses-serveur`, `adressesLan`, 192.168.… d'abord, même port), et « Essayer » passe par cette
+adresse. Autres causes possibles laissées à vérifier par l'étude : fenêtres pop-up bloquées pour le client web
+3CX ; appel au standard (file d'attente ou standard automatique) qui ne fait pas sonner le poste — essayer en
+appelant le numéro direct du poste ; « Derniers appels » vide = 3CX n'a pas joint CLAIRE.
+
+### 01/10 — Liste des widgets : ajouter / retirer
+
+Demande de l'étude : « permettre de supprimer un widget et créer une liste de widgets à ajouter ou supprimer ».
+Bouton « Widgets » dans l'en-tête du tableau de bord (à côté de « Personnaliser ») → fenêtre « Widgets du tableau
+de bord » (`#widgets-overlay`, `ouvrirGalerieWidgets`, `renderGalerieWidgets`, pure `lignesGalerieWidgets`) :
+« Sur le tableau de bord » (Retirer) puis « À ajouter » (Ajouter, `button.bouton-ajout`), icône et description par
+widget (`icone`, `description` dans `WIDGETS_DASHBOARD`). Retirer = `masque: true` de la disposition (préférence
+`widgets`, aucun changement serveur) : le widget garde sa taille et sa place. En mode Personnaliser, la pastille
+« − » devient « × Retirer du tableau de bord » ; la rangée des widgets masqués sous la grille est remplacée par
+« Ajouter un widget (n) », qui ouvre la liste (aussi affiché hors de ce mode quand plus aucun widget n'est visible).
+Échap ou clic à côté ferment ; « Disposition d'origine » dans la fenêtre.
+
+### 01/10 — Réglages : une rubrique par sujet
+
+Demande de l'étude : « revoir les réglages pour l'organisation, savoir si tout est à sa place ». Constats :
+« Rappels Teams » mêlait l'envoi Gmail, l'adresse et la fonction de chaque collaborateur (sans bouton propre :
+enregistrées par le bouton de la section Gmail au-dessus), la téléphonie 3CX et le dernier tour ; « Agenda »
+mêlait la connexion Outlook et les réglages des sondages ; « Notification d'une nouvelle pièce » était sous
+« Documents et emails ». Nouvel ordre (`SOUS_ONGLETS_REGLAGES`) : Général · Collaborateurs (nouvelle rubrique,
+`#reglages-emails-liste` + Enregistrer → `enregistrerReglages`) · Signature des emails · Rappels Teams (Gmail,
+dernier tour) · Agenda et Outlook (connexion, lecture, section « Sondages de créneaux » avec son bouton —
+`enregistrerReglagesExchange(idResultat)`) · Téléphonie 3CX (nouvelle rubrique) · Pièces et Claire Scan (« Sur ce
+poste » : notification d'une nouvelle pièce, puis Claire Scan, Fichiers écartés) · Relecture d'actes ·
+Signalements · Mise à jour et sauvegarde. Aucun identifiant de champ changé ; messages qui citaient l'ancienne
+rubrique mis à jour.
+
+### 01/10 — Barre latérale épurée, page Outils
+
+Demande de l'étude, sur un exemple (Products / Analytics / … / Posts + avec Drafts 10, Scheduled 2) : « retire les
+titres et garde juste les liens vers les pages ; la forme des notif et le + pour outils ; Outils n'est plus un
+titre et ouvre une page avec de gros icônes, mais laisse la possibilité d'ouvrir aussi le tiroir ». Fait : titres
+« Dossier » et « Admin » retirés ; « Outils » devient un lien (`#tab-outils`, onglet `outils`, page
+`#onglet-outils`, tuiles `renderPageOutils` depuis `OUTILS_PAGE` : icône 60 px, titre, une phrase) ; le + à sa
+droite (`#sidebar-groupe-outils`, devient − une fois ouvert) déplie le tiroir dans la barre, outils sans icône ni
+arborescence, alignés sur le texte des liens ; tiroir fermé avec un outil ouvert → « Outils » surligné. Barre
+repliée : le + disparaît, le survol de l'icône Outils ouvre le volet flottant (ancré désormais sur `#tab-outils`),
+le clic ouvre la page. Compteurs (`.sidebar-badge-notif`, pastille de Claire Scan) : carré arrondi (7 px) au lieu
+de la pilule, rouge gardé (choix antérieur de l'étude).
+
+### 01/10 — Tiroir Outils : liseré rétabli
+
+Demande de l'étude : « dans la sidebar ouverte, tiroir ouvert, remettre le liseré ». Les règles qui retiraient le
+tronc et les branches (`.sidebar-sousmenu::before`, `.sidebar-sousmenu-item::before`) et l'indentation du tiroir
+sont retirées ; seules les icônes des outils restent masquées, le texte tombant à l'aplomb de celui des liens.
+
+### 01/10 — Widget Agenda relié à l'agenda partagé de l'office
+
+Demande de l'étude : « lier le widget agenda avec l'agenda CLAIRE / Sophie partagé ». Le widget ne montrait que les
+signatures fixées dans les dossiers. Il lit désormais le stock de l'agenda de l'office (calendrier de Sophie, lu
+toutes les 2 min par le serveur) par `GET /api/agenda/evenements` (`chargerAgendaWidget`, 6 semaines à partir du
+lundi affiché, relu toutes les 2 min sur le tableau de bord et à chaque retour), plus les signatures de CLAIRE
+absentes d'Outlook (`signaturesHorsAgenda`, en pointillé). Bande de la semaine : un point par jour qui a un
+rendez-vous (tous types). Jour choisi : tous ses rendez-vous triés comme Outlook (`evenementsTriesJour`) dans les
+lignes de la fenêtre du matin (`lignesEvenementsAgendaJour`, couleur Outlook, étiquette, « Fiche » pour un dossier
+reconnu). Appoint : « Prochains rendez-vous » (`prochainsEvenementsAgenda`, sans absences ni dates butoir) puis
+« Prochaines échéances ». Un clic ouvre la page Agenda au jour du rendez-vous, détail ouvert
+(`ouvrirEvenementDepuisWidgetAgenda` ; le clic d'origine est ignoré par la fermeture automatique du détail) ;
+titre et icône calendrier ouvrent l'agenda. Navigation d'une semaine en arrière à 8 en avant ; état de lecture
+dans le sous-titre (« Agenda Outlook non relié » si la connexion n'est pas réglée).
+
+### 01/10/2026 21 h 45 — Comparaison de l'agenda : rendez-vous d'une heure ou plus seulement
+
+Demande de l'étude : « Pour la statistique dans l'agenda sur le nombre de rdv prendre en compte
+uniquement les rendez-vous de une heure ou plus ». `compterRendezVousPeriode` (`server/src/agendaOffice.js`)
+écarte tout rendez-vous de moins de 60 minutes (`dureeRendezVousMinutes` : heure de fin − heure de
+début, jours entiers ajoutés si le rendez-vous finit un autre jour ; sans heure de fin lisible, durée
+inconnue → non compté). Même règle pour les signatures. Les semaines de l'an dernier gardées sous
+`agenda-comparaison` portent désormais `regle: 'duree-1h'` (`REGLE_COMPTAGE_RENDEZ_VOUS`) ; une semaine
+comptée sous l'ancienne règle n'est plus montrée et est relue une fois dans Exchange (jamais deux
+règles comparées). Info-bulle de la comparaison mise à jour.
+
+### 01/10/2026 21 h 48 — Petit calendrier de l'agenda : le rond ne recouvre plus le point
+
+Signalé par l'étude : « le rond noir déborde sur le petit point ». Mesuré dans Chromium : le point des
+rendez-vous (`.ag-mois-points`, `margin-top: -3px`) entrait de 2 px dans le rond du jour (28 px). Rond
+ramené à 26 px, marge négative retirée, écart de 3 px (`gap`) : point 3 px sous le rond, mesuré en clair,
+sombre et téléphone, toujours dans la case du jour (36 px).
+
+### 01/10/2026 21 h 50 — Agenda : plus de date affichée à côté de « Aujourd'hui »
+
+Demande de l'étude : « Ne pas afficher le jour à côté de aujourd'hui ». Le champ « Aller à une date »
+(`#agenda-aller`, `input type=date`) montrait la date en clair (« 10/01/2026 ») dans la barre ‹ Aujourd'hui ›.
+Il devient une icône calendrier (`.ag-aller-btn`) ; le champ date reste dans la page, invisible sous
+l'icône, et `ouvrirAllerDateAgenda` ouvre son sélecteur (`showPicker`, repli sur focus/clic). Vérifié dans
+Chromium (clair, sombre, téléphone) : la barre ne montre plus que ‹ Aujourd'hui › et l'icône, le choix
+d'une date mène bien à ce jour.
+
+### 01/10/2026 21 h 55 — Agenda : recherche d'un dossier à la place du bouton « Actualiser »
+
+Demande de l'étude : « À la place de actualisé placer un champ de recherche de dossier. Placer actualisé
+l'agenda ailleurs ». Dans l'en-tête de la page Agenda (`index.html`, hors de `#agenda-contenu` pour
+que les relectures de l'agenda toutes les 2 min ne le redessinent pas), le bouton « Actualiser » laisse
+la place à « Chercher un dossier » (`#agenda-recherche`). `resultatsRechercheAgenda` (pure, testée) :
+nom sans accents ni casse, dossiers en cours avant les archivés, 8 au plus, chacun avec sa signature
+fixée ou, à défaut, la semaine probable (`semaineProbableSignature`). Flèches + Entrée, Échap. Un
+choix (`allerAuDossierAgenda`) mène au jour de la signature et en ouvre le détail une fois les
+rendez-vous lus (`agendaCibleDossier`, `selectionnerCibleDossierAgenda`, signature de CLAIRE hors
+Outlook comprise) ; sans rendez-vous, à la semaine probable avec sa carte fantôme (vue Semaine si la
+vue Mois était affichée) ; sans rien à montrer, la fiche s'ouvre. « Actualiser » devient une icône
+(`button.ag-actualiser`, tourne jusqu'à l'agenda relu) juste après « Agenda de l'office lu … ».
+Vérifié dans Chromium (clair, sombre, téléphone) avec des dossiers inventés.
+
+### 01/10/2026 21 h 58 — Agenda : bouton double « Nouveau rendez-vous | Proposer des dates »
+
+Demande de l'étude : « Faire un bouton moitié nouveau rendez-vous moitié proposer des dates ». Dans
+l'en-tête de la page Agenda, `.ag-ajout-double` réunit deux boutons principaux collés (un seul bloc
+arrondi, filet clair entre les deux) : « Nouveau rendez-vous » (`ouvrirCreationAgenda`) et « Proposer
+des dates » (icône `users`, `ouvrirSondageSansDossier('', [])` — le sondage sans dossier). Le bouton
+« Proposer des dates » de la rubrique « Dates proposées » est retiré (doublon) ; la rubrique ne
+s'affiche plus que s'il y a des sondages en cours. Texte sur une ligne, resserré sous 480 px. Vérifié
+dans Chromium (clair, sombre, téléphone) : la moitié droite ouvre bien « Proposer des dates ».
+
+### 01/10/2026 22 h 00 — Agenda : le champ de recherche prend l'aspect de celui du Suivi
+
+Retour de l'étude : « c'était un champ comme sur Suivi […] le champ de recherche va à la place de
+actualisé ». Le champ `#agenda-recherche` (en-tête de la page, à la place de l'ancien bouton
+« Actualiser ») reprend le style de `#recherche-dossiers` du Suivi : 42 px, police 15 px, loupe 17 px
+(`.suivi-recherche-icone`), bord arrondi 10 px, ombre légère, anneau de focus ; jusqu'à 460 px de large,
+pleine largeur sur téléphone ; même texte d'invite que le Suivi. « Actualiser » reste une icône à côté
+de « Agenda de l'office lu … ».
+
+### 01/10/2026 22 h 06 — Agenda : la recherche filtre l'agenda (comme le Suivi) ; icône « fiche »
+
+Demande de l'étude : « ajoute l'icône fiche ; je veux que le champ de recherche fonctionne comme sur la
+page Suivi ». La question de cadrage (filtrer l'agenda / filtrer sans liste / liste seule) a été refusée
+sans réponse : retenu le choix recommandé. Taper dans `#agenda-recherche` filtre l'agenda affiché comme
+le Suivi filtre sa liste : `evenementsFiltresRecherche` (pure, testée ; titre, lieu, nom du dossier,
+sans accents ni casse) appliqué à la grille Semaine/Jour (cartes fantômes comprises), à la vue Mois et
+aux points du petit calendrier. Sous la date : « N rendez-vous pour « … » · Tout afficher »
+(`effacerRechercheAgenda`, aussi par Échap). La liste sous le champ reste ; chaque ligne a deux gestes :
+le nom (aller au rendez-vous, comme avant) et l'icône `file-text` « Ouvrir la fiche du dossier »
+(`ouvrirFicheDepuisRechercheAgenda` → `ouvrirDossierDepuisDashboard`). Vérifié dans Chromium (bureau et
+téléphone) : 6 rendez-vous → 1 avec « dupont », focus gardé pendant la frappe, l'icône ouvre le tiroir du
+dossier, « Tout afficher » rend les 6.
+
+### 01/10/2026 22 h 08 — Agenda : suppression d'un rendez-vous par une poubelle rouge
+
+Demande de l'étude : « Dans le rendez-vous pour supprimer juste une icône poubelle rouge ». Le bouton texte
+« Supprimer de l'agenda » du bas du détail (`renderPanneauDetailAgenda`) est retiré ; à sa place, une
+icône `trash` rouge (`button.icon-btn.ag-supprimer-ico`, `--urgent`, fond teinté au survol) dans
+`.ag-detail-outils`, entre le crayon et la croix. Même condition (`peutSupprimer`), même geste
+(`supprimerEvenementAgenda`) : la confirmation reste. Vérifié dans Chromium (clair, sombre, téléphone).
+
+### 01/10/2026 22 h 10 — Agenda : bouton double à droite de la recherche
+
+Demande de l'étude : « Mettre le double bouton créer rdv à côté du champ de recherche à droite ». Le
+bouton double quitte l'en-tête de la carte (`renderPageAgenda`) pour `#agenda-creation` dans
+`.dash-header-actions` de la page (index.html), juste après `#agenda-recherche` ; rempli par
+`renderPageAgenda` (masqué si l'agenda Outlook n'est pas relié), hauteur 42 px comme le champ. Sous
+900 px : recherche puis bouton, chacun en pleine largeur, moitiés égales. Vérifié dans Chromium à 1400,
+1100 et 400 px.
+
+### 01/10/2026 22 h 21 — Agenda : fenêtre « Dates proposées » (suivi des dates envoyées)
+
+Demande de l'étude : « un lien pour accéder à une page qui permet de suivre les dates en attente de
+confirmation de rendez-vous envoyées ou déjà validées. À ouvrir dans un pop-up ». Dans la colonne de
+l'agenda, sous le petit calendrier, la rubrique « Dates proposées » (qui ne montrait que les sondages
+sans dossier en cours) devient un lien (`button.ag-lien-dates`, nombre en attente en pastille) qui ouvre
+`#dates-proposees-overlay` (`ouvrirSuiviDatesProposees`, relit `/api/sondages` à l'ouverture). Tous les
+sondages de créneaux, avec ou sans dossier, rangés par `classerSuiviDatesProposees` (pure, testée) :
+**En attente de réponse** (ouverts, plus récents d'abord : date d'envoi, réponses n/N, échéance des
+options, tableau des réponses `renderTableSondage` avec « Placer », puis Relancer / Relire / Annuler),
+**Validées** (placés, date retenue à venir d'abord puis passées ; « Voir dans l'agenda » ferme la fenêtre
+et va au jour), **Sans suite** (annulés/expirés, 20 au plus, repliés). Le nom d'un dossier ouvre sa fiche.
+La fenêtre se redessine à chaque relecture des sondages et après chaque action. Vérifié dans Chromium
+(clair, sombre, téléphone) avec des sondages inventés.
+
+### 01/10/2026 22 h 25 — « Dates proposées » dans un volet à droite
+
+Demande de l'étude : « au lieu d'ouvrir ça dans une fenêtre, ouvre-le dans une sidebar qui s'ouvre à
+droite comme un dossier ». `#dates-proposees-overlay` reprend la coque du tiroir de la fiche
+(`.drawer-overlay` + `aside.drawer-panneau`, même largeur, même animation, voile sombre) avec une barre
+collante `.fiche-barre` (titre + croix). Défilement de la page bloqué pendant l'ouverture par
+`body.tiroir-dates-ouvert` (pas `drawer-ouvert`, réservé à l'impression de la fiche). Contenu inchangé.
+
+### 01/10/2026 22 h 29 — Pastille « Agenda » quand une réponse aux dates proposées revient
+
+Demande de l'étude : « mettre une notification dans la sidebar, à droite sur Agenda, quand une réponse est
+revenue ». `reponsesNonVuesSondages(sondages, vuLe)` (pure, testée) : réponses des sondages ouverts dont
+`recuLe` (date de l'email de réponse) est postérieure au dernier passage du poste (`claire-dates-vues:<poste>`
+en localStorage ; au premier passage, initialisé à maintenant pour ne rien signaler d'ancien). Pastille
+rouge `#badge-notif-agenda` (`sidebar-badge-notif`, point sur l'icône barre repliée et sur le menu du
+téléphone comme les autres) mise à jour à chaque relecture des sondages (toutes les 2 min) ; le lien
+« Dates proposées » montre « n nouvelle(s) réponse(s) » et la pastille rouge. Ouvrir le volet marque tout
+comme vu ; les cartes concernées y portent « Nouvelle réponse » (repère d'avant l'ouverture). Le toast
+existant « Nouvelle réponse au sondage » reste. Vérifié dans Chromium (clair, sombre, téléphone).
+
+### 01/10/2026 22 h 42 — Détail d'un rendez-vous relié : plus de ligne « lieu »
+
+Demande de l'étude : « quand un dossier est déjà relié à Claire, ne pas afficher lieu ». Dans
+`renderPanneauDetailAgenda`, la ligne `map-pin` (Lieu Outlook) n'est plus rendue quand le rendez-vous
+est relié à un dossier (`dossierDeEvenement(e)`) : ce Lieu n'y porte que les initiales du responsable
+et la note « Appel de fonds (et projet) envoyé », déjà montrés par « Responsable » et les états. Le Lieu
+reste écrit dans Outlook et affiché pour les rendez-vous sans dossier. Vérifié dans Chromium.
+
+### 01/10/2026 22 h 53 — Agenda : tuile « Jeu. » à la place de la pastille « OCT / 1 »
+
+Demande de l'étude, image à l'appui (« Wed. » blanc, point orange, fond bordeaux en dégradé) : « à la place
+du oct 1 mets quelque chose comme ça ». `.ag-pastille-jour` : jour abrégé en français (`motPastilleAgenda`,
+pure, testée : « Jeu », « Oct » en vue Mois), 27 px gras blanc, point final rond `--cat-orange`, fond en
+dégradé radial de `--accent-clair` (bordeaux du thème de l'étude, marine pour l'autre thème — mêmes
+couleurs en clair et en sombre, c'est une marque). La date en clair reste dans le titre à côté.
+Vérifié dans Chromium (clair, sombre, téléphone).
+
+### 01/10/2026 22 h 54 — Agenda : « Jeudi. » en toutes lettres, sans fond
+
+Retour de l'étude sur la tuile « Jeu. » : « en français, pas de fond de couleur ». `motPastilleAgenda`
+rend le jour en toutes lettres (« Jeudi », « Octobre » en vue Mois) ; `.ag-pastille-jour` perd son fond
+bordeaux en dégradé : 30 px très gras, couleur du texte (`--ink`), point final orange (`--cat-orange`).
+En vue Jour, le jour n'est plus répété dans la ligne sous la date. Vérifié dans Chromium (clair, sombre,
+téléphone).
+
+### 01/10/2026 22 h 56 — Agenda : « Jeu. », trois lettres et le point
+
+Retour de l'étude : « juste les 3 lettres et le point ». `motPastilleAgenda` rend les trois premières
+lettres du jour (« Jeu », « Lun »…) ou du mois en vue Mois (« Oct », « Aoû ») ; toujours sans fond,
+couleur du texte, point orange.
+
+### 01/10/2026 23 h 06 — Suivi : « Prévu en {mois} » dans une colonne à gauche
+
+Demande de l'étude : « place le prévu dans le mois à gauche comme la sidebar agenda ». Dans
+`#onglet-suivi`, `.suivi-corps` en deux colonnes (300 px | reste, comme `.ag-page-corps`) :
+`aside.suivi-cote` (collante) porte `#suivi-stats` ; `.suivi-principal` porte la barre de recherche, les
+filtres, les statuts et la liste. Dans la colonne (≥ 1101 px), le bloc s'empile : mois et « Masquer » en
+tête, compteurs-filtres sur deux lignes, puis « À faire » et « Au calendrier » l'un sous l'autre, chaque
+ligne sur deux rangs (quand + type, puis le dossier), défilement au-delà de 340 px. Sous 1100 px, une
+seule colonne : le bloc reprend sa forme d'avant au-dessus de la liste. À droite, les filtres passent à
+la ligne au besoin et les colonnes fixes du tableau des échéances sont resserrées (146/162/124/124 px, la date en gras tenant sur une ligne — vérifié avec 12 dossiers)
+pour que le nom du dossier ne se casse plus. Colonne masquée si le bloc est vide. Vérifié dans Chromium
+(1440 clair et sombre, 1050, 400).
+
+### 01/10/2026 23 h 12 — Suivi : initiales du responsable en pastille, « Scanner le commun »
+
+Demandes de l'étude : « dans la vue Tableau et Échéances, mets pour les collaborateurs juste leurs initiales
+dans une pastille ronde » et « change le bouton Revérifier par Scanner le commun ». `pastilleCollaborateur(nom)`
+(initiales par `initialesCollaborateur`, nom complet en `title`/`aria-label`, tiret sans responsable) dans
+les quatre cellules `.dossier-responsable-tableau` (vue Tableau, « Nouveau », Archivés, semaines) ; pastille
+`.pastille-collab` 28 px, fond `--paper-sunk`, filet `--line`. En-tête « Resp. » (titre « Responsable ») et
+colonne de 72 px dans les tableaux d'échéances ; en vue Tableau, le nom du dossier garde au moins 240 px.
+Bouton de l'en-tête : « Scanner le commun » (même geste `reverifierTousLesDossiers`), toast « Commun
+scanné : n dossiers relus. ». Vérifié dans Chromium avec 12 dossiers inventés.
+
+### 01/10/2026 23:27 — Suivi : colonne de gauche « mois en cours + dernières pièces »
+
+Demande de l'étude : « Dans la sidebar suivi met plutôt les dernières pièces rattachées sur le commun / le
+nombre de dossiers ce mois-ci à signer / le nombre de dossiers qui restent à placer et dont la date butoir
+est dans le mois / le nombre de ventes (puis ensuite de successions) / réorganise ». Le bloc « Prévu en
+{mois} » (compteurs, À faire, Au calendrier, délais moyens, Masquer) est retiré avec ses fonctions
+(`prevuDuMois`, `agendaPrevuDuMois`, `moisPrevuSuivi`, `renderStatsSuivi`, `dateOuvertureDossier`,
+`dateOffreRecue`) et son CSS `.pv-*`. À la place, dans `#suivi-stats` (`renderColonneSuivi`) :
+- **carte du mois en cours** (le mois civil, plus le basculement des 5 derniers jours) : quatre tuiles
+  2 × 2 calculées par `syntheseMoisSuivi` (pure) sur la liste filtrée (mêmes filtres sauf statut) —
+  « à signer » (rendez-vous de signature dans le mois, « dont n passés »), « à placer » (sans rendez-vous,
+  date butoir dans le mois **ou déjà dépassée** — un dossier dont la butoir est passée le mois dernier reste
+  à placer —, « n butoir dépassée(s) » en rouge), « ventes » et « successions » en cours (`d.typeAffaire`,
+  absent = vente). Chaque tuile filtre la liste (`filtreMoisSuivi`, `dossiersFiltreMoisSuivi`), « Tout
+  afficher » dans le titre l'efface ;
+- **Dernières pièces** : `dernieresPiecesTrouvees` (paramètre `max` ajouté, 10 ici), pièces trouvées sur le
+  NAS ces 14 jours, les nouvelles (point rouge) d'abord ; un clic ouvre la fiche.
+Sous 1100 px les deux cartes passent côte à côte au-dessus de la liste, une seule colonne sous 700 px.
+Vérifié dans Chromium (clair, sombre, filtre « à placer » en vue Tableau, 400 px) avec 14 dossiers inventés
+dont une succession.
+
+### 01/10/2026 23:33 — Suivi : même ordre de colonnes partout
+
+Demande de l'étude : « Ordre des colonnes : Date, Dossier, Échéance, Collab, Statut — la même pour Échéances
+et Tableau ». Un seul jeu de colonnes (`COLGROUP_SUIVI`, `ENTETE_SUIVI`) pour la vue Échéances (semaines),
+la section « Nouveau », les « Archivés » et la vue Tableau, aux mêmes largeurs (`.echeances-table`, mise en
+page fixe) : les colonnes restent alignées quand on bascule d'une vue à l'autre. Vue Tableau : titres
+triables (Date = tri par échéance, Dossier, Resp., Statut) ; la colonne « Offre de prêt » (et son bouton
+« Revérifier » par ligne) est retirée pour avoir les mêmes colonnes — le filtre « Offre de prêt » de la barre,
+l'échéance « Obtention du prêt » et « Scanner le commun » restent. Date et libellé de la prochaine échéance
+en deux cellules (`celluleDateProchaineEcheance`, `celluleTypeProchaineEcheance`, remplacent
+`celluleEcheanceTableau`), le décompte J-n au survol de la date. Test ajouté (`tests/semaines.test.js`).
+
+### 01/10/2026 23:34 — Suivi : filtre « Responsable » présélectionné pour tout collaborateur
+
+Demande de l'étude : « Quand un collaborateur est sur sa session, présélectionner sa catégorie sur la page
+Suivi ». `appliquerFiltreSuiviCollaborateur` existait mais écartait l'administrateur (Bastien ANGLUMENT, vue
+globale) et ne remplaçait pas une valeur déjà posée : il pose désormais le filtre sur le collaborateur du
+poste à la première ouverture du Suivi de la session, pour tous ; un choix fait ensuite à la main (dont
+« Tous ») est gardé. `definirUtilisateurPoste` remet le filtre à « Tous » et, si le Suivi est affiché, le
+repose aussitôt sur le nouveau collaborateur. Le tableau de bord de l'administrateur reste en vue globale.
+Vérifié dans Chromium (Bastien → filtre Bastien ; « Tous » gardé au retour ; passage à Julie → Julie).
+
+### 01/10/2026 23:47 — Suivi : carré « Activité de l'étude » dans la colonne de gauche
+
+Demande de l'étude : « Rajouter dans la sidebar l'activité en live de l'office en carré » — placement confirmé :
+colonne de gauche du Suivi, sous « Dernières pièces ». `renderActiviteEtude` est découpée : `partiesActiviteEtude`
+(résumé du jour, filtres, fil, dernière action ; paramètre `max`) sert au widget du tableau de bord (inchangé)
+et au carré `renderActiviteColonneSuivi` (12 entrées, tous les dossiers, sans les filtres de la liste : c'est le
+fil de l'étude). Le carré montre les actions du jour, les barres des 7 jours, qui a agi, puis le fil qui défile
+(196 px), texte sur 3 lignes au plus pour garder le dossier lisible ; un clic ouvre la fiche. Mis à jour au
+sondage comme le reste de la page. « Dernières pièces » défile désormais au-delà de 232 px (la colonne est
+collante). Vérifié dans Chromium (clair, sombre, 400 px) avec un historique inventé.
+
+### 01/10/2026 23:59 — Extension Firefox « CLAIRE pour Authentic » (première version)
+
+Demande de l'étude : « un add-on Firefox pour connecter Authentic à Claire » ; Authentic s'ouvre dans Firefox ;
+usage choisi : « Envoyer à CLAIRE » (créer ou mettre à jour la fiche depuis le dossier Authentic ouvert). Aucune
+page d'Authentic n'est disponible ici : construit d'abord le transport et un outil de calibrage sans données.
+- `extension-firefox/` (Manifest V2, Firefox ≥ 109, `web-ext lint` : 0 erreur ; seul avertissement :
+  `permissions.request` absent de Firefox Android) : bouton → `capture.js` injecté dans tous les cadres (champs
+  `input/select/textarea` visibles avec libellé — `label[for]`, label parent, aria, cellule ou élément précédent —
+  et rubrique — légende du fieldset ou titre précédent —, paires `<dl>`, tableaux les plus intérieurs avec
+  en-tête `<th>` séparé, texte visible ; jamais password/hidden/file) → `POST /api/authentic/capture` → onglet
+  CLAIRE `#authentic=<id>` (réutilisé s'il est ouvert dans Firefox). Options : adresse de CLAIRE, permission
+  d'hôte demandée pour cette seule machine (`optional_permissions`), test `/api/health`.
+  `data_collection_permissions: websiteContent` déclaré (exigé à l'avenir par Mozilla).
+- Serveur `routes/authentic.js` : capture normalisée et bornée (`normaliserCaptureAuthentic`), mémoire seule,
+  30 min, 20 au plus, `application/json` obligatoire (415 sinon : une page web ne peut pas poster sans prévol),
+  jamais journalisée. Tests `server/test/authentic.test.js`.
+- Client : `ouvrirCaptureAuthenticDepuisAdresse` (chargement et `hashchange`), fenêtre « Page d'Authentic
+  reçue » (champs par rubrique, tableaux), « Copier la structure (sans données) » (`structureCaptureAuthentic` :
+  rubriques et libellés via `masquerLibelleAuthentic` — chiffres → 9, mots en capitales hors sigles → XXX, noms
+  après une civilité → XXX —, valeurs via `masquerValeurAuthentic` — [date], [montant], [texte, n mots]… —, seul
+  l'en-tête `<th>` d'un tableau garde ses libellés ; une première ligne de `<td>` gardée en clair aurait pu
+  laisser passer un nom, corrigé avant le commit). Tests `tests/extension-authentic.test.js` (« aucun nom ne sort »).
+- Vérifié dans Chromium : relevé d'une page inventée imitant un dossier, envoi au serveur, fenêtre CLAIRE (clair,
+  sombre). **Non vérifié** : vrai Firefox, vraies pages d'Authentic, signature Mozilla.
+
+### 02/10/2026 07:40 — Fiche, onglet Analyse : engagements et documents cochés reçus/réalisés
+
+Demande de l'étude : « Revoir la partie Analyse de la fiche d'un dossier. Quand une pièce est trouvée dans
+Analyse ou un engagement, le rendre cochable pour indiquer si c'est reçu/réalisé ou non, et le prendre en compte
+dans la complétude du dossier et la probabilité de tenue du rendez-vous. »
+- Fonctions pures : `cleChecklistDocumentAnalyse`, `documentAnalyseRecu`, `etatEngagementAnalyse` ({ fait, auto,
+  motif }), `libelleCourtEngagement` (objet sans « Le PROMETTANT s'engage à »), `elementsAnalyseEnAttente`,
+  `avancementAnalyse`. `piecesAttenduesDossier` y ajoute les documents hors checklist non reçus et les
+  engagements non réalisés (hors participation) → `etatDossier` « Attente de pièces » tant qu'il en reste.
+  `probabiliteTenueSignature` : facteur distinct pour les engagements (3 points chacun, 6 à 10 jours ou moins,
+  15 au plus, « Relancer le vendeur »), sans les recompter comme pièces manquantes.
+- Un document relevé qui est une pièce de la checklist partage son état (case = celle de l'onglet Pièces, avec la
+  confirmation de `validerPieceManuellement` / `retirerValidationManuellePiece` ; grisée si trouvée sur le NAS).
+  Un engagement dont toutes les pièces dérivées (`documentsDepuisClause`) sont reçues est réalisé de lui-même.
+  Cocher un engagement valide à la main les pièces de la checklist qu'il fait réclamer (constaté dans Chromium :
+  sans cela, cocher des travaux laissait « Travaux de remise en état » en attente, compté deux fois) ; elles sont
+  mémorisées sur l'engagement (`piecesValidees`) et rendues au décochage.
+- Fiche : case devant chaque engagement (« pièce reçue » si coché seul), documents en lignes cochables (étiquette
+  « checklist »), compteurs « faits/total » des deux sections et de l'onglet (vert quand tout est fait), infobulles.
+  Historique : « Engagement du vendeur réalisé / remis à faire », « Document reçu / remis à recevoir ».
+  Teams « dossier complet » attend aussi que l'analyse soit entièrement cochée.
+- Effet attendu à la mise à jour : les dossiers dont l'analyse relève des engagements ou documents passent
+  « Attente de pièces » tant qu'ils ne sont pas cochés (ou retirés par la croix s'ils ne sont pas pertinents).
+- Tests `tests/analyse-cases.test.js` ; vérifié dans Chromium (clair, sombre, 400 px) sur un dossier inventé.
+
+### 02/10/2026 08:11 — Tableau de bord : widget « Statistiques »
+
+Demande de l'étude : « Crée un widget de statistiques : délai entre l'ouverture du dossier et l'obtention du prêt,
+idem pour la réception du droit de préemption, idem pour la signature de l'acte ; le nombre de dossiers par rapport au
+mois précédent et au mois de l'année précédente. »
+- Ouverture = entrée « Dossier créé » de l'historique (la date du compromis n'est pas enregistrée ; un dossier sans
+  cette entrée n'est jamais compté). Prêt = première entrée « Offre de prêt retrouvée/reçue/confirmée » ou
+  « Obtention du prêt marquée réalisée » (jamais pour un comptant). Préemption = `piecesTrouveesLe.renonciationPreemption`
+  (NAS, Claire Scan), sinon l'entrée d'historique de la validation à la main, pièce reçue seulement. Signature = date du
+  rendez-vous une fois passée. Délais en jours, événements des 12 derniers mois, moyenne + médiane + min/max + nombre de
+  dossiers (`statistiquesDelaisDossiers`).
+- Dossiers ouverts par mois (`comparaisonDossiersOuverts`) : ce mois (au jour), le précédent, le même mois l'an
+  dernier ; « — » pour un mois antérieur au premier dossier noté (CLAIRE ne suivait rien), jamais un zéro trompeur ;
+  écarts en flèche + nombre (`formaterTendance`, sans couleur de jugement).
+- Widget `statistiques` (WIDGETS_DASHBOARD + WIDGETS_PREFERENCES serveur + section dans index.html), défaut grand × 1
+  (la disposition par défaut reste un rectangle plein : 4 × 5, 2 × 9 sur téléphone ; ajouté en fin de grille pour les
+  dispositions existantes, sans changer VERSION_DISPOSITION_WIDGETS). Petit : les trois délais + nombre du mois ; moyen et
+  grand : délais en barres (prêt ambre, préemption bleu `--acte`, signature vert) et trois tuiles de mois ; mois abrégés
+  hors grand ; sur téléphone, le corps défile. Icône `bar-chart` ajoutée au jeu.
+- Tests `tests/statistiques-dossiers.test.js` (+ tests de disposition mis à jour) ; vérifié dans Chromium (grand,
+  moyen, petit sombre, 400 px) avec 14 dossiers inventés.
+
+### 02/10/2026 08:14 — Fiche agrandie : « Dernières pièces reçues » dans la colonne de droite
+
+Demande de l'étude : « Dans la fiche dossier étendue, ajoute les dernières pièces reçues à droite au-dessus de
+l'historique. » Carte `renderPiecesRecuesFiche` entre l'avancement et « Activité récente » (`.fiche-laterale`, mode
+agrandi seulement). `piecesRecuesDossier` (pure) : pièces de la checklist reçues (date `piecesTrouveesLe` — NAS ou
+Claire Scan —, sinon l'entrée « validée à la main » de l'historique), offre de prêt reçue (première entrée d'historique),
+documents de l'analyse cochés reçus hors checklist (`recuLe`) ; les nouvelles (`piecesNotifications`) d'abord, puis la
+plus récente, sans date en dernier ; 6 au plus. Point vert, rouge si nouvelle ; « à la main » + date. Clic : fichier du NAS
+(`ouvrirPieceTrouvee` / `ouvrirOffreTrouvee`), sinon l'onglet concerné ; « n/total » ouvre l'onglet Pièces. Test
+`tests/fiche-pieces-recues.test.js` ; vérifié dans Chromium (clair, sombre).
+
+### 02/10/2026 09:26 — Agenda : date butoir rappelée dans la fenêtre d'une signature probable
+
+Demande de l'étude : « pour les propositions de rendez-vous probable, bien rappeler la date butoir dans le pop-up ».
+`rappelButoirSignatureProbable(d, p, creneau, aujourdhui)` (pure) : « Date butoir : jeudi 12 novembre 2026 (dans 41 jours) »
+sous la raison de la semaine probable, dans `renderDetailFantomeAgenda` ; niveau `ok` (rose des dates butoir), `proche`
+(moins de 7 jours entre le créneau proposé — à défaut la date au plus tôt — et la butoir), `depasse` (« ce créneau la
+dépasse : prévoir la prorogation », rouge), `inconnue` (« Date butoir non renseignée sur la fiche »). Les autres créneaux de la
+fenêtre au-delà de la butoir prennent le pointillé `apres-butoir` et le disent au survol. Test dans
+`tests/agenda-page.test.js` ; vérifié dans Chromium (clair, sombre).
+
+### 02/10/2026 — 3CX : « j'ai essayé d'appeler mais rien ne s'affiche »
+
+Chemin complet rejoué dans Chromium (sonnerie → `/appel` → relève de la fenêtre du poste → bandeau → fiche ouverte sur
+Échanges) : il fonctionne. Recherche sur la V20 de 3CX (forum 3CX) : le réglage du client web s'appelle « Auto launch a
+Custom Contact URL using variables » (Paramètres › Intégration) ; `%CallerDisplayName%` y est remplacé par « undefined » ;
+l'application Windows V20 n'ouvre pas d'URL personnalisée (client web seulement) ; si un CRM est réglé sur le standard, la
+fenêtre ne s'ouvre qu'au décroché ; un appel de file d'attente non pris ne déclenche rien ; les pop-up doivent être autorisées
+pour le site du client web. Durci côté serveur : `valeur3cx` (« undefined », variable non remplie → vide), « +33… » non
+encodé (le « + » lu comme une espace) ramené à « 0… » dans `normaliserNumero`, poste ramené à sa clé (`clePoste`, prénom
+sans accent en minuscules) à la sonnerie comme à la relève — une adresse saisie à la main « poste=Bastien » est relevée.
+Diagnostic dans Réglages › Téléphonie 3CX (`GET /api/appels/postes`, `etatPoste3cx`) : sous chaque collaborateur, « Fenêtre
+CLAIRE ouverte / fermée sur ce poste » et « Dernière sonnerie reçue de 3CX : … » ou « Aucune sonnerie reçue de 3CX » — après
+un vrai appel, ce dernier état veut dire que 3CX n'a rien ouvert (réglage ou pop-up), pas une panne de CLAIRE. Aucune donnée
+d'appel dans cette route. Aide (pastille « i ») réécrite avec ces conditions.
+
+### 02/10/2026 — Statistiques : délais moyens sur tous les dossiers
+
+Demande de l'étude : « les délais moyens d'obtention de prêt, DIA et signature : la moyenne sur tous les dossiers, pas le
+mois en cours ». `statistiquesDelaisDossiers` ne garde plus de fenêtre de 12 mois (`JOURS_STATISTIQUES` retiré) et
+`renderStatistiquesDashboard` lui passe tous les dossiers (archivés compris), plus le périmètre du tableau de bord ; le
+titre devient « Délai moyen, tous dossiers », le survol dit « Moyenne sur N dossiers ». Les tuiles « Dossiers ouverts »
+(mois / précédent / N-1) restent sur le périmètre. L'ouverture reste l'entrée « Dossier créé » : la date de signature de
+l'avant-contrat n'est pas enregistrée sur la fiche (seul son état d'extraction l'est). Vérifié dans Chromium avec le poste
+de Julie et un ancien dossier archivé.
+
+### 02/10/2026 — Fiche fermée en sélectionnant un email ; bandeau d'appel en bas à gauche
+
+« Si je sélectionne l'adresse email avec le curseur pour surligner, la fiche se ferme ; idem pour le numéro de
+téléphone. » Cause : l'appui commence dans le champ, le bouton est relâché sur le fond grisé ; le navigateur envoie alors
+le `click` à l'ancêtre commun des deux, le fond (`#dossier-drawer-overlay`, `onclick="fermerDossierDrawer()"`).
+Reproduit dans Chromium avec l'ancien comportement (fiche fermée), puis corrigé : `clicSurFond(event)` ne ferme que si
+la cible du clic est le fond ET que l'appui (`pointerdown`, relevé en capture sur `document`) a commencé sur ce fond.
+Appliqué aux 11 fonds de `index.html` (fiche, dates proposées, widgets, à propos, Authentic, info, signalement, poste,
+fenêtre du matin, sondage, agenda) et à l'aperçu d'un scan. Un vrai clic sur le fond ferme toujours.
+Bandeau « Appel entrant » : `left: 16px` au lieu de `right` (étude). Fermeture à la fin de l'appel : 3CX n'envoie à
+CLAIRE que la sonnerie (URL du client web) — question posée à l'étude sur l'installation 3CX (voir la suite).
+Suite (même jour) : question posée sur la fin d'appel — journal CRM de 3CX (scénario « ReportCall » d'un modèle CRM
+dans la console d'administration, possible seulement si le standard joint le serveur CLAIRE) ou fermeture automatique.
+Choix de l'étude : **fermeture automatique**. `DUREE_BANDEAU_APPEL_MS` = 45 s après la sonnerie (au lieu de 2 min),
+en pause au survol (`mouseenter`), 10 s après la sortie (`DUREE_BANDEAU_APPEL_APRES_SURVOL_MS`), et fermé au clic sur
+un dossier du bandeau. Quand la fiche s'ouvre seule à la sonnerie (un seul dossier), le bandeau reste ses 45 s.
+Vérifié dans Chromium (durées raccourcies) : fermeture seule, survol, clic.
+
+### 02/10/2026 — Structure Authentic : fuite de prénoms corrigée ; extension 0.2.0
+
+Première structure copiée de la « page de gestion du dossier » d'Authentic : deux prénoms de clients y étaient passés
+(« personM. XXX Alexandre et Mme XXX personMme XXX Camille… » — « person » est le texte d'une icône Material collé à la
+civilité, le motif de civilité ne s'appliquait donc pas). `masquerLibelleAuthentic` : civilité reconnue sans frontière de
+mot avant, nom et prénoms qui la suivent masqués (sans reprendre un « et » : « et M. Paul Duval » fuyait au premier essai,
+vu par le test) ; tout libellé de plus de 8 mots (`MOTS_MAX_LIBELLE_AUTHENTIC`) réduit à « [texte, N mots] ». Test avec la
+forme exacte du cas réel (noms inventés). Extension 0.2.0 : titre de chaque tableau (`titreTableau` : légende,
+aria-label, texte court qui précède, rubrique), en-tête reconnu aussi dans un `<thead>` ou par role=columnheader, cellule
+sans texte = titre de son icône (« ⟦icône⟧ … », `masquerCelluleAuthentic`) ; le serveur garde `titre` par tableau. La page
+de gestion relevée montre 12 tableaux de 5 colonnes sans en-tête (texte, vide, date, date parfois, texte court) : à
+réinterpréter avec la prochaine copie.
+
+### 02/10/2026 — Suivi : « afficher tous les dossiers, pas que ceux du mois ou suivant »
+
+Vue Échéances : `grouperEcheancesParSemaine` sautait (`if (!e) continue`) tout dossier sans échéance datée en attente —
+rendez-vous à fixer sans date butoir, dates toutes validées, signature passée non archivée… Le compteur disait
+« N dossiers » et la liste en montrait moins. Rejoué dans Chromium sur l'ancien code (5 dossiers comptés, 4 listés) puis
+corrigé : groupe `sans-date` (rang 3, « Sans échéance datée », ligne de la vue Tableau `renderLigneTableau`, compteur en
+« dossiers »). Le test qui encodait l'ancienne règle (« n'apparaît nulle part ») est inversé. « Plus tard » (au-delà de
+8 semaines) inchangé. Rappel : le filtre « Responsable » est pré-réglé sur le collaborateur du poste (choix du 02/10).
+Suite : « remets-moi l'affichage par défaut de tous les dossiers pour Bastien » — `filtreSuiviParDefaut(utilisateur)` :
+le collaborateur du poste, sauf l'administrateur (`estAdministrateur`) → « Tous ». Revient sur la règle du 01-02/10
+(« administrateur compris »), à la demande de l'étude.
+
+### 02/10/2026 — Suivi : date de signature en vert pour un dossier complet ou prêt
+
+« Mets la date de signature en vert pour les dossiers complets » puis « et prêt ». `dateSignatureEnVert(d, echeance)` :
+l'échéance affichée est la signature (type `rendezVousSignature`, ou date égale à `d.rendezVousSignature` — les étapes
+appel de fonds / projet prennent la date du rendez-vous à défaut de la leur) et `etatDossier(d).cle` vaut `complet` ou
+`pret` ; `classeDateEcheanceSuivi` → `signature-ok` (`--success`, gras), prioritaire sur le rouge des 3 jours. Vues
+Échéances et Tableau. Vérifié dans Chromium (clair, sombre).
+
+### 02/10/2026 — Authentic : pièces reçues automatiquement, création de dossier — cadrage
+
+Demande : « rendre automatique la mise à jour d'une pièce reçue (acte de naissance, notification SAFER passée en non
+préemption) et l'indiquer dans la fiche ; créer un dossier depuis Authentic (vendeur, acquéreurs, bien, notaire,
+agence) ». Questions posées, réponses : pièce **séparée « Réponse SAFER »** ; mise à jour **automatique à l'affichage** ;
+création par **« Nouveau dossier » pré-rempli**. L'étude précise que fiches client et fiches bien s'ouvrent une à une.
+Rien n'est encore branché : la copie de structure réduisait chaque cellule à « [texte, N mots] », ce qui empêchait de voir
+qu'une ligne est un acte de naissance ou une notification SAFER. `vocabulaireCelluleAuthentic` : cellule de 12 mots au
+plus, mots en minuscules et sigles gardés (SAFER, DIA, LRAR… ajoutés à `SIGLES_STRUCTURE_AUTHENTIC`), premier mot à
+majuscule gardé seulement si le suivant est en minuscules ou un sigle, tout autre mot à majuscule → XXX, nom après civilité
+→ XXX, chiffres → 9 ; tests de non-fuite (« Martel Jean - acte de naissance » → « XXX - acte de naissance »).
+
+### 02/10/2026 — Authentic : pièces reçues automatiquement, création de dossier (extension 0.3.0)
+
+Structures réelles reçues : page de gestion du dossier (déjà copiée), fiches client vendeur et acquéreur (même forme
+« ficheClientPhysique… » : le rôle n'y figure pas, il vient de l'intitulé « Vente VENDEUR/ACQUÉREUR » comme pour le
+ZIP), fiche bien (« ficheImmeuble… », adresse découpée, cadastre en tableau avec en-têtes). Adresse d'Authentic :
+`https://www.cloud-fichorga.fr/41089-Authentic/main.xhtml` (une seule adresse, pages changées sans recharger).
+Extension 0.3.0 : `releve.js` (relevé commun), `auto.js` (content script sur cloud-fichorga.fr, MutationObserver,
+2,5 s de calme, empreinte champs+tableaux), `fond.js` transmet à `POST /api/authentic/releve`. Serveur : file à
+traiter prise par une seule fenêtre (`releves/prendre`), relevés récents 60 min (`releves/recents`), empreintes pour
+ne pas remettre une page identique — mémoire seule. Client : `releverPagesAuthentic` toutes les 5 s ;
+`appliquerReleveAuthentic` → pièces cochées « dans Authentic » (validées à la main, `d.piecesAuthentic` pour ne
+jamais recocher une pièce décochée par l'étude), historique « Reçue dans Authentic : … », notifications, toast ; acte
+d'état civil (pas dans la checklist) et « Réponse SAFER » ajoutés comme pièces personnalisées (règle de Claire Scan).
+Création : bloc « Depuis Authentic » à l'étape 1 de « Nouveau dossier » (`renderRelevesAuthenticWizard`) ;
+`creerDepuisAuthentic` reprend le parcours de l'export ZIP (`exportAuthenticActuel`, origine « pages ») ou complète
+un avant-contrat déjà déposé. Corrigé au passage : `partiesExportAuthentic` ne recopiait pas les téléphones (ZIP
+compris), la reprise des téléphones vers la fiche était donc vide. Vérifié dans Chromium : vrai `releve.js` + `auto.js`
+sur une page simulée (un envoi, rien sur un changement sans effet, un envoi sur un vrai changement), application sur un
+dossier inventé (acte de naissance, réponse SAFER, CU cochés ; demande ignorée), création DURAND/LEROY (parties,
+rôles, bien, type). Non vérifié dans un vrai Firefox ni sur Authentic. Notaires et agence : page non fournie.
+
+### 02/10/2026 11 h 26 — Authentic, deuxième passe (SAFER suivie, RHF, acte, prix, collaborateur, notaire, régime matrimonial)
+
+Demande de l'étude : « Pour la safer, si pas encore reçu l'ajouter à la liste des pièces manquantes et indiquer si elle
+a été prise en compte et la date de prise en compte. Livret de famille et décès que pour les successions. Voir si
+Réquisition Hors Formalité envoyée et si retour. Voir si l'acte est en cours de rédaction ou pas encore rédigé ou si
+signé. Le prix de vente est dans informations financières capital. Le collaborateur en charge du dossier est dans
+parties prenantes. Prendre le nom du notaire. Pour les fiches clients reprendre tel et email et régime matrimonial
+(voir si besoin de faire intervenir le conjoint si bien propre et résidence du foyer si marié ou pacsé). »
+
+- `appliquerReleveSurDossier(d, capture, maintenant)` (pure, modifie le dossier passé) remplace l'application des
+  seules pièces : page de gestion → pièces reçues (inchangé) ; toute page du dossier → `infosDossierAuthentic`
+  fusionnées dans `d.authentic` (`fusionnerInfosAuthentic` : une page sans le renseignement n'efface rien), chaque
+  fait nouveau une fois dans l'historique ; fiche client → `roleClientAuthenticDansDossier` (parties, sinon nom du
+  dossier « VENDEUR / ACQUÉREUR », jamais deviné) puis téléphones manquants ajoutés (comparés sur 9 chiffres), email
+  s'il manque, situation matrimoniale dans `d.authentic.personnes`.
+- SAFER : `suiviSaferAuthentic` (1re date = notifiée, « pris(e) en compte le … » sinon 2e date = prise en compte,
+  non-préemption / préemption exercée). Notifiée sans réponse → pièce personnalisée « Réponse SAFER » (`perso-safer`)
+  **manquante**, une seule fois (`d.authentic.saferPieceAjoutee` : la retirer reste la décision de l'étude), jamais en
+  participation ; la non-préemption la coche ensuite « dans Authentic ». Méta de la ligne : `suiviSaferPiece`.
+- RHF : `suiviRhfAuthentic` (envoyée = 1re date, retour = état reçu/retour/délivré ou 2e date). Acte :
+  `etatActeAuthentic` (signé [le …] / en cours de rédaction / pas encore rédigé, d'après le vocabulaire de la page).
+  Prix : `prixAuthentic` (champ ou colonne « Capital ») — remplit `d.prixVente` seulement s'il est vide, écart signalé
+  sinon. Collaborateur : `collaborateurAuthentic` (un seul des `RESPONSABLES` nommé dans « Parties prenantes » /
+  « Intervenants ») — affiché, écart avec le responsable de la fiche signalé, proposé comme responsable à la création.
+  Notaire : `notaireAuthentic` (« Maître … » dans les parties prenantes).
+- Situation matrimoniale : `situationMatrimonialeAuthentic` (tableau Situation | Date | Conjoint, contrat
+  `somContratTypeId`, régime `somContratRegimeId`, date de mariage), `libelleSituationMatrimoniale` ;
+  `alertesConjointAuthentic` / `alertesConjointDossier` : vendeur marié ou pacsé dont le conjoint n'est pas partie →
+  « le faire intervenir si le bien est la résidence de la famille (même bien propre) ».
+- Livret de famille et acte de décès seulement si `d.typeAffaire === 'succession'` (`RE_ETAT_CIVIL_SUCCESSION_AUTHENTIC`).
+- Onglet Pièces : bloc « Dans Authentic » (`lignesAuthenticDossier`, `renderAuthenticDossier`) + alertes conjoint.
+- Création depuis les pages : `dossiersDepuisRelevesAuthentic` agrège les infos des pages du dossier
+  (`export.infosAuthentic`) ; prix repris s'il manque à l'avant-contrat ; `infosAuthenticACreation` garde
+  `d.authentic` et ajoute « Réponse SAFER » manquante. Import JSON : `authenticPersistable`,
+  `situationMatrimonialePersistable`, `piecesAuthentic` conservés.
+- Fiche client ou onglet sans intitulé : rattaché au dernier dossier vu dans Authentic depuis 30 min
+  (`dossierCourantAuthentic`), et une fiche client seulement si la personne est partie à ce dossier.
+- **Lu de façon générique, à confirmer sur les vraies pages** : les onglets « Informations financières » et
+  « Parties prenantes » n'ont pas encore été copiés (structure) ; l'état de l'acte est cherché dans les libellés.
+  Le sens de la 2e date des lignes SAFER et RHF (prise en compte / retour) est une hypothèse.
+- Extension 0.3.1 (même jour) : `strict_min_version` 140 (142 sur Android) — les trois avertissements de la
+  validation Mozilla venaient de `data_collection_permissions`, inconnue avant Firefox 140.
+- Vérifié dans Chromium (serveur réel, pages inventées MARTEL/FOURNIER envoyées à `/api/authentic/releve`) : SAFER
+  manquante avec dates, RHF, acte, prix, collaborateur, notaire, téléphone, email, situation matrimoniale et alerte
+  conjoint ; clair, sombre, 400 px sans débordement.
+
+### 02/10/2026 11:32 — Authentic : rubriques en texte seul, structure avec vocabulaire du texte, « Retour le »
+
+Retour de l'étude : « Le copier des données qui ressortent de la structure ne le prend pas en compte, c'est bizarre,
+c'est sous les infos vendeur et acquéreur » ; « pour le RHF il faut prendre le champ Retour le 14/09/2026, pour la
+SAFER le champ Retour le 15/09/2026 ». Cause : l'extension ne relève comme champs que les zones de saisie, les `<dl>`
+et les tableaux ; « Informations financières » et « Parties prenantes » sont du texte affiché, présent seulement dans
+`capture.texte`, que la copie de structure ne montrait pas (« non copié »). Sans changer l'extension (0.3.1 en cours de
+signature chez Mozilla) : `prixAuthentic` lit aussi « Capital » puis le montant dans le texte ;
+`textesPartiesPrenantesAuthentic` prend les lignes qui suivent « Parties prenantes » jusqu'à la rubrique suivante ;
+`structureCaptureAuthentic` ajoute le texte visible ligne à ligne réduit à son vocabulaire (`texteVocabulaireAuthentic` :
+dates, montants, emails, téléphones → leur type ; mot à majuscule masqué sauf `VOCABULAIRE_AUTHENTIC`, sigle, ou
+premier mot suivi d'un mot en minuscules — un mot seul sur sa ligne peut être un nom). « Retour le <date> » explicite :
+prise en compte de la SAFER, retour de la RHF (la 2e date de la ligne reste le repli).
+
+### 02/10/2026 11:51 — Authentic : pas de pièces d'urbanisme pour une vente, sauf la SAFER
+
+Demande de l'étude : « pour les dossiers de vente ne pas prendre en compte les pièces d'urbanisme sauf la safer ».
+`pieceUrbanismeIgnoreeAuthentic(cle, typeAffaire)` : pour tout dossier qui n'est pas une succession, les pièces de
+`PIECES_URBANISME` (certificat d'urbanisme, alignement, numérotage, courrier assainissement, renonciation au droit de
+préemption) ne sont jamais cochées depuis Authentic — pages relevées (`piecesRecuesAuthentic`) comme export ZIP
+(`piecesExportAuthentic`). La « Réponse SAFER » reste reprise. Au passage, une ligne SAFER est désormais lue AVANT la
+checklist : « Réponse SAFER — non préemption » aurait sinon coché la renonciation au droit de préemption urbain (son motif
+de nom contient « préemption »). Rien ne change pour le NAS ni pour la validation à la main.
+
+### 02/10/2026 11:54 — Authentic : seuls l'état civil, les casiers judiciaires et la SAFER ; « signé le » = acte signé
+
+Étude : « la page d'un dossier montre des courriers de demande et pas la réponse du service de l'urbanisme. La seule
+réponse que l'on reçoit dans Authentic, c'est les actes de naissance, les casiers judiciaires et la SAFER » ; « le reste on
+ne le reçoit pas, email ou courrier papier » ; « passer un acte signé s'il détecte signé le dans le dossier Authentic ».
+`piecesRecuesAuthentic` ne rapproche plus aucune pièce de la checklist : seulement état civil (naissance, mariage ;
+décès et livret en succession), casier judiciaire (`RE_CASIER_AUTHENTIC` : « casier judiciaire », « bulletin n° 3 ») et
+réponse SAFER de non-préemption, chacun pièce du dossier à son intitulé. Création depuis les pages : mêmes pièces seulement
+(`export.documents[].piece`, `piecesExportAuthentic` les rend pour `origine === 'pages'`, ajoutées en pièces
+personnalisées reçues à l'enregistrement). L'export ZIP garde la reconnaissance par nom de fichier (vraies pièces jointes),
+sans l'urbanisme pour une vente. `etatActeAuthentic` : « signé le JJ/MM/AAAA » (ou « signé électroniquement le ») sur
+n'importe quelle ligne de la page → acte signé avec sa date, sauf ligne citant un autre document
+(`RE_AUTRE_DOCUMENT_SIGNE_AUTHENTIC` : compromis, promesse, avant-contrat, procuration, mandat, offre, courrier, lettre,
+demande, attestation, convention, pouvoir, avenant…). Rien d'autre ne change sur la fiche (ni archivage ni rendez-vous).
+
+### 02/10/2026 11:58 — Authentic : acte signé = signature marquée faite
+
+Étude : « marque-le comme fait ». Dans `appliquerReleveSurDossier`, au passage de l'acte à « signé » (une seule fois),
+chaque échéance pas encore validée parmi ventebien, pret, appelFonds, projetEnvoye, rendezVousSignature et acte passe
+dans `d.echeancesValidees` (`resultat.echeancesFaites`) — le planning (et son miroir serveur des rappels) ne propose plus
+rien ; historique « Signature de l'acte marquée réalisée (acte signé dans Authentic le …) ». Comme une validation à la
+main, les dates butoir prêt/vente préalable levées sont retirées de l'agenda (`synchroniserEcheanceAgenda(d, t, false)`).
+Chaque validation reste annulable sur la fiche ; rien n'est archivé, aucune date de rendez-vous n'est inventée.
+
+### 02/10/2026 12:03 — Authentic : « Consorts » devant un nom
+
+Étude : « prendre en compte un dossier s'il y a noté devant le vendeur ou acquéreur Consorts, avec ou sans majuscule
+ou s ». `dossierPourIntituleAuthentic` retire « consort »/« consorts » (toute casse, mot entier) de chaque côté de
+l'intitulé ET du nom du dossier CLAIRE avant de comparer : « Vente Consorts MARTEL/FOURNIER » ↔ « MARTEL / FOURNIER »,
+et « Vente MARTEL/FOURNIER » ↔ « Consorts MARTEL / FOURNIER ». Les deux noms doivent toujours être les mêmes. Les rôles
+des fiches client (`roleClientAuthenticDansDossier`, `partiesExportAuthentic`) cherchaient déjà le nom à l'intérieur
+de chaque côté : « Consorts » ne les gênait pas.
+### 02/10/2026 12 h 06 — Rapport technique : origine d'une correction lisible
 
 Rapport n° 7 (01/10, 17 h) : « adresseBien (proposé par [nom]) ». L'origine (`regex`, `ia`,
 `authentic`…) passait par `anonymiserTexte` ; « authentic » figure dans des champs sensibles des

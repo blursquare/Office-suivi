@@ -474,14 +474,16 @@ function parseCalendrierEws(corps) {
 // d'identifiants n'est jamais présenté une seconde fois dans le même tour. Chaque tranche est un
 // seul essai. Renvoie { ok:true, evenements } (dédoublonnés par ItemId : une absence à cheval sur
 // deux tranches revient deux fois) ou { ok:false, raison, message }.
-async function lireCalendrierExchange({ url, email, motDePasse, mailbox, aujourdHui, tranches, delaiMs }, injections) {
+async function lireCalendrierExchange({ url, email, motDePasse, mailbox, aujourdHui, tranches, jours, delaiMs }, injections) {
   const nb = tranches || TRANCHES_CALENDRIER;
+  // `jours` : longueur d'une tranche (une semaine pour la comparaison avec l'an dernier).
+  const joursTranche = Number.isInteger(jours) && jours > 0 ? Math.min(jours, JOURS_PAR_TRANCHE_CALENDRIER) : JOURS_PAR_TRANCHE_CALENDRIER;
   const vus = new Set();
   const evenements = [];
   let debut = aujourdHui;
   for (let i = 0; i < nb; i++) {
     let fin = debut;
-    for (let j = 0; j < JOURS_PAR_TRANCHE_CALENDRIER; j++) fin = dateSuivanteIso(fin);
+    for (let j = 0; j < joursTranche; j++) fin = dateSuivanteIso(fin);
     const r = await posterEws({
       url, email, motDePasse, delaiMs,
       body: corpsLireCalendrier({
@@ -656,10 +658,13 @@ function corpsUpdateRendezVousHoraire({ itemId, changeKey, debut, fin }) {
 }
 
 // MoveToDeletedItems, jamais HardDelete : un retrait par erreur se récupère dans les éléments
-// supprimés de la boîte partagée.
-function corpsDeleteEcheance({ itemId, changeKey }) {
+// supprimés de la boîte partagée. `SoftDelete` (repli, voir supprimerEcheanceExchange) : l'élément
+// va dans les éléments récupérables de la boîte (« Récupérer les éléments supprimés » d'Outlook).
+var TYPES_SUPPRESSION_EWS = ['MoveToDeletedItems', 'SoftDelete'];
+function corpsDeleteEcheance({ itemId, changeKey, typeSuppression }) {
+  const type = TYPES_SUPPRESSION_EWS.indexOf(typeSuppression) !== -1 ? typeSuppression : 'MoveToDeletedItems';
   return ENVELOPPE_DEBUT
-    + '<m:DeleteItem DeleteType="MoveToDeletedItems" SendMeetingCancellations="SendToNone">'
+    + '<m:DeleteItem DeleteType="' + type + '" SendMeetingCancellations="SendToNone">'
     + '<m:ItemIds><t:ItemId Id="' + echapperXml(itemId) + '"'
     + (changeKey ? ' ChangeKey="' + echapperXml(changeKey) + '"' : '') + '/></m:ItemIds>'
     + '</m:DeleteItem>' + ENVELOPPE_FIN;
@@ -729,9 +734,21 @@ async function mettreAJourEcheanceExchange({ url, email, motDePasse, itemId, cha
     "Date déplacée dans l'agenda.", 'Le déplacement de l\'événement a échoué');
 }
 
+// ErrorCannotDeleteObject (vu au bureau le 01/10) : le compte de CLAIRE est délégué sur le calendrier
+// de Sophie, sans droit sur SES éléments supprimés, où MoveToDeletedItems range l'élément. Dans ce
+// seul cas — les identifiants viennent d'être acceptés, aucun risque de verrouillage — une seconde
+// requête en SoftDelete, qui ne demande que le droit de supprimer dans le calendrier : l'élément reste
+// récupérable (« Récupérer les éléments supprimés »), jamais un HardDelete.
 async function supprimerEcheanceExchange({ url, email, motDePasse, itemId, changeKey, delaiMs }, injections) {
   const r = await posterEws({ url, email, motDePasse, delaiMs, body: corpsDeleteEcheance({ itemId, changeKey }) }, injections);
   if (r.echec) return r.echec;
+  if (/<m:ResponseCode>ErrorCannotDeleteObject<\/m:ResponseCode>/.test(String(r.corps || ''))) {
+    const r2 = await posterEws({ url, email, motDePasse, delaiMs, body: corpsDeleteEcheance({ itemId, changeKey, typeSuppression: 'SoftDelete' }) }, injections);
+    if (r2.echec) return r2.echec;
+    const res = interpreterReponseSuppression(r2.statut, r2.corps);
+    if (res.ok && !/déjà plus/.test(res.message)) res.message = "Événement retiré de l'agenda (récupérable dans « Récupérer les éléments supprimés » d'Outlook).";
+    return res;
+  }
   return interpreterReponseSuppression(r.statut, r.corps);
 }
 

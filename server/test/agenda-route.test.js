@@ -132,3 +132,73 @@ test('GET /api/agenda/evenements : période validée, événements qui la chevau
   const apres = await (await appeler('/api/agenda/evenements?debut=2099-10-12&fin=2099-10-17')).json();
   assert.equal(apres.evenements.map((e) => e.itemId).sort().join('|'), 'C|N');
 });
+
+// --- Comparaison avec la même semaine l'an dernier (étude, 01/10) ---
+function itemEws(sujet, debutUtc, finUtc, journee) {
+  return `<t:CalendarItem><t:ItemId Id="${sujet.replace(/\W/g, '')}${debutUtc}" ChangeKey="CK"/><t:Subject>${sujet}</t:Subject><t:Start>${debutUtc}</t:Start><t:End>${finUtc}</t:End><t:IsAllDayEvent>${journee ? 'true' : 'false'}</t:IsAllDayEvent><t:IsCancelled>false</t:IsCancelled></t:CalendarItem>`;
+}
+
+test('GET /api/agenda/comparaison : semaine de l’an dernier lue une fois puis gardée, écart et pourcentage', async () => {
+  reinitialiserDisjoncteurAgenda();
+  parametresRepo.ecrireReglagesExchange({ actif: true, email: 'bastien@etude.test', motDePasse: 'mdp-secret', calendrierPartage: 'sophie@etude.test' });
+  // Cette semaine (lundi 2026-10-05) : 3 rendez-vous horaires d'une heure ou plus, dont une signature ;
+  // un point de 30 min, un rendez-vous sans fin lisible, une journée entière et une option ne comptent pas.
+  parametresRepo.ecrireAgendaOffice({ debut: '2026-09-28', lu: new Date().toISOString(), evenements: [
+    { itemId: 'A', sujet: 'VTE - DUPONT / MARTIN', date: '2026-10-05', heure: '10:00', heureFin: '11:00', signature: true },
+    { itemId: 'B', sujet: 'Point équipe', date: '2026-10-06', heure: '09:30', heureFin: '10:00' },
+    { itemId: 'B2', sujet: 'Sans fin', date: '2026-10-06', heure: '15:00' },
+    { itemId: 'C', sujet: 'Client', date: '2026-10-10', heure: '10:00', heureFin: '11:00' },
+    { itemId: 'G', sujet: 'Succession', date: '2026-10-09', heure: '14:00', heureFin: '16:00' },
+    { itemId: 'D', sujet: 'Congés JV', date: '2026-10-07', dateFin: '2026-10-07', journeeEntiere: true, absence: true },
+    { itemId: 'E', sujet: 'VTE - X ? — option CLAIRE, créneau 1/2', date: '2026-10-08', heure: '14:00', option: true },
+    { itemId: 'F', sujet: 'Dimanche', date: '2026-10-11', heure: '10:00' }
+  ] });
+  // L'an dernier (lundi 2025-10-06, 364 jours avant) : 2 rendez-vous d'une heure, un de 45 min et une
+  // journée entière. Une ancienne mesure gardée sans règle (comptée avant la durée d'une heure) est relue.
+  parametresRepo.ecrireComparaisonAgenda({ '2025-10-06': { rendezVous: 9, signatures: 4, lu: new Date().toISOString() } });
+  reponsesEws.length = 0;
+  reponsesEws.push({ statusCode: 200, body: findItem(
+    itemEws('VTE - LEROY', '2025-10-06T08:00:00Z', '2025-10-06T09:00:00Z')
+    + itemEws('Rendez-vous banque', '2025-10-08T12:00:00Z', '2025-10-08T13:00:00Z')
+    + itemEws('Appel rapide', '2025-10-09T12:00:00Z', '2025-10-09T12:45:00Z')
+    + itemEws('Congés BA', '2025-10-08T22:00:00Z', '2025-10-09T22:00:00Z', true)) });
+  const corps = await (await appeler('/api/agenda/comparaison?lundi=2026-10-05')).json();
+  assert.equal(corps.lundiAnPasse, '2025-10-06');
+  assert.equal(corps.actuel.rendezVous, 3);
+  assert.equal(corps.actuel.signatures, 1);
+  assert.equal(corps.anPasse.rendezVous, 2);
+  assert.equal(corps.anPasse.signatures, 1);
+  assert.equal(corps.ecart, 1);
+  assert.equal(corps.pourcent, 50);
+  // Second appel : gardé en base, aucune nouvelle lecture (la file de réponses resterait sinon consommée).
+  reponsesEws.push({ statusCode: 500, body: '' });
+  const encore = await (await appeler('/api/agenda/comparaison?lundi=2026-10-05')).json();
+  assert.equal(encore.anPasse.rendezVous, 2);
+  assert.equal(reponsesEws.length, 1, 'aucune lecture Exchange au second appel');
+  reponsesEws.length = 0;
+  assert.equal((await appeler('/api/agenda/comparaison?lundi=2026-10-06')).status, 400, 'pas un lundi');
+});
+
+test('GET /api/agenda/passe : un mois d’historique lu une fois dans Exchange, puis gardé ; le stock n’est pas relu', async () => {
+  reinitialiserDisjoncteurAgenda();
+  parametresRepo.ecrireReglagesExchange({ actif: true, email: 'bastien@etude.test', motDePasse: 'mdp-secret', calendrierPartage: 'sophie@etude.test' });
+  parametresRepo.ecrireAgendaOffice({ debut: '2026-09-21', lu: new Date().toISOString(), evenements: [] });
+  reponsesEws.length = 0;
+  reponsesEws.push({ statusCode: 200, body: findItem(
+    itemEws('VTE - LEROY', '2026-01-06T08:00:00Z', '2026-01-06T09:00:00Z')
+    + itemEws('Rendez-vous banque', '2026-01-20T12:00:00Z', '2026-01-20T13:00:00Z')) });
+  const corps = await (await appeler('/api/agenda/passe?debut=2026-01-05&fin=2026-01-31')).json();
+  assert.equal(corps.limite, '2026-09-21');
+  assert.equal(corps.evenements.map((e) => `${e.date} ${e.heure} ${e.sujet}`).join(' | '), '2026-01-06 09:00 VTE - LEROY | 2026-01-20 13:00 Rendez-vous banque');
+  assert.equal(corps.evenements[0].signature, true);
+  // Janvier lu bien après sa fin : gardé, plus jamais relu.
+  reponsesEws.push({ statusCode: 500, body: '' });
+  const encore = await (await appeler('/api/agenda/passe?debut=2026-01-01&fin=2026-01-10')).json();
+  assert.equal(encore.evenements.length, 1);
+  assert.equal(reponsesEws.length, 1, 'aucune nouvelle lecture Exchange');
+  reponsesEws.length = 0;
+  // Une période dans le stock : rien à lire.
+  const dansStock = await (await appeler('/api/agenda/passe?debut=2026-09-28&fin=2026-10-03')).json();
+  assert.equal(dansStock.evenements.length, 0);
+  assert.equal((await appeler('/api/agenda/passe?debut=2026-01-01&fin=2026-06-30')).status, 400, 'six mois d’un coup : refusé');
+});

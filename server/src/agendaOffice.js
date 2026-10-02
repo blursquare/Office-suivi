@@ -202,6 +202,13 @@ function composerLieuAgenda(lieuExistant, etat) {
     const reExistant = new RegExp(String.raw`(?<![A-Za-zÀ-ÿ])(?:M(?:e|a[iî]tre)\.?\s+)?` + famille + String.raw`(?![A-Za-zÀ-ÿ])(?:\s+en\s+(?:1er|2nd|premier|second))?`, 'i');
     base = reExistant.test(base) ? base.replace(reExistant, confrere) : (base ? base + ' - ' + confrere : confrere);
   }
+  // Les initiales du responsable du dossier en tête (étude, 01/10 : « renseigner le responsable du
+  // dossier ») : ajoutées seulement si elles n'y figurent pas déjà — un rendez-vous tapé dans Outlook
+  // sans initiales les reçoit, un lieu qui les porte n'est pas touché.
+  const initiales = typeof e.initiales === 'string' && /^[A-ZÀ-Ý]{2,4}$/.test(e.initiales.trim()) ? e.initiales.trim() : '';
+  if (initiales && !new RegExp(String.raw`(?<![A-Za-zÀ-ÿ])` + initiales + String.raw`(?![A-Za-zÀ-ÿ])`).test(base)) {
+    base = base ? initiales + ' - ' + base : initiales;
+  }
   const mention = (e.appelFonds && e.projet) ? MENTION_APPEL_PROJET
     : e.appelFonds ? MENTION_APPEL_SEUL
       : e.projet ? MENTION_PROJET_SEUL
@@ -484,6 +491,91 @@ function lundiSemainePrecedente(jour) {
 // Agenda : l'identifiant Exchange (pour la suppression), le titre, le lieu, les dates et heures, les
 // catégories, et le dossier reconnu par la référence « VTE … ». Triés par date puis heure. Pure.
 const MAX_AGENDA_OFFICE = 3000;
+// Comparaison avec l'an dernier (étude, 01/10 : « le nombre de rendez-vous par rapport à l'année
+// dernière à la même semaine »). Pures et testables.
+// Un « rendez-vous » = un événement horaire de la période (lundi → samedi) d'UNE HEURE OU PLUS (étude,
+// 01/10 : un point de 30 min n'est pas un rendez-vous), ni journée entière (absences, dates butoir),
+// ni annulé, ni option d'un sondage de CLAIRE. Sans heure de fin lisible, la durée est inconnue : pas
+// compté. Les signatures (référence « VTE - … ») sont comptées à part, sous la même règle. Accepte le
+// modèle de evenementDepuisEws comme celui du stock.
+const DUREE_MIN_RENDEZ_VOUS_COMPTE = 60;
+// Version de la règle de comptage, gardée avec chaque semaine de l'an dernier : une semaine comptée
+// sous une autre règle est relue une fois.
+const REGLE_COMPTAGE_RENDEZ_VOUS = 'duree-1h';
+function minutesHeure(h) {
+  const m = /^(\d{1,2}):(\d{2})/.exec(String(h || ''));
+  return m ? Number(m[1]) * 60 + Number(m[2]) : null;
+}
+function dureeRendezVousMinutes(e) {
+  if (!e || !e.heure || !e.date) return null;
+  const debut = minutesHeure(e.heure);
+  const fin = minutesHeure(e.heureFin);
+  if (debut == null || fin == null) return null;
+  const jours = e.dateFin && e.dateFin > e.date
+    ? Math.round((Date.parse(e.dateFin + 'T12:00:00Z') - Date.parse(e.date + 'T12:00:00Z')) / 86400000) : 0;
+  return jours * 1440 + fin - debut;
+}
+function compterRendezVousPeriode(evenements, debut, fin) {
+  let rendezVous = 0;
+  let signatures = 0;
+  for (const e of evenements || []) {
+    if (!e || e.annule || e.journeeEntiere || !e.heure || !e.date || e.date < debut || e.date > fin) continue;
+    if (e.option || RE_OPTION_SONDAGE.test(String(e.sujet || ''))) continue;
+    const duree = dureeRendezVousMinutes(e);
+    if (duree == null || duree < DUREE_MIN_RENDEZ_VOUS_COMPTE) continue;
+    rendezVous++;
+    if (e.signature === true || (e.signature === undefined && referenceDossierEvenement(e) && estRendezVousSignature(e))) signatures++;
+  }
+  return { rendezVous, signatures };
+}
+
+// Le lundi de la même semaine l'an dernier : 52 semaines plus tôt (364 jours), même jour de semaine.
+function lundiAnneePrecedente(lundi) {
+  const d = new Date(lundi + 'T12:00:00Z');
+  d.setUTCDate(d.getUTCDate() - 364);
+  return d.toISOString().slice(0, 10);
+}
+
+function decalerJours(iso, n) {
+  const d = new Date(iso + 'T12:00:00Z');
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+
+// Écart et pourcentage (arrondi à l'unité) ; pourcentage null quand l'an dernier est à zéro.
+function ecartRendezVous(actuel, anPasse) {
+  if (!Number.isInteger(actuel) || !Number.isInteger(anPasse)) return null;
+  return { ecart: actuel - anPasse, pourcent: anPasse > 0 ? Math.round((actuel - anPasse) / anPasse * 100) : null };
+}
+
+// Mois couverts par une période (AAAA-MM), du plus ancien au plus récent. Pure.
+function moisDePeriode(debut, fin) {
+  const liste = [];
+  let a = Number(debut.slice(0, 4));
+  let m = Number(debut.slice(5, 7));
+  const af = Number(fin.slice(0, 4));
+  const mf = Number(fin.slice(5, 7));
+  while (a < af || (a === af && m <= mf)) {
+    liste.push(`${a}-${String(m).padStart(2, '0')}`);
+    m++;
+    if (m > 12) { m = 1; a++; }
+  }
+  return liste;
+}
+
+// Un mois d'historique est à relire dans Exchange s'il n'a jamais été lu, ou si sa dernière lecture
+// date d'avant la fin du mois + 7 jours (des rendez-vous ont pu y être corrigés juste après) et a
+// plus d'un jour. Un mois lu bien après sa fin ne bouge plus : jamais relu. Pure.
+function archiveAgendaARelire(archive, mois, maintenantMs) {
+  if (!archive || !archive.lu) return true;
+  const lu = Date.parse(archive.lu);
+  if (!Number.isFinite(lu)) return true;
+  const [a, m] = mois.split('-').map(Number);
+  const finMoisPlus7 = Date.UTC(a, m, 1) + 7 * 24 * 3600 * 1000;
+  if (lu >= finMoisPlus7) return false;
+  return maintenantMs - lu > 24 * 3600 * 1000;
+}
+
 function evenementsAgendaOffice(evenements, dossiersActifs) {
   const liste = [];
   for (const evt of evenements || []) {
@@ -520,7 +612,7 @@ module.exports = {
   momentParisDepuisIso, veilleDe, formatDateFr, evenementDepuisEws, evenementsDepuisEws,
   extraireReferenceVte, referenceDossierEvenement, detecteAppelDeFonds, detecteProjetEnvoye,
   detecterActionsEvenement, dossierPourReferenceAgenda, actionsDetecteesDepuisEvenements, motsVoisins,
-  estRendezVousSignature, composerLieuAgenda,
+  estRendezVousSignature, composerLieuAgenda, compterRendezVousPeriode, dureeRendezVousMinutes, REGLE_COMPTAGE_RENDEZ_VOUS, lundiAnneePrecedente, decalerJours, ecartRendezVous, moisDePeriode, archiveAgendaARelire, evenementsAgendaOffice,
   absencesDepuisEvenements, estEvenementJourneeEntiere, collaborateursDansTexte, COLLABORATEURS_ABSENCE,
   categoriesDistinctes, agendaDuJourDepuisEvenements, lundiSemainePrecedente, evenementsAgendaOffice
 };

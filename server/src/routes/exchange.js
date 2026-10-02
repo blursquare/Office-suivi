@@ -146,7 +146,7 @@ function creerRouteurExchange(parametresRepo, injections = {}) {
         // sinon dans le calendrier du compte de connexion. Voir ews.js/folderCalendrierXml.
         mailbox: reglages.calendrierPartage
       }
-    });
+    }, injections);
     // Visible tout de suite dans la page Agenda de tous les postes, sans attendre le tour de lecture.
     if (resultat.ok && typeof parametresRepo.ajouterEvenementAgendaOffice === 'function') {
       parametresRepo.ajouterEvenementAgendaOffice({
@@ -436,7 +436,7 @@ function creerRouteurExchange(parametresRepo, injections = {}) {
     const b = req.body || {};
     const date = String(b.date || '').trim();
     const reference = String(b.reference || '').trim();
-    const etat = { appelFonds: !!b.appelFonds, projet: !!b.projet, confrere: typeof b.confrere === 'string' ? b.confrere : '' };
+    const etat = { appelFonds: !!b.appelFonds, projet: !!b.projet, confrere: typeof b.confrere === 'string' ? b.confrere : '', initiales: typeof b.initiales === 'string' ? b.initiales : '' };
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
       return res.status(400).json({ ok: false, message: 'Date du rendez-vous invalide.' });
     }

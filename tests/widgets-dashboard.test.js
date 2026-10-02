@@ -13,8 +13,8 @@ const ids = (dispo) => dispo.map(w => w.id).join(',');
 
 test('sans préférence : tous les widgets, dans l’ordre et aux tailles par défaut', () => {
   const d = app.dispositionWidgetsDepuis(null);
-  assert.equal(ids(d), 'aujourdhui,agenda,portefeuille,pieces,avancement,activite');
-  assert.equal(d.map(w => w.taille + w.hauteur).join(','), 'moyen2,moyen1,petit1,petit1,moyen2,moyen2');
+  assert.equal(ids(d), 'aujourdhui,agenda,portefeuille,pieces,avancement,activite,statistiques');
+  assert.equal(d.map(w => w.taille + w.hauteur).join(','), 'moyen2,moyen1,petit1,petit1,moyen2,moyen2,grand1');
   assert.ok(d.every(w => w.masque === false));
 });
 
@@ -25,7 +25,7 @@ test('préférence partielle ou abîmée : ordre gardé, taille ramenée à une 
     { id: 'avancement', taille: 'grand', masque: true },
     { id: 'agenda', taille: 'petit' }             // doublon ignoré
   ]);
-  assert.equal(ids(d), 'agenda,avancement,aujourdhui,portefeuille,pieces,activite');
+  assert.equal(ids(d), 'agenda,avancement,aujourdhui,portefeuille,pieces,activite,statistiques');
   assert.equal(d[0].taille + d[0].hauteur, 'moyen1');
   // Préférence d'avant la hauteur réglable : « grand » (2 × 2) devient moyen sur 2 rangées.
   assert.equal(d[1].taille + d[1].hauteur, 'moyen2');
@@ -34,8 +34,8 @@ test('préférence partielle ou abîmée : ordre gardé, taille ramenée à une 
 
 test('déplacer : à une position donnée, bornée', () => {
   const d = app.dispositionWidgetsDepuis(null);
-  assert.equal(ids(app.deplacerWidgetDans(d, 'pieces', 0)), 'pieces,aujourdhui,agenda,portefeuille,avancement,activite');
-  assert.equal(ids(app.deplacerWidgetDans(d, 'aujourdhui', 99)), 'agenda,portefeuille,pieces,avancement,activite,aujourdhui');
+  assert.equal(ids(app.deplacerWidgetDans(d, 'pieces', 0)), 'pieces,aujourdhui,agenda,portefeuille,avancement,activite,statistiques');
+  assert.equal(ids(app.deplacerWidgetDans(d, 'aujourdhui', 99)), 'agenda,portefeuille,pieces,avancement,activite,statistiques,aujourdhui');
   assert.equal(ids(app.deplacerWidgetDans(d, 'inconnu', 0)), ids(d));
 });
 
@@ -43,15 +43,15 @@ test('flèches : un pas parmi les widgets visibles, les masqués sont sautés', 
   let d = app.dispositionWidgetsDepuis(null);
   d = d.map(w => w.id === 'agenda' ? Object.assign({}, w, { masque: true }) : w);
   // portefeuille avance d'un cran « visible » : il passe devant aujourdhui (agenda masqué est sauté).
-  assert.equal(ids(app.decalerWidgetDans(d, 'portefeuille', -1)), 'portefeuille,aujourdhui,agenda,pieces,avancement,activite');
+  assert.equal(ids(app.decalerWidgetDans(d, 'portefeuille', -1)), 'portefeuille,aujourdhui,agenda,pieces,avancement,activite,statistiques');
   assert.equal(ids(app.decalerWidgetDans(d, 'aujourdhui', -1)), ids(d), 'déjà premier');
-  assert.equal(ids(app.decalerWidgetDans(d, 'activite', 1)), ids(d), 'déjà dernier');
+  assert.equal(ids(app.decalerWidgetDans(d, 'statistiques', 1)), ids(d), 'déjà dernier');
 });
 
 test('glisser-déposer : la disposition suit l’ordre du DOM, tailles et masquage gardés', () => {
   const d = app.dispositionWidgetsDepuis([{ id: 'pieces', taille: 'grand', hauteur: 3, masque: true }]);
   const n = app.dispositionDansOrdre(d, ['activite', 'inconnu', 'aujourdhui', 'pieces']);
-  assert.equal(ids(n), 'activite,aujourdhui,pieces,agenda,portefeuille,avancement');
+  assert.equal(ids(n), 'activite,aujourdhui,pieces,agenda,portefeuille,avancement,statistiques');
   const p = n.find(w => w.id === 'pieces');
   assert.equal(p.taille + p.hauteur + ':' + p.masque, 'grand3:true');
 });
@@ -115,14 +115,14 @@ test('activité : les relevés de CLAIRE (sans auteur, hors agenda) servent d’
   assert.equal(l.map(e => e.source + ':' + e.texte).join('|'), 'claire:Pièce trouvée sur le NAS : Diagnostics');
 });
 
-test('disposition par défaut : les plus importants d’abord, un rectangle plein (4 × 4 ; 2 × 8 sur téléphone)', () => {
+test('disposition par défaut : les plus importants d’abord, un rectangle plein (4 × 5 ; 2 × 9 sur téléphone)', () => {
   const d = app.dispositionWidgetsDepuis(null);
   assert.equal(ids(d).split(',').slice(0, 2).join(','), 'aujourdhui,agenda');
   const quatre = app.placementWidgets(d, 4);
-  assert.equal(quatre.vides + ':' + quatre.rangees, '0:4');
+  assert.equal(quatre.vides + ':' + quatre.rangees, '0:5');
   assert.equal(JSON.stringify(quatre.place.aujourdhui), JSON.stringify({ rangee: 0, colonne: 0, largeur: 2, hauteur: 2 }));
   const deux = app.placementWidgets(d, 2);
-  assert.equal(deux.vides + ':' + deux.rangees, '0:8');
+  assert.equal(deux.vides + ':' + deux.rangees, '0:9');
 });
 
 test('placement : un trou se voit, et « dense » remonte une petite carte dans le premier trou', () => {

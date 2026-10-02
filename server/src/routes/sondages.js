@@ -45,7 +45,9 @@ function creerRouteurSondages(parametresRepo, injections = {}) {
       return res.status(400).json({ ok: false, message: 'La connexion Exchange doit être configurée (Réglages › Rappels et agenda) : c’est sa boîte qui reçoit les réponses.' });
     }
     const dossierId = String(b.dossierId || '').trim().slice(0, 80);
-    if (!dossierId) return res.status(400).json({ ok: false, message: 'Dossier non désigné.' });
+    // Sans dossier, le titre du rendez-vous est obligatoire (il nomme les options et le rendez-vous placé).
+    const titre = String(b.titre || '').replace(/[?\r\n]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 120);
+    if (!dossierId && !titre) return res.status(400).json({ ok: false, message: 'Donnez un titre au rendez-vous, ou choisissez un dossier.' });
     const creneauxBruts = Array.isArray(b.creneaux) ? b.creneaux : [];
     const participantsBruts = Array.isArray(b.participants) ? b.participants : [];
     if (!creneauxBruts.length || creneauxBruts.length > MAX_CRENEAUX) {
@@ -55,7 +57,7 @@ function creerRouteurSondages(parametresRepo, injections = {}) {
       return res.status(400).json({ ok: false, message: 'Aucun destinataire avec une adresse email.' });
     }
     const sondages = parametresRepo.lireSondagesCreneaux();
-    if (sondages.some((s) => s.dossierId === dossierId && s.statut === 'ouvert')) {
+    if (dossierId && sondages.some((s) => s.dossierId === dossierId && s.statut === 'ouvert')) {
       return res.status(409).json({ ok: false, message: 'Un sondage est déjà ouvert pour ce dossier : placez-le ou annulez-le d’abord.' });
     }
     const aujourdHui = dateDuJourParis();
@@ -63,7 +65,8 @@ function creerRouteurSondages(parametresRepo, injections = {}) {
       id: crypto.randomUUID(),
       code: codeSondage(injections.aleatoire),
       dossierId,
-      dossierNom: b.dossierNom,
+      dossierNom: dossierId ? b.dossierNom : '',
+      titre: dossierId ? '' : titre,
       statut: 'ouvert',
       creeLe: new Date().toISOString(),
       creePar: b.creePar,
@@ -83,7 +86,7 @@ function creerRouteurSondages(parametresRepo, injections = {}) {
     // Les créneaux en option dans l'agenda partagé : un essai par créneau, arrêt au premier échec.
     let avertissement = '';
     if (b.poserOptions === true) {
-      const libelle = String(b.libelle || brouillon.dossierNom || '').replace(/[?\r\n]/g, ' ').trim().slice(0, 120) || 'VTE';
+      const libelle = String(b.libelle || brouillon.dossierNom || brouillon.titre || '').replace(/[?\r\n]/g, ' ').trim().slice(0, 120) || 'VTE';
       const total = brouillon.creneaux.length;
       for (const c of brouillon.creneaux) {
         const sujet = `${libelle} ? — option CLAIRE, créneau ${c.n}/${total}`;
@@ -101,7 +104,7 @@ function creerRouteurSondages(parametresRepo, injections = {}) {
           parametresRepo.ajouterEvenementAgendaOffice({
             itemId: r.itemId, changeKey: r.changeKey || '', sujet, lieu: '', date: c.date, heure: c.heure,
             heureFin: heureFin(c.heure, c.dureeMinutes), categories: [], signature: false, option: true,
-            dossierId, dossierNom: brouillon.dossierNom || null, creeDansClaire: true
+            dossierId: dossierId || null, dossierNom: brouillon.dossierNom || null, creeDansClaire: true
           });
         }
       }

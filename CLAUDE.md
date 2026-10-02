@@ -46,6 +46,7 @@ server/                              Serveur (son propre package.json ; le packa
   src/repertoire.js                  Répertoire hors notaires (relevé du répertoire Word de l'étude, par thème)
   src/ouvertureAuto.js               Installateur du relais « claire-ouvrir: » (ouverture auto des téléchargements)
   src/jobs/rappels.js                Rappels par email (miroir serveur du planning client)
+  src/appels3cx.js, routes/appels.js Appels reçus par 3CX (sonnerie → journal, appelant reconnu, fiche ouverte)
   src/nas.js, nasWatch.js            Lecture du NAS par le serveur, surveillance périodique
   src/scans.js, routes/scans.js      Classeur des scans du copieur (dossier « Scan » → dossiers clients)
   src/agendaOffice.js, agendaWatch.js  Lecture de l'agenda de l'office (EWS, toutes les 15 min)
@@ -58,6 +59,8 @@ server/                              Serveur (son propre package.json ; le packa
   src/journalTechnique.js,           Journal technique (console.error/warn du serveur, événements des
        rapportTechnique.js           postes) et rapport anonymisé déposé en issue GitHub (12 h, 17 h)
   scripts/build-windows-exe.mjs      Construction du .exe (esbuild + SEA + postject + icône)
+extension-firefox/                   Extension Firefox « CLAIRE pour Authentic » (bouton « Envoyer à CLAIRE »,
+                                     POST /api/authentic/capture, routes/authentic.js ; LISEZMOI.md)
 tests/                               Tests client (node:test) ; server/test/ pour le serveur
 docs/historique.md                   Historique détaillé (voir plus haut)
 docs/spec-banc-essai-extraction.md   Cadrage du banc de mesure de l'extraction
@@ -123,7 +126,7 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
    par le poste depuis CLAIRE, par le serveur quand c'est relevé dans Outlook
    (`notifierRendezVousRelevesAgenda`, sans savoir qui). **Un seul essai par appel, aucun réessai automatique** (verrouillage du compte),
    disjoncteur sur refus d'identifiants (côté client pour les écritures ; côté serveur, la lecture
-   automatique est suspendue tant que les identifiants refusés restent enregistrés). Suppression = `MoveToDeletedItems`, jamais `HardDelete`.
+   automatique est suspendue tant que les identifiants refusés restent enregistrés). Suppression = `MoveToDeletedItems`, jamais `HardDelete` ; sur `ErrorCannotDeleteObject` (vu le 01/10 : compte délégué sans droit sur les éléments supprimés de Sophie), une seconde requête en `SoftDelete` (récupérable par « Récupérer les éléments supprimés »).
    Microsoft Graph / Power Automate premium ne sont pas disponibles. **Lecture de la boîte de
    réception** du même compte (celle de Bastien, qui reçoit tout en double) à 8 h 50 pour le résumé
    des emails du matin (`emailsMatin.js`, FindItem seul, sans IA) : seuls expéditeur, objet et
@@ -173,19 +176,17 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
   réalisée (financement, comme l'offre) empêche « Complet » et « Prêt ». Couleurs : rouge, gris, ambre, bleu `--acte`
   (jamais l'accent, qui peut être orange ou vert), vert. **Suivi** (30/09, choix de l'étude) : barre en trois lignes
   (`.suivi-barre`) — grande recherche (nom du dossier seulement ; le collaborateur passe par le filtre
-  « Responsable », pré-réglé sur celui du poste) + bascule de vue, filtres sur une ligne (« Trier par »
+  « Responsable », pré-réglé sur celui du poste à chaque session, **sauf l'administrateur, qui voit « Tous »** (étude 02/10) — `filtreSuiviParDefaut`, `appliquerFiltreSuiviCollaborateur`, reposé au changement de poste) + bascule de vue, filtres sur une ligne (« Trier par »
   en vue Tableau seulement ; « Archivés » cochée → section « Archivés » en bas de la vue Échéances,
-  `archivesPourEcheances`, date de signature sinon d'archivage, jamais dans une semaine), statuts en pastilles de filtre (`syntheseEtatsSuivi`, `renderEtatsSuivi`) ; au-dessus, « Prévu en
-  {mois} » (`prevuDuMois`, `agendaPrevuDuMois`, `renderStatsSuivi`, repliable) — angle voulu par
-  l'étude : ce qui est prévu ce mois-ci, **en un seul bloc compact** : une ligne d'en-tête (mois,
-  4 compteurs-filtres en pastilles, retards, délais moyens depuis l'ouverture du dossier dans CLAIRE),
-  puis « À faire » (retards, envois, rendez-vous à placer) et « Au calendrier » (signatures, dates
-  butoir, jour par jour) côte à côte, une ligne par échéance, défilement au-delà de 172 px. Mois suivant dans les 5 derniers jours (`moisPrevuSuivi`). Refusés par l'étude : graphique
-  par semaine, charge par collaborateur, montant des ventes, le mot « portefeuille ». **Liste « intelligente »**
+  `archivesPourEcheances`, date de signature sinon d'archivage, jamais dans une semaine), statuts en pastilles de filtre (`syntheseEtatsSuivi`, `renderEtatsSuivi`) ; **à gauche** (colonne de 300 px comme celle de l'agenda, étude 01/10, `.suivi-corps`/`.suivi-cote` ; au-dessus sous 1100 px),
+  `renderColonneSuivi` (étude 01/10 au soir, remplace « Prévu en {mois} ») : le **mois civil en cours** en quatre
+  tuiles-filtres (`syntheseMoisSuivi`, `filtreMoisSuivi`) — à signer (rendez-vous dans le mois), à placer (sans
+  rendez-vous, date butoir dans le mois ou déjà dépassée), ventes, successions (`d.typeAffaire`) —, puis
+  « Dernières pièces » rattachées sur le commun (`dernieresPiecesTrouvees`, 14 jours, 10 au plus), puis le carré « Activité de l'étude — En direct » (même fil que le widget du tableau de bord, tous dossiers, `partiesActiviteEtude`, `renderActiviteColonneSuivi`). Refusés par
+  l'étude : graphique par semaine, charge par collaborateur, montant des ventes, le mot « portefeuille ». **Vue Échéances : tous les dossiers** (étude 02/10) — une échéance par dossier, semaines puis « Plus tard » (au-delà de `SEMAINES_AFFICHEES`), puis « Sans échéance datée » (jamais omis, `grouperEcheancesParSemaine`). **Liste « intelligente »**
   (30/09) : section « Nouveau » (ex-« À voir en premier ») en tête (`signauxDossierSuivi`, `partagerAVoirSuivi`) —
   notifications (`piecesNotifications` : offre, pièces nommées) puis fonds tous reçus non confirmés ;
-  le dossier en sort à l'ouverture de sa fiche, sans doublon dans la suite de la liste. L'échéance a sa propre colonne (« Prochaine
-  échéance ») ; `statutDossier` (pièces trouvées) ne sert plus qu'aux points « À traiter ».
+  le dossier en sort à l'ouverture de sa fiche, sans doublon dans la suite de la liste. **Colonnes, partout dans le Suivi** (vue Échéances, vue Tableau, « Nouveau », « Archivés » ; étude 01/10) : Date, Dossier, Échéance, Resp., Statut — `COLGROUP_SUIVI`/`ENTETE_SUIVI`, mêmes largeurs ; plus de colonne « Offre de prêt » en vue Tableau ; responsable en **initiales dans une pastille ronde** (`pastilleCollaborateur`, étude 01/10) ; bouton « Scanner le commun » (ex-« Revérifier tous les dossiers », `reverifierTousLesDossiers`) ; `statutDossier` (pièces trouvées) ne sert plus qu'aux points « À traiter ».
 - **Seuils des rappels email** : prêt J-15/J-7, vente préalable J-15/J-7, appel de fonds J-15/J-10,
   signature J-25/J-15, personnalisées J-15/J-7 (`SEUILS_RAPPELS_PAR_TYPE`).
 - **Relance de l'offre de prêt au client** : première à J-15, puis tous les 10 jours, y compris
@@ -202,6 +203,15 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
   **Notification d'une pièce trouvée : une seule fois** par dossier + pièce + fichier (registre
   serveur `pieces-notifiees`, 30 jours, `dedoublonnerPieces` dans `routes/notifications.js`) ; une
   seule vérification NAS à la fois par dossier et par fenêtre (`verificationsDossierEnCours`).
+- **Onglet Analyse de la fiche** (étude, 02/10) : chaque engagement du vendeur (`e.fait`, `faitLe`) et chaque
+  document relevé (`doc.recu`, `recuLe`) se coche réalisé/reçu ; non coché → compté dans `piecesAttenduesDossier`
+  (« Attente de pièces », libellé « Engagement : … » par `libelleCourtEngagement`) et dans
+  `probabiliteTenueSignature` (facteur « engagement(s) du vendeur non réalisé(s) », « Relancer le vendeur ») ; jamais
+  pour une participation (`elementsAnalyseEnAttente`). Un document qui est une pièce de la checklist
+  (`cleChecklistDocumentAnalyse`) partage la case de l'onglet Pièces (validation à la main) et n'est compté qu'une
+  fois ; un engagement dont toutes les pièces sont reçues est réalisé de lui-même (`etatEngagementAnalyse`, case
+  grisée) ; cocher un engagement valide à la main les pièces de la checklist qu'il fait réclamer (`e.piecesValidees`,
+  rendues au décochage). Notification Teams « dossier complet » seulement si l'analyse ne laisse rien en attente.
 - **Dépôt de garantie** : toujours déduit de l'appel de fonds (l'agence reverse la somme) ; le
   détenteur dit seulement quoi réclamer.
 - **Fonds reçus** (reçus comptables du NAS) : le client est le **titulaire** en début de ligne, et
@@ -281,14 +291,14 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
   pas un état daté (checklist corrigée le même jour).
 - **Page Agenda** (30/09, `renderPageAgenda`, **à la manière d'Outlook** — étude, 30/09 au soir : « plus
   professionnel, pour ne pas dépayser les collaborateurs » ; lien juste sous le tableau de bord) : une carte,
-  en tête pastille du jour, date, ‹ Aujourd'hui ›, liste Vue mois/semaine/jour, « Nouveau rendez-vous » ;
+  en tête les trois lettres du jour (étude 01/10, d'après « Wed. » puis « en français, pas de fond de couleur, juste les 3 lettres et le point » : « Jeu » + point orange `--cat-orange`, couleur du texte, « Oct » en vue Mois — `motPastilleAgenda`, `.ag-pastille-jour`), date, ‹ Aujourd'hui ›, liste Vue mois/semaine/jour, « Nouveau rendez-vous » ;
   Semaine (lundi → samedi, **8 h – 19 h**, `AGENDA_HEURE_DEBUT/FIN`, étude 01/10 ; 60 px l'heure, `AGENDA_PX_HEURE` = `--ag-heure`) · Jour · Mois (`agendaVue`, `agendaJour` ; Jour par défaut sur
   téléphone), en-têtes « Lundi / 28 sept. 2026 », colonne du jour teintée, trait de l'heure ; rendez-vous =
   liseré gauche + fond clair de la couleur Outlook, heure de début, de fin et durée (`dureeRendezVous`) ;
   **sur un rendez-vous d'un dossier, comme dans Outlook : responsable (prénom), confrère (`confrereLieuAgenda`),
   appel de fonds fait (`echeanceValidee`), décompte acquéreur fait et projet envoyé** (`decompteAcquereurFait` : courrier
   d'appel de fonds/décompte trouvé sur le NAS ou lu pour les fonds reçus — choix de l'étude) —
-  `infosRendezVousDossier`. Trait rouge de l'heure mis à jour toutes les 30 s (`traitHeureAgenda`, `majTraitHeureAgenda`). Colonne de gauche : mini-calendrier du mois (sans légende des couleurs, étude 30/09) et anticipations ;
+  `infosRendezVousDossier`. Trait rouge de l'heure mis à jour toutes les 30 s (`traitHeureAgenda`, `majTraitHeureAgenda`). **Historique** (01/10) : avant le stock, chaque mois affiché est lu à la demande dans Exchange puis gardé (`GET /api/agenda/passe`, clés `agenda-archive:AAAA-MM`, plus relu une fois stabilisé), en lecture seule ; **Recherche d'un dossier** dans l'en-tête de la page, à la place du bouton « Actualiser », au style du champ du Suivi et **qui filtre l'agenda comme le Suivi filtre sa liste** (étude 01/10, `evenementsFiltresRecherche` : titre, lieu, dossier ; nombre trouvé + « Tout afficher » sous la date) ; liste dessous (`resultatsRechercheAgenda`) : le nom mène au rendez-vous (`allerAuDossierAgenda` : jour de la signature et son détail, sinon semaine probable et sa carte fantôme, sinon la fiche), l'icône « fiche » ouvre la fiche (`ouvrirFicheDepuisRechercheAgenda`) ; « Actualiser » = icône à côté de « Agenda de l'office lu … » (`actualiserAgenda`). « Aller à une date » dans la barre (icône calendrier seule, sans date affichée à côté d'« Aujourd'hui » — étude 01/10, `ouvrirAllerDateAgenda`). **Comparaison avec l'an dernier** (01/10) à côté de « Agenda de l'office lu… » : rendez-vous horaires **d'une heure ou plus** lun→sam (hors journées entières et options ; étude 01/10, `DUREE_MIN_RENDEZ_VOUS_COMPTE`, semaines gardées marquées de la règle `REGLE_COMPTAGE_RENDEZ_VOUS`, relues si elle change) vs la même semaine 52 semaines plus tôt, lue une fois dans Exchange puis gardée (`GET /api/agenda/comparaison`, clé `agenda-comparaison`). Colonne de gauche : mini-calendrier du mois (sans légende des couleurs, étude 30/09), « Dates proposées » juste dessous, puis anticipations (« Signatures de la semaine » retiré le 01/10) ;
   **détail du rendez-vous choisi dans une fenêtre posée sur l'agenda, à côté du rendez-vous cliqué**
   (étude, 30/09 : « dans un popup, pas à gauche » — `agendaSelection`, `renderPanneauDetailAgenda` dans
   `#agenda-popover`, `renderPopoverAgenda`/`positionnerPopoverAgenda`, ancre `data-cle` ; feuille au bas de
@@ -311,7 +321,7 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
   `probabiliteTenueSignature` à cette date − 10 (non fixé) − 15 (après la date butoir) ; « Rendez-vous à
   placer » les liste par semaine, et la semaine affichée porte une **carte fantôme** en pointillé
   (`fantomesSemaineAgenda`, premier créneau libre dans les règles, clé `probable:<id>`) dont le détail
-  propose « Placer » (confirmé) ; **notes d'un rendez-vous = son corps dans Outlook** (choix de l'étude,
+  propose « Placer » (confirmé) et **rappelle la date butoir** (étude 02/10, `rappelButoirSignatureProbable` : jours restants, marge < 7 j ou dépassement en rouge) ; **notes d'un rendez-vous = son corps dans Outlook** (choix de l'étude,
   `GET/PUT /api/exchange/evenement/notes`, GetItem/UpdateItem du seul `item:Body` en texte brut, lues à
   l'ouverture du détail, jamais journalisées ; la mise en forme HTML d'un corps n'est pas gardée à
   l'écriture),
@@ -320,7 +330,9 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
   son lien (`lireInvitationIcs`) est écrit dans les notes du rendez-vous de même date et même heure
   (`notesAvecVisio`, bloc « Visio ADNOV : … » remplacé à l’invitation suivante), puis « Rejoindre la visio ». « Envoyer le lien » prépare l'email aux clients et/ou au confrère (`corpsEmailVisio`, premier jet de CLAIRE) avec les informations de connexion relues dans la note (`blocVisioDansNotes`).
   `gestesRelationClient` (rappel J-3…J-1, confirmation J-45…J-3 une fois par date `confirmationRdvPour`,
-  questionnaire J+1…J+14, un mot un an après — jamais au client d'un confrère). **Couleur d'un
+  questionnaire J+1…J+14, un mot un an après — **jamais quand un confrère accompagne l'acquéreur**,
+  étude 01/10) : ces emails vivent dans l'**onglet Échanges de la fiche** (`echangesSelonStade`, utiles quand ils sont
+  dus ou faits), plus dans la barre de l'agenda (retirés le 01/10). **Couleur d'un
   rendez-vous = celle d'Outlook** (étude, 30/09) : couleur nommée dans la catégorie
   (`couleurCategorieOutlook`, jetons `--cat-*`), sinon type réglé (office/visio/confrère), sinon
   absence, signature, autre — page Agenda et fenêtre du matin. **Absences et dates butoir en rose** (étude, 01/10, avant la
@@ -335,14 +347,14 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
   seule fois » (`[CLAIRE-CODE-L]`, étude 01/10) : cases `[ ]` à cocher d'un X, seul cas où le **texte** d'un
   email est lu (GetItem de ces réponses-là, numéros cochés gardés, texte jamais conservé).
   **Page de réponse** (étude, 01/10 — `page-sondage/index.html`, à publier dans un dépôt GitHub public
-  dédié avec Pages, adresse dans Réglages › Rappels et agenda, `pageSondage` des réglages Exchange) :
+  dédié avec Pages, adresse dans Réglages › Agenda et Outlook › Sondages de créneaux, `pageSondage` des réglages Exchange) :
   vraies cases à cocher, **aucune donnée côté GitHub** (tout est après le `#` du lien, rendu en
   `textContent`), à la manière de Rallly avec le logo de l'office (dépôt public **blursquare/Claire-rdv**,
   copie de `page-sondage/`), vote **Oui / Si nécessaire / Non** ; réponse par un seul email d'objet
   `[CLAIRE-CODE-P13S2] VTE - MOR./FAU. — Oui : … · Si nécessaire : …` (S = si nécessaire, P0 = aucun ;
   remplace les choix ; « possible pour tous » = oui ou si nécessaire).
   **Relais Google** (étude, 01/10 — `page-sondage/relais-google-apps-script.gs`, Apps Script déployé
-  sur le compte Gmail de l'étude, adresse `/exec` dans Réglages › Rappels et agenda, `relaisSondage`) :
+  sur le compte Gmail de l'étude, adresse `/exec` dans la même section, `relaisSondage`) :
   la page lui poste la réponse (texte brut, sans prévol CORS), il l'envoie par email à une adresse FIXÉE
   dans le script (jamais choisie par la page), objet contrôlé, 200/h ; repli sur la messagerie du client
   s'il échoue. L'expéditeur devenant le Gmail de l'étude, chaque destinataire a un **code personnel**
@@ -351,9 +363,20 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
   3 lettres par nom de famille) sur la page et dans les objets de réponse. Réglage vide = boutons. Options
   « Provisoire » `VTE - NOM ? — option CLAIRE, créneau n/N` (le « ? » n'écrit rien sur la fiche),
   hachurées dans l'agenda, retirées (`MoveToDeletedItems`) au placement, à l'annulation ou après
-  5 jours ouvrés. Votants par défaut : les clients, ou le confrère qui représente une partie. Aussi offert depuis le formulaire « Nouveau rendez-vous » (« Proposer plusieurs dates », créneau saisi en tête, `proposerPlusieursDatesAgenda`). Textes =
+  5 jours ouvrés. Votants par défaut : les clients, ou le confrère qui représente une partie. Aussi offert depuis le formulaire « Nouveau rendez-vous » (« Proposer plusieurs dates », créneau saisi en tête, `proposerPlusieursDatesAgenda`). **Sans dossier** (01/10) : sondage au `titre` libre (destinataires libres, dont confrère ; options « Titre ? — option CLAIRE » ; page `t=r`), lancé par la moitié droite du bouton double « Nouveau rendez-vous | Proposer des dates » de l'en-tête de la page, à droite du champ de recherche (étude 01/10, `.ag-ajout-double` dans `#agenda-creation`), suivi dans le volet à droite **« Dates proposées »** (tiroir comme une fiche, étude 01/10, lien sous le mini-calendrier, `ouvrirSuiviDatesProposees`, `classerSuiviDatesProposees` : en attente — tableau des réponses, Placer/Relancer/Relire/Annuler —, validées — date retenue, « Voir dans l'agenda » —, sans suite ; tous les sondages, avec ou sans dossier ; **pastille rouge sur « Agenda » dans la barre latérale** quand une réponse revient — `reponsesNonVuesSondages`, repère `claire-dates-vues:<poste>` en localStorage, effacée à l'ouverture du volet), « Placer » crée un rendez-vous ordinaire. Textes =
   premiers jets de CLAIRE. **Email du vendeur** (`d.emailVendeur`) : wizard, fiche, lecture de l'acte
   (`detecterEmailVendeur`) et d'Authentic ; masqué si le vendeur a son propre notaire, sauf déjà saisi.
+- **Appels 3CX** (01/10, choix de l'étude : « noter + ouvrir la fiche », téléphones sur les fiches) : 3CX
+  ne donne pas d'historique ; son « Intégration CRM » (client web, réglage de chaque collaborateur, CRM
+  personnalisé, « Informer lorsque : Sonnerie ») ouvre `/appel?numero=%CallerNumber%&nom=%CallerDisplayName%&poste=<prénom>`
+  (adresses à copier dans Réglages › Téléphonie 3CX, `adresseIntegration3cx` ; poste = prénom sans accent, jamais un
+  nom encodé que 3CX prendrait pour une variable). Réglage V20 : client web seulement (« Auto launch a Custom Contact URL », pop-up autorisées), `%CallerDisplayName%` y vaut « undefined » (`valeur3cx`) ; le serveur compare les postes par `clePoste` ; Réglages › Téléphonie 3CX montre, par collaborateur, fenêtre CLAIRE ouverte et dernière sonnerie reçue (`GET /api/appels/postes`) — « Aucune sonnerie reçue » après un appel = côté 3CX. Le serveur note l'appel (`appels-recus`, 400 jours, hors
+  session, aucune donnée renvoyée, jamais journalisé) et reconnaît l'appelant (`reconnaitreAppelant` : 9
+  derniers chiffres ; `d.telephoneVendeur`/`d.telephoneAcquereur` — onglet Échanges, repris d'Authentic —,
+  puis carnet des confrères et ses dossiers, puis répertoire). La fenêtre CLAIRE relève toutes les 3 s, même
+  cachée (`releverAppels`), montre le bandeau « Appel entrant » (en bas à gauche ; fermé seul 45 s après la sonnerie — 3CX ne signale pas la fin d'un appel, choix de l'étude 02/10 contre le journal CRM de 3CX —, en pause au survol, fermé à l'ouverture d'une fiche depuis le bandeau) et ouvre la fiche (Échanges) d'un seul dossier
+  en cours, jamais pendant une saisie ; l'onglet ouvert par 3CX se ferme si la fenêtre du poste est visible,
+  sinon il affiche CLAIRE sur l'appel (`#appel=`). Appels du dossier dans l'onglet Échanges.
 - **Mobilier** : le prix reste le prix total ; `d.prixMobilier` sort seulement de l'assiette des
   droits (frais d'acte, contrôle du barème).
 - **Prorata** : jours réels, jour de l'acte à la charge de l'acquéreur, arrondi du vendeur par
@@ -442,6 +465,9 @@ Plainte principale de l'étude : **le bruit**, pas les oublis — ne pas élargi
   de « À faire », même titre et même verbe qu'elle pour le même geste) ; tout « Ajouter … » est un
   `button.bouton-ajout` ; l'édition d'une donnée passe par des icônes (crayon, ✓, ×) ; seuls les
   formulaires gardent des boutons classiques.
+  **Barre latérale** (01/10) : pas de titres de section, des liens seulement ; « Outils » = page à grosses
+  icônes (`OUTILS_PAGE`, `renderPageOutils`) — tout nouvel outil y est ajouté ET dans le tiroir
+  (`#sidebar-sousmenu-outils`, ouvert par le + `#sidebar-groupe-outils`) ; compteurs en carré arrondi rouge.
 - **Nom d'un dossier cité (étude, 30/09)** : partout (écrans, cartes, toasts, journaux, Teams), toujours
   par `libelleDossierAffiche(d)` — « VTE - NOM », « SUCC - NOM » pour une succession — ou
   `libelleDossierParNom(nom, id)` quand seul le nom a été gardé ; jamais `d.nom` brut à l'écran.
@@ -462,19 +488,32 @@ Plainte principale de l'étude : **le bruit**, pas les oublis — ne pas élargi
   `ajusterWidgets` les remplit par priorité (N petit d'abord) jusqu'à la hauteur de la tuile, avec
   « Voir N de plus » ; une carte qui a de la place reçoit du contenu d'appoint (à venir, prochaines
   signatures, pièces encore attendues…), pas un blanc. « Personnaliser » (ou appui long sur un titre) :
-  glisser-déposer au pointeur, largeur et hauteur, masquer. Disposition par collaborateur : préférence
+  glisser-déposer au pointeur, largeur et hauteur, retirer (×). **Widget Agenda** (01/10) = l'agenda partagé de l'office (stock `agenda-office`, `chargerAgendaWidget`,
+  + `signaturesHorsAgenda`), lignes `lignesEvenementsAgendaJour` ; un clic ouvre la page Agenda au rendez-vous
+  (`ouvrirEvenementDepuisWidgetAgenda`). **« Widgets »** (01/10) : liste de tous les widgets
+  (`lignesGalerieWidgets`, `#widgets-overlay`), Retirer / Ajouter — retirer = `masque`, taille gardée ; tout nouveau
+  widget de `WIDGETS_DASHBOARD` porte `icone` et `description`. Disposition par collaborateur : préférence
   `widgets` en base (liste blanche `WIDGETS_PREFERENCES` côté serveur, `WIDGETS_DASHBOARD` côté
   client — à modifier ensemble). Un nouveau bloc du tableau de bord = un nouveau widget. Disposition
   par défaut = rectangle plein (4 × 4, 2 × 8 sur téléphone, vérifié par `placementWidgets` dans les
   tests), les plus utiles d'abord ; la changer = incrémenter `VERSION_DISPOSITION_WIDGETS` (chaque
   collaborateur y est ramené une fois).
+  **Widget « Statistiques »** (étude, 02/10, `renderStatistiquesDashboard`, grand × 1 rangée en fin de grille) : délais
+  moyens depuis l'ouverture (`dateOuvertureDossier` = entrée « Dossier créé ») jusqu'au prêt (`dateObtentionPret`,
+  historique), à la renonciation de préemption (`dateRenonciationPreemption` : `piecesTrouveesLe` puis historique) et
+  à la signature passée — `statistiquesDelaisDossiers`, **tous les dossiers de l'étude, archivés compris, sans fenêtre de dates ni périmètre** (étude 02/10), moyenne/médiane/n ; dossiers ouverts ce mois / mois
+  précédent / même mois N-1 (`comparaisonDossiersOuverts`, « — » avant le premier dossier noté), sur le périmètre du tableau de
+  bord (mes dossiers / tous).
+- **Fond grisé d'une fenêtre** (02/10) : il ne ferme que par `clicSurFond(event)` (appui ET clic sur le fond) — sinon une sélection de texte relâchée hors de la fiche la fermait.
 - **Texte d'aide** : ne décrit pas ce que le bouton dit déjà ; il dit ce qui manque. Une toute
   nouvelle confirmation commence par son verbe d'action (`boutonConfirmation`). **Une explication
   n'est jamais un paragraphe** (étude, 29/09 : « ça charge trop l'interface ») : elle va dans une
   pastille « i » à côté du titre ou du libellé (`infoBulle(texte)` dans un gabarit, `<span
   class="info-i" tabindex="0" data-info="…">` en HTML, `definirInfoBulle` pour la changer). Restent
   en texte visible : un état, un résultat, une erreur, une liste vide. **Réglages** : rubriques à
-  gauche (`SOUS_ONGLETS_REGLAGES`), une colonne de lignes `.reglages-option` / `.reglages-champ`
+  gauche (`SOUS_ONGLETS_REGLAGES`, une par sujet depuis le 01/10 : Général, Collaborateurs, Signature des
+  emails, Rappels Teams, Agenda et Outlook, Téléphonie 3CX, Pièces et Claire Scan, Relecture d'actes,
+  Signalements, Mise à jour et sauvegarde ; chaque section qui enregistre a son propre bouton), une colonne de lignes `.reglages-option` / `.reglages-champ`
   dans des `.reglages-section` — pas de cartes en grille.
 - **Toute nouvelle fonction pure** : la déclarer `function` (ou `var` pour une table) pour la
   tester ; les fonctions qui touchent `dossiers`/le DOM se vérifient dans un vrai Chromium
@@ -534,7 +573,8 @@ Plainte principale de l'étude : **le bruit**, pas les oublis — ne pas élargi
   ouverts dans Outlook), la création d'un nouveau dossier depuis l'export Authentic (ZIP) ; puis la
   mise à jour en un clic (Réglages › Mise à jour), le démarrage automatique de CLAIRE au lancement du
   serveur, le lien vers une pièce ouvert depuis une notification Teams et l'icône de l'exe (nette).
-- **Non vérifié au bureau** : la forme réelle du `.ics` de la visio ADNOV (aucun exemple reçu) ; le sondage de créneaux (lecture réelle des réponses dans la boîte, boutons
+- **Non vérifié au bureau** : la forme réelle du `.ics` de la visio ADNOV (aucun exemple reçu) ; l'intégration
+  3CX (forme réelle de %CallerNumber%, fermeture de l'onglet ouvert par 3CX) ; le repli `SoftDelete` d'une suppression ; le sondage de créneaux (lecture réelle des réponses dans la boîte, boutons
   dans Outlook, options « Provisoire », page de réponse publiée — dépôt public à créer par l'étude) ; le détail des écritures EWS (déplacement et suppression d'un
   rendez-vous, note du Lieu, dates butoir en journée entière, noms exacts des catégories de couleur,
   reprise des dates butoir existantes au premier tour — une seule fois chacune) et de la lecture
@@ -554,6 +594,42 @@ Plainte principale de l'étude : **le bruit**, pas les oublis — ne pas élargi
   checklist et les emails devront dépendre d'un type d'affaire du dossier. L'import Authentic lit
   déjà tout export (personnes, parties et leurs qualités, documents) et reconnaît une succession :
   il restera à brancher la création d'un dossier de succession sur `lireExportAuthentic`.
+- **Extension Firefox « CLAIRE pour Authentic »** (01/10, `extension-firefox/`, Authentic s'ouvre dans Firefox) :
+  transport en place — relevé de la page (champs/libellés/rubriques, tableaux avec en-têtes `<th>`, texte ;
+  jamais mot de passe ni champ caché), `POST /api/authentic/capture` (mémoire seule, 30 min, 20 au plus, JSON
+  obligatoire), CLAIRE ouvre `#authentic=<id>` et affiche la page. **Reprise dans une fiche pas encore
+  branchée** : attendre la structure réelle copiée par « Copier la structure (sans données) »
+  (`structureCaptureAuthentic` : libellés masqués par `masquerLibelleAuthentic`, valeurs réduites à leur type par
+  `masquerValeurAuthentic`), puis mapper vers les champs du dossier comme `completerExtractionDepuisAuthentic`.
+  Non vérifié dans un vrai Firefox ni sur Authentic (relevé testé dans Chromium sur une page inventée) ;
+  installation durable = signature Mozilla « unlisted » ou stratégie d'entreprise ; non géré si `authActive`.
+  Demander à Fichorga si une API existe. **Branché le 02/10 (extension 0.3.0)** : relevé **automatique à
+  l'affichage** sur `www.cloud-fichorga.fr` (`auto.js`, page stable 2,5 s, envoi seulement si changée, désactivable)
+  → `POST /api/authentic/releve` (mémoire seule : file prise par UNE fenêtre via `releves/prendre`, et relevés
+  récents 60 min via `releves/recents`). Pages reconnues par leur structure réelle (`typePageAuthentic`) :
+  **gestion du dossier** (intitulé « N - Vente VENDEUR/ACQUÉREUR », tableaux intitulé/date/état —
+  `lignesDocumentsAuthentic`) → dossier retrouvé par les deux noms (`dossierPourIntituleAuthentic`, jamais deviné ; « consort(s) » devant un nom ignoré, étude 02/10)
+  → pièces cochées « dans Authentic » (`piecesRecuesAuthentic` : même reconnaissance par le nom que l'export ZIP ;
+  **pages : seuls l'état civil, les casiers judiciaires (`RE_CASIER_AUTHENTIC`) et la SAFER**, reçus dans Authentic — le
+  reste arrive par email/courrier, la page n'en montre que les demandes (étude 02/10) ; **export ZIP d'une vente : jamais
+  les pièces d'urbanisme** (`pieceUrbanismeIgnoreeAuthentic`) ; « signé le … » sur la page = acte signé (`etatActeAuthentic`,
+  hors avant-contrat/procuration/mandat/courrier) **et marqué fait** : au passage à « signé », `echeancesValidees` de
+  ventebien, pret, appelFonds, projetEnvoye, rendezVousSignature, acte (une fois, annulable ; butoirs retirés de l'agenda) ;
+  demande/envoi/en attente exclus ; acte d'état civil et **« Réponse SAFER »** de non-préemption ajoutés comme
+  pièces — jamais la DIA/DPU de la commune), une fois par pièce (`d.piecesAuthentic`), jamais en participation ;
+  **fiche client** (`clientDepuisFicheAuthentic`) et **fiche bien** (`bienDepuisFicheAuthentic`, cadastre) →
+  « Nouveau dossier » › « Depuis Authentic » (`dossiersDepuisRelevesAuthentic` au format de l'export ZIP, rôles
+  par l'intitulé, `creerDepuisAuthentic` ; complète un avant-contrat déjà déposé). Notaires et agence : pas encore
+  relevés (page non fournie). Cellules copiées en **vocabulaire** (`vocabulaireCelluleAuthentic`). **Deuxième passe (02/10, `appliquerReleveSurDossier`)** :
+  SAFER notifiée sans réponse → « Réponse SAFER » **manquante** (une fois, `saferPieceAjoutee`) avec notifiée / prise en
+  compte le ; RHF envoyée / retour ; état de l'acte ; prix « Capital » (rempli s'il manque) ; collaborateur et notaire des
+  « Parties prenantes » — gardés dans `d.authentic`, bloc « Dans Authentic » de l'onglet Pièces ; fiche client →
+  téléphone/email manquants et situation matrimoniale, alerte si un vendeur marié/pacsé vend sans son conjoint ;
+  livret de famille et décès seulement en succession. « Informations financières » et « Parties prenantes » (sous les
+  vendeurs/acquéreurs de la page de gestion) s'affichent en **texte seul** : lus dans `capture.texte` (« Capital » puis le
+  montant ; lignes après « Parties prenantes »), la copie de structure y ajoute le texte réduit à son vocabulaire
+  (`texteVocabulaireAuthentic`, `VOCABULAIRE_AUTHENTIC`, test « aucun nom ne sort ») ; « Retour le » = prise en compte
+  SAFER / retour RHF (étude, 02/10).
 - **Arborescence type des dossiers clients sur le NAS** (MAISON, COPRO, TERRAIN, SUCC, CESSION DE
   FONDS) : détaillée dans `docs/historique.md` (fin du fichier). L'avant-contrat signé est à la
   racine du dossier client ou sous « SRU » ; la rubrique « AAE » contient les pièces réunies entre

@@ -1,0 +1,58 @@
+{
+  "manifest_version": 2,
+  "name": "CLAIRE pour Authentic",
+  "version": "0.3.2",
+  "description": "Relève les pages d'Authentic pour CLAIRE (pièces reçues, création de dossier), sur le réseau de l'office.",
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "claire-authentic@etude-gossart.local",
+      "strict_min_version": "128.0",
+      "data_collection_permissions": {
+        "required": [
+          "websiteContent"
+        ]
+      }
+    },
+    "gecko_android": {
+      "strict_min_version": "142.0"
+    }
+  },
+  "icons": {
+    "48": "icone.svg",
+    "96": "icone.svg"
+  },
+  "permissions": [
+    "activeTab",
+    "storage"
+  ],
+  "optional_permissions": [
+    "http://*/*",
+    "https://*/*"
+  ],
+  "browser_action": {
+    "default_title": "Envoyer à CLAIRE",
+    "default_icon": "icone.svg"
+  },
+  "background": {
+    "scripts": [
+      "fond.js"
+    ]
+  },
+  "options_ui": {
+    "page": "options.html",
+    "browser_style": false
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.cloud-fichorga.fr/*"
+      ],
+      "js": [
+        "releve.js",
+        "auto.js"
+      ],
+      "all_frames": true,
+      "run_at": "document_idle"
+    }
+  ]
+}

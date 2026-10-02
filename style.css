@@ -806,15 +806,16 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-width: 18px;
-    height: 18px;
-    padding: 0 5px;
-    border-radius: 999px;
+    min-width: 24px;
+    height: 22px;
+    padding: 0 6px;
+    border-radius: 7px;
     background: var(--notif-nouveau);
     color: var(--on-accent);
-    font-size: 11px;
+    font-size: 11.5px;
     font-weight: 700;
     line-height: 1;
+    font-variant-numeric: tabular-nums;
   }
   /* Barre repliée (le nombre est masqué) et bouton du menu sur téléphone : un point de la même
      couleur signale qu'une pastille est allumée (majBadgeScans / majPastilleMenuMobile). */
@@ -851,8 +852,9 @@
   .sidebar-scan-icone { display: inline-flex; font-size: 20px; }
   .sidebar-scan-pastille {
     position: absolute; top: -7px; right: -8px; display: inline-flex; align-items: center; justify-content: center;
-    min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; background: var(--notif-nouveau);
+    min-width: 22px; height: 20px; padding: 0 5px; border-radius: 6px; background: var(--notif-nouveau);
     color: var(--on-accent); font-size: 11px; font-weight: 700; line-height: 1; box-shadow: 0 0 0 2px var(--sidebar-bg);
+    font-variant-numeric: tabular-nums;
   }
   .sidebar-burger, .sidebar-scrim { display: none; }
 
@@ -2823,6 +2825,25 @@
     font-weight: 700;
   }
   .analyse-engagement-ligne:first-child { border-top: none; }
+  /* Fiche enregistrée (02/10) : une case « réalisé / reçu » remplace la coche décorative. */
+  .analyse-engagement-ligne.avec-case { align-items: flex-start; }
+  .analyse-engagement-ligne.avec-case::before { content: none; }
+  .analyse-case { margin-top: 2px; }
+  .analyse-engagement-ligne.avec-case .analyse-engagement-texte { flex: 1; min-width: 0; }
+  .analyse-engagement-ligne.fait .piece-case, .analyse-doc-ligne.recu .piece-case { background: var(--success); border-color: var(--success); }
+  .analyse-engagement-ligne.fait .analyse-engagement-texte, .analyse-doc-ligne.recu .analyse-doc-nom { color: var(--muted); }
+  .analyse-engagement-ligne .piece-tag { white-space: nowrap; align-self: flex-start; margin-top: 2px; }
+  .analyse-documents-cases { display: flex; flex-direction: column; }
+  .analyse-doc-ligne { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-top: 1px solid var(--line-soft); font-size: 13px; color: var(--ink); }
+  .analyse-doc-ligne:first-child { border-top: none; }
+  .analyse-doc-ligne .analyse-case { margin-top: 0; }
+  .analyse-doc-nom { flex: 1; min-width: 0; }
+  .analyse-doc-ligne .analyse-doc-suppr { margin-left: auto; }
+  /* Téléphone : case, type et outils sur une ligne, le texte de l'engagement en pleine largeur dessous. */
+  @media (max-width: 600px) {
+    .analyse-engagement-ligne.avec-case { flex-wrap: wrap; row-gap: 4px; }
+    .analyse-engagement-ligne.avec-case .analyse-engagement-texte { flex: 1 1 100%; order: 10; padding-left: 25px; }
+  }
 
   /* Édition d'un engagement (voir activerEditionEngagement() dans script.js) : pas de puce
      "✓" devant un formulaire, contrairement à la ligne de lecture. */
@@ -3170,6 +3191,10 @@
     .dash-header-actions { flex-direction: column; align-items: stretch; width: 100%; }
     .dash-recherche { width: 100%; flex: none; max-width: none; }
     .dash-header-nouveau { width: 100%; }
+    .dash-header-actions .ag-recherche { width: 100%; flex: 1 1 auto; }
+    #onglet-agenda .dash-header-actions { flex-wrap: wrap; }
+    .ag-creation, .ag-creation .ag-ajout-double { width: 100%; }
+    .ag-creation .ag-ajout-double button.primary.ag-ajout { flex: 1 1 0; justify-content: center; }
   }
 
   .toolbar-btn {
@@ -3425,6 +3450,15 @@
   /* Même taille que .echeance-jours (12px) sur la même ligne — demandé par l'étude, le nom du
      responsable ressortait visuellement plus gros que les dates à côté. */
   .ligne-resume .dossier-responsable-tableau { color: var(--ink-soft); font-size: 12px; }
+  /* Responsable = initiales dans une pastille ronde (étude, 01/10). */
+  .pastille-collab {
+    display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 50%;
+    background: var(--paper-sunk); border: 1px solid var(--line); color: var(--ink); font-size: 11.5px; font-weight: 700;
+    letter-spacing: 0.02em; font-variant-numeric: tabular-nums; flex: none;
+  }
+  .suivi-principal .dossiers-table .ligne-resume .etape-cellule .dot-label,
+  .suivi-principal .dossiers-table .ligne-resume .echeance-jours { white-space: normal; }
+  .suivi-principal .dossiers-table .ligne-resume .echeance-jours { margin-left: 0; }
 
   .th-triable { cursor: pointer; }
   .th-triable:hover { color: var(--ink-soft); }
@@ -3473,6 +3507,8 @@
   .echeance-jours { font-size: 12px; margin-left: 6px; font-variant-numeric: tabular-nums; }
   .echeance-jours.urgent { color: var(--urgent); font-weight: 600; }
   .echeance-jours.calme { color: var(--ink-soft); }
+  /* Signature d'un dossier complet ou prêt (étude, 02/10). */
+  .echeance-jours.signature-ok { color: var(--success); font-weight: 600; }
 
   /* Ligne dont la fiche est ouverte dans le tiroir : un liseré d'accent à gauche relie le tiroir
      à la ligne d'où il vient, seul repère qui subsiste puisque la ligne ne se déplie plus.
@@ -3795,6 +3831,16 @@
   .fiche-carte-titre { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
   .fiche-lien { font-family: inherit; font-size: 12px; color: var(--focus); background: none; border: none; padding: 0; cursor: pointer; }
   .fiche-lien:hover { text-decoration: underline; text-underline-offset: 2px; }
+  /* Fiche agrandie : dernières pièces reçues (02/10), une ligne par pièce, la plus récente d'abord. */
+  .fiche-pieces-recues { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+  .fiche-pieces-recues li + li { border-top: 1px solid var(--line-soft); }
+  button.fiche-piece-recue { display: grid; grid-template-columns: 7px minmax(0, 1fr) auto; align-items: center; gap: 8px; width: 100%; margin: 0; padding: 6px 2px; border: 0; background: none; font: inherit; text-align: left; color: var(--ink); cursor: pointer; box-shadow: none; border-radius: 6px; }
+  button.fiche-piece-recue:hover .fiche-piece-nom { text-decoration: underline; text-underline-offset: 2px; }
+  button.fiche-piece-recue:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+  .fiche-piece-point { width: 7px; height: 7px; border-radius: 50%; background: var(--success); }
+  .fiche-piece-recue.nouvelle .fiche-piece-point { background: var(--notif-nouveau); }
+  .fiche-piece-nom { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .fiche-piece-meta { font-size: 11.5px; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
   .fiche-barre-pct { height: 6px; border-radius: 3px; background: var(--line-soft); overflow: hidden; }
   .fiche-barre-pct > span { display: block; height: 100%; background: var(--success); border-radius: 3px; }
   .fiche-etapes { list-style: none; margin: 12px 0 0; padding: 0; }
@@ -4996,6 +5042,9 @@ table.af-table .af-verif-ecart { background: #f6e3c9; color: #8a5417; }
 .reglages-champ-pile { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .reglages-champ-ligne { display: flex; gap: 8px; align-items: center; }
 .reglages-champ-ligne input { flex: 1; min-width: 0; }
+/* Téléphonie 3CX : état du poste sous le nom du collaborateur (fenêtre CLAIRE, dernière sonnerie). */
+.reglages-champ-libelle:has(.reglages-3cx-etat) { flex-direction: column; align-items: flex-start; gap: 4px; }
+.reglages-3cx-etat { display: flex; flex-direction: column; gap: 2px; font-size: 12px; font-weight: 400; }
 .reglages-champ-pile .hint:empty { display: none; }
 .reglages-champ-pile .hint { margin: 0; }
 .reglages-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding-top: 14px; }
@@ -7065,67 +7114,73 @@ button.scan-nom:focus-visible { outline: 2px solid var(--focus); outline-offset:
 .scan-statut { display: flex; align-items: center; gap: 4px 12px; flex-wrap: wrap; }
 .scan-score { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
 
-/* ---- Suivi des dossiers (30/09) : « Prévu en … » au-dessus de la liste, statuts en pastilles ----
-   Quatre cartes (signatures, envois, rendez-vous à fixer, dates butoir) listant les dossiers du mois ;
-   les cartes vides passent en dernier, sur une ligne. Aucune couleur de donnée : le retard seul
-   prend le rouge du statut « Urgent » (.dot-label). */
+/* ---- Suivi des dossiers : colonne de gauche (étude, 01/10), statuts en pastilles ----
+   Colonne de 300 px, collante, comme celle de l'agenda : le mois en cours en quatre compteurs
+   (à signer, à placer, ventes, successions — chacun filtre la liste), puis les dernières pièces
+   rattachées sur le commun. Aucune couleur de donnée : seule une date butoir dépassée prend le rouge. */
 .suivi-compte { font-size: 14px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.suivi-corps { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 20px; align-items: start; }
+.suivi-corps > * { min-width: 0; }
+.suivi-corps:has(.suivi-stats:empty) { grid-template-columns: minmax(0, 1fr); }
+.suivi-cote { position: sticky; top: 16px; }
+/* À droite de la colonne, la place se resserre : filtres sur deux lignes au besoin, colonnes fixes du
+   tableau plus étroites pour laisser le nom du dossier sur une ligne. */
+.suivi-principal .suivi-barre-filtres { flex-wrap: wrap; }
+.suivi-principal .col-echeance-date { width: 146px; }
+.suivi-principal .col-echeance-type { width: 162px; }
+.suivi-principal .col-echeance-statut { width: 124px; }
+.suivi-principal .col-echeance-resp { width: 72px; }
 .suivi-stats:empty { display: none; }
-.suivi-stats { display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px; }
-.suivi-stats.repliee { margin-bottom: 8px; }
-.suivi-stats button.st-replier { margin: 0 0 0 auto; display: inline-flex; align-items: center; gap: 4px; padding: 2px 4px; border: 0; background: none; color: var(--muted); font: inherit; font-size: 12.5px; cursor: pointer; box-shadow: none; }
-.suivi-stats button.st-replier:hover { color: var(--ink); }
-/* Un seul bloc compact (étude, 30/09 : « plus compact, moins haut ») : une ligne d'en-tête (mois,
-   compteurs-filtres, délais), puis « À faire » et « Au calendrier » côte à côte, lignes serrées,
-   défilement interne. Couleurs = celles des échéances de la liste. */
-.pv-bloc { background: var(--paper-card); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
-.pv-tete { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 14px; padding: 10px 14px; }
-.suivi-stats:not(.repliee) .pv-tete { border-bottom: 1px solid var(--line-soft); }
-.pv-mois { margin: 0; font-size: 14.5px; font-weight: 650; color: var(--ink); white-space: nowrap; }
-.pv-compteurs { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; }
-.suivi-stats button.pv-compteur { display: inline-flex; align-items: center; gap: 5px; margin: 0; padding: 3px 9px 3px 7px; border: 1px solid var(--line); border-radius: 999px; background: var(--paper-card); font: inherit; font-size: 12.5px; color: var(--ink-soft); cursor: pointer; box-shadow: none; }
-.suivi-stats button.pv-compteur strong { color: var(--ink); font-weight: 650; font-variant-numeric: tabular-nums; }
-.suivi-stats button.pv-compteur:hover { border-color: var(--ink-soft); }
-.suivi-stats button.pv-compteur.actif { border-color: var(--focus); background: color-mix(in srgb, var(--focus) 10%, var(--paper-card)); color: var(--ink); }
-.suivi-stats button.pv-compteur.vide { opacity: 0.55; }
-.pv-compteur .dot-label { gap: 0; }
-.pv-retards { font-size: 12px; font-weight: 500; color: var(--urgent); padding-left: 2px; }
-.pv-delais { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: var(--muted); white-space: nowrap; }
-.pv-delais strong { color: var(--ink-soft); font-weight: 600; font-variant-numeric: tabular-nums; }
-.suivi-stats button.st-replier { margin: 0 0 0 auto; display: inline-flex; align-items: center; gap: 4px; padding: 2px 4px; border: 0; background: none; color: var(--muted); font: inherit; font-size: 12.5px; cursor: pointer; box-shadow: none; }
-.suivi-stats button.st-replier:hover { color: var(--ink); }
-.pv-corps { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.pv-corps > * { min-width: 0; }
-.pv-colonne { padding: 6px 8px 8px; }
-.pv-colonne + .pv-colonne { border-left: 1px solid var(--line-soft); }
-.pv-groupe-titre { padding: 2px 6px 4px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
-.pv-defile { max-height: 172px; overflow-y: auto; }
-.suivi-stats button.pv-ligne { display: grid; grid-template-columns: 78px 150px minmax(0, 1fr); align-items: center; gap: 8px; width: 100%; margin: 0; padding: 4px 6px; border: 0; border-radius: 6px; background: transparent; font: inherit; text-align: left; color: var(--ink); cursor: pointer; box-shadow: none; }
-.suivi-stats button.pv-ligne:hover { background: color-mix(in srgb, var(--ink) 5%, transparent); }
-.suivi-stats button.pv-ligne:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
-.suivi-stats button.pv-ligne.passe { opacity: 0.55; }
-.pv-quand { font-size: 12px; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
-.pv-quand.pv-retard { color: var(--urgent); font-weight: 500; }
-.pv-quand.pv-jour { color: var(--ink-soft); font-weight: 600; text-transform: capitalize; }
-.pv-jour-groupe.aujourdhui .pv-quand.pv-jour { color: var(--focus); }
-.pv-jour-groupe + .pv-jour-groupe { border-top: 1px solid var(--line-soft); }
-.pv-type { font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.pv-nom { font-size: 13px; font-weight: 550; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.pv-rien { margin: 4px 6px; font-size: 12.5px; color: var(--muted); }
-.suivi-stats.repliee { margin-bottom: 8px; }
+.suivi-stats { display: flex; flex-direction: column; gap: 12px; }
+.sm-bloc { background: var(--paper-card); border: 1px solid var(--line); border-radius: 12px; padding: 12px; }
+.sm-titre { display: flex; align-items: center; gap: 6px; margin: 0 0 10px; padding: 0 2px; font-size: 14.5px; font-weight: 650; color: var(--ink); }
+.sm-titre button.sm-effacer { margin: 0 0 0 auto; padding: 0; border: 0; background: none; box-shadow: none; font: inherit; font-size: 12.5px; font-weight: 500; color: var(--focus); cursor: pointer; }
+.sm-titre button.sm-effacer:hover { text-decoration: underline; }
+.sm-tuiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.sm-tuiles button.sm-tuile { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; min-width: 0; margin: 0; padding: 9px 10px 8px; border: 1px solid var(--line); border-radius: 10px; background: var(--paper-sunk); font: inherit; text-align: left; color: var(--ink); cursor: pointer; box-shadow: none; }
+.sm-tuiles button.sm-tuile:hover { border-color: var(--ink-soft); }
+.sm-tuiles button.sm-tuile:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.sm-tuiles button.sm-tuile.actif { border-color: var(--focus); background: color-mix(in srgb, var(--focus) 10%, var(--paper-card)); }
+.sm-tuiles button.sm-tuile.vide .sm-n { color: var(--muted); }
+.sm-n { font-size: 24px; line-height: 1.1; font-weight: 650; font-variant-numeric: tabular-nums; }
+.sm-lib { font-size: 13px; font-weight: 600; color: var(--ink-soft); }
+.sm-sous { max-width: 100%; font-size: 11.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sm-sous.alerte { color: var(--urgent); font-weight: 500; }
+.sm-pieces { display: flex; flex-direction: column; max-height: 232px; overflow-y: auto; margin: 0 -4px; }
+.sm-pieces button.sm-piece { display: grid; grid-template-columns: 8px minmax(0, 1fr) auto; align-items: start; gap: 8px; width: 100%; margin: 0; padding: 6px 6px; border: 0; border-radius: 6px; background: transparent; font: inherit; text-align: left; color: var(--ink); cursor: pointer; box-shadow: none; }
+.sm-pieces button.sm-piece + button.sm-piece { border-top: 1px solid var(--line-soft); border-radius: 0; }
+.sm-pieces button.sm-piece:hover { background: color-mix(in srgb, var(--ink) 5%, transparent); }
+.sm-pieces button.sm-piece:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.sm-piece-point { width: 7px; height: 7px; margin-top: 6px; border-radius: 50%; background: var(--line); }
+.sm-piece.nouvelle .sm-piece-point { background: var(--notif-nouveau); }
+.sm-piece-texte { display: flex; flex-direction: column; min-width: 0; }
+.sm-piece-titre { font-size: 13px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sm-piece-dossier { font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sm-piece-date { padding-top: 1px; font-size: 12px; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.sm-rien { margin: 0 2px; font-size: 12.5px; color: var(--muted); }
+/* Carré « Activité de l'étude » (01/10) : le résumé du widget du tableau de bord (actions du jour,
+   barres des 7 jours, qui a agi), puis le fil qui défile dans le carré. */
+.sm-activite .sm-titre { margin-bottom: 4px; }
+.sm-activite .act-resume { margin: 0; padding: 10px; gap: 10px 12px; }
+.sm-activite-fil { max-height: 196px; overflow-y: auto; margin: 6px -4px 0; }
+.sm-activite-fil .activite-vide { margin: 8px 4px 2px; }
+.sm-activite .activite-ligne { align-items: start; }
+.sm-activite .activite-texte { white-space: normal; line-height: 1.35; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; }
+.sm-activite .activite-quand { padding-top: 2px; }
 @media (max-width: 1100px) {
-  .suivi-stats button.pv-ligne { grid-template-columns: 86px 124px minmax(0, 1fr); gap: 6px; }
+  .suivi-corps { grid-template-columns: minmax(0, 1fr); }
+  .suivi-cote { position: static; }
+  .suivi-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
+  .sm-pieces { max-height: 200px; }
+}
+@media (max-width: 700px) {
+  .suivi-stats { grid-template-columns: minmax(0, 1fr); }
+  .sm-tuiles { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .sm-tuiles button.sm-tuile { padding: 7px 8px; }
+  .sm-n { font-size: 20px; }
 }
 @media (max-width: 480px) {
-  .suivi-stats button.pv-ligne { grid-template-columns: 76px 118px minmax(0, 1fr); gap: 6px; padding: 4px 2px; }
-  .pv-quand, .pv-type { font-size: 11.5px; }
-  .pv-nom { font-size: 12.5px; }
-  .pv-defile { max-height: 150px; }
-}
-@media (max-width: 760px) {
-  .pv-corps { grid-template-columns: minmax(0, 1fr); }
-  .pv-colonne + .pv-colonne { border-left: 0; border-top: 1px solid var(--line-soft); }
-  .pv-delais { white-space: normal; }
+  .sm-tuiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 /* Statuts en pastilles (barre d'outils). */
 .suivi-statuts { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -7179,7 +7234,6 @@ button.scan-nom:focus-visible { outline: 2px solid var(--focus); outline-offset:
 
 /* ---- Suivi : « À voir en premier » (30/09) — les dossiers avec du nouveau, en tête de liste ---- */
 .a-voir-table { table-layout: fixed; }
-.col-a-voir-echeance { width: 210px; }
 .a-voir .section-eyebrow { color: var(--notif-nouveau, var(--urgent)); display: inline-flex; align-items: center; gap: 6px; }
 .a-voir-signaux { display: flex; flex-wrap: wrap; gap: 2px 14px; margin-top: 4px; }
 .a-voir-table td .dot-label { white-space: normal; line-height: 1.3; }
@@ -7245,6 +7299,13 @@ button.scan-nom:focus-visible { outline: 2px solid var(--focus); outline-offset:
 .ajd-autre { --ag-teinte: var(--ventebien); }
 .ag-page { background: var(--paper-card); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow-card); overflow: hidden; }
 .ag-tete-page { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 14px; padding: 16px 18px; border-bottom: 1px solid var(--line); }
+/* Mot du jour (étude, 01/10, d'après « Wed. » puis « en français, pas de fond de couleur ») : « Jeudi »
+   en gros caractères, couleur du texte, point final orange. */
+.ag-pastille-jour {
+  flex: none; display: inline-flex; align-items: baseline; color: var(--ink); font-size: 30px; font-weight: 800;
+  letter-spacing: -0.02em; line-height: 1;
+}
+.ag-pastille-jour i { width: 8px; height: 8px; margin-left: 3px; border-radius: 50%; background: var(--cat-orange); flex: none; }
 .ag-pastille-date {
   width: 54px; flex: none; border-radius: 10px; overflow: hidden; border: 1px solid var(--line); background: var(--paper-card);
   display: flex; flex-direction: column; align-items: center; box-shadow: 0 1px 2px rgba(20, 26, 38, 0.08);
@@ -7254,6 +7315,56 @@ button.scan-nom:focus-visible { outline: 2px solid var(--focus); outline-offset:
 .ag-titre-bloc { flex: 1 1 240px; min-width: 0; }
 .ag-titre { margin: 0; font-size: 20px; font-weight: 700; letter-spacing: -0.01em; color: var(--ink); }
 .ag-sous { display: block; margin-top: 2px; font-size: 12.5px; color: var(--muted); }
+/* « Actualiser » en icône à côté de « Agenda de l'office lu … » (étude, 01/10). */
+button.ag-actualiser {
+  display: inline-flex; align-items: center; justify-content: center; vertical-align: middle; width: 22px; height: 22px; padding: 0; margin-left: 2px;
+  border: none; border-radius: 6px; background: none; color: var(--muted); cursor: pointer;
+}
+button.ag-actualiser:hover { background: var(--paper-sunk); color: var(--ink); }
+button.ag-actualiser svg { width: 13px; height: 13px; }
+button.ag-actualiser.en-cours svg { animation: ag-tourne 0.9s linear infinite; }
+@keyframes ag-tourne { to { transform: rotate(-360deg); } }
+@media (prefers-reduced-motion: reduce) { button.ag-actualiser.en-cours svg { animation: none; opacity: 0.5; } }
+/* Recherche d'un dossier dans l'en-tête de la page Agenda, à la place du bouton « Actualiser » — le même
+   champ que celui du Suivi (étude, 01/10 : « un champ comme sur Suivi ») : 42 px, loupe, ombre légère. */
+#onglet-agenda .dash-header-actions { flex: 1 1 340px; justify-content: flex-end; flex-wrap: nowrap; }
+.ag-creation { flex: none; }
+.ag-creation button.primary.ag-ajout { height: 42px; }
+.ag-recherche { position: relative; flex: 0 1 460px; min-width: 0; display: flex; }
+.ag-recherche .suivi-recherche-icone svg { width: 17px; height: 17px; }
+.ag-recherche input[type="search"]#agenda-recherche {
+  width: 100%; max-width: none; box-sizing: border-box; height: 42px; padding: 0 14px 0 38px;
+  font-family: inherit; font-size: 15px; color: var(--ink);
+  background: var(--paper-card); border: 1px solid var(--line); border-radius: 10px;
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--ink) 6%, transparent);
+}
+.ag-recherche input[type="search"]#agenda-recherche::placeholder { color: var(--muted); }
+.ag-recherche input[type="search"]#agenda-recherche:focus { outline: none; border-color: var(--focus); box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus) 18%, transparent); }
+.ag-recherche-resultats {
+  display: none; position: absolute; top: calc(100% + 6px); right: 0; width: max(100%, 320px); max-width: calc(100vw - 32px); z-index: 40;
+  background: var(--paper-card); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow-card); max-height: 320px; overflow-y: auto;
+}
+.ag-recherche-ligne { display: flex; align-items: center; border-bottom: 1px solid var(--line); }
+button.ag-recherche-aller {
+  flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 1px; font-family: inherit; text-align: left;
+  background: none; border: none; padding: 8px 6px 8px 12px; cursor: pointer; color: var(--ink);
+}
+/* Icône « fiche » au bout de la ligne (étude, 01/10) : ouvre la fiche sans passer par l'agenda. */
+button.ag-recherche-fiche {
+  flex: none; display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; margin-right: 8px;
+  border: 1px solid transparent; border-radius: 8px; background: none; color: var(--muted); cursor: pointer;
+}
+button.ag-recherche-fiche:hover { color: var(--ink); background: var(--paper-card); border-color: var(--line); }
+button.ag-recherche-fiche svg { width: 16px; height: 16px; }
+.ag-filtre { color: var(--ink); font-weight: 600; }
+.ag-filtre .lien-bouton { font-weight: 500; font-size: inherit; margin-left: 4px; }
+.ag-recherche-ligne:last-child { border-bottom: none; }
+.ag-recherche-ligne:hover, .ag-recherche-ligne.actif { background: var(--paper-sunk); }
+.ag-recherche-nom { font-size: 13.5px; font-weight: 600; }
+.ag-recherche-archive { font-size: 11.5px; font-weight: 500; color: var(--muted); }
+.ag-recherche-quand { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.ag-recherche-vide { padding: 12px; font-size: 13px; color: var(--muted); }
+
 .ag-nav { display: inline-flex; align-items: stretch; border: 1px solid var(--line); border-radius: 9px; overflow: hidden; }
 .ag-nav-btn {
   font-family: inherit; font-size: 13px; font-weight: 600; color: var(--ink); background: var(--paper-card); border: none; border-left: 1px solid var(--line);
@@ -7269,6 +7380,12 @@ button.scan-nom:focus-visible { outline: 2px solid var(--focus); outline-offset:
 }
 button.primary.ag-ajout { display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 14px; border-radius: 9px; font-size: 13px; }
 button.primary.ag-ajout svg { width: 14px; height: 14px; }
+/* Bouton double (étude, 01/10) : moitié « Nouveau rendez-vous », moitié « Proposer des dates », un seul
+   bloc à la couleur des boutons principaux, séparé par un filet clair. */
+.ag-ajout-double { display: inline-flex; align-items: stretch; border-radius: 9px; overflow: hidden; }
+.ag-ajout-double button.primary.ag-ajout { border-radius: 0; margin: 0; white-space: nowrap; }
+@media (max-width: 480px) { .ag-ajout-double button.primary.ag-ajout { padding: 0 10px; gap: 5px; font-size: 12.5px; } }
+.ag-ajout-double button.primary.ag-ajout-dates { border-left: 1px solid color-mix(in srgb, var(--paper-card) 45%, transparent); }
 .ag-page-corps { display: grid; grid-template-columns: 300px minmax(0, 1fr); align-items: start; }
 .ag-page-corps > * { min-width: 0; }
 .ag-cote { border-right: 1px solid var(--line); padding: 14px 16px 18px; display: flex; flex-direction: column; gap: 16px; }
@@ -7444,15 +7561,16 @@ body.ag-redim-en-cours, body.ag-redim-en-cours * { cursor: ns-resize !important;
 .ag-mois-jsem { font-size: 11.5px; font-weight: 600; color: var(--ink-soft); text-align: center; padding-bottom: 4px; }
 .ag-mois-jour {
   font-family: inherit; font-size: 13px; color: var(--ink); background: none; border: none; border-radius: 999px; cursor: pointer;
-  height: 36px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; font-variant-numeric: tabular-nums; padding: 0;
+  height: 36px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; font-variant-numeric: tabular-nums; padding: 0;
 }
-.ag-mois-n { width: 28px; height: 28px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; }
+/* Rond du jour (26 px) et point des rendez-vous dessous, 3 px plus bas : le point ne touche jamais le rond. */
+.ag-mois-n { width: 26px; height: 26px; flex: 0 0 auto; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; }
 .ag-mois-jour:hover .ag-mois-n { background: var(--paper-sunk); }
 .ag-mois-jour.hors-mois { color: var(--muted); }
 .ag-mois-jour.dans-semaine .ag-mois-n { background: var(--paper-sunk); }
 .ag-mois-jour.aujourdhui .ag-mois-n { box-shadow: inset 0 0 0 1.5px var(--focus); font-weight: 700; }
 .ag-mois-jour.choisi .ag-mois-n { background: var(--ink); color: var(--paper-card); font-weight: 700; box-shadow: none; }
-.ag-mois-points { height: 4px; display: flex; margin-top: -3px; }
+.ag-mois-points { height: 4px; flex: 0 0 auto; display: flex; }
 .ag-mois-points i { width: 4px; height: 4px; border-radius: 999px; background: var(--muted); }
 .ag-mois-points i.sig { background: var(--acte); }
 /* Détail d'un rendez-vous en fenêtre posée sur l'agenda, à côté du rendez-vous cliqué. */
@@ -7473,6 +7591,13 @@ body.ag-redim-en-cours, body.ag-redim-en-cours * { cursor: ns-resize !important;
 .ag-detail-ligne { display: flex; align-items: flex-start; gap: 8px; font-size: 12.5px; color: var(--ink-soft); }
 .ag-detail-ligne svg { width: 14px; height: 14px; flex: none; margin-top: 1px; color: var(--muted); }
 .ag-detail-ligne b { color: var(--ink); }
+/* Rappel de la date butoir d'une signature probable (02/10) : rose des dates butoir de l'agenda, rouge si dépassée. */
+.ag-detail-butoir { display: flex; align-items: flex-start; gap: 8px; margin-top: 8px; padding: 7px 10px; border-radius: 8px; font-size: 12.5px; color: var(--ink); background: color-mix(in srgb, var(--cat-rose) 12%, transparent); border-left: 3px solid var(--cat-rose); }
+.ag-detail-butoir svg { width: 14px; height: 14px; flex: none; margin-top: 1px; color: var(--cat-rose); }
+.ag-detail-butoir.depasse { background: color-mix(in srgb, var(--urgent) 12%, transparent); border-left-color: var(--urgent); }
+.ag-detail-butoir.depasse svg, .ag-detail-butoir.proche svg { color: var(--urgent); }
+.ag-detail-butoir.inconnue { background: var(--paper-sunk); border-left-color: var(--line); color: var(--ink-soft); }
+.ag-detail-butoir.inconnue svg { color: var(--muted); }
 .ag-detail-etats { display: flex; flex-wrap: wrap; gap: 4px 12px; padding: 2px 0; }
 .ag-detail-etats .ag-etat { font-size: 12px; }
 .ag-detail .ag-supprimer { align-self: flex-start; }
@@ -7518,6 +7643,9 @@ body.ag-redim-en-cours, body.ag-redim-en-cours * { cursor: ns-resize !important;
 .ag-modale-pied button.primary, .ag-modale-pied button.secondary { padding: 8px 14px; font-size: 13px; border-radius: 8px; }
 .ag-modale-pied-form { margin: 4px -20px -14px; }
 .ag-supprimer { color: var(--urgent); display: inline-flex; align-items: center; gap: 5px; }
+/* Suppression d'un rendez-vous (étude, 01/10) : une simple poubelle rouge à côté du crayon. */
+.ag-detail-outils button.icon-btn.ag-supprimer-ico { color: var(--urgent); }
+.ag-detail-outils button.icon-btn.ag-supprimer-ico:hover { color: var(--urgent); background: color-mix(in srgb, var(--urgent) 12%, transparent); }
 .ag-supprimer svg { width: 14px; height: 14px; }
 button.primary.ag-ouvrir-fiche { align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; font-size: 13px; border-radius: 8px; }
 .ag-detail-proba { border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; background: var(--paper-sunk); }
@@ -7634,3 +7762,280 @@ textarea.ag-notes-champ:focus { outline: 2px solid var(--focus); outline-offset:
 .ag-visio svg { width: 14px; height: 14px; flex: none; }
 /* Un fichier glissé au-dessus de l'agenda : le cadre dit qu'on peut le déposer. */
 #onglet-agenda.ag-depot-ics #agenda-contenu { outline: 2px dashed var(--focus); outline-offset: 4px; border-radius: 12px; }
+
+/* Sondage sans dossier (étude, 01/10) : nom, adresse, « Confrère », retirer — une ligne par destinataire. */
+.sondage-participants.sondage-libres li { grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) auto 30px; }
+.sondage-libres .sondage-confrere { font-size: 12.5px; color: var(--ink-soft); white-space: nowrap; }
+.sondage-libres button.icon-btn { width: 30px; height: 30px; display: inline-flex; align-items: center; justify-content: center; padding: 0; color: var(--muted); text-decoration: none; }
+.sondage-libres button.icon-btn:hover { color: var(--ink); }
+@media (max-width: 520px) {
+  .sondage-participants.sondage-libres li { grid-template-columns: minmax(0, 1fr) auto 30px; }
+  .sondage-libres li > input[id^="sondage-nom-"] { grid-column: 1 / -1; }
+}
+.ag-anticipe .sondage-panneau-agenda + .sondage-panneau-agenda { margin-top: 8px; }
+.ag-anticipe > .bouton-ajout { margin-top: 8px; }
+.ag-champs-ligne.sondage-titre-ligne { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 10px; }
+.ag-champs-ligne.sondage-titre-ligne > * { min-width: 0; }
+@media (max-width: 520px) { .ag-champs-ligne.sondage-titre-ligne { grid-template-columns: minmax(0, 1fr); } }
+/* Colonne de l'agenda : un créneau par ligne, le nombre de réponses favorables, « Placer ». */
+.sondage-compact { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.sondage-compact li { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12.5px; color: var(--ink); }
+.sondage-compact li.sondage-tous .sondage-compact-quand { color: var(--success); font-weight: 600; }
+.sondage-compact-quand { display: inline-flex; align-items: baseline; gap: 6px; font-variant-numeric: tabular-nums; }
+
+/* Comparaison avec la même semaine l'an dernier, à côté de « Agenda de l'office lu… » (étude, 01/10). */
+.ag-compare { display: inline-flex; align-items: center; gap: 4px; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; vertical-align: baseline; }
+.ag-compare svg { width: 13px; height: 13px; flex: none; }
+.ag-compare-hausse { color: var(--success); }
+.ag-compare-baisse { color: var(--urgent); }
+.ag-compare-egal { color: var(--ink-soft); }
+
+/* « Aller à une date » dans la barre de navigation de l'agenda (étude, 01/10 : remonter au 1er janvier). */
+/* Une icône seule (étude, 01/10 : pas de date affichée à côté de « Aujourd'hui ») ; le champ date est
+   invisible, posé sous l'icône pour que son sélecteur s'ouvre à cet endroit. */
+.ag-aller-zone { position: relative; display: inline-flex; border-left: 1px solid var(--line); }
+.ag-nav input.ag-aller[type="date"] {
+  position: absolute; left: 0; bottom: 0; width: 100%; height: 100%; opacity: 0; pointer-events: none;
+  border: none; padding: 0; margin: 0; color-scheme: light dark;
+}
+
+/* ---- Appels reçus (3CX, 01/10) : bandeau d'appel entrant, appels d'un dossier, journal des réglages ---- */
+.appel-entrant {
+  /* En bas à gauche (étude, 02/10). */
+  position: fixed; left: 16px; bottom: 16px; z-index: 2000; width: min(340px, calc(100vw - 32px));
+  background: var(--paper-card); color: var(--ink); border: 1px solid var(--line); border-left: 3px solid var(--success);
+  border-radius: 12px; box-shadow: var(--shadow-float); padding: 12px 14px; display: flex; flex-direction: column; gap: 6px;
+}
+.appel-entrant > * { min-width: 0; margin: 0; }
+.appel-entrant-tete { display: flex; align-items: center; gap: 10px; }
+.appel-entrant-icone {
+  display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; flex: none;
+  border-radius: 50%; background: var(--success-bg); color: var(--success);
+}
+.appel-entrant-icone svg { width: 16px; height: 16px; }
+.appel-entrant-titre { display: flex; flex-direction: column; flex: 1; min-width: 0; line-height: 1.25; }
+.appel-entrant-titre span { font-size: 12px; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+button.appel-entrant-fermer {
+  border: none; background: none; color: var(--ink-soft); padding: 4px; border-radius: 6px; cursor: pointer; display: inline-flex;
+}
+button.appel-entrant-fermer:hover { background: var(--paper-sunk); color: var(--ink); }
+button.appel-entrant-fermer svg { width: 14px; height: 14px; }
+.appel-entrant-numero { font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.appel-entrant-contact { font-size: 13px; color: var(--ink-soft); }
+.appel-entrant-dossiers { display: flex; flex-direction: column; gap: 6px; }
+.appel-entrant-dossiers .action-rapide { justify-content: flex-start; text-align: left; white-space: normal; }
+.appel-entrant-partie { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-soft); margin-right: 6px; }
+.appels-dossier { display: flex; flex-direction: column; gap: 6px; margin: 4px 0 8px; }
+.appels-liste { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.appels-liste li {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: baseline;
+  padding: 6px 0; border-bottom: 1px solid var(--line-soft); font-size: 13px;
+}
+.appels-liste li > * { min-width: 0; overflow-wrap: anywhere; }
+.appels-quand, .appels-numero { color: var(--ink-soft); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.appels-plus summary { cursor: pointer; font-size: 12px; color: var(--ink-soft); padding-top: 4px; }
+.reglages-sous-titre { margin: 14px 0 4px; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-soft); }
+@media (max-width: 600px) {
+  .appels-liste li { grid-template-columns: minmax(0, 1fr) auto; }
+  .appels-liste li .appels-numero { grid-column: 1 / -1; }
+}
+
+/* ---- Liste des widgets du tableau de bord (01/10) : ajouter / retirer ---- */
+/* Suivi des dates proposées (étude, 01/10) : tiroir à droite, comme la fiche d'un dossier. */
+.drawer-panneau.dates-proposees-box { text-align: left; }
+.dates-proposees-tete { margin-bottom: 4px; }
+.dates-proposees-tete .poste-titre { margin: 0; }
+body.tiroir-dates-ouvert { overflow: hidden; }
+.dates-proposees-box .widgets-galerie-groupe { margin-top: 14px; }
+.dates-proposees-box .dp-carte { margin: 8px 0 0; background: var(--paper-card); }
+.dates-proposees-box .dp-titre { font-weight: 700; font-size: 13.5px; color: var(--ink); display: inline-flex; align-items: center; gap: 5px; text-decoration: none; }
+.dates-proposees-box button.lien-bouton.dp-titre svg { width: 13px; height: 13px; color: var(--muted); }
+.dates-proposees-box button.lien-bouton.dp-titre:hover svg { color: var(--ink); }
+.dp-liste { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.dp-ligne { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--paper-card); }
+.dp-ligne > * { min-width: 0; }
+.dp-ligne-texte { display: flex; flex-direction: column; gap: 2px; }
+.dp-ligne .action-rapide { flex: none; display: inline-flex; align-items: center; gap: 5px; }
+.dp-ligne .action-rapide svg { width: 13px; height: 13px; }
+.dp-sans-suite { opacity: 0.75; }
+.dates-proposees-box .hint { font-size: 12.5px; color: var(--muted); line-height: 1.4; }
+.dates-proposees-box .sondage-tete { align-items: baseline; }
+.dp-ligne-texte { align-items: flex-start; text-align: left; }
+.dates-proposees-box button.lien-bouton.dp-titre { text-align: left; padding: 0; }
+@media (max-width: 560px) {
+  .dp-ligne { flex-direction: column; align-items: stretch; }
+  .dp-ligne .action-rapide { justify-content: center; }
+}
+.dp-details > summary { list-style: none; cursor: pointer; }
+.dp-details > summary::-webkit-details-marker { display: none; }
+/* Lien de la colonne de l'agenda vers cette fenêtre. */
+button.ag-lien-dates {
+  display: flex; align-items: center; gap: 8px; width: 100%; margin-top: 14px; padding: 9px 12px; font-family: inherit; font-size: 13.5px; font-weight: 600;
+  color: var(--ink); background: var(--paper-card); border: 1px solid var(--line); border-radius: 10px; cursor: pointer; text-align: left;
+}
+button.ag-lien-dates:hover { background: var(--paper-sunk); }
+button.ag-lien-dates svg { width: 15px; height: 15px; flex: none; color: var(--muted); }
+.ag-lien-dates-texte { flex: 1 1 auto; display: flex; flex-direction: column; gap: 1px; }
+/* Réponse revenue pas encore vue (étude, 01/10) : pastille rouge et une ligne rouge sous le lien. */
+.ag-lien-dates-nouveau { font-size: 12px; font-weight: 600; color: var(--notif-nouveau); }
+button.ag-lien-dates.a-nouveau { border-color: color-mix(in srgb, var(--notif-nouveau) 45%, var(--line)); }
+.dates-proposees-box .dp-carte.dp-nouveau { border-color: color-mix(in srgb, var(--notif-nouveau) 55%, var(--line)); }
+.dates-proposees-box .dp-badge-nouveau { font-size: 12px; margin-right: auto; margin-left: 8px; }
+.confirm-box.widgets-galerie-box { max-width: 560px; width: 100%; max-height: min(86vh, 720px); overflow-y: auto; }
+.widgets-galerie-groupe {
+  display: flex; align-items: center; gap: 6px; margin: 16px 0 6px;
+  font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-soft);
+}
+.widgets-galerie { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.widgets-galerie-ligne {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px;
+  padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--paper-card);
+}
+.widgets-galerie-ligne > * { min-width: 0; }
+.widgets-galerie-ligne.retire { background: var(--paper-sunk); border-style: dashed; }
+.widgets-galerie-icone {
+  display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px;
+  border-radius: 9px; background: var(--paper-sunk); color: var(--focus);
+}
+.widgets-galerie-ligne.retire .widgets-galerie-icone { background: var(--paper-card); color: var(--ink-soft); }
+.widgets-galerie-icone svg { width: 17px; height: 17px; }
+.widgets-galerie-texte { display: flex; flex-direction: column; gap: 2px; line-height: 1.3; }
+.widgets-galerie-texte b { font-size: 14px; color: var(--ink); }
+.widgets-galerie-texte span { font-size: 12.5px; color: var(--ink-soft); }
+button.secondary.widgets-galerie-retirer { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; font-size: 13px; white-space: nowrap; }
+button.secondary.widgets-galerie-retirer svg { width: 13px; height: 13px; }
+.widgets-galerie-ligne button.bouton-ajout { width: auto; margin: 0; white-space: nowrap; }
+.widgets-galerie-box .confirm-actions { justify-content: space-between; align-items: center; margin-top: 16px; }
+@media (max-width: 480px) {
+  .widgets-galerie-ligne { grid-template-columns: auto minmax(0, 1fr); }
+  .widgets-galerie-ligne > button { grid-column: 1 / -1; justify-self: end; }
+}
+
+
+/* ---- Barre latérale sans titres de section (étude, 01/10, sur un exemple) : « Outils » est un lien
+   vers la page des outils, le + à sa droite ouvre le tiroir ; dans le tiroir, les outils sans icône,
+   reliés par le liseré. ---- */
+.sidebar-outils-ligne { display: flex; align-items: center; gap: 2px; }
+.sidebar-outils-ligne #tab-outils { flex: 1 1 auto; min-width: 0; }
+button.sidebar-outils-plus {
+  display: inline-flex; align-items: center; justify-content: center; flex: none;
+  width: 32px; height: 32px; margin-right: 2px; padding: 0; border: none; border-radius: 8px;
+  background: none; color: var(--muted); font-size: 16px; cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+button.sidebar-outils-plus:hover, button.sidebar-outils-plus[aria-expanded="true"] { background: var(--paper-sunk); color: var(--ink); }
+button.sidebar-outils-plus:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+/* Un outil ouvert, tiroir fermé : le lien « Outils » le signale. */
+.sidebar-outils-ligne:has(+ .sidebar-sousmenu.ferme .actif) #tab-outils {
+  background: var(--sidebar-actif-bg); color: var(--ink); box-shadow: inset 3px 0 0 var(--focus);
+}
+/* Liseré gardé (étude, 01/10 : « remettre le liseré ») : le tronc part sous l'icône Outils, une branche
+   par outil ; le texte des outils, sans icône, tombe à l'aplomb de celui des liens. */
+.sidebar-sousmenu:not(.volet-ouvert) .sidebar-sousmenu-item .sidebar-link-icone { display: none; }
+@media (min-width: 901px) {
+  .sidebar.repliee button.sidebar-outils-plus { display: none; }
+  .sidebar.repliee .sidebar-sousmenu:not(.volet-ouvert) { display: none; }
+  .sidebar.repliee .sidebar-outils-ligne:has(+ .sidebar-sousmenu .actif) #tab-outils,
+  .sidebar.repliee #tab-outils.volet-ouvert { background: var(--sidebar-actif-bg); color: var(--ink); }
+  .sidebar.repliee .sidebar-outils-ligne:has(+ .sidebar-sousmenu .actif) #tab-outils { box-shadow: inset 3px 0 0 var(--focus); }
+}
+
+/* ---- Page Outils : une tuile par outil, grosse icône ---- */
+.outils-grille { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 16px; margin-top: 8px; }
+.outils-grille > * { min-width: 0; }
+button.outil-tuile {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 8px; text-align: left;
+  padding: 22px 20px 20px; border: 1px solid var(--line); border-radius: 16px; background: var(--paper-card);
+  color: var(--ink); font-family: inherit; cursor: pointer; box-shadow: var(--shadow-card);
+  transition: border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+}
+button.outil-tuile:hover { border-color: var(--focus); transform: translateY(-2px); box-shadow: var(--shadow-float); }
+button.outil-tuile:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.outil-tuile-icone {
+  display: inline-flex; align-items: center; justify-content: center; width: 60px; height: 60px; margin-bottom: 6px;
+  border-radius: 16px; background: color-mix(in srgb, var(--focus) 12%, var(--paper-card)); color: var(--focus); font-size: 28px;
+}
+.outil-tuile-titre { font-size: 16px; font-weight: 700; }
+.outil-tuile-texte { font-size: 13px; line-height: 1.4; color: var(--ink-soft); }
+@media (prefers-reduced-motion: reduce) { button.outil-tuile { transition: none; } button.outil-tuile:hover { transform: none; } }
+@media (max-width: 480px) { .outils-grille { grid-template-columns: 1fr 1fr; gap: 10px; } button.outil-tuile { padding: 16px 14px; } .outil-tuile-icone { width: 48px; height: 48px; font-size: 22px; } }
+
+
+/* ---- Widget Agenda relié à l'agenda de l'office (01/10) ---- */
+.ajd-liste.ajd-compacte { gap: 8px; }
+.ajd-compacte .ajd-evt { grid-template-columns: 44px 3px minmax(0, 1fr); gap: 8px; }
+.ajd-compacte .ajd-heure .ajd-duree { display: none; }
+.ajd-compacte .ajd-titre { font-size: 13px; }
+.ajd-hors-agenda .ajd-barre { background: none; border: 1.5px dashed var(--ag-teinte, var(--line)); }
+.w-agenda-pastille { width: 4px; height: 16px; flex: none; border-radius: 2px; background: var(--ag-teinte, var(--line)); }
+.w-agenda-pastille.ajd-hors-agenda { background: none; border: 1.5px dashed var(--ag-teinte, var(--line)); width: 2px; }
+button.w-titre-lien { font: inherit; color: inherit; background: none; border: none; padding: 0; cursor: pointer; }
+button.w-titre-lien:hover { color: var(--focus); }
+button.w-jour-lien { border: none; background: none; padding: 0; cursor: pointer; font-family: inherit; }
+.w-note-alerte { color: var(--pret); }
+.ajd-compacte .ajd-heure b { font-size: 12.5px; }
+.ajd-compacte .ajd-journee .ajd-heure b, .ajd-compacte .ajd-heure b:only-child { font-size: 11px; }
+
+/* ---- Page d'Authentic reçue de l'extension Firefox (01/10) ---- */
+.authentic-box { max-width: 640px; width: calc(100vw - 32px); }
+.auth-etat { margin: 4px 0 10px; font-size: 13px; color: var(--muted); }
+.auth-liste { max-height: min(60vh, 520px); overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
+.auth-groupe-titre { margin: 0 0 4px; font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.auth-champs { margin: 0; display: flex; flex-direction: column; }
+.auth-champ { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); gap: 10px; padding: 4px 0; border-top: 1px solid var(--line-soft); font-size: 13px; }
+.auth-champ dt { color: var(--ink-soft); overflow-wrap: anywhere; }
+.auth-champ dd { margin: 0; color: var(--ink); font-weight: 550; overflow-wrap: anywhere; }
+.auth-tableau { border-collapse: collapse; font-size: 12.5px; }
+.auth-tableau th { padding: 3px 8px; border: 1px solid var(--line-soft); text-align: left; font-weight: 600; color: var(--ink-soft); white-space: nowrap; }
+.auth-tableau td { padding: 3px 8px; border: 1px solid var(--line-soft); color: var(--ink); white-space: nowrap; }
+
+/* ---- Widget « Statistiques » (02/10) : délais moyens depuis l'ouverture (barres à l'échelle du plus
+   long) et dossiers ouverts par mois (ce mois, le précédent, le même mois l'an dernier). ---- */
+.w-carte.statistiques .st-duo { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 18px; align-items: start; }
+.w-carte.statistiques .st-duo > .st-section { border-top: 0; padding-top: 0; }
+.st-delais { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.st-delai { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "lib val" "barre barre"; column-gap: 8px; row-gap: 3px; font-size: 12.5px; }
+.w-moyen .st-delai, .w-grand .st-delai { grid-template-columns: minmax(0, 1fr) auto auto; grid-template-areas: "lib val n" "barre barre barre"; }
+.st-delai-lib { grid-area: lib; color: var(--ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.st-delai-val { grid-area: val; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.st-delai-val b { color: var(--ink); font-size: 14px; font-weight: 650; }
+.st-delai-n { grid-area: n; color: var(--muted); font-size: 11.5px; font-variant-numeric: tabular-nums; white-space: nowrap; min-width: 66px; text-align: right; }
+.st-barre { grid-area: barre; height: 6px; border-radius: 999px; background: color-mix(in srgb, var(--line) 60%, transparent); overflow: hidden; }
+.st-barre > span { display: block; height: 100%; border-radius: inherit; }
+.st-barre-pret { background: var(--pret); }
+.st-barre-preemption { background: var(--acte); }
+.st-barre-signature { background: var(--success); }
+.st-tuiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.st-tuile { display: flex; flex-direction: column; gap: 1px; min-width: 0; padding: 7px 8px; border-radius: 8px; background: var(--paper-sunk); }
+.st-tuile-n { font-size: 20px; line-height: 1.1; font-weight: 650; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.st-tuile.principal .st-tuile-n { color: var(--ink); }
+.st-tuile-lib { font-size: 11.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.st-ecarts { margin-top: 6px; font-size: 12px; color: var(--muted); }
+.st-ecarts b { color: var(--ink); }
+.st-ecart { display: inline-flex; align-items: center; gap: 2px; color: var(--ink-soft); font-weight: 600; font-variant-numeric: tabular-nums; }
+@media (max-width: 700px) {
+  .w-carte.statistiques .st-duo { grid-template-columns: minmax(0, 1fr); }
+  .w-carte.statistiques .st-duo > .st-section + .st-section { border-top: 1px solid var(--line-soft); padding-top: 8px; }
+  /* Sur une colonne, les deux sections dépassent une rangée : le corps défile plutôt que de couper. */
+  .w-carte.statistiques .w-corps { overflow-y: auto; }
+}
+
+/* « Nouveau dossier » : dossiers relevés dans Authentic (étude, 02/10). */
+.authentic-releves { margin-top: 16px; }
+.authentic-releves-titre { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: var(--ink-soft); text-transform: uppercase; letter-spacing: .04em; margin: 0 0 6px; }
+
+/* Onglet Pièces : ce que CLAIRE a relevé dans Authentic (étude, 02/10). */
+.authentic-dossier { border-top: 1px solid var(--line-soft); padding: 12px 16px 14px; display: grid; gap: 8px; }
+.authentic-dossier-titre { font-size: 12px; font-weight: 600; color: var(--ink-soft); text-transform: uppercase; letter-spacing: .04em; }
+.authentic-dossier-titre .hint { text-transform: none; letter-spacing: 0; font-weight: 400; }
+.authentic-infos { margin: 0; display: grid; gap: 4px; }
+.authentic-info { display: grid; grid-template-columns: minmax(150px, 34%) 1fr; gap: 10px; font-size: 13px; align-items: baseline; }
+.authentic-info > * { min-width: 0; }
+.authentic-info dt { color: var(--muted); }
+.authentic-info dd { margin: 0; overflow-wrap: anywhere; }
+.authentic-alerte { margin: 0; font-size: 13px; }
+.authentic-alerte .dot-label { white-space: normal; align-items: flex-start; }
+@media (max-width: 560px) { .authentic-info { grid-template-columns: 1fr; gap: 0; } }
+.authentic-info .dot-label { white-space: normal; align-items: baseline; line-height: 1.4; }
+.authentic-info .dot-label .dot { flex: none; transform: translateY(-1px); }
+.piece-libelle .piece-tag.piece-tag-long { display: block; white-space: normal; margin-left: 0; }

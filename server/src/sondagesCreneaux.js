@@ -171,6 +171,9 @@ function assainirSondage(s) {
     id, code,
     dossierId: texteBorne(s.dossierId, 80),
     dossierNom: texteBorne(s.dossierNom, 200),
+    // Sondage sans dossier (étude, 01/10 : « plusieurs propositions de rendez-vous sans être lié à un
+    // dossier ») : le titre du rendez-vous à placer.
+    titre: texteBorne(s.titre, 120),
     statut: STATUTS.includes(s.statut) ? s.statut : 'ouvert',
     creeLe: texteBorne(s.creeLe, 40),
     creePar: texteBorne(s.creePar, 80),

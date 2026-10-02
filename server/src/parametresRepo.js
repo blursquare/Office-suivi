@@ -13,6 +13,8 @@ const { MODELES_MISTRAL, MODELE_MISTRAL_PAR_DEFAUT, REGIONS_MISTRAL } = require(
 const { assainirCarnet, carnetInitial, avecOfficeEtude } = require('./carnetConfreres');
 const { assainirRepertoire, repertoireInitial } = require('./repertoire');
 const { CLE_SONDAGES, assainirSondages } = require('./sondagesCreneaux');
+const { assainirJournalAppels } = require('./appels3cx');
+const CLE_APPELS = 'appels-recus';
 
 const CLE_REGLAGES = 'reglages';
 
@@ -140,7 +142,7 @@ const SIDEBAR_PREFERENCES = ['ouverte', 'fermee'];
 // Widgets du tableau de bord (29/09) : ordre, taille et visibilité propres à chaque collaborateur.
 // Liste blanche des identifiants et des tailles : tout le reste est écarté ; un doublon garde sa
 // première position. Le client complète avec les widgets absents (nouveaux widgets d'une mise à jour).
-const WIDGETS_PREFERENCES = ['aujourdhui', 'avancement', 'agenda', 'portefeuille', 'activite', 'pieces'];
+const WIDGETS_PREFERENCES = ['aujourdhui', 'avancement', 'agenda', 'portefeuille', 'activite', 'pieces', 'statistiques'];
 const TAILLES_WIDGETS = ['petit', 'moyen', 'grand'];
 const HAUTEURS_WIDGETS = [1, 2, 3];
 
@@ -578,6 +580,20 @@ const MAX_ABSENCES_AGENDA = 200;
 // Rendez-vous du jour lus dans l'agenda de l'office (voir agendaOffice.js/agendaDuJourDepuisEvenements),
 // remplacés à chaque tour réussi : la fenêtre du matin les affiche tant que `jour` est aujourd'hui.
 const CLE_AGENDA_DU_JOUR = 'agenda-du-jour';
+// Semaines de l'an dernier déjà comptées (comparaison de la page Agenda) : { 'AAAA-MM-JJ': { rendezVous,
+// signatures, lu, regle } } (regle = règle de comptage, voir agendaOffice.js), 60 semaines au plus — une semaine passée ne change presque plus, une seule
+// lecture Exchange suffit.
+const CLE_AGENDA_COMPARAISON = 'agenda-comparaison';
+function assainirComparaisonAgenda(brut) {
+  const sortie = {};
+  const entrees = Object.entries(brut && typeof brut === 'object' ? brut : {})
+    .filter(([k, v]) => /^\d{4}-\d{2}-\d{2}$/.test(k) && v && Number.isInteger(v.rendezVous) && v.rendezVous >= 0)
+    .sort((a, b) => String(b[1].lu || '').localeCompare(String(a[1].lu || ''))).slice(0, 60);
+  for (const [k, v] of entrees) {
+    sortie[k] = { rendezVous: v.rendezVous, signatures: Number.isInteger(v.signatures) ? v.signatures : 0, lu: typeof v.lu === 'string' ? v.lu.slice(0, 40) : '', regle: typeof v.regle === 'string' ? v.regle.slice(0, 20) : '' };
+  }
+  return sortie;
+}
 const MAX_AGENDA_DU_JOUR = 60;
 function assainirAgendaDuJour(brut) {
   const b = (brut && typeof brut === 'object') ? brut : {};
@@ -1138,8 +1154,30 @@ function creerRepoParametres(db) {
     return propre;
   }
 
+  function lireJournalAppels() { return lireJson(CLE_APPELS, assainirJournalAppels, []); }
+  function ecrireJournalAppels(l) { const p = assainirJournalAppels(l); ecrireStmt.run(CLE_APPELS, JSON.stringify(p)); return p; }
   function lireSondagesCreneaux() { return lireJson(CLE_SONDAGES, assainirSondages, []); }
   function ecrireSondagesCreneaux(l) { const p = assainirSondages(l); ecrireStmt.run(CLE_SONDAGES, JSON.stringify(p)); return p; }
+
+  // Historique de l'agenda (étude, 01/10 : « remonter jusqu'au 1er janvier, si possible toutes les
+  // années ») : un mois passé lu une fois dans Exchange, gardé sous sa propre clé
+  // « agenda-archive:AAAA-MM » ({ lu, evenements }, 600 rendez-vous au plus) — jamais un seul gros bloc.
+  function lireArchiveAgenda(mois) {
+    if (!/^\d{4}-\d{2}$/.test(String(mois || ''))) return null;
+    return lireJson('agenda-archive:' + mois, (b) => (b && typeof b === 'object' ? {
+      lu: texteBorne(b.lu, 40),
+      evenements: Array.isArray(b.evenements) ? b.evenements.map(assainirEvenementAgenda).filter(Boolean).slice(0, 600) : []
+    } : null), null);
+  }
+  function ecrireArchiveAgenda(mois, archive) {
+    if (!/^\d{4}-\d{2}$/.test(String(mois || ''))) return null;
+    const propre = { lu: texteBorne(archive && archive.lu, 40), evenements: ((archive && archive.evenements) || []).map(assainirEvenementAgenda).filter(Boolean).slice(0, 600) };
+    ecrireStmt.run('agenda-archive:' + mois, JSON.stringify(propre));
+    return propre;
+  }
+
+  function lireComparaisonAgenda() { return lireJson(CLE_AGENDA_COMPARAISON, assainirComparaisonAgenda, {}); }
+  function ecrireComparaisonAgenda(m) { const p = assainirComparaisonAgenda(m); ecrireStmt.run(CLE_AGENDA_COMPARAISON, JSON.stringify(p)); return p; }
 
   function lireJson(cle, assainir, defaut) {
     const ligne = lireStmt.get(cle);
@@ -1201,6 +1239,7 @@ function creerRepoParametres(db) {
     lireReglagesScans, ecrireReglagesScans, lireJournalScans, ecrireJournalScans, lireScansEcartes, ecrireScansEcartes,
     lirePiecesNotifiees, ecrirePiecesNotifiees,
     lireSondagesCreneaux, ecrireSondagesCreneaux,
+    lireJournalAppels, ecrireJournalAppels,
     lireCarnetConfreres, ecrireCarnetConfreres,
     lireRepertoire, ecrireRepertoire,
     lireResumeEmails, ecrireResumeEmails,
@@ -1208,7 +1247,7 @@ function creerRepoParametres(db) {
     lireReglagesExchange, ecrireReglagesExchange,
     lireDernierTourAgenda, ecrireDernierTourAgenda,
     lireAbsencesAgenda, ecrireAbsencesAgenda, lireCategoriesAgenda, ecrireCategoriesAgenda,
-    lireAgendaDuJour, ecrireAgendaDuJour, lireAgendaOffice, ecrireAgendaOffice,
+    lireAgendaDuJour, ecrireAgendaDuJour, lireAgendaOffice, ecrireAgendaOffice, lireComparaisonAgenda, ecrireComparaisonAgenda, lireArchiveAgenda, ecrireArchiveAgenda,
     ajouterEvenementAgendaOffice, retirerEvenementAgendaOffice,
     lireReglageSauvegarde, ecrireReglageSauvegarde, lireEtatSauvegarde, ecrireEtatSauvegarde,
     lireReglages, ecrireReglages, lireDernierTour, ecrireDernierTour,

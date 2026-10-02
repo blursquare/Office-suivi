@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-01 17:07';
+  const VERSION_APP = '2026-10-02 12:06';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,7 +23,69 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
-    { version: '2026-10-01 17:07', resume: "Rapport technique : dans « Corrections à la main après extraction », l'origine de la valeur corrigée (regex, IA, Authentic…) s'affiche en clair au lieu de « [nom] » ; c'est un mot technique d'une liste fermée, jamais une donnée du dossier." },
+    { version: '2026-10-02 12:06', resume: "Rapport technique : dans « Corrections à la main après extraction », l'origine de la valeur corrigée (regex, IA, Authentic…) s'affiche en clair au lieu de « [nom] » ; c'est un mot technique d'une liste fermée, jamais une donnée du dossier." },
+    { version: '2026-10-02 12:03', resume: "Authentic : un dossier noté « Consorts » (ou « consort », « CONSORTS ») devant le vendeur ou l'acquéreur est reconnu — « Vente Consorts MARTEL/FOURNIER » retrouve la fiche « MARTEL / FOURNIER », et inversement." },
+    { version: '2026-10-02 11:58', resume: "Authentic : un acte « signé le … » dans Authentic marque la signature comme faite sur la fiche, avec toutes les étapes d'avant (vente préalable, prêt, appel de fonds, projet, date butoir) — plus rien au planning ni aux rappels ; chaque validation reste annulable sur la fiche." },
+    { version: '2026-10-02 11:54', resume: "Authentic : seules les pièces qui arrivent vraiment dans Authentic sont reprises de la page du dossier — actes d'état civil, casiers judiciaires et réponse SAFER ; le reste (urbanisme, diagnostics…) arrive par email ou courrier et n'est jamais coché depuis Authentic. « Signé le … » sur la page du dossier fait passer l'acte en « signé » (sauf avant-contrat, procuration, mandat, courrier…)." },
+    { version: '2026-10-02 11:51', resume: "Authentic, dossiers de vente : les pièces d'urbanisme (certificat d'urbanisme, alignement, numérotage, assainissement, renonciation au droit de préemption) ne sont plus reprises d'Authentic — elles se cochent par le NAS ou à la main. Seule la réponse SAFER l'est encore. Même règle pour l'import d'un export ZIP." },
+    { version: '2026-10-02 11:32', resume: "Authentic : « Informations financières » (Capital) et « Parties prenantes » (collaborateur, notaire) sont aussi lues quand elles s'affichent en texte seul, sous les vendeurs et acquéreurs. « Copier la structure » inclut désormais le texte visible réduit à son vocabulaire (noms, dates, montants et coordonnées masqués). « Retour le … » : date de prise en compte de la SAFER, date de retour de la réquisition hors formalité." },
+    { version: '2026-10-02 11:26', resume: "Authentic (suite) : une SAFER notifiée sans réponse ajoute « Réponse SAFER » aux pièces manquantes, avec sa date de notification et de prise en compte, puis la coche à la non-préemption. L'onglet Pièces montre « Dans Authentic » : état de l'acte (pas encore rédigé, en cours de rédaction, signé), réquisition hors formalité (envoyée, retour), SAFER, prix (Capital — repris sur la fiche s'il manque), collaborateur et notaire des parties prenantes. Fiches client : téléphone, email et situation matrimoniale (régime, conjoint) ; alerte si un vendeur marié ou pacsé vend sans son conjoint (résidence de la famille). Livret de famille et acte de décès seulement pour une succession." },
+    { version: '2026-10-02 11:01', resume: "Authentic, avec l'extension Firefox 0.3.0 : chaque page d'Authentic affichée est relevée automatiquement. Page de gestion d'un dossier : les pièces reçues sont cochées « dans Authentic » sur la fiche CLAIRE du même dossier (un acte de naissance, de mariage ou de décès et une réponse SAFER de non-préemption sont ajoutés aux pièces) ; une demande ou une pièce en attente ne compte jamais. Fiches client et fiches bien : « Nouveau dossier » › « Depuis Authentic » crée le dossier pré-rempli (vendeurs, acquéreurs, bien, cadastre, téléphones, emails, pièces présentes)." },
+    { version: '2026-10-02 10:38', resume: "Authentic : « Copier la structure (sans données) » laisse désormais lisible le vocabulaire des tableaux (« Acte de naissance de M. XXX », « Notification SAFER », « Reçu le 99/99/9999 ») : noms, prénoms et chiffres restent masqués. Étape préalable à la mise à jour automatique des pièces depuis Authentic." },
+    { version: '2026-10-02 10:31', resume: "Suivi des dossiers : la date de signature s'affiche en vert quand le dossier est « Complet » ou « Prêt » (vues Échéances et Tableau). Les autres dates gardent leur couleur (rouge à 3 jours ou moins)." },
+    { version: '2026-10-02 10:28', resume: "Suivi des dossiers : sur le poste de Bastien (administrateur), le filtre « Responsable » revient à « Tous » par défaut : tous les dossiers de l'étude sont affichés à l'ouverture. Les autres collaborateurs gardent leurs propres dossiers présélectionnés." },
+    { version: '2026-10-02 10:27', resume: "Suivi des dossiers, vue Échéances : tous les dossiers sont affichés. Un dossier sans échéance datée en attente (rendez-vous à fixer sans date butoir, toutes les dates validées…) était omis ; il apparaît maintenant dans une section « Sans échéance datée » en bas de la liste. Les échéances au-delà de 8 semaines restent sous « Plus tard »." },
+    { version: '2026-10-02 10:25', resume: "Extension Firefox « CLAIRE pour Authentic » : « Copier la structure (sans données) » masque désormais les nom et prénoms qui suivent M. / Mme même collés au mot précédent, et réduit tout texte de plus de 8 mots à son nombre de mots (deux prénoms étaient passés). Les tableaux reçus portent leur titre ; extension 0.2.0 (titre des tableaux, en-têtes, titre des icônes)." },
+    { version: '2026-10-02 09:51', resume: "Bandeau « Appel entrant » : il se ferme seul 45 secondes après la sonnerie (3CX ne prévient pas CLAIRE de la fin d'un appel), reste ouvert tant que la souris est dessus, et se ferme dès qu'on ouvre la fiche d'un dossier depuis le bandeau. La croix reste disponible." },
+    { version: '2026-10-02 09:49', resume: "Fiche d'un dossier : sélectionner un email ou un téléphone à la souris ne ferme plus la fiche quand on relâche le bouton hors de la fiche (même correction pour toutes les fenêtres à fond grisé). Le bandeau « Appel entrant » s'affiche maintenant en bas à gauche de l'écran." },
+    { version: '2026-10-02 09:37', resume: "Widget « Statistiques » : les délais moyens (obtention du prêt, renonciation au droit de préemption, signature) sont maintenant calculés sur tous les dossiers de l'étude, archivés compris, sans limite de date et quel que soit le périmètre du tableau de bord (et non plus sur les 12 derniers mois). Le nombre de dossiers mesurés reste affiché à côté de chaque délai." },
+    { version: '2026-10-02 09:32', resume: "Téléphonie 3CX : Réglages › Téléphonie 3CX montre sous chaque collaborateur si sa fenêtre CLAIRE est ouverte et quand 3CX a ouvert son adresse pour la dernière fois (« Aucune sonnerie reçue de 3CX » après un vrai appel = 3CX n'a rien envoyé : réglage du client web ou pop-up bloquées). CLAIRE accepte aussi ce qu'envoie la version 20 de 3CX : nom « undefined », numéro « +33… » non encodé, prénom avec majuscule ou accent dans l'adresse. Aide mise à jour avec le nom du réglage dans la V20 (« Lancer automatiquement une URL de contact personnalisée »)." },
+    { version: '2026-10-02 09:26', resume: "Agenda : la fenêtre d'une signature probable (carte en pointillé) rappelle la date butoir du dossier, avec le nombre de jours restants — en rose, en rouge quand il reste moins de 7 jours de marge après le créneau proposé ou quand le créneau la dépasse (« prévoir la prorogation ») ; les autres créneaux proposés au-delà de la butoir sont en pointillé." },
+    { version: '2026-10-02 08:14', resume: "Fiche d'un dossier agrandie : la colonne de droite montre les dernières pièces reçues (6 au plus, les nouvelles d'abord puis la plus récente, avec leur date et « à la main » si elles ont été validées hors NAS), au-dessus de l'activité récente. Un clic ouvre le fichier trouvé sur le NAS ; « 6/9 » mène à l'onglet Pièces." },
+    { version: '2026-10-02 08:11', resume: "Tableau de bord : nouveau widget « Statistiques » (en bas, toute la largeur ; « Widgets » pour le déplacer ou le retirer). Délai moyen depuis l'ouverture du dossier dans CLAIRE jusqu'à l'obtention du prêt, la renonciation au droit de préemption et la signature de l'acte (12 derniers mois, nombre de dossiers et médiane au survol), et dossiers ouverts ce mois-ci comparés au mois précédent et au même mois de l'an dernier (« — » quand CLAIRE ne suivait pas encore de dossier)." },
+    { version: '2026-10-02 07:40', resume: "Fiche d'un dossier, onglet Analyse : chaque engagement du vendeur et chaque document relevé dans l'avant-contrat a désormais une case à cocher (réalisé / reçu). Ce qui n'est pas coché garde le dossier « Attente de pièces » et baisse la probabilité de tenue du rendez-vous (« Relancer le vendeur ») ; l'onglet affiche « faits / total ». Un document qui est aussi une pièce de la checklist partage sa case avec l'onglet Pièces ; un engagement dont la pièce est reçue se coche seul, et cocher des travaux valide la pièce « Travaux de remise en état » qui en découle." },
+    { version: '2026-10-01 23:59', resume: "Nouvelle extension Firefox « CLAIRE pour Authentic » (première version) : sur une page de dossier d'Authentic, le bouton « Envoyer à CLAIRE » transmet ce que la page affiche au serveur CLAIRE du bureau (gardé 30 minutes en mémoire, jamais un mot de passe), et CLAIRE l'affiche. La reprise dans une fiche sera branchée une fois la structure des pages connue : « Copier la structure (sans données) » la copie sans aucune valeur de client." },
+    { version: '2026-10-01 23:47', resume: "Suivi des dossiers : un carré « Activité de l'étude — En direct » s'ajoute à la colonne de gauche, sous les dernières pièces — actions du jour, barres des 7 derniers jours, qui a agi, puis le fil des dernières actions de toute l'étude (collaborateurs, agenda, relevés de CLAIRE), qui ouvre la fiche au clic. Le même fil que sur le tableau de bord." },
+    { version: '2026-10-01 23:34', resume: "Suivi des dossiers : le filtre « Responsable » est présélectionné sur le collaborateur du poste à l'ouverture de la session, administrateur compris (« Tous » reste à un clic et un choix fait à la main est gardé) ; changer de collaborateur repose le filtre sur le nouveau." },
+    { version: '2026-10-01 23:33', resume: "Suivi des dossiers : mêmes colonnes, dans le même ordre, en vue Échéances et en vue Tableau (et dans « Nouveau » et « Archivés ») — Date, Dossier, Échéance, Resp., Statut. La vue Tableau perd la colonne « Offre de prêt » (le filtre « Offre de prêt » reste) ; ses titres restent triables." },
+    { version: '2026-10-01 23:27', resume: "Suivi des dossiers : la colonne de gauche remplace « Prévu en … » par le mois en cours en quatre compteurs — dossiers à signer ce mois-ci, dossiers à placer (sans rendez-vous, date butoir dans le mois ou déjà dépassée), ventes et successions en cours ; un clic sur un compteur filtre la liste (« Tout afficher » pour revenir) — puis les dernières pièces rattachées sur le commun (14 jours, les nouvelles d'abord), qui ouvrent la fiche." },
+    { version: '2026-10-01 23:12', resume: "Suivi des dossiers : le collaborateur responsable n'apparaît plus que par ses initiales dans une pastille ronde (nom complet au survol), en vue Échéances comme en vue Tableau ; le nom du dossier tient sur une ligne. Le bouton « Revérifier tous les dossiers » devient « Scanner le commun »." },
+    { version: '2026-10-01 23:08', resume: "Suivi des dossiers : la date d'une échéance tient de nouveau sur une ligne (« 23 septembre 2026 ») depuis le passage de « Prévu » en colonne." },
+    { version: '2026-10-01 23:06', resume: "Suivi des dossiers : « Prévu en octobre » passe dans une colonne à gauche, comme celle de l'agenda — compteurs, « À faire » et « Au calendrier » l'un sous l'autre ; la recherche, les filtres et la liste sont à droite. Sur un écran plus étroit, le bloc revient au-dessus de la liste." },
+    { version: '2026-10-01 22:56', resume: "Agenda : en tête, seulement les trois lettres du jour et le point orange — « Jeu. » (« Oct. » en vue Mois) —, sans fond." },
+    { version: '2026-10-01 22:54', resume: "Agenda : en tête, le jour s'écrit en toutes lettres et en français — « Jeudi » suivi d'un point orange (« Octobre » en vue Mois) —, sans fond de couleur." },
+    { version: '2026-10-01 22:53', resume: "Agenda : la pastille « OCT / 1 » de l'en-tête devient une tuile bordeaux en dégradé avec le jour abrégé en blanc et un point orange — « Jeu. » (« Oct. » en vue Mois)." },
+    { version: '2026-10-01 22:42', resume: "Agenda : dans le détail d'un rendez-vous relié à un dossier de CLAIRE, la ligne « lieu » n'est plus affichée (elle ne portait que les initiales et la note d'envoi). Elle reste pour les autres rendez-vous." },
+    { version: '2026-10-01 22:29', resume: "Agenda : quand une réponse aux dates proposées revient, une pastille rouge s'allume à droite de « Agenda » dans la barre latérale (avec le nombre de réponses), et le lien « Dates proposées » l'indique aussi. Dans le volet, la carte concernée porte « Nouvelle réponse ». La pastille s'efface à l'ouverture de « Dates proposées »." },
+    { version: '2026-10-01 22:25', resume: "Agenda : « Dates proposées » s'ouvre maintenant dans un volet à droite, comme la fiche d'un dossier, au lieu d'une fenêtre au centre." },
+    { version: '2026-10-01 22:21', resume: "Agenda : nouveau lien « Dates proposées » sous le petit calendrier (avec le nombre en attente). Il ouvre une fenêtre qui suit toutes les dates de rendez-vous envoyées par email, avec ou sans dossier : en attente de réponse (qui a répondu, Placer, Relancer, Relire, Annuler), validées (date retenue, « Voir dans l'agenda »), et sans suite. Le nom d'un dossier ouvre sa fiche." },
+    { version: '2026-10-01 22:10', resume: "Agenda : le bouton double « Nouveau rendez-vous | Proposer des dates » passe en haut de la page, à droite du champ de recherche (même hauteur). Sur téléphone, il s'étend sous la recherche." },
+    { version: '2026-10-01 22:08', resume: "Agenda : dans le détail d'un rendez-vous, « Supprimer de l'agenda » devient une simple poubelle rouge en haut, à côté du crayon. La confirmation avant suppression reste." },
+    { version: '2026-10-01 22:06', resume: "Agenda : la recherche fonctionne comme sur le Suivi — taper un nom filtre l'agenda affiché (semaine, jour, mois et petit calendrier) ; le nombre de rendez-vous trouvés s'affiche sous la date, avec « Tout afficher » (ou Échap) pour revenir à tout l'agenda. Chaque dossier de la liste sous le champ porte une icône « fiche » qui ouvre directement sa fiche ; un clic sur son nom mène toujours à son rendez-vous." },
+    { version: '2026-10-01 22:00', resume: "Agenda : le champ de recherche, à la place de l'ancien bouton « Actualiser » en haut à droite, prend l'aspect de celui du Suivi (grand champ arrondi avec la loupe, « Rechercher un dossier (vendeur, acquéreur)… »). « Actualiser » reste l'icône à côté de « Agenda de l'office lu … »." },
+    { version: '2026-10-01 21:58', resume: "Agenda : le bouton « Nouveau rendez-vous » devient un bouton double — moitié « Nouveau rendez-vous », moitié « Proposer des dates ». La rubrique « Dates proposées » de la colonne de gauche n'apparaît plus que lorsqu'un sondage attend des réponses." },
+    { version: '2026-10-01 21:55', resume: "Agenda : en haut à droite, à la place du bouton « Actualiser », un champ « Chercher un dossier ». Choisir un dossier mène l'agenda au jour de sa signature et en ouvre le détail ; sans rendez-vous, à la semaine où la signature est probable. « Actualiser » devient une petite icône à côté de « Agenda de l'office lu … »." },
+    { version: '2026-10-01 21:50', resume: "Agenda : la date n'est plus affichée à côté de « Aujourd'hui » ; à sa place, une icône calendrier ouvre le choix d'une date (pour aller à un autre jour, y compris dans l'historique)." },
+    { version: '2026-10-01 21:48', resume: "Agenda : dans le petit calendrier du mois, le rond du jour choisi ne recouvre plus le point qui signale les rendez-vous — le point est posé juste en dessous." },
+    { version: '2026-10-01 21:45', resume: "Agenda : la comparaison avec l'an dernier ne compte plus que les rendez-vous d'une heure ou plus (les points de 30 ou 45 minutes ne sont plus comptés). Les semaines de l'an dernier déjà comptées sont relues une fois sous cette règle." },
+    { version: '2026-10-01 21:42', resume: "Tableau de bord : le widget Agenda est relié à l'agenda partagé de l'office (calendrier de Sophie) — tous les rendez-vous du jour avec leur couleur Outlook (signatures, rendez-vous, absences, dates butoir), les signatures de CLAIRE pas encore dans Outlook en pointillé, puis les prochains rendez-vous. Un clic sur un rendez-vous ouvre la page Agenda à son jour, détail affiché ; l'icône calendrier ouvre l'agenda. Semaines précédente et suivantes (jusqu'à 8) consultables." },
+    { version: '2026-10-01 21:36', resume: "Barre latérale : le liseré qui relie les outils à « Outils » est de retour quand le tiroir est ouvert." },
+    { version: '2026-10-01 21:31', resume: "Barre latérale épurée : plus de titres de section, seulement les liens vers les pages. « Outils » ouvre une page où chaque outil a sa grosse icône et une phrase ; le + à sa droite déplie les outils dans la barre (barre repliée : survol de l'icône, comme avant). Les compteurs (pièces, signalements, scans) prennent une forme carrée aux coins arrondis." },
+    { version: '2026-10-01 21:08', resume: "Réglages réorganisés, une rubrique par sujet : Général, Collaborateurs (adresse et fonction de chacun, avec son propre bouton Enregistrer), Signature des emails, Rappels Teams (envoi Gmail et dernier tour), Agenda et Outlook (connexion, lecture, et une section Sondages de créneaux), Téléphonie 3CX (rubrique à part), Pièces et Claire Scan (la notification d'une nouvelle pièce y est rangée), Relecture d'actes, Signalements, Mise à jour et sauvegarde." },
+    { version: '2026-10-01 20:55', resume: "Tableau de bord : bouton « Widgets » à côté de « Personnaliser », qui ouvre la liste de tous les widgets — ceux affichés avec « Retirer », ceux retirés avec « Ajouter », chacun décrit. En mode Personnaliser, la croix d'une carte la retire et « Ajouter un widget » rouvre la liste. Un widget retiré revient à sa taille d'avant. Choix propre à chaque collaborateur." },
+    { version: '2026-10-01 18:33', resume: "Téléphonie 3CX : l'adresse à coller dans 3CX utilise maintenant l'adresse du serveur sur le réseau du bureau (192.168.…), et non « localhost » quand les Réglages sont ouverts depuis la fenêtre CLAIRE du serveur — « localhost » ne mène au serveur que depuis ce poste. À recopier dans 3CX après la mise à jour." },
+    { version: '2026-10-01 18:29', resume: "Aujourd'hui : vos rappels en cours (échus ou sans date) sont en tête de « À faire », avec leur case ronde, et restent toujours visibles sur la carte du tableau de bord tant qu'ils ne sont pas cochés, quelle que soit sa taille. Le crayon les modifie ; ceux à venir restent sous « Mes rappels »." },
+    { version: '2026-10-01 18:16', resume: "Téléphonie 3CX : bouton « Essayer » dans Réglages › Rappels, qui simule un appel sur le poste choisi (le bandeau « Appel entrant » doit apparaître dans sa fenêtre CLAIRE). Si l'essai marche mais pas un vrai appel, autoriser les fenêtres pop-up pour le client web 3CX dans Chrome/Edge. La fenêtre CLAIRE relève aussi les appels dès qu'elle revient au premier plan." },
+    { version: '2026-10-01 18:05', resume: "Téléphonie 3CX : à chaque appel qui sonne, CLAIRE le note, reconnaît l'appelant (téléphone du vendeur ou de l'acquéreur saisi dans l'onglet Échanges, confrère du carnet, contact du répertoire), affiche « Appel entrant » et ouvre la fiche du dossier. Les appels de chaque dossier sont listés dans son onglet Échanges. L'adresse à coller dans 3CX pour chaque collaborateur est dans Réglages › Rappels." },
+    { version: '2026-10-01 18:04', resume: "Agenda : la suppression d'un rendez-vous échouait (« ErrorCannotDeleteObject ») — le compte de CLAIRE n'a pas accès aux éléments supprimés de la boîte de Sophie. Dans ce cas, CLAIRE retire le rendez-vous autrement : il reste récupérable dans Outlook par « Récupérer les éléments supprimés »." },
+    { version: '2026-10-01 17:58', resume: "Relation client : retirée de la colonne de gauche de l'agenda. La confirmation et le rappel du rendez-vous, le questionnaire de satisfaction et le mot un an après sont dans l'onglet Échanges de la fiche du dossier, au bon moment — et seulement pour les clients qui ne sont pas accompagnés par un confrère." },
+    { version: '2026-10-01 17:48', resume: "Agenda : dans la colonne de gauche, « Dates proposées » passe juste sous le calendrier du mois, et « Signatures de la semaine » est retiré (la probabilité de tenue reste dans le détail de chaque rendez-vous)." },
+    { version: '2026-10-01 17:47', resume: "Agenda : l'historique — on peut remonter au 1er janvier et au-delà, toutes les années. Les rendez-vous passés sont lus dans Outlook mois par mois à la première consultation, puis gardés (pas de relecture ensuite) ; détail et notes consultables, sans modification. Nouveau : « Aller à une date » à côté de « Aujourd'hui »." },
+    { version: '2026-10-01 17:44', resume: "Tableau de bord, carte « Aujourd'hui » : « Ajouter un rappel » ouvre bien le formulaire — sur une carte pleine, toute la section « Mes rappels » était masquée et « À venir » s'affichait à sa place. Le formulaire passe maintenant en premier, « À venir » se retire le temps de la saisie." },
+    { version: '2026-10-01 17:40', resume: "Claire Scan : « Ranger » et « Laisser dans Scan » ne font plus attendre — le scan quitte la liste dès la réponse du serveur, la relecture du dossier du copieur se fait ensuite en arrière-plan ; et cette relecture est bien plus rapide (l'historique du copieur n'est plus interrogé à chaque fois, le reste est lu en parallèle)." },
+    { version: '2026-10-01 17:36', resume: "Agenda : à côté de « Agenda de l'office lu… », le nombre de rendez-vous de la semaine comparé à la même semaine l'an dernier — « +3 rendez-vous vs 2025 (hausse de 25 %) », en vert ou en rouge, détail dans la pastille i (dont signatures). L'an dernier est lu une fois dans l'agenda Outlook puis gardé." },
+    { version: '2026-10-01 17:32', resume: "Agenda : un rendez-vous d'un dossier créé depuis « Nouveau rendez-vous » renseigne le Lieu dans Outlook comme une signature posée depuis la fiche — initiales du responsable, confrère « en 1er » (il reçoit) ou « en 2nd », appel de fonds et projet envoyés (« BA - Me DURAND en 2nd - Appel de fonds envoyé »), modifiable avant d'enregistrer. La mise à jour automatique du Lieu à l'envoi de l'appel de fonds ou du projet ajoute aussi les initiales si elles manquent." },
+    { version: '2026-10-01 17:29', resume: "Agenda : proposer plusieurs dates pour un rendez-vous sans dossier — titre, durée, destinataires libres (dont un confrère, avec la formule d'usage), créneaux en option dans l'agenda. Depuis « Nouveau rendez-vous » (« Proposer plusieurs dates ») ou « Dates proposées » dans la colonne de l'agenda, où arrivent les réponses et où « Placer » crée le rendez-vous et retire les options." },
     { version: '2026-10-01 15:41', resume: "Agenda : « Envoyer le lien » de la visio — prépare l'email aux clients (ensemble) et/ou au confrère (le sien, formule d'usage), avec un bouton vers la visio et les informations de connexion relues dans la note du rendez-vous. Proposé aussi juste après l'ajout de l'invitation .ics. Texte : premier jet de CLAIRE." },
     { version: '2026-10-01 15:37', resume: "Agenda : visio ADNOV — sur un rendez-vous en visio, « Créer la visio » ouvre le site de la profession ; l'invitation .ics qu'il rend, déposée sur l'agenda (ou choisie dans le détail du rendez-vous), ajoute son lien aux notes du rendez-vous de même date et même heure, sans créer de doublon. Le détail montre ensuite « Rejoindre la visio ». Après la création d'un rendez-vous en visio, le message propose « Créer la visio »." },
     { version: '2026-10-01 15:32', resume: "Agenda : « Proposer plusieurs dates » dans le formulaire d'un nouveau rendez-vous (dossier sans signature) — ouvre le sondage de créneaux du dossier avec le créneau saisi en tête, suivi des créneaux que CLAIRE propose ; d'autres s'ajoutent à la main." },
@@ -498,6 +560,7 @@
     x: '<line x1="3.5" y1="3.5" x2="12.5" y2="12.5"/><line x1="12.5" y1="3.5" x2="3.5" y2="12.5"/>',
     check: '<path d="M3 8.4 6.4 11.8 13 4.6" stroke-linejoin="round"/>',
     'list-check': '<path d="M1.8 4.2 3 5.4 5.2 3M1.8 8.2 3 9.4 5.2 7M1.8 12.2 3 13.4 5.2 11"/><path d="M7.6 4.3H14M7.6 8.3H14M7.6 12.3H14"/>',
+    'bar-chart': '<path d="M3 13.5V8.5M8 13.5V3.5M13 13.5V6.5" stroke-linecap="round"/><path d="M1.8 13.8h12.4"/>',
     'trend-up': '<path d="M2.5 12 6.8 7.7 9.3 10.2 13.5 6"/><path d="M9.5 6h4v4"/>',
     'trend-down': '<path d="M2.5 4 6.8 8.3 9.3 5.8 13.5 10"/><path d="M9.5 10h4v-4"/>',
     info: '<circle cx="8" cy="8" r="6.2"/><line x1="8" y1="7.2" x2="8" y2="11.3"/><circle cx="8" cy="4.9" r="0.9" fill="currentColor" stroke="none"/>',
@@ -3900,7 +3963,8 @@
         qualitePersonne: p.qualitePersonne || 'physique',
         representant: p.representant || null,
         societe: p.societe || null,
-        ...(p.nomUsage ? { nomUsage: p.nomUsage } : {})
+        ...(p.nomUsage ? { nomUsage: p.nomUsage } : {}),
+        ...(p.situationMatrimoniale ? { situationMatrimoniale: p.situationMatrimoniale } : {})
       })),
       honoraires: honorairesPersistables(extraction.honoraires),
       fondsTravaux: fondsTravauxPersistable(extraction.fondsTravaux),
@@ -7300,7 +7364,8 @@
               qualitePersonne: p.qualitePersonne === 'morale' ? 'morale' : 'physique',
               representant: typeof p.representant === 'string' ? p.representant : null,
               societe: societePersistable(p.societe),
-              ...(typeof p.nomUsage === 'string' && p.nomUsage ? { nomUsage: p.nomUsage.slice(0, 80) } : {})
+              ...(typeof p.nomUsage === 'string' && p.nomUsage ? { nomUsage: p.nomUsage.slice(0, 80) } : {}),
+              ...(situationMatrimonialePersistable(p.situationMatrimoniale) ? { situationMatrimoniale: situationMatrimonialePersistable(p.situationMatrimoniale) } : {})
             }))
         : [],
       notaires: notaires
@@ -7855,7 +7920,93 @@
     const boutonSupprimer = `<button type="button" class="engagement-suppr" onclick="${appelSuppr}" title="Retirer cet engagement" aria-label="Retirer cet engagement">${icone('x')}</button>`;
     const appelEditer = dossierId ? `activerEditionEngagement('${dossierId}', ${index})` : `activerEditionEngagement(null, ${index})`;
     const boutonEditer = `<button type="button" class="icon-crayon" onclick="${appelEditer}" title="Modifier cet engagement" aria-label="Modifier cet engagement">${icone('pencil')}</button>`;
+    // Fiche enregistrée : une case « réalisé » (étude, 02/10), comptée dans le statut du dossier.
+    const d = dossierId ? dossiers.find(x => x.id === dossierId) : null;
+    if (d) {
+      const et = etatEngagementAnalyse(d, e);
+      const intitule = `Engagement du vendeur : ${libelleCourtEngagement(e)}`;
+      const caseHtml = et.auto
+        ? `<span class="piece-case analyse-case" role="checkbox" aria-checked="true" aria-disabled="true" aria-label="${escapeAttr(intitule)}" title="${escapeAttr(et.motif)}">${icone('check')}</span>`
+        : `<button type="button" class="piece-case analyse-case" role="checkbox" aria-checked="${et.fait}" aria-label="${escapeAttr(intitule)}" title="${escapeAttr(et.fait ? `${et.motif} — cliquer pour le remettre à faire` : 'Cocher une fois réalisé (justificatif reçu, travaux faits)')}" onclick="basculerEngagementFait('${dossierId}', ${index})">${et.fait ? icone('check') : ''}</button>`;
+      const tag = et.auto ? '<span class="piece-tag">pièce reçue</span>' : '';
+      return `<div class="analyse-engagement-ligne avec-case${et.fait ? ' fait' : ''}">${caseHtml}${etiquette}<span class="analyse-engagement-texte">${escapeHtml(phrase)}</span>${tag}${marqueurManuel}${boutonVoir}${boutonEditer}${boutonSupprimer}</div>`;
+    }
     return `<div class="analyse-engagement-ligne">${etiquette}<span>${escapeHtml(phrase)}</span>${marqueurManuel}${boutonVoir}${boutonEditer}${boutonSupprimer}</div>`;
+  }
+
+  // Document relevé dans l'avant-contrat, sur une fiche enregistrée : une ligne cochable. S'il est
+  // aussi une pièce de la checklist, la case est celle de la pièce (même état que l'onglet Pièces).
+  function renderDocumentAnalyse(d, doc, index) {
+    const label = typeof doc === 'string' ? doc : doc.label;
+    const cle = cleChecklistDocumentAnalyse(d, doc);
+    const recu = documentAnalyseRecu(d, doc);
+    const trouveeNas = cle && recu && !(d.piecesValideesManuellement || []).includes(cle);
+    const titre = trouveeNas ? 'Reçue — trouvée dans le dossier du NAS'
+      : recu ? `Reçu${doc && doc.recuLe ? ` (coché le ${formatDateFr(String(doc.recuLe).slice(0, 10))})` : ' (validé à la main)'} — cliquer pour le remettre à recevoir`
+        : 'Cocher une fois reçu';
+    const caseHtml = trouveeNas
+      ? `<span class="piece-case analyse-case" role="checkbox" aria-checked="true" aria-disabled="true" aria-label="${escapeAttr(label)}" title="${escapeAttr(titre)}">${icone('check')}</span>`
+      : `<button type="button" class="piece-case analyse-case" role="checkbox" aria-checked="${recu}" aria-label="${escapeAttr(label)}" title="${escapeAttr(titre)}" onclick="basculerDocumentAnalyseRecu('${d.id}', ${index})">${recu ? icone('check') : ''}</button>`;
+    return `<div class="analyse-doc-ligne${recu ? ' recu' : ''}">${caseHtml}<span class="analyse-doc-nom">${escapeHtml(label)}</span>${cle ? '<span class="piece-tag" title="Même pièce que dans l’onglet Pièces">checklist</span>' : ''}<button type="button" class="analyse-doc-suppr" onclick="supprimerDocumentDossier('${d.id}', ${index})" title="Retirer ce document de la liste" aria-label="Retirer ce document">${icone('x')}</button></div>`;
+  }
+
+  function basculerEngagementFait(dossierId, index) {
+    const d = dossiers.find(x => x.id === dossierId);
+    const liste = d && d.analyseJuridique && d.analyseJuridique.engagements;
+    if (!liste || liste[index] === undefined) return;
+    if (typeof liste[index] === 'string') liste[index] = { phrase: liste[index], type: null, page: null };
+    const e = liste[index];
+    if (etatEngagementAnalyse(d, e).auto) return;
+    e.fait = !e.fait;
+    d.pieces = d.pieces || {};
+    if (e.fait) {
+      e.faitLe = new Date().toISOString();
+      // Les pièces de la checklist que cet engagement fait réclamer (« Travaux de remise en état »…)
+      // suivent : validées à la main, sans quoi le dossier les attendrait encore. Retenues sur
+      // l'engagement pour être rendues si on le décoche.
+      const cles = Array.from(new Set(documentsDepuisClause(e).map(doc => cleChecklistDocumentAnalyse(d, doc)).filter(Boolean)))
+        .filter(cle => d.pieces[cle] !== 'recue');
+      cles.forEach(cle => {
+        d.pieces[cle] = 'recue';
+        d.piecesValideesManuellement = Array.from(new Set([...(d.piecesValideesManuellement || []), cle]));
+      });
+      if (cles.length) e.piecesValidees = cles; else delete e.piecesValidees;
+    } else {
+      delete e.faitLe;
+      (e.piecesValidees || []).forEach(cle => {
+        if (!(d.piecesValideesManuellement || []).includes(cle)) return;
+        d.piecesValideesManuellement = d.piecesValideesManuellement.filter(c => c !== cle);
+        d.pieces[cle] = 'manquante';
+      });
+      delete e.piecesValidees;
+    }
+    ajouterHistorique(d, `${e.fait ? 'Engagement du vendeur réalisé' : 'Engagement du vendeur remis à faire'} : « ${libelleCourtEngagement(e)} »`);
+    signalerSiDossierDevenuComplet(d);
+    sauvegarder(d);
+    render();
+  }
+
+  function basculerDocumentAnalyseRecu(dossierId, index) {
+    const d = dossiers.find(x => x.id === dossierId);
+    const liste = d && d.analyseJuridique && d.analyseJuridique.documents;
+    if (!liste || liste[index] === undefined) return;
+    const cle = cleChecklistDocumentAnalyse(d, liste[index]);
+    if (cle) {
+      // Pièce de la checklist : mêmes gestes que dans l'onglet Pièces (avec leur confirmation).
+      const piece = checklistPieces(d.typeVente, d).find(p => p.cle === cle);
+      const recue = (d.pieces || {})[cle] === 'recue';
+      if (!recue) validerPieceManuellement(d.id, cle, piece.label);
+      else if ((d.piecesValideesManuellement || []).includes(cle)) retirerValidationManuellePiece(d.id, cle, piece.label);
+      return;
+    }
+    if (typeof liste[index] === 'string') liste[index] = { label: liste[index], cat: '' };
+    const doc = liste[index];
+    doc.recu = !doc.recu;
+    if (doc.recu) doc.recuLe = new Date().toISOString(); else delete doc.recuLe;
+    ajouterHistorique(d, `${doc.recu ? 'Document reçu' : 'Document remis à recevoir'} (analyse de l’avant-contrat) : « ${doc.label} »`);
+    signalerSiDossierDevenuComplet(d);
+    sauvegarder(d);
+    render();
   }
 
   function activerEditionEngagement(dossierId, index) {
@@ -10000,8 +10151,8 @@
         role, qualiteActe: role === 'VENDEUR' ? 'vendeur' : 'acquéreur',
         qualitePersonne: 'physique', representant: null, origine: 'authentic',
         source: { extrait: 'Export Authentic', index: null, page: null },
-        emails: p.emails.slice(), civilite: p.civilite, dateNaissance: p.dateNaissance, lieuNaissance: p.lieuNaissance
-      }, p.nomUsage ? { nomUsage: p.nomUsage } : {});
+        emails: p.emails.slice(), telephones: (p.telephones || []).slice(), civilite: p.civilite, dateNaissance: p.dateNaissance, lieuNaissance: p.lieuNaissance
+      }, p.nomUsage ? { nomUsage: p.nomUsage } : {}, p.situationMatrimoniale ? { situationMatrimoniale: p.situationMatrimoniale } : {});
     });
   }
 
@@ -10076,7 +10227,16 @@
     if (email) extraction.champs.emailAcquereur = champExtraction(email, origine);
     const emailV = parties.filter(p => p.role === 'VENDEUR').reduce((t, p) => t.concat(p.emails), [])[0];
     if (emailV) extraction.champs.emailVendeur = champExtraction(emailV, origine);
+    // Téléphones des parties (appels 3CX reconnus) : repris sur la fiche à la création, sans passer
+    // par le formulaire (modifiables ensuite dans l'onglet Échanges).
+    const tels = (role) => parties.filter(p => p.role === role).reduce((t, p) => t.concat(p.telephones || []), [])
+      .filter((x, i, l) => l.indexOf(x) === i).join(' / ');
+    if (tels('ACQUEREUR')) extraction.champs.telephoneAcquereur = champExtraction(tels('ACQUEREUR'), origine);
+    if (tels('VENDEUR')) extraction.champs.telephoneVendeur = champExtraction(tels('VENDEUR'), origine);
     if (bien && bien.type) extraction.champs.typeVente = champExtraction(bien.type, origine);
+    // Prix « Capital » des informations financières d'Authentic : seulement si le texte n'en donne pas.
+    const prixAuth = donnees.infosAuthentic && donnees.infosAuthentic.prix;
+    if (prixAuth && !(extraction.champs.prixVente && extraction.champs.prixVente.valeur)) extraction.champs.prixVente = champExtraction(prixAuth, origine);
     const notaires = extraction.notaires || {};
     if (notaires.statut !== 'CONFIRMED') {
       const n = notairesExportAuthentic(donnees);
@@ -10089,11 +10249,28 @@
   // Pièces de la checklist présentes dans Authentic, reconnues par le nom de leur fichier ou leur
   // intitulé (même règle que sur le NAS : jamais par le contenu). Une pièce = une ligne, avec le
   // document qui la porte. Pure.
+  // Pièces d'urbanisme (certificat d'urbanisme, alignement, numérotage, assainissement, renonciation
+  // au droit de préemption) : jamais reprises d'Authentic pour une vente (étude, 02/10 : « ne pas
+  // prendre en compte les pièces d'urbanisme sauf la SAFER ») — elles se cochent par le NAS ou à la main.
+  function pieceUrbanismeIgnoreeAuthentic(cle, typeAffaire) {
+    return typeAffaire !== 'succession' && PIECES_URBANISME.some(p => p.cle === cle);
+  }
+
   function piecesExportAuthentic(donnees, checklist) {
+    // Pages relevées : les pièces reçues dans Authentic (état civil, casier judiciaire, SAFER),
+    // déjà reconnues à la lecture de la page — pièces du dossier à leur intitulé.
+    if (donnees && donnees.origine === 'pages') {
+      return (donnees.documents || []).filter(dc => dc.piece).map(dc => {
+        const existante = (checklist || []).find(p => p.personnalisee && normaliserPourRecherche(p.label) === normaliserPourRecherche(dc.piece.label));
+        return { cle: existante ? existante.cle : dc.piece.cle, label: existante ? existante.label : dc.piece.label, fichier: dc.intitule, nouvelle: !existante };
+      });
+    }
     const docs = ((donnees && donnees.documents) || []).concat((donnees && donnees.documentsPersonnes) || []);
+    const typeAffaire = typeAffaireAuthentic(donnees || {});
     const trouvees = [];
     for (const piece of checklist || []) {
       if (!piece || !piece.cle || trouvees.some(t => t.cle === piece.cle)) continue;
+      if (pieceUrbanismeIgnoreeAuthentic(piece.cle, typeAffaire)) continue;
       const doc = docs.find(dc => [dc.nomFichier, dc.intitule].filter(Boolean)
         .some(n => correspondancePieceNom(piece, normaliserNomPourMotif(/\.[a-z0-9]{2,4}$/i.test(n) ? n : n + '.pdf')) === 'exact'));
       if (doc) trouvees.push({ cle: piece.cle, label: piece.label, fichier: doc.nomFichier || doc.intitule });
@@ -10225,6 +10402,10 @@
     const bien = bienExportAuthentic(donnees);
     const select = document.getElementById('f-type-vente');
     if (bien && bien.type && select) { select.value = bien.type; majApercuPieces(); }
+    // Collaborateur en charge (parties prenantes d'Authentic) : responsable proposé.
+    const collab = donnees && donnees.infosAuthentic && donnees.infosAuthentic.collaborateur;
+    const resp = document.getElementById('f-responsable');
+    if (collab && resp && [...resp.options].some(o => o.value === collab)) resp.value = collab;
   }
 
   // Compte rendu de l'import sous la zone de dépôt, et pièces reprises à l'étape Finaliser.
@@ -10232,7 +10413,7 @@
     const status = document.getElementById('pdf-status');
     const parties = partiesExportAuthentic(donnees);
     status.className = 'pdf-status ok';
-    status.textContent = `Export Authentic « ${donnees.intitule} » lu : ${parties.length} partie${parties.length > 1 ? 's' : ''}, ${donnees.documents.length} document${donnees.documents.length > 1 ? 's' : ''}`
+    status.textContent = `${donnees.origine === 'pages' ? 'Pages Authentic' : 'Export Authentic'} « ${donnees.intitule} » ${donnees.origine === 'pages' ? 'reprises' : 'lu'} : ${parties.length} partie${parties.length > 1 ? 's' : ''}, ${donnees.documents.length} document${donnees.documents.length > 1 ? 's' : ''}`
       + (sourceTexte ? ` ; ${sourceTexte}` : ' ; aucun acte à lire : dates butoir à saisir.');
     majPiecesAuthentic();
   }
@@ -11017,6 +11198,8 @@
     const dossier = {
       id: (crypto.randomUUID ? crypto.randomUUID() : 'd-' + Date.now() + '-' + Math.random().toString(16).slice(2)),
       nom, responsable, emailAcquereur, emailVendeur,
+      telephoneAcquereur: (extractionActuelle && extractionActuelle.champs && extractionActuelle.champs.telephoneAcquereur && extractionActuelle.champs.telephoneAcquereur.valeur) || '',
+      telephoneVendeur: (extractionActuelle && extractionActuelle.champs && extractionActuelle.champs.telephoneVendeur && extractionActuelle.champs.telephoneVendeur.valeur) || '',
       questionnaireEnvoyeLe: null,
       receptionFondsConfirmeeLe: null,
       nomAgence,
@@ -11105,10 +11288,19 @@
       const caseAuthentic = document.getElementById('f-pieces-authentic');
       const reprises = caseAuthentic && caseAuthentic.checked && roleNotaire !== 'participant'
         ? piecesExportAuthentic(exportAuthenticActuel, checklistPieces(typeVente)) : [];
-      reprises.forEach(pc => { dossier.pieces[pc.cle] = 'recue'; });
-      if (reprises.length) dossier.piecesValideesManuellement = reprises.map(pc => pc.cle);
+      reprises.forEach(pc => {
+        if (pc.nouvelle && !(dossier.piecesPersonnalisees || []).some(p => p.cle === pc.cle)) {
+          dossier.piecesPersonnalisees = (dossier.piecesPersonnalisees || []).concat({ cle: pc.cle, label: pc.label });
+        }
+        dossier.pieces[pc.cle] = 'recue';
+      });
+      if (reprises.length) {
+        dossier.piecesValideesManuellement = reprises.map(pc => pc.cle);
+        dossier.piecesAuthentic = reprises.map(pc => pc.cle);
+      }
+      infosAuthenticACreation(dossier, exportAuthenticActuel.infosAuthentic);
       dossier.historique.push(Object.assign({ date: new Date().toISOString(),
-        texte: `Créé depuis l'export Authentic « ${exportAuthenticActuel.intitule} »` + (reprises.length ? ` — pièces présentes dans Authentic marquées reçues : ${reprises.map(pc => pc.label).join(', ')}` : '') },
+        texte: `Créé depuis ${exportAuthenticActuel.origine === 'pages' ? 'les pages' : 'l’export'} Authentic « ${exportAuthenticActuel.intitule} »` + (reprises.length ? ` — pièces présentes dans Authentic marquées reçues : ${reprises.map(pc => pc.label).join(', ')}` : '') },
       utilisateurPoste ? { auteur: utilisateurPoste } : {}));
     }
 
@@ -11126,6 +11318,23 @@
     // dossier du NAS » juste après avoir créé le dossier. Jamais attendu (la fiche s'affiche tout
     // de suite), et sans effet si aucune correspondance parfaite n'existe.
     lierDossierNasAutomatique(dossier.id);
+  }
+
+  // Pure (modifie le dossier passé) : à la création depuis les pages d'Authentic, les informations du
+  // dossier relevées (acte, RHF, SAFER, prix, collaborateur, notaire) sont gardées sur la fiche, et une
+  // SAFER notifiée sans réponse ajoute « Réponse SAFER » aux pièces manquantes.
+  function infosAuthenticACreation(dossier, infos) {
+    if (!dossier || !infos || !Object.keys(infos).length) return dossier;
+    dossier.authentic = Object.assign({}, infos, { releveLe: new Date().toISOString() });
+    const sa = infos.safer;
+    if (sa && sa.decision !== 'non_preemption' && dossier.roleNotaire !== 'participant'
+      && !(dossier.piecesPersonnalisees || []).some(p => /safer/i.test(p.label))) {
+      dossier.piecesPersonnalisees = (dossier.piecesPersonnalisees || []).concat({ cle: 'perso-safer', label: 'Réponse SAFER' });
+      dossier.pieces = dossier.pieces || {};
+      dossier.pieces['perso-safer'] = 'manquante';
+      dossier.authentic.saferPieceAjoutee = true;
+    }
+    return dossier;
   }
 
   // Verbe d'ouverture de la question → libellé et couleur du bouton (voir demanderConfirmation).
@@ -12096,7 +12305,7 @@
   };
   // Catégories qu'on peut poser sur un rendez-vous de l'agenda : le lieu (TYPES_RDV) et, en jaune,
   // « Annulé / à replacer » (étude, 01/10) — la signature d'un dossier ainsi marquée repasse « à
-  // placer ». Nom Outlook de chacune réglé dans Réglages › Rappels et agenda (categoriesRdv).
+  // placer ». Nom Outlook de chacune réglé dans Réglages › Agenda et Outlook (categoriesRdv).
   var CATEGORIES_AGENDA = Object.assign({}, TYPES_RDV, { annule: { libelle: 'Annulé / à replacer', court: 'À replacer' } });
 
   function normaliserNomCategorie(t) {
@@ -13030,7 +13239,7 @@
       const reponse = await fetchAvecAuth('/api/exchange/rendez-vous/lieu', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ date: d.rendezVousSignature, reference: d.nom, appelFonds: af, projet: pj, confrere: confrereLieuAgenda(d) })
+        body: JSON.stringify({ date: d.rendezVousSignature, reference: d.nom, appelFonds: af, projet: pj, confrere: confrereLieuAgenda(d), initiales: initialesResponsable(d) })
       });
       const corps = await reponse.json();
       if (corps.ok) {
@@ -14030,6 +14239,149 @@
     planifierAjustementWidgets();
   }
 
+  // ---- Widget « Statistiques » (étude, 02/10 : délais entre l'ouverture du dossier et l'obtention du
+  // prêt, la renonciation au droit de préemption, la signature ; nombre de dossiers par rapport au mois
+  // précédent et au même mois de l'année précédente). Tout vient de ce que CLAIRE a déjà noté — l'entrée
+  // « Dossier créé » de l'historique pour l'ouverture (la date du compromis n'est pas enregistrée) —,
+  // rien n'est deviné : un dossier sans l'une des deux dates n'entre pas dans la moyenne.
+  var RE_HISTORIQUE_PRET_OBTENU = /offre de pr[eê]t (?:retrouv|re[cç]u|confirm)|obtention du pr[eê]t.*marqu[ée]e r[ée]alis[ée]e/i;
+  var RE_HISTORIQUE_PREEMPTION = /pr[ée]emption/i;
+
+  // Pure : date (AAAA-MM-JJ) de l'ouverture du dossier dans CLAIRE, ou null.
+  function dateOuvertureDossier(d) {
+    const h = ((d && d.historique) || []).find(x => x && x.texte === 'Dossier créé');
+    return h && h.date ? isoLocalDepuisDate(h.date) : null;
+  }
+  // Pure : la plus ancienne entrée d'historique qui répond au motif (et à `filtre`), en AAAA-MM-JJ.
+  function premiereDateHistorique(d, re, filtre) {
+    const dates = ((d && d.historique) || []).filter(x => x && x.date && re.test(x.texte || '') && (!filtre || filtre(x.texte)))
+      .map(x => isoLocalDepuisDate(x.date)).filter(Boolean).sort();
+    return dates[0] || null;
+  }
+  // Pure : offre de prêt reçue (ou obtention du prêt marquée réalisée) — jamais pour un achat comptant.
+  function dateObtentionPret(d) {
+    if (!d || d.sansPret) return null;
+    return premiereDateHistorique(d, RE_HISTORIQUE_PRET_OBTENU);
+  }
+  // Pure : renonciation au droit de préemption reçue — trouvée sur le NAS ou rangée (piecesTrouveesLe),
+  // sinon validée à la main (historique).
+  function dateRenonciationPreemption(d) {
+    if (!d) return null;
+    const trouvee = d.piecesTrouveesLe && d.piecesTrouveesLe.renonciationPreemption;
+    if (trouvee) return isoLocalDepuisDate(trouvee);
+    if (!(d.pieces && d.pieces.renonciationPreemption === 'recue')) return null;
+    return premiereDateHistorique(d, RE_HISTORIQUE_PREEMPTION, t => /re[cç]u|valid|trouv|rang/i.test(t));
+  }
+  // Pure : jour de la signature, une fois passée.
+  function dateSignatureFaite(d, aujourdhuiIso) {
+    const auj = aujourdhuiIso || isoAujourdhuiLocal();
+    return d && d.rendezVousSignature && d.rendezVousSignature <= auj ? d.rendezVousSignature : null;
+  }
+
+  // Pure : { pret, preemption, signature } → { moyenne, mediane, n, min, max } en jours depuis
+  // l'ouverture, sur TOUS les dossiers mesurables (étude, 02/10 : « la moyenne sur tous les dossiers,
+  // pas le mois en cours » — archivés compris, sans fenêtre de dates) ; moyenne null sans aucun dossier.
+  function statistiquesDelaisDossiers(liste, aujourdhuiIso) {
+    const auj = aujourdhuiIso || isoAujourdhuiLocal();
+    const mesurer = (dateDe) => {
+      const ecarts = [];
+      (liste || []).forEach(d => {
+        const ouverture = dateOuvertureDossier(d);
+        const fin = dateDe(d);
+        if (!ouverture || !fin || fin > auj) return;
+        const j = ecartJours(ouverture, fin);
+        if (j !== null && j >= 0) ecarts.push(j);
+      });
+      ecarts.sort((a, b) => a - b);
+      const n = ecarts.length;
+      if (!n) return { moyenne: null, mediane: null, n: 0, min: null, max: null };
+      const mediane = n % 2 ? ecarts[(n - 1) / 2] : Math.round((ecarts[n / 2 - 1] + ecarts[n / 2]) / 2);
+      return { moyenne: Math.round(ecarts.reduce((t, x) => t + x, 0) / n), mediane, n, min: ecarts[0], max: ecarts[n - 1] };
+    };
+    return {
+      pret: mesurer(dateObtentionPret),
+      preemption: mesurer(dateRenonciationPreemption),
+      signature: mesurer(d => dateSignatureFaite(d, auj))
+    };
+  }
+
+  // Pure : dossiers ouverts dans CLAIRE ce mois-ci, le mois précédent et le même mois de l'année
+  // précédente. `disponible` = false quand CLAIRE ne suivait encore aucun dossier ce mois-là (aucune
+  // ouverture notée avant sa fin) : on affiche alors « — », pas un zéro trompeur.
+  function comparaisonDossiersOuverts(liste, aujourdhuiIso) {
+    const auj = aujourdhuiIso || isoAujourdhuiLocal();
+    const ouvertures = (liste || []).map(dateOuvertureDossier).filter(Boolean).sort();
+    const premiere = ouvertures[0] || null;
+    const moisDecale = (n) => { const x = new Date(auj.slice(0, 7) + '-01T00:00:00'); x.setMonth(x.getMonth() + n); return isoLocalDepuisDate(x).slice(0, 7); };
+    const periode = (cle) => {
+      const n = ouvertures.filter(o => o.slice(0, 7) === cle).length;
+      return { cle, n, disponible: !!premiere && premiere.slice(0, 7) <= cle };
+    };
+    return { mois: periode(auj.slice(0, 7)), precedent: periode(moisDecale(-1)), anPasse: periode(moisDecale(-12)), premiere };
+  }
+
+  // Pure : « octobre », « octobre 2025 » (l'année seulement si ce n'est pas celle de référence).
+  function nomMoisStatistiques(cle, anneeRef, court) {
+    const nom = new Date(cle + '-01T00:00:00').toLocaleDateString('fr-FR', { month: court ? 'short' : 'long' });
+    return cle.slice(0, 4) === String(anneeRef) ? nom : `${nom} ${court ? cle.slice(2, 4) : cle.slice(0, 4)}`;
+  }
+
+  function renderStatistiquesDashboard(perimetreTous) {
+    const bloc = document.getElementById('kpi-statistiques');
+    if (!bloc) return;
+    const presentation = presentationWidget('statistiques');
+    const auj = isoAujourdhuiLocal();
+    // Délais : tous les dossiers de l'étude, quel que soit le périmètre du tableau de bord.
+    const delais = statistiquesDelaisDossiers(dossiers, auj);
+    const cmp = comparaisonDossiersOuverts(perimetreTous, auj);
+    const annee = auj.slice(0, 4);
+    const court = presentation !== 'grand';   // « sept. », « oct. 25 » quand la place manque
+    const lignesDelais = [
+      { cle: 'pret', libelle: 'Obtention du prêt', s: delais.pret, classe: 'pret' },
+      { cle: 'preemption', libelle: 'Renonciation au droit de préemption', s: delais.preemption, classe: 'preemption' },
+      { cle: 'signature', libelle: 'Signature de l’acte', s: delais.signature, classe: 'signature' }
+    ];
+    const max = Math.max(1, ...lignesDelais.map(l => l.s.moyenne || 0));
+    const ligneDelai = (l) => {
+      const s = l.s;
+      const aide = s.n ? `Moyenne sur ${s.n} dossier${s.n > 1 ? 's' : ''} · médiane ${s.mediane} j · de ${s.min} à ${s.max} j` : 'Aucun dossier mesurable';
+      return `<li class="st-delai" title="${escapeAttr(aide)}">
+          <span class="st-delai-lib">${escapeHtml(l.libelle)}</span>
+          <span class="st-delai-val">${s.n ? `<b>${s.moyenne}</b> j` : '—'}</span>
+          <span class="st-barre"><span class="st-barre-${l.classe}" style="width:${s.n ? Math.max(4, Math.round(100 * s.moyenne / max)) : 0}%"></span></span>
+          ${presentation === 'petit' ? '' : `<span class="st-delai-n">${s.n ? `${s.n} dossier${s.n > 1 ? 's' : ''}` : ''}</span>`}
+        </li>`;
+    };
+    const ecart = (a, b) => {
+      if (!b.disponible) return '<span class="st-ecart">—</span>';
+      const t = formaterTendance(a.n - b.n);
+      return `<span class="st-ecart">${t.icone}${t.texte}</span>`;
+    };
+    const tuile = (p, lib, principal) => `<div class="st-tuile${principal ? ' principal' : ''}">
+        <span class="st-tuile-n">${p.disponible || principal ? p.n : '—'}</span>
+        <span class="st-tuile-lib">${escapeHtml(lib)}</span>
+      </div>`;
+    const nouveaux = `<div class="st-tuiles">
+        ${tuile(cmp.mois, nomMoisStatistiques(cmp.mois.cle, annee, court), true)}
+        ${tuile(cmp.precedent, nomMoisStatistiques(cmp.precedent.cle, annee, court))}
+        ${tuile(cmp.anPasse, nomMoisStatistiques(cmp.anPasse.cle, annee, court))}
+      </div>
+      <div class="st-ecarts w-fixe">${ecart(cmp.mois, cmp.precedent)} vs mois précédent · ${ecart(cmp.mois, cmp.anPasse)} vs l’an dernier</div>`;
+    const sectionDelais = `<div class="w-section st-section">
+        <h3 class="jour-carte-sous-titre">Délai moyen, tous dossiers${infoBulle('En jours, depuis l’ouverture du dossier dans CLAIRE (la date du compromis n’est pas enregistrée), moyenne sur tous les dossiers de l’étude (archivés compris). Prêt : offre reçue ou obtention marquée réalisée. Préemption : renonciation trouvée sur le NAS ou validée à la main. Signature : date du rendez-vous passée.')}</h3>
+        <ul class="st-delais">${lignesDelais.map(ligneDelai).join('')}</ul>
+      </div>`;
+    const sectionNouveaux = `<div class="w-section st-section">
+        <h3 class="jour-carte-sous-titre">Dossiers ouverts${infoBulle(cmp.premiere ? `Dossiers ouverts dans CLAIRE chaque mois. « — » : CLAIRE ne suivait pas encore de dossier ce mois-là (premier dossier ouvert le ${formatDateFr(cmp.premiere)}). Le mois en cours est compté au jour d’aujourd’hui.` : 'Aucun dossier ouvert noté.')}</h3>
+        ${nouveaux}
+      </div>`;
+    const corps = presentation === 'petit'
+      ? `<ul class="st-delais">${lignesDelais.map(ligneDelai).join('')}</ul>
+         <div class="st-ecarts w-fixe"><b>${cmp.mois.n}</b> ouvert${cmp.mois.n > 1 ? 's' : ''} en ${escapeHtml(nomMoisStatistiques(cmp.mois.cle, annee))} · ${ecart(cmp.mois, cmp.precedent)}</div>`
+      : `<div class="st-duo">${sectionDelais}${sectionNouveaux}</div>`;
+    bloc.innerHTML = carteWidget({ presentation, classe: 'statistiques', titre: 'Statistiques', sous: 'Délais et dossiers ouverts', corps });
+  }
+
   // ---- Activité de l'étude (Tableau de bord) : suivi en direct, tous collaborateurs ----
   // Une seule source : l'historique des dossiers, déjà synchronisé entre les postes par le sondage
   // (toutes les 7 s) — la carte se met donc à jour toute seule, sans mécanisme de plus. On garde :
@@ -14088,6 +14440,14 @@
 
   function initialesCollaborateur(nom) {
     return String(nom || '').split(/[\s-]+/).filter(Boolean).slice(0, 2).map(m => m[0].toUpperCase()).join('');
+  }
+
+  // Collaborateur dans les vues Tableau et Échéances du Suivi (étude, 01/10) : ses initiales dans une
+  // pastille ronde, le nom complet au survol. Sans responsable : un tiret.
+  function pastilleCollaborateur(nom) {
+    const ini = initialesCollaborateur(nom);
+    if (!ini) return '<span class="echeance-jours calme">—</span>';
+    return `<span class="pastille-collab" title="${escapeAttr(nom)}" aria-label="${escapeAttr(nom)}">${escapeHtml(ini)}</span>`;
   }
 
   // ---- Suivi en direct, version visuelle (demandé par l'étude : « plus visuel et graphique ») ----
@@ -14175,13 +14535,30 @@
   //  - moyen : ce résumé à gauche, le fil à droite (coupé à la hauteur de la tuile) ;
   //  - grand : résumé, filtres par catégorie et fil complet qui défile dans la carte.
   function renderActiviteEtude(tousDossiers, presentation) {
+    const p = partiesActiviteEtude(tousDossiers, presentation);
+    const corps = presentation === 'petit' ? p.resume + p.derniereHtml
+      : presentation === 'moyen' ? `<div class="act-duo">${p.resume}${p.fil}</div>`
+        : `${p.resume}${p.puces}${p.fil}`;
+    return carteWidget({
+      presentation: presentation || 'grand', classe: 'activite-etude', attributs: `data-filtre="${p.filtreCourant}"`,
+      titre: 'Activité de l’étude',
+      droite: '<span class="activite-direct"><span class="activite-direct-point"></span>En direct</span>',
+      corps
+    });
+  }
+
+  // Les morceaux de la carte « Activité de l'étude » (résumé du jour, filtres, fil, dernière action),
+  // partagés par le widget du tableau de bord et le carré de la colonne du Suivi (étude, 01/10).
+  // `max` : nombre d'entrées du fil (MAX_ACTIVITE_ETUDE par défaut).
+  function partiesActiviteEtude(tousDossiers, presentation, max) {
+    const limite = max || MAX_ACTIVITE_ETUDE;
     const maintenant = Date.now();
     const toutes = activiteEtude(tousDossiers, 5000);
     const rythme = rythmeActivite(toutes, maintenant);
     // Peu d'actions des collaborateurs : les relevés de CLAIRE complètent le fil (le rythme et
     // « qui a agi » restent ceux des collaborateurs).
-    const entrees = toutes.length >= MAX_ACTIVITE_ETUDE ? toutes.slice(0, MAX_ACTIVITE_ETUDE)
-      : toutes.concat(activiteAutomatique(tousDossiers, MAX_ACTIVITE_ETUDE - toutes.length))
+    const entrees = toutes.length >= limite ? toutes.slice(0, limite)
+      : toutes.concat(activiteAutomatique(tousDossiers, limite - toutes.length))
         .sort((a, b) => String(b.date).localeCompare(String(a.date)));
 
     // Barres des 7 jours : hauteur proportionnelle au jour le plus chargé ; aujourd'hui en accent.
@@ -14231,15 +14608,7 @@
     const derniereHtml = derniere ? `<div class="w-bas" data-ajuster="2"><button type="button" class="w-prochaine" onclick="ouvrirDossierDepuisDashboard('${derniere.dossierId}')">
         <span class="w-prochaine-sous">${escapeHtml(derniere.auteur ? prenomCollaborateur(derniere.auteur) : derniere.source === 'claire' ? 'CLAIRE' : 'Agenda')} · ${escapeHtml(ilYaActivite(derniere.date, maintenant))}</span>
         <span class="w-prochaine-titre">${escapeHtml(derniere.texte)}</span></button></div>` : '';
-    const corps = presentation === 'petit' ? resume + derniereHtml
-      : presentation === 'moyen' ? `<div class="act-duo">${resume}${fil}</div>`
-        : `${resume}${puces}${fil}`;
-    return carteWidget({
-      presentation: presentation || 'grand', classe: 'activite-etude', attributs: `data-filtre="${filtreCourant}"`,
-      titre: 'Activité de l’étude',
-      droite: '<span class="activite-direct"><span class="activite-direct-point"></span>En direct</span>',
-      corps
-    });
+    return { resume, puces, fil, derniereHtml, filtreCourant };
   }
 
 
@@ -14255,7 +14624,7 @@
   var MAX_DERNIERES_PIECES = 6;   // demandé par l'étude : au plus 6 sur le tableau de bord
 
   // Pure et testable : une entrée par (dossier, pièce), les non vues d'abord puis la plus récente.
-  function dernieresPiecesTrouvees(dossiersActifs, maintenantMs) {
+  function dernieresPiecesTrouvees(dossiersActifs, maintenantMs, max) {
     const limite = (maintenantMs || Date.now()) - JOURS_DERNIERES_PIECES * 86400000;
     const entrees = [];
     for (const d of dossiersActifs) {
@@ -14270,7 +14639,7 @@
       }
     }
     entrees.sort((a, b) => (b.nouvelle - a.nouvelle) || String(b.le || '').localeCompare(String(a.le || '')));
-    return entrees.slice(0, MAX_DERNIERES_PIECES);
+    return entrees.slice(0, max || MAX_DERNIERES_PIECES);
   }
 
   // Pure : les pièces encore attendues sur les dossiers reliés (hors participation), regroupées par
@@ -14597,6 +14966,7 @@
   let etapeWizardActuelle = 1;
   function definirEtapeWizard(n) {
     etapeWizardActuelle = n;
+    if (n === 1) chargerRelevesAuthenticRecents();
     for (let i = 1; i <= 4; i++) {
       document.getElementById('wizard-step-' + i).classList.toggle('actif', i === n);
       document.getElementById('wizard-step-btn-' + i).classList.toggle('actif', i === n);
@@ -14718,9 +15088,14 @@
     if (!reduite) fermerVoletOutils(0);
     masquerInfobulleSidebar();
     const chevronGroupe = document.getElementById('icon-groupe-outils-chevron');
-    if (chevronGroupe) chevronGroupe.innerHTML = icone(ouvert ? 'chevron-up' : 'chevron-down');
+    if (chevronGroupe) chevronGroupe.innerHTML = icone(ouvert ? 'minus' : 'plus');
     const btnGroupe = document.getElementById('sidebar-groupe-outils');
-    if (btnGroupe) btnGroupe.setAttribute('aria-expanded', String(ouvert));
+    if (btnGroupe) {
+      btnGroupe.setAttribute('aria-expanded', String(ouvert));
+      const lib = ouvert ? 'Refermer les outils dans la barre' : 'Afficher les outils dans la barre';
+      btnGroupe.title = lib;
+      btnGroupe.setAttribute('aria-label', lib);
+    }
     const choix = document.getElementById('reglages-sidebar-demarrage');
     if (choix) choix.value = sidebarDemarrage();
   }
@@ -14758,7 +15133,8 @@
 
   let voletOutilsMinuteur = null;
   function ouvrirVoletOutils() {
-    const titre = document.getElementById('sidebar-groupe-outils');
+    // Ancré sur le lien « Outils » (le + est masqué quand la barre est repliée).
+    const titre = document.getElementById('tab-outils');
     const menu = document.getElementById('sidebar-sousmenu-outils');
     const sidebar = document.getElementById('sidebar');
     if (!titre || !menu || !sidebarReduiteBureau()) return;
@@ -14775,7 +15151,6 @@
     const top = dessous + h + 12 <= window.innerHeight ? dessous : Math.max(12, r.top - 8 - h);
     menu.style.left = `${Math.round(r.left)}px`;
     menu.style.top = `${Math.round(top)}px`;
-    titre.setAttribute('aria-expanded', 'true');
     afficherInfobulleSidebar(titre);
   }
 
@@ -14786,10 +15161,9 @@
       const sidebar = document.getElementById('sidebar');
       if (menu) { menu.classList.remove('volet-ouvert'); menu.style.left = ''; menu.style.top = ''; }
       if (sidebar) sidebar.classList.remove('volet-ouvert');
-      const titre = document.getElementById('sidebar-groupe-outils');
+      const titre = document.getElementById('tab-outils');
       if (titre) titre.classList.remove('volet-ouvert');
       masquerInfobulleSidebar();
-      if (titre) titre.setAttribute('aria-expanded', String(groupeOutilsOuvert()));
     };
     if (delai) voletOutilsMinuteur = setTimeout(fermer, delai); else fermer();
   }
@@ -14846,17 +15220,17 @@
     const survol = (e) => {
       const el = cible(e);
       if (!el) return;
-      if (el.id === 'sidebar-groupe-outils') { ouvrirVoletOutils(); return; }
+      if (el.id === 'tab-outils') { ouvrirVoletOutils(); return; }
       afficherInfobulleSidebar(el);
     };
     sidebar.addEventListener('mouseover', survol);
-    sidebar.addEventListener('focusin', (e) => { const el = cible(e); if (el && el.id !== 'sidebar-groupe-outils') afficherInfobulleSidebar(el); });
+    sidebar.addEventListener('focusin', (e) => { const el = cible(e); if (el && el.id !== 'tab-outils') afficherInfobulleSidebar(el); });
     sidebar.addEventListener('mouseout', (e) => {
       const el = e.target.closest && e.target.closest('.sidebar-link, .sidebar-scan-bannette, .sidebar-icon-btn, .sidebar-groupe-titre');
       // Le nom de l'icône Outils reste affiché tant que son volet est ouvert.
-      const voletOuvert = el && el.id === 'sidebar-groupe-outils' && el.classList.contains('volet-ouvert');
+      const voletOuvert = el && el.id === 'tab-outils' && el.classList.contains('volet-ouvert');
       if (el && !voletOuvert && !(e.relatedTarget && el.contains(e.relatedTarget))) masquerInfobulleSidebar();
-      const titre = document.getElementById('sidebar-groupe-outils');
+      const titre = document.getElementById('tab-outils');
       const menu = document.getElementById('sidebar-sousmenu-outils');
       const vers = e.relatedTarget;
       if (menu && menu.classList.contains('volet-ouvert') && !(vers && (menu.contains(vers) || (titre && titre.contains(vers))))) {
@@ -14873,7 +15247,7 @@
     }
     document.addEventListener('click', (e) => {
       const m = document.getElementById('sidebar-sousmenu-outils');
-      if (m && m.classList.contains('volet-ouvert') && !e.target.closest('#sidebar-sousmenu-outils, #sidebar-groupe-outils')) fermerVoletOutils(0);
+      if (m && m.classList.contains('volet-ouvert') && !e.target.closest('#sidebar-sousmenu-outils, #tab-outils')) fermerVoletOutils(0);
     });
     document.addEventListener('keydown', (e) => {
       const m = document.getElementById('sidebar-sousmenu-outils');
@@ -14882,13 +15256,34 @@
     window.addEventListener('resize', () => { masquerInfobulleSidebar(); fermerVoletOutils(0); });
   }
 
+  // ---- Page Outils (étude, 01/10) : chaque outil en grosse icône, avec ce qu'il fait. ----
+  var OUTILS_PAGE = [
+    { onglet: 'appel-fonds', titre: 'Appel de fonds', icone: 'mail', description: 'Le courrier de convocation et le décompte des sommes à virer.' },
+    { onglet: 'calculateur', titre: 'Simulateur de provision', icone: 'banknote', description: 'Une estimation des frais d’acte à demander.' },
+    { onglet: 'prorata', titre: 'Prorata & répartitions', icone: 'part-disque', description: 'Taxe foncière, charges de copropriété, loyers au jour de l’acte.' },
+    { onglet: 'quotites', titre: 'Quotités d’acquisition', icone: 'users', description: 'La part de chaque acquéreur et l’annexe des quotités.' },
+    { onglet: 'inventaire', titre: 'Arbitrage forfait mobilier', icone: 'scale', description: 'Forfait de 5 % ou prisée d’un commissaire de justice.' },
+    { onglet: 'confreres', titre: 'Répertoire', icone: 'book', description: 'Les offices du département et les interlocuteurs de l’étude.' }
+  ];
+
+  function renderPageOutils() {
+    const grille = document.getElementById('outils-grille');
+    if (!grille) return;
+    grille.innerHTML = OUTILS_PAGE.map(o => `
+      <button type="button" class="outil-tuile" onclick="definirOnglet('${o.onglet}')">
+        <span class="outil-tuile-icone" aria-hidden="true">${icone(o.icone)}</span>
+        <span class="outil-tuile-titre">${escapeHtml(o.titre)}</span>
+        <span class="outil-tuile-texte">${escapeHtml(o.description)}</span>
+      </button>`).join('');
+  }
+
   // Écran affiché, joint au contexte d'un signalement de problème (voir contexteSignalement).
   var ongletActuel = 'dashboard';
   var LIBELLES_ONGLETS = {
     dashboard: 'Tableau de bord', nouveau: 'Nouveau dossier', suivi: 'Suivi des dossiers',
     calculateur: 'Simulateur de provision', prorata: 'Prorata & répartitions', 'appel-fonds': 'Appel de fonds',
     scans: 'Claire Scan', inventaire: 'Arbitrage forfait mobilier', quotites: "Quotités d'acquisition", confreres: 'Répertoire', 'analyse-ia': "Relecture d'actes",
-    reglages: 'Réglages'
+    reglages: 'Réglages', outils: 'Outils'
   };
 
   function definirOnglet(nom) {
@@ -14910,6 +15305,10 @@
     document.getElementById('onglet-confreres').style.display = nom === 'confreres' ? '' : 'none';
     document.getElementById('onglet-analyse-ia').style.display = nom === 'analyse-ia' ? '' : 'none';
     document.getElementById('onglet-reglages').style.display = nom === 'reglages' ? '' : 'none';
+    document.getElementById('onglet-outils').style.display = nom === 'outils' ? '' : 'none';
+    document.getElementById('tab-outils').setAttribute('aria-selected', String(nom === 'outils'));
+    document.getElementById('tab-outils').classList.toggle('actif', nom === 'outils');
+    if (nom === 'outils') renderPageOutils();
     document.getElementById('tab-dashboard').setAttribute('aria-selected', String(nom === 'dashboard'));
     document.getElementById('tab-suivi').setAttribute('aria-selected', String(nom === 'suivi'));
     document.getElementById('tab-agenda').setAttribute('aria-selected', String(nom === 'agenda'));
@@ -14944,6 +15343,8 @@
     // Relu à chaque retour sur le tableau de bord : un rappel ajouté depuis un autre poste.
     if (nom === 'dashboard' && typeof chargerRappelsPerso === 'function' && authToken) chargerRappelsPerso();
     if (nom === 'dashboard' && authToken) chargerAbsencesOffice();
+    // Le widget Agenda relit l'agenda de l'office à chaque retour (un rendez-vous a pu être posé depuis).
+    if (nom === 'dashboard') agendaWidget.t = 0;
     if (nom === 'suivi' || nom === 'dashboard') render();
     // Vérifiée à chaque ouverture (appel léger) plutôt qu'une fois pour toutes : Ollama a pu être
     // installé/démarré/arrêté sur le serveur depuis la dernière visite de cet onglet.
@@ -15107,12 +15508,14 @@
       // mois alors que sa condition de prêt n'était pas encore levée. On ne montre que ce qu'il y a
       // à faire maintenant ; la suivante apparaît quand celle-ci est passée ou validée (voir
       // echeanceValidee / validerEcheance).
-      const echeances = toutesEcheances(d).sort((x, y) => x.iso.localeCompare(y.iso));
+      // Un dossier sans échéance datée en attente (rendez-vous à fixer sans date butoir, tout validé…)
+      // n'est jamais omis (étude, 02/10 : « il faut afficher tous les dossiers ») : section « Sans
+      // échéance datée » en dernier.
+      const echeances = toutesEcheances(d).filter(x => x && x.iso).sort((x, y) => x.iso.localeCompare(y.iso));
       const e = echeances[0];
-      if (!e) continue;
-      const semaine = debutSemaine(e.iso);
+      const semaine = e ? debutSemaine(e.iso) : null;
+      if (!e || !semaine) { ajouter('sans-date', 3, 'Sans échéance datée', { dossier: d, echeance: null }); continue; }
       const item = { dossier: d, echeance: e };
-      if (!semaine) continue;
       if (semaineCourante && semaine < semaineCourante) ajouter('retard', 0, 'En retard', item);
       else if (limite && semaine >= limite) ajouter('plus-tard', 2, 'Plus tard', item);
       else ajouter('s-' + semaine, 1, semaine, item);
@@ -15122,7 +15525,7 @@
     // semaines entre elles (une date ISO se trie comme une chaîne).
     const ordonnes = [...groupes.values()].sort((a, b) => (a.rang - b.rang) || a.cle.localeCompare(b.cle));
     for (const g of ordonnes) {
-      g.items.sort((a, b) => a.echeance.iso.localeCompare(b.echeance.iso) || a.dossier.nom.localeCompare(b.dossier.nom, 'fr'));
+      g.items.sort((a, b) => ((a.echeance && a.echeance.iso) || '').localeCompare((b.echeance && b.echeance.iso) || '') || String(a.dossier.nom || '').localeCompare(String(b.dossier.nom || ''), 'fr'));
     }
     return ordonnes;
   }
@@ -15133,6 +15536,7 @@
   function libelleSemaine(groupe, aujourdHui) {
     if (groupe.cle === 'retard') return 'En retard';
     if (groupe.cle === 'plus-tard') return 'Plus tard';
+    if (groupe.cle === 'sans-date') return 'Sans échéance datée';
     const debut = new Date(groupe.libelle + 'T00:00:00');
     const memeAnnee = aujourdHui && debut.getFullYear() === new Date(aujourdHui + 'T00:00:00').getFullYear();
     const options = memeAnnee ? { day: 'numeric', month: 'long' } : { day: 'numeric', month: 'long', year: 'numeric' };
@@ -15304,9 +15708,80 @@
     return depassees;
   }
 
+  // ---- Onglet Analyse de la fiche : engagements du vendeur et documents relevés, cochés reçus ou
+  // réalisés (étude, 02/10 : « le rendre coché pour indiquer si c'est reçu/réalisé ou non et le
+  // prendre en compte dans la complétude du dossier et la probabilité de tenue du rendez-vous »).
+  //  - Un document relevé qui est aussi une pièce de la checklist (cleChecklist) partage son état :
+  //    le cocher valide la pièce à la main (piecesValideesManuellement), comme dans l'onglet Pièces —
+  //    il n'est compté qu'une fois, par la checklist.
+  //  - Un autre document : `doc.recu` (+ recuLe), sur le document lui-même.
+  //  - Un engagement : `e.fait` (+ faitLe). Un engagement dont toutes les pièces qu'il fait réclamer
+  //    sont reçues (justificatif d'entretien, facture des travaux…) est réalisé de lui-même (case
+  //    grisée) ; sans pièce reconnue, il ne se coche qu'à la main.
+  // Rien n'est compté pour un dossier en participation (l'étude n'y suit pas la checklist).
+
+  // Pure : la clé de la pièce de la checklist que ce document désigne, si elle y figure encore.
+  function cleChecklistDocumentAnalyse(d, doc) {
+    const cle = clesChecklistDepuisDocuments([doc])[0];
+    if (!cle) return '';
+    return checklistPieces(d.typeVente, d).some(p => p.cle === cle) ? cle : '';
+  }
+
+  // Pure : document relevé reçu ?
+  function documentAnalyseRecu(d, doc) {
+    const cle = cleChecklistDocumentAnalyse(d, doc);
+    if (cle) return (d.pieces || {})[cle] === 'recue';
+    return !!(doc && typeof doc === 'object' && doc.recu);
+  }
+
+  // Pure : { fait, auto, motif } d'un engagement. `auto` : réalisé parce que ses pièces sont reçues.
+  function etatEngagementAnalyse(d, e) {
+    if (e && typeof e === 'object' && e.fait) {
+      return { fait: true, auto: false, motif: e.faitLe ? `Coché le ${formatDateFr(String(e.faitLe).slice(0, 10))}` : 'Coché à la main' };
+    }
+    const releves = (d.analyseJuridique && d.analyseJuridique.documents) || [];
+    const pieces = documentsDepuisClause(e).map(doc => releves.find(x => cleDocumentIdentifie(x) === cleDocumentIdentifie(doc)) || doc);
+    if (pieces.length && pieces.every(doc => documentAnalyseRecu(d, doc))) {
+      return { fait: true, auto: true, motif: `Pièce reçue : ${pieces.map(doc => typeof doc === 'string' ? doc : doc.label).join(', ')}` };
+    }
+    return { fait: false, auto: false, motif: '' };
+  }
+
+  var RE_ANCRE_ENGAGEMENT = /^.*?\b(?:s['’]\s*engage(?:\s+à)?|s['’]\s*oblige(?:\s+à)?|devra|remettra|produira|fournira|communiquera|justifiera|fera\s+son\s+affaire(?:\s+de)?)\s+/i;
+
+  // Pure : l'objet d'un engagement, sans « Le PROMETTANT s'engage à » — pour une liste d'attente.
+  function libelleCourtEngagement(e) {
+    const phrase = String(typeof e === 'string' ? e : (e && e.phrase) || '').replace(/\s+/g, ' ').trim();
+    let s = (phrase.replace(RE_ANCRE_ENGAGEMENT, '') || phrase).replace(/[.;:,]\s*$/, '');
+    if (s.length > 60) s = s.slice(0, 58).replace(/\s+\S*$/, '') + '…';
+    return s.charAt(0).toUpperCase() + s.slice(1);
+  }
+
+  // Pure : ce que l'analyse attend encore — engagements non réalisés, documents hors checklist non
+  // reçus (ceux de la checklist sont déjà comptés par elle). Libellés prêts à afficher.
+  function elementsAnalyseEnAttente(d) {
+    const vide = { engagements: [], documents: [] };
+    if (!d || d.roleNotaire === 'participant' || !d.analyseJuridique) return vide;
+    const engagements = (d.analyseJuridique.engagements || [])
+      .filter(e => !etatEngagementAnalyse(d, e).fait)
+      .map(e => `Engagement : ${libelleCourtEngagement(e)}`);
+    const documents = (d.analyseJuridique.documents || [])
+      .filter(doc => !cleChecklistDocumentAnalyse(d, doc) && !documentAnalyseRecu(d, doc))
+      .map(doc => (typeof doc === 'string' ? doc : doc.label));
+    return { engagements, documents };
+  }
+
+  // Pure : { faits, total } de l'onglet Analyse (compteur de l'onglet).
+  function avancementAnalyse(d) {
+    const a = (d && d.analyseJuridique) || {};
+    const engs = a.engagements || [], docs = a.documents || [];
+    const faits = engs.filter(e => etatEngagementAnalyse(d, e).fait).length + docs.filter(doc => documentAnalyseRecu(d, doc)).length;
+    return { faits, total: engs.length + docs.length };
+  }
+
   // Pure : ce qui manque encore (libellés) — le financement d'abord (vente préalable non réalisée,
-  // offre de prêt non reçue), puis les pièces de la checklist non reçues (sauf participation, où
-  // l'étude ne suit pas la checklist). La vente préalable compte comme l'offre : elle finance
+  // offre de prêt non reçue), puis les pièces de la checklist non reçues, puis ce que l'onglet
+  // Analyse attend encore (sauf participation, où l'étude ne suit pas la checklist). La vente préalable compte comme l'offre : elle finance
   // l'achat, un dossier qui l'attend n'est pas complet (étude, 29/09 au soir).
   function piecesAttenduesDossier(d) {
     const manque = [];
@@ -15315,6 +15790,9 @@
     if (d.roleNotaire !== 'participant') {
       const pieces = d.pieces || {};
       checklistPieces(d.typeVente, d).forEach(p => { if (pieces[p.cle] !== 'recue') manque.push(p.label); });
+      // Documents relevés dans l'avant-contrat (hors checklist) et engagements du vendeur non cochés.
+      const analyse = elementsAnalyseEnAttente(d);
+      manque.push(...analyse.documents, ...analyse.engagements);
     }
     return manque;
   }
@@ -15391,11 +15869,11 @@
     }).join('');
   }
 
-  // ---- « Prévu ce mois-ci » au-dessus du Suivi (étude, 30/09 : « retravaille sur un angle : quoi
-  // de prévu ce mois-ci » — sans graphique, sans charge par collaborateur ni montant des ventes).
-  // Quatre listes de dossiers (signatures, envois, rendez-vous à fixer, dates butoir) et les délais
-  // moyens. Calculé sur la liste filtrée (mêmes filtres sauf statut) ; les délais comptent aussi les
-  // dossiers archivés.
+  // ---- Colonne de gauche du Suivi (étude, 01/10 : « met plutôt les dernières pièces rattachées sur
+  // le commun, le nombre de dossiers à signer ce mois-ci, le nombre qui reste à placer et dont la date
+  // butoir est dans le mois, le nombre de ventes (puis ensuite de successions) ») — remplace « Prévu
+  // en {mois} ». Quatre compteurs du mois en cours, chacun filtre la liste ; puis les pièces trouvées
+  // sur le NAS ces 14 derniers jours. Calculé sur la liste filtrée (mêmes filtres sauf statut).
 
   // Pure : les dates butoir encore ouvertes d'un dossier (vente préalable, prêt, date butoir tant
   // qu'aucun rendez-vous n'est fixé) — celles qui rendent un dossier « Urgent » une fois passées.
@@ -15407,159 +15885,111 @@
     return out;
   }
 
-  // Pure : date (AAAA-MM-JJ) de l'ouverture du dossier dans CLAIRE et de la réception de l'offre de
-  // prêt, lues dans l'historique (aucun champ ne garde la date du compromis).
-  function dateOuvertureDossier(d) {
-    const h = (d.historique || []).find(x => x && x.texte === 'Dossier créé');
-    return h && h.date ? isoLocalDepuisDate(h.date) : null;
-  }
-  var RE_HISTORIQUE_OFFRE_RECUE = /offre de pr[eê]t (retrouv|re[cç]u|confirm)|obtention du pr[eê]t.*marqu[ée]e r[ée]alis[ée]e/i;
-  function dateOffreRecue(d) {
-    const dates = (d.historique || []).filter(x => x && RE_HISTORIQUE_OFFRE_RECUE.test(x.texte || '')).map(x => isoLocalDepuisDate(x.date)).filter(Boolean).sort();
-    return dates[0] || null;
-  }
   function isoLocalDepuisDate(v) {
     const d = new Date(v);
     if (isNaN(d)) return null;
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   }
 
-  // Pure : le mois regardé — le mois en cours, ou le suivant dans ses 5 derniers jours (le 30/09,
-  // « prévu en septembre » ne dit plus rien). { cle: 'AAAA-MM', debut, fin }.
-  function moisPrevuSuivi(aujourdhuiIso) {
+  // Pure. `actifs` : dossiers de la liste (les archivés sont écartés). Le mois est le mois en cours.
+  //  - aSigner : rendez-vous de signature dans le mois (par date), `signees` = ceux déjà passés ;
+  //  - aPlacer : sans rendez-vous, date butoir dans le mois ou déjà dépassée (un dossier dont la butoir
+  //    est passée le mois dernier reste à placer), par date ; `depassees` = butoir passée ;
+  //  - ventes / successions : par d.typeAffaire (absent = vente).
+  function syntheseMoisSuivi(actifs, aujourdhuiIso) {
     const auj = aujourdhuiIso || isoAujourdhuiLocal();
-    const suivant = (iso) => { const d = new Date(iso.slice(0, 7) + '-01T00:00:00'); d.setMonth(d.getMonth() + 1); return isoLocalDepuisDate(d); };
-    const debutSuivant = suivant(auj);
-    const debut = ecartJours(auj, debutSuivant) <= 5 ? debutSuivant : auj.slice(0, 7) + '-01';
-    return { cle: debut.slice(0, 7), debut, fin: addDays(suivant(debut), -1) };
-  }
-
-  // Pure. `actifs` : dossiers non archivés de la liste ; `tous` : mêmes filtres, archives comprises.
-  // Chaque liste : [{ d, iso, libelle, retard }] triée par date, les retards d'abord.
-  function prevuDuMois(actifs, tous, aujourdhuiIso) {
-    const auj = aujourdhuiIso || isoAujourdhuiLocal();
-    const mois = moisPrevuSuivi(auj);
-    const dansMois = iso => iso && iso >= mois.debut && iso <= mois.fin;
-    const tri = (a, b) => (b.retard - a.retard) || a.iso.localeCompare(b.iso);
-    const signatures = (actifs || []).filter(d => dansMois(d.rendezVousSignature))
-      .map(d => ({ d, iso: d.rendezVousSignature, type: 'rendezVousSignature', libelle: 'Signature', retard: false, passee: d.rendezVousSignature < auj })).sort(tri);
-    const envois = [], rdvAFixer = [];
-    (actifs || []).forEach(d => echeancesPlanning(d).forEach(it => {
-      const retard = it.iso < auj;
-      if ((it.type === 'appelFonds' || it.type === 'projetEnvoye') && (dansMois(it.iso) || retard)) {
-        envois.push({ d, iso: it.iso, type: it.type, libelle: it.type === 'appelFonds' ? 'Appel de fonds' : 'Projet d’acte', retard });
-      }
-      if (it.type === 'fixerRdv' && (it.iso <= mois.fin)) rdvAFixer.push({ d, iso: it.iso, type: 'fixerRdv', libelle: 'Rendez-vous à fixer', retard });
-    }));
-    const butoirs = [];
-    (actifs || []).forEach(d => butoirsOuverts(d).forEach(b => {
-      const retard = b.iso < auj;
-      if (dansMois(b.iso) || retard) butoirs.push({ d, iso: b.iso, type: b.type, libelle: b.libelle, retard });
-    }));
-    // Délais moyens, sur les dossiers signés ces 12 derniers mois.
-    const ilYaUnAn = addDays(auj, -365);
-    const signes = (tous || []).filter(d => d.rendezVousSignature && d.rendezVousSignature < auj && d.rendezVousSignature >= ilYaUnAn);
-    const moyenne = (valeurs) => valeurs.length ? Math.round(valeurs.reduce((t, v) => t + v, 0) / valeurs.length) : null;
-    const versSignature = signes.map(d => ecartJours(dateOuvertureDossier(d), d.rendezVousSignature)).filter(j => j !== null && j >= 0);
-    const versOffre = (tous || []).map(d => ecartJours(dateOuvertureDossier(d), dateOffreRecue(d))).filter(j => j !== null && j >= 0);
+    const debut = auj.slice(0, 7) + '-01';
+    const suivant = new Date(debut + 'T00:00:00');
+    suivant.setMonth(suivant.getMonth() + 1);
+    const fin = addDays(isoLocalDepuisDate(suivant), -1);
+    const dansMois = iso => !!iso && iso >= debut && iso <= fin;
+    const liste = (actifs || []).filter(d => d && !d.archive);
+    const aSigner = liste.filter(d => dansMois(d.rendezVousSignature))
+      .sort((a, b) => a.rendezVousSignature.localeCompare(b.rendezVousSignature));
+    const aPlacer = liste.filter(d => !d.rendezVousSignature && d.acte && (dansMois(d.acte) || d.acte < auj) && !echeanceValidee(d, 'acte'))
+      .sort((a, b) => a.acte.localeCompare(b.acte));
     return {
-      mois, signatures, envois: envois.sort(tri), rdvAFixer: rdvAFixer.sort(tri), butoirs: butoirs.sort(tri),
-      delais: { signature: moyenne(versSignature), nSignature: versSignature.length, offre: moyenne(versOffre), nOffre: versOffre.length }
+      mois: { cle: debut.slice(0, 7), debut, fin },
+      aSigner, signees: aSigner.filter(d => d.rendezVousSignature < auj).length,
+      aPlacer, depassees: aPlacer.filter(d => d.acte < auj).length,
+      ventes: liste.filter(d => d.typeAffaire !== 'succession'),
+      successions: liste.filter(d => d.typeAffaire === 'succession')
     };
   }
 
-  var CLE_STATS_SUIVI_REPLIEES = 'claire-suivi-stats-repliees';
-  var prevuFiltre = '';
-  function statsSuiviRepliees() {
-    try { return localStorage.getItem(CLE_STATS_SUIVI_REPLIEES) === '1'; } catch (e) { return false; }
-  }
-  function basculerStatsSuivi() {
-    try { localStorage.setItem(CLE_STATS_SUIVI_REPLIEES, statsSuiviRepliees() ? '0' : '1'); } catch (e) { /* sans importance */ }
-    render();
-  }
-  function filtrerPrevu(cle) { prevuFiltre = prevuFiltre === cle ? '' : cle; render(); }
-
-  // Pure : le bloc du mois en deux parties — « À faire » (retards, envois, rendez-vous à placer :
-  // des tâches, qu'on fait avant une date) puis le calendrier du mois, jour par jour (signatures et
-  // dates butoir : des événements datés). `filtre` : '', 'signatures', 'envois', 'rdv' ou 'butoirs'.
-  function agendaPrevuDuMois(p, filtre) {
-    const garder = (cle) => !filtre || filtre === cle;
-    const aFaire = [];
-    if (garder('butoirs')) p.butoirs.filter(x => x.retard).forEach(x => aFaire.push(x));
-    if (garder('envois')) p.envois.forEach(x => aFaire.push(x));
-    if (garder('rdv')) p.rdvAFixer.forEach(x => aFaire.push(x));
-    aFaire.sort((a, b) => (b.retard - a.retard) || a.iso.localeCompare(b.iso));
-    const datés = [];
-    if (garder('signatures')) p.signatures.forEach(x => datés.push(x));
-    if (garder('butoirs')) p.butoirs.filter(x => !x.retard).forEach(x => datés.push(x));
-    const jours = new Map();
-    datés.sort((a, b) => a.iso.localeCompare(b.iso) || (a.type === 'rendezVousSignature' ? -1 : 1)).forEach(x => {
-      if (!jours.has(x.iso)) jours.set(x.iso, []);
-      jours.get(x.iso).push(x);
-    });
-    return { aFaire, jours: [...jours.entries()].map(([iso, items]) => ({ iso, items })) };
+  // Filtre posé par un compteur de la colonne : '', 'signer', 'placer', 'vente' ou 'succession'.
+  var filtreMoisSuivi = '';
+  function filtrerMoisSuivi(cle) { filtreMoisSuivi = filtreMoisSuivi === cle ? '' : cle; render(); }
+  // Pure : les dossiers que garde le filtre `cle` (tous si aucun filtre).
+  function dossiersFiltreMoisSuivi(liste, cle, synthese) {
+    const garde = { signer: synthese.aSigner, placer: synthese.aPlacer, vente: synthese.ventes, succession: synthese.successions }[cle];
+    return garde ? (liste || []).filter(d => garde.includes(d)) : (liste || []);
   }
 
-  function renderStatsSuivi(p) {
+  var MAX_PIECES_COLONNE_SUIVI = 10;
+  var MAX_ACTIVITE_COLONNE_SUIVI = 12;
+
+  // Carré « Activité de l'étude » de la colonne du Suivi (étude, 01/10 : « l'activité en live de
+  // l'office en carré ») : le même fil que le widget du tableau de bord — tous les dossiers, tous les
+  // collaborateurs, sans les filtres de la liste —, résumé du jour puis les dernières actions, qui
+  // défilent dans le carré. Mis à jour à chaque sondage, comme le reste de la page.
+  function renderActiviteColonneSuivi() {
+    const p = partiesActiviteEtude(dossiers || [], 'grand', MAX_ACTIVITE_COLONNE_SUIVI);
+    return `<section class="sm-bloc sm-activite activite-etude" data-filtre="tout" aria-label="Activité de l’étude">
+        <h2 class="sm-titre">Activité de l’étude<span class="activite-direct"><span class="activite-direct-point"></span>En direct</span></h2>
+        ${p.resume}
+        <div class="sm-activite-fil">${p.fil}</div>
+      </section>`;
+  }
+
+  function renderColonneSuivi(s, actifs) {
     const zone = document.getElementById('suivi-stats');
     if (!zone) return;
-    const repliees = statsSuiviRepliees();
-    const auj = isoAujourdhuiLocal();
-    const dMois = new Date(p.mois.debut + 'T00:00:00');
-    const nomMois = dMois.toLocaleDateString('fr-FR', { month: 'long' });
-    const retards = p.butoirs.filter(x => x.retard).length + p.envois.filter(x => x.retard).length;
-    // En-tête d'une ligne : le mois, les quatre compteurs (filtres), les délais, Masquer. Replié,
-    // seule cette ligne reste.
-    const compteur = (cle, n, libelle, dl) => `<button type="button" class="pv-compteur${prevuFiltre === cle ? ' actif' : ''}${n ? '' : ' vide'}" onclick="filtrerPrevu('${cle}')" aria-pressed="${prevuFiltre === cle}">
-        <span class="dot-label ${dl}"><span class="dot"></span></span><strong>${n}</strong>${escapeHtml(libelle)}</button>`;
-    const delais = [p.delais.offre === null ? '' : `<strong>${p.delais.offre} j</strong> offre de prêt`,
-      p.delais.signature === null ? '' : `<strong>${p.delais.signature} j</strong> signature`].filter(Boolean);
-    const tete = `<div class="pv-tete">
-        <h2 class="pv-mois">Prévu en ${escapeHtml(nomMois)}</h2>
-        <div class="pv-compteurs" role="group" aria-label="Filtrer l’agenda du mois">
-          ${compteur('signatures', p.signatures.length, `signature${p.signatures.length > 1 ? 's' : ''}`, 'dl-rendezVousSignature')}
-          ${compteur('envois', p.envois.length, `envoi${p.envois.length > 1 ? 's' : ''}`, 'dl-appelFonds')}
-          ${compteur('rdv', p.rdvAFixer.length, `rendez-vous à fixer`, 'dl-fixerRdv')}
-          ${compteur('butoirs', p.butoirs.length, `date${p.butoirs.length > 1 ? 's' : ''} butoir`, 'dl-pret')}
-          ${retards ? `<span class="pv-retards">${retards} en retard</span>` : ''}
-        </div>
-        ${delais.length && !repliees ? `<span class="pv-delais">Délais moyens : ${delais.join(' · ')}${infoBulle(`Depuis l’ouverture du dossier dans CLAIRE (la date du compromis n’est pas enregistrée) : ${p.delais.nOffre} offre${p.delais.nOffre > 1 ? 's' : ''} de prêt reçue${p.delais.nOffre > 1 ? 's' : ''}, ${p.delais.nSignature} signature${p.delais.nSignature > 1 ? 's' : ''} des 12 derniers mois.`)}</span>` : ''}
-        <button type="button" class="st-replier" onclick="basculerStatsSuivi()" aria-expanded="${!repliees}">${repliees ? 'Afficher' : 'Masquer'}${icone(repliees ? 'chevron-down' : 'chevron-up')}</button>
-      </div>`;
-    zone.classList.toggle('repliee', repliees);
-    if (repliees) { zone.innerHTML = `<div class="pv-bloc">${tete}</div>`; return; }
-
-    const ag = agendaPrevuDuMois(p, prevuFiltre);
-    const jourCourt = iso => new Date(iso + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
-    const ligneTache = x => `<button type="button" class="pv-ligne" onclick="ouvrirDossierDrawer('${escapeOnclickArg(x.d.id)}')" title="${escapeAttr(libelleDossierAffiche(x.d))}">
-        <span class="pv-quand${x.retard ? ' pv-retard' : ''}">${x.retard ? 'retard' : 'avant le'} ${escapeHtml(jourCourt(x.iso))}</span>
-        <span class="dot-label ${x.retard ? 'dl-urgent' : 'dl-' + x.type} pv-type"><span class="dot"></span>${escapeHtml(x.libelle)}</span>
-        <span class="pv-nom">${escapeHtml(libelleDossierAffiche(x.d))}</span>
-      </button>`;
-    const ligneJour = (x, iso, premier) => {
-      const dt = new Date(iso + 'T00:00:00');
-      const date = premier ? `${dt.toLocaleDateString('fr-FR', { weekday: 'short' }).replace('.', '')} ${dt.getDate()}` : '';
-      return `<button type="button" class="pv-ligne${iso < auj ? ' passe' : ''}${iso === auj ? ' aujourdhui' : ''}" onclick="ouvrirDossierDrawer('${escapeOnclickArg(x.d.id)}')" title="${escapeAttr(libelleDossierAffiche(x.d))}">
-        <span class="pv-quand pv-jour">${escapeHtml(date)}</span>
-        <span class="dot-label dl-${x.type} pv-type"><span class="dot"></span>${escapeHtml(x.libelle)}</span>
-        <span class="pv-nom">${escapeHtml(libelleDossierAffiche(x.d))}</span>
-      </button>`;
+    const nomMois = new Date(s.mois.debut + 'T00:00:00').toLocaleDateString('fr-FR', { month: 'long' });
+    const pluriel = (n, mot) => `${mot}${n > 1 ? 's' : ''}`;
+    const tuile = (cle, n, libelle, sous, alerte, aide) => {
+      const actif = filtreMoisSuivi === cle;
+      return `<button type="button" class="sm-tuile${actif ? ' actif' : ''}${n ? '' : ' vide'}" onclick="filtrerMoisSuivi('${cle}')" aria-pressed="${actif}"
+          title="${escapeAttr(actif ? 'Afficher tous les dossiers' : aide)}">
+          <span class="sm-n">${n}</span>
+          <span class="sm-lib">${escapeHtml(libelle)}</span>
+          <span class="sm-sous${alerte ? ' alerte' : ''}">${escapeHtml(sous)}</span>
+        </button>`;
     };
-    const colonne = (titre, contenu, vide) => `<div class="pv-colonne">
-        <div class="pv-groupe-titre">${titre}</div>
-        <div class="pv-defile">${contenu || `<p class="pv-rien">${escapeHtml(vide)}</p>`}</div>
-      </div>`;
-    const aFaire = ag.aFaire.map(ligneTache).join('');
-    const calendrier = ag.jours.map(j => `<div class="pv-jour-groupe${j.iso === auj ? ' aujourdhui' : ''}">${j.items.map((x, i) => ligneJour(x, j.iso, i === 0)).join('')}</div>`).join('');
-    zone.innerHTML = `<div class="pv-bloc">${tete}
-        <div class="pv-corps">
-          ${colonne('À faire', aFaire, 'Rien à faire.')}
-          ${colonne('Au calendrier', calendrier, `Rien au calendrier en ${nomMois}.`)}
-        </div>
-      </div>`;
+    const nS = s.aSigner.length, nP = s.aPlacer.length;
+    const tuiles = [
+      tuile('signer', nS, `à signer`, s.signees ? `dont ${s.signees} ${pluriel(s.signees, 'passé')}` : `en ${nomMois}`, false,
+        `Afficher les dossiers dont la signature est en ${nomMois}`),
+      tuile('placer', nP, `à placer`, s.depassees ? `${s.depassees} butoir ${pluriel(s.depassees, 'dépassée')}` : `butoir en ${nomMois}`, s.depassees > 0,
+        `Afficher les dossiers sans rendez-vous dont la date butoir est en ${nomMois} ou déjà dépassée`),
+      tuile('vente', s.ventes.length, pluriel(s.ventes.length, 'vente'), 'en cours', false, 'Afficher les ventes'),
+      tuile('succession', s.successions.length, pluriel(s.successions.length, 'succession'), 'en cours', false, 'Afficher les successions')
+    ].join('');
+
+    const pieces = dernieresPiecesTrouvees(actifs, undefined, MAX_PIECES_COLONNE_SUIVI);
+    const quand = iso => iso ? new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : '';
+    const lignes = pieces.map(e => {
+      const libelle = libelleNotificationPiece(e.dossier, e.cle);
+      return `<button type="button" class="sm-piece${e.nouvelle ? ' nouvelle' : ''}" onclick="ouvrirDossierDrawer('${escapeOnclickArg(e.dossier.id)}')"
+          title="${escapeAttr(libelle + ' — ' + libelleDossierAffiche(e.dossier) + (e.nouvelle ? ' (nouveau)' : ''))}">
+          <span class="sm-piece-point" aria-hidden="true"></span>
+          <span class="sm-piece-texte"><span class="sm-piece-titre">${escapeHtml(libelle)}</span><span class="sm-piece-dossier">${escapeHtml(libelleDossierAffiche(e.dossier))}</span></span>
+          <span class="sm-piece-date">${escapeHtml(quand(e.le))}</span>
+        </button>`;
+    }).join('');
+
+    zone.innerHTML = `<section class="sm-bloc" aria-label="Ce mois-ci">
+        <h2 class="sm-titre">${escapeHtml(nomMois.charAt(0).toUpperCase() + nomMois.slice(1))}${filtreMoisSuivi ? `<button type="button" class="sm-effacer" onclick="filtrerMoisSuivi('')">Tout afficher</button>` : ''}</h2>
+        <div class="sm-tuiles" role="group" aria-label="Filtrer la liste">${tuiles}</div>
+      </section>
+      <section class="sm-bloc" aria-label="Dernières pièces">
+        <h2 class="sm-titre">Dernières pièces${infoBulle(`Pièces rattachées sur le commun (NAS) ces ${JOURS_DERNIERES_PIECES} derniers jours, les nouvelles d’abord.`)}</h2>
+        ${lignes ? `<div class="sm-pieces">${lignes}</div>` : `<p class="sm-rien">Aucune pièce ces ${JOURS_DERNIERES_PIECES} derniers jours.</p>`}
+      </section>
+      ${renderActiviteColonneSuivi()}`;
   }
 
-  // « Revérifier tous les dossiers » (barre d'outils du Suivi), à la place de l'ancien bouton du
+  // « Scanner le commun » (ex-« Revérifier tous les dossiers », renommé par l'étude le 01/10 ; barre d'outils du Suivi), à la place de l'ancien bouton du
   // registre partagé — demandé par l'étude. Remplace aussi, et rend inutiles, le bandeau
   // « reconfirmer les accès », sa popup de démarrage et le bouton groupé qui les accompagnaient :
   // le NAS étant lu par le SERVEUR, il n'y a plus la moindre permission de navigateur à
@@ -15591,7 +16021,7 @@
         await verifierDossierLocal(aVerifier[i].id, false);
         await rendreLaMain();
       }
-      afficherToast(`${aVerifier.length} dossier${aVerifier.length > 1 ? 's' : ''} rev\u00e9rifi\u00e9${aVerifier.length > 1 ? 's' : ''} sur le NAS.`, 'OK', null);
+      afficherToast(`Commun scanné : ${aVerifier.length} dossier${aVerifier.length > 1 ? 's' : ''} relu${aVerifier.length > 1 ? 's' : ''}.`, 'OK', null);
     } finally {
       // Remis à zéro : le prochain tour automatique refixe son propre budget en démarrant, il ne
       // doit surtout pas hériter de l'illimité posé ci-dessus.
@@ -15973,6 +16403,11 @@
     if (select) select.value = valide;
     const resp = document.getElementById('f-responsable');
     if (resp && !resp.value && valide) resp.value = valide;
+    // Suivi déjà ouvert : le filtre passe tout de suite au nouveau collaborateur (« Tous » sans poste).
+    const filtreSuivi = document.getElementById('filtre-responsable');
+    if (filtreSuivi) filtreSuivi.value = '';
+    const ongletSuivi = document.getElementById('tab-suivi');
+    if (ongletSuivi && ongletSuivi.classList.contains('actif')) appliquerFiltreSuiviCollaborateur();
     fermerChoixPoste();
     ajoutRappelOuvert = false;
     rappelsPerso = [];
@@ -16031,12 +16466,23 @@
     render();
   }
 
-  // Filtre « Responsable » du Suivi posé sur le collaborateur, une seule fois par session.
+  // Filtre « Responsable » du Suivi posé sur le collaborateur du poste, une seule fois par session
+  // (étude, 01/10 : « quand un collaborateur est sur sa session, présélectionner sa catégorie » —
+  // l'administrateur compris, « Tous » reste à un clic). Un choix fait à la main ensuite est gardé ;
+  // changer de collaborateur repose le filtre sur le nouveau (definirUtilisateurPoste).
+  // Pure : le responsable pré-réglé dans le filtre du Suivi pour le collaborateur du poste — le sien,
+  // sauf pour l'administrateur, qui voit tous les dossiers par défaut (étude, 02/10 : « remets-moi
+  // l'affichage par défaut de tous les dossiers pour Bastien »).
+  function filtreSuiviParDefaut(utilisateur) {
+    return utilisateur && !estAdministrateur(utilisateur) ? utilisateur : '';
+  }
+
   function appliquerFiltreSuiviCollaborateur() {
-    if (filtreSuiviPose || !utilisateurPoste || estAdministrateur(utilisateurPoste)) return;
-    filtreSuiviPose = true;
+    if (filtreSuiviPose || !utilisateurPoste) return;
     const f = document.getElementById('filtre-responsable');
-    if (f && !f.value) f.value = utilisateurPoste;
+    if (!f) return;
+    filtreSuiviPose = true;
+    f.value = filtreSuiviParDefaut(utilisateurPoste);
   }
 
   function renderAccueilDashboard(perimetreActifs, stats) {
@@ -16065,6 +16511,7 @@
           <button type="button" class="vue-bascule-btn${global ? ' actif' : ''}" aria-pressed="${global}" onclick="basculerVueDashboard(true)">Tous les dossiers</button>
         </div>
         <button type="button" class="lien-discret" onclick="ouvrirChoixPoste()">Pas ${escapeHtml(prenomCollaborateur(utilisateurPoste))} ? Changer</button>
+        <button type="button" class="widgets-personnaliser" onclick="ouvrirGalerieWidgets()" title="Ajouter ou retirer des widgets">${icone('list')}Widgets</button>
         <button type="button" class="widgets-personnaliser${modeEditionWidgets ? ' actif' : ''}" onclick="basculerEditionWidgets()" aria-pressed="${modeEditionWidgets}">${modeEditionWidgets ? `${icone('check')}Terminé` : `${icone('layout')}Personnaliser`}</button>
       </div>`;
   }
@@ -16090,12 +16537,13 @@
   var TAILLES_WIDGET = ['petit', 'moyen', 'grand'];
   var HAUTEURS_WIDGET = [1, 2, 3];
   var WIDGETS_DASHBOARD = [
-    { id: 'aujourdhui', titre: 'Aujourd’hui', tailles: TAILLES_WIDGET, defaut: 'moyen', hauteur: 2 },
-    { id: 'agenda', titre: 'Agenda', tailles: TAILLES_WIDGET, defaut: 'moyen', hauteur: 1 },
-    { id: 'portefeuille', titre: 'Dossiers ouverts', tailles: TAILLES_WIDGET, defaut: 'petit', hauteur: 1 },
-    { id: 'pieces', titre: 'Dernières pièces', tailles: TAILLES_WIDGET, defaut: 'petit', hauteur: 1 },
-    { id: 'avancement', titre: 'Avancement des dossiers', tailles: TAILLES_WIDGET, defaut: 'moyen', hauteur: 2 },
-    { id: 'activite', titre: 'Activité de l’étude', tailles: TAILLES_WIDGET, defaut: 'moyen', hauteur: 2 }
+    { id: 'aujourdhui', titre: 'Aujourd’hui', tailles: TAILLES_WIDGET, defaut: 'moyen', hauteur: 2, icone: 'sun', description: 'Ce qui est à faire aujourd’hui sur vos dossiers, et vos rappels.' },
+    { id: 'agenda', titre: 'Agenda', tailles: TAILLES_WIDGET, defaut: 'moyen', hauteur: 1, icone: 'calendar', description: 'La semaine de l’office et les prochaines signatures.' },
+    { id: 'portefeuille', titre: 'Dossiers ouverts', tailles: TAILLES_WIDGET, defaut: 'petit', hauteur: 1, icone: 'folder', description: 'Les dossiers en cours, par statut, et les signatures du mois.' },
+    { id: 'pieces', titre: 'Dernières pièces', tailles: TAILLES_WIDGET, defaut: 'petit', hauteur: 1, icone: 'file-text', description: 'Les pièces arrivées sur le NAS ou rangées par Claire Scan.' },
+    { id: 'avancement', titre: 'Avancement des dossiers', tailles: TAILLES_WIDGET, defaut: 'moyen', hauteur: 2, icone: 'list-check', description: 'Où en est chaque dossier : étapes, pièces, prochaine échéance.' },
+    { id: 'activite', titre: 'Activité de l’étude', tailles: TAILLES_WIDGET, defaut: 'moyen', hauteur: 2, icone: 'users', description: 'Ce que font les collaborateurs et ce que CLAIRE relève, en direct.' },
+    { id: 'statistiques', titre: 'Statistiques', tailles: TAILLES_WIDGET, defaut: 'grand', hauteur: 1, icone: 'bar-chart', description: 'Délais depuis l’ouverture du dossier (prêt, préemption, signature) et dossiers ouverts par mois.' }
   ];
   var NOMS_TAILLE_WIDGET = { petit: 'Étroit (1 colonne)', moyen: 'Moyen (2 colonnes)', grand: 'Large (toute la ligne)' };
   var NOMS_HAUTEUR_WIDGET = { 1: 'Basse (1 rangée)', 2: 'Moyenne (2 rangées)', 3: 'Haute (3 rangées)' };
@@ -16239,6 +16687,54 @@
 
   function masquerWidget(id, masque) {
     enregistrerDispositionWidgets(dispositionWidgetsCourante().map(w => w.id === id ? Object.assign({}, w, { masque }) : w));
+    renderGalerieWidgets();
+  }
+
+  // ---- Liste des widgets (étude, 01/10 : « supprimer un widget et une liste de widgets à ajouter ou
+  // supprimer ») : tous les widgets, affichés ou retirés, avec Ajouter / Retirer. Retirer ne perd que
+  // la place sur le tableau de bord : le widget revient à sa taille d'avant quand on le rajoute. ----
+  // Pure : les lignes de la liste, dans l'ordre du catalogue — affichés d'abord, puis retirés.
+  function lignesGalerieWidgets(dispo) {
+    const parId = new Map((dispo || []).map(w => [w.id, w]));
+    const lignes = WIDGETS_DASHBOARD.map(def => ({ def, affiche: !(parId.get(def.id) || {}).masque }));
+    return lignes.filter(l => l.affiche).concat(lignes.filter(l => !l.affiche));
+  }
+
+  function ouvrirGalerieWidgets() {
+    const overlay = document.getElementById('widgets-overlay');
+    if (!overlay) return;
+    overlay.style.display = 'flex';
+    renderGalerieWidgets();
+  }
+
+  function fermerGalerieWidgets() {
+    const overlay = document.getElementById('widgets-overlay');
+    if (overlay) overlay.style.display = 'none';
+  }
+  document.addEventListener('keydown', (e) => {
+    const overlay = document.getElementById('widgets-overlay');
+    if (e.key === 'Escape' && overlay && overlay.style.display !== 'none') fermerGalerieWidgets();
+  });
+
+  function renderGalerieWidgets() {
+    const overlay = document.getElementById('widgets-overlay');
+    const liste = document.getElementById('widgets-galerie-liste');
+    if (!overlay || !liste || overlay.style.display === 'none') return;
+    const lignes = lignesGalerieWidgets(dispositionWidgetsCourante());
+    const nbAffiches = lignes.filter(l => l.affiche).length;
+    const titre = (texte, n) => `<div class="widgets-galerie-groupe">${texte} <span class="jour-onglet-nb">${n}</span></div>`;
+    const ligne = ({ def, affiche }) => `
+      <li class="widgets-galerie-ligne${affiche ? '' : ' retire'}">
+        <span class="widgets-galerie-icone" aria-hidden="true">${icone(def.icone || 'layout')}</span>
+        <span class="widgets-galerie-texte"><b>${escapeHtml(def.titre)}</b><span>${escapeHtml(def.description || '')}</span></span>
+        ${affiche
+          ? `<button type="button" class="secondary widgets-galerie-retirer" onclick="masquerWidget('${def.id}', true)" aria-label="Retirer ${escapeAttr(def.titre)} du tableau de bord">${icone('x')}Retirer</button>`
+          : `<button type="button" class="bouton-ajout bouton-ajout-court" onclick="masquerWidget('${def.id}', false)" aria-label="Ajouter ${escapeAttr(def.titre)} au tableau de bord">Ajouter</button>`}
+      </li>`;
+    const affiches = lignes.filter(l => l.affiche), retires = lignes.filter(l => !l.affiche);
+    liste.innerHTML = `${titre('Sur le tableau de bord', nbAffiches)}
+      ${affiches.length ? `<ul class="widgets-galerie">${affiches.map(ligne).join('')}</ul>` : '<p class="jour-vide">Aucun widget affiché.</p>'}
+      ${retires.length ? `${titre('À ajouter', retires.length)}<ul class="widgets-galerie">${retires.map(ligne).join('')}</ul>` : ''}`;
   }
 
   function decalerWidget(id, pas) {
@@ -16247,6 +16743,7 @@
 
   function reinitialiserWidgets() {
     enregistrerDispositionWidgets(dispositionWidgetsDepuis(null));
+    renderGalerieWidgets();
   }
 
   // Coque commune des cartes : en-tête (titre, précision, contrôles) et corps qui remplit le reste
@@ -16306,7 +16803,8 @@
         const min = Number(x.l.dataset.min || 0);
         if (x.sec) {
           x.sec.style.display = '';
-          if (deborde() && !min) { x.sec.style.display = 'none'; return; }
+          // data-garder : une section en cours de saisie n'est jamais masquée (le corps défile).
+          if (deborde() && !min && !x.l.hasAttribute('data-garder')) { x.sec.style.display = 'none'; return; }
         }
         let montres = 0;
         for (const c of tous) {
@@ -16364,7 +16862,7 @@
     const cases = (n, sur, sens) => `<span class="widget-glyphe widget-glyphe-${sens}" aria-hidden="true">${Array.from({ length: sur }, (_, i) => `<i${i < n ? ' class="plein"' : ''}></i>`).join('')}</span>`;
     const largeurs = def.tailles.map(t => `<button type="button" class="widget-taille${w.taille === t ? ' actif' : ''}" aria-pressed="${w.taille === t}" onclick="changerTailleWidget('${def.id}', '${t}')" title="Largeur : ${NOMS_TAILLE_WIDGET[t]}" aria-label="Largeur ${NOMS_TAILLE_WIDGET[t]}">${cases(CASES_TAILLE_WIDGET[t], 4, 'l')}</button>`).join('');
     const hauteurs = HAUTEURS_WIDGET.map(h => `<button type="button" class="widget-taille${w.hauteur === h ? ' actif' : ''}" aria-pressed="${w.hauteur === h}" onclick="changerHauteurWidget('${def.id}', ${h})" title="Hauteur : ${NOMS_HAUTEUR_WIDGET[h]}" aria-label="Hauteur ${NOMS_HAUTEUR_WIDGET[h]}">${cases(h, 3, 'h')}</button>`).join('');
-    return `<button type="button" class="widget-retirer" onclick="masquerWidget('${def.id}', true)" title="Masquer" aria-label="Masquer ${escapeAttr(def.titre)}">${icone('minus')}</button>
+    return `<button type="button" class="widget-retirer" onclick="masquerWidget('${def.id}', true)" title="Retirer du tableau de bord" aria-label="Retirer ${escapeAttr(def.titre)} du tableau de bord">${icone('x')}</button>
       <button type="button" class="widget-outil widget-fleche widget-fleche-avant" onclick="decalerWidget('${def.id}', -1)" ${rang === 0 ? 'disabled' : ''} title="Avancer" aria-label="Avancer ${escapeAttr(def.titre)}">${icone('chevron-left')}</button>
       <button type="button" class="widget-outil widget-fleche widget-fleche-apres" onclick="decalerWidget('${def.id}', 1)" ${rang === total - 1 ? 'disabled' : ''} title="Reculer" aria-label="Reculer ${escapeAttr(def.titre)}">${icone('chevron-right')}</button>
       <div class="widget-barre">
@@ -16402,11 +16900,13 @@
     const masques = document.getElementById('widgets-masques');
     if (masques) {
       const liste = dispo.filter(w => w.masque);
-      masques.innerHTML = modeEditionWidgets
-        ? `${liste.map(w => `<button type="button" class="bouton-ajout bouton-ajout-court" onclick="masquerWidget('${w.id}', false)">${escapeHtml(defs.get(w.id).titre)}</button>`).join('')}
-           <button type="button" class="lien-discret widgets-reinitialiser" onclick="reinitialiserWidgets()">Disposition d’origine</button>`
+      // Personnaliser, ou tableau de bord vidé : « Ajouter un widget » ouvre la liste des widgets.
+      const montrer = modeEditionWidgets || !visibles.length;
+      masques.innerHTML = montrer
+        ? `<button type="button" class="bouton-ajout bouton-ajout-court" onclick="ouvrirGalerieWidgets()">Ajouter un widget${liste.length ? ` (${liste.length})` : ''}</button>
+           ${modeEditionWidgets ? '<button type="button" class="lien-discret widgets-reinitialiser" onclick="reinitialiserWidgets()">Disposition d’origine</button>' : ''}`
         : '';
-      masques.style.display = modeEditionWidgets ? '' : 'none';
+      masques.style.display = montrer ? '' : 'none';
     }
     planifierAjustementWidgets();
   }
@@ -16545,7 +17045,9 @@
   // liste montre les rendez-vous des 15 prochains jours ; cliquer sur un jour la limite à ce jour.
   // L'heure et le lieu viennent de l'agenda de l'office (voir agendaWatch.js côté serveur) — une
   // date saisie à la main n'en a pas, la ligne le dit simplement en ne les affichant pas.
-  var SEMAINES_AGENDA_MAX = 2;
+  // Le widget lit le stock de l'agenda de l'office : du lundi de la semaine passée à 6 mois.
+  var SEMAINES_AGENDA_MAX = 8;
+  var SEMAINES_AGENDA_MIN = -1;
   let agendaDecalageSemaine = 0;
   let agendaJourSelectionne = null;
   // Absences des collaborateurs lues dans l'agenda de l'office (voir absencesDepuisIcs côté serveur,
@@ -16558,7 +17060,7 @@
   let agendaDuJourOffice = null;
 
   function decalerSemaineAgenda(pas) {
-    agendaDecalageSemaine = Math.max(0, Math.min(SEMAINES_AGENDA_MAX, agendaDecalageSemaine + pas));
+    agendaDecalageSemaine = Math.max(SEMAINES_AGENDA_MIN, Math.min(SEMAINES_AGENDA_MAX, agendaDecalageSemaine + pas));
     agendaJourSelectionne = null;
     render();
   }
@@ -16671,49 +17173,112 @@
     }).join('');
   }
 
-  // Carte « Agenda », selon la présentation du widget (presentationWidget) :
-  //  - petit : le jour (comme l'icône Calendrier), les signatures du jour et la prochaine ;
-  //  - moyen : la bande de la semaine, les signatures du jour choisi, puis les prochaines ;
-  //  - grand : la même chose en détail (horaire, lieu, envois faits ou non, absences).
+  // Carte « Agenda » reliée à l'agenda partagé de l'office (étude, 01/10 : « lier le widget agenda avec
+  // l'agenda CLAIRE / Sophie partagé ») : les rendez-vous du calendrier de Sophie lus par le serveur
+  // (stock `agenda-office`, GET /api/agenda/evenements, le même que la page Agenda), plus les signatures
+  // fixées dans CLAIRE qui n'y sont pas encore (en pointillé). Un rendez-vous s'ouvre dans la page
+  // Agenda, à son jour, son détail affiché.
+  //  - petit : le jour, ses rendez-vous, le prochain ;
+  //  - moyen / grand : la bande de la semaine (un point par jour qui a un rendez-vous), les rendez-vous
+  //    du jour choisi, puis les prochains rendez-vous et les prochaines échéances en appoint.
+  var JOURS_WIDGET_AGENDA = 42;
+  let agendaWidget = { evenements: [], debut: '', fin: '', lu: '', charge: false, enCours: false, t: 0 };
+
+  // Pure : les jours ISO de `debut` (compris) à `debut + n - 1`.
+  function joursDepuis(debut, n) {
+    const out = [];
+    for (let i = 0; i < n; i++) out.push(addDays(debut, i));
+    return out;
+  }
+
+  // Pure : les rendez-vous d'une journée triés comme dans Outlook — journées entières d'abord, puis par heure.
+  function evenementsTriesJour(evenements, iso) {
+    return evenementsJourAgenda(evenements, iso).slice().sort((a, b) => {
+      const ja = a.journeeEntiere || !a.heure ? 0 : 1;
+      const jb = b.journeeEntiere || !b.heure ? 0 : 1;
+      return ja - jb || String(a.heure || '').localeCompare(String(b.heure || '')) || String(a.sujet || '').localeCompare(String(b.sujet || ''));
+    });
+  }
+
+  // Pure : les prochains rendez-vous horaires après le jour `apresIso` (absences et dates butoir à part),
+  // par date puis heure.
+  function prochainsEvenementsAgenda(evenements, apresIso, limite) {
+    return (evenements || []).filter(e => e && e.date > apresIso && !e.absence && !estDateButoirAgenda(e))
+      .sort((a, b) => (a.date + (a.heure || '')).localeCompare(b.date + (b.heure || '')))
+      .slice(0, limite || 20);
+  }
+
+  async function chargerAgendaWidget(forcer) {
+    if (!authToken || agendaWidget.enCours) return;
+    const lundi = debutSemaine(addDays(isoAujourdhuiLocal(), 7 * agendaDecalageSemaine));
+    const debut = addDays(lundi, 0);
+    const fin = addDays(lundi, JOURS_WIDGET_AGENDA);
+    if (!forcer && agendaWidget.charge && agendaWidget.debut === debut && Date.now() - agendaWidget.t < 120000) return;
+    agendaWidget.enCours = true;
+    try {
+      const r = await fetchAvecAuth(`/api/agenda/evenements?debut=${debut}&fin=${fin}`);
+      const corps = await r.json();
+      if (r.ok) agendaWidget = { evenements: Array.isArray(corps.evenements) ? corps.evenements : [], debut, fin, lu: corps.lu || '', source: corps.source || null, charge: true, enCours: false, t: Date.now() };
+    } catch (e) { /* le widget garde ce qu'il avait */ }
+    agendaWidget.enCours = false;
+    if (ongletActuel === 'dashboard') renderRendezVousDashboard(dossiersPerimetreDashboard());
+  }
+
+  // Un rendez-vous du widget : la page Agenda s'ouvre sur son jour, son détail affiché.
+  function ouvrirEvenementDepuisWidgetAgenda(cle, date) {
+    positionnerAgenda(date);
+    agendaSelection = cle;
+    definirOnglet('agenda');
+  }
+
+  function ouvrirAgendaDepuisWidget(date) {
+    positionnerAgenda(date || isoAujourdhuiLocal());
+    agendaSelection = null;
+    definirOnglet('agenda');
+  }
+
   function renderRendezVousDashboard(perimetreActifs) {
     const bloc = document.getElementById('agenda-dashboard');
     if (!bloc) return;
     const aujourdhui = isoAujourdhuiLocal();
-    const global = vueGlobaleDashboard();
     const presentation = presentationWidget('agenda');
+    const lundi = debutSemaine(addDays(aujourdhui, 7 * agendaDecalageSemaine));
+    if (!agendaWidget.charge || agendaWidget.debut !== lundi || Date.now() - agendaWidget.t > 120000) chargerAgendaWidget();
+    const joursCharges = joursDepuis(agendaWidget.debut || lundi, JOURS_WIDGET_AGENDA + 1);
+    const evenements = agendaWidget.evenements.concat(signaturesHorsAgenda(perimetreActifs, agendaWidget.evenements, joursCharges));
+    const source = agendaWidget.source;
+    const nonRelie = agendaWidget.charge && source && source.configuree === false;
+    const lu = agendaWidget.lu ? new Date(agendaWidget.lu) : null;
+    const etatLecture = nonRelie ? 'Agenda Outlook non relié (Réglages › Agenda et Outlook)'
+      : lu && !isNaN(lu) ? `Agenda de l’office · lu à ${String(lu.getHours()).padStart(2, '0')} h ${String(lu.getMinutes()).padStart(2, '0')}` : 'Agenda de l’office';
+    const versPage = `ouvrirAgendaDepuisWidget('${agendaJourSelectionne || aujourdhui}')`;
+    const boutonPage = `<button type="button" class="icon-btn" onclick="${versPage}" title="Ouvrir l’agenda" aria-label="Ouvrir l’agenda">${icone('calendar')}</button>`;
+
     if (presentation === 'petit') {
       const dt = new Date(aujourdhui + 'T00:00:00');
-      const duJour = perimetreActifs.filter(d => d.rendezVousSignature === aujourdhui);
-      const suivante = prochainesSignatures(perimetreActifs, aujourdhui, aujourdhui, 1)[0];
+      const duJour = evenementsTriesJour(evenements, aujourdhui);
+      const suivant = prochainsEvenementsAgenda(evenements, aujourdhui, 1)[0];
       const nomJour = dt.toLocaleDateString('fr-FR', { weekday: 'long' });
       bloc.innerHTML = carteWidget({
         presentation, classe: 'w-agenda-petit',
         titre: escapeHtml(nomJour.charAt(0).toUpperCase() + nomJour.slice(1)),
         sous: escapeHtml(dt.toLocaleDateString('fr-FR', { month: 'long' })),
-        droite: `<span class="w-jour-num">${dt.getDate()}</span>`,
-        corps: `<ul class="w-lignes" data-ajuster="1">${duJour.length ? lignesProchainesSignatures(duJour, aujourdhui, global) : '<li class="w-message">Aucune signature aujourd’hui.</li>'}${plusWidget("definirOnglet('suivi')")}</ul>
-          ${suivante ? `<div class="w-bas" data-ajuster="2"><button type="button" class="w-prochaine" onclick="ouvrirDossierDepuisDashboard('${suivante.id}')">
-            <span class="w-prochaine-sous">Prochaine signature · ${escapeHtml(new Date(suivante.rendezVousSignature + 'T00:00:00').toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' }))}</span>
-            <span class="w-prochaine-titre">${escapeHtml(libelleDossierAffiche(suivante))}</span></button></div>` : ''}`
+        droite: `<button type="button" class="w-jour-num w-jour-lien" onclick="${versPage}" title="Ouvrir l’agenda">${dt.getDate()}</button>`,
+        corps: `<ol class="ajd-liste ajd-compacte" data-ajuster="1">${duJour.length ? lignesEvenementsAgendaJour(duJour, true, true) : '<li class="w-message">Aucun rendez-vous aujourd’hui.</li>'}${plusWidget(versPage)}</ol>
+          ${suivant ? `<div class="w-bas" data-ajuster="2"><button type="button" class="w-prochaine" onclick="ouvrirEvenementDepuisWidgetAgenda('${escapeOnclickArg(cleEvenementAgenda(suivant))}', '${suivant.date}')">
+            <span class="w-prochaine-sous">Prochain · ${escapeHtml(new Date(suivant.date + 'T00:00:00').toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' }))}${suivant.heure ? ' · ' + escapeHtml(suivant.heure.replace(':', ' h ')) : ''}</span>
+            <span class="w-prochaine-titre">${escapeHtml(suivant.sujet || '')}</span></button></div>` : ''}`
       });
       planifierAjustementWidgets();
       return;
     }
-    const semaine = semaineAgenda(perimetreActifs, aujourdhui, agendaDecalageSemaine);
+
+    const jourAffiche = agendaJourSelectionne || aujourdhui;
+    const semaine = joursDepuis(lundi, 7).map(iso => ({
+      iso, nombre: evenementsJourAgenda(evenements, iso).length, passe: iso < aujourdhui, aujourdhui: iso === aujourdhui
+    }));
     const moisRef = new Date((agendaJourSelectionne || semaine[3].iso) + 'T00:00:00');
     const mois = moisRef.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
-
-    // Le jour effectivement affiché : celui cliqué dans la bande, sinon AUJOURD'HUI. Demandé par
-    // l'étude — l'agenda du tableau de bord ne montre par défaut que les rendez-vous du jour (la
-    // bande reste cliquable pour consulter un autre jour), et non plus les N jours à venir en bloc.
-    const jourAffiche = agendaJourSelectionne || aujourdhui;
-    const liste = trierRendezVous(perimetreActifs
-      .filter(d => d.rendezVousSignature === jourAffiche)
-      .map(d => rendezVousDepuisDossier(d, ecartJours(aujourdhui, jourAffiche))));
-    const titreListe = jourAffiche === aujourdhui
-      ? "Aujourd'hui"
-      : new Date(jourAffiche + 'T00:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
-
     const bande = semaine.map(j => {
       const dt = new Date(j.iso + 'T00:00:00');
       const nomJour = dt.toLocaleDateString('fr-FR', { weekday: 'short' }).replace('.', '').slice(0, 3);
@@ -16728,56 +17293,46 @@
           <span class="agenda-jour-point${j.nombre ? ' present' : ''}" aria-hidden="true"></span>
         </button>`;
     }).join('');
-
+    const duJour = evenementsTriesJour(evenements, jourAffiche);
+    const titreListe = jourAffiche === aujourdhui ? "Aujourd'hui"
+      : new Date(jourAffiche + 'T00:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
     const absentsSemaine = collaborateursAbsentsSemaine(absencesOffice, semaine);
-    const etat = (ok, fait, reste) => `<span class="dot-label ${ok ? 'dl-success' : 'dl-pret'}"><span class="dot"></span>${ok ? fait : reste}</span>`;
-    const detaille = presentation === 'grand';
-    const lignes = liste.length ? liste.map(r => {
-      const plage = plageHoraireRendezVous(r.heure, r.heureFin);
-      const delai = r.jours === 0 ? "aujourd'hui" : r.jours > 0 ? `J-${r.jours}` : '';
-      // Le jour est déjà porté par le titre de la liste (« Aujourd'hui » ou la date sélectionnée) :
-      // seuls l'horaire et le décompte sont utiles ici.
-      const meta = [plage, delai].filter(Boolean).join(' · ');
-      const lieu = [r.lieu, global && r.dossier.responsable ? prenomCollaborateur(r.dossier.responsable) : ''].filter(Boolean);
-      // Le responsable de ce dossier est-il absent le jour affiché ? Un rendez-vous de signature ne
-      // peut pas se tenir sans lui — on le signale pour le déplacer.
-      const responsableAbsent = responsableAbsentLeJour(absencesOffice, r.dossier.responsable, jourAffiche);
-      return `
-        <button type="button" class="agenda-rdv ton-${tonRendezVous(r)}${responsableAbsent ? ' rdv-absent' : ''}" onclick="ouvrirDossierDepuisDashboard('${r.dossier.id}')">
-          <span class="agenda-rdv-titre">${escapeHtml(libelleDossierAffiche(r.dossier))}</span>
-          <span class="agenda-rdv-meta">${escapeHtml(meta)}${(() => { const t = typeRendezVous(r.dossier, categoriesRdvReglees()); return t ? ` <span class="rdv-type-etiquette"><span class="rdv-type-pastille rdv-type-${t}"></span>${TYPES_RDV[t].court}</span>` : ''; })()}</span>
-          ${detaille && lieu.length ? `<span class="agenda-rdv-lieu">${lieu.map(escapeHtml).join(' · ')}</span>` : ''}
-          ${responsableAbsent ? `<span class="agenda-rdv-alerte">${icone('alert-triangle')} ${escapeHtml(prenomCollaborateur(r.dossier.responsable))} absent(e) ce jour</span>` : ''}
-          ${detaille ? `<span class="agenda-rdv-etats">${etat(r.appelFondsEnvoye, 'Appel de fonds envoyé', 'Appel de fonds à envoyer')}${etat(r.projetEnvoye, 'Projet envoyé', 'Projet à envoyer')}</span>` : ''}
-        </button>`;
-    }).join('') : '';
-    const suivantes = prochainesSignatures(perimetreActifs, aujourdhui, jourAffiche, 20);
+    const suivants = prochainsEvenementsAgenda(evenements, jourAffiche, 20);
     const echeances = prochainesEcheancesAgenda(perimetreActifs, aujourdhui, 20);
     const revenir = agendaJourSelectionne ? '<button type="button" class="lien-discret" onclick="selectionnerJourAgenda(null)">Revenir à aujourd’hui</button>' : '';
+    const ligneSuivant = (e) => {
+      const j = ecartJours(aujourdhui, e.date);
+      const quand = j === 0 ? "Aujourd'hui" : j === 1 ? 'Demain' : new Date(e.date + 'T00:00:00').toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' });
+      const teinte = teinteEvenementAgenda(e, categoriesRdvReglees());
+      return `<li><button type="button" class="w-ligne" onclick="ouvrirEvenementDepuisWidgetAgenda('${escapeOnclickArg(cleEvenementAgenda(e))}', '${e.date}')">
+        <span class="w-ligne-date">${escapeHtml(quand)}</span>
+        <span class="w-agenda-pastille ajd-${teinte}${e.horsAgenda ? ' ajd-hors-agenda' : ''}" aria-hidden="true"></span>
+        <span class="w-ligne-texte">${escapeHtml(e.sujet || '(sans titre)')}</span>
+        <span class="w-ligne-meta">${escapeHtml(e.heure ? e.heure.replace(':', ' h ') : 'Journée')}</span></button></li>`;
+    };
 
     bloc.innerHTML = carteWidget({
       presentation,
-      titre: 'Agenda',
-      sous: escapeHtml(mois.charAt(0).toUpperCase() + mois.slice(1)),
+      titre: `<button type="button" class="w-titre-lien" onclick="${versPage}" title="Ouvrir l’agenda">Agenda</button>`,
+      sous: `${escapeHtml(mois.charAt(0).toUpperCase() + mois.slice(1))} · <span class="${nonRelie ? 'w-note-alerte' : ''}">${escapeHtml(etatLecture)}</span>`,
       droite: `<div class="agenda-nav">
-          <button type="button" class="icon-btn" onclick="decalerSemaineAgenda(-1)" ${agendaDecalageSemaine <= 0 ? 'disabled' : ''} aria-label="Semaine précédente">${icone('chevron-left')}</button>
+          <button type="button" class="icon-btn" onclick="decalerSemaineAgenda(-1)" ${agendaDecalageSemaine <= SEMAINES_AGENDA_MIN ? 'disabled' : ''} aria-label="Semaine précédente">${icone('chevron-left')}</button>
           <button type="button" class="icon-btn" onclick="decalerSemaineAgenda(1)" ${agendaDecalageSemaine >= SEMAINES_AGENDA_MAX ? 'disabled' : ''} aria-label="Semaine suivante">${icone('chevron-right')}</button>
+          ${boutonPage}
         </div>`,
       corps: `<div class="agenda-bande w-fixe" role="group" aria-label="Jours de la semaine">${bande}</div>
-      ${detaille && absentsSemaine.length ? `<div class="agenda-absences">${icone('alert-triangle')} Absent cette semaine : ${absentsSemaine.map(n => escapeHtml(prenomCollaborateur(n))).join(', ')}</div>` : ''}
-      ${lignes ? `<div class="w-section">
+      ${presentation === 'grand' && absentsSemaine.length ? `<div class="agenda-absences">${icone('alert-triangle')} Absent cette semaine : ${absentsSemaine.map(n => escapeHtml(prenomCollaborateur(n))).join(', ')}</div>` : ''}
+      <div class="w-section">
         <div class="agenda-liste-titre">
           <span class="section-eyebrow">${escapeHtml(titreListe)}</span>
+          ${duJour.length ? '' : `<span class="w-note">${agendaWidget.charge ? 'Aucun rendez-vous' : 'Lecture…'}</span>`}
           ${revenir}
         </div>
-        <div class="agenda-liste" data-ajuster="1" data-min="1">${lignes}</div>
-      </div>` : ''}
-      ${suivantes.length || !lignes ? `<div class="w-section${lignes ? '' : ' w-section-seule'}">
-        <div class="agenda-liste-titre">
-          <span class="section-eyebrow">Prochaines signatures</span>
-          ${lignes ? '' : `<span class="w-note">${jourAffiche === aujourdhui ? 'Aucune aujourd’hui' : 'Aucune ce jour-là'}</span>${revenir}`}
-        </div>
-        ${suivantes.length ? `<ul class="w-lignes" data-ajuster="${lignes ? 2 : 1}">${lignesProchainesSignatures(suivantes, aujourdhui, global)}</ul>` : '<p class="w-message w-fixe">Aucune signature prévue.</p>'}
+        ${duJour.length ? `<ol class="ajd-liste ajd-compacte" data-ajuster="1" data-min="1">${lignesEvenementsAgendaJour(duJour, jourAffiche === aujourdhui, true)}${plusWidget(`ouvrirAgendaDepuisWidget('${jourAffiche}')`)}</ol>` : ''}
+      </div>
+      ${suivants.length ? `<div class="w-section">
+        <div class="agenda-liste-titre"><span class="section-eyebrow">Prochains rendez-vous</span></div>
+        <ul class="w-lignes" data-ajuster="2">${suivants.map(ligneSuivant).join('')}</ul>
       </div>` : ''}
       ${echeances.length ? `<div class="w-section">
         <div class="agenda-liste-titre"><span class="section-eyebrow">Prochaines échéances</span></div>
@@ -16967,7 +17522,7 @@
     ajoutRappelOuvert = !!ouvrir;
     if (ajoutRappelOuvert) rappelEnEdition = null;
     renderAlertesDashboard(dossiersPerimetreDashboard());
-    if (ajoutRappelOuvert) setTimeout(() => { const c = document.getElementById('rappel-perso-texte'); if (c) c.focus(); }, 0);
+    if (ajoutRappelOuvert) amenerFormulaireRappel(false);
   }
 
   function ajouterRappelPerso() {
@@ -16995,7 +17550,21 @@
     rappelEnEdition = id || null;
     if (rappelEnEdition) ajoutRappelOuvert = false;
     renderAlertesDashboard(dossiersPerimetreDashboard());
-    if (rappelEnEdition) setTimeout(() => { const c = document.getElementById('rappel-perso-texte'); if (c) { c.focus(); c.select(); } }, 0);
+    if (rappelEnEdition) amenerFormulaireRappel(true);
+  }
+
+  // Le formulaire d'un rappel, une fois la carte ajustée (ajusterWidgets passe à l'image suivante) :
+  // ramené dans la partie visible de la carte, curseur dans le texte.
+  function amenerFormulaireRappel(selectionner) {
+    const placer = () => {
+      const c = document.getElementById('rappel-perso-texte');
+      if (!c) return;
+      const form = c.closest('.rappel-perso-form');
+      if (form && form.scrollIntoView) form.scrollIntoView({ block: 'nearest' });
+      c.focus({ preventScroll: true });
+      if (selectionner) c.select();
+    };
+    if (typeof requestAnimationFrame === 'function') requestAnimationFrame(() => requestAnimationFrame(placer)); else setTimeout(placer, 0);
   }
 
   function validerEditionRappel() {
@@ -17045,12 +17614,15 @@
     annoncerEmailPret(res, true);
   }
 
-  function renderMesRappels(perimetreActifs) {
+  // `sansDuJour` (carte « Aujourd'hui ») : les rappels déjà en tête de « À faire » (échus, non cochés,
+  // ou cochés aujourd'hui) n'y sont pas répétés ; restent ceux à venir, et l'ajout.
+  function renderMesRappels(perimetreActifs, sansDuJour) {
     if (!utilisateurPoste) {
       return `<div class="rappels-perso-vide">Pour noter vos rappels, <button type="button" class="lien-discret" onclick="ouvrirChoixPoste()">indiquez qui utilise ce poste</button>.</div>`;
     }
     const aujourdhui = isoAujourdhuiLocal();
-    const liste = rappelsAffiches(rappelsPerso, aujourdhui);
+    const dejaAffiches = sansDuJour ? (rd => new Set(rd.aFaire.concat(rd.faits).map(r => r.id)))(rappelsDuJour(rappelsPerso, aujourdhui)) : new Set();
+    const liste = rappelsAffiches(rappelsPerso, aujourdhui).filter(r => !dejaAffiches.has(r.id) || r.id === rappelEnEdition);
     const optionsDossiers = (selection) => perimetreActifs.slice().sort((a, b) => String(a.nom).localeCompare(String(b.nom)))
       .map(d => `<option value="${escapeAttr(d.id)}"${d.id === selection ? ' selected' : ''}>${escapeHtml(libelleDossierAffiche(d))}</option>`).join('');
     const formulaireRappel = (r) => {
@@ -17093,7 +17665,8 @@
         </div>`;
     }).join('');
     const formulaire = ajoutRappelOuvert ? formulaireRappel(null) : `<button type="button" class="bouton-ajout rappel-perso-ajout" onclick="ouvrirAjoutRappel(true)">Ajouter un rappel</button>`;
-    return `${lignes || (rappelsPersoCharges ? '<div class="rappels-perso-vide">Aucun rappel pour le moment.</div>' : '')}${formulaire}`;
+    const vide = !rappelsPersoCharges ? '' : dejaAffiches.size ? '' : '<div class="rappels-perso-vide">Aucun rappel pour le moment.</div>';
+    return `${lignes || vide}${formulaire}`;
   }
 
   // ==== AUJOURD'HUI ====
@@ -17887,7 +18460,10 @@
     return { aFaire, faits };
   }
 
-  function renderRappelsJour(aujourdhuiIso) {
+  // `fixe` : sur la carte du tableau de bord, un rappel non coché n'est jamais masqué faute de place
+  // (étude, 01/10 : « mes rappels en cours visibles tant qu'ils ne sont pas cochés »).
+  // `partie` : 'aFaire' ou 'faits' pour n'en rendre qu'une (la carte met les cochés après les actions).
+  function renderRappelsJour(aujourdhuiIso, fixe, partie) {
     const { aFaire, faits } = rappelsDuJour(rappelsPerso, aujourdhuiIso);
     const dossierDe = r => r.dossierId ? dossiers.find(x => x.id === r.dossierId) : null;
     const lignes = aFaire.map(r => {
@@ -17901,7 +18477,9 @@
         sousHtml: [d ? `<button type="button" class="lien-discret" onclick="executerFicheDossierJour('${escapeOnclickArg(d.id)}')">${escapeHtml(libelleDossierAffiche(d))}</button>` : '', 'Mon rappel'].filter(Boolean).join(' · '),
         caseRonde: { onclick: `basculerRappelPerso('${escapeOnclickArg(r.id)}')`, libelle: 'Fait' },
         bouton: rappelParleEmail(r.texte) ? { libelle: 'Email', icone: icone('mail'), onclick: `ouvrirEmailRappelPerso('${escapeOnclickArg(r.id)}')`, titre: "Préparer un email vierge avec la signature de l'office" } : null,
-        classe: 'ja-rappel'
+        classe: fixe ? 'ja-rappel w-fixe' : 'ja-rappel',
+        // Sur la carte, le crayon ouvre la modification sous « Mes rappels » (même formulaire).
+        secondaires: fixe ? `<button type="button" class="icon-btn" onclick="ouvrirEditionRappel('${escapeOnclickArg(r.id)}')" title="Modifier le rappel" aria-label="Modifier le rappel">${icone('pencil')}</button>` : ''
       });
     }).join('');
     const coches = faits.map(r => {
@@ -17918,13 +18496,13 @@
         <button type="button" class="lien-discret ja-annuler" onclick="basculerRappelPerso('${escapeOnclickArg(r.id)}')">Annuler</button>
       </li>`;
     }).join('');
-    return lignes + coches;
+    return partie === 'aFaire' ? lignes : partie === 'faits' ? coches : lignes + coches;
   }
 
   function renderListeJour(actions, traites, global) {
     const rappels = utilisateurPoste ? renderRappelsJour(isoAujourdhuiLocal()) : '';
     if (!actions.length && !traites.length && !rappels) return '<p class="jour-vide jour-vide-ok">✓ Rien à faire aujourd’hui sur vos dossiers.</p>';
-    return `<ul class="ja-liste">${actions.map(a => renderLigneActionJour(a, global)).join('')}${rappels}${renderLignesTraitees(traites)}</ul>`;
+    return `<ul class="ja-liste">${rappels}${actions.map(a => renderLigneActionJour(a, global)).join('')}${renderLignesTraitees(traites)}</ul>`;
   }
 
   function executerActionJourFiche(cle) {
@@ -18022,10 +18600,18 @@
         if (animer) marquerFeteJourCelebree(aujourdhui);
         feteHtml = renderFeteJour(animer);
       }
-      const liste = actions.length || traites.length
-        ? `<ul class="ja-liste" data-ajuster="1" data-min="1">${actions.map(a => renderLigneActionJour(a, global)).join('')}${renderLignesTraitees(traites)}${plusWidget(versPage)}</ul>`
+      // Rappels non cochés (échus ou du jour) en tête de « À faire », jamais masqués (w-fixe).
+      const rappelsJour = utilisateurPoste ? renderRappelsJour(aujourdhui, true, 'aFaire') : '';
+      const rappelsCoches = utilisateurPoste ? renderRappelsJour(aujourdhui, true, 'faits') : '';
+      const liste = actions.length || traites.length || rappelsJour || rappelsCoches
+        ? `<ul class="ja-liste" data-ajuster="1" data-min="1">${rappelsJour}${actions.map(a => renderLigneActionJour(a, global)).join('')}${rappelsCoches}${renderLignesTraitees(traites)}${plusWidget(versPage)}</ul>`
         : '<p class="jour-vide jour-vide-ok">✓ Rien à faire aujourd’hui sur vos dossiers.</p>';
-      const aVenirHtml = presentation === 'grand' && aVenir.length ? `<div class="w-section">
+      // Un rappel en cours de saisie (ajout ou modification) passe avant tout (étude, 01/10 : « quand je
+      // clique sur Ajouter un rappel, il m'ouvre À venir ») : la carte pleine masquait toute la section
+      // « Mes rappels », formulaire compris, et « À venir » prenait sa place. Le formulaire ouvert est
+      // rempli en premier (data-ajuster 0, jamais masqué), « À venir » se retire le temps de la saisie.
+      const saisieRappel = !!(ajoutRappelOuvert || rappelEnEdition);
+      const aVenirHtml = presentation === 'grand' && aVenir.length && !saisieRappel ? `<div class="w-section">
           <h3 class="jour-carte-sous-titre">À venir</h3>
           <ul class="w-lignes" data-ajuster="3">${aVenir.map(v => `<li><button type="button" class="w-ligne" onclick="ouvrirDossierDepuisDashboard('${v.dossier.id}')">
             <span class="w-ligne-texte"><b>${escapeHtml(v.titre)}</b> · ${escapeHtml(libelleDossierAffiche(v.dossier))}</span>
@@ -18034,7 +18620,7 @@
       corps = `${feteHtml}${liste}
         <div class="w-section dash-rappels-bloc">
           <h3 class="jour-carte-sous-titre">Mes rappels</h3>
-          <div class="rappels-perso" data-ajuster="2">${renderMesRappels(perimetreActifs)}</div>
+          <div class="rappels-perso" data-ajuster="${saisieRappel ? 0 : 2}"${saisieRappel ? ' data-garder' : ''}>${renderMesRappels(perimetreActifs, true)}</div>
         </div>
         ${aVenirHtml}`;
     }
@@ -18363,12 +18949,19 @@
     const liste = evenementsAgendaDuJour(agendaDuJourOffice, isoAujourdhuiLocal());
     if (!liste) return '<p class="jour-vide">L’agenda de l’office n’a pas encore été lu aujourd’hui.</p>';
     if (!liste.length) return '<p class="jour-vide">Aucun rendez-vous aujourd’hui.</p>';
+    return `<ol class="ajd-liste">${lignesEvenementsAgendaJour(liste, true, false)}</ol>`;
+  }
+
+  // Les rendez-vous d'une journée en lignes « ajd » (heure, liseré de la couleur Outlook, étiquette,
+  // titre) — fenêtre du matin et widget Agenda. `estAujourdhui` : passé / en cours selon l'heure ;
+  // `versAgenda` : le titre ouvre le rendez-vous dans la page Agenda (le nom du dossier, sa fiche).
+  function lignesEvenementsAgendaJour(liste, estAujourdhui, versAgenda) {
     const maintenant = new Date();
-    const heureActuelle = String(maintenant.getHours()).padStart(2, '0') + ':' + String(maintenant.getMinutes()).padStart(2, '0');
+    const heureActuelle = estAujourdhui ? String(maintenant.getHours()).padStart(2, '0') + ':' + String(maintenant.getMinutes()).padStart(2, '0') : '';
     const categories = categoriesRdvReglees();
-    return `<ol class="ajd-liste">${liste.map(e => {
+    return liste.map(e => {
       const teinte = teinteEvenementAgenda(e, categories);
-      const moment = momentEvenementAgenda(e, heureActuelle);
+      const moment = estAujourdhui ? momentEvenementAgenda(e, heureActuelle) : (e.journeeEntiere || !e.heure ? 'journee' : 'a-venir');
       const heures = e.journeeEntiere || !e.heure
         ? '<b>Journée</b>'
         : `<b>${escapeHtml(e.heure)}</b>${e.heureFin && e.heureFin !== e.heure ? `<span>${escapeHtml(e.heureFin)}</span>` : ''}${dureeRendezVous(e.heure, e.heureFin) ? `<span class="ajd-duree">${escapeHtml(dureeRendezVous(e.heure, e.heureFin))}</span>` : ''}`;
@@ -18376,22 +18969,24 @@
       // Dossier reconnu : le titre ouvre sa fiche ; son nom n'est ajouté dessous que si le titre de
       // l'agenda ne le cite pas déjà (« VTE - DUPONT » n'est pas répété).
       const ouvrir = connu ? `executerFicheDossierJour('${escapeOnclickArg(e.dossierId)}')` : '';
+      const ouvrirAgenda = versAgenda ? `ouvrirEvenementDepuisWidgetAgenda('${escapeOnclickArg(cleEvenementAgenda(e))}', '${e.date}')` : '';
       const dejaCite = connu && normaliserPourRecherche(e.sujet || '').indexOf(normaliserPourRecherche(e.dossierNom || '')) !== -1;
       const sous = [
         e.lieu ? `<span>${escapeHtml(e.lieu)}</span>` : '',
-        connu && !dejaCite ? `<button type="button" class="ajd-dossier" onclick="${ouvrir}">${escapeHtml(libelleDossierParNom(e.dossierNom, e.dossierId))}</button>` : ''
+        connu && (!dejaCite || versAgenda) ? `<button type="button" class="ajd-dossier" onclick="${ouvrir}" title="Ouvrir la fiche du dossier">${versAgenda ? 'Fiche' : escapeHtml(libelleDossierParNom(e.dossierNom, e.dossierId))}</button>` : ''
       ].filter(Boolean).join('<span aria-hidden="true"> · </span>');
       const titre = escapeHtml(e.sujet || '(sans titre)');
-      return `<li class="ajd-evt ajd-${teinte} ajd-${moment}">
+      return `<li class="ajd-evt ajd-${teinte} ajd-${moment}${e.horsAgenda ? ' ajd-hors-agenda' : ''}">
           <span class="ajd-heure">${heures}</span>
           <span class="ajd-barre" aria-hidden="true"></span>
           <span class="ajd-texte">
             <span class="ajd-etiquette">${escapeHtml(etiquetteEvenementAgenda(e, natureEvenementAgenda(e, categories)))}${moment === 'en-cours' ? ' <span class="ajd-maintenant">en cours</span>' : ''}</span>
-            ${connu ? `<button type="button" class="ajd-titre ajd-titre-lien" onclick="${ouvrir}" title="Ouvrir la fiche du dossier">${titre}</button>` : `<span class="ajd-titre">${titre}</span>`}
+            ${ouvrirAgenda ? `<button type="button" class="ajd-titre ajd-titre-lien" onclick="${ouvrirAgenda}" title="Voir le rendez-vous dans l’agenda">${titre}</button>`
+              : connu ? `<button type="button" class="ajd-titre ajd-titre-lien" onclick="${ouvrir}" title="Ouvrir la fiche du dossier">${titre}</button>` : `<span class="ajd-titre">${titre}</span>`}
             ${sous ? `<span class="ajd-sous">${sous}</span>` : ''}
           </span>
         </li>`;
-    }).join('')}</ol>`;
+    }).join('');
   }
 
   // Colonne de droite de la fenêtre du matin en onglets (étude, 30/09 : « la pop-up prend trop de
@@ -18590,11 +19185,20 @@
       else f('Vente préalable non réalisée', jours <= 15 ? 35 : 25, 'Relancer la vente préalable');
     }
     if (!preemptionLevee(d)) f('Renonciation au droit de préemption attendue', 20, 'Obtenir la renonciation');
-    const pieces = piecesAttenduesDossier(d).filter(p => p !== 'Offre de prêt' && p !== 'Vente préalable');
+    const engagementsEnAttente = elementsAnalyseEnAttente(d).engagements;
+    const pieces = piecesAttenduesDossier(d).filter(p => p !== 'Offre de prêt' && p !== 'Vente préalable' && !engagementsEnAttente.includes(p));
     if (pieces.length) {
       f(`${pieces.length} pièce${pieces.length > 1 ? 's' : ''} manquante${pieces.length > 1 ? 's' : ''} : ${pieces.slice(0, 3).join(', ')}${pieces.length > 3 ? '…' : ''}`,
         Math.min(20, pieces.length * (jours <= 10 ? 6 : 3)), 'Réclamer les pièces');
     } else if (d.roleNotaire !== 'participant') f('Pièces du dossier reçues', 0);
+    // Engagements du vendeur (onglet Analyse) : des travaux ou un entretien non faits peuvent
+    // repousser la signature autant qu'une pièce.
+    const nbEngagements = d.roleNotaire === 'participant' ? 0 : ((d.analyseJuridique && d.analyseJuridique.engagements) || []).length;
+    if (engagementsEnAttente.length) {
+      const n = engagementsEnAttente.length;
+      f(`${n} engagement${n > 1 ? 's' : ''} du vendeur non réalisé${n > 1 ? 's' : ''} : ${engagementsEnAttente.slice(0, 2).map(x => x.replace(/^Engagement : /, '')).join(', ')}${n > 2 ? '…' : ''}`,
+        Math.min(15, n * (jours <= 10 ? 6 : 3)), 'Relancer le vendeur');
+    } else if (nbEngagements) f('Engagements du vendeur réalisés', 0);
     const appelFait = echeanceValidee(d, 'appelFonds');
     if (appelFait) f('Appel de fonds envoyé', 0);
     else if (jours <= 20) f('Appel de fonds à envoyer', jours <= 10 ? 15 : 8, 'Envoyer l’appel de fonds');
@@ -18783,9 +19387,11 @@
   // ---- Relation client ----
   // Pure : les emails de relation client dus aujourd'hui, du plus pressant au moins pressant.
   //  - rappel du rendez-vous à J-3…J-1 ; confirmation du rendez-vous de J-45 à J-3 (une fois par date) ;
-  //  - questionnaire de satisfaction dans les 14 jours après la signature (jamais au client d'un
-  //    confrère, règle de l'étude) ;
-  //  - un mot un an après la signature (client de l'office seulement).
+  //  - questionnaire de satisfaction dans les 14 jours après la signature ;
+  //  - un mot un an après la signature.
+  // Jamais quand l'acquéreur est accompagné par un confrère (étude, 01/10 : « que pour les clients non
+  // accompagnés par un confrère ») — c'est alors son notaire qui tient la relation. Ces emails vivent
+  // dans l'onglet Échanges de la fiche (echangesSelonStade), plus dans la barre de l'agenda (01/10).
   var ORDRE_GESTES_RELATION = { rappelRdv: 0, confirmationRdv: 1, questionnaire: 2, anniversaire: 3 };
   function gestesRelationClient(liste, aujourdhuiIso) {
     const auj = aujourdhuiIso || isoAujourdhuiLocal();
@@ -18795,11 +19401,11 @@
       if (!rdv) continue;
       const j = ecartJours(auj, rdv);
       if (j === null) continue;
-      const confrere = notaireParticipantRepresenteAcquereur(d);
+      if (notaireParticipantRepresenteAcquereur(d)) continue;
       if (!d.archive && j >= 1 && j <= 3 && d.rappelRdvPour !== rdv) gestes.push({ d, type: 'rappelRdv', j });
       else if (!d.archive && j > 3 && j <= 45 && d.confirmationRdvPour !== rdv) gestes.push({ d, type: 'confirmationRdv', j });
-      if (j <= -1 && j >= -14 && !d.questionnaireEnvoyeLe && !confrere) gestes.push({ d, type: 'questionnaire', j });
-      if (j <= -358 && j >= -372 && !confrere && !d.anniversaireEnvoyeLe) gestes.push({ d, type: 'anniversaire', j });
+      if (j <= -1 && j >= -14 && !d.questionnaireEnvoyeLe) gestes.push({ d, type: 'questionnaire', j });
+      if (j <= -358 && j >= -372 && !d.anniversaireEnvoyeLe) gestes.push({ d, type: 'anniversaire', j });
     }
     return gestes.sort((a, b) => ORDRE_GESTES_RELATION[a.type] - ORDRE_GESTES_RELATION[b.type] || Math.abs(a.j) - Math.abs(b.j));
   }
@@ -18864,7 +19470,8 @@
     document.addEventListener('click', (e) => {
       if (ongletActuel !== 'agenda' || !agendaSelection || agendaModale || notesAgendaEdition) return;
       if (!document.body.contains(e.target)) return;
-      if (e.target.closest('#agenda-popover, .ag-evt, .ag-journee-evt, .ag-vm-evt, .ag-ligne, .ag-placer, .confirm-overlay, #agenda-overlay, #sondage-overlay, .toast')) return;
+      // Le clic venu d'ailleurs (widget Agenda du tableau de bord) qui vient d'ouvrir un rendez-vous ne le referme pas.
+      if (e.target.closest('#agenda-popover, .ag-evt, .ag-journee-evt, .ag-vm-evt, .ag-ligne, .ag-placer, .confirm-overlay, #agenda-overlay, #sondage-overlay, .toast, #onglet-dashboard, .ag-recherche')) return;
       agendaSelection = null;
       renderPageAgenda();
     });
@@ -18887,23 +19494,51 @@
     return { debut, fin };
   }
 
+  // Historique (étude, 01/10 : « remonter jusqu'au 1er janvier, si possible toutes les années ») : avant
+  // le stock du serveur (lundi de la semaine dernière), les rendez-vous viennent de GET /api/agenda/passe,
+  // lus mois par mois dans Outlook à la première consultation puis gardés. En lecture seule (`archive`).
+  var agendaHistorique = { enCours: false, message: '' };
+  var jetonChargementAgenda = 0;
   async function chargerAgendaSemaine() {
     if (!authToken) return;
     const { debut, fin } = periodeChargeeAgenda();
+    const jeton = ++jetonChargementAgenda;
+    let debutStock = '';
     try {
       const r = await fetchAvecAuth(`/api/agenda/evenements?debut=${debut}&fin=${fin}`);
       const corps = await r.json();
+      if (jeton !== jetonChargementAgenda) return;
       if (!r.ok) { agendaErreur = corps.erreur || 'Lecture de l’agenda impossible.'; }
       else {
         agendaEvenements = Array.isArray(corps.evenements) ? corps.evenements : [];
         agendaLu = corps.lu || '';
         agendaSource = corps.source || null;
         agendaErreur = '';
+        debutStock = corps.debutLu || '';
       }
     } catch (e) {
       agendaErreur = 'Serveur injoignable.';
     }
     agendaCharge = true;
+    selectionnerCibleDossierAgenda();
+    agendaHistorique = { enCours: !!(debutStock && debut < debutStock), message: '' };
+    if (ongletActuel === 'agenda') renderPageAgenda();
+    if (!agendaHistorique.enCours) { agendaCibleDossier = null; return; }
+    try {
+      const r = await fetchAvecAuth(`/api/agenda/passe?debut=${debut}&fin=${fin < debutStock ? fin : addDays(debutStock, -1)}`);
+      const corps = await r.json();
+      if (jeton !== jetonChargementAgenda) return;
+      const vus = new Set(agendaEvenements.map(e => e.itemId).filter(Boolean));
+      const passes = (r.ok && Array.isArray(corps.evenements) ? corps.evenements : [])
+        .filter(e => !e.itemId || !vus.has(e.itemId)).map(e => Object.assign({}, e, { archive: true }));
+      agendaEvenements = passes.concat(agendaEvenements);
+      selectionnerCibleDossierAgenda();
+      agendaCibleDossier = null;
+      agendaHistorique = { enCours: false, message: r.ok ? (corps.message || '') : (corps.erreur || 'Historique illisible.') };
+    } catch (e) {
+      if (jeton !== jetonChargementAgenda) return;
+      agendaHistorique = { enCours: false, message: 'Serveur injoignable — historique non lu.' };
+    }
     if (ongletActuel === 'agenda') renderPageAgenda();
   }
 
@@ -19222,7 +19857,7 @@
   function renderGrilleAgenda() {
     const auj = isoAujourdhuiLocal();
     const jours = agendaVue === 'jour' ? [agendaJour] : joursSemaineAgenda(agendaLundi);
-    const evenements = evenementsAffichesAgenda().concat(fantomesAffichesAgenda());
+    const evenements = evenementsFiltresRecherche(evenementsAffichesAgenda().concat(fantomesAffichesAgenda()), agendaRecherche);
     const heures = [];
     for (let h = AGENDA_HEURE_DEBUT; h < AGENDA_HEURE_FIN; h++) heures.push(h);
     // En-têtes des jours comme dans Outlook : le nom du jour, la date dessous ; aujourd'hui en gras.
@@ -19264,7 +19899,7 @@
   // Vue Mois, comme celle d'Outlook : une case par jour, trois rendez-vous au plus, « + N » ensuite.
   function renderVueMoisAgenda() {
     const auj = isoAujourdhuiLocal();
-    const evenements = evenementsAffichesAgenda();
+    const evenements = evenementsFiltresRecherche(evenementsAffichesAgenda(), agendaRecherche);
     const semaines = grilleMoisAgenda(agendaMois);
     return `<div class="ag-vue-mois">
         ${['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'].map(j => `<span class="ag-vm-jsem">${j}</span>`).join('')}
@@ -19292,9 +19927,10 @@
     const semaines = grilleMoisAgenda(agendaMois);
     const titre = new Date(agendaMois + '-01T00:00:00').toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
     const periode = agendaVue === 'jour' ? [agendaJour] : agendaVue === 'semaine' ? joursSemaineAgenda(agendaLundi) : [];
-    const compte = (iso) => evenementsJourAgenda(agendaEvenements, iso).length;
-    const signature = (iso) => evenementsJourAgenda(agendaEvenements, iso).some(e => e.signature)
-      || dossiers.some(d => !d.archive && d.rendezVousSignature === iso);
+    const lus = evenementsFiltresRecherche(agendaEvenements, agendaRecherche);
+    const compte = (iso) => evenementsJourAgenda(lus, iso).length;
+    const signature = (iso) => evenementsJourAgenda(lus, iso).some(e => e.signature)
+      || (!agendaRecherche.trim() && dossiers.some(d => !d.archive && d.rendezVousSignature === iso));
     return `<div class="ag-mois">
         <div class="ag-mois-tete">
           <button type="button" class="icon-btn" onclick="naviguerMoisAgenda(-1)" aria-label="Mois précédent">${icone('chevron-left')}</button>
@@ -19325,21 +19961,8 @@
     const global = vueGlobaleDashboard();
     const perimetre = dossiersDuPerimetre(dossiers, utilisateurPoste, global);
     const jours = joursAffichesAgenda();
-    // Signatures de la semaine affichée, de la moins probable à la plus probable.
-    const signatures = perimetre.filter(d => !d.archive && jours.indexOf(d.rendezVousSignature) !== -1)
-      .map(d => ({ d, p: probabiliteTenueSignature(d, auj, absencesOffice) }))
-      .filter(x => x.p).sort((a, b) => a.p.pourcent - b.p.pourcent);
-    const blocSignatures = `<section class="ag-anticipe">
-        <h3 class="jour-section-titre">Signatures ${agendaVue === 'mois' ? 'du mois' : agendaVue === 'jour' ? 'du jour' : 'de la semaine'} ${infoBulle('Probabilité que chaque rendez-vous soit maintenu à sa date : 97 % moins les points de ce qui reste à faire (financement, préemption, pièces, envois, fonds, absence du collaborateur), d’autant plus que la date approche. Indicatif, sans IA : le détail est dans chaque rendez-vous.')}</h3>
-        ${signatures.length ? `<ul class="ag-liste">${signatures.map(({ d, p }) => {
-          const reste = p.facteurs.filter(x => !x.ok);
-          return `<li><button type="button" class="ag-ligne" onclick="ouvrirDetailDossierAgenda('${d.id}')">
-              ${renderPastilleProbabilite(p)}
-              <span class="ag-ligne-texte"><b>${escapeHtml(libelleDossierAffiche(d))}</b>
-              <span>${escapeHtml(new Date(d.rendezVousSignature + 'T00:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric' }))}${d.rendezVousSignatureHeure ? ' · ' + escapeHtml(d.rendezVousSignatureHeure) : ''}${reste.length ? ' · ' + escapeHtml(reste[0].libelle) : ''}</span></span>
-            </button></li>`;
-        }).join('')}</ul>` : `<p class="jour-vide">Aucune signature ${agendaVue === 'mois' ? 'ce mois-ci' : agendaVue === 'jour' ? 'ce jour-là' : 'cette semaine'}.</p>`}
-      </section>`;
+    // « Signatures de la semaine » retiré à la demande de l'étude (01/10) ; la probabilité de tenue reste
+    // dans le détail de chaque rendez-vous.
     // Dossiers sans rendez-vous, par semaine probable de signature (au plus tôt) : un clic affiche
     // cette semaine, carte fantôme ouverte. Ceux qui sont prêts à signer gardent trois créneaux libres.
     const prets = dossiersAPlacer(perimetre).map(d => d.id);
@@ -19366,13 +19989,171 @@
             </li>`;
         }).join('')}</ul>${probables.length > aPlacer.length ? `<p class="jour-vide">Et ${probables.length - aPlacer.length} autre${probables.length - aPlacer.length > 1 ? 's' : ''}, plus tard.</p>` : ''}` : '<p class="jour-vide">Tous les dossiers ont un rendez-vous de signature.</p>'}
       </section>`;
-    // Relation client : les emails dus aujourd'hui.
-    const gestes = gestesRelationClient(perimetre, auj).slice(0, 8);
-    const blocRelation = `<section class="ag-anticipe">
-        <h3 class="jour-section-titre">Relation client${gestes.length ? ` <span class="jour-onglet-nb">${gestes.length}</span>` : ''} ${infoBulle('Emails prêts à envoyer au bon moment : confirmation du rendez-vous dès qu’il est fixé, rappel trois jours avant, questionnaire de satisfaction après la signature, un mot un an après. Au client d’un confrère, les emails du rendez-vous vont au confrère ; ni questionnaire ni mot d’anniversaire.')}</h3>
-        ${gestes.length ? gestes.map(g => renderGesteRelationClient(g)).join('') : '<p class="jour-vide">Rien à envoyer aujourd’hui.</p>'}
-      </section>`;
-    return blocSignatures + blocPlacer + blocRelation;
+    // « Relation client » retiré de la barre (étude, 01/10) : ces emails sont dans l'onglet Échanges
+    // de la fiche du dossier (echangesSelonStade).
+    return blocPlacer;
+  }
+
+  // « Dates proposées » : les sondages sans dossier en cours (ceux d'un dossier vivent sur sa fiche),
+  // leurs réponses, et le geste pour en lancer un (étude, 01/10).
+  // Lien de la colonne de l'agenda vers le suivi des dates proposées (étude, 01/10 : « un lien pour
+  // accéder à une page qui permet de suivre les dates en attente de confirmation ou déjà validées »).
+  function renderSondagesSansDossierAgenda() {
+    if (!exchangeAgendaPret()) return '';
+    const attente = sondagesCreneaux.filter(x => x.statut === 'ouvert').length;
+    const nouvelles = reponsesNonVuesSondages(sondagesCreneaux, dateDatesVues()).length;
+    return `<button type="button" class="ag-lien-dates${nouvelles ? ' a-nouveau' : ''}" onclick="ouvrirSuiviDatesProposees()">
+        ${icone('users')}<span class="ag-lien-dates-texte">Dates proposées${nouvelles ? `<span class="ag-lien-dates-nouveau">${nouvelles} nouvelle${nouvelles > 1 ? 's' : ''} réponse${nouvelles > 1 ? 's' : ''}</span>` : ''}</span>
+        ${nouvelles ? `<span class="sidebar-badge-notif" title="Réponses pas encore vues">${nouvelles}</span>` : attente ? `<span class="jour-onglet-nb" title="En attente de réponse">${attente}</span>` : ''}
+        ${icone('chevron-right')}
+      </button>`;
+  }
+
+  // ---- Réponses aux dates proposées pas encore vues (étude, 01/10 : « une notification sur Agenda quand
+  // une réponse est revenue ») : pastille rouge sur « Agenda » dans la barre latérale et sur le lien
+  // « Dates proposées », effacée à l'ouverture du volet. Repère « vu le » propre au poste.
+  // Pure : les réponses reçues après `vuLe` sur les sondages encore ouverts.
+  function reponsesNonVuesSondages(sondages, vuLe) {
+    const depuis = Date.parse(vuLe || '') || 0;
+    const sortie = [];
+    for (const x of sondages || []) {
+      if (!x || x.statut !== 'ouvert') continue;
+      for (const r of x.reponses || []) {
+        const t = Date.parse(r && r.recuLe || '');
+        if (t && t > depuis) sortie.push({ id: x.id, email: r.email });
+      }
+    }
+    return sortie;
+  }
+
+  function cleDatesVues() { return 'claire-dates-vues:' + (utilisateurPoste || 'poste'); }
+  function dateDatesVues() {
+    try {
+      let v = localStorage.getItem(cleDatesVues());
+      // Premier passage sur ce poste : rien d'ancien n'est signalé.
+      if (!v) { v = new Date().toISOString(); localStorage.setItem(cleDatesVues(), v); }
+      return v;
+    } catch (e) { return ''; }
+  }
+  function marquerDatesVues() {
+    try { localStorage.setItem(cleDatesVues(), new Date().toISOString()); } catch (e) { /* stockage refusé */ }
+    majBadgeAgendaDates();
+  }
+
+  function majBadgeAgendaDates() {
+    const el = document.getElementById('badge-notif-agenda');
+    if (!el) return;
+    const n = reponsesNonVuesSondages(sondagesCreneaux, dateDatesVues()).length;
+    el.textContent = n > 99 ? '99+' : String(n);
+    el.style.display = n > 0 ? '' : 'none';
+    el.title = n ? `${n} réponse${n > 1 ? 's' : ''} aux dates proposées` : '';
+    const lien = el.closest('.sidebar-link');
+    if (lien) lien.classList.toggle('a-notif', n > 0);
+    majPastilleMenuMobile();
+  }
+
+  // ---- Suivi des dates proposées (tiroir à droite, comme une fiche) : en attente, validées, sans suite ----
+  // Pure : les sondages de créneaux rangés pour le suivi. En attente = ouverts (les plus récents
+  // d'abord) ; validées = placés, par date retenue (la plus proche à venir d'abord, puis les passées) ;
+  // sans suite = annulés ou expirés, les 20 plus récents.
+  function classerSuiviDatesProposees(sondages, aujourdhuiIso) {
+    const liste = Array.isArray(sondages) ? sondages : [];
+    const auj = aujourdhuiIso || isoAujourdhuiLocal();
+    const retenu = (x) => (x.creneaux || []).find(c => c.n === x.choisi) || null;
+    const attente = liste.filter(x => x.statut === 'ouvert')
+      .sort((a, b) => String(b.creeLe || '').localeCompare(String(a.creeLe || '')));
+    const valides = liste.filter(x => x.statut === 'place').map(x => ({ s: x, creneau: retenu(x) }))
+      .sort((a, b) => {
+        const da = a.creneau ? a.creneau.date : '', db = b.creneau ? b.creneau.date : '';
+        const fa = da >= auj, fb = db >= auj;
+        if (fa !== fb) return fa ? -1 : 1;
+        return fa ? da.localeCompare(db) : db.localeCompare(da);
+      });
+    const sansSuite = liste.filter(x => x.statut === 'annule' || x.statut === 'expire')
+      .sort((a, b) => String(b.closLe || '').localeCompare(String(a.closLe || ''))).slice(0, 20);
+    return { attente, valides, sansSuite };
+  }
+
+  function libelleSondageSuivi(x) {
+    const d = x.dossierId ? dossiers.find(y => y.id === x.dossierId) : null;
+    return d ? libelleDossierAffiche(d) : x.titre || libelleDossierParNom(x.dossierNom, x.dossierId) || 'Rendez-vous';
+  }
+
+  var datesVuesAvantOuverture = '';
+  function ouvrirSuiviDatesProposees() {
+    const overlay = document.getElementById('dates-proposees-overlay');
+    if (!overlay) return;
+    overlay.style.display = 'flex';
+    document.body.classList.add('tiroir-dates-ouvert');
+    datesVuesAvantOuverture = dateDatesVues();
+    marquerDatesVues();
+    if (ongletActuel === 'agenda') renderPageAgenda();
+    renderSuiviDatesProposees();
+    chargerSondages().then(renderSuiviDatesProposees);
+  }
+
+  function fermerSuiviDatesProposees() {
+    const overlay = document.getElementById('dates-proposees-overlay');
+    if (overlay) overlay.style.display = 'none';
+    document.body.classList.remove('tiroir-dates-ouvert');
+  }
+  document.addEventListener('keydown', (e) => {
+    const overlay = document.getElementById('dates-proposees-overlay');
+    if (e.key === 'Escape' && overlay && overlay.style.display !== 'none' && !document.querySelector('#confirm-overlay[style*="flex"]')) fermerSuiviDatesProposees();
+  });
+
+  function voirDateProposeeDansAgenda(date) {
+    fermerSuiviDatesProposees();
+    positionnerAgenda(date);
+    if (ongletActuel !== 'agenda') definirOnglet('agenda');
+    else { renderPageAgenda(); chargerAgendaSemaine(); }
+  }
+
+  function ouvrirFicheDepuisDatesProposees(id) {
+    fermerSuiviDatesProposees();
+    ouvrirDossierDepuisDashboard(id);
+  }
+
+  function renderSuiviDatesProposees() {
+    const overlay = document.getElementById('dates-proposees-overlay');
+    const zone = document.getElementById('dates-proposees-liste');
+    if (!overlay || !zone || overlay.style.display === 'none') return;
+    const { attente, valides, sansSuite } = classerSuiviDatesProposees(sondagesCreneaux, isoAujourdhuiLocal());
+    const jourCourt = (iso) => new Date(iso + 'T00:00:00').toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' }).replace('.', '');
+    const dateCourte = (t) => t ? formatDateFr(String(t).slice(0, 10)) : '';
+    const titre = (x) => {
+      const d = x.dossierId ? dossiers.find(y => y.id === x.dossierId) : null;
+      return d
+        ? `<button type="button" class="lien-bouton dp-titre" onclick="ouvrirFicheDepuisDatesProposees('${d.id}')" title="Ouvrir la fiche du dossier">${escapeHtml(libelleSondageSuivi(x))} ${icone('file-text')}</button>`
+        : `<b class="dp-titre">${escapeHtml(libelleSondageSuivi(x))}</b>`;
+    };
+    const groupe = (texte, n, aide) => `<div class="widgets-galerie-groupe">${texte} <span class="jour-onglet-nb">${n}</span>${aide ? ' ' + infoBulle(aide) : ''}</div>`;
+    const nouvelles = new Set(reponsesNonVuesSondages(sondagesCreneaux, datesVuesAvantOuverture).map(r => r.id));
+    const carteAttente = (x) => {
+      const repondu = x.participants.length - sansReponseSondage(x).length;
+      return `<div class="sondage-panneau dp-carte${nouvelles.has(x.id) ? ' dp-nouveau' : ''}">
+          <div class="sondage-tete">${titre(x)}${nouvelles.has(x.id) ? '<span class="dot-label dl-urgent dp-badge-nouveau"><span class="dot"></span>Nouvelle réponse</span>' : ''}<span class="hint">Envoyé le ${escapeHtml(dateCourte(x.creeLe))} · ${repondu}/${x.participants.length} réponse${x.participants.length > 1 ? 's' : ''}${x.expireLe ? ` · options jusqu’au ${escapeHtml(formatDateFr(x.expireLe))}` : ''}</span></div>
+          ${renderTableSondage(x, true)}
+          <div class="sondage-actions">
+            <button type="button" class="lien-bouton" onclick="relancerSondage('${escapeOnclickArg(x.id)}')" ${sansReponseSondage(x).length ? '' : 'disabled'}>${icone('mail')} Relancer</button>
+            <button type="button" class="lien-bouton" onclick="relireSondage('${escapeOnclickArg(x.id)}')">${icone('rotate-ccw')} Relire</button>
+            <button type="button" class="lien-bouton" onclick="annulerSondage('${escapeOnclickArg(x.id)}')">${icone('x')} Annuler</button>
+          </div>
+        </div>`;
+    };
+    const ligneValidee = ({ s: x, creneau }) => `<li class="dp-ligne">
+        <span class="dp-ligne-texte">${titre(x)}<span class="hint">${creneau ? `Validé : ${escapeHtml(jourCourt(creneau.date))} ${escapeHtml(creneau.heure.replace(':', ' h '))}` : 'Validé'}${x.closLe ? ` · le ${escapeHtml(dateCourte(x.closLe))}` : ''}</span></span>
+        ${creneau ? `<button type="button" class="action-rapide" onclick="voirDateProposeeDansAgenda('${creneau.date}')">${icone('calendar')} Voir dans l’agenda</button>` : ''}
+      </li>`;
+    const ligneSansSuite = (x) => `<li class="dp-ligne dp-sans-suite">
+        <span class="dp-ligne-texte">${titre(x)}<span class="hint">${x.statut === 'expire' ? 'Expiré sans réponse retenue' : 'Annulé'}${x.closLe ? ` le ${escapeHtml(dateCourte(x.closLe))}` : ''}</span></span>
+      </li>`;
+    zone.innerHTML = `
+      ${groupe('En attente de réponse', attente.length, 'Dates envoyées par email aux parties ou au confrère : les réponses arrivent toutes seules. « Placer » crée le rendez-vous et retire les options de l’agenda.')}
+      ${attente.length ? attente.map(carteAttente).join('') : '<p class="jour-vide">Aucune date en attente de réponse.</p>'}
+      ${groupe('Validées', valides.length)}
+      ${valides.length ? `<ul class="dp-liste">${valides.map(ligneValidee).join('')}</ul>` : '<p class="jour-vide">Aucune date validée pour l’instant.</p>'}
+      ${sansSuite.length ? `<details class="dp-details"><summary>${groupe('Sans suite', sansSuite.length)}</summary><ul class="dp-liste">${sansSuite.map(ligneSansSuite).join('')}</ul></details>` : ''}`;
   }
 
   var LIBELLES_GESTES_RELATION = {
@@ -19382,22 +20163,198 @@
     anniversaire: (g) => `Signé le ${formatDateFr(g.d.rendezVousSignature)}`
   };
 
-  function renderGesteRelationClient(g) {
-    const d = g.d;
-    if (g.type === 'questionnaire') {
-      return renderLigneAction({
-        categorie: 'neutre', categorieLabel: 'Après la signature', titre: 'Questionnaire de satisfaction',
-        sous: `${libelleDossierAffiche(d)} · ${LIBELLES_GESTES_RELATION.questionnaire(g)}${d.emailAcquereur ? '' : ' · email de l’acquéreur manquant'}`,
-        bouton: d.emailAcquereur ? { libelle: 'Envoyer', icone: icone('mail'), onclick: `envoyerQuestionnaireSatisfaction('${d.id}')`, titre: 'Prépare l’email avec le questionnaire joint, et archive le dossier' } : null
-      });
+  // ---- Comparaison avec la même semaine l'an dernier (étude, 01/10 : « + x rendez-vous, hausse ou
+  // baisse de x % ») : comptée par le serveur (GET /api/agenda/comparaison), l'an dernier lu une fois
+  // dans Exchange puis gardé. Une semaine par lundi, relue toutes les 2 minutes au plus. ----
+  var comparaisonsAgenda = {};
+  async function chargerComparaisonAgenda(lundi) {
+    const deja = comparaisonsAgenda[lundi];
+    if (deja && (deja.chargement || Date.now() - deja.t < 120000)) return;
+    comparaisonsAgenda[lundi] = Object.assign({}, deja || {}, { chargement: true, t: Date.now() });
+    try {
+      const r = await fetchAvecAuth('/api/agenda/comparaison?lundi=' + encodeURIComponent(lundi));
+      const corps = await r.json();
+      comparaisonsAgenda[lundi] = r.ok ? Object.assign({ t: Date.now() }, corps) : { t: Date.now(), message: corps.erreur || '' };
+    } catch (e) {
+      comparaisonsAgenda[lundi] = { t: Date.now(), message: 'Serveur injoignable.' };
     }
-    const a = ACTIONS_EMAIL_DOSSIER[g.type];
-    const destinataire = emailDestinataireRelance(d);
-    return renderLigneAction({
-      categorie: a.categorie, categorieLabel: a.categorieLabel, titre: a.titre,
-      sous: `${libelleDossierAffiche(d)} · ${LIBELLES_GESTES_RELATION[g.type](g)}${destinataire ? '' : ' · email manquant'}`,
-      bouton: destinataire ? { libelle: a.verbe, icone: icone('mail'), onclick: `envoyerRelanceCiblee('${d.id}', '${g.type}')`, titre: MODELES_EMAIL_RELANCE[g.type].libelle } : null
-    });
+    if (ongletActuel === 'agenda' && agendaLundi === lundi) renderPageAgenda();
+  }
+
+  // Pure : le texte de la comparaison. `null` quand un des deux comptes manque (jamais un faux zéro).
+  function texteComparaisonAgenda(c) {
+    if (!c || !c.actuel || !c.anPasse || typeof c.ecart !== 'number') return null;
+    const annee = String(c.lundiAnPasse || '').slice(0, 4);
+    const n = Math.abs(c.ecart);
+    const rdv = `${n} rendez-vous`;
+    if (c.ecart === 0) return { sens: 'egal', texte: `Autant de rendez-vous qu’en ${annee}` };
+    const signe = c.ecart > 0 ? '+' : '−';
+    const pourcent = c.pourcent == null ? 'aucun l’an dernier' : `${c.ecart > 0 ? 'hausse' : 'baisse'} de ${Math.abs(c.pourcent)} %`;
+    return { sens: c.ecart > 0 ? 'hausse' : 'baisse', texte: `${signe}${rdv} vs ${annee} (${pourcent})` };
+  }
+
+  function renderComparaisonAgenda() {
+    if (agendaVue === 'mois' || !exchangeAgendaPret()) return '';
+    const c = comparaisonsAgenda[agendaLundi];
+    if (!c || Date.now() - c.t >= 120000) chargerComparaisonAgenda(agendaLundi);
+    const t = texteComparaisonAgenda(c);
+    if (!t) return '';
+    const debutAnPasse = new Date(c.lundiAnPasse + 'T00:00:00');
+    const finAnPasse = new Date(addDays(c.lundiAnPasse, 5) + 'T00:00:00');
+    const detail = `Comparé à la même semaine l’an dernier. Cette semaine : ${c.actuel.rendezVous} rendez-vous (dont ${c.actuel.signatures} signature${c.actuel.signatures > 1 ? 's' : ''}). `
+      + `Même semaine l’an dernier, du ${debutAnPasse.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })} au ${finAnPasse.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })} : ${c.anPasse.rendezVous} (dont ${c.anPasse.signatures} signature${c.anPasse.signatures > 1 ? 's' : ''}). `
+      + 'Rendez-vous d’une heure ou plus, du lundi au samedi, lus dans l’agenda partagé ; rendez-vous plus courts, journées entières (absences, dates butoir) et options de sondage non comptés.';
+    return ` · <span class="ag-compare ag-compare-${t.sens}">${t.sens === 'egal' ? '' : icone(t.sens === 'hausse' ? 'trend-up' : 'trend-down')}${escapeHtml(t.texte)}</span> ${infoBulle(detail)}`;
+  }
+
+  // ---- Recherche d'un dossier dans l'agenda (étude, 01/10) ----
+  // Pure : les dossiers dont le nom contient la recherche (sans accents ni casse), en cours d'abord, avec
+  // leur rendez-vous de signature (fixé) ou, à défaut, la semaine probable de la signature. 8 au plus.
+  function resultatsRechercheAgenda(texte, liste, aujourdhuiIso, absences) {
+    const q = normaliserPourRecherche(String(texte || '').trim());
+    if (!q) return [];
+    return (liste || [])
+      .filter(d => d && normaliserPourRecherche(libelleDossierAffiche(d) + ' ' + (d.nom || '')).includes(q))
+      .sort((a, b) => (a.archive ? 1 : 0) - (b.archive ? 1 : 0)
+        || String(a.rendezVousSignature || '9999').localeCompare(String(b.rendezVousSignature || '9999'))
+        || libelleDossierAffiche(a).localeCompare(libelleDossierAffiche(b)))
+      .slice(0, 8)
+      .map(d => {
+        if (d.rendezVousSignature) {
+          return { id: d.id, libelle: libelleDossierAffiche(d), archive: !!d.archive, type: 'rdv', date: d.rendezVousSignature, heure: d.rendezVousSignatureHeure || '' };
+        }
+        const probable = semaineProbableSignature(d, aujourdhuiIso, absences);
+        return probable
+          ? { id: d.id, libelle: libelleDossierAffiche(d), archive: !!d.archive, type: 'probable', date: probable.date, lundi: probable.lundi }
+          : { id: d.id, libelle: libelleDossierAffiche(d), archive: !!d.archive, type: 'aucun', date: '' };
+      });
+  }
+
+  // Pure : les rendez-vous dont le titre, le lieu ou le dossier contient la recherche (sans accents ni
+  // casse) — tous si la recherche est vide. Filtre de l'agenda, comme la recherche du Suivi.
+  function evenementsFiltresRecherche(liste, texte) {
+    const q = normaliserPourRecherche(String(texte || '').trim());
+    if (!q) return liste || [];
+    return (liste || []).filter(e => e && normaliserPourRecherche([e.sujet, e.lieu, e.dossierNom].filter(Boolean).join(' ')).includes(q));
+  }
+
+  var agendaRecherche = '';
+  var agendaRechercheActif = 0;
+  var agendaCibleDossier = null;
+  function changerRechercheAgenda(valeur) {
+    agendaRecherche = valeur;
+    agendaRechercheActif = 0;
+    renderResultatsRechercheAgenda();
+    renderPageAgenda();
+  }
+
+  function effacerRechercheAgenda() {
+    agendaRecherche = '';
+    const champ = document.getElementById('agenda-recherche');
+    if (champ) champ.value = '';
+    renderResultatsRechercheAgenda();
+    renderPageAgenda();
+  }
+
+  // L'icône « fiche » d'une ligne de résultat : la fiche du dossier, sans quitter la recherche.
+  function ouvrirFicheDepuisRechercheAgenda(id) {
+    const bloc = document.getElementById('agenda-recherche-resultats');
+    if (bloc) bloc.style.display = 'none';
+    ouvrirDossierDepuisDashboard(id);
+  }
+
+  function renderResultatsRechercheAgenda() {
+    const bloc = document.getElementById('agenda-recherche-resultats');
+    if (!bloc) return;
+    if (!agendaRecherche.trim()) { bloc.style.display = 'none'; bloc.innerHTML = ''; return; }
+    const res = resultatsRechercheAgenda(agendaRecherche, dossiers, isoAujourdhuiLocal(), absencesOffice);
+    const quand = (r) => r.type === 'rdv'
+      ? `Signature le ${formatDateFr(r.date)}${r.heure ? ' à ' + r.heure.replace(':', ' h ') : ''}`
+      : r.type === 'probable' ? `Signature probable semaine du ${formatDateFr(r.lundi)}` : 'Aucun rendez-vous';
+    bloc.innerHTML = res.length === 0
+      ? '<div class="ag-recherche-vide">Aucun dossier ne correspond.</div>'
+      : res.map((r, i) => `<div class="ag-recherche-ligne${i === agendaRechercheActif ? ' actif' : ''}" role="option">
+          <button type="button" class="ag-recherche-aller" onmousedown="event.preventDefault()" onclick="allerAuDossierAgenda('${escapeOnclickArg(r.id)}')" title="${escapeAttr(r.type === 'aucun' ? 'Ouvrir la fiche' : 'Aller au rendez-vous dans l’agenda')}">
+            <span class="ag-recherche-nom">${escapeHtml(r.libelle)}${r.archive ? ' <span class="ag-recherche-archive">archivé</span>' : ''}</span>
+            <span class="ag-recherche-quand">${escapeHtml(quand(r))}</span>
+          </button>
+          <button type="button" class="ag-recherche-fiche" onmousedown="event.preventDefault()" onclick="ouvrirFicheDepuisRechercheAgenda('${escapeOnclickArg(r.id)}')" title="Ouvrir la fiche du dossier" aria-label="Ouvrir la fiche de ${escapeAttr(r.libelle)}">${icone('file-text')}</button>
+        </div>`).join('');
+    bloc.style.display = 'block';
+  }
+
+  function fermerRechercheAgendaSiHors() {
+    const zone = document.querySelector('.ag-recherche');
+    const bloc = document.getElementById('agenda-recherche-resultats');
+    if (bloc && zone && !zone.contains(document.activeElement)) bloc.style.display = 'none';
+  }
+
+  // L'icône « Actualiser » tourne jusqu'à l'agenda relu.
+  async function actualiserAgenda(bouton) {
+    if (bouton) bouton.classList.add('en-cours');
+    await chargerAgendaSemaine();
+  }
+
+  function toucheRechercheAgenda(e) {
+    const lignes = document.querySelectorAll('#agenda-recherche-resultats .ag-recherche-aller');
+    if (e.key === 'Escape') { effacerRechercheAgenda(); return; }
+    if (e.key === 'Enter' && !lignes.length) e.preventDefault();
+    if (!lignes.length) return;
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      agendaRechercheActif = (agendaRechercheActif + (e.key === 'ArrowDown' ? 1 : lignes.length - 1)) % lignes.length;
+      lignes.forEach((l, i) => l.parentNode.classList.toggle('actif', i === agendaRechercheActif));
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      (lignes[agendaRechercheActif] || lignes[0]).click();
+    }
+  }
+
+  // Un dossier choisi : l'agenda va au jour de sa signature et en ouvre le détail ; sans rendez-vous, à
+  // la semaine probable (carte fantôme) ; sans rien à montrer, sa fiche s'ouvre.
+  function allerAuDossierAgenda(id) {
+    const d = dossiers.find(x => x.id === id);
+    agendaRecherche = '';
+    const champ = document.getElementById('agenda-recherche');
+    if (champ) { champ.value = ''; champ.blur(); }
+    renderResultatsRechercheAgenda();
+    if (!d) { renderPageAgenda(); return; }
+    const r = resultatsRechercheAgenda(d.nom || libelleDossierAffiche(d), [d], isoAujourdhuiLocal(), absencesOffice)[0];
+    if (!r || r.type === 'aucun') { renderPageAgenda(); ouvrirDossierDepuisDashboard(id); return; }
+    if (agendaVue === 'mois' && r.type === 'probable') agendaVue = 'semaine';
+    positionnerAgenda(r.date);
+    agendaSelection = r.type === 'probable' ? 'probable:' + id : null;
+    agendaCibleDossier = r.type === 'rdv' ? { id, date: r.date } : null;
+    selectionnerCibleDossierAgenda();
+    renderPageAgenda();
+    chargerAgendaSemaine();
+  }
+
+  // Le rendez-vous du dossier cherché, une fois les rendez-vous de sa période lus.
+  function selectionnerCibleDossierAgenda() {
+    if (!agendaCibleDossier) return;
+    const e = evenementsAffichesAgenda().find(x => x.dossierId === agendaCibleDossier.id && x.date === agendaCibleDossier.date);
+    if (e) { agendaSelection = cleEvenementAgenda(e); agendaCibleDossier = null; }
+  }
+
+  // « Aller à une date » : une icône calendrier à côté de « Aujourd’hui » (étude, 01/10 : la date affichée
+  // à côté du bouton faisait doublon) ; le champ date reste caché, son sélecteur s'ouvre au clic.
+  function ouvrirAllerDateAgenda() {
+    const champ = document.getElementById('agenda-aller');
+    if (!champ) return;
+    try {
+      if (typeof champ.showPicker === 'function') { champ.showPicker(); return; }
+    } catch (e) { /* showPicker refusé : repli sur le focus */ }
+    champ.focus();
+    champ.click();
+  }
+
+  // Mot de l'en-tête de l'agenda (étude, 01/10, d'après l'image « Wed. », puis « en français, pas de fond
+  // de couleur, juste les 3 lettres et le point ») : le jour en trois lettres — « Jeu » —, ou le mois en
+  // vue Mois — « Oct » —, suivi d'un point orange. Pure.
+  function motPastilleAgenda(date, vue) {
+    const brut = date.toLocaleDateString('fr-FR', vue === 'mois' ? { month: 'long' } : { weekday: 'long' }).slice(0, 3);
+    return brut.charAt(0).toUpperCase() + brut.slice(1);
   }
 
   function renderPageAgenda() {
@@ -19405,11 +20362,11 @@
     if (!zone) return;
     if (!agendaJour) positionnerAgenda(isoAujourdhuiLocal());
     const samedi = addDays(agendaLundi, 5);
-    const lu = agendaLu ? new Date(agendaLu).toLocaleString('fr-FR', { weekday: 'short', hour: '2-digit', minute: '2-digit' }).replace(':', ' h ') : '';
+    const lu = agendaLu ? new Date(agendaLu).toLocaleString('fr-FR', { weekday: 'short', hour: '2-digit', minute: '2-digit' }).replace(':', '\u00a0h\u00a0').replace(/ (\d)/, '\u00a0$1') : '';
     const source = agendaErreur ? `<span class="dot-label dl-alerte"><span class="dot"></span>${escapeHtml(agendaErreur)}</span>`
       : !agendaCharge ? 'Lecture de l’agenda…'
-      : agendaSource && !agendaSource.configuree ? 'Connexion à l’agenda Outlook à configurer (Réglages › Agenda).'
-      : lu ? `Agenda de l’office lu ${escapeHtml(lu)}` : 'Agenda pas encore lu par le serveur.';
+      : agendaSource && !agendaSource.configuree ? 'Connexion à l’agenda Outlook à configurer (Réglages › Agenda et Outlook).'
+      : lu ? `Agenda de l’office lu ${escapeHtml(lu)}${agendaHistorique.enCours ? ' · Historique : lecture dans Outlook…' : agendaHistorique.message ? ` · <span class="dot-label dl-alerte"><span class="dot"></span>${escapeHtml(agendaHistorique.message)}</span>` : ''}${renderComparaisonAgenda()}` : 'Agenda pas encore lu par le serveur.';
     // Titre à la manière d'Outlook : la pastille du jour (mois en tête, grand numéro), la date en
     // clair et, dessous, le jour ou la période affichée.
     const ref = agendaVue === 'mois' ? agendaMois + '-01' : agendaJour;
@@ -19417,18 +20374,29 @@
     const titre = agendaVue === 'mois'
       ? dRef.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })
       : dRef.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
-    const sous = agendaVue === 'mois' ? source
+    // « Actualiser » (étude, 01/10) : une icône à côté de l'état de lecture, la recherche d'un dossier
+    // ayant pris la place du bouton dans l'en-tête de la page.
+    const actualiser = `<button type="button" class="ag-actualiser" onclick="actualiserAgenda(this)" title="Actualiser l’agenda" aria-label="Actualiser l’agenda">${icone('rotate-ccw')}</button>`;
+    // Recherche en cours (étude, 01/10 : « comme sur la page Suivi ») : l'agenda n'affiche que les
+    // rendez-vous qui correspondent ; le nombre trouvé sur la période affichée est dit ici.
+    const filtre = agendaRecherche.trim()
+      ? (() => {
+        const jours = joursAffichesAgenda();
+        const n = evenementsFiltresRecherche(evenementsAffichesAgenda(), agendaRecherche).filter(e => jours.indexOf(e.date) !== -1).length;
+        return ` · <span class="ag-filtre">${n} rendez-vous pour « ${escapeHtml(agendaRecherche.trim())} » <button type="button" class="lien-bouton" onclick="effacerRechercheAgenda()">Tout afficher</button></span>`;
+      })() : '';
+    const etat = `${source} ${actualiser}${filtre}`;
+    const sous = agendaVue === 'mois' ? etat
       : agendaVue === 'semaine'
-        ? `Semaine du ${new Date(agendaLundi + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })} au ${new Date(samedi + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })} · ${source}`
-        : `${escapeHtml((s => s.charAt(0).toUpperCase() + s.slice(1))(dRef.toLocaleDateString('fr-FR', { weekday: 'long' })))} · ${source}`;
-    const moisCourt = dRef.toLocaleDateString('fr-FR', { month: 'short' }).replace('.', '').toUpperCase();
+        ? `Semaine du ${new Date(agendaLundi + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })} au ${new Date(samedi + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })} · ${etat}`
+        : etat; // Vue Jour : le jour est déjà écrit en grand à gauche (motPastilleAgenda).
     // Une note en cours d'écriture garde le focus et le curseur à travers les rafraîchissements
     // automatiques (agenda relu toutes les 2 minutes, dossiers mis à jour par un autre poste).
     const champNotes = document.activeElement && document.activeElement.id === 'agenda-notes-texte' ? document.activeElement : null;
     const curseurNotes = champNotes ? [champNotes.selectionStart, champNotes.selectionEnd, champNotes.scrollTop] : null;
     zone.innerHTML = `<div class="ag-page">
         <div class="ag-tete-page">
-          <div class="ag-pastille-date" aria-hidden="true"><span>${escapeHtml(moisCourt)}</span><b>${agendaVue === 'mois' ? '' : dRef.getDate()}</b></div>
+          <div class="ag-pastille-jour" aria-hidden="true">${escapeHtml(motPastilleAgenda(dRef, agendaVue))}<i></i></div>
           <div class="ag-titre-bloc">
             <h2 class="ag-titre">${escapeHtml(titre.charAt(0).toUpperCase() + titre.slice(1))}</h2>
             <span class="ag-sous">${sous}</span>
@@ -19437,16 +20405,20 @@
             <button type="button" class="ag-nav-btn" onclick="naviguerAgenda(-1)" aria-label="Précédent">${icone('chevron-left')}</button>
             <button type="button" class="ag-nav-btn ag-auj" onclick="naviguerAgenda(0)">Aujourd’hui</button>
             <button type="button" class="ag-nav-btn" onclick="naviguerAgenda(1)" aria-label="Suivant">${icone('chevron-right')}</button>
+            <span class="ag-aller-zone">
+              <button type="button" class="ag-nav-btn ag-aller-btn" onclick="ouvrirAllerDateAgenda()" aria-label="Aller à une date" title="Aller à une date — l’historique est lu dans Outlook à la première consultation">${icone('calendar')}</button>
+              <input type="date" class="ag-aller" id="agenda-aller" value="${escapeAttr(agendaJour || '')}" min="2000-01-01" onchange="if (this.value) allerAuJourAgenda(this.value)" tabindex="-1" aria-hidden="true">
+            </span>
           </div>
           <label class="ag-vue-choix">
             <select id="agenda-vue" aria-label="Vue de l’agenda" onchange="choisirVueAgenda(this.value)">
               ${VUES_AGENDA.map(v => `<option value="${v}"${agendaVue === v ? ' selected' : ''}>${{ mois: 'Vue mois', semaine: 'Vue semaine', jour: 'Vue jour' }[v]}</option>`).join('')}
             </select></label>
-          ${exchangeAgendaPret() ? `<button type="button" class="primary ag-ajout" onclick="ouvrirCreationAgenda()">${icone('plus')} Nouveau rendez-vous</button>` : ''}
         </div>
         <div class="ag-page-corps">
           <aside class="ag-cote">
             ${renderMoisAgenda()}
+            ${renderSondagesSansDossierAgenda()}
             ${renderAnticipationsAgenda()}
           </aside>
           <div class="ag-principal">
@@ -19454,6 +20426,16 @@
           </div>
         </div>
       </div>`;
+    // Bouton double « Nouveau rendez-vous | Proposer des dates » dans l'en-tête de la page, à droite du
+    // champ de recherche (étude, 01/10).
+    const zoneCreation = document.getElementById('agenda-creation');
+    if (zoneCreation) {
+      zoneCreation.innerHTML = exchangeAgendaPret() ? `<div class="ag-ajout-double" role="group" aria-label="Créer un rendez-vous">
+          <button type="button" class="primary ag-ajout" onclick="ouvrirCreationAgenda()">${icone('plus')} Nouveau rendez-vous</button>
+          <button type="button" class="primary ag-ajout ag-ajout-dates" onclick="ouvrirSondageSansDossier('', [])" title="Proposer plusieurs dates par email et placer celle qui convient à tous">${icone('users')} Proposer des dates</button>
+        </div>` : '';
+      zoneCreation.style.display = zoneCreation.innerHTML ? '' : 'none';
+    }
     renderPopoverAgenda();
     if (curseurNotes) {
       const champ = document.getElementById('agenda-notes-texte');
@@ -19545,9 +20527,11 @@
         <div class="ag-detail-proba-tete">${renderPastilleProbabilite(proba)} <b>de chances que le rendez-vous soit maintenu</b> ${infoBulle('Indicatif : 97 % moins les points de ce qui reste à faire avant la date (financement, préemption, pièces, envois, fonds, absence du collaborateur), pondérés par sa proximité. Sans IA.')}</div>
         <ul class="ag-facteurs">${proba.facteurs.map(x => `<li class="${x.ok ? 'ok' : 'ko'}">${icone(x.ok ? 'check' : 'alert-triangle')}<span>${escapeHtml(x.libelle)}${x.ok ? '' : ` <em>−${x.retrait} pts</em>`}</span></li>`).join('')}</ul>
       </div>` : '';
-    const relation = d && e.signature && !d.archive && d.rendezVousSignature === e.date && e.date >= auj
+    const relation = d && e.signature && !d.archive && d.rendezVousSignature === e.date && e.date >= auj && !notaireParticipantRepresenteAcquereur(d)
       ? `<div class="ag-detail-actions">${renderLigneEmailDossier(d, 'confirmationRdv')}${ecartJours(auj, e.date) <= 3 ? renderLigneEmailDossier(d, 'rappelRdv') : ''}</div>` : '';
-    const peutSupprimer = exchangeAgendaPret() && e.itemId && !e.horsAgenda;
+    // Un rendez-vous de l'historique (`archive`) se consulte (détail, notes) mais ne se modifie pas.
+    const peutSupprimer = exchangeAgendaPret() && e.itemId && !e.horsAgenda && !e.archive;
+    const notesLisibles = exchangeAgendaPret() && e.itemId && e.archive;
     const ligne = (ic, html) => `<div class="ag-detail-ligne">${icone(ic)}<span>${html}</span></div>`;
     return `<section class="ag-detail ajd-${teinte}" aria-labelledby="agenda-detail-titre">
         <div class="ag-detail-tete">
@@ -19557,27 +20541,44 @@
           </div>
           <div class="ag-detail-outils">
             ${peutSupprimer && evenementModifiableAgenda(e) ? `<button type="button" class="icon-btn" onclick="ouvrirModificationAgenda('${escapeOnclickArg(cleEvenementAgenda(e))}')" aria-label="Modifier le rendez-vous" title="Modifier le titre, la date ou l’horaire${e.heure && !e.journeeEntiere ? ' — ou glisser le rendez-vous dans la grille' : ''}">${icone('pencil')}</button>` : ''}
+            ${peutSupprimer ? `<button type="button" class="icon-btn ag-supprimer-ico" onclick="supprimerEvenementAgenda('${escapeOnclickArg(cleEvenementAgenda(e))}')" aria-label="Supprimer le rendez-vous" title="Supprimer de l’agenda (après confirmation)">${icone('trash')}</button>` : ''}
             <button type="button" class="icon-btn" onclick="fermerModaleAgenda()" aria-label="Fermer le détail">${icone('x')}</button>
           </div>
         </div>
         ${ligne('calendar', escapeHtml(jour.charAt(0).toUpperCase() + jour.slice(1)))}
         ${ligne('clock', escapeHtml(horaire))}
-        ${e.lieu ? ligne('map-pin', escapeHtml(e.lieu)) : ''}
+        ${/* Rendez-vous relié à un dossier de CLAIRE : pas de ligne « lieu » (étude, 01/10) — le Lieu Outlook n'y porte que les initiales et la note d'envoi, déjà dits par le responsable et les états. */ ''}
+        ${e.lieu && !d ? ligne('map-pin', escapeHtml(e.lieu)) : ''}
         ${infos && infos.responsable ? ligne('user', `Responsable : <b>${escapeHtml(infos.responsable)}</b>`) : ''}
         ${infos && infos.confrere ? ligne('users', `Confrère : <b>${escapeHtml(infos.confrere)}</b>`) : ''}
         ${infos && !e.option ? `<div class="ag-detail-etats">${renderEtatsRendezVous(infos)}</div>` : ''}
         ${e.option ? renderOptionSondageAgenda(e) : ''}
         ${peutSupprimer && !e.option ? renderVisioRendezVous(e) : ''}
         ${d ? `<button type="button" class="${e.option ? 'lien-bouton' : 'primary'} ag-ouvrir-fiche" onclick="ouvrirDossierDepuisDashboard('${d.id}')">${icone('folder')} Ouvrir la fiche</button>` : ''}
-        ${peutSupprimer && !e.option ? renderNotesRendezVous(e) : ''}
+        ${(peutSupprimer || notesLisibles) && !e.option ? renderNotesRendezVous(e, !peutSupprimer) : ''}
         ${blocProba}
         ${relation}
         ${!d && e.dossierNom ? `<p class="jour-vide">Dossier « ${escapeHtml(e.dossierNom)} » archivé ou introuvable dans CLAIRE.</p>` : ''}
-        ${peutSupprimer ? `<button type="button" class="lien-bouton ag-supprimer" onclick="supprimerEvenementAgenda('${escapeOnclickArg(cleEvenementAgenda(e))}')">${icone('trash')} Supprimer de l’agenda</button>` : ''}
       </section>`;
   }
 
   // Détail d'une carte fantôme : pourquoi cette semaine, ce qui reste à lever, et le geste pour placer.
+  // Pure : le rappel de la date butoir dans la fenêtre d'une signature probable (étude, 02/10 : « bien
+  // rappeler la date butoir dans le pop-up »). niveau : 'ok' (le créneau proposé tient avant), 'proche'
+  // (moins de 7 jours de marge), 'depasse' (créneau ou semaine probable au-delà), 'inconnue' (pas de date).
+  function rappelButoirSignatureProbable(d, p, creneau, aujourdhuiIso) {
+    if (!d || !d.acte) return { niveau: 'inconnue', html: 'Date butoir non renseignée sur la fiche' };
+    const auj = aujourdhuiIso || isoAujourdhuiLocal();
+    const reference = (creneau && creneau.date) || (p && p.date) || auj;
+    const restants = ecartJours(auj, d.acte);
+    const marge = ecartJours(reference, d.acte);
+    const quand = restants < 0 ? `dépassée depuis ${-restants} jour${-restants > 1 ? 's' : ''}` : restants === 0 ? 'aujourd’hui' : `dans ${restants} jour${restants > 1 ? 's' : ''}`;
+    const base = `Date butoir : <b>${escapeHtml(dateAvecJourFr(d.acte))}</b> (${quand})`;
+    if (marge < 0) return { niveau: 'depasse', html: `${base} — ${creneau ? 'ce créneau la dépasse' : 'la semaine probable la dépasse'} : prévoir la prorogation` };
+    if (marge < 7) return { niveau: 'proche', html: `${base} — ${marge} jour${marge > 1 ? 's' : ''} de marge seulement` };
+    return { niveau: 'ok', html: base };
+  }
+
   function renderDetailFantomeAgenda(e) {
     const d = dossierDeEvenement(e);
     const p = e.probable;
@@ -19590,6 +20591,7 @@
     const libelleCreneau = (c) => `${new Date(c.date + 'T00:00:00').toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' }).replace('.', '')} ${c.heure.replace(':', ' h ')}`;
     const ligne = (ic, html) => `<div class="ag-detail-ligne">${icone(ic)}<span>${html}</span></div>`;
     const semaine = new Date(p.lundi + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' });
+    const butoir = rappelButoirSignatureProbable(d, p, e.creneau, auj);
     return `<section class="ag-detail ag-detail-fantome ajd-signature" aria-labelledby="agenda-detail-titre">
         <div class="ag-detail-tete">
           <div>
@@ -19601,14 +20603,15 @@
         <div class="ag-detail-proba">
           <div class="ag-detail-proba-tete">${renderPastilleProbabilite(p)} <b>Il est probable que ce rendez-vous se tienne la semaine du ${escapeHtml(semaine)}</b></div>
           <p class="ag-detail-raison">Au plus tôt le ${escapeHtml(dateAvecJourFr(p.date))} : ${escapeHtml(p.raison)}.</p>
+          <div class="ag-detail-butoir ${butoir.niveau}">${icone(butoir.niveau === 'ok' ? 'calendar' : 'alert-triangle')}<span>${butoir.html}</span></div>
           <ul class="ag-facteurs">${p.facteurs.map(x => `<li class="${x.ok ? 'ok' : 'ko'}">${icone(x.ok ? 'check' : 'alert-triangle')}<span>${escapeHtml(x.libelle)}${x.ok ? '' : ` <em>−${x.retrait} pts</em>`}</span></li>`).join('')}</ul>
         </div>
         ${infos && infos.responsable ? ligne('user', `Responsable : <b>${escapeHtml(infos.responsable)}</b>`) : ''}
         ${infos && infos.confrere ? ligne('users', `Confrère : <b>${escapeHtml(infos.confrere)}</b>`) : ''}
         ${e.creneau ? `<button type="button" class="primary ag-ouvrir-fiche" onclick="placerCreneauSignature('${d.id}', '${e.creneau.date}', '${e.creneau.heure}')" ${ecrire ? '' : 'disabled title="Connexion à l’agenda Outlook à activer dans les Réglages"'}>${icone('calendar')} Placer le ${escapeHtml(libelleCreneau(e.creneau))}</button>`
           : '<p class="jour-vide">Aucun créneau libre cette semaine dans les règles de l’office.</p>'}
-        ${autres.length ? `<div class="ag-creneaux">${autres.map(c => `<button type="button" class="action-rapide ag-creneau${c.exceptionnel ? ' exceptionnel' : ''}" onclick="placerCreneauSignature('${d.id}', '${c.date}', '${c.heure}')" ${ecrire ? '' : 'disabled'}
-            title="${escapeAttr(c.exceptionnel ? 'Créneau exceptionnel : ' + c.exceptionnel : 'Placer le rendez-vous de signature à ce créneau')}">${c.exceptionnel ? icone('alert-triangle') : ''}${escapeHtml(libelleCreneau(c))}</button>`).join('')}</div>` : ''}
+        ${autres.length ? `<div class="ag-creneaux">${autres.map(c => `<button type="button" class="action-rapide ag-creneau${c.exceptionnel ? ' exceptionnel' : ''}${d.acte && c.date > d.acte ? ' apres-butoir' : ''}" onclick="placerCreneauSignature('${d.id}', '${c.date}', '${c.heure}')" ${ecrire ? '' : 'disabled'}
+            title="${escapeAttr([c.exceptionnel ? 'Créneau exceptionnel : ' + c.exceptionnel : '', d.acte && c.date > d.acte ? `Après la date butoir du ${formatDateFr(d.acte)}` : ''].filter(Boolean).join(' · ') || 'Placer le rendez-vous de signature à ce créneau')}">${c.exceptionnel ? icone('alert-triangle') : ''}${escapeHtml(libelleCreneau(c))}</button>`).join('')}</div>` : ''}
         ${sondageOuvertDossier(d.id) ? '<p class="jour-vide">Sondage de créneaux en cours : réponses sur la fiche.</p>'
           : `<button type="button" class="lien-bouton" onclick="ouvrirSondageCreneaux('${d.id}', ${escapeAttr(JSON.stringify((e.creneau ? [e.creneau] : []).concat(autres).map(c => ({ date: c.date, heure: c.heure, exceptionnel: c.exceptionnel || '' }))))})">${icone('users')} Proposer ces créneaux aux parties</button>`}
         <button type="button" class="lien-bouton" onclick="ouvrirDossierDepuisDashboard('${d.id}')">${icone('folder')} Ouvrir la fiche</button>
@@ -19965,10 +20968,10 @@
   }
 
   // ---- Notes du rendez-vous (corps du rendez-vous dans Outlook, choix de l'étude du 30/09) ----
-  function renderNotesRendezVous(e) {
+  function renderNotesRendezVous(e, lectureSeule) {
     const n = notesAgenda[e.itemId];
     if (!n) chargerNotesAgenda(e.itemId);
-    const edition = notesAgendaEdition === e.itemId;
+    const edition = !lectureSeule && notesAgendaEdition === e.itemId;
     const aide = infoBulle('La note est écrite dans le rendez-vous de l’agenda partagé : elle se lit aussi dans Outlook, et une note tapée dans Outlook s’affiche ici. Enregistrée en texte simple.');
     let corps;
     if (edition) {
@@ -19984,7 +20987,7 @@
     const boutons = edition
       ? `<button type="button" class="icon-btn" id="agenda-notes-ok" onclick="enregistrerNotesAgenda('${cle}')" aria-label="Enregistrer la note" title="Enregistrer dans le rendez-vous">${icone('check')}</button>
          <button type="button" class="icon-btn" onclick="annulerNotesAgenda()" aria-label="Annuler" title="Annuler">${icone('x')}</button>`
-      : (n && n.etat === 'ok' ? `<button type="button" class="icon-btn" onclick="modifierNotesAgenda('${cle}')" aria-label="Modifier la note" title="Modifier la note">${icone('pencil')}</button>` : '');
+      : (n && n.etat === 'ok' && !lectureSeule ? `<button type="button" class="icon-btn" onclick="modifierNotesAgenda('${cle}')" aria-label="Modifier la note" title="Modifier la note">${icone('pencil')}</button>` : '');
     return `<div class="ag-notes">
         <div class="ag-notes-tete"><span class="ag-notes-titre">Notes</span> ${aide}<span class="jour-espace"></span>${boutons}</div>
         ${corps}
@@ -20097,7 +21100,7 @@
           ${Object.entries(TYPES_RDV).map(([cle, t]) => `<label class="rdv-type-option"><input type="radio" name="agenda-creation-type" value="${cle}"><span class="rdv-type-pastille rdv-type-${cle}"></span>${t.libelle}</label>`).join('')}
         </div>
         <footer class="ag-modale-pied ag-modale-pied-form">
-          <button type="button" class="secondary" id="agenda-creation-plusieurs" style="display:none" onclick="proposerPlusieursDatesAgenda()" title="Envoyer aux parties plusieurs créneaux, dont celui-ci : chacun indique ceux qui lui conviennent">${icone('users')} Proposer plusieurs dates</button>
+          <button type="button" class="secondary" id="agenda-creation-plusieurs" onclick="proposerPlusieursDatesAgenda()" title="Envoyer aux parties plusieurs créneaux, dont celui-ci : chacun indique ceux qui lui conviennent">${icone('users')} Proposer plusieurs dates</button>
           <span class="jour-espace"></span>
           <button type="button" class="secondary" onclick="fermerModaleAgenda()">Annuler</button>
           <button type="submit" class="primary" id="agenda-creation-ok">${icone('calendar')} Créer le rendez-vous</button>
@@ -20115,10 +21118,19 @@
     if (d && titre && (!titre.value || RE_NOM_DEJA_PREFIXE.test(titre.value))) titre.value = libelleDossierAffiche(d);
     const sig = document.getElementById('agenda-creation-signature');
     if (sig && (!d || d.rendezVousSignature)) sig.checked = false;
-    // « Proposer plusieurs dates » (étude, 01/10) : le sondage de créneaux, offert comme la case
-    // « signature » — un dossier sans rendez-vous de signature.
+    // Le lieu reprend celui que CLAIRE écrit pour une signature (étude, 01/10 : responsable, confrère
+    // en 1er / en 2nd, appel de fonds et projet envoyés) : « BA - Me DURAND en 2nd - Appel de fonds
+    // envoyé ». Rempli tant qu'il est vide ou qu'il porte encore la proposition précédente ; un lieu
+    // tapé à la main n'est jamais remplacé.
+    const lieu = document.getElementById('agenda-creation-lieu');
+    if (lieu && (!lieu.value.trim() || lieu.value === lieu.dataset.propose)) {
+      lieu.value = d ? lieuRdvAgenda(d) : '';
+      lieu.dataset.propose = lieu.value;
+    }
+    // « Proposer plusieurs dates » (étude, 01/10) : le sondage de créneaux du dossier (sans rendez-vous
+    // de signature), ou un sondage sans dossier.
     const plusieurs = document.getElementById('agenda-creation-plusieurs');
-    if (plusieurs) plusieurs.style.display = d && !d.rendezVousSignature ? '' : 'none';
+    if (plusieurs) plusieurs.style.display = !d || !d.rendezVousSignature ? '' : 'none';
   }
 
   // Étude, 01/10 : « lors de l'ajout d'un rendez-vous, proposer l'option pour proposer plusieurs
@@ -20127,14 +21139,16 @@
   function proposerPlusieursDatesAgenda() {
     const val = (id) => { const el = document.getElementById(id); return el ? el.value.trim() : ''; };
     const d = dossiers.find(x => x.id === val('agenda-creation-dossier'));
-    if (!d) { afficherToast('Choisissez d’abord le dossier.', 'OK', null); return; }
     const date = val('agenda-creation-date');
     const heure = val('agenda-creation-heure');
     const enTete = /^\d{4}-\d{2}-\d{2}$/.test(date) && /^\d{2}:\d{2}$/.test(heure)
       ? [{ date, heure, exceptionnel: motifCreneauExceptionnel(heure, DUREE_CRENEAU_SIGNATURE, rendezVousHorairesJour(agendaEvenements, date).length) || '' }] : [];
+    const titre = val('agenda-creation-titre');
     agendaModale = null;
     renderModaleAgenda();
-    ouvrirSondageCreneaux(d.id, null, enTete);
+    // Sans dossier (étude, 01/10) : un sondage libre, au titre saisi.
+    if (d) ouvrirSondageCreneaux(d.id, null, enTete);
+    else ouvrirSondageSansDossier(titre, enTete);
   }
 
   // Pur : les créneaux du sondage — ceux mis en tête (saisis à la main), puis les propositions qui
@@ -20237,7 +21251,7 @@
   // Exchange), ni signature encore absente d'Outlook, ni carte fantôme, ni option d'un sondage (ses
   // créneaux sont ceux proposés aux parties).
   function evenementModifiableAgenda(e) {
-    return !!(e && e.itemId && !e.horsAgenda && !e.fantome && !e.option);
+    return !!(e && e.itemId && !e.horsAgenda && !e.fantome && !e.option && !e.archive);
   }
 
   // Pure : minutes depuis minuit → « HH:MM ».
@@ -20349,7 +21363,7 @@
     const typeAvant = typeEvenementAgenda(e, categoriesRdvReglees());
     const typeApres = choixType && CATEGORIES_AGENDA[choixType.value] ? choixType.value : '';
     if (typeApres !== typeAvant) {
-      if (typeApres && !categoriesRdvReglees()[typeApres]) { afficherToast('Nom de la catégorie Outlook à régler d’abord (Réglages › Rappels et agenda).', 'OK', null); return; }
+      if (typeApres && !categoriesRdvReglees()[typeApres]) { afficherToast('Nom de la catégorie Outlook à régler d’abord (Réglages › Agenda et Outlook).', 'OK', null); return; }
       nouveau.categories = categoriesApresChangement(e.categories, categoriesRdvReglees(), typeApres);
       nouveau.typeRdv = typeApres;
     }
@@ -20634,6 +21648,35 @@
     return /^https:\/\/script\.google\.com\//.test(r.relaisSondage || '') ? r.relaisSondage : '';
   }
 
+  // Sondage sans dossier (étude, 01/10 : « plusieurs propositions de rendez-vous sans être lié à un
+  // dossier ») : le titre du rendez-vous tient lieu de dossier. Purs et testables.
+  function libelleSondage(s, d) {
+    return d ? libelleDossierAffiche(d) : ((s && s.titre) || 'Rendez-vous');
+  }
+  var MOTS_SAUTES_TITRE_SONDAGE = new Set(['RENDEZ', 'VOUS', 'RDV', 'AVEC', 'POUR', 'CHEZ', 'SUR', 'UNE', 'UN']);
+  // « Réunion avec l’agence DUPONT » → « REU./AGE. » : comme le dossier, jamais le titre en clair sur
+  // la page de réponse ni dans l'objet des réponses.
+  function abregeTitreSondage(titre) {
+    const mots = String(titre || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().split(/[^A-Z]+/)
+      .filter(m => m.length >= 3 && !MOTS_SAUTES_ABREGE.has(m) && !MOTS_SAUTES_TITRE_SONDAGE.has(m)).slice(0, 2);
+    return mots.length ? mots.map(m => m.slice(0, 3) + '.').join('/') : 'RDV';
+  }
+  function abregeSondage(s, d) {
+    return d ? abregeDossierSondage(d) : abregeTitreSondage(s && s.titre);
+  }
+  // Ce que l'email propose de fixer : la signature d'un dossier, ou le rendez-vous nommé.
+  function objetsEmailSondage(d, titre) {
+    if (d) return { client: 'rendez-vous de signature de l’acte de vente', confrere: `rendez-vous de signature de la vente ${libelleDossierAffiche(d)}` };
+    const t = `rendez-vous « ${String(titre || '').trim() || 'proposé'} »`;
+    return { client: t, confrere: t };
+  }
+  // Le nom affiché d'un destinataire : « Vendeur · NOM », ou le nom saisi pour un sondage sans dossier.
+  function libelleParticipantSondage(p, avecNom) {
+    if (!p) return '';
+    if (p.role === 'autre') return p.nom || p.email || 'Destinataire';
+    return (LIBELLES_ROLE_SONDAGE[p.role] || '') + (avecNom && p.nom ? ' · ' + p.nom : '');
+  }
+
   function sondageOuvertDossier(id) {
     return sondagesCreneaux.find(s => s.dossierId === id && s.statut === 'ouvert') || null;
   }
@@ -20694,6 +21737,8 @@
     const p = participant || {};
     const champs = [
       ['v', '1'], ['c', s.code], ['a', s.adresseReponse], ['d', abrege || ''], ['l', s.expireLe || ''],
+      // t=r : un rendez-vous (sondage sans dossier, qui porte un titre), pas une signature.
+      ...(!s.dossierId && s.titre ? [['t', 'r']] : []),
       ...(p.cle ? [['q', p.cle]] : []), ...(p.role ? [['w', (LIBELLES_ROLE_SONDAGE[p.role] || '').toLowerCase()]] : []),
       ...(relais ? [['r', relais]] : []),
       ['m', String((s.creneaux[0] && s.creneaux[0].dureeMinutes) || DUREE_CRENEAU_SIGNATURE)], ['o', OFFICE_PAGE_SONDAGE],
@@ -20722,7 +21767,7 @@
       // Un lien par destinataire (code personnel) : « Réponse de … » quand l'email en vise plusieurs.
       const qui = (o.participants && o.participants.length) ? o.participants : [null];
       return qui.map(p => ({
-        libelle: qui.length > 1 ? `Réponse de ${(p && p.nom) || LIBELLES_ROLE_SONDAGE[p && p.role] || 'destinataire'}` : 'Choisir mes disponibilités',
+        libelle: qui.length > 1 ? `Réponse de ${(p && p.nom) || (p && p.role !== 'autre' && LIBELLES_ROLE_SONDAGE[p.role]) || (p && p.email) || 'destinataire'}` : 'Choisir mes disponibilités',
         href: lienPageSondage(o.page, s, o.abrege, p, o.relais)
       }));
     }
@@ -20739,13 +21784,14 @@
   // `avecPage` : un seul bouton vers la page de réponse, où cocher les créneaux.
   function corpsEmailSondage(d, s, confrere, relance, avecPage, plusieurs) {
     const limite = s.expireLe ? new Date(s.expireLe + 'T00:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }) : '';
+    const o = objetsEmailSondage(d, s.titre);
     const liste = s.creneaux.map(c => '– ' + libelleCreneauSondage(c).replace(/^./, x => x.toUpperCase())).join('\n');
     if (avecPage && confrere) {
       return [
-        relance ? `Je me permets de revenir vers vous au sujet du rendez-vous de signature de la vente ${libelleDossierAffiche(d)}, pour lequel je vous ai proposé les créneaux suivants :`
-          : `Afin de fixer le rendez-vous de signature de la vente ${libelleDossierAffiche(d)}, je vous propose les créneaux suivants :`,
+        relance ? `Je me permets de revenir vers vous au sujet du ${o.confrere}, pour lequel je vous ai proposé les créneaux suivants :`
+          : `Afin de fixer le ${o.confrere}, je vous propose les créneaux suivants :`,
         liste,
-        'Pourriez-vous m’indiquer ceux qui conviennent à votre client et à vous-même ? Le bouton ci-dessous permet de répondre pour chaque créneau.',
+        `Pourriez-vous m’indiquer ${d ? 'ceux qui conviennent à votre client et à vous-même' : 'ceux qui vous conviennent'} ? Le bouton ci-dessous permet de répondre pour chaque créneau.`,
         '{{BOUTONS}}',
         limite ? `Je vous remercie de votre réponse avant le ${limite}.` : ''
       ].filter(Boolean).join('\n\n');
@@ -20753,8 +21799,8 @@
     if (avecPage) {
       return [
         'Bonjour,',
-        relance ? 'Nous revenons vers vous pour fixer le rendez-vous de signature de l’acte de vente : nous n’avons pas encore reçu vos disponibilités parmi les créneaux suivants :'
-          : 'Afin de fixer le rendez-vous de signature de l’acte de vente, nous vous proposons les créneaux suivants :',
+        relance ? `Nous revenons vers vous pour fixer le ${o.client} : nous n’avons pas encore reçu vos disponibilités parmi les créneaux suivants :`
+          : `Afin de fixer le ${o.client}, nous vous proposons les créneaux suivants :`,
         liste,
         plusieurs ? 'Chacun de vous clique sur le bouton à son nom, indique pour chaque créneau s’il lui convient, puis clique sur « Envoyer ma réponse ».'
           : 'Cliquez sur « Choisir mes disponibilités », indiquez pour chaque créneau s’il vous convient, puis cliquez sur « Envoyer ma réponse ».',
@@ -20764,17 +21810,17 @@
     }
     if (confrere) {
       return [
-        relance ? `Je me permets de revenir vers vous au sujet du rendez-vous de signature de la vente ${libelleDossierAffiche(d)}, pour lequel je vous ai proposé les créneaux ci-dessous.`
-          : `Afin de fixer le rendez-vous de signature de la vente ${libelleDossierAffiche(d)}, je vous propose les créneaux ci-dessous.`,
-        'Pourriez-vous m’indiquer ceux qui conviennent à votre client et à vous-même ? Un clic sur un créneau prépare la réponse : il suffit de l’envoyer sans en modifier l’objet (un email par créneau qui convient). « Répondre en une seule fois » prépare un seul email, où cocher d’un X les créneaux retenus.',
+        relance ? `Je me permets de revenir vers vous au sujet du ${o.confrere}, pour lequel je vous ai proposé les créneaux ci-dessous.`
+          : `Afin de fixer le ${o.confrere}, je vous propose les créneaux ci-dessous.`,
+        `Pourriez-vous m’indiquer ${d ? 'ceux qui conviennent à votre client et à vous-même' : 'ceux qui vous conviennent'} ? Un clic sur un créneau prépare la réponse : il suffit de l’envoyer sans en modifier l’objet (un email par créneau qui convient). « Répondre en une seule fois » prépare un seul email, où cocher d’un X les créneaux retenus.`,
         '{{BOUTONS}}',
         limite ? `Je vous remercie de votre réponse avant le ${limite}.` : ''
       ].filter(Boolean).join('\n\n');
     }
     return [
       'Bonjour,',
-      relance ? 'Nous revenons vers vous pour fixer le rendez-vous de signature de l’acte de vente : nous n’avons pas encore reçu votre choix parmi les créneaux ci-dessous.'
-        : 'Afin de fixer le rendez-vous de signature de l’acte de vente, nous vous proposons les créneaux ci-dessous.',
+      relance ? `Nous revenons vers vous pour fixer le ${o.client} : nous n’avons pas encore reçu votre choix parmi les créneaux ci-dessous.`
+        : `Afin de fixer le ${o.client}, nous vous proposons les créneaux ci-dessous.`,
       'Cliquez sur chaque créneau qui vous convient : un email de réponse s’ouvre, il suffit de l’envoyer sans en modifier l’objet (un email par créneau). Pour répondre en un seul email, cliquez sur « Répondre en une seule fois » et cochez d’un X les créneaux qui vous conviennent. Si aucun ne vous convient, cliquez sur « Aucun créneau ne convient ».',
       '{{BOUTONS}}',
       `Merci de nous répondre${limite ? ` avant le ${limite}` : ''}. Le rendez-vous vous sera confirmé dès que toutes les parties auront répondu.`
@@ -20803,6 +21849,7 @@
       const avant = JSON.stringify(sondagesCreneaux);
       const anciens = sondagesCreneaux;
       sondagesCreneaux = corps.sondages || [];
+      majBadgeAgendaDates();
       if (avant === JSON.stringify(sondagesCreneaux)) return;
       // Une nouvelle réponse : notification discrète.
       if (anciens.length) {
@@ -20810,12 +21857,13 @@
           const a = anciens.find(x => x.id === s.id);
           if (a && (s.reponses || []).length > (a.reponses || []).length) {
             const d = dossiers.find(x => x.id === s.dossierId);
-            afficherToast(`Nouvelle réponse au sondage de créneaux — ${d ? libelleDossierAffiche(d) : libelleDossierParNom(s.dossierNom, s.dossierId)}.`, 'OK', null);
+            afficherToast(`Nouvelle réponse au sondage de créneaux — ${d ? libelleDossierAffiche(d) : s.titre || libelleDossierParNom(s.dossierNom, s.dossierId)}.`, 'OK', null);
           }
         }
       }
       renderDrawer();
       if (ongletActuel === 'agenda') renderPageAgenda();
+      renderSuiviDatesProposees();
     } catch (e) { /* serveur injoignable : on garde la dernière liste */ }
   }
 
@@ -20844,6 +21892,34 @@
     renderModaleSondage();
   }
 
+  // Sondage sans dossier, depuis l'agenda : titre, durée et destinataires libres (étude, 01/10).
+  function ouvrirSondageSansDossier(titre, enTete) {
+    if (!exchangeAgendaPret()) { afficherToast('Connexion à l’agenda Outlook à activer dans les Réglages.', 'OK', null); return; }
+    const tete = creneauxSondageAvecTete(enTete, [], MAX_CRENEAUX_SONDAGE);
+    sondageModale = {
+      dossierId: '', titre: String(titre || '').replace(/[?]/g, ' ').trim(), duree: 60,
+      creneaux: tete.map(c => ({ date: c.date, heure: c.heure, exceptionnel: c.exceptionnel || '', apresButoir: false, coche: true })),
+      participants: [{ role: 'autre', nom: '', email: '', confrere: false, coche: true }],
+      options: true
+    };
+    renderModaleSondage();
+    setTimeout(() => { const c = document.getElementById(sondageModale && sondageModale.titre ? 'sondage-ajout-date' : 'sondage-titre'); if (c) c.focus(); }, 0);
+  }
+
+  function ajouterDestinataireSondage() {
+    if (!sondageModale || sondageModale.participants.length >= 6) return;
+    sondageModale.participants.push({ role: 'autre', nom: '', email: '', confrere: false, coche: true });
+    renderModaleSondage();
+    const champ = document.getElementById(`sondage-nom-${sondageModale.participants.length - 1}`);
+    if (champ) champ.focus();
+  }
+
+  function retirerDestinataireSondage(i) {
+    if (!sondageModale || sondageModale.participants.length <= 1) return;
+    sondageModale.participants.splice(i, 1);
+    renderModaleSondage();
+  }
+
   function fermerModaleSondage() {
     sondageModale = null;
     renderModaleSondage();
@@ -20853,16 +21929,33 @@
     const overlay = document.getElementById('sondage-overlay');
     if (!overlay) return;
     if (!sondageModale) { overlay.style.display = 'none'; return; }
-    const d = dossiers.find(x => x.id === sondageModale.dossierId);
-    if (!d) { overlay.style.display = 'none'; return; }
+    const d = sondageModale.dossierId ? dossiers.find(x => x.id === sondageModale.dossierId) : null;
+    if (sondageModale.dossierId && !d) { overlay.style.display = 'none'; return; }
     const m = sondageModale;
     const nbCoches = m.creneaux.filter(c => c.coche).length;
+    // Le focus et le curseur d'un champ libre survivent au rendu (ajout d'un créneau, d'un destinataire).
+    const actif = document.activeElement && document.activeElement.id && document.getElementById('sondage-modale-contenu').contains(document.activeElement)
+      ? { id: document.activeElement.id, debut: document.activeElement.selectionStart, fin: document.activeElement.selectionEnd } : null;
+    const destinatairesLibres = `<ul class="sondage-participants sondage-libres">${m.participants.map((p, i) => `<li>
+            <input type="text" class="sondage-email" id="sondage-nom-${i}" value="${escapeAttr(p.nom)}" maxlength="120" placeholder="Nom" oninput="sondageModale.participants[${i}].nom = this.value" aria-label="Nom du destinataire ${i + 1}">
+            <input type="email" class="sondage-email" id="sondage-email-${i}" value="${escapeAttr(p.email)}" placeholder="Adresse email" oninput="sondageModale.participants[${i}].email = this.value.trim()" aria-label="Email du destinataire ${i + 1}">
+            <label class="sondage-case sondage-confrere" title="Un confrère reçoit son propre email, avec la formule d’usage"><input type="checkbox" ${p.confrere ? 'checked' : ''} onchange="sondageModale.participants[${i}].confrere = this.checked"> Confrère</label>
+            ${m.participants.length > 1 ? `<button type="button" class="icon-btn" onclick="retirerDestinataireSondage(${i})" aria-label="Retirer ce destinataire" title="Retirer">${icone('x')}</button>` : '<span></span>'}
+          </li>`).join('')}</ul>
+          ${m.participants.length < 6 ? '<button type="button" class="bouton-ajout" onclick="ajouterDestinataireSondage()">Ajouter un destinataire</button>' : ''}`;
     document.getElementById('sondage-modale-contenu').innerHTML = `<header class="ag-modale-tete">
-        <div><h2 class="ag-modale-titre" id="sondage-modale-titre">Proposer des créneaux</h2>
-        <div class="ag-modale-quand">${escapeHtml(libelleDossierAffiche(d))} ${infoBulle('Les parties reçoivent un email avec un bouton par créneau : chacun clique sur ceux qui lui conviennent, et l’email de réponse arrive dans la boîte de l’office, où CLAIRE lit les réponses. Vous placez ensuite le rendez-vous d’un clic.')}</div></div>
+        <div><h2 class="ag-modale-titre" id="sondage-modale-titre">${d ? 'Proposer des créneaux' : 'Proposer des dates'}</h2>
+        <div class="ag-modale-quand">${d ? escapeHtml(libelleDossierAffiche(d)) : 'Sans dossier'} ${infoBulle('Les destinataires reçoivent un email avec un bouton par créneau : chacun clique sur ceux qui lui conviennent, et l’email de réponse arrive dans la boîte de l’office, où CLAIRE lit les réponses. Vous placez ensuite le rendez-vous d’un clic.')}</div></div>
         <button type="button" class="icon-btn ag-modale-x" onclick="fermerModaleSondage()" aria-label="Fermer">${icone('x')}</button>
       </header>
       <form class="ag-modale-corps ag-form" onsubmit="event.preventDefault(); lancerSondageCreneaux();">
+        ${d ? '' : `<div class="ag-champs-ligne sondage-titre-ligne">
+          <label class="ag-champ">Titre du rendez-vous <input type="text" id="sondage-titre" required maxlength="120" value="${escapeAttr(m.titre)}" placeholder="Ex. : Rendez-vous client, réunion…" oninput="sondageModale.titre = this.value"></label>
+          <label class="ag-champ">Durée
+            <select id="sondage-duree" onchange="sondageModale.duree = parseInt(this.value, 10) || 60">
+              ${[30, 60, 90, 120, 180].map(v => `<option value="${v}"${m.duree === v ? ' selected' : ''}>${v < 60 ? v + ' min' : Math.floor(v / 60) + ' h' + (v % 60 ? ' 30' : '')}</option>`).join('')}
+            </select></label>
+        </div>`}
         <div class="sondage-bloc">
           <div class="sondage-bloc-titre">Créneaux <span class="hint">${nbCoches}/${MAX_CRENEAUX_SONDAGE}</span></div>
           ${m.creneaux.length ? `<ul class="sondage-creneaux">${m.creneaux.map((c, i) => `<li><label class="sondage-case">
@@ -20870,7 +21963,7 @@
             <span>${escapeHtml(libelleCreneauSondage(c).replace(/^./, x => x.toUpperCase()))}</span>
             ${c.exceptionnel ? `<span class="sondage-note">${icone('alert-triangle')} ${escapeHtml(c.exceptionnel)}</span>` : ''}
             ${c.apresButoir ? '<span class="sondage-note">après la date butoir</span>' : ''}
-          </label></li>`).join('')}</ul>` : '<p class="jour-vide">Aucun créneau libre trouvé : ajoutez-en un.</p>'}
+          </label></li>`).join('')}</ul>` : (d ? '<p class="jour-vide">Aucun créneau libre trouvé : ajoutez-en un.</p>' : '<p class="jour-vide">Ajoutez les dates à proposer.</p>')}
           <div class="ag-champs-ligne sondage-ajout">
             <label class="ag-champ">Date <input type="date" id="sondage-ajout-date" min="${escapeAttr(isoAujourdhuiLocal())}"></label>
             <label class="ag-champ">Heure <input type="time" id="sondage-ajout-heure" step="1800" value="10:00"></label>
@@ -20879,11 +21972,12 @@
         </div>
         <div class="sondage-bloc">
           <div class="sondage-bloc-titre">Destinataires</div>
-          <ul class="sondage-participants">${m.participants.map((p, i) => `<li>
+          ${d ? '' : destinatairesLibres}
+          ${!d ? '' : `<ul class="sondage-participants">${m.participants.map((p, i) => `<li>
             <label class="sondage-case"><input type="checkbox" ${p.coche ? 'checked' : ''} onchange="sondageModale.participants[${i}].coche = this.checked">
               <span><b>${escapeHtml(LIBELLES_ROLE_SONDAGE[p.role] || '')}</b>${p.nom ? ' · ' + escapeHtml(p.nom) : ''}</span></label>
             <input type="email" class="sondage-email" id="sondage-email-${i}" value="${escapeAttr(p.email)}" placeholder="Adresse email" oninput="sondageModale.participants[${i}].email = this.value.trim()" aria-label="Email — ${escapeAttr(LIBELLES_ROLE_SONDAGE[p.role] || '')}">
-          </li>`).join('')}</ul>
+          </li>`).join('')}</ul>`}
         </div>
         <label class="ag-champ ag-case-signature"><input type="checkbox" id="sondage-options" ${m.options ? 'checked' : ''} ${exchangeAgendaPret() ? '' : 'disabled'} onchange="sondageModale.options = this.checked">
           Bloquer ces créneaux en option dans l’agenda ${infoBulle('Rendez-vous provisoires « VTE - … ? » dans l’agenda partagé, retirés d’eux-mêmes au placement du rendez-vous, à l’annulation du sondage ou après 5 jours ouvrés sans décision.')}</label>
@@ -20894,6 +21988,10 @@
         </footer>
       </form>`;
     overlay.style.display = 'flex';
+    if (actif) {
+      const champ = document.getElementById(actif.id);
+      if (champ) { champ.focus({ preventScroll: true }); try { if (actif.debut != null) champ.setSelectionRange(actif.debut, actif.fin); } catch (e) { /* champ sans curseur */ } }
+    }
   }
 
   function cocherCreneauSondage(i, coche) {
@@ -20909,7 +22007,7 @@
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^\d{2}:\d{2}$/.test(heure)) { afficherToast('Choisissez une date et une heure.', 'OK', null); return; }
     if (sondageModale.creneaux.some(c => c.date === date && c.heure === heure)) return;
     const coches = sondageModale.creneaux.filter(c => c.coche).length;
-    const motif = motifCreneauExceptionnel(heure, DUREE_CRENEAU_SIGNATURE, 0);
+    const motif = motifCreneauExceptionnel(heure, sondageModale.dossierId ? DUREE_CRENEAU_SIGNATURE : (sondageModale.duree || 60), 0);
     sondageModale.creneaux.push({ date, heure, exceptionnel: motif || '', apresButoir: false, coche: coches < MAX_CRENEAUX_SONDAGE });
     sondageModale.creneaux.sort((a, b) => a.date.localeCompare(b.date) || a.heure.localeCompare(b.heure));
     renderModaleSondage();
@@ -20918,17 +22016,20 @@
   async function lancerSondageCreneaux() {
     const m = sondageModale;
     if (!m) return;
-    const d = dossiers.find(x => x.id === m.dossierId);
-    if (!d) return;
+    const d = m.dossierId ? dossiers.find(x => x.id === m.dossierId) : null;
+    if (m.dossierId && !d) return;
+    const titre = d ? '' : String(m.titre || '').replace(/[?]/g, ' ').replace(/\s+/g, ' ').trim();
+    if (!d && !titre) { afficherToast('Donnez un titre au rendez-vous.', 'OK', null); return; }
     const creneaux = m.creneaux.filter(c => c.coche);
-    const participants = m.participants.filter(p => p.coche);
+    // Sans dossier : chaque ligne qui porte une adresse est un destinataire.
+    const participants = d ? m.participants.filter(p => p.coche) : m.participants.filter(p => (p.email || '').trim()).map(p => Object.assign({}, p, { nom: String(p.nom || '').trim() }));
     if (!creneaux.length) { afficherToast('Cochez au moins un créneau.', 'OK', null); return; }
     if (!participants.length) { afficherToast('Cochez au moins un destinataire.', 'OK', null); return; }
     const sansAdresse = participants.find(p => !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(p.email || ''));
-    if (sansAdresse) { afficherToast(`Adresse email manquante ou invalide : ${LIBELLES_ROLE_SONDAGE[sansAdresse.role]}.`, 'OK', null); return; }
+    if (sansAdresse) { afficherToast(`Adresse email manquante ou invalide : ${libelleParticipantSondage(sansAdresse)}.`, 'OK', null); return; }
     // Une adresse saisie ici pour le vendeur ou l'acquéreur est gardée sur la fiche.
     let modifie = false;
-    for (const p of participants) {
+    for (const p of (d ? participants : [])) {
       if (p.role === 'vendeur' && p.email !== (d.emailVendeur || '')) { d.emailVendeur = p.email; ajouterHistorique(d, `Email du vendeur : ${p.email}`); modifie = true; }
       if (p.role === 'acquereur' && p.email !== (d.emailAcquereur || '')) { d.emailAcquereur = p.email; ajouterHistorique(d, `Email de l’acquéreur : ${p.email}`); modifie = true; }
     }
@@ -20939,10 +22040,10 @@
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          dossierId: d.id, dossierNom: d.nom, libelle: libelleDossierAffiche(d), creePar: utilisateurPoste || '',
-          typeRdv: typeRendezVous(d, categoriesRdvReglees()) || 'office',
+          dossierId: d ? d.id : '', dossierNom: d ? d.nom : '', titre, libelle: d ? libelleDossierAffiche(d) : titre, creePar: utilisateurPoste || '',
+          typeRdv: d ? (typeRendezVous(d, categoriesRdvReglees()) || 'office') : '',
           poserOptions: !!m.options && exchangeAgendaPret(),
-          creneaux: creneaux.map(c => ({ date: c.date, heure: c.heure, dureeMinutes: DUREE_CRENEAU_SIGNATURE })),
+          creneaux: creneaux.map(c => ({ date: c.date, heure: c.heure, dureeMinutes: d ? DUREE_CRENEAU_SIGNATURE : (m.duree || 60) })),
           participants: participants.map(p => ({ role: p.role, nom: p.nom, email: p.email, confrere: p.confrere }))
         })
       });
@@ -20950,19 +22051,21 @@
       if (!corps.ok) { if (bouton) bouton.disabled = false; afficherToast(corps.message || 'Le sondage n’a pas pu être créé.', 'OK', null); return; }
       const s = corps.sondage;
       sondagesCreneaux = sondagesCreneaux.filter(x => x.id !== s.id).concat([s]);
-      ajouterHistorique(d, `Sondage de créneaux envoyé (${s.creneaux.map(c => formatDateFr(c.date) + ' ' + c.heure).join(', ')})${s.creneaux.some(c => c.option) ? ', créneaux en option dans l’agenda' : ''}.`);
-      modifie = true;
+      if (d) {
+        ajouterHistorique(d, `Sondage de créneaux envoyé (${s.creneaux.map(c => formatDateFr(c.date) + ' ' + c.heure).join(', ')})${s.creneaux.some(c => c.option) ? ', créneaux en option dans l’agenda' : ''}.`);
+        modifie = true;
+      }
       sondageModale = null;
       renderModaleSondage();
       const envoi = await preparerEmailsSondage(d, s, null, false);
       if (corps.avertissement) afficherToast(corps.avertissement, 'OK', null);
       else if (envoi) annoncerEmailPret(envoi, true, s.creneaux.some(c => c.option) ? 'Créneaux mis en option dans l’agenda.' : '');
-      if (ongletActuel === 'agenda') chargerAgendaSemaine();
+      if (ongletActuel === 'agenda') { renderPageAgenda(); chargerAgendaSemaine(); }
     } catch (e) {
       if (bouton) bouton.disabled = false;
       afficherToast('Serveur injoignable — sondage non créé.', 'OK', null);
     } finally {
-      if (modifie) { sauvegarder(d); render(); }
+      if (modifie && d) { sauvegarder(d); render(); }
     }
   }
 
@@ -20972,11 +22075,11 @@
     for (const g of groupesEmailSondage(s.participants, filtre)) {
       dernier = await livrerEmailDossier({
         destinataire: g.participants.map(p => p.email).join(', '),
-        sujet: `${relance ? 'Relance — ' : ''}Rendez-vous de signature : vos disponibilités — ${libelleDossierAffiche(d)}`,
+        sujet: `${relance ? 'Relance — ' : ''}${d ? 'Rendez-vous de signature' : 'Rendez-vous'} : vos disponibilités — ${libelleSondage(s, d)}`,
         corps: corpsEmailSondage(d, s, g.confrere, relance, !!pageSondageReglee(), g.participants.length > 1),
         confrere: g.confrere,
-        boutons: boutonsSondage(s, { page: pageSondageReglee(), abrege: abregeDossierSondage(d), relais: relaisSondageRegle(), participants: g.participants }),
-        responsableSignature: d.responsable
+        boutons: boutonsSondage(s, { page: pageSondageReglee(), abrege: abregeSondage(s, d), relais: relaisSondageRegle(), participants: g.participants }),
+        responsableSignature: d ? d.responsable : ''
       });
       if (!dernier.ok) { afficherToast(dernier.message || 'L’email n’a pas pu être préparé.', 'OK', null); return null; }
     }
@@ -20990,6 +22093,7 @@
       });
       const corps = await r.json();
       if (corps.sondage) sondagesCreneaux = sondagesCreneaux.filter(x => x.id !== id).concat([corps.sondage]);
+      renderSuiviDatesProposees();
       return corps;
     } catch (e) {
       return { ok: false, message: 'Serveur injoignable.' };
@@ -21005,17 +22109,17 @@
 
   function relancerSondage(id) {
     const s = sondagesCreneaux.find(x => x.id === id);
-    const d = s && dossiers.find(x => x.id === s.dossierId);
-    if (!s || !d) return;
+    const d = s && s.dossierId ? dossiers.find(x => x.id === s.dossierId) : null;
+    if (!s || (s.dossierId && !d)) return;
     const cibles = sansReponseSondage(s).map(p => p.email);
     if (!cibles.length) { afficherToast('Tout le monde a répondu.', 'OK', null); return; }
     preparerEmailsSondage(d, s, cibles, true).then(async (r) => {
       if (!r) return;
       await actionSondage(id, 'relance');
-      ajouterHistorique(d, 'Sondage de créneaux : relance de ceux qui n’ont pas répondu.');
-      sauvegarder(d);
+      if (d) { ajouterHistorique(d, 'Sondage de créneaux : relance de ceux qui n’ont pas répondu.'); sauvegarder(d); }
       annoncerEmailPret(r, true, '');
       renderDrawer();
+      if (ongletActuel === 'agenda') renderPageAgenda();
     });
   }
 
@@ -21024,7 +22128,7 @@
     const d = s && dossiers.find(x => x.id === s.dossierId);
     if (!s) return;
     const options = s.creneaux.some(c => c.option);
-    demanderConfirmation(`Annuler le sondage de créneaux${d ? ' de ' + libelleDossierAffiche(d) : ''} ?${options ? ' Les options posées dans l’agenda seront retirées.' : ''} Les réponses qui arriveraient ensuite ne seront plus lues.`, async () => {
+    demanderConfirmation(`Annuler le sondage de créneaux${d ? ' de ' + libelleDossierAffiche(d) : s.titre ? ' « ' + s.titre + ' »' : ''} ?${options ? ' Les options posées dans l’agenda seront retirées.' : ''} Les réponses qui arriveraient ensuite ne seront plus lues.`, async () => {
       const r = await actionSondage(id, 'annuler');
       if (!r.ok) { afficherToast(r.message || 'Annulation impossible.', 'OK', null); return; }
       if (d) { ajouterHistorique(d, 'Sondage de créneaux annulé.'); sauvegarder(d); }
@@ -21037,19 +22141,19 @@
   // Place le rendez-vous de signature au créneau choisi, puis clôt le sondage (options retirées).
   function placerCreneauSondage(id, n) {
     const s = sondagesCreneaux.find(x => x.id === id);
-    const d = s && dossiers.find(x => x.id === s.dossierId);
+    const d = s && s.dossierId ? dossiers.find(x => x.id === s.dossierId) : null;
     const c = s && s.creneaux.find(x => x.n === n);
-    if (!s || !d || !c) return;
+    if (!s || !c || (s.dossierId && !d)) return;
     const synthese = (s.synthese || []).find(x => x.n === n);
     const possibles = synthese ? synthese.accepte + (synthese.siBesoin || 0) : 0;
     const reserve = synthese && !synthese.tous ? ` Seuls ${possibles} destinataire${possibles > 1 ? 's' : ''} sur ${synthese.total} l’ont accepté.` : '';
-    demanderConfirmation(`Placer la signature de ${libelleDossierAffiche(d)} le ${libelleCreneauSondage(c)} ?${reserve} Les autres options du sondage seront retirées de l’agenda.`, async () => {
-      const typeRdv = typeRendezVous(d, categoriesRdvReglees()) || 'office';
-      const ok = await posterEvenementAgenda({ sujet: libelleDossierAffiche(d), date: c.date, heure: c.heure, dureeMinutes: c.dureeMinutes || DUREE_CRENEAU_SIGNATURE, lieu: lieuRdvAgenda(d), typeRdv, dossier: d, signature: true });
+    demanderConfirmation(`${d ? `Placer la signature de ${libelleDossierAffiche(d)}` : `Placer « ${s.titre} »`} le ${libelleCreneauSondage(c)} ?${reserve} Les autres options du sondage seront retirées de l’agenda.`, async () => {
+      const ok = d
+        ? await posterEvenementAgenda({ sujet: libelleDossierAffiche(d), date: c.date, heure: c.heure, dureeMinutes: c.dureeMinutes || DUREE_CRENEAU_SIGNATURE, lieu: lieuRdvAgenda(d), typeRdv: typeRendezVous(d, categoriesRdvReglees()) || 'office', dossier: d, signature: true })
+        : await posterEvenementAgenda({ sujet: s.titre || 'Rendez-vous', date: c.date, heure: c.heure, dureeMinutes: c.dureeMinutes || 60, lieu: '', typeRdv: TYPES_RDV[s.typeRdv] ? s.typeRdv : '', dossier: null, signature: false });
       if (!ok) return;
       const r = await actionSondage(id, 'placer', { n });
-      ajouterHistorique(d, `Sondage de créneaux clos : créneau ${n} retenu.`);
-      sauvegarder(d);
+      if (d) { ajouterHistorique(d, `Sondage de créneaux clos : créneau ${n} retenu.`); sauvegarder(d); }
       if (r.message) afficherToast(r.message, 'OK', null);
       render();
       if (ongletActuel === 'agenda') chargerAgendaSemaine();
@@ -21067,7 +22171,7 @@
     };
     const ouvert = s.statut === 'ouvert';
     return `<div class="sondage-table-cadre"><table class="sondage-table">
-        <thead><tr><th scope="col">Créneau</th>${s.participants.map(p => `<th scope="col" title="${escapeAttr(p.email)}">${escapeHtml(LIBELLES_ROLE_SONDAGE[p.role] || '')}${!compact && p.nom ? `<span>${escapeHtml(p.nom)}</span>` : ''}</th>`).join('')}${ouvert ? '<th></th>' : ''}</tr></thead>
+        <thead><tr><th scope="col">Créneau</th>${s.participants.map(p => `<th scope="col" title="${escapeAttr(p.email)}">${p.role === 'autre' ? escapeHtml(libelleParticipantSondage(p)) : `${escapeHtml(LIBELLES_ROLE_SONDAGE[p.role] || '')}${!compact && p.nom ? `<span>${escapeHtml(p.nom)}</span>` : ''}`}</th>`).join('')}${ouvert ? '<th></th>' : ''}</tr></thead>
         <tbody>${s.creneaux.map(c => {
           const sy = (s.synthese || []).find(x => x.n === c.n);
           return `<tr class="${sy && sy.tous ? 'sondage-tous' : ''}${s.choisi === c.n ? ' sondage-choisi' : ''}">
@@ -21121,7 +22225,7 @@
         <ul class="sondage-reponses">${s.participants.map(p => {
           const r = (s.reponses || []).find(x => x.email === p.email);
           const etat = !r ? 'attente' : r.choix.indexOf(c.n) !== -1 ? 'oui' : (r.siBesoin || []).indexOf(c.n) !== -1 ? 'si' : 'non';
-          return `<li class="sondage-${etat}">${icone(etat === 'oui' || etat === 'si' ? 'check' : etat === 'non' ? 'x' : 'clock')}<span>${escapeHtml(LIBELLES_ROLE_SONDAGE[p.role] || '')}${p.nom ? ' · ' + escapeHtml(p.nom) : ''}${etat === 'si' ? ' <em>(si nécessaire)</em>' : ''}</span></li>`;
+          return `<li class="sondage-${etat}">${icone(etat === 'oui' || etat === 'si' ? 'check' : etat === 'non' ? 'x' : 'clock')}<span>${escapeHtml(libelleParticipantSondage(p, true))}${etat === 'si' ? ' <em>(si nécessaire)</em>' : ''}</span></li>`;
         }).join('')}</ul>
         <button type="button" class="primary ag-ouvrir-fiche" onclick="placerCreneauSondage('${escapeOnclickArg(s.id)}', ${c.n})" ${exchangeAgendaPret() ? '' : 'disabled'}>${icone('calendar')} Placer ce créneau</button>
       </div>`;
@@ -21193,6 +22297,7 @@
     const perimetreActifs = perimetreTous.filter(d => !d.archive);
     renderAvancementDossiers(perimetreActifs);
     renderKpisDashboard(perimetreActifs, perimetreTous);
+    renderStatistiquesDashboard(perimetreTous);
     renderAccueilDashboard(perimetreActifs, calculerStatsPortefeuille(perimetreActifs));
     renderRendezVousDashboard(perimetreActifs);
     renderAlertesDashboard(perimetreActifs);
@@ -21239,8 +22344,9 @@
     const avantEtat = dossiersVisibles.filter(passeFiltresSuivi);
     // Statuts (pastilles) et statistiques : mêmes filtres que la liste (sauf statut et semaine).
     renderEtatsSuivi(syntheseEtatsSuivi(avantEtat.filter(d => !d.archive)));
-    renderStatsSuivi(prevuDuMois(avantEtat.filter(d => !d.archive), dossiers.filter(passeFiltresSuivi)));
-    const dossiersAffiches = filtreEtatSuivi ? avantEtat.filter(d => etatDossier(d).cle === filtreEtatSuivi) : avantEtat;
+    const syntheseMois = syntheseMoisSuivi(avantEtat);
+    renderColonneSuivi(syntheseMois, avantEtat.filter(d => !d.archive));
+    const dossiersAffiches = dossiersFiltreMoisSuivi(filtreEtatSuivi ? avantEtat.filter(d => etatDossier(d).cle === filtreEtatSuivi) : avantEtat, filtreMoisSuivi, syntheseMois);
 
     count.textContent = dossiersAffiches.length ? `${dossiersAffiches.length} dossier${dossiersAffiches.length > 1 ? 's' : ''}` : '';
 
@@ -21282,15 +22388,18 @@
 
     const flechesTri = { nom: '', responsable: '', statut: '', echeance: '' };
     flechesTri[tri] = ' <span class="tri-actif">▾</span>';
+    // Mêmes colonnes, dans le même ordre et aux mêmes largeurs que la vue Échéances (étude, 01/10 :
+    // « Date, Dossier, Échéance, Collab, Statut — la même pour Échéances et Tableau ») ; ici triables.
     list.innerHTML = `
       <div class="table-scroll">
-        <table class="dossiers-table">
+        <table class="dossiers-table echeances-table">
+          ${COLGROUP_SUIVI}
           <thead><tr>
+            <th class="th-triable" onclick="definirTri('echeance')">Date${flechesTri.echeance}</th>
             <th class="th-triable" onclick="definirTri('nom')">Dossier${flechesTri.nom}</th>
-            <th class="th-triable" onclick="definirTri('responsable')">Responsable${flechesTri.responsable}</th>
+            <th>Échéance</th>
+            <th class="th-triable" onclick="definirTri('responsable')" title="Responsable">Resp.${flechesTri.responsable}</th>
             <th class="th-triable" onclick="definirTri('statut')">Statut${flechesTri.statut}</th>
-            <th>Offre de prêt</th>
-            <th class="th-triable" onclick="definirTri('echeance')">Prochaine échéance${flechesTri.echeance}</th>
           </tr></thead>
           <tbody>${reste.map(renderLigneTableau).join('')}</tbody>
         </table>
@@ -21372,11 +22481,12 @@
     if (!aVoir.length) return '';
     const lignes = aVoir.map(({ d, s }) => `
       <tr class="ligne-resume${dossierOuvert === d.id ? ' ligne-active' : ''}" onclick="ouvrirDossierDrawer('${escapeOnclickArg(d.id)}')">
+        ${celluleDateProchaineEcheance(d)}
         <td><div class="dossier-nom-tableau">${escapeHtml(libelleDossierAffiche(d))}</div>
           <div class="a-voir-signaux">${s.map(x => `<span class="dot-label ${x.cle === 'fonds' ? 'dl-success' : 'dl-urgent notif-nouveau-tag'}"><span class="dot"></span>${escapeHtml(x.texte)}</span>`).join('')}</div></td>
-        <td>${celluleEcheanceTableau(d)}</td>
+        ${celluleTypeProchaineEcheance(d)}
+        <td class="dossier-responsable-tableau">${pastilleCollaborateur(d.responsable)}</td>
         <td>${renderBadgeStatut(d)}</td>
-        <td class="dossier-responsable-tableau">${escapeHtml(d.responsable || '—')}</td>
       </tr>`).join('');
     return `
       <section class="semaine-groupe a-voir">
@@ -21385,36 +22495,59 @@
           <span class="semaine-compteur">${aVoir.length} dossier${aVoir.length > 1 ? 's' : ''}</span>
         </div>
         <div class="table-scroll">
-          <table class="dossiers-table a-voir-table">
-            <colgroup><col><col class="col-a-voir-echeance"><col class="col-echeance-statut"><col class="col-echeance-resp"></colgroup>
-            <thead><tr><th>Dossier et nouveauté</th><th>Prochaine échéance</th><th>Statut</th><th>Responsable</th></tr></thead>
+          <table class="dossiers-table echeances-table a-voir-table">
+            ${COLGROUP_SUIVI}
+            ${ENTETE_SUIVI}
             <tbody>${lignes}</tbody>
           </table>
         </div>
       </section>`;
   }
 
-  // Colonne « Prochaine échéance » : la plus proche en attente (prochaineEcheanceDetail), avec son
-  // décompte. Le statut (état général du dossier) a sa propre colonne depuis le 29/09 au soir.
-  function celluleEcheanceTableau(d) {
-    const prochaine = prochaineEcheanceDetail(d);
-    if (!prochaine) return '<span class="echeance-jours calme">—</span>';
-    return `<div class="etape-cellule"><span class="dot-label dl-${prochaine.type}"><span class="dot"></span>${escapeHtml(prochaine.label)}</span>
-      <span class="echeance-jours ${prochaine.jours <= 3 ? 'urgent' : 'calme'}">${formatDateFr(prochaine.iso)} (${prochaine.jours < 0 ? 'dépassée' : prochaine.jours === 0 ? "aujourd'hui" : 'J-' + prochaine.jours})</span></div>`;
+  // Colonnes des tableaux du Suivi (étude, 01/10 : « Date, Dossier, Échéance, Collab, Statut — la
+  // même pour Échéances et Tableau ») : un seul jeu de largeurs et de titres pour la vue Tableau, la
+  // section « Nouveau », les semaines et les archivés, pour que les colonnes s'alignent partout.
+  var COLGROUP_SUIVI = '<colgroup><col class="col-echeance-date"><col><col class="col-echeance-type"><col class="col-echeance-resp"><col class="col-echeance-statut"></colgroup>';
+  var ENTETE_SUIVI = '<thead><tr><th>Date</th><th>Dossier</th><th>Échéance</th><th title="Responsable">Resp.</th><th>Statut</th></tr></thead>';
+
+  // Date et libellé de la prochaine échéance en attente (prochaineEcheanceDetail), en deux cellules,
+  // comme une ligne de la vue Échéances : la date en rouge à 3 jours ou moins (et une fois passée).
+  // Pure : la date affichée est celle de la signature (étape « Signature de l'acte », ou date du
+  // rendez-vous placé) d'un dossier « Complet » ou « Prêt » → en vert (étude, 02/10).
+  function dateSignatureEnVert(d, echeance) {
+    if (!d || !echeance || !echeance.iso) return false;
+    const estSignature = echeance.type === 'rendezVousSignature' || (!!d.rendezVousSignature && echeance.iso === d.rendezVousSignature);
+    if (!estSignature) return false;
+    const cle = etatDossier(d).cle;
+    return cle === 'complet' || cle === 'pret';
+  }
+
+  // Classe de la date d'une échéance dans le Suivi : vert (signature d'un dossier complet ou prêt),
+  // sinon rouge à 3 jours ou moins, sinon discrète.
+  function classeDateEcheanceSuivi(d, echeance, jours) {
+    if (dateSignatureEnVert(d, echeance)) return 'signature-ok';
+    return jours <= 3 ? 'urgent' : 'calme';
+  }
+
+  function celluleDateProchaineEcheance(d) {
+    const p = prochaineEcheanceDetail(d);
+    if (!p) return '<td><span class="echeance-jours calme">—</span></td>';
+    return `<td><span class="echeance-jours ${classeDateEcheanceSuivi(d, p, p.jours)}" title="${escapeAttr(p.jours < 0 ? 'Dépassée' : p.jours === 0 ? "Aujourd'hui" : 'J-' + p.jours)}">${formatDateFr(p.iso)}</span></td>`;
+  }
+  function celluleTypeProchaineEcheance(d) {
+    const p = prochaineEcheanceDetail(d);
+    if (!p) return '<td><span class="echeance-jours calme">—</span></td>';
+    return `<td><span class="dot-label dl-${p.type}"><span class="dot"></span>${escapeHtml(p.label)}</span></td>`;
   }
 
   function renderLigneTableau(d) {
-    const offre = !d.sansPret ? statutOffreAffichage(d) : null;
     return `
       <tr class="ligne-resume${d.archive ? ' est-archive' : ''}${dossierOuvert === d.id ? ' ligne-active' : ''}" onclick="ouvrirDossierDrawer('${d.id}')">
+        ${celluleDateProchaineEcheance(d)}
         <td><div class="dossier-nom-tableau">${escapeHtml(libelleDossierAffiche(d))}${tagNotificationsDossier(d)}</div></td>
-        <td class="dossier-responsable-tableau">${escapeHtml(d.responsable || '—')}</td>
+        ${celluleTypeProchaineEcheance(d)}
+        <td class="dossier-responsable-tableau">${pastilleCollaborateur(d.responsable)}</td>
         <td>${renderBadgeStatut(d)}</td>
-        <td>
-          ${d.sansPret ? '<span class="echeance-jours calme">Comptant — sans prêt</span>' : `<span class="dot-label ${offre.dl}"><span class="dot"></span>${offre.texte}</span>`}
-          ${(!d.sansPret && d.dossierLie) ? `<button type="button" class="action-rapide" onclick="event.stopPropagation(); verifierDossierLocalDepuisBouton('${d.id}', this)">Revérifier</button>` : ''}
-        </td>
-        <td>${celluleEcheanceTableau(d)}</td>
       </tr>
     `;
   }
@@ -21451,10 +22584,10 @@
     const lignes = items.map(({ dossier: d, repere: r }) => `
           <tr class="ligne-resume est-archive${dossierOuvert === d.id ? ' ligne-active' : ''}" onclick="ouvrirDossierDrawer('${d.id}')">
             <td><span class="echeance-jours calme">${r.iso ? formatDateFr(r.iso) : '—'}</span></td>
-            <td>${r.type === 'archive' ? `<span class="dot-label dl-neutre">${icone('lock')}${escapeHtml(r.label)}</span>` : `<span class="dot-label dl-${r.type}"><span class="dot"></span>${escapeHtml(r.label)}</span>`}</td>
             <td><div class="dossier-nom-tableau">${escapeHtml(libelleDossierAffiche(d))}</div></td>
+            <td>${r.type === 'archive' ? `<span class="dot-label dl-neutre">${icone('lock')}${escapeHtml(r.label)}</span>` : `<span class="dot-label dl-${r.type}"><span class="dot"></span>${escapeHtml(r.label)}</span>`}</td>
+            <td class="dossier-responsable-tableau">${pastilleCollaborateur(d.responsable)}</td>
             <td>${renderBadgeStatut(d)}</td>
-            <td class="dossier-responsable-tableau">${escapeHtml(d.responsable || '—')}</td>
           </tr>`).join('');
     const n = items.length;
     return `
@@ -21465,10 +22598,8 @@
           </div>
           <div class="table-scroll">
             <table class="dossiers-table echeances-table">
-              <colgroup>
-                <col class="col-echeance-date"><col class="col-echeance-type"><col><col class="col-echeance-statut"><col class="col-echeance-resp">
-              </colgroup>
-              ${avecEntete ? '<thead><tr><th>Date</th><th>Échéance</th><th>Dossier</th><th>Statut</th><th>Responsable</th></tr></thead>' : ''}
+              ${COLGROUP_SUIVI}
+              ${avecEntete ? ENTETE_SUIVI : ''}
               <tbody>${lignes}</tbody>
             </table>
           </div>
@@ -21487,14 +22618,15 @@
     }
     return groupes.map((g, indexGroupe) => {
       const lignes = g.items.map(({ dossier: d, echeance: e }) => {
+        if (!e) return renderLigneTableau(d);
         const jours = joursRestants(e.iso);
         return `
           <tr class="ligne-resume${d.archive ? ' est-archive' : ''}${dossierOuvert === d.id ? ' ligne-active' : ''}" onclick="ouvrirDossierDrawer('${d.id}')">
-            <td><span class="echeance-jours ${jours <= 3 ? 'urgent' : 'calme'}">${formatDateFr(e.iso)}</span></td>
-            <td><span class="dot-label dl-${e.type}"><span class="dot"></span>${escapeHtml(e.label)}</span></td>
+            <td><span class="echeance-jours ${classeDateEcheanceSuivi(d, e, jours)}">${formatDateFr(e.iso)}</span></td>
             <td><div class="dossier-nom-tableau">${escapeHtml(libelleDossierAffiche(d))}${tagNotificationsDossier(d)}</div></td>
+            <td><span class="dot-label dl-${e.type}"><span class="dot"></span>${escapeHtml(e.label)}</span></td>
+            <td class="dossier-responsable-tableau">${pastilleCollaborateur(d.responsable)}</td>
             <td>${renderBadgeStatut(d)}</td>
-            <td class="dossier-responsable-tableau">${escapeHtml(d.responsable || '—')}</td>
           </tr>`;
       }).join('');
       const n = g.items.length;
@@ -21502,7 +22634,7 @@
         <section class="semaine-groupe${g.cle === 'retard' ? ' semaine-retard' : ''}">
           <div class="semaine-entete">
             <span class="section-eyebrow">${escapeHtml(libelleSemaine(g, aujourdHui))}</span>
-            <span class="semaine-compteur">${n} échéance${n > 1 ? 's' : ''}</span>
+            <span class="semaine-compteur">${n} ${g.cle === 'sans-date' ? 'dossier' : 'échéance'}${n > 1 ? 's' : ''}</span>
           </div>
           <div class="table-scroll">
             <!-- Largeurs de colonnes FIXES et identiques d'un groupe à l'autre : chaque semaine est
@@ -21510,10 +22642,8 @@
                  contenu — une date ou un libellé plus long dans une semaine décalait toute la
                  colonne par rapport aux semaines voisines (signalé par l'étude). -->
             <table class="dossiers-table echeances-table">
-              <colgroup>
-                <col class="col-echeance-date"><col class="col-echeance-type"><col><col class="col-echeance-statut"><col class="col-echeance-resp">
-              </colgroup>
-              ${indexGroupe === 0 ? '<thead><tr><th>Date</th><th>Échéance</th><th>Dossier</th><th>Statut</th><th>Responsable</th></tr></thead>' : ''}
+              ${COLGROUP_SUIVI}
+              ${indexGroupe === 0 ? ENTETE_SUIVI : ''}
               <tbody>${lignes}</tbody>
             </table>
           </div>
@@ -21556,6 +22686,18 @@
     rdvAgendaOuvert = false;
     render();
     if (d && !d.prixMobilier && !d.mobilierLuLe && d.dossierLie && d.nasDossier) lireMobilierDepuisAvantContrat(id, false);
+  }
+
+  // Un clic sur le fond grisé d'une fenêtre la ferme — seulement si l'appui A COMMENCÉ sur ce fond.
+  // Sélectionner un email ou un téléphone dans la fiche en glissant la souris jusqu'au fond donne au
+  // navigateur un « clic » sur le fond (ancêtre commun de l'appui et du relâcher) : la fiche se
+  // fermait (étude, 02/10).
+  let cibleAppuiFond = null;
+  if (typeof document !== 'undefined' && document.addEventListener) {
+    document.addEventListener('pointerdown', (e) => { cibleAppuiFond = e.target; }, true);
+  }
+  function clicSurFond(e) {
+    return !!e && e.target === e.currentTarget && cibleAppuiFond === e.currentTarget;
   }
 
   function fermerDossierDrawer() {
@@ -21720,7 +22862,8 @@
         ? `<button type="button" class="piece-nom piece-nom-lien" title="Ouvrir le fichier trouvé" onclick="ouvrirPieceTrouvee('${d.id}', '${p.cle}')">${escapeHtml(p.label)}</button>`
         : `<span class="piece-nom"${titreNom}>${escapeHtml(p.label)}</span>`;
       const tags = (notifs.includes(p.cle) ? '<span class="dot-label dl-urgent notif-nouveau-tag">Nouveau</span>' : '')
-        + (valideeMain ? '<span class="piece-tag">à la main</span>' : '');
+        + (valideeMain ? `<span class="piece-tag">${(d.piecesAuthentic || []).includes(p.cle) ? 'dans Authentic' : 'à la main'}</span>` : '')
+        + (/safer/i.test(p.label) && suiviSaferPiece(d) ? `<span class="piece-tag piece-tag-long">${escapeHtml(suiviSaferPiece(d))}</span>` : '');
       const reinit = (!p.personnalisee && !valideeMain && recue)
         ? `<button type="button" class="piece-action" onclick="reinitialiserStatutPieceStandard('${d.id}', '${p.cle}', '${arg}')" title="Réinitialiser (mauvaise correspondance ou fichier renommé)" aria-label="Réinitialiser le statut de cette pièce">${icone('rotate-ccw')}</button>`
         : '';
@@ -21742,8 +22885,71 @@
         ${cachees > 0 ? `<button type="button" class="pieces-voir-plus" onclick="piecesToutesVisibles = true; render();">Voir les ${cachees} autre${cachees > 1 ? 's' : ''} (reçue${cachees > 1 ? 's' : ''})</button>`
           : (piecesToutesVisibles && ordonnees.some((p, i) => i >= MAX_PIECES_VISIBLES && pieces[p.cle] === 'recue' && !notifs.includes(p.cle)) ? `<button type="button" class="pieces-voir-plus" onclick="piecesToutesVisibles = false; render();">Voir moins</button>` : '')}
         ${renderAjoutPiece(d)}
+        ${renderAuthenticDossier(d)}
       </div>
     `;
+  }
+
+  // Pure : « notifiée le 12/09/2026, prise en compte le 15/09/2026 » (Réponse SAFER, onglet Pièces).
+  function suiviSaferPiece(d) {
+    const sa = d && d.authentic && d.authentic.safer;
+    if (!sa) return '';
+    return [sa.notifieeLe ? `notifiée le ${formatDateFr(sa.notifieeLe)}` : '',
+      sa.priseEnCompteLe ? `prise en compte le ${formatDateFr(sa.priseEnCompteLe)}` : (sa.notifieeLe ? 'prise en compte non indiquée' : '')]
+      .filter(Boolean).join(', ');
+  }
+
+  // Pure : les lignes « Dans Authentic » de l'onglet Pièces — [{ libelle, valeur, classe }].
+  function lignesAuthenticDossier(d) {
+    const a = (d && d.authentic) || {};
+    const lignes = [];
+    if (a.acte) lignes.push({ libelle: 'Acte de vente', valeur: a.acte.libelle + (a.acte.date ? ` le ${formatDateFr(a.acte.date)}` : ''), classe: a.acte.etat === 'signe' ? 'dl-success' : a.acte.etat === 'redaction' ? 'dl-pret' : 'dl-neutre' });
+    if (a.rhf) lignes.push({ libelle: 'Réquisition hors formalité', valeur: [a.rhf.envoyeeLe ? `envoyée le ${formatDateFr(a.rhf.envoyeeLe)}` : 'envoyée', a.rhf.retourLe ? `retour le ${formatDateFr(a.rhf.retourLe)}` : 'retour attendu'].join(' · '), classe: a.rhf.retourLe ? 'dl-success' : 'dl-pret' });
+    if (a.safer) {
+      const sa = a.safer;
+      const decision = sa.decision === 'non_preemption' ? `non-préemption${sa.decisionLe ? ` le ${formatDateFr(sa.decisionLe)}` : ''}`
+        : sa.decision === 'preemption' ? `préemption exercée${sa.decisionLe ? ` le ${formatDateFr(sa.decisionLe)}` : ''}` : 'réponse attendue';
+      lignes.push({ libelle: 'SAFER', valeur: [suiviSaferPiece(d), decision].filter(Boolean).join(' · '), classe: sa.decision === 'non_preemption' ? 'dl-success' : sa.decision === 'preemption' ? 'dl-urgent' : 'dl-pret' });
+    }
+    if (a.prix) {
+      const ecart = Number(d.prixVente) > 0 && Math.abs(Number(d.prixVente) - a.prix) >= 1;
+      lignes.push({ libelle: 'Prix (Capital)', valeur: formaterPrix(a.prix) + (ecart ? ` — fiche : ${formaterPrix(d.prixVente)}, à vérifier` : ''), classe: ecart ? 'dl-pret' : '' });
+    }
+    if (a.collaborateur) {
+      const autre = d.responsable && d.responsable !== a.collaborateur;
+      lignes.push({ libelle: 'Collaborateur', valeur: a.collaborateur + (autre ? ` — fiche : ${d.responsable}` : ''), classe: autre ? 'dl-pret' : '' });
+    }
+    if (a.notaire) lignes.push({ libelle: 'Notaire', valeur: a.notaire, classe: '' });
+    (a.personnes || []).filter(p => p.situationMatrimoniale).forEach(p => {
+      lignes.push({ libelle: `${p.role === 'VENDEUR' ? 'Vendeur' : 'Acquéreur'} · ${p.nom}`, valeur: libelleSituationMatrimoniale(p.situationMatrimoniale), classe: '' });
+    });
+    return lignes;
+  }
+
+  // Pure : alertes « conjoint » du dossier — parties de l'avant-contrat et personnes vues dans Authentic.
+  function alertesConjointDossier(d) {
+    const parties = (Array.isArray(d && d.parties) ? d.parties : []).concat((d && d.authentic && d.authentic.personnes) || []);
+    const vues = new Set();
+    return alertesConjointAuthentic(parties).filter(al => {
+      const cle = normaliserPourRecherche(al.partie || '').replace(/[^a-z0-9]+/g, ' ').trim();
+      if (vues.has(cle)) return false;
+      vues.add(cle);
+      return true;
+    });
+  }
+
+  function renderAuthenticDossier(d) {
+    const lignes = lignesAuthenticDossier(d);
+    const alertes = alertesConjointDossier(d);
+    if (!lignes.length && !alertes.length) return '';
+    const releve = d.authentic && d.authentic.releveLe;
+    return `
+      <div class="authentic-dossier">
+        <div class="authentic-dossier-titre">Dans Authentic${releve ? `<span class="hint"> · relevé le ${escapeHtml(formatDateFr(releve.slice(0, 10)))}</span>` : ''}</div>
+        <dl class="authentic-infos">${lignes.map(l => `<div class="authentic-info"><dt>${escapeHtml(l.libelle)}</dt><dd>${l.classe
+          ? `<span class="dot-label ${l.classe}"><span class="dot"></span>${escapeHtml(l.valeur)}</span>` : escapeHtml(l.valeur)}</dd></div>`).join('')}</dl>
+        ${alertes.map(al => `<p class="authentic-alerte"><span class="dot-label dl-pret">${icone('alert-triangle')}${escapeHtml(al.texte)}</span></p>`).join('')}
+      </div>`;
   }
 
   function afficherFormAjoutPiece() {
@@ -22215,10 +23421,11 @@
       // (échéances), ce qu'on attend (pièces), ce que dit l'acte, ce qu'on écrit, ce qui s'est
       // passé. Le compteur dit ce qu'il y a dedans sans l'ouvrir ; la pastille rouge, qu'il y a du
       // nouveau (même signal « Nouveau » que partout ailleurs, voir d.piecesNotifications).
+      const avAnalyse = avancementAnalyse(d);
       const ongletsFiche = [
         { cle: 'echeances', libelle: 'Échéances', compteur: nbEcheancesAVenir ? String(nbEcheancesAVenir) : '', titre: `${nbEcheancesAVenir} échéance(s) à venir`, nouveau: notifications.includes(CLE_NOTIF_OFFRE_PRET) },
         avecPieces ? { cle: 'pieces', libelle: 'Pièces', compteur: `${nbPiecesRecues}/${checklist.length}`, titre: `${nbPiecesRecues} pièce(s) reçue(s) sur ${checklist.length}`, complet: checklist.length > 0 && nbPiecesRecues === checklist.length, nouveau: notifPieces } : null,
-        { cle: 'analyse', libelle: 'Analyse', compteur: analyse.engagements.length ? String(analyse.engagements.length) : '', titre: `${analyse.engagements.length} obligation(s) du vendeur` },
+        { cle: 'analyse', libelle: 'Analyse', compteur: avAnalyse.total ? `${avAnalyse.faits}/${avAnalyse.total}` : '', titre: `${avAnalyse.faits} reçu(s) ou réalisé(s) sur ${avAnalyse.total} : obligations du vendeur et documents relevés dans l’avant-contrat`, complet: avAnalyse.total > 0 && avAnalyse.faits === avAnalyse.total },
         { cle: 'echanges', libelle: 'Échanges', compteur: '', titre: 'Emails au client, questionnaire, appel de fonds' },
         { cle: 'historique', libelle: 'Historique', compteur: historique.length ? String(historique.length) : '', titre: `${historique.length} entrée(s)` }
       ].filter(Boolean);
@@ -22284,15 +23491,15 @@
               <div class="analyse-juridique">
                 ${analyse.engagements.length > 0 ? `
                   <div class="analyse-section">
-                    <div class="analyse-sous-titre">Engagements du vendeur <span class="analyse-compteur">${analyse.engagements.length}</span></div>
+                    <div class="analyse-sous-titre">Engagements du vendeur <span class="analyse-compteur">${analyse.engagements.filter(e => etatEngagementAnalyse(d, e).fait).length}/${analyse.engagements.length}</span>${infoBulle('Cochez un engagement une fois réalisé (justificatif reçu, travaux faits). Un engagement non coché garde le dossier « Attente de pièces » et baisse la probabilité de tenue du rendez-vous. Un engagement dont la pièce est reçue se coche seul.')}</div>
                     ${analyse.engagements.map((e, i) => renderEngagement(e, i, d.id)).join('')}
                   </div>
                 ` : ''}
                 <div class="analyse-section">
-                  <div class="analyse-sous-titre">Documents et pièces identifiés <span class="analyse-compteur">${analyse.documents.length}</span></div>
-                  <div class="analyse-documents-liste">
+                  <div class="analyse-sous-titre">Documents et pièces identifiés <span class="analyse-compteur">${analyse.documents.filter(doc => documentAnalyseRecu(d, doc)).length}/${analyse.documents.length}</span>${infoBulle('Cochez un document une fois reçu. S’il figure aussi dans la checklist (« checklist »), c’est la même case que dans l’onglet Pièces.')}</div>
+                  <div class="analyse-documents-cases">
                     ${analyse.documents.length > 0
-                      ? analyse.documents.map((doc, i) => renderDocBadge(doc, i, d.id)).join('')
+                      ? analyse.documents.map((doc, i) => renderDocumentAnalyse(d, doc, i)).join('')
                       : '<span class="analyse-vide">Aucun document type reconnu automatiquement.</span>'}
                   </div>
                 </div>
@@ -22314,6 +23521,7 @@
                actions, toujours sous les yeux quel que soit l'onglet ouvert. -->
           <aside class="fiche-laterale">
             ${renderEtapesFiche(etapes, prochaineEtape, avancement)}
+            ${renderPiecesRecuesFiche(d, nbPiecesRecues, avecPieces ? checklist.length : 0)}
             <div class="fiche-carte">
               <div class="fiche-carte-titre"><span class="section-eyebrow">Activité récente</span>
                 ${historique.length > 5 ? `<button type="button" class="fiche-lien" onclick="definirOngletFiche('historique')">Tout voir</button>` : ''}</div>
@@ -22395,6 +23603,63 @@
   // Historique en fil d'activité, le plus récent en haut : le texte d'abord, la date et l'auteur
   // dessous, en plus petit. Utilisé par l'onglet « Historique » (tout) et la colonne de droite
   // du mode agrandi (les cinq dernières).
+  // ---- Fiche agrandie : « Dernières pièces reçues » dans la colonne de droite, au-dessus de
+  // l'activité récente (étude, 02/10). Pure : les pièces reçues du dossier, la plus récente d'abord —
+  // checklist (date de la trouvaille sur le NAS ou par Claire Scan, sinon de la validation à la main),
+  // offre de prêt, documents relevés dans l'avant-contrat cochés reçus. Une pièce sans date connue
+  // (reprise d'Authentic, dossier ancien) vient en dernier. { cle, label, le, nouvelle, main, type }.
+  function piecesRecuesDossier(d, max) {
+    if (!d) return [];
+    const pieces = d.pieces || {};
+    const trouveesLe = d.piecesTrouveesLe || {};
+    const nouvelles = new Set(d.piecesNotifications || []);
+    const manuelles = new Set(d.piecesValideesManuellement || []);
+    const dateHistorique = (label) => {
+      const h = (d.historique || []).filter(x => x && x.date && /valid/i.test(x.texte || '') && (x.texte || '').includes(`« ${label} »`))
+        .map(x => x.date).sort().pop();
+      return h || null;
+    };
+    const out = [];
+    checklistPieces(d.typeVente, d).forEach(p => {
+      if (pieces[p.cle] !== 'recue') return;
+      const main = manuelles.has(p.cle) || !!p.personnalisee;
+      out.push({ cle: p.cle, label: p.label, le: trouveesLe[p.cle] || dateHistorique(p.label), nouvelle: nouvelles.has(p.cle), main, type: 'piece' });
+    });
+    if (!d.sansPret && d.offrePretStatut === 'recue') {
+      const le = premiereDateHistorique(d, RE_HISTORIQUE_PRET_OBTENU);
+      out.push({ cle: CLE_NOTIF_OFFRE_PRET, label: 'Offre de prêt', le: le ? le + 'T12:00:00' : null, nouvelle: nouvelles.has(CLE_NOTIF_OFFRE_PRET), main: false, type: 'offre' });
+    }
+    ((d.analyseJuridique && d.analyseJuridique.documents) || []).forEach(doc => {
+      if (!doc || typeof doc !== 'object' || !doc.recu || cleChecklistDocumentAnalyse(d, doc)) return;
+      out.push({ cle: '', label: doc.label, le: doc.recuLe || null, nouvelle: false, main: true, type: 'analyse' });
+    });
+    out.sort((a, b) => (b.nouvelle - a.nouvelle) || String(b.le || '').localeCompare(String(a.le || '')));
+    return max ? out.slice(0, max) : out;
+  }
+
+  var MAX_PIECES_FICHE_LATERALE = 6;
+
+  function renderPiecesRecuesFiche(d, nbRecues, nbTotal) {
+    const liste = piecesRecuesDossier(d, MAX_PIECES_FICHE_LATERALE);
+    const ligne = (p) => {
+      const quand = p.le ? new Date(p.le).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : '';
+      const clic = p.type === 'offre' ? (fichierTrouve(d, NAS_CLE_OFFRE) ? `ouvrirOffreTrouvee('${escapeOnclickArg(d.id)}')` : "definirOngletFiche('echeances')")
+        : p.type === 'piece' && !p.main ? `ouvrirPieceTrouvee('${escapeOnclickArg(d.id)}', '${escapeOnclickArg(p.cle)}')`
+          : `definirOngletFiche('${p.type === 'analyse' ? 'analyse' : 'pieces'}')`;
+      const titre = `${p.label}${p.main ? ' — validée à la main' : ' — ouvrir le fichier'}${p.nouvelle ? ' (nouveau)' : ''}`;
+      return `<li><button type="button" class="fiche-piece-recue${p.nouvelle ? ' nouvelle' : ''}" onclick="${clic}" title="${escapeAttr(titre)}">
+          <span class="fiche-piece-point" aria-hidden="true"></span>
+          <span class="fiche-piece-nom">${escapeHtml(p.label)}</span>
+          <span class="fiche-piece-meta">${p.main ? 'à la main' : ''}${p.main && quand ? ' · ' : ''}${escapeHtml(quand)}</span>
+        </button></li>`;
+    };
+    return `<div class="fiche-carte">
+        <div class="fiche-carte-titre"><span class="section-eyebrow">Dernières pièces reçues</span>
+          ${nbTotal ? `<button type="button" class="fiche-lien" onclick="definirOngletFiche('pieces')" title="Voir toutes les pièces">${nbRecues}/${nbTotal}</button>` : ''}</div>
+        ${liste.length ? `<ul class="fiche-pieces-recues">${liste.map(ligne).join('')}</ul>` : '<p class="fiche-vide">Aucune pièce reçue pour l’instant.</p>'}
+      </div>`;
+  }
+
   function renderActiviteFiche(historique) {
     if (!historique.length) return '<p class="fiche-vide">Aucune activité enregistrée.</p>';
     return `<ol class="fiche-activite">${historique.slice().reverse().map(h => `
@@ -23673,6 +24938,10 @@
     if (motif === 'fonds' && envoye) sous = `Réception des fonds confirmée le ${formatDateFr(envoye)}`;
     else if (envoye) sous = `${motif === 'pret' ? 'Dernière relance' : 'Envoyé'} le ${formatDateFr(envoye)}`;
     else if (motif === 'projet') sous = 'Le projet d’acte se joint dans Outlook';
+    else if (LIBELLES_GESTES_RELATION[motif] && d.rendezVousSignature) {
+      const j = ecartJours(isoAujourdhuiLocal(), d.rendezVousSignature);
+      if (j !== null && (motif === 'anniversaire' ? j < 0 : j > 0)) sous = LIBELLES_GESTES_RELATION[motif]({ d, j });
+    }
     // L'offre de prêt se relance tous les 10 jours : « faite » seulement tant que la dernière
     // relance est récente, sinon la ligne redevient une action à faire.
     const faite = !!envoye && (motif !== 'pret' || !relanceOffreDue(envoye, isoAujourdhuiLocal()));
@@ -23853,7 +25122,10 @@
   //   prêt         tant que l'offre est attendue et la condition non levée
   //   appel fonds  à préparer dès les conditions levées, et jusqu'à la signature
   //   fonds reçus (vérifier puis confirmer au client), RIB, note d'agenda : rendez-vous fixé
-  //   questionnaire : acte signé
+  //   confirmation, rappel du rendez-vous : rendez-vous fixé, utiles quand ils sont dus (ou faits)
+  //   questionnaire, un mot un an après : acte signé
+  // Relation client (confirmation, rappel, questionnaire, un an après) : jamais quand un confrère
+  // accompagne l'acquéreur (étude, 01/10), mêmes échéances que gestesRelationClient.
   function echangesSelonStade(d, aujourdhuiIso) {
     const stade = stadeDossier(d, aujourdhuiIso);
     const avantRdv = stade === 'conditions' || stade === 'rendezVous';
@@ -23872,7 +25144,13 @@
     ranger('fondsRecus', stade === 'signature');
     if (!confrere) ranger('rib', stade === 'signature');
     ranger('agenda', stade === 'signature');
-    ranger('questionnaire', stade === 'signe');
+    const dus = gestesRelationClient([d], aujourdhuiIso).map(g => g.type);
+    if (!confrere && stade === 'signature') {
+      ranger('confirmationRdv', dus.indexOf('confirmationRdv') !== -1 || d.confirmationRdvPour === d.rendezVousSignature);
+      ranger('rappelRdv', dus.indexOf('rappelRdv') !== -1 || d.rappelRdvPour === d.rendezVousSignature);
+    }
+    if (!confrere) ranger('questionnaire', stade === 'signe');
+    if (!confrere && stade === 'signe') ranger('anniversaire', dus.indexOf('anniversaire') !== -1 || !!d.anniversaireEnvoyeLe);
     return { stade, utiles, autres };
   }
 
@@ -23910,7 +25188,9 @@
           ${renderEmailVendeurDossier(d)}
           ${renderEmailAcquereurDossier(d)}
           ${hint ? `<p class="hint">${hint}</p>` : ''}
+          ${renderTelephonesDossier(d)}
         </div>
+        ${renderAppelsDossier(d)}
         ${renderSondageDossier(d)}
         ${lignesUtiles.length ? `<ul class="ja-liste">${lignesUtiles.join('')}</ul>` : '<p class="fiche-vide">Rien à envoyer à ce stade.</p>'}
       </div>
@@ -23918,6 +25198,1242 @@
         <summary>Hors de ce stade (${lignesAutres.length})</summary>
         <ul class="ja-liste">${lignesAutres.join('')}</ul>
       </details>` : ''}`;
+  }
+
+  // ==== Appels reçus (3CX, étude 01/10) ====
+  // 3CX ouvre /appel?numero=…&nom=…&poste=… à la sonnerie (« Intégration CRM » du client web de
+  // chaque collaborateur, voir server/src/appels3cx.js). La fenêtre CLAIRE du collaborateur relève
+  // ses appels toutes les 3 s, même cachée (elle dit au serveur si elle est visible : sinon l'onglet
+  // ouvert par 3CX affiche CLAIRE lui-même), montre l'appel et ouvre la fiche du dossier reconnu.
+  // L'appelant est reconnu par les téléphones des parties (onglet Échanges), le carnet des confrères
+  // et le répertoire.
+  var INTERVALLE_APPELS_MS = 3000;
+  let curseurAppels = '';
+  const appelsMontres = new Set();
+  const appelsParDossier = {};     // id → journal du dossier (null pendant le chargement)
+  let appelEntrant = null;
+  let minuteurAppelEntrant = null;
+  // 3CX ne prévient CLAIRE qu'à la sonnerie, jamais à la fin de l'appel : le bandeau se ferme seul
+  // 45 s après (le temps de décrocher), en pause tant que la souris est dessus, et dès que la fiche
+  // est ouverte depuis le bandeau (étude, 02/10).
+  var DUREE_BANDEAU_APPEL_MS = 45000;
+  var DUREE_BANDEAU_APPEL_APRES_SURVOL_MS = 10000;
+
+  function programmerFermetureAppelEntrant(ms) {
+    clearTimeout(minuteurAppelEntrant);
+    minuteurAppelEntrant = setTimeout(fermerAppelEntrant, ms);
+  }
+
+  // Pure : clé du poste dans l'adresse 3CX — le prénom sans accent (« jeremy ») : 3CX remplace les
+  // %…% de l'adresse, un nom encodé (%C3%A9…) risquerait d'être pris pour une variable.
+  function clePosteAppels(nom) {
+    return String(nom || '').trim().split(/\s+/)[0].normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z]/g, '');
+  }
+
+  // Pure : l'adresse à coller dans 3CX pour un collaborateur.
+  function adresseIntegration3cx(origine, collaborateur) {
+    return `${String(origine || '').replace(/\/+$/, '')}/appel?numero=%CallerNumber%&nom=%CallerDisplayName%&poste=${clePosteAppels(collaborateur)}`;
+  }
+
+  var LIBELLES_PARTIE_APPEL = { vendeur: 'Vendeur', acquereur: 'Acquéreur', confrere: 'Confrère' };
+
+  // Pure : les dossiers que l'appel désigne (encore connus du poste), dans l'ordre du serveur.
+  function dossiersDeLAppel(appel, liste) {
+    return ((appel && appel.dossiers) || [])
+      .map(x => ({ d: (liste || []).find(d => d.id === x.id), partie: LIBELLES_PARTIE_APPEL[x.partie] || '' }))
+      .filter(y => y.d);
+  }
+
+  // Pure : le dossier à ouvrir seul à la sonnerie — un seul dossier en cours dont l'appelant est
+  // partie (un confrère qui a plusieurs dossiers avec l'office : on montre la liste, on n'ouvre rien).
+  function dossierAOuvrirPourAppel(appel, liste) {
+    const enCours = dossiersDeLAppel(appel, liste).filter(y => !y.d.archive && y.partie !== 'Confrère');
+    return enCours.length === 1 ? enCours[0].d : null;
+  }
+
+  function heureAppel(t) {
+    const dt = new Date(t);
+    return dt.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }).replace(':', ' h ');
+  }
+
+  function dateHeureAppel(t) {
+    const dt = new Date(t);
+    const jour = dt.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }).replace('.', '');
+    return `${jour}, ${heureAppel(t)}`;
+  }
+
+  async function releverAppels() {
+    if (!authToken || !utilisateurPoste) return;
+    try {
+      const visible = document.visibilityState === 'visible' ? '1' : '0';
+      const r = await fetchAvecAuth(`/api/appels/nouveaux?poste=${encodeURIComponent(clePosteAppels(utilisateurPoste))}&visible=${visible}&depuis=${encodeURIComponent(curseurAppels)}`);
+      if (!r.ok) return;
+      const { appels, serverTime } = await r.json();
+      const premier = !curseurAppels;
+      curseurAppels = serverTime;
+      if (!premier) for (const a of (appels || []).slice().reverse()) montrerAppelEntrant(a, true);
+    } catch (e) { /* la relève suivante reprendra */ }
+  }
+
+  // ---- Pages d'Authentic reçues de l'extension Firefox « CLAIRE pour Authentic » (01/10) ----
+  // L'extension (extension-firefox/) relève la page d'Authentic affichée (champs avec libellé et
+  // rubrique, tableaux, texte) et l'envoie au serveur, qui la garde 30 min en mémoire ; elle ouvre
+  // CLAIRE sur « #authentic=<id> ». Tant que la structure des pages d'Authentic n'est pas connue,
+  // CLAIRE montre ce qu'elle a reçu et propose d'en copier la STRUCTURE SANS DONNÉES (libellés et
+  // types de valeurs, jamais une valeur) : c'est elle qui servira à brancher la reprise dans une fiche.
+  var SIGLES_STRUCTURE_AUTHENTIC = ['TVA', 'SCI', 'CU', 'DPE', 'ERP', 'PLU', 'SRU', 'IBAN', 'RIB', 'BIC', 'VTE', 'AAE', 'DIA', 'DPU', 'TF', 'CP', 'SIREN', 'SIRET', 'RCS', 'N°', 'HT', 'TTC', 'EUR', 'SAFER', 'PDF', 'LRAR', 'AR', 'SPANC', 'ASL', 'AFUL', 'SPF', 'CSN', 'PV', 'AG'];
+
+  // Pure : le type d'une valeur, jamais la valeur.
+  function masquerValeurAuthentic(v) {
+    const s = String(v == null ? '' : v).trim();
+    if (!s) return '[vide]';
+    if (s === 'oui' || s === 'non') return s;
+    if (/^\d{1,2}[/.-]\d{1,2}[/.-]\d{2,4}$|^\d{4}-\d{2}-\d{2}/.test(s)) return '[date]';
+    if (/^[^@\s]+@[^@\s]+\.[a-z]{2,}$/i.test(s)) return '[email]';
+    if (/^(?:\+33\s?|0)\d(?:[\s.-]?\d{2}){4}$/.test(s)) return '[téléphone]';
+    if (/^-?\d[\d\s.  ]*(?:,\d+)?\s*(?:€|EUR|euros?)$/i.test(s) || /^-?\d{1,3}(?:[\s.  ]\d{3})+,\d{2}$/.test(s)) return '[montant]';
+    if (/^-?\d+(?:[.,]\d+)?\s*%$/.test(s)) return '[pourcentage]';
+    if (/^-?\d+(?:[.,]\d+)?$/.test(s)) return '[nombre]';
+    const mots = s.split(/\s+/).length;
+    return `[texte, ${mots} mot${mots > 1 ? 's' : ''}]`;
+  }
+
+  // Pure : un libellé ou un titre sans ce qui pourrait nommer un client — chiffres remplacés par 9,
+  // mots en capitales (hors sigles techniques) par XXX, emails masqués, nom et prénoms après une
+  // civilité masqués même collée au mot précédent (« personM. MARTEL Alexandre » : texte d'icône
+  // d'Authentic, étude 02/10 — deux prénoms étaient passés). Un « libellé » de plus de 8 mots n'en est
+  // pas un (texte de la page pris faute de vrai libellé) : seul son nombre de mots est gardé.
+  var MOTS_MAX_LIBELLE_AUTHENTIC = 8;
+  function masquerLibelleAuthentic(s) {
+    const brut = String(s == null ? '' : s).replace(/\s+/g, ' ').trim();
+    if (!brut) return '';
+    const mots = brut.split(' ').length;
+    if (mots > MOTS_MAX_LIBELLE_AUTHENTIC) return `[texte, ${mots} mots]`;
+    return brut
+      .replace(/[^@\s]+@[^@\s]+/g, '[email]')
+      .replace(/(Monsieur|Madame|Mademoiselle|Maître|Mme|Mlle|Me|M\.)((?:\s+[A-ZÀ-Ý][\wÀ-ɏ'’-]*)+)/g, '$1 XXX')
+      .replace(/\d/g, '9')
+      .replace(/(?<![A-Za-zÀ-ɏ])[A-ZÀ-Ý][A-ZÀ-Ý'’-]+(?![A-Za-zÀ-ɏ])/g, m => SIGLES_STRUCTURE_AUTHENTIC.includes(m) ? m : 'XXX')
+      .trim();
+  }
+
+  // Pure : le texte d'une cellule de tableau réduit à son VOCABULAIRE (étude, 02/10 : pour reconnaître
+  // « Acte de naissance — reçu », « Notification SAFER — non préemption » sans jamais voir un client).
+  // Gardés : les mots en minuscules, les sigles connus, le premier mot s'il commence par une majuscule
+  // et que le suivant est en minuscules ou un sigle (« Acte de… », « Notification SAFER »). Masqués :
+  // tout autre mot à majuscule (noms, prénoms) → XXX, le nom après une civilité, chiffres → 9,
+  // emails. Plus de 12 mots : le nombre de mots seulement.
+  var MOTS_MAX_CELLULE_AUTHENTIC = 12;
+  function vocabulaireCelluleAuthentic(v) {
+    const brut = String(v == null ? '' : v).replace(/\s+/g, ' ').trim();
+    if (!brut) return '';
+    const mots = brut.split(' ');
+    if (mots.length > MOTS_MAX_CELLULE_AUTHENTIC) return `[texte, ${mots.length} mots]`;
+    const nu = m => m.replace(/^[^A-Za-zÀ-ɏ]+|[^A-Za-zÀ-ɏ°]+$/g, '');
+    const sigle = m => SIGLES_STRUCTURE_AUTHENTIC.includes(nu(m).toUpperCase()) && nu(m) === nu(m).toUpperCase();
+    const minuscule = m => /^[a-zà-ÿœæ'’-]+$/.test(nu(m));
+    const civilite = /^(Monsieur|Madame|Mademoiselle|Maître|Mme|Mlle|Me|M\.?)$/;
+    let apresCivilite = false;
+    return mots.map((m, i) => {
+      const n = nu(m);
+      if (/@/.test(m)) return '[email]';
+      if (!n) return m.replace(/\d/g, '9');
+      if (civilite.test(m) || civilite.test(n)) { apresCivilite = true; return m; }
+      const majuscule = /^[A-ZÀ-Ý]/.test(n);
+      const fin = (m.match(/[^A-Za-zÀ-ɏ°]+$/) || [''])[0].replace(/\d/g, '9');
+      if (apresCivilite && majuscule && !sigle(m)) return 'XXX' + fin;
+      apresCivilite = false;
+      if (minuscule(m) || sigle(m)) return m.replace(/\d/g, '9');
+      const suivant = mots[i + 1];
+      if (i === 0 && /^[A-ZÀ-Ý][a-zà-ÿœæ'’-]+$/.test(n) && (!suivant || minuscule(suivant) || sigle(suivant))) return m.replace(/\d/g, '9');
+      return 'XXX' + fin;
+    }).join(' ').replace(/\d/g, '9').replace(/XXX(\s+XXX)+/g, 'XXX');
+  }
+
+  // Pure : une cellule « icône » relevée par l'extension (cellule sans texte, titre de l'icône) :
+  // « ⟦icône⟧ Signé électroniquement ». Le titre d'une icône est du vocabulaire d'Authentic, pas une
+  // donnée : il passe dans la structure, masqué comme un libellé.
+  var MARQUE_ICONE_AUTHENTIC = '⟦icône⟧ ';
+  function masquerCelluleAuthentic(v) {
+    const s = String(v == null ? '' : v);
+    return s.startsWith(MARQUE_ICONE_AUTHENTIC)
+      ? `[icône : ${masquerLibelleAuthentic(s.slice(MARQUE_ICONE_AUTHENTIC.length)) || 'sans titre'}]`
+      : (masquerValeurAuthentic(s).startsWith('[texte') ? `« ${vocabulaireCelluleAuthentic(s)} »` : masquerValeurAuthentic(s));
+  }
+
+  // Pure : la structure d'une page reçue, en texte, à copier pour le calibrage.
+  function structureCaptureAuthentic(capture) {
+    const c = capture || {};
+    const lignes = [`Page Authentic — ${masquerLibelleAuthentic(c.titre) || 'sans titre'}`];
+    let groupe = null;
+    for (const ch of c.champs || []) {
+      if (ch.groupe !== groupe) { groupe = ch.groupe; lignes.push('', `## ${masquerLibelleAuthentic(groupe) || '(sans rubrique)'}`); }
+      lignes.push(`- ${masquerLibelleAuthentic(ch.libelle) || '(sans libellé)'} : ${masquerValeurAuthentic(ch.valeur)}`);
+    }
+    // Seule la ligne d'en-tête (<th>) garde ses libellés ; toute autre cellule n'est qu'un type.
+    (c.tableaux || []).forEach((t, i) => {
+      const corps = t.lignes || [];
+      const titre = masquerLibelleAuthentic(t.titre);
+      lignes.push('', `## Tableau ${i + 1}${titre ? ` — ${titre}` : ''} (${corps.length} ligne${corps.length > 1 ? 's' : ''})`);
+      if ((t.entete || []).length) lignes.push('| ' + t.entete.map(masquerLibelleAuthentic).join(' | ') + ' |');
+      corps.slice(0, 6).forEach(l => lignes.push('| ' + l.map(masquerCelluleAuthentic).join(' | ') + ' |'));
+      if (corps.length > 6) lignes.push('| …');
+    });
+    // Texte visible (étude, 02/10 : « Informations financières » et « Parties prenantes » s'affichent
+    // sans champ de saisie, seulement en texte) : chaque ligne réduite à son vocabulaire.
+    const texte = texteVocabulaireAuthentic(c.texte);
+    lignes.push('', `## Texte visible (${String(c.texte || '').length} caractères, vocabulaire seulement)`);
+    texte.forEach(l => lignes.push('  ' + l));
+    return lignes.join('\n');
+  }
+
+  // Mots d'Authentic gardés tels quels dans le texte visible, même suivis d'une valeur (« Capital
+  // [montant] ») : du vocabulaire de l'outil, jamais un nom.
+  var VOCABULAIRE_AUTHENTIC = ['Capital', 'Prix', 'Notaire', 'Notaires', 'Collaborateur', 'Collaboratrice', 'Clerc', 'Rédacteur',
+    'Rédactrice', 'Responsable', 'Retour', 'Envoi', 'Envoyé', 'Envoyée', 'Réquisition', 'Informations', 'Parties', 'Acte', 'Actes',
+    'Statut', 'État', 'Etat', 'Date', 'Signé', 'Signée', 'Montant', 'Frais', 'Honoraires', 'Prêt', 'Vendeur', 'Vendeurs', 'Acquéreur',
+    'Acquéreurs', 'Comparants', 'Immeubles', 'Négociateur', 'Agence', 'Office', 'Étude', 'Intervenants', 'Intervenant', 'Rôle', 'Type',
+    'Nature', 'Total', 'Dépôt', 'Séquestre', 'Financement', 'Banque', 'Organisme', 'Taux', 'Durée', 'Commission', 'Rédaction',
+    'Projet', 'Minute', 'Répertoire', 'Dossier', 'Ouverture', 'Clôture', 'Notification', 'Demande', 'Réponse', 'Pièces', 'Documents',
+    'Prénom', 'Nom', 'Téléphone', 'Email', 'Adresse', 'Mandataire', 'Diagnostiqueur', 'Géomètre', 'Syndic', 'Prise', 'Reçu', 'Reçue',
+    'Mobilier', 'Apport', 'Emprunt', 'Prêteur', 'Garantie', 'Compte', 'Solde', 'Provision', 'Provisions', 'Débit', 'Crédit'];
+
+  // Pure : le texte visible d'une page, ligne à ligne, réduit à son vocabulaire (dates, montants,
+  // emails, téléphones → leur type ; noms → XXX). 150 lignes au plus, sans doublon consécutif.
+  function texteVocabulaireAuthentic(texte) {
+    const lignes = [];
+    String(texte || '').split(/\n+/).forEach(brut => {
+      let l = brut.replace(/\s+/g, ' ').trim();
+      if (!l) return;
+      l = l.replace(/[^@\s]+@[^@\s]+\.[a-z]{2,}/gi, '[email]')
+        .replace(/\d{1,2}[\/.-]\d{1,2}[\/.-]\d{2,4}/g, '[date]')
+        .replace(/(?:\+33\s?|(?<!\d)0)\d(?:[\s.-]?\d{2}){4}(?!\d)/g, '[téléphone]')
+        .replace(/-?\d[\d\s.  ]*,\d{2}\s*(?:€|EUR|euros?)?|-?\d[\d\s.  ]*\s*(?:€|EUR|euros?)/gi, '[montant] ');
+      const mots = l.split(' ');
+      const masque = mots.length > MOTS_MAX_CELLULE_AUTHENTIC ? `[texte, ${mots.length} mots]`
+        : mots.map((m, i) => {
+          if (/^\[|\]$/.test(m)) return m;
+          const n = m.replace(/^[^A-Za-zÀ-ɏ]+|[^A-Za-zÀ-ɏ°]+$/g, '');
+          const fin = (m.match(/[^A-Za-zÀ-ɏ°]+$/) || [''])[0].replace(/\d/g, '9');
+          if (!n) return m.replace(/\d/g, '9');
+          if (VOCABULAIRE_AUTHENTIC.includes(n) || (SIGLES_STRUCTURE_AUTHENTIC.includes(n.toUpperCase()) && n === n.toUpperCase())) return m.replace(/\d/g, '9');
+          if (/^[a-zà-ÿœæ'’-]+$/.test(n)) return m.replace(/\d/g, '9');
+          // Premier mot à majuscule : gardé seulement devant un mot en minuscules (« Acte de… ») —
+          // seul sur sa ligne, il peut être un nom.
+          const suivant = (mots[i + 1] || '').replace(/^[^A-Za-zÀ-ɏ]+|[^A-Za-zÀ-ɏ]+$/g, '');
+          if (i === 0 && /^[A-ZÀ-Ý][a-zà-ÿœæ'’-]+$/.test(n) && /^[a-zà-ÿœæ'’-]+$/.test(suivant)) return m.replace(/\d/g, '9');
+          return 'XXX' + fin;
+        }).join(' ').replace(/XXX(\s+XXX)+/g, 'XXX').trim();
+      if (masque && masque !== lignes[lignes.length - 1]) lignes.push(masque);
+    });
+    return lignes.slice(0, 150);
+  }
+
+  let captureAuthentic = null;
+
+  async function ouvrirCaptureAuthenticDepuisAdresse() {
+    const m = /(?:^|[#&])authentic=([\w-]+)/.exec(location.hash || '');
+    if (!m) return;
+    try { history.replaceState(null, '', location.pathname + location.search); } catch (e) { /* adresse gardée */ }
+    let r;
+    try { r = await fetchAvecAuth('/api/authentic/capture/' + encodeURIComponent(m[1])); } catch (e) { r = null; }
+    if (!r || !r.ok) {
+      const j = r ? await r.json().catch(() => ({})) : {};
+      afficherToast(j.error || 'Page d’Authentic introuvable : renvoyez-la depuis Firefox.', 'OK', null);
+      return;
+    }
+    captureAuthentic = await r.json();
+    renderCaptureAuthentic();
+    document.getElementById('authentic-overlay').style.display = 'flex';
+  }
+
+  function fermerCaptureAuthentic() {
+    const o = document.getElementById('authentic-overlay');
+    if (o) o.style.display = 'none';
+    captureAuthentic = null;
+  }
+
+  function copierStructureAuthentic() {
+    if (!captureAuthentic) return;
+    const ok = copierTexteSilencieux(structureCaptureAuthentic(captureAuthentic));
+    afficherToast(ok ? 'Structure copiée, sans aucune valeur : collez-la dans la conversation avec Claude.' : 'Copie impossible sur ce poste.', 'OK', null);
+  }
+
+  function renderCaptureAuthentic() {
+    const zone = document.getElementById('authentic-contenu');
+    const c = captureAuthentic;
+    if (!zone || !c) return;
+    const parGroupe = [];
+    for (const ch of c.champs || []) {
+      const dernier = parGroupe[parGroupe.length - 1];
+      if (dernier && dernier.groupe === ch.groupe) dernier.champs.push(ch);
+      else parGroupe.push({ groupe: ch.groupe, champs: [ch] });
+    }
+    const nC = (c.champs || []).length, nT = (c.tableaux || []).length;
+    zone.innerHTML = `
+      <p class="auth-etat">${escapeHtml(c.titre || 'Page sans titre')} · ${nC} champ${nC > 1 ? 's' : ''}, ${nT} tableau${nT > 1 ? 'x' : ''}</p>
+      <div class="auth-liste">
+        ${parGroupe.map(g => `<section class="auth-groupe">
+          <h3 class="auth-groupe-titre">${escapeHtml(g.groupe || 'Sans rubrique')}</h3>
+          <dl class="auth-champs">${g.champs.map(ch => `<div class="auth-champ"><dt>${escapeHtml(ch.libelle || '—')}</dt><dd>${escapeHtml(ch.valeur || '—')}</dd></div>`).join('')}</dl>
+        </section>`).join('')}
+        ${(c.tableaux || []).map((t, i) => `<section class="auth-groupe">
+          <h3 class="auth-groupe-titre">${escapeHtml(t.titre || `Tableau ${i + 1}`)}</h3>
+          <div class="table-scroll"><table class="auth-tableau">${(t.entete || []).length ? `<thead><tr>${t.entete.map(x => `<th>${escapeHtml(x)}</th>`).join('')}</tr></thead>` : ''}<tbody>${(t.lignes || []).slice(0, 30).map(l => `<tr>${l.map(x => `<td>${escapeHtml(x)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>
+        </section>`).join('')}
+        ${!nC && !nT ? `<p class="auth-etat">Aucun champ ni tableau lu : seul le texte de la page est arrivé (${String(c.texte || '').length} caractères).</p>` : ''}
+      </div>`;
+  }
+
+  // ---- Pages d'Authentic lues par CLAIRE (étude, 02/10) ----
+  // Trois pages connues, d'après leur structure relevée au bureau : la page de gestion du dossier
+  // (intitulé « N - Vente VENDEUR/ACQUÉREUR » et tableaux de documents : intitulé, date, état), la
+  // fiche client (personne physique, champs nommés « ficheClientPhysique… ») et la fiche bien
+  // (« ficheImmeuble… », cadastre en tableau). Toutes pures : la capture est passée en paramètre.
+  var RE_INTITULE_DOSSIER_AUTHENTIC = /(?:^|[^\w])(\d{1,6})\s*-\s*((?:Vente|VTE)\s+[^\n\/]*?\S\s*\/\s*[^\n]*?\S)(?=\s+(?:Importer|Comparants|Immeubles)\b|\s*\n|\s*$)/i;
+  // Une ligne qui annonce une demande ou un envoi n'est pas une pièce reçue.
+  var RE_DEMANDE_AUTHENTIC = /^\s*(?:demande|courrier|lettre|relance|envoi|envoy|requisition|réquisition|mail|e-?mail|convocation|projet|modele|modèle)/i;
+  var RE_ETAT_NON_RECU_AUTHENTIC = /attente|demand|envoy|a recevoir|à recevoir|relanc|non re[cç]u|manquant|a faire|à faire/i;
+  // État civil ajouté aux pièces : naissance et mariage pour une vente ; décès et livret de famille
+  // seulement pour une succession (étude, 02/10).
+  var RE_ETAT_CIVIL_VENTE_AUTHENTIC = /acte\s+de\s+(?:naissance|mariage)/i;
+  var RE_ETAT_CIVIL_SUCCESSION_AUTHENTIC = /acte\s+de\s+(?:naissance|mariage|d[ée]c[èe]s)|livret\s+de\s+famille/i;
+  var RE_DATE_FR_AUTHENTIC = /^\d{1,2}[\/.-]\d{1,2}[\/.-]\d{4}/;
+  // Casier judiciaire (bulletin n° 3), reçu dans Authentic comme l'état civil et la SAFER.
+  var RE_CASIER_AUTHENTIC = /casier\s+judiciaire|bulletin\s+(?:n\s*[°o]?\s*)?3(?!\d)/i;
+  var RE_SAFER_NON_PREEMPTION = /non[\s-]*(?:exercice|pr[ée]emption)|renon[cç]|ne\s+(?:pas\s+)?(?:pr[ée]empt|exerc)|pas\s+de\s+pr[ée]emption|purg[ée]/i;
+
+  function dateIsoDepuisFr(v) {
+    const m = /(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})/.exec(String(v || ''));
+    return m ? `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}` : '';
+  }
+  function libelleNetAuthentic(l) {
+    return normaliserPourRecherche(String(l || '').replace(/\*/g, '')).replace(/\s+/g, ' ').trim();
+  }
+  // Valeur du n-ième champ dont le libellé répond au test (libellé net, puis brut — certains champs
+  // n'ont pour libellé que leur nom technique, « …:naissanceDate:naissanceDate »).
+  function valeurChampAuthentic(champs, test, rang) {
+    const liste = (champs || []).filter(c => c && test(libelleNetAuthentic(c.libelle), String(c.libelle || '')));
+    const c = liste[rang || 0];
+    return c ? String(c.valeur == null ? '' : c.valeur).replace(/\s+/g, ' ').trim() : '';
+  }
+
+  // Pure : 'gestion' | 'client' | 'bien' | 'autre'.
+  function typePageAuthentic(capture) {
+    const champs = (capture && capture.champs) || [];
+    if (champs.some(c => /ficheClientPhysique/i.test(c.libelle || ''))) return 'client';
+    if (champs.some(c => /ficheImmeuble/i.test(c.libelle || ''))) return 'bien';
+    if (intituleDossierAuthentic(capture) && lignesDocumentsAuthentic(capture).length) return 'gestion';
+    return 'autre';
+  }
+
+  // Pure : « Vente VENDEUR/ACQUÉREUR » d'après le libellé du dossier ouvert dans Authentic.
+  function intituleDossierAuthentic(capture) {
+    const c = capture || {};
+    const sources = [];
+    (c.champs || []).forEach(ch => { sources.push(ch.libelle || ''); sources.push(ch.valeur || ''); });
+    sources.push(c.texte || '');
+    for (const s of sources) {
+      const m = RE_INTITULE_DOSSIER_AUTHENTIC.exec(String(s));
+      if (m) return m[2].replace(/\s*\/\s*/, ' / ').replace(/\s+/g, ' ').trim();
+    }
+    return '';
+  }
+
+  // Pure : le dossier CLAIRE de cet intitulé — mêmes noms des deux côtés de la barre, un seul
+  // dossier (en cours de préférence) ; sinon null (jamais deviné).
+  function dossierPourIntituleAuthentic(intitule, liste) {
+    const m = /^\s*(?:vte|vente)\s+(.+?)\s*\/\s*(.+?)\s*$/i.exec(intitule || '');
+    if (!m) return null;
+    // « Consorts » / « consort » devant un nom (étude, 02/10) ne compte pas : « Vente Consorts
+    // MARTEL/FOURNIER » est le dossier « MARTEL / FOURNIER », et inversement.
+    const cle = (a, b) => [a, b].map(x => normaliserPourRecherche(x).replace(/[^a-z0-9]+/g, ' ')
+      .replace(/(?:^|\s)consorts?(?=\s|$)/g, ' ').replace(/\s+/g, ' ').trim()).join('/');
+    const voulu = cle(m[1], m[2]);
+    const candidats = (liste || []).filter(d => {
+      if (!d || d.deleted) return false;
+      const n = /^\s*(.+?)\s*\/\s*(.+?)\s*$/.exec(String(d.nom || ''));
+      return n && cle(n[1], n[2]) === voulu;
+    });
+    const enCours = candidats.filter(d => !d.archive);
+    if (enCours.length === 1) return enCours[0];
+    return !enCours.length && candidats.length === 1 ? candidats[0] : null;
+  }
+
+  // Pure : les lignes de documents des tableaux de la page de gestion — intitulé (première cellule
+  // de texte), date (première date), état (dernière cellule de texte), texte de toute la ligne.
+  function lignesDocumentsAuthentic(capture) {
+    const lignes = [];
+    ((capture && capture.tableaux) || []).forEach(t => {
+      const entete = (t.entete || []).map(libelleNetAuthentic);
+      if (entete.includes('section') && entete.some(e => /^num/.test(e))) return;   // cadastre
+      (t.lignes || []).forEach(l => {
+        const cellules = (l || []).map(x => String(x == null ? '' : x).replace(/\s+/g, ' ').trim());
+        const iDate = cellules.findIndex(x => /^\d{1,2}[\/.-]\d{1,2}[\/.-]\d{4}/.test(x));
+        if (iDate < 0 || cellules.length < 3) return;
+        const textes = cellules.map((x, i) => ({ x, i })).filter(o => o.x && !/^\d{1,2}[\/.-]\d{1,2}[\/.-]\d{4}/.test(o.x) && !/^⟦icône⟧/.test(o.x));
+        if (!textes.length) return;
+        const titre = textes[0].x;
+        const dernier = textes[textes.length - 1];
+        const dates = cellules.filter(x => RE_DATE_FR_AUTHENTIC.test(x)).map(dateIsoDepuisFr);
+        lignes.push({ titre, date: dateIsoDepuisFr(cellules[iDate]), dates, etat: dernier.i !== textes[0].i ? dernier.x : '', texte: cellules.filter(Boolean).join(' · '), tableau: t.titre || '' });
+      });
+    });
+    return lignes;
+  }
+
+  function ligneAuthenticRecue(l) {
+    return !!l && !RE_DEMANDE_AUTHENTIC.test(normaliserPourRecherche(l.titre)) && !RE_ETAT_NON_RECU_AUTHENTIC.test(normaliserPourRecherche(l.etat || ''));
+  }
+
+  // Pure : pièces de la checklist reçues d'après les lignes (même règle que l'export ZIP : le nom,
+  // jamais le contenu), plus les actes d'état civil et la réponse SAFER de non-préemption, ajoutés
+  // comme pièces du dossier. [{ cle, label, nouvelle, date, titre }]
+  // Pure : les pièces reçues d'après les lignes de la page de gestion. Seules trois sortes de
+  // réponses arrivent DANS Authentic (étude, 02/10) : les actes d'état civil, les casiers
+  // judiciaires et la réponse SAFER ; tout le reste (urbanisme, diagnostics…) arrive par email ou
+  // courrier, et la page n'en montre que les courriers de demande — jamais repris. Chaque pièce
+  // reçue est une pièce du dossier à son intitulé (une par personne), reprise si elle existe déjà.
+  // [{ cle, label, nouvelle, date, titre }]
+  function piecesRecuesAuthentic(lignes, checklist, typeAffaire) {
+    const reEtatCivil = typeAffaire === 'succession' ? RE_ETAT_CIVIL_SUCCESSION_AUTHENTIC : RE_ETAT_CIVIL_VENTE_AUTHENTIC;
+    const resultat = [];
+    const liste = checklist || [];
+    const ajouter = (o) => { if (!resultat.some(r => r.cle === o.cle)) resultat.push(o); };
+    (lignes || []).filter(ligneAuthenticRecue).forEach(l => {
+      if (/safer/i.test(l.texte)) {
+        if (!RE_SAFER_NON_PREEMPTION.test(normaliserPourRecherche(l.texte))) return;
+        const existante = liste.find(p => p.personnalisee && /safer/i.test(p.label));
+        ajouter(existante ? { cle: existante.cle, label: existante.label, nouvelle: false, date: l.date, titre: l.titre }
+          : { cle: 'perso-safer', label: 'Réponse SAFER', nouvelle: true, date: l.date, titre: l.titre });
+        return;
+      }
+      if (reEtatCivil.test(l.titre) || RE_CASIER_AUTHENTIC.test(l.titre)) {
+        const label = l.titre.slice(0, 90);
+        const cleLabel = normaliserPourRecherche(label);
+        const existante = liste.find(p => p.personnalisee && normaliserPourRecherche(p.label) === cleLabel);
+        ajouter(existante ? { cle: existante.cle, label: existante.label, nouvelle: false, date: l.date, titre: l.titre }
+          : { cle: 'perso-authentic-' + cleLabel.replace(/[^a-z0-9]+/g, '-').slice(0, 40), label, nouvelle: true, date: l.date, titre: l.titre });
+      }
+    });
+    return resultat;
+  }
+
+  function adresseFicheAuthentic(champs) {
+    const v = (lib) => valeurChampAuthentic(champs, n => n === lib);
+    const numero = v('n° de voie'), typeVoie = v('type de voie'), nomVoie = v('nom de la voie');
+    const lieuDit = valeurChampAuthentic(champs, n => /^lieu-dit/.test(n));
+    const cpVille = v('cp - ville');
+    const m = /^(\d{5})\s+(.+)$/.exec(cpVille);
+    const codePostal = m ? m[1] : '', commune = m ? m[2] : cpVille;
+    const ligneVoie = [numero, typeVoie, nomVoie].filter(Boolean).join(' ') || lieuDit || v('adresse');
+    if (!ligneVoie && !commune) return null;
+    return {
+      numero: numero || null, typeVoie: typeVoie || null, nomVoie: nomVoie || null, lieuDit: lieuDit || null,
+      codePostal: codePostal || null, commune: commune || null,
+      departement: /^\d{5}$/.test(codePostal) ? (codePostal.startsWith('97') ? codePostal.slice(0, 3) : codePostal.slice(0, 2)) : null,
+      texte: [ligneVoie, [codePostal, commune].filter(Boolean).join(' ')].filter(Boolean).join(' ')
+    };
+  }
+
+  // Pure : la fiche client (personne physique) → personne au format de l'export ZIP.
+  function clientDepuisFicheAuthentic(capture) {
+    const champs = (capture && capture.champs) || [];
+    const nom = valeurChampAuthentic(champs, n => n === 'nom de famille');
+    if (!nom) return null;
+    const emails = [];
+    champs.filter(c => libelleNetAuthentic(c.libelle) === 'email').forEach(c => {
+      const e = String(c.valeur || '').trim();
+      if (/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e) && !emails.includes(e)) emails.push(e);
+    });
+    const telephones = champs.filter(c => /inputTelephone/i.test(c.libelle || '')).map(c => String(c.valeur || '').trim()).filter(Boolean)
+      .filter((x, i, l) => l.indexOf(x) === i);
+    const nomUsage = valeurChampAuthentic(champs, n => n === "denomination d'usage" || n === 'denomination d’usage');
+    return {
+      id: 'authentic-' + normaliserPourRecherche(nom).replace(/[^a-z0-9]+/g, '') + '-' + dateIsoDepuisFr(valeurChampAuthentic(champs, (n, b) => /naissanceDate/.test(b))),
+      index: 0,
+      civilite: valeurChampAuthentic(champs, (n, b) => /:civilite:/.test(b)),
+      nom: nom.toUpperCase(),
+      prenom: valeurChampAuthentic(champs, n => n === 'prenom'),
+      nomUsage: nomUsage && nomUsage.toUpperCase() !== nom.toUpperCase() ? nomUsage.toUpperCase() : '',
+      autresPrenoms: valeurChampAuthentic(champs, n => /^autre\(s\) prenom/.test(n)),
+      dateNaissance: dateIsoDepuisFr(valeurChampAuthentic(champs, (n, b) => /naissanceDate/.test(b))),
+      lieuNaissance: valeurChampAuthentic(champs, n => n === 'cp, ville (naissance)'),
+      adresse: adresseFicheAuthentic(champs),
+      emails, telephones,
+      profession: valeurChampAuthentic(champs, n => n === 'profession'),
+      situationMatrimoniale: situationMatrimonialeAuthentic(capture),
+      documents: []
+    };
+  }
+
+  // Pure : situation matrimoniale d'une fiche client (étude, 02/10 : voir s'il faut faire intervenir le
+  // conjoint — bien propre et résidence de la famille, marié ou pacsé). Tableau « Situation | Date |
+  // Conjoint » et rubrique du contrat (type, régime, date, notaire). null si rien n'est renseigné.
+  function situationMatrimonialeAuthentic(capture) {
+    const c = capture || {};
+    const champs = c.champs || [];
+    const r = { situation: '', date: '', conjoint: '', contrat: '', regime: '', dateMariage: '' };
+    (c.tableaux || []).forEach(t => {
+      const entete = (t.entete || []).map(libelleNetAuthentic);
+      const iSit = entete.indexOf('situation');
+      if (iSit < 0 || r.situation) return;
+      const l = (t.lignes || [])[0] || [];
+      const iDate = entete.indexOf('date');
+      const iConj = entete.indexOf('conjoint');
+      r.situation = String(l[iSit] || '').trim();
+      r.date = iDate >= 0 ? dateIsoDepuisFr(l[iDate]) : '';
+      r.conjoint = iConj >= 0 ? String(l[iConj] || '').trim() : '';
+    });
+    r.contrat = valeurChampAuthentic(champs, (n, b) => /somContratTypeId/.test(b));
+    r.regime = valeurChampAuthentic(champs, (n, b) => /somContratRegimeId/.test(b));
+    r.dateMariage = dateIsoDepuisFr(valeurChampAuthentic(champs, n => n === 'date de mariage'));
+    return Object.values(r).some(Boolean) ? r : null;
+  }
+
+  // Pure : « Marié(e) le 12 juin 2010 — communauté réduite aux acquêts — conjoint : Paul MARTEL ».
+  function libelleSituationMatrimoniale(sm) {
+    if (!sm) return '';
+    return [
+      [sm.situation, sm.date || sm.dateMariage ? `le ${formatDateFr(sm.date || sm.dateMariage)}` : ''].filter(Boolean).join(' '),
+      sm.regime || (sm.contrat && !/^sans/i.test(sm.contrat) ? sm.contrat : ''),
+      sm.conjoint ? `conjoint : ${sm.conjoint}` : ''
+    ].filter(Boolean).join(' — ');
+  }
+
+  // Pure : vendeurs mariés ou pacsés dont le conjoint n'est pas partie à la vente → à vérifier (le
+  // conjoint intervient si le bien, même propre, est la résidence de la famille).
+  function alertesConjointAuthentic(parties) {
+    const liste = parties || [];
+    const noms = liste.map(p => normaliserPourRecherche(p.nom || '').replace(/[^a-z0-9]+/g, ' ').trim());
+    return liste.filter(p => p.role === 'VENDEUR' && p.situationMatrimoniale && /mari|pacs|pacte civil/i.test(normaliserPourRecherche(p.situationMatrimoniale.situation || '')))
+      .filter(p => {
+        const conj = normaliserPourRecherche(p.situationMatrimoniale.conjoint || '').replace(/[^a-z0-9]+/g, ' ').trim();
+        if (!conj) return true;
+        const mots = conj.split(' ').filter(m => m.length > 1);
+        return !noms.some(n => mots.length && mots.every(m => (' ' + n + ' ').includes(' ' + m + ' ')));
+      })
+      .map(p => ({
+        partie: p.nom,
+        texte: `${p.nom} : ${/pacs|pacte civil/i.test(normaliserPourRecherche(p.situationMatrimoniale.situation)) ? 'pacsé(e)' : 'marié(e)'}${p.situationMatrimoniale.conjoint ? `, conjoint ${p.situationMatrimoniale.conjoint}` : ''} non partie à la vente — le faire intervenir si le bien est la résidence de la famille (même bien propre).`
+      }));
+  }
+
+  // ---- Informations du dossier relevées dans Authentic (étude, 02/10) ----
+  // Lues d'après le vocabulaire des pages, jamais devinées : un renseignement absent reste absent.
+  var RE_SAFER_PREEMPTION_EXERCEE = /pr[ée]empt(?:e|é|ée|ion\s+exerc[ée]e)|exerce\s+(?:son\s+)?droit/i;
+  var RE_RHF_AUTHENTIC = /r[ée]quisition\s+(?:de\s+)?hors\s+formalit|(?:^|[^a-z])rhf(?:[^a-z]|$)|hors\s+formalit[ée]/i;
+
+  // Pure : suivi de la notification SAFER — notifiée, prise en compte, décision.
+  function suiviSaferAuthentic(lignes) {
+    const lignesSafer = (lignes || []).filter(l => /safer/i.test(l.texte || ''));
+    if (!lignesSafer.length) return null;
+    const r = { notifieeLe: '', priseEnCompteLe: '', decision: '', decisionLe: '', titre: lignesSafer[0].titre };
+    lignesSafer.forEach(l => {
+      const texte = normaliserPourRecherche(l.texte || '');
+      const dates = l.dates || (l.date ? [l.date] : []);
+      if (!r.notifieeLe && dates[0]) r.notifieeLe = dates[0];
+      const mPec = /(?:pris(?:e)?\s+en\s+compte|retour)\s*(?:le)?\D{0,6}(\d{1,2}[\/.-]\d{1,2}[\/.-]\d{4})/.exec(texte);
+      if (mPec) r.priseEnCompteLe = dateIsoDepuisFr(mPec[1]);
+      else if (!r.priseEnCompteLe && dates[1]) r.priseEnCompteLe = dates[1];
+      if (RE_SAFER_NON_PREEMPTION.test(texte)) { r.decision = 'non_preemption'; r.decisionLe = dates[dates.length - 1] || ''; }
+      else if (!r.decision && RE_SAFER_PREEMPTION_EXERCEE.test(texte)) { r.decision = 'preemption'; r.decisionLe = dates[dates.length - 1] || ''; }
+    });
+    return r;
+  }
+
+  // Pure : réquisition hors formalité — envoyée, retour.
+  function suiviRhfAuthentic(lignes) {
+    const lignesRhf = (lignes || []).filter(l => RE_RHF_AUTHENTIC.test(normaliserPourRecherche(l.texte || '')));
+    if (!lignesRhf.length) return null;
+    const r = { envoyeeLe: '', retourLe: '' };
+    lignesRhf.forEach(l => {
+      const dates = l.dates || (l.date ? [l.date] : []);
+      const etat = normaliserPourRecherche(l.etat || '');
+      if (!r.envoyeeLe && dates[0]) r.envoyeeLe = dates[0];
+      const mRetour = /retour\s*(?:le)?\D{0,6}(\d{1,2}[\/.-]\d{1,2}[\/.-]\d{4})/.exec(normaliserPourRecherche(l.texte || ''));
+      if (mRetour) r.retourLe = dateIsoDepuisFr(mRetour[1]);
+      else if (/re[cç]u|retour|delivr|repon/.test(etat) || /^(?:reponse|retour|etat hypothecaire)/.test(normaliserPourRecherche(l.titre))) r.retourLe = dates[dates.length - 1] || r.retourLe;
+      else if (dates[1]) r.retourLe = dates[1];
+    });
+    return r;
+  }
+
+  // Pure : état de l'acte de vente dans Authentic — 'signe' (avec date), 'redaction', 'a_rediger'.
+  // « signé le JJ/MM/AAAA » n'importe où sur la page du dossier vaut acte signé (étude, 02/10), sauf
+  // sur une ligne qui parle d'un autre document signé (avant-contrat, procuration, mandat, offre,
+  // courrier…).
+  var RE_AUTRE_DOCUMENT_SIGNE_AUTHENTIC = /compromis|promesse|avant[\s-]*contrat|procuration|mandat|offre|bon\s+de\s+visite|courrier|lettre|demande|attestation|convention|pouvoir|avenant|reconnaissance/i;
+  function etatActeAuthentic(capture) {
+    const c = capture || {};
+    const sources = [];
+    lignesDocumentsAuthentic(c).forEach(l => sources.push(l.titre + ' ' + (l.etat || '') + ' ' + (l.dates || []).map(d => d.split('-').reverse().join('/')).join(' ')));
+    (c.champs || []).forEach(ch => sources.push([ch.groupe, ch.libelle, ch.valeur].filter(Boolean).join(' ')));
+    String(c.texte || '').split(/\n+/).forEach(l => sources.push(l));
+    const lignes = sources.map(x => String(x || '').replace(/\s+/g, ' ').trim()).filter(Boolean);
+    for (const l of lignes) {
+      if (RE_AUTRE_DOCUMENT_SIGNE_AUTHENTIC.test(l)) continue;
+      const m = /sign[ée]e?s?\s+(?:[ée]lectroniquement\s+)?le\s+(\d{1,2}[\/.-]\d{1,2}[\/.-]\d{4})/i.exec(l)
+        || /acte\s+(?:de\s+vente\s+)?sign[ée](?![a-z])/i.exec(l);
+      if (m) return { etat: 'signe', libelle: 'Acte signé', date: m[1] ? dateIsoDepuisFr(m[1]) : '' };
+    }
+    const tout = lignes.join('\n');
+    if (/en\s+cours\s+de\s+r[ée]daction|r[ée]daction\s+en\s+cours/i.test(tout)) return { etat: 'redaction', libelle: 'En cours de rédaction', date: '' };
+    if (/(?:non|pas\s+encore)\s+r[ée]dig[ée]|[àa]\s+r[ée]diger/i.test(tout)) return { etat: 'a_rediger', libelle: 'Pas encore rédigé', date: '' };
+    return null;
+  }
+
+  // Pure : le prix de vente — champ « Capital » (Informations financières).
+  function prixAuthentic(capture) {
+    const c = capture || {};
+    const champ = (c.champs || []).find(ch => /^capital/.test(libelleNetAuthentic(ch.libelle)) && String(ch.valeur || '').trim());
+    let brut = champ ? champ.valeur : '';
+    if (!brut) (c.tableaux || []).forEach(t => {
+      const i = (t.entete || []).map(libelleNetAuthentic).findIndex(e => /^capital/.test(e));
+      if (i >= 0 && !brut) brut = ((t.lignes || [])[0] || [])[i] || '';
+    });
+    if (!brut) {
+      // Rubrique en texte seul (« Capital » puis le montant, sur la même ligne ou la suivante).
+      const m = /(?:^|\n)\s*Capital\s*:?\s*(?:\n\s*)?(-?\d[\d\s.  ]*(?:,\d{1,2})?)\s*(?:€|EUR|euros?)?/i.exec(String(c.texte || ''));
+      if (m) brut = m[1];
+    }
+    const v = brut ? eurosDepuisSaisie(String(brut)) : null;
+    return Number.isFinite(v) && v > 0 ? v : null;
+  }
+
+  // Textes de la rubrique « Parties prenantes » : champs et lignes dont la rubrique ou le tableau
+  // s'appelle ainsi (ou « Intervenants »).
+  function textesPartiesPrenantesAuthentic(capture) {
+    const c = capture || {};
+    const re = /parties?\s+prenantes?|intervenants?/i;
+    const textes = [];
+    (c.champs || []).filter(ch => re.test(ch.groupe || '')).forEach(ch => textes.push([ch.libelle, ch.valeur].filter(Boolean).join(' : ')));
+    (c.tableaux || []).filter(t => re.test(t.titre || '')).forEach(t => (t.lignes || []).forEach(l => textes.push(l.filter(Boolean).join(' · '))));
+    // Rubrique en texte seul : les lignes qui suivent son titre, jusqu'à la rubrique suivante.
+    const texte = String(c.texte || '');
+    const m = /(?:^|\n)\s*(?:parties?\s+prenantes?|intervenants?)\s*(?:\(\d+\))?\s*\n/i.exec(texte);
+    if (m) {
+      const suite = texte.slice(m.index + m[0].length, m.index + m[0].length + 1200);
+      const fin = /\n\s*(?:informations\s+financi|comparants|immeubles|documents|pi[eè]ces|notes|historique)/i.exec(suite);
+      (fin ? suite.slice(0, fin.index) : suite).split(/\n+/).map(l => l.replace(/\s+/g, ' ').trim()).filter(Boolean).forEach(l => textes.push(l));
+    }
+    return textes;
+  }
+
+  // Pure : le collaborateur en charge — l'un des responsables de CLAIRE nommé dans les parties prenantes.
+  function collaborateurAuthentic(capture) {
+    const textes = textesPartiesPrenantesAuthentic(capture).map(t => ' ' + normaliserPourRecherche(t).replace(/[^a-z0-9]+/g, ' ') + ' ');
+    const trouves = RESPONSABLES.filter(r => {
+      const nom = normaliserPourRecherche(r.split(/\s+/).slice(1).join(' ')).replace(/[^a-z0-9]+/g, ' ').trim();
+      return nom && textes.some(t => t.includes(' ' + nom + ' '));
+    });
+    return trouves.length === 1 ? trouves[0] : '';
+  }
+
+  // Pure : le notaire nommé dans les parties prenantes (« Notaire · Maître Jean DUPONT »).
+  function notaireAuthentic(capture) {
+    for (const t of textesPartiesPrenantesAuthentic(capture)) {
+      if (!/notaire|ma[iî]tre|(?:^|\s)me\s/i.test(t)) continue;
+      const m = /(?:Ma[iî]tre|(?:^|\s)Me)\s+([A-ZÀ-Ý][\wÀ-ɏ'’-]*(?:\s+[A-ZÀ-Ý][\wÀ-ɏ'’-]*){0,3})/.exec(t)
+        || /notaire\s*(?::|·)\s*([A-ZÀ-Ý][\wÀ-ɏ'’-]*(?:\s+[A-ZÀ-Ý][\wÀ-ɏ'’-]*){0,3})/i.exec(t);
+      if (m) return m[1].trim();
+    }
+    return '';
+  }
+
+  // Pure : tout ce qu'une page du dossier dit du dossier (hors fiches client et bien).
+  function infosDossierAuthentic(capture) {
+    const lignes = lignesDocumentsAuthentic(capture);
+    const r = {
+      acte: etatActeAuthentic(capture), rhf: suiviRhfAuthentic(lignes), safer: suiviSaferAuthentic(lignes),
+      prix: prixAuthentic(capture), collaborateur: collaborateurAuthentic(capture), notaire: notaireAuthentic(capture)
+    };
+    Object.keys(r).forEach(k => { if (!r[k]) delete r[k]; });
+    return r;
+  }
+
+  // Pure : les informations déjà connues complétées par une nouvelle page (une page sans le
+  // renseignement n'efface rien).
+  function fusionnerInfosAuthentic(ancien, nouveau) {
+    const r = Object.assign({}, ancien || {});
+    Object.entries(nouveau || {}).forEach(([k, v]) => {
+      if (v && typeof v === 'object' && !Array.isArray(v)) {
+        const base = Object.assign({}, r[k] || {});
+        Object.entries(v).forEach(([kk, vv]) => { if (vv) base[kk] = vv; });
+        r[k] = base;
+      } else if (v) r[k] = v;
+    });
+    return r;
+  }
+
+  // Pure : la fiche bien → immeuble au format de l'export ZIP (type, adresse, parcelles du cadastre).
+  function bienDepuisFicheAuthentic(capture) {
+    const c = capture || {};
+    const champs = c.champs || [];
+    const champsBien = champs.filter(ch => /informations du bien/i.test(ch.groupe || ''));
+    const adresse = adresseFicheAuthentic(champsBien.length ? champsBien : champs);
+    const typeBrut = normaliserPourRecherche(valeurChampAuthentic(champs, (n, b) => /typeWithDialog/i.test(b)));
+    const type = /maison|pavillon|villa/.test(typeBrut) ? 'maison'
+      : /appartement|copro|lot/.test(typeBrut) ? 'copropriete'
+        : /terrain/.test(typeBrut) ? 'terrain' : null;
+    const parcelles = [];
+    (c.tableaux || []).forEach(t => {
+      const entete = (t.entete || []).map(libelleNetAuthentic);
+      const iSection = entete.indexOf('section');
+      const iNumero = entete.findIndex(e => /^num/.test(e));
+      if (iSection < 0 || iNumero < 0) return;
+      (t.lignes || []).forEach(l => {
+        const section = String(l[iSection] || '').trim().toUpperCase();
+        const numero = String(l[iNumero] || '').trim().replace(/^0+(?=\d)/, '');
+        if (section && numero && !parcelles.some(p => p.section === section && p.numero === numero)) parcelles.push({ section, numero });
+      });
+    });
+    if (!adresse && !parcelles.length) return null;
+    return {
+      id: 'authentic-bien-' + normaliserPourRecherche((adresse && adresse.texte) || parcelles.map(p => p.section + p.numero).join('')).replace(/[^a-z0-9]+/g, '').slice(0, 40),
+      adresse, type, parcelles, surface: null, description: valeurChampAuthentic(champs, n => n === 'designation')
+    };
+  }
+
+  // Pure : les pages relevées (dans l'ordre où elles ont été vues) regroupées par dossier, au format
+  // de l'export ZIP — une fiche client ou bien sans intitulé appartient au dernier dossier vu.
+  // [{ intitule, export, derniere }] du plus récent au plus ancien.
+  function dossiersDepuisRelevesAuthentic(releves) {
+    const groupes = new Map();
+    let courant = '';
+    (releves || []).slice().sort((a, b) => String(a.recueLe || '').localeCompare(String(b.recueLe || ''))).forEach(r => {
+      const cap = r && r.capture;
+      if (!cap) return;
+      const type = typePageAuthentic(cap);
+      const intitule = intituleDossierAuthentic(cap) || courant;
+      if (intituleDossierAuthentic(cap)) courant = intituleDossierAuthentic(cap);
+      if (!intitule || (type === 'autre' && !intituleDossierAuthentic(cap))) return;
+      if (!groupes.has(intitule)) groupes.set(intitule, { intitule, derniere: '', personnes: new Map(), immeubles: new Map(), documents: new Map(), infos: {} });
+      const g = groupes.get(intitule);
+      g.derniere = r.recueLe || g.derniere;
+      if (type === 'client') { const p = clientDepuisFicheAuthentic(cap); if (p) g.personnes.set(p.id, p); }
+      if (type === 'bien') { const b = bienDepuisFicheAuthentic(cap); if (b) g.immeubles.set(b.id, b); }
+      if (type === 'gestion') piecesRecuesAuthentic(lignesDocumentsAuthentic(cap), [], /succ/i.test(intitule) ? 'succession' : 'vente')
+        .forEach(p => g.documents.set(p.cle, { intitule: p.titre, nomFichier: '', chemin: '', date: p.date, personne: null, piece: p }));
+      if (type === 'gestion' || type === 'autre') g.infos = fusionnerInfosAuthentic(g.infos, infosDossierAuthentic(cap));
+    });
+    return [...groupes.values()].map(g => {
+      const personnes = [...g.personnes.values()].map((p, i) => Object.assign({}, p, { index: i }));
+      const immeubles = [...g.immeubles.values()];
+      return {
+        intitule: g.intitule, derniere: g.derniere,
+        export: {
+          intitule: g.intitule, type: '', dateCreation: '', personnes, immeubles, parties: [], intervenants: [],
+          biens: immeubles.map(im => im.id), documents: [...g.documents.values()], documentsPersonnes: [], acte: null, notaireRedacteur: null,
+          origine: 'pages', infosAuthentic: g.infos
+        }
+      };
+    }).sort((a, b) => String(b.derniere).localeCompare(String(a.derniere)));
+  }
+
+  // ---- Relevé automatique d'Authentic (étude, 02/10 : « automatique, à l'affichage ») ----
+  // L'extension envoie chaque page d'Authentic affichée ; une fenêtre CLAIRE la prend (une seule) et
+  // met à jour la fiche du dossier reconnu par l'intitulé : pièces reçues cochées « reçues dans
+  // Authentic » (validées à la main, donc décochables et jamais repassées en manquantes par le NAS),
+  // historique, notification. Une pièce déjà reprise une fois ne l'est plus (d.piecesAuthentic) : la
+  // décocher reste la décision de l'étude. Jamais pour une participation (pièces suivies par le confrère).
+  var INTERVALLE_RELEVES_AUTHENTIC_MS = 5000;
+  let releveAuthenticEnCours = false;
+
+  // Pure : ce qu'un relevé de la page de gestion change sur un dossier (pièces à cocher).
+  function piecesAuthenticAAppliquer(d, capture) {
+    if (!d || d.roleNotaire === 'participant') return [];
+    const deja = new Set(d.piecesAuthentic || []);
+    const retirees = new Set(d.piecesRetirees || []);
+    return piecesRecuesAuthentic(lignesDocumentsAuthentic(capture), checklistPieces(d.typeVente, d), d.typeAffaire)
+      .filter(p => !deja.has(p.cle) && !retirees.has(p.cle) && !(!p.nouvelle && d.pieces && d.pieces[p.cle] === 'recue'));
+  }
+
+  // Pure : le côté d'une personne d'une fiche client dans le dossier — d'après ses parties, sinon
+  // d'après le nom du dossier « VENDEUR / ACQUÉREUR ». 'VENDEUR' | 'ACQUEREUR' | '' (jamais deviné).
+  function roleClientAuthenticDansDossier(d, personne) {
+    if (!d || !personne || !personne.nom) return '';
+    const mots = (x) => ' ' + normaliserPourRecherche(x || '').replace(/[^a-z0-9]+/g, ' ').trim() + ' ';
+    const nom = mots(personne.nom).trim();
+    const prenom = mots(personne.prenom).trim().split(' ')[0] || '';
+    const contient = (texte, m) => !!m && mots(texte).includes(' ' + m + ' ');
+    const roles = new Set();
+    (Array.isArray(d.parties) ? d.parties : []).forEach(p => {
+      if (p && contient(p.nom, nom) && (!prenom || contient(p.nom, prenom) || !(d.parties || []).some(q => q !== p && contient(q.nom, nom)))) roles.add(p.role);
+    });
+    if (roles.size === 1) return [...roles][0];
+    if (roles.size > 1) return '';
+    const m = /^\s*(.+?)\s*\/\s*(.+?)\s*$/.exec(String(d.nom || ''));
+    if (!m) return '';
+    const v = nom.split(' ').every(x => contient(m[1], x)), a = nom.split(' ').every(x => contient(m[2], x));
+    return v && !a ? 'VENDEUR' : a && !v ? 'ACQUEREUR' : '';
+  }
+
+  // Pure (modifie le dossier passé) : une page d'Authentic appliquée à la fiche d'un dossier.
+  //  - page de gestion : pièces reçues cochées ; « Réponse SAFER » ajoutée aux pièces MANQUANTES dès
+  //    que la notification SAFER apparaît sans réponse (étude, 02/10), cochée à la non-préemption ;
+  //  - toute page du dossier : état de l'acte, réquisition hors formalité, SAFER (notifiée, prise en
+  //    compte), prix (Capital), collaborateur et notaire des parties prenantes — gardés dans
+  //    d.authentic ; le prix remplit la fiche s'il manque ;
+  //  - fiche client : téléphones et email de la partie s'ils manquent, situation matrimoniale.
+  // Chaque fait nouveau entre une fois dans l'historique. → { pieces, textes, modifie }
+  function appliquerReleveSurDossier(d, capture, maintenantIso) {
+    const resultat = { pieces: [], textes: [], modifie: false, echeancesFaites: [] };
+    if (!d || !capture) return resultat;
+    const maintenant = maintenantIso || new Date().toISOString();
+    const noter = (texte) => { resultat.textes.push(texte); d.historique = d.historique || []; d.historique.push({ date: maintenant, texte }); };
+    const type = typePageAuthentic(capture);
+    const avant = d.authentic || {};
+
+    if (type === 'client') {
+      const personne = clientDepuisFicheAuthentic(capture);
+      const role = roleClientAuthenticDansDossier(d, personne);
+      if (!role) return resultat;
+      const qui = role === 'VENDEUR' ? 'du vendeur' : 'de l’acquéreur';
+      const champTel = role === 'VENDEUR' ? 'telephoneVendeur' : 'telephoneAcquereur';
+      const champEmail = role === 'VENDEUR' ? 'emailVendeur' : 'emailAcquereur';
+      const chiffres = (t) => String(t || '').replace(/\D/g, '').slice(-9);
+      const connus = String(d[champTel] || '').split('/').map(chiffres).filter(Boolean);
+      const nouveaux = (personne.telephones || []).filter(t => chiffres(t).length === 9 && !connus.includes(chiffres(t)));
+      if (nouveaux.length) {
+        d[champTel] = [d[champTel], ...nouveaux].filter(Boolean).join(' / ');
+        noter(`Téléphone ${qui} repris d’Authentic : ${nouveaux.join(' / ')}`);
+      }
+      if (!d[champEmail] && personne.emails && personne.emails[0]) {
+        d[champEmail] = personne.emails[0];
+        noter(`Email ${qui} repris d’Authentic : ${personne.emails[0]}`);
+      }
+      const nomComplet = [personne.prenom, personne.nom].filter(Boolean).join(' ');
+      const cle = normaliserPourRecherche(nomComplet).replace(/[^a-z0-9]+/g, ' ').trim();
+      const personnes = (avant.personnes || []).filter(p => normaliserPourRecherche(p.nom).replace(/[^a-z0-9]+/g, ' ').trim() !== cle);
+      const ancienne = (avant.personnes || []).find(p => normaliserPourRecherche(p.nom).replace(/[^a-z0-9]+/g, ' ').trim() === cle);
+      const sm = personne.situationMatrimoniale || null;
+      if (sm && (!ancienne || JSON.stringify(ancienne.situationMatrimoniale) !== JSON.stringify(sm))) {
+        noter(`Situation matrimoniale ${qui} (${nomComplet}) dans Authentic : ${libelleSituationMatrimoniale(sm)}`);
+      }
+      d.authentic = Object.assign({}, avant, { personnes: personnes.concat({ nom: nomComplet, role, situationMatrimoniale: sm }), releveLe: maintenant });
+      resultat.modifie = true;
+      return resultat;
+    }
+    if (type === 'bien') return resultat;
+
+    // Pièces reçues (page de gestion).
+    const pieces = type === 'gestion' ? piecesAuthenticAAppliquer(d, capture) : [];
+    d.pieces = d.pieces || {};
+    pieces.forEach(p => {
+      if (p.nouvelle && !(d.piecesPersonnalisees || []).some(x => x.cle === p.cle)) {
+        d.piecesPersonnalisees = (d.piecesPersonnalisees || []).concat({ cle: p.cle, label: p.label });
+      }
+      d.pieces[p.cle] = 'recue';
+      d.piecesValideesManuellement = Array.from(new Set([...(d.piecesValideesManuellement || []), p.cle]));
+      d.piecesAuthentic = Array.from(new Set([...(d.piecesAuthentic || []), p.cle]));
+      d.piecesTrouveesLe = Object.assign({}, d.piecesTrouveesLe, { [p.cle]: p.date ? p.date + 'T12:00:00' : maintenant });
+      d.piecesNotifications = Array.from(new Set([...(d.piecesNotifications || []), p.cle]));
+      noter(`Reçue dans Authentic : « ${p.label} »${p.nouvelle ? ' ajoutée à la liste des pièces' : ''}${p.titre && p.titre !== p.label ? ` (${p.titre})` : ''}${p.date ? `, le ${formatDateFr(p.date)}` : ''}`);
+    });
+    resultat.pieces = pieces;
+
+    // Informations du dossier.
+    const infos = infosDossierAuthentic(capture);
+    const apres = fusionnerInfosAuthentic(avant, infos);
+    const nouveau = (k, kk) => apres[k] && apres[k][kk] && apres[k][kk] !== (avant[k] || {})[kk];
+    if (nouveau('acte', 'etat')) noter(`Acte dans Authentic : ${apres.acte.libelle}${apres.acte.date ? ` le ${formatDateFr(apres.acte.date)}` : ''}`);
+    if (nouveau('rhf', 'envoyeeLe')) noter(`Réquisition hors formalité envoyée le ${formatDateFr(apres.rhf.envoyeeLe)} (Authentic)`);
+    if (nouveau('rhf', 'retourLe')) noter(`Retour de la réquisition hors formalité le ${formatDateFr(apres.rhf.retourLe)} (Authentic)`);
+    if (nouveau('safer', 'notifieeLe')) noter(`SAFER notifiée le ${formatDateFr(apres.safer.notifieeLe)} (Authentic)`);
+    if (nouveau('safer', 'priseEnCompteLe')) noter(`Notification SAFER prise en compte le ${formatDateFr(apres.safer.priseEnCompteLe)} (Authentic)`);
+    if (nouveau('safer', 'decision') && apres.safer.decision === 'preemption') noter(`SAFER : préemption exercée${apres.safer.decisionLe ? ` (${formatDateFr(apres.safer.decisionLe)})` : ''} — à vérifier dans Authentic`);
+    // Acte signé dans Authentic (étude, 02/10 : « marque-le comme fait ») : la signature et toutes
+    // les étapes qui la précèdent sont faites — plus rien au planning ni aux rappels. Une seule fois,
+    // au passage à « signé » ; chaque validation reste annulable sur la fiche.
+    if (nouveau('acte', 'etat') && apres.acte.etat === 'signe') {
+      d.echeancesValidees = d.echeancesValidees || {};
+      ['ventebien', 'pret', 'appelFonds', 'projetEnvoye', 'rendezVousSignature', 'acte'].forEach(type => {
+        if (echeanceValidee(d, type)) return;
+        d.echeancesValidees[type] = true;
+        resultat.echeancesFaites.push(type);
+      });
+      if (resultat.echeancesFaites.length) noter(`Signature de l’acte marquée réalisée (acte signé dans Authentic${apres.acte.date ? ` le ${formatDateFr(apres.acte.date)}` : ''})`);
+    }
+    if (apres.prix && !(Number(d.prixVente) > 0)) {
+      d.prixVente = apres.prix;
+      noter(`Prix de vente repris d’Authentic (Capital) : ${formaterPrix(apres.prix)}`);
+    }
+
+    // SAFER notifiée, sans réponse : « Réponse SAFER » parmi les pièces manquantes (une fois — la
+    // retirer reste la décision de l'étude ; jamais en participation).
+    const saferAttendue = apres.safer && apres.safer.decision !== 'non_preemption' && d.roleNotaire !== 'participant';
+    const pieceSafer = checklistPieces(d.typeVente, d).some(p => p.personnalisee && /safer/i.test(p.label));
+    if (saferAttendue && !avant.saferPieceAjoutee && !pieceSafer) {
+      d.piecesPersonnalisees = (d.piecesPersonnalisees || []).concat({ cle: 'perso-safer', label: 'Réponse SAFER' });
+      d.pieces['perso-safer'] = 'manquante';
+      apres.saferPieceAjoutee = true;
+      noter('« Réponse SAFER » ajoutée aux pièces manquantes (SAFER notifiée dans Authentic, pas encore de réponse)');
+    }
+
+    if (Object.keys(infos).length || pieces.length || apres.saferPieceAjoutee !== avant.saferPieceAjoutee) {
+      apres.releveLe = maintenant;
+      d.authentic = apres;
+      resultat.modifie = true;
+    }
+    return resultat;
+  }
+
+  // Le dernier dossier vu dans Authentic : une fiche client (ou un onglet sans intitulé) ouverte
+  // depuis ce dossier lui appartient — la fiche client n'est reprise que si la personne est l'une
+  // de ses parties (roleClientAuthenticDansDossier).
+  var DUREE_DOSSIER_COURANT_AUTHENTIC_MS = 30 * 60 * 1000;
+  let dossierCourantAuthentic = { intitule: '', t: 0 };
+
+  async function appliquerReleveAuthentic(capture) {
+    const lu = intituleDossierAuthentic(capture);
+    if (lu) dossierCourantAuthentic = { intitule: lu, t: Date.now() };
+    const intitule = lu || (Date.now() - dossierCourantAuthentic.t < DUREE_DOSSIER_COURANT_AUTHENTIC_MS ? dossierCourantAuthentic.intitule : '');
+    const d = dossierPourIntituleAuthentic(intitule, dossiers);
+    if (!d) return 0;
+    const r = appliquerReleveSurDossier(d, capture);
+    if (!r.modifie) return 0;
+    await sauvegarder(d);
+    render();
+    // Comme une validation à la main : les dates butoir levées quittent l'agenda.
+    r.echeancesFaites.filter(t => t === 'pret' || t === 'ventebien').forEach(t => {
+      Promise.resolve().then(() => synchroniserEcheanceAgenda(d, t, false)).catch(() => { /* agenda facultatif */ });
+    });
+    const cles = r.pieces.map(p => p.cle);
+    if (cles.length) {
+      try { notifierNouvellesPiecesTrouvees(d, cles); } catch (e) { /* notification facultative */ }
+      try { notifierNavigateurPieces(d, cles); } catch (e) { /* notification facultative */ }
+      try { signalerSiDossierDevenuComplet(d); } catch (e) { /* notification facultative */ }
+    }
+    if (r.textes.length) {
+      const resume = r.pieces.length
+        ? `${r.pieces.length} pièce${r.pieces.length > 1 ? 's' : ''} reçue${r.pieces.length > 1 ? 's' : ''} (${r.pieces.map(p => p.label).join(', ')})`
+        : r.textes[0] + (r.textes.length > 1 ? ` (+${r.textes.length - 1})` : '');
+      afficherToast(`Authentic · ${libelleDossierAffiche(d)} : ${resume}.`, 'Voir', () => ouvrirDossierDrawer(d.id));
+    }
+    return r.textes.length;
+  }
+
+  async function releverPagesAuthentic() {
+    if (!authToken || releveAuthenticEnCours) return;
+    releveAuthenticEnCours = true;
+    try {
+      const r = await fetchAvecAuth('/api/authentic/releves/prendre', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+      if (!r.ok) return;
+      const { releves } = await r.json();
+      for (const rel of releves || []) {
+        try { await appliquerReleveAuthentic(rel.capture); } catch (e) { console.error('Relevé Authentic non appliqué', e && e.message); }
+      }
+    } catch (e) { /* le relevé suivant reprendra */ } finally {
+      releveAuthenticEnCours = false;
+    }
+    // « Nouveau dossier » ouvert à l'étape 1 : la liste « Depuis Authentic » suit les pages vues.
+    const etape1 = document.getElementById('wizard-step-1');
+    if (etape1 && etape1.classList.contains('actif') && etape1.offsetParent) chargerRelevesAuthenticRecents();
+  }
+
+  // ---- « Nouveau dossier » depuis les pages relevées dans Authentic (étude, 02/10) ----
+  // Les pages vues dans la dernière heure (gestion du dossier, fiches client, fiches bien), regroupées
+  // par dossier, entrent dans le parcours de l'export ZIP : mêmes parties (par l'intitulé « Vente
+  // VENDEUR/ACQUÉREUR »), même bien, mêmes pièces présentes, même formulaire à vérifier. Un avant-
+  // contrat déjà déposé garde ses dates et son prix : Authentic le complète.
+  let groupesAuthenticRecents = [];
+
+  async function chargerRelevesAuthenticRecents() {
+    const bloc = document.getElementById('authentic-releves');
+    if (!bloc || !authToken) return;
+    try {
+      const r = await fetchAvecAuth('/api/authentic/releves/recents');
+      if (!r.ok) return;
+      const { releves } = await r.json();
+      groupesAuthenticRecents = dossiersDepuisRelevesAuthentic(releves || []);
+    } catch (e) { return; }
+    renderRelevesAuthenticWizard();
+  }
+
+  // Pure : « 2 personnes · 1 bien · 3 pièces présentes ».
+  function resumeGroupeAuthentic(g) {
+    const ex = (g && g.export) || {};
+    const n = (k, s, p) => `${k} ${k > 1 ? p : s}`;
+    const parties = partiesExportAuthentic(ex);
+    const morceaux = [
+      parties.length ? n(parties.length, 'partie reconnue', 'parties reconnues') : n((ex.personnes || []).length, 'fiche client', 'fiches client'),
+      n((ex.immeubles || []).length, 'bien', 'biens'),
+      n((ex.documents || []).length, 'document reçu', 'documents reçus')
+    ];
+    return morceaux.join(' · ');
+  }
+
+  function renderRelevesAuthenticWizard() {
+    const bloc = document.getElementById('authentic-releves');
+    if (!bloc) return;
+    if (!groupesAuthenticRecents.length) { bloc.style.display = 'none'; bloc.innerHTML = ''; return; }
+    const avecPdf = !!dernierTexteTraite && !exportAuthenticActuel;
+    bloc.style.display = '';
+    bloc.innerHTML = `
+      <h3 class="authentic-releves-titre">Depuis Authentic ${infoBulle('Dossiers ouverts dans Authentic depuis une heure (extension « CLAIRE pour Authentic »). Ouvrez dans Authentic la page du dossier, puis chaque fiche client et chaque fiche bien : CLAIRE les rassemble. Les dates et le prix viennent de l’avant-contrat : déposez-le d’abord ci-dessus si vous l’avez, puis « Compléter ».')}</h3>
+      <ul class="ja-liste">${groupesAuthenticRecents.slice(0, 6).map((g, i) => {
+        const existant = dossierPourIntituleAuthentic(g.intitule, dossiers);
+        const nom = g.intitule.replace(/^\s*(?:vente|vte)\s+/i, '');
+        return renderLigneAction({
+          titre: libelleDossierParNom(nom),
+          sous: (existant ? 'Déjà suivi dans CLAIRE · ' : '') + resumeGroupeAuthentic(g),
+          delai: g.derniere ? heureAppel(g.derniere) : '',
+          categorie: existant ? 'neutre' : 'acte',
+          bouton: existant
+            ? { libelle: 'Ouvrir la fiche', onclick: `ouvrirDossierDepuisDashboard('${escapeOnclickArg(existant.id)}')` }
+            : { libelle: avecPdf ? 'Compléter' : 'Créer', onclick: `creerDepuisAuthentic(${i})`, icone: icone('plus') }
+        });
+      }).join('')}</ul>`;
+  }
+
+  function creerDepuisAuthentic(i) {
+    const g = groupesAuthenticRecents[i];
+    if (!g) return;
+    const donnees = g.export;
+    const status = document.getElementById('pdf-status');
+    if (typeAffaireAuthentic(donnees) === 'succession') {
+      status.className = 'pdf-status err';
+      status.textContent = `« ${donnees.intitule} » est un dossier de succession : CLAIRE ne suit encore que les ventes.`;
+      return;
+    }
+    // Un avant-contrat déjà lu : Authentic le complète (parties, bien, téléphones, pièces).
+    if (dernierTexteTraite && !exportAuthenticActuel) {
+      exportAuthenticActuel = donnees;
+      recalculerExtractionRegex();
+      appliquerTypeVenteAuthentic(donnees);
+      afficherImportAuthentic(donnees, 'dates et prix lus dans l’avant-contrat déposé.');
+      definirEtapeWizard(2);
+      return;
+    }
+    reinitialiserFormulaire();
+    exportAuthenticActuel = donnees;
+    compromisNomFichierImporte = '';
+    correctionsRevision = {};
+    verificationsRevision = {};
+    pageParType = { pret: null, acte: null, ventebien: null };
+    ambiguiteParType = { pret: false, acte: false, ventebien: false };
+    approxParType = { pret: false, acte: false, ventebien: false };
+    frontieresPagesActuelles = null;
+    recalculerExtractionRegex();
+    majProgression(-1);
+    appliquerTypeVenteAuthentic(donnees);
+    afficherImportAuthentic(donnees, '');
+    definirEtapeWizard(2);
+  }
+
+  // Un appel ouvert par l'adresse « #appel=… » (onglet que 3CX a ouvert, fenêtre CLAIRE absente).
+  async function ouvrirAppelDepuisAdresse() {
+    const m = /(?:^|[#&])appel=([\w-]+)/.exec(location.hash || '');
+    if (!m) return;
+    try { history.replaceState(null, '', location.pathname + location.search); } catch (e) { /* adresse gardée */ }
+    try {
+      const r = await fetchAvecAuth('/api/appels?id=' + encodeURIComponent(m[1]));
+      if (!r.ok) return;
+      const { appels } = await r.json();
+      if (appels && appels[0]) montrerAppelEntrant(appels[0], true);
+    } catch (e) { /* rien à montrer */ }
+  }
+
+  function montrerAppelEntrant(appel, ouvrir) {
+    if (!appel || appelsMontres.has(appel.id)) return;
+    appelsMontres.add(appel.id);
+    for (const x of appel.dossiers || []) delete appelsParDossier[x.id];
+    appelEntrant = appel;
+    renderAppelEntrant();
+    programmerFermetureAppelEntrant(DUREE_BANDEAU_APPEL_MS);
+    const d = ouvrir ? dossierAOuvrirPourAppel(appel, dossiers) : null;
+    // Jamais pendant une saisie : la fiche s'ouvrira d'un clic sur le bandeau.
+    const saisie = document.activeElement && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName);
+    if (d && !saisie) ouvrirFicheAppel(d.id);
+  }
+
+  function ouvrirFicheAppel(id) {
+    ouvrirDossierDepuisDashboard(id);
+    try { definirOngletFiche('echanges'); } catch (e) { /* onglet par défaut */ }
+  }
+
+  function fermerAppelEntrant() {
+    appelEntrant = null;
+    clearTimeout(minuteurAppelEntrant);
+    const el = document.getElementById('appel-entrant');
+    if (el) el.remove();
+  }
+
+  function renderAppelEntrant() {
+    const a = appelEntrant;
+    let el = document.getElementById('appel-entrant');
+    if (!a) { if (el) el.remove(); return; }
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'appel-entrant';
+      el.className = 'appel-entrant';
+      el.setAttribute('role', 'status');
+      el.addEventListener('mouseenter', () => clearTimeout(minuteurAppelEntrant));
+      el.addEventListener('mouseleave', () => programmerFermetureAppelEntrant(DUREE_BANDEAU_APPEL_APRES_SURVOL_MS));
+      document.body.appendChild(el);
+    }
+    const ds = dossiersDeLAppel(a, dossiers);
+    const contact = a.contact && a.contact.libelle ? `<p class="appel-entrant-contact">${escapeHtml(a.contact.type === 'confrere' ? 'Confrère : ' : '')}${escapeHtml(a.contact.libelle)}</p>` : '';
+    el.innerHTML = `
+      <div class="appel-entrant-tete">
+        <span class="appel-entrant-icone">${icone('phone')}</span>
+        <span class="appel-entrant-titre"><b>Appel entrant</b><span>${escapeHtml(heureAppel(a.t))}</span></span>
+        <button type="button" class="appel-entrant-fermer" onclick="fermerAppelEntrant()" aria-label="Fermer">${icone('x')}</button>
+      </div>
+      <p class="appel-entrant-numero">${escapeHtml(a.numero || 'Numéro masqué')}${a.nom ? ` · ${escapeHtml(a.nom)}` : ''}</p>
+      ${contact}
+      ${ds.length ? `<div class="appel-entrant-dossiers">${ds.slice(0, 4).map(y => `<button type="button" class="action-rapide" onclick="ouvrirFicheAppel('${y.d.id}'); fermerAppelEntrant()">${y.partie ? `<span class="appel-entrant-partie">${escapeHtml(y.partie)}</span>` : ''}${escapeHtml(libelleDossierAffiche(y.d))}${y.d.archive ? ' · archivé' : ''}</button>`).join('')}</div>`
+        : (contact ? '' : `<p class="hint">Numéro inconnu de CLAIRE ${infoBulle('Saisissez-le dans l’onglet Échanges du dossier (téléphone du vendeur ou de l’acquéreur) : le prochain appel ouvrira la fiche.')}</p>`)}`;
+  }
+
+  // Fiche › Échanges : téléphones des parties (servent à reconnaître l'appelant).
+  function renderTelephonesDossier(d) {
+    const champ = (partie, libelle, valeur, aide) => `<div class="classif-champ champ-email-relance">
+      <label for="tel-${partie}-${d.id}">${libelle}${aide ? ' ' + infoBulle(aide) : ''}</label>
+      <input type="tel" id="tel-${partie}-${d.id}" class="input-classif" value="${escapeAttr(valeur || '')}"
+        placeholder="Non renseigné" autocomplete="off"
+        onblur="changerTelephoneDossier('${d.id}', '${partie}', this.value)"
+        onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">
+    </div>`;
+    return champ('vendeur', 'Téléphone du vendeur', d.telephoneVendeur, 'Reconnu quand il appelle (3CX) : la fiche s’ouvre. Plusieurs numéros : séparés par « / ».')
+      + champ('acquereur', 'Téléphone de l’acquéreur', d.telephoneAcquereur, '');
+  }
+
+  function changerTelephoneDossier(id, partie, valeur) {
+    const d = dossiers.find(x => x.id === id);
+    if (!d) return;
+    const champ = partie === 'vendeur' ? 'telephoneVendeur' : 'telephoneAcquereur';
+    const nouveau = String(valeur || '').trim().slice(0, 120);
+    if (nouveau === (d[champ] || '')) return;
+    d[champ] = nouveau;
+    ajouterHistorique(d, `Téléphone ${partie === 'vendeur' ? 'du vendeur' : 'de l’acquéreur'} : ${nouveau || '—'}`);
+    sauvegarder(d);
+    render();
+  }
+
+  // Fiche › Échanges : les appels reçus de ce dossier (journal du serveur, chargé à l'affichage).
+  function renderAppelsDossier(d) {
+    if (!(d.id in appelsParDossier)) { chargerAppelsDossier(d.id); return ''; }
+    const liste = appelsParDossier[d.id];
+    if (!liste || !liste.length) return '';
+    const ligne = (a) => {
+      const x = (a.dossiers || []).find(y => y.id === d.id);
+      return `<li><span class="appels-quand">${escapeHtml(dateHeureAppel(a.t))}</span><span>${escapeHtml(x ? LIBELLES_PARTIE_APPEL[x.partie] || '' : '')}${a.nom ? ` · ${escapeHtml(a.nom)}` : ''}</span><span class="appels-numero">${escapeHtml(a.numero || '')}</span></li>`;
+    };
+    return `<div class="appels-dossier">
+        <span class="section-eyebrow">Appels reçus <span class="jour-onglet-nb">${liste.length}</span></span>
+        <ul class="appels-liste">${liste.slice(0, 4).map(ligne).join('')}</ul>
+        ${liste.length > 4 ? `<details class="appels-plus"><summary>${liste.length - 4} de plus</summary><ul class="appels-liste">${liste.slice(4).map(ligne).join('')}</ul></details>` : ''}
+      </div>`;
+  }
+
+  async function chargerAppelsDossier(id) {
+    appelsParDossier[id] = null;
+    try {
+      const r = await fetchAvecAuth('/api/appels?dossierId=' + encodeURIComponent(id));
+      if (!r.ok) return;
+      const { appels } = await r.json();
+      appelsParDossier[id] = appels || [];
+      if (appelsParDossier[id].length) render();
+    } catch (e) { /* réessayé à la prochaine ouverture */ }
+  }
+
+  // Pure : l'adresse du serveur à donner à 3CX. Ouverte sur localhost (fenêtre du poste serveur),
+  // l'adresse de la page ne mène au serveur que depuis ce poste : on prend son adresse sur le réseau
+  // du bureau (192.168.… d'abord), même port.
+  function origineServeurPour3cx(loc, adresses) {
+    const hote = String(loc && loc.hostname || '');
+    if (!/^(localhost|127\.\d+\.\d+\.\d+|\[?::1\]?)$/i.test(hote)) return loc.origin;
+    const liste = (adresses || []).filter(Boolean);
+    const ip = liste.find(a => /^192\.168\./.test(a)) || liste.find(a => /^10\.|^172\.(1[6-9]|2\d|3[01])\./.test(a)) || liste[0];
+    return ip ? `${loc.protocol}//${ip}${loc.port ? ':' + loc.port : ''}` : loc.origin;
+  }
+
+  let origine3cx = '';
+
+  // Pure : l'état d'un poste pour 3CX (Réglages) — sa fenêtre CLAIRE relève-t-elle ses appels, et quand
+  // 3CX a-t-il ouvert son adresse pour la dernière fois. Sépare une panne de 3CX d'une panne de CLAIRE.
+  function etatPoste3cx(info, maintenantMs) {
+    const i = info || {};
+    const fenetre = i.fenetre
+      ? { classe: 'dl-success', texte: 'Fenêtre CLAIRE ouverte' + (i.visible ? '' : ' (en arrière-plan)') }
+      : { classe: 'dl-neutre', texte: 'Fenêtre CLAIRE fermée sur ce poste' };
+    const sonnerie = i.derniereSonnerie
+      ? { classe: 'dl-success', texte: `Dernière sonnerie reçue de 3CX : ${ilYaActivite(i.derniereSonnerie, maintenantMs)}` }
+      : { classe: 'dl-pret', texte: 'Aucune sonnerie reçue de 3CX' };
+    return [fenetre, sonnerie];
+  }
+
+  // Réglages › Téléphonie 3CX : l'adresse de chaque collaborateur pour 3CX, et les derniers appels notés.
+  async function renderReglages3cx() {
+    const liste = document.getElementById('reglages-3cx-liste');
+    if (!liste) return;
+    if (!origine3cx) {
+      let adresses = [];
+      try {
+        const r = await fetchAvecAuth('/api/appels/adresses-serveur');
+        if (r.ok) adresses = (await r.json()).adresses || [];
+      } catch (e) { /* adresse de la page à défaut */ }
+      origine3cx = origineServeurPour3cx(location, adresses);
+    }
+    let postes = {};
+    try {
+      const r = await fetchAvecAuth('/api/appels/postes');
+      if (r.ok) postes = (await r.json()).postes || {};
+    } catch (e) { /* état inconnu : rien d'affiché */ }
+    const maintenant = Date.now();
+    liste.innerHTML = RESPONSABLES.map((nom, i) => `
+      <div class="reglages-champ">
+        <div class="reglages-champ-libelle"><label for="reglages-3cx-${i}">${escapeHtml(nom)}</label>
+          <span class="reglages-3cx-etat">${etatPoste3cx(postes[clePosteAppels(nom)], maintenant).map(e => `<span class="dot-label ${e.classe}">${escapeHtml(e.texte)}</span>`).join('')}</span></div>
+        <div class="reglages-champ-ligne">
+          <input type="text" id="reglages-3cx-${i}" readonly spellcheck="false" value="${escapeAttr(adresseIntegration3cx(origine3cx, nom))}" onfocus="this.select()">
+          <button type="button" class="secondary" onclick="copierAdresse3cx(${i})">Copier</button>
+          <button type="button" class="secondary" onclick="essayerSonnerie3cx(${i})" title="Simule un appel sur ce poste, comme 3CX à la sonnerie">Essayer</button>
+        </div>
+      </div>`).join('');
+    const journal = document.getElementById('reglages-3cx-journal');
+    if (!journal) return;
+    try {
+      const r = await fetchAvecAuth('/api/appels');
+      const { appels } = r.ok ? await r.json() : { appels: [] };
+      journal.innerHTML = appels && appels.length
+        ? `<ul class="appels-liste appels-journal">${appels.slice(0, 20).map(a => {
+            const ds = dossiersDeLAppel(a, dossiers);
+            const qui = ds.length ? ds.map(y => libelleDossierAffiche(y.d)).join(', ') : (a.contact && a.contact.libelle) || 'Inconnu';
+            return `<li><span class="appels-quand">${escapeHtml(dateHeureAppel(a.t))}</span><span>${escapeHtml(qui)}${a.nom ? ` · ${escapeHtml(a.nom)}` : ''}</span><span class="appels-numero">${escapeHtml(a.numero || '')}${a.poste ? ' → ' + escapeHtml(a.poste) : ''}</span></li>`;
+          }).join('')}</ul>`
+        : '<p class="hint">Aucun appel noté pour l’instant.</p>';
+    } catch (e) { journal.innerHTML = ''; }
+  }
+
+  // Pure : l'adresse d'un essai — celle que 3CX ouvrirait, avec un numéro et un nom d'essai.
+  function adresseEssai3cx(origine, collaborateur) {
+    return adresseIntegration3cx(origine, collaborateur).replace('%CallerNumber%', '0600000000').replace('%CallerDisplayName%', encodeURIComponent('Essai CLAIRE'));
+  }
+
+  // Simule la sonnerie (même adresse que 3CX, ouverte d'un clic donc jamais bloquée) : si le bandeau
+  // « Appel entrant » apparaît dans la fenêtre CLAIRE du collaborateur, CLAIRE est prêt ; s'il apparaît
+  // ici mais jamais à un vrai appel, c'est 3CX ou le navigateur qui n'ouvre pas l'adresse (fenêtres
+  // pop-up bloquées pour le client web 3CX).
+  function essayerSonnerie3cx(i) {
+    const nom = RESPONSABLES[i];
+    if (!nom) return;
+    // L'adresse réseau, comme 3CX : l'essai vérifie aussi que le serveur y répond.
+    const fenetre = window.open(adresseEssai3cx(origine3cx || location.origin, nom), '_blank');
+    if (!fenetre) { afficherToast('Le navigateur a bloqué la fenêtre d’essai : autorisez les fenêtres pop-up.', 'OK', null); return; }
+    afficherToast(clePosteAppels(nom) === clePosteAppels(utilisateurPoste)
+      ? 'Appel d’essai envoyé : le bandeau « Appel entrant » doit apparaître dans quelques secondes.'
+      : `Appel d’essai envoyé au poste de ${prenomCollaborateur(nom)} : le bandeau apparaît dans sa fenêtre CLAIRE.`, 'OK', null);
+    setTimeout(renderReglages3cx, 2500);
+  }
+
+  function copierAdresse3cx(i) {
+    const champ = document.getElementById('reglages-3cx-' + i);
+    if (!champ) return;
+    champ.select();
+    afficherToast(copierTexteSilencieux(champ.value) ? 'Adresse copiée : à coller dans 3CX.' : 'Sélectionnez l’adresse puis Ctrl+C.', 'OK', null);
   }
 
   // ---- persistence (serveur intranet) ----
@@ -24232,6 +26748,7 @@
     setInterval(chargerAbsencesOffice, 2 * 60 * 1000);
     // Page Agenda ouverte : relue au même rythme que le tour de lecture du serveur (2 min).
     setInterval(() => { if (ongletActuel === 'agenda' && !agendaModale) chargerAgendaSemaine(); }, 2 * 60 * 1000);
+    setInterval(() => { if (ongletActuel === 'dashboard') chargerAgendaWidget(true); }, 2 * 60 * 1000);
     setInterval(majTraitHeureAgenda, 30 * 1000);
     await chargerEtatNas();
     // Avant toute relecture du NAS : un parcours lancé sans elles reconnaîtrait des fichiers que
@@ -24264,6 +26781,18 @@
     // Sondages de créneaux : les réponses relues par le serveur toutes les 5 minutes.
     chargerSondages();
     setInterval(chargerSondages, 2 * 60 * 1000);
+    // Appels 3CX : relevés toutes les 3 s, même fenêtre cachée (c'est là qu'ils comptent).
+    releverAppels();
+    setInterval(releverAppels, INTERVALLE_APPELS_MS);
+    // Une fenêtre cachée longtemps est ralentie par le navigateur (une relève par minute) : relever
+    // dès qu'elle revient au premier plan.
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') releverAppels(); });
+    ouvrirAppelDepuisAdresse();
+    // Pages d'Authentic relevées automatiquement par l'extension : pièces reçues reportées sur la fiche.
+    setInterval(releverPagesAuthentic, INTERVALLE_RELEVES_AUTHENTIC_MS);
+    // Page d'Authentic envoyée par l'extension Firefox (#authentic=…), au chargement ou dans un onglet déjà ouvert.
+    ouvrirCaptureAuthenticDepuisAdresse();
+    window.addEventListener('hashchange', ouvrirCaptureAuthenticDepuisAdresse);
     // Reçus comptables des dossiers du poste : au démarrage, puis toutes les heures.
     setTimeout(() => verifierFondsRecusAuto().catch(e => console.error('Vérification des fonds', e)), 60 * 1000);
     setInterval(() => verifierFondsRecusAuto().catch(e => console.error('Vérification des fonds', e)), 60 * 60 * 1000);
@@ -24981,7 +27510,8 @@
   // est retenu sur ce poste — confort seulement, repli sur « Général » si le stockage manque.
   // Rubriques de la colonne de gauche, dans l'ordre (réorganisées le 29/09, à la manière des
   // réglages de Claude).
-  var SOUS_ONGLETS_REGLAGES = ['general', 'rappels', 'signature', 'agenda', 'relecture', 'pieces', 'signalements', 'systeme'];
+  // Ordre de la colonne de gauche (revu le 01/10 : une rubrique par sujet).
+  var SOUS_ONGLETS_REGLAGES = ['general', 'collaborateurs', 'signature', 'rappels', 'agenda', 'telephonie', 'pieces', 'relecture', 'signalements', 'systeme'];
   const CLE_SOUS_ONGLET_REGLAGES = 'reglages-sous-onglet';
 
   function sousOngletReglagesRetenu() {
@@ -25371,6 +27901,29 @@
 
   // Normalise un dossier venu d'un fichier externe : garantit la présence et le type de chaque
   // champ attendu, pour qu'un JSON incomplet ou bricolé à la main ne casse pas l'affichage.
+  function situationMatrimonialePersistable(sm) {
+    if (!sm || typeof sm !== 'object') return null;
+    const r = {};
+    ['situation', 'date', 'conjoint', 'contrat', 'regime', 'dateMariage'].forEach(k => { if (typeof sm[k] === 'string' && sm[k]) r[k] = sm[k].slice(0, 120); });
+    return Object.keys(r).length ? r : null;
+  }
+
+  function authenticPersistable(a) {
+    if (!a || typeof a !== 'object') return null;
+    const texte = (v) => typeof v === 'string' ? v.slice(0, 160) : '';
+    const sous = (o, cles) => o && typeof o === 'object' ? Object.fromEntries(cles.filter(k => typeof o[k] === 'string' && o[k]).map(k => [k, texte(o[k])])) : null;
+    const r = {
+      acte: sous(a.acte, ['etat', 'libelle', 'date']), rhf: sous(a.rhf, ['envoyeeLe', 'retourLe']),
+      safer: sous(a.safer, ['notifieeLe', 'priseEnCompteLe', 'decision', 'decisionLe', 'titre']),
+      prix: Number.isFinite(a.prix) && a.prix > 0 ? a.prix : null, collaborateur: texte(a.collaborateur), notaire: texte(a.notaire),
+      personnes: Array.isArray(a.personnes) ? a.personnes.filter(p => p && typeof p.nom === 'string').slice(0, 12)
+        .map(p => ({ nom: texte(p.nom), role: p.role === 'ACQUEREUR' ? 'ACQUEREUR' : 'VENDEUR', situationMatrimoniale: situationMatrimonialePersistable(p.situationMatrimoniale) })) : [],
+      saferPieceAjoutee: a.saferPieceAjoutee === true, releveLe: texte(a.releveLe)
+    };
+    Object.keys(r).forEach(k => { const v = r[k]; if (v == null || v === '' || v === false || (typeof v === 'object' && !Object.keys(v).length)) delete r[k]; });
+    return Object.keys(r).length ? r : null;
+  }
+
   function normaliserDossierImporte(d, nomFichier) {
     if (!d || typeof d !== 'object' || Array.isArray(d)) return null;
     const nom = typeof d.nom === 'string' ? d.nom.trim() : '';
@@ -25382,6 +27935,8 @@
       responsable: typeof d.responsable === 'string' ? d.responsable : '',
       emailAcquereur: typeof d.emailAcquereur === 'string' ? d.emailAcquereur : '',
       emailVendeur: typeof d.emailVendeur === 'string' ? d.emailVendeur : '',
+      telephoneAcquereur: typeof d.telephoneAcquereur === 'string' ? d.telephoneAcquereur : '',
+      telephoneVendeur: typeof d.telephoneVendeur === 'string' ? d.telephoneVendeur : '',
       // Contrairement aux statuts dérivés d'un scan du NAS (offrePretStatut, pieces...), l'envoi du
       // questionnaire est un fait réel déjà accompli par l'utilisateur : conservé tel quel.
       questionnaireEnvoyeLe: typeof d.questionnaireEnvoyeLe === 'string' ? d.questionnaireEnvoyeLe : null,
@@ -25484,6 +28039,10 @@
       // PDF local, contrairement à `pieces` juste en dessous, qui repart bien à {}) : conservés tels
       // quels à l'import, comme `autres` ci-dessus.
       piecesRetirees: Array.isArray(d.piecesRetirees) ? d.piecesRetirees.filter(c => typeof c === 'string') : [],
+      // Relevé dans Authentic (acte, RHF, SAFER, prix, collaborateur, notaire, situations
+      // matrimoniales) : des faits du dossier, les mêmes sur n'importe quel poste.
+      authentic: authenticPersistable(d.authentic),
+      piecesAuthentic: Array.isArray(d.piecesAuthentic) ? d.piecesAuthentic.filter(c => typeof c === 'string') : [],
       // Pièces validées À LA MAIN (voir validerPieceManuellement) : une pièce que l'étude détient
       // ailleurs que sur le NAS — typiquement dans Authentic (Fichorga), une réponse SAFER par
       // exemple. C'est une décision prise par un humain, pas un statut dérivé d'un scan : elle est
@@ -27452,7 +30011,7 @@
             // TOUS les dossiers suivants portant un fichier de même nom — cas signalé par l'étude
             // (« Courriel alignement et numérotage.pdf » : numérotage relié, alignement jamais).
             exclusionsRencontrees.push({ cle: piece.cle, label: piece.label, nom: nomNormalise, fichier: fichier.nom });
-            diagnosticJournal.push(`${fichier.nom} → correspond à « ${piece.label} » mais écarté par une correction précédente (Réglages › Fichiers écartés pour rétablir)`);
+            diagnosticJournal.push(`${fichier.nom} → correspond à « ${piece.label} » mais écarté par une correction précédente (Réglages › Pièces et Claire Scan › Fichiers écartés pour rétablir)`);
           } else {
             correspond = true;
           }
@@ -27868,7 +30427,8 @@
 
   function signalerSiDossierDevenuComplet(d) {
     if (!d) return;
-    if (!dossierEntierementComplet(d)) {
+    const analyse = elementsAnalyseEnAttente(d);
+    if (!dossierEntierementComplet(d) || analyse.engagements.length || analyse.documents.length) {
       if (d.completNotifieLe) d.completNotifieLe = null;
       return;
     }
@@ -34476,6 +37036,7 @@
       document.getElementById('reglages-copie-email').value = reglages.copieEmail || '';
       memoriserReglagesEnregistres(reglages);
       renderReglagesEmails(reglages.emailsResponsables || {}, reglages.fonctionsResponsables || {});
+      renderReglages3cx();
       document.getElementById('reglages-etat').style.display = 'none';
       chargerDernierTourRappels();
       chargerReglagesAgenda();
@@ -35020,9 +37581,10 @@
     }
   }
 
-  async function enregistrerReglagesExchange() {
+  // `idResultat` : où dire « Enregistré » (la section Sondages a son propre bouton).
+  async function enregistrerReglagesExchange(idResultat) {
     const bouton = document.getElementById('exchange-enregistrer-btn');
-    const resultat = document.getElementById('exchange-resultat');
+    const resultat = document.getElementById(typeof idResultat === 'string' ? idResultat : 'exchange-resultat');
     const actif = document.getElementById('exchange-actif');
     const champEmail = document.getElementById('exchange-email');
     const champMdp = document.getElementById('exchange-motdepasse');
@@ -35983,6 +38545,7 @@
     if (!d.nasDossier) { if (!auto) afficherToast('Ce dossier n’est pas relié à son dossier du NAS : reliez-le depuis sa fiche.', 'OK', null); return; }
     scansEnRangement.add(nom);
     if (!auto) renderScans(true);
+    let range = false;
     try {
       const r = await fetchAvecAuth('/api/scans/ranger', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -35996,18 +38559,33 @@
         else afficherToast(corps.erreur || 'Rangement impossible.', 'OK', null);
         return;
       }
+      range = true;
       if (!auto) afficherToast(`Rangé dans ${libelleDossierAffiche(d)}${corps.rubrique ? ' › ' + corps.rubrique.replace(/[\\/]+/g, ' › ') : ''}.`, 'OK', null);
       // Pièce ajoutée/cochée et responsable prévenu tout de suite, sans attendre le parcours du NAS
-      // (relancé ensuite pour le reste : il ne renotifie pas une pièce déjà « reçue »).
-      try { await enregistrerPieceRangee(d, choix, corps, auto); } catch (e) { console.warn('Pièce rangée non enregistrée :', e.message); }
-      if (typeof verifierDossierLocal === 'function') verifierDossierLocal(d.id, false).catch(() => {});
+      // (relancé ensuite pour le reste : il ne renotifie pas une pièce déjà « reçue »). Ni l'un ni
+      // l'autre ne retient plus l'écran (étude, 01/10 : « c'est lors du clic que c'est long »).
+      enregistrerPieceRangee(d, choix, corps, auto)
+        .catch(e => console.warn('Pièce rangée non enregistrée :', e.message))
+        .then(() => { if (typeof verifierDossierLocal === 'function') verifierDossierLocal(d.id, false).catch(() => {}); });
     } finally {
-      // L'indicateur reste jusqu'à la liste relue : le scan rangé en sort, un échec le rend cliquable.
-      try { await chargerScans(true); } finally {
-        scansEnRangement.delete(nom);
-        if (ongletActuel === 'scans') renderScans(true);
-      }
+      finirGesteScan(nom, scansEnRangement, range ? 'range' : '');
     }
+  }
+
+  // Fin d'un geste sur un scan (ranger, laisser dans Scan) : la liste se met à jour TOUT DE SUITE
+  // d'après la réponse du serveur — le scan rangé en sort, le scan laissé passe dans « laissés de
+  // côté » — et la relecture du dossier du copieur se fait ensuite, en arrière-plan. Avant, le
+  // bouton tournait jusqu'à la fin de cette relecture (étude, 01/10).
+  function finirGesteScan(nom, enCours, resultat) {
+    enCours.delete(nom);
+    if (resultat) {
+      const scan = scanParNom(nom);
+      etatScans.scans = (etatScans.scans || []).filter(x => x.nom !== nom);
+      if (resultat === 'ecarte' && scan) etatScans.ecartes = [scan].concat((etatScans.ecartes || []).filter(x => x.nom !== nom));
+    }
+    majBadgeScans();
+    if (ongletActuel === 'scans') renderScans(true);
+    chargerScans(true).catch(() => {});
   }
 
   // Types rangés qui ne sont pas des « pièces » du dossier : l'offre de prêt et l'avant-contrat ont
@@ -36069,16 +38647,15 @@
     if (scansEnEcart.has(nom) || scansEnRangement.has(nom)) return;
     scansEnEcart.add(nom);
     renderScans(true);
+    let ecarte = false;
     try {
       const r = await fetchAvecAuth('/api/scans/ecarter', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nom, auteur: utilisateurPoste || '' }) });
       if (!r.ok) afficherToast('Le scan n’a pas pu être laissé de côté : réessayez.', 'OK', null);
+      else ecarte = true;
     } catch (e) {
       afficherToast('Serveur injoignable — scan non déplacé.', 'OK', null);
     } finally {
-      try { await chargerScans(true); } finally {
-        scansEnEcart.delete(nom);
-        if (ongletActuel === 'scans') renderScans(true);
-      }
+      finirGesteScan(nom, scansEnEcart, ecarte ? 'ecarte' : '');
     }
   }
 
@@ -36197,7 +38774,7 @@
       overlay = document.createElement('div');
       overlay.id = 'scan-apercu-overlay';
       overlay.className = 'scan-apercu-overlay';
-      overlay.addEventListener('click', (e) => { if (e.target === overlay) fermerApercuScan(); });
+      overlay.addEventListener('click', (e) => { if (clicSurFond(e)) fermerApercuScan(); });
       document.body.appendChild(overlay);
     }
     const jeton = {};

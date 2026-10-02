@@ -34,6 +34,8 @@ const { creerRouteurExchange } = require('./routes/exchange');
 const { creerRouteurSondages } = require('./routes/sondages');
 const { creerRouteurEmailsMatin } = require('./routes/emailsMatin');
 const { creerRouteurRapportTechnique } = require('./routes/rapportTechnique');
+const { creerRouteurSonnerie, creerRouteurAppels, creerEtatAppels } = require('./routes/appels');
+const { creerRouteurAuthentic } = require('./routes/authentic');
 const { creerJournalTechnique } = require('./journalTechnique');
 const { COLLABORATEURS_ABSENCE } = require('./agendaOffice');
 const { lireBuildInstalle } = require('./miseAJour');
@@ -128,6 +130,13 @@ function creerApp({ db, config, envoyerEmailFn, creerClientClaude, appelerMistra
   // Lien signé vers une pièce du NAS (notification Teams) : hors authentification par session, la
   // signature du lien en tient lieu — voir liensPieces.js.
   app.use(creerRouteurLienPiece(config, parametresRepo));
+  // Sonnerie 3CX (« Intégration CRM » du client web) : hors session, elle ne fait que noter l'appel
+  // et ne renvoie aucune donnée — voir routes/appels.js.
+  const etatAppels = creerEtatAppels();
+  app.use(creerRouteurSonnerie(parametresRepo, depot, etatAppels));
+  app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurAppels(parametresRepo, etatAppels));
+  // Pages d'Authentic envoyées par l'extension Firefox (extension-firefox/), gardées en mémoire 30 min.
+  app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurAuthentic());
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurDossiers(depot));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurExtractionIa(config));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurOffrePret(config));

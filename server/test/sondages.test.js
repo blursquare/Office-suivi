@@ -298,6 +298,21 @@ test('annulation : options retirées ; identifiants refusés à la relecture →
   assert.equal((await appeler(`/api/sondages/${cree.sondage.id}/annuler`, { method: 'POST', body: '{}' })).status, 409);
 });
 
+test('sondage sans dossier : titre obligatoire, plusieurs sondages possibles, options au nom du titre', async () => {
+  const sansDossier = { ...corpsCreation, dossierId: '', dossierNom: '', libelle: '', poserOptions: true,
+    participants: [{ role: 'autre', nom: 'Agence Exemple', email: 'agence@exemple.fr' }, { role: 'autre', nom: 'Me LEBRUN', email: 'office@confrere.test', confrere: true }] };
+  assert.equal((await appeler('/api/sondages', { method: 'POST', body: JSON.stringify(sansDossier) })).status, 400, 'sans titre ni dossier');
+  appelsEws.length = 0;
+  const cree = await (await appeler('/api/sondages', { method: 'POST', body: JSON.stringify({ ...sansDossier, titre: 'Réunion ? avec l’agence' }) })).json();
+  assert.equal(cree.ok, true);
+  assert.equal(cree.sondage.dossierId, '');
+  assert.equal(cree.sondage.titre, 'Réunion avec l’agence', 'le « ? » est réservé aux options');
+  assert.match(appelsEws[0], /Réunion avec l’agence \? — option CLAIRE, créneau 1\/2/);
+  assert.equal(cree.sondage.participants[1].confrere, true);
+  const second = await (await appeler('/api/sondages', { method: 'POST', body: JSON.stringify({ ...sansDossier, poserOptions: false, titre: 'Point syndic' }) })).json();
+  assert.equal(second.ok, true, 'plusieurs sondages sans dossier ouverts en même temps');
+});
+
 test('créneau invalide ou adresse invalide : 400', async () => {
   const r1 = await appeler('/api/sondages', { method: 'POST', body: JSON.stringify({ ...corpsCreation, dossierId: 'd3', creneaux: [{ date: '20/10/2026', heure: '10:00' }] }) });
   assert.equal(r1.status, 400);

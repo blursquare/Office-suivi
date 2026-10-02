@@ -140,9 +140,18 @@ test('dans une semaine, les échéances sont triées par date puis par nom', () 
   assert.equal(groupes[0].items.map(i => i.dossier.nom).join(','), 'BALZAC,ARAGON,ZOLA');
 });
 
-test('un dossier sans aucune échéance datée n’apparaît nulle part', () => {
+test('un dossier sans aucune échéance datée apparaît quand même, en dernier (« Sans échéance datée »)', () => {
+  // Étude, 02/10 : « il faut afficher tous les dossiers » — l'ancienne règle les omettait.
   const app = chargerApplication();
-  assert.equal(app.grouperEcheancesParSemaine([dossier('VIDE', {})], AUJOURDHUI).length, 0);
+  const groupes = app.grouperEcheancesParSemaine([
+    dossier('VIDE', {}),
+    dossier('X', { autres: [{ label: 'Échéance', date: '2026-09-17' }] }),
+    dossier('LOIN', { autres: [{ label: 'Échéance', date: '2027-06-17' }] })
+  ], AUJOURDHUI);
+  assert.equal(groupes.map(g => g.cle).join(','), 's-2026-09-14,plus-tard,sans-date');
+  assert.equal(groupes[2].items[0].dossier.nom, 'VIDE');
+  assert.equal(groupes[2].items[0].echeance, null);
+  assert.equal(app.libelleSemaine(groupes[2], AUJOURDHUI), 'Sans échéance datée');
 });
 
 test('libelleSemaine nomme les groupes en français, année tue si c’est la même', () => {
@@ -170,5 +179,39 @@ test('la vue Échéances porte des titres de colonne, une seule fois, en haut', 
   const html = app.renderVueSemaines(dossiers);
   assert.equal(html.split('<thead>').length - 1, 1);
   assert.ok(html.indexOf('<thead>') < html.indexOf('<tbody>'));
-  for (const titre of ['Date', 'Échéance', 'Dossier', 'Responsable']) assert.ok(html.includes(`<th>${titre}</th>`));
+  for (const titre of ['Date', 'Échéance', 'Dossier']) assert.ok(html.includes(`<th>${titre}</th>`));
+  // Responsable abrégé (étude, 01/10 : initiales en pastille, colonne étroite), nom entier au survol.
+  assert.ok(html.includes('<th title="Responsable">Resp.</th>'));
+  assert.ok(html.includes('class="pastille-collab" title="Julie VASSELIN"'));
+  assert.ok(html.includes('>JV</span>'));
+});
+
+test('Suivi : mêmes colonnes, même ordre en vue Échéances et en vue Tableau (Date, Dossier, Échéance, Resp., Statut)', () => {
+  const app = chargerApplication();
+  const d = { id: 'a', nom: 'A / B', responsable: 'Julie VASSELIN', pret: '2099-06-10' };
+  const titres = (html) => (html.match(/<thead>[\s\S]*?<\/thead>/) || [''])[0].match(/<th(?:\s[^>]*)?>[^<]*/g).map(t => t.replace(/<th(?:\s[^>]*)?>/, '')).join('|');
+  assert.equal(titres(app.renderVueSemaines([d])), 'Date|Dossier|Échéance|Resp.|Statut');
+  assert.equal(titres(app.ENTETE_SUIVI), 'Date|Dossier|Échéance|Resp.|Statut');
+  // Une ligne de la vue Tableau : la date, puis le nom, puis le libellé de l'échéance, puis la pastille.
+  const ligne = app.renderLigneTableau(d);
+  const ordre = ['10 juin 2099', 'A / B', 'Obtention du prêt', 'pastille-collab', 'À relier'].map(x => ligne.indexOf(x));
+  assert.ok(ordre.every(i => i >= 0), ordre.join(','));
+  assert.equal(ordre.slice().sort((x, y) => x - y).join(','), ordre.join(','));
+});
+
+test('dateSignatureEnVert : date de signature d’un dossier complet ou prêt, jamais une autre échéance', () => {
+  const app = chargerApplication();
+  let etat = 'pret';
+  app.etatDossier = () => ({ cle: etat });
+  const d = { id: 'v', nom: 'V', rendezVousSignature: '2026-10-20' };
+  assert.equal(app.dateSignatureEnVert(d, { type: 'rendezVousSignature', iso: '2026-10-20' }), true);
+  // Étape « Envoi appel de fonds » datée du rendez-vous : c'est bien la date de signature qui s'affiche.
+  assert.equal(app.dateSignatureEnVert(d, { type: 'appelFonds', iso: '2026-10-20' }), true);
+  assert.equal(app.dateSignatureEnVert(d, { type: 'pret', iso: '2026-10-12' }), false);
+  etat = 'complet';
+  assert.equal(app.classeDateEcheanceSuivi(d, { type: 'rendezVousSignature', iso: '2026-10-20' }, 1), 'signature-ok');
+  etat = 'attente';
+  assert.equal(app.dateSignatureEnVert(d, { type: 'rendezVousSignature', iso: '2026-10-20' }), false);
+  assert.equal(app.classeDateEcheanceSuivi(d, { type: 'rendezVousSignature', iso: '2026-10-20' }, 1), 'urgent');
+  assert.equal(app.classeDateEcheanceSuivi(d, { type: 'rendezVousSignature', iso: '2026-10-20' }, 9), 'calme');
 });
