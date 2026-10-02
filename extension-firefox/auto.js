@@ -45,11 +45,21 @@
     };
     browser.runtime.sendMessage({ type: 'releve', capture: c }).then(rep => { if (!rep || !rep.ok) echec(); }, echec);
   }
+  // Le texte sans les titres des onglets inactifs (un autre dossier ouvert ne compte pas).
+  function texteActif(c) {
+    const inactifs = new Set((c.onglets || []).filter(o => !o.actif).map(o => o.titre));
+    return String(c.texte || '').split('\n').filter(l => !inactifs.has(l.replace(/\s+/g, ' ').trim())).join('\n');
+  }
   function pageConnue(c) {
     const re = /(?:^|[^\w])\d{1,6}\s*-\s*(?:(?:Vente|VTE)\s+[^\n\/]*\S\s*\/\s*\S|(?:Succession|SUCC)\.?\s+\S)/i;
+    // Page d'un dossier, quelle que soit la formulation de son intitulé (0.3.7, étude 02/10 : « le nom
+    // n'est pas fixe et change parfois ») : « N - … » suivi de Importer / Comparants / Immeubles.
+    const reGestion = /(?:^|[^\w])\d{1,6}\s*-\s*[A-Za-zÀ-ÿ][^\n]{0,150}?\S\s*(?:Importer|Comparants|Immeubles)(?![A-Za-zÀ-ÿ])/i;
     const libelles = (c.champs || []).map(ch => String(ch.libelle || '') + ' ' + String(ch.valeur || ''));
     if (libelles.some(l => /ficheClientPhysique|ficheImmeuble/i.test(l))) return true;
-    return libelles.some(l => re.test(l)) || re.test(String(c.texte || ''));
+    if ((c.onglets || []).some(o => o.actif && /^\s*\d{1,6}\s*-\s*[A-Za-zÀ-ÿ]/.test(o.titre))) return true;
+    const texte = texteActif(c);
+    return libelles.some(l => re.test(l) || reGestion.test(l)) || re.test(texte) || reGestion.test(texte);
   }
   // L'intitulé « N - … » du dossier ouvert : un libellé seul (sans valeur), sinon la première ligne du texte.
   function intituleDossier(c) {
@@ -58,7 +68,9 @@
       const l = String(ch.libelle || '').trim();
       if (!String(ch.valeur || '').trim() && re.test(l)) return l.slice(0, 200);
     }
-    const premiere = String(c.texte || '').split('\n').map(l => l.trim()).find(Boolean) || '';
+    const actif = (c.onglets || []).find(o => o.actif && /^\s*\d{1,6}\s*-\s*[A-Za-zÀ-ÿ]/.test(o.titre));
+    if (actif) return actif.titre.slice(0, 200);
+    const premiere = texteActif(c).split('\n').map(l => l.trim()).find(Boolean) || '';
     const m = /^\d{1,6}\s*-\s*[A-Za-zÀ-ÿ].{1,120}?(?=\s+(?:Importer|Comparants|Immeubles)\b|$)/.exec(premiere);
     return m ? m[0].trim().slice(0, 200) : '';
   }

@@ -979,3 +979,53 @@ test('ligneJournalAuthentic : page, postes, état et choix à la main', () => {
   assert.equal(ok.dossierId, 'a');
   assert.equal(app.ligneJournalAuthentic({ etat: 'expire', nature: 'dossier', enMemoire: true }, []).etat.texte, 'Perdue : aucune fenêtre CLAIRE ouverte');
 });
+
+test('plusieurs dossiers ouverts : l’onglet actif désigne la page, jamais un onglet inactif', () => {
+  const page = {
+    onglets: [{ titre: '1200 - Vente MARTEL/DUPONT', actif: false }, { titre: '1836 - Vente MARTEL/FOURNIER', actif: true }],
+    champs: [], tableaux: [],
+    texte: '1200 - Vente MARTEL/DUPONT\n1836 - Vente MARTEL/FOURNIER\nAccueil'
+  };
+  assert.equal(app.numeroDossierAuthentic(page), '1836');
+  assert.equal(app.intituleDossierAuthentic(page), 'Vente MARTEL / FOURNIER');
+  // Sans onglet repéré : l'en-tête de la page du dossier (suivi de « Comparants ») l'emporte sur les titres.
+  const sansOnglets = { champs: [], tableaux: [], texte: '1200 - Vente MARTEL/DUPONT\n1836 - Vente MARTEL/FOURNIER\nComparants (3)' };
+  assert.equal(app.numeroDossierAuthentic(sansOnglets), '1836');
+  // Liste de résultats de recherche : plusieurs dossiers cités, aucun en-tête → aucun dossier.
+  assert.equal(app.numeroDossierAuthentic({ champs: [], tableaux: [], texte: '1200 - Vente MARTEL/DUPONT\n1836 - Vente MARTEL/FOURNIER' }), '');
+  // Fiche client : les intitulés des onglets inactifs ne sont pas « cités » par la fiche.
+  assert.equal(app.intitulesNumerotesAuthentic(page).map(x => x.numero).join(','), '1836');
+});
+
+test('intitulé de toute formulation : le numéro, puis les noms', () => {
+  const promesse = { champs: [{ groupe: '', libelle: '1836 - Promesse de vente MARTEL/FOURNIER Importer avec 2e SENS', valeur: '' }], tableaux: [], texte: '' };
+  assert.equal(app.numeroDossierAuthentic(promesse), '1836');
+  assert.equal(app.intituleDossierAuthentic(promesse), 'Vente MARTEL / FOURNIER');
+  const libre = { champs: [], tableaux: [], texte: '1836 - MARTEL Maison Blois FOURNIER\nComparants (2)' };
+  assert.equal(app.numeroDossierAuthentic(libre), '1836');
+  const intitule = app.intituleDossierAuthentic(libre);
+  assert.equal(intitule, 'MARTEL Maison Blois FOURNIER');
+  const dossiers = [{ id: 'a', nom: 'MARTEL / FOURNIER', parties: [] }, { id: 'b', nom: 'COLIN / DUPUIS', parties: [] }];
+  assert.equal(app.scoreDossierAuthentic(intitule, '', dossiers[0]).score, 6);
+  assert.equal(app.dossierPourIntituleAuthentic(intitule, dossiers, '', '1836').id, 'a');
+  // Un dossier dont le numéro est connu est retrouvé par lui seul, quel que soit l'intitulé du jour.
+  assert.equal(app.dossierPourIntituleAuthentic('Projet acte BLOIS', [{ id: 'c', nom: 'X / Y', numeroAuthentic: '1836' }], '', '1836').id, 'c');
+  // Une donation du même client ne suffit pas.
+  assert.equal(app.dossierPourIntituleAuthentic('Donation MARTEL', dossiers, '', '15'), null);
+});
+
+test('ancien dossier des mêmes clients : jamais appliqué ni proposé', () => {
+  const ancien = {
+    champs: [{ groupe: '', libelle: '1200 - Vente MARTEL/FOURNIER Importer', valeur: '' }],
+    tableaux: [{ titre: '', entete: [], lignes: [['Acte de vente', '', '12/03/2019', '', 'Signé le 12/03/2019']] }],
+    texte: ''
+  };
+  const d = { id: 'a', nom: 'MARTEL / FOURNIER', dateAvantContrat: '2026-07-01', parties: [] };
+  assert.equal(app.ancienDossierAuthentic(ancien, d), true);
+  assert.equal(app.ancienDossierAuthentic(ancien, Object.assign({}, d, { dateAvantContrat: '2018-01-01' })), false);
+  assert.equal(app.proposerChoixDossierAuthentic(ancien, 'Vente MARTEL / DUPONT', [d]), false);
+  const enCours = { champs: [{ groupe: '', libelle: '1836 - Vente MARTEL/DUPONT Importer', valeur: '' }], tableaux: [], texte: '' };
+  // Les seuls dossiers aux mêmes noms ont déjà leur numéro : une autre affaire, pas de message.
+  assert.equal(app.proposerChoixDossierAuthentic(enCours, 'Vente MARTEL / DUPONT', [Object.assign({}, d, { numeroAuthentic: '1700' })]), false);
+  assert.equal(app.proposerChoixDossierAuthentic(enCours, 'Vente MARTEL / DUPONT', [d]), true);
+});

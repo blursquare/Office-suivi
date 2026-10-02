@@ -263,3 +263,14 @@ test('origineRequete : le poste serveur (local ou par sa propre adresse) compte 
   assert.equal(origineRequete(req('::ffff:192.168.60.10'), propres), 'local');
   assert.equal(origineRequete(req('::ffff:192.168.60.21'), propres), '192.168.60.21');
 });
+
+test('pageAuthenticConnue : intitulé de toute formulation ; un dossier ouvert dans un onglet inactif ne compte pas', () => {
+  const { pageAuthenticConnue, normaliserCaptureAuthentic } = require('../src/routes/authentic');
+  assert.equal(pageAuthenticConnue({ champs: [{ libelle: '1836 - Promesse MARTEL Blois Importer', valeur: '' }] }), true);
+  assert.equal(pageAuthenticConnue({ champs: [], texte: '1836 - MARTEL maison\nComparants (2)' }), true);
+  // Page d'agenda avec un dossier ouvert dans un autre onglet : pas une page de dossier.
+  const agenda = normaliserCaptureAuthentic({ champs: [{ libelle: 'Rechercher', valeur: '' }], onglets: [{ titre: '1836 - Vente MARTEL/FOURNIER', actif: false }, { titre: 'Agenda', actif: true }], texte: '1836 - Vente MARTEL/FOURNIER\nAgenda de l’office' });
+  assert.equal(agenda.onglets.length, 2);
+  assert.equal(pageAuthenticConnue(agenda), false);
+  assert.equal(pageAuthenticConnue({ champs: [{ libelle: 'x', valeur: '' }], onglets: [{ titre: '1836 - Vente MARTEL/FOURNIER', actif: true }], texte: '' }), true);
+});

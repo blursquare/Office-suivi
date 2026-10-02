@@ -15180,3 +15180,36 @@ Vérifié : tests serveur (routage par poste, doublon, page revue, expiration, j
 rattachement, lignes du journal) ; Chromium avec serveur réel et dossiers inventés (dossier créé « sur un autre
 poste » pendant que la fenêtre ne sondait plus → retrouvé ; page non reconnue → message, choix, numéro retenu ;
 journal clair/sombre/téléphone). Non vérifié : vraie extension dans Firefox, adresses réseau réelles des postes.
+
+### 02/10/2026 (21 h 15) — Authentic : l'usage réel de l'étude (onglets, intitulés variables, anciens dossiers)
+
+Description de l'étude : « J'ouvre le logiciel, je recherche un nom de client, je clique sur le dossier, puis le
+sous-dossier de promesse de vente ou de vente. Je peux aussi aller sur d'anciens dossiers dont le nom d'un client peut
+être associé à d'autres clients. J'ouvre, je ferme un dossier, il peut y avoir plusieurs dossiers ouverts en même
+temps. » Questions posées : intitulé du sous-dossier de promesse → « en bas à gauche, le nom n'est pas fixe et change
+parfois » ; numéro → « un seul numéro » par affaire (promesse et vente).
+Trois failles et leurs corrections :
+1. **Plusieurs dossiers ouverts** : le texte de la page (innerText) contient les titres de TOUS les onglets ;
+   l'intitulé et le numéro étaient pris au premier trouvé — parfois un autre dossier ouvert (et une page de
+   recherche ou d'agenda passait pour une page de dossier). Extension 0.3.7 : `releve.js` relève `onglets`
+   ([role=tab] / `.ui-tabs-nav > li`, titre + actif : aria-selected, ui-state-active, ui-tabs-selected) ; serveur
+   (`normaliserCaptureAuthentic` garde `onglets`, `texteActifAuthentic`), extension (`texteActif`) et poste
+   (`texteSansOngletsInactifsAuthentic`) retirent les titres des onglets inactifs. Poste : `intituleNumeroteAuthentic`
+   = onglet actif « N - … », puis en-tête de la page (`RE_INTITULE_GESTION_AUTHENTIC`), puis intitulé seul s'il est
+   le SEUL de la page (une liste de résultats en cite plusieurs → aucun dossier).
+2. **Intitulé variable** : seules « N - Vente X/Y » et « N - Succession X » étaient lues (sinon la page ne quittait
+   pas Firefox). Désormais toute page « N - … » suivie de Importer / Comparants / Immeubles est une page de dossier
+   (extension, serveur `RE_INTITULE_GESTION_PAGE`, poste). Le numéro passe d'abord ; à défaut les noms :
+   `intituleVenteNormalise` (« Promesse de vente X/Y » → « Vente X / Y »), sinon `scoreDossierAuthentic` sur les mots
+   de l'intitulé (côté du dossier dont tous les mots y figurent : 3, partie : 2 ; `MOTS_NATURE_ACTE_AUTHENTIC` retirés).
+   Seuil inchangé (6). Une donation du même client ne suffit pas.
+3. **Anciens dossiers des mêmes clients** : un ancien dossier « MARTEL/FOURNIER » pouvait être pris pour le dossier en
+   cours aux mêmes noms (et lui voler son numéro). `ancienDossierAuthentic` : retrouvé par les noms (pas par son
+   numéro) mais acte signé avant l'avant-contrat (ou l'ouverture) du dossier → jamais appliqué, numéro non pris, motif
+   au journal. Le message « Choisir » (`proposerChoixDossierAuthentic`) n'apparaît plus pour un dossier signé, ni quand
+   les seuls dossiers aux mêmes noms ont déjà leur numéro (une affaire = un numéro : c'en est une autre).
+Vérifié : tests (onglet actif, en-tête contre titres, liste de résultats, promesse et intitulé libre, numéro seul,
+donation, ancien dossier, message) ; Chromium : `releve.js` sur une page inventée façon PrimeFaces (deux onglets,
+le second actif) → onglets relevés, onglet inactif ignoré ; ancien dossier signé en 2019 ni appliqué ni proposé.
+Non vérifié : la structure réelle des onglets d'Authentic (rôles ARIA supposés d'après PrimeFaces) et la place exacte
+du sous-dossier « en bas à gauche » — à confirmer par la « Copier la structure (sans données) » d'une vraie page.

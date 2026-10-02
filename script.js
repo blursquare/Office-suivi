@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-02 20:54';
+  const VERSION_APP = '2026-10-02 21:15';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-02 21:15', resume: "Authentic, d'après l'usage de l'étude : plusieurs dossiers ouverts en même temps — seul l'onglet actif désigne la page, jamais un autre dossier ouvert à côté (extension 0.3.7) ; une liste de résultats de recherche ne désigne plus aucun dossier. La page d'un dossier est lue quelle que soit la formulation de son intitulé : l'affaire est retrouvée par son numéro, commun à la promesse et à la vente, puis par les noms. Un ancien dossier des mêmes clients (acte signé avant le dossier en cours) n'est jamais appliqué ni ne prend le numéro, et ne fait plus apparaître « Choisir » ; ce message n'apparaît que si un dossier en cours sans numéro porte ces noms." },
     { version: '2026-10-02 20:54', resume: "Authentic, pages qui ne remontaient pas : une fenêtre CLAIRE cachée ou réduite (qui ne relit plus les dossiers) prenait les pages d'Authentic sur une copie ancienne — un dossier créé depuis sur un autre poste restait introuvable, et la fiche enregistrée pouvait écraser des changements faits ailleurs ; les dossiers sont désormais relus avant chaque page. Une page est servie d'abord à la fenêtre CLAIRE du poste qui consulte Authentic (avant : n'importe laquelle, parfois celle d'un collègue). Une page revue est relue avec son contenu (avant : seulement le changement de dossier). La page d'un dossier qu'aucun dossier de CLAIRE ne reconnaît le dit, avec le motif (noms absents, points insuffisants, deux dossiers trop proches, numéro déjà pris) et « Choisir » pour la ranger à la main — le numéro d'Authentic est alors retenu. Nouveau : Réglages › Authentic, journal de chaque page reçue (poste, fenêtre qui l'a lue, résultat). Extension 0.3.6 : une page non arrivée à CLAIRE est renvoyée." },
     { version: '2026-10-02 20:26', resume: "Répertoire : le carnet des confrères et les notaires de France ne font plus doublon — une seule entrée « Notaires ». Par département, chaque office du carnet remplace sa ligne de l'annuaire (corrigé, avec notes, dossiers en cours, crayon et ×) ; les autres offices s'ajoutent d'un clic (« Au carnet »). « Mes confrères seulement » affiche tout le carnet, tous départements. Le carnet continue de servir à reconnaître le notaire d'une fiche." },
     { version: '2026-10-02 20:15', resume: "Répertoire, présentation revue en entier : les thèmes passent dans une colonne à gauche (Tout ; Notaires : Carnet des confrères, Notaires de France ; Interlocuteurs : banques, assurances…), avec leur nombre qui suit la recherche ; chaque office ou interlocuteur tient sur une ligne compacte — nom, notaires ou service, adresse à gauche, téléphones et emails cliquables à droite, crayon et × au bout —, comme les Notaires de France ; la modification s'ouvre dans la ligne. Sur téléphone, les thèmes défilent en haut." },
@@ -26000,6 +26001,12 @@
   // forme supposée, à confirmer sur une vraie page de succession).
   var RE_INTITULE_DOSSIER_AUTHENTIC = /(?:^|[^\w])(\d{1,6})\s*-\s*((?:Vente|VTE)\s+[^\n\/]*?\S\s*\/\s*[^\n]*?\S|(?:Succession|SUCC)\.?\s+[^\n\/]*?\S)(?=\s+(?:Importer|Comparants|Immeubles)\b|\s*\n|\s*$)/i;
   var RE_INTITULE_SUCCESSION_AUTHENTIC = /^\s*(?:succession|succ)\.?\s+\S/i;
+  // En-tête de la page d'un dossier, QUELLE QUE SOIT sa formulation (étude, 02/10 : « le nom n'est pas
+  // fixe et change parfois » — un seul numéro par affaire, promesse et vente comprises) : « N - … »
+  // suivi de « Importer », « Comparants » ou « Immeubles », comme sur toute page de dossier.
+  var RE_INTITULE_GESTION_AUTHENTIC = /(?:^|[^\w])(\d{1,6})\s*-\s*([A-Za-zÀ-ÿ][^\n]{0,150}?\S)(?=\s*(?:Importer|Comparants|Immeubles)(?![A-Za-zÀ-ÿ]))/i;
+  // Mots de nature d'acte, retirés d'un intitulé pour n'en garder que les noms.
+  var MOTS_NATURE_ACTE_AUTHENTIC = new Set(['vente', 'vte', 'promesse', 'compromis', 'avant', 'contrat', 'unilaterale', 'synallagmatique', 'achat', 'acte', 'pv', 'puv', 'maison', 'terrain', 'appartement', 'immeuble', 'bien']);
   // Une ligne qui annonce une demande ou un envoi n'est pas une pièce reçue.
   // « APR » en tête (étude, 02/10) : demande d'état civil envoyée par papier — jamais une pièce reçue
   // (« ECV », état civil virtuel, l'est).
@@ -26038,31 +26045,67 @@
     return 'autre';
   }
 
-  // Pure : le numéro du dossier dans Authentic (« 1861 » de « 1861 - Vente X/Y »), ou ''. Il identifie
-  // le dossier mieux que les noms (étude, 02/10 : « tu dois avoir un identifiant du type : 1861 »).
-  function numeroDossierAuthentic(capture) {
+  // Pure : le texte de la page sans les titres des onglets INACTIFS (étude, 02/10 : « il peut y avoir
+  // plusieurs dossiers ouverts en même temps » — l'intitulé d'un autre dossier ouvert ne doit jamais
+  // désigner la page). `capture.onglets` vient de l'extension (0.3.7) : [{ titre, actif }].
+  function texteSansOngletsInactifsAuthentic(capture) {
     const c = capture || {};
-    const sources = [];
-    (c.champs || []).forEach(ch => { sources.push(ch.libelle || ''); sources.push(ch.valeur || ''); });
-    sources.push(c.texte || '');
-    for (const s of sources) {
-      const m = RE_INTITULE_DOSSIER_AUTHENTIC.exec(String(s));
-      if (m) return m[1];
-    }
-    return '';
+    const inactifs = new Set((Array.isArray(c.onglets) ? c.onglets : [])
+      .filter(o => o && !o.actif).map(o => String(o.titre || '').replace(/\s+/g, ' ').trim()).filter(Boolean));
+    const texte = String(c.texte || '');
+    if (!inactifs.size) return texte;
+    return texte.split('\n').filter(l => !inactifs.has(l.replace(/\s+/g, ' ').trim())).join('\n');
   }
 
-  // Pure : « Vente VENDEUR/ACQUÉREUR » d'après le libellé du dossier ouvert dans Authentic.
-  function intituleDossierAuthentic(capture) {
+  // Pure : « Promesse de vente MARTEL/FOURNIER », « MARTEL / FOURNIER »… → « Vente MARTEL / FOURNIER » ;
+  // un intitulé sans « / » (ni succession) est rendu tel quel.
+  function intituleVenteNormalise(intitule) {
+    const t = String(intitule || '').replace(/\s+/g, ' ').trim();
+    if (!t || RE_INTITULE_SUCCESSION_AUTHENTIC.test(t)) return t;
+    const m = /^(?:(?:vente|vte|promesse|compromis|avant[\s-]*contrat|pv|puv|unilat[ée]rale|synallagmatique|achat|de|d'|d’)\.?\s*)*(.+?)\s*\/\s*(.+)$/i.exec(t);
+    return m ? `Vente ${m[1].trim()} / ${m[2].trim()}` : t;
+  }
+
+  // Pure : { numero, intitule } du dossier affiché, dans l'ordre de sûreté :
+  //  1. le titre de l'onglet ACTIF s'il porte « N - … » ;
+  //  2. l'en-tête de la page du dossier (« N - … » suivi de Importer / Comparants / Immeubles), toute formulation ;
+  //  3. un intitulé « N - Vente X/Y » (ou succession) seul, à condition qu'il soit le SEUL de la page — une liste
+  //     de résultats de recherche en cite plusieurs : elle ne désigne aucun dossier.
+  function intituleNumeroteAuthentic(capture) {
     const c = capture || {};
+    const vide = { numero: '', intitule: '' };
+    for (const o of (Array.isArray(c.onglets) ? c.onglets : [])) {
+      const m = o && o.actif ? /^\s*(\d{1,6})\s*-\s*([A-Za-zÀ-ÿ].*?)\s*$/.exec(String(o.titre || '').replace(/\s+/g, ' ')) : null;
+      if (m) return { numero: m[1], intitule: intituleVenteNormalise(m[2]) };
+    }
     const sources = [];
     (c.champs || []).forEach(ch => { sources.push(ch.libelle || ''); sources.push(ch.valeur || ''); });
-    sources.push(c.texte || '');
+    sources.push(texteSansOngletsInactifsAuthentic(c));
     for (const s of sources) {
-      const m = RE_INTITULE_DOSSIER_AUTHENTIC.exec(String(s));
-      if (m) return m[2].replace(/\s*\/\s*/, ' / ').replace(/\s+/g, ' ').trim();
+      const m = RE_INTITULE_GESTION_AUTHENTIC.exec(String(s));
+      if (m) return { numero: m[1], intitule: intituleVenteNormalise(m[2]) };
     }
-    return '';
+    const vus = [];
+    const re = new RegExp(RE_INTITULE_DOSSIER_AUTHENTIC.source, 'gi');
+    sources.forEach(s => {
+      for (const m of String(s).matchAll(re)) {
+        if (!vus.some(v => v.numero === m[1])) vus.push({ numero: m[1], intitule: intituleVenteNormalise(m[2]) });
+      }
+    });
+    return vus.length === 1 ? vus[0] : vide;
+  }
+
+  // Pure : le numéro du dossier dans Authentic (« 1861 » de « 1861 - Vente X/Y »), ou ''. Il identifie
+  // le dossier mieux que les noms (étude, 02/10 : « tu dois avoir un identifiant du type : 1861 » ; un seul
+  // numéro par affaire, promesse et vente comprises).
+  function numeroDossierAuthentic(capture) {
+    return intituleNumeroteAuthentic(capture).numero;
+  }
+
+  // Pure : « Vente VENDEUR / ACQUÉREUR » d'après l'intitulé du dossier ouvert dans Authentic (ou
+  // l'intitulé tel quel quand il n'a pas cette forme).
+  function intituleDossierAuthentic(capture) {
+    return intituleNumeroteAuthentic(capture).intitule;
   }
 
   // ---- Rapprochement d'un dossier Authentic avec CLAIRE : un score (étude, 02/10 : « comparer nom des
@@ -26118,6 +26161,7 @@
   // → { score, nomsTrouves, details: [texte] }
   function scoreDossierAuthentic(intitule, adresse, d) {
     const r = { score: 0, nomsTrouves: 0, details: [] };
+    intitule = intituleVenteNormalise(intitule);
     const egal = (a, b) => a.length && b.length && a.length === b.length && a.every(x => b.includes(x));
     const inclus = (a, b) => a.length && b.length && (a.every(x => b.includes(x)) || b.every(x => a.includes(x)));
     // Succession (« Succession DUPONT Jean ») : un seul nom, comparé au nom d'un dossier de succession
@@ -26131,9 +26175,22 @@
       if (pts) { r.score += pts; r.nomsTrouves++; r.details.push(`nom ${pts === 6 ? 'identique' : 'proche'} (+${pts})`); }
     }
     const m = /^\s*(?:vte|vente)\s+(.+?)\s*\/\s*(.+?)\s*$/i.exec(intitule || '');
-    if ((!m && !ms) || !d) return r;
+    if (!d) return r;
     const n = /^\s*(.+?)\s*\/\s*(.+?)\s*$/.exec(String(d.nom || ''));
     const parties = Array.isArray(d.parties) ? d.parties : [];
+    // Intitulé d'une autre forme (« MARTEL Promesse », « VTE MARTEL - FOURNIER »…) : chaque côté du
+    // dossier dont tous les mots du nom figurent dans l'intitulé — 3 points (nom du dossier), 2 (partie).
+    if (!m && !ms) {
+      const motsPage = motsNomAuthentic(intitule).filter(x => !MOTS_NATURE_ACTE_AUTHENTIC.has(x));
+      if (!motsPage.length) return r;
+      [[n && n[1], 'VENDEUR', 'vendeur'], [n && n[2], 'ACQUEREUR', 'acquéreur']].forEach(([coteDossier, role, libelle]) => {
+        const dossierMots = motsNomAuthentic(coteDossier);
+        let pts = 0;
+        if (dossierMots.length && dossierMots.every(x => motsPage.includes(x))) pts = 3;
+        else if (parties.some(p => p && p.role === role && motsNomAuthentic(p.nom).length && motsNomAuthentic(p.nom).every(x => motsPage.includes(x)))) pts = 2;
+        if (pts) { r.score += pts; r.nomsTrouves++; r.details.push(`${libelle} ${pts === 3 ? 'trouvé' : 'proche'} (+${pts})`); }
+      });
+    }
     (m ? [[m[1], n && n[1], 'VENDEUR', 'vendeur'], [m[2], n && n[2], 'ACQUEREUR', 'acquéreur']] : []).forEach(([cote, coteDossier, role, libelle]) => {
       const voulus = motsNomAuthentic(cote);
       if (!voulus.length) return;
@@ -26169,7 +26226,7 @@
       const memes = vivants.filter(d => d.numeroAuthentic === String(numero));
       if (memes.length === 1) return memes[0];
     }
-    if (!/^\s*(?:vte|vente)\s+.+\/.+$/i.test(intitule || '') && !RE_INTITULE_SUCCESSION_AUTHENTIC.test(intitule || '')) return null;
+    if (!String(intitule || '').trim()) return null;
     // Un dossier déjà rattaché à un AUTRE numéro d'Authentic n'est jamais celui-là.
     const notes = vivants.filter(d => !numero || !d.numeroAuthentic || d.numeroAuthentic === String(numero))
       .map(d => ({ d, s: scoreDossierAuthentic(intitule, adresse, d) }))
@@ -26208,6 +26265,26 @@
       return `deux dossiers aussi proches : ${retenus.slice(0, 2).map(x => `${libelleDossierAffiche(x.d)} (${x.s.score} pts)`).join(', ')}`;
     }
     return 'dossier non retrouvé';
+  }
+
+  // Pure : la page est celle d'un ANCIEN dossier des mêmes clients (étude, 02/10 : « je peux aller sur
+  // d'anciens dossiers dont le nom d'un client est associé au nom du dossier avec d'autres clients ») —
+  // son acte a été signé avant l'avant-contrat (ou l'ouverture) du dossier retrouvé par les noms.
+  function ancienDossierAuthentic(capture, d) {
+    const acte = etatActeAuthentic(capture);
+    if (!d || !acte || acte.etat !== 'signe' || !acte.date) return false;
+    const debut = d.dateAvantContrat || dateOuvertureDossier(d);
+    return !!debut && acte.date < debut;
+  }
+
+  // Pure : la page d'un dossier non reconnu mérite-t-elle un message « Choisir » ? Non pour un dossier
+  // signé (un ancien dossier qu'on consulte), ni quand les seuls dossiers aux mêmes noms ont déjà leur
+  // numéro d'Authentic (une affaire = un numéro : c'en est une autre). Le journal la garde de toute façon.
+  function proposerChoixDossierAuthentic(capture, intitule, liste) {
+    const acte = etatActeAuthentic(capture);
+    if (acte && acte.etat === 'signe') return false;
+    return candidatsDossierAuthentic(intitule, adresseBienPageAuthentic(capture), liste)
+      .some(x => x.s.nomsTrouves && !x.d.numeroAuthentic);
   }
 
   // Pure : les dossiers proposés pour ranger à la main la page d'un dossier d'Authentic — en cours,
@@ -27273,7 +27350,7 @@
     const sources = [];
     (c.champs || []).forEach(ch => { sources.push(ch.libelle || ''); sources.push(ch.valeur || ''); });
     (c.tableaux || []).forEach(t => (t.lignes || []).forEach(l => (l || []).forEach(x => sources.push(String(x || '')))));
-    sources.push(...String(c.texte || '').split('\n'));
+    sources.push(...texteSansOngletsInactifsAuthentic(c).split('\n'));
     const re = new RegExp(RE_INTITULE_DOSSIER_AUTHENTIC.source, 'gi');
     const vus = [];
     sources.forEach(s => {
@@ -27466,7 +27543,8 @@
     const numero = mNum ? mNum[1] : '';
     const parNumero = numero ? (liste || []).filter(d => d && !d.deleted && d.numeroAuthentic === numero) : [];
     if (parNumero.length === 1) return parNumero[0];
-    const lu = intituleDossierAuthentic({ champs: [], tableaux: [], texte: String(intitule || '') });
+    const lu = intituleDossierAuthentic({ champs: [], tableaux: [], texte: String(intitule || '') })
+      || intituleVenteNormalise(String(intitule || '').replace(/^\s*\d{1,6}\s*-\s*/, ''));
     return lu ? dossierPourIntituleAuthentic(lu, liste, '', numero) : null;
   }
 
@@ -27533,8 +27611,15 @@
     const numero = numeroDossierAuthentic(capture);
     const adresse = adresseBienPageAuthentic(capture);
     let numeroNote = false;
+    let raisonAncien = '';
     if (lu) {
       d = dossierPourIntituleAuthentic(lu, dossiers, adresse, numero);
+      // Retrouvé par les noms seulement (pas par son numéro) mais signé avant ce dossier : un ancien
+      // dossier des mêmes clients — jamais appliqué, et le numéro n'est pas pris.
+      if (d && !(numero && d.numeroAuthentic === String(numero)) && ancienDossierAuthentic(capture, d)) {
+        raisonAncien = `ancien dossier des mêmes clients (acte signé le ${formatDateFr(etatActeAuthentic(capture).date)}), pas ${libelleDossierAffiche(d)}`;
+        d = null;
+      }
       dossierCourantAuthentic = { id: d ? d.id : '', t: Date.now() };
       numeroNote = !!d && retenirNumeroAuthentic(d, numero, dossiers);
     } else if (courantValide) {
@@ -27542,8 +27627,8 @@
     }
     if (!d) {
       // Jamais en silence (étude, 02/10) : le motif, et le choix à la main.
-      const raison = lu ? raisonDossierAuthenticIntrouvable(lu, dossiers, adresse, numero) : (typePageAuthentic(capture) === 'bien' ? 'fiche bien gardée pour « Nouveau dossier »' : 'aucun dossier ouvert dans Authentic juste avant');
-      if (lu) direPageSansDossierAuthentic(capture, rel, raison);
+      const raison = raisonAncien || (lu ? raisonDossierAuthenticIntrouvable(lu, dossiers, adresse, numero) : (typePageAuthentic(capture) === 'bien' ? 'fiche bien gardée pour « Nouveau dossier »' : 'aucun dossier ouvert dans Authentic juste avant'));
+      if (lu && !raisonAncien && proposerChoixDossierAuthentic(capture, lu, dossiers)) direPageSansDossierAuthentic(capture, rel, raison);
       return { etat: lu ? 'sans-dossier' : 'sans-changement', texte: raison };
     }
     const r = appliquerReleveSurDossier(d, capture);

@@ -144,8 +144,21 @@ window.__claireRelever = function () {
     if (lignes.length || entete.length) tableaux.push({ titre: titreTableau(t), entete: entete, lignes: lignes });
   });
 
+  // Onglets affichés (étude, 02/10 : « il peut y avoir plusieurs dossiers ouverts en même temps ») : le
+  // titre de chacun et s'il est actif — CLAIRE ne prend jamais l'intitulé d'un dossier ouvert dans un
+  // onglet inactif pour celui de la page.
+  var onglets = [];
+  document.querySelectorAll('[role="tab"], .ui-tabs-nav > li').forEach(function (t) {
+    if (!visible(t) || onglets.length >= 60) return;
+    var titre = net(t.innerText || t.textContent).slice(0, 200);
+    if (!titre || onglets.some(function (o) { return o.el === t; })) return;
+    var actif = t.getAttribute('aria-selected') === 'true' || t.classList.contains('ui-state-active') || t.classList.contains('ui-tabs-selected');
+    onglets.push({ el: t, titre: titre, actif: actif });
+  });
+
   return {
     titre: document.title,
+    onglets: onglets.map(function (o) { return { titre: o.titre, actif: o.actif }; }),
     adresse: location.origin + location.pathname,
     champs: champs,
     tableaux: tableaux,

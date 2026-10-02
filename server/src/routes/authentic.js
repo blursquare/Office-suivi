@@ -57,8 +57,12 @@ function normaliserCaptureAuthentic(corps) {
       lignes: (t && Array.isArray(t.lignes) ? t.lignes : []).slice(0, L.lignes).map(ligne)
     }))
     .filter(t => t.entete.length || t.lignes.length);
+  const onglets = (Array.isArray(c.onglets) ? c.onglets : []).slice(0, 60)
+    .map(o => ({ titre: chaine(o && o.titre, L.libelle), actif: !!(o && o.actif === true) }))
+    .filter(o => o.titre);
   return {
     titre: chaine(c.titre, L.titre),
+    onglets,
     adresse: chaine(c.adresse, L.adresse),
     champs,
     tableaux,
@@ -289,13 +293,28 @@ function creerRouteurAuthentic(options) {
 // même test que l'extension (auto.js) et que typePageAuthentic côté poste.
 // « N - Succession NOM » aussi (étude, 02/10 : dossiers de succession créés depuis Authentic).
 const RE_INTITULE_PAGE = /(?:^|[^\w])\d{1,6}\s*-\s*(?:(?:Vente|VTE)\s+[^\n\/]*\S\s*\/\s*\S|(?:Succession|SUCC)\.?\s+\S)/i;
-// L'intitulé « N - Vente X/Y » (ou succession) d'une page, ou ''.
+// En-tête d'une page de dossier quelle que soit la formulation de l'intitulé (étude, 02/10 : « le nom n'est
+// pas fixe ») : « N - … » suivi de Importer / Comparants / Immeubles.
+const RE_INTITULE_GESTION_PAGE = /(?:^|[^\w])\d{1,6}\s*-\s*[A-Za-zÀ-ÿ][^\n]{0,150}?\S\s*(?:Importer|Comparants|Immeubles)(?![A-Za-zÀ-ÿ])/i;
+
+// Le texte sans les titres des onglets inactifs : un autre dossier ouvert ne désigne jamais la page.
+function texteActifAuthentic(capture) {
+  const c = capture || {};
+  const inactifs = new Set((c.onglets || []).filter(o => !o.actif).map(o => o.titre));
+  return String(c.texte || '').split('\n').filter(l => !inactifs.has(l.replace(/\s+/g, ' ').trim())).join('\n');
+}
+
+// L'intitulé « N - … » de la page (onglet actif, puis en-tête du dossier, puis intitulé seul), ou ''.
 function intitulePageAuthentic(capture) {
   const c = capture || {};
-  const sources = (c.champs || []).map(ch => String(ch.libelle || '') + ' ' + String(ch.valeur || '')).concat(String(c.texte || '').split('\n'));
-  for (const s of sources) {
-    const m = RE_INTITULE_PAGE.exec(s);
-    if (m) return chaine(s.slice(m.index).replace(/^[^\d]*/, ''), 200);
+  const actif = (c.onglets || []).find(o => o.actif && /^\s*\d{1,6}\s*-\s*[A-Za-zÀ-ÿ]/.test(o.titre));
+  if (actif) return chaine(actif.titre, 200);
+  const sources = (c.champs || []).map(ch => String(ch.libelle || '') + ' ' + String(ch.valeur || '')).concat(texteActifAuthentic(c).split('\n'));
+  for (const re of [RE_INTITULE_GESTION_PAGE, RE_INTITULE_PAGE]) {
+    for (const s of sources) {
+      const m = re.exec(s);
+      if (m) return chaine(s.slice(m.index).replace(/^[^\d]*/, ''), 200);
+    }
   }
   return '';
 }
@@ -304,7 +323,9 @@ function pageAuthenticConnue(capture) {
   const c = capture || {};
   const libelles = (c.champs || []).map(ch => String(ch.libelle || '') + ' ' + String(ch.valeur || ''));
   if (libelles.some(l => /ficheClientPhysique|ficheImmeuble/i.test(l))) return true;
-  return libelles.some(l => RE_INTITULE_PAGE.test(l)) || RE_INTITULE_PAGE.test(String(c.texte || ''));
+  if ((c.onglets || []).some(o => o.actif && /^\s*\d{1,6}\s*-\s*[A-Za-zÀ-ÿ]/.test(o.titre))) return true;
+  const texte = texteActifAuthentic(c);
+  return libelles.some(l => RE_INTITULE_PAGE.test(l) || RE_INTITULE_GESTION_PAGE.test(l)) || RE_INTITULE_PAGE.test(texte) || RE_INTITULE_GESTION_PAGE.test(texte);
 }
 
 module.exports = { creerRouteurAuthentic, pageAuthenticConnue, normaliserCaptureAuthentic, origineRequete, naturePageAuthentic, DUREE_CAPTURE_MS, MAX_CAPTURES, DUREE_RELEVE_MS, DUREE_ATTENTE_RELEVES_MS, DUREE_FENETRE_VUE_MS, DUREE_DOUBLON_MS };
