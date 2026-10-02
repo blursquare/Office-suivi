@@ -521,7 +521,7 @@ Plainte principale de l'étude : **le bruit**, pas les oublis — ne pas élargi
   tests), les plus utiles d'abord ; la changer = incrémenter `VERSION_DISPOSITION_WIDGETS` (chaque
   collaborateur y est ramené une fois).
   **Widget « Statistiques »** (étude, 02/10, `renderStatistiquesDashboard`, grand × 1 rangée en fin de grille) : délais
-  moyens depuis la **signature de l'avant-contrat** (étude 02/10 : `d.dateAvantContrat` — gardée à la création, lue sur le NAS avec le mobilier, reprise d'Authentic, saisissable sur la fiche — à défaut l'ouverture, `debutDossierStatistiques`) ; ouverture = `dateOuvertureDossier` (entrée « Dossier créé ») jusqu'au prêt (`dateObtentionPret`,
+  moyens depuis la **signature de l'avant-contrat** (étude 02/10 : `d.dateAvantContrat` — gardée à la création (date validée à l'import, jamais remplacée), reprise d'Authentic si vide, saisissable sur la fiche ; **plus jamais relue automatiquement dans un PDF du NAS** (étude 02/10, `retirerDateAvantContratLueNas` a retiré celles posées ainsi) — à défaut l'ouverture, `debutDossierStatistiques`) ; ouverture = `dateOuvertureDossier` (entrée « Dossier créé ») jusqu'au prêt (`dateObtentionPret`,
   historique), à la renonciation de préemption (`dateRenonciationPreemption` : `piecesTrouveesLe` puis historique) et
   à la signature passée — `statistiquesDelaisDossiers`, **tous les dossiers de l'étude, archivés compris, sans fenêtre de dates ni périmètre** (étude 02/10), moyenne/médiane/n ; avant-contrats signés ce mois / mois
   précédent / même mois N-1 (`comparaisonDossiersOuverts`, au mois de l'avant-contrat, « — » avant le premier dossier noté), sur le périmètre du tableau de

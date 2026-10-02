@@ -15009,3 +15009,14 @@ du choix du dossier NAS) listant les dossiers en cours où la personne est parti
 dossier en consultation. La fiche attend en mémoire du poste (`fichesClientEnAttente`, 10 au plus). Vérifié dans
 Chromium (deux ventes en cours, même personne vendeur dans l'une, acquéreur dans l'autre : email repris côté
 acquéreur du dossier choisi, rien dans l'autre).
+
+### 02/10/2026 fin d'après-midi — Date de l'avant-contrat : plus de relecture automatique sur le NAS
+
+Étude (historique d'un dossier : « Date de signature de l'avant-contrat lue dans document signé.pdf : 10 septembre
+2025 ») : « ne pas remodifier une date déjà lue dans le compromis et validée ». Les dossiers créés avant 15 h 11
+n'avaient pas gardé la date validée à l'import (le champ n'existait pas) ; la lecture légère du NAS
+(`lireMobilierDepuisAvantContrat`) posait alors la première date trouvée dans le PDF retenu, moins sûre que la lecture
+de l'import (OCR, métadonnées, validation). Retirée : le mobilier seul est relu. `retirerDateAvantContratLueNas`
+(au démarrage) retire les dates posées ainsi — même date que l'entrée « lue dans … » de l'historique et aucune saisie
+ni reprise d'Authentic depuis — avec une entrée d'historique. La date validée à l'import n'a pas pu être retrouvée
+(elle n'était stockée nulle part) : à saisir sur la fiche (« Signé le ») ; Authentic la remplit si elle manque.

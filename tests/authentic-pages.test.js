@@ -817,3 +817,22 @@ test('vendeur déjà client (ancien dossier archivé cité sur sa fiche) et épo
   assert.match(app.raisonFicheClientSansDossier(fiche('Inconnu', 'Paul', 'p@x.fr'), liste), /aucun dossier en cours/);
   assert.match(app.raisonFicheClientSansChangement(mari), /déjà sur la fiche/);
 });
+
+test('date de l\'avant-contrat relue automatiquement sur le NAS : retirée, sauf saisie ou reprise depuis', () => {
+  const lue = (date, fr) => ({ id: 'x', dateAvantContrat: date, historique: [{ date: '2026-10-02T13:59:00Z', texte: `Date de signature de l’avant-contrat lue dans document signé.pdf : ${fr}` }] });
+  const a = lue('2025-09-10', '10 septembre 2025');
+  assert.equal(app.retirerDateAvantContratLueNas(a), true);
+  assert.equal(a.dateAvantContrat, null);
+  assert.match(a.historique[1].texte, /retirée/);
+  // Saisie à la main après la lecture : gardée.
+  const b = lue('2026-03-02', '2 mars 2026');
+  b.historique.push({ date: '2026-10-02T14:10:00Z', texte: 'Date de signature de l’avant-contrat : 2 mars 2026' });
+  assert.equal(app.retirerDateAvantContratLueNas(b), false);
+  assert.equal(b.dateAvantContrat, '2026-03-02');
+  // Date validée à la création (aucune lecture NAS) : jamais touchée.
+  const c = { id: 'c', dateAvantContrat: '2026-05-12', historique: [{ date: '2026-05-20T09:00:00Z', texte: 'Dossier créé' }] };
+  assert.equal(app.retirerDateAvantContratLueNas(c), false);
+  // Date changée depuis (autre que celle lue) : gardée.
+  const e = lue('2026-04-01', '10 septembre 2025');
+  assert.equal(app.retirerDateAvantContratLueNas(e), false);
+});

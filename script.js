@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-02 15:59';
+  const VERSION_APP = '2026-10-02 16:02';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-02 16:02', resume: "Date de l'avant-contrat : CLAIRE ne la relit plus d'elle-même dans un PDF du NAS (elle a pu poser une date différente de celle validée à l'import) ; les dates posées ainsi sont retirées (l'historique le dit), sauf si elles ont été saisies ou reprises d'Authentic depuis. Restent : la date validée à la création, la saisie sur la fiche (« Signé le ») et Authentic (seulement si vide)." },
     { version: '2026-10-02 15:59', resume: "Add-on Authentic : quand une fiche client correspond à plusieurs dossiers en cours, le message porte un bouton « Choisir » : il liste ces dossiers (avec le côté vendeur/acquéreur) et un clic y range la fiche ; ce dossier devient le dossier en consultation pour les fiches suivantes." },
     { version: '2026-10-02 15:54', resume: "Agenda : « ‹ Aujourd’hui › » et « Aller à une date » sont à côté de la date, sur sa ligne ; la date a une largeur fixe, les boutons ne bougent plus sous la souris d'une semaine à l'autre." },
     { version: '2026-10-02 15:50', resume: "Add-on Authentic, fiche client du vendeur (cas CHAHUNEAU) : quand sa fiche cite son ancien dossier (archivé) et pas la vente en cours, les coordonnées partaient dans l'ancien. La vente en cours où la personne est partie passe désormais toujours avant. Chaque fiche client lue sans effet le dit maintenant (aucun dossier, plusieurs possibles, ni téléphone ni email sur la fiche Authentic, déjà à jour)." },
@@ -13691,15 +13692,6 @@
         const montant = detecterPrixMobilier(texte);
         const courant = dossiers.find(x => x.id === id);
         if (!courant) return;
-        // La date de signature de l'avant-contrat, pour les dossiers créés avant qu'elle soit gardée.
-        if (!courant.dateAvantContrat) {
-          const date = detecterDateCompromis(texte);
-          if (date && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
-            courant.dateAvantContrat = date;
-            ajouterHistorique(courant, `Date de signature de l’avant-contrat lue dans ${trouve.nom} : ${formatDateFr(date)}`);
-          }
-        }
-        courant.dateAvantContratLueLe = new Date().toISOString().slice(0, 10);
         courant.mobilierLuLe = new Date().toISOString().slice(0, 10);
         if (courant.prixMobilier) {
           // Saisi entre-temps : on ne touche à rien.
@@ -22675,7 +22667,7 @@
     diagnosticParcoursOuvert = false;
     rdvAgendaOuvert = false;
     render();
-    if (d && ((!d.prixMobilier && !d.mobilierLuLe) || (!d.dateAvantContrat && !d.dateAvantContratLueLe)) && d.dossierLie && d.nasDossier) lireMobilierDepuisAvantContrat(id, false);
+    if (d && !d.prixMobilier && !d.mobilierLuLe && d.dossierLie && d.nasDossier) lireMobilierDepuisAvantContrat(id, false);
   }
 
   // Un clic sur le fond grisé d'une fenêtre la ferme — seulement si l'appui A COMMENCÉ sur ce fond.
@@ -26987,6 +26979,33 @@
 
   // SAFER sans réponse : le délai s'écoule même sans nouvelle page d'Authentic — vérifié au démarrage
   // puis toutes les heures (appliquerSaferTacite ne change un dossier qu'une fois).
+  // Étude, 02/10 : « ne pas remodifier une date déjà lue dans le compromis et validée ». La relecture
+  // AUTOMATIQUE de la date de l'avant-contrat dans un PDF du NAS (version de 15 h 11, retirée) a posé
+  // des dates moins sûres que celle validée à l'import : elles sont retirées — sauf si l'étude les a
+  // saisies ou reprises d'Authentic depuis. Pure (modifie le dossier passé) → vrai si retirée.
+  var RE_DATE_AC_LUE_NAS = /^Date de signature de l’avant-contrat lue dans (.+) : (.+)$/;
+  function retirerDateAvantContratLueNas(d) {
+    if (!d || !d.dateAvantContrat) return false;
+    const hist = d.historique || [];
+    let iLue = -1;
+    hist.forEach((h, i) => { if (h && RE_DATE_AC_LUE_NAS.test(h.texte || '')) iLue = i; });
+    if (iLue < 0) return false;
+    const m = RE_DATE_AC_LUE_NAS.exec(hist[iLue].texte);
+    if (m[2] !== formatDateFr(d.dateAvantContrat)) return false;
+    // Saisie à la main ou reprise d'Authentic après la lecture : décision de l'étude, on n'y touche pas.
+    if (hist.slice(iLue + 1).some(h => h && /^Date de signature de l’avant-contrat( :| reprise)/.test(h.texte || ''))) return false;
+    d.dateAvantContrat = null;
+    hist.push({ date: new Date().toISOString(), texte: `Date de l’avant-contrat lue automatiquement dans ${m[1]} retirée (${m[2]}) : à saisir sur la fiche (« Signé le ») si elle manque` });
+    d.historique = hist;
+    return true;
+  }
+
+  async function retirerDatesAvantContratLuesNas() {
+    for (const d of dossiers || []) {
+      if (retirerDateAvantContratLueNas(d)) await sauvegarder(d);
+    }
+  }
+
   async function verifierSaferTacites() {
     const aujourdhui = isoAujourdhuiLocal();
     for (const d of dossiers || []) {
@@ -27795,6 +27814,7 @@
     initUtilisateurPoste();
     await charger();
     verifierSaferTacites().catch(() => {});
+    retirerDatesAvantContratLuesNas().then(() => render()).catch(() => {});
     setInterval(() => { verifierSaferTacites().catch(() => {}); }, 60 * 60 * 1000);
     demanderUtilisateurPosteSiInconnu();
     // Première connexion de la journée : le point du matin (voir « Aujourd'hui »).
