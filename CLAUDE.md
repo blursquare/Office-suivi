@@ -615,7 +615,13 @@ Plainte principale de l'étude : **le bruit**, pas les oublis — ne pas élargi
   **fiche client** (`clientDepuisFicheAuthentic`) et **fiche bien** (`bienDepuisFicheAuthentic`, cadastre) →
   « Nouveau dossier » › « Depuis Authentic » (`dossiersDepuisRelevesAuthentic` au format de l'export ZIP, rôles
   par l'intitulé, `creerDepuisAuthentic` ; complète un avant-contrat déjà déposé). Notaires et agence : pas encore
-  relevés (page non fournie). Cellules copiées en **vocabulaire** (`vocabulaireCelluleAuthentic`).
+  relevés (page non fournie). Cellules copiées en **vocabulaire** (`vocabulaireCelluleAuthentic`). **Deuxième passe (02/10, `appliquerReleveSurDossier`)** :
+  SAFER notifiée sans réponse → « Réponse SAFER » **manquante** (une fois, `saferPieceAjoutee`) avec notifiée / prise en
+  compte le ; RHF envoyée / retour ; état de l'acte ; prix « Capital » (rempli s'il manque) ; collaborateur et notaire des
+  « Parties prenantes » — gardés dans `d.authentic`, bloc « Dans Authentic » de l'onglet Pièces ; fiche client →
+  téléphone/email manquants et situation matrimoniale, alerte si un vendeur marié/pacsé vend sans son conjoint ;
+  livret de famille et décès seulement en succession. **Onglets « Informations financières » et « Parties prenantes »
+  lus de façon générique : structure réelle à demander**, sens de la 2e date SAFER/RHF à confirmer.
 - **Arborescence type des dossiers clients sur le NAS** (MAISON, COPRO, TERRAIN, SUCC, CESSION DE
   FONDS) : détaillée dans `docs/historique.md` (fin du fichier). L'avant-contrat signé est à la
   racine du dossier client ou sous « SRU » ; la rubrique « AAE » contient les pièces réunies entre

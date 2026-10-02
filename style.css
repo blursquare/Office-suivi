@@ -8023,3 +8023,19 @@ button.w-jour-lien { border: none; background: none; padding: 0; cursor: pointer
 /* « Nouveau dossier » : dossiers relevés dans Authentic (étude, 02/10). */
 .authentic-releves { margin-top: 16px; }
 .authentic-releves-titre { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: var(--ink-soft); text-transform: uppercase; letter-spacing: .04em; margin: 0 0 6px; }
+
+/* Onglet Pièces : ce que CLAIRE a relevé dans Authentic (étude, 02/10). */
+.authentic-dossier { border-top: 1px solid var(--line-soft); padding: 12px 16px 14px; display: grid; gap: 8px; }
+.authentic-dossier-titre { font-size: 12px; font-weight: 600; color: var(--ink-soft); text-transform: uppercase; letter-spacing: .04em; }
+.authentic-dossier-titre .hint { text-transform: none; letter-spacing: 0; font-weight: 400; }
+.authentic-infos { margin: 0; display: grid; gap: 4px; }
+.authentic-info { display: grid; grid-template-columns: minmax(150px, 34%) 1fr; gap: 10px; font-size: 13px; align-items: baseline; }
+.authentic-info > * { min-width: 0; }
+.authentic-info dt { color: var(--muted); }
+.authentic-info dd { margin: 0; overflow-wrap: anywhere; }
+.authentic-alerte { margin: 0; font-size: 13px; }
+.authentic-alerte .dot-label { white-space: normal; align-items: flex-start; }
+@media (max-width: 560px) { .authentic-info { grid-template-columns: 1fr; gap: 0; } }
+.authentic-info .dot-label { white-space: normal; align-items: baseline; line-height: 1.4; }
+.authentic-info .dot-label .dot { flex: none; transform: translateY(-1px); }
+.piece-libelle .piece-tag.piece-tag-long { display: block; white-space: normal; margin-left: 0; }

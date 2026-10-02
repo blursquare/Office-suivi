@@ -14556,3 +14556,49 @@ compris), la reprise des téléphones vers la fiche était donc vide. Vérifié 
 sur une page simulée (un envoi, rien sur un changement sans effet, un envoi sur un vrai changement), application sur un
 dossier inventé (acte de naissance, réponse SAFER, CU cochés ; demande ignorée), création DURAND/LEROY (parties,
 rôles, bien, type). Non vérifié dans un vrai Firefox ni sur Authentic. Notaires et agence : page non fournie.
+
+### 02/10/2026 11 h 26 — Authentic, deuxième passe (SAFER suivie, RHF, acte, prix, collaborateur, notaire, régime matrimonial)
+
+Demande de l'étude : « Pour la safer, si pas encore reçu l'ajouter à la liste des pièces manquantes et indiquer si elle
+a été prise en compte et la date de prise en compte. Livret de famille et décès que pour les successions. Voir si
+Réquisition Hors Formalité envoyée et si retour. Voir si l'acte est en cours de rédaction ou pas encore rédigé ou si
+signé. Le prix de vente est dans informations financières capital. Le collaborateur en charge du dossier est dans
+parties prenantes. Prendre le nom du notaire. Pour les fiches clients reprendre tel et email et régime matrimonial
+(voir si besoin de faire intervenir le conjoint si bien propre et résidence du foyer si marié ou pacsé). »
+
+- `appliquerReleveSurDossier(d, capture, maintenant)` (pure, modifie le dossier passé) remplace l'application des
+  seules pièces : page de gestion → pièces reçues (inchangé) ; toute page du dossier → `infosDossierAuthentic`
+  fusionnées dans `d.authentic` (`fusionnerInfosAuthentic` : une page sans le renseignement n'efface rien), chaque
+  fait nouveau une fois dans l'historique ; fiche client → `roleClientAuthenticDansDossier` (parties, sinon nom du
+  dossier « VENDEUR / ACQUÉREUR », jamais deviné) puis téléphones manquants ajoutés (comparés sur 9 chiffres), email
+  s'il manque, situation matrimoniale dans `d.authentic.personnes`.
+- SAFER : `suiviSaferAuthentic` (1re date = notifiée, « pris(e) en compte le … » sinon 2e date = prise en compte,
+  non-préemption / préemption exercée). Notifiée sans réponse → pièce personnalisée « Réponse SAFER » (`perso-safer`)
+  **manquante**, une seule fois (`d.authentic.saferPieceAjoutee` : la retirer reste la décision de l'étude), jamais en
+  participation ; la non-préemption la coche ensuite « dans Authentic ». Méta de la ligne : `suiviSaferPiece`.
+- RHF : `suiviRhfAuthentic` (envoyée = 1re date, retour = état reçu/retour/délivré ou 2e date). Acte :
+  `etatActeAuthentic` (signé [le …] / en cours de rédaction / pas encore rédigé, d'après le vocabulaire de la page).
+  Prix : `prixAuthentic` (champ ou colonne « Capital ») — remplit `d.prixVente` seulement s'il est vide, écart signalé
+  sinon. Collaborateur : `collaborateurAuthentic` (un seul des `RESPONSABLES` nommé dans « Parties prenantes » /
+  « Intervenants ») — affiché, écart avec le responsable de la fiche signalé, proposé comme responsable à la création.
+  Notaire : `notaireAuthentic` (« Maître … » dans les parties prenantes).
+- Situation matrimoniale : `situationMatrimonialeAuthentic` (tableau Situation | Date | Conjoint, contrat
+  `somContratTypeId`, régime `somContratRegimeId`, date de mariage), `libelleSituationMatrimoniale` ;
+  `alertesConjointAuthentic` / `alertesConjointDossier` : vendeur marié ou pacsé dont le conjoint n'est pas partie →
+  « le faire intervenir si le bien est la résidence de la famille (même bien propre) ».
+- Livret de famille et acte de décès seulement si `d.typeAffaire === 'succession'` (`RE_ETAT_CIVIL_SUCCESSION_AUTHENTIC`).
+- Onglet Pièces : bloc « Dans Authentic » (`lignesAuthenticDossier`, `renderAuthenticDossier`) + alertes conjoint.
+- Création depuis les pages : `dossiersDepuisRelevesAuthentic` agrège les infos des pages du dossier
+  (`export.infosAuthentic`) ; prix repris s'il manque à l'avant-contrat ; `infosAuthenticACreation` garde
+  `d.authentic` et ajoute « Réponse SAFER » manquante. Import JSON : `authenticPersistable`,
+  `situationMatrimonialePersistable`, `piecesAuthentic` conservés.
+- Fiche client ou onglet sans intitulé : rattaché au dernier dossier vu dans Authentic depuis 30 min
+  (`dossierCourantAuthentic`), et une fiche client seulement si la personne est partie à ce dossier.
+- **Lu de façon générique, à confirmer sur les vraies pages** : les onglets « Informations financières » et
+  « Parties prenantes » n'ont pas encore été copiés (structure) ; l'état de l'acte est cherché dans les libellés.
+  Le sens de la 2e date des lignes SAFER et RHF (prise en compte / retour) est une hypothèse.
+- Extension 0.3.1 (même jour) : `strict_min_version` 140 (142 sur Android) — les trois avertissements de la
+  validation Mozilla venaient de `data_collection_permissions`, inconnue avant Firefox 140.
+- Vérifié dans Chromium (serveur réel, pages inventées MARTEL/FOURNIER envoyées à `/api/authentic/releve`) : SAFER
+  manquante avec dates, RHF, acte, prix, collaborateur, notaire, téléphone, email, situation matrimoniale et alerte
+  conjoint ; clair, sombre, 400 px sans débordement.
