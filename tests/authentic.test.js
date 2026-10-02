@@ -215,7 +215,8 @@ test('extraction complétée : parties, adresse, type, email, nom du dossier et 
   const e = app.completerExtractionDepuisAuthentic(app.construireExtractionRegex('', '', [], ''), d);
   assert.strictEqual(e.champs.nom.valeur, 'DURAND / MARTIN');
   assert.strictEqual(e.champs.nom.origine, 'authentic');
-  assert.strictEqual(e.champs.emailAcquereur.valeur, 'claire.martin@exemple.fr');
+  // Toutes les adresses de l'acquéreur, gardées (étude, 02/10 : « garder les deux »).
+  assert.strictEqual(e.champs.emailAcquereur.valeur, 'claire.martin@exemple.fr; autre@exemple.fr');
   assert.strictEqual(e.champs.typeVente.valeur, 'maison');
   assert.strictEqual(e.bien.adresse.commune, 'VINEUIL');
   assert.strictEqual(e.parties.length, 2);
