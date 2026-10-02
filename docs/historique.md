@@ -14515,3 +14515,11 @@ corrigé : groupe `sans-date` (rang 3, « Sans échéance datée », ligne de la
 Suite : « remets-moi l'affichage par défaut de tous les dossiers pour Bastien » — `filtreSuiviParDefaut(utilisateur)` :
 le collaborateur du poste, sauf l'administrateur (`estAdministrateur`) → « Tous ». Revient sur la règle du 01-02/10
 (« administrateur compris »), à la demande de l'étude.
+
+### 02/10/2026 — Suivi : date de signature en vert pour un dossier complet ou prêt
+
+« Mets la date de signature en vert pour les dossiers complets » puis « et prêt ». `dateSignatureEnVert(d, echeance)` :
+l'échéance affichée est la signature (type `rendezVousSignature`, ou date égale à `d.rendezVousSignature` — les étapes
+appel de fonds / projet prennent la date du rendez-vous à défaut de la leur) et `etatDossier(d).cle` vaut `complet` ou
+`pret` ; `classeDateEcheanceSuivi` → `signature-ok` (`--success`, gras), prioritaire sur le rouge des 3 jours. Vues
+Échéances et Tableau. Vérifié dans Chromium (clair, sombre).

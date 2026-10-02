@@ -3507,6 +3507,8 @@
   .echeance-jours { font-size: 12px; margin-left: 6px; font-variant-numeric: tabular-nums; }
   .echeance-jours.urgent { color: var(--urgent); font-weight: 600; }
   .echeance-jours.calme { color: var(--ink-soft); }
+  /* Signature d'un dossier complet ou prêt (étude, 02/10). */
+  .echeance-jours.signature-ok { color: var(--success); font-weight: 600; }
 
   /* Ligne dont la fiche est ouverte dans le tiroir : un liseré d'accent à gauche relie le tiroir
      à la ligne d'où il vient, seul repère qui subsiste puisque la ligne ne se déplie plus.

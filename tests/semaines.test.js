@@ -198,3 +198,20 @@ test('Suivi : mêmes colonnes, même ordre en vue Échéances et en vue Tableau 
   assert.ok(ordre.every(i => i >= 0), ordre.join(','));
   assert.equal(ordre.slice().sort((x, y) => x - y).join(','), ordre.join(','));
 });
+
+test('dateSignatureEnVert : date de signature d’un dossier complet ou prêt, jamais une autre échéance', () => {
+  const app = chargerApplication();
+  let etat = 'pret';
+  app.etatDossier = () => ({ cle: etat });
+  const d = { id: 'v', nom: 'V', rendezVousSignature: '2026-10-20' };
+  assert.equal(app.dateSignatureEnVert(d, { type: 'rendezVousSignature', iso: '2026-10-20' }), true);
+  // Étape « Envoi appel de fonds » datée du rendez-vous : c'est bien la date de signature qui s'affiche.
+  assert.equal(app.dateSignatureEnVert(d, { type: 'appelFonds', iso: '2026-10-20' }), true);
+  assert.equal(app.dateSignatureEnVert(d, { type: 'pret', iso: '2026-10-12' }), false);
+  etat = 'complet';
+  assert.equal(app.classeDateEcheanceSuivi(d, { type: 'rendezVousSignature', iso: '2026-10-20' }, 1), 'signature-ok');
+  etat = 'attente';
+  assert.equal(app.dateSignatureEnVert(d, { type: 'rendezVousSignature', iso: '2026-10-20' }), false);
+  assert.equal(app.classeDateEcheanceSuivi(d, { type: 'rendezVousSignature', iso: '2026-10-20' }, 1), 'urgent');
+  assert.equal(app.classeDateEcheanceSuivi(d, { type: 'rendezVousSignature', iso: '2026-10-20' }, 9), 'calme');
+});

@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-02 10:28';
+  const VERSION_APP = '2026-10-02 10:31';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-02 10:31', resume: "Suivi des dossiers : la date de signature s'affiche en vert quand le dossier est « Complet » ou « Prêt » (vues Échéances et Tableau). Les autres dates gardent leur couleur (rouge à 3 jours ou moins)." },
     { version: '2026-10-02 10:28', resume: "Suivi des dossiers : sur le poste de Bastien (administrateur), le filtre « Responsable » revient à « Tous » par défaut : tous les dossiers de l'étude sont affichés à l'ouverture. Les autres collaborateurs gardent leurs propres dossiers présélectionnés." },
     { version: '2026-10-02 10:27', resume: "Suivi des dossiers, vue Échéances : tous les dossiers sont affichés. Un dossier sans échéance datée en attente (rendez-vous à fixer sans date butoir, toutes les dates validées…) était omis ; il apparaît maintenant dans une section « Sans échéance datée » en bas de la liste. Les échéances au-delà de 8 semaines restent sous « Plus tard »." },
     { version: '2026-10-02 10:25', resume: "Extension Firefox « CLAIRE pour Authentic » : « Copier la structure (sans données) » masque désormais les nom et prénoms qui suivent M. / Mme même collés au mot précédent, et réduit tout texte de plus de 8 mots à son nombre de mots (deux prénoms étaient passés). Les tableaux reçus portent leur titre ; extension 0.2.0 (titre des tableaux, en-têtes, titre des icônes)." },
@@ -22449,10 +22450,27 @@
 
   // Date et libellé de la prochaine échéance en attente (prochaineEcheanceDetail), en deux cellules,
   // comme une ligne de la vue Échéances : la date en rouge à 3 jours ou moins (et une fois passée).
+  // Pure : la date affichée est celle de la signature (étape « Signature de l'acte », ou date du
+  // rendez-vous placé) d'un dossier « Complet » ou « Prêt » → en vert (étude, 02/10).
+  function dateSignatureEnVert(d, echeance) {
+    if (!d || !echeance || !echeance.iso) return false;
+    const estSignature = echeance.type === 'rendezVousSignature' || (!!d.rendezVousSignature && echeance.iso === d.rendezVousSignature);
+    if (!estSignature) return false;
+    const cle = etatDossier(d).cle;
+    return cle === 'complet' || cle === 'pret';
+  }
+
+  // Classe de la date d'une échéance dans le Suivi : vert (signature d'un dossier complet ou prêt),
+  // sinon rouge à 3 jours ou moins, sinon discrète.
+  function classeDateEcheanceSuivi(d, echeance, jours) {
+    if (dateSignatureEnVert(d, echeance)) return 'signature-ok';
+    return jours <= 3 ? 'urgent' : 'calme';
+  }
+
   function celluleDateProchaineEcheance(d) {
     const p = prochaineEcheanceDetail(d);
     if (!p) return '<td><span class="echeance-jours calme">—</span></td>';
-    return `<td><span class="echeance-jours ${p.jours <= 3 ? 'urgent' : 'calme'}" title="${escapeAttr(p.jours < 0 ? 'Dépassée' : p.jours === 0 ? "Aujourd'hui" : 'J-' + p.jours)}">${formatDateFr(p.iso)}</span></td>`;
+    return `<td><span class="echeance-jours ${classeDateEcheanceSuivi(d, p, p.jours)}" title="${escapeAttr(p.jours < 0 ? 'Dépassée' : p.jours === 0 ? "Aujourd'hui" : 'J-' + p.jours)}">${formatDateFr(p.iso)}</span></td>`;
   }
   function celluleTypeProchaineEcheance(d) {
     const p = prochaineEcheanceDetail(d);
@@ -22542,7 +22560,7 @@
         const jours = joursRestants(e.iso);
         return `
           <tr class="ligne-resume${d.archive ? ' est-archive' : ''}${dossierOuvert === d.id ? ' ligne-active' : ''}" onclick="ouvrirDossierDrawer('${d.id}')">
-            <td><span class="echeance-jours ${jours <= 3 ? 'urgent' : 'calme'}">${formatDateFr(e.iso)}</span></td>
+            <td><span class="echeance-jours ${classeDateEcheanceSuivi(d, e, jours)}">${formatDateFr(e.iso)}</span></td>
             <td><div class="dossier-nom-tableau">${escapeHtml(libelleDossierAffiche(d))}${tagNotificationsDossier(d)}</div></td>
             <td><span class="dot-label dl-${e.type}"><span class="dot"></span>${escapeHtml(e.label)}</span></td>
             <td class="dossier-responsable-tableau">${pastilleCollaborateur(d.responsable)}</td>
