@@ -4,7 +4,11 @@ const champ = document.getElementById('serveur');
 const etat = document.getElementById('etat');
 const montrer = (texte, classe) => { etat.textContent = texte; etat.className = classe || ''; };
 
-browser.storage.local.get('serveur').then(({ serveur }) => { if (serveur) champ.value = serveur; });
+browser.storage.local.get(['serveur', 'auto']).then(({ serveur, auto }) => {
+  if (serveur) champ.value = serveur;
+  document.getElementById('auto').checked = auto !== false;
+});
+document.getElementById('auto').addEventListener('change', (e) => { browser.storage.local.set({ auto: e.target.checked }); });
 
 document.getElementById('enregistrer').addEventListener('click', async () => {
   let url;

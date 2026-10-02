@@ -14535,3 +14535,24 @@ qu'une ligne est un acte de naissance ou une notification SAFER. `vocabulaireCel
 plus, mots en minuscules et sigles gardés (SAFER, DIA, LRAR… ajoutés à `SIGLES_STRUCTURE_AUTHENTIC`), premier mot à
 majuscule gardé seulement si le suivant est en minuscules ou un sigle, tout autre mot à majuscule → XXX, nom après civilité
 → XXX, chiffres → 9 ; tests de non-fuite (« Martel Jean - acte de naissance » → « XXX - acte de naissance »).
+
+### 02/10/2026 — Authentic : pièces reçues automatiquement, création de dossier (extension 0.3.0)
+
+Structures réelles reçues : page de gestion du dossier (déjà copiée), fiches client vendeur et acquéreur (même forme
+« ficheClientPhysique… » : le rôle n'y figure pas, il vient de l'intitulé « Vente VENDEUR/ACQUÉREUR » comme pour le
+ZIP), fiche bien (« ficheImmeuble… », adresse découpée, cadastre en tableau avec en-têtes). Adresse d'Authentic :
+`https://www.cloud-fichorga.fr/41089-Authentic/main.xhtml` (une seule adresse, pages changées sans recharger).
+Extension 0.3.0 : `releve.js` (relevé commun), `auto.js` (content script sur cloud-fichorga.fr, MutationObserver,
+2,5 s de calme, empreinte champs+tableaux), `fond.js` transmet à `POST /api/authentic/releve`. Serveur : file à
+traiter prise par une seule fenêtre (`releves/prendre`), relevés récents 60 min (`releves/recents`), empreintes pour
+ne pas remettre une page identique — mémoire seule. Client : `releverPagesAuthentic` toutes les 5 s ;
+`appliquerReleveAuthentic` → pièces cochées « dans Authentic » (validées à la main, `d.piecesAuthentic` pour ne
+jamais recocher une pièce décochée par l'étude), historique « Reçue dans Authentic : … », notifications, toast ; acte
+d'état civil (pas dans la checklist) et « Réponse SAFER » ajoutés comme pièces personnalisées (règle de Claire Scan).
+Création : bloc « Depuis Authentic » à l'étape 1 de « Nouveau dossier » (`renderRelevesAuthenticWizard`) ;
+`creerDepuisAuthentic` reprend le parcours de l'export ZIP (`exportAuthenticActuel`, origine « pages ») ou complète
+un avant-contrat déjà déposé. Corrigé au passage : `partiesExportAuthentic` ne recopiait pas les téléphones (ZIP
+compris), la reprise des téléphones vers la fiche était donc vide. Vérifié dans Chromium : vrai `releve.js` + `auto.js`
+sur une page simulée (un envoi, rien sur un changement sans effet, un envoi sur un vrai changement), application sur un
+dossier inventé (acte de naissance, réponse SAFER, CU cochés ; demande ignorée), création DURAND/LEROY (parties,
+rôles, bien, type). Non vérifié dans un vrai Firefox ni sur Authentic. Notaires et agence : page non fournie.

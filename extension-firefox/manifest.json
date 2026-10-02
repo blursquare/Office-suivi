@@ -1,8 +1,8 @@
 {
   "manifest_version": 2,
   "name": "CLAIRE pour Authentic",
-  "version": "0.2.0",
-  "description": "Envoie le dossier Authentic affiché à CLAIRE, sur le réseau de l'office.",
+  "version": "0.3.0",
+  "description": "Relève les pages d'Authentic pour CLAIRE (pièces reçues, création de dossier), sur le réseau de l'office.",
   "browser_specific_settings": {
     "gecko": {
       "id": "claire-authentic@etude-gossart.local",
@@ -38,5 +38,18 @@
   "options_ui": {
     "page": "options.html",
     "browser_style": false
-  }
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.cloud-fichorga.fr/*"
+      ],
+      "js": [
+        "releve.js",
+        "auto.js"
+      ],
+      "all_frames": true,
+      "run_at": "document_idle"
+    }
+  ]
 }

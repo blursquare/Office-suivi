@@ -13,6 +13,7 @@
     .ligne { display: flex; gap: 8px; align-items: center; }
     button { padding: 7px 14px; border: 0; border-radius: 8px; background: var(--accent); color: #fff; font: inherit; cursor: pointer; }
     #etat { font-size: 13px; }
+    .case { margin: 14px 0 0; } .case-libelle { display: flex; gap: 8px; align-items: center; font-weight: 600; } .case-libelle input { width: auto; }
     #etat.ok { color: var(--ok); } #etat.err { color: var(--err); }
   </style>
 </head>
@@ -20,6 +21,8 @@
   <label for="serveur">Adresse de CLAIRE</label>
   <input id="serveur" type="url" placeholder="http://192.168.60.10:3000" autocomplete="off">
   <p class="aide">L’adresse affichée par le serveur CLAIRE au démarrage (celle de la fenêtre CLAIRE, sans ce qui suit le port). Firefox demande ensuite l’autorisation d’y envoyer les pages.</p>
+  <p class="case"><label class="case-libelle"><input id="auto" type="checkbox" checked> Relever automatiquement les pages d’Authentic</label></p>
+  <p class="aide">Chaque page d’un dossier affichée dans Authentic est envoyée à CLAIRE : pièces reçues reportées sur la fiche, fiches client et bien gardées une heure pour créer le dossier. Seul le site d’Authentic (cloud-fichorga.fr) est relevé.</p>
   <div class="ligne"><button id="enregistrer" type="button">Enregistrer et tester</button><span id="etat" role="status"></span></div>
   <script src="options.js"></script>
 </body>

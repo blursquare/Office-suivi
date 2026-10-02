@@ -8,13 +8,19 @@ l'envoie au serveur CLAIRE du bureau, puis ouvre CLAIRE sur la page reçue.
 - Jamais un mot de passe ni un champ caché de la page.
 - Le serveur garde la page **30 minutes en mémoire** seulement (ni base, ni journal).
 
-## État (01/10/2026)
+## État (02/10/2026) — version 0.3.0
 
-Première version : le transport fonctionne (Authentic → CLAIRE) et CLAIRE affiche la page reçue.
-**La reprise dans une fiche n'est pas encore branchée** : il faut d'abord connaître la structure
-des pages d'Authentic. Dans CLAIRE, « Copier la structure (sans données) » copie les libellés et le
-type de chaque valeur (date, montant, texte…), jamais une valeur : la relire, puis la coller dans la
-conversation avec Claude pour brancher la reprise.
+- **Relevé automatique** (étude, 02/10) : sur Authentic (`www.cloud-fichorga.fr`), chaque page affichée est
+  relevée dès qu'elle est stable (2,5 s) et envoyée à CLAIRE — seulement si son contenu a changé.
+  Désactivable dans les options (« Relever automatiquement les pages d'Authentic »).
+  - **Page de gestion du dossier** : CLAIRE retrouve le dossier par l'intitulé « Vente VENDEUR/ACQUÉREUR »
+    et coche les pièces reçues (« dans Authentic », décochables) ; un acte d'état civil ou une réponse SAFER
+    de non-préemption est ajouté aux pièces du dossier. Une demande, un envoi ou une pièce « en attente »
+    n'est jamais compté.
+  - **Fiches client et fiches bien** : gardées une heure ; dans CLAIRE, « Nouveau dossier » › « Depuis
+    Authentic » crée le dossier pré-rempli (parties, bien, cadastre, téléphones, emails, pièces présentes).
+- **Bouton** : « Envoyer à CLAIRE » ouvre CLAIRE sur la page relevée et permet d'en copier la structure
+  sans données (vocabulaire seul), pour régler la lecture d'une nouvelle page.
 
 ## Installer
 
@@ -50,5 +56,7 @@ l'envoi est refusé (non géré par l'extension).
 
 - `manifest.json` : déclaration (Manifest V2, Firefox 109 et plus).
 - `fond.js` : le bouton — relève, envoi à `POST /api/authentic/capture`, ouverture de CLAIRE.
-- `capture.js` : le relevé de la page, injecté au clic dans chacun de ses cadres.
+- `releve.js` : le relevé de la page (`window.__claireRelever`), commun au bouton et au relevé automatique.
+- `capture.js` : appelle le relevé au clic sur le bouton (injecté après `releve.js`).
+- `auto.js` : relevé automatique sur Authentic (observe la page, envoie quand elle a changé).
 - `options.html`, `options.js` : l'adresse de CLAIRE.

@@ -8019,3 +8019,7 @@ button.w-jour-lien { border: none; background: none; padding: 0; cursor: pointer
   /* Sur une colonne, les deux sections dépassent une rangée : le corps défile plutôt que de couper. */
   .w-carte.statistiques .w-corps { overflow-y: auto; }
 }
+
+/* « Nouveau dossier » : dossiers relevés dans Authentic (étude, 02/10). */
+.authentic-releves { margin-top: 16px; }
+.authentic-releves-titre { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: var(--ink-soft); text-transform: uppercase; letter-spacing: .04em; margin: 0 0 6px; }

@@ -27,6 +27,7 @@ browser.browserAction.onClicked.addListener(async (onglet) => {
   if (!serveur) { browser.runtime.openOptionsPage(); return; }
   signal('…', '#6B7280');
   try {
+    await browser.tabs.executeScript(onglet.id, { file: 'releve.js', allFrames: true });
     const releves = await browser.tabs.executeScript(onglet.id, { file: 'capture.js', allFrames: true });
     const r = await fetch(serveur + '/api/authentic/capture', {
       method: 'POST',
@@ -53,4 +54,21 @@ browser.browserAction.onClicked.addListener(async (onglet) => {
     browser.browserAction.setTitle({ title: 'Envoyer à CLAIRE — dernier envoi échoué : ' + (e && e.message ? e.message : 'erreur') });
     setTimeout(() => browser.browserAction.setTitle({ title: 'Envoyer à CLAIRE' }), 15000);
   }
+});
+
+// Relevés automatiques envoyés par auto.js (pages d'Authentic) : transmis à CLAIRE sans rien ouvrir.
+// Un échec (CLAIRE éteinte, réseau) est silencieux : la page suivante sera relevée à son tour.
+browser.runtime.onMessage.addListener(async (message) => {
+  if (!message || message.type !== 'releve' || !message.capture) return;
+  const { serveur, auto } = await browser.storage.local.get(['serveur', 'auto']);
+  if (!serveur || auto === false) return;
+  try {
+    const r = await fetch(serveur + '/api/authentic/releve', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(message.capture)
+    });
+    if (r.ok) {
+      const h = new Date();
+      browser.browserAction.setTitle({ title: `Envoyer à CLAIRE — page relevée automatiquement à ${String(h.getHours()).padStart(2, '0')} h ${String(h.getMinutes()).padStart(2, '0')}` });
+    }
+  } catch (e) { /* CLAIRE injoignable : sans suite */ }
 });

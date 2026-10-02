@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-02 10:38';
+  const VERSION_APP = '2026-10-02 11:01';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-02 11:01', resume: "Authentic, avec l'extension Firefox 0.3.0 : chaque page d'Authentic affichée est relevée automatiquement. Page de gestion d'un dossier : les pièces reçues sont cochées « dans Authentic » sur la fiche CLAIRE du même dossier (un acte de naissance, de mariage ou de décès et une réponse SAFER de non-préemption sont ajoutés aux pièces) ; une demande ou une pièce en attente ne compte jamais. Fiches client et fiches bien : « Nouveau dossier » › « Depuis Authentic » crée le dossier pré-rempli (vendeurs, acquéreurs, bien, cadastre, téléphones, emails, pièces présentes)." },
     { version: '2026-10-02 10:38', resume: "Authentic : « Copier la structure (sans données) » laisse désormais lisible le vocabulaire des tableaux (« Acte de naissance de M. XXX », « Notification SAFER », « Reçu le 99/99/9999 ») : noms, prénoms et chiffres restent masqués. Étape préalable à la mise à jour automatique des pièces depuis Authentic." },
     { version: '2026-10-02 10:31', resume: "Suivi des dossiers : la date de signature s'affiche en vert quand le dossier est « Complet » ou « Prêt » (vues Échéances et Tableau). Les autres dates gardent leur couleur (rouge à 3 jours ou moins)." },
     { version: '2026-10-02 10:28', resume: "Suivi des dossiers : sur le poste de Bastien (administrateur), le filtre « Responsable » revient à « Tous » par défaut : tous les dossiers de l'étude sont affichés à l'ouverture. Les autres collaborateurs gardent leurs propres dossiers présélectionnés." },
@@ -10141,7 +10142,7 @@
         role, qualiteActe: role === 'VENDEUR' ? 'vendeur' : 'acquéreur',
         qualitePersonne: 'physique', representant: null, origine: 'authentic',
         source: { extrait: 'Export Authentic', index: null, page: null },
-        emails: p.emails.slice(), civilite: p.civilite, dateNaissance: p.dateNaissance, lieuNaissance: p.lieuNaissance
+        emails: p.emails.slice(), telephones: (p.telephones || []).slice(), civilite: p.civilite, dateNaissance: p.dateNaissance, lieuNaissance: p.lieuNaissance
       }, p.nomUsage ? { nomUsage: p.nomUsage } : {});
     });
   }
@@ -10379,7 +10380,7 @@
     const status = document.getElementById('pdf-status');
     const parties = partiesExportAuthentic(donnees);
     status.className = 'pdf-status ok';
-    status.textContent = `Export Authentic « ${donnees.intitule} » lu : ${parties.length} partie${parties.length > 1 ? 's' : ''}, ${donnees.documents.length} document${donnees.documents.length > 1 ? 's' : ''}`
+    status.textContent = `${donnees.origine === 'pages' ? 'Pages Authentic' : 'Export Authentic'} « ${donnees.intitule} » ${donnees.origine === 'pages' ? 'reprises' : 'lu'} : ${parties.length} partie${parties.length > 1 ? 's' : ''}, ${donnees.documents.length} document${donnees.documents.length > 1 ? 's' : ''}`
       + (sourceTexte ? ` ; ${sourceTexte}` : ' ; aucun acte à lire : dates butoir à saisir.');
     majPiecesAuthentic();
   }
@@ -11257,7 +11258,7 @@
       reprises.forEach(pc => { dossier.pieces[pc.cle] = 'recue'; });
       if (reprises.length) dossier.piecesValideesManuellement = reprises.map(pc => pc.cle);
       dossier.historique.push(Object.assign({ date: new Date().toISOString(),
-        texte: `Créé depuis l'export Authentic « ${exportAuthenticActuel.intitule} »` + (reprises.length ? ` — pièces présentes dans Authentic marquées reçues : ${reprises.map(pc => pc.label).join(', ')}` : '') },
+        texte: `Créé depuis ${exportAuthenticActuel.origine === 'pages' ? 'les pages' : 'l’export'} Authentic « ${exportAuthenticActuel.intitule} »` + (reprises.length ? ` — pièces présentes dans Authentic marquées reçues : ${reprises.map(pc => pc.label).join(', ')}` : '') },
       utilisateurPoste ? { auteur: utilisateurPoste } : {}));
     }
 
@@ -14906,6 +14907,7 @@
   let etapeWizardActuelle = 1;
   function definirEtapeWizard(n) {
     etapeWizardActuelle = n;
+    if (n === 1) chargerRelevesAuthenticRecents();
     for (let i = 1; i <= 4; i++) {
       document.getElementById('wizard-step-' + i).classList.toggle('actif', i === n);
       document.getElementById('wizard-step-btn-' + i).classList.toggle('actif', i === n);
@@ -22801,7 +22803,7 @@
         ? `<button type="button" class="piece-nom piece-nom-lien" title="Ouvrir le fichier trouvé" onclick="ouvrirPieceTrouvee('${d.id}', '${p.cle}')">${escapeHtml(p.label)}</button>`
         : `<span class="piece-nom"${titreNom}>${escapeHtml(p.label)}</span>`;
       const tags = (notifs.includes(p.cle) ? '<span class="dot-label dl-urgent notif-nouveau-tag">Nouveau</span>' : '')
-        + (valideeMain ? '<span class="piece-tag">à la main</span>' : '');
+        + (valideeMain ? `<span class="piece-tag">${(d.piecesAuthentic || []).includes(p.cle) ? 'dans Authentic' : 'à la main'}</span>` : '');
       const reinit = (!p.personnalisee && !valideeMain && recue)
         ? `<button type="button" class="piece-action" onclick="reinitialiserStatutPieceStandard('${d.id}', '${p.cle}', '${arg}')" title="Réinitialiser (mauvaise correspondance ou fichier renommé)" aria-label="Réinitialiser le statut de cette pièce">${icone('rotate-ccw')}</button>`
         : '';
@@ -25314,6 +25316,390 @@
       </div>`;
   }
 
+  // ---- Pages d'Authentic lues par CLAIRE (étude, 02/10) ----
+  // Trois pages connues, d'après leur structure relevée au bureau : la page de gestion du dossier
+  // (intitulé « N - Vente VENDEUR/ACQUÉREUR » et tableaux de documents : intitulé, date, état), la
+  // fiche client (personne physique, champs nommés « ficheClientPhysique… ») et la fiche bien
+  // (« ficheImmeuble… », cadastre en tableau). Toutes pures : la capture est passée en paramètre.
+  var RE_INTITULE_DOSSIER_AUTHENTIC = /(?:^|[^\w])(\d{1,6})\s*-\s*((?:Vente|VTE)\s+[^\n\/]*?\S\s*\/\s*[^\n]*?\S)(?=\s+(?:Importer|Comparants|Immeubles)\b|\s*\n|\s*$)/i;
+  // Une ligne qui annonce une demande ou un envoi n'est pas une pièce reçue.
+  var RE_DEMANDE_AUTHENTIC = /^\s*(?:demande|courrier|lettre|relance|envoi|envoy|requisition|réquisition|mail|e-?mail|convocation|projet|modele|modèle)/i;
+  var RE_ETAT_NON_RECU_AUTHENTIC = /attente|demand|envoy|a recevoir|à recevoir|relanc|non re[cç]u|manquant|a faire|à faire/i;
+  var RE_ETAT_CIVIL_AUTHENTIC = /acte\s+de\s+(?:naissance|mariage|d[ée]c[èe]s)|livret\s+de\s+famille/i;
+  var RE_SAFER_NON_PREEMPTION = /non[\s-]*(?:exercice|pr[ée]emption)|renon[cç]|ne\s+(?:pas\s+)?(?:pr[ée]empt|exerc)|pas\s+de\s+pr[ée]emption|purg[ée]/i;
+
+  function dateIsoDepuisFr(v) {
+    const m = /(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})/.exec(String(v || ''));
+    return m ? `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}` : '';
+  }
+  function libelleNetAuthentic(l) {
+    return normaliserPourRecherche(String(l || '').replace(/\*/g, '')).replace(/\s+/g, ' ').trim();
+  }
+  // Valeur du n-ième champ dont le libellé répond au test (libellé net, puis brut — certains champs
+  // n'ont pour libellé que leur nom technique, « …:naissanceDate:naissanceDate »).
+  function valeurChampAuthentic(champs, test, rang) {
+    const liste = (champs || []).filter(c => c && test(libelleNetAuthentic(c.libelle), String(c.libelle || '')));
+    const c = liste[rang || 0];
+    return c ? String(c.valeur == null ? '' : c.valeur).replace(/\s+/g, ' ').trim() : '';
+  }
+
+  // Pure : 'gestion' | 'client' | 'bien' | 'autre'.
+  function typePageAuthentic(capture) {
+    const champs = (capture && capture.champs) || [];
+    if (champs.some(c => /ficheClientPhysique/i.test(c.libelle || ''))) return 'client';
+    if (champs.some(c => /ficheImmeuble/i.test(c.libelle || ''))) return 'bien';
+    if (intituleDossierAuthentic(capture) && lignesDocumentsAuthentic(capture).length) return 'gestion';
+    return 'autre';
+  }
+
+  // Pure : « Vente VENDEUR/ACQUÉREUR » d'après le libellé du dossier ouvert dans Authentic.
+  function intituleDossierAuthentic(capture) {
+    const c = capture || {};
+    const sources = [];
+    (c.champs || []).forEach(ch => { sources.push(ch.libelle || ''); sources.push(ch.valeur || ''); });
+    sources.push(c.texte || '');
+    for (const s of sources) {
+      const m = RE_INTITULE_DOSSIER_AUTHENTIC.exec(String(s));
+      if (m) return m[2].replace(/\s*\/\s*/, ' / ').replace(/\s+/g, ' ').trim();
+    }
+    return '';
+  }
+
+  // Pure : le dossier CLAIRE de cet intitulé — mêmes noms des deux côtés de la barre, un seul
+  // dossier (en cours de préférence) ; sinon null (jamais deviné).
+  function dossierPourIntituleAuthentic(intitule, liste) {
+    const m = /^\s*(?:vte|vente)\s+(.+?)\s*\/\s*(.+?)\s*$/i.exec(intitule || '');
+    if (!m) return null;
+    const cle = (a, b) => [a, b].map(x => normaliserPourRecherche(x).replace(/[^a-z0-9]+/g, ' ').trim()).join('/');
+    const voulu = cle(m[1], m[2]);
+    const candidats = (liste || []).filter(d => {
+      if (!d || d.deleted) return false;
+      const n = /^\s*(.+?)\s*\/\s*(.+?)\s*$/.exec(String(d.nom || ''));
+      return n && cle(n[1], n[2]) === voulu;
+    });
+    const enCours = candidats.filter(d => !d.archive);
+    if (enCours.length === 1) return enCours[0];
+    return !enCours.length && candidats.length === 1 ? candidats[0] : null;
+  }
+
+  // Pure : les lignes de documents des tableaux de la page de gestion — intitulé (première cellule
+  // de texte), date (première date), état (dernière cellule de texte), texte de toute la ligne.
+  function lignesDocumentsAuthentic(capture) {
+    const lignes = [];
+    ((capture && capture.tableaux) || []).forEach(t => {
+      const entete = (t.entete || []).map(libelleNetAuthentic);
+      if (entete.includes('section') && entete.some(e => /^num/.test(e))) return;   // cadastre
+      (t.lignes || []).forEach(l => {
+        const cellules = (l || []).map(x => String(x == null ? '' : x).replace(/\s+/g, ' ').trim());
+        const iDate = cellules.findIndex(x => /^\d{1,2}[\/.-]\d{1,2}[\/.-]\d{4}/.test(x));
+        if (iDate < 0 || cellules.length < 3) return;
+        const textes = cellules.map((x, i) => ({ x, i })).filter(o => o.x && !/^\d{1,2}[\/.-]\d{1,2}[\/.-]\d{4}/.test(o.x) && !/^⟦icône⟧/.test(o.x));
+        if (!textes.length) return;
+        const titre = textes[0].x;
+        const dernier = textes[textes.length - 1];
+        lignes.push({ titre, date: dateIsoDepuisFr(cellules[iDate]), etat: dernier.i !== textes[0].i ? dernier.x : '', texte: cellules.filter(Boolean).join(' · '), tableau: t.titre || '' });
+      });
+    });
+    return lignes;
+  }
+
+  function ligneAuthenticRecue(l) {
+    return !!l && !RE_DEMANDE_AUTHENTIC.test(normaliserPourRecherche(l.titre)) && !RE_ETAT_NON_RECU_AUTHENTIC.test(normaliserPourRecherche(l.etat || ''));
+  }
+
+  // Pure : pièces de la checklist reçues d'après les lignes (même règle que l'export ZIP : le nom,
+  // jamais le contenu), plus les actes d'état civil et la réponse SAFER de non-préemption, ajoutés
+  // comme pièces du dossier. [{ cle, label, nouvelle, date, titre }]
+  function piecesRecuesAuthentic(lignes, checklist) {
+    const resultat = [];
+    const liste = checklist || [];
+    const ajouter = (o) => { if (!resultat.some(r => r.cle === o.cle)) resultat.push(o); };
+    (lignes || []).filter(ligneAuthenticRecue).forEach(l => {
+      const nom = normaliserNomPourMotif(l.titre + '.pdf');
+      const piece = liste.find(p => p && p.cle && correspondancePieceNom(p, nom) === 'exact');
+      if (piece) { ajouter({ cle: piece.cle, label: piece.label, nouvelle: false, date: l.date, titre: l.titre }); return; }
+      if (/safer/i.test(l.texte) && RE_SAFER_NON_PREEMPTION.test(normaliserPourRecherche(l.texte))) {
+        const existante = liste.find(p => p.personnalisee && /safer/i.test(p.label));
+        ajouter(existante ? { cle: existante.cle, label: existante.label, nouvelle: false, date: l.date, titre: l.titre }
+          : { cle: 'perso-safer', label: 'Réponse SAFER', nouvelle: true, date: l.date, titre: l.titre });
+        return;
+      }
+      if (RE_ETAT_CIVIL_AUTHENTIC.test(l.titre)) {
+        const label = l.titre.slice(0, 90);
+        const cleLabel = normaliserPourRecherche(label);
+        const existante = liste.find(p => p.personnalisee && normaliserPourRecherche(p.label) === cleLabel);
+        ajouter(existante ? { cle: existante.cle, label: existante.label, nouvelle: false, date: l.date, titre: l.titre }
+          : { cle: 'perso-authentic-' + cleLabel.replace(/[^a-z0-9]+/g, '-').slice(0, 40), label, nouvelle: true, date: l.date, titre: l.titre });
+      }
+    });
+    return resultat;
+  }
+
+  function adresseFicheAuthentic(champs) {
+    const v = (lib) => valeurChampAuthentic(champs, n => n === lib);
+    const numero = v('n° de voie'), typeVoie = v('type de voie'), nomVoie = v('nom de la voie');
+    const lieuDit = valeurChampAuthentic(champs, n => /^lieu-dit/.test(n));
+    const cpVille = v('cp - ville');
+    const m = /^(\d{5})\s+(.+)$/.exec(cpVille);
+    const codePostal = m ? m[1] : '', commune = m ? m[2] : cpVille;
+    const ligneVoie = [numero, typeVoie, nomVoie].filter(Boolean).join(' ') || lieuDit || v('adresse');
+    if (!ligneVoie && !commune) return null;
+    return {
+      numero: numero || null, typeVoie: typeVoie || null, nomVoie: nomVoie || null, lieuDit: lieuDit || null,
+      codePostal: codePostal || null, commune: commune || null,
+      departement: /^\d{5}$/.test(codePostal) ? (codePostal.startsWith('97') ? codePostal.slice(0, 3) : codePostal.slice(0, 2)) : null,
+      texte: [ligneVoie, [codePostal, commune].filter(Boolean).join(' ')].filter(Boolean).join(' ')
+    };
+  }
+
+  // Pure : la fiche client (personne physique) → personne au format de l'export ZIP.
+  function clientDepuisFicheAuthentic(capture) {
+    const champs = (capture && capture.champs) || [];
+    const nom = valeurChampAuthentic(champs, n => n === 'nom de famille');
+    if (!nom) return null;
+    const emails = [];
+    champs.filter(c => libelleNetAuthentic(c.libelle) === 'email').forEach(c => {
+      const e = String(c.valeur || '').trim();
+      if (/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e) && !emails.includes(e)) emails.push(e);
+    });
+    const telephones = champs.filter(c => /inputTelephone/i.test(c.libelle || '')).map(c => String(c.valeur || '').trim()).filter(Boolean)
+      .filter((x, i, l) => l.indexOf(x) === i);
+    const nomUsage = valeurChampAuthentic(champs, n => n === "denomination d'usage" || n === 'denomination d’usage');
+    return {
+      id: 'authentic-' + normaliserPourRecherche(nom).replace(/[^a-z0-9]+/g, '') + '-' + dateIsoDepuisFr(valeurChampAuthentic(champs, (n, b) => /naissanceDate/.test(b))),
+      index: 0,
+      civilite: valeurChampAuthentic(champs, (n, b) => /:civilite:/.test(b)),
+      nom: nom.toUpperCase(),
+      prenom: valeurChampAuthentic(champs, n => n === 'prenom'),
+      nomUsage: nomUsage && nomUsage.toUpperCase() !== nom.toUpperCase() ? nomUsage.toUpperCase() : '',
+      autresPrenoms: valeurChampAuthentic(champs, n => /^autre\(s\) prenom/.test(n)),
+      dateNaissance: dateIsoDepuisFr(valeurChampAuthentic(champs, (n, b) => /naissanceDate/.test(b))),
+      lieuNaissance: valeurChampAuthentic(champs, n => n === 'cp, ville (naissance)'),
+      adresse: adresseFicheAuthentic(champs),
+      emails, telephones,
+      profession: valeurChampAuthentic(champs, n => n === 'profession'),
+      documents: []
+    };
+  }
+
+  // Pure : la fiche bien → immeuble au format de l'export ZIP (type, adresse, parcelles du cadastre).
+  function bienDepuisFicheAuthentic(capture) {
+    const c = capture || {};
+    const champs = c.champs || [];
+    const champsBien = champs.filter(ch => /informations du bien/i.test(ch.groupe || ''));
+    const adresse = adresseFicheAuthentic(champsBien.length ? champsBien : champs);
+    const typeBrut = normaliserPourRecherche(valeurChampAuthentic(champs, (n, b) => /typeWithDialog/i.test(b)));
+    const type = /maison|pavillon|villa/.test(typeBrut) ? 'maison'
+      : /appartement|copro|lot/.test(typeBrut) ? 'copropriete'
+        : /terrain/.test(typeBrut) ? 'terrain' : null;
+    const parcelles = [];
+    (c.tableaux || []).forEach(t => {
+      const entete = (t.entete || []).map(libelleNetAuthentic);
+      const iSection = entete.indexOf('section');
+      const iNumero = entete.findIndex(e => /^num/.test(e));
+      if (iSection < 0 || iNumero < 0) return;
+      (t.lignes || []).forEach(l => {
+        const section = String(l[iSection] || '').trim().toUpperCase();
+        const numero = String(l[iNumero] || '').trim().replace(/^0+(?=\d)/, '');
+        if (section && numero && !parcelles.some(p => p.section === section && p.numero === numero)) parcelles.push({ section, numero });
+      });
+    });
+    if (!adresse && !parcelles.length) return null;
+    return {
+      id: 'authentic-bien-' + normaliserPourRecherche((adresse && adresse.texte) || parcelles.map(p => p.section + p.numero).join('')).replace(/[^a-z0-9]+/g, '').slice(0, 40),
+      adresse, type, parcelles, surface: null, description: valeurChampAuthentic(champs, n => n === 'designation')
+    };
+  }
+
+  // Pure : les pages relevées (dans l'ordre où elles ont été vues) regroupées par dossier, au format
+  // de l'export ZIP — une fiche client ou bien sans intitulé appartient au dernier dossier vu.
+  // [{ intitule, export, derniere }] du plus récent au plus ancien.
+  function dossiersDepuisRelevesAuthentic(releves) {
+    const groupes = new Map();
+    let courant = '';
+    (releves || []).slice().sort((a, b) => String(a.recueLe || '').localeCompare(String(b.recueLe || ''))).forEach(r => {
+      const cap = r && r.capture;
+      if (!cap) return;
+      const type = typePageAuthentic(cap);
+      const intitule = intituleDossierAuthentic(cap) || courant;
+      if (intituleDossierAuthentic(cap)) courant = intituleDossierAuthentic(cap);
+      if (!intitule || type === 'autre') return;
+      if (!groupes.has(intitule)) groupes.set(intitule, { intitule, derniere: '', personnes: new Map(), immeubles: new Map(), documents: new Map() });
+      const g = groupes.get(intitule);
+      g.derniere = r.recueLe || g.derniere;
+      if (type === 'client') { const p = clientDepuisFicheAuthentic(cap); if (p) g.personnes.set(p.id, p); }
+      if (type === 'bien') { const b = bienDepuisFicheAuthentic(cap); if (b) g.immeubles.set(b.id, b); }
+      if (type === 'gestion') lignesDocumentsAuthentic(cap).filter(ligneAuthenticRecue).forEach(l => g.documents.set(l.titre + '|' + l.date, { intitule: l.titre, nomFichier: '', chemin: '', date: l.date, personne: null }));
+    });
+    return [...groupes.values()].map(g => {
+      const personnes = [...g.personnes.values()].map((p, i) => Object.assign({}, p, { index: i }));
+      const immeubles = [...g.immeubles.values()];
+      return {
+        intitule: g.intitule, derniere: g.derniere,
+        export: {
+          intitule: g.intitule, type: '', dateCreation: '', personnes, immeubles, parties: [], intervenants: [],
+          biens: immeubles.map(im => im.id), documents: [...g.documents.values()], documentsPersonnes: [], acte: null, notaireRedacteur: null,
+          origine: 'pages'
+        }
+      };
+    }).sort((a, b) => String(b.derniere).localeCompare(String(a.derniere)));
+  }
+
+  // ---- Relevé automatique d'Authentic (étude, 02/10 : « automatique, à l'affichage ») ----
+  // L'extension envoie chaque page d'Authentic affichée ; une fenêtre CLAIRE la prend (une seule) et
+  // met à jour la fiche du dossier reconnu par l'intitulé : pièces reçues cochées « reçues dans
+  // Authentic » (validées à la main, donc décochables et jamais repassées en manquantes par le NAS),
+  // historique, notification. Une pièce déjà reprise une fois ne l'est plus (d.piecesAuthentic) : la
+  // décocher reste la décision de l'étude. Jamais pour une participation (pièces suivies par le confrère).
+  var INTERVALLE_RELEVES_AUTHENTIC_MS = 5000;
+  let releveAuthenticEnCours = false;
+
+  // Pure : ce qu'un relevé de la page de gestion change sur un dossier (pièces à cocher).
+  function piecesAuthenticAAppliquer(d, capture) {
+    if (!d || d.roleNotaire === 'participant') return [];
+    const deja = new Set(d.piecesAuthentic || []);
+    const retirees = new Set(d.piecesRetirees || []);
+    return piecesRecuesAuthentic(lignesDocumentsAuthentic(capture), checklistPieces(d.typeVente, d))
+      .filter(p => !deja.has(p.cle) && !retirees.has(p.cle) && !(!p.nouvelle && d.pieces && d.pieces[p.cle] === 'recue'));
+  }
+
+  async function appliquerReleveAuthentic(capture) {
+    if (typePageAuthentic(capture) !== 'gestion') return 0;
+    const d = dossierPourIntituleAuthentic(intituleDossierAuthentic(capture), dossiers);
+    const pieces = piecesAuthenticAAppliquer(d, capture);
+    if (!pieces.length) return 0;
+    const maintenant = new Date().toISOString();
+    d.pieces = d.pieces || {};
+    pieces.forEach(p => {
+      if (p.nouvelle && !(d.piecesPersonnalisees || []).some(x => x.cle === p.cle)) {
+        d.piecesPersonnalisees = (d.piecesPersonnalisees || []).concat({ cle: p.cle, label: p.label });
+      }
+      d.pieces[p.cle] = 'recue';
+      d.piecesValideesManuellement = Array.from(new Set([...(d.piecesValideesManuellement || []), p.cle]));
+      d.piecesAuthentic = Array.from(new Set([...(d.piecesAuthentic || []), p.cle]));
+      d.piecesTrouveesLe = Object.assign({}, d.piecesTrouveesLe, { [p.cle]: p.date ? p.date + 'T12:00:00' : maintenant });
+      d.piecesNotifications = Array.from(new Set([...(d.piecesNotifications || []), p.cle]));
+      d.historique = d.historique || [];
+      d.historique.push({ date: maintenant, texte: `Reçue dans Authentic : « ${p.label} »${p.nouvelle ? ' ajoutée à la liste des pièces' : ''}${p.titre && p.titre !== p.label ? ` (${p.titre})` : ''}${p.date ? `, le ${formatDateFr(p.date)}` : ''}` });
+    });
+    await sauvegarder(d);
+    render();
+    const cles = pieces.map(p => p.cle);
+    try { notifierNouvellesPiecesTrouvees(d, cles); } catch (e) { /* notification facultative */ }
+    try { notifierNavigateurPieces(d, cles); } catch (e) { /* notification facultative */ }
+    try { signalerSiDossierDevenuComplet(d); } catch (e) { /* notification facultative */ }
+    afficherToast(`Authentic : ${pieces.length} pièce${pieces.length > 1 ? 's' : ''} reçue${pieces.length > 1 ? 's' : ''} sur ${libelleDossierAffiche(d)} (${pieces.map(p => p.label).join(', ')}).`, 'Voir', () => ouvrirDossierDrawer(d.id));
+    return pieces.length;
+  }
+
+  async function releverPagesAuthentic() {
+    if (!authToken || releveAuthenticEnCours) return;
+    releveAuthenticEnCours = true;
+    try {
+      const r = await fetchAvecAuth('/api/authentic/releves/prendre', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+      if (!r.ok) return;
+      const { releves } = await r.json();
+      for (const rel of releves || []) {
+        try { await appliquerReleveAuthentic(rel.capture); } catch (e) { console.error('Relevé Authentic non appliqué', e && e.message); }
+      }
+    } catch (e) { /* le relevé suivant reprendra */ } finally {
+      releveAuthenticEnCours = false;
+    }
+    // « Nouveau dossier » ouvert à l'étape 1 : la liste « Depuis Authentic » suit les pages vues.
+    const etape1 = document.getElementById('wizard-step-1');
+    if (etape1 && etape1.classList.contains('actif') && etape1.offsetParent) chargerRelevesAuthenticRecents();
+  }
+
+  // ---- « Nouveau dossier » depuis les pages relevées dans Authentic (étude, 02/10) ----
+  // Les pages vues dans la dernière heure (gestion du dossier, fiches client, fiches bien), regroupées
+  // par dossier, entrent dans le parcours de l'export ZIP : mêmes parties (par l'intitulé « Vente
+  // VENDEUR/ACQUÉREUR »), même bien, mêmes pièces présentes, même formulaire à vérifier. Un avant-
+  // contrat déjà déposé garde ses dates et son prix : Authentic le complète.
+  let groupesAuthenticRecents = [];
+
+  async function chargerRelevesAuthenticRecents() {
+    const bloc = document.getElementById('authentic-releves');
+    if (!bloc || !authToken) return;
+    try {
+      const r = await fetchAvecAuth('/api/authentic/releves/recents');
+      if (!r.ok) return;
+      const { releves } = await r.json();
+      groupesAuthenticRecents = dossiersDepuisRelevesAuthentic(releves || []);
+    } catch (e) { return; }
+    renderRelevesAuthenticWizard();
+  }
+
+  // Pure : « 2 personnes · 1 bien · 3 pièces présentes ».
+  function resumeGroupeAuthentic(g) {
+    const ex = (g && g.export) || {};
+    const n = (k, s, p) => `${k} ${k > 1 ? p : s}`;
+    const parties = partiesExportAuthentic(ex);
+    const morceaux = [
+      parties.length ? n(parties.length, 'partie reconnue', 'parties reconnues') : n((ex.personnes || []).length, 'fiche client', 'fiches client'),
+      n((ex.immeubles || []).length, 'bien', 'biens'),
+      n((ex.documents || []).length, 'document reçu', 'documents reçus')
+    ];
+    return morceaux.join(' · ');
+  }
+
+  function renderRelevesAuthenticWizard() {
+    const bloc = document.getElementById('authentic-releves');
+    if (!bloc) return;
+    if (!groupesAuthenticRecents.length) { bloc.style.display = 'none'; bloc.innerHTML = ''; return; }
+    const avecPdf = !!dernierTexteTraite && !exportAuthenticActuel;
+    bloc.style.display = '';
+    bloc.innerHTML = `
+      <h3 class="authentic-releves-titre">Depuis Authentic ${infoBulle('Dossiers ouverts dans Authentic depuis une heure (extension « CLAIRE pour Authentic »). Ouvrez dans Authentic la page du dossier, puis chaque fiche client et chaque fiche bien : CLAIRE les rassemble. Les dates et le prix viennent de l’avant-contrat : déposez-le d’abord ci-dessus si vous l’avez, puis « Compléter ».')}</h3>
+      <ul class="ja-liste">${groupesAuthenticRecents.slice(0, 6).map((g, i) => {
+        const existant = dossierPourIntituleAuthentic(g.intitule, dossiers);
+        const nom = g.intitule.replace(/^\s*(?:vente|vte)\s+/i, '');
+        return renderLigneAction({
+          titre: libelleDossierParNom(nom),
+          sous: (existant ? 'Déjà suivi dans CLAIRE · ' : '') + resumeGroupeAuthentic(g),
+          delai: g.derniere ? heureAppel(g.derniere) : '',
+          categorie: existant ? 'neutre' : 'acte',
+          bouton: existant
+            ? { libelle: 'Ouvrir la fiche', onclick: `ouvrirDossierDepuisDashboard('${escapeOnclickArg(existant.id)}')` }
+            : { libelle: avecPdf ? 'Compléter' : 'Créer', onclick: `creerDepuisAuthentic(${i})`, icone: icone('plus') }
+        });
+      }).join('')}</ul>`;
+  }
+
+  function creerDepuisAuthentic(i) {
+    const g = groupesAuthenticRecents[i];
+    if (!g) return;
+    const donnees = g.export;
+    const status = document.getElementById('pdf-status');
+    if (typeAffaireAuthentic(donnees) === 'succession') {
+      status.className = 'pdf-status err';
+      status.textContent = `« ${donnees.intitule} » est un dossier de succession : CLAIRE ne suit encore que les ventes.`;
+      return;
+    }
+    // Un avant-contrat déjà lu : Authentic le complète (parties, bien, téléphones, pièces).
+    if (dernierTexteTraite && !exportAuthenticActuel) {
+      exportAuthenticActuel = donnees;
+      recalculerExtractionRegex();
+      appliquerTypeVenteAuthentic(donnees);
+      afficherImportAuthentic(donnees, 'dates et prix lus dans l’avant-contrat déposé.');
+      definirEtapeWizard(2);
+      return;
+    }
+    reinitialiserFormulaire();
+    exportAuthenticActuel = donnees;
+    compromisNomFichierImporte = '';
+    correctionsRevision = {};
+    verificationsRevision = {};
+    pageParType = { pret: null, acte: null, ventebien: null };
+    ambiguiteParType = { pret: false, acte: false, ventebien: false };
+    approxParType = { pret: false, acte: false, ventebien: false };
+    frontieresPagesActuelles = null;
+    recalculerExtractionRegex();
+    majProgression(-1);
+    appliquerTypeVenteAuthentic(donnees);
+    afficherImportAuthentic(donnees, '');
+    definirEtapeWizard(2);
+  }
+
   // Un appel ouvert par l'adresse « #appel=… » (onglet que 3CX a ouvert, fenêtre CLAIRE absente).
   async function ouvrirAppelDepuisAdresse() {
     const m = /(?:^|[#&])appel=([\w-]+)/.exec(location.hash || '');
@@ -25880,6 +26266,8 @@
     // dès qu'elle revient au premier plan.
     document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') releverAppels(); });
     ouvrirAppelDepuisAdresse();
+    // Pages d'Authentic relevées automatiquement par l'extension : pièces reçues reportées sur la fiche.
+    setInterval(releverPagesAuthentic, INTERVALLE_RELEVES_AUTHENTIC_MS);
     // Page d'Authentic envoyée par l'extension Firefox (#authentic=…), au chargement ou dans un onglet déjà ouvert.
     ouvrirCaptureAuthenticDepuisAdresse();
     window.addEventListener('hashchange', ouvrirCaptureAuthenticDepuisAdresse);

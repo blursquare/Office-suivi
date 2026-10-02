@@ -603,13 +603,19 @@ Plainte principale de l'étude : **le bruit**, pas les oublis — ne pas élargi
   `masquerValeurAuthentic`), puis mapper vers les champs du dossier comme `completerExtractionDepuisAuthentic`.
   Non vérifié dans un vrai Firefox ni sur Authentic (relevé testé dans Chromium sur une page inventée) ;
   installation durable = signature Mozilla « unlisted » ou stratégie d'entreprise ; non géré si `authActive`.
-  Demander à Fichorga si une API existe. **Choix de l'étude (02/10) pour la suite** : mise à jour **automatique à
-  l'affichage** d'une page d'Authentic (sans clic, pièces cochées « reçue dans Authentic », décochables, historique) ;
-  une notification SAFER de non-préemption = **pièce séparée « Réponse SAFER »** (jamais la DIA/DPU de la commune) ;
-  création depuis Authentic = **« Nouveau dossier » pré-rempli à vérifier** (comme le ZIP), en assemblant plusieurs
-  pages relevées (le dossier, puis chaque fiche client et chaque fiche bien, qui s'ouvrent une à une). Attend la
-  structure réelle : page de gestion du dossier (avec un acte de naissance reçu et une notification SAFER), fiches
-  client, fiches bien, notaires/agence. Cellules de tableau copiées en **vocabulaire** (`vocabulaireCelluleAuthentic`).
+  Demander à Fichorga si une API existe. **Branché le 02/10 (extension 0.3.0)** : relevé **automatique à
+  l'affichage** sur `www.cloud-fichorga.fr` (`auto.js`, page stable 2,5 s, envoi seulement si changée, désactivable)
+  → `POST /api/authentic/releve` (mémoire seule : file prise par UNE fenêtre via `releves/prendre`, et relevés
+  récents 60 min via `releves/recents`). Pages reconnues par leur structure réelle (`typePageAuthentic`) :
+  **gestion du dossier** (intitulé « N - Vente VENDEUR/ACQUÉREUR », tableaux intitulé/date/état —
+  `lignesDocumentsAuthentic`) → dossier retrouvé par les deux noms (`dossierPourIntituleAuthentic`, jamais deviné)
+  → pièces cochées « dans Authentic » (`piecesRecuesAuthentic` : même reconnaissance par le nom que l'export ZIP ;
+  demande/envoi/en attente exclus ; acte d'état civil et **« Réponse SAFER »** de non-préemption ajoutés comme
+  pièces — jamais la DIA/DPU de la commune), une fois par pièce (`d.piecesAuthentic`), jamais en participation ;
+  **fiche client** (`clientDepuisFicheAuthentic`) et **fiche bien** (`bienDepuisFicheAuthentic`, cadastre) →
+  « Nouveau dossier » › « Depuis Authentic » (`dossiersDepuisRelevesAuthentic` au format de l'export ZIP, rôles
+  par l'intitulé, `creerDepuisAuthentic` ; complète un avant-contrat déjà déposé). Notaires et agence : pas encore
+  relevés (page non fournie). Cellules copiées en **vocabulaire** (`vocabulaireCelluleAuthentic`).
 - **Arborescence type des dossiers clients sur le NAS** (MAISON, COPRO, TERRAIN, SUCC, CESSION DE
   FONDS) : détaillée dans `docs/historique.md` (fin du fichier). L'avant-contrat signé est à la
   racine du dossier client ou sous « SRU » ; la rubrique « AAE » contient les pièces réunies entre

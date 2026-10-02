@@ -77,3 +77,17 @@ test('une capture expire après 30 minutes', () => {
     assert.equal((await fetch(b + '/api/authentic/capture/' + id)).status, 404);
   }).finally(() => s.close());
 });
+
+test('relevé automatique : file prise une seule fois, récents gardés, page identique ignorée', async () => {
+  const releve = { titre: 'Authentic', champs: [{ groupe: '', libelle: 'Nom de famille*', valeur: 'FOURNIER' }], tableaux: [], texte: 'x' };
+  const post = (u, corps) => fetch(base + u, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corps || {}) });
+  assert.equal((await (await post('/api/authentic/releve', releve)).json()).ok, true);
+  assert.equal((await (await post('/api/authentic/releve', releve)).json()).deja, true);
+  const pris = await (await post('/api/authentic/releves/prendre')).json();
+  assert.equal(pris.releves.length, 1);
+  assert.equal(pris.releves[0].capture.champs[0].valeur, 'FOURNIER');
+  assert.equal((await (await post('/api/authentic/releves/prendre')).json()).releves.length, 0);
+  const recents = await (await fetch(base + '/api/authentic/releves/recents')).json();
+  assert.equal(recents.releves.length, 1);
+  assert.equal((await fetch(base + '/api/authentic/releve', { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: 'x' })).status, 415);
+});
