@@ -180,6 +180,21 @@ function mediane(nombres) {
 
 // Pure : le rapport (titre + corps Markdown) à partir des données rassemblées. Rien de nominatif
 // n'y entre qui ne soit passé par anonymiserTexte.
+// Pure : les champs corrigés au moins `seuil` fois sur les `jours` derniers jours, du plus corrigé au moins.
+const SEUIL_ERREUR_FREQUENTE = 3;
+function erreursFrequentesJournal(journal, maintenant, jours = 30, seuil = SEUIL_ERREUR_FREQUENTE) {
+  const fin = Date.parse(maintenant) || Date.now();
+  const debut = fin - jours * 86400000;
+  const parChamp = {};
+  for (const e of Array.isArray(journal) ? journal : []) {
+    const t = Date.parse(e && e.date);
+    if (!e || typeof e.champ !== 'string' || !(t >= debut && t <= fin)) continue;
+    parChamp[e.champ] = (parChamp[e.champ] || 0) + 1;
+  }
+  return Object.entries(parChamp).filter(([, n]) => n >= seuil)
+    .map(([champ, nombre]) => ({ champ, nombre })).sort((a, b) => b.nombre - a.nombre);
+}
+
 function construireRapport(d) {
   const mots = d.mots || new Set();
   const depuis = d.depuis;
@@ -214,6 +229,8 @@ function construireRapport(d) {
   const scansTraitesALaMain = ecartes.length + rangements.filter((j) => !j.auto).length;
   const nonReconnusRestants = Math.max(0, nonReconnus.length - scansTraitesALaMain);
   if (nonReconnusRestants) aExaminer.push(`${nonReconnusRestants} scan(s) dont le type n'a pas été reconnu, ni rangé(s) ni laissé(s) dans Scan`);
+  const frequentes = erreursFrequentesJournal(d.journalCorrections || [], jusqua);
+  if (frequentes.length) aExaminer.push(`${frequentes.length} champ(s) souvent corrigé(s) à la main (erreur de lecture à corriger)`);
   const calme = aExaminer.length === 0;
 
   const { date: jourFin, heure: heureFin } = momentParis(new Date(jusqua));
@@ -270,6 +287,13 @@ function construireRapport(d) {
       parChamp[cle] = (parChamp[cle] || 0) + (c.fois || 1);
     }
     for (const [k, n] of Object.entries(parChamp).sort((x, y) => y[1] - x[1])) L.push(`- ${k} : ${n}`);
+  }
+
+  // Erreurs de lecture fréquentes (étude, 02/10 : « les repérer et me les signaler ») : un champ corrigé
+  // 3 fois ou plus en 30 jours, tous postes. Le nom du champ et un nombre seulement, jamais une valeur.
+  if (frequentes.length) {
+    L.push('', '## Erreurs de lecture fréquentes (30 derniers jours, tous postes)');
+    for (const f of frequentes) L.push(`- ${anonymiserTexte(f.champ, mots)} : ${f.nombre} correction(s)`);
   }
 
   L.push('', '## Agenda (dernier tour de lecture)');
@@ -341,6 +365,7 @@ function rassemblerDonnees({ journal, parametresRepo, depot, db, depuis, jusqua,
     dernierTourAgenda: parametresRepo.lireDernierTourAgenda ? parametresRepo.lireDernierTourAgenda() : null,
     dernierTourRappels: parametresRepo.lireDernierTour ? parametresRepo.lireDernierTour() : null,
     etatSauvegarde: parametresRepo.lireEtatSauvegarde ? parametresRepo.lireEtatSauvegarde() : null,
+    journalCorrections: parametresRepo.lireJournalCorrections ? parametresRepo.lireJournalCorrections() : [],
     dossiers,
     mots: motsSensibles(dossiers, collaborateurs || [])
   };
@@ -434,6 +459,7 @@ function demarrerRapportTechnique(options, intervalleMs = 60 * 1000) {
 }
 
 module.exports = {
+  erreursFrequentesJournal, SEUIL_ERREUR_FREQUENTE,
   DEPOT_GITHUB_RAPPORT, ETIQUETTE_RAPPORT, CRENEAUX_RAPPORT, SIGLES_TECHNIQUES,
   motsSensibles, anonymiserTexte, origineExtractionAffichee, creneauDu, construireRapport, rassemblerDonnees,
   envoyerIssue, messageErreurGithubRapport, executerRapportTechnique, demarrerRapportTechnique

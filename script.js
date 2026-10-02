@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-02 22:31';
+  const VERSION_APP = '2026-10-02 22:32';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-02 22:32', resume: "Nouvelle rubrique Réglages › « Ce que CLAIRE a appris » : les erreurs de lecture (données d'un compromis corrigées à la main, « Fréquente » à 3 fois en 30 jours), les clauses reconnues d'après vos corrections (à oublier d'un clic si l'une est fausse), les fichiers écartés des pièces et vos commentaires de relecture. Le journal des corrections est désormais commun à tous les postes (il était gardé sur chaque poste, dans « À propos »), et les erreurs fréquentes remontent dans le rapport technique." },
     { version: '2026-10-02 22:31', resume: "Rapport technique : dans « Corrections à la main après extraction », l'origine de la valeur corrigée (regex, IA, Authentic…) s'affiche en clair au lieu de « [nom] » ; c'est un mot technique d'une liste fermée, jamais une donnée du dossier. Les scans non reconnus que l'étude a laissés dans Scan (ou rangés elle-même) ne font plus passer le rapport en « point à examiner »." },
     { version: '2026-10-02 22:18', resume: "Nouveau dossier : « Échéances et dates du document » retiré (doublon des données pré-remplies). La vente préalable est toujours dans les données pré-remplies (une date saisie l'active) et la ligne « Obtention du prêt » porte une case « Sans prêt ». Les engagements du vendeur s'affichent en entier, la page du document à un clic." },
     { version: '2026-10-02 22:15', resume: "Nouveau dossier : le type de vente, le responsable, les deux notaires, le notaire qui reçoit l'acte et le rôle de l'étude rejoignent les « Données pré-remplies », avec leur source (Lue dans l'acte, Reprise d'Authentic, Déduit des notaires, Par défaut) et leur case à valider ; ils se corrigent dans le panneau comme les autres données." },
@@ -7320,6 +7321,12 @@
       adresseBien: adresse ? (adresse.adresseComplete || null) : null,
       roleNotaire: (extraction.notaires && extraction.notaires.roleEtude) || null
     };
+    // Notaires lus dans l'acte (étude, 02/10 : données du dossier dans le panneau) ; un nom complété par
+    // le carnet n'est pas une correction.
+    const cotesLus = cotesNotairesPourDossier(extraction.notaires);
+    const completer = (n) => (n ? (typeof completerNomNotaire === 'function' ? completerNomNotaire(n, typeof carnetConfreres !== 'undefined' ? carnetConfreres : []) : n) : null);
+    if ('notaireVendeur' in finales) proposees.notaireVendeur = completer(cotesLus.vendeur);
+    if ('notaireAcquereur' in finales) proposees.notaireAcquereur = completer(cotesLus.acquereur);
     for (const typeDate of Object.keys(CHAMP_PAR_TYPE_DATE)) {
       proposees[CHAMP_PAR_TYPE_DATE[typeDate]] = (dates[typeDate] && dates[typeDate].valeur) || null;
     }
@@ -7351,7 +7358,9 @@
   var LIBELLES_CHAMPS_CORRECTION = {
     nom: 'Nom du dossier', adresseBien: 'Adresse du bien', prixVente: 'Prix de vente', prixMobilier: 'Mobilier compris dans le prix',
     emailAcquereur: 'Email de l’acquéreur', emailVendeur: 'Email du vendeur', roleNotaire: 'Rôle de l’étude',
-    pret: 'Obtention du prêt', acte: 'Réitération de l’acte', ventebien: 'Vente préalable'
+    pret: 'Obtention du prêt', acte: 'Réitération de l’acte', ventebien: 'Vente préalable',
+    nomAgence: 'Agence immobilière', depotGarantie: 'Dépôt de garantie', sequestreDepot: 'Dépôt versé à',
+    notaireVendeur: 'Notaire du vendeur', notaireAcquereur: 'Notaire de l’acquéreur'
   };
 
   // Agrège le journal des corrections par champ, du plus corrigé au moins corrigé — c'est ce qui
@@ -11300,6 +11309,7 @@
     // ce soit (voir journaliserCorrectionsExtraction).
     journaliserCorrectionsExtraction(diffCorrectionsExtraction(extractionActuelle, {
       nom, adresseBien, emailAcquereur, emailVendeur, roleNotaire, nomAgence, sequestreDepot,
+      notaireVendeur: notaireVendeur || null, notaireAcquereur: notaireAcquereur || null,
       prixVente: Number.isFinite(prixVente) && prixVente > 0 ? prixVente : null,
       prixMobilier: Number.isFinite(prixMobilier) && prixMobilier > 0 ? prixMobilier : null,
       depotGarantie: Number.isFinite(depotGarantie) && depotGarantie > 0 ? depotGarantie : null,
@@ -16653,7 +16663,6 @@
         `<li><span class="apropos-historique-date">${escapeHtml(h.version)}</span> — ${escapeHtml(h.resume)}</li>`
       ).join('');
     }
-    renderQualiteExtraction();
     const overlay = document.getElementById('apropos-overlay');
     if (overlay) overlay.style.display = 'flex';
   }
@@ -29287,31 +29296,27 @@
   const MAX_CORRECTIONS_EXTRACTION = 500;
   let journalCorrectionsExtraction = [];
 
-  async function sauvegarderJournalCorrections() {
-    const contenu = JSON.stringify(journalCorrectionsExtraction);
-    try {
-      if (window.storage) { await window.storage.set(CLE_CORRECTIONS_EXTRACTION, contenu, false); return; }
-    } catch (e) { console.warn('window.storage indisponible pour le journal des corrections, repli sur localStorage.', e); }
-    try { localStorage.setItem(CLE_CORRECTIONS_EXTRACTION, contenu); } catch (e) { console.warn('Sauvegarde du journal des corrections impossible.', e); }
-  }
-
+  // Journal commun à tous les postes, sur le serveur (étude, 02/10 : « où est ce journal ? » — il était gardé
+  // dans le navigateur de chaque poste, chacun ne voyait que ses propres corrections). Les entrées encore
+  // gardées sur ce poste sont reprises une fois sur le serveur, puis effacées du navigateur.
   async function chargerJournalCorrections() {
-    let brut = null;
     try {
-      if (window.storage) {
-        const res = await window.storage.get(CLE_CORRECTIONS_EXTRACTION, false);
-        if (res && res.value) brut = JSON.parse(res.value);
+      const local = JSON.parse(localStorage.getItem(CLE_CORRECTIONS_EXTRACTION) || 'null');
+      if (Array.isArray(local) && local.length) {
+        const r = await fetchAvecAuth('/api/corrections-extraction', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ entrees: local.slice(-100) })
+        });
+        if (r.ok) localStorage.removeItem(CLE_CORRECTIONS_EXTRACTION);
       }
-    } catch (e) { /* on tente le repli ci-dessous */ }
-    if (brut === null) {
-      try {
-        const local = localStorage.getItem(CLE_CORRECTIONS_EXTRACTION);
-        if (local) brut = JSON.parse(local);
-      } catch (e) { /* rien d'exploitable non plus ici */ }
-    }
-    journalCorrectionsExtraction = Array.isArray(brut)
-      ? brut.filter(c => c && typeof c === 'object' && typeof c.champ === 'string')
-      : [];
+    } catch (e) { /* reprise retentée au prochain démarrage */ }
+    try {
+      const r = await fetchAvecAuth('/api/corrections-extraction');
+      if (r.ok) {
+        const data = await r.json();
+        journalCorrectionsExtraction = Array.isArray(data.journal) ? data.journal : [];
+      }
+    } catch (e) { console.warn('Journal des corrections indisponible :', e.message); }
+    return journalCorrectionsExtraction;
   }
 
   function journaliserCorrectionsExtraction(entrees) {
@@ -29319,58 +29324,155 @@
     journalCorrectionsExtraction.push(...entrees);
     // Rapport technique : le nom du champ et qui l'avait proposé, jamais les valeurs.
     entrees.forEach(e => noterJournalTechnique({ categorie: 'correction-extraction', champ: e.champ, origine: e.origine }));
-    // On garde les plus récentes : c'est l'état actuel de l'extraction qui intéresse, pas ses
-    // erreurs d'il y a deux ans sur des regex depuis corrigées.
     if (journalCorrectionsExtraction.length > MAX_CORRECTIONS_EXTRACTION) {
       journalCorrectionsExtraction = journalCorrectionsExtraction.slice(-MAX_CORRECTIONS_EXTRACTION);
     }
-    sauvegarderJournalCorrections();
-    // Le panneau « Qualité de l'extraction » de l'écran À propos n'est peuplé qu'à l'ouverture de
-    // cet écran (voir ouvrirAPropos) : rien à rafraîchir ici en direct, juste garder le journal à
-    // jour pour la prochaine ouverture.
-  }
-
-  // Panneau « Qualité de l'extraction » (écran "À propos", voir ouvrirAPropos) : exploite enfin ce
-  // journal, qui grossissait jusqu'ici sans que personne ne puisse voir quels champs l'extraction
-  // rate le plus souvent — l'étude n'avait d'autre moyen de le savoir que de resignaler chaque cas
-  // au fil de l'eau. Toujours mesuré sur CE POSTE uniquement (le journal est en localStorage, comme
-  // le reste de l'apprentissage) : jamais transmis, jamais réutilisé pour réentraîner quoi que ce
-  // soit (décision explicite, voir l'historique de diffCorrectionsExtraction).
-  function renderQualiteExtraction() {
-    const conteneur = document.getElementById('apropos-qualite-liste');
-    const compteur = document.getElementById('apropos-qualite-compteur');
-    if (!conteneur) return;
-    if (compteur) compteur.textContent = String(journalCorrectionsExtraction.length);
-    const stats = statistiquesCorrectionsExtraction(journalCorrectionsExtraction);
-    if (stats.length === 0) {
-      conteneur.innerHTML = '<p class="hint">Aucune correction enregistrée pour l’instant.</p>';
-      return;
-    }
-    conteneur.innerHTML = stats.map(s => {
-      const libelle = LIBELLES_CHAMPS_CORRECTION[s.champ] || s.champ;
-      const d = s.dernier;
-      const avant = d && d.valeurExtraite !== null && d.valeurExtraite !== undefined ? String(d.valeurExtraite) : '—';
-      const apres = d && d.valeurCorrigee !== null && d.valeurCorrigee !== undefined ? String(d.valeurCorrigee) : '—';
-      return `<div class="qualite-ligne">
-        <span class="qualite-champ">${escapeHtml(libelle)}</span>
-        <span class="qualite-nombre">${s.nombre}</span>
-        <span class="qualite-exemple">« ${escapeHtml(avant)} » → « ${escapeHtml(apres)} »</span>
-      </div>`;
-    }).join('');
+    fetchAvecAuth('/api/corrections-extraction', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ entrees })
+    }).catch(e => console.warn('Correction non journalisée sur le serveur :', e.message));
   }
 
   function viderJournalCorrections() {
     const nb = journalCorrectionsExtraction.length;
     if (nb === 0) return;
     demanderConfirmation(
-      `Vider le journal des corrections (${nb} entrée${nb > 1 ? 's' : ''}) ? Cette mesure repart de zéro, sans effet sur les dossiers déjà enregistrés.`,
-      () => {
-        journalCorrectionsExtraction = [];
-        sauvegarderJournalCorrections();
-        renderQualiteExtraction();
-        afficherToast('Journal des corrections vidé.', 'OK', null);
+      `Vider le journal des corrections (${nb} entrée${nb > 1 ? 's' : ''}) ? La mesure repart de zéro, sur tous les postes ; les dossiers et ce que CLAIRE a appris ne changent pas.`,
+      async () => {
+        try {
+          const r = await fetchAvecAuth('/api/corrections-extraction', { method: 'DELETE' });
+          if (!r.ok) throw new Error('statut ' + r.status);
+          journalCorrectionsExtraction = [];
+          renderPageApprentissage();
+          afficherToast('Journal des corrections vidé.', 'OK', null);
+        } catch (e) { afficherToast('Le journal n’a pas pu être vidé : ' + e.message, 'OK', null); }
       }
     );
+  }
+
+  // ==== « Ce que CLAIRE a appris » (Réglages, étude 02/10) ====
+  // Une page pour voir ce que CLAIRE a retenu des corrections de l'étude et retirer ce qui serait faux :
+  // erreurs de lecture fréquentes (journal des corrections, tous postes), clauses reconnues d'après une
+  // correction (dates, engagements), fichiers écartés des pièces, commentaires de relecture d'actes.
+
+  // Pure : le journal par champ — total, corrections des `jours` derniers jours, « fréquente » au-delà
+  // du seuil (même règle que le rapport technique, erreursFrequentesJournal côté serveur), 3 exemples
+  // les plus récents. Du plus corrigé récemment au moins.
+  var SEUIL_ERREUR_FREQUENTE = 3;
+  function syntheseJournalCorrections(journal, maintenant, jours) {
+    const fin = maintenant ? new Date(maintenant).getTime() : Date.now();
+    const debut = fin - (jours || 30) * 86400000;
+    const parChamp = {};
+    for (const e of Array.isArray(journal) ? journal : []) {
+      if (!e || typeof e.champ !== 'string') continue;
+      const g = parChamp[e.champ] || (parChamp[e.champ] = { champ: e.champ, total: 0, recents: 0, exemples: [] });
+      g.total++;
+      const t = Date.parse(e.date);
+      if (t >= debut && t <= fin) g.recents++;
+      g.exemples.push(e);
+    }
+    return Object.values(parChamp).map(g => Object.assign(g, {
+      frequente: g.recents >= SEUIL_ERREUR_FREQUENTE,
+      exemples: g.exemples.sort((a, b) => String(b.date || '').localeCompare(String(a.date || ''))).slice(0, 3)
+    })).sort((a, b) => (b.recents - a.recents) || (b.total - a.total));
+  }
+
+  var LIBELLES_CLASSIFICATION_APPRISE = {
+    date: { pret: 'Obtention du prêt', acte: 'Réitération de l’acte', ventebien: 'Vente préalable', autre: 'Autre échéance' },
+    engagement: { entretien: 'Entretien', travaux: 'Travaux', document: 'Document', autre: 'Autre engagement' }
+  };
+
+  // Pure : ce que dit une correction apprise, en une phrase.
+  function libelleCorrectionApprise(c) {
+    const cat = c && c.categorie === 'engagement' ? 'engagement' : 'date';
+    const classe = (LIBELLES_CLASSIFICATION_APPRISE[cat] || {})[c && c.classification] || (c && c.classification) || '';
+    const nom = c && c.libelle ? ` « ${c.libelle} »` : '';
+    return cat === 'engagement' ? `Engagement classé « ${classe} »` : `Date classée « ${classe} »${nom}`;
+  }
+
+  async function ouvrirPageApprentissage() {
+    await Promise.all([chargerJournalCorrections(), chargerApprentissageServeur(), chargerRetoursAudit()].map(p => Promise.resolve(p).catch(() => null)));
+    renderPageApprentissage();
+  }
+
+  function renderPageApprentissage() {
+    const erreurs = document.getElementById('apprentissage-erreurs');
+    if (erreurs) {
+      const synthese = syntheseJournalCorrections(journalCorrectionsExtraction);
+      const valeur = (v, champ) => {
+        if (v === null || v === undefined || v === '') return '—';
+        if (['prixVente', 'prixMobilier', 'depotGarantie'].includes(champ) && Number.isFinite(Number(v))) return formaterMontantEuros(Number(v));
+        if (/^\d{4}-\d{2}-\d{2}$/.test(String(v))) return formatDateFr(String(v));
+        return String(v);
+      };
+      erreurs.innerHTML = synthese.length ? `<ul class="appris-liste">${synthese.map(g => `
+        <li class="appris-ligne">
+          <details class="appris-details">
+            <summary>
+              <span class="appris-titre">${escapeHtml(LIBELLES_CHAMPS_CORRECTION[g.champ] || g.champ)}</span>
+              ${g.frequente ? '<span class="dot-label dl-pret"><span class="dot"></span>Fréquente</span>' : ''}
+              <span class="appris-meta">${g.recents} sur 30 jours · ${g.total} au total</span>
+            </summary>
+            <ul class="appris-exemples">${g.exemples.map(e => `<li><span class="appris-meta">${escapeHtml(e.date ? formatDateFr(String(e.date).slice(0, 10)) : '')}</span> lu « ${escapeHtml(valeur(e.valeurExtraite, g.champ))} » → gardé « ${escapeHtml(valeur(e.valeurCorrigee, g.champ))} »</li>`).join('')}</ul>
+          </details>
+        </li>`).join('')}</ul>
+        <div class="appris-actions"><button type="button" class="lien-action" onclick="viderJournalCorrections()">Vider le journal</button></div>`
+        : '<p class="hint">Aucune correction notée pour l’instant.</p>';
+    }
+
+    const clauses = document.getElementById('apprentissage-clauses');
+    if (clauses) {
+      const liste = (correctionsApprises || []).slice().sort((a, b) => String(b.dateMaj || '').localeCompare(String(a.dateMaj || '')));
+      clauses.innerHTML = liste.length ? `<ul class="appris-liste">${liste.map(c => `
+        <li class="appris-ligne appris-avec-geste">
+          <div class="appris-corps">
+            <span class="appris-titre">${escapeHtml(libelleCorrectionApprise(c))}</span>
+            <span class="appris-extrait">« ${escapeHtml(c.contexteExemple || '')} »</span>
+            <span class="appris-meta">${c.nbConfirmations > 1 ? `confirmée ${c.nbConfirmations} fois · ` : ''}${c.dateMaj ? 'le ' + escapeHtml(formatDateFr(String(c.dateMaj).slice(0, 10))) : ''}</span>
+          </div>
+          <button type="button" class="icon-btn appris-oublier" title="Oublier : CLAIRE ne réappliquera plus ce classement" aria-label="Oublier ce classement" onclick="oublierCorrectionApprise('${escapeOnclickArg(c.id)}')">${icone('x')}</button>
+        </li>`).join('')}</ul>` : '<p class="hint">Aucune clause apprise pour l’instant.</p>';
+    }
+
+    renderExclusionsReglages();
+
+    const relecture = document.getElementById('apprentissage-relecture');
+    if (relecture) {
+      const liste = (retoursAudit || []).slice().sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
+      relecture.innerHTML = liste.length ? `<ul class="appris-liste">${liste.map(r => {
+        const v = VERDICTS_RETOUR_OUTIL2[r.verdict] || { texte: r.verdict, dl: 'dl-neutre' };
+        const titre = (r.constat && r.constat.titre) || r.commentaire || '';
+        return `<li class="appris-ligne appris-avec-geste">
+          <div class="appris-corps">
+            <span class="appris-titre"><span class="dot-label ${v.dl}"><span class="dot"></span>${escapeHtml(v.texte)}</span> ${escapeHtml(titre)}</span>
+            ${r.commentaire && r.constat ? `<span class="appris-extrait">${escapeHtml(r.commentaire)}</span>` : ''}
+            <span class="appris-meta">${r.portee === 'dossier' ? 'Ce dossier seulement' : 'Tous les dossiers'}${r.date ? ' · le ' + escapeHtml(formatDateFr(String(r.date).slice(0, 10))) : ''}</span>
+          </div>
+          <button type="button" class="icon-btn appris-oublier" title="Retirer ce commentaire" aria-label="Retirer ce commentaire" onclick="oublierRetourAudit('${escapeOnclickArg(r.id)}')">${icone('x')}</button>
+        </li>`;
+      }).join('')}</ul>` : '<p class="hint">Aucun commentaire de relecture.</p>';
+    }
+  }
+
+  function oublierCorrectionApprise(id) {
+    const c = (correctionsApprises || []).find(x => x.id === id);
+    if (!c) return;
+    demanderConfirmation(`Oublier ce classement (${libelleCorrectionApprise(c)}) ? Les prochains compromis ne le reprendront plus ; les dossiers déjà créés ne changent pas.`, async () => {
+      try {
+        const r = await fetchAvecAuth('/api/corrections-apprises/' + encodeURIComponent(id), { method: 'DELETE' });
+        if (!r.ok && r.status !== 404) throw new Error('statut ' + r.status);
+        const data = r.ok ? await r.json() : null;
+        correctionsApprises = data && Array.isArray(data.corrections) ? data.corrections : correctionsApprises.filter(x => x.id !== id);
+        renderPageApprentissage();
+        afficherToast('Classement oublié.', 'OK', null);
+      } catch (e) { afficherToast('Impossible d’oublier ce classement : ' + e.message, 'OK', null); }
+    });
+  }
+
+  function oublierRetourAudit(id) {
+    demanderConfirmation('Retirer ce commentaire de relecture ? Le point concerné ressortira normalement aux prochaines relectures.', async () => {
+      await supprimerRetourAudit(id);
+      renderPageApprentissage();
+    });
   }
 
   // Les exclusions vivent désormais SUR LE SERVEUR (voir server/src/routes/exclusionsPieces.js) :
@@ -29466,7 +29568,10 @@
   // Liste des fichiers écartés, dans les Réglages : sans elle, une exclusion posée une fois
   // n'était visible nulle part et ne pouvait être défaite qu'en vidant le navigateur.
   function renderExclusionsReglages() {
-    const zone = document.getElementById('reglages-exclusions');
+    document.querySelectorAll('#reglages-exclusions, #apprentissage-exclusions').forEach(renderExclusionsDans);
+  }
+
+  function renderExclusionsDans(zone) {
     if (!zone) return;
     const lignes = [];
     for (const [cle, noms] of Object.entries(exclusionsMotifNom || {})) {
@@ -29796,7 +29901,7 @@
   // Rubriques de la colonne de gauche, dans l'ordre (réorganisées le 29/09, à la manière des
   // réglages de Claude).
   // Ordre de la colonne de gauche (revu le 01/10 : une rubrique par sujet).
-  var SOUS_ONGLETS_REGLAGES = ['general', 'collaborateurs', 'signature', 'rappels', 'agenda', 'telephonie', 'authentic', 'pieces', 'relecture', 'signalements', 'systeme'];
+  var SOUS_ONGLETS_REGLAGES = ['general', 'collaborateurs', 'signature', 'rappels', 'agenda', 'telephonie', 'authentic', 'pieces', 'relecture', 'apprentissage', 'signalements', 'systeme'];
   const CLE_SOUS_ONGLET_REGLAGES = 'reglages-sous-onglet';
 
   function sousOngletReglagesRetenu() {
@@ -29819,6 +29924,7 @@
     }
     try { localStorage.setItem(CLE_SOUS_ONGLET_REGLAGES, cle); } catch (e) { /* confort seulement */ }
     if (cle === 'authentic') renderReglagesAuthentic();
+    if (cle === 'apprentissage') ouvrirPageApprentissage();
   }
 
   // Compteur rouge sur « Réglages » : signalements encore à trier. Sur tous les postes — il n'y a

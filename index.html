@@ -1573,6 +1573,7 @@
       <button type="button" class="reglages-nav-btn" role="tab" id="reglages-onglet-authentic" aria-controls="reglages-panneau-authentic" aria-selected="false" onclick="definirSousOngletReglages('authentic')">Authentic</button>
       <button type="button" class="reglages-nav-btn" role="tab" id="reglages-onglet-pieces" aria-controls="reglages-panneau-pieces" aria-selected="false" onclick="definirSousOngletReglages('pieces')">Pièces et Claire Scan</button>
       <button type="button" class="reglages-nav-btn" role="tab" id="reglages-onglet-relecture" aria-controls="reglages-panneau-relecture" aria-selected="false" onclick="definirSousOngletReglages('relecture')">Relecture d'actes</button>
+      <button type="button" class="reglages-nav-btn" role="tab" id="reglages-onglet-apprentissage" aria-controls="reglages-panneau-apprentissage" aria-selected="false" onclick="definirSousOngletReglages('apprentissage')">Ce que CLAIRE a appris</button>
       <button type="button" class="reglages-nav-btn" role="tab" id="reglages-onglet-signalements" aria-controls="reglages-panneau-signalements" aria-selected="false" onclick="definirSousOngletReglages('signalements')">Signalements<span class="reglages-onglet-compteur" id="reglages-onglet-compteur-signalements" hidden></span></button>
       <button type="button" class="reglages-nav-btn" role="tab" id="reglages-onglet-systeme" aria-controls="reglages-panneau-systeme" aria-selected="false" onclick="definirSousOngletReglages('systeme')">Mise à jour et sauvegarde</button>
     </nav>
@@ -1736,6 +1737,28 @@
       <h3 class="reglages-section-titre">Pages lues dans Authentic <span class="info-i" tabindex="0" data-info="Chaque page d'Authentic relevée par l'extension Firefox : le poste qui l'a envoyée, la fenêtre CLAIRE qui l'a lue (celle du même poste d'abord) et ce qu'elle en a fait. « Aucun dossier » : ni le numéro ni les noms de l'intitulé n'ont désigné un dossier — « Choisir le dossier » la range à la main, et le numéro d'Authentic est retenu pour la suite. Une page n'est lue que si une fenêtre CLAIRE est ouverte (même réduite). Journal en mémoire du serveur : 12 heures, vidé au redémarrage."></span></h3>
       <div class="authentic-fenetres" id="reglages-authentic-fenetres"></div>
       <div id="reglages-authentic-journal"></div>
+    </div>
+  </section>
+
+  <!-- ===== Ce que CLAIRE a appris (étude, 02/10) : voir ce que CLAIRE a retenu des corrections de l'étude
+       et retirer ce qui serait faux — voir renderPageApprentissage dans script.js. ===== -->
+  <section class="reglages-panneau" id="reglages-panneau-apprentissage" role="tabpanel" aria-labelledby="reglages-onglet-apprentissage" hidden>
+    <h2 class="reglages-titre">Ce que CLAIRE a appris</h2>
+    <div class="reglages-section">
+      <h3 class="reglages-section-titre">Erreurs de lecture <span class="info-i" tabindex="0" data-info="Chaque donnée d'un compromis corrigée à la main avant l'enregistrement d'un nouveau dossier, sur tous les postes. « Fréquente » : corrigée 3 fois ou plus en 30 jours — signalée aussi dans le rapport technique (nom du champ et nombre seulement), pour que la règle de lecture soit corrigée. Rien n'y est appris automatiquement."></span></h3>
+      <div id="apprentissage-erreurs"></div>
+    </div>
+    <div class="reglages-section">
+      <h3 class="reglages-section-titre">Clauses reconnues d'après vos corrections <span class="info-i" tabindex="0" data-info="Une date ou un engagement reclassé à la main : au prochain compromis, une clause très proche est classée de la même façon (« Appris d'une correction précédente »), toujours à valider. Oublier un classement faux l'empêche de revenir."></span></h3>
+      <div id="apprentissage-clauses"></div>
+    </div>
+    <div class="reglages-section">
+      <h3 class="reglages-section-titre">Fichiers écartés des pièces <span class="info-i" tabindex="0" data-info="Un fichier du NAS reconnu à tort pour une pièce (« Réinitialiser » sur la fiche) n'est plus jamais rattaché à cette pièce, sur aucun dossier."></span></h3>
+      <div id="apprentissage-exclusions"></div>
+    </div>
+    <div class="reglages-section">
+      <h3 class="reglages-section-titre">Relecture d'actes : vos commentaires <span class="info-i" tabindex="0" data-info="Les avis donnés en mode commentaires : un faux positif est replié aux relectures suivantes (pour ce dossier ou pour tous), les autres servent de consignes à l'analyse."></span></h3>
+      <div id="apprentissage-relecture"></div>
     </div>
   </section>
 
@@ -2223,16 +2246,6 @@
          utile puisque plusieurs versions peuvent se succéder dans la même journée. -->
     <p class="section-eyebrow apropos-historique-titre">Historique récent</p>
     <ul class="apropos-historique-liste" id="apropos-historique-liste"></ul>
-    <!-- Qualité de l'extraction (voir renderQualiteExtraction/statistiquesCorrectionsExtraction
-         dans script.js) : exploite le journal des corrections apportées à la main après une
-         extraction automatique — les champs le plus souvent corrigés remontent en tête, jamais
-         transmis ni réutilisé pour réentraîner quoi que ce soit (mesuré sur ce poste uniquement). -->
-    <p class="section-eyebrow apropos-historique-titre">Qualité de l’extraction (<span id="apropos-qualite-compteur">0</span> correction(s))</p>
-    <p class="apropos-desc">Champs le plus souvent corrigés à la main après l’extraction automatique.</p>
-    <div class="qualite-extraction-liste" id="apropos-qualite-liste"></div>
-    <div class="confirm-actions apropos-qualite-actions">
-      <button type="button" class="btn-annuler" onclick="viderJournalCorrections()">Vider ce journal</button>
-    </div>
     <p class="apropos-desc apropos-note">
       Si un correctif signalé récemment ne semble « toujours pas » actif, comparez cette version
       avec celle du dépôt avant de resignaler le même bug : retélécharger

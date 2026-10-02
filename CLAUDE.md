@@ -442,7 +442,13 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
 - **Rendez-vous retiré de CLAIRE** → retiré aussi de l'agenda (et repère `rendezVousRetire` pour
   que le flux ne le remette pas). Une date saisie à la main n'est jamais écrasée par l'agenda.
 - **Apprentissage** : corrections de classification (dates, engagements) et exclusions stockées en
-  base, partagées entre postes. Les valeurs libres (nom, adresse, prix) ne sont pas apprises.
+  base, partagées entre postes. Les valeurs libres (nom, adresse, prix) ne sont pas apprises. **Réglages ›
+  « Ce que CLAIRE a appris »** (étude 02/10, `renderPageApprentissage`) : erreurs de lecture (journal des corrections
+  **sur le serveur**, clé `corrections-extraction`, 500 entrées, `GET/POST/DELETE /api/corrections-extraction` — il était
+  dans le navigateur de chaque poste et dans « À propos » ; reprise unique des entrées locales), « Fréquente » = 3
+  corrections ou plus en 30 jours (`syntheseJournalCorrections`, miroir serveur `erreursFrequentesJournal`, section du
+  rapport technique : nom du champ et nombre seulement) ; clauses apprises avec « Oublier »
+  (`DELETE /api/corrections-apprises/:id`) ; fichiers écartés des pièces ; commentaires de relecture d'actes.
 
 ## Relecture d'actes (Outil 2) — état actuel
 
@@ -631,9 +637,8 @@ Plainte principale de l'étude : **le bruit**, pas les oublis — ne pas élargi
   d'actes en bêta après une dizaine d'actes relus avec commentaires et un coût jugé acceptable.
 - **Pistes non engagées** : favicon reflétant l'urgence du portefeuille ; en-tête CLAIRE sur la
   fiche imprimée ; apprentissage des recatégorisations faites après enregistrement
-  (`changerCategorie`) ; panneau de gestion des mémoires apprises ; mémoriser le compte client
-  (`compte : N`) des reçus comptables ; exploiter le journal `corrections-extraction` pour resserrer
-  les motifs (phase 3 de l'extraction).
+  (`changerCategorie`) ; mémoriser le compte client (`compte : N`) des reçus comptables ; resserrer
+  les motifs d'après les erreurs fréquentes du journal (phase 3 de l'extraction).
 - **Successions** : créées depuis Authentic (voir « Successions » plus haut), « SUCC - NOM »
   (`libelleDossierAffiche`, `PREFIXES_TYPE_AFFAIRE`, miroir serveur `libelleDossier`). Reste à définir avec l'étude :
   échéances (déclaration de succession…), checklist de pièces, emails, qualité des parties (défunt, héritiers) — la

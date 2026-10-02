@@ -15386,3 +15386,22 @@ ne comptent plus que s'ils dépassent le nombre de scans écartés ou rangés à
 (les lectures sont anonymes, aucun lien scan par scan) ; toujours comptés dans la section Claire Scan.
 Rapport n° 7 (adresseBien) : l'étude ne peut pas savoir de quel dossier il s'agit (rapport anonymisé),
 point clos sans correction.
+
+### 02/10/2026 22:32 — Réglages › « Ce que CLAIRE a appris », journal des corrections sur le serveur
+Demande : « Exploiter le journal des corrections pour repérer les erreurs fréquentes et me les signaler. Où est ce
+journal ? » + « Une page "Ce que CLAIRE a appris" dans les Réglages… Ok vas-y ».
+Réponse à « où » : le journal (`journalCorrectionsExtraction`, alimenté par `diffCorrectionsExtraction` à
+l'enregistrement d'un nouveau dossier) était gardé dans le navigateur de chaque poste (`window.storage` n'existe pas →
+localStorage) et affiché dans « À propos › Qualité de l'extraction » : chaque poste ne voyait que ses corrections.
+- Serveur : `CLE_JOURNAL_CORRECTIONS` ('corrections-extraction', 500 entrées, `assainirJournalCorrections`) ;
+  `GET/POST/DELETE /api/corrections-extraction` et `DELETE /api/corrections-apprises/:id` (routes/correctionsApprises.js) ;
+  rapport technique : `erreursFrequentesJournal` (3+ en 30 jours) → section « Erreurs de lecture fréquentes » et ligne
+  « À examiner » (nom du champ et nombre seulement). Tests `server/test/journal-corrections.test.js`.
+- Client : journal lu/écrit sur le serveur, entrées locales reprises une fois puis effacées ; notaires du vendeur et de
+  l'acquéreur ajoutés au journal ; nouvelle rubrique Réglages 'apprentissage' (`renderPageApprentissage`,
+  `syntheseJournalCorrections`, `libelleCorrectionApprise`, `oublierCorrectionApprise`, `oublierRetourAudit`) ;
+  exclusions rendues aussi dans la page (`renderExclusionsDans`) ; bloc « Qualité de l'extraction » retiré d'« À propos ».
+  Tests `tests/apprentissage-page.test.js`.
+- Non repris : la mémoire locale des constats de l'ancien Outil 2 (`memoireAuditConstats`, navigateur seulement).
+Vérifié : tests client et serveur ; Chromium (journal de 5 corrections + 1 locale reprise, 2 clauses, 1 commentaire) en
+clair, sombre, 390 px ; « Oublier » retire la clause sur le serveur.

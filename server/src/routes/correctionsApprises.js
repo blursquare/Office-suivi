@@ -23,6 +23,31 @@ function creerRouteurCorrectionsApprises(parametresRepo) {
     res.json({ corrections: parametresRepo.ecrireCorrectionsApprises(toutes) });
   });
 
+  // « Ce que CLAIRE a appris » (étude, 02/10) : retirer une correction retenue à tort.
+  routeur.delete('/corrections-apprises/:id', (req, res) => {
+    const toutes = parametresRepo.lireCorrectionsApprises();
+    const restantes = toutes.filter((c) => c.id !== req.params.id);
+    if (restantes.length === toutes.length) return res.status(404).json({ erreur: 'Correction introuvable.' });
+    res.json({ corrections: parametresRepo.ecrireCorrectionsApprises(restantes) });
+  });
+
+  // Journal des corrections faites à la main après la lecture d'un compromis, commun à tous les postes.
+  routeur.get('/corrections-extraction', (req, res) => {
+    res.json({ journal: parametresRepo.lireJournalCorrections() });
+  });
+
+  routeur.post('/corrections-extraction', (req, res) => {
+    const entrees = req.body && Array.isArray(req.body.entrees) ? req.body.entrees.slice(0, 100) : null;
+    if (!entrees) return res.status(400).json({ erreur: 'Entrées attendues.' });
+    const journal = parametresRepo.ecrireJournalCorrections(parametresRepo.lireJournalCorrections().concat(entrees));
+    res.json({ nombre: journal.length });
+  });
+
+  routeur.delete('/corrections-extraction', (req, res) => {
+    parametresRepo.ecrireJournalCorrections([]);
+    res.json({ ok: true });
+  });
+
   return routeur;
 }
 

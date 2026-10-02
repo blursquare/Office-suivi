@@ -4788,7 +4788,6 @@
     min-width: 0;
     overflow-wrap: anywhere;
   }
-  .apropos-qualite-actions { margin-top: 0; margin-bottom: 16px; }
 
 /* ==== GÉNÉRATEUR D'APPEL DE FONDS ====
    Deux moitiés, deux traitements. Le CHROME (colonne de gauche, boutons, champs) prend les
@@ -8409,3 +8408,20 @@ body.wizard-avance #nouveau-intro { display: none !important; }
 .revision-corps > .revision-option { grid-column: 2; }
 #wizard-bloc-analyse .analyse-engagement-texte { white-space: normal; line-height: 1.45; }
 @media (max-width: 560px) { .revision-corps > .revision-option { grid-column: 1; } }
+
+/* ---- Réglages › Ce que CLAIRE a appris (étude, 02/10) ---- */
+.appris-liste { list-style: none; margin: 0; padding: 0; display: grid; }
+.appris-ligne { padding: 10px 0; border-top: 1px solid var(--line-soft); font-size: 13.5px; }
+.appris-ligne:first-child { border-top: 0; }
+.appris-avec-geste { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: start; }
+.appris-corps { display: grid; gap: 3px; min-width: 0; }
+.appris-titre { font-weight: 600; color: var(--ink); display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.appris-extrait { color: var(--ink-soft); overflow-wrap: anywhere; }
+.appris-meta { color: var(--muted); font-size: 12.5px; }
+.appris-details > summary { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; cursor: pointer; list-style: none; }
+.appris-details > summary::-webkit-details-marker { display: none; }
+.appris-details > summary::after { content: '▸'; font-size: 11px; color: var(--muted); margin-left: auto; }
+.appris-details[open] > summary::after { content: '▾'; }
+.appris-exemples { margin: 8px 0 0; padding-left: 16px; display: grid; gap: 4px; color: var(--ink-soft); overflow-wrap: anywhere; }
+.appris-actions { margin-top: 10px; }
+.appris-oublier { flex-shrink: 0; }

@@ -87,6 +87,36 @@ function assainirCorrectionsApprises(brut) {
   return liste;
 }
 
+// Journal des corrections faites à la main après la lecture d'un compromis (« Ce que CLAIRE a appris »,
+// étude 02/10) : quel champ, ce que CLAIRE avait lu, ce que l'étude a gardé. Gardé jusqu'ici dans le
+// navigateur de chaque poste (chacun ne voyait que les siennes) : désormais commun, en base. Sert à
+// repérer les erreurs de lecture fréquentes — jamais à réentraîner quoi que ce soit.
+const CLE_JOURNAL_CORRECTIONS = 'corrections-extraction';
+const MAX_JOURNAL_CORRECTIONS = 500;
+
+function assainirEntreeJournalCorrection(brut) {
+  const b = brut && typeof brut === 'object' ? brut : null;
+  if (!b || typeof b.champ !== 'string' || !/^[A-Za-z]{1,40}$/.test(b.champ)) return null;
+  const valeur = (v) => (v === null || v === undefined || v === '') ? null : String(v).slice(0, 200);
+  const court = (v, n) => (typeof v === 'string' && v.trim()) ? v.trim().slice(0, n) : null;
+  const date = typeof b.date === 'string' && !Number.isNaN(Date.parse(b.date)) ? new Date(b.date).toISOString() : new Date().toISOString();
+  return {
+    champ: b.champ,
+    valeurExtraite: valeur(b.valeurExtraite),
+    valeurCorrigee: valeur(b.valeurCorrigee),
+    origine: court(b.origine, 30) || 'regex',
+    statutExtrait: court(b.statutExtrait, 30),
+    typeActe: court(b.typeActe, 40),
+    extrait: court(b.extrait, 200),
+    date
+  };
+}
+
+function assainirJournalCorrections(brut) {
+  if (!Array.isArray(brut)) return [];
+  return brut.map(assainirEntreeJournalCorrection).filter(Boolean).slice(-MAX_JOURNAL_CORRECTIONS);
+}
+
 // « Mes rappels » du tableau de bord : les choses à faire que chaque collaborateur note pour
 // lui-même, éventuellement rattachées à un dossier. En base plutôt que dans le navigateur, pour les
 // retrouver depuis n'importe quel poste. Même principe que les corrections apprises : chaque poste
@@ -961,6 +991,9 @@ function creerRepoParametres(db) {
     return propre;
   }
 
+  function lireJournalCorrections() { return lireJson(CLE_JOURNAL_CORRECTIONS, assainirJournalCorrections, []); }
+  function ecrireJournalCorrections(j) { const p = assainirJournalCorrections(j); ecrireStmt.run(CLE_JOURNAL_CORRECTIONS, JSON.stringify(p)); return p; }
+
   function lireRappelsPerso() {
     const ligne = lireStmt.get(CLE_RAPPELS_PERSO);
     if (!ligne) return [];
@@ -1262,13 +1295,14 @@ function creerRepoParametres(db) {
     lireCopiesEnAttente, ecrireCopiesEnAttente, lireRetoursAudit, ecrireRetoursAudit,
     lireReglagesClaude, ecrireReglagesClaude, lireSecretLiens,
     lireExclusionsPieces, ecrireExclusionsPieces, lireCorrectionsApprises, ecrireCorrectionsApprises,
+    lireJournalCorrections, ecrireJournalCorrections,
     lireRappelsPerso, ecrireRappelsPerso, lirePreferences, ecrirePreferences
   };
 }
 
 module.exports = {
   assainirWidgetsPreference,
-  creerRepoParametres, assainirReglages, assainirEtatSauvegarde, assainirExclusionsPieces, assainirCorrectionApprise, assainirCorrectionsApprises, MAX_CORRECTIONS_APPRISES, assainirDernierTour, assainirCopiesEnAttente,
+  creerRepoParametres, assainirReglages, assainirEtatSauvegarde, assainirExclusionsPieces, assainirCorrectionApprise, assainirCorrectionsApprises, MAX_CORRECTIONS_APPRISES, assainirJournalCorrections, MAX_JOURNAL_CORRECTIONS, assainirDernierTour, assainirCopiesEnAttente,
   assainirRetourAudit, assainirRetoursAudit, MAX_RETOURS_AUDIT,
   assainirRappelPerso, assainirRappelsPerso, MAX_RAPPELS_PERSO, assainirPreference, assainirPreferences,
   assainirReglagesClaude, assainirReglagesMiseAJour, MODELES_CLAUDE, MODELE_CLAUDE_PAR_DEFAUT,
