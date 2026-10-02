@@ -14916,3 +14916,10 @@ du dossier ».
   « Avant-contrats signés ».
 - Vérifié dans Chromium (dossiers inventés) : délai 92 j depuis l'avant-contrat au lieu de 62 depuis l'ouverture,
   info-bulle, champ de la fiche enregistré.
+
+### 02/10/2026 après-midi — Notaire en second : pas d'état de rédaction de l'acte
+
+Étude : « si on est notaire en second, ne pas afficher si l'acte est rédigé ou non ». Pour `roleNotaire ===
+'participant'`, `lignesAuthenticDossier` ne montre plus « Acte de vente : En cours de rédaction / Pas encore rédigé »
+et `appliquerReleveSurDossier` ne le note plus dans l'historique ; « Acte signé » reste (il marque les échéances
+faites). L'état reste gardé dans `d.authentic.acte` (réapparaît si le dossier repasse en instrumentaire).

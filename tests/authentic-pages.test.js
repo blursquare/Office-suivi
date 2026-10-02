@@ -729,3 +729,15 @@ test('statistiques : départ à la signature de l\'avant-contrat, à défaut à 
   assert.equal(app.dateAvantContratAuthentic([{ titre: 'Promesse de vente', etat: '', dates: ['2026-03-02', '2026-03-10'], texte: 'Promesse de vente signée le 10/03/2026' }]), '2026-03-10');
   assert.equal(app.dateAvantContratAuthentic([{ titre: 'Acte de vente', etat: 'Signé', dates: ['2026-09-01'], texte: 'Acte de vente · Signé' }]), '');
 });
+
+test('notaire en second : l\'état de rédaction de l\'acte n\'est ni affiché ni noté ; « signé » reste', () => {
+  const d = { id: 'p', nom: 'MARTEL / FOURNIER', roleNotaire: 'participant', pieces: {}, historique: [] };
+  app.appliquerReleveSurDossier(d, gestionAttente);
+  assert.equal(d.authentic.acte.etat, 'redaction');
+  assert.ok(!d.historique.some(h => /Acte dans Authentic/.test(h.texte)));
+  assert.ok(!app.lignesAuthenticDossier(d).some(l => l.libelle === 'Acte de vente'));
+  d.authentic.acte = { etat: 'signe', libelle: 'Acte signé', date: '2026-09-30' };
+  assert.ok(app.lignesAuthenticDossier(d).some(l => l.libelle === 'Acte de vente'));
+  const i = Object.assign({}, d, { roleNotaire: 'instrumentaire', authentic: { acte: { etat: 'redaction', libelle: 'En cours de rédaction', date: '' } } });
+  assert.ok(app.lignesAuthenticDossier(i).some(l => l.libelle === 'Acte de vente'));
+});

@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-02 15:11';
+  const VERSION_APP = '2026-10-02 15:16';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-02 15:16', resume: "Notaire en second (participation) : l'état de rédaction de l'acte relevé dans Authentic (« En cours de rédaction », « Pas encore rédigé ») n'est plus affiché ni noté dans l'historique ; seul « Acte signé » reste." },
     { version: '2026-10-02 15:11', resume: "Widget Statistiques : les délais (prêt, préemption, signature) se comptent depuis la signature de l'avant-contrat, et les dossiers du mois au mois de l'avant-contrat (« Avant-contrats signés ») — à défaut de date, depuis l'ouverture dans CLAIRE. La date de l'avant-contrat est désormais gardée sur la fiche (« Avant-contrat signé le », modifiable) : lue à la création, relue dans l'avant-contrat du NAS pour les dossiers existants, reprise de la page du dossier dans Authentic." },
     { version: '2026-10-02 15:05', resume: "Add-on Authentic : les pages relevées sont appliquées en arrière-plan, dans la seconde, même quand la fenêtre CLAIRE est cachée ou réduite (le navigateur ne la réveillait plus qu'une fois par minute : il fallait la regarder pour voir la fiche se mettre à jour). Il suffit qu'une fenêtre CLAIRE soit ouverte quelque part — celle du serveur suffit." },
     { version: '2026-10-02 15:00', resume: "Add-on Authentic, fiche client du vendeur : quand sa fiche cite plusieurs dossiers (un vendeur déjà client de l'étude : son ancien achat et la vente en cours), CLAIRE retenait le premier cité — l'ancien. Elle prend maintenant le dossier en consultation s'il est cité, sinon la vente en cours où la personne est partie (et, sans aucun dossier cité ni consulté, le seul dossier en cours où elle est partie). Création depuis Authentic : l'épouse absente de l'intitulé prend le côté de son conjoint." },
@@ -22904,7 +22905,9 @@
   function lignesAuthenticDossier(d) {
     const a = (d && d.authentic) || {};
     const lignes = [];
-    if (a.acte) lignes.push({ libelle: 'Acte de vente', valeur: a.acte.libelle + (a.acte.date ? ` le ${formatDateFr(a.acte.date)}` : ''), classe: a.acte.etat === 'signe' ? 'dl-success' : a.acte.etat === 'redaction' ? 'dl-pret' : 'dl-neutre' });
+    // Notaire en second (participation) : l'avancement de la rédaction est l'affaire du confrère
+    // (étude, 02/10) — seul « Acte signé » est montré.
+    if (a.acte && !(d.roleNotaire === 'participant' && a.acte.etat !== 'signe')) lignes.push({ libelle: 'Acte de vente', valeur: a.acte.libelle + (a.acte.date ? ` le ${formatDateFr(a.acte.date)}` : ''), classe: a.acte.etat === 'signe' ? 'dl-success' : a.acte.etat === 'redaction' ? 'dl-pret' : 'dl-neutre' });
     if (a.rhf) lignes.push({ libelle: 'Réquisition hors formalité', valeur: [a.rhf.envoyeeLe ? `envoyée le ${formatDateFr(a.rhf.envoyeeLe)}` : 'envoyée', a.rhf.retourLe ? `retour le ${formatDateFr(a.rhf.retourLe)}` : 'retour attendu'].join(' · '), classe: a.rhf.retourLe ? 'dl-success' : 'dl-pret' });
     if (a.safer) {
       const sa = a.safer;
@@ -26639,7 +26642,7 @@
     const infos = infosDossierAuthentic(capture, d.typeAffaire);
     const apres = fusionnerInfosAuthentic(avant, infos);
     const nouveau = (k, kk) => apres[k] && apres[k][kk] && apres[k][kk] !== (avant[k] || {})[kk];
-    if (nouveau('acte', 'etat')) noter(`Acte dans Authentic : ${apres.acte.libelle}${apres.acte.date ? ` le ${formatDateFr(apres.acte.date)}` : ''}`);
+    if (nouveau('acte', 'etat') && !(d.roleNotaire === 'participant' && apres.acte.etat !== 'signe')) noter(`Acte dans Authentic : ${apres.acte.libelle}${apres.acte.date ? ` le ${formatDateFr(apres.acte.date)}` : ''}`);
     if (nouveau('rhf', 'envoyeeLe')) noter(`Réquisition hors formalité envoyée le ${formatDateFr(apres.rhf.envoyeeLe)} (Authentic)`);
     if (nouveau('rhf', 'retourLe')) noter(`Retour de la réquisition hors formalité le ${formatDateFr(apres.rhf.retourLe)} (Authentic)`);
     if (nouveau('safer', 'notifieeLe')) noter(`SAFER notifiée le ${formatDateFr(apres.safer.notifieeLe)} (Authentic)`);
