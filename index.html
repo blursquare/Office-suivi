@@ -2109,7 +2109,7 @@
 
 <!-- Qui utilise ce poste ? Demandé une fois par poste (voir « Collaborateur du poste » dans
      script.js), retenu dans le navigateur, modifiable dans les Réglages. -->
-<div class="confirm-overlay" id="poste-overlay" style="display:none;" onclick="ecarterChoixPoste()">
+<div class="confirm-overlay" id="poste-overlay" style="display:none;" onclick="if (clicSurFond(event)) ecarterChoixPoste()">
   <div class="confirm-box poste-box" role="dialog" aria-labelledby="poste-titre" onclick="event.stopPropagation()">
     <div class="poste-titre" id="poste-titre">Qui utilise ce poste ? <span class="info-i" tabindex="0" data-info="Le tableau de bord s’ouvrira sur vos dossiers. Choix retenu sur ce poste, modifiable dans les Réglages."></span></div>
     <div class="poste-choix-liste" id="poste-choix-liste"></div>
@@ -2121,7 +2121,7 @@
 
 <!-- Suivi des dates proposées (sondages de créneaux) : tiroir à droite, comme la fiche d'un dossier
      (étude, 01/10) — en attente, validées, sans suite (renderSuiviDatesProposees). -->
-<div class="drawer-overlay" id="dates-proposees-overlay" style="display:none;" onclick="fermerSuiviDatesProposees()">
+<div class="drawer-overlay" id="dates-proposees-overlay" style="display:none;" onclick="if (clicSurFond(event)) fermerSuiviDatesProposees()">
   <aside class="drawer-panneau dates-proposees-box" role="dialog" aria-modal="true" aria-labelledby="dates-proposees-titre" onclick="event.stopPropagation()">
     <div class="fiche-barre dates-proposees-tete">
       <div class="poste-titre" id="dates-proposees-titre">Dates proposées <span class="info-i" tabindex="0" data-info="Les dates de rendez-vous envoyées par email (avec ou sans dossier) : celles qui attendent une réponse, celles déjà validées, et celles restées sans suite. Les réponses sont relues dans la boîte toutes les 5 minutes."></span></div>
@@ -2134,7 +2134,7 @@
 </div>
 
 <!-- Liste des widgets du tableau de bord : ajouter / retirer (renderGalerieWidgets). -->
-<div class="confirm-overlay" id="widgets-overlay" style="display:none;" onclick="fermerGalerieWidgets()">
+<div class="confirm-overlay" id="widgets-overlay" style="display:none;" onclick="if (clicSurFond(event)) fermerGalerieWidgets()">
   <div class="confirm-box widgets-galerie-box" role="dialog" aria-labelledby="widgets-galerie-titre" onclick="event.stopPropagation()">
     <div class="poste-titre" id="widgets-galerie-titre">Widgets du tableau de bord <span class="info-i" tabindex="0" data-info="Un widget retiré garde sa taille : il revient tel quel si vous le rajoutez. Ordre et taille se règlent dans « Personnaliser ». Disposition propre à chaque collaborateur."></span></div>
     <div id="widgets-galerie-liste"></div>
@@ -2145,7 +2145,7 @@
   </div>
 </div>
 
-<div class="confirm-overlay" id="apropos-overlay" style="display:none;" onclick="fermerAPropos()">
+<div class="confirm-overlay" id="apropos-overlay" style="display:none;" onclick="if (clicSurFond(event)) fermerAPropos()">
   <div class="confirm-box apropos-box" onclick="event.stopPropagation()">
     <div class="apropos-header">
       <span class="brand-mark" aria-hidden="true">
@@ -2204,7 +2204,7 @@
      (ouvrirEmailRappel()) qui l'utilisait aussi a été retiré définitivement, remplacé par les
      rappels automatiques par email. -->
 <!-- Page d'Authentic reçue de l'extension Firefox (voir ouvrirCaptureAuthenticDepuisAdresse). -->
-<div class="confirm-overlay" id="authentic-overlay" style="display:none;" onclick="fermerCaptureAuthentic()">
+<div class="confirm-overlay" id="authentic-overlay" style="display:none;" onclick="if (clicSurFond(event)) fermerCaptureAuthentic()">
   <div class="confirm-box authentic-box" role="dialog" aria-labelledby="authentic-titre" onclick="event.stopPropagation()">
     <div class="poste-titre" id="authentic-titre">Page d’Authentic reçue <span class="info-i" tabindex="0" data-info="La reprise dans une fiche sera branchée sur la structure des pages d’Authentic. « Copier la structure » ne copie que les libellés et le type de chaque valeur (date, montant, texte…), jamais une valeur : on peut l’envoyer sans donnée client."></span></div>
     <div id="authentic-contenu"></div>
@@ -2215,7 +2215,7 @@
   </div>
 </div>
 
-<div class="confirm-overlay" id="info-action-overlay" style="display:none;" onclick="fermerInfoAction()">
+<div class="confirm-overlay" id="info-action-overlay" style="display:none;" onclick="if (clicSurFond(event)) fermerInfoAction()">
   <div class="confirm-box" onclick="event.stopPropagation()">
     <p><strong id="info-action-titre"></strong></p>
     <p id="info-action-message"></p>
@@ -2227,7 +2227,7 @@
 
 <!-- Signaler un problème (voir ouvrirSignalement dans script.js). Le contexte technique est joint
      sans rien demander ; le collaborateur ne décrit que ce qu'il faisait et ce qu'il a vu. -->
-<div class="confirm-overlay" id="signalement-overlay" style="display:none;" onclick="fermerSignalement()">
+<div class="confirm-overlay" id="signalement-overlay" style="display:none;" onclick="if (clicSurFond(event)) fermerSignalement()">
   <div class="confirm-box signalement-box" role="dialog" aria-modal="true" aria-labelledby="signalement-titre" onclick="event.stopPropagation()" onpaste="collerCaptureSignalement(event)">
     <h2 id="signalement-titre" class="signalement-titre">Signaler un problème</h2>
     <p class="hint">Le signalement part vers l'étude, qui le transmet pour correction.</p>
@@ -2267,14 +2267,14 @@
 
 <!-- Point du matin : s'ouvre à la première connexion de la journée (voir
      ouvrirFenetreAujourdhuiSiPremiereFois dans script.js). -->
-<div class="jour-overlay" id="aujourdhui-overlay" style="display:none;" onclick="if (event.target === this) fermerFenetreAujourdhui()">
+<div class="jour-overlay" id="aujourdhui-overlay" style="display:none;" onclick="if (clicSurFond(event)) fermerFenetreAujourdhui()">
   <section class="jour-fenetre" role="dialog" aria-modal="true" aria-labelledby="jour-fenetre-titre" id="aujourdhui-fenetre-contenu"></section>
 </div>
 
-<div class="jour-overlay" id="sondage-overlay" style="display:none;" onclick="if (event.target === this) fermerModaleSondage()">
+<div class="jour-overlay" id="sondage-overlay" style="display:none;" onclick="if (clicSurFond(event)) fermerModaleSondage()">
   <section class="ag-modale sondage-modale" role="dialog" aria-modal="true" aria-labelledby="sondage-modale-titre" id="sondage-modale-contenu"></section>
 </div>
-<div class="jour-overlay" id="agenda-overlay" style="display:none;" onclick="if (event.target === this) fermerModaleAgenda()">
+<div class="jour-overlay" id="agenda-overlay" style="display:none;" onclick="if (clicSurFond(event)) fermerModaleAgenda()">
   <section class="ag-modale" role="dialog" aria-modal="true" aria-labelledby="agenda-modale-titre" id="agenda-modale-contenu"></section>
 </div>
 
@@ -2282,7 +2282,7 @@
      soixantaine de dossiers, déplier une ligne poussait toutes les suivantes plusieurs centaines
      de pixels plus bas et faisait perdre sa place dans la liste. Le tableau reste immobile, un
      seul dossier est ouvert à la fois (voir dossierOuvert dans script.js). -->
-<div class="drawer-overlay" id="dossier-drawer-overlay" style="display:none;" onclick="fermerDossierDrawer()">
+<div class="drawer-overlay" id="dossier-drawer-overlay" style="display:none;" onclick="if (clicSurFond(event)) fermerDossierDrawer()">
   <aside class="drawer-panneau" id="dossier-drawer" role="dialog" aria-modal="true" aria-label="Fiche du dossier" onclick="event.stopPropagation()">
     <div id="dossier-drawer-contenu"></div>
   </aside>

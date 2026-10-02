@@ -14472,3 +14472,15 @@ titre devient « Délai moyen, tous dossiers », le survol dit « Moyenne sur N 
 (mois / précédent / N-1) restent sur le périmètre. L'ouverture reste l'entrée « Dossier créé » : la date de signature de
 l'avant-contrat n'est pas enregistrée sur la fiche (seul son état d'extraction l'est). Vérifié dans Chromium avec le poste
 de Julie et un ancien dossier archivé.
+
+### 02/10/2026 — Fiche fermée en sélectionnant un email ; bandeau d'appel en bas à gauche
+
+« Si je sélectionne l'adresse email avec le curseur pour surligner, la fiche se ferme ; idem pour le numéro de
+téléphone. » Cause : l'appui commence dans le champ, le bouton est relâché sur le fond grisé ; le navigateur envoie alors
+le `click` à l'ancêtre commun des deux, le fond (`#dossier-drawer-overlay`, `onclick="fermerDossierDrawer()"`).
+Reproduit dans Chromium avec l'ancien comportement (fiche fermée), puis corrigé : `clicSurFond(event)` ne ferme que si
+la cible du clic est le fond ET que l'appui (`pointerdown`, relevé en capture sur `document`) a commencé sur ce fond.
+Appliqué aux 11 fonds de `index.html` (fiche, dates proposées, widgets, à propos, Authentic, info, signalement, poste,
+fenêtre du matin, sondage, agenda) et à l'aperçu d'un scan. Un vrai clic sur le fond ferme toujours.
+Bandeau « Appel entrant » : `left: 16px` au lieu de `right` (étude). Fermeture à la fin de l'appel : 3CX n'envoie à
+CLAIRE que la sonnerie (URL du client web) — question posée à l'étude sur l'installation 3CX (voir la suite).

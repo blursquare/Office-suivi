@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-02 09:37';
+  const VERSION_APP = '2026-10-02 09:49';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-02 09:49', resume: "Fiche d'un dossier : sélectionner un email ou un téléphone à la souris ne ferme plus la fiche quand on relâche le bouton hors de la fiche (même correction pour toutes les fenêtres à fond grisé). Le bandeau « Appel entrant » s'affiche maintenant en bas à gauche de l'écran." },
     { version: '2026-10-02 09:37', resume: "Widget « Statistiques » : les délais moyens (obtention du prêt, renonciation au droit de préemption, signature) sont maintenant calculés sur tous les dossiers de l'étude, archivés compris, sans limite de date et quel que soit le périmètre du tableau de bord (et non plus sur les 12 derniers mois). Le nombre de dossiers mesurés reste affiché à côté de chaque délai." },
     { version: '2026-10-02 09:32', resume: "Téléphonie 3CX : Réglages › Téléphonie 3CX montre sous chaque collaborateur si sa fenêtre CLAIRE est ouverte et quand 3CX a ouvert son adresse pour la dernière fois (« Aucune sonnerie reçue de 3CX » après un vrai appel = 3CX n'a rien envoyé : réglage du client web ou pop-up bloquées). CLAIRE accepte aussi ce qu'envoie la version 20 de 3CX : nom « undefined », numéro « +33… » non encodé, prénom avec majuscule ou accent dans l'adresse. Aide mise à jour avec le nom du réglage dans la V20 (« Lancer automatiquement une URL de contact personnalisée »)." },
     { version: '2026-10-02 09:26', resume: "Agenda : la fenêtre d'une signature probable (carte en pointillé) rappelle la date butoir du dossier, avec le nombre de jours restants — en rose, en rouge quand il reste moins de 7 jours de marge après le créneau proposé ou quand le créneau la dépasse (« prévoir la prorogation ») ; les autres créneaux proposés au-delà de la butoir sont en pointillé." },
@@ -22592,6 +22593,18 @@
     if (d && !d.prixMobilier && !d.mobilierLuLe && d.dossierLie && d.nasDossier) lireMobilierDepuisAvantContrat(id, false);
   }
 
+  // Un clic sur le fond grisé d'une fenêtre la ferme — seulement si l'appui A COMMENCÉ sur ce fond.
+  // Sélectionner un email ou un téléphone dans la fiche en glissant la souris jusqu'au fond donne au
+  // navigateur un « clic » sur le fond (ancêtre commun de l'appui et du relâcher) : la fiche se
+  // fermait (étude, 02/10).
+  let cibleAppuiFond = null;
+  if (typeof document !== 'undefined' && document.addEventListener) {
+    document.addEventListener('pointerdown', (e) => { cibleAppuiFond = e.target; }, true);
+  }
+  function clicSurFond(e) {
+    return !!e && e.target === e.currentTarget && cibleAppuiFond === e.currentTarget;
+  }
+
   function fermerDossierDrawer() {
     if (!dossierOuvert) return;
     // "Une fois vu, désactiver la notification" (demandé par l'étude) : on la retire à la
@@ -37726,7 +37739,7 @@
       overlay = document.createElement('div');
       overlay.id = 'scan-apercu-overlay';
       overlay.className = 'scan-apercu-overlay';
-      overlay.addEventListener('click', (e) => { if (e.target === overlay) fermerApercuScan(); });
+      overlay.addEventListener('click', (e) => { if (clicSurFond(e)) fermerApercuScan(); });
       document.body.appendChild(overlay);
     }
     const jeton = {};

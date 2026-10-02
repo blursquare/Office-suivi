@@ -7799,7 +7799,8 @@ textarea.ag-notes-champ:focus { outline: 2px solid var(--focus); outline-offset:
 
 /* ---- Appels reçus (3CX, 01/10) : bandeau d'appel entrant, appels d'un dossier, journal des réglages ---- */
 .appel-entrant {
-  position: fixed; right: 16px; bottom: 16px; z-index: 2000; width: min(340px, calc(100vw - 32px));
+  /* En bas à gauche (étude, 02/10). */
+  position: fixed; left: 16px; bottom: 16px; z-index: 2000; width: min(340px, calc(100vw - 32px));
   background: var(--paper-card); color: var(--ink); border: 1px solid var(--line); border-left: 3px solid var(--success);
   border-radius: 12px; box-shadow: var(--shadow-float); padding: 12px 14px; display: flex; flex-direction: column; gap: 6px;
 }
