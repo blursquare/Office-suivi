@@ -8,8 +8,10 @@ l'envoie au serveur CLAIRE du bureau, puis ouvre CLAIRE sur la page reçue.
 - Jamais un mot de passe ni un champ caché de la page.
 - Le serveur garde la page **30 minutes en mémoire** seulement (ni base, ni journal).
 
-## État (02/10/2026) — version 0.3.7
+## État (02/10/2026) — version 0.3.8
 
+- **0.3.8** : un dossier identifié par « VTE NOM VENDEURS / NOM ACQUÉREURS » sans numéro (titre de l'onglet actif ou
+  en-tête de la page) est reconnu ; le numéro, quand la page le porte dans ses données, sert d'identifiant.
 - **0.3.7** : plusieurs dossiers ouverts en même temps dans Authentic — le relevé note les onglets et celui qui est
   actif, et CLAIRE ne prend plus l'intitulé d'un dossier ouvert dans un autre onglet. La page d'un dossier est
   reconnue quelle que soit la formulation de son intitulé (« N - … » suivi de Importer, Comparants ou Immeubles) :

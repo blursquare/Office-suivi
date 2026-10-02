@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-02 21:15';
+  const VERSION_APP = '2026-10-02 21:18';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-02 21:18', resume: "Authentic : un dossier identifié par « VTE VENDEURS / ACQUÉREURS », sans numéro devant, est reconnu — en titre de l'onglet ouvert comme en en-tête de la page — et retrouvé par les noms ; le numéro, caché dans les données du dossier, est repris quand la page le porte (devant l'en-tête ou dans un champ « N° de dossier ») et sert ensuite d'identifiant. Une fiche client ouverte dans l'onglet d'un dossier est rangée dans ce dossier. Extension 0.3.8." },
     { version: '2026-10-02 21:15', resume: "Authentic, d'après l'usage de l'étude : plusieurs dossiers ouverts en même temps — seul l'onglet actif désigne la page, jamais un autre dossier ouvert à côté (extension 0.3.7) ; une liste de résultats de recherche ne désigne plus aucun dossier. La page d'un dossier est lue quelle que soit la formulation de son intitulé : l'affaire est retrouvée par son numéro, commun à la promesse et à la vente, puis par les noms. Un ancien dossier des mêmes clients (acte signé avant le dossier en cours) n'est jamais appliqué ni ne prend le numéro, et ne fait plus apparaître « Choisir » ; ce message n'apparaît que si un dossier en cours sans numéro porte ces noms." },
     { version: '2026-10-02 20:54', resume: "Authentic, pages qui ne remontaient pas : une fenêtre CLAIRE cachée ou réduite (qui ne relit plus les dossiers) prenait les pages d'Authentic sur une copie ancienne — un dossier créé depuis sur un autre poste restait introuvable, et la fiche enregistrée pouvait écraser des changements faits ailleurs ; les dossiers sont désormais relus avant chaque page. Une page est servie d'abord à la fenêtre CLAIRE du poste qui consulte Authentic (avant : n'importe laquelle, parfois celle d'un collègue). Une page revue est relue avec son contenu (avant : seulement le changement de dossier). La page d'un dossier qu'aucun dossier de CLAIRE ne reconnaît le dit, avec le motif (noms absents, points insuffisants, deux dossiers trop proches, numéro déjà pris) et « Choisir » pour la ranger à la main — le numéro d'Authentic est alors retenu. Nouveau : Réglages › Authentic, journal de chaque page reçue (poste, fenêtre qui l'a lue, résultat). Extension 0.3.6 : une page non arrivée à CLAIRE est renvoyée." },
     { version: '2026-10-02 20:26', resume: "Répertoire : le carnet des confrères et les notaires de France ne font plus doublon — une seule entrée « Notaires ». Par département, chaque office du carnet remplace sa ligne de l'annuaire (corrigé, avec notes, dossiers en cours, crayon et ×) ; les autres offices s'ajoutent d'un clic (« Au carnet »). « Mes confrères seulement » affiche tout le carnet, tous départements. Le carnet continue de servir à reconnaître le notaire d'une fiche." },
@@ -26005,6 +26006,10 @@
   // fixe et change parfois » — un seul numéro par affaire, promesse et vente comprises) : « N - … »
   // suivi de « Importer », « Comparants » ou « Immeubles », comme sur toute page de dossier.
   var RE_INTITULE_GESTION_AUTHENTIC = /(?:^|[^\w])(\d{1,6})\s*-\s*([A-Za-zÀ-ÿ][^\n]{0,150}?\S)(?=\s*(?:Importer|Comparants|Immeubles)(?![A-Za-zÀ-ÿ]))/i;
+  // Intitulé tel que l'étude le voit (onglets, listes) : « VTE VENDEURS / ACQUÉREURS », sans numéro
+  // (étude, 02/10 : « le numéro est caché dans les données du dossier »).
+  var RE_INTITULE_VTE_SEUL_AUTHENTIC = /^\s*((?:VTE|Vente)\.?\s+[^\n\/]*?\S\s*\/\s*\S[^\n]*?)\s*$/i;
+  var RE_EN_TETE_VTE_AUTHENTIC = /(?:^|[^\w-])((?:VTE|Vente)\.?\s+[^\n\/]{0,100}?\S\s*\/\s*[^\n]{0,100}?\S)(?=\s*(?:Importer|Comparants|Immeubles)(?![A-Za-zÀ-ÿ]))/i;
   // Mots de nature d'acte, retirés d'un intitulé pour n'en garder que les noms.
   var MOTS_NATURE_ACTE_AUTHENTIC = new Set(['vente', 'vte', 'promesse', 'compromis', 'avant', 'contrat', 'unilaterale', 'synallagmatique', 'achat', 'acte', 'pv', 'puv', 'maison', 'terrain', 'appartement', 'immeuble', 'bien']);
   // Une ligne qui annonce une demande ou un envoi n'est pas une pièce reçue.
@@ -26074,17 +26079,37 @@
   function intituleNumeroteAuthentic(capture) {
     const c = capture || {};
     const vide = { numero: '', intitule: '' };
-    for (const o of (Array.isArray(c.onglets) ? c.onglets : [])) {
-      const m = o && o.actif ? /^\s*(\d{1,6})\s*-\s*([A-Za-zÀ-ÿ].*?)\s*$/.exec(String(o.titre || '').replace(/\s+/g, ' ')) : null;
-      if (m) return { numero: m[1], intitule: intituleVenteNormalise(m[2]) };
-    }
     const sources = [];
     (c.champs || []).forEach(ch => { sources.push(ch.libelle || ''); sources.push(ch.valeur || ''); });
     sources.push(texteSansOngletsInactifsAuthentic(c));
+    // Le numéro, « caché dans les données du dossier » (étude, 02/10) : devant l'en-tête de la page
+    // (« 1836 - Vente … »), sinon dans un champ « N° de dossier » / « Numéro du dossier ».
+    let numeroEnTete = '';
+    for (const s of sources) {
+      const m = RE_INTITULE_GESTION_AUTHENTIC.exec(String(s));
+      if (m) { numeroEnTete = m[1]; break; }
+    }
+    const numero = numeroEnTete || numeroChampDossierAuthentic(c);
+    // 1. L'onglet ACTIF : « N - … » ou, comme l'étude le voit, « VTE VENDEURS / ACQUÉREURS ».
+    for (const o of (Array.isArray(c.onglets) ? c.onglets : [])) {
+      if (!o || !o.actif) continue;
+      const titre = String(o.titre || '').replace(/\s+/g, ' ');
+      const m = /^\s*(\d{1,6})\s*-\s*([A-Za-zÀ-ÿ].*?)\s*$/.exec(titre);
+      if (m) return { numero: m[1], intitule: intituleVenteNormalise(m[2]) };
+      const v = RE_INTITULE_VTE_SEUL_AUTHENTIC.exec(titre);
+      if (v) return { numero, intitule: intituleVenteNormalise(v[1]) };
+    }
+    // 2. L'en-tête de la page du dossier, avec son numéro…
     for (const s of sources) {
       const m = RE_INTITULE_GESTION_AUTHENTIC.exec(String(s));
       if (m) return { numero: m[1], intitule: intituleVenteNormalise(m[2]) };
     }
+    // … ou sans (« VTE X / Y » suivi de Importer / Comparants / Immeubles).
+    for (const s of sources) {
+      const m = RE_EN_TETE_VTE_AUTHENTIC.exec(String(s));
+      if (m) return { numero, intitule: intituleVenteNormalise(m[1]) };
+    }
+    // 3. Un intitulé « N - Vente X/Y » seul, s'il est le SEUL de la page.
     const vus = [];
     const re = new RegExp(RE_INTITULE_DOSSIER_AUTHENTIC.source, 'gi');
     sources.forEach(s => {
@@ -26093,6 +26118,16 @@
       }
     });
     return vus.length === 1 ? vus[0] : vide;
+  }
+
+  // Pure : le numéro d'un champ « N° de dossier », « Numéro du dossier », « N° sous-dossier »… ou ''.
+  function numeroChampDossierAuthentic(capture) {
+    for (const ch of ((capture && capture.champs) || [])) {
+      const l = libelleNetAuthentic(ch && ch.libelle);
+      const v = String((ch && ch.valeur) || '').trim();
+      if (/^(?:n|no|num|numero)\s*(?:de |du )?(?:sous )?dossier\b/.test(l.replace(/[°.:]/g, ' ').replace(/\s+/g, ' ').trim()) && /^\d{1,6}$/.test(v)) return v;
+    }
+    return '';
   }
 
   // Pure : le numéro du dossier dans Authentic (« 1861 » de « 1861 - Vente X/Y »), ou ''. Il identifie
@@ -27397,6 +27432,14 @@
     return courant && cites.includes(courant) ? courant : null;
   }
 
+  // Pure : le dossier de CLAIRE désigné par l'onglet actif d'Authentic (« N - … » ou « VTE X / Y »), ou null.
+  function dossierOngletActifAuthentic(capture, liste) {
+    const o = ((capture && capture.onglets) || []).find(x => x && x.actif && (/^\s*\d{1,6}\s*-/.test(x.titre || '') || RE_INTITULE_VTE_SEUL_AUTHENTIC.test(x.titre || '')));
+    if (!o) return null;
+    const lu = intituleNumeroteAuthentic({ onglets: [o], champs: [], tableaux: [], texte: '' });
+    return lu.intitule ? dossierPourIntituleAuthentic(lu.intitule, liste, '', lu.numero) : null;
+  }
+
   // Pure : pourquoi une fiche client n'a été rangée dans aucun dossier — dit à l'étude, jamais en silence.
   function raisonFicheClientSansDossier(capture, liste) {
     const personne = clientDepuisFicheAuthentic(capture);
@@ -27579,7 +27622,9 @@
     const revu = !!(rel && rel.revu);
     const courantValide = Date.now() - dossierCourantAuthentic.t < DUREE_DOSSIER_COURANT_AUTHENTIC_MS;
     if (typePageAuthentic(capture) === 'client') {
-      const courant = courantValide ? dossiers.find(x => x.id === dossierCourantAuthentic.id) || null : null;
+      // Fiche ouverte dans l'onglet d'un dossier (« VTE X / Y ») : c'est lui le dossier en consultation.
+      const ongletDossier = dossierOngletActifAuthentic(capture, dossiers);
+      const courant = ongletDossier || (courantValide ? dossiers.find(x => x.id === dossierCourantAuthentic.id) || null : null);
       d = dossierPourFicheClientAuthentic(capture, dossiers, courant);
       if (d) dossierCourantAuthentic = { id: d.id, t: Date.now() };
       if (!d) {

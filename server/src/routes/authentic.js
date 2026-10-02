@@ -296,6 +296,11 @@ const RE_INTITULE_PAGE = /(?:^|[^\w])\d{1,6}\s*-\s*(?:(?:Vente|VTE)\s+[^\n\/]*\S
 // En-tête d'une page de dossier quelle que soit la formulation de l'intitulé (étude, 02/10 : « le nom n'est
 // pas fixe ») : « N - … » suivi de Importer / Comparants / Immeubles.
 const RE_INTITULE_GESTION_PAGE = /(?:^|[^\w])\d{1,6}\s*-\s*[A-Za-zÀ-ÿ][^\n]{0,150}?\S\s*(?:Importer|Comparants|Immeubles)(?![A-Za-zÀ-ÿ])/i;
+// Intitulé tel que l'étude le voit, sans numéro (étude, 02/10 : « le dossier est identifié par VTE NOM
+// VENDEURS / NOM ACQUÉREURS, le numéro est caché dans les données du dossier ») : en titre de l'onglet
+// actif, ou en en-tête de la page du dossier.
+const RE_ONGLET_DOSSIER = /^\s*(?:\d{1,6}\s*-\s*[A-Za-zÀ-ÿ]|(?:VTE|Vente)\.?\s+[^\n\/]*?\S\s*\/\s*\S)/i;
+const RE_EN_TETE_VTE_PAGE = /(?:^|[^\w-])(?:VTE|Vente)\.?\s+[^\n\/]{0,100}?\S\s*\/\s*[^\n]{0,100}?\S\s*(?:Importer|Comparants|Immeubles)(?![A-Za-zÀ-ÿ])/i;
 
 // Le texte sans les titres des onglets inactifs : un autre dossier ouvert ne désigne jamais la page.
 function texteActifAuthentic(capture) {
@@ -307,13 +312,13 @@ function texteActifAuthentic(capture) {
 // L'intitulé « N - … » de la page (onglet actif, puis en-tête du dossier, puis intitulé seul), ou ''.
 function intitulePageAuthentic(capture) {
   const c = capture || {};
-  const actif = (c.onglets || []).find(o => o.actif && /^\s*\d{1,6}\s*-\s*[A-Za-zÀ-ÿ]/.test(o.titre));
+  const actif = (c.onglets || []).find(o => o.actif && RE_ONGLET_DOSSIER.test(o.titre));
   if (actif) return chaine(actif.titre, 200);
   const sources = (c.champs || []).map(ch => String(ch.libelle || '') + ' ' + String(ch.valeur || '')).concat(texteActifAuthentic(c).split('\n'));
-  for (const re of [RE_INTITULE_GESTION_PAGE, RE_INTITULE_PAGE]) {
+  for (const re of [RE_INTITULE_GESTION_PAGE, RE_EN_TETE_VTE_PAGE, RE_INTITULE_PAGE]) {
     for (const s of sources) {
       const m = re.exec(s);
-      if (m) return chaine(s.slice(m.index).replace(/^[^\d]*/, ''), 200);
+      if (m) return chaine(s.slice(m.index).replace(/^[^\dA-Za-zÀ-ÿ]*/, ''), 200);
     }
   }
   return '';
@@ -323,9 +328,10 @@ function pageAuthenticConnue(capture) {
   const c = capture || {};
   const libelles = (c.champs || []).map(ch => String(ch.libelle || '') + ' ' + String(ch.valeur || ''));
   if (libelles.some(l => /ficheClientPhysique|ficheImmeuble/i.test(l))) return true;
-  if ((c.onglets || []).some(o => o.actif && /^\s*\d{1,6}\s*-\s*[A-Za-zÀ-ÿ]/.test(o.titre))) return true;
+  if ((c.onglets || []).some(o => o.actif && RE_ONGLET_DOSSIER.test(o.titre))) return true;
   const texte = texteActifAuthentic(c);
-  return libelles.some(l => RE_INTITULE_PAGE.test(l) || RE_INTITULE_GESTION_PAGE.test(l)) || RE_INTITULE_PAGE.test(texte) || RE_INTITULE_GESTION_PAGE.test(texte);
+  const res = [RE_INTITULE_PAGE, RE_INTITULE_GESTION_PAGE, RE_EN_TETE_VTE_PAGE];
+  return libelles.some(l => res.some(re => re.test(l))) || res.some(re => re.test(texte));
 }
 
 module.exports = { creerRouteurAuthentic, pageAuthenticConnue, normaliserCaptureAuthentic, origineRequete, naturePageAuthentic, DUREE_CAPTURE_MS, MAX_CAPTURES, DUREE_RELEVE_MS, DUREE_ATTENTE_RELEVES_MS, DUREE_FENETRE_VUE_MS, DUREE_DOUBLON_MS };

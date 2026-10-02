@@ -274,3 +274,11 @@ test('pageAuthenticConnue : intitulé de toute formulation ; un dossier ouvert d
   assert.equal(pageAuthenticConnue(agenda), false);
   assert.equal(pageAuthenticConnue({ champs: [{ libelle: 'x', valeur: '' }], onglets: [{ titre: '1836 - Vente MARTEL/FOURNIER', actif: true }], texte: '' }), true);
 });
+
+test('pageAuthenticConnue : « VTE X / Y » sans numéro, en onglet actif ou en en-tête de page', () => {
+  const { pageAuthenticConnue } = require('../src/routes/authentic');
+  assert.equal(pageAuthenticConnue({ champs: [{ libelle: 'x', valeur: '' }], onglets: [{ titre: 'VTE MARTEL / FOURNIER', actif: true }], texte: '' }), true);
+  assert.equal(pageAuthenticConnue({ champs: [{ libelle: 'x', valeur: '' }], texte: 'VTE MARTEL/FOURNIER\nComparants (2)' }), true);
+  // Une liste qui cite « VTE X / Y » sans en-tête de dossier : non.
+  assert.equal(pageAuthenticConnue({ champs: [{ libelle: 'Rechercher', valeur: '' }], texte: 'VTE MARTEL / FOURNIER\nVTE COLIN / DUPUIS' }), false);
+});

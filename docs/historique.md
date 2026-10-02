@@ -15213,3 +15213,19 @@ donation, ancien dossier, message) ; Chromium : `releve.js` sur une page invent�
 le second actif) → onglets relevés, onglet inactif ignoré ; ancien dossier signé en 2019 ni appliqué ni proposé.
 Non vérifié : la structure réelle des onglets d'Authentic (rôles ARIA supposés d'après PrimeFaces) et la place exacte
 du sous-dossier « en bas à gauche » — à confirmer par la « Copier la structure (sans données) » d'une vraie page.
+
+### 02/10/2026 (21 h 18) — Authentic : « VTE VENDEURS / ACQUÉREURS », numéro caché
+
+Étude : « Dans Authentic le dossier est identifié par VTE NOM VENDEURS / NOM ACQUÉREURS. Le numéro est caché dans
+les données du dossier. » Jusqu'ici, sans « N - » devant, un intitulé n'était pas lu (onglet, en-tête) et la page ne
+quittait pas Firefox. Désormais :
+- poste : `RE_INTITULE_VTE_SEUL_AUTHENTIC` (titre de l'onglet actif « VTE X / Y ») et `RE_EN_TETE_VTE_AUTHENTIC`
+  (« VTE X / Y » suivi de Importer / Comparants / Immeubles) dans `intituleNumeroteAuthentic` ; le numéro vient de
+  l'en-tête numéroté de la page s'il existe (« 1836 - Vente … », vu sur la page du dossier WALTER), sinon d'un champ
+  « N° de dossier » / « Numéro du dossier » (`numeroChampDossierAuthentic`), sinon rien — les noms font le reste ;
+- fiche client : l'onglet actif d'un dossier désigne le dossier en consultation (`dossierOngletActifAuthentic`), avant
+  le « dernier dossier vu » ;
+- serveur (`RE_ONGLET_DOSSIER`, `RE_EN_TETE_VTE_PAGE`) et extension 0.3.8 : ces pages sont reconnues et envoyées ; une
+  liste qui cite des « VTE X / Y » sans en-tête de dossier ne l'est pas.
+Non vérifié : où le numéro se trouve exactement « dans les données du dossier » (libellé du champ supposé) — à
+confirmer par la copie de structure d'une vraie page.

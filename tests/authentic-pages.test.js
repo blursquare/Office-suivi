@@ -1029,3 +1029,21 @@ test('ancien dossier des mêmes clients : jamais appliqué ni proposé', () => {
   assert.equal(app.proposerChoixDossierAuthentic(enCours, 'Vente MARTEL / DUPONT', [Object.assign({}, d, { numeroAuthentic: '1700' })]), false);
   assert.equal(app.proposerChoixDossierAuthentic(enCours, 'Vente MARTEL / DUPONT', [d]), true);
 });
+
+test('dossier identifié par « VTE VENDEURS / ACQUÉREURS » sans numéro ; numéro lu dans ses données', () => {
+  const onglet = {
+    onglets: [{ titre: 'VTE COLIN / DUPUIS', actif: false }, { titre: 'VTE MARTEL / FOURNIER', actif: true }],
+    champs: [{ groupe: 'Données du dossier', libelle: 'N° de dossier', valeur: '1836' }], tableaux: [], texte: 'VTE COLIN / DUPUIS\nVTE MARTEL / FOURNIER'
+  };
+  assert.equal(app.intituleDossierAuthentic(onglet), 'Vente MARTEL / FOURNIER');
+  assert.equal(app.numeroDossierAuthentic(onglet), '1836');
+  // En-tête de la page sans numéro.
+  const enTete = { champs: [], tableaux: [], texte: 'Accueil\nVTE MARTEL/FOURNIER\nComparants (2)' };
+  assert.equal(app.intituleDossierAuthentic(enTete), 'Vente MARTEL / FOURNIER');
+  assert.equal(app.numeroDossierAuthentic(enTete), '');
+  const dossiers = [{ id: 'a', nom: 'MARTEL / FOURNIER', parties: [] }, { id: 'b', nom: 'COLIN / DUPUIS', parties: [] }];
+  assert.equal(app.dossierPourIntituleAuthentic(app.intituleDossierAuthentic(enTete), dossiers, '', '').id, 'a');
+  // Fiche client ouverte dans l'onglet du dossier : l'onglet actif désigne le dossier en consultation.
+  assert.equal(app.dossierOngletActifAuthentic({ onglets: [{ titre: 'VTE MARTEL / FOURNIER', actif: true }] }, dossiers).id, 'a');
+  assert.equal(app.dossierOngletActifAuthentic({ onglets: [{ titre: 'Agenda', actif: true }] }, dossiers), null);
+});

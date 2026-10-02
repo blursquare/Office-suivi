@@ -57,9 +57,13 @@
     const reGestion = /(?:^|[^\w])\d{1,6}\s*-\s*[A-Za-zÀ-ÿ][^\n]{0,150}?\S\s*(?:Importer|Comparants|Immeubles)(?![A-Za-zÀ-ÿ])/i;
     const libelles = (c.champs || []).map(ch => String(ch.libelle || '') + ' ' + String(ch.valeur || ''));
     if (libelles.some(l => /ficheClientPhysique|ficheImmeuble/i.test(l))) return true;
-    if ((c.onglets || []).some(o => o.actif && /^\s*\d{1,6}\s*-\s*[A-Za-zÀ-ÿ]/.test(o.titre))) return true;
+    // « VTE VENDEURS / ACQUÉREURS » sans numéro (0.3.8, étude 02/10 : c'est ainsi que le dossier est
+    // identifié ; le numéro est caché dans ses données) : titre de l'onglet actif ou en-tête de la page.
+    const reOnglet = /^\s*(?:\d{1,6}\s*-\s*[A-Za-zÀ-ÿ]|(?:VTE|Vente)\.?\s+[^\n\/]*?\S\s*\/\s*\S)/i;
+    const reVte = /(?:^|[^\w-])(?:VTE|Vente)\.?\s+[^\n\/]{0,100}?\S\s*\/\s*[^\n]{0,100}?\S\s*(?:Importer|Comparants|Immeubles)(?![A-Za-zÀ-ÿ])/i;
+    if ((c.onglets || []).some(o => o.actif && reOnglet.test(o.titre))) return true;
     const texte = texteActif(c);
-    return libelles.some(l => re.test(l) || reGestion.test(l)) || re.test(texte) || reGestion.test(texte);
+    return libelles.some(l => re.test(l) || reGestion.test(l) || reVte.test(l)) || re.test(texte) || reGestion.test(texte) || reVte.test(texte);
   }
   // L'intitulé « N - … » du dossier ouvert : un libellé seul (sans valeur), sinon la première ligne du texte.
   function intituleDossier(c) {
