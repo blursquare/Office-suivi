@@ -15229,3 +15229,14 @@ quittait pas Firefox. Désormais :
   liste qui cite des « VTE X / Y » sans en-tête de dossier ne l'est pas.
 Non vérifié : où le numéro se trouve exactement « dans les données du dossier » (libellé du champ supposé) — à
 confirmer par la copie de structure d'une vraie page.
+
+### 02/10/2026 (21 h 32) — Authentic : « détecter le nom du dossier, vérifier l'adresse »
+
+Étude : « Je pense qu'il [faut] détecter le nom du dossier, vérifier l'adresse et ainsi retrouver le dossier. » C'est
+la règle en place (`scoreDossierAuthentic`, seuil 6) : noms de l'intitulé (3 par côté identique, 2 proche), adresse
+du bien de la rubrique « Immeubles » qui confirme (code postal +1, voie +2/+4, numéro +1) ou contredit (autre code
+postal −3, autre voie −2) — deux noms identiques sur un autre bien tombent sous le seuil. Le numéro passe avant tout.
+Rendu visible : `commentDossierRetrouveAuthentic` → texte du journal (Réglages › Authentic) « retrouvé par son
+numéro Authentic (N) » ou « retrouvé par les noms (vendeur identique, acquéreur identique), adresse : code postal,
+adresse (…), numéro — 9 points » (« adresse non affichée sur la page » quand la page ne la montre pas). Test du cas
+mêmes noms / autre bien.

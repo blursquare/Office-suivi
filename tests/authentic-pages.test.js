@@ -1047,3 +1047,14 @@ test('dossier identifié par « VTE VENDEURS / ACQUÉREURS » sans numéro ; num
   assert.equal(app.dossierOngletActifAuthentic({ onglets: [{ titre: 'VTE MARTEL / FOURNIER', actif: true }] }, dossiers).id, 'a');
   assert.equal(app.dossierOngletActifAuthentic({ onglets: [{ titre: 'Agenda', actif: true }] }, dossiers), null);
 });
+
+test('commentDossierRetrouveAuthentic : numéro, sinon noms vérifiés par l’adresse — dit au journal', () => {
+  const d = { id: 'a', nom: 'MARTEL / FOURNIER', parties: [], bien: { adresse: { numero: '12', nomVoie: 'des Lilas', typeVoie: 'rue', codePostal: '41000', commune: 'BLOIS' } } };
+  assert.equal(app.commentDossierRetrouveAuthentic('Vente MARTEL / FOURNIER', '', '1836', Object.assign({}, d, { numeroAuthentic: '1836' })), 'retrouvé par son numéro Authentic (1836)');
+  const t = app.commentDossierRetrouveAuthentic('Vente MARTEL / FOURNIER', '12 rue des Lilas 41000 BLOIS', '', d);
+  assert.match(t, /^retrouvé par les noms \(vendeur identique, acquéreur identique\), adresse : code postal, adresse \(.+\), numéro — \d+ points$/);
+  assert.match(app.commentDossierRetrouveAuthentic('Vente MARTEL / FOURNIER', '', '', d), /adresse non affichée sur la page — 6 points$/);
+  // Mêmes noms, autre bien (autre code postal) : la vérification de l'adresse écarte le dossier.
+  assert.equal(app.dossierPourIntituleAuthentic('Vente MARTEL / FOURNIER', [d], '5 route de Tours 37000 TOURS', ''), null);
+  assert.equal(app.dossierPourIntituleAuthentic('Vente MARTEL / FOURNIER', [d], '12 rue des Lilas 41000 BLOIS', '').id, 'a');
+});

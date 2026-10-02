@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-02 21:18';
+  const VERSION_APP = '2026-10-02 21:32';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-02 21:32', resume: "Authentic, Réglages › Authentic : chaque page reprise dit comment son dossier a été retrouvé — par son numéro, ou par les noms de l'intitulé vérifiés par l'adresse du bien (code postal, voie, numéro), avec les points obtenus. Des noms identiques sur un autre bien (autre code postal ou autre voie) ne désignent pas le dossier." },
     { version: '2026-10-02 21:18', resume: "Authentic : un dossier identifié par « VTE VENDEURS / ACQUÉREURS », sans numéro devant, est reconnu — en titre de l'onglet ouvert comme en en-tête de la page — et retrouvé par les noms ; le numéro, caché dans les données du dossier, est repris quand la page le porte (devant l'en-tête ou dans un champ « N° de dossier ») et sert ensuite d'identifiant. Une fiche client ouverte dans l'onglet d'un dossier est rangée dans ce dossier. Extension 0.3.8." },
     { version: '2026-10-02 21:15', resume: "Authentic, d'après l'usage de l'étude : plusieurs dossiers ouverts en même temps — seul l'onglet actif désigne la page, jamais un autre dossier ouvert à côté (extension 0.3.7) ; une liste de résultats de recherche ne désigne plus aucun dossier. La page d'un dossier est lue quelle que soit la formulation de son intitulé : l'affaire est retrouvée par son numéro, commun à la promesse et à la vente, puis par les noms. Un ancien dossier des mêmes clients (acte signé avant le dossier en cours) n'est jamais appliqué ni ne prend le numéro, et ne fait plus apparaître « Choisir » ; ce message n'apparaît que si un dossier en cours sans numéro porte ces noms." },
     { version: '2026-10-02 20:54', resume: "Authentic, pages qui ne remontaient pas : une fenêtre CLAIRE cachée ou réduite (qui ne relit plus les dossiers) prenait les pages d'Authentic sur une copie ancienne — un dossier créé depuis sur un autre poste restait introuvable, et la fiche enregistrée pouvait écraser des changements faits ailleurs ; les dossiers sont désormais relus avant chaque page. Une page est servie d'abord à la fenêtre CLAIRE du poste qui consulte Authentic (avant : n'importe laquelle, parfois celle d'un collègue). Une page revue est relue avec son contenu (avant : seulement le changement de dossier). La page d'un dossier qu'aucun dossier de CLAIRE ne reconnaît le dit, avec le motif (noms absents, points insuffisants, deux dossiers trop proches, numéro déjà pris) et « Choisir » pour la ranger à la main — le numéro d'Authentic est alors retenu. Nouveau : Réglages › Authentic, journal de chaque page reçue (poste, fenêtre qui l'a lue, résultat). Extension 0.3.6 : une page non arrivée à CLAIRE est renvoyée." },
@@ -26312,6 +26313,18 @@
     return !!debut && acte.date < debut;
   }
 
+  // Pure : comment le dossier a été retrouvé, dit au journal (étude, 02/10 : « détecter le nom du dossier,
+  // vérifier l'adresse et ainsi retrouver le dossier ») — par son numéro, sinon par les noms de
+  // l'intitulé, confirmés (ou non) par l'adresse du bien de la page.
+  function commentDossierRetrouveAuthentic(intitule, adresse, numero, d) {
+    if (!d) return '';
+    if (numero && d.numeroAuthentic === String(numero)) return `retrouvé par son numéro Authentic (${numero})`;
+    const s = scoreDossierAuthentic(intitule, adresse, d);
+    const noms = s.details.filter(t => /^(?:vendeur|acquéreur|nom)/.test(t)).map(t => t.replace(/\s*\([+−-]\d+\)$/, ''));
+    const adr = s.details.filter(t => !/^(?:vendeur|acquéreur|nom)/.test(t)).map(t => t.replace(/\s*\([+−-]\d+\)$/, ''));
+    return `retrouvé par les noms (${noms.join(', ') || '—'})${adr.length ? `, adresse : ${adr.join(', ')}` : ', adresse non affichée sur la page'} — ${s.score} points`;
+  }
+
   // Pure : la page d'un dossier non reconnu mérite-t-elle un message « Choisir » ? Non pour un dossier
   // signé (un ancien dossier qu'on consulte), ni quand les seuls dossiers aux mêmes noms ont déjà leur
   // numéro d'Authentic (une affaire = un numéro : c'en est une autre). Le journal la garde de toute façon.
@@ -27657,6 +27670,7 @@
     const adresse = adresseBienPageAuthentic(capture);
     let numeroNote = false;
     let raisonAncien = '';
+    let comment = '';
     if (lu) {
       d = dossierPourIntituleAuthentic(lu, dossiers, adresse, numero);
       // Retrouvé par les noms seulement (pas par son numéro) mais signé avant ce dossier : un ancien
@@ -27666,6 +27680,7 @@
         d = null;
       }
       dossierCourantAuthentic = { id: d ? d.id : '', t: Date.now() };
+      comment = commentDossierRetrouveAuthentic(lu, adresse, numero, d);
       numeroNote = !!d && retenirNumeroAuthentic(d, numero, dossiers);
     } else if (courantValide) {
       d = dossiers.find(x => x.id === dossierCourantAuthentic.id) || null;
@@ -27677,7 +27692,8 @@
       return { etat: lu ? 'sans-dossier' : 'sans-changement', texte: raison };
     }
     const r = appliquerReleveSurDossier(d, capture);
-    if (!r.modifie && !numeroNote) return { etat: 'sans-changement', dossierId: d.id, texte: 'rien de neuf' };
+    const avecComment = (t) => [comment, t].filter(Boolean).join(' — ');
+    if (!r.modifie && !numeroNote) return { etat: 'sans-changement', dossierId: d.id, texte: avecComment('rien de neuf') };
     await sauvegarder(d);
     render();
     // Comme une validation à la main : les dates butoir levées quittent l'agenda.
@@ -27696,7 +27712,7 @@
         : r.textes[0] + (r.textes.length > 1 ? ` (+${r.textes.length - 1})` : '');
       afficherToast(`Authentic · ${libelleDossierAffiche(d)} : ${resume}.`, 'Voir', () => ouvrirDossierDrawer(d.id));
     }
-    return { etat: 'applique', dossierId: d.id, texte: r.textes.join(' · ') || `dossier Authentic n° ${numero} rattaché` };
+    return { etat: 'applique', dossierId: d.id, texte: avecComment(r.textes.join(' · ') || `dossier Authentic n° ${numero} rattaché`) };
   }
 
   // SAFER sans réponse : le délai s'écoule même sans nouvelle page d'Authentic — vérifié au démarrage
