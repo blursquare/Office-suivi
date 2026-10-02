@@ -14437,3 +14437,13 @@ documents de l'analyse cochés reçus hors checklist (`recuLe`) ; les nouvelles 
 plus récente, sans date en dernier ; 6 au plus. Point vert, rouge si nouvelle ; « à la main » + date. Clic : fichier du NAS
 (`ouvrirPieceTrouvee` / `ouvrirOffreTrouvee`), sinon l'onglet concerné ; « n/total » ouvre l'onglet Pièces. Test
 `tests/fiche-pieces-recues.test.js` ; vérifié dans Chromium (clair, sombre).
+
+### 02/10/2026 09:26 — Agenda : date butoir rappelée dans la fenêtre d'une signature probable
+
+Demande de l'étude : « pour les propositions de rendez-vous probable, bien rappeler la date butoir dans le pop-up ».
+`rappelButoirSignatureProbable(d, p, creneau, aujourdhui)` (pure) : « Date butoir : jeudi 12 novembre 2026 (dans 41 jours) »
+sous la raison de la semaine probable, dans `renderDetailFantomeAgenda` ; niveau `ok` (rose des dates butoir), `proche`
+(moins de 7 jours entre le créneau proposé — à défaut la date au plus tôt — et la butoir), `depasse` (« ce créneau la
+dépasse : prévoir la prorogation », rouge), `inconnue` (« Date butoir non renseignée sur la fiche »). Les autres créneaux de la
+fenêtre au-delà de la butoir prennent le pointillé `apres-butoir` et le disent au survol. Test dans
+`tests/agenda-page.test.js` ; vérifié dans Chromium (clair, sombre).

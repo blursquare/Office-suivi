@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-02 08:14';
+  const VERSION_APP = '2026-10-02 09:26';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-02 09:26', resume: "Agenda : la fenêtre d'une signature probable (carte en pointillé) rappelle la date butoir du dossier, avec le nombre de jours restants — en rose, en rouge quand il reste moins de 7 jours de marge après le créneau proposé ou quand le créneau la dépasse (« prévoir la prorogation ») ; les autres créneaux proposés au-delà de la butoir sont en pointillé." },
     { version: '2026-10-02 08:14', resume: "Fiche d'un dossier agrandie : la colonne de droite montre les dernières pièces reçues (6 au plus, les nouvelles d'abord puis la plus récente, avec leur date et « à la main » si elles ont été validées hors NAS), au-dessus de l'activité récente. Un clic ouvre le fichier trouvé sur le NAS ; « 6/9 » mène à l'onglet Pièces." },
     { version: '2026-10-02 08:11', resume: "Tableau de bord : nouveau widget « Statistiques » (en bas, toute la largeur ; « Widgets » pour le déplacer ou le retirer). Délai moyen depuis l'ouverture du dossier dans CLAIRE jusqu'à l'obtention du prêt, la renonciation au droit de préemption et la signature de l'acte (12 derniers mois, nombre de dossiers et médiane au survol), et dossiers ouverts ce mois-ci comparés au mois précédent et au même mois de l'an dernier (« — » quand CLAIRE ne suivait pas encore de dossier)." },
     { version: '2026-10-02 07:40', resume: "Fiche d'un dossier, onglet Analyse : chaque engagement du vendeur et chaque document relevé dans l'avant-contrat a désormais une case à cocher (réalisé / reçu). Ce qui n'est pas coché garde le dossier « Attente de pièces » et baisse la probabilité de tenue du rendez-vous (« Relancer le vendeur ») ; l'onglet affiche « faits / total ». Un document qui est aussi une pièce de la checklist partage sa case avec l'onglet Pièces ; un engagement dont la pièce est reçue se coche seul, et cocher des travaux valide la pièce « Travaux de remise en état » qui en découle." },
@@ -20482,6 +20483,22 @@
   }
 
   // Détail d'une carte fantôme : pourquoi cette semaine, ce qui reste à lever, et le geste pour placer.
+  // Pure : le rappel de la date butoir dans la fenêtre d'une signature probable (étude, 02/10 : « bien
+  // rappeler la date butoir dans le pop-up »). niveau : 'ok' (le créneau proposé tient avant), 'proche'
+  // (moins de 7 jours de marge), 'depasse' (créneau ou semaine probable au-delà), 'inconnue' (pas de date).
+  function rappelButoirSignatureProbable(d, p, creneau, aujourdhuiIso) {
+    if (!d || !d.acte) return { niveau: 'inconnue', html: 'Date butoir non renseignée sur la fiche' };
+    const auj = aujourdhuiIso || isoAujourdhuiLocal();
+    const reference = (creneau && creneau.date) || (p && p.date) || auj;
+    const restants = ecartJours(auj, d.acte);
+    const marge = ecartJours(reference, d.acte);
+    const quand = restants < 0 ? `dépassée depuis ${-restants} jour${-restants > 1 ? 's' : ''}` : restants === 0 ? 'aujourd’hui' : `dans ${restants} jour${restants > 1 ? 's' : ''}`;
+    const base = `Date butoir : <b>${escapeHtml(dateAvecJourFr(d.acte))}</b> (${quand})`;
+    if (marge < 0) return { niveau: 'depasse', html: `${base} — ${creneau ? 'ce créneau la dépasse' : 'la semaine probable la dépasse'} : prévoir la prorogation` };
+    if (marge < 7) return { niveau: 'proche', html: `${base} — ${marge} jour${marge > 1 ? 's' : ''} de marge seulement` };
+    return { niveau: 'ok', html: base };
+  }
+
   function renderDetailFantomeAgenda(e) {
     const d = dossierDeEvenement(e);
     const p = e.probable;
@@ -20494,6 +20511,7 @@
     const libelleCreneau = (c) => `${new Date(c.date + 'T00:00:00').toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' }).replace('.', '')} ${c.heure.replace(':', ' h ')}`;
     const ligne = (ic, html) => `<div class="ag-detail-ligne">${icone(ic)}<span>${html}</span></div>`;
     const semaine = new Date(p.lundi + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' });
+    const butoir = rappelButoirSignatureProbable(d, p, e.creneau, auj);
     return `<section class="ag-detail ag-detail-fantome ajd-signature" aria-labelledby="agenda-detail-titre">
         <div class="ag-detail-tete">
           <div>
@@ -20505,14 +20523,15 @@
         <div class="ag-detail-proba">
           <div class="ag-detail-proba-tete">${renderPastilleProbabilite(p)} <b>Il est probable que ce rendez-vous se tienne la semaine du ${escapeHtml(semaine)}</b></div>
           <p class="ag-detail-raison">Au plus tôt le ${escapeHtml(dateAvecJourFr(p.date))} : ${escapeHtml(p.raison)}.</p>
+          <div class="ag-detail-butoir ${butoir.niveau}">${icone(butoir.niveau === 'ok' ? 'calendar' : 'alert-triangle')}<span>${butoir.html}</span></div>
           <ul class="ag-facteurs">${p.facteurs.map(x => `<li class="${x.ok ? 'ok' : 'ko'}">${icone(x.ok ? 'check' : 'alert-triangle')}<span>${escapeHtml(x.libelle)}${x.ok ? '' : ` <em>−${x.retrait} pts</em>`}</span></li>`).join('')}</ul>
         </div>
         ${infos && infos.responsable ? ligne('user', `Responsable : <b>${escapeHtml(infos.responsable)}</b>`) : ''}
         ${infos && infos.confrere ? ligne('users', `Confrère : <b>${escapeHtml(infos.confrere)}</b>`) : ''}
         ${e.creneau ? `<button type="button" class="primary ag-ouvrir-fiche" onclick="placerCreneauSignature('${d.id}', '${e.creneau.date}', '${e.creneau.heure}')" ${ecrire ? '' : 'disabled title="Connexion à l’agenda Outlook à activer dans les Réglages"'}>${icone('calendar')} Placer le ${escapeHtml(libelleCreneau(e.creneau))}</button>`
           : '<p class="jour-vide">Aucun créneau libre cette semaine dans les règles de l’office.</p>'}
-        ${autres.length ? `<div class="ag-creneaux">${autres.map(c => `<button type="button" class="action-rapide ag-creneau${c.exceptionnel ? ' exceptionnel' : ''}" onclick="placerCreneauSignature('${d.id}', '${c.date}', '${c.heure}')" ${ecrire ? '' : 'disabled'}
-            title="${escapeAttr(c.exceptionnel ? 'Créneau exceptionnel : ' + c.exceptionnel : 'Placer le rendez-vous de signature à ce créneau')}">${c.exceptionnel ? icone('alert-triangle') : ''}${escapeHtml(libelleCreneau(c))}</button>`).join('')}</div>` : ''}
+        ${autres.length ? `<div class="ag-creneaux">${autres.map(c => `<button type="button" class="action-rapide ag-creneau${c.exceptionnel ? ' exceptionnel' : ''}${d.acte && c.date > d.acte ? ' apres-butoir' : ''}" onclick="placerCreneauSignature('${d.id}', '${c.date}', '${c.heure}')" ${ecrire ? '' : 'disabled'}
+            title="${escapeAttr([c.exceptionnel ? 'Créneau exceptionnel : ' + c.exceptionnel : '', d.acte && c.date > d.acte ? `Après la date butoir du ${formatDateFr(d.acte)}` : ''].filter(Boolean).join(' · ') || 'Placer le rendez-vous de signature à ce créneau')}">${c.exceptionnel ? icone('alert-triangle') : ''}${escapeHtml(libelleCreneau(c))}</button>`).join('')}</div>` : ''}
         ${sondageOuvertDossier(d.id) ? '<p class="jour-vide">Sondage de créneaux en cours : réponses sur la fiche.</p>'
           : `<button type="button" class="lien-bouton" onclick="ouvrirSondageCreneaux('${d.id}', ${escapeAttr(JSON.stringify((e.creneau ? [e.creneau] : []).concat(autres).map(c => ({ date: c.date, heure: c.heure, exceptionnel: c.exceptionnel || '' }))))})">${icone('users')} Proposer ces créneaux aux parties</button>`}
         <button type="button" class="lien-bouton" onclick="ouvrirDossierDepuisDashboard('${d.id}')">${icone('folder')} Ouvrir la fiche</button>

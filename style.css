@@ -7586,6 +7586,13 @@ body.ag-redim-en-cours, body.ag-redim-en-cours * { cursor: ns-resize !important;
 .ag-detail-ligne { display: flex; align-items: flex-start; gap: 8px; font-size: 12.5px; color: var(--ink-soft); }
 .ag-detail-ligne svg { width: 14px; height: 14px; flex: none; margin-top: 1px; color: var(--muted); }
 .ag-detail-ligne b { color: var(--ink); }
+/* Rappel de la date butoir d'une signature probable (02/10) : rose des dates butoir de l'agenda, rouge si dépassée. */
+.ag-detail-butoir { display: flex; align-items: flex-start; gap: 8px; margin-top: 8px; padding: 7px 10px; border-radius: 8px; font-size: 12.5px; color: var(--ink); background: color-mix(in srgb, var(--cat-rose) 12%, transparent); border-left: 3px solid var(--cat-rose); }
+.ag-detail-butoir svg { width: 14px; height: 14px; flex: none; margin-top: 1px; color: var(--cat-rose); }
+.ag-detail-butoir.depasse { background: color-mix(in srgb, var(--urgent) 12%, transparent); border-left-color: var(--urgent); }
+.ag-detail-butoir.depasse svg, .ag-detail-butoir.proche svg { color: var(--urgent); }
+.ag-detail-butoir.inconnue { background: var(--paper-sunk); border-left-color: var(--line); color: var(--ink-soft); }
+.ag-detail-butoir.inconnue svg { color: var(--muted); }
 .ag-detail-etats { display: flex; flex-wrap: wrap; gap: 4px 12px; padding: 2px 0; }
 .ag-detail-etats .ag-etat { font-size: 12px; }
 .ag-detail .ag-supprimer { align-self: flex-start; }

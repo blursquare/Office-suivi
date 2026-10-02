@@ -321,7 +321,7 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
   `probabiliteTenueSignature` à cette date − 10 (non fixé) − 15 (après la date butoir) ; « Rendez-vous à
   placer » les liste par semaine, et la semaine affichée porte une **carte fantôme** en pointillé
   (`fantomesSemaineAgenda`, premier créneau libre dans les règles, clé `probable:<id>`) dont le détail
-  propose « Placer » (confirmé) ; **notes d'un rendez-vous = son corps dans Outlook** (choix de l'étude,
+  propose « Placer » (confirmé) et **rappelle la date butoir** (étude 02/10, `rappelButoirSignatureProbable` : jours restants, marge < 7 j ou dépassement en rouge) ; **notes d'un rendez-vous = son corps dans Outlook** (choix de l'étude,
   `GET/PUT /api/exchange/evenement/notes`, GetItem/UpdateItem du seul `item:Body` en texte brut, lues à
   l'ouverture du détail, jamais journalisées ; la mise en forme HTML d'un corps n'est pas gardée à
   l'écriture),

@@ -350,3 +350,18 @@ test('motPastilleAgenda : trois lettres du jour (« Jeu »), du mois en vue Mois
   assert.equal(app.motPastilleAgenda(new Date('2026-10-05T00:00:00'), 'jour'), 'Lun');
   assert.equal(app.motPastilleAgenda(new Date('2026-08-05T00:00:00'), 'mois'), 'Aoû');
 });
+
+test('rappelButoirSignatureProbable : date butoir rappelée, marge, dépassement, absente', () => {
+  const app = require('./helpers/load-app.js').chargerApplication();
+  const auj = '2026-10-02';
+  const d = { acte: '2026-11-12' };
+  const ok = app.rappelButoirSignatureProbable(d, { date: '2026-10-19' }, { date: '2026-10-20', heure: '10:00' }, auj);
+  assert.equal(ok.niveau, 'ok');
+  assert.match(ok.html, /Date butoir : <b>jeudi 12 novembre 2026<\/b> \(dans 41 jours\)/);
+  assert.equal(app.rappelButoirSignatureProbable(d, { date: '2026-11-09' }, null, auj).niveau, 'proche');
+  const depasse = app.rappelButoirSignatureProbable(d, { date: '2026-11-16' }, { date: '2026-11-17', heure: '14:00' }, auj);
+  assert.equal(depasse.niveau, 'depasse');
+  assert.match(depasse.html, /ce créneau la dépasse : prévoir la prorogation/);
+  assert.match(app.rappelButoirSignatureProbable({ acte: '2026-09-28' }, { date: '2026-10-16' }, null, auj).html, /dépassée depuis 4 jours/);
+  assert.equal(app.rappelButoirSignatureProbable({}, { date: '2026-10-16' }, null, auj).niveau, 'inconnue');
+});
