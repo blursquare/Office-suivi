@@ -78,27 +78,29 @@ test('intituleDossierAuthentic et dossierPourIntituleAuthentic : mêmes noms des
   assert.equal(app.dossierPourIntituleAuthentic('Vente MARTEL/FOURNIER', dossiers.concat({ id: 'd', nom: 'Martel / Fournier' })), null);
 });
 
-test('piecesRecuesAuthentic : pièce de la checklist, acte de naissance et réponse SAFER ; jamais une demande ni une pièce en attente', () => {
+test('piecesRecuesAuthentic : seulement état civil, casier judiciaire et réponse SAFER ; jamais une demande ni une pièce en attente', () => {
   const lignes = app.lignesDocumentsAuthentic(gestion);
   assert.equal(lignes.length, 5);
   const r = app.piecesRecuesAuthentic(lignes, app.checklistPieces('maison'));
-  const cles = r.map(x => x.cle).join(',');
-  // Vente : pièces d'urbanisme jamais reprises d'Authentic, sauf la SAFER (étude, 02/10).
-  assert.ok(!cles.includes('certificatUrbanisme'), cles);
-  assert.ok(!cles.includes('renonciationPreemption'), 'DIA en attente : non reçue');
+  // Étude, 02/10 : seuls l'état civil, les casiers judiciaires et la SAFER arrivent dans Authentic ;
+  // le reste (urbanisme, diagnostics…) par email ou courrier — jamais repris, même sans « demande ».
+  assert.equal(r.map(x => x.label).join(' | '), 'Acte de naissance de M. MARTEL Alexandre | Réponse SAFER');
   const safer = r.find(x => x.cle === 'perso-safer');
-  assert.equal(safer.label, 'Réponse SAFER');
   assert.equal(safer.nouvelle, true);
   assert.equal(safer.date, '2026-09-10');
   const naissance = r.find(x => /naissance/i.test(x.label));
   assert.equal(naissance.nouvelle, true);
   assert.equal(naissance.date, '2026-09-03');
-  // Succession : le CU reçu compte, une seule fois (la demande de CU ne compte pas).
-  const succ = app.piecesRecuesAuthentic(lignes, app.checklistPieces('maison'), 'succession');
-  assert.equal(succ.filter(x => x.cle === 'certificatUrbanisme').length, 1);
-  assert.equal(succ.find(x => x.cle === 'certificatUrbanisme').date, '2026-09-20');
+  // Succession : pas davantage de pièce d'urbanisme.
+  assert.ok(!app.piecesRecuesAuthentic(lignes, app.checklistPieces('maison'), 'succession').some(x => x.cle === 'certificatUrbanisme'));
+  // Casier judiciaire reçu : pièce du dossier ; sa demande : rien.
+  const casier = app.piecesRecuesAuthentic([
+    { titre: 'Bulletin n°3 du casier judiciaire de Mme FOURNIER Camille', date: '2026-09-12', etat: 'Reçu', texte: 'Bulletin n°3 du casier judiciaire de Mme FOURNIER Camille · 12/09/2026 · Reçu' },
+    { titre: 'Demande de casier judiciaire de M. MARTEL Alexandre', date: '2026-09-01', etat: 'Envoyé', texte: 'Demande de casier judiciaire · 01/09/2026 · Envoyé' }
+  ], []);
+  assert.equal(casier.map(x => x.label).join(' | '), 'Bulletin n°3 du casier judiciaire de Mme FOURNIER Camille');
   // « Réponse SAFER — non préemption » n'est jamais la renonciation au droit de préemption urbain.
-  const rs = app.piecesRecuesAuthentic([{ titre: 'Réponse SAFER non préemption', date: '2026-09-25', etat: 'Reçu', texte: 'Réponse SAFER non préemption · 25/09/2026 · Reçu' }], app.checklistPieces('maison'), 'succession');
+  const rs = app.piecesRecuesAuthentic([{ titre: 'Réponse SAFER non préemption', date: '2026-09-25', etat: 'Reçu', texte: 'Réponse SAFER non préemption · 25/09/2026 · Reçu' }], app.checklistPieces('maison'));
   assert.equal(rs.map(x => x.cle).join(','), 'perso-safer');
   // Notification SAFER sans non-préemption : rien.
   const sansDecision = app.piecesRecuesAuthentic([{ titre: 'Notification SAFER', date: '2026-09-10', etat: '', texte: 'Notification SAFER · 10/09/2026' }], []);
@@ -148,24 +150,22 @@ test('dossiersDepuisRelevesAuthentic : pages regroupées par dossier ; parties r
   assert.equal(parties.map(p => `${p.nom}:${p.role}`).join(','), 'Alexandre MARTEL:VENDEUR,Camille FOURNIER:ACQUEREUR');
   assert.equal(parties[1].telephones.length, 2);
   assert.equal(app.bienExportAuthentic(ex).type, 'maison');
-  // Pièces présentes : vente → jamais une pièce d'urbanisme.
-  assert.ok(!app.piecesExportAuthentic(ex, app.checklistPieces('maison')).some(p => p.cle === 'certificatUrbanisme'));
+  // Pièces présentes : celles reçues dans Authentic (état civil, SAFER), jamais l'urbanisme.
+  const presentes = app.piecesExportAuthentic(ex, app.checklistPieces('maison'));
+  assert.equal(presentes.map(p => p.label).join(' | '), 'Acte de naissance de M. MARTEL Alexandre | Réponse SAFER');
+  assert.ok(presentes.every(p => p.nouvelle));
 });
 
 test('piecesAuthenticAAppliquer : une fois par pièce, jamais déjà reçue ni retirée, jamais en participation', () => {
-  // Vente : la SAFER et l'acte de naissance, jamais le certificat d'urbanisme.
-  const v = { id: 'v', nom: 'MARTEL / FOURNIER', typeVente: 'maison', pieces: {}, historique: [] };
-  const clesVente = app.piecesAuthenticAAppliquer(v, gestion).map(p => p.cle);
-  assert.ok(clesVente.includes('perso-safer') && !clesVente.includes('certificatUrbanisme'), clesVente.join(','));
-  // Succession : le certificat d'urbanisme compte (règles de reprise vérifiées sur lui).
-  const d = { id: 'a', nom: 'MARTEL / FOURNIER', typeVente: 'maison', typeAffaire: 'succession', pieces: {}, historique: [] };
-  const cles = app.piecesAuthenticAAppliquer(d, gestion).map(p => p.cle);
-  assert.ok(cles.includes('certificatUrbanisme') && cles.includes('perso-safer'), cles.join(','));
+  const d = { id: 'v', nom: 'MARTEL / FOURNIER', typeVente: 'maison', pieces: {}, historique: [] };
+  const pieces = app.piecesAuthenticAAppliquer(d, gestion);
+  const cles = pieces.map(p => p.cle);
+  assert.ok(cles.includes('perso-safer') && !cles.includes('certificatUrbanisme'), cles.join(','));
+  const naissance = pieces.find(p => /naissance/i.test(p.label)).cle;
   // Déjà reprise une fois (puis décochée par l'étude) : plus reprise.
-  assert.ok(!app.piecesAuthenticAAppliquer(Object.assign({}, d, { piecesAuthentic: ['certificatUrbanisme'] }), gestion).some(p => p.cle === 'certificatUrbanisme'));
-  // Déjà reçue (NAS) ou retirée de la checklist : rien.
-  assert.ok(!app.piecesAuthenticAAppliquer(Object.assign({}, d, { pieces: { certificatUrbanisme: 'recue' } }), gestion).some(p => p.cle === 'certificatUrbanisme'));
-  assert.ok(!app.piecesAuthenticAAppliquer(Object.assign({}, d, { piecesRetirees: ['certificatUrbanisme'] }), gestion).some(p => p.cle === 'certificatUrbanisme'));
+  assert.ok(!app.piecesAuthenticAAppliquer(Object.assign({}, d, { piecesAuthentic: [naissance] }), gestion).some(p => p.cle === naissance));
+  // Retirée de la liste : rien.
+  assert.ok(!app.piecesAuthenticAAppliquer(Object.assign({}, d, { piecesRetirees: [naissance] }), gestion).some(p => p.cle === naissance));
   assert.equal(app.piecesAuthenticAAppliquer(Object.assign({}, d, { roleNotaire: 'participant' }), gestion).length, 0);
 });
 
@@ -378,4 +378,16 @@ test('« Retour le … » : prise en compte de la SAFER, retour de la RHF', () =
   assert.equal(rhf.retourLe, '2026-09-14');
   const sa = app.suiviSaferAuthentic([{ titre: 'Notification SAFER', dates: ['2026-09-10'], etat: 'Retour le 15/09/2026', texte: 'Notification SAFER · 10/09/2026 · Retour le 15/09/2026' }]);
   assert.equal(sa.priseEnCompteLe, '2026-09-15');
+});
+
+test('« signé le … » sur la page du dossier : acte signé ; jamais pour l’avant-contrat ou une procuration', () => {
+  assert.equal(JSON.stringify(app.etatActeAuthentic({ texte: '12 - Vente MARTEL/FOURNIER\nSigné le 30/09/2026' })), '{"etat":"signe","libelle":"Acte signé","date":"2026-09-30"}');
+  assert.equal(app.etatActeAuthentic({ tableaux: [{ entete: [], lignes: [['Acte de vente', '', '30/09/2026', '', 'Signé électroniquement le 30/09/2026']] }] }).date, '2026-09-30');
+  assert.equal(app.etatActeAuthentic({ texte: 'Compromis signé le 12/06/2026\nProcuration signée le 20/09/2026' }), null);
+  assert.equal(app.etatActeAuthentic({ texte: 'Compromis signé le 12/06/2026\nActe en cours de rédaction' }).etat, 'redaction');
+  // Passage de « en cours de rédaction » à « signé » : noté dans l'historique.
+  const d = { id: 'a', nom: 'MARTEL / FOURNIER', typeVente: 'maison', pieces: {}, historique: [], authentic: { acte: { etat: 'redaction', libelle: 'En cours de rédaction' } } };
+  app.appliquerReleveSurDossier(d, { champs: [], tableaux: [], texte: '12 - Vente MARTEL/FOURNIER\nSigné le 30/09/2026' });
+  assert.equal(d.authentic.acte.etat, 'signe');
+  assert.ok(d.historique.some(h => h.texte === 'Acte dans Authentic : Acte signé le 30 septembre 2026'), d.historique.map(h => h.texte).join('\n'));
 });

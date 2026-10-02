@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-02 11:51';
+  const VERSION_APP = '2026-10-02 11:54';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-02 11:54', resume: "Authentic : seules les pièces qui arrivent vraiment dans Authentic sont reprises de la page du dossier — actes d'état civil, casiers judiciaires et réponse SAFER ; le reste (urbanisme, diagnostics…) arrive par email ou courrier et n'est jamais coché depuis Authentic. « Signé le … » sur la page du dossier fait passer l'acte en « signé » (sauf avant-contrat, procuration, mandat, courrier…)." },
     { version: '2026-10-02 11:51', resume: "Authentic, dossiers de vente : les pièces d'urbanisme (certificat d'urbanisme, alignement, numérotage, assainissement, renonciation au droit de préemption) ne sont plus reprises d'Authentic — elles se cochent par le NAS ou à la main. Seule la réponse SAFER l'est encore. Même règle pour l'import d'un export ZIP." },
     { version: '2026-10-02 11:32', resume: "Authentic : « Informations financières » (Capital) et « Parties prenantes » (collaborateur, notaire) sont aussi lues quand elles s'affichent en texte seul, sous les vendeurs et acquéreurs. « Copier la structure » inclut désormais le texte visible réduit à son vocabulaire (noms, dates, montants et coordonnées masqués). « Retour le … » : date de prise en compte de la SAFER, date de retour de la réquisition hors formalité." },
     { version: '2026-10-02 11:26', resume: "Authentic (suite) : une SAFER notifiée sans réponse ajoute « Réponse SAFER » aux pièces manquantes, avec sa date de notification et de prise en compte, puis la coche à la non-préemption. L'onglet Pièces montre « Dans Authentic » : état de l'acte (pas encore rédigé, en cours de rédaction, signé), réquisition hors formalité (envoyée, retour), SAFER, prix (Capital — repris sur la fiche s'il manque), collaborateur et notaire des parties prenantes. Fiches client : téléphone, email et situation matrimoniale (régime, conjoint) ; alerte si un vendeur marié ou pacsé vend sans son conjoint (résidence de la famille). Livret de famille et acte de décès seulement pour une succession." },
@@ -10253,6 +10254,14 @@
   }
 
   function piecesExportAuthentic(donnees, checklist) {
+    // Pages relevées : les pièces reçues dans Authentic (état civil, casier judiciaire, SAFER),
+    // déjà reconnues à la lecture de la page — pièces du dossier à leur intitulé.
+    if (donnees && donnees.origine === 'pages') {
+      return (donnees.documents || []).filter(dc => dc.piece).map(dc => {
+        const existante = (checklist || []).find(p => p.personnalisee && normaliserPourRecherche(p.label) === normaliserPourRecherche(dc.piece.label));
+        return { cle: existante ? existante.cle : dc.piece.cle, label: existante ? existante.label : dc.piece.label, fichier: dc.intitule, nouvelle: !existante };
+      });
+    }
     const docs = ((donnees && donnees.documents) || []).concat((donnees && donnees.documentsPersonnes) || []);
     const typeAffaire = typeAffaireAuthentic(donnees || {});
     const trouvees = [];
@@ -11276,8 +11285,16 @@
       const caseAuthentic = document.getElementById('f-pieces-authentic');
       const reprises = caseAuthentic && caseAuthentic.checked && roleNotaire !== 'participant'
         ? piecesExportAuthentic(exportAuthenticActuel, checklistPieces(typeVente)) : [];
-      reprises.forEach(pc => { dossier.pieces[pc.cle] = 'recue'; });
-      if (reprises.length) dossier.piecesValideesManuellement = reprises.map(pc => pc.cle);
+      reprises.forEach(pc => {
+        if (pc.nouvelle && !(dossier.piecesPersonnalisees || []).some(p => p.cle === pc.cle)) {
+          dossier.piecesPersonnalisees = (dossier.piecesPersonnalisees || []).concat({ cle: pc.cle, label: pc.label });
+        }
+        dossier.pieces[pc.cle] = 'recue';
+      });
+      if (reprises.length) {
+        dossier.piecesValideesManuellement = reprises.map(pc => pc.cle);
+        dossier.piecesAuthentic = reprises.map(pc => pc.cle);
+      }
       infosAuthenticACreation(dossier, exportAuthenticActuel.infosAuthentic);
       dossier.historique.push(Object.assign({ date: new Date().toISOString(),
         texte: `Créé depuis ${exportAuthenticActuel.origine === 'pages' ? 'les pages' : 'l’export'} Authentic « ${exportAuthenticActuel.intitule} »` + (reprises.length ? ` — pièces présentes dans Authentic marquées reçues : ${reprises.map(pc => pc.label).join(', ')}` : '') },
@@ -25479,6 +25496,8 @@
   var RE_ETAT_CIVIL_VENTE_AUTHENTIC = /acte\s+de\s+(?:naissance|mariage)/i;
   var RE_ETAT_CIVIL_SUCCESSION_AUTHENTIC = /acte\s+de\s+(?:naissance|mariage|d[ée]c[èe]s)|livret\s+de\s+famille/i;
   var RE_DATE_FR_AUTHENTIC = /^\d{1,2}[\/.-]\d{1,2}[\/.-]\d{4}/;
+  // Casier judiciaire (bulletin n° 3), reçu dans Authentic comme l'état civil et la SAFER.
+  var RE_CASIER_AUTHENTIC = /casier\s+judiciaire|bulletin\s+(?:n\s*[°o]?\s*)?3(?!\d)/i;
   var RE_SAFER_NON_PREEMPTION = /non[\s-]*(?:exercice|pr[ée]emption)|renon[cç]|ne\s+(?:pas\s+)?(?:pr[ée]empt|exerc)|pas\s+de\s+pr[ée]emption|purg[ée]/i;
 
   function dateIsoDepuisFr(v) {
@@ -25564,15 +25583,18 @@
   // Pure : pièces de la checklist reçues d'après les lignes (même règle que l'export ZIP : le nom,
   // jamais le contenu), plus les actes d'état civil et la réponse SAFER de non-préemption, ajoutés
   // comme pièces du dossier. [{ cle, label, nouvelle, date, titre }]
+  // Pure : les pièces reçues d'après les lignes de la page de gestion. Seules trois sortes de
+  // réponses arrivent DANS Authentic (étude, 02/10) : les actes d'état civil, les casiers
+  // judiciaires et la réponse SAFER ; tout le reste (urbanisme, diagnostics…) arrive par email ou
+  // courrier, et la page n'en montre que les courriers de demande — jamais repris. Chaque pièce
+  // reçue est une pièce du dossier à son intitulé (une par personne), reprise si elle existe déjà.
+  // [{ cle, label, nouvelle, date, titre }]
   function piecesRecuesAuthentic(lignes, checklist, typeAffaire) {
     const reEtatCivil = typeAffaire === 'succession' ? RE_ETAT_CIVIL_SUCCESSION_AUTHENTIC : RE_ETAT_CIVIL_VENTE_AUTHENTIC;
     const resultat = [];
     const liste = checklist || [];
     const ajouter = (o) => { if (!resultat.some(r => r.cle === o.cle)) resultat.push(o); };
     (lignes || []).filter(ligneAuthenticRecue).forEach(l => {
-      const nom = normaliserNomPourMotif(l.titre + '.pdf');
-      // La SAFER d'abord : « Réponse SAFER — non préemption » ne doit jamais passer pour la
-      // renonciation au droit de préemption (urbain) de la checklist.
       if (/safer/i.test(l.texte)) {
         if (!RE_SAFER_NON_PREEMPTION.test(normaliserPourRecherche(l.texte))) return;
         const existante = liste.find(p => p.personnalisee && /safer/i.test(p.label));
@@ -25580,10 +25602,7 @@
           : { cle: 'perso-safer', label: 'Réponse SAFER', nouvelle: true, date: l.date, titre: l.titre });
         return;
       }
-      const piece = liste.find(p => p && p.cle && correspondancePieceNom(p, nom) === 'exact');
-      if (piece && pieceUrbanismeIgnoreeAuthentic(piece.cle, typeAffaire)) return;
-      if (piece) { ajouter({ cle: piece.cle, label: piece.label, nouvelle: false, date: l.date, titre: l.titre }); return; }
-      if (reEtatCivil.test(l.titre)) {
+      if (reEtatCivil.test(l.titre) || RE_CASIER_AUTHENTIC.test(l.titre)) {
         const label = l.titre.slice(0, 90);
         const cleLabel = normaliserPourRecherche(label);
         const existante = liste.find(p => p.personnalisee && normaliserPourRecherche(p.label) === cleLabel);
@@ -25735,15 +25754,24 @@
   }
 
   // Pure : état de l'acte de vente dans Authentic — 'signe' (avec date), 'redaction', 'a_rediger'.
+  // « signé le JJ/MM/AAAA » n'importe où sur la page du dossier vaut acte signé (étude, 02/10), sauf
+  // sur une ligne qui parle d'un autre document signé (avant-contrat, procuration, mandat, offre,
+  // courrier…).
+  var RE_AUTRE_DOCUMENT_SIGNE_AUTHENTIC = /compromis|promesse|avant[\s-]*contrat|procuration|mandat|offre|bon\s+de\s+visite|courrier|lettre|demande|attestation|convention|pouvoir|avenant|reconnaissance/i;
   function etatActeAuthentic(capture) {
     const c = capture || {};
     const sources = [];
-    lignesDocumentsAuthentic(c).filter(l => /acte|vente/i.test(l.titre)).forEach(l => sources.push(l.titre + ' ' + (l.etat || '') + ' ' + (l.dates || []).map(formatDateFr).join(' ')));
-    (c.champs || []).filter(ch => /acte/i.test(ch.libelle || '') || /acte/i.test(ch.groupe || '')).forEach(ch => sources.push((ch.libelle || '') + ' ' + (ch.valeur || '')));
-    sources.push(c.texte || '');
-    const tout = sources.join('\n');
-    const signe = /acte\s+(?:de\s+vente\s+)?sign[ée](?:\s+le\s+(\d{1,2}[\/.-]\d{1,2}[\/.-]\d{4}))?/i.exec(tout);
-    if (signe) return { etat: 'signe', libelle: 'Acte signé', date: signe[1] ? dateIsoDepuisFr(signe[1]) : '' };
+    lignesDocumentsAuthentic(c).forEach(l => sources.push(l.titre + ' ' + (l.etat || '') + ' ' + (l.dates || []).map(d => d.split('-').reverse().join('/')).join(' ')));
+    (c.champs || []).forEach(ch => sources.push([ch.groupe, ch.libelle, ch.valeur].filter(Boolean).join(' ')));
+    String(c.texte || '').split(/\n+/).forEach(l => sources.push(l));
+    const lignes = sources.map(x => String(x || '').replace(/\s+/g, ' ').trim()).filter(Boolean);
+    for (const l of lignes) {
+      if (RE_AUTRE_DOCUMENT_SIGNE_AUTHENTIC.test(l)) continue;
+      const m = /sign[ée]e?s?\s+(?:[ée]lectroniquement\s+)?le\s+(\d{1,2}[\/.-]\d{1,2}[\/.-]\d{4})/i.exec(l)
+        || /acte\s+(?:de\s+vente\s+)?sign[ée](?![a-z])/i.exec(l);
+      if (m) return { etat: 'signe', libelle: 'Acte signé', date: m[1] ? dateIsoDepuisFr(m[1]) : '' };
+    }
+    const tout = lignes.join('\n');
     if (/en\s+cours\s+de\s+r[ée]daction|r[ée]daction\s+en\s+cours/i.test(tout)) return { etat: 'redaction', libelle: 'En cours de rédaction', date: '' };
     if (/(?:non|pas\s+encore)\s+r[ée]dig[ée]|[àa]\s+r[ée]diger/i.test(tout)) return { etat: 'a_rediger', libelle: 'Pas encore rédigé', date: '' };
     return null;
@@ -25879,7 +25907,8 @@
       g.derniere = r.recueLe || g.derniere;
       if (type === 'client') { const p = clientDepuisFicheAuthentic(cap); if (p) g.personnes.set(p.id, p); }
       if (type === 'bien') { const b = bienDepuisFicheAuthentic(cap); if (b) g.immeubles.set(b.id, b); }
-      if (type === 'gestion') lignesDocumentsAuthentic(cap).filter(ligneAuthenticRecue).forEach(l => g.documents.set(l.titre + '|' + l.date, { intitule: l.titre, nomFichier: '', chemin: '', date: l.date, personne: null }));
+      if (type === 'gestion') piecesRecuesAuthentic(lignesDocumentsAuthentic(cap), [], /succ/i.test(intitule) ? 'succession' : 'vente')
+        .forEach(p => g.documents.set(p.cle, { intitule: p.titre, nomFichier: '', chemin: '', date: p.date, personne: null, piece: p }));
       if (type === 'gestion' || type === 'autre') g.infos = fusionnerInfosAuthentic(g.infos, infosDossierAuthentic(cap));
     });
     return [...groupes.values()].map(g => {

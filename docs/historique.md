@@ -14626,3 +14626,18 @@ préemption) ne sont jamais cochées depuis Authentic — pages relevées (`piec
 (`piecesExportAuthentic`). La « Réponse SAFER » reste reprise. Au passage, une ligne SAFER est désormais lue AVANT la
 checklist : « Réponse SAFER — non préemption » aurait sinon coché la renonciation au droit de préemption urbain (son motif
 de nom contient « préemption »). Rien ne change pour le NAS ni pour la validation à la main.
+
+### 02/10/2026 11:54 — Authentic : seuls l'état civil, les casiers judiciaires et la SAFER ; « signé le » = acte signé
+
+Étude : « la page d'un dossier montre des courriers de demande et pas la réponse du service de l'urbanisme. La seule
+réponse que l'on reçoit dans Authentic, c'est les actes de naissance, les casiers judiciaires et la SAFER » ; « le reste on
+ne le reçoit pas, email ou courrier papier » ; « passer un acte signé s'il détecte signé le dans le dossier Authentic ».
+`piecesRecuesAuthentic` ne rapproche plus aucune pièce de la checklist : seulement état civil (naissance, mariage ;
+décès et livret en succession), casier judiciaire (`RE_CASIER_AUTHENTIC` : « casier judiciaire », « bulletin n° 3 ») et
+réponse SAFER de non-préemption, chacun pièce du dossier à son intitulé. Création depuis les pages : mêmes pièces seulement
+(`export.documents[].piece`, `piecesExportAuthentic` les rend pour `origine === 'pages'`, ajoutées en pièces
+personnalisées reçues à l'enregistrement). L'export ZIP garde la reconnaissance par nom de fichier (vraies pièces jointes),
+sans l'urbanisme pour une vente. `etatActeAuthentic` : « signé le JJ/MM/AAAA » (ou « signé électroniquement le ») sur
+n'importe quelle ligne de la page → acte signé avec sa date, sauf ligne citant un autre document
+(`RE_AUTRE_DOCUMENT_SIGNE_AUTHENTIC` : compromis, promesse, avant-contrat, procuration, mandat, offre, courrier, lettre,
+demande, attestation, convention, pouvoir, avenant…). Rien d'autre ne change sur la fiche (ni archivage ni rendez-vous).
