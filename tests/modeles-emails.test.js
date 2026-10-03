@@ -86,3 +86,23 @@ test('modèle de geste modifié : le geste envoie le texte de l’étude ; absen
   assert.doesNotMatch(menu, /\b(accuseReception|copieActe|visio|sondage)/);
   assert.match(app.listeModelesEmails({ modifies: {}, perso: [] }).map(x => x.cle).join(), /accuseReception.*copieActe.*visio.*sondage/);
 });
+
+// Étude 03/10 : « en fonction du type d'email, faire remonter en tête le modèle le plus approprié ».
+test('modelesProposesPourEmail : geste, objet et email reçu, étape du dossier, variante confrère', () => {
+  const liste = app.listeModelesEmails({ modifies: {}, perso: [{ id: 'p1', nom: 'Demande de diagnostics', sujet: 'Diagnostics — {dossier}', corps: 'x' }] }, { pourFenetre: true });
+  const cles = (ctx) => app.modelesProposesPourEmail(liste, ctx, 3).map(m => m.cle || m.id).join(',');
+  // Le geste qui a ouvert la fenêtre passe devant, variante confrère choisie selon le destinataire.
+  assert.equal(cles({ geste: 'rib' }).split(',')[0], 'rib');
+  assert.equal(cles({ geste: 'relancePret' }).split(',')[0], 'pret');
+  assert.equal(cles({ geste: 'ventePrealable', confrere: true }).split(',')[0], 'ventePrealableConfrere');
+  assert.doesNotMatch(cles({ geste: 'ventePrealable', confrere: true }), /ventePrealable(,|$)/);
+  // Réponse à un email reçu : ses mots (objet, résumé, pièces jointes).
+  assert.equal(cles({ email: { objet: 'Re: votre dossier', resume: 'Le client indique avoir effectué le virement hier.' } }).split(',')[0], 'fonds');
+  assert.equal(cles({ email: { objet: 'Offre de prêt', pj: [{ nom: 'Offre Crédit Exemple.pdf' }] } }).split(',')[0], 'pret');
+  assert.equal(cles({ email: { objet: 'Question', resume: 'Demande le montant à virer pour la signature.' } }).split(',')[0], 'appelFonds');
+  // Modèle de l'étude : par les mots de son nom.
+  assert.equal(cles({ email: { objet: 'Diagnostics de la maison' } }).split(',')[0], 'p1');
+  // Rien dans l'email : l'étape du dossier ; rien du tout : aucune proposition.
+  assert.equal(cles({ geste: 'email', sujet: 'VTE - MARTEL', utiles: ['fondsRecus', 'rib'] }), 'rib,fonds');
+  assert.equal(cles({ geste: 'email', sujet: 'VTE - MARTEL' }), '');
+});

@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-03 22:10';
+  const VERSION_APP = '2026-10-03 23:27';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-03 23:27', resume: "Fenêtre d'email : le menu « Modèles » commence par « Proposés pour cet email » — les modèles les mieux adaptés selon le bouton qui a ouvert l'email, les mots de l'objet et, pour une réponse, de l'email reçu (objet, résumé, pièces jointes), puis l'étape du dossier. Variante confrère choisie selon le destinataire." },
     { version: '2026-10-03 22:10', resume: "Modèles d'emails : quatre modèles de plus dans Réglages › Modèles d'emails, rubrique « Liés à un geste » — accusé de réception, copie de l'acte / attestation, lien de la visio, proposition de dates (client et confrère). Ils se modifient comme les autres et le bouton du geste envoie le texte modifié ; aperçu sur un exemple inventé. Ils n'apparaissent pas dans le menu « Modèles » de la fenêtre d'email (il leur faut l'email reçu, les fichiers ou les créneaux). Accusé de réception légèrement reformulé." },
     { version: '2026-10-03 21:40', resume: "Modèles d'emails : nouvelle rubrique Réglages › Modèles d'emails. Les modèles de CLAIRE y sont (provision, relance du prêt, RIB, vente préalable, réception des fonds, projet, confirmation du rendez-vous, relance des fonds, appel de fonds, questionnaire, un an après) et se modifient — les boutons de la fiche envoient alors le texte modifié, « Revenir au texte d'origine » le rétablit. On peut aussi créer ses propres modèles. Variables entre accolades ({dossier}, {date et heure du rendez-vous}…), aperçu sur un dossier. Dans la fenêtre d'email, bouton « Modèles » pour remplacer le texte par un modèle. Réponses proposées par l'IA plus courtes : 1 à 3 phrases, à l'essentiel." },
     { version: '2026-10-03 20:27', resume: "Emails envoyés depuis CLAIRE : chaque email (relances, RIB, provision, fonds, questionnaire, copie de l'acte, accusés de réception…) s'ouvre dans une fenêtre d'email au lieu d'être téléchargé — relire, modifier, joindre un fichier, puis « Envoyer » (depuis la boîte du collaborateur, sinon celle du compte relié tant que le droit « Envoyer en tant que » n'est pas donné dans Exchange) ou « Ouvrir dans Outlook » comme avant. Lecture d'un email reçu revue (expéditeur, texte, pièces jointes) avec « Répondre » en bas : la réponse part dans le même fil, et CLAIRE en propose un premier jet par l'IA locale, à relire (un passage « [à compléter] » bloque l'envoi). Pastille « À répondre » sur les emails reçus restés sans réponse." },
@@ -26144,16 +26145,25 @@
     renderRedaction();
   }
 
-  // Menu « Modèles » de la fenêtre d'email (étude, 03/10) : ceux de l'étude puis ceux de CLAIRE (versions modifiées
+  // Menu « Modèles » de la fenêtre d'email (étude, 03/10) : les mieux adaptés à l'email en tête (modelesProposesPourEmail),
+  // puis ceux de l'étude et ceux de CLAIRE (versions modifiées
   // comprises), remplis pour le dossier de l'email ; le texte (et l'objet d'un email nouveau) est remplacé, « Annuler le
   // modèle » le rétablit.
   function renderMenuModelesRedaction() {
+    const r = redaction;
     const liste = listeModelesEmails(modelesEmailsEtat, { pourFenetre: true });
+    const d = r ? dossiers.find(x => x.id === r.dossierId) : null;
+    let utiles = [];
+    try { if (d) utiles = echangesSelonStade(d, isoAujourdhuiLocal()).utiles; } catch (e) { /* dossier incomplet : sans l'étape */ }
+    const proposes = r ? modelesProposesPourEmail(liste, { geste: r.geste, sujet: r.sujet, email: r.mode === 'reponse' ? r.email : null, confrere: r.confrere, utiles }, 3) : [];
+    const reste = liste.filter(m => proposes.indexOf(m) === -1);
     const item = (m) => `<button type="button" role="menuitem" class="redaction-menu-item" onclick="appliquerModeleRedaction('${m.type}', '${escapeOnclickArg(m.type === 'perso' ? m.id : m.cle)}')">${escapeHtml(m.nom)}</button>`;
-    const perso = liste.filter(m => m.type === 'perso');
+    const perso = reste.filter(m => m.type === 'perso');
+    const integres = reste.filter(m => m.type === 'integre');
     return `<div class="redaction-menu" role="menu">
+        ${proposes.length ? `<div class="redaction-menu-groupe">Proposés pour cet email</div>${proposes.map(item).join('')}` : ''}
         ${perso.length ? `<div class="redaction-menu-groupe">Mes modèles</div>${perso.map(item).join('')}` : ''}
-        <div class="redaction-menu-groupe">Modèles de CLAIRE</div>${liste.filter(m => m.type === 'integre').map(item).join('')}
+        ${integres.length ? `<div class="redaction-menu-groupe">Modèles de CLAIRE</div>${integres.map(item).join('')}` : ''}
       </div>`;
   }
   async function basculerMenuModelesRedaction() {
@@ -26952,6 +26962,58 @@
     return (e.perso || []).map(m => ({ type: 'perso', id: m.id, nom: m.nom, sujet: m.sujet, corps: m.corps }))
       .concat(modelesEmailIntegres().filter(m => !(fenetre && m.contexte)).map(m => modeleIntegreEffectif(m.cle, e))
         .map(m => ({ type: 'integre', cle: m.cle, nom: m.nom, sujet: m.sujet, corps: m.corps, modifie: m.modifie, contexte: !!m.contexte, sansObjet: !!m.sansObjet })));
+  }
+
+  // Mots qui désignent le sujet d'un modèle de CLAIRE dans l'objet ou le texte d'un email (texte sans accents, en
+  // minuscules) : [motif, points]. Clé = modèle sans sa variante confrère.
+  var MOTS_MODELES_EMAIL = {
+    provision: [[/provision/, 10], [/frais d.acte|acompte sur (les )?frais/, 6]],
+    pret: [[/offre de pret|offre de credit/, 12], [/\bpret\b|banque|bancaire|credit|financement|emprunt|courtier/, 6]],
+    rib: [[/\brib\b|releve d.identite bancaire|coordonnees bancaires/, 12]],
+    ventePrealable: [[/vente prealable/, 12], [/vente de (votre|son|sa|leur) (bien|maison|appartement)/, 6]],
+    fonds: [[/reception des fonds|fonds (bien )?recus|virement (a ete )?(effectue|fait|envoye|realise|passe)/, 12], [/virement|versement/, 5]],
+    relanceFonds: [[/fonds|virement/, 3]],
+    projet: [[/projet d.acte/, 12], [/\bprojet\b/, 6]],
+    confirmationRdv: [[/rendez-vous|\brdv\b|date de (la )?signature/, 6], [/confirm/, 3]],
+    appelFonds: [[/appel de fonds|decompte/, 12], [/montant a (virer|verser|regler)|somme a (virer|verser|regler)|combien/, 6]],
+    questionnaire: [[/questionnaire|satisfaction/, 12]],
+    anniversaire: []
+  };
+  var GESTES_MODELES_EMAIL = { relancePret: 'pret', fondsRecus: 'fonds' };
+
+  function texteSansAccentsModele(t) { return String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase(); }
+
+  // Pure (étude 03/10 : « en fonction du type d'email, faire remonter en tête le modèle le plus approprié ») : les
+  // modèles de `liste` classés pour l'email de la fenêtre — geste qui l'a ouvert (le modèle du geste), mots de l'objet et,
+  // pour une réponse, de l'email reçu (objet, résumé, pièces jointes), puis ce qui sert à l'étape du dossier (`utiles` de
+  // echangesSelonStade) ; variante confrère selon le destinataire. Rend au plus `max` modèles notés, le mieux noté d'abord.
+  function modelesProposesPourEmail(liste, ctx, max) {
+    const c = ctx || {};
+    const email = c.email || {};
+    const texte = texteSansAccentsModele([c.sujet, email.objet, email.resume, (email.pj || []).map(p => p && p.nom).join(' ')].join(' \n '));
+    const geste = String(c.geste || '');
+    const cleGeste = GESTES_MODELES_EMAIL[geste] || geste;
+    const utiles = (c.utiles || []).map(u => GESTES_MODELES_EMAIL[u] || u);
+    const vides = /^(bonjour|madame|monsieur|maitre|cordialement|dossier|demande|relance|envoi|email|courrier|modele|votre|notre|vous|nous|pour|avec|dans|des|les|une|sur)$/;
+    const notes = [];
+    (liste || []).forEach((m, rang) => {
+      let score = 0;
+      if (m.type === 'integre') {
+        const confrereModele = /Confrere$/.test(m.cle);
+        const base = m.cle.replace(/Confrere$/, '');
+        const aVariante = confrereModele || (liste || []).some(x => x.type === 'integre' && x.cle === base + 'Confrere');
+        if (aVariante && confrereModele !== !!c.confrere) return;
+        if (cleGeste && cleGeste === base) score += 100;
+        (MOTS_MODELES_EMAIL[base] || []).forEach(([re, pts]) => { if (re.test(texte)) score += pts; });
+        if (utiles.indexOf(base) !== -1) score += 3;
+      } else {
+        const mots = [...new Set(texteSansAccentsModele((m.nom || '') + ' ' + String(m.sujet || '').replace(/\{[^}]*\}/g, ' '))
+          .split(/[^a-z0-9]+/).filter(w => w.length >= 4 && !vides.test(w)))];
+        score += Math.min(18, mots.filter(w => new RegExp('(^|[^a-z0-9])' + w + '([^a-z0-9]|$)').test(texte)).length * 6);
+      }
+      if (score >= 3) notes.push({ m, score, rang });
+    });
+    return notes.sort((a, b) => b.score - a.score || a.rang - b.rang).slice(0, max || 3).map(n => n.m);
   }
 
   async function ouvrirReglagesModelesEmails() {

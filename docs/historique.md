@@ -16047,3 +16047,14 @@ change-t-il ce que le bouton de la fiche envoie ? Réponse : « Oui, le bouton s
   dossier »).
 - Absents du menu « Modèles » de la fenêtre d'email (`listeModelesEmails(…, { pourFenetre: true })`).
 - Vérifié dans Chromium (clair, sombre, téléphone) : groupe affiché, Objet masqué pour le sondage, aperçu rempli.
+
+### 03/10/2026 23:27 — Modèles proposés en tête du menu de la fenêtre d'email
+
+- Demande : « En fonction du type d'e-mail, faire remonter en tête des modèles proposés celui qui serait le plus approprié. »
+- `modelesProposesPourEmail(liste, ctx, max)` (pure) : geste qui a ouvert la fenêtre (`relancePret` → prêt, `fondsRecus` → fonds),
+  mots de l'objet et de l'email reçu en réponse (objet, résumé IA, noms des pièces jointes, `MOTS_MODELES_EMAIL`), modèles de
+  l'étude par les mots de leur nom (mots génériques ignorés), puis l'étape du dossier (`echangesSelonStade(d).utiles`) ;
+  variante confrère selon le destinataire. Groupe « Proposés pour cet email » (3 au plus) en tête du menu, retirés des autres
+  groupes ; aucun si rien n'est noté.
+- Test dans `tests/modeles-emails.test.js` ; vérifié dans Chromium (objet « Re: Virement » → « Réception des fonds » en tête ;
+  clair, sombre, téléphone).

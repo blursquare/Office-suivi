@@ -148,6 +148,10 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
    des données inventées (`contexteExempleModele`), visio/sondage sans objet (`sansObjet`, `{boutons de réponse}` = `{{BOUTONS}}`) ;
    copie de l'acte, visio et sondage identiques mot pour mot à leurs fonctions d'origine (testé), **l'accusé de réception a
    désormais son texte dans le modèle** (premier jet de CLAIRE) ; absents du menu « Modèles » de la fenêtre (`pourFenetre`).
+   **Menu « Modèles » de la fenêtre : « Proposés pour cet email » en tête** (étude 03/10 au soir, `modelesProposesPourEmail`,
+   3 au plus) : modèle du geste qui a ouvert la fenêtre (+100, `GESTES_MODELES_EMAIL`), mots de l'objet et, en réponse, de l'email
+   reçu — objet, résumé, pièces jointes (`MOTS_MODELES_EMAIL`, modèles de l'étude par les mots de leur nom), étape du dossier
+   (`utiles` de `echangesSelonStade`, +3) ; variante confrère selon le destinataire ; rien de noté = pas de groupe.
    Seuls les rappels internes partent automatiquement :
    SMTP Gmail + mot de passe d'application → boîte-passerelle (Objet = adresse du destinataire) →
    flux Power Automate → Teams. La copie gardée par Gmail est effacée **2 h après** (le flux relève
