@@ -16,6 +16,7 @@
 // Règles EWS reprises d'ews.js : un seul essai par appel, disjoncteur partagé avec la lecture de
 // l'agenda (mêmes identifiants) — un refus suspend la relecture automatique.
 
+const { noterVerification } = require('./verificationsTerrain');
 const crypto = require('node:crypto');
 
 const CLE_SONDAGES = 'sondages-creneaux';
@@ -458,6 +459,7 @@ async function executerTourSondages(parametresRepo, injections = {}, manuel = fa
       }
     }
     resultat.nouvelles = appliquerReponses(sondages, emails).nouvelles;
+    if (resultat.nouvelles.length) noterVerification(parametresRepo, 'sondage-reponse', { detail: resultat.nouvelles.some((x) => x.n === 'page') ? 'réponse par la page' : resultat.nouvelles.some((x) => x.n === 'liste') ? 'réponse en une seule fois' : 'réponse par bouton' });
   }
 
   const aujourdHui = dateDuJourParis();

@@ -15616,3 +15616,28 @@ iconeNotificationClaire()` : le PNG 180 px du logo déjà embarqué dans index.h
 Vérifié dans Chromium (Notification simulée : l'icône est passée). Non vérifié : l'affichage réel dans le centre de
 notifications de Windows (Chrome y met l'icône à gauche du texte ; l'en-tête reste « Google Chrome » ou le nom de la
 fenêtre --app, que la page ne peut pas changer).
+
+### 03/10/2026 — Vérifications sur le terrain (check-list cochée au bureau, remontée dans le rapport)
+
+Demande de l'étude : « Pour les angles morts et ce que tu veux tester et que tu pourrais faire seul. Tu ne peux pas lors de
+l'envoi d'une mise à jour te mettre une check-list de choses à vérifier dans CLAIRE qui se coche si c'est fait et te remonte
+ça lors des rapports ? »
+- `server/src/verificationsTerrain.js` : catalogue `VERIFICATIONS_TERRAIN` (`id`, `depuis` = VERSION_APP de la mise à jour,
+  `source` serveur / poste / manuel, `titre`, `comment`), état sous la clé `verifications-terrain` (dates, nombre, `detail`
+  technique court, échecs avec leur message — jamais un nom ni un numéro), `noterVerification` (jamais bloquant, une même
+  observation réécrite au plus une fois par heure), `confirmerVerification` (points manuels), `sectionVerificationsTerrain`
+  (✅ / ⚠️ / ⬜, « nouveau » sur la période) et `echecsVerificationsPeriode` (ligne « À examiner »), `formeNumero` (forme d'un
+  numéro sans ses chiffres).
+- Accroches : mise à jour automatique (build attendu `maj-auto-attendue` comparé au démarrage suivant), emails des dossiers
+  (réception lue, « Éléments envoyés » d'un collaborateur, email préparé retrouvé envoyé, résumé Ollama), pièce jointe copiée
+  sur le NAS, icône téléchargée par l'installateur d'un poste, sonnerie 3CX (forme du numéro) et appelant reconnu, repli
+  SoftDelete (`res.repli` dans `supprimerEcheanceExchange`), réponse de sondage, historique complet des actes à l'agenda ;
+  côté poste (`noterVerificationPoste`, une fois par session) : notification Windows envoyée, lien de visio lu dans un .ics.
+  Points manuels : logo dans la notification, icône nette d'un poste installé, chiffres des actes à l'agenda.
+- Routes `GET /api/verifications-terrain`, `POST …/noter` (points « poste » seulement), `POST …/confirmer` (points manuels).
+- Réglages › Mise à jour et sauvegarde › « Vérifications sur le terrain » (`lignesVerificationsTerrain`,
+  `renderVerificationsTerrain`, « C'est bon » / « Ne marche pas »). Rapport technique : section après l'apprentissage,
+  passée par `anonymiserTexte`, test « aucun nom ni numéro ne sort ».
+Règle durable (CLAUDE.md) : toute mise à jour qui apporte un geste non vérifiable ici ajoute son point au catalogue.
+Vérifié : tests serveur (`verifications-terrain.test.js`) et client, rendu Chromium clair/sombre/téléphone. Non vérifié :
+les accroches dans les vrais services (elles ne se cocheront qu'au bureau, c'est leur raison d'être).

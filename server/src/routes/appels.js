@@ -12,7 +12,8 @@
 //    fenêtre ne relève plus d'appel.
 
 const express = require('express');
-const { creerEntreeAppel, pageSonnerie, clePoste } = require('../appels3cx');
+const { creerEntreeAppel, pageSonnerie, clePoste, valeur3cx } = require('../appels3cx');
+const { noterVerification, formeNumero } = require('../verificationsTerrain');
 const { adressesLan } = require('../reseau');
 const { officesAnnuaire } = require('../annuaireNotaires');
 
@@ -56,6 +57,10 @@ function creerRouteurSonnerie(parametresRepo, depot, etat) {
         repertoire: parametresRepo.lireRepertoire()
       });
       parametresRepo.ecrireJournalAppels([entree].concat(parametresRepo.lireJournalAppels()));
+      // Vérifications sur le terrain : la forme du numéro seulement, jamais le numéro.
+      const chiffres = String(valeur3cx(q.numero) || '').replace(/\D/g, '');
+      noterVerification(parametresRepo, '3cx-sonnerie', chiffres.length >= 6 ? { detail: formeNumero(valeur3cx(q.numero)) } : { ok: false, message: chiffres ? 'numéro trop court' : 'numéro vide ou non rempli par 3CX' });
+      if ((entree.dossiers && entree.dossiers.length) || entree.contact) noterVerification(parametresRepo, '3cx-appelant-reconnu');
     } catch (e) {
       // Jamais le numéro ni le nom dans le message.
       console.error('Appel 3CX non noté :', e && e.code ? e.code : 'erreur');

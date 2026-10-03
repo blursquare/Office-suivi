@@ -17,6 +17,7 @@
 // Les positions dans le code (script.js:1234) sont gardées : c'est ce qui sert à corriger.
 
 const { momentParis } = require('./emailsMatin');
+const { assainirVerifications, sectionVerificationsTerrain, echecsVerificationsPeriode, CLE_VERIFICATIONS } = require('./verificationsTerrain');
 
 const DEPOT_GITHUB_RAPPORT = 'blursquare/Office-suivi';
 const ETIQUETTE_RAPPORT = 'rapport-claire';
@@ -300,6 +301,9 @@ function construireRapport(d) {
   const retoursPeriode = (d.retoursAudit || []).filter((r) => dansPeriode(r.date, depuis, jusqua)).length;
   if (retoursPeriode) aExaminer.push(`${retoursPeriode} commentaire(s) de relecture d'actes`);
   if (frequentes.length) aExaminer.push(`${frequentes.length} champ(s) souvent corrigé(s) à la main (erreur de lecture à corriger)`);
+  const verifications = assainirVerifications(d.verificationsTerrain || {});
+  const echecsTerrain = echecsVerificationsPeriode(verifications, depuis, jusqua);
+  if (echecsTerrain.length) aExaminer.push(`${echecsTerrain.length} vérification(s) sur le terrain en échec (voir plus bas)`);
   const calme = aExaminer.length === 0;
 
   const { date: jourFin, heure: heureFin } = momentParis(new Date(jusqua));
@@ -366,6 +370,10 @@ function construireRapport(d) {
   }
 
   L.push(...sectionApprentissage(d, mots, (date) => dansPeriode(date, depuis, jusqua)));
+
+  // Vérifications sur le terrain (étude, 03/10) : ce que l'environnement de développement ne peut pas
+  // éprouver, coché au bureau la première fois que le geste réussit (verificationsTerrain.js).
+  L.push(...sectionVerificationsTerrain(verifications, depuis, jusqua, (t) => anonymiserTexte(t, mots), dateHeureParis));
 
   L.push('', '## Agenda (dernier tour de lecture)');
   if (!agenda || !agenda.at) L.push('- Aucun tour enregistré (connexion Exchange non configurée ?).');
@@ -440,6 +448,7 @@ function rassemblerDonnees({ journal, parametresRepo, depot, db, depuis, jusqua,
     correctionsApprises: parametresRepo.lireCorrectionsApprises ? parametresRepo.lireCorrectionsApprises() : [],
     exclusionsPieces: parametresRepo.lireExclusionsPieces ? parametresRepo.lireExclusionsPieces() : {},
     retoursAudit: parametresRepo.lireRetoursAudit ? parametresRepo.lireRetoursAudit() : [],
+    verificationsTerrain: parametresRepo.lireJsonBrut ? parametresRepo.lireJsonBrut(CLE_VERIFICATIONS, {}) : {},
     dossiers,
     mots: motsSensibles(dossiers, collaborateurs || [])
   };

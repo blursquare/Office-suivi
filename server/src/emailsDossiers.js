@@ -21,6 +21,7 @@
 // en écrit une COPIE (scans.copierDansDossierClient), jamais d'écrasement, une seule fois par pièce jointe.
 
 const crypto = require('node:crypto');
+const { noterVerification } = require('./verificationsTerrain');
 const {
   contexteClassement, dossierDeEmail, normaliser, SUJETS_EMAIL, desechapperXml, echapperXml, ENVELOPPE_DEBUT, ENVELOPPE_FIN
 } = require('./emailsMatin');
@@ -263,6 +264,7 @@ async function resumerEnArrierePlan(parametresRepo, aResumer, ollama) {
     const etat = lireEtat(parametresRepo);
     const cible = etat.emails.find((m) => m.id === x.email.id);
     if (cible) { cible.resume = resume; cible.resumeErreur = erreur; ecrireEtat(parametresRepo, etat); }
+    noterVerification(parametresRepo, 'email-resume-ia', resume ? {} : { ok: false, message: erreur });
   }
 }
 
@@ -304,6 +306,7 @@ async function tourEmailsDossiers(depot, parametresRepo, injections = {}, manuel
   if (refus(r)) { agendaWatch.signalerIdentifiantsRefuses(reglages); resultat.erreur = 'Identifiants de messagerie refusés : vérifiez les Réglages.'; etat.etat.erreur = resultat.erreur; ecrireEtat(parametresRepo, etat); return resultat; }
   if (r.echec || !succes(r.corps)) {
     etat.etat.recus = { ...etat.etat.recus, statut: 'erreur', message: r.echec ? r.echec.message : `Lecture impossible (${codeReponse(r.corps) || r.statut}).`, luLe: maintenant.toISOString() };
+    noterVerification(parametresRepo, 'emails-dossiers-reception', { ok: false, message: etat.etat.recus.message });
   } else {
     const trouves = parseFind(r.corps);
     const aLire = [];
@@ -331,6 +334,7 @@ async function tourEmailsDossiers(depot, parametresRepo, injections = {}, manuel
     }
     // Le repère n'avance que jusqu'au dernier email traité (le reste au tour suivant).
     const dernierTraite = lot.length < aLire.length ? lot[lot.length - 1].e.date : (trouves.length ? trouves[trouves.length - 1].date : null);
+    if (resultat.recus) noterVerification(parametresRepo, 'emails-dossiers-reception');
     etat.etat.recus = { ...etat.etat.recus, statut: 'ok', message: '', luLe: maintenant.toISOString(), lus: (etat.etat.recus.lus || 0) + resultat.recus,
       dernier: dateIso(dernierTraite) || etat.etat.recus.dernier || depuisDefaut, collaborateur: 'Boîte de réception' };
   }
@@ -345,6 +349,7 @@ async function tourEmailsDossiers(depot, parametresRepo, injections = {}, manuel
       const refuse = CODES_ACCES_REFUSE.test(code);
       etat.etat.envoyes[b.adresse] = { ...prec, collaborateur: b.collaborateur, luLe: maintenant.toISOString(),
         statut: refuse ? 'refuse' : 'erreur', message: refuse ? 'Accès aux « Éléments envoyés » non donné au compte relié.' : (f.echec ? f.echec.message : `Lecture impossible (${code || f.statut}).`) };
+      if (!b.propre) noterVerification(parametresRepo, 'emails-envoyes-collaborateur', { ok: false, message: etat.etat.envoyes[b.adresse].message });
       continue;
     }
     const trouves = parseFind(f.corps).filter((e) => !connus.has(idCourt(e.itemId)));
@@ -363,9 +368,10 @@ async function tourEmailsDossiers(depot, parametresRepo, injections = {}, manuel
       etat.emails.push(email);
       connus.add(email.id);
       resultat.envoyes++;
-      if (prepare) { prepare.envoyeLe = email.date; prepare.boite = b.adresse; prepare.emailId = email.id; resultat.confirmes++; }
+      if (prepare) { prepare.envoyeLe = email.date; prepare.boite = b.adresse; prepare.emailId = email.id; resultat.confirmes++; noterVerification(parametresRepo, 'email-prepare-envoye'); }
     }
     const dernier = lot.length < trouves.length ? lot[lot.length - 1].date : (trouves.length ? trouves[trouves.length - 1].date : null);
+    if (!b.propre) noterVerification(parametresRepo, 'emails-envoyes-collaborateur');
     etat.etat.envoyes[b.adresse] = { collaborateur: b.collaborateur, statut: 'ok', message: '', luLe: maintenant.toISOString(),
       lus: (prec.lus || 0) + lot.length, dernier: dateIso(dernier) || prec.dernier || depuisDefaut };
   }

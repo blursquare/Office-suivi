@@ -2030,6 +2030,13 @@
       </details>
     </div>
 
+    <!-- Vérifications sur le terrain (server/src/verificationsTerrain.js) : ce qui ne peut être éprouvé qu'au
+         bureau, coché seul quand le geste réussit ou confirmé ici ; repris par le rapport technique. -->
+    <div class="reglages-section">
+      <h3 class="reglages-section-titre">Vérifications sur le terrain <span class="info-i" tabindex="0" data-info="Ce que CLAIRE ne peut pas essayer avant d'arriver au bureau (Outlook, Windows, 3CX, IA locale, NAS…). Chaque point se coche tout seul la première fois que le geste réussit ; ceux qui ne se voient qu'à l'œil se confirment ici. L'état part dans le rapport technique de 12 h et 17 h."></span> <span class="hint" id="reglages-verifications-compte"></span></h3>
+      <div id="reglages-verifications" class="reglages-liste"></div>
+    </div>
+
     <!-- Rapport technique anonymisé déposé sur GitHub à 12 h et 17 h (server/src/rapportTechnique.js),
          lu par la routine Claude qui propose ses corrections en demande de fusion. -->
     <div class="reglages-section">

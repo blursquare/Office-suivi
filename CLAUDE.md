@@ -541,6 +541,13 @@ Plainte principale de l'étude : **le bruit**, pas les oublis — ne pas élargi
 
 ## Conventions de travail
 
+- **Vérifications sur le terrain** (étude, 03/10 — `server/src/verificationsTerrain.js`) : **toute mise à jour qui apporte un
+  geste impossible à éprouver ici** (Exchange, Windows, 3CX, Ollama, NAS…) **ajoute son point** à `VERIFICATIONS_TERRAIN`
+  (`depuis` = VERSION_APP, `source` serveur/poste/manuel) et l'appel `noterVerification` (serveur) ou
+  `noterVerificationPoste` (poste) là où le geste réussit ou échoue — rien de personnel dans `detail`/`message`. Le point se
+  coche seul au bureau (ou « C'est bon » dans Réglages › Mise à jour et sauvegarde pour ce qui se voit à l'œil) ; le rapport
+  technique en donne l'état (section « Vérifications sur le terrain », échecs dans « À examiner ») : **le lire avant de déclarer
+  vérifié un point de « Non vérifié au bureau »**.
 - **Versionnage** : à chaque commit qui change le comportement, mettre à jour `VERSION_APP` **et**
   ajouter une entrée en tête de `HISTORIQUE_VERSIONS` (haut de `script.js`), heure de Paris :
   `TZ='Europe/Paris' date '+%Y-%m-%d %H:%M'` (jamais `date` seul : l'environnement est en UTC).

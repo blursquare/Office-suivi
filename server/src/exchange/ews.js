@@ -747,6 +747,7 @@ async function supprimerEcheanceExchange({ url, email, motDePasse, itemId, chang
     if (r2.echec) return r2.echec;
     const res = interpreterReponseSuppression(r2.statut, r2.corps);
     if (res.ok && !/déjà plus/.test(res.message)) res.message = "Événement retiré de l'agenda (récupérable dans « Récupérer les éléments supprimés » d'Outlook).";
+    res.repli = 'SoftDelete';
     return res;
   }
   return interpreterReponseSuppression(r.statut, r.corps);

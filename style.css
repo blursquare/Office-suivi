@@ -8507,3 +8507,12 @@ button.email-rang-btn:focus-visible { outline: 2px solid var(--focus); outline-o
 .depuis-demandes li { padding: 4px 0; border-top: 1px solid var(--line-soft); }
 .depuis-demandes li:first-child { border-top: 0; }
 .depuis-autres { margin-top: 8px; }
+
+/* Vérifications sur le terrain (Réglages › Mise à jour et sauvegarde) : état sous le titre, deux
+   boutons pour les points qui se confirment à l'œil. */
+.reglages-verif .hint { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.reglages-verif-actions { display: flex; gap: 6px; flex-shrink: 0; }
+@media (max-width: 600px) {
+  .reglages-option.reglages-verif { flex-wrap: wrap; }
+  .reglages-verif-actions { width: 100%; }
+}

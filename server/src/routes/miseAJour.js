@@ -14,6 +14,10 @@ const {
   cheminsExecutable, telechargerExecutable, echangerExecutables
 } = require('../miseAJour');
 const { sauvegarderEtEnregistrer } = require('../sauvegarde');
+const { noterVerification } = require('../verificationsTerrain');
+
+// Build installé automatiquement, attendu au démarrage suivant (vérifications sur le terrain).
+const CLE_MAJ_AUTO_ATTENDUE = 'maj-auto-attendue';
 
 function seaParDefaut() {
   try { return require('node:sea'); } catch (_) { return null; }
@@ -33,6 +37,18 @@ function creerRouteurMiseAJour(parametresRepo, db, config, options = {}) {
   const sauvegarder = options.sauvegarder
     || (() => sauvegarderEtEnregistrer(db, config && config.cheminDb, parametresRepo));
   let installationEnCours = false;
+
+  // Démarrage qui suit une installation automatique : le build en marche est-il celui installé ?
+  if (modeExe && parametresRepo.lireJsonBrut) {
+    const attendu = parametresRepo.lireJsonBrut(CLE_MAJ_AUTO_ATTENDUE, null);
+    if (attendu && Number.isInteger(attendu.build)) {
+      const enMarche = (lireBuildInstalle(sea) || {}).build;
+      noterVerification(parametresRepo, 'maj-auto', enMarche === attendu.build
+        ? { detail: `build ${attendu.build}` }
+        : { ok: false, message: `redémarré sur le build ${enMarche || 'inconnu'} au lieu du build ${attendu.build}` });
+      parametresRepo.ecrireJsonBrut(CLE_MAJ_AUTO_ATTENDUE, null);
+    }
+  }
 
   function jeton() {
     return parametresRepo.lireReglagesMiseAJour().jetonGithub;
@@ -140,6 +156,7 @@ function creerRouteurMiseAJour(parametresRepo, db, config, options = {}) {
     try {
       const r = await installerDerniere(disponible);
       etatAuto.resultat = `Build ${r.build} installé automatiquement`;
+      if (parametresRepo.ecrireJsonBrut) parametresRepo.ecrireJsonBrut(CLE_MAJ_AUTO_ATTENDUE, { build: r.build, le: new Date().toISOString() });
       setTimeout(() => options.redemarrer(), 300);
       return r;
     } catch (e) {

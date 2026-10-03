@@ -22,6 +22,7 @@ const { creerRouteurExclusionsPieces } = require('./routes/exclusionsPieces');
 const { creerRouteurCorrectionsApprises } = require('./routes/correctionsApprises');
 const { creerRouteurConfreres } = require('./routes/confreres');
 const { creerRouteurPoste, creerRouteurIconePoste } = require('./routes/poste');
+const { creerRouteurVerificationsTerrain } = require('./routes/verificationsTerrain');
 const { creerRouteurSignatureImages } = require('./routes/signatureImages');
 const { creerRouteurRappelsPerso } = require('./routes/rappelsPerso');
 const { creerRouteurPreferences } = require('./routes/preferences');
@@ -136,7 +137,7 @@ function creerApp({ db, config, envoyerEmailFn, creerClientClaude, appelerMistra
   const etatAppels = creerEtatAppels();
   app.use(creerRouteurSonnerie(parametresRepo, depot, etatAppels));
   // Icône de CLAIRE pour l'installateur d'un poste (installationPoste.js), lue sans session.
-  app.use('/api', creerRouteurIconePoste());
+  app.use('/api', creerRouteurIconePoste({ parametresRepo }));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurAppels(parametresRepo, etatAppels));
   // Pages d'Authentic envoyées par l'extension Firefox (extension-firefox/), gardées en mémoire 30 min.
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurAuthentic());
@@ -156,6 +157,7 @@ function creerApp({ db, config, envoyerEmailFn, creerClientClaude, appelerMistra
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurCorrectionsApprises(parametresRepo));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurConfreres(parametresRepo));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurPoste());
+  app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurVerificationsTerrain(parametresRepo));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurSignatureImages(db));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurRappelsPerso(parametresRepo));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurPreferences(parametresRepo));

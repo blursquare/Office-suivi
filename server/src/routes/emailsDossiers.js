@@ -4,6 +4,7 @@
 // ouvertes ou rangées dans le dossier client du NAS.
 
 const express = require('express');
+const { noterVerification } = require('../verificationsTerrain');
 const crypto = require('node:crypto');
 const {
   lireEtat, ecrireEtat, assainirPrepare, executerTourEmailsDossiers, lirePieceJointe, lireEmailComplet, boitesEnvoyes
@@ -124,6 +125,7 @@ function creerRouteurEmailsDossiers(parametresRepo, depot, options = {}) {
         else p.rangee = { chemin: r.chemin, le: new Date().toISOString(), pieceCle: String(b.pieceCle || ''), pieceLabel: String(b.pieceLabel || ''), auto: b.auto === true };
         ecrireEtat(parametresRepo, etat);
       }
+      noterVerification(parametresRepo, 'piece-jointe-nas', r.erreur ? { ok: false, message: r.erreur } : { detail: r.rubrique ? 'dans un sous-dossier' : 'à la racine du dossier' });
       if (r.erreur) { res.status(r.statut || 400).json({ erreur: r.erreur }); return; }
       res.json({ ok: true, chemin: r.chemin, rubrique: r.rubrique });
     } finally { enCours.delete(cle); }

@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-03 07:27';
+  const VERSION_APP = '2026-10-03 08:00';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-03 08:00', resume: "Vérifications sur le terrain : Réglages › Mise à jour et sauvegarde liste ce qui ne peut être essayé qu'au bureau (Outlook, Windows, 3CX, IA locale, NAS, mise à jour automatique…). Chaque point se coche tout seul la première fois que le geste réussit ; ceux qui se voient à l'œil (logo dans la notification, icône nette) se confirment par « C'est bon » ou « Ne marche pas ». L'état part dans le rapport technique de 12 h et 17 h (sans nom ni numéro)." },
     { version: '2026-10-03 07:27', resume: "Notifications Windows/Chrome : le logo de CLAIRE s'affiche dans la notification (pièce trouvée)." },
     { version: '2026-10-03 07:24', resume: "Statistiques : les ventes, successions et donations de l'agenda sont comptées sur tous les mois de l'année : l'année en cours entière (rendez-vous déjà placés jusqu'au 31/12 compris) contre toute l'année précédente ; le détail passés / à venir et l'année précédente à la même date restent au survol. Délais : « en moyenne » écrit sur chaque délai, aussi en petit widget (libellés courts Prêt, Préemption (DIA), Signature)." },
     { version: '2026-10-03 07:19', resume: "Statistiques : nouvelle section « Actes à l'agenda » — nombre de ventes (titre en VTE ou VENTE), de successions (SUCC) et de donations (titre commençant par DONATION) lues dans l'agenda partagé, pour l'année en cours jusqu'à aujourd'hui, comparées à la même période de l'an dernier et à toute l'année précédente. Rendez-vous confirmés seulement (sans « ? »), ni annulés, ni « à replacer », ni options d'un sondage. Au premier affichage, les mois passés encore jamais lus sont lus un à un dans l'agenda (« … » le temps de la lecture)." },
@@ -21607,6 +21608,7 @@
     const e = evenementsAffichesAgenda().find(x => cleEvenementAgenda(x) === cle);
     const invitation = lireInvitationIcs(await f.text());
     if (!invitation || !invitation.lien) { afficherToast('Aucun lien de visio trouvé dans ce fichier .ics.', 'OK', null); return; }
+    noterVerificationPoste('visio-ics');
     if (!e) return;
     const ecart = invitation.date && (invitation.date !== e.date || (invitation.heure && invitation.heure !== e.heure));
     const ajouter = () => ajouterVisioAuRendezVous(e, invitation);
@@ -21638,6 +21640,7 @@
     if (!exchangeAgendaPret()) { afficherToast('Connexion à l’agenda Outlook à activer dans les Réglages.', 'OK', null); return; }
     const invitation = lireInvitationIcs(await f.text());
     if (!invitation || !invitation.lien) { afficherToast('Aucun lien de visio trouvé dans ce fichier .ics.', 'OK', null); return; }
+    noterVerificationPoste('visio-ics');
     const pop = document.getElementById('agenda-popover');
     if (agendaSelection && pop && pop.contains(evt.target)) {
       const e = evenementsAffichesAgenda().find(x => cleEvenementAgenda(x) === agendaSelection);
@@ -32420,6 +32423,7 @@
         icon: iconeNotificationClaire(),
         tag: 'claire-piece-' + d.id
       });
+      noterVerificationPoste('notification-navigateur');
     } catch (e) {
       // Une Notification peut lever (permission révoquée entre-temps, navigateur non supporté...) —
       // jamais bloquant pour la vérification du dossier elle-même.
@@ -41032,7 +41036,94 @@
     }
   }
 
+  // ---- Vérifications sur le terrain (étude, 03/10 ; server/src/verificationsTerrain.js) ----
+  // Ce que le développement ne peut pas éprouver se coche seul au bureau la première fois que le geste
+  // réussit ; la liste et les confirmations à la main sont dans Réglages › Mise à jour et sauvegarde, et
+  // le rapport technique (12 h, 17 h) en reprend l'état. Une fenêtre ne note un même point qu'une fois
+  // par session.
+  var verificationsNoteesPoste = {};
+  function noterVerificationPoste(id, observation) {
+    if (verificationsNoteesPoste[id]) return;
+    verificationsNoteesPoste[id] = true;
+    try {
+      fetchAvecAuth('/api/verifications-terrain/noter', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, ...(observation || {}) })
+      }).catch(() => {});
+    } catch (e) { /* jamais bloquant */ }
+  }
+
+  var verificationsTerrain = [];
+  async function chargerVerificationsTerrain() {
+    try {
+      const r = await fetchAvecAuth('/api/verifications-terrain');
+      if (!r.ok) return;
+      verificationsTerrain = (await r.json()).verifications || [];
+      renderVerificationsTerrain();
+    } catch (e) { /* serveur injoignable : signalé ailleurs */ }
+  }
+
+  function dateHeureVerification(iso) {
+    const d = iso ? new Date(iso) : null;
+    if (!d || isNaN(d.getTime())) return '';
+    return `${d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })} à ${String(d.getHours()).padStart(2, '0')} h ${String(d.getMinutes()).padStart(2, '0')}`;
+  }
+
+  // Pure : une ligne par point, la plus récente mise à jour d'abord (ordre rendu par le serveur).
+  function lignesVerificationsTerrain(liste) {
+    return (liste || []).map(v => {
+      const e = v.etat || {};
+      const manuel = v.source === 'manuel';
+      const statut = v.statut === 'verifie'
+        ? `<span class="dot-label dl-success"><span class="dot"></span>${manuel ? 'Confirmé' : 'Vérifié'}</span>`
+        : v.statut === 'echec'
+          ? `<span class="dot-label dl-urgent"><span class="dot"></span>${manuel ? 'Ne marche pas' : 'Échec'}</span>`
+          : `<span class="dot-label dl-neutre"><span class="dot"></span>${manuel ? 'À confirmer' : 'En attente'}</span>`;
+      let etat;
+      if (v.statut === 'verifie') etat = manuel ? `le ${dateHeureVerification(e.confirmeLe)}` : `le ${dateHeureVerification(e.premiereFois)}${e.fois > 1 ? ` · ${e.fois} fois` : ''}${e.detail ? ` · ${e.detail}` : ''}`;
+      else if (v.statut === 'echec') etat = manuel ? `signalé le ${dateHeureVerification(e.infirmeLe)}` : `le ${dateHeureVerification(e.dernierEchec)}${e.messageEchec ? ` : ${e.messageEchec}` : ''}`;
+      else etat = manuel ? 'À regarder au bureau puis confirmer' : 'Pas encore observé au bureau';
+      const boutons = manuel
+        ? `<span class="reglages-verif-actions">
+            <button type="button" class="secondary" onclick="confirmerVerificationTerrain('${escapeOnclickArg(v.id)}', true)"${v.statut === 'verifie' ? ' disabled' : ''}>C’est bon</button>
+            <button type="button" class="secondary" onclick="confirmerVerificationTerrain('${escapeOnclickArg(v.id)}', false)"${v.statut === 'echec' ? ' disabled' : ''}>Ne marche pas</button>
+          </span>`
+        : '';
+      return `<div class="reglages-option reglages-option-fixe reglages-verif" data-verif="${escapeAttr(v.id)}">
+          <span class="reglages-option-texte">
+            <span class="reglages-option-titre">${escapeHtml(v.titre)}${infoBulle(`${v.comment} Depuis la version du ${v.depuis}.`)}</span>
+            <span class="hint">${statut} ${escapeHtml(etat)}</span>
+          </span>
+          ${boutons}
+        </div>`;
+    }).join('');
+  }
+
+  function renderVerificationsTerrain() {
+    const bloc = document.getElementById('reglages-verifications');
+    if (!bloc) return;
+    const n = verificationsTerrain.filter(v => v.statut === 'verifie').length;
+    const compte = document.getElementById('reglages-verifications-compte');
+    if (compte) compte.textContent = verificationsTerrain.length ? `${n} sur ${verificationsTerrain.length} vérifiées` : '';
+    bloc.innerHTML = verificationsTerrain.length ? lignesVerificationsTerrain(verificationsTerrain) : '<p class="hint">Aucune vérification en cours.</p>';
+  }
+
+  async function confirmerVerificationTerrain(id, confirme) {
+    try {
+      const r = await fetchAvecAuth('/api/verifications-terrain/confirmer', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, confirme })
+      });
+      const corps = await r.json();
+      if (!r.ok) throw new Error(corps.erreur || 'erreur');
+      verificationsTerrain = corps.verifications || [];
+      renderVerificationsTerrain();
+      afficherToast(confirme ? 'Vérification confirmée.' : 'Noté : à corriger, ce sera dans le prochain rapport.', 'OK', null);
+    } catch (e) {
+      afficherToast('Non enregistré : ' + e.message, 'OK', null);
+    }
+  }
+
   async function chargerMiseAJour() {
+    chargerVerificationsTerrain();
     try {
       const reponse = await fetchAvecAuth('/api/mise-a-jour');
       if (!reponse.ok) return;

@@ -24,6 +24,7 @@ const {
 } = require('../exchange/ews');
 const { extraireReferenceVte, dossierPourReferenceAgenda, composerLieuAgenda } = require('../agendaOffice');
 const { URL_EWS_DEFAUT } = require('../parametresRepo');
+const { noterVerification } = require('../verificationsTerrain');
 
 // Garde-fou de taille : un brouillon avec pièce(s) jointe(s) reste modeste (un .docx d'appel de
 // fonds ou un PDF de questionnaire font quelques centaines de Ko). Plafond large mais borné, pour
@@ -72,6 +73,13 @@ function reglagesExchangePublics(reglages) {
 }
 
 // `injections.poster` : faux transport EWS pour les tests (notes et modification d'un rendez-vous).
+// Suppression avec suivi du repli « SoftDelete » (vérifications sur le terrain, verificationsTerrain.js).
+async function supprimerAvecSuiviRepli(parametresRepo, args) {
+  const r = await supprimerEcheanceExchange(args);
+  if (r && r.repli === 'SoftDelete') noterVerification(parametresRepo, 'agenda-soft-delete', r.ok ? {} : { ok: false, message: r.message });
+  return r;
+}
+
 function creerRouteurExchange(parametresRepo, injections = {}) {
   const routeur = express.Router();
 
@@ -195,7 +203,7 @@ function creerRouteurExchange(parametresRepo, injections = {}) {
     if (choix.plusieurs) {
       return res.json({ ok: false, message: 'Plusieurs rendez-vous correspondent à cette date : aucun retiré, faites-le à la main dans Outlook.' });
     }
-    const r = await supprimerEcheanceExchange({ ...acces, itemId: choix.evt.itemId, changeKey: choix.evt.changeKey || changeKey });
+    const r = await supprimerAvecSuiviRepli(parametresRepo, { ...acces, itemId: choix.evt.itemId, changeKey: choix.evt.changeKey || changeKey });
     if (r.ok && typeof parametresRepo.retirerEvenementAgendaOffice === 'function') parametresRepo.retirerEvenementAgendaOffice(choix.evt.itemId);
     res.json({ ok: !!r.ok, message: r.ok ? "Rendez-vous retiré de l'agenda de l'office." : r.message, raison: r.raison || '' });
   });
@@ -215,7 +223,7 @@ function creerRouteurExchange(parametresRepo, injections = {}) {
     const b = req.body || {};
     const itemId = String(b.itemId || '').trim();
     if (!itemId) return res.status(400).json({ ok: false, message: 'Rendez-vous non désigné.' });
-    const r = await supprimerEcheanceExchange({
+    const r = await supprimerAvecSuiviRepli(parametresRepo, {
       url: reglages.url, email: reglages.email, motDePasse: reglages.motDePasse, itemId, changeKey: String(b.changeKey || '').trim()
     });
     if (r.ok && typeof parametresRepo.retirerEvenementAgendaOffice === 'function') parametresRepo.retirerEvenementAgendaOffice(itemId);
@@ -527,7 +535,7 @@ function creerRouteurExchange(parametresRepo, injections = {}) {
     }
     if (action === 'supprimer') {
       if (!itemId) return res.status(400).json({ ok: false, message: "Identifiant de l'événement manquant." });
-      const r = await supprimerEcheanceExchange({ ...acces, itemId, changeKey });
+      const r = await supprimerAvecSuiviRepli(parametresRepo, { ...acces, itemId, changeKey });
       return res.json({ ok: !!r.ok, message: r.message, raison: r.raison || '' });
     }
     return res.status(400).json({ ok: false, message: 'Action inconnue.' });

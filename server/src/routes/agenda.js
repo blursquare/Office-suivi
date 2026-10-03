@@ -12,6 +12,7 @@ const express = require('express');
 const { executerEtEnregistrerTourAgenda, connexionAgendaConfiguree, lectureAgendaSuspendue, signalerIdentifiantsRefuses, dateDuJourParis } = require('../agendaWatch');
 const { evenementsDepuisEws, compterRendezVousPeriode, REGLE_COMPTAGE_RENDEZ_VOUS, lundiAnneePrecedente, decalerJours, ecartRendezVous, moisDePeriode, archiveAgendaARelire, evenementsAgendaOffice, compterActesAgendaPeriode, periodesActesAnnee } = require('../agendaOffice');
 const { lireCalendrierExchange } = require('../exchange/ews');
+const { noterVerification } = require('../verificationsTerrain');
 
 // Une semaine de l'an dernier relue au plus une fois tous les 7 jours (elle ne change presque plus).
 const FRAICHEUR_COMPARAISON_MS = 7 * 24 * 3600 * 1000;
@@ -222,6 +223,7 @@ function creerRouteurAgenda(parametresRepo, options) {
           : lectureAgendaSuspendue(r) ? "Lecture de l'agenda suspendue après un refus des identifiants."
             : messageRemplissageActes;
     const compter = (periode) => compterActesAgendaPeriode(evenements, periode.debut, periode.fin, categorieAnnule);
+    if (limite && !manquants.length) noterVerification(parametresRepo, 'actes-agenda-historique');
     res.json({
       jour, annee: p.annee, precedente: p.precedente, memeJour: p.memePeriode.fin,
       anneeEnCours: compter(p.anneeEnCours), actuel: compter(p.actuel), aVenir: compter(p.aVenir),
