@@ -467,7 +467,7 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
   à remplacer par le texte de l'étude dès qu'elle le fournit.
 - **Barème du simulateur de provision : validé par l'étude le 02/10/2026** (avertissement « montant à valider »
   retiré). Le contrôle du barème de l'appel de fonds reste un signal, il ne remplit rien ; débours du dossier à vérifier.
-- **Répertoire** (Outils, 30/09 ; présentation revue le 02/10 : thèmes dans une colonne à gauche `renderNavRepertoire`, une
+- **Répertoire** (Outils, 30/09 ; présentation revue le 02/10 : thèmes dans une colonne à gauche `renderNavRepertoire`, sans onglet « Tout » — étude 03/10, « Notaires » ouvert par défaut, une
   ligne compacte par office/interlocuteur `renderLigneOfficeCarnet`/`renderLigneContactRepertoire`, modification dans la ligne) :
   **un seul annuaire des notaires** (étude 03/10 : « fusionner le carnet des confrères avec tous les notaires de France ; que
   la fiche dossier cherche dans l'annuaire ; le carnet n'a plus lieu d'être ») : `GET /api/confreres` rend les 7 202 offices de

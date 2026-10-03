@@ -15759,3 +15759,9 @@ adresse n'est marquée relue qu'une fois tous ses emails repris). Point de véri
 `emails-adresse-rattrapage`. Vérifié : `server/test/emails-dossiers.test.js` (faux EWS). Non vérifié : sur la vraie boîte.
 Limite connue : l'email du confrère ne se saisit sur la fiche que quand l'office représente l'acquéreur (champ « Confrère ») ;
 un email venu d'une autre adresse du même office (clerc) n'est rattaché que par « VTE - NOM » ou le nom du dossier dans l'objet.
+
+### 03/10/2026 10:14 — Répertoire : onglet « Tout » retiré
+
+Demande de l'étude : « dans le répertoire retirer l'onglet Tout ». `renderNavRepertoire` ne montre plus que « Notaires »
+puis les thèmes d'interlocuteurs ; `repertoireTheme` vaut `'annuaire'` par défaut et `choisirThemeRepertoire('')` y
+revient. Le compteur « N sur M » d'une recherche compte désormais le thème affiché.

@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-03 10:06';
+  const VERSION_APP = '2026-10-03 10:14';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-03 10:14', resume: "Outils › Répertoire : l'onglet « Tout » est retiré. La page s'ouvre sur « Notaires » ; chaque thème d'interlocuteurs reste à un clic dans la colonne de gauche." },
     { version: '2026-10-03 10:06', resume: "Emails des dossiers : une adresse saisie après coup sur une fiche (email du confrère, d'un client) fait relire les 30 derniers jours de la boîte de réception — les emails reçus de cette adresse avant la saisie sont désormais rattachés au dossier (avant : ils étaient déjà passés et n'étaient jamais repris)." },
     { version: '2026-10-03 09:49', resume: "Un seul annuaire des notaires : le carnet des confrères est fondu dans les 7 202 offices de France. La fiche, les emails au confrère et la saisie des notaires retrouvent désormais un notaire de n'importe quel département (avant : seulement ceux du carnet). Outils › Répertoire › Notaires : chaque office se corrige au crayon (« Modifié ») et la croix le remet tel que relevé ; plus de « Mes confrères » ni de bouton « Au carnet ». Fiche : un petit « i » à côté du nom dit à quel dossier d'Authentic elle est rattachée (« Rattaché au dossier Authentic A 2026 00230 — VTE LEDRU / ROY »)." },
     { version: '2026-10-03 09:42', resume: "Compromis d'agence (MERCIER) : « Lionel FRANCOIS dit CHARLEMAGNE » est lu comme un seul nom de famille — le dossier s'appelle « MERCIER / FRANCOIS » comme dans Authentic (avant : « MERCIER / CHARLEMAGNE ») ; « par Maître X, Notaire à BLOIS désigné par le vendeur et avec la participation de Maître Y, Notaire à Tours désigné par les acquéreurs » donne les deux notaires, leur côté et celui qui reçoit l'acte ; « Bien hors copropriété » en titre n'est plus lu copropriété. Montant attendu des fonds : « Solde à verser » est lu même précédé du texte de la marge de la convocation (237.399,50 € au lieu du total des sommes à déduire, 1.385,00 €), et « 199, 50 € » vaut bien 199,50 €. Authentic : quand l'en-tête du sous-dossier ne porte aucun nom (« 2 - Vente d'immeuble »), le nom du dossier est lu dans le bandeau (« VTE LEDRU / ROY ») — la page de LEDRU était allée à CHAHUNEAU." },
@@ -12785,7 +12786,6 @@
     if (!zone) return;
     const champ = document.getElementById('carnet-recherche');
     if (champ && champ.value !== carnetRecherche && document.activeElement !== champ) champ.value = carnetRecherche;
-    // L'annuaire compte ≈ 7 000 offices : dans « Tout », les notaires n'apparaissent que sur une recherche.
     const offices = String(carnetRecherche || '').trim().length >= 2 ? filtrerCarnet(carnetConfreres, carnetRecherche).slice(0, 50) : [];
     const contacts = filtrerRepertoire(repertoireContacts, carnetRecherche);
     const parOffice = dossiersParOfficeConfrere(dossiers, carnetConfreres);
@@ -12796,7 +12796,7 @@
     const totalTout = carnetConfreres.length + repertoireContacts.length;
     const annuaire = repertoireTheme === 'annuaire';
     const compte = document.getElementById('carnet-compte');
-    if (compte) compte.textContent = annuaire ? '' : carnetRecherche ? `${total} sur ${totalTout}` : '';
+    if (compte) compte.textContent = annuaire ? '' : carnetRecherche ? `${nombre(repertoireTheme)} sur ${repertoireContacts.filter(c => c.theme === repertoireTheme).length}` : '';
     const bouton = document.getElementById('repertoire-ajouter');
     if (bouton) bouton.textContent = repertoireTheme === 'confreres' || annuaire ? 'Ajouter un office' : 'Ajouter un contact';
     if (champ) champ.placeholder = annuaire ? 'Rechercher un notaire, un office, une ville…' : 'Rechercher un organisme, un nom, une ville, un email…';
@@ -12829,15 +12829,14 @@
     return t.cle === 'confreres' ? 'Notaires' : t.libelle;
   }
 
-  // Colonne de gauche : Tout, puis les notaires (carnet, France), puis les autres interlocuteurs ;
+  // Colonne de gauche (sans « Tout », étude 03/10) : les notaires (carnet, France), puis les autres interlocuteurs ;
   // sur téléphone, une rangée qui défile (CSS). Les nombres suivent la recherche.
   function renderNavRepertoire(nombre, total) {
     const nav = document.getElementById('rep-nav');
     if (!nav) return;
     const lien = (cle, libelle, n, ic) => `<button type="button" class="rep-nav-lien${repertoireTheme === cle ? ' actif' : ''}${n === 0 ? ' vide' : ''}" aria-pressed="${repertoireTheme === cle}" onclick="choisirThemeRepertoire('${cle}')">${ic ? icone(ic) : ''}<span class="rep-nav-libelle">${escapeHtml(libelle)}</span><span class="rep-nav-n">${n}</span></button>`;
     const france = annuaireInfos && annuaireInfos.offices ? Number(annuaireInfos.offices).toLocaleString('fr-FR') : '';
-    nav.innerHTML = lien('', 'Tout', total, 'book')
-      + lien('annuaire', 'Notaires', france || nombre('confreres'), 'users')
+    nav.innerHTML = lien('annuaire', 'Notaires', france || nombre('confreres'), 'users')
       + '<div class="rep-nav-groupe">Interlocuteurs</div>'
       + repertoireThemes.filter(t => t.cle !== 'confreres').map(t => lien(t.cle, t.libelle, nombre(t.cle), '')).join('');
   }
@@ -12911,7 +12910,7 @@
     { cle: 'immobilier', libelle: 'Agences immobilières' },
     { cle: 'divers', libelle: 'Chambres consulaires et divers' }
   ];
-  var repertoireTheme = '';
+  var repertoireTheme = 'annuaire'; // plus d'onglet « Tout » (étude 03/10) : les notaires d'abord
   var repertoireEdition = null;
   var repertoireBrouillon = null;
 
@@ -13166,7 +13165,7 @@
   function choisirThemeRepertoire(cle) {
     if (cle === 'confreres') cle = 'annuaire';
     if (cle === 'annuaire' && repertoireTheme !== 'annuaire') carnetEdition = null;
-    repertoireTheme = cle || '';
+    repertoireTheme = cle || 'annuaire';
     renderCarnetConfreres();
   }
 
