@@ -224,7 +224,7 @@ function creerRouteurAgenda(parametresRepo, options) {
     const compter = (periode) => compterActesAgendaPeriode(evenements, periode.debut, periode.fin, categorieAnnule);
     res.json({
       jour, annee: p.annee, precedente: p.precedente, memeJour: p.memePeriode.fin,
-      actuel: compter(p.actuel), aVenir: compter(p.aVenir),
+      anneeEnCours: compter(p.anneeEnCours), actuel: compter(p.actuel), aVenir: compter(p.aVenir),
       memePeriode: compter(p.memePeriode), anneePrecedente: compter(p.anneePrecedente),
       complet: !!limite && !manquants.length, moisManquants: manquants.length,
       enCours: !!remplissageActes, message

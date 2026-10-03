@@ -59,15 +59,18 @@ test('comparaisonDossiersOuverts : ce mois, le précédent, le même mois l’an
   assert.equal(app.nomMoisStatistiques('2025-10', '2026', true), 'oct. 25');
 });
 
-test('lignesActesAgenda : ventes, successions, donations et écart sur la même période', () => {
+test('lignesActesAgenda : toute l’année en cours (passés + à venir) contre toute l’année précédente', () => {
   const lignes = app.lignesActesAgenda({
     annee: 2026, precedente: 2025,
+    anneeEnCours: { ventes: 51, successions: 12, donations: 7 },
     actuel: { ventes: 42, successions: 12, donations: 6 },
+    aVenir: { ventes: 9, successions: 0, donations: 1 },
     memePeriode: { ventes: 38, successions: 15, donations: 6 },
-    anneePrecedente: { ventes: 51, successions: 19, donations: 8 },
-    aVenir: { ventes: 9, successions: 0, donations: 1 }
+    anneePrecedente: { ventes: 51, successions: 19, donations: 8 }
   });
-  assert.equal(lignes.map(l => `${l.libelle} ${l.actuel}/${l.memePeriode} (${l.ecart}) total ${l.anneePrecedente} +${l.aVenir}`).join(' | '),
-    'Ventes 42/38 (4) total 51 +9 | Successions 12/15 (-3) total 19 +0 | Donations 6/6 (0) total 8 +1');
+  assert.equal(lignes.map(l => `${l.libelle} ${l.annee}=${l.passes}+${l.aVenir} vs ${l.anneePrecedente} (${l.ecart})`).join(' | '),
+    'Ventes 51=42+9 vs 51 (0) | Successions 12=12+0 vs 19 (-7) | Donations 7=6+1 vs 8 (-1)');
+  // Réponse d'un serveur plus ancien (sans anneeEnCours) : passés + à venir.
+  assert.equal(app.lignesActesAgenda({ actuel: { ventes: 3 }, aVenir: { ventes: 2 }, anneePrecedente: { ventes: 4 } })[0].annee, 5);
   assert.equal(app.lignesActesAgenda(null).length, 0);
 });

@@ -568,8 +568,10 @@ function compterActesAgendaPeriode(evenements, debut, fin, categorieAnnule) {
   return compte;
 }
 
-// Périodes de la comparaison pour `aujourdHui` (AAAA-MM-JJ) : l'année en cours jusqu'à ce jour, la
-// même période l'an dernier (un 29 février devient le 28) et toute l'année précédente. Pure.
+// Périodes de la comparaison pour `aujourdHui` (AAAA-MM-JJ) : toute l'année en cours (étude, 03/10 :
+// « compter sur tous les mois de l'année » — rendez-vous déjà placés jusqu'au 31/12 compris), dont ce
+// qui est passé et ce qui est à venir, la même période l'an dernier (un 29 février devient le 28) et
+// toute l'année précédente. Pure.
 function periodesActesAnnee(aujourdHui) {
   const annee = Number(String(aujourdHui).slice(0, 4));
   const precedente = annee - 1;
@@ -578,6 +580,7 @@ function periodesActesAnnee(aujourdHui) {
   return {
     annee, precedente,
     actuel: { debut: `${annee}-01-01`, fin: aujourdHui },
+    anneeEnCours: { debut: `${annee}-01-01`, fin: `${annee}-12-31` },
     aVenir: { debut: decalerJours(aujourdHui, 1), fin: `${annee}-12-31` },
     memePeriode: { debut: `${precedente}-01-01`, fin: memeJour },
     anneePrecedente: { debut: `${precedente}-01-01`, fin: `${precedente}-12-31` }

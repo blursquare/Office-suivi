@@ -588,12 +588,13 @@ Plainte principale de l'étude : **le bruit**, pas les oublis — ne pas élargi
   tests), les plus utiles d'abord ; la changer = incrémenter `VERSION_DISPOSITION_WIDGETS` (chaque
   collaborateur y est ramené une fois).
   **Widget « Statistiques »** (étude, 02/10, `renderStatistiquesDashboard`, grand × 1 rangée en fin de grille) : délais
-  moyens depuis la **signature de l'avant-contrat** (étude 02/10 : `d.dateAvantContrat` — gardée à la création (date validée à l'import, jamais remplacée), reprise d'Authentic si vide, saisissable sur la fiche ; **plus jamais relue automatiquement dans un PDF du NAS** (étude 02/10, `retirerDateAvantContratLueNas` a retiré celles posées ainsi) — à défaut l'ouverture, `debutDossierStatistiques`) ; ouverture = `dateOuvertureDossier` (entrée « Dossier créé ») jusqu'au prêt (`dateObtentionPret`,
+  moyens (« N j en moyenne » sur chaque délai, même en petit — étude 03/10) depuis la **signature de l'avant-contrat** (étude 02/10 : `d.dateAvantContrat` — gardée à la création (date validée à l'import, jamais remplacée), reprise d'Authentic si vide, saisissable sur la fiche ; **plus jamais relue automatiquement dans un PDF du NAS** (étude 02/10, `retirerDateAvantContratLueNas` a retiré celles posées ainsi) — à défaut l'ouverture, `debutDossierStatistiques`) ; ouverture = `dateOuvertureDossier` (entrée « Dossier créé ») jusqu'au prêt (`dateObtentionPret`,
   historique), à la renonciation de préemption (`dateRenonciationPreemption` : `piecesTrouveesLe` puis historique) et
   à la signature passée — `statistiquesDelaisDossiers`, **tous les dossiers de l'étude, archivés compris, sans fenêtre de dates ni périmètre** (étude 02/10), moyenne/médiane/n ; avant-contrats signés ce mois / mois
   précédent / même mois N-1 (`comparaisonDossiersOuverts`, au mois de l'avant-contrat, « — » avant le premier dossier noté), sur le périmètre du tableau de
   bord (mes dossiers / tous). **Actes à l'agenda** (étude 03/10) : ventes (titre VTE/VENTE), successions (SUCC) et donations (titre commençant par
-  DONATION) de l'agenda partagé, année en cours au jour vs même période N-1 et N-1 entière (`compterActesAgendaPeriode`,
+  DONATION) de l'agenda partagé, **sur tous les mois de l'année** (étude 03/10 : année en cours entière, rendez-vous placés jusqu'au
+  31/12 compris, vs N-1 entière ; passés / à venir et N-1 au même jour au survol ; `compterActesAgendaPeriode`,
   `GET /api/agenda/actes-annee` : mois jamais lus lus en arrière-plan un à un, « … » tant que c'est incomplet ; rendez-vous
   confirmés, ni annulés, ni « à replacer », ni options).
 - **CLAIRE en application sur les postes** (étude 02/10) : pas de PWA (Chrome n'installe qu'en HTTPS ou sur localhost,

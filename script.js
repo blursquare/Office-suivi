@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-03 07:19';
+  const VERSION_APP = '2026-10-03 07:24';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-03 07:24', resume: "Statistiques : les ventes, successions et donations de l'agenda sont comptées sur tous les mois de l'année : l'année en cours entière (rendez-vous déjà placés jusqu'au 31/12 compris) contre toute l'année précédente ; le détail passés / à venir et l'année précédente à la même date restent au survol. Délais : « en moyenne » écrit sur chaque délai, aussi en petit widget (libellés courts Prêt, Préemption (DIA), Signature)." },
     { version: '2026-10-03 07:19', resume: "Statistiques : nouvelle section « Actes à l'agenda » — nombre de ventes (titre en VTE ou VENTE), de successions (SUCC) et de donations (titre commençant par DONATION) lues dans l'agenda partagé, pour l'année en cours jusqu'à aujourd'hui, comparées à la même période de l'an dernier et à toute l'année précédente. Rendez-vous confirmés seulement (sans « ? »), ni annulés, ni « à replacer », ni options d'un sondage. Au premier affichage, les mois passés encore jamais lus sont lus un à un dans l'agenda (« … » le temps de la lecture)." },
     { version: '2026-10-03 07:09', resume: "Mise à jour automatique : CLAIRE installe seule chaque nouvelle version, au démarrage du serveur et dès qu'elle est publiée (vérification toutes les 10 minutes) — sauvegarde de la base, puis quelques secondes de redémarrage, les fenêtres se rechargent seules. Réglages › Mise à jour et sauvegarde › « Installer automatiquement » (actif par défaut) pour la couper ; l'heure et le résultat de la dernière vérification y sont indiqués." },
     { version: '2026-10-02 23:50', resume: "Fenêtre du matin, partie droite : un onglet « Depuis hier 18 h » (vendredi 18 h un lundi) avec les documents reçus et cochés depuis, listés par dossier ; le nombre d'emails reçus, ceux écartés (SPF/SPFE, CRIDON, INFN, INAFON, publicités) étant comptés à part ; la liste des demandes par email rédigée par l'IA locale ; les autres nouveautés repliées. La boîte est lue dès 7 h 30 puis toutes les 30 minutes jusqu'à midi. Réglages › Agenda et Outlook : d'autres expéditeurs à écarter du résumé." },
@@ -14839,17 +14840,18 @@
   }
 
   // Pure : une ligne par nature d'acte, écart de l'année en cours sur la même période l'an dernier.
+  // Pure : une ligne par nature d'acte sur TOUS les mois de l'année (étude, 03/10 : « il faut compter
+  // sur tous les mois de l'année ») — l'année en cours entière, rendez-vous déjà placés jusqu'au 31/12
+  // compris (dont `passes` et `aVenir`), contre toute l'année précédente.
   function lignesActesAgenda(donnees) {
     if (!donnees || !donnees.actuel) return [];
+    const n = (bloc, cle) => Number((bloc || {})[cle]) || 0;
     return [['ventes', 'Ventes'], ['successions', 'Successions'], ['donations', 'Donations']].map(([cle, libelle]) => {
-      const actuel = Number(donnees.actuel[cle]) || 0;
-      const memePeriode = Number((donnees.memePeriode || {})[cle]) || 0;
-      return {
-        cle, libelle, actuel, memePeriode,
-        anneePrecedente: Number((donnees.anneePrecedente || {})[cle]) || 0,
-        aVenir: Number((donnees.aVenir || {})[cle]) || 0,
-        ecart: actuel - memePeriode
-      };
+      const passes = n(donnees.actuel, cle);
+      const aVenir = n(donnees.aVenir, cle);
+      const annee = donnees.anneeEnCours ? n(donnees.anneeEnCours, cle) : passes + aVenir;
+      const anneePrecedente = n(donnees.anneePrecedente, cle);
+      return { cle, libelle, annee, passes, aVenir, anneePrecedente, memePeriode: n(donnees.memePeriode, cle), ecart: annee - anneePrecedente };
     });
   }
 
@@ -14871,25 +14873,23 @@
       const t = formaterTendance(l.ecart);
       return `<span class="st-ecart">${t.icone}${t.texte}</span>`;
     };
-    const grand = presentation !== 'petit';
-    const aide = `Rendez-vous de l’agenda partagé dont le titre commence par VTE ou VENTE (ventes), contient SUCC (successions) ou commence par DONATION (donations) : horaires, confirmés (sans « ? »), ni annulés ni « à replacer », ni options d’un sondage. ${d.annee} : du 1er janvier à aujourd’hui ; ${d.precedente} à date : du 1er janvier au ${memeJour}.`;
-    const ligne = (l) => `<tr title="${escapeAttr(`${l.libelle} : ${l.actuel} en ${d.annee} à ce jour${l.aVenir ? `, ${l.aVenir} déjà placée${l.aVenir > 1 ? 's' : ''} d’ici le 31/12` : ''} · ${l.anneePrecedente} sur toute l’année ${d.precedente}`)}">
+    const aide = `De janvier à décembre, dans l’agenda partagé : titre commençant par VTE ou VENTE (ventes), contenant SUCC (successions) ou commençant par DONATION (donations). ${d.annee} : rendez-vous passés et déjà placés jusqu’au 31/12. Rendez-vous horaires confirmés (sans « ? »), ni annulés ni « à replacer », ni options d’un sondage.`;
+    const ligne = (l) => `<tr title="${escapeAttr(`${l.libelle} ${d.annee} : ${l.annee} (${l.passes} passé${l.passes > 1 ? 's' : ''}, ${l.aVenir} à venir) · ${d.precedente} : ${l.anneePrecedente} (${l.memePeriode} au ${memeJour})`)}">
         <th scope="row">${escapeHtml(l.libelle)}</th>
-        <td class="st-actes-n"><b>${sur(l.actuel)}</b></td>
-        <td class="st-actes-n">${sur(l.memePeriode)}</td>
+        <td class="st-actes-n"><b>${sur(l.annee)}</b></td>
+        <td class="st-actes-n">${sur(l.anneePrecedente)}</td>
         <td class="st-actes-n">${ecart(l)}</td>
-        ${grand ? `<td class="st-actes-n st-actes-total">${sur(l.anneePrecedente)}</td>` : ''}
       </tr>`;
     const section = `<div class="w-section st-section">
-        <h3 class="jour-carte-sous-titre">Actes à l’agenda${infoBulle(aide)}</h3>
+        <h3 class="jour-carte-sous-titre">Actes à l’agenda, sur l’année${infoBulle(aide)}</h3>
         <table class="st-actes">
-          <thead><tr><th></th><th scope="col">${d.annee}</th><th scope="col">${d.precedente} au ${escapeHtml(memeJour)}</th><th scope="col" aria-label="Écart"></th>${grand ? `<th scope="col">${d.precedente} entière</th>` : ''}</tr></thead>
+          <thead><tr><th></th><th scope="col">${d.annee}</th><th scope="col">${d.precedente}</th><th scope="col" aria-label="Écart"></th></tr></thead>
           <tbody>${lignes.map(ligne).join('')}</tbody>
         </table>
         ${note ? `<div class="st-ecarts w-fixe">${note}</div>` : ''}
       </div>`;
     const v = lignes[0];
-    const ligneCourte = v && d.complet ? `<div class="st-ecarts w-fixe"><b>${v.actuel}</b> vente${v.actuel > 1 ? 's' : ''} en ${d.annee} · ${ecart(v)} vs ${d.precedente}</div>` : '';
+    const ligneCourte = v && d.complet ? `<div class="st-ecarts w-fixe"><b>${v.annee}</b> vente${v.annee > 1 ? 's' : ''} sur ${d.annee} · ${ecart(v)} vs ${d.precedente}</div>` : '';
     return { section, ligne: ligneCourte };
   }
 
@@ -14904,17 +14904,17 @@
     const annee = auj.slice(0, 4);
     const court = presentation !== 'grand';   // « sept. », « oct. 25 » quand la place manque
     const lignesDelais = [
-      { cle: 'pret', libelle: 'Obtention du prêt', s: delais.pret, classe: 'pret' },
-      { cle: 'preemption', libelle: 'Renonciation au droit de préemption', s: delais.preemption, classe: 'preemption' },
-      { cle: 'signature', libelle: 'Signature de l’acte', s: delais.signature, classe: 'signature' }
+      { cle: 'pret', libelle: 'Obtention du prêt', court: 'Prêt', s: delais.pret, classe: 'pret' },
+      { cle: 'preemption', libelle: 'Renonciation au droit de préemption (DIA)', court: 'Préemption (DIA)', s: delais.preemption, classe: 'preemption' },
+      { cle: 'signature', libelle: 'Signature de l’acte', court: 'Signature', s: delais.signature, classe: 'signature' }
     ];
     const max = Math.max(1, ...lignesDelais.map(l => l.s.moyenne || 0));
     const ligneDelai = (l) => {
       const s = l.s;
       const aide = s.n ? `Moyenne sur ${s.n} dossier${s.n > 1 ? 's' : ''} · médiane ${s.mediane} j · de ${s.min} à ${s.max} j${s.parAvantContrat < s.n ? ` · ${s.n - s.parAvantContrat} compté${s.n - s.parAvantContrat > 1 ? 's' : ''} depuis l’ouverture dans CLAIRE (date de l’avant-contrat inconnue)` : ''}` : 'Aucun dossier mesurable';
       return `<li class="st-delai" title="${escapeAttr(aide)}">
-          <span class="st-delai-lib">${escapeHtml(l.libelle)}</span>
-          <span class="st-delai-val">${s.n ? `<b>${s.moyenne}</b> j` : '—'}</span>
+          <span class="st-delai-lib">${escapeHtml(presentation === 'petit' ? l.court : l.libelle)}</span>
+          <span class="st-delai-val">${s.n ? `<b>${s.moyenne}</b> j en moyenne` : '—'}</span>
           <span class="st-barre"><span class="st-barre-${l.classe}" style="width:${s.n ? Math.max(4, Math.round(100 * s.moyenne / max)) : 0}%"></span></span>
           ${presentation === 'petit' ? '' : `<span class="st-delai-n">${s.n ? `${s.n} dossier${s.n > 1 ? 's' : ''}` : ''}</span>`}
         </li>`;
@@ -14935,7 +14935,7 @@
       </div>
       <div class="st-ecarts w-fixe">${ecart(cmp.mois, cmp.precedent)} vs mois précédent · ${ecart(cmp.mois, cmp.anPasse)} vs l’an dernier</div>`;
     const sectionDelais = `<div class="w-section st-section">
-        <h3 class="jour-carte-sous-titre">Délai moyen, tous dossiers${infoBulle('En jours, depuis la signature de l’avant-contrat (à défaut, l’ouverture du dossier dans CLAIRE), moyenne sur tous les dossiers de l’étude (archivés compris). Prêt : offre reçue ou obtention marquée réalisée. Préemption : renonciation trouvée sur le NAS ou validée à la main. Signature : date du rendez-vous passée.')}</h3>
+        <h3 class="jour-carte-sous-titre">Délai moyen depuis l’avant-contrat${infoBulle('En jours, depuis la signature de l’avant-contrat (à défaut, l’ouverture du dossier dans CLAIRE), moyenne sur tous les dossiers de l’étude (archivés compris). Prêt : offre reçue ou obtention marquée réalisée. Préemption : renonciation trouvée sur le NAS ou validée à la main. Signature : date du rendez-vous passée.')}</h3>
         <ul class="st-delais">${lignesDelais.map(ligneDelai).join('')}</ul>
       </div>`;
     const sectionNouveaux = `<div class="w-section st-section">
@@ -14944,7 +14944,8 @@
       </div>`;
     const actes = renderActesAgendaStatistiques(presentation);
     const corps = presentation === 'petit'
-      ? `<ul class="st-delais">${lignesDelais.map(ligneDelai).join('')}</ul>
+      ? `<h3 class="jour-carte-sous-titre">Délai moyen${infoBulle('En jours, depuis la signature de l’avant-contrat (à défaut, l’ouverture du dossier dans CLAIRE), moyenne sur tous les dossiers de l’étude.')}</h3>
+         <ul class="st-delais">${lignesDelais.map(ligneDelai).join('')}</ul>
          <div class="st-ecarts w-fixe"><b>${cmp.mois.n}</b> avant-contrat${cmp.mois.n > 1 ? 's' : ''} en ${escapeHtml(nomMoisStatistiques(cmp.mois.cle, annee))} · ${ecart(cmp.mois, cmp.precedent)}</div>
          ${actes.ligne}`
       : (dispositionWidgetsCourante().find(x => x.id === 'statistiques') || {}).taille === 'grand'

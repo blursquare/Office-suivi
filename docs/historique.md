@@ -15593,3 +15593,16 @@ rendez-vous comptés, pas dossiers (une succession peut avoir plusieurs rendez-v
 Vérifié : tests serveur (`agenda-office.test.js`, `agenda-route.test.js` : mois manquant lu une fois en arrière-plan),
 client (`statistiques-dossiers.test.js`), rendu Chromium clair/sombre/téléphone avec un agenda inventé. Non vérifié :
 sur le vrai agenda (titres réels des successions et donations, volume de la première lecture de 21 mois).
+
+### 03/10/2026 (suite) — Actes à l'agenda sur toute l'année ; « en moyenne » sur chaque délai
+
+Demande de l'étude : « Il faut compter sur tous les mois de l'année » ; « Pour les délais entre DIA et autres précise bien
+moyen. Même en petit widget ».
+- Actes à l'agenda : l'année en cours est comptée de janvier à décembre, rendez-vous déjà placés jusqu'au 31/12 compris
+  (`periodesActesAnnee` → `anneeEnCours`, rendu par `GET /api/agenda/actes-annee`), contre toute l'année précédente ;
+  colonnes 2026 | 2025 | écart. Le détail (passés / à venir, année précédente au même jour) reste dans l'info au survol
+  de la ligne. Lu comme concernant la section « Actes à l'agenda » (le message suivait sa livraison).
+- Délais : chaque valeur se lit « N j en moyenne » ; titre « Délai moyen depuis l'avant-contrat » ; en petit widget, titre
+  « Délai moyen » et libellés courts « Prêt », « Préemption (DIA) », « Signature » ; « (DIA) » ajouté au libellé long de
+  la renonciation au droit de préemption.
+Vérifié : tests serveur et client, rendu Chromium (large, moyen, petit, sombre, téléphone).

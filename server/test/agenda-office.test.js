@@ -426,6 +426,7 @@ test('periodesActesAnnee : année en cours au jour, même période et toute l’
   const p = periodesActesAnnee('2026-10-03');
   assert.equal(`${p.actuel.debut} ${p.actuel.fin}`, '2026-01-01 2026-10-03');
   assert.equal(`${p.aVenir.debut} ${p.aVenir.fin}`, '2026-10-04 2026-12-31');
+  assert.equal(`${p.anneeEnCours.debut} ${p.anneeEnCours.fin}`, '2026-01-01 2026-12-31');
   assert.equal(`${p.memePeriode.debut} ${p.memePeriode.fin}`, '2025-01-01 2025-10-03');
   assert.equal(`${p.anneePrecedente.debut} ${p.anneePrecedente.fin}`, '2025-01-01 2025-12-31');
   assert.equal(periodesActesAnnee('2028-02-29').memePeriode.fin, '2027-02-28');
