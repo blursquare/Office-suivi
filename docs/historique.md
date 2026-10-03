@@ -15877,3 +15877,20 @@ diffèrent, fusionnent ou restent fiche seule ; les identiques tiennent sur une 
 (`.complement-identiques`, « Tout concorde » si rien ne diffère). Phrases « Viendront du compromis… » et « N données
 diffèrent… » retirées (les boutons Fiche / Compromis suffisent) ; la phrase de l'en-tête de l'étape 1 passe dans une
 pastille « i ». Vérifié dans Chromium.
+
+### 03/10/2026 18:05 — Création d'un dossier CLAIRE depuis une page de vente d'Authentic (bandeau « Créer »)
+
+Étude (questions de cadrage, 03/10) : bandeau « Créer » plutôt qu'une création automatique ; ventes seulement ; textes des
+badges vert/rouge « à relever » (CLAIRE ne s'en sert pas). `proposerCreationDossierAuthentic(capture, intitule)` : vrai pour
+une page de vente (pas de succession, `sousDossierAuthentic` vide ou « vente », acte non « Signé le »). Dans
+`appliquerReleveAuthentic`, branche sans dossier : s'il y a des dossiers proches, le message « Choisir » existant garde la
+main et la fenêtre `#authentic-choix-overlay` reçoit en bas la ligne « Créer un nouveau dossier » (`attente.creation`) ;
+sinon `direPageACreerAuthentic` : message fixe « Authentic · « VTE X / Y » n'est pas dans CLAIRE. » + « Créer » (un
+message par intitulé, même garde que « Choisir »). `creerDossierDepuisPageAuthentic(cle)` : relevés récents relus
+(`releves/recents`) + la page en attente → `dossiersDepuisRelevesAuthentic` → `groupesAuthenticRecents`, puis
+`definirOnglet('nouveau')`, `reinitialiserFormulaire()`, `creerDepuisAuthentic(i)` (étape Vérifier, mode « seul ») ;
+état `a-creer` rapporté au journal (« Dossier à créer », `ETATS_RESULTAT` côté serveur), point terrain
+`authentic-creer-dossier`. Tests dans `tests/authentic-pages.test.js` ; parcours vérifié dans Chromium (message « Créer »
+→ wizard pré-rempli « MARTEL / FOURNIER » ; dossier proche → « Choisir » avec la ligne « Créer un nouveau dossier » →
+même wizard ; clair et sombre). Non vérifié : une vraie page d'Authentic (structure de l'en-tête « N - VTE … » supposée
+d'après BEUCHER).

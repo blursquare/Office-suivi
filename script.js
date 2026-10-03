@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-03 18:04';
+  const VERSION_APP = '2026-10-03 18:05';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-03 18:05', resume: "Authentic : une page de VENTE qu'aucun dossier de CLAIRE ne porte fait apparaître un message « n'est pas dans CLAIRE » avec le bouton « Créer » — « Nouveau dossier » s'ouvre pré-rempli (parties, bien, pièces de la page et des fiches ouvertes depuis une heure), rien n'est créé sans votre clic. Quand un dossier proche existe, la fenêtre « Choisir » gagne la ligne « Créer un nouveau dossier ». Ventes seulement ; jamais pour un acte déjà signé ni un sous-dossier promesse ou avenant. Journal Réglages › Authentic : « Dossier à créer »." },
     { version: '2026-10-03 18:04', resume: "Compléter avec le compromis : le bloc « Déjà sur la fiche » ne détaille que ce qui diffère ou s'ajoute ; les données identiques tiennent sur une ligne. Phrases d'explication passées dans les pastilles « i »." },
     { version: '2026-10-03 17:50', resume: "« Compléter avec le compromis » : un dossier créé depuis Authentic (ou à la main) se complète avec son compromis sans rien perdre. Sur la fiche, ligne « Avant-contrat » › « Compléter » : CLAIRE propose le compromis trouvé sur le NAS (« Lire ») ou un dépôt ; à l'étape Vérifier, le bloc « Déjà sur la fiche » met en regard chaque donnée de la fiche et ce que le compromis en dit — la fiche gagne toujours, sauf si vous choisissez « Compromis » sur la ligne ; les emails s'ajoutent, les dates, engagements, documents, agence, dépôt de garantie viennent remplir les vides ; les parties et le bien d'Authentic restent. Valider = récapitulatif avant → après, puis « Compléter le dossier » (historique « Complété avec le compromis »). « Nouveau dossier » : si le compromis déposé est celui d'un dossier déjà présent, « Compléter le dossier » est proposé avant « Créer quand même »." },
     { version: '2026-10-03 17:27', resume: "Authentic : seul le sous-dossier de VENTE est lu. Une page du sous-dossier « Promesse » ou « Avenant » (ex. BEUCHER : « 1 - Promesse VTE … », « 3 - Avenant à promesse de vente ») ne reprend plus rien — son « Signé le » est celui de la promesse, il ne marque plus la vente comme signée, et ses pièces ne sont pas cochées. Le dossier reste reconnu (pour les fiches client ouvertes ensuite) et le journal dit « seul le sous-dossier de vente est lu »." },
@@ -27268,6 +27269,18 @@
       .some(x => x.s.nomsTrouves && !autreReferenceAuthentic(x.d, ref));
   }
 
+  // Pure : page de VENTE d'Authentic sans dossier dans CLAIRE — en proposer la création ? (Étude, 03/10 :
+  // bandeau « Créer », jamais d'office, ventes seulement.) Non pour une succession, un acte déjà signé (un
+  // ancien dossier qu'on consulte) ou un sous-dossier autre que la vente. Le badge d'Authentic (vert signé,
+  // orange demande de pièces, rouge pas constitué) n'est pas relevé : ses textes restent à lire sur une vraie page.
+  function proposerCreationDossierAuthentic(capture, intitule) {
+    if (!intitule || RE_INTITULE_SUCCESSION_AUTHENTIC.test(intitule)) return false;
+    const sous = sousDossierAuthentic(capture);
+    if (sous && sous !== 'vente') return false;
+    const acte = etatActeAuthentic(capture);
+    return !(acte && acte.etat === 'signe');
+  }
+
   // Pure : les dossiers proposés pour ranger à la main la page d'un dossier d'Authentic — en cours,
   // les plus ressemblants d'abord.
   function candidatsDossierAuthentic(intitule, adresse, liste) {
@@ -28483,6 +28496,11 @@
         + (m ? `<span class="nas-choix-marque">${escapeHtml(m)}</span>` : '')
         + `</button>`;
     }).join('') : '<p class="nas-choix-vide">Aucun dossier en cours.</p>';
+    if (attente.nature === 'dossier' && attente.creation) {
+      const nom = String(intituleDossierAuthentic(attente.capture) || '').replace(/^\s*(?:vente|vte)\.?\s+/i, '');
+      liste.insertAdjacentHTML('beforeend', `<button type="button" class="nas-choix-item nas-choix-creer" data-cherche="creer nouveau dossier" onclick="creerDossierDepuisPageAuthentic('${escapeOnclickArg(cle)}')">`
+        + `<span class="nas-choix-nom">${icone('plus')}Créer un nouveau dossier</span><span class="nas-choix-marque">${escapeHtml(libelleDossierParNom(nom))}</span></button>`);
+    }
     if (recherche) {
       recherche.value = '';
       recherche.style.display = candidats.length > 6 ? '' : 'none';
@@ -28573,16 +28591,55 @@
 
   // Un message « aucun dossier » par page et par fenêtre toutes les 30 min, pas à chaque retour sur la page.
   var messagesDossierIntrouvable = new Map();
-  function direPageSansDossierAuthentic(capture, rel, raison) {
+  function direPageSansDossierAuthentic(capture, rel, raison, creation) {
     const intitule = intituleDossierAuthentic(capture);
     const cleMessage = intitule;
     const deja = messagesDossierIntrouvable.get(cleMessage);
     if (deja && Date.now() - deja < DUREE_DOSSIER_COURANT_AUTHENTIC_MS) return;
     messagesDossierIntrouvable.set(cleMessage, Date.now());
     const cle = 'f' + (++numeroFicheEnAttente);
-    fichesClientEnAttente.set(cle, { capture, releveId: rel && rel.id, nature: 'dossier' });
+    fichesClientEnAttente.set(cle, { capture, releveId: rel && rel.id, nature: 'dossier', creation: !!creation });
     while (fichesClientEnAttente.size > 10) fichesClientEnAttente.delete(fichesClientEnAttente.keys().next().value);
     afficherToast(`Authentic · « ${intitule} » : ${raison}.`, 'Choisir', () => ouvrirChoixFicheClientAuthentic(cle), { fixe: true, cle });
+  }
+
+  // Page de vente d'Authentic qu'aucun dossier de CLAIRE ne porte (étude, 03/10 : bandeau « Créer », jamais
+  // d'office) : le message reste jusqu'au clic ou à la croix.
+  function direPageACreerAuthentic(capture, rel, raison) {
+    const intitule = intituleDossierAuthentic(capture);
+    const deja = messagesDossierIntrouvable.get(intitule);
+    if (deja && Date.now() - deja < DUREE_DOSSIER_COURANT_AUTHENTIC_MS) return;
+    messagesDossierIntrouvable.set(intitule, Date.now());
+    const cle = 'f' + (++numeroFicheEnAttente);
+    fichesClientEnAttente.set(cle, { capture, releveId: rel && rel.id, nature: 'dossier', creation: true });
+    while (fichesClientEnAttente.size > 10) fichesClientEnAttente.delete(fichesClientEnAttente.keys().next().value);
+    afficherToast(`Authentic · « ${intitule} » n’est pas dans CLAIRE.`, 'Créer', () => creerDossierDepuisPageAuthentic(cle), { fixe: true, cle });
+  }
+
+  // « Créer » : « Nouveau dossier » › Depuis Authentic, pré-rempli avec cette page et les fiches (client, bien)
+  // vues depuis une heure sous le même intitulé — même chemin que la liste « Dossiers ouverts dans Authentic ».
+  async function creerDossierDepuisPageAuthentic(cle) {
+    fermerChoixFicheClientAuthentic();
+    fermerToastFixe(cle);
+    const attente = fichesClientEnAttente.get(cle);
+    if (!attente) return;
+    fichesClientEnAttente.delete(cle);
+    const intitule = intituleDossierAuthentic(attente.capture);
+    let releves = [];
+    try {
+      const r = await fetchAvecAuth('/api/authentic/releves/recents');
+      if (r.ok) releves = (await r.json()).releves || [];
+    } catch (e) { /* la page seule suffit */ }
+    const tous = releves.filter(x => x && x.capture && x.id !== attente.releveId)
+      .concat([{ id: attente.releveId || 'page', capture: attente.capture, recueLe: new Date().toISOString() }]);
+    groupesAuthenticRecents = dossiersDepuisRelevesAuthentic(tous);
+    const i = groupesAuthenticRecents.findIndex(g => g.intitule === intitule);
+    if (i < 0) { afficherToast('Page d’Authentic illisible : dossier à créer à la main.', 'OK', null); return; }
+    definirOnglet('nouveau');
+    reinitialiserFormulaire();
+    creerDepuisAuthentic(i);
+    noterVerificationPoste('authentic-creer-dossier', { detail: 'création ouverte depuis une page de vente' });
+    if (attente.releveId) rapporterResultatsAuthentic([{ id: attente.releveId, etat: 'a-creer', texte: 'création du dossier ouverte depuis la page' }]);
   }
 
   // Applique une page relevée → { etat, dossierId, texte } pour le journal (Réglages › Authentic) :
@@ -28663,8 +28720,10 @@
     if (!d) {
       // Jamais en silence (étude, 02/10) : le motif, et le choix à la main.
       const raison = raisonAncien || (lu ? raisonDossierAuthenticIntrouvable(lu, dossiers, adresse, reference) : (typePageAuthentic(capture) === 'bien' ? 'fiche bien gardée pour « Nouveau dossier »' : 'aucun dossier ouvert dans Authentic juste avant'));
-      if (lu && !raisonAncien && proposerChoixDossierAuthentic(capture, lu, dossiers)) direPageSansDossierAuthentic(capture, rel, raison);
-      return { etat: lu ? 'sans-dossier' : 'sans-changement', texte: raison };
+      const creation = !!lu && !raisonAncien && proposerCreationDossierAuthentic(capture, lu);
+      if (lu && !raisonAncien && proposerChoixDossierAuthentic(capture, lu, dossiers)) direPageSansDossierAuthentic(capture, rel, raison, creation);
+      else if (creation) direPageACreerAuthentic(capture, rel, raison);
+      return { etat: lu ? (creation ? 'a-creer' : 'sans-dossier') : 'sans-changement', texte: raison };
     }
     const r = appliquerReleveSurDossier(d, capture);
     const avecComment = (t) => [comment, t].filter(Boolean).join(' — ');
@@ -29943,6 +30002,7 @@
     'sans-changement': { classe: 'dl-neutre', texte: 'Rien de neuf' },
     'sans-dossier': { classe: 'dl-urgent', texte: 'Aucun dossier' },
     'a-choisir': { classe: 'dl-pret', texte: 'Dossier à choisir' },
+    'a-creer': { classe: 'dl-pret', texte: 'Dossier à créer' },
     erreur: { classe: 'dl-urgent', texte: 'Erreur' },
     expire: { classe: 'dl-urgent', texte: 'Perdue : aucune fenêtre CLAIRE ouverte' }
   };
@@ -29969,7 +30029,7 @@
       etat,
       detail: [d ? libelleDossierAffiche(d) : '', e.texte || ''].filter(Boolean).join(' : '),
       qui: qui.join(' · '),
-      choisir: !!e.enMemoire && ['sans-dossier', 'a-choisir', 'expire', 'pris', 'en-file'].includes(e.etat) && e.nature !== 'bien',
+      choisir: !!e.enMemoire && ['sans-dossier', 'a-choisir', 'a-creer', 'expire', 'pris', 'en-file'].includes(e.etat) && e.nature !== 'bien',
       dossierId: d ? d.id : ''
     };
   }

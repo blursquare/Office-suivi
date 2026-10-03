@@ -1168,3 +1168,15 @@ test('sous-dossier ouvert : seul celui de la vente compte (étude, 03/10 — pro
   assert.equal(app.sousDossierAuthentic(page('4 - Succession MARTEL')), 'succession');
   assert.equal(app.sousDossierAuthentic({ texte: 'Fiche client\nNom MARTEL' }), '');
 });
+
+test('page de vente sans dossier dans CLAIRE : création proposée, sauf succession, acte signé ou sous-dossier promesse (étude, 03/10)', () => {
+  const vente = { texte: 'A 2026 00017 VTE MARTEL / FOURNIER\n2 - VTE MARTEL / FOURNIER Importer avec 6e SENS\nComparants (2)' };
+  assert.equal(app.proposerCreationDossierAuthentic(vente, 'VTE MARTEL / FOURNIER'), true);
+  assert.equal(app.proposerCreationDossierAuthentic(gestion, '12 - Vente MARTEL/FOURNIER'), true, 'sans en-tête de sous-dossier : vente');
+  assert.equal(app.proposerCreationDossierAuthentic(vente, 'Succession MARTEL'), false, 'ventes seulement');
+  assert.equal(app.proposerCreationDossierAuthentic(vente, ''), false);
+  const promesse = { texte: 'A 2026 00017 VTE MARTEL / FOURNIER\n1 - Promesse VTE MARTEL/FOURNIER Importer avec 6e SENS\nComparants (2)' };
+  assert.equal(app.proposerCreationDossierAuthentic(promesse, 'VTE MARTEL / FOURNIER'), false, 'sous-dossier promesse');
+  const signe = { texte: vente.texte, champs: [{ groupe: 'Acte', libelle: 'État', valeur: 'Signé le 30/09/2026' }] };
+  assert.equal(app.proposerCreationDossierAuthentic(signe, 'VTE MARTEL / FOURNIER'), false, 'acte signé : ancien dossier');
+});

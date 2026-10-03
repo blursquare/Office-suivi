@@ -75,7 +75,7 @@ var DUREE_FENETRE_VUE_MS = 90 * 1000;
 var DUREE_DOUBLON_MS = 15 * 1000;
 var DUREE_JOURNAL_MS = 12 * 60 * 60 * 1000;
 var MAX_JOURNAL = 100;
-var ETATS_RESULTAT = ['applique', 'sans-changement', 'sans-dossier', 'a-choisir', 'erreur', 'rattache'];
+var ETATS_RESULTAT = ['applique', 'sans-changement', 'sans-dossier', 'a-choisir', 'a-creer', 'erreur', 'rattache'];
 
 // Le poste d'une requête : son adresse réseau, « local » pour le poste serveur (en local ou par l'une
 // de ses propres adresses — l'extension du poste serveur peut viser son adresse réseau).

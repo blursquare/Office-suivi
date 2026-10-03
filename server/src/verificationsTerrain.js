@@ -20,6 +20,8 @@ const CLE_VERIFICATIONS = 'verifications-terrain';
 // `source` : 'serveur' (noté par le serveur), 'poste' (noté par une fenêtre CLAIRE, POST
 // /api/verifications-terrain/noter — seuls ces points-là y sont acceptés) ou 'manuel'.
 const VERIFICATIONS_TERRAIN = [
+  { id: 'authentic-creer-dossier', depuis: '2026-10-03 18:05', source: 'poste', titre: 'Authentic : « Créer » proposé sur une page de vente sans dossier, « Nouveau dossier » ouvert pré-rempli',
+    comment: 'Coché la première fois qu’un clic sur « Créer » (message ou fenêtre « Choisir ») ouvre « Nouveau dossier » avec la page de vente lue.' },
   { id: 'complement-compromis-nas', depuis: '2026-10-03 17:50', source: 'poste', titre: 'Compléter un dossier avec le compromis : compromis lu depuis le NAS et appliqué sur la fiche',
     comment: 'Coché la première fois qu’un compromis proposé depuis le NAS (fiche › « Compléter ») est lu par le poste et que le dossier est complété ; en échec si la lecture du fichier échoue.' },
   { id: 'nas-noms-parcours', depuis: '2026-10-03 08:13', source: 'serveur', titre: 'Noms de fichiers du NAS : dossier commun parcouru en entier',

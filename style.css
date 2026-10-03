@@ -8315,6 +8315,9 @@ button.complement-option.actif .complement-option-source { color: var(--focus); 
 /* Choix du dossier d'une page d'Authentic : la ressemblance passe SOUS le nom (une marque longue
    écrasait le nom du dossier en une lettre par ligne). */
 #authentic-choix-liste .nas-choix-item { flex-direction: column; align-items: flex-start; gap: 2px; }
+#authentic-choix-liste .nas-choix-creer { border-style: dashed; }
+#authentic-choix-liste .nas-choix-creer .nas-choix-nom { display: inline-flex; align-items: center; gap: 6px; color: var(--focus); }
+#authentic-choix-liste .nas-choix-creer .icone { width: 14px; height: 14px; }
 #authentic-choix-liste .nas-choix-nom { width: 100%; }
 @media (max-width: 600px) {
   .appels-liste.authentic-journal li { grid-template-columns: auto minmax(0, 1fr); }
