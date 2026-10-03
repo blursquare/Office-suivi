@@ -15869,3 +15869,11 @@ rien perdre ni rien écraser en silence. Construit comme un mode du wizard « No
   vérifié dans Chromium (fiche → étape 1 → texte simulé → « Déjà sur la fiche » → choix prix → récap → dossier complété ;
   doublon → « Compléter le dossier » → étape 2 ; clair, sombre, téléphone). **Non vérifié ici** : la lecture d'un vrai PDF
   (pdf.js indisponible) et du NAS — point `complement-compromis-nas` des vérifications sur le terrain.
+
+### 03/10/2026 18:04 — Compléter avec le compromis : moins de texte
+
+Étude : « garde l'identité visuelle sans trop de texte ». `renderComparaisonComplement` ne détaille que les lignes qui
+diffèrent, fusionnent ou restent fiche seule ; les identiques tiennent sur une ligne « N identiques · nom · type… »
+(`.complement-identiques`, « Tout concorde » si rien ne diffère). Phrases « Viendront du compromis… » et « N données
+diffèrent… » retirées (les boutons Fiche / Compromis suffisent) ; la phrase de l'en-tête de l'étape 1 passe dans une
+pastille « i ». Vérifié dans Chromium.

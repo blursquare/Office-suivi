@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-03 17:50';
+  const VERSION_APP = '2026-10-03 18:04';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-03 18:04', resume: "Compléter avec le compromis : le bloc « Déjà sur la fiche » ne détaille que ce qui diffère ou s'ajoute ; les données identiques tiennent sur une ligne. Phrases d'explication passées dans les pastilles « i »." },
     { version: '2026-10-03 17:50', resume: "« Compléter avec le compromis » : un dossier créé depuis Authentic (ou à la main) se complète avec son compromis sans rien perdre. Sur la fiche, ligne « Avant-contrat » › « Compléter » : CLAIRE propose le compromis trouvé sur le NAS (« Lire ») ou un dépôt ; à l'étape Vérifier, le bloc « Déjà sur la fiche » met en regard chaque donnée de la fiche et ce que le compromis en dit — la fiche gagne toujours, sauf si vous choisissez « Compromis » sur la ligne ; les emails s'ajoutent, les dates, engagements, documents, agence, dépôt de garantie viennent remplir les vides ; les parties et le bien d'Authentic restent. Valider = récapitulatif avant → après, puis « Compléter le dossier » (historique « Complété avec le compromis »). « Nouveau dossier » : si le compromis déposé est celui d'un dossier déjà présent, « Compléter le dossier » est proposé avant « Créer quand même »." },
     { version: '2026-10-03 17:27', resume: "Authentic : seul le sous-dossier de VENTE est lu. Une page du sous-dossier « Promesse » ou « Avenant » (ex. BEUCHER : « 1 - Promesse VTE … », « 3 - Avenant à promesse de vente ») ne reprend plus rien — son « Signé le » est celui de la promesse, il ne marque plus la vente comme signée, et ses pièces ne sont pas cochées. Le dossier reste reconnu (pour les fiches client ouvertes ensuite) et le journal dit « seul le sous-dossier de vente est lu »." },
     { version: '2026-10-03 17:12', resume: "« Noms de fichiers du NAS » quitte les Outils : c'est maintenant une rubrique des Réglages (Dossiers et actes › Noms de fichiers du NAS, juste sous « Pièces et Claire Scan »). Même fonctionnement : « Parcourir le commun », puis Oui / Non sur chaque forme de nom ; les pièces s'affichent en pastilles au-dessus des formes." },
@@ -11466,7 +11467,7 @@
     const entete = document.getElementById('complement-entete');
     if (entete) {
       entete.style.display = d ? '' : 'none';
-      if (d) entete.innerHTML = `<div class="complement-entete-ligne"><span class="dot-label dl-acte">${icone('file-text')}${escapeHtml(libelleDossierAffiche(d))}</span><span class="hint">Le compromis complète ce dossier : ce que la fiche porte déjà n’est jamais remplacé sans votre choix.</span><button type="button" class="lien-action" onclick="quitterComplement()">Quitter</button></div><div id="complement-nas"></div>`;
+      if (d) entete.innerHTML = `<div class="complement-entete-ligne"><span class="dot-label dl-acte">${icone('file-text')}${escapeHtml(libelleDossierAffiche(d))}</span>${infoBulle('Ce que la fiche porte déjà n’est jamais remplacé sans votre choix.')}<span class="complement-entete-espace"></span><button type="button" class="lien-action" onclick="quitterComplement()">Quitter</button></div><div id="complement-nas"></div>`;
     }
   }
 
@@ -11535,13 +11536,14 @@
             : `<span class="complement-valeur">${escapeHtml(texteValeurComplement(x.cle, x.fiche))}</span><span class="dot-label dl-neutre"><span class="dot"></span>Fiche gardée, rien lu</span>`;
       return `<div class="complement-ligne${x.etat === 'different' ? ' complement-differente' : ''}"><span class="complement-libelle">${escapeHtml(x.libelle)}</span>${corps}</div>`;
     };
-    const differentes = lignes.filter(x => x.etat === 'different').length;
+    // Seules les lignes qui demandent un œil sont détaillées ; les identiques tiennent sur une ligne.
+    const identiques = lignes.filter(x => x.etat === 'identique');
+    const detaillees = lignes.filter(x => x.etat !== 'identique');
     zone.style.display = '';
     zone.innerHTML = `
-      <div class="section-eyebrow">Déjà sur la fiche ${infoBulle('Ce que la fiche porte déjà (Authentic ou saisie) face à ce que le compromis dit. Une différence se tranche ici — la fiche est gardée tant que vous ne choisissez pas le compromis. Les données que la fiche n’a pas encore viennent du compromis, à valider dans le panneau dessous.')}</div>
-      ${nouvelles.length ? `<p class="complement-nouvelles">${icone('check')} Viendront du compromis : ${escapeHtml(nouvelles.map(x => x.libelle.toLowerCase()).join(', '))}.</p>` : ''}
-      ${differentes ? `<p class="complement-alerte">${icone('alert-triangle')} ${differentes} donnée${differentes > 1 ? 's' : ''} diffère${differentes > 1 ? 'nt' : ''} entre la fiche et le compromis : choisissez.</p>` : ''}
-      ${lignes.length ? `<div class="complement-liste">${lignes.map(ligne).join('')}</div>` : ''}`;
+      <div class="section-eyebrow">Déjà sur la fiche ${infoBulle('Ce que la fiche porte déjà (Authentic ou saisie) face à ce que le compromis dit. La fiche est gardée tant que vous ne choisissez pas « Compromis ». Ce que la fiche n’a pas encore vient du compromis, à valider dans le panneau dessous.')}</div>
+      ${detaillees.length ? `<div class="complement-liste">${detaillees.map(ligne).join('')}</div>` : ''}
+      ${identiques.length ? `<p class="complement-identiques"><span class="dot-label dl-success">${icone('check')}${identiques.length === lignes.length ? 'Tout concorde' : `${identiques.length} identique${identiques.length > 1 ? 's' : ''}`}</span><span class="complement-identiques-liste">${escapeHtml(identiques.map(x => x.libelle.toLowerCase()).join(' · '))}</span></p>` : ''}`;
   }
 
   function choisirComplement(cle, source) {
