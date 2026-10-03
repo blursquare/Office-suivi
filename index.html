@@ -227,6 +227,8 @@
         <!-- Deux façons de créer un dossier (étude, 02/10) : le compromis (PDF), complété ou non par un
              dossier ouvert dans Authentic, ou un dossier ouvert dans Authentic sans PDF. Voir
              choisirModeImport. -->
+        <!-- Mode complément (étude, 03/10) : le compromis complète un dossier existant — voir demarrerComplementCompromis. -->
+        <div class="complement-entete" id="complement-entete" style="display:none;"></div>
         <div class="import-choix" id="import-choix" role="radiogroup" aria-label="Source du nouveau dossier"></div>
         <div class="authentic-releves" id="authentic-releves" style="display:none;"></div>
         <div class="extract-box" id="import-boite">
@@ -250,6 +252,7 @@
       </div>
 
       <div class="wizard-step" id="wizard-step-2">
+        <div class="complement-comparaison" id="complement-comparaison" style="display:none;"></div>
         <div class="sources-import" id="sources-import-2"></div>
         <!-- Date de signature du compromis, déplacée ici depuis l'étape "Importer" : c'est la date
              de référence à partir de laquelle sont calculées les échéances exprimées en délai
@@ -522,7 +525,7 @@
           <button type="button" class="secondary" onclick="definirEtapeWizard(2)">← Précédent</button>
           <div class="actions-row">
             <button type="button" class="secondary" onclick="reinitialiserFormulaire()">Effacer</button>
-            <button type="button" class="primary" id="btn-ajouter-dossier" onclick="ajouterDossier()">Ajouter le dossier</button>
+            <button type="button" class="primary" id="btn-ajouter-dossier" onclick="validerWizard()">Ajouter le dossier</button>
           </div>
         </div>
       </div>
@@ -2179,6 +2182,7 @@
     <p id="confirm-message">Confirmer cette action ?</p>
     <div class="confirm-actions">
       <button type="button" class="btn-annuler" onclick="annulerConfirmation()">Annuler</button>
+      <button type="button" class="btn-annuler" id="confirm-btn-autre" style="display:none;"></button>
       <button type="button" class="btn-confirmer" id="confirm-btn-ok">Supprimer</button>
     </div>
   </div>

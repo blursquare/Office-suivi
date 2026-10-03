@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-03 17:27';
+  const VERSION_APP = '2026-10-03 17:50';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-03 17:50', resume: "« Compléter avec le compromis » : un dossier créé depuis Authentic (ou à la main) se complète avec son compromis sans rien perdre. Sur la fiche, ligne « Avant-contrat » › « Compléter » : CLAIRE propose le compromis trouvé sur le NAS (« Lire ») ou un dépôt ; à l'étape Vérifier, le bloc « Déjà sur la fiche » met en regard chaque donnée de la fiche et ce que le compromis en dit — la fiche gagne toujours, sauf si vous choisissez « Compromis » sur la ligne ; les emails s'ajoutent, les dates, engagements, documents, agence, dépôt de garantie viennent remplir les vides ; les parties et le bien d'Authentic restent. Valider = récapitulatif avant → après, puis « Compléter le dossier » (historique « Complété avec le compromis »). « Nouveau dossier » : si le compromis déposé est celui d'un dossier déjà présent, « Compléter le dossier » est proposé avant « Créer quand même »." },
     { version: '2026-10-03 17:27', resume: "Authentic : seul le sous-dossier de VENTE est lu. Une page du sous-dossier « Promesse » ou « Avenant » (ex. BEUCHER : « 1 - Promesse VTE … », « 3 - Avenant à promesse de vente ») ne reprend plus rien — son « Signé le » est celui de la promesse, il ne marque plus la vente comme signée, et ses pièces ne sont pas cochées. Le dossier reste reconnu (pour les fiches client ouvertes ensuite) et le journal dit « seul le sous-dossier de vente est lu »." },
     { version: '2026-10-03 17:12', resume: "« Noms de fichiers du NAS » quitte les Outils : c'est maintenant une rubrique des Réglages (Dossiers et actes › Noms de fichiers du NAS, juste sous « Pièces et Claire Scan »). Même fonctionnement : « Parcourir le commun », puis Oui / Non sur chaque forme de nom ; les pièces s'affichent en pastilles au-dessus des formes." },
     { version: '2026-10-03 12:01', resume: "Authentic : un acte n'est « signé » que si l'état du document commence exactement par « Signé le JJ/MM/AAAA » (étude : « Mail version signée le 28/07/2026 » ne vaut pas acte signé ; « Acte signé le … » non plus). Avant : « signé le » n'importe où sur la page suffisait." },
@@ -10166,6 +10167,7 @@
     // Mode « Dossier Authentic » (ou export déjà lu) : le compromis complète, Authentic est gardé.
     if (!(exportAuthenticActuel && modeImport !== 'pdf')) exportAuthenticActuel = null;
     majPiecesAuthentic();
+    complementFichierNas = '';
     await traiterFichierPdf(file);
     renderChoixImport();
   }
@@ -11092,6 +11094,10 @@
   function reinitialiserFormulaire() {
     masquerErreurFormulaire();
     exportAuthenticActuel = null;
+    complementDossierId = null;
+    choixComplement = {};
+    complementFichierNas = '';
+    majEnteteComplement();
     majPiecesAuthentic();
     // Périme tout enrichissement IA encore en vol depuis l'import précédent (voir
     // lancerExtractionIa) : sans ça, sa réponse pourrait arriver après ce reset et remplir des
@@ -11199,8 +11205,418 @@
       || (cle && normaliserPourRecherche(String(x.nom || '').trim()) === cle))) || null;
   }
 
+  // ---- Compléter un dossier existant avec son compromis (étude, 03/10 : « Authentic crée le dossier, le
+  // compromis le complète ») ----
+  // Un dossier créé depuis Authentic (parties, bien, cadastre) ou saisi à la main n'a ni échéance (prêt, vente
+  // préalable, date butoir), ni engagements du vendeur, ni dépôt de garantie : tout cela ne vient que du
+  // compromis. Le même assistant « Nouveau dossier » relit le compromis en mode COMPLÉMENT : rien n'est créé,
+  // le dossier visé est complété — un champ vide reçoit la valeur lue ; un champ déjà rempli n'est JAMAIS
+  // remplacé en silence : les deux valeurs sont montrées, l'étude choisit, la fiche l'emporte par défaut.
+  // Entrées : la fiche (« Compléter » sur la ligne Avant-contrat, compromis du NAS proposé), ou « Nouveau
+  // dossier » quand le compromis déposé désigne un dossier déjà présent (« Compléter » au lieu d'un doublon).
+  let complementDossierId = null;
+  let choixComplement = {};
+  let complementFichierNas = '';
+
+  // Clés du panneau comparées fiche / compromis (le type d'acte et le responsable ne viennent pas du compromis).
+  var CLES_COMPLEMENT = ['nom', 'typeVente', 'signature', 'pret', 'acte', 'ventebien', 'adresseBien', 'prixVente', 'prixMobilier',
+    'emailAcquereur', 'emailVendeur', 'nomAgence', 'depotGarantie', 'sequestreDepot', 'notaireVendeur', 'notaireAcquereur',
+    'coteInstrumentaire', 'roleNotaire'];
+  var CLES_COMPLEMENT_FUSION = ['emailAcquereur', 'emailVendeur'];
+
+  function libelleCleComplement(cle) {
+    const def = CHAMPS_REVISION.find(c => c.cle === cle);
+    return def ? def.libelle : cle;
+  }
+
+  // Pure : les valeurs de la fiche, par clé du panneau ('' quand vide).
+  function valeursFicheComplement(d) {
+    const x = d || {};
+    const nombre = (v) => Number.isFinite(Number(v)) && Number(v) > 0 ? Number(v) : '';
+    return {
+      nom: x.nom || '', typeVente: x.typeVente || 'maison', signature: x.dateAvantContrat || '',
+      pret: x.sansPret ? '' : (x.pret || ''), acte: x.acte || '', ventebien: x.ventebien || '',
+      adresseBien: x.adresseBien ? normaliserAdresse(x.adresseBien) : '',
+      prixVente: nombre(x.prixVente), prixMobilier: nombre(x.prixMobilier),
+      emailAcquereur: x.emailAcquereur || '', emailVendeur: x.emailVendeur || '', nomAgence: x.nomAgence || '',
+      depotGarantie: nombre(x.depotGarantie), sequestreDepot: x.sequestreDepot || '',
+      notaireVendeur: x.notaireVendeur || '', notaireAcquereur: x.notaireAcquereur || '',
+      coteInstrumentaire: x.coteInstrumentaire || '', roleNotaire: x.roleNotaire || 'instrumentaire'
+    };
+  }
+
+  // Pure : deux valeurs d'une même clé disent-elles la même chose ? (montants en nombre, dates ISO, texte sans
+  // accents ni casse, adresses normalisées, emails ensemble par ensemble).
+  function memeValeurComplement(cle, a, b) {
+    const vide = (v) => v === null || v === undefined || v === '';
+    if (vide(a) && vide(b)) return true;
+    if (vide(a) || vide(b)) return false;
+    if (['prixVente', 'prixMobilier', 'depotGarantie'].includes(cle)) return Number(a) === Number(b);
+    if (cle === 'adresseBien') return normaliserPourRecherche(normaliserAdresse(a)) === normaliserPourRecherche(normaliserAdresse(b));
+    if (CLES_COMPLEMENT_FUSION.includes(cle)) {
+      const ens = (v) => emailsDepuisTexte(v).map(e => e.toLowerCase()).sort().join(';');
+      return ens(a) === ens(b);
+    }
+    return normaliserPourRecherche(String(a)).replace(/\s+/g, ' ').trim() === normaliserPourRecherche(String(b)).replace(/\s+/g, ' ').trim();
+  }
+
+  // Pure : la comparaison fiche / compromis, une ligne par clé → { cle, libelle, fiche, lu, etat } avec etat :
+  // 'identique', 'different', 'fiche-seule' (rien lu), 'lu-seul' (fiche vide), 'fusion' (emails : les deux gardés).
+  function comparaisonComplement(fiche, lu) {
+    const f = fiche || {}, l = lu || {};
+    const vide = (v) => v === null || v === undefined || v === '';
+    return CLES_COMPLEMENT.map(cle => {
+      const a = vide(f[cle]) ? '' : f[cle], b = vide(l[cle]) ? '' : l[cle];
+      let etat;
+      if (a === '' && b === '') etat = 'vide';
+      else if (a === '') etat = 'lu-seul';
+      else if (b === '') etat = 'fiche-seule';
+      else if (memeValeurComplement(cle, a, b)) etat = 'identique';
+      else etat = CLES_COMPLEMENT_FUSION.includes(cle) ? 'fusion' : 'different';
+      return { cle, libelle: libelleCleComplement(cle), fiche: a, lu: b, etat };
+    }).filter(x => x.etat !== 'vide');
+  }
+
+  // Pure : ce que retient le complément — { resolu: { cle: valeur }, changements: [{ cle, libelle, avant, apres }] }.
+  // Fiche vide → valeur lue ; valeurs différentes → la fiche, sauf choix « compromis » ; emails → les deux.
+  function resolutionComplement(comparaison, choix) {
+    const c = choix || {};
+    const resolu = {}, changements = [];
+    (comparaison || []).forEach(x => {
+      let v = x.fiche;
+      if (x.etat === 'lu-seul') v = x.lu;
+      else if (x.etat === 'fusion') v = fusionnerEmailsTexte(x.fiche, [x.lu]);
+      else if (x.etat === 'different' && c[x.cle] === 'compromis') v = x.lu;
+      resolu[x.cle] = v;
+      if (!memeValeurComplement(x.cle, v, x.fiche)) changements.push({ cle: x.cle, libelle: x.libelle, avant: x.fiche, apres: v });
+    });
+    return { resolu, changements };
+  }
+
+  // Pure : une valeur lisible pour une clé du panneau.
+  function texteValeurComplement(cle, v) {
+    if (v === null || v === undefined || v === '') return '—';
+    if (['signature', 'pret', 'acte', 'ventebien'].includes(cle)) return formatDateFr(v);
+    if (['prixVente', 'prixMobilier', 'depotGarantie'].includes(cle)) return formaterPrix(Number(v));
+    if (cle === 'typeVente') return { maison: 'Maison', copropriete: 'Copropriété', terrain: 'Terrain à bâtir' }[v] || String(v);
+    if (cle === 'coteInstrumentaire') return { vendeur: 'Notaire du vendeur', acquereur: 'Notaire de l’acquéreur' }[v] || String(v);
+    if (cle === 'roleNotaire') return { instrumentaire: 'Instrumentaire', participant: 'Participant' }[v] || String(v);
+    return String(v);
+  }
+
+  // Pure (modifie le dossier passé) : applique le complément — valeurs retenues et ce que seul le compromis
+  // apporte (engagements, échéances personnalisées, parties, pages, instantané de lecture). Rien de ce que la
+  // fiche porte déjà n'est écrasé hors `resolu`. → les libellés de ce qui a changé (historique).
+  function appliquerComplementSurDossier(d, resolu, extras) {
+    if (!d) return [];
+    const r = resolu || {}, e = extras || {};
+    const avant = valeursFicheComplement(d);
+    const textes = [];
+    const pose = (cle, affecter) => {
+      if (!(cle in r)) return;
+      if (memeValeurComplement(cle, r[cle], avant[cle])) return;
+      affecter(r[cle]);
+      textes.push(libelleCleComplement(cle).toLowerCase());
+    };
+    pose('nom', v => { d.nom = v; });
+    pose('typeVente', v => { d.typeVente = v; });
+    pose('signature', v => { d.dateAvantContrat = v || null; });
+    ['pret', 'acte', 'ventebien'].forEach(t => pose(t, v => {
+      d[t] = v || '';
+      d[t + 'Page'] = v ? ((e.pages || {})[t] || null) : null;
+      d.confiance = Object.assign({}, d.confiance || {}, { [t]: v ? ((e.confiance || {})[t] || 'manuel') : null });
+      if (t === 'pret' && v) d.sansPret = false;
+    }));
+    pose('adresseBien', v => { d.adresseBien = v ? normaliserAdresse(v) : ''; });
+    pose('prixVente', v => { d.prixVente = v ? Number(v) : null; });
+    pose('prixMobilier', v => { d.prixMobilier = v ? Number(v) : null; });
+    pose('emailAcquereur', v => { d.emailAcquereur = v || ''; });
+    pose('emailVendeur', v => { d.emailVendeur = v || ''; });
+    pose('nomAgence', v => { d.nomAgence = v || ''; });
+    pose('depotGarantie', v => { d.depotGarantie = v ? Number(v) : null; });
+    pose('sequestreDepot', v => { d.sequestreDepot = v || ''; });
+    pose('notaireVendeur', v => { d.notaireVendeur = v || ''; });
+    pose('notaireAcquereur', v => { d.notaireAcquereur = v || ''; });
+    pose('coteInstrumentaire', v => { d.coteInstrumentaire = v || ''; });
+    pose('roleNotaire', v => { d.roleNotaire = v || 'instrumentaire'; });
+    // Achat sans prêt lu dans le compromis, fiche sans date de prêt : l'échéance est retirée du planning.
+    if (!d.pret && e.sansPret && !d.sansPret) { d.sansPret = true; textes.push('achat sans prêt'); }
+    if (d.pret && !d.sansPret && !(Array.isArray(d.reminderDays) && d.reminderDays.length) && Array.isArray(e.reminderDays) && e.reminderDays.length) d.reminderDays = e.reminderDays.slice();
+    // Échéances personnalisées : ajoutées, jamais en double (même libellé et même date).
+    const autresAvant = Array.isArray(d.autres) ? d.autres : [];
+    const nouvellesAutres = (e.autres || []).filter(a => a && a.date && !autresAvant.some(x => x && x.date === a.date && normaliserPourRecherche(x.label || '') === normaliserPourRecherche(a.label || '')));
+    if (nouvellesAutres.length) { d.autres = autresAvant.concat(nouvellesAutres); textes.push(`${nouvellesAutres.length} échéance${nouvellesAutres.length > 1 ? 's' : ''} personnalisée${nouvellesAutres.length > 1 ? 's' : ''}`); }
+    // Engagements du vendeur et documents identifiés : ajoutés à ce que la fiche a déjà.
+    const cleAnalyse = (x) => normaliserPourRecherche(String((x && (x.phrase || x.libelle || x.label || x.nom)) || '')).slice(0, 160);
+    const an = e.analyse || {};
+    d.analyseJuridique = d.analyseJuridique && typeof d.analyseJuridique === 'object' ? d.analyseJuridique : { documents: [], engagements: [] };
+    d.analyseJuridique.engagements = Array.isArray(d.analyseJuridique.engagements) ? d.analyseJuridique.engagements : [];
+    d.analyseJuridique.documents = Array.isArray(d.analyseJuridique.documents) ? d.analyseJuridique.documents : [];
+    const engAjoutes = (an.engagements || []).filter(x => cleAnalyse(x) && !d.analyseJuridique.engagements.some(y => cleAnalyse(y) === cleAnalyse(x)));
+    const docAjoutes = (an.documents || []).filter(x => cleAnalyse(x) && !d.analyseJuridique.documents.some(y => cleAnalyse(y) === cleAnalyse(x)));
+    if (engAjoutes.length) { d.analyseJuridique.engagements = d.analyseJuridique.engagements.concat(engAjoutes); textes.push(`${engAjoutes.length} engagement${engAjoutes.length > 1 ? 's' : ''} du vendeur`); }
+    if (docAjoutes.length) d.analyseJuridique.documents = d.analyseJuridique.documents.concat(docAjoutes);
+    const piecesEng = (e.piecesEngagements || []).filter(c => c && !(d.piecesEngagementsDetectees || []).includes(c));
+    if (piecesEng.length) d.piecesEngagementsDetectees = (d.piecesEngagementsDetectees || []).concat(piecesEng);
+    // Ce que seule la lecture de l'acte sait, gardé quand la fiche n'en a pas (Authentic reste prioritaire).
+    const inst = e.instantane || null;
+    if (inst) {
+      if (!(Array.isArray(d.parties) && d.parties.length) && (inst.parties || []).length) { d.parties = inst.parties; textes.push('parties'); }
+      if ((!d.typeActe || d.typeActe.valeur === 'INCONNU') && inst.typeActe && inst.typeActe.valeur !== 'INCONNU') d.typeActe = inst.typeActe;
+      if (!d.notaires && inst.notaires) d.notaires = inst.notaires;
+      if (!d.bien && inst.bien) d.bien = inst.bien;
+      if (!d.extraction && inst.extraction) d.extraction = inst.extraction;
+      if (!d.honoraires && inst.honoraires) { d.honoraires = inst.honoraires; textes.push('honoraires de négociation'); }
+      if (!d.fondsTravaux && inst.fondsTravaux) { d.fondsTravaux = inst.fondsTravaux; textes.push('fonds de travaux'); }
+    }
+    const detectes = (e.notairesDetectes || []).filter(n => n && n.nom && !(d.notairesDetectes || []).some(x => x && x.nom === n.nom));
+    if (detectes.length) d.notairesDetectes = (d.notairesDetectes || []).concat(detectes);
+    const tel = e.telephones || {};
+    if (tel.acquereur) { const f = fusionnerTelephonesTexte(d.telephoneAcquereur, [tel.acquereur]); if (f !== (d.telephoneAcquereur || '')) { d.telephoneAcquereur = f; textes.push('téléphone de l’acquéreur'); } }
+    if (tel.vendeur) { const f = fusionnerTelephonesTexte(d.telephoneVendeur, [tel.vendeur]); if (f !== (d.telephoneVendeur || '')) { d.telephoneVendeur = f; textes.push('téléphone du vendeur'); } }
+    if (!d.compromisNomFichier && e.compromisNomFichier) d.compromisNomFichier = e.compromisNomFichier;
+    if (!d.pdfNumPages && e.pdfNumPages) d.pdfNumPages = e.pdfNumPages;
+    return textes;
+  }
+
+  // Les valeurs que l'assistant a lues (et que l'étude a pu corriger dans le panneau), par clé du panneau.
+  function valeursLuesComplement() {
+    const val = (id) => { const el = document.getElementById(id); return el ? String(el.value || '').trim() : ''; };
+    const nombre = (id) => { const n = eurosDepuisSaisie(val(id)); return Number.isFinite(n) && n > 0 ? n : ''; };
+    return {
+      nom: val('f-nom'), typeVente: val('f-type-vente') || 'maison', signature: dateAvantContratWizard() || '',
+      pret: echeanceActive.pret ? val('f-pret') : '', acte: echeanceActive.acte ? val('f-acte') : '', ventebien: echeanceActive.ventebien ? val('f-ventebien') : '',
+      adresseBien: val('f-adresse-bien') ? normaliserAdresse(val('f-adresse-bien')) : '',
+      prixVente: nombre('f-prix-vente'), prixMobilier: nombre('f-prix-mobilier'),
+      emailAcquereur: val('f-email-acquereur'), emailVendeur: val('f-email-vendeur'), nomAgence: val('f-nom-agence'),
+      depotGarantie: nombre('f-depot-garantie'), sequestreDepot: val('f-sequestre-depot'),
+      notaireVendeur: completerNomNotaire(val('f-notaire-vendeur'), carnetConfreres), notaireAcquereur: completerNomNotaire(val('f-notaire-acquereur'), carnetConfreres),
+      coteInstrumentaire: ['vendeur', 'acquereur'].includes(val('f-cote-instrumentaire')) ? val('f-cote-instrumentaire') : '',
+      roleNotaire: val('f-role-notaire') || ''
+    };
+  }
+
+  // Tout ce que seul le compromis apporte, pris dans l'état de l'assistant.
+  function extrasComplementWizard() {
+    const confiance = {};
+    ['pret', 'acte', 'ventebien'].forEach(t => {
+      confiance[t] = !pageParType[t] ? 'manuel' : approxParType[t] ? 'estime' : ambiguiteParType[t] ? 'incertain' : 'auto';
+    });
+    const cotes = cotesNotairesPourDossier(extractionActuelle ? extractionActuelle.notaires : null);
+    const ch = (extractionActuelle && extractionActuelle.champs) || {};
+    return {
+      pages: Object.assign({}, pageParType), confiance,
+      autres: autresEnCours.filter(a => a.active && a.iso).map(a => ({ label: a.label.trim() || 'Autre échéance', date: a.iso, page: a.page || null })),
+      analyse: { documents: analyseJuridiqueActuelle.documents.slice(), engagements: analyseJuridiqueActuelle.engagements.slice() },
+      piecesEngagements: analyseJuridiqueActuelle.documents.map(doc => doc.cleChecklist).filter(Boolean),
+      instantane: instantaneExtraction(extractionActuelle),
+      notairesDetectes: cotes.detectes,
+      telephones: { acquereur: (ch.telephoneAcquereur && ch.telephoneAcquereur.valeur) || '', vendeur: (ch.telephoneVendeur && ch.telephoneVendeur.valeur) || '' },
+      compromisNomFichier: compromisNomFichierImporte || '', pdfNumPages: pdfDernierePageUtile,
+      sansPret: !echeanceActive.pret, reminderDays: getSelectedReminderDays()
+    };
+  }
+
+  function dossierComplementEnCours() {
+    return complementDossierId ? dossiers.find(x => x.id === complementDossierId) || null : null;
+  }
+
+  // Depuis la fiche : l'assistant s'ouvre en mode complément, sur l'étape Importer.
+  function demarrerComplementCompromis(id) {
+    const d = dossiers.find(x => x.id === id);
+    if (!d) return;
+    if (typeof fermerDossierDrawer === 'function') fermerDossierDrawer();
+    reinitialiserFormulaire();
+    complementDossierId = id;
+    choixComplement = {};
+    complementFichierNas = '';
+    modeImport = 'pdf';
+    majEnteteComplement();
+    definirOnglet('nouveau');
+    const panneau = document.getElementById('panel');
+    if (panneau) panneau.open = true;
+    renderChoixImport();
+    definirEtapeWizard(1);
+    renderComplementNas();
+  }
+
+  // Depuis « Nouveau dossier » : le compromis déjà lu complète le dossier existant au lieu d'en créer un second.
+  function basculerEnComplement(id) {
+    if (!dossiers.some(x => x.id === id)) return;
+    complementDossierId = id;
+    choixComplement = {};
+    majEnteteComplement();
+    renderChoixImport();
+    definirEtapeWizard(2);
+  }
+
+  function quitterComplement() {
+    reinitialiserFormulaire();
+  }
+
+  // En-tête de l'assistant, bouton final et bloc « Dossier à compléter » selon le mode.
+  function majEnteteComplement() {
+    const d = dossierComplementEnCours();
+    const panneau = document.getElementById('panel');
+    if (panneau) panneau.classList.toggle('wizard-complement', !!d);
+    const summary = panneau ? panneau.querySelector('summary') : null;
+    if (summary) summary.innerHTML = d ? `Compléter ${escapeHtml(libelleDossierAffiche(d))} avec le compromis` : 'Nouveau dossier <span class="plus">+</span>';
+    const bouton = document.getElementById('btn-ajouter-dossier');
+    if (bouton && !creationDossierEnCours) bouton.textContent = d ? 'Compléter le dossier' : 'Ajouter le dossier';
+    const entete = document.getElementById('complement-entete');
+    if (entete) {
+      entete.style.display = d ? '' : 'none';
+      if (d) entete.innerHTML = `<div class="complement-entete-ligne"><span class="dot-label dl-acte">${icone('file-text')}${escapeHtml(libelleDossierAffiche(d))}</span><span class="hint">Le compromis complète ce dossier : ce que la fiche porte déjà n’est jamais remplacé sans votre choix.</span><button type="button" class="lien-action" onclick="quitterComplement()">Quitter</button></div><div id="complement-nas"></div>`;
+    }
+  }
+
+  // Compromis déjà sur le NAS (dossier relié) : proposé à la lecture, jamais lu seul.
+  async function renderComplementNas() {
+    const d = dossierComplementEnCours();
+    const zone = document.getElementById('complement-nas');
+    if (!d || !zone) return;
+    if (!d.dossierLie || !d.nasDossier) { zone.innerHTML = ''; return; }
+    zone.innerHTML = `<p class="hint">${icone('spinner', null, true)} Recherche de l’avant-contrat dans le dossier du NAS…</p>`;
+    try {
+      const fichiers = await listerFichiersNas(d);
+      if (dossierComplementEnCours() !== d) return;
+      const choix = choisirAvantContratNas(fichiers, d.compromisNomFichier);
+      if (!choix.fichier) { zone.innerHTML = '<p class="hint">Aucun avant-contrat trouvé dans le dossier du NAS : déposez-le ci-dessous.</p>'; return; }
+      const chemin = cheminNasComplet(d, choix.fichier.chemin);
+      zone.innerHTML = `<ul class="ja-liste">${renderLigneAction({
+        titre: `Compromis trouvé sur le NAS : « ${choix.fichier.nom} »`,
+        sous: choix.methode === 'nom-exact' ? 'Le fichier mémorisé sur la fiche' : 'Vérifiez qu’il s’agit bien du bon avant-contrat',
+        categorie: 'acte',
+        bouton: { libelle: 'Lire', icone: icone('file-text'), onclick: `lireCompromisNasPourComplement('${escapeOnclickArg(chemin)}')` }
+      })}</ul>`;
+    } catch (e) {
+      zone.innerHTML = `<p class="hint">Dossier du NAS illisible (${escapeHtml(e.message)}) : déposez le compromis ci-dessous.</p>`;
+    }
+  }
+
+  async function lireCompromisNasPourComplement(cheminComplet) {
+    if (!dossierComplementEnCours()) return;
+    if (!window.pdfjsLib) { afficherToast('Lecture des PDF indisponible sur ce poste.', 'OK', null); return; }
+    try {
+      const r = await fetchAvecAuth('/api/nas/fichier?chemin=' + encodeURIComponent(cheminComplet));
+      if (!r.ok) throw new Error(`Lecture impossible (${r.status})`);
+      const buffer = await r.arrayBuffer();
+      const nom = String(cheminComplet).split(/[\\/]/).pop() || 'compromis.pdf';
+      complementFichierNas = cheminComplet;
+      exportAuthenticActuel = null;
+      await traiterFichierPdf({ name: nom, arrayBuffer: async () => buffer });
+      renderChoixImport();
+      definirEtapeWizard(2);
+    } catch (e) {
+      noterVerificationPoste('complement-compromis-nas', { ok: false, message: 'lecture du compromis du NAS impossible' });
+      afficherToast('Lecture du compromis impossible : ' + e.message, 'OK', null);
+    }
+  }
+
+  // Étape Vérifier : « Déjà sur la fiche » — pour chaque donnée que la fiche porte, ce que le compromis en dit.
+  function renderComparaisonComplement() {
+    const zone = document.getElementById('complement-comparaison');
+    if (!zone) return;
+    const d = dossierComplementEnCours();
+    if (!d || !dernierTexteTraite) { zone.style.display = 'none'; zone.innerHTML = ''; return; }
+    const comparaison = comparaisonComplement(valeursFicheComplement(d), valeursLuesComplement());
+    const nouvelles = comparaison.filter(x => x.etat === 'lu-seul');
+    const lignes = comparaison.filter(x => x.etat !== 'lu-seul');
+    const ligne = (x) => {
+      const corps = x.etat === 'different'
+        ? `<span class="complement-choix" role="radiogroup" aria-label="${escapeAttr(x.libelle)}">
+            <button type="button" class="complement-option${choixComplement[x.cle] === 'compromis' ? '' : ' actif'}" role="radio" aria-checked="${choixComplement[x.cle] !== 'compromis'}" onclick="choisirComplement('${x.cle}', 'fiche')"><span class="complement-option-source">Fiche</span>${escapeHtml(texteValeurComplement(x.cle, x.fiche))}</button>
+            <button type="button" class="complement-option${choixComplement[x.cle] === 'compromis' ? ' actif' : ''}" role="radio" aria-checked="${choixComplement[x.cle] === 'compromis'}" onclick="choisirComplement('${x.cle}', 'compromis')"><span class="complement-option-source">Compromis</span>${escapeHtml(texteValeurComplement(x.cle, x.lu))}</button>
+          </span>`
+        : x.etat === 'fusion'
+          ? `<span class="complement-valeur">${escapeHtml(fusionnerEmailsTexte(x.fiche, [x.lu]))}</span><span class="dot-label dl-neutre"><span class="dot"></span>Fiche + compromis</span>`
+          : x.etat === 'identique'
+            ? `<span class="complement-valeur">${escapeHtml(texteValeurComplement(x.cle, x.fiche))}</span><span class="dot-label dl-success">${icone('check')}Identique</span>`
+            : `<span class="complement-valeur">${escapeHtml(texteValeurComplement(x.cle, x.fiche))}</span><span class="dot-label dl-neutre"><span class="dot"></span>Fiche gardée, rien lu</span>`;
+      return `<div class="complement-ligne${x.etat === 'different' ? ' complement-differente' : ''}"><span class="complement-libelle">${escapeHtml(x.libelle)}</span>${corps}</div>`;
+    };
+    const differentes = lignes.filter(x => x.etat === 'different').length;
+    zone.style.display = '';
+    zone.innerHTML = `
+      <div class="section-eyebrow">Déjà sur la fiche ${infoBulle('Ce que la fiche porte déjà (Authentic ou saisie) face à ce que le compromis dit. Une différence se tranche ici — la fiche est gardée tant que vous ne choisissez pas le compromis. Les données que la fiche n’a pas encore viennent du compromis, à valider dans le panneau dessous.')}</div>
+      ${nouvelles.length ? `<p class="complement-nouvelles">${icone('check')} Viendront du compromis : ${escapeHtml(nouvelles.map(x => x.libelle.toLowerCase()).join(', '))}.</p>` : ''}
+      ${differentes ? `<p class="complement-alerte">${icone('alert-triangle')} ${differentes} donnée${differentes > 1 ? 's' : ''} diffère${differentes > 1 ? 'nt' : ''} entre la fiche et le compromis : choisissez.</p>` : ''}
+      ${lignes.length ? `<div class="complement-liste">${lignes.map(ligne).join('')}</div>` : ''}`;
+  }
+
+  function choisirComplement(cle, source) {
+    choixComplement[cle] = source === 'compromis' ? 'compromis' : 'fiche';
+    renderComparaisonComplement();
+  }
+
+  // Étape Valider en mode complément : ce qui sera ajouté ou changé sur la fiche (essai à blanc sur une copie).
+  function renderRecapComplement() {
+    const cible = document.getElementById('recap-wizard');
+    const d = dossierComplementEnCours();
+    if (!cible || !d) return;
+    if (!dernierTexteTraite) { cible.innerHTML = '<p class="recap-manque">Déposez d’abord le compromis (étape Importer).</p>'; return; }
+    const comparaison = comparaisonComplement(valeursFicheComplement(d), valeursLuesComplement());
+    const { resolu, changements } = resolutionComplement(comparaison, choixComplement);
+    const copie = JSON.parse(JSON.stringify(d));
+    const textes = appliquerComplementSurDossier(copie, resolu, extrasComplementWizard());
+    const autres = textes.filter(t => !changements.some(c => c.libelle.toLowerCase() === t));
+    const reste = etatRevision && extractionActuelle ? etatRevision.aValider : 0;
+    const etat = reste
+      ? `<div class="recap-etat"><span class="dot-label dl-pret"><span class="dot"></span>${reste} donnée${reste > 1 ? 's' : ''} pas encore validée${reste > 1 ? 's' : ''}</span><button type="button" class="lien-action" onclick="definirEtapeWizard(2)">Revenir à Vérifier</button></div>`
+      : '';
+    cible.innerHTML = `${etat}<p class="hint">${escapeHtml(libelleDossierAffiche(d))} — ce que le compromis « ${escapeHtml(compromisNomFichierImporte || 'déposé')} » apporte :</p>
+      <dl class="recap-liste">${changements.map(c =>
+        `<div class="recap-ligne"><dt>${escapeHtml(c.libelle)}</dt><dd>${c.avant ? `<span class="recap-avant">${escapeHtml(texteValeurComplement(c.cle, c.avant))}</span> → ` : ''}${escapeHtml(texteValeurComplement(c.cle, c.apres))}</dd></div>`).join('')}
+      ${autres.map(t => `<div class="recap-ligne"><dt>Ajouté</dt><dd>${escapeHtml(t)}</dd></div>`).join('')}
+      ${!changements.length && !autres.length ? '<div class="recap-ligne"><dt>Rien de nouveau</dt><dd class="recap-manque">Le compromis n’apporte rien que la fiche n’ait déjà.</dd></div>' : ''}</dl>`;
+  }
+
+  function validerWizard() {
+    if (complementDossierId) return completerDossierDepuisWizard();
+    return ajouterDossier();
+  }
+
+  async function completerDossierDepuisWizard() {
+    if (creationDossierEnCours) return;
+    const d = dossierComplementEnCours();
+    if (!d) { afficherErreurFormulaire('Le dossier à compléter n’existe plus.'); return; }
+    if (!dernierTexteTraite) { afficherErreurFormulaire('Déposez d’abord le compromis.'); return; }
+    masquerErreurFormulaire();
+    const avantDates = { pret: d.pret || '', ventebien: d.ventebien || '' };
+    const comparaison = comparaisonComplement(valeursFicheComplement(d), valeursLuesComplement());
+    const { resolu } = resolutionComplement(comparaison, choixComplement);
+    const textes = appliquerComplementSurDossier(d, resolu, extrasComplementWizard());
+    if (complementFichierNas) {
+      memoriserFichierTrouve(d, NAS_CLE_COMPROMIS, complementFichierNas);
+      noterVerificationPoste('complement-compromis-nas', { detail: 'compromis du NAS lu et dossier complété' });
+    }
+    ajouterHistorique(d, `Complété avec le compromis « ${compromisNomFichierImporte || 'déposé'} »${textes.length ? ' : ' + textes.join(', ') : ' — rien de nouveau'}`);
+    creationDossierEnCours = true;
+    const bouton = document.getElementById('btn-ajouter-dossier');
+    if (bouton) { bouton.disabled = true; bouton.textContent = 'Enregistrement…'; }
+    try {
+      await sauvegarder(d);
+    } finally {
+      creationDossierEnCours = false;
+      if (bouton) { bouton.disabled = false; bouton.textContent = 'Compléter le dossier'; }
+    }
+    // Les dates butoir nouvelles ou changées partent dans l'agenda, comme une saisie sur la fiche.
+    ['pret', 'ventebien'].forEach(t => {
+      if ((d[t] || '') !== avantDates[t]) Promise.resolve().then(() => synchroniserEcheanceAgenda(d, t, true)).catch(() => { /* agenda facultatif */ });
+    });
+    const id = d.id;
+    reinitialiserFormulaire();
+    document.getElementById('panel').open = false;
+    definirOnglet('suivi');
+    render();
+    ouvrirDossierDrawer(id);
+    afficherToast(`${libelleDossierAffiche(d)} complété avec le compromis${textes.length ? ` : ${textes.slice(0, 3).join(', ')}${textes.length > 3 ? '…' : ''}` : ''}.`, 'OK', null);
+  }
+
   async function ajouterDossier(doublonConfirme) {
     if (creationDossierEnCours) return;
+    // Mode complément (Ctrl+S, ancien bouton) : c'est le dossier visé qui est complété, rien n'est créé.
+    if (complementDossierId) return completerDossierDepuisWizard();
     const nom = document.getElementById('f-nom').value.trim();
     const typeVente = document.getElementById('f-type-vente').value;
     const roleNotaire = document.getElementById('f-role-notaire').value;
@@ -11230,7 +11646,15 @@
     masquerErreurFormulaire();
     const existant = doublonConfirme ? null : dossierDejaPresentPourCreation(nom, exportAuthenticActuel && exportAuthenticActuel.reference, dossiers);
     if (existant) {
-      demanderConfirmation(`Créer un second dossier ? « ${libelleDossierAffiche(existant)} » existe déjà dans CLAIRE${exportAuthenticActuel && referenceAuthenticValide(exportAuthenticActuel.reference) && existant.referenceAuthentic === exportAuthenticActuel.reference ? ' pour ce dossier Authentic' : ''}.`,
+      const pourAuthentic = exportAuthenticActuel && referenceAuthenticValide(exportAuthenticActuel.reference) && existant.referenceAuthentic === exportAuthenticActuel.reference ? ' pour ce dossier Authentic' : '';
+      // Un compromis lu pour un dossier déjà présent (créé depuis Authentic, par exemple) : il le complète
+      // (étude, 03/10) — « Créer quand même » reste possible.
+      if (dernierTexteTraite && !estSuccession(existant)) {
+        demanderConfirmation(`« ${libelleDossierAffiche(existant)} » existe déjà dans CLAIRE${pourAuthentic}. Compléter ce dossier avec le compromis lu ?`,
+          () => basculerEnComplement(existant.id), { bouton: 'Compléter le dossier', ton: 'valider', autre: { libelle: 'Créer quand même', action: () => ajouterDossier(true) } });
+        return;
+      }
+      demanderConfirmation(`Créer un second dossier ? « ${libelleDossierAffiche(existant)} » existe déjà dans CLAIRE${pourAuthentic}.`,
         () => ajouterDossier(true), { bouton: 'Créer quand même' });
       return;
     }
@@ -11507,6 +11931,14 @@
       ok.classList.toggle('btn-valider', ton === 'valider');
     }
     actionConfirmee = onConfirm;
+    // Troisième choix facultatif (« Créer quand même » à côté de « Compléter le dossier »).
+    const autre = document.getElementById('confirm-btn-autre');
+    if (autre) {
+      const choix = options && options.autre;
+      autre.style.display = choix ? '' : 'none';
+      autre.textContent = choix ? choix.libelle : '';
+      autre.onclick = choix ? () => { annulerConfirmation(); choix.action(); } : null;
+    }
     document.getElementById('confirm-overlay').style.display = 'flex';
   }
 
@@ -15520,8 +15952,9 @@
       placerNotaireAuthenticParDefaut();
       majApercuPieces();
       if (extractionActuelle) renderPanneauRevision(extractionActuelle);
+      renderComparaisonComplement();
     }
-    if (n === 3) renderRecapWizard();
+    if (n === 3) { if (complementDossierId) renderRecapComplement(); else renderRecapWizard(); }
     const wrap = document.querySelector('.wrap');
     if (wrap) wrap.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
@@ -16822,7 +17255,11 @@
     const libelleCompromis = d.compromisNomFichier
       ? d.compromisNomFichier
       : (nomCompromisTrouve || (d.dossierLie ? 'Recherché dans le dossier NAS à l’ouverture' : 'Aucun fichier mémorisé'));
-    const avantContrat = `<span class="prop-texte${compromisConnu ? '' : ' vide'}" title="${escapeAttr(cheminCompromisTrouve || d.compromisNomFichier || '')}">${escapeHtml(libelleCompromis)}</span>${boutonOuvrirCompromis}`;
+    // Compromis jamais lu par CLAIRE (dossier créé depuis Authentic ou à la main) : « Compléter » relit le
+    // compromis — déposé, ou trouvé sur le NAS — pour les échéances, engagements, prix… (étude, 03/10).
+    const boutonCompleter = !d.compromisNomFichier && !d.archive && !estSuccession(d)
+      ? `<button type="button" class="action-rapide" onclick="demarrerComplementCompromis('${d.id}')" title="Lire le compromis pour compléter la fiche : échéances, engagements du vendeur, prix, notaires…">${icone('file-text')} Compléter</button>` : '';
+    const avantContrat = `<span class="prop-texte${compromisConnu ? '' : ' vide'}" title="${escapeAttr(cheminCompromisTrouve || d.compromisNomFichier || '')}">${escapeHtml(libelleCompromis)}</span>${boutonOuvrirCompromis}${boutonCompleter}`;
 
     // Groupe 2 — le bien et son financement.
     const offre = statutOffreAffichage(d);
@@ -28525,6 +28962,8 @@
 
   function renderChoixImport() {
     const choix = document.getElementById('import-choix');
+    // Mode complément : une seule entrée, le compromis (les dossiers d'Authentic n'ont rien à y faire).
+    if (choix) choix.style.display = complementDossierId ? 'none' : '';
     if (choix) {
       choix.innerHTML = MODES_IMPORT.map(m => `<button type="button" class="import-choix-carte${m.cle === modeImport ? ' actif' : ''}" role="radio" aria-checked="${m.cle === modeImport}" onclick="choisirModeImport('${m.cle}')">
           <span class="import-choix-icone" aria-hidden="true">${icone(m.icone)}</span>
@@ -28542,8 +28981,9 @@
     }[modeImport] || ['', '', 'application/pdf'];
     void avecAuthentic;
     const compromisLu = modeImport === 'pdf' && !!dernierTexteTraite;
-    if (libelle) libelle.textContent = compromisLu ? 'Compromis lu' : textes[0];
-    if (indice) indice.textContent = compromisLu ? 'Déposez un autre PDF pour le remplacer' : textes[1];
+    const dComplement = dossierComplementEnCours();
+    if (libelle) libelle.textContent = compromisLu ? 'Compromis lu' : (dComplement ? `Importer le compromis de ${libelleDossierAffiche(dComplement)}` : textes[0]);
+    if (indice) indice.textContent = compromisLu ? 'Déposez un autre PDF pour le remplacer' : (dComplement ? 'PDF du compromis signé — ou glissez-déposez le fichier ici' : textes[1]);
     if (input) input.setAttribute('accept', textes[2]);
     // Sans compromis : pas de zone de dépôt, seulement les dossiers ouverts dans Authentic.
     const boite = document.getElementById('import-boite');
@@ -28558,7 +28998,7 @@
   function majBoutonSuivantEtape1() {
     const bouton = document.getElementById('wizard-suivant-1');
     if (!bouton) return;
-    bouton.textContent = modeImport === 'pdf' && dernierTexteTraite && !exportAuthenticActuel
+    bouton.textContent = modeImport === 'pdf' && dernierTexteTraite && !exportAuthenticActuel && !complementDossierId
       ? 'Continuer sans Authentic →' : 'Suivant : Vérifier →';
   }
 
@@ -28573,6 +29013,7 @@
   function renderRelevesAuthenticWizard() {
     const bloc = document.getElementById('authentic-releves');
     if (!bloc) return;
+    if (complementDossierId) { bloc.style.display = 'none'; bloc.innerHTML = ''; return; }
     const avecPdf = !!dernierTexteTraite;
     const repris = exportAuthenticActuel && exportAuthenticActuel.origine === 'pages' ? exportAuthenticActuel.intitule : '';
     // Après le compromis : Authentic proposé en complément (même sans dossier ouvert : le dire) ;
@@ -41696,8 +42137,10 @@
   // par session.
   var verificationsNoteesPoste = {};
   function noterVerificationPoste(id, observation) {
-    if (verificationsNoteesPoste[id]) return;
-    verificationsNoteesPoste[id] = true;
+    // Un échec puis une réussite du même point dans la même fenêtre sont notés tous les deux.
+    const cle = id + (observation && observation.ok === false ? ':echec' : '');
+    if (verificationsNoteesPoste[cle]) return;
+    verificationsNoteesPoste[cle] = true;
     try {
       fetchAvecAuth('/api/verifications-terrain/noter', {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, ...(observation || {}) })

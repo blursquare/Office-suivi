@@ -15836,3 +15836,36 @@ ni pièces, ni contrôle « ancien dossier »), garde le dossier en consultation
 promesse : seul le sous-dossier de vente est lu ». Vérifié dans Chromium (page Promesse « Signé le » → rien ; page Vente →
 signé et pièce reprise). Création d'un dossier CLAIRE depuis Authentic : discutée, pas construite (attend le choix A
 bandeau / B automatique et le texte exact des badges vert et rouge).
+
+### 03/10/2026 17:50 — « Compléter avec le compromis » : mode complément de « Nouveau dossier »
+
+Étude (« comment ensuite traiter la lecture du compromis pour le reste des données ? », puis « go ») : un dossier créé depuis
+Authentic (parties, bien, référence, pièces) ou à la main doit pouvoir être COMPLÉTÉ par la lecture de son compromis, sans
+rien perdre ni rien écraser en silence. Construit comme un mode du wizard « Nouveau dossier » (`complementDossierId`,
+`choixComplement`, `complementFichierNas` ; bloc juste avant `ajouterDossier`) :
+- **Trois entrées** : fiche › ligne « Avant-contrat » › « Compléter » (`demarrerComplementCompromis`, dossier sans
+  `compromisNomFichier`, non archivé, pas une succession) ; le compromis trouvé sur le NAS proposé à l'étape 1
+  (`renderComplementNas` → `choisirAvantContratNas`, bouton « Lire » : `lireCompromisNasPourComplement`,
+  `GET /api/nas/fichier` puis `traiterFichierPdf` — jamais lu seul) ou un dépôt ; et le doublon de « Nouveau dossier »
+  (`ajouterDossier` : compromis lu d'un dossier déjà présent, non succession) → `demanderConfirmation` à deux boutons
+  (`options.autre`, `#confirm-btn-autre`) « Compléter le dossier » (`basculerEnComplement`, étape 2) / « Créer quand même ».
+- **Étape Vérifier, bloc « Déjà sur la fiche »** (`renderComparaisonComplement`, `#complement-comparaison`) :
+  `comparaisonComplement(valeursFicheComplement(d), valeursLuesComplement())` sur `CLES_COMPLEMENT` (nom, type, signature,
+  prêt, acte, vente préalable, adresse, prix, mobilier, emails, agence, dépôt, séquestre, notaires, côté, rôle) → identique /
+  différente / fiche seule / lu seul / fusion (emails, `CLES_COMPLEMENT_FUSION`) ; `memeValeurComplement` compare montants en
+  nombre, adresse normalisée, emails en ensemble, texte par `normaliserPourRecherche`. Une ligne différente offre « Fiche » /
+  « Compromis » (`choisirComplement`) ; **la fiche gagne par défaut** (`resolutionComplement`), les emails s'ajoutent.
+- **Application** (`appliquerComplementSurDossier(d, resolu, extras)`, pure, rend les textes pour l'historique) : valeurs
+  résolues, pages et confiance des dates, `sansPret` (seulement si la fiche n'a pas de date de prêt), rappels, dates repérées
+  (`autres`, sans doublon), analyse juridique (engagements/documents, sans doublon), `piecesEngagementsDetectees`, instantané
+  (typeActe, notaires, bien, extraction, honoraires, fonds de travaux) **seulement là où la fiche est vide** — parties et
+  bien d'Authentic gardés —, notaires détectés, téléphones manquants, `compromisNomFichier`, `pdfNumPages`, `dateAvantContrat`
+  si vide. Jamais une valeur de la fiche remplacée sans choix.
+- **Étape Valider** : récapitulatif avant → après (`renderRecapComplement`, essai à blanc sur une copie) ; « Compléter le
+  dossier » (`validerWizard` → `completerDossierDepuisWizard`) : `memoriserFichierTrouve(NAS_CLE_COMPROMIS)` si lu sur le
+  NAS, historique « Complété avec le compromis « X » : … », sauvegarde, `synchroniserEcheanceAgenda` prêt / vente préalable
+  si changés, retour au Suivi sur la fiche. `reinitialiserFormulaire` sort du mode (`majEnteteComplement`).
+- Tests `tests/complement-compromis.test.js` (comparaison, résolution, application idempotente, sans prêt, textes) ; parcours
+  vérifié dans Chromium (fiche → étape 1 → texte simulé → « Déjà sur la fiche » → choix prix → récap → dossier complété ;
+  doublon → « Compléter le dossier » → étape 2 ; clair, sombre, téléphone). **Non vérifié ici** : la lecture d'un vrai PDF
+  (pdf.js indisponible) et du NAS — point `complement-compromis-nas` des vérifications sur le terrain.

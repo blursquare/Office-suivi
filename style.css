@@ -8232,6 +8232,35 @@ button.w-jour-lien { border: none; background: none; padding: 0; cursor: pointer
 
 /* Ce qui a nourri le dossier en cours de création (étapes Vérifier et Finaliser). */
 .sources-import { display: flex; flex-direction: column; gap: 4px; margin: 0 0 12px; font-size: 13px; }
+/* Mode complément de « Nouveau dossier » (03/10) : le compromis complète un dossier existant. */
+.complement-entete { margin: 0 0 14px; }
+.complement-entete-ligne { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-bottom: 8px; }
+.complement-entete-ligne .hint { flex: 1; min-width: 200px; }
+.complement-comparaison { margin: 0 0 14px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--paper-card); }
+.complement-nouvelles, .complement-alerte { display: flex; align-items: flex-start; gap: 6px; margin: 8px 0 0; font-size: 13px; color: var(--ink-soft); }
+.complement-nouvelles .icone { color: var(--success); flex: none; margin-top: 2px; }
+.complement-alerte .icone { color: var(--pret); flex: none; margin-top: 2px; }
+.complement-liste { display: flex; flex-direction: column; margin-top: 8px; }
+.complement-ligne { display: grid; grid-template-columns: 170px minmax(0, 1fr); gap: 6px 12px; align-items: center; padding: 7px 0; border-top: 1px solid var(--line-soft); font-size: 13px; }
+.complement-ligne > * { min-width: 0; }
+.complement-ligne:first-child { border-top: 0; }
+.complement-libelle { color: var(--muted); }
+.complement-valeur { color: var(--ink); overflow-wrap: anywhere; }
+.complement-ligne .dot-label { margin-left: 8px; }
+.complement-choix { display: flex; flex-wrap: wrap; gap: 6px; }
+button.complement-option {
+  display: inline-flex; flex-direction: column; align-items: flex-start; gap: 1px; margin: 0; padding: 6px 10px;
+  border: 1px solid var(--line); border-radius: 9px; background: var(--paper-sunk); color: var(--ink);
+  font: inherit; font-size: 13px; text-align: left; cursor: pointer;
+}
+button.complement-option:hover { border-color: var(--focus); }
+button.complement-option:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+button.complement-option.actif { border-color: var(--focus); background: color-mix(in srgb, var(--focus) 12%, var(--paper-card)); font-weight: 600; }
+.complement-option-source { font-size: 10.5px; font-weight: 650; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+button.complement-option.actif .complement-option-source { color: var(--focus); }
+.recap-avant { color: var(--muted); text-decoration: line-through; }
+@media (max-width: 600px) { .complement-ligne { grid-template-columns: minmax(0, 1fr); } }
+
 .sources-import:empty { display: none; }
 .sources-import-ligne { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; }
 .sources-import .dot-label { white-space: normal; }

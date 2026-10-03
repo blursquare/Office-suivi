@@ -20,6 +20,8 @@ const CLE_VERIFICATIONS = 'verifications-terrain';
 // `source` : 'serveur' (noté par le serveur), 'poste' (noté par une fenêtre CLAIRE, POST
 // /api/verifications-terrain/noter — seuls ces points-là y sont acceptés) ou 'manuel'.
 const VERIFICATIONS_TERRAIN = [
+  { id: 'complement-compromis-nas', depuis: '2026-10-03 17:50', source: 'poste', titre: 'Compléter un dossier avec le compromis : compromis lu depuis le NAS et appliqué sur la fiche',
+    comment: 'Coché la première fois qu’un compromis proposé depuis le NAS (fiche › « Compléter ») est lu par le poste et que le dossier est complété ; en échec si la lecture du fichier échoue.' },
   { id: 'nas-noms-parcours', depuis: '2026-10-03 08:13', source: 'serveur', titre: 'Noms de fichiers du NAS : dossier commun parcouru en entier',
     comment: 'Coché quand le parcours de tous les dossiers clients du commun se termine (détail : nombre de dossiers et de PDF).' },
   { id: 'formes-noms-reconnaissance', depuis: '2026-10-03 08:13', source: 'poste', titre: 'Une forme de nom validée dans l’outil a reconnu une pièce d’un dossier',

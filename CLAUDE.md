@@ -321,6 +321,14 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
   `placerNotaireAuthenticParDefaut`) ; sinon placés d'un clic (vendeur, acquéreur, les deux), « Notaire qui reçoit l'acte » (`f-cote-instrumentaire`), rôle de l'étude déduit
   (`roleEtudeDeduitWizard`). **Un notaire de l'acte cité sans son côté reste vide (jamais deviné) mais n'est plus caché** : fiche
   « Lus, à placer » (`notairesNonPlacesDossier`, `placerNotaireFiche`) au lieu d'une ligne repliée.
+  **Compléter un dossier avec le compromis** (étude 03/10 : Authentic crée le dossier, le compromis le complète — mode
+  complément du même wizard, `complementDossierId`) : fiche › « Avant-contrat » › « Compléter » (dossier sans compromis lu,
+  non archivé, pas une succession ; compromis du NAS proposé, « Lire » = `lireCompromisNasPourComplement`, jamais lu seul) ou
+  doublon de « Nouveau dossier » → « Compléter le dossier » / « Créer quand même » (`demanderConfirmation` avec
+  `options.autre`). Vérifier = bloc « Déjà sur la fiche » (`comparaisonComplement`, `resolutionComplement`) : **la fiche gagne
+  toujours sauf choix « Compromis » sur la ligne**, emails fusionnés, vides remplis ; `appliquerComplementSurDossier` ne touche
+  ni aux parties ni au bien déjà posés ; Valider = récap avant → après, « Compléter le dossier » (`completerDossierDepuisWizard`,
+  historique « Complété avec le compromis »). Point terrain `complement-compromis-nas`.
 - **Données d'un dossier Authentic** (format commun `{ intitule, personnes, immeubles, parties, documents,
   infosAuthentic }`, construit depuis les pages relevées par `dossiersDepuisRelevesAuthentic`) : parties par
   l'intitulé « VTE VENDEUR / ACQUÉREUR » (une personne absente de l'intitulé n'est pas partie) ; les données
