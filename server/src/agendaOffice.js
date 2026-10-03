@@ -529,6 +529,61 @@ function compterRendezVousPeriode(evenements, debut, fin) {
   return { rendezVous, signatures };
 }
 
+// Actes de l'année d'après l'agenda partagé (étude, 03/10 : « le nombre de ventes, de successions
+// (identifiées par SUCC) et de donations (commence par DONATION) pour l'année en cours par rapport à
+// l'année précédente »). Nature lue dans le TITRE seulement : DONATION en tête → donation ; sinon une
+// référence de vente (« VTE … », « VENTE … », voir extraireReferenceVte) → vente ; sinon le mot SUCC
+// (« SUCC », « Succ. », « SUCCESSION », jamais « succès ») → succession. Comptés comme les signatures :
+// rendez-vous horaire confirmé (aucun « ? »), ni journée entière (notes, dates butoir), ni annulé,
+// ni option de sondage, ni marqué « annulé / à replacer » (catégorie réglée) ; un même titre au même
+// jour et à la même heure n'est compté qu'une fois. Pures.
+const RE_DONATION_AGENDA = /^\s*DONATION/i;
+const RE_SUCCESSION_AGENDA = /(?<![A-Za-zÀ-ɏ])SUCC(?:ESSIONS?)?(?![A-Za-zÀ-ɏ])/i;
+function natureActeAgenda(sujet) {
+  const titre = String(sujet || '');
+  if (RE_DONATION_AGENDA.test(titre)) return 'donation';
+  if (extraireReferenceVte(titre)) return 'vente';
+  if (RE_SUCCESSION_AGENDA.test(titre)) return 'succession';
+  return null;
+}
+function normaliserCategorieActe(t) {
+  return String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+}
+function compterActesAgendaPeriode(evenements, debut, fin, categorieAnnule) {
+  const compte = { ventes: 0, successions: 0, donations: 0 };
+  const annule = normaliserCategorieActe(categorieAnnule);
+  const vus = new Set();
+  for (const e of evenements || []) {
+    if (!e || e.annule || e.journeeEntiere || !e.heure || !e.date || e.date < debut || e.date > fin) continue;
+    if (e.option || RE_OPTION_SONDAGE.test(String(e.sujet || ''))) continue;
+    if (!estRendezVousSignature(e)) continue;
+    if (annule && (e.categories || []).some((c) => normaliserCategorieActe(c) === annule)) continue;
+    const nature = natureActeAgenda(e.sujet);
+    if (!nature) continue;
+    const cle = `${e.date}|${e.heure}|${normaliserNomRapprochement(String(e.sujet || ''))}`;
+    if (vus.has(cle)) continue;
+    vus.add(cle);
+    compte[nature === 'vente' ? 'ventes' : nature === 'succession' ? 'successions' : 'donations']++;
+  }
+  return compte;
+}
+
+// Périodes de la comparaison pour `aujourdHui` (AAAA-MM-JJ) : l'année en cours jusqu'à ce jour, la
+// même période l'an dernier (un 29 février devient le 28) et toute l'année précédente. Pure.
+function periodesActesAnnee(aujourdHui) {
+  const annee = Number(String(aujourdHui).slice(0, 4));
+  const precedente = annee - 1;
+  let memeJour = `${precedente}${String(aujourdHui).slice(4, 10)}`;
+  if (memeJour.slice(5) === '02-29' && new Date(Date.UTC(precedente, 1, 29)).getUTCMonth() !== 1) memeJour = `${precedente}-02-28`;
+  return {
+    annee, precedente,
+    actuel: { debut: `${annee}-01-01`, fin: aujourdHui },
+    aVenir: { debut: decalerJours(aujourdHui, 1), fin: `${annee}-12-31` },
+    memePeriode: { debut: `${precedente}-01-01`, fin: memeJour },
+    anneePrecedente: { debut: `${precedente}-01-01`, fin: `${precedente}-12-31` }
+  };
+}
+
 // Le lundi de la même semaine l'an dernier : 52 semaines plus tôt (364 jours), même jour de semaine.
 function lundiAnneePrecedente(lundi) {
   const d = new Date(lundi + 'T12:00:00Z');
@@ -612,7 +667,7 @@ module.exports = {
   momentParisDepuisIso, veilleDe, formatDateFr, evenementDepuisEws, evenementsDepuisEws,
   extraireReferenceVte, referenceDossierEvenement, detecteAppelDeFonds, detecteProjetEnvoye,
   detecterActionsEvenement, dossierPourReferenceAgenda, actionsDetecteesDepuisEvenements, motsVoisins,
-  estRendezVousSignature, composerLieuAgenda, compterRendezVousPeriode, dureeRendezVousMinutes, REGLE_COMPTAGE_RENDEZ_VOUS, lundiAnneePrecedente, decalerJours, ecartRendezVous, moisDePeriode, archiveAgendaARelire, evenementsAgendaOffice,
+  estRendezVousSignature, composerLieuAgenda, compterRendezVousPeriode, natureActeAgenda, compterActesAgendaPeriode, periodesActesAnnee, dureeRendezVousMinutes, REGLE_COMPTAGE_RENDEZ_VOUS, lundiAnneePrecedente, decalerJours, ecartRendezVous, moisDePeriode, archiveAgendaARelire, evenementsAgendaOffice,
   absencesDepuisEvenements, estEvenementJourneeEntiere, collaborateursDansTexte, COLLABORATEURS_ABSENCE,
   categoriesDistinctes, agendaDuJourDepuisEvenements, lundiSemainePrecedente, evenementsAgendaOffice
 };

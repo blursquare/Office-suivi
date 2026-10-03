@@ -34,7 +34,7 @@ before(async () => {
   reinitialiserDisjoncteurAgenda();
   db = ouvrirDb(':memory:');
   reponsesEws = [];
-  const { app, gestionnaireAuth, depot: d } = creerApp({ db, config: config(), agenda: { poster: fauxPoster } });
+  const { app, gestionnaireAuth, depot: d } = creerApp({ db, config: config(), agenda: { poster: fauxPoster, pauseMs: 0 } });
   depot = d;
   parametresRepo = creerRepoParametres(db);
   jeton = gestionnaireAuth.creerSession();
@@ -201,4 +201,47 @@ test('GET /api/agenda/passe : un mois d’historique lu une fois dans Exchange, 
   const dansStock = await (await appeler('/api/agenda/passe?debut=2026-09-28&fin=2026-10-03')).json();
   assert.equal(dansStock.evenements.length, 0);
   assert.equal((await appeler('/api/agenda/passe?debut=2026-01-01&fin=2026-06-30')).status, 400, 'six mois d’un coup : refusé');
+});
+
+test('GET /api/agenda/actes-annee : ventes, successions et donations, année en cours vs précédente ; mois manquant lu en arrière-plan', async () => {
+  reinitialiserDisjoncteurAgenda();
+  parametresRepo.ecrireReglagesExchange({ actif: true, email: 'bastien@etude.test', motDePasse: 'mdp-secret', calendrierPartage: 'sophie@etude.test', categoriesRdv: { annule: 'Annulé / à replacer' } });
+  // Stock depuis le 28/09/2026 : une vente passée, une vente à venir, une option (jamais comptée).
+  parametresRepo.ecrireAgendaOffice({ debut: '2026-09-28', lu: new Date().toISOString(), evenements: [
+    { itemId: 'S1', sujet: 'VTE - DUPONT / MARTIN', date: '2026-09-30', heure: '10:00', heureFin: '11:00' },
+    { itemId: 'S2', sujet: 'VTE - LEROY / BERNARD', date: '2026-11-12', heure: '14:00', heureFin: '15:00' },
+    { itemId: 'S3', sujet: 'VTE - BLANC ? — option CLAIRE, créneau 1/2', date: '2026-10-01', heure: '09:30', option: true }
+  ] });
+  const maintenant = new Date().toISOString();
+  for (const m of [ ...Array(12).keys() ].map((i) => `2025-${String(i + 1).padStart(2, '0')}`).concat([ ...Array(9).keys() ].map((i) => `2026-${String(i + 1).padStart(2, '0')}`))) {
+    if (m === '2025-03') continue;   // jamais lu : à lire dans Exchange
+    parametresRepo.ecrireArchiveAgenda(m, { lu: maintenant, evenements: [] });
+  }
+  parametresRepo.ecrireArchiveAgenda('2025-06', { lu: maintenant, evenements: [
+    { itemId: 'A1', sujet: 'VTE - ROUX / NOEL', date: '2025-06-10', heure: '10:00', heureFin: '11:00' },
+    { itemId: 'A2', sujet: 'SUCC FAURE', date: '2025-06-11', heure: '10:00', heureFin: '11:00' }
+  ] });
+  parametresRepo.ecrireArchiveAgenda('2025-11', { lu: maintenant, evenements: [
+    { itemId: 'A3', sujet: 'DONATION GIRARD', date: '2025-11-20', heure: '16:00', heureFin: '17:00' }
+  ] });
+  parametresRepo.ecrireArchiveAgenda('2026-02', { lu: maintenant, evenements: [
+    { itemId: 'A4', sujet: 'SUCC MOREAU', date: '2026-02-03', heure: '09:00', heureFin: '10:00' },
+    { itemId: 'A5', sujet: 'DONATION PETIT', date: '2026-02-04', heure: '09:00', heureFin: '10:00', categories: ['Annulé / à replacer'] }
+  ] });
+  reponsesEws.length = 0;
+  reponsesEws.push({ statusCode: 200, body: findItem(itemEws('VTE - LAMBERT / SIMON', '2025-03-11T09:00:00Z', '2025-03-11T10:00:00Z')) });
+  const premier = await (await appeler('/api/agenda/actes-annee?jour=2026-10-03')).json();
+  assert.equal(premier.complet, false);
+  assert.equal(premier.moisManquants, 1);
+  assert.equal(`${premier.annee} ${premier.precedente} ${premier.memeJour}`, '2026 2025 2025-10-03');
+  assert.deepEqual(premier.actuel, { ventes: 1, successions: 1, donations: 0 });
+  assert.deepEqual(premier.aVenir, { ventes: 1, successions: 0, donations: 0 });
+  // Le mois manquant est lu en arrière-plan, puis gardé.
+  for (let i = 0; i < 50 && !parametresRepo.lireArchiveAgenda('2025-03'); i++) await new Promise((ok) => setTimeout(ok, 10));
+  const second = await (await appeler('/api/agenda/actes-annee?jour=2026-10-03')).json();
+  assert.equal(second.complet, true);
+  assert.equal(second.message, '');
+  assert.deepEqual(second.memePeriode, { ventes: 2, successions: 1, donations: 0 });
+  assert.deepEqual(second.anneePrecedente, { ventes: 2, successions: 1, donations: 1 });
+  assert.equal(reponsesEws.length, 0, 'une seule lecture Exchange');
 });

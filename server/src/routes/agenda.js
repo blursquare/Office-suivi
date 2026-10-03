@@ -9,8 +9,8 @@
 // (faux transport EWS) est réservé aux tests.
 
 const express = require('express');
-const { executerEtEnregistrerTourAgenda, connexionAgendaConfiguree, lectureAgendaSuspendue, signalerIdentifiantsRefuses } = require('../agendaWatch');
-const { evenementsDepuisEws, compterRendezVousPeriode, REGLE_COMPTAGE_RENDEZ_VOUS, lundiAnneePrecedente, decalerJours, ecartRendezVous, moisDePeriode, archiveAgendaARelire, evenementsAgendaOffice } = require('../agendaOffice');
+const { executerEtEnregistrerTourAgenda, connexionAgendaConfiguree, lectureAgendaSuspendue, signalerIdentifiantsRefuses, dateDuJourParis } = require('../agendaWatch');
+const { evenementsDepuisEws, compterRendezVousPeriode, REGLE_COMPTAGE_RENDEZ_VOUS, lundiAnneePrecedente, decalerJours, ecartRendezVous, moisDePeriode, archiveAgendaARelire, evenementsAgendaOffice, compterActesAgendaPeriode, periodesActesAnnee } = require('../agendaOffice');
 const { lireCalendrierExchange } = require('../exchange/ews');
 
 // Une semaine de l'an dernier relue au plus une fois tous les 7 jours (elle ne change presque plus).
@@ -66,6 +66,30 @@ function creerRouteurAgenda(parametresRepo, options) {
   // On ne lit donc que ce qu'on regarde : aucune lecture massive de toutes les années. 3 mois au plus
   // par appel (la vue Mois en couvre au plus 2).
   const lecturesArchive = new Map();
+  // Un mois lu dans Exchange (une tranche, un seul essai) puis gardé : { archive } ou { message }.
+  // Deux demandes du même mois en même temps partagent la même lecture.
+  async function lireMoisArchive(m, r) {
+    if (!lecturesArchive.has(m)) {
+      const [a, n] = m.split('-').map(Number);
+      const jours = new Date(Date.UTC(a, n, 0)).getUTCDate();
+      lecturesArchive.set(m, lireCalendrierExchange({
+        url: r.url, email: r.email, motDePasse: r.motDePasse, mailbox: r.calendrierPartage,
+        aujourdHui: `${m}-01`, tranches: 1, jours
+      }, injections).finally(() => lecturesArchive.delete(m)));
+    }
+    const lu = await lecturesArchive.get(m);
+    if (lu && lu.ok) {
+      const dossiersConnus = depot ? depot.tousActifs() : [];
+      return {
+        archive: parametresRepo.ecrireArchiveAgenda(m, {
+          lu: new Date().toISOString(),
+          evenements: evenementsAgendaOffice(evenementsDepuisEws(lu.evenements), dossiersConnus).filter((e) => e.date.slice(0, 7) === m)
+        })
+      };
+    }
+    if (lu && lu.raison === 'auth') signalerIdentifiantsRefuses(r);
+    return { message: (lu && lu.message) || "L'historique n'a pas pu être lu dans l'agenda." };
+  }
   routeur.get('/agenda/passe', async (req, res) => {
     const date = (v) => (/^\d{4}-\d{2}-\d{2}$/.test(String(v || '')) ? String(v) : '');
     const debut = date(req.query.debut);
@@ -86,25 +110,9 @@ function creerRouteurAgenda(parametresRepo, options) {
     for (const m of mois) {
       let archive = parametresRepo.lireArchiveAgenda(m);
       if (archiveAgendaARelire(archive, m, Date.now()) && lisible && !message) {
-        if (!lecturesArchive.has(m)) {
-          const [a, n] = m.split('-').map(Number);
-          const jours = new Date(Date.UTC(a, n, 0)).getUTCDate();
-          lecturesArchive.set(m, lireCalendrierExchange({
-            url: r.url, email: r.email, motDePasse: r.motDePasse, mailbox: r.calendrierPartage,
-            aujourdHui: `${m}-01`, tranches: 1, jours
-          }, injections).finally(() => lecturesArchive.delete(m)));
-        }
-        const lu = await lecturesArchive.get(m);
-        if (lu && lu.ok) {
-          const dossiersConnus = depot ? depot.tousActifs() : [];
-          archive = parametresRepo.ecrireArchiveAgenda(m, {
-            lu: new Date().toISOString(),
-            evenements: evenementsAgendaOffice(evenementsDepuisEws(lu.evenements), dossiersConnus).filter((e) => e.date.slice(0, 7) === m)
-          });
-        } else if (lu) {
-          if (lu.raison === 'auth') signalerIdentifiantsRefuses(r);
-          message = lu.message || "L'historique n'a pas pu être lu dans l'agenda.";
-        }
+        const lu = await lireMoisArchive(m, r);
+        if (lu.archive) archive = lu.archive;
+        else message = lu.message;
       }
       if (!archive && !lisible && !message) {
         message = !connexionAgendaConfiguree(r) ? "Connexion à l'agenda Outlook à configurer." : "Lecture de l'agenda suspendue après un refus des identifiants.";
@@ -164,6 +172,62 @@ function creerRouteurAgenda(parametresRepo, options) {
     res.json({
       lundi, lundiAnPasse, actuel, anPasse: anPasse ? { rendezVous: anPasse.rendezVous, signatures: anPasse.signatures } : null,
       ecart: ecart ? ecart.ecart : null, pourcent: ecart ? ecart.pourcent : null, message
+    });
+  });
+
+  // Actes de l'année d'après l'agenda partagé (étude, 03/10) : ventes, successions et donations de
+  // l'année en cours jusqu'à aujourd'hui, de la même période l'an dernier et de toute l'année
+  // précédente (voir compterActesAgendaPeriode). Avant le stock du tour de lecture, les mois viennent
+  // de l'historique gardé (mêmes clés que la page Agenda). Un mois jamais lu est lu EN ARRIÈRE-PLAN,
+  // un à la fois, un seul essai chacun (arrêt au premier échec, jamais pendant la suspension après un
+  // refus d'identifiants) : la réponse part tout de suite avec `complet: false` et le nombre de mois
+  // qui manquent — le poste redemande un peu plus tard. Un compte incomplet n'est jamais présenté
+  // comme définitif.
+  let remplissageActes = null;
+  let messageRemplissageActes = '';
+  function remplirMoisManquants(mois, r) {
+    if (remplissageActes) return;
+    remplissageActes = (async () => {
+      messageRemplissageActes = '';
+      for (const m of mois) {
+        const lu = await lireMoisArchive(m, r);
+        if (!lu.archive) { messageRemplissageActes = lu.message; break; }
+        await new Promise((ok) => setTimeout(ok, options && options.pauseMs !== undefined ? options.pauseMs : 1500));
+      }
+    })().catch(() => {}).finally(() => { remplissageActes = null; });
+  }
+  routeur.get('/agenda/actes-annee', (req, res) => {
+    const jour = /^\d{4}-\d{2}-\d{2}$/.test(String(req.query.jour || '')) ? String(req.query.jour) : dateDuJourParis();
+    const p = periodesActesAnnee(jour);
+    const agenda = typeof parametresRepo.lireAgendaOffice === 'function' ? parametresRepo.lireAgendaOffice() : null;
+    const limite = (agenda && agenda.debut) || '';
+    const r = typeof parametresRepo.lireReglagesExchange === 'function' ? parametresRepo.lireReglagesExchange() : {};
+    const categorieAnnule = r.categoriesRdv && r.categoriesRdv.annule;
+    const evenements = limite ? (agenda.evenements || []).filter((e) => e.date >= limite) : [];
+    const manquants = [];
+    const aRelire = [];
+    if (limite) {
+      for (const m of moisDePeriode(p.anneePrecedente.debut, decalerJours(limite, -1))) {
+        const archive = parametresRepo.lireArchiveAgenda(m);
+        if (!archive) { manquants.push(m); continue; }
+        if (archiveAgendaARelire(archive, m, Date.now())) aRelire.push(m);
+        for (const e of archive.evenements || []) if (e.date < limite) evenements.push(e);
+      }
+    }
+    const lisible = connexionAgendaConfiguree(r) && !lectureAgendaSuspendue(r);
+    if (lisible && (manquants.length || aRelire.length)) remplirMoisManquants(manquants.concat(aRelire), r);
+    const message = !limite ? "L'agenda n'a pas encore été lu par le serveur."
+      : !manquants.length ? ''
+        : !connexionAgendaConfiguree(r) ? "Connexion à l'agenda Outlook à configurer."
+          : lectureAgendaSuspendue(r) ? "Lecture de l'agenda suspendue après un refus des identifiants."
+            : messageRemplissageActes;
+    const compter = (periode) => compterActesAgendaPeriode(evenements, periode.debut, periode.fin, categorieAnnule);
+    res.json({
+      jour, annee: p.annee, precedente: p.precedente, memeJour: p.memePeriode.fin,
+      actuel: compter(p.actuel), aVenir: compter(p.aVenir),
+      memePeriode: compter(p.memePeriode), anneePrecedente: compter(p.anneePrecedente),
+      complet: !!limite && !manquants.length, moisManquants: manquants.length,
+      enCours: !!remplissageActes, message
     });
   });
 

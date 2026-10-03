@@ -8139,6 +8139,19 @@ button.w-jour-lien { border: none; background: none; padding: 0; cursor: pointer
    long) et dossiers ouverts par mois (ce mois, le précédent, le même mois l'an dernier). ---- */
 .w-carte.statistiques .st-duo { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 18px; align-items: start; }
 .w-carte.statistiques .st-duo > .st-section { border-top: 0; padding-top: 0; }
+/* Trois sections côte à côte quand la carte prend toute la ligne : délais, avant-contrats, actes à l'agenda. */
+.w-carte.statistiques .st-trio { grid-template-columns: minmax(0, 5fr) minmax(0, 4fr) minmax(0, 4fr); }
+/* Ce qui ne tient pas dans la carte défile plutôt que d'être coupé. */
+.w-carte.statistiques .w-corps { overflow-y: auto; }
+.w-carte.statistiques .w-corps > .st-duo + .st-section { margin-top: 8px; border-top: 1px solid var(--line-soft); padding-top: 8px; }
+.st-actes { width: 100%; border-collapse: collapse; font-size: 12.5px; font-variant-numeric: tabular-nums; }
+.st-actes th, .st-actes td { padding: 2px 4px; text-align: right; white-space: nowrap; }
+.st-actes thead th { font-size: 11px; font-weight: 500; color: var(--muted); }
+.st-actes tbody th { text-align: left; font-weight: 400; color: var(--ink-soft); overflow: hidden; text-overflow: ellipsis; padding-left: 0; }
+.st-actes-n { color: var(--ink-soft); }
+.st-actes-n b { color: var(--ink); font-size: 14px; font-weight: 650; }
+.st-actes-total { color: var(--muted); }
+.st-actes tbody tr + tr > * { border-top: 1px solid var(--line-soft); }
 .st-delais { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .st-delai { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "lib val" "barre barre"; column-gap: 8px; row-gap: 3px; font-size: 12.5px; }
 .w-moyen .st-delai, .w-grand .st-delai { grid-template-columns: minmax(0, 1fr) auto auto; grid-template-areas: "lib val n" "barre barre barre"; }
@@ -8160,7 +8173,7 @@ button.w-jour-lien { border: none; background: none; padding: 0; cursor: pointer
 .st-ecarts b { color: var(--ink); }
 .st-ecart { display: inline-flex; align-items: center; gap: 2px; color: var(--ink-soft); font-weight: 600; font-variant-numeric: tabular-nums; }
 @media (max-width: 700px) {
-  .w-carte.statistiques .st-duo { grid-template-columns: minmax(0, 1fr); }
+  .w-carte.statistiques .st-duo, .w-carte.statistiques .st-trio { grid-template-columns: minmax(0, 1fr); }
   .w-carte.statistiques .st-duo > .st-section + .st-section { border-top: 1px solid var(--line-soft); padding-top: 8px; }
   /* Sur une colonne, les deux sections dépassent une rangée : le corps défile plutôt que de couper. */
   .w-carte.statistiques .w-corps { overflow-y: auto; }

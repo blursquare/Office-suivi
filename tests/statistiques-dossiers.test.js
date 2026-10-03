@@ -58,3 +58,16 @@ test('comparaisonDossiersOuverts : ce mois, le précédent, le même mois l’an
   assert.equal(app.nomMoisStatistiques('2026-09', '2026'), 'septembre');
   assert.equal(app.nomMoisStatistiques('2025-10', '2026', true), 'oct. 25');
 });
+
+test('lignesActesAgenda : ventes, successions, donations et écart sur la même période', () => {
+  const lignes = app.lignesActesAgenda({
+    annee: 2026, precedente: 2025,
+    actuel: { ventes: 42, successions: 12, donations: 6 },
+    memePeriode: { ventes: 38, successions: 15, donations: 6 },
+    anneePrecedente: { ventes: 51, successions: 19, donations: 8 },
+    aVenir: { ventes: 9, successions: 0, donations: 1 }
+  });
+  assert.equal(lignes.map(l => `${l.libelle} ${l.actuel}/${l.memePeriode} (${l.ecart}) total ${l.anneePrecedente} +${l.aVenir}`).join(' | '),
+    'Ventes 42/38 (4) total 51 +9 | Successions 12/15 (-3) total 19 +0 | Donations 6/6 (0) total 8 +1');
+  assert.equal(app.lignesActesAgenda(null).length, 0);
+});

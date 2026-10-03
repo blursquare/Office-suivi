@@ -592,7 +592,10 @@ Plainte principale de l'étude : **le bruit**, pas les oublis — ne pas élargi
   historique), à la renonciation de préemption (`dateRenonciationPreemption` : `piecesTrouveesLe` puis historique) et
   à la signature passée — `statistiquesDelaisDossiers`, **tous les dossiers de l'étude, archivés compris, sans fenêtre de dates ni périmètre** (étude 02/10), moyenne/médiane/n ; avant-contrats signés ce mois / mois
   précédent / même mois N-1 (`comparaisonDossiersOuverts`, au mois de l'avant-contrat, « — » avant le premier dossier noté), sur le périmètre du tableau de
-  bord (mes dossiers / tous).
+  bord (mes dossiers / tous). **Actes à l'agenda** (étude 03/10) : ventes (titre VTE/VENTE), successions (SUCC) et donations (titre commençant par
+  DONATION) de l'agenda partagé, année en cours au jour vs même période N-1 et N-1 entière (`compterActesAgendaPeriode`,
+  `GET /api/agenda/actes-annee` : mois jamais lus lus en arrière-plan un à un, « … » tant que c'est incomplet ; rendez-vous
+  confirmés, ni annulés, ni « à replacer », ni options).
 - **CLAIRE en application sur les postes** (étude 02/10) : pas de PWA (Chrome n'installe qu'en HTTPS ou sur localhost,
   les postes ouvrent `http://<IP>`) ni de logiciel Windows (la page vient du serveur : rien à mettre à jour sur un poste).
   Réglages › Général › « Ce poste » (masqué sur localhost) télécharge `Installer-CLAIRE-sur-ce-poste.vbs`

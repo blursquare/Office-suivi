@@ -15564,3 +15564,32 @@ que c'est détecté ».
   `texteMiseAJourAuto` : jeton manquant, première vérification, heure et résultat de la dernière).
 Vérifié : tests (`server/test/mise-a-jour.test.js` : sans jeton, à jour, coupé, échec retenu 6 h, build plus récent installé
 puis redémarrage). Non vérifié : sur le vrai poste serveur (redémarrage en exécutable, reprise des fenêtres).
+
+### 03/10/2026 — Statistiques : ventes, successions et donations de l'année d'après l'agenda partagé
+
+Demande de l'étude : « Pour les statistiques rajouter en reprenant l'agenda partagé le nombre de vente et de succession
+(identifié par SUCC) et donation (commence par DONATION) pour l'année en cours par rapport à l'année précédente ».
+
+- Serveur, `agendaOffice.js` (pures) : `natureActeAgenda(sujet)` — DONATION en tête du titre → donation ; sinon référence
+  de vente (`extraireReferenceVte` : VTE n'importe où, VENTE en tête ou « VENTE - » en capitales) → vente (« VTE SUCC … »
+  reste une vente) ; sinon le mot SUCC (`SUCC`, `Succ.`, `SUCCESSION`, jamais « succès ») → succession.
+  `compterActesAgendaPeriode(evenements, debut, fin, categorieAnnule)` : comme les signatures — horaire, confirmé (aucun
+  « ? », `estRendezVousSignature`), ni journée entière, ni annulé, ni option de sondage, ni catégorie « annulé / à replacer »
+  réglée ; même titre au même jour et à la même heure compté une fois ; pas de durée minimale (contrairement à la
+  comparaison hebdomadaire). `periodesActesAnnee(jour)` : année en cours jusqu'au jour, à venir jusqu'au 31/12, même
+  période l'an dernier (29/02 → 28/02), toute l'année précédente.
+- Route `GET /api/agenda/actes-annee` (`routes/agenda.js`) : stock du tour de lecture depuis `agenda.debut`, avant lui
+  l'historique des mois (`agenda-archive:AAAA-MM`, mêmes clés que la page Agenda, lecture factorisée dans
+  `lireMoisArchive`). Un mois jamais lu est lu **en arrière-plan**, un à la fois, un seul essai chacun, arrêt au premier
+  échec, jamais pendant la suspension après refus d'identifiants (`remplirMoisManquants`, pause 1,5 s entre deux mois) ;
+  la réponse part tout de suite avec `complet`, `moisManquants`, `enCours`, `message`.
+- Poste : widget Statistiques, section « Actes à l'agenda » (`chargerActesAgendaAnnee` toutes les 10 min, relu 20 s plus
+  tard tant que l'historique est incomplet ; `lignesActesAgenda`, `renderActesAgendaStatistiques`) : tableau Ventes /
+  Successions / Donations × année en cours, année précédente au même jour, écart, année précédente entière ; « … » tant
+  que l'historique n'est pas complet (un compte partiel n'est jamais montré). Trois colonnes quand la carte prend toute la
+  ligne, sinon sous les deux autres sections (la carte défile) ; en petit, une ligne « N ventes en 2026 · écart ».
+Choix faits sans question : comparaison à date (même période) plutôt que l'année précédente entière seule (montrée aussi) ;
+rendez-vous comptés, pas dossiers (une succession peut avoir plusieurs rendez-vous « SUCC » dans l'année).
+Vérifié : tests serveur (`agenda-office.test.js`, `agenda-route.test.js` : mois manquant lu une fois en arrière-plan),
+client (`statistiques-dossiers.test.js`), rendu Chromium clair/sombre/téléphone avec un agenda inventé. Non vérifié :
+sur le vrai agenda (titres réels des successions et donations, volume de la première lecture de 21 mois).

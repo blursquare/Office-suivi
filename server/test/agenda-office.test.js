@@ -386,3 +386,47 @@ test('compterRendezVousPeriode : seuls les rendez-vous d’une heure ou plus com
   assert.equal(c.rendezVous, 2);
   assert.equal(c.signatures, 1);
 });
+
+// ---- Actes de l'année d'après l'agenda (étude, 03/10) ----
+const { natureActeAgenda, compterActesAgendaPeriode, periodesActesAnnee } = require('../src/agendaOffice');
+
+test('natureActeAgenda : DONATION en tête, puis référence de vente, puis SUCC', () => {
+  assert.equal(natureActeAgenda('DONATION MARTIN / MARTIN'), 'donation');
+  assert.equal(natureActeAgenda('Donation-partage DUPONT'), 'donation');
+  assert.equal(natureActeAgenda('VTE - DUPONT / MARTIN'), 'vente');
+  assert.equal(natureActeAgenda('VENTE LEROY / BERNARD'), 'vente');
+  assert.equal(natureActeAgenda('VTE SUCC DURAND / PETIT'), 'vente', 'la vente d’un bien de succession reste une vente');
+  assert.equal(natureActeAgenda('SUCC DURAND'), 'succession');
+  assert.equal(natureActeAgenda('Succ. MOREAU - attestation'), 'succession');
+  assert.equal(natureActeAgenda('SUCCESSION GIRARD'), 'succession');
+  assert.equal(natureActeAgenda('Point succès formation'), null);
+  assert.equal(natureActeAgenda('RDV banque pour donation'), null, 'DONATION seulement en tête du titre');
+  assert.equal(natureActeAgenda('Rendez-vous client'), null);
+});
+
+test('compterActesAgendaPeriode : rendez-vous horaires confirmés de la période, sans doublon', () => {
+  const evts = [
+    { sujet: 'VTE - DUPONT / MARTIN', date: '2026-02-10', heure: '10:00', heureFin: '11:00' },
+    { sujet: 'VTE - DUPONT / MARTIN', date: '2026-02-10', heure: '10:00', heureFin: '11:00' },   // doublon
+    { sujet: 'VTE - LEROY ??', date: '2026-03-02', heure: '14:00' },                              // pas confirmé
+    { sujet: 'VTE - BLANC ? — option CLAIRE, créneau 1/3', date: '2026-03-03', heure: '14:00', option: true },
+    { sujet: 'VTE - ROUX', date: '2026-03-04', heure: '15:00', categories: ['Annulé / à replacer'] },
+    { sujet: 'Date butoir prêt - VTE - NOEL', date: '2026-03-05', journeeEntiere: true },
+    { sujet: 'SUCC DURAND', date: '2026-04-01', heure: '09:30', heureFin: '10:00' },             // 30 min : compté quand même
+    { sujet: 'SUCC MOREAU', date: '2026-05-01', heure: '11:00', annule: true },
+    { sujet: 'DONATION GIRARD', date: '2026-06-01', heure: '16:00' },
+    { sujet: 'DONATION FAURE', date: '2025-12-31', heure: '16:00' },                             // hors période
+    { sujet: 'Rendez-vous client', date: '2026-06-02', heure: '10:00' }
+  ];
+  assert.deepEqual({ ...compterActesAgendaPeriode(evts, '2026-01-01', '2026-12-31', 'annule / a replacer') }, { ventes: 1, successions: 1, donations: 1 });
+  assert.equal(compterActesAgendaPeriode(evts, '2026-01-01', '2026-12-31', '').ventes, 2, 'sans catégorie réglée, le rendez-vous jaune compte');
+});
+
+test('periodesActesAnnee : année en cours au jour, même période et toute l’année précédente', () => {
+  const p = periodesActesAnnee('2026-10-03');
+  assert.equal(`${p.actuel.debut} ${p.actuel.fin}`, '2026-01-01 2026-10-03');
+  assert.equal(`${p.aVenir.debut} ${p.aVenir.fin}`, '2026-10-04 2026-12-31');
+  assert.equal(`${p.memePeriode.debut} ${p.memePeriode.fin}`, '2025-01-01 2025-10-03');
+  assert.equal(`${p.anneePrecedente.debut} ${p.anneePrecedente.fin}`, '2025-01-01 2025-12-31');
+  assert.equal(periodesActesAnnee('2028-02-29').memePeriode.fin, '2027-02-28');
+});

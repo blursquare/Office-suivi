@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-03 07:09';
+  const VERSION_APP = '2026-10-03 07:19';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-03 07:19', resume: "Statistiques : nouvelle section « Actes à l'agenda » — nombre de ventes (titre en VTE ou VENTE), de successions (SUCC) et de donations (titre commençant par DONATION) lues dans l'agenda partagé, pour l'année en cours jusqu'à aujourd'hui, comparées à la même période de l'an dernier et à toute l'année précédente. Rendez-vous confirmés seulement (sans « ? »), ni annulés, ni « à replacer », ni options d'un sondage. Au premier affichage, les mois passés encore jamais lus sont lus un à un dans l'agenda (« … » le temps de la lecture)." },
     { version: '2026-10-03 07:09', resume: "Mise à jour automatique : CLAIRE installe seule chaque nouvelle version, au démarrage du serveur et dès qu'elle est publiée (vérification toutes les 10 minutes) — sauvegarde de la base, puis quelques secondes de redémarrage, les fenêtres se rechargent seules. Réglages › Mise à jour et sauvegarde › « Installer automatiquement » (actif par défaut) pour la couper ; l'heure et le résultat de la dernière vérification y sont indiqués." },
     { version: '2026-10-02 23:50', resume: "Fenêtre du matin, partie droite : un onglet « Depuis hier 18 h » (vendredi 18 h un lundi) avec les documents reçus et cochés depuis, listés par dossier ; le nombre d'emails reçus, ceux écartés (SPF/SPFE, CRIDON, INFN, INAFON, publicités) étant comptés à part ; la liste des demandes par email rédigée par l'IA locale ; les autres nouveautés repliées. La boîte est lue dès 7 h 30 puis toutes les 30 minutes jusqu'à midi. Réglages › Agenda et Outlook : d'autres expéditeurs à écarter du résumé." },
     { version: '2026-10-02 23:35', resume: "Emails de la fiche allégés : une ligne par email comme dans une boîte de réception (correspondant, objet, résumé, pièces jointes, date), filtres Tous / Reçus / Envoyés, recherche, 8 emails puis « Voir plus ». Un seul « Confirmer la réception » en tête, pour le dernier envoi de documents. Le détail — texte entier, pièces jointes et où elles ont été rangées, confirmation — est dans la fenêtre de lecture. Échap ferme la fenêtre sans fermer la fiche." },
@@ -14814,6 +14815,84 @@
     return cle.slice(0, 4) === String(anneeRef) ? nom : `${nom} ${court ? cle.slice(2, 4) : cle.slice(0, 4)}`;
   }
 
+  // ---- Actes à l'agenda (étude, 03/10) : ventes, successions (SUCC) et donations (DONATION…) de
+  // l'année en cours vs l'année précédente, comptées par le serveur dans l'agenda partagé (GET
+  // /api/agenda/actes-annee, voir compterActesAgendaPeriode). Relu toutes les 10 minutes ; tant que
+  // l'historique n'est pas complet (mois lus un à un dans Exchange), relu 20 s plus tard.
+  var actesAgendaAnnee = { donnees: null, t: 0, enCours: false };
+  var minuterieActesAgenda = null;
+  async function chargerActesAgendaAnnee(forcer) {
+    if (!authToken || actesAgendaAnnee.enCours) return;
+    if (!forcer && actesAgendaAnnee.t && Date.now() - actesAgendaAnnee.t < 10 * 60 * 1000) return;
+    actesAgendaAnnee.enCours = true;
+    try {
+      const r = await fetchAvecAuth('/api/agenda/actes-annee');
+      const corps = await r.json();
+      if (r.ok) actesAgendaAnnee.donnees = corps;
+    } catch (e) { /* la carte garde ce qu'elle avait */ }
+    actesAgendaAnnee.enCours = false;
+    actesAgendaAnnee.t = Date.now();
+    const d = actesAgendaAnnee.donnees;
+    clearTimeout(minuterieActesAgenda);
+    if (d && !d.complet && (d.enCours || !d.message)) minuterieActesAgenda = setTimeout(() => chargerActesAgendaAnnee(true), 20000);
+    if (ongletActuel === 'dashboard') renderStatistiquesDashboard(dossiersDuPerimetre(dossiers, utilisateurPoste, vueGlobaleDashboard()));
+  }
+
+  // Pure : une ligne par nature d'acte, écart de l'année en cours sur la même période l'an dernier.
+  function lignesActesAgenda(donnees) {
+    if (!donnees || !donnees.actuel) return [];
+    return [['ventes', 'Ventes'], ['successions', 'Successions'], ['donations', 'Donations']].map(([cle, libelle]) => {
+      const actuel = Number(donnees.actuel[cle]) || 0;
+      const memePeriode = Number((donnees.memePeriode || {})[cle]) || 0;
+      return {
+        cle, libelle, actuel, memePeriode,
+        anneePrecedente: Number((donnees.anneePrecedente || {})[cle]) || 0,
+        aVenir: Number((donnees.aVenir || {})[cle]) || 0,
+        ecart: actuel - memePeriode
+      };
+    });
+  }
+
+  function renderActesAgendaStatistiques(presentation) {
+    const d = actesAgendaAnnee.donnees;
+    if (!d) {
+      chargerActesAgendaAnnee();
+      return { section: `<div class="w-section st-section"><h3 class="jour-carte-sous-titre">Actes à l’agenda</h3><p class="jour-vide">Lecture de l’agenda…</p></div>`, ligne: '' };
+    }
+    chargerActesAgendaAnnee();
+    const lignes = lignesActesAgenda(d);
+    const sur = (n) => (d.complet ? String(n) : '…');
+    const memeJour = /^\d{4}-\d{2}-\d{2}$/.test(d.memeJour || '') ? `${d.memeJour.slice(8, 10)}/${d.memeJour.slice(5, 7)}` : '';
+    const note = d.complet ? ''
+      : d.message ? escapeHtml(d.message)
+        : `Lecture de l’historique dans l’agenda (${d.moisManquants} mois restant${d.moisManquants > 1 ? 's' : ''})…`;
+    const ecart = (l) => {
+      if (!d.complet) return '<span class="st-ecart">…</span>';
+      const t = formaterTendance(l.ecart);
+      return `<span class="st-ecart">${t.icone}${t.texte}</span>`;
+    };
+    const grand = presentation !== 'petit';
+    const aide = `Rendez-vous de l’agenda partagé dont le titre commence par VTE ou VENTE (ventes), contient SUCC (successions) ou commence par DONATION (donations) : horaires, confirmés (sans « ? »), ni annulés ni « à replacer », ni options d’un sondage. ${d.annee} : du 1er janvier à aujourd’hui ; ${d.precedente} à date : du 1er janvier au ${memeJour}.`;
+    const ligne = (l) => `<tr title="${escapeAttr(`${l.libelle} : ${l.actuel} en ${d.annee} à ce jour${l.aVenir ? `, ${l.aVenir} déjà placée${l.aVenir > 1 ? 's' : ''} d’ici le 31/12` : ''} · ${l.anneePrecedente} sur toute l’année ${d.precedente}`)}">
+        <th scope="row">${escapeHtml(l.libelle)}</th>
+        <td class="st-actes-n"><b>${sur(l.actuel)}</b></td>
+        <td class="st-actes-n">${sur(l.memePeriode)}</td>
+        <td class="st-actes-n">${ecart(l)}</td>
+        ${grand ? `<td class="st-actes-n st-actes-total">${sur(l.anneePrecedente)}</td>` : ''}
+      </tr>`;
+    const section = `<div class="w-section st-section">
+        <h3 class="jour-carte-sous-titre">Actes à l’agenda${infoBulle(aide)}</h3>
+        <table class="st-actes">
+          <thead><tr><th></th><th scope="col">${d.annee}</th><th scope="col">${d.precedente} au ${escapeHtml(memeJour)}</th><th scope="col" aria-label="Écart"></th>${grand ? `<th scope="col">${d.precedente} entière</th>` : ''}</tr></thead>
+          <tbody>${lignes.map(ligne).join('')}</tbody>
+        </table>
+        ${note ? `<div class="st-ecarts w-fixe">${note}</div>` : ''}
+      </div>`;
+    const v = lignes[0];
+    const ligneCourte = v && d.complet ? `<div class="st-ecarts w-fixe"><b>${v.actuel}</b> vente${v.actuel > 1 ? 's' : ''} en ${d.annee} · ${ecart(v)} vs ${d.precedente}</div>` : '';
+    return { section, ligne: ligneCourte };
+  }
+
   function renderStatistiquesDashboard(perimetreTous) {
     const bloc = document.getElementById('kpi-statistiques');
     if (!bloc) return;
@@ -14863,11 +14942,15 @@
         <h3 class="jour-carte-sous-titre">Avant-contrats signés${infoBulle(cmp.premiere ? `Dossiers par mois de signature de l’avant-contrat (à défaut, d’ouverture dans CLAIRE). « — » : CLAIRE ne suivait pas encore de dossier ce mois-là (premier dossier ouvert le ${formatDateFr(cmp.premiere)}). Le mois en cours est compté au jour d’aujourd’hui.` : 'Aucun dossier ouvert noté.')}</h3>
         ${nouveaux}
       </div>`;
+    const actes = renderActesAgendaStatistiques(presentation);
     const corps = presentation === 'petit'
       ? `<ul class="st-delais">${lignesDelais.map(ligneDelai).join('')}</ul>
-         <div class="st-ecarts w-fixe"><b>${cmp.mois.n}</b> avant-contrat${cmp.mois.n > 1 ? 's' : ''} en ${escapeHtml(nomMoisStatistiques(cmp.mois.cle, annee))} · ${ecart(cmp.mois, cmp.precedent)}</div>`
-      : `<div class="st-duo">${sectionDelais}${sectionNouveaux}</div>`;
-    bloc.innerHTML = carteWidget({ presentation, classe: 'statistiques', titre: 'Statistiques', sous: 'Délais et avant-contrats signés', corps });
+         <div class="st-ecarts w-fixe"><b>${cmp.mois.n}</b> avant-contrat${cmp.mois.n > 1 ? 's' : ''} en ${escapeHtml(nomMoisStatistiques(cmp.mois.cle, annee))} · ${ecart(cmp.mois, cmp.precedent)}</div>
+         ${actes.ligne}`
+      : (dispositionWidgetsCourante().find(x => x.id === 'statistiques') || {}).taille === 'grand'
+        ? `<div class="st-duo st-trio">${sectionDelais}${sectionNouveaux}${actes.section}</div>`
+        : `<div class="st-duo">${sectionDelais}${sectionNouveaux}</div>${actes.section}`;
+    bloc.innerHTML = carteWidget({ presentation, classe: 'statistiques', titre: 'Statistiques', sous: 'Délais, avant-contrats et actes de l’année', corps });
   }
 
   // ---- Activité de l'étude (Tableau de bord) : suivi en direct, tous collaborateurs ----
@@ -17208,7 +17291,7 @@
     { id: 'pieces', titre: 'Dernières pièces', tailles: TAILLES_WIDGET, defaut: 'petit', hauteur: 1, icone: 'file-text', description: 'Les pièces arrivées sur le NAS ou rangées par Claire Scan.' },
     { id: 'avancement', titre: 'Avancement des dossiers', tailles: TAILLES_WIDGET, defaut: 'moyen', hauteur: 2, icone: 'list-check', description: 'Où en est chaque dossier : étapes, pièces, prochaine échéance.' },
     { id: 'activite', titre: 'Activité de l’étude', tailles: TAILLES_WIDGET, defaut: 'moyen', hauteur: 2, icone: 'users', description: 'Ce que font les collaborateurs et ce que CLAIRE relève, en direct.' },
-    { id: 'statistiques', titre: 'Statistiques', tailles: TAILLES_WIDGET, defaut: 'grand', hauteur: 1, icone: 'bar-chart', description: 'Délais depuis l’ouverture du dossier (prêt, préemption, signature) et dossiers ouverts par mois.' }
+    { id: 'statistiques', titre: 'Statistiques', tailles: TAILLES_WIDGET, defaut: 'grand', hauteur: 1, icone: 'bar-chart', description: 'Délais depuis l’avant-contrat (prêt, préemption, signature), avant-contrats signés par mois, et ventes, successions et donations de l’année d’après l’agenda.' }
   ];
   var NOMS_TAILLE_WIDGET = { petit: 'Étroit (1 colonne)', moyen: 'Moyen (2 colonnes)', grand: 'Large (toute la ligne)' };
   var NOMS_HAUTEUR_WIDGET = { 1: 'Basse (1 rangée)', 2: 'Moyenne (2 rangées)', 3: 'Haute (3 rangées)' };
