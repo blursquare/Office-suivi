@@ -206,6 +206,12 @@ test('route : pièce jointe rangée une seule fois dans le dossier client, jamai
     const etat = E.lireEtat(repo);
     etat.emails.push({ id: 'e1', itemId: 'IN1', dossierId: 'd1', sens: 'recu', date: '2026-10-01T10:00:00Z', de: { nom: 'C', adresse: 'c@x.fr' }, objet: 'Offre', pj: [{ id: 'PJ1', nom: 'Offre de pret.pdf', taille: 10 }] });
     E.ecrireEtat(repo, etat);
+    // Rangement automatique éteint par défaut (étude 03/10) : rien n'est proposé au rangement seul.
+    const pj0 = await (await fetch(`${base}/api/emails-dossiers/pieces-jointes`)).json();
+    assert.equal(pj0.piecesJointes.length, 0);
+    assert.equal(pj0.rangementAuto, false);
+    await fetch(`${base}/api/emails-dossiers/reglages`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rangementAuto: true }) });
+    assert.equal(E.lireEtat(repo).reglages.actif, true, 'l’interrupteur de lecture n’est pas touché');
     const pj = await (await fetch(`${base}/api/emails-dossiers/pieces-jointes`)).json();
     assert.equal(pj.piecesJointes.length, 1);
     const ranger = () => fetch(`${base}/api/emails-dossiers/pj/ranger`, { method: 'POST', headers: { 'Content-Type': 'application/json' },

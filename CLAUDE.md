@@ -162,7 +162,9 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
    **email lisible en entier** (étude 02/10) en cliquant son objet : `ouvrirEmailComplet` → `GET /api/emails-dossiers/contenu`
    (`lireEmailComplet`, GetItem relu à chaque ouverture, jamais gardé ni journalisé, affiché en texte échappé, jamais en HTML). **Toute pièce jointe reçue est rangée
    seule** (étude 02/10 : « dans les bons sous-dossiers, sinon à la racine » ; `rangerPiecesJointesReconnues`, dossiers
-   reliés au NAS, une seule fois, un échec jamais retenté seul, jamais en participation) : reconnue par son NOM
+   reliés au NAS, une seule fois, un échec jamais retenté seul, jamais en participation) — **coupé par défaut depuis le 03/10**
+   (étude : « pas encore au point » ; réglage `rangementAuto` de la clé `emails-dossiers`, interrupteur « Ranger seul les pièces
+   jointes sur le NAS », `GET /pieces-jointes` rend une liste vide tant qu'il est éteint ; « Ranger… » à la main reste) : reconnue par son NOM
    (`pieceDePieceJointe`, mêmes motifs et exclusions que le NAS) → rubrique de la pièce (`rubriquesPourPiece` + 
    `RUBRIQUES_PIECES_HORS_SCAN`), cochée reçue ; sinon (`pieceJointeRangeeSeule` : PDF/Word/Excel, photo ≥ 30 Ko, jamais
    « image001 ») sous son nom, sous-dossier deviné du nom (`RUBRIQUES_NOM_PIECE_JOINTE`, identité/RIB → Vendeur ou Acquéreur

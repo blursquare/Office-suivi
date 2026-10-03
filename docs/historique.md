@@ -15794,3 +15794,12 @@ démarrage (`nettoyerCommunesNotairesDossier`, dans `retirerDatesAvantContratLue
 `notaireAcquereur`, `notairesDetectes`.
 
 **Réglages** : titres de groupe dans la colonne des rubriques (`.reglages-nav-groupe`, masqués sous 860 px).
+
+### 03/10/2026 11:44 — Rangement automatique des pièces jointes d'email coupé
+
+Étude : « désactive le classement automatique des pièces dans le NAS, c'est pas encore au point » — « des pièces reçues par
+email ». Réglage `rangementAuto` (clé `emails-dossiers`, faux par défaut et pour tout état antérieur) ; tant qu'il est
+éteint, `GET /api/emails-dossiers/pieces-jointes` rend une liste vide et `rangerPiecesJointesReconnues` n'a rien à faire ;
+le geste « Ranger… » dans la fenêtre de lecture reste. Interrupteur dans Réglages › Agenda et Outlook › Emails des dossiers
+(`basculerEmailsDossiers({ rangementAuto })`, `POST /reglages` ne touche que les champs envoyés). Claire Scan (scans du
+copieur) n'est pas concerné : son propre interrupteur existe déjà et le rangement y a été validé le 30/09.

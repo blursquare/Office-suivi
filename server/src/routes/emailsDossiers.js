@@ -39,6 +39,8 @@ function creerRouteurEmailsDossiers(parametresRepo, depot, options = {}) {
   routeur.get('/emails-dossiers/pieces-jointes', (req, res) => {
     const etat = lireEtat(parametresRepo);
     const liste = [];
+    // Rangement automatique coupé (réglage) : rien à ranger seul — la liste reste vide, le geste à la main demeure.
+    if (!etat.reglages.rangementAuto) { res.json({ piecesJointes: [], rangementAuto: false }); return; }
     for (const e of etat.emails) {
       if (e.sens !== 'recu') continue;
       for (const p of e.pj) if (!p.rangee && !p.ignoree && !p.echec) liste.push({ emailId: e.id, dossierId: e.dossierId, pjId: p.id, nom: p.nom, taille: p.taille || 0, de: (e.de && e.de.adresse) || '', date: e.date });
@@ -57,7 +59,8 @@ function creerRouteurEmailsDossiers(parametresRepo, depot, options = {}) {
 
   routeur.post('/emails-dossiers/reglages', (req, res) => {
     const etat = lireEtat(parametresRepo);
-    etat.reglages.actif = !(req.body && req.body.actif === false);
+    if (req.body && typeof req.body.actif === 'boolean') etat.reglages.actif = req.body.actif;
+    if (req.body && typeof req.body.rangementAuto === 'boolean') etat.reglages.rangementAuto = req.body.rangementAuto;
     res.json({ reglages: ecrireEtat(parametresRepo, etat).reglages });
   });
 

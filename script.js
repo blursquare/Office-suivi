@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-03 10:32';
+  const VERSION_APP = '2026-10-03 11:44';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-03 11:44', resume: "Emails des dossiers : le rangement automatique des pièces jointes sur le NAS est coupé (étude : « pas encore au point ») — plus aucune copie dans un dossier client sans votre geste ; « Ranger… » dans la fenêtre de lecture reste disponible. Réglages › Agenda et Outlook › Emails des dossiers : interrupteur « Ranger seul les pièces jointes sur le NAS », éteint par défaut, pour le rallumer plus tard." },
     { version: '2026-10-03 10:32', resume: "Mise à jour automatique : une fenêtre CLAIRE déjà ouverte se recharge seule quand le serveur redémarre sur une nouvelle version (avant : elle gardait l'ancienne page jusqu'à un F5 — à 10 h 22, une fenêtre rangeait encore les pages d'Authentic par le « numéro 1 / 2 » retiré à 9 h 33 ; le serveur attend qu'aucune saisie ne soit en cours). Fiche : champ « Confrère » aussi quand c'est le VENDEUR qu'un autre office représente (ses emails sont rattachés au dossier, il est proposé pour les dates de signature) ; « Confrère du vendeur / de l'acquéreur » quand il y en a deux. Emails des dossiers : un dossier tout juste créé fait relire les 30 derniers jours de la boîte — « RE: VENTE MERCIER / FRANCOIS », reçu la veille de la création, est rattaché. Un notaire enregistré « (BLOIS désigné par) » par une version d'avant 9 h 42 redevient « (BLOIS) ». Réglages : rubriques classées sous des titres — L'étude, Connexions, Dossiers et actes, Maintenance." },
     { version: '2026-10-03 10:14', resume: "Outils › Répertoire : l'onglet « Tout » est retiré. La page s'ouvre sur « Notaires » ; chaque thème d'interlocuteurs reste à un clic dans la colonne de gauche." },
     { version: '2026-10-03 10:06', resume: "Emails des dossiers : une adresse saisie après coup sur une fiche (email du confrère, d'un client) fait relire les 30 derniers jours de la boîte de réception — les emails reçus de cette adresse avant la saisie sont désormais rattachés au dossier (avant : ils étaient déjà passés et n'étaient jamais repris)." },
@@ -29265,7 +29266,8 @@
   }
 
   // Rangement automatique : toutes les pièces jointes reçues (reconnues ou non, voir pieceJointeRangeeSeule),
-  // dans les dossiers en cours reliés au NAS. Une à la fois ; le serveur garantit qu'une pièce jointe n'est rangée qu'une fois (même avec
+  // dans les dossiers en cours reliés au NAS — seulement si le réglage « Ranger seul les pièces jointes » est
+  // allumé (éteint par défaut, étude 03/10 : « pas encore au point » ; le serveur rend alors une liste vide). Une à la fois ; le serveur garantit qu'une pièce jointe n'est rangée qu'une fois (même avec
   // plusieurs fenêtres ouvertes) et marque un échec, jamais retenté seul.
   let rangementEmailsEnCours = false;
   async function rangerPiecesJointesReconnues() {
@@ -29316,7 +29318,11 @@
     zone.innerHTML = `
       <label class="reglages-option" for="emails-dossiers-actif">
         <span class="reglages-option-texte"><span class="reglages-option-titre">Lire les emails des dossiers</span></span>
-        <span class="switch reglages-switch"><input type="checkbox" id="emails-dossiers-actif" ${e.reglages.actif ? 'checked' : ''} onchange="basculerEmailsDossiers(this.checked)"><span class="slider"></span></span>
+        <span class="switch reglages-switch"><input type="checkbox" id="emails-dossiers-actif" ${e.reglages.actif ? 'checked' : ''} onchange="basculerEmailsDossiers({ actif: this.checked })"><span class="slider"></span></span>
+      </label>
+      <label class="reglages-option" for="emails-dossiers-rangement-auto">
+        <span class="reglages-option-texte"><span class="reglages-option-titre">Ranger seul les pièces jointes sur le NAS${infoBulle('Éteint : aucune pièce jointe n’est copiée sur le NAS sans votre geste — « Ranger… » dans la fenêtre de lecture reste disponible. Allumé : toute pièce jointe reçue est rangée dans le dossier client (pièce reconnue dans son sous-dossier, sinon sous son nom).')}</span></span>
+        <span class="switch reglages-switch"><input type="checkbox" id="emails-dossiers-rangement-auto" ${e.reglages.rangementAuto ? 'checked' : ''} onchange="basculerEmailsDossiers({ rangementAuto: this.checked })"><span class="slider"></span></span>
       </label>
       <ul class="emails-boites">
         ${ligneBoite('Boîte de réception du compte relié', e.recus || {})}
@@ -29351,8 +29357,8 @@
     } finally { if (bouton) bouton.disabled = false; }
   }
 
-  async function basculerEmailsDossiers(actif) {
-    await fetchAvecAuth('/api/emails-dossiers/reglages', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ actif }) }).catch(() => null);
+  async function basculerEmailsDossiers(reglage) {
+    await fetchAvecAuth('/api/emails-dossiers/reglages', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(reglage || {}) }).catch(() => null);
     renderReglagesEmailsDossiers();
   }
 
