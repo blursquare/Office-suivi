@@ -238,7 +238,7 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
   **Liste des noms reconnus** : `EXEMPLES_NOMS_PIECES` (Réglages › Pièces et Claire Scan), vérifiée par
   `tests/noms-reconnus.test.js` — tout changement de `motifNom`/`FORMES_NOM_PIECES` s'y reflète. « Titre de séjour » n'est
   jamais un titre de propriété.
-  **Formes de noms apprises** (étude 03/10, Outils › « Noms de fichiers du NAS », `server/src/nomsFichiersNas.js`) : l'étude
+  **Formes de noms apprises** (étude 03/10, **Réglages › Noms de fichiers du NAS** — rubrique `noms-nas` sous « Dossiers et actes », sortie des Outils le même jour ; `definirOnglet('noms-nas')` y mène —, `server/src/nomsFichiersNas.js`) : l'étude
   dit oui/non à une FORME de nom (`formeNomFichier` : mots d'usage gardés, nombre `#`, nom propre et adresse `…`) pour une
   pièce ; `decisionFormePourNom` passe avant les motifs dans `correspondancePieceNom`/`nomDitOffrePret` (« non » écarte même
   un nom que le motif prend, « oui » fait reconnaître). Termes élargis (`TERMES_ELARGIS_PIECES`) **pour l'outil seulement**
@@ -640,7 +640,7 @@ Plainte principale de l'étude : **le bruit**, pas les oublis — ne pas élargi
   class="info-i" tabindex="0" data-info="…">` en HTML, `definirInfoBulle` pour la changer). Restent
   en texte visible : un état, un résultat, une erreur, une liste vide. **Réglages** : rubriques à
   gauche (`SOUS_ONGLETS_REGLAGES`, une par sujet depuis le 01/10 : Général, Collaborateurs, Signature des
-  emails, Rappels, Agenda et Outlook, Téléphonie 3CX, Authentic, Pièces et Claire Scan, Relecture d'actes,
+  emails, Rappels, Agenda et Outlook, Téléphonie 3CX, Authentic, Pièces et Claire Scan, Noms de fichiers du NAS, Relecture d'actes,
   Signalements, Mise à jour et sauvegarde — classées sous quatre titres depuis le 03/10 : L'étude, Connexions, Dossiers et actes, Maintenance, `.reglages-nav-groupe` ; chaque section qui enregistre a son propre bouton), une colonne de lignes `.reglages-option` / `.reglages-champ`
   dans des `.reglages-section` — pas de cartes en grille.
 - **Toute nouvelle fonction pure** : la déclarer `function` (ou `var` pour une table) pour la

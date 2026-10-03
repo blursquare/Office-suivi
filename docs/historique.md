@@ -15812,3 +15812,13 @@ n'importe où dans la ligne : seul l'ÉTAT d'une ligne de document (dernière ce
 du texte qui COMMENCE par « Signé le date » (`RE_SIGNE_LE_AUTHENTIC`, « Signé électroniquement le » toléré) compte ; le titre
 sert seulement à écarter un autre document (`RE_AUTRE_DOCUMENT_SIGNE_AUTHENTIC`). « Acte de vente signé » sans date et
 « Acte signé le … » ne valent plus rien. La date de l'avant-contrat (`dateAvantContratAuthentic`) garde sa lecture propre.
+
+### 03/10/2026 17:12 — « Noms de fichiers du NAS » déplacé dans les Réglages
+
+Étude : « déplace cet outil dans les réglages ». Rubrique `noms-nas` de `SOUS_ONGLETS_REGLAGES`, sous « Dossiers et actes »
+juste après « Pièces et Claire Scan » (`reglages-panneau-noms-nas`, `initNomsNas` à l'ouverture de la rubrique). Retirés :
+la tuile de la page Outils (`OUTILS_PAGE`), le lien du tiroir Outils (`tab-noms-nas`), la page `onglet-noms-nas` ;
+`definirOnglet('noms-nas')` (ancien lien) ouvre la rubrique. Dans la colonne étroite des Réglages, les pièces passent en
+pastilles au-dessus des formes (`.rep-nav.noms-nas-pieces`), « Parcourir le commun » en bouton d'action sur la ligne de
+l'état. Rien ne change au fonctionnement (parcours, formes, décisions). Vérifié dans Chromium (clair, sombre, téléphone) sur
+un commun inventé.

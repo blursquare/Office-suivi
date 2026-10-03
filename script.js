@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-03 12:01';
+  const VERSION_APP = '2026-10-03 17:12';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-03 17:12', resume: "« Noms de fichiers du NAS » quitte les Outils : c'est maintenant une rubrique des Réglages (Dossiers et actes › Noms de fichiers du NAS, juste sous « Pièces et Claire Scan »). Même fonctionnement : « Parcourir le commun », puis Oui / Non sur chaque forme de nom ; les pièces s'affichent en pastilles au-dessus des formes." },
     { version: '2026-10-03 12:01', resume: "Authentic : un acte n'est « signé » que si l'état du document commence exactement par « Signé le JJ/MM/AAAA » (étude : « Mail version signée le 28/07/2026 » ne vaut pas acte signé ; « Acte signé le … » non plus). Avant : « signé le » n'importe où sur la page suffisait." },
     { version: '2026-10-03 11:44', resume: "Emails des dossiers : le rangement automatique des pièces jointes sur le NAS est coupé (étude : « pas encore au point ») — plus aucune copie dans un dossier client sans votre geste ; « Ranger… » dans la fenêtre de lecture reste disponible. Réglages › Agenda et Outlook › Emails des dossiers : interrupteur « Ranger seul les pièces jointes sur le NAS », éteint par défaut, pour le rallumer plus tard." },
     { version: '2026-10-03 10:32', resume: "Mise à jour automatique : une fenêtre CLAIRE déjà ouverte se recharge seule quand le serveur redémarre sur une nouvelle version (avant : elle gardait l'ancienne page jusqu'à un F5 — à 10 h 22, une fenêtre rangeait encore les pages d'Authentic par le « numéro 1 / 2 » retiré à 9 h 33 ; le serveur attend qu'aucune saisie ne soit en cours). Fiche : champ « Confrère » aussi quand c'est le VENDEUR qu'un autre office représente (ses emails sont rattachés au dossier, il est proposé pour les dates de signature) ; « Confrère du vendeur / de l'acquéreur » quand il y en a deux. Emails des dossiers : un dossier tout juste créé fait relire les 30 derniers jours de la boîte — « RE: VENTE MERCIER / FRANCOIS », reçu la veille de la création, est rattaché. Un notaire enregistré « (BLOIS désigné par) » par une version d'avant 9 h 42 redevient « (BLOIS) ». Réglages : rubriques classées sous des titres — L'étude, Connexions, Dossiers et actes, Maintenance." },
@@ -15913,8 +15914,7 @@
     { onglet: 'prorata', titre: 'Prorata & répartitions', icone: 'part-disque', description: 'Taxe foncière, charges de copropriété, loyers au jour de l’acte.' },
     { onglet: 'quotites', titre: 'Quotités d’acquisition', icone: 'users', description: 'La part de chaque acquéreur et l’annexe des quotités.' },
     { onglet: 'inventaire', titre: 'Arbitrage forfait mobilier', icone: 'scale', description: 'Forfait de 5 % ou prisée d’un commissaire de justice.' },
-    { onglet: 'confreres', titre: 'Répertoire', icone: 'book', description: 'Les offices du département et les interlocuteurs de l’étude.' },
-    { onglet: 'noms-nas', titre: 'Noms de fichiers du NAS', icone: 'list-check', description: 'Apprendre à CLAIRE comment l’étude nomme ses pièces, forme par forme.' }
+    { onglet: 'confreres', titre: 'Répertoire', icone: 'book', description: 'Les offices du département et les interlocuteurs de l’étude.' }
   ];
 
   function renderPageOutils() {
@@ -15933,13 +15933,15 @@
   var LIBELLES_ONGLETS = {
     dashboard: 'Tableau de bord', nouveau: 'Nouveau dossier', suivi: 'Suivi des dossiers',
     calculateur: 'Simulateur de provision', prorata: 'Prorata & répartitions', 'appel-fonds': 'Appel de fonds',
-    scans: 'Claire Scan', inventaire: 'Arbitrage forfait mobilier', quotites: "Quotités d'acquisition", confreres: 'Répertoire', 'noms-nas': 'Noms de fichiers du NAS', 'analyse-ia': "Relecture d'actes",
+    scans: 'Claire Scan', inventaire: 'Arbitrage forfait mobilier', quotites: "Quotités d'acquisition", confreres: 'Répertoire', 'analyse-ia': "Relecture d'actes",
     reglages: 'Réglages', outils: 'Outils'
   };
 
   function definirOnglet(nom) {
     // Page « Aujourd'hui » retirée (étude, 30/09) : un ancien lien mène au tableau de bord.
     if (nom === 'aujourdhui') nom = 'dashboard';
+    // « Noms de fichiers du NAS » est une rubrique des Réglages depuis le 03/10 (étude) : un ancien lien y mène.
+    if (nom === 'noms-nas') { definirOnglet('reglages'); definirSousOngletReglages('noms-nas'); return; }
     ongletActuel = nom;
     // Sur mobile, choisir une section referme la sidebar repliable (voir toggleSidebarMobile).
     toggleSidebarMobile(false);
@@ -15954,7 +15956,6 @@
     document.getElementById('onglet-inventaire').style.display = nom === 'inventaire' ? '' : 'none';
     document.getElementById('onglet-quotites').style.display = nom === 'quotites' ? '' : 'none';
     document.getElementById('onglet-confreres').style.display = nom === 'confreres' ? '' : 'none';
-    document.getElementById('onglet-noms-nas').style.display = nom === 'noms-nas' ? '' : 'none';
     document.getElementById('onglet-analyse-ia').style.display = nom === 'analyse-ia' ? '' : 'none';
     document.getElementById('onglet-reglages').style.display = nom === 'reglages' ? '' : 'none';
     document.getElementById('onglet-outils').style.display = nom === 'outils' ? '' : 'none';
@@ -15971,7 +15972,6 @@
     document.getElementById('tab-inventaire').setAttribute('aria-selected', String(nom === 'inventaire'));
     document.getElementById('tab-quotites').setAttribute('aria-selected', String(nom === 'quotites'));
     document.getElementById('tab-confreres').setAttribute('aria-selected', String(nom === 'confreres'));
-    document.getElementById('tab-noms-nas').setAttribute('aria-selected', String(nom === 'noms-nas'));
     document.getElementById('tab-analyse-ia').setAttribute('aria-selected', String(nom === 'analyse-ia'));
     document.getElementById('tab-reglages').setAttribute('aria-selected', String(nom === 'reglages'));
     document.getElementById('tab-dashboard').classList.toggle('actif', nom === 'dashboard');
@@ -15984,7 +15984,6 @@
     document.getElementById('tab-inventaire').classList.toggle('actif', nom === 'inventaire');
     document.getElementById('tab-quotites').classList.toggle('actif', nom === 'quotites');
     document.getElementById('tab-confreres').classList.toggle('actif', nom === 'confreres');
-    document.getElementById('tab-noms-nas').classList.toggle('actif', nom === 'noms-nas');
     // Ctrl+P depuis cet onglet doit sortir la FEUILLE, pas l'application autour (voir @media
     // print dans style.css) — un onglet n'ayant pas de classe sur <body>, on la pose ici.
     document.body.classList.toggle('onglet-appel-fonds-actif', nom === 'appel-fonds');
@@ -16023,7 +16022,6 @@
     // Premier passage : coûts habituels posés, droits vides — le verdict et le message d'invite
     // sont posés dans la foulée (voir initInventaire / reinitialiserInventaire).
     if (nom === 'inventaire') initInventaire();
-    if (nom === 'noms-nas') initNomsNas();
   }
 
   // ==== SUIVI : regroupement des échéances par semaine ====
@@ -30786,7 +30784,7 @@
   // Rubriques de la colonne de gauche, dans l'ordre (réorganisées le 29/09, à la manière des
   // réglages de Claude).
   // Ordre de la colonne de gauche (revu le 01/10 : une rubrique par sujet).
-  var SOUS_ONGLETS_REGLAGES = ['general', 'collaborateurs', 'signature', 'rappels', 'agenda', 'telephonie', 'authentic', 'pieces', 'relecture', 'apprentissage', 'signalements', 'systeme'];
+  var SOUS_ONGLETS_REGLAGES = ['general', 'collaborateurs', 'signature', 'rappels', 'agenda', 'telephonie', 'authentic', 'pieces', 'noms-nas', 'relecture', 'apprentissage', 'signalements', 'systeme'];
   const CLE_SOUS_ONGLET_REGLAGES = 'reglages-sous-onglet';
 
   function sousOngletReglagesRetenu() {
@@ -30812,6 +30810,7 @@
     if (cle === 'agenda') renderReglagesEmailsDossiers();
     if (cle === 'apprentissage') ouvrirPageApprentissage();
     if (cle === 'pieces') renderNomsReconnus();
+    if (cle === 'noms-nas') initNomsNas();
   }
 
   // Compteur rouge sur « Réglages » : signalements encore à trier. Sur tous les postes — il n'y a
@@ -42868,7 +42867,6 @@
       'icon-reglages-apropos': 'info',
       'icon-nav-quotites': 'users',
       'icon-nav-confreres': 'book',
-      'icon-nav-noms-nas': 'list-check',
       'icon-calc-warning': 'alert-triangle',
       'icon-inv-warning': 'alert-triangle',
       'icon-nav-analyse-ia': 'eye',

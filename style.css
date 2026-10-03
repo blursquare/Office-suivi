@@ -8543,8 +8543,14 @@ button.email-rang-btn:focus-visible { outline: 2px solid var(--focus); outline-o
 .noms-nas-noms code { word-break: break-word; }
 .noms-nas-decides { margin-top: 14px; }
 .noms-nas-decides > summary { cursor: pointer; color: var(--muted); font-size: 13px; }
+/* Dans les Réglages (03/10) : colonne étroite — les pièces en pastilles au-dessus des formes. */
+.noms-nas-barre { display: flex; align-items: center; justify-content: space-between; gap: 8px 16px; flex-wrap: wrap; }
+.noms-nas-barre .noms-nas-etat { margin: 0; flex: 1; min-width: 0; }
+.noms-nas-corps { display: flex; flex-direction: column; gap: 14px; margin-top: 4px; }
+.noms-nas-corps > * { min-width: 0; }
+.rep-nav.noms-nas-pieces { position: static; flex-direction: row; flex-wrap: wrap; gap: 4px; padding: 6px; }
+.rep-nav.noms-nas-pieces button.rep-nav-lien { width: auto; flex: none; white-space: nowrap; padding: 6px 10px; }
+.rep-nav.noms-nas-pieces button.rep-nav-lien .rep-nav-n { margin-left: 4px; }
 @media (max-width: 800px) {
-  .noms-nas-corps { grid-template-columns: minmax(0, 1fr); }
   .noms-nas-groupe { flex-direction: column; gap: 8px; }
 }
-.noms-nas-etat { margin: 4px 0 0; }
