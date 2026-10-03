@@ -26,7 +26,10 @@
       if (intitule && intitule !== derniereNavigation) {
         derniereNavigation = intitule;
         derniere = '';
-        browser.runtime.sendMessage({ type: 'navigation', intitule }).catch(() => {});
+        // Précédé de la référence du dossier (« A 2026 00247 », 0.3.9) : le vrai numéro du dossier — le rang
+        // « N » de « N - … » est le même dans presque tous les dossiers (étude, 03/10).
+        const ref = referenceDossier(c);
+        browser.runtime.sendMessage({ type: 'navigation', intitule: (ref ? ref + ' ' : '') + intitule }).catch(() => {});
       }
       return;
     }
@@ -77,6 +80,15 @@
     const premiere = texteActif(c).split('\n').map(l => l.trim()).find(Boolean) || '';
     const m = /^\d{1,6}\s*-\s*[A-Za-zÀ-ÿ].{1,120}?(?=\s+(?:Importer|Comparants|Immeubles)\b|$)/.exec(premiere);
     return m ? m[0].trim().slice(0, 200) : '';
+  }
+  // La référence « A 2026 00247 » du dossier affiché : celle de l'onglet actif, sinon la seule de la page.
+  function referenceDossier(c) {
+    const re = /(?:^|[^A-Za-z0-9À-ÿ])([A-Z])\s+((?:19|20)\d{2})\s+(\d{4,6})(?![\d\/.,-]?\d)/g;
+    const refs = (t) => [...new Set([...String(t || '').matchAll(re)].map(m => `${m[1]} ${m[2]} ${m[3]}`))];
+    const actif = (c.onglets || []).find(o => o.actif && refs(o.titre).length === 1);
+    if (actif) return refs(actif.titre)[0];
+    const toutes = refs(texteActif(c));
+    return toutes.length === 1 ? toutes[0] : '';
   }
   function programmer() {
     clearTimeout(minuteur);

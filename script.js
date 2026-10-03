@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-03 08:13';
+  const VERSION_APP = '2026-10-03 09:33';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-03 09:33', resume: "Authentic : le « 1 » de « 1 - Vente MERCIER / FRANCOIS » n'identifie plus rien (c'est le rang du sous-dossier, le même dans presque tous les dossiers) : une page de MERCIER (réquisition hors formalité) était allée à DORLÉAC, et « Nouveau dossier » proposait DORLÉAC comme doublon de MERCIER. Au premier passage, le dossier est reconnu par les noms et l'adresse du bien ; sa référence Authentic (« A 2026 00247 », le vrai numéro du dossier) est alors retenue en coulisses, jamais affichée devant VTE ou SUCC, et relie ensuite les deux. Les anciens « numéros » sont oubliés au démarrage. Sur la fiche, la croix de « Dans Authentic » oublie ce qu'une page d'un autre dossier a posé (pièces cochées, RHF, SAFER, état de l'acte, rattachement) : tout revient à la prochaine ouverture du bon dossier. Extension 0.3.9 : le bouton « Envoyer à CLAIRE » ne tombe plus en erreur." },
     { version: '2026-10-03 08:13', resume: "Nouvel outil « Noms de fichiers du NAS » (Outils) : CLAIRE parcourt tous les dossiers du commun, range les noms des PDF par pièce probable et par forme (nom du client, adresse et numéros mis de côté : « DIAG ERP 3 rue … » et « DIAG ERP 12 avenue … » ne font qu'une ligne), et vous demande « Oui » ou « Non » pour chaque forme — ou pour un seul nom avec « Voir les noms ». Une forme validée est reconnue désormais sur le NAS et dans les pièces jointes ; une forme écartée ne l'est plus pour cette pièce. Seules les formes décidées sont gardées ; elles remontent dans le rapport technique pour enrichir les motifs." },
     { version: '2026-10-03 08:00', resume: "Vérifications sur le terrain : Réglages › Mise à jour et sauvegarde liste ce qui ne peut être essayé qu'au bureau (Outlook, Windows, 3CX, IA locale, NAS, mise à jour automatique…). Chaque point se coche tout seul la première fois que le geste réussit ; ceux qui se voient à l'œil (logo dans la notification, icône nette) se confirment par « C'est bon » ou « Ne marche pas ». L'état part dans le rapport technique de 12 h et 17 h (sans nom ni numéro)." },
     { version: '2026-10-03 07:27', resume: "Notifications Windows/Chrome : le logo de CLAIRE s'affiche dans la notification (pièce trouvée)." },
@@ -11152,12 +11153,14 @@
   // que le serveur enregistre ne crée pas un second dossier.
   var creationDossierEnCours = false;
 
-  // Pure : un dossier en cours déjà présent pour une création — même numéro Authentic, ou même nom
-  // (sans accents ni casse). null sinon.
-  function dossierDejaPresentPourCreation(nom, numeroAuthentic, liste) {
+  // Pure : un dossier en cours déjà présent pour une création — même référence Authentic (« A 2026 00247 »),
+  // ou même nom (sans accents ni casse). Jamais par le rang « 1 » de « 1 - Vente … » (étude, 03/10 : « Créer
+  // un second dossier ? DORLÉAC existe déjà » pour MERCIER). null sinon.
+  function dossierDejaPresentPourCreation(nom, reference, liste) {
     const cle = normaliserPourRecherche(String(nom || '').trim());
+    const ref = referenceAuthenticValide(reference) ? reference : '';
     return (liste || []).find(x => x && !x.deleted && !x.archive && (
-      (numeroAuthentic && x.numeroAuthentic === String(numeroAuthentic))
+      (ref && x.referenceAuthentic === ref)
       || (cle && normaliserPourRecherche(String(x.nom || '').trim()) === cle))) || null;
   }
 
@@ -11190,9 +11193,9 @@
     const successionAuthentic = !!exportAuthenticActuel && typeAffaireAuthentic(exportAuthenticActuel) === 'succession';
     if (!exportAuthenticActuel && !pret && !acte && !ventebien && autres.length === 0) { afficherErreurFormulaire('Renseignez au moins une date butoir active.'); return; }
     masquerErreurFormulaire();
-    const existant = doublonConfirme ? null : dossierDejaPresentPourCreation(nom, exportAuthenticActuel && exportAuthenticActuel.numero, dossiers);
+    const existant = doublonConfirme ? null : dossierDejaPresentPourCreation(nom, exportAuthenticActuel && exportAuthenticActuel.reference, dossiers);
     if (existant) {
-      demanderConfirmation(`Créer un second dossier ? « ${libelleDossierAffiche(existant)} » existe déjà dans CLAIRE${exportAuthenticActuel && exportAuthenticActuel.numero && existant.numeroAuthentic === String(exportAuthenticActuel.numero) ? ' pour ce dossier Authentic' : ''}.`,
+      demanderConfirmation(`Créer un second dossier ? « ${libelleDossierAffiche(existant)} » existe déjà dans CLAIRE${exportAuthenticActuel && referenceAuthenticValide(exportAuthenticActuel.reference) && existant.referenceAuthentic === exportAuthenticActuel.reference ? ' pour ce dossier Authentic' : ''}.`,
         () => ajouterDossier(true), { bouton: 'Créer quand même' });
       return;
     }
@@ -11356,7 +11359,7 @@
         dossier.piecesAuthentic = reprises.map(pc => pc.cle);
       }
       infosAuthenticACreation(dossier, exportAuthenticActuel.infosAuthentic);
-      if (exportAuthenticActuel.numero && !dossiers.some(x => x && !x.deleted && x.numeroAuthentic === exportAuthenticActuel.numero)) dossier.numeroAuthentic = exportAuthenticActuel.numero;
+      if (referenceAuthenticValide(exportAuthenticActuel.reference) && !dossiers.some(x => x && !x.deleted && x.referenceAuthentic === exportAuthenticActuel.reference)) dossier.referenceAuthentic = exportAuthenticActuel.reference;
       dossier.historique.push(Object.assign({ date: new Date().toISOString(),
         texte: `Créé depuis ${exportAuthenticActuel.origine === 'pages' ? 'les pages' : 'l’export'} Authentic « ${exportAuthenticActuel.intitule} »` + (reprises.length ? ` — pièces présentes dans Authentic marquées reçues : ${reprises.map(pc => pc.label).join(', ')}` : '') },
       utilisateurPoste ? { auteur: utilisateurPoste } : {}));
@@ -23814,11 +23817,12 @@
   function renderAuthenticDossier(d) {
     const lignes = lignesAuthenticDossier(d);
     const alertes = alertesConjointDossier(d);
-    if (!lignes.length && !alertes.length) return '';
+    if (!lignes.length && !alertes.length && !(d.piecesAuthentic || []).length && !d.referenceAuthentic) return '';
     const releve = d.authentic && d.authentic.releveLe;
     return `
       <div class="authentic-dossier">
-        <div class="authentic-dossier-titre">Dans Authentic${releve ? `<span class="hint"> · relevé le ${escapeHtml(formatDateFr(releve.slice(0, 10)))}</span>` : ''}</div>
+        <div class="authentic-dossier-titre">Dans Authentic${releve ? `<span class="hint"> · relevé le ${escapeHtml(formatDateFr(releve.slice(0, 10)))}</span>` : ''}
+          <button type="button" class="icon-btn authentic-oublier" onclick="confirmerOublierDonneesAuthentic('${escapeOnclickArg(d.id)}')" title="Oublier ce qui vient d’Authentic (page d’un autre dossier)" aria-label="Oublier ce qui vient d’Authentic">${icone('x')}</button></div>
         <dl class="authentic-infos">${lignes.map(l => `<div class="authentic-info"><dt>${escapeHtml(l.libelle)}</dt><dd>${l.classe
           ? `<span class="dot-label ${l.classe}"><span class="dot"></span>${escapeHtml(l.valeur)}</span>` : escapeHtml(l.valeur)}</dd></div>`).join('')}</dl>
         ${alertes.map(al => `<p class="authentic-alerte"><span class="dot-label dl-pret">${icone('alert-triangle')}${escapeHtml(al.texte)}</span></p>`).join('')}
@@ -26530,70 +26534,93 @@
     return m ? `Vente ${m[1].trim()} / ${m[2].trim()}` : t;
   }
 
-  // Pure : { numero, intitule } du dossier affiché, dans l'ordre de sûreté :
-  //  1. le titre de l'onglet ACTIF s'il porte « N - … » ;
+  // Le vrai numéro du dossier (étude, 03/10) : la RÉFÉRENCE du bandeau d'Authentic, « A 2026 00247 »
+  // (« A 2026 00247 VTE MERCIER / FRANCOIS »), gardée dans `d.referenceAuthentic` et JAMAIS affichée devant
+  // « VTE » ou « SUCC » (« ne pas l'afficher devant VTE, ou plus tard SUCC »). Le « 1 » de « 1 - Vente MERCIER /
+  // FRANCOIS » n'est que le rang du sous-dossier, le même dans presque tous les dossiers : pris pour un numéro
+  // jusqu'au 03/10, il avait envoyé une page de MERCIER à DORLÉAC (« arrête avec les numéros devant les noms de
+  // dossier, ça casse tout ») — il ne sert plus à rien. Sans référence sur la page : les noms et l'adresse du bien.
+  var RE_REFERENCE_AUTHENTIC = /(?:^|[^A-Za-z0-9À-ÿ])([A-Z])\s+((?:19|20)\d{2})\s+(\d{4,6})(?![\d\/.,-]?\d)/g;
+  var RE_REFERENCE_AUTHENTIC_NORMALISEE = /^[A-Z] (?:19|20)\d{2} \d{4,6}$/;
+
+  // Pure : le texte sans la référence « A 2026 00247 » (« A 2026 00247 VTE X / Y » → « VTE X / Y »).
+  function sansReferenceAuthentic(texte) {
+    return String(texte || '').replace(new RegExp(RE_REFERENCE_AUTHENTIC.source, 'g'), ' ').replace(/[ \t]+/g, ' ').trim();
+  }
+
+  // Pure : les références distinctes citées dans un texte, normalisées (« A 2026 00247 »).
+  function referencesDansTexteAuthentic(texte) {
+    const vues = [];
+    for (const m of String(texte || '').matchAll(new RegExp(RE_REFERENCE_AUTHENTIC.source, 'g'))) {
+      const r = `${m[1]} ${m[2]} ${m[3]}`;
+      if (!vues.includes(r)) vues.push(r);
+    }
+    return vues;
+  }
+
+  function referenceAuthenticValide(v) {
+    return typeof v === 'string' && RE_REFERENCE_AUTHENTIC_NORMALISEE.test(v);
+  }
+
+  // Pure : la référence du dossier affiché — celle de l'onglet actif s'il en porte une, sinon la SEULE citée
+  // par la page (champs et texte, onglets inactifs retirés) ; deux références différentes (une liste de
+  // dossiers) → aucune. '' si la page n'en montre pas.
+  function referenceDossierAuthentic(capture) {
+    const c = capture || {};
+    for (const o of (Array.isArray(c.onglets) ? c.onglets : [])) {
+      if (!o || !o.actif) continue;
+      const r = referencesDansTexteAuthentic(o.titre);
+      if (r.length === 1) return r[0];
+    }
+    const toutes = [];
+    const ajouter = (t) => referencesDansTexteAuthentic(t).forEach(r => { if (!toutes.includes(r)) toutes.push(r); });
+    (c.champs || []).forEach(ch => { ajouter(ch.libelle); ajouter(ch.valeur); });
+    ajouter(texteSansOngletsInactifsAuthentic(c));
+    return toutes.length === 1 ? toutes[0] : '';
+  }
+
+  // Pure : { intitule } du dossier affiché (la référence est lue à part, referenceDossierAuthentic). L'intitulé,
+  // dans l'ordre de sûreté :
+  //  1. le titre de l'onglet ACTIF s'il porte « N - … » ou « VTE X / Y » ;
   //  2. l'en-tête de la page du dossier (« N - … » suivi de Importer / Comparants / Immeubles), toute formulation ;
   //  3. un intitulé « N - Vente X/Y » (ou succession) seul, à condition qu'il soit le SEUL de la page — une liste
   //     de résultats de recherche en cite plusieurs : elle ne désigne aucun dossier.
   function intituleNumeroteAuthentic(capture) {
     const c = capture || {};
-    const vide = { numero: '', intitule: '' };
+    const vide = { intitule: '' };
+    const avec = (intitule) => ({ intitule });
     const sources = [];
     (c.champs || []).forEach(ch => { sources.push(ch.libelle || ''); sources.push(ch.valeur || ''); });
     sources.push(texteSansOngletsInactifsAuthentic(c));
-    // Le numéro, « caché dans les données du dossier » (étude, 02/10) : devant l'en-tête de la page
-    // (« 1836 - Vente … »), sinon dans un champ « N° de dossier » / « Numéro du dossier ».
-    let numeroEnTete = '';
-    for (const s of sources) {
-      const m = RE_INTITULE_GESTION_AUTHENTIC.exec(String(s));
-      if (m) { numeroEnTete = m[1]; break; }
-    }
-    const numero = numeroEnTete || numeroChampDossierAuthentic(c);
     // 1. L'onglet ACTIF : « N - … » ou, comme l'étude le voit, « VTE VENDEURS / ACQUÉREURS ».
     for (const o of (Array.isArray(c.onglets) ? c.onglets : [])) {
       if (!o || !o.actif) continue;
-      const titre = String(o.titre || '').replace(/\s+/g, ' ');
-      const m = /^\s*(\d{1,6})\s*-\s*([A-Za-zÀ-ÿ].*?)\s*$/.exec(titre);
-      if (m) return { numero: m[1], intitule: intituleVenteNormalise(m[2]) };
+      const titre = sansReferenceAuthentic(String(o.titre || '').replace(/\s+/g, ' '));
+      const m = /^\s*\d{1,6}\s*-\s*([A-Za-zÀ-ÿ].*?)\s*$/.exec(titre);
+      if (m) return avec(intituleVenteNormalise(m[1]));
       const v = RE_INTITULE_VTE_SEUL_AUTHENTIC.exec(titre);
-      if (v) return { numero, intitule: intituleVenteNormalise(v[1]) };
+      if (v) return avec(intituleVenteNormalise(v[1]));
     }
-    // 2. L'en-tête de la page du dossier, avec son numéro…
+    // 2. L'en-tête de la page du dossier, avec son rang…
     for (const s of sources) {
       const m = RE_INTITULE_GESTION_AUTHENTIC.exec(String(s));
-      if (m) return { numero: m[1], intitule: intituleVenteNormalise(m[2]) };
+      if (m) return avec(intituleVenteNormalise(m[2]));
     }
     // … ou sans (« VTE X / Y » suivi de Importer / Comparants / Immeubles).
     for (const s of sources) {
       const m = RE_EN_TETE_VTE_AUTHENTIC.exec(String(s));
-      if (m) return { numero, intitule: intituleVenteNormalise(m[1]) };
+      if (m) return avec(intituleVenteNormalise(m[1]));
     }
     // 3. Un intitulé « N - Vente X/Y » seul, s'il est le SEUL de la page.
     const vus = [];
     const re = new RegExp(RE_INTITULE_DOSSIER_AUTHENTIC.source, 'gi');
     sources.forEach(s => {
       for (const m of String(s).matchAll(re)) {
-        if (!vus.some(v => v.numero === m[1])) vus.push({ numero: m[1], intitule: intituleVenteNormalise(m[2]) });
+        const intitule = intituleVenteNormalise(m[2]);
+        if (!vus.includes(intitule)) vus.push(intitule);
       }
     });
-    return vus.length === 1 ? vus[0] : vide;
-  }
-
-  // Pure : le numéro d'un champ « N° de dossier », « Numéro du dossier », « N° sous-dossier »… ou ''.
-  function numeroChampDossierAuthentic(capture) {
-    for (const ch of ((capture && capture.champs) || [])) {
-      const l = libelleNetAuthentic(ch && ch.libelle);
-      const v = String((ch && ch.valeur) || '').trim();
-      if (/^(?:n|no|num|numero)\s*(?:de |du )?(?:sous )?dossier\b/.test(l.replace(/[°.:]/g, ' ').replace(/\s+/g, ' ').trim()) && /^\d{1,6}$/.test(v)) return v;
-    }
-    return '';
-  }
-
-  // Pure : le numéro du dossier dans Authentic (« 1861 » de « 1861 - Vente X/Y »), ou ''. Il identifie
-  // le dossier mieux que les noms (étude, 02/10 : « tu dois avoir un identifiant du type : 1861 » ; un seul
-  // numéro par affaire, promesse et vente comprises).
-  function numeroDossierAuthentic(capture) {
-    return intituleNumeroteAuthentic(capture).numero;
+    return vus.length === 1 ? avec(vus[0]) : vide;
   }
 
   // Pure : « Vente VENDEUR / ACQUÉREUR » d'après l'intitulé du dossier ouvert dans Authentic (ou
@@ -26714,15 +26741,21 @@
   var SEUIL_DOSSIER_AUTHENTIC = 6;
   // Pure : le dossier CLAIRE de cet intitulé (et de cette adresse de bien, si la page la montre) ;
   // null si aucun n'atteint le seuil ou si deux sont trop proches (jamais deviné).
-  function dossierPourIntituleAuthentic(intitule, liste, adresse, numero) {
+  function dossierPourIntituleAuthentic(intitule, liste, adresse, reference) {
     const vivants = (liste || []).filter(d => d && !d.deleted);
-    if (numero) {
-      const memes = vivants.filter(d => d.numeroAuthentic === String(numero));
+    const ref = referenceAuthenticValide(reference) ? reference : '';
+    // La référence d'Authentic (« A 2026 00247 ») d'abord : elle désigne l'affaire, quel que soit l'intitulé du jour.
+    if (ref) {
+      const memes = vivants.filter(d => d.referenceAuthentic === ref);
       if (memes.length === 1) return memes[0];
     }
     if (!String(intitule || '').trim()) return null;
-    // Un dossier déjà rattaché à un AUTRE numéro d'Authentic n'est jamais celui-là.
-    const notes = vivants.filter(d => !numero || !d.numeroAuthentic || d.numeroAuthentic === String(numero))
+    // Rangé une fois à la main (« Choisir ») : cet intitulé va à ce dossier.
+    const cle = cleIntituleAuthentic(intitule);
+    const choisis = vivants.filter(d => (d.intitulesAuthentic || []).includes(cle) && !autreReferenceAuthentic(d, ref));
+    if (choisis.length === 1) return choisis[0];
+    // Un dossier déjà rattaché à une AUTRE référence n'est jamais celui-là.
+    const notes = vivants.filter(d => !autreReferenceAuthentic(d, ref))
       .map(d => ({ d, s: scoreDossierAuthentic(intitule, adresse, d) }))
       .filter(x => x.s.nomsTrouves >= 1 && x.s.score >= SEUIL_DOSSIER_AUTHENTIC);
     const choisir = (cands) => {
@@ -26737,19 +26770,23 @@
     return archives === undefined ? null : archives;
   }
 
+  function autreReferenceAuthentic(d, ref) {
+    return !!ref && referenceAuthenticValide(d && d.referenceAuthentic) && d.referenceAuthentic !== ref;
+  }
+
   // Pure : pourquoi la page d'un dossier d'Authentic n'a trouvé aucun dossier de CLAIRE (étude, 02/10 :
   // « pourquoi parfois les données ne remontent pas ? » — avant, rien n'était dit).
-  function raisonDossierAuthenticIntrouvable(intitule, liste, adresse, numero) {
+  function raisonDossierAuthenticIntrouvable(intitule, liste, adresse, reference) {
     if (!intitule) return 'intitulé du dossier non lu sur la page';
+    const ref = referenceAuthenticValide(reference) ? reference : '';
     const vivants = (liste || []).filter(d => d && !d.deleted);
     const notes = vivants.map(d => ({ d, s: scoreDossierAuthentic(intitule, adresse, d) }))
       .filter(x => x.s.nomsTrouves >= 1).sort((a, b) => b.s.score - a.s.score);
     if (!notes.length) return 'aucun dossier de CLAIRE ne porte ces noms';
-    const autreNumero = (d) => !!numero && !!d.numeroAuthentic && d.numeroAuthentic !== String(numero);
-    const eligibles = notes.filter(x => !autreNumero(x.d));
+    const eligibles = notes.filter(x => !autreReferenceAuthentic(x.d, ref));
     const retenus = eligibles.filter(x => x.s.score >= SEUIL_DOSSIER_AUTHENTIC);
-    if (!retenus.length && autreNumero(notes[0].d)) {
-      return `${libelleDossierAffiche(notes[0].d)} porte ces noms mais est déjà rattaché au dossier Authentic n° ${notes[0].d.numeroAuthentic}`;
+    if (!retenus.length && !eligibles.length) {
+      return `${libelleDossierAffiche(notes[0].d)} porte ces noms mais est rattaché à un autre dossier d'Authentic (autre référence)`;
     }
     if (!retenus.length) {
       const m = eligibles[0];
@@ -26774,9 +26811,10 @@
   // Pure : comment le dossier a été retrouvé, dit au journal (étude, 02/10 : « détecter le nom du dossier,
   // vérifier l'adresse et ainsi retrouver le dossier ») — par son numéro, sinon par les noms de
   // l'intitulé, confirmés (ou non) par l'adresse du bien de la page.
-  function commentDossierRetrouveAuthentic(intitule, adresse, numero, d) {
+  function commentDossierRetrouveAuthentic(intitule, adresse, d, reference) {
     if (!d) return '';
-    if (numero && d.numeroAuthentic === String(numero)) return `retrouvé par son numéro Authentic (${numero})`;
+    if (referenceAuthenticValide(reference) && d.referenceAuthentic === reference) return 'retrouvé par sa référence Authentic';
+    if ((d.intitulesAuthentic || []).includes(cleIntituleAuthentic(intitule))) return 'rangé ici à la main une première fois';
     const s = scoreDossierAuthentic(intitule, adresse, d);
     const noms = s.details.filter(t => /^(?:vendeur|acquéreur|nom)/.test(t)).map(t => t.replace(/\s*\([+−-]\d+\)$/, ''));
     const adr = s.details.filter(t => !/^(?:vendeur|acquéreur|nom)/.test(t)).map(t => t.replace(/\s*\([+−-]\d+\)$/, ''));
@@ -26789,8 +26827,9 @@
   function proposerChoixDossierAuthentic(capture, intitule, liste) {
     const acte = etatActeAuthentic(capture);
     if (acte && acte.etat === 'signe') return false;
+    const ref = referenceDossierAuthentic(capture);
     return candidatsDossierAuthentic(intitule, adresseBienPageAuthentic(capture), liste)
-      .some(x => x.s.nomsTrouves && !x.d.numeroAuthentic);
+      .some(x => x.s.nomsTrouves && !autreReferenceAuthentic(x.d, ref));
   }
 
   // Pure : les dossiers proposés pour ranger à la main la page d'un dossier d'Authentic — en cours,
@@ -26802,24 +26841,54 @@
         || libelleDossierAffiche(a.d).localeCompare(libelleDossierAffiche(b.d), 'fr'));
   }
 
-  // Pure (modifie les dossiers passés) : rattachement CHOISI À LA MAIN d'un numéro d'Authentic — il
-  // passe avant tout (le numéro est quitté par le dossier qui le portait). → les autres dossiers modifiés.
-  function rattacherNumeroAuthentic(d, numero, liste) {
-    if (!d || !numero) return [];
-    const n = String(numero);
-    const quittes = (liste || []).filter(x => x && x !== d && !x.deleted && x.numeroAuthentic === n);
+  // Pure : l'intitulé d'Authentic réduit à ce qui le distingue (minuscules, sans accents ni ponctuation).
+  function cleIntituleAuthentic(intitule) {
+    return normaliserPourRecherche(String(intitule || '')).replace(/[^a-z0-9]+/g, ' ').trim();
+  }
+
+  // Pure (modifie le dossier passé) : la référence d'Authentic retenue sur la fiche la première fois que le
+  // dossier est reconnu — jamais s'il en a déjà une, ni si elle appartient déjà à un autre dossier. Jamais
+  // affichée (étude, 03/10) : une ligne d'historique seulement.
+  function retenirReferenceAuthentic(d, reference, liste) {
+    if (!d || !referenceAuthenticValide(reference) || referenceAuthenticValide(d.referenceAuthentic)) return false;
+    if ((liste || []).some(x => x && x !== d && !x.deleted && x.referenceAuthentic === reference)) return false;
+    d.referenceAuthentic = reference;
+    d.historique = d.historique || [];
+    d.historique.push({ date: new Date().toISOString(), texte: `Dossier Authentic ${reference} rattaché` });
+    return true;
+  }
+
+  // Pure (modifie les dossiers passés) : page d'un dossier d'Authentic rangée À LA MAIN — son intitulé (et
+  // sa référence, si la page en montre une) iront désormais à ce dossier ; ils quittent celui qui les
+  // portait. → les autres dossiers modifiés.
+  function rattacherIntituleAuthentic(d, intitule, liste, reference) {
+    const cle = cleIntituleAuthentic(intitule);
+    const ref = referenceAuthenticValide(reference) ? reference : '';
+    if (!d || (!cle && !ref)) return [];
     const t = new Date().toISOString();
-    quittes.forEach(x => {
-      delete x.numeroAuthentic;
-      x.historique = x.historique || [];
-      x.historique.push({ date: t, texte: `Dossier Authentic n° ${n} rattaché à ${libelleDossierAffiche(d)} à la main` });
-    });
-    if (d.numeroAuthentic !== n) {
-      d.numeroAuthentic = n;
-      d.historique = d.historique || [];
-      d.historique.push({ date: t, texte: `Dossier Authentic n° ${n} rattaché à la main` });
+    const quittes = new Set();
+    const noter = (x, texte) => { x.historique = x.historique || []; x.historique.push({ date: t, texte }); };
+    const autres = (liste || []).filter(x => x && x !== d && !x.deleted);
+    if (ref) {
+      autres.filter(x => x.referenceAuthentic === ref).forEach(x => {
+        delete x.referenceAuthentic;
+        noter(x, `Dossier Authentic ${ref} rattaché à ${libelleDossierAffiche(d)} à la main`);
+        quittes.add(x);
+      });
+      if (d.referenceAuthentic !== ref) { d.referenceAuthentic = ref; noter(d, `Dossier Authentic ${ref} rattaché à la main`); }
     }
-    return quittes;
+    if (cle) {
+      autres.filter(x => (x.intitulesAuthentic || []).includes(cle)).forEach(x => {
+        x.intitulesAuthentic = x.intitulesAuthentic.filter(c => c !== cle);
+        noter(x, `Dossier Authentic « ${intitule} » rangé dans ${libelleDossierAffiche(d)} à la main`);
+        quittes.add(x);
+      });
+      if (!(d.intitulesAuthentic || []).includes(cle)) {
+        d.intitulesAuthentic = (d.intitulesAuthentic || []).concat(cle).slice(-5);
+        noter(d, `Dossier Authentic « ${intitule} » rangé ici à la main`);
+      }
+    }
+    return [...quittes];
   }
 
   // Pure : les lignes de documents des tableaux de la page de gestion — intitulé (première cellule
@@ -27383,11 +27452,11 @@
       const type = typePageAuthentic(cap);
       const intitule = intituleDossierAuthentic(cap) || courant;
       if (intituleDossierAuthentic(cap)) courant = intituleDossierAuthentic(cap);
-      const numeroPage = intituleDossierAuthentic(cap) ? numeroDossierAuthentic(cap) : '';
       if (!intitule || (type === 'autre' && !intituleDossierAuthentic(cap))) return;
+      const referencePage = intituleDossierAuthentic(cap) ? referenceDossierAuthentic(cap) : '';
       if (!groupes.has(intitule)) groupes.set(intitule, { intitule, derniere: '', personnes: new Map(), immeubles: new Map(), documents: new Map(), infos: {}, adresse: '' });
       const g = groupes.get(intitule);
-      if (numeroPage) g.numero = numeroPage;
+      if (referencePage) g.reference = referencePage;
       if (intituleDossierAuthentic(cap) && adresseBienPageAuthentic(cap)) g.adresse = adresseBienPageAuthentic(cap);
       g.derniere = r.recueLe || g.derniere;
       if (type === 'client') { const p = clientDepuisFicheAuthentic(cap); if (p) g.personnes.set(p.id, p); }
@@ -27401,9 +27470,9 @@
       const immeubles = [...g.immeubles.values()];
       const adresseBien = g.adresse || (immeubles[0] && immeubles[0].adresse && immeubles[0].adresse.texte) || '';
       return {
-        intitule: g.intitule, numero: g.numero || '', derniere: g.derniere, adresse: adresseBien,
+        intitule: g.intitule, reference: g.reference || '', derniere: g.derniere, adresse: adresseBien,
         export: {
-          intitule: g.intitule, numero: g.numero || '', type: '', dateCreation: '', personnes, immeubles, parties: [], intervenants: [],
+          intitule: g.intitule, reference: g.reference || '', type: '', dateCreation: '', personnes, immeubles, parties: [], intervenants: [],
           biens: immeubles.map(im => im.id), documents: [...g.documents.values()], documentsPersonnes: [], acte: null, notaireRedacteur: null,
           origine: 'pages', infosAuthentic: g.infos
         }
@@ -27862,7 +27931,10 @@
     sources.forEach(s => {
       for (const m of String(s).matchAll(re)) {
         const i = m[2].replace(/\s*\/\s*/, ' / ').replace(/\s+/g, ' ').trim();
-        if (!vus.some(v => v.intitule === i && v.numero === m[1])) vus.push({ intitule: i, numero: m[1] });
+        // Le rang « N » n'identifie rien : seule une référence « A 2026 00247 » sur la même ligne compte.
+        const refs = referencesDansTexteAuthentic(s);
+        const reference = refs.length === 1 ? refs[0] : '';
+        if (!vus.some(v => v.intitule === i && v.reference === reference)) vus.push({ intitule: i, reference });
       }
     });
     return vus;
@@ -27879,7 +27951,7 @@
     const actifs = (liste || []).filter(d => d && !d.deleted);
     const cites = [];
     intitulesNumerotesAuthentic(capture).forEach(x => {
-      const d = dossierPourIntituleAuthentic(x.intitule, actifs, '', x.numero);
+      const d = dossierPourIntituleAuthentic(x.intitule, actifs, '', x.reference);
       if (d && !cites.includes(d)) cites.push(d);
     });
     const partie = (d) => !!personne && !!roleClientAuthenticDansDossier(d, personne);
@@ -27908,7 +27980,7 @@
     const o = ((capture && capture.onglets) || []).find(x => x && x.actif && (/^\s*\d{1,6}\s*-/.test(x.titre || '') || RE_INTITULE_VTE_SEUL_AUTHENTIC.test(x.titre || '')));
     if (!o) return null;
     const lu = intituleNumeroteAuthentic({ onglets: [o], champs: [], tableaux: [], texte: '' });
-    return lu.intitule ? dossierPourIntituleAuthentic(lu.intitule, liste, '', lu.numero) : null;
+    return lu.intitule ? dossierPourIntituleAuthentic(lu.intitule, liste, '', referenceDossierAuthentic({ onglets: [o] })) : null;
   }
 
   // Pure : pourquoi une fiche client n'a été rangée dans aucun dossier — dit à l'étude, jamais en silence.
@@ -27945,8 +28017,7 @@
     let marque = () => '';
     if (attente.nature === 'dossier') {
       const intitule = intituleDossierAuthentic(attente.capture);
-      const numero = numeroDossierAuthentic(attente.capture);
-      if (intro) intro.textContent = `Page « ${[numero, intitule].filter(Boolean).join(' - ')} » lue dans Authentic : dans quel dossier de CLAIRE la ranger ? Le numéro sera retenu pour les pages suivantes.`;
+      if (intro) intro.textContent = `Page « ${intitule} » lue dans Authentic : dans quel dossier de CLAIRE la ranger ? Les pages suivantes de ce dossier iront au même endroit.`;
       const notes = candidatsDossierAuthentic(intitule, adresseBienPageAuthentic(attente.capture), dossiers);
       candidats = notes.map(x => x.d);
       marque = (d) => {
@@ -28004,7 +28075,7 @@
     fichesClientEnAttente.delete(cle);
     dossierCourantAuthentic = { id: d.id, t: Date.now() };
     if (attente.nature === 'dossier') {
-      const quittes = rattacherNumeroAuthentic(d, numeroDossierAuthentic(attente.capture), dossiers);
+      const quittes = rattacherIntituleAuthentic(d, intituleDossierAuthentic(attente.capture), dossiers, referenceDossierAuthentic(attente.capture));
       for (const x of quittes) await sauvegarder(x);
     }
     const r = appliquerReleveSurDossier(d, attente.capture);
@@ -28039,27 +28110,17 @@
     return `fiche de ${qui} lue : téléphone et email déjà sur la fiche`;
   }
 
-  // Pure (modifie le dossier passé) : le numéro d'Authentic retenu sur la fiche la première fois que le
-  // dossier est reconnu — jamais s'il en a déjà un, ni s'il appartient déjà à un autre dossier.
-  function retenirNumeroAuthentic(d, numero, liste) {
-    if (!d || !numero || d.numeroAuthentic) return false;
-    if ((liste || []).some(x => x && x !== d && !x.deleted && x.numeroAuthentic === String(numero))) return false;
-    d.numeroAuthentic = String(numero);
-    d.historique = d.historique || [];
-    d.historique.push({ date: new Date().toISOString(), texte: `Dossier Authentic n° ${numero} rattaché` });
-    return true;
-  }
-
   // Pure : le dossier de CLAIRE ouvert dans Authentic d'après l'intitulé seul (« 15 - Donation SIMOND »,
-  // « 12 - Vente PETIT/BOSQUET ») — null pour un dossier que CLAIRE ne suit pas.
+  // « 12 - Vente PETIT/BOSQUET », précédé de la référence « A 2026 00247 » depuis l'extension 0.3.9) — par
+  // la référence, sinon par les noms ; jamais par le rang « N » ; null pour un dossier que CLAIRE ne suit pas.
   function dossierPourNavigationAuthentic(intitule, liste) {
-    const mNum = /^\s*(\d{1,6})\s*-/.exec(String(intitule || ''));
-    const numero = mNum ? mNum[1] : '';
-    const parNumero = numero ? (liste || []).filter(d => d && !d.deleted && d.numeroAuthentic === numero) : [];
-    if (parNumero.length === 1) return parNumero[0];
-    const lu = intituleDossierAuthentic({ champs: [], tableaux: [], texte: String(intitule || '') })
-      || intituleVenteNormalise(String(intitule || '').replace(/^\s*\d{1,6}\s*-\s*/, ''));
-    return lu ? dossierPourIntituleAuthentic(lu, liste, '', numero) : null;
+    const refs = referencesDansTexteAuthentic(intitule);
+    const reference = refs.length === 1 ? refs[0] : '';
+    const texte = sansReferenceAuthentic(intitule);
+    const lu = intituleDossierAuthentic({ champs: [], tableaux: [], texte })
+      || intituleVenteNormalise(texte.replace(/^\s*\d{1,6}\s*-\s*/, ''));
+    if (!lu) return reference ? dossierPourIntituleAuthentic('', liste, '', reference) : null;
+    return dossierPourIntituleAuthentic(lu, liste, '', reference);
   }
 
   // L'utilisateur a changé de dossier dans Authentic (étude, 02/10 : « je peux naviguer d'un dossier à
@@ -28074,15 +28135,14 @@
   var messagesDossierIntrouvable = new Map();
   function direPageSansDossierAuthentic(capture, rel, raison) {
     const intitule = intituleDossierAuthentic(capture);
-    const numero = numeroDossierAuthentic(capture);
-    const cleMessage = numero || intitule;
+    const cleMessage = intitule;
     const deja = messagesDossierIntrouvable.get(cleMessage);
     if (deja && Date.now() - deja < DUREE_DOSSIER_COURANT_AUTHENTIC_MS) return;
     messagesDossierIntrouvable.set(cleMessage, Date.now());
     const cle = 'f' + (++numeroFicheEnAttente);
     fichesClientEnAttente.set(cle, { capture, releveId: rel && rel.id, nature: 'dossier' });
     while (fichesClientEnAttente.size > 10) fichesClientEnAttente.delete(fichesClientEnAttente.keys().next().value);
-    afficherToast(`Authentic · « ${[numero, intitule].filter(Boolean).join(' - ')} » : ${raison}.`, 'Choisir', () => ouvrirChoixFicheClientAuthentic(cle), { fixe: true, cle });
+    afficherToast(`Authentic · « ${intitule} » : ${raison}.`, 'Choisir', () => ouvrirChoixFicheClientAuthentic(cle), { fixe: true, cle });
   }
 
   // Applique une page relevée → { etat, dossierId, texte } pour le journal (Réglages › Authentic) :
@@ -28124,34 +28184,35 @@
       return { etat: 'applique', dossierId: d.id, texte: r0.textes.join(' · ') || 'fiche client reprise' };
     }
     const lu = intituleDossierAuthentic(capture);
-    const numero = numeroDossierAuthentic(capture);
+    const reference = referenceDossierAuthentic(capture);
     const adresse = adresseBienPageAuthentic(capture);
-    let numeroNote = false;
+    let referenceNotee = false;
     let raisonAncien = '';
     let comment = '';
     if (lu) {
-      d = dossierPourIntituleAuthentic(lu, dossiers, adresse, numero);
-      // Retrouvé par les noms seulement (pas par son numéro) mais signé avant ce dossier : un ancien
-      // dossier des mêmes clients — jamais appliqué, et le numéro n'est pas pris.
-      if (d && !(numero && d.numeroAuthentic === String(numero)) && ancienDossierAuthentic(capture, d)) {
+      d = dossierPourIntituleAuthentic(lu, dossiers, adresse, reference);
+      // Retrouvé par les noms mais signé avant ce dossier : un ancien dossier des mêmes clients — jamais
+      // appliqué, et sa référence n'est pas prise (sauf référence ou intitulé déjà rattachés à ce dossier).
+      const rattache = d && ((reference && d.referenceAuthentic === reference) || (d.intitulesAuthentic || []).includes(cleIntituleAuthentic(lu)));
+      if (d && !rattache && ancienDossierAuthentic(capture, d)) {
         raisonAncien = `ancien dossier des mêmes clients (acte signé le ${formatDateFr(etatActeAuthentic(capture).date)}), pas ${libelleDossierAffiche(d)}`;
         d = null;
       }
       dossierCourantAuthentic = { id: d ? d.id : '', t: Date.now() };
-      comment = commentDossierRetrouveAuthentic(lu, adresse, numero, d);
-      numeroNote = !!d && retenirNumeroAuthentic(d, numero, dossiers);
+      comment = commentDossierRetrouveAuthentic(lu, adresse, d, reference);
+      referenceNotee = !!d && retenirReferenceAuthentic(d, reference, dossiers);
     } else if (courantValide) {
       d = dossiers.find(x => x.id === dossierCourantAuthentic.id) || null;
     }
     if (!d) {
       // Jamais en silence (étude, 02/10) : le motif, et le choix à la main.
-      const raison = raisonAncien || (lu ? raisonDossierAuthenticIntrouvable(lu, dossiers, adresse, numero) : (typePageAuthentic(capture) === 'bien' ? 'fiche bien gardée pour « Nouveau dossier »' : 'aucun dossier ouvert dans Authentic juste avant'));
+      const raison = raisonAncien || (lu ? raisonDossierAuthenticIntrouvable(lu, dossiers, adresse, reference) : (typePageAuthentic(capture) === 'bien' ? 'fiche bien gardée pour « Nouveau dossier »' : 'aucun dossier ouvert dans Authentic juste avant'));
       if (lu && !raisonAncien && proposerChoixDossierAuthentic(capture, lu, dossiers)) direPageSansDossierAuthentic(capture, rel, raison);
       return { etat: lu ? 'sans-dossier' : 'sans-changement', texte: raison };
     }
     const r = appliquerReleveSurDossier(d, capture);
     const avecComment = (t) => [comment, t].filter(Boolean).join(' — ');
-    if (!r.modifie && !numeroNote) return { etat: 'sans-changement', dossierId: d.id, texte: avecComment('rien de neuf') };
+    if (!r.modifie && !referenceNotee) return { etat: 'sans-changement', dossierId: d.id, texte: avecComment('rien de neuf') };
     await sauvegarder(d);
     render();
     // Comme une validation à la main : les dates butoir levées quittent l'agenda.
@@ -28170,7 +28231,7 @@
         : r.textes[0] + (r.textes.length > 1 ? ` (+${r.textes.length - 1})` : '');
       afficherToast(`Authentic · ${libelleDossierAffiche(d)} : ${resume}.`, 'Voir', () => ouvrirDossierDrawer(d.id));
     }
-    return { etat: 'applique', dossierId: d.id, texte: avecComment(r.textes.join(' · ') || `dossier Authentic n° ${numero} rattaché`) };
+    return { etat: 'applique', dossierId: d.id, texte: avecComment(r.textes.join(' · ') || 'page reprise') };
   }
 
   // SAFER sans réponse : le délai s'écoule même sans nouvelle page d'Authentic — vérifié au démarrage
@@ -28196,9 +28257,83 @@
     return true;
   }
 
+  // Étude, 03/10 : le « numéro Authentic » retenu jusqu'ici était le rang du sous-dossier (« 1 » de
+  // « 1 - Vente … »), partagé par presque tous les dossiers — une page de MERCIER était allée à DORLÉAC.
+  // Ce champ est oublié au démarrage ; le vrai numéro, la référence « A 2026 00247 », est retenu dans
+  // `d.referenceAuthentic` à la prochaine page du dossier. Pure (modifie le dossier passé) → vrai si retiré.
+  function retirerNumeroAuthentic(d) {
+    if (!d || d.numeroAuthentic == null) return false;
+    const ancien = d.numeroAuthentic;
+    delete d.numeroAuthentic;
+    d.historique = d.historique || [];
+    d.historique.push({ date: new Date().toISOString(), texte: `Rang de sous-dossier Authentic « ${ancien} » oublié : il n’identifie pas le dossier (la référence du dossier Authentic sera retenue à la prochaine page)` });
+    return true;
+  }
+
+  // Pure (modifie le dossier passé) : oublie tout ce qu'une page de DOSSIER d'Authentic a posé sur la
+  // fiche (étude, 03/10 : page d'un autre dossier appliquée par erreur) — état de l'acte, RHF, SAFER,
+  // Comedec, demandes, prix et date d'avant-contrat repris d'Authentic, pièces cochées « dans Authentic »
+  // (celles qu'Authentic avait ajoutées sont retirées). Les fiches client (rapprochées par le
+  // nom des parties) restent. Tout revient à la prochaine ouverture du bon dossier dans Authentic.
+  // → la liste de ce qui a été retiré (vide : rien à oublier).
+  function oublierDonneesAuthentic(d, maintenantIso) {
+    if (!d) return [];
+    const maintenant = maintenantIso || new Date().toISOString();
+    const a = d.authentic || {};
+    const retire = [];
+    const hist = d.historique || [];
+    const reprisDAuthentic = (re) => hist.some(h => h && re.test(h.texte || ''));
+    if (a.prix && Number(d.prixVente) === Number(a.prix) && reprisDAuthentic(/^Prix de vente repris d’Authentic/)) { d.prixVente = null; retire.push('prix'); }
+    if (a.avantContratLe && d.dateAvantContrat === a.avantContratLe && reprisDAuthentic(/^Date de signature de l’avant-contrat reprise d’Authentic/)) { d.dateAvantContrat = null; retire.push('date de l’avant-contrat'); }
+    const cles = new Set([...(d.piecesAuthentic || []), ...Object.keys(a.etatsCivils || {}), ...(a.saferPieceAjoutee ? ['perso-safer'] : [])]);
+    if (cles.size) {
+      const ajoutees = new Set((d.piecesPersonnalisees || []).filter(p => cles.has(p.cle)).map(p => p.cle));
+      d.piecesPersonnalisees = (d.piecesPersonnalisees || []).filter(p => !ajoutees.has(p.cle));
+      d.pieces = Object.assign({}, d.pieces);
+      cles.forEach(cle => {
+        if (ajoutees.has(cle)) delete d.pieces[cle];
+        else if (d.pieces[cle] === 'recue') d.pieces[cle] = 'manquante';
+      });
+      d.piecesValideesManuellement = (d.piecesValideesManuellement || []).filter(c => !cles.has(c));
+      d.piecesNotifications = (d.piecesNotifications || []).filter(c => !cles.has(c));
+      if (d.piecesTrouveesLe) cles.forEach(cle => { delete d.piecesTrouveesLe[cle]; });
+      delete d.piecesAuthentic;
+      retire.push(`${cles.size} pièce${cles.size > 1 ? 's' : ''}`);
+    }
+    const champsDossier = ['acte', 'rhf', 'safer', 'prix', 'collaborateur', 'notaire', 'etatsCivils', 'demandes', 'avantContratLe', 'saferPieceAjoutee'];
+    if (champsDossier.some(k => a[k])) {
+      const reste = Object.assign({}, a);
+      champsDossier.forEach(k => { delete reste[k]; });
+      delete reste.releveLe;
+      if (Object.keys(reste).length) d.authentic = reste; else delete d.authentic;
+      retire.push('suivi d’Authentic (acte, RHF, SAFER…)');
+    }
+    if (d.referenceAuthentic) { retire.push('référence du dossier Authentic'); delete d.referenceAuthentic; }
+    if ((d.intitulesAuthentic || []).length) { retire.push('intitulé rangé à la main'); delete d.intitulesAuthentic; }
+    if (retire.length) {
+      hist.push(Object.assign({ date: maintenant, texte: `Données d’Authentic oubliées (${retire.join(', ')}) : elles reviendront à la prochaine ouverture du dossier dans Authentic` }, utilisateurPoste ? { auteur: utilisateurPoste } : {}));
+      d.historique = hist;
+    }
+    return retire;
+  }
+
+  function confirmerOublierDonneesAuthentic(id) {
+    const d = dossiers.find(x => x.id === id);
+    if (!d) return;
+    demanderConfirmation(`Oublier ce qui vient d’Authentic sur ${libelleDossierAffiche(d)} ? Pièces cochées « dans Authentic », réquisition, SAFER, état de l’acte et rattachement au dossier Authentic sont retirés ; tout revient à la prochaine ouverture du bon dossier dans Authentic.`, async () => {
+      const retire = oublierDonneesAuthentic(d);
+      if (!retire.length) return;
+      await sauvegarder(d);
+      render();
+      afficherToast(`${libelleDossierAffiche(d)} : données d’Authentic oubliées.`, 'OK', null);
+    }, { bouton: 'Oublier', ton: 'danger' });
+  }
+
   async function retirerDatesAvantContratLuesNas() {
     for (const d of dossiers || []) {
-      if (retirerDateAvantContratLueNas(d)) await sauvegarder(d);
+      const date = retirerDateAvantContratLueNas(d);
+      const numero = retirerNumeroAuthentic(d);
+      if (date || numero) await sauvegarder(d);
     }
   }
 
@@ -28418,7 +28553,7 @@
     const correspond = (g) => avecPdf && nomLu && scoreDossierAuthentic(g.intitule, '', { nom: nomLu }).score >= SEUIL_DOSSIER_AUTHENTIC;
     const aide = 'Dossiers ouverts dans Authentic depuis une heure (extension « CLAIRE pour Authentic ») : ouvrez la page du dossier, puis les fiches vendeur, acquéreur et bien — CLAIRE les rassemble. Parties, état civil, bien, cadastre, prix et pièces reçues viennent d’Authentic ; dates butoir et engagements du vendeur, du compromis.';
     const lignes = tries.slice(0, 6).map(({ g, i }) => {
-      const existant = dossierPourIntituleAuthentic(g.intitule, dossiers, g.adresse);
+      const existant = dossierPourIntituleAuthentic(g.intitule, dossiers, g.adresse, g.reference);
       const succ = RE_INTITULE_SUCCESSION_AUTHENTIC.test(g.intitule);
       const nom = g.intitule.replace(/^\s*(?:vente|vte|succession|succ)\.?\s+/i, '');
       const estRepris = repris && repris === g.intitule;
@@ -31044,7 +31179,7 @@
       emailVendeur: typeof d.emailVendeur === 'string' ? d.emailVendeur : '',
       telephoneAcquereur: typeof d.telephoneAcquereur === 'string' ? d.telephoneAcquereur : '',
       telephoneVendeur: typeof d.telephoneVendeur === 'string' ? d.telephoneVendeur : '',
-      numeroAuthentic: typeof d.numeroAuthentic === 'string' && /^\d{1,6}$/.test(d.numeroAuthentic) ? d.numeroAuthentic : null,
+      referenceAuthentic: referenceAuthenticValide(d.referenceAuthentic) ? d.referenceAuthentic : null,
       dateAvantContrat: typeof d.dateAvantContrat === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d.dateAvantContrat) ? d.dateAvantContrat : null,
       dateAvantContratLueLe: typeof d.dateAvantContratLueLe === 'string' ? d.dateAvantContratLueLe : null,
       personnesConnuesEcartees: Array.isArray(d.personnesConnuesEcartees) ? d.personnesConnuesEcartees.filter(x => typeof x === 'string').slice(-40) : [],

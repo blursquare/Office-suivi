@@ -8,7 +8,12 @@ l'envoie au serveur CLAIRE du bureau, puis ouvre CLAIRE sur la page reçue.
 - Jamais un mot de passe ni un champ caché de la page.
 - Le serveur garde la page **30 minutes en mémoire** seulement (ni base, ni journal).
 
-## État (02/10/2026) — version 0.3.8
+## État (03/10/2026) — version 0.3.9
+
+- **0.3.9** : correction du bouton « Envoyer à CLAIRE » (« result is non-structured-clonable data » : le relevé
+  injecté rendait une fonction) ; la navigation vers un dossier d'un autre type envoie aussi la référence du dossier
+  (« A 2026 00247 », bandeau de gauche), le vrai numéro du dossier — le rang « N » de « N - Vente … » est le même dans
+  presque tous les dossiers et ne sert plus à rien dans CLAIRE. La référence n'est jamais affichée devant « VTE ».
 
 - **0.3.8** : un dossier identifié par « VTE NOM VENDEURS / NOM ACQUÉREURS » sans numéro (titre de l'onglet actif ou
   en-tête de la page) est reconnu ; le numéro, quand la page le porte dans ses données, sert d'identifiant.

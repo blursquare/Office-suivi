@@ -165,3 +165,7 @@ window.__claireRelever = function () {
     texte: document.body ? document.body.innerText : ''
   };
 };
+// Valeur rendue quand fond.js injecte ce fichier (bouton « Envoyer à CLAIRE ») : sans elle, c'était la
+// fonction ci-dessus, que Firefox refuse de transmettre (« result is non-structured-clonable data » —
+// étude, 03/10). Le relevé lui-même est rendu par capture.js.
+undefined;

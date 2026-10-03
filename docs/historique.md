@@ -15670,3 +15670,33 @@ outil seulement, « une sorte d'apprentissage pour améliorer le regex de détec
 Vérifié : tests serveur (`noms-fichiers-nas.test.js`, dossier commun inventé sur disque) et client (`noms-fichiers-nas.test.js`,
 exemples de l'étude), rendu Chromium clair/sombre/téléphone. Non vérifié : sur le vrai commun (durée du parcours sur le
 NAS, nombre de groupes, qualité du vocabulaire — un nom de commune fréquent reste un mot gardé).
+
+### 03/10/2026 09:33 — Authentic : le rang « 1 - » n'identifie plus rien ; la référence « A 2026 00247 » relie les dossiers (MERCIER rangé dans DORLÉAC)
+
+Étude : « Il a détecté une RHF dans DORLÉAC alors que ce n'est pas le bon dossier, c'était pour MERCIER », capture de la
+page Authentic (bandeau « A 2026 00247 VTE MERCIER / FRANCOIS », en-tête « 1 - Vente MERCIER / FRANCOIS ») ; à la création
+de MERCIER : « Créer un second dossier ? VTE - DORLÉAC / PETIT COURTAS existe déjà pour ce dossier Authentic » ; puis
+« arrête avec les numéros devant les noms de dossier, ça casse tout », « A 2026 00247 est le vrai numéro de dossier mais ne
+pas l'afficher devant VTE, ou plus tard SUCC », « l'identifiant doit juste permettre de bien lier les dossiers entre
+Authentic et CLAIRE après le premier passage ».
+Cause : depuis le 02/10, le nombre devant « N - Vente … » était pris pour l'identifiant du dossier (`d.numeroAuthentic`,
+prioritaire sur les noms). Ce n'est que le rang du sous-dossier : « 1 » dans presque tous les dossiers. DORLÉAC, reconnu le
+premier, avait retenu « 1 » ; toute page « 1 - … » lui allait ensuite, et le contrôle de doublon comparait le même « 1 ».
+Correction : le rang ne sert plus à rien. Identifiant = la RÉFÉRENCE du bandeau, « A 2026 00247 » (`referenceDossierAuthentic` :
+celle de l'onglet actif, sinon la seule de la page ; deux références → aucune), gardée dans `d.referenceAuthentic`
+(nouveau champ : les anciens `d.numeroAuthentic` sont oubliés au démarrage par `retirerNumeroAuthentic`), jamais affichée —
+retirée des intitulés lus (`sansReferenceAuthentic`). Premier passage : reconnaissance par les noms et l'adresse du bien
+(`scoreDossierAuthentic`), puis `retenirReferenceAuthentic` ; ensuite la référence relie le dossier quel que soit l'intitulé, et
+un dossier rattaché à une autre référence est écarté du score. « Choisir » (`rattacherIntituleAuthentic`) garde l'intitulé
+(`d.intitulesAuthentic`) et la référence ; « Nouveau dossier » : doublon = même référence ou même nom
+(`dossierDejaPresentPourCreation(nom, reference, liste)`), la référence des pages suit le dossier créé. Extension 0.3.9 : la
+navigation vers un dossier d'un autre type est précédée de la référence (route `/api/authentic/navigation` l'accepte).
+Nettoyage : croix sur le bloc « Dans Authentic » de l'onglet Pièces → `oublierDonneesAuthentic` (confirmation) : pièces
+cochées « dans Authentic » repassées manquantes (celles qu'Authentic avait ajoutées — état civil, « Réponse SAFER » —
+retirées), état de l'acte, RHF, SAFER, Comedec, demandes, collaborateur, notaire, référence et intitulés rangés à la main
+retirés, prix et date d'avant-contrat remis à vide seulement s'ils venaient d'Authentic ; fiches client gardées. À faire sur
+DORLÉAC pour retirer la RHF de MERCIER.
+Extension 0.3.9 : « Script releve.js result is non-structured-clonable data » au clic sur « Envoyer à CLAIRE » — le
+fichier injecté rendait la fonction qu'il définit ; il finit désormais par `undefined;`.
+Vérifié : tests client (`authentic-pages.test.js`, cas MERCIER/DORLÉAC rejoué sous d'autres noms) et serveur. Non vérifié :
+sur Authentic au bureau (forme exacte du bandeau sur les autres pages : fiche client, onglets), l'extension dans Firefox.

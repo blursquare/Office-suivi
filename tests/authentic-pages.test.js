@@ -770,30 +770,106 @@ test('navigation dans Authentic : l\'intitulé seul désigne le dossier consult�
   assert.equal(app.dossierPourNavigationAuthentic('', [vente]), null);
 });
 
-test('numéro du dossier Authentic (« 1836 - Vente … ») : retenu, puis prioritaire sur les noms', () => {
-  const page = { champs: [{ groupe: '', libelle: '1836 - Vente MOREAU-GILLET/WALDEN', valeur: '' }], tableaux: [], texte: '1836 - Vente MOREAU-GILLET/WALDEN Importer\nComparants' };
-  assert.equal(app.numeroDossierAuthentic(page), '1836');
-  assert.equal(app.numeroDossierAuthentic(gestion), '12');
+test('référence du dossier (« A 2026 00247 ») : le vrai numéro, retenu sans être affiché ; le rang « 1 - » n’identifie rien', () => {
+  // Étude, 03/10 : la page « 1 - Vente MERCIER / FRANCOIS » était allée au dossier DORLÉAC, retenu sous « 1 ».
+  const page = { champs: [{ groupe: '', libelle: '1 - Vente MOREAU-GILLET/WALDEN', valeur: '' }], tableaux: [], texte: 'A 2026 00247 VTE MOREAU-GILLET / WALDEN\n1 - Vente MOREAU-GILLET/WALDEN Importer\nComparants' };
+  assert.equal(app.referenceDossierAuthentic(page), 'A 2026 00247');
+  assert.equal(app.intituleDossierAuthentic(page), 'Vente MOREAU-GILLET / WALDEN', 'jamais affichée devant « VTE »');
+  assert.equal(app.referenceDossierAuthentic(gestion), '', 'le rang « 12 - » seul n’est pas une référence');
+  assert.equal(typeof app.numeroDossierAuthentic, 'undefined');
+  const dorleac = { id: 'x', nom: 'DORLEAC / PETIT', historique: [], numeroAuthentic: '1' };
   const a = { id: 'a', nom: 'MOREAU-GILLET / WALDEN', historique: [] };
-  const homonyme = { id: 'h', nom: 'MOREAU-GILLET / WALDEN', historique: [], numeroAuthentic: '1700' };
-  // Le dossier rattaché à un autre numéro est écarté : seul « a » reste.
-  assert.equal(app.dossierPourIntituleAuthentic('Vente MOREAU-GILLET / WALDEN', [a, homonyme], '', '1836').id, 'a');
-  assert.equal(app.retenirNumeroAuthentic(a, '1836', [a, homonyme]), true);
-  assert.equal(a.numeroAuthentic, '1836');
-  assert.match(a.historique[0].texte, /n° 1836/);
-  // Jamais deux fois, jamais un numéro déjà pris.
-  assert.equal(app.retenirNumeroAuthentic(a, '1900', [a]), false);
+  assert.equal(app.dossierPourIntituleAuthentic(app.intituleDossierAuthentic(page), [dorleac], '', 'A 2026 00247'), null);
+  assert.equal(app.dossierPourIntituleAuthentic(app.intituleDossierAuthentic(page), [dorleac, a], '', 'A 2026 00247').id, 'a');
+  // Retenue à la première reconnaissance ; jamais un rang ; jamais deux fois ; jamais une référence déjà prise.
+  assert.equal(app.retenirReferenceAuthentic(a, '1', [a]), false);
+  assert.equal(app.retenirReferenceAuthentic(a, 'A 2026 00247', [a]), true);
+  assert.equal(a.referenceAuthentic, 'A 2026 00247');
+  assert.match(a.historique[0].texte, /Dossier Authentic A 2026 00247 rattaché/);
+  assert.equal(app.retenirReferenceAuthentic(a, 'A 2026 00300', [a]), false);
   const b = { id: 'b', nom: 'X / Y', historique: [] };
-  assert.equal(app.retenirNumeroAuthentic(b, '1836', [a, b]), false);
-  // Le numéro l'emporte même si l'intitulé a changé dans Authentic.
-  assert.equal(app.dossierPourIntituleAuthentic('Vente MOREAU / WALDEN-PETIT', [a, homonyme], '', '1836').id, 'a');
-  // Navigation : par le numéro, quel que soit le type de dossier.
-  assert.equal(app.dossierPourNavigationAuthentic('1836 - Avenant WALDEN', [a, homonyme]).id, 'a');
-  assert.equal(app.dossierPourNavigationAuthentic('1999 - Donation WALDEN', [a, homonyme]), null);
-  // Création depuis les pages : le numéro suit le dossier relevé.
-  const g = app.dossiersDepuisRelevesAuthentic([{ recueLe: '2026-10-02T10:00:00Z', capture: Object.assign({}, gestion) }])[0];
-  assert.equal(g.numero, '12');
-  assert.equal(g.export.numero, '12');
+  assert.equal(app.retenirReferenceAuthentic(b, 'A 2026 00247', [a, b]), false);
+  // La référence l'emporte même si l'intitulé a changé ; un homonyme rattaché à une autre référence est écarté.
+  const homonyme = { id: 'h', nom: 'MOREAU-GILLET / WALDEN', historique: [], referenceAuthentic: 'A 2025 00112' };
+  assert.equal(app.dossierPourIntituleAuthentic('Projet acte BLOIS', [a, homonyme], '', 'A 2026 00247').id, 'a');
+  const c = { id: 'c', nom: 'MOREAU-GILLET / WALDEN', historique: [] };
+  assert.equal(app.dossierPourIntituleAuthentic('Vente MOREAU-GILLET / WALDEN', [c, homonyme], '', 'A 2026 00999').id, 'c');
+  assert.match(app.raisonDossierAuthenticIntrouvable('Vente MOREAU-GILLET / WALDEN', [homonyme], '', 'A 2026 00999'), /rattaché à un autre dossier d'Authentic/);
+  assert.equal(app.commentDossierRetrouveAuthentic('Projet', '', a, 'A 2026 00247'), 'retrouvé par sa référence Authentic');
+  // Onglet actif portant la référence : retirée de l'intitulé, gardée comme référence.
+  const onglet = { onglets: [{ titre: 'A 2026 00300 VTE C / D', actif: false }, { titre: 'A 2026 00247 VTE MOREAU-GILLET / WALDEN', actif: true }], champs: [], tableaux: [], texte: 'A 2026 00300 VTE C / D\nA 2026 00247 VTE MOREAU-GILLET / WALDEN' };
+  assert.equal(app.intituleDossierAuthentic(onglet), 'Vente MOREAU-GILLET / WALDEN');
+  assert.equal(app.referenceDossierAuthentic(onglet), 'A 2026 00247');
+  // Deux références sur la page (liste de dossiers) : aucune. Ni date ni montant pris pour une référence.
+  assert.equal(app.referenceDossierAuthentic({ champs: [], tableaux: [], texte: 'A 2026 00247 VTE A / B\nA 2026 00300 VTE C / D' }), '');
+  assert.equal(app.referencesDansTexteAuthentic('Le 12/03/2026 · 2026 00247 · A 2026 1234,50 €').join(','), '');
+  // Navigation : par la référence (extension 0.3.9), sinon les noms ; jamais par le rang.
+  assert.equal(app.dossierPourNavigationAuthentic('A 2026 00247 1 - Avenant WALDEN', [a, homonyme]).id, 'a');
+  assert.equal(app.dossierPourNavigationAuthentic('A 2026 00999 1 - Donation WALDEN', [a, homonyme]), null);
+  assert.equal(app.dossierPourNavigationAuthentic('1 - Vente MOREAU-GILLET/WALDEN', [dorleac, c]).id, 'c');
+  assert.equal(app.dossierPourNavigationAuthentic('1 - Donation SIMOND', [Object.assign({}, c, { numeroAuthentic: '1' })]), null);
+  // Création depuis les pages : la référence suit le dossier relevé.
+  const g = app.dossiersDepuisRelevesAuthentic([{ recueLe: '2026-10-02T10:00:00Z', capture: Object.assign({}, gestion, { texte: 'A 2026 00451 VTE MARTEL / FOURNIER\n' + (gestion.texte || '') }) }])[0];
+  assert.equal(g.reference, 'A 2026 00451');
+  assert.equal(g.export.reference, 'A 2026 00451');
+  assert.ok(!/A 2026/.test(g.intitule));
+});
+
+test('rangé à la main (« Choisir ») : l’intitulé et la référence vont ensuite à ce dossier, ils quittent l’ancien', () => {
+  const ancien = { id: 'b', nom: 'DURAND / ROUX', historique: [] };
+  const choisi = { id: 'a', nom: 'MARTEL / FOURNIER', historique: [] };
+  assert.equal(app.dossierPourIntituleAuthentic('Projet acte BLOIS', [ancien, choisi]), null);
+  assert.equal(app.rattacherIntituleAuthentic(ancien, 'Projet acte BLOIS', [ancien, choisi]).length, 0);
+  const quittes = app.rattacherIntituleAuthentic(choisi, 'Projet acte BLOIS', [ancien, choisi]);
+  assert.equal(quittes.length, 1);
+  assert.equal(ancien.intitulesAuthentic.length, 0);
+  assert.equal(app.dossierPourIntituleAuthentic('Projet acte Blois', [ancien, choisi]).id, 'a');
+  assert.match(choisi.historique[0].texte, /« Projet acte BLOIS » rangé ici à la main/);
+  assert.match(ancien.historique[1].texte, /rangé dans VTE - MARTEL \/ FOURNIER à la main/);
+  assert.equal(app.commentDossierRetrouveAuthentic('Projet acte BLOIS', '', choisi), 'rangé ici à la main une première fois');
+  assert.equal(app.rattacherIntituleAuthentic(choisi, '', [choisi]).length, 0);
+  // Avec la référence de la page : elle quitte le dossier qui la portait.
+  ancien.referenceAuthentic = 'A 2026 00012';
+  const q2 = app.rattacherIntituleAuthentic(choisi, 'Vente DURAND / ROUX', [ancien, choisi], 'A 2026 00012');
+  assert.equal(q2.length, 1);
+  assert.equal(ancien.referenceAuthentic, undefined);
+  assert.equal(choisi.referenceAuthentic, 'A 2026 00012');
+  assert.equal(app.rattacherIntituleAuthentic(choisi, '', [choisi], '12').length, 0, 'un rang n’est jamais rattaché');
+});
+
+test('numéro Authentic gardé avant le 03/10 : oublié au démarrage', () => {
+  const d = { id: 'x', nom: 'DORLEAC / PETIT', numeroAuthentic: '1', historique: [] };
+  assert.equal(app.retirerNumeroAuthentic(d), true);
+  assert.equal(d.numeroAuthentic, undefined);
+  assert.match(d.historique[0].texte, /« 1 » oublié/);
+  assert.equal(app.retirerNumeroAuthentic({ id: 'z' }), false);
+});
+
+test('oublierDonneesAuthentic : la page d’un autre dossier appliquée par erreur est retirée de la fiche', () => {
+  const d = {
+    id: 'x', nom: 'DORLEAC / PETIT', referenceAuthentic: 'A 2026 00247', prixVente: 195000, dateAvantContrat: '2026-06-01',
+    pieces: { titrePropriete: 'recue', 'authentic-ecv-1': 'recue', 'perso-safer': 'manquante', dpe: 'recue' },
+    piecesPersonnalisees: [{ cle: 'authentic-ecv-1', label: 'Acte de naissance de Jean MERCIER' }, { cle: 'perso-safer', label: 'Réponse SAFER' }, { cle: 'perso-x', label: 'Plan' }],
+    piecesAuthentic: ['titrePropriete', 'authentic-ecv-1'], piecesValideesManuellement: ['titrePropriete', 'authentic-ecv-1', 'dpe'],
+    piecesTrouveesLe: { titrePropriete: '2026-09-29T12:00:00', dpe: '2026-09-01T12:00:00' },
+    authentic: { rhf: { envoyeeLe: '2026-07-23', retourLe: '2026-09-29' }, prix: 195000, saferPieceAjoutee: true, personnes: [{ nom: 'Marie DORLEAC', role: 'VENDEUR' }], releveLe: '2026-10-03T08:00:00Z' },
+    historique: [{ date: '2026-10-03T08:00:00Z', texte: 'Prix de vente repris d’Authentic (Capital) : 195.000,00 €' }]
+  };
+  const retire = app.oublierDonneesAuthentic(d, '2026-10-03T09:00:00.000Z');
+  assert.ok(retire.length >= 4, retire.join(' | '));
+  assert.equal(d.referenceAuthentic, undefined);
+  assert.equal(d.prixVente, null);
+  assert.equal(d.dateAvantContrat, '2026-06-01', 'une date qui ne vient pas d’Authentic reste');
+  assert.equal(d.pieces.titrePropriete, 'manquante');
+  assert.equal(d.pieces.dpe, 'recue');
+  assert.equal(d.pieces['authentic-ecv-1'], undefined);
+  assert.equal(d.piecesPersonnalisees.map(p => p.cle).join(), 'perso-x');
+  assert.equal(d.piecesValideesManuellement.join(), 'dpe');
+  assert.equal(Object.keys(d.piecesTrouveesLe).join(), 'dpe');
+  assert.equal(d.piecesAuthentic, undefined);
+  assert.equal(JSON.stringify(d.authentic), JSON.stringify({ personnes: [{ nom: 'Marie DORLEAC', role: 'VENDEUR' }] }), 'les fiches client restent');
+  assert.match(d.historique[d.historique.length - 1].texte, /^Données d’Authentic oubliées/);
+  assert.equal(app.oublierDonneesAuthentic({ id: 'vide', historique: [] }).length, 0);
 });
 
 test('vendeur déjà client (ancien dossier archivé cité sur sa fiche) et épouse sous son nom : tout va à la vente en cours', () => {
@@ -856,17 +932,20 @@ test('ligne Authentic « création · envoi · état » : RHF et demandes datée
   assert.equal(dm.certificatAlignement.date, '2026-09-03');
 });
 
-test('dossierDejaPresentPourCreation : même numéro Authentic ou même nom, en cours seulement (étude, 02/10)', () => {
+test('dossierDejaPresentPourCreation : même référence Authentic ou même nom, en cours seulement — jamais par le rang « 1 » (étude, 03/10)', () => {
   const liste = [
-    { id: 'a', nom: 'MARTEL / FOURNIER', numeroAuthentic: '1836' },
+    { id: 'a', nom: 'MARTEL / FOURNIER', referenceAuthentic: 'A 2026 00247' },
     { id: 'b', nom: 'Léger / Roux', archive: true },
-    { id: 'c', nom: 'BRUN', deleted: true }
+    { id: 'c', nom: 'BRUN', deleted: true },
+    { id: 'd', nom: 'DORLEAC / PETIT', numeroAuthentic: '1' }
   ];
-  assert.equal(app.dossierDejaPresentPourCreation('Autre nom', '1836', liste).id, 'a');
+  assert.equal(app.dossierDejaPresentPourCreation('Autre nom', 'A 2026 00247', liste).id, 'a');
   assert.equal(app.dossierDejaPresentPourCreation('martel / fournier', '', liste).id, 'a');
+  // « Créer un second dossier ? VTE - DORLÉAC existe déjà » pour MERCIER : plus jamais.
+  assert.equal(app.dossierDejaPresentPourCreation('MERCIER / FRANCOIS', '1', liste), null);
   assert.equal(app.dossierDejaPresentPourCreation('LEGER / ROUX', '', liste), null);
   assert.equal(app.dossierDejaPresentPourCreation('BRUN', '', liste), null);
-  assert.equal(app.dossierDejaPresentPourCreation('NOUVEAU', '1900', liste), null);
+  assert.equal(app.dossierDejaPresentPourCreation('NOUVEAU', 'A 2026 00999', liste), null);
 });
 
 test('notaires de France : département filtré, office repris au format du carnet, notaire retrouvé seulement s’il est seul (noms inventés)', () => {
@@ -933,14 +1012,14 @@ test('raisonDossierAuthenticIntrouvable : le motif dit à l’étude, jamais un 
     { id: 'c', nom: 'LEROY / PETIT', parties: [] },
     { id: 'd', nom: 'LEROY / PETIT', parties: [] }
   ];
-  assert.equal(app.raisonDossierAuthenticIntrouvable('', dossiers, '', ''), 'intitulé du dossier non lu sur la page');
-  assert.equal(app.raisonDossierAuthenticIntrouvable('Vente BERNARD/THOMAS', dossiers, '', '5'), 'aucun dossier de CLAIRE ne porte ces noms');
+  assert.equal(app.raisonDossierAuthenticIntrouvable('', dossiers, ''), 'intitulé du dossier non lu sur la page');
+  assert.equal(app.raisonDossierAuthenticIntrouvable('Vente BERNARD/THOMAS', dossiers, ''), 'aucun dossier de CLAIRE ne porte ces noms');
   // Un seul côté reconnu : sous le seuil, avec le détail des points.
-  assert.match(app.raisonDossierAuthenticIntrouvable('Vente MARTEL/THOMAS', dossiers, '', '5'), /le plus proche, VTE - MARTEL \/ FOURNIER, n'a que 3 points sur 6 \(vendeur identique \(\+3\)\)/);
-  // Les noms d'un dossier déjà rattaché à un autre numéro d'Authentic.
-  assert.match(app.raisonDossierAuthenticIntrouvable('Vente DURAND/ROUX', dossiers, '', '12'), /déjà rattaché au dossier Authentic n° 77/);
+  assert.match(app.raisonDossierAuthenticIntrouvable('Vente MARTEL/THOMAS', dossiers, ''), /le plus proche, VTE - MARTEL \/ FOURNIER, n'a que 3 points sur 6 \(vendeur identique \(\+3\)\)/);
+  // Un numéro gardé ne compte plus : le dossier aux mêmes noms est retrouvé.
+  assert.equal(app.dossierPourIntituleAuthentic('Vente DURAND/ROUX', dossiers, '').id, 'b');
   // Deux dossiers identiques : jamais deviné entre eux.
-  assert.match(app.raisonDossierAuthenticIntrouvable('Vente LEROY/PETIT', dossiers, '', '9'), /^deux dossiers aussi proches/);
+  assert.match(app.raisonDossierAuthenticIntrouvable('Vente LEROY/PETIT', dossiers, ''), /^deux dossiers aussi proches/);
 });
 
 test('candidatsDossierAuthentic : dossiers en cours, les plus ressemblants d’abord', () => {
@@ -951,18 +1030,6 @@ test('candidatsDossierAuthentic : dossiers en cours, les plus ressemblants d’a
     { id: 'y', nom: 'COLIN / DUPUIS', deleted: true, parties: [] }
   ];
   assert.equal(app.candidatsDossierAuthentic('Vente MARTEL/THOMAS', '', dossiers).map(x => x.d.id).join(','), 'a,z');
-});
-
-test('rattacherNumeroAuthentic : le choix à la main passe avant tout, le numéro quitte l’ancien dossier', () => {
-  const ancien = { id: 'b', nom: 'DURAND / ROUX', numeroAuthentic: '12', historique: [] };
-  const choisi = { id: 'a', nom: 'MARTEL / FOURNIER', numeroAuthentic: '30', historique: [] };
-  const quittes = app.rattacherNumeroAuthentic(choisi, '12', [ancien, choisi]);
-  assert.equal(quittes.length, 1);
-  assert.equal(ancien.numeroAuthentic, undefined);
-  assert.equal(choisi.numeroAuthentic, '12');
-  assert.match(choisi.historique[0].texte, /n° 12 rattaché à la main/);
-  assert.match(ancien.historique[0].texte, /n° 12 rattaché à VTE - MARTEL \/ FOURNIER à la main/);
-  assert.equal(app.rattacherNumeroAuthentic(choisi, '', [choisi]).length, 0);
 });
 
 test('ligneJournalAuthentic : page, postes, état et choix à la main', () => {
@@ -986,32 +1053,29 @@ test('plusieurs dossiers ouverts : l’onglet actif désigne la page, jamais un 
     champs: [], tableaux: [],
     texte: '1200 - Vente MARTEL/DUPONT\n1836 - Vente MARTEL/FOURNIER\nAccueil'
   };
-  assert.equal(app.numeroDossierAuthentic(page), '1836');
   assert.equal(app.intituleDossierAuthentic(page), 'Vente MARTEL / FOURNIER');
   // Sans onglet repéré : l'en-tête de la page du dossier (suivi de « Comparants ») l'emporte sur les titres.
   const sansOnglets = { champs: [], tableaux: [], texte: '1200 - Vente MARTEL/DUPONT\n1836 - Vente MARTEL/FOURNIER\nComparants (3)' };
-  assert.equal(app.numeroDossierAuthentic(sansOnglets), '1836');
+  assert.equal(app.intituleDossierAuthentic(sansOnglets), 'Vente MARTEL / FOURNIER');
   // Liste de résultats de recherche : plusieurs dossiers cités, aucun en-tête → aucun dossier.
-  assert.equal(app.numeroDossierAuthentic({ champs: [], tableaux: [], texte: '1200 - Vente MARTEL/DUPONT\n1836 - Vente MARTEL/FOURNIER' }), '');
+  assert.equal(app.intituleDossierAuthentic({ champs: [], tableaux: [], texte: '1200 - Vente MARTEL/DUPONT\n1836 - Vente MARTEL/FOURNIER' }), '');
   // Fiche client : les intitulés des onglets inactifs ne sont pas « cités » par la fiche.
-  assert.equal(app.intitulesNumerotesAuthentic(page).map(x => x.numero).join(','), '1836');
+  assert.equal(app.intitulesNumerotesAuthentic(page).map(x => x.intitule).join(','), 'Vente MARTEL / FOURNIER');
 });
 
-test('intitulé de toute formulation : le numéro, puis les noms', () => {
+test('intitulé de toute formulation : les noms', () => {
   const promesse = { champs: [{ groupe: '', libelle: '1836 - Promesse de vente MARTEL/FOURNIER Importer avec 2e SENS', valeur: '' }], tableaux: [], texte: '' };
-  assert.equal(app.numeroDossierAuthentic(promesse), '1836');
   assert.equal(app.intituleDossierAuthentic(promesse), 'Vente MARTEL / FOURNIER');
   const libre = { champs: [], tableaux: [], texte: '1836 - MARTEL Maison Blois FOURNIER\nComparants (2)' };
-  assert.equal(app.numeroDossierAuthentic(libre), '1836');
   const intitule = app.intituleDossierAuthentic(libre);
   assert.equal(intitule, 'MARTEL Maison Blois FOURNIER');
   const dossiers = [{ id: 'a', nom: 'MARTEL / FOURNIER', parties: [] }, { id: 'b', nom: 'COLIN / DUPUIS', parties: [] }];
   assert.equal(app.scoreDossierAuthentic(intitule, '', dossiers[0]).score, 6);
-  assert.equal(app.dossierPourIntituleAuthentic(intitule, dossiers, '', '1836').id, 'a');
-  // Un dossier dont le numéro est connu est retrouvé par lui seul, quel que soit l'intitulé du jour.
-  assert.equal(app.dossierPourIntituleAuthentic('Projet acte BLOIS', [{ id: 'c', nom: 'X / Y', numeroAuthentic: '1836' }], '', '1836').id, 'c');
+  assert.equal(app.dossierPourIntituleAuthentic(intitule, dossiers, '').id, 'a');
+  // Un numéro gardé ne retrouve plus rien seul.
+  assert.equal(app.dossierPourIntituleAuthentic('Projet acte BLOIS', [{ id: 'c', nom: 'X / Y', numeroAuthentic: '1836' }], ''), null);
   // Une donation du même client ne suffit pas.
-  assert.equal(app.dossierPourIntituleAuthentic('Donation MARTEL', dossiers, '', '15'), null);
+  assert.equal(app.dossierPourIntituleAuthentic('Donation MARTEL', dossiers, ''), null);
 });
 
 test('ancien dossier des mêmes clients : jamais appliqué ni proposé', () => {
@@ -1025,38 +1089,33 @@ test('ancien dossier des mêmes clients : jamais appliqué ni proposé', () => {
   assert.equal(app.ancienDossierAuthentic(ancien, Object.assign({}, d, { dateAvantContrat: '2018-01-01' })), false);
   assert.equal(app.proposerChoixDossierAuthentic(ancien, 'Vente MARTEL / DUPONT', [d]), false);
   const enCours = { champs: [{ groupe: '', libelle: '1836 - Vente MARTEL/DUPONT Importer', valeur: '' }], tableaux: [], texte: '' };
-  // Les seuls dossiers aux mêmes noms ont déjà leur numéro : une autre affaire, pas de message.
-  assert.equal(app.proposerChoixDossierAuthentic(enCours, 'Vente MARTEL / DUPONT', [Object.assign({}, d, { numeroAuthentic: '1700' })]), false);
   assert.equal(app.proposerChoixDossierAuthentic(enCours, 'Vente MARTEL / DUPONT', [d]), true);
 });
 
-test('dossier identifié par « VTE VENDEURS / ACQUÉREURS » sans numéro ; numéro lu dans ses données', () => {
+test('dossier identifié par « VTE VENDEURS / ACQUÉREURS » sans numéro ; un champ « N° de dossier » ne compte pas', () => {
   const onglet = {
     onglets: [{ titre: 'VTE COLIN / DUPUIS', actif: false }, { titre: 'VTE MARTEL / FOURNIER', actif: true }],
     champs: [{ groupe: 'Données du dossier', libelle: 'N° de dossier', valeur: '1836' }], tableaux: [], texte: 'VTE COLIN / DUPUIS\nVTE MARTEL / FOURNIER'
   };
   assert.equal(app.intituleDossierAuthentic(onglet), 'Vente MARTEL / FOURNIER');
-  assert.equal(app.numeroDossierAuthentic(onglet), '1836');
   // En-tête de la page sans numéro.
   const enTete = { champs: [], tableaux: [], texte: 'Accueil\nVTE MARTEL/FOURNIER\nComparants (2)' };
   assert.equal(app.intituleDossierAuthentic(enTete), 'Vente MARTEL / FOURNIER');
-  assert.equal(app.numeroDossierAuthentic(enTete), '');
   const dossiers = [{ id: 'a', nom: 'MARTEL / FOURNIER', parties: [] }, { id: 'b', nom: 'COLIN / DUPUIS', parties: [] }];
-  assert.equal(app.dossierPourIntituleAuthentic(app.intituleDossierAuthentic(enTete), dossiers, '', '').id, 'a');
+  assert.equal(app.dossierPourIntituleAuthentic(app.intituleDossierAuthentic(enTete), dossiers, '').id, 'a');
   // Fiche client ouverte dans l'onglet du dossier : l'onglet actif désigne le dossier en consultation.
   assert.equal(app.dossierOngletActifAuthentic({ onglets: [{ titre: 'VTE MARTEL / FOURNIER', actif: true }] }, dossiers).id, 'a');
   assert.equal(app.dossierOngletActifAuthentic({ onglets: [{ titre: 'Agenda', actif: true }] }, dossiers), null);
 });
 
-test('commentDossierRetrouveAuthentic : numéro, sinon noms vérifiés par l’adresse — dit au journal', () => {
+test('commentDossierRetrouveAuthentic : noms vérifiés par l’adresse — dit au journal', () => {
   const d = { id: 'a', nom: 'MARTEL / FOURNIER', parties: [], bien: { adresse: { numero: '12', nomVoie: 'des Lilas', typeVoie: 'rue', codePostal: '41000', commune: 'BLOIS' } } };
-  assert.equal(app.commentDossierRetrouveAuthentic('Vente MARTEL / FOURNIER', '', '1836', Object.assign({}, d, { numeroAuthentic: '1836' })), 'retrouvé par son numéro Authentic (1836)');
-  const t = app.commentDossierRetrouveAuthentic('Vente MARTEL / FOURNIER', '12 rue des Lilas 41000 BLOIS', '', d);
+  const t = app.commentDossierRetrouveAuthentic('Vente MARTEL / FOURNIER', '12 rue des Lilas 41000 BLOIS', d);
   assert.match(t, /^retrouvé par les noms \(vendeur identique, acquéreur identique\), adresse : code postal, adresse \(.+\), numéro — \d+ points$/);
-  assert.match(app.commentDossierRetrouveAuthentic('Vente MARTEL / FOURNIER', '', '', d), /adresse non affichée sur la page — 6 points$/);
+  assert.match(app.commentDossierRetrouveAuthentic('Vente MARTEL / FOURNIER', '', d), /adresse non affichée sur la page — 6 points$/);
   // Mêmes noms, autre bien (autre code postal) : la vérification de l'adresse écarte le dossier.
-  assert.equal(app.dossierPourIntituleAuthentic('Vente MARTEL / FOURNIER', [d], '5 route de Tours 37000 TOURS', ''), null);
-  assert.equal(app.dossierPourIntituleAuthentic('Vente MARTEL / FOURNIER', [d], '12 rue des Lilas 41000 BLOIS', '').id, 'a');
+  assert.equal(app.dossierPourIntituleAuthentic('Vente MARTEL / FOURNIER', [d], '5 route de Tours 37000 TOURS'), null);
+  assert.equal(app.dossierPourIntituleAuthentic('Vente MARTEL / FOURNIER', [d], '12 rue des Lilas 41000 BLOIS').id, 'a');
 });
 
 test('garder les deux : emails et téléphones d’Authentic ajoutés à ceux déjà lus, jamais à leur place', () => {

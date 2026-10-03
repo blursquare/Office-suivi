@@ -156,6 +156,10 @@ test('navigation : l\'intitulé seul mis en file ; page revue → relue avec son
     assert.equal(file.length, 1);
     assert.equal(file[0].navigation, '15 - Donation SIMOND');
     assert.equal(file[0].capture, undefined);
+    // Précédé de la référence du dossier (extension 0.3.9, étude 03/10).
+    assert.equal((await post('navigation', { intitule: 'A 2026 00247 1 - Donation SIMOND' })).status, 200);
+    file = await prendre();
+    assert.equal(file[0].navigation, 'A 2026 00247 1 - Donation SIMOND');
     // Page de dossier connue : relevée ; renvoyée aussitôt (cadres, double envoi) → écartée.
     const page = { champs: [{ groupe: '', libelle: '12 - Vente PETIT/BOSQUET', valeur: '' }], tableaux: [], texte: '12 - Vente PETIT/BOSQUET' };
     await post('releve', page);

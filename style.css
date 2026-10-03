@@ -8187,6 +8187,8 @@ button.w-jour-lien { border: none; background: none; padding: 0; cursor: pointer
 .authentic-dossier { border-top: 1px solid var(--line-soft); padding: 12px 16px 14px; display: grid; gap: 8px; }
 .authentic-dossier-titre { font-size: 12px; font-weight: 600; color: var(--ink-soft); text-transform: uppercase; letter-spacing: .04em; }
 .authentic-dossier-titre .hint { text-transform: none; letter-spacing: 0; font-weight: 400; }
+.authentic-dossier-titre { display: flex; align-items: center; flex-wrap: wrap; gap: 0 4px; }
+.authentic-dossier-titre .authentic-oublier { margin-left: auto; text-transform: none; }
 .authentic-infos { margin: 0; display: grid; gap: 4px; }
 .authentic-info { display: grid; grid-template-columns: minmax(150px, 34%) 1fr; gap: 10px; font-size: 13px; align-items: baseline; }
 .authentic-info > * { min-width: 0; }

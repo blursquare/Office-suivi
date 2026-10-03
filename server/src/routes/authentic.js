@@ -212,7 +212,8 @@ function creerRouteurAuthentic(options) {
   routeur.post('/authentic/navigation', (req, res) => {
     if (!req.is('application/json')) { res.status(415).json({ error: 'Corps JSON attendu.' }); return; }
     const intitule = chaine(req.body && req.body.intitule, 200);
-    if (!/^\d{1,6}\s*-\s*\S/.test(intitule)) { res.status(400).json({ error: 'Intitulé de dossier attendu.' }); return; }
+    // Précédé de la référence du dossier « A 2026 00247 » depuis l'extension 0.3.9 (étude, 03/10).
+    if (!/^(?:[A-Z]\s+(?:19|20)\d{2}\s+\d{4,6}\s+)?\d{1,6}\s*-\s*\S/.test(intitule)) { res.status(400).json({ error: 'Intitulé de dossier attendu.' }); return; }
     mettreEnFile({ id: crypto.randomBytes(9).toString('base64url'), recueLe: new Date(maintenant()).toISOString(), origine: origineDe(req), navigation: intitule });
     res.json({ ok: true });
   });
