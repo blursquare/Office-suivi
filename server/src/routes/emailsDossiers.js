@@ -10,7 +10,7 @@ const {
   lireEtat, ecrireEtat, assainirPrepare, executerTourEmailsDossiers, lirePieceJointe, lireEmailComplet, boitesEnvoyes
 } = require('../emailsDossiers');
 const { copierDansDossierClient, extensionPieceJointe } = require('../scans');
-const { envoyerEmailExchange, promptPropositionReponse, validerProposition } = require('../envoiEmailsExchange');
+const { envoyerEmailExchange, promptPropositionReponse, validerProposition, LONGUEUR_MAX_PROPOSITION } = require('../envoiEmailsExchange');
 
 function routeAsync(fn) {
   return (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
@@ -187,7 +187,7 @@ function creerRouteurEmailsDossiers(parametresRepo, depot, options = {}) {
       const o = await ollama.genererJson(promptPropositionReponse({
         objet: lu.objet, deNom: (lu.de && (lu.de.nom || lu.de.adresse)) || '', texte: lu.texte,
         dossier: String(b.dossier || '').slice(0, 120), confrere: b.confrere === true, pj: email ? email.pj.map((p) => p.nom) : []
-      }), validerProposition);
+      }), validerProposition, { longueurMax: LONGUEUR_MAX_PROPOSITION });
       noterVerification(parametresRepo, 'email-proposition-ia', {});
       res.setHeader('Cache-Control', 'no-store');
       res.json({ reponse: String(o.reponse).trim().slice(0, 4000) });

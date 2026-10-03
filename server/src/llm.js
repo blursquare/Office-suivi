@@ -57,7 +57,9 @@ function creerClientOllama(config) {
   // valide — le CONTENU reste sous la responsabilité du modèle (voir les prompts dans
   // extraction/prompts.js, routes/offrePret.js), mais ça évite déjà la moitié des échecs de parsing
   // observés avec un modèle non contraint.
-  async function generer(prompt) {
+  // `limites.longueurMax` : nombre de jetons au plus (num_predict d'Ollama) — une réponse courte demandée ne peut pas
+  // déborder (premier jet d'email : étude 03/10, « aller à l'essentiel »).
+  async function generer(prompt, limites = {}) {
     const reponse = await appelAvecTimeout('/api/generate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -66,7 +68,7 @@ function creerClientOllama(config) {
         prompt,
         format: 'json',
         stream: false,
-        options: { temperature: 0.1 } // Une analyse juridique doit rester factuelle et reproductible,
+        options: { temperature: 0.1, ...(limites.longueurMax ? { num_predict: limites.longueurMax } : {}) } // Une analyse juridique doit rester factuelle et reproductible,
         // pas créative — température basse plutôt que la valeur par défaut d'Ollama (0.8).
       })
     });
@@ -88,9 +90,9 @@ function creerClientOllama(config) {
   // tentative coûte des dizaines de secondes, et un modèle qui se trompe deux fois de suite sur le
   // même schéma ne se corrigera pas à la troisième. Mieux vaut rendre la main et laisser l'outil
   // fonctionner sans cette passe (les regex, elles, ont déjà répondu) que faire attendre l'étude.
-  async function genererJson(prompt, valider) {
+  async function genererJson(prompt, valider, limites = {}) {
     const tenter = async (texteDuPrompt) => {
-      const brut = await generer(texteDuPrompt);
+      const brut = await generer(texteDuPrompt, limites);
       let objet;
       try {
         objet = JSON.parse(brut);

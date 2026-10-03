@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-03 20:27';
+  const VERSION_APP = '2026-10-03 21:40';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-03 21:40', resume: "Modèles d'emails : nouvelle rubrique Réglages › Modèles d'emails. Les modèles de CLAIRE y sont (provision, relance du prêt, RIB, vente préalable, réception des fonds, projet, confirmation du rendez-vous, relance des fonds, appel de fonds, questionnaire, un an après) et se modifient — les boutons de la fiche envoient alors le texte modifié, « Revenir au texte d'origine » le rétablit. On peut aussi créer ses propres modèles. Variables entre accolades ({dossier}, {date et heure du rendez-vous}…), aperçu sur un dossier. Dans la fenêtre d'email, bouton « Modèles » pour remplacer le texte par un modèle. Réponses proposées par l'IA plus courtes : 1 à 3 phrases, à l'essentiel." },
     { version: '2026-10-03 20:27', resume: "Emails envoyés depuis CLAIRE : chaque email (relances, RIB, provision, fonds, questionnaire, copie de l'acte, accusés de réception…) s'ouvre dans une fenêtre d'email au lieu d'être téléchargé — relire, modifier, joindre un fichier, puis « Envoyer » (depuis la boîte du collaborateur, sinon celle du compte relié tant que le droit « Envoyer en tant que » n'est pas donné dans Exchange) ou « Ouvrir dans Outlook » comme avant. Lecture d'un email reçu revue (expéditeur, texte, pièces jointes) avec « Répondre » en bas : la réponse part dans le même fil, et CLAIRE en propose un premier jet par l'IA locale, à relire (un passage « [à compléter] » bloque l'envoi). Pastille « À répondre » sur les emails reçus restés sans réponse." },
     { version: '2026-10-03 20:00', resume: "Relation client : « Rappeler le rendez-vous » retiré. Fonds pas arrivés 3 jours avant la signature → « Relancer pour les fonds » (À faire et onglet Échanges, email au client, premier jet de CLAIRE). La confirmation de réception des fonds vaut confirmation du rendez-vous. Nouveau dossier : les champs non trouvés dans le compromis restent affichés (« À compléter »), nouveau champ « Honoraires d'agence TTC » lu dans le compromis. Dossiers en participation, acte signé : « Envoyer la copie de l'acte / l'attestation de vente » au client, fichiers lus dans le dossier « Fausses minutes » du commun — en pièce jointe jusqu'à 21 Mo, au-delà WeTransfer s'ouvre et l'email attend le lien." },
     { version: '2026-10-03 19:16', resume: "Réglages : les titres de catégorie du menu (L'étude, Connexions, Dossiers et actes, Maintenance) en noir au lieu de gris." },
@@ -26142,6 +26143,52 @@
     renderRedaction();
   }
 
+  // Menu « Modèles » de la fenêtre d'email (étude, 03/10) : ceux de l'étude puis ceux de CLAIRE (versions modifiées
+  // comprises), remplis pour le dossier de l'email ; le texte (et l'objet d'un email nouveau) est remplacé, « Annuler le
+  // modèle » le rétablit.
+  function renderMenuModelesRedaction() {
+    const liste = listeModelesEmails(modelesEmailsEtat);
+    const item = (m) => `<button type="button" role="menuitem" class="redaction-menu-item" onclick="appliquerModeleRedaction('${m.type}', '${escapeOnclickArg(m.type === 'perso' ? m.id : m.cle)}')">${escapeHtml(m.nom)}</button>`;
+    const perso = liste.filter(m => m.type === 'perso');
+    return `<div class="redaction-menu" role="menu">
+        ${perso.length ? `<div class="redaction-menu-groupe">Mes modèles</div>${perso.map(item).join('')}` : ''}
+        <div class="redaction-menu-groupe">Modèles de CLAIRE</div>${liste.filter(m => m.type === 'integre').map(item).join('')}
+      </div>`;
+  }
+  async function basculerMenuModelesRedaction() {
+    if (!redaction) return;
+    redaction.menuModeles = !redaction.menuModeles;
+    renderRedaction();
+    if (redaction && redaction.menuModeles) { await chargerModelesEmails(); if (redaction && redaction.menuModeles) renderRedaction(); }
+  }
+  function appliquerModeleRedaction(type, ref) {
+    const r = redaction;
+    if (!r) return;
+    const m = listeModelesEmails(modelesEmailsEtat).find(x => x.type === type && (type === 'perso' ? x.id === ref : x.cle === ref));
+    if (!m) return;
+    const d = dossiers.find(x => x.id === r.dossierId) || null;
+    const rempli = remplirModeleEmail(m, d);
+    r.avantModele = { texte: r.texte, texteDepart: r.texteDepart, corpsOrigine: r.corpsOrigine, sujet: r.sujet, proposition: r.proposition };
+    const corps = adapterCorpsEmail(rempli.corps, r.confrere);
+    r.corpsOrigine = corps;
+    r.texte = texteEditableEmail(corps);
+    r.texteDepart = r.texte;
+    r.proposition = null;
+    if (r.mode === 'nouveau' && rempli.sujet) r.sujet = rempli.sujet;
+    r.menuModeles = false;
+    renderRedaction();
+  }
+  function annulerModeleRedaction() {
+    const r = redaction;
+    if (!r || !r.avantModele) return;
+    Object.assign(r, r.avantModele);
+    r.avantModele = null;
+    renderRedaction();
+  }
+  document.addEventListener('click', (e) => {
+    if (redaction && redaction.menuModeles && !(e.target && e.target.closest && e.target.closest('.redaction-modeles'))) { redaction.menuModeles = false; renderRedaction(); }
+  });
+
   // Premier jet de réponse par l'IA locale (Ollama, sur le serveur) : posé dans la zone seulement si rien n'a
   // encore été écrit, sinon proposé d'un clic. Jamais envoyé seul.
   async function demanderPropositionReponse(auto) {
@@ -26219,6 +26266,11 @@
         ${r.erreur ? `<p class="redaction-erreur">${escapeHtml(r.erreur)}</p>` : ''}
         <div class="redaction-pied">
           <label class="icon-btn redaction-joindre" title="Joindre un fichier">${icone('paperclip')}<input type="file" multiple hidden onchange="ajouterPiecesRedaction(this)"></label>
+          <div class="redaction-modeles">
+            <button type="button" class="icon-btn redaction-modeles-btn" onclick="basculerMenuModelesRedaction()" aria-expanded="${r.menuModeles ? 'true' : 'false'}" title="Remplacer le texte par un modèle">${icone('file-text')}<span>Modèles</span></button>
+            ${r.menuModeles ? renderMenuModelesRedaction() : ''}
+          </div>
+          ${r.avantModele ? '<button type="button" class="lien-discret redaction-annuler-modele" onclick="annulerModeleRedaction()">Annuler le modèle</button>' : ''}
           <button type="button" class="icon-btn" onclick="abandonnerRedaction()" title="Abandonner cet email" aria-label="Abandonner cet email">${icone('trash')}</button>
           <span class="redaction-pied-espace" id="redaction-motif">${escapeHtml(etat.motif && etat.motif !== 'Ajoutez un destinataire.' && etat.motif !== 'Écrivez le message.' ? etat.motif : etat.poids ? tailleLisible(etat.poids) : '')}</span>
           <button type="button" class="${direct ? 'lien-discret' : 'primary'}" onclick="ouvrirRedactionDansOutlook()" title="Télécharger l’email pour l’ouvrir dans Outlook">Ouvrir dans Outlook</button>
@@ -26497,22 +26549,22 @@
   // le rend pertinent pour CE dossier (pas de relance "prêt" sur un achat comptant, pas de relance
   // "pièces" si tout est déjà reçu) — évaluée à l'affichage par echangesSelonStade().
   var MODELES_EMAIL_RELANCE = {
-    provision: { cle: 'provision', libelle: 'Provision + pièce d’identité', construire: construireEmailRelanceProvision, historique: 'Relance manuelle envoyée — provision sur frais et pièce d’identité', date: 'provisionDemandeeLe' },
-    pret: { cle: 'pret', libelle: 'Prêt manquant', construire: construireEmailRelancePret, historique: 'Relance manuelle envoyée — offre de prêt' },
-    rib: { cle: 'rib', libelle: 'RIB', construire: construireEmailRelanceRib, historique: 'Relance manuelle envoyée — RIB', date: 'ribDemandeLe' },
-    ventePrealable: { cle: 'ventePrealable', libelle: 'Vente préalable', construire: construireEmailRelanceVentePrealable, historique: 'Relance envoyée — vente préalable', date: 'relanceVentePrealableLe' },
+    provision: { cle: 'provision', libelle: 'Provision + pièce d’identité', construire: d => emailDepuisModele('provision', d), historique: 'Relance manuelle envoyée — provision sur frais et pièce d’identité', date: 'provisionDemandeeLe' },
+    pret: { cle: 'pret', libelle: 'Prêt manquant', construire: d => emailDepuisModele('pret', d), historique: 'Relance manuelle envoyée — offre de prêt' },
+    rib: { cle: 'rib', libelle: 'RIB', construire: d => emailDepuisModele('rib', d), historique: 'Relance manuelle envoyée — RIB', date: 'ribDemandeLe' },
+    ventePrealable: { cle: 'ventePrealable', libelle: 'Vente préalable', construire: d => emailDepuisModele('ventePrealable', d), historique: 'Relance envoyée — vente préalable', date: 'relanceVentePrealableLe' },
     // `date` : champ du dossier qui mémorise l'envoi, pour que la carte dise ensuite « confirmée le … ».
-    fonds: { cle: 'fonds', libelle: 'Confirmer la réception des fonds', construire: construireEmailReceptionFonds, historique: 'Email envoyé — confirmation de réception des fonds en comptabilité', date: 'receptionFondsConfirmeeLe' },
+    fonds: { cle: 'fonds', libelle: 'Confirmer la réception des fonds', construire: d => emailDepuisModele('fonds', d), historique: 'Email envoyé — confirmation de réception des fonds en comptabilité', date: 'receptionFondsConfirmeeLe' },
     // L'envoi du projet EST l'étape « Envoi projet » du dossier : sa date est d.projetEnvoye (même
     // effet que la date saisie sur la fiche ou « Marquer envoyé », agenda compris).
-    projet: { cle: 'projet', libelle: 'Projet d’acte', construire: construireEmailProjetActe, historique: 'Email envoyé — projet d’acte', date: 'projetEnvoye' },
+    projet: { cle: 'projet', libelle: 'Projet d’acte', construire: d => emailDepuisModele('projet', d), historique: 'Email envoyé — projet d’acte', date: 'projetEnvoye' },
     // Relation client (page Agenda, 30/09) : confirmation du rendez-vous — mémorisée pour CETTE date
     // (confirmationRdvPour), un rendez-vous déplacé la repropose —, et un mot un an après la signature.
     // Le rappel du rendez-vous à part a été retiré le 03/10 (étude).
-    confirmationRdv: { cle: 'confirmationRdv', libelle: 'Confirmer le rendez-vous de signature', construire: construireEmailConfirmationRdv, historique: 'Email envoyé — confirmation du rendez-vous de signature', date: 'confirmationRdvLe' },
+    confirmationRdv: { cle: 'confirmationRdv', libelle: 'Confirmer le rendez-vous de signature', construire: d => emailDepuisModele('confirmationRdv', d), historique: 'Email envoyé — confirmation du rendez-vous de signature', date: 'confirmationRdvLe' },
     // Fonds pas encore reçus à J-3 du rendez-vous (étude, 03/10) — premier jet de CLAIRE, à remplacer par le texte de l'étude.
-    relanceFonds: { cle: 'relanceFonds', libelle: 'Relancer pour les fonds', construire: construireEmailRelanceFonds, historique: 'Email envoyé — relance : fonds pas encore reçus', date: 'relanceFondsLe' },
-    anniversaire: { cle: 'anniversaire', libelle: 'Un an après la signature', construire: construireEmailAnniversaire, historique: 'Email envoyé — un an après la signature', date: 'anniversaireEnvoyeLe' }
+    relanceFonds: { cle: 'relanceFonds', libelle: 'Relancer pour les fonds', construire: d => emailDepuisModele('relanceFonds', d), historique: 'Email envoyé — relance : fonds pas encore reçus', date: 'relanceFondsLe' },
+    anniversaire: { cle: 'anniversaire', libelle: 'Un an après la signature', construire: d => emailDepuisModele('anniversaire', d), historique: 'Email envoyé — un an après la signature', date: 'anniversaireEnvoyeLe' }
   };
 
   // Premiers jets de CLAIRE (comme l'email du projet d'acte) : à remplacer par les textes de l'étude
@@ -26557,6 +26609,356 @@
       'Nous restons à votre disposition pour tout nouveau projet : donation, testament, contrat de mariage ou de PACS, succession, ou une nouvelle acquisition.',
       'Bien cordialement,'].join('\n\n') };
   }
+  // ---- Modèles d'emails (étude, 03/10 : « un créateur de modèles d'emails dans les réglages, qu'on retrouve dans
+  // l'interface email ; que je puisse éditer les modèles, mets déjà ceux existants » ; choix : les boutons de la fiche
+  // suivent un modèle modifié) ----
+  // Chaque modèle d'origine a sa version « à variables » (les mêmes textes que les fonctions construireEmail…, qui
+  // restent la voie tant que l'étude n'a rien modifié). Une variable s'écrit entre accolades ; un paragraphe dont une
+  // variable est vide disparaît ; un paragraphe qui commence par {si …} n'apparaît que dans ce cas.
+  var VARIABLES_MODELE_EMAIL = [
+    { nom: 'dossier', aide: 'VTE - NOM du dossier' },
+    { nom: 'l’agence', aide: '« l’agence » suivi de son nom s’il est connu' },
+    { nom: 'date et heure du rendez-vous', aide: 'en gras et souligné ; vide sans rendez-vous' },
+    { nom: 'lieu du rendez-vous', aide: '« en notre office », visio ou office du confrère' },
+    { nom: 'échéance du prêt', aide: '« est fixée au … » / « était fixée au … »' },
+    { nom: 'échéance de la vente préalable', aide: '« est prévue au plus tard le … », « devait intervenir… » ou « reste à réaliser »' },
+    { nom: 'date de signature', aide: 'date de l’acte (rendez-vous de signature)' },
+    { nom: 'lien avis Google', aide: 'adresse pour laisser un avis sur l’office' }
+  ];
+  var CONDITIONS_MODELE_EMAIL = [
+    { nom: 'si client', aide: 'au client seulement (pas quand un confrère représente l’acquéreur)' },
+    { nom: 'si confrère', aide: 'au confrère seulement' },
+    { nom: 'si rendez-vous', aide: 'seulement si le rendez-vous de signature est fixé' },
+    { nom: 'si prêt attendu', aide: 'seulement si une offre de prêt est encore attendue' }
+  ];
+
+  function nomVariableModele(t) { return String(t || '').replace(/[’`]/g, '\'').replace(/\s+/g, ' ').trim().toLowerCase(); }
+
+  // Valeur d'une variable pour ce dossier ; null pour une variable inconnue (laissée telle quelle).
+  function valeurVariableModele(nom, d) {
+    const n = nomVariableModele(nom);
+    const confrere = notaireParticipantRepresenteAcquereur(d);
+    if (n === 'dossier') return libelleDossierAffiche(d);
+    if (n === 'l\'agence') return d.nomAgence ? `l'agence ${d.nomAgence}` : "l'agence";
+    if (n === 'date et heure du rendez-vous') {
+      if (!d.rendezVousSignature) return '';
+      const heure = heureEmail(d.rendezVousSignatureHeure);
+      return `${MARQUE_FORT_DEBUT}${dateAvecJourFr(d.rendezVousSignature)}${heure ? ' à ' + heure : ''}${MARQUE_FORT_FIN}`;
+    }
+    if (n === 'lieu du rendez-vous') return d.rendezVousSignature ? lieuRdvEmail(d, confrere) : '';
+    if (n === 'échéance du prêt') {
+      if (!d.pret) return '';
+      return `${joursRestants(d.pret) < 0 ? 'était fixée' : 'est fixée'} au ${formatDateFr(d.pret)}`;
+    }
+    if (n === 'échéance de la vente préalable') {
+      if (!d.ventebien) return 'reste à réaliser';
+      return `${ecartJours(isoAujourdhuiLocal(), d.ventebien) < 0 ? 'devait intervenir' : 'est prévue'} au plus tard le ${formatDateFr(d.ventebien)}`;
+    }
+    if (n === 'date de signature') return d.rendezVousSignature ? formatDateFr(d.rendezVousSignature) : '';
+    if (n === 'lien avis google') return LIEN_AVIS_GOOGLE_OFFICE;
+    return null;
+  }
+  function conditionModeleRemplie(nom, d) {
+    const n = nomVariableModele(nom);
+    const confrere = notaireParticipantRepresenteAcquereur(d);
+    if (n === 'si client') return !confrere;
+    if (n === 'si confrère') return confrere;
+    if (n === 'si rendez-vous') return !!d.rendezVousSignature;
+    if (n === 'si prêt attendu') return !d.sansPret && d.offrePretStatut !== 'recue';
+    return true;
+  }
+
+  // Remplit un modèle pour un dossier. Sans dossier, le texte reste tel quel (variables visibles).
+  function remplirModeleEmail(modele, d) {
+    const m = modele || {};
+    if (!d) return { sujet: String(m.sujet || ''), corps: String(m.corps || '') };
+    const remplacer = (texte, vides) => String(texte || '').replace(/\{([^{}\n]{1,60})\}/g, (tout, nom) => {
+      const v = valeurVariableModele(nom, d);
+      if (v === null) return tout;
+      if (v === '' && vides) vides.push(nom);
+      return v;
+    });
+    const paragraphes = [];
+    for (const p of String(m.corps || '').replace(/\r\n/g, '\n').split(/\n{2,}/)) {
+      let reste = p;
+      let garder = true;
+      for (let c = /^\s*\{(si [^{}\n]{1,40})\}\s*/.exec(reste); c; c = /^\s*\{(si [^{}\n]{1,40})\}\s*/.exec(reste)) {
+        if (!conditionModeleRemplie(c[1], d)) garder = false;
+        reste = reste.slice(c[0].length);
+      }
+      if (!garder || !reste.trim()) continue;
+      const vides = [];
+      const rempli = remplacer(reste, vides);
+      if (vides.length) continue;
+      paragraphes.push(rempli);
+    }
+    const sujet = remplacer(m.sujet, null).replace(/\s+—\s*$/, '').replace(/\s{2,}/g, ' ').trim();
+    return { sujet, corps: paragraphes.join('\n\n') };
+  }
+
+  // Les modèles d'origine, texte « à variables » (repris des construireEmail… ; mêmes mots).
+  function modelesEmailIntegres() {
+    return [
+      { cle: 'provision', nom: 'Provision et pièce d’identité', construire: construireEmailRelanceProvision,
+        sujet: 'Demande de provision sur frais et pièce d\'identité — {dossier}',
+        corps: ['Bonjour,', 'Nous vous confirmons la bonne réception de votre avant-contrat signé auprès de {l’agence}.',
+          "Afin de poursuivre la constitution de votre dossier, merci de nous adresser :\n- une provision sur frais de 100,00 € ;\n- une copie de votre pièce d'identité en cours de validité.",
+          "{si prêt attendu}Si votre acquisition est soumise à l'obtention d'un prêt, merci également de nous transmettre votre offre de prêt dès que vous l'aurez reçue."].join('\n\n') },
+      { cle: 'pret', nom: 'Relance de l’offre de prêt', construire: construireEmailRelancePret,
+        sujet: 'Relance — Offre de prêt attendue — {dossier}',
+        corps: ['Bonjour,', 'J’espère que vous allez bien.', "Nous n'avons pas encore reçu votre offre de prêt dans le cadre de votre dossier.",
+          "L'échéance d'obtention du prêt {échéance du prêt}.", 'Merci de nous transmettre cette offre dès réception, ou de nous indiquer où en est votre demande de financement.'].join('\n\n') },
+      { cle: 'rib', nom: 'RIB et pièce d’identité', construire: construireEmailRelanceRib,
+        sujet: 'RIB et pièce d\'identité pour le rendez-vous de signature — {dossier}',
+        corps: ['Bonjour,', 'En prévision du rendez-vous de signature je vous remercie de vous munir de votre RIB et de votre pièce d’identité.', 'Bien cordialement,'].join('\n\n') },
+      { cle: 'ventePrealable', nom: 'Vente préalable (au client)', construire: construireEmailRelanceVentePrealable,
+        sujet: 'Vente préalable de votre bien — {dossier}',
+        corps: ['Bonjour,', 'Votre acquisition est conclue sous la condition de la vente préalable de votre bien, qui {échéance de la vente préalable}.',
+          'Pourriez-vous nous indiquer où en est cette vente (avant-contrat signé, date de signature prévue) ? Dès qu’elle sera signée, merci de nous transmettre l’attestation de vente.', 'Bien cordialement,'].join('\n\n') },
+      { cle: 'ventePrealableConfrere', nom: 'Vente préalable (au confrère)', construire: construireEmailRelanceVentePrealable,
+        sujet: 'Vente préalable — {dossier}',
+        corps: [FORMULE_APPEL_CONFRERE, "Dans le cadre de ce dossier, l'avant-contrat est conclu sous la condition de la vente préalable du bien de votre client, qui {échéance de la vente préalable}.",
+          'Pourriez-vous nous indiquer si une date de réitération est déjà prévue sur votre agenda ou nous transmettre, le cas échéant, l’attestation de vente ?', FORMULE_CLOTURE_CONFRERE].join('\n\n') },
+      { cle: 'fonds', nom: 'Réception des fonds', construire: construireEmailReceptionFonds,
+        sujet: 'Réception des fonds — {dossier}',
+        corps: ['Bonjour,', 'Nous vous confirmons que les fonds destinés à votre acquisition ont bien été reçus en notre comptabilité.',
+          "Nous vous rappelons que le rendez-vous de signature de l'acte authentique est fixé au {date et heure du rendez-vous}, en notre office.",
+          '{si client}{si rendez-vous}Je vous remercie de vous munir de vos pièces d’identité et de votre RIB pour le rendez-vous.', 'Nous restons à votre disposition pour toute question.'].join('\n\n') },
+      { cle: 'projet', nom: 'Projet d’acte', construire: construireEmailProjetActe,
+        sujet: 'Projet d\'acte de vente — {dossier}',
+        corps: ['Bonjour,', "Veuillez trouver ci-joint le projet de l'acte de vente, pour lecture avant la signature.",
+          "Nous vous rappelons que le rendez-vous de signature de l'acte authentique est fixé au {date et heure du rendez-vous}, en notre office.",
+          'Nous restons à votre disposition pour toute question ou remarque sur ce projet.'].join('\n\n') },
+      { cle: 'confirmationRdv', nom: 'Confirmation du rendez-vous (au client)', construire: construireEmailConfirmationRdv,
+        sujet: 'Confirmation du rendez-vous de signature — {dossier}',
+        corps: ['Bonjour,', 'Nous vous confirmons le rendez-vous de signature de l’acte de vente le {date et heure du rendez-vous}, {lieu du rendez-vous}.',
+          'Merci de vous munir d’une pièce d’identité en cours de validité. Les fonds nécessaires à l’acquisition devront nous parvenir par virement quelques jours avant le rendez-vous.',
+          'Nous restons à votre disposition pour toute question.', 'Bien cordialement,'].join('\n\n') },
+      { cle: 'confirmationRdvConfrere', nom: 'Confirmation du rendez-vous (au confrère)', construire: construireEmailConfirmationRdv,
+        sujet: 'Confirmation du rendez-vous de signature — {dossier}',
+        corps: ['Bonjour,', 'Je vous confirme le rendez-vous de signature de l’acte de vente le {date et heure du rendez-vous}, {lieu du rendez-vous}.',
+          'Je vous remercie de bien vouloir me faire parvenir, le cas échéant, vos observations sur le projet d’acte.', 'Bien cordialement,'].join('\n\n') },
+      { cle: 'relanceFonds', nom: 'Relance pour les fonds', construire: construireEmailRelanceFonds,
+        sujet: 'Fonds à nous faire parvenir — {dossier}',
+        corps: ['Bonjour,', 'Sauf erreur de notre part, les fonds destinés à votre acquisition ne nous sont pas encore parvenus en comptabilité.',
+          'Le rendez-vous de signature de l’acte authentique est fixé le {date et heure du rendez-vous}, {lieu du rendez-vous}. Pour qu’il puisse se tenir, nous vous remercions de bien vouloir effectuer le virement dès que possible, selon les indications de notre appel de fonds.',
+          'Si le virement a déjà été effectué, merci de nous en adresser le justificatif en réponse à cet email.', 'Nous restons à votre disposition pour toute question.', 'Bien cordialement,'].join('\n\n') },
+      { cle: 'appelFonds', nom: 'Courrier d’appel de fonds', construire: construireEmailAppelFonds,
+        sujet: 'Appel de fonds — rendez-vous de signature — {dossier}',
+        corps: ['{si client}Madame, Monsieur,', '{si client}Veuillez trouver ci-joint le courrier de convocation et d’appel de fonds relatif à votre acquisition.',
+          '{si confrère}Veuillez trouver ci-joint le courrier de convocation et d’appel de fonds destiné à votre client, en vue du rendez-vous de signature.'].join('\n\n') },
+      { cle: 'questionnaire', nom: 'Questionnaire de satisfaction', construire: construireEmailQuestionnaireSatisfaction,
+        sujet: 'Questionnaire de satisfaction',
+        corps: ['Madame, Monsieur,', 'La qualité du service rendu à nos clients est une priorité pour notre office. Elle traduit l’engagement de notre équipe pour s’adapter à vos attentes.',
+          'Afin de recueillir votre avis, deux solutions s’offrent à vous :\n1. Répondre au questionnaire satisfaction ci-joint, de manière anonyme, et nous le retourner.\n2. Laisser un avis en ligne afin de faire profiter de votre expérience au sein de notre office. Cliquez ici pour laisser votre avis : {lien avis Google}',
+          'Sachez que toute l’office notarial a eu à cœur de vous accompagner et espère pouvoir collaborer à vos côtés de nouveau.', 'Dans l’attente et vous en remerciant vivement par avance,', 'Bien cordialement.'].join('\n\n') },
+      { cle: 'anniversaire', nom: 'Un an après la signature', construire: construireEmailAnniversaire,
+        sujet: 'Un an déjà — {dossier}',
+        corps: ['Bonjour,', 'Il y a un an, vous signiez l’acte d’acquisition de votre bien. Toute l’équipe de l’office espère que vous vous y plaisez.',
+          'Nous restons à votre disposition pour tout nouveau projet : donation, testament, contrat de mariage ou de PACS, succession, ou une nouvelle acquisition.', 'Bien cordialement,'].join('\n\n') }
+    ];
+  }
+
+  // Modèles enregistrés sur le serveur (versions de l'étude des modèles d'origine, modèles créés).
+  let modelesEmailsEtat = { modifies: {}, perso: [] };
+  async function chargerModelesEmails() {
+    try {
+      const r = await fetchAvecAuth('/api/modeles-emails');
+      if (r.ok) modelesEmailsEtat = await r.json();
+    } catch (e) { /* les textes d'origine restent la voie */ }
+    return modelesEmailsEtat;
+  }
+
+  // Le modèle d'origine tel que l'étude l'a peut-être modifié : { cle, nom, sujet, corps, modifie }.
+  function modeleIntegreEffectif(cle, etat) {
+    const base = modelesEmailIntegres().find(m => m.cle === cle);
+    if (!base) return null;
+    const mod = etat && etat.modifies ? etat.modifies[cle] : null;
+    return mod ? { ...base, sujet: mod.sujet, corps: mod.corps, modifie: true, modifieLe: mod.modifieLe, par: mod.par } : { ...base, modifie: false };
+  }
+
+  // Voie unique des boutons de la fiche : la version du confrère quand un autre office représente l'acquéreur, le
+  // texte modifié par l'étude s'il existe, sinon la fonction d'origine (textes mot pour mot).
+  var VARIANTES_CONFRERE_MODELES = { ventePrealable: 'ventePrealableConfrere', confirmationRdv: 'confirmationRdvConfrere' };
+  function emailDepuisModele(cle, d, etat) {
+    const e = etat || modelesEmailsEtat;
+    const variante = VARIANTES_CONFRERE_MODELES[cle] && notaireParticipantRepresenteAcquereur(d) ? VARIANTES_CONFRERE_MODELES[cle] : cle;
+    const m = modeleIntegreEffectif(variante, e);
+    if (m && m.modifie) return remplirModeleEmail(m, d);
+    return m ? m.construire(d) : { sujet: '', corps: '' };
+  }
+
+  // ---- Réglages › Modèles d'emails (étude, 03/10) : les modèles de CLAIRE (modifiables, retour au texte d'origine)
+  // et ceux de l'étude (créer, modifier, supprimer), avec aperçu sur un dossier. ----
+  let modeleEdite = null;
+
+  // Pure : les modèles proposés (ceux de l'étude d'abord, puis ceux de CLAIRE), pour la liste et le menu de la fenêtre d'email.
+  function listeModelesEmails(etat) {
+    const e = etat || { modifies: {}, perso: [] };
+    return (e.perso || []).map(m => ({ type: 'perso', id: m.id, nom: m.nom, sujet: m.sujet, corps: m.corps }))
+      .concat(modelesEmailIntegres().map(m => modeleIntegreEffectif(m.cle, e)).map(m => ({ type: 'integre', cle: m.cle, nom: m.nom, sujet: m.sujet, corps: m.corps, modifie: m.modifie })));
+  }
+
+  async function ouvrirReglagesModelesEmails() {
+    await chargerModelesEmails();
+    if (!modeleEdite) choisirModeleReglages('integre', 'provision', true);
+    else renderReglagesModelesEmails();
+  }
+
+  function choisirModeleReglages(type, ref, force) {
+    const changer = () => {
+      if (type === 'nouveau') {
+        modeleEdite = { type: 'nouveau', nom: '', sujet: '{dossier}', corps: 'Bonjour,\n\n\n\nBien cordialement,', change: false, apercu: modeleEdite ? modeleEdite.apercu : '' };
+      } else {
+        const m = listeModelesEmails(modelesEmailsEtat).find(x => x.type === type && (type === 'perso' ? x.id === ref : x.cle === ref));
+        if (!m) return;
+        modeleEdite = { type, cle: m.cle, id: m.id, nom: m.nom, sujet: m.sujet, corps: m.corps, change: false, apercu: modeleEdite ? modeleEdite.apercu : '' };
+      }
+      renderReglagesModelesEmails();
+    };
+    if (!force && modeleEdite && modeleEdite.change) demanderConfirmation('Abandonner les modifications de ce modèle ?', changer, { bouton: 'Abandonner' });
+    else changer();
+  }
+
+  function renderReglagesModelesEmails() {
+    const zone = document.getElementById('reglages-modeles-emails');
+    if (!zone || !modeleEdite) return;
+    const liste = listeModelesEmails(modelesEmailsEtat);
+    const ligne = (m) => {
+      const actif = modeleEdite.type === m.type && (m.type === 'perso' ? modeleEdite.id === m.id : modeleEdite.cle === m.cle);
+      return `<button type="button" class="modeles-ligne${actif ? ' actif' : ''}" onclick="choisirModeleReglages('${m.type}', '${escapeOnclickArg(m.type === 'perso' ? m.id : m.cle)}')">
+          <span class="modeles-ligne-nom">${escapeHtml(m.nom)}</span>${m.modifie ? '<span class="modeles-modifie">Modifié</span>' : ''}</button>`;
+    };
+    const perso = liste.filter(m => m.type === 'perso');
+    const e = modeleEdite;
+    const integre = e.type === 'integre' ? modeleIntegreEffectif(e.cle, modelesEmailsEtat) : null;
+    const actifs = dossiers.filter(d => !d.archive).sort((a, b) => String(a.nom).localeCompare(String(b.nom)));
+    const puce = (nom, aide) => `<button type="button" class="modeles-puce" title="${escapeAttr(aide)}" onclick="insererVariableModele('${escapeOnclickArg(nom)}')">{${escapeHtml(nom)}}</button>`;
+    zone.innerHTML = `<div class="modeles-grille">
+        <nav class="modeles-liste" aria-label="Modèles d’emails">
+          <div class="modeles-groupe">Mes modèles</div>
+          ${perso.map(ligne).join('')}
+          ${e.type === 'nouveau' ? '<button type="button" class="modeles-ligne actif"><span class="modeles-ligne-nom">Nouveau modèle</span></button>' : ''}
+          <button type="button" class="bouton-ajout" onclick="choisirModeleReglages('nouveau')">Nouveau modèle</button>
+          <div class="modeles-groupe">Modèles de CLAIRE</div>
+          ${liste.filter(m => m.type === 'integre').map(ligne).join('')}
+        </nav>
+        <div class="modeles-editeur">
+          ${e.type === 'integre'
+            ? `<div class="modeles-titre">${escapeHtml(e.nom)} ${infoBulle('Les boutons de la fiche envoient ce texte. « Revenir au texte d’origine » rétablit celui de CLAIRE.')}</div>`
+            : `<label class="modeles-champ"><span>Nom du modèle</span><input type="text" id="modele-nom" value="${escapeAttr(e.nom)}" oninput="champModeleEdite('nom', this.value)" placeholder="Ex. Demande de diagnostics"></label>`}
+          <label class="modeles-champ"><span>Objet</span><input type="text" id="modele-sujet" value="${escapeAttr(e.sujet)}" oninput="champModeleEdite('sujet', this.value)" onfocus="dernierChampModele = this.id"></label>
+          <label class="modeles-champ"><span>Texte ${infoBulle('Une variable entre accolades est remplacée par la donnée du dossier. Un paragraphe dont une variable est vide disparaît. Un paragraphe qui commence par {si …} n’apparaît que dans ce cas. La signature de l’office est ajoutée à l’envoi.')}</span>
+            <textarea id="modele-corps" rows="14" oninput="champModeleEdite('corps', this.value)" onfocus="dernierChampModele = this.id">${escapeHtml(e.corps)}</textarea></label>
+          <div class="modeles-puces"><span class="modeles-puces-titre">Insérer</span>${VARIABLES_MODELE_EMAIL.map(v => puce(v.nom, v.aide)).join('')}${CONDITIONS_MODELE_EMAIL.map(v => puce(v.nom, v.aide)).join('')}</div>
+          <div class="modeles-actions">
+            <button type="button" class="primary" id="modele-enregistrer" onclick="enregistrerModeleEdite()"${e.change ? '' : ' disabled'}>Enregistrer</button>
+            ${integre && integre.modifie ? '<button type="button" class="lien-discret" onclick="revenirModeleOrigine()">Revenir au texte d’origine</button>' : ''}
+            ${e.type === 'perso' ? '<button type="button" class="lien-discret" onclick="supprimerModeleEdite()">Supprimer</button>' : ''}
+            <span class="hint">${integre && integre.modifie && integre.modifieLe ? `Modifié le ${escapeHtml(dateHeureAppel(Date.parse(integre.modifieLe)))}${integre.par ? ' par ' + escapeHtml(integre.par) : ''}` : ''}</span>
+          </div>
+          <div class="modeles-apercu-tete">
+            <span class="section-eyebrow">Aperçu</span>
+            <select id="modele-apercu-dossier" aria-label="Dossier de l’aperçu" onchange="modeleEdite.apercu = this.value; majApercuModele()">
+              <option value="">Choisir un dossier…</option>
+              ${actifs.map(d => `<option value="${escapeAttr(d.id)}"${d.id === e.apercu ? ' selected' : ''}>${escapeHtml(libelleDossierAffiche(d))}</option>`).join('')}
+            </select>
+          </div>
+          <div class="modeles-apercu" id="modele-apercu"></div>
+        </div>
+      </div>`;
+    majApercuModele();
+  }
+
+  let dernierChampModele = 'modele-corps';
+  function champModeleEdite(champ, valeur) {
+    if (!modeleEdite) return;
+    modeleEdite[champ] = valeur;
+    modeleEdite.change = true;
+    const b = document.getElementById('modele-enregistrer');
+    if (b) b.disabled = false;
+    majApercuModele();
+  }
+
+  function insererVariableModele(nom) {
+    const champ = document.getElementById(dernierChampModele) || document.getElementById('modele-corps');
+    if (!champ) return;
+    const t = '{' + nom + '}';
+    const debut = typeof champ.selectionStart === 'number' ? champ.selectionStart : champ.value.length;
+    const fin = typeof champ.selectionEnd === 'number' ? champ.selectionEnd : debut;
+    champ.value = champ.value.slice(0, debut) + t + champ.value.slice(fin);
+    champ.focus();
+    try { champ.setSelectionRange(debut + t.length, debut + t.length); } catch (e) { /* champ sans sélection */ }
+    champModeleEdite(champ.id === 'modele-sujet' ? 'sujet' : 'corps', champ.value);
+  }
+
+  function majApercuModele() {
+    const zone = document.getElementById('modele-apercu');
+    if (!zone || !modeleEdite) return;
+    const d = dossiers.find(x => x.id === modeleEdite.apercu);
+    if (!d) { zone.innerHTML = '<p class="hint">Choisissez un dossier pour voir le texte rempli.</p>'; return; }
+    const r = remplirModeleEmail({ sujet: modeleEdite.sujet, corps: modeleEdite.corps }, d);
+    const corps = adapterCorpsEmail(r.corps, notaireParticipantRepresenteAcquereur(d));
+    zone.innerHTML = `<div class="modeles-apercu-sujet">${escapeHtml(r.sujet || '(sans objet)')}</div><div class="modeles-apercu-corps">${marquesEnHtml(escapeHtml(corps))}</div>`;
+  }
+
+  async function enregistrerModeleEdite() {
+    const e = modeleEdite;
+    if (!e) return;
+    if (e.type !== 'integre' && !String(e.nom || '').trim()) { afficherToast('Donnez un nom au modèle.', 'OK', null); return; }
+    if (!String(e.corps || '').trim()) { afficherToast('Le texte du modèle est vide.', 'OK', null); return; }
+    const url = e.type === 'integre' ? '/api/modeles-emails/integres/' + encodeURIComponent(e.cle)
+      : e.type === 'perso' ? '/api/modeles-emails/perso/' + encodeURIComponent(e.id) : '/api/modeles-emails/perso';
+    try {
+      const r = await fetchAvecAuth(url, { method: e.type === 'nouveau' ? 'POST' : 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nom: e.nom, sujet: e.sujet, corps: e.corps, par: utilisateurPoste || '' }) });
+      const corps = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(corps.erreur || 'statut ' + r.status);
+      modelesEmailsEtat = { modifies: corps.modifies || {}, perso: corps.perso || [] };
+      if (e.type === 'nouveau') { e.type = 'perso'; e.id = corps.id; }
+      e.change = false;
+      renderReglagesModelesEmails();
+      afficherToast('Modèle enregistré.', 'OK', null);
+    } catch (err) { afficherToast('Modèle non enregistré : ' + err.message, 'OK', null); }
+  }
+
+  function revenirModeleOrigine() {
+    const e = modeleEdite;
+    if (!e || e.type !== 'integre') return;
+    demanderConfirmation('Revenir au texte d’origine de CLAIRE pour ce modèle ?', async () => {
+      try {
+        const r = await fetchAvecAuth('/api/modeles-emails/integres/' + encodeURIComponent(e.cle), { method: 'DELETE' });
+        if (!r.ok) throw new Error('statut ' + r.status);
+        modelesEmailsEtat = await r.json();
+        choisirModeleReglages('integre', e.cle, true);
+      } catch (err) { afficherToast('Impossible : ' + err.message, 'OK', null); }
+    }, { bouton: 'Revenir au texte d’origine' });
+  }
+
+  function supprimerModeleEdite() {
+    const e = modeleEdite;
+    if (!e || e.type !== 'perso') return;
+    demanderConfirmation(`Supprimer le modèle « ${e.nom} » ?`, async () => {
+      try {
+        const r = await fetchAvecAuth('/api/modeles-emails/perso/' + encodeURIComponent(e.id), { method: 'DELETE' });
+        if (!r.ok) throw new Error('statut ' + r.status);
+        modelesEmailsEtat = await r.json();
+        choisirModeleReglages('integre', 'provision', true);
+      } catch (err) { afficherToast('Impossible : ' + err.message, 'OK', null); }
+    }, { bouton: 'Supprimer' });
+  }
+
+  // Courrier d'appel de fonds joint (texte d'origine, ex-preparerEmailAppelFonds).
+  function construireEmailAppelFonds(d) {
+    const confrere = notaireParticipantRepresenteAcquereur(d);
+    return {
+      sujet: `Appel de fonds — rendez-vous de signature — ${libelleDossierAffiche(d)}`,
+      corps: confrere
+        ? 'Veuillez trouver ci-joint le courrier de convocation et d’appel de fonds destiné à votre client, en vue du rendez-vous de signature.'
+        : 'Madame, Monsieur,\n\nVeuillez trouver ci-joint le courrier de convocation et d’appel de fonds relatif à votre acquisition.'
+    };
+  }
+
 
   // discret : appelée depuis « Aujourd'hui », où la ligne se coche d'elle-même — une notification
   // suffit, pas de fenêtre à fermer entre deux actions.
@@ -26788,7 +27190,7 @@
       afficherToast(`Aucun email ${vendeur ? 'du vendeur' : "d'acquéreur"} renseigné pour ce dossier — impossible de préparer le questionnaire.`, 'OK', null);
       return;
     }
-    const { sujet, corps } = construireEmailQuestionnaireSatisfaction(d);
+    const { sujet, corps } = emailDepuisModele('questionnaire', d);
     const pdfDispo = typeof QUESTIONNAIRE_SATISFACTION_PDF_BASE64 === 'string' && QUESTIONNAIRE_SATISFACTION_PDF_BASE64;
     const pieces = pdfDispo ? [{ nom: 'Enquete_satisfaction.pdf', type: 'application/pdf', contenuBase64: QUESTIONNAIRE_SATISFACTION_PDF_BASE64 }] : [];
     const r = await livrerEmailDossier({ destinataire, sujet, corps, pieces, responsableSignature: d.responsable, dossierId: d.id, geste: 'questionnaire' });
@@ -31190,6 +31592,7 @@
     // bouton « Créer dans l'agenda » doit apparaître, sans attendre l'ouverture des Réglages.
     // Une fois connue, retente les retraits/déplacements de dates butoir restés en attente.
     chargerReglagesExchange().then(reconcilierEcheancesAgenda);
+    chargerModelesEmails();
     // Scans du copieur (voir chargerScans) : dès que les dossiers sont chargés, en tâche de fond —
     // sans attendre l'état du NAS ni les autres lectures du démarrage.
     demarrerSurveillanceScans();
@@ -32071,7 +32474,7 @@
   // Rubriques de la colonne de gauche, dans l'ordre (réorganisées le 29/09, à la manière des
   // réglages de Claude).
   // Ordre de la colonne de gauche (revu le 01/10 : une rubrique par sujet).
-  var SOUS_ONGLETS_REGLAGES = ['general', 'collaborateurs', 'signature', 'rappels', 'agenda', 'telephonie', 'authentic', 'pieces', 'noms-nas', 'relecture', 'apprentissage', 'signalements', 'systeme'];
+  var SOUS_ONGLETS_REGLAGES = ['general', 'collaborateurs', 'signature', 'modeles', 'rappels', 'agenda', 'telephonie', 'authentic', 'pieces', 'noms-nas', 'relecture', 'apprentissage', 'signalements', 'systeme'];
   const CLE_SOUS_ONGLET_REGLAGES = 'reglages-sous-onglet';
 
   function sousOngletReglagesRetenu() {
@@ -32098,6 +32501,7 @@
     if (cle === 'apprentissage') ouvrirPageApprentissage();
     if (cle === 'pieces') renderNomsReconnus();
     if (cle === 'noms-nas') initNomsNas();
+    if (cle === 'modeles') ouvrirReglagesModelesEmails();
   }
 
   // Compteur rouge sur « Réglages » : signalements encore à trier. Sur tous les postes — il n'y a
@@ -35440,8 +35844,7 @@
     ajouterHistorique(d, `Relance automatique ouverte (offre de prêt introuvable, ${libelleEcheanceRelance(jours)})`);
     sauvegarder(d);
 
-    const subject = `Relance — Offre de prêt attendue — ${libelleDossierAffiche(d)}`;
-    const body = corpsRelanceOffreManquante(d.nom, d.pret, jours);
+    const { sujet: subject, corps: body } = emailDepuisModele('pret', d);
     livrerEmailDossier({ destinataire, sujet: subject, corps: body, confrere: notaireParticipantRepresenteAcquereur(d), responsableSignature: d.responsable, dossierId: d.id, geste: 'relancePret' })
       .then(r => { if (!r.annule) afficherToast(r.ok
         ? (r.mode === 'envoye' ? `Relance « offre de prêt » envoyée pour ${libelleDossierAffiche(d)}.` : `Relance « offre de prêt » prête pour ${d.nom} — ${r.mode === 'eml' ? 'ouvrez le fichier téléchargé' : 'vérifiez'} puis envoyez.`)
@@ -42002,10 +42405,7 @@
         confrere,
         responsableSignature: d.responsable,
         dossierId: d.id, geste: 'appelFonds',
-        sujet: `Appel de fonds — rendez-vous de signature — ${libelleDossierAffiche(d)}`,
-        corps: confrere
-          ? 'Veuillez trouver ci-joint le courrier de convocation et d’appel de fonds destiné à votre client, en vue du rendez-vous de signature.'
-          : 'Madame, Monsieur,\n\nVeuillez trouver ci-joint le courrier de convocation et d’appel de fonds relatif à votre acquisition.',
+        ...emailDepuisModele('appelFonds', d),
         pieces: [{ nom, type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', contenuBase64 }]
       });
       if (!r.ok) { if (!r.annule) afficherToast(r.message || "L'email n'a pas pu être préparé.", 'OK', null); return; }

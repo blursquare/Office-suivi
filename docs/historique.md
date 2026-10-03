@@ -16001,3 +16001,35 @@ CLAIRE ; boîte de chacun ; premier jet par l'IA locale ; tous les emails.
   proposition posée, envoi bloqué tant que « [à compléter] » reste ; clair, sombre, téléphone.
 - Non vérifié ici : Exchange réel (envoi, réponse avec pièces jointes, droit « Envoyer en tant que » chez Fichorga, taille
   maximale), Ollama réel.
+
+### 03/10/2026 21:40 — Modèles d'emails, réponses de l'IA plus courtes
+
+Étude : « Garder les modèles d'e-mails déjà présents. Placer dans les réglages un créateur de modèles d'e-mails que l'on
+pourra retrouver dans l'interface e-mail, et que je puisse éditer les modèles — tu peux mettre déjà ceux existants. Il faut
+qu'Ollama ne fasse pas des réponses trop longues : aller à l'essentiel. » Question posée : un modèle d'origine modifié
+change-t-il ce que le bouton de la fiche envoie ? Réponse : « Oui, le bouton suit ».
+
+- **Serveur** : clé `modeles-emails` (`server/src/modelesEmails.js`) — `modifies` (version de l'étude d'un modèle d'origine,
+  par clé) et `perso` (modèles créés, 200 au plus) ; `GET /api/modeles-emails`, `PUT|DELETE /api/modeles-emails/integres/:cle`,
+  `POST /api/modeles-emails/perso`, `PUT|DELETE /api/modeles-emails/perso/:id` (une écriture par modèle).
+- **Poste** : `modelesEmailIntegres()` reprend en « texte à variables » les 14 modèles des boutons (provision, prêt, RIB,
+  vente préalable client/confrère, fonds, projet, confirmation client/confrère, relance des fonds, appel de fonds,
+  questionnaire, anniversaire) ; `tests/modeles-emails.test.js` vérifie qu'ils redonnent mot pour mot les `construireEmail…`
+  sur cinq dossiers types (seul écart voulu : la confirmation sans rendez-vous, jamais proposée, qui laissait « le , »).
+  `emailDepuisModele(cle, d)` : variante confrère choisie seule (`VARIANTES_CONFRERE_MODELES`), version modifiée par l'étude
+  si elle existe (`remplirModeleEmail`), sinon la fonction d'origine — branchée sur `MODELES_EMAIL_RELANCE`, la relance
+  automatique de l'offre de prêt, le questionnaire et le courrier d'appel de fonds. `remplirModeleEmail` : variables `{…}`
+  (`VARIABLES_MODELE_EMAIL`, apostrophe droite ou courbe indifférente, variable inconnue laissée telle quelle), paragraphe retiré
+  si une variable y est vide, conditions `{si client}`, `{si confrère}`, `{si rendez-vous}`, `{si prêt attendu}` en tête de
+  paragraphe. Réglages › Modèles d'emails (sous « L'étude ») : liste « Mes modèles » / « Modèles de CLAIRE » (« Modifié »),
+  éditeur nom / objet / texte, puces « Insérer », aperçu rempli pour un dossier choisi, Enregistrer, « Revenir au texte
+  d'origine », Supprimer. Fenêtre d'email : bouton « Modèles » (menu, texte et objet d'un email nouveau remplacés, formules du
+  confrère reposées par `adapterCorpsEmail`, « Annuler le modèle »).
+- **IA locale** : consigne « aller à l'essentiel » (1 à 3 phrases, 50 mots au plus entre les formules, pas de politesse en
+  plus), réponse de plus de 90 mots refusée par `validerProposition` (une relance puis abandon), `num_predict` = 220 jetons
+  (`generer(prompt, { longueurMax })`).
+- Hors modèles : accusé de réception, copie de l'acte, visio, sondage (texte assemblé depuis l'email reçu, les fichiers ou
+  les boutons).
+- Vérifié dans Chromium : modèle RIB modifié et enregistré, aperçu, bouton « Demander le RIB » de la fiche qui envoie le
+  nouveau texte, menu « Modèles » de la fenêtre d'email, « Annuler le modèle », modèle créé ; clair, sombre, téléphone.
+  Non vérifié ici : la longueur réelle des réponses d'Ollama.

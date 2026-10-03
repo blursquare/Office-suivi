@@ -280,8 +280,8 @@ function promptPropositionReponse({ objet, deNom, texte, dossier, confrere, pj }
     confrere
       ? '- C’est un confrère notaire : commence par « Mon Cher Maître, » et termine par « Dans l’attente et vous en remerciant par avance, » puis « Votre bien dévoué. ».'
       : '- C’est un client : commence par « Madame, Monsieur, » (ou « Madame, » / « Monsieur, » si l’email le permet sans doute) et termine par « Bien cordialement, ».',
-    '- 2 à 5 phrases, ton professionnel et courtois, en français.',
-    '- Si des documents sont joints, accuse-en réception en les nommant simplement.',
+    '- ALLER À L’ESSENTIEL : entre la formule d’appel et la formule de clôture, 1 à 3 phrases courtes, 50 mots au plus. Une seule idée par phrase, aucune phrase de politesse en plus (« j’espère que vous allez bien », « n’hésitez pas »…).',
+    '- Réponds seulement à ce qui est demandé ; si des documents sont joints, une phrase suffit pour en accuser réception.',
     '- N’invente aucune date, aucun montant, aucun délai, aucune pièce, aucun engagement : écris « [à compléter] » là où une information manque.',
     '- Ne donne aucun avis juridique et ne promets rien au nom du notaire.',
     '- Pas de signature (elle est ajoutée ensuite), pas d’objet.',
@@ -289,11 +289,18 @@ function promptPropositionReponse({ objet, deNom, texte, dossier, confrere, pj }
   ].join('\n');
 }
 
-const validerProposition = (o) => (o && typeof o.reponse === 'string' && o.reponse.trim() ? null : 'le champ "reponse" (texte) est obligatoire');
+const MOTS_MAX_PROPOSITION = 90; // formules comprises
+const LONGUEUR_MAX_PROPOSITION = 220; // jetons d'Ollama (num_predict)
+const motsTexte = (t) => String(t || '').split(/\s+/).filter(Boolean).length;
+const validerProposition = (o) => {
+  if (!o || typeof o.reponse !== 'string' || !o.reponse.trim()) return 'le champ "reponse" (texte) est obligatoire';
+  if (motsTexte(o.reponse) > MOTS_MAX_PROPOSITION) return `réponse trop longue (${motsTexte(o.reponse)} mots) : 50 mots au plus entre les formules`;
+  return null;
+};
 
 module.exports = {
   CLE_ENVOI_EMAILS, JOURS_REFUS_RETENU, MAX_BASE64_TOTAL,
   adresseValide, adressesDepuisTexte, corpsBrouillonNouveau, corpsBrouillonReponse, corpsAjoutPieces, corpsEnvoiBrouillon,
   corpsRetraitBrouillon, idBrouillon, changeKeyApresPieces, piecesValides, adresseCollaborateur, refusRecent, lireEtatEnvoi,
-  envoyerEmailExchange, messageEchec, promptPropositionReponse, validerProposition
+  envoyerEmailExchange, messageEchec, promptPropositionReponse, validerProposition, MOTS_MAX_PROPOSITION, LONGUEUR_MAX_PROPOSITION
 };

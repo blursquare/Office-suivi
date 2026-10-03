@@ -1571,6 +1571,7 @@
       <button type="button" class="reglages-nav-btn actif" role="tab" id="reglages-onglet-general" aria-controls="reglages-panneau-general" aria-selected="true" onclick="definirSousOngletReglages('general')">Général</button>
       <button type="button" class="reglages-nav-btn" role="tab" id="reglages-onglet-collaborateurs" aria-controls="reglages-panneau-collaborateurs" aria-selected="false" onclick="definirSousOngletReglages('collaborateurs')">Collaborateurs</button>
       <button type="button" class="reglages-nav-btn" role="tab" id="reglages-onglet-signature" aria-controls="reglages-panneau-signature" aria-selected="false" onclick="definirSousOngletReglages('signature')">Signature des emails</button>
+      <button type="button" class="reglages-nav-btn" role="tab" id="reglages-onglet-modeles" aria-controls="reglages-panneau-modeles" aria-selected="false" onclick="definirSousOngletReglages('modeles')">Modèles d'emails</button>
       <button type="button" class="reglages-nav-btn" role="tab" id="reglages-onglet-rappels" aria-controls="reglages-panneau-rappels" aria-selected="false" onclick="definirSousOngletReglages('rappels')">Rappels</button>
       <div class="reglages-nav-groupe" role="presentation">Connexions</div>
       <button type="button" class="reglages-nav-btn" role="tab" id="reglages-onglet-agenda" aria-controls="reglages-panneau-agenda" aria-selected="false" onclick="definirSousOngletReglages('agenda')">Agenda et Outlook</button>
@@ -1786,6 +1787,14 @@
 
   <!-- ===== Signature des emails : images (carte de l'office, bannière Visio) déposées une fois,
        gardées sur le serveur — voir server/src/routes/signatureImages.js et signatureHtmlOffice. ===== -->
+  <!-- ===== Modèles d'emails (étude, 03/10) : ceux de CLAIRE, modifiables, et ceux de l'étude ===== -->
+  <section class="reglages-panneau" id="reglages-panneau-modeles" role="tabpanel" aria-labelledby="reglages-onglet-modeles" hidden>
+    <h2 class="reglages-titre">Modèles d'emails</h2>
+    <div class="reglages-section">
+      <div id="reglages-modeles-emails"><p class="hint">Chargement…</p></div>
+    </div>
+  </section>
+
   <section class="reglages-panneau" id="reglages-panneau-signature" role="tabpanel" aria-labelledby="reglages-onglet-signature" hidden>
     <h2 class="reglages-titre">Signature des emails <span class="info-i" tabindex="0" data-info="Sans image déposée, CLAIRE compose la carte et la bannière elle-même."></span></h2>
     <div class="reglages-section">

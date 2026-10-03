@@ -26,6 +26,7 @@ const { creerRouteurVerificationsTerrain } = require('./routes/verificationsTerr
 const { creerRouteurNomsFichiersNas } = require('./routes/nomsFichiersNas');
 const { creerRouteurSignatureImages } = require('./routes/signatureImages');
 const { creerRouteurRappelsPerso } = require('./routes/rappelsPerso');
+const { creerRouteurModelesEmails } = require('./routes/modelesEmails');
 const { creerRouteurPreferences } = require('./routes/preferences');
 const { creerRouteurRelectureClaude } = require('./routes/relectureClaude');
 const { creerRouteurRelectures } = require('./routes/relectures');
@@ -165,6 +166,8 @@ function creerApp({ db, config, envoyerEmailFn, creerClientClaude, appelerMistra
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurVerificationsTerrain(parametresRepo));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurSignatureImages(db));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurRappelsPerso(parametresRepo));
+  // Modèles d'emails de l'étude (Réglages › Modèles d'emails, fenêtre d'email) : voir modelesEmails.js.
+  app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurModelesEmails(parametresRepo));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurPreferences(parametresRepo));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurRelectureClaude(parametresRepo, db, { creerClient: creerClientClaude, appelerMistral, testerMistral }));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurRelectures(db));

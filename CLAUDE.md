@@ -130,6 +130,20 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
    rend `{ ok: false, annule: true }` : l'appelant ne marque rien et ne dit rien. Mode `mailto:` du poste inchangé. Pastille
    « À répondre » (`emailARepondre` : reçu < 14 jours, dernier de l'expéditeur, sans envoi vers lui depuis). Points
    terrain `email-envoye-exchange`, `email-reponse-exchange`, `email-envoye-en-tant-que`, `email-proposition-ia`.
+   Premier jet de l'IA **court** (étude 03/10 : « aller à l'essentiel ») : 1 à 3 phrases, 50 mots au plus entre les formules
+   (consigne), réponse de plus de 90 mots refusée (`validerProposition`), `num_predict` borné (`LONGUEUR_MAX_PROPOSITION`,
+   `generer(prompt, { longueurMax })` dans `llm.js`).
+   **Modèles d'emails** (étude 03/10, Réglages › Modèles d'emails, `renderReglagesModelesEmails` ; clé `modeles-emails`,
+   `server/src/modelesEmails.js`, `routes/modelesEmails.js`) : les modèles de CLAIRE (`modelesEmailIntegres` : provision,
+   prêt, RIB, vente préalable client/confrère, fonds, projet, confirmation client/confrère, relance des fonds, appel de fonds,
+   questionnaire, anniversaire — texte « à variables » **identique mot pour mot** aux `construireEmail…`, vérifié par
+   `tests/modeles-emails.test.js`) se modifient (`modifies[cle]`) et **les boutons de la fiche suivent** (choix de l'étude :
+   `emailDepuisModele` — variante confrère choisie seule, version modifiée sinon la fonction d'origine), « Revenir au texte
+   d'origine » ; modèles de l'étude (`perso`). Variables `{…}` (`VARIABLES_MODELE_EMAIL`), paragraphe retiré si une variable est
+   vide, `{si client}` / `{si confrère}` / `{si rendez-vous}` / `{si prêt attendu}` en tête de paragraphe
+   (`remplirModeleEmail`). Fenêtre d'email : bouton « Modèles » (texte et objet remplacés, « Annuler le modèle »). Restent
+   hors modèles (assemblés à partir de l'email reçu, des fichiers ou des boutons) : accusé de réception, copie de l'acte,
+   visio, sondage de créneaux.
    Seuls les rappels internes partent automatiquement :
    SMTP Gmail + mot de passe d'application → boîte-passerelle (Objet = adresse du destinataire) →
    flux Power Automate → Teams. La copie gardée par Gmail est effacée **2 h après** (le flux relève
@@ -514,7 +528,8 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
 - **Prorata** : jours réels, jour de l'acte à la charge de l'acquéreur, arrondi du vendeur par
   complément.
 - **Textes d'emails fournis par l'étude** (provision, prêt manquant, RIB, réception des fonds,
-  questionnaire, vente préalable au confrère) : repris **mot pour mot**, à ne pas reformuler.
+  questionnaire, vente préalable au confrère) : repris **mot pour mot**, à ne pas reformuler — l'étude peut désormais
+  les modifier elle-même (Réglages › Modèles d'emails) ; jamais CLAIRE.
   Même règle pour `PROCEDURE_FONDS` et les clauses de l'annexe des quotités. Exception : l'email
   d'envoi du **projet d'acte** (`construireEmailProjetActe`, 30/09) est un premier jet de CLAIRE,
   à remplacer par le texte de l'étude dès qu'elle le fournit.
@@ -684,7 +699,7 @@ Plainte principale de l'étude : **le bruit**, pas les oublis — ne pas élargi
   class="info-i" tabindex="0" data-info="…">` en HTML, `definirInfoBulle` pour la changer). Restent
   en texte visible : un état, un résultat, une erreur, une liste vide. **Réglages** : rubriques à
   gauche (`SOUS_ONGLETS_REGLAGES`, une par sujet depuis le 01/10 : Général, Collaborateurs, Signature des
-  emails, Rappels, Agenda et Outlook, Téléphonie 3CX, Authentic, Pièces et Claire Scan, Noms de fichiers du NAS, Relecture d'actes,
+  emails, Modèles d'emails, Rappels, Agenda et Outlook, Téléphonie 3CX, Authentic, Pièces et Claire Scan, Noms de fichiers du NAS, Relecture d'actes,
   Signalements, Mise à jour et sauvegarde — classées sous quatre titres depuis le 03/10 : L'étude, Connexions, Dossiers et actes, Maintenance, `.reglages-nav-groupe` ; chaque section qui enregistre a son propre bouton), une colonne de lignes `.reglages-option` / `.reglages-champ`
   dans des `.reglages-section` — pas de cartes en grille.
 - **Toute nouvelle fonction pure** : la déclarer `function` (ou `var` pour une table) pour la
