@@ -1158,3 +1158,13 @@ test('texteRattachementAuthentic : le « i » de la fiche dit à quel dossier d�
   app.rattacherIntituleAuthentic(d, 'Vente LEGRAND / ROUX', [d], 'A 2026 00230');
   assert.equal(d.intituleAuthentic, 'Vente LEGRAND / ROUX');
 });
+
+test('sous-dossier ouvert : seul celui de la vente compte (étude, 03/10 — promesse et avenant ignorés)', () => {
+  const page = (entete) => ({ texte: `A 2026 00017 VTE MARTEL / FOURNIER\n${entete} Importer avec 6e SENS\nComparants (2)\n1 - Promesse VTE MARTEL/FOURNIER\n2 - VTE MARTEL / FOURNIER\n3 - Avenant à promesse de vente` });
+  assert.equal(app.sousDossierAuthentic(page('2 - VTE MARTEL / FOURNIER')), 'vente');
+  assert.equal(app.sousDossierAuthentic(page('1 - Promesse VTE MARTEL/FOURNIER')), 'promesse');
+  assert.equal(app.sousDossierAuthentic(page('3 - Avenant à promesse de vente')), 'avenant');
+  assert.equal(app.sousDossierAuthentic(page("2 - Vente d'immeuble")), 'vente');
+  assert.equal(app.sousDossierAuthentic(page('4 - Succession MARTEL')), 'succession');
+  assert.equal(app.sousDossierAuthentic({ texte: 'Fiche client\nNom MARTEL' }), '');
+});

@@ -15822,3 +15822,17 @@ la tuile de la page Outils (`OUTILS_PAGE`), le lien du tiroir Outils (`tab-noms-
 pastilles au-dessus des formes (`.rep-nav.noms-nas-pieces`), « Parcourir le commun » en bouton d'action sur la ligne de
 l'état. Rien ne change au fonctionnement (parcours, formes, décisions). Vérifié dans Chromium (clair, sombre, téléphone) sur
 un commun inventé.
+
+### 03/10/2026 17:27 — Authentic : seul le sous-dossier de vente est lu
+
+Étude (discussion sur la création automatique d'un dossier CLAIRE depuis Authentic) : « vert ça veut dire signé, orange demande
+de pièces et rouge pas constitué, c'est le même code couleurs que les badges » ; « pour BEUCHER le seul sous-dossier qui nous
+intéresse est le sous-dossier vente, pas la promesse et l'avenant ». Risque trouvé : une page du sous-dossier « 1 - Promesse
+VTE … » dont l'acte porte « Signé le … » (la promesse) aurait marqué la VENTE comme signée — la ligne d'acte peut s'intituler
+« VTE X / Y » comme celle de la vente, et `RE_AUTRE_DOCUMENT_SIGNE_AUTHENTIC` ne l'écarte pas. `sousDossierAuthentic` lit
+l'en-tête « N - … » (suivi de Importer / Comparants / Immeubles) : vente, promesse, avenant, succession, autre ; dans
+`appliquerReleveAuthentic`, une page de promesse, d'avenant ou d'un autre sous-dossier n'applique rien (ni état de l'acte,
+ni pièces, ni contrôle « ancien dossier »), garde le dossier en consultation et retient la référence ; journal « sous-dossier
+promesse : seul le sous-dossier de vente est lu ». Vérifié dans Chromium (page Promesse « Signé le » → rien ; page Vente →
+signé et pièce reprise). Création d'un dossier CLAIRE depuis Authentic : discutée, pas construite (attend le choix A
+bandeau / B automatique et le texte exact des badges vert et rouge).

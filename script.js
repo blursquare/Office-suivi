@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-03 17:12';
+  const VERSION_APP = '2026-10-03 17:27';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-03 17:27', resume: "Authentic : seul le sous-dossier de VENTE est lu. Une page du sous-dossier « Promesse » ou « Avenant » (ex. BEUCHER : « 1 - Promesse VTE … », « 3 - Avenant à promesse de vente ») ne reprend plus rien — son « Signé le » est celui de la promesse, il ne marque plus la vente comme signée, et ses pièces ne sont pas cochées. Le dossier reste reconnu (pour les fiches client ouvertes ensuite) et le journal dit « seul le sous-dossier de vente est lu »." },
     { version: '2026-10-03 17:12', resume: "« Noms de fichiers du NAS » quitte les Outils : c'est maintenant une rubrique des Réglages (Dossiers et actes › Noms de fichiers du NAS, juste sous « Pièces et Claire Scan »). Même fonctionnement : « Parcourir le commun », puis Oui / Non sur chaque forme de nom ; les pièces s'affichent en pastilles au-dessus des formes." },
     { version: '2026-10-03 12:01', resume: "Authentic : un acte n'est « signé » que si l'état du document commence exactement par « Signé le JJ/MM/AAAA » (étude : « Mail version signée le 28/07/2026 » ne vaut pas acte signé ; « Acte signé le … » non plus). Avant : « signé le » n'importe où sur la page suffisait." },
     { version: '2026-10-03 11:44', resume: "Emails des dossiers : le rangement automatique des pièces jointes sur le NAS est coupé (étude : « pas encore au point ») — plus aucune copie dans un dossier client sans votre geste ; « Ranger… » dans la fenêtre de lecture reste disponible. Réglages › Agenda et Outlook › Emails des dossiers : interrupteur « Ranger seul les pièces jointes sur le NAS », éteint par défaut, pour le rallumer plus tard." },
@@ -26589,6 +26590,28 @@
     return vus.length === 1 ? avec(vus[0]) : vide;
   }
 
+  // Pure : le sous-dossier ouvert dans Authentic, d'après l'en-tête « N - … » suivi de Importer / Comparants /
+  // Immeubles — 'vente' | 'promesse' | 'avenant' | 'succession' | 'autre', '' si la page n'en montre pas.
+  // Étude, 03/10 (dossier BEUCHER : « 1 - Promesse VTE … », « 2 - VTE … », « 3 - Avenant à promesse de vente ») :
+  // « le seul sous-dossier qui nous intéresse est le sous-dossier vente, pas la promesse et l'avenant ».
+  function sousDossierAuthentic(capture) {
+    const c = capture || {};
+    const sources = [];
+    (c.champs || []).forEach(ch => { sources.push(ch.libelle || ''); sources.push(ch.valeur || ''); });
+    sources.push(texteSansOngletsInactifsAuthentic(c));
+    for (const src of sources) {
+      const m = RE_INTITULE_GESTION_AUTHENTIC.exec(sansReferenceAuthentic(String(src)));
+      if (!m) continue;
+      const l = normaliserPourRecherche(m[2]).trim();
+      if (/^avenant/.test(l)) return 'avenant';
+      if (/^(?:promesse|compromis|avant[\s-]*contrat|pv|puv)(?![a-z])/.test(l)) return 'promesse';
+      if (/^(?:vte|vente)(?![a-z])/.test(l)) return 'vente';
+      if (/^(?:succ|succession)(?![a-z])/.test(l)) return 'succession';
+      return 'autre';
+    }
+    return '';
+  }
+
   // Pure : « Vente VENDEUR / ACQUÉREUR » d'après l'intitulé du dossier ouvert dans Authentic (ou
   // l'intitulé tel quel quand il n'a pas cette forme).
   function intituleDossierAuthentic(capture) {
@@ -28164,6 +28187,17 @@
     const lu = intituleDossierAuthentic(capture);
     const reference = referenceDossierAuthentic(capture);
     const adresse = adresseBienPageAuthentic(capture);
+    // Sous-dossier « Promesse », « Avenant »… (étude, 03/10 : seul le sous-dossier de VENTE compte) : son « Signé le »
+    // est celui de la promesse ou de l'avenant, ses pièces ne sont pas celles de la vente — rien n'est repris. Le
+    // dossier reste celui en consultation (fiches client ouvertes ensuite) et la référence du dossier est retenue.
+    const sous = sousDossierAuthentic(capture);
+    if (lu && sous && sous !== 'vente' && sous !== 'succession') {
+      const dSous = dossierPourIntituleAuthentic(lu, dossiers, adresse, reference);
+      dossierCourantAuthentic = { id: dSous ? dSous.id : '', t: Date.now() };
+      const libelleSous = sous === 'promesse' ? 'promesse' : sous === 'avenant' ? 'avenant' : 'autre que la vente';
+      if (dSous && retenirReferenceAuthentic(dSous, reference, dossiers)) { await sauvegarder(dSous); render(); }
+      return { etat: 'sans-changement', dossierId: dSous ? dSous.id : undefined, texte: `sous-dossier ${libelleSous} : seul le sous-dossier de vente est lu` };
+    }
     let referenceNotee = false;
     let raisonAncien = '';
     let comment = '';
