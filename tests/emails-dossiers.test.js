@@ -82,7 +82,8 @@ test('construireEmailAccuseReception : RE: objet, documents listés, formule cli
   const c = app.construireEmailAccuseReception(d, email, false);
   assert.equal(c.sujet, 'RE: Pièces pour la vente');
   assert.match(c.corps, /^Bonjour,/);
-  assert.match(c.corps, /accusons bonne réception des documents que vous nous avez transmis le 1 octobre 2026 :\n- État daté\n- scan_0042/);
+  assert.match(c.corps, /Nous vous remercions de votre email du 1 octobre 2026 et accusons bonne réception des documents transmis :\n- État daté\n- scan_0042/);
+  assert.match(c.corps, /Ils ont été joints à votre dossier\./);
   assert.doesNotMatch(c.corps, /logo/);
   const un = app.construireEmailAccuseReception(d, { ...email, objet: 'RE: Offre', pj: [{ nom: 'Offre de pret.pdf' }] }, true);
   assert.equal(un.sujet, 'RE: Offre');

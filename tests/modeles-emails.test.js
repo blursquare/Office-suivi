@@ -19,7 +19,7 @@ const CAS = [
 const sansMarques = (t) => app.texteSansMarques(t);
 
 test('chaque modèle d’origine, rempli, redonne le texte actuel (objet et corps)', () => {
-  for (const m of app.modelesEmailIntegres()) {
+  for (const m of app.modelesEmailDossier()) {
     for (const d of CAS) {
       const confrere = app.notaireParticipantRepresenteAcquereur(d);
       if (/Confrere$/.test(m.cle) !== confrere && ['ventePrealable', 'ventePrealableConfrere', 'confirmationRdv', 'confirmationRdvConfrere'].includes(m.cle)) continue;
@@ -50,4 +50,39 @@ test('variables et conditions : paragraphe retiré si vide ou condition fausse, 
   const r = app.remplirModeleEmail({ sujet: 'Objet {dossier}', corps: 'A {l\'agence}.\n\nB {date et heure du rendez-vous}.\n\n{si rendez-vous}C.\n\n{si client}D.\n\n{si confrère}E.\n\nF {inconnue}.' }, d);
   assert.equal(r.corps, 'A l\'agence Century 21.\n\nD.\n\nF {inconnue}.');
   assert.equal(app.remplirModeleEmail({ sujet: 's', corps: 'x {dossier}' }, null).corps, 'x {dossier}');
+});
+
+test('modèles liés à un geste : copie de l’acte, visio, sondage redonnent le texte actuel dans chaque cas', () => {
+  const d = { ...BASE, rendezVousSignature: '2026-09-28' };
+  const integres = app.modelesEmailIntegres();
+  const m = (cle) => integres.find(x => x.cle === cle);
+  for (const [types, lien] of [[['copie'], false], [['attestation'], true], [['copie', 'attestation'], false]]) {
+    for (const dd of [d, { ...BASE }]) {
+      const attendu = app.construireEmailCopieActe(dd, types, lien);
+      const obtenu = app.remplirModeleEmail(m('copieActe'), dd, app.contexteCopieActe(dd, types, lien));
+      assert.equal(obtenu.sujet, attendu.sujet);
+      assert.equal(obtenu.corps, attendu.corps, `copie ${types} ${lien}`);
+    }
+  }
+  for (const confrere of [false, true]) for (const signature of [false, true]) for (const details of ['', 'Code : 7']) {
+    const args = { confrere, signature, quand: 'lundi 5 octobre à 10 h 00', dossier: signature ? 'VTE - DUPONT' : '', details };
+    assert.equal(app.remplirModeleEmail(m(confrere ? 'visioConfrere' : 'visio'), null, app.contexteVisio(args)).corps, app.corpsEmailVisio(args), JSON.stringify(args));
+  }
+  const s = { titre: '', expireLe: '2026-10-20', creneaux: [{ n: 1, date: '2026-10-26', heure: '10:00' }, { n: 2, date: '2026-10-27', heure: '15:00' }] };
+  for (const dd of [d, null]) for (const sx of [s, { ...s, expireLe: '' }]) for (const confrere of [false, true]) for (const relance of [false, true]) for (const page of [false, true]) for (const plusieurs of [false, true]) {
+    const attendu = app.corpsEmailSondage(dd, sx, confrere, relance, page, plusieurs);
+    const obtenu = app.remplirModeleEmail(m(confrere ? 'sondageConfrere' : 'sondage'), dd, app.contexteSondage(dd, sx, confrere, relance, page, plusieurs)).corps;
+    assert.equal(obtenu, attendu, JSON.stringify({ dd: !!dd, limite: !!sx.expireLe, confrere, relance, page, plusieurs }));
+  }
+});
+
+test('modèle de geste modifié : le geste envoie le texte de l’étude ; absent du menu de la fenêtre d’email', () => {
+  const etat = { modifies: { visio: { sujet: '', corps: 'Bonjour,\n\nVisio du {date et heure}.\n\n{boutons de réponse}' } }, perso: [] };
+  const c = app.contexteVisio({ confrere: false, signature: true, quand: 'lundi 5 octobre', dossier: '', details: '' });
+  assert.equal(app.emailDepuisModele('visio', null, etat, c).corps, 'Bonjour,\n\nVisio du lundi 5 octobre.\n\n{{BOUTONS}}');
+  const cConf = app.contexteVisio({ confrere: true, signature: true, quand: 'lundi 5 octobre', dossier: '', details: '' });
+  assert.ok(app.emailDepuisModele('visio', null, etat, cConf).corps.startsWith('Le rendez-vous'));
+  const menu = app.listeModelesEmails({ modifies: {}, perso: [] }, { pourFenetre: true }).map(x => x.cle).join();
+  assert.doesNotMatch(menu, /\b(accuseReception|copieActe|visio|sondage)/);
+  assert.match(app.listeModelesEmails({ modifies: {}, perso: [] }).map(x => x.cle).join(), /accuseReception.*copieActe.*visio.*sondage/);
 });

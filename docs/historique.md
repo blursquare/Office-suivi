@@ -16033,3 +16033,17 @@ change-t-il ce que le bouton de la fiche envoie ? Réponse : « Oui, le bouton s
 - Vérifié dans Chromium : modèle RIB modifié et enregistré, aperçu, bouton « Demander le RIB » de la fiche qui envoie le
   nouveau texte, menu « Modèles » de la fenêtre d'email, « Annuler le modèle », modèle créé ; clair, sombre, téléphone.
   Non vérifié ici : la longueur réelle des réponses d'Ollama.
+
+### 03/10/2026 22 h 10 — Modèles liés à un geste (accusé, copie de l'acte, visio, sondage)
+
+- Demande : « Garder les modèles d'e-mails déjà présents » → choix « Ajouter les 4 qui manquent ».
+- `modelesEmailContexte()` (7 modèles : accusé client/confrère, copie de l'acte, visio client/confrère, sondage
+  client/confrère), groupe « Liés à un geste » dans Réglages › Modèles d'emails. Variables et conditions du geste passées
+  dans `contexte` (`contexteAccuseReception`, `contexteCopieActe`, `contexteVisio`, `contexteSondage`) ; aperçu sur un
+  exemple inventé (`contexteExempleModele`, créneaux sur des jours ouvrés) ; visio et sondage sans objet.
+- Copie de l'acte, visio, sondage : texte du modèle identique à `construireEmailCopieActe`/`corpsEmailVisio`/
+  `corpsEmailSondage` dans toutes les variantes (test). Accusé de réception : le modèle devient la source du texte, légèrement
+  reformulé (« Nous vous remercions de votre email du … et accusons bonne réception … », « Il a été / Ils ont été joints à votre
+  dossier »).
+- Absents du menu « Modèles » de la fenêtre d'email (`listeModelesEmails(…, { pourFenetre: true })`).
+- Vérifié dans Chromium (clair, sombre, téléphone) : groupe affiché, Objet masqué pour le sondage, aperçu rempli.

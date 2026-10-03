@@ -141,9 +141,13 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
    `emailDepuisModele` — variante confrère choisie seule, version modifiée sinon la fonction d'origine), « Revenir au texte
    d'origine » ; modèles de l'étude (`perso`). Variables `{…}` (`VARIABLES_MODELE_EMAIL`), paragraphe retiré si une variable est
    vide, `{si client}` / `{si confrère}` / `{si rendez-vous}` / `{si prêt attendu}` en tête de paragraphe
-   (`remplirModeleEmail`). Fenêtre d'email : bouton « Modèles » (texte et objet remplacés, « Annuler le modèle »). Restent
-   hors modèles (assemblés à partir de l'email reçu, des fichiers ou des boutons) : accusé de réception, copie de l'acte,
-   visio, sondage de créneaux.
+   (`remplirModeleEmail`). Fenêtre d'email : bouton « Modèles » (texte et objet remplacés, « Annuler le modèle »). **Modèles
+   liés à un geste** (étude 03/10 au soir, `modelesEmailContexte`, groupe « Liés à un geste ») : accusé de réception, copie de
+   l'acte, visio, sondage de dates (variantes confrère comprises) — variables et conditions fournies par le geste (`contexte` :
+   `contexteAccuseReception`, `contexteCopieActe`, `contexteVisio`, `contexteSondage` ; `VARIABLES_CONTEXTE_MODELES`), aperçu sur
+   des données inventées (`contexteExempleModele`), visio/sondage sans objet (`sansObjet`, `{boutons de réponse}` = `{{BOUTONS}}`) ;
+   copie de l'acte, visio et sondage identiques mot pour mot à leurs fonctions d'origine (testé), **l'accusé de réception a
+   désormais son texte dans le modèle** (premier jet de CLAIRE) ; absents du menu « Modèles » de la fenêtre (`pourFenetre`).
    Seuls les rappels internes partent automatiquement :
    SMTP Gmail + mot de passe d'application → boîte-passerelle (Objet = adresse du destinataire) →
    flux Power Automate → Teams. La copie gardée par Gmail est effacée **2 h après** (le flux relève
