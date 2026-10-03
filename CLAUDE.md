@@ -19,6 +19,13 @@ durable, l'architecture ou « Ce qui reste ouvert » change.
   `node:sqlite`), distribuée à l'étude sous forme de `CLAIRE-serveur.exe` (Node SEA, Windows),
   reconstruit et publié en release par `.github/workflows/build-exe.yml` à chaque push sur `main`.
 - **`sauvegarde`** = copie de `main` pour les essais de l'étude, sans développement propre.
+- **Session programmée « relecture des rapports techniques » (12 h 05 / 17 h 05) : JAMAIS de push sur `main`** (étude,
+  03/10 — rappel après le commit direct `9ab862e` du 02/10). Un push sur `main` construit un `.exe` installé **seul** sur le
+  serveur du bureau dans les 10 minutes, sans regard humain. Cette session travaille sans l'étude, sur un rapport anonymisé :
+  branche `claude/rapport-AAAA-MM-JJ-HHh`, demande de fusion, et c'est **l'étude qui fusionne** — ni `git push origin main`,
+  ni `HEAD:main`, ni merge local puis push, même pour un changement minuscule ou pour le rapport lui-même ; si la demande de
+  fusion ne peut pas être ouverte, laisser la branche poussée et le dire dans l'issue. Le push direct sur `main` reste réservé
+  aux sessions où l'étude suit le travail en direct.
 - La version 100 % locale (sans serveur, `localStorage`) n'est plus maintenue ; son dernier état
   est le commit `c90e9d0`. Dans `docs/historique.md`, « sur `main` » dans les entrées antérieures
   au 18/09/2026 désigne cette version locale, et « `claude/serveur-intranet` » l'actuelle `main`.
