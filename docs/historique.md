@@ -15549,3 +15549,18 @@ email ; ne pas prendre en compte les courriels des SPFE ou SPF, publicité, spam
 Vérifié : tests (serveur : exclusions — jamais un client, un confrère ou une banque —, relectures, liste gardée ; poste :
 fenêtre 18 h, documents, libellé des exclus) ; Chromium : fenêtre du matin clair, sombre, 390 px. Non vérifié : Ollama réel
 (qualité de la liste des demandes), formes réelles des expéditeurs SPF/CRIDON/INFN/INAFON de l'étude.
+
+### 03/10/2026 07:09 — Mise à jour automatique
+Demande : « Mise à jour automatiquement, c'est possible ? » Réponse à la question (quand installer) : « au démarrage et dès
+que c'est détecté ».
+- Serveur (`routes/miseAJour.js`) : l'installation (sauvegarde → téléchargement → empreinte → échange) passe dans
+  `installerDerniere`, partagée par le bouton et l'automatique ; `tourAuto` (exécutable seulement, réglage `auto`, jeton
+  présent) : installe dès que le build publié est **plus récent** (jamais sur « inconnu », pour ne jamais boucler), puis
+  `redemarrer` ; un build en échec n'est retenté qu'après 6 h (ou au prochain démarrage) ; `demarrerAuto` lancé par
+  `index.js` : 30 s après le démarrage puis toutes les 10 min. `PUT /api/mise-a-jour/auto` ; `GET /api/mise-a-jour`
+  rend `auto` et `autoEtat` (dernière vérification, résultat). `parametresRepo` : `reglagesMiseAJour.auto`, vrai par défaut.
+  `creerApp` rend `routeurMiseAJour`.
+- Poste : Réglages › Mise à jour et sauvegarde › « Installer automatiquement » (`basculerMiseAJourAuto`,
+  `texteMiseAJourAuto` : jeton manquant, première vérification, heure et résultat de la dernière).
+Vérifié : tests (`server/test/mise-a-jour.test.js` : sans jeton, à jour, coupé, échec retenu 6 h, build plus récent installé
+puis redémarrage). Non vérifié : sur le vrai poste serveur (redémarrage en exécutable, reprise des fenêtres).

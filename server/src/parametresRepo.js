@@ -483,7 +483,10 @@ function assainirReglagesMiseAJour(brut, precedent) {
   const p = (precedent && typeof precedent === 'object') ? precedent : {};
   const jeton = (typeof b.jetonGithub === 'string') ? b.jetonGithub.trim() : texteNettoye(p.jetonGithub);
   // Un jeton GitHub ne contient ni espace ni caractère de contrôle : tout le reste est un collage raté.
-  return { jetonGithub: /^[A-Za-z0-9_]{20,255}$/.test(jeton) ? jeton : '' };
+  // `auto` (étude 03/10 : « au démarrage et dès que c'est détecté ») : installation automatique, active
+  // par défaut, coupée seulement par un `false` explicite.
+  const auto = typeof b.auto === 'boolean' ? b.auto : (typeof p.auto === 'boolean' ? p.auto : true);
+  return { jetonGithub: /^[A-Za-z0-9_]{20,255}$/.test(jeton) ? jeton : '', auto };
 }
 
 // Connexion à l'Exchange de l'office (voir exchange/ews.js) : l'URL EWS, l'adresse de messagerie et

@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-02 23:50';
+  const VERSION_APP = '2026-10-03 07:09';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-03 07:09', resume: "Mise à jour automatique : CLAIRE installe seule chaque nouvelle version, au démarrage du serveur et dès qu'elle est publiée (vérification toutes les 10 minutes) — sauvegarde de la base, puis quelques secondes de redémarrage, les fenêtres se rechargent seules. Réglages › Mise à jour et sauvegarde › « Installer automatiquement » (actif par défaut) pour la couper ; l'heure et le résultat de la dernière vérification y sont indiqués." },
     { version: '2026-10-02 23:50', resume: "Fenêtre du matin, partie droite : un onglet « Depuis hier 18 h » (vendredi 18 h un lundi) avec les documents reçus et cochés depuis, listés par dossier ; le nombre d'emails reçus, ceux écartés (SPF/SPFE, CRIDON, INFN, INAFON, publicités) étant comptés à part ; la liste des demandes par email rédigée par l'IA locale ; les autres nouveautés repliées. La boîte est lue dès 7 h 30 puis toutes les 30 minutes jusqu'à midi. Réglages › Agenda et Outlook : d'autres expéditeurs à écarter du résumé." },
     { version: '2026-10-02 23:35', resume: "Emails de la fiche allégés : une ligne par email comme dans une boîte de réception (correspondant, objet, résumé, pièces jointes, date), filtres Tous / Reçus / Envoyés, recherche, 8 emails puis « Voir plus ». Un seul « Confirmer la réception » en tête, pour le dernier envoi de documents. Le détail — texte entier, pièces jointes et où elles ont été rangées, confirmation — est dans la fenêtre de lecture. Échap ferme la fenêtre sans fermer la fiche." },
     { version: '2026-10-02 23:25', resume: "Emails des dossiers relevés toutes les minutes (boîte de réception et éléments envoyés) ; la fiche ouverte affiche les nouveaux emails d'elle-même, et les pièces jointes sont rangées dans la minute. Un clic sur l'objet d'un email l'ouvre en entier dans CLAIRE (texte, destinataires, pièces jointes, « Confirmer la réception ») : il est relu dans la messagerie à chaque ouverture, jamais gardé par CLAIRE." },
@@ -40856,9 +40857,10 @@
     }
   }
 
-  // ===== Mise à jour de CLAIRE en un clic (server/src/miseAJour.js) =====
-  // Rien ne s'installe sans le clic « Mettre à jour maintenant » : « Vérifier » ne fait que
-  // comparer le build installé à la dernière publication GitHub.
+  // ===== Mise à jour de CLAIRE (server/src/miseAJour.js) =====
+  // En un clic (« Mettre à jour maintenant »), ou automatiquement (étude 03/10 : « au démarrage et dès
+  // que c'est détecté », interrupteur « Installer automatiquement », actif par défaut) — c'est alors le
+  // serveur qui vérifie et installe ; « Vérifier » compare le build installé à la dernière publication.
   let etatMiseAJour = null;
   let verificationMiseAJour = null;
 
@@ -40897,9 +40899,38 @@
     if (installer) installer.style.display = m.installable ? '' : 'none';
     const verifier = document.getElementById('reglages-maj-verifier');
     if (verifier) verifier.disabled = !(etatMiseAJour && etatMiseAJour.modeExe);
+    const auto = document.getElementById('reglages-maj-auto');
+    if (auto && etatMiseAJour) {
+      auto.checked = etatMiseAJour.auto !== false;
+      auto.disabled = !etatMiseAJour.modeExe;
+    }
+    const autoEtat = document.getElementById('reglages-maj-auto-etat');
+    if (autoEtat && etatMiseAJour) autoEtat.textContent = texteMiseAJourAuto(etatMiseAJour);
     const champ = document.getElementById('reglages-maj-jeton');
     if (champ && etatMiseAJour) {
       champ.placeholder = etatMiseAJour.jetonEnregistre ? 'Déjà enregistré — laisser vide pour le conserver' : 'github_pat_…';
+    }
+  }
+
+  // Pure : l'état de l'installation automatique, en une ligne.
+  function texteMiseAJourAuto(etat) {
+    if (!etat || !etat.modeExe || etat.auto === false) return '';
+    if (!etat.jetonEnregistre) return 'Jeton GitHub à enregistrer ci-dessous pour que cela fonctionne.';
+    const a = etat.autoEtat || {};
+    if (!a.dernierControle) return 'Première vérification 30 secondes après le démarrage du serveur.';
+    const heure = new Date(a.dernierControle).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }).replace(':', ' h ');
+    return `Vérifié à ${heure}${a.resultat ? ' · ' + a.resultat : ''}.`;
+  }
+
+  async function basculerMiseAJourAuto(actif) {
+    try {
+      const r = await fetchAvecAuth('/api/mise-a-jour/auto', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ auto: !!actif }) });
+      if (!r.ok) throw new Error('statut ' + r.status);
+      etatMiseAJour = await r.json();
+      renderMiseAJour();
+    } catch (e) {
+      afficherToast('Réglage non enregistré : ' + e.message, 'OK', null);
+      chargerMiseAJour();
     }
   }
 

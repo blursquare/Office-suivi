@@ -1,7 +1,11 @@
 'use strict';
 
 // Écran Réglages › Mise à jour de CLAIRE (voir miseAJour.js pour le déroulé et ses garde-fous).
-// Monté derrière l'authentification. Rien ne s'installe sans un POST explicite sur /installer.
+// Monté derrière l'authentification. Installation sur un POST explicite sur /installer, ou
+// automatiquement (étude 03/10 : « au démarrage et dès que c'est détecté ») par `demarrerAuto`, que
+// seul index.js lance : vérification 30 s après le démarrage puis toutes les 10 minutes, installation
+// dès qu'un build plus récent est publié — jamais sur une version illisible (« inconnu »), et un build
+// qui a échoué n'est retenté qu'après 6 heures (ou au prochain démarrage).
 
 const express = require('express');
 const path = require('node:path');
@@ -40,6 +44,8 @@ function creerRouteurMiseAJour(parametresRepo, db, config, options = {}) {
       depot: DEPOT_GITHUB,
       installe: lireBuildInstalle(sea),
       jetonEnregistre: !!jeton(),
+      auto: parametresRepo.lireReglagesMiseAJour().auto,
+      autoEtat: { ...etatAuto, echec: undefined },
       installationEnCours
     };
   }
@@ -67,23 +73,18 @@ function creerRouteurMiseAJour(parametresRepo, db, config, options = {}) {
     }
   });
 
-  routeur.post('/mise-a-jour/installer', async (req, res) => {
-    if (!modeExe) {
-      return res.status(409).json({ erreur: "La mise à jour ne fonctionne que dans CLAIRE-serveur.exe (ce serveur tourne en mode développement)." });
-    }
-    if (typeof options.redemarrer !== 'function') {
-      return res.status(503).json({ erreur: 'Redémarrage automatique indisponible sur ce serveur.' });
-    }
-    if (installationEnCours) return res.status(409).json({ erreur: 'Une mise à jour est déjà en cours.' });
+  // Installe le dernier build publié (sauvegarde → téléchargement → contrôle → échange). Rend
+  // { ok, build } ou lève une erreur `statut`. Le redémarrage reste à l'appelant.
+  async function installerDerniere(disponibleConnu) {
+    if (!modeExe) throw Object.assign(new Error("La mise à jour ne fonctionne que dans CLAIRE-serveur.exe (ce serveur tourne en mode développement)."), { statut: 409 });
+    if (typeof options.redemarrer !== 'function') throw Object.assign(new Error('Redémarrage automatique indisponible sur ce serveur.'), { statut: 503 });
+    if (installationEnCours) throw Object.assign(new Error('Une mise à jour est déjà en cours.'), { statut: 409 });
     installationEnCours = true;
     const chemins = cheminsExecutable(dossierExe);
     try {
-      const disponible = await derniereVersionDisponible({ jeton: jeton(), fetchFn });
+      const disponible = disponibleConnu || await derniereVersionDisponible({ jeton: jeton(), fetchFn });
       const installe = lireBuildInstalle(sea);
-      if (comparerVersions(installe, disponible) === 'a-jour') {
-        installationEnCours = false;
-        return res.status(409).json({ erreur: 'CLAIRE est déjà à jour.' });
-      }
+      if (comparerVersions(installe, disponible) === 'a-jour') throw Object.assign(new Error('CLAIRE est déjà à jour.'), { statut: 409 });
 
       // Sauvegarde AVANT de toucher à quoi que ce soit : une nouvelle version peut faire évoluer
       // la base à son premier démarrage, et c'est la seule façon de revenir en arrière proprement.
@@ -95,16 +96,64 @@ function creerRouteurMiseAJour(parametresRepo, db, config, options = {}) {
       await telechargerExecutable({ asset: disponible.asset, jeton: jeton(), destination: chemins.nouveau, fetchFn, tailleMin: options.tailleMin });
       await echanger(chemins);
       console.log(`[CLAIRE] Mise à jour vers le build ${disponible.build} installée ; redémarrage. Ancienne version conservée : ${NOM_EXE_ANCIEN}`);
+      return { ok: true, build: disponible.build, ancien: NOM_EXE_ANCIEN };
+    } catch (e) {
+      installationEnCours = false;
+      throw e;
+    }
+  }
+
+  routeur.post('/mise-a-jour/installer', async (req, res) => {
+    try {
+      const r = await installerDerniere();
       // Après l'envoi de la réponse : le navigateur doit savoir que tout s'est bien passé avant que
       // le serveur ne s'arrête. Écouteur posé AVANT res.json, qui peut terminer la réponse aussitôt.
       res.on('finish', () => setTimeout(() => options.redemarrer(), 300));
-      res.json({ ok: true, build: disponible.build, ancien: NOM_EXE_ANCIEN });
+      res.json(r);
     } catch (e) {
-      installationEnCours = false;
-      console.warn('[CLAIRE] Mise à jour impossible :', e.message);
-      res.status(502).json({ erreur: e.message });
+      if (!e.statut) console.warn('[CLAIRE] Mise à jour impossible :', e.message);
+      res.status(e.statut || 502).json({ erreur: e.message });
     }
   });
+
+  routeur.put('/mise-a-jour/auto', (req, res) => {
+    if (!req.body || typeof req.body.auto !== 'boolean') return res.status(400).json({ erreur: 'Choix attendu.' });
+    parametresRepo.ecrireReglagesMiseAJour({ auto: req.body.auto });
+    res.json(etatPublic());
+  });
+
+  // ---- Installation automatique ----
+  const etatAuto = { dernierControle: null, resultat: null, echec: null };
+  async function tourAuto() {
+    if (!modeExe || installationEnCours || !parametresRepo.lireReglagesMiseAJour().auto || !jeton()) return null;
+    etatAuto.dernierControle = new Date().toISOString();
+    let disponible;
+    try {
+      disponible = await derniereVersionDisponible({ jeton: jeton(), fetchFn });
+    } catch (e) {
+      etatAuto.resultat = `Vérification impossible : ${e.message}`;
+      return null;
+    }
+    // Seulement un build plus récent et lisible : jamais « inconnu » (on ne saurait pas s'arrêter).
+    if (comparerVersions(lireBuildInstalle(sea), disponible) !== 'disponible') { etatAuto.resultat = 'À jour'; return null; }
+    if (etatAuto.echec && etatAuto.echec.build === disponible.build && Date.now() - etatAuto.echec.le < 6 * 3600 * 1000) return null;
+    try {
+      const r = await installerDerniere(disponible);
+      etatAuto.resultat = `Build ${r.build} installé automatiquement`;
+      setTimeout(() => options.redemarrer(), 300);
+      return r;
+    } catch (e) {
+      etatAuto.echec = { build: disponible.build, le: Date.now() };
+      etatAuto.resultat = `Installation automatique impossible : ${e.message}`;
+      console.warn('[CLAIRE] Mise à jour automatique impossible :', e.message);
+      return null;
+    }
+  }
+  routeur.tourAuto = tourAuto;
+  routeur.demarrerAuto = (intervalleMs = 10 * 60 * 1000, premierMs = 30 * 1000) => {
+    setTimeout(() => { tourAuto().catch(() => {}); }, premierMs).unref();
+    return setInterval(() => { tourAuto().catch(() => {}); }, intervalleMs).unref();
+  };
 
   return routeur;
 }

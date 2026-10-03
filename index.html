@@ -1975,7 +1975,7 @@
   <section class="reglages-panneau" id="reglages-panneau-systeme" role="tabpanel" aria-labelledby="reglages-onglet-systeme" hidden>
     <h2 class="reglages-titre">Mise à jour et sauvegarde</h2>
     <div class="reglages-section">
-      <h3 class="reglages-section-titre">Mise à jour de CLAIRE <span class="info-i" tabindex="0" data-info="La mise à jour sauvegarde la base puis redémarre le serveur (environ une minute d'interruption)."></span></h3>
+      <h3 class="reglages-section-titre">Mise à jour de CLAIRE <span class="info-i" tabindex="0" data-info="La mise à jour sauvegarde la base puis redémarre le serveur (environ une minute d'interruption). Un jeton GitHub doit être enregistré, en manuel comme en automatique."></span></h3>
       <div class="reglages-liste">
         <div class="reglages-option reglages-option-fixe">
           <span class="reglages-option-texte">
@@ -1984,6 +1984,16 @@
           </span>
           <button type="button" class="secondary" onclick="ouvrirAPropos()"><span id="icon-reglages-apropos" aria-hidden="true"></span>À propos</button>
         </div>
+        <label class="reglages-option" for="reglages-maj-auto">
+          <span class="reglages-option-texte">
+            <span class="reglages-option-titre">Installer automatiquement <span class="info-i" tabindex="0" data-info="Au démarrage du serveur et dès qu'une nouvelle version est publiée (vérification toutes les 10 minutes). Le serveur redémarre : quelques secondes de coupure, les fenêtres ouvertes se rechargent seules."></span></span>
+            <span class="hint" id="reglages-maj-auto-etat"></span>
+          </span>
+          <span class="switch reglages-switch">
+            <input type="checkbox" id="reglages-maj-auto" onchange="basculerMiseAJourAuto(this.checked)">
+            <span class="slider"></span>
+          </span>
+        </label>
       </div>
       <div id="reglages-maj-etat" class="reglages-dernier-tour"></div>
       <div class="reglages-actions">

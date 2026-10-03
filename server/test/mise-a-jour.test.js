@@ -267,3 +267,50 @@ test('échange : une ancienne copie impossible à effacer ne bloque pas la mise 
   assert.equal(effaces.join(','), 'CLAIRE-serveur.ancien.exe');
   assert.equal(fs.existsSync(r.ancien), true);
 });
+
+// Étude 03/10 : « mise à jour automatique au démarrage et dès que c'est détecté ».
+test('automatique : installe un build plus récent, jamais « inconnu », jamais coupé, un échec attend 6 h', async () => {
+  const db3 = ouvrirDb(':memory:');
+  const dossier = dossierTemp();
+  let redem = 0, fetchAuto = fauxFetch({ build: 10 }), sauvegardeAuto = true;
+  const { routeurMiseAJour, parametresRepo } = creerApp({
+    db: db3,
+    config: { motDePasse: 'mdp', racineRepo: os.tmpdir(), port: 0, jetonCalendrier: '', cheminDb: path.join(dossier, 'claire.db') },
+    miseAJour: {
+      sea: fauxSea(10), fetchFn: (...a) => fetchAuto(...a), dossierExe: dossier, tailleMin: 100,
+      sauvegarder: async () => (sauvegardeAuto ? { ok: true } : { ok: false, erreur: 'disque plein' }),
+      redemarrer: () => { redem++; }
+    }
+  });
+  try {
+    const c = cheminsExecutable(dossier);
+    fs.writeFileSync(c.actuel, 'v10');
+    assert.equal(parametresRepo.lireReglagesMiseAJour().auto, true, 'actif par défaut');
+    // Sans jeton : rien.
+    assert.equal(await routeurMiseAJour.tourAuto(), null);
+    assert.equal(fetchAuto.appels.length, 0);
+    parametresRepo.ecrireReglagesMiseAJour({ jetonGithub: 'github_pat_ABCDEFGHIJKLMNOPQRSTUV' });
+    // À jour : rien.
+    assert.equal(await routeurMiseAJour.tourAuto(), null);
+    // Coupé dans les Réglages : rien, même avec un build plus récent.
+    fetchAuto = fauxFetch({ build: 11 });
+    parametresRepo.ecrireReglagesMiseAJour({ auto: false });
+    assert.equal(parametresRepo.lireReglagesMiseAJour().jetonGithub, 'github_pat_ABCDEFGHIJKLMNOPQRSTUV', 'le jeton est gardé');
+    assert.equal(await routeurMiseAJour.tourAuto(), null);
+    assert.equal(fetchAuto.appels.length, 0);
+    parametresRepo.ecrireReglagesMiseAJour({ auto: true });
+    // Échec (sauvegarde impossible) : pas de nouvel essai du même build avant 6 h.
+    sauvegardeAuto = false;
+    assert.equal(await routeurMiseAJour.tourAuto(), null);
+    sauvegardeAuto = true;
+    assert.equal(await routeurMiseAJour.tourAuto(), null);
+    assert.equal(fs.readFileSync(c.actuel, 'utf8'), 'v10');
+    // Un build encore plus récent est essayé aussitôt, installé, puis le serveur redémarre.
+    fetchAuto = fauxFetch({ build: 12 });
+    const r = await routeurMiseAJour.tourAuto();
+    assert.equal(r && r.build, 12);
+    assert.deepEqual(fs.readFileSync(c.actuel), CONTENU);
+    await new Promise((ok) => setTimeout(ok, 500));
+    assert.equal(redem, 1);
+  } finally { db3.close(); }
+});

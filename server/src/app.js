@@ -164,7 +164,8 @@ function creerApp({ db, config, envoyerEmailFn, creerClientClaude, appelerMistra
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurSignalements(db, parametresRepo, envoyerEmailFn));
   // Mise à jour en un clic : `miseAJour.redemarrer` est fourni par index.js (seul endroit qui tient
   // le serveur HTTP et la base) ; les tests y injectent aussi un faux `sea` et un faux `fetch`.
-  app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurMiseAJour(parametresRepo, db, config, miseAJour || {}));
+  const routeurMiseAJour = creerRouteurMiseAJour(parametresRepo, db, config, miseAJour || {});
+  app.use('/api', gestionnaireAuth.middlewareAuth, routeurMiseAJour);
   // Agenda de l'office (voir agendaOffice.js/agendaWatch.js) : `agenda.poster` (faux transport EWS)
   // est réservé aux tests, jamais utilisé en production.
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurAgenda(parametresRepo, { depot, ...(agenda || {}) }));
@@ -192,7 +193,7 @@ function creerApp({ db, config, envoyerEmailFn, creerClientClaude, appelerMistra
     res.status(400).json({ erreur: 'Requête invalide.' });
   });
 
-  return { app, depot, parametresRepo, gestionnaireAuth, journalTechnique };
+  return { app, depot, parametresRepo, gestionnaireAuth, journalTechnique, routeurMiseAJour };
 }
 
 // creerMiddlewareAssetsSea/ASSETS_STATIQUES exposées pour les tests uniquement (voir

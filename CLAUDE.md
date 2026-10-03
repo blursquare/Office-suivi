@@ -23,7 +23,9 @@ durable, l'architecture ou « Ce qui reste ouvert » change.
   est le commit `c90e9d0`. Dans `docs/historique.md`, « sur `main` » dans les entrées antérieures
   au 18/09/2026 désigne cette version locale, et « `claude/serveur-intranet` » l'actuelle `main`.
 - **Un correctif n'atteint le bureau que par un nouveau `.exe`** (les fichiers client sont
-  embarqués dans le blob SEA) — l'étude l'installe par Réglages › Mise à jour en un clic.
+  embarqués dans le blob SEA) — **installé automatiquement** depuis le 03/10 (étude : « au démarrage et dès que c'est
+  détecté » ; `routes/miseAJour.js` `tourAuto`/`demarrerAuto` : 30 s après le démarrage puis toutes les 10 min, build plus
+  récent seulement, échec retenté après 6 h ; coupable dans Réglages › Mise à jour, où reste le bouton en un clic).
   Avant de retoucher un bug « toujours présent » déjà corrigé, faire vérifier la version affichée
   dans « À propos » : c'est presque toujours un problème de déploiement, pas de code.
 

@@ -231,7 +231,7 @@ function redemarrerApresMiseAJour(serveur, db) {
 function demarrer() {
   const db = ouvrirDb(config.cheminDb);
   let serveur = null;
-  const { app, depot, parametresRepo, journalTechnique } = creerApp({
+  const { app, depot, parametresRepo, journalTechnique, routeurMiseAJour } = creerApp({
     db,
     config,
     miseAJour: { redemarrer: () => redemarrerApresMiseAJour(serveur, db) }
@@ -291,6 +291,9 @@ function demarrer() {
     }
 
     if (config.estSea()) {
+      // Mise à jour automatique (étude 03/10 : « au démarrage et dès que c'est détecté ») : vérifiée
+      // 30 s après le démarrage puis toutes les 10 minutes ; coupée dans Réglages › Mise à jour.
+      routeurMiseAJour.demarrerAuto();
       const dossierExe = path.dirname(process.execPath);
       // Copies de secours en trop laissées par une mise à jour dont l'effacement avait été refusé
       // (voir miseAJour.js) : en arrière-plan, sans jamais bloquer le démarrage.
