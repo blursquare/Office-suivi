@@ -15606,3 +15606,13 @@ moyen. Même en petit widget ».
   « Délai moyen » et libellés courts « Prêt », « Préemption (DIA) », « Signature » ; « (DIA) » ajouté au libellé long de
   la renonciation au droit de préemption.
 Vérifié : tests serveur et client, rendu Chromium (large, moyen, petit, sombre, téléphone).
+
+### 03/10/2026 — Logo de CLAIRE dans les notifications Windows/Chrome
+
+Demande de l'étude : « Dans les notifications Windows/Chrome possible de mettre le favicon ? ». La seule notification
+navigateur (`notifierNavigateurPieces`, pièce trouvée, fenêtre cachée, réglage du poste) porte maintenant `icon:
+iconeNotificationClaire()` : le PNG 180 px du logo déjà embarqué dans index.html (lien apple-touch-icon, data: URI), pas
+`icone.svg` (Chrome n'affiche pas de SVG dans une notification). Aucun fichier servi en plus, aucun favicon PNG ajouté.
+Vérifié dans Chromium (Notification simulée : l'icône est passée). Non vérifié : l'affichage réel dans le centre de
+notifications de Windows (Chrome y met l'icône à gauche du texte ; l'en-tête reste « Google Chrome » ou le nom de la
+fenêtre --app, que la page ne peut pas changer).

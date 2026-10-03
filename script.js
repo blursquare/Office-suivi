@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-03 07:24';
+  const VERSION_APP = '2026-10-03 07:27';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-03 07:27', resume: "Notifications Windows/Chrome : le logo de CLAIRE s'affiche dans la notification (pièce trouvée)." },
     { version: '2026-10-03 07:24', resume: "Statistiques : les ventes, successions et donations de l'agenda sont comptées sur tous les mois de l'année : l'année en cours entière (rendez-vous déjà placés jusqu'au 31/12 compris) contre toute l'année précédente ; le détail passés / à venir et l'année précédente à la même date restent au survol. Délais : « en moyenne » écrit sur chaque délai, aussi en petit widget (libellés courts Prêt, Préemption (DIA), Signature)." },
     { version: '2026-10-03 07:19', resume: "Statistiques : nouvelle section « Actes à l'agenda » — nombre de ventes (titre en VTE ou VENTE), de successions (SUCC) et de donations (titre commençant par DONATION) lues dans l'agenda partagé, pour l'année en cours jusqu'à aujourd'hui, comparées à la même période de l'an dernier et à toute l'année précédente. Rendez-vous confirmés seulement (sans « ? »), ni annulés, ni « à replacer », ni options d'un sondage. Au premier affichage, les mois passés encore jamais lus sont lus un à un dans l'agenda (« … » le temps de la lecture)." },
     { version: '2026-10-03 07:09', resume: "Mise à jour automatique : CLAIRE installe seule chaque nouvelle version, au démarrage du serveur et dès qu'elle est publiée (vérification toutes les 10 minutes) — sauvegarde de la base, puis quelques secondes de redémarrage, les fenêtres se rechargent seules. Réglages › Mise à jour et sauvegarde › « Installer automatiquement » (actif par défaut) pour la couper ; l'heure et le résultat de la dernière vérification y sont indiqués." },
@@ -32397,6 +32398,18 @@
   function notificationsNavigateurActivees() {
     try { return localStorage.getItem(CLE_LOCALSTORAGE_NOTIF_NAVIGATEUR) === '1'; } catch (e) { return false; }
   }
+  // Icône des notifications Windows/Chrome (étude, 03/10 : « mettre le favicon ») : le logo de CLAIRE
+  // en PNG 180 px déjà embarqué dans la page (lien apple-touch-icon d'index.html, data: URI). Pas
+  // icone.svg : Chrome n'affiche pas une image SVG dans une notification. Aucun nouveau fichier à
+  // servir, et pas de favicon PNG ajouté (voir CLAUDE.md, « icône de la barre des tâches »).
+  function iconeNotificationClaire() {
+    try {
+      const lien = document.querySelector('link[rel="apple-touch-icon"]');
+      const href = lien && lien.getAttribute('href');
+      if (href) return href;
+    } catch (e) { /* repli ci-dessous */ }
+    return 'icone.svg';
+  }
   function notifierNavigateurPieces(d, cles) {
     try {
       if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
@@ -32404,6 +32417,7 @@
       const labels = cles.map(cle => libelleNotificationPiece(d, cle));
       new Notification('CLAIRE — Nouvelle(s) pièce(s) trouvée(s)', {
         body: `${libelleDossierAffiche(d)} : ${labels.join(', ')}`,
+        icon: iconeNotificationClaire(),
         tag: 'claire-piece-' + d.id
       });
     } catch (e) {
