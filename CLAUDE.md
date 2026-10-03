@@ -112,9 +112,25 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
    mono-thread — la cause des « coupures » passées). Une route `async` doit rattraper ses erreurs
    (`routeAsync()` dans `routes/nas.js`) : Express 4 ne rattrape pas une promesse rejetée, la
    requête resterait suspendue.
-4. **Aucune page web n'envoie un email seule.** Les emails au client sont des `.eml` (`X-Unsent: 1`,
-   HTML + signature + pièces jointes) qu'Outlook ouvre prêts à envoyer (`livrerEmailDossier`), ou un
-   `mailto:` texte selon le réglage du poste. Seuls les rappels internes partent automatiquement :
+4. **Aucun email au client ne part sans un clic sur « Envoyer ».** Depuis le 03/10 (étude : « répondre aux emails
+   directement depuis CLAIRE », « voir cette interface pour l'envoi des rappels au lieu de les télécharger » ; choix :
+   envoyé depuis CLAIRE, boîte de chacun, premier jet par l'IA locale, tous les emails), `livrerEmailDossier` ouvre la
+   **fenêtre d'email** (`ouvrirRedactionEmail`, `#email-redaction-overlay`) : De / À / Cc / Objet / texte modifiables,
+   pièces jointes visibles (ajout, retrait, 21 Mo au plus), « Envoyer » → `POST /api/emails/envoyer`
+   (`server/src/envoiEmailsExchange.js` : EWS, **brouillon puis SendItem** — un échec entre les deux laisse l'email dans
+   les Brouillons, jamais renvoyé ; signature HTML et logos en pièces jointes en ligne ; copie dans les Éléments envoyés
+   du compte relié ; noté « envoyé » dans `emails-dossiers` avec son geste), ou « Ouvrir dans Outlook » (`livrerEmlDossier` :
+   le `.eml` `X-Unsent: 1` d'avant ; seule voie si Exchange n'est pas réglé). **Expéditeur** = la boîte du collaborateur
+   du poste (adresse des Réglages › Collaborateurs, jamais fournie par le poste) via le droit « Envoyer en tant que » donné
+   au compte relié **à demander à Fichorga** ; refus d'Exchange → brouillon retiré, email parti du compte relié, refus
+   retenu 7 jours (clé `envoi-emails`). **Réponse à un email reçu** : carte sous l'email dans la fenêtre de lecture
+   (`repondreEmail`, ReplyToItem — même fil, email cité dessous), accusé de réception aussi dans le fil ; **premier jet par
+   l'IA locale** (`POST /api/emails-dossiers/proposition`, `promptPropositionReponse` : rien d'inventé, « [à compléter] »
+   où l'information manque — un tel passage, comme « [lien WeTransfer à coller ici] », bloque l'envoi). Annuler la fenêtre
+   rend `{ ok: false, annule: true }` : l'appelant ne marque rien et ne dit rien. Mode `mailto:` du poste inchangé. Pastille
+   « À répondre » (`emailARepondre` : reçu < 14 jours, dernier de l'expéditeur, sans envoi vers lui depuis). Points
+   terrain `email-envoye-exchange`, `email-reponse-exchange`, `email-envoye-en-tant-que`, `email-proposition-ia`.
+   Seuls les rappels internes partent automatiquement :
    SMTP Gmail + mot de passe d'application → boîte-passerelle (Objet = adresse du destinataire) →
    flux Power Automate → Teams. La copie gardée par Gmail est effacée **2 h après** (le flux relève
    la boîte Gmail elle-même : l'effacer tout de suite l'empêcherait de passer).
@@ -731,7 +747,7 @@ Plainte principale de l'étude : **le bruit**, pas les oublis — ne pas élargi
   serveur, le lien vers une pièce ouvert depuis une notification Teams et l'icône de l'exe (nette).
 - **Non vérifié au bureau** : l'installateur « CLAIRE en application » d'un poste (`.vbs`, PowerShell, icône servie
   par l'exe) ; les emails des dossiers (réponses EWS réelles, accès délégué aux « Éléments envoyés » des
-  collaborateurs, pièces jointes réelles, résumé par Ollama) ; la forme réelle du `.ics` de la visio ADNOV (aucun exemple reçu) ; le dossier « Fausses minutes » (emplacement, nommage des PDF, tailles réelles, `.eml` lourd dans Outlook, WeTransfer) ; l'intégration
+  collaborateurs, pièces jointes réelles, résumé par Ollama) ; la forme réelle du `.ics` de la visio ADNOV (aucun exemple reçu) ; l'envoi d'email depuis CLAIRE (CreateItem/SendItem réels, ReplyToItem avec pièces jointes, droit « Envoyer en tant que » chez Fichorga, taille maximale acceptée par Exchange, premier jet d'Ollama) ; le dossier « Fausses minutes » (emplacement, nommage des PDF, tailles réelles, `.eml` lourd dans Outlook, WeTransfer) ; l'intégration
   3CX (forme réelle de %CallerNumber%, fermeture de l'onglet ouvert par 3CX) ; le repli `SoftDelete` d'une suppression ; le sondage de créneaux (lecture réelle des réponses dans la boîte, boutons
   dans Outlook, options « Provisoire », page de réponse publiée — dépôt public à créer par l'étude) ; le détail des écritures EWS (déplacement et suppression d'un
   rendez-vous, note du Lieu, dates butoir en journée entière, noms exacts des catégories de couleur,

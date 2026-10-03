@@ -114,8 +114,11 @@ function creerApp({ db, config, envoyerEmailFn, creerClientClaude, appelerMistra
   // Un bilan de relecture enregistré (analyse + contrôles CLAIRE) dépasse rarement 1 Mo, mais un acte
   // de copropriété avec beaucoup d'annexes peut produire un rapport plus lourd : plafond intermédiaire.
   const jsonBilan = express.json({ limit: '20mb' });
+  // Un email envoyé depuis CLAIRE porte ses pièces jointes (21 Mo au plus, en base64) et la signature.
+  const jsonEmail = express.json({ limit: '40mb' });
   app.use((req, res, next) => (req.path.startsWith('/api/relecture-claude/') ? jsonRelecture
-    : req.path.startsWith('/api/relectures') ? jsonBilan : jsonStandard)(req, res, next));
+    : req.path.startsWith('/api/relectures') ? jsonBilan
+      : req.path === '/api/emails/envoyer' ? jsonEmail : jsonStandard)(req, res, next));
 
   // Sert index.html/style.css/script.js/manifest.json/sw.js/icone.svg : depuis la racine du dépôt
   // en mode développement (`npm start`), depuis les assets embarqués du blob SEA en mode

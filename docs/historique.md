@@ -15971,3 +15971,33 @@ au client » ; WeTransfer.
   Point terrain `fausses-minutes`.
 - Non vérifié ici : emplacement et nommage réels du dossier des fausses minutes, WeTransfer, tailles réelles des actes,
   `.eml` lourd dans Outlook.
+
+### 03/10/2026 20:27 — Emails envoyés et réponses depuis CLAIRE
+
+Étude (capture d'une boîte de réception moderne : email reçu, pastille « Needs Reply », réponse « Auto-draft » et bouton
+« Send ») : « Inspire-toi pour la partie email des échanges. Peut-on répondre aux emails directement depuis CLAIRE ? Et
+peut-on voir cette interface pour l'envoi des rappels au lieu de les télécharger ? » Réponses aux questions : envoyé depuis
+CLAIRE ; boîte de chacun ; premier jet par l'IA locale ; tous les emails.
+
+- **Serveur** (`server/src/envoiEmailsExchange.js`, routes dans `routes/emailsDossiers.js`) : `POST /api/emails/envoyer`
+  (corps jusqu'à 40 Mo) — brouillon (`CreateItem` SaveOnly : Message, ou `ReplyToItem`/`ReplyAllToItem` + `NewBodyContent`
+  pour une réponse, pièces ajoutées ensuite par `CreateAttachment`), puis `SendItem` vers les Éléments envoyés. `From` =
+  adresse du collaborateur (Réglages › Collaborateurs) ; `ErrorSendAsDenied` & co → brouillon mis aux éléments supprimés,
+  nouvel essai sans `From`, refus retenu 7 jours (clé `envoi-emails`). Un seul essai par appel, même disjoncteur que
+  l'agenda (401/403 → `signalerIdentifiantsRefuses`), texte jamais gardé ni journalisé. Email d'origine désigné par son id
+  CLAIRE, l'itemId Exchange reste sur le serveur. `POST /api/emails-dossiers/proposition` : email relu
+  (`lireEmailComplet`), premier jet d'Ollama (`promptPropositionReponse` : formule client/confrère, 2 à 5 phrases, rien
+  d'inventé, « [à compléter] », pas d'avis juridique), rendu au poste, jamais gardé. Envoi noté dans `prepares` avec
+  `envoyeLe` et le geste (« reponse:<id> », « accuseReception:<id> », type de relance…).
+- **Poste** : `livrerEmailDossier` ouvre `ouvrirRedactionEmail` (mode `mailto:` inchangé) ; `livrerEmlDossier` = le `.eml`
+  d'avant (« Ouvrir dans Outlook »). Fenêtre : De (collaborateur du poste), À, Cc, Objet, texte (marques de mise en forme
+  retirées, boutons de sondage nommés `[Boutons de réponse]` et remis à l'envoi ; texte non modifié = corps d'origine avec
+  sa mise en forme), pièces jointes (trombone, ×, poids), raison du blocage écrite à côté du bouton. Fenêtre de lecture
+  refaite (barre d'icônes, objet + pastille, initiales, nom, date, texte, pièces jointes) avec « Répondre à … » en bas.
+  Tous les appelants : `r.annule` → rien affiché ni marqué ; historique « Email envoyé » / « Email préparé »
+  (`libelleEmailFait`). Accusé de réception envoyé dans le fil de l'email reçu.
+- Vérifié dans Chromium (faux Exchange, fausse IA locale) : relance des fonds envoyée depuis la boîte de Julie
+  (CreateItem + SendItem, `From`), réponse dans le fil (CreateItem ReplyToItem + CreateAttachment des logos + SendItem),
+  proposition posée, envoi bloqué tant que « [à compléter] » reste ; clair, sombre, téléphone.
+- Non vérifié ici : Exchange réel (envoi, réponse avec pièces jointes, droit « Envoyer en tant que » chez Fichorga, taille
+  maximale), Ollama réel.

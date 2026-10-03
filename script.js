@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-03 20:00';
+  const VERSION_APP = '2026-10-03 20:27';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-03 20:27', resume: "Emails envoyés depuis CLAIRE : chaque email (relances, RIB, provision, fonds, questionnaire, copie de l'acte, accusés de réception…) s'ouvre dans une fenêtre d'email au lieu d'être téléchargé — relire, modifier, joindre un fichier, puis « Envoyer » (depuis la boîte du collaborateur, sinon celle du compte relié tant que le droit « Envoyer en tant que » n'est pas donné dans Exchange) ou « Ouvrir dans Outlook » comme avant. Lecture d'un email reçu revue (expéditeur, texte, pièces jointes) avec « Répondre » en bas : la réponse part dans le même fil, et CLAIRE en propose un premier jet par l'IA locale, à relire (un passage « [à compléter] » bloque l'envoi). Pastille « À répondre » sur les emails reçus restés sans réponse." },
     { version: '2026-10-03 20:00', resume: "Relation client : « Rappeler le rendez-vous » retiré. Fonds pas arrivés 3 jours avant la signature → « Relancer pour les fonds » (À faire et onglet Échanges, email au client, premier jet de CLAIRE). La confirmation de réception des fonds vaut confirmation du rendez-vous. Nouveau dossier : les champs non trouvés dans le compromis restent affichés (« À compléter »), nouveau champ « Honoraires d'agence TTC » lu dans le compromis. Dossiers en participation, acte signé : « Envoyer la copie de l'acte / l'attestation de vente » au client, fichiers lus dans le dossier « Fausses minutes » du commun — en pièce jointe jusqu'à 21 Mo, au-delà WeTransfer s'ouvre et l'email attend le lien." },
     { version: '2026-10-03 19:16', resume: "Réglages : les titres de catégorie du menu (L'étude, Connexions, Dossiers et actes, Maintenance) en noir au lieu de gris." },
     { version: '2026-10-03 19:13', resume: "Noms de fichiers du NAS : le classement des noms par forme se fait par tranches avec un pourcentage affiché — un commun de plusieurs dizaines de milliers de PDF ne fige plus la fenêtre pendant le calcul (essayé sur 21 000 PDF dans 100 dossiers : parcours 2 s, classement 0,5 s)." },
@@ -603,6 +604,9 @@
     // Caméra (visio ADNOV).
     video: '<rect x="1.5" y="4" width="9.5" height="8" rx="1.6"/><path d="M11 7.2 14.5 5v6L11 8.8"/>',
     layout: '<rect x="1.5" y="2" width="13" height="12" rx="1.6"/><line x1="6" y1="2" x2="6" y2="14"/>',
+    // Trombone (joindre un fichier) et avion en papier (envoyer un email).
+    paperclip: '<path d="M13.5 7.5 8 13a3.2 3.2 0 0 1-4.5-4.5l6-6a2.1 2.1 0 0 1 3 3L6.6 11.4a1 1 0 0 1-1.5-1.5L10.5 4.5"/>',
+    send: '<path d="M14.5 1.5 7 9"/><path d="M14.5 1.5 10 14.5 7 9 1.5 6z"/>',
     plus: '<line x1="8" y1="3" x2="8" y2="13"/><line x1="3" y1="8" x2="13" y2="8"/>',
     minus: '<line x1="3.5" y1="8" x2="12.5" y2="8"/>',
     // Bannette à papier (Claire Scan) : un plateau et deux feuilles.
@@ -18860,7 +18864,7 @@
     const d = r.dossierId ? dossiers.find(x => x.id === r.dossierId) : null;
     const adresse = (String(r.texte).match(EMAIL_RE) || [''])[0];
     const res = await livrerEmailDossier({ destinataire: adresse, sujet: d ? libelleDossierAffiche(d) : '', corps: 'Bonjour,\n\n', dossierId: d ? d.id : '', geste: 'email' });
-    if (!res.ok) { afficherToast(res.message || "L'email n'a pas pu être préparé.", 'OK', null); return; }
+    if (!res.ok) { if (!res.annule) afficherToast(res.message || "L'email n'a pas pu être préparé.", 'OK', null); return; }
     annoncerEmailPret(res, true);
   }
 
@@ -22281,7 +22285,7 @@
         boutons: [{ libelle: 'Rejoindre la visioconférence', href: m.bloc.lien }],
         responsableSignature: d ? d.responsable : ''
       });
-      if (!dernier.ok) { if (bouton) bouton.disabled = false; afficherToast(dernier.message || 'L’email n’a pas pu être préparé.', 'OK', null); return; }
+      if (!dernier.ok) { if (bouton) bouton.disabled = false; if (!dernier.annule) afficherToast(dernier.message || 'L’email n’a pas pu être préparé.', 'OK', null); return; }
     }
     if (d) {
       // Une adresse saisie ici pour le vendeur ou l'acquéreur est gardée sur la fiche (comme le sondage).
@@ -23420,7 +23424,7 @@
         boutons: boutonsSondage(s, { page: pageSondageReglee(), abrege: abregeSondage(s, d), relais: relaisSondageRegle(), participants: g.participants }),
         responsableSignature: d ? d.responsable : ''
       });
-      if (!dernier.ok) { afficherToast(dernier.message || 'L’email n’a pas pu être préparé.', 'OK', null); return null; }
+      if (!dernier.ok) { if (!dernier.annule) afficherToast(dernier.message || 'L’email n’a pas pu être préparé.', 'OK', null); return null; }
     }
     return dernier;
   }
@@ -25972,13 +25976,24 @@
     return reglagesSignatureCache || {};
   }
 
-  async function livrerEmailDossier({ destinataire, sujet, corps, pieces = [], confrere = false, responsableSignature = '', boutons = null, dossierId = '', geste = '' }) {
+  // Étude, 03/10 : « voir cette interface pour l'envoi des rappels au lieu de les télécharger » — tout email
+  // d'un dossier s'ouvre dans la fenêtre d'email de CLAIRE (ouvrirRedactionEmail) : relu, modifié, pièces
+  // jointes visibles, puis « Envoyer » (par Exchange, depuis la boîte du collaborateur) ou « Ouvrir dans
+  // Outlook » (le fichier .eml d'avant). Rend { ok, mode: 'envoye' | 'eml' | 'mailto', … } ou { ok: false,
+  // annule: true } si la fenêtre est fermée sans rien faire — l'appelant ne marque alors rien.
+  async function livrerEmailDossier({ destinataire, sujet, corps, pieces = [], confrere = false, responsableSignature = '', boutons = null, dossierId = '', geste = '', reponseA = '' }) {
     const corpsFinal = adapterCorpsEmail(corps, confrere);
     if (modeEmailPoste() === 'mailto') {
       noterEmailPrepare({ dossierId, sujet, destinataire, geste });
       const copie = ouvrirBrouillonEmail(destinataire, sujet, texteSansMarques(texteAvecBoutons(corpsFinal, boutons)));
       return { ok: true, mode: 'mailto', copie, piecesNonJointes: pieces.length > 0 };
     }
+    return ouvrirRedactionEmail({ mode: 'nouveau', destinataire, sujet, corps: corpsFinal, pieces, confrere, responsableSignature, boutons, dossierId, geste, reponseA });
+  }
+
+  // Le fichier .eml d'avant (« Ouvrir dans Outlook ») : HTML, signature, pièces jointes, prêt à envoyer.
+  async function livrerEmlDossier({ destinataire, sujet, corps, pieces = [], responsableSignature = '', boutons = null, dossierId = '', geste = '' }) {
+    const corpsFinal = corps;
     try {
       const images = await imagesSignatureEmail();
       const signataire = signataireEmail(utilisateurPoste || responsableSignature, await reglagesSignature());
@@ -25998,6 +26013,333 @@
     }
   }
 
+  // ---- Fenêtre d'email (étude, 03/10, d'après une boîte de réception moderne : l'email reçu en haut, la réponse
+  // dessous avec « Proposition de CLAIRE » et « Envoyer ») ----
+  // Une seule rédaction à la fois. Deux formes : un email NOUVEAU (relances, RIB, questionnaire, copie de
+  // l'acte… : fenêtre #email-redaction-overlay, champs À / Objet modifiables) et une RÉPONSE à un email reçu
+  // (carte posée sous l'email dans la fenêtre de lecture, envoyée dans le fil par Exchange). Rien ne part sans
+  // le clic sur « Envoyer ».
+  var LIBELLE_BOUTONS_REDACTION = '[Boutons de réponse]';
+  let redaction = null;
+
+  // Pure : initiales d'un nom (« Camille FOURNIER » → « CF », une adresse → sa première lettre).
+  function initialesPersonne(nom) {
+    const mots = String(nom || '').replace(/<[^>]*>/g, ' ').split(/[\s@._-]+/).filter(m => /^[A-Za-zÀ-ÿ]/.test(m));
+    if (!mots.length) return '?';
+    return (mots[0][0] + (mots.length > 1 ? mots[mots.length - 1][0] : '')).toUpperCase();
+  }
+
+  // Pure : objet d'une réponse (« RE: » une seule fois).
+  function sujetReponse(objet) {
+    const o = String(objet || '').trim();
+    return /^(?:re|aw)\s*:/i.test(o) ? o : 'RE: ' + (o || '(sans objet)');
+  }
+
+  // Pure : début de réponse vide, avec la formule d'usage (étude : « Mon Cher Maître » au confrère).
+  function formuleReponseVide(confrere) {
+    return confrere
+      ? 'Mon Cher Maître,\n\n\n\nDans l’attente et vous en remerciant par avance,\nVotre bien dévoué.'
+      : 'Madame, Monsieur,\n\n\n\nBien cordialement,';
+  }
+
+  // Pure : le texte montré dans la zone de saisie (marques de mise en forme retirées, boutons nommés) et le
+  // chemin inverse (les boutons retrouvent leur place à l'envoi).
+  function texteEditableEmail(corps) {
+    return texteSansMarques(String(corps || '')).replace('{{BOUTONS}}', LIBELLE_BOUTONS_REDACTION);
+  }
+  function corpsDepuisTexteEditable(texte, boutons) {
+    const t = String(texte || '');
+    return boutons && boutons.length ? t.replace(LIBELLE_BOUTONS_REDACTION, '{{BOUTONS}}') : t;
+  }
+
+  // Pure : poids réel des pièces jointes (base64 → octets).
+  function poidsPiecesEmail(pieces) {
+    return (pieces || []).reduce((s, p) => s + Math.floor(String(p && p.contenuBase64 || '').replace(/\s/g, '').length * 3 / 4), 0);
+  }
+
+  // Pure : un email reçu attend-il une réponse ? Reçu dans les 14 jours, le plus récent de son expéditeur dans le
+  // dossier, sans email envoyé (ni réponse ou accusé préparés depuis CLAIRE) vers cette adresse depuis.
+  function emailARepondre(email, emails, prepares, maintenant) {
+    if (!email || email.sens !== 'recu' || !email.de || !email.de.adresse) return false;
+    const t = Date.parse(email.date);
+    const n = maintenant ? Date.parse(maintenant) : Date.now();
+    if (!(t >= n - 14 * 86400000)) return false;
+    const adr = email.de.adresse.toLowerCase();
+    if ((emails || []).some(e => e !== email && e.sens === 'recu' && e.de && String(e.de.adresse).toLowerCase() === adr && Date.parse(e.date) > t)) return false;
+    if ((emails || []).some(e => e.sens === 'envoye' && Date.parse(e.date) > t && (e.a || []).some(a => String(a).toLowerCase() === adr))) return false;
+    return !(prepares || []).some(p => {
+      const g = String(p.geste || '');
+      if (g === 'reponse:' + email.id || g === 'accuseReception:' + email.id) return true;
+      return Date.parse(p.envoyeLe || p.prepareLe) > t && (p.destinataires || []).some(a => String(a).toLowerCase() === adr);
+    });
+  }
+
+  // L'envoi direct suppose la connexion Exchange réglée (Réglages › Agenda et Outlook).
+  function envoiDirectPossible() {
+    return !!(typeof exchangeReglages !== 'undefined' && exchangeReglages && exchangeReglages.actif && exchangeReglages.motDePasseEnregistre);
+  }
+
+  function ouvrirRedactionEmail(o) {
+    if (redaction && redaction.resolve) redaction.resolve({ ok: false, annule: true });
+    return new Promise((resolve) => {
+      const texte = texteEditableEmail(o.corps);
+      redaction = {
+        mode: o.mode === 'reponse' ? 'reponse' : 'nouveau', resolve,
+        dossierId: o.dossierId || '', geste: o.geste || '', a: o.destinataire || '', cc: '', voirCc: false,
+        sujet: o.sujet || '', texte, texteDepart: texte, corpsOrigine: o.corps || '', pieces: (o.pieces || []).slice(),
+        boutons: o.boutons || null, confrere: !!o.confrere, responsableSignature: o.responsableSignature || '',
+        reponseA: o.reponseA || '', email: o.email || null, proposition: null, envoi: false, erreur: ''
+      };
+      if (redaction.mode === 'nouveau') {
+        const overlay = document.getElementById('email-redaction-overlay');
+        if (overlay) overlay.style.display = 'flex';
+      }
+      renderRedaction();
+      if (redaction.mode === 'reponse' && redaction.reponseA) demanderPropositionReponse(true);
+    });
+  }
+
+  function fermerRedaction(resultat) {
+    const r = redaction;
+    redaction = null;
+    const overlay = document.getElementById('email-redaction-overlay');
+    if (overlay) { overlay.style.display = 'none'; const z = document.getElementById('email-redaction-contenu'); if (z) z.innerHTML = ''; }
+    const zoneReponse = document.getElementById('email-reponse-zone');
+    if (zoneReponse) zoneReponse.innerHTML = '';
+    if (r && r.resolve) r.resolve(resultat || { ok: false, annule: true });
+  }
+  function abandonnerRedaction() {
+    const r = redaction;
+    fermerRedaction({ ok: false, annule: true });
+    if (r && r.mode === 'reponse') renderInviteReponse();
+  }
+
+  function champRedaction(champ, valeur) {
+    if (!redaction) return;
+    redaction[champ] = valeur;
+    if (champ === 'texte' || champ === 'a') majBoutonsRedaction();
+  }
+  function afficherCcRedaction() {
+    if (!redaction) return;
+    redaction.voirCc = true;
+    renderRedaction();
+    const c = document.getElementById('redaction-cc');
+    if (c) c.focus();
+  }
+
+  async function ajouterPiecesRedaction(input) {
+    if (!redaction || !input || !input.files) return;
+    for (const f of [...input.files]) {
+      try { redaction.pieces.push({ nom: f.name, type: f.type || 'application/octet-stream', contenuBase64: await blobVersBase64(f) }); }
+      catch (e) { afficherToast(`« ${f.name} » n’a pas pu être lu.`, 'OK', null); }
+    }
+    input.value = '';
+    renderRedaction();
+  }
+  function retirerPieceRedaction(i) {
+    if (!redaction) return;
+    redaction.pieces.splice(i, 1);
+    renderRedaction();
+  }
+
+  // Premier jet de réponse par l'IA locale (Ollama, sur le serveur) : posé dans la zone seulement si rien n'a
+  // encore été écrit, sinon proposé d'un clic. Jamais envoyé seul.
+  async function demanderPropositionReponse(auto) {
+    const r = redaction;
+    if (!r || !r.reponseA) return;
+    r.proposition = { etat: 'attente' };
+    renderRedaction();
+    const d = dossiers.find(x => x.id === r.dossierId);
+    try {
+      const rep = await fetchAvecAuth('/api/emails-dossiers/proposition', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ emailId: r.reponseA, dossier: d ? libelleDossierAffiche(d) : '', confrere: r.confrere }) });
+      const corps = await rep.json().catch(() => ({}));
+      if (redaction !== r) return;
+      if (!rep.ok || !corps.reponse) throw new Error(corps.erreur || 'indisponible');
+      const intact = r.texte === r.texteDepart;
+      r.proposition = { etat: 'pret', texte: String(corps.reponse) };
+      if (intact) { r.texte = r.proposition.texte; r.texteDepart = r.texte; r.proposition.posee = true; }
+      renderRedaction();
+    } catch (e) {
+      if (redaction !== r) return;
+      r.proposition = auto ? null : { etat: 'erreur', message: e.message };
+      renderRedaction();
+    }
+  }
+  function utiliserPropositionReponse() {
+    if (!redaction || !redaction.proposition || !redaction.proposition.texte) return;
+    redaction.texte = redaction.proposition.texte;
+    redaction.texteDepart = redaction.texte;
+    redaction.proposition.posee = true;
+    renderRedaction();
+  }
+
+  function etatEnvoiRedaction() {
+    const r = redaction;
+    if (!r) return { possible: false };
+    const poids = poidsPiecesEmail(r.pieces);
+    const adresses = destinatairesEmail(r.a);
+    const motif = !adresses.length ? 'Ajoutez un destinataire.'
+      : !String(r.texte || '').trim() ? 'Écrivez le message.'
+      : String(r.texte).includes('[lien WeTransfer à coller ici]') ? 'Collez le lien WeTransfer dans le message.'
+      : /\[à compléter\]/i.test(r.texte) ? 'Complétez les passages « [à compléter] » de la proposition.'
+      : poids > LIMITE_PIECES_JOINTES_OCTETS ? `Plus de 21 Mo de pièces jointes : retirez-en ou passez par WeTransfer.` : '';
+    return { possible: !motif, motif, poids };
+  }
+  function majBoutonsRedaction() {
+    const e = etatEnvoiRedaction();
+    const b = document.getElementById('redaction-envoyer');
+    if (b) { b.disabled = !e.possible || !!(redaction && redaction.envoi); b.title = e.motif || ''; }
+    const m = document.getElementById('redaction-motif');
+    if (m) m.textContent = e.motif && e.motif !== 'Ajoutez un destinataire.' && e.motif !== 'Écrivez le message.' ? e.motif : e.poids ? tailleLisible(e.poids) : '';
+  }
+
+  function renderCarteRedaction() {
+    const r = redaction;
+    const etat = etatEnvoiRedaction();
+    const direct = envoiDirectPossible();
+    const qui = utilisateurPoste || r.responsableSignature || 'Compte relié';
+    const prop = r.proposition;
+    const pastille = !prop ? (r.reponseA ? `<button type="button" class="redaction-pastille" onclick="demanderPropositionReponse(false)" title="Demander un premier jet de réponse à l’IA locale (sur le serveur du bureau)">${icone('sparkle')}Proposer une réponse</button>` : '')
+      : prop.etat === 'attente' ? `<span class="redaction-pastille redaction-pastille-attente">${icone('spinner')}CLAIRE rédige…</span>`
+      : prop.etat === 'erreur' ? `<span class="redaction-pastille redaction-pastille-erreur" title="${escapeAttr(prop.message || '')}">Proposition indisponible</span>`
+      : prop.posee ? `<span class="redaction-pastille" title="Premier jet de l’IA locale : relisez avant d’envoyer">${icone('sparkle')}Proposition de CLAIRE</span>`
+      : `<button type="button" class="redaction-pastille" onclick="utiliserPropositionReponse()">${icone('sparkle')}Utiliser la proposition de CLAIRE</button>`;
+    const pieces = r.pieces.map((p, i) => `<span class="redaction-piece">${icone('file-text')}<span class="redaction-piece-nom">${escapeHtml(p.nom)}</span><span class="redaction-piece-taille">${escapeHtml(tailleLisible(poidsPiecesEmail([p])))}</span><button type="button" class="icon-btn" onclick="retirerPieceRedaction(${i})" aria-label="Retirer ${escapeAttr(p.nom)}">${icone('x')}</button></span>`).join('');
+    const lignes = Math.min(18, Math.max(r.mode === 'reponse' ? 5 : 8, String(r.texte).split('\n').length + 1));
+    return `<div class="redaction-carte">
+        <div class="redaction-ligne redaction-de"><span class="redaction-etiquette">De</span><span>${escapeHtml(qui)}</span>${pastille}</div>
+        <div class="redaction-ligne"><label class="redaction-etiquette" for="redaction-a">À</label>
+          <input type="text" id="redaction-a" class="redaction-champ" value="${escapeAttr(r.a)}" oninput="champRedaction('a', this.value)" autocomplete="off" spellcheck="false">
+          ${r.voirCc ? '' : `<button type="button" class="lien-discret" onclick="afficherCcRedaction()">Cc</button>`}</div>
+        ${r.voirCc ? `<div class="redaction-ligne"><label class="redaction-etiquette" for="redaction-cc">Cc</label><input type="text" id="redaction-cc" class="redaction-champ" value="${escapeAttr(r.cc)}" oninput="champRedaction('cc', this.value)" autocomplete="off" spellcheck="false"></div>` : ''}
+        ${r.mode === 'nouveau' ? `<div class="redaction-ligne"><label class="redaction-etiquette" for="redaction-sujet">Objet</label><input type="text" id="redaction-sujet" class="redaction-champ" value="${escapeAttr(r.sujet)}" oninput="champRedaction('sujet', this.value)"></div>` : ''}
+        <textarea id="redaction-texte" class="redaction-texte" rows="${lignes}" aria-label="Message" oninput="champRedaction('texte', this.value)">${escapeHtml(r.texte)}</textarea>
+        ${pieces ? `<div class="redaction-pieces">${pieces}</div>` : ''}
+        ${r.erreur ? `<p class="redaction-erreur">${escapeHtml(r.erreur)}</p>` : ''}
+        <div class="redaction-pied">
+          <label class="icon-btn redaction-joindre" title="Joindre un fichier">${icone('paperclip')}<input type="file" multiple hidden onchange="ajouterPiecesRedaction(this)"></label>
+          <button type="button" class="icon-btn" onclick="abandonnerRedaction()" title="Abandonner cet email" aria-label="Abandonner cet email">${icone('trash')}</button>
+          <span class="redaction-pied-espace" id="redaction-motif">${escapeHtml(etat.motif && etat.motif !== 'Ajoutez un destinataire.' && etat.motif !== 'Écrivez le message.' ? etat.motif : etat.poids ? tailleLisible(etat.poids) : '')}</span>
+          <button type="button" class="${direct ? 'lien-discret' : 'primary'}" onclick="ouvrirRedactionDansOutlook()" title="Télécharger l’email pour l’ouvrir dans Outlook">Ouvrir dans Outlook</button>
+          ${direct ? `<button type="button" class="primary redaction-envoyer" id="redaction-envoyer" onclick="envoyerRedaction()"${etat.possible && !r.envoi ? '' : ' disabled'} title="${escapeAttr(etat.motif || '')}">${icone(r.envoi ? 'spinner' : 'send')}${r.envoi ? 'Envoi…' : 'Envoyer'}</button>` : ''}
+        </div>
+      </div>`;
+  }
+
+  function renderRedaction() {
+    const r = redaction;
+    if (!r) return;
+    const actif = document.activeElement && document.activeElement.id;
+    if (r.mode === 'nouveau') {
+      const zone = document.getElementById('email-redaction-contenu');
+      if (!zone) return;
+      const d = dossiers.find(x => x.id === r.dossierId);
+      const emailCite = r.reponseA && d ? ((emailsParDossier[d.id] || {}).emails || []).find(e => e.id === r.reponseA) : null;
+      zone.innerHTML = `<div class="redaction-tete">
+          <button type="button" class="icon-btn" onclick="abandonnerRedaction()" aria-label="Fermer">${icone('chevron-left')}</button>
+          <div class="redaction-titre" id="email-redaction-titre">${escapeHtml(r.sujet || 'Nouvel email')}</div>
+          ${d && !String(r.sujet || '').includes(libelleDossierAffiche(d)) ? `<span class="redaction-dossier">${escapeHtml(libelleDossierAffiche(d))}</span>` : ''}
+        </div>
+        ${emailCite ? `<p class="hint redaction-cite">En réponse à l’email de ${escapeHtml(emailCite.de.nom || emailCite.de.adresse)} du ${escapeHtml(dateCourteEmail(emailCite.date))}, dans le même fil.</p>` : ''}
+        ${envoiDirectPossible() ? '' : '<p class="hint">Envoi direct indisponible : la connexion Exchange n’est pas réglée (Réglages › Agenda et Outlook).</p>'}
+        ${renderCarteRedaction()}`;
+    } else {
+      const zone = document.getElementById('email-reponse-zone');
+      if (!zone) return;
+      zone.innerHTML = renderCarteRedaction();
+    }
+    if (actif && document.getElementById(actif)) {
+      const el = document.getElementById(actif);
+      el.focus();
+      if (el.setSelectionRange && typeof el.value === 'string') { try { el.setSelectionRange(el.value.length, el.value.length); } catch (e) { /* champ sans sélection */ } }
+    }
+  }
+
+  async function envoyerRedaction() {
+    const r = redaction;
+    if (!r || r.envoi) return;
+    const etat = etatEnvoiRedaction();
+    if (!etat.possible) { r.erreur = etat.motif; renderRedaction(); return; }
+    r.envoi = true; r.erreur = '';
+    renderRedaction();
+    try {
+      const corps = r.texte === r.texteDepart && !r.proposition ? r.corpsOrigine : corpsDepuisTexteEditable(r.texte, r.boutons);
+      const images = await imagesSignatureEmail();
+      const signataire = signataireEmail(utilisateurPoste || r.responsableSignature, await reglagesSignature());
+      const html = htmlEmail(corps, images.cids, signataire, r.boutons);
+      const reponse = await fetchAvecAuth('/api/emails/envoyer', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
+        dossierId: r.dossierId, geste: r.geste || (r.reponseA ? 'reponse:' + r.reponseA : ''), collaborateur: utilisateurPoste || r.responsableSignature,
+        a: r.a, cc: r.cc, sujet: r.mode === 'reponse' ? sujetReponse((r.email && r.email.objet) || r.sujet) : r.sujet, html,
+        pieces: r.pieces, images: images.parties.map(p => ({ nom: p.cid + '.' + String(p.type).split('/')[1], type: p.type, contentId: p.cid, contenuBase64: p.base64 })),
+        reponseA: r.reponseA ? { emailId: r.reponseA } : null
+      }) });
+      const res = await reponse.json().catch(() => ({}));
+      if (redaction !== r) return;
+      if (!reponse.ok || !res.ok) throw new Error(res.message || res.erreur || 'statut ' + reponse.status);
+      if (r.dossierId) delete emailsParDossier[r.dossierId];
+      const mode = r.mode;
+      fermerRedaction({ ok: true, mode: 'envoye', repli: !!res.repli, de: res.de || '' });
+      if (mode === 'reponse') reponseEnvoyee(r, res);
+    } catch (e) {
+      if (redaction !== r) return;
+      r.envoi = false;
+      r.erreur = 'Email non envoyé : ' + e.message;
+      renderRedaction();
+    }
+  }
+
+  // « Ouvrir dans Outlook » : le fichier .eml d'avant, avec ce qui a été écrit dans la fenêtre.
+  async function ouvrirRedactionDansOutlook() {
+    const r = redaction;
+    if (!r) return;
+    const corps = r.texte === r.texteDepart && !r.proposition ? r.corpsOrigine : corpsDepuisTexteEditable(r.texte, r.boutons);
+    const res = await livrerEmlDossier({ destinataire: r.a, sujet: r.mode === 'reponse' ? sujetReponse((r.email && r.email.objet) || r.sujet) : r.sujet,
+      corps, pieces: r.pieces, responsableSignature: r.responsableSignature, boutons: r.boutons, dossierId: r.dossierId, geste: r.geste || (r.reponseA ? 'reponse:' + r.reponseA : '') });
+    if (!res.ok) { r.erreur = res.message || 'L’email n’a pas pu être préparé.'; renderRedaction(); return; }
+    const mode = r.mode;
+    fermerRedaction(res);
+    if (mode === 'reponse') { fermerEmailComplet(); annoncerEmailPret(res, true); }
+  }
+
+  // Réponse à un email reçu, depuis la fenêtre de lecture (la carte est posée sous l'email).
+  function repondreEmail(dossierId, emailId) {
+    const d = dossiers.find(x => x.id === dossierId);
+    const email = ((emailsParDossier[dossierId] || {}).emails || []).find(e => e.id === emailId);
+    if (!d || !email || !email.de || !email.de.adresse) return;
+    const confrere = expediteurConfrere(d, email.de.adresse, carnetConfreres);
+    ouvrirRedactionEmail({ mode: 'reponse', destinataire: email.de.adresse, sujet: email.objet, corps: formuleReponseVide(confrere), confrere,
+      responsableSignature: d.responsable, dossierId, geste: 'reponse:' + email.id, reponseA: email.id, email })
+      .then(res => { if (res && res.ok && res.mode === 'envoye') annoncerEmailPret(res, true); });
+  }
+
+  function reponseEnvoyee(r, res) {
+    const d = dossiers.find(x => x.id === r.dossierId);
+    if (d) {
+      ajouterHistorique(d, `Email envoyé — réponse à ${(r.email && (r.email.de.nom || r.email.de.adresse)) || r.a}`);
+      sauvegarder(d);
+    }
+    fermerEmailComplet();
+    if (d) setTimeout(() => chargerEmailsDossier(d.id), 800);
+    render();
+  }
+
+  // Invitation à répondre sous un email reçu (la carte complète s'ouvre au clic).
+  function renderInviteReponse() {
+    const zone = document.getElementById('email-reponse-zone');
+    if (!zone || !zone.dataset.dossier) return;
+    zone.innerHTML = `<button type="button" class="redaction-invite" onclick="repondreEmail('${escapeOnclickArg(zone.dataset.dossier)}', '${escapeOnclickArg(zone.dataset.email)}')">${icone('mail')}Répondre à ${escapeHtml(zone.dataset.nom || 'l’expéditeur')}…</button>`;
+  }
+
+  // Échap ferme la fenêtre d'email (abandon), pas la fiche derrière.
+  window.addEventListener('keydown', (e) => {
+    const overlay = document.getElementById('email-redaction-overlay');
+    if (e.key === 'Escape' && overlay && overlay.style.display !== 'none') { e.stopPropagation(); abandonnerRedaction(); }
+  }, true);
+
+  // Pure : « Email envoyé » quand il est parti de CLAIRE, « Email préparé » quand il a été ouvert dans Outlook.
+  function libelleEmailFait(r) { return r && r.mode === 'envoye' ? 'Email envoyé' : 'Email préparé'; }
+
   var MESSAGE_EMAIL_PRET = 'Ouvrez le fichier téléchargé : il s’ouvre dans Outlook, prêt à envoyer. Pour qu’il s’ouvre seul la prochaine fois : clic droit sur le téléchargement › « Toujours ouvrir ce type de fichier ».';
   var MESSAGE_EMAIL_PRET_AUTO = 'L’email s’ouvre dans Outlook, prêt à envoyer.';
 
@@ -26005,6 +26347,10 @@
   // sinon). `detail` complète le message (ex. dossier archivé).
   function annoncerEmailPret(r, discret, detail) {
     const suite = detail ? ' ' + detail : '';
+    if (r.mode === 'envoye') {
+      afficherToast('Email envoyé' + (r.repli ? ' depuis la boîte du compte relié (droit « Envoyer en tant que » pas encore donné).' : '.') + suite, 'OK', null);
+      return;
+    }
     if (r.mode === 'eml') {
       if (discret || ouvertureAutoActive()) { afficherToast((ouvertureAutoActive() ? 'Email prêt — il s’ouvre dans Outlook.' : 'Email prêt — ouvrez le fichier téléchargé.') + suite, 'OK', null); return; }
       afficherInfoAction('Email prêt', MESSAGE_EMAIL_PRET + suite);
@@ -26229,9 +26575,9 @@
     const { sujet, corps } = modele.construire(d);
     const r = await livrerEmailDossier({ destinataire, sujet, corps, confrere: notaireParticipantRepresenteAcquereur(d), responsableSignature: d.responsable, dossierId: d.id, geste: type });
     // Préparation impossible : ne rien marquer sur le dossier, l'email n'est pas parti.
-    if (!r.ok) { afficherToast(r.message || "L'email n'a pas pu être préparé.", 'OK', null); return; }
+    if (!r.ok) { if (!r.annule) afficherToast(r.message || "L'email n'a pas pu être préparé.", 'OK', null); return; }
     ajouterHistorique(d, modele.historique);
-    notifierTacheFaite(d, (ACTIONS_EMAIL_DOSSIER[type] && ACTIONS_EMAIL_DOSSIER[type].titre) || modele.libelle, notaireParticipantRepresenteAcquereur(d) ? 'email préparé pour le confrère' : 'email préparé pour le client');
+    notifierTacheFaite(d, (ACTIONS_EMAIL_DOSSIER[type] && ACTIONS_EMAIL_DOSSIER[type].titre) || modele.libelle, `${libelleEmailFait(r).toLowerCase()} ${notaireParticipantRepresenteAcquereur(d) ? 'au confrère' : 'au client'}`);
     const aujourdhui = isoAujourdhuiLocal();
     if (modele.date) d[modele.date] = aujourdhui;
     if (type === 'projet') marquerProjetEnvoyeSelonDate(d, aujourdhui);
@@ -26446,7 +26792,7 @@
     const pdfDispo = typeof QUESTIONNAIRE_SATISFACTION_PDF_BASE64 === 'string' && QUESTIONNAIRE_SATISFACTION_PDF_BASE64;
     const pieces = pdfDispo ? [{ nom: 'Enquete_satisfaction.pdf', type: 'application/pdf', contenuBase64: QUESTIONNAIRE_SATISFACTION_PDF_BASE64 }] : [];
     const r = await livrerEmailDossier({ destinataire, sujet, corps, pieces, responsableSignature: d.responsable, dossierId: d.id, geste: 'questionnaire' });
-    if (!r.ok) { afficherToast(r.message || "L'email n'a pas pu être préparé.", 'OK', null); return; }
+    if (!r.ok) { if (!r.annule) afficherToast(r.message || "L'email n'a pas pu être préparé.", 'OK', null); return; }
     // Le fichier .eml porte le PDF ; en mode mailto (texte seul), il est téléchargé à côté, à joindre.
     const pdfTelecharge = r.mode === 'mailto' ? telechargerPdfQuestionnaire() : false;
     // Les deux envois archivent le dossier (étude, 02/10 : « archiver le dossier quand le
@@ -26713,15 +27059,15 @@
     }
     const { sujet, corps } = construireEmailCopieActe(d, types, lien);
     const r = await livrerEmailDossier({ destinataire, sujet, corps, pieces, responsableSignature: d.responsable, dossierId: d.id, geste: 'copieActe' });
-    if (!r.ok) { afficherToast(r.message || "L'email n'a pas pu être préparé.", 'OK', null); return; }
+    if (!r.ok) { if (!r.annule) afficherToast(r.message || "L'email n'a pas pu être préparé.", 'OK', null); return; }
     if (r.mode === 'mailto' && !lien) { try { await telechargerTous(); } catch (e) { /* signalé ci-dessous */ } }
     fermerEnvoiCopieActe();
     d.copieActeEnvoyeeLe = isoAujourdhuiLocal();
     d.copieActeEnvoyee = { types, fichiers: choisis.map(f => f.nom).slice(0, 10), lien };
-    ajouterHistorique(d, `Email préparé — ${types.length > 1 ? 'copie de l’acte et attestation de vente' : types[0] === 'attestation' ? 'attestation de vente' : 'copie de l’acte'} au client${lien ? ' (lien WeTransfer)' : ''}`);
+    ajouterHistorique(d, `${libelleEmailFait(r)} — ${types.length > 1 ? 'copie de l’acte et attestation de vente' : types[0] === 'attestation' ? 'attestation de vente' : 'copie de l’acte'} au client${lien ? ' (lien WeTransfer)' : ''}`);
     sauvegarder(d);
     render();
-    annoncerEmailPret(r, false, lien ? 'Déposez sur WeTransfer les PDF téléchargés, puis collez le lien dans l’email.'
+    annoncerEmailPret(r, r.mode === 'envoye', r.mode === 'envoye' ? '' : lien ? 'Déposez sur WeTransfer les PDF téléchargés, puis collez le lien dans l’email.'
       : r.mode === 'mailto' ? 'Joignez les PDF qui viennent d’être téléchargés.' : '');
   }
 
@@ -29887,9 +30233,9 @@
     if (!email || !email.de || !email.de.adresse) { afficherToast('Adresse de l’expéditeur inconnue.', 'OK', null); return; }
     const confrere = expediteurConfrere(d, email.de.adresse, carnetConfreres);
     const { sujet, corps } = construireEmailAccuseReception(d, email, confrere);
-    const r = await livrerEmailDossier({ destinataire: email.de.adresse, sujet, corps, confrere, responsableSignature: d.responsable, dossierId: d.id, geste: 'accuseReception:' + email.id });
-    if (!r.ok) { afficherToast(r.message || "L'email n'a pas pu être préparé.", 'OK', null); return; }
-    ajouterHistorique(d, `Email préparé — accusé de réception des documents de ${email.de.nom || email.de.adresse}`);
+    const r = await livrerEmailDossier({ destinataire: email.de.adresse, sujet, corps, confrere, responsableSignature: d.responsable, dossierId: d.id, geste: 'accuseReception:' + email.id, reponseA: email.id });
+    if (!r.ok) { if (!r.annule) afficherToast(r.message || "L'email n'a pas pu être préparé.", 'OK', null); return; }
+    ajouterHistorique(d, `${libelleEmailFait(r)} — accusé de réception des documents de ${email.de.nom || email.de.adresse}`);
     await sauvegarder(d);
     annoncerEmailPret(r, true);
     setTimeout(() => chargerEmailsDossier(dossierId), 800);
@@ -29989,7 +30335,7 @@
             <span class="email-rang-sens" aria-label="${e.sens === 'recu' ? 'Reçu' : 'Envoyé'}">${icone(e.sens === 'recu' ? 'download' : 'upload')}</span>
             <span class="email-rang-qui">${escapeHtml(qui)}</span>
             <span class="email-rang-corps"><span class="email-rang-objet">${escapeHtml(e.objet || '(sans objet)')}</span>${e.resume ? `<span class="email-rang-resume">${escapeHtml(e.resume)}</span>` : ''}</span>
-            <span class="email-rang-meta">${pjs ? `<span class="email-rang-pj" title="${pjs} pièce${pjs > 1 ? 's' : ''} jointe${pjs > 1 ? 's' : ''}">${icone('file-text')}${pjs}</span>` : ''}<span class="email-rang-date">${escapeHtml(dateCourteEmail(e.date))}</span></span>
+            <span class="email-rang-meta">${emailARepondre(e, emails, prepares) ? '<span class="email-etat email-etat-petit">À répondre</span>' : ''}${pjs ? `<span class="email-rang-pj" title="${pjs} pièce${pjs > 1 ? 's' : ''} jointe${pjs > 1 ? 's' : ''}">${icone('file-text')}${pjs}</span>` : ''}<span class="email-rang-date">${escapeHtml(dateCourteEmail(e.date))}</span></span>
           </button>
         </li>`;
     };
@@ -30047,36 +30393,56 @@
   // chaque ouverture, jamais gardé ; affiché en texte (jamais le HTML de l'expéditeur dans la page).
   async function ouvrirEmailComplet(dossierId, emailId) {
     const d = dossiers.find(x => x.id === dossierId);
-    const email = ((emailsParDossier[dossierId] || {}).emails || []).find(e => e.id === emailId);
+    const donnees = emailsParDossier[dossierId] || {};
+    const email = (donnees.emails || []).find(e => e.id === emailId);
     const overlay = document.getElementById('email-lecture-overlay');
     const zone = document.getElementById('email-lecture-contenu');
     if (!overlay || !zone || !email) return;
-    const entete = (texte) => `
-      <div class="email-lecture-tete">
-        <div class="poste-titre" id="email-lecture-titre">${escapeHtml(email.objet || '(sans objet)')}</div>
-        <div class="email-lecture-meta">${email.sens === 'recu' ? `De ${escapeHtml(email.de.nom ? `${email.de.nom} <${email.de.adresse}>` : email.de.adresse)}` : `Envoyé par ${escapeHtml(email.collaborateur || email.de.adresse || '')}`}
-          · ${escapeHtml(dateHeureAppel(Date.parse(email.date)))}${(texte && texte.a || email.a || []).length ? `<br>À ${escapeHtml((texte && texte.a || email.a).join(', '))}` : ''}</div>
-      </div>`;
+    if (redaction && redaction.mode === 'reponse') fermerRedaction({ ok: false, annule: true });
+    const recu = email.sens === 'recu';
+    const nom = recu ? (email.de.nom || email.de.adresse) : (email.collaborateur || email.de.nom || email.de.adresse || 'Office');
     const checklist = d ? checklistPieces(d.typeVente, d) : [];
     const pjs = email.pj.length ? `<div class="email-pjs email-lecture-pjs">${email.pj.map(pj => d ? htmlPieceJointeEmail(d, email, pj, checklist) : '').join('')}</div>` : '';
-    const prep = ((emailsParDossier[dossierId] || {}).prepares || []).find(p => p.geste === 'accuseReception:' + email.id);
-    const etatAccuse = prep ? `<span class="dot-label dl-success"><span class="dot"></span>Réception confirmée — ${prep.envoyeLe ? 'envoyée le ' + escapeHtml(dateHeureAppel(Date.parse(prep.envoyeLe))) : 'préparée le ' + escapeHtml(dateHeureAppel(Date.parse(prep.prepareLe)))}</span>` : '';
-    zone.innerHTML = entete(null) + '<p class="hint">Lecture de l’email dans la messagerie…</p>';
-    const actions0 = document.getElementById('email-lecture-actions');
-    if (actions0) actions0.innerHTML = '';
+    const prep = (donnees.prepares || []).find(p => p.geste === 'accuseReception:' + email.id);
+    const aRepondre = d && emailARepondre(email, donnees.emails, donnees.prepares);
+    const pastille = prep ? `<span class="email-etat email-etat-fait">Réception confirmée</span>`
+      : aRepondre ? `<span class="email-etat">À répondre</span>` : '';
+    const accuse = d && recu && documentsEmailRecu(email).length
+      ? `<button type="button" class="icon-btn email-barre-action" onclick="fermerEmailComplet(); confirmerReceptionEmail('${d.id}', '${escapeOnclickArg(email.id)}')" title="${prep ? 'Renvoyer la confirmation de réception' : 'Confirmer la réception des documents'}">${icone('check')}<span>${prep ? 'Reconfirmer' : 'Confirmer la réception'}</span></button>` : '';
+    const message = (texte, a) => `
+      <div class="email-message">
+        <span class="email-avatar${recu ? '' : ' email-avatar-office'}" aria-hidden="true">${escapeHtml(initialesPersonne(nom))}</span>
+        <div class="email-message-corps">
+          <div class="email-message-tete"><span class="email-message-nom">${escapeHtml(nom)}</span><span class="email-message-date">${escapeHtml(dateHeureAppel(Date.parse(email.date)))}</span></div>
+          <div class="email-lecture-meta">${recu ? escapeHtml(email.de.adresse) : ''}${(a || email.a || []).length ? `${recu ? ' · ' : ''}À ${escapeHtml((a || email.a).join(', '))}` : ''}</div>
+          ${texte}
+          ${pjs}
+        </div>
+      </div>`;
+    zone.innerHTML = `
+      <div class="email-lecture-barre">
+        <button type="button" class="icon-btn" onclick="fermerEmailComplet()" aria-label="Fermer">${icone('chevron-left')}</button>
+        ${accuse}
+        <span class="email-lecture-barre-espace"></span>
+        ${d ? `<span class="redaction-dossier">${escapeHtml(libelleDossierAffiche(d))}</span>` : ''}
+      </div>
+      <div class="email-lecture-titre-ligne"><div class="poste-titre" id="email-lecture-titre">${escapeHtml(email.objet || '(sans objet)')}</div>${pastille}</div>
+      <div class="email-lecture-fil">${message('<p class="hint">Lecture de l’email dans la messagerie…</p>', null)}</div>
+      <div id="email-reponse-zone"></div>`;
     overlay.style.display = 'flex';
+    const zoneReponse = document.getElementById('email-reponse-zone');
+    if (d && recu && email.de && email.de.adresse && zoneReponse) {
+      zoneReponse.dataset.dossier = d.id; zoneReponse.dataset.email = email.id; zoneReponse.dataset.nom = email.de.nom || email.de.adresse;
+      renderInviteReponse();
+    }
+    const fil = zone.querySelector('.email-lecture-fil');
     try {
       const r = await fetchAvecAuth('/api/emails-dossiers/contenu?emailId=' + encodeURIComponent(emailId));
       const corps = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(corps.erreur || 'statut ' + r.status);
-      const accuse = d && email.sens === 'recu' && documentsEmailRecu(email).length
-        ? `<button type="button" class="${prep ? 'secondary' : 'primary'}" onclick="fermerEmailComplet(); confirmerReceptionEmail('${d.id}', '${escapeOnclickArg(email.id)}')">${icone('mail')}${prep ? 'Renvoyer la confirmation' : 'Confirmer la réception'}</button>` : '';
-      zone.innerHTML = entete(corps) + (etatAccuse ? `<div>${etatAccuse}</div>` : '') + pjs
-        + `<div class="email-lecture-texte">${escapeHtml(String(corps.texte || '').replace(/\r\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim() || '(email sans texte)')}</div>`;
-      const actions = document.getElementById('email-lecture-actions');
-      if (actions) actions.innerHTML = accuse;
+      if (fil) fil.innerHTML = message(`<div class="email-lecture-texte">${escapeHtml(String(corps.texte || '').replace(/\r\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim() || '(email sans texte)')}</div>`, corps.a);
     } catch (e) {
-      zone.innerHTML = entete(null) + pjs + `<p class="hint">Email illisible : ${escapeHtml(e.message)}</p>`;
+      if (fil) fil.innerHTML = message(`<p class="hint">Email illisible : ${escapeHtml(e.message)}</p>`, null);
     }
   }
   // La fenêtre de lecture ouverte sur cet email : ses pièces jointes redessinées (après un rangement).
@@ -30091,6 +30457,7 @@
   }
 
   function fermerEmailComplet() {
+    if (redaction && redaction.mode === 'reponse') fermerRedaction({ ok: false, annule: true });
     const overlay = document.getElementById('email-lecture-overlay');
     if (overlay) overlay.style.display = 'none';
     const zone = document.getElementById('email-lecture-contenu');
@@ -35076,9 +35443,9 @@
     const subject = `Relance — Offre de prêt attendue — ${libelleDossierAffiche(d)}`;
     const body = corpsRelanceOffreManquante(d.nom, d.pret, jours);
     livrerEmailDossier({ destinataire, sujet: subject, corps: body, confrere: notaireParticipantRepresenteAcquereur(d), responsableSignature: d.responsable, dossierId: d.id, geste: 'relancePret' })
-      .then(r => afficherToast(r.ok
-        ? `Relance « offre de prêt » prête pour ${d.nom} — ${r.mode === 'eml' ? 'ouvrez le fichier téléchargé' : 'vérifiez'} puis envoyez.`
-        : `Relance « offre de prêt » de ${libelleDossierAffiche(d)} non préparée.`, 'OK', null));
+      .then(r => { if (!r.annule) afficherToast(r.ok
+        ? (r.mode === 'envoye' ? `Relance « offre de prêt » envoyée pour ${libelleDossierAffiche(d)}.` : `Relance « offre de prêt » prête pour ${d.nom} — ${r.mode === 'eml' ? 'ouvrez le fichier téléchargé' : 'vérifiez'} puis envoyez.`)
+        : `Relance « offre de prêt » de ${libelleDossierAffiche(d)} non préparée.`, 'OK', null); });
   }
 
   // Statut de l'offre de prêt à afficher, dans le même vocabulaire court partout où il apparaît
@@ -41641,9 +42008,9 @@
           : 'Madame, Monsieur,\n\nVeuillez trouver ci-joint le courrier de convocation et d’appel de fonds relatif à votre acquisition.',
         pieces: [{ nom, type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', contenuBase64 }]
       });
-      if (!r.ok) { afficherToast(r.message || "L'email n'a pas pu être préparé.", 'OK', null); return; }
+      if (!r.ok) { if (!r.annule) afficherToast(r.message || "L'email n'a pas pu être préparé.", 'OK', null); return; }
       if (r.mode === 'mailto') telechargerFichier(blob, nom);
-      ajouterHistorique(d, 'Email du courrier d’appel de fonds préparé');
+      ajouterHistorique(d, r.mode === 'envoye' ? 'Email du courrier d’appel de fonds envoyé' : 'Email du courrier d’appel de fonds préparé');
       sauvegarder(d);
       annoncerEmailPret(r, false, r.mode === 'mailto' ? 'Joignez le courrier, qui vient d’être téléchargé.' : '');
     } catch (e) {

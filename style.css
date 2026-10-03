@@ -8498,10 +8498,81 @@ select.email-pj-ranger { font-size: 12.5px; padding: 3px 6px; max-width: 220px; 
 @media (max-width: 600px) { .noms-reconnus li { grid-template-columns: 1fr; } }
 
 /* Email lu en entier (ouvrirEmailComplet) */
-.confirm-box.email-lecture-box { max-width: none; width: min(760px, calc(100vw - 32px)); max-height: calc(100vh - 48px); display: flex; flex-direction: column; }
-#email-lecture-contenu { display: flex; flex-direction: column; gap: 10px; min-height: 0; overflow: hidden; flex: 1; }
-.email-lecture-meta { font-size: 13px; color: var(--muted); line-height: 1.5; overflow-wrap: anywhere; }
-.email-lecture-texte { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 14px; line-height: 1.55; color: var(--ink); background: var(--paper-sunk); border-radius: 8px; padding: 12px 14px; overflow-y: auto; min-height: 120px; flex: 1; }
+.confirm-box.email-lecture-box { max-width: none; width: min(760px, calc(100vw - 32px)); height: min(820px, calc(100vh - 48px)); display: flex; flex-direction: column; padding: 0; overflow: hidden; }
+#email-lecture-contenu, #email-redaction-contenu { display: flex; flex-direction: column; min-height: 0; overflow: hidden; flex: 1; }
+.email-lecture-meta { font-size: 12.5px; color: var(--muted); line-height: 1.5; overflow-wrap: anywhere; }
+.email-lecture-texte { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 14.5px; line-height: 1.6; color: var(--ink); margin-top: 10px; }
+
+/* Fenêtre de lecture et de rédaction (étude 03/10 : à la manière d'une boîte de réception moderne) */
+.email-lecture-barre, .redaction-tete { display: flex; align-items: center; gap: 6px; padding: 10px 14px; border-bottom: 1px solid var(--line-soft); flex-shrink: 0; }
+.email-lecture-barre-espace { flex: 1; }
+.email-lecture-barre .icon-btn, .redaction-tete .icon-btn, .redaction-pied .icon-btn, .redaction-piece .icon-btn { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; padding: 0; border-radius: 8px; color: var(--ink-soft); text-decoration: none; }
+.email-lecture-barre .icon-btn:hover, .redaction-tete .icon-btn:hover, .redaction-pied .icon-btn:hover, .redaction-piece .icon-btn:hover { background: var(--paper-sunk); color: var(--ink); }
+.email-lecture-barre .icon-btn:focus-visible, .redaction-tete .icon-btn:focus-visible, .redaction-pied .icon-btn:focus-visible, .redaction-piece .icon-btn:focus-visible, label.icon-btn.redaction-joindre:focus-within { outline: 2px solid var(--focus); outline-offset: 1px; }
+.email-lecture-barre .icon-btn svg, .redaction-tete .icon-btn svg, .redaction-pied .icon-btn svg { width: 17px; height: 17px; }
+button.icon-btn.email-barre-action { width: auto; gap: 6px; padding: 0 10px; font-size: 13px; color: var(--ink-soft); }
+.redaction-dossier { font-size: 12px; font-weight: 600; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 45%; }
+.email-lecture-titre-ligne { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding: 16px 22px 4px; flex-shrink: 0; }
+.email-lecture-titre-ligne .poste-titre { font-size: 19px; text-wrap: balance; overflow-wrap: anywhere; }
+.redaction-tete .redaction-titre { flex: 1; min-width: 0; font-size: 16px; font-weight: 600; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.email-etat { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 8px; font-size: 13px; font-weight: 600; background: var(--success-bg); color: var(--success); }
+.email-etat.email-etat-petit { padding: 1px 7px; font-size: 11.5px; border-radius: 6px; }
+.email-etat.email-etat-fait { background: var(--paper-sunk); color: var(--muted); }
+.email-lecture-fil { flex: 1; min-height: 0; overflow-y: auto; padding: 12px 22px 16px; }
+.email-message { display: grid; grid-template-columns: 38px minmax(0, 1fr); gap: 12px; align-items: start; }
+.email-avatar { display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px; border-radius: 50%; background: var(--acte-bg); color: var(--acte); font-size: 13px; font-weight: 700; letter-spacing: .02em; }
+.email-avatar.email-avatar-office { background: var(--paper-sunk); color: var(--ink-soft); }
+.email-message-tete { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; }
+.email-message-nom { font-weight: 700; color: var(--ink); }
+.email-message-date { font-size: 13px; color: var(--muted); }
+.email-message .email-lecture-pjs { margin-top: 12px; }
+#email-reponse-zone { flex-shrink: 0; padding: 0 14px 14px; }
+#email-reponse-zone:empty { display: none; }
+#email-redaction-contenu .hint { margin: 10px 18px 0; }
+#email-redaction-contenu .redaction-carte { margin: 14px; flex: 1; min-height: 0; }
+button.redaction-invite { display: flex; align-items: center; gap: 8px; width: 100%; padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--paper-card); color: var(--muted); font: inherit; font-size: 14px; text-align: left; cursor: text; box-shadow: var(--shadow-card); }
+button.redaction-invite:hover { border-color: var(--focus); color: var(--ink); }
+button.redaction-invite:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.redaction-carte { display: flex; flex-direction: column; gap: 2px; border: 1px solid var(--line); border-radius: 14px; background: var(--paper-card); box-shadow: var(--shadow-float); padding: 10px 14px 10px; min-width: 0; }
+.redaction-ligne { display: flex; align-items: center; gap: 8px; min-height: 32px; border-bottom: 1px solid var(--line-soft); }
+.redaction-ligne > * { min-width: 0; }
+.redaction-de { font-size: 13.5px; color: var(--ink-soft); }
+.redaction-de > span:nth-child(2) { flex: 1; }
+.redaction-etiquette { flex-shrink: 0; width: 42px; font-size: 13px; color: var(--muted); }
+input[type="text"].redaction-champ { flex: 1; border: 0; background: transparent; padding: 6px 0; font: inherit; font-size: 14px; color: var(--ink); box-shadow: none; }
+input[type="text"].redaction-champ:focus { outline: none; }
+.redaction-ligne:focus-within { border-bottom-color: var(--focus); }
+.redaction-pastille { display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0; padding: 3px 10px; border: 0; border-radius: 8px; background: var(--success-bg); color: var(--success); font: inherit; font-size: 13px; font-weight: 600; white-space: nowrap; }
+button.redaction-pastille { cursor: pointer; }
+button.redaction-pastille:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.redaction-pastille svg { width: 14px; height: 14px; }
+.redaction-pastille.redaction-pastille-attente { background: var(--paper-sunk); color: var(--muted); }
+.redaction-pastille.redaction-pastille-erreur { background: var(--paper-sunk); color: var(--muted); font-weight: 500; }
+textarea.redaction-texte { flex: 1; width: 100%; min-height: 110px; margin-top: 8px; border: 0; padding: 4px 0; resize: none; background: transparent; font: inherit; font-size: 14.5px; line-height: 1.6; color: var(--ink); box-shadow: none; }
+textarea.redaction-texte:focus { outline: none; }
+.redaction-pieces { display: flex; flex-wrap: wrap; gap: 6px; padding: 6px 0 2px; }
+.redaction-piece { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; padding: 3px 4px 3px 10px; border: 1px solid var(--line); border-radius: 8px; font-size: 12.5px; color: var(--ink); background: var(--paper-sunk); }
+.redaction-piece svg { width: 14px; height: 14px; flex-shrink: 0; color: var(--muted); }
+.redaction-piece-nom { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.redaction-piece-taille { color: var(--muted); white-space: nowrap; }
+.redaction-piece button.icon-btn { width: 24px; height: 24px; }
+.redaction-erreur { margin: 6px 0 0; font-size: 13px; color: var(--urgent); }
+.redaction-cite { margin: 10px 18px 0; }
+.redaction-pied { display: flex; align-items: center; gap: 4px; padding-top: 8px; }
+.redaction-pied-espace { flex: 1; min-width: 0; font-size: 12px; line-height: 1.35; color: var(--muted); text-align: right; padding-right: 6px; }
+label.icon-btn.redaction-joindre { cursor: pointer; }
+.redaction-pied button.primary.redaction-envoyer { display: inline-flex; align-items: center; gap: 8px; padding: 9px 18px; border-radius: 10px; }
+.redaction-pied button.primary.redaction-envoyer:disabled { opacity: .45; cursor: not-allowed; }
+.redaction-pied button.primary.redaction-envoyer svg { width: 15px; height: 15px; }
+.redaction-pied button.lien-discret { margin-right: 6px; white-space: nowrap; }
+@media (max-width: 600px) {
+  .confirm-box.email-lecture-box { width: 100vw; height: 100dvh; max-height: none; border-radius: 0; }
+  .email-lecture-titre-ligne { padding: 12px 16px 2px; }
+  .email-lecture-fil { padding: 10px 16px 14px; }
+  .email-message { grid-template-columns: 32px minmax(0, 1fr); gap: 10px; }
+  .email-avatar { width: 32px; height: 32px; font-size: 12px; }
+  .redaction-pied button.lien-discret { display: none; }
+}
 
 /* Onglet Échanges › Emails : une ligne par email, comme une boîte de réception (renderEmailsDossier) */
 .emails-tete { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 12px; }

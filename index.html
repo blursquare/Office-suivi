@@ -2293,10 +2293,12 @@
 <div class="confirm-overlay" id="email-lecture-overlay" style="display:none;" onclick="if (clicSurFond(event)) fermerEmailComplet()">
   <div class="confirm-box email-lecture-box" role="dialog" aria-modal="true" aria-labelledby="email-lecture-titre" onclick="event.stopPropagation()">
     <div id="email-lecture-contenu"></div>
-    <div class="confirm-actions">
-      <span id="email-lecture-actions"></span>
-      <button type="button" class="btn-annuler" onclick="fermerEmailComplet()">Fermer</button>
-    </div>
+  </div>
+</div>
+
+<div class="confirm-overlay" id="email-redaction-overlay" style="display:none;" onclick="if (clicSurFond(event)) abandonnerRedaction()">
+  <div class="confirm-box email-lecture-box email-redaction-box" role="dialog" aria-modal="true" aria-labelledby="email-redaction-titre" onclick="event.stopPropagation()">
+    <div id="email-redaction-contenu"></div>
   </div>
 </div>
 

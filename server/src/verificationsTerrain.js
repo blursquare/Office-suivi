@@ -20,6 +20,14 @@ const CLE_VERIFICATIONS = 'verifications-terrain';
 // `source` : 'serveur' (noté par le serveur), 'poste' (noté par une fenêtre CLAIRE, POST
 // /api/verifications-terrain/noter — seuls ces points-là y sont acceptés) ou 'manuel'.
 const VERIFICATIONS_TERRAIN = [
+  { id: 'email-envoye-exchange', depuis: '2026-10-03 20:27', source: 'serveur', titre: 'Email envoyé depuis CLAIRE par Exchange (brouillon puis envoi)',
+    comment: 'Coché au premier email envoyé depuis la fenêtre d’email de CLAIRE ; en échec si Exchange refuse (code relevé, jamais le texte).' },
+  { id: 'email-reponse-exchange', depuis: '2026-10-03 20:27', source: 'serveur', titre: 'Réponse à un email reçu envoyée depuis CLAIRE (fil de la conversation gardé)',
+    comment: 'Coché à la première réponse envoyée depuis la lecture d’un email du dossier.' },
+  { id: 'email-envoye-en-tant-que', depuis: '2026-10-03 20:27', source: 'serveur', titre: 'Email parti de la boîte du collaborateur (« Envoyer en tant que »)',
+    comment: 'Coché quand Exchange accepte d’envoyer depuis la boîte du collaborateur ; en échec tant que le droit « Envoyer en tant que » n’est pas donné au compte relié (l’email part alors du compte relié).' },
+  { id: 'email-proposition-ia', depuis: '2026-10-03 20:27', source: 'serveur', titre: 'Premier jet de réponse proposé par l’IA locale',
+    comment: 'Coché à la première proposition de réponse rendue par Ollama ; en échec si l’IA locale est indisponible.' },
   { id: 'fausses-minutes', depuis: '2026-10-03 20:00', source: 'poste', titre: 'Dossier « Fausses minutes » trouvé et lu (envoi de la copie de l’acte au client)',
     comment: 'Coché la première fois que la fenêtre « Envoyer la copie de l’acte / l’attestation de vente » lit le dossier des fausses minutes ; en échec s’il est introuvable (renseigner alors « nasFaussesMinutes » dans config.json).' },
   { id: 'authentic-creer-dossier', depuis: '2026-10-03 18:05', source: 'poste', titre: 'Authentic : « Créer » proposé sur une page de vente sans dossier, « Nouveau dossier » ouvert pré-rempli',

@@ -10,6 +10,7 @@ const {
   lireEtat, ecrireEtat, assainirPrepare, executerTourEmailsDossiers, lirePieceJointe, lireEmailComplet, boitesEnvoyes
 } = require('../emailsDossiers');
 const { copierDansDossierClient, extensionPieceJointe } = require('../scans');
+const { envoyerEmailExchange, promptPropositionReponse, validerProposition } = require('../envoiEmailsExchange');
 
 function routeAsync(fn) {
   return (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
@@ -145,6 +146,56 @@ function creerRouteurEmailsDossiers(parametresRepo, depot, options = {}) {
     ecrireEtat(parametresRepo, etat);
     res.json({ ok: true });
   });
+
+  // Envoyer un email depuis la fenêtre d'email de CLAIRE (étude 03/10 : « envoyé depuis CLAIRE », « boîte de
+  // chacun »). Rien ne part sans le clic du poste ; le texte n'est ni gardé ni journalisé. L'envoi est noté comme
+  // un email préparé déjà envoyé (« envoyé le … »), relié ensuite à l'email relu dans les Éléments envoyés.
+  routeur.post('/emails/envoyer', routeAsync(async (req, res) => {
+    const b = req.body || {};
+    const etat = lireEtat(parametresRepo);
+    let reponseA = null;
+    if (b.reponseA && b.reponseA.emailId) {
+      const origine = etat.emails.find((e) => e.id === String(b.reponseA.emailId));
+      if (!origine || !origine.itemId || origine.sens !== 'recu') { res.status(404).json({ ok: false, message: 'Email d’origine inconnu : relisez les emails du dossier.' }); return; }
+      reponseA = { itemId: origine.itemId, tous: b.reponseA.tous === true };
+    }
+    const r = await envoyerEmailExchange(parametresRepo, {
+      collaborateur: b.collaborateur, a: b.a, cc: b.cc, sujet: b.sujet, html: b.html, pieces: b.pieces, images: b.images, reponseA
+    }, injections);
+    if (!r.ok) { res.status(r.statut || 502).json({ ok: false, message: r.message, brouillonLaisse: !!r.brouillonLaisse }); return; }
+    const apres = lireEtat(parametresRepo);
+    const prepare = assainirPrepare({
+      id: crypto.randomUUID(), dossierId: String(b.dossierId || ''), objet: String(b.sujet || ''), destinataires: r.destinataires,
+      collaborateur: String(b.collaborateur || ''), geste: String(b.geste || ''), prepareLe: r.envoyeLe, envoyeLe: r.envoyeLe, boite: r.de, emailId: null
+    });
+    if (prepare && prepare.objet && prepare.dossierId) { apres.prepares.push(prepare); ecrireEtat(parametresRepo, apres); }
+    res.json({ ok: true, envoyeLe: r.envoyeLe, de: r.de, repli: r.repli });
+  }));
+
+  // Premier jet de réponse à un email reçu par l'IA locale (étude 03/10 : « Auto-draft »). Jamais envoyé seul,
+  // jamais gardé : l'email est relu dans Exchange, la proposition rendue au poste, le texte jeté.
+  routeur.post('/emails-dossiers/proposition', routeAsync(async (req, res) => {
+    const b = req.body || {};
+    const lu = await lireEmailComplet(parametresRepo, String(b.emailId || ''), injections);
+    if (lu.erreur) { res.status(lu.statut || 400).json({ erreur: lu.erreur }); return; }
+    const ollama = injections.ollama || require('../llm').creerClientOllama(config);
+    let dispo;
+    try { dispo = await ollama.verifierDisponibilite(); } catch (_) { dispo = { disponible: false }; }
+    if (!dispo.disponible) { noterVerification(parametresRepo, 'email-proposition-ia', { ok: false, message: 'IA locale indisponible' }); res.status(503).json({ erreur: 'IA locale indisponible.' }); return; }
+    const email = lireEtat(parametresRepo).emails.find((e) => e.id === String(b.emailId || ''));
+    try {
+      const o = await ollama.genererJson(promptPropositionReponse({
+        objet: lu.objet, deNom: (lu.de && (lu.de.nom || lu.de.adresse)) || '', texte: lu.texte,
+        dossier: String(b.dossier || '').slice(0, 120), confrere: b.confrere === true, pj: email ? email.pj.map((p) => p.nom) : []
+      }), validerProposition);
+      noterVerification(parametresRepo, 'email-proposition-ia', {});
+      res.setHeader('Cache-Control', 'no-store');
+      res.json({ reponse: String(o.reponse).trim().slice(0, 4000) });
+    } catch (_) {
+      noterVerification(parametresRepo, 'email-proposition-ia', { ok: false, message: 'réponse de l’IA illisible' });
+      res.status(502).json({ erreur: 'L’IA locale n’a pas pu proposer de réponse.' });
+    }
+  }));
 
   return routeur;
 }
