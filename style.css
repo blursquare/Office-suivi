@@ -8589,3 +8589,15 @@ button.email-rang-btn:focus-visible { outline: 2px solid var(--focus); outline-o
 @media (max-width: 800px) {
   .noms-nas-groupe { flex-direction: column; gap: 8px; }
 }
+
+/* Copie de l'acte / attestation de vente (dossiers en participation, étude 03/10). */
+.copie-acte-box { max-width: 600px; }
+.copie-acte-titre { display: flex; align-items: center; gap: 6px; font-weight: 600; margin: 0 0 2px; }
+.copie-acte-liste { display: flex; flex-direction: column; gap: 4px; max-height: 320px; overflow-y: auto; margin: 8px 0; }
+label.copie-acte-fichier { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; grid-template-rows: auto auto; column-gap: 10px; align-items: center; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; cursor: pointer; }
+label.copie-acte-fichier:hover { border-color: var(--focus); }
+label.copie-acte-fichier input { grid-row: 1 / span 2; }
+label.copie-acte-fichier button.icon-btn { grid-column: 3; grid-row: 1 / span 2; }
+.copie-acte-nom { font-size: 13px; font-weight: 600; overflow-wrap: anywhere; }
+.copie-acte-meta { grid-column: 2; font-size: 12px; color: var(--muted); }
+.copie-acte-total { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 4px 0 0; font-size: 13px; }

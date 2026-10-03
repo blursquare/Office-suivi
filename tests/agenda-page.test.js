@@ -133,7 +133,7 @@ test('creneauxProposesSignature : date butoir proche → au plus tôt dans 3 jou
   assert.equal(c[1].apresButoir, true);
 });
 
-test('gestesRelationClient : rappel, confirmation, questionnaire, un an après — jamais au client d’un confrère', () => {
+test('gestesRelationClient : confirmation, questionnaire, un an après — plus de rappel à part, jamais au client d’un confrère', () => {
   const liste = [
     { id: 'rappel', rendezVousSignature: '2026-10-03' },
     { id: 'confirme', rendezVousSignature: '2026-10-20' },
@@ -149,7 +149,7 @@ test('gestesRelationClient : rappel, confirmation, questionnaire, un an après �
   ];
   const g = app.gestesRelationClient(liste, '2026-10-01');
   assert.equal(g.map(x => `${x.type}:${x.d.id}`).join(' | '),
-    'rappelRdv:rappel | confirmationRdv:confirme | confirmationRdv:deplace | questionnaire:signe | anniversaire:unAn');
+    'confirmationRdv:rappel | confirmationRdv:confirme | confirmationRdv:deplace | questionnaire:signe | anniversaire:unAn');
 });
 
 test('emails de relation client : date et heure en gras, lieu selon le type, formule du confrère', () => {
@@ -157,7 +157,7 @@ test('emails de relation client : date et heure en gras, lieu selon le type, for
   const c = app.construireEmailConfirmationRdv(d);
   assert.match(c.sujet, /Confirmation du rendez-vous de signature — VTE - DURAND \/ MARTIN/);
   assert.match(app.texteSansMarques(c.corps), /le jeudi 15 octobre 2026 à 10h, en visioconférence/);
-  assert.match(app.construireEmailRappelRdv(d).corps, /Nous vous rappelons/);
+  assert.equal(typeof app.construireEmailRappelRdv, 'undefined', 'le rappel à part est retiré (étude, 03/10)');
   const auConfrere = app.construireEmailConfirmationRdv(Object.assign({}, d, { notaireAcquereur: 'Maître DUPUIS', rendezVousType: 'confrere' }));
   assert.match(auConfrere.corps, /Je vous confirme .* en votre office/);
 });

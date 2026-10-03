@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-03 19:16';
+  const VERSION_APP = '2026-10-03 20:00';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-03 20:00', resume: "Relation client : « Rappeler le rendez-vous » retiré. Fonds pas arrivés 3 jours avant la signature → « Relancer pour les fonds » (À faire et onglet Échanges, email au client, premier jet de CLAIRE). La confirmation de réception des fonds vaut confirmation du rendez-vous. Nouveau dossier : les champs non trouvés dans le compromis restent affichés (« À compléter »), nouveau champ « Honoraires d'agence TTC » lu dans le compromis. Dossiers en participation, acte signé : « Envoyer la copie de l'acte / l'attestation de vente » au client, fichiers lus dans le dossier « Fausses minutes » du commun — en pièce jointe jusqu'à 21 Mo, au-delà WeTransfer s'ouvre et l'email attend le lien." },
     { version: '2026-10-03 19:16', resume: "Réglages : les titres de catégorie du menu (L'étude, Connexions, Dossiers et actes, Maintenance) en noir au lieu de gris." },
     { version: '2026-10-03 19:13', resume: "Noms de fichiers du NAS : le classement des noms par forme se fait par tranches avec un pourcentage affiché — un commun de plusieurs dizaines de milliers de PDF ne fige plus la fenêtre pendant le calcul (essayé sur 21 000 PDF dans 100 dossiers : parcours 2 s, classement 0,5 s)." },
     { version: '2026-10-03 18:53', resume: "Nouveau dossier : les étapes 1 · 2 · 3 occupent toute la largeur de la carte (la première à gauche, la dernière à droite, les traits de liaison entre les deux)." },
@@ -1042,6 +1043,48 @@
     };
   }
 
+  // ---- Honoraires d'agence TTC (étude, 03/10 : « détecter les honoraires d'agence TTC dans le compromis ») --
+  // Un champ du formulaire, distinct de la lecture « négociée par … » ci-dessus (qui dit QUI et à la charge de
+  // qui) : le montant TTC seul, EXPLICITEMENT TTC (« TVA incluse », « TTC ») — un montant sans mention ou
+  // hors taxes n'est jamais présenté comme TTC. Deux voies : la clause de négociation déjà lue, puis les
+  // intitulés « honoraires / commission / rémunération / frais … d'agence, de négociation, de l'intermédiaire,
+  // du mandataire ». Jamais les « honoraires de promesse de vente » (ceux du notaire) : l'intitulé doit
+  // nommer l'agence, la négociation, l'intermédiaire ou le mandataire. « Néant » ne donne rien.
+  var RE_INTITULE_HONORAIRES_AGENCE = /(?:honoraires?|commission|r[ée]mun[ée]ration|frais)\s+(?:de\s+n[ée]gociation|d['’]agence|de\s+l['’]agence|d['’]entremise|de\s+l['’]interm[ée]diaire|d['’]interm[ée]diaire|du\s+mandataire|de\s+mandataire)/gi;
+  var FENETRE_HONORAIRES_AGENCE = 260;
+
+  function montantTTCExpliciteDansFenetre(fenetre) {
+    const re = new RegExp(RE_MONTANT_TTC.source, 'gi');
+    let m;
+    while ((m = re.exec(fenetre)) !== null) {
+      const n = montantDepuisTexteFr(m[1]);
+      if (!(n > 0)) continue;
+      const autour = fenetre.slice(Math.max(0, m.index - 80), m.index + m[0].length + 60);
+      if (/TVA\s+incluse|\bTTC\b|toutes\s+taxes\s+comprises|taxes?\s+incluses?/i.test(autour) && !/\bHT\b|hors\s+taxes?/i.test(autour.slice(80))) return n;
+    }
+    return null;
+  }
+
+  // Pure : { valeur (euros TTC), index } ou null.
+  function detecterHonorairesAgenceTTC(texte) {
+    const t = String(texte || '').replace(/\s+/g, ' ');
+    const neg = detecterHonorairesNegociation(t, null);
+    if (neg && neg.montantTTC && neg.source) {
+      const n = montantTTCExpliciteDansFenetre(t.slice(neg.source.index, neg.source.index + FENETRE_HONORAIRES));
+      if (n) return { valeur: n, index: neg.source.index };
+    }
+    const re = new RegExp(RE_INTITULE_HONORAIRES_AGENCE.source, 'gi');
+    let m;
+    while ((m = re.exec(t)) !== null) {
+      const fenetre = t.slice(m.index, m.index + FENETRE_HONORAIRES_AGENCE);
+      const phrase = fenetre.split(/(?<=[.;])\s+(?=[A-ZÀ-Ý])/)[0];
+      if (/n[ée]ant|\baucun(?:s|e|es)?\b/i.test(phrase.slice(0, 120))) continue;
+      const n = montantTTCExpliciteDansFenetre(fenetre);
+      if (n) return { valeur: n, index: m.index };
+    }
+    return null;
+  }
+
   // ---- Fonds de travaux « loi ALUR » : remboursé ou non par l'acquéreur (29/09) ------------------
   // Structure réelle : « FONDS TRAVAUX LOI ALUR Le PROMETTANT déclare qu'un fonds travaux « Loi ALUR »
   // a été versé au syndic ainsi qu'il résulte du pré état-daté susvisé. Le BENEFICIAIRE remboursera
@@ -1081,6 +1124,17 @@
       montantTTC: montant > 0 ? Math.round(montant * 100) / 100 : null,
       charge: h.charge === 'ACQUEREUR' || h.charge === 'VENDEUR' ? h.charge : null
     };
+  }
+  // Pure : les honoraires de négociation du dossier d'après le champ « Honoraires d'agence TTC » du formulaire
+  // (étude, 03/10) — le champ fait foi pour le MONTANT : vidé, le montant lu s'efface ; rempli sans clause lue,
+  // une agence est créée (à la charge de personne tant que l'étude ne l'a pas dit : aucune ligne d'appel de
+  // fonds n'est ajoutée sans qui paie). « Négociation directe » n'est remplacée que par un montant saisi.
+  function honorairesAvecMontantFormulaire(honoraires, montant, nomAgence) {
+    const m = Number(montant);
+    const h = honoraires && typeof honoraires === 'object' ? honoraires : null;
+    if (!(m > 0)) return h && !h.direct ? honorairesPersistables(Object.assign({}, h, { montantTTC: null })) : h;
+    const base = h && !h.direct ? h : { negociateur: 'agence', nom: '', charge: null };
+    return honorairesPersistables(Object.assign({}, base, { montantTTC: m, nom: base.nom || nomAgence || '' }));
   }
   function fondsTravauxPersistable(f) {
     if (!f || typeof f !== 'object' || typeof f.rembourse !== 'boolean') return null;
@@ -3830,6 +3884,11 @@
   function champAvecSource(texte, cle, valeur) {
     return champExtraction(valeur, { source: sourcePourValeur(texte, cle, valeur) });
   }
+  // Honoraires d'agence TTC : lus dans la clause (detecterHonorairesAgenceTTC), source retrouvée comme les autres montants.
+  function honorairesAgenceChamp(texte) {
+    const h = detecterHonorairesAgenceTTC(texte);
+    return h ? champAvecSource(texte, 'honorairesAgence', h.valeur) : champExtraction(null);
+  }
 
   // Rassemble tout ce que les regex savent extraire en UN objet, avec pour chaque donnée son
   // statut, sa provenance et sa source dans le PDF. C'est ce même objet que la passe IA viendra
@@ -3865,6 +3924,7 @@
         emailAcquereur: champAvecSource(source, 'emailAcquereur', detecterEmailAcquereur(source, typeActe.valeur)),
         emailVendeur: champAvecSource(source, 'emailVendeur', detecterEmailVendeur(source, typeActe.valeur)),
         nomAgence: champAvecSource(source, 'nomAgence', detecterNomAgence(source)),
+        honorairesAgence: honorairesAgenceChamp(source),
         depotGarantie: champAvecSource(source, 'depotGarantie', detecterDepotGarantie(source)),
         sequestreDepot: champAvecSource(source, 'sequestreDepot', detecterSequestreDepot(source)),
         typeVente: champExtraction(detecterTypeVenteCopropriete(source) ? 'copropriete' : null)
@@ -7372,6 +7432,7 @@
       emailAcquereur: (champs.emailAcquereur && champs.emailAcquereur.valeur) || null,
       emailVendeur: (champs.emailVendeur && champs.emailVendeur.valeur) || null,
       nomAgence: (champs.nomAgence && champs.nomAgence.valeur) || null,
+      honorairesAgence: (champs.honorairesAgence && champs.honorairesAgence.valeur) || null,
       depotGarantie: (champs.depotGarantie && champs.depotGarantie.valeur) || null,
       sequestreDepot: (champs.sequestreDepot && champs.sequestreDepot.valeur) || null,
       adresseBien: adresse ? (adresse.adresseComplete || null) : null,
@@ -7415,7 +7476,7 @@
     nom: 'Nom du dossier', adresseBien: 'Adresse du bien', prixVente: 'Prix de vente', prixMobilier: 'Mobilier compris dans le prix',
     emailAcquereur: 'Email de l’acquéreur', emailVendeur: 'Email du vendeur', roleNotaire: 'Rôle de l’étude',
     pret: 'Obtention du prêt', acte: 'Réitération de l’acte', ventebien: 'Vente préalable',
-    nomAgence: 'Agence immobilière', depotGarantie: 'Dépôt de garantie', sequestreDepot: 'Dépôt versé à',
+    nomAgence: 'Agence immobilière', honorairesAgence: 'Honoraires d’agence TTC', depotGarantie: 'Dépôt de garantie', sequestreDepot: 'Dépôt versé à',
     notaireVendeur: 'Notaire du vendeur', notaireAcquereur: 'Notaire de l’acquéreur'
   };
 
@@ -7591,7 +7652,7 @@
     if (cle === 'nom') {
       return brut.split('/').map(p => p.split('&')[0].trim()).filter(p => p.length >= 3);
     }
-    if (cle === 'prixVente' || cle === 'depotGarantie' || cle === 'prixMobilier') {
+    if (cle === 'prixVente' || cle === 'depotGarantie' || cle === 'prixMobilier' || cle === 'honorairesAgence') {
       const n = Number(brut);
       if (!Number.isFinite(n)) return [brut];
       return [
@@ -8624,6 +8685,7 @@
     if (champs.emailAcquereur) appliquerEmailsChamp('f-email-acquereur', champs.emailAcquereur.valeur);
     if (champs.emailVendeur) appliquerEmailsChamp('f-email-vendeur', champs.emailVendeur.valeur);
     if (champs.nomAgence) appliquerValeurChamp('f-nom-agence', champs.nomAgence.valeur);
+    if (champs.honorairesAgence) appliquerValeurChamp('f-honoraires-agence', champs.honorairesAgence.valeur);
     if (champs.depotGarantie) appliquerValeurChamp('f-depot-garantie', champs.depotGarantie.valeur);
     if (champs.sequestreDepot) appliquerValeurChamp('f-sequestre-depot', champs.sequestreDepot.valeur);
     const adresse = extraction.bien && extraction.bien.adresse;
@@ -8851,6 +8913,7 @@
     { cle: 'emailAcquereur', libelle: 'Email de l’acquéreur', type: 'texte', champId: 'f-email-acquereur' },
     { cle: 'emailVendeur', libelle: 'Email du vendeur', type: 'texte', champId: 'f-email-vendeur' },
     { cle: 'nomAgence', libelle: 'Agence immobilière', type: 'texte', champId: 'f-nom-agence' },
+    { cle: 'honorairesAgence', libelle: 'Honoraires d’agence TTC', type: 'nombre', champId: 'f-honoraires-agence' },
     { cle: 'depotGarantie', libelle: 'Dépôt de garantie / acompte', type: 'nombre', champId: 'f-depot-garantie' },
     { cle: 'sequestreDepot', libelle: 'Dépôt versé à', type: 'texte', champId: 'f-sequestre-depot' },
     { cle: 'notaireVendeur', libelle: 'Notaire du vendeur', type: 'texte', champId: 'f-notaire-vendeur', formulaire: true, liste: 'f-notaires-liste' },
@@ -8920,6 +8983,7 @@
     if (cle === 'emailAcquereur') return champs.emailAcquereur || null;
     if (cle === 'emailVendeur') return champs.emailVendeur || null;
     if (cle === 'nomAgence') return champs.nomAgence || null;
+    if (cle === 'honorairesAgence') return champs.honorairesAgence || null;
     if (cle === 'depotGarantie') return champs.depotGarantie || null;
     if (cle === 'sequestreDepot') return champs.sequestreDepot || null;
     if (cle === 'signature') return dates.SIGNATURE_AVANT_CONTRAT || null;
@@ -8975,6 +9039,7 @@
     else if (cle === 'emailAcquereur') { extraction.champs.emailAcquereur = extraction.champs.emailAcquereur || champExtraction(null); marquer(extraction.champs.emailAcquereur); }
     else if (cle === 'emailVendeur') { extraction.champs.emailVendeur = extraction.champs.emailVendeur || champExtraction(null); marquer(extraction.champs.emailVendeur); }
     else if (cle === 'nomAgence') { extraction.champs.nomAgence = extraction.champs.nomAgence || champExtraction(null); marquer(extraction.champs.nomAgence); }
+    else if (cle === 'honorairesAgence') { extraction.champs.honorairesAgence = extraction.champs.honorairesAgence || champExtraction(null); marquer(extraction.champs.honorairesAgence); }
     else if (cle === 'depotGarantie') { extraction.champs.depotGarantie = extraction.champs.depotGarantie || champExtraction(null); marquer(extraction.champs.depotGarantie); }
     else if (cle === 'sequestreDepot') { extraction.champs.sequestreDepot = extraction.champs.sequestreDepot || champExtraction(null); marquer(extraction.champs.sequestreDepot); }
     else if (cle === 'signature') { extraction.dates.SIGNATURE_AVANT_CONTRAT = extraction.dates.SIGNATURE_AVANT_CONTRAT || champExtraction(null); marquer(extraction.dates.SIGNATURE_AVANT_CONTRAT); }
@@ -9227,9 +9292,8 @@
     </div>`;
   }
 
-  // Groupe « À compléter » du panneau : ouvert ou fermé, gardé d'un rendu à l'autre (le panneau se
-  // redessine à chaque correction).
-  var revisionCompleterOuvert = false;
+  // Étude, 03/10 : un champ dont le compromis ne dit rien reste affiché (groupe « À compléter », plus replié) —
+  // s'il sert une fois, il sert à chaque fois.
   // Compteurs du dernier rendu (sous-titre de l'étape « Vérifier »).
   var etatRevision = { aValider: 0, validees: 0, vides: 0 };
 
@@ -9310,9 +9374,7 @@
       ${parties ? `<div class="revision-parties">${parties}</div>` : ''}
       ${groupe('À valider', 'Pré-remplies depuis le compromis ou Authentic, pas encore relues.', groupes.aValider, 'a-valider', groupes.aValider.length || !groupes.validees.length ? enPlus : null)}
       ${groupe('Validées', '', groupes.validees, 'validees', groupes.aValider.length || !groupes.validees.length ? null : enPlus)}
-      ${groupes.aCompleter.length ? `<details class="revision-groupe a-completer"${revisionCompleterOuvert ? ' open' : ''} ontoggle="revisionCompleterOuvert = this.open">
-        <summary class="revision-groupe-titre">À compléter si besoin <span class="revision-groupe-nombre">${groupes.aCompleter.length}</span></summary>
-        <div class="revision-liste">${lignesDe(groupes.aCompleter)}</div></details>` : ''}
+      ${groupe('À compléter', 'Rien trouvé dans le document : les champs restent là, à remplir à la main si besoin.', groupes.aCompleter, 'a-completer')}
     `;
     panneau.style.display = 'block';
     const carte = document.getElementById('panel');
@@ -11126,6 +11188,9 @@
     document.getElementById('f-adresse-bien').value = '';
     document.getElementById('f-prix-vente').value = '';
     document.getElementById('f-prix-mobilier').value = '';
+    document.getElementById('f-honoraires-agence').value = '';
+    document.getElementById('f-depot-garantie').value = '';
+    document.getElementById('f-sequestre-depot').value = '';
     document.getElementById('f-pret').value = '';
     document.getElementById('f-acte').value = '';
     // Oubli corrigé au passage : ce champ n'était vidé que par toggleEcheance('ventebien', false).
@@ -11226,7 +11291,7 @@
 
   // Clés du panneau comparées fiche / compromis (le type d'acte et le responsable ne viennent pas du compromis).
   var CLES_COMPLEMENT = ['nom', 'typeVente', 'signature', 'pret', 'acte', 'ventebien', 'adresseBien', 'prixVente', 'prixMobilier',
-    'emailAcquereur', 'emailVendeur', 'nomAgence', 'depotGarantie', 'sequestreDepot', 'notaireVendeur', 'notaireAcquereur',
+    'emailAcquereur', 'emailVendeur', 'nomAgence', 'honorairesAgence', 'depotGarantie', 'sequestreDepot', 'notaireVendeur', 'notaireAcquereur',
     'coteInstrumentaire', 'roleNotaire'];
   var CLES_COMPLEMENT_FUSION = ['emailAcquereur', 'emailVendeur'];
 
@@ -11245,6 +11310,7 @@
       adresseBien: x.adresseBien ? normaliserAdresse(x.adresseBien) : '',
       prixVente: nombre(x.prixVente), prixMobilier: nombre(x.prixMobilier),
       emailAcquereur: x.emailAcquereur || '', emailVendeur: x.emailVendeur || '', nomAgence: x.nomAgence || '',
+      honorairesAgence: nombre(x.honoraires && !x.honoraires.direct ? x.honoraires.montantTTC : null),
       depotGarantie: nombre(x.depotGarantie), sequestreDepot: x.sequestreDepot || '',
       notaireVendeur: x.notaireVendeur || '', notaireAcquereur: x.notaireAcquereur || '',
       coteInstrumentaire: x.coteInstrumentaire || '', roleNotaire: x.roleNotaire || 'instrumentaire'
@@ -11257,7 +11323,7 @@
     const vide = (v) => v === null || v === undefined || v === '';
     if (vide(a) && vide(b)) return true;
     if (vide(a) || vide(b)) return false;
-    if (['prixVente', 'prixMobilier', 'depotGarantie'].includes(cle)) return Number(a) === Number(b);
+    if (['prixVente', 'prixMobilier', 'depotGarantie', 'honorairesAgence'].includes(cle)) return Number(a) === Number(b);
     if (cle === 'adresseBien') return normaliserPourRecherche(normaliserAdresse(a)) === normaliserPourRecherche(normaliserAdresse(b));
     if (CLES_COMPLEMENT_FUSION.includes(cle)) {
       const ens = (v) => emailsDepuisTexte(v).map(e => e.toLowerCase()).sort().join(';');
@@ -11303,7 +11369,7 @@
   function texteValeurComplement(cle, v) {
     if (v === null || v === undefined || v === '') return '—';
     if (['signature', 'pret', 'acte', 'ventebien'].includes(cle)) return formatDateFr(v);
-    if (['prixVente', 'prixMobilier', 'depotGarantie'].includes(cle)) return formaterPrix(Number(v));
+    if (['prixVente', 'prixMobilier', 'depotGarantie', 'honorairesAgence'].includes(cle)) return formaterPrix(Number(v));
     if (cle === 'typeVente') return { maison: 'Maison', copropriete: 'Copropriété', terrain: 'Terrain à bâtir' }[v] || String(v);
     if (cle === 'coteInstrumentaire') return { vendeur: 'Notaire du vendeur', acquereur: 'Notaire de l’acquéreur' }[v] || String(v);
     if (cle === 'roleNotaire') return { instrumentaire: 'Instrumentaire', participant: 'Participant' }[v] || String(v);
@@ -11339,6 +11405,7 @@
     pose('emailAcquereur', v => { d.emailAcquereur = v || ''; });
     pose('emailVendeur', v => { d.emailVendeur = v || ''; });
     pose('nomAgence', v => { d.nomAgence = v || ''; });
+    pose('honorairesAgence', v => { d.honoraires = honorairesAvecMontantFormulaire(d.honoraires || (e.instantane && e.instantane.honoraires) || null, v ? Number(v) : null, d.nomAgence); });
     pose('depotGarantie', v => { d.depotGarantie = v ? Number(v) : null; });
     pose('sequestreDepot', v => { d.sequestreDepot = v || ''; });
     pose('notaireVendeur', v => { d.notaireVendeur = v || ''; });
@@ -11395,7 +11462,7 @@
       adresseBien: val('f-adresse-bien') ? normaliserAdresse(val('f-adresse-bien')) : '',
       prixVente: nombre('f-prix-vente'), prixMobilier: nombre('f-prix-mobilier'),
       emailAcquereur: val('f-email-acquereur'), emailVendeur: val('f-email-vendeur'), nomAgence: val('f-nom-agence'),
-      depotGarantie: nombre('f-depot-garantie'), sequestreDepot: val('f-sequestre-depot'),
+      honorairesAgence: nombre('f-honoraires-agence'), depotGarantie: nombre('f-depot-garantie'), sequestreDepot: val('f-sequestre-depot'),
       notaireVendeur: completerNomNotaire(val('f-notaire-vendeur'), carnetConfreres), notaireAcquereur: completerNomNotaire(val('f-notaire-acquereur'), carnetConfreres),
       coteInstrumentaire: ['vendeur', 'acquereur'].includes(val('f-cote-instrumentaire')) ? val('f-cote-instrumentaire') : '',
       roleNotaire: val('f-role-notaire') || ''
@@ -11638,6 +11705,7 @@
     const prixMobilier = eurosDepuisSaisie(mobilierBrut);
     const depotBrut = document.getElementById('f-depot-garantie').value.trim();
     const depotGarantie = eurosDepuisSaisie(depotBrut);
+    const honorairesAgence = eurosDepuisSaisie(document.getElementById('f-honoraires-agence').value.trim());
     const sequestreDepot = document.getElementById('f-sequestre-depot').value.trim();
     const pret = echeanceActive.pret ? document.getElementById('f-pret').value : '';
     const acte = echeanceActive.acte ? document.getElementById('f-acte').value : '';
@@ -11780,7 +11848,7 @@
       },
       typeActe: instantane ? instantane.typeActe : null,
       parties: instantane ? instantane.parties : [],
-      honoraires: instantane ? instantane.honoraires : null,
+      honoraires: honorairesAvecMontantFormulaire(instantane ? instantane.honoraires : null, honorairesAgence, nomAgence),
       fondsTravaux: instantane ? instantane.fondsTravaux : null,
       notaires: instantane ? instantane.notaires : null,
       bien: instantane ? instantane.bien : null,
@@ -11797,6 +11865,7 @@
       prixVente: Number.isFinite(prixVente) && prixVente > 0 ? prixVente : null,
       prixMobilier: Number.isFinite(prixMobilier) && prixMobilier > 0 ? prixMobilier : null,
       depotGarantie: Number.isFinite(depotGarantie) && depotGarantie > 0 ? depotGarantie : null,
+      honorairesAgence: Number.isFinite(honorairesAgence) && honorairesAgence > 0 ? honorairesAgence : null,
       pret, acte, ventebien
     }));
 
@@ -16050,7 +16119,7 @@
 
   // Étape « Finaliser » : un champ rempli par CLAIRE (compromis, Authentic) et pas retouché porte
   // « Pré-rempli » à côté de son libellé — à relire avant d'enregistrer.
-  var CHAMPS_PRE_REMPLIS_FINALISER = ['f-nom', 'f-adresse-bien', 'f-prix-vente', 'f-nom-agence', 'f-prix-mobilier', 'f-depot-garantie', 'f-sequestre-depot', 'f-email-vendeur', 'f-email-acquereur'];
+  var CHAMPS_PRE_REMPLIS_FINALISER = ['f-nom', 'f-adresse-bien', 'f-prix-vente', 'f-nom-agence', 'f-honoraires-agence', 'f-prix-mobilier', 'f-depot-garantie', 'f-sequestre-depot', 'f-email-vendeur', 'f-email-acquereur'];
   function majMarquesPreRemplies() {
     CHAMPS_PRE_REMPLIS_FINALISER.forEach(id => {
       const champ = document.getElementById(id);
@@ -18925,6 +18994,30 @@
   // relanceOffreDue) — ce qui n'a pas de geste prêt reste une action « Ouvrir la fiche ».
   var JOURS_ENTRE_RELANCES_VENTE = 5;
 
+  // Pure : les fonds ne sont pas arrivés à 3 jours du rendez-vous (étude, 03/10 : « email de relance au client
+  // si pas de réception des fonds 3 jours avant le rendez-vous ») — appel de fonds parti, réception pas
+  // confirmée, aucune relance déjà faite pour cette date, jamais au confrère. « Pas arrivés » = aucun reçu
+  // retenu à la dernière lecture, ou un reçu partiel ; un montant attendu inconnu ou un excédent ne disent rien.
+  var JOURS_RELANCE_FONDS = 3;
+  function relanceFondsDue(d, aujourdhuiIso) {
+    if (!d || d.archive || !d.rendezVousSignature || estSuccession(d) || notaireParticipantRepresenteAcquereur(d)) return false;
+    if (!echeanceValidee(d, 'appelFonds') || d.receptionFondsConfirmeeLe || d.relanceFondsPour === d.rendezVousSignature) return false;
+    const j = ecartJours(aujourdhuiIso || isoAujourdhuiLocal(), d.rendezVousSignature);
+    if (j === null || j < 0 || j > JOURS_RELANCE_FONDS) return false;
+    const f = d.fondsRecus;
+    if (!f) return true;
+    const etat = bilanFondsRecus(f.total, d.fondsAttendusManuel || f.attendu).etat;
+    return etat === 'aucun' || etat === 'partiel';
+  }
+
+  // Pure : la confirmation de réception des fonds a été envoyée pour le rendez-vous actuel — elle en rappelle
+  // la date et le lieu, donc confirmation et rappel du rendez-vous sont faits (étude, 03/10). Un dossier dont
+  // la confirmation est antérieure au suivi de la date (receptionFondsPourRdv absent) est compté pour son rendez-vous actuel.
+  function rdvConfirmeParFonds(d) {
+    if (!d || !d.rendezVousSignature || !d.receptionFondsConfirmeeLe) return false;
+    return d.receptionFondsPourRdv === undefined || d.receptionFondsPourRdv === d.rendezVousSignature;
+  }
+
   function actionsDuJour(dossiersActifs, aujourdhuiIso) {
     const actions = [];
     const aVenir = [];
@@ -18987,7 +19080,18 @@
             second: dest ? { type: 'marquer', champ: 'projetEnvoye', libelle: 'Déjà envoyé' } : { type: 'fiche', libelle: 'Ouvrir la fiche' }
           });
         }
-        if (jRdv <= JOURS_ACTIONS_RENDEZ_VOUS && af && !d.receptionFondsConfirmeeLe && dest) {
+        const relanceDue = !!dest && relanceFondsDue(d, aujourdhuiIso);
+        if (relanceDue) {
+          ajouter({
+            type: 'relanceFonds', categorie: 'appelFonds', categorieLabel: 'Réception des fonds',
+            titre: 'Relancer pour les fonds',
+            contexte: `${signature}. ${d.fondsRecus ? 'Les reçus comptables ne montrent pas tous les fonds.' : 'Aucun reçu relevé en comptabilité.'} Appel de fonds envoyé${d.appelFonds ? ' le ' + formatDateFr(d.appelFonds) : ''}.`,
+            jours: jRdv, gravite: jRdv <= 1 ? 'critique' : 'vigilance',
+            geste: { type: 'email', motif: 'relanceFonds' }, bouton: 'Ouvrir la relance',
+            second: { type: 'marquer', champ: 'relanceFonds', libelle: 'Déjà relancé' }
+          });
+        }
+        if (!relanceDue && jRdv <= JOURS_ACTIONS_RENDEZ_VOUS && af && !d.receptionFondsConfirmeeLe && dest) {
           // Ce que dit la dernière lecture des reçus (onglet Échanges › Fonds reçus), s'il y en a une.
           const fr = d.fondsRecus;
           const bilan = fr ? bilanFondsRecus(fr.total, d.fondsAttendusManuel || fr.attendu) : null;
@@ -19399,7 +19503,7 @@
   var CHAMP_FAIT_MAIN_PAR_TYPE = {
     pret: 'derniereRelanceAuto', rib: 'ribDemandeLe', fonds: 'receptionFondsConfirmeeLe',
     questionnaire: 'questionnaireEnvoyeLe', appelFonds: 'appelFonds', projetEnvoye: 'projetEnvoye',
-    ventePrealable: 'relanceVentePrealableLe'
+    ventePrealable: 'relanceVentePrealableLe', relanceFonds: 'relanceFondsLe'
   };
 
   function marquerFaitJour(cle) {
@@ -19421,6 +19525,11 @@
       } else {
         annulation.champsDossier = { [champ]: d[champ] || null };
         d[champ] = aujourdhui;
+        // Une relance des fonds vaut pour UNE date de rendez-vous (relanceFondsDue lit relanceFondsPour).
+        if (a.type === 'relanceFonds') {
+          annulation.champsDossier.relanceFondsPour = d.relanceFondsPour || null;
+          d.relanceFondsPour = d.rendezVousSignature || '';
+        }
       }
       ajouterHistorique(d, `${a.titre} : noté fait à la main`);
       sauvegarder(d);
@@ -20592,13 +20701,14 @@
 
   // ---- Relation client ----
   // Pure : les emails de relation client dus aujourd'hui, du plus pressant au moins pressant.
-  //  - rappel du rendez-vous à J-3…J-1 ; confirmation du rendez-vous de J-45 à J-3 (une fois par date) ;
+  //  - confirmation du rendez-vous de J-45 à J-1 (une fois par date ; plus de rappel à part depuis le 03/10,
+  //    et la confirmation de réception des fonds vaut confirmation — rdvConfirmeParFonds) ;
   //  - questionnaire de satisfaction dans les 14 jours après la signature ;
   //  - un mot un an après la signature.
   // Jamais quand l'acquéreur est accompagné par un confrère (étude, 01/10 : « que pour les clients non
   // accompagnés par un confrère ») — c'est alors son notaire qui tient la relation. Ces emails vivent
   // dans l'onglet Échanges de la fiche (echangesSelonStade), plus dans la barre de l'agenda (01/10).
-  var ORDRE_GESTES_RELATION = { rappelRdv: 0, confirmationRdv: 1, questionnaire: 2, anniversaire: 3 };
+  var ORDRE_GESTES_RELATION = { confirmationRdv: 0, questionnaire: 1, anniversaire: 2 };
   function gestesRelationClient(liste, aujourdhuiIso) {
     const auj = aujourdhuiIso || isoAujourdhuiLocal();
     const gestes = [];
@@ -20608,8 +20718,7 @@
       const j = ecartJours(auj, rdv);
       if (j === null) continue;
       if (notaireParticipantRepresenteAcquereur(d)) continue;
-      if (!d.archive && j >= 1 && j <= 3 && d.rappelRdvPour !== rdv) gestes.push({ d, type: 'rappelRdv', j });
-      else if (!d.archive && j > 3 && j <= 45 && d.confirmationRdvPour !== rdv) gestes.push({ d, type: 'confirmationRdv', j });
+      if (!d.archive && j >= 1 && j <= 45 && d.confirmationRdvPour !== rdv && !rdvConfirmeParFonds(d)) gestes.push({ d, type: 'confirmationRdv', j });
       if (j <= -1 && j >= -14 && !d.questionnaireEnvoyeLe) gestes.push({ d, type: 'questionnaire', j });
       if (j <= -358 && j >= -372 && !d.anniversaireEnvoyeLe) gestes.push({ d, type: 'anniversaire', j });
     }
@@ -21373,7 +21482,6 @@
   }
 
   var LIBELLES_GESTES_RELATION = {
-    rappelRdv: (g) => `Signature ${g.j === 1 ? 'demain' : `dans ${g.j} jours`}`,
     confirmationRdv: (g) => `Signature le ${formatDateFr(g.d.rendezVousSignature)}`,
     questionnaire: (g) => `Signé il y a ${-g.j} jour${-g.j > 1 ? 's' : ''}`,
     anniversaire: (g) => `Signé le ${formatDateFr(g.d.rendezVousSignature)}`
@@ -21747,7 +21855,7 @@
         <ul class="ag-facteurs">${proba.facteurs.map(x => `<li class="${x.ok ? 'ok' : 'ko'}">${icone(x.ok ? 'check' : 'alert-triangle')}<span>${escapeHtml(x.libelle)}${x.ok ? '' : ` <em>−${x.retrait} pts</em>`}</span></li>`).join('')}</ul>
       </div>` : '';
     const relation = d && e.signature && !d.archive && d.rendezVousSignature === e.date && e.date >= auj && !notaireParticipantRepresenteAcquereur(d)
-      ? `<div class="ag-detail-actions">${renderLigneEmailDossier(d, 'confirmationRdv')}${ecartJours(auj, e.date) <= 3 ? renderLigneEmailDossier(d, 'rappelRdv') : ''}</div>` : '';
+      ? `<div class="ag-detail-actions">${renderLigneEmailDossier(d, 'confirmationRdv')}${relanceFondsDue(d, auj) ? renderLigneEmailDossier(d, 'relanceFonds') : ''}</div>` : '';
     // Un rendez-vous de l'historique (`archive`) se consulte (détail, notes) mais ne se modifie pas.
     const peutSupprimer = exchangeAgendaPret() && e.itemId && !e.horsAgenda && !e.archive;
     const notesLisibles = exchangeAgendaPret() && e.itemId && e.archive;
@@ -26052,11 +26160,12 @@
     // L'envoi du projet EST l'étape « Envoi projet » du dossier : sa date est d.projetEnvoye (même
     // effet que la date saisie sur la fiche ou « Marquer envoyé », agenda compris).
     projet: { cle: 'projet', libelle: 'Projet d’acte', construire: construireEmailProjetActe, historique: 'Email envoyé — projet d’acte', date: 'projetEnvoye' },
-    // Relation client (page Agenda, 30/09) : confirmation et rappel du rendez-vous — mémorisés pour
-    // CETTE date (confirmationRdvPour / rappelRdvPour), un rendez-vous déplacé les repropose —, et un
-    // mot un an après la signature.
+    // Relation client (page Agenda, 30/09) : confirmation du rendez-vous — mémorisée pour CETTE date
+    // (confirmationRdvPour), un rendez-vous déplacé la repropose —, et un mot un an après la signature.
+    // Le rappel du rendez-vous à part a été retiré le 03/10 (étude).
     confirmationRdv: { cle: 'confirmationRdv', libelle: 'Confirmer le rendez-vous de signature', construire: construireEmailConfirmationRdv, historique: 'Email envoyé — confirmation du rendez-vous de signature', date: 'confirmationRdvLe' },
-    rappelRdv: { cle: 'rappelRdv', libelle: 'Rappeler le rendez-vous de signature', construire: construireEmailRappelRdv, historique: 'Email envoyé — rappel du rendez-vous de signature', date: 'rappelRdvLe' },
+    // Fonds pas encore reçus à J-3 du rendez-vous (étude, 03/10) — premier jet de CLAIRE, à remplacer par le texte de l'étude.
+    relanceFonds: { cle: 'relanceFonds', libelle: 'Relancer pour les fonds', construire: construireEmailRelanceFonds, historique: 'Email envoyé — relance : fonds pas encore reçus', date: 'relanceFondsLe' },
     anniversaire: { cle: 'anniversaire', libelle: 'Un an après la signature', construire: construireEmailAnniversaire, historique: 'Email envoyé — un an après la signature', date: 'anniversaireEnvoyeLe' }
   };
 
@@ -26086,17 +26195,14 @@
       'Nous restons à votre disposition pour toute question.',
       'Bien cordialement,'].join('\n\n') };
   }
-  function construireEmailRappelRdv(d) {
-    const confrere = notaireParticipantRepresenteAcquereur(d);
-    const sujet = `Rappel — rendez-vous de signature — ${libelleDossierAffiche(d)}`;
-    if (confrere) {
-      return { sujet, corps: ['Bonjour,',
-        `Je vous rappelle le rendez-vous de signature de l’acte de vente ${quandRdvEmail(d)}, ${lieuRdvEmail(d, true)}.`,
-        'Bien cordialement,'].join('\n\n') };
-    }
-    return { sujet, corps: ['Bonjour,',
-      `Nous vous rappelons votre rendez-vous de signature ${quandRdvEmail(d)}, ${lieuRdvEmail(d, false)}.`,
-      'Pensez à vous munir d’une pièce d’identité en cours de validité.',
+  // Fonds pas encore arrivés à 3 jours du rendez-vous (étude, 03/10) : au client seulement — quand un
+  // confrère représente l'acquéreur, c'est son office qui s'occupe de ses fonds. Premier jet de CLAIRE.
+  function construireEmailRelanceFonds(d) {
+    return { sujet: `Fonds à nous faire parvenir — ${libelleDossierAffiche(d)}`, corps: ['Bonjour,',
+      'Sauf erreur de notre part, les fonds destinés à votre acquisition ne nous sont pas encore parvenus en comptabilité.',
+      `Le rendez-vous de signature de l’acte authentique est fixé ${quandRdvEmail(d)}, ${lieuRdvEmail(d, false)}. Pour qu’il puisse se tenir, nous vous remercions de bien vouloir effectuer le virement dès que possible, selon les indications de notre appel de fonds.`,
+      'Si le virement a déjà été effectué, merci de nous en adresser le justificatif en réponse à cet email.',
+      'Nous restons à votre disposition pour toute question.',
       'Bien cordialement,'].join('\n\n') };
   }
   function construireEmailAnniversaire(d) {
@@ -26130,7 +26236,9 @@
     if (modele.date) d[modele.date] = aujourdhui;
     if (type === 'projet') marquerProjetEnvoyeSelonDate(d, aujourdhui);
     if (type === 'confirmationRdv') d.confirmationRdvPour = d.rendezVousSignature || '';
-    if (type === 'rappelRdv') d.rappelRdvPour = d.rendezVousSignature || '';
+    // La confirmation de réception des fonds rappelle le rendez-vous : elle vaut confirmation (rdvConfirmeParFonds).
+    if (type === 'fonds') d.receptionFondsPourRdv = d.rendezVousSignature || '';
+    if (type === 'relanceFonds') d.relanceFondsPour = d.rendezVousSignature || '';
     // Une relance de l'offre faite à la main compte comme la relance du jour : la suivante, manuelle
     // ou automatique, n'est reproposée que 10 jours plus tard (voir relanceOffreDue).
     if (type === 'pret') d.derniereRelanceAuto = isoAujourdhuiLocal();
@@ -26225,7 +26333,7 @@
     projet: { titre: 'Envoyer le projet d’acte', verbe: 'Envoyer', categorie: 'projetEnvoye', categorieLabel: 'Envoi projet' },
     rib: { titre: 'Demander le RIB et la pièce d’identité', verbe: 'Envoyer', categorie: 'rendezVousSignature', categorieLabel: 'Avant la signature' },
     confirmationRdv: { titre: 'Confirmer le rendez-vous', verbe: 'Confirmer', categorie: 'rendezVousSignature', categorieLabel: 'Relation client' },
-    rappelRdv: { titre: 'Rappeler le rendez-vous', verbe: 'Rappeler', categorie: 'rendezVousSignature', categorieLabel: 'Relation client' },
+    relanceFonds: { titre: 'Relancer pour les fonds', verbe: 'Relancer', categorie: 'appelFonds', categorieLabel: 'Réception des fonds' },
     anniversaire: { titre: 'Un mot un an après la signature', verbe: 'Écrire', categorie: 'neutre', categorieLabel: 'Relation client' }
   };
 
@@ -26235,9 +26343,9 @@
     if (motif === 'pret' && d.derniereRelanceAuto) return d.derniereRelanceAuto;
     const m = MODELES_EMAIL_RELANCE[motif];
     if (!m) return null;
-    // Confirmation et rappel valent pour UNE date de rendez-vous : déplacé, il faut les refaire.
-    if (motif === 'confirmationRdv' && d.confirmationRdvPour !== d.rendezVousSignature) return null;
-    if (motif === 'rappelRdv' && d.rappelRdvPour !== d.rendezVousSignature) return null;
+    // Confirmation et relance des fonds valent pour UNE date de rendez-vous : déplacé, il faut les refaire.
+    if (motif === 'confirmationRdv' && d.confirmationRdvPour !== d.rendezVousSignature) return rdvConfirmeParFonds(d) ? d.receptionFondsConfirmeeLe : null;
+    if (motif === 'relanceFonds' && d.relanceFondsPour !== d.rendezVousSignature) return null;
     if (m.date && d[m.date]) return d[m.date];
     const entrees = (d.historique || []).filter(e => e && typeof e.texte === 'string' && e.texte.indexOf(m.historique) === 0 && typeof e.date === 'string');
     return entrees.length ? entrees[entrees.length - 1].date.slice(0, 10) : null;
@@ -26252,6 +26360,7 @@
     const brouillon = ouverte ? brouillonAction({ dossier: d, geste: { type: 'email', motif } }) : null;
     let sous = '';
     if (motif === 'fonds' && envoye) sous = `Réception des fonds confirmée le ${formatDateFr(envoye)}`;
+    else if (motif === 'confirmationRdv' && envoye && d.confirmationRdvPour !== d.rendezVousSignature) sous = `Comprise dans la confirmation de réception des fonds du ${formatDateFr(envoye)}`;
     else if (envoye) sous = `${motif === 'pret' ? 'Dernière relance' : 'Envoyé'} le ${formatDateFr(envoye)}`;
     else if (motif === 'projet') sous = 'Le projet d’acte se joint dans Outlook';
     else if (LIBELLES_GESTES_RELATION[motif] && d.rendezVousSignature) {
@@ -26368,6 +26477,254 @@
   // explicitement par l'étude — dès que l'acquéreur est représenté par un notaire distinct du
   // nôtre : ce questionnaire ne doit JAMAIS être proposé/adressé au confrère, contrairement aux
   // autres relances ciblées qui, elles, transitent par lui dans ce cas.
+  // ==== Copie de l'acte / attestation de vente aux clients (dossiers en participation, étude 03/10) ====
+  // Le confrère reçoit l'acte ; l'étude transmet à SON client la copie de l'acte et/ou l'attestation de vente,
+  // lues dans le dossier « Fausses minutes » du commun (server/src/faussesMinutes.js). Moins de 21 Mo : jointes à
+  // l'email ; au-delà, CLAIRE ouvre WeTransfer et prépare l'email avec la place du lien — rien n'est déposé en
+  // ligne sans le collaborateur. Textes : premiers jets de CLAIRE.
+  var LIMITE_PIECES_JOINTES_OCTETS = 21 * 1024 * 1024;
+  var ADRESSE_WETRANSFER = 'https://wetransfer.com/';
+  var MOTS_NON_NOMS_FAUSSES_MINUTES = new Set(['vte', 'vente', 'succ', 'succession', 'et', 'epoux', 'epouse', 'consort', 'consorts', 'les', 'des', 'mme', 'monsieur', 'madame', 'sci', 'sarl', 'sas', 'acte', 'copie']);
+
+  function estDossierParticipation(d) {
+    return !!d && d.roleNotaire === 'participant' && !estSuccession(d);
+  }
+
+  // Pure : les clients de l'étude dans ce dossier — chaque côté qu'aucun autre office ne représente.
+  function clientsParticipation(d) {
+    if (!d) return [];
+    const out = [];
+    if (!confrereRepresenteVendeur(d)) out.push({ role: 'VENDEUR', email: d.emailVendeur || '' });
+    if (!notaireParticipantRepresenteAcquereur(d)) out.push({ role: 'ACQUEREUR', email: d.emailAcquereur || '' });
+    return out;
+  }
+
+  // Pure : « attestation » si le nom le dit, sinon « copie » (copie de l'acte).
+  function typeFausseMinute(nom) {
+    return /attestation/i.test(normaliserPourRecherche(String(nom || ''))) ? 'attestation' : 'copie';
+  }
+
+  // Pure : les noms qui désignent ce dossier, par côté (nom du dossier « VENDEUR / ACQUÉREUR », puis parties).
+  function nomsDossierFaussesMinutes(d) {
+    const mots = (texte) => normaliserPourRecherche(String(texte || '')).split(/[^a-z0-9]+/).filter(m => m.length >= 3 && !MOTS_NON_NOMS_FAUSSES_MINUTES.has(m));
+    const [v, a] = String((d && d.nom) || '').split('/');
+    const cote = (txt, role) => new Set(mots(txt).concat(((d && d.parties) || []).filter(p => p && p.role === role).flatMap(p => mots(String(p.nom || '').split(/\s+/).slice(-1)[0]))));
+    return { vendeur: [...cote(v, 'VENDEUR')], acquereur: [...cote(a, 'ACQUEREUR')] };
+  }
+
+  // Pure : les PDF des fausses minutes qui portent un nom du dossier, les plus sûrs d'abord (les deux côtés
+  // nommés, puis le plus récent). Une fausse minute antérieure de plus de 7 jours au rendez-vous de signature
+  // est celle d'un autre acte des mêmes clients : écartée.
+  function faussesMinutesPourDossier(fichiers, d) {
+    const noms = nomsDossierFaussesMinutes(d);
+    const depuis = d && d.rendezVousSignature ? addDays(String(d.rendezVousSignature).slice(0, 10), -7) : '';
+    return (fichiers || []).map(f => {
+      const n = ' ' + normaliserPourRecherche(String(f.nom || '')).replace(/[^a-z0-9]+/g, ' ') + ' ';
+      const a = (liste) => liste.some(m => n.includes(' ' + m + ' '));
+      const score = (a(noms.vendeur) ? 1 : 0) + (a(noms.acquereur) ? 1 : 0);
+      return Object.assign({}, f, { score, type: typeFausseMinute(f.nom) });
+    }).filter(f => f.score > 0 && (!depuis || String(f.modifie || '').slice(0, 10) >= depuis))
+      .sort((x, y) => y.score - x.score || String(y.modifie || '').localeCompare(String(x.modifie || '')))
+      .slice(0, 12);
+  }
+
+  // Pure : « 3,4 Mo » / « 850 Ko ».
+  function tailleLisible(octets) {
+    const n = Number(octets) || 0;
+    if (n >= 1024 * 1024) return `${(n / 1024 / 1024).toFixed(1).replace('.', ',')} Mo`;
+    return `${Math.max(1, Math.round(n / 1024))} Ko`;
+  }
+
+  // Pure : l'email au client. `types` : ['copie'] / ['attestation'] / les deux ; `lien` : fichier trop lourd.
+  function construireEmailCopieActe(d, types, lien) {
+    const copie = (types || []).includes('copie'), attestation = (types || []).includes('attestation');
+    const quoi = copie && attestation ? 'la copie de l’acte et l’attestation de vente' : attestation ? 'l’attestation de vente' : 'la copie de l’acte de vente';
+    const Quoi = copie && attestation ? 'Copie de l’acte et attestation de vente' : attestation ? 'Attestation de vente' : 'Copie de l’acte de vente';
+    const vente = d.rendezVousSignature ? ` de la vente signée le ${formatDateFr(d.rendezVousSignature)}` : '';
+    const corps = ['Bonjour,'];
+    if (lien) {
+      corps.push(`Le fichier étant trop volumineux pour être joint à cet email, vous pouvez télécharger ${quoi}${vente} à l’adresse suivante :`,
+        '[lien WeTransfer à coller ici]',
+        'Ce lien reste actif quelques jours : pensez à enregistrer le document.');
+    } else {
+      corps.push(`Veuillez trouver ci-joint ${quoi}${vente}.`);
+    }
+    corps.push('Nous restons à votre disposition pour toute question.', 'Bien cordialement,');
+    return { sujet: `${Quoi} — ${libelleDossierAffiche(d)}`, corps: corps.join('\n\n') };
+  }
+
+  function renderEnvoiCopieActe(d) {
+    if (!estDossierParticipation(d)) return '';
+    const base = { categorie: 'neutre', categorieLabel: 'Après la signature', titre: 'Envoyer la copie de l’acte / l’attestation de vente' };
+    const emails = clientsParticipation(d).map(c => c.email).filter(Boolean);
+    if (d.copieActeEnvoyeeLe) {
+      return renderLigneAction(Object.assign(base, {
+        sous: `Envoyé le ${formatDateFr(d.copieActeEnvoyeeLe)}${d.copieActeEnvoyee && d.copieActeEnvoyee.lien ? ' (lien WeTransfer)' : ''}`, faite: true,
+        bouton: emails.length ? { libelle: 'Renvoyer', icone: icone('mail'), onclick: `ouvrirEnvoiCopieActe('${escapeOnclickArg(d.id)}')` } : null
+      }));
+    }
+    if (!emails.length) return renderLigneAction(Object.assign(base, { sous: 'Renseignez l’email du client.' }));
+    return renderLigneAction(Object.assign(base, {
+      sous: 'Lue dans les fausses minutes · jointe jusqu’à 21 Mo, sinon un lien WeTransfer',
+      bouton: { libelle: 'Choisir', icone: icone('file-text'), onclick: `ouvrirEnvoiCopieActe('${escapeOnclickArg(d.id)}')` }
+    }));
+  }
+
+  var envoiCopieActe = { id: '', fichiers: [], tous: [], choisis: new Set(), recherche: '', etat: '' };
+
+  async function ouvrirEnvoiCopieActe(id) {
+    const d = dossiers.find(x => x.id === id);
+    const overlay = document.getElementById('copie-acte-overlay');
+    if (!d || !overlay) return;
+    envoiCopieActe = { id, fichiers: [], tous: [], choisis: new Set(), recherche: '', etat: 'chargement' };
+    overlay.style.display = 'flex';
+    renderEnvoiCopieActeFenetre();
+    try {
+      const r = await fetchAvecAuth('/api/nas/fausses-minutes');
+      const corps = await r.json();
+      if (!r.ok) throw new Error(corps.erreur || 'lecture impossible');
+      if (!corps.trouve) {
+        envoiCopieActe.etat = 'introuvable';
+        noterVerificationPoste('fausses-minutes', { ok: false, message: 'dossier des fausses minutes introuvable' });
+      } else {
+        envoiCopieActe.tous = corps.fichiers || [];
+        envoiCopieActe.fichiers = faussesMinutesPourDossier(envoiCopieActe.tous, d);
+        envoiCopieActe.fichiers.forEach(f => envoiCopieActe.choisis.add(f.chemin));
+        if (envoiCopieActe.fichiers.length > 1) {
+          // Les plus sûrs seulement (les deux côtés nommés) cochés d'office quand il y en a.
+          const meilleur = envoiCopieActe.fichiers[0].score;
+          envoiCopieActe.fichiers.filter(f => f.score < meilleur).forEach(f => envoiCopieActe.choisis.delete(f.chemin));
+        }
+        envoiCopieActe.etat = 'pret';
+        noterVerificationPoste('fausses-minutes', { detail: `${envoiCopieActe.tous.length} PDF lus` });
+      }
+    } catch (e) {
+      envoiCopieActe.etat = 'erreur';
+    }
+    renderEnvoiCopieActeFenetre();
+  }
+
+  async function ouvrirFausseMinute(chemin) {
+    const onglet = window.open('', '_blank');
+    try {
+      const r = await fetchAvecAuth('/api/nas/fausses-minutes/fichier?chemin=' + encodeURIComponent(chemin));
+      if (!r.ok) throw new Error('statut ' + r.status);
+      const url = URL.createObjectURL(await r.blob());
+      if (onglet) onglet.location = url; else window.open(url, '_blank');
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+    } catch (e) {
+      if (onglet) onglet.close();
+      afficherToast('Impossible d’ouvrir cette fausse minute : ' + e.message, 'OK', null);
+    }
+  }
+
+  function fermerEnvoiCopieActe() {
+    const overlay = document.getElementById('copie-acte-overlay');
+    if (overlay) overlay.style.display = 'none';
+  }
+
+  function basculerFichierCopieActe(chemin) {
+    if (envoiCopieActe.choisis.has(chemin)) envoiCopieActe.choisis.delete(chemin); else envoiCopieActe.choisis.add(chemin);
+    renderEnvoiCopieActeFenetre();
+  }
+
+  function rechercherCopieActe(texte) {
+    envoiCopieActe.recherche = String(texte || '');
+    renderEnvoiCopieActeFenetre(true);
+  }
+
+  // Les fichiers montrés : ceux du dossier, ou la recherche dans toutes les fausses minutes (nom autrement écrit).
+  function fichiersVisiblesCopieActe() {
+    const q = normaliserPourRecherche(envoiCopieActe.recherche).trim();
+    if (!q) return envoiCopieActe.fichiers;
+    return envoiCopieActe.tous.filter(f => normaliserPourRecherche(f.nom).includes(q))
+      .sort((x, y) => String(y.modifie || '').localeCompare(String(x.modifie || ''))).slice(0, 30)
+      .map(f => Object.assign({ type: typeFausseMinute(f.nom) }, f));
+  }
+
+  function renderEnvoiCopieActeFenetre(garderFocus) {
+    const d = dossiers.find(x => x.id === envoiCopieActe.id);
+    const zone = document.getElementById('copie-acte-contenu');
+    if (!zone || !d) return;
+    const tous = envoiCopieActe.tous;
+    const choisis = tous.filter(f => envoiCopieActe.choisis.has(f.chemin));
+    const total = choisis.reduce((t, f) => t + (Number(f.taille) || 0), 0);
+    const lourd = total > LIMITE_PIECES_JOINTES_OCTETS;
+    const visibles = fichiersVisiblesCopieActe();
+    const dest = clientsParticipation(d).map(c => c.email).filter(Boolean).join(', ');
+    const liste = envoiCopieActe.etat === 'chargement' ? `<p class="hint">${icone('spinner', null, true)} Lecture des fausses minutes…</p>`
+      : envoiCopieActe.etat === 'introuvable' ? '<p class="nas-choix-vide">Dossier « Fausses minutes » introuvable à côté des dossiers clients.</p>'
+      : envoiCopieActe.etat === 'erreur' ? '<p class="nas-choix-vide">Lecture des fausses minutes impossible.</p>'
+      : visibles.length ? visibles.map(f => `<label class="copie-acte-fichier">
+            <input type="checkbox" ${envoiCopieActe.choisis.has(f.chemin) ? 'checked' : ''} onchange="basculerFichierCopieActe('${escapeOnclickArg(f.chemin)}')">
+            <span class="copie-acte-nom">${escapeHtml(f.nom)}</span>
+            <span class="copie-acte-meta">${f.type === 'attestation' ? 'Attestation' : 'Copie de l’acte'} · ${tailleLisible(f.taille)}${f.modifie ? ' · ' + formatDateFr(String(f.modifie).slice(0, 10)) : ''}</span>
+            <button type="button" class="icon-btn" onclick="event.preventDefault(); ouvrirFausseMinute('${escapeOnclickArg(f.chemin)}')" title="Ouvrir" aria-label="Ouvrir ${escapeAttr(f.nom)}">${icone('eye')}</button>
+          </label>`).join('')
+      : `<p class="nas-choix-vide">${envoiCopieActe.recherche ? 'Aucun PDF à ce nom.' : 'Aucune fausse minute au nom du dossier : cherchez-la ci-dessus.'}</p>`;
+    zone.innerHTML = `
+      <p class="copie-acte-titre">${escapeHtml(libelleDossierAffiche(d))} ${infoBulle('PDF du dossier « Fausses minutes » portant un nom du dossier. Moins de 21 Mo au total : joints à l’email. Au-delà : CLAIRE ouvre WeTransfer et télécharge les PDF pour les y déposer, l’email est préparé avec la place du lien.')}</p>
+      <p class="hint">À : ${escapeHtml(dest || '—')}</p>
+      <input type="search" id="copie-acte-recherche" class="authentic-choix-recherche" placeholder="Chercher dans les fausses minutes" autocomplete="off" value="${escapeAttr(envoiCopieActe.recherche)}" oninput="rechercherCopieActe(this.value)" ${envoiCopieActe.etat === 'pret' ? '' : 'style="display:none;"'}>
+      <div class="nas-choix-liste copie-acte-liste">${liste}</div>
+      ${choisis.length ? `<p class="copie-acte-total"><span class="dot-label ${lourd ? 'dl-pret' : 'dl-success'}"><span class="dot"></span>${choisis.length} fichier${choisis.length > 1 ? 's' : ''} · ${tailleLisible(total)}</span>${lourd ? ' <span class="hint">Plus de 21 Mo : lien WeTransfer</span>' : ''}</p>` : ''}
+      <div class="confirm-actions">
+        <button type="button" class="btn-annuler" onclick="fermerEnvoiCopieActe()">Annuler</button>
+        <button type="button" class="primary" onclick="preparerEnvoiCopieActe()" ${choisis.length && dest ? '' : 'disabled'}>${lourd ? 'Ouvrir WeTransfer et préparer l’email' : 'Préparer l’email'}</button>
+      </div>`;
+    if (garderFocus) {
+      const champ = document.getElementById('copie-acte-recherche');
+      if (champ) { champ.focus(); champ.setSelectionRange(champ.value.length, champ.value.length); }
+    }
+  }
+
+  async function preparerEnvoiCopieActe() {
+    const d = dossiers.find(x => x.id === envoiCopieActe.id);
+    if (!d) return;
+    const choisis = envoiCopieActe.tous.filter(f => envoiCopieActe.choisis.has(f.chemin));
+    const destinataire = clientsParticipation(d).map(c => c.email).filter(Boolean).join(', ');
+    if (!choisis.length || !destinataire) return;
+    const total = choisis.reduce((t, f) => t + (Number(f.taille) || 0), 0);
+    const types = [...new Set(choisis.map(f => typeFausseMinute(f.nom)))];
+    const lien = total > LIMITE_PIECES_JOINTES_OCTETS;
+    const adresse = (f) => '/api/nas/fausses-minutes/fichier?chemin=' + encodeURIComponent(f.chemin);
+    const telechargerTous = async () => {
+      for (const f of choisis) {
+        const r = await fetchAvecAuth(adresse(f));
+        if (!r.ok) throw new Error(`« ${f.nom} » illisible`);
+        telechargerFichier(await r.blob(), f.nom, 'application/pdf');
+      }
+    };
+    let pieces = [];
+    try {
+      if (lien) {
+        window.open(ADRESSE_WETRANSFER, '_blank', 'noopener');
+        await telechargerTous();
+      } else if (modeEmailPoste() !== 'mailto') {
+        for (const f of choisis) {
+          const r = await fetchAvecAuth(adresse(f));
+          if (!r.ok) throw new Error(`« ${f.nom} » illisible`);
+          pieces.push({ nom: f.nom, type: 'application/pdf', contenuBase64: await blobVersBase64(await r.blob()) });
+        }
+      }
+    } catch (e) {
+      afficherToast('Fausses minutes : ' + e.message + '.', 'OK', null);
+      return;
+    }
+    const { sujet, corps } = construireEmailCopieActe(d, types, lien);
+    const r = await livrerEmailDossier({ destinataire, sujet, corps, pieces, responsableSignature: d.responsable, dossierId: d.id, geste: 'copieActe' });
+    if (!r.ok) { afficherToast(r.message || "L'email n'a pas pu être préparé.", 'OK', null); return; }
+    if (r.mode === 'mailto' && !lien) { try { await telechargerTous(); } catch (e) { /* signalé ci-dessous */ } }
+    fermerEnvoiCopieActe();
+    d.copieActeEnvoyeeLe = isoAujourdhuiLocal();
+    d.copieActeEnvoyee = { types, fichiers: choisis.map(f => f.nom).slice(0, 10), lien };
+    ajouterHistorique(d, `Email préparé — ${types.length > 1 ? 'copie de l’acte et attestation de vente' : types[0] === 'attestation' ? 'attestation de vente' : 'copie de l’acte'} au client${lien ? ' (lien WeTransfer)' : ''}`);
+    sauvegarder(d);
+    render();
+    annoncerEmailPret(r, false, lien ? 'Déposez sur WeTransfer les PDF téléchargés, puis collez le lien dans l’email.'
+      : r.mode === 'mailto' ? 'Joignez les PDF qui viennent d’être téléchargés.' : '');
+  }
+
   function renderQuestionnaireSatisfaction(d) {
     return renderQuestionnaireAcquereur(d) + renderQuestionnaireVendeur(d);
   }
@@ -26476,9 +26833,10 @@
   //   prêt         tant que l'offre est attendue et la condition non levée
   //   appel fonds  à préparer dès les conditions levées, et jusqu'à la signature
   //   fonds reçus (vérifier puis confirmer au client), RIB, note d'agenda : rendez-vous fixé
-  //   confirmation, rappel du rendez-vous : rendez-vous fixé, utiles quand ils sont dus (ou faits)
+  //   confirmation du rendez-vous : rendez-vous fixé, utile quand elle est due (ou faite, ou comprise dans la confirmation des fonds)
+  //   relance des fonds : à J-3 si rien n'est arrivé (client seulement)
   //   questionnaire, un mot un an après : acte signé
-  // Relation client (confirmation, rappel, questionnaire, un an après) : jamais quand un confrère
+  // Relation client (confirmation, questionnaire, un an après) : jamais quand un confrère
   // accompagne l'acquéreur (étude, 01/10), mêmes échéances que gestesRelationClient.
   function echangesSelonStade(d, aujourdhuiIso) {
     const stade = stadeDossier(d, aujourdhuiIso);
@@ -26497,13 +26855,18 @@
     // une fois l'acte signé.
     if (stade !== 'signe') ranger('projet', stade === 'signature');
     ranger('fondsRecus', stade === 'signature');
+    // Relance des fonds (client seulement) : utile à J-3 si rien n'est arrivé, sinon repliée tant que l'appel
+    // de fonds est parti et les fonds pas confirmés ; cochée une fois envoyée pour ce rendez-vous.
+    if (!confrere && stade === 'signature' && echeanceValidee(d, 'appelFonds') && (!d.receptionFondsConfirmeeLe || d.relanceFondsPour === d.rendezVousSignature)) {
+      ranger('relanceFonds', relanceFondsDue(d, aujourdhuiIso) || d.relanceFondsPour === d.rendezVousSignature);
+    }
     if (!confrere) ranger('rib', stade === 'signature');
     ranger('agenda', stade === 'signature');
     const dus = gestesRelationClient([d], aujourdhuiIso).map(g => g.type);
     if (!confrere && stade === 'signature') {
-      ranger('confirmationRdv', dus.indexOf('confirmationRdv') !== -1 || d.confirmationRdvPour === d.rendezVousSignature);
-      ranger('rappelRdv', dus.indexOf('rappelRdv') !== -1 || d.rappelRdvPour === d.rendezVousSignature);
+      ranger('confirmationRdv', dus.indexOf('confirmationRdv') !== -1 || d.confirmationRdvPour === d.rendezVousSignature || rdvConfirmeParFonds(d));
     }
+    if (estDossierParticipation(d)) ranger('copieActe', stade === 'signe');
     if (!confrere || !confrereRepresenteVendeur(d)) ranger('questionnaire', stade === 'signe');
     if (!confrere && stade === 'signe') ranger('anniversaire', dus.indexOf('anniversaire') !== -1 || !!d.anniversaireEnvoyeLe);
     return { stade, utiles, autres };
@@ -26516,6 +26879,7 @@
     if (cle === 'fondsRecus') return renderFondsRecus(d);
     if (cle === 'agenda') return renderNoterAgenda(d);
     if (cle === 'questionnaire') return renderQuestionnaireSatisfaction(d);
+    if (cle === 'copieActe') return renderEnvoiCopieActe(d);
     if (!avecDestinataire) return '';
     return renderLigneEmailDossier(d, cle);
   }

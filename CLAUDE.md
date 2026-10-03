@@ -277,6 +277,9 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
   serveur `bilanFonds`) ; au-delà, « excédent » à vérifier, jamais « complet ». Noms cherchés :
   parties acquéreurs (et leur `nomUsage`, lu dans l'état civil « Veuve/Épouse de Monsieur … NOM » par
   `nomsUsageDansBloc`) + nom du dossier + nom du courrier d'appel de fonds + `d.nomsRecus`.
+- **Honoraires d'agence TTC** (étude 03/10, `detecterHonorairesAgenceTTC`) : montant marqué TTC / TVA incluse (jamais HT)
+  près de « négocié(e)s par » ou d'un intitulé honoraires/commission de l'agence → champ `f-honoraires-agence` (panneau
+  Vérifier, complément) → `d.honoraires.montantTTC` (`honorairesAvecMontantFormulaire`, le champ fait foi).
 - **Honoraires de négociation / fonds de travaux** (lus dans l'avant-contrat, 29/09) : honoraires
   seulement depuis une tournure « négocié(e)s par … » (jamais les honoraires du notaire pour la
   promesse ; « négociation directe » = aucun) ; fonds de travaux seulement sur une phrase qui tranche
@@ -308,7 +311,7 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
   clic puis « Vérifier » (vente : aucune date exigée) ou directement « Finaliser » (succession, assistant réduit
   `#panel.wizard-succession` : nom, bien, responsable, pièces d'Authentic — `.vente-seul` masqués). L'ancienne entrée
   « Dossier Authentic » (Authentic puis le compromis) est retirée. **Un seul dossier par création** (étude 02/10) : `creationDossierEnCours` (bouton « Enregistrement… »), confirmation si un dossier en cours a le même nom ou la même référence Authentic (`dossierDejaPresentPourCreation`). **Trois étapes** (étude 02/10 au soir : « mets l'étape 2 et 3 ensemble, les données de la 4 dans la 2, une étape pour
-  terminer et valider ») : **Importer · Vérifier · Valider**. Vérifier = panneau des données pré-remplies (cases à valider,
+  terminer et valider ») : **Importer · Vérifier · Valider**. Vérifier = panneau des données pré-remplies (**champs non trouvés toujours affichés** dans le groupe « À compléter », étude 03/10 ; cases à valider,
   source en une ligne, page du document à un clic, jamais méthode ni extrait), **type de vente, responsable, notaires, notaire qui reçoit l'acte et
   rôle aussi dans le panneau** (étude 02/10 au soir ; `formulaire: true` dans `CHAMPS_REVISION` : valeur lue dans le champ, source suivie
   par `originesDossierWizard` — acte, Authentic, « Déduit des notaires », « Par défaut », à la main ; un choix à la main n'est jamais
@@ -430,7 +433,10 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
   l'invitation `.ics` rendue, déposée sur l'agenda ou choisie dans le détail, n'est **jamais ajoutée à part** :
   son lien (`lireInvitationIcs`) est écrit dans les notes du rendez-vous de même date et même heure
   (`notesAvecVisio`, bloc « Visio ADNOV : … » remplacé à l’invitation suivante), puis « Rejoindre la visio ». « Envoyer le lien » prépare l'email aux clients et/ou au confrère (`corpsEmailVisio`, premier jet de CLAIRE) avec les informations de connexion relues dans la note (`blocVisioDansNotes`).
-  `gestesRelationClient` (rappel J-3…J-1, confirmation J-45…J-3 une fois par date `confirmationRdvPour`,
+  `gestesRelationClient` (confirmation J-45…J-1 une fois par date `confirmationRdvPour` — **comprise dans la confirmation
+  de réception des fonds** (étude 03/10, `rdvConfirmeParFonds`, `d.receptionFondsPourRdv`) ; rappel du rendez-vous retiré le 03/10 ;
+  **« Relancer pour les fonds »** si les fonds ne sont pas arrivés 3 jours avant (`relanceFondsDue`, `JOURS_RELANCE_FONDS`,
+  `construireEmailRelanceFonds`, une fois par date `relanceFondsPour`, À faire + Échanges, premier jet de CLAIRE),
   questionnaire J+1…J+14, un mot un an après — **jamais quand un confrère accompagne l'acquéreur**,
   étude 01/10) : ces emails vivent dans l'**onglet Échanges de la fiche** (`echangesSelonStade`, utiles quand ils sont
   dus ou faits), plus dans la barre de l'agenda (retirés le 01/10). **Couleur d'un
@@ -467,7 +473,14 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
   « Provisoire » `VTE - NOM ? — option CLAIRE, créneau n/N` (le « ? » n'écrit rien sur la fiche),
   hachurées dans l'agenda, retirées (`MoveToDeletedItems`) au placement, à l'annulation ou après
   5 jours ouvrés. Votants par défaut : les clients, ou le confrère qui représente une partie. Aussi offert depuis le formulaire « Nouveau rendez-vous » (« Proposer plusieurs dates », créneau saisi en tête, `proposerPlusieursDatesAgenda`). **Sans dossier** (01/10) : sondage au `titre` libre (destinataires libres, dont confrère ; options « Titre ? — option CLAIRE » ; page `t=r`), lancé par la moitié droite du bouton double « Nouveau rendez-vous | Proposer des dates » de l'en-tête de la page, à droite du champ de recherche (étude 01/10, `.ag-ajout-double` dans `#agenda-creation`), suivi dans le volet à droite **« Dates proposées »** (tiroir comme une fiche, étude 01/10, lien sous le mini-calendrier, `ouvrirSuiviDatesProposees`, `classerSuiviDatesProposees` : en attente — tableau des réponses, Placer/Relancer/Relire/Annuler —, validées — date retenue, « Voir dans l'agenda » —, sans suite ; tous les sondages, avec ou sans dossier ; **pastille rouge sur « Agenda » dans la barre latérale** quand une réponse revient — `reponsesNonVuesSondages`, repère `claire-dates-vues:<poste>` en localStorage, effacée à l'ouverture du volet), « Placer » crée un rendez-vous ordinaire. Textes =
-  premiers jets de CLAIRE. **Email du vendeur** (`d.emailVendeur`) : wizard, fiche, lecture de l'acte
+  premiers jets de CLAIRE. **Copie de l'acte / attestation de vente en participation** (étude 03/10 : le confrère reçoit
+  l'acte, l'étude envoie à son client) : ligne Échanges une fois l'acte signé (`renderEnvoiCopieActe`, client =
+  `clientsParticipation`) → fenêtre `#copie-acte-overlay`, PDF du dossier **« Fausses minutes »** du commun
+  (`server/src/faussesMinutes.js` : `nasFaussesMinutes` de config.json, sinon partage `\\serveur\Fausses minutes`, sinon dossier
+  ainsi nommé dans `nasRacine` ou ses parents ; `GET /api/nas/fausses-minutes` + `/fichier`, lecture seule, confiné) ;
+  `faussesMinutesPourDossier` (noms des deux côtés, jamais antérieur de plus de 7 jours au rendez-vous) ; ≤ 21 Mo
+  (`LIMITE_PIECES_JOINTES_OCTETS`) joints au `.eml`, au-delà WeTransfer ouvert et « [lien WeTransfer à coller ici] » ;
+  `construireEmailCopieActe` premier jet de CLAIRE, `d.copieActeEnvoyeeLe`. **Email du vendeur** (`d.emailVendeur`) : wizard, fiche, lecture de l'acte
   (`detecterEmailVendeur`) et d'Authentic ; masqué si le vendeur a son propre notaire, sauf déjà saisi.
 - **Appels 3CX** (01/10, choix de l'étude : « noter + ouvrir la fiche », téléphones sur les fiches) : 3CX
   ne donne pas d'historique ; son « Intégration CRM » (client web, réglage de chaque collaborateur, CRM
@@ -718,7 +731,7 @@ Plainte principale de l'étude : **le bruit**, pas les oublis — ne pas élargi
   serveur, le lien vers une pièce ouvert depuis une notification Teams et l'icône de l'exe (nette).
 - **Non vérifié au bureau** : l'installateur « CLAIRE en application » d'un poste (`.vbs`, PowerShell, icône servie
   par l'exe) ; les emails des dossiers (réponses EWS réelles, accès délégué aux « Éléments envoyés » des
-  collaborateurs, pièces jointes réelles, résumé par Ollama) ; la forme réelle du `.ics` de la visio ADNOV (aucun exemple reçu) ; l'intégration
+  collaborateurs, pièces jointes réelles, résumé par Ollama) ; la forme réelle du `.ics` de la visio ADNOV (aucun exemple reçu) ; le dossier « Fausses minutes » (emplacement, nommage des PDF, tailles réelles, `.eml` lourd dans Outlook, WeTransfer) ; l'intégration
   3CX (forme réelle de %CallerNumber%, fermeture de l'onglet ouvert par 3CX) ; le repli `SoftDelete` d'une suppression ; le sondage de créneaux (lecture réelle des réponses dans la boîte, boutons
   dans Outlook, options « Provisoire », page de réponse publiée — dépôt public à créer par l'étude) ; le détail des écritures EWS (déplacement et suppression d'un
   rendez-vous, note du Lieu, dates butoir en journée entière, noms exacts des catégories de couleur,

@@ -40,7 +40,8 @@ test('avant la signature : appel de fonds, puis projet, confirmation des fonds e
   const base = { rendezVousSignature: '2026-09-30', sansPret: true };
   assert.strictEqual(types(app.actionsDuJour([dossier(base)], AUJ)), 'appelFonds,rib');
   const apresAppel = dossier(Object.assign({}, base, { appelFonds: '2026-09-21', echeancesValidees: { appelFonds: true } }));
-  assert.strictEqual(types(app.actionsDuJour([apresAppel], AUJ)), 'projetEnvoye,fonds,rib');
+  // À 3 jours du rendez-vous sans fonds relevés : la relance des fonds remplace « Confirmer la réception » (étude, 03/10).
+  assert.strictEqual(types(app.actionsDuJour([apresAppel], AUJ)), 'projetEnvoye,relanceFonds,rib');
   const tout = dossier(Object.assign({}, base, {
     appelFonds: '2026-09-21', projetEnvoye: '2026-09-24', receptionFondsConfirmeeLe: '2026-09-25', ribDemandeLe: '2026-09-26',
     echeancesValidees: { appelFonds: true, projetEnvoye: true }

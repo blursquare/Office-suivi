@@ -20,6 +20,8 @@ const CLE_VERIFICATIONS = 'verifications-terrain';
 // `source` : 'serveur' (noté par le serveur), 'poste' (noté par une fenêtre CLAIRE, POST
 // /api/verifications-terrain/noter — seuls ces points-là y sont acceptés) ou 'manuel'.
 const VERIFICATIONS_TERRAIN = [
+  { id: 'fausses-minutes', depuis: '2026-10-03 20:00', source: 'poste', titre: 'Dossier « Fausses minutes » trouvé et lu (envoi de la copie de l’acte au client)',
+    comment: 'Coché la première fois que la fenêtre « Envoyer la copie de l’acte / l’attestation de vente » lit le dossier des fausses minutes ; en échec s’il est introuvable (renseigner alors « nasFaussesMinutes » dans config.json).' },
   { id: 'authentic-creer-dossier', depuis: '2026-10-03 18:05', source: 'poste', titre: 'Authentic : « Créer » proposé sur une page de vente sans dossier, « Nouveau dossier » ouvert pré-rempli',
     comment: 'Coché la première fois qu’un clic sur « Créer » (message ou fenêtre « Choisir ») ouvre « Nouveau dossier » avec la page de vente lue.' },
   { id: 'complement-compromis-nas', depuis: '2026-10-03 17:50', source: 'poste', titre: 'Compléter un dossier avec le compromis : compromis lu depuis le NAS et appliqué sur la fiche',

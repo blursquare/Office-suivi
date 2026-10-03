@@ -15932,3 +15932,42 @@ inventé de 100 dossiers / 21 000 PDF : parcours serveur 2,3 s (disque local —
 
 Étude : « mets les sur-titres du menu de réglages en noir ». `.reglages-nav-groupe` : `color: var(--ink)` (encre du thème,
 donc clair sur fond sombre) au lieu de `var(--muted)`.
+
+### 03/10/2026 20:00 — Relance des fonds, honoraires d'agence TTC, copie de l'acte en participation
+
+Étude : « supprimer le champ rappeler le rendez-vous — email de relance au client si pas de réception des fonds 3 jours
+avant le rendez-vous — si la confirmation de la réception des fonds est envoyée, considérer la confirmation du rendez-vous
+et le rappel comme faits — nouveau compromis : si pas trouvé, afficher les champs quand même pour les remplir ; détecter les
+honoraires d'agence TTC (nouveau champ) — dossiers en participation : un bouton d'envoi de la copie de l'acte et/ou des
+attestations de vente (à lire sur le commun / fausses minutes), en pièce jointe sous 21 Mo, sinon un lien de téléchargement
+via une plateforme ». Réponses aux questions : dossier « Fausses minutes » à part ; « le confrère reçoit l'acte, on envoie
+au client » ; WeTransfer.
+
+- **Rappel du rendez-vous retiré** : `rappelRdv` sorti de `gestesRelationClient`, `MODELES_EMAIL_RELANCE`,
+  `ACTIONS_EMAIL_DOSSIER`, `dateDernierEmail`, Échanges ; `construireEmailRappelRdv` supprimée.
+- **Relance des fonds** (`JOURS_RELANCE_FONDS` = 3, `relanceFondsDue`) : rendez-vous dans 0 à 3 jours, appel de fonds
+  envoyé, réception pas confirmée, fonds absents ou partiels (`bilanFondsRecus`), pas une succession ni un acquéreur
+  représenté par un confrère, une fois par date (`d.relanceFondsPour`). Email `construireEmailRelanceFonds` (premier jet de
+  CLAIRE), action « Relancer pour les fonds » dans À faire (critique à J-1, « Déjà relancé » la marque faite) et ligne de
+  l'onglet Échanges ; la confirmation des fonds n'est pas proposée tant que la relance est due.
+- **Réception des fonds = rendez-vous confirmé** (`rdvConfirmeParFonds`) : l'envoi de la confirmation des fonds retient la
+  date du rendez-vous (`d.receptionFondsPourRdv`) ; « Confirmer le rendez-vous » sort des gestes et s'affiche fait
+  (« Comprise dans la confirmation de réception des fonds du … »). Un rendez-vous déplacé ensuite redemande la confirmation.
+- **Nouveau dossier, champs non trouvés** : le repli « À compléter si besoin » devient un groupe toujours ouvert
+  « À compléter ».
+- **Honoraires d'agence TTC** (`detecterHonorairesAgenceTTC`) : montant explicitement TTC (ou TVA incluse, jamais HT)
+  près de la tournure « négocié(e)s par » ou d'un intitulé « honoraires / rémunération / commission de l'agence » ;
+  « néant » / « aucun » écartés. Champ `f-honoraires-agence` (panneau Vérifier, formulaire, complément d'un dossier) →
+  `d.honoraires.montantTTC` (`honorairesAvecMontantFormulaire` : le champ fait foi, la charge lue est gardée).
+- **Copie de l'acte en participation** (`server/src/faussesMinutes.js`, routes `GET /api/nas/fausses-minutes` et
+  `/fausses-minutes/fichier`) : dossier trouvé par `nasFaussesMinutes` (config.json), sinon le partage
+  `\\serveur\Fausses minutes` du NAS, sinon un dossier ainsi nommé dans `nasRacine` ou ses parents ; PDF jusqu'à 3 niveaux,
+  liste gardée 1 min, fichier confiné (realpath). Côté poste : ligne Échanges « Envoyer la copie de l'acte / l'attestation
+  de vente » (participation, acte signé, client = côté qu'aucun confrère ne représente) → fenêtre `#copie-acte-overlay` :
+  fausses minutes au nom du dossier (`faussesMinutesPourDossier` : noms des deux côtés d'abord, jamais un fichier antérieur
+  de plus de 7 jours au rendez-vous), recherche dans tout le dossier, aperçu. Total ≤ 21 Mo
+  (`LIMITE_PIECES_JOINTES_OCTETS`) : PDF joints au `.eml` ; au-delà : WeTransfer ouvert, PDF téléchargés, email préparé avec
+  « [lien WeTransfer à coller ici] ». Email `construireEmailCopieActe`, premier jet de CLAIRE. `d.copieActeEnvoyeeLe`.
+  Point terrain `fausses-minutes`.
+- Non vérifié ici : emplacement et nommage réels du dossier des fausses minutes, WeTransfer, tailles réelles des actes,
+  `.eml` lourd dans Outlook.

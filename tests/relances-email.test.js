@@ -42,9 +42,9 @@ test('construireEmailRelanceRib reprend mot pour mot le texte de l’étude, san
   assert.equal(corps, 'Bonjour,\n\nEn prévision du rendez-vous de signature je vous remercie de vous munir de votre RIB et de votre pièce d’identité.\n\nBien cordialement,');
 });
 
-test('MODELES_EMAIL_RELANCE couvre exactement les neuf motifs (dont la relation client de la page Agenda)', () => {
+test('MODELES_EMAIL_RELANCE couvre exactement les neuf motifs (relation client de la page Agenda, relance des fonds)', () => {
   const app = chargerApplication();
-  assert.equal(Object.keys(app.MODELES_EMAIL_RELANCE).sort().join(','), 'anniversaire,confirmationRdv,fonds,pret,projet,provision,rappelRdv,rib,ventePrealable');
+  assert.equal(Object.keys(app.MODELES_EMAIL_RELANCE).sort().join(','), 'anniversaire,confirmationRdv,fonds,pret,projet,provision,relanceFonds,rib,ventePrealable');
 });
 
 test('relance de la vente préalable : au client, ou au confrère quand un autre office représente l’acquéreur', () => {
@@ -488,19 +488,19 @@ test('echangesSelonStade : ce qui sert maintenant d’abord, le reste replié, r
   const signature = app.echangesSelonStade(dossierBase(app, { sansPret: true, rendezVousSignature: '2026-10-15' }), auj);
   assert.equal(signature.utiles.join(','), 'appelFonds,projet,fondsRecus,rib,agenda,confirmationRdv');
   assert.ok(signature.autres.includes('provision'));
-  assert.ok(signature.autres.includes('rappelRdv'));
+  assert.ok(!signature.utiles.concat(signature.autres).includes('rappelRdv'), 'plus de rappel du rendez-vous');
 
   const signe = app.echangesSelonStade(dossierBase(app, { sansPret: true, rendezVousSignature: '2026-09-15' }), auj);
   assert.equal(signe.utiles.join(','), 'questionnaire');
   assert.ok(signe.autres.includes('anniversaire'));
 });
 
-test('relation client dans l’onglet Échanges : confirmation, rappel, un an après — jamais avec un confrère', () => {
+test('relation client dans l’onglet Échanges : confirmation, un an après — jamais avec un confrère', () => {
   const app = chargerApplication();
   const auj = '2026-10-01';
-  // Rappel dû (J-2) : utile ; la confirmation déjà faite pour cette date reste visible, cochée.
+  // Confirmation déjà faite pour cette date : visible, cochée ; plus de rappel à part.
   const rappel = app.echangesSelonStade(dossierBase(app, { sansPret: true, rendezVousSignature: '2026-10-03', confirmationRdvPour: '2026-10-03' }), auj);
-  assert.ok(rappel.utiles.includes('rappelRdv') && rappel.utiles.includes('confirmationRdv'), rappel.utiles.join(','));
+  assert.ok(rappel.utiles.includes('confirmationRdv') && !rappel.utiles.includes('rappelRdv'), rappel.utiles.join(','));
   // Un an après : utile.
   const unAn = app.echangesSelonStade(dossierBase(app, { sansPret: true, rendezVousSignature: '2025-10-01', archive: true }), auj);
   assert.ok(unAn.utiles.includes('anniversaire'), unAn.utiles.join(','));
@@ -508,7 +508,7 @@ test('relation client dans l’onglet Échanges : confirmation, rappel, un an ap
   const confrere = { roleNotaire: 'participant', notaireAcquereur: 'Maître DURAND', emailNotaireParticipant: 'durand@notaires.fr', sansPret: true };
   for (const rdv of ['2026-10-03', '2026-10-15', '2026-09-15', '2025-10-01']) {
     const e = app.echangesSelonStade(dossierBase(app, Object.assign({ rendezVousSignature: rdv }, confrere)), auj);
-    assert.doesNotMatch(e.utiles.concat(e.autres).join(','), /confirmationRdv|rappelRdv|anniversaire/, rdv);
+    assert.doesNotMatch(e.utiles.concat(e.autres).join(','), /confirmationRdv|relanceFonds|anniversaire/, rdv);
   }
   // Questionnaire (étude, 02/10 : « au vendeur aussi ») : jamais à l'acquéreur du confrère, mais au
   // vendeur, notre client ; et plus du tout si un confrère représente aussi le vendeur.
@@ -563,4 +563,62 @@ test('signatureHtmlOffice : la carte et la bannière déposées remplacent la ve
   const compose = app.signatureHtmlOffice({ logoOffice: 'claire-logo-office' }, s);
   assert.match(compose, /cid:claire-logo-office/);
   assert.doesNotMatch(compose, /claire-carte/);
+});
+
+// ---- Étude, 03/10 : relance des fonds à J-3, la confirmation des fonds vaut confirmation du rendez-vous ----
+test('relanceFondsDue : à 3 jours du rendez-vous, appel de fonds parti, fonds pas arrivés — client seulement, une fois par date', () => {
+  const app = chargerApplication();
+  const base = (extra) => dossierBase(app, Object.assign({ sansPret: true, rendezVousSignature: '2026-10-04', echeancesValidees: { appelFonds: true } }, extra));
+  assert.equal(app.relanceFondsDue(base({}), '2026-10-01'), true, 'J-3, aucun reçu relevé');
+  assert.equal(app.relanceFondsDue(base({}), '2026-09-30'), false, 'J-4 : trop tôt');
+  assert.equal(app.relanceFondsDue(base({}), '2026-10-05'), false, 'rendez-vous passé');
+  assert.equal(app.relanceFondsDue(base({ echeancesValidees: {} }), '2026-10-01'), false, 'appel de fonds pas parti');
+  assert.equal(app.relanceFondsDue(base({ receptionFondsConfirmeeLe: '2026-09-30' }), '2026-10-01'), false, 'fonds confirmés');
+  assert.equal(app.relanceFondsDue(base({ relanceFondsPour: '2026-10-04' }), '2026-10-01'), false, 'déjà relancé pour cette date');
+  assert.equal(app.relanceFondsDue(base({ relanceFondsPour: '2026-09-20' }), '2026-10-01'), true, 'relance d’un ancien rendez-vous');
+  assert.equal(app.relanceFondsDue(base({ notaireAcquereur: 'Maître DUPUIS' }), '2026-10-01'), false, 'jamais au confrère');
+  assert.equal(app.relanceFondsDue(base({ fondsRecus: { total: 0, attendu: 100000 } }), '2026-10-01'), true, 'aucun reçu');
+  assert.equal(app.relanceFondsDue(base({ fondsRecus: { total: 40000, attendu: 100000 } }), '2026-10-01'), true, 'reçu partiel');
+  assert.equal(app.relanceFondsDue(base({ fondsRecus: { total: 100000, attendu: 100000 } }), '2026-10-01'), false, 'fonds complets');
+  assert.equal(app.relanceFondsDue(base({ fondsRecus: { total: 150000, attendu: 100000 } }), '2026-10-01'), false, 'excédent : pas un manque');
+  assert.equal(app.relanceFondsDue(base({ fondsRecus: { total: 40000, attendu: null } }), '2026-10-01'), false, 'montant attendu inconnu : on ne dit rien');
+});
+
+test('email de relance des fonds : date et heure en gras, lieu, sans montant, jamais le nom du dossier dans le corps', () => {
+  const app = chargerApplication();
+  const d = dossierBase(app, { sansPret: true, rendezVousSignature: '2026-10-04', rendezVousSignatureHeure: '10:30' });
+  const { sujet, corps } = app.MODELES_EMAIL_RELANCE.relanceFonds.construire(d);
+  assert.match(sujet, /^Fonds à nous faire parvenir — /);
+  assert.match(corps, /ne nous sont pas encore parvenus en comptabilité/);
+  assert.match(corps, new RegExp(app.MARQUE_FORT_DEBUT + 'le .*10h30' + app.MARQUE_FORT_FIN));
+  assert.match(corps, /en notre office/);
+  assert.doesNotMatch(corps, /€|euros/);
+});
+
+test('la confirmation de réception des fonds vaut confirmation du rendez-vous (et son rappel) pour CE rendez-vous', () => {
+  const app = chargerApplication();
+  const auj = '2026-10-01';
+  const d = dossierBase(app, { sansPret: true, rendezVousSignature: '2026-10-15', receptionFondsConfirmeeLe: '2026-09-30', echeancesValidees: { appelFonds: true } });
+  assert.equal(app.rdvConfirmeParFonds(d), true, 'confirmation antérieure au suivi de la date : comptée');
+  assert.equal(app.gestesRelationClient([d], auj).length, 0, 'plus de confirmation à proposer');
+  assert.equal(app.dateDernierEmail(d, 'confirmationRdv'), '2026-09-30');
+  assert.ok(app.echangesSelonStade(d, auj).utiles.includes('confirmationRdv'), 'visible, cochée');
+  // Rendez-vous déplacé après la confirmation : à refaire.
+  const deplace = Object.assign({}, d, { receptionFondsPourRdv: '2026-10-08' });
+  assert.equal(app.rdvConfirmeParFonds(deplace), false);
+  assert.equal(app.gestesRelationClient([deplace], auj).map(g => g.type).join(), 'confirmationRdv');
+  assert.equal(app.dateDernierEmail(deplace, 'confirmationRdv'), null);
+  // Fonds pas confirmés : la confirmation reste due.
+  assert.equal(app.gestesRelationClient([Object.assign({}, d, { receptionFondsConfirmeeLe: null })], auj).map(g => g.type).join(), 'confirmationRdv');
+});
+
+test('À faire : relance des fonds à J-3 (à la place de « Confirmer la réception »), confirmation sinon', () => {
+  const app = chargerApplication();
+  const d = dossierBase(app, { id: 'rf', sansPret: true, rendezVousSignature: '2026-10-04', echeancesValidees: { appelFonds: true }, emailAcquereur: 'acq@exemple.fr' });
+  const types = (auj, dd) => app.actionsDuJour([dd || d], auj).actions.map(a => a.type);
+  assert.ok(types('2026-10-01').includes('relanceFonds'));
+  assert.ok(!types('2026-10-01').includes('fonds'), 'une seule ligne à la fois');
+  assert.ok(types('2026-09-28').includes('fonds') && !types('2026-09-28').includes('relanceFonds'), 'J-6 : seulement la confirmation');
+  const relance = app.actionsDuJour([d], '2026-10-01').actions.find(a => a.type === 'relanceFonds');
+  assert.equal(relance.geste.motif, 'relanceFonds');
 });

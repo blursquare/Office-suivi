@@ -325,6 +325,13 @@
 
         <div class="field-row vente-seul revision-double">
           <div>
+            <label for="f-honoraires-agence">Honoraires d'agence TTC</label>
+            <input type="text" id="f-honoraires-agence" inputmode="numeric" placeholder="Laisser vide s'il n'y en a pas" title="Montant TTC des honoraires de négociation de l'agence, lu dans le compromis.">
+          </div>
+        </div>
+
+        <div class="field-row vente-seul revision-double">
+          <div>
             <label for="f-depot-garantie">Dépôt de garantie / acompte</label>
             <input type="text" id="f-depot-garantie" inputmode="numeric" placeholder="Ex. 10000">
           </div>
@@ -2204,6 +2211,13 @@
     <div class="confirm-actions">
       <button type="button" class="btn-annuler" onclick="fermerChoixFicheClientAuthentic()">Annuler</button>
     </div>
+  </div>
+</div>
+
+<!-- Copie de l'acte / attestation de vente aux clients (dossiers en participation, étude 03/10). -->
+<div class="confirm-overlay" id="copie-acte-overlay" style="display:none;" onmousedown="if (event.target === this) this.dataset.fond = '1'" onclick="if (event.target === this && this.dataset.fond) fermerEnvoiCopieActe(); this.dataset.fond = ''">
+  <div class="confirm-box nas-choix-box copie-acte-box" role="dialog" aria-modal="true" aria-label="Envoyer la copie de l'acte ou l'attestation de vente">
+    <div id="copie-acte-contenu"></div>
   </div>
 </div>
 

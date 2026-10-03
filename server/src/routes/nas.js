@@ -19,6 +19,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { listerPdfRecursif, listerSousDossiers, listerRecusNas, resoudreCheminRecu, resoudreCheminNas, rapprocherParNom, rapprochementParfait } = require('../nas');
 const fsp = require('node:fs/promises');
+const { faussesMinutes, trouverDossierFaussesMinutes, resoudreFichierFaussesMinutes } = require('../faussesMinutes');
 
 // Toute lecture du NAS est asynchrone depuis qu'un balayage synchrone a été identifié comme la
 // cause des gels du serveur (voir nas.js et CLAUDE.md) : pendant qu'une route attend le NAS, le
@@ -138,6 +139,22 @@ function creerRouteurNas(config) {
     // Type MIME forcé : un fichier sans extension reconnue par l'OS faisait afficher le binaire du
     // PDF comme du texte dans l'ancienne version côté client (bug déjà corrigé une fois, voir
     // CLAUDE.md) — le serveur ne laisse pas ce doute s'installer.
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(path.basename(cible))}"`);
+    fs.createReadStream(cible).pipe(res);
+  }));
+
+  // Dossier « Fausses minutes » (étude, 03/10) : copies d'actes et attestations de vente à transmettre au client
+  // dans les dossiers en participation. Liste (nom, taille, date) puis le PDF choisi, confiné à ce dossier.
+  routeur.get('/nas/fausses-minutes', routeAsync(async (req, res) => {
+    res.setHeader('Cache-Control', 'no-store');
+    res.json(await faussesMinutes(config));
+  }));
+  routeur.get('/nas/fausses-minutes/fichier', routeAsync(async (req, res) => {
+    const dossier = await trouverDossierFaussesMinutes(config);
+    const cible = dossier ? await resoudreFichierFaussesMinutes(dossier, req.query.chemin) : null;
+    if (!cible) { res.status(400).json({ erreur: 'Chemin invalide (seuls les PDF du dossier des fausses minutes sont servis).' }); return; }
+    if (!(await existe(cible))) { res.status(404).json({ erreur: 'Fichier introuvable dans les fausses minutes.' }); return; }
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(path.basename(cible))}"`);
     fs.createReadStream(cible).pipe(res);
