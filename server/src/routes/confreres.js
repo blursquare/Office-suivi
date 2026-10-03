@@ -1,20 +1,35 @@
 'use strict';
 
-// Carnet des confrères (voir carnetConfreres.js). Comme les corrections apprises : pas de PUT
-// global, chaque poste envoie le seul office qu'il vient d'ajouter ou de corriger, fusionné par
-// identifiant — deux collaborateurs qui complètent le carnet en même temps ne s'écrasent pas.
+// Annuaire des notaires (voir carnetConfreres.js, fusionnerCarnetEtAnnuaire) : GET rend tous les offices de
+// France corrigés par l'étude. Comme les corrections apprises : pas de PUT global, chaque poste envoie le
+// seul office qu'il vient d'ajouter ou de corriger, fusionné par identifiant — deux collaborateurs qui
+// corrigent en même temps ne s'écrasent pas. DELETE oublie une correction (ou retire un office saisi).
 
 const express = require('express');
-const { assainirOffice, MAX_OFFICES, ID_OFFICE_ETUDE } = require('../carnetConfreres');
+const zlib = require('node:zlib');
+const { assainirOffice, MAX_OFFICES, ID_OFFICE_ETUDE, fusionnerCarnetEtAnnuaire } = require('../carnetConfreres');
 const { assainirContact, MAX_CONTACTS, THEMES_REPERTOIRE } = require('../repertoire');
 const annuaire = require('../annuaireNotaires');
 
 function creerRouteurConfreres(parametresRepo) {
   const routeur = express.Router();
 
-  routeur.get('/confreres', (req, res) => {
-    res.json({ offices: parametresRepo.lireCarnetConfreres() });
-  });
+  // Annuaire des notaires unique (étude, 03/10) : tous les offices de France, corrigés par l'étude
+  // (≈ 7 000 offices, 2 Mo) — compressé quand le navigateur l'accepte, en tâche de fond (zlib.gzip).
+  const envoyerAnnuaire = (req, res, statut = 200) => {
+    const corps = JSON.stringify({ offices: fusionnerCarnetEtAnnuaire(parametresRepo.lireCarnetConfreres(), annuaire.officesAnnuaire()) });
+    res.status(statut).setHeader('Content-Type', 'application/json; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-store');
+    if (!/\bgzip\b/.test(String(req.headers['accept-encoding'] || ''))) { res.end(corps); return; }
+    zlib.gzip(corps, (err, gz) => {
+      if (err) { res.end(corps); return; }
+      res.setHeader('Content-Encoding', 'gzip');
+      res.setHeader('Vary', 'Accept-Encoding');
+      res.end(gz);
+    });
+  };
+
+  routeur.get('/confreres', (req, res) => envoyerAnnuaire(req, res));
 
   routeur.post('/confreres', (req, res) => {
     const office = assainirOffice(req.body && req.body.office);
@@ -24,13 +39,16 @@ function creerRouteurConfreres(parametresRepo) {
     if (!existe && carnet.length >= MAX_OFFICES) return res.status(400).json({ erreur: 'Carnet plein.' });
     office.modifieLe = new Date().toISOString();
     const suite = existe ? carnet.map((o) => (o.id === office.id ? office : o)) : carnet.concat([office]);
-    res.json({ offices: parametresRepo.ecrireCarnetConfreres(suite) });
+    parametresRepo.ecrireCarnetConfreres(suite);
+    envoyerAnnuaire(req, res);
   });
 
   routeur.delete('/confreres/:id', (req, res) => {
-    if (req.params.id === ID_OFFICE_ETUDE) return res.status(400).json({ erreur: 'Notre office reste dans le carnet.' });
+    if (req.params.id === ID_OFFICE_ETUDE) return res.status(400).json({ erreur: 'Notre office reste dans l’annuaire.' });
+    // Office de l'annuaire corrigé : la correction est oubliée, l'office revient tel que relevé.
     const carnet = parametresRepo.lireCarnetConfreres();
-    res.json({ offices: parametresRepo.ecrireCarnetConfreres(carnet.filter((o) => o.id !== req.params.id)) });
+    parametresRepo.ecrireCarnetConfreres(carnet.filter((o) => o.id !== req.params.id));
+    envoyerAnnuaire(req, res);
   });
 
   // Annuaire des notaires de France (annuaireNotaires.js), en lecture seule : la liste des

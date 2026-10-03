@@ -130,4 +130,59 @@ function avecOfficeEtude(carnet) {
   return { carnet: [assainirOffice(OFFICE_ETUDE)].concat(liste), ajoute: true };
 }
 
-module.exports = { CARNET_INITIAL_41, OFFICE_ETUDE, ID_OFFICE_ETUDE, avecOfficeEtude, SOURCE_ANNUAIRE_41, assainirOffice, assainirCarnet, carnetInitial, MAX_OFFICES };
+// Annuaire des notaires unique (étude, 03/10 : « fusionner le carnet des confrères avec tous les notaires
+// de France ; que la fiche dossier cherche dans l'annuaire ; le carnet n'a plus lieu d'être ») : la liste
+// renvoyée aux postes = tous les offices de France, chacun remplacé par sa fiche corrigée par l'étude
+// quand elle existe (même identifiant, ou même email / même téléphone pour un office saisi à la main),
+// plus notre office et les offices saisis absents de l'annuaire. Le stockage `carnet-confreres` ne garde
+// plus que ces corrections et ajouts. Pure.
+function departementDepuisCodePostal(cp) {
+  const c = String(cp || '');
+  if (!/^\d{5}$/.test(c)) return '';
+  if (c.startsWith('20')) return Number(c) < 20200 ? '2A' : '2B';
+  if (/^9[78]/.test(c)) return c.slice(0, 3);
+  return c.slice(0, 2);
+}
+
+function fusionnerCarnetEtAnnuaire(carnet, annuaire) {
+  const chiffres = (t) => String(t || '').replace(/\D/g, '').slice(-9);
+  const corrections = (carnet || []).filter(Boolean);
+  const idsAnnuaire = new Set((annuaire || []).map((o) => o && o.id));
+  const parId = new Map(corrections.map((o) => [o.id, o]));
+  const parEmail = new Map();
+  const parTel = new Map();
+  for (const o of corrections) {
+    const e = String(o.email || '').trim().toLowerCase();
+    if (e && !parEmail.has(e)) parEmail.set(e, o);
+    const t = chiffres(o.telephone);
+    if (t.length === 9 && !parTel.has(t)) parTel.set(t, o);
+  }
+  const places = new Set();
+  const res = [];
+  const marquer = (o, base) => Object.assign({}, o, {
+    departement: o.departement || (base && base.departement) || departementDepuisCodePostal(o.codePostal),
+    modifie: !!o.modifieLe && !o.etude,
+    annuaire: idsAnnuaire.has(o.id) || !!base
+  });
+  const etude = corrections.find((o) => o.etude);
+  if (etude) { res.push(marquer(etude, null)); places.add(etude.id); }
+  for (const a of annuaire || []) {
+    if (!a) continue;
+    const c = parId.get(a.id) || parEmail.get(String(a.email || '').trim().toLowerCase()) || parTel.get(chiffres(a.telephone).length === 9 ? chiffres(a.telephone) : '#');
+    if (c) {
+      if (places.has(c.id)) continue;
+      places.add(c.id);
+      res.push(marquer(c, a));
+    } else {
+      res.push(Object.assign({}, a, { modifie: false, annuaire: true }));
+    }
+  }
+  for (const c of corrections) {
+    if (places.has(c.id)) continue;
+    places.add(c.id);
+    res.push(marquer(c, null));
+  }
+  return res;
+}
+
+module.exports = { fusionnerCarnetEtAnnuaire, departementDepuisCodePostal, CARNET_INITIAL_41, OFFICE_ETUDE, ID_OFFICE_ETUDE, avecOfficeEtude, SOURCE_ANNUAIRE_41, assainirOffice, assainirCarnet, carnetInitial, MAX_OFFICES };

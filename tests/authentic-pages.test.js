@@ -1142,3 +1142,12 @@ test('en-tête du sous-dossier sans nom (« 2 - Vente d’immeuble ») : le nom 
   const dossiers = [{ id: 'c', nom: 'CHAMBON / LEBLANC', numeroAuthentic: '2', parties: [] }, { id: 'l', nom: 'LEGRAND / ROUX', parties: [] }];
   assert.equal(app.dossierPourIntituleAuthentic(app.intituleDossierAuthentic(page), dossiers, '', app.referenceDossierAuthentic(page)).id, 'l');
 });
+
+test('texteRattachementAuthentic : le « i » de la fiche dit à quel dossier d’Authentic elle est rattachée (étude, 03/10)', () => {
+  assert.equal(app.texteRattachementAuthentic({ referenceAuthentic: 'A 2026 00230', intituleAuthentic: 'Vente LEGRAND / ROUX' }), 'Rattaché au dossier Authentic A 2026 00230 — VTE LEGRAND / ROUX');
+  assert.equal(app.texteRattachementAuthentic({ referenceAuthentic: 'A 2026 00230' }), 'Rattaché au dossier Authentic A 2026 00230');
+  assert.equal(app.texteRattachementAuthentic({ numeroAuthentic: '2' }), '');
+  const d = { id: 'a', nom: 'LEGRAND / ROUX', historique: [] };
+  app.rattacherIntituleAuthentic(d, 'Vente LEGRAND / ROUX', [d], 'A 2026 00230');
+  assert.equal(d.intituleAuthentic, 'Vente LEGRAND / ROUX');
+});

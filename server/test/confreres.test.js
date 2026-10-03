@@ -9,7 +9,8 @@ const os = require('node:os');
 
 const { creerApp } = require('../src/app');
 const { ouvrirDb } = require('../src/db');
-const { assainirOffice, assainirCarnet, carnetInitial, avecOfficeEtude, CARNET_INITIAL_41, ID_OFFICE_ETUDE } = require('../src/carnetConfreres');
+const { assainirOffice, assainirCarnet, carnetInitial, avecOfficeEtude, CARNET_INITIAL_41, ID_OFFICE_ETUDE, fusionnerCarnetEtAnnuaire, departementDepuisCodePostal } = require('../src/carnetConfreres');
+const { definirDonneesAnnuaire } = require('../src/annuaireNotaires');
 
 let db, serveurApp, baseUrl, jeton;
 
@@ -64,37 +65,68 @@ test('assainirOffice : liste blanche, email invalide vidé, office vide refusé'
   assert.equal(assainirCarnet([{ id: 'a', office: 'A' }, { id: 'a', office: 'B' }]).map((x) => x.office).join(), 'B');
 });
 
-test('GET part du relevé du 41 ; POST ajoute puis corrige un office ; DELETE le retire', async () => {
-  let r = await appeler('/api/confreres');
-  assert.equal(r.status, 200);
-  let j = await r.json();
-  assert.equal(j.offices.length, 36);
+test('fusionnerCarnetEtAnnuaire : chaque office de France remplacé par sa correction, notre office en tête, saisis ajoutés', () => {
+  const annuaire = [
+    { id: 'annuaire-1', office: 'SCP A', notaires: ['Anne A'], email: 'a@notaires.fr', telephone: '02 54 00 00 01', codePostal: '41000', ville: 'Blois', departement: '41' },
+    { id: 'annuaire-2', office: 'SCP B', notaires: ['Bruno B'], email: 'b@notaires.fr', telephone: '02 47 00 00 02', codePostal: '37000', ville: 'Tours', departement: '37' },
+    { id: 'annuaire-3', office: 'SCP C', notaires: ['Chloé C'], email: 'c@notaires.fr', telephone: '02 38 00 00 03', codePostal: '45000', ville: 'Orléans', departement: '45' }
+  ];
+  const carnet = [
+    { id: ID_OFFICE_ETUDE, etude: true, office: 'Notre office', notaires: ['Sophie GOSSART'], codePostal: '41000' },
+    { id: 'annuaire-2', office: 'SCP B (corrigé)', notaires: ['Bruno B'], email: 'b@notaires.fr', codePostal: '37000', modifieLe: '2026-10-03T08:00:00Z' },
+    { id: 'saisie-9', office: 'SCP C saisie', notaires: ['Chloé C'], email: 'C@notaires.fr', codePostal: '45000' },
+    { id: 'saisie-10', office: 'Office absent', notaires: ['Denis D'], codePostal: '18000' }
+  ];
+  const f = fusionnerCarnetEtAnnuaire(carnet, annuaire);
+  assert.equal(f.map((o) => o.id).join(), `${ID_OFFICE_ETUDE},annuaire-1,annuaire-2,saisie-9,saisie-10`);
+  assert.equal(f.find((o) => o.id === 'annuaire-2').office, 'SCP B (corrigé)');
+  assert.equal(f.find((o) => o.id === 'annuaire-2').modifie, true);
+  assert.equal(f.find((o) => o.id === 'annuaire-1').modifie, false);
+  assert.equal(f.find((o) => o.id === 'saisie-9').departement, '45', 'même email qu’un office de l’annuaire : il le remplace');
+  assert.equal(f.find((o) => o.id === 'saisie-10').departement, '18');
+  assert.equal(f.find((o) => o.id === 'saisie-10').annuaire, false);
+  assert.equal(departementDepuisCodePostal('20100'), '2A');
+  assert.equal(departementDepuisCodePostal('97400'), '974');
+});
 
-  const nouveau = { id: 'saisie-1', office: 'SELARL Paul DURAND', notaires: ['Paul DURAND'], email: 'office.durand@notaires.fr', ville: 'Orléans', codePostal: '45000' };
-  r = await appeler('/api/confreres', 'POST', { office: nouveau });
-  j = await r.json();
-  assert.equal(j.offices.length, 37);
-  assert.ok(j.offices.find((o) => o.id === 'saisie-1').modifieLe);
+test('GET rend tout l’annuaire corrigé (compressé) ; POST corrige ou ajoute ; DELETE oublie la correction', async () => {
+  definirDonneesAnnuaire({ source: 'test', offices: [
+    { id: 'annuaire-12068', office: 'Me Jean DUPRE', notaires: ['Jean DUPRE'], email: 'dupre@notaires.fr', telephone: '02 54 11 11 11', codePostal: '41000', ville: 'Blois', departement: '41' },
+    { id: 'annuaire-90001', office: 'SCP Paul DURAND', notaires: ['Paul DURAND'], email: 'durand@notaires.fr', telephone: '02 38 22 22 22', codePostal: '45000', ville: 'Orléans', departement: '45' }
+  ] });
+  try {
+    let r = await appeler('/api/confreres');
+    assert.equal(r.status, 200);
+    let j = await r.json();
+    // Notre office, les 35 du relevé initial du 41 (dont annuaire-12068) et l'office d'Orléans.
+    assert.equal(j.offices.length, 37);
+    assert.equal(j.offices[0].id, ID_OFFICE_ETUDE);
+    assert.ok(j.offices.find((o) => o.id === 'annuaire-90001'));
 
-  r = await appeler('/api/confreres', 'POST', { office: Object.assign({}, nouveau, { telephone: '02 38 00 00 00' }) });
-  j = await r.json();
-  assert.equal(j.offices.length, 37);
-  assert.equal(j.offices.find((o) => o.id === 'saisie-1').telephone, '02 38 00 00 00');
+    const corrige = { id: 'annuaire-90001', office: 'SCP Paul DURAND', notaires: ['Paul DURAND', 'Léa DURAND'], email: 'office.durand@notaires.fr', ville: 'Orléans', codePostal: '45000' };
+    r = await appeler('/api/confreres', 'POST', { office: corrige });
+    j = await r.json();
+    assert.equal(j.offices.length, 37);
+    const o = j.offices.find((x) => x.id === 'annuaire-90001');
+    assert.equal(o.notaires.join(), 'Paul DURAND,Léa DURAND');
+    assert.equal(o.modifie, true);
 
-  r = await appeler('/api/confreres', 'POST', { office: { id: 'x', office: '' } });
-  assert.equal(r.status, 400);
+    r = await appeler('/api/confreres', 'POST', { office: { id: 'saisie-1', office: 'Office saisi', notaires: ['Marc LEROY'], codePostal: '18000' } });
+    assert.equal((await r.json()).offices.length, 38);
+    r = await appeler('/api/confreres', 'POST', { office: { id: 'x', office: '' } });
+    assert.equal(r.status, 400);
 
-  r = await appeler('/api/confreres/saisie-1', 'DELETE');
-  j = await r.json();
-  assert.equal(j.offices.length, 36);
-  // Notre office ne se retire pas.
-  r = await appeler('/api/confreres/' + ID_OFFICE_ETUDE, 'DELETE');
-  assert.equal(r.status, 400);
-  // Un carnet vidé à la main garde seulement notre office : le relevé n'est rechargé que si la
-  // clé disparaît.
-  for (const o of j.offices) await appeler('/api/confreres/' + o.id, 'DELETE');
-  j = await (await appeler('/api/confreres')).json();
-  assert.equal(j.offices.map((o) => o.id).join(), ID_OFFICE_ETUDE);
+    // Oublier la correction : l'office revient tel que relevé dans l'annuaire.
+    r = await appeler('/api/confreres/annuaire-90001', 'DELETE');
+    j = await r.json();
+    assert.equal(j.offices.find((x) => x.id === 'annuaire-90001').notaires.join(), 'Paul DURAND');
+    r = await appeler('/api/confreres/saisie-1', 'DELETE');
+    assert.equal((await r.json()).offices.length, 37);
+    r = await appeler('/api/confreres/' + ID_OFFICE_ETUDE, 'DELETE');
+    assert.equal(r.status, 400);
+  } finally {
+    definirDonneesAnnuaire(null);
+  }
 });
 
 // ---- Répertoire (src/repertoire.js) : les autres interlocuteurs de l'étude, par thème ----

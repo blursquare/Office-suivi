@@ -469,12 +469,19 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
   retiré). Le contrôle du barème de l'appel de fonds reste un signal, il ne remplit rien ; débours du dossier à vérifier.
 - **Répertoire** (Outils, 30/09 ; présentation revue le 02/10 : thèmes dans une colonne à gauche `renderNavRepertoire`, une
   ligne compacte par office/interlocuteur `renderLigneOfficeCarnet`/`renderLigneContactRepertoire`, modification dans la ligne) :
-  **une seule entrée « Notaires »** (étude 02/10, carnet et annuaire faisaient doublon) : par département, chaque office du
-  carnet remplace sa ligne de l'annuaire (`officesNotairesDepartement`, modifiable), « Mes confrères seulement » = tout le carnet ;
-  le carnet reste la donnée de travail (rapproché des fiches, 3CX en premier) ; **« Notaires de France »** (02/10, `server/src/annuaireNotaires.js`, données
-  `server/src/data/annuaire-notaires.json`, relevé immonot de 7 202 offices par `server/scripts/releve-annuaire-notaires.py`) :
-  référence en lecture seule par département (un à la fois : 41 puis le dernier consulté, voisins d'un clic, lignes compactes par ville, recherche qui filtre le département puis « Ailleurs en France » — `renderAnnuaireNotaires`), jamais versée d'office dans le carnet (homonymes ; déjà au carnet = même id, email ou téléphone, `officeCarnetPourAnnuaire`) — « Ajouter au carnet » office
-  par office ; recherche nationale (50 au plus) ; repli de 3CX (`carnetEtAnnuaire`) ; `require` au chemin littéral (un chemin
+  **un seul annuaire des notaires** (étude 03/10 : « fusionner le carnet des confrères avec tous les notaires de France ; que
+  la fiche dossier cherche dans l'annuaire ; le carnet n'a plus lieu d'être ») : `GET /api/confreres` rend les 7 202 offices de
+  France (`server/src/annuaireNotaires.js`, `server/src/data/annuaire-notaires.json`, relevé immonot par
+  `server/scripts/releve-annuaire-notaires.py`), chacun remplacé par sa correction quand l'étude en a fait une
+  (`fusionnerCarnetEtAnnuaire` : même id, sinon même email ou téléphone ; notre office en tête ; offices saisis ajoutés),
+  compressé (gzip) ; la clé `carnet-confreres` ne garde plus que corrections et ajouts (`modifie`, `annuaire: false` = saisi).
+  Côté poste, `carnetConfreres` = tout l'annuaire (nom gardé) : fiche, emails au confrère, saisie des notaires et rôle de l'étude
+  cherchent dans toute la France (`trouverOfficeConfrere`, index par nom de famille `indexNotairesParFamille`) ; la liste
+  déroulante des fiches se limite aux départements voisins et aux offices corrigés (`optionsNotairesCarnet`). Page « Notaires »
+  (`renderAnnuaireNotaires`) : un département à la fois (41 puis le dernier consulté, voisins d'un clic, par ville), tout office
+  modifiable au crayon (« Modifié »), croix = remettre tel que relevé (ou retirer un office saisi), recherche dans le département
+  puis « Ailleurs en France » (50 au plus), en mémoire du poste ; plus de « Mes confrères » ni « Ajouter au carnet » ; repli de 3CX
+  (`carnetEtAnnuaire`) ; `require` au chemin littéral (un chemin
   calculé ne serait pas embarqué dans le .exe, un fichier absent casse la construction) ; autres thèmes = `repertoire.js` (clé `repertoire-contacts`, relevé du répertoire Word
   de l'étude du 02/09/2026, coordonnées d'organismes, jamais de client) — `THEMES_REPERTOIRE` côté
   serveur, repli identique dans `repertoireThemes` côté client. Rien n'y est deviné : une adresse

@@ -15725,3 +15725,24 @@ CHAHUNEAU / LEBERT ».
   accents) — cause à chercher au bureau (dossier NAS relié, exclusion « Réinitialiser », forme écartée dans « Noms de
   fichiers du NAS », ou version pas encore installée).
 Vérifié : tests (`parties`, `notaires`, `dates`, `fonds-recus`, `authentic-pages`), rejeu des deux PDF réels (non commités).
+
+### 03/10/2026 09:49 — Un seul annuaire des notaires (carnet des confrères fondu) ; « i » du rattachement Authentic
+
+Étude : « il faut fusionner le carnet des confrères avec tous les notaires de France, et que la fiche dossier cherche dans
+l'annuaire des notaires. Le carnet n'a plus lieu d'être » ; « mettre dans la fiche dossier CLAIRE avec quel dossier il est
+rattaché sur Authentic, dans un petit i ».
+- Serveur : `fusionnerCarnetEtAnnuaire(carnet, annuaire)` (carnetConfreres.js, pure) — chaque office de l'annuaire remplacé par
+  sa correction (même id ; sinon même email ou même téléphone, pour un office saisi à la main), notre office en tête, offices
+  saisis absents de l'annuaire ajoutés ; `modifie` (corrigé par l'étude), `annuaire` (false = saisi), `departement` (sinon tiré du
+  code postal, `departementDepuisCodePostal`). `GET/POST/DELETE /api/confreres` rendent cette liste (≈ 2 Mo, gzip en tâche de
+  fond `zlib.gzip`, jamais `*Sync`) ; DELETE d'un office de l'annuaire = oublier sa correction. Le stockage `carnet-confreres`
+  ne garde que les corrections et ajouts (les 35 offices du 41 relevés le 29/09 portent les mêmes identifiants que l'annuaire).
+- Poste : `carnetConfreres` = tout l'annuaire (nom de variable gardé) ; `trouverOfficeConfrere` passe par un index par nom de
+  famille (WeakMap par liste) ; liste déroulante des notaires limitée aux départements voisins (`DEPARTEMENTS_PROCHES_ANNUAIRE`)
+  et aux offices corrigés/saisis ; page Notaires réécrite (un département, tout modifiable, « Ailleurs en France » en mémoire),
+  « Mes confrères », « Au carnet » et la recherche serveur `/api/annuaire/recherche` ne sont plus utilisés par la page.
+- Fiche : `texteRattachementAuthentic(d)` dans une pastille « i » à côté du nom ; `d.intituleAuthentic` retenu avec la
+  référence (premier passage, rangement à la main, création depuis Authentic), effacé par la croix « Dans Authentic ».
+Vérifié : tests serveur (`confreres.test.js` : fusion, routes) et client ; Chromium (serveur de test, vrai annuaire de 7 202
+offices) : notaire de Gironde d'une fiche retrouvé, « i » affiché, recherche « DURAND » (département puis 46 ailleurs), clair,
+sombre, téléphone, sans débordement. Non vérifié au bureau : temps de chargement des 2 Mo sur le réseau de l'étude.
