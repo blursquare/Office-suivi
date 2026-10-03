@@ -229,7 +229,9 @@ test('suiviSaferAuthentic et suiviRhfAuthentic : notifiée, prise en compte, ré
 
 test('etatActeAuthentic, prixAuthentic, collaborateurAuthentic, notaireAuthentic', () => {
   assert.equal(app.etatActeAuthentic(gestionAttente).etat, 'redaction');
-  assert.equal(app.etatActeAuthentic({ champs: [{ groupe: 'Acte', libelle: 'État', valeur: 'Acte signé le 30/09/2026' }] }).date, '2026-09-30');
+  assert.equal(app.etatActeAuthentic({ champs: [{ groupe: 'Acte', libelle: 'État', valeur: 'Signé le 30/09/2026' }] }).date, '2026-09-30');
+  // Étude, 03/10 : un mot avant « signé » ne vaut pas acte signé.
+  assert.equal(app.etatActeAuthentic({ champs: [{ groupe: 'Acte', libelle: 'État', valeur: 'Acte signé le 30/09/2026' }] }), null);
   assert.equal(app.etatActeAuthentic({ champs: [{ groupe: 'Acte', libelle: 'État', valeur: 'Pas encore rédigé' }] }).etat, 'a_rediger');
   assert.equal(app.etatActeAuthentic(gestion), null);
   assert.equal(app.prixAuthentic(finances), 245000);
@@ -440,6 +442,11 @@ test('« signé le … » sur la page du dossier : acte signé ; jamais pour l�
   assert.equal(app.etatActeAuthentic({ tableaux: [{ entete: [], lignes: [['Acte de vente', '', '30/09/2026', '', 'Signé électroniquement le 30/09/2026']] }] }).date, '2026-09-30');
   assert.equal(app.etatActeAuthentic({ texte: 'Compromis signé le 12/06/2026\nProcuration signée le 20/09/2026' }), null);
   assert.equal(app.etatActeAuthentic({ texte: 'Compromis signé le 12/06/2026\nActe en cours de rédaction' }).etat, 'redaction');
+  // Étude, 03/10 : « la forme exacte est "Signé le 03/10/2026" ; "Mail version signée le 28/07/2026" : pas bon ».
+  assert.equal(app.etatActeAuthentic({ tableaux: [{ entete: [], lignes: [['Mail version signée le 28/07/2026', '', '28/07/2026', '', 'Envoyé']] }] }), null);
+  assert.equal(app.etatActeAuthentic({ texte: 'Mail version signée le 28/07/2026' }), null);
+  assert.equal(app.etatActeAuthentic({ tableaux: [{ entete: [], lignes: [['Acte de vente', '', '03/10/2026', '', 'Signé le 03/10/2026']] }] }).date, '2026-10-03');
+  assert.equal(app.etatActeAuthentic({ tableaux: [{ entete: [], lignes: [['Acte de vente', '', '03/10/2026', '', 'Projet signé le 03/10/2026']] }] }), null);
   // Passage de « en cours de rédaction » à « signé » : noté dans l'historique.
   const d = { id: 'a', nom: 'MARTEL / FOURNIER', typeVente: 'maison', pieces: {}, historique: [], authentic: { acte: { etat: 'redaction', libelle: 'En cours de rédaction' } } };
   app.appliquerReleveSurDossier(d, { champs: [], tableaux: [], texte: '12 - Vente MARTEL/FOURNIER\nSigné le 30/09/2026' });

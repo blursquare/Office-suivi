@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-03 11:44';
+  const VERSION_APP = '2026-10-03 12:01';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-03 12:01', resume: "Authentic : un acte n'est « signé » que si l'état du document commence exactement par « Signé le JJ/MM/AAAA » (étude : « Mail version signée le 28/07/2026 » ne vaut pas acte signé ; « Acte signé le … » non plus). Avant : « signé le » n'importe où sur la page suffisait." },
     { version: '2026-10-03 11:44', resume: "Emails des dossiers : le rangement automatique des pièces jointes sur le NAS est coupé (étude : « pas encore au point ») — plus aucune copie dans un dossier client sans votre geste ; « Ranger… » dans la fenêtre de lecture reste disponible. Réglages › Agenda et Outlook › Emails des dossiers : interrupteur « Ranger seul les pièces jointes sur le NAS », éteint par défaut, pour le rallumer plus tard." },
     { version: '2026-10-03 10:32', resume: "Mise à jour automatique : une fenêtre CLAIRE déjà ouverte se recharge seule quand le serveur redémarre sur une nouvelle version (avant : elle gardait l'ancienne page jusqu'à un F5 — à 10 h 22, une fenêtre rangeait encore les pages d'Authentic par le « numéro 1 / 2 » retiré à 9 h 33 ; le serveur attend qu'aucune saisie ne soit en cours). Fiche : champ « Confrère » aussi quand c'est le VENDEUR qu'un autre office représente (ses emails sont rattachés au dossier, il est proposé pour les dates de signature) ; « Confrère du vendeur / de l'acquéreur » quand il y en a deux. Emails des dossiers : un dossier tout juste créé fait relire les 30 derniers jours de la boîte — « RE: VENTE MERCIER / FRANCOIS », reçu la veille de la création, est rattaché. Un notaire enregistré « (BLOIS désigné par) » par une version d'avant 9 h 42 redevient « (BLOIS) ». Réglages : rubriques classées sous des titres — L'étude, Connexions, Dossiers et actes, Maintenance." },
     { version: '2026-10-03 10:14', resume: "Outils › Répertoire : l'onglet « Tout » est retiré. La page s'ouvre sur « Notaires » ; chaque thème d'interlocuteurs reste à un clic dans la colonne de gauche." },
@@ -27263,24 +27264,27 @@
   }
 
   // Pure : état de l'acte de vente dans Authentic — 'signe' (avec date), 'redaction', 'a_rediger'.
-  // « signé le JJ/MM/AAAA » n'importe où sur la page du dossier vaut acte signé (étude, 02/10), sauf
-  // sur une ligne qui parle d'un autre document signé (avant-contrat, procuration, mandat, offre,
-  // courrier…).
+  // Acte signé (étude, 03/10 : « il ne doit pas y avoir d'autres mots avant signé, la forme exacte est
+  // "Signé le 03/10/2026" ; "Mail version signée le 28/07/2026" : pas bon ») : l'ÉTAT d'une ligne de
+  // document, un champ ou une ligne du texte qui COMMENCE par « Signé le JJ/MM/AAAA » (ou « Signé
+  // électroniquement le … ») — jamais un titre qui contient « signé », jamais une ligne d'un autre document
+  // (avant-contrat, procuration, mandat, offre, courrier…).
   var RE_AUTRE_DOCUMENT_SIGNE_AUTHENTIC = /compromis|promesse|avant[\s-]*contrat|procuration|mandat|offre|bon\s+de\s+visite|courrier|lettre|demande|attestation|convention|pouvoir|avenant|reconnaissance/i;
+  var RE_SIGNE_LE_AUTHENTIC = /^sign[ée]e?\s+(?:[ée]lectroniquement\s+)?le\s+(\d{1,2}[\/.-]\d{1,2}[\/.-]\d{4})(?![\/.\d])/i;
   function etatActeAuthentic(capture) {
     const c = capture || {};
+    // { etat: ce qui doit commencer par « Signé le », contexte: ce qui écarte un autre document }
     const sources = [];
-    lignesDocumentsAuthentic(c).forEach(l => sources.push(l.titre + ' ' + (l.etat || '') + ' ' + (l.dates || []).map(d => d.split('-').reverse().join('/')).join(' ')));
-    (c.champs || []).forEach(ch => sources.push([ch.groupe, ch.libelle, ch.valeur].filter(Boolean).join(' ')));
-    String(c.texte || '').split(/\n+/).forEach(l => sources.push(l));
-    const lignes = sources.map(x => String(x || '').replace(/\s+/g, ' ').trim()).filter(Boolean);
+    lignesDocumentsAuthentic(c).forEach(l => sources.push({ etat: l.etat || '', contexte: l.titre || '' }));
+    (c.champs || []).forEach(ch => sources.push({ etat: String(ch.valeur || ''), contexte: [ch.groupe, ch.libelle].filter(Boolean).join(' ') }));
+    String(c.texte || '').split(/\n+/).forEach(l => sources.push({ etat: l, contexte: l }));
+    const lignes = sources.map(x => ({ etat: String(x.etat || '').replace(/\s+/g, ' ').trim(), contexte: String(x.contexte || '').replace(/\s+/g, ' ').trim() })).filter(x => x.etat);
     for (const l of lignes) {
-      if (RE_AUTRE_DOCUMENT_SIGNE_AUTHENTIC.test(l)) continue;
-      const m = /sign[ée]e?s?\s+(?:[ée]lectroniquement\s+)?le\s+(\d{1,2}[\/.-]\d{1,2}[\/.-]\d{4})/i.exec(l)
-        || /acte\s+(?:de\s+vente\s+)?sign[ée](?![a-z])/i.exec(l);
-      if (m) return { etat: 'signe', libelle: 'Acte signé', date: m[1] ? dateIsoDepuisFr(m[1]) : '' };
+      if (RE_AUTRE_DOCUMENT_SIGNE_AUTHENTIC.test(l.contexte)) continue;
+      const m = RE_SIGNE_LE_AUTHENTIC.exec(l.etat);
+      if (m) return { etat: 'signe', libelle: 'Acte signé', date: dateIsoDepuisFr(m[1]) };
     }
-    const tout = lignes.join('\n');
+    const tout = lignes.map(l => l.etat).join('\n');
     if (/en\s+cours\s+de\s+r[ée]daction|r[ée]daction\s+en\s+cours/i.test(tout)) return { etat: 'redaction', libelle: 'En cours de rédaction', date: '' };
     if (/(?:non|pas\s+encore)\s+r[ée]dig[ée]|[àa]\s+r[ée]diger/i.test(tout)) return { etat: 'a_rediger', libelle: 'Pas encore rédigé', date: '' };
     return null;

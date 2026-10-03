@@ -739,7 +739,8 @@ Plainte principale de l'étude : **le bruit**, pas les oublis — ne pas élargi
   → pièces cochées « dans Authentic » (`piecesRecuesAuthentic` : même reconnaissance par le nom que l'export ZIP ;
   **pages : seuls l'état civil (« APR » en tête = demande papier, jamais reçue ; « ECV » = état civil virtuel, reçu), les casiers judiciaires (`RE_CASIER_AUTHENTIC`) et la SAFER**, reçus dans Authentic — le
   reste arrive par email/courrier, la page n'en montre que les demandes (étude 02/10) ; **export ZIP d'une vente : jamais
-  les pièces d'urbanisme** (`pieceUrbanismeIgnoreeAuthentic`) ; « signé le … » sur la page = acte signé (`etatActeAuthentic`,
+  les pièces d'urbanisme** (`pieceUrbanismeIgnoreeAuthentic`) ; état d'un document qui **commence** par « Signé le JJ/MM/AAAA » = acte signé (étude 03/10, `etatActeAuthentic`,
+  `RE_SIGNE_LE_AUTHENTIC` : jamais un mot avant « signé » — « Mail version signée le … », « Acte signé le … » ne valent rien ;
   hors avant-contrat/procuration/mandat/courrier) **et marqué fait** : au passage à « signé », `echeancesValidees` de
   ventebien, pret, appelFonds, projetEnvoye, rendezVousSignature, acte (une fois, annulable ; butoirs retirés de l'agenda) ;
   demande/envoi/en attente exclus ; acte d'état civil et **« Réponse SAFER »** de non-préemption ajoutés comme

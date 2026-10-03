@@ -15803,3 +15803,12 @@ email ». Réglage `rangementAuto` (clé `emails-dossiers`, faux par défaut et 
 le geste « Ranger… » dans la fenêtre de lecture reste. Interrupteur dans Réglages › Agenda et Outlook › Emails des dossiers
 (`basculerEmailsDossiers({ rangementAuto })`, `POST /reglages` ne touche que les champs envoyés). Claire Scan (scans du
 copieur) n'est pas concerné : son propre interrupteur existe déjà et le rangement y a été validé le 30/09.
+
+### 03/10/2026 12:01 — Acte signé dans Authentic : « Signé le JJ/MM/AAAA » exactement
+
+Étude : « pour savoir si un acte est signé dans Authentic il ne doit pas y avoir d'autres mots avant signé, la forme exacte est
+"Signé le 03/10/2026" ; ex : "Mail version signée le 28/07/2026" : pas bon ». `etatActeAuthentic` ne lit plus « signé le »
+n'importe où dans la ligne : seul l'ÉTAT d'une ligne de document (dernière cellule texte), la valeur d'un champ ou une ligne
+du texte qui COMMENCE par « Signé le date » (`RE_SIGNE_LE_AUTHENTIC`, « Signé électroniquement le » toléré) compte ; le titre
+sert seulement à écarter un autre document (`RE_AUTRE_DOCUMENT_SIGNE_AUTHENTIC`). « Acte de vente signé » sans date et
+« Acte signé le … » ne valent plus rien. La date de l'avant-contrat (`dateAvantContratAuthentic`) garde sa lecture propre.
