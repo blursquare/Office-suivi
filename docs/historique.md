@@ -15700,3 +15700,28 @@ Extension 0.3.9 : « Script releve.js result is non-structured-clonable data » 
 fichier injecté rendait la fonction qu'il définit ; il finit désormais par `undefined;`.
 Vérifié : tests client (`authentic-pages.test.js`, cas MERCIER/DORLÉAC rejoué sous d'autres noms) et serveur. Non vérifié :
 sur Authentic au bureau (forme exacte du bandeau sur les autres pages : fiche client, onglets), l'extension dans Firefox.
+
+### 03/10/2026 09:42 — Compromis MERCIER (nom « dit », notaires désignés, hors copropriété), solde attendu, bandeau Authentic
+
+Étude : compromis d'agence « Compromis Mr MERCIER Immeuble Tours » (trame AIM) — dossier nommé « MERCIER / CHARLEMAGNE » au
+lieu de « MERCIER / FRANCOIS », « Aucune mention explicite et les notaires ne sont pas identifiables » ; convocation de l'étude
+(VTE LEDRU / ROY) — montant attendu 1.385,00 € au lieu de 237.399,50 € ; « il me met un état civil Christophe ROY dans la VTE
+CHAHUNEAU / LEBERT ».
+- Nom « Lionel FRANCOIS dit CHARLEMAGNE né le » : `extraireNomsParNaissance` accepte « X dit(e) Y » (un seul nom de famille,
+  gardé en entier sur la partie) ; le nom du dossier prend « X » (`nomPourNomDossier`), comme l'intitulé d'Authentic.
+- Notaires : « désigné par le vendeur / par les acquéreurs » (`RE_COTE_NOTAIRE`), « réitérées par acte authentique … par
+  Maître » = instrumentaire (`RE_ROLE_INSTRUMENTAIRE`), commune coupée avant « désigné » (`RE_SUITE_HORS_COMMUNE`).
+- « Compromis de vente - Bien hors copropriété » dans les 600 premiers caractères → pas de copropriété ; « fixant le statut de
+  la copropriété » (titre de la loi de 1965) n'est plus un marqueur.
+- Solde attendu (`parserDecompteConfrere`) : `AF_SOLDE_FINAL_RE` (solde/reste à verser, versement à la signature, solde prix
+  de vente) reconnu n'importe où dans la ligne — la convocation de l'étude porte en marge « OFFICE EQUIPE » sur la même ligne
+  que « Solde à verser » ; un « Soit au total » des sommes À DÉDUIRE n'est plus un solde, et sans solde final un total annoncé
+  ne vaut que s'il n'y a rien à déduire (sinon recalcul, `soldeAttenduDepuisDecompte`) ; « 199, 50 € » recollé.
+- Authentic : page « A 2026 00230 VTE LEDRU / ROY » dont l'en-tête du sous-dossier dit seulement « 2 - Vente d'immeuble » →
+  l'intitulé vient du bandeau (référence suivie de VTE/SUCC/DON…, un seul sur la page). La page était allée à CHAHUNEAU,
+  retenu sous le rang « 2 » (même cause que MERCIER/DORLÉAC, corrigée dans la version précédente) : sur CHAHUNEAU, la croix
+  du bloc « Dans Authentic » retire l'état civil de ROY et le reste ; tout revient à la prochaine page de CHAHUNEAU.
+- « Arrêté d'alignement - RD.pdf » (LEDRU) : reconnu par `motifNom` (vérifié, apostrophe droite ou courbe, avec ou sans
+  accents) — cause à chercher au bureau (dossier NAS relié, exclusion « Réinitialiser », forme écartée dans « Noms de
+  fichiers du NAS », ou version pas encore installée).
+Vérifié : tests (`parties`, `notaires`, `dates`, `fonds-recus`, `authentic-pages`), rejeu des deux PDF réels (non commités).

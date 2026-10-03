@@ -617,3 +617,16 @@ test('coteInstrumentaireNouveauDossier : lu dans l’acte, sinon déduit du rôl
   // Côté lu dans l'acte, notaire inchangé : conservé.
   assert.equal(app.coteInstrumentaireNouveauDossier({ coteInstrumentaire: 'vendeur', vendeur: confrere }, confrere, etude, 'instrumentaire'), 'vendeur');
 });
+
+test('trame d’agence : « par Maître A, Notaire à BLOIS désigné par le vendeur et avec la participation de Maître B, Notaire à Tours désigné par les acquéreurs » (étude, 03/10)', () => {
+  const app = chargerApplication();
+  const texte = 'Compromis de vente - Bien hors copropriété. Le vendeur Monsieur LEGRAND Paul né le 1 mars 1950 à BLOIS. '
+    + 'L\'acquéreur Monsieur Marc DUVAL né le 2 avril 1970 à TOURS. '
+    + 'RÉALISATION DE LA VENTE Elles seront réitérées par acte authentique au plus tard le 30 septembre 2026 par   Maitre  MARTIN Claire   , Notaire à   BLOIS   désigné par   le vendeur   et avec la participation de   Maitre  ROBIN Anne   , Notaire à   Tours   désigné par   les acquéreurs   .  Les PARTIES donnent tous les pouvoirs aux clercs.';
+  const notaires = app.detecterNotaires(texte, 'COMPROMIS');
+  const resume = notaires.map(n => `${n.nom}|${n.office}|${n.cote}|${n.roleExplicite}`).join(' ; ');
+  assert.equal(resume, 'MARTIN Claire|BLOIS|vendeur|instrumentaire ; ROBIN Anne|Tours|acquereur|participant');
+  const d = app.determinerNotaires(notaires, '41', 'COMPROMIS');
+  assert.equal(d.statut, 'CONFIRMED');
+  assert.equal(d.instrumentaire.nom, 'MARTIN Claire');
+});

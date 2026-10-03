@@ -406,3 +406,13 @@ Ci-après dénommés, ensemble, "LE BENEFICIAIRE"`;
   assert.match(lu, /GIRAUD:LEFORT/);
   assert.doesNotMatch(lu, /LEFORT:LEFORT/);
 });
+
+test('nom « X dit Y » : un seul nom de famille, gardé en entier ; le dossier prend « X » comme Authentic (étude, 03/10)', () => {
+  const app = chargerApplication();
+  const texte = 'COMPROMIS DE VENTE  Le vendeur  Monsieur   LEGRAND Paul   né le   1 mars 1950   à   BLOIS   , demeurant 3 rue Haute 41000 BLOIS. Ci-après dénommé(e)s "le VENDEUR", d\'une part,  '
+    + 'L\'acquéreur  Monsieur   Marc DUVAL dit LACROIX   né le   2 avril 1970   à   TOURS   , et Madame   Lise DUVAL dit LACROIX   née le  4 juin 1972   à   TOURS   , demeurant 6 rue Basse 37000 Tours. Ci-après dénommé(e)s "l\'ACQUEREUR", d\'autre part,';
+  const acquereurs = app.detecterParties(texte, 'COMPROMIS').filter(p => p.role === 'ACQUEREUR').map(p => p.nom);
+  assert.equal(acquereurs.join(','), 'DUVAL dit LACROIX');
+  assert.equal(app.detecterNomDossier(texte), 'LEGRAND / DUVAL');
+  assert.equal(app.nomPourNomDossier('DUVAL dite LACROIX'), 'DUVAL');
+});

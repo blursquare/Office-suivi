@@ -724,3 +724,10 @@ test('detecterSequestreDepot ne ramène rien sans clause de dépôt', () => {
     null
   );
 });
+
+test('detecterTypeVenteCopropriete : « Bien hors copropriété » en titre de la trame l’emporte sur les clauses types (étude, 03/10)', () => {
+  const app = chargerApplication();
+  const clauses = ' plusieurs logements ne relevant pas de la loi n° 65-557 du 10 juillet 1965 fixant le statut de la copropriété des immeubles bâtis ; servitudes résultant du règlement du lotissement, du règlement de copropriété ainsi que de l\'état descriptif de division, s\'il y a.';
+  assert.equal(app.detecterTypeVenteCopropriete('Compromis de vente - Bien hors copropriété  AGENCE X.' + clauses), false);
+  assert.equal(app.detecterTypeVenteCopropriete('Le bien vendu constitue le lot de copropriété numéro 12.'), true);
+});

@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-03 09:33';
+  const VERSION_APP = '2026-10-03 09:42';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-03 09:42', resume: "Compromis d'agence (MERCIER) : « Lionel FRANCOIS dit CHARLEMAGNE » est lu comme un seul nom de famille — le dossier s'appelle « MERCIER / FRANCOIS » comme dans Authentic (avant : « MERCIER / CHARLEMAGNE ») ; « par Maître X, Notaire à BLOIS désigné par le vendeur et avec la participation de Maître Y, Notaire à Tours désigné par les acquéreurs » donne les deux notaires, leur côté et celui qui reçoit l'acte ; « Bien hors copropriété » en titre n'est plus lu copropriété. Montant attendu des fonds : « Solde à verser » est lu même précédé du texte de la marge de la convocation (237.399,50 € au lieu du total des sommes à déduire, 1.385,00 €), et « 199, 50 € » vaut bien 199,50 €. Authentic : quand l'en-tête du sous-dossier ne porte aucun nom (« 2 - Vente d'immeuble »), le nom du dossier est lu dans le bandeau (« VTE LEDRU / ROY ») — la page de LEDRU était allée à CHAHUNEAU." },
     { version: '2026-10-03 09:33', resume: "Authentic : le « 1 » de « 1 - Vente MERCIER / FRANCOIS » n'identifie plus rien (c'est le rang du sous-dossier, le même dans presque tous les dossiers) : une page de MERCIER (réquisition hors formalité) était allée à DORLÉAC, et « Nouveau dossier » proposait DORLÉAC comme doublon de MERCIER. Au premier passage, le dossier est reconnu par les noms et l'adresse du bien ; sa référence Authentic (« A 2026 00247 », le vrai numéro du dossier) est alors retenue en coulisses, jamais affichée devant VTE ou SUCC, et relie ensuite les deux. Les anciens « numéros » sont oubliés au démarrage. Sur la fiche, la croix de « Dans Authentic » oublie ce qu'une page d'un autre dossier a posé (pièces cochées, RHF, SAFER, état de l'acte, rattachement) : tout revient à la prochaine ouverture du bon dossier. Extension 0.3.9 : le bouton « Envoyer à CLAIRE » ne tombe plus en erreur." },
     { version: '2026-10-03 08:13', resume: "Nouvel outil « Noms de fichiers du NAS » (Outils) : CLAIRE parcourt tous les dossiers du commun, range les noms des PDF par pièce probable et par forme (nom du client, adresse et numéros mis de côté : « DIAG ERP 3 rue … » et « DIAG ERP 12 avenue … » ne font qu'une ligne), et vous demande « Oui » ou « Non » pour chaque forme — ou pour un seul nom avec « Voir les noms ». Une forme validée est reconnue désormais sur le NAS et dans les pièces jointes ; une forme écartée ne l'est plus pour cette pièce. Seules les formes décidées sont gardées ; elles remontent dans le rapport technique pour enrichir les motifs." },
     { version: '2026-10-03 08:00', resume: "Vérifications sur le terrain : Réglages › Mise à jour et sauvegarde liste ce qui ne peut être essayé qu'au bureau (Outlook, Windows, 3CX, IA locale, NAS, mise à jour automatique…). Chaque point se coche tout seul la première fois que le geste réussit ; ceux qui se voient à l'œil (logo dans la notification, icône nette) se confirment par « C'est bon » ou « Ne marche pas ». L'état part dans le rapport technique de 12 h et 17 h (sans nom ni numéro)." },
@@ -861,9 +862,15 @@
   }
 
   function detecterTypeVenteCopropriete(texte) {
+    // Le titre de la trame le dit (étude, 03/10 : compromis d'agence « Compromis de vente - Bien hors
+    // copropriété », lu « copropriété » à cause des clauses types qui citent la loi de 1965 et le
+    // « règlement de copropriété » parmi les servitudes possibles).
+    if (/hors\s+copropri[ée]t[ée]/i.test(String(texte || '').slice(0, 600))) return false;
     const re = new RegExp(COPROPRIETE_RE.source, 'gi');
     let m;
     while ((m = re.exec(texte)) !== null) {
+      // Titre de la loi (« loi n° 65-557 du 10 juillet 1965 fixant le statut de la copropriété ») : déjà jugé avec la loi.
+      if (/fixant\s+le\s*$/i.test(texte.slice(Math.max(0, m.index - 20), m.index))) continue;
       const avant = porteeNegation(texte.slice(Math.max(0, m.index - FENETRE_NEGATION_COPROPRIETE), m.index));
       if (NEGATION_COPROPRIETE_RE.test(avant)) continue;
       const apres = texte.slice(m.index + m[0].length, m.index + m[0].length + FENETRE_CONDITIONNEL_COPROPRIETE);
@@ -1655,7 +1662,10 @@
     if (positions.length === 0) return [];
     positions.push(bloc.length);
     const noms = [];
-    const nomAvantNaissanceRe = /\b([A-ZÀÂÄÉÈÊËÎÏÔÖÙÛÜÇ]{2,}(?:[^\S\n]*-[^\S\n]*[A-ZÀÂÄÉÈÊËÎÏÔÖÙÛÜÇ]{2,}|[^\S\n]+[A-ZÀÂÄÉÈÊËÎÏÔÖÙÛÜÇ]{2,})*)\s+n[ée]e?(?=\s)/;
+    // Nom « X dit Y » (étude, 03/10 : « Lionel FRANCOIS dit CHARLEMAGNE ») : un seul nom de famille, gardé
+    // en entier — sans le « dit », seul « CHARLEMAGNE » remontait et le dossier s'appelait « MERCIER /
+    // CHARLEMAGNE » au lieu de « MERCIER / FRANCOIS » (Authentic).
+    const nomAvantNaissanceRe = /\b([A-ZÀÂÄÉÈÊËÎÏÔÖÙÛÜÇ]{2,}(?:[^\S\n]*-[^\S\n]*[A-ZÀÂÄÉÈÊËÎÏÔÖÙÛÜÇ]{2,}|[^\S\n]+[A-ZÀÂÄÉÈÊËÎÏÔÖÙÛÜÇ]{2,}|[^\S\n]+dite?[^\S\n]+[A-ZÀÂÄÉÈÊËÎÏÔÖÙÛÜÇ]{2,})*)\s+n[ée]e?(?=\s)/;
     for (let i = 0; i < positions.length - 1; i++) {
       if (RE_LIEN_FAMILIAL.test(bloc.slice(Math.max(0, positions[i] - 40), positions[i]))) continue;
       const segment = bloc.slice(positions[i], positions[i + 1]);
@@ -1874,10 +1884,18 @@
   // Le nom de dossier reste au format « VENDEUR / ACQUÉREUR » (demandé par l'étude), mais les deux
   // côtés sont désormais déterminés par detecterParties() en tenant compte du type d'acte : sur une
   // promesse d'achat, le promettant est l'ACQUÉREUR, et c'est lui qui doit figurer à droite.
+  // Pure : le nom d'une partie tel qu'il figure dans le nom du dossier — « FRANCOIS dit CHARLEMAGNE »
+  // devient « FRANCOIS », comme l'intitulé d'Authentic (« VTE MERCIER / FRANCOIS ») ; la partie garde
+  // son nom entier.
+  function nomPourNomDossier(nom) {
+    return String(nom || '').replace(/\s+dite?\s+.*$/i, '').trim() || String(nom || '');
+  }
+
   function detecterNomDossier(texte) {
     const parties = detecterParties(texte, detecterTypeActe(texte).valeur);
-    const partieVendeur = parties.filter(p => p.role === 'VENDEUR').map(p => p.nom).join(' & ');
-    const partieAcquereur = parties.filter(p => p.role === 'ACQUEREUR').map(p => p.nom).join(' & ');
+    const unique = (l) => [...new Set(l)];
+    const partieVendeur = unique(parties.filter(p => p.role === 'VENDEUR').map(p => nomPourNomDossier(p.nom))).join(' & ');
+    const partieAcquereur = unique(parties.filter(p => p.role === 'ACQUEREUR').map(p => nomPourNomDossier(p.nom))).join(' & ');
     if (partieVendeur && partieAcquereur) return `${partieVendeur} / ${partieAcquereur}`;
     return partieVendeur || partieAcquereur || null;
   }
@@ -2935,7 +2953,8 @@
   // La capture de la commune court jusqu'à la ponctuation suivante et ramasse au passage ce qui
   // suit (« BEAUGENCY le 23 avril 2004 », « BLOIS identifié sous le numéro CRPCEN »). On ne garde
   // que la tête du fragment : le nom d'une commune s'arrête au premier mot de liaison.
-  var RE_SUITE_HORS_COMMUNE = /\s+(?:le|la|les|identifi|soussign|volume|num[ée]ro|en|au|aux|dont|titulaire|membre|exer[çc])/i;
+  // « Notaire à BLOIS désigné par le vendeur » (compromis d'agence, étude 03/10) : « désigné » n'est pas la commune.
+  var RE_SUITE_HORS_COMMUNE = /\s+(?:le|la|les|identifi|soussign|volume|num[ée]ro|en|au|aux|dont|titulaire|membre|exer[çc]|d[ée]sign[ée]|choisi|et\s)/i;
 
   function nettoyerCommuneNotaire(brut) {
     let ville = String(brut || '').replace(/\s+/g, ' ').trim();
@@ -2948,7 +2967,7 @@
   // Définition donnée par l'étude — « le notaire instrumentaire est celui qui a RÉDIGÉ » : les
   // formes du verbe rédiger sont donc reconnues au même titre que « recevra l'acte », y compris au
   // PASSÉ (« acte rédigé par »), et « notaire rédacteur », terme notarial courant pour le désigner.
-  var RE_ROLE_INSTRUMENTAIRE = /(?:recevra\s+l['’]acte|acte\s+(?:authentique\s+)?(?:sera\s+)?re[çc]u\s+par|r[ée]dig(?:era|[ée]e?)\s+(?:par|l['’]acte)|notaire\s+r[ée]dacteur|acte\s+(?:sera\s+)?dress[ée]\s+par|notaire\s+instrumentaire|en\s+l['’][ée]tude\s+de)/i;
+  var RE_ROLE_INSTRUMENTAIRE = /(?:recevra\s+l['’]acte|r[ée]it[ée]r[ée]e?s?\s+par\s+acte\s+authentique|acte\s+(?:authentique\s+)?(?:sera\s+)?re[çc]u\s+par|r[ée]dig(?:era|[ée]e?)\s+(?:par|l['’]acte)|notaire\s+r[ée]dacteur|acte\s+(?:sera\s+)?dress[ée]\s+par|notaire\s+instrumentaire|en\s+l['’][ée]tude\s+de)/i;
   // « participant » et « en concours » désignent le même rôle (le second notaire), comme l'étude
   // l'a confirmé — les deux vocabulaires coexistent dans les actes.
   var RE_ROLE_PARTICIPANT = /(?:avec\s+(?:la\s+)?participation\s+de|en\s+participation|notaire\s+(?:participant|concourant)|en\s+concours(?:\s+avec)?|assist[ée]e?\s+de)/i;
@@ -3057,7 +3076,8 @@
   // standard de la comparution d'un acte authentique. C'est ce seul mot qui laissait le côté de
   // chaque notaire indéterminé sur la totalité des actes du corpus, alors que plusieurs le
   // disaient noir sur blanc.
-  var RE_COTE_NOTAIRE = /(?:notaire|conseil|assistant?e?|repr[ée]sentant)\s+(?:d[eu]\s+|de\s+la\s+|de\s+l['’]|des\s+|les?\s+|la\s+|l['’])?(vendeurs?|promettants?|acqu[ée]reurs?|acheteurs?|b[ée]n[ée]ficiaires?|parties?\s+venderesses?|parties?\s+acqu[ée]reuses?)/i;
+  // « désigné par le vendeur / par les acquéreurs » (trame d'agence AIM, étude 03/10).
+  var RE_COTE_NOTAIRE = /(?:notaire|conseil|assistant?e?|repr[ée]sentant|d[ée]sign[ée]e?\s+par|choisie?\s+par)\s+(?:d[eu]\s+|de\s+la\s+|de\s+l['’]|des\s+|les?\s+|la\s+|l['’])?(vendeurs?|promettants?|acqu[ée]reurs?|acheteurs?|b[ée]n[ée]ficiaires?|parties?\s+venderesses?|parties?\s+acqu[ée]reuses?)/i;
 
   function qualiteDepuisMot(mot) {
     const m = String(mot || '').toLowerCase();
@@ -12016,7 +12036,9 @@
     const somme = (l) => l.filter(x => !x.memoire).reduce((t, x) => t + (Number(x.montant) || 0), 0);
     const calcule = Math.round((somme(r.lignes.debit) - somme(r.lignes.credit)) * 100) / 100;
     const declare = Number(r.meta && r.meta.soldeDeclare);
-    const solde = declare > 0 ? declare : calcule;
+    // Un total annoncé sans « Solde à verser » ne vaut solde que s'il n'y a rien à déduire après lui.
+    const declareFiable = declare > 0 && (r.meta.soldeFinal || !somme(r.lignes.credit));
+    const solde = declareFiable ? declare : calcule;
     return solde > 0 ? solde : null;
   }
 
@@ -26601,7 +26623,18 @@
       const v = RE_INTITULE_VTE_SEUL_AUTHENTIC.exec(titre);
       if (v) return avec(intituleVenteNormalise(v[1]));
     }
-    // 2. L'en-tête de la page du dossier, avec son rang…
+    // 2. Le bandeau du dossier, « A 2026 00230 VTE LEDRU / ROY » (étude, 03/10 : l'en-tête du sous-dossier ne dit
+    //    parfois que « 2 - Vente d'immeuble », sans aucun nom — la page de LEDRU était allée à CHAHUNEAU).
+    const bandeaux = [];
+    sources.forEach(s => {
+      const re = new RegExp(RE_REFERENCE_AUTHENTIC.source + '[^\\S\\n]+((?:VTE|Vente|SUCC|Succession|DON|Donation)\\.?[^\\S\\n]+[^\\n]{1,150}?\\S)[^\\S\\n]*(?=\\n|$)', 'gi');
+      for (const m of String(s).matchAll(re)) {
+        const i = intituleVenteNormalise(m[4]);
+        if (!bandeaux.includes(i)) bandeaux.push(i);
+      }
+    });
+    if (bandeaux.length === 1) return avec(bandeaux[0]);
+    // 3. L'en-tête de la page du dossier, avec son rang…
     for (const s of sources) {
       const m = RE_INTITULE_GESTION_AUTHENTIC.exec(String(s));
       if (m) return avec(intituleVenteNormalise(m[2]));
@@ -38545,8 +38578,14 @@
     return sansHeure || vide;
   }
 
+  // « Solde à verser » / « Reste à verser » : le solde final, même précédé d'un texte de la marge du courrier
+  // (étude, 03/10 : « OFFICE EQUIPE Solde à verser 237.399,50 € » sur la convocation de l'étude — le
+  // « Soit au total » des sommes à déduire, 1.385,00 €, était pris pour le montant attendu).
+  var AF_SOLDE_FINAL_RE = /(?:^|\s)(?:solde\s+(?:[àa]\s+)?(?:verser|payer|r[ée]gler)|reste\s+(?:[àa]\s+)?(?:verser|payer|r[ée]gler)|versement\s+[àa]\s+la\s+signature|solde\s+prix\s+de\s+vente)(?![A-Za-zÀ-ÿ])/i;
+
   function parserDecompteConfrere(texte) {
-    const lignes = String(texte || '').split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+    // « 199, 50 € » : pdf.js coupe parfois les centimes après la virgule (convocation de l'étude, 03/10).
+    const lignes = String(texte || '').split(/\r?\n/).map(l => l.trim().replace(/(\d),\s+(\d{2})(\s*€)/g, '$1,$2$3')).filter(Boolean);
     const brut = [];
     const meta = { soldeDeclare: null, refTrouvee: null, avertissements: [] };
     const candidatsPrix = [];
@@ -38577,9 +38616,10 @@
       if (mRef) { meta.refTrouvee = mRef[1].trim(); continue; }
 
       const deux = afDeuxMontants(ligne);
-      if (deux && (AF_SOUS_TOTAL_RE.test(deux.libelle) || deux.libelle === '')) {
+      if (deux && (AF_SOUS_TOTAL_RE.test(deux.libelle) || AF_SOLDE_FINAL_RE.test(deux.libelle) || deux.libelle === '')) {
         viderCandidatsPrix();
-        meta.soldeDeclare = deux.second;
+        if (!meta.soldeFinal || AF_SOLDE_FINAL_RE.test(deux.libelle)) meta.soldeDeclare = deux.second;
+        if (AF_SOLDE_FINAL_RE.test(deux.libelle)) meta.soldeFinal = true;
         libelleEnAttente = null;
         derniere = null;
         continue;
@@ -38628,7 +38668,14 @@
       // matcherait aucun des deux motifs, tous deux ancrés en début de chaîne.
       libelle = afNettoyerLibelle(libelle);
 
-      if (AF_SOUS_TOTAL_RE.test(libelle)) { viderCandidatsPrix(); meta.soldeDeclare = montant; derniere = null; continue; }
+      if (AF_SOLDE_FINAL_RE.test(libelle)) { viderCandidatsPrix(); meta.soldeDeclare = montant; meta.soldeFinal = true; derniere = null; continue; }
+      if (AF_SOUS_TOTAL_RE.test(libelle)) {
+        viderCandidatsPrix();
+        // Un total des sommes À DÉDUIRE n'est pas le solde attendu ; un solde final déjà lu reste.
+        if (signe >= 0 && !meta.soldeFinal) meta.soldeDeclare = montant;
+        derniere = null;
+        continue;
+      }
       if (AF_LIGNE_PRIX_RE.test(libelle) && !ligneHorsPrixVue) { derniere = { libelle, montant }; candidatsPrix.push(derniere); continue; }
 
       viderCandidatsPrix();

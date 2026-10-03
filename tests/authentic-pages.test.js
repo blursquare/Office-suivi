@@ -1135,3 +1135,10 @@ test('garder les deux : emails et téléphones d’Authentic ajoutés à ceux d�
   assert.equal(extraction.champs.emailAcquereur.valeur, 'compromis@exemple.fr; camille@exemple.fr; paul@exemple.fr');
   assert.equal(extraction.champs.telephoneAcquereur.valeur, '06 11 22 33 44');
 });
+
+test('en-tête du sous-dossier sans nom (« 2 - Vente d’immeuble ») : le nom vient du bandeau « A 2026 00230 VTE X / Y » (étude, 03/10)', () => {
+  const page = { champs: [], tableaux: [], texte: 'Accueil\nA 2026 00230 VTE LEGRAND / ROUX\n2 - Vente d\'immeuble Importer avec 6e SENS\nComparants (2)\n1 - Promesse VTE LEGRAND / ROUX\n2 - Vente d\'immeuble' };
+  assert.equal(app.intituleDossierAuthentic(page), 'Vente LEGRAND / ROUX');
+  const dossiers = [{ id: 'c', nom: 'CHAMBON / LEBLANC', numeroAuthentic: '2', parties: [] }, { id: 'l', nom: 'LEGRAND / ROUX', parties: [] }];
+  assert.equal(app.dossierPourIntituleAuthentic(app.intituleDossierAuthentic(page), dossiers, '', app.referenceDossierAuthentic(page)).id, 'l');
+});

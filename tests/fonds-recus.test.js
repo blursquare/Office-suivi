@@ -283,3 +283,28 @@ test('reçus supprimés du commun : les montants déjà retenus sont gardés en 
   // Rien d'ancien : la lecture seule.
   assert.equal(app.fusionnerRecusMemorises(null, [r3], new Set([r3.chemin])).length, 1);
 });
+
+test('convocation de l’étude : « Solde à verser » précédé du texte de la marge, jamais le total des sommes à déduire (étude, 03/10)', () => {
+  const texte = [
+    'Nos Réf : VTE DUPRE / MARTIN',
+    'Votre décompte prévisionnel s\'établit comme suit :',
+    'Prix d\'acquisition 150.000,00 €',
+    'Montant des frais et droits de l\'acte de 12.400,00 €',
+    'vente',
+    'Quote - part de taxes foncières 210, 40 €',
+    'Frais de promesse 335,00 €',
+    'Soit au total 162.945,40 €',
+    'A déduire',
+    'Acompte sur prix versé à l\'étude 1.000,00 €',
+    'Frais de promesse 335,00 €',
+    'Soit au total 1.335,00 €',
+    'OFFICE EQUIPE Solde à verser 161.610,40 €',
+    'DE LA VISIOCONFERENCE'
+  ].join('\n');
+  assert.equal(app.soldeAttenduDepuisDecompte(texte), 161610.4);
+  const r = app.parserDecompteConfrere(texte);
+  assert.equal(r.lignes.debit.find(l => /taxes fonci/i.test(l.libelle)).montant, 210.4);
+  // Sans ligne « Solde » : ni le total des débits ni celui des sommes à déduire n'est le solde — recalcul.
+  const sansSolde = texte.split('\n').filter(l => !/Solde/.test(l)).join('\n');
+  assert.equal(app.soldeAttenduDepuisDecompte(sansSolde), 161610.4);
+});
