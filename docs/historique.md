@@ -15927,3 +15927,8 @@ en parallèle, 3 000 PDF par dossier, 200 000 au total, mémoire seule en paires
 tranches et affiche « Classement des noms par forme… N % » (`nomsNas.progression`). Essai dans Chromium sur un commun
 inventé de 100 dossiers / 21 000 PDF : parcours serveur 2,3 s (disque local — plus long sur le NAS), classement 0,5 s,
 700 noms d'une même forme en une seule ligne. Les formes restent affichées 15 par page.
+
+### 03/10/2026 19:16 — Réglages : sur-titres du menu en noir
+
+Étude : « mets les sur-titres du menu de réglages en noir ». `.reglages-nav-groupe` : `color: var(--ink)` (encre du thème,
+donc clair sur fond sombre) au lieu de `var(--muted)`.

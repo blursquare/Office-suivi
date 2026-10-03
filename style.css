@@ -5028,7 +5028,7 @@ table.af-table .af-verif-ecart { background: #f6e3c9; color: #8a5417; }
 .reglages-nav { display: flex; flex-direction: column; gap: 2px; position: sticky; top: 16px; }
 .reglages-nav-groupe {
   margin: 14px 12px 4px; font-size: 10.5px; font-weight: 650; letter-spacing: 0.07em;
-  text-transform: uppercase; color: var(--muted);
+  text-transform: uppercase; color: var(--ink);
 }
 .reglages-nav-groupe.premier { margin-top: 0; }
 .reglages-corps .reglages-nav-btn {

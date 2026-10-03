@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-03 19:13';
+  const VERSION_APP = '2026-10-03 19:16';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-03 19:16', resume: "Réglages : les titres de catégorie du menu (L'étude, Connexions, Dossiers et actes, Maintenance) en noir au lieu de gris." },
     { version: '2026-10-03 19:13', resume: "Noms de fichiers du NAS : le classement des noms par forme se fait par tranches avec un pourcentage affiché — un commun de plusieurs dizaines de milliers de PDF ne fige plus la fenêtre pendant le calcul (essayé sur 21 000 PDF dans 100 dossiers : parcours 2 s, classement 0,5 s)." },
     { version: '2026-10-03 18:53', resume: "Nouveau dossier : les étapes 1 · 2 · 3 occupent toute la largeur de la carte (la première à gauche, la dernière à droite, les traits de liaison entre les deux)." },
     { version: '2026-10-03 18:48', resume: "Authentic, plusieurs dossiers consultés dans la journée : les dossiers de vente vus et pas dans CLAIRE se retrouvent dans « Nouveau dossier » › Depuis Authentic, section « À créer » en tête (compteur, bouton « Créer » sur chaque ligne) — le message en bas de l'écran ne montre que le dernier. Les pages d'Authentic sont gardées en mémoire du serveur toute la journée (12 h, au lieu d'une heure) ; dans le journal Réglages › Authentic, une ligne « Dossier à créer » a son bouton « Créer le dossier »." },
