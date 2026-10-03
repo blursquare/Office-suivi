@@ -15916,3 +15916,14 @@ colonnes égales (la 3e case restait collée à gauche de sa colonne, un tiers d
 à largeur naturelle, `.wizard-step-trait` rendus (flex 1, trait d'accent après une étape faite), première étape alignée
 à gauche, deuxième centrée, dernière à droite ; sur téléphone, tout centré. Mesuré dans Chromium : le bouton 1 commence
 au bord gauche de la carte et le bouton 3 finit au bord droit (clair, sombre, 400 px).
+
+### 03/10/2026 19:13 — Noms de fichiers du NAS : classement par tranches (« des milliers de PDF, ça va aller ? »)
+
+Étude : « il va sortir des milliers de PDF, ça va aller ? ». Serveur : déjà asynchrone (`listerPdfRecursif`, 4 dossiers
+en parallèle, 3 000 PDF par dossier, 200 000 au total, mémoire seule en paires [index, nom]) — rien à changer. Client :
+`groupesFormesNoms` tournait d'un trait, 4,3 s bloquées pour 30 000 noms (mesuré). Réécrit en générateur
+`etapesGroupesFormesNoms` (une pause tous les `TRANCHE_NOMS_NAS` = 1 500 noms, tokens puis classement) :
+`groupesFormesNoms` le déroule d'un trait (tests inchangés), `groupesFormesNomsParTranches` cède la main entre deux
+tranches et affiche « Classement des noms par forme… N % » (`nomsNas.progression`). Essai dans Chromium sur un commun
+inventé de 100 dossiers / 21 000 PDF : parcours serveur 2,3 s (disque local — plus long sur le NAS), classement 0,5 s,
+700 noms d'une même forme en une seule ligne. Les formes restent affichées 15 par page.

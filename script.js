@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-03 18:53';
+  const VERSION_APP = '2026-10-03 19:13';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-03 19:13', resume: "Noms de fichiers du NAS : le classement des noms par forme se fait par tranches avec un pourcentage affiché — un commun de plusieurs dizaines de milliers de PDF ne fige plus la fenêtre pendant le calcul (essayé sur 21 000 PDF dans 100 dossiers : parcours 2 s, classement 0,5 s)." },
     { version: '2026-10-03 18:53', resume: "Nouveau dossier : les étapes 1 · 2 · 3 occupent toute la largeur de la carte (la première à gauche, la dernière à droite, les traits de liaison entre les deux)." },
     { version: '2026-10-03 18:48', resume: "Authentic, plusieurs dossiers consultés dans la journée : les dossiers de vente vus et pas dans CLAIRE se retrouvent dans « Nouveau dossier » › Depuis Authentic, section « À créer » en tête (compteur, bouton « Créer » sur chaque ligne) — le message en bas de l'écran ne montre que le dernier. Les pages d'Authentic sont gardées en mémoire du serveur toute la journée (12 h, au lieu d'une heure) ; dans le journal Réglages › Authentic, une ligne « Dossier à créer » a son bouton « Créer le dossier »." },
     { version: '2026-10-03 18:05', resume: "Authentic : une page de VENTE qu'aucun dossier de CLAIRE ne porte fait apparaître un message « n'est pas dans CLAIRE » avec le bouton « Créer » — « Nouveau dossier » s'ouvre pré-rempli (parties, bien, pièces de la page et des fiches ouvertes depuis une heure), rien n'est créé sans votre clic. Quand un dossier proche existe, la fenêtre « Choisir » gagne la ligne « Créer un nouveau dossier ». Ventes seulement ; jamais pour un acte déjà signé ni un sous-dossier promesse ou avenant. Journal Réglages › Authentic : « Dossier à créer »." },
@@ -32827,27 +32828,50 @@
   // puis par forme, du groupe le plus fourni au moins fourni. Vocabulaire = mots vus dans au moins 3
   // dossiers (2 en dessous de 30 dossiers) : un nom de client ou de rue, propre à un dossier, devient
   // « … », ce qui rassemble « DIAG ERP 3 rue des Lilas » et « DIAG ERP 12 rue Haute ».
+  // Le classement est écrit en générateur : il cède la main tous les TRANCHE_NOMS_NAS noms, pour qu'un commun
+  // de plusieurs dizaines de milliers de PDF (4 s de calcul pour 30 000 noms) ne fige pas la fenêtre —
+  // `groupesFormesNoms` le déroule d'un trait (tests), `groupesFormesNomsParTranches` avec une pause et une
+  // progression entre deux tranches.
+  var TRANCHE_NOMS_NAS = 1500;
   function groupesFormesNoms(fichiers) {
+    const it = etapesGroupesFormesNoms(fichiers);
+    for (;;) { const r = it.next(); if (r.done) return r.value; }
+  }
+  async function groupesFormesNomsParTranches(fichiers, progression) {
+    const it = etapesGroupesFormesNoms(fichiers);
+    for (;;) {
+      const r = it.next();
+      if (r.done) return r.value;
+      if (progression) progression(r.value.fait, r.value.total);
+      await new Promise(ok => setTimeout(ok, 0));
+    }
+  }
+  function* etapesGroupesFormesNoms(fichiers) {
     const liste = (fichiers || []).map(f => (Array.isArray(f) ? { d: f[0], nom: f[1] } : f)).filter(f => f && typeof f.nom === 'string');
-    const motsParFichier = liste.map(f => tokensNomFichier(f.nom));
+    const total = liste.length * 2;
+    const motsParFichier = new Array(liste.length);
     const dossiersParMot = new Map();
-    motsParFichier.forEach((mots, i) => {
+    for (let i = 0; i < liste.length; i++) {
+      const mots = motsParFichier[i] = tokensNomFichier(liste[i].nom);
       for (const m of new Set(mots)) {
         let e = dossiersParMot.get(m);
         if (!e) dossiersParMot.set(m, e = new Set());
         e.add(liste[i].d);
       }
-    });
+      if ((i + 1) % TRANCHE_NOMS_NAS === 0) yield { fait: i + 1, total };
+    }
     const nbDossiers = new Set(liste.map(f => f.d)).size;
     const seuil = nbDossiers >= 30 ? 3 : 2;
     const vocabulaire = new Set();
     dossiersParMot.forEach((e, m) => { if (e.size >= seuil) vocabulaire.add(m); });
     const parCle = {};
-    liste.forEach((f, i) => {
+    for (let i = 0; i < liste.length; i++) {
+      const f = liste[i];
+      if ((i + 1) % TRANCHE_NOMS_NAS === 0) yield { fait: liste.length + i + 1, total };
       const cles = clesElargiesPourMots(motsParFichier[i]);
-      if (!cles.length) return;
+      if (!cles.length) continue;
       const forme = formeNomFichier(f.nom, vocabulaire);
-      if (!/[a-z]/.test(forme)) return;
+      if (!/[a-z]/.test(forme)) continue;
       for (const cle of cles) {
         const m = parCle[cle] || (parCle[cle] = new Map());
         let g = m.get(forme);
@@ -32856,7 +32880,7 @@
         g.dossiers.add(f.d);
         g.noms.set(f.nom, (g.noms.get(f.nom) || 0) + 1);
       }
-    });
+    }
     const groupes = {};
     Object.keys(parCle).forEach(cle => {
       groupes[cle] = [...parCle[cle].values()].map(g => {
@@ -32925,9 +32949,14 @@
       nomsNas.etat = etat;
       if (etat.etat === 'pret' && Array.isArray(etat.fichiers) && (!nomsNas.groupes || nomsNas.fin !== etat.fin)) {
         nomsNas.calcul = true;
+        nomsNas.progression = '';
         renderNomsNas();
         await new Promise(ok => setTimeout(ok, 30));
-        const res = groupesFormesNoms(etat.fichiers);
+        const res = await groupesFormesNomsParTranches(etat.fichiers, (fait, total) => {
+          nomsNas.progression = `${Math.min(100, Math.round(fait * 100 / Math.max(1, total)))} %`;
+          const zone = document.getElementById('noms-nas-groupes');
+          if (zone) zone.innerHTML = `<p class="jour-vide">Classement des noms par forme… ${nomsNas.progression}</p>`;
+        });
         nomsNas.groupes = res.groupes;
         nomsNas.nbDossiers = res.nbDossiers;
         nomsNas.nbFichiers = res.nbFichiers;
