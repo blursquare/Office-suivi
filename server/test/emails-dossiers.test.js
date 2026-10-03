@@ -89,6 +89,47 @@ test('tour : reçu rattaché (texte jamais gardé, pièces jointes listées), en
   } finally { db.close(); }
 });
 
+test('adresse du confrère saisie après coup : ses emails des 30 derniers jours sont retrouvés, une fois (étude, 03/10)', async () => {
+  const db = ouvrirDb(':memory:');
+  const repo = creerRepoParametres(db);
+  repo.ecrireReglagesExchange({ actif: true, url: 'https://ex/ews', email: 'bastien@office.fr', motDePasse: 'secret' });
+  const dossier = { id: 'd2', nom: 'LEGRAND / ROUX', emailAcquereur: 'roux@exemple.fr' };
+  const depot = { tousActifs: () => [dossier] };
+  const corps = [];
+  const poster = (o, cb) => {
+    const b = o.body;
+    corps.push(b);
+    if (/FindItem/.test(b) && /Id="inbox"/.test(b)) {
+      // Lecture normale (depuis le repère) : rien de neuf ; relecture sur 30 jours : l'email du confrère, reçu avant la saisie.
+      if (/Descending/.test(b)) return cb(null, { statusCode: 200, body: find([
+        msgFind('OLD1', 'Pièces du dossier', '2026-09-20T10:00:00Z', 'Me DUPRE', 'clerc.dupre@notaires.fr', true),
+        msgFind('OLD2', 'Autre affaire', '2026-09-21T10:00:00Z', 'Inconnu', 'inconnu@exemple.fr', false)]) });
+      return cb(null, { statusCode: 200, body: find([]) });
+    }
+    if (/GetItem/.test(b) && /OLD1/.test(b)) return cb(null, { statusCode: 200, body: getItems([{ id: 'OLD1', corps: 'Ci-joint le titre.', pjs: [{ id: 'PJ9', nom: 'Titre de propriete.pdf' }] }]) });
+    if (/FindItem/.test(b)) return cb(null, { statusCode: 200, body: find([]) });
+    cb(null, { statusCode: 500, body: '' });
+  };
+  try {
+    // Premier tour : les adresses actuelles sont notées, sans relecture.
+    await E.executerTourEmailsDossiers(depot, repo, { poster, maintenant: '2026-10-03T08:00:00Z' }, true);
+    assert.ok(!corps.some((b) => /Descending/.test(b)));
+    // L'étude saisit l'email du confrère sur la fiche.
+    dossier.emailNotaireParticipant = 'Clerc.Dupre@notaires.fr';
+    const r = await E.executerTourEmailsDossiers(depot, repo, { poster, maintenant: '2026-10-03T08:05:00Z' }, true);
+    assert.equal(r.rattrapes, 1);
+    const recu = E.lireEtat(repo).emails.find((e) => e.id && e.dossierId === 'd2');
+    assert.equal(recu.objet, 'Pièces du dossier');
+    assert.equal(recu.pj.map((p) => p.nom).join(), 'Titre de propriete.pdf');
+    assert.equal(E.lireEtat(repo).emails.length, 1, 'l’email d’un inconnu n’est pas repris');
+    // Tour suivant : l'adresse est déjà relue, plus de relecture sur 30 jours.
+    const avant = corps.filter((b) => /Descending/.test(b)).length;
+    await E.executerTourEmailsDossiers(depot, repo, { poster, maintenant: '2026-10-03T08:06:00Z' }, true);
+    assert.equal(corps.filter((b) => /Descending/.test(b)).length, avant);
+    assert.equal(E.adressesNouvellesFiches(['A@x.fr', 'b@x.fr'], new Set(['a@x.fr'])).join(), 'b@x.fr');
+  } finally { db.close(); }
+});
+
 test('identifiants refusés : disjoncteur, rien n’est écrit d’autre', async () => {
   const { db, repo, depot } = preparer();
   const agendaWatch = require('../src/agendaWatch');

@@ -30,6 +30,11 @@ const CLE_EMAILS_DOSSIERS = 'emails-dossiers';
 const MAX_EMAILS = 3000;
 const MAX_PREPARES = 500;
 const MAX_LECTURES_TOUR = 30;
+// Relecture d'une adresse nouvellement saisie sur une fiche (étude, 03/10 : « j'ai ajouté le courriel d'un
+// confrère dans une fiche mais son email n'a pas été détecté » — reçu avant la saisie, il était déjà derrière
+// le repère de lecture) : les 30 derniers jours de la boîte de réception, une fois par adresse.
+const JOURS_RATTRAPAGE_ADRESSE = 30;
+const MAX_ADRESSES_VUES = 3000;
 const JOURS_PREMIERE_LECTURE = 7;
 const INTERVALLE_EMAILS_MS = 60 * 1000; // étude 02/10 : « relevés toutes les minutes »
 const TAILLE_MAX_PJ = 20 * 1024 * 1024;
@@ -89,7 +94,9 @@ function assainirEmailsDossiers(brut) {
   }
   return {
     reglages: { actif: !(b.reglages && b.reglages.actif === false) },
-    etat: { dernierTour: dateIso(etat.dernierTour), erreur: etat.erreur ? texte(etat.erreur, 300) : null, recus: assainirEtatBoite(etat.recus), envoyes },
+    etat: { dernierTour: dateIso(etat.dernierTour), erreur: etat.erreur ? texte(etat.erreur, 300) : null, recus: assainirEtatBoite(etat.recus), envoyes,
+      // Adresses des fiches déjà relues sur 30 jours (null : jamais initialisé — la première lecture de 7 jours suffit).
+      adressesVues: Array.isArray(etat.adressesVues) ? [...new Set(etat.adressesVues.filter((a) => typeof a === 'string' && /@/.test(a)).map((a) => a.toLowerCase().slice(0, 200)))].slice(-MAX_ADRESSES_VUES) : null },
     emails: (Array.isArray(b.emails) ? b.emails : []).map(assainirEmail).filter(Boolean)
       .sort((x, y) => x.date.localeCompare(y.date)).slice(-MAX_EMAILS),
     prepares: (Array.isArray(b.prepares) ? b.prepares : []).map(assainirPrepare).filter(Boolean).slice(-MAX_PREPARES)
@@ -153,6 +160,12 @@ function boitesEnvoyes(reglagesExchange, reglagesRappels) {
   return liste;
 }
 
+// Pure : les adresses des fiches qui n'ont pas encore été relues sur 30 jours.
+function adressesNouvellesFiches(adresses, vues) {
+  const v = vues instanceof Set ? vues : new Set(vues || []);
+  return [...new Set((adresses || []).map((a) => String(a || '').toLowerCase()).filter((a) => /@/.test(a) && !v.has(a)))];
+}
+
 // ---- EWS ----
 function dossierEws(id, boite) {
   return boite
@@ -160,16 +173,16 @@ function dossierEws(id, boite) {
     : `<t:DistinguishedFolderId Id="${id}"/>`;
 }
 
-function corpsFind(dossier, boite, depuisUtc, champDate) {
+function corpsFind(dossier, boite, depuisUtc, champDate, { ordre = 'Ascending', max = 200 } = {}) {
   return ENVELOPPE_DEBUT
     + '<m:FindItem Traversal="Shallow"><m:ItemShape><t:BaseShape>IdOnly</t:BaseShape><t:AdditionalProperties>'
     + '<t:FieldURI FieldURI="item:Subject"/><t:FieldURI FieldURI="message:From"/>'
     + `<t:FieldURI FieldURI="${champDate}"/><t:FieldURI FieldURI="item:HasAttachments"/><t:FieldURI FieldURI="item:Preview"/>`
     + '</t:AdditionalProperties></m:ItemShape>'
-    + '<m:IndexedPageItemView MaxEntriesReturned="200" Offset="0" BasePoint="Beginning"/>'
+    + `<m:IndexedPageItemView MaxEntriesReturned="${Math.max(1, Math.min(1000, Number(max) || 200))}" Offset="0" BasePoint="Beginning"/>`
     + `<m:Restriction><t:IsGreaterThan><t:FieldURI FieldURI="${champDate}"/>`
     + `<t:FieldURIOrConstant><t:Constant Value="${echapperXml(depuisUtc)}"/></t:FieldURIOrConstant></t:IsGreaterThan></m:Restriction>`
-    + `<m:SortOrder><t:FieldOrder Order="Ascending"><t:FieldURI FieldURI="${champDate}"/></t:FieldOrder></m:SortOrder>`
+    + `<m:SortOrder><t:FieldOrder Order="${ordre === 'Descending' ? 'Descending' : 'Ascending'}"><t:FieldURI FieldURI="${champDate}"/></t:FieldOrder></m:SortOrder>`
     + `<m:ParentFolderIds>${dossierEws(dossier, boite)}</m:ParentFolderIds></m:FindItem>` + ENVELOPPE_FIN;
 }
 
@@ -337,6 +350,48 @@ async function tourEmailsDossiers(depot, parametresRepo, injections = {}, manuel
     if (resultat.recus) noterVerification(parametresRepo, 'emails-dossiers-reception');
     etat.etat.recus = { ...etat.etat.recus, statut: 'ok', message: '', luLe: maintenant.toISOString(), lus: (etat.etat.recus.lus || 0) + resultat.recus,
       dernier: dateIso(dernierTraite) || etat.etat.recus.dernier || depuisDefaut, collaborateur: 'Boîte de réception' };
+
+    // 1 bis. Adresses nouvellement saisies sur une fiche (client, confrère) : relecture des 30 derniers jours,
+    // emails de ces adresses seulement — sans toucher au repère de lecture.
+    const adressesFiches = [...ctx.parAdresse.keys()];
+    if (etat.etat.adressesVues === null) {
+      etat.etat.adressesVues = adressesFiches;
+    } else {
+      const vues = new Set(etat.etat.adressesVues);
+      const nouvelles = new Set(adressesNouvellesFiches(adressesFiches, vues));
+      if (nouvelles.size) {
+        const depuis30 = new Date(maintenant.getTime() - JOURS_RATTRAPAGE_ADRESSE * 86400000).toISOString();
+        const rr = await poster(corpsFind('inbox', null, depuis30, 'item:DateTimeReceived', { ordre: 'Descending', max: 1000 }));
+        if (refus(rr)) { agendaWatch.signalerIdentifiantsRefuses(reglages); resultat.erreur = 'Identifiants de messagerie refusés : vérifiez les Réglages.'; ecrireEtat(parametresRepo, etat); return resultat; }
+        if (!rr.echec && succes(rr.corps)) {
+          const aRattraper = parseFind(rr.corps).filter((e) => nouvelles.has(e.deAdresse) && !connus.has(idCourt(e.itemId)) && !/\[CLAIRE-/i.test(e.objet))
+            .map((e) => ({ e, d: ctx.parAdresse.get(e.deAdresse) }));
+          const lot2 = aRattraper.slice(0, MAX_LECTURES_TOUR);
+          const det2 = lot2.length ? await poster(corpsGetItems(lot2.map((x) => x.e.itemId), true)) : null;
+          const parId2 = det2 && !det2.echec && succes(det2.corps) ? parseGetItems(det2.corps) : (lot2.length ? null : new Map());
+          if (parId2) {
+            for (const { e, d } of lot2) {
+              const det = parId2.get(e.itemId) || { a: [], corps: '', pjs: [] };
+              const corps = texteSansCitation(det.corps);
+              const email = assainirEmail({
+                id: idCourt(e.itemId), itemId: e.itemId, dossierId: d.id, sens: 'recu', date: e.date,
+                de: { nom: e.deNom, adresse: e.deAdresse }, a: det.a, objet: e.objet, sujets: sujetsDe(e.objet, corps.slice(0, 1500)),
+                boite: reglages.email, pj: det.pjs.map((p) => ({ ...p, rangee: null }))
+              });
+              etat.emails.push(email);
+              connus.add(email.id);
+              resultat.recus++;
+              resultat.rattrapes = (resultat.rattrapes || 0) + 1;
+              if (corps) aResumer.push({ email, dossierNom: d.nom, corps });
+            }
+            if (lot2.length) noterVerification(parametresRepo, 'emails-adresse-rattrapage', { detail: `${lot2.length} email(s) retrouvé(s)` });
+            // Une adresse n'est marquée relue que si tous ses emails ont été repris (le reste au tour suivant).
+            const restantes = new Set(aRattraper.slice(MAX_LECTURES_TOUR).map((x) => x.e.deAdresse));
+            etat.etat.adressesVues = [...vues, ...[...nouvelles].filter((a) => !restantes.has(a))];
+          }
+        }
+      }
+    }
   }
 
   // 2. Éléments envoyés de chaque boîte.
@@ -446,6 +501,7 @@ function demarrerSurveillanceEmailsDossiers(depot, parametresRepo, config, inter
 module.exports = {
   CLE_EMAILS_DOSSIERS, MAX_EMAILS, TAILLE_MAX_PJ, assainirEmailsDossiers, assainirPrepare, lireEtat, ecrireEtat, idCourt,
   normaliserObjet, correspondAuPrepare, dossierDeEmailEnvoye, texteSansCitation, boitesEnvoyes,
+  adressesNouvellesFiches, JOURS_RATTRAPAGE_ADRESSE,
   corpsFind, corpsGetItems, corpsGetAttachment, parseFind, parseGetItems, parseGetAttachment, promptResumeEmail,
   executerTourEmailsDossiers, lirePieceJointe, lireEmailComplet, demarrerSurveillanceEmailsDossiers
 };

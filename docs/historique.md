@@ -15746,3 +15746,16 @@ rattaché sur Authentic, dans un petit i ».
 Vérifié : tests serveur (`confreres.test.js` : fusion, routes) et client ; Chromium (serveur de test, vrai annuaire de 7 202
 offices) : notaire de Gironde d'une fiche retrouvé, « i » affiché, recherche « DURAND » (département puis 46 ailleurs), clair,
 sombre, téléphone, sans débordement. Non vérifié au bureau : temps de chargement des 2 Mo sur le réseau de l'étude.
+
+### 03/10/2026 10:06 — Emails des dossiers : adresse saisie après coup, ses emails des 30 derniers jours repris
+
+Étude : « j'ai ajouté le courriel d'un confrère dans une fiche mais son email n'a pas été détecté ». Cause : la lecture de la
+boîte de réception avance un repère (`etat.recus.dernier`) ; un email reçu avant que l'adresse soit sur une fiche était déjà
+derrière lui et n'était jamais relu. Correction (`emailsDossiers.js`) : les adresses des fiches déjà relues sont gardées
+(`etat.adressesVues`, initialisées sans relecture au premier tour) ; toute adresse nouvelle (client, confrère —
+`emailNotaireParticipant`) fait un FindItem des 30 derniers jours (`JOURS_RATTRAPAGE_ADRESSE`, ordre décroissant, 1 000 au
+plus, sans toucher au repère) dont seuls les emails de ces adresses sont lus (30 par tour, le reste au tour suivant ; une
+adresse n'est marquée relue qu'une fois tous ses emails repris). Point de vérification sur le terrain
+`emails-adresse-rattrapage`. Vérifié : `server/test/emails-dossiers.test.js` (faux EWS). Non vérifié : sur la vraie boîte.
+Limite connue : l'email du confrère ne se saisit sur la fiche que quand l'office représente l'acquéreur (champ « Confrère ») ;
+un email venu d'une autre adresse du même office (clerc) n'est rattaché que par « VTE - NOM » ou le nom du dossier dans l'objet.

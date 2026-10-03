@@ -34,6 +34,8 @@ const VERIFICATIONS_TERRAIN = [
     comment: 'Coché quand tous les mois de l’année précédente et de l’année en cours ont été lus dans Exchange.' },
   { id: 'actes-agenda-chiffres', depuis: '2026-10-03 07:19', source: 'manuel', titre: 'Statistiques : ventes, successions et donations conformes à l’agenda',
     comment: 'À confirmer en comparant un mois avec l’agenda d’Outlook (titres VTE, SUCC, DONATION).' },
+  { id: 'emails-adresse-rattrapage', depuis: '2026-10-03 10:06', source: 'serveur', titre: 'Emails des dossiers : adresse ajoutée sur une fiche, ses emails des 30 derniers jours retrouvés',
+    comment: 'Coché la première fois qu’un email reçu avant la saisie de l’adresse (client ou confrère) est rattaché au dossier.' },
   { id: 'emails-dossiers-reception', depuis: '2026-10-02 23:01', source: 'serveur', titre: 'Emails des dossiers : un email reçu rattaché à un dossier et lu en entier',
     comment: 'Coché au premier tour qui lit un email de la boîte de réception rattaché à un dossier.' },
   { id: 'emails-envoyes-collaborateur', depuis: '2026-10-02 23:01', source: 'serveur', titre: 'Emails des dossiers : « Éléments envoyés » d’un collaborateur lus (accès délégué)',
