@@ -15894,3 +15894,17 @@ message par intitulé, même garde que « Choisir »). `creerDossierDepuisPageAu
 → wizard pré-rempli « MARTEL / FOURNIER » ; dossier proche → « Choisir » avec la ligne « Créer un nouveau dossier » →
 même wizard ; clair et sombre). Non vérifié : une vraie page d'Authentic (structure de l'en-tête « N - VTE … » supposée
 d'après BEUCHER).
+
+### 03/10/2026 18:48 — Plusieurs dossiers Authentic dans la journée : section « À créer » de « Nouveau dossier »
+
+Étude : « que se passe-t-il si plusieurs actes sont trouvés à la suite, car je navigue dans plein de dossiers la journée ? »
+Constat : un seul message en bas de l'écran (le suivant remplace le précédent), le bouton du journal n'ouvrait que
+« Choisir » sans la ligne « Créer », et les pages n'étaient gardées qu'une heure. Choix de l'étude : liste « À créer »
+dans « Nouveau dossier » (contre pastille sur le lien ou messages empilés). Fait : serveur `DUREE_RECENTS_MS` = 12 h
+(`MAX_RECENTS` 300) pour `releves/recents` et `releves/:id` (la file à traiter garde `DUREE_RELEVE_MS` 60 min) ;
+`dossiersDepuisRelevesAuthentic` pose `aCreer` (`proposerCreationDossierAuthentic` sur la page d'intitulé) ;
+`renderRelevesAuthenticWizard` en mode « seul » : section « À créer » (compteur `.sidebar-compteur` rouge, 12 au plus,
+bouton « Créer ») puis « Autres dossiers ouverts dans Authentic » (6) ; `choisirDossierPourReleveAuthentic(id, creer)`
+pose `creation` et, depuis la ligne « Dossier à créer » du journal (`l.creer`, bouton « Créer le dossier »), ouvre
+directement le wizard. Tests client (`aCreer`) et serveur (12 h) ; Chromium : deux pages à la suite → « À créer 2 »,
+journal → « Créer le dossier » → wizard pré-rempli.

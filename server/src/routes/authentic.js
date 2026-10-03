@@ -9,7 +9,7 @@
 //    et met la fiche du dossier à jour (pièces reçues) — ou l'attend (POST /api/authentic/releves/attendre :
 //    requête gardée ouverte jusqu'à 25 s, rendue dès qu'une page arrive ; une fenêtre cachée, que le
 //    navigateur ne réveille plus qu'une fois par minute, est ainsi servie tout de suite) ; elle reste aussi 60 min parmi les relevés
-//    récents (GET /api/authentic/releves/recents) pour créer un dossier depuis Authentic.
+//    récents (GET /api/authentic/releves/recents, 12 h) pour créer un dossier depuis Authentic.
 //
 // Fiabilité (étude, 02/10 : « pourquoi parfois les données ne remontent pas ? ») :
 //  - Une page revue est REMISE en file avec son contenu (avant : l'intitulé seul) : si la première
@@ -36,6 +36,10 @@ var DUREE_CAPTURE_MS = 30 * 60 * 1000;
 var MAX_CAPTURES = 20;
 var DUREE_RELEVE_MS = 60 * 60 * 1000;
 var MAX_RELEVES = 80;
+// Pages gardées pour « Nouveau dossier » › Depuis Authentic et le journal (étude, 03/10 : « je navigue
+// dans plein de dossiers la journée ») : la journée, pas l'heure. Mémoire seule, jamais en base.
+var DUREE_RECENTS_MS = 12 * 60 * 60 * 1000;
+var MAX_RECENTS = 300;
 var LIMITES_CAPTURE = { titre: 300, adresse: 500, champs: 800, libelle: 200, valeur: 2000, tableaux: 40, lignes: 300, cellules: 40, cellule: 500, texte: 200000 };
 
 function chaine(v, max) {
@@ -172,7 +176,7 @@ function creerRouteurAuthentic(options) {
     const t = maintenant();
     const expires = aTraiter.filter(r => t - Date.parse(r.recueLe) > DUREE_RELEVE_MS);
     expires.forEach(r => noter(r, { etat: 'expire' }));
-    recents = recents.filter(r => t - Date.parse(r.recueLe) <= DUREE_RELEVE_MS).slice(-MAX_RELEVES);
+    recents = recents.filter(r => t - Date.parse(r.recueLe) <= DUREE_RECENTS_MS).slice(-MAX_RECENTS);
     aTraiter = aTraiter.filter(r => t - Date.parse(r.recueLe) <= DUREE_RELEVE_MS).slice(-MAX_RELEVES);
     journal = journal.filter(e => t - Date.parse(e.recueLe) <= DUREE_JOURNAL_MS).slice(-MAX_JOURNAL);
     for (const [k, v] of empreintes) if (t - v > DUREE_RELEVE_MS) empreintes.delete(k);
@@ -271,11 +275,11 @@ function creerRouteurAuthentic(options) {
     res.setHeader('Cache-Control', 'no-store');
     res.json({ releves: recents.map(({ empreinte, ...r }) => r) });
   });
-  // Une page encore en mémoire (60 min), pour la ranger à la main depuis le journal.
+  // Une page encore en mémoire (12 h), pour la ranger à la main ou créer le dossier depuis le journal.
   routeur.get('/authentic/releves/:id', (req, res) => {
     purgerReleves();
     const r = recents.find(x => x.id === String(req.params.id || ''));
-    if (!r) { res.status(404).json({ error: 'Page plus en mémoire (1 h) : rouvrez-la dans Authentic.' }); return; }
+    if (!r) { res.status(404).json({ error: 'Page plus en mémoire (12 h) : rouvrez-la dans Authentic.' }); return; }
     res.setHeader('Cache-Control', 'no-store');
     const { empreinte, ...releve } = r;
     res.json(releve);
@@ -335,4 +339,4 @@ function pageAuthenticConnue(capture) {
   return libelles.some(l => res.some(re => re.test(l))) || res.some(re => re.test(texte));
 }
 
-module.exports = { creerRouteurAuthentic, pageAuthenticConnue, normaliserCaptureAuthentic, origineRequete, naturePageAuthentic, DUREE_CAPTURE_MS, MAX_CAPTURES, DUREE_RELEVE_MS, DUREE_ATTENTE_RELEVES_MS, DUREE_FENETRE_VUE_MS, DUREE_DOUBLON_MS };
+module.exports = { creerRouteurAuthentic, pageAuthenticConnue, normaliserCaptureAuthentic, origineRequete, naturePageAuthentic, DUREE_CAPTURE_MS, MAX_CAPTURES, DUREE_RELEVE_MS, DUREE_RECENTS_MS, DUREE_ATTENTE_RELEVES_MS, DUREE_FENETRE_VUE_MS, DUREE_DOUBLON_MS };

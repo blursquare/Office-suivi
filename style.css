@@ -8188,6 +8188,8 @@ button.w-jour-lien { border: none; background: none; padding: 0; cursor: pointer
 /* « Nouveau dossier » : dossiers relevés dans Authentic (étude, 02/10). */
 .authentic-releves { margin-top: 16px; }
 .authentic-releves-titre { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: var(--ink-soft); text-transform: uppercase; letter-spacing: .04em; margin: 0 0 6px; }
+.authentic-releves-titre .sidebar-compteur { margin-left: 0; background: var(--urgent); color: #fff; border-radius: 6px; }
+.authentic-releves-titre + .ja-liste { margin-bottom: 14px; }
 
 /* Onglet Pièces : ce que CLAIRE a relevé dans Authentic (étude, 02/10). */
 .authentic-dossier { border-top: 1px solid var(--line-soft); padding: 12px 16px 14px; display: grid; gap: 8px; }

@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-03 18:05';
+  const VERSION_APP = '2026-10-03 18:48';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-03 18:48', resume: "Authentic, plusieurs dossiers consultés dans la journée : les dossiers de vente vus et pas dans CLAIRE se retrouvent dans « Nouveau dossier » › Depuis Authentic, section « À créer » en tête (compteur, bouton « Créer » sur chaque ligne) — le message en bas de l'écran ne montre que le dernier. Les pages d'Authentic sont gardées en mémoire du serveur toute la journée (12 h, au lieu d'une heure) ; dans le journal Réglages › Authentic, une ligne « Dossier à créer » a son bouton « Créer le dossier »." },
     { version: '2026-10-03 18:05', resume: "Authentic : une page de VENTE qu'aucun dossier de CLAIRE ne porte fait apparaître un message « n'est pas dans CLAIRE » avec le bouton « Créer » — « Nouveau dossier » s'ouvre pré-rempli (parties, bien, pièces de la page et des fiches ouvertes depuis une heure), rien n'est créé sans votre clic. Quand un dossier proche existe, la fenêtre « Choisir » gagne la ligne « Créer un nouveau dossier ». Ventes seulement ; jamais pour un acte déjà signé ni un sous-dossier promesse ou avenant. Journal Réglages › Authentic : « Dossier à créer »." },
     { version: '2026-10-03 18:04', resume: "Compléter avec le compromis : le bloc « Déjà sur la fiche » ne détaille que ce qui diffère ou s'ajoute ; les données identiques tiennent sur une ligne. Phrases d'explication passées dans les pastilles « i »." },
     { version: '2026-10-03 17:50', resume: "« Compléter avec le compromis » : un dossier créé depuis Authentic (ou à la main) se complète avec son compromis sans rien perdre. Sur la fiche, ligne « Avant-contrat » › « Compléter » : CLAIRE propose le compromis trouvé sur le NAS (« Lire ») ou un dépôt ; à l'étape Vérifier, le bloc « Déjà sur la fiche » met en regard chaque donnée de la fiche et ce que le compromis en dit — la fiche gagne toujours, sauf si vous choisissez « Compromis » sur la ligne ; les emails s'ajoutent, les dates, engagements, documents, agence, dépôt de garantie viennent remplir les vides ; les parties et le bien d'Authentic restent. Valider = récapitulatif avant → après, puis « Compléter le dossier » (historique « Complété avec le compromis »). « Nouveau dossier » : si le compromis déposé est celui d'un dossier déjà présent, « Compléter le dossier » est proposé avant « Créer quand même »." },
@@ -27907,9 +27908,11 @@
       if (intituleDossierAuthentic(cap)) courant = intituleDossierAuthentic(cap);
       if (!intitule || (type === 'autre' && !intituleDossierAuthentic(cap))) return;
       const referencePage = intituleDossierAuthentic(cap) ? referenceDossierAuthentic(cap) : '';
-      if (!groupes.has(intitule)) groupes.set(intitule, { intitule, derniere: '', personnes: new Map(), immeubles: new Map(), documents: new Map(), infos: {}, adresse: '' });
+      if (!groupes.has(intitule)) groupes.set(intitule, { intitule, derniere: '', personnes: new Map(), immeubles: new Map(), documents: new Map(), infos: {}, adresse: '', aCreer: false });
       const g = groupes.get(intitule);
       if (referencePage) g.reference = referencePage;
+      // Page de vente en cours (ni signée, ni promesse/avenant) : le dossier est « à créer » s'il manque dans CLAIRE.
+      if (intituleDossierAuthentic(cap)) g.aCreer = proposerCreationDossierAuthentic(cap, intitule);
       if (intituleDossierAuthentic(cap) && adresseBienPageAuthentic(cap)) g.adresse = adresseBienPageAuthentic(cap);
       g.derniere = r.recueLe || g.derniere;
       if (type === 'client') { const p = clientDepuisFicheAuthentic(cap); if (p) g.personnes.set(p.id, p); }
@@ -27923,7 +27926,7 @@
       const immeubles = [...g.immeubles.values()];
       const adresseBien = g.adresse || (immeubles[0] && immeubles[0].adresse && immeubles[0].adresse.texte) || '';
       return {
-        intitule: g.intitule, reference: g.reference || '', derniere: g.derniere, adresse: adresseBien,
+        intitule: g.intitule, reference: g.reference || '', derniere: g.derniere, adresse: adresseBien, aCreer: !!g.aCreer,
         export: {
           intitule: g.intitule, reference: g.reference || '', type: '', dateCreation: '', personnes, immeubles, parties: [], intervenants: [],
           biens: immeubles.map(im => im.id), documents: [...g.documents.values()], documentsPersonnes: [], acte: null, notaireRedacteur: null,
@@ -28546,16 +28549,19 @@
   }
 
   // Depuis le journal (Réglages › Authentic) : la page, encore en mémoire du serveur, est rangée à la main.
-  async function choisirDossierPourReleveAuthentic(releveId) {
+  async function choisirDossierPourReleveAuthentic(releveId, creer) {
     let rel = null;
     try {
       const r = await fetchAvecAuth('/api/authentic/releves/' + encodeURIComponent(releveId));
       if (r.ok) rel = await r.json();
     } catch (e) { /* serveur injoignable */ }
-    if (!rel || !rel.capture) { afficherToast('Page plus en mémoire (1 h) : rouvrez-la dans Authentic.', 'OK', null); return; }
+    if (!rel || !rel.capture) { afficherToast('Page plus en mémoire (12 h) : rouvrez-la dans Authentic.', 'OK', null); return; }
+    const nature = typePageAuthentic(rel.capture) === 'client' ? 'client' : 'dossier';
+    const creation = nature === 'dossier' && proposerCreationDossierAuthentic(rel.capture, intituleDossierAuthentic(rel.capture));
     const cle = 'f' + (++numeroFicheEnAttente);
-    fichesClientEnAttente.set(cle, { capture: rel.capture, releveId, nature: typePageAuthentic(rel.capture) === 'client' ? 'client' : 'dossier' });
+    fichesClientEnAttente.set(cle, { capture: rel.capture, releveId, nature, creation });
     while (fichesClientEnAttente.size > 10) fichesClientEnAttente.delete(fichesClientEnAttente.keys().next().value);
+    if (creer && creation) { creerDossierDepuisPageAuthentic(cle); return; }
     ouvrirChoixFicheClientAuthentic(cle);
   }
 
@@ -28617,7 +28623,7 @@
   }
 
   // « Créer » : « Nouveau dossier » › Depuis Authentic, pré-rempli avec cette page et les fiches (client, bien)
-  // vues depuis une heure sous le même intitulé — même chemin que la liste « Dossiers ouverts dans Authentic ».
+  // vues dans la journée sous le même intitulé — même chemin que la liste « Dossiers ouverts dans Authentic ».
   async function creerDossierDepuisPageAuthentic(cle) {
     fermerChoixFicheClientAuthentic();
     fermerToastFixe(cle);
@@ -29087,9 +29093,14 @@
     const titre = modeImport === 'pdf' ? 'Compléter depuis Authentic (facultatif)' : 'Dossiers ouverts dans Authentic';
     // Le dossier Authentic du compromis lu (mêmes noms) est signalé.
     const correspond = (g) => avecPdf && nomLu && scoreDossierAuthentic(g.intitule, '', { nom: nomLu }).score >= SEUIL_DOSSIER_AUTHENTIC;
-    const aide = 'Dossiers ouverts dans Authentic depuis une heure (extension « CLAIRE pour Authentic ») : ouvrez la page du dossier, puis les fiches vendeur, acquéreur et bien — CLAIRE les rassemble. Parties, état civil, bien, cadastre, prix et pièces reçues viennent d’Authentic ; dates butoir et engagements du vendeur, du compromis.';
-    const lignes = tries.slice(0, 6).map(({ g, i }) => {
-      const existant = dossierPourIntituleAuthentic(g.intitule, dossiers, g.adresse, g.reference);
+    const aide = 'Dossiers ouverts dans Authentic aujourd’hui (extension « CLAIRE pour Authentic ») : ouvrez la page du dossier, puis les fiches vendeur, acquéreur et bien — CLAIRE les rassemble. Parties, état civil, bien, cadastre, prix et pièces reçues viennent d’Authentic ; dates butoir et engagements du vendeur, du compromis.';
+    // « À créer » (étude, 03/10 : les dossiers vus dans la journée et pas dans CLAIRE, à retrouver ici) : ventes en
+    // cours sans dossier, en tête ; le reste dessous, 6 au plus.
+    const existantDe = (g) => dossierPourIntituleAuthentic(g.intitule, dossiers, g.adresse, g.reference);
+    const aCreer = modeImport === 'seul' ? tries.filter(({ g }) => g.aCreer && !existantDe(g)).slice(0, 12) : [];
+    const restants = tries.filter(x => !aCreer.includes(x)).slice(0, 6);
+    const ligneGroupe = ({ g, i }) => {
+      const existant = existantDe(g);
       const succ = RE_INTITULE_SUCCESSION_AUTHENTIC.test(g.intitule);
       const nom = g.intitule.replace(/^\s*(?:vente|vte|succession|succ)\.?\s+/i, '');
       const estRepris = repris && repris === g.intitule;
@@ -29101,12 +29112,15 @@
         bouton: existant
           ? { libelle: 'Ouvrir la fiche', onclick: `ouvrirDossierDepuisDashboard('${escapeOnclickArg(existant.id)}')` }
           : estRepris ? null
-            : { libelle: avecPdf ? 'Compléter' : 'Reprendre', onclick: `creerDepuisAuthentic(${i})`, icone: icone('plus') }
+            : { libelle: avecPdf ? 'Compléter' : g.aCreer ? 'Créer' : 'Reprendre', onclick: `creerDepuisAuthentic(${i})`, icone: icone('plus') }
       });
-    }).join('');
+    };
+    const lignesACreer = aCreer.map(ligneGroupe).join('');
+    const lignes = restants.map(ligneGroupe).join('');
     bloc.innerHTML = `
-      <h3 class="authentic-releves-titre">${escapeHtml(titre)} ${infoBulle(aide)}</h3>
-      ${lignes ? `<ul class="ja-liste">${lignes}</ul>` : `<p class="authentic-releves-vide">Aucun dossier ouvert dans Authentic depuis une heure. Ouvrez-y la page du dossier, puis les fiches vendeur, acquéreur et bien : il apparaîtra ici${modeImport === 'pdf' ? ' — ou continuez sans Authentic' : ''}.</p>`}`;
+      ${lignesACreer ? `<h3 class="authentic-releves-titre">À créer <span class="sidebar-compteur">${aCreer.length}</span> ${infoBulle('Dossiers de vente ouverts dans Authentic aujourd’hui qu’aucun dossier de CLAIRE ne porte. « Créer » ouvre le dossier pré-rempli.')}</h3><ul class="ja-liste">${lignesACreer}</ul>` : ''}
+      <h3 class="authentic-releves-titre">${escapeHtml(lignesACreer ? 'Autres dossiers ouverts dans Authentic' : titre)} ${infoBulle(aide)}</h3>
+      ${lignes ? `<ul class="ja-liste">${lignes}</ul>` : `<p class="authentic-releves-vide">Aucun ${lignesACreer ? 'autre ' : ''}dossier ouvert dans Authentic aujourd’hui. Ouvrez-y la page du dossier, puis les fiches vendeur, acquéreur et bien : il apparaîtra ici${modeImport === 'pdf' ? ' — ou continuez sans Authentic' : ''}.</p>`}`;
   }
 
   // Pure : ce qui a nourri le dossier en cours de création — compromis et Authentic.
@@ -30030,6 +30044,7 @@
       detail: [d ? libelleDossierAffiche(d) : '', e.texte || ''].filter(Boolean).join(' : '),
       qui: qui.join(' · '),
       choisir: !!e.enMemoire && ['sans-dossier', 'a-choisir', 'a-creer', 'expire', 'pris', 'en-file'].includes(e.etat) && e.nature !== 'bien',
+      creer: !!e.enMemoire && e.etat === 'a-creer',
       dossierId: d ? d.id : ''
     };
   }
@@ -30058,6 +30073,7 @@
           return `<li><span class="appels-quand">${escapeHtml(l.quand)}</span>`
             + `<span class="authentic-journal-page"><span>${escapeHtml(l.page)}</span><span class="authentic-journal-qui">${escapeHtml(l.qui)}</span>${l.detail ? `<span class="authentic-journal-detail">${escapeHtml(l.detail)}</span>` : ''}</span>`
             + `<span class="authentic-journal-etat"><span class="dot-label ${l.etat.classe}"><span class="dot"></span>${escapeHtml(l.etat.texte)}</span>`
+            + (l.creer ? `<button type="button" class="secondary" onclick="choisirDossierPourReleveAuthentic('${escapeOnclickArg(e.id)}', true)">Créer le dossier</button>` : '')
             + (l.choisir ? `<button type="button" class="secondary" onclick="choisirDossierPourReleveAuthentic('${escapeOnclickArg(e.id)}')">Choisir le dossier</button>` : '')
             + (l.dossierId ? `<button type="button" class="lien-discret" onclick="ouvrirDossierDrawer('${escapeOnclickArg(l.dossierId)}')">Voir</button>` : '')
             + `</span></li>`;

@@ -286,3 +286,26 @@ test('pageAuthenticConnue : « VTE X / Y » sans numéro, en onglet actif ou en 
   // Une liste qui cite « VTE X / Y » sans en-tête de dossier : non.
   assert.equal(pageAuthenticConnue({ champs: [{ libelle: 'Rechercher', valeur: '' }], texte: 'VTE MARTEL / FOURNIER\nVTE COLIN / DUPUIS' }), false);
 });
+
+test('pages récentes gardées 12 h (étude, 03/10 : les dossiers vus dans la journée), la file à traiter 60 min', async () => {
+  const express = require('express');
+  const { creerRouteurAuthentic, DUREE_RELEVE_MS, DUREE_RECENTS_MS } = require('../src/routes/authentic');
+  let t = 30_000_000;
+  const appli = express();
+  appli.use(express.json());
+  appli.use('/api', creerRouteurAuthentic({ maintenant: () => t }));
+  const s = appli.listen(0);
+  await new Promise(r => s.once('listening', r));
+  const b = 'http://127.0.0.1:' + s.address().port;
+  try {
+    await fetch(b + '/api/authentic/releve', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ champs: [{ groupe: '', libelle: '2 - VTE DURAND / ROUX Importer', valeur: '' }] }) });
+    t += DUREE_RELEVE_MS + 1;
+    let recents = await fetch(b + '/api/authentic/releves/recents').then(r => r.json());
+    assert.equal(recents.releves.length, 1, 'encore en mémoire après une heure');
+    t += DUREE_RECENTS_MS;
+    recents = await fetch(b + '/api/authentic/releves/recents').then(r => r.json());
+    assert.equal(recents.releves.length, 0);
+  } finally {
+    s.close();
+  }
+});

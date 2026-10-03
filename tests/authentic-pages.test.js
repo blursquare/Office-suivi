@@ -1180,3 +1180,13 @@ test('page de vente sans dossier dans CLAIRE : création proposée, sauf success
   const signe = { texte: vente.texte, champs: [{ groupe: 'Acte', libelle: 'État', valeur: 'Signé le 30/09/2026' }] };
   assert.equal(app.proposerCreationDossierAuthentic(signe, 'VTE MARTEL / FOURNIER'), false, 'acte signé : ancien dossier');
 });
+
+test('dossiersDepuisRelevesAuthentic : « à créer » sur une page de vente en cours, pas sur un acte signé ni une succession', () => {
+  const g1 = app.dossiersDepuisRelevesAuthentic([{ recueLe: '2026-10-03T09:00:00Z', capture: gestion }])[0];
+  assert.equal(g1.aCreer, true);
+  const signe = Object.assign({}, gestion, { champs: gestion.champs.concat([{ groupe: 'Acte', libelle: 'État', valeur: 'Signé le 30/09/2026' }]) });
+  assert.equal(app.dossiersDepuisRelevesAuthentic([{ recueLe: '2026-10-03T09:00:00Z', capture: signe }])[0].aCreer, false);
+  const succ = { champs: [{ groupe: '', libelle: '4 - Succession MARTEL Importer avec 2e SENSComparants (1) personM. MARTEL Alexandre', valeur: '' }], tableaux: [], texte: '4 - Succession MARTEL\nComparants' };
+  const gs = app.dossiersDepuisRelevesAuthentic([{ recueLe: '2026-10-03T09:00:00Z', capture: succ }])[0];
+  assert.ok(!gs || gs.aCreer === false);
+});
