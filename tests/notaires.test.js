@@ -630,3 +630,13 @@ test('trame d’agence : « par Maître A, Notaire à BLOIS désigné par le ven
   assert.equal(d.statut, 'CONFIRMED');
   assert.equal(d.instrumentaire.nom, 'MARTIN Claire');
 });
+
+test('notaire enregistré « (BLOIS désigné par) » par une version antérieure : commune nettoyée (étude, 03/10)', () => {
+  const app = chargerApplication();
+  const d = { notaireVendeur: 'Maître GOSSART Sophie (BLOIS désigné par)', notaireAcquereur: 'Maître HENRY Fanny (Tours désigné par)',
+    notairesDetectes: [{ nom: 'Maître HENRY Fanny (Tours désigné par)', office: 'Tours désigné par' }] };
+  assert.equal(app.nettoyerCommunesNotairesDossier(d), true);
+  assert.equal(`${d.notaireVendeur} ; ${d.notaireAcquereur} ; ${d.notairesDetectes[0].nom} ; ${d.notairesDetectes[0].office}`,
+    'Maître GOSSART Sophie (BLOIS) ; Maître HENRY Fanny (Tours) ; Maître HENRY Fanny (Tours) ; Tours');
+  assert.equal(app.nettoyerCommunesNotairesDossier(d), false);
+});

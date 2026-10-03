@@ -26,6 +26,10 @@ durable, l'architecture ou « Ce qui reste ouvert » change.
   embarqués dans le blob SEA) — **installé automatiquement** depuis le 03/10 (étude : « au démarrage et dès que c'est
   détecté » ; `routes/miseAJour.js` `tourAuto`/`demarrerAuto` : 30 s après le démarrage puis toutes les 10 min, build plus
   récent seulement, échec retenté après 6 h ; coupable dans Réglages › Mise à jour, où reste le bouton en un clic).
+  **Une fenêtre déjà ouverte se recharge seule** après un redémarrage du serveur sur une autre version (03/10 :
+  `GET /api/dossiers` rend `demarrage`, `surveillerVersionServeur` relit `/script.js` et recharge hors saisie — point
+  `fenetres-rechargees`) ; avant, elle gardait l'ancien script jusqu'à un F5 (10 h 22 : pages d'Authentic encore
+  rangées par le « numéro » retiré à 9 h 33).
   Avant de retoucher un bug « toujours présent » déjà corrigé, faire vérifier la version affichée
   dans « À propos » : c'est presque toujours un problème de déploiement, pas de code.
 
@@ -324,6 +328,9 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
   fichiers eux-mêmes (avant-contrat signé lu sans dépôt du compromis, PDF des pièces, Word de l'acte en cours), les
   qualités Disposant/Bénéficiaire du flux, le notaire de chaque partie et son rôle (participation), la date de création
   du dossier Authentic, la surface habitable.
+- **Email du confrère sur la fiche** : `d.emailNotaireParticipant` (office qui représente l'acquéreur) et, depuis le 03/10,
+  `d.emailConfrereVendeur` (office qui représente le vendeur) — relevés dans les emails des dossiers (`contexteClassement`),
+  sondage de créneaux, `expediteurConfrere` ; à défaut l'email de l'office dans l'annuaire.
 - **Successions** (étude 02/10 : « juste des parties et éventuellement des biens ») : intitulé « N - Succession NOM »
   (ou « SUCC NOM », **forme supposée, à confirmer sur une vraie page**) reconnu par le poste
   (`RE_INTITULE_DOSSIER_AUTHENTIC`, `RE_INTITULE_SUCCESSION_AUTHENTIC`), le serveur (`pageAuthenticConnue`) et
@@ -632,7 +639,7 @@ Plainte principale de l'étude : **le bruit**, pas les oublis — ne pas élargi
   en texte visible : un état, un résultat, une erreur, une liste vide. **Réglages** : rubriques à
   gauche (`SOUS_ONGLETS_REGLAGES`, une par sujet depuis le 01/10 : Général, Collaborateurs, Signature des
   emails, Rappels, Agenda et Outlook, Téléphonie 3CX, Authentic, Pièces et Claire Scan, Relecture d'actes,
-  Signalements, Mise à jour et sauvegarde ; chaque section qui enregistre a son propre bouton), une colonne de lignes `.reglages-option` / `.reglages-champ`
+  Signalements, Mise à jour et sauvegarde — classées sous quatre titres depuis le 03/10 : L'étude, Connexions, Dossiers et actes, Maintenance, `.reglages-nav-groupe` ; chaque section qui enregistre a son propre bouton), une colonne de lignes `.reglages-option` / `.reglages-champ`
   dans des `.reglages-section` — pas de cartes en grille.
 - **Toute nouvelle fonction pure** : la déclarer `function` (ou `var` pour une table) pour la
   tester ; les fonctions qui touchent `dossiers`/le DOM se vérifient dans un vrai Chromium

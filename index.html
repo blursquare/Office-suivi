@@ -1581,16 +1581,20 @@
        definirSousOngletReglages() ; la dernière rubrique ouverte est retenue sur ce poste. -->
   <div class="reglages-corps">
     <nav class="reglages-nav" role="tablist" aria-label="Rubriques des réglages" aria-orientation="vertical">
+      <div class="reglages-nav-groupe premier" role="presentation">L’étude</div>
       <button type="button" class="reglages-nav-btn actif" role="tab" id="reglages-onglet-general" aria-controls="reglages-panneau-general" aria-selected="true" onclick="definirSousOngletReglages('general')">Général</button>
       <button type="button" class="reglages-nav-btn" role="tab" id="reglages-onglet-collaborateurs" aria-controls="reglages-panneau-collaborateurs" aria-selected="false" onclick="definirSousOngletReglages('collaborateurs')">Collaborateurs</button>
       <button type="button" class="reglages-nav-btn" role="tab" id="reglages-onglet-signature" aria-controls="reglages-panneau-signature" aria-selected="false" onclick="definirSousOngletReglages('signature')">Signature des emails</button>
       <button type="button" class="reglages-nav-btn" role="tab" id="reglages-onglet-rappels" aria-controls="reglages-panneau-rappels" aria-selected="false" onclick="definirSousOngletReglages('rappels')">Rappels</button>
+      <div class="reglages-nav-groupe" role="presentation">Connexions</div>
       <button type="button" class="reglages-nav-btn" role="tab" id="reglages-onglet-agenda" aria-controls="reglages-panneau-agenda" aria-selected="false" onclick="definirSousOngletReglages('agenda')">Agenda et Outlook</button>
       <button type="button" class="reglages-nav-btn" role="tab" id="reglages-onglet-telephonie" aria-controls="reglages-panneau-telephonie" aria-selected="false" onclick="definirSousOngletReglages('telephonie')">Téléphonie 3CX</button>
       <button type="button" class="reglages-nav-btn" role="tab" id="reglages-onglet-authentic" aria-controls="reglages-panneau-authentic" aria-selected="false" onclick="definirSousOngletReglages('authentic')">Authentic</button>
+      <div class="reglages-nav-groupe" role="presentation">Dossiers et actes</div>
       <button type="button" class="reglages-nav-btn" role="tab" id="reglages-onglet-pieces" aria-controls="reglages-panneau-pieces" aria-selected="false" onclick="definirSousOngletReglages('pieces')">Pièces et Claire Scan</button>
       <button type="button" class="reglages-nav-btn" role="tab" id="reglages-onglet-relecture" aria-controls="reglages-panneau-relecture" aria-selected="false" onclick="definirSousOngletReglages('relecture')">Relecture d'actes</button>
       <button type="button" class="reglages-nav-btn" role="tab" id="reglages-onglet-apprentissage" aria-controls="reglages-panneau-apprentissage" aria-selected="false" onclick="definirSousOngletReglages('apprentissage')">Ce que CLAIRE a appris</button>
+      <div class="reglages-nav-groupe" role="presentation">Maintenance</div>
       <button type="button" class="reglages-nav-btn" role="tab" id="reglages-onglet-signalements" aria-controls="reglages-panneau-signalements" aria-selected="false" onclick="definirSousOngletReglages('signalements')">Signalements<span class="reglages-onglet-compteur" id="reglages-onglet-compteur-signalements" hidden></span></button>
       <button type="button" class="reglages-nav-btn" role="tab" id="reglages-onglet-systeme" aria-controls="reglages-panneau-systeme" aria-selected="false" onclick="definirSousOngletReglages('systeme')">Mise à jour et sauvegarde</button>
     </nav>

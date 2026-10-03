@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-03 10:14';
+  const VERSION_APP = '2026-10-03 10:32';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-03 10:32', resume: "Mise à jour automatique : une fenêtre CLAIRE déjà ouverte se recharge seule quand le serveur redémarre sur une nouvelle version (avant : elle gardait l'ancienne page jusqu'à un F5 — à 10 h 22, une fenêtre rangeait encore les pages d'Authentic par le « numéro 1 / 2 » retiré à 9 h 33 ; le serveur attend qu'aucune saisie ne soit en cours). Fiche : champ « Confrère » aussi quand c'est le VENDEUR qu'un autre office représente (ses emails sont rattachés au dossier, il est proposé pour les dates de signature) ; « Confrère du vendeur / de l'acquéreur » quand il y en a deux. Emails des dossiers : un dossier tout juste créé fait relire les 30 derniers jours de la boîte — « RE: VENTE MERCIER / FRANCOIS », reçu la veille de la création, est rattaché. Un notaire enregistré « (BLOIS désigné par) » par une version d'avant 9 h 42 redevient « (BLOIS) ». Réglages : rubriques classées sous des titres — L'étude, Connexions, Dossiers et actes, Maintenance." },
     { version: '2026-10-03 10:14', resume: "Outils › Répertoire : l'onglet « Tout » est retiré. La page s'ouvre sur « Notaires » ; chaque thème d'interlocuteurs reste à un clic dans la colonne de gauche." },
     { version: '2026-10-03 10:06', resume: "Emails des dossiers : une adresse saisie après coup sur une fiche (email du confrère, d'un client) fait relire les 30 derniers jours de la boîte de réception — les emails reçus de cette adresse avant la saisie sont désormais rattachés au dossier (avant : ils étaient déjà passés et n'étaient jamais repris)." },
     { version: '2026-10-03 09:49', resume: "Un seul annuaire des notaires : le carnet des confrères est fondu dans les 7 202 offices de France. La fiche, les emails au confrère et la saisie des notaires retrouvent désormais un notaire de n'importe quel département (avant : seulement ceux du carnet). Outils › Répertoire › Notaires : chaque office se corrige au crayon (« Modifié ») et la croix le remet tel que relevé ; plus de « Mes confrères » ni de bouton « Au carnet ». Fiche : un petit « i » à côté du nom dit à quel dossier d'Authentic elle est rattachée (« Rattaché au dossier Authentic A 2026 00230 — VTE LEDRU / ROY »)." },
@@ -3537,6 +3538,13 @@
   function emailDestinataireRelance(d) {
     if (notaireParticipantRepresenteAcquereur(d)) return d.emailNotaireParticipant || emailOfficeConfrereAcquereur(d);
     return d.emailAcquereur || '';
+  }
+
+  // Email de l'office qui représente le vendeur, tiré de l'annuaire ('' sinon).
+  function emailOfficeConfrereVendeur(d) {
+    if (!confrereRepresenteVendeur(d)) return '';
+    const t = trouverOfficeConfrere(d.notaireVendeur, typeof carnetConfreres !== 'undefined' ? carnetConfreres : []);
+    return (t && t.office.email) || '';
   }
 
   // Email de l'office qui représente l'acquéreur, tiré du carnet des confrères ('' sinon).
@@ -11296,6 +11304,8 @@
       // la déontologie interdit alors à l'instrumentaire de contacter directement l'acquéreur, les
       // relances (prêt, RIB) doivent transiter par son confrère. Jamais préremplie automatiquement.
       emailNotaireParticipant: '',
+      // Même chose pour l'office qui représente le vendeur (étude, 03/10).
+      emailConfrereVendeur: '',
       // Date de signature de l'avant-contrat (étude, 02/10 : point de départ des statistiques).
       dateAvantContrat: dateAvantContratWizard(),
       pieces: {},
@@ -14343,6 +14353,18 @@
   // renderProprietesDossier) — n'apparaît que quand notaireParticipantRepresenteAcquereur(d) est vrai
   // (un office distinct du nôtre représente l'acquéreur) : la déontologie interdit alors à
   // l'instrumentaire de contacter directement l'acquéreur, les relances passent par ce champ.
+  function changerEmailConfrereVendeur(id, valeur) {
+    const d = dossiers.find(x => x.id === id);
+    if (!d) return;
+    const nouveau = String(valeur || '').trim();
+    if (nouveau === (d.emailConfrereVendeur || '')) return;
+    d.emailConfrereVendeur = nouveau;
+    ajouterHistorique(d, `Email du notaire du vendeur : ${nouveau || '—'}`);
+    completerEmailCarnet(d.notaireVendeur, nouveau);
+    sauvegarder(d);
+    render();
+  }
+
   function changerEmailNotaireParticipant(id, valeur) {
     const d = dossiers.find(x => x.id === id);
     if (!d) return;
@@ -16839,8 +16861,13 @@
            title="L’étude n’est reconnue dans aucun des deux notaires : cliquez pour changer son rôle."><strong>${role}</strong> ${icone('pencil')}</button>`;
     // L'acquéreur représenté par un office distinct : la déontologie interdit de le contacter
     // directement, les relances vont à son notaire (voir emailDestinataireRelance).
+    // Étude, 03/10 : « si le confrère est du côté du vendeur, il n'y a nulle part où saisir son adresse ».
+    const deuxConfreres = confrereRepresenteVendeur(d) && notaireParticipantRepresenteAcquereur(d);
+    const emailConfrereVendeur = confrereRepresenteVendeur(d)
+      ? ligne('mail', deuxConfreres ? 'Confrère du vendeur' : 'Confrère', `<input type="email" id="not-email-confrere-vendeur-${d.id}" class="prop-champ" value="${escapeAttr(d.emailConfrereVendeur || '')}" placeholder="${escapeAttr(emailOfficeConfrereVendeur(d) ? emailOfficeConfrereVendeur(d) + ' (annuaire)' : 'Non renseigné')}" title="Adresse du notaire du vendeur : ses emails sont rattachés au dossier, il est proposé pour les dates de signature. Vide : l'email de l'office tiré de l'annuaire." onblur="changerEmailConfrereVendeur('${d.id}', this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">`, `not-email-confrere-vendeur-${d.id}`)
+      : '';
     const emailParticipant = notaireParticipantRepresenteAcquereur(d)
-      ? ligne('mail', 'Confrère', `<input type="email" id="not-email-participant-${d.id}" class="prop-champ" value="${escapeAttr(d.emailNotaireParticipant || '')}" placeholder="${escapeAttr(emailOfficeConfrereAcquereur(d) ? emailOfficeConfrereAcquereur(d) + ' (carnet)' : 'Non renseigné')}" title="Les relances (prêt, RIB) seront adressées à cette adresse plutôt qu'à l'acquéreur lui-même. Vide : l'email de l'office tiré du carnet des confrères." onblur="changerEmailNotaireParticipant('${d.id}', this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">`, `not-email-participant-${d.id}`)
+      ? ligne('mail', deuxConfreres ? 'Confrère de l’acquéreur' : 'Confrère', `<input type="email" id="not-email-participant-${d.id}" class="prop-champ" value="${escapeAttr(d.emailNotaireParticipant || '')}" placeholder="${escapeAttr(emailOfficeConfrereAcquereur(d) ? emailOfficeConfrereAcquereur(d) + ' (carnet)' : 'Non renseigné')}" title="Les relances (prêt, RIB) seront adressées à cette adresse plutôt qu'à l'acquéreur lui-même. Vide : l'email de l'office tiré du carnet des confrères." onblur="changerEmailNotaireParticipant('${d.id}', this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">`, `not-email-participant-${d.id}`)
       : '';
 
     // Succession : responsable, dossier du NAS, parties (coordonnées reprises d'Authentic) et biens.
@@ -16893,6 +16920,7 @@
           <button type="button" class="lien-action" onclick="placerNotaireFiche('${d.id}', ${detectes.indexOf(n)}, 'vendeur')">Vendeur</button>
           <button type="button" class="lien-action" onclick="placerNotaireFiche('${d.id}', ${detectes.indexOf(n)}, 'acquereur')">Acquéreur</button>
           <button type="button" class="lien-action" onclick="placerNotaireFiche('${d.id}', ${detectes.indexOf(n)}, 'deux')">Les deux</button></span>`).join('')}</span>`, null, 'prop-pleine') : ''}
+        ${emailConfrereVendeur}
         ${emailParticipant}
         ${ligne('flag', 'Notre étude', ligneRole)}
       </dl>
@@ -22437,7 +22465,7 @@
     const liste = [];
     if (confrereRepresenteVendeur(d)) {
       const t = trouverOfficeConfrere(d.notaireVendeur, carnet || []);
-      liste.push({ role: 'confrere-vendeur', nom: d.notaireVendeur, email: (t && t.office && t.office.email) || '', confrere: true });
+      liste.push({ role: 'confrere-vendeur', nom: d.notaireVendeur, email: d.emailConfrereVendeur || (t && t.office && t.office.email) || '', confrere: true });
     } else {
       liste.push({ role: 'vendeur', nom: noms('VENDEUR'), email: d.emailVendeur || '', confrere: false });
     }
@@ -28281,11 +28309,28 @@
     }, { bouton: 'Oublier', ton: 'danger' });
   }
 
+  // Pure (modifie le dossier passé) : « Maître X (BLOIS désigné par) » — commune lue par une version d'avant le
+  // 03/10 sur « Notaire à BLOIS désigné par le vendeur » — redevient « Maître X (BLOIS) ». → vrai si corrigé.
+  function nettoyerCommunesNotairesDossier(d) {
+    if (!d) return false;
+    let change = false;
+    const propre = (v) => String(v).replace(/\(([^()]*?)\s+d[ée]sign[ée]e?s?(?:\s+par)?\s*\)/gi, '($1)');
+    ['notaireVendeur', 'notaireAcquereur'].forEach(k => {
+      if (typeof d[k] === 'string' && propre(d[k]) !== d[k]) { d[k] = propre(d[k]); change = true; }
+    });
+    (Array.isArray(d.notairesDetectes) ? d.notairesDetectes : []).forEach(n => {
+      if (n && typeof n.nom === 'string' && propre(n.nom) !== n.nom) { n.nom = propre(n.nom); change = true; }
+      if (n && typeof n.office === 'string' && /\s+d[ée]sign[ée]/i.test(n.office)) { n.office = nettoyerCommuneNotaire(n.office); change = true; }
+    });
+    return change;
+  }
+
   async function retirerDatesAvantContratLuesNas() {
     for (const d of dossiers || []) {
       const date = retirerDateAvantContratLueNas(d);
       const numero = retirerNumeroAuthentic(d);
-      if (date || numero) await sauvegarder(d);
+      const notaires = nettoyerCommunesNotairesDossier(d);
+      if (date || numero || notaires) await sauvegarder(d);
     }
   }
 
@@ -28878,7 +28923,7 @@
     const a = String(adresse || '').trim().toLowerCase();
     if (!a) return false;
     if (/@notaires\.fr$/.test(a)) return true;
-    if (d && destinatairesEmail(d.emailNotaireParticipant || '').some(x => x.toLowerCase() === a)) return true;
+    if (d && destinatairesEmail(`${d.emailNotaireParticipant || ''};${d.emailConfrereVendeur || ''}`).some(x => x.toLowerCase() === a)) return true;
     return (carnet || []).some(o => destinatairesEmail(o.email || '').some(x => x.toLowerCase() === a));
   }
 
@@ -29769,17 +29814,58 @@
       : 'Le serveur ne répond plus — vérifiez qu\'il tourne toujours sur le poste hébergeur. Les modifications faites ici seront synchronisées dès que la connexion revient.';
   }
 
+  // Mise à jour automatique (étude, 03/10) : le serveur redémarre sur la nouvelle version, mais une fenêtre
+  // déjà ouverte gardait l'ancien script.js tant qu'on ne la rechargeait pas — un correctif installé
+  // n'agissait pas (page d'Authentic encore rangée par le « numéro » une heure après son retrait). Le
+  // sondage rend l'heure de démarrage du serveur ; quand elle change, la version de /script.js est relue
+  // et la fenêtre se recharge si elle diffère, dès qu'aucune saisie n'est en cours.
+  var demarrageServeurConnu = null;
+  var rechargementVersionPrevu = false;
+  function versionDansScript(texte) {
+    const m = String(texte || '').match(/const VERSION_APP = '([^']+)'/);
+    return m ? m[1] : '';
+  }
+  function saisieEnCoursPoste() {
+    const el = document.activeElement;
+    if (el && (el.tagName === 'TEXTAREA' || el.isContentEditable || (el.tagName === 'INPUT' && !/^(checkbox|radio|button|submit)$/i.test(el.type || '')) || el.tagName === 'SELECT')) return true;
+    // Les outils (nouveau dossier, relecture, appel de fonds, calculs…) gardent un travail non enregistré.
+    return !['dashboard', 'suivi', 'agenda', 'scans', 'confreres', 'reglages'].includes(ongletActuel);
+  }
+  function rechargerQuandPossible(version) {
+    if (saisieEnCoursPoste()) { setTimeout(() => rechargerQuandPossible(version), 30000); return; }
+    noterVerificationPoste('fenetres-rechargees', { detail: `page rechargée en version ${version}` });
+    setTimeout(() => location.reload(), 1500);
+  }
+  async function surveillerVersionServeur(demarrage) {
+    if (!demarrage || rechargementVersionPrevu) return;
+    if (demarrageServeurConnu === null) { demarrageServeurConnu = demarrage; return; }
+    if (demarrage === demarrageServeurConnu) return;
+    const precedent = demarrageServeurConnu;
+    demarrageServeurConnu = demarrage;
+    try {
+      const r = await fetch('/script.js', { cache: 'no-store' });
+      if (!r.ok) return;
+      const version = versionDansScript(await r.text());
+      if (!version || version === VERSION_APP) return;
+      rechargementVersionPrevu = true;
+      afficherToast(`CLAIRE a été mise à jour (version ${version}) : la fenêtre se recharge.`, 'OK', null);
+      rechargerQuandPossible(version);
+    } catch (e) { demarrageServeurConnu = precedent; /* serveur en cours de redémarrage : le sondage suivant réessaiera */ }
+  }
+
   async function sondagePeriodique() {
     try {
       const reponse = await fetchAvecAuth(`/api/dossiers?since=${curseurSynchro}`);
       if (!reponse.ok) { majStatutServeur(false); return; }
-      const { dossiers: changements, serverTime } = await reponse.json();
+      const corps = await reponse.json();
+      const { dossiers: changements, serverTime } = corps;
       if (changements.length > 0) {
         appliquerChangementsDistants(changements);
         render();
       }
       curseurSynchro = serverTime;
       majStatutServeur(true);
+      surveillerVersionServeur(corps.demarrage);
     } catch (e) {
       // Une session expirée (401) est déjà gérée par fetchAvecAuth (jeton effacé, écran de
       // connexion réaffiché, polling arrêté) — pas la peine d'afficher "Hors ligne" par-dessus,
@@ -31230,6 +31316,7 @@
       // Même logique que notaireVendeur/notaireAcquereur ci-dessus : une saisie de l'étude, pas un
       // statut dérivé d'un scan, donc conservée telle quelle à l'import.
       emailNotaireParticipant: typeof d.emailNotaireParticipant === 'string' ? d.emailNotaireParticipant : '',
+      emailConfrereVendeur: typeof d.emailConfrereVendeur === 'string' ? d.emailConfrereVendeur : '',
       coteInstrumentaire: (d.coteInstrumentaire === 'vendeur' || d.coteInstrumentaire === 'acquereur') ? d.coteInstrumentaire : null,
       notairesDetectes: Array.isArray(d.notairesDetectes)
         ? d.notairesDetectes.filter(n => n && typeof n === 'object' && typeof n.nom === 'string' && n.nom)

@@ -68,6 +68,13 @@ test('classement : « VENTE - NOM » cité dans l’objet rattache au dossier co
   assert.equal(r.dossiers.find(g => g.dossierId === 'd1').emails.length, 1);
 });
 
+test('classement : l’adresse du confrère du vendeur (fiche, étude 03/10) rattache l’email au dossier', () => {
+  const dossiers = [{ id: 'd1', nom: 'DUPONT / LEROY', emailConfrereVendeur: 'clerc.robin@notaires.fr' }];
+  const r = classerEmails([{ sujet: 'Pièces', deAdresse: 'clerc.robin@notaires.fr', deNom: 'Me ROBIN', recuLe: '2026-10-06T06:10:00Z', apercu: '' }], dossiers, []);
+  assert.equal(r.dossiers.length, 1);
+  assert.equal(r.dossiers[0].dossierId, 'd1');
+});
+
 test('résumé : jours ouvrés dès 7 h 30 (Paris), relu toutes les 30 min jusqu’à midi, jamais après une erreur', () => {
   assert.equal(resumeDu(new Date('2026-10-06T05:29:00Z'), null), false); // 7 h 29
   assert.equal(resumeDu(new Date('2026-10-06T05:30:00Z'), null), true);  // 7 h 30

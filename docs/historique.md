@@ -15765,3 +15765,32 @@ un email venu d'une autre adresse du même office (clerc) n'est rattaché que pa
 Demande de l'étude : « dans le répertoire retirer l'onglet Tout ». `renderNavRepertoire` ne montre plus que « Notaires »
 puis les thèmes d'interlocuteurs ; `repertoireTheme` vaut `'annuaire'` par défaut et `choisirThemeRepertoire('')` y
 revient. Le compteur « N sur M » d'une recherche compte désormais le thème affiché.
+
+### 03/10/2026 10:32 — Fenêtres rechargées après mise à jour, confrère du vendeur, emails d'un dossier créé après coup
+
+**Explication demandée par l'étude** sur le journal Authentic de 10 h 22–10 h 23 (« VTE - SODJINOU / PRINCE : retrouvé par
+son numéro Authentic (1) », page BEUCHER appliquée à LEDRU / ROY « par son numéro (2) ») : ces messages n'existent plus dans le
+code depuis le commit de 9 h 33 (rang « N - » retiré, référence « A 2026 00247 »). Le serveur était à jour (builds 470 à 474
+publiés entre 9 h 35 et 10 h 17), mais **la fenêtre CLAIRE ouverte gardait l'ancien `script.js`** : rien ne la rechargeait.
+Correctif durable : `GET /api/dossiers` rend `demarrage` (heure de démarrage du serveur, `DEMARRAGE_SERVEUR`) ; côté poste,
+`surveillerVersionServeur` relit `/script.js` (`cache: 'no-store'`) quand elle change et recharge la page si `VERSION_APP`
+diffère, hors saisie (`saisieEnCoursPoste` : champ actif, ou un outil ouvert — nouveau dossier, relecture, appel de fonds…),
+réessayé toutes les 30 s ; point `fenetres-rechargees`. Les fenêtres déjà ouvertes sur une version antérieure doivent être
+rechargées une fois à la main (F5), puis ne le demanderont plus. Nettoyage des dossiers salis : la croix du bloc « Dans
+Authentic » (`oublierDonneesAuthentic`).
+
+**Confrère côté vendeur** (étude : « si le confrère est du côté du vendeur, il n'y a nulle part où saisir son adresse ») :
+`d.emailConfrereVendeur`, ligne « Confrère » (ou « Confrère du vendeur » / « Confrère de l'acquéreur » quand les deux côtés
+ont un office distinct), `changerEmailConfrereVendeur`, `emailOfficeConfrereVendeur` (annuaire en repli) ; repris dans
+`contexteClassement` (emails des dossiers et résumé du matin), `participantsSondage`, `expediteurConfrere`.
+
+**Email reçu avant la création du dossier** (« RE: VENTE MERCIER / FRANCOIS », fanny.henry@notaires.fr, reçu la veille) :
+le rattrapage de 30 jours vaut aussi pour un dossier nouvellement actif (`dossiersNouveauxEmails`, `etat.dossiersVus` ;
+à la première mise en place, les dossiers créés depuis moins de 3 jours comptent comme nouveaux) — par l'adresse ou par
+l'objet (`dossierDeEmail`), une fois par dossier ; point `emails-dossier-rattrapage`.
+
+**« Maître GOSSART Sophie (BLOIS désigné par) »** : notaires enregistrés ainsi par une version d'avant 9 h 42 — corrigés au
+démarrage (`nettoyerCommunesNotairesDossier`, dans `retirerDatesAvantContratLuesNas`), champs `notaireVendeur`,
+`notaireAcquereur`, `notairesDetectes`.
+
+**Réglages** : titres de groupe dans la colonne des rubriques (`.reglages-nav-groupe`, masqués sous 860 px).

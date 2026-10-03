@@ -8,6 +8,10 @@ function dossierValide(d) {
   return d && typeof d === 'object' && typeof d.id === 'string' && d.id.length > 0;
 }
 
+// Heure de démarrage du serveur, renvoyée à chaque sondage : une fenêtre qui la voit changer sait que
+// le serveur a redémarré (mise à jour automatique) et vérifie si sa page est encore la bonne version.
+const DEMARRAGE_SERVEUR = Date.now();
+
 function creerRouteurDossiers(depot) {
   const routeur = express.Router();
 
@@ -20,7 +24,7 @@ function creerRouteurDossiers(depot) {
     // lignes (dossiers actifs + tombstones) pour un premier chargement, sans branche séparée —
     // un tombstone pour un id que le client ne connaît pas encore est un no-op inoffensif.
     const since = parseInt(req.query.since, 10) || 0;
-    res.json({ dossiers: depot.depuis(since), serverTime: Date.now() });
+    res.json({ dossiers: depot.depuis(since), serverTime: Date.now(), demarrage: DEMARRAGE_SERVEUR });
   });
 
   routeur.post('/dossiers', (req, res) => {

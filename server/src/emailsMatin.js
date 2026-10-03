@@ -148,7 +148,7 @@ function contexteClassement(dossiers, adressesIgnorees) {
   const parAdresse = new Map();
   for (const d of actifs) {
     // Un champ peut porter plusieurs adresses (« a@x.fr; b@y.fr », étude 02/10).
-    for (const champ of [d.emailAcquereur, d.emailVendeur, d.emailNotaireParticipant]) {
+    for (const champ of [d.emailAcquereur, d.emailVendeur, d.emailNotaireParticipant, d.emailConfrereVendeur]) {
       for (const a of String(champ || '').split(/[;,\s]+/)) {
         if (/@/.test(a)) parAdresse.set(a.trim().toLowerCase(), d);
       }

@@ -130,6 +130,54 @@ test('adresse du confrère saisie après coup : ses emails des 30 derniers jours
   } finally { db.close(); }
 });
 
+test('dossier créé après coup : l’email reçu la veille (objet « RE: VENTE NOM / NOM ») est retrouvé, une fois (étude, 03/10)', async () => {
+  const db = ouvrirDb(':memory:');
+  const repo = creerRepoParametres(db);
+  repo.ecrireReglagesExchange({ actif: true, url: 'https://ex/ews', email: 'bastien@office.fr', motDePasse: 'secret' });
+  const ancien = { id: 'd2', nom: 'LEGRAND / ROUX', historique: [{ date: '2026-08-01T08:00:00Z', texte: 'Dossier créé' }] };
+  const liste = [ancien];
+  const depot = { tousActifs: () => liste };
+  const corps = [];
+  const poster = (o, cb) => {
+    const b = o.body;
+    corps.push(b);
+    if (/FindItem/.test(b) && /Id="inbox"/.test(b)) {
+      if (/Descending/.test(b)) return cb(null, { statusCode: 200, body: find([
+        msgFind('V1', 'RE: VENTE MORIN / FAURE', '2026-10-02T15:00:00Z', 'Fanny', 'consoeur@notaires.fr', false),
+        msgFind('V2', 'Autre affaire', '2026-10-02T16:00:00Z', 'Inconnu', 'inconnu@exemple.fr', false)]) });
+      return cb(null, { statusCode: 200, body: find([]) });
+    }
+    if (/GetItem/.test(b) && /V1/.test(b)) return cb(null, { statusCode: 200, body: getItems([{ id: 'V1', corps: 'Voici les pièces.' }]) });
+    if (/FindItem/.test(b)) return cb(null, { statusCode: 200, body: find([]) });
+    cb(null, { statusCode: 500, body: '' });
+  };
+  try {
+    // Premier tour : l'ancien dossier est noté sans relecture.
+    await E.executerTourEmailsDossiers(depot, repo, { poster, maintenant: '2026-10-03T08:00:00Z' }, true);
+    assert.ok(!corps.some((b) => /Descending/.test(b)));
+    // Le dossier est créé le lendemain de l'email.
+    liste.push({ id: 'd3', nom: 'MORIN / FAURE', historique: [{ date: '2026-10-03T08:02:00Z', texte: 'Dossier créé' }] });
+    const r = await E.executerTourEmailsDossiers(depot, repo, { poster, maintenant: '2026-10-03T08:05:00Z' }, true);
+    assert.equal(r.rattrapes, 1);
+    const emails = E.lireEtat(repo).emails;
+    assert.equal(emails.map((e) => `${e.dossierId}:${e.objet}`).join(), 'd3:RE: VENTE MORIN / FAURE');
+    const avant = corps.filter((b) => /Descending/.test(b)).length;
+    await E.executerTourEmailsDossiers(depot, repo, { poster, maintenant: '2026-10-03T08:06:00Z' }, true);
+    assert.equal(corps.filter((b) => /Descending/.test(b)).length, avant, 'relu une seule fois');
+  } finally { db.close(); }
+});
+
+test('pur : dossiers à relire — première fois, seuls les dossiers créés depuis moins de 3 jours', () => {
+  const actifs = [
+    { id: 'a', historique: [{ date: '2026-09-01T08:00:00Z', texte: 'Dossier créé' }] },
+    { id: 'b', historique: [{ date: '2026-10-02T08:00:00Z', texte: 'Dossier créé' }] },
+    { id: 'c' }];
+  const init = E.dossiersNouveauxEmails(actifs, null, '2026-10-03T08:00:00Z');
+  assert.equal([...init.nouveaux].join(), 'b');
+  assert.equal(init.vus.join(), 'a,c');
+  assert.equal([...E.dossiersNouveauxEmails(actifs, ['a', 'b'], '2026-10-03T08:00:00Z').nouveaux].join(), 'c');
+});
+
 test('identifiants refusés : disjoncteur, rien n’est écrit d’autre', async () => {
   const { db, repo, depot } = preparer();
   const agendaWatch = require('../src/agendaWatch');

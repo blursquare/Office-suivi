@@ -5026,6 +5026,11 @@ table.af-table .af-verif-ecart { background: #f6e3c9; color: #8a5417; }
 .reglages-corps { display: grid; grid-template-columns: 220px minmax(0, 760px); gap: 40px; align-items: start; }
 .reglages-corps > * { min-width: 0; }
 .reglages-nav { display: flex; flex-direction: column; gap: 2px; position: sticky; top: 16px; }
+.reglages-nav-groupe {
+  margin: 14px 12px 4px; font-size: 10.5px; font-weight: 650; letter-spacing: 0.07em;
+  text-transform: uppercase; color: var(--muted);
+}
+.reglages-nav-groupe.premier { margin-top: 0; }
 .reglages-corps .reglages-nav-btn {
   display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%;
   padding: 8px 12px; border: 0; border-radius: 8px; background: transparent;
@@ -5085,6 +5090,7 @@ table.af-table .af-verif-ecart { background: #f6e3c9; color: #8a5417; }
   .reglages-corps { grid-template-columns: minmax(0, 1fr); gap: 18px; }
   .reglages-nav { position: static; flex-direction: row; overflow-x: auto; padding-bottom: 4px; }
   .reglages-corps .reglages-nav-btn { width: auto; white-space: nowrap; }
+  .reglages-nav-groupe { display: none; }
 }
 @media (max-width: 600px) {
   .reglages-champ { grid-template-columns: minmax(0, 1fr); gap: 6px; }
