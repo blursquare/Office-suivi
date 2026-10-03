@@ -15908,3 +15908,11 @@ bouton « Créer ») puis « Autres dossiers ouverts dans Authentic » (6) ; `ch
 pose `creation` et, depuis la ligne « Dossier à créer » du journal (`l.creer`, bouton « Créer le dossier »), ouvre
 directement le wizard. Tests client (`aCreer`) et serveur (12 h) ; Chromium : deux pages à la suite → « À créer 2 »,
 journal → « Créer le dossier » → wizard pré-rempli.
+
+### 03/10/2026 18:53 — Étapes du wizard sur toute la largeur de la carte
+
+Étude : « les étapes 1 2 3 sur toute la largeur de la carte ». `.panel .wizard-stepper` passe de la grille à trois
+colonnes égales (la 3e case restait collée à gauche de sa colonne, un tiers de carte vide à droite) à un flex : cases
+à largeur naturelle, `.wizard-step-trait` rendus (flex 1, trait d'accent après une étape faite), première étape alignée
+à gauche, deuxième centrée, dernière à droite ; sur téléphone, tout centré. Mesuré dans Chromium : le bouton 1 commence
+au bord gauche de la carte et le bouton 3 finit au bord droit (clair, sombre, 400 px).

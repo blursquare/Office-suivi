@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-03 18:48';
+  const VERSION_APP = '2026-10-03 18:53';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-03 18:53', resume: "Nouveau dossier : les étapes 1 · 2 · 3 occupent toute la largeur de la carte (la première à gauche, la dernière à droite, les traits de liaison entre les deux)." },
     { version: '2026-10-03 18:48', resume: "Authentic, plusieurs dossiers consultés dans la journée : les dossiers de vente vus et pas dans CLAIRE se retrouvent dans « Nouveau dossier » › Depuis Authentic, section « À créer » en tête (compteur, bouton « Créer » sur chaque ligne) — le message en bas de l'écran ne montre que le dernier. Les pages d'Authentic sont gardées en mémoire du serveur toute la journée (12 h, au lieu d'une heure) ; dans le journal Réglages › Authentic, une ligne « Dossier à créer » a son bouton « Créer le dossier »." },
     { version: '2026-10-03 18:05', resume: "Authentic : une page de VENTE qu'aucun dossier de CLAIRE ne porte fait apparaître un message « n'est pas dans CLAIRE » avec le bouton « Créer » — « Nouveau dossier » s'ouvre pré-rempli (parties, bien, pièces de la page et des fiches ouvertes depuis une heure), rien n'est créé sans votre clic. Quand un dossier proche existe, la fenêtre « Choisir » gagne la ligne « Créer un nouveau dossier ». Ventes seulement ; jamais pour un acte déjà signé ni un sous-dossier promesse ou avenant. Journal Réglages › Authentic : « Dossier à créer »." },
     { version: '2026-10-03 18:04', resume: "Compléter avec le compromis : le bloc « Déjà sur la fiche » ne détaille que ce qui diffère ou s'ajoute ; les données identiques tiennent sur une ligne. Phrases d'explication passées dans les pastilles « i »." },

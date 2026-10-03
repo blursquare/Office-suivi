@@ -8374,16 +8374,18 @@ details.revision-groupe[open] > summary.revision-groupe-titre::after { content: 
    marges) — sélecteurs à 3 classes pour passer devant. */
 .panel .panneau-revision details.revision-groupe > summary.revision-groupe-titre { display: flex; justify-content: flex-start; padding: 4px 0; font-size: 12px; font-weight: 600; font-family: inherit; }
 .panel .panneau-revision .revision-extrait-pli > summary { display: inline-flex; padding: 2px 0; font-size: 12px; font-weight: 500; font-family: inherit; justify-content: flex-start; }
-/* Étapes : quatre colonnes égales — case, puis titre et état dessous ; un trait relie les cases. */
-.panel .wizard-stepper { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; align-items: start; }
-.panel .wizard-stepper .wizard-step-trait { display: none; }
-.panel .wizard-stepper .wizard-step-btn { flex-direction: column; align-items: flex-start; gap: 6px; padding: 2px 0; position: relative; min-width: 0; }
-.panel .wizard-stepper .wizard-step-btn:not(:last-child)::after { content: ''; position: absolute; top: 17px; left: 38px; right: -2px; height: 1px; background: var(--line); }
-.panel .wizard-stepper .wizard-step-btn.fait:not(:last-child)::after { background: var(--focus); }
+/* Étapes sur toute la largeur de la carte (étude, 03/10) : la première à gauche, la dernière à droite, les
+   traits de liaison prennent l'espace entre les cases (case, puis titre et état dessous). */
+.panel .wizard-stepper { display: flex; align-items: flex-start; gap: 12px; }
+.panel .wizard-stepper .wizard-step-trait { display: block; flex: 1 1 auto; max-width: none; margin-top: 17px; }
+.panel .wizard-stepper .wizard-step-btn.fait + .wizard-step-trait { background: var(--focus); }
+.panel .wizard-stepper .wizard-step-btn { flex: 0 0 auto; flex-direction: column; align-items: flex-start; gap: 6px; padding: 2px 0; min-width: 0; max-width: 32%; }
+.panel .wizard-stepper .wizard-step-btn:last-child { align-items: flex-end; text-align: right; }
+.panel .wizard-stepper .wizard-step-btn:nth-child(3) { align-items: center; text-align: center; }
 .panel .wizard-stepper .wizard-step-sous { white-space: normal; }
 @media (max-width: 640px) {
-  .panel .wizard-stepper .wizard-step-btn { align-items: center; }
-  .panel .wizard-stepper .wizard-step-btn:not(:last-child)::after { left: calc(50% + 19px); right: calc(-50% + 15px); }
+  .panel .wizard-stepper .wizard-step-btn, .panel .wizard-stepper .wizard-step-btn:last-child, .panel .wizard-stepper .wizard-step-btn:nth-child(3) { align-items: center; text-align: center; }
+  .panel .wizard-stepper .wizard-step-trait { margin-top: 15px; }
 }
 
 /* ---- « Nouveau dossier » épuré (étude, 02/10 : « trop brouillon, trop de texte ») ---- */
