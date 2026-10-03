@@ -15641,3 +15641,32 @@ l'envoi d'une mise à jour te mettre une check-list de choses à vérifier dans 
 Règle durable (CLAUDE.md) : toute mise à jour qui apporte un geste non vérifiable ici ajoute son point au catalogue.
 Vérifié : tests serveur (`verifications-terrain.test.js`) et client, rendu Chromium clair/sombre/téléphone. Non vérifié :
 les accroches dans les vrais services (elles ne se cocheront qu'au bureau, c'est leur raison d'être).
+
+### 03/10/2026 — Outil « Noms de fichiers du NAS » : formes de noms validées ou écartées par l'étude
+
+Demande de l'étude : un outil qui scanne le commun, repère les pièces de la check-list, classe les noms de fichiers « par
+forme qui se ressemble et par type de fichier attendu », l'étude dit si c'est le bon document (ex. « DIAG ERP 3 rue truc
+(trouvé 3 fois) : oui », « ERP établissement recevant du public.pdf : non », « 3843 _contrat_pret.pdf : oui », « Bail
+précaire_pret.pdf : non »), styles de rédaction gardés en base, groupes pour ne pas en avoir 10 000, regex élargi pour cet
+outil seulement, « une sorte d'apprentissage pour améliorer le regex de détection des pièces sur le NAS ».
+- Serveur `server/src/nomsFichiersNas.js` + `routes/nomsFichiersNas.js` : `POST /api/nas/noms-fichiers/parcourir` parcourt
+  chaque dossier client du commun (`listerSousDossiers` puis `listerPdfRecursif`, 4 à la fois, 200 000 PDF au plus, dossiers
+  système ignorés), noms des PDF seulement, **en mémoire** (jamais en base ni journalisés) ; `GET /api/nas/noms-fichiers`
+  (`[indexDossier, nom]`) ; décisions `GET/POST /api/formes-noms` (clé `formes-noms-apprises`, 3 000 au plus : `cle`,
+  `forme`, `decision` oui/non, exemple, nombres) ; section « Formes de noms de fichiers apprises » du rapport technique
+  (forme seule, anonymisée) ; vérifications sur le terrain `nas-noms-parcours` et `formes-noms-reconnaissance`.
+- Poste (`script.js`) : `TERMES_ELARGIS_PIECES` (candidats de l'outil seulement, jamais une pièce cochée ; terme ≥ 4 lettres =
+  début de mot, plus court = mot exact), `formeNomFichier` (mots vus dans ≥ 3 dossiers gardés — 2 sous 30 dossiers —, mot
+  élargi toujours gardé, nombre → `#`, mot propre au dossier → `…`, mot de voie et suite de l'adresse → `…`),
+  `regexFormeNom` / `nomCorrespondForme` (forme ancrée sur les mots du nom), `groupesFormesNoms` (par pièce puis par forme,
+  le plus fréquent d'abord), `reconnaissanceGroupeNomsNas` (motifs fixes seuls), `formeExacteNom` (décision au nom près).
+  Reconnaissance : `correspondancePieceNom` et `nomDitOffrePret` deviennent des enveloppes — `decisionFormePourNom` d'abord
+  (« non » l'emporte, écarte même ce que le motif prend ; « oui » fait reconnaître ce qu'aucun motif ne voit), puis les
+  motifs (`correspondancePieceNomMotifs`, `nomDitOffrePretMotifs`) ; formes chargées au démarrage (`chargerFormesNoms`).
+- Page Outils › « Noms de fichiers du NAS » (`onglet-noms-nas`, `renderNomsNas`) : pièces à gauche (formes à voir), une ligne
+  par forme (nom le plus fréquent, « et N autres noms », trouvé n fois dans n dossiers, « Reconnu aujourd'hui / en partie /
+  Pas reconnu », Oui / Non), « Voir les noms » pour décider nom par nom, « Déjà décidées » repliées avec « Annuler » ;
+  écarter une forme reconnue aujourd'hui se confirme.
+Vérifié : tests serveur (`noms-fichiers-nas.test.js`, dossier commun inventé sur disque) et client (`noms-fichiers-nas.test.js`,
+exemples de l'étude), rendu Chromium clair/sombre/téléphone. Non vérifié : sur le vrai commun (durée du parcours sur le
+NAS, nombre de groupes, qualité du vocabulaire — un nom de commune fréquent reste un mot gardé).

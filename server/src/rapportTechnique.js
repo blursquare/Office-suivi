@@ -18,6 +18,7 @@
 
 const { momentParis } = require('./emailsMatin');
 const { assainirVerifications, sectionVerificationsTerrain, echecsVerificationsPeriode, CLE_VERIFICATIONS } = require('./verificationsTerrain');
+const { sectionFormesNoms, CLE_FORMES_NOMS } = require('./nomsFichiersNas');
 
 const DEPOT_GITHUB_RAPPORT = 'blursquare/Office-suivi';
 const ETIQUETTE_RAPPORT = 'rapport-claire';
@@ -374,6 +375,9 @@ function construireRapport(d) {
   // Vérifications sur le terrain (étude, 03/10) : ce que l'environnement de développement ne peut pas
   // éprouver, coché au bureau la première fois que le geste réussit (verificationsTerrain.js).
   L.push(...sectionVerificationsTerrain(verifications, depuis, jusqua, (t) => anonymiserTexte(t, mots), dateHeureParis));
+  // Formes de noms de fichiers décidées dans l'outil « Noms de fichiers du NAS » (nomsFichiersNas.js) :
+  // la forme seulement (mots propres au dossier déjà réduits à « … »), jamais l'exemple ni un nom.
+  L.push(...sectionFormesNoms(d.formesNoms || [], depuis, jusqua, (t) => anonymiserTexte(t, mots)));
 
   L.push('', '## Agenda (dernier tour de lecture)');
   if (!agenda || !agenda.at) L.push('- Aucun tour enregistré (connexion Exchange non configurée ?).');
@@ -449,6 +453,7 @@ function rassemblerDonnees({ journal, parametresRepo, depot, db, depuis, jusqua,
     exclusionsPieces: parametresRepo.lireExclusionsPieces ? parametresRepo.lireExclusionsPieces() : {},
     retoursAudit: parametresRepo.lireRetoursAudit ? parametresRepo.lireRetoursAudit() : [],
     verificationsTerrain: parametresRepo.lireJsonBrut ? parametresRepo.lireJsonBrut(CLE_VERIFICATIONS, {}) : {},
+    formesNoms: parametresRepo.lireJsonBrut ? parametresRepo.lireJsonBrut(CLE_FORMES_NOMS, []) : [],
     dossiers,
     mots: motsSensibles(dossiers, collaborateurs || [])
   };

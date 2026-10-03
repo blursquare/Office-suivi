@@ -8516,3 +8516,27 @@ button.email-rang-btn:focus-visible { outline: 2px solid var(--focus); outline-o
   .reglages-option.reglages-verif { flex-wrap: wrap; }
   .reglages-verif-actions { width: 100%; }
 }
+
+/* Outil « Noms de fichiers du NAS » : pièces à gauche (comme le Répertoire), formes à droite ; une
+   ligne par forme : nom le plus fréquent, combien de fois, état de la reconnaissance, Oui / Non. */
+.noms-nas-tete { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; }
+.noms-nas-titre { font-size: 17px; font-weight: 650; margin: 0; color: var(--ink); }
+.noms-nas-liste { display: flex; flex-direction: column; }
+.noms-nas-groupe { display: flex; align-items: flex-start; gap: 14px; padding: 10px 0; border-top: 1px solid var(--line-soft); }
+.noms-nas-groupe:first-child { border-top: 0; }
+.noms-nas-groupe.decide { opacity: 0.85; }
+.noms-nas-groupe-texte { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.noms-nas-exemple code { font-size: 13px; color: var(--ink); word-break: break-word; }
+.noms-nas-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.noms-nas-meta code { font-size: 12px; }
+.noms-nas-actions { display: flex; gap: 6px; align-items: center; flex-shrink: 0; }
+.noms-nas-noms { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-direction: column; gap: 3px; }
+.noms-nas-noms li { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 12.5px; }
+.noms-nas-noms code { word-break: break-word; }
+.noms-nas-decides { margin-top: 14px; }
+.noms-nas-decides > summary { cursor: pointer; color: var(--muted); font-size: 13px; }
+@media (max-width: 800px) {
+  .noms-nas-corps { grid-template-columns: minmax(0, 1fr); }
+  .noms-nas-groupe { flex-direction: column; gap: 8px; }
+}
+.noms-nas-etat { margin: 4px 0 0; }

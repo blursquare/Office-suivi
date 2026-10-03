@@ -20,6 +20,10 @@ const CLE_VERIFICATIONS = 'verifications-terrain';
 // `source` : 'serveur' (noté par le serveur), 'poste' (noté par une fenêtre CLAIRE, POST
 // /api/verifications-terrain/noter — seuls ces points-là y sont acceptés) ou 'manuel'.
 const VERIFICATIONS_TERRAIN = [
+  { id: 'nas-noms-parcours', depuis: '2026-10-03 08:13', source: 'serveur', titre: 'Noms de fichiers du NAS : dossier commun parcouru en entier',
+    comment: 'Coché quand le parcours de tous les dossiers clients du commun se termine (détail : nombre de dossiers et de PDF).' },
+  { id: 'formes-noms-reconnaissance', depuis: '2026-10-03 08:13', source: 'poste', titre: 'Une forme de nom validée dans l’outil a reconnu une pièce d’un dossier',
+    comment: 'Coché la première fois qu’une forme validée (« oui ») fait reconnaître une pièce que les motifs fixes ne voyaient pas.' },
   { id: 'maj-auto', depuis: '2026-10-03 07:09', source: 'serveur', titre: 'Mise à jour automatique installée, serveur redémarré sur la nouvelle version',
     comment: 'Coché au démarrage qui suit une installation automatique, si le build en marche est celui qui a été installé.' },
   { id: 'notification-navigateur', depuis: '2026-10-03 07:27', source: 'poste', titre: 'Notification Windows/Chrome envoyée (pièce trouvée)',

@@ -232,6 +232,12 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
   **Liste des noms reconnus** : `EXEMPLES_NOMS_PIECES` (Réglages › Pièces et Claire Scan), vérifiée par
   `tests/noms-reconnus.test.js` — tout changement de `motifNom`/`FORMES_NOM_PIECES` s'y reflète. « Titre de séjour » n'est
   jamais un titre de propriété.
+  **Formes de noms apprises** (étude 03/10, Outils › « Noms de fichiers du NAS », `server/src/nomsFichiersNas.js`) : l'étude
+  dit oui/non à une FORME de nom (`formeNomFichier` : mots d'usage gardés, nombre `#`, nom propre et adresse `…`) pour une
+  pièce ; `decisionFormePourNom` passe avant les motifs dans `correspondancePieceNom`/`nomDitOffrePret` (« non » écarte même
+  un nom que le motif prend, « oui » fait reconnaître). Termes élargis (`TERMES_ELARGIS_PIECES`) **pour l'outil seulement**
+  (ils proposent, ne cochent jamais) ; noms du commun gardés en mémoire du serveur seulement ; formes décidées dans le rapport
+  technique → à reporter dans `motifNom`/`FORMES_NOM_PIECES` (et `EXEMPLES_NOMS_PIECES`).
   Une pièce validée à la main (`piecesValideesManuellement`) n'est jamais repassée en manquante.
   Une exclusion (« Réinitialiser ») est globale et stockée en base — elle est la première cause
   d'une pièce « jamais reconnue » malgré un nom correct.

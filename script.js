@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-03 08:00';
+  const VERSION_APP = '2026-10-03 08:13';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-03 08:13', resume: "Nouvel outil « Noms de fichiers du NAS » (Outils) : CLAIRE parcourt tous les dossiers du commun, range les noms des PDF par pièce probable et par forme (nom du client, adresse et numéros mis de côté : « DIAG ERP 3 rue … » et « DIAG ERP 12 avenue … » ne font qu'une ligne), et vous demande « Oui » ou « Non » pour chaque forme — ou pour un seul nom avec « Voir les noms ». Une forme validée est reconnue désormais sur le NAS et dans les pièces jointes ; une forme écartée ne l'est plus pour cette pièce. Seules les formes décidées sont gardées ; elles remontent dans le rapport technique pour enrichir les motifs." },
     { version: '2026-10-03 08:00', resume: "Vérifications sur le terrain : Réglages › Mise à jour et sauvegarde liste ce qui ne peut être essayé qu'au bureau (Outlook, Windows, 3CX, IA locale, NAS, mise à jour automatique…). Chaque point se coche tout seul la première fois que le geste réussit ; ceux qui se voient à l'œil (logo dans la notification, icône nette) se confirment par « C'est bon » ou « Ne marche pas ». L'état part dans le rapport technique de 12 h et 17 h (sans nom ni numéro)." },
     { version: '2026-10-03 07:27', resume: "Notifications Windows/Chrome : le logo de CLAIRE s'affiche dans la notification (pièce trouvée)." },
     { version: '2026-10-03 07:24', resume: "Statistiques : les ventes, successions et donations de l'agenda sont comptées sur tous les mois de l'année : l'année en cours entière (rendez-vous déjà placés jusqu'au 31/12 compris) contre toute l'année précédente ; le détail passés / à venir et l'année précédente à la même date restent au survol. Délais : « en moyenne » écrit sur chaque délai, aussi en petit widget (libellés courts Prêt, Préemption (DIA), Signature)." },
@@ -15959,7 +15960,8 @@
     { onglet: 'prorata', titre: 'Prorata & répartitions', icone: 'part-disque', description: 'Taxe foncière, charges de copropriété, loyers au jour de l’acte.' },
     { onglet: 'quotites', titre: 'Quotités d’acquisition', icone: 'users', description: 'La part de chaque acquéreur et l’annexe des quotités.' },
     { onglet: 'inventaire', titre: 'Arbitrage forfait mobilier', icone: 'scale', description: 'Forfait de 5 % ou prisée d’un commissaire de justice.' },
-    { onglet: 'confreres', titre: 'Répertoire', icone: 'book', description: 'Les offices du département et les interlocuteurs de l’étude.' }
+    { onglet: 'confreres', titre: 'Répertoire', icone: 'book', description: 'Les offices du département et les interlocuteurs de l’étude.' },
+    { onglet: 'noms-nas', titre: 'Noms de fichiers du NAS', icone: 'list-check', description: 'Apprendre à CLAIRE comment l’étude nomme ses pièces, forme par forme.' }
   ];
 
   function renderPageOutils() {
@@ -15978,7 +15980,7 @@
   var LIBELLES_ONGLETS = {
     dashboard: 'Tableau de bord', nouveau: 'Nouveau dossier', suivi: 'Suivi des dossiers',
     calculateur: 'Simulateur de provision', prorata: 'Prorata & répartitions', 'appel-fonds': 'Appel de fonds',
-    scans: 'Claire Scan', inventaire: 'Arbitrage forfait mobilier', quotites: "Quotités d'acquisition", confreres: 'Répertoire', 'analyse-ia': "Relecture d'actes",
+    scans: 'Claire Scan', inventaire: 'Arbitrage forfait mobilier', quotites: "Quotités d'acquisition", confreres: 'Répertoire', 'noms-nas': 'Noms de fichiers du NAS', 'analyse-ia': "Relecture d'actes",
     reglages: 'Réglages', outils: 'Outils'
   };
 
@@ -15999,6 +16001,7 @@
     document.getElementById('onglet-inventaire').style.display = nom === 'inventaire' ? '' : 'none';
     document.getElementById('onglet-quotites').style.display = nom === 'quotites' ? '' : 'none';
     document.getElementById('onglet-confreres').style.display = nom === 'confreres' ? '' : 'none';
+    document.getElementById('onglet-noms-nas').style.display = nom === 'noms-nas' ? '' : 'none';
     document.getElementById('onglet-analyse-ia').style.display = nom === 'analyse-ia' ? '' : 'none';
     document.getElementById('onglet-reglages').style.display = nom === 'reglages' ? '' : 'none';
     document.getElementById('onglet-outils').style.display = nom === 'outils' ? '' : 'none';
@@ -16015,6 +16018,7 @@
     document.getElementById('tab-inventaire').setAttribute('aria-selected', String(nom === 'inventaire'));
     document.getElementById('tab-quotites').setAttribute('aria-selected', String(nom === 'quotites'));
     document.getElementById('tab-confreres').setAttribute('aria-selected', String(nom === 'confreres'));
+    document.getElementById('tab-noms-nas').setAttribute('aria-selected', String(nom === 'noms-nas'));
     document.getElementById('tab-analyse-ia').setAttribute('aria-selected', String(nom === 'analyse-ia'));
     document.getElementById('tab-reglages').setAttribute('aria-selected', String(nom === 'reglages'));
     document.getElementById('tab-dashboard').classList.toggle('actif', nom === 'dashboard');
@@ -16027,6 +16031,7 @@
     document.getElementById('tab-inventaire').classList.toggle('actif', nom === 'inventaire');
     document.getElementById('tab-quotites').classList.toggle('actif', nom === 'quotites');
     document.getElementById('tab-confreres').classList.toggle('actif', nom === 'confreres');
+    document.getElementById('tab-noms-nas').classList.toggle('actif', nom === 'noms-nas');
     // Ctrl+P depuis cet onglet doit sortir la FEUILLE, pas l'application autour (voir @media
     // print dans style.css) — un onglet n'ayant pas de classe sur <body>, on la pose ici.
     document.body.classList.toggle('onglet-appel-fonds-actif', nom === 'appel-fonds');
@@ -16065,6 +16070,7 @@
     // Premier passage : coûts habituels posés, droits vides — le verdict et le message d'invite
     // sont posés dans la foulée (voir initInventaire / reinitialiserInventaire).
     if (nom === 'inventaire') initInventaire();
+    if (nom === 'noms-nas') initNomsNas();
   }
 
   // ==== SUIVI : regroupement des échéances par semaine ====
@@ -29732,6 +29738,7 @@
     // Avant toute relecture du NAS : un parcours lancé sans elles reconnaîtrait des fichiers que
     // l'étude a écartés.
     await chargerExclusionsMotifNom();
+    await chargerFormesNoms();
     // Avant le premier import : un dossier créé juste après la connexion doit profiter des
     // corrections faites par les collègues (voir chargerApprentissageServeur).
     await chargerApprentissageServeur();
@@ -31804,7 +31811,19 @@
   // 'exact' si le motifNom reconnaît le nom, 'approche' si seule une forme tolérante le fait,
   // null sinon. Une pièce personnalisée (sans motifNom) se retrouve par son libellé, en
   // sous-chaîne comme avant ou, à défaut, comme une forme tolérante.
+  // Enveloppe : les formes de noms décidées dans l'outil « Noms de fichiers du NAS » (étude, 03/10)
+  // passent avant les motifs — « non » écarte la forme pour cette pièce même si le motif la prend,
+  // « oui » la fait reconnaître quand aucun motif ne la voit. Les pièces personnalisées n'en ont pas.
   function correspondancePieceNom(piece, nomNormalise) {
+    if (!piece) return null;
+    const apprise = piece.personnalisee ? null : decisionFormePourNom(piece.cle, nomNormalise);
+    if (apprise === 'non') return null;
+    const r = correspondancePieceNomMotifs(piece, nomNormalise);
+    if (!r && apprise === 'oui') { noterVerificationPoste('formes-noms-reconnaissance'); return 'exact'; }
+    return r;
+  }
+
+  function correspondancePieceNomMotifs(piece, nomNormalise) {
     if (!piece) return null;
     if (piece.personnalisee) {
       if (String(nomNormalise).toLowerCase().includes(String(piece.label || '').toLowerCase())) return 'exact';
@@ -31927,9 +31946,411 @@
   var FORMES_NOM_OFFRE_PRET = ['offre pret', 'offre credit', 'offre financement', 'offre prealable credit', 'accord pret', 'contrat pret', 'contrat credit', 'offre contrat pret', 'offre contrat credit'];
 
   function nomDitOffrePret(nomNormalise) {
+    const apprise = decisionFormePourNom('offrePret', nomNormalise);
+    if (apprise === 'non') return false;
+    const r = nomDitOffrePretMotifs(nomNormalise);
+    if (!r && apprise === 'oui') { noterVerificationPoste('formes-noms-reconnaissance'); return true; }
+    return r;
+  }
+
+  function nomDitOffrePretMotifs(nomNormalise) {
     if (OFFRE_PRET_RE.test(nomNormalise)) return true;
     const tokens = tokensNomFichier(nomNormalise);
     return FORMES_NOM_OFFRE_PRET.some(f => correspondFormeNom(f, tokens));
+  }
+
+  // ==== Outil « Noms de fichiers du NAS » (étude, 03/10) ====
+  // « Scanne le dossier commun, classe les noms de fichiers par forme qui se ressemble et par type de
+  // pièce attendu, et moi je te dis si c'est le bon document » — puis « garde les styles de rédaction
+  // dans ta base » pour améliorer la détection. Le serveur relève les noms (server/src/nomsFichiersNas.js) ;
+  // ici : la FORME d'un nom (ses mots courants gardés, un nombre → « # », les mots propres au dossier —
+  // nom du client, rue… — → « … »), les groupes par forme et par pièce, et les décisions appliquées à la
+  // reconnaissance (correspondancePieceNom, nomDitOffrePret).
+  //
+  // Termes ÉLARGIS, pour cet outil SEULEMENT (étude : « il faut élargir le regex que pour cet outil ») :
+  // ils ne font que proposer des candidats à l'étude, jamais cocher une pièce. Un terme de 4 lettres ou
+  // plus vaut aussi pour les mots qui commencent par lui (« risque » → « risques ») ; plus court, il doit
+  // être le mot exact (« cu », « tf », « dia »).
+  var TERMES_ELARGIS_PIECES = {
+    certificatUrbanisme: ['urbanisme', 'cu', 'cua', 'cub', 'certificat'],
+    certificatAlignement: ['alignement', 'voirie'],
+    certificatNumerotage: ['numerotage', 'adressage'],
+    reponseAssainissement: ['assainissement', 'spanc', 'egout', 'raccordement'],
+    renonciationPreemption: ['preemption', 'dpu', 'dia', 'renonciation', 'aliener'],
+    etatDate: ['etat', 'syndic'],
+    article20: ['article', 'art'],
+    ribCopro: ['rib', 'iban', 'syndic', 'copropriete', 'copro'],
+    diagnosticsTechniques: ['diag', 'ddt', 'dpe', 'amiante', 'plomb', 'crep', 'electricite', 'electrique', 'gaz', 'carrez', 'boutin', 'mesurage'],
+    erp: ['erp', 'ernmt', 'ermt', 'esris', 'risque', 'pollution', 'georisque', 'sismi', 'radon', 'ial'],
+    avisTaxeFonciere: ['tf', 'taxe', 'fonciere', 'foncier', 'impot'],
+    titrePropriete: ['titre', 'propriete', 'acquisition', 'origine'],
+    etudeSol: ['sol', 'sols', 'g1', 'g2', 'geotechni'],
+    ramonage: ['ramonage', 'cheminee', 'conduit', 'poele', 'insert'],
+    entretienChaudiere: ['chaudiere', 'chauffage'],
+    entretienPac: ['pac', 'pompe', 'chaleur'],
+    entretienClim: ['clim'],
+    vidangeFosse: ['fosse', 'vidange', 'septique', 'microstation'],
+    entretienAdoucisseur: ['adoucisseur'],
+    debroussaillage: ['debroussaill', 'elagage'],
+    travauxRemiseEtat: ['remise'],
+    miseEnConformite: ['conformite', 'regularisation'],
+    cuveCiterne: ['cuve', 'citerne', 'degazage', 'fioul', 'mazout'],
+    debarras: ['debarras', 'encombrant'],
+    attestationConformite: ['consuel', 'conformite'],
+    garantieDecennale: ['decennale'],
+    dommageOuvrage: ['dommage', 'ouvrage'],
+    facturesTravaux: ['facture', 'travaux', 'devis'],
+    etatParasitaire: ['parasitaire', 'merule', 'termite', 'xylophage'],
+    auditEnergetique: ['audit', 'energetique'],
+    securitePiscine: ['piscine'],
+    resiliationContrat: ['resiliation'],
+    offrePret: ['pret', 'credit', 'financement', 'offre', 'emprunt', 'banque', 'bancaire', 'accord']
+  };
+
+  function termeElargiCorrespond(terme, mot) {
+    return terme.length >= 4 ? mot.startsWith(terme) : mot === terme;
+  }
+  var CACHE_MOTS_ELARGIS = new Map();
+  function estMotElargi(mot) {
+    if (CACHE_MOTS_ELARGIS.has(mot)) return CACHE_MOTS_ELARGIS.get(mot);
+    const r = Object.keys(TERMES_ELARGIS_PIECES).some(cle => TERMES_ELARGIS_PIECES[cle].some(t => termeElargiCorrespond(t, mot)));
+    CACHE_MOTS_ELARGIS.set(mot, r);
+    return r;
+  }
+  // Pure : les pièces dont un terme élargi figure parmi les mots du nom.
+  function clesElargiesPourMots(mots) {
+    return Object.keys(TERMES_ELARGIS_PIECES).filter(cle => TERMES_ELARGIS_PIECES[cle].some(t => mots.some(m => termeElargiCorrespond(t, m))));
+  }
+
+  // Pure : la forme d'un nom de fichier. `vocabulaire` = mots vus dans plusieurs dossiers (les mots
+  // d'usage) ; un mot élargi est toujours gardé ; un mot avec un chiffre devient « # », un mot propre
+  // à un dossier « … » ; deux « # » ou deux « … » de suite n'en font qu'un.
+  // Un mot de voie ouvre une adresse : lui et les mots qui suivent (« rue de la Gare », « avenue Victor
+  // Hugo ») sont mis de côté comme les noms propres — des noms de rue courants se retrouvent dans
+  // plusieurs dossiers et couperaient un même groupe en autant de groupes que de rues.
+  var MOTS_VOIE_NOM_FICHIER = ['rue', 'avenue', 'av', 'boulevard', 'bd', 'chemin', 'allee', 'impasse', 'place', 'route', 'rte', 'quai', 'square', 'cours', 'lotissement', 'residence', 'hameau', 'lieudit', 'faubourg', 'voie', 'sentier', 'passage'];
+  function formeNomFichier(nom, vocabulaire) {
+    const sortie = [];
+    let adresse = false;
+    for (const m of tokensNomFichier(nom)) {
+      if (MOTS_VOIE_NOM_FICHIER.includes(m)) adresse = true;
+      const p = estMotElargi(m) ? m : adresse ? '…' : (!/\d/.test(m) && vocabulaire && vocabulaire.has(m)) ? m : /\d/.test(m) ? '#' : '…';
+      if ((p === '#' || p === '…') && sortie[sortie.length - 1] === p) continue;
+      sortie.push(p);
+    }
+    return sortie.join(' ');
+  }
+
+  // Pure : l'expression qui reconnaît une forme sur les mots d'un nom (« # » = un ou plusieurs mots à
+  // chiffre, « … » = un ou plusieurs mots quelconques), du premier au dernier mot.
+  function regexFormeNom(forme) {
+    const parties = String(forme || '').split(' ').filter(Boolean).map(p => p === '#'
+      ? '[a-z]*\\d[a-z0-9]*(?: [a-z]*\\d[a-z0-9]*)*'
+      : p === '…' ? '[a-z0-9]+(?: [a-z0-9]+)*' : p.replace(/[^a-z0-9]/g, ''));
+    return new RegExp('^' + parties.join(' ') + '$');
+  }
+  function nomCorrespondForme(forme, nom) {
+    return regexFormeNom(forme).test(tokensNomFichier(nom).join(' '));
+  }
+
+  // Décisions de l'étude (serveur : GET /api/formes-noms), compilées par pièce.
+  var formesNomsDecisions = [];
+  var formesNomsCompilees = {};
+  function compilerFormesNoms(decisions) {
+    formesNomsDecisions = Array.isArray(decisions) ? decisions : [];
+    formesNomsCompilees = {};
+    for (const d of formesNomsDecisions) {
+      if (!d || !d.cle || !d.forme || (d.decision !== 'oui' && d.decision !== 'non')) continue;
+      try { (formesNomsCompilees[d.cle] = formesNomsCompilees[d.cle] || []).push({ decision: d.decision, re: regexFormeNom(d.forme) }); } catch (e) { /* forme illisible : ignorée */ }
+    }
+  }
+  // Pure (sur les décisions compilées) : 'non' l'emporte sur 'oui', null si aucune forme décidée ne
+  // correspond.
+  function decisionFormePourNom(cle, nomNormalise) {
+    const liste = formesNomsCompilees[cle];
+    if (!liste || !liste.length) return null;
+    const joint = tokensNomFichier(nomNormalise).join(' ');
+    let oui = false;
+    for (const f of liste) {
+      if (!f.re.test(joint)) continue;
+      if (f.decision === 'non') return 'non';
+      oui = true;
+    }
+    return oui ? 'oui' : null;
+  }
+  async function chargerFormesNoms() {
+    try {
+      const r = await fetchAvecAuth('/api/formes-noms');
+      if (r.ok) compilerFormesNoms((await r.json()).decisions || []);
+    } catch (e) { /* sans formes apprises, les motifs seuls */ }
+  }
+
+  // Pure : regroupe les noms relevés (`[[indexDossier, nom]]`) par pièce candidate (termes élargis)
+  // puis par forme, du groupe le plus fourni au moins fourni. Vocabulaire = mots vus dans au moins 3
+  // dossiers (2 en dessous de 30 dossiers) : un nom de client ou de rue, propre à un dossier, devient
+  // « … », ce qui rassemble « DIAG ERP 3 rue des Lilas » et « DIAG ERP 12 rue Haute ».
+  function groupesFormesNoms(fichiers) {
+    const liste = (fichiers || []).map(f => (Array.isArray(f) ? { d: f[0], nom: f[1] } : f)).filter(f => f && typeof f.nom === 'string');
+    const motsParFichier = liste.map(f => tokensNomFichier(f.nom));
+    const dossiersParMot = new Map();
+    motsParFichier.forEach((mots, i) => {
+      for (const m of new Set(mots)) {
+        let e = dossiersParMot.get(m);
+        if (!e) dossiersParMot.set(m, e = new Set());
+        e.add(liste[i].d);
+      }
+    });
+    const nbDossiers = new Set(liste.map(f => f.d)).size;
+    const seuil = nbDossiers >= 30 ? 3 : 2;
+    const vocabulaire = new Set();
+    dossiersParMot.forEach((e, m) => { if (e.size >= seuil) vocabulaire.add(m); });
+    const parCle = {};
+    liste.forEach((f, i) => {
+      const cles = clesElargiesPourMots(motsParFichier[i]);
+      if (!cles.length) return;
+      const forme = formeNomFichier(f.nom, vocabulaire);
+      if (!/[a-z]/.test(forme)) return;
+      for (const cle of cles) {
+        const m = parCle[cle] || (parCle[cle] = new Map());
+        let g = m.get(forme);
+        if (!g) m.set(forme, g = { forme, fichiers: 0, dossiers: new Set(), noms: new Map() });
+        g.fichiers++;
+        g.dossiers.add(f.d);
+        g.noms.set(f.nom, (g.noms.get(f.nom) || 0) + 1);
+      }
+    });
+    const groupes = {};
+    Object.keys(parCle).forEach(cle => {
+      groupes[cle] = [...parCle[cle].values()].map(g => {
+        const noms = [...g.noms.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+        return { cle, forme: g.forme, fichiers: g.fichiers, dossiers: g.dossiers.size, nomsDistincts: noms.length, exemples: noms.slice(0, 40).map(n => n[0]) };
+      }).sort((a, b) => b.fichiers - a.fichiers || a.forme.localeCompare(b.forme));
+    });
+    return { groupes, nbDossiers, nbFichiers: liste.length };
+  }
+
+  // Pure : ce que les motifs fixes disent aujourd'hui des noms d'un groupe (sans les formes apprises).
+  function pieceParCleNomsNas(cle) {
+    return [...PIECES_URBANISME, ...PIECES_COPROPRIETE, ...PIECES_AUTRES, ...PIECES_TERRAIN_AUTRES, ...PIECES_ENGAGEMENTS_AUTO].find(p => p.cle === cle) || null;
+  }
+  function reconnaissanceGroupeNomsNas(g) {
+    const piece = g.cle === 'offrePret' ? null : pieceParCleNomsNas(g.cle);
+    const reconnus = g.exemples.filter(nom => {
+      const n = normaliserNomPourMotif(nom);
+      return g.cle === 'offrePret' ? nomDitOffrePretMotifs(n) : !!correspondancePieceNomMotifs(piece, n);
+    }).length;
+    return { reconnus, sur: g.exemples.length, etat: !reconnus ? 'aucun' : reconnus === g.exemples.length ? 'tous' : 'partie' };
+  }
+  function libellePieceNomsNas(cle) {
+    if (cle === 'offrePret') return 'Offre de prêt';
+    const p = pieceParCleNomsNas(cle);
+    return p ? p.label : cle;
+  }
+  // Pure : forme lisible (« diag erp n° rue … »).
+  function libelleFormeNom(forme) {
+    return String(forme || '').split(' ').map(p => (p === '#' ? 'n°' : p)).join(' ');
+  }
+
+  // Pure : forme EXACTE d'un nom (tous ses mots gardés, seuls les nombres réduits à « # ») — pour une
+  // décision sur ce seul nom, sans entraîner ses voisins de groupe (« ERP établissement recevant du
+  // public » : non, sans écarter « ERP DUPONT »).
+  function formeExacteNom(nom) {
+    const sortie = [];
+    for (const m of tokensNomFichier(nom)) {
+      const p = /\d/.test(m) && !estMotElargi(m) ? '#' : m;
+      if (p === '#' && sortie[sortie.length - 1] === '#') continue;
+      sortie.push(p);
+    }
+    return sortie.join(' ');
+  }
+
+  // ---- Page de l'outil ----
+  var nomsNas = { etat: null, groupes: null, nbDossiers: 0, nbFichiers: 0, cle: '', voir: 15, ouverts: {}, minuterie: null, calcul: false };
+  var GROUPES_PAR_PAGE_NOMS_NAS = 15;
+
+  function decisionFormeNomsNas(cle, forme) {
+    const d = formesNomsDecisions.find(x => x.cle === cle && x.forme === forme);
+    return d ? d.decision : null;
+  }
+
+  async function initNomsNas() {
+    await chargerFormesNoms();
+    await relireEtatNomsNas();
+  }
+
+  async function relireEtatNomsNas() {
+    clearTimeout(nomsNas.minuterie);
+    try {
+      const r = await fetchAvecAuth('/api/nas/noms-fichiers');
+      if (!r.ok) throw new Error('serveur');
+      const etat = await r.json();
+      nomsNas.etat = etat;
+      if (etat.etat === 'pret' && Array.isArray(etat.fichiers) && (!nomsNas.groupes || nomsNas.fin !== etat.fin)) {
+        nomsNas.calcul = true;
+        renderNomsNas();
+        await new Promise(ok => setTimeout(ok, 30));
+        const res = groupesFormesNoms(etat.fichiers);
+        nomsNas.groupes = res.groupes;
+        nomsNas.nbDossiers = res.nbDossiers;
+        nomsNas.nbFichiers = res.nbFichiers;
+        nomsNas.fin = etat.fin;
+        nomsNas.calcul = false;
+        if (!nomsNas.cle || !nomsNas.groupes[nomsNas.cle]) nomsNas.cle = clesNomsNasOrdonnees()[0] || '';
+      }
+      if (etat.etat === 'en-cours') nomsNas.minuterie = setTimeout(relireEtatNomsNas, 2000);
+    } catch (e) {
+      nomsNas.etat = { etat: 'erreur', message: 'Serveur injoignable.' };
+    }
+    renderNomsNas();
+  }
+
+  async function parcourirNomsNas() {
+    try {
+      const r = await fetchAvecAuth('/api/nas/noms-fichiers/parcourir', { method: 'POST' });
+      const corps = await r.json();
+      if (!r.ok) throw new Error(corps.erreur || 'erreur');
+      nomsNas.groupes = null;
+      await relireEtatNomsNas();
+    } catch (e) {
+      afficherToast('Parcours impossible : ' + e.message, 'OK', null);
+    }
+  }
+
+  // Pièces dans l'ordre de la checklist, celles qui ont des groupes seulement.
+  function clesNomsNasOrdonnees() {
+    if (!nomsNas.groupes) return [];
+    const ordre = [...new Set([...PIECES_URBANISME, ...PIECES_COPROPRIETE, ...PIECES_AUTRES, ...PIECES_TERRAIN_AUTRES, ...PIECES_ENGAGEMENTS_AUTO].map(p => p.cle)), 'offrePret'];
+    return ordre.filter(c => nomsNas.groupes[c] && nomsNas.groupes[c].length);
+  }
+  function groupesADeciderNomsNas(cle) {
+    return ((nomsNas.groupes && nomsNas.groupes[cle]) || []).filter(g => !decisionFormeNomsNas(cle, g.forme));
+  }
+
+  function choisirPieceNomsNas(cle) {
+    nomsNas.cle = cle;
+    nomsNas.voir = GROUPES_PAR_PAGE_NOMS_NAS;
+    nomsNas.ouverts = {};
+    renderNomsNas();
+  }
+
+  function renderNomsNas() {
+    const etatZone = document.getElementById('noms-nas-etat');
+    const nav = document.getElementById('noms-nas-pieces');
+    const zone = document.getElementById('noms-nas-groupes');
+    const bouton = document.getElementById('noms-nas-parcourir');
+    if (!etatZone || !nav || !zone) return;
+    const e = nomsNas.etat || { etat: 'jamais' };
+    if (bouton) {
+      bouton.disabled = e.etat === 'en-cours';
+      bouton.textContent = e.etat === 'en-cours' ? 'Parcours en cours…' : e.etat === 'pret' ? 'Parcourir à nouveau' : 'Parcourir le commun';
+    }
+    const apprises = formesNomsDecisions.length;
+    etatZone.textContent = e.etat === 'en-cours' ? `Parcours du commun : ${e.dossiersLus} / ${e.dossiersTotal || '…'} dossiers, ${e.nbFichiers} PDF relevés`
+      : e.etat === 'pret' ? `${(e.nbFichiers || 0).toLocaleString('fr-FR')} PDF dans ${(e.dossiersTotal || 0).toLocaleString('fr-FR')} dossiers, relevés le ${dateHeureVerification(e.fin)}${e.tronque ? ' (liste tronquée)' : ''} · ${apprises} forme${apprises > 1 ? 's' : ''} décidée${apprises > 1 ? 's' : ''}`
+        : e.etat === 'erreur' ? (e.message || 'Le parcours a échoué.')
+          : `Le commun n’a pas encore été parcouru depuis le démarrage du serveur · ${apprises} forme${apprises > 1 ? 's' : ''} décidée${apprises > 1 ? 's' : ''}`;
+    if (nomsNas.calcul) { nav.innerHTML = ''; zone.innerHTML = '<p class="jour-vide">Classement des noms par forme…</p>'; return; }
+    if (!nomsNas.groupes) {
+      nav.innerHTML = '';
+      zone.innerHTML = e.etat === 'en-cours' ? '<p class="jour-vide">Les noms s’affichent dès la fin du parcours.</p>' : '<p class="jour-vide">Lancez le parcours du commun pour classer les noms de fichiers.</p>';
+      return;
+    }
+    const cles = clesNomsNasOrdonnees();
+    nav.innerHTML = cles.map(c => {
+      const n = groupesADeciderNomsNas(c).length;
+      return `<button type="button" class="rep-nav-lien${nomsNas.cle === c ? ' actif' : ''}${n === 0 ? ' vide' : ''}" aria-pressed="${nomsNas.cle === c}" onclick="choisirPieceNomsNas('${escapeOnclickArg(c)}')"><span class="rep-nav-libelle">${escapeHtml(libellePieceNomsNas(c))}</span><span class="rep-nav-n">${n}</span></button>`;
+    }).join('') || '<p class="jour-vide">Aucun nom de pièce repéré.</p>';
+    zone.innerHTML = renderGroupesNomsNas(nomsNas.cle);
+  }
+
+  function renderGroupesNomsNas(cle) {
+    if (!cle) return '';
+    const tous = (nomsNas.groupes && nomsNas.groupes[cle]) || [];
+    const aDecider = tous.filter(g => !decisionFormeNomsNas(cle, g.forme));
+    const decides = tous.filter(g => decisionFormeNomsNas(cle, g.forme));
+    const exactes = formesNomsDecisions.filter(d => d.cle === cle && !tous.some(g => g.forme === d.forme));
+    const libelle = libellePieceNomsNas(cle);
+    const visibles = aDecider.slice(0, nomsNas.voir);
+    return `<div class="noms-nas-tete">
+        <h2 class="noms-nas-titre">${escapeHtml(libelle)}</h2>
+        <span class="hint">${aDecider.length ? `${aDecider.length} forme${aDecider.length > 1 ? 's' : ''} à voir, la plus fréquente d’abord` : 'Toutes les formes ont été vues'}</span>
+      </div>
+      <div class="noms-nas-liste">${visibles.map(g => renderGroupeNomsNas(g, libelle)).join('')}</div>
+      ${aDecider.length > visibles.length ? `<button type="button" class="lien-discret" onclick="nomsNas.voir += GROUPES_PAR_PAGE_NOMS_NAS; renderNomsNas()">Voir ${Math.min(GROUPES_PAR_PAGE_NOMS_NAS, aDecider.length - visibles.length)} formes de plus</button>` : ''}
+      ${decides.length || exactes.length ? `<details class="noms-nas-decides"><summary>Déjà décidées (${decides.length + exactes.length})</summary>
+        <div class="noms-nas-liste">${decides.map(g => renderGroupeNomsNas(g, libelle)).join('')}${exactes.map(d => renderDecisionSeuleNomsNas(d)).join('')}</div></details>` : ''}`;
+  }
+
+  function renderGroupeNomsNas(g, libelle) {
+    const decision = decisionFormeNomsNas(g.cle, g.forme);
+    const rec = reconnaissanceGroupeNomsNas(g);
+    const pastille = rec.etat === 'tous' ? '<span class="dot-label dl-success"><span class="dot"></span>Reconnu aujourd’hui</span>'
+      : rec.etat === 'partie' ? `<span class="dot-label dl-pret"><span class="dot"></span>Reconnu en partie (${rec.reconnus}/${rec.sur})</span>`
+        : '<span class="dot-label dl-neutre"><span class="dot"></span>Pas reconnu aujourd’hui</span>';
+    const cleUi = g.cle + '|' + g.forme;
+    const ouvert = !!nomsNas.ouverts[cleUi];
+    const arg = (x) => escapeOnclickArg(x);
+    const boutons = decision
+      ? `<span class="dot-label ${decision === 'oui' ? 'dl-success' : 'dl-urgent'}"><span class="dot"></span>${decision === 'oui' ? 'Oui, validé' : 'Non, écarté'}</span>
+         <button type="button" class="secondary" onclick="deciderFormeNomsNas('${arg(g.cle)}', '${arg(g.forme)}', null)">Annuler</button>`
+      : `<button type="button" class="secondary" onclick="deciderFormeNomsNas('${arg(g.cle)}', '${arg(g.forme)}', 'oui')">Oui</button>
+         <button type="button" class="secondary" onclick="deciderFormeNomsNas('${arg(g.cle)}', '${arg(g.forme)}', 'non')">Non</button>`;
+    const noms = ouvert ? `<ul class="noms-nas-noms">${g.exemples.map(n => {
+        const forme = formeExacteNom(n);
+        const d = decisionFormeNomsNas(g.cle, forme);
+        return `<li><code>${escapeHtml(n)}</code>${d ? `<span class="dot-label ${d === 'oui' ? 'dl-success' : 'dl-urgent'}"><span class="dot"></span>${d === 'oui' ? 'oui' : 'non'}</span><button type="button" class="lien-discret" onclick="deciderFormeNomsNas('${arg(g.cle)}', '${arg(forme)}', null)">annuler</button>`
+          : `<button type="button" class="lien-discret" onclick="deciderFormeNomsNas('${arg(g.cle)}', '${arg(forme)}', 'oui', '${arg(n)}')">oui</button><button type="button" class="lien-discret" onclick="deciderFormeNomsNas('${arg(g.cle)}', '${arg(forme)}', 'non', '${arg(n)}')">non</button>`}</li>`;
+      }).join('')}</ul>` : '';
+    return `<div class="noms-nas-groupe${decision ? ' decide' : ''}" data-forme="${escapeAttr(g.forme)}">
+        <div class="noms-nas-groupe-texte">
+          <div class="noms-nas-exemple"><code>${escapeHtml(g.exemples[0] || '')}</code>${g.nomsDistincts > 1 ? ` <span class="hint">et ${g.nomsDistincts - 1} autre${g.nomsDistincts > 2 ? 's' : ''} nom${g.nomsDistincts > 2 ? 's' : ''} de même forme</span>` : ''}</div>
+          <div class="hint noms-nas-meta">${pastille} trouvé ${g.fichiers} fois dans ${g.dossiers} dossier${g.dossiers > 1 ? 's' : ''} · forme <code>${escapeHtml(libelleFormeNom(g.forme))}</code>
+            ${g.nomsDistincts > 1 ? `<button type="button" class="lien-discret" onclick="basculerNomsGroupeNomsNas('${arg(cleUi)}')">${ouvert ? 'Masquer les noms' : 'Voir les noms'}</button>` : ''}</div>
+          ${noms}
+        </div>
+        <div class="noms-nas-actions" aria-label="Est-ce bien « ${escapeAttr(libelle)} » ?">${boutons}</div>
+      </div>`;
+  }
+
+  // Une décision prise sur un nom précis (forme exacte), qui ne correspond à aucun groupe affiché.
+  function renderDecisionSeuleNomsNas(d) {
+    return `<div class="noms-nas-groupe decide">
+        <div class="noms-nas-groupe-texte">
+          <div class="noms-nas-exemple"><code>${escapeHtml(d.exemple || libelleFormeNom(d.forme))}</code></div>
+          <div class="hint noms-nas-meta">forme <code>${escapeHtml(libelleFormeNom(d.forme))}</code> · décidée le ${dateHeureVerification(d.le)}</div>
+        </div>
+        <div class="noms-nas-actions"><span class="dot-label ${d.decision === 'oui' ? 'dl-success' : 'dl-urgent'}"><span class="dot"></span>${d.decision === 'oui' ? 'Oui, validé' : 'Non, écarté'}</span>
+          <button type="button" class="secondary" onclick="deciderFormeNomsNas('${escapeOnclickArg(d.cle)}', '${escapeOnclickArg(d.forme)}', null)">Annuler</button></div>
+      </div>`;
+  }
+
+  function basculerNomsGroupeNomsNas(cleUi) {
+    nomsNas.ouverts[cleUi] = !nomsNas.ouverts[cleUi];
+    renderNomsNas();
+  }
+
+  function deciderFormeNomsNas(cle, forme, decision, nomPrecis) {
+    const g = ((nomsNas.groupes && nomsNas.groupes[cle]) || []).find(x => x.forme === forme);
+    const envoyer = async () => {
+      try {
+        const r = await fetchAvecAuth('/api/formes-noms', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ cle, forme, decision, exemple: nomPrecis || (g && g.exemples[0]) || '', fichiers: g ? g.fichiers : 1, dossiers: g ? g.dossiers : 1 })
+        });
+        const corps = await r.json();
+        if (!r.ok) throw new Error(corps.erreur || 'erreur');
+        compilerFormesNoms(corps.decisions || []);
+        renderNomsNas();
+      } catch (e) {
+        afficherToast('Décision non enregistrée : ' + e.message, 'OK', null);
+      }
+    };
+    // Écarter une forme que les motifs reconnaissent aujourd'hui : ces fichiers ne seront plus cochés.
+    if (decision === 'non' && g && reconnaissanceGroupeNomsNas(g).reconnus) {
+      demanderConfirmation(`Ces noms sont reconnus aujourd’hui comme « ${libellePieceNomsNas(cle)} ». Les écarter de cette pièce ?${g.nomsDistincts > 1 ? ' Pour un seul nom, utilisez plutôt « Voir les noms ».' : ''}`, envoyer, { bouton: 'Écarter', ton: 'danger' });
+      return;
+    }
+    envoyer();
   }
 
   // Ordre d'affichage = ordre des listes fournies par l'étude : urbanisme (commun aux trois types),
@@ -42248,6 +42669,7 @@
       'icon-reglages-apropos': 'info',
       'icon-nav-quotites': 'users',
       'icon-nav-confreres': 'book',
+      'icon-nav-noms-nas': 'list-check',
       'icon-calc-warning': 'alert-triangle',
       'icon-inv-warning': 'alert-triangle',
       'icon-nav-analyse-ia': 'eye',

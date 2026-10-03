@@ -127,6 +127,11 @@
         <button type="button" id="tab-confreres" class="sidebar-link sidebar-sousmenu-item" role="tab" aria-selected="false" onclick="definirOnglet('confreres')">
           <span class="sidebar-link-icone" id="icon-nav-confreres" aria-hidden="true"></span>Répertoire
         </button>
+        <!-- Noms de fichiers du NAS : l'étude dit, forme de nom par forme de nom, si c'est la bonne pièce
+             (server/src/nomsFichiersNas.js) ; les formes validées ou écartées complètent la détection. -->
+        <button type="button" id="tab-noms-nas" class="sidebar-link sidebar-sousmenu-item" role="tab" aria-selected="false" onclick="definirOnglet('noms-nas')">
+          <span class="sidebar-link-icone" id="icon-nav-noms-nas" aria-hidden="true"></span>Noms de fichiers du NAS
+        </button>
       </div>
 
       <!-- Réglages de l'étude (URL du flux Power Automate + adresse email de chaque collaborateur) :
@@ -1507,6 +1512,25 @@
      carnet des confrères (relevé de l'annuaire du 41, la fiche d'un dossier rapproche chaque notaire
      de son office, trouverOfficeConfrere) ; les autres thèmes = le répertoire Word de l'étude
      (server/src/repertoire.js). -->
+<div class="onglet-panel" id="onglet-noms-nas" style="display:none;">
+  <div class="dash-header">
+    <div>
+      <div class="dash-eyebrow">Outils</div>
+      <div class="dash-titre-ligne">
+        <h1 class="dash-titre">Noms de fichiers du NAS <span class="info-i" tabindex="0" data-info="CLAIRE relève les noms des PDF de tous les dossiers du commun, les range par pièce probable et par forme (le nom du client, la rue et les numéros sont mis de côté), puis vous demande si c'est la bonne pièce. « Oui » : cette forme sera reconnue sur le NAS ; « Non » : elle ne le sera plus pour cette pièce. Les noms ne sont jamais gardés, seules les formes décidées le sont."></span></h1>
+      </div>
+      <p class="hint noms-nas-etat" id="noms-nas-etat"></p>
+    </div>
+    <div class="dash-header-actions">
+      <button type="button" class="primary" id="noms-nas-parcourir" onclick="parcourirNomsNas()">Parcourir le commun</button>
+    </div>
+  </div>
+  <div class="rep-corps noms-nas-corps">
+    <nav class="rep-nav" id="noms-nas-pieces" aria-label="Pièces"></nav>
+    <div id="noms-nas-groupes"></div>
+  </div>
+</div>
+
 <div class="onglet-panel" id="onglet-confreres" style="display:none;">
   <div class="dash-header">
     <div>

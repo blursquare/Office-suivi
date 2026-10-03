@@ -23,6 +23,7 @@ const { creerRouteurCorrectionsApprises } = require('./routes/correctionsApprise
 const { creerRouteurConfreres } = require('./routes/confreres');
 const { creerRouteurPoste, creerRouteurIconePoste } = require('./routes/poste');
 const { creerRouteurVerificationsTerrain } = require('./routes/verificationsTerrain');
+const { creerRouteurNomsFichiersNas } = require('./routes/nomsFichiersNas');
 const { creerRouteurSignatureImages } = require('./routes/signatureImages');
 const { creerRouteurRappelsPerso } = require('./routes/rappelsPerso');
 const { creerRouteurPreferences } = require('./routes/preferences');
@@ -145,6 +146,7 @@ function creerApp({ db, config, envoyerEmailFn, creerClientClaude, appelerMistra
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurExtractionIa(config));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurOffrePret(config));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurNas(config));
+  app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurNomsFichiersNas(config, parametresRepo));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurScans(config, parametresRepo));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurReglages(parametresRepo, envoyerEmailFn, { depot, db }));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurSauvegarde(parametresRepo, db, config));
