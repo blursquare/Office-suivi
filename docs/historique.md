@@ -16388,3 +16388,8 @@ Mesure : ~90 classes de boutons différentes, 511 `<button>` dont 114 « princip
   fumée (`wa-button` défini, aucun bouton qui contient un bloc — garde-fou contre une balise mal fermée).
 Captures avant/après (20 écrans, clair et sombre) : boutons aux coins arrondis de l'échelle, couleurs inchangées.
 Non converti (étape suivante) : boutons-icônes, `action-rapide`, `bouton-ajout`, liens-boutons, interrupteurs, fenêtres.
+
+### 04/10/2026 20 h 06 — Tiroir des outils ouvert au démarrage (0.144.16)
+
+Étude : « Et remets le tiroir des outils ouvert de base. » `groupeOutilsOuvertSeance` démarre à `true` (il était fermé à chaque
+démarrage depuis le 01/10) ; le + / − ne change toujours que la séance, rien n'est retenu ; `aria-expanded` initial aligné.
