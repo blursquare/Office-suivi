@@ -6,7 +6,7 @@ const test = require('node:test');
 const assert = require('node:assert');
 const fs = require('fs');
 const path = require('path');
-const { declarationsCss, ecartEchelle, TEXTES, RAYONS } = require('../scripts/style-echelle');
+const { declarationsCss, ecartEchelle, ecartsTypographie, TEXTES, RAYONS } = require('../scripts/style-echelle');
 
 const racine = path.join(__dirname, '..');
 const css = fs.readFileSync(path.join(racine, 'style.css'), 'utf8');
@@ -15,6 +15,30 @@ test('style.css : aucune valeur hors de l\'échelle commune', () => {
   const ecarts = declarationsCss(css).map((d) => [d, ecartEchelle(d)]).filter(([, m]) => m)
     .map(([d, m]) => `ligne ${d.ligne} (${d.selecteur.slice(0, 60)}) : ${m}`);
   assert.equal(ecarts.length, 0, '\n' + ecarts.slice(0, 30).join('\n'));
+});
+
+test('style.css : rôles typographiques (étiquettes en capitales, badges, titres de carte)', () => {
+  // Étude 04/10 : « tu trouves les polices cohérentes ? » — une étiquette en capitales, un titre de carte : un seul style.
+  const ecarts = ecartsTypographie(declarationsCss(css));
+  assert.equal(ecarts.length, 0, '\n' + ecarts.slice(0, 30).join('\n'));
+});
+
+test('lecteur de style : graisses, espacements de lettres et rôles typographiques', () => {
+  const exemple = [
+    '.a { font-weight: 650; letter-spacing: 0.1em; }',
+    '.b { font-weight: 600; letter-spacing: -0.02em; }',
+    '.c { font-size: var(--texte-xxs); font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; }',
+    '.d { font-size: var(--texte-xs); font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; }',
+    '.e { background: var(--focus); font-size: var(--texte-micro); font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; }',
+    '.w-titre { font-size: var(--texte-base); font-weight: 700; }'
+  ].join('\n');
+  const decl = declarationsCss(exemple);
+  assert.deepEqual(decl.filter((d) => ecartEchelle(d)).map((d) => d.selecteur + ' ' + d.propriete), ['.a font-weight', '.a letter-spacing', '.c letter-spacing']);
+  const roles = ecartsTypographie(decl).join('\n');
+  assert.match(roles, /\(\.c\) : capitales en var\(--texte-xxs\)/);
+  assert.match(roles, /\(\.c\) : capitales en graisse 700/);
+  assert.match(roles, /\(\.w-titre\) : titre de carte/);
+  assert.doesNotMatch(roles, /\((\.d|\.e)\)/);
 });
 
 test('style.css : les jetons de l\'échelle sont déclarés, avec les valeurs de scripts/style-echelle.js', () => {

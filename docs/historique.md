@@ -16426,3 +16426,18 @@ Aujourd'hui ›, étapes du wizard), pastilles de source (p. N), réglages de ta
 ses styles (`.coord-echanges`, `.coord-ligne`, `.coord-libelle`) retirés ; les coordonnées restent en haut de la fiche
 (`fiche-coordonnees`, mêmes champs, mêmes fonctions d'enregistrement). L'aide « Renseignez l'email … » dit désormais « en haut
 de la fiche ».
+
+### 04/10/2026 21 h 04 — Typographie uniformisée (0.144.19)
+
+Étude : « Tu trouves les polices cohérentes ? » puis « Oui vas-y » sur la proposition. Relevé dans Chromium (14 écrans) : famille
+cohérente (Inter ; Montserrat du logo ; Lora/Times/Calibri papier et emails), tailles déjà sur l'échelle, mais 7 graisses
+déclarées (400, 500, 550, 600, 650, 700, 800) pour 4 chargées — 650 rendait 700, 550 rendait 600 —, 5 styles pour un titre de
+carte, des étiquettes en capitales de 10 à 13 px, 600 ou 700, et 9 espacements de lettres.
+- Graisses : 650/550 → 600 (nom du dossier dans la fiche : 700, son rendu réel), 800 → 700.
+- Étiquettes en capitales (49 règles) : 11 px, 600, 0.06em ; badges à fond (2) : 700, 0.06em, taille gardée.
+- Titres de carte/section : widgets, colonne du Suivi, agenda (« Rendez-vous à placer »), réglages → 16 px, 600.
+- Espacements de lettres : -0.02em, 0 ou 0.06em (initiales et capitales) ; 0 pour deux libellés en minuscules.
+- `scripts/style-echelle.js` : `regle` sur chaque déclaration (rôle vérifié règle par règle), graisses et espacements de lettres
+  dans `ecartEchelle`, `ecartsTypographie` (capitales, badges, titres de carte) ; deux tests dans `style-uniforme`.
+Captures avant/après (12 écrans, clair et sombre) : petits titres en capitales un peu plus lisibles, titres de cartes alignés, le
+reste identique à l'œil. Zones papier non touchées.
