@@ -264,16 +264,6 @@
           <button type="button" class="icon-btn" onclick="toggleCompromisEdit()">Corriger</button>
           <input type="date" id="f-date-compromis" style="display:none;" onchange="corrigerDateCompromis(this.value)">
         </div>
-        <!-- État de la recherche du modèle IA local en arrière-plan (voir lancerExtractionIa()) :
-             sans lui, rien n'indiquait qu'une recherche était en cours pendant les quelques
-             secondes à dizaines de secondes que peut prendre l'appel à Ollama — silencieux avant
-             ce correctif jusqu'au toast final. Masqué par défaut, affiché uniquement pendant
-             l'appel (jamais si Ollama n'est pas disponible/configuré : l'appel échoue alors
-             immédiatement et cet état est aussitôt remasqué). -->
-        <div id="ia-enrichissement-status" class="ia-enrichissement-status" style="display:none;">
-          <span id="icon-ia-enrichissement" aria-hidden="true"></span>
-          Analyse par le modèle IA local en cours…
-        </div>
 
         <!-- Panneau de révision (voir renderPanneauRevision() dans script.js) : une ligne par donnée
              extraite, avec son statut, la clause d'où elle vient et sa page. Placé ici, à côté des

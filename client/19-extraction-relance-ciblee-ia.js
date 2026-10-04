@@ -1,99 +1,4 @@
-  // ==== EXTRACTION STRUCTURÉE : relance ciblée à l'IA locale sur UN SEUL champ ====
-  //
-  // Demandé par l'étude pour automatiser un geste répétitif : jusqu'ici, un champ resté « à
-  // vérifier » après les trois lots automatiques ne pouvait être redemandé qu'en relançant les
-  // TROIS lots (parties/bien/dates) d'un coup — coûteux sur un CPU de bureau pour une seule donnée
-  // qui pose question. `redemanderChampIa()` appelle la même route serveur avec `lot: 'cible'`,
-  // qui envoie une fenêtre de texte plus large que celle d'un lot normal (voir
-  // server/src/extraction/cible.js) — un geste explicite de l'étude sur un seul champ justifie ce
-  // coût supplémentaire, que l'automatique des trois lots en parallèle ne pouvait pas se permettre.
-  //
-  // Champs éligibles à cette relance : ceux qui correspondent à une vraie lecture du texte. Le rôle
-  // de l'étude (roleNotaire) en est exclu — il est DÉDUIT d'une règle métier sur les notaires
-  // (voir determinerNotaires), ce n'est pas une donnée que le modèle pourrait lire directement.
-  var CLES_CIBLE_IA = new Set(['typeActe', 'nom', 'signature', 'pret', 'acte', 'ventebien', 'adresseBien', 'prixVente', 'emailAcquereur']);
 
-  // Comme fusionnerExtractionIa() : la réponse du modèle ne devient jamais elle-même une valeur du
-  // formulaire, seulement une PROPOSITION affichée avec un bouton « Utiliser » (accepterPropositionIa,
-  // déjà en place). Pure vis-à-vis de l'état global : ne modifie que l'objet `extraction` reçu en
-  // paramètre, donc testable sans dépendre de `dossiers`/du DOM (voir tests/cible-ia.test.js).
-  function fusionnerCibleIa(extraction, cle, resultat, texte) {
-    if (!extraction || !resultat) return extraction;
-    const sourceIa = () => (resultat.extrait)
-      ? { extrait: resultat.extrait, index: resultat.extraitIndex === undefined ? null : resultat.extraitIndex, page: resultat.extraitTrouve ? pageDepuisIndex(resultat.extraitIndex) : null }
-      : null;
-    const proposer = (valeur) => ({ valeur, source: sourceIa(), extraitTrouve: !!resultat.extraitTrouve });
-    const raisonCible = 'Relecture ciblée demandée sur ce seul champ, avec une fenêtre de texte plus large.';
-
-    const proposerSur = (objetCible, valeur) => {
-      if (!objetCible || valeur === null || valeur === undefined || valeur === '') return;
-      if (objetCible.origine === 'manuel') return; // déjà tranché à la main : le modèle ne le rouvre pas
-      objetCible.propositionIa = proposer(valeur);
-      objetCible.raison = raisonCible;
-    };
-
-    if (cle === 'typeActe') {
-      extraction.typeActe = extraction.typeActe || champExtraction(null);
-      proposerSur(extraction.typeActe, resultat.valeur);
-    } else if (cle === 'nom' || cle === 'prixVente' || cle === 'emailAcquereur') {
-      extraction.champs = extraction.champs || {};
-      extraction.champs[cle] = extraction.champs[cle] || champExtraction(null);
-      proposerSur(extraction.champs[cle], resultat.valeur);
-    } else if (cle === 'adresseBien') {
-      extraction.bien = extraction.bien || {};
-      extraction.bien.adresse = extraction.bien.adresse || champExtraction(null);
-      if (extraction.bien.adresse.origine !== 'manuel' && resultat.valeur) {
-        extraction.bien.propositionIa = proposer(resultat.valeur);
-      }
-    } else {
-      // 'signature' n'a pas d'entrée dans CHAMP_PAR_TYPE_DATE (elle mappe une échéance BUTOIR/
-      // REITERATION vers son champ court, pas la date de signature elle-même) — traitée à part.
-      const cleDate = cle === 'signature'
-        ? 'SIGNATURE_AVANT_CONTRAT'
-        : Object.keys(CHAMP_PAR_TYPE_DATE).find(t => CHAMP_PAR_TYPE_DATE[t] === cle);
-      if (!cleDate) return extraction;
-      extraction.dates = extraction.dates || {};
-      extraction.dates[cleDate] = extraction.dates[cleDate] || champExtraction(null);
-      let valeur = resultat.dateExplicite || null;
-      if (!valeur && resultat.delai) {
-        const ptDepart = pointDepartDepuisAncre(resultat.delai.pointDepart || '');
-        const signatureVal = extraction.dates.SIGNATURE_AVANT_CONTRAT && extraction.dates.SIGNATURE_AVANT_CONTRAT.valeur;
-        if (pointDepartCalculable(ptDepart) && signatureVal) valeur = calculerDateEcheance(signatureVal, resultat.delai);
-      }
-      proposerSur(extraction.dates[cleDate], valeur);
-    }
-    extraction.alertes = controlerCoherence(extraction);
-    return extraction;
-  }
-
-  async function redemanderChampIa(cle) {
-    if (!dernierTexteTraite || !extractionActuelle) return;
-    const btn = document.getElementById('revision-cible-' + cle);
-    if (btn) { btn.disabled = true; btn.innerHTML = icone('spinner', null, true); }
-    try {
-      const reponse = await fetchAvecAuth('/api/extraction-ia', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ texte: dernierTexteTraite, lot: 'cible', champ: cle })
-      });
-      if (!reponse.ok) {
-        const corps = await reponse.json().catch(() => ({}));
-        afficherToast(corps.erreur || "L'IA locale n'a pas pu répondre pour ce champ.", 'OK', null);
-        return;
-      }
-      const corps = await reponse.json();
-      fusionnerCibleIa(extractionActuelle, cle, corps.resultat, dernierTexteTraite);
-      appliquerExtractionAuFormulaire(extractionActuelle);
-      renderPanneauRevision(extractionActuelle);
-    } catch (e) {
-      afficherToast('IA locale injoignable : ' + e.message, 'OK', null);
-    } finally {
-      // renderPanneauRevision() reconstruit tout le panneau en cas de succès (le bouton d'origine
-      // n'existe donc plus) ; en cas d'échec, il faut le réactiver soi-même.
-      const btnEncore = document.getElementById('revision-cible-' + cle);
-      if (btnEncore && btnEncore.disabled) { btnEncore.disabled = false; btnEncore.innerHTML = `${icone('rotate-ccw')} Redemander à l’IA`; }
-    }
-  }
 
   // ---- gestion des échéances "Autre" ----
 
@@ -221,7 +126,6 @@
     afficherAnalyseJuridique();
     masquerBoutonAjoutEngagement();
     masquerFormAjoutEngagementManuel();
-    afficherStatutEnrichissementIa(false);
     // Referme entièrement le panneau d'aperçu : sans ça, le PDF du dossier qu'on vient d'enregistrer
     // restait affiché à côté d'un formulaire pourtant vide, prêt pour un nouvel import.
     document.getElementById('pdf-viewer').style.display = 'none';

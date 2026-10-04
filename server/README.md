@@ -337,50 +337,11 @@ Le même modèle local sert plusieurs fonctionnalités distinctes :
   calculé entièrement dans le navigateur par des règles (voir CLAUDE.md, « Outil 2 refait de
   zéro »), et le bouton facultatif « Approfondir avec l'IA locale » a été retiré le 23/09/2026 à la
   demande de l'étude, qui n'y voyait aucun apport. Les routes `/api/audit-acte/*` n'existent plus.
-- Le wizard « Nouveau dossier » lui-même appelle aussi le modèle en arrière-plan, juste après
-  l'extraction habituelle par regex (inchangée, toujours le chemin principal et immédiat) : il ne
-  complète QUE ce que les regex n'ont pas trouvé et ne propose de nouveaux engagements du vendeur
-  qu'en ajout, jamais en remplacement — aucune valeur déjà détectée ou déjà saisie n'est jamais
-  écrasée (`POST /api/extraction-ia`). Entièrement silencieux si Ollama n'est pas installé/lancé :
-  le wizard reste alors utilisable exactement comme avant l'ajout de cette fonctionnalité.
-
-  Cette seconde fonctionnalité procède en **trois appels ciblés**, lancés en parallèle par le
-  client (paramètre `lot` de la requête) plutôt qu'en un seul appel fourre-tout :
-
-  | Lot | Ce qu'il lit | Contexte envoyé au modèle |
-  |---|---|---|
-  | `parties` | type d'acte, parties et leurs rôles, notaires | 10 000 premiers caractères + fenêtres autour de « Maître », « notaire », « ci-après dénommé » |
-  | `bien` | adresse du bien, cadastre, prix, type de vente | tête du document + fenêtres autour de « désignation », « cadastr », « sis à », « prix » |
-  | `dates` | échéances par fonction juridique, engagements du vendeur | tête du document + fenêtres autour de « prêt », « acte authentique », « réitér », « délai », « au plus tard » |
-
-  Un modèle 7-8B tenu de remplir quinze champs hétérogènes d'un coup en bâcle une partie ; surtout,
-  chaque lot reçoit ainsi le passage de l'acte qui le concerne au lieu des mêmes 40 000 caractères
-  payés trois fois. **Conséquence sur le temps de réponse** : Ollama traite les requêtes les unes
-  après les autres, donc compter environ le triple du temps d'un appel unique — mais sur un
-  contexte bien plus court à chaque fois, l'écart réel est plus faible. Le formulaire se remplit
-  lot par lot, sans attendre le plus lent des trois, et l'import lui-même n'est jamais retardé.
-
-  Deux garde-fous, côté serveur puis côté client :
-  - **chaque valeur doit être accompagnée de la phrase de l'acte qui la justifie**, et le serveur
-    vérifie que cette citation figure LITTÉRALEMENT dans le PDF. C'est le seul signal fiable : le
-    score de « confiance » que renvoie un modèle de cette taille n'est calibré sur rien, une
-    citation vérifiable l'est. Citation retrouvée → la donnée est marquée confirmée et sa page est
-    affichée ; introuvable → « à vérifier », quel que soit l'aplomb du modèle ;
-  - **le modèle ne calcule jamais une date à partir d'un délai** : il rapporte le délai (« 60
-    jours ») et son point de départ tel que l'acte le nomme, et le calcul est fait par l'outil,
-    déterministe et testé — et uniquement quand le point de départ est la signature, seule date
-    connue à l'import.
-
-  Quand le modèle contredit les regex, c'est la détection par regex qui est retenue (déterministe,
-  testée sur de vrais actes) : l'écart est signalé dans le panneau « Ce que l'outil a compris » à
-  l'étape « Vérifier », jamais tranché en silence.
-
-  **Un quatrième mode, ciblé** (`lot: 'cible'` + `champ`, voir `src/extraction/cible.js`) : un
-  bouton « Redemander à l'IA » sur une ligne encore floue du panneau de révision relance le modèle
-  sur CETTE SEULE donnée, avec une fenêtre de texte plus large que celle d'un lot normal (un geste
-  explicite de l'étude sur un seul champ justifie ce coût). Même garde-fous que les trois lots
-  automatiques ci-dessus (extrait vérifié, aucun calcul de date côté serveur), et même principe côté
-  client : la réponse devient une proposition avec bouton « Utiliser », jamais une écriture directe.
+- **L'extraction IA du wizard « Nouveau dossier » (`POST /api/extraction-ia`, lots parties/bien/dates, relance ciblée) a été
+  retirée le 04/10/2026** : l'étude avait demandé dès le 02/10 que le modèle local ne participe plus à la création d'un
+  dossier (lecture par règles seule, Authentic pour compléter) ; le code restait sans appelant, il est supprimé (historique
+  git si besoin). Le modèle local ne sert plus qu'aux emails (proposition de réponse, demandes du matin, résumés) et à
+  la confirmation d'une offre de prêt.
 
 Le modèle tourne **entièrement en local sur ce serveur** via [Ollama](https://ollama.com) (gratuit,
 open-source) — le texte des documents ne quitte JAMAIS le réseau de l'étude, cohérent avec la
@@ -855,10 +816,10 @@ npm test
 
 178 tests (`node:test`, aucune dépendance de test supplémentaire) couvrant l'authentification, le
 cycle complet créer/lire/modifier/supprimer/restaurer un dossier, la résolution de configuration
-du mode `.exe`, le service des fichiers statiques embarqués, l'extraction IA pour le wizard (`/api/extraction-ia`) et les rappels par email
+du mode `.exe`, le service des fichiers statiques embarqués et les rappels par email
 (réglages, client Power Automate, job de rappels avec un envoi injecté) — les trois premières avec
 un faux serveur Ollama HTTP, la dernière avec un faux webhook HTTP local (voir
-`test/extraction-ia.test.js`, `test/parametresRepo.test.js`,
+`test/parametresRepo.test.js`,
 `test/envoi-email.test.js`, `test/rappels.test.js`, `test/reglages.test.js`).
 Indépendant de la suite de tests à la racine du dépôt (`npm test` depuis `Office-suivi/`, 526 tests
 sur les fonctions pures de `script.js`) — les deux peuvent tourner sans que l'un dépende des
@@ -893,7 +854,7 @@ dépendances de l'autre.
   un jour sur le poste de l'étude.
 - **Analyse et extraction par IA locale (Ollama) disponibles mais non vérifiées sur de vrais actes**
   — voir la section « Analyse juridique par IA locale » plus haut : le client HTTP et les routes
-  (`/api/extraction-ia`, `/api/offre-pret/confirmer`) sont testées avec un faux serveur Ollama, mais la
+  (`/api/offre-pret/confirmer`, emails) sont testées avec un faux serveur Ollama, mais la
   qualité réelle des constats/champs produits par le modèle par défaut (`llama3.1:8b`) sur de vrais
   compromis/promesses/projets d'actes reste à confirmer par l'étude, tout comme les temps de réponse
   sur le matériel réel du poste serveur (aucun GPU dédié à prévoir dans ce budget — la vitesse dépendra

@@ -50,10 +50,6 @@ const DEPARTEMENTS = {
   '988': 'Nouvelle-Calédonie'
 };
 
-function sansAccents(s) {
-  return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
-}
-
 // Ordre des départements : numérique (2A et 2B entre 19 et 21), outre-mer à la fin.
 function cleTri(code) {
   if (code === '2A') return 20.1;
@@ -75,22 +71,6 @@ function officesDepartement(code) {
     .sort((a, b) => (a.ville || '').localeCompare(b.ville || '', 'fr') || (a.office || '').localeCompare(b.office || '', 'fr'));
 }
 
-// Recherche dans toute la France : chaque mot doit se trouver dans l'office, un notaire, la ville,
-// le code postal, un bureau ou l'email. `max` résultats au plus.
-function chercherAnnuaire(texte, max = 50) {
-  const mots = sansAccents(texte).split(/[^a-z0-9@.-]+/).filter(m => m.length >= 2);
-  if (!mots.length) return [];
-  const res = [];
-  for (const o of charger().offices) {
-    const botte = sansAccents([o.office, (o.notaires || []).join(' '), o.ville, o.codePostal, (o.bureaux || []).join(' '), o.email].join(' '));
-    if (mots.every(m => botte.indexOf(m) !== -1)) {
-      res.push(o);
-      if (res.length >= max) break;
-    }
-  }
-  return res;
-}
-
 // Tous les offices (reconnaissance d'un appelant par 3CX, en dernier recours).
 function officesAnnuaire() {
   return charger().offices;
@@ -106,4 +86,4 @@ function infosAnnuaire() {
   return { source: d.source || '', releveLe: d.releveLe || '', offices: d.offices.length };
 }
 
-module.exports = { definirDonneesAnnuaire, DEPARTEMENTS, departementsAnnuaire, officesDepartement, chercherAnnuaire, officesAnnuaire, infosAnnuaire, cleTri };
+module.exports = { definirDonneesAnnuaire, DEPARTEMENTS, departementsAnnuaire, officesDepartement, officesAnnuaire, infosAnnuaire, cleTri };

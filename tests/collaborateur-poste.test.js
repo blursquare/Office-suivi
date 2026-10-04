@@ -65,20 +65,6 @@ test('resumeAccueilCollaborateur : ne cite que ce qui est non nul', () => {
   );
 });
 
-test('semaineAgenda : lundi → dimanche, décalage, rendez-vous comptés par jour', () => {
-  const l = [{ rendezVousSignature: '2026-10-01' }, { rendezVousSignature: '2026-10-01' }, { rendezVousSignature: '2026-10-06' }];
-  const s0 = app.semaineAgenda(l, '2026-10-01', 0); // jeudi
-  assert.equal(s0.map(j => j.iso).join(','), '2026-09-28,2026-09-29,2026-09-30,2026-10-01,2026-10-02,2026-10-03,2026-10-04');
-  assert.equal(s0[3].aujourdhui, true);
-  assert.equal(s0[3].nombre, 2);
-  assert.equal(s0[0].passe, true);
-  const s1 = app.semaineAgenda(l, '2026-10-01', 1);
-  assert.equal(s1[0].iso, '2026-10-05');
-  assert.equal(s1[1].nombre, 1);
-  // Un dimanche appartient à la semaine qui commence le lundi précédent.
-  assert.equal(app.semaineAgenda([], '2026-10-04', 0)[0].iso, '2026-09-28');
-});
-
 test('plageHoraireRendezVous et tri par heure dans la journée', () => {
   assert.equal(app.plageHoraireRendezVous('10:30', '11:30'), '10 h 30 — 11 h 30');
   assert.equal(app.plageHoraireRendezVous('10:30', ''), '10 h 30');
@@ -108,7 +94,6 @@ test('alertesImportantes : gravité, ordre, et rien quand tout est en ordre', ()
   assert.equal(r[0].titre, 'Envoyer l’appel de fonds et le projet');
   assert.equal(r[1].titre, 'Relancer l’offre de prêt');
   assert.equal(r[2].titre, 'Envoyer le projet');
-  assert.equal(app.libelleDelaiAlerte(-4), 'dépassé de 4 j');
 });
 
 test('rappels : libellé d’échéance et ordre d’affichage', () => {

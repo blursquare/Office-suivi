@@ -1781,12 +1781,6 @@
   var DUREE_DOSSIER_COURANT_AUTHENTIC_MS = 30 * 60 * 1000;
   let dossierCourantAuthentic = { id: '', t: 0 };
 
-  // Pure : tous les intitulés de dossier cités sur une page (une fiche client liste tous les dossiers
-  // de la personne : son ancien achat ET la vente en cours).
-  function intitulesDossierAuthentic(capture) {
-    return intitulesNumerotesAuthentic(capture).map(x => x.intitule).filter((x, i, l) => l.indexOf(x) === i);
-  }
-
   // Pure : [{ intitule, numero }] de tous les dossiers cités sur une page.
   function intitulesNumerotesAuthentic(capture) {
     const c = capture || {};
@@ -2533,21 +2527,6 @@
       ${lignesACreer ? `<h3 class="authentic-releves-titre">À créer <span class="sidebar-compteur">${aCreer.length}</span> ${infoBulle('Dossiers de vente ouverts dans Authentic aujourd’hui qu’aucun dossier de CLAIRE ne porte. « Créer » ouvre le dossier pré-rempli.')}</h3><ul class="ja-liste">${lignesACreer}</ul>` : ''}
       <h3 class="authentic-releves-titre">${escapeHtml(lignesACreer ? 'Autres dossiers ouverts dans Authentic' : titre)} ${infoBulle(aide)}</h3>
       ${lignes ? `<ul class="ja-liste">${lignes}</ul>` : `<p class="authentic-releves-vide">Aucun ${lignesACreer ? 'autre ' : ''}dossier ouvert dans Authentic aujourd’hui. Ouvrez-y la page du dossier, puis les fiches vendeur, acquéreur et bien : il apparaîtra ici${modeImport === 'pdf' ? ' — ou continuez sans Authentic' : ''}.</p>`}`;
-  }
-
-  // Pure : ce qui a nourri le dossier en cours de création — compromis et Authentic.
-  function sourcesImportWizard(etat) {
-    const e = etat || {};
-    const sources = [];
-    if (e.succession) return [{ ok: true, texte: `Authentic « ${e.authentic} » : succession — parties, état civil, téléphones, biens, cadastre, pièces reçues` }];
-    sources.push(e.compromis
-      ? { ok: true, texte: `Compromis « ${e.compromis} » : dates butoir, engagements du vendeur, prix` }
-      : e.authentic
-        ? { ok: false, texte: 'Sans compromis : dates butoir et engagements à saisir' }
-        : { ok: false, texte: 'Pas de compromis : dates butoir et engagements à saisir', geste: 'Ajouter le compromis' });
-    if (e.authentic) sources.push({ ok: true, texte: `Authentic « ${e.authentic} » : parties, état civil, bien, cadastre, téléphones, pièces reçues${e.prixAuthentic ? ', prix (Capital)' : ''}` });
-    else sources.push({ ok: false, texte: 'Pas de données Authentic', geste: 'Compléter depuis Authentic' });
-    return sources;
   }
 
   function creerDepuisAuthentic(i) {

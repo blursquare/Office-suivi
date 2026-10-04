@@ -47,19 +47,6 @@ test('roleEtudeDeduitWizard : le rôle de l’étude découle du côté qui reç
   assert.equal(app.roleEtudeDeduitWizard(nous, confrere, ''), null);
 });
 
-test('sourcesImportWizard : ce qui a nourri le dossier, et ce qui manque', () => {
-  const deux = app.sourcesImportWizard({ compromis: 'Compromis.pdf', authentic: 'DUPONT / MARTIN', prixAuthentic: true });
-  assert.equal(deux.filter(x => x.ok).length, 2);
-  assert.match(deux[1].texte, /prix \(Capital\)/);
-  const pdfSeul = app.sourcesImportWizard({ compromis: 'Compromis.pdf' });
-  assert.equal(pdfSeul[1].geste, 'Compléter depuis Authentic');
-  // Créé depuis Authentic, sans PDF (étude, 02/10) : plus d'ajout du compromis ensuite.
-  const authSeul = app.sourcesImportWizard({ authentic: 'DUPONT / MARTIN' });
-  assert.equal(authSeul[0].geste, undefined);
-  assert.equal(app.sourcesImportWizard({})[0].geste, 'Ajouter le compromis');
-  assert.equal(app.MODES_IMPORT.map(m => m.cle).join(), 'pdf,seul');
-});
-
 test('groupesAuthenticPourCompromis : le dossier Authentic du compromis lu vient en tête', () => {
   const groupes = [{ intitule: 'Vente LEROY / DURAND' }, { intitule: 'Vente DUPONT / MARTIN' }];
   assert.equal(app.groupesAuthenticPourCompromis(groupes, 'DUPONT / MARTIN').map(x => x.g.intitule).join(' | '), 'Vente DUPONT / MARTIN | Vente LEROY / DURAND');

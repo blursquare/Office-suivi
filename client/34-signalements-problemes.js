@@ -1240,22 +1240,6 @@
   // renvoi à proximité, resterait valable).
   var RE_SIMPLE_RENVOI_PIECE = /(?:est|sont)\s+à\s+demander|(?:peut|peuvent|doit|doivent)\s+[êe]tre\s+demand[ée]s?|s['’]obtiennent?|se\s+demandent?|d[ée]livr[ée]s?\s+(?:par|sur\s+demande)|sur\s+demande\s+(?:à|aupr[èe]s)/i;
 
-  // Fenêtre de 80 caractères avant/après l'occurrence (même ordre de grandeur que
-  // extraireContexte() ailleurs dans le fichier) : assez large pour couvrir "Le certificat de
-  // numérotage [...] est à demander à l'Hôtel de Ville" (le verbe de renvoi arrive après le nom du
-  // document, pas juste à côté), sans déborder sur une clause sans rapport.
-  function motifPieceTrouve(motif, texte) {
-    const re = new RegExp(motif.source, motif.flags.includes('g') ? motif.flags : motif.flags + 'g');
-    let m;
-    while ((m = re.exec(texte)) !== null) {
-      const debut = Math.max(0, m.index - 80);
-      const fin = Math.min(texte.length, m.index + m[0].length + 80);
-      if (!RE_SIMPLE_RENVOI_PIECE.test(texte.slice(debut, fin))) return true;
-      if (re.lastIndex === m.index) re.lastIndex++; // motif pouvant matcher une chaîne vide : évite une boucle infinie
-    }
-    return false;
-  }
-
   // Les motifNom ci-dessus utilisent \s+ (espace) comme séparateur naturel du français, mais les
   // vrais noms de fichiers de l'étude remplacent couramment les espaces par des underscores/tirets
   // (ex. "Certificat_alignement_et_nume_rotage_DI_132.pdf") — sans cette normalisation, \s+ ne

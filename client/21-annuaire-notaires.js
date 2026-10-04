@@ -454,26 +454,6 @@
     return (departements || []).filter(d => normaliserPourRecherche(d.nom + ' ' + d.code).indexOf(q) !== -1);
   }
 
-  // Pure : les offices d'un département tels qu'on les montre — chaque office de l'annuaire, remplacé
-  // par sa fiche du carnet quand il y est (corrigée, avec notes et dossiers), puis les offices du carnet
-  // de ce département absents de l'annuaire (saisis à la main). [{ office, carnet: bool }]
-  function officesNotairesDepartement(code, annuaireOffices, carnet) {
-    const vus = new Set();
-    const res = [];
-    for (const o of annuaireOffices || []) {
-      const c = officeCarnetPourAnnuaire(o, carnet);
-      if (c && vus.has(c.id)) continue;
-      if (c) vus.add(c.id);
-      res.push(c ? { office: c, carnet: true } : { office: o, carnet: false });
-    }
-    for (const c of carnet || []) {
-      if (!c || vus.has(c.id) || departementDepuisCodePostal(c.codePostal) !== code) continue;
-      vus.add(c.id);
-      res.push({ office: c, carnet: true });
-    }
-    return res;
-  }
-
   // Vue « Notaires » (étude, 03/10 : « fusionner le carnet des confrères avec tous les notaires de France »)
   // : un seul annuaire. Un département à la fois (liste déroulante + voisins d'un clic), chaque office
   // modifiable (sa correction remplace la ligne relevée, « Modifié ») ; la recherche filtre le département,
@@ -533,31 +513,6 @@
     renderCarnetConfreres();
   }
 
-  // Une ligne d'office : nom et notaires, adresse (et bureaux) dessous ; téléphone, email et
-  // « Carnet » à droite. `avecDepartement` : la ville porte son département (résultats nationaux).
-  // Pure : l'office du carnet qui correspond à un office de l'annuaire — même identifiant, sinon même
-  // email ou même téléphone (notre office et ceux saisis à la main ont leur propre identifiant).
-  function officeCarnetPourAnnuaire(o, carnet) {
-    const chiffres = t => String(t || '').replace(/\D/g, '').slice(-9);
-    const email = String(o.email || '').trim().toLowerCase();
-    const tel = chiffres(o.telephone);
-    return (carnet || []).find(x => x && (x.id === o.id
-      || (email && String(x.email || '').trim().toLowerCase() === email)
-      || (tel.length === 9 && chiffres(x.telephone) === tel))) || null;
-  }
-
-  // Pure : l'office de l'annuaire au format du carnet (source datée).
-  function officeCarnetDepuisAnnuaire(o, source) {
-    return { id: o.id, office: o.office || '', notaires: (o.notaires || []).slice(), email: o.email || '', telephone: o.telephone || '',
-      adresse: o.adresse || '', codePostal: o.codePostal || '', ville: o.ville || '', bureaux: (o.bureaux || []).slice(), source: source || 'Annuaire des notaires de France' };
-  }
-
-  // Pure : parmi des offices de l'annuaire, le seul où exerce ce notaire (nom de famille, puis
-  // prénom, puis ville) — null s'il y en a plusieurs ou aucun. Même règle que trouverOfficeConfrere.
-  function officeAnnuairePourNotaire(nom, offices) {
-    return (trouverOfficeConfrere(nom, offices || []) || {}).office || null;
-  }
-
   // Pure : les contacts qui répondent à tous les mots cherchés (organisme, service, personnes,
   // adresse, téléphones, emails, notes), triés par organisme puis service.
   function filtrerRepertoire(contacts, recherche) {
@@ -583,8 +538,6 @@
     const m = String(v || '').match(/\+?\d[\d .]{2,}\d/);
     return m ? m[0].replace(/[ .]/g, '') : '';
   }
-
-
 
   function renderFormContactRepertoire(c) {
     const v = x => escapeAttr(x || '');
@@ -695,8 +648,6 @@
   function memeNomOfficeNotaire(o) {
     return (o.notaires || []).length === 1 && normaliserPourRecherche(o.office || '') === normaliserPourRecherche('Me ' + o.notaires[0]);
   }
-
-
 
   function renderFormOfficeCarnet(o) {
     const v = x => escapeAttr(x || '');
@@ -1957,24 +1908,6 @@
     const piecesIncompletes = dossiersActifs.filter(d => d.dossierLie && d.roleNotaire !== 'participant' &&
       checklistPieces(d.typeVente, d).some(p => (d.pieces || {})[p.cle] !== 'recue')).length;
     return { actifs: dossiersActifs.length, urgents, urgents15, manquantes, aVerifier, piecesIncompletes };
-  }
-
-  // Tuiles KPI du "Tableau de bord" (calculerStatsPortefeuille),
-  // avec une 5e tuile propre au tableau de bord (pièces manquantes) — l'aperçu d'ensemble le plus
-  // synthétique de l'outil, avant même d'ouvrir un dossier.
-  // Icône calendrier commune aux deux tuiles d'échéances (7j/15j) avec le seuil incrusté dedans,
-  // plutôt que deux emojis différents (⏱️/📅) sans lien visuel entre les deux — demandé par
-  // l'étude pour rendre évident que ce sont deux variantes de la même mesure. Un vrai SVG dessiné à
-  // la main, pas l'emoji 📅 : ce dernier porte déjà son propre numéro de jour selon la plateforme
-  // (souvent "17"), qui se superposait de façon illisible à celui qu'on voulait y afficher.
-  function iconeCalendrierSeuil(jours) {
-    return `<svg class="kpi-icone kpi-icone-calendrier" viewBox="0 0 16 16" aria-hidden="true">
-      <rect x="1" y="2.3" width="14" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.3"/>
-      <rect x="1" y="2.3" width="14" height="3.4" rx="1.1" fill="currentColor" opacity="0.28" stroke="none"/>
-      <line x1="4.3" y1="1" x2="4.3" y2="3.4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
-      <line x1="11.7" y1="1" x2="11.7" y2="3.4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
-      <text x="8" y="12.3" text-anchor="middle" font-size="6.6" font-weight="800" fill="currentColor">${jours}</text>
-    </svg>`;
   }
 
   // ---- Carte « Portefeuille » du tableau de bord ----

@@ -65,7 +65,7 @@ server/                              Serveur (son propre package.json ; le packa
        parametresRepo.js             clé→JSON pour réglages et états produits par le serveur ; assainisseurs purs
        parametres/assainir.js        dans parametres/assainir.js, fusionDossiers.js pour les PUT concurrents)
   src/routes/*.js                    API (dossiers, nas, reglages, notifications, agenda, exchange,
-                                     relectureClaude, relectures, extractionIa, offrePret,
+                                     relectureClaude, relectures, offrePret,
                                      signatureImages — images de la signature des emails, …)
   src/carnetConfreres.js             Carnet des confrères (relevé initial des offices du 41, liste blanche)
   src/annuaireNotaires.js            Notaires de France par département (data/annuaire-notaires.json, lecture seule)
@@ -79,7 +79,7 @@ server/                              Serveur (son propre package.json ; le packa
   src/agendaOffice.js, agendaWatch.js  Lecture de l'agenda de l'office (EWS, toutes les 15 min)
   src/exchange/ews.js                Écriture dans l'agenda Outlook (EWS/NTLM)
   src/relecture/{claude,mistral}.js  Relecture d'actes par API (prompt, schéma, vérification)
-  src/extraction/                    Passe IA locale (Ollama) de l'extraction du wizard
+  src/extraction/extraits.js       Vérification mot pour mot d'une citation (relecture d'actes) — seul reste du pipeline IA du wizard, retiré le 04/10
   src/envoiEmail.js, imapGmail.js,   Envoi SMTP, effacement différé des copies Gmail
        nettoyageGmail.js
   src/sauvegarde.js, miseAJour.js    Sauvegarde quotidienne de la base, mise à jour en un clic

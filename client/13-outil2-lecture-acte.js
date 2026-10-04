@@ -371,26 +371,6 @@
     notaireVendeur: 'Notaire du vendeur', notaireAcquereur: 'Notaire de l’acquéreur'
   };
 
-  // Agrège le journal des corrections par champ, du plus corrigé au moins corrigé — c'est ce qui
-  // manquait pour EXPLOITER journalCorrectionsExtraction (voir sa déclaration plus bas) : jusqu'ici
-  // il grossissait silencieusement depuis le premier dossier créé, sans que l'étude ait aucun moyen
-  // de savoir quels champs l'extraction rate le plus souvent, sinon en resignalant chaque cas au
-  // fil de l'eau. Fonction PURE et testable : ne fait qu'agréger un tableau, aucun effet de bord.
-  function statistiquesCorrectionsExtraction(journal) {
-    const liste = Array.isArray(journal) ? journal : [];
-    const parChamp = {};
-    for (const entree of liste) {
-      if (!entree || typeof entree.champ !== 'string') continue;
-      const groupe = parChamp[entree.champ] || (parChamp[entree.champ] = { champ: entree.champ, nombre: 0, dernier: null });
-      groupe.nombre++;
-      // Le journal est alimenté dans l'ordre chronologique (push en fin de tableau, voir
-      // journaliserCorrectionsExtraction) : la dernière entrée rencontrée pour ce champ est donc la
-      // plus récente, pas besoin de comparer des dates pour le savoir.
-      groupe.dernier = entree;
-    }
-    return Object.values(parChamp).sort((a, b) => b.nombre - a.nombre);
-  }
-
   // Assainissement à l'import d'une sauvegarde JSON : on conserve ces objets s'ils ont la bonne
   // forme, sinon on repart de rien plutôt que de propager une structure inattendue dans le rendu.
   // Une identité de société importée d'une sauvegarde : seuls les champs connus, typés.
@@ -487,21 +467,3 @@
     return { texte: res, index: idx };
   }
 
-  // Retrouve la position d'un extrait cité dans le texte d'origine, ou -1. Le préfixe testé est
-  // réduit par paliers : un extrait peut différer légèrement de la mise en page réelle (césure,
-  // espace insécable), sans pour autant être inventé.
-  function localiserExtrait(texte, extrait) {
-    if (!texte || !extrait) return -1;
-    const source = normaliserAvecIndex(texte);
-    const cible = normaliserAvecIndex(extrait).texte.trim();
-    // Trop court pour constituer une preuve : « le 15 » se retrouverait partout.
-    if (cible.length < 12) return -1;
-    let longueur = Math.min(80, cible.length);
-    const longueurMin = Math.max(12, Math.min(20, cible.length));
-    let pos = -1;
-    while (pos === -1 && longueur >= longueurMin) {
-      pos = source.texte.indexOf(cible.slice(0, longueur));
-      if (pos === -1) longueur -= 10;
-    }
-    return pos === -1 ? -1 : source.index[pos];
-  }

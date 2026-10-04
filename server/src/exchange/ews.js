@@ -141,72 +141,6 @@ function interpreterReponseCreation(statutHttp, corps, messageSucces, actionEche
   return { ok: false, raison: 'ews', message: echec + (a.code ? ' (' + a.code + ')' : '') + '.' };
 }
 
-// Corps SOAP CreateItem pour un BROUILLON d'email (Message), enregistré dans le dossier « Brouillons »
-// (MessageDisposition="SaveOnly", jamais envoyé automatiquement — l'étude relit et envoie elle-même
-// depuis Outlook). C'est ce qui permet de JOINDRE un fichier, ce qu'un `mailto:` ne sait pas faire.
-// ORDRE des éléments (schéma EWS) : ceux de ItemType d'abord (Subject, Body, Attachments), PUIS ceux
-// de MessageType (ToRecipients) — Attachments appartient à ItemType, donc AVANT ToRecipients.
-// `pieces` : [{ nom, contenuBase64, type }].
-function corpsCreateBrouillon({ destinataire, sujet, corps, pieces }) {
-  const jointes = (Array.isArray(pieces) ? pieces : []).map((p) => (
-    '<t:FileAttachment>'
-    + '<t:Name>' + echapperXml(p && p.nom ? p.nom : 'piece-jointe') + '</t:Name>'
-    + (p && p.type ? '<t:ContentType>' + echapperXml(p.type) + '</t:ContentType>' : '')
-    + '<t:IsInline>false</t:IsInline>'
-    + '<t:Content>' + String(p && p.contenuBase64 ? p.contenuBase64 : '') + '</t:Content>'
-    + '</t:FileAttachment>'
-  )).join('');
-  return '<?xml version="1.0" encoding="utf-8"?>'
-    + '<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"'
-    + ' xmlns:t="http://schemas.microsoft.com/exchange/services/2006/types"'
-    + ' xmlns:m="http://schemas.microsoft.com/exchange/services/2006/messages">'
-    + '<soap:Header><t:RequestServerVersion Version="Exchange2013"/></soap:Header>'
-    + '<soap:Body><m:CreateItem MessageDisposition="SaveOnly">'
-    + '<m:SavedItemFolderId><t:DistinguishedFolderId Id="drafts"/></m:SavedItemFolderId>'
-    + '<m:Items><t:Message>'
-    + '<t:Subject>' + echapperXml(sujet) + '</t:Subject>'
-    + '<t:Body BodyType="Text">' + echapperXml(corps || '') + '</t:Body>'
-    + (jointes ? '<t:Attachments>' + jointes + '</t:Attachments>' : '')
-    + '<t:ToRecipients><t:Mailbox><t:EmailAddress>' + echapperXml(destinataire) + '</t:EmailAddress></t:Mailbox></t:ToRecipients>'
-    + '</t:Message></m:Items>'
-    + '</m:CreateItem></soap:Body></soap:Envelope>';
-}
-
-// Un seul essai, mêmes règles que testerConnexionExchange/creerRendezVousExchange (mot de passe
-// jamais journalisé/renvoyé, aucun réessai automatique). `injections.poster` : pour les tests.
-function creerBrouillonExchange({ url, email, motDePasse, brouillon, delaiMs = 30000 }, injections = {}) {
-  const poster = injections.poster || httpntlm.post;
-  return new Promise((resolve) => {
-    let repondu = false;
-    const fini = (r) => { if (!repondu) { repondu = true; resolve(r); } };
-    const minuteur = setTimeout(
-      () => fini({ ok: false, raison: 'reseau', message: 'Le serveur Exchange n\'a pas répondu à temps.' }),
-      delaiMs
-    );
-    try {
-      poster({
-        url,
-        username: String(email || ''),
-        password: String(motDePasse || ''),
-        domain: '',
-        headers: { 'Content-Type': 'text/xml; charset=utf-8' },
-        body: corpsCreateBrouillon(brouillon || {})
-      }, (err, res) => {
-        clearTimeout(minuteur);
-        if (err) {
-          fini({ ok: false, raison: 'reseau', message: 'Impossible de joindre le serveur Exchange : ' + (err.code || err.message || 'erreur réseau') + '.' });
-          return;
-        }
-        fini(interpreterReponseCreation(res && res.statusCode, res && res.body,
-          'Brouillon créé dans Outlook (avec la pièce jointe).', 'La création du brouillon a échoué'));
-      });
-    } catch (e) {
-      clearTimeout(minuteur);
-      fini({ ok: false, raison: 'reseau', message: 'Impossible de joindre le serveur Exchange.' });
-    }
-  });
-}
-
 // Un seul essai, mêmes règles que testerConnexionExchange (mot de passe jamais journalisé/renvoyé,
 // aucun réessai automatique). `injections.poster` : uniquement pour les tests.
 function creerRendezVousExchange({ url, email, motDePasse, rendezVous, delaiMs = 20000 }, injections = {}) {
@@ -918,7 +852,6 @@ function testerConnexionExchange({ url, email, motDePasse, delaiMs = 20000 }, in
 module.exports = {
   corpsGetFolderCalendrier, interpreterReponseEws, testerConnexionExchange,
   corpsCreateRendezVous, interpreterReponseCreation, creerRendezVousExchange,
-  corpsCreateBrouillon, creerBrouillonExchange,
   instantUtcDepuisParis, decalageParisMinutes,
   fenetreJourneeParis, corpsFindRendezVous, parseFindRendezVous,
   corpsUpdateLieu, interpreterReponseUpdate, trouverRendezVousExchange, mettreAJourLieuExchange,

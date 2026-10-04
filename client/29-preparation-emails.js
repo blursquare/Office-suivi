@@ -1710,31 +1710,6 @@
     if (type === 'projet') noterEnvoiDansAgenda(id, true);
   }
 
-  // Champ "Email de l'acquéreur" directement sur la fiche, au-dessus des boutons de relance
-  // (demandé par l'étude). L'adresse est déjà captée à la création du dossier — détectée dans le
-  // compromis par detecterEmailAcquereur() puis enregistrée par ajouterDossier() — mais elle
-  // n'était visible NULLE PART une fois le dossier créé : impossible de vérifier ce qui avait été
-  // retenu, ni de corriger une adresse fausse ou d'en saisir une après coup autrement qu'en
-  // recréant le dossier. Un email manquant n'affichait qu'un message d'invite, sans moyen d'y
-  // répondre.
-  // Jamais affiché quand l'acquéreur est représenté par un office distinct du nôtre : c'est alors
-  // l'email du confrère qui sert aux relances (champ dédié dans le bloc notaires, voir
-  // renderProprietesDossier), et l'étude n'a pas à collecter l'adresse personnelle de l'acquéreur —
-  // même règle déontologique que celle déjà appliquée au champ équivalent du wizard.
-  // onblur plutôt que onchange, avec Entrée qui valide : la fiche se redessine à chaque
-  // modification, valider à chaque frappe ferait perdre le focus (même choix que le champ email du
-  // notaire de l'acquéreur juste au-dessus).
-  function renderEmailAcquereurDossier(d) {
-    if (notaireParticipantRepresenteAcquereur(d)) return '';
-    return `<div class="classif-champ champ-email-relance">
-      <label for="email-acq-${d.id}">Email de l’acquéreur</label>
-      <input type="email" id="email-acq-${d.id}" class="input-classif" value="${escapeAttr(d.emailAcquereur || '')}"
-        placeholder="Non renseigné" title="Destinataire des emails et du questionnaire."
-        onblur="changerEmailAcquereur('${d.id}', this.value)"
-        onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">
-    </div>`;
-  }
-
   function changerEmailVendeur(id, valeur) {
     const d = dossiers.find(x => x.id === id);
     if (!d) return;

@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-04 11:34';
+  const VERSION_APP = '2026-10-04 11:52';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-04 11:52', resume: "Nettoyage : tout le code que plus rien n'appelle est retiré — l'extraction par l'IA locale à la création d'un dossier (désactivée depuis le 02/10 à la demande de l'étude : la route serveur, ses modules, le bouton « Redemander à l'IA » et l'état « Analyse en cours » qui restaient en place), la création d'un brouillon Outlook par l'ancienne voie, la recherche de l'annuaire côté serveur (le poste cherche en mémoire), et 23 fonctions du poste que seuls des tests appelaient encore. 2 500 lignes de moins ; rien ne change à l'écran. Une vérification de types et un test de fumée dans un vrai navigateur accompagnent désormais chaque construction." },
     { version: '2026-10-04 11:34', resume: "Organisation du code : les règles que le poste et le serveur appliquaient chacun de leur côté (planning des échéances, validation d'une échéance, délai SAFER, bilan des fonds reçus, format des montants, libellé « VTE - … », liste des pièces de la checklist) sont écrites une seule fois (dossier commun/), lue par les deux. Deux écarts corrigés au passage : une date SAFER mal formée ne donne plus de date fausse sur le poste ; la checklist d'une succession côté serveur ne liste plus les pièces d'une vente. Un test de fumée dans un vrai navigateur accompagne désormais chaque construction." },
     { version: '2026-10-04 11:21', resume: "Nettoyage du code (sans changement à l'écran) : 20 fonctions et variables jamais utilisées retirées du poste et des tests ; le contrôle des règles de code ne rend plus aucun avertissement (822 avant, presque tous des faux positifs), et un test refuse désormais toute fonction déclarée mais jamais appelée nulle part." },
     { version: '2026-10-04 11:08', resume: "Correction de la construction du .exe : la version 10:36 n'avait pas été construite (le contrôle des règles de code ignorait que les 44 fichiers du poste partagent leurs fonctions). Les noms déclarés dans un fichier sont désormais connus des autres au contrôle, et un nom déclaré dans deux fichiers est refusé par un test. Rien ne change à l'écran ; cette version apporte donc aussi tout ce qui était prévu à 10:36." },

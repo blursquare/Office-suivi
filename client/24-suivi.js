@@ -817,23 +817,6 @@
       || String(a.dossier.nom).localeCompare(String(b.dossier.nom)));
   }
 
-  // Pure : les 7 jours (lundi → dimanche) de la semaine qui contient `aujourdhuiIso`, décalée de
-  // `decalage` semaines, avec le nombre de rendez-vous de signature de chaque jour.
-  function semaineAgenda(dossiersActifs, aujourdhuiIso, decalage) {
-    const base = new Date(aujourdhuiIso + 'T00:00:00Z');
-    const lundi = new Date(base.getTime() - (((base.getUTCDay() + 6) % 7) * 86400000) + (decalage || 0) * 7 * 86400000);
-    const parJour = {};
-    for (const d of dossiersActifs || []) {
-      if (d && d.rendezVousSignature) parJour[d.rendezVousSignature] = (parJour[d.rendezVousSignature] || 0) + 1;
-    }
-    const jours = [];
-    for (let i = 0; i < 7; i++) {
-      const iso = new Date(lundi.getTime() + i * 86400000).toISOString().slice(0, 10);
-      jours.push({ iso, nombre: parJour[iso] || 0, passe: iso < aujourdhuiIso, aujourdhui: iso === aujourdhuiIso });
-    }
-    return jours;
-  }
-
   // Pure : « 10 h 30 — 11 h 30 », « 10 h 30 », ou '' quand l'heure n'est pas connue.
   function plageHoraireRendezVous(heure, heureFin) {
     const f = (h) => (h ? h.replace(':', ' h ') : '');
@@ -1084,33 +1067,6 @@
       if (!vus.has(def.id)) out.push({ id: def.id, taille: def.defaut, hauteur: def.hauteur, masque: false });
     });
     return out;
-  }
-
-  // Pure : où chaque widget visible tombe dans la grille (même règle que CSS `grid-auto-flow: row
-  // dense` : chaque carte à la première place libre, en lisant ligne par ligne). Renvoie le nombre de
-  // rangées et de cases vides — 0 case vide = un rectangle plein.
-  function placementWidgets(dispo, colonnes) {
-    const occupe = [];
-    const libre = (r, c, l, h) => {
-      for (let y = r; y < r + h; y++) for (let x = c; x < c + l; x++) if (occupe[y] && occupe[y][x]) return false;
-      return c + l <= colonnes;
-    };
-    const place = {};
-    (dispo || []).filter(w => !w.masque).forEach(w => {
-      const l = Math.min(colonnes, w.taille === 'grand' ? colonnes : w.taille === 'moyen' ? 2 : 1);
-      const h = w.hauteur || 1;
-      for (let r = 0; ; r++) {
-        let ok = -1;
-        for (let c = 0; c <= colonnes - l; c++) if (libre(r, c, l, h)) { ok = c; break; }
-        if (ok === -1) continue;
-        for (let y = r; y < r + h; y++) { occupe[y] = occupe[y] || []; for (let x = ok; x < ok + l; x++) occupe[y][x] = w.id; }
-        place[w.id] = { rangee: r, colonne: ok, largeur: l, hauteur: h };
-        break;
-      }
-    });
-    let vides = 0;
-    occupe.forEach(ligne => { for (let x = 0; x < colonnes; x++) if (!ligne[x]) vides++; });
-    return { rangees: occupe.length, vides, place };
   }
 
   // Pure : `id` déplacé à la position `index` parmi les widgets (bornée), les autres dans le même ordre.
@@ -1644,15 +1600,6 @@
     }
   }
 
-  // Pure : les prochaines signatures (à partir d'aujourd'hui), par date puis heure, hors un jour
-  // donné (celui déjà détaillé par la carte).
-  function prochainesSignatures(dossiersActifs, aujourdhuiIso, saufIso, limite) {
-    return (dossiersActifs || [])
-      .filter(d => d && !d.archive && d.rendezVousSignature && d.rendezVousSignature >= aujourdhuiIso && d.rendezVousSignature !== saufIso)
-      .sort((a, b) => (a.rendezVousSignature + (a.rendezVousSignatureHeure || '')).localeCompare(b.rendezVousSignature + (b.rendezVousSignatureHeure || '')))
-      .slice(0, limite || 20);
-  }
-
   // Pure : les prochaines échéances des dossiers (hors signature, déjà listée à part) — dates butoir
   // de prêt et de vente préalable, envois, rendez-vous à fixer —, de la plus proche à la plus
   // lointaine. Sert d'appoint à l'Agenda quand il reste de la place.
@@ -1854,12 +1801,6 @@
   // lisible d'un coup d'œil, puis « Mes rappels », la liste de choses à faire que chacun note pour
   // lui-même (enregistrée sur le serveur, voir server/src/routes/rappelsPerso.js).
   var ORDRE_GRAVITE_ALERTE = { critique: 0, vigilance: 1, info: 2 };
-
-  function libelleDelaiAlerte(j) {
-    if (j === null || j === undefined) return '';
-    if (j < 0) return `dépassé de ${-j} j`;
-    return j === 0 ? "aujourd'hui" : `J-${j}`;
-  }
 
   // Pure et testable : les points qui demandent une décision, du plus grave au moins grave puis du
   // plus proche au plus lointain. Chaque règle correspond à un geste précis — relancer l'offre,

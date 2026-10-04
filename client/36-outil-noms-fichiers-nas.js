@@ -88,9 +88,6 @@
       : p === '…' ? '[a-z0-9]+(?: [a-z0-9]+)*' : p.replace(/[^a-z0-9]/g, ''));
     return new RegExp('^' + parties.join(' ') + '$');
   }
-  function nomCorrespondForme(forme, nom) {
-    return regexFormeNom(forme).test(tokensNomFichier(nom).join(' '));
-  }
 
   // Décisions de l'étude (serveur : GET /api/formes-noms), compilées par pièce.
   var formesNomsDecisions = [];
@@ -133,10 +130,6 @@
   // `groupesFormesNoms` le déroule d'un trait (tests), `groupesFormesNomsParTranches` avec une pause et une
   // progression entre deux tranches.
   var TRANCHE_NOMS_NAS = 1500;
-  function groupesFormesNoms(fichiers) {
-    const it = etapesGroupesFormesNoms(fichiers);
-    for (;;) { const r = it.next(); if (r.done) return r.value; }
-  }
   async function groupesFormesNomsParTranches(fichiers, progression) {
     const it = etapesGroupesFormesNoms(fichiers);
     for (;;) {

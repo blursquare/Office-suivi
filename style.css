@@ -2237,17 +2237,6 @@
   .pdf-status.ok { color: var(--success); font-weight: 600; }
   .pdf-status.err { color: var(--urgent); font-weight: 500; }
 
-  /* État "Analyse par le modèle IA local en cours…" (étape "Vérifier" du wizard) — voir
-     enrichirImportAvecIa()/afficherStatutEnrichissementIa() dans script.js. */
-  .ia-enrichissement-status {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 12.5px;
-    color: var(--muted);
-    margin: -4px 0 10px;
-  }
-
   /* Panneau de révision : ce que l'outil a compris du compromis, donnée par donnée, avec sa source.
      Réutilise les composants de statut déjà en place (.dot-label, .section-eyebrow) plutôt que
      d'introduire un second langage visuel. */

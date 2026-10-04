@@ -197,12 +197,6 @@ test('annuaire des notaires de France : départements, offices d’un départeme
     assert.equal(j.offices.map((o) => o.ville).join(), 'Amboise,Tours');
     assert.equal((await appeler('/api/annuaire/departement/2a')).status, 200);
     assert.equal((await appeler('/api/annuaire/departement/..%2Fx')).status, 400);
-    r = await appeler('/api/annuaire/recherche?q=' + encodeURIComponent('fournier tours'));
-    assert.equal((await r.json()).offices.map((o) => o.id).join(), 'annuaire-1');
-    r = await appeler('/api/annuaire/recherche?q=montlouis');
-    assert.equal((await r.json()).offices.map((o) => o.id).join(), 'annuaire-3');
-    r = await appeler('/api/annuaire/recherche?q=a');
-    assert.equal((await r.json()).offices.length, 0);
   } finally {
     annuaire.definirDonneesAnnuaire(null);
   }

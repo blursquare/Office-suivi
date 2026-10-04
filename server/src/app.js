@@ -11,7 +11,6 @@ const { creerRepoParametres } = require('./parametresRepo');
 const { creerRouteurAuditRetours } = require('./routes/auditRetours');
 const { creerRouteurAuth } = require('./routes/auth');
 const { creerRouteurDossiers } = require('./routes/dossiers');
-const { creerRouteurExtractionIa } = require('./routes/extractionIa');
 const { creerRouteurOffrePret } = require('./routes/offrePret');
 const { creerRouteurNas, creerRouteurLienPiece } = require('./routes/nas');
 const { creerRouteurScans } = require('./routes/scans');
@@ -150,7 +149,6 @@ function creerApp({ db, config, envoyerEmailFn, creerClientClaude, appelerMistra
   // Pages d'Authentic envoyées par l'extension Firefox (extension-firefox/), gardées en mémoire 30 min.
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurAuthentic());
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurDossiers(depot));
-  app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurExtractionIa(config));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurOffrePret(config));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurNas(config));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurNomsFichiersNas(config, parametresRepo));

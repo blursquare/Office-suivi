@@ -5,8 +5,6 @@
   // ou « la dernière » — chaque date doit être classée par sa FONCTION juridique, et l'outil doit
   // pouvoir dire d'où il tient celle qu'il retient.
 
-  var TYPES_DATE = ['SIGNATURE_AVANT_CONTRAT', 'BUTOIR_PRET', 'BUTOIR_VENTE_PREALABLE', 'REITERATION_ACTE', 'AUTRE'];
-
   // Correspondance avec les trois champs d'échéance existants de la fiche : le vocabulaire interne
   // change, le modèle de données du dossier ne bouge pas.
   var CHAMP_PAR_TYPE_DATE = {

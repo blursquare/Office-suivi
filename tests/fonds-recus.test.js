@@ -58,10 +58,7 @@ test('bilanFondsRecus : complet à 50 € près, excédent jamais « complet »'
   const plus = app.bilanFondsRecus(331188.76, 331158.76);
   assert.equal(plus.etat, 'complet');
   assert.equal(plus.ecart, 30);
-  assert.match(app.precisionEcartFonds(plus), /^ \(30,00\s€ de plus que prévu\)$/);
   assert.equal(app.bilanFondsRecus(331120, 331158.76).etat, 'complet');
-  assert.match(app.precisionEcartFonds(app.bilanFondsRecus(331120, 331158.76)), /de moins que prévu/);
-  assert.equal(app.precisionEcartFonds(app.bilanFondsRecus(331158.5, 331158.76)), '');
   assert.equal(app.bilanFondsRecus(331100, 331158.76).etat, 'partiel');
   const trop = app.bilanFondsRecus(405977.91, 331158.76);
   assert.equal(trop.etat, 'excedent');

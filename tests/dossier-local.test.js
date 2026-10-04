@@ -335,29 +335,6 @@ test('normaliserNomPourMotif recompose les accents en NFD (dossier zippé/synchr
   assert.ok(avisTaxeFonciere.motifNom.test(app.normaliserNomPourMotif(nomNfd)));
 });
 
-// Historique : ces deux tests ciblaient à l'origine certificatNumerotage/certificatAlignement
-// (puis reponseAssainissement) via `piece.motif`. Plus aucune pièce de la checklist n'a de motif
-// de contenu désormais (voir le test structurel plus haut) : verifierDossierLocal() n'appelle donc
-// plus motifPieceTrouve() en pratique. La fonction elle-même reste en place (utile si une pièce
-// retrouve un jour un motif de contenu) et continue d'être exercée ici directement, sur un motif
-// ad hoc plutôt que celui d'une pièce réelle, pour ne pas perdre la couverture de son comportement
-// générique (écarter un simple renvoi, rester sensible à une vraie mention).
-test('motifPieceTrouve écarte un simple renvoi (pièce à demander ailleurs, pas produite)', () => {
-  const app = chargerApplication();
-  const motif = /assainissement/i;
-  const texte = "Le rapport d'assainissement est à demander au SPANC de la communauté de communes, " +
-    "Service Environnement - 12 rue de la Mairie 41000 BLOIS.";
-  assert.equal(app.motifPieceTrouve(motif, texte), false);
-});
-
-test('motifPieceTrouve reste sensible à une vraie mention (pas seulement un renvoi)', () => {
-  const app = chargerApplication();
-  const motif = /assainissement/i;
-  const texte = "Rapport de contrôle de l'installation d'assainissement non collectif réalisé le " +
-    "12 mars 2024, conforme, joint en annexe.";
-  assert.equal(app.motifPieceTrouve(motif, texte), true);
-});
-
 test('normaliserDossierImporte valide typeVente et repart sur "maison" par défaut', () => {
   const app = chargerApplication();
   const copro = app.normaliserDossierImporte({ nom: 'Test', typeVente: 'copropriete' }, 'test.json');

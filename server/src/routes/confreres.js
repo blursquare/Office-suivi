@@ -63,11 +63,6 @@ function creerRouteurConfreres(parametresRepo) {
     res.json({ code, nom: annuaire.DEPARTEMENTS[code] || code, offices: annuaire.officesDepartement(code) });
   });
 
-  routeur.get('/annuaire/recherche', (req, res) => {
-    const q = String((req.query && req.query.q) || '').slice(0, 120);
-    res.json({ offices: annuaire.chercherAnnuaire(q, 50) });
-  });
-
   // Répertoire (repertoire.js) : mêmes règles que le carnet — un contact à la fois, fusionné par
   // identifiant.
   routeur.get('/repertoire', (req, res) => {

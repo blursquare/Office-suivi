@@ -5,7 +5,6 @@ const assert = require('node:assert');
 const {
   interpreterReponseEws, testerConnexionExchange, corpsGetFolderCalendrier,
   corpsCreateRendezVous, interpreterReponseCreation, creerRendezVousExchange, instantUtcDepuisParis,
-  corpsCreateBrouillon, creerBrouillonExchange,
   fenetreJourneeParis, corpsFindRendezVous, parseFindRendezVous,
   corpsUpdateLieu, interpreterReponseUpdate, trouverRendezVousExchange, mettreAJourLieuExchange,
   folderCalendrierXml
@@ -131,44 +130,10 @@ test('creerRendezVousExchange : mot de passe jamais dans le résultat', async ()
 
 // --- Brouillon avec pièce jointe ---
 
-test('corpsCreateBrouillon : SaveOnly dans Brouillons, destinataire, pièce jointe, ordre schéma', () => {
-  const c = corpsCreateBrouillon({
-    destinataire: 'client@exemple.fr', sujet: 'Questionnaire', corps: 'Bonjour',
-    pieces: [{ nom: 'questionnaire.pdf', type: 'application/pdf', contenuBase64: 'QUJD' }]
-  });
-  assert.match(c, /CreateItem MessageDisposition="SaveOnly"/);
-  assert.match(c, /DistinguishedFolderId Id="drafts"/);
-  assert.match(c, /<t:EmailAddress>client@exemple\.fr<\/t:EmailAddress>/);
-  assert.match(c, /<t:FileAttachment>.*questionnaire\.pdf.*QUJD.*<\/t:FileAttachment>/s);
-  // Attachments (élément de ItemType) doit précéder ToRecipients (élément de MessageType).
-  assert.ok(c.indexOf('<t:Attachments>') < c.indexOf('<t:ToRecipients>'));
-});
-
-test('corpsCreateBrouillon : sans pièce, pas de bloc Attachments', () => {
-  const c = corpsCreateBrouillon({ destinataire: 'a@b.fr', sujet: 'x', corps: 'y', pieces: [] });
-  assert.doesNotMatch(c, /<t:Attachments>/);
-});
-
-test('corpsCreateBrouillon : objet et nom de pièce échappés', () => {
-  const c = corpsCreateBrouillon({ destinataire: 'a@b.fr', sujet: 'A & B', corps: '', pieces: [{ nom: '<x>.pdf', contenuBase64: 'AA' }] });
-  assert.match(c, /A &amp; B/);
-  assert.match(c, /&lt;x&gt;\.pdf/);
-});
-
 test('interpreterReponseCreation : message de brouillon quand demandé', () => {
   const r = interpreterReponseCreation(200, '<m:ResponseCode>NoError</m:ResponseCode>', 'Brouillon créé.', 'La création du brouillon a échoué');
   assert.equal(r.ok, true);
   assert.match(r.message, /Brouillon/);
-});
-
-test('creerBrouillonExchange : mot de passe jamais dans le résultat', async () => {
-  const poster = (opts, cb) => cb(null, { statusCode: 200, body: '<m:ResponseCode>NoError</m:ResponseCode>' });
-  const r = await creerBrouillonExchange({
-    url: 'https://x/EWS/Exchange.asmx', email: 'a@b.fr', motDePasse: 'SECRET123',
-    brouillon: { destinataire: 'c@d.fr', sujet: 'x', corps: 'y', pieces: [] }
-  }, { poster });
-  assert.equal(r.ok, true);
-  assert.doesNotMatch(JSON.stringify(r), /SECRET123/);
 });
 
 // --- Noter dans un rendez-vous existant (FindItem + UpdateItem sur le lieu) ---

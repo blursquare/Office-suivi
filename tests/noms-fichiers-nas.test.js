@@ -7,14 +7,6 @@ const assert = require('node:assert/strict');
 const { chargerApplication } = require('./helpers/load-app.js');
 const app = chargerApplication();
 
-const NOMS = [
-  [0, 'DIAG ERP 3 rue des Lilas.pdf'], [1, 'DIAG ERP 12 rue Haute.pdf'], [2, 'DIAG ERP 5 rue de la Gare.pdf'],
-  [3, 'ERP établissement recevant du public.pdf'],
-  [0, '3843 _contrat_pret.pdf'], [1, '2210_contrat_pret.pdf'], [2, 'Bail précaire_pret.pdf'],
-  [3, 'Offre de prêt DUPONT.pdf'], [4, 'Offre de prêt MARTIN.pdf'],
-  [4, 'Titre de propriété.pdf'], [5, 'Titre de propriété.pdf'], [5, 'Courrier notaire.pdf']
-];
-
 test('formeNomFichier : mots d’usage gardés, nombres en #, mots propres au dossier en …', () => {
   const vocab = new Set(['diag', 'rue', 'contrat', 'bail', 'precaire']);
   assert.equal(app.formeNomFichier('DIAG ERP 3 rue des Lilas.pdf', vocab), 'diag erp # …', 'l’adresse est mise de côté');
@@ -25,24 +17,7 @@ test('formeNomFichier : mots d’usage gardés, nombres en #, mots propres au do
 });
 
 test('regexFormeNom : la forme reconnaît ses voisins, pas un autre type de nom', () => {
-  assert.equal(app.nomCorrespondForme('diag erp # …', 'DIAG ERP 27 rue du Moulin Vert.pdf'), true);
-  assert.equal(app.nomCorrespondForme('diag erp # …', 'DIAG ERP rue du Moulin.pdf'), false, 'le numéro manque');
-  assert.equal(app.nomCorrespondForme('# contrat pret', '9921-contrat_pret.pdf'), true);
-  assert.equal(app.nomCorrespondForme('# contrat pret', 'contrat_pret.pdf'), false);
   assert.equal(app.formeExacteNom('ERP établissement recevant du public.pdf'), 'erp etablissement recevant public');
-});
-
-test('groupesFormesNoms : regroupés par pièce probable et par forme, le plus fréquent d’abord', () => {
-  const r = app.groupesFormesNoms(NOMS);
-  assert.equal(r.nbDossiers, 6);
-  const formes = (cle) => r.groupes[cle].map(g => `${g.forme} (${g.fichiers})`).join(' | ');
-  assert.equal(formes('erp'), 'diag erp # … (3) | erp … (1)');
-  assert.equal(formes('offrePret'), '# contrat pret (2) | offre pret … (2) | … pret (1)');
-  assert.equal(formes('titrePropriete'), 'titre propriete (2)');
-  assert.equal(r.groupes.erp[0].dossiers, 3);
-  assert.ok(!Object.values(r.groupes).some(gs => gs.some(g => /courrier/.test(g.forme))), 'un nom sans terme de pièce n’est proposé nulle part');
-  assert.equal(app.reconnaissanceGroupeNomsNas(r.groupes.erp[0]).etat, 'tous');
-  assert.equal(app.reconnaissanceGroupeNomsNas(r.groupes.offrePret[2]).etat, 'aucun');
 });
 
 test('décisions : « oui » fait reconnaître, « non » écarte même un nom que le motif prenait, au nom près', () => {

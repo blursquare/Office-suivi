@@ -229,12 +229,6 @@
       .sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')));
   }
 
-  // Pure : la précision qui suit « Tous les fonds sont reçus » quand le montant n'est pas exact.
-  function precisionEcartFonds(b) {
-    if (!b || b.etat !== 'complet' || !(Math.abs(b.ecart) >= 1)) return '';
-    return b.ecart > 0 ? ` (${formaterPrixCentimes(b.ecart)} de plus que prévu)` : ` (${formaterPrixCentimes(-b.ecart)} de moins que prévu)`;
-  }
-
   var RE_NOM_DECOMPTE = /(appel\s*de\s*fonds|d[ée]compte|convocation|tableau|fonds\s*[àa]\s*(verser|virer)|sommes?\s*[àa]\s*(verser|virer))/i;
   var RE_NOM_DECOMPTE_SUR = /(appel\s*de\s*fonds|d[ée]compte|convocation)/i;
   // Un « décompte » qui n'est pas celui de la vente (remboursement d'un prêt, amortissement…).

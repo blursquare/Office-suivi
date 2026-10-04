@@ -17,7 +17,7 @@
 
 const express = require('express');
 const {
-  testerConnexionExchange, creerRendezVousExchange, creerBrouillonExchange,
+  testerConnexionExchange, creerRendezVousExchange,
   fenetreJourneeParis, trouverRendezVousExchange, mettreAJourLieuExchange,
   creerEcheanceExchange, mettreAJourEcheanceExchange, supprimerEcheanceExchange,
   horaireDeplace, deplacerRendezVousExchange, horaireModifie, modifierRendezVousExchange, lireNotesExchange, mettreAJourNotesExchange, TAILLE_MAX_NOTES
@@ -26,11 +26,6 @@ const { extraireReferenceVte, dossierPourReferenceAgenda, composerLieuAgenda } =
 const { URL_EWS_DEFAUT } = require('../parametresRepo');
 const { noterVerification } = require('../verificationsTerrain');
 
-// Garde-fou de taille : un brouillon avec pièce(s) jointe(s) reste modeste (un .docx d'appel de
-// fonds ou un PDF de questionnaire font quelques centaines de Ko). Plafond large mais borné, pour
-// ne pas laisser passer un envoi énorme vers Exchange.
-const MAX_PIECES = 5;
-const MAX_BASE64_TOTAL = 15 * 1024 * 1024; // ~11 Mo de fichier une fois décodé
 // Le rendez-vous d'un dossier parmi ceux d'une journée. Pure, testable. L'identifiant mémorisé
 // quand CLAIRE a créé l'événement l'emporte ; sinon le titre « VTE - … » doit correspondre au nom du
 // dossier (mêmes tolérances que la lecture de l’agenda), et un seul événement doit correspondre —
@@ -53,10 +48,6 @@ function choisirRendezVousDossier(evenements, reference, itemId) {
 function categorieValide(c) {
   const t = String(c || '').replace(/[\u0000-\u001f]/g, '').trim();
   return t.slice(0, 100);
-}
-
-function adresseValide(a) {
-  return typeof a === 'string' && /^[^\s@]+@[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)+$/.test(a.trim());
 }
 
 // « HH:MM » + durée en minutes → « HH:MM » de fin (bornée à 23:59 : un rendez-vous ne déborde pas
@@ -375,54 +366,6 @@ function creerRouteurExchange(parametresRepo, injections = {}) {
       ok: !!r.ok, message: r.message, raison: r.raison || '', heure: r.ok ? horaire.heure : '',
       itemId: r.itemId || choix.evt.itemId, changeKey: r.changeKey || ''
     });
-  });
-
-  // Crée un BROUILLON d'email dans Outlook, avec pièce(s) jointe(s) — ce qu'un mailto: ne sait pas
-  // faire. Le brouillon est enregistré dans le dossier « Brouillons » (jamais envoyé) : l'étude le
-  // relit et l'envoie elle-même. Identifiants pris dans les Réglages, jamais dans la requête.
-  routeur.post('/exchange/brouillon', async (req, res) => {
-    const reglages = parametresRepo.lireReglagesExchange();
-    if (!reglages.actif) {
-      return res.status(400).json({ ok: false, message: "La connexion à l'agenda n'est pas activée dans les Réglages." });
-    }
-    if (!reglages.email || !reglages.motDePasse) {
-      return res.status(400).json({ ok: false, message: "Identifiants de messagerie manquants dans les Réglages." });
-    }
-    const b = req.body || {};
-    const destinataire = String(b.destinataire || '').trim();
-    const sujet = String(b.sujet || '').trim();
-    if (!adresseValide(destinataire)) {
-      return res.status(400).json({ ok: false, message: 'Adresse du destinataire invalide.' });
-    }
-    if (!sujet) {
-      return res.status(400).json({ ok: false, message: "Objet de l'email manquant." });
-    }
-    const piecesBrutes = Array.isArray(b.pieces) ? b.pieces : [];
-    if (piecesBrutes.length > MAX_PIECES) {
-      return res.status(400).json({ ok: false, message: 'Trop de pièces jointes.' });
-    }
-    let total = 0;
-    const pieces = [];
-    for (const p of piecesBrutes) {
-      const contenuBase64 = (p && typeof p.contenuBase64 === 'string') ? p.contenuBase64.replace(/\s/g, '') : '';
-      if (!contenuBase64) continue;
-      total += contenuBase64.length;
-      if (total > MAX_BASE64_TOTAL) {
-        return res.status(400).json({ ok: false, message: 'Pièces jointes trop volumineuses.' });
-      }
-      pieces.push({
-        nom: String(p.nom || 'piece-jointe').slice(0, 200),
-        type: p.type ? String(p.type).slice(0, 100) : '',
-        contenuBase64
-      });
-    }
-    const resultat = await creerBrouillonExchange({
-      url: reglages.url,
-      email: reglages.email,
-      motDePasse: reglages.motDePasse,
-      brouillon: { destinataire, sujet, corps: String(b.corps || ''), pieces }
-    });
-    res.json({ ok: !!resultat.ok, message: resultat.message });
   });
 
   // Note dans le LIEU d'un rendez-vous EXISTANT de l'agenda qu'un envoi vient d'être fait

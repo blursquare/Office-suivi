@@ -16256,3 +16256,35 @@ le `@typedef Echeance` dans `commun/planning.js`), et le `concat` de deux formes
 `Array<Record<string, any>>`). Aucun bug, mais des types désormais explicites là où le poste et le serveur se parlent.
 Vérifié que la construction refuse une erreur réelle (troisième argument à `formaterMontantEuros` → TS2554). Rien ne
 change à l'écran ; fumée 40 points, tests 1 274 + 665, lint 0/0.
+
+### 04/10/2026 11 h 52 — Toutes les fonctions passées au crible : code inatteignable retiré
+
+Méthode (bac à sable, `graphe.js`) : graphe d'appels du poste par espree — déclarations de premier niveau, références
+hors commentaires (un premier passage comptait les commentaires : `lancerExtractionIa` paraissait vivant parce qu'un
+commentaire le citait) ; racines = `index.html` (onclick…), code exécuté au chargement, serveur pour `commun/`. Résultat :
+3 052 déclarations, 23 inatteignables (18 citées seulement par des tests). Côté serveur : 201 routes, 2 jamais appelées par
+le poste, l'extension, la page de sondage ni un autre module (`GET /annuaire/recherche`, `POST /exchange/brouillon`) ;
+exports jamais utilisés nulle part (analyse statique de `module.exports`) : `chercherAnnuaire` seul après vérification des
+accès membres `annuaire.x`.
+
+Retiré : **pipeline d'extraction IA du wizard** (`routes/extractionIa.js`, `extraction/{cible,prompts,normaliser}.js`,
+`lancerExtractionIa`, `fusionnerExtractionIa`, `redemanderChampIa`, `fusionnerCibleIa`, `CLES_CIBLE_IA`,
+`engagementDejaConnu`, `SEUIL_SIMILARITE_ENGAGEMENT_IA`, `afficherStatutEnrichissementIa` + bloc `#ia-enrichissement-status`
+et sa règle CSS, tests `fusion`, `cible-ia`, `extraction-ia`, `extraction-cible`) — désactivé le 02/10 par l'étude, gardé
+« pour un retour arrière » ; `extraction/extraits.js` reste (relecture d'actes). **Route brouillon** (`/exchange/brouillon`,
+`corpsCreateBrouillon`, `creerBrouillonExchange`, leurs tests) — remplacée par l'envoi depuis CLAIRE et le `.eml`.
+**Recherche de l'annuaire** côté serveur (`chercherAnnuaire`, `sansAccents`) — le poste cherche dans l'annuaire en
+mémoire. **Poste** : `statistiquesCorrectionsExtraction`, `localiserExtrait` (client ; le serveur a le sien),
+`precisionEcartFonds`, `officesNotairesDepartement`, `officeCarnetPourAnnuaire`, `officeCarnetDepuisAnnuaire`,
+`officeAnnuairePourNotaire`, `iconeCalendrierSeuil`, `semaineAgenda`, `placementWidgets`, `prochainesSignatures`,
+`libelleDelaiAlerte`, `renderEmailAcquereurDossier`, `intitulesDossierAuthentic`, `sourcesImportWizard`, `motifPieceTrouve`,
+`nomCorrespondForme`, `groupesFormesNoms`, `TYPES_DATE`, avec leurs tests (`journal-corrections`, `extraits`, blocs dans
+`authentic-pages`, `collaborateur-poste`, `widgets-dashboard`, `nouveau-dossier`, `dossier-local`, `noms-fichiers-nas`,
+`fonds-recus`). Second passage du graphe : 0 inatteignable ; lint 0/0 ; types 0.
+
+**Couverture par les tests (V8, `NODE_V8_COVERAGE`)** : sur 3 052 déclarations de premier niveau du poste, 1 003 sont
+exécutées au moins une fois par la suite `tests/`, 2 049 jamais — pour l'essentiel du rendu (`render…`, écrans, fenêtres),
+exercé par le test de fumée mais pas compté ici ; fichiers les moins couverts : `41-generateur-appel-fonds` (153 jamais
+exécutées), `26-page-agenda` (125), `24-suivi` (117), `39-outils-prorata-mobilier-pdf` (117), `40-outil2-relecture` (111).
+Serveur (`--experimental-test-coverage`) : 95 % des lignes, 94 % des fonctions ; les moins couverts : `relecture/prompts.js`
+(54 %), `emailsMatin.js` (65 %), `exchange.js` (71 %).

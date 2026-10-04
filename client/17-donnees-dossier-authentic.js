@@ -283,7 +283,6 @@
     status.className = 'pdf-status loading';
     status.textContent = `Lecture de « ${file.name} » en cours…`;
     majProgression(2);
-    afficherStatutEnrichissementIa(false); // efface un éventuel résidu d'un import précédent
     compromisNomFichierImporte = file.name || '';
     // Un nouvel acte : les corrections et les relectures du précédent n'ont plus aucun sens.
     correctionsRevision = {};
@@ -426,39 +425,3 @@
   // wizard reste utilisable exactement comme avant l'ajout de cette fonctionnalité dans ce cas,
   // jamais une condition bloquante pour créer un dossier.
 
-  // Nettement plus permissif que SEUIL_SIMILARITE_APPRENTISSAGE (0.6, deux formulations quasi
-  // identiques de LA MÊME clause) : ici on compare une phrase extraite telle quelle du texte à une
-  // description reformulée par le modèle, sans aucune racinisation (tokeniserApprentissage compare
-  // des mots entiers) — deux verbes de la même famille ("entretien"/"entretenir") comptent déjà
-  // comme deux tokens différents, donc l'overlap réel reste modeste même pour la même clause.
-  // Premier jet volontairement prudent : sous-détecter un doublon (une suggestion IA redondante
-  // affichée en plus d'un engagement déjà repéré par regex) coûte un simple clic sur sa croix de
-  // suppression, alors que sur-détecter risquerait de faire disparaître silencieusement un
-  // engagement réellement distinct — à resserrer si l'usage réel montre trop de redites.
-  const SEUIL_SIMILARITE_ENGAGEMENT_IA = 0.2;
-
-  function engagementDejaConnu(description, engagementsExistants) {
-    const tokensIa = tokeniserApprentissage(normaliserTexteApprentissage(description));
-    return engagementsExistants.some(e => {
-      const phrase = typeof e === 'string' ? e : e.phrase;
-      const tokensExistant = tokeniserApprentissage(normaliserTexteApprentissage(phrase || ''));
-      return similariteJaccard(tokensIa, tokensExistant) >= SEUIL_SIMILARITE_ENGAGEMENT_IA;
-    });
-  }
-
-  // Affiche/masque l'état "Analyse par le modèle IA local en cours…" (étape "Vérifier" du wizard,
-  // voir index.html) pendant l'appel à /api/extraction-ia — sans lui, rien n'indiquait qu'une
-  // recherche était en cours pendant les quelques secondes à dizaines de secondes que peut prendre
-  // Ollama, silencieux jusqu'au toast final. N'a jamais retardé l'import lui-même (voir l'appel
-  // sans await plus bas) : seul l'affichage de CET état est synchrone avec la requête.
-  function afficherStatutEnrichissementIa(visible) {
-    const el = document.getElementById('ia-enrichissement-status');
-    if (!el) return;
-    if (visible) {
-      const iconeEl = document.getElementById('icon-ia-enrichissement');
-      if (iconeEl && !iconeEl.innerHTML) iconeEl.innerHTML = icone('spinner', null, true);
-      el.style.display = 'flex';
-    } else {
-      el.style.display = 'none';
-    }
-  }

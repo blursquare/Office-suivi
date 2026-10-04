@@ -72,17 +72,6 @@ test('pièces encore attendues : regroupées par pièce, dossiers reliés seulem
   assert.ok(l.every(p => p.dossiers.length === 2));
 });
 
-test('prochaines signatures : à partir d’aujourd’hui, par date puis heure, hors le jour détaillé', () => {
-  const l = app.prochainesSignatures([
-    { id: '1', rendezVousSignature: '2026-10-02', rendezVousSignatureHeure: '14:00' },
-    { id: '2', rendezVousSignature: '2026-10-02', rendezVousSignatureHeure: '09:30' },
-    { id: '3', rendezVousSignature: '2026-09-20' },
-    { id: '4', rendezVousSignature: '2026-09-29' },
-    { id: '5', rendezVousSignature: '2026-10-01', archive: true }
-  ], '2026-09-29', '2026-09-29', 10);
-  assert.equal(l.map(d => d.id).join(','), '2,1');
-});
-
 test('hauteur réglable : 1, 2 ou 3 rangées, largeur indépendante ; valeur inconnue ramenée au défaut', () => {
   const d = app.dispositionWidgetsDepuis([
     { id: 'agenda', taille: 'grand', hauteur: 3 },
@@ -113,20 +102,4 @@ test('activité : les relevés de CLAIRE (sans auteur, hors agenda) servent d’
     { date: '2026-09-29T10:00:00Z', auteur: 'Julie VASSELIN', texte: 'Email préparé' }
   ] }]);
   assert.equal(l.map(e => e.source + ':' + e.texte).join('|'), 'claire:Pièce trouvée sur le NAS : Diagnostics');
-});
-
-test('disposition par défaut : les plus importants d’abord, un rectangle plein (4 × 5 ; 2 × 9 sur téléphone)', () => {
-  const d = app.dispositionWidgetsDepuis(null);
-  assert.equal(ids(d).split(',').slice(0, 2).join(','), 'aujourdhui,agenda');
-  const quatre = app.placementWidgets(d, 4);
-  assert.equal(quatre.vides + ':' + quatre.rangees, '0:5');
-  assert.equal(JSON.stringify(quatre.place.aujourdhui), JSON.stringify({ rangee: 0, colonne: 0, largeur: 2, hauteur: 2 }));
-  const deux = app.placementWidgets(d, 2);
-  assert.equal(deux.vides + ':' + deux.rangees, '0:9');
-});
-
-test('placement : un trou se voit, et « dense » remonte une petite carte dans le premier trou', () => {
-  const p = app.placementWidgets([{ id: 'a', taille: 'moyen', hauteur: 1 }, { id: 'b', taille: 'grand', hauteur: 1 }, { id: 'c', taille: 'petit', hauteur: 1 }], 4);
-  assert.equal(p.vides + ':' + p.rangees, '1:2');
-  assert.equal(p.place.c.rangee + ':' + p.place.c.colonne, '0:2');
 });

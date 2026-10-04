@@ -698,7 +698,6 @@ test('fiche client d\'un vendeur déjà client : la vente en cours, pas son anci
   const vente = { id: 'v', nom: 'MARTEL / FOURNIER', parties: [{ nom: 'Monsieur Alexandre MARTEL', role: 'VENDEUR' }], historique: [] };
   const autre = { id: 'x', nom: 'LEROY / DURAND', historique: [] };
   const fiche = Object.assign({}, clientMarie, { texte: 'Dossiers\n8 - Vente GARNIER/MARTEL\n12 - Vente MARTEL/FOURNIER' });
-  assert.equal(app.intitulesDossierAuthentic(fiche).join('|'), 'Vente GARNIER / MARTEL|Vente MARTEL / FOURNIER');
   const liste = [ancien, vente, autre];
   // Sans dossier en consultation : le seul dossier cité en cours où il est partie.
   assert.equal(app.dossierPourFicheClientAuthentic(fiche, liste, null).id, 'v');
@@ -953,63 +952,6 @@ test('dossierDejaPresentPourCreation : même référence Authentic ou même nom,
   assert.equal(app.dossierDejaPresentPourCreation('LEGER / ROUX', '', liste), null);
   assert.equal(app.dossierDejaPresentPourCreation('BRUN', '', liste), null);
   assert.equal(app.dossierDejaPresentPourCreation('NOUVEAU', 'A 2026 00999', liste), null);
-});
-
-test('notaires de France : département filtré, office repris au format du carnet, notaire retrouvé seulement s’il est seul (noms inventés)', () => {
-  const deps = [{ code: '37', nom: 'Indre-et-Loire', offices: 2 }, { code: '41', nom: 'Loir-et-Cher', offices: 36 }, { code: '2A', nom: 'Corse-du-Sud', offices: 1 }];
-  assert.equal(app.departementsAnnuaireFiltres(deps, 'loir').map(d => d.code).join(), '37,41');
-  assert.equal(app.departementsAnnuaireFiltres(deps, '2a').map(d => d.code).join(), '2A');
-  assert.equal(app.departementsAnnuaireFiltres(deps, '').length, 3);
-  const liste = [
-    { id: 'a', office: 'Me Paul MARTEL', notaires: ['Paul MARTEL'], ville: 'Tours', codePostal: '37000' },
-    { id: 'b', office: 'SCP ROUX', notaires: ['Léa ROUX', 'Marc VERT'], ville: 'Amboise', codePostal: '37400', bureaux: ['37530 Nazelles 1 rue Haute'] },
-    { id: 'c', office: 'Me Anne BRUN', notaires: ['Anne BRUN'], ville: 'tours', codePostal: '37100' }
-  ];
-  assert.equal(app.filtrerOfficesAnnuaire(liste, 'vert amboise').map(o => o.id).join(), 'b');
-  assert.equal(app.filtrerOfficesAnnuaire(liste, 'nazelles').map(o => o.id).join(), 'b');
-  assert.equal(app.filtrerOfficesAnnuaire(liste, '').length, 3);
-  assert.equal(app.officesParVilleAnnuaire(liste).map(g => `${g.ville}:${g.offices.length}`).join(), 'Amboise:1,Tours:2');
-  const offices = [
-    { id: 'annuaire-1', office: 'SCP MARTEL et FOURNIER', notaires: ['Paul MARTEL', 'Anne FOURNIER'], ville: 'Tours', bureaux: [] },
-    { id: 'annuaire-2', office: 'Me Luc MARTEL', notaires: ['Luc MARTEL'], ville: 'Ajaccio', bureaux: [] }
-  ];
-  assert.equal(app.officeAnnuairePourNotaire('Maître Anne FOURNIER', offices).id, 'annuaire-1');
-  assert.equal(app.officeAnnuairePourNotaire('Maître Paul MARTEL', offices).id, 'annuaire-1');
-  assert.equal(app.officeAnnuairePourNotaire('Maître MARTEL', offices), null);
-  assert.equal(app.officeAnnuairePourNotaire('Maître Jean NOIR', offices), null);
-  const c = app.officeCarnetDepuisAnnuaire(Object.assign({ departement: '37', url: '/x' }, offices[0]), 'Annuaire de test');
-  assert.equal(c.id, 'annuaire-1');
-  assert.equal(c.source, 'Annuaire de test');
-  assert.equal('departement' in c || 'url' in c, false);
-});
-
-test('officeCarnetPourAnnuaire : même identifiant, sinon même email ou même téléphone (noms inventés)', () => {
-  const carnet = [
-    { id: 'etude-x', office: 'Notre office', email: 'office.x@notaires.fr', telephone: '02 54 00 00 01', etude: true },
-    { id: 'saisie-1', office: 'Me ROUX', email: '', telephone: '02.47.00.00.02' },
-    { id: 'annuaire-9', office: 'Me VERT', email: '', telephone: '' }
-  ];
-  assert.equal(app.officeCarnetPourAnnuaire({ id: 'annuaire-1', email: 'Office.X@notaires.fr', telephone: '' }, carnet).id, 'etude-x');
-  assert.equal(app.officeCarnetPourAnnuaire({ id: 'annuaire-2', email: '', telephone: '+33 2 47 00 00 02' }, carnet).id, 'saisie-1');
-  assert.equal(app.officeCarnetPourAnnuaire({ id: 'annuaire-9' }, carnet).id, 'annuaire-9');
-  assert.equal(app.officeCarnetPourAnnuaire({ id: 'annuaire-3', email: '', telephone: '' }, carnet), null);
-});
-
-test('Notaires : un office du carnet remplace sa ligne de l’annuaire, les saisies à la main du département s’ajoutent (noms inventés)', () => {
-  const annuaire = [
-    { id: 'annuaire-1', office: 'SCP MARTEL', email: 'scp.martel@notaires.fr', telephone: '02 54 00 00 01', codePostal: '41000', ville: 'Blois' },
-    { id: 'annuaire-2', office: 'Me ROUX', email: 'roux@notaires.fr', telephone: '', codePostal: '41200', ville: 'Romorantin' },
-    { id: 'annuaire-3', office: 'Me BRUN', email: 'office.x@notaires.fr', telephone: '', codePostal: '41000', ville: 'Blois' }
-  ];
-  const carnet = [
-    { id: 'annuaire-1', office: 'SCP MARTEL (corrigé)', email: 'scp.martel@notaires.fr', codePostal: '41000', ville: 'Blois', notes: 'clerc : Paul' },
-    { id: 'etude-x', office: 'Notre office', email: 'office.x@notaires.fr', codePostal: '41000', ville: 'Blois', etude: true },
-    { id: 'saisie-1', office: 'Me VERT', email: '', codePostal: '41100', ville: 'Vendôme' },
-    { id: 'saisie-2', office: 'Me NOIR', email: '', codePostal: '37000', ville: 'Tours' }
-  ];
-  const r = app.officesNotairesDepartement('41', annuaire, carnet);
-  assert.equal(r.map(x => `${x.office.id}:${x.carnet ? 'c' : 'a'}`).join(), 'annuaire-1:c,annuaire-2:a,etude-x:c,saisie-1:c');
-  assert.equal(r[0].office.office, 'SCP MARTEL (corrigé)');
 });
 
 test('raisonDossierAuthenticIntrouvable : le motif dit à l’étude, jamais un silence', () => {
