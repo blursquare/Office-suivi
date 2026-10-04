@@ -2585,17 +2585,6 @@
     return sources;
   }
 
-  function renderSourcesImport() {
-    const etat = {
-      compromis: dernierTexteTraite ? (compromisNomFichierImporte || 'déposé') : '',
-      authentic: exportAuthenticActuel ? String(exportAuthenticActuel.intitule || '').replace(/^\s*(?:vente|vte|succession|succ)\.?\s+/i, '') : '',
-      prixAuthentic: !!(exportAuthenticActuel && exportAuthenticActuel.infosAuthentic && exportAuthenticActuel.infosAuthentic.prix),
-      succession: successionEnCoursWizard()
-    };
-    const html = sourcesImportWizard(etat).map(x => `<span class="sources-import-ligne"><span class="dot-label ${x.ok ? 'dl-success' : 'dl-neutre'}">${x.ok ? icone('check') : '<span class="dot"></span>'}${escapeHtml(x.texte)}</span>${x.geste ? ` <button type="button" class="lien-action" onclick="choisirModeImport('${x.geste === 'Ajouter le compromis' || dernierTexteTraite ? 'pdf' : 'seul'}'); definirEtapeWizard(1)">${escapeHtml(x.geste)}</button>` : ''}</span>`).join('');
-    ['sources-import-2'].forEach(id => { const el = document.getElementById(id); if (el) el.innerHTML = html; });
-  }
-
   function creerDepuisAuthentic(i) {
     const g = groupesAuthenticRecents[i];
     if (!g) return;
@@ -2736,19 +2725,6 @@
     return `<div class="coord-echanges">${coordonneesPartiesDossier(d).map(c => `<div class="coord-ligne">
         <span class="coord-libelle">${escapeHtml(c.libelle)}</span>${champsCoordonneesPartie(d, c, 'ech')}
       </div>`).join('')}</div>`;
-  }
-
-  // Fiche › Échanges : téléphones des parties (servent à reconnaître l'appelant).
-  function renderTelephonesDossier(d) {
-    const champ = (partie, libelle, valeur, aide) => `<div class="classif-champ champ-email-relance">
-      <label for="tel-${partie}-${d.id}">${libelle}${aide ? ' ' + infoBulle(aide) : ''}</label>
-      <input type="tel" id="tel-${partie}-${d.id}" class="input-classif" value="${escapeAttr(valeur || '')}"
-        placeholder="Non renseigné" autocomplete="off"
-        onblur="changerTelephoneDossier('${d.id}', '${partie}', this.value)"
-        onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">
-    </div>`;
-    return champ('vendeur', 'Téléphone du vendeur', d.telephoneVendeur, 'Reconnu quand il appelle (3CX) : la fiche s’ouvre. Plusieurs numéros : séparés par « / ».')
-      + champ('acquereur', 'Téléphone de l’acquéreur', d.telephoneAcquereur, '');
   }
 
   function changerTelephoneDossier(id, partie, valeur) {

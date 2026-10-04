@@ -753,8 +753,11 @@ Plainte principale de l'étude : **le bruit**, pas les oublis — ne pas élargi
   dans des `.reglages-section` — pas de cartes en grille.
 - **Règles de code** (étude, 04/10) : `npm run lint` à la racine (ESLint, `eslint.config.js` : erreurs réelles seulement —
   variable inconnue, fonction ou clé en double, code inatteignable ; style laissé au fichier voisin) doit rendre **0 erreur**
-  (la construction du `.exe` s'arrête sinon) ; les avertissements (variables inutilisées) se réduisent au fil de l'eau, jamais
-  par un `eslint-disable` global. `npm run verifier` = lint + les deux suites. **Les fichiers de `client/` partagent leur portée** :
+  (la construction du `.exe` s'arrête sinon) **et 0 avertissement** (depuis le 04/10 11 h 21 ; un avertissement = une variable
+  locale jamais lue, à retirer, jamais par un `eslint-disable`). Sur le poste, `no-unused-vars` ne regarde que les variables
+  locales (`vars: 'local'`) : une fonction de premier niveau est appelée depuis le HTML ou un autre fichier, ESLint ne le voit
+  pas ; le **code mort de premier niveau** est refusé par `tests/structure-client.test.js` (nom déclaré jamais cité dans le
+  code, `index.html` ni les tests). Un nom cité seulement par un test est du code mort toléré : le retirer avec son test. `npm run verifier` = lint + les deux suites. **Les fichiers de `client/` partagent leur portée** :
   leurs déclarations de premier niveau sont relevées à chaque lint par `scripts/globaux-client.js` (espree) et données à ESLint en
   globaux — sans cela, 5 882 `no-undef` et la construction du `.exe` s'arrête (payé le 04/10 à 10 h 36 : version jamais
   construite) ; un nom déclaré dans deux fichiers est refusé par `tests/structure-client.test.js`. Un fichier du poste reste **sous 3 000 lignes**

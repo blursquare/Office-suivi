@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-04 11:08';
+  const VERSION_APP = '2026-10-04 11:21';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-04 11:21', resume: "Nettoyage du code (sans changement à l'écran) : 20 fonctions et variables jamais utilisées retirées du poste et des tests ; le contrôle des règles de code ne rend plus aucun avertissement (822 avant, presque tous des faux positifs), et un test refuse désormais toute fonction déclarée mais jamais appelée nulle part." },
     { version: '2026-10-04 11:08', resume: "Correction de la construction du .exe : la version 10:36 n'avait pas été construite (le contrôle des règles de code ignorait que les 44 fichiers du poste partagent leurs fonctions). Les noms déclarés dans un fichier sont désormais connus des autres au contrôle, et un nom déclaré dans deux fichiers est refusé par un test. Rien ne change à l'écran ; cette version apporte donc aussi tout ce qui était prévu à 10:36." },
     { version: '2026-10-04 10:36', resume: "Organisation du code (sans changement à l'écran) : le programme du poste est découpé en 44 fichiers par sujet (dossier client/, chargés dans l'ordre d'une liste unique), les assainisseurs des réglages du serveur ont leur propre fichier, et des règles de code vérifiées automatiquement (linter) arrêtent la construction du .exe sur une erreur réelle. Une fonction en double de l'annuaire des notaires a été retirée." },
     { version: '2026-10-04 08:47', resume: "Audit de fiabilité (2/2) : un dossier aux données inattendues n'empêche plus le reste de l'écran de s'afficher (chaque bloc du tableau de bord et du Suivi, chaque ligne, se rend à part ; les champs mal formés sont ramenés à une valeur sûre à la réception). Base de données en journal WAL (une coupure en pleine écriture laisse la base cohérente), arrêt propre du serveur à la demande du système, écriture locale du poste tolérante (mode privé, quota). Le journal technique ne recopie plus aucun extrait d'une requête JSON invalide." },

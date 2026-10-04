@@ -538,8 +538,6 @@
     renderPageAgenda();
     chargerAgendaSemaine();
   }
-  // Ancien nom (boutons déjà rendus, tests) : la semaine.
-  function naviguerSemaineAgenda(pas) { naviguerAgenda(pas); }
 
   function choisirVueAgenda(vue) {
     if (VUES_AGENDA.indexOf(vue) === -1) return;
@@ -953,7 +951,6 @@
     const auj = isoAujourdhuiLocal();
     const global = vueGlobaleDashboard();
     const perimetre = dossiersDuPerimetre(dossiers, utilisateurPoste, global);
-    const jours = joursAffichesAgenda();
     // « Signatures de la semaine » retiré à la demande de l'étude (01/10) ; la probabilité de tenue reste
     // dans le détail de chaque rendez-vous.
     // Dossiers sans rendez-vous, par semaine probable de signature (au plus tôt) : un clic affiche
@@ -1489,14 +1486,6 @@
     }
     pop.style.left = `${Math.round(Math.max(0, Math.min(left, pr.width - largeur)))}px`;
     pop.style.top = `${Math.round(Math.max(0, top))}px`;
-  }
-
-  // Depuis « Signatures de la semaine » : le rendez-vous du dossier s'il est dans l'agenda, sinon
-  // la fiche du dossier.
-  function ouvrirDetailDossierAgenda(id) {
-    const e = evenementsAffichesAgenda().find(x => x.dossierId === id && x.signature);
-    if (e) ouvrirDetailAgenda(cleEvenementAgenda(e));
-    else ouvrirDossierDepuisDashboard(id);
   }
 
   // Ferme la fenêtre de création si elle est ouverte, sinon le détail du rendez-vous.

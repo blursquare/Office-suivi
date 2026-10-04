@@ -202,7 +202,7 @@ function creerApp({ db, config, envoyerEmailFn, creerClientClaude, appelerMistra
   // (JSON malformé, etc.) ne fasse planter le processus entier plutôt que de répondre 500.
   // Jamais `err` entier dans le journal : une erreur du lecteur JSON porte le corps reçu (`err.body`), qui peut
   // contenir le texte d'un email ou d'un dossier ; seuls le type, le statut et le message sont notés (audit 04/10).
-  app.use((err, req, res, next) => { // eslint-disable-line no-unused-vars
+  app.use((err, req, res, next) => {
     const statut = err && Number.isInteger(err.status) && err.status >= 400 && err.status < 600 ? err.status : 500;
     // Le message d'une erreur de lecture JSON (V8) cite un extrait du corps reçu : il n'est jamais journalisé.
     const message = err && /parse/i.test(String(err.type || '')) ? '' : (err && err.message) || '';

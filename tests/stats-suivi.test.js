@@ -8,7 +8,6 @@ const app = chargerApplication();
 
 const AUJ = '2026-10-07';
 const cree = (iso) => [{ date: iso + 'T09:00:00', texte: 'Dossier créé' }];
-const ids = (liste) => liste.map(x => x.d.id + ':' + x.iso + (x.retard ? '!' : '')).join(' ');
 const dossiers = [
   // Signature le 20/10, offre reçue : appel de fonds à envoyer avant le 20/10.
   { id: 'a', rendezVousSignature: '2026-10-20', pret: '2026-09-20', offrePretStatut: 'recue', dossierLie: true,

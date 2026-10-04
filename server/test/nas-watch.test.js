@@ -71,7 +71,7 @@ test('sans racine NAS configurée : aucun dossier vérifié', async () => {
 test('dossier archivé ou non relié : jamais vérifié', async () => {
   depot.creer(dossierMinimal('d2', null));
   depot.creer(dossierMinimal('d3', '2024-118 DUPONT MARTIN', { archive: true }));
-  const r = await executerTourSurveillanceNas(depot, racine);
+  await executerTourSurveillanceNas(depot, racine);
   assert.equal(depot.trouverParId('d2').nasInventaire, undefined);
   assert.equal(depot.trouverParId('d3').nasInventaire, undefined);
 });

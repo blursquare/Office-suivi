@@ -8,7 +8,6 @@ const { chargerApplication } = require('./helpers/load-app.js');
 // Textes synthétiques reprenant la STRUCTURE d'actes réels — noms et montants inventés, aucune
 // donnée client dans le dépôt.
 
-const titres = c => c.map(x => x.titre).join(' | ');
 
 test('une procédure en cours déclarée dans l’acte ressort', () => {
   const app = chargerApplication();

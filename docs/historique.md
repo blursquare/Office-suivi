@@ -16173,3 +16173,23 @@ du workflow listait toujours `script.js`, pas `client/**` (ni `eslint.config.js`
 `package.json`). Le commit de 10 h 36 n'avait construit que parce qu'il touchait aussi `server/` et `index.html`. Filtre
 complété ; `tests/structure-client.test.js` vérifie désormais la liste. À retenir : après un push sur `main`, regarder
 qu'une construction a bien démarré ET qu'elle est verte — les deux peuvent manquer.
+
+### 04/10/2026 11 h 21 — Avertissements du lint ramenés à zéro, code mort retiré
+
+Mesure avant : 822 avertissements, dont 758 sur des fonctions de premier niveau appelées depuis le HTML (`onclick`) ou
+un autre fichier — ESLint ne peut pas le voir. Décision : `no-unused-vars` en `vars: 'local'` sur `client/` (bloc en fin de
+configuration, sinon le bloc de règles général l'écrase — piège rencontré), et un test `structure-client` qui refuse tout nom
+de premier niveau jamais cité dans le code, `index.html` ni `tests/` (identifiants accentués compris : `revérifier…`).
+`ignoreRestSiblings` pour `const { secret, ...reste }`. `no-useless-assignment` coupée : sur tout le code, elle n'a relevé
+que le motif voulu `let x = ''; try { x = … } catch { x = '' }`.
+
+Retirés : 13 déclarations jamais citées (`butoirsOuverts`, `tonRendezVous`, `lignesProchainesSignatures`,
+`LIBELLES_GROUPES_A_TRAITER`, `MAX_LIGNES_A_TRAITER`, `libelleDepuisVisite`, `LIBELLES_COURTS_PREPARATION`,
+`naviguerSemaineAgenda`, `ouvrirDetailDossierAgenda`, `MESSAGE_EMAIL_PRET_AUTO`, `renderEmailVendeurDossier`,
+`renderSourcesImport`, `renderTelephonesDossier`), 7 variables locales jamais lues (dont `marque`/`origine` du panneau de
+révision — l'icône d'origine n'était plus rendue depuis longtemps — et `monImport`, dont le seul usage était la relance IA
+retirée ; l'incrément de génération est gardé), 3 aides de tests et une variable de test. Dix fonctions ne sont plus citées
+que par leurs tests (`statistiquesCorrectionsExtraction`, `precisionEcartFonds`, `officesNotairesDepartement`,
+`officeCarnetDepuisAnnuaire`, `officeAnnuairePourNotaire`, `semaineAgenda`, `prochainesSignatures`, `libelleDelaiAlerte`,
+`intitulesDossierAuthentic`, `nomCorrespondForme`) : gardées pour l'instant, à retirer avec leurs tests si elles ne
+reviennent pas. Lint : 0 erreur, 0 avertissement ; tests 1 273 + 665.

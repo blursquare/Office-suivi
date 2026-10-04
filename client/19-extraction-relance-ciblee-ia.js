@@ -594,7 +594,6 @@
     const d = dossierComplementEnCours();
     if (!d || !dernierTexteTraite) { zone.style.display = 'none'; zone.innerHTML = ''; return; }
     const comparaison = comparaisonComplement(valeursFicheComplement(d), valeursLuesComplement());
-    const nouvelles = comparaison.filter(x => x.etat === 'lu-seul');
     const lignes = comparaison.filter(x => x.etat !== 'lu-seul');
     const ligne = (x) => {
       const corps = x.etat === 'different'

@@ -288,7 +288,7 @@
     // Un nouvel acte : les corrections et les relectures du précédent n'ont plus aucun sens.
     correctionsRevision = {};
     verificationsRevision = {};
-    const monImport = ++generationImportActuel;
+    generationImportActuel++; // invalide les relances IA d’un import précédent
 
     try {
       const buffer = await file.arrayBuffer();

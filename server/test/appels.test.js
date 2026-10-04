@@ -12,7 +12,6 @@ const {
 } = require('../src/appels3cx');
 const { creerApp } = require('../src/app');
 const { ouvrirDb } = require('../src/db');
-const { creerRepoParametres } = require('../src/parametresRepo');
 
 test('numéros : +33, 0033, espaces et points ramenés à la même clé', () => {
   assert.equal(normaliserNumero('+33 6 12 34 56 78'), '0612345678');
@@ -84,12 +83,11 @@ test('pageSonnerie : se ferme si la fenêtre CLAIRE est visible, sinon ouvre CLA
   assert.match(pageSonnerie({ id: 'ap-1', fenetreVisible: false }), /index\.html#appel=ap-1/);
 });
 
-let db, serveurApp, baseUrl, jeton, depot, parametresRepo;
+let db, serveurApp, baseUrl, jeton, depot;
 before(async () => {
   db = ouvrirDb(':memory:');
   const { app, gestionnaireAuth, depot: d } = creerApp({ db, config: { motDePasse: 'mdp-test', racineRepo: os.tmpdir(), port: 0 } });
   depot = d;
-  parametresRepo = creerRepoParametres(db);
   jeton = gestionnaireAuth.creerSession();
   serveurApp = app.listen(0);
   await new Promise((resolve) => serveurApp.once('listening', resolve));

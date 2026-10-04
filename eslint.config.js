@@ -33,7 +33,8 @@ module.exports = [
   },
   {
     rules: {
-      'no-unused-vars': ['warn', { args: 'none', caughtErrors: 'none', varsIgnorePattern: '^_' }],
+      // ignoreRestSiblings : `const { secret, ...reste } = x` omet un champ à dessein.
+      'no-unused-vars': ['warn', { args: 'none', caughtErrors: 'none', varsIgnorePattern: '^_', ignoreRestSiblings: true }],
       'no-empty': ['error', { allowEmptyCatch: true }],
       'no-prototype-builtins': 'off',
       'no-useless-escape': 'off',
@@ -46,9 +47,18 @@ module.exports = [
       'no-redeclare': ['error', { builtinGlobals: false }],
       // Les textes français portent des espaces insécables (« » : ») dans les gabarits et les regex : voulus.
       'no-irregular-whitespace': ['error', { skipStrings: true, skipTemplates: true, skipRegExps: true, skipComments: true }],
-      // `let x = ''; try { x = … } catch { x = '' }` : lisible, pas une erreur.
-      'no-useless-assignment': 'warn',
+      // `let x = ''; try { x = … } catch { x = '' }` : motif voulu (valeur sûre quoi qu'il arrive), la règle n'a relevé
+      // que lui sur tout le code (04/10) : coupée.
+      'no-useless-assignment': 'off',
       'preserve-caught-error': 'off'
     }
+  },
+  {
+    // Une fonction de premier niveau du poste est presque toujours appelée depuis le HTML (onclick) ou un autre fichier :
+    // ESLint ne peut pas le voir. Le code mort de premier niveau est refusé par tests/structure-client.test.js (nom jamais
+    // cité dans le code, le HTML ni les tests) ; ici, seules les variables locales jamais lues. Ce bloc vient en dernier
+    // pour l'emporter sur les règles générales.
+    files: ['client/**/*.js'],
+    rules: { 'no-unused-vars': ['warn', { vars: 'local', args: 'none', caughtErrors: 'none', varsIgnorePattern: '^_', ignoreRestSiblings: true }] }
   }
 ];

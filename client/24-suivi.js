@@ -519,16 +519,6 @@
   // en {mois} ». Quatre compteurs du mois en cours, chacun filtre la liste ; puis les pièces trouvées
   // sur le NAS ces 14 derniers jours. Calculé sur la liste filtrée (mêmes filtres sauf statut).
 
-  // Pure : les dates butoir encore ouvertes d'un dossier (vente préalable, prêt, date butoir tant
-  // qu'aucun rendez-vous n'est fixé) — celles qui rendent un dossier « Urgent » une fois passées.
-  function butoirsOuverts(d) {
-    const out = [];
-    if (d.ventebien && !echeanceValidee(d, 'ventebien')) out.push({ type: 'ventebien', libelle: 'Vente préalable', iso: d.ventebien });
-    if (!d.sansPret && d.pret && !echeanceValidee(d, 'pret')) out.push({ type: 'pret', libelle: 'Obtention du prêt', iso: d.pret });
-    if (d.acte && !d.rendezVousSignature && !echeanceValidee(d, 'acte')) out.push({ type: 'acte', libelle: 'Date butoir', iso: d.acte });
-    return out;
-  }
-
   function isoLocalDepuisDate(v) {
     const d = new Date(v);
     if (isNaN(d)) return null;
@@ -1780,13 +1770,6 @@
     render();
   }
 
-  // Couleur du liseré : vert si les deux envois sont partis, rouge si un envoi manque à deux jours
-  // ou moins du rendez-vous, ambre sinon.
-  function tonRendezVous(r) {
-    if (r.appelFondsEnvoye && r.projetEnvoye) return 'ok';
-    return r.jours <= 2 ? 'urgent' : 'attente';
-  }
-
   // ---- Absences des collaborateurs sur l'agenda (pures, testables) ----
   // Une absence {collaborateur, debut, fin} couvre un jour ISO si debut <= jour <= fin.
   function absenceCouvreJour(absence, iso) {
@@ -1867,19 +1850,6 @@
         <span class="w-ligne-date">${escapeHtml(quand)}</span>
         <span class="dot-label dl-${e.type}"><span class="dot"></span></span>
         <span class="w-ligne-texte"><b>${escapeHtml(e.label)}</b> · ${escapeHtml(libelleDossierAffiche(e.dossier))}</span></button></li>`;
-    }).join('');
-  }
-
-  function lignesProchainesSignatures(liste, aujourdhui, global) {
-    return liste.map(d => {
-      const dt = new Date(d.rendezVousSignature + 'T00:00:00');
-      const j = ecartJours(aujourdhui, d.rendezVousSignature);
-      const quand = j === 0 ? "Aujourd'hui" : j === 1 ? 'Demain' : dt.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' });
-      const meta = [plageHoraireRendezVous(d.rendezVousSignatureHeure, ''), global && d.responsable ? prenomCollaborateur(d.responsable) : ''].filter(Boolean).join(' · ');
-      return `<li><button type="button" class="w-ligne" onclick="ouvrirDossierDepuisDashboard('${d.id}')">
-        <span class="w-ligne-date">${escapeHtml(quand)}</span>
-        <span class="w-ligne-texte">${escapeHtml(libelleDossierAffiche(d))}</span>
-        <span class="w-ligne-meta">${escapeHtml(meta)}</span></button></li>`;
     }).join('');
   }
 
@@ -2133,14 +2103,6 @@
     return alertes.sort((a, b) => (ORDRE_GRAVITE_ALERTE[a.gravite] - ORDRE_GRAVITE_ALERTE[b.gravite])
       || ((a.jours === null ? 999 : a.jours) - (b.jours === null ? 999 : b.jours)));
   }
-
-  // « À traiter » : fusion d'Actions urgentes et d'Alertes importantes (demandée par l'étude, les
-  // deux listes montraient souvent le même dossier deux fois). UNE ligne par dossier : le geste le
-  // plus grave en titre, les autres points du même dossier en dessous. Aux alertes datées
-  // s'ajoutent les points d'état qu'Actions urgentes était seule à montrer (aucun document trouvé,
-  // dossier pas encore relié au NAS), sans échéance, en « À suivre ».
-  var LIBELLES_GROUPES_A_TRAITER = { critique: 'Critique', vigilance: 'Vigilance', info: 'À suivre' };
-  var MAX_LIGNES_A_TRAITER = { critique: 8, vigilance: 6, info: 4 };
 
   function pointsEtatDossier(d) {
     const statut = statutDossier(d);

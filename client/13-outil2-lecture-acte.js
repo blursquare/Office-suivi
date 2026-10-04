@@ -234,7 +234,6 @@
     // date de vente est connue (ou, à défaut, bornée par le jour de la relecture). Les trois
     // sources sont lues : la clause « Assemblées générales » de l'avant-contrat les date, le
     // projet les reprend, et c'est le PV déposé qui dit ce qui y a été voté.
-    const pagesProjet = (entree && entree.pagesProjet) || [];
     const dossierLie = (entree && entree.dossierLie) || null;
     const typeBien = typeBienPourAudit(entree);
     const estCopropriete = typeBien.type === 'copropriete';

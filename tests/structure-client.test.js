@@ -62,3 +62,16 @@ test('le workflow de construction du .exe se déclenche sur client/ (et plus sur
   }
   assert.ok(!chemins.includes('script.js'));
 });
+
+test('aucune déclaration de premier niveau du poste qui ne soit citée nulle part (code, HTML, tests)', () => {
+  // Remplace no-unused-vars pour le premier niveau (voir eslint.config.js) : un nom déclaré et jamais cité ailleurs — ni
+  // dans un autre fichier, ni dans index.html (onclick), ni dans les tests — est du code mort, à retirer.
+  const { declarationsClient } = require('../scripts/globaux-client');
+  const occurrences = new Map();
+  const compter = (texte) => { for (const m of texte.matchAll(/[A-Za-z_$À-ɏ][A-Za-z0-9_$À-ɏ]*/g)) occurrences.set(m[0], (occurrences.get(m[0]) || 0) + 1); };
+  for (const f of manifeste) compter(fs.readFileSync(path.join(racine, 'client', f), 'utf8'));
+  compter(fs.readFileSync(path.join(racine, 'index.html'), 'utf8'));
+  for (const f of fs.readdirSync(__dirname)) if (f.endsWith('.js')) compter(fs.readFileSync(path.join(__dirname, f), 'utf8'));
+  const morts = [...declarationsClient()].filter(([nom]) => (occurrences.get(nom) || 0) < 2).map(([nom, fichiers]) => nom + ' (' + fichiers[0] + ')');
+  assert.equal(morts.join('\n'), '', 'déclaré mais jamais cité');
+});

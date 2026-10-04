@@ -322,7 +322,6 @@
     return groupes.sort((a, b) => b.dernier - a.dernier);
   }
 
-
   // ---- État de la journée (par collaborateur, sur ce poste) ----
   // « Plus tard » reporte une action au lendemain ; « Traité aujourd'hui » garde la trace de ce qui
   // vient d'être fait depuis ces écrans. Préférence de travail propre à la personne, gardée dans le
@@ -674,7 +673,6 @@
     render();
   }
 
-
   // ---- Rendu ----
   // Libellé du bouton d'une ligne : un verbe court, le même à chaque fois pour le même geste.
   function libelleCourtGeste(a) {
@@ -886,7 +884,6 @@
     ouvrirDossierDepuisDashboard(id);
   }
 
-
   function renderNouveautesListe(groupes) {
     if (!groupes.length) return '<p class="jour-vide">Rien de nouveau sur vos dossiers.</p>';
     return `<ul class="jour-fil">${groupes.slice(0, 12).map(g => `
@@ -899,16 +896,6 @@
         </ul>
       </li>`).join('')}</ul>`;
   }
-
-  function libelleDepuisVisite() {
-    const depuis = derniereVisitePrecedente ? new Date(derniereVisitePrecedente) : null;
-    if (!depuis || isNaN(depuis)) return 'Première visite sur ce poste';
-    const q = depuis.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }) + ', ' + depuis.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-    return 'Depuis ' + q;
-  }
-
-  // Signatures : une ligne par rendez-vous, six pastilles courtes (vert = prêt, ambre = manque).
-  var LIBELLES_COURTS_PREPARATION = { 'Offre de prêt': 'Prêt', 'Appel de fonds': 'Appel', 'Fonds confirmés': 'Fonds', 'Projet envoyé': 'Projet', 'RIB demandé': 'RIB' };
 
   // Célébration quand toutes les tâches DU JOUR (les actions, pas les rappels) sont faites — demandé
   // par l'étude. Jouée UNE SEULE FOIS par jour et par poste : render() se relance à chaque action,
@@ -1004,9 +991,6 @@
     planifierAjustementWidgets();
   }
 
-
-
-
   // ---- Fenêtre du matin ----
   // S'ouvre à la première connexion de la journée de ce collaborateur sur ce poste, et se rouvre
   // depuis la carte « Aujourd'hui » du tableau de bord (icône soleil, « voir plus »).
@@ -1024,7 +1008,6 @@
     fenetreAujourdhuiOuverte = false;
     renderFenetreAujourdhui();
   }
-
 
   function ouvrirFenetreAujourdhuiSiPremiereFois() {
     if (!utilisateurPoste) return;

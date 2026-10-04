@@ -8,29 +8,6 @@ const { chargerApplication } = require('./helpers/load-app.js');
 // grille ont été retirées le 24/09/2026 (voir tests/outil2-relecture-claude.test.js). Résultats
 // fabriqués à la main : ces fonctions ne lisent aucun texte, elles mettent en forme un rapport.
 
-function resultatActe(extra) {
-  return Object.assign({
-    mode: 'acte', typeBien: 'copropriete', comparaisonFaite: true, dateAvantContrat: '2026-06-12',
-    nbJustificatifs: 2,
-    constats: [
-      { categorie: 'COMPARAISON_COMPROMIS', gravite: 'CRITIQUE', titre: 'Prix de vente différent',
-        description: 'Prix du compromis : 200 000 € — prix du projet : 210 000 €.' },
-      { categorie: 'ETAT_DATE', gravite: 'IMPORTANT', titre: 'Procédure en cours signalée par le syndic',
-        description: 'Le syndic mentionne une procédure contre le constructeur.', page: 3,
-        destinataire: 'syndic', question: 'La procédure a-t-elle évolué ?' },
-      { categorie: 'URBANISME', gravite: 'A_VERIFIER', titre: 'Emplacement réservé',
-        description: 'Le certificat mentionne un emplacement réservé.' },
-      { categorie: 'ACTE', gravite: 'INFORMATION', titre: 'Simple information' }
-    ],
-    obligations: [{ statut: 'tenue' }, { statut: 'non_tenue' }],
-    etatsDates: [{ type: 'pre-etat-date' }],
-    certificatsUrbanisme: [{}],
-    carnets: [],
-    ags: [],
-    justificatifsReconnus: ['dpe', 'entretienChaudiere']
-  }, extra || {});
-}
-
 
 test('commentaires : portée dossier, portée générale, gravité corrigée', () => {
   const app = chargerApplication();

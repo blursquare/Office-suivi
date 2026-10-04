@@ -17,7 +17,6 @@ function charger() {
   try {
     // require au chemin écrit en toutes lettres (et non fs ni path.join) : c'est ainsi qu'esbuild
     // embarque le JSON dans le .exe — un chemin calculé laisserait l'annuaire vide sans erreur.
-    // eslint-disable-next-line global-require
     donnees = require('./data/annuaire-notaires.json');
   } catch (e) {
     donnees = { source: '', releveLe: '', offices: [] };

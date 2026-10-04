@@ -372,8 +372,6 @@
   function renderLigneRevision(definition, champ) {
     const cle = definition.cle;
     let autresOptions = '';
-    const origine = origineRevision(champ);
-    const marque = origine.icone ? icone(origine.icone) : '<span class="dot"></span>';
     const page = boutonPageRevision(champ && champ.source);
     const verifie = !!(champ && champ.verifie);
     const methode = champ && champ.methode === 'CALCULATED' && champ.calcul

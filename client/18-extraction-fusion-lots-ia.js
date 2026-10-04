@@ -21,7 +21,6 @@
     const sourceIa = (element) => (element && element.extrait)
       ? { extrait: element.extrait, index: element.extraitIndex === undefined ? null : element.extraitIndex, page: element.extraitTrouve ? page(element.extraitIndex) : null }
       : null;
-    const statutIa = (element) => (element && element.extraitTrouve) ? 'CONFIRMED' : 'NEEDS_REVIEW';
 
     // Le modèle local hallucine régulièrement des termes : sa lecture n'écrit JAMAIS d'elle-même
     // dans une donnée. Elle devient une PROPOSITION, affichée dans le panneau de révision avec un

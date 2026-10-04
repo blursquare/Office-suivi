@@ -899,7 +899,6 @@
   function libelleEmailFait(r) { return r && r.mode === 'envoye' ? 'Email envoyé' : 'Email préparé'; }
 
   var MESSAGE_EMAIL_PRET = 'Ouvrez le fichier téléchargé : il s’ouvre dans Outlook, prêt à envoyer. Pour qu’il s’ouvre seul la prochaine fois : clic droit sur le téléchargement › « Toujours ouvrir ce type de fichier ».';
-  var MESSAGE_EMAIL_PRET_AUTO = 'L’email s’ouvre dans Outlook, prêt à envoyer.';
 
   // Message à afficher après une préparation réussie (fenêtre si `discret` est faux, notification
   // sinon). `detail` complète le message (ex. dossier archivé).
@@ -1674,7 +1673,6 @@
     };
   }
 
-
   // discret : appelée depuis « Aujourd'hui », où la ligne se coche d'elle-même — une notification
   // suffit, pas de fenêtre à fermer entre deux actions.
   async function envoyerRelanceCiblee(id, type, discret) {
@@ -1733,19 +1731,6 @@
       <input type="email" id="email-acq-${d.id}" class="input-classif" value="${escapeAttr(d.emailAcquereur || '')}"
         placeholder="Non renseigné" title="Destinataire des emails et du questionnaire."
         onblur="changerEmailAcquereur('${d.id}', this.value)"
-        onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">
-    </div>`;
-  }
-
-  // Email du vendeur (demandé par l'étude le 30/09) : sert au sondage de créneaux de signature.
-  // Masqué quand le vendeur a son propre notaire, sauf s'il a déjà été saisi.
-  function renderEmailVendeurDossier(d) {
-    if (confrereRepresenteVendeur(d) && !d.emailVendeur) return '';
-    return `<div class="classif-champ champ-email-relance">
-      <label for="email-vend-${d.id}">Email du vendeur</label>
-      <input type="email" id="email-vend-${d.id}" class="input-classif" value="${escapeAttr(d.emailVendeur || '')}"
-        placeholder="Non renseigné"
-        onblur="changerEmailVendeur('${d.id}', this.value)"
         onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">
     </div>`;
   }
