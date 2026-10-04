@@ -17,6 +17,7 @@ on:
       - 'package.json'
       - 'package-lock.json'
       - 'eslint.config.js'
+      - 'tsconfig.json'
       - 'scripts/**'
       - 'tests/**'
       - 'manifest.json'
@@ -53,6 +54,11 @@ jobs:
       # Les règles de code (eslint.config.js) : une variable inconnue ou une fonction en double arrête la construction.
       - name: Règles de code
         run: npm run lint
+
+      # Typage progressif (tsconfig.json) : les fichiers marqués `// @ts-check` (commun/, scripts/, modules purs du serveur)
+      # sont vérifiés par TypeScript sans compilation — propriété inexistante, mauvais nombre d'arguments.
+      - name: Vérification des types
+        run: npm run types
 
       # Un exécutable n'est publié que si les deux suites de tests passent : sinon la mise à jour
       # en un clic pourrait installer au bureau une version qui casse une fonction déjà en place.

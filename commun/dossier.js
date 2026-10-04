@@ -1,9 +1,11 @@
+// @ts-check
 'use strict';
 // Dossier : type d’affaire (vente, succession) et libellé affiché « VTE - NOM » / « SUCC - NOM ».
 // Code COMMUN au poste (navigateur, <script> classique chargé avant client/) et au serveur (require) — écrit une fois,
 // jamais en miroir (étude, 04/10). Dans le navigateur, les noms exportés deviennent des globaux (comme les fonctions de
 // client/) ; côté Node, module.exports. Pas de syntaxe réservée à l'un des deux mondes.
-(function (exporter, C) {
+/** @param {object} C — les autres fichiers de commun/ dont celui-ci dépend */
+(function (C) {
   // Nom du dossier tel qu'affiché à l'écran (« VTE - DUPONT / MARTIN »), demandé par l'étude —
   // la même référence que dans l'agenda de l'office. « VTE » distingue les ventes des autres
   // affaires que CLAIRE accueillera (successions) : le préfixe devra alors suivre le type d'affaire —
@@ -29,9 +31,10 @@
     return prefixeTypeAffaire(d) + ' - ' + nom;
   }
 
-  exporter({ PREFIXES_TYPE_AFFAIRE, estSuccession, RE_NOM_DEJA_PREFIXE, prefixeTypeAffaire, libelleDossierAffiche });
+  const exportes = { PREFIXES_TYPE_AFFAIRE, estSuccession, RE_NOM_DEJA_PREFIXE, prefixeTypeAffaire, libelleDossierAffiche };
+  // Node : module.exports ; navigateur : des globaux (noms nus, comme les fonctions de client/).
+  if (typeof module !== 'undefined' && module.exports) module.exports = exportes; else Object.assign(globalThis, exportes);
 })(
-  typeof module !== 'undefined' && module.exports ? (e) => Object.assign(module.exports, e) : (e) => Object.assign(globalThis, e),
   // Les autres fichiers de commun/ dont celui-ci dépend : require côté Node, globaux déjà chargés côté navigateur.
-  typeof module !== 'undefined' && module.exports ? {} : globalThis
+  typeof module !== 'undefined' && module.exports ? {} : /** @type {any} */ (globalThis)
 );

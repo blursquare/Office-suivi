@@ -1,3 +1,4 @@
+// @ts-check
 'use strict';
 
 // Rappels automatiques par email — remplace le DÉCLENCHEMENT AUTOMATIQUE des rappels
@@ -227,8 +228,9 @@ async function executerTacheRappels(depot, db, parametresRepo, envoyerFn, aujour
       .map((l) => `${l.dossier_id}:${l.reminder_key}`)
   );
 
-  const dus = calculerRappelsDus(dossiers, jour, dejaEnvoyes)
-    .concat(alertesFondsDues(dossiers, jour, dejaEnvoyes).map((a) => Object.assign(a, { texte: texteAlerteFonds(a) })));
+  /** @type {Array<Record<string, any>>} */
+  const dus = [].concat(calculerRappelsDus(dossiers, jour, dejaEnvoyes),
+    alertesFondsDues(dossiers, jour, dejaEnvoyes).map((a) => Object.assign(a, { texte: texteAlerteFonds(a) })));
   resultat.rappelsDus = dus.length;
 
   const marquerStmt = db.prepare('INSERT OR IGNORE INTO reminder_log (dossier_id, reminder_key, sent_at) VALUES (?, ?, ?)');

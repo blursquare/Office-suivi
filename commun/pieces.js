@@ -1,9 +1,11 @@
+// @ts-check
 'use strict';
 // Pièces de la checklist d’un dossier de vente (reconnues par le NOM du fichier, motifNom) et checklist par type.
 // Code COMMUN au poste (navigateur, <script> classique chargé avant client/) et au serveur (require) — écrit une fois,
 // jamais en miroir (étude, 04/10). Dans le navigateur, les noms exportés deviennent des globaux (comme les fonctions de
 // client/) ; côté Node, module.exports. Pas de syntaxe réservée à l'un des deux mondes.
-(function (exporter, C) {
+/** @param {typeof import('./dossier')} C — les autres fichiers de commun/ dont celui-ci dépend */
+(function (C) {
   // ---- suivi des pièces du dossier (checklist de constitution, selon le type de vente) ----
   //
   // Listes fournies par l'étude (voir CLAUDE.md, "Checklist de constitution d'un dossier") — deux
@@ -171,9 +173,10 @@
     return [...standard, ...auto, ...perso];
   }
 
-  exporter({ PIECES_URBANISME, PIECES_AUTRES, PIECES_COPROPRIETE, PIECES_TERRAIN_AUTRES, PIECES_ENGAGEMENTS_AUTO, checklistPiecesBase });
+  const exportes = { PIECES_URBANISME, PIECES_AUTRES, PIECES_COPROPRIETE, PIECES_TERRAIN_AUTRES, PIECES_ENGAGEMENTS_AUTO, checklistPiecesBase };
+  // Node : module.exports ; navigateur : des globaux (noms nus, comme les fonctions de client/).
+  if (typeof module !== 'undefined' && module.exports) module.exports = exportes; else Object.assign(globalThis, exportes);
 })(
-  typeof module !== 'undefined' && module.exports ? (e) => Object.assign(module.exports, e) : (e) => Object.assign(globalThis, e),
   // Les autres fichiers de commun/ dont celui-ci dépend : require côté Node, globaux déjà chargés côté navigateur.
-  typeof module !== 'undefined' && module.exports ? Object.assign({}, require('./dossier')) : globalThis
+  typeof module !== 'undefined' && module.exports ? Object.assign({}, require('./dossier')) : /** @type {any} */ (globalThis)
 );

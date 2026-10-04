@@ -1,9 +1,11 @@
+// @ts-check
 'use strict';
 // Dates au format AAAA-MM-JJ : utilitaires de calcul de délais.
 // Code COMMUN au poste (navigateur, <script> classique chargé avant client/) et au serveur (require) — écrit une fois,
 // jamais en miroir (étude, 04/10). Dans le navigateur, les noms exportés deviennent des globaux (comme les fonctions de
 // client/) ; côté Node, module.exports. Pas de syntaxe réservée à l'un des deux mondes.
-(function (exporter, C) {
+/** @param {object} C — les autres fichiers de commun/ dont celui-ci dépend */
+(function (C) {
   function pad(n) { return String(n).padStart(2, '0'); }
 
   function addDays(iso, n) {
@@ -26,9 +28,10 @@
     return `${anneeCible}-${pad(moisCible + 1)}-${pad(Math.min(jour, dernierJour))}`;
   }
 
-  exporter({ pad, addDays, ajouterMois });
+  const exportes = { pad, addDays, ajouterMois };
+  // Node : module.exports ; navigateur : des globaux (noms nus, comme les fonctions de client/).
+  if (typeof module !== 'undefined' && module.exports) module.exports = exportes; else Object.assign(globalThis, exportes);
 })(
-  typeof module !== 'undefined' && module.exports ? (e) => Object.assign(module.exports, e) : (e) => Object.assign(globalThis, e),
   // Les autres fichiers de commun/ dont celui-ci dépend : require côté Node, globaux déjà chargés côté navigateur.
-  typeof module !== 'undefined' && module.exports ? {} : globalThis
+  typeof module !== 'undefined' && module.exports ? {} : /** @type {any} */ (globalThis)
 );

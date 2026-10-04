@@ -1,3 +1,4 @@
+// @ts-check
 'use strict';
 
 // Lecture des réponses EWS par un vrai lecteur XML (fast-xml-parser), à la place des expressions régulières

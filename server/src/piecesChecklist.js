@@ -1,3 +1,4 @@
+// @ts-check
 'use strict';
 
 // La checklist d'un dossier vient du code commun au poste et au serveur (commun/pieces.js, 04/10) : plus de copie à tenir

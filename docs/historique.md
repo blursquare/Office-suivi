@@ -16237,3 +16237,22 @@ workflow, test `structure-client` (manifeste ↔ fichiers ↔ HTML ↔ assets �
 test « jamais cité » élargi à `commun/` et `server/src`. Vérifié : lint 0/0, tests 1 274 + 665, fumée 40 points, paquet
 esbuild du serveur contenant `echeancesPlanning` et `checklistPiecesBase`. Non repris (formes différentes, pas un miroir
 strict) : `syntheseJournalCorrections` / `erreursFrequentesJournal` (même seuil 3 sur 30 jours), `echeanceAgendaSouhaitee`.
+
+### 04/10/2026 11 h 40 — Typage progressif (JSDoc + `// @ts-check`)
+
+`tsconfig.json` (`allowJs`, `checkJs: false`, `noEmit`, `strict: false`, `lib` es2022 + dom, `types` node ;
+`include` = `commun/`, `scripts/`, `server/src/`) : seuls les fichiers qui commencent par `// @ts-check` sont vérifiés, les
+autres servent à l'inférence. Marqués : les cinq fichiers de `commun/`, `scripts/globaux-client.js`,
+`server/src/fusionDossiers.js`, `exchange/xml.js`, `tachesAgenda.js`, `piecesChecklist.js`, `jobs/rappels.js`.
+`npm run types` (typescript 5 + @types/node en devDependencies racine), étape « Vérification des types » du workflow après
+le lint, `npm run verifier` l'inclut.
+
+Pour que TypeScript voie les exports de `commun/`, le pied des fichiers passe de `exporter({…})` (appel dynamique, « File is
+not a module ») à `const exportes = {…}; if (module…) module.exports = exportes; else Object.assign(globalThis, exportes);`
+à l'intérieur de l'IIFE (reconnu par tsc, vérifié sur un essai à part : un `addDays(3)` est refusé) ; la dépendance `C` est
+typée `@param {typeof import('./dates') & typeof import('./dossier')} C`, le `globalThis` du navigateur casté `any`.
+Premier passage : 3 erreurs, toutes dans `rappels.js` — `it.index` absent du type inféré d'`echeancesPlanning` (corrigé par
+le `@typedef Echeance` dans `commun/planning.js`), et le `concat` de deux formes de rappels (annoté
+`Array<Record<string, any>>`). Aucun bug, mais des types désormais explicites là où le poste et le serveur se parlent.
+Vérifié que la construction refuse une erreur réelle (troisième argument à `formaterMontantEuros` → TS2554). Rien ne
+change à l'écran ; fumée 40 points, tests 1 274 + 665, lint 0/0.

@@ -1,9 +1,11 @@
+// @ts-check
 'use strict';
 // Planning d’un dossier : échéances en attente (vente préalable, prêt, SAFER, étape avant signature, personnalisées) — le poste l’affiche, le serveur en tire les rappels et les dates butoir de l’agenda.
 // Code COMMUN au poste (navigateur, <script> classique chargé avant client/) et au serveur (require) — écrit une fois,
 // jamais en miroir (étude, 04/10). Dans le navigateur, les noms exportés deviennent des globaux (comme les fonctions de
 // client/) ; côté Node, module.exports. Pas de syntaxe réservée à l'un des deux mondes.
-(function (exporter, C) {
+/** @param {typeof import('./dates') & typeof import('./dossier')} C — les autres fichiers de commun/ dont celui-ci dépend */
+(function (C) {
   function echeanceValidee(d, type) {
     if (type === 'fixerRdv') return !!d.rendezVousSignature;
     if (type === 'pret') return d.offrePretStatut === 'recue' || !!(d.echeancesValidees && d.echeancesValidees.pret);
@@ -123,7 +125,13 @@
   // Ordre métier du dossier : compromis signé → vente préalable (elle finance l'acquisition) →
   // obtention du prêt → appel de fonds → projet d'acte envoyé → signature. Ne départage que les
   // ex æquo, le tri se faisant par date.
+  /**
+   * Une échéance du planning : `iso` AAAA-MM-JJ (null = étape sans date propre), `index` pour une échéance personnalisée.
+   * @typedef {{ type: string, label: string, iso: (string|null), index?: number }} Echeance
+   */
+  /** @returns {Echeance[]} */
   function echeancesPlanning(d) {
+    /** @type {Echeance[]} */
     const items = [];
     if (C.estSuccession(d)) {
       // Succession : la signature (si placée) et les échéances ajoutées à la main, rien d'autre.
@@ -190,9 +198,10 @@
     return reels;
   }
 
-  exporter({ echeanceValidee, pretLeve, preemptionLevee, DELAIS_SAFER, delaiSafer, echeanceSaferTacite, saferLevee, echeanceSaferDossier, echeancesPlanning });
+  const exportes = { echeanceValidee, pretLeve, preemptionLevee, DELAIS_SAFER, delaiSafer, echeanceSaferTacite, saferLevee, echeanceSaferDossier, echeancesPlanning };
+  // Node : module.exports ; navigateur : des globaux (noms nus, comme les fonctions de client/).
+  if (typeof module !== 'undefined' && module.exports) module.exports = exportes; else Object.assign(globalThis, exportes);
 })(
-  typeof module !== 'undefined' && module.exports ? (e) => Object.assign(module.exports, e) : (e) => Object.assign(globalThis, e),
   // Les autres fichiers de commun/ dont celui-ci dépend : require côté Node, globaux déjà chargés côté navigateur.
-  typeof module !== 'undefined' && module.exports ? Object.assign({}, require('./dates'), require('./dossier')) : globalThis
+  typeof module !== 'undefined' && module.exports ? Object.assign({}, require('./dates'), require('./dossier')) : /** @type {any} */ (globalThis)
 );

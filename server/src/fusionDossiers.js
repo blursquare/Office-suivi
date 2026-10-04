@@ -1,3 +1,4 @@
+// @ts-check
 'use strict';
 
 // Fusion à trois voies d'un dossier (audit du 04/10) : un poste envoie toujours le dossier ENTIER (PUT), construit

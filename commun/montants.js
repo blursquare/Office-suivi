@@ -1,9 +1,11 @@
+// @ts-check
 'use strict';
 // Montants en euros : format « 360.000,00 € » (étude, 29/09) et bilan des fonds reçus (à 50 € près).
 // Code COMMUN au poste (navigateur, <script> classique chargé avant client/) et au serveur (require) — écrit une fois,
 // jamais en miroir (étude, 04/10). Dans le navigateur, les noms exportés deviennent des globaux (comme les fonctions de
 // client/) ; côté Node, module.exports. Pas de syntaxe réservée à l'un des deux mondes.
-(function (exporter, C) {
+/** @param {object} C — les autres fichiers de commun/ dont celui-ci dépend */
+(function (C) {
   // Affichage français ("250 000 €", pas de décimales : un prix notarié est toujours un compte
   // rond en euros dans ce contexte). Intl.NumberFormat plutôt qu'un formatage manuel des milliers.
   // Montants au format demandé par l'étude (29/09) : « 360.000,00 € » — point pour les milliers,
@@ -46,9 +48,10 @@
     return { etat, total: t, attendu, reste: Math.max(0, -ecart), ecart };
   }
 
-  exporter({ formaterMontantEuros, formaterPrix, formaterPrixCentimes, MARGE_FONDS_RECUS, bilanFondsRecus });
+  const exportes = { formaterMontantEuros, formaterPrix, formaterPrixCentimes, MARGE_FONDS_RECUS, bilanFondsRecus };
+  // Node : module.exports ; navigateur : des globaux (noms nus, comme les fonctions de client/).
+  if (typeof module !== 'undefined' && module.exports) module.exports = exportes; else Object.assign(globalThis, exportes);
 })(
-  typeof module !== 'undefined' && module.exports ? (e) => Object.assign(module.exports, e) : (e) => Object.assign(globalThis, e),
   // Les autres fichiers de commun/ dont celui-ci dépend : require côté Node, globaux déjà chargés côté navigateur.
-  typeof module !== 'undefined' && module.exports ? {} : globalThis
+  typeof module !== 'undefined' && module.exports ? {} : /** @type {any} */ (globalThis)
 );

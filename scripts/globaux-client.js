@@ -1,3 +1,4 @@
+// @ts-check
 'use strict';
 
 // Noms déclarés au premier niveau de chaque fichier de client/ (fonctions, classes, var/let/const). Le poste est fait de

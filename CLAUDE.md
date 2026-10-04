@@ -53,7 +53,8 @@ client/NN-sujet.js, client/manifest.json  Le programme du poste, découpé par s
                                      00-version.js = VERSION_APP + HISTORIQUE_VERSIONS ; 01-socle.js = utilitaires, état,
                                      journal technique. index.html, ASSETS_STATIQUES, le .exe et les tests lisent le manifeste
                                      (tests/structure-client.test.js vérifie l'alignement).
-eslint.config.js, .editorconfig      Règles de code (`npm run lint`, 0 erreur exigé par la construction du .exe)
+eslint.config.js, .editorconfig      Règles de code (`npm run lint`, 0 erreur et 0 avertissement exigés par la construction du .exe)
+tsconfig.json                        Typage progressif : `npm run types` vérifie (sans compiler) les fichiers marqués `// @ts-check`
 manifest.json, sw.js, icone.svg      PWA (installabilité) et favicon
 appel-de-fonds-modele.js             Modèle Word du courrier d'appel de fonds + logos (base64)
 questionnaire-satisfaction-pdf.js    PDF du questionnaire de satisfaction (base64)
@@ -774,6 +775,14 @@ Plainte principale de l'étude : **le bruit**, pas les oublis — ne pas élargi
   construite) ; un nom déclaré dans deux fichiers est refusé par `tests/structure-client.test.js`. Un fichier du poste reste **sous 3 000 lignes**
   (test) : un nouveau sujet = un nouveau fichier `client/NN-sujet.js` ; un code qui touche un sujet va dans le fichier de ce
   sujet. Pas de `script.js` : il n'existe plus.
+- **Typage progressif** (04/10, `tsconfig.json`, `npm run types`, lancé par la construction du `.exe`) : TypeScript vérifie
+  sans compiler les fichiers qui commencent par `// @ts-check` — tout `commun/`, `scripts/`, et côté serveur `fusionDossiers`,
+  `exchange/xml`, `tachesAgenda`, `piecesChecklist`, `jobs/rappels`. Il attrape une propriété inexistante, un mauvais nombre
+  d'arguments, un export absent (vérifié : un troisième argument à `formaterMontantEuros` est refusé). Les types viennent de
+  l'inférence et de JSDoc (`@param`, `@returns`, `@typedef` — ex. `Echeance` dans `commun/planning.js`) ; `strict` est coupé.
+  **Tout nouveau fichier pur** (commun, serveur sans Express ni DOM) commence par `// @ts-check` ; un fichier existant y passe
+  quand on le retouche, en corrigeant ce que tsc relève — jamais par `// @ts-ignore`. Les fichiers de `client/` ne sont pas
+  vérifiés (globaux partagés entre 44 fichiers, hors de portée de tsc sans déclarations).
 - **Toute nouvelle fonction pure** : la déclarer `function` (ou `var` pour une table) pour la
   tester ; les fonctions qui touchent `dossiers`/le DOM se vérifient dans un vrai Chromium
   (Playwright, `/opt/pw-browsers/chromium`) avec un serveur réel et des dossiers inventés.
@@ -784,6 +793,7 @@ Plainte principale de l'étude : **le bruit**, pas les oublis — ne pas élargi
 ## Comment tester
 
 - `npm test` à la racine (client, `node:test`, aucune dépendance) et `cd server && npm test`.
+- **`npm run types`** (04/10) : vérification de types des fichiers `// @ts-check` (voir « Typage progressif »), 0 erreur exigé.
 - **`npm run fumee`** (04/10, `tests/fumee/fumee.mjs`, Playwright + Chromium, ≈ 15 s) : la page servie par le vrai serveur
   (base en mémoire, quatre dossiers inventés dont un abîmé, une succession, un archivé), CDN coupés, bureau et téléphone :
   tableau de bord, chaque écran de la barre latérale, une fiche de chaque sorte et ses onglets — **aucune erreur de page ni de

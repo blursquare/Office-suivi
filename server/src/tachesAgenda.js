@@ -1,3 +1,4 @@
+// @ts-check
 'use strict';
 
 // Tâches posées dans l'agenda de l'office (étude, 04/10 : « les rendez-vous en rouge avec des initiales de
