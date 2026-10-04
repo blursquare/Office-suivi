@@ -38,8 +38,20 @@ test('synchroniserTachesAgenda : création, mise à jour, retrait, cochée gard�
   r = synchroniserTachesAgenda(r, [{ ...e1, sujet: 'JV - Relancer le syndic (2e)', date: '2026-10-08' }], debut);
   assert.equal(r.find(x => x.agendaItemId).texte, 'Relancer le syndic (2e)');
   assert.equal(r.find(x => x.agendaItemId).echeance, '2026-10-08');
-  // Rendez-vous disparu, tâche non cochée : retirée. Les rappels ordinaires restent.
-  assert.equal(synchroniserTachesAgenda(r, [], debut).map(x => x.id).join(','), 'rp-1');
+  // Rendez-vous supprimé de l'agenda, tâche non cochée : cochée (faite à l'heure du tour), jamais retirée de l'agenda
+  // par le poste ensuite. Les rappels ordinaires restent tels quels.
+  const supprime = synchroniserTachesAgenda(r, [], debut, '2026-10-04T10:00:00Z');
+  assert.equal(supprime.length, 2);
+  const faite = supprime.find(x => x.agendaItemId);
+  assert.equal(faite.fait, true);
+  assert.equal(faite.faitLe, '2026-10-04T10:00:00Z');
+  assert.equal(faite.agendaSupprimeLe, '2026-10-04T10:00:00Z');
+  assert.equal(assainirRappelPerso(faite).fait, true, 'passe le contrôle du serveur');
+  assert.equal(supprime.find(x => x.id === 'rp-1').fait, false);
+  assert.equal(synchroniserTachesAgenda(supprime, [], debut).find(x => x.agendaItemId).faitLe, '2026-10-04T10:00:00Z', 'plus touchée ensuite');
+  // Rendez-vous encore là mais plus une tâche (plus rouge) : retirée.
+  assert.equal(synchroniserTachesAgenda(r, [{ ...e1, categories: ['Bleu'] }], debut).map(x => x.id).join(','), 'rp-1');
+  assert.equal(synchroniserTachesAgenda(r, [{ ...e1, sujet: 'Relancer le syndic' }], debut).map(x => x.id).join(','), 'rp-1');
   // Cochée : gardée telle quelle, même relue ou disparue.
   const coche = r.map(x => x.agendaItemId ? { ...x, fait: true, faitLe: '2026-10-04T09:00:00Z' } : x);
   assert.equal(synchroniserTachesAgenda(coche, [], debut).length, 2);

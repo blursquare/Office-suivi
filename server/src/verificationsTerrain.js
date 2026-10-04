@@ -22,6 +22,8 @@ const CLE_VERIFICATIONS = 'verifications-terrain';
 const VERIFICATIONS_TERRAIN = [
   { id: 'lecture-xml-exchange', depuis: '0.144.1', source: 'serveur', titre: 'Réponses d’Exchange lues par le nouveau lecteur XML (agenda de l’office)',
     comment: 'Coché au premier tour de lecture de l’agenda qui rend des rendez-vous après le passage à fast-xml-parser ; si l’agenda reste vide alors qu’Outlook en montre, c’est la lecture à examiner.' },
+  { id: 'tache-agenda-supprimee-cochee', depuis: '0.144.11', source: 'serveur', titre: 'Rendez-vous rouge « JV - … » supprimé dans Outlook : tâche cochée dans CLAIRE',
+    comment: 'Coché au premier tour de lecture de l’agenda qui coche une tâche dont le rendez-vous a été supprimé ; vérifier dans « Mes rappels » du collaborateur qu’elle est bien cochée, pas retirée.' },
   { id: 'tache-agenda-retiree', depuis: '0.144.0', source: 'poste', titre: 'Tâche de l’agenda cochée : rendez-vous rouge « JV - … » retiré de l’agenda de l’office',
     comment: 'Coché quand le premier rendez-vous-tâche est retiré de l’agenda après avoir été coché dans CLAIRE ; en échec si Exchange refuse la suppression.' },
   { id: 'email-envoye-exchange', depuis: '0.140.0', source: 'serveur', titre: 'Email envoyé depuis CLAIRE par Exchange (brouillon puis envoi)',

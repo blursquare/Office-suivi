@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.144.10';
+  const VERSION_APP = '0.144.11';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.144.11', date: '2026-10-04 16:28', resume: "Tâches dans l'agenda : un rendez-vous rouge « JV - … » supprimé dans Outlook coche la tâche dans CLAIRE (faite à l'heure où l'agenda est relu, au plus 2 minutes après) au lieu de la faire disparaître. Un rendez-vous qui n'est plus rouge, ou dont les initiales sont retirées, n'est plus une tâche : il quitte la liste comme avant." },
     { version: '0.144.10', date: '2026-10-04 16:20', resume: "Numéros de version qui ont un sens : le deuxième chiffre monte à chaque nouveauté (geste, écran, information ou règle que CLAIRE n'avait pas), le troisième à chaque correction ou ajustement ; le premier passera à 1 quand la bêta sera déclarée terminée. Tout l'historique est renuméroté ainsi : 144 nouveautés depuis le 22/09." },
     { version: '0.144.9', date: '2026-10-04 15:39', resume: "Numéros de version : chaque mise à jour porte maintenant un numéro au lieu d'une date et d'une heure. « À propos » affiche le numéro, avec la date en petit, et l'historique indique pour chaque version le jour et l'heure." },
     { version: '0.144.8', date: '2026-10-04 11:52', resume: "Nettoyage : tout le code que plus rien n'appelle est retiré — l'extraction par l'IA locale à la création d'un dossier (désactivée depuis le 02/10 à la demande de l'étude : la route serveur, ses modules, le bouton « Redemander à l'IA » et l'état « Analyse en cours » qui restaient en place), la création d'un brouillon Outlook par l'ancienne voie, la recherche de l'annuaire côté serveur (le poste cherche en mémoire), et 23 fonctions du poste que seuls des tests appelaient encore. 2 500 lignes de moins ; rien ne change à l'écran. Une vérification de types et un test de fumée dans un vrai navigateur accompagnent désormais chaque construction." },

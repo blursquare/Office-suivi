@@ -16316,3 +16316,13 @@ Scans à ranger, page Agenda, sondage de créneaux, 3CX, extension Authentic, em
 l'agenda) — 0.1.0 le 22/09 à 12 h 20, 0.144.9 pour la version de 15 h 39. `depuis` des 31 points de `VERIFICATIONS_TERRAIN`
 reportés par la même table. `scripts/prochaine-version.js` prend désormais le type (`nouveaute` ou `correction`, refus sinon) ;
 le test `structure-client` exige que chaque numéro soit le successeur exact du précédent par date.
+
+### 04/10/2026 16 h 28 — Tâche supprimée de l'agenda = tâche cochée (0.144.11)
+
+Étude : « Si une tâche est supprimée de l'agenda, cocher la tâche dans CLAIRE. » Avant, un rendez-vous rouge « JV - … » disparu
+retirait la tâche des rappels. `synchroniserTachesAgenda` distingue maintenant : rendez-vous absent de la lecture (supprimé dans
+Outlook) → tâche cochée, `faitLe` = heure du tour, `agendaSupprimeLe` posé (le poste ne tente pas de retirer un rendez-vous qui
+n'existe plus ; libellé « Retirée de l'agenda ») ; rendez-vous encore lu mais plus rouge ou sans initiales → retirée comme avant.
+Sans risque de cocher en masse sur une lecture partielle : `lireCalendrierExchange` rend `ok: false` dès qu'une tranche échoue ou
+est tronquée, et le tour n'applique rien. Limite : un rendez-vous déplacé au-delà des 6 mois lus serait pris pour supprimé.
+Point terrain `tache-agenda-supprimee-cochee` (serveur, noté au premier tour qui coche une tâche). Non vérifié avec Exchange.

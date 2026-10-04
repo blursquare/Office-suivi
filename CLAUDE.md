@@ -580,8 +580,9 @@ dans `index.html`** (le test `structure-client` refuse tout décalage).
   titre **commence** par les initiales en capitales d'un collaborateur (`COLLABORATEURS_ABSENCE` : BA, JV, JS ; « JV - … »,
   « JV: … », « JV … ») = tâche de ce collaborateur — recopiée à chaque tour de lecture de l'agenda dans ses rappels
   (`synchroniserTachesAgenda`, clé `rappels-perso`, `agendaItemId`/`agendaChangeKey`, id `ag-…`) : « Aujourd'hui » et « Mes
-  rappels », « Tâche de l'agenda », ni crayon ni croix ; déplacée/renommée dans Outlook → suivie ; disparue (supprimée, plus
-  rouge) et non cochée → retirée, jamais une tâche plus ancienne que la fenêtre lue. **Cochée → rendez-vous retiré de l'agenda
+  rappels », « Tâche de l'agenda », ni crayon ni croix ; déplacée/renommée dans Outlook → suivie ; **supprimée de l'agenda et
+  non cochée → cochée** (étude 04/10 : faite à l'heure du tour, `agendaSupprimeLe` posé, point `tache-agenda-supprimee-cochee`) ;
+  encore là mais plus rouge ou sans initiales → retirée ; jamais une tâche plus ancienne que la fenêtre lue. **Cochée → rendez-vous retiré de l'agenda
   aussitôt, sans confirmation** (choix de l'étude ; `retirerTacheDeLAgenda`, `POST /exchange/evenement/supprimer`,
   MoveToDeletedItems, un seul essai, `agendaSupprimeLe` ; décochée ensuite, elle reste un rappel). Point terrain
   `tache-agenda-retiree`.

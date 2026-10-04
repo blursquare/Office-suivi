@@ -42,13 +42,19 @@ function idTacheAgenda(itemId) {
 }
 
 // Pure : les rappels après un tour de lecture. `debut` = premier jour lu (AAAA-MM-JJ) : une tâche plus ancienne
-// que la fenêtre lue n'est jamais retirée faute d'avoir été relue. Tâche cochée : plus touchée. Tâche non cochée
-// dont le rendez-vous a disparu de l'agenda (supprimé, plus rouge, initiales retirées) : retirée — sauf si CLAIRE
-// l'a déjà retiré de l'agenda (`agendaSupprimeLe`, tâche décochée ensuite : elle reste, comme un rappel ordinaire).
+// que la fenêtre lue n'est jamais touchée faute d'avoir été relue. Tâche cochée : plus touchée. Tâche non cochée :
+// - rendez-vous SUPPRIMÉ de l'agenda (absent de la lecture) → cochée, faite à l'heure du tour (étude, 04/10 : « si une
+//   tâche est supprimée de l'agenda, cocher la tâche dans CLAIRE ») ; `agendaSupprimeLe` posé pour que le poste ne
+//   tente pas de retirer un rendez-vous qui n'existe plus ;
+// - rendez-vous encore là mais qui n'est plus une tâche (plus rouge, initiales retirées) → retirée ;
+// - déjà retirée de l'agenda par CLAIRE puis décochée (`agendaSupprimeLe`) → reste, comme un rappel ordinaire.
+// La lecture n'arrive ici que complète (une tranche en échec = tour sans effet, lireCalendrierExchange).
 function synchroniserTachesAgenda(rappels, evenements, debut, maintenantIso) {
   const maintenant = maintenantIso || new Date().toISOString();
   const taches = new Map();
+  const presents = new Set();
   for (const evt of evenements || []) {
+    if (evt && evt.itemId) presents.add(String(evt.itemId));
     const t = tacheDepuisEvenement(evt);
     if (t) taches.set(t.itemId, t);
   }
@@ -64,6 +70,7 @@ function synchroniserTachesAgenda(rappels, evenements, debut, maintenantIso) {
     }
     const horsFenetre = debut && r.echeance && r.echeance < debut;
     if (r.fait || r.agendaSupprimeLe || horsFenetre) resultat.push(r);
+    else if (!presents.has(r.agendaItemId)) resultat.push({ ...r, fait: true, faitLe: maintenant, agendaSupprimeLe: maintenant });
   }
   for (const t of taches.values()) {
     if (vus.has(t.itemId)) continue;

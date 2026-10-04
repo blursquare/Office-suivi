@@ -350,6 +350,9 @@ async function executerEtEnregistrerTourAgenda(depot, parametresRepo, injections
       const avant = parametresRepo.lireRappelsPerso();
       const apres = synchroniserTachesAgenda(avant, resultat.agendaOffice.evenements, resultat.agendaOffice.debut);
       if (JSON.stringify(apres) !== JSON.stringify(avant)) parametresRepo.ecrireRappelsPerso(apres);
+      const dejaFaites = new Set(avant.filter((r) => r && r.fait).map((r) => r.id));
+      const cochees = apres.filter((r) => r && r.agendaItemId && r.fait && r.agendaSupprimeLe && !dejaFaites.has(r.id)).length;
+      if (cochees) noterVerification(parametresRepo, 'tache-agenda-supprimee-cochee', { detail: cochees + ' tâche(s) cochée(s)' });
     } catch (e) {
       console.warn('Tâches de l’agenda non relevées :', e.message);
     }
