@@ -44,3 +44,11 @@ test('version : VERSION_APP dans 00-version.js, à l’heure de Paris', () => {
   assert.ok(m, 'VERSION_APP lisible');
   assert.match(src, new RegExp(`version: '${m[1]}'`), 'HISTORIQUE_VERSIONS commence par la version courante');
 });
+
+test('aucun nom de premier niveau déclaré dans deux fichiers du poste', () => {
+  // Deux fichiers qui déclarent la même fonction : le second l'emporte en silence (scripts classiques), ESLint ne le voit
+  // plus depuis le découpage. C'est ce test qui tient lieu de no-redeclare entre fichiers.
+  const { declarationsClient } = require('../scripts/globaux-client');
+  const doublons = [...declarationsClient()].filter(([, fichiers]) => fichiers.length > 1);
+  assert.equal(doublons.map(([nom, fichiers]) => nom + ' : ' + fichiers.join(', ')).join('\n'), '');
+});

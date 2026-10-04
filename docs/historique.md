@@ -16152,3 +16152,18 @@ change-t-il ce que le bouton de la fiche envoie ? Réponse : « Oui, le bouton s
 - **Serveur** : `parametresRepo.js` (1 334 lignes) → assainisseurs purs dans `parametres/assainir.js` (889 lignes), dépôt
   seul dans `parametresRepo.js` (465), exports publics inchangés.
 - Suites : 1 270 tests poste, 665 serveur, lint 0 erreur. Rien ne change à l'écran.
+
+### 04/10/2026 11 h 08 — Construction du .exe cassée par le lint après le découpage
+
+La version 10:36 n'a jamais été construite : `npm run lint` dans le workflow rendait 5 882 erreurs `no-undef` sur les
+fichiers de `client/`. Cause : ESLint lit un fichier à la fois ; après le découpage de `script.js` en 44 fichiers, toute
+fonction déclarée dans un fichier (`escapeHtml`, `icone`, `afficherToast`…) est « inconnue » dans les 43 autres. Le lint
+local avait été lancé avant le découpage, pas après — la leçon : relancer `npm run verifier` en dernier, après la toute
+dernière modification, et regarder l'état de la construction GitHub après le push.
+
+Correction : `scripts/globaux-client.js` relève par espree (déjà présent avec ESLint, ajouté en devDependency) les
+déclarations de premier niveau des fichiers du manifeste — 3 065 noms — et `eslint.config.js` les donne en globaux
+« writable » aux fichiers de `client/` ; `no-redeclare` passe en `builtinGlobals: false` (sinon chaque déclaration
+redéclarerait son propre global). Comme ESLint ne voit plus un même nom déclaré dans deux fichiers, le test
+`structure-client` le refuse à sa place (aucun doublon aujourd'hui). Lint : 0 erreur, 822 avertissements (variables
+inutilisées), tests 1 271 + 665.

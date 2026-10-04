@@ -4,11 +4,15 @@
 // pas le style. Les règles de style restent celles du fichier voisin.
 const js = require('@eslint/js');
 const globals = require('globals');
+// Les fichiers de client/ partagent leur portée (scripts classiques) : les noms déclarés dans l'un sont des globaux pour
+// les autres — relevés à chaque lint (scripts/globaux-client.js), jamais une liste écrite à la main.
+const { globauxClient } = require('./scripts/globaux-client');
 
 const GLOBAUX_CLIENT = {
   ...globals.browser,
   pdfjsLib: 'readonly', Tesseract: 'readonly', docxtemplater: 'readonly', PizZip: 'readonly', docx: 'readonly',
-  QUESTIONNAIRE_SATISFACTION_PDF_BASE64: 'readonly', APPEL_DE_FONDS_MODELE_BASE64: 'readonly'
+  QUESTIONNAIRE_SATISFACTION_PDF_BASE64: 'readonly', APPEL_DE_FONDS_MODELE_BASE64: 'readonly',
+  ...globauxClient()
 };
 
 module.exports = [
@@ -37,6 +41,9 @@ module.exports = [
       'no-misleading-character-class': 'off',
       'no-inner-declarations': 'off',
       'no-cond-assign': ['error', 'except-parens'],
+      // Les globaux du poste sont ses propres déclarations : les redéclarer dans leur fichier d'origine est normal. Le
+      // doublon entre deux fichiers est refusé par tests/structure-client.test.js.
+      'no-redeclare': ['error', { builtinGlobals: false }],
       // Les textes français portent des espaces insécables (« » : ») dans les gabarits et les regex : voulus.
       'no-irregular-whitespace': ['error', { skipStrings: true, skipTemplates: true, skipRegExps: true, skipComments: true }],
       // `let x = ''; try { x = … } catch { x = '' }` : lisible, pas une erreur.

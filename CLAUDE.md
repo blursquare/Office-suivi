@@ -754,7 +754,10 @@ Plainte principale de l'étude : **le bruit**, pas les oublis — ne pas élargi
 - **Règles de code** (étude, 04/10) : `npm run lint` à la racine (ESLint, `eslint.config.js` : erreurs réelles seulement —
   variable inconnue, fonction ou clé en double, code inatteignable ; style laissé au fichier voisin) doit rendre **0 erreur**
   (la construction du `.exe` s'arrête sinon) ; les avertissements (variables inutilisées) se réduisent au fil de l'eau, jamais
-  par un `eslint-disable` global. `npm run verifier` = lint + les deux suites. Un fichier du poste reste **sous 3 000 lignes**
+  par un `eslint-disable` global. `npm run verifier` = lint + les deux suites. **Les fichiers de `client/` partagent leur portée** :
+  leurs déclarations de premier niveau sont relevées à chaque lint par `scripts/globaux-client.js` (espree) et données à ESLint en
+  globaux — sans cela, 5 882 `no-undef` et la construction du `.exe` s'arrête (payé le 04/10 à 10 h 36 : version jamais
+  construite) ; un nom déclaré dans deux fichiers est refusé par `tests/structure-client.test.js`. Un fichier du poste reste **sous 3 000 lignes**
   (test) : un nouveau sujet = un nouveau fichier `client/NN-sujet.js` ; un code qui touche un sujet va dans le fichier de ce
   sujet. Pas de `script.js` : il n'existe plus.
 - **Toute nouvelle fonction pure** : la déclarer `function` (ou `var` pour une table) pour la
