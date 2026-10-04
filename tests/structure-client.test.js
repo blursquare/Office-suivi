@@ -77,7 +77,7 @@ test('le workflow de construction du .exe se déclenche sur client/ (et plus sur
   // 04/10 : le filtre de chemins listait encore script.js — un correctif ne touchant que client/ ne reconstruisait rien.
   const wf = fs.readFileSync(path.join(racine, '.github', 'workflows', 'build-exe.yml'), 'utf8');
   const chemins = [...wf.matchAll(/^\s+- '([^']+)'$/gm)].map(m => m[1]);
-  for (const c of ['client/**', 'commun/**', 'index.html', 'style.css', 'server/**', 'tests/**', 'eslint.config.js', 'package.json', 'scripts/**']) {
+  for (const c of ['client/**', 'commun/**', 'vendor/**', 'index.html', 'style.css', 'server/**', 'tests/**', 'eslint.config.js', 'package.json', 'scripts/**']) {
     assert.ok(chemins.includes(c), `${c} absent du filtre de chemins du workflow`);
   }
   assert.ok(!chemins.includes('script.js'));

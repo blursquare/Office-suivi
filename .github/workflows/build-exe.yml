@@ -14,6 +14,7 @@ on:
       - 'style.css'
       - 'client/**'
       - 'commun/**'
+      - 'vendor/**'
       - 'package.json'
       - 'package-lock.json'
       - 'eslint.config.js'
