@@ -1,18 +1,19 @@
 // @ts-check
 'use strict';
 
-// Donne le numéro de version suivant (0.J.N) et l'heure de Paris, à recopier dans client/00-version.js (VERSION_APP et
-// première entrée de HISTORIQUE_VERSIONS : `version` et `date`). Même jour que la dernière entrée : N + 1 ; nouveau jour :
-// J + 1 et N = 1. Usage : node scripts/prochaine-version.js
+// Donne le numéro de version suivant (MAJEUR.MINEUR.CORRECTIF) et l'heure de Paris, à recopier dans client/00-version.js
+// (VERSION_APP et première entrée de HISTORIQUE_VERSIONS : `version` et `date`). Nouveauté visible par l'étude : MINEUR + 1,
+// CORRECTIF = 0 ; correction : CORRECTIF + 1. Le MAJEUR passe à 1 le jour où l'étude déclare la bêta terminée (à la main).
+// Usage : node scripts/prochaine-version.js nouveaute|correction
 const fs = require('node:fs');
 const path = require('node:path');
 
-function prochaineVersion(source, maintenantParis) {
-  const m = /^\s+\{ version: '(\d+)\.(\d+)\.(\d+)', date: '(\d{4}-\d{2}-\d{2}) \d{2}:\d{2}'/m.exec(source);
+function prochaineVersion(source, type) {
+  const m = /^\s+\{ version: '(\d+)\.(\d+)\.(\d+)', date: '\d{4}-\d{2}-\d{2} \d{2}:\d{2}'/m.exec(source);
   if (!m) throw new Error('première entrée de HISTORIQUE_VERSIONS illisible');
-  const jour = Number(m[2]); const n = Number(m[3]);
-  const meme = m[4] === maintenantParis.slice(0, 10);
-  return `${m[1]}.${meme ? jour : jour + 1}.${meme ? n + 1 : 1}`;
+  if (type === 'nouveaute') return `${m[1]}.${Number(m[2]) + 1}.0`;
+  if (type === 'correction') return `${m[1]}.${m[2]}.${Number(m[3]) + 1}`;
+  throw new Error('type attendu : nouveaute ou correction');
 }
 
 function heureParis(date = new Date()) {
@@ -23,8 +24,14 @@ function heureParis(date = new Date()) {
 
 if (require.main === module) {
   const source = fs.readFileSync(path.join(__dirname, '..', 'client', '00-version.js'), 'utf8');
-  const maintenant = heureParis();
-  console.log(`version: ${prochaineVersion(source, maintenant)}\ndate:    ${maintenant}`);
+  const type = process.argv[2];
+  if (type !== 'nouveaute' && type !== 'correction') {
+    console.error('Usage : node scripts/prochaine-version.js nouveaute|correction\n'
+      + '  nouveaute  = geste, écran, information ou règle métier que l’étude n’avait pas\n'
+      + '  correction = correction, ajustement, présentation, libellé, lecture améliorée, code interne');
+    process.exit(1);
+  }
+  console.log(`version: ${prochaineVersion(source, type)}\ndate:    ${heureParis()}`);
 }
 
 module.exports = { prochaineVersion, heureParis };

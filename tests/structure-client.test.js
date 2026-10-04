@@ -38,27 +38,31 @@ test('serveur et .exe : chaque fichier du manifeste est servi et embarqué', () 
   assert.match(build, /client', 'manifest\.json'/, 'les assets du .exe lisent le manifeste');
 });
 
-test('version : numéro 0.J.N dans 00-version.js, unique, croissant avec la date', () => {
+test('version : numéro MAJEUR.MINEUR.CORRECTIF dans 00-version.js, unique, croissant avec la date', () => {
   const src = fs.readFileSync(path.join(racine, 'client', '00-version.js'), 'utf8');
   const m = src.match(/const VERSION_APP = '(\d+\.\d+\.\d+)'/);
-  assert.ok(m, 'VERSION_APP lisible (0.J.N)');
+  assert.ok(m, 'VERSION_APP lisible (MAJEUR.MINEUR.CORRECTIF)');
   const entrees = [...src.matchAll(/^\s+\{ version: '(\d+)\.(\d+)\.(\d+)', date: '(\d{4}-\d{2}-\d{2} \d{2}:\d{2})', /gm)]
     .map(x => ({ v: x.slice(1, 4).map(Number), numero: x.slice(1, 4).join('.'), date: x[4] }));
-  assert.equal((src.match(/\{ version: '/g) || []).length, entrees.length, 'chaque entrée a un numéro 0.J.N et une date');
+  assert.equal((src.match(/\{ version: '/g) || []).length, entrees.length, 'chaque entrée a un numéro et une date');
   assert.equal(entrees[0].numero, m[1], 'HISTORIQUE_VERSIONS commence par la version courante');
   assert.equal(new Set(entrees.map(e => e.numero)).size, entrees.length, 'numéros uniques');
   const parDate = [...entrees].sort((x, y) => x.date.localeCompare(y.date));
   for (let i = 1; i < parDate.length; i++) {
     const [a, b] = [parDate[i - 1].v, parDate[i].v];
-    assert.ok(b[1] > a[1] || (b[1] === a[1] && b[2] > a[2]), `${parDate[i].numero} (${parDate[i].date}) doit suivre ${parDate[i - 1].numero}`);
+    const suivant = (b[0] === a[0] && b[1] === a[1] && b[2] === a[2] + 1) // correction
+      || (b[0] === a[0] && b[1] === a[1] + 1 && b[2] === 0) // nouveauté
+      || (b[0] === a[0] + 1 && b[1] === 0 && b[2] === 0); // fin de bêta, puis versions majeures
+    assert.ok(suivant, `${parDate[i].numero} (${parDate[i].date}) doit suivre ${parDate[i - 1].numero} (CORRECTIF + 1, ou MINEUR + 1 et CORRECTIF 0)`);
   }
 });
 
-test('prochaine-version : même jour → N + 1, nouveau jour → J + 1', () => {
+test('prochaine-version : correction → CORRECTIF + 1, nouveauté → MINEUR + 1 et CORRECTIF 0', () => {
   const { prochaineVersion } = require('../scripts/prochaine-version');
-  const src = "  const HISTORIQUE_VERSIONS = [\n    { version: '0.13.10', date: '2026-10-04 15:39', resume: \"x\" },\n";
-  assert.equal(prochaineVersion(src, '2026-10-04 18:00'), '0.13.11');
-  assert.equal(prochaineVersion(src, '2026-10-05 08:00'), '0.14.1');
+  const src = "  const HISTORIQUE_VERSIONS = [\n    { version: '0.144.9', date: '2026-10-04 15:39', resume: \"x\" },\n";
+  assert.equal(prochaineVersion(src, 'correction'), '0.144.10');
+  assert.equal(prochaineVersion(src, 'nouveaute'), '0.145.0');
+  assert.throws(() => prochaineVersion(src, ''));
 });
 
 test('aucun nom de premier niveau déclaré dans deux fichiers du poste', () => {

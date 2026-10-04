@@ -16304,3 +16304,15 @@ numéro de build de la release GitHub (`serveur-exe-N`), `surveillerVersionServe
 journal technique gardent la version telle quelle (les anciens gardent leur date). Test de fumée : « À propos » affiche numéro,
 date et toutes les versions.
 
+
+### 04/10/2026 16 h 20 — Numéros de version qui ont un sens (0.144.10)
+
+Question de l'étude : « Comment tu choisis le versionning ? » — le 0.J.N de 15 h 39 ne disait que le jour et le rang dans le
+jour. Proposé puis accepté (« Va y ») : MAJEUR.MINEUR.CORRECTIF. MINEUR + 1 (CORRECTIF à 0) pour une nouveauté visible par
+l'étude (geste, écran, information, règle métier que CLAIRE n'avait pas) ; CORRECTIF + 1 pour le reste (correction, ajustement
+d'un geste existant, présentation, libellé, lecture améliorée, renommage, code interne) ; MAJEUR à 0 pendant la bêta, 1 quand
+l'étude la déclare terminée. Les 399 versions ont été classées une à une d'après leur note : 144 nouveautés (ex. Fonds reçus,
+Scans à ranger, page Agenda, sondage de créneaux, 3CX, extension Authentic, emails des dossiers, modèles d'emails, tâches de
+l'agenda) — 0.1.0 le 22/09 à 12 h 20, 0.144.9 pour la version de 15 h 39. `depuis` des 31 points de `VERIFICATIONS_TERRAIN`
+reportés par la même table. `scripts/prochaine-version.js` prend désormais le type (`nouveaute` ou `correction`, refus sinon) ;
+le test `structure-client` exige que chaque numéro soit le successeur exact du précédent par date.

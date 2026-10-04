@@ -682,13 +682,17 @@ Plainte principale de l'étude : **le bruit**, pas les oublis — ne pas élargi
   coche seul au bureau (ou « C'est bon » dans Réglages › Mise à jour et sauvegarde pour ce qui se voit à l'œil) ; le rapport
   technique en donne l'état (section « Vérifications sur le terrain », échecs dans « À examiner ») : **le lire avant de déclarer
   vérifié un point de « Non vérifié au bureau »**.
-- **Versionnage** (numéros depuis le 04/10 — étude : « plutôt les numéros de version ») : `VERSION_APP` est un numéro **`0.J.N`**
-  (bêta ; J = rang du jour de travail, N = rang de la mise à jour dans le jour). À chaque commit qui change le comportement :
-  `node scripts/prochaine-version.js` donne le numéro suivant et l'heure de Paris (jamais `date` seul : l'environnement est en
-  UTC), puis mettre à jour `VERSION_APP` **et** ajouter une entrée en tête de `HISTORIQUE_VERSIONS` (`client/00-version.js`) :
-  `{ version: '0.J.N', date: 'AAAA-MM-JJ HH:MM', resume: "…" }`. « À propos » affiche le numéro avec la date en petit ;
-  `depuis` des points de `VERIFICATIONS_TERRAIN` = ce numéro (tri chiffre par chiffre, `comparerVersions`). Le test `structure-client`
-  vérifie numéros uniques et croissants avec la date. La mise à jour automatique n'en dépend pas (elle compare le numéro de
+- **Versionnage** (numéros depuis le 04/10 — étude : « plutôt les numéros de version ») : `VERSION_APP` = **`MAJEUR.MINEUR.CORRECTIF`**.
+  **MINEUR + 1 (CORRECTIF à 0) pour une nouveauté visible par l'étude** — un geste, un écran, une information ou une règle métier
+  que CLAIRE n'avait pas ; **CORRECTIF + 1 pour tout le reste** — correction, ajustement d'un geste existant, présentation,
+  libellé, lecture améliorée, renommage, code interne. **MAJEUR reste 0 pendant la bêta**, passe à 1 le jour où l'étude la déclare
+  terminée (à la main, jamais par l'outil). Historique renuméroté selon cette règle le 04/10 (144 nouveautés du 22/09 au 04/10).
+  À chaque commit qui change le comportement : `node scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et
+  l'heure de Paris (jamais `date` seul : l'environnement est en UTC), puis mettre à jour `VERSION_APP` **et** ajouter une entrée
+  en tête de `HISTORIQUE_VERSIONS` (`client/00-version.js`) : `{ version: '0.M.C', date: 'AAAA-MM-JJ HH:MM', resume: "…" }`.
+  « À propos » affiche le numéro avec la date en petit ; `depuis` des points de `VERIFICATIONS_TERRAIN` = ce numéro (tri chiffre
+  par chiffre, `comparerVersions`). Le test `structure-client` vérifie numéros uniques, chacun successeur exact du précédent par
+  date (CORRECTIF + 1, ou MINEUR + 1 et CORRECTIF 0). La mise à jour automatique n'en dépend pas (elle compare le numéro de
   build de la release GitHub).
 - **Poser les questions de cadrage** (`AskUserQuestion`) quand une demande admet plusieurs
   lectures, surtout en droit notarial ou quand l'action écrit dans un agenda/une boîte partagés.

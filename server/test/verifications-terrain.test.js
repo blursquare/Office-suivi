@@ -21,7 +21,7 @@ test('catalogue : identifiants uniques, sources connues, version et titre rensei
   assert.equal(new Set(ids).size, ids.length);
   for (const v of VERIFICATIONS_TERRAIN) {
     assert.ok(['serveur', 'poste', 'manuel'].includes(v.source), v.id);
-    assert.match(v.depuis, /^\d+\.\d+\.\d+$/, v.id + ' : numéro de version 0.J.N');
+    assert.match(v.depuis, /^\d+\.\d+\.\d+$/, v.id + ' : numéro de version');
     assert.ok(v.titre && v.comment, v.id);
   }
 });
