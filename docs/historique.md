@@ -16288,3 +16288,5 @@ exercé par le test de fumée mais pas compté ici ; fichiers les moins couverts
 exécutées), `26-page-agenda` (125), `24-suivi` (117), `39-outils-prorata-mobilier-pdf` (117), `40-outil2-relecture` (111).
 Serveur (`--experimental-test-coverage`) : 95 % des lignes, 94 % des fonctions ; les moins couverts : `relecture/prompts.js`
 (54 %), `emailsMatin.js` (65 %), `exchange.js` (71 %).
+
+**11 h 58** — `18-extraction-fusion-lots-ia.js` vidé par le retrait : supprimé, fichiers 19 → 43 renumérotés 18 → 42 (`git mv`, manifeste et `index.html` régénérés) ; 43 fichiers.

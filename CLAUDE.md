@@ -47,7 +47,7 @@ index.html / style.css               Client (une seule page, tout le rendu est e
 commun/*.js, commun/manifest.json    Code COMMUN poste + serveur (04/10) : dates, dossier (VTE/SUCC, estSuccession), montants,
                                      pièces de la checklist, planning (échéances, SAFER). Un fichier = un IIFE qui exporte en
                                      module.exports sous Node et en globaux dans le navigateur ; chargé avant client/.
-client/NN-sujet.js, client/manifest.json  Le programme du poste, découpé par sujet (04/10 ; 44 fichiers, ≤ 3 000 lignes
+client/NN-sujet.js, client/manifest.json  Le programme du poste, découpé par sujet (04/10 ; 43 fichiers, ≤ 3 000 lignes
                                      chacun) : des <script> classiques chargés dans l'ordre du manifeste — fonctions et
                                      variables de premier niveau partagées entre fichiers, comme avant dans script.js.
                                      00-version.js = VERSION_APP + HISTORIQUE_VERSIONS ; 01-socle.js = utilitaires, état,
