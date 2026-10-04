@@ -199,7 +199,9 @@
     --wa-color-neutral-border-normal: var(--line);
     --wa-color-neutral-fill-quiet: var(--line-soft);
     --wa-color-neutral-on-quiet: var(--ink-soft);
-    --wa-color-neutral-border-quiet: var(--line-soft);
+    /* Contour d'un bouton secondaire (appearance="outlined") : filet normal — en --line-soft, posé sur le gris de la page,
+       le bouton paraissait désactivé (« Scanner le commun », étude 04/10). */
+    --wa-color-neutral-border-quiet: var(--line);
     /* Geste destructeur (supprimer, retirer) : le rouge-orangé « urgent ». */
     --wa-color-danger-fill-loud: var(--urgent);
     --wa-color-danger-on-loud: var(--on-accent);
@@ -212,6 +214,11 @@
     --wa-color-success-fill-quiet: var(--success-bg);
   }
   wa-button { font-size: var(--texte-base); vertical-align: middle; }
+  /* Bouton secondaire : fond de carte (blanc en clair), comme les champs et les bascules, au lieu d'un fond transparent qui
+     le fondait dans le gris de la page ; survol en --paper-sunk. */
+  wa-button[appearance="outlined"]::part(base) { background-color: var(--paper-card); }
+  wa-button[appearance="outlined"]:not([disabled]):hover::part(base) { background-color: var(--paper-sunk); }
+  .dash-header-actions wa-button[appearance="outlined"] { --wa-color-neutral-on-quiet: var(--ink); }
   /* Taille compacte : size="s", et les contextes serrés qui l'employaient déjà (gestes de « À faire », pieds de fenêtre,
      détail d'un rendez-vous, galerie des widgets). Une seule définition, pas de réglage au cas par cas. */
   wa-button[size="s"], .ja wa-button.ja-go, .jour-fenetre-pied wa-button, .ag-modale-pied wa-button, .rdv-agenda-actions wa-button,

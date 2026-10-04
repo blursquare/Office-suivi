@@ -736,7 +736,7 @@ Plainte principale de l'étude : **le bruit**, pas les oublis — ne pas élargi
   les icônes restent celles d'`ICONES`), déclaré dans `ASSETS_STATIQUES`, les assets du `.exe` et `index.html` (test
   `structure-client`). Couleurs, arrondis et polices viennent de CLAIRE : bloc « Web Awesome : jetons de CLAIRE » de style.css,
   seul endroit où un `--wa-*` est redéfini (déclaré sur `:root` ET sur chaque composant, pour suivre la barre latérale sombre).
-  **Bouton d'action = `<wa-button>`** : principal `variant="brand"`, secondaire `appearance="outlined"`, discret
+  **Bouton d'action = `<wa-button>`** : principal `variant="brand"`, secondaire `appearance="outlined"` (fond `--paper-card`, filet `--line`, survol `--paper-sunk` — transparent, il paraissait désactivé sur le fond de page, étude 04/10), discret
   `appearance="plain"`, destructeur `variant="danger"` ; compact = `size="s"` (ou un contexte de la règle « Taille compacte ») ;
   icône dans le libellé, espacée par `::part(label)`. Plus jamais `<button class="primary|secondary|btn-annuler|btn-confirmer">`
   (test). Un `<wa-button type="submit">` n'est pas le bouton par défaut d'un formulaire : Entrée dans un champ est rétabli

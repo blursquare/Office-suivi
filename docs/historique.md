@@ -16491,3 +16491,13 @@ Demande : « Revoir le bouton pour afficher les archives, ça dénote » (case �
   `wa-button-group`.
 - Vérifié dans Chromium (dossiers inventés, un archivé) : libellé → section des archivés affichée, interrupteur → retirée,
   aucune erreur de page.
+
+### 0.144.23 — 04/10/2026 22 h 00 : boutons secondaires (« Scanner le commun » à revoir)
+Demande : « Scanner le commun aussi à revoir ». Capture : bouton à fond transparent, filet `--line-soft` et texte
+`--ink-soft` posé sur le gris de la page — il paraissait désactivé à côté de « + Nouveau dossier ».
+- Cause commune à tous les `wa-button appearance="outlined"` : la couche Web Awesome les dessine sans fond, avec le filet
+  « quiet ». Corrigé une fois pour toutes dans style.css : `--wa-color-neutral-border-quiet: var(--line)`, fond
+  `--paper-card` (survol `--paper-sunk`) ; dans les cartes (déjà blanches) rien ne change à l'œil.
+- « Scanner le commun » : icône `rotate-ccw` (même tracé que le jeu `ICONES`), texte `--ink` dans l'en-tête des pages
+  (`.dash-header-actions`), `class="secondary"` retirée (héritée, sans effet), `id="btn-scanner-commun"`.
+Captures Suivi (clair, sombre), tableau de bord et agenda contrôlées.
