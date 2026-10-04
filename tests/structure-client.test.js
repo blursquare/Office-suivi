@@ -136,14 +136,14 @@ test('Web Awesome : boutons d’action, boutons à icône, « Ajouter », pastil
   for (const f of fichiers) {
     const src = fs.readFileSync(path.join(racine, f), 'utf8');
     for (const m of src.matchAll(/<button\b[^>]*class="([^"]*)"/g)) {
-      if (/(^|[\s'])(primary|secondary|btn-annuler|btn-confirmer|action-rapide|bouton-ajout|fiche-btn|ech-ico|icon-crayon|icon-valider|piece-suppr|qt-suppr|analyse-doc-suppr|rappel-perso-suppr|widget-fleche)($|[\s'])/.test(m[1])) fautes.push(`${f} : ${m[0].slice(0, 90)}`);
+      if (/(^|[\s'])(primary|secondary|btn-annuler|btn-confirmer|action-rapide|bouton-ajout|fiche-btn|ech-ico|icon-crayon|icon-valider|piece-suppr|qt-suppr|analyse-doc-suppr|rappel-perso-suppr|widget-fleche|vue-bascule-btn|ag-nav-btn)($|[\s'])/.test(m[1])) fautes.push(`${f} : ${m[0].slice(0, 90)}`);
     }
     // Bouton à icône seule : wa-button.bouton-icone (un <button class="icon-btn"> ne reste que pour un texte seul, lien discret).
     for (const m of src.matchAll(/<button\b[^>]*class="[^"]*\bicon-btn\b[^"]*"[^>]*>\s*\$\{icone\([^)]*\)\}\s*<\/button>/g)) fautes.push(`${f} : ${m[0].slice(0, 90)}`);
     // Interrupteur : wa-switch, plus l'ancien <input type="checkbox"> + .slider.
     if (/class="slider"/.test(src)) fautes.push(`${f} : ancien interrupteur (.slider) — utiliser <wa-switch>`);
-    for (const balise of ['wa-button', 'wa-switch']) {
-      const ouverts = (src.match(new RegExp(`<${balise}\\b`, 'g')) || []).length, fermes = (src.match(new RegExp(`</${balise}>`, 'g')) || []).length;
+    for (const balise of ['wa-button', 'wa-switch', 'wa-button-group']) {
+      const ouverts = (src.match(new RegExp(`<${balise}(?![\\w-])`, 'g')) || []).length, fermes = (src.match(new RegExp(`</${balise}>`, 'g')) || []).length;
       if (ouverts !== fermes) fautes.push(`${f} : ${ouverts} <${balise}> pour ${fermes} </${balise}>`);
     }
   }

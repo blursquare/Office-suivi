@@ -90,7 +90,7 @@
     --notif-nouveau: #DC2626;
     --success: #2F8F5B;
     --success-bg: #E4F3EB;
-    --muted: #8A93A9;
+    --muted: #647089;
     /* Accent d'action (boutons primaires, liens, focus, onglet actif) — distinct de --acte (couleur
        réservée à la catégorie d'échéance "acte", ne pas les recoupler même s'ils se ressemblent).
        Sa valeur vient du thème de couleur choisi dans les Réglages (--accent-*, en tête de
@@ -151,7 +151,7 @@
      (clair/sombre, accent choisi). Déclarés aussi sur chaque composant (wa-button…) : un jeton --wa-* se calcule là où
      il est déclaré, et la barre latérale redéfinit localement --focus, --ink… (toujours sombre) — sur le composant, il
      reprend les valeurs de son voisinage. Ajouter ici tout nouveau composant embarqué (scripts/construire-web-awesome.mjs). */
-  :root, wa-button, wa-switch {
+  :root, wa-button, wa-switch, wa-button-group {
     --wa-font-family-body: 'Inter', -apple-system, 'Segoe UI', sans-serif;
     --wa-font-family-heading: var(--wa-font-family-body);
     --wa-font-weight-action: 500;
@@ -207,7 +207,9 @@
   }
   wa-button.ag-ouvrir-fiche { align-self: flex-start; }
   /* Icône dans un libellé : alignée sur le texte et espacée de lui, sans réglage par bouton. */
-  wa-button svg { width: 1em; height: 1em; flex: none; }
+  /* Icônes : 14 px dans le texte et les boutons compacts, 16 px dans les boutons et barres d'outils, 20 px dans la barre latérale. */
+  wa-button svg { width: 16px; height: 16px; flex: none; }
+  wa-button[size="s"] svg { width: 14px; height: 14px; }
   wa-button::part(label) { display: inline-flex; align-items: center; gap: 6px; }
   /* Bouton à icône seule (fermer, modifier, retirer, valider…) : carré, sans fond, l'icône à la couleur du texte voisin
      (atténuée), plus foncée au survol. 32 px dans les barres d'outils et en-têtes, 24 px (size="s") dans une ligne de texte.
@@ -255,7 +257,7 @@
      Un seul jeu (voir ICONES/icone() dans script.js) : dimensionnées en 1em pour suivre la taille
      de police du bouton/texte qui les contient, -0.15em pour recentrer verticalement sur la ligne
      de base du texte voisin (un SVG s'aligne sinon sur son propre bas, plus bas que le texte). */
-  .icone { width: 1em; height: 1em; flex: none; vertical-align: -0.15em; }
+  .icone { width: max(1em, 14px); height: max(1em, 14px); flex: none; vertical-align: -0.15em; }
   .icone-spin { animation: icone-spin 0.8s linear infinite; }
   @keyframes icone-spin { to { transform: rotate(360deg); } }
   @media (prefers-reduced-motion: reduce) {
@@ -391,7 +393,7 @@
     flex: none;
   }
   .pdf-recherche-nav:hover { background: var(--line-soft); color: var(--ink); }
-  .pdf-recherche-nav .icone { width: 13px; height: 13px; }
+  .pdf-recherche-nav .icone { width: 14px; height: 14px; }
 
   .pdf-viewer-canvas-wrap {
     flex: 1;
@@ -566,7 +568,7 @@
     cursor: pointer;
   }
   .engagement-suppr:hover { background: var(--paper-sunk); color: var(--urgent); }
-  .engagement-suppr .icone { width: 11px; height: 11px; }
+  .engagement-suppr .icone { width: 14px; height: 14px; }
 
   .voir-pdf-btn {
     display: inline-flex;
@@ -1472,7 +1474,7 @@
     white-space: nowrap;
     cursor: help;
   }
-  .calc-warning-label .icone { width: 12px; height: 12px; flex: none; }
+  .calc-warning-label .icone { width: 14px; height: 14px; flex: none; }
   .calc-card-notes { font-size: var(--texte-m); }
   .calc-card-notes p { margin: 0 0 10px; }
   .calc-card-notes p:last-child { margin-bottom: 0; }
@@ -2055,8 +2057,9 @@
     color: var(--ink);
     background: var(--paper-card);
     border: 1px solid var(--line);
-    border-radius: var(--rayon-xs);
+    border-radius: var(--rayon-m);
     padding: 10px 12px;
+    min-height: 40px;
     transition: border-color 0.15s ease;
   }
   /* Safari iOS ne respecte pas toujours une largeur CSS plus étroite que la taille intrinsèque
@@ -2714,7 +2717,7 @@
     color: var(--muted);
     cursor: pointer;
   }
-  .piece-action .icone { width: 11px; height: 11px; }
+  .piece-action .icone { width: 14px; height: 14px; }
   .piece-action:hover { background: var(--line-soft); color: var(--focus); }
   .piece-action-suppr:hover { color: var(--urgent); }
   .piece-action:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
@@ -3103,8 +3106,9 @@
   .toolbar-item select {
     font-family: inherit;
     font-size: var(--texte-m);
+    min-height: 32px;
     border: 1px solid var(--line);
-    border-radius: var(--rayon-xs);
+    border-radius: var(--rayon-m);
     padding: 4px 8px;
     background: var(--paper-card);
     color: var(--ink);
@@ -3115,28 +3119,13 @@
   /* Bascule Tableau / Semaines de la liste du Suivi : deux boutons segmentés, le mode actif en
      accent plein. Pas de nouveau token de couleur — --focus pour l'actif, --paper-sunk pour le
      rail, comme le reste des contrôles de cette barre. */
-  .vue-bascule {
-    display: inline-flex;
-    gap: 2px;
-    padding: 2px;
-    background: var(--paper-sunk);
-    border: 1px solid var(--line);
-    border-radius: var(--rayon-m);
-  }
-  .vue-bascule-btn {
-    font-family: inherit;
-    font-size: var(--texte-m);
-    font-weight: 500;
-    color: var(--muted);
-    background: none;
-    border: none;
-    border-radius: var(--rayon-s);
-    padding: 6px 12px;
-    cursor: pointer;
-    transition: background 0.15s ease, color 0.15s ease;
-  }
-  .vue-bascule-btn:hover { color: var(--ink); }
-  .vue-bascule-btn.actif { background: var(--focus); color: var(--on-accent); }
+  /* Bascules (Échéances | Tableau, Mes dossiers | Tous…) : groupe de boutons Web Awesome, le choix actif à l'accent. */
+  wa-button-group.vue-bascule { flex: none; }
+  wa-button.vue-bascule-btn { color: var(--ink-soft); }
+  wa-button.vue-bascule-btn::part(base) { color: inherit; }
+  wa-button.vue-bascule-btn:not(.actif):hover { color: var(--ink); }
+  wa-button.vue-bascule-btn.actif { color: var(--on-accent); z-index: 2; }
+  wa-button.vue-bascule-btn.actif::part(base) { background: var(--focus); border-color: var(--focus); }
 
   /* ---- Vue "Semaines" : les mêmes dossiers, regroupés par semaine d'échéance (une ligne par
      échéance, voir grouperEcheancesParSemaine). Chaque groupe réutilise .dossiers-table tel quel :
@@ -3608,7 +3597,7 @@
   }
   .fiche-barre-groupe { display: flex; align-items: center; gap: 2px; }
   wa-button.fiche-btn { color: var(--ink-soft); }
-  wa-button.fiche-btn svg { width: 18px; height: 18px; }
+  wa-button.fiche-btn svg { width: 20px; height: 20px; }
   wa-button.fiche-btn-danger:hover { color: var(--urgent); }
   /* Rien à agrandir quand l'écran n'en a pas la place. */
   @media (max-width: 1100px) { .fiche-btn-agrandir { display: none; } }
@@ -3696,6 +3685,7 @@
     padding: 4px 8px;
     margin: 0 0 0 -10px;
     min-width: 0;
+    min-height: 0;
     max-width: 100%;
     box-shadow: none;
     cursor: text;
@@ -4156,7 +4146,7 @@
     cursor: pointer;
   }
   .tab-suppr:hover { background: var(--paper-sunk); color: var(--urgent); }
-  .tab-suppr .icone { width: 12px; height: 12px; }
+  .tab-suppr .icone { width: 14px; height: 14px; }
 
   .tab .tab-name {
     font-size: var(--texte-m);
@@ -4222,7 +4212,7 @@
     pointer-events: none;
     color: var(--muted);
   }
-  .tab-select-icone-chevron .icone { width: 11px; height: 11px; }
+  .tab-select-icone-chevron .icone { width: 14px; height: 14px; }
   .tab-select-icone-wrap:hover .tab-select-icone-chevron,
   .tab-select-icone:focus-visible ~ .tab-select-icone-chevron { color: var(--focus); }
 
@@ -4547,7 +4537,7 @@
     flex: 0 0 auto;
     box-sizing: border-box;
   }
-  .wizard-step-num .icone, .wizard-step-num svg { width: 15px; height: 15px; stroke-width: 2.4; }
+  .wizard-step-num .icone, .wizard-step-num svg { width: 16px; height: 16px; stroke-width: 2.4; }
   .wizard-step-btn.actif .wizard-step-num { background: var(--paper-card); border: 2px solid var(--focus); color: var(--focus); }
   .wizard-step-btn.fait .wizard-step-num { background: var(--focus); border-color: var(--focus); color: var(--on-accent); }
   .wizard-step-texte { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
@@ -6718,7 +6708,7 @@ button.confrere-carnet-office:focus-visible, button.carnet-dossier:focus-visible
 .fonds-v-ref { color: var(--success); display: inline-flex; }
 .fonds-pied { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px; font-size: var(--texte-m); color: var(--muted); }
 .fonds-noms, .fonds-lecture, .fonds-quand-meme { display: inline-flex; align-items: center; gap: 4px; }
-.fonds-noms > svg { width: 13px; height: 13px; }
+.fonds-noms > svg { width: 14px; height: 14px; }
 @media (max-width: 520px) { .fonds-chiffre strong { font-size: var(--texte-l); } .fonds-chiffres { gap: 8px; } }
 @media (prefers-reduced-motion: reduce) { .fonds-barre > span { transition: none; } }
 
@@ -6942,7 +6932,7 @@ button.widget-retirer {
   width: 24px; height: 24px; padding: 0; border: 2px solid var(--paper); border-radius: 50%;
   background: var(--ink-soft); color: var(--paper-card); cursor: pointer;
 }
-button.widget-retirer svg { width: 12px; height: 12px; stroke-width: 2.4; }
+button.widget-retirer svg { width: 14px; height: 14px; stroke-width: 2.4; }
 button.widget-retirer:hover { background: var(--urgent); }
 .widget-barre {
   position: absolute; left: 50%; bottom: 10px; z-index: 3; transform: translateX(-50%);
@@ -7001,7 +6991,7 @@ button.widgets-personnaliser.actif { background: var(--focus); border-color: var
 .scan-vignette:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .scan-vignette img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: top; background: var(--blanc-fixe); }
 .scan-vignette-vide { display: flex; width: 100%; height: 100%; align-items: center; justify-content: center; color: var(--muted); }
-.scan-vignette-vide .icone { width: 22px; height: 22px; }
+.scan-vignette-vide .icone { width: 20px; height: 20px; }
 /* Ranger / Laisser dans Scan en cours : la ligne s'estompe, le bouton cliqué tourne. */
 .scan-ligne.scan-occupe .scan-champs, .scan-ligne.scan-occupe .scan-vignette { opacity: 0.55; }
 .scan-bouton { display: inline-flex; align-items: center; gap: 6px; }
@@ -7307,9 +7297,9 @@ button.annuaire-proche.actif { background: var(--focus); border-color: var(--foc
 .suivi-barre-recherche { gap: 14px; }
 .suivi-recherche { position: relative; flex: 1 1 auto; min-width: 0; display: flex; }
 .suivi-recherche-icone { position: absolute; left: 13px; top: 50%; transform: translateY(-50%); display: inline-flex; color: var(--muted); pointer-events: none; }
-.suivi-recherche-icone svg { width: 17px; height: 17px; }
+.suivi-recherche-icone svg { width: 16px; height: 16px; }
 .suivi-barre input[type="search"]#recherche-dossiers {
-  width: 100%; max-width: none; box-sizing: border-box; height: 42px; padding: 0 14px 0 40px;
+  width: 100%; max-width: none; box-sizing: border-box; height: 40px; padding: 0 14px 0 40px;
   font-family: inherit; font-size: var(--texte-l); color: var(--ink);
   background: var(--paper-card); border: 1px solid var(--line); border-radius: var(--rayon-m);
   box-shadow: var(--shadow-card);
@@ -7319,7 +7309,7 @@ button.annuaire-proche.actif { background: var(--focus); border-color: var(--foc
 .suivi-barre-recherche .vue-bascule { flex: none; }
 .suivi-barre-filtres { flex-wrap: nowrap; gap: 8px 16px; }
 .suivi-barre-filtres .toolbar-item { flex: none; font-size: var(--texte-m); color: var(--muted); }
-.suivi-barre .suivi-barre-filtres .toolbar-item select { width: auto; min-width: 0; max-width: 190px; font-size: var(--texte-m); padding: 4px 6px; border-radius: var(--rayon-s); }
+.suivi-barre .suivi-barre-filtres .toolbar-item select { width: auto; min-width: 0; max-width: 190px; font-size: var(--texte-m); padding: 4px 8px; border-radius: var(--rayon-m); }
 @media (max-width: 1180px) {
   .suivi-barre-filtres { flex-wrap: wrap; }
 }
@@ -7391,7 +7381,7 @@ button.ag-actualiser {
   border: none; border-radius: var(--rayon-s); background: none; color: var(--muted); cursor: pointer;
 }
 button.ag-actualiser:hover { background: var(--paper-sunk); color: var(--ink); }
-button.ag-actualiser svg { width: 13px; height: 13px; }
+button.ag-actualiser svg { width: 14px; height: 14px; }
 button.ag-actualiser.en-cours svg { animation: ag-tourne 0.9s linear infinite; }
 @keyframes ag-tourne { to { transform: rotate(-360deg); } }
 @media (prefers-reduced-motion: reduce) { button.ag-actualiser.en-cours svg { animation: none; opacity: 0.5; } }
@@ -7400,9 +7390,9 @@ button.ag-actualiser.en-cours svg { animation: ag-tourne 0.9s linear infinite; }
 #onglet-agenda .dash-header-actions { flex: 1 1 340px; justify-content: flex-end; flex-wrap: nowrap; }
 .ag-creation { flex: none; }
 .ag-recherche { position: relative; flex: 0 1 460px; min-width: 0; display: flex; }
-.ag-recherche .suivi-recherche-icone svg { width: 17px; height: 17px; }
+.ag-recherche .suivi-recherche-icone svg { width: 16px; height: 16px; }
 .ag-recherche input[type="search"]#agenda-recherche {
-  width: 100%; max-width: none; box-sizing: border-box; height: 42px; padding: 0 14px 0 40px;
+  width: 100%; max-width: none; box-sizing: border-box; height: 40px; padding: 0 14px 0 40px;
   font-family: inherit; font-size: var(--texte-l); color: var(--ink);
   background: var(--paper-card); border: 1px solid var(--line); border-radius: var(--rayon-m);
   box-shadow: var(--shadow-card);
@@ -7434,18 +7424,13 @@ button.ag-recherche-fiche svg { width: 16px; height: 16px; }
 .ag-recherche-quand { font-size: var(--texte-s); color: var(--muted); font-variant-numeric: tabular-nums; }
 .ag-recherche-vide { padding: 12px; font-size: var(--texte-m); color: var(--muted); }
 
-.ag-nav { display: inline-flex; align-items: stretch; border: 1px solid var(--line); border-radius: var(--rayon-m); overflow: hidden; }
-.ag-nav-btn {
-  font-family: inherit; font-size: var(--texte-m); font-weight: 600; color: var(--ink); background: var(--paper-card); border: none; border-left: 1px solid var(--line);
-  min-width: 36px; height: 34px; padding: 0 10px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer;
-}
-.ag-nav-btn:first-child { border-left: none; }
-.ag-nav-btn:hover { background: var(--paper-sunk); }
-.ag-nav-btn.ag-auj { padding: 0 16px; }
-.ag-nav-btn svg { width: 15px; height: 15px; }
+/* ‹ Aujourd'hui › et « Aller à une date » : groupe de boutons Web Awesome (coins communs, filets entre les boutons). */
+wa-button.ag-nav-btn { color: var(--ink); --wa-form-control-padding-inline: 10px; }
+wa-button.ag-nav-btn::part(base) { color: inherit; }
+wa-button.ag-nav-btn.ag-auj { --wa-form-control-padding-inline: 16px; }
 .ag-vue-choix select {
   font: inherit; font-size: var(--texte-m); font-weight: 600; color: var(--ink); background: var(--paper-card);
-  border: 1px solid var(--line); border-radius: var(--rayon-m); height: 36px; padding: 0 10px; cursor: pointer;
+  border: 1px solid var(--line); border-radius: var(--rayon-m); height: 32px; min-height: 32px; padding: 0 10px; cursor: pointer;
 }
 wa-button.ag-ajout svg { width: 14px; height: 14px; }
 /* Bouton double (étude, 01/10) : moitié « Nouveau rendez-vous », moitié « Proposer des dates », un seul
@@ -7508,7 +7493,7 @@ wa-button.ag-ajout svg { width: 14px; height: 14px; }
   padding: 4px 6px; overflow: hidden;
 }
 .ag-case-choisie span { display: inline-flex; align-items: center; gap: 4px; font-size: var(--texte-xs); font-weight: 600; color: var(--focus); font-variant-numeric: tabular-nums; }
-.ag-case-choisie svg { width: 11px; height: 11px; }
+.ag-case-choisie svg { width: 14px; height: 14px; }
 .ag-evt {
   position: absolute; z-index: 1; overflow: hidden; display: flex; flex-direction: column; gap: 1px; min-height: 0;
   font-family: inherit; text-align: left; cursor: pointer; padding: 4px 6px 4px 8px; box-sizing: border-box;
@@ -7549,7 +7534,7 @@ body.ag-redim-en-cours, body.ag-redim-en-cours * { cursor: ns-resize !important;
 .ag-evt-qui { font-size: var(--texte-xs); color: var(--ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: none; }
 .ag-evt-etats { display: flex; flex-wrap: wrap; gap: 0 8px; overflow: hidden; flex: none; }
 .ag-etat { display: inline-flex; align-items: center; gap: 4px; font-size: var(--texte-xs); font-weight: 600; white-space: nowrap; line-height: 1.2; }
-.ag-etat svg { width: 11px; height: 11px; }
+.ag-etat svg { width: 14px; height: 14px; }
 .ag-etat.fait { color: var(--success); }
 .ag-etat.afaire { color: var(--urgent); }
 .ag-evt-court { flex-direction: row; align-items: center; gap: 6px; padding-top: 1px; padding-bottom: 1px; }
@@ -7580,7 +7565,7 @@ body.ag-redim-en-cours, body.ag-redim-en-cours * { cursor: ns-resize !important;
 .ag-evt.ag-fantome:hover { background: color-mix(in srgb, var(--ag-teinte) 14%, var(--paper-card)); }
 .ag-fantome-tete { display: inline-flex; align-items: center; gap: 4px; font-size: var(--texte-xs); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ag-teinte); flex: none; white-space: nowrap; overflow: hidden; }
 .ag-evt.ag-fantome.selection, .ag-journee-evt.ag-fantome.selection { box-shadow: 0 0 0 2px var(--ink); }
-.ag-fantome-tete svg, .ag-journee-evt.ag-fantome svg { width: 11px; height: 11px; }
+.ag-fantome-tete svg, .ag-journee-evt.ag-fantome svg { width: 14px; height: 14px; }
 .ag-journee-evt.ag-fantome { display: inline-flex; align-items: center; gap: 4px; }
 /* Trait de l'heure (étude, 30/09) : rouge comme dans Outlook, fin sur la semaine, appuyé sur la
    colonne d'aujourd'hui, l'heure dans une pastille à gauche ; il avance toutes les 30 s. */
@@ -7703,7 +7688,7 @@ wa-button.action-rapide.ag-creneau.exceptionnel::part(base) { border-color: var(
 .ag-modale-titre { margin: 2px 0 4px; font-size: var(--texte-2xl); font-weight: 700; letter-spacing: -0.02em; overflow-wrap: anywhere; }
 .ag-modale-quand { font-size: var(--texte-m); color: var(--ink-soft); }
 .ag-modale-lieu { font-size: var(--texte-m); color: var(--muted); display: flex; align-items: center; gap: 4px; margin-top: 4px; }
-.ag-modale-lieu svg { width: 13px; height: 13px; }
+.ag-modale-lieu svg { width: 14px; height: 14px; }
 .ag-modale-x { position: absolute; top: 12px; right: 12px; }
 wa-button.ag-modale-x, .ag-detail-tete wa-button.bouton-icone { --wa-form-control-height: 32px; }
 .ag-modale-corps { overflow-y: auto; padding: 14px 20px; display: flex; flex-direction: column; gap: 12px; }
@@ -7727,7 +7712,7 @@ wa-button.ag-modale-x, .ag-detail-tete wa-button.bouton-icone { --wa-form-contro
 textarea.ag-notes-champ { width: 100%; box-sizing: border-box; font: inherit; font-size: var(--texte-m); resize: vertical; min-height: 90px; padding: 8px 10px; border: 1px solid var(--line); border-radius: var(--rayon-m); background: var(--paper-card); color: var(--ink); }
 textarea.ag-notes-champ:focus { outline: 2px solid var(--focus); outline-offset: 0; }
 .ag-facteurs li { display: flex; align-items: flex-start; gap: 6px; }
-.ag-facteurs svg { width: 13px; height: 13px; flex: none; margin-top: 2px; }
+.ag-facteurs svg { width: 14px; height: 14px; flex: none; margin-top: 2px; }
 .ag-facteurs li.ok { color: var(--ink-soft); }
 .ag-facteurs li.ok svg { color: var(--success); }
 .ag-facteurs li.ko svg { color: var(--pret); }
@@ -7755,7 +7740,7 @@ textarea.ag-notes-champ:focus { outline: 2px solid var(--focus); outline-offset:
   background: repeating-linear-gradient(45deg, color-mix(in srgb, var(--ag-teinte, var(--line)) 16%, var(--paper-card)) 0 5px, var(--paper-card) 5px 10px);
 }
 .ag-sondage-en-cours { display: inline-flex; align-items: center; gap: 4px; font-size: var(--texte-s); color: var(--muted); padding: 2px 4px; }
-.ag-sondage-en-cours svg, .ag-sonder svg { width: 12px; height: 12px; }
+.ag-sondage-en-cours svg, .ag-sonder svg { width: 14px; height: 14px; }
 .sondage-modale { width: min(600px, 100%); }
 .sondage-bloc { display: flex; flex-direction: column; gap: 6px; }
 .sondage-bloc-titre { font-size: var(--texte-xs); font-weight: 600; color: var(--ink); text-transform: uppercase; letter-spacing: 0.06em; display: flex; align-items: baseline; gap: 6px; }
@@ -7764,7 +7749,7 @@ textarea.ag-notes-champ:focus { outline: 2px solid var(--focus); outline-offset:
 .sondage-case { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 8px; font-size: var(--texte-base); color: var(--ink); cursor: pointer; }
 .sondage-case > span:first-of-type::first-letter { text-transform: uppercase; }
 .sondage-note { display: inline-flex; align-items: center; gap: 4px; font-size: var(--texte-s); color: var(--pret); }
-.sondage-note svg { width: 12px; height: 12px; }
+.sondage-note svg { width: 14px; height: 14px; }
 .sondage-participants li { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: center; gap: 6px 10px; }
 .ag-form input.sondage-email { font: inherit; font-size: var(--texte-m); color: var(--ink); background: var(--paper); border: 1px solid var(--line); border-radius: var(--rayon-m); padding: 6px 10px; min-width: 0; }
 .ag-form input.sondage-email:focus-visible { outline: 2px solid var(--focus); outline-offset: 0; }
@@ -7782,7 +7767,7 @@ textarea.ag-notes-champ:focus { outline: 2px solid var(--focus); outline-offset:
 .sondage-table thead th { font-size: var(--texte-xs); font-weight: 600; color: var(--ink-soft); text-transform: uppercase; letter-spacing: 0.06em; vertical-align: bottom; }
 .sondage-table thead th span { display: block; text-transform: none; letter-spacing: 0; font-weight: 500; color: var(--muted); max-width: 160px; overflow: hidden; text-overflow: ellipsis; }
 .sondage-table tbody th { text-align: left; font-weight: 600; color: var(--ink); }
-.sondage-table td svg { width: 15px; height: 15px; vertical-align: middle; }
+.sondage-table td svg { width: 16px; height: 16px; vertical-align: middle; }
 .sondage-table .sondage-oui { color: var(--success); }
 .sondage-table .sondage-non { color: var(--urgent); }
 .sondage-table .sondage-attente { color: var(--muted); }
@@ -7791,11 +7776,11 @@ textarea.ag-notes-champ:focus { outline: 2px solid var(--focus); outline-offset:
 .sondage-option { font-size: var(--texte-xs); font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); border: 1px solid var(--line); border-radius: var(--rayon-xs); padding: 0 4px; margin-left: 4px; }
 .sondage-actions { display: flex; flex-wrap: wrap; gap: 4px 14px; }
 .sondage-actions .lien-bouton { display: inline-flex; align-items: center; gap: 6px; font-size: var(--texte-m); }
-.sondage-actions .lien-bouton svg { width: 13px; height: 13px; }
+.sondage-actions .lien-bouton svg { width: 14px; height: 14px; }
 .sondage-actions .lien-bouton:disabled { opacity: 0.5; cursor: default; }
 .sondage-reponses { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; font-size: var(--texte-m); }
 .sondage-reponses li { display: flex; align-items: center; gap: 6px; color: var(--ink-soft); }
-.sondage-reponses svg { width: 13px; height: 13px; flex: none; }
+.sondage-reponses svg { width: 14px; height: 14px; flex: none; }
 .sondage-reponses .sondage-oui svg { color: var(--success); }
 .sondage-reponses .sondage-non svg { color: var(--urgent); }
 .sondage-reponses .sondage-attente svg { color: var(--muted); }
@@ -7842,7 +7827,7 @@ textarea.ag-notes-champ:focus { outline: 2px solid var(--focus); outline-offset:
 
 /* Comparaison avec la même semaine l'an dernier, à côté de « Agenda de l'office lu… » (étude, 01/10). */
 .ag-compare { display: inline-flex; align-items: center; gap: 4px; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; vertical-align: baseline; }
-.ag-compare svg { width: 13px; height: 13px; flex: none; }
+.ag-compare svg { width: 14px; height: 14px; flex: none; }
 .ag-compare-hausse { color: var(--success); }
 .ag-compare-baisse { color: var(--urgent); }
 .ag-compare-egal { color: var(--ink-soft); }
@@ -7850,7 +7835,7 @@ textarea.ag-notes-champ:focus { outline: 2px solid var(--focus); outline-offset:
 /* « Aller à une date » dans la barre de navigation de l'agenda (étude, 01/10 : remonter au 1er janvier). */
 /* Une icône seule (étude, 01/10 : pas de date affichée à côté de « Aujourd'hui ») ; le champ date est
    invisible, posé sous l'icône pour que son sélecteur s'ouvre à cet endroit. */
-.ag-aller-zone { position: relative; display: inline-flex; border-left: 1px solid var(--line); }
+.ag-aller-zone { position: relative; display: inline-flex; }
 .ag-nav input.ag-aller[type="date"] {
   position: absolute; left: 0; bottom: 0; width: 100%; height: 100%; opacity: 0; pointer-events: none;
   border: none; padding: 0; margin: 0; color-scheme: light dark;
@@ -7907,7 +7892,7 @@ body.tiroir-dates-ouvert { overflow: hidden; }
 .dates-proposees-box .widgets-galerie-groupe { margin-top: 14px; }
 .dates-proposees-box .dp-carte { margin: 8px 0 0; background: var(--paper-card); }
 .dates-proposees-box .dp-titre { font-weight: 700; font-size: var(--texte-base); color: var(--ink); display: inline-flex; align-items: center; gap: 6px; text-decoration: none; }
-.dates-proposees-box button.lien-bouton.dp-titre svg { width: 13px; height: 13px; color: var(--muted); }
+.dates-proposees-box button.lien-bouton.dp-titre svg { width: 14px; height: 14px; color: var(--muted); }
 .dates-proposees-box button.lien-bouton.dp-titre:hover svg { color: var(--ink); }
 .dp-liste { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .dp-ligne { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 12px; border: 1px solid var(--line); border-radius: var(--rayon-m); background: var(--paper-card); }
@@ -7931,7 +7916,7 @@ button.ag-lien-dates {
   color: var(--ink); background: var(--paper-card); border: 1px solid var(--line); border-radius: var(--rayon-m); cursor: pointer; text-align: left;
 }
 button.ag-lien-dates:hover { background: var(--paper-sunk); }
-button.ag-lien-dates svg { width: 15px; height: 15px; flex: none; color: var(--muted); }
+button.ag-lien-dates svg { width: 16px; height: 16px; flex: none; color: var(--muted); }
 .ag-lien-dates-texte { flex: 1 1 auto; display: flex; flex-direction: column; gap: 1px; }
 /* Réponse revenue pas encore vue (étude, 01/10) : pastille rouge et une ligne rouge sous le lien. */
 .ag-lien-dates-nouveau { font-size: var(--texte-s); font-weight: 600; color: var(--notif-nouveau); }
@@ -7955,11 +7940,11 @@ button.ag-lien-dates.a-nouveau { border-color: color-mix(in srgb, var(--notif-no
   border-radius: var(--rayon-m); background: var(--paper-sunk); color: var(--focus);
 }
 .widgets-galerie-ligne.retire .widgets-galerie-icone { background: var(--paper-card); color: var(--ink-soft); }
-.widgets-galerie-icone svg { width: 17px; height: 17px; }
+.widgets-galerie-icone svg { width: 16px; height: 16px; }
 .widgets-galerie-texte { display: flex; flex-direction: column; gap: 2px; line-height: 1.3; }
 .widgets-galerie-texte b { font-size: var(--texte-base); color: var(--ink); }
 .widgets-galerie-texte span { font-size: var(--texte-m); color: var(--ink-soft); }
-wa-button.widgets-galerie-retirer svg { width: 13px; height: 13px; }
+wa-button.widgets-galerie-retirer svg { width: 14px; height: 14px; }
 .widgets-galerie-ligne wa-button.bouton-ajout { width: auto; margin: 0; }
 .widgets-galerie-ligne wa-button.bouton-ajout::part(label) { white-space: nowrap; }
 .widgets-galerie-box .confirm-actions { justify-content: space-between; align-items: center; margin-top: 16px; }
@@ -8378,7 +8363,7 @@ body.wizard-avance #nouveau-intro { display: none !important; }
 .email-pjs { display: grid; gap: 4px; margin-top: 2px; }
 .email-pj { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; min-width: 0; }
 .email-pj-nom { display: inline-flex; align-items: center; gap: 6px; overflow-wrap: anywhere; text-align: left; }
-.email-pj-nom svg { width: 13px; height: 13px; flex-shrink: 0; }
+.email-pj-nom svg { width: 14px; height: 14px; flex-shrink: 0; }
 .email-pj-ecartee { opacity: .55; }
 select.email-pj-ranger { font-size: var(--texte-m); padding: 4px 6px; max-width: 220px; }
 .emails-boites { list-style: none; margin: 4px 0 8px; padding: 0; display: grid; gap: 6px; }
@@ -8498,7 +8483,7 @@ button.modeles-puce:focus-visible { outline: 2px solid var(--focus); outline-off
 @media (max-width: 800px) { .modeles-grille { grid-template-columns: 1fr; } }
 .redaction-pied-espace { flex: 1; min-width: 0; font-size: var(--texte-s); line-height: 1.35; color: var(--muted); text-align: right; padding-right: 6px; }
 label.icon-btn.redaction-joindre { cursor: pointer; }
-.redaction-pied wa-button.redaction-envoyer svg { width: 15px; height: 15px; }
+.redaction-pied wa-button.redaction-envoyer svg { width: 16px; height: 16px; }
 .redaction-pied button.lien-discret { margin-right: 6px; white-space: nowrap; }
 @media (max-width: 600px) {
   .confirm-box.email-lecture-box { width: 100vw; height: 100dvh; max-height: none; border-radius: 0; }

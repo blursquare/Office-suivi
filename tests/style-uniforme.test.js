@@ -30,10 +30,11 @@ test('lecteur de style : graisses, espacements de lettres et rôles typographiqu
     '.c { font-size: var(--texte-xxs); font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; }',
     '.d { font-size: var(--texte-xs); font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; }',
     '.e { background: var(--focus); font-size: var(--texte-micro); font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; }',
-    '.w-titre { font-size: var(--texte-base); font-weight: 700; }'
+    '.w-titre { font-size: var(--texte-base); font-weight: 700; }',
+    '.f svg { width: 13px; height: 16px; } .g .icone { width: 44px; }'
   ].join('\n');
   const decl = declarationsCss(exemple);
-  assert.deepEqual(decl.filter((d) => ecartEchelle(d)).map((d) => d.selecteur + ' ' + d.propriete), ['.a font-weight', '.a letter-spacing', '.c letter-spacing']);
+  assert.deepEqual(decl.filter((d) => ecartEchelle(d)).map((d) => d.selecteur + ' ' + d.propriete), ['.a font-weight', '.a letter-spacing', '.c letter-spacing', '.f svg width']);
   const roles = ecartsTypographie(decl).join('\n');
   assert.match(roles, /\(\.c\) : capitales en var\(--texte-xxs\)/);
   assert.match(roles, /\(\.c\) : capitales en graisse 700/);

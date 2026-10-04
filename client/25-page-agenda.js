@@ -1390,15 +1390,15 @@
           <div class="ag-titre-bloc">
             <div class="ag-titre-ligne">
               <h2 class="ag-titre">${escapeHtml(titre.charAt(0).toUpperCase() + titre.slice(1))}</h2>
-              <div class="ag-nav" role="group" aria-label="Se déplacer dans l’agenda">
-                <button type="button" class="ag-nav-btn" onclick="naviguerAgenda(-1)" aria-label="Précédent">${icone('chevron-left')}</button>
-                <button type="button" class="ag-nav-btn ag-auj" onclick="naviguerAgenda(0)">Aujourd’hui</button>
-                <button type="button" class="ag-nav-btn" onclick="naviguerAgenda(1)" aria-label="Suivant">${icone('chevron-right')}</button>
+              <wa-button-group class="ag-nav" label="Se déplacer dans l’agenda">
+                <wa-button appearance="outlined" size="s" type="button" class="ag-nav-btn" onclick="naviguerAgenda(-1)" aria-label="Précédent">${icone('chevron-left')}</wa-button>
+                <wa-button appearance="outlined" size="s" type="button" class="ag-nav-btn ag-auj" onclick="naviguerAgenda(0)">Aujourd’hui</wa-button>
+                <wa-button appearance="outlined" size="s" type="button" class="ag-nav-btn" onclick="naviguerAgenda(1)" aria-label="Suivant">${icone('chevron-right')}</wa-button>
                 <span class="ag-aller-zone">
-                  <button type="button" class="ag-nav-btn ag-aller-btn" onclick="ouvrirAllerDateAgenda()" aria-label="Aller à une date" title="Aller à une date — l’historique est lu dans Outlook à la première consultation">${icone('calendar')}</button>
+                  <wa-button appearance="outlined" size="s" type="button" class="ag-nav-btn ag-aller-btn" onclick="ouvrirAllerDateAgenda()" aria-label="Aller à une date" title="Aller à une date — l’historique est lu dans Outlook à la première consultation">${icone('calendar')}</wa-button>
                   <input type="date" class="ag-aller" id="agenda-aller" value="${escapeAttr(agendaJour || '')}" min="2000-01-01" onchange="if (this.value) allerAuJourAgenda(this.value)" tabindex="-1" aria-hidden="true">
                 </span>
-              </div>
+              </wa-button-group>
             </div>
             <span class="ag-sous">${sous}</span>
           </div>

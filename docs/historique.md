@@ -16441,3 +16441,20 @@ carte, des étiquettes en capitales de 10 à 13 px, 600 ou 700, et 9 espacements
   dans `ecartEchelle`, `ecartsTypographie` (capitales, badges, titres de carte) ; deux tests dans `style-uniforme`.
 Captures avant/après (12 écrans, clair et sombre) : petits titres en capitales un peu plus lisibles, titres de cartes alignés, le
 reste identique à l'œil. Zones papier non touchées.
+
+### 04/10/2026 21 h 19 — Lisibilité, champs, icônes, groupes de boutons (0.144.20)
+
+Étude : « D'autres recommandations graphiques ? » puis « Ok pour tout ». Mesures dans Chromium (13 écrans) avant de proposer :
+- `--muted` (mode clair) #8A93A9 → #647089 : contraste 3,1 → 5,0 sur blanc (4,2 sur le fond gris-bleu) ; mode sombre déjà ≥ 6.
+- Champs : 38 px coins 4 px à côté de boutons 40 px coins 10 px → règle de base `min-height: 40px`, `--rayon-m` ; filtres du
+  Suivi 27 → 32 px ; grandes recherches (Suivi, Agenda) 42 → 40 px ; « Vue semaine » 36 → 32 px. Champs « en place » de la fiche
+  (`.prop-champ`, 26 px, sans bordure tant qu'on ne les survole pas) gardés : ce sont des valeurs qu'on modifie, pas des champs.
+- Icônes : 9 tailles (11 à 22 px) → 14/16/20 (64 déclarations ramenées ; `.icone` = `max(1em, 14px)` ; `wa-button svg` 16 px,
+  14 px en `size="s"`) ; garde-fou `TAILLES_ICONES` dans `ecartEchelle`.
+- Bascules (Suivi Échéances/Tableau, tableau de bord Mes dossiers/Tous, appel de fonds office/confrère, filtres des signalements)
+  et ‹ Aujourd'hui › de l'agenda : `<wa-button-group>` (composant ajouté au paquet, 147 Ko), boutons outlined size s, choix actif à
+  l'accent par la classe `actif` déjà posée par le code. Test de structure : ces classes interdites en `<button>`, balises
+  `wa-button-group` équilibrées (l'expression `<wa-button\b` comptait aussi `<wa-button-group` : corrigée).
+- Non fait, volontairement : l'indicateur d'étapes de « Nouveau dossier » (numéros reliés par un trait) reste natif — c'est une
+  progression, pas un groupe de choix ; un groupe de boutons lui ferait perdre sa lecture.
+Captures avant/après (14 écrans, clair et sombre) : texte secondaire plus net, champs et boutons alignés, bascules homogènes.

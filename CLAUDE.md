@@ -716,6 +716,13 @@ Plainte principale de l'étude : **le bruit**, pas les oublis — ne pas élargi
   `var(--texte-xs)`, 600, 0.06em, sauf un badge (règle qui pose son fond : 700, micro/xxs/xs) ; **titre de carte ou de section**
   (`TITRES_CARTE` : `.w-titre`, `.sm-titre`, `.jour-section-titre`, `.reglages-section-titre`) = `var(--texte-l)`, 600. Vérifié
   par `ecartsTypographie` (scripts/style-echelle.js) dans `tests/style-uniforme.test.js`.
+  **Lisibilité et contrôles** (étude 04/10) : `--muted` clair = #647089 (contraste ≥ 4,5 sur blanc ; #8A93A9 faisait 3,1) ;
+  champs de saisie et listes = 40 px, coins `--rayon-m` (comme les boutons), filtres compacts 32 px — sauf les champs
+  « en place » de la fiche (`.prop-champ`, `min-height: 0`) ; **icônes 14 px** (texte, boutons compacts — `.icone` vaut
+  `max(1em, 14px)`), **16 px** (boutons, barres d'outils), **20 px** (barre latérale), 24 px et plus pour une illustration
+  (`TAILLES_ICONES`, testé) ; **bascules et groupes = `<wa-button-group>`** de `wa-button` outlined size s (`vue-bascule-btn`,
+  choix actif = classe `actif` à l'accent ; `ag-nav-btn`). L'indicateur d'étapes de « Nouveau dossier » reste natif : ce n'est
+  pas un choix mais une progression (numéros reliés par un trait).
   **Composants Web Awesome** (étude 04/10, choisis pour l'uniformité) : paquet LOCAL `vendor/web-awesome/` (web-awesome.js +
   web-awesome-theme.css, construits par `scripts/construire-web-awesome.mjs` — version figée 3.14.0, composants listés dans
   `COMPOSANTS`, à relancer seulement pour en ajouter ; bibliothèque d'icônes Font Awesome neutralisée, jamais `<wa-icon name>` :
@@ -736,8 +743,8 @@ Plainte principale de l'étude : **le bruit**, pas les oublis — ne pas élargi
   `checked`, `onchange` et `this.checked` inchangés ; un clic sur le `<label>` qui l'entoure le bascule par le gestionnaire de
   `01-socle.js`). Le focus d'un wa-button juste rendu attend `updateComplete`. Test `structure-client` : plus de `<button>` de
   ces familles, plus de `.slider`, balises équilibrées. **Restent natifs, volontairement** : liens-boutons (`lien-*`, « Voir
-  plus », `icon-btn` à texte seul), lignes cliquables de liste, onglets et groupes segmentés (`vue-bascule-btn`, `ag-nav-btn`,
-  étapes du wizard), pastilles de source (`page-chip`, `voir-pdf-btn`), réglages des widgets, champs, listes et fenêtres.
+  plus », `icon-btn` à texte seul), lignes cliquables de liste, onglets,
+  étapes du wizard, pastilles de source (`page-chip`, `voir-pdf-btn`), réglages des widgets, champs, listes et fenêtres.
   **Tout geste** (email, préparer, noter, créer…) est une ligne d'action `renderLigneAction` (forme
   de « À faire », même titre et même verbe qu'elle pour le même geste) ; tout « Ajouter … » est un
   `button.bouton-ajout` ; l'édition d'une donnée passe par des icônes (crayon, ✓, ×) ; seuls les

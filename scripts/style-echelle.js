@@ -25,6 +25,10 @@ const GRAISSES = ['400', '500', '600', '700', 'normal', 'bold', 'inherit'];
 /** Espacements de lettres permis : serré pour les grands titres, normal, large pour les capitales. */
 const ESPACEMENTS_LETTRES = ['-0.02em', '0', 'normal', '0.06em', 'inherit'];
 
+/** Tailles d'icônes : 14 px dans le texte et les boutons compacts, 16 px dans les boutons et barres d'outils, 20 px dans la
+ * barre latérale (24 px et plus : illustrations, libres). */
+const TAILLES_ICONES = [14, 16, 20];
+
 /** Titres de carte ou de section (widgets, colonne du Suivi, agenda, réglages) : un seul style, 16 px demi-gras. */
 const TITRES_CARTE = ['.w-titre', '.sm-titre', '.jour-section-titre', '.reglages-section-titre'];
 
@@ -118,6 +122,10 @@ function ecartEchelle(d) {
     const ok = couches.every((x) => /^(none|var\(--shadow-[a-z]+\))$/.test(x) || /^inset\b/.test(x) || /\binset$/.test(x) || /^0 0 0 /.test(x));
     return ok ? '' : `ombre hors échelle (${v}) : var(--shadow-card) ou var(--shadow-float)`;
   }
+  if (/^(width|height)$/.test(d.propriete) && /(svg|\.icone)(\b|$)/.test(d.selecteur.split(',').pop() || '')) {
+    const px = /^(\d+)px$/.exec(v);
+    if (px && Number(px[1]) < 24 && !TAILLES_ICONES.includes(Number(px[1]))) return `icône hors échelle (${v}) : 14, 16 ou 20 px`;
+  }
   if (d.propriete === 'font-weight' && !GRAISSES.includes(v)) return `graisse hors échelle (${v}) : ${GRAISSES.slice(0, 4).join(', ')}`;
   if (d.propriete === 'letter-spacing' && !ESPACEMENTS_LETTRES.includes(v)) return `espacement de lettres hors échelle (${v}) : -0.02em, 0 ou 0.06em`;
   if (PROPRIETES_ESPACEMENT.test(d.propriete)) {
@@ -169,4 +177,4 @@ function espacementPermis(px) {
   return ESPACEMENTS.includes(px) || (px > 64 && px % 8 === 0);
 }
 
-module.exports = { ESPACEMENTS, TEXTES, RAYONS, GRAISSES, ESPACEMENTS_LETTRES, TITRES_CARTE, declarationsCss, ecartEchelle, ecartsTypographie, espacementPermis };
+module.exports = { ESPACEMENTS, TEXTES, RAYONS, GRAISSES, TAILLES_ICONES, ESPACEMENTS_LETTRES, TITRES_CARTE, declarationsCss, ecartEchelle, ecartsTypographie, espacementPermis };

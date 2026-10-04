@@ -603,10 +603,10 @@
       </label>
       <!-- Bascule d'affichage de la MÊME liste (mêmes filtres, même recherche) : les dossiers
            regroupés par semaine d'échéance, ou le tableau. Voir definirVueSuivi(). -->
-      <div class="vue-bascule" role="group" aria-label="Mode d'affichage de la liste">
-        <button type="button" class="vue-bascule-btn actif" id="vue-btn-semaines" onclick="definirVueSuivi('semaines')">Échéances</button>
-        <button type="button" class="vue-bascule-btn" id="vue-btn-tableau" onclick="definirVueSuivi('tableau')">Tableau</button>
-      </div>
+      <wa-button-group class="vue-bascule" label="Mode d'affichage de la liste">
+        <wa-button appearance="outlined" size="s" type="button" class="vue-bascule-btn actif" id="vue-btn-semaines" onclick="definirVueSuivi('semaines')">Échéances</wa-button>
+        <wa-button appearance="outlined" size="s" type="button" class="vue-bascule-btn" id="vue-btn-tableau" onclick="definirVueSuivi('tableau')">Tableau</wa-button>
+      </wa-button-group>
     </div>
     <div class="suivi-barre-ligne suivi-barre-filtres" role="group" aria-label="Affiner la recherche">
       <label class="toolbar-item">
@@ -941,10 +941,10 @@
       </div>
 
       <div class="dash-section-titre" style="margin-top:18px;">2 · Décompte</div>
-      <div class="vue-bascule af-mode-decompte" role="group" aria-label="Qui établit le décompte">
-        <button type="button" class="vue-bascule-btn actif" id="af-mode-btn-office" onclick="definirModeDecompteAppelFonds('office')">Établi par l'office</button>
-        <button type="button" class="vue-bascule-btn" id="af-mode-btn-confrere" onclick="definirModeDecompteAppelFonds('confrere')">Décompte du confrère</button>
-      </div>
+      <wa-button-group class="vue-bascule af-mode-decompte" label="Qui établit le décompte">
+        <wa-button appearance="outlined" size="s" type="button" class="vue-bascule-btn actif" id="af-mode-btn-office" onclick="definirModeDecompteAppelFonds('office')">Établi par l'office</wa-button>
+        <wa-button appearance="outlined" size="s" type="button" class="vue-bascule-btn" id="af-mode-btn-confrere" onclick="definirModeDecompteAppelFonds('confrere')">Décompte du confrère</wa-button>
+      </wa-button-group>
       <div id="af-mode-office" class="af-mode-panneau">
         <div class="tf-import" ondragover="survolDepotPieces(event)" ondragleave="quitteDepotPieces(event)" ondrop="deposerPiecesOutil(event, 'af')">
           <label for="af-avis-tf" class="file-btn" data-piece="tf">Avis de taxe foncière</label>

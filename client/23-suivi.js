@@ -1005,10 +1005,10 @@
     bloc.innerHTML = `
       <p class="dash-accueil-resume">${escapeHtml(resume)}</p>
       <div class="dash-accueil-actions">
-        <div class="vue-bascule" role="group" aria-label="Dossiers affichés">
-          <button type="button" class="vue-bascule-btn${global ? '' : ' actif'}" aria-pressed="${!global}" onclick="basculerVueDashboard(false)">Mes dossiers</button>
-          <button type="button" class="vue-bascule-btn${global ? ' actif' : ''}" aria-pressed="${global}" onclick="basculerVueDashboard(true)">Tous les dossiers</button>
-        </div>
+        <wa-button-group class="vue-bascule" label="Dossiers affichés">
+          <wa-button appearance="outlined" size="s" type="button" class="vue-bascule-btn${global ? '' : ' actif'}" aria-pressed="${!global}" onclick="basculerVueDashboard(false)">Mes dossiers</wa-button>
+          <wa-button appearance="outlined" size="s" type="button" class="vue-bascule-btn${global ? ' actif' : ''}" aria-pressed="${global}" onclick="basculerVueDashboard(true)">Tous les dossiers</wa-button>
+        </wa-button-group>
         <button type="button" class="lien-discret" onclick="ouvrirChoixPoste()">Pas ${escapeHtml(prenomCollaborateur(utilisateurPoste))} ? Changer</button>
         <button type="button" class="widgets-personnaliser" onclick="ouvrirGalerieWidgets()" title="Ajouter ou retirer des widgets">${icone('list')}Widgets</button>
         <button type="button" class="widgets-personnaliser${modeEditionWidgets ? ' actif' : ''}" onclick="basculerEditionWidgets()" aria-pressed="${modeEditionWidgets}">${modeEditionWidgets ? `${icone('check')}Terminé` : `${icone('layout')}Personnaliser`}</button>

@@ -369,8 +369,8 @@
     if (!zone) return;
     const compte = (f) => filtrerSignalements(signalementsCharges, f).length;
     const filtres = [['a-trier', 'À trier'], ['transmis', 'Transmis'], ['traites', 'Traités'], ['tous', 'Tous']];
-    const bascule = `<div class="vue-bascule signalements-filtres" role="tablist">${filtres.map(([f, l]) =>
-      `<button type="button" role="tab" aria-selected="${f === filtreSignalements}" class="vue-bascule-btn${f === filtreSignalements ? ' actif' : ''}" onclick="definirFiltreSignalements('${f}')">${l} <span class="signalements-compte">${compte(f)}</span></button>`).join('')}</div>`;
+    const bascule = `<wa-button-group class="vue-bascule signalements-filtres" label="Filtrer les signalements">${filtres.map(([f, l]) =>
+      `<wa-button appearance="outlined" size="s" type="button" aria-pressed="${f === filtreSignalements}" class="vue-bascule-btn${f === filtreSignalements ? ' actif' : ''}" onclick="definirFiltreSignalements('${f}')">${l} <span class="signalements-compte">${compte(f)}</span></wa-button>`).join('')}</wa-button-group>`;
     const liste = filtrerSignalements(signalementsCharges, filtreSignalements);
     const vide = {
       'a-trier': 'Rien à trier. Les signalements des collaborateurs arrivent ici.',
