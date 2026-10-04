@@ -89,6 +89,12 @@ try {
         for (const o of ONGLETS_FICHE) { await geste(page, `fiche ${id} › ${o}`, (x) => definirOngletFiche(x), o); await pause(150); }
         await page.evaluate(() => { try { fermerDossierDrawer(); } catch (e) { /* déjà fermée */ } });
       }
+      // « À propos » : le numéro de version et chaque entrée de l'historique (numéro + jour) s'affichent.
+      await geste(page, 'À propos', () => ouvrirAPropos());
+      const propos = await page.evaluate(() => ({ numero: (document.getElementById('apropos-version-valeur') || {}).textContent, attendu: VERSION_APP, lignes: document.querySelectorAll('#apropos-historique-liste li').length, entrees: HISTORIQUE_VERSIONS.length, jour: (document.getElementById('apropos-version-date') || {}).textContent }));
+      verifier(/^\d+\.\d+\.\d+$/.test(propos.numero || '') && propos.numero === propos.attendu, `À propos : version ${propos.numero}`);
+      verifier(propos.lignes === propos.entrees && /\d{2}\/\d{2} \d{2}:\d{2}/.test(propos.jour || ''), `À propos : ${propos.lignes} versions listées, date ${propos.jour}`);
+      await geste(page, 'fermer À propos', () => fermerAPropos());
       await page.evaluate(() => definirOnglet('dashboard'));
       await pause(300);
     }

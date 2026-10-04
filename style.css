@@ -4706,6 +4706,7 @@
     color: var(--ink-soft);
   }
   .apropos-version strong { color: var(--ink); font-variant-numeric: tabular-nums; }
+  .apropos-version-date { color: var(--muted); font-variant-numeric: tabular-nums; }
   .apropos-desc {
     margin: 0 0 14px;
     font-size: 13px;
@@ -4739,6 +4740,7 @@
     color: var(--ink);
     font-weight: 600;
   }
+  .apropos-historique-jour { font-variant-numeric: tabular-nums; color: var(--muted); font-size: 11px; }
 
   /* Panneau "Qualité de l'extraction" (voir renderQualiteExtraction dans script.js) : même gabarit
      que .apropos-historique-liste juste au-dessus (fond enfoncé, défilement borné), une ligne par

@@ -38,11 +38,27 @@ test('serveur et .exe : chaque fichier du manifeste est servi et embarqué', () 
   assert.match(build, /client', 'manifest\.json'/, 'les assets du .exe lisent le manifeste');
 });
 
-test('version : VERSION_APP dans 00-version.js, à l’heure de Paris', () => {
+test('version : numéro 0.J.N dans 00-version.js, unique, croissant avec la date', () => {
   const src = fs.readFileSync(path.join(racine, 'client', '00-version.js'), 'utf8');
-  const m = src.match(/const VERSION_APP = '(\d{4}-\d{2}-\d{2} \d{2}:\d{2})'/);
-  assert.ok(m, 'VERSION_APP lisible');
-  assert.match(src, new RegExp(`version: '${m[1]}'`), 'HISTORIQUE_VERSIONS commence par la version courante');
+  const m = src.match(/const VERSION_APP = '(\d+\.\d+\.\d+)'/);
+  assert.ok(m, 'VERSION_APP lisible (0.J.N)');
+  const entrees = [...src.matchAll(/^\s+\{ version: '(\d+)\.(\d+)\.(\d+)', date: '(\d{4}-\d{2}-\d{2} \d{2}:\d{2})', /gm)]
+    .map(x => ({ v: x.slice(1, 4).map(Number), numero: x.slice(1, 4).join('.'), date: x[4] }));
+  assert.equal((src.match(/\{ version: '/g) || []).length, entrees.length, 'chaque entrée a un numéro 0.J.N et une date');
+  assert.equal(entrees[0].numero, m[1], 'HISTORIQUE_VERSIONS commence par la version courante');
+  assert.equal(new Set(entrees.map(e => e.numero)).size, entrees.length, 'numéros uniques');
+  const parDate = [...entrees].sort((x, y) => x.date.localeCompare(y.date));
+  for (let i = 1; i < parDate.length; i++) {
+    const [a, b] = [parDate[i - 1].v, parDate[i].v];
+    assert.ok(b[1] > a[1] || (b[1] === a[1] && b[2] > a[2]), `${parDate[i].numero} (${parDate[i].date}) doit suivre ${parDate[i - 1].numero}`);
+  }
+});
+
+test('prochaine-version : même jour → N + 1, nouveau jour → J + 1', () => {
+  const { prochaineVersion } = require('../scripts/prochaine-version');
+  const src = "  const HISTORIQUE_VERSIONS = [\n    { version: '0.13.10', date: '2026-10-04 15:39', resume: \"x\" },\n";
+  assert.equal(prochaineVersion(src, '2026-10-04 18:00'), '0.13.11');
+  assert.equal(prochaineVersion(src, '2026-10-05 08:00'), '0.14.1');
 });
 
 test('aucun nom de premier niveau déclaré dans deux fichiers du poste', () => {

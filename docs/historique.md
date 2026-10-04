@@ -16290,3 +16290,17 @@ Serveur (`--experimental-test-coverage`) : 95 % des lignes, 94 % des fonctions ;
 (54 %), `emailsMatin.js` (65 %), `exchange.js` (71 %).
 
 **11 h 58** — `18-extraction-fusion-lots-ia.js` vidé par le retrait : supprimé, fichiers 19 → 43 renumérotés 18 → 42 (`git mv`, manifeste et `index.html` régénérés) ; 43 fichiers.
+
+### 04/10/2026 15 h 40 — Numéros de version (0.J.N) à la place des horodatages
+
+Demande de l'étude : « modifier les rédactions de version… plutôt les numéros de version ». Choix : format `0.J.N` (bêta),
+J = rang du jour de travail (13 jours depuis le 22/09), N = rang de la mise à jour dans le jour ; la date et l'heure restent en
+petit. Les 398 entrées existantes sont renumérotées dans l'ordre chronologique (`date` conserve l'ancien horodatage), la
+nouvelle est `0.13.10`. `VERSION_APP` = `'0.13.10'`. « À propos » : « Version 0.13.10 · 04/10 15:39 » et, par entrée,
+numéro + jour/heure + note (`dateVersionCourte`). Les 31 `depuis` de `VERIFICATIONS_TERRAIN` sont convertis ; leur tri
+passe par `comparerVersions` (« 0.13.10 » après « 0.13.9 » — un tri alphabétique les aurait inversés). `scripts/prochaine-version.js`
+donne le numéro suivant et l'heure de Paris (testé). Rien d'autre ne dépendait du format : la mise à jour automatique compare le
+numéro de build de la release GitHub (`serveur-exe-N`), `surveillerVersionServeur` une égalité de chaînes, les signalements et le
+journal technique gardent la version telle quelle (les anciens gardent leur date). Test de fumée : « À propos » affiche numéro,
+date et toutes les versions.
+

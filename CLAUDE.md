@@ -682,10 +682,14 @@ Plainte principale de l'étude : **le bruit**, pas les oublis — ne pas élargi
   coche seul au bureau (ou « C'est bon » dans Réglages › Mise à jour et sauvegarde pour ce qui se voit à l'œil) ; le rapport
   technique en donne l'état (section « Vérifications sur le terrain », échecs dans « À examiner ») : **le lire avant de déclarer
   vérifié un point de « Non vérifié au bureau »**.
-- **Versionnage** : à chaque commit qui change le comportement, mettre à jour `VERSION_APP` **et**
-  ajouter une entrée en tête de `HISTORIQUE_VERSIONS` (`client/00-version.js`), heure de Paris :
-  `TZ='Europe/Paris' date '+%Y-%m-%d %H:%M'` (jamais `date` seul : l'environnement est en UTC).
-  C'est ce que l'étude lit dans « À propos ».
+- **Versionnage** (numéros depuis le 04/10 — étude : « plutôt les numéros de version ») : `VERSION_APP` est un numéro **`0.J.N`**
+  (bêta ; J = rang du jour de travail, N = rang de la mise à jour dans le jour). À chaque commit qui change le comportement :
+  `node scripts/prochaine-version.js` donne le numéro suivant et l'heure de Paris (jamais `date` seul : l'environnement est en
+  UTC), puis mettre à jour `VERSION_APP` **et** ajouter une entrée en tête de `HISTORIQUE_VERSIONS` (`client/00-version.js`) :
+  `{ version: '0.J.N', date: 'AAAA-MM-JJ HH:MM', resume: "…" }`. « À propos » affiche le numéro avec la date en petit ;
+  `depuis` des points de `VERIFICATIONS_TERRAIN` = ce numéro (tri chiffre par chiffre, `comparerVersions`). Le test `structure-client`
+  vérifie numéros uniques et croissants avec la date. La mise à jour automatique n'en dépend pas (elle compare le numéro de
+  build de la release GitHub).
 - **Poser les questions de cadrage** (`AskUserQuestion`) quand une demande admet plusieurs
   lectures, surtout en droit notarial ou quand l'action écrit dans un agenda/une boîte partagés.
 - **Garder l'interface cohérente** : jetons CSS existants (`--focus` = accent du thème choisi,

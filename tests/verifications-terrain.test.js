@@ -22,3 +22,11 @@ test('lignesVerificationsTerrain : vérifié, échec, en attente, point manuel �
   assert.equal((html.match(/confirmerVerificationTerrain/g) || []).length, 2, 'boutons seulement sur le point manuel');
   assert.equal(app.lignesVerificationsTerrain([]), '');
 });
+
+test('comparerVersions : 0.13.10 est après 0.13.9 (comparaison chiffre par chiffre)', () => {
+  const { comparerVersions } = require('../server/src/verificationsTerrain');
+  assert.ok(comparerVersions('0.13.10', '0.13.9') > 0);
+  assert.ok(comparerVersions('0.12.40', '0.13.1') < 0);
+  assert.equal(comparerVersions('0.13.9', '0.13.9'), 0);
+  assert.ok(comparerVersions('2026-10-04 08:26', '2026-10-03 20:27') > 0, 'ancien format : ordre alphabétique');
+});

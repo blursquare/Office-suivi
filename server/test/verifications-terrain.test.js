@@ -13,8 +13,7 @@ const { ouvrirDb } = require('../src/db');
 const { creerRepoParametres } = require('../src/parametresRepo');
 const {
   VERIFICATIONS_TERRAIN, appliquerObservation, statutVerification, assainirVerifications, listeVerifications,
-  sectionVerificationsTerrain, echecsVerificationsPeriode, noterVerification, lireVerifications, formeNumero
-} = require('../src/verificationsTerrain');
+  sectionVerificationsTerrain, echecsVerificationsPeriode, noterVerification, lireVerifications, formeNumero, comparerVersions } = require('../src/verificationsTerrain');
 const { construireRapport } = require('../src/rapportTechnique');
 
 test('catalogue : identifiants uniques, sources connues, version et titre renseignés', () => {
@@ -22,7 +21,7 @@ test('catalogue : identifiants uniques, sources connues, version et titre rensei
   assert.equal(new Set(ids).size, ids.length);
   for (const v of VERIFICATIONS_TERRAIN) {
     assert.ok(['serveur', 'poste', 'manuel'].includes(v.source), v.id);
-    assert.match(v.depuis, /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/, v.id);
+    assert.match(v.depuis, /^\d+\.\d+\.\d+$/, v.id + ' : numéro de version 0.J.N');
     assert.ok(v.titre && v.comment, v.id);
   }
 });
@@ -120,5 +119,5 @@ test('noterVerification : une réussite répétée dans l’heure ne réécrit p
 
 test('listeVerifications : la plus récente mise à jour d’abord', () => {
   const l = listeVerifications({});
-  for (let i = 1; i < l.length; i++) assert.ok(l[i - 1].depuis >= l[i].depuis);
+  for (let i = 1; i < l.length; i++) assert.ok(comparerVersions(l[i - 1].depuis, l[i].depuis) >= 0, `${l[i - 1].depuis} avant ${l[i].depuis}`);
 });

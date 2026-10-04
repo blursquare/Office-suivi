@@ -515,6 +515,12 @@
     }
   }
 
+  // « 2026-10-04 15:39 » → « 04/10 15:39 » (la date d'une version, affichée en petit à côté de son numéro).
+  function dateVersionCourte(date) {
+    const m = /^(\d{4})-(\d{2})-(\d{2}) (\d{2}:\d{2})$/.exec(String(date || ''));
+    return m ? `${m[3]}/${m[2]} ${m[4]}` : String(date || '');
+  }
+
   // Écran "À propos" (voir VERSION_APP/HISTORIQUE_VERSIONS en tête de fichier) : peuple la version
   // et l'historique à chaque ouverture plutôt qu'une fois au chargement, au cas — improbable mais
   // sans coût à couvrir — où ces libellés seraient un jour recalculés dynamiquement plutôt que de
@@ -522,10 +528,12 @@
   function ouvrirAPropos() {
     const valeur = document.getElementById('apropos-version-valeur');
     if (valeur) valeur.textContent = VERSION_APP;
+    const dateVersion = document.getElementById('apropos-version-date');
+    if (dateVersion) dateVersion.textContent = HISTORIQUE_VERSIONS[0] ? '· ' + dateVersionCourte(HISTORIQUE_VERSIONS[0].date) : '';
     const liste = document.getElementById('apropos-historique-liste');
     if (liste) {
       liste.innerHTML = HISTORIQUE_VERSIONS.map(h =>
-        `<li><span class="apropos-historique-date">${escapeHtml(h.version)}</span> — ${escapeHtml(h.resume)}</li>`
+        `<li><span class="apropos-historique-date">${escapeHtml(h.version)}</span> <span class="apropos-historique-jour">${escapeHtml(dateVersionCourte(h.date))}</span> — ${escapeHtml(h.resume)}</li>`
       ).join('');
     }
     const overlay = document.getElementById('apropos-overlay');

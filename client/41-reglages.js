@@ -953,7 +953,7 @@
         : '';
       return `<div class="reglages-option reglages-option-fixe reglages-verif" data-verif="${escapeAttr(v.id)}">
           <span class="reglages-option-texte">
-            <span class="reglages-option-titre">${escapeHtml(v.titre)}${infoBulle(`${v.comment} Depuis la version du ${v.depuis}.`)}</span>
+            <span class="reglages-option-titre">${escapeHtml(v.titre)}${infoBulle(`${v.comment} Depuis la version ${v.depuis}.`)}</span>
             <span class="hint">${statut} ${escapeHtml(etat)}</span>
           </span>
           ${boutons}

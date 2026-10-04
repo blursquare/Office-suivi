@@ -20,67 +20,67 @@ const CLE_VERIFICATIONS = 'verifications-terrain';
 // `source` : 'serveur' (noté par le serveur), 'poste' (noté par une fenêtre CLAIRE, POST
 // /api/verifications-terrain/noter — seuls ces points-là y sont acceptés) ou 'manuel'.
 const VERIFICATIONS_TERRAIN = [
-  { id: 'lecture-xml-exchange', depuis: '2026-10-04 08:26', source: 'serveur', titre: 'Réponses d’Exchange lues par le nouveau lecteur XML (agenda de l’office)',
+  { id: 'lecture-xml-exchange', depuis: '0.13.2', source: 'serveur', titre: 'Réponses d’Exchange lues par le nouveau lecteur XML (agenda de l’office)',
     comment: 'Coché au premier tour de lecture de l’agenda qui rend des rendez-vous après le passage à fast-xml-parser ; si l’agenda reste vide alors qu’Outlook en montre, c’est la lecture à examiner.' },
-  { id: 'tache-agenda-retiree', depuis: '2026-10-04 08:09', source: 'poste', titre: 'Tâche de l’agenda cochée : rendez-vous rouge « JV - … » retiré de l’agenda de l’office',
+  { id: 'tache-agenda-retiree', depuis: '0.13.1', source: 'poste', titre: 'Tâche de l’agenda cochée : rendez-vous rouge « JV - … » retiré de l’agenda de l’office',
     comment: 'Coché quand le premier rendez-vous-tâche est retiré de l’agenda après avoir été coché dans CLAIRE ; en échec si Exchange refuse la suppression.' },
-  { id: 'email-envoye-exchange', depuis: '2026-10-03 20:27', source: 'serveur', titre: 'Email envoyé depuis CLAIRE par Exchange (brouillon puis envoi)',
+  { id: 'email-envoye-exchange', depuis: '0.12.25', source: 'serveur', titre: 'Email envoyé depuis CLAIRE par Exchange (brouillon puis envoi)',
     comment: 'Coché au premier email envoyé depuis la fenêtre d’email de CLAIRE ; en échec si Exchange refuse (code relevé, jamais le texte).' },
-  { id: 'email-reponse-exchange', depuis: '2026-10-03 20:27', source: 'serveur', titre: 'Réponse à un email reçu envoyée depuis CLAIRE (fil de la conversation gardé)',
+  { id: 'email-reponse-exchange', depuis: '0.12.25', source: 'serveur', titre: 'Réponse à un email reçu envoyée depuis CLAIRE (fil de la conversation gardé)',
     comment: 'Coché à la première réponse envoyée depuis la lecture d’un email du dossier.' },
-  { id: 'email-envoye-en-tant-que', depuis: '2026-10-03 20:27', source: 'serveur', titre: 'Email parti de la boîte du collaborateur (« Envoyer en tant que »)',
+  { id: 'email-envoye-en-tant-que', depuis: '0.12.25', source: 'serveur', titre: 'Email parti de la boîte du collaborateur (« Envoyer en tant que »)',
     comment: 'Coché quand Exchange accepte d’envoyer depuis la boîte du collaborateur ; en échec tant que le droit « Envoyer en tant que » n’est pas donné au compte relié (l’email part alors du compte relié).' },
-  { id: 'email-proposition-ia', depuis: '2026-10-03 20:27', source: 'serveur', titre: 'Premier jet de réponse proposé par l’IA locale',
+  { id: 'email-proposition-ia', depuis: '0.12.25', source: 'serveur', titre: 'Premier jet de réponse proposé par l’IA locale',
     comment: 'Coché à la première proposition de réponse rendue par Ollama ; en échec si l’IA locale est indisponible.' },
-  { id: 'fausses-minutes', depuis: '2026-10-03 20:00', source: 'poste', titre: 'Dossier « Fausses minutes » trouvé et lu (envoi de la copie de l’acte au client)',
+  { id: 'fausses-minutes', depuis: '0.12.24', source: 'poste', titre: 'Dossier « Fausses minutes » trouvé et lu (envoi de la copie de l’acte au client)',
     comment: 'Coché la première fois que la fenêtre « Envoyer la copie de l’acte / l’attestation de vente » lit le dossier des fausses minutes ; en échec s’il est introuvable (renseigner alors « nasFaussesMinutes » dans config.json).' },
-  { id: 'authentic-creer-dossier', depuis: '2026-10-03 18:05', source: 'poste', titre: 'Authentic : « Créer » proposé sur une page de vente sans dossier, « Nouveau dossier » ouvert pré-rempli',
+  { id: 'authentic-creer-dossier', depuis: '0.12.19', source: 'poste', titre: 'Authentic : « Créer » proposé sur une page de vente sans dossier, « Nouveau dossier » ouvert pré-rempli',
     comment: 'Coché la première fois qu’un clic sur « Créer » (message ou fenêtre « Choisir ») ouvre « Nouveau dossier » avec la page de vente lue.' },
-  { id: 'complement-compromis-nas', depuis: '2026-10-03 17:50', source: 'poste', titre: 'Compléter un dossier avec le compromis : compromis lu depuis le NAS et appliqué sur la fiche',
+  { id: 'complement-compromis-nas', depuis: '0.12.17', source: 'poste', titre: 'Compléter un dossier avec le compromis : compromis lu depuis le NAS et appliqué sur la fiche',
     comment: 'Coché la première fois qu’un compromis proposé depuis le NAS (fiche › « Compléter ») est lu par le poste et que le dossier est complété ; en échec si la lecture du fichier échoue.' },
-  { id: 'nas-noms-parcours', depuis: '2026-10-03 08:13', source: 'serveur', titre: 'Noms de fichiers du NAS : dossier commun parcouru en entier',
+  { id: 'nas-noms-parcours', depuis: '0.12.6', source: 'serveur', titre: 'Noms de fichiers du NAS : dossier commun parcouru en entier',
     comment: 'Coché quand le parcours de tous les dossiers clients du commun se termine (détail : nombre de dossiers et de PDF).' },
-  { id: 'formes-noms-reconnaissance', depuis: '2026-10-03 08:13', source: 'poste', titre: 'Une forme de nom validée dans l’outil a reconnu une pièce d’un dossier',
+  { id: 'formes-noms-reconnaissance', depuis: '0.12.6', source: 'poste', titre: 'Une forme de nom validée dans l’outil a reconnu une pièce d’un dossier',
     comment: 'Coché la première fois qu’une forme validée (« oui ») fait reconnaître une pièce que les motifs fixes ne voyaient pas.' },
-  { id: 'maj-auto', depuis: '2026-10-03 07:09', source: 'serveur', titre: 'Mise à jour automatique installée, serveur redémarré sur la nouvelle version',
+  { id: 'maj-auto', depuis: '0.12.1', source: 'serveur', titre: 'Mise à jour automatique installée, serveur redémarré sur la nouvelle version',
     comment: 'Coché au démarrage qui suit une installation automatique, si le build en marche est celui qui a été installé.' },
-  { id: 'notification-navigateur', depuis: '2026-10-03 07:27', source: 'poste', titre: 'Notification Windows/Chrome envoyée (pièce trouvée)',
+  { id: 'notification-navigateur', depuis: '0.12.4', source: 'poste', titre: 'Notification Windows/Chrome envoyée (pièce trouvée)',
     comment: 'Coché quand une fenêtre CLAIRE cachée a pu afficher une notification (permission accordée, réglage du poste actif).' },
-  { id: 'notification-logo', depuis: '2026-10-03 07:27', source: 'manuel', titre: 'Le logo de CLAIRE apparaît dans la notification Windows',
+  { id: 'notification-logo', depuis: '0.12.4', source: 'manuel', titre: 'Le logo de CLAIRE apparaît dans la notification Windows',
     comment: 'À confirmer à l’œil à la prochaine notification « Nouvelle(s) pièce(s) trouvée(s) ».' },
-  { id: 'actes-agenda-historique', depuis: '2026-10-03 07:19', source: 'serveur', titre: 'Statistiques : historique de l’agenda lu sur deux années (actes à l’agenda)',
+  { id: 'actes-agenda-historique', depuis: '0.12.2', source: 'serveur', titre: 'Statistiques : historique de l’agenda lu sur deux années (actes à l’agenda)',
     comment: 'Coché quand tous les mois de l’année précédente et de l’année en cours ont été lus dans Exchange.' },
-  { id: 'actes-agenda-chiffres', depuis: '2026-10-03 07:19', source: 'manuel', titre: 'Statistiques : ventes, successions et donations conformes à l’agenda',
+  { id: 'actes-agenda-chiffres', depuis: '0.12.2', source: 'manuel', titre: 'Statistiques : ventes, successions et donations conformes à l’agenda',
     comment: 'À confirmer en comparant un mois avec l’agenda d’Outlook (titres VTE, SUCC, DONATION).' },
-  { id: 'fenetres-rechargees', depuis: '2026-10-03 10:32', source: 'poste', titre: 'Après une mise à jour automatique, une fenêtre CLAIRE déjà ouverte s’est rechargée seule sur la nouvelle version',
+  { id: 'fenetres-rechargees', depuis: '0.12.12', source: 'poste', titre: 'Après une mise à jour automatique, une fenêtre CLAIRE déjà ouverte s’est rechargée seule sur la nouvelle version',
     comment: 'Coché la première fois qu’une fenêtre voit le serveur redémarrer sur une autre version et se recharge.' },
-  { id: 'emails-dossier-rattrapage', depuis: '2026-10-03 10:32', source: 'serveur', titre: 'Emails des dossiers : dossier tout juste créé, ses emails des 30 derniers jours retrouvés',
+  { id: 'emails-dossier-rattrapage', depuis: '0.12.12', source: 'serveur', titre: 'Emails des dossiers : dossier tout juste créé, ses emails des 30 derniers jours retrouvés',
     comment: 'Coché la première fois qu’un email reçu avant la création d’un dossier lui est rattaché (par l’adresse ou par l’objet).' },
-  { id: 'emails-adresse-rattrapage', depuis: '2026-10-03 10:06', source: 'serveur', titre: 'Emails des dossiers : adresse ajoutée sur une fiche, ses emails des 30 derniers jours retrouvés',
+  { id: 'emails-adresse-rattrapage', depuis: '0.12.10', source: 'serveur', titre: 'Emails des dossiers : adresse ajoutée sur une fiche, ses emails des 30 derniers jours retrouvés',
     comment: 'Coché la première fois qu’un email reçu avant la saisie de l’adresse (client ou confrère) est rattaché au dossier.' },
-  { id: 'emails-dossiers-reception', depuis: '2026-10-02 23:01', source: 'serveur', titre: 'Emails des dossiers : un email reçu rattaché à un dossier et lu en entier',
+  { id: 'emails-dossiers-reception', depuis: '0.11.67', source: 'serveur', titre: 'Emails des dossiers : un email reçu rattaché à un dossier et lu en entier',
     comment: 'Coché au premier tour qui lit un email de la boîte de réception rattaché à un dossier.' },
-  { id: 'emails-envoyes-collaborateur', depuis: '2026-10-02 23:01', source: 'serveur', titre: 'Emails des dossiers : « Éléments envoyés » d’un collaborateur lus (accès délégué)',
+  { id: 'emails-envoyes-collaborateur', depuis: '0.11.67', source: 'serveur', titre: 'Emails des dossiers : « Éléments envoyés » d’un collaborateur lus (accès délégué)',
     comment: 'Coché quand la boîte d’envoi d’un collaborateur a pu être lue ; en échec tant que l’accès « Relecteur » n’est pas donné dans Outlook.' },
-  { id: 'email-prepare-envoye', depuis: '2026-10-02 23:01', source: 'serveur', titre: 'Un email préparé par CLAIRE retrouvé dans les envoyés (« envoyé le … »)',
+  { id: 'email-prepare-envoye', depuis: '0.11.67', source: 'serveur', titre: 'Un email préparé par CLAIRE retrouvé dans les envoyés (« envoyé le … »)',
     comment: 'Coché la première fois qu’un .eml préparé est retrouvé envoyé.' },
-  { id: 'email-resume-ia', depuis: '2026-10-02 23:01', source: 'serveur', titre: 'Résumé d’un email par l’IA locale (Ollama)',
+  { id: 'email-resume-ia', depuis: '0.11.67', source: 'serveur', titre: 'Résumé d’un email par l’IA locale (Ollama)',
     comment: 'Coché au premier résumé rendu ; en échec si l’IA est indisponible ou ne répond pas.' },
-  { id: 'piece-jointe-nas', depuis: '2026-10-02 23:16', source: 'serveur', titre: 'Pièce jointe d’un email rangée dans le dossier client du NAS',
+  { id: 'piece-jointe-nas', depuis: '0.11.68', source: 'serveur', titre: 'Pièce jointe d’un email rangée dans le dossier client du NAS',
     comment: 'Coché à la première copie réussie sur le NAS.' },
-  { id: 'installation-poste', depuis: '2026-10-02 23:16', source: 'serveur', titre: '« CLAIRE en application » installé sur un poste (script .vbs exécuté)',
+  { id: 'installation-poste', depuis: '0.11.68', source: 'serveur', titre: '« CLAIRE en application » installé sur un poste (script .vbs exécuté)',
     comment: 'Coché quand l’installateur d’un poste télécharge l’icône de CLAIRE : le script a bien tourné sous Windows.' },
-  { id: 'installation-poste-icone', depuis: '2026-10-02 23:16', source: 'manuel', titre: 'Poste installé : icône de CLAIRE nette dans la barre des tâches',
+  { id: 'installation-poste-icone', depuis: '0.11.68', source: 'manuel', titre: 'Poste installé : icône de CLAIRE nette dans la barre des tâches',
     comment: 'À confirmer à l’œil sur un poste installé.' },
-  { id: '3cx-sonnerie', depuis: '2026-10-01 18:05', source: 'serveur', titre: '3CX : une sonnerie reçue avec un numéro lisible',
+  { id: '3cx-sonnerie', depuis: '0.10.27', source: 'serveur', titre: '3CX : une sonnerie reçue avec un numéro lisible',
     comment: 'Coché à la première sonnerie dont le numéro a une forme de numéro (détail : forme du numéro, jamais le numéro).' },
-  { id: '3cx-appelant-reconnu', depuis: '2026-10-01 18:05', source: 'serveur', titre: '3CX : un appelant reconnu (dossier, confrère ou répertoire)',
+  { id: '3cx-appelant-reconnu', depuis: '0.10.27', source: 'serveur', titre: '3CX : un appelant reconnu (dossier, confrère ou répertoire)',
     comment: 'Coché au premier appelant reconnu.' },
-  { id: 'agenda-soft-delete', depuis: '2026-10-01 18:04', source: 'serveur', titre: 'Agenda : suppression rattrapée par « SoftDelete » (compte délégué)',
+  { id: 'agenda-soft-delete', depuis: '0.10.26', source: 'serveur', titre: 'Agenda : suppression rattrapée par « SoftDelete » (compte délégué)',
     comment: 'Coché la première fois que le repli a servi et réussi.' },
-  { id: 'sondage-reponse', depuis: '2026-10-01 00:27', source: 'serveur', titre: 'Sondage de créneaux : une réponse relevée dans la boîte',
+  { id: 'sondage-reponse', depuis: '0.10.1', source: 'serveur', titre: 'Sondage de créneaux : une réponse relevée dans la boîte',
     comment: 'Coché à la première réponse comptée.' },
-  { id: 'visio-ics', depuis: '2026-10-01 15:37', source: 'poste', titre: 'Visio ADNOV : lien lu dans une invitation .ics',
+  { id: 'visio-ics', depuis: '0.10.16', source: 'poste', titre: 'Visio ADNOV : lien lu dans une invitation .ics',
     comment: 'Coché quand une invitation déposée donne un lien de visio.' }
 ];
 const PAR_ID = new Map(VERIFICATIONS_TERRAIN.map((v) => [v.id, v]));
@@ -165,10 +165,19 @@ function confirmerVerification(parametresRepo, id, confirme, maintenant = new Da
   return propre[id];
 }
 
+// Pure : compare deux numéros de version « 0.J.N » chiffre par chiffre (« 0.13.10 » est après « 0.13.9 »). Autre forme
+// (anciens points, tests) : ordre alphabétique, comme avant le 04/10.
+function comparerVersions(a, b) {
+  const ma = /^(\d+)\.(\d+)\.(\d+)$/.exec(String(a)); const mb = /^(\d+)\.(\d+)\.(\d+)$/.exec(String(b));
+  if (ma && mb) for (let i = 1; i <= 3; i++) { const d = Number(ma[i]) - Number(mb[i]); if (d) return d; }
+  else return String(a).localeCompare(String(b));
+  return 0;
+}
+
 // Pure : liste pour l'écran et le rapport, la plus récente mise à jour d'abord.
 function listeVerifications(etat) {
   return VERIFICATIONS_TERRAIN.map((def) => ({ ...def, etat: etat[def.id] || null, statut: statutVerification(def, etat[def.id]) }))
-    .sort((a, b) => String(b.depuis).localeCompare(String(a.depuis)));
+    .sort((a, b) => comparerVersions(b.depuis, a.depuis));
 }
 
 // Pure : section du rapport technique. `anonymiser` = anonymiserTexte déjà lié aux mots sensibles.
@@ -214,7 +223,7 @@ function formeNumero(numero) {
   return `${chiffres.length} chiffres${chiffres.startsWith('0') ? ' (0…)' : ''}`;
 }
 
-module.exports = {
+module.exports = { comparerVersions,
   VERIFICATIONS_TERRAIN, CLE_VERIFICATIONS, assainirVerifications, appliquerObservation, statutVerification,
   lireVerifications, noterVerification, confirmerVerification, listeVerifications, sectionVerificationsTerrain,
   echecsVerificationsPeriode, formeNumero
