@@ -67,6 +67,9 @@ const ASSETS_STATIQUES = {
   // Composants Web Awesome (étude 04/10), paquet local : à déclarer ici ET dans les assets du .exe, comme le reste.
   '/vendor/web-awesome/web-awesome.js': { fichier: 'vendor/web-awesome/web-awesome.js', type: 'application/javascript; charset=utf-8' },
   '/vendor/web-awesome/web-awesome-theme.css': { fichier: 'vendor/web-awesome/web-awesome-theme.css', type: 'text/css; charset=utf-8' },
+  // Police de l'interface (Geist, OFL — étude 04/10), embarquée : aucun appel extérieur. Binaire : lue sans encodage.
+  '/vendor/polices/geist-latin-wght-normal.woff2': { fichier: 'vendor/polices/geist-latin-wght-normal.woff2', type: 'font/woff2', binaire: true },
+  '/vendor/polices/geist-latin-ext-wght-normal.woff2': { fichier: 'vendor/polices/geist-latin-ext-wght-normal.woff2', type: 'font/woff2', binaire: true },
   '/manifest.json': { fichier: 'manifest.json', type: 'application/manifest+json; charset=utf-8' },
   '/sw.js': { fichier: 'sw.js', type: 'application/javascript; charset=utf-8' },
   '/icone.svg': { fichier: 'icone.svg', type: 'image/svg+xml; charset=utf-8' }
@@ -81,7 +84,7 @@ function creerMiddlewareAssetsSea(sea) {
     const entree = ASSETS_STATIQUES[req.path];
     if (!entree) return next();
     try {
-      res.type(entree.type).send(sea.getAsset(entree.fichier, 'utf8'));
+      res.type(entree.type).send(entree.binaire ? Buffer.from(sea.getAsset(entree.fichier)) : sea.getAsset(entree.fichier, 'utf8'));
     } catch (err) {
       next(err);
     }

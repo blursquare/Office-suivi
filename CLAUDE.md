@@ -709,19 +709,23 @@ Plainte principale de l'étude : **le bruit**, pas les oublis — ne pas élargi
   deux thèmes). Vérifié par `tests/style-uniforme.test.js` (lecteur `scripts/style-echelle.js`) ; exemptés : `@media print`
   et les zones bornées par `/* @papier */ … /* @fin-papier */` (courrier d'appel de fonds, feuille des quotités — identité
   papier). Cartes posées sur le fond : `--rayon-carte` et `--bord-carte` (sans bordure en clair).
-  **Typographie** (étude 04/10 : « tu trouves les polices cohérentes ? ») : Inter partout (Montserrat pour le mot « Claire »,
-  Lora/Times/Calibri dans les zones papier et les emails) ; **graisses 400 texte, 500 libellés/boutons, 600 titres et
-  étiquettes, 700 titres de page, chiffres clés et badges** — rien d'autre (Inter n'est chargée qu'en 400–700 : 650 s'affichait
-  en 700) ; **espacement de lettres -0.02em (grands titres), 0, ou 0.06em (capitales)** ; **étiquette en capitales** =
-  `var(--texte-xs)`, 600, 0.06em, sauf un badge (règle qui pose son fond : 700, micro/xxs/xs) ; **titre de carte ou de section**
-  (`TITRES_CARTE` : `.w-titre`, `.sm-titre`, `.jour-section-titre`, `.reglages-section-titre`) = `var(--texte-l)`, 600. Vérifié
-  par `ecartsTypographie` (scripts/style-echelle.js) dans `tests/style-uniforme.test.js`.
+  **Typographie** (étude 04/10 : « tu trouves les polices cohérentes ? », puis « option B ») : **Geist** partout dans
+  l'interface (`var(--police)`, police variable OFL **embarquée** dans `vendor/polices/` — `@font-face` en tête de style.css,
+  déclarée dans `ASSETS_STATIQUES` et les assets du `.exe`, servie en binaire par `creerMiddlewareAssetsSea` ; aucune famille
+  écrite en dur hors zones papier, testé) ; Montserrat pour le mot « Claire » ; Inter (Google Fonts), Lora, Times, Calibri
+  seulement dans les zones papier et les emails ; **graisses 400 texte, 500 libellés/boutons et TOUT grand texte (titres de
+  page, de carte, chiffres clés — `var(--texte-xl)` et au-delà : la taille fait la hiérarchie, pas le gras), 600 étiquettes et
+  mise en valeur dans le texte, 700 badges** — rien d'autre ; **espacement de lettres -0.02em (titres à partir de 20 px), 0, ou
+  0.06em (capitales)** ; **étiquette en capitales** = `var(--texte-xs)`, 600, 0.06em, sauf un badge (règle qui pose son fond :
+  700, micro/xxs/xs) ; **titre de carte ou de section** (`TITRES_CARTE` : `.w-titre`, `.sm-titre`, `.jour-section-titre`,
+  `.reglages-section-titre`) = `var(--texte-l)`, 500. Vérifié par `ecartsTypographie` (scripts/style-echelle.js) dans
+  `tests/style-uniforme.test.js`.
   **Lisibilité et contrôles** (étude 04/10) : `--muted` clair = #647089 (contraste ≥ 4,5 sur blanc ; #8A93A9 faisait 3,1) ;
   champs de saisie et listes = 40 px, coins `--rayon-m` (comme les boutons), filtres compacts 32 px — sauf les champs
   « en place » de la fiche (`.prop-champ`, `min-height: 0`) ; **icônes 14 px** (texte, boutons compacts — `.icone` vaut
   `max(1em, 14px)`), **16 px** (boutons, barres d'outils), **20 px** (barre latérale), 24 px et plus pour une illustration
   (`TAILLES_ICONES`, testé) ; **bascules et groupes = `<wa-button-group>`** de `wa-button` outlined size s (`vue-bascule-btn`,
-  choix actif = classe `actif` à l'accent ; `ag-nav-btn`). L'indicateur d'étapes de « Nouveau dossier » reste natif : ce n'est
+  choix actif = classe `actif` à l'accent, les autres sur fond blanc `--paper-card` ; `ag-nav-btn`). L'indicateur d'étapes de « Nouveau dossier » reste natif : ce n'est
   pas un choix mais une progression (numéros reliés par un trait).
   **Composants Web Awesome** (étude 04/10, choisis pour l'uniformité) : paquet LOCAL `vendor/web-awesome/` (web-awesome.js +
   web-awesome-theme.css, construits par `scripts/construire-web-awesome.mjs` — version figée 3.14.0, composants listés dans

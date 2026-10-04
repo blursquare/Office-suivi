@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.144.20';
+  const VERSION_APP = '0.144.21';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.144.21', date: '2026-10-04 21:49', resume: "Nouvelle police de l'interface (Geist), intégrée à CLAIRE ; titres et chiffres clés en poids moyen, un peu serrés : la taille fait la hiérarchie, plus le gras. Dans les bascules (Échéances / Tableau, Mes dossiers / Tous…), le choix non retenu est sur fond blanc." },
     { version: '0.144.20', date: '2026-10-04 21:19', resume: "Lisibilité et finitions : texte gris plus foncé en mode clair (plus lisible), champs de saisie à la hauteur et aux coins des boutons, icônes en trois tailles, bascules (Échéances | Tableau, Mes dossiers | Tous…) et navigation de l'agenda en groupes de boutons." },
     { version: '0.144.19', date: '2026-10-04 21:04', resume: "Typographie uniformisée : quatre graisses seulement, un seul style pour les titres de cartes (16 px demi-gras) et pour les petits titres en capitales (11 px, espacés), trois espacements de lettres." },
     { version: '0.144.18', date: '2026-10-04 20:32', resume: "Fiche › Échanges : les champs email et téléphone des parties sont retirés (ils sont déjà en haut de la fiche)." },

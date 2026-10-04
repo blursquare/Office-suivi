@@ -29,7 +29,7 @@ const ESPACEMENTS_LETTRES = ['-0.02em', '0', 'normal', '0.06em', 'inherit'];
  * barre latérale (24 px et plus : illustrations, libres). */
 const TAILLES_ICONES = [14, 16, 20];
 
-/** Titres de carte ou de section (widgets, colonne du Suivi, agenda, réglages) : un seul style, 16 px demi-gras. */
+/** Titres de carte ou de section (widgets, colonne du Suivi, agenda, réglages) : un seul style, 16 px en poids moyen (500). */
 const TITRES_CARTE = ['.w-titre', '.sm-titre', '.jour-section-titre', '.reglages-section-titre'];
 
 const PROPRIETES_ESPACEMENT = /^(padding|margin)(-(top|right|bottom|left|inline|block)(-(start|end))?)?$|^(gap|row-gap|column-gap)$/;
@@ -138,7 +138,8 @@ function ecartEchelle(d) {
 /**
  * Pure : les écarts de rôle typographique, règle par règle. Une étiquette en capitales (text-transform: uppercase) a un seul
  * style — 11 px (var(--texte-xs)), demi-gras, 0.06em — sauf un badge (règle qui pose son propre fond) : gras, 0.06em, taille
- * libre dans micro/xxs/xs. Un titre de carte (TITRES_CARTE) est en var(--texte-l), demi-gras.
+ * libre dans micro/xxs/xs. Un titre de carte (TITRES_CARTE) est en var(--texte-l), 500. Un grand texte (var(--texte-xl) et
+ * au-delà : titres de page, chiffres clés) est en 500, jamais en gras — la taille fait la hiérarchie (étude 04/10).
  * @param {Declaration[]} declarations
  * @returns {string[]}
  */
@@ -165,8 +166,11 @@ function ecartsTypographie(declarations) {
       if (m['font-weight'] !== (badge ? '700' : '600')) ecarts.push(`${ou} : capitales en graisse ${m['font-weight'] || 'non posée'}, attendu ${badge ? '700 (badge)' : '600'}`);
       if (m['letter-spacing'] !== '0.06em') ecarts.push(`${ou} : capitales sans letter-spacing: 0.06em`);
     }
-    if (TITRES_CARTE.includes(sel) && (m['font-size'] !== 'var(--texte-l)' || m['font-weight'] !== '600')) {
-      ecarts.push(`${ou} : titre de carte attendu en var(--texte-l), 600`);
+    if (TITRES_CARTE.includes(sel) && (m['font-size'] !== 'var(--texte-l)' || m['font-weight'] !== '500')) {
+      ecarts.push(`${ou} : titre de carte attendu en var(--texte-l), 500`);
+    }
+    if (/^var\(--texte-([2-6])?xl\)$/.test(m['font-size'] || '') && m['font-weight'] && !['500', 'inherit'].includes(m['font-weight'])) {
+      ecarts.push(`${ou} : grand texte (${m['font-size']}) en graisse ${m['font-weight']}, attendu 500`);
     }
   }
   return ecarts;

@@ -126,6 +126,12 @@ test('Web Awesome : paquet local chargé par index.html, servi et embarqué dans
     assert.ok(app.includes(`'/${f}'`), f + ' dans ASSETS_STATIQUES');
     assert.ok(build.includes(`'${f}': '../${f}'`), f + ' dans les assets du .exe');
   }
+  // Police de l'interface (Geist) : servie et embarquée, sinon 404 silencieux dans le .exe et repli sur la police du système.
+  for (const f of ['vendor/polices/geist-latin-wght-normal.woff2', 'vendor/polices/geist-latin-ext-wght-normal.woff2']) {
+    assert.ok(fs.existsSync(path.join(racine, f)), f + ' présent');
+    assert.ok(app.includes(`'/${f}'`), f + ' dans ASSETS_STATIQUES');
+    assert.ok(build.includes(`'${f}': '../${f}'`), f + ' dans les assets du .exe');
+  }
   // Aucun composant chargé depuis Internet (contrainte n° 1) : pas de CDN Web Awesome dans la page.
   assert.ok(!/webawesome\.com|ka-f\.fontawesome/.test(index), 'pas de CDN Web Awesome');
 });

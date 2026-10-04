@@ -193,6 +193,8 @@ async function main() {
       'appel-de-fonds-modele.js': '../appel-de-fonds-modele.js',
       'vendor/web-awesome/web-awesome.js': '../vendor/web-awesome/web-awesome.js',
       'vendor/web-awesome/web-awesome-theme.css': '../vendor/web-awesome/web-awesome-theme.css',
+      'vendor/polices/geist-latin-wght-normal.woff2': '../vendor/polices/geist-latin-wght-normal.woff2',
+      'vendor/polices/geist-latin-ext-wght-normal.woff2': '../vendor/polices/geist-latin-ext-wght-normal.woff2',
       'manifest.json': '../manifest.json',
       'sw.js': '../sw.js',
       'icone.svg': '../icone.svg',

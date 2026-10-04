@@ -19,9 +19,12 @@ const CONTENU_PAR_FICHIER = {
   'sw.js': '// service worker',
   'icone.svg': '<svg></svg>'
 };
+// Police : octets hors UTF-8 valide, qu'une lecture en 'utf8' abîmerait.
+const POLICE = new Uint8Array([0x77, 0x4f, 0x46, 0x32, 0xff, 0xfe, 0x00, 0x80]);
 
 const seaFictif = {
-  getAsset: (nom) => {
+  getAsset: (nom, encodage) => {
+    if (nom === 'vendor/polices/geist-latin-wght-normal.woff2') return encodage ? Buffer.from(POLICE).toString(encodage) : POLICE.buffer.slice(0);
     if (!(nom in CONTENU_PAR_FICHIER)) throw new Error(`asset inconnu : ${nom}`);
     return CONTENU_PAR_FICHIER[nom];
   }
@@ -52,6 +55,12 @@ test('/client/00-version.js sert client/00-version.js en application/javascript'
   const reponse = await fetch(`${baseUrl}/client/00-version.js`);
   assert.match(reponse.headers.get('content-type'), /javascript/);
   assert.equal(await reponse.text(), CONTENU_PAR_FICHIER['client/00-version.js']);
+});
+
+test('police embarquée servie octet pour octet en font/woff2', async () => {
+  const reponse = await fetch(`${baseUrl}/vendor/polices/geist-latin-wght-normal.woff2`);
+  assert.match(reponse.headers.get('content-type'), /font\/woff2/);
+  assert.deepEqual([...new Uint8Array(await reponse.arrayBuffer())], [...POLICE]);
 });
 
 test('/manifest.json sert le bon contenu', async () => {

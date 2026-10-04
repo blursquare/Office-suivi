@@ -16458,3 +16458,22 @@ reste identique à l'œil. Zones papier non touchées.
 - Non fait, volontairement : l'indicateur d'étapes de « Nouveau dossier » (numéros reliés par un trait) reste natif — c'est une
   progression, pas un groupe de choix ; un groupe de boutons lui ferait perdre sa lecture.
 Captures avant/après (14 écrans, clair et sombre) : texte secondaire plus net, champs et boutons alignés, bascules homogènes.
+
+### 0.144.21 — 04/10/2026 21 h 49 : police Geist (« option B ») et bascules sur fond blanc
+Demande : « Inspire-toi [d'un tableau de bord fourni en image] pour changer la police et montre-moi avant de modifier partout »,
+puis, après un aperçu de trois options rendues avec les vraies polices (actuelle Inter ; Inter Display ; Geist), « Option B.
+Pour les boutons poussoirs Tableau / Échéances, mets un fond blanc pour celui qui n'est pas sélectionné ».
+- Police : Geist (police variable, licence OFL) **embarquée** — `vendor/polices/geist-latin-wght-normal.woff2` et
+  `…-latin-ext-…` (accents étendus), `@font-face` en tête de style.css, jeton `--police` sur `:root` repris par toutes les
+  règles de l'interface et par `--wa-font-family-body` (Web Awesome). Rien n'est chargé depuis Internet pour l'interface ;
+  Inter reste dans le lien Google Fonts pour les seules zones papier (courrier d'appel de fonds), inchangées.
+- Fichiers binaires : `ASSETS_STATIQUES` porte `binaire: true` ; `creerMiddlewareAssetsSea` les lit sans encodage dans le
+  `.exe` (une lecture en `utf8` aurait abîmé la police). Test serveur : octets rendus intacts en `font/woff2`. Test de
+  structure : police présente, servie et embarquée.
+- Traitement « titres allégés » : tout grand texte (`var(--texte-xl)` et au-delà : titres de page, chiffres clés) et les
+  titres de carte passent en 500, -0.02em à partir de 20 px (32 règles). `ecartsTypographie` le vérifie désormais (grand
+  texte ≠ 500 refusé, titre de carte en 500) ; nouveau test : `--police` = Geist, fichiers du `@font-face` présents, aucune
+  famille écrite en dur hors zones papier.
+- Bascules (`vue-bascule-btn`) : le choix non retenu prend le fond `--paper-card` (blanc en clair, surface des cartes en
+  sombre) ; le choix retenu reste à l'accent.
+Captures de contrôle (tableau de bord, Suivi, clair et sombre) rendues avec la vraie police.

@@ -17,6 +17,16 @@ test('style.css : aucune valeur hors de l\'échelle commune', () => {
   assert.equal(ecarts.length, 0, '\n' + ecarts.slice(0, 30).join('\n'));
 });
 
+test('style.css : police de l\'interface embarquée (Geist), jamais chargée depuis Internet', () => {
+  assert.match(css, /--police: 'Geist'/);
+  const urls = [...css.matchAll(/@font-face\s*{[^}]*url\('([^']+)'\)/g)].map((m) => m[1]);
+  assert.ok(urls.length >= 1, '@font-face Geist');
+  for (const u of urls) assert.ok(fs.existsSync(path.join(__dirname, '..', u)), u + ' présent');
+  // Hors zones papier, aucune famille écrite en dur : tout passe par var(--police).
+  const horsPapier = declarationsCss(css).filter((d) => d.propriete === 'font-family' && !d.exempte && !/^(var\(--police\)|inherit|monospace|ui-monospace)/.test(d.valeur));
+  assert.deepEqual(horsPapier.map((d) => d.ligne + ' ' + d.valeur).filter((t) => !/Montserrat|Geist/.test(t)), []);
+});
+
 test('style.css : rôles typographiques (étiquettes en capitales, badges, titres de carte)', () => {
   // Étude 04/10 : « tu trouves les polices cohérentes ? » — une étiquette en capitales, un titre de carte : un seul style.
   const ecarts = ecartsTypographie(declarationsCss(css));
@@ -31,6 +41,7 @@ test('lecteur de style : graisses, espacements de lettres et rôles typographiqu
     '.d { font-size: var(--texte-xs); font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; }',
     '.e { background: var(--focus); font-size: var(--texte-micro); font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; }',
     '.w-titre { font-size: var(--texte-base); font-weight: 700; }',
+    '.h { font-size: var(--texte-3xl); font-weight: 700; } .i { font-size: var(--texte-xl); font-weight: 500; } .j { font-size: var(--texte-l); font-weight: 700; }',
     '.f svg { width: 13px; height: 16px; } .g .icone { width: 44px; }'
   ].join('\n');
   const decl = declarationsCss(exemple);
@@ -39,6 +50,9 @@ test('lecteur de style : graisses, espacements de lettres et rôles typographiqu
   assert.match(roles, /\(\.c\) : capitales en var\(--texte-xxs\)/);
   assert.match(roles, /\(\.c\) : capitales en graisse 700/);
   assert.match(roles, /\(\.w-titre\) : titre de carte/);
+  // Grand texte (titre de page, chiffre clé) : 500, la taille fait la hiérarchie (étude 04/10, « option B »).
+  assert.match(roles, /\(\.h\) : grand texte \(var\(--texte-3xl\)\) en graisse 700/);
+  assert.doesNotMatch(roles, /\((\.i|\.j)\)/);
   assert.doesNotMatch(roles, /\((\.d|\.e)\)/);
 });
 
