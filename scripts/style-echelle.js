@@ -1,0 +1,120 @@
+// @ts-check
+'use strict';
+
+// Échelle commune de l'interface (étude, 04/10 : « il faut une uniformité de l'interface »). Une seule source pour les
+// tailles de texte, les arrondis, les ombres et les espacements : les jetons --texte-*, --rayon-*, --shadow-* en tête de
+// style.css, et la liste des espacements permis ci-dessous. tests/style-uniforme.test.js refuse toute valeur hors échelle.
+// Exemptés : les blocs de jetons eux-mêmes (:root, [data-theme="dark"]), l'impression (@media print) et les zones papier
+// (courrier d'appel de fonds, feuille des quotités — identité papier de l'étude, hors thème), bornées dans style.css par
+// les commentaires « @papier » et « @fin-papier ».
+
+/** Espacements permis (padding, margin, gap) en px : pas de 2 jusqu'à 16, puis 20, 24, 28, 32, 40, 48, 56, 64 ; au-delà,
+ * un multiple de 8. */
+const ESPACEMENTS = [0, 1, 2, 4, 6, 8, 10, 12, 14, 16, 20, 24, 28, 32, 40, 48, 56, 64];
+
+/** Tailles de texte : nom du jeton → px. */
+const TEXTES = { micro: 8, xxs: 10, xs: 11, s: 12, m: 13, base: 14, l: 16, xl: 18, '2xl': 20, '3xl': 24, '4xl': 28, '5xl': 32, '6xl': 40 };
+
+/** Arrondis : nom du jeton → px (pilule = 999). 50 % reste permis pour un cercle. */
+const RAYONS = { xs: 4, s: 6, m: 10, carte: 16, pilule: 999 };
+
+const PROPRIETES_ESPACEMENT = /^(padding|margin)(-(top|right|bottom|left|inline|block)(-(start|end))?)?$|^(gap|row-gap|column-gap)$/;
+
+/**
+ * @typedef {{ propriete: string, valeur: string, debut: number, fin: number, ligne: number,
+ *   selecteur: string, exempte: boolean }} Declaration
+ */
+
+/**
+ * Pure : toutes les déclarations de la feuille, avec leur position (pour réécrire la valeur) et si elles sont exemptées.
+ * @param {string} css
+ * @returns {Declaration[]}
+ */
+function declarationsCss(css) {
+  /** @type {Declaration[]} */
+  const sortie = [];
+  /** @type {string[]} */
+  const pile = [];
+  let papier = false;
+  let tampon = '';
+  let debutTampon = 0;
+  let i = 0;
+  const n = css.length;
+  const ligneDe = (pos) => css.slice(0, pos).split('\n').length;
+  const exempte = () => papier || pile.some((p) => /^@media\s+print/.test(p))
+    || /^(:root(\[[^\]]+\])*(:not\([^)]*\))?|\[data-theme="dark"\]|:root\[data-theme="dark"\])$/.test(pile[pile.length - 1] || '');
+  const fermerDeclaration = (finPos) => {
+    const brut = tampon;
+    const deuxPoints = brut.indexOf(':');
+    if (deuxPoints > 0 && pile.length && !pile[pile.length - 1].startsWith('@')) {
+      const propriete = brut.slice(0, deuxPoints).trim().toLowerCase();
+      const reste = brut.slice(deuxPoints + 1);
+      const avant = reste.length - reste.trimStart().length;
+      const valeur = reste.trim();
+      if (/^-{0,2}[a-z][a-z0-9-]*$/.test(propriete) && valeur) {
+        const debut = debutTampon + deuxPoints + 1 + avant;
+        sortie.push({ propriete, valeur, debut, fin: debut + valeur.length, ligne: ligneDe(debut), selecteur: pile[pile.length - 1], exempte: exempte() });
+      }
+    }
+    tampon = ''; debutTampon = finPos + 1;
+  };
+  while (i < n) {
+    const c = css[i];
+    if (c === '/' && css[i + 1] === '*') {
+      const fin = css.indexOf('*/', i + 2);
+      const commentaire = css.slice(i, fin < 0 ? n : fin + 2);
+      if (/^\/\*\s*@papier\b/.test(commentaire)) papier = true;
+      if (/^\/\*\s*@fin-papier\b/.test(commentaire)) papier = false;
+      // Le commentaire est remplacé par des espaces dans le tampon : les positions restent justes.
+      tampon += ' '.repeat(commentaire.length);
+      i += commentaire.length;
+      continue;
+    }
+    if (c === '"' || c === "'") {
+      const fin = css.indexOf(c, i + 1);
+      const chaine = css.slice(i, fin < 0 ? n : fin + 1);
+      tampon += chaine; i += chaine.length;
+      continue;
+    }
+    if (c === '{') { pile.push(tampon.trim().replace(/\s+/g, ' ')); tampon = ''; debutTampon = i + 1; i++; continue; }
+    if (c === '}') { if (tampon.trim()) fermerDeclaration(i); pile.pop(); tampon = ''; debutTampon = i + 1; i++; continue; }
+    if (c === ';') { fermerDeclaration(i); i++; continue; }
+    tampon += c; i++;
+  }
+  return sortie;
+}
+
+/** Pure : le message d'écart d'une déclaration à l'échelle, ou '' si elle est conforme. @param {Declaration} d */
+function ecartEchelle(d) {
+  // Une propriété personnalisée (--x) définit un jeton : c'est l'échelle elle-même.
+  if (d.exempte || d.propriete.startsWith('--')) return '';
+  const v = d.valeur.replace(/\s*!important$/, '');
+  if (/#[0-9a-f]{3,8}\b/i.test(v)) return `couleur écrite en dur (${v}) : passer par un jeton`;
+  if (d.propriete === 'font-size') {
+    if (/^var\(--texte-[a-z0-9]+\)$/.test(v) || /^(inherit|0|1em|[0-9.]+em|[0-9.]+%)$/.test(v)) return '';
+    return `taille de texte hors échelle (${v}) : var(--texte-…)`;
+  }
+  if (d.propriete === 'font' && /\b[0-9.]+px\b/.test(v)) return `taille de texte hors échelle dans « font: ${v} » : var(--texte-…)`;
+  if (/^border(-(top|bottom)-(left|right))?-radius$/.test(d.propriete)) {
+    const parties = v.split(/\s+/);
+    if (parties.every((p) => /^(0|50%|inherit|var\(--rayon-[a-z]+\))$/.test(p))) return '';
+    return `arrondi hors échelle (${v}) : var(--rayon-…), 0 ou 50 %`;
+  }
+  if (d.propriete === 'box-shadow') {
+    const couches = v.split(/,(?![^(]*\))/).map((x) => x.trim());
+    const ok = couches.every((x) => /^(none|var\(--shadow-[a-z]+\))$/.test(x) || /^inset\b/.test(x) || /\binset$/.test(x) || /^0 0 0 /.test(x));
+    return ok ? '' : `ombre hors échelle (${v}) : var(--shadow-card) ou var(--shadow-float)`;
+  }
+  if (PROPRIETES_ESPACEMENT.test(d.propriete)) {
+    const hors = (v.match(/-?[0-9.]+px/g) || []).map((x) => Math.abs(parseFloat(x))).filter((x) => !espacementPermis(x));
+    return hors.length ? `espacement hors échelle (${v}) : ${ESPACEMENTS.join(', ')} px` : '';
+  }
+  return '';
+}
+
+/** Pure. @param {number} px */
+function espacementPermis(px) {
+  return ESPACEMENTS.includes(px) || (px > 64 && px % 8 === 0);
+}
+
+module.exports = { ESPACEMENTS, TEXTES, RAYONS, declarationsCss, ecartEchelle, espacementPermis };

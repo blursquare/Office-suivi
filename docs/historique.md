@@ -16342,3 +16342,25 @@ aux seules cartes posées sur le fond de page : `.w-carte` (widgets), `.sm-bloc`
 `#dossier-list .table-scroll` (blocs de semaines du Suivi), `.ag-page`, `button.outil-tuile`, `.calc-card` (pages d'outils,
 Claire Scan). Les blocs posés DANS une carte ou une fenêtre blanche gardent leur bordure (sans elle, ils disparaîtraient).
 Vérifié sur captures (tableau de bord, Suivi, agenda, outils, clair et sombre, dossiers inventés).
+
+### 04/10/2026 19 h 35 — Uniformité de l'interface, étape 1 : échelle commune (0.144.14)
+
+Étude : « Ensuite passe au 1 puis au 2. Il faut une uniformité de l'interface. » Étape 1 = l'échelle proposée juste avant.
+Mesure de départ (style.css, 8 700 lignes) : 41 tailles de texte, 22 arrondis, 36 ombres, 417 espacements distincts, 85 couleurs
+écrites en dur hors des jetons. Fait :
+- jetons en tête de style.css (bloc « Échelle commune », même valeur dans les deux thèmes) : `--texte-micro` 8 (badges Bêta,
+  Alpha, stade seulement — à 10 px, « Relecture d'actes » passait sur deux lignes dans la barre latérale), xxs 10 … 6xl 40 ;
+  `--rayon-xs` 4, s 6, m 10, carte 16, pilule 999 ; `--blanc-fixe` ;
+- `scripts/style-echelle.js` (// @ts-check) : lecteur de la feuille (déclarations, positions, exemptions : blocs de jetons,
+  propriétés `--x`, `@media print`, zones `/* @papier */ … /* @fin-papier */` posées autour du courrier d'appel de fonds et de la
+  feuille des quotités) et `ecartEchelle` ;
+- migration mécanique de 1 421 valeurs : texte au plus proche (égalité → au-dessus : 12,5 → 13, 13,5 → 14, 11,5 → 12, 15 → 16),
+  arrondis par plage (≤ 5 → xs, 6-7 → s, 8-12 → m, 13-30 → carte, au-delà → pilule), ombres portées par leur flou (≤ 8 px et
+  décalage ≤ 2 → card, sinon float), espacements au plus proche de l'échelle ; 15 couleurs à la main (toast et pouce
+  d'interrupteur → `--blanc-fixe`, gris → `--muted`, orange confrère → `--cat-orange`, texte sur aplat urgent → `--on-accent`,
+  infobulle de la barre repliée rattachée à la portée sombre de la barre) ; un style écrit en dur dans le code (13px) ;
+- `tests/style-uniforme.test.js` : plus aucune valeur hors échelle, jetons déclarés et jamais cités sans exister, lecteur testé,
+  pas de font-size/border-radius en px dans les gabarits des écrans (emails exceptés).
+Vérifié sur 40 captures avant/après (20 écrans, clair et sombre, dossiers inventés) : mise en page identique, texte parfois plus
+grand d'un demi-pixel (quelques libellés longs passent à la ligne : « Courrier réponse assainissement » dans les pièces). Piège :
+le thème posé par `setAttribute` avant le chargement des préférences est repris par `appliquerTheme` — capturer après.

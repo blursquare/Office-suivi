@@ -700,6 +700,15 @@ Plainte principale de l'étude : **le bruit**, pas les oublis — ne pas élargi
 - **Garder l'interface cohérente** : jetons CSS existants (`--focus` = accent du thème choisi,
   couleurs de catégorie fixes), icônes SVG du jeu `ICONES`, composant `.dot-label` pour les statuts,
   pas d'emoji comme icône, pas de couleur inventée. Mode clair et sombre, largeur téléphone.
+  **Échelle commune** (étude 04/10 : « il faut une uniformité de l'interface ») : toute taille de texte = `var(--texte-…)`
+  (micro 8 réservé aux badges collés à un libellé, xxs 10, xs 11, s 12, m 13, base 14, l 16, xl 18, 2xl 20, 3xl 24, 4xl 28,
+  5xl 32, 6xl 40), tout arrondi = `var(--rayon-…)` (xs 4, s 6, m 10 boutons/champs/blocs intérieurs, carte 16 cartes et
+  fenêtres, pilule 999 ; cercle 50 %), toute ombre portée = `var(--shadow-card)` ou `var(--shadow-float)` (anneaux
+  `0 0 0 …` et `inset` permis), espacements (padding, margin, gap) dans 0, 1, 2, 4, 6 … 16, 20, 24, 28, 32, 40, 48, 56, 64 px
+  puis multiples de 8, aucune couleur `#…` hors des blocs de jetons (`--blanc-fixe` pour un blanc qui le reste dans les
+  deux thèmes). Vérifié par `tests/style-uniforme.test.js` (lecteur `scripts/style-echelle.js`) ; exemptés : `@media print`
+  et les zones bornées par `/* @papier */ … /* @fin-papier */` (courrier d'appel de fonds, feuille des quotités — identité
+  papier). Cartes posées sur le fond : `--rayon-carte` et `--bord-carte` (sans bordure en clair).
   **Tout geste** (email, préparer, noter, créer…) est une ligne d'action `renderLigneAction` (forme
   de « À faire », même titre et même verbe qu'elle pour le même geste) ; tout « Ajouter … » est un
   `button.bouton-ajout` ; l'édition d'une donnée passe par des icônes (crayon, ✓, ×) ; seuls les

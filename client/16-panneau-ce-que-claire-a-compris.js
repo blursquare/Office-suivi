@@ -587,7 +587,7 @@
     const box = document.getElementById('chips');
     box.innerHTML = '';
     if (detectedDates.length === 0) {
-      box.innerHTML = '<span style="font-size:13px;color:var(--muted);">Aucune date reconnue pour l\u2019instant.</span>';
+      box.innerHTML = '<span style="font-size:var(--texte-m);color:var(--muted);">Aucune date reconnue pour l\u2019instant.</span>';
       return;
     }
 
