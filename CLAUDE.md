@@ -581,6 +581,13 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
   remplacé par un changement distant entre-temps ; refus 404/4xx → toast. `updated_at` est strictement croissant
   (`maintenantMonotone`) ; `serverTime` du sondage recule d'1 ms. Une ligne au JSON illisible est écartée (`lireBlob`), jamais
   bloquante.
+- **Écran qui tient malgré une donnée inattendue** (audit 04/10) : `render()` rend chaque bloc du tableau de bord et du Suivi
+  par `rendreBloc(nom, fn)` (erreur au journal technique, une fois par bloc et par minute, les autres blocs continuent), chaque
+  ligne du tableau par `ligneSuiviSure` (ligne minimale cliquable) ; tout dossier reçu du serveur passe par
+  `assainirStructureDossier` (listes/objets/dates du planning ramenés à un conteneur vide ou '' quand le type est faux, valeurs
+  correctes intactes). `ecrireLocal(cle, valeur)` pour tout `localStorage.setItem`. **Base SQLite en WAL** (`db.js`, sauf
+  chemin réseau, `busy_timeout` 5 s, `synchronous` par défaut) ; la sauvegarde reste un `VACUUM INTO` (lit le WAL) ; une
+  restauration retire aussi `claire.db-wal`/`-shm` (README). `SIGINT`/`SIGTERM` → `arreterProprement` (port puis base).
 - **Rendez-vous retiré de CLAIRE** → retiré aussi de l'agenda (et repère `rendezVousRetire` pour
   que le flux ne le remette pas). Une date saisie à la main n'est jamais écrasée par l'agenda.
 - **Apprentissage** : corrections de classification (dates, engagements) et exclusions stockées en

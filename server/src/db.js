@@ -131,6 +131,16 @@ function ouvrirDb(cheminDb) {
     fs.mkdirSync(path.dirname(cheminDb), { recursive: true });
   }
   const db = new DatabaseSync(cheminDb);
+  // Journal WAL (audit 04/10) : une coupure en pleine écriture laisse la base cohérente et une lecture ne bloque
+  // jamais une écriture ; la sauvegarde quotidienne passe par VACUUM INTO, qui lit le WAL (copie complète).
+  // busy_timeout : une seconde connexion (vérification d'une copie) attend au lieu d'échouer en SQLITE_BUSY.
+  // synchronous reste à sa valeur par défaut (FULL) : la durabilité de chaque enregistrement prime sur la vitesse.
+  // Jamais de WAL sur un partage réseau (\\serveur\…) : SQLite ne garantit pas la mémoire partagée du WAL sur SMB.
+  const surReseau = /^(\\\\|\/\/)/.test(String(cheminDb));
+  if (cheminDb !== ':memory:' && !surReseau) {
+    try { db.exec('PRAGMA journal_mode = WAL'); } catch (e) { console.warn('[db] Journal WAL indisponible :', e.message); }
+  }
+  try { db.exec('PRAGMA busy_timeout = 5000'); } catch (e) { /* valeur par défaut */ }
   db.exec(SCHEMA);
   return db;
 }

@@ -564,8 +564,9 @@ sur le Tableau de bord si la dernière tentative a échoué ou si aucune sauvega
 3 jours.
 
 **Restaurer** : arrêter le serveur (`Arreter-CLAIRE.bat`), renommer `data/claire.db` en
-`claire-avant-restauration.db`, copier la sauvegarde voulue dans `data/` sous le nom `claire.db`,
-relancer. Tout ce qui a été saisi après la date de la sauvegarde est perdu. **Tester une
+`claire-avant-restauration.db` **et retirer les fichiers `claire.db-wal` et `claire.db-shm` s'ils existent** (journal
+d'écriture de la base en cours, sans valeur pour la copie restaurée), copier la sauvegarde voulue dans `data/` sous le nom
+`claire.db`, relancer. Tout ce qui a été saisi après la date de la sauvegarde est perdu. **Tester une
 restauration une fois** (sur un poste de test, ou en gardant la base d'origine à côté) avant de
 compter dessus.
 

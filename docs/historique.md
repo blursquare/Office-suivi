@@ -16111,3 +16111,22 @@ change-t-il ce que le bouton de la fiche envoie ? Réponse : « Oui, le bouton s
 - `scans.js` : sur une collision de nom (EEXIST, fichier apparu entre le choix du nom et la copie), le fichier existant n'est
   plus retiré — il n'était pas à nous (règle « jamais supprimé »).
 - Tests : `server/test/fusion-dossiers.test.js` (fusion, dépôt, route, ligne illisible) ; suites 665 serveur / 1266 client.
+
+### 04/10/2026 08:47 — Audit de fiabilité (2/2) : écran, base, poste
+
+- Balayages faits (serveur) : appels synchrones en chemin de requête (aucun hors démarrage/sauvegarde), `JSON.parse` sans
+  garde (tous protégés), secrets dans les réponses/journaux (aucun), minuteurs de fond (tous avec `enCours` + try/finally),
+  chemins tirés des requêtes (tous par `resoudreCheminNas`/équivalent, PDF seuls), entrées des routes (types et bornes
+  présents), timeouts des appels externes (présents), authentification (jeton aléatoire, comparaison à temps constant).
+- Balayages faits (poste) : `onclick` à argument interpolé (ids générés par `crypto.randomUUID`, clés internes — sûrs),
+  `JSON.parse(localStorage…)` (tous dans un try), regex `\b` près d'une lettre accentuée (aucune hors commentaires), drapeaux
+  « en cours » (tous relâchés dans un finally), gestionnaires globaux d'erreur (présents, vers le journal technique).
+- Corrigé : un dossier aux champs mal typés (historique objet, rendez-vous numérique) cassait tout le rendu du Suivi
+  (`activiteEtude` itérait `d.historique`) — rendu par blocs isolés (`rendreBloc`), lignes isolées (`ligneSuiviSure`),
+  `assainirStructureDossier` à la réception ; vérifié dans Chromium avec un dossier volontairement abîmé (tableau de bord
+  7 widgets, Suivi 3 lignes, fiche ouverte, aucune erreur de page).
+- Base : journal WAL + `busy_timeout` (jamais sur un partage réseau), arrêt propre sur SIGINT/SIGTERM, README (restauration :
+  retirer `-wal`/`-shm`). Poste : `ecrireLocal` tolérant. Gestionnaire d'erreurs : le message d'une erreur JSON (V8 cite le
+  corps) n'est plus journalisé.
+- Non fait, à garder en tête : une vérification ligne à ligne des 45 000 lignes du poste n'a pas été faite — l'audit est par
+  familles de bugs ; les champs non couverts par `assainirStructureDossier` restent sous la protection des blocs isolés.

@@ -202,7 +202,9 @@ function creerApp({ db, config, envoyerEmailFn, creerClientClaude, appelerMistra
   // contenir le texte d'un email ou d'un dossier ; seuls le type, le statut et le message sont notés (audit 04/10).
   app.use((err, req, res, next) => { // eslint-disable-line no-unused-vars
     const statut = err && Number.isInteger(err.status) && err.status >= 400 && err.status < 600 ? err.status : 500;
-    console.error(`[app] Erreur non gérée (${req.method} ${req.path}) : ${(err && (err.type || err.code)) || 'erreur'} — ${(err && err.message) || ''}`.slice(0, 300));
+    // Le message d'une erreur de lecture JSON (V8) cite un extrait du corps reçu : il n'est jamais journalisé.
+    const message = err && /parse/i.test(String(err.type || '')) ? '' : (err && err.message) || '';
+    console.error(`[app] Erreur non gérée (${req.method} ${req.path}) : ${(err && (err.type || err.code)) || 'erreur'}${message ? ' — ' + message : ''}`.slice(0, 300));
     if (res.headersSent) return;
     res.status(statut).json({ erreur: statut === 413 ? 'Requête trop volumineuse.' : statut === 400 ? 'Requête invalide.' : 'Erreur interne du serveur.' });
   });

@@ -279,6 +279,21 @@ function demarrer() {
     collaborateurs: COLLABORATEURS_ABSENCE.map((c) => c.nom)
   });
 
+  // Arrêt demandé (Ctrl+C, arrêt du service, fermeture de session) : le port se ferme, la base aussi, proprement — le
+  // WAL est alors replié dans le fichier principal (audit 04/10). Un second signal pendant l'arrêt force la sortie.
+  let arretEnCours = false;
+  const arreterProprement = (signal) => {
+    if (arretEnCours) { process.exit(0); return; }
+    arretEnCours = true;
+    console.log(`[CLAIRE] Arrêt (${signal})…`);
+    const fin = setTimeout(() => process.exit(0), 3000);
+    fin.unref();
+    try { if (serveur) serveur.close(() => { try { db.close(); } catch (_) { /* déjà fermée */ } process.exit(0); }); else { db.close(); process.exit(0); } }
+    catch (e) { process.exit(0); }
+    if (serveur && typeof serveur.closeAllConnections === 'function') serveur.closeAllConnections();
+  };
+  process.once('SIGINT', () => arreterProprement('SIGINT'));
+  process.once('SIGTERM', () => arreterProprement('SIGTERM'));
   serveur = app.listen(config.port, () => {
     const url = `http://localhost:${config.port}/`;
     const adresses = adressesLan();

@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-04 08:39';
+  const VERSION_APP = '2026-10-04 08:47';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-04 08:47', resume: "Audit de fiabilité (2/2) : un dossier aux données inattendues n'empêche plus le reste de l'écran de s'afficher (chaque bloc du tableau de bord et du Suivi, chaque ligne, se rend à part ; les champs mal formés sont ramenés à une valeur sûre à la réception). Base de données en journal WAL (une coupure en pleine écriture laisse la base cohérente), arrêt propre du serveur à la demande du système, écriture locale du poste tolérante (mode privé, quota). Le journal technique ne recopie plus aucun extrait d'une requête JSON invalide." },
     { version: '2026-10-04 08:39', resume: "Audit de fiabilité (1/2) : deux fenêtres, ou une fenêtre et un travail de fond du serveur (agenda, emails), ne s'écrasent plus mutuellement un dossier — le serveur fusionne chaque enregistrement avec ce qui a changé entre-temps (champ par champ) et le dit par un message quand c'est arrivé. Une modification faite serveur injoignable est gardée et enregistrée à son retour (message), un refus est affiché au lieu d'être silencieux. Un dossier illisible en base n'empêche plus les autres de s'afficher. Deux écritures la même milliseconde ne se confondent plus. Le journal technique ne recopie plus le contenu d'une requête rejetée. Un fichier déjà présent sur le NAS n'est plus retiré en cas de collision de nom." },
     { version: '2026-10-04 08:26', resume: "Lecture des réponses d'Exchange (agenda, emails des dossiers, emails du matin, envoi d'emails, réponses aux propositions de dates) confiée à une bibliothèque éprouvée (fast-xml-parser) au lieu d'un découpage maison du texte : plus robuste face aux variations de forme des réponses. Rien ne change à l'écran." },
     { version: '2026-10-04 08:09', resume: "Tâches dans l'agenda : un rendez-vous en rouge dont le titre commence par les initiales d'un collaborateur (« JV - Relancer le syndic ») devient une tâche de ce collaborateur, dans « Aujourd'hui » et « Mes rappels » (« Tâche de l'agenda »). Cochée dans CLAIRE, le rendez-vous est retiré de l'agenda aussitôt (éléments supprimés d'Outlook). Déplacé ou renommé dans Outlook, la tâche suit ; supprimé dans Outlook, elle disparaît." },
@@ -563,6 +564,11 @@
       const pile = r && r.stack ? String(r.stack).split('\n').slice(0, 4).join(' | ') : '';
       noterJournalTechnique({ categorie: 'erreur-poste', message: pile && !pile.includes(message) ? `${message} | ${pile}` : (pile || message), source: 'promesse' });
     });
+  }
+
+  // localStorage peut refuser d'écrire (mode privé, quota, stockage bloqué) : jamais bloquant (audit 04/10).
+  function ecrireLocal(cle, valeur) {
+    try { localStorage.setItem(cle, valeur); return true; } catch (e) { return false; }
   }
 
   let dossiers = [];
@@ -17620,7 +17626,7 @@
     const cle = PREFIXE_DERNIERE_VISITE + nom;
     try {
       derniereVisitePrecedente = localStorage.getItem(cle) || null;
-      localStorage.setItem(cle, new Date().toISOString());
+      ecrireLocal(cle, new Date().toISOString());
     } catch (e) { /* navigation privée : pas bloquant */ }
   }
 
@@ -17631,7 +17637,7 @@
     dispositionWidgets = null;   // disposition des widgets propre à chaque collaborateur
     filtreSuiviPose = false;
     try {
-      if (valide) localStorage.setItem(CLE_UTILISATEUR_POSTE, valide);
+      if (valide) ecrireLocal(CLE_UTILISATEUR_POSTE, valide);
       else localStorage.removeItem(CLE_UTILISATEUR_POSTE);
     } catch (e) { /* pas bloquant */ }
     enregistrerVisite(valide);
@@ -21392,7 +21398,7 @@
     try {
       let v = localStorage.getItem(cleDatesVues());
       // Premier passage sur ce poste : rien d'ancien n'est signalé.
-      if (!v) { v = new Date().toISOString(); localStorage.setItem(cleDatesVues(), v); }
+      if (!v) { v = new Date().toISOString(); ecrireLocal(cleDatesVues(), v); }
       return v;
     } catch (e) { return ''; }
   }
@@ -23652,6 +23658,26 @@
 
 
 
+  // Un bloc de l'écran rendu à part : son erreur est notée (une fois par bloc et par minute) sans arrêter les autres.
+  const erreursBlocsRendus = {};
+  // Une ligne du Suivi dont le rendu échoue (donnée inattendue) laisse une ligne minimale cliquable, pas une liste vide.
+  function ligneSuiviSure(d, rendre) {
+    try { return rendre(d); } catch (e) {
+      rendreBloc('ligne-' + (d && d.id), () => { throw e; });
+      return `<tr class="dossier-row" onclick="ouvrirDossierDepuisDashboard('${escapeOnclickArg(d && d.id)}')"><td></td><td>${escapeHtml(libelleDossierAffiche(d))}</td><td colspan="3">Affichage incomplet — ouvrir la fiche</td></tr>`;
+    }
+  }
+  function rendreBloc(nom, fn) {
+    try { fn(); } catch (e) {
+      const maintenant = Date.now();
+      if (!erreursBlocsRendus[nom] || maintenant - erreursBlocsRendus[nom] > 60000) {
+        erreursBlocsRendus[nom] = maintenant;
+        console.error(`Rendu du bloc « ${nom} » impossible`, e);
+        try { noterJournalTechnique({ categorie: 'erreur-poste', message: `Rendu du bloc ${nom} : ${(e && e.message) || e}`, source: 'rendu' }); } catch (_) { /* journal facultatif */ }
+      }
+    }
+  }
+
   function render() {
     const list = document.getElementById('dossier-list');
     const count = document.getElementById('dossier-count');
@@ -23670,22 +23696,23 @@
     const globalDash = vueGlobaleDashboard();
     const perimetreTous = dossiersDuPerimetre(dossiers, utilisateurPoste, globalDash);
     const perimetreActifs = perimetreTous.filter(d => !d.archive);
-    renderAvancementDossiers(perimetreActifs);
-    renderKpisDashboard(perimetreActifs, perimetreTous);
-    renderStatistiquesDashboard(perimetreTous);
-    renderAccueilDashboard(perimetreActifs, calculerStatsPortefeuille(perimetreActifs));
-    renderRendezVousDashboard(perimetreActifs);
-    renderAlertesDashboard(perimetreActifs);
-    renderPiecesRecuesDashboard(perimetreActifs);
-    initialiserGlisserWidgets();
-    renderWidgetsDashboard();
-    renderRechercheDashboard(dossiersActifs);
-    majBadgeNotificationsSidebar();
+    // Chaque bloc est rendu à part (audit 04/10) : une donnée inattendue dans UN widget ne doit plus empêcher le
+    // reste de l'écran (liste, fiche ouverte, agenda) de s'afficher — l'erreur part au journal technique.
+    rendreBloc('avancement', () => renderAvancementDossiers(perimetreActifs));
+    rendreBloc('kpis', () => renderKpisDashboard(perimetreActifs, perimetreTous));
+    rendreBloc('statistiques', () => renderStatistiquesDashboard(perimetreTous));
+    rendreBloc('accueil', () => renderAccueilDashboard(perimetreActifs, calculerStatsPortefeuille(perimetreActifs)));
+    rendreBloc('rendez-vous', () => renderRendezVousDashboard(perimetreActifs));
+    rendreBloc('alertes', () => renderAlertesDashboard(perimetreActifs));
+    rendreBloc('pieces-recues', () => renderPiecesRecuesDashboard(perimetreActifs));
+    rendreBloc('widgets', () => { initialiserGlisserWidgets(); renderWidgetsDashboard(); });
+    rendreBloc('recherche', () => renderRechercheDashboard(dossiersActifs));
+    rendreBloc('badge-notifications', () => majBadgeNotificationsSidebar());
     // Avant les retours anticipés sur liste vide ci-dessous : le tiroir doit se rafraîchir (ou se
     // refermer, si son dossier vient d'être supprimé) dans tous les cas, pas seulement quand la
     // liste a des lignes à afficher.
-    renderDrawer();
-    if (ongletActuel === 'agenda') renderPageAgenda();
+    rendreBloc('fiche', () => renderDrawer());
+    if (ongletActuel === 'agenda') rendreBloc('agenda', () => renderPageAgenda());
 
     const dossiersVisibles = voirArchives ? dossiers : dossiersActifs;
 
@@ -23718,9 +23745,9 @@
     };
     const avantEtat = dossiersVisibles.filter(passeFiltresSuivi);
     // Statuts (pastilles) et statistiques : mêmes filtres que la liste (sauf statut et semaine).
-    renderEtatsSuivi(syntheseEtatsSuivi(avantEtat.filter(d => !d.archive)));
+    rendreBloc('suivi-etats', () => renderEtatsSuivi(syntheseEtatsSuivi(avantEtat.filter(d => !d.archive))));
     const syntheseMois = syntheseMoisSuivi(avantEtat);
-    renderColonneSuivi(syntheseMois, avantEtat.filter(d => !d.archive));
+    rendreBloc('suivi-colonne', () => renderColonneSuivi(syntheseMois, avantEtat.filter(d => !d.archive)));
     const dossiersAffiches = dossiersFiltreMoisSuivi(filtreEtatSuivi ? avantEtat.filter(d => etatDossier(d).cle === filtreEtatSuivi) : avantEtat, filtreMoisSuivi, syntheseMois);
 
     count.textContent = dossiersAffiches.length ? `${dossiersAffiches.length} dossier${dossiersAffiches.length > 1 ? 's' : ''}` : '';
@@ -23776,7 +23803,7 @@
             <th class="th-triable" onclick="definirTri('responsable')" title="Responsable">Resp.${flechesTri.responsable}</th>
             <th class="th-triable" onclick="definirTri('statut')">Statut${flechesTri.statut}</th>
           </tr></thead>
-          <tbody>${reste.map(renderLigneTableau).join('')}</tbody>
+          <tbody>${reste.map(d => ligneSuiviSure(d, renderLigneTableau)).join('')}</tbody>
         </table>
       </div>`;
     if (blocAVoir) list.innerHTML = blocAVoir + (reste.length ? list.innerHTML : '');
@@ -31499,7 +31526,7 @@
   function stockerJeton(jeton) {
     authToken = jeton;
     try {
-      if (jeton) localStorage.setItem(CLE_AUTH_TOKEN, jeton);
+      if (jeton) ecrireLocal(CLE_AUTH_TOKEN, jeton);
       else localStorage.removeItem(CLE_AUTH_TOKEN);
     } catch (e) { /* jeton reperdu au rechargement si le stockage échoue — sans autre conséquence */ }
   }
@@ -31603,7 +31630,25 @@
   // Version du dossier telle que reçue du serveur (updatedAt), portée par l'OBJET et non par l'id (audit 04/10) : une
   // copie dépassée encore tenue par une fiche ouverte garde SA version, et le serveur sait alors fusionner son PUT avec
   // ce qui a changé depuis (voir server/src/fusionDossiers.js). Propriété non énumérable : jamais sérialisée.
+  // Structure attendue d'un dossier reçu du serveur (audit 04/10) : un champ conteneur d'un type inattendu (une
+  // ancienne version, une réparation à la main dans la base) ne doit pas faire planter un rendu — il est ramené à un
+  // conteneur vide. Les valeurs correctes passent telles quelles ; rien d'autre n'est touché.
+  var CHAMPS_LISTE_DOSSIER = ['historique', 'parties', 'biens', 'autres', 'piecesNotifications', 'garantiesPret', 'notairesDetectes',
+    'piecesEngagementsDetectees', 'personnesConnuesEcartees', 'piecesValideesManuellement'];
+  var CHAMPS_OBJET_DOSSIER = ['pieces', 'fichiersTrouves', 'echeancesValidees'];
+  // Dates du planning : une chaîne AAAA-MM-JJ ou vide, jamais un nombre ou un objet (tris et comparaisons de texte).
+  var CHAMPS_DATE_DOSSIER = ['pret', 'acte', 'ventebien', 'appelFonds', 'projetEnvoye', 'rendezVousSignature', 'dateAvantContrat'];
+  function assainirStructureDossier(d) {
+    if (!d || typeof d !== 'object') return d;
+    for (const k of CHAMPS_DATE_DOSSIER) if (k in d && d[k] != null && typeof d[k] !== 'string') d[k] = '';
+    for (const k of CHAMPS_LISTE_DOSSIER) if (k in d && d[k] != null && !Array.isArray(d[k])) d[k] = [];
+    for (const k of CHAMPS_OBJET_DOSSIER) if (k in d && d[k] != null && (typeof d[k] !== 'object' || Array.isArray(d[k]))) d[k] = {};
+    if (typeof d.nom !== 'string') d.nom = d.nom == null ? '' : String(d.nom);
+    return d;
+  }
+
   function marquerVersionDossier(d, updatedAt) {
+    assainirStructureDossier(d);
     if (d && typeof d === 'object' && Number.isFinite(updatedAt)) {
       Object.defineProperty(d, '_version', { value: updatedAt, enumerable: false, writable: true, configurable: true });
     }
@@ -34688,7 +34733,7 @@
       // La date de départ est gardée : la mémoire expire 3 jours après sa création, pas 3 jours
       // après la dernière écriture (un PDF écarté à tort ne le reste jamais indéfiniment).
       const le = ancien && ancien.le && Date.now() - ancien.le <= DUREE_MEMOIRE_PDF_ECARTES_MS ? ancien.le : Date.now();
-      localStorage.setItem(CLE_PDF_ECARTES_OFFRE, JSON.stringify({ le, dossiers: dossiersEcartes }));
+      ecrireLocal(CLE_PDF_ECARTES_OFFRE, JSON.stringify({ le, dossiers: dossiersEcartes }));
     } catch (e) { /* stockage plein ou bloqué : sans conséquence */ }
   }
   chargerPdfEcartesOffre();
