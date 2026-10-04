@@ -187,6 +187,7 @@ async function main() {
     assets: {
       'index.html': '../index.html',
       'style.css': '../style.css',
+      ...Object.fromEntries(JSON.parse(fs.readFileSync(path.join(SERVER_DIR, '..', 'commun', 'manifest.json'), 'utf8')).map((f) => [`commun/${f}`, `../commun/${f}`])),
       ...Object.fromEntries(JSON.parse(fs.readFileSync(path.join(SERVER_DIR, '..', 'client', 'manifest.json'), 'utf8')).map((f) => [`client/${f}`, `../client/${f}`])),
       'questionnaire-satisfaction-pdf.js': '../questionnaire-satisfaction-pdf.js',
       'appel-de-fonds-modele.js': '../appel-de-fonds-modele.js',

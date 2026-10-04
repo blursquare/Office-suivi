@@ -1047,41 +1047,6 @@
     return r;
   }
 
-  // Pure : délai de réponse de la SAFER et date à laquelle, sans réponse, la non-préemption est
-  // acquise (étude, 02/10) — compté de la prise en compte, à défaut de l'envoi. '' si inconnue.
-  // 2 mois de base ; « réponse rapide » (1 mois) ou « très rapide » (8 jours) se cochent sous la pièce
-  // « Réponse SAFER » (`delaiManuel`), jamais devinés.
-  var DELAIS_SAFER = { normal: { mois: 2, libelle: '2 mois' }, rapide: { mois: 1, libelle: '1 mois, réponse rapide' }, tres_rapide: { jours: 8, libelle: '8 jours, réponse très rapide' } };
-  function delaiSafer(safer) {
-    return safer && DELAIS_SAFER[safer.delaiManuel] ? safer.delaiManuel : 'normal';
-  }
-  function echeanceSaferTacite(safer) {
-    if (!safer) return '';
-    // Départ = date d'envoi (étude, 02/10). Relevés d'avant cette règle (sans envoyeeLe) : leur
-    // « prise en compte » était la 2e date de la ligne, donc déjà l'envoi.
-    const depart = safer.envoyeeLe || safer.priseEnCompteLe || safer.notifieeLe;
-    if (!depart) return '';
-    const delai = DELAIS_SAFER[delaiSafer(safer)];
-    return delai.jours ? addDays(depart, delai.jours) : ajouterMois(depart, delai.mois);
-  }
-
-  // Pure : la SAFER ne retient plus la signature — non-préemption (reçue ou délai écoulé), pièce
-  // « Réponse SAFER » reçue, participation, ou aucune SAFER dans le dossier. Comme la renonciation
-  // de la mairie (preemptionLevee), elle conditionne « Fixer le rendez-vous » (étude, 02/10).
-  function saferLevee(d) {
-    if (!d || d.roleNotaire === 'participant') return true;
-    const sa = d.authentic && d.authentic.safer;
-    if (sa && sa.decision === 'non_preemption') return true;
-    const piece = (d.piecesPersonnalisees || []).find(p => p && /safer/i.test(p.label || ''));
-    if (piece && d.pieces && d.pieces[piece.cle] === 'recue') return true;
-    return !sa && !piece;
-  }
-
-  // Pure : date jusqu'à laquelle la SAFER peut encore préempter ('' si levée ou sans date connue).
-  function echeanceSaferDossier(d) {
-    return saferLevee(d) ? '' : echeanceSaferTacite(d.authentic && d.authentic.safer);
-  }
-
   // Pure (modifie le dossier passé) : SAFER sans réponse au-delà de son délai → non-préemption tacite,
   // « Réponse SAFER » cochée, une seule fois. → true si le dossier a changé.
   function appliquerSaferTacite(d, aujourdhui, maintenantIso) {

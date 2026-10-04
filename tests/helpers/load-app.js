@@ -126,6 +126,10 @@ function chargerApplication() {
   // Les fichiers du poste, dans l'ordre d'index.html (client/manifest.json) : chargés un à un dans le même contexte,
   // comme des <script> successifs — les fonctions et les variables de premier niveau sont partagées entre eux.
   const racine = path.join(__dirname, '..', '..');
+  // D'abord le code commun poste/serveur (commun/, globaux dans le navigateur), puis les fichiers du poste.
+  for (const fichier of JSON.parse(fs.readFileSync(path.join(racine, 'commun', 'manifest.json'), 'utf8'))) {
+    vm.runInContext(fs.readFileSync(path.join(racine, 'commun', fichier), 'utf8'), contexte, { filename: 'commun/' + fichier });
+  }
   const manifeste = JSON.parse(fs.readFileSync(path.join(racine, 'client', 'manifest.json'), 'utf8'));
   for (const fichier of manifeste) {
     const source = fs.readFileSync(path.join(racine, 'client', fichier), 'utf8');

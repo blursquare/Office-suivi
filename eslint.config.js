@@ -20,6 +20,11 @@ module.exports = [
   js.configs.recommended,
   { files: ['eslint.config.js'], languageOptions: { sourceType: 'commonjs', globals: { ...globals.node } } },
   {
+    // commun/ : scripts classiques qui tournent dans le navigateur ET sous Node (module/require/globalThis).
+    files: ['commun/**/*.js'],
+    languageOptions: { ecmaVersion: 2023, sourceType: 'script', globals: { ...globals.browser, ...globals.node } }
+  },
+  {
     files: ['client/**/*.js', 'sw.js'],
     languageOptions: { ecmaVersion: 2023, sourceType: 'script', globals: GLOBAUX_CLIENT }
   },

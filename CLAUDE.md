@@ -44,6 +44,9 @@ durable, l'architecture ou « Ce qui reste ouvert » change.
 
 ```
 index.html / style.css               Client (une seule page, tout le rendu est en JS sans framework)
+commun/*.js, commun/manifest.json    Code COMMUN poste + serveur (04/10) : dates, dossier (VTE/SUCC, estSuccession), montants,
+                                     pièces de la checklist, planning (échéances, SAFER). Un fichier = un IIFE qui exporte en
+                                     module.exports sous Node et en globaux dans le navigateur ; chargé avant client/.
 client/NN-sujet.js, client/manifest.json  Le programme du poste, découpé par sujet (04/10 ; 44 fichiers, ≤ 3 000 lignes
                                      chacun) : des <script> classiques chargés dans l'ordre du manifeste — fonctions et
                                      variables de premier niveau partagées entre fichiers, comme avant dans script.js.
@@ -68,7 +71,7 @@ server/                              Serveur (son propre package.json ; le packa
   src/repertoire.js                  Répertoire hors notaires (relevé du répertoire Word de l'étude, par thème)
   src/ouvertureAuto.js               Installateur du relais « claire-ouvrir: » (ouverture auto des téléchargements)
   src/installationPoste.js           Installateur « CLAIRE en application » d'un poste (raccourcis --app, voir plus bas)
-  src/jobs/rappels.js                Rappels par email (miroir serveur du planning client)
+  src/jobs/rappels.js                Rappels par email (planning de commun/planning.js, `autre-<index>` pour les personnalisées)
   src/appels3cx.js, routes/appels.js Appels reçus par 3CX (sonnerie → journal, appelant reconnu, fiche ouverte)
   src/nas.js, nasWatch.js            Lecture du NAS par le serveur, surveillance périodique
   src/scans.js, routes/scans.js      Classeur des scans du copieur (dossier « Scan » → dossiers clients)
@@ -253,8 +256,8 @@ dans `index.html`** (le test `structure-client` refuse tout décalage).
   `d.questionnaireVendeurEnvoyeLe` ; chaque envoi archive le dossier, l'autre reste proposé).
 - **Responsables** : liste fermée (Bastien ANGLUMENT — administrateur, vue globale —, Julie
   VASSELIN, Jérémy SAUJOT).
-- **Planning** (`echeancesPlanning`, miroir serveur `toutesEcheances` dans `jobs/rappels.js` — à
-  modifier **toujours ensemble**) : vente préalable → obtention du prêt → *renonciation au droit de
+- **Planning** (`echeancesPlanning`, **`commun/planning.js`**, partagé poste/serveur depuis le 04/10 ; côté serveur
+  `toutesEcheances` n'en est que l'habillage `autre-<index>`) : vente préalable → obtention du prêt → *renonciation au droit de
   préemption* (bloquante hors copropriété, sauf pièce retirée ou participation ; en copropriété
   seulement si une pièce personnalisée « préemption/DPU/DIA » a été ajoutée) → *délai SAFER*
   (date butoir tirée d'Authentic, voir l'extension) → fixer le rendez-vous → envoi appel de fonds → envoi projet → signature. La **date butoir** est informative dès qu'un
@@ -321,8 +324,8 @@ dans `index.html`** (le test `structure-client` refuse tout décalage).
   (« VTE VENDEUR/ACQUÉREUR ») cite le vendeur du dossier ; une référence qui ne nomme personne du
   dossier écarte l'écriture. Reçus **gardés en mémoire** : les fichiers sont supprimés du commun une fois traités, un versement déjà
   retenu dont le fichier n'est plus relu reste compté (`fusionnerRecusMemorises`, `memorise`), retrait
-  à la main seulement. Complet = montant attendu **à 50 € près** (`MARGE_FONDS_RECUS`, miroir
-  serveur `bilanFonds`) ; au-delà, « excédent » à vérifier, jamais « complet ». Noms cherchés :
+  à la main seulement. Complet = montant attendu **à 50 € près** (`MARGE_FONDS_RECUS`, `bilanFondsRecus`
+  dans `commun/montants.js`, le serveur l'importe sous le nom `bilanFonds`) ; au-delà, « excédent » à vérifier, jamais « complet ». Noms cherchés :
   parties acquéreurs (et leur `nomUsage`, lu dans l'état civil « Veuve/Épouse de Monsieur … NOM » par
   `nomsUsageDansBloc`) + nom du dossier + nom du courrier d'appel de fonds + `d.nomsRecus`.
 - **Honoraires d'agence TTC** (étude 03/10, `detecterHonorairesAgenceTTC`) : montant marqué TTC / TVA incluse (jamais HT)
@@ -406,7 +409,7 @@ dans `index.html`** (le test `structure-client` refuse tout décalage).
   seulement). Dossier `typeAffaire: 'succession'`, `sansPret`, `parties` = toutes les personnes ouvertes (rôle
   `PARTIE`, qualité jamais devinée, téléphones/emails gardés — reconnus par 3CX), `biens` (`biensDepuisAuthentic` :
   adresse, type, parcelles). **`estSuccession(d)`** neutralise la vente : planning = signature placée + échéances
-  ajoutées (miroir serveur `toutesEcheances`), checklist = pièces personnalisées seules, pas de préemption ni de
+  ajoutées (même code pour le serveur, `commun/planning.js`), checklist = pièces personnalisées seules, pas de préemption ni de
   créneaux proposés ni d'emails de vente, fiche = responsable, NAS, parties, biens. Planning et checklist propres aux
   successions : à définir avec l'étude.
 - **Classeur des scans du copieur** — nom affiché **« Claire Scan »**, **bannette à papier** (icône `bannette`, `#tab-scans`) avec pastille du nombre de scans à ranger, dans la rangée d'icônes sous le logo de la barre latérale (étude, 30/09 — visible barre repliée et sur téléphone) (30/09, `TYPES_SCAN`, `propositionScan`, `server/src/scans.js`) :
@@ -700,8 +703,8 @@ Plainte principale de l'étude : **le bruit**, pas les oublis — ne pas élargi
   `d.nom` brut reste pour l'édition du champ, la recherche, le rapprochement NAS, les emails au client
   (textes de l'étude mot pour mot) et les titres des dates butoir de l'agenda (repris tels quels).
 - **Formats (étude, 29/09)** : tout montant en euros passe par `formaterMontantEuros`
-  (`formaterPrix`/`formaterPrixCentimes`, « 360.000,00 € », miroir `formaterEuros` dans
-  `jobs/rappels.js`) et toute saisie de montant par `eurosDepuisSaisie` (jamais « ne garder que les
+  (`formaterPrix`/`formaterPrixCentimes`, « 360.000,00 € », `commun/montants.js` ; le serveur l'importe sous
+  le nom `formaterEuros`) et toute saisie de montant par `eurosDepuisSaisie` (jamais « ne garder que les
   chiffres » : « 250.000,00 » deviendrait 25 000 000). Toute adresse passe par `normaliserAdresse`
   (format « SAINT-AIGNAN (41110), 2 rue des Cours de Meusnes » : commune en capitales, tirets et
   CEDEX gardés) ; le destinataire d'un courrier garde la forme postale (`adressePostaleCourrier`).
@@ -760,7 +763,12 @@ Plainte principale de l'étude : **le bruit**, pas les oublis — ne pas élargi
   code, `index.html` ni les tests). Un nom cité seulement par un test est du code mort toléré : le retirer avec son test.
   **Avant tout push sur `main` : `npm run verifier` en dernier, après la toute dernière modification, puis regarder sur GitHub
   qu'une construction a démarré ET qu'elle est verte** (04/10 : la version 10:36 n'a jamais été construite — lint lancé avant le
-  découpage, puis filtre de chemins du workflow sans `client/**`). `npm run verifier` = lint + les deux suites. **Les fichiers de `client/` partagent leur portée** :
+  découpage, puis filtre de chemins du workflow sans `client/**`). `npm run verifier` = lint + les deux suites. **Une règle appliquée des deux côtés (poste et serveur) s'écrit UNE fois dans `commun/`** (04/10 : fini les « miroirs à
+  modifier ensemble » — planning, SAFER, fonds, montants, libellé, checklist) : IIFE `(function (exporter, C) { … exporter({…}); })(…)`,
+  `C.nom` pour une dépendance d'un autre fichier commun, pas de DOM ni de `require` d'une bibliothèque, rien de propre à un
+  monde ; nouveau fichier = `commun/manifest.json` + `<script>` dans `index.html` avant `client/` (test `structure-client`,
+  assets et `.exe` par le manifeste). Le serveur `require('../../commun/x')` (chemin littéral, esbuild l'embarque).
+  **Les fichiers de `client/` partagent leur portée** :
   leurs déclarations de premier niveau sont relevées à chaque lint par `scripts/globaux-client.js` (espree) et données à ESLint en
   globaux — sans cela, 5 882 `no-undef` et la construction du `.exe` s'arrête (payé le 04/10 à 10 h 36 : version jamais
   construite) ; un nom déclaré dans deux fichiers est refusé par `tests/structure-client.test.js`. Un fichier du poste reste **sous 3 000 lignes**

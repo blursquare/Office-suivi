@@ -277,20 +277,6 @@
   // l'arithmétique calendaire n'est pas fiable. Ces fonctions sont pures et testées
   // (tests/dates-metier.test.js) ; elles serviront ensuite à construireDatesMetier().
 
-  // Ajoute n mois "de quantième à quantième" : le 31 janvier + 1 mois donne le 28 (ou 29) février,
-  // pas le 3 mars — c'est la règle de computation usuelle d'un délai en mois (art. 641 CPC), et
-  // c'est aussi ce qu'un notaire attend en lisant « dans les trois mois de la signature ».
-  function ajouterMois(iso, n) {
-    if (!iso || !/^\d{4}-\d{2}-\d{2}$/.test(iso) || !Number.isFinite(n)) return null;
-    const [annee, mois, jour] = iso.split('-').map(Number);
-    const totalMois = annee * 12 + (mois - 1) + n;
-    const anneeCible = Math.floor(totalMois / 12);
-    const moisCible = ((totalMois % 12) + 12) % 12; // 0-11, correct aussi pour un n négatif
-    // Jour 0 du mois suivant = dernier jour du mois visé (gère février et les années bissextiles).
-    const dernierJour = new Date(Date.UTC(anneeCible, moisCible + 1, 0)).getUTCDate();
-    return `${anneeCible}-${pad(moisCible + 1)}-${pad(Math.min(jour, dernierJour))}`;
-  }
-
   // Calcule une date d'échéance à partir d'une date de départ et d'un délai {valeur, unite}.
   // Renvoie null si la base est inconnue — cas courant et VOULU : un délai dont le point de départ
   // n'est pas la signature ("à compter de la réalisation de la condition suspensive", "à compter

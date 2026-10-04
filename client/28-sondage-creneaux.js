@@ -666,8 +666,6 @@
     overlay.style.display = 'flex';
   }
 
-
-
   // Un bloc de l'écran rendu à part : son erreur est notée (une fois par bloc et par minute) sans arrêter les autres.
   const erreursBlocsRendus = {};
   // Une ligne du Suivi dont le rendu échoue (donnée inattendue) laisse une ligne minimale cliquable, pas une liste vide.
@@ -2493,12 +2491,6 @@
 
   function icsDate(iso) {
     return iso.replace(/-/g, '');
-  }
-
-  function addDays(iso, n) {
-    const d = new Date(iso + 'T00:00:00');
-    d.setDate(d.getDate() + n);
-    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
   }
 
   function buildEvent(uidBase, summary, iso, reminderDays) {

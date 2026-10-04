@@ -57,7 +57,7 @@ test('le workflow de construction du .exe se déclenche sur client/ (et plus sur
   // 04/10 : le filtre de chemins listait encore script.js — un correctif ne touchant que client/ ne reconstruisait rien.
   const wf = fs.readFileSync(path.join(racine, '.github', 'workflows', 'build-exe.yml'), 'utf8');
   const chemins = [...wf.matchAll(/^\s+- '([^']+)'$/gm)].map(m => m[1]);
-  for (const c of ['client/**', 'index.html', 'style.css', 'server/**', 'tests/**', 'eslint.config.js', 'package.json', 'scripts/**']) {
+  for (const c of ['client/**', 'commun/**', 'index.html', 'style.css', 'server/**', 'tests/**', 'eslint.config.js', 'package.json', 'scripts/**']) {
     assert.ok(chemins.includes(c), `${c} absent du filtre de chemins du workflow`);
   }
   assert.ok(!chemins.includes('script.js'));
@@ -71,7 +71,27 @@ test('aucune déclaration de premier niveau du poste qui ne soit citée nulle pa
   const compter = (texte) => { for (const m of texte.matchAll(/[A-Za-z_$À-ɏ][A-Za-z0-9_$À-ɏ]*/g)) occurrences.set(m[0], (occurrences.get(m[0]) || 0) + 1); };
   for (const f of manifeste) compter(fs.readFileSync(path.join(racine, 'client', f), 'utf8'));
   compter(fs.readFileSync(path.join(racine, 'index.html'), 'utf8'));
+  // Le code commun est aussi cité par le serveur ; ses propres fichiers citent leurs exports.
+  for (const f of fs.readdirSync(path.join(racine, 'commun'))) if (f.endsWith('.js')) compter(fs.readFileSync(path.join(racine, 'commun', f), 'utf8'));
+  for (const f of fs.readdirSync(path.join(racine, 'server', 'src'), { recursive: true })) if (String(f).endsWith('.js')) compter(fs.readFileSync(path.join(racine, 'server', 'src', String(f)), 'utf8'));
   for (const f of fs.readdirSync(__dirname)) if (f.endsWith('.js')) compter(fs.readFileSync(path.join(__dirname, f), 'utf8'));
   const morts = [...declarationsClient()].filter(([nom]) => (occurrences.get(nom) || 0) < 2).map(([nom, fichiers]) => nom + ' (' + fichiers[0] + ')');
   assert.equal(morts.join('\n'), '', 'déclaré mais jamais cité');
+});
+
+test('commun/ : manifeste, index.html (avant client/), assets du serveur et du .exe, exports chargés des deux côtés', () => {
+  const communs = JSON.parse(fs.readFileSync(path.join(racine, 'commun', 'manifest.json'), 'utf8'));
+  const presents = fs.readdirSync(path.join(racine, 'commun')).filter(f => f.endsWith('.js')).sort();
+  assert.equal(presents.join('\n'), communs.slice().sort().join('\n'));
+  const html = fs.readFileSync(path.join(racine, 'index.html'), 'utf8');
+  const tags = [...html.matchAll(/<script src="(commun|client)\/([^"]+)"><\/script>/g)].map(m => m[1] + '/' + m[2]);
+  assert.equal(tags.slice(0, communs.length).join('\n'), communs.map(f => 'commun/' + f).join('\n'), 'commun/ chargé en premier, dans l’ordre');
+  const { ASSETS_STATIQUES } = require('../server/src/app');
+  for (const f of communs) assert.equal(ASSETS_STATIQUES['/commun/' + f].fichier, 'commun/' + f);
+  const build = fs.readFileSync(path.join(racine, 'server', 'scripts', 'build-windows-exe.mjs'), 'utf8');
+  assert.match(build, /commun', 'manifest\.json'/);
+  // Côté Node, chaque fichier exporte ; côté poste (vm), les mêmes noms sont des globaux.
+  const { chargerApplication } = require('./helpers/load-app');
+  const app = chargerApplication();
+  for (const f of communs) for (const nom of Object.keys(require(path.join(racine, 'commun', f)))) assert.ok(nom in app, nom + ' absent du poste');
 });

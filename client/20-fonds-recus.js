@@ -229,22 +229,6 @@
       .sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')));
   }
 
-  // Pure : l'état de l'indicateur. Les fonds doivent correspondre au montant attendu à l'euro près,
-  // avec une marge de quelques dizaines d'euros au plus pour une erreur du client (règle de l'étude,
-  // 29/09) — dans les DEUX sens : bien au-delà du montant attendu, ce n'est pas « complet » mais un
-  // écart à vérifier (des versements d'un autre dossier ont probablement été comptés).
-  // `ecart` = reçu − attendu (négatif s'il manque). Miroir bilanFonds (server/src/jobs/rappels.js).
-  var MARGE_FONDS_RECUS = 50;
-  function bilanFondsRecus(total, attendu) {
-    const t = Math.round((Number(total) || 0) * 100) / 100;
-    if (!(attendu > 0)) return { etat: t > 0 ? 'inconnu' : 'aucun', total: t, attendu: null, reste: null, ecart: null };
-    const ecart = Math.round((t - attendu) * 100) / 100;
-    const etat = Math.abs(ecart) <= MARGE_FONDS_RECUS ? 'complet'
-      : ecart > 0 ? 'excedent'
-      : (t > 0 ? 'partiel' : 'aucun');
-    return { etat, total: t, attendu, reste: Math.max(0, -ecart), ecart };
-  }
-
   // Pure : la précision qui suit « Tous les fonds sont reçus » quand le montant n'est pas exact.
   function precisionEcartFonds(b) {
     if (!b || b.etat !== 'complet' || !(Math.abs(b.ecart) >= 1)) return '';

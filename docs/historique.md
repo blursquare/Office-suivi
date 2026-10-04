@@ -16206,3 +16206,34 @@ est enveloppé (`geste`) : une casse est notée et la suite continue, pour avoir
 Vérifié qu'il échoue sur une casse volontaire (`renderBadgeStatut` remplacé par une lecture d'un nom inconnu : erreur
 rapportée avec sa pile, sortie 1). Le workflow le lance après les deux suites, avant la construction. ESLint : bloc propre à
 `tests/fumee/**` (globaux node + navigateur + poste, les `page.evaluate` étant du code de la page).
+
+### 04/10/2026 11 h 34 — Code commun poste/serveur (`commun/`)
+
+Les fonctions tenues en « miroir » (CLAUDE.md : « à modifier toujours ensemble ») sont écrites une fois dans `commun/` :
+`dates.js` (`pad`, `addDays`, `ajouterMois`), `dossier.js` (`PREFIXES_TYPE_AFFAIRE`, `estSuccession`,
+`RE_NOM_DEJA_PREFIXE`, `prefixeTypeAffaire`, `libelleDossierAffiche`), `montants.js` (`formaterMontantEuros`,
+`formaterPrix`, `formaterPrixCentimes`, `MARGE_FONDS_RECUS`, `bilanFondsRecus`), `pieces.js` (les cinq listes `PIECES_*`
+avec leurs `motifNom` et `checklistPiecesBase(typeVente, d, clesEnPlus)`), `planning.js` (`echeanceValidee`, `pretLeve`,
+`preemptionLevee`, `DELAIS_SAFER`, `delaiSafer`, `echeanceSaferTacite`, `saferLevee`, `echeanceSaferDossier`,
+`echeancesPlanning`). Forme : un IIFE `(function (exporter, C) { … exporter({…}); })(…)` — `module.exports` sous Node,
+`Object.assign(globalThis, …)` dans le navigateur (les noms restent des globaux nus, rien ne change dans les appelants),
+`C` = les autres fichiers communs (`require` côté Node, `globalThis` côté navigateur). Texte des fonctions repris du
+poste tel quel (extraction par espree avec les commentaires accolés), le serveur importe sous ses anciens noms
+(`bilanFonds`, `formaterEuros`, `libelleDossier`) ; `toutesEcheances` serveur = `echeancesPlanning` avec
+`type: 'autre-<index>'` (clé des seuils et du journal `reminder_log`, à ne pas changer) ; `piecesChecklist.js` serveur
+ne garde que `piecesRecuesEtManquantes` ; le poste garde `checklistPieces(typeVente, d)` qui ajoute les clés tirées des
+documents de l'analyse (`clesChecklistDepuisDocuments`, connu du poste seulement).
+
+Écarts trouvés en comparant les copies : (1) `echeanceSaferTacite` du poste acceptait une date mal formée (`addDays` →
+« NaN-NaN-NaN ») là où le serveur exigeait AAAA-MM-JJ — règle du serveur gardée ; (2) `formaterEuros` serveur rendait
+« -0,00 € » pour un arrondi négatif nul, le poste non — version du poste gardée ; (3) la checklist serveur ignorait les
+successions (pièces de vente listées) — règle du poste gardée ; (4) `toutesEcheances` et `echeancesPlanning` différaient
+par la forme des échéances personnalisées (`autre-i` / `autre` + `index`) — habillage côté serveur.
+
+Alignements : `commun/manifest.json` → `index.html` (avant `client/`), `ASSETS_STATIQUES`, assets du `.exe`,
+`tests/helpers/load-app.js` (commun d'abord dans le même contexte vm), `scripts/globaux-client.js` (exports = globaux du
+poste, déclarés « dans » `commun/x.js` pour le test des doublons), bloc ESLint `commun/**` (navigateur + node), filtre du
+workflow, test `structure-client` (manifeste ↔ fichiers ↔ HTML ↔ assets ↔ exe, exports présents des deux côtés), corpus du
+test « jamais cité » élargi à `commun/` et `server/src`. Vérifié : lint 0/0, tests 1 274 + 665, fumée 40 points, paquet
+esbuild du serveur contenant `echeancesPlanning` et `checklistPiecesBase`. Non repris (formes différentes, pas un miroir
+strict) : `syntheseJournalCorrections` / `erreursFrequentesJournal` (même seuil 3 sur 30 jours), `echeanceAgendaSouhaitee`.

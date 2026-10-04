@@ -9,6 +9,7 @@ const path = require('node:path');
 const espree = require('espree');
 
 const RACINE_CLIENT = path.join(__dirname, '..', 'client');
+const RACINE_COMMUN = path.join(__dirname, '..', 'commun');
 
 function nomsDeclaration(noeud) {
   if (noeud.type === 'FunctionDeclaration' || noeud.type === 'ClassDeclaration') return noeud.id ? [noeud.id.name] : [];
@@ -30,6 +31,10 @@ function nomsDeclaration(noeud) {
 function declarationsClient(racine = RACINE_CLIENT) {
   const manifeste = JSON.parse(fs.readFileSync(path.join(racine, 'manifest.json'), 'utf8'));
   const parNom = new Map();
+  // Le code commun (commun/) est chargé avant client/ : ses exports sont des globaux du poste, déclarés « dans » son fichier.
+  for (const fichier of JSON.parse(fs.readFileSync(path.join(RACINE_COMMUN, 'manifest.json'), 'utf8'))) {
+    for (const nom of Object.keys(require(path.join(RACINE_COMMUN, fichier)))) parNom.set(nom, ['commun/' + fichier]);
+  }
   for (const fichier of manifeste) {
     const source = fs.readFileSync(path.join(racine, fichier), 'utf8');
     const ast = espree.parse(source, { ecmaVersion: 2023, sourceType: 'script' });

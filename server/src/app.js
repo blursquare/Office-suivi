@@ -54,6 +54,7 @@ const ASSETS_STATIQUES = {
   '/style.css': { fichier: 'style.css', type: 'text/css; charset=utf-8' },
   // Fichiers du poste (client/manifest.json, dans l'ordre de chargement d'index.html — voir CLAUDE.md « Structure ») :
   // la même liste nourrit les assets embarqués du .exe (build-windows-exe.mjs) et le chargeur des tests.
+  ...Object.fromEntries(require('../../commun/manifest.json').map((f) => [`/commun/${f}`, { fichier: `commun/${f}`, type: 'application/javascript; charset=utf-8' }])),
   ...Object.fromEntries(require('../../client/manifest.json').map((f) => [`/client/${f}`, { fichier: `client/${f}`, type: 'application/javascript; charset=utf-8' }])),
   // PDF du questionnaire de satisfaction, encodé en base64 dans un fichier à part (voir
   // construireEmailQuestionnaireSatisfaction). À NE PAS OUBLIER ici ni dans la liste des assets

@@ -23,6 +23,18 @@
 const { envoyerEmail, envoiConfigure, memeAdresseEmail } = require('../envoiEmail');
 const { mettreCopiesEnAttente, executerNettoyageGmail } = require('../nettoyageGmail');
 const { piecesRecuesEtManquantes } = require('../piecesChecklist');
+// Code commun au poste et au serveur (commun/, 04/10) : le planning, la validation d'une échéance, la SAFER, le bilan des
+// fonds, le format des montants et le libellé d'un dossier ne sont plus recopiés ici — une seule écriture pour les deux.
+const { echeanceValidee, echeanceSaferDossier, echeancesPlanning } = require('../../../commun/planning');
+const { bilanFondsRecus: bilanFonds, formaterMontantEuros: formaterEuros } = require('../../../commun/montants');
+const { libelleDossierAffiche: libelleDossier } = require('../../../commun/dossier');
+
+// Les échéances d'un dossier pour les rappels : celles du planning du poste (echeancesPlanning), une échéance
+// personnalisée étant désignée par `autre-<index>` — c'est cette clé que portent les seuils (seuilsPourType) et le journal
+// des rappels envoyés (reminder_log) ; ne pas la changer.
+function toutesEcheances(d) {
+  return echeancesPlanning(d).map((it) => (it.type === 'autre' ? { type: 'autre-' + it.index, label: it.label, iso: it.iso } : it));
+}
 
 // Seuils de rappel PAR ÉCHÉANCE, donnés un par un par l'étude — pas un seuil unique pour tout.
 // Une signature d'acte se prépare de plus loin qu'un appel de fonds, et un appel de fonds doit
@@ -48,113 +60,6 @@ const SEUILS_RAPPELS_DEFAUT = [15, 7];
 
 function seuilsPourType(type) {
   return SEUILS_RAPPELS_PAR_TYPE[type] || SEUILS_RAPPELS_DEFAUT;
-}
-
-// Le prêt reste avant tout piloté par offrePretStatut (parcours NAS), mais la validation manuelle
-// (voir echeancesValidees.pret, script.js) doit aussi être prise en compte ici — sans quoi un
-// dossier marqué réalisé côté client continuerait de recevoir des rappels sur cette échéance.
-// Miroir de echeanceValidee() côté client (duplication assumée : pas de build partagé entre le
-// navigateur et Node dans ce projet).
-// Deux faits du dossier closent une échéance sans décision manuelle : l'offre de prêt reçue pour
-// « Obtention du prêt », et un rendez-vous de signature fixé pour la date butoir de réitération —
-// relancer sur un butoir dont le rendez-vous réel est déjà pris n'aurait plus d'objet.
-function echeanceValidee(d, type) {
-  if (type === 'fixerRdv') return !!d.rendezVousSignature;
-  if (type === 'pret') return d.offrePretStatut === 'recue' || !!(d.echeancesValidees && d.echeancesValidees.pret);
-  if (type === 'acte') return !!d.rendezVousSignature || !!(d.echeancesValidees && d.echeancesValidees.acte);
-  return !!(d.echeancesValidees && d.echeancesValidees[type]);
-}
-
-// Miroir de saferLevee / echeanceSaferDossier (script.js) — à modifier ensemble. 2 mois depuis la
-// prise en compte (à défaut l'envoi), 1 mois ou 8 jours si l'étude a coché « réponse rapide » /
-// « très rapide » sous la pièce « Réponse SAFER ».
-function saferLevee(d) {
-  if (!d || d.roleNotaire === 'participant') return true;
-  const sa = d.authentic && d.authentic.safer;
-  if (sa && sa.decision === 'non_preemption') return true;
-  const piece = (d.piecesPersonnalisees || []).find((p) => p && /safer/i.test(p.label || ''));
-  if (piece && d.pieces && d.pieces[piece.cle] === 'recue') return true;
-  return !sa && !piece;
-}
-function echeanceSaferDossier(d) {
-  if (saferLevee(d)) return '';
-  const sa = d.authentic && d.authentic.safer;
-  // Départ = date d'envoi (étude, 02/10) ; relevés plus anciens : leur « prise en compte » était l'envoi.
-  const depart = sa && (sa.envoyeeLe || sa.priseEnCompteLe || sa.notifieeLe);
-  if (!depart || !/^\d{4}-\d{2}-\d{2}$/.test(depart)) return '';
-  const [a, m, j] = depart.split('-').map(Number);
-  if (sa.delaiManuel === 'tres_rapide') {
-    return new Date(Date.UTC(a, m - 1, j + 8)).toISOString().slice(0, 10);
-  }
-  const mois = sa.delaiManuel === 'rapide' ? 1 : 2;
-  // Même règle que ajouterMois côté client : jour gardé, ramené au dernier jour du mois s'il n'existe pas.
-  const dernier = new Date(Date.UTC(a, m - 1 + mois + 1, 0)).getUTCDate();
-  return new Date(Date.UTC(a, m - 1 + mois, Math.min(j, dernier))).toISOString().slice(0, 10);
-}
-
-function toutesEcheances(d) {
-  const autres = (Array.isArray(d.autres) ? d.autres : [])
-    .map((a, i) => ({ type: `autre-${i}`, label: a.label, iso: a.date }))
-    .filter((it) => !echeanceValidee(d, it.type));
-  // Miroir exact de echeancesPlanning() côté script.js — ce projet n'a pas de mécanisme de build
-  // partagé entre navigateur et Node, cette duplication est un choix assumé et déjà documenté.
-  // Règles métier données par l'étude, à garder alignées des deux côtés :
-  //  • la DATE BUTOIR (`acte`) ne déclenche aucun rappel : elle vient de l'avant-contrat et n'est
-  //    qu'indicative, c'est le rendez-vous pris à l'office qui engage l'étude ;
-  //  • tant que l'appel de fonds n'est pas fait, c'est lui qu'on rappelle, même rendez-vous fixé,
-  //    et à défaut de date propre il prend celle du rendez-vous (il doit être parti avant) ;
-  //  • une fois l'appel de fonds fait, c'est l'envoi du projet d'acte au client qu'on rappelle
-  //    (ajouté sur demande de l'étude, détecté depuis l'agenda de l'office — voir agendaWatch.js) ;
-  //  • une fois le projet envoyé, on rappelle la signature.
-  // Aligné sur echeancesPlanning() côté client (voir son commentaire). L'étape courante prend à
-  // défaut la date du rendez-vous ; la date butoir (d.acte) N'EST PAS une ancre par défaut (elle
-  // n'est qu'indicative, l'utiliser partout rappellerait un appel de fonds prématuré). Filet de
-  // sécurité (étude) : un dossier — typiquement en participation — dont l'offre est reçue mais dont
-  // le rendez-vous n'est pas encore placé n'avait plus aucune échéance, donc plus aucun rappel, au
-  // moment précis où il faut placer le rendez-vous. Si rien ne reste, on garde l'étape courante
-  // ancrée sur la date butoir. Le butoir ne crée jamais SA PROPRE échéance (aucun item de type `acte`).
-  // Succession (miroir de echeancesPlanning) : la signature si placée et les échéances ajoutées.
-  if (d.typeAffaire === 'succession') {
-    const sig = d.rendezVousSignature && !echeanceValidee(d, 'rendezVousSignature')
-      ? [{ type: 'rendezVousSignature', label: 'Signature de l’acte', iso: d.rendezVousSignature }] : [];
-    return sig.concat(autres).filter((it) => it.iso);
-  }
-  const items = [];
-  if (!echeanceValidee(d, 'ventebien')) items.push({ type: 'ventebien', label: 'Vente préalable', iso: d.ventebien });
-  if (!echeanceValidee(d, 'pret')) items.push({ type: 'pret', label: 'Obtention du prêt', iso: d.pret });
-  const echeanceSafer = echeanceSaferDossier(d);
-  if (echeanceSafer) items.push({ type: 'safer', label: 'Délai SAFER', iso: echeanceSafer });
-  // Offre reçue (ou achat comptant) sans rendez-vous : placer le rendez-vous vient avant l'appel
-  // de fonds (étude, 28/09). Ancré sur la date butoir ; seuils par défaut (15/7).
-  let etape = null;
-  const pretLeve = (!!d.sansPret || echeanceValidee(d, 'pret')) && (!d.ventebien || echeanceValidee(d, 'ventebien'));
-  // Pas de « Fixer le rendez-vous » tant que la renonciation au droit de préemption n'est pas
-  // reçue (miroir de preemptionLevee() côté client) : l'étape devient cette attente, sans date
-  // propre — seul le filet de sécurité ci-dessous l'ancre sur la date butoir.
-  // En copropriété : pas d'attente, sauf pièce de préemption ajoutée à la main et non reçue.
-  const preemptionLevee = d.roleNotaire === 'participant'
-    || (d.typeVente === 'copropriete'
-      ? !(d.piecesPersonnalisees || []).some(p => p && /pr[ée]emption|\bDPU\b|\bDIA\b/i.test(p.label || '')
-        && !(d.pieces && d.pieces[p.cle] === 'recue'))
-      : (d.piecesRetirees || []).includes('renonciationPreemption')
-        || !!(d.pieces && d.pieces.renonciationPreemption === 'recue'));
-  if (!d.rendezVousSignature && pretLeve && !d.appelFonds && !echeanceValidee(d, 'appelFonds')) {
-    etape = !preemptionLevee ? { type: 'preemption', label: 'Renonciation préemption attendue', iso: null }
-      : !saferLevee(d) ? (echeanceSafer ? null : { type: 'safer', label: 'Réponse SAFER attendue', iso: null })
-        : { type: 'fixerRdv', label: 'Fixer le rendez-vous', iso: d.acte };
-  } else if (!echeanceValidee(d, 'appelFonds')) {
-    etape = { type: 'appelFonds', label: 'Envoi appel de fonds', iso: d.appelFonds || d.rendezVousSignature };
-  } else if (!echeanceValidee(d, 'projetEnvoye')) {
-    etape = { type: 'projetEnvoye', label: 'Envoi projet', iso: d.projetEnvoye || d.rendezVousSignature };
-  } else if (!echeanceValidee(d, 'rendezVousSignature')) {
-    etape = { type: 'rendezVousSignature', label: 'Signature de l’acte', iso: d.rendezVousSignature };
-  }
-  if (etape) items.push(etape);
-  let reels = items.concat(autres).filter((it) => it.iso);
-  if (!reels.length && etape && !etape.iso && d.acte && !d.rendezVousSignature && !echeanceValidee(d, 'acte')) {
-    reels = [Object.assign({}, etape, { iso: d.acte })];
-  }
-  return reels;
 }
 
 // Compté en UTC (même piège déjà documenté pour joursEntre() côté prorata — une différence entre
@@ -211,20 +116,6 @@ function calculerRappelsDus(dossiers, aujourdHui, dejaEnvoyes) {
 // Rien quand la réception a déjà été confirmée au client (receptionFondsConfirmeeLe) : les fonds
 // sont là, le collaborateur le sait. Rien non plus avant l'appel de fonds.
 
-// Miroir de bilanFondsRecus (script.js) : à l'euro près, 50 € d'écart au plus dans un sens comme
-// dans l'autre (règle de l'étude, 29/09) ; bien au-delà du montant attendu = « excedent », jamais
-// « complet ». À modifier ensemble.
-const MARGE_FONDS_RECUS = 50;
-function bilanFonds(total, attendu) {
-  const t = Math.round((Number(total) || 0) * 100) / 100;
-  if (!(attendu > 0)) return { etat: t > 0 ? 'inconnu' : 'aucun', total: t, attendu: null, reste: null, ecart: null };
-  const ecart = Math.round((t - attendu) * 100) / 100;
-  const etat = Math.abs(ecart) <= MARGE_FONDS_RECUS ? 'complet'
-    : ecart > 0 ? 'excedent'
-    : (t > 0 ? 'partiel' : 'aucun');
-  return { etat, total: t, attendu, reste: Math.max(0, -ecart), ecart };
-}
-
 // 0 = dimanche … 6 = samedi, pour une date AAAA-MM-JJ (lue en UTC : pas de décalage de fuseau).
 function jourSemaine(iso) {
   return new Date(iso + 'T00:00:00Z').getUTCDay();
@@ -257,14 +148,6 @@ function alertesFondsDues(dossiers, aujourdHui, dejaEnvoyes) {
     if (!deja(d, cle)) dus.push(Object.assign(base, { genre: 'incomplets', reminderKey: cle }));
   }
   return dus;
-}
-
-// « 360.000,00 € » : même format que formaterMontantEuros côté client (demandé par l'étude, 29/09).
-function formaterEuros(n) {
-  const v = Number(n);
-  if (!Number.isFinite(v)) return '';
-  const [entier, dec] = Math.abs(v).toFixed(2).split('.');
-  return (v < 0 ? '-' : '') + entier.replace(/\B(?=(\d{3})+(?!\d))/g, '.') + ',' + dec + '\u00a0€';
 }
 
 function formaterJourRdv(iso, heure) {
@@ -413,15 +296,6 @@ function demarrerTacheRappels(depot, db, config, parametresRepo, envoyerFn) {
   };
   tour(); // un premier passage tout de suite, pas seulement dans trente minutes
   return setInterval(tour, config.intervalleRappelsMs);
-}
-
-// Nom du dossier cité dans un message, précédé du type d'affaire (étude, 30/09 : « VTE pour vente,
-// SUCC pour succession ») — miroir de libelleDossierAffiche (script.js), à modifier ensemble.
-const PREFIXES_TYPE_AFFAIRE = { vente: 'VTE', succession: 'SUCC' };
-function libelleDossier(d) {
-  const nom = String((d && d.nom) || '').trim();
-  if (/^(VTE|SUCC)\s*-\s/i.test(nom)) return nom;
-  return (PREFIXES_TYPE_AFFAIRE[d && d.typeAffaire] || PREFIXES_TYPE_AFFAIRE.vente) + ' - ' + nom;
 }
 
 module.exports = {

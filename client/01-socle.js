@@ -204,8 +204,6 @@
     'décembre':11,'decembre':11
   };
 
-  function pad(n) { return String(n).padStart(2, '0'); }
-
   function toISO(y, mIndex, d) {
     return `${y}-${pad(mIndex+1)}-${pad(d)}`;
   }
@@ -673,7 +671,6 @@
       + (f.montant ? ` — ${formaterPrixCentimes(f.montant)}` : '');
   }
 
-
   // Prix de vente : le montant en lettres est presque toujours suivi de sa forme chiffrée entre
   // parenthèses (usage notarial constant, ex. "CENT MILLE EUROS (100 000 €)") — bien plus fiable à
   // parser que le nombre écrit en toutes lettres. Cherche "prix" puis, dans les 120 caractères
@@ -984,37 +981,12 @@
     return nom.length >= 2 ? nom : null;
   }
 
-  // Affichage français ("250 000 €", pas de décimales : un prix notarié est toujours un compte
-  // rond en euros dans ce contexte). Intl.NumberFormat plutôt qu'un formatage manuel des milliers.
-  // Montants au format demandé par l'étude (29/09) : « 360.000,00 € » — point pour les milliers,
-  // virgule et deux décimales, espace insécable avant l'euro. Un seul formateur pour tout CLAIRE
-  // (fiche, emails, courriers, outils). Pure.
-  function formaterMontantEuros(valeur, decimales) {
-    const n = Number(valeur);
-    if (!Number.isFinite(n)) return '';
-    const d = decimales == null ? 2 : decimales;
-    const [entier, dec] = Math.abs(n).toFixed(d).split('.');
-    const milliers = entier.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-    const negatif = n < 0 && Number(Math.abs(n).toFixed(d)) !== 0;
-    return (negatif ? '-' : '') + milliers + (dec ? ',' + dec : '') + '\u00a0€';
-  }
-  function formaterPrix(valeur) {
-    return formaterMontantEuros(valeur, 2);
-  }
   // Saisie d'un montant en euros entiers (« 250000 », « 250 000 », « 250.000,00 € ») : jamais
   // en ne gardant que les chiffres, qui ferait de « 250.000,00 » 25 000 000. Pure.
   function eurosDepuisSaisie(texte) {
     if (texte == null || String(texte).trim() === '') return null;
     const n = montantDepuisTexteFr(texte);
     return Number.isFinite(n) ? Math.round(n) : null;
-  }
-
-  // Variante AVEC les centimes, pour les montants où ils comptent — une répartition de prorata est
-  // une somme réclamée à un client, l'arrondir à l'euro ferait perdre le complément exact entre les
-  // deux parts (voir calculerProrata). Le prix de vente et l'apport, eux, restent à l'euro près :
-  // formaterPrix() est inchangée.
-  function formaterPrixCentimes(valeur) {
-    return formaterMontantEuros(valeur, 2);
   }
 
   // Montant emprunté, lu dans le texte de l'offre de prêt elle-même (pas le compromis) une fois

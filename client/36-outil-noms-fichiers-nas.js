@@ -449,28 +449,10 @@
     return cles;
   }
 
+  // La checklist vient du code commun (commun/pieces.js) ; le poste y ajoute les pièces d'engagement retrouvées dans les
+  // documents de l'analyse d'un dossier ancien (clesChecklistDepuisDocuments, connu du poste seulement).
   function checklistPieces(typeVente, d) {
-    const base = typeVente === 'copropriete'
-      ? [...PIECES_URBANISME, ...PIECES_COPROPRIETE, ...PIECES_AUTRES]
-      : typeVente === 'terrain'
-        ? [...PIECES_URBANISME, ...PIECES_TERRAIN_AUTRES]
-        : [...PIECES_URBANISME, ...PIECES_AUTRES];
-    if (!d) return base;
-    if (estSuccession(d)) return (d.piecesPersonnalisees || []).map(p => ({ cle: p.cle, label: p.label, personnalisee: true }));
-    const retirees = new Set(d.piecesRetirees || []);
-    const standard = base.filter(p => !retirees.has(p.cle));
-    const detectees = new Set([
-      ...(d.piecesEngagementsDetectees || []),
-      ...clesChecklistDepuisDocuments(d.analyseJuridique && d.analyseJuridique.documents)
-    ]);
-    // Une clé déjà présente dans la checklist standard (assainissement, diagnostics) ne doit pas
-    // apparaître une seconde fois : la pièce standard, plus précise, l'emporte.
-    const clesStandard = new Set(standard.map(p => p.cle));
-    const auto = PIECES_ENGAGEMENTS_AUTO
-      .filter(p => detectees.has(p.cle) && !retirees.has(p.cle) && !clesStandard.has(p.cle))
-      .map(p => ({ ...p, autoEngagement: true }));
-    const perso = (d.piecesPersonnalisees || []).map(p => ({ cle: p.cle, label: p.label, personnalisee: true }));
-    return [...standard, ...auto, ...perso];
+    return checklistPiecesBase(typeVente, d, d ? clesChecklistDepuisDocuments(d.analyseJuridique && d.analyseJuridique.documents) : []);
   }
   // "Offre de crédit (immobilier)" est une formulation bancaire tout aussi courante que "offre de
   // prêt" pour désigner le même document — à ne pas retirer sans revérifier ce cas.

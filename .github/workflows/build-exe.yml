@@ -13,6 +13,7 @@ on:
       - 'index.html'
       - 'style.css'
       - 'client/**'
+      - 'commun/**'
       - 'package.json'
       - 'package-lock.json'
       - 'eslint.config.js'
