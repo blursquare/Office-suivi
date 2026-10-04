@@ -146,6 +146,11 @@ test('Web Awesome : boutons d’action, boutons à icône, « Ajouter », pastil
     }
     // Bouton à icône seule : wa-button.bouton-icone (un <button class="icon-btn"> ne reste que pour un texte seul, lien discret).
     for (const m of src.matchAll(/<button\b[^>]*class="[^"]*\bicon-btn\b[^"]*"[^>]*>\s*\$\{icone\([^)]*\)\}\s*<\/button>/g)) fautes.push(`${f} : ${m[0].slice(0, 90)}`);
+    // Gestionnaire en ligne sur un composant : « render() » y désigne la méthode render du composant (Lit), pas celle de
+    // CLAIRE — l'interrupteur « Archivés » ne rafraîchissait rien (04/10). Écrire window.render().
+    for (const m of src.matchAll(/<wa-[a-z-]+\b[^>]*?>/g)) {
+      for (const h of m[0].matchAll(/\bon[a-z]+="([^"]*)"/g)) if (/(?<![\w.$])render\s*\(/.test(h[1])) fautes.push(`${f} : render() dans un gestionnaire de ${m[0].slice(0, 40)} — utiliser window.render()`);
+    }
     // Interrupteur : wa-switch, plus l'ancien <input type="checkbox"> + .slider.
     if (/class="slider"/.test(src)) fautes.push(`${f} : ancien interrupteur (.slider) — utiliser <wa-switch>`);
     for (const balise of ['wa-button', 'wa-switch', 'wa-button-group']) {

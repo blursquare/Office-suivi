@@ -16477,3 +16477,17 @@ Pour les boutons poussoirs Tableau / Échéances, mets un fond blanc pour celui 
 - Bascules (`vue-bascule-btn`) : le choix non retenu prend le fond `--paper-card` (blanc en clair, surface des cartes en
   sombre) ; le choix retenu reste à l'accent.
 Captures de contrôle (tableau de bord, Suivi, clair et sombre) rendues avec la vraie police.
+
+### 0.144.22 — 04/10/2026 21 h 56 : « Archivés » du Suivi en interrupteur
+Demande : « Revoir le bouton pour afficher les archives, ça dénote » (case à cocher nue au milieu des listes de filtres).
+- `#voir-archives` devient un `<wa-switch>` dans un cadre de la hauteur (32 px), du fond (`--paper-card`) et du bord des
+  listes voisines (`.suivi-barre .suivi-barre-filtres .toolbar-checkbox`) ; le clic sur le libellé bascule l'interrupteur
+  (gestionnaire de `01-socle.js`).
+- Défaut trouvé en vérifiant dans Chromium : `onchange="render()"` sur le composant appelait la méthode `render` de Lit
+  (portée du gestionnaire en ligne = l'élément), pas celle de CLAIRE — l'interrupteur changeait d'état sans rien afficher.
+  Corrigé en `window.render()` ; nouveau contrôle dans `tests/structure-client.test.js` (tout `render()` dans un
+  gestionnaire en ligne d'un `<wa-…>` est refusé ; vérifié qu'il échoue sur l'ancien code). Recherche faite : aucun autre
+  nom appelé depuis un gestionnaire de composant ne coïncide avec une propriété de `wa-button`, `wa-switch` ou
+  `wa-button-group`.
+- Vérifié dans Chromium (dossiers inventés, un archivé) : libellé → section des archivés affichée, interrupteur → retirée,
+  aucune erreur de page.

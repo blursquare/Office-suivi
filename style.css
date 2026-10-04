@@ -3126,7 +3126,13 @@
     background: var(--paper-card);
     color: var(--ink);
   }
+  /* « Archivés » (étude 04/10 : « ça dénote ») : interrupteur dans un cadre de la hauteur, du fond et du bord des listes
+     de filtres voisines, plutôt qu'une case à cocher nue. */
   .toolbar-checkbox { cursor: pointer; }
+  .suivi-barre .suivi-barre-filtres .toolbar-checkbox {
+    gap: 8px; min-height: 32px; padding: 0 12px 0 8px; border: 1px solid var(--line); border-radius: var(--rayon-m);
+    background: var(--paper-card); color: var(--ink);
+  }
   .toolbar-spacer { flex: 1; }
 
   /* Bascule Tableau / Semaines de la liste du Suivi : deux boutons segmentés, le mode actif en

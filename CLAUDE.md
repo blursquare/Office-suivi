@@ -274,7 +274,7 @@ dans `index.html`** (le test `structure-client` refuse tout décalage).
   (jamais l'accent, qui peut être orange ou vert), vert. **Suivi** (30/09, choix de l'étude) : barre en trois lignes
   (`.suivi-barre`) — grande recherche (nom du dossier seulement ; le collaborateur passe par le filtre
   « Responsable », pré-réglé sur celui du poste à chaque session, **sauf l'administrateur, qui voit « Tous »** (étude 02/10) — `filtreSuiviParDefaut`, `appliquerFiltreSuiviCollaborateur`, reposé au changement de poste) + bascule de vue, filtres sur une ligne (« Trier par »
-  en vue Tableau seulement ; « Archivés » cochée → section « Archivés » en bas de la vue Échéances,
+  en vue Tableau seulement ; interrupteur « Archivés » (`wa-switch#voir-archives`, cadre des filtres, étude 04/10) allumé → section « Archivés » en bas de la vue Échéances,
   `archivesPourEcheances`, date de signature sinon d'archivage, jamais dans une semaine), statuts en pastilles de filtre (`syntheseEtatsSuivi`, `renderEtatsSuivi`) ; **à gauche** (colonne de 300 px comme celle de l'agenda, étude 01/10, `.suivi-corps`/`.suivi-cote` ; au-dessus sous 1100 px),
   `renderColonneSuivi` (étude 01/10 au soir, remplace « Prévu en {mois} ») : le **mois civil en cours** en quatre
   tuiles-filtres (`syntheseMoisSuivi`, `filtreMoisSuivi`) — à signer (rendez-vous dans le mois), à placer (sans
@@ -641,6 +641,9 @@ Plainte principale de l'étude : **le bruit**, pas les oublis — ne pas élargi
   Contrôle obligatoire : `grep -c $'\x08' client/*.js` doit rendre 0.
 - **Noms de fichiers macOS en NFD** : `normaliserNomPourMotif` normalise en NFC (et `_`/`-` → espace).
   Si un nom « évidemment correct » ne matche pas, comparer les points de code.
+- **Gestionnaire en ligne sur un composant Web Awesome** (`<wa-switch onchange="…">`, `<wa-button onclick="…">`) : le corps
+  s'exécute avec le composant dans sa portée — `render()` y appelle la méthode `render` de Lit, pas celle de CLAIRE, sans
+  erreur (payé le 04/10 : « Archivés » ne rafraîchissait rien). Écrire `window.render()` ; refusé par `structure-client`.
 - **`onclick="f('…')"`** : l'attribut est décodé en HTML avant d'être exécuté en JS — `&#39;`
   redevient une apostrophe brute. Utiliser `escapeOnclickArg()` pour un argument JS, `escapeAttr()`
   pour un vrai attribut.
