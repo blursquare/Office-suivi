@@ -1423,8 +1423,8 @@
     const zoneCreation = document.getElementById('agenda-creation');
     if (zoneCreation) {
       zoneCreation.innerHTML = exchangeAgendaPret() ? `<div class="ag-ajout-double" role="group" aria-label="Créer un rendez-vous">
-          <button type="button" class="primary ag-ajout" onclick="ouvrirCreationAgenda()">${icone('plus')} Nouveau rendez-vous</button>
-          <button type="button" class="primary ag-ajout ag-ajout-dates" onclick="ouvrirSondageSansDossier('', [])" title="Proposer plusieurs dates par email et placer celle qui convient à tous">${icone('users')} Proposer des dates</button>
+          <wa-button variant="brand" class="primary ag-ajout" onclick="ouvrirCreationAgenda()">${icone('plus')} Nouveau rendez-vous</wa-button>
+          <wa-button variant="brand" class="primary ag-ajout ag-ajout-dates" onclick="ouvrirSondageSansDossier('', [])" title="Proposer plusieurs dates par email et placer celle qui convient à tous">${icone('users')} Proposer des dates</wa-button>
         </div>` : '';
       zoneCreation.style.display = zoneCreation.innerHTML ? '' : 'none';
     }
@@ -1538,7 +1538,7 @@
         ${infos && !e.option ? `<div class="ag-detail-etats">${renderEtatsRendezVous(infos)}</div>` : ''}
         ${e.option ? renderOptionSondageAgenda(e) : ''}
         ${peutSupprimer && !e.option ? renderVisioRendezVous(e) : ''}
-        ${d ? `<button type="button" class="${e.option ? 'lien-bouton' : 'primary'} ag-ouvrir-fiche" onclick="ouvrirDossierDepuisDashboard('${d.id}')">${icone('folder')} Ouvrir la fiche</button>` : ''}
+        ${d ? `<wa-button ${e.option ? 'appearance="plain"' : 'variant="brand"'} class="${e.option ? 'lien-bouton' : 'primary'} ag-ouvrir-fiche" onclick="ouvrirDossierDepuisDashboard('${d.id}')">${icone('folder')} Ouvrir la fiche</wa-button>` : ''}
         ${(peutSupprimer || notesLisibles) && !e.option ? renderNotesRendezVous(e, !peutSupprimer) : ''}
         ${blocProba}
         ${relation}
@@ -1592,7 +1592,7 @@
         </div>
         ${infos && infos.responsable ? ligne('user', `Responsable : <b>${escapeHtml(infos.responsable)}</b>`) : ''}
         ${infos && infos.confrere ? ligne('users', `Confrère : <b>${escapeHtml(infos.confrere)}</b>`) : ''}
-        ${e.creneau ? `<button type="button" class="primary ag-ouvrir-fiche" onclick="placerCreneauSignature('${d.id}', '${e.creneau.date}', '${e.creneau.heure}')" ${ecrire ? '' : 'disabled title="Connexion à l’agenda Outlook à activer dans les Réglages"'}>${icone('calendar')} Placer le ${escapeHtml(libelleCreneau(e.creneau))}</button>`
+        ${e.creneau ? `<wa-button variant="brand" class="primary ag-ouvrir-fiche" onclick="placerCreneauSignature('${d.id}', '${e.creneau.date}', '${e.creneau.heure}')" ${ecrire ? '' : 'disabled title="Connexion à l’agenda Outlook à activer dans les Réglages"'}>${icone('calendar')} Placer le ${escapeHtml(libelleCreneau(e.creneau))}</wa-button>`
           : '<p class="jour-vide">Aucun créneau libre cette semaine dans les règles de l’office.</p>'}
         ${autres.length ? `<div class="ag-creneaux">${autres.map(c => `<button type="button" class="action-rapide ag-creneau${c.exceptionnel ? ' exceptionnel' : ''}${d.acte && c.date > d.acte ? ' apres-butoir' : ''}" onclick="placerCreneauSignature('${d.id}', '${c.date}', '${c.heure}')" ${ecrire ? '' : 'disabled'}
             title="${escapeAttr([c.exceptionnel ? 'Créneau exceptionnel : ' + c.exceptionnel : '', d.acte && c.date > d.acte ? `Après la date butoir du ${formatDateFr(d.acte)}` : ''].filter(Boolean).join(' · ') || 'Placer le rendez-vous de signature à ce créneau')}">${c.exceptionnel ? icone('alert-triangle') : ''}${escapeHtml(libelleCreneau(c))}</button>`).join('')}</div>` : ''}
@@ -1768,8 +1768,8 @@
     const choisir = `<label class="lien-bouton ag-visio-ics" title="Choisir l’invitation .ics rendue par le site ADNOV — ou la déposer sur l’agenda">${icone('upload')} ${lien ? 'Remplacer l’invitation (.ics)' : 'Ajouter l’invitation (.ics)'}<input type="file" accept=".ics,text/calendar" hidden onchange="choisirIcsRendezVous('${cle}', this)"></label>`;
     return `<div class="ag-visio">
         ${lien ? `<a class="primary ag-visio-rejoindre" href="${escapeAttr(lien)}" target="_blank" rel="noopener">${icone('video')} Rejoindre la visio</a>
-          <button type="button" class="secondary ag-visio-creer" onclick="ouvrirEnvoiVisio('${cle}')" title="Préparer l’email aux clients et/ou au confrère, avec le lien et les informations de connexion">${icone('mail')} Envoyer le lien</button>`
-          : `<button type="button" class="secondary ag-visio-creer" onclick="ouvrirSiteVisio()" title="Ouvrir le site de visio de la profession (ADNOV)">${icone('video')} Créer la visio</button>`}
+          <wa-button appearance="outlined" class="secondary ag-visio-creer" onclick="ouvrirEnvoiVisio('${cle}')" title="Préparer l’email aux clients et/ou au confrère, avec le lien et les informations de connexion">${icone('mail')} Envoyer le lien</wa-button>`
+          : `<wa-button appearance="outlined" class="secondary ag-visio-creer" onclick="ouvrirSiteVisio()" title="Ouvrir le site de visio de la profession (ADNOV)">${icone('video')} Créer la visio</wa-button>`}
         ${choisir}
       </div>`;
   }
@@ -1907,8 +1907,8 @@
         </div>
         <footer class="ag-modale-pied ag-modale-pied-form">
           <span class="jour-espace"></span>
-          <button type="button" class="secondary" onclick="fermerModaleAgenda()">Annuler</button>
-          <button type="submit" class="primary" id="visio-envoi-ok">${icone('mail')} Préparer les emails</button>
+          <wa-button appearance="outlined" class="secondary" onclick="fermerModaleAgenda()">Annuler</wa-button>
+          <wa-button variant="brand" type="submit" class="primary" id="visio-envoi-ok">${icone('mail')} Préparer les emails</wa-button>
         </footer>
       </form>`;
   }
@@ -2087,10 +2087,10 @@
           ${Object.entries(TYPES_RDV).map(([cle, t]) => `<label class="rdv-type-option"><input type="radio" name="agenda-creation-type" value="${cle}"><span class="rdv-type-pastille rdv-type-${cle}"></span>${t.libelle}</label>`).join('')}
         </div>
         <footer class="ag-modale-pied ag-modale-pied-form">
-          <button type="button" class="secondary" id="agenda-creation-plusieurs" onclick="proposerPlusieursDatesAgenda()" title="Envoyer aux parties plusieurs créneaux, dont celui-ci : chacun indique ceux qui lui conviennent">${icone('users')} Proposer plusieurs dates</button>
+          <wa-button appearance="outlined" class="secondary" id="agenda-creation-plusieurs" onclick="proposerPlusieursDatesAgenda()" title="Envoyer aux parties plusieurs créneaux, dont celui-ci : chacun indique ceux qui lui conviennent">${icone('users')} Proposer plusieurs dates</wa-button>
           <span class="jour-espace"></span>
-          <button type="button" class="secondary" onclick="fermerModaleAgenda()">Annuler</button>
-          <button type="submit" class="primary" id="agenda-creation-ok">${icone('calendar')} Créer le rendez-vous</button>
+          <wa-button appearance="outlined" class="secondary" onclick="fermerModaleAgenda()">Annuler</wa-button>
+          <wa-button variant="brand" type="submit" class="primary" id="agenda-creation-ok">${icone('calendar')} Créer le rendez-vous</wa-button>
         </footer>
       </form>`;
   }

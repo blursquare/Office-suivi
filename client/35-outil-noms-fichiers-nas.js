@@ -352,9 +352,9 @@
     const arg = (x) => escapeOnclickArg(x);
     const boutons = decision
       ? `<span class="dot-label ${decision === 'oui' ? 'dl-success' : 'dl-urgent'}"><span class="dot"></span>${decision === 'oui' ? 'Oui, validé' : 'Non, écarté'}</span>
-         <button type="button" class="secondary" onclick="deciderFormeNomsNas('${arg(g.cle)}', '${arg(g.forme)}', null)">Annuler</button>`
-      : `<button type="button" class="secondary" onclick="deciderFormeNomsNas('${arg(g.cle)}', '${arg(g.forme)}', 'oui')">Oui</button>
-         <button type="button" class="secondary" onclick="deciderFormeNomsNas('${arg(g.cle)}', '${arg(g.forme)}', 'non')">Non</button>`;
+         <wa-button appearance="outlined" class="secondary" onclick="deciderFormeNomsNas('${arg(g.cle)}', '${arg(g.forme)}', null)">Annuler</wa-button>`
+      : `<wa-button appearance="outlined" class="secondary" onclick="deciderFormeNomsNas('${arg(g.cle)}', '${arg(g.forme)}', 'oui')">Oui</wa-button>
+         <wa-button appearance="outlined" class="secondary" onclick="deciderFormeNomsNas('${arg(g.cle)}', '${arg(g.forme)}', 'non')">Non</wa-button>`;
     const noms = ouvert ? `<ul class="noms-nas-noms">${g.exemples.map(n => {
         const forme = formeExacteNom(n);
         const d = decisionFormeNomsNas(g.cle, forme);
@@ -380,7 +380,7 @@
           <div class="hint noms-nas-meta">forme <code>${escapeHtml(libelleFormeNom(d.forme))}</code> · décidée le ${dateHeureVerification(d.le)}</div>
         </div>
         <div class="noms-nas-actions"><span class="dot-label ${d.decision === 'oui' ? 'dl-success' : 'dl-urgent'}"><span class="dot"></span>${d.decision === 'oui' ? 'Oui, validé' : 'Non, écarté'}</span>
-          <button type="button" class="secondary" onclick="deciderFormeNomsNas('${escapeOnclickArg(d.cle)}', '${escapeOnclickArg(d.forme)}', null)">Annuler</button></div>
+          <wa-button appearance="outlined" class="secondary" onclick="deciderFormeNomsNas('${escapeOnclickArg(d.cle)}', '${escapeOnclickArg(d.forme)}', null)">Annuler</wa-button></div>
       </div>`;
   }
 

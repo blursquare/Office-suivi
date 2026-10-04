@@ -365,8 +365,8 @@
           Bloquer ces créneaux en option dans l’agenda ${infoBulle('Rendez-vous provisoires « VTE - … ? » dans l’agenda partagé, retirés d’eux-mêmes au placement du rendez-vous, à l’annulation du sondage ou après 5 jours ouvrés sans décision.')}</label>
         <footer class="ag-modale-pied ag-modale-pied-form">
           <span class="jour-espace"></span>
-          <button type="button" class="secondary" onclick="fermerModaleSondage()">Annuler</button>
-          <button type="submit" class="primary" id="sondage-ok">${icone('mail')} Préparer les emails</button>
+          <wa-button appearance="outlined" class="secondary" onclick="fermerModaleSondage()">Annuler</wa-button>
+          <wa-button variant="brand" type="submit" class="primary" id="sondage-ok">${icone('mail')} Préparer les emails</wa-button>
         </footer>
       </form>`;
     overlay.style.display = 'flex';
@@ -618,7 +618,7 @@
           const etat = !r ? 'attente' : r.choix.indexOf(c.n) !== -1 ? 'oui' : (r.siBesoin || []).indexOf(c.n) !== -1 ? 'si' : 'non';
           return `<li class="sondage-${etat}">${icone(etat === 'oui' || etat === 'si' ? 'check' : etat === 'non' ? 'x' : 'clock')}<span>${escapeHtml(libelleParticipantSondage(p, true))}${etat === 'si' ? ' <em>(si nécessaire)</em>' : ''}</span></li>`;
         }).join('')}</ul>
-        <button type="button" class="primary ag-ouvrir-fiche" onclick="placerCreneauSondage('${escapeOnclickArg(s.id)}', ${c.n})" ${exchangeAgendaPret() ? '' : 'disabled'}>${icone('calendar')} Placer ce créneau</button>
+        <wa-button variant="brand" class="primary ag-ouvrir-fiche" onclick="placerCreneauSondage('${escapeOnclickArg(s.id)}', ${c.n})" ${exchangeAgendaPret() ? '' : 'disabled'}>${icone('calendar')} Placer ce créneau</wa-button>
       </div>`;
   }
 

@@ -741,7 +741,7 @@
       : `<span class="ja-texte ja-texte-fixe">${contenu}</span>`;
     const b = o.bouton;
     const go = b
-      ? `<button type="button" class="${o.faite ? 'ja-go ja-go-contour' : 'primary ja-go'}" onclick="${b.onclick}" title="${escapeAttr(b.titre || b.libelle)}">${b.icone || ''}<span>${escapeHtml(b.libelle)}</span></button>`
+      ? `<wa-button ${o.faite ? 'appearance="outlined"' : 'variant="brand"'} class="${o.faite ? 'ja-go ja-go-contour' : 'primary ja-go'}" onclick="${b.onclick}" title="${escapeAttr(b.titre || b.libelle)}">${b.icone || ''}<span>${escapeHtml(b.libelle)}</span></wa-button>`
       : '<span class="ja-go ja-go-vide"></span>';
     const classes = ['ja', o.gravite ? 'g-' + o.gravite : '', o.faite ? 'ja-faite' : '', ouverte ? 'ouverte' : '', o.caseRonde ? 'ja-avec-case' : '', o.classe || ''].filter(Boolean).join(' ');
     const pastille = o.caseRonde
@@ -1385,7 +1385,7 @@
       <footer class="jour-fenetre-pied">
         <span>S’ouvre à votre première connexion de la journée.</span>
         <span class="jour-espace"></span>
-        <button type="button" class="primary" onclick="fermerFenetreAujourdhui()">C’est noté</button>
+        <wa-button variant="brand" class="primary" onclick="fermerFenetreAujourdhui()">C’est noté</wa-button>
       </footer>`;
     const nouveau = contenu.querySelector('.jour-panneau');
     if (nouveau && hautPanneau) nouveau.scrollTop = hautPanneau;

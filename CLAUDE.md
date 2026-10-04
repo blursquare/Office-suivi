@@ -709,6 +709,18 @@ Plainte principale de l'étude : **le bruit**, pas les oublis — ne pas élargi
   deux thèmes). Vérifié par `tests/style-uniforme.test.js` (lecteur `scripts/style-echelle.js`) ; exemptés : `@media print`
   et les zones bornées par `/* @papier */ … /* @fin-papier */` (courrier d'appel de fonds, feuille des quotités — identité
   papier). Cartes posées sur le fond : `--rayon-carte` et `--bord-carte` (sans bordure en clair).
+  **Composants Web Awesome** (étude 04/10, choisis pour l'uniformité) : paquet LOCAL `vendor/web-awesome/` (web-awesome.js +
+  web-awesome-theme.css, construits par `scripts/construire-web-awesome.mjs` — version figée 3.14.0, composants listés dans
+  `COMPOSANTS`, à relancer seulement pour en ajouter ; bibliothèque d'icônes Font Awesome neutralisée, jamais `<wa-icon name>` :
+  les icônes restent celles d'`ICONES`), déclaré dans `ASSETS_STATIQUES`, les assets du `.exe` et `index.html` (test
+  `structure-client`). Couleurs, arrondis et polices viennent de CLAIRE : bloc « Web Awesome : jetons de CLAIRE » de style.css,
+  seul endroit où un `--wa-*` est redéfini (déclaré sur `:root` ET sur chaque composant, pour suivre la barre latérale sombre).
+  **Bouton d'action = `<wa-button>`** : principal `variant="brand"`, secondaire `appearance="outlined"`, discret
+  `appearance="plain"`, destructeur `variant="danger"` ; compact = `size="s"` (ou un contexte de la règle « Taille compacte ») ;
+  icône dans le libellé, espacée par `::part(label)`. Plus jamais `<button class="primary|secondary|btn-annuler|btn-confirmer">`
+  (test). Un `<wa-button type="submit">` n'est pas le bouton par défaut d'un formulaire : Entrée dans un champ est rétabli
+  par le gestionnaire de `01-socle.js`. Test de fumée : `wa-button` défini, aucun bouton qui « avale » un bloc (balise mal
+  fermée). Restent en HTML natif, à convertir ensuite : boutons-icônes (`icon-btn`), `action-rapide`, `bouton-ajout`, liens-boutons.
   **Tout geste** (email, préparer, noter, créer…) est une ligne d'action `renderLigneAction` (forme
   de « À faire », même titre et même verbe qu'elle pour le même geste) ; tout « Ajouter … » est un
   `button.bouton-ajout` ; l'édition d'une donnée passe par des icônes (crayon, ✓, ×) ; seuls les

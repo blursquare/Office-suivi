@@ -190,8 +190,8 @@
       <div class="nas-choix-liste copie-acte-liste">${liste}</div>
       ${choisis.length ? `<p class="copie-acte-total"><span class="dot-label ${lourd ? 'dl-pret' : 'dl-success'}"><span class="dot"></span>${choisis.length} fichier${choisis.length > 1 ? 's' : ''} · ${tailleLisible(total)}</span>${lourd ? ' <span class="hint">Plus de 21 Mo : lien WeTransfer</span>' : ''}</p>` : ''}
       <div class="confirm-actions">
-        <button type="button" class="btn-annuler" onclick="fermerEnvoiCopieActe()">Annuler</button>
-        <button type="button" class="primary" onclick="preparerEnvoiCopieActe()" ${choisis.length && dest ? '' : 'disabled'}>${lourd ? 'Ouvrir WeTransfer et préparer l’email' : 'Préparer l’email'}</button>
+        <wa-button appearance="outlined" class="btn-annuler" onclick="fermerEnvoiCopieActe()">Annuler</wa-button>
+        <wa-button variant="brand" class="primary" onclick="preparerEnvoiCopieActe()" ${choisis.length && dest ? '' : 'disabled'}>${lourd ? 'Ouvrir WeTransfer et préparer l’email' : 'Préparer l’email'}</wa-button>
       </div>`;
     if (garderFocus) {
       const champ = document.getElementById('copie-acte-recherche');

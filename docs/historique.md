@@ -16364,3 +16364,27 @@ Mesure de départ (style.css, 8 700 lignes) : 41 tailles de texte, 22 arrondis, 
 Vérifié sur 40 captures avant/après (20 écrans, clair et sombre, dossiers inventés) : mise en page identique, texte parfois plus
 grand d'un demi-pixel (quelques libellés longs passent à la ligne : « Courrier réponse assainissement » dans les pièces). Piège :
 le thème posé par `setAttribute` avant le chargement des préférences est repris par `appliquerTheme` — capturer après.
+
+### 04/10/2026 19 h 55 — Uniformité de l'interface, étape 2 : composants Web Awesome, boutons d'action (0.144.15)
+
+Choix de l'étude (question posée avec trois options — jeu maison recommandé, Web Awesome, Preact + htm) : **Web Awesome**.
+Mesure : ~90 classes de boutons différentes, 511 `<button>` dont 114 « principal / secondaire / confirmation ».
+- Paquet local `vendor/web-awesome/` : `scripts/construire-web-awesome.mjs` (esbuild, version figée 3.14.0, composant `button`
+  seulement pour l'instant ; installé à la demande par `npm i --no-save`, le résultat est versionné). 134 Ko de JS + 63 Ko de
+  jetons (imports relatifs du thème aplatis — sinon deux 404). La bibliothèque d'icônes Font Awesome (téléchargée depuis
+  Internet) est remplacée par une bibliothèque vide : aucun appel extérieur vérifié dans Chromium. Servi par
+  `ASSETS_STATIQUES`, embarqué dans le `.exe`, chargé par `index.html` (thème avant style.css, module en tête).
+- Couche de thème dans style.css : chaque `--wa-*` renvoie à un jeton de CLAIRE (accent, encre, filets, urgent, succès,
+  rayons, police) ; déclarée sur `:root` et sur `wa-button` (un jeton se calcule là où il est déclaré : la barre latérale,
+  toujours sombre, redéfinit --focus localement).
+- 114 boutons convertis par script (libellé sur une ligne, fermeture vérifiée) : primary → `variant="brand"`, secondary /
+  btn-annuler → `appearance="outlined"`, btn-confirmer → `variant="danger"` (bascule `brand` quand la confirmation valide,
+  `demanderConfirmation`), connexion → brand. Trois classes calculées dans le code (`${… ? 'primary' : …}`) corrigées à la
+  main après capture (« Relancer », « Préparer », « Vérifier » étaient sortis en contour). CSS : règles button.primary /
+  secondary / confirm-box retirées, tailles compactes regroupées en une règle, bouton double de l'agenda par `::part(button)`.
+- Entrée dans un champ : un `<wa-button type="submit">` n'est pas le « bouton par défaut » d'un formulaire pour le navigateur
+  — gestionnaire global dans `01-socle.js` (formulaire sans bouton d'envoi natif → `requestSubmit()`).
+- Tests : structure (paquet servi, embarqué, chargé, pas de CDN ; plus de `<button class="primary…">` ; `<wa-button>` équilibrés),
+  fumée (`wa-button` défini, aucun bouton qui contient un bloc — garde-fou contre une balise mal fermée).
+Captures avant/après (20 écrans, clair et sombre) : boutons aux coins arrondis de l'échelle, couleurs inchangées.
+Non converti (étape suivante) : boutons-icônes, `action-rapide`, `bouton-ajout`, liens-boutons, interrupteurs, fenêtres.

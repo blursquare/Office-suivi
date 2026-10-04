@@ -1327,8 +1327,8 @@
       </div>
       <textarea id="audit-com-texte" rows="2" placeholder="${escapeAttr(aide)}" oninput="formCommentaireAudit.texte = this.value">${escapeHtml(f.texte || '')}</textarea>
       <div class="audit-commentaire-actions">
-        <button type="button" class="secondary" onclick="fermerCommentaireAudit()">Annuler</button>
-        <button type="button" class="primary" onclick="enregistrerCommentaireAudit()">Enregistrer</button>
+        <wa-button appearance="outlined" class="secondary" onclick="fermerCommentaireAudit()">Annuler</wa-button>
+        <wa-button variant="brand" class="primary" onclick="enregistrerCommentaireAudit()">Enregistrer</wa-button>
       </div>
     </div>`;
   }
@@ -1791,7 +1791,7 @@
       <div class="audit-commentaire-ligne">
         <label><input type="radio" name="audit-oubli-portee" ${porteeOubliAudit === 'dossier' ? 'checked' : ''} onchange="porteeOubliAudit = 'dossier'"> Ce dossier seulement</label>
         <label><input type="radio" name="audit-oubli-portee" ${porteeOubliAudit === 'tous' ? 'checked' : ''} onchange="porteeOubliAudit = 'tous'"> Tous les dossiers</label>
-        <button type="button" class="secondary audit-oubli-btn" onclick="enregistrerOubliAudit()">Signaler l'oubli</button>
+        <wa-button appearance="outlined" class="secondary audit-oubli-btn" onclick="enregistrerOubliAudit()">Signaler l'oubli</wa-button>
       </div>
       ${oublis.length ? `<ul class="audit-oublis">${oublis.map(r => `<li><span class="dot-label dl-urgent">${icone('info')}${r.portee === 'dossier' ? 'Ce dossier' : 'Tous'}</span><span>${escapeHtml(r.commentaire)}</span><button type="button" class="piece-suppr" onclick="supprimerRetourAudit('${escapeOnclickArg(r.id)}')" title="Supprimer" aria-label="Supprimer">${icone('x')}</button></li>`).join('')}</ul>` : ''}
     </section>`;

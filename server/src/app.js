@@ -64,6 +64,9 @@ const ASSETS_STATIQUES = {
   // base64 dans un fichier à part chargé à la demande (voir chargerModeleAppelFonds). Même piège
   // que la ligne ci-dessus : à déclarer ici ET dans les assets embarqués du .exe.
   '/appel-de-fonds-modele.js': { fichier: 'appel-de-fonds-modele.js', type: 'application/javascript; charset=utf-8' },
+  // Composants Web Awesome (étude 04/10), paquet local : à déclarer ici ET dans les assets du .exe, comme le reste.
+  '/vendor/web-awesome/web-awesome.js': { fichier: 'vendor/web-awesome/web-awesome.js', type: 'application/javascript; charset=utf-8' },
+  '/vendor/web-awesome/web-awesome-theme.css': { fichier: 'vendor/web-awesome/web-awesome-theme.css', type: 'text/css; charset=utf-8' },
   '/manifest.json': { fichier: 'manifest.json', type: 'application/manifest+json; charset=utf-8' },
   '/sw.js': { fichier: 'sw.js', type: 'application/javascript; charset=utf-8' },
   '/icone.svg': { fichier: 'icone.svg', type: 'image/svg+xml; charset=utf-8' }

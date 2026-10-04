@@ -646,8 +646,8 @@
           <span class="reglages-3cx-etat">${actif ? etatPoste3cx(postes[clePosteAppels(nom)], maintenant).map(e => `<span class="dot-label ${e.classe}">${escapeHtml(e.texte)}</span>`).join('') : '<span class="dot-label dl-neutre"><span class="dot"></span>3CX coupé : appels non notés</span>'}</span></div>
         <div class="reglages-champ-ligne">
           <input type="text" id="reglages-3cx-${i}" readonly spellcheck="false" value="${escapeAttr(adresseIntegration3cx(origine3cx, nom))}" onfocus="this.select()">
-          <button type="button" class="secondary" onclick="copierAdresse3cx(${i})">Copier</button>
-          <button type="button" class="secondary" onclick="essayerSonnerie3cx(${i})" title="Simule un appel sur ce poste, comme 3CX à la sonnerie"${actif ? '' : ' disabled'}>Essayer</button>
+          <wa-button appearance="outlined" class="secondary" onclick="copierAdresse3cx(${i})">Copier</wa-button>
+          <wa-button appearance="outlined" class="secondary" onclick="essayerSonnerie3cx(${i})" title="Simule un appel sur ce poste, comme 3CX à la sonnerie"${actif ? '' : ' disabled'}>Essayer</wa-button>
         </div>
       </div>`;
     }).join('');
@@ -733,8 +733,8 @@
           return `<li><span class="appels-quand">${escapeHtml(l.quand)}</span>`
             + `<span class="authentic-journal-page"><span>${escapeHtml(l.page)}</span><span class="authentic-journal-qui">${escapeHtml(l.qui)}</span>${l.detail ? `<span class="authentic-journal-detail">${escapeHtml(l.detail)}</span>` : ''}</span>`
             + `<span class="authentic-journal-etat"><span class="dot-label ${l.etat.classe}"><span class="dot"></span>${escapeHtml(l.etat.texte)}</span>`
-            + (l.creer ? `<button type="button" class="secondary" onclick="choisirDossierPourReleveAuthentic('${escapeOnclickArg(e.id)}', true)">Créer le dossier</button>` : '')
-            + (l.choisir ? `<button type="button" class="secondary" onclick="choisirDossierPourReleveAuthentic('${escapeOnclickArg(e.id)}')">Choisir le dossier</button>` : '')
+            + (l.creer ? `<wa-button appearance="outlined" class="secondary" onclick="choisirDossierPourReleveAuthentic('${escapeOnclickArg(e.id)}', true)">Créer le dossier</wa-button>` : '')
+            + (l.choisir ? `<wa-button appearance="outlined" class="secondary" onclick="choisirDossierPourReleveAuthentic('${escapeOnclickArg(e.id)}')">Choisir le dossier</wa-button>` : '')
             + (l.dossierId ? `<button type="button" class="lien-discret" onclick="ouvrirDossierDrawer('${escapeOnclickArg(l.dossierId)}')">Voir</button>` : '')
             + `</span></li>`;
         }).join('')}</ul>`

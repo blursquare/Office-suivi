@@ -1200,7 +1200,7 @@
         <span class="widgets-galerie-icone" aria-hidden="true">${icone(def.icone || 'layout')}</span>
         <span class="widgets-galerie-texte"><b>${escapeHtml(def.titre)}</b><span>${escapeHtml(def.description || '')}</span></span>
         ${affiche
-          ? `<button type="button" class="secondary widgets-galerie-retirer" onclick="masquerWidget('${def.id}', true)" aria-label="Retirer ${escapeAttr(def.titre)} du tableau de bord">${icone('x')}Retirer</button>`
+          ? `<wa-button appearance="outlined" class="secondary widgets-galerie-retirer" onclick="masquerWidget('${def.id}', true)" aria-label="Retirer ${escapeAttr(def.titre)} du tableau de bord">${icone('x')}Retirer</wa-button>`
           : `<button type="button" class="bouton-ajout bouton-ajout-court" onclick="masquerWidget('${def.id}', false)" aria-label="Ajouter ${escapeAttr(def.titre)} au tableau de bord">Ajouter</button>`}
       </li>`;
     const affiches = lignes.filter(l => l.affiche), retires = lignes.filter(l => !l.affiche);
@@ -1496,13 +1496,13 @@
       const el = e.target.closest('#widgets-dashboard > .widget');
       if (!el) return;
       if (modeEditionWidgets) {
-        if (e.target.closest('button, a, input, select, textarea')) return;
+        if (e.target.closest('button, wa-button, a, input, select, textarea')) return;
         e.preventDefault();
         attente = { el, x: e.clientX, y: e.clientY, id: e.pointerId, pret: true };
         return;
       }
       // Appui long sur le titre : ouvre la personnalisation et garde la carte en main.
-      if (!e.target.closest('.w-tete') || e.target.closest('button, a, input, select')) return;
+      if (!e.target.closest('.w-tete') || e.target.closest('button, wa-button, a, input, select')) return;
       attente = { el, x: e.clientX, y: e.clientY, id: e.pointerId, pret: false };
       attente.minuteur = setTimeout(() => {
         if (!attente) return;
@@ -2115,8 +2115,8 @@
           <select id="rappel-perso-dossier" aria-label="Dossier"><option value="">Sans dossier</option>${hors}${optionsDossiers(r ? r.dossierId : '')}</select>
         </div>
         <div class="rappel-perso-form-ligne">
-          <button type="submit" class="primary">${r ? 'Enregistrer' : 'Ajouter'}</button>
-          <button type="button" class="secondary" onclick="${r ? 'ouvrirEditionRappel(null)' : 'ouvrirAjoutRappel(false)'}">Annuler</button>
+          <wa-button variant="brand" type="submit" class="primary">${r ? 'Enregistrer' : 'Ajouter'}</wa-button>
+          <wa-button appearance="outlined" class="secondary" onclick="${r ? 'ouvrirEditionRappel(null)' : 'ouvrirAjoutRappel(false)'}">Annuler</wa-button>
         </div>
       </form>`;
     };

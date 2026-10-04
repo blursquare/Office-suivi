@@ -115,3 +115,31 @@ test('commun/ : manifeste, index.html (avant client/), assets du serveur et du .
   const app = chargerApplication();
   for (const f of communs) for (const nom of Object.keys(require(path.join(racine, 'commun', f)))) assert.ok(nom in app, nom + ' absent du poste');
 });
+
+test('Web Awesome : paquet local chargé par index.html, servi et embarqué dans le .exe', () => {
+  const index = fs.readFileSync(path.join(racine, 'index.html'), 'utf8');
+  const app = fs.readFileSync(path.join(racine, 'server', 'src', 'app.js'), 'utf8');
+  const build = fs.readFileSync(path.join(racine, 'server', 'scripts', 'build-windows-exe.mjs'), 'utf8');
+  for (const f of ['vendor/web-awesome/web-awesome.js', 'vendor/web-awesome/web-awesome-theme.css']) {
+    assert.ok(fs.existsSync(path.join(racine, f)), f + ' présent');
+    assert.ok(index.includes(`"${f}"`), f + ' chargé par index.html');
+    assert.ok(app.includes(`'/${f}'`), f + ' dans ASSETS_STATIQUES');
+    assert.ok(build.includes(`'${f}': '../${f}'`), f + ' dans les assets du .exe');
+  }
+  // Aucun composant chargé depuis Internet (contrainte n° 1) : pas de CDN Web Awesome dans la page.
+  assert.ok(!/webawesome\.com|ka-f\.fontawesome/.test(index), 'pas de CDN Web Awesome');
+});
+
+test('Web Awesome : boutons d’action en <wa-button>, jamais en <button class="primary|secondary|btn-…">', () => {
+  const fichiers = ['index.html', ...manifeste.map((f) => path.join('client', f))];
+  const fautes = [];
+  for (const f of fichiers) {
+    const src = fs.readFileSync(path.join(racine, f), 'utf8');
+    for (const m of src.matchAll(/<button\b[^>]*class="([^"]*)"/g)) {
+      if (/(^|[\s'])(primary|secondary|btn-annuler|btn-confirmer)($|[\s'])/.test(m[1])) fautes.push(`${f} : ${m[0].slice(0, 90)}`);
+    }
+    const ouverts = (src.match(/<wa-button\b/g) || []).length, fermes = (src.match(/<\/wa-button>/g) || []).length;
+    if (ouverts !== fermes) fautes.push(`${f} : ${ouverts} <wa-button> pour ${fermes} </wa-button>`);
+  }
+  assert.equal(fautes.length, 0, fautes.join('\n'));
+});

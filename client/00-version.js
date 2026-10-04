@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.144.14';
+  const VERSION_APP = '0.144.15';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.144.15', date: '2026-10-04 19:55', resume: "Boutons d'action uniformisés avec les composants Web Awesome : tous les boutons principaux (bordeaux), secondaires (contour), de confirmation et de suppression ont maintenant la même forme, la même hauteur et les mêmes coins arrondis, dans tous les écrans. Les autres boutons (icônes, ajouts) suivront." },
     { version: '0.144.14', date: '2026-10-04 19:35', resume: "Interface uniformisée : une seule échelle de tailles de texte, d'arrondis, d'ombres et d'espacements pour tous les écrans (au lieu de 41 tailles de texte et 22 arrondis différents). Le texte gagne parfois un demi-pixel ; rien ne change de place." },
     { version: '0.144.13', date: '2026-10-04 19:20', resume: "Cartes aux coins plus arrondis et sans bordure en mode clair (widgets du tableau de bord, Suivi, agenda, outils) : elles se détachent du fond par leur ombre seule. Mode sombre : la bordure reste." },
     { version: '0.144.12', date: '2026-10-04 19:09', resume: "Fond des pages plus soutenu (gris-bleu) en mode clair : les cartes blanches du tableau de bord, du Suivi, de l'agenda et des réglages s'en détachent mieux, avec une ombre plus douce. Mode sombre inchangé." },

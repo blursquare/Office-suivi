@@ -191,6 +191,8 @@ async function main() {
       ...Object.fromEntries(JSON.parse(fs.readFileSync(path.join(SERVER_DIR, '..', 'client', 'manifest.json'), 'utf8')).map((f) => [`client/${f}`, `../client/${f}`])),
       'questionnaire-satisfaction-pdf.js': '../questionnaire-satisfaction-pdf.js',
       'appel-de-fonds-modele.js': '../appel-de-fonds-modele.js',
+      'vendor/web-awesome/web-awesome.js': '../vendor/web-awesome/web-awesome.js',
+      'vendor/web-awesome/web-awesome-theme.css': '../vendor/web-awesome/web-awesome-theme.css',
       'manifest.json': '../manifest.json',
       'sw.js': '../sw.js',
       'icone.svg': '../icone.svg',

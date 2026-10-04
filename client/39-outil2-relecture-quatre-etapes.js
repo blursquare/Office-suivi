@@ -246,8 +246,8 @@
     zone.innerHTML = `<div class="relecture-nas-tete">
         <span class="section-eyebrow">Dossier du NAS — ${escapeHtml(d.nasDossier || '')} ${infoBulle("Rubrique AAE et avant-contrat cochés d'office. Chaque PDF coché est lu dans ce navigateur (OCR si c'est un scan).")}</span>
         <div class="relecture-nas-actions">
-          <button type="button" class="secondary" onclick="fermerParcoursNasRelecture()">Fermer</button>
-          <button type="button" class="primary" onclick="ajouterSelectionNasRelecture()" ${p.coches.size ? '' : 'disabled'}>Ajouter la sélection (${p.coches.size})</button>
+          <wa-button appearance="outlined" class="secondary" onclick="fermerParcoursNasRelecture()">Fermer</wa-button>
+          <wa-button variant="brand" class="primary" onclick="ajouterSelectionNasRelecture()" ${p.coches.size ? '' : 'disabled'}>Ajouter la sélection (${p.coches.size})</wa-button>
         </div>
       </div>
       ${blocs}`;
@@ -386,7 +386,7 @@
       <div class="anon-ajout">
         <label for="anon-terme">Masquer aussi</label>
         <input type="text" id="anon-terme" placeholder="Un nom, une rue, un lieu-dit…" onkeydown="if(event.key==='Enter'){event.preventDefault();ajouterTermeAnonymisationRelecture();}">
-        <button type="button" class="secondary" onclick="ajouterTermeAnonymisationRelecture()">Ajouter</button>
+        <wa-button appearance="outlined" class="secondary" onclick="ajouterTermeAnonymisationRelecture()">Ajouter</wa-button>
       </div>
       ${enClair}
       <div class="anon-grille">${blocs || '<p class="hint">Aucune donnée identifiante repérée — vérifiez l’aperçu.</p>'}</div>`;
@@ -548,9 +548,9 @@
       ${e.configure ? '' : `<div class="analyse-non-configure">${icone('key')}<div><strong>Aucune clé API ${escapeHtml(fournisseur.nom)}.</strong> <p class="hint">Renseignez-la dans Réglages → Relecture d'actes. En attendant, les contrôles automatiques de CLAIRE restent disponibles.</p></div></div>`}
       ${enCours}${erreur}
       <div class="relecture-actions">
-        <button type="button" class="secondary" onclick="definirEtapeRelecture(2)" ${analyseEnCoursRelecture ? 'disabled' : ''}>Retour</button>
-        ${e.configure ? '' : `<button type="button" class="secondary" onclick="lancerAuditActe(false)" ${analyseEnCoursRelecture ? 'disabled' : ''}>Contrôles CLAIRE seuls</button>`}
-        <button type="button" class="primary" onclick="lancerAuditActe(true)" ${e.configure && !analyseEnCoursRelecture && !(estimationRelecture && estimationRelecture.depasse) ? '' : 'disabled'}>${icone('sparkle')} Lancer l'analyse</button>
+        <wa-button appearance="outlined" class="secondary" onclick="definirEtapeRelecture(2)" ${analyseEnCoursRelecture ? 'disabled' : ''}>Retour</wa-button>
+        ${e.configure ? '' : `<wa-button appearance="outlined" class="secondary" onclick="lancerAuditActe(false)" ${analyseEnCoursRelecture ? 'disabled' : ''}>Contrôles CLAIRE seuls</wa-button>`}
+        <wa-button variant="brand" class="primary" onclick="lancerAuditActe(true)" ${e.configure && !analyseEnCoursRelecture && !(estimationRelecture && estimationRelecture.depasse) ? '' : 'disabled'}>${icone('sparkle')} Lancer l'analyse</wa-button>
       </div>
       ${renderJournalCoutRelecture()}`;
   }
@@ -884,7 +884,7 @@
     return `<div class="relecture-archive-bandeau">
       <span class="dot-label dl-neutre">${icone('clock')}Analyse enregistrée${date ? ' le ' + escapeHtml(date) : ''}</span>
       <span class="hint">Consultation : rien n'est relancé ni refacturé.</span>
-      <button type="button" class="secondary" onclick="quitterRelectureArchivee()">Fermer</button>
+      <wa-button appearance="outlined" class="secondary" onclick="quitterRelectureArchivee()">Fermer</wa-button>
     </div>`;
   }
 

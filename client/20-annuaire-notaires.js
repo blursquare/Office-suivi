@@ -566,8 +566,8 @@
           <input type="text" id="rep-f-notes" value="${v(c.notes)}" placeholder="Uniquement par email, horaires…"></div>
       </div>
       <div class="carnet-form-actions">
-        <button type="button" class="secondary" onclick="annulerEditionRepertoire()">Annuler</button>
-        <button type="submit" class="primary" id="rep-f-valider">Enregistrer</button>
+        <wa-button appearance="outlined" class="secondary" onclick="annulerEditionRepertoire()">Annuler</wa-button>
+        <wa-button variant="brand" type="submit" class="primary" id="rep-f-valider">Enregistrer</wa-button>
       </div>
     </form>`;
   }
@@ -675,8 +675,8 @@
           <input type="text" id="carnet-f-notes" value="${v(o.notes)}" placeholder="Clerc habituel, habitudes de l’office…"></div>
       </div>
       <div class="carnet-form-actions">
-        <button type="button" class="secondary" onclick="annulerEditionCarnet()">Annuler</button>
-        <button type="submit" class="primary" id="carnet-f-valider">Enregistrer</button>
+        <wa-button appearance="outlined" class="secondary" onclick="annulerEditionCarnet()">Annuler</wa-button>
+        <wa-button variant="brand" type="submit" class="primary" id="carnet-f-valider">Enregistrer</wa-button>
       </div>
     </form>`;
   }
@@ -834,7 +834,7 @@
       </div>
       <p class="hint" style="margin:4px 0 6px;">Écrit « ${escapeHtml(libelleDossierAffiche(d))} » le ${formatDateFr(d.rendezVousSignature)} dans l'agenda partagé de l'office${lieuRdvAgenda(d) ? `, lieu « ${escapeHtml(lieuRdvAgenda(d))} »` : ''}.</p>
       <div class="rdv-agenda-actions">
-        <button type="button" class="primary" onclick="creerRdvDansAgenda('${d.id}')">${icone('calendar')} Créer le rendez-vous</button>
+        <wa-button variant="brand" class="primary" onclick="creerRdvDansAgenda('${d.id}')">${icone('calendar')} Créer le rendez-vous</wa-button>
         <button type="button" class="lien-bouton" onclick="basculerRdvAgenda('${d.id}')">Annuler</button>
       </div>
     </div>`;

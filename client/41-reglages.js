@@ -236,7 +236,7 @@
         <div class="reglages-champ-pile">
           <div class="reglages-champ-ligne">
             <input type="email" id="reglages-email-${i}" data-responsable="${escapeAttr(nom)}" placeholder="prenom.nom@notaires.fr" value="${escapeAttr(emailsResponsables[nom] || '')}">
-            <button type="button" class="secondary" onclick="testerEnvoiResponsable('${escapeOnclickArg(nom)}')">Tester</button>
+            <wa-button appearance="outlined" class="secondary" onclick="testerEnvoiResponsable('${escapeOnclickArg(nom)}')">Tester</wa-button>
           </div>
           <input type="text" id="reglages-fonction-${i}" class="reglages-fonction" aria-label="Fonction de ${escapeAttr(nom)} dans la signature" placeholder="Fonction dans la signature : ${escapeAttr(FONCTIONS_SIGNATURE_DEFAUT[nom] || 'Collaborateur')}" value="${escapeAttr(fonctions[nom] || '')}">
           <p class="hint reglages-email-resultat" id="reglages-email-resultat-${i}"></p>
@@ -947,8 +947,8 @@
       else etat = manuel ? 'À regarder au bureau puis confirmer' : 'Pas encore observé au bureau';
       const boutons = manuel
         ? `<span class="reglages-verif-actions">
-            <button type="button" class="secondary" onclick="confirmerVerificationTerrain('${escapeOnclickArg(v.id)}', true)"${v.statut === 'verifie' ? ' disabled' : ''}>C’est bon</button>
-            <button type="button" class="secondary" onclick="confirmerVerificationTerrain('${escapeOnclickArg(v.id)}', false)"${v.statut === 'echec' ? ' disabled' : ''}>Ne marche pas</button>
+            <wa-button appearance="outlined" class="secondary" onclick="confirmerVerificationTerrain('${escapeOnclickArg(v.id)}', true)"${v.statut === 'verifie' ? ' disabled' : ''}>C’est bon</wa-button>
+            <wa-button appearance="outlined" class="secondary" onclick="confirmerVerificationTerrain('${escapeOnclickArg(v.id)}', false)"${v.statut === 'echec' ? ' disabled' : ''}>Ne marche pas</wa-button>
           </span>`
         : '';
       return `<div class="reglages-option reglages-option-fixe reglages-verif" data-verif="${escapeAttr(v.id)}">

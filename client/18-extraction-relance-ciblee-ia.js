@@ -909,6 +909,7 @@
       const ton = (options && options.ton) || deduit.ton;
       ok.textContent = bouton;
       ok.classList.toggle('btn-valider', ton === 'valider');
+      ok.setAttribute('variant', ton === 'valider' ? 'brand' : 'danger');
     }
     actionConfirmee = onConfirm;
     // Troisième choix facultatif (« Créer quand même » à côté de « Compléter le dossier »).

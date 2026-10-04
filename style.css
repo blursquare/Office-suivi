@@ -146,6 +146,70 @@
     --shadow-float: 0 12px 32px -8px rgba(0,0,0,0.6);
   }
 
+  /* ---- Web Awesome : jetons de CLAIRE (étude, 04/10 : composants Web Awesome pour l'uniformité de l'interface) ----
+     Seul endroit où les jetons --wa-* sont redéfinis : chacun renvoie à un jeton de CLAIRE, qui suit déjà le thème
+     (clair/sombre, accent choisi). Déclarés aussi sur chaque composant (wa-button…) : un jeton --wa-* se calcule là où
+     il est déclaré, et la barre latérale redéfinit localement --focus, --ink… (toujours sombre) — sur le composant, il
+     reprend les valeurs de son voisinage. Ajouter ici tout nouveau composant embarqué (scripts/construire-web-awesome.mjs). */
+  :root, wa-button {
+    --wa-font-family-body: 'Inter', -apple-system, 'Segoe UI', sans-serif;
+    --wa-font-family-heading: var(--wa-font-family-body);
+    --wa-font-weight-action: 500;
+    --wa-font-weight-semibold: 600;
+    --wa-border-radius-s: var(--rayon-s);
+    --wa-border-radius-m: var(--rayon-m);
+    --wa-border-radius-l: var(--rayon-carte);
+    --wa-border-radius-pill: var(--rayon-pilule);
+    --wa-form-control-border-radius: var(--rayon-m);
+    --wa-form-control-height: 40px;
+    --wa-form-control-padding-inline: 16px;
+    --wa-form-control-border-width: 1px;
+    --wa-button-transform-hover: none;
+    --wa-button-transform-active: none;
+    --wa-color-focus: var(--focus);
+    --wa-focus-ring-width: 2px;
+    --wa-focus-ring-offset: 2px;
+    /* Action principale : l'accent du thème choisi. */
+    --wa-color-brand-fill-loud: var(--focus);
+    --wa-color-brand-on-loud: var(--on-accent);
+    --wa-color-brand-border-loud: var(--focus);
+    --wa-color-brand-fill-normal: color-mix(in srgb, var(--focus) 14%, var(--paper-card));
+    --wa-color-brand-on-normal: var(--focus);
+    --wa-color-brand-fill-quiet: color-mix(in srgb, var(--focus) 8%, transparent);
+    --wa-color-brand-on-quiet: var(--focus);
+    /* Action secondaire : encre et filets de CLAIRE. */
+    --wa-color-neutral-fill-loud: var(--ink);
+    --wa-color-neutral-on-loud: var(--paper-card);
+    --wa-color-neutral-border-loud: var(--line);
+    --wa-color-neutral-fill-normal: var(--paper-sunk);
+    --wa-color-neutral-on-normal: var(--ink);
+    --wa-color-neutral-border-normal: var(--line);
+    --wa-color-neutral-fill-quiet: var(--line-soft);
+    --wa-color-neutral-on-quiet: var(--ink-soft);
+    --wa-color-neutral-border-quiet: var(--line-soft);
+    /* Geste destructeur (supprimer, retirer) : le rouge-orangé « urgent ». */
+    --wa-color-danger-fill-loud: var(--urgent);
+    --wa-color-danger-on-loud: var(--on-accent);
+    --wa-color-danger-border-loud: var(--urgent);
+    --wa-color-danger-fill-quiet: color-mix(in srgb, var(--urgent) 10%, transparent);
+    --wa-color-danger-on-quiet: var(--urgent);
+    --wa-color-success-fill-loud: var(--success);
+    --wa-color-success-on-loud: var(--on-accent);
+    --wa-color-success-on-quiet: var(--success);
+    --wa-color-success-fill-quiet: var(--success-bg);
+  }
+  wa-button { font-size: var(--texte-base); vertical-align: middle; }
+  /* Taille compacte : size="s", et les contextes serrés qui l'employaient déjà (gestes de « À faire », pieds de fenêtre,
+     détail d'un rendez-vous, galerie des widgets). Une seule définition, pas de réglage au cas par cas. */
+  wa-button[size="s"], .ja wa-button.ja-go, .jour-fenetre-pied wa-button, .ag-modale-pied wa-button, .rdv-agenda-actions wa-button,
+  wa-button.ag-ouvrir-fiche, wa-button.widgets-galerie-retirer, .ag-visio wa-button {
+    font-size: var(--texte-m); --wa-form-control-height: 32px; --wa-form-control-padding-inline: 12px;
+  }
+  wa-button.ag-ouvrir-fiche { align-self: flex-start; }
+  /* Icône dans un libellé : alignée sur le texte et espacée de lui, sans réglage par bouton. */
+  wa-button svg { width: 1em; height: 1em; flex: none; }
+  wa-button::part(label) { display: inline-flex; align-items: center; gap: 6px; }
+
   * { box-sizing: border-box; }
 
   /* ---- icônes ----
@@ -3011,29 +3075,8 @@
     margin-top: 24px;
   }
 
-  button.primary, button.secondary {
-    font-family: inherit;
-    font-size: var(--texte-base);
-    font-weight: 500;
-    padding: 12px 20px;
-    border-radius: var(--rayon-xs);
-    cursor: pointer;
-    transition: background-color 0.15s ease, border-color 0.15s ease;
-  }
 
-  button.primary {
-    background: var(--focus);
-    color: var(--on-accent);
-    border: 1px solid var(--focus);
-  }
-  button.primary:hover { background: var(--focus-hover); border-color: var(--focus-hover); }
 
-  button.secondary {
-    background: transparent;
-    color: var(--ink-soft);
-    border: 1px solid var(--line);
-  }
-  button.secondary:hover { color: var(--ink); background: var(--line-soft); border-color: var(--line); }
 
   /* ---- dossier list ---- */
 
@@ -3207,7 +3250,7 @@
     .dash-header-actions .ag-recherche { width: 100%; flex: 1 1 auto; }
     #onglet-agenda .dash-header-actions { flex-wrap: wrap; }
     .ag-creation, .ag-creation .ag-ajout-double { width: 100%; }
-    .ag-creation .ag-ajout-double button.primary.ag-ajout { flex: 1 1 0; justify-content: center; }
+    .ag-creation .ag-ajout-double wa-button.ag-ajout { flex: 1 1 0; }
   }
 
   .toolbar-btn {
@@ -4667,20 +4710,6 @@
     border-radius: var(--rayon-xs);
     cursor: pointer;
   }
-  .confirm-box .btn-annuler {
-    border: 1px solid var(--line);
-    background: var(--paper-card);
-    color: var(--ink-soft);
-  }
-  .confirm-box .btn-annuler:hover { border-color: var(--ink-soft); color: var(--ink); }
-  .confirm-box .btn-confirmer {
-    border: 1px solid var(--urgent);
-    background: var(--urgent);
-    color: var(--on-accent);
-  }
-  .confirm-box .btn-confirmer:hover { filter: brightness(0.92); }
-  .confirm-box .btn-confirmer.btn-valider { border-color: var(--focus); background: var(--focus); }
-  .confirm-box .btn-confirmer.btn-valider:hover { background: var(--focus-hover); }
 
   /* ---- écran "À propos" (voir ouvrirAPropos dans script.js) ----
      Réutilise .confirm-overlay/.confirm-box (même fond, même carte centrée) pour rester cohérent
@@ -6248,10 +6277,6 @@ button.lien-action:hover { text-decoration: underline; }
 .ja.ouverte .ja-sous { -webkit-line-clamp: unset; line-clamp: unset; }
 .ja-delai { font-size: var(--texte-s); font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .ja-delai.proche { color: var(--urgent); }
-.ja button.primary.ja-go {
-  display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; font-size: var(--texte-m); font-weight: 600;
-  border-radius: var(--rayon-s); white-space: nowrap;
-}
 .ja-actions-sec { display: inline-flex; align-items: center; gap: 2px; }
 .ja button.icon-btn.ja-plus-tard { color: var(--muted); }
 .ja button.icon-btn.ja-plus-tard:hover { color: var(--ink); }
@@ -6306,7 +6331,6 @@ button.lien-action:hover { text-decoration: underline; }
 .ja-compacte .ja > .ja-detail { grid-column: 2 / -1; grid-row: 3; }
 .ja-compacte .ja-titre { font-size: var(--texte-m); }
 .ja-compacte .ja-go span { display: none; }
-.ja-compacte .ja button.primary.ja-go { padding: 6px 8px; }
 
 /* « Mes rappels » sous la liste « À faire » de la carte Aujourd'hui (voir renderAlertesDashboard) :
    un filet et un petit titre le séparent de la liste du dessus. */
@@ -6437,7 +6461,6 @@ button.lien-action:hover { text-decoration: underline; }
   border-top: 1px solid var(--line-soft); background: var(--paper-sunk); font-size: var(--texte-m); color: var(--muted);
 }
 .jour-espace { flex: 1 1 auto; }
-.jour-fenetre-pied button.primary, .jour-fenetre-pied button.secondary { padding: 8px 14px; font-size: var(--texte-m); border-radius: var(--rayon-m); }
 
 @media (max-width: 860px) {
   .jour-fenetre-corps { grid-template-columns: minmax(0, 1fr); overflow-y: auto; }
@@ -6463,7 +6486,6 @@ button.lien-action:hover { text-decoration: underline; }
   .ja > .ja-detail { grid-column: 2 / -1; grid-row: 3; }
   .ja.fait { grid-template-areas: none; }
   .ja-go span { display: none; }
-  .ja button.primary.ja-go { padding: 6px 8px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .jour-anneau-plein, .ja { transition: none; }
@@ -6497,18 +6519,11 @@ button.lien-action:hover { text-decoration: underline; }
 .ja-texte.ja-texte-fixe { cursor: default; }
 .ja-texte-fixe:hover .ja-titre { color: var(--ink); }
 /* Geste déjà fait (Renvoyer, Renoter…) : même place, en contour plutôt qu'en plein. */
-.ja button.ja-go.ja-go-contour {
-  display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; font-family: inherit;
-  font-size: var(--texte-m); font-weight: 600; border-radius: var(--rayon-s); white-space: nowrap; cursor: pointer;
-  border: 1px solid var(--line); background: var(--paper-card); color: var(--ink-soft);
-}
-.ja button.ja-go.ja-go-contour:hover { border-color: var(--focus); color: var(--focus); }
 .ja.ja-faite .ja-titre { color: var(--ink-soft); font-weight: 500; }
 .ja-sous .dot-label { font-size: var(--texte-s); }
 .ja.ja-faite:hover, .ja .ja-texte-fixe:hover { background: none; }
 .ja-detail .fonds-recus { margin: 2px 0 4px; }
 .ja-detail .rdv-agenda-form { margin-top: 2px; }
-.rdv-agenda-actions button.primary { padding: 6px 12px; font-size: var(--texte-m); border-radius: var(--rayon-s); display: inline-flex; align-items: center; gap: 6px; }
 
 /* ---- Fiche › Échéances : encadré « Prochaine étape » (voir renderProchaineEtapeFiche) ---- */
 /* Fond teinté de la couleur de l'échéance (étude, 01/10 : « faire ressortir la carte avec un fond
@@ -7507,7 +7522,6 @@ button.ag-actualiser.en-cours svg { animation: ag-tourne 0.9s linear infinite; }
    champ que celui du Suivi (étude, 01/10 : « un champ comme sur Suivi ») : 42 px, loupe, ombre légère. */
 #onglet-agenda .dash-header-actions { flex: 1 1 340px; justify-content: flex-end; flex-wrap: nowrap; }
 .ag-creation { flex: none; }
-.ag-creation button.primary.ag-ajout { height: 42px; }
 .ag-recherche { position: relative; flex: 0 1 460px; min-width: 0; display: flex; }
 .ag-recherche .suivi-recherche-icone svg { width: 17px; height: 17px; }
 .ag-recherche input[type="search"]#agenda-recherche {
@@ -7556,14 +7570,13 @@ button.ag-recherche-fiche svg { width: 16px; height: 16px; }
   font: inherit; font-size: var(--texte-m); font-weight: 600; color: var(--ink); background: var(--paper-card);
   border: 1px solid var(--line); border-radius: var(--rayon-m); height: 36px; padding: 0 10px; cursor: pointer;
 }
-button.primary.ag-ajout { display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 14px; border-radius: var(--rayon-m); font-size: var(--texte-m); }
-button.primary.ag-ajout svg { width: 14px; height: 14px; }
+wa-button.ag-ajout svg { width: 14px; height: 14px; }
 /* Bouton double (étude, 01/10) : moitié « Nouveau rendez-vous », moitié « Proposer des dates », un seul
    bloc à la couleur des boutons principaux, séparé par un filet clair. */
 .ag-ajout-double { display: inline-flex; align-items: stretch; border-radius: var(--rayon-m); overflow: hidden; }
-.ag-ajout-double button.primary.ag-ajout { border-radius: 0; margin: 0; white-space: nowrap; }
-@media (max-width: 480px) { .ag-ajout-double button.primary.ag-ajout { padding: 0 10px; gap: 6px; font-size: var(--texte-m); } }
-.ag-ajout-double button.primary.ag-ajout-dates { border-left: 1px solid color-mix(in srgb, var(--paper-card) 45%, transparent); }
+.ag-ajout-double wa-button.ag-ajout::part(button) { border-radius: 0; }
+@media (max-width: 480px) { .ag-ajout-double wa-button.ag-ajout { --wa-form-control-padding-inline: 10px; font-size: var(--texte-m); } }
+.ag-ajout-double wa-button.ag-ajout-dates::part(button) { border-left: 1px solid color-mix(in srgb, var(--paper-card) 45%, transparent); }
 .ag-page-corps { display: grid; grid-template-columns: 300px minmax(0, 1fr); align-items: start; }
 .ag-page-corps > * { min-width: 0; }
 .ag-cote { border-right: 1px solid var(--line); padding: 14px 16px 20px; display: flex; flex-direction: column; gap: 16px; }
@@ -7781,7 +7794,7 @@ body.ag-redim-en-cours, body.ag-redim-en-cours * { cursor: ns-resize !important;
 .ag-detail .ag-supprimer { align-self: flex-start; }
 .ag-cote .ag-anticipe { border-top: 1px solid var(--line); padding-top: 14px; }
 /* Colonne étroite : le bouton d'une ligne d'action garde son icône, le verbe est déjà dans le titre. */
-.ag-cote .ja .ja-go { padding: 6px 8px; }
+.ag-cote .ja .ja-go { --wa-form-control-padding-inline: 8px; }
 .ag-cote .ja .ja-go span { display: none; }
 .ag-anticipe .jour-section-titre { margin-bottom: 8px; }
 .ag-liste { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
@@ -7818,14 +7831,12 @@ body.ag-redim-en-cours, body.ag-redim-en-cours * { cursor: ns-resize !important;
 .ag-modale-x { position: absolute; top: 12px; right: 12px; }
 .ag-modale-corps { overflow-y: auto; padding: 14px 20px; display: flex; flex-direction: column; gap: 12px; }
 .ag-modale-pied { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 12px 20px; border-top: 1px solid var(--line-soft); background: var(--paper-sunk); }
-.ag-modale-pied button.primary, .ag-modale-pied button.secondary { padding: 8px 14px; font-size: var(--texte-m); border-radius: var(--rayon-m); }
 .ag-modale-pied-form { margin: 4px -20px -14px; }
 .ag-supprimer { color: var(--urgent); display: inline-flex; align-items: center; gap: 6px; }
 /* Suppression d'un rendez-vous (étude, 01/10) : une simple poubelle rouge à côté du crayon. */
 .ag-detail-outils button.icon-btn.ag-supprimer-ico { color: var(--urgent); }
 .ag-detail-outils button.icon-btn.ag-supprimer-ico:hover { color: var(--urgent); background: color-mix(in srgb, var(--urgent) 12%, transparent); }
 .ag-supprimer svg { width: 14px; height: 14px; }
-button.primary.ag-ouvrir-fiche { align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; font-size: var(--texte-m); border-radius: var(--rayon-m); }
 .ag-detail-proba { border: 1px solid var(--line); border-radius: var(--rayon-m); padding: 10px 12px; background: var(--paper-sunk); }
 .ag-detail-proba-tete { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; font-size: var(--texte-m); margin-bottom: 6px; }
 .ag-detail-proba-tete .ag-proba { font-size: var(--texte-l); }
@@ -7922,7 +7933,7 @@ textarea.ag-notes-champ:focus { outline: 2px solid var(--focus); outline-offset:
 /* ---- Visio ADNOV dans le détail d'un rendez-vous (étude, 01/10) : « Créer la visio » ouvre le site
    de la profession, l'invitation .ics rendue y est rattachée (lien écrit dans les notes). ---- */
 .ag-visio { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
-.ag-visio a.ag-visio-rejoindre, .ag-visio button.secondary.ag-visio-creer {
+.ag-visio a.ag-visio-rejoindre {
   display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; font-size: var(--texte-m); font-weight: 600;
   border-radius: var(--rayon-m); text-decoration: none; cursor: pointer; font-family: inherit;
 }
@@ -8074,8 +8085,7 @@ button.ag-lien-dates.a-nouveau { border-color: color-mix(in srgb, var(--notif-no
 .widgets-galerie-texte { display: flex; flex-direction: column; gap: 2px; line-height: 1.3; }
 .widgets-galerie-texte b { font-size: var(--texte-base); color: var(--ink); }
 .widgets-galerie-texte span { font-size: var(--texte-m); color: var(--ink-soft); }
-button.secondary.widgets-galerie-retirer { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; font-size: var(--texte-m); white-space: nowrap; }
-button.secondary.widgets-galerie-retirer svg { width: 13px; height: 13px; }
+wa-button.widgets-galerie-retirer svg { width: 13px; height: 13px; }
 .widgets-galerie-ligne button.bouton-ajout { width: auto; margin: 0; white-space: nowrap; }
 .widgets-galerie-box .confirm-actions { justify-content: space-between; align-items: center; margin-top: 16px; }
 @media (max-width: 480px) {
@@ -8621,9 +8631,7 @@ button.modeles-puce:focus-visible { outline: 2px solid var(--focus); outline-off
 @media (max-width: 800px) { .modeles-grille { grid-template-columns: 1fr; } }
 .redaction-pied-espace { flex: 1; min-width: 0; font-size: var(--texte-s); line-height: 1.35; color: var(--muted); text-align: right; padding-right: 6px; }
 label.icon-btn.redaction-joindre { cursor: pointer; }
-.redaction-pied button.primary.redaction-envoyer { display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px; border-radius: var(--rayon-m); }
-.redaction-pied button.primary.redaction-envoyer:disabled { opacity: .45; cursor: not-allowed; }
-.redaction-pied button.primary.redaction-envoyer svg { width: 15px; height: 15px; }
+.redaction-pied wa-button.redaction-envoyer svg { width: 15px; height: 15px; }
 .redaction-pied button.lien-discret { margin-right: 6px; white-space: nowrap; }
 @media (max-width: 600px) {
   .confirm-box.email-lecture-box { width: 100vw; height: 100dvh; max-height: none; border-radius: 0; }

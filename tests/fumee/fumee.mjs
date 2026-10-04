@@ -42,6 +42,14 @@ const pause = (ms) => new Promise((r) => setTimeout(r, ms));
 // Un geste qui lève dans la page est noté puis la suite continue : on veut la liste complète, pas la première casse.
 const geste = async (page, nom, fn, arg) => { try { return await page.evaluate(fn, arg); } catch (e) { erreurs.push(`${nom} : ${String(e.message || e).split('\n')[0]}`); return null; } };
 
+// Un <wa-button> mal fermé (« </button> » au lieu de « </wa-button> ») avale tout ce qui le suit : il ne doit contenir que
+// son libellé (texte, icône, petite mise en forme), jamais un bloc de l'écran.
+const boutonsIntacts = async (page, ou) => {
+  const fautifs = await page.evaluate(() => [...document.querySelectorAll('wa-button')]
+    .filter((b) => b.querySelector('div, p, section, table, ul, li, form, input, select, textarea, button, wa-button, h1, h2, h3'))
+    .map((b) => (b.id || b.className || 'wa-button') + ' : ' + (b.textContent || '').trim().slice(0, 40)));
+  if (fautifs.length) erreurs.push(`${ou} : bouton qui contient un bloc (balise mal fermée ?) — ${fautifs.slice(0, 3).join(' | ')}`);
+};
 const navigateur = await chromium.launch();
 try {
   for (const ecran of [{ nom: 'bureau', viewport: { width: 1400, height: 900 } }, { nom: 'téléphone', viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true }]) {
@@ -61,6 +69,9 @@ try {
     await page.evaluate(() => { try { fermerFenetreAujourdhui(); } catch (e) { /* fenêtre absente */ } });
     await pause(500);
 
+    // Composants Web Awesome (04/10) : le paquet local est chargé, et le bouton est défini.
+    await page.waitForFunction(() => !!customElements.get('wa-button'), null, { timeout: 10000 }).catch(() => {});
+    verifier(await page.evaluate(() => !!customElements.get('wa-button')), `[${ecran.nom}] Web Awesome chargé (wa-button défini)`);
     const tdb = await page.evaluate(() => ({ widgets: document.querySelectorAll('#widgets-dashboard .w-carte').length, dossiers: dossiers.length }));
     verifier(tdb.dossiers === DOSSIERS.length, `[${ecran.nom}] ${tdb.dossiers} dossiers chargés`);
     verifier(tdb.widgets >= 3, `[${ecran.nom}] tableau de bord : ${tdb.widgets} widgets`);
@@ -70,6 +81,7 @@ try {
       await geste(page, `[${ecran.nom}] écran ${onglet}`, (o) => definirOnglet(o), onglet);
       await pause(ecran.nom === 'bureau' ? 350 : 200);
       if (erreurs.length === avant) constats.push(`[${ecran.nom}] écran ${onglet}`);
+      await boutonsIntacts(page, `[${ecran.nom}] écran ${onglet}`);
       if (onglet === 'suivi') {
         const suivi = await page.evaluate(() => { const l = document.getElementById('dossier-list'); return { lignes: l ? l.querySelectorAll('tr, li, .ligne-suivi').length : 0, texte: l ? l.textContent : '' }; });
         verifier(suivi.lignes >= 2 && /MOREAU/.test(suivi.texte), `[${ecran.nom}] Suivi : ${suivi.lignes} lignes, MOREAU présent`);
@@ -86,7 +98,7 @@ try {
         await pause(400);
         const fiche = await page.evaluate(() => { const o = document.getElementById('dossier-drawer-overlay'); return { ouverte: !!o && o.style.display !== 'none', texte: (document.getElementById('dossier-drawer') || {}).textContent || '' }; });
         verifier(fiche.ouverte && fiche.texte.includes(attendu), `fiche ${id} ouverte (${attendu})`);
-        for (const o of ONGLETS_FICHE) { await geste(page, `fiche ${id} › ${o}`, (x) => definirOngletFiche(x), o); await pause(150); }
+        for (const o of ONGLETS_FICHE) { await geste(page, `fiche ${id} › ${o}`, (x) => definirOngletFiche(x), o); await pause(150); await boutonsIntacts(page, `fiche ${id} › ${o}`); }
         await page.evaluate(() => { try { fermerDossierDrawer(); } catch (e) { /* déjà fermée */ } });
       }
       // « À propos » : le numéro de version et chaque entrée de l'historique (numéro + jour) s'affichent.

@@ -72,6 +72,22 @@
     try { localStorage.setItem(cle, valeur); return true; } catch (e) { return false; }
   }
 
+  // Envoi par Entrée (composants Web Awesome, 04/10) : pour le navigateur, un bouton wa-button d’envoi (type submit) n’est pas le
+  // « bouton par défaut » d'un formulaire — Entrée dans un champ n'envoyait plus rien. Rétabli pour tout formulaire qui
+  // n'a pas de bouton d'envoi natif.
+  if (typeof document !== 'undefined' && document.addEventListener) {
+    document.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter' || e.defaultPrevented || e.isComposing || e.shiftKey || e.ctrlKey || e.altKey || e.metaKey) return;
+      const champ = e.target;
+      if (!champ || champ.tagName !== 'INPUT' || ['checkbox', 'radio', 'button', 'submit', 'file', 'reset'].includes(champ.type)) return;
+      const form = champ.form;
+      if (!form || form.querySelector('button[type="submit"], input[type="submit"]')) return;
+      if (!form.querySelector('wa-button[type="submit"]:not([disabled])')) return;
+      e.preventDefault();
+      form.requestSubmit();
+    });
+  }
+
   let dossiers = [];
   let detectedDates = []; // {iso, label, contexte, suggestion}
   let autresEnCours = []; // {id, label, iso, active}

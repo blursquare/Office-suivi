@@ -95,8 +95,8 @@
         </div>
         <footer class="ag-modale-pied ag-modale-pied-form">
           <span class="jour-espace"></span>
-          <button type="button" class="secondary" onclick="fermerModaleAgenda()">Annuler</button>
-          <button type="submit" class="primary" id="agenda-modif-ok">${icone('check')} Enregistrer</button>
+          <wa-button appearance="outlined" class="secondary" onclick="fermerModaleAgenda()">Annuler</wa-button>
+          <wa-button variant="brand" type="submit" class="primary" id="agenda-modif-ok">${icone('check')} Enregistrer</wa-button>
         </footer>
       </form>`;
   }

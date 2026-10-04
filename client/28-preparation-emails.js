@@ -779,8 +779,8 @@
           ${r.avantModele ? '<button type="button" class="lien-discret redaction-annuler-modele" onclick="annulerModeleRedaction()">Annuler le modèle</button>' : ''}
           <button type="button" class="icon-btn" onclick="abandonnerRedaction()" title="Abandonner cet email" aria-label="Abandonner cet email">${icone('trash')}</button>
           <span class="redaction-pied-espace" id="redaction-motif">${escapeHtml(etat.motif && etat.motif !== 'Ajoutez un destinataire.' && etat.motif !== 'Écrivez le message.' ? etat.motif : etat.poids ? tailleLisible(etat.poids) : '')}</span>
-          <button type="button" class="${direct ? 'lien-discret' : 'primary'}" onclick="ouvrirRedactionDansOutlook()" title="Télécharger l’email pour l’ouvrir dans Outlook">Ouvrir dans Outlook</button>
-          ${direct ? `<button type="button" class="primary redaction-envoyer" id="redaction-envoyer" onclick="envoyerRedaction()"${etat.possible && !r.envoi ? '' : ' disabled'} title="${escapeAttr(etat.motif || '')}">${icone(r.envoi ? 'spinner' : 'send')}${r.envoi ? 'Envoi…' : 'Envoyer'}</button>` : ''}
+          <wa-button ${direct ? 'appearance="plain"' : 'variant="brand"'} class="${direct ? 'lien-discret' : 'primary'}" onclick="ouvrirRedactionDansOutlook()" title="Télécharger l’email pour l’ouvrir dans Outlook">Ouvrir dans Outlook</wa-button>
+          ${direct ? `<wa-button variant="brand" class="primary redaction-envoyer" id="redaction-envoyer" onclick="envoyerRedaction()"${etat.possible && !r.envoi ? '' : ' disabled'} title="${escapeAttr(etat.motif || '')}">${icone(r.envoi ? 'spinner' : 'send')}${r.envoi ? 'Envoi…' : 'Envoyer'}</wa-button>` : ''}
         </div>
       </div>`;
   }
@@ -1565,7 +1565,7 @@
             <textarea id="modele-corps" rows="14" oninput="champModeleEdite('corps', this.value)" onfocus="dernierChampModele = this.id">${escapeHtml(e.corps)}</textarea></label>
           <div class="modeles-puces"><span class="modeles-puces-titre">Insérer</span>${(VARIABLES_CONTEXTE_MODELES[GROUPE_CONTEXTE_MODELE[e.cle]] || []).map(v => puce(v.nom, v.aide)).join('')}${VARIABLES_MODELE_EMAIL.map(v => puce(v.nom, v.aide)).join('')}${CONDITIONS_MODELE_EMAIL.map(v => puce(v.nom, v.aide)).join('')}</div>
           <div class="modeles-actions">
-            <button type="button" class="primary" id="modele-enregistrer" onclick="enregistrerModeleEdite()"${e.change ? '' : ' disabled'}>Enregistrer</button>
+            <wa-button variant="brand" class="primary" id="modele-enregistrer" onclick="enregistrerModeleEdite()"${e.change ? '' : ' disabled'}>Enregistrer</wa-button>
             ${integre && integre.modifie ? '<button type="button" class="lien-discret" onclick="revenirModeleOrigine()">Revenir au texte d’origine</button>' : ''}
             ${e.type === 'perso' ? '<button type="button" class="lien-discret" onclick="supprimerModeleEdite()">Supprimer</button>' : ''}
             <span class="hint">${integre && integre.modifie && integre.modifieLe ? `Modifié le ${escapeHtml(dateHeureAppel(Date.parse(integre.modifieLe)))}${integre.par ? ' par ' + escapeHtml(integre.par) : ''}` : ''}</span>

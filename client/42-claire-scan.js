@@ -836,8 +836,8 @@
       </div>
       <div class="scan-actions">
         <span class="hint">Rubrique : ${escapeHtml(libelleRubriquesScan(c.rubriques))}</span>
-        <button type="button" class="secondary scan-bouton" onclick="ecarterScan('${nomArg}')"${bloque}>${ecart ? `${icone('spinner', null, true)} Déplacement…` : 'Laisser dans Scan'}</button>
-        <button type="button" class="primary scan-bouton" onclick="rangerScanChoisi('${nomArg}', false)"${occupe || !c.dossierId ? ' disabled' : ''}>${enCours ? `${icone('spinner', null, true)} Rangement…` : 'Ranger'}</button>
+        <wa-button appearance="outlined" class="secondary scan-bouton" onclick="ecarterScan('${nomArg}')"${bloque}>${ecart ? `${icone('spinner', null, true)} Déplacement…` : 'Laisser dans Scan'}</wa-button>
+        <wa-button variant="brand" class="primary scan-bouton" onclick="rangerScanChoisi('${nomArg}', false)"${occupe || !c.dossierId ? ' disabled' : ''}>${enCours ? `${icone('spinner', null, true)} Rangement…` : 'Ranger'}</wa-button>
       </div>
     </div></li>`;
   }
@@ -852,7 +852,7 @@
     if (!e.configure || !e.reglages.actif) {
       zone.innerHTML = `<div class="calc-card scans-vide">
         <p>${e.configure ? 'Claire Scan n’est pas activé.' : escapeHtml(e.raison || 'Dossier « Scan » introuvable.')}</p>
-        ${e.configure ? `<button type="button" class="primary" onclick="enregistrerReglagesScans({ actif: true })">Activer Claire Scan</button>` : ''}
+        ${e.configure ? `<wa-button variant="brand" class="primary" onclick="enregistrerReglagesScans({ actif: true })">Activer Claire Scan</wa-button>` : ''}
       </div>`;
       return;
     }
