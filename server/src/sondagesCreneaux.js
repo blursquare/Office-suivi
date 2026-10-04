@@ -18,6 +18,7 @@
 
 const { noterVerification } = require('./verificationsTerrain');
 const crypto = require('node:crypto');
+const { lireXml, tous: tousXml, premier: premierXml, texteDe: texteDeXml, identifiantElement, analyseEws } = require('./exchange/xml');
 
 const CLE_SONDAGES = 'sondages-creneaux';
 const MAX_SONDAGES = 200;
@@ -305,31 +306,19 @@ function corpsFindReponsesSondages(depuisUtc) {
     + '</m:FindItem>' + ENVELOPPE_FIN;
 }
 
-function desechapperXml(s) {
-  return String(s || '').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&apos;/g, "'")
-    .replace(/&#(?:x([0-9a-f]{1,6})|(\d{1,7}));/gi, (t, h, n) => { const c = h ? parseInt(h, 16) : Number(n); return c > 0 && c <= 0x10ffff ? String.fromCodePoint(c) : t; })
-    .replace(/&amp;/g, '&');
-}
-
 // Pure : les messages d'une réponse FindItem, avec leur identifiant (pour lire, au besoin, le texte
 // d'une réponse « en une seule fois »).
 function parseFindReponses(corps) {
-  const liste = [];
-  const re = /<t:Message\b[\s\S]*?<\/t:Message>/g;
-  let m;
-  while ((m = re.exec(String(corps || ''))) !== null) {
-    const bloc = m[0];
-    const lire = (tag) => desechapperXml((bloc.match(new RegExp(`<t:${tag}>([\\s\\S]*?)</t:${tag}>`)) || [])[1] || '').trim();
-    const from = (bloc.match(/<t:From>([\s\S]*?)<\/t:From>/) || [])[1] || '';
-    liste.push({
-      itemId: desechapperXml((bloc.match(/<t:ItemId\b[^>]*\bId="([^"]+)"/) || [])[1] || ''),
-      sujet: lire('Subject'),
-      deNom: desechapperXml((from.match(/<t:Name>([\s\S]*?)<\/t:Name>/) || [])[1] || '').trim(),
-      deAdresse: desechapperXml((from.match(/<t:EmailAddress>([\s\S]*?)<\/t:EmailAddress>/) || [])[1] || '').trim().toLowerCase(),
-      recuLe: lire('DateTimeReceived')
-    });
-  }
-  return liste;
+  return tousXml(lireXml(corps), 'Message').map((bloc) => {
+    const from = premierXml(bloc, 'From');
+    return {
+      itemId: identifiantElement(bloc).itemId,
+      sujet: texteDeXml(bloc, 'Subject').trim(),
+      deNom: texteDeXml(from, 'Name').trim(),
+      deAdresse: texteDeXml(from, 'EmailAddress').trim().toLowerCase(),
+      recuLe: texteDeXml(bloc, 'DateTimeReceived').trim()
+    };
+  });
 }
 
 // GetItem du seul texte (BodyType Text) des réponses « en une seule fois » — jamais gardé : seuls
@@ -345,12 +334,9 @@ function corpsLireTextesReponses(itemIds) {
 // Pure : itemId → texte, d'une réponse GetItem.
 function parseTextesReponses(corps) {
   const textes = new Map();
-  const re = /<t:Message\b[\s\S]*?<\/t:Message>/g;
-  let m;
-  while ((m = re.exec(String(corps || ''))) !== null) {
-    const id = desechapperXml((m[0].match(/<t:ItemId\b[^>]*\bId="([^"]+)"/) || [])[1] || '');
-    const texte = desechapperXml((m[0].match(/<t:Body\b[^>]*>([\s\S]*?)<\/t:Body>/) || [])[1] || '');
-    if (id) textes.set(id, texte);
+  for (const bloc of tousXml(lireXml(corps), 'Message')) {
+    const id = identifiantElement(bloc).itemId;
+    if (id) textes.set(id, texteDeXml(bloc, 'Body'));
   }
   return textes;
 }
@@ -435,8 +421,8 @@ async function executerTourSondages(parametresRepo, injections = {}, manuel = fa
       resultat.erreur = 'Identifiants de messagerie refusés : vérifiez les Réglages.';
       return resultat;
     }
-    if (!/ResponseClass="Success"/.test(String(r.corps || ''))) {
-      const code = (String(r.corps || '').match(/<m:ResponseCode>([^<]+)<\/m:ResponseCode>/) || [])[1] || String(r.statut || '');
+    if (!analyseEws(r.corps).ok) {
+      const code = analyseEws(r.corps).code || String(r.statut || '');
       resultat.erreur = `Lecture des réponses impossible${code ? ' (' + code + ')' : ''}.`;
       return resultat;
     }

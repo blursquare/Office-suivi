@@ -6,7 +6,7 @@ const {
   interpreterReponseEws, testerConnexionExchange, corpsGetFolderCalendrier,
   corpsCreateRendezVous, interpreterReponseCreation, creerRendezVousExchange, instantUtcDepuisParis,
   corpsCreateBrouillon, creerBrouillonExchange,
-  desechapperXml, fenetreJourneeParis, corpsFindRendezVous, parseFindRendezVous,
+  fenetreJourneeParis, corpsFindRendezVous, parseFindRendezVous,
   corpsUpdateLieu, interpreterReponseUpdate, trouverRendezVousExchange, mettreAJourLieuExchange,
   folderCalendrierXml
 } = require('../src/exchange/ews');
@@ -226,11 +226,6 @@ test('parseFindRendezVous : ItemId + ChangeKey + sujet + lieu, entités dés-éc
 test('parseFindRendezVous : un item sans ItemId exploitable est ignoré', () => {
   const corps = '<t:Items><t:CalendarItem><t:Subject>Sans id</t:Subject></t:CalendarItem></t:Items>';
   assert.equal(parseFindRendezVous(corps).length, 0);
-});
-
-test('desechapperXml : entités décodées, & en dernier', () => {
-  assert.equal(desechapperXml('A &amp;lt; B'), 'A &lt; B'); // &amp; décodé une seule fois
-  assert.equal(desechapperXml('a &lt;b&gt; &quot;c&quot; d&#39;e'), 'a <b> "c" d\'e');
 });
 
 test('corpsUpdateLieu : SetItemField sur calendar:Location uniquement, id/lieu échappés', () => {
@@ -467,13 +462,6 @@ test('Notes d\'un rendez-vous : GetItem du corps en texte, UpdateItem du seul co
   const ok = await mettreAJourNotesExchange({ url: 'u', email: 'a', motDePasse: 'b', itemId: 'ID1', changeKey: 'CK2', notes: 'x' },
     { poster: (o, cb) => cb(null, { statusCode: 200, body: '<m:UpdateItemResponseMessage ResponseClass="Success"><t:ItemId Id="ID1" ChangeKey="CK3"/>' }) });
   assert.equal(`${ok.ok}/${ok.changeKey}`, 'true/CK3');
-});
-
-test('desechapperXml : références numériques (« &#xD; » d\'Exchange), jamais un &amp; décodé deux fois', () => {
-  assert.equal(desechapperXml('ligne 1&#xD;\nligne 2'), 'ligne 1\r\nligne 2');
-  assert.equal(desechapperXml('a&#13;b &#233;t&#xE9;'), 'a\rb été');
-  assert.equal(desechapperXml('&amp;#xD;'), '&#xD;');
-  assert.equal(desechapperXml('&#x110000;'), '&#x110000;', 'hors Unicode : laissé tel quel');
 });
 
 test('Notes : le retour chariot d\'Exchange ne traîne plus en clair (étude, 01/10)', () => {

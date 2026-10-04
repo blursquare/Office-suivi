@@ -12,6 +12,7 @@
 'use strict';
 
 const httpntlm = require('httpntlm');
+const { lireXml, tous, premier, texte, texteDe, attribut, identifiantElement, analyseEws, aCodeReponse } = require('./xml');
 
 // Requête EWS en LECTURE SEULE : lire la fiche du dossier « Calendrier ». Prouve à la fois que
 // l'authentification passe ET que le compte a bien accès à un agenda, sans rien créer ni modifier.
@@ -127,20 +128,17 @@ function interpreterReponseCreation(statutHttp, corps, messageSucces, actionEche
   if (statutHttp === 401 || statutHttp === 403) {
     return { ok: false, raison: 'auth', message: "Identifiants refusés par le serveur. Vérifiez les identifiants de messagerie dans les Réglages." };
   }
-  if (statutHttp >= 500 && !/ResponseCode|ResponseClass/.test(texte)) {
+  const a = analyseEws(texte);
+  if (statutHttp >= 500 && !a.codee) {
     return { ok: false, raison: 'serveur', message: 'Le serveur Exchange a renvoyé une erreur (' + statutHttp + ').' };
   }
-  if (/ResponseClass="Success"/.test(texte) || /<m:ResponseCode>NoError<\/m:ResponseCode>/.test(texte)) {
+  if (a.ok) {
     // ChangeKey aussi : un UpdateItem en renvoie un NOUVEAU, et le prochain UpdateItem sur le même
     // événement doit présenter celui-là (voir mettreAJourEcheanceExchange).
-    const idTag = (texte.match(/<t:ItemId\b[^>]*>/) || [])[0] || '';
-    const itemId = (idTag.match(/\bId="([^"]+)"/) || [])[1] || '';
-    const changeKey = (idTag.match(/\bChangeKey="([^"]+)"/) || [])[1] || '';
+    const { itemId, changeKey } = identifiantElement(a.doc);
     return { ok: true, message: succes, itemId, changeKey };
   }
-  const code = (texte.match(/<m:ResponseCode>([^<]+)<\/m:ResponseCode>/) || [])[1]
-    || (texte.match(/<faultstring[^>]*>([^<]+)<\/faultstring>/) || [])[1] || '';
-  return { ok: false, raison: 'ews', message: echec + (code ? ' (' + code + ')' : '') + '.' };
+  return { ok: false, raison: 'ews', message: echec + (a.code ? ' (' + a.code + ')' : '') + '.' };
 }
 
 // Corps SOAP CreateItem pour un BROUILLON d'email (Message), enregistré dans le dossier « Brouillons »
@@ -254,16 +252,6 @@ function creerRendezVousExchange({ url, email, motDePasse, rendezVous, delaiMs =
 // fait dans la route, avec les fonctions déjà écrites d'agendaOffice.js : ces fonctions-ci ne font
 // que le transport et l'analyse XML.
 
-function desechapperXml(s) {
-  return String(s == null ? '' : s)
-    .replace(/&lt;/g, '<').replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"').replace(/&apos;/g, "'")
-    // Références numériques : Exchange écrit le retour chariot d'un corps « &#xD; » (étude, 01/10 :
-    // il traînait en clair dans les notes d'un rendez-vous).
-    .replace(/&#(?:x([0-9a-f]{1,6})|(\d{1,7}));/gi, (t, h, n) => { const c = h ? parseInt(h, 16) : Number(n); return c > 0 && c <= 0x10ffff ? String.fromCodePoint(c) : t; })
-    .replace(/&amp;/g, '&'); // &amp; en dernier pour ne pas re-décoder une entité déjà décodée
-}
-
 // Jour civil de Paris [00:00, lendemain 00:00[ en instants UTC (chaînes EWS), pour une CalendarView
 // couvrant tout le rendez-vous quel que soit son horaire. Réutilise instantUtcDepuisParis (gère
 // l'heure d'été/hiver), donc indépendant du fuseau du serveur.
@@ -306,21 +294,15 @@ function corpsFindRendezVous({ debutUtc, finUtc, mailbox }) {
 // auto-fermant (<t:ItemId Id="…" ChangeKey="…"/>) ; sujet et lieu sont dés-échappés. Un événement
 // sans Id ou ChangeKey exploitable est ignoré (on ne pourrait pas le mettre à jour).
 function parseFindRendezVous(corps) {
-  const texte = String(corps || '');
   const evenements = [];
-  const re = /<t:CalendarItem\b[\s\S]*?<\/t:CalendarItem>/g;
-  let m;
-  while ((m = re.exec(texte)) !== null) {
-    const bloc = m[0];
-    const idTag = (bloc.match(/<t:ItemId\b[^>]*>/) || [])[0] || '';
-    const itemId = (idTag.match(/\bId="([^"]+)"/) || [])[1] || '';
-    const changeKey = (idTag.match(/\bChangeKey="([^"]+)"/) || [])[1] || '';
+  for (const bloc of tous(lireXml(corps), 'CalendarItem')) {
+    const { itemId, changeKey } = identifiantElement(bloc);
     if (!itemId || !changeKey) continue;
-    const subject = desechapperXml((bloc.match(/<t:Subject>([\s\S]*?)<\/t:Subject>/) || [])[1] || '');
-    const location = desechapperXml((bloc.match(/<t:Location>([\s\S]*?)<\/t:Location>/) || [])[1] || '');
-    const start = ((bloc.match(/<t:Start>([^<]+)<\/t:Start>/) || [])[1] || '').trim();
-    const end = ((bloc.match(/<t:End>([^<]+)<\/t:End>/) || [])[1] || '').trim();
-    evenements.push({ itemId, changeKey, subject, location, start, end });
+    evenements.push({
+      itemId, changeKey,
+      subject: texteDe(bloc, 'Subject'), location: texteDe(bloc, 'Location'),
+      start: texteDe(bloc, 'Start').trim(), end: texteDe(bloc, 'End').trim()
+    });
   }
   return evenements;
 }
@@ -383,17 +365,16 @@ function trouverRendezVousExchange({ url, email, motDePasse, debutUtc, finUtc, m
           fini({ ok: false, raison: 'auth', message: 'Identifiants refusés par le serveur. Vérifiez les identifiants de messagerie dans les Réglages.' });
           return;
         }
-        if (statut >= 500 && !/ResponseCode|ResponseClass/.test(body)) {
+        const a = analyseEws(body);
+        if (statut >= 500 && !a.codee) {
           fini({ ok: false, raison: 'serveur', message: 'Le serveur Exchange a renvoyé une erreur (' + statut + ').' });
           return;
         }
-        if (/ResponseClass="Success"/.test(body) || /<m:ResponseCode>NoError<\/m:ResponseCode>/.test(body)) {
+        if (a.ok) {
           fini({ ok: true, evenements: parseFindRendezVous(body) });
           return;
         }
-        const code = (body.match(/<m:ResponseCode>([^<]+)<\/m:ResponseCode>/) || [])[1]
-          || (body.match(/<faultstring[^>]*>([^<]+)<\/faultstring>/) || [])[1] || '';
-        fini({ ok: false, raison: 'ews', message: 'La lecture de l\'agenda a échoué' + (code ? ' (' + code + ')' : '') + '.' });
+        fini({ ok: false, raison: 'ews', message: 'La lecture de l\'agenda a échoué' + (a.code ? ' (' + a.code + ')' : '') + '.' });
       });
     } catch (e) {
       clearTimeout(minuteur);
@@ -436,28 +417,15 @@ function corpsLireCalendrier({ debutUtc, finUtc, mailbox }) {
 // Exchange a coupé la liste (IncludesLastItemInRange="false") : l'appelant ne doit alors rien en
 // conclure (un rendez-vous manquant passerait pour retiré de l'agenda).
 function parseCalendrierEws(corps) {
-  const texte = String(corps || '');
+  const doc = lireXml(corps);
   const evenements = [];
-  const re = /<t:CalendarItem\b[\s\S]*?<\/t:CalendarItem>/g;
-  let m;
-  while ((m = re.exec(texte)) !== null) {
-    const bloc = m[0];
-    const idTag = (bloc.match(/<t:ItemId\b[^>]*>/) || [])[0] || '';
-    const valeur = (balise) => {
-      const r = new RegExp('<t:' + balise + '>([\\s\\S]*?)</t:' + balise + '>');
-      return desechapperXml((bloc.match(r) || [])[1] || '').trim();
-    };
-    const blocCategories = (bloc.match(/<t:Categories>([\s\S]*?)<\/t:Categories>/) || [])[1] || '';
-    const categories = [];
-    const reCat = /<t:String>([\s\S]*?)<\/t:String>/g;
-    let c;
-    while ((c = reCat.exec(blocCategories)) !== null) {
-      const nom = desechapperXml(c[1]).trim();
-      if (nom) categories.push(nom);
-    }
+  for (const bloc of tous(doc, 'CalendarItem')) {
+    const valeur = (balise) => texteDe(bloc, balise).trim();
+    const categories = tous(premier(bloc, 'Categories'), 'String').map((c) => texte(c).trim()).filter(Boolean);
+    const { itemId, changeKey } = identifiantElement(bloc);
     evenements.push({
-      itemId: (idTag.match(/\bId="([^"]+)"/) || [])[1] || '',
-      changeKey: (idTag.match(/\bChangeKey="([^"]+)"/) || [])[1] || '',
+      itemId,
+      changeKey,
       subject: valeur('Subject'),
       location: valeur('Location'),
       start: valeur('Start'),
@@ -467,7 +435,7 @@ function parseCalendrierEws(corps) {
       categories
     });
   }
-  return { evenements, complet: !/IncludesLastItemInRange="false"/.test(texte) };
+  return { evenements, complet: !tous(doc, 'RootFolder').some((r) => attribut(r, 'IncludesLastItemInRange') === 'false') };
 }
 
 // Lit la fenêtre complète (toutes les tranches), en s'arrêtant au PREMIER échec : un refus
@@ -497,9 +465,9 @@ async function lireCalendrierExchange({ url, email, motDePasse, mailbox, aujourd
     if (r.statut === 401 || r.statut === 403) {
       return { ok: false, raison: 'auth', message: 'Identifiants de messagerie refusés par le serveur Exchange.' };
     }
-    if (!/ResponseClass="Success"/.test(corpsTexte)) {
-      const code = (corpsTexte.match(/<m:ResponseCode>([^<]+)<\/m:ResponseCode>/) || [])[1]
-        || (corpsTexte.match(/<faultstring[^>]*>([^<]+)<\/faultstring>/) || [])[1] || '';
+    const reponse = analyseEws(corpsTexte);
+    if (!reponse.ok) {
+      const code = reponse.code;
       const acces = /ErrorAccessDenied|ErrorFolderNotFound|ErrorNonExistentMailbox|ErrorItemNotFound/.test(code);
       return {
         ok: false,
@@ -673,9 +641,7 @@ function corpsDeleteEcheance({ itemId, changeKey, typeSuppression }) {
 // Un événement déjà effacé à la main dans Outlook (ErrorItemNotFound) : l'état voulu — plus
 // d'événement — est atteint, ce n'est pas un échec.
 function interpreterReponseSuppression(statutHttp, corps) {
-  const texte = String(corps || '');
-  const code = (texte.match(/<m:ResponseCode>([^<]+)<\/m:ResponseCode>/) || [])[1] || '';
-  if (code === 'ErrorItemNotFound') {
+  if (analyseEws(corps).code === 'ErrorItemNotFound') {
     return { ok: true, message: "L'événement n'était déjà plus dans l'agenda." };
   }
   return interpreterReponseCreation(statutHttp, corps,
@@ -727,7 +693,7 @@ async function mettreAJourEcheanceExchange({ url, email, motDePasse, itemId, cha
   const r = await posterEws({ url, email, motDePasse, delaiMs, body: corpsUpdateEcheanceDate({ itemId, changeKey, dateStr }) }, injections);
   if (r.echec) return r.echec;
   // Effacé à la main dans Outlook : rien à déplacer, le client oubliera l'identifiant et recréera.
-  if (/<m:ResponseCode>ErrorItemNotFound<\/m:ResponseCode>/.test(String(r.corps || ''))) {
+  if (aCodeReponse(String(r.corps || ''), 'ErrorItemNotFound')) {
     return { ok: false, introuvable: true, raison: 'ews', message: "L'événement n'est plus dans l'agenda." };
   }
   return interpreterReponseCreation(r.statut, r.corps,
@@ -742,7 +708,7 @@ async function mettreAJourEcheanceExchange({ url, email, motDePasse, itemId, cha
 async function supprimerEcheanceExchange({ url, email, motDePasse, itemId, changeKey, delaiMs }, injections) {
   const r = await posterEws({ url, email, motDePasse, delaiMs, body: corpsDeleteEcheance({ itemId, changeKey }) }, injections);
   if (r.echec) return r.echec;
-  if (/<m:ResponseCode>ErrorCannotDeleteObject<\/m:ResponseCode>/.test(String(r.corps || ''))) {
+  if (aCodeReponse(String(r.corps || ''), 'ErrorCannotDeleteObject')) {
     const r2 = await posterEws({ url, email, motDePasse, delaiMs, body: corpsDeleteEcheance({ itemId, changeKey, typeSuppression: 'SoftDelete' }) }, injections);
     if (r2.echec) return r2.echec;
     const res = interpreterReponseSuppression(r2.statut, r2.corps);
@@ -810,10 +776,10 @@ async function modifierRendezVousExchange({ url, email, motDePasse, itemId, chan
   const r = await posterEws({ url, email, motDePasse, delaiMs, body: corpsModifierRendezVous({ itemId, changeKey, sujet, debut, fin, categories }) }, injections);
   if (r.echec) return r.echec;
   const texte = String(r.corps || '');
-  if (/<m:ResponseCode>ErrorItemNotFound<\/m:ResponseCode>/.test(texte)) {
+  if (aCodeReponse(texte, 'ErrorItemNotFound')) {
     return { ok: false, introuvable: true, raison: 'ews', message: "Ce rendez-vous n'est plus dans l'agenda." };
   }
-  if (/<m:ResponseCode>ErrorIrresolvableConflict<\/m:ResponseCode>/.test(texte)) {
+  if (aCodeReponse(texte, 'ErrorIrresolvableConflict')) {
     return { ok: false, raison: 'conflit', message: 'Le rendez-vous a été modifié dans Outlook entre-temps : rechargez l’agenda puis recommencez.' };
   }
   return interpreterReponseCreation(r.statut, r.corps, 'Rendez-vous modifié dans l’agenda.', 'La modification du rendez-vous a échoué');
@@ -837,15 +803,12 @@ function corpsLireNotes({ itemId }) {
 
 // Réponse d'un GetItem → { notes, itemId, changeKey }. PURE. Retours à la ligne ramenés à \n.
 function parseNotesEws(corps) {
-  const texte = String(corps || '');
-  const idTag = (texte.match(/<t:ItemId\b[^>]*>/) || [])[0] || '';
-  const brut = (texte.match(/<t:Body\b[^>]*>([\s\S]*?)<\/t:Body>/) || [])[1] || '';
+  const doc = lireXml(corps);
   return {
     // « &#xD; » resté en clair : trace d'une note relue avant la correction du 01/10 puis réenregistrée
     // (le texte « &#xD; » a alors été écrit tel quel dans Outlook) — retiré à la lecture.
-    notes: desechapperXml(brut).replace(/&#(?:x0*D|0*13);/gi, '').replace(/\r\n?/g, '\n').trim(),
-    itemId: (idTag.match(/\bId="([^"]+)"/) || [])[1] || '',
-    changeKey: (idTag.match(/\bChangeKey="([^"]+)"/) || [])[1] || ''
+    notes: texteDe(doc, 'Body').replace(/&#(?:x0*D|0*13);/gi, '').replace(/\r\n?/g, '\n').trim(),
+    ...identifiantElement(doc)
   };
 }
 
@@ -867,7 +830,7 @@ async function lireNotesExchange({ url, email, motDePasse, itemId, delaiMs }, in
   const r = await posterEws({ url, email, motDePasse, delaiMs, body: corpsLireNotes({ itemId }) }, injections);
   if (r.echec) return r.echec;
   const texte = String(r.corps || '');
-  if (/<m:ResponseCode>ErrorItemNotFound<\/m:ResponseCode>/.test(texte)) {
+  if (aCodeReponse(texte, 'ErrorItemNotFound')) {
     return { ok: false, introuvable: true, raison: 'ews', message: "Ce rendez-vous n'est plus dans l'agenda." };
   }
   const lu = interpreterReponseCreation(r.statut, r.corps, 'Notes lues.', 'La lecture des notes a échoué');
@@ -878,10 +841,10 @@ async function lireNotesExchange({ url, email, motDePasse, itemId, delaiMs }, in
 async function mettreAJourNotesExchange({ url, email, motDePasse, itemId, changeKey, notes, delaiMs }, injections) {
   const r = await posterEws({ url, email, motDePasse, delaiMs, body: corpsUpdateNotes({ itemId, changeKey, notes }) }, injections);
   if (r.echec) return r.echec;
-  if (/<m:ResponseCode>ErrorItemNotFound<\/m:ResponseCode>/.test(String(r.corps || ''))) {
+  if (aCodeReponse(String(r.corps || ''), 'ErrorItemNotFound')) {
     return { ok: false, introuvable: true, raison: 'ews', message: "Ce rendez-vous n'est plus dans l'agenda." };
   }
-  if (/<m:ResponseCode>ErrorIrresolvableConflict<\/m:ResponseCode>/.test(String(r.corps || ''))) {
+  if (aCodeReponse(String(r.corps || ''), 'ErrorIrresolvableConflict')) {
     return { ok: false, raison: 'conflit', message: 'Le rendez-vous a été modifié dans Outlook entre-temps : rouvrez-le pour relire les notes.' };
   }
   return interpreterReponseCreation(r.statut, r.corps, 'Notes enregistrées dans le rendez-vous.', "L'enregistrement des notes a échoué");
@@ -900,16 +863,16 @@ function interpreterReponseEws(statutHttp, corps) {
         + ' que ce test ne gère pas encore (à signaler).'
     };
   }
-  if (statutHttp >= 500 && !/ResponseCode|ResponseClass/.test(texte)) {
+  const a = analyseEws(texte);
+  if (statutHttp >= 500 && !a.codee) {
     return { ok: false, raison: 'serveur', message: 'Le serveur Exchange a renvoyé une erreur (' + statutHttp + ').' };
   }
-  if (/ResponseClass="Success"/.test(texte) || /<m:ResponseCode>NoError<\/m:ResponseCode>/.test(texte)) {
-    const nom = (texte.match(/<t:DisplayName>([^<]*)<\/t:DisplayName>/) || [])[1] || '';
+  if (a.ok) {
+    const nom = texteDe(a.doc, 'DisplayName');
     return { ok: true, message: 'Connexion réussie' + (nom ? ' — agenda « ' + nom + ' » accessible.' : ', agenda accessible.') };
   }
   // 200 mais échec applicatif (SOAP Fault, ResponseClass="Error") : on remonte le code EWS s'il y est.
-  const code = (texte.match(/<m:ResponseCode>([^<]+)<\/m:ResponseCode>/) || [])[1]
-    || (texte.match(/<faultstring[^>]*>([^<]+)<\/faultstring>/) || [])[1] || '';
+  const code = a.code;
   return {
     ok: false,
     raison: 'ews',
@@ -957,7 +920,7 @@ module.exports = {
   corpsCreateRendezVous, interpreterReponseCreation, creerRendezVousExchange,
   corpsCreateBrouillon, creerBrouillonExchange,
   instantUtcDepuisParis, decalageParisMinutes,
-  desechapperXml, fenetreJourneeParis, corpsFindRendezVous, parseFindRendezVous,
+  fenetreJourneeParis, corpsFindRendezVous, parseFindRendezVous,
   corpsUpdateLieu, interpreterReponseUpdate, trouverRendezVousExchange, mettreAJourLieuExchange,
   folderCalendrierXml,
   corpsCreateEcheance, corpsUpdateEcheanceDate, corpsDeleteEcheance, interpreterReponseSuppression,

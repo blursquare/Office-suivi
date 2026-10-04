@@ -20,6 +20,8 @@ const CLE_VERIFICATIONS = 'verifications-terrain';
 // `source` : 'serveur' (noté par le serveur), 'poste' (noté par une fenêtre CLAIRE, POST
 // /api/verifications-terrain/noter — seuls ces points-là y sont acceptés) ou 'manuel'.
 const VERIFICATIONS_TERRAIN = [
+  { id: 'lecture-xml-exchange', depuis: '2026-10-04 08:26', source: 'serveur', titre: 'Réponses d’Exchange lues par le nouveau lecteur XML (agenda de l’office)',
+    comment: 'Coché au premier tour de lecture de l’agenda qui rend des rendez-vous après le passage à fast-xml-parser ; si l’agenda reste vide alors qu’Outlook en montre, c’est la lecture à examiner.' },
   { id: 'tache-agenda-retiree', depuis: '2026-10-04 08:09', source: 'poste', titre: 'Tâche de l’agenda cochée : rendez-vous rouge « JV - … » retiré de l’agenda de l’office',
     comment: 'Coché quand le premier rendez-vous-tâche est retiré de l’agenda après avoir été coché dans CLAIRE ; en échec si Exchange refuse la suppression.' },
   { id: 'email-envoye-exchange', depuis: '2026-10-03 20:27', source: 'serveur', titre: 'Email envoyé depuis CLAIRE par Exchange (brouillon puis envoi)',

@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-04 08:09';
+  const VERSION_APP = '2026-10-04 08:26';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-04 08:26', resume: "Lecture des réponses d'Exchange (agenda, emails des dossiers, emails du matin, envoi d'emails, réponses aux propositions de dates) confiée à une bibliothèque éprouvée (fast-xml-parser) au lieu d'un découpage maison du texte : plus robuste face aux variations de forme des réponses. Rien ne change à l'écran." },
     { version: '2026-10-04 08:09', resume: "Tâches dans l'agenda : un rendez-vous en rouge dont le titre commence par les initiales d'un collaborateur (« JV - Relancer le syndic ») devient une tâche de ce collaborateur, dans « Aujourd'hui » et « Mes rappels » (« Tâche de l'agenda »). Cochée dans CLAIRE, le rendez-vous est retiré de l'agenda aussitôt (éléments supprimés d'Outlook). Déplacé ou renommé dans Outlook, la tâche suit ; supprimé dans Outlook, elle disparaît." },
     { version: '2026-10-03 23:27', resume: "Fenêtre d'email : le menu « Modèles » commence par « Proposés pour cet email » — les modèles les mieux adaptés selon le bouton qui a ouvert l'email, les mots de l'objet et, pour une réponse, de l'email reçu (objet, résumé, pièces jointes), puis l'étape du dossier. Variante confrère choisie selon le destinataire." },
     { version: '2026-10-03 22:10', resume: "Modèles d'emails : quatre modèles de plus dans Réglages › Modèles d'emails, rubrique « Liés à un geste » — accusé de réception, copie de l'acte / attestation, lien de la visio, proposition de dates (client et confrère). Ils se modifient comme les autres et le bouton du geste envoie le texte modifié ; aperçu sur un exemple inventé. Ils n'apparaissent pas dans le menu « Modèles » de la fenêtre d'email (il leur faut l'email reçu, les fichiers ou les créneaux). Accusé de réception légèrement reformulé." },

@@ -616,6 +616,11 @@ Plainte principale de l'étude : **le bruit**, pas les oublis — ne pas élargi
   du fichier — utiliser un sélecteur composé (déjà rencontré sept fois). Une piste de grille `1fr`
   ne descend pas sous son contenu : `> * { min-width: 0 }` contre le débordement horizontal.
   L'attribut `hidden` perd contre une règle `display` : basculer par `style.display`.
+- **Réponses EWS : toujours par `server/src/exchange/xml.js`** (fast-xml-parser, 04/10 : `lireXml`, `tous`, `texteDe`,
+  `identifiantElement`, `analyseEws`, `aCodeReponse`, `succesSansErreur`), jamais d'expression régulière sur le XML (l'ancien
+  `desechapperXml` est retiré). Préfixes retirés (`CalendarItem`, `ResponseCode`), attributs en `@_Nom`, valeurs jamais
+  converties en nombre. Les REQUÊTES restent écrites en texte avec `echapperXml`. Avant d'écrire du code maison, chercher une
+  bibliothèque éprouvée (étude 04/10) — elle doit s'embarquer dans le `.exe` (esbuild, pas de fichier chargé à la volée).
 - **`fetchAvecAuth` n'ajoute pas `Content-Type: application/json`** : tout appel avec un corps JSON
   doit le poser, sinon le serveur reçoit un corps vide.
 - **Dates EWS** : Exchange rend tout en UTC ; un rendez-vous « toute la journée » commence à minuit
@@ -789,6 +794,9 @@ Plainte principale de l'étude : **le bruit**, pas les oublis — ne pas élargi
 - **Critères de sortie de bêta** (convenus) : quelques semaines sans bug bloquant, une restauration
   de sauvegarde testée, les points ci-dessus confirmés ; en bêta, seulement des corrections. Relecture
   d'actes en bêta après une dizaine d'actes relus avec commentaires et un coût jugé acceptable.
+- **Bibliothèques à envisager** (étude 04/10, après fast-xml-parser) : `ical.js` pour lire les `.ics` (visio ADNOV,
+  `lireInvitationIcs`), construction des `.eml` par nodemailer (MailComposer) côté serveur, une petite bibliothèque de rendu
+  sans compilation (Preact + htm ou lit) pour les nouveaux écrans.
 - **Pistes non engagées** : favicon reflétant l'urgence du portefeuille ; en-tête CLAIRE sur la
   fiche imprimée ; apprentissage des recatégorisations faites après enregistrement
   (`changerCategorie`) ; mémoriser le compte client (`compte : N`) des reçus comptables ; resserrer

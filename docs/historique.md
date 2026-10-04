@@ -16075,3 +16075,17 @@ change-t-il ce que le bouton de la fiche envoie ? Réponse : « Oui, le bouton s
 - Tests : `server/test/taches-agenda.test.js` (repérage, synchronisation, tour complet avec faux EWS). Vérifié dans Chromium
   (tâche affichée, cochée → suppression demandée avec l'identifiant Exchange, `agendaSupprimeLe` enregistré ; clair, sombre,
   téléphone). Non vérifié au bureau : nom réel de la catégorie rouge, suppression réelle (point `tache-agenda-retiree`).
+
+### 04/10/2026 08:26 — Lecture XML d'Exchange par fast-xml-parser
+
+- Question de l'étude : « Tu crées souvent des fonctions par toi-même. N'est-il pas mieux parfois de s'appuyer sur des solutions
+  open source déjà éprouvées ? » — réponse : oui ; proposé de commencer par la lecture XML d'Exchange (découpée par expressions
+  régulières dans 5 fichiers) ; « Va y ».
+- `server/src/exchange/xml.js` : fast-xml-parser 5 (MIT) — préfixes retirés, attributs `@_`, valeurs en texte, entités décodées ;
+  aides `lireXml`, `tous`, `premier`, `texte`, `texteDe`, `attribut`, `identifiantElement`, `analyseEws`, `aCodeReponse`,
+  `succesSansErreur`. Convertis : `exchange/ews.js` (création, recherche, lecture de l'agenda, suppression, notes, test de connexion),
+  `emailsDossiers.js`, `emailsMatin.js`, `envoiEmailsExchange.js`, `sondagesCreneaux.js`. `desechapperXml` retiré (ses tests
+  repris dans `test/exchange-xml.test.js` : mêmes résultats, `&amp;` décodé une seule fois, `&#xD;`).
+- Conversion fichier par fichier, suite serveur verte à chaque étape (657 → 659 tests). Bundle esbuild : la bibliothèque est
+  embarquée. Point terrain `lecture-xml-exchange` (premier tour d'agenda réel qui rend des rendez-vous).
+- Non vérifié ici : réponses réelles d'Exchange 2019 (seuls les exemples des tests, qui reprennent leur forme).

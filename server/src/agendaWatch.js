@@ -17,6 +17,7 @@
 // mémoire (jamais en base, jamais renvoyée) ; un redémarrage du serveur autorise un nouvel essai.
 
 const { synchroniserTachesAgenda } = require('./tachesAgenda');
+const { noterVerification } = require('./verificationsTerrain');
 const crypto = require('node:crypto');
 const {
   actionsDetecteesDepuisEvenements, absencesDepuisEvenements, categoriesDistinctes, evenementsDepuisEws, formatDateFr,
@@ -332,6 +333,7 @@ async function executerEtEnregistrerTourAgenda(depot, parametresRepo, injections
   else if (resultat.ok) empreinteRefusee = null;
   // Les absences remplacent la liste précédente à chaque tour réussi (l'agenda fait foi) ; un tour en
   // échec ne les efface pas — la dernière liste connue reste affichée.
+  if (resultat.ok && resultat.evenementsLus > 0) noterVerification(parametresRepo, 'lecture-xml-exchange', { detail: resultat.evenementsLus + ' rendez-vous lus' });
   if (resultat.ok) parametresRepo.ecrireAbsencesAgenda(resultat.absences || []);
   if (resultat.ok && typeof parametresRepo.ecrireCategoriesAgenda === 'function') {
     parametresRepo.ecrireCategoriesAgenda(resultat.categories || []);

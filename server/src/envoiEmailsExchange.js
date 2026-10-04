@@ -16,7 +16,8 @@
 // l'email n'est jamais journalisé ni gardé par le serveur.
 
 const { noterVerification } = require('./verificationsTerrain');
-const { echapperXml, desechapperXml, ENVELOPPE_DEBUT, ENVELOPPE_FIN } = require('./emailsMatin');
+const { echapperXml, ENVELOPPE_DEBUT, ENVELOPPE_FIN } = require('./emailsMatin');
+const { lireXml, tous: tousXml, attribut: attributXml, identifiantElement, analyseEws, succesSansErreur } = require('./exchange/xml');
 
 const CLE_ENVOI_EMAILS = 'envoi-emails';
 const JOURS_REFUS_RETENU = 7;
@@ -106,18 +107,18 @@ function corpsRetraitBrouillon({ itemId }) {
     + ENVELOPPE_FIN;
 }
 
-const codeReponse = (corps) => (String(corps || '').match(/<m:ResponseCode>([^<]+)<\/m:ResponseCode>/) || [])[1] || '';
-const succes = (corps) => /ResponseClass="Success"/.test(String(corps || '')) && !/ResponseClass="Error"/.test(String(corps || ''));
+const codeReponse = (corps) => analyseEws(corps).code;
+const succes = succesSansErreur;
 
 function idBrouillon(corps) {
-  const m = String(corps || '').match(/<t:ItemId\b[^>]*\bId="([^"]+)"(?:[^>]*\bChangeKey="([^"]+)")?/);
-  return m ? { itemId: desechapperXml(m[1]), changeKey: m[2] ? desechapperXml(m[2]) : '' } : null;
+  const id = identifiantElement(lireXml(corps));
+  return id.itemId ? id : null;
 }
 
 // Nouvelle clé de modification de l'email après l'ajout des pièces jointes (la dernière rendue).
 function changeKeyApresPieces(corps) {
-  const toutes = [...String(corps || '').matchAll(/\bRootItemChangeKey="([^"]+)"/g)];
-  return toutes.length ? desechapperXml(toutes[toutes.length - 1][1]) : '';
+  const toutes = tousXml(lireXml(corps), 'AttachmentId').map((a) => attributXml(a, 'RootItemChangeKey')).filter(Boolean);
+  return toutes.length ? toutes[toutes.length - 1] : '';
 }
 
 // Pièces reçues du poste : base64 nettoyé, nom et type bornés ; rend { pieces } ou { erreur }.

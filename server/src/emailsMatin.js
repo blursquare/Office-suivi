@@ -27,6 +27,7 @@
 // publicité, spam, CRIDON, INFN, INAFON… ») : comptés à part, jamais lus par l'IA ni listés.
 
 const { creerClientOllama } = require('./llm');
+const { lireXml, tous: tousXml, premier: premierXml, texteDe: texteDeXml, analyseEws } = require('./exchange/xml');
 
 const CLE_RESUME_EMAILS = 'resume-emails-matin';
 const HEURE_RESUME = '07:30';
@@ -69,12 +70,6 @@ function debutFenetreEmails(aujourdhuiIso) {
 function echapperXml(v) {
   return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
-function desechapperXml(s) {
-  return String(s || '').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&apos;/g, "'")
-    .replace(/&#(?:x([0-9a-f]{1,6})|(\d{1,7}));/gi, (t, h, n) => { const c = h ? parseInt(h, 16) : Number(n); return c > 0 && c <= 0x10ffff ? String.fromCodePoint(c) : t; })
-    .replace(/&amp;/g, '&');
-}
-
 // FindItem sur la boîte de réception du compte de connexion, depuis `depuisUtc`.
 function corpsFindEmails(depuisUtc, max = MAX_EMAILS) {
   return ENVELOPPE_DEBUT
@@ -97,24 +92,18 @@ function corpsFindEmails(depuisUtc, max = MAX_EMAILS) {
 
 // Pure : les emails d'une réponse FindItem.
 function parseFindEmails(corps) {
-  const texte = String(corps || '');
-  const emails = [];
-  const re = /<t:Message\b[\s\S]*?<\/t:Message>/g;
-  let m;
-  while ((m = re.exec(texte)) !== null) {
-    const bloc = m[0];
-    const lire = (tag) => desechapperXml((bloc.match(new RegExp(`<t:${tag}>([\\s\\S]*?)</t:${tag}>`)) || [])[1] || '').trim();
-    const from = (bloc.match(/<t:From>([\s\S]*?)<\/t:From>/) || [])[1] || '';
-    emails.push({
+  return tousXml(lireXml(corps), 'Message').map((bloc) => {
+    const lire = (tag) => texteDeXml(bloc, tag).trim();
+    const from = premierXml(bloc, 'From');
+    return {
       sujet: lire('Subject'),
-      deNom: desechapperXml((from.match(/<t:Name>([\s\S]*?)<\/t:Name>/) || [])[1] || '').trim(),
-      deAdresse: desechapperXml((from.match(/<t:EmailAddress>([\s\S]*?)<\/t:EmailAddress>/) || [])[1] || '').trim().toLowerCase(),
+      deNom: texteDeXml(from, 'Name').trim(),
+      deAdresse: texteDeXml(from, 'EmailAddress').trim().toLowerCase(),
       recuLe: lire('DateTimeReceived'),
       pj: lire('HasAttachments') === 'true',
       apercu: lire('Preview')
-    });
-  }
-  return emails;
+    };
+  });
 }
 
 // ---- Classement (pur) ----
@@ -368,8 +357,8 @@ async function genererResumeEmails(depot, parametresRepo, maintenant, injections
     const r = await posterEws({ url: reglages.url, email: reglages.email, motDePasse: reglages.motDePasse, body: corpsFindEmails(depuis) }, injections);
     if (r.echec) resume = { ...base, erreur: r.echec.message };
     else if (r.statut === 401 || r.statut === 403) resume = { ...base, erreur: 'Identifiants de messagerie refusés : vérifiez les Réglages.' };
-    else if (!/ResponseClass="Success"/.test(String(r.corps || ''))) {
-      const code = (String(r.corps || '').match(/<m:ResponseCode>([^<]+)<\/m:ResponseCode>/) || [])[1] || String(r.statut || '');
+    else if (!analyseEws(r.corps).ok) {
+      const code = analyseEws(r.corps).code || String(r.statut || '');
       resume = { ...base, erreur: `Lecture de la boîte de réception impossible${code ? ' (' + code + ')' : ''}.` };
     } else {
       const tous = parseFindEmails(r.corps);
@@ -430,7 +419,7 @@ function demarrerResumeEmails(depot, parametresRepo, intervalleMs = 60 * 1000, c
 }
 
 module.exports = {
-  contexteClassement, dossierDeEmail, normaliser, SUJETS_EMAIL, desechapperXml, echapperXml, ENVELOPPE_DEBUT, ENVELOPPE_FIN,
+  contexteClassement, dossierDeEmail, normaliser, SUJETS_EMAIL, echapperXml, ENVELOPPE_DEBUT, ENVELOPPE_FIN,
   CLE_RESUME_EMAILS, debutFenetreEmails, corpsFindEmails, parseFindEmails, classerEmails, motsDuDossier,
   genererResumeEmails, lireResume, resumeDu, demarrerResumeEmails, momentParis,
   entreesSyntheseEmails, promptSyntheseEmails, validerSyntheseEmails, normaliserSyntheseEmails, completerSyntheseIa,

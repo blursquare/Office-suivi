@@ -22,8 +22,9 @@
 
 const crypto = require('node:crypto');
 const { noterVerification } = require('./verificationsTerrain');
+const { lireXml, tous, premier, texte: texteXml, texteDe, attribut, identifiantElement, codeReponse: codeReponseXml, succesSansErreur } = require('./exchange/xml');
 const {
-  contexteClassement, dossierDeEmail, normaliser, SUJETS_EMAIL, desechapperXml, echapperXml, ENVELOPPE_DEBUT, ENVELOPPE_FIN
+  contexteClassement, dossierDeEmail, normaliser, SUJETS_EMAIL, echapperXml, ENVELOPPE_DEBUT, ENVELOPPE_FIN
 } = require('./emailsMatin');
 
 const CLE_EMAILS_DOSSIERS = 'emails-dossiers';
@@ -222,18 +223,19 @@ function corpsGetAttachment(id) {
   return ENVELOPPE_DEBUT + `<m:GetAttachment><m:AttachmentIds><t:AttachmentId Id="${echapperXml(id)}"/></m:AttachmentIds></m:GetAttachment>` + ENVELOPPE_FIN;
 }
 
-const lireBalise = (bloc, tag) => desechapperXml((String(bloc).match(new RegExp(`<t:${tag}>([\\s\\S]*?)</t:${tag}>`)) || [])[1] || '').trim();
-const adressesDe = (bloc) => [...String(bloc || '').matchAll(/<t:EmailAddress>([\s\S]*?)<\/t:EmailAddress>/g)].map((m) => desechapperXml(m[1]).trim().toLowerCase()).filter((a) => /@/.test(a));
+// Lecture des réponses EWS par le lecteur XML commun (exchange/xml.js, fast-xml-parser) — plus d'expressions
+// régulières sur le XML depuis le 04/10.
+const lireBalise = (noeud, tag) => texteDe(noeud, tag).trim();
+const adressesDe = (noeud) => tous(noeud, 'EmailAddress').map((a) => texteXml(a).trim().toLowerCase()).filter((a) => /@/.test(a));
 
 function parseFind(corps) {
   const liste = [];
-  for (const m of String(corps || '').matchAll(/<t:Message\b[\s\S]*?<\/t:Message>/g)) {
-    const bloc = m[0];
-    const from = (bloc.match(/<t:From>([\s\S]*?)<\/t:From>/) || [])[1] || '';
+  for (const bloc of tous(lireXml(corps), 'Message')) {
+    const from = premier(bloc, 'From');
     liste.push({
-      itemId: desechapperXml((bloc.match(/<t:ItemId\b[^>]*\bId="([^"]+)"/) || [])[1] || ''),
+      itemId: identifiantElement(bloc).itemId,
       objet: lireBalise(bloc, 'Subject'),
-      deNom: desechapperXml((from.match(/<t:Name>([\s\S]*?)<\/t:Name>/) || [])[1] || '').trim(),
+      deNom: lireBalise(from, 'Name'),
       deAdresse: (adressesDe(from)[0] || ''),
       date: lireBalise(bloc, 'DateTimeReceived') || lireBalise(bloc, 'DateTimeSent'),
       pj: lireBalise(bloc, 'HasAttachments') === 'true',
@@ -245,32 +247,30 @@ function parseFind(corps) {
 
 function parseGetItems(corps) {
   const parId = new Map();
-  for (const m of String(corps || '').matchAll(/<t:Message\b[\s\S]*?<\/t:Message>/g)) {
-    const bloc = m[0];
-    const id = desechapperXml((bloc.match(/<t:ItemId\b[^>]*\bId="([^"]+)"/) || [])[1] || '');
+  for (const bloc of tous(lireXml(corps), 'Message')) {
+    const id = identifiantElement(bloc).itemId;
     if (!id) continue;
-    const a = adressesDe((bloc.match(/<t:ToRecipients>([\s\S]*?)<\/t:ToRecipients>/) || [])[1])
-      .concat(adressesDe((bloc.match(/<t:CcRecipients>([\s\S]*?)<\/t:CcRecipients>/) || [])[1]));
+    const a = adressesDe(premier(bloc, 'ToRecipients')).concat(adressesDe(premier(bloc, 'CcRecipients')));
     const pjs = [];
-    for (const f of bloc.matchAll(/<t:FileAttachment>([\s\S]*?)<\/t:FileAttachment>/g)) {
-      if (lireBalise(f[1], 'IsInline') === 'true') continue;
-      const aid = desechapperXml((f[1].match(/<t:AttachmentId\b[^>]*\bId="([^"]+)"/) || [])[1] || '');
-      if (aid) pjs.push({ id: aid, nom: lireBalise(f[1], 'Name'), type: lireBalise(f[1], 'ContentType'), taille: Number(lireBalise(f[1], 'Size')) || 0 });
+    for (const f of tous(bloc, 'FileAttachment')) {
+      if (lireBalise(f, 'IsInline') === 'true') continue;
+      const aid = attribut(premier(f, 'AttachmentId'), 'Id');
+      if (aid) pjs.push({ id: aid, nom: lireBalise(f, 'Name'), type: lireBalise(f, 'ContentType'), taille: Number(lireBalise(f, 'Size')) || 0 });
     }
-    parId.set(id, { a: [...new Set(a)], corps: desechapperXml((bloc.match(/<t:Body\b[^>]*>([\s\S]*?)<\/t:Body>/) || [])[1] || ''), pjs });
+    parId.set(id, { a: [...new Set(a)], corps: texteDe(bloc, 'Body'), pjs });
   }
   return parId;
 }
 
 function parseGetAttachment(corps) {
-  const bloc = (String(corps || '').match(/<t:FileAttachment>([\s\S]*?)<\/t:FileAttachment>/) || [])[1];
+  const bloc = premier(lireXml(corps), 'FileAttachment');
   if (!bloc) return null;
-  const b64 = (bloc.match(/<t:Content>([\s\S]*?)<\/t:Content>/) || [])[1] || '';
+  const b64 = texteDe(bloc, 'Content');
   return { nom: lireBalise(bloc, 'Name'), contenu: Buffer.from(b64.replace(/\s+/g, ''), 'base64') };
 }
 
-const codeReponse = (corps) => (String(corps || '').match(/<m:ResponseCode>([^<]+)<\/m:ResponseCode>/) || [])[1] || '';
-const succes = (corps) => /ResponseClass="Success"/.test(String(corps || '')) && !/ResponseClass="Error"/.test(String(corps || ''));
+const codeReponse = (corps) => codeReponseXml(lireXml(corps));
+const succes = succesSansErreur;
 
 // ---- Résumé par l'IA locale ----
 function promptResumeEmail(e, dossierNom, corps) {
