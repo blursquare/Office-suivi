@@ -53,10 +53,7 @@
     container.innerHTML = autresEnCours.map(item => `
       <div class="date-block autre${item.active ? '' : ' inactive'}">
         <div class="autre-row">
-          <label class="switch">
-            <input type="checkbox" ${item.active ? 'checked' : ''} onchange="toggleAutreActive('${item.id}', this.checked)">
-            <span class="slider"></span>
-          </label>
+          <wa-switch class="switch" ${item.active ? 'checked' : ''} onchange="toggleAutreActive('${item.id}', this.checked)"></wa-switch>
           <input type="text" placeholder="Nom de l'échéance (ex. Levée de la condition suspensive travaux)" value="${escapeHtml(item.label)}" oninput="majAutreLabel('${item.id}', this.value)">
           <input type="date" value="${item.iso}" onchange="majAutreDate('${item.id}', this.value)">
           <button type="button" class="icon-btn" onclick="supprimerAutre('${item.id}')">Retirer</button>
@@ -1198,18 +1195,18 @@
     const idBase = `tabdate-${dossierId}-${cleEdition}`;
 
     const suppression = (dossierId && autreIndex != null)
-      ? `<button type="button" class="ech-ico ech-ico-suppr" onclick="supprimerEcheanceAutre('${dossierId}', ${autreIndex})" title="Supprimer cette échéance" aria-label="Supprimer cette échéance">${icone('x')}</button>`
+      ? `<wa-button appearance="plain" size="s" type="button" class="bouton-icone ech-ico ech-ico-suppr" onclick="supprimerEcheanceAutre('${dossierId}', ${autreIndex})" title="Supprimer cette échéance" aria-label="Supprimer cette échéance">${icone('x')}</wa-button>`
       : (dossierId && iso && ['pret', 'acte', 'ventebien', 'appelFonds', 'projetEnvoye', 'rendezVousSignature'].includes(type))
-        ? `<button type="button" class="ech-ico ech-ico-suppr" onclick="supprimerDateEcheance('${dossierId}', '${type}')" title="Supprimer cette date" aria-label="Supprimer cette date">${icone('x')}</button>`
+        ? `<wa-button appearance="plain" size="s" type="button" class="bouton-icone ech-ico ech-ico-suppr" onclick="supprimerDateEcheance('${dossierId}', '${type}')" title="Supprimer cette date" aria-label="Supprimer cette date">${icone('x')}</wa-button>`
         : '';
     const modifiableManuellement = !(type === 'pret' && offrePretRecue) && !o.sansValidation && !o.comptant;
     const validation = (dossierId && iso && modifiableManuellement)
       ? (validee
-        ? `<button type="button" class="ech-ico" onclick="devaliderEcheance('${dossierId}','${cleEdition}')" title="Annuler la validation" aria-label="Annuler la validation">${icone('rotate-ccw')}</button>`
-        : `<button type="button" class="ech-ico ech-ico-valider" onclick="validerEcheance('${dossierId}','${cleEdition}')" title="Marquer réalisée" aria-label="Marquer réalisée">${icone('check')}</button>`)
+        ? `<wa-button appearance="plain" size="s" type="button" class="bouton-icone ech-ico" onclick="devaliderEcheance('${dossierId}','${cleEdition}')" title="Annuler la validation" aria-label="Annuler la validation">${icone('rotate-ccw')}</wa-button>`
+        : `<wa-button appearance="plain" size="s" type="button" class="bouton-icone ech-ico ech-ico-valider" onclick="validerEcheance('${dossierId}','${cleEdition}')" title="Marquer réalisée" aria-label="Marquer réalisée">${icone('check')}</wa-button>`)
       : '';
     const crayon = editable
-      ? `<button type="button" class="ech-ico" onclick="activerEditionDate('${dossierId}','${cleEdition}')" title="${o.comptant ? 'Un prêt finalement ? Saisir sa date d’obtention' : (iso ? 'Corriger la date' : 'Saisir la date')}" aria-label="${o.comptant ? 'Saisir une date d’obtention du prêt' : (iso ? 'Corriger la date' : 'Saisir la date')}">${icone('pencil')}</button>`
+      ? `<wa-button appearance="plain" size="s" type="button" class="bouton-icone ech-ico" onclick="activerEditionDate('${dossierId}','${cleEdition}')" title="${o.comptant ? 'Un prêt finalement ? Saisir sa date d’obtention' : (iso ? 'Corriger la date' : 'Saisir la date')}" aria-label="${o.comptant ? 'Saisir une date d’obtention du prêt' : (iso ? 'Corriger la date' : 'Saisir la date')}">${icone('pencil')}</wa-button>`
       : '';
 
     const infoConfiance = confiance && LIBELLES_CONFIANCE_ECHEANCE[confiance];
@@ -1227,7 +1224,7 @@
     const faite = etat.cls === 'ok';
     // Sans date, un geste en un clic à la place de l'état (« Projet envoyé » : voir echeancesOrdonneesFiche).
     const etatHtml = !iso && o.action
-      ? `<button type="button" class="action-rapide ech-action" onclick="${o.action.onclick}" title="${escapeAttr(o.action.titre || o.action.libelle)}">${escapeHtml(o.action.libelle)}</button>`
+      ? `<wa-button appearance="outlined" size="s" pill type="button" class="action-rapide ech-action" onclick="${o.action.onclick}" title="${escapeAttr(o.action.titre || o.action.libelle)}">${escapeHtml(o.action.libelle)}</wa-button>`
       : etat.texte;
     return `<li class="ech ech-${type}${faite ? ' fait' : ''}${o.comptant ? ' ech-info' : ''}">
       <span class="dot-label dl-${type} ech-pastille" aria-hidden="true"><span class="dot"></span></span>
@@ -1236,7 +1233,7 @@
         <span class="ech-date" id="${idBase}-aff" title="${iso ? escapeAttr(formatDateFr(iso)) : ''}">${o.comptant ? '' : dateCourteEcheance(iso)}${iso && o.heure ? `<span class="ech-heure"> · ${escapeHtml(o.heure)}</span>` : ''}</span>
         ${editable ? `<span class="tab-date-edition" id="${idBase}-edit" hidden>
           <input type="date" class="tab-date-input" id="${idBase}-input" value="${iso || ''}" onkeydown="if(event.key==='Enter'){event.preventDefault();validerEditionDate('${dossierId}','${cleEdition}');}">
-          <button type="button" class="icon-valider" onclick="validerEditionDate('${dossierId}','${cleEdition}')" title="Valider" aria-label="Valider la date">✓</button>
+          <wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-valider" onclick="validerEditionDate('${dossierId}','${cleEdition}')" title="Valider" aria-label="Valider la date">✓</wa-button>
         </span>` : ''}
       </span>
       <span class="ech-etat ${etat.cls}">${etatHtml}</span>

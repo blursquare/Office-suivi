@@ -84,7 +84,7 @@
     return `<header class="ag-modale-tete">
         <div><h2 class="ag-modale-titre" id="agenda-modale-titre">Modifier le rendez-vous</h2>
         <div class="ag-modale-quand">Dans l’agenda partagé de l’office${suit ? ' · la date de signature de la fiche suivra' : ''}</div></div>
-        <button type="button" class="icon-btn ag-modale-x" onclick="fermerModaleAgenda()" aria-label="Fermer">${icone('x')}</button>
+        <wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-btn ag-modale-x" onclick="fermerModaleAgenda()" aria-label="Fermer">${icone('x')}</wa-button>
       </header>
       <form class="ag-modale-corps ag-form" onsubmit="event.preventDefault(); enregistrerModificationAgenda();">
         <label class="ag-champ">Titre <input type="text" id="agenda-modif-titre" required maxlength="200" value="${escapeAttr(e.sujet || '')}"></label>

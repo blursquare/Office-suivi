@@ -1105,7 +1105,7 @@
     if (!d) { cible.innerHTML = ''; return; }
     cible.innerHTML = `<div class="dash-recherche-pill">
       <span class="dot-label dl-success"><span class="dot"></span>${escapeHtml(libelleDossierAffiche(d))}</span>
-      <button type="button" class="action-rapide" onclick="retirerDossierAppelFonds()">Détacher</button>
+      <wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="retirerDossierAppelFonds()">Détacher</wa-button>
     </div>`;
   }
 
@@ -1590,7 +1590,7 @@
       : '';
     zone.innerHTML = `
       <p class="hint tf-lu">${escapeHtml(t.fichier)} : <strong>${formaterPrixCentimes(t.montantAvis)}</strong>${retenu}
-        <button type="button" class="icon-btn" onclick="effacerTaxeFonciere('${cible}')" title="Retirer l'avis" aria-label="Retirer l'avis">${icone('x')}</button></p>${divergence}
+        <wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-btn" onclick="effacerTaxeFonciere('${cible}')" title="Retirer l'avis" aria-label="Retirer l'avis">${icone('x')}</wa-button></p>${divergence}
       ${t.biens && t.biens.length > 1 ? renderChoixBienAvis(cible, t) : `<details class="tf-multi"${t.multi ? ' open' : ''}>
         <summary>L'avis porte sur plusieurs biens</summary>
         <div class="calc-champs tf-multi-champs">
@@ -1880,7 +1880,7 @@
     if (!zone) return;
     const piece = afPieces[type];
     if (!piece) { zone.innerHTML = ''; return; }
-    const croix = `<button type="button" class="icon-btn" onclick="effacerPieceAppelFonds('${type}')" title="Retirer la pièce" aria-label="Retirer la pièce">${icone('x')}</button>`;
+    const croix = `<wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-btn" onclick="effacerPieceAppelFonds('${type}')" title="Retirer la pièce" aria-label="Retirer la pièce">${icone('x')}</wa-button>`;
     if (piece.erreur) { zone.innerHTML = `<p class="hint tf-lu">${icone('alert-triangle')} ${escapeHtml(piece.fichier)} : ce PDF n’a pas pu être lu. ${croix}</p>`; return; }
     const a = piece.analyse;
     const ligneNote = (texte, ok) => texte ? `<p class="hint">${ok ? '' : icone('alert-triangle') + ' '}${escapeHtml(texte)}</p>` : '';
@@ -2006,7 +2006,7 @@
     if (!zone) return;
     const t = prorataCharges;
     if (!t) { zone.innerHTML = ''; return; }
-    const croix = `<button type="button" class="icon-btn" onclick="effacerChargesProrata()" title="Retirer l'appel" aria-label="Retirer l'appel">${icone('x')}</button>`;
+    const croix = `<wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-btn" onclick="effacerChargesProrata()" title="Retirer l'appel" aria-label="Retirer l'appel">${icone('x')}</wa-button>`;
     if (t.erreur) { zone.innerHTML = `<p class="hint tf-lu">${icone('alert-triangle')} ${escapeHtml(t.fichier)} : ce PDF n’a pas pu être lu. ${croix}</p>`; return; }
     const a = t.analyse;
     if (a.montant == null || !a.periode) {

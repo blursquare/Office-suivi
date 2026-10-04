@@ -924,9 +924,9 @@
       || (!agendaRecherche.trim() && dossiers.some(d => !d.archive && d.rendezVousSignature === iso));
     return `<div class="ag-mois">
         <div class="ag-mois-tete">
-          <button type="button" class="icon-btn" onclick="naviguerMoisAgenda(-1)" aria-label="Mois précédent">${icone('chevron-left')}</button>
+          <wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-btn" onclick="naviguerMoisAgenda(-1)" aria-label="Mois précédent">${icone('chevron-left')}</wa-button>
           <span class="ag-mois-titre">${escapeHtml(titre.charAt(0).toUpperCase() + titre.slice(1))}</span>
-          <button type="button" class="icon-btn" onclick="naviguerMoisAgenda(1)" aria-label="Mois suivant">${icone('chevron-right')}</button>
+          <wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-btn" onclick="naviguerMoisAgenda(1)" aria-label="Mois suivant">${icone('chevron-right')}</wa-button>
         </div>
         <div class="ag-mois-grille" role="grid">
           ${['Lu', 'Ma', 'Me', 'Je', 'Ve', 'Sa', 'Di'].map(l => `<span class="ag-mois-jsem">${l}</span>`).join('')}
@@ -971,11 +971,11 @@
                 <span class="ag-ligne-texte"><b>${escapeHtml(libelleDossierAffiche(d))}</b>
                 <span>${p.aConfirmer ? `À confirmer : ${escapeHtml(new Date(p.date + 'T00:00:00').toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' }).replace('.', ''))} ${escapeHtml(String(p.heure).replace(':', ' h '))}` : `Semaine du ${escapeHtml(semaine)}`}${p.depasseButoir ? ' · après la date butoir' : ''}${d.responsable ? ' · ' + escapeHtml(prenomCollaborateur(d.responsable)) : ''}</span></span>
               </button>
-              ${creneaux.length ? `<span class="ag-creneaux">${creneaux.map(c => `<button type="button" class="action-rapide ag-creneau${c.apresButoir ? ' apres-butoir' : ''}${c.exceptionnel ? ' exceptionnel' : ''}"
+              ${creneaux.length ? `<span class="ag-creneaux">${creneaux.map(c => `<wa-button appearance="outlined" size="s" pill type="button" class="action-rapide ag-creneau${c.apresButoir ? ' apres-butoir' : ''}${c.exceptionnel ? ' exceptionnel' : ''}"
                   onclick="placerCreneauSignature('${d.id}', '${c.date}', '${c.heure}')" ${ecrire ? '' : 'disabled'}
-                  title="${escapeAttr([c.exceptionnel ? 'Créneau exceptionnel : ' + c.exceptionnel : '', c.apresButoir ? 'Après la date butoir' : ''].filter(Boolean).join(' · ') || 'Placer le rendez-vous de signature à ce créneau')}">${c.exceptionnel ? icone('alert-triangle') : ''}${escapeHtml(new Date(c.date + 'T00:00:00').toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' }).replace('.', ''))} ${escapeHtml(c.heure.replace(':', ' h '))}</button>`).join('')}${sondageOuvertDossier(d.id)
+                  title="${escapeAttr([c.exceptionnel ? 'Créneau exceptionnel : ' + c.exceptionnel : '', c.apresButoir ? 'Après la date butoir' : ''].filter(Boolean).join(' · ') || 'Placer le rendez-vous de signature à ce créneau')}">${c.exceptionnel ? icone('alert-triangle') : ''}${escapeHtml(new Date(c.date + 'T00:00:00').toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' }).replace('.', ''))} ${escapeHtml(c.heure.replace(':', ' h '))}</wa-button>`).join('')}${sondageOuvertDossier(d.id)
                   ? `<span class="ag-sondage-en-cours" title="Sondage de créneaux en cours">${icone('users')} sondage</span>`
-                  : `<button type="button" class="action-rapide ag-creneau ag-sonder" onclick="ouvrirSondageCreneaux('${d.id}')" title="Proposer plusieurs créneaux aux parties, qui choisissent par email">${icone('users')} Proposer</button>`}</span>` : ''}
+                  : `<wa-button appearance="outlined" size="s" pill type="button" class="action-rapide ag-creneau ag-sonder" onclick="ouvrirSondageCreneaux('${d.id}')" title="Proposer plusieurs créneaux aux parties, qui choisissent par email">${icone('users')} Proposer</wa-button>`}</span>` : ''}
             </li>`;
         }).join('')}</ul>${probables.length > aPlacer.length ? `<p class="jour-vide">Et ${probables.length - aPlacer.length} autre${probables.length - aPlacer.length > 1 ? 's' : ''}, plus tard.</p>` : ''}` : '<p class="jour-vide">Tous les dossiers ont un rendez-vous de signature.</p>'}
       </section>`;
@@ -1133,7 +1133,7 @@
     };
     const ligneValidee = ({ s: x, creneau }) => `<li class="dp-ligne">
         <span class="dp-ligne-texte">${titre(x)}<span class="hint">${creneau ? `Validé : ${escapeHtml(jourCourt(creneau.date))} ${escapeHtml(creneau.heure.replace(':', ' h '))}` : 'Validé'}${x.closLe ? ` · le ${escapeHtml(dateCourte(x.closLe))}` : ''}</span></span>
-        ${creneau ? `<button type="button" class="action-rapide" onclick="voirDateProposeeDansAgenda('${creneau.date}')">${icone('calendar')} Voir dans l’agenda</button>` : ''}
+        ${creneau ? `<wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="voirDateProposeeDansAgenda('${creneau.date}')">${icone('calendar')} Voir dans l’agenda</wa-button>` : ''}
       </li>`;
     const ligneSansSuite = (x) => `<li class="dp-ligne dp-sans-suite">
         <span class="dp-ligne-texte">${titre(x)}<span class="hint">${x.statut === 'expire' ? 'Expiré sans réponse retenue' : 'Annulé'}${x.closLe ? ` le ${escapeHtml(dateCourte(x.closLe))}` : ''}</span></span>
@@ -1524,9 +1524,9 @@
             <h3 class="ag-detail-titre" id="agenda-detail-titre">${escapeHtml(e.option ? libelleOptionSondage(e.sujet).titre : (e.sujet || '(sans titre)'))}</h3>
           </div>
           <div class="ag-detail-outils">
-            ${peutSupprimer && evenementModifiableAgenda(e) ? `<button type="button" class="icon-btn" onclick="ouvrirModificationAgenda('${escapeOnclickArg(cleEvenementAgenda(e))}')" aria-label="Modifier le rendez-vous" title="Modifier le titre, la date ou l’horaire${e.heure && !e.journeeEntiere ? ' — ou glisser le rendez-vous dans la grille' : ''}">${icone('pencil')}</button>` : ''}
-            ${peutSupprimer ? `<button type="button" class="icon-btn ag-supprimer-ico" onclick="supprimerEvenementAgenda('${escapeOnclickArg(cleEvenementAgenda(e))}')" aria-label="Supprimer le rendez-vous" title="Supprimer de l’agenda (après confirmation)">${icone('trash')}</button>` : ''}
-            <button type="button" class="icon-btn" onclick="fermerModaleAgenda()" aria-label="Fermer le détail">${icone('x')}</button>
+            ${peutSupprimer && evenementModifiableAgenda(e) ? `<wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-btn" onclick="ouvrirModificationAgenda('${escapeOnclickArg(cleEvenementAgenda(e))}')" aria-label="Modifier le rendez-vous" title="Modifier le titre, la date ou l’horaire${e.heure && !e.journeeEntiere ? ' — ou glisser le rendez-vous dans la grille' : ''}">${icone('pencil')}</wa-button>` : ''}
+            ${peutSupprimer ? `<wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-btn ag-supprimer-ico" onclick="supprimerEvenementAgenda('${escapeOnclickArg(cleEvenementAgenda(e))}')" aria-label="Supprimer le rendez-vous" title="Supprimer de l’agenda (après confirmation)">${icone('trash')}</wa-button>` : ''}
+            <wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-btn" onclick="fermerModaleAgenda()" aria-label="Fermer le détail">${icone('x')}</wa-button>
           </div>
         </div>
         ${ligne('calendar', escapeHtml(jour.charAt(0).toUpperCase() + jour.slice(1)))}
@@ -1582,7 +1582,7 @@
             <div class="ag-detail-etiquette"><i></i>Signature probable — pas encore placée</div>
             <h3 class="ag-detail-titre" id="agenda-detail-titre">${escapeHtml(e.sujet)}</h3>
           </div>
-          <button type="button" class="icon-btn" onclick="fermerModaleAgenda()" aria-label="Fermer le détail">${icone('x')}</button>
+          <wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-btn" onclick="fermerModaleAgenda()" aria-label="Fermer le détail">${icone('x')}</wa-button>
         </div>
         <div class="ag-detail-proba">
           <div class="ag-detail-proba-tete">${renderPastilleProbabilite(p)} <b>Il est probable que ce rendez-vous se tienne la semaine du ${escapeHtml(semaine)}</b></div>
@@ -1594,8 +1594,8 @@
         ${infos && infos.confrere ? ligne('users', `Confrère : <b>${escapeHtml(infos.confrere)}</b>`) : ''}
         ${e.creneau ? `<wa-button variant="brand" class="primary ag-ouvrir-fiche" onclick="placerCreneauSignature('${d.id}', '${e.creneau.date}', '${e.creneau.heure}')" ${ecrire ? '' : 'disabled title="Connexion à l’agenda Outlook à activer dans les Réglages"'}>${icone('calendar')} Placer le ${escapeHtml(libelleCreneau(e.creneau))}</wa-button>`
           : '<p class="jour-vide">Aucun créneau libre cette semaine dans les règles de l’office.</p>'}
-        ${autres.length ? `<div class="ag-creneaux">${autres.map(c => `<button type="button" class="action-rapide ag-creneau${c.exceptionnel ? ' exceptionnel' : ''}${d.acte && c.date > d.acte ? ' apres-butoir' : ''}" onclick="placerCreneauSignature('${d.id}', '${c.date}', '${c.heure}')" ${ecrire ? '' : 'disabled'}
-            title="${escapeAttr([c.exceptionnel ? 'Créneau exceptionnel : ' + c.exceptionnel : '', d.acte && c.date > d.acte ? `Après la date butoir du ${formatDateFr(d.acte)}` : ''].filter(Boolean).join(' · ') || 'Placer le rendez-vous de signature à ce créneau')}">${c.exceptionnel ? icone('alert-triangle') : ''}${escapeHtml(libelleCreneau(c))}</button>`).join('')}</div>` : ''}
+        ${autres.length ? `<div class="ag-creneaux">${autres.map(c => `<wa-button appearance="outlined" size="s" pill type="button" class="action-rapide ag-creneau${c.exceptionnel ? ' exceptionnel' : ''}${d.acte && c.date > d.acte ? ' apres-butoir' : ''}" onclick="placerCreneauSignature('${d.id}', '${c.date}', '${c.heure}')" ${ecrire ? '' : 'disabled'}
+            title="${escapeAttr([c.exceptionnel ? 'Créneau exceptionnel : ' + c.exceptionnel : '', d.acte && c.date > d.acte ? `Après la date butoir du ${formatDateFr(d.acte)}` : ''].filter(Boolean).join(' · ') || 'Placer le rendez-vous de signature à ce créneau')}">${c.exceptionnel ? icone('alert-triangle') : ''}${escapeHtml(libelleCreneau(c))}</wa-button>`).join('')}</div>` : ''}
         ${sondageOuvertDossier(d.id) ? '<p class="jour-vide">Sondage de créneaux en cours : réponses sur la fiche.</p>'
           : `<button type="button" class="lien-bouton" onclick="ouvrirSondageCreneaux('${d.id}', ${escapeAttr(JSON.stringify((e.creneau ? [e.creneau] : []).concat(autres).map(c => ({ date: c.date, heure: c.heure, exceptionnel: c.exceptionnel || '' }))))})">${icone('users')} Proposer ces créneaux aux parties</button>`}
         <button type="button" class="lien-bouton" onclick="ouvrirDossierDepuisDashboard('${d.id}')">${icone('folder')} Ouvrir la fiche</button>
@@ -1890,7 +1890,7 @@
     return `<header class="ag-modale-tete" id="agenda-visio-envoi">
         <div><h2 class="ag-modale-titre" id="agenda-modale-titre">Envoyer le lien de la visio</h2>
         <div class="ag-modale-quand">${escapeHtml(e.sujet || '')} · ${escapeHtml(libelleCreneauSondage({ date: e.date, heure: e.heure }))} ${infoBulle('Les clients reçoivent un email ensemble, chaque confrère le sien (formule d’usage). L’email porte un bouton vers la visio et les informations de connexion de la note du rendez-vous. Texte : premier jet de CLAIRE.')}</div></div>
-        <button type="button" class="icon-btn ag-modale-x" onclick="fermerModaleAgenda()" aria-label="Fermer">${icone('x')}</button>
+        <wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-btn ag-modale-x" onclick="fermerModaleAgenda()" aria-label="Fermer">${icone('x')}</wa-button>
       </header>
       <form class="ag-modale-corps ag-form" onsubmit="event.preventDefault(); preparerEmailsVisio();">
         <div class="sondage-bloc">
@@ -1972,9 +1972,9 @@
     }
     const cle = escapeOnclickArg(e.itemId);
     const boutons = edition
-      ? `<button type="button" class="icon-btn" id="agenda-notes-ok" onclick="enregistrerNotesAgenda('${cle}')" aria-label="Enregistrer la note" title="Enregistrer dans le rendez-vous">${icone('check')}</button>
-         <button type="button" class="icon-btn" onclick="annulerNotesAgenda()" aria-label="Annuler" title="Annuler">${icone('x')}</button>`
-      : (n && n.etat === 'ok' && !lectureSeule ? `<button type="button" class="icon-btn" onclick="modifierNotesAgenda('${cle}')" aria-label="Modifier la note" title="Modifier la note">${icone('pencil')}</button>` : '');
+      ? `<wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-btn" id="agenda-notes-ok" onclick="enregistrerNotesAgenda('${cle}')" aria-label="Enregistrer la note" title="Enregistrer dans le rendez-vous">${icone('check')}</wa-button>
+         <wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-btn" onclick="annulerNotesAgenda()" aria-label="Annuler" title="Annuler">${icone('x')}</wa-button>`
+      : (n && n.etat === 'ok' && !lectureSeule ? `<wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-btn" onclick="modifierNotesAgenda('${cle}')" aria-label="Modifier la note" title="Modifier la note">${icone('pencil')}</wa-button>` : '');
     return `<div class="ag-notes">
         <div class="ag-notes-tete"><span class="ag-notes-titre">Notes</span> ${aide}<span class="jour-espace"></span>${boutons}</div>
         ${corps}
@@ -2061,7 +2061,7 @@
     return `<header class="ag-modale-tete">
         <div><h2 class="ag-modale-titre" id="agenda-modale-titre">Nouveau rendez-vous</h2>
         <div class="ag-modale-quand">Dans l’agenda partagé de l’office</div></div>
-        <button type="button" class="icon-btn ag-modale-x" onclick="fermerModaleAgenda()" aria-label="Fermer">${icone('x')}</button>
+        <wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-btn ag-modale-x" onclick="fermerModaleAgenda()" aria-label="Fermer">${icone('x')}</wa-button>
       </header>
       <form class="ag-modale-corps ag-form" onsubmit="event.preventDefault(); creerEvenementAgenda();">
         <label class="ag-champ"><span>Dossier <span class="ag-facultatif">— facultatif</span></span>

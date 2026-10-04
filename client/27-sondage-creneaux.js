@@ -322,13 +322,13 @@
             <input type="text" class="sondage-email" id="sondage-nom-${i}" value="${escapeAttr(p.nom)}" maxlength="120" placeholder="Nom" oninput="sondageModale.participants[${i}].nom = this.value" aria-label="Nom du destinataire ${i + 1}">
             <input type="email" class="sondage-email" id="sondage-email-${i}" value="${escapeAttr(p.email)}" placeholder="Adresse email" oninput="sondageModale.participants[${i}].email = this.value.trim()" aria-label="Email du destinataire ${i + 1}">
             <label class="sondage-case sondage-confrere" title="Un confrère reçoit son propre email, avec la formule d’usage"><input type="checkbox" ${p.confrere ? 'checked' : ''} onchange="sondageModale.participants[${i}].confrere = this.checked"> Confrère</label>
-            ${m.participants.length > 1 ? `<button type="button" class="icon-btn" onclick="retirerDestinataireSondage(${i})" aria-label="Retirer ce destinataire" title="Retirer">${icone('x')}</button>` : '<span></span>'}
+            ${m.participants.length > 1 ? `<wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-btn" onclick="retirerDestinataireSondage(${i})" aria-label="Retirer ce destinataire" title="Retirer">${icone('x')}</wa-button>` : '<span></span>'}
           </li>`).join('')}</ul>
-          ${m.participants.length < 6 ? '<button type="button" class="bouton-ajout" onclick="ajouterDestinataireSondage()">Ajouter un destinataire</button>' : ''}`;
+          ${m.participants.length < 6 ? '<wa-button appearance="outlined" type="button" class="bouton-ajout" onclick="ajouterDestinataireSondage()"><span slot="start" class="bouton-ajout-plus" aria-hidden="true">+</span>Ajouter un destinataire</wa-button>' : ''}`;
     document.getElementById('sondage-modale-contenu').innerHTML = `<header class="ag-modale-tete">
         <div><h2 class="ag-modale-titre" id="sondage-modale-titre">${d ? 'Proposer des créneaux' : 'Proposer des dates'}</h2>
         <div class="ag-modale-quand">${d ? escapeHtml(libelleDossierAffiche(d)) : 'Sans dossier'} ${infoBulle('Les destinataires reçoivent un email avec un bouton par créneau : chacun clique sur ceux qui lui conviennent, et l’email de réponse arrive dans la boîte de l’office, où CLAIRE lit les réponses. Vous placez ensuite le rendez-vous d’un clic.')}</div></div>
-        <button type="button" class="icon-btn ag-modale-x" onclick="fermerModaleSondage()" aria-label="Fermer">${icone('x')}</button>
+        <wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-btn ag-modale-x" onclick="fermerModaleSondage()" aria-label="Fermer">${icone('x')}</wa-button>
       </header>
       <form class="ag-modale-corps ag-form" onsubmit="event.preventDefault(); lancerSondageCreneaux();">
         ${d ? '' : `<div class="ag-champs-ligne sondage-titre-ligne">
@@ -349,7 +349,7 @@
           <div class="ag-champs-ligne sondage-ajout">
             <label class="ag-champ">Date <input type="date" id="sondage-ajout-date" min="${escapeAttr(isoAujourdhuiLocal())}"></label>
             <label class="ag-champ">Heure <input type="time" id="sondage-ajout-heure" step="1800" value="10:00"></label>
-            <button type="button" class="bouton-ajout" onclick="ajouterCreneauSondage()" ${m.creneaux.length >= 8 ? 'disabled' : ''}>Ajouter un créneau</button>
+            <wa-button appearance="outlined" type="button" class="bouton-ajout" onclick="ajouterCreneauSondage()" ${m.creneaux.length >= 8 ? 'disabled' : ''}><span slot="start" class="bouton-ajout-plus" aria-hidden="true">+</span>Ajouter un créneau</wa-button>
           </div>
         </div>
         <div class="sondage-bloc">
@@ -568,7 +568,7 @@
           return `<tr class="${sy && sy.tous ? 'sondage-tous' : ''}${s.choisi === c.n ? ' sondage-choisi' : ''}">
             <th scope="row">${escapeHtml(new Date(c.date + 'T00:00:00').toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' }).replace('.', ''))} ${escapeHtml(c.heure.replace(':', ' h '))}${c.option ? ` <span class="sondage-option" title="En option dans l’agenda">option</span>` : ''}</th>
             ${s.participants.map(p => cellule(p, c)).join('')}
-            ${ouvert ? `<td><button type="button" class="action-rapide" onclick="placerCreneauSondage('${escapeOnclickArg(s.id)}', ${c.n})" ${exchangeAgendaPret() ? '' : 'disabled title="Connexion à l’agenda Outlook à activer dans les Réglages"'}>Placer</button></td>` : ''}
+            ${ouvert ? `<td><wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="placerCreneauSondage('${escapeOnclickArg(s.id)}', ${c.n})" ${exchangeAgendaPret() ? '' : 'disabled title="Connexion à l’agenda Outlook à activer dans les Réglages"'}>Placer</wa-button></td>` : ''}
           </tr>`;
         }).join('')}</tbody>
       </table></div>`;
@@ -1306,7 +1306,7 @@
         <div class="pieces-entete">
           <div class="pieces-entete-ligne">
             <span class="pieces-titre">${icone('list-check')}<span class="pieces-titre-texte">Pièces du dossier</span><span class="pieces-type">· ${libelleType}</span></span>
-            ${d.dossierLie ? `<button type="button" class="action-rapide" onclick="verifierDossierLocalDepuisBouton('${d.id}', this)" title="Relire le dossier du NAS">${icone('rotate-ccw')} Revérifier</button>` : ''}
+            ${d.dossierLie ? `<wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="verifierDossierLocalDepuisBouton('${d.id}', this)" title="Relire le dossier du NAS">${icone('rotate-ccw')} Revérifier</wa-button>` : ''}
             <span class="pieces-compteur${complet ? ' complet' : ''}">${nbRecues}/${total}</span>
           </div>
           <div class="pieces-barre${complet ? ' complet' : ''}" role="progressbar" aria-valuemin="0" aria-valuemax="${total}" aria-valuenow="${nbRecues}" aria-label="Pièces reçues"><span style="width:${pct}%"></span></div>
@@ -1400,7 +1400,7 @@
     return `
       <div class="authentic-dossier">
         <div class="authentic-dossier-titre">Dans Authentic${releve ? `<span class="hint"> · relevé le ${escapeHtml(formatDateFr(releve.slice(0, 10)))}</span>` : ''}
-          <button type="button" class="icon-btn authentic-oublier" onclick="confirmerOublierDonneesAuthentic('${escapeOnclickArg(d.id)}')" title="Oublier ce qui vient d’Authentic (page d’un autre dossier)" aria-label="Oublier ce qui vient d’Authentic">${icone('x')}</button></div>
+          <wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-btn authentic-oublier" onclick="confirmerOublierDonneesAuthentic('${escapeOnclickArg(d.id)}')" title="Oublier ce qui vient d’Authentic (page d’un autre dossier)" aria-label="Oublier ce qui vient d’Authentic">${icone('x')}</wa-button></div>
         <dl class="authentic-infos">${lignes.map(l => `<div class="authentic-info"><dt>${escapeHtml(l.libelle)}</dt><dd>${l.classe
           ? `<span class="dot-label ${l.classe}"><span class="dot"></span>${escapeHtml(l.valeur)}</span>` : escapeHtml(l.valeur)}</dd></div>`).join('')}</dl>
         ${alertes.map(al => `<p class="authentic-alerte"><span class="dot-label dl-pret">${icone('alert-triangle')}${escapeHtml(al.texte)}</span></p>`).join('')}
@@ -1419,12 +1419,12 @@
 
   function renderAjoutPiece(d) {
     if (!ajoutPieceOuvert) {
-      return `<button type="button" class="bouton-ajout ajout-piece-btn" onclick="afficherFormAjoutPiece()">Ajouter une pièce</button>`;
+      return `<wa-button appearance="outlined" type="button" class="bouton-ajout ajout-piece-btn" onclick="afficherFormAjoutPiece()"><span slot="start" class="bouton-ajout-plus" aria-hidden="true">+</span>Ajouter une pièce</wa-button>`;
     }
     return `
       <div class="ajout-piece-form">
         <input type="text" id="nouvelle-piece-label" placeholder="Nom de la pièce (ex. Attestation de surface loi Carrez)">
-        <button type="button" class="icon-valider" onclick="ajouterPiecePersonnalisee('${d.id}')" title="Ajouter" aria-label="Ajouter la pièce">✓</button>
+        <wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-valider" onclick="ajouterPiecePersonnalisee('${d.id}')" title="Ajouter" aria-label="Ajouter la pièce">✓</wa-button>
         <button type="button" class="icon-btn" onclick="masquerFormAjoutPiece()">Annuler</button>
       </div>
     `;
@@ -1536,7 +1536,7 @@
     return `<div class="diagnostic-exclusions">
       <p><strong>${liste.length === 1 ? 'Un fichier a été écarté' : `${liste.length} fichiers ont été écartés`} par une correction précédente :</strong></p>
       <ul>${liste.map(e => `<li><span>${escapeHtml(e.fichier)} → « ${escapeHtml(e.label)} »</span>
-        <button type="button" class="action-rapide" onclick="retirerExclusionPiece('${escapeOnclickArg(e.cle)}', '${escapeOnclickArg(e.nom)}', '${escapeOnclickArg(d.id)}')">Ne plus écarter</button></li>`).join('')}</ul>
+        <wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="retirerExclusionPiece('${escapeOnclickArg(e.cle)}', '${escapeOnclickArg(e.nom)}', '${escapeOnclickArg(d.id)}')">Ne plus écarter</wa-button></li>`).join('')}</ul>
     </div>`;
   }
 
@@ -1818,14 +1818,14 @@
       const titreOuvrirCompromis = d.compromisNomFichier
         ? `Ouvrir « ${d.compromisNomFichier} », le fichier importé à la création du dossier`
         : "Rechercher et ouvrir l'avant-contrat dans le dossier NAS relié (aucun nom de fichier mémorisé pour ce dossier)";
-      const boutonOuvrirCompromis = `<button type="button" class="action-rapide" onclick="ouvrirCompromisTrouve('${d.id}', this)" title="${escapeAttr(titreOuvrirCompromis)}">${icone('file-text')} Ouvrir</button>`;
+      const boutonOuvrirCompromis = `<wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="ouvrirCompromisTrouve('${d.id}', this)" title="${escapeAttr(titreOuvrirCompromis)}">${icone('file-text')} Ouvrir</wa-button>`;
       // Le nom du dossier NAS relié est affiché dans l'infobulle : le vérifier ne doit pas demander
       // d'ouvrir la fenêtre de choix.
       const boutonsDossierLocal = d.dossierLie
-          ? `<button type="button" class="action-rapide" onclick="changerDossierLocal('${d.id}')" title="${escapeAttr('Dossier NAS relié : ' + (d.nasDossier || '—') + ' — cliquez pour en choisir un autre')}">Changer</button>`
+          ? `<wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="changerDossierLocal('${d.id}')" title="${escapeAttr('Dossier NAS relié : ' + (d.nasDossier || '—') + ' — cliquez pour en choisir un autre')}">Changer</wa-button>`
           // Même sans prêt (achat comptant), le dossier NAS reste nécessaire pour suivre
           // la checklist de pièces (urbanisme...) — voir renderPiecesDossier ci-dessous.
-          : `<button type="button" class="action-rapide" onclick="lierDossierLocal('${d.id}')" title="Relier ce dossier à son dossier du NAS">${icone('link')} Relier</button>`;
+          : `<wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="lierDossierLocal('${d.id}')" title="Relier ce dossier à son dossier du NAS">${icone('link')} Relier</wa-button>`;
       // Statut de l'offre sous la date de la carte "Obtention du prêt" (voir renderLigneEcheance, paramètre
       // offreBloc). Une puce de couleur plutôt qu'une phrase : le décompte juste au-dessus dit déjà
       // "✓ Offre reçue" en toutes lettres, la puce ne fait que confirmer d'un coup d'œil sans
@@ -1896,14 +1896,14 @@
              intitulé en infobulle. Archiver/Supprimer ne se mêlent plus au titre. -->
         <div class="fiche-barre">
           <div class="fiche-barre-groupe">
-            <button type="button" class="fiche-btn" onclick="fermerDossierDrawer()" aria-label="Fermer la fiche" title="Fermer (Échap)">${icone('x')}</button>
-            <button type="button" class="fiche-btn fiche-btn-agrandir" onclick="basculerFicheLarge()" aria-label="${ficheLarge ? 'Réduire la fiche' : 'Agrandir la fiche'}" title="${ficheLarge ? 'Réduire la fiche' : 'Agrandir la fiche'}">${icone(ficheLarge ? 'minimize' : 'maximize')}</button>
+            <wa-button appearance="plain" type="button" class="bouton-icone fiche-btn" onclick="fermerDossierDrawer()" aria-label="Fermer la fiche" title="Fermer (Échap)">${icone('x')}</wa-button>
+            <wa-button appearance="plain" type="button" class="bouton-icone fiche-btn fiche-btn-agrandir" onclick="basculerFicheLarge()" aria-label="${ficheLarge ? 'Réduire la fiche' : 'Agrandir la fiche'}" title="${ficheLarge ? 'Réduire la fiche' : 'Agrandir la fiche'}">${icone(ficheLarge ? 'minimize' : 'maximize')}</wa-button>
           </div>
           <div class="fiche-barre-groupe">
-            <button type="button" class="fiche-btn" onclick="telechargerICS('${d.id}')" aria-label="Télécharger les rappels (.ics)" title="Télécharger les rappels (.ics)">${icone('calendar')}</button>
-            <button type="button" class="fiche-btn" onclick="imprimerFiche('${d.id}')" aria-label="Imprimer la fiche" title="Imprimer la fiche">${icone('printer')}</button>
-            <button type="button" class="fiche-btn" onclick="archiverDossier('${d.id}', ${!d.archive})" aria-label="${d.archive ? 'Désarchiver' : 'Archiver'}" title="${d.archive ? 'Désarchiver le dossier' : 'Archiver le dossier'}">${icone('archive')}</button>
-            <button type="button" class="fiche-btn fiche-btn-danger" onclick="supprimerDossier('${d.id}')" aria-label="Supprimer le dossier" title="Supprimer le dossier">${icone('trash')}</button>
+            <wa-button appearance="plain" type="button" class="bouton-icone fiche-btn" onclick="telechargerICS('${d.id}')" aria-label="Télécharger les rappels (.ics)" title="Télécharger les rappels (.ics)">${icone('calendar')}</wa-button>
+            <wa-button appearance="plain" type="button" class="bouton-icone fiche-btn" onclick="imprimerFiche('${d.id}')" aria-label="Imprimer la fiche" title="Imprimer la fiche">${icone('printer')}</wa-button>
+            <wa-button appearance="plain" type="button" class="bouton-icone fiche-btn" onclick="archiverDossier('${d.id}', ${!d.archive})" aria-label="${d.archive ? 'Désarchiver' : 'Archiver'}" title="${d.archive ? 'Désarchiver le dossier' : 'Archiver le dossier'}">${icone('archive')}</wa-button>
+            <wa-button appearance="plain" type="button" class="bouton-icone fiche-btn fiche-btn-danger" onclick="supprimerDossier('${d.id}')" aria-label="Supprimer le dossier" title="Supprimer le dossier">${icone('trash')}</wa-button>
           </div>
         </div>
 
@@ -1914,12 +1914,12 @@
               <div class="nom-dossier">
                 <span class="nom-affichage" id="nom-affichage-${d.id}">
                   <span class="nom-texte">${escapeHtml(libelleDossierAffiche(d))}</span>
-                  <button type="button" class="icon-crayon" onclick="activerEditionNom('${d.id}')" title="Modifier le nom" aria-label="Modifier le nom">${icone('pencil')}</button>
+                  <wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-crayon" onclick="activerEditionNom('${d.id}')" title="Modifier le nom" aria-label="Modifier le nom">${icone('pencil')}</wa-button>
                   ${texteRattachementAuthentic(d) ? infoBulle(texteRattachementAuthentic(d)) : ''}
                 </span>
                 <span class="nom-edition" id="nom-edition-${d.id}" hidden>
                   <input type="text" class="dossier-nom-input" id="nom-input-${d.id}" value="${escapeAttr(d.nom)}" aria-label="Nom du dossier" onkeydown="if(event.key==='Enter'){event.preventDefault();validerEditionNom('${d.id}');}else if(event.key==='Escape'){annulerEditionNom('${d.id}');}">
-                  <button type="button" class="icon-valider" onclick="validerEditionNom('${d.id}')" title="Valider" aria-label="Valider le nom">✓</button>
+                  <wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-valider" onclick="validerEditionNom('${d.id}')" title="Valider" aria-label="Valider le nom">✓</wa-button>
                 </span>
               </div>
               ${renderProgressionFiche(etapes, prochaineEtape, avancement)}
@@ -2406,14 +2406,14 @@
 
   function renderAjoutEcheance(d) {
     if (!ajoutEcheanceOuvert) {
-      return `<button type="button" class="bouton-ajout ajout-echeance-btn" onclick="afficherFormAjoutEcheance()">Ajouter une échéance</button>`;
+      return `<wa-button appearance="outlined" type="button" class="bouton-ajout ajout-echeance-btn" onclick="afficherFormAjoutEcheance()"><span slot="start" class="bouton-ajout-plus" aria-hidden="true">+</span>Ajouter une échéance</wa-button>`;
     }
     return `
       <div class="date-block autre ajout-echeance-form">
         <div class="autre-row">
           <input type="text" id="nouvelle-echeance-label" placeholder="Nom de l'échéance (ex. Levée de la condition suspensive travaux)">
           <input type="date" id="nouvelle-echeance-date">
-          <button type="button" class="icon-valider" onclick="ajouterEcheanceApresCoup('${d.id}')" title="Ajouter" aria-label="Ajouter l'échéance">✓</button>
+          <wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-valider" onclick="ajouterEcheanceApresCoup('${d.id}')" title="Ajouter" aria-label="Ajouter l'échéance">✓</wa-button>
           <button type="button" class="icon-btn" onclick="masquerFormAjoutEcheance()">Annuler</button>
         </div>
       </div>
@@ -2468,7 +2468,7 @@
 
   function renderAjoutEngagement(d) {
     if (!ajoutEngagementOuvert) {
-      return `<button type="button" class="bouton-ajout ajout-engagement-btn" onclick="afficherFormAjoutEngagementDossier()">Ajouter une obligation du vendeur</button>`;
+      return `<wa-button appearance="outlined" type="button" class="bouton-ajout ajout-engagement-btn" onclick="afficherFormAjoutEngagementDossier()"><span slot="start" class="bouton-ajout-plus" aria-hidden="true">+</span>Ajouter une obligation du vendeur</wa-button>`;
     }
     return `
       <div class="date-block autre ajout-engagement-form">
@@ -2480,7 +2480,7 @@
             <option value="autre">Autres</option>
           </select>
           <textarea id="nouvelle-obligation-dossier-texte" rows="2" placeholder="Clause exacte, ou description de l'obligation"></textarea>
-          <button type="button" class="icon-valider" onclick="ajouterEngagementDossierApresCoup('${d.id}')" title="Ajouter" aria-label="Ajouter l'obligation">✓</button>
+          <wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-valider" onclick="ajouterEngagementDossierApresCoup('${d.id}')" title="Ajouter" aria-label="Ajouter l'obligation">✓</wa-button>
           <button type="button" class="icon-btn" onclick="masquerFormAjoutEngagementDossier()">Annuler</button>
         </div>
       </div>

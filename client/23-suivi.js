@@ -602,8 +602,8 @@
     // « Lire » : chercher le mobilier dans l'avant-contrat du NAS (voir lireMobilierDepuisAvantContrat).
     const boutonLireMobilier = (!d.prixMobilier && d.dossierLie && d.nasDossier)
       ? (lecturesMobilierEnCours.has(d.id)
-        ? `<button type="button" class="action-rapide" disabled>${icone('spinner', null, true)} Lecture…</button>`
-        : `<button type="button" class="action-rapide" onclick="lireMobilierDepuisAvantContrat('${d.id}', true)" title="${d.mobilierLuLe ? 'Relire' : 'Chercher'} le mobilier dans l’avant-contrat du dossier du NAS">${icone('file-text')} Lire</button>`)
+        ? `<wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" disabled>${icone('spinner', null, true)} Lecture…</wa-button>`
+        : `<wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="lireMobilierDepuisAvantContrat('${d.id}', true)" title="${d.mobilierLuLe ? 'Relire' : 'Chercher'} le mobilier dans l’avant-contrat du dossier du NAS">${icone('file-text')} Lire</wa-button>`)
       : '';
     // Ce que « Ouvrir le compromis » ouvrira, dans l'ordre où ouvrirCompromisTrouve() le résout :
     // le fichier DÉJÀ retrouvé (mémorisé dans d.fichiersTrouves après une première ouverture), sinon
@@ -622,7 +622,7 @@
     // Compromis jamais lu par CLAIRE (dossier créé depuis Authentic ou à la main) : « Compléter » relit le
     // compromis — déposé, ou trouvé sur le NAS — pour les échéances, engagements, prix… (étude, 03/10).
     const boutonCompleter = !d.compromisNomFichier && !d.archive && !estSuccession(d)
-      ? `<button type="button" class="action-rapide" onclick="demarrerComplementCompromis('${d.id}')" title="Lire le compromis pour compléter la fiche : échéances, engagements du vendeur, prix, notaires…">${icone('file-text')} Compléter</button>` : '';
+      ? `<wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="demarrerComplementCompromis('${d.id}')" title="Lire le compromis pour compléter la fiche : échéances, engagements du vendeur, prix, notaires…">${icone('file-text')} Compléter</wa-button>` : '';
     const avantContrat = `<span class="prop-texte${compromisConnu ? '' : ' vide'}" title="${escapeAttr(cheminCompromisTrouve || d.compromisNomFichier || '')}">${escapeHtml(libelleCompromis)}</span>${boutonOuvrirCompromis}${boutonCompleter}`;
 
     // Groupe 2 — le bien et son financement.
@@ -729,7 +729,7 @@
       ${optionsNotaires.length ? `<datalist id="${listeId}">${optionsNotaires.map(n => `<option value="${escapeAttr(n)}"></option>`).join('')}</datalist>` : ''}`;
     const ouvert = fichesChampsVidesOuverts.has(d.id);
     const bascule = nbVides
-      ? `<button type="button" class="bouton-ajout bouton-ajout-court fiche-completer${ouvert ? ' ouvert' : ''}" onclick="basculerChampsVidesFiche('${d.id}')" aria-expanded="${ouvert}">${ouvert ? 'Masquer les champs vides' : `Compléter la fiche (${nbVides})`}</button>`
+      ? `<wa-button appearance="outlined" type="button" class="bouton-ajout bouton-ajout-court fiche-completer${ouvert ? ' ouvert' : ''}" onclick="basculerChampsVidesFiche('${d.id}')" aria-expanded="${ouvert}"><span slot="start" class="bouton-ajout-plus" aria-hidden="true">+</span>${ouvert ? 'Masquer les champs vides' : `Compléter la fiche (${nbVides})`}</wa-button>`
       : '';
     return `<div class="fiche-proprietes-bloc${ouvert ? ' champs-vides-ouverts' : ''}">${blocBien}${bascule}</div>`;
   }
@@ -1201,7 +1201,7 @@
         <span class="widgets-galerie-texte"><b>${escapeHtml(def.titre)}</b><span>${escapeHtml(def.description || '')}</span></span>
         ${affiche
           ? `<wa-button appearance="outlined" class="secondary widgets-galerie-retirer" onclick="masquerWidget('${def.id}', true)" aria-label="Retirer ${escapeAttr(def.titre)} du tableau de bord">${icone('x')}Retirer</wa-button>`
-          : `<button type="button" class="bouton-ajout bouton-ajout-court" onclick="masquerWidget('${def.id}', false)" aria-label="Ajouter ${escapeAttr(def.titre)} au tableau de bord">Ajouter</button>`}
+          : `<wa-button appearance="outlined" type="button" class="bouton-ajout bouton-ajout-court" onclick="masquerWidget('${def.id}', false)" aria-label="Ajouter ${escapeAttr(def.titre)} au tableau de bord"><span slot="start" class="bouton-ajout-plus" aria-hidden="true">+</span>Ajouter</wa-button>`}
       </li>`;
     const affiches = lignes.filter(l => l.affiche), retires = lignes.filter(l => !l.affiche);
     liste.innerHTML = `${titre('Sur le tableau de bord', nbAffiches)}
@@ -1353,8 +1353,8 @@
     const largeurs = def.tailles.map(t => `<button type="button" class="widget-taille${w.taille === t ? ' actif' : ''}" aria-pressed="${w.taille === t}" onclick="changerTailleWidget('${def.id}', '${t}')" title="Largeur : ${NOMS_TAILLE_WIDGET[t]}" aria-label="Largeur ${NOMS_TAILLE_WIDGET[t]}">${cases(CASES_TAILLE_WIDGET[t], 4, 'l')}</button>`).join('');
     const hauteurs = HAUTEURS_WIDGET.map(h => `<button type="button" class="widget-taille${w.hauteur === h ? ' actif' : ''}" aria-pressed="${w.hauteur === h}" onclick="changerHauteurWidget('${def.id}', ${h})" title="Hauteur : ${NOMS_HAUTEUR_WIDGET[h]}" aria-label="Hauteur ${NOMS_HAUTEUR_WIDGET[h]}">${cases(h, 3, 'h')}</button>`).join('');
     return `<button type="button" class="widget-retirer" onclick="masquerWidget('${def.id}', true)" title="Retirer du tableau de bord" aria-label="Retirer ${escapeAttr(def.titre)} du tableau de bord">${icone('x')}</button>
-      <button type="button" class="widget-outil widget-fleche widget-fleche-avant" onclick="decalerWidget('${def.id}', -1)" ${rang === 0 ? 'disabled' : ''} title="Avancer" aria-label="Avancer ${escapeAttr(def.titre)}">${icone('chevron-left')}</button>
-      <button type="button" class="widget-outil widget-fleche widget-fleche-apres" onclick="decalerWidget('${def.id}', 1)" ${rang === total - 1 ? 'disabled' : ''} title="Reculer" aria-label="Reculer ${escapeAttr(def.titre)}">${icone('chevron-right')}</button>
+      <wa-button appearance="plain" size="s" type="button" class="bouton-icone widget-outil widget-fleche widget-fleche-avant" onclick="decalerWidget('${def.id}', -1)" ${rang === 0 ? 'disabled' : ''} title="Avancer" aria-label="Avancer ${escapeAttr(def.titre)}">${icone('chevron-left')}</wa-button>
+      <wa-button appearance="plain" size="s" type="button" class="bouton-icone widget-outil widget-fleche widget-fleche-apres" onclick="decalerWidget('${def.id}', 1)" ${rang === total - 1 ? 'disabled' : ''} title="Reculer" aria-label="Reculer ${escapeAttr(def.titre)}">${icone('chevron-right')}</wa-button>
       <div class="widget-barre">
         <div class="widget-reglage" role="group" aria-label="Largeur du widget ${escapeAttr(def.titre)}"><span class="widget-reglage-lib">Largeur</span>${largeurs}</div>
         <div class="widget-reglage" role="group" aria-label="Hauteur du widget ${escapeAttr(def.titre)}"><span class="widget-reglage-lib">Hauteur</span>${hauteurs}</div>
@@ -1393,7 +1393,7 @@
       // Personnaliser, ou tableau de bord vidé : « Ajouter un widget » ouvre la liste des widgets.
       const montrer = modeEditionWidgets || !visibles.length;
       masques.innerHTML = montrer
-        ? `<button type="button" class="bouton-ajout bouton-ajout-court" onclick="ouvrirGalerieWidgets()">Ajouter un widget${liste.length ? ` (${liste.length})` : ''}</button>
+        ? `<wa-button appearance="outlined" type="button" class="bouton-ajout bouton-ajout-court" onclick="ouvrirGalerieWidgets()"><span slot="start" class="bouton-ajout-plus" aria-hidden="true">+</span>Ajouter un widget${liste.length ? ` (${liste.length})` : ''}</wa-button>
            ${modeEditionWidgets ? '<button type="button" class="lien-discret widgets-reinitialiser" onclick="reinitialiserWidgets()">Disposition d’origine</button>' : ''}`
         : '';
       masques.style.display = montrer ? '' : 'none';
@@ -1713,7 +1713,7 @@
     const etatLecture = nonRelie ? 'Agenda Outlook non relié (Réglages › Agenda et Outlook)'
       : lu && !isNaN(lu) ? `Agenda de l’office · lu à ${String(lu.getHours()).padStart(2, '0')} h ${String(lu.getMinutes()).padStart(2, '0')}` : 'Agenda de l’office';
     const versPage = `ouvrirAgendaDepuisWidget('${agendaJourSelectionne || aujourdhui}')`;
-    const boutonPage = `<button type="button" class="icon-btn" onclick="${versPage}" title="Ouvrir l’agenda" aria-label="Ouvrir l’agenda">${icone('calendar')}</button>`;
+    const boutonPage = `<wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-btn" onclick="${versPage}" title="Ouvrir l’agenda" aria-label="Ouvrir l’agenda">${icone('calendar')}</wa-button>`;
 
     if (presentation === 'petit') {
       const dt = new Date(aujourdhui + 'T00:00:00');
@@ -1777,8 +1777,8 @@
       titre: `<button type="button" class="w-titre-lien" onclick="${versPage}" title="Ouvrir l’agenda">Agenda</button>`,
       sous: `${escapeHtml(mois.charAt(0).toUpperCase() + mois.slice(1))} · <span class="${nonRelie ? 'w-note-alerte' : ''}">${escapeHtml(etatLecture)}</span>`,
       droite: `<div class="agenda-nav">
-          <button type="button" class="icon-btn" onclick="decalerSemaineAgenda(-1)" ${agendaDecalageSemaine <= SEMAINES_AGENDA_MIN ? 'disabled' : ''} aria-label="Semaine précédente">${icone('chevron-left')}</button>
-          <button type="button" class="icon-btn" onclick="decalerSemaineAgenda(1)" ${agendaDecalageSemaine >= SEMAINES_AGENDA_MAX ? 'disabled' : ''} aria-label="Semaine suivante">${icone('chevron-right')}</button>
+          <wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-btn" onclick="decalerSemaineAgenda(-1)" ${agendaDecalageSemaine <= SEMAINES_AGENDA_MIN ? 'disabled' : ''} aria-label="Semaine précédente">${icone('chevron-left')}</wa-button>
+          <wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-btn" onclick="decalerSemaineAgenda(1)" ${agendaDecalageSemaine >= SEMAINES_AGENDA_MAX ? 'disabled' : ''} aria-label="Semaine suivante">${icone('chevron-right')}</wa-button>
           ${boutonPage}
         </div>`,
       corps: `<div class="agenda-bande w-fixe" role="group" aria-label="Jours de la semaine">${bande}</div>
@@ -2136,12 +2136,12 @@
             <span class="rappel-perso-titre">${escapeHtml(r.texte)}</span>
             ${sous.length ? `<span class="rappel-perso-sous${enRetard ? ' retard' : ''}">${sous.map((s, i) => i === 1 && d ? `<button type="button" class="lien-discret" onclick="ouvrirDossierDepuisDashboard('${d.id}')">${escapeHtml(s)}</button>` : escapeHtml(s)).join(' · ')}</span>` : ''}
           </div>
-          ${!r.fait && rappelParleEmail(r.texte) ? `<button type="button" class="icon-btn rappel-perso-email" onclick="ouvrirEmailRappelPerso('${escapeOnclickArg(r.id)}')" title="Préparer un email vierge avec la signature de l'office" aria-label="Préparer un email">${icone('mail')}</button>` : ''}
-          ${r.agendaItemId ? '' : `<button type="button" class="rappel-perso-suppr rappel-perso-modif" onclick="ouvrirEditionRappel('${escapeOnclickArg(r.id)}')" aria-label="Modifier le rappel" title="Modifier">${icone('pencil')}</button>
-          <button type="button" class="rappel-perso-suppr" onclick="supprimerRappelPerso('${escapeOnclickArg(r.id)}')" aria-label="Supprimer le rappel" title="Supprimer">${icone('x')}</button>`}
+          ${!r.fait && rappelParleEmail(r.texte) ? `<wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-btn rappel-perso-email" onclick="ouvrirEmailRappelPerso('${escapeOnclickArg(r.id)}')" title="Préparer un email vierge avec la signature de l'office" aria-label="Préparer un email">${icone('mail')}</wa-button>` : ''}
+          ${r.agendaItemId ? '' : `<wa-button appearance="plain" size="s" type="button" class="bouton-icone rappel-perso-suppr rappel-perso-modif" onclick="ouvrirEditionRappel('${escapeOnclickArg(r.id)}')" aria-label="Modifier le rappel" title="Modifier">${icone('pencil')}</wa-button>
+          <wa-button appearance="plain" size="s" type="button" class="bouton-icone rappel-perso-suppr" onclick="supprimerRappelPerso('${escapeOnclickArg(r.id)}')" aria-label="Supprimer le rappel" title="Supprimer">${icone('x')}</wa-button>`}
         </div>`;
     }).join('');
-    const formulaire = ajoutRappelOuvert ? formulaireRappel(null) : `<button type="button" class="bouton-ajout rappel-perso-ajout" onclick="ouvrirAjoutRappel(true)">Ajouter un rappel</button>`;
+    const formulaire = ajoutRappelOuvert ? formulaireRappel(null) : `<wa-button appearance="outlined" type="button" class="bouton-ajout rappel-perso-ajout" onclick="ouvrirAjoutRappel(true)"><span slot="start" class="bouton-ajout-plus" aria-hidden="true">+</span>Ajouter un rappel</wa-button>`;
     const vide = !rappelsPersoCharges ? '' : dejaAffiches.size ? '' : '<div class="rappels-perso-vide">Aucun rappel pour le moment.</div>';
     return `${lignes || vide}${formulaire}`;
   }

@@ -387,7 +387,7 @@
       ? `<div class="revision-proposition">
           <span class="dot-label dl-alerte"><span class="dot"></span>Proposé par l’IA</span>
           <span class="revision-proposition-valeur">${escapeHtml(String(LIBELLES_TYPE_ACTE[champ.propositionIa.valeur] || champ.propositionIa.valeur))}</span>
-          <button type="button" class="action-rapide" onclick="accepterPropositionIa('${cle}')">Utiliser</button>
+          <wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="accepterPropositionIa('${cle}')">Utiliser</wa-button>
           ${champ.propositionIa.extraitTrouve ? '' : '<span class="revision-raison">Le modèle cite une phrase qui ne figure pas dans le document : à traiter avec prudence.</span>'}
         </div>` : '';
     // Relance ciblée à l'IA locale (redemanderChampIa) DÉSACTIVÉE pour la création d'un nouveau
@@ -564,10 +564,7 @@
       : '';
     chip.innerHTML = `
       <div class="chip-top">
-        <label class="switch small">
-          <input type="checkbox" ${item.active ? 'checked' : ''} onchange="toggleChipActive('${item.iso}', this.checked)">
-          <span class="slider"></span>
-        </label>
+        <wa-switch size="s" class="switch" ${item.active ? 'checked' : ''} onchange="toggleChipActive('${item.iso}', this.checked)"></wa-switch>
         <span class="date-text">${escapeHtml(item.label)}</span>
         ${badgeApprise}
         ${badgeApprox}

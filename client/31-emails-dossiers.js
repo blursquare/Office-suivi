@@ -334,7 +334,7 @@
     const pastille = prep ? `<span class="email-etat email-etat-fait">Réception confirmée</span>`
       : aRepondre ? `<span class="email-etat">À répondre</span>` : '';
     const accuse = d && recu && documentsEmailRecu(email).length
-      ? `<button type="button" class="icon-btn email-barre-action" onclick="fermerEmailComplet(); confirmerReceptionEmail('${d.id}', '${escapeOnclickArg(email.id)}')" title="${prep ? 'Renvoyer la confirmation de réception' : 'Confirmer la réception des documents'}">${icone('check')}<span>${prep ? 'Reconfirmer' : 'Confirmer la réception'}</span></button>` : '';
+      ? `<wa-button appearance="plain" size="s" type="button" class="bouton-discret icon-btn email-barre-action" onclick="fermerEmailComplet(); confirmerReceptionEmail('${d.id}', '${escapeOnclickArg(email.id)}')" title="${prep ? 'Renvoyer la confirmation de réception' : 'Confirmer la réception des documents'}">${icone('check')}<span>${prep ? 'Reconfirmer' : 'Confirmer la réception'}</span></wa-button>` : '';
     const message = (texte, a) => `
       <div class="email-message">
         <span class="email-avatar${recu ? '' : ' email-avatar-office'}" aria-hidden="true">${escapeHtml(initialesPersonne(nom))}</span>
@@ -347,7 +347,7 @@
       </div>`;
     zone.innerHTML = `
       <div class="email-lecture-barre">
-        <button type="button" class="icon-btn" onclick="fermerEmailComplet()" aria-label="Fermer">${icone('chevron-left')}</button>
+        <wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-btn" onclick="fermerEmailComplet()" aria-label="Fermer">${icone('chevron-left')}</wa-button>
         ${accuse}
         <span class="email-lecture-barre-espace"></span>
         ${d ? `<span class="redaction-dossier">${escapeHtml(libelleDossierAffiche(d))}</span>` : ''}
@@ -530,23 +530,23 @@
     zone.innerHTML = `
       <label class="reglages-option" for="emails-dossiers-actif">
         <span class="reglages-option-texte"><span class="reglages-option-titre">Lire les emails des dossiers</span></span>
-        <span class="switch reglages-switch"><input type="checkbox" id="emails-dossiers-actif" ${e.reglages.actif ? 'checked' : ''} onchange="basculerEmailsDossiers({ actif: this.checked })"><span class="slider"></span></span>
+        <wa-switch class="switch reglages-switch" id="emails-dossiers-actif" ${e.reglages.actif ? 'checked' : ''} onchange="basculerEmailsDossiers({ actif: this.checked })"></wa-switch>
       </label>
       <label class="reglages-option" for="emails-dossiers-rangement-auto">
         <span class="reglages-option-texte"><span class="reglages-option-titre">Ranger seul les pièces jointes sur le NAS${infoBulle('Éteint : aucune pièce jointe n’est copiée sur le NAS sans votre geste — « Ranger… » dans la fenêtre de lecture reste disponible. Allumé : toute pièce jointe reçue est rangée dans le dossier client (pièce reconnue dans son sous-dossier, sinon sous son nom).')}</span></span>
-        <span class="switch reglages-switch"><input type="checkbox" id="emails-dossiers-rangement-auto" ${e.reglages.rangementAuto ? 'checked' : ''} onchange="basculerEmailsDossiers({ rangementAuto: this.checked })"><span class="slider"></span></span>
+        <wa-switch class="switch reglages-switch" id="emails-dossiers-rangement-auto" ${e.reglages.rangementAuto ? 'checked' : ''} onchange="basculerEmailsDossiers({ rangementAuto: this.checked })"></wa-switch>
       </label>
       <ul class="emails-boites">
         ${ligneBoite('Boîte de réception du compte relié', e.recus || {})}
         ${(e.envoyes || []).map(b => ligneBoite(`Éléments envoyés — ${b.collaborateur}`, b)).join('')}
       </ul>
       <p class="hint">${e.nombre.recus} reçu(s) et ${e.nombre.envoyes} envoyé(s) rattachés aux dossiers${e.dernierTour ? ` · dernier tour ${escapeHtml(ilYaActivite(e.dernierTour, Date.now()))}` : ''}${e.erreur ? ` · ${escapeHtml(e.erreur)}` : ''}</p>
-      <button type="button" class="action-rapide" onclick="lireEmailsDossiersMaintenant(this)">Lire maintenant</button>
+      <wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="lireEmailsDossiersMaintenant(this)">Lire maintenant</wa-button>
       <div class="reglages-champ">
         <div class="reglages-champ-libelle"><label for="reglages-emails-exclus">Écartés du résumé du matin</label>${infoBulle('Déjà écartés d’office : SPF et SPFE, CRIDON, INFN, INAFON, publicités et lettres d’information. Ajoutez ici d’autres expéditeurs (adresse, domaine ou nom) ou mots de l’objet, séparés par des virgules. Ces emails sont comptés, jamais listés ni lus par l’IA.')}</div>
         <input type="text" id="reglages-emails-exclus" placeholder="ex. adnov.fr, Notaires de France, webinaire">
       </div>
-      <button type="button" class="action-rapide" onclick="enregistrerExclusionsResume(this)">Enregistrer</button>`;
+      <wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="enregistrerExclusionsResume(this)">Enregistrer</wa-button>`;
     try {
       const r = await fetchAvecAuth('/api/emails-matin/exclusions');
       const champ = document.getElementById('reglages-emails-exclus');
@@ -639,10 +639,7 @@
       return `
       <div class="reglages-champ${actif ? '' : ' reglages-3cx-coupe'}">
         <div class="reglages-champ-libelle"><span class="reglages-3cx-tete"><label for="reglages-3cx-${i}">${escapeHtml(nom)}</label>
-          <label class="switch reglages-switch reglages-3cx-switch" title="${actif ? 'Couper 3CX pour ce collaborateur' : 'Activer 3CX pour ce collaborateur'}">
-            <input type="checkbox" id="reglages-3cx-actif-${i}" ${actif ? 'checked' : ''} onchange="basculerTelephonie3cx(${i}, this.checked)" aria-label="Intégration 3CX de ${escapeAttr(nom)}">
-            <span class="slider"></span>
-          </label></span>
+          <wa-switch class="switch reglages-switch reglages-3cx-switch" title="${actif ? 'Couper 3CX pour ce collaborateur' : 'Activer 3CX pour ce collaborateur'}" id="reglages-3cx-actif-${i}" ${actif ? 'checked' : ''} onchange="basculerTelephonie3cx(${i}, this.checked)" aria-label="Intégration 3CX de ${escapeAttr(nom)}"></wa-switch></span>
           <span class="reglages-3cx-etat">${actif ? etatPoste3cx(postes[clePosteAppels(nom)], maintenant).map(e => `<span class="dot-label ${e.classe}">${escapeHtml(e.texte)}</span>`).join('') : '<span class="dot-label dl-neutre"><span class="dot"></span>3CX coupé : appels non notés</span>'}</span></div>
         <div class="reglages-champ-ligne">
           <input type="text" id="reglages-3cx-${i}" readonly spellcheck="false" value="${escapeAttr(adresseIntegration3cx(origine3cx, nom))}" onfocus="this.select()">
@@ -724,7 +721,7 @@
       fen.innerHTML = fenetres.length
         ? fenetres.map(f => `<span class="dot-label ${f.enAttente || f.vuIlYa < 90000 ? 'dl-success' : 'dl-neutre'}"><span class="dot"></span>${escapeHtml(libellePosteAuthentic(f.poste, f.origine))}${f.enAttente || f.vuIlYa < 90000 ? '' : ' (vue il y a ' + Math.round(f.vuIlYa / 60000) + ' min)'}</span>`).join('')
         : '<span class="dot-label dl-urgent"><span class="dot"></span>Aucune fenêtre CLAIRE à l’écoute : les pages d’Authentic attendent</span>';
-      fen.innerHTML = `<span class="authentic-fenetres-titre">Fenêtres à l’écoute</span>${fen.innerHTML}<button type="button" class="icon-btn" onclick="renderReglagesAuthentic()" title="Actualiser le journal" aria-label="Actualiser le journal">${icone('rotate-ccw')}</button>`;
+      fen.innerHTML = `<span class="authentic-fenetres-titre">Fenêtres à l’écoute</span>${fen.innerHTML}<wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-btn" onclick="renderReglagesAuthentic()" title="Actualiser le journal" aria-label="Actualiser le journal">${icone('rotate-ccw')}</wa-button>`;
     }
     const entrees = donnees.entrees || [];
     bloc.innerHTML = entrees.length

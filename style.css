@@ -151,7 +151,7 @@
      (clair/sombre, accent choisi). Déclarés aussi sur chaque composant (wa-button…) : un jeton --wa-* se calcule là où
      il est déclaré, et la barre latérale redéfinit localement --focus, --ink… (toujours sombre) — sur le composant, il
      reprend les valeurs de son voisinage. Ajouter ici tout nouveau composant embarqué (scripts/construire-web-awesome.mjs). */
-  :root, wa-button {
+  :root, wa-button, wa-switch {
     --wa-font-family-body: 'Inter', -apple-system, 'Segoe UI', sans-serif;
     --wa-font-family-heading: var(--wa-font-family-body);
     --wa-font-weight-action: 500;
@@ -209,6 +209,45 @@
   /* Icône dans un libellé : alignée sur le texte et espacée de lui, sans réglage par bouton. */
   wa-button svg { width: 1em; height: 1em; flex: none; }
   wa-button::part(label) { display: inline-flex; align-items: center; gap: 6px; }
+  /* Bouton à icône seule (fermer, modifier, retirer, valider…) : carré, sans fond, l'icône à la couleur du texte voisin
+     (atténuée), plus foncée au survol. 32 px dans les barres d'outils et en-têtes, 24 px (size="s") dans une ligne de texte.
+     La couleur se règle sur le bouton lui-même (color) : la partie interne la reprend. */
+  wa-button.bouton-icone { --wa-form-control-height: 32px; --wa-form-control-padding-inline: 0; font-size: var(--texte-base); color: var(--muted); }
+  wa-button.bouton-icone[size="s"] { --wa-form-control-height: 24px; font-size: var(--texte-m); }
+  wa-button.bouton-icone::part(base) { width: var(--wa-form-control-height); color: inherit; }
+  wa-button.bouton-icone:not([disabled]):hover { color: var(--ink); }
+  wa-button.bouton-icone svg { width: 16px; height: 16px; }
+  wa-button.bouton-icone[size="s"] svg { width: 14px; height: 14px; }
+  /* Bouton discret à icône et texte (Modifier, Supprimer, Modèles…) : même famille, largeur au texte. */
+  wa-button.bouton-discret { color: var(--ink-soft); }
+  wa-button.bouton-discret::part(base) { color: inherit; }
+  wa-button.bouton-discret:not([disabled]):hover { color: var(--ink); }
+  /* Pastille d'action (Revérifier, créneaux proposés…) : bouton contour arrondi, compact. */
+  wa-button.action-rapide { --wa-form-control-height: 28px; --wa-form-control-padding-inline: 12px; font-size: var(--texte-s); color: var(--ink-soft); }
+  wa-button.action-rapide::part(base) { color: inherit; }
+  wa-button.action-rapide:not([disabled]):hover { color: var(--focus); }
+  wa-button.action-rapide:not([disabled]):hover::part(base) { border-color: var(--focus); }
+  /* « Ajouter … » : un seul bouton dans tout CLAIRE (harmonisation du 28/09) — pointillés, « + » en tête, sur toute la
+     largeur de la liste qu'il complète (bouton-ajout-court : largeur au texte). */
+  wa-button.bouton-ajout { display: block; width: 100%; margin: 10px 0 0; font-size: var(--texte-m); color: var(--ink-soft);
+    --wa-form-control-height: 36px; --wa-form-control-padding-inline: 12px; }
+  wa-button.bouton-ajout::part(base) { justify-content: flex-start; border-style: dashed; color: inherit; }
+  wa-button.bouton-ajout::part(label) { white-space: normal; text-align: left; }
+  wa-button.bouton-ajout:not([disabled]):hover { color: var(--focus); }
+  wa-button.bouton-ajout:not([disabled]):hover::part(base) { border-color: var(--focus); }
+  .bouton-ajout-plus { font-size: var(--texte-l); font-weight: 600; line-height: 1; }
+  wa-button.bouton-ajout.bouton-ajout-court { display: inline-block; width: auto; margin: 0; }
+  wa-button.bouton-ajout.ouvert .bouton-ajout-plus { display: none; }
+  /* Interrupteur : piste grise, pastille blanche, accent du thème une fois allumé (couleur de l'échéance dans le wizard). */
+  wa-switch { --height: 20px; --width: 34px; --thumb-size: 14px; --wa-form-control-border-width: 0;
+    --wa-form-control-background-color: var(--line); --wa-form-control-activated-color: var(--focus); flex: none; vertical-align: middle; }
+  wa-switch[size="s"] { --height: 15px; --width: 26px; --thumb-size: 10px; }
+  wa-switch::part(thumb) { background-color: var(--blanc-fixe); }
+  wa-switch::part(label) { display: none; }
+  .date-block.pret wa-switch { --wa-form-control-activated-color: var(--pret); }
+  .date-block.acte wa-switch { --wa-form-control-activated-color: var(--acte); }
+  .date-block.ventebien wa-switch { --wa-form-control-activated-color: var(--ventebien); }
+  .date-block.autre wa-switch { --wa-form-control-activated-color: var(--muted); }
 
   * { box-sizing: border-box; }
 
@@ -2221,9 +2260,6 @@
     margin-bottom: 4px;
   }
 
-  .switch.small { width: 26px; height: 15px; }
-  .switch.small .slider::before { height: 10px; width: 10px; left: 2.5px; bottom: 2.5px; }
-  .switch.small input:checked + .slider::before { transform: translateX(11px); }
 
   .chip .date-text {
     display: block;
@@ -2548,22 +2584,8 @@
   /* Retirer un document identifié de la liste (voir renderDocBadge) — même gabarit que
      .piece-suppr/.engagement-suppr, jamais affiché en même temps qu'un ::before différent : le
      bouton est un enfant réel du badge, pas de conflit avec le pseudo-élément "✓". */
-  .analyse-doc-suppr {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 16px;
-    height: 16px;
-    padding: 0;
-    border: none;
-    background: none;
-    border-radius: 50%;
-    color: var(--muted);
-    cursor: pointer;
-    flex: none;
-  }
-  .analyse-doc-suppr:hover { background: var(--paper-sunk); color: var(--urgent); }
-  .analyse-doc-suppr .icone { width: 9px; height: 9px; }
+  wa-button.analyse-doc-suppr { flex: none; }
+  wa-button.analyse-doc-suppr:hover { color: var(--urgent); }
 
   /* ---- pièces du dossier (checklist de constitution, selon le type de vente) ----
      Carte « liste à cocher » : en-tête (titre, compteur, barre de progression), une ligne par
@@ -2711,25 +2733,6 @@
   }
   .pieces-voir-plus:hover { color: var(--focus); }
 
-  .ajout-piece-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    width: 100%;
-    padding: 12px 16px;
-    border: none;
-    border-top: 1px solid var(--line-soft);
-    background: var(--paper-card);
-    font: inherit;
-    font-size: var(--texte-base);
-    font-weight: 600;
-    color: var(--ink);
-    cursor: pointer;
-  }
-  .ajout-piece-btn .icone { font-size: var(--texte-base); }
-  .ajout-piece-btn:hover { background: var(--paper-sunk); color: var(--focus); }
-  .ajout-piece-btn:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
   .ajout-piece-form {
     display: flex;
     align-items: center;
@@ -2979,38 +2982,6 @@
     gap: 10px;
   }
 
-  .switch {
-    position: relative;
-    display: inline-block;
-    width: 34px;
-    height: 20px;
-    flex: 0 0 auto;
-  }
-  .switch input { opacity: 0; width: 0; height: 0; }
-  .switch .slider {
-    position: absolute;
-    cursor: pointer;
-    inset: 0;
-    background-color: var(--line);
-    transition: 0.15s;
-    border-radius: var(--rayon-carte);
-  }
-  .switch .slider::before {
-    position: absolute;
-    content: "";
-    height: 14px;
-    width: 14px;
-    left: 3px;
-    bottom: 3px;
-    background-color: var(--blanc-fixe);
-    transition: 0.15s;
-    border-radius: 50%;
-  }
-  .switch input:checked + .slider::before { transform: translateX(14px); }
-  .date-block.pret .switch input:checked + .slider { background-color: var(--pret); }
-  .date-block.acte .switch input:checked + .slider { background-color: var(--acte); }
-  .date-block.ventebien .switch input:checked + .slider { background-color: var(--ventebien); }
-  .date-block.autre .switch input:checked + .slider { background-color: var(--muted); }
 
   .date-block .label-line {
     display: flex;
@@ -3025,11 +2996,7 @@
     pointer-events: none;
   }
 
-  .add-autre-btn {
-    margin-top: 16px;
-    font-size: var(--texte-m);
-    padding: 8px 14px;
-  }
+  wa-button.add-autre-btn { margin-top: 16px; }
 
   .autre-row {
     display: flex;
@@ -3533,19 +3500,7 @@
   .th-triable:hover { color: var(--ink-soft); }
   .tri-actif { color: var(--focus); }
 
-  .action-rapide {
-    font-family: inherit;
-    font-size: var(--texte-xs);
-    font-weight: 500;
-    color: var(--ink-soft);
-    background: var(--paper-card);
-    border: 1px solid var(--line);
-    border-radius: var(--rayon-carte);
-    padding: 2px 10px;
-    margin-left: 6px;
-    cursor: pointer;
-  }
-  .action-rapide:hover { border-color: var(--focus); color: var(--focus); }
+  wa-button.action-rapide { margin-left: 6px; }
 
   /* Ajouter une échéance après coup (voir renderAjoutEcheance) : bouton sous la grille .tabs,
      pas accolé à un élément voisin comme les autres .action-rapide (Revérifier...) — annule leur
@@ -3567,11 +3522,7 @@
      spécificité documenté juste au-dessus. */
   .champ-email-relance { max-width: 340px; margin: 6px 0 10px; }
   .relances-boutons { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
-  .relances-boutons .action-rapide {
-    margin-left: 0;
-    font-size: var(--texte-m);
-    padding: 8px 14px;
-  }
+  .relances-boutons wa-button.action-rapide { margin-left: 0; font-size: var(--texte-m); --wa-form-control-height: 36px; --wa-form-control-padding-inline: 14px; }
 
   .echeance-jours { font-size: var(--texte-s); margin-left: 6px; font-variant-numeric: tabular-nums; }
   .echeance-jours.urgent { color: var(--urgent); font-weight: 600; }
@@ -3656,22 +3607,9 @@
     border-bottom: 1px solid var(--line-soft);
   }
   .fiche-barre-groupe { display: flex; align-items: center; gap: 2px; }
-  .fiche-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 32px;
-    height: 32px;
-    font-size: var(--texte-l);
-    color: var(--ink-soft);
-    background: transparent;
-    border: 1px solid transparent;
-    border-radius: var(--rayon-m);
-    cursor: pointer;
-  }
-  .fiche-btn:hover { color: var(--ink); background: var(--paper-sunk); border-color: var(--line); }
-  .fiche-btn:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
-  .fiche-btn-danger:hover { color: var(--urgent); }
+  wa-button.fiche-btn { color: var(--ink-soft); }
+  wa-button.fiche-btn svg { width: 18px; height: 18px; }
+  wa-button.fiche-btn-danger:hover { color: var(--urgent); }
   /* Rien à agrandir quand l'écran n'en a pas la place. */
   @media (max-width: 1100px) { .fiche-btn-agrandir { display: none; } }
 
@@ -3721,8 +3659,7 @@
   .prop-ligne.prop-pleine { grid-column: 1 / -1; }
   /* Champs secondaires vides repliés derrière « Compléter la fiche (N) » (renderProprietesDossier). */
   .fiche-proprietes-bloc:not(.champs-vides-ouverts) .prop-ligne.prop-vide { display: none; }
-  .fiche-proprietes-bloc > button.bouton-ajout.fiche-completer { margin: 2px 0 8px; }
-  .fiche-proprietes-bloc > button.bouton-ajout.fiche-completer.ouvert::before { content: none; }
+  .fiche-proprietes-bloc > wa-button.bouton-ajout.fiche-completer { margin: 2px 0 8px; }
   .prop-ligne dt { margin: 0; min-width: 0; }
   .prop-ligne dt > label, .prop-ligne dt > span {
     display: flex;
@@ -4048,20 +3985,8 @@
     font-weight: 600;
     color: var(--ink);
   }
-  .icon-crayon, .icon-valider {
-    font-family: inherit;
-    font-size: var(--texte-m);
-    border: none;
-    background: none;
-    cursor: pointer;
-    padding: 4px 6px;
-    border-radius: var(--rayon-xs);
-    line-height: 1;
-  }
-  .icon-crayon { color: var(--muted); opacity: 0.75; }
-  .icon-crayon:hover { opacity: 1; color: var(--ink-soft); background: var(--paper-sunk); }
-  .icon-valider { color: var(--success); font-weight: 700; font-size: var(--texte-l); }
-  .icon-valider:hover { background: var(--success-bg); }
+  wa-button.icon-valider { color: var(--success); font-weight: 700; }
+  wa-button.icon-valider:not([disabled]):hover { color: var(--success); }
 
   .dossier-nom-input {
     font-family: 'Inter', -apple-system, 'Segoe UI', sans-serif;
@@ -4087,7 +4012,7 @@
   .apport-cercle.apport-pret { background: var(--pret); }
   .apport-cercle.apport-urgent { background: var(--urgent); }
 
-  .icon-btn {
+  button.icon-btn {
     background: none;
     border: none;
     color: var(--muted);
@@ -4098,7 +4023,7 @@
     text-decoration: underline;
     text-underline-offset: 2px;
   }
-  .icon-btn:hover { color: var(--urgent); }
+  button.icon-btn:hover { color: var(--urgent); }
 
   .tabs {
     display: grid;
@@ -4176,7 +4101,7 @@
   .tabs.tabs-timeline .tab > .tab-date-edition { flex: 0 1 auto; margin: 0; }
   .tabs.tabs-timeline .tab .tab-date { font-size: var(--texte-base); margin: 0; white-space: nowrap; }
   .tabs.tabs-timeline .tab > .tab-countdown { flex: 0 0 auto; margin-left: auto; font-size: var(--texte-m); white-space: nowrap; }
-  .tabs.tabs-timeline .tab > button.action-rapide,
+  .tabs.tabs-timeline .tab > wa-button.action-rapide,
   .tabs.tabs-timeline .tab > button.lien-dossier-local { flex: 0 0 auto; }
   .tabs.tabs-timeline .tab .tab-offre-pret { margin-top: 0; }
   /* Carte « Envoi au client » : chaque envoi sur UNE ligne — libellé, date, statut. */
@@ -4348,7 +4273,6 @@
   /* La confirmation porte une date longue : elle passe à la ligne plutôt que d'être coupée. */
   .envoi-action .dot-label { white-space: normal; line-height: 1.3; align-items: baseline; }
   .tab-date-affichage .tab-date { margin-bottom: 0; }
-  .tab-date-affichage .icon-crayon { font-size: var(--texte-xs); padding: 2px 4px; }
   .tab-date-edition {
     display: flex;
     align-items: center;
@@ -5047,8 +4971,6 @@ table.af-table .af-verif-ecart { background: #f6e3c9; color: #8a5417; }
 .reglages-option-titre { font-size: var(--texte-base); font-weight: 600; color: var(--ink); }
 .reglages-option .hint { margin: 0; }
 .reglages-option .hint:empty { display: none; }
-.reglages-switch input:checked + .slider { background-color: var(--focus); }
-.reglages-switch input:focus-visible + .slider { outline: 2px solid var(--focus); outline-offset: 2px; }
 /* Thème de couleur : une pastille par accent, dans la variante du mode affiché (fixe — elle
    montre le choix, elle ne suit pas l'accent courant). Le radio natif reste dans le DOM pour le clavier. */
 .reglages-option[role="group"] { cursor: default; flex-wrap: wrap; font-size: var(--texte-m); color: var(--ink-soft); }
@@ -5181,12 +5103,7 @@ table.af-table .af-verif-ecart { background: #f6e3c9; color: #8a5417; }
 .qt-memoire-coche { display: inline-flex; align-items: center; gap: 6px; font-size: var(--texte-s); color: var(--muted); white-space: nowrap; cursor: pointer; }
 .qt-memoire-coche input { width: auto; margin: 0; accent-color: var(--focus); }
 
-.qt-suppr {
-  width: 28px; height: 28px; padding: 0; display: inline-flex; align-items: center; justify-content: center;
-  border: 1px solid transparent; border-radius: var(--rayon-s); background: transparent; color: var(--muted); cursor: pointer;
-}
-.qt-suppr:hover { color: var(--urgent); border-color: var(--line); }
-.qt-suppr:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+wa-button.qt-suppr:hover { color: var(--urgent); }
 .qt-total-ligne {
   display: flex; justify-content: space-between; align-items: baseline; gap: 12px;
   margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line-soft);
@@ -6184,18 +6101,14 @@ button.lien-action:hover { text-decoration: underline; }
 .rappel-perso-sous.retard { color: var(--urgent); }
 .rappel-perso-sous button.lien-discret { font-size: var(--texte-s); }
 .rappel-perso.fait .rappel-perso-titre { text-decoration: line-through; color: var(--muted); }
-.rappel-perso-suppr {
-  background: none; border: none; padding: 2px; color: var(--muted); cursor: pointer;
-  opacity: 0; transition: opacity 0.15s ease; font-size: var(--texte-m);
-}
-.rappel-perso:hover .rappel-perso-suppr, .rappel-perso-suppr:focus-visible { opacity: 1; }
-.rappel-perso-suppr:hover { color: var(--urgent); }
-.rappel-perso-modif:hover { color: var(--focus); }
-.rappel-perso .rappel-perso-modif { font-size: var(--texte-s); }
-@media (hover: none) { .rappel-perso-suppr { opacity: 1; } }
+wa-button.rappel-perso-suppr { flex: none; opacity: 0; transition: opacity 0.15s ease; }
+.rappel-perso:hover wa-button.rappel-perso-suppr, wa-button.rappel-perso-suppr:focus-within { opacity: 1; }
+wa-button.rappel-perso-suppr:hover { color: var(--urgent); }
+wa-button.rappel-perso-modif:hover { color: var(--focus); }
+@media (hover: none) { wa-button.rappel-perso-suppr { opacity: 1; } }
 .rappel-perso-ajout { align-self: flex-start; margin-top: 6px; }
 /* Rappel qui parle d'écrire : un email vierge, signature comprise (voir ouvrirEmailRappelPerso). */
-.rappel-perso button.icon-btn.rappel-perso-email { color: var(--focus); font-size: var(--texte-base); padding: 2px 4px; flex: none; }
+.rappel-perso wa-button.rappel-perso-email, .rappel-perso wa-button.rappel-perso-email:hover { color: var(--focus); flex: none; }
 /* Tâche du jour restée non faite la veille (voir majVeilleJour). */
 .ja-non-faite {
   display: inline-block; margin-left: 8px; padding: 0 6px; border-radius: var(--rayon-pilule); vertical-align: 1px;
@@ -6278,10 +6191,7 @@ button.lien-action:hover { text-decoration: underline; }
 .ja-delai { font-size: var(--texte-s); font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .ja-delai.proche { color: var(--urgent); }
 .ja-actions-sec { display: inline-flex; align-items: center; gap: 2px; }
-.ja button.icon-btn.ja-plus-tard { color: var(--muted); }
-.ja button.icon-btn.ja-plus-tard:hover { color: var(--ink); }
-.ja button.icon-btn.ja-fait-manuel { color: var(--muted); }
-.ja button.icon-btn.ja-fait-manuel:hover { color: var(--success); }
+.ja wa-button.ja-fait-manuel:hover { color: var(--success); }
 .ja-detail { grid-column: 2 / -1; padding: 4px 0 6px; font-size: var(--texte-m); color: var(--ink-soft); }
 .ja-detail > p { margin: 0; max-width: 72ch; }
 .ja-detail-liens { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 8px; }
@@ -6493,14 +6403,8 @@ button.lien-action:hover { text-decoration: underline; }
 }
 @media print { .jour-overlay { display: none !important; } }
 
-/* Boutons à icône seule des écrans « Aujourd'hui » (la règle .icon-btn générique est un lien souligné). */
-.ja button.icon-btn.ja-plus-tard, .jour-fenetre button.icon-btn.jour-fenetre-x {
-  display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; padding: 0;
-  border-radius: var(--rayon-m); text-decoration: none; color: var(--muted); font-size: var(--texte-l);
-}
-.ja button.icon-btn.ja-plus-tard:hover, .jour-fenetre button.icon-btn.jour-fenetre-x:hover {
-  color: var(--ink); background: var(--line-soft);
-}
+/* Boutons à icône seule des écrans « Aujourd'hui » : taille des barres d'outils. */
+.ja wa-button.ja-plus-tard, .ja wa-button.ja-fait-manuel, .jour-fenetre wa-button.jour-fenetre-x { --wa-form-control-height: 32px; }
 
 /* Fonds reçus (onglet Échanges de la fiche) : reçus comptables rapprochés de l'acquéreur. */
 .fonds-recus { display: flex; flex-direction: column; gap: 8px; margin: 4px 0 14px; }
@@ -6581,13 +6485,8 @@ button.lien-action:hover { text-decoration: underline; }
 .ech-actions { display: inline-flex; align-items: center; gap: 1px; min-width: 84px; justify-content: flex-end; opacity: 0; transition: opacity 0.12s ease; }
 .ech:hover .ech-actions, .ech:focus-within .ech-actions { opacity: 1; }
 @media (hover: none) { .ech-actions { opacity: 1; } }
-button.ech-ico {
-  display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; padding: 0;
-  border: none; border-radius: var(--rayon-s); background: none; color: var(--muted); cursor: pointer; font-size: var(--texte-m);
-}
-button.ech-ico:hover { background: var(--line-soft); color: var(--ink); }
-button.ech-ico.ech-ico-valider:hover { color: var(--success); }
-button.ech-ico.ech-ico-suppr:hover { color: var(--urgent); }
+wa-button.ech-ico.ech-ico-valider:hover { color: var(--success); }
+wa-button.ech-ico.ech-ico-suppr:hover { color: var(--urgent); }
 .ech-sous {
   grid-column: 2 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px;
   font-size: var(--texte-s); color: var(--ink-soft);
@@ -6621,23 +6520,8 @@ button.ech-ico.ech-ico-suppr:hover { color: var(--urgent); }
 .echanges-destinataire { display: flex; flex-direction: column; gap: 4px; }
 .echanges-destinataire .hint { margin: 0; }
 
-/* ---- « Ajouter … » : un seul bouton dans tout CLAIRE (harmonisation du 28/09) ----
-   Pointillés, « + » en tête, sur toute la largeur de la liste qu'il complète. Remplace les quatre
-   formes qui coexistaient (pastille .action-rapide, bouton .secondary, barre pleine des pièces,
-   texte « + »). Sélecteur composé : il doit battre button.secondary et les styles des listes. */
-button.bouton-ajout {
-  display: flex; align-items: center; justify-content: flex-start; gap: 8px; width: 100%;
-  margin: 10px 0 0; padding: 8px 12px; border: 1px dashed var(--line); border-radius: var(--rayon-m);
-  background: none; font-family: inherit; font-size: var(--texte-m); font-weight: 500; line-height: 1.3;
-  color: var(--ink-soft); text-align: left; cursor: pointer;
-  transition: border-color 0.15s ease, color 0.15s ease, background-color 0.15s ease;
-}
-button.bouton-ajout::before { content: '+'; flex: none; font-size: var(--texte-l); font-weight: 600; line-height: 1; }
-button.bouton-ajout:hover { border-color: var(--focus); color: var(--focus); background: var(--paper-sunk); }
-button.bouton-ajout:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
-button.bouton-ajout.bouton-ajout-court { display: inline-flex; width: auto; margin: 0; }
-button.bouton-ajout.ajout-piece-btn { width: calc(100% - 24px); margin: 10px 12px 12px; border-top: 1px dashed var(--line); }
-@media (prefers-reduced-motion: reduce) { button.bouton-ajout { transition: none; } }
+/* « Ajouter … » : wa-button.bouton-ajout, couche Web Awesome en tête de feuille. */
+wa-button.bouton-ajout.ajout-piece-btn { width: calc(100% - 24px); margin: 10px 12px 12px; }
 .qt-ajout-sources { margin-top: 10px; }
 
 /* Onglet Échanges selon le stade du dossier (voir echangesSelonStade). */
@@ -6699,8 +6583,7 @@ details.echanges-autres .ja-titre { font-weight: 500; }
 .ajd-passe { opacity: 0.55; }
 
 /* « Point du matin » sur la carte Aujourd'hui : le soleil et son texte. */
-.action-rapide.w-point-matin { display: inline-flex; align-items: center; gap: 6px; margin: 0; padding: 4px 10px; white-space: nowrap; }
-.action-rapide.w-point-matin svg { width: 14px; height: 14px; flex: none; }
+wa-button.action-rapide.w-point-matin { margin: 0; }
 .email-matin-texte { min-width: 0; overflow-wrap: anywhere; }
 .email-matin-pj { color: var(--muted); font-size: var(--texte-s); vertical-align: -1px; }
 .email-matin-sujet {
@@ -7053,7 +6936,6 @@ button.w-plus { align-self: flex-start; margin-top: 2px; font-size: var(--texte-
 }
 .widget-fantome > .dash-bloc { animation: none !important; }
 .widget-fantome .widget-barre, .widget-fantome .widget-retirer, .widget-fantome .widget-fleche { display: none; }
-button.widget-fleche:disabled { display: none; }
 body.widgets-glisse-en-cours { cursor: grabbing; user-select: none; -webkit-user-select: none; }
 
 button.widget-retirer {
@@ -7083,21 +6965,17 @@ button.widget-taille.actif { background: var(--focus); color: var(--paper-card);
 .widget-glyphe-h i { width: 14px; }
 .widget-glyphe i { display: block; border-radius: var(--rayon-xs); background: currentColor; opacity: 0.22; }
 .widget-glyphe i.plein { opacity: 1; }
-button.widget-outil {
-  display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; padding: 0;
-  border: 1px solid var(--line); border-radius: var(--rayon-pilule); background: var(--paper-card); color: var(--ink-soft); cursor: pointer;
-  box-shadow: var(--shadow-card);
-}
-button.widget-fleche { position: absolute; top: 50%; z-index: 3; transform: translateY(-50%); }
-button.widget-fleche-avant { left: -10px; }
-button.widget-fleche-apres { right: -10px; }
-button.widget-outil:hover:not(:disabled), button.widget-taille:hover:not(.actif) { background: var(--paper-sunk); color: var(--ink); }
-button.widget-outil:disabled { opacity: 0.3; cursor: default; }
-button.widget-outil svg { width: 13px; height: 13px; }
-button.widget-taille:focus-visible, button.widget-outil:focus-visible, button.widget-retirer:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+/* Flèches de déplacement d'un widget (mode Personnaliser) : rondes, posées sur le bord de la carte. */
+wa-button.widget-fleche { position: absolute; top: 50%; z-index: 3; transform: translateY(-50%); color: var(--ink-soft); }
+wa-button.widget-fleche::part(base) { border-radius: var(--rayon-pilule); background: var(--paper-card); box-shadow: var(--shadow-card); }
+wa-button.widget-fleche[disabled] { display: none; }
+wa-button.widget-fleche-avant { left: -10px; }
+wa-button.widget-fleche-apres { right: -10px; }
+button.widget-taille:hover:not(.actif) { background: var(--paper-sunk); color: var(--ink); }
+button.widget-taille:focus-visible, button.widget-retirer:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
 
 .widgets-masques { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 20px; }
-.widgets-masques button.bouton-ajout { width: auto; margin: 0; }
+.widgets-masques wa-button.bouton-ajout { width: auto; margin: 0; }
 .widgets-reinitialiser { margin-left: auto; }
 
 /* Bouton « Personnaliser / Terminé » de l'accueil. */
@@ -7810,11 +7688,10 @@ body.ag-redim-en-cours, body.ag-redim-en-cours * { cursor: ns-resize !important;
 .ag-placer { display: flex; flex-direction: column; gap: 4px; padding: 6px 0; border-top: 1px solid var(--line-soft); }
 .ag-placer:first-child { border-top: none; padding-top: 0; }
 .ag-creneaux { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 2px; }
-.action-rapide.ag-creneau { margin: 0; padding: 4px 10px; font-size: var(--texte-s); font-variant-numeric: tabular-nums; }
-.action-rapide.ag-creneau.apres-butoir { border-style: dashed; }
-.action-rapide.ag-creneau.exceptionnel { border-color: var(--pret); color: var(--pret); display: inline-flex; align-items: center; gap: 4px; }
-.action-rapide.ag-creneau.exceptionnel svg { width: 12px; height: 12px; }
-.action-rapide.ag-creneau:disabled { opacity: 0.55; cursor: not-allowed; }
+wa-button.action-rapide.ag-creneau { margin: 0; font-variant-numeric: tabular-nums; }
+wa-button.action-rapide.ag-creneau.apres-butoir::part(base) { border-style: dashed; }
+wa-button.action-rapide.ag-creneau.exceptionnel, wa-button.action-rapide.ag-creneau.exceptionnel:hover { color: var(--pret); }
+wa-button.action-rapide.ag-creneau.exceptionnel::part(base) { border-color: var(--pret); }
 .ag-anticipe .ja { margin: 0; }
 
 /* Fenêtre d'un rendez-vous et formulaire de création. */
@@ -7829,13 +7706,13 @@ body.ag-redim-en-cours, body.ag-redim-en-cours * { cursor: ns-resize !important;
 .ag-modale-lieu { font-size: var(--texte-m); color: var(--muted); display: flex; align-items: center; gap: 4px; margin-top: 4px; }
 .ag-modale-lieu svg { width: 13px; height: 13px; }
 .ag-modale-x { position: absolute; top: 12px; right: 12px; }
+wa-button.ag-modale-x, .ag-detail-tete wa-button.bouton-icone { --wa-form-control-height: 32px; }
 .ag-modale-corps { overflow-y: auto; padding: 14px 20px; display: flex; flex-direction: column; gap: 12px; }
 .ag-modale-pied { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 12px 20px; border-top: 1px solid var(--line-soft); background: var(--paper-sunk); }
 .ag-modale-pied-form { margin: 4px -20px -14px; }
 .ag-supprimer { color: var(--urgent); display: inline-flex; align-items: center; gap: 6px; }
 /* Suppression d'un rendez-vous (étude, 01/10) : une simple poubelle rouge à côté du crayon. */
-.ag-detail-outils button.icon-btn.ag-supprimer-ico { color: var(--urgent); }
-.ag-detail-outils button.icon-btn.ag-supprimer-ico:hover { color: var(--urgent); background: color-mix(in srgb, var(--urgent) 12%, transparent); }
+.ag-detail-outils wa-button.ag-supprimer-ico, .ag-detail-outils wa-button.ag-supprimer-ico:hover { color: var(--urgent); }
 .ag-supprimer svg { width: 14px; height: 14px; }
 .ag-detail-proba { border: 1px solid var(--line); border-radius: var(--rayon-m); padding: 10px 12px; background: var(--paper-sunk); }
 .ag-detail-proba-tete { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; font-size: var(--texte-m); margin-bottom: 6px; }
@@ -7893,7 +7770,7 @@ textarea.ag-notes-champ:focus { outline: 2px solid var(--focus); outline-offset:
 .ag-form input.sondage-email { font: inherit; font-size: var(--texte-m); color: var(--ink); background: var(--paper); border: 1px solid var(--line); border-radius: var(--rayon-m); padding: 6px 10px; min-width: 0; }
 .ag-form input.sondage-email:focus-visible { outline: 2px solid var(--focus); outline-offset: 0; }
 .sondage-ajout { align-items: end; }
-.sondage-ajout button.bouton-ajout { align-self: end; }
+.sondage-ajout wa-button.bouton-ajout { align-self: end; }
 @media (max-width: 520px) { .sondage-participants li { grid-template-columns: minmax(0, 1fr); } }
 
 .sondage-panneau { border: 1px solid var(--line); border-radius: var(--rayon-m); padding: 10px 12px; background: var(--paper-sunk); display: flex; flex-direction: column; gap: 8px; margin: 4px 0 8px; }
@@ -7912,7 +7789,6 @@ textarea.ag-notes-champ:focus { outline: 2px solid var(--focus); outline-offset:
 .sondage-table .sondage-attente { color: var(--muted); }
 .sondage-table tr.sondage-tous { background: var(--success-bg); }
 .sondage-table tr.sondage-tous th { color: var(--success); }
-.sondage-table .action-rapide { padding: 4px 10px; }
 .sondage-option { font-size: var(--texte-xxs); font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; color: var(--muted); border: 1px solid var(--line); border-radius: var(--rayon-xs); padding: 0 4px; margin-left: 4px; }
 .sondage-actions { display: flex; flex-wrap: wrap; gap: 4px 14px; }
 .sondage-actions .lien-bouton { display: inline-flex; align-items: center; gap: 6px; font-size: var(--texte-m); }
@@ -7949,8 +7825,7 @@ textarea.ag-notes-champ:focus { outline: 2px solid var(--focus); outline-offset:
 /* Sondage sans dossier (étude, 01/10) : nom, adresse, « Confrère », retirer — une ligne par destinataire. */
 .sondage-participants.sondage-libres li { grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) auto 30px; }
 .sondage-libres .sondage-confrere { font-size: var(--texte-m); color: var(--ink-soft); white-space: nowrap; }
-.sondage-libres button.icon-btn { width: 30px; height: 30px; display: inline-flex; align-items: center; justify-content: center; padding: 0; color: var(--muted); text-decoration: none; }
-.sondage-libres button.icon-btn:hover { color: var(--ink); }
+.sondage-libres wa-button.bouton-icone { --wa-form-control-height: 32px; }
 @media (max-width: 520px) {
   .sondage-participants.sondage-libres li { grid-template-columns: minmax(0, 1fr) auto 30px; }
   .sondage-libres li > input[id^="sondage-nom-"] { grid-column: 1 / -1; }
@@ -8006,7 +7881,8 @@ button.appel-entrant-fermer svg { width: 14px; height: 14px; }
 .appel-entrant-numero { font-size: var(--texte-l); font-weight: 600; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 .appel-entrant-contact { font-size: var(--texte-m); color: var(--ink-soft); }
 .appel-entrant-dossiers { display: flex; flex-direction: column; gap: 6px; }
-.appel-entrant-dossiers .action-rapide { justify-content: flex-start; text-align: left; white-space: normal; }
+.appel-entrant-dossiers wa-button.action-rapide { margin-left: 0; }
+.appel-entrant-dossiers wa-button.action-rapide::part(base) { justify-content: flex-start; height: auto; min-height: 28px; padding-block: 4px; white-space: normal; text-align: left; }
 .appel-entrant-partie { font-size: var(--texte-xs); text-transform: uppercase; letter-spacing: .04em; color: var(--ink-soft); margin-right: 6px; }
 .appels-dossier { display: flex; flex-direction: column; gap: 6px; margin: 4px 0 8px; }
 .appels-liste { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
@@ -8038,8 +7914,7 @@ body.tiroir-dates-ouvert { overflow: hidden; }
 .dp-ligne { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 12px; border: 1px solid var(--line); border-radius: var(--rayon-m); background: var(--paper-card); }
 .dp-ligne > * { min-width: 0; }
 .dp-ligne-texte { display: flex; flex-direction: column; gap: 2px; }
-.dp-ligne .action-rapide { flex: none; display: inline-flex; align-items: center; gap: 6px; }
-.dp-ligne .action-rapide svg { width: 13px; height: 13px; }
+.dp-ligne wa-button.action-rapide { flex: none; }
 .dp-sans-suite { opacity: 0.75; }
 .dates-proposees-box .hint { font-size: var(--texte-m); color: var(--muted); line-height: 1.4; }
 .dates-proposees-box .sondage-tete { align-items: baseline; }
@@ -8047,7 +7922,7 @@ body.tiroir-dates-ouvert { overflow: hidden; }
 .dates-proposees-box button.lien-bouton.dp-titre { text-align: left; padding: 0; }
 @media (max-width: 560px) {
   .dp-ligne { flex-direction: column; align-items: stretch; }
-  .dp-ligne .action-rapide { justify-content: center; }
+  .dp-ligne wa-button.action-rapide::part(base) { justify-content: center; }
 }
 .dp-details > summary { list-style: none; cursor: pointer; }
 .dp-details > summary::-webkit-details-marker { display: none; }
@@ -8086,11 +7961,12 @@ button.ag-lien-dates.a-nouveau { border-color: color-mix(in srgb, var(--notif-no
 .widgets-galerie-texte b { font-size: var(--texte-base); color: var(--ink); }
 .widgets-galerie-texte span { font-size: var(--texte-m); color: var(--ink-soft); }
 wa-button.widgets-galerie-retirer svg { width: 13px; height: 13px; }
-.widgets-galerie-ligne button.bouton-ajout { width: auto; margin: 0; white-space: nowrap; }
+.widgets-galerie-ligne wa-button.bouton-ajout { width: auto; margin: 0; }
+.widgets-galerie-ligne wa-button.bouton-ajout::part(label) { white-space: nowrap; }
 .widgets-galerie-box .confirm-actions { justify-content: space-between; align-items: center; margin-top: 16px; }
 @media (max-width: 480px) {
   .widgets-galerie-ligne { grid-template-columns: auto minmax(0, 1fr); }
-  .widgets-galerie-ligne > button { grid-column: 1 / -1; justify-self: end; }
+  .widgets-galerie-ligne > button, .widgets-galerie-ligne > wa-button { grid-column: 1 / -1; justify-self: end; }
 }
 
 
@@ -8536,11 +8412,14 @@ select.email-pj-ranger { font-size: var(--texte-m); padding: 4px 6px; max-width:
 /* Fenêtre de lecture et de rédaction (étude 03/10 : à la manière d'une boîte de réception moderne) */
 .email-lecture-barre, .redaction-tete { display: flex; align-items: center; gap: 6px; padding: 10px 14px; border-bottom: 1px solid var(--line-soft); flex-shrink: 0; }
 .email-lecture-barre-espace { flex: 1; }
-.email-lecture-barre .icon-btn, .redaction-tete .icon-btn, .redaction-pied .icon-btn, .redaction-piece .icon-btn { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; padding: 0; border-radius: var(--rayon-m); color: var(--ink-soft); text-decoration: none; }
-.email-lecture-barre .icon-btn:hover, .redaction-tete .icon-btn:hover, .redaction-pied .icon-btn:hover, .redaction-piece .icon-btn:hover { background: var(--paper-sunk); color: var(--ink); }
-.email-lecture-barre .icon-btn:focus-visible, .redaction-tete .icon-btn:focus-visible, .redaction-pied .icon-btn:focus-visible, .redaction-piece .icon-btn:focus-visible, label.icon-btn.redaction-joindre:focus-within { outline: 2px solid var(--focus); outline-offset: 1px; }
-.email-lecture-barre .icon-btn svg, .redaction-tete .icon-btn svg, .redaction-pied .icon-btn svg { width: 17px; height: 17px; }
-button.icon-btn.email-barre-action { width: auto; gap: 6px; padding: 0 10px; font-size: var(--texte-m); color: var(--ink-soft); }
+/* Barres d'outils de la lecture et de la rédaction d'un email : boutons à icône de 32 px. */
+.email-lecture-barre wa-button.bouton-icone, .redaction-tete wa-button.bouton-icone, .redaction-pied wa-button.bouton-icone { --wa-form-control-height: 32px; color: var(--ink-soft); }
+.email-lecture-barre wa-button.bouton-icone:hover, .redaction-tete wa-button.bouton-icone:hover, .redaction-pied wa-button.bouton-icone:hover { color: var(--ink); }
+/* Joindre un fichier : un <label> (champ fichier caché), dessiné comme les boutons à icône voisins. */
+label.icon-btn.redaction-joindre { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: var(--rayon-m); color: var(--ink-soft); }
+label.icon-btn.redaction-joindre:hover { background: var(--line-soft); color: var(--ink); }
+label.icon-btn.redaction-joindre:focus-within { outline: 2px solid var(--focus); outline-offset: 1px; }
+label.icon-btn.redaction-joindre svg { width: 16px; height: 16px; }
 .redaction-dossier { font-size: var(--texte-s); font-weight: 600; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 45%; }
 .email-lecture-titre-ligne { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding: 16px 24px 4px; flex-shrink: 0; }
 .email-lecture-titre-ligne .poste-titre { font-size: var(--texte-2xl); text-wrap: balance; overflow-wrap: anywhere; }
@@ -8585,13 +8464,10 @@ textarea.redaction-texte:focus { outline: none; }
 .redaction-piece svg { width: 14px; height: 14px; flex-shrink: 0; color: var(--muted); }
 .redaction-piece-nom { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .redaction-piece-taille { color: var(--muted); white-space: nowrap; }
-.redaction-piece button.icon-btn { width: 24px; height: 24px; }
 .redaction-erreur { margin: 6px 0 0; font-size: var(--texte-m); color: var(--urgent); }
 .redaction-cite { margin: 10px 20px 0; }
 .redaction-pied { display: flex; align-items: center; gap: 4px; padding-top: 8px; }
 .redaction-modeles { position: relative; }
-.redaction-pied .icon-btn.redaction-modeles-btn { width: auto; gap: 6px; padding: 0 10px; font-size: var(--texte-m); }
-.redaction-pied .icon-btn.redaction-modeles-btn svg { width: 15px; height: 15px; }
 .redaction-annuler-modele { margin-left: 4px; white-space: nowrap; }
 .redaction-menu { position: absolute; bottom: calc(100% + 6px); left: 0; z-index: 5; width: min(300px, calc(100vw - 48px)); max-height: 320px; overflow-y: auto; padding: 6px; border: 1px solid var(--line); border-radius: var(--rayon-m); background: var(--paper-card); box-shadow: var(--shadow-float); }
 .redaction-menu-groupe { padding: 8px 10px 4px; font-size: var(--texte-xs); font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
@@ -8610,7 +8486,7 @@ button.modeles-ligne.actif { background: var(--paper-sunk); color: var(--ink); f
 button.modeles-ligne:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
 .modeles-ligne-nom { flex: 1; min-width: 0; }
 .modeles-modifie { flex-shrink: 0; padding: 1px 8px; border-radius: var(--rayon-s); font-size: var(--texte-xs); font-weight: 600; background: var(--acte-bg); color: var(--acte); }
-.modeles-liste button.bouton-ajout { margin: 6px 0 2px; }
+.modeles-liste wa-button.bouton-ajout { margin: 6px 0 2px; }
 .modeles-editeur { display: flex; flex-direction: column; gap: 12px; }
 .modeles-titre { font-size: var(--texte-l); font-weight: 700; color: var(--ink); }
 .modeles-editeur label.modeles-champ { display: flex; flex-direction: column; align-items: stretch; gap: 6px; margin: 0; text-align: left; }
@@ -8736,7 +8612,7 @@ button.email-rang-btn:focus-visible { outline: 2px solid var(--focus); outline-o
 label.copie-acte-fichier { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; grid-template-rows: auto auto; column-gap: 10px; align-items: center; padding: 8px 10px; border: 1px solid var(--line); border-radius: var(--rayon-m); cursor: pointer; }
 label.copie-acte-fichier:hover { border-color: var(--focus); }
 label.copie-acte-fichier input { grid-row: 1 / span 2; }
-label.copie-acte-fichier button.icon-btn { grid-column: 3; grid-row: 1 / span 2; }
+label.copie-acte-fichier wa-button.bouton-icone { grid-column: 3; grid-row: 1 / span 2; }
 .copie-acte-nom { font-size: var(--texte-m); font-weight: 600; overflow-wrap: anywhere; }
 .copie-acte-meta { grid-column: 2; font-size: var(--texte-s); color: var(--muted); }
 .copie-acte-total { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 4px 0 0; font-size: var(--texte-m); }

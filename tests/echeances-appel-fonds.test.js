@@ -343,7 +343,7 @@ test('envois avant signature : deux lignes, dates et états propres à chacune',
   // Appel de fonds : « À envoyer » ; projet : le bouton « Projet envoyé » prend la place de l'état.
   assert.equal((vide.match(/À envoyer/g) || []).length, 1);
   assert.ok(vide.includes(`onclick="marquerEnvoiAujourdhui('d1','projetEnvoye')"`));
-  assert.ok(vide.includes('>Projet envoyé</button>'));
+  assert.ok(vide.includes('>Projet envoyé</wa-button>'));
   // Les deux champs de saisie existent, avec les id attendus par validerEditionDate.
   assert.ok(vide.includes('id="tabdate-d1-appelFonds-input"'));
   assert.ok(vide.includes('id="tabdate-d1-projetEnvoye-input"'));
@@ -358,10 +358,10 @@ test('envois avant signature : deux lignes, dates et états propres à chacune',
   assert.ok(html.includes('title="25 septembre 2026"'));
   assert.ok(html.includes('Relevé dans l’agenda'));
   assert.ok(html.includes('✓ Envoyé'));
-  assert.ok(html.includes('>Projet envoyé</button>'), "l'envoi du projet reste à faire");
+  assert.ok(html.includes('>Projet envoyé</wa-button>'), "l'envoi du projet reste à faire");
   // Une fois daté, plus de bouton.
   const fait = app.echeancesOrdonneesFiche(dossierBase({ rendezVousSignature: '2099-12-01', projetEnvoye: '2026-09-26' }), {}, '');
-  assert.ok(!fait.includes('>Projet envoyé</button>'));
+  assert.ok(!fait.includes('>Projet envoyé</wa-button>'));
 });
 
 test('etatLigneEcheance : un mot par état', () => {

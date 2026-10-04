@@ -120,7 +120,7 @@
     if (!zone) return;
     if (signalementEnCours.capture) {
       zone.innerHTML = `<img src="${signalementEnCours.capture}" alt="Capture d'écran jointe">
-        <button type="button" class="action-rapide" onclick="retirerCaptureSignalement()">Retirer la capture</button>`;
+        <wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="retirerCaptureSignalement()">Retirer la capture</wa-button>`;
     } else {
       zone.innerHTML = `<label class="action-rapide signalement-capture-btn" for="signalement-fichier">Joindre une capture d'écran</label>
         <span class="hint">ou collez-la ici (Ctrl + V). Pour capturer une zone : Windows + Maj + S.</span>`;
@@ -409,7 +409,7 @@
       </details>
       <div class="signalement-capture-zone" id="sig-capture-${escapeAttr(s.id)}"></div>
       <div class="signalement-actions">
-        ${s.aCapture ? `<button type="button" class="action-rapide" onclick="voirCaptureSignalement('${idArg}')">Voir la capture</button>` : ''}
+        ${s.aCapture ? `<wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="voirCaptureSignalement('${idArg}')">Voir la capture</wa-button>` : ''}
         ${s.statut === 'corrige' ? `<label class="signalement-champ">Corrigé en version
           <input type="text" class="signalement-input" value="${escapeAttr(s.versionCorrige)}" placeholder="${escapeAttr(VERSION_APP)}" onchange="modifierSignalement('${idArg}', { versionCorrige: this.value })"></label>` : ''}
         ${autres.length ? `<label class="signalement-champ">Doublon de
@@ -419,7 +419,7 @@
           </select></label>` : ''}
         <label class="signalement-champ signalement-note">Note
           <input type="text" class="signalement-input" value="${escapeAttr(s.note)}" placeholder="Pour vous seulement" onchange="modifierSignalement('${idArg}', { note: this.value })"></label>
-        <button type="button" class="icon-btn signalement-suppr" title="Supprimer ce signalement" aria-label="Supprimer ce signalement" onclick="supprimerSignalement('${idArg}')">${icone('x')}</button>
+        <wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-btn signalement-suppr" title="Supprimer ce signalement" aria-label="Supprimer ce signalement" onclick="supprimerSignalement('${idArg}')">${icone('x')}</wa-button>
       </div>
     </article>`;
   }

@@ -165,13 +165,13 @@
       return `<div class="signature-image-ligne">
         <div class="signature-image-tete">
           <span class="reglages-option-titre">${e.libelle}</span>
-          ${img ? `<button type="button" class="ech-ico ech-ico-suppr" onclick="retirerImageSignature('${e.cle}')" title="Retirer l’image" aria-label="Retirer l’image : ${escapeAttr(e.libelle)}">${icone('x')}</button>` : ''}
+          ${img ? `<wa-button appearance="plain" size="s" type="button" class="bouton-icone ech-ico ech-ico-suppr" onclick="retirerImageSignature('${e.cle}')" title="Retirer l’image" aria-label="Retirer l’image : ${escapeAttr(e.libelle)}">${icone('x')}</wa-button>` : ''}
         </div>
         ${img
           ? `<img class="signature-image-apercu" src="data:${img.type};base64,${img.base64}" alt="${escapeAttr(e.libelle)}">`
           : `<span class="hint">${e.aide} Aucune image : version composée par CLAIRE.</span>`}
         <input type="file" id="signature-image-${e.cle}" accept="image/png,image/jpeg" hidden onchange="deposerImageSignature('${e.cle}', this)">
-        <button type="button" class="bouton-ajout bouton-ajout-court" onclick="document.getElementById('signature-image-${e.cle}').click()">${img ? 'Remplacer l’image' : 'Déposer une image'}</button>
+        <wa-button appearance="outlined" type="button" class="bouton-ajout bouton-ajout-court" onclick="document.getElementById('signature-image-${e.cle}').click()"><span slot="start" class="bouton-ajout-plus" aria-hidden="true">+</span>${img ? 'Remplacer l’image' : 'Déposer une image'}</wa-button>
       </div>`;
     }).join('');
   }
@@ -768,7 +768,7 @@
     if (!m || m.niveau !== 'alerte') { zone.style.display = 'none'; zone.innerHTML = ''; return; }
     zone.style.display = '';
     zone.innerHTML = `${icone('alert-triangle')}<span><strong>Sauvegarde de la base :</strong> ${escapeHtml(m.titre)}${m.detail ? ' ' + escapeHtml(m.detail) : ''}</span>
-      <button type="button" class="action-rapide" onclick="definirOnglet('reglages'); definirSousOngletReglages('systeme')">Voir les Réglages</button>`;
+      <wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="definirOnglet('reglages'); definirSousOngletReglages('systeme')">Voir les Réglages</wa-button>`;
   }
 
   async function chargerEtatSauvegarde() {

@@ -514,7 +514,7 @@
           ${['Monsieur', 'Madame', 'SCI'].map(c => `<option value="${c}"${a.civilite === c ? ' selected' : ''}>${c}</option>`).join('')}
         </select>
         <input type="text" aria-label="Prénom et nom de l'acquéreur ${i + 1}" placeholder="Prénom NOM" value="${escapeAttr(a.nom)}" oninput="modifierAcquereurQuotites('${a.id}', 'nom', this.value, false)">
-        ${plusieurs ? `<button type="button" class="qt-suppr" title="Retirer cet acquéreur" aria-label="Retirer cet acquéreur" onclick="retirerAcquereurQuotites('${a.id}')">${icone('x')}</button>` : '<span></span>'}
+        ${plusieurs ? `<wa-button appearance="plain" size="s" type="button" class="bouton-icone qt-suppr" title="Retirer cet acquéreur" aria-label="Retirer cet acquéreur" onclick="retirerAcquereurQuotites('${a.id}')">${icone('x')}</wa-button>` : '<span></span>'}
       </div>`).join('');
 
     document.getElementById('qt-lignes').innerHTML = qtEtat.lignes.map(l => `
@@ -522,7 +522,7 @@
         <input type="text" aria-label="Libellé" placeholder="Libellé" value="${escapeAttr(l.libelle)}" oninput="modifierLigneQuotites('${l.id}', 'libelle', this.value, false)">
         <input type="number" min="0" step="0.01" aria-label="Montant de ${escapeAttr(l.libelle || 'la ligne')}" placeholder="${l.memoire ? 'Mémoire' : '0,00'}" value="${l.memoire ? '' : valeurChampQuotite(l.montant)}" ${l.memoire ? 'disabled' : ''} oninput="modifierLigneQuotites('${l.id}', 'montant', this.value, false)">
         <label class="qt-memoire-coche" title="Montant non encore connu : écrit « MEMOIRE » dans l'annexe et exclu du total"><input type="checkbox" ${l.memoire ? 'checked' : ''} onchange="modifierLigneQuotites('${l.id}', 'memoire', this.checked, true)">Mémoire</label>
-        <button type="button" class="qt-suppr" title="Supprimer la ligne" aria-label="Supprimer la ligne" onclick="retirerLigneQuotites('${l.id}')">${icone('x')}</button>
+        <wa-button appearance="plain" size="s" type="button" class="bouton-icone qt-suppr" title="Supprimer la ligne" aria-label="Supprimer la ligne" onclick="retirerLigneQuotites('${l.id}')">${icone('x')}</wa-button>
       </div>`).join('');
 
     document.getElementById('qt-sources').innerHTML = qtEtat.sources.map(src => `
@@ -530,7 +530,7 @@
         <div class="qt-source-entete">
           <span class="dot-label ${src.type === 'pret' ? 'dl-acte' : 'dl-success'}"><span class="dot"></span>${src.type === 'pret' ? 'Prêt' : 'Apport personnel'}</span>
           <strong class="qt-source-total" id="qt-source-total-${src.id}"></strong>
-          <button type="button" class="qt-suppr" title="Supprimer cette source" aria-label="Supprimer cette source" onclick="retirerSourceQuotites('${src.id}')">${icone('x')}</button>
+          <wa-button appearance="plain" size="s" type="button" class="bouton-icone qt-suppr" title="Supprimer cette source" aria-label="Supprimer cette source" onclick="retirerSourceQuotites('${src.id}')">${icone('x')}</wa-button>
         </div>
         ${src.type === 'pret' ? `<div class="qt-source-pret">
           <input type="text" aria-label="Établissement prêteur" placeholder="Établissement prêteur" value="${escapeAttr(src.banque)}" oninput="modifierSourceQuotites('${src.id}', 'banque', this.value)">
@@ -749,7 +749,7 @@
     const d = qtDossierLie ? dossiers.find(x => x.id === qtDossierLie) : null;
     cible.innerHTML = d ? `<div class="dash-recherche-pill">
       <span class="dot-label dl-success"><span class="dot"></span>${escapeHtml(libelleDossierAffiche(d))}</span>
-      <button type="button" class="action-rapide" onclick="reinitialiserQuotites()">Détacher</button>
+      <wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="reinitialiserQuotites()">Détacher</wa-button>
     </div>` : '';
   }
 
@@ -975,10 +975,10 @@
     if (!pill) return;
     const d = auditDossierLie;
     const aae = d && d.nasDossier
-      ? `<button type="button" class="action-rapide audit-aae-btn" onclick="ouvrirParcoursNasRelecture()" title="Affiche tout le dossier du client sur le NAS, rubrique par rubrique, pour choisir les pièces à joindre à la relecture">${icone('folder')}Parcourir le dossier du NAS</button>`
+      ? `<wa-button appearance="outlined" size="s" pill type="button" class="action-rapide audit-aae-btn" onclick="ouvrirParcoursNasRelecture()" title="Affiche tout le dossier du client sur le NAS, rubrique par rubrique, pour choisir les pièces à joindre à la relecture">${icone('folder')}Parcourir le dossier du NAS</wa-button>`
       : (d ? '<span class="hint">Dossier non relié au NAS.</span>' : '');
     pill.innerHTML = d
-      ? `<span class="dot-label dl-success">${icone('link')}${escapeHtml(libelleDossierAffiche(d))}<button type="button" class="piece-suppr" onclick="retirerDossierAudit()" title="Ne plus lier ce dossier" aria-label="Ne plus lier ce dossier">${icone('x')}</button></span>${aae}`
+      ? `<span class="dot-label dl-success">${icone('link')}${escapeHtml(libelleDossierAffiche(d))}<wa-button appearance="plain" size="s" type="button" class="bouton-icone piece-suppr" onclick="retirerDossierAudit()" title="Ne plus lier ce dossier" aria-label="Ne plus lier ce dossier">${icone('x')}</wa-button></span>${aae}`
       : '';
   }
 
@@ -1228,12 +1228,12 @@
       const texte = m.decision === 'ecarte' ? `Déjà écarté précédemment${nb}` : `Confirmé lors d'un audit précédent${nb}`;
       return `<div class="analyse-ia-constat-actions">
         <span class="dot-label ${m.decision === 'ecarte' ? 'dl-neutre' : 'dl-success'}">${icone(m.decision === 'ecarte' ? 'x' : 'check')}${texte}</span>
-        <button type="button" class="icon-btn" onclick="annulerDecisionConstatAudit('${c.uid}')" title="Oublier cette décision">${icone('rotate-ccw')} Annuler</button>
+        <wa-button appearance="plain" size="s" type="button" class="bouton-discret icon-btn" onclick="annulerDecisionConstatAudit('${c.uid}')" title="Oublier cette décision">${icone('rotate-ccw')} Annuler</wa-button>
       </div>`;
     }
     return `<div class="analyse-ia-constat-actions">
-      <button type="button" class="icon-btn" onclick="decisionConstatAudit('${c.uid}', 'ecarte')" title="Ne plus signaler ce constat sur les prochains audits (il restera visible, replié)">${icone('x')} Écarter</button>
-      <button type="button" class="icon-btn" onclick="decisionConstatAudit('${c.uid}', 'confirme')" title="Marquer ce constat comme pertinent : il remontera en tête sur les prochains audits">${icone('check')} Confirmer</button>
+      <wa-button appearance="plain" size="s" type="button" class="bouton-discret icon-btn" onclick="decisionConstatAudit('${c.uid}', 'ecarte')" title="Ne plus signaler ce constat sur les prochains audits (il restera visible, replié)">${icone('x')} Écarter</wa-button>
+      <wa-button appearance="plain" size="s" type="button" class="bouton-discret icon-btn" onclick="decisionConstatAudit('${c.uid}', 'confirme')" title="Marquer ce constat comme pertinent : il remontera en tête sur les prochains audits">${icone('check')} Confirmer</wa-button>
     </div>`;
   }
 
@@ -1290,8 +1290,8 @@
       return `<div class="audit-commentaire">
         ${renderRetourResumeAudit(c)}
         <div class="audit-commentaire-actions">
-          <button type="button" class="icon-btn" onclick="modifierCommentaireAudit('${c.uid}')">${icone('pencil')} Modifier</button>
-          <button type="button" class="icon-btn" onclick="supprimerCommentaireAudit('${c.uid}')">${icone('x')} Supprimer</button>
+          <wa-button appearance="plain" size="s" type="button" class="bouton-discret icon-btn" onclick="modifierCommentaireAudit('${c.uid}')">${icone('pencil')} Modifier</wa-button>
+          <wa-button appearance="plain" size="s" type="button" class="bouton-discret icon-btn" onclick="supprimerCommentaireAudit('${c.uid}')">${icone('x')} Supprimer</wa-button>
         </div>
       </div>`;
     }
@@ -1719,7 +1719,7 @@
     const liste = texte.map(p => `${p.nom} (${String(p.role || '').toLowerCase()})`).join(', ');
     return `<p class="audit-ecarts audit-ecarts-alerte"><span class="dot-label dl-pret">${icone('info')}Fiche à mettre à jour</span>
       Les parties enregistrées sur le dossier ne sont pas celles lues dans l'avant-contrat : ${escapeHtml(liste)}. La relecture s'appuie sur l'avant-contrat.
-      <button type="button" class="action-rapide" onclick="mettreAJourPartiesDossierAudit()">Mettre à jour la fiche</button></p>`;
+      <wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="mettreAJourPartiesDossierAudit()">Mettre à jour la fiche</wa-button></p>`;
   }
 
   // Seule écriture sur le dossier lié depuis cet écran, et seulement sur un clic confirmé : la
@@ -1784,7 +1784,7 @@
         <div>
           <strong>Mode commentaires ${infoBulle("Sous chaque point : « Juste », « Faux positif », « Mal formulé » ou « Gravité à revoir », avec votre justification. Un faux positif est replié tout de suite (pour ce dossier ou pour tous) ; l'ensemble sert ensuite à corriger les règles de la relecture.")}</strong>
         </div>
-        <button type="button" class="action-rapide" onclick="exporterRetoursAudit()">${icone('download')}Exporter les commentaires (${retoursAudit.length})</button>
+        <wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="exporterRetoursAudit()">${icone('download')}Exporter les commentaires (${retoursAudit.length})</wa-button>
       </div>
       <label for="audit-oubli-texte" class="audit-commentaire-question">Ce que la relecture a raté</label>
       <textarea id="audit-oubli-texte" rows="2" placeholder="Ex. « la servitude de passage page 14 n'est pas signalée »" oninput="texteOubliAudit = this.value">${escapeHtml(texteOubliAudit)}</textarea>
@@ -1793,7 +1793,7 @@
         <label><input type="radio" name="audit-oubli-portee" ${porteeOubliAudit === 'tous' ? 'checked' : ''} onchange="porteeOubliAudit = 'tous'"> Tous les dossiers</label>
         <wa-button appearance="outlined" class="secondary audit-oubli-btn" onclick="enregistrerOubliAudit()">Signaler l'oubli</wa-button>
       </div>
-      ${oublis.length ? `<ul class="audit-oublis">${oublis.map(r => `<li><span class="dot-label dl-urgent">${icone('info')}${r.portee === 'dossier' ? 'Ce dossier' : 'Tous'}</span><span>${escapeHtml(r.commentaire)}</span><button type="button" class="piece-suppr" onclick="supprimerRetourAudit('${escapeOnclickArg(r.id)}')" title="Supprimer" aria-label="Supprimer">${icone('x')}</button></li>`).join('')}</ul>` : ''}
+      ${oublis.length ? `<ul class="audit-oublis">${oublis.map(r => `<li><span class="dot-label dl-urgent">${icone('info')}${r.portee === 'dossier' ? 'Ce dossier' : 'Tous'}</span><span>${escapeHtml(r.commentaire)}</span><wa-button appearance="plain" size="s" type="button" class="bouton-icone piece-suppr" onclick="supprimerRetourAudit('${escapeOnclickArg(r.id)}')" title="Supprimer" aria-label="Supprimer">${icone('x')}</wa-button></li>`).join('')}</ul>` : ''}
     </section>`;
   }
 

@@ -169,7 +169,7 @@
       ${source}
       <select onchange="changerTypeFichierAnalyseIa('${f.id}', this.value)" aria-label="Rôle du document">${options}</select>
       ${statutFichierAnalyseIa(f)}
-      <button type="button" class="piece-suppr" onclick="retirerFichierAnalyseIa('${f.id}')" title="Retirer ce fichier" aria-label="Retirer ce fichier">${icone('x')}</button>
+      <wa-button appearance="plain" size="s" type="button" class="bouton-icone piece-suppr" onclick="retirerFichierAnalyseIa('${f.id}')" title="Retirer ce fichier" aria-label="Retirer ce fichier">${icone('x')}</wa-button>
     </div>`;
   }
 
@@ -373,7 +373,7 @@
         <span class="anon-jeton">${escapeHtml(e.jeton)}</span>
         <span class="anon-valeur">${escapeHtml(e.valeur)}</span>
         <span class="hint">${e.occurrences}× · ${LIBELLES_SOURCE_ANONYMISATION[e.source] || ''}</span>
-        <button type="button" class="action-rapide" onclick="laisserEnClairRelecture('${escapeOnclickArg(e.valeur)}')" title="Ne pas masquer cette valeur (par exemple le nom d'une commune utile à l'analyse)">Laisser en clair</button>
+        <wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="laisserEnClairRelecture('${escapeOnclickArg(e.valeur)}')" title="Ne pas masquer cette valeur (par exemple le nom d'une commune utile à l'analyse)">Laisser en clair</wa-button>
       </li>`).join('')}</ul>
     </div>`).join('');
     const enClair = valeursEnClairRelecture.length
@@ -436,9 +436,9 @@
     zone.innerHTML = `<div class="anon-apercu-tete">
         <select aria-label="Document" onchange="pageApercuRelecture = { doc: Number(this.value), page: 0 }; renderApercuAnonymisationRelecture()">${options}</select>
         <div class="anon-apercu-pages">
-          <button type="button" class="icon-btn" ${iPage <= 0 ? 'disabled' : ''} onclick="pageApercuRelecture.page = ${iPage - 1}; renderApercuAnonymisationRelecture()" aria-label="Page précédente">${icone('chevron-up')}</button>
+          <wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-btn" ${iPage <= 0 ? 'disabled' : ''} onclick="pageApercuRelecture.page = ${iPage - 1}; renderApercuAnonymisationRelecture()" aria-label="Page précédente">${icone('chevron-up')}</wa-button>
           <span>p.${p ? p.numero : 1} / ${doc.pages.length || 1}</span>
-          <button type="button" class="icon-btn" ${iPage >= doc.pages.length - 1 ? 'disabled' : ''} onclick="pageApercuRelecture.page = ${iPage + 1}; renderApercuAnonymisationRelecture()" aria-label="Page suivante">${icone('chevron-down')}</button>
+          <wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-btn" ${iPage >= doc.pages.length - 1 ? 'disabled' : ''} onclick="pageApercuRelecture.page = ${iPage + 1}; renderApercuAnonymisationRelecture()" aria-label="Page suivante">${icone('chevron-down')}</wa-button>
         </div>
       </div>
       <div class="anon-apercu-texte">${html || '<span class="hint">Page vide.</span>'}</div>`;
@@ -809,7 +809,7 @@
           ${s.surveiller ? `<span class="dot-label dl-pret"><span class="dot"></span>${s.surveiller}</span>` : ''}
           <span class="dot-label dl-success"><span class="dot"></span>${s.valide || 0}</span>
         </span>
-        <button type="button" class="icon-btn" onclick="supprimerRelectureArchivee('${escapeOnclickArg(h.id)}')" aria-label="Supprimer cette analyse" title="Supprimer cette analyse">${icone('x')}</button>
+        <wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-btn" onclick="supprimerRelectureArchivee('${escapeOnclickArg(h.id)}')" aria-label="Supprimer cette analyse" title="Supprimer cette analyse">${icone('x')}</wa-button>
       </li>`;
     }).join('')}</ul>`;
   }
@@ -1263,7 +1263,7 @@
           ${a ? '' : `<p class="hint">${erreurClaudeRelecture ? escapeHtml(erreurClaudeRelecture) + ' — ' : ''}Analyse par l'IA non effectuée : ce bilan ne repose que sur les contrôles automatiques de CLAIRE.</p>`}
         </div>
         <label class="audit-bascule-commentaires" title="Donner votre avis sur chaque point : il est retenu pour les prochaines relectures (pour ce dossier ou pour tous).">
-          <span class="switch small"><input type="checkbox" ${modeCommentairesAudit ? 'checked' : ''} onchange="basculerModeCommentairesAudit(this.checked)"><span class="slider"></span></span>
+          <wa-switch size="s" class="switch" ${modeCommentairesAudit ? 'checked' : ''} onchange="basculerModeCommentairesAudit(this.checked)"></wa-switch>
           Mode commentaires
         </label>
       </section>`;

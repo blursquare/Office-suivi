@@ -482,10 +482,10 @@
       return `<span class="fonds-edition">
         <input type="text" id="fonds-${champ}-${d.id}" value="${escapeAttr(valeur)}" placeholder="${escapeAttr(placeholder)}" ${attrs || ''}
           onkeydown="if(event.key==='Enter')validerChampFonds('${d.id}','${champ}');if(event.key==='Escape')annulerChampFonds('${d.id}','${champ}')">
-        <button type="button" class="icon-btn" onclick="validerChampFonds('${d.id}','${champ}')" title="Valider" aria-label="Valider">${icone('check')}</button>
-        <button type="button" class="icon-btn" onclick="annulerChampFonds('${d.id}','${champ}')" title="Annuler" aria-label="Annuler">${icone('x')}</button></span>`;
+        <wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-btn" onclick="validerChampFonds('${d.id}','${champ}')" title="Valider" aria-label="Valider">${icone('check')}</wa-button>
+        <wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-btn" onclick="annulerChampFonds('${d.id}','${champ}')" title="Annuler" aria-label="Annuler">${icone('x')}</wa-button></span>`;
     }
-    return `${affichage}<button type="button" class="icon-btn fonds-crayon" onclick="editerChampFonds('${d.id}','${champ}')" title="Modifier" aria-label="Modifier">${icone('pencil')}</button>`;
+    return `${affichage}<wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-btn fonds-crayon" onclick="editerChampFonds('${d.id}','${champ}')" title="Modifier" aria-label="Modifier">${icone('pencil')}</wa-button>`;
   }
 
   // Réception des fonds, en visuel (demandé par l'étude le 29/09 : « plus clair, moins de texte ») :
@@ -508,7 +508,7 @@
 
     // Les trois chiffres et la jauge.
     const sourceAttendu = f && f.attenduChemin && !d.fondsAttendusManuel
-      ? `<button type="button" class="icon-btn fonds-source" onclick="ouvrirFichierNas('${escapeOnclickArg(f.attenduChemin)}')" title="${escapeAttr('Lu dans ' + (f.attenduSource || 'le décompte'))}" aria-label="Ouvrir le décompte">${icone('file-text')}</button>`
+      ? `<wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-btn fonds-source" onclick="ouvrirFichierNas('${escapeOnclickArg(f.attenduChemin)}')" title="${escapeAttr('Lu dans ' + (f.attenduSource || 'le décompte'))}" aria-label="Ouvrir le décompte">${icone('file-text')}</wa-button>`
       : '';
     const valeurAttendu = attendu ? formaterPrixCentimes(attendu) : '—';
     const troisieme = b.etat === 'excedent'
@@ -537,8 +537,8 @@
           <strong class="fonds-v-montant">${formaterPrixCentimes(r.montant)}</strong>
           ${r.confirme ? `<span class="fonds-v-ref" title="La référence de la vente est retrouvée dans le libellé">${icone('check')}</span>` : '<span class="fonds-v-ref"></span>'}
           ${r.memorise
-            ? `<span class="fonds-v-actions"><span class="fonds-v-memorise" title="${escapeAttr(`${r.fichier || 'Reçu'}${r.page > 1 ? ' p.' + r.page : ''} — fichier retiré du commun, montant conservé${r.extrait ? '\n' + r.extrait : ''}`)}">${icone('archive')}</span><button type="button" class="icon-btn" onclick="retirerRecuMemorise('${d.id}', '${escapeOnclickArg(cleRecu(r))}')" title="Retirer ce versement" aria-label="Retirer ce versement">${icone('x')}</button></span>`
-            : `<button type="button" class="icon-btn" onclick="ouvrirFichierNas('${escapeOnclickArg(r.chemin)}')" title="${escapeAttr(`${r.fichier}${r.page > 1 ? ' p.' + r.page : ''}${r.compte ? ' · compte ' + r.compte : ''}${r.extrait ? '\n' + r.extrait : ''}`)}" aria-label="Ouvrir le reçu">${icone('file-text')}</button>`}
+            ? `<span class="fonds-v-actions"><span class="fonds-v-memorise" title="${escapeAttr(`${r.fichier || 'Reçu'}${r.page > 1 ? ' p.' + r.page : ''} — fichier retiré du commun, montant conservé${r.extrait ? '\n' + r.extrait : ''}`)}">${icone('archive')}</span><wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-btn" onclick="retirerRecuMemorise('${d.id}', '${escapeOnclickArg(cleRecu(r))}')" title="Retirer ce versement" aria-label="Retirer ce versement">${icone('x')}</wa-button></span>`
+            : `<wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-btn" onclick="ouvrirFichierNas('${escapeOnclickArg(r.chemin)}')" title="${escapeAttr(`${r.fichier}${r.page > 1 ? ' p.' + r.page : ''}${r.compte ? ' · compte ' + r.compte : ''}${r.extrait ? '\n' + r.extrait : ''}`)}" aria-label="Ouvrir le reçu">${icone('file-text')}</wa-button>`}
         </li>`).join('')}</ul>` : '';
 
     // Pied : noms cherchés (modifiables), dernière lecture, confirmation « quand même ».
@@ -563,7 +563,7 @@
     let bouton = verifier;
     if (peutConfirmer && confirmee) bouton = { libelle: 'Renvoyer', icone: icone('mail'), onclick: confirmer, titre: 'Renvoyer la confirmation de réception des fonds' };
     else if (peutConfirmer && complet) bouton = { libelle: 'Confirmer', icone: icone('mail'), onclick: confirmer, titre: 'Confirmer la réception des fonds au client' };
-    const reverifierIcone = bouton === verifier ? '' : `<button type="button" class="icon-btn ja-plus-tard" onclick="verifierFondsRecus('${d.id}', this)" title="${f ? 'Revérifier les reçus' : 'Vérifier les reçus'}" aria-label="${f ? 'Revérifier les reçus' : 'Vérifier les reçus'}">${icone('rotate-ccw')}</button>`;
+    const reverifierIcone = bouton === verifier ? '' : `<wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-btn ja-plus-tard" onclick="verifierFondsRecus('${d.id}', this)" title="${f ? 'Revérifier les reçus' : 'Vérifier les reçus'}" aria-label="${f ? 'Revérifier les reçus' : 'Vérifier les reçus'}">${icone('rotate-ccw')}</wa-button>`;
     return renderLigneAction({
       categorie: 'appelFonds', categorieLabel: 'Fonds reçus', titre: 'Fonds reçus en comptabilité',
       sousHtml, faite: !!confirmee, bouton, secondaires: reverifierIcone,

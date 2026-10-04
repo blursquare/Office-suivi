@@ -204,7 +204,7 @@
     if (!nom || estEtude({ nom })) return '';
     const t = officeConfrereDossier(d, cote);
     if (!t) {
-      return `<div class="confrere-carnet"><button type="button" class="bouton-ajout bouton-ajout-court" onclick="ajouterAuCarnetDepuisFiche('${escapeOnclickArg(nom)}')">Ajouter au répertoire</button></div>`;
+      return `<div class="confrere-carnet"><wa-button appearance="outlined" type="button" class="bouton-ajout bouton-ajout-court" onclick="ajouterAuCarnetDepuisFiche('${escapeOnclickArg(nom)}')"><span slot="start" class="bouton-ajout-plus" aria-hidden="true">+</span>Ajouter au répertoire</wa-button></div>`;
     }
     // L'office seul (jugé trop chargé avec téléphone et email, retour de l'étude du 29/09) : les
     // coordonnées sont dans l'annuaire, à un clic.
@@ -262,7 +262,9 @@
     const compte = document.getElementById('carnet-compte');
     if (compte) compte.textContent = annuaire ? '' : carnetRecherche ? `${nombre(repertoireTheme)} sur ${repertoireContacts.filter(c => c.theme === repertoireTheme).length}` : '';
     const bouton = document.getElementById('repertoire-ajouter');
-    if (bouton) bouton.textContent = repertoireTheme === 'confreres' || annuaire ? 'Ajouter un office' : 'Ajouter un contact';
+    // Seul le texte change : le « + » du bouton (wa-button.bouton-ajout) est un élément à part.
+    const texteBouton = bouton && [...bouton.childNodes].find((n) => n.nodeType === 3 && n.textContent.trim());
+    if (texteBouton) texteBouton.textContent = repertoireTheme === 'confreres' || annuaire ? 'Ajouter un office' : 'Ajouter un contact';
     if (champ) champ.placeholder = annuaire ? 'Rechercher un notaire, un office, une ville…' : 'Rechercher un organisme, un nom, une ville, un email…';
     renderNavRepertoire(nombre, total);
     if (annuaire) {
@@ -325,8 +327,8 @@
           ${o.email ? `<a href="mailto:${escapeAttr(o.email)}" title="${escapeAttr(o.email)}">${icone('mail')}<span>${escapeHtml(o.email)}</span></a>` : '<span class="carnet-manque">Email non renseigné</span>'}
         </div>
         <div class="annuaire-ligne-action rep-ligne-icones">
-          <button type="button" class="ech-ico" onclick="modifierOfficeCarnet('${escapeOnclickArg(o.id)}')" title="Modifier" aria-label="Modifier cet office">${icone('pencil')}</button>
-          ${o.etude || (o.annuaire !== false && !o.modifie) ? '' : `<button type="button" class="ech-ico ech-ico-suppr" onclick="retirerOfficeCarnet('${escapeOnclickArg(o.id)}')" title="${o.annuaire !== false ? 'Remettre tel que relevé dans l’annuaire' : 'Retirer de l’annuaire'}" aria-label="${o.annuaire !== false ? 'Annuler la correction de cet office' : 'Retirer cet office'}">${icone('x')}</button>`}
+          <wa-button appearance="plain" size="s" type="button" class="bouton-icone ech-ico" onclick="modifierOfficeCarnet('${escapeOnclickArg(o.id)}')" title="Modifier" aria-label="Modifier cet office">${icone('pencil')}</wa-button>
+          ${o.etude || (o.annuaire !== false && !o.modifie) ? '' : `<wa-button appearance="plain" size="s" type="button" class="bouton-icone ech-ico ech-ico-suppr" onclick="retirerOfficeCarnet('${escapeOnclickArg(o.id)}')" title="${o.annuaire !== false ? 'Remettre tel que relevé dans l’annuaire' : 'Retirer de l’annuaire'}" aria-label="${o.annuaire !== false ? 'Annuler la correction de cet office' : 'Retirer cet office'}">${icone('x')}</wa-button>`}
         </div>
       </div>`;
   }
@@ -352,8 +354,8 @@
         </div>
         <div class="annuaire-ligne-contact">${tels.concat(mails, liens).join('') || '<span class="carnet-manque">Aucune coordonnée</span>'}</div>
         <div class="annuaire-ligne-action rep-ligne-icones">
-          <button type="button" class="ech-ico" onclick="modifierContactRepertoire('${escapeOnclickArg(c.id)}')" title="Modifier" aria-label="Modifier ce contact">${icone('pencil')}</button>
-          <button type="button" class="ech-ico ech-ico-suppr" onclick="retirerContactRepertoire('${escapeOnclickArg(c.id)}')" title="Retirer du répertoire" aria-label="Retirer ce contact du répertoire">${icone('x')}</button>
+          <wa-button appearance="plain" size="s" type="button" class="bouton-icone ech-ico" onclick="modifierContactRepertoire('${escapeOnclickArg(c.id)}')" title="Modifier" aria-label="Modifier ce contact">${icone('pencil')}</wa-button>
+          <wa-button appearance="plain" size="s" type="button" class="bouton-icone ech-ico ech-ico-suppr" onclick="retirerContactRepertoire('${escapeOnclickArg(c.id)}')" title="Retirer du répertoire" aria-label="Retirer ce contact du répertoire">${icone('x')}</wa-button>
         </div>
       </div>`;
   }
@@ -1334,10 +1336,10 @@
       const e = ecartButoirRendezVous(d.acte, d.rendezVousSignature);
       const idBase = `tabdate-${d.id}-acte`;
       parts.push(`<span class="ech-butoir${e && e.alerte ? ' alerte' : ''}">
-        <span class="ech-butoir-aff" id="${idBase}-aff">${e ? escapeHtml(e.texte) : 'Date butoir'} (${dateCourteEcheance(d.acte)})<button type="button" class="ech-ico" onclick="activerEditionDate('${d.id}','acte')" title="Corriger la date butoir" aria-label="Corriger la date butoir">${icone('pencil')}</button></span>
+        <span class="ech-butoir-aff" id="${idBase}-aff">${e ? escapeHtml(e.texte) : 'Date butoir'} (${dateCourteEcheance(d.acte)})<wa-button appearance="plain" size="s" type="button" class="bouton-icone ech-ico" onclick="activerEditionDate('${d.id}','acte')" title="Corriger la date butoir" aria-label="Corriger la date butoir">${icone('pencil')}</wa-button></span>
         <span class="tab-date-edition" id="${idBase}-edit" hidden>Date butoir
           <input type="date" class="tab-date-input" id="${idBase}-input" value="${d.acte}" onkeydown="if(event.key==='Enter'){event.preventDefault();validerEditionDate('${d.id}','acte');}">
-          <button type="button" class="icon-valider" onclick="validerEditionDate('${d.id}','acte')" title="Valider" aria-label="Valider la date">✓</button>
+          <wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-valider" onclick="validerEditionDate('${d.id}','acte')" title="Valider" aria-label="Valider la date">✓</wa-button>
         </span>
       </span>`);
     }

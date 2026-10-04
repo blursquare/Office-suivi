@@ -672,11 +672,11 @@
         <label class="reglages-option" for="reglages-scans-actif">
           <span class="reglages-option-texte"><span class="reglages-option-titre">Activer Claire Scan ${infoBulle('CLAIRE lit chaque scan posé dans le dossier « Scan », reconnaît le dossier client et la pièce, puis range une copie dans la rubrique du dossier. L’original est conservé dans « CLAIRE - scans rangés », à l’intérieur du dossier Scan.')}</span>
             <span class="hint">${etat}</span></span>
-          <span class="switch reglages-switch"><input type="checkbox" id="reglages-scans-actif"${r.actif ? ' checked' : ''}${inconnu ? ' disabled' : ''} onchange="enregistrerReglagesScans({ actif: this.checked })"><span class="slider"></span></span>
+          <wa-switch class="switch reglages-switch" id="reglages-scans-actif"${r.actif ? ' checked' : ''}${inconnu ? ' disabled' : ''} onchange="enregistrerReglagesScans({ actif: this.checked })"></wa-switch>
         </label>
         <label class="reglages-option" for="reglages-scans-auto">
           <span class="reglages-option-texte"><span class="reglages-option-titre">Ranger automatiquement les scans reconnus ${infoBulle(`Sans validation, dès que la pièce est identifiée et que le dossier atteint le score de ${noteScoreScan(BAREME_SCORE_SCAN.seuil)} avec une marge sur le suivant : partie nommée ${BAREME_SCORE_SCAN.partie} points (deux au plus), adresse du bien ${BAREME_SCORE_SCAN.adresse}, parcelle ${BAREME_SCORE_SCAN.parcelle}. Il suffit qu’une fenêtre CLAIRE soit ouverte au bureau (celle du poste serveur en priorité). Les autres scans attendent dans Claire Scan.`)}</span></span>
-          <span class="switch reglages-switch"><input type="checkbox" id="reglages-scans-auto"${r.auto ? ' checked' : ''}${r.actif && !inconnu ? '' : ' disabled'} onchange="enregistrerReglagesScans({ auto: this.checked })"><span class="slider"></span></span>
+          <wa-switch class="switch reglages-switch" id="reglages-scans-auto"${r.auto ? ' checked' : ''}${r.actif && !inconnu ? '' : ' disabled'} onchange="enregistrerReglagesScans({ auto: this.checked })"></wa-switch>
         </label>
         <label class="reglages-option" for="reglages-scans-depuis">
           <span class="reglages-option-texte"><span class="reglages-option-titre">Nouveaux scans à partir du ${infoBulle('Seuls les scans arrivés après ce moment sont traités (à l’activation : l’heure exacte). Les plus anciens restent dans le dossier Scan sans être touchés. Choisir une date plus ancienne pour reprendre des scans déjà présents.')}</span>
@@ -757,8 +757,8 @@
             <h2 id="scan-apercu-titre">${escapeHtml(nom)}</h2>
             <div class="scan-apercu-meta"><span id="scan-apercu-pages">${escapeHtml(quand)}</span>${reconnu ? `<span>${escapeHtml(reconnu)}</span>` : ''}</div>
           </div>
-          <button type="button" class="icon-btn" onclick="ouvrirScan('${escapeOnclickArg(nom)}')" aria-label="Ouvrir dans un onglet" title="Ouvrir dans un onglet (imprimer, télécharger)">${icone('maximize')}</button>
-          <button type="button" class="icon-btn" onclick="fermerApercuScan()" aria-label="Fermer l’aperçu">${icone('x')}</button>
+          <wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-btn" onclick="ouvrirScan('${escapeOnclickArg(nom)}')" aria-label="Ouvrir dans un onglet" title="Ouvrir dans un onglet (imprimer, télécharger)">${icone('maximize')}</wa-button>
+          <wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-btn" onclick="fermerApercuScan()" aria-label="Fermer l’aperçu">${icone('x')}</wa-button>
         </header>
         <div class="scan-apercu-corps" id="scan-apercu-corps"><p class="hint scan-etat">${icone('spinner', null, true)} Chargement du scan…</p></div>
       </div>`;

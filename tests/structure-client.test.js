@@ -130,16 +130,22 @@ test('Web Awesome : paquet local chargé par index.html, servi et embarqué dans
   assert.ok(!/webawesome\.com|ka-f\.fontawesome/.test(index), 'pas de CDN Web Awesome');
 });
 
-test('Web Awesome : boutons d’action en <wa-button>, jamais en <button class="primary|secondary|btn-…">', () => {
+test('Web Awesome : boutons d’action, boutons à icône, « Ajouter », pastilles et interrupteurs en composants', () => {
   const fichiers = ['index.html', ...manifeste.map((f) => path.join('client', f))];
   const fautes = [];
   for (const f of fichiers) {
     const src = fs.readFileSync(path.join(racine, f), 'utf8');
     for (const m of src.matchAll(/<button\b[^>]*class="([^"]*)"/g)) {
-      if (/(^|[\s'])(primary|secondary|btn-annuler|btn-confirmer)($|[\s'])/.test(m[1])) fautes.push(`${f} : ${m[0].slice(0, 90)}`);
+      if (/(^|[\s'])(primary|secondary|btn-annuler|btn-confirmer|action-rapide|bouton-ajout|fiche-btn|ech-ico|icon-crayon|icon-valider|piece-suppr|qt-suppr|analyse-doc-suppr|rappel-perso-suppr|widget-fleche)($|[\s'])/.test(m[1])) fautes.push(`${f} : ${m[0].slice(0, 90)}`);
     }
-    const ouverts = (src.match(/<wa-button\b/g) || []).length, fermes = (src.match(/<\/wa-button>/g) || []).length;
-    if (ouverts !== fermes) fautes.push(`${f} : ${ouverts} <wa-button> pour ${fermes} </wa-button>`);
+    // Bouton à icône seule : wa-button.bouton-icone (un <button class="icon-btn"> ne reste que pour un texte seul, lien discret).
+    for (const m of src.matchAll(/<button\b[^>]*class="[^"]*\bicon-btn\b[^"]*"[^>]*>\s*\$\{icone\([^)]*\)\}\s*<\/button>/g)) fautes.push(`${f} : ${m[0].slice(0, 90)}`);
+    // Interrupteur : wa-switch, plus l'ancien <input type="checkbox"> + .slider.
+    if (/class="slider"/.test(src)) fautes.push(`${f} : ancien interrupteur (.slider) — utiliser <wa-switch>`);
+    for (const balise of ['wa-button', 'wa-switch']) {
+      const ouverts = (src.match(new RegExp(`<${balise}\\b`, 'g')) || []).length, fermes = (src.match(new RegExp(`</${balise}>`, 'g')) || []).length;
+      if (ouverts !== fermes) fautes.push(`${f} : ${ouverts} <${balise}> pour ${fermes} </${balise}>`);
+    }
   }
   assert.equal(fautes.length, 0, fautes.join('\n'));
 });

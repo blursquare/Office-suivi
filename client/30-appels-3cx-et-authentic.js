@@ -1464,7 +1464,7 @@
     return ligne('alert-triangle', 'À rattacher', `<span class="notaires-a-placer">${liste.map((c, i) => `<span class="notaires-a-placer-ligne"><span class="prop-texte texte-retour">${escapeHtml(c.nom)}${c.nomUsage ? ` <span class="hint">(${escapeHtml(c.nomUsage)})</span>` : ''}${[...(c.telephones || []), ...(c.emails || [])].length ? ` <span class="hint">· ${[...(c.telephones || []), ...(c.emails || [])].map(escapeHtml).join(' · ')}</span>` : ''}</span>
           <button type="button" class="lien-action" onclick="placerClientAuthentic('${d.id}', ${i}, 'VENDEUR')">Vendeur</button>
           <button type="button" class="lien-action" onclick="placerClientAuthentic('${d.id}', ${i}, 'ACQUEREUR')">Acquéreur</button>
-          <button type="button" class="icon-btn" onclick="ecarterClientAuthentic('${d.id}', ${i})" title="Écarter : cette personne n’est pas partie au dossier" aria-label="Écarter ${escapeAttr(c.nom)}">${icone('x')}</button></span>`).join('')}</span>`, null, 'prop-pleine');
+          <wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-btn" onclick="ecarterClientAuthentic('${d.id}', ${i})" title="Écarter : cette personne n’est pas partie au dossier" aria-label="Écarter ${escapeAttr(c.nom)}">${icone('x')}</wa-button></span>`).join('')}</span>`, null, 'prop-pleine');
   }
 
   // ---- Personnes déjà connues (étude, 02/10 : « détecter si le vendeur est déjà connu, reprendre sa
@@ -1593,7 +1593,7 @@
       const apport = [...c.apport.telephones, ...c.apport.emails, c.apport.situationMatrimoniale ? libelleSituationMatrimoniale(c.apport.situationMatrimoniale) : ''].filter(Boolean);
       return `<span class="notaires-a-placer-ligne"><span class="prop-texte texte-retour">${escapeHtml(c.personne)} <span class="hint">— ${LIBELLES_ROLE_CONNU[c.ancienRole] || 'partie'} dans <button type="button" class="lien-action" onclick="ouvrirDossierDrawer('${escapeOnclickArg(c.ancienDossier)}')">${escapeHtml(o ? libelleDossierAffiche(o) : 'un ancien dossier')}</button>${quand} · ${apport.map(escapeHtml).join(' · ')}</span></span>
           <button type="button" class="lien-action" onclick="reprendrePersonneConnue('${d.id}', '${escapeOnclickArg(c.cle)}')">Reprendre</button>
-          <button type="button" class="icon-btn" onclick="ecarterPersonneConnue('${d.id}', '${escapeOnclickArg(c.cle)}')" title="Écarter : ce n’est pas la même personne" aria-label="Écarter ${escapeAttr(c.personne)}">${icone('x')}</button></span>`;
+          <wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-btn" onclick="ecarterPersonneConnue('${d.id}', '${escapeOnclickArg(c.cle)}')" title="Écarter : ce n’est pas la même personne" aria-label="Écarter ${escapeAttr(c.personne)}">${icone('x')}</wa-button></span>`;
     }).join('')}</span>`, null, 'prop-pleine');
   }
 
@@ -2632,7 +2632,7 @@
       </div>
       <p class="appel-entrant-numero">${escapeHtml(a.numero || 'Numéro masqué')}${a.nom ? ` · ${escapeHtml(a.nom)}` : ''}</p>
       ${contact}
-      ${ds.length ? `<div class="appel-entrant-dossiers">${ds.slice(0, 4).map(y => `<button type="button" class="action-rapide" onclick="ouvrirFicheAppel('${y.d.id}'); fermerAppelEntrant()">${y.partie ? `<span class="appel-entrant-partie">${escapeHtml(y.partie)}</span>` : ''}${escapeHtml(libelleDossierAffiche(y.d))}${y.d.archive ? ' · archivé' : ''}</button>`).join('')}</div>`
+      ${ds.length ? `<div class="appel-entrant-dossiers">${ds.slice(0, 4).map(y => `<wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="ouvrirFicheAppel('${y.d.id}'); fermerAppelEntrant()">${y.partie ? `<span class="appel-entrant-partie">${escapeHtml(y.partie)}</span>` : ''}${escapeHtml(libelleDossierAffiche(y.d))}${y.d.archive ? ' · archivé' : ''}</wa-button>`).join('')}</div>`
         : (contact ? '' : `<p class="hint">Numéro inconnu de CLAIRE ${infoBulle('Saisissez-le dans l’onglet Échanges du dossier (téléphone du vendeur ou de l’acquéreur) : le prochain appel ouvrira la fiche.')}</p>`)}`;
   }
 

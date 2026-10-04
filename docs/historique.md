@@ -16393,3 +16393,29 @@ Non converti (étape suivante) : boutons-icônes, `action-rapide`, `bouton-ajout
 
 Étude : « Et remets le tiroir des outils ouvert de base. » `groupeOutilsOuvertSeance` démarre à `true` (il était fermé à chaque
 démarrage depuis le 01/10) ; le + / − ne change toujours que la séance, rien n'est retenu ; `aria-expanded` initial aligné.
+
+### 04/10/2026 20 h 30 — Uniformité de l'interface, étape 3 : Web Awesome partout où c'est un vrai bouton (0.144.17)
+
+Étude : « applique Web Awesome partout ». Réponse donnée avant de commencer : partout où c'est un vrai bouton, en une fois,
+famille par famille ; liens-boutons, lignes de liste, onglets, champs et fenêtres restent natifs (sinon 400+ éléments à risque).
+- Paquet : composant `switch` ajouté à `COMPOSANTS` (143 Ko de JS).
+- 146 boutons convertis par script (fermeture vérifiée, aucun `<button>` imbriqué) : 82 boutons à icône seule en `size="s"`
+  (icon-btn à icône seule, ech-ico, icon-crayon, icon-valider, piece-suppr, qt-suppr, analyse-doc-suppr, rappel-perso-suppr,
+  widget-fleche) + 7 de 32 px (fiche-btn, fermeture des « Dates proposées ») → `bouton-icone` ; 7 icône + texte →
+  `bouton-discret` ; 31 `action-rapide` → contour, compact, arrondi ; 20 `bouton-ajout` → contour pointillé, « + » en
+  `slot="start"`. 18 interrupteurs → `<wa-switch>` (piste `--line`, pastille blanche, accent ; couleur de l'échéance dans le
+  wizard par `--wa-form-control-activated-color`).
+- CSS : une règle par famille dans la couche Web Awesome (`::part(base) { color: inherit }` : la couleur se règle sur le bouton),
+  les anciennes règles `button.…` réécrites ou retirées (toolbars email 32 px, croix des modales, flèches des widgets, créneaux
+  « exceptionnel »/« après butoir », bouton plein des pièces, ancien `.switch`/`.slider`). `.icon-btn` générique réduit à
+  `button.icon-btn` (texte seul).
+- Pièges trouvés : (1) `focus()` sur un wa-button tout juste rendu plante (partie interne pas encore créée) — fenêtre du matin,
+  attendu par `updateComplete` (relevé par le test de fumée) ; (2) le navigateur ne bascule pas un composant à shadow DOM au clic
+  sur son `<label>` — gestionnaire dans `01-socle.js` (vérifié dans Chromium : clic direct et clic sur le libellé, un seul
+  `change` chacun, `this.checked` juste) ; (3) `textContent` sur un « Ajouter » efface le « + » — Répertoire : seul le nœud texte
+  change.
+- Tests : `structure-client` refuse un `<button>` de ces familles, un ancien `.slider`, des `<wa-switch>` déséquilibrés ;
+  `echeances-appel-fonds` suit le nouveau balisage. Fumée 44 points sans erreur. Captures avant/après (13 écrans, clair et
+  sombre) : pastilles d'action plus hautes (28 px contre ~20), le reste identique à l'œil.
+Restent natifs, volontairement : liens-boutons, lignes cliquables, onglets et groupes segmentés (Suivi Échéances/Tableau, ‹
+Aujourd'hui ›, étapes du wizard), pastilles de source (p. N), réglages de taille des widgets, champs et fenêtres.

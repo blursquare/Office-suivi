@@ -439,7 +439,7 @@
                le vendeur, par ex.). Toujours visible, y compris quand rien n'a encore été détecté
                automatiquement — voir afficherFormAjoutEngagementManuel()/
                ajouterEngagementDepuisFormulaire() dans script.js. -->
-          <button type="button" class="bouton-ajout" id="ajout-engagement-manuel-btn" onclick="afficherFormAjoutEngagementManuel()">Ajouter un engagement du vendeur</button>
+          <wa-button appearance="outlined" type="button" class="bouton-ajout" id="ajout-engagement-manuel-btn" onclick="afficherFormAjoutEngagementManuel()"><span slot="start" class="bouton-ajout-plus" aria-hidden="true">+</span>Ajouter un engagement du vendeur</wa-button>
           <div id="ajout-engagement-manuel-form" class="ajout-engagement-manuel-form" style="display:none;">
             <input type="text" id="nouvel-engagement-texte" placeholder="Décrire l'engagement (ex. Justifier de l'entretien annuel de la chaudière)">
             <select id="nouvel-engagement-type">
@@ -448,7 +448,7 @@
               <option value="document">Document</option>
               <option value="autre">Autres</option>
             </select>
-            <button type="button" class="icon-valider" onclick="ajouterEngagementDepuisFormulaire()" title="Ajouter" aria-label="Ajouter">✓</button>
+            <wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-valider" onclick="ajouterEngagementDepuisFormulaire()" title="Ajouter" aria-label="Ajouter">✓</wa-button>
             <wa-button appearance="outlined" class="secondary" onclick="masquerFormAjoutEngagementManuel()">Annuler</wa-button>
           </div>
 
@@ -469,10 +469,7 @@
 
           <div class="date-block pret" id="bloc-pret">
             <div class="label-line">
-              <label class="switch">
-                <input type="checkbox" id="toggle-pret" checked onchange="toggleEcheance('pret', this.checked)">
-                <span class="slider"></span>
-              </label>
+              <wa-switch class="switch" id="toggle-pret" checked onchange="toggleEcheance('pret', this.checked)"></wa-switch>
               <span>Obtention du prêt (condition suspensive)</span>
             </div>
             <input type="date" id="f-pret" onchange="apprendreDateSaisie('pret', this.value)">
@@ -480,10 +477,7 @@
 
           <div class="date-block acte" id="bloc-acte">
             <div class="label-line">
-              <label class="switch">
-                <input type="checkbox" id="toggle-acte" checked onchange="toggleEcheance('acte', this.checked)">
-                <span class="slider"></span>
-              </label>
+              <wa-switch class="switch" id="toggle-acte" checked onchange="toggleEcheance('acte', this.checked)"></wa-switch>
               <span>Signature de l'acte</span>
             </div>
             <input type="date" id="f-acte" onchange="apprendreDateSaisie('acte', this.value)">
@@ -491,10 +485,7 @@
 
           <div class="date-block ventebien inactive" id="bloc-ventebien">
             <div class="label-line">
-              <label class="switch">
-                <input type="checkbox" id="toggle-ventebien" onchange="toggleEcheance('ventebien', this.checked)">
-                <span class="slider"></span>
-              </label>
+              <wa-switch class="switch" id="toggle-ventebien" onchange="toggleEcheance('ventebien', this.checked)"></wa-switch>
               <span>Vente préalable</span>
             </div>
             <input type="date" id="f-ventebien" disabled onchange="apprendreDateSaisie('ventebien', this.value)">
@@ -502,7 +493,7 @@
 
           <div id="autres-list"></div>
 
-          <button type="button" class="bouton-ajout add-autre-btn" onclick="ajouterAutreVide()">Ajouter une échéance personnalisée</button>
+          <wa-button appearance="outlined" type="button" class="bouton-ajout add-autre-btn" onclick="ajouterAutreVide()"><span slot="start" class="bouton-ajout-plus" aria-hidden="true">+</span>Ajouter une échéance personnalisée</wa-button>
         </fieldset>
         </details>
 
@@ -990,7 +981,7 @@
 
       <div class="dash-section-titre" style="margin-top:18px;">3 · Client(s)</div>
       <div id="af-clients"></div>
-      <button type="button" class="bouton-ajout" onclick="ajouterClientAppelFonds()">Ajouter un client</button>
+      <wa-button appearance="outlined" type="button" class="bouton-ajout" onclick="ajouterClientAppelFonds()"><span slot="start" class="bouton-ajout-plus" aria-hidden="true">+</span>Ajouter un client</wa-button>
       <div class="calc-champs" style="margin-top:10px;">
         <div class="calc-champ">
           <label for="af-adresse-clients">Adresse des clients <span class="info-i" tabindex="0" data-info="Laissé vide, le courrier porte la mention « Envoi par e-mail uniquement » à la place de l&#x27;adresse. Cette mention reste modifiable dans l&#x27;aperçu."></span></label>
@@ -1355,18 +1346,18 @@
 
       <div class="dash-section-titre qt-titre">Acquéreurs</div>
       <div id="qt-acquereurs" class="qt-liste"></div>
-      <button type="button" class="bouton-ajout" onclick="ajouterAcquereurQuotites()">Ajouter un acquéreur</button>
+      <wa-button appearance="outlined" type="button" class="bouton-ajout" onclick="ajouterAcquereurQuotites()"><span slot="start" class="bouton-ajout-plus" aria-hidden="true">+</span>Ajouter un acquéreur</wa-button>
 
       <div class="dash-section-titre qt-titre">Montant de l'opération</div>
       <div id="qt-lignes" class="qt-liste"></div>
-      <button type="button" class="bouton-ajout" onclick="ajouterLigneQuotites()">Ajouter une ligne</button>
+      <wa-button appearance="outlined" type="button" class="bouton-ajout" onclick="ajouterLigneQuotites()"><span slot="start" class="bouton-ajout-plus" aria-hidden="true">+</span>Ajouter une ligne</wa-button>
       <div class="qt-total-ligne"><span>Total de l'opération</span><strong id="qt-total-operation">—</strong></div>
 
       <div class="dash-section-titre qt-titre">Origine du financement</div>
       <div id="qt-sources" class="qt-liste"></div>
       <div class="qt-ajout-sources">
-        <button type="button" class="bouton-ajout bouton-ajout-court" onclick="ajouterSourceQuotites('apport')">Apport personnel</button>
-        <button type="button" class="bouton-ajout bouton-ajout-court" onclick="ajouterSourceQuotites('pret')">Prêt</button>
+        <wa-button appearance="outlined" type="button" class="bouton-ajout bouton-ajout-court" onclick="ajouterSourceQuotites('apport')"><span slot="start" class="bouton-ajout-plus" aria-hidden="true">+</span>Apport personnel</wa-button>
+        <wa-button appearance="outlined" type="button" class="bouton-ajout bouton-ajout-court" onclick="ajouterSourceQuotites('pret')"><span slot="start" class="bouton-ajout-plus" aria-hidden="true">+</span>Prêt</wa-button>
       </div>
       <div class="qt-total-ligne"><span>Total du financement</span><strong id="qt-total-financement">—</strong></div>
     </div>
@@ -1520,7 +1511,7 @@
       </div>
     </div>
     <div class="dash-header-actions">
-      <button type="button" class="bouton-ajout" id="repertoire-ajouter" onclick="ajouterAuRepertoire()">Ajouter un contact</button>
+      <wa-button appearance="outlined" type="button" class="bouton-ajout" id="repertoire-ajouter" onclick="ajouterAuRepertoire()"><span slot="start" class="bouton-ajout-plus" aria-hidden="true">+</span>Ajouter un contact</wa-button>
     </div>
   </div>
   <div class="rep-corps">
@@ -1599,10 +1590,7 @@
           <span class="reglages-option-texte">
             <span class="reglages-option-titre">Mode sombre</span>
           </span>
-          <span class="switch reglages-switch">
-            <input type="checkbox" id="reglages-theme-sombre" onchange="choisirTheme(this.checked ? 'dark' : 'light')">
-            <span class="slider"></span>
-          </span>
+          <wa-switch class="switch reglages-switch" id="reglages-theme-sombre" onchange="choisirTheme(this.checked ? 'dark' : 'light')"></wa-switch>
         </label>
         <label class="reglages-option" for="reglages-sidebar-demarrage">
           <span class="reglages-option-texte">
@@ -1637,7 +1625,7 @@
           <span class="reglages-option-texte">
             <span class="reglages-option-titre">CLAIRE en application <span class="info-i" tabindex="0" data-info="CLAIRE s'ouvre dans sa propre fenêtre, sans onglet ni barre d'adresse, depuis un raccourci du bureau et du menu Démarrer, comme sur le poste serveur. Rien à mettre à jour sur ce poste : chaque mise à jour du serveur s'y applique d'elle-même."></span></span>
           </span>
-          <button type="button" class="action-rapide" onclick="telechargerInstallateurApplication()">Installer sur ce poste</button>
+          <wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="telechargerInstallateurApplication()">Installer sur ce poste</wa-button>
         </div>
       </div>
     </div>
@@ -1652,10 +1640,7 @@
             <span class="reglages-option-titre">Ouvrir les documents dès leur téléchargement <span class="info-i" tabindex="0" data-info="Emails dans Outlook, courriers dans Word. À installer une fois sur chaque poste."></span></span>
             <a href="#" class="reglages-lien" onclick="event.preventDefault(); event.stopPropagation(); telechargerInstallateurOuvertureAuto();">Télécharger l’installateur</a>
           </span>
-          <span class="switch reglages-switch">
-            <input type="checkbox" id="reglages-ouverture-auto" onchange="choisirOuvertureAuto(this.checked)">
-            <span class="slider"></span>
-          </span>
+          <wa-switch class="switch reglages-switch" id="reglages-ouverture-auto" onchange="choisirOuvertureAuto(this.checked)"></wa-switch>
         </label>
         <label class="reglages-option" for="reglages-mode-email">
           <span class="reglages-option-texte">
@@ -1683,10 +1668,7 @@
           <span class="reglages-option-texte">
             <span class="reglages-option-titre">Envoi automatique des rappels <span class="info-i" tabindex="0" data-info="Toutes les 30 minutes, au responsable du dossier."></span></span>
           </span>
-          <span class="switch reglages-switch">
-            <input type="checkbox" id="reglages-envoi-actif">
-            <span class="slider"></span>
-          </span>
+          <wa-switch class="switch reglages-switch" id="reglages-envoi-actif"></wa-switch>
         </label>
         <div class="reglages-champ">
           <div class="reglages-champ-libelle"><label for="reglages-smtp-utilisateur">Compte Gmail qui envoie</label></div>
@@ -1808,10 +1790,7 @@
           <span class="reglages-option-texte">
             <span class="reglages-option-titre">Relier CLAIRE à l'agenda <span class="info-i" tabindex="0" data-info="Désactivé : CLAIRE ne se connecte plus à Exchange, ni pour lire l'agenda ni pour y écrire."></span></span>
           </span>
-          <span class="switch reglages-switch">
-            <input type="checkbox" id="exchange-actif">
-            <span class="slider"></span>
-          </span>
+          <wa-switch class="switch reglages-switch" id="exchange-actif"></wa-switch>
         </label>
         <div class="reglages-champ">
           <div class="reglages-champ-libelle"><label for="exchange-email">Adresse de messagerie</label></div>
@@ -1955,10 +1934,7 @@
             <span class="reglages-option-titre">Notification d'une nouvelle pièce <span class="info-i" tabindex="0" data-info="Notification Windows quand une pièce arrive sur le NAS. À activer sur chaque poste."></span></span>
             <span class="hint" id="reglages-notif-navigateur-etat"></span>
           </span>
-          <span class="switch reglages-switch">
-            <input type="checkbox" id="reglages-notif-navigateur" onchange="basculerNotifNavigateur(this.checked)">
-            <span class="slider"></span>
-          </span>
+          <wa-switch class="switch reglages-switch" id="reglages-notif-navigateur" onchange="basculerNotifNavigateur(this.checked)"></wa-switch>
         </label>
       </div>
     </div>
@@ -1984,7 +1960,7 @@
     <div class="reglages-section">
       <div class="noms-nas-barre">
         <p class="hint noms-nas-etat" id="noms-nas-etat"></p>
-        <button type="button" class="action-rapide" id="noms-nas-parcourir" onclick="parcourirNomsNas()">Parcourir le commun</button>
+        <wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" id="noms-nas-parcourir" onclick="parcourirNomsNas()">Parcourir le commun</wa-button>
       </div>
     </div>
     <div class="noms-nas-corps">
@@ -2024,10 +2000,7 @@
             <span class="reglages-option-titre">Installer automatiquement <span class="info-i" tabindex="0" data-info="Au démarrage du serveur et dès qu'une nouvelle version est publiée (vérification toutes les 10 minutes). Le serveur redémarre : quelques secondes de coupure, les fenêtres ouvertes se rechargent seules."></span></span>
             <span class="hint" id="reglages-maj-auto-etat"></span>
           </span>
-          <span class="switch reglages-switch">
-            <input type="checkbox" id="reglages-maj-auto" onchange="basculerMiseAJourAuto(this.checked)">
-            <span class="slider"></span>
-          </span>
+          <wa-switch class="switch reglages-switch" id="reglages-maj-auto" onchange="basculerMiseAJourAuto(this.checked)"></wa-switch>
         </label>
       </div>
       <div id="reglages-maj-etat" class="reglages-dernier-tour"></div>
@@ -2081,10 +2054,7 @@
           <span class="reglages-option-texte">
             <span class="reglages-option-titre">Envoyer le rapport à 12 h et 17 h</span>
           </span>
-          <span class="switch reglages-switch">
-            <input type="checkbox" id="reglages-rapport-actif" onchange="basculerRapportTechnique(this.checked)">
-            <span class="slider"></span>
-          </span>
+          <wa-switch class="switch reglages-switch" id="reglages-rapport-actif" onchange="basculerRapportTechnique(this.checked)"></wa-switch>
         </label>
       </div>
       <div id="reglages-rapport-etat" class="reglages-dernier-tour"></div>
@@ -2272,9 +2242,9 @@
   <aside class="drawer-panneau dates-proposees-box" role="dialog" aria-modal="true" aria-labelledby="dates-proposees-titre" onclick="event.stopPropagation()">
     <div class="fiche-barre dates-proposees-tete">
       <div class="poste-titre" id="dates-proposees-titre">Dates proposées <span class="info-i" tabindex="0" data-info="Les dates de rendez-vous envoyées par email (avec ou sans dossier) : celles qui attendent une réponse, celles déjà validées, et celles restées sans suite. Les réponses sont relues dans la boîte toutes les 5 minutes."></span></div>
-      <button type="button" class="icon-btn" onclick="fermerSuiviDatesProposees()" aria-label="Fermer">
+      <wa-button appearance="plain" type="button" class="bouton-icone icon-btn" onclick="fermerSuiviDatesProposees()" aria-label="Fermer">
         <svg class="icone" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" aria-hidden="true"><line x1="4" y1="4" x2="12" y2="12"/><line x1="12" y1="4" x2="4" y2="12"/></svg>
-      </button>
+      </wa-button>
     </div>
     <div id="dates-proposees-liste"></div>
   </aside>

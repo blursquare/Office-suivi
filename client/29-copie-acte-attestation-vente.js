@@ -180,7 +180,7 @@
             <input type="checkbox" ${envoiCopieActe.choisis.has(f.chemin) ? 'checked' : ''} onchange="basculerFichierCopieActe('${escapeOnclickArg(f.chemin)}')">
             <span class="copie-acte-nom">${escapeHtml(f.nom)}</span>
             <span class="copie-acte-meta">${f.type === 'attestation' ? 'Attestation' : 'Copie de l’acte'} · ${tailleLisible(f.taille)}${f.modifie ? ' · ' + formatDateFr(String(f.modifie).slice(0, 10)) : ''}</span>
-            <button type="button" class="icon-btn" onclick="event.preventDefault(); ouvrirFausseMinute('${escapeOnclickArg(f.chemin)}')" title="Ouvrir" aria-label="Ouvrir ${escapeAttr(f.nom)}">${icone('eye')}</button>
+            <wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-btn" onclick="event.preventDefault(); ouvrirFausseMinute('${escapeOnclickArg(f.chemin)}')" title="Ouvrir" aria-label="Ouvrir ${escapeAttr(f.nom)}">${icone('eye')}</wa-button>
           </label>`).join('')
       : `<p class="nas-choix-vide">${envoiCopieActe.recherche ? 'Aucun PDF à ce nom.' : 'Aucune fausse minute au nom du dossier : cherchez-la ci-dessus.'}</p>`;
     zone.innerHTML = `

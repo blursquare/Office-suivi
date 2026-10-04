@@ -758,7 +758,7 @@
       : prop.etat === 'erreur' ? `<span class="redaction-pastille redaction-pastille-erreur" title="${escapeAttr(prop.message || '')}">Proposition indisponible</span>`
       : prop.posee ? `<span class="redaction-pastille" title="Premier jet de l’IA locale : relisez avant d’envoyer">${icone('sparkle')}Proposition de CLAIRE</span>`
       : `<button type="button" class="redaction-pastille" onclick="utiliserPropositionReponse()">${icone('sparkle')}Utiliser la proposition de CLAIRE</button>`;
-    const pieces = r.pieces.map((p, i) => `<span class="redaction-piece">${icone('file-text')}<span class="redaction-piece-nom">${escapeHtml(p.nom)}</span><span class="redaction-piece-taille">${escapeHtml(tailleLisible(poidsPiecesEmail([p])))}</span><button type="button" class="icon-btn" onclick="retirerPieceRedaction(${i})" aria-label="Retirer ${escapeAttr(p.nom)}">${icone('x')}</button></span>`).join('');
+    const pieces = r.pieces.map((p, i) => `<span class="redaction-piece">${icone('file-text')}<span class="redaction-piece-nom">${escapeHtml(p.nom)}</span><span class="redaction-piece-taille">${escapeHtml(tailleLisible(poidsPiecesEmail([p])))}</span><wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-btn" onclick="retirerPieceRedaction(${i})" aria-label="Retirer ${escapeAttr(p.nom)}">${icone('x')}</wa-button></span>`).join('');
     const lignes = Math.min(18, Math.max(r.mode === 'reponse' ? 5 : 8, String(r.texte).split('\n').length + 1));
     return `<div class="redaction-carte">
         <div class="redaction-ligne redaction-de"><span class="redaction-etiquette">De</span><span>${escapeHtml(qui)}</span>${pastille}</div>
@@ -773,11 +773,11 @@
         <div class="redaction-pied">
           <label class="icon-btn redaction-joindre" title="Joindre un fichier">${icone('paperclip')}<input type="file" multiple hidden onchange="ajouterPiecesRedaction(this)"></label>
           <div class="redaction-modeles">
-            <button type="button" class="icon-btn redaction-modeles-btn" onclick="basculerMenuModelesRedaction()" aria-expanded="${r.menuModeles ? 'true' : 'false'}" title="Remplacer le texte par un modèle">${icone('file-text')}<span>Modèles</span></button>
+            <wa-button appearance="plain" size="s" type="button" class="bouton-discret icon-btn redaction-modeles-btn" onclick="basculerMenuModelesRedaction()" aria-expanded="${r.menuModeles ? 'true' : 'false'}" title="Remplacer le texte par un modèle">${icone('file-text')}<span>Modèles</span></wa-button>
             ${r.menuModeles ? renderMenuModelesRedaction() : ''}
           </div>
           ${r.avantModele ? '<button type="button" class="lien-discret redaction-annuler-modele" onclick="annulerModeleRedaction()">Annuler le modèle</button>' : ''}
-          <button type="button" class="icon-btn" onclick="abandonnerRedaction()" title="Abandonner cet email" aria-label="Abandonner cet email">${icone('trash')}</button>
+          <wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-btn" onclick="abandonnerRedaction()" title="Abandonner cet email" aria-label="Abandonner cet email">${icone('trash')}</wa-button>
           <span class="redaction-pied-espace" id="redaction-motif">${escapeHtml(etat.motif && etat.motif !== 'Ajoutez un destinataire.' && etat.motif !== 'Écrivez le message.' ? etat.motif : etat.poids ? tailleLisible(etat.poids) : '')}</span>
           <wa-button ${direct ? 'appearance="plain"' : 'variant="brand"'} class="${direct ? 'lien-discret' : 'primary'}" onclick="ouvrirRedactionDansOutlook()" title="Télécharger l’email pour l’ouvrir dans Outlook">Ouvrir dans Outlook</wa-button>
           ${direct ? `<wa-button variant="brand" class="primary redaction-envoyer" id="redaction-envoyer" onclick="envoyerRedaction()"${etat.possible && !r.envoi ? '' : ' disabled'} title="${escapeAttr(etat.motif || '')}">${icone(r.envoi ? 'spinner' : 'send')}${r.envoi ? 'Envoi…' : 'Envoyer'}</wa-button>` : ''}
@@ -795,7 +795,7 @@
       const d = dossiers.find(x => x.id === r.dossierId);
       const emailCite = r.reponseA && d ? ((emailsParDossier[d.id] || {}).emails || []).find(e => e.id === r.reponseA) : null;
       zone.innerHTML = `<div class="redaction-tete">
-          <button type="button" class="icon-btn" onclick="abandonnerRedaction()" aria-label="Fermer">${icone('chevron-left')}</button>
+          <wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-btn" onclick="abandonnerRedaction()" aria-label="Fermer">${icone('chevron-left')}</wa-button>
           <div class="redaction-titre" id="email-redaction-titre">${escapeHtml(r.sujet || 'Nouvel email')}</div>
           ${d && !String(r.sujet || '').includes(libelleDossierAffiche(d)) ? `<span class="redaction-dossier">${escapeHtml(libelleDossierAffiche(d))}</span>` : ''}
         </div>
@@ -1550,7 +1550,7 @@
           <div class="modeles-groupe">Mes modèles</div>
           ${perso.map(ligne).join('')}
           ${e.type === 'nouveau' ? '<button type="button" class="modeles-ligne actif"><span class="modeles-ligne-nom">Nouveau modèle</span></button>' : ''}
-          <button type="button" class="bouton-ajout" onclick="choisirModeleReglages('nouveau')">Nouveau modèle</button>
+          <wa-button appearance="outlined" type="button" class="bouton-ajout" onclick="choisirModeleReglages('nouveau')"><span slot="start" class="bouton-ajout-plus" aria-hidden="true">+</span>Nouveau modèle</wa-button>
           <div class="modeles-groupe">Modèles de CLAIRE</div>
           ${liste.filter(m => m.type === 'integre' && !m.contexte).map(ligne).join('')}
           <div class="modeles-groupe">Liés à un geste</div>

@@ -784,8 +784,8 @@
       // Vue « Aujourd'hui » : la case ronde devant la tâche la valide à la main (étude, 01/10) ; la
       // fiche garde sa pastille et le ✓ « Déjà fait » parmi les icônes.
       caseRonde: dansFiche ? null : { onclick: `marquerFaitJour('${cle}')`, libelle: 'Fait — valider à la main' },
-      secondaires: `${dansFiche ? `<button type="button" class="icon-btn ja-fait-manuel" onclick="marquerFaitJour('${cle}')" title="Déjà fait — valider à la main" aria-label="Marquer comme déjà fait">${icone('check')}</button>` : ''}
-          <button type="button" class="icon-btn ja-plus-tard" onclick="reporterActionJour('${cle}')" title="Plus tard (demain)" aria-label="Reporter à demain">${icone('clock')}</button>`,
+      secondaires: `${dansFiche ? `<wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-btn ja-fait-manuel" onclick="marquerFaitJour('${cle}')" title="Déjà fait — valider à la main" aria-label="Marquer comme déjà fait">${icone('check')}</wa-button>` : ''}
+          <wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-btn ja-plus-tard" onclick="reporterActionJour('${cle}')" title="Plus tard (demain)" aria-label="Reporter à demain">${icone('clock')}</wa-button>`,
       apercu: a.cle,
       detail: `<p>${escapeHtml(a.contexte)}</p>
             ${renderBrouillonEmail(brouillon)}
@@ -846,7 +846,7 @@
         bouton: rappelParleEmail(r.texte) ? { libelle: 'Email', icone: icone('mail'), onclick: `ouvrirEmailRappelPerso('${escapeOnclickArg(r.id)}')`, titre: "Préparer un email vierge avec la signature de l'office" } : null,
         classe: fixe ? 'ja-rappel w-fixe' : 'ja-rappel',
         // Sur la carte, le crayon ouvre la modification sous « Mes rappels » (même formulaire).
-        secondaires: fixe && !r.agendaItemId ? `<button type="button" class="icon-btn" onclick="ouvrirEditionRappel('${escapeOnclickArg(r.id)}')" title="Modifier le rappel" aria-label="Modifier le rappel">${icone('pencil')}</button>` : ''
+        secondaires: fixe && !r.agendaItemId ? `<wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-btn" onclick="ouvrirEditionRappel('${escapeOnclickArg(r.id)}')" title="Modifier le rappel" aria-label="Modifier le rappel">${icone('pencil')}</wa-button>` : ''
       });
     }).join('');
     const coches = faits.map(r => {
@@ -984,7 +984,7 @@
       presentation,
       titre: 'Aujourd’hui',
       sous: presentation === 'petit' ? '' : escapeHtml(messageProgressionJour(actions.length, traites.length)),
-      droite: `${presentation !== 'petit' ? `<button type="button" class="action-rapide w-point-matin" onclick="ouvrirFenetreAujourdhui()" title="Rouvrir la fenêtre du point du matin">${icone('sun')}<span>Point du matin</span></button>` : ''}${anneau}`,
+      droite: `${presentation !== 'petit' ? `<wa-button appearance="outlined" size="s" pill type="button" class="action-rapide w-point-matin" onclick="ouvrirFenetreAujourdhui()" title="Rouvrir la fenêtre du point du matin">${icone('sun')}<span>Point du matin</span></wa-button>` : ''}${anneau}`,
       corps
     });
     renderFenetreAujourdhui();
@@ -999,8 +999,9 @@
   function ouvrirFenetreAujourdhui() {
     fenetreAujourdhuiOuverte = true;
     renderFenetreAujourdhui();
+    // wa-button : le focus attend son premier rendu (sinon la partie interne n'existe pas encore).
     const b = document.getElementById('jour-fenetre-fermer');
-    if (b) b.focus({ preventScroll: true });
+    if (b && b.updateComplete) b.updateComplete.then(() => b.focus({ preventScroll: true })).catch(() => {});
   }
 
   function fermerFenetreAujourdhui() {
@@ -1367,7 +1368,7 @@
           <h2 class="jour-fenetre-titre" id="jour-fenetre-titre">Bonjour ${escapeHtml(prenomCollaborateur(utilisateurPoste) || '')}</h2>
         </div>
         ${renderProgressionJour(actions.length, traites.length)}
-        <button type="button" class="icon-btn jour-fenetre-x" id="jour-fenetre-fermer" onclick="fermerFenetreAujourdhui()" aria-label="Fermer">${icone('x')}</button>
+        <wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-btn jour-fenetre-x" id="jour-fenetre-fermer" onclick="fermerFenetreAujourdhui()" aria-label="Fermer">${icone('x')}</wa-button>
       </header>
       <div class="jour-fenetre-corps">
         <div class="jour-col-faire">

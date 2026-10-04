@@ -78,7 +78,7 @@
             <span class="appris-extrait">« ${escapeHtml(c.contexteExemple || '')} »</span>
             <span class="appris-meta">${c.nbConfirmations > 1 ? `confirmée ${c.nbConfirmations} fois · ` : ''}${c.dateMaj ? 'le ' + escapeHtml(formatDateFr(String(c.dateMaj).slice(0, 10))) : ''}</span>
           </div>
-          <button type="button" class="icon-btn appris-oublier" title="Oublier : CLAIRE ne réappliquera plus ce classement" aria-label="Oublier ce classement" onclick="oublierCorrectionApprise('${escapeOnclickArg(c.id)}')">${icone('x')}</button>
+          <wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-btn appris-oublier" title="Oublier : CLAIRE ne réappliquera plus ce classement" aria-label="Oublier ce classement" onclick="oublierCorrectionApprise('${escapeOnclickArg(c.id)}')">${icone('x')}</wa-button>
         </li>`).join('')}</ul>` : '<p class="hint">Aucune clause apprise pour l’instant.</p>';
     }
 
@@ -96,7 +96,7 @@
             ${r.commentaire && r.constat ? `<span class="appris-extrait">${escapeHtml(r.commentaire)}</span>` : ''}
             <span class="appris-meta">${r.portee === 'dossier' ? 'Ce dossier seulement' : 'Tous les dossiers'}${r.date ? ' · le ' + escapeHtml(formatDateFr(String(r.date).slice(0, 10))) : ''}</span>
           </div>
-          <button type="button" class="icon-btn appris-oublier" title="Retirer ce commentaire" aria-label="Retirer ce commentaire" onclick="oublierRetourAudit('${escapeOnclickArg(r.id)}')">${icone('x')}</button>
+          <wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-btn appris-oublier" title="Retirer ce commentaire" aria-label="Retirer ce commentaire" onclick="oublierRetourAudit('${escapeOnclickArg(r.id)}')">${icone('x')}</wa-button>
         </li>`;
       }).join('')}</ul>` : '<p class="hint">Aucun commentaire de relecture.</p>';
     }
@@ -233,5 +233,5 @@
     zone.innerHTML = `<ul class="exclusions-liste">${lignes.map(l => `
       <li><span class="exclusions-nom">${escapeHtml(l.nom)}</span>
         <span class="hint">n'est plus reconnu comme « ${escapeHtml(libellePieceParCle(l.cle))} »</span>
-        <button type="button" class="action-rapide" onclick="retirerExclusionPiece('${escapeOnclickArg(l.cle)}', '${escapeOnclickArg(l.nom)}')">Rétablir</button></li>`).join('')}</ul>`;
+        <wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="retirerExclusionPiece('${escapeOnclickArg(l.cle)}', '${escapeOnclickArg(l.nom)}')">Rétablir</wa-button></li>`).join('')}</ul>`;
   }

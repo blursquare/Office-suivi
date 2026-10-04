@@ -86,6 +86,18 @@
       e.preventDefault();
       form.requestSubmit();
     });
+    // Libellé d’un interrupteur wa-switch (Réglages : toute la ligne est un <label>) : le navigateur ne bascule pas un
+    // composant à shadow DOM au clic sur son libellé. Un clic hors de l’interrupteur le bascule comme avant.
+    document.addEventListener('click', (e) => {
+      const cible = e.target;
+      if (!cible || !cible.closest || cible.closest('wa-switch, a, button, wa-button, input, select, textarea, .info-i')) return;
+      const libelle = cible.closest('label');
+      if (!libelle) return;
+      const inter = libelle.htmlFor ? document.getElementById(libelle.htmlFor) : libelle.querySelector('wa-switch');
+      if (!inter || inter.localName !== 'wa-switch' || inter.disabled) return;
+      e.preventDefault();
+      inter.click();
+    });
   }
 
   let dossiers = [];

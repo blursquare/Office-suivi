@@ -720,7 +720,17 @@ Plainte principale de l'étude : **le bruit**, pas les oublis — ne pas élargi
   icône dans le libellé, espacée par `::part(label)`. Plus jamais `<button class="primary|secondary|btn-annuler|btn-confirmer">`
   (test). Un `<wa-button type="submit">` n'est pas le bouton par défaut d'un formulaire : Entrée dans un champ est rétabli
   par le gestionnaire de `01-socle.js`. Test de fumée : `wa-button` défini, aucun bouton qui « avale » un bloc (balise mal
-  fermée). Restent en HTML natif, à convertir ensuite : boutons-icônes (`icon-btn`), `action-rapide`, `bouton-ajout`, liens-boutons.
+  fermée). **Familles converties le 04/10 au soir** (classes de style.css, couche Web Awesome) : bouton à icône seule =
+  `<wa-button appearance="plain" class="bouton-icone">` (32 px en barre d'outils/en-tête, `size="s"` = 24 px dans une ligne ;
+  couleur réglée par `color` sur le bouton, `::part(base)` la reprend) ; icône + texte discret = `bouton-discret` ; pastille
+  d'action = `<wa-button appearance="outlined" size="s" pill class="action-rapide">` (28 px) ; « Ajouter … » =
+  `<wa-button appearance="outlined" class="bouton-ajout">` + `<span slot="start" class="bouton-ajout-plus">+</span>` (changer
+  son libellé = son nœud texte, jamais `textContent` du bouton qui effacerait le « + ») ; interrupteur = `<wa-switch>` (id,
+  `checked`, `onchange` et `this.checked` inchangés ; un clic sur le `<label>` qui l'entoure le bascule par le gestionnaire de
+  `01-socle.js`). Le focus d'un wa-button juste rendu attend `updateComplete`. Test `structure-client` : plus de `<button>` de
+  ces familles, plus de `.slider`, balises équilibrées. **Restent natifs, volontairement** : liens-boutons (`lien-*`, « Voir
+  plus », `icon-btn` à texte seul), lignes cliquables de liste, onglets et groupes segmentés (`vue-bascule-btn`, `ag-nav-btn`,
+  étapes du wizard), pastilles de source (`page-chip`, `voir-pdf-btn`), réglages des widgets, champs, listes et fenêtres.
   **Tout geste** (email, préparer, noter, créer…) est une ligne d'action `renderLigneAction` (forme
   de « À faire », même titre et même verbe qu'elle pour le même geste) ; tout « Ajouter … » est un
   `button.bouton-ajout` ; l'édition d'une donnée passe par des icônes (crayon, ✓, ×) ; seuls les

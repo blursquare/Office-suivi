@@ -402,7 +402,7 @@
     const appelSuppr = dossierId
       ? `supprimerDocumentDossier('${dossierId}', ${index})`
       : `supprimerDocumentManuel(${index})`;
-    const boutonSuppr = `<button type="button" class="analyse-doc-suppr" onclick="${appelSuppr}" title="Retirer ce document de la liste" aria-label="Retirer ce document">${icone('x')}</button>`;
+    const boutonSuppr = `<wa-button appearance="plain" size="s" type="button" class="bouton-icone analyse-doc-suppr" onclick="${appelSuppr}" title="Retirer ce document de la liste" aria-label="Retirer ce document">${icone('x')}</wa-button>`;
     return `<span class="analyse-doc-badge${cat ? ' cat-' + cat : ''}">${escapeHtml(label)}${boutonSuppr}</span>`;
   }
 
@@ -439,7 +439,7 @@
           ${Object.entries(libelles).map(([val, label]) => `<option value="${val}"${typeActuel === val ? ' selected' : ''}>${label}</option>`).join('')}
         </select>
         <textarea id="engagement-edition-texte" rows="2">${escapeHtml(phrase)}</textarea>
-        <button type="button" class="icon-valider" onclick="${appelValider}" title="Valider" aria-label="Valider la modification">✓</button>
+        <wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-valider" onclick="${appelValider}" title="Valider" aria-label="Valider la modification">✓</wa-button>
         <button type="button" class="icon-btn" onclick="${appelAnnuler}">Annuler</button>
       </div>`;
     }
@@ -471,7 +471,7 @@
       : `supprimerEngagementManuel(${index})`;
     const boutonSupprimer = `<button type="button" class="engagement-suppr" onclick="${appelSuppr}" title="Retirer cet engagement" aria-label="Retirer cet engagement">${icone('x')}</button>`;
     const appelEditer = dossierId ? `activerEditionEngagement('${dossierId}', ${index})` : `activerEditionEngagement(null, ${index})`;
-    const boutonEditer = `<button type="button" class="icon-crayon" onclick="${appelEditer}" title="Modifier cet engagement" aria-label="Modifier cet engagement">${icone('pencil')}</button>`;
+    const boutonEditer = `<wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-crayon" onclick="${appelEditer}" title="Modifier cet engagement" aria-label="Modifier cet engagement">${icone('pencil')}</wa-button>`;
     // Fiche enregistrée : une case « réalisé » (étude, 02/10), comptée dans le statut du dossier.
     const d = dossierId ? dossiers.find(x => x.id === dossierId) : null;
     if (d) {
@@ -500,7 +500,7 @@
     const caseHtml = trouveeNas
       ? `<span class="piece-case analyse-case" role="checkbox" aria-checked="true" aria-disabled="true" aria-label="${escapeAttr(label)}" title="${escapeAttr(titre)}">${icone('check')}</span>`
       : `<button type="button" class="piece-case analyse-case" role="checkbox" aria-checked="${recu}" aria-label="${escapeAttr(label)}" title="${escapeAttr(titre)}" onclick="basculerDocumentAnalyseRecu('${d.id}', ${index})">${recu ? icone('check') : ''}</button>`;
-    return `<div class="analyse-doc-ligne${recu ? ' recu' : ''}">${caseHtml}<span class="analyse-doc-nom">${escapeHtml(label)}</span>${cle ? '<span class="piece-tag" title="Même pièce que dans l’onglet Pièces">checklist</span>' : ''}<button type="button" class="analyse-doc-suppr" onclick="supprimerDocumentDossier('${d.id}', ${index})" title="Retirer ce document de la liste" aria-label="Retirer ce document">${icone('x')}</button></div>`;
+    return `<div class="analyse-doc-ligne${recu ? ' recu' : ''}">${caseHtml}<span class="analyse-doc-nom">${escapeHtml(label)}</span>${cle ? '<span class="piece-tag" title="Même pièce que dans l’onglet Pièces">checklist</span>' : ''}<wa-button appearance="plain" size="s" type="button" class="bouton-icone analyse-doc-suppr" onclick="supprimerDocumentDossier('${d.id}', ${index})" title="Retirer ce document de la liste" aria-label="Retirer ce document">${icone('x')}</wa-button></div>`;
   }
 
   function basculerEngagementFait(dossierId, index) {
