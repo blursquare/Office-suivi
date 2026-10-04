@@ -19,6 +19,15 @@ const SCHEMA = `
   );
   CREATE INDEX IF NOT EXISTS idx_dossiers_updated_at ON dossiers(updated_at);
 
+  -- Dernières versions de chaque dossier (audit 04/10) : la version qu'un poste a vue en dernier sert de base à la
+  -- fusion de son PUT avec ce que le serveur a changé entre-temps (voir fusionDossiers.js). Bornée par dossier.
+  CREATE TABLE IF NOT EXISTS dossiers_versions (
+    id TEXT NOT NULL,
+    updated_at INTEGER NOT NULL,
+    data TEXT NOT NULL,
+    PRIMARY KEY (id, updated_at)
+  );
+
   CREATE TABLE IF NOT EXISTS reminder_log (
     dossier_id TEXT NOT NULL,
     reminder_key TEXT NOT NULL,

@@ -264,7 +264,9 @@ async function rangerScan({ dossierScans, nasRacine, nom, dossierNas, rubriques,
     const [a, b] = await Promise.all([fsImpl.stat(source), fsImpl.stat(cible)]);
     if (a.size !== b.size) throw new Error('Copie incomplète.');
   } catch (e) {
-    try { await fsImpl.unlink(cible); } catch (_) { /* rien à retirer */ }
+    // EEXIST : le fichier existait déjà (apparu entre le choix du nom et la copie), rien n'a été écrit et il n'est pas
+    // à nous — jamais retiré. Seule une copie partielle est nettoyée (audit 04/10).
+    if (!(e && e.code === 'EEXIST')) { try { await fsImpl.unlink(cible); } catch (_) { /* rien à retirer */ } }
     return { erreur: 'La copie dans le dossier client a échoué : ' + (e && e.code ? e.code : 'erreur d’écriture'), statut: 500 };
   }
   // L'original part dans l'archive du dossier Scan (sous-dossier par mois). Un échec ici n'annule
@@ -317,7 +319,9 @@ async function copierDansDossierClient({ nasRacine, dossierNas, rubriques, nomCi
   try {
     await fsImpl.writeFile(cible, contenu, { flag: 'wx' });
   } catch (e) {
-    try { await fsImpl.unlink(cible); } catch (_) { /* rien à retirer */ }
+    // 'wx' : si le fichier existait déjà (EEXIST, apparu entre le choix du nom et l'écriture), rien n'a été écrit et il
+    // n'est PAS à nous — jamais retiré. Seule une écriture partielle (autre erreur) est nettoyée.
+    if (!(e && e.code === 'EEXIST')) { try { await fsImpl.unlink(cible); } catch (_) { /* rien à retirer */ } }
     return { erreur: 'La copie dans le dossier client a échoué : ' + (e && e.code ? e.code : 'erreur d’écriture'), statut: 500 };
   }
   return { chemin: path.relative(path.resolve(nasRacine), cible), rubrique };

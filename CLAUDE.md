@@ -571,6 +571,16 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
   aussitôt, sans confirmation** (choix de l'étude ; `retirerTacheDeLAgenda`, `POST /exchange/evenement/supprimer`,
   MoveToDeletedItems, un seul essai, `agendaSupprimeLe` ; décochée ensuite, elle reste un rappel). Point terrain
   `tache-agenda-retiree`.
+- **Enregistrement d'un dossier = fusion, jamais écrasement** (audit 04/10) : chaque objet dossier du poste porte sa version
+  (`_version`, non énumérable, posée par `marquerVersionDossier` au chargement, au sondage et après chaque PUT) ; `sauvegarder`
+  l'envoie en `X-Claire-Base` ; le serveur (`dossiersRepo.remplacerDepuisBase`, versions récentes dans `dossiers_versions`,
+  10 par dossier / 3 jours) fusionne à trois voies (`fusionDossiers.js` : champ non touché par le poste → serveur ; touché →
+  poste ; touché des deux côtés → listes fusionnées, objets un niveau plus bas, sinon le poste) et répond `fusionne: true` →
+  `appliquerDossierServeur` remplace la copie SUR PLACE (références de l'écran gardées) + toast. Base inconnue → copie du poste
+  (comme avant), `console.warn`. **Serveur injoignable** : `sauvegardesEnAttente` (id), rejoué à chaque sondage réussi, jamais
+  remplacé par un changement distant entre-temps ; refus 404/4xx → toast. `updated_at` est strictement croissant
+  (`maintenantMonotone`) ; `serverTime` du sondage recule d'1 ms. Une ligne au JSON illisible est écartée (`lireBlob`), jamais
+  bloquante.
 - **Rendez-vous retiré de CLAIRE** → retiré aussi de l'agenda (et repère `rendezVousRetire` pour
   que le flux ne le remette pas). Une date saisie à la main n'est jamais écrasée par l'agenda.
 - **Apprentissage** : corrections de classification (dates, engagements) et exclusions stockées en

@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-04 08:26';
+  const VERSION_APP = '2026-10-04 08:39';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-04 08:39', resume: "Audit de fiabilité (1/2) : deux fenêtres, ou une fenêtre et un travail de fond du serveur (agenda, emails), ne s'écrasent plus mutuellement un dossier — le serveur fusionne chaque enregistrement avec ce qui a changé entre-temps (champ par champ) et le dit par un message quand c'est arrivé. Une modification faite serveur injoignable est gardée et enregistrée à son retour (message), un refus est affiché au lieu d'être silencieux. Un dossier illisible en base n'empêche plus les autres de s'afficher. Deux écritures la même milliseconde ne se confondent plus. Le journal technique ne recopie plus le contenu d'une requête rejetée. Un fichier déjà présent sur le NAS n'est plus retiré en cas de collision de nom." },
     { version: '2026-10-04 08:26', resume: "Lecture des réponses d'Exchange (agenda, emails des dossiers, emails du matin, envoi d'emails, réponses aux propositions de dates) confiée à une bibliothèque éprouvée (fast-xml-parser) au lieu d'un découpage maison du texte : plus robuste face aux variations de forme des réponses. Rien ne change à l'écran." },
     { version: '2026-10-04 08:09', resume: "Tâches dans l'agenda : un rendez-vous en rouge dont le titre commence par les initiales d'un collaborateur (« JV - Relancer le syndic ») devient une tâche de ce collaborateur, dans « Aujourd'hui » et « Mes rappels » (« Tâche de l'agenda »). Cochée dans CLAIRE, le rendez-vous est retiré de l'agenda aussitôt (éléments supprimés d'Outlook). Déplacé ou renommé dans Outlook, la tâche suit ; supprimé dans Outlook, elle disparaît." },
     { version: '2026-10-03 23:27', resume: "Fenêtre d'email : le menu « Modèles » commence par « Proposés pour cet email » — les modèles les mieux adaptés selon le bouton qui a ouvert l'email, les mots de l'objet et, pour une réponse, de l'email reçu (objet, résumé, pièces jointes), puis l'étape du dossier. Variante confrère choisie selon le destinataire." },
@@ -31594,9 +31595,34 @@
     const { dossiers: recus, serverTime } = await reponse.json();
     dossiers = recus
       .filter(d => d && typeof d === 'object' && d.id && !d.deleted)
-      .map(({ updatedAt, ...d }) => d); // updatedAt est une métadonnée serveur, pas un champ du modèle
+      .map(({ updatedAt, ...d }) => marquerVersionDossier(d, updatedAt)); // updatedAt est une métadonnée serveur, pas un champ du modèle
     curseurSynchro = serverTime;
     render();
+  }
+
+  // Version du dossier telle que reçue du serveur (updatedAt), portée par l'OBJET et non par l'id (audit 04/10) : une
+  // copie dépassée encore tenue par une fiche ouverte garde SA version, et le serveur sait alors fusionner son PUT avec
+  // ce qui a changé depuis (voir server/src/fusionDossiers.js). Propriété non énumérable : jamais sérialisée.
+  function marquerVersionDossier(d, updatedAt) {
+    if (d && typeof d === 'object' && Number.isFinite(updatedAt)) {
+      Object.defineProperty(d, '_version', { value: updatedAt, enumerable: false, writable: true, configurable: true });
+    }
+    return d;
+  }
+  function versionDossier(d) {
+    return d && Number.isFinite(d._version) ? d._version : 0;
+  }
+  // Le dossier tel que le serveur l'a enregistré (fusionné ou non) remplace la copie du poste SUR PLACE : les
+  // références tenues par l'écran restent valables, et l'objet redevient celui de la liste.
+  function appliquerDossierServeur(d, sauvegarde) {
+    const { updatedAt, fusionne, ...contenu } = sauvegarde || {};
+    if (!contenu || contenu.id !== d.id) return false;
+    for (const k of Object.keys(d)) if (!(k in contenu)) delete d[k];
+    Object.assign(d, contenu);
+    marquerVersionDossier(d, updatedAt);
+    const index = dossiers.findIndex(x => x.id === d.id);
+    if (index !== -1 && dossiers[index] !== d) dossiers[index] = d;
+    return !!fusionne;
   }
 
   // Remplacement complet d'UN dossier déjà enregistré (PUT) — chaque site d'appel a déjà `d` en
@@ -31606,20 +31632,45 @@
   // réseau se retrouvera simplement rattrapée par le prochain PUT réussi (le brouillon en mémoire
   // reste correct, seule la synchro serveur retarde).
   async function sauvegarder(d) {
+    if (!d || !d.id) return;
     try {
       const reponse = await fetchAvecAuth(`/api/dossiers/${encodeURIComponent(d.id)}`, {
         method: 'PUT',
-        headers: { 'content-type': 'application/json' },
+        headers: { 'content-type': 'application/json', 'x-claire-base': String(versionDossier(d)) },
         body: JSON.stringify(d)
       });
       if (reponse.ok) {
         const sauvegarde = await reponse.json();
         curseurSynchro = Math.max(curseurSynchro, sauvegarde.updatedAt || 0);
+        const fusionne = appliquerDossierServeur(d, sauvegarde);
+        if (sauvegardesEnAttente.delete(d.id) && sauvegardesEnAttente.size === 0) afficherToast('Modifications enregistrées.', 'OK', null);
+        if (fusionne) {
+          // Le serveur a gardé des changements faits ailleurs (autre poste, agenda, emails) : l'écran les montre.
+          afficherToast(`Dossier « ${libelleDossierAffiche(d)} » : des changements d’un autre poste ont été conservés.`, 'OK', null);
+          try { render(); } catch (e) { /* le prochain rendu les montrera */ }
+        }
+      } else if (reponse.status === 404) {
+        sauvegardesEnAttente.delete(d.id);
+        afficherToast(`Dossier « ${libelleDossierAffiche(d)} » : supprimé depuis un autre poste, modification non enregistrée.`, 'OK', null);
       } else {
         console.error('Sauvegarde refusée par le serveur', reponse.status);
+        sauvegardesEnAttente.delete(d.id);
+        afficherToast(`Modification non enregistrée (serveur : ${reponse.status}).`, 'OK', null);
       }
     } catch (e) {
-      console.error('Sauvegarde impossible (serveur injoignable ?)', e);
+      // Serveur injoignable : rien n'est perdu en mémoire, le PUT est rejoué à chaque sondage dès son retour.
+      if (!sauvegardesEnAttente.size) afficherToast('Serveur injoignable : la modification sera enregistrée dès son retour.', 'OK', null);
+      sauvegardesEnAttente.add(d.id);
+    }
+  }
+
+  // Dossiers dont le dernier PUT a échoué faute de serveur (audit 04/10) : rejoués au sondage suivant qui réussit.
+  const sauvegardesEnAttente = new Set();
+  function relancerSauvegardesEnAttente() {
+    if (!sauvegardesEnAttente.size) return;
+    for (const id of [...sauvegardesEnAttente]) {
+      const d = dossiers.find(x => x.id === id);
+      if (d) sauvegarder(d); else sauvegardesEnAttente.delete(id);
     }
   }
 
@@ -31637,6 +31688,7 @@
       if (reponse.ok) {
         const sauvegarde = await reponse.json();
         curseurSynchro = Math.max(curseurSynchro, sauvegarde.updatedAt || 0);
+        marquerVersionDossier(d, sauvegarde.updatedAt);
         return true;
       }
       console.error('Création refusée par le serveur', reponse.status);
@@ -31702,6 +31754,10 @@
         continue;
       }
       const { updatedAt, ...d } = item;
+      marquerVersionDossier(d, updatedAt);
+      // Une copie locale pas encore enregistrée (serveur injoignable) n'est pas remplacée : son PUT, rejoué avec sa
+      // version de base, sera fusionné par le serveur avec ce changement-ci.
+      if (index !== -1 && sauvegardesEnAttente.has(d.id)) continue;
       // Notification proactive : un nouveau PDF vient d'être détecté par la surveillance périodique
       // du NAS (voir server/src/nasWatch.js). Le fichier était déjà repris silencieusement dans la
       // checklist au prochain "Revérifier" automatique (toutes les 5 minutes pour un dossier non
@@ -31794,6 +31850,7 @@
       }
       curseurSynchro = serverTime;
       majStatutServeur(true);
+      relancerSauvegardesEnAttente();
       surveillerVersionServeur(corps.demarrage);
     } catch (e) {
       // Une session expirée (401) est déjà gérée par fetchAvecAuth (jeton effacé, écran de

@@ -198,9 +198,13 @@ function creerApp({ db, config, envoyerEmailFn, creerClientClaude, appelerMistra
 
   // Gestionnaire d'erreurs générique en dernier recours : évite qu'une exception inattendue
   // (JSON malformé, etc.) ne fasse planter le processus entier plutôt que de répondre 500.
+  // Jamais `err` entier dans le journal : une erreur du lecteur JSON porte le corps reçu (`err.body`), qui peut
+  // contenir le texte d'un email ou d'un dossier ; seuls le type, le statut et le message sont notés (audit 04/10).
   app.use((err, req, res, next) => { // eslint-disable-line no-unused-vars
-    console.error('[app] Erreur non gérée :', err);
-    res.status(400).json({ erreur: 'Requête invalide.' });
+    const statut = err && Number.isInteger(err.status) && err.status >= 400 && err.status < 600 ? err.status : 500;
+    console.error(`[app] Erreur non gérée (${req.method} ${req.path}) : ${(err && (err.type || err.code)) || 'erreur'} — ${(err && err.message) || ''}`.slice(0, 300));
+    if (res.headersSent) return;
+    res.status(statut).json({ erreur: statut === 413 ? 'Requête trop volumineuse.' : statut === 400 ? 'Requête invalide.' : 'Erreur interne du serveur.' });
   });
 
   return { app, depot, parametresRepo, gestionnaireAuth, journalTechnique, routeurMiseAJour };

@@ -5,7 +5,7 @@
 const express = require('express');
 
 function dossierValide(d) {
-  return d && typeof d === 'object' && typeof d.id === 'string' && d.id.length > 0;
+  return d && typeof d === 'object' && typeof d.id === 'string' && d.id.length > 0 && d.id.length <= 120 && !Array.isArray(d);
 }
 
 // Heure de démarrage du serveur, renvoyée à chaque sondage : une fenêtre qui la voit changer sait que
@@ -24,7 +24,9 @@ function creerRouteurDossiers(depot) {
     // lignes (dossiers actifs + tombstones) pour un premier chargement, sans branche séparée —
     // un tombstone pour un id que le client ne connaît pas encore est un no-op inoffensif.
     const since = parseInt(req.query.since, 10) || 0;
-    res.json({ dossiers: depot.depuis(since), serverTime: Date.now(), demarrage: DEMARRAGE_SERVEUR });
+    // `serverTime` recule d'une milliseconde : une écriture faite dans la même milliseconde que ce sondage, juste après
+    // la lecture, est ainsi reprise au sondage suivant (rejouer un dossier déjà vu est sans effet) — audit 04/10.
+    res.json({ dossiers: depot.depuis(since), serverTime: Date.now() - 1, demarrage: DEMARRAGE_SERVEUR });
   });
 
   routeur.post('/dossiers', (req, res) => {
@@ -47,12 +49,15 @@ function creerRouteurDossiers(depot) {
       res.status(400).json({ erreur: 'Dossier invalide : le corps doit avoir le même "id" que l\'URL.' });
       return;
     }
-    const updatedAt = depot.remplacer(req.params.id, d);
-    if (updatedAt === null) {
+    // `X-Claire-Base` : updatedAt du dossier tel que le poste l'a vu en dernier (audit 04/10). Le serveur fusionne
+    // alors ce PUT avec ce qui a changé depuis plutôt que de l'écraser (voir dossiersRepo.remplacerDepuisBase).
+    const r = depot.remplacerDepuisBase(req.params.id, d, req.get('x-claire-base'));
+    if (r === null) {
       res.status(404).json({ erreur: 'Dossier introuvable (ou déjà supprimé).' });
       return;
     }
-    res.json({ ...d, updatedAt });
+    if (r.baseInconnue) console.warn('[dossiers] PUT sans version de base connue : copie du poste appliquée telle quelle.');
+    res.json({ ...r.dossier, updatedAt: r.updatedAt, fusionne: r.fusionne });
   });
 
   routeur.delete('/dossiers/:id', (req, res) => {

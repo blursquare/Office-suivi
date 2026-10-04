@@ -16089,3 +16089,25 @@ change-t-il ce que le bouton de la fiche envoie ? Réponse : « Oui, le bouton s
 - Conversion fichier par fichier, suite serveur verte à chaque étape (657 → 659 tests). Bundle esbuild : la bibliothèque est
   embarquée. Point terrain `lecture-xml-exchange` (premier tour d'agenda réel qui rend des rendez-vous).
 - Non vérifié ici : réponses réelles d'Exchange 2019 (seuls les exemples des tests, qui reprennent leur forme).
+
+### 04/10/2026 08:39 — Audit de fiabilité (1/2) : enregistrement des dossiers
+
+- Demande : « Fais un audit complet de tout le code depuis la création de CLAIRE. Corrige et améliore le code pour anticiper
+  les bugs et le rendre le plus sûr possible. Ne casse rien et prends les bonnes décisions. »
+- Constat principal : `PUT /api/dossiers/:id` remplaçait le dossier entier sans contrôle de version — un poste tenant une copie
+  dépassée (fenêtre cachée, fiche ouverte pendant qu'un autre poste ou un travail de fond du serveur modifiait le dossier)
+  effaçait ces changements. Correction : version portée par l'objet côté poste (`_version`), en-tête `X-Claire-Base`, versions
+  récentes gardées (`dossiers_versions`), fusion à trois voies côté serveur (`fusionDossiers.js`), copie remplacée sur place et
+  toast « des changements d'un autre poste ont été conservés ». Vérifié dans Chromium : deux fenêtres, référence dépassée après
+  un sondage, serveur injoignable puis retour (sauvegarde rejouée, changement distant intermédiaire fusionné).
+- `sauvegarder` n'échoue plus en silence : file `sauvegardesEnAttente` rejouée au sondage, toasts (injoignable / enregistré /
+  supprimé ailleurs / refusé).
+- `updated_at` strictement croissant dans le processus (deux écritures la même milliseconde se confondaient : sondage et base
+  de fusion) ; `serverTime` du sondage recule d'1 ms (écriture dans la même milliseconde que la lecture).
+- Une ligne `dossiers` au JSON illisible est écartée avec une trace, au lieu de faire échouer GET /api/dossiers (tous les
+  postes bloqués au chargement).
+- Gestionnaire d'erreurs Express : plus jamais `err` entier dans le journal (une erreur du lecteur JSON porte le corps reçu —
+  texte d'email, dossier) ; statut fidèle (413/400/500), rien après des en-têtes déjà envoyés.
+- `scans.js` : sur une collision de nom (EEXIST, fichier apparu entre le choix du nom et la copie), le fichier existant n'est
+  plus retiré — il n'était pas à nous (règle « jamais supprimé »).
+- Tests : `server/test/fusion-dossiers.test.js` (fusion, dépôt, route, ligne illisible) ; suites 665 serveur / 1266 client.
