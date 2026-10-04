@@ -16501,3 +16501,18 @@ Demande : « Scanner le commun aussi à revoir ». Capture : bouton à fond tran
 - « Scanner le commun » : icône `rotate-ccw` (même tracé que le jeu `ICONES`), texte `--ink` dans l'en-tête des pages
   (`.dash-header-actions`), `class="secondary"` retirée (héritée, sans effet), `id="btn-scanner-commun"`.
 Captures Suivi (clair, sombre), tableau de bord et agenda contrôlées.
+
+### 0.144.24 — 04/10/2026 22 h 04 : boutons de création de l'Agenda parfois absents
+Demande : « Je ne vois pas le bouton ajout et proposition de rdv sur agenda ? »
+- Le bouton double « Nouveau rendez-vous | Proposer des dates » n'est dessiné que si l'écriture Outlook est réglée
+  (`exchangeAgendaPret()`, d'après `exchangeReglages` chargé en arrière-plan au démarrage). Il n'était calculé qu'au
+  rendu de la page Agenda : une page affichée AVANT la réponse de `/api/exchange/reglages` (démarrage, rechargement
+  automatique après une mise à jour — il y en a eu plusieurs ce jour) gardait la zone masquée jusqu'au rendu suivant.
+- Corrigé : rendu extrait dans `renderBoutonsCreationAgenda()` (25-page-agenda.js), appelé par `renderPageAgenda` ET à
+  la fin de `chargerReglagesExchange` (41-reglages.js). Premier nom essayé (`renderCreationAgenda`) déjà pris par le
+  formulaire de création : collision vue au test, renommé.
+- `::part(button)` → `::part(base)` sur le bouton double (nom de la partie dans Web Awesome 3 : les coins intérieurs
+  n'étaient pas mis à zéro).
+- Vérifié dans Chromium avec une réponse Exchange retardée de 2 s, page Agenda ouverte avant : ancien code → boutons
+  toujours masqués ; nouveau → visibles dès la réponse, aucune erreur. Si les boutons restent absents au bureau, c'est
+  qu'Outlook n'est pas réglé sur ce poste-là (Réglages › Agenda et Outlook : activé, adresse, mot de passe enregistré).

@@ -1418,22 +1418,27 @@
           </div>
         </div>
       </div>`;
-    // Bouton double « Nouveau rendez-vous | Proposer des dates » dans l'en-tête de la page, à droite du
-    // champ de recherche (étude, 01/10).
-    const zoneCreation = document.getElementById('agenda-creation');
-    if (zoneCreation) {
-      zoneCreation.innerHTML = exchangeAgendaPret() ? `<div class="ag-ajout-double" role="group" aria-label="Créer un rendez-vous">
-          <wa-button variant="brand" class="primary ag-ajout" onclick="ouvrirCreationAgenda()">${icone('plus')} Nouveau rendez-vous</wa-button>
-          <wa-button variant="brand" class="primary ag-ajout ag-ajout-dates" onclick="ouvrirSondageSansDossier('', [])" title="Proposer plusieurs dates par email et placer celle qui convient à tous">${icone('users')} Proposer des dates</wa-button>
-        </div>` : '';
-      zoneCreation.style.display = zoneCreation.innerHTML ? '' : 'none';
-    }
+    renderBoutonsCreationAgenda();
     renderPopoverAgenda();
     if (curseurNotes) {
       const champ = document.getElementById('agenda-notes-texte');
       if (champ) { champ.focus({ preventScroll: true }); champ.setSelectionRange(curseurNotes[0], curseurNotes[1]); champ.scrollTop = curseurNotes[2]; }
     }
     renderModaleAgenda();
+  }
+
+  // Bouton double « Nouveau rendez-vous | Proposer des dates » dans l'en-tête de la page, à droite du champ de recherche
+  // (étude, 01/10) — seulement quand l'écriture dans Outlook est réglée. Appelé aussi à la fin du chargement des réglages
+  // Exchange (chargerReglagesExchange) : la page Agenda dessinée avant leur arrivée (démarrage, rechargement après une mise
+  // à jour) gardait les boutons masqués jusqu'au rendu suivant (étude 04/10 : « je ne vois pas le bouton »).
+  function renderBoutonsCreationAgenda() {
+    const zoneCreation = document.getElementById('agenda-creation');
+    if (!zoneCreation) return;
+    zoneCreation.innerHTML = exchangeAgendaPret() ? `<div class="ag-ajout-double" role="group" aria-label="Créer un rendez-vous">
+          <wa-button variant="brand" class="primary ag-ajout" onclick="ouvrirCreationAgenda()">${icone('plus')} Nouveau rendez-vous</wa-button>
+          <wa-button variant="brand" class="primary ag-ajout ag-ajout-dates" onclick="ouvrirSondageSansDossier('', [])" title="Proposer plusieurs dates par email et placer celle qui convient à tous">${icone('users')} Proposer des dates</wa-button>
+        </div>` : '';
+    zoneCreation.style.display = zoneCreation.innerHTML ? '' : 'none';
   }
 
   // ---- Détail d'un rendez-vous (panneau de gauche, comme le volet de lecture d'Outlook) ----

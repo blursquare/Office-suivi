@@ -582,6 +582,7 @@
       const reponse = await fetchAvecAuth('/api/exchange/reglages');
       const corps = await reponse.json();
       exchangeReglages = corps || { actif: false };
+      renderBoutonsCreationAgenda();
       // Ne remplir les champs que si l'écran Réglages est présent (chargé aussi au démarrage, où il
       // ne l'est peut-être pas encore) et hors saisie en cours.
       const actif = document.getElementById('exchange-actif');
