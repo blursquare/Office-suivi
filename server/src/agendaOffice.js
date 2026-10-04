@@ -672,5 +672,5 @@ module.exports = {
   detecterActionsEvenement, dossierPourReferenceAgenda, actionsDetecteesDepuisEvenements, motsVoisins,
   estRendezVousSignature, composerLieuAgenda, compterRendezVousPeriode, natureActeAgenda, compterActesAgendaPeriode, periodesActesAnnee, dureeRendezVousMinutes, REGLE_COMPTAGE_RENDEZ_VOUS, lundiAnneePrecedente, decalerJours, ecartRendezVous, moisDePeriode, archiveAgendaARelire, evenementsAgendaOffice,
   absencesDepuisEvenements, estEvenementJourneeEntiere, collaborateursDansTexte, COLLABORATEURS_ABSENCE,
-  categoriesDistinctes, agendaDuJourDepuisEvenements, lundiSemainePrecedente, evenementsAgendaOffice
+  categoriesDistinctes, agendaDuJourDepuisEvenements, lundiSemainePrecedente
 };

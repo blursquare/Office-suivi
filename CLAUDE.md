@@ -34,7 +34,7 @@ durable, l'architecture ou « Ce qui reste ouvert » change.
   détecté » ; `routes/miseAJour.js` `tourAuto`/`demarrerAuto` : 30 s après le démarrage puis toutes les 10 min, build plus
   récent seulement, échec retenté après 6 h ; coupable dans Réglages › Mise à jour, où reste le bouton en un clic).
   **Une fenêtre déjà ouverte se recharge seule** après un redémarrage du serveur sur une autre version (03/10 :
-  `GET /api/dossiers` rend `demarrage`, `surveillerVersionServeur` relit `/script.js` et recharge hors saisie — point
+  `GET /api/dossiers` rend `demarrage`, `surveillerVersionServeur` relit `/client/00-version.js` et recharge hors saisie — point
   `fenetres-rechargees`) ; avant, elle gardait l'ancien script jusqu'à un F5 (10 h 22 : pages d'Authentic encore
   rangées par le « numéro » retiré à 9 h 33).
   Avant de retoucher un bug « toujours présent » déjà corrigé, faire vérifier la version affichée
@@ -43,15 +43,23 @@ durable, l'architecture ou « Ce qui reste ouvert » change.
 ## Structure
 
 ```
-index.html / style.css / script.js   Client (une seule page, tout le rendu est en JS sans framework)
+index.html / style.css               Client (une seule page, tout le rendu est en JS sans framework)
+client/NN-sujet.js, client/manifest.json  Le programme du poste, découpé par sujet (04/10 ; 44 fichiers, ≤ 3 000 lignes
+                                     chacun) : des <script> classiques chargés dans l'ordre du manifeste — fonctions et
+                                     variables de premier niveau partagées entre fichiers, comme avant dans script.js.
+                                     00-version.js = VERSION_APP + HISTORIQUE_VERSIONS ; 01-socle.js = utilitaires, état,
+                                     journal technique. index.html, ASSETS_STATIQUES, le .exe et les tests lisent le manifeste
+                                     (tests/structure-client.test.js vérifie l'alignement).
+eslint.config.js, .editorconfig      Règles de code (`npm run lint`, 0 erreur exigé par la construction du .exe)
 manifest.json, sw.js, icone.svg      PWA (installabilité) et favicon
 appel-de-fonds-modele.js             Modèle Word du courrier d'appel de fonds + logos (base64)
 questionnaire-satisfaction-pdf.js    PDF du questionnaire de satisfaction (base64)
 server/                              Serveur (son propre package.json ; le package.json racine est
                                      de l'outillage de test pur, sans dépendance)
   src/app.js, index.js, config.js    Montage Express, démarrage, configuration (.env / config.json)
-  src/db.js, dossiersRepo.js,        Base SQLite (dossiers en blob JSON, table `parametres`
-       parametresRepo.js             clé→JSON pour réglages et états produits par le serveur)
+  src/db.js, dossiersRepo.js,        Base SQLite (dossiers en blob JSON + versions récentes, table `parametres`
+       parametresRepo.js             clé→JSON pour réglages et états produits par le serveur ; assainisseurs purs
+       parametres/assainir.js        dans parametres/assainir.js, fusionDossiers.js pour les PUT concurrents)
   src/routes/*.js                    API (dossiers, nas, reglages, notifications, agenda, exchange,
                                      relectureClaude, relectures, extractionIa, offrePret,
                                      signatureImages — images de la signature des emails, …)
@@ -83,7 +91,9 @@ docs/spec-banc-essai-extraction.md   Cadrage du banc de mesure de l'extraction
 
 **Tout fichier servi statiquement doit être déclaré à la fois dans `ASSETS_STATIQUES`
 (`server/src/app.js`) et dans les assets embarqués de `server/scripts/build-windows-exe.mjs`** —
-sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois).
+sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois). Les fichiers de `client/` y sont par le
+manifeste : **un nouveau fichier du poste = `client/NN-sujet.js` + une ligne dans `client/manifest.json` + son `<script>`
+dans `index.html`** (le test `structure-client` refuse tout décalage).
 
 ## Contraintes fondamentales
 
@@ -623,7 +633,7 @@ Plainte principale de l'étude : **le bruit**, pas les oublis — ne pas élargi
 - **`\b` et les lettres accentuées** : `\b` ne se place jamais à côté de `é`/`É` (`\w` = ASCII).
   Utiliser des lookarounds `(?<![A-Za-z0-9_À-ɏ])` / `(?![A-Za-z0-9_À-ɏ])`.
 - **Écrire une regex via un script Python** peut insérer un BACKSPACE (U+0008) à la place de `\b`.
-  Contrôle obligatoire : `grep -c $'\x08' script.js` doit rendre 0.
+  Contrôle obligatoire : `grep -c $'\x08' client/*.js` doit rendre 0.
 - **Noms de fichiers macOS en NFD** : `normaliserNomPourMotif` normalise en NFC (et `_`/`-` → espace).
   Si un nom « évidemment correct » ne matche pas, comparer les points de code.
 - **`onclick="f('…')"`** : l'attribut est décodé en HTML avant d'être exécuté en JS — `&#39;`
@@ -669,7 +679,7 @@ Plainte principale de l'étude : **le bruit**, pas les oublis — ne pas élargi
   technique en donne l'état (section « Vérifications sur le terrain », échecs dans « À examiner ») : **le lire avant de déclarer
   vérifié un point de « Non vérifié au bureau »**.
 - **Versionnage** : à chaque commit qui change le comportement, mettre à jour `VERSION_APP` **et**
-  ajouter une entrée en tête de `HISTORIQUE_VERSIONS` (haut de `script.js`), heure de Paris :
+  ajouter une entrée en tête de `HISTORIQUE_VERSIONS` (`client/00-version.js`), heure de Paris :
   `TZ='Europe/Paris' date '+%Y-%m-%d %H:%M'` (jamais `date` seul : l'environnement est en UTC).
   C'est ce que l'étude lit dans « À propos ».
 - **Poser les questions de cadrage** (`AskUserQuestion`) quand une demande admet plusieurs
@@ -741,6 +751,12 @@ Plainte principale de l'étude : **le bruit**, pas les oublis — ne pas élargi
   emails, Modèles d'emails, Rappels, Agenda et Outlook, Téléphonie 3CX, Authentic, Pièces et Claire Scan, Noms de fichiers du NAS, Relecture d'actes,
   Signalements, Mise à jour et sauvegarde — classées sous quatre titres depuis le 03/10 : L'étude, Connexions, Dossiers et actes, Maintenance, `.reglages-nav-groupe` ; chaque section qui enregistre a son propre bouton), une colonne de lignes `.reglages-option` / `.reglages-champ`
   dans des `.reglages-section` — pas de cartes en grille.
+- **Règles de code** (étude, 04/10) : `npm run lint` à la racine (ESLint, `eslint.config.js` : erreurs réelles seulement —
+  variable inconnue, fonction ou clé en double, code inatteignable ; style laissé au fichier voisin) doit rendre **0 erreur**
+  (la construction du `.exe` s'arrête sinon) ; les avertissements (variables inutilisées) se réduisent au fil de l'eau, jamais
+  par un `eslint-disable` global. `npm run verifier` = lint + les deux suites. Un fichier du poste reste **sous 3 000 lignes**
+  (test) : un nouveau sujet = un nouveau fichier `client/NN-sujet.js` ; un code qui touche un sujet va dans le fichier de ce
+  sujet. Pas de `script.js` : il n'existe plus.
 - **Toute nouvelle fonction pure** : la déclarer `function` (ou `var` pour une table) pour la
   tester ; les fonctions qui touchent `dossiers`/le DOM se vérifient dans un vrai Chromium
   (Playwright, `/opt/pw-browsers/chromium`) avec un serveur réel et des dossiers inventés.
@@ -751,7 +767,7 @@ Plainte principale de l'étude : **le bruit**, pas les oublis — ne pas élargi
 ## Comment tester
 
 - `npm test` à la racine (client, `node:test`, aucune dépendance) et `cd server && npm test`.
-- `tests/helpers/load-app.js` charge `script.js` dans un `vm.Context` avec un faux DOM. Deux
+- `tests/helpers/load-app.js` charge les fichiers de `client/manifest.json`, dans l'ordre, dans un `vm.Context` avec un faux DOM. Deux
   limites : seules les `function` et `var` de premier niveau y sont visibles (un `const`/`let` est
   invisible) ; un tableau venu du contexte `vm` fait échouer `assert.deepEqual` — comparer des
   chaînes jointes.
@@ -764,7 +780,7 @@ Plainte principale de l'étude : **le bruit**, pas les oublis — ne pas élargi
 - **Rejouer de vrais PDF** (avis de taxe foncière, appel de charges, état daté, relevé de compte)
   sans navigateur : `npm i --no-save pdfjs-dist@4.10.38` à la racine, puis
   `node tests/outils/rejouer-pdf.mjs [--lignes] fichier.pdf …` — mêmes items que le pdf.js du
-  client, tous les lecteurs de `script.js` appliqués, résultat en JSON. Les PDF déposés dans une
+  client, tous les lecteurs du poste appliqués, résultat en JSON. Les PDF déposés dans une
   conversation sont sous `/root/.claude/uploads/<session>/` ; ils ne sont jamais commités.
 
 ## Ce qui reste ouvert

@@ -14,7 +14,7 @@ const { creerMiddlewareAssetsSea } = require('../src/app');
 const CONTENU_PAR_FICHIER = {
   'index.html': '<!doctype html><title>CLAIRE</title>',
   'style.css': 'body { margin: 0; }',
-  'script.js': 'console.log("claire");',
+  'client/00-version.js': 'console.log("claire");',
   'manifest.json': '{"name":"CLAIRE"}',
   'sw.js': '// service worker',
   'icone.svg': '<svg></svg>'
@@ -48,10 +48,10 @@ test('/ sert index.html en text/html', async () => {
   assert.equal(await reponse.text(), CONTENU_PAR_FICHIER['index.html']);
 });
 
-test('/script.js sert script.js en application/javascript', async () => {
-  const reponse = await fetch(`${baseUrl}/script.js`);
+test('/client/00-version.js sert client/00-version.js en application/javascript', async () => {
+  const reponse = await fetch(`${baseUrl}/client/00-version.js`);
   assert.match(reponse.headers.get('content-type'), /javascript/);
-  assert.equal(await reponse.text(), CONTENU_PAR_FICHIER['script.js']);
+  assert.equal(await reponse.text(), CONTENU_PAR_FICHIER['client/00-version.js']);
 });
 
 test('/manifest.json sert le bon contenu', async () => {

@@ -1,0 +1,464 @@
+  // ==== Données d'un dossier Authentic (« Nouveau dossier ») ====
+  //
+  // Format commun { intitule, personnes, immeubles, parties, documents, infosAuthentic, origine } :
+  // construit depuis les pages relevées par l'extension (dossiersDepuisRelevesAuthentic). L'import
+  // d'un export ZIP (DATA.xml notaires.fr + pièces + Word de l'acte, 30/09) a été retiré le 02/10 à la
+  // demande de l'étude : la lecture d'Authentic le remplace.
+
+  // Qualité d'une partie du flux → rôle CLAIRE. « Disposant »/« Bénéficiaire » sont les termes
+  // d'Authentic pour une vente (le vendeur « dispose » du bien).
+  var ROLES_PARTIE_AUTHENTIC = {
+    disposant: 'VENDEUR', vendeur: 'VENDEUR', promettant: 'VENDEUR', cedant: 'VENDEUR',
+    beneficiaire: 'ACQUEREUR', acquereur: 'ACQUEREUR', cessionnaire: 'ACQUEREUR'
+  };
+  var TYPES_PARTIE_SUCCESSION = ['defunt', 'heritier', 'legataire', 'conjointsurvivant', 'ayantdroit', 'donataire', 'donateur'];
+
+  function motCleAuthentic(s) { return normaliserPourRecherche(String(s || '')).replace(/[^a-z]/g, ''); }
+
+  // Vente, succession ou autre, d'après l'intitulé et les qualités des parties. Pure.
+  function typeAffaireAuthentic(donnees) {
+    const d = donnees || {};
+    const intitule = normaliserPourRecherche([d.intitule, d.acte && d.acte.intitule].filter(Boolean).join(' '));
+    const types = (d.parties || []).map(p => motCleAuthentic(p.type));
+    if (/(^|[^a-z])succ|succession|notoriete|declaration de succession/.test(intitule) || types.some(t => TYPES_PARTIE_SUCCESSION.includes(t))) return 'succession';
+    if (/(^|[^a-z])(vte|vente|compromis|promesse)([^a-z]|$)/.test(intitule) || types.some(t => ROLES_PARTIE_AUTHENTIC[t])) return 'vente';
+    return 'autre';
+  }
+
+  // Parties de la vente : par les références des parties quand Authentic les remplit, sinon par
+  // l'intitulé du dossier (« VTE VENDEUR / ACQUÉREUR », convention de l'étude). Une personne qui
+  // n'y figure pas (ex-conjoint, représentant…) n'est pas une partie. Pure.
+  function partiesExportAuthentic(donnees) {
+    const d = donnees || {};
+    const personnes = (d.personnes || []).filter(p => p.nom);
+    // Succession : chaque personne ouverte dans Authentic est une partie ; sa qualité (défunt,
+    // héritier…) n'est pas devinée.
+    if (typeAffaireAuthentic(d) === 'succession') {
+      return personnes.map(p => Object.assign({
+        nom: [p.prenom, p.nom].filter(Boolean).join(' '), role: 'PARTIE', qualiteActe: '',
+        qualitePersonne: 'physique', representant: null, origine: 'authentic',
+        source: { extrait: 'Authentic', index: null, page: null },
+        emails: (p.emails || []).slice(), telephones: (p.telephones || []).slice(), civilite: p.civilite, dateNaissance: p.dateNaissance, lieuNaissance: p.lieuNaissance
+      }, p.nomUsage ? { nomUsage: p.nomUsage } : {}, p.situationMatrimoniale ? { situationMatrimoniale: p.situationMatrimoniale } : {}));
+    }
+    const roles = new Map();
+    (d.parties || []).forEach(pa => {
+      const role = ROLES_PARTIE_AUTHENTIC[motCleAuthentic(pa.type)];
+      const p = pa.personneRef && personnes.find(x => x.id === pa.personneRef);
+      if (role && p) roles.set(p, role);
+    });
+    if (!roles.size) {
+      const m = /^\s*(?:vte|vente)\b\s*[-:]?\s*(.+?)\s*\/\s*(.+?)\s*$/i.exec(d.intitule || '');
+      if (m) {
+        const mots = (s) => ' ' + normaliserPourRecherche(s).replace(/[^a-z0-9]+/g, ' ') + ' ';
+        const cotes = [[mots(m[1]), 'VENDEUR'], [mots(m[2]), 'ACQUEREUR']];
+        personnes.forEach(p => {
+          const noms = [p.nom, p.nomUsage].filter(Boolean).map(n => normaliserPourRecherche(n).replace(/[^a-z0-9]+/g, ' ').trim());
+          const cote = cotes.filter(([texte]) => noms.some(n => n && texte.includes(' ' + n + ' ')));
+          if (cote.length === 1) roles.set(p, cote[0][1]);
+        });
+      }
+    }
+    // Une personne mariée ou pacsée absente de l'intitulé (« VTE CHAHUNEAU / … », Mme sous son propre
+    // nom) prend le côté de son conjoint déjà placé (étude, 02/10).
+    personnes.filter(p => !roles.has(p) && p.situationMatrimoniale && p.situationMatrimoniale.conjoint).forEach(p => {
+      const conj = motsIdentitePersonne(p.situationMatrimoniale.conjoint);
+      const cotes = new Set([...roles.entries()].filter(([q]) => conj.length >= 2 && conj.every(m => motsIdentitePersonne([q.prenom, q.nom, q.nomUsage].filter(Boolean).join(' ')).includes(m))).map(([, r]) => r));
+      if (cotes.size === 1) roles.set(p, [...cotes][0]);
+    });
+    return personnes.filter(p => roles.has(p)).map(p => {
+      const role = roles.get(p);
+      return Object.assign({
+        nom: [p.prenom, p.nom].filter(Boolean).join(' '),
+        role, qualiteActe: role === 'VENDEUR' ? 'vendeur' : 'acquéreur',
+        qualitePersonne: 'physique', representant: null, origine: 'authentic',
+        source: { extrait: 'Export Authentic', index: null, page: null },
+        emails: p.emails.slice(), telephones: (p.telephones || []).slice(), civilite: p.civilite, dateNaissance: p.dateNaissance, lieuNaissance: p.lieuNaissance
+      }, p.nomUsage ? { nomUsage: p.nomUsage } : {}, p.situationMatrimoniale ? { situationMatrimoniale: p.situationMatrimoniale } : {});
+    });
+  }
+
+  var ETUDE_AUTHENTIC = { nom: 'Sophie GOSSART', office: 'BLOIS', codePostal: '41000', departement: '41', crpcen: '41089' };
+
+  // Notaires d'après les parties du flux : un confrère attaché à une partie intervient pour elle ;
+  // l'export venant de notre Authentic, l'étude est de l'autre côté et reçoit l'acte s'il est en
+  // participation. Sans confrère : rien n'est affirmé (NEEDS_REVIEW). Pure.
+  function notairesExportAuthentic(donnees) {
+    const vide = { liste: [], vendeur: null, acquereur: null, instrumentaire: null, participant: null, statut: 'NOT_FOUND', raison: '', roleEtude: null, origine: 'authentic' };
+    const parties = (donnees && donnees.parties) || [];
+    const etude = Object.assign({ cote: null }, ETUDE_AUTHENTIC);
+    const confrere = parties.find(pa => pa.notaire && pa.notaire.crpcen !== ETUDE_AUTHENTIC.crpcen && !estEtude({ nom: pa.notaire.nom }) && ROLES_PARTIE_AUTHENTIC[motCleAuthentic(pa.type)]);
+    if (!confrere) {
+      const nous = parties.find(pa => pa.notaire && (pa.notaire.crpcen === ETUDE_AUTHENTIC.crpcen || estEtude({ nom: pa.notaire.nom })));
+      if (!nous) return Object.assign(vide, { raison: 'L’export ne nomme aucun notaire pour les parties.' });
+      return Object.assign(vide, { liste: [etude], statut: 'NEEDS_REVIEW', raison: 'L’export ne nomme que l’étude : à vérifier.' });
+    }
+    const cote = ROLES_PARTIE_AUTHENTIC[motCleAuthentic(confrere.type)] === 'VENDEUR' ? 'vendeur' : 'acquereur';
+    const autreCote = cote === 'vendeur' ? 'acquereur' : 'vendeur';
+    const n = confrere.notaire;
+    const lui = { nom: [n.prenom, n.nom].filter(Boolean).join(' '), office: n.ville || null, codePostal: null, departement: null, cote, roleExplicite: /particip/i.test(confrere.roleNotaire) ? 'participant' : null };
+    etude.cote = autreCote;
+    const participation = lui.roleExplicite === 'participant';
+    return {
+      liste: [etude, lui],
+      [cote]: lui, [autreCote]: etude,
+      instrumentaire: participation ? etude : null,
+      participant: participation ? lui : null,
+      statut: participation ? 'CONFIRMED' : 'NEEDS_REVIEW',
+      raison: participation
+        ? `Export Authentic : Maître ${lui.nom} intervient en participation pour ${cote === 'vendeur' ? 'le vendeur' : 'l’acquéreur'} ; l’étude reçoit l’acte.`
+        : `Export Authentic : Maître ${lui.nom} intervient pour ${cote === 'vendeur' ? 'le vendeur' : 'l’acquéreur'} (rôle « ${confrere.roleNotaire || 'non précisé'} ») : à vérifier.`,
+      roleEtude: participation ? 'instrumentaire' : null,
+      origine: 'authentic'
+    };
+  }
+
+  // Le bien de la vente : l'immeuble référencé par le dossier, à défaut le premier. Pure.
+  function bienExportAuthentic(donnees) {
+    const d = donnees || {};
+    const immeubles = d.immeubles || [];
+    return immeubles.find(im => (d.biens || []).includes(im.id)) || immeubles[0] || null;
+  }
+
+  // Complète l'extraction (lue dans le texte de l'acte, ou vide) par les données structurées de
+  // l'export, plus sûres que la lecture d'un texte : parties et état civil, adresse et type du bien,
+  // email de l'acquéreur, nom du dossier ; notaires seulement si le texte n'a rien établi. Les
+  // dates et le prix restent ceux du texte. Modifie et renvoie `extraction`. Pure (hors objets passés).
+  // Pure : « a@x.fr; b@y.fr » — les adresses déjà là, puis les nouvelles (sans doublon, casse ignorée).
+  function fusionnerEmailsTexte(texte, emails) {
+    const tous = emailsDepuisTexte(texte || '');
+    (emails || []).forEach(e => emailsDepuisTexte(e).forEach(x => { if (!tous.some(y => y.toLowerCase() === x.toLowerCase())) tous.push(x); }));
+    return tous.join('; ');
+  }
+
+  // Pure : « 06 … / 02 … » — les numéros déjà là, puis les nouveaux (comparés sur leurs 9 derniers chiffres).
+  function fusionnerTelephonesTexte(texte, telephones) {
+    const cle = (t) => String(t || '').replace(/\D/g, '').slice(-9);
+    const tous = String(texte || '').split('/').map(t => t.trim()).filter(Boolean);
+    (telephones || []).forEach(t => { if (cle(t).length === 9 && !tous.some(x => cle(x) === cle(t))) tous.push(String(t).trim()); });
+    return tous.join(' / ');
+  }
+
+  function completerExtractionDepuisAuthentic(extraction, donnees) {
+    if (!extraction || !donnees) return extraction;
+    const origine = { origine: 'authentic', source: { extrait: 'Export Authentic', index: null, page: null } };
+    const parties = partiesExportAuthentic(donnees);
+    if (parties.length) extraction.parties = parties;
+    const bien = bienExportAuthentic(donnees);
+    if (bien && bien.adresse) {
+      extraction.bien = extraction.bien || {};
+      extraction.bien.adresse = {
+        adresseComplete: bien.adresse.texte, numero: bien.adresse.numero, typeVoie: bien.adresse.typeVoie,
+        nomVoie: bien.adresse.nomVoie, lieuDit: bien.adresse.lieuDit, codePostal: bien.adresse.codePostal,
+        commune: bien.adresse.commune, departement: bien.adresse.departement, statut: 'CONFIRMED', origine: 'authentic'
+      };
+      extraction.bien.source = origine.source;
+    }
+    if (bien && bien.parcelles.length && extraction.bien) {
+      extraction.bien.cadastre = Object.assign({}, extraction.bien.cadastre || {}, { section: bien.parcelles[0].section, numero: bien.parcelles[0].numero, parcelles: bien.parcelles });
+    }
+    extraction.champs = extraction.champs || {};
+    const nom = String(donnees.intitule || '').replace(/^\s*(?:vte|vente|succession|succ)\b\.?\s*[-:]?\s*/i, '').trim();
+    if (nom) extraction.champs.nom = champExtraction(nom, origine);
+    // Emails et téléphones : ceux de TOUTES les parties du côté, ajoutés à ceux déjà lus dans le compromis
+    // (étude, 02/10 : « garder les deux » — avant, seul le premier email d'Authentic était repris, et il
+    // remplaçait celui du compromis).
+    const valeur = (cle) => (extraction.champs[cle] && extraction.champs[cle].valeur) || '';
+    const emailsCote = (role) => parties.filter(p => p.role === role).reduce((t, p) => t.concat(p.emails || []), []);
+    const telsCote = (role) => parties.filter(p => p.role === role).reduce((t, p) => t.concat(p.telephones || []), []);
+    [['emailAcquereur', 'ACQUEREUR'], ['emailVendeur', 'VENDEUR']].forEach(([cle, role]) => {
+      const fusion = fusionnerEmailsTexte(valeur(cle), emailsCote(role));
+      if (fusion && fusion !== valeur(cle)) extraction.champs[cle] = champExtraction(fusion, origine);
+    });
+    // Téléphones des parties (appels 3CX reconnus) : repris sur la fiche à la création, sans passer
+    // par le formulaire (modifiables ensuite dans l'onglet Échanges).
+    [['telephoneAcquereur', 'ACQUEREUR'], ['telephoneVendeur', 'VENDEUR']].forEach(([cle, role]) => {
+      const fusion = fusionnerTelephonesTexte(valeur(cle), telsCote(role));
+      if (fusion && fusion !== valeur(cle)) extraction.champs[cle] = champExtraction(fusion, origine);
+    });
+    if (bien && bien.type) extraction.champs.typeVente = champExtraction(bien.type, origine);
+    // Prix « Capital » des informations financières d'Authentic : seulement si le texte n'en donne pas.
+    const prixAuth = donnees.infosAuthentic && donnees.infosAuthentic.prix;
+    if (prixAuth && !(extraction.champs.prixVente && extraction.champs.prixVente.valeur)) extraction.champs.prixVente = champExtraction(prixAuth, origine);
+    const notaires = extraction.notaires || {};
+    if (notaires.statut !== 'CONFIRMED') {
+      const n = notairesExportAuthentic(donnees);
+      if (n.liste.length) extraction.notaires = n;
+    }
+    extraction.alertes = controlerCoherence(extraction);
+    return extraction;
+  }
+
+  // Pièces de la checklist présentes dans Authentic, reconnues par le nom de leur fichier ou leur
+  // intitulé (même règle que sur le NAS : jamais par le contenu). Une pièce = une ligne, avec le
+  // document qui la porte. Pure.
+  // Pièces d'urbanisme (certificat d'urbanisme, alignement, numérotage, assainissement, renonciation
+  // au droit de préemption) : jamais reprises d'Authentic pour une vente (étude, 02/10 : « ne pas
+  // prendre en compte les pièces d'urbanisme sauf la SAFER ») — elles se cochent par le NAS ou à la main.
+  function pieceUrbanismeIgnoreeAuthentic(cle, typeAffaire) {
+    return typeAffaire !== 'succession' && PIECES_URBANISME.some(p => p.cle === cle);
+  }
+
+  function piecesExportAuthentic(donnees, checklist) {
+    // Pages relevées : les pièces reçues dans Authentic (état civil, casier judiciaire, SAFER),
+    // déjà reconnues à la lecture de la page — pièces du dossier à leur intitulé.
+    if (donnees && donnees.origine === 'pages') {
+      return (donnees.documents || []).filter(dc => dc.piece).map(dc => {
+        const existante = (checklist || []).find(p => p.personnalisee && normaliserPourRecherche(p.label) === normaliserPourRecherche(dc.piece.label));
+        return { cle: existante ? existante.cle : dc.piece.cle, label: existante ? existante.label : dc.piece.label, fichier: dc.intitule, nouvelle: !existante };
+      });
+    }
+    const docs = ((donnees && donnees.documents) || []).concat((donnees && donnees.documentsPersonnes) || []);
+    const typeAffaire = typeAffaireAuthentic(donnees || {});
+    const trouvees = [];
+    for (const piece of checklist || []) {
+      if (!piece || !piece.cle || trouvees.some(t => t.cle === piece.cle)) continue;
+      if (pieceUrbanismeIgnoreeAuthentic(piece.cle, typeAffaire)) continue;
+      const doc = docs.find(dc => [dc.nomFichier, dc.intitule].filter(Boolean)
+        .some(n => correspondancePieceNom(piece, normaliserNomPourMotif(/\.[a-z0-9]{2,4}$/i.test(n) ? n : n + '.pdf')) === 'exact'));
+      if (doc) trouvees.push({ cle: piece.cle, label: piece.label, fichier: doc.nomFichier || doc.intitule });
+    }
+    return trouvees;
+  }
+
+  // Dossier Authentic en cours de reprise (null hors reprise) et pièces qu'il apporte.
+  var exportAuthenticActuel = null;
+
+  // Type de vente de l'immeuble exporté (maison, lot de copropriété, terrain) : plus sûr que la
+  // lecture du texte, qui ne sait que basculer vers « copropriété ».
+  function appliquerTypeVenteAuthentic(donnees) {
+    const bien = bienExportAuthentic(donnees);
+    const select = document.getElementById('f-type-vente');
+    if (bien && bien.type && select && !choixManuelDossierWizard('f-type-vente')) { select.value = bien.type; noterOrigineDossierWizard('f-type-vente', 'authentic'); majApercuPieces(); }
+    // Collaborateur en charge (parties prenantes d'Authentic) : responsable proposé.
+    const collab = donnees && donnees.infosAuthentic && donnees.infosAuthentic.collaborateur;
+    const resp = document.getElementById('f-responsable');
+    if (collab && resp && !choixManuelDossierWizard('f-responsable') && [...resp.options].some(o => o.value === collab)) { resp.value = collab; noterOrigineDossierWizard('f-responsable', 'authentic'); }
+    // Date de signature de l'avant-contrat relevée sur la page du dossier (étude, 02/10 : « si on complète,
+    // les champs suivants doivent être pré-remplis ») : l'ancre des délais, si le compromis ne l'a pas
+    // donnée (ou seulement estimée). Avant, elle n'arrivait sur la fiche qu'à l'enregistrement.
+    const ac = donnees && donnees.infosAuthentic && donnees.infosAuthentic.avantContratLe;
+    if (ac && (!dateCompromisDetectee || dateCompromisEstimee)) {
+      corrigerDateCompromis(ac);
+      const champ = document.getElementById('f-date-compromis');
+      if (champ) champ.value = ac;
+    }
+  }
+
+  // Compte rendu de l'import sous la zone de dépôt, et pièces reprises à l'étape Finaliser.
+  function afficherImportAuthentic(donnees, sourceTexte) {
+    const status = document.getElementById('pdf-status');
+    const parties = partiesExportAuthentic(donnees);
+    status.className = 'pdf-status ok';
+    status.textContent = `${donnees.origine === 'pages' ? 'Pages Authentic' : 'Export Authentic'} « ${donnees.intitule} » ${donnees.origine === 'pages' ? 'reprises' : 'lu'} : ${parties.length} partie${parties.length > 1 ? 's' : ''}, ${donnees.documents.length} document${donnees.documents.length > 1 ? 's' : ''}`
+      + (sourceTexte ? ` ; ${sourceTexte}` : ' ; aucun acte à lire : dates butoir à saisir.');
+    majPiecesAuthentic();
+  }
+
+  // Liste « Pièces présentes dans Authentic » de l'étape Finaliser, recalculée quand le type de
+  // vente change (la checklist en dépend).
+  function majPiecesAuthentic() {
+    const bloc = document.getElementById('pieces-authentic');
+    if (!bloc) return;
+    const role = document.getElementById('f-role-notaire');
+    if (!exportAuthenticActuel || (role && role.value === 'participant')) { bloc.style.display = 'none'; bloc.innerHTML = ''; return; }
+    const pieces = piecesExportAuthentic(exportAuthenticActuel, checklistPieces(document.getElementById('f-type-vente').value));
+    bloc.style.display = '';
+    // Une ligne (étude, 02/10 : « trop brouillon ») ; la liste des pièces passe dans la bulle « i ».
+    if (!pieces.length) { bloc.style.display = 'none'; bloc.innerHTML = ''; return; }
+    bloc.innerHTML = `<label class="checkbox-inline"><input type="checkbox" id="f-pieces-authentic" data-nombre="${pieces.length}" checked>
+        Marquer reçue${pieces.length > 1 ? 's' : ''} ${pieces.length > 1 ? `les ${pieces.length} pièces présentes` : 'la pièce présente'} dans Authentic
+        ${infoBulle(pieces.map(p => p.label).join(' · '))}</label>`;
+  }
+
+  async function traiterFichierPdf(file) {
+    const status = document.getElementById('pdf-status');
+
+    if (!window.pdfjsLib) {
+      status.className = 'pdf-status err';
+      status.textContent = "Lecture PDF indisponible — réessayez dans un instant.";
+      return;
+    }
+
+    status.className = 'pdf-status loading';
+    status.textContent = `Lecture de « ${file.name} » en cours…`;
+    majProgression(2);
+    afficherStatutEnrichissementIa(false); // efface un éventuel résidu d'un import précédent
+    compromisNomFichierImporte = file.name || '';
+    // Un nouvel acte : les corrections et les relectures du précédent n'ont plus aucun sens.
+    correctionsRevision = {};
+    verificationsRevision = {};
+    const monImport = ++generationImportActuel;
+
+    try {
+      const buffer = await file.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({
+        data: buffer,
+        verbosity: (pdfjsLib.VerbosityLevel ? pdfjsLib.VerbosityLevel.ERRORS : 0)
+      }).promise;
+      const { textesParPage, dernierePageUtile, pagesOcr, ocrPlafonne, ocrIndisponible } =
+        await extraireTextesUtiles(pdf, {
+          surPage(numero, total, mode) {
+            if (mode === 'texte') {
+              majProgression(Math.min(95, (numero / total) * 100));
+              return;
+            }
+            // L'OCR ne donne aucune progression exploitable : barre indéterminée, et un message qui
+            // dit CE QUI se passe. Sans lui, un compromis scanné de vingt-cinq pages donne une
+            // minute et demie d'attente muette, qu'on prend pour un blocage.
+            majProgression(null);
+            status.className = 'pdf-status loading';
+            status.textContent = mode === 'init'
+              ? 'Document scanné : préparation de la reconnaissance de texte…'
+              : `Document scanné : lecture de l’image, page ${numero} sur ${total} (quelques secondes par page)…`;
+          }
+        });
+      const texteComplet = textesParPage.slice(0, dernierePageUtile).join('\n');
+      frontieresPagesActuelles = calculerFrontieresPages(textesParPage, dernierePageUtile);
+      pageParType = { pret: null, acte: null, ventebien: null };
+      ambiguiteParType = { pret: false, acte: false, ventebien: false };
+      approxParType = { pret: false, acte: false, ventebien: false };
+      traiterTexte(texteComplet);
+      // Enrichissement par IA locale (Ollama) DÉSACTIVÉ pour la création d'un nouveau dossier, à la
+      // demande de l'étude : la détection par regex ci-dessus reste seule à l'œuvre, chemin
+      // immédiat et éprouvé. L'appel `lancerExtractionIa(texteComplet, monImport)` a été retiré ici
+      // (la fonction et la route /api/extraction-ia restent en place, sans appelant, pour un
+      // éventuel retour arrière ou un usage futur — voir aussi "Redemander à l'IA" retiré du
+      // panneau de révision). Le modèle local ne sert plus qu'à l'Outil 2 (relecture d'actes).
+      // Étude, 02/10 au soir : « upload de PDF + option de compléter avec Authentic, sinon on continue
+      // sans ». L'import fait, on reste sur l'étape 1 : « Compléter depuis Authentic » (le dossier du
+      // compromis en tête) ou « Continuer sans Authentic ». Avant, on passait seul à « Vérifier ».
+      renderChoixImport();
+      chargerRelevesAuthenticRecents();
+
+      // Ouvre le panneau d'aperçu, à côté du formulaire, limité au compromis (annexes exclues).
+      pdfActuel = pdf;
+      pdfDernierePageUtile = dernierePageUtile;
+      document.getElementById('nouveau-intro').style.display = 'none';
+      document.getElementById('pdf-viewer').style.display = 'flex';
+      document.getElementById('pdf-viewer-title').textContent =
+        `${file.name} — compromis (${dernierePageUtile} page${dernierePageUtile > 1 ? 's' : ''} sur ${pdf.numPages}, annexes non affichées)`;
+      await chargerToutesLesPagesPdf();
+      // Bug corrigé : traiterTexte() (donc afficherAnalyseJuridique()) tourne plus haut, avant que
+      // pdfActuel soit renseigné — chaque bouton "👁 p.X" d'un engagement du vendeur (voir
+      // renderEngagement) évaluait alors pdfActuel comme encore null et retombait sur le simple
+      // numéro de page non cliquable, sans jamais se remettre à jour ensuite. Un second passage ici,
+      // une fois pdfActuel connu, régénère l'analyse déjà calculée avec les bons boutons.
+      afficherAnalyseJuridique();
+
+      // Si la date de signature n'a pas été trouvée dans le texte, elle est peut-être manuscrite
+      // ou intégrée en image (cas fréquent : bloc de signature électronique Yousign/DocuSign en
+      // image, sur la page qui suit immédiatement la mention « Fait à … signé électroniquement »).
+      if (!dateCompromisDetectee) {
+        const idxSignature = textesParPage.findIndex(detecteSignatureActe);
+        let pagesACiber = [];
+        if (idxSignature !== -1) {
+          const pageDepart = idxSignature + 1; // 1-based pour pdf.js
+          pagesACiber = [pageDepart, pageDepart + 1, pageDepart + 2].filter(p => p <= dernierePageUtile);
+        } else {
+          pagesACiber = [dernierePageUtile];
+        }
+
+        const workerOcr = await creerWorkerOcr();
+        try {
+          for (const numeroPage of pagesACiber) {
+            status.className = 'pdf-status loading';
+            status.textContent = `Date de signature non trouvée dans le texte — lecture de l'image page ${numeroPage} (15 à 30 s)…`;
+            majProgression(null);
+            const texteOcr = await ocrPage(pdf, numeroPage, workerOcr);
+            const isoOcr = detecterDateCompromis(texteOcr);
+            if (isoOcr) {
+              dateCompromisDetectee = isoOcr;
+              dateCompromisEstimee = false;
+              majAffichageCompromis();
+              detectedDates = detecterDatesDepuisTexte(dernierTexteTraite, dateCompromisDetectee);
+              renderChips();
+              recalculerExtractionRegex();
+              break;
+            }
+          }
+        } finally {
+          if (workerOcr) await workerOcr.terminate();
+        }
+
+        // Dernier recours : la date d'enregistrement du fichier (souvent mise à jour au moment de
+        // la signature électronique) donne une estimation raisonnable, à vérifier par l'agence.
+        if (!dateCompromisDetectee) {
+          const isoMeta = await dateDepuisMetadonnees(pdf);
+          if (isoMeta) {
+            dateCompromisDetectee = isoMeta;
+            dateCompromisEstimee = true;
+            majAffichageCompromis();
+            detectedDates = detecterDatesDepuisTexte(dernierTexteTraite, dateCompromisDetectee);
+            renderChips();
+            recalculerExtractionRegex();
+          }
+        }
+      }
+
+      majProgression(-1);
+      const nbFinal = detectedDates.length;
+      let suffixe = '';
+      if (pagesOcr) suffixe += ` — ${pagesOcr} page${pagesOcr > 1 ? 's' : ''} lue${pagesOcr > 1 ? 's' : ''} en reconnaissance d’image`;
+      if (ocrPlafonne) suffixe += ` (limite de ${MAX_PAGES_OCR_IMPORT} pages atteinte : la suite n’a pas été lue)`;
+      if (ocrIndisponible) suffixe += ' — reconnaissance d’image indisponible, le document scanné n’a pas pu être lu';
+      if (!dateCompromisDetectee) suffixe += ' — date de signature à renseigner';
+      else if (dateCompromisEstimee) suffixe = ' — date de signature à vérifier';
+      status.className = 'pdf-status ok';
+      status.textContent = `✓ ${dernierePageUtile} page${dernierePageUtile > 1 ? 's' : ''} lue${dernierePageUtile > 1 ? 's' : ''} (annexes ignorées) — ${nbFinal} échéance${nbFinal > 1 ? 's' : ''} détectée${nbFinal > 1 ? 's' : ''}${suffixe}.`;
+    } catch (e) {
+      console.error(e);
+      status.className = 'pdf-status err';
+      status.textContent = `Impossible de lire « ${file.name} » (fichier scanné ou protégé).`;
+    } finally {
+      // Garantit l'arrêt de l'indicateur quel que soit le chemin emprunté (succès, erreur, abandon).
+      majProgression(-1);
+    }
+  }
+
+  // ---- Extraction assistée par IA locale (Ollama), en complément du wizard "Nouveau dossier" ----
+  // Voir server/src/routes/extractionIa.js et CLAUDE.md. N'existe que sur `claude/serveur-intranet`
+  // (a besoin d'un backend pour parler à Ollama) — appelée en ARRIÈRE-PLAN juste après
+  // traiterTexte() (regex, inchangée, toujours le chemin principal et immédiat) pour ne compléter
+  // QUE ce qu'elle n'a pas trouvé : jamais une valeur déjà détectée ou déjà saisie à la main n'est
+  // écrasée, même principe que detecterAdresseBien()/detecterEmailAcquereur()/detecterMontantPret()
+  // ailleurs dans ce fichier. Silencieuse si Ollama n'est pas installé/lancé sur le serveur — le
+  // wizard reste utilisable exactement comme avant l'ajout de cette fonctionnalité dans ce cas,
+  // jamais une condition bloquante pour créer un dossier.
+
+  // Nettement plus permissif que SEUIL_SIMILARITE_APPRENTISSAGE (0.6, deux formulations quasi
+  // identiques de LA MÊME clause) : ici on compare une phrase extraite telle quelle du texte à une
+  // description reformulée par le modèle, sans aucune racinisation (tokeniserApprentissage compare
+  // des mots entiers) — deux verbes de la même famille ("entretien"/"entretenir") comptent déjà
+  // comme deux tokens différents, donc l'overlap réel reste modeste même pour la même clause.
+  // Premier jet volontairement prudent : sous-détecter un doublon (une suggestion IA redondante
+  // affichée en plus d'un engagement déjà repéré par regex) coûte un simple clic sur sa croix de
+  // suppression, alors que sur-détecter risquerait de faire disparaître silencieusement un
+  // engagement réellement distinct — à resserrer si l'usage réel montre trop de redites.
+  const SEUIL_SIMILARITE_ENGAGEMENT_IA = 0.2;
+
+  function engagementDejaConnu(description, engagementsExistants) {
+    const tokensIa = tokeniserApprentissage(normaliserTexteApprentissage(description));
+    return engagementsExistants.some(e => {
+      const phrase = typeof e === 'string' ? e : e.phrase;
+      const tokensExistant = tokeniserApprentissage(normaliserTexteApprentissage(phrase || ''));
+      return similariteJaccard(tokensIa, tokensExistant) >= SEUIL_SIMILARITE_ENGAGEMENT_IA;
+    });
+  }
+
+  // Affiche/masque l'état "Analyse par le modèle IA local en cours…" (étape "Vérifier" du wizard,
+  // voir index.html) pendant l'appel à /api/extraction-ia — sans lui, rien n'indiquait qu'une
+  // recherche était en cours pendant les quelques secondes à dizaines de secondes que peut prendre
+  // Ollama, silencieux jusqu'au toast final. N'a jamais retardé l'import lui-même (voir l'appel
+  // sans await plus bas) : seul l'affichage de CET état est synchrone avec la requête.
+  function afficherStatutEnrichissementIa(visible) {
+    const el = document.getElementById('ia-enrichissement-status');
+    if (!el) return;
+    if (visible) {
+      const iconeEl = document.getElementById('icon-ia-enrichissement');
+      if (iconeEl && !iconeEl.innerHTML) iconeEl.innerHTML = icone('spinner', null, true);
+      el.style.display = 'flex';
+    } else {
+      el.style.display = 'none';
+    }
+  }

@@ -16130,3 +16130,25 @@ change-t-il ce que le bouton de la fiche envoie ? Réponse : « Oui, le bouton s
   corps) n'est plus journalisé.
 - Non fait, à garder en tête : une vérification ligne à ligne des 45 000 lignes du poste n'a pas été faite — l'audit est par
   familles de bugs ; les champs non couverts par `assainirStructureDossier` restent sous la protection des blocs isolés.
+
+### 04/10/2026 10:36 — Règles de code, linter, découpage du poste en modules
+
+- Demande : « Mettre en place des bonnes pratiques de code et un linter, et destructurer le code pour que ce soit modulaire
+  et que les fichiers restent de taille raisonnable. »
+- **Linter** : ESLint 10 (`eslint.config.js`, flat config, `@eslint/js` recommended + globales navigateur/Node + globales des
+  CDN) ; règles de bug seulement ; `no-irregular-whitespace` tolère les espaces insécables des textes français ;
+  `no-useless-assignment` et variables inutilisées en avertissement. Résultat initial : 2 vraies erreurs (une fonction
+  `departementsAnnuaireFiltres` déclarée deux fois — la seconde l'emportait, identique — ; une clé en double dans les exports
+  de `agendaOffice.js`), corrigées. `npm run lint` (0 erreur) et `npm run verifier` ; la construction du `.exe` lance le lint
+  avant les tests (`npm ci` racine, `package-lock.json` racine ajouté). `.editorconfig`.
+- **Découpage de `script.js` (45 000 lignes) en `client/`** : 44 fichiers découpés aux en-têtes `// ==== ` (et `// ---- ` pour
+  les blocs > 3 000 lignes), nommés `NN-sujet.js`, texte inchangé (pas de ré-indentation : des gabarits de textes vivent dans
+  des littéraux). Choix : des `<script>` classiques successifs (pas de modules ES, pas de concaténation) — en JavaScript les
+  `function` et les `let`/`const` de premier niveau d'un script classique sont partagés par les scripts suivants, exactement
+  comme dans un seul fichier ; vérifié dans `vm` et dans Chromium. Liste unique `client/manifest.json` lue par
+  `ASSETS_STATIQUES` (require JSON, embarqué par esbuild), les assets du `.exe`, `tests/helpers/load-app.js` ;
+  `index.html` porte les 44 balises ; `tests/structure-client.test.js` vérifie l'alignement et la taille (≤ 3 000 lignes).
+  `surveillerVersionServeur` relit `/client/00-version.js`. Smoke test Chromium : tableau de bord, Suivi, fiche, agenda.
+- **Serveur** : `parametresRepo.js` (1 334 lignes) → assainisseurs purs dans `parametres/assainir.js` (889 lignes), dépôt
+  seul dans `parametresRepo.js` (465), exports publics inchangés.
+- Suites : 1 270 tests poste, 665 serveur, lint 0 erreur. Rien ne change à l'écran.

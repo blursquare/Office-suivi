@@ -123,8 +123,14 @@ function chargerApplication() {
   process.on('unhandledRejection', onRejectionIgnoree);
   setTimeout(() => process.removeListener('unhandledRejection', onRejectionIgnoree), 0);
 
-  const source = fs.readFileSync(path.join(__dirname, '..', '..', 'script.js'), 'utf8');
-  vm.runInContext(source, contexte, { filename: 'script.js' });
+  // Les fichiers du poste, dans l'ordre d'index.html (client/manifest.json) : chargés un à un dans le même contexte,
+  // comme des <script> successifs — les fonctions et les variables de premier niveau sont partagées entre eux.
+  const racine = path.join(__dirname, '..', '..');
+  const manifeste = JSON.parse(fs.readFileSync(path.join(racine, 'client', 'manifest.json'), 'utf8'));
+  for (const fichier of manifeste) {
+    const source = fs.readFileSync(path.join(racine, 'client', fichier), 'utf8');
+    vm.runInContext(source, contexte, { filename: 'client/' + fichier });
+  }
 
   return contexte;
 }

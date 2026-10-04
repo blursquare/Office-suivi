@@ -52,7 +52,9 @@ const ASSETS_STATIQUES = {
   '/': { fichier: 'index.html', type: 'text/html; charset=utf-8' },
   '/index.html': { fichier: 'index.html', type: 'text/html; charset=utf-8' },
   '/style.css': { fichier: 'style.css', type: 'text/css; charset=utf-8' },
-  '/script.js': { fichier: 'script.js', type: 'application/javascript; charset=utf-8' },
+  // Fichiers du poste (client/manifest.json, dans l'ordre de chargement d'index.html — voir CLAUDE.md « Structure ») :
+  // la même liste nourrit les assets embarqués du .exe (build-windows-exe.mjs) et le chargeur des tests.
+  ...Object.fromEntries(require('../../client/manifest.json').map((f) => [`/client/${f}`, { fichier: `client/${f}`, type: 'application/javascript; charset=utf-8' }])),
   // PDF du questionnaire de satisfaction, encodé en base64 dans un fichier à part (voir
   // construireEmailQuestionnaireSatisfaction). À NE PAS OUBLIER ici ni dans la liste des assets
   // embarqués du .exe : sans ça le <script src> d'index.html fait un 404 et le téléchargement du
