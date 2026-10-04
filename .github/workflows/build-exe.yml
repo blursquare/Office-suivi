@@ -62,6 +62,15 @@ jobs:
         working-directory: server
         run: npm test
 
+      # Test de fumée : la page dans un vrai Chromium, servie par le vrai serveur avec des dossiers inventés — tableau de
+      # bord, chaque écran, une fiche de chaque sorte, bureau et téléphone — sans erreur d'exécution (tests/fumee/fumee.mjs).
+      # Le lint ne voit ni un ordre de chargement faux ni un `undefined.x` au rendu.
+      - name: Installer Chromium (test de fumée)
+        run: npx playwright install --with-deps chromium
+
+      - name: Test de fumée dans Chromium
+        run: npm run fumee
+
       - name: Construire l'exécutable Windows
         working-directory: server
         env:

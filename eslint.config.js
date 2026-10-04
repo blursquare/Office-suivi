@@ -28,7 +28,12 @@ module.exports = [
     languageOptions: { ecmaVersion: 2023, sourceType: 'commonjs', globals: { ...globals.node } }
   },
   {
-    files: ['**/*.mjs'],
+    // Le test de fumée écrit du code exécuté dans la page (page.evaluate) : globaux du navigateur et du poste.
+    files: ['tests/fumee/**/*.mjs'],
+    languageOptions: { ecmaVersion: 2023, sourceType: 'module', globals: { ...globals.node, ...GLOBAUX_CLIENT } }
+  },
+  {
+    files: ['**/*.mjs'], ignores: ['tests/fumee/**'],
     languageOptions: { ecmaVersion: 2023, sourceType: 'module', globals: { ...globals.node } }
   },
   {

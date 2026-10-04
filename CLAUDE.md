@@ -757,7 +757,10 @@ Plainte principale de l'étude : **le bruit**, pas les oublis — ne pas élargi
   locale jamais lue, à retirer, jamais par un `eslint-disable`). Sur le poste, `no-unused-vars` ne regarde que les variables
   locales (`vars: 'local'`) : une fonction de premier niveau est appelée depuis le HTML ou un autre fichier, ESLint ne le voit
   pas ; le **code mort de premier niveau** est refusé par `tests/structure-client.test.js` (nom déclaré jamais cité dans le
-  code, `index.html` ni les tests). Un nom cité seulement par un test est du code mort toléré : le retirer avec son test. `npm run verifier` = lint + les deux suites. **Les fichiers de `client/` partagent leur portée** :
+  code, `index.html` ni les tests). Un nom cité seulement par un test est du code mort toléré : le retirer avec son test.
+  **Avant tout push sur `main` : `npm run verifier` en dernier, après la toute dernière modification, puis regarder sur GitHub
+  qu'une construction a démarré ET qu'elle est verte** (04/10 : la version 10:36 n'a jamais été construite — lint lancé avant le
+  découpage, puis filtre de chemins du workflow sans `client/**`). `npm run verifier` = lint + les deux suites. **Les fichiers de `client/` partagent leur portée** :
   leurs déclarations de premier niveau sont relevées à chaque lint par `scripts/globaux-client.js` (espree) et données à ESLint en
   globaux — sans cela, 5 882 `no-undef` et la construction du `.exe` s'arrête (payé le 04/10 à 10 h 36 : version jamais
   construite) ; un nom déclaré dans deux fichiers est refusé par `tests/structure-client.test.js`. Un fichier du poste reste **sous 3 000 lignes**
@@ -773,6 +776,11 @@ Plainte principale de l'étude : **le bruit**, pas les oublis — ne pas élargi
 ## Comment tester
 
 - `npm test` à la racine (client, `node:test`, aucune dépendance) et `cd server && npm test`.
+- **`npm run fumee`** (04/10, `tests/fumee/fumee.mjs`, Playwright + Chromium, ≈ 15 s) : la page servie par le vrai serveur
+  (base en mémoire, quatre dossiers inventés dont un abîmé, une succession, un archivé), CDN coupés, bureau et téléphone :
+  tableau de bord, chaque écran de la barre latérale, une fiche de chaque sorte et ses onglets — **aucune erreur de page ni de
+  console**. Lancé par la construction du `.exe` après les deux suites : c'est le seul filet contre une erreur d'exécution (ordre
+  de chargement, `undefined.x` au rendu). Un nouvel écran de la barre latérale s'ajoute à `ONGLETS`. `npm run verifier` l'inclut.
 - `tests/helpers/load-app.js` charge les fichiers de `client/manifest.json`, dans l'ordre, dans un `vm.Context` avec un faux DOM. Deux
   limites : seules les `function` et `var` de premier niveau y sont visibles (un `const`/`let` est
   invisible) ; un tableau venu du contexte `vm` fait échouer `assert.deepEqual` — comparer des

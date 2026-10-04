@@ -16193,3 +16193,16 @@ que par leurs tests (`statistiquesCorrectionsExtraction`, `precisionEcartFonds`,
 `officeCarnetDepuisAnnuaire`, `officeAnnuairePourNotaire`, `semaineAgenda`, `prochainesSignatures`, `libelleDelaiAlerte`,
 `intitulesDossierAuthentic`, `nomCorrespondForme`) : gardées pour l'instant, à retirer avec leurs tests si elles ne
 reviennent pas. Lint : 0 erreur, 0 avertissement ; tests 1 273 + 665.
+
+### 04/10/2026 11 h 35 — Test de fumée Chromium dans la construction du .exe
+
+`tests/fumee/fumee.mjs` (`npm run fumee`, Playwright 1.56.1 en devDependency racine, Chromium installé par le workflow avec
+`npx playwright install --with-deps chromium`) : `creerApp` sur une base en mémoire, quatre dossiers inventés (vente avec
+rendez-vous et prêt, dossier aux champs de types faux, succession, archivé signé), requêtes hors 127.0.0.1 coupées (les
+erreurs « Failed to load resource » des CDN sont ignorées, tout le reste compte), deux contextes (1400 × 900 et 390 × 844
+tactile) : `dossiers.length`, widgets du tableau de bord (`#widgets-dashboard .w-carte`), les 14 écrans de `definirOnglet`,
+le Suivi (lignes + MOREAU), l'agenda (éléments `ag-`), les quatre fiches et leurs quatre onglets. Chaque geste dans la page
+est enveloppé (`geste`) : une casse est notée et la suite continue, pour avoir la liste complète. 40 points en 15 s.
+Vérifié qu'il échoue sur une casse volontaire (`renderBadgeStatut` remplacé par une lecture d'un nom inconnu : erreur
+rapportée avec sa pile, sortie 1). Le workflow le lance après les deux suites, avant la construction. ESLint : bloc propre à
+`tests/fumee/**` (globaux node + navigateur + poste, les `page.evaluate` étant du code de la page).
