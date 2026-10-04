@@ -16326,3 +16326,10 @@ n'existe plus ; libellé « Retirée de l'agenda ») ; rendez-vous encore lu mai
 Sans risque de cocher en masse sur une lecture partielle : `lireCalendrierExchange` rend `ok: false` dès qu'une tranche échoue ou
 est tronquée, et le tour n'applique rien. Limite : un rendez-vous déplacé au-delà des 6 mois lus serait pris pour supprimé.
 Point terrain `tache-agenda-supprimee-cochee` (serveur, noté au premier tour qui coche une tâche). Non vérifié avec Exchange.
+
+### 04/10/2026 19 h 09 — Fond de page plus soutenu (0.144.12)
+
+Étude, capture d'un tableau Kanban à l'appui : « Mets un fond de ce style pour mieux faire ressortir les cartes. » Mode clair
+seulement, par les jetons : `--paper` #F4F6F8 → #E9EDF2 (gris-bleu froid), `--shadow-card` plus diffuse (0 4px 14px à 6 %).
+Toutes les cartes blanches (`--paper-card`) en profitent sans toucher à leur style ; mode sombre inchangé (cartes déjà
+détachées par leur filet). Vérifié sur captures du tableau de bord et du Suivi (Chromium, dossiers inventés).

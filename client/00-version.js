@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.144.11';
+  const VERSION_APP = '0.144.12';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.144.12', date: '2026-10-04 19:09', resume: "Fond des pages plus soutenu (gris-bleu) en mode clair : les cartes blanches du tableau de bord, du Suivi, de l'agenda et des réglages s'en détachent mieux, avec une ombre plus douce. Mode sombre inchangé." },
     { version: '0.144.11', date: '2026-10-04 16:28', resume: "Tâches dans l'agenda : un rendez-vous rouge « JV - … » supprimé dans Outlook coche la tâche dans CLAIRE (faite à l'heure où l'agenda est relu, au plus 2 minutes après) au lieu de la faire disparaître. Un rendez-vous qui n'est plus rouge, ou dont les initiales sont retirées, n'est plus une tâche : il quitte la liste comme avant." },
     { version: '0.144.10', date: '2026-10-04 16:20', resume: "Numéros de version qui ont un sens : le deuxième chiffre monte à chaque nouveauté (geste, écran, information ou règle que CLAIRE n'avait pas), le troisième à chaque correction ou ajustement ; le premier passera à 1 quand la bêta sera déclarée terminée. Tout l'historique est renuméroté ainsi : 144 nouveautés depuis le 22/09." },
     { version: '0.144.9', date: '2026-10-04 15:39', resume: "Numéros de version : chaque mise à jour porte maintenant un numéro au lieu d'une date et d'une heure. « À propos » affiche le numéro, avec la date en petit, et l'historique indique pour chaque version le jour et l'heure." },
