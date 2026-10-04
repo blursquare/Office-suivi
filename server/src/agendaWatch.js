@@ -16,6 +16,7 @@
 // un « Tester maintenant » réussi. Seule une EMPREINTE des identifiants refusés est gardée, en
 // mémoire (jamais en base, jamais renvoyée) ; un redémarrage du serveur autorise un nouvel essai.
 
+const { synchroniserTachesAgenda } = require('./tachesAgenda');
 const crypto = require('node:crypto');
 const {
   actionsDetecteesDepuisEvenements, absencesDepuisEvenements, categoriesDistinctes, evenementsDepuisEws, formatDateFr,
@@ -340,6 +341,16 @@ async function executerEtEnregistrerTourAgenda(depot, parametresRepo, injections
   }
   if (resultat.ok && resultat.agendaOffice && typeof parametresRepo.ecrireAgendaOffice === 'function') {
     parametresRepo.ecrireAgendaOffice({ ...resultat.agendaOffice, lu: new Date().toISOString() });
+  }
+  // Rendez-vous rouges « JV - … » : tâches du collaborateur dans « Mes rappels » (voir tachesAgenda.js).
+  if (resultat.ok && resultat.agendaOffice && typeof parametresRepo.lireRappelsPerso === 'function') {
+    try {
+      const avant = parametresRepo.lireRappelsPerso();
+      const apres = synchroniserTachesAgenda(avant, resultat.agendaOffice.evenements, resultat.agendaOffice.debut);
+      if (JSON.stringify(apres) !== JSON.stringify(avant)) parametresRepo.ecrireRappelsPerso(apres);
+    } catch (e) {
+      console.warn('Tâches de l’agenda non relevées :', e.message);
+    }
   }
   if (resultat.ok) await notifierRendezVousRelevesAgenda(depot, parametresRepo, resultat.misAJour, injections);
   const { absences, categories, agendaDuJour, agendaOffice, ...compteRendu } = resultat;

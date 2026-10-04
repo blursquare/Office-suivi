@@ -16058,3 +16058,20 @@ change-t-il ce que le bouton de la fiche envoie ? Réponse : « Oui, le bouton s
   groupes ; aucun si rien n'est noté.
 - Test dans `tests/modeles-emails.test.js` ; vérifié dans Chromium (objet « Re: Virement » → « Réception des fonds » en tête ;
   clair, sombre, téléphone).
+
+### 04/10/2026 08:09 — Tâches posées dans l'agenda (rendez-vous rouges « JV - … »)
+
+- Demande : « Si tu détectes des rdv en rouge avec des initiales de collaborateurs ce sont des tâches à faire. Elles sont à
+  ajouter aux tâches du collaborateur et les supprimer de l'agenda une fois cochées. »
+- Choix de l'étude (questions posées) : catégorie rouge ET initiales ; initiales en tête du titre ; suppression aussitôt la
+  tâche cochée, sans confirmation.
+- Serveur : `tachesAgenda.js` (`tacheDepuisEvenement`, `synchroniserTachesAgenda`) appelé après chaque tour de lecture réussi
+  (`executerEtEnregistrerTourAgenda`) sur les rendez-vous du stock `agenda-office` ; rappels `rappels-perso` enrichis de
+  `agendaItemId`, `agendaChangeKey`, `agendaSupprimeLe` (`assainirRappelPerso`). Tâche non cochée dont le rendez-vous a
+  disparu : retirée (sauf plus ancienne que la fenêtre lue, ou déjà retirée par CLAIRE) ; cochée : plus touchée.
+- Poste : `basculerRappelPerso` → `retirerTacheDeLAgenda` (route de suppression existante, MoveToDeletedItems, un seul essai,
+  message si refus) ; « Tâche de l'agenda » sous la ligne, ni crayon ni croix ; rappels relus toutes les 2 min sur le tableau
+  de bord.
+- Tests : `server/test/taches-agenda.test.js` (repérage, synchronisation, tour complet avec faux EWS). Vérifié dans Chromium
+  (tâche affichée, cochée → suppression demandée avec l'identifiant Exchange, `agendaSupprimeLe` enregistré ; clair, sombre,
+  téléphone). Non vérifié au bureau : nom réel de la catégorie rouge, suppression réelle (point `tache-agenda-retiree`).

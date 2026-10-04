@@ -1,0 +1,83 @@
+'use strict';
+
+// Tâches posées dans l'agenda de l'office (étude, 04/10) : rendez-vous rouge + initiales en tête du titre.
+const { test } = require('node:test');
+const assert = require('node:assert/strict');
+const { tacheDepuisEvenement, synchroniserTachesAgenda, idTacheAgenda } = require('../src/tachesAgenda');
+const { assainirRappelPerso } = require('../src/parametresRepo');
+
+const evt = (sujet, categories, extra) => ({ itemId: 'AAMk+1/x==', changeKey: 'CK1', sujet, date: '2026-10-06', categories, ...extra });
+
+test('tacheDepuisEvenement : rouge ET initiales en tête, sinon rien', () => {
+  const t = tacheDepuisEvenement(evt('JV - Relancer le syndic', ['Catégorie Rouge']));
+  assert.equal(t.collaborateur, 'Julie VASSELIN');
+  assert.equal(t.texte, 'Relancer le syndic');
+  assert.equal(tacheDepuisEvenement(evt('JS: appeler la banque', ['Red category'])).collaborateur, 'Jérémy SAUJOT');
+  assert.equal(tacheDepuisEvenement(evt('BA Appeler Me Exemple', ['rouge'])).texte, 'Appeler Me Exemple');
+  // Pas rouge, initiales ailleurs, minuscules, mot qui commence par les initiales, initiales inconnues : rien.
+  assert.equal(tacheDepuisEvenement(evt('JV - Relancer le syndic', ['Catégorie Verte'])), null);
+  assert.equal(tacheDepuisEvenement(evt('Relancer le syndic (JV)', ['Rouge'])), null);
+  assert.equal(tacheDepuisEvenement(evt('jv relancer', ['Rouge'])), null);
+  assert.equal(tacheDepuisEvenement(evt('JVA - réunion', ['Rouge'])), null);
+  assert.equal(tacheDepuisEvenement(evt('XY - réunion', ['Rouge'])), null);
+  assert.equal(tacheDepuisEvenement(evt('VTE - MARTEL / FAURE', ['Rouge'])), null);
+});
+
+test('synchroniserTachesAgenda : création, mise à jour, retrait, cochée gardée', () => {
+  const debut = '2026-09-28';
+  const e1 = evt('JV - Relancer le syndic', ['Rouge']);
+  let r = synchroniserTachesAgenda([{ id: 'rp-1', auteur: 'Julie VASSELIN', texte: 'Mon rappel', fait: false }], [e1], debut, '2026-10-04T08:00:00Z');
+  assert.equal(r.length, 2);
+  const t = r.find(x => x.agendaItemId);
+  assert.equal(t.id, idTacheAgenda('AAMk+1/x=='));
+  assert.equal(t.auteur, 'Julie VASSELIN');
+  assert.equal(t.echeance, '2026-10-06');
+  assert.ok(assainirRappelPerso(t), 'le rappel passe le contrôle du serveur');
+  assert.equal(assainirRappelPerso(t).agendaItemId, 'AAMk+1/x==');
+  // Déplacée et renommée dans Outlook : suivie.
+  r = synchroniserTachesAgenda(r, [{ ...e1, sujet: 'JV - Relancer le syndic (2e)', date: '2026-10-08' }], debut);
+  assert.equal(r.find(x => x.agendaItemId).texte, 'Relancer le syndic (2e)');
+  assert.equal(r.find(x => x.agendaItemId).echeance, '2026-10-08');
+  // Rendez-vous disparu, tâche non cochée : retirée. Les rappels ordinaires restent.
+  assert.equal(synchroniserTachesAgenda(r, [], debut).map(x => x.id).join(','), 'rp-1');
+  // Cochée : gardée telle quelle, même relue ou disparue.
+  const coche = r.map(x => x.agendaItemId ? { ...x, fait: true, faitLe: '2026-10-04T09:00:00Z' } : x);
+  assert.equal(synchroniserTachesAgenda(coche, [], debut).length, 2);
+  assert.equal(synchroniserTachesAgenda(coche, [{ ...e1, sujet: 'JV - Autre' }], debut).find(x => x.agendaItemId).texte, 'Relancer le syndic (2e)');
+  // Retirée de l'agenda par CLAIRE puis décochée : reste un rappel.
+  const decoche = r.map(x => x.agendaItemId ? { ...x, agendaSupprimeLe: '2026-10-04T09:00:00Z' } : x);
+  assert.equal(synchroniserTachesAgenda(decoche, [], debut).length, 2);
+  // Plus ancienne que la fenêtre lue : jamais retirée faute d'avoir été relue.
+  const ancienne = r.map(x => x.agendaItemId ? { ...x, echeance: '2026-09-01' } : x);
+  assert.equal(synchroniserTachesAgenda(ancienne, [], debut).length, 2);
+});
+
+test('tour de lecture : un rendez-vous rouge « JV - … » devient une tâche de Julie dans ses rappels', async () => {
+  const { executerEtEnregistrerTourAgenda, reinitialiserDisjoncteurAgenda } = require('../src/agendaWatch');
+  const { ouvrirDb } = require('../src/db');
+  const { creerDepot } = require('../src/dossiersRepo');
+  const { creerRepoParametres } = require('../src/parametresRepo');
+  reinitialiserDisjoncteurAgenda();
+  const db = ouvrirDb(':memory:');
+  const parametresRepo = creerRepoParametres(db);
+  parametresRepo.ecrireReglagesExchange({ actif: true, url: 'https://mail.exemple.test/EWS/Exchange.asmx', email: 'bastien@etude.test', motDePasse: 'x', calendrierPartage: 'sophie@etude.test' });
+  const demain = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+  const corps = '<?xml version="1.0"?><s:Envelope><s:Body><m:FindItemResponse><m:ResponseMessages>'
+    + '<m:FindItemResponseMessage ResponseClass="Success"><m:ResponseCode>NoError</m:ResponseCode>'
+    + '<m:RootFolder TotalItemsInView="1" IncludesLastItemInRange="true"><t:Items>'
+    + '<t:CalendarItem><t:ItemId Id="TACHE1" ChangeKey="ck"/><t:Subject>JV - Relancer le syndic</t:Subject>'
+    + '<t:Categories><t:String>Catégorie Rouge</t:String></t:Categories>'
+    + `<t:Start>${demain}T08:00:00Z</t:Start><t:End>${demain}T08:30:00Z</t:End><t:IsAllDayEvent>false</t:IsAllDayEvent><t:IsCancelled>false</t:IsCancelled>`
+    + '</t:CalendarItem></t:Items></m:RootFolder></m:FindItemResponseMessage></m:ResponseMessages></m:FindItemResponse></s:Body></s:Envelope>';
+  const poster = (options, rappel) => setImmediate(() => rappel(null, { statusCode: 200, body: corps }));
+  const r = await executerEtEnregistrerTourAgenda(creerDepot(db), parametresRepo, { poster });
+  assert.equal(r.ok, true);
+  const rappels = parametresRepo.lireRappelsPerso();
+  const t = rappels.find(x => x.agendaItemId === 'TACHE1');
+  assert.ok(t, 'tâche créée');
+  assert.equal(t.auteur, 'Julie VASSELIN');
+  assert.equal(t.texte, 'Relancer le syndic');
+  assert.equal(t.echeance, demain);
+  reinitialiserDisjoncteurAgenda();
+  db.close();
+});

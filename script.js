@@ -14,7 +14,7 @@
   // commit précédent, et ne pas automatiser via un numéro de commit git : ces 3 fichiers sont
   // utilisés hors de tout dépôt une fois déposés chez l'étude, aucune information git n'est
   // disponible à l'exécution.
-  const VERSION_APP = '2026-10-03 23:27';
+  const VERSION_APP = '2026-10-04 08:09';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -23,6 +23,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '2026-10-04 08:09', resume: "Tâches dans l'agenda : un rendez-vous en rouge dont le titre commence par les initiales d'un collaborateur (« JV - Relancer le syndic ») devient une tâche de ce collaborateur, dans « Aujourd'hui » et « Mes rappels » (« Tâche de l'agenda »). Cochée dans CLAIRE, le rendez-vous est retiré de l'agenda aussitôt (éléments supprimés d'Outlook). Déplacé ou renommé dans Outlook, la tâche suit ; supprimé dans Outlook, elle disparaît." },
     { version: '2026-10-03 23:27', resume: "Fenêtre d'email : le menu « Modèles » commence par « Proposés pour cet email » — les modèles les mieux adaptés selon le bouton qui a ouvert l'email, les mots de l'objet et, pour une réponse, de l'email reçu (objet, résumé, pièces jointes), puis l'étape du dossier. Variante confrère choisie selon le destinataire." },
     { version: '2026-10-03 22:10', resume: "Modèles d'emails : quatre modèles de plus dans Réglages › Modèles d'emails, rubrique « Liés à un geste » — accusé de réception, copie de l'acte / attestation, lien de la visio, proposition de dates (client et confrère). Ils se modifient comme les autres et le bouton du geste envoie le texte modifié ; aperçu sur un exemple inventé. Ils n'apparaissent pas dans le menu « Modèles » de la fenêtre d'email (il leur faut l'email reçu, les fichiers ou les créneaux). Accusé de réception légèrement reformulé." },
     { version: '2026-10-03 21:40', resume: "Modèles d'emails : nouvelle rubrique Réglages › Modèles d'emails. Les modèles de CLAIRE y sont (provision, relance du prêt, RIB, vente préalable, réception des fonds, projet, confirmation du rendez-vous, relance des fonds, appel de fonds, questionnaire, un an après) et se modifient — les boutons de la fiche envoient alors le texte modifié, « Revenir au texte d'origine » le rétablit. On peut aussi créer ses propres modèles. Variables entre accolades ({dossier}, {date et heure du rendez-vous}…), aperçu sur un dossier. Dans la fenêtre d'email, bouton « Modèles » pour remplacer le texte par un modèle. Réponses proposées par l'IA plus courtes : 1 à 3 phrases, à l'essentiel." },
@@ -18843,6 +18844,32 @@
     r.faitLe = r.fait ? new Date().toISOString() : '';
     renderAlertesDashboard(dossiersPerimetreDashboard());
     enregistrerRappelPerso(r);
+    if (r.fait && r.agendaItemId && !r.agendaSupprimeLe) retirerTacheDeLAgenda(r);
+  }
+
+  // Tâche relevée dans l'agenda de l'office (rendez-vous rouge « JV - … », étude 04/10, serveur tachesAgenda.js) :
+  // cochée, son rendez-vous est retiré de l'agenda aussitôt (éléments supprimés d'Outlook). Un seul essai ; en échec,
+  // la tâche reste cochée et le rendez-vous en place.
+  async function retirerTacheDeLAgenda(r) {
+    let message = '';
+    try {
+      const reponse = await fetchAvecAuth('/api/exchange/evenement/supprimer', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ itemId: r.agendaItemId, changeKey: r.agendaChangeKey || '' })
+      });
+      const corps = await reponse.json().catch(() => ({}));
+      if (corps.ok) {
+        r.agendaSupprimeLe = new Date().toISOString();
+        agendaEvenements = agendaEvenements.filter(x => x.itemId !== r.agendaItemId);
+        enregistrerRappelPerso(r);
+        renderAlertesDashboard(dossiersPerimetreDashboard());
+        noterVerificationPoste('tache-agenda-retiree', { ok: true });
+        return;
+      }
+      message = corps.message || '';
+    } catch (e) { message = 'serveur injoignable'; }
+    noterVerificationPoste('tache-agenda-retiree', { ok: false, message: 'Suppression refusée' });
+    afficherToast(`Tâche cochée, mais le rendez-vous n’a pas été retiré de l’agenda${message ? ' : ' + message : ''}.`, 'OK', null);
   }
 
   async function supprimerRappelPerso(id) {
@@ -18908,7 +18935,7 @@
       const dateJour = r.echeance || (creation && creation < aujourdhui ? creation : '');
       const quand = libelleEcheanceRappel(dateJour, aujourdhui);
       const enRetard = !r.fait && dateJour && dateJour < aujourdhui;
-      const sous = [quand, d ? libelleDossierAffiche(d) : ''].filter(Boolean);
+      const sous = [quand, d ? libelleDossierAffiche(d) : '', r.agendaItemId ? 'Agenda' : ''].filter(Boolean);
       return `
         <div class="rappel-perso${r.fait ? ' fait' : ''}">
           <button type="button" class="rappel-perso-case" role="checkbox" aria-checked="${r.fait}" onclick="basculerRappelPerso('${escapeOnclickArg(r.id)}')" aria-label="${r.fait ? 'Marquer à faire' : 'Marquer fait'} : ${escapeAttr(r.texte)}">${r.fait ? icone('check') : ''}</button>
@@ -18917,8 +18944,8 @@
             ${sous.length ? `<span class="rappel-perso-sous${enRetard ? ' retard' : ''}">${sous.map((s, i) => i === 1 && d ? `<button type="button" class="lien-discret" onclick="ouvrirDossierDepuisDashboard('${d.id}')">${escapeHtml(s)}</button>` : escapeHtml(s)).join(' · ')}</span>` : ''}
           </div>
           ${!r.fait && rappelParleEmail(r.texte) ? `<button type="button" class="icon-btn rappel-perso-email" onclick="ouvrirEmailRappelPerso('${escapeOnclickArg(r.id)}')" title="Préparer un email vierge avec la signature de l'office" aria-label="Préparer un email">${icone('mail')}</button>` : ''}
-          <button type="button" class="rappel-perso-suppr rappel-perso-modif" onclick="ouvrirEditionRappel('${escapeOnclickArg(r.id)}')" aria-label="Modifier le rappel" title="Modifier">${icone('pencil')}</button>
-          <button type="button" class="rappel-perso-suppr" onclick="supprimerRappelPerso('${escapeOnclickArg(r.id)}')" aria-label="Supprimer le rappel" title="Supprimer">${icone('x')}</button>
+          ${r.agendaItemId ? '' : `<button type="button" class="rappel-perso-suppr rappel-perso-modif" onclick="ouvrirEditionRappel('${escapeOnclickArg(r.id)}')" aria-label="Modifier le rappel" title="Modifier">${icone('pencil')}</button>
+          <button type="button" class="rappel-perso-suppr" onclick="supprimerRappelPerso('${escapeOnclickArg(r.id)}')" aria-label="Supprimer le rappel" title="Supprimer">${icone('x')}</button>`}
         </div>`;
     }).join('');
     const formulaire = ajoutRappelOuvert ? formulaireRappel(null) : `<button type="button" class="bouton-ajout rappel-perso-ajout" onclick="ouvrirAjoutRappel(true)">Ajouter un rappel</button>`;
@@ -19771,12 +19798,12 @@
         categorie: 'neutre', categorieLabel: 'Rappel',
         titre: r.texte,
         titreHtml: retard ? `<span class="ja-non-faite">${escapeHtml(retard)}</span>` : '',
-        sousHtml: [d ? `<button type="button" class="lien-discret" onclick="executerFicheDossierJour('${escapeOnclickArg(d.id)}')">${escapeHtml(libelleDossierAffiche(d))}</button>` : '', 'Mon rappel'].filter(Boolean).join(' · '),
+        sousHtml: [d ? `<button type="button" class="lien-discret" onclick="executerFicheDossierJour('${escapeOnclickArg(d.id)}')">${escapeHtml(libelleDossierAffiche(d))}</button>` : '', r.agendaItemId ? 'Tâche de l’agenda' : 'Mon rappel'].filter(Boolean).join(' · '),
         caseRonde: { onclick: `basculerRappelPerso('${escapeOnclickArg(r.id)}')`, libelle: 'Fait' },
         bouton: rappelParleEmail(r.texte) ? { libelle: 'Email', icone: icone('mail'), onclick: `ouvrirEmailRappelPerso('${escapeOnclickArg(r.id)}')`, titre: "Préparer un email vierge avec la signature de l'office" } : null,
         classe: fixe ? 'ja-rappel w-fixe' : 'ja-rappel',
         // Sur la carte, le crayon ouvre la modification sous « Mes rappels » (même formulaire).
-        secondaires: fixe ? `<button type="button" class="icon-btn" onclick="ouvrirEditionRappel('${escapeOnclickArg(r.id)}')" title="Modifier le rappel" aria-label="Modifier le rappel">${icone('pencil')}</button>` : ''
+        secondaires: fixe && !r.agendaItemId ? `<button type="button" class="icon-btn" onclick="ouvrirEditionRappel('${escapeOnclickArg(r.id)}')" title="Modifier le rappel" aria-label="Modifier le rappel">${icone('pencil')}</button>` : ''
       });
     }).join('');
     const coches = faits.map(r => {
@@ -19788,7 +19815,7 @@
         <span class="ja-coche" aria-hidden="true">${icone('check')}</span>
         <span class="ja-texte-fait">
           <span class="ja-titre">${escapeHtml(r.texte)}</span>
-          <span class="ja-sous">${[d ? libelleDossierAffiche(d) : '', 'Mon rappel', heure].filter(Boolean).map(escapeHtml).join(' · ')}</span>
+          <span class="ja-sous">${[d ? libelleDossierAffiche(d) : '', r.agendaItemId ? (r.agendaSupprimeLe ? 'Retirée de l’agenda' : 'Tâche de l’agenda') : 'Mon rappel', heure].filter(Boolean).map(escapeHtml).join(' · ')}</span>
         </span>
         <button type="button" class="lien-discret ja-annuler" onclick="basculerRappelPerso('${escapeOnclickArg(r.id)}')">Annuler</button>
       </li>`;
@@ -31808,6 +31835,8 @@
     // Page Agenda ouverte : relue au même rythme que le tour de lecture du serveur (2 min).
     setInterval(() => { if (ongletActuel === 'agenda' && !agendaModale) chargerAgendaSemaine(); }, 2 * 60 * 1000);
     setInterval(() => { if (ongletActuel === 'dashboard') chargerAgendaWidget(true); }, 2 * 60 * 1000);
+    // Tâches relevées dans l'agenda (rendez-vous rouges « JV - … ») : arrivent dans « Mes rappels » sans recharger.
+    setInterval(() => { if (ongletActuel === 'dashboard' && !ajoutRappelOuvert && !rappelEnEdition) chargerRappelsPerso(); }, 2 * 60 * 1000);
     setInterval(majTraitHeureAgenda, 30 * 1000);
     await chargerEtatNas();
     // Avant toute relecture du NAS : un parcours lancé sans elles reconnaîtrait des fichiers que

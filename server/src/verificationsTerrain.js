@@ -20,6 +20,8 @@ const CLE_VERIFICATIONS = 'verifications-terrain';
 // `source` : 'serveur' (noté par le serveur), 'poste' (noté par une fenêtre CLAIRE, POST
 // /api/verifications-terrain/noter — seuls ces points-là y sont acceptés) ou 'manuel'.
 const VERIFICATIONS_TERRAIN = [
+  { id: 'tache-agenda-retiree', depuis: '2026-10-04 08:09', source: 'poste', titre: 'Tâche de l’agenda cochée : rendez-vous rouge « JV - … » retiré de l’agenda de l’office',
+    comment: 'Coché quand le premier rendez-vous-tâche est retiré de l’agenda après avoir été coché dans CLAIRE ; en échec si Exchange refuse la suppression.' },
   { id: 'email-envoye-exchange', depuis: '2026-10-03 20:27', source: 'serveur', titre: 'Email envoyé depuis CLAIRE par Exchange (brouillon puis envoi)',
     comment: 'Coché au premier email envoyé depuis la fenêtre d’email de CLAIRE ; en échec si Exchange refuse (code relevé, jamais le texte).' },
   { id: 'email-reponse-exchange', depuis: '2026-10-03 20:27', source: 'serveur', titre: 'Réponse à un email reçu envoyée depuis CLAIRE (fil de la conversation gardé)',

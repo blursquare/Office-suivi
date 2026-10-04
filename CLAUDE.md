@@ -562,6 +562,15 @@ sans les deux, il fait un 404 silencieux dans le `.exe` (piège payé deux fois)
   de l'étude du 02/09/2026, coordonnées d'organismes, jamais de client) — `THEMES_REPERTOIRE` côté
   serveur, repli identique dans `repertoireThemes` côté client. Rien n'y est deviné : une adresse
   douteuse du document est signalée en note, pas corrigée.
+- **Tâches posées dans l'agenda** (étude 04/10, `server/src/tachesAgenda.js`) : rendez-vous de **catégorie rouge** dont le
+  titre **commence** par les initiales en capitales d'un collaborateur (`COLLABORATEURS_ABSENCE` : BA, JV, JS ; « JV - … »,
+  « JV: … », « JV … ») = tâche de ce collaborateur — recopiée à chaque tour de lecture de l'agenda dans ses rappels
+  (`synchroniserTachesAgenda`, clé `rappels-perso`, `agendaItemId`/`agendaChangeKey`, id `ag-…`) : « Aujourd'hui » et « Mes
+  rappels », « Tâche de l'agenda », ni crayon ni croix ; déplacée/renommée dans Outlook → suivie ; disparue (supprimée, plus
+  rouge) et non cochée → retirée, jamais une tâche plus ancienne que la fenêtre lue. **Cochée → rendez-vous retiré de l'agenda
+  aussitôt, sans confirmation** (choix de l'étude ; `retirerTacheDeLAgenda`, `POST /exchange/evenement/supprimer`,
+  MoveToDeletedItems, un seul essai, `agendaSupprimeLe` ; décochée ensuite, elle reste un rappel). Point terrain
+  `tache-agenda-retiree`.
 - **Rendez-vous retiré de CLAIRE** → retiré aussi de l'agenda (et repère `rendezVousRetire` pour
   que le flux ne le remette pas). Une date saisie à la main n'est jamais écrasée par l'agenda.
 - **Apprentissage** : corrections de classification (dates, engagements) et exclusions stockées en

@@ -139,7 +139,13 @@ function assainirRappelPerso(brut) {
     dossierId: typeof b.dossierId === 'string' ? b.dossierId.slice(0, 80) : '',
     fait: !!b.fait,
     faitLe: b.fait && typeof b.faitLe === 'string' ? b.faitLe.slice(0, 40) : '',
-    creeLe: typeof b.creeLe === 'string' ? b.creeLe.slice(0, 40) : new Date().toISOString()
+    creeLe: typeof b.creeLe === 'string' ? b.creeLe.slice(0, 40) : new Date().toISOString(),
+    // Tâche relevée dans l'agenda de l'office (voir tachesAgenda.js) : le rendez-vous d'origine.
+    ...(typeof b.agendaItemId === 'string' && b.agendaItemId && b.agendaItemId.length <= 1000 ? {
+      agendaItemId: b.agendaItemId,
+      agendaChangeKey: typeof b.agendaChangeKey === 'string' ? b.agendaChangeKey.slice(0, 1000) : '',
+      agendaSupprimeLe: typeof b.agendaSupprimeLe === 'string' ? b.agendaSupprimeLe.slice(0, 40) : ''
+    } : {})
   };
 }
 
