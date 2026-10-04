@@ -52,3 +52,13 @@ test('aucun nom de premier niveau déclaré dans deux fichiers du poste', () => 
   const doublons = [...declarationsClient()].filter(([, fichiers]) => fichiers.length > 1);
   assert.equal(doublons.map(([nom, fichiers]) => nom + ' : ' + fichiers.join(', ')).join('\n'), '');
 });
+
+test('le workflow de construction du .exe se déclenche sur client/ (et plus sur script.js)', () => {
+  // 04/10 : le filtre de chemins listait encore script.js — un correctif ne touchant que client/ ne reconstruisait rien.
+  const wf = fs.readFileSync(path.join(racine, '.github', 'workflows', 'build-exe.yml'), 'utf8');
+  const chemins = [...wf.matchAll(/^\s+- '([^']+)'$/gm)].map(m => m[1]);
+  for (const c of ['client/**', 'index.html', 'style.css', 'server/**', 'tests/**', 'eslint.config.js', 'package.json', 'scripts/**']) {
+    assert.ok(chemins.includes(c), `${c} absent du filtre de chemins du workflow`);
+  }
+  assert.ok(!chemins.includes('script.js'));
+});

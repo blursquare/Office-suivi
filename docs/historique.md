@@ -16167,3 +16167,9 @@ déclarations de premier niveau des fichiers du manifeste — 3 065 noms — et 
 redéclarerait son propre global). Comme ESLint ne voit plus un même nom déclaré dans deux fichiers, le test
 `structure-client` le refuse à sa place (aucun doublon aujourd'hui). Lint : 0 erreur, 822 avertissements (variables
 inutilisées), tests 1 271 + 665.
+
+**11 h 20 — second piège, même cause.** Le correctif de 11 h 08 n'a déclenché aucune construction : le filtre `paths`
+du workflow listait toujours `script.js`, pas `client/**` (ni `eslint.config.js`, `scripts/**`, `tests/**`,
+`package.json`). Le commit de 10 h 36 n'avait construit que parce qu'il touchait aussi `server/` et `index.html`. Filtre
+complété ; `tests/structure-client.test.js` vérifie désormais la liste. À retenir : après un push sur `main`, regarder
+qu'une construction a bien démarré ET qu'elle est verte — les deux peuvent manquer.
