@@ -2660,17 +2660,6 @@
     return `<span class="coord-paire">${email}${tel}</span>`;
   }
 
-  // Onglet Échanges : une ligne par partie (libellé, email, téléphone).
-  function renderCoordonneesEchanges(d) {
-    if (estSuccession(d)) {
-      const parties = (Array.isArray(d.parties) ? d.parties : []).filter(p => p && p.nom);
-      return `<div class="coord-echanges">${parties.map(p => `<div class="coord-ligne"><span class="coord-libelle">${escapeHtml(p.nom)}</span><span>${[...(p.telephones || []), ...(p.emails || [])].map(escapeHtml).join(' · ') || '<span class="hint">Pas de coordonnées dans Authentic</span>'}</span></div>`).join('')}</div>`;
-    }
-    return `<div class="coord-echanges">${coordonneesPartiesDossier(d).map(c => `<div class="coord-ligne">
-        <span class="coord-libelle">${escapeHtml(c.libelle)}</span>${champsCoordonneesPartie(d, c, 'ech')}
-      </div>`).join('')}</div>`;
-  }
-
   function changerTelephoneDossier(id, partie, valeur) {
     const d = dossiers.find(x => x.id === id);
     if (!d) return;

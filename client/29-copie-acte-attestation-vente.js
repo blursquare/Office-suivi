@@ -417,17 +417,14 @@
     const hint = emailDestinataireRelance(d)
       ? (notaireParticipant ? 'Adressé au notaire de l’acquéreur.' : '')
       : (notaireParticipant
-        ? 'Renseignez l’email du confrère (ci-dessus) pour écrire : l’acquéreur a son propre notaire.'
-        : 'Renseignez l’email de l’acquéreur pour écrire.');
+        ? 'Renseignez l’email du confrère en haut de la fiche pour écrire : l’acquéreur a son propre notaire.'
+        : 'Renseignez l’email de l’acquéreur en haut de la fiche pour écrire.');
     return `<div class="echanges-groupe">
         <div class="echanges-tete">
           <span class="section-eyebrow">${notaireParticipant ? 'Échanges avec le confrère' : 'Échanges avec le client'}</span>
           <span class="echanges-stade" title="Stade du dossier, lu dans ses dates">${escapeHtml(STADES_DOSSIER[stade])}</span>
         </div>
-        <div class="echanges-destinataire">
-          ${renderCoordonneesEchanges(d)}
-          ${hint ? `<p class="hint">${hint}</p>` : ''}
-        </div>
+        ${hint ? `<p class="hint echanges-destinataire">${hint}</p>` : ''}
         ${renderAppelsDossier(d)}
         ${renderEmailsDossier(d)}
         ${renderSondageDossier(d)}

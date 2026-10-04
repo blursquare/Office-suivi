@@ -6517,8 +6517,7 @@ wa-button.ech-ico.ech-ico-suppr:hover { color: var(--urgent); }
 /* ---- Fiche › Échanges : groupes de lignes d'action (voir renderEchangesDossier) ---- */
 .echanges-groupe { display: flex; flex-direction: column; gap: 6px; margin: 4px 0 20px; }
 .echanges-groupe > .ja-liste { margin-top: 2px; }
-.echanges-destinataire { display: flex; flex-direction: column; gap: 4px; }
-.echanges-destinataire .hint { margin: 0; }
+.hint.echanges-destinataire { margin: 0; }
 
 /* « Ajouter … » : wa-button.bouton-ajout, couche Web Awesome en tête de feuille. */
 wa-button.bouton-ajout.ajout-piece-btn { width: calc(100% - 24px); margin: 10px 12px 12px; }
@@ -8186,19 +8185,11 @@ button.complement-option.actif .complement-option-source { color: var(--focus); 
 /* Personne « déjà connue » / « à rattacher » : la description revient à la ligne au lieu d'être coupée. */
 .notaires-a-placer-ligne .prop-texte.texte-retour { white-space: normal; overflow-wrap: anywhere; }
 
-/* Coordonnées des parties : email et téléphone sur une ligne (fiche et onglet Échanges, étude 02/10). */
+/* Coordonnées des parties : email et téléphone sur une ligne, en haut de la fiche (étude 02/10). */
 .coord-paire { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 8px; width: 100%; align-items: center; }
 .coord-paire > * { min-width: 0; }
-.coord-echanges { display: grid; gap: 6px; margin: 4px 0 10px; }
-.coord-ligne { display: grid; grid-template-columns: 82px minmax(0, 1fr); gap: 10px; align-items: center; font-size: var(--texte-m); }
-.coord-ligne > * { min-width: 0; }
-/* Le champ téléphone n'est pas dans la règle générale des champs (input[type="tel"]) : même allure que l'email. */
-.coord-echanges input.coord-tel { width: 100%; box-sizing: border-box; font-family: inherit; font-size: var(--texte-base); color: var(--ink); background: var(--paper-card); border: 1px solid var(--line); border-radius: var(--rayon-xs); padding: 10px 12px; transition: border-color 0.15s ease; }
-.coord-echanges input.coord-tel:hover { border-color: var(--muted); }
-.coord-libelle { color: var(--muted); }
 @media (max-width: 560px) {
   .coord-paire { grid-template-columns: 1fr; gap: 4px; }
-  .coord-ligne { grid-template-columns: 1fr; gap: 2px; }
 }
 
 /* « Nouveau dossier » pour une succession reprise d'Authentic (étude, 02/10) : ni prix, ni agence, ni

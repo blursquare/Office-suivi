@@ -16419,3 +16419,10 @@ famille par famille ; liens-boutons, lignes de liste, onglets, champs et fenêtr
   sombre) : pastilles d'action plus hautes (28 px contre ~20), le reste identique à l'œil.
 Restent natifs, volontairement : liens-boutons, lignes cliquables, onglets et groupes segmentés (Suivi Échéances/Tableau, ‹
 Aujourd'hui ›, étapes du wizard), pastilles de source (p. N), réglages de taille des widgets, champs et fenêtres.
+
+### 04/10/2026 20 h 32 — Échanges : coordonnées retirées (0.144.18)
+
+Étude : « Dans Échanges retire les champs e-mail et téléphone vu que c'est déjà au-dessus. » `renderCoordonneesEchanges` et
+ses styles (`.coord-echanges`, `.coord-ligne`, `.coord-libelle`) retirés ; les coordonnées restent en haut de la fiche
+(`fiche-coordonnees`, mêmes champs, mêmes fonctions d'enregistrement). L'aide « Renseignez l'email … » dit désormais « en haut
+de la fiche ».
