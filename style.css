@@ -34,6 +34,11 @@
        pour mieux faire ressortir les cartes », d'après un tableau Kanban) — les cartes blanches s'en détachent par le
        contraste et une ombre douce plutôt que par leur filet. */
     --paper: #E9EDF2;
+    /* Cartes posées sur le fond de page (widgets, Suivi, agenda, outils) : coins de 16 px et SANS bordure en clair —
+       l'ombre et le contraste avec le fond suffisent (étude 04/10 : « coins plus arrondis et pas de bordure »). En
+       sombre, la bordure revient (voir [data-theme="dark"]) : l'écart de fond y est trop faible pour détacher la carte. */
+    --rayon-carte: 16px;
+    --bord-carte: transparent;
     --paper-card: #FFFFFF;
     --paper-sunk: #F7F9FB;
     --ink: #16233C;
@@ -122,6 +127,7 @@
     --focus-hover: var(--accent-sombre-hover);
     --on-accent: #14161A;
     --shadow-card: 0 1px 2px rgba(0,0,0,0.35);
+    --bord-carte: var(--line);
     --shadow-float: 0 12px 32px -8px rgba(0,0,0,0.6);
   }
 
@@ -1314,8 +1320,8 @@
      la disposition à deux colonnes paramètres/résultat. */
   .calc-card {
     background: var(--paper-card);
-    border: 1px solid var(--line);
-    border-radius: 10px;
+    border: 1px solid var(--bord-carte);
+    border-radius: var(--rayon-carte);
     padding: 20px;
     margin-bottom: 18px;
     box-shadow: var(--shadow-card);
@@ -6833,7 +6839,7 @@ button.confrere-carnet-office:focus-visible, button.carnet-dossier:focus-visible
    tient pas est coupé proprement par ajusterWidgets (jamais à mi-ligne). */
 .w-carte {
   height: 100%; min-height: 0; display: flex; flex-direction: column; overflow: hidden;
-  background: var(--paper-card); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow-card);
+  background: var(--paper-card); border: 1px solid var(--bord-carte); border-radius: var(--rayon-carte); box-shadow: var(--shadow-card);
 }
 .w-tete { flex: none; display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; padding: 14px 16px 10px; }
 .w-tete-texte { min-width: 0; }
@@ -7168,7 +7174,8 @@ button.scan-nom:focus-visible { outline: 2px solid var(--focus); outline-offset:
 .suivi-principal .col-echeance-resp { width: 72px; }
 .suivi-stats:empty { display: none; }
 .suivi-stats { display: flex; flex-direction: column; gap: 12px; }
-.sm-bloc { background: var(--paper-card); border: 1px solid var(--line); border-radius: 12px; padding: 12px; }
+#dossier-list .table-scroll { border-color: var(--bord-carte); border-radius: var(--rayon-carte); }
+.sm-bloc { background: var(--paper-card); border: 1px solid var(--bord-carte); border-radius: var(--rayon-carte); padding: 12px; box-shadow: var(--shadow-card); }
 .sm-titre { display: flex; align-items: center; gap: 6px; margin: 0 0 10px; padding: 0 2px; font-size: 14.5px; font-weight: 650; color: var(--ink); }
 .sm-titre button.sm-effacer { margin: 0 0 0 auto; padding: 0; border: 0; background: none; box-shadow: none; font: inherit; font-size: 12.5px; font-weight: 500; color: var(--focus); cursor: pointer; }
 .sm-titre button.sm-effacer:hover { text-decoration: underline; }
@@ -7439,7 +7446,7 @@ button.annuaire-proche.actif { background: var(--focus); border-color: var(--foc
 }
 .ech-a-replacer { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .ajd-autre { --ag-teinte: var(--ventebien); }
-.ag-page { background: var(--paper-card); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow-card); overflow: hidden; }
+.ag-page { background: var(--paper-card); border: 1px solid var(--bord-carte); border-radius: var(--rayon-carte); box-shadow: var(--shadow-card); overflow: hidden; }
 .ag-tete-page { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 14px; padding: 16px 18px; border-bottom: 1px solid var(--line); }
 /* Mot du jour (étude, 01/10, d'après « Wed. » puis « en français, pas de fond de couleur ») : « Jeudi »
    en gros caractères, couleur du texte, point final orange. */
@@ -8091,7 +8098,7 @@ button.sidebar-outils-plus:focus-visible { outline: 2px solid var(--focus); outl
 .outils-grille > * { min-width: 0; }
 button.outil-tuile {
   display: flex; flex-direction: column; align-items: flex-start; gap: 8px; text-align: left;
-  padding: 22px 20px 20px; border: 1px solid var(--line); border-radius: 16px; background: var(--paper-card);
+  padding: 22px 20px 20px; border: 1px solid var(--bord-carte); border-radius: var(--rayon-carte); background: var(--paper-card);
   color: var(--ink); font-family: inherit; cursor: pointer; box-shadow: var(--shadow-card);
   transition: border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
 }

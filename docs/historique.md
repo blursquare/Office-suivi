@@ -16333,3 +16333,12 @@ Point terrain `tache-agenda-supprimee-cochee` (serveur, noté au premier tour qu
 seulement, par les jetons : `--paper` #F4F6F8 → #E9EDF2 (gris-bleu froid), `--shadow-card` plus diffuse (0 4px 14px à 6 %).
 Toutes les cartes blanches (`--paper-card`) en profitent sans toucher à leur style ; mode sombre inchangé (cartes déjà
 détachées par leur filet). Vérifié sur captures du tableau de bord et du Suivi (Chromium, dossiers inventés).
+
+### 04/10/2026 19 h 20 — Cartes arrondies sans bordure (0.144.13)
+
+Étude : « Essaie les coins plus arrondis et pas de bordure » (suite du fond gris-bleu, même exemple Kanban). Deux jetons :
+`--rayon-carte` 16 px et `--bord-carte` (transparent en clair, `--line` en sombre où l'écart de fond ne suffit pas). Appliqués
+aux seules cartes posées sur le fond de page : `.w-carte` (widgets), `.sm-bloc` (colonne du Suivi, ombre ajoutée),
+`#dossier-list .table-scroll` (blocs de semaines du Suivi), `.ag-page`, `button.outil-tuile`, `.calc-card` (pages d'outils,
+Claire Scan). Les blocs posés DANS une carte ou une fenêtre blanche gardent leur bordure (sans elle, ils disparaîtraient).
+Vérifié sur captures (tableau de bord, Suivi, agenda, outils, clair et sombre, dossiers inventés).
