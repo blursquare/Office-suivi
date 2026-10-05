@@ -169,7 +169,7 @@ function creerRouteurEmailsDossiers(parametresRepo, depot, options = {}) {
       collaborateur: String(b.collaborateur || ''), geste: String(b.geste || ''), prepareLe: r.envoyeLe, envoyeLe: r.envoyeLe, boite: r.de, emailId: null
     });
     if (prepare && prepare.objet && prepare.dossierId) { apres.prepares.push(prepare); ecrireEtat(parametresRepo, apres); }
-    res.json({ ok: true, envoyeLe: r.envoyeLe, de: r.de, repli: r.repli });
+    res.json({ ok: true, envoyeLe: r.envoyeLe, de: r.de, repli: r.repli, sansFil: r.sansFil === true });
   }));
 
   // Premier jet de réponse à un email reçu par l'IA locale (étude 03/10 : « Auto-draft »). Jamais envoyé seul,

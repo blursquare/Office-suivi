@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.144.31';
+  const VERSION_APP = '0.144.32';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.144.32', date: '2026-10-05 12:51', resume: "Réponse à un email : si l'email d'origine a été déplacé (ou son identifiant a changé) dans Outlook, la réponse part quand même, comme nouvel email « RE: … » au même destinataire, sans l'email cité dessous ; CLAIRE le dit à l'envoi." },
     { version: '0.144.31', date: '2026-10-05 11:19', resume: "Numéros cliquables : l'icône de téléphone porte aussi la balise de l'extension Chrome « 3CX Click to Call » (tcxspan avec le numéro), pour que le clic lance l'appel dans le Chrome classique ; le lien tel: reste pour un poste sans l'extension." },
     { version: '0.144.30', date: '2026-10-05 10:05', resume: "Fonds reçus : les fonds ne sont « complets » qu'à 2 € près du montant attendu (50 € jusque-là) ; au-delà, en plus ou en moins, CLAIRE signale un écart à vérifier. Les dossiers déjà lus sont recalculés à l'affichage." },
     { version: '0.144.29', date: '2026-10-05 10:02', resume: "Appels 3CX : quand l'appelant n'est connu de CLAIRE (aucun dossier, ni confrère, ni répertoire), la page que 3CX ouvre se ferme aussitôt au lieu d'ouvrir CLAIRE ; l'appel reste noté et montré dans le bandeau de la fenêtre CLAIRE." },

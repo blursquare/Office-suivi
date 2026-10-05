@@ -174,7 +174,7 @@ function connexionPrete(r) { return Boolean(r && r.actif && r.url && r.email && 
 
 // ---- Envoi ----
 // `demande` : { collaborateur, a, cc, sujet, html, pieces, images, reponseA: { itemId, tous } }.
-// Rend { ok, envoyeLe, de, repli, brouillonLaisse, message, code }.
+// Rend { ok, envoyeLe, de, repli, sansFil, brouillonLaisse, message, code } (`sansFil` : email d'origine introuvable, réponse partie en nouvel email).
 async function envoyerEmailExchange(parametresRepo, demande, injections = {}) {
   const { posterEws } = require('./exchange/ews');
   const agendaWatch = require('./agendaWatch');
@@ -184,7 +184,7 @@ async function envoyerEmailExchange(parametresRepo, demande, injections = {}) {
   const d = demande || {};
   const a = adressesDepuisTexte(d.a);
   const cc = adressesDepuisTexte(d.cc).filter((x) => !a.includes(x));
-  const reponse = d.reponseA && d.reponseA.itemId ? { itemId: String(d.reponseA.itemId), tous: d.reponseA.tous === true } : null;
+  let reponse = d.reponseA && d.reponseA.itemId ? { itemId: String(d.reponseA.itemId), tous: d.reponseA.tous === true } : null;
   if (!a.length && !reponse) return { ok: false, statut: 400, message: 'Aucun destinataire valide.' };
   const sujet = String(d.sujet || '').replace(/[\r\n]+/g, ' ').trim().slice(0, 300);
   if (!sujet && !reponse) return { ok: false, statut: 400, message: 'Objet de l’email manquant.' };
@@ -239,6 +239,15 @@ async function envoyerEmailExchange(parametresRepo, demande, injections = {}) {
   };
 
   let resultat = await essayer(enTantQue);
+  // Email d'origine déplacé ou supprimé dans Outlook (son identifiant EWS change au déplacement : ErrorItemNotFound) :
+  // la réponse part quand même, comme un nouvel email « RE: … » au même destinataire, sans l'email cité dessous
+  // (étude 05/10 : « quand un email est déplacé, permettre d'y répondre quand même »).
+  let sansFil = false;
+  if (!resultat.ok && reponse && a.length && /ErrorItemNotFound|ErrorInvalidIdMalformed/.test(resultat.code || '')) {
+    reponse = null;
+    sansFil = true;
+    resultat = await essayer(enTantQue);
+  }
   let repli = Boolean(souhaitee && souhaitee !== compte && !enTantQue);
   if (!resultat.ok && resultat.refusEnTantQue && enTantQue) {
     // « Envoyer en tant que » pas encore donné dans Exchange : refus retenu, l'email part du compte relié.
@@ -258,7 +267,8 @@ async function envoyerEmailExchange(parametresRepo, demande, injections = {}) {
     return { ok: false, statut: 502, message: resultat.message, brouillonLaisse: !!resultat.brouillonLaisse };
   }
   noterVerification(parametresRepo, reponse ? 'email-reponse-exchange' : 'email-envoye-exchange', {});
-  return { ok: true, envoyeLe: new Date(maintenant).toISOString(), de: repli || !enTantQue ? compte : enTantQue, repli, destinataires: a.concat(cc) };
+  if (sansFil) noterVerification(parametresRepo, 'email-reponse-email-deplace', {});
+  return { ok: true, envoyeLe: new Date(maintenant).toISOString(), de: repli || !enTantQue ? compte : enTantQue, repli, sansFil, destinataires: a.concat(cc) };
 }
 
 function messageEchec(code, statut) {

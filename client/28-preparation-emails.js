@@ -837,7 +837,7 @@
       if (!reponse.ok || !res.ok) throw new Error(res.message || res.erreur || 'statut ' + reponse.status);
       if (r.dossierId) delete emailsParDossier[r.dossierId];
       const mode = r.mode;
-      fermerRedaction({ ok: true, mode: 'envoye', repli: !!res.repli, de: res.de || '' });
+      fermerRedaction({ ok: true, mode: 'envoye', repli: !!res.repli, sansFil: !!res.sansFil, de: res.de || '' });
       if (mode === 'reponse') reponseEnvoyee(r, res);
     } catch (e) {
       if (redaction !== r) return;
@@ -905,7 +905,7 @@
   function annoncerEmailPret(r, discret, detail) {
     const suite = detail ? ' ' + detail : '';
     if (r.mode === 'envoye') {
-      afficherToast('Email envoyé' + (r.repli ? ' depuis la boîte du compte relié (droit « Envoyer en tant que » pas encore donné).' : '.') + suite, 'OK', null);
+      afficherToast('Email envoyé' + (r.sansFil ? ' (l’email d’origine a été déplacé : réponse envoyée sans lui, comme nouvel email)' : '') + (r.repli ? ' depuis la boîte du compte relié (droit « Envoyer en tant que » pas encore donné).' : '.') + suite, 'OK', null);
       return;
     }
     if (r.mode === 'eml') {

@@ -50,6 +50,8 @@ const VERIFICATIONS_TERRAIN = [
     comment: 'Coché quand une fenêtre CLAIRE cachée a pu afficher une notification (permission accordée, réglage du poste actif).' },
   { id: 'notification-logo', depuis: '0.132.2', source: 'manuel', titre: 'Le logo de CLAIRE apparaît dans la notification Windows',
     comment: 'À confirmer à l’œil à la prochaine notification « Nouvelle(s) pièce(s) trouvée(s) ».' },
+  { id: 'email-reponse-email-deplace', depuis: '0.144.32', source: 'serveur', titre: 'Réponse à un email déplacé dans Outlook : partie quand même, comme nouvel email',
+    comment: 'Coché quand une réponse a été envoyée alors que l’email d’origine n’était plus à son emplacement (ErrorItemNotFound sur la réponse dans le fil).' },
   { id: 'telephone-3cx-lien', depuis: '0.144.27', source: 'poste', titre: 'Un numéro cliquable de CLAIRE ouvre 3CX pour appeler',
     comment: 'Coché au premier clic sur l’icône de téléphone d’un numéro (fiche, appels reçus, bandeau d’appel) ; à confirmer à l’œil : 3CX doit composer le numéro (extension Chrome « Click to Call » via la balise tcxspan de l’icône, ou protocole « tel: » réglé sur 3CX sur le poste).' },
   { id: 'actes-agenda-historique', depuis: '0.132.0', source: 'serveur', titre: 'Statistiques : historique de l’agenda lu sur deux années (actes à l’agenda)',

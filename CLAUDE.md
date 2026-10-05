@@ -140,7 +140,7 @@ dans `index.html`** (le test `structure-client` refuse tout décalage).
    retenu 7 jours (clé `envoi-emails`). **Réponse à un email reçu** : carte sous l'email dans la fenêtre de lecture
    (`repondreEmail`, ReplyToItem — même fil, email cité dessous), accusé de réception aussi dans le fil ; **premier jet par
    l'IA locale** (`POST /api/emails-dossiers/proposition`, `promptPropositionReponse` : rien d'inventé, « [à compléter] »
-   où l'information manque — un tel passage, comme « [lien WeTransfer à coller ici] », bloque l'envoi). Annuler la fenêtre
+   où l'information manque — un tel passage, comme « [lien WeTransfer à coller ici] », bloque l'envoi). **Email d'origine déplacé** (étude 05/10 : son identifiant EWS change, `ErrorItemNotFound`) : la réponse part quand même, en nouvel email « RE: … » au même destinataire sans l'email cité (`sansFil`, point terrain `email-reponse-email-deplace`). Annuler la fenêtre
    rend `{ ok: false, annule: true }` : l'appelant ne marque rien et ne dit rien. Mode `mailto:` du poste inchangé. Pastille
    « À répondre » (`emailARepondre` : reçu < 14 jours, dernier de l'expéditeur, sans envoi vers lui depuis). Points
    terrain `email-envoye-exchange`, `email-reponse-exchange`, `email-envoye-en-tant-que`, `email-proposition-ia`.

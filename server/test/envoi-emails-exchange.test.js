@@ -108,6 +108,29 @@ test('envoi interrompu : l’email reste dans les Brouillons, jamais renvoyé ; 
   agendaWatch.signalerIdentifiantsRefuses({});
 });
 
+test('réponse à un email déplacé (ErrorItemNotFound) : part quand même comme nouvel email, sans l’email cité', async () => {
+  const { repo } = preparer();
+  const f = fauxExchange({
+    CreateItem: (corps) => /<t:ReplyToItem>/.test(corps) ? erreur('CreateItem', 'ErrorItemNotFound') : okCreate('BR2', 'CK2'),
+    SendItem: okSend
+  });
+  const r = await X.envoyerEmailExchange(repo, { collaborateur: 'Bastien ANGLUMENT', a: 'camille.fournier@exemple.fr', sujet: 'RE: Mon RIB', html: '<p>Merci</p>', reponseA: { itemId: 'IN9' } }, { poster: f.poster });
+  assert.equal(r.ok, true);
+  assert.equal(r.sansFil, true);
+  const creations = f.corps.filter((c) => /<m:CreateItem/.test(c));
+  assert.equal(creations.length, 2);
+  assert.match(creations[0], /<t:ReplyToItem>/);
+  assert.doesNotMatch(creations[1], /ReplyToItem|ReferenceItemId/);
+  assert.match(creations[1], /<t:Subject>RE: Mon RIB<\/t:Subject>/);
+  assert.match(creations[1], /camille\.fournier@exemple\.fr/);
+  assert.equal(f.corps.filter((c) => /<m:SendItem/.test(c)).length, 1);
+  // Sans destinataire connu, pas de repli : le message d'erreur d'avant reste.
+  const g = fauxExchange({ CreateItem: erreur('CreateItem', 'ErrorItemNotFound') });
+  const sans = await X.envoyerEmailExchange(repo, { collaborateur: 'Bastien ANGLUMENT', sujet: 'RE: Mon RIB', html: '<p>x</p>', reponseA: { itemId: 'IN9' } }, { poster: g.poster });
+  assert.equal(sans.ok, false);
+  assert.match(sans.message, /déplacé ou supprimé/);
+});
+
 test('route : réponse dans le fil avec pièce jointe, notée envoyée ; proposition de l’IA locale', async () => {
   const { creerApp } = require('../src/app');
   const db = ouvrirDb(':memory:');

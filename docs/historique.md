@@ -16636,3 +16636,13 @@ numéro affiché dans le texte d'une page : `<tcxspan tcxhref="0254445050" title
 lien `tel:` conservé pour un poste sans l'extension (fenêtre « application » : pas d'extension). **Non vérifié** : l'extension
 réagit-elle à une balise posée par la page (elle la pose normalement elle-même) ? un clic peut aussi déclencher le lien `tel:`
 (invite du navigateur) — à voir au bureau ; repli si besoin : afficher le numéro en texte pour que l'extension le saisisse seule.
+
+### 05/10/2026 — 0.144.32 — Répondre à un email déplacé dans Outlook
+
+Demande de l'étude : « quand un email est déplacé, permettre d'y répondre quand même ». La réponse dans le fil (`ReplyToItem`) vise
+l'identifiant EWS de l'email relevé dans la boîte ; un email déplacé dans un autre dossier d'Outlook change d'identifiant, Exchange
+répondait `ErrorItemNotFound` et CLAIRE refusait (« n'est plus dans la boîte »). Désormais, sur ce code (ou `ErrorInvalidIdMalformed`),
+`envoyerEmailExchange` refait le même envoi comme **nouvel email** (même objet « RE: … », même destinataire saisi dans la fenêtre, mêmes
+pièces jointes, même boîte d'envoi), sans l'email cité ni le fil Exchange (Outlook regroupe par objet) ; le résultat porte `sansFil` et le
+toast le dit. Sans destinataire, rien ne change (le message d'avant). Piste non faite : retrouver l'email déplacé (FindItem sur toute la
+boîte) pour garder le fil. **Non vérifié avec un vrai Exchange** : point terrain `email-reponse-email-deplace`.
