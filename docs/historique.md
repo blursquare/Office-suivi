@@ -16777,3 +16777,22 @@ trouvée/introuvable toutes les 20 min venait de fenêtres qui n'avaient pas la 
   docxtemplater 3 + pizzip : 5 `<w:br/>` après la dernière ligne) — .docx seulement, l'aperçu à l'écran ne change pas. (2) Fiche : lignes email et
   « Tél. confrère » du confrère en `prop-pleine` (toute la largeur), `.coord-tel-texte` sans retour à la ligne, placeholder du champ « Corriger ou
   ajouter un numéro » (il répétait le numéro de l'annuaire déjà écrit à gauche).
+
+- **0.148.0 — 2026-10-05 19:51 : cocher / décocher les échéances, un seul geste partout** (étude : « revoir la logique entre les widgets de tâches, agenda, Outlook, fiches et dates
+  d'échéances » ; « un bouton pour cocher et décocher comme une tâche » ; « si je coche par erreur puis décoche, le délai jusqu'à la date butoir doit revenir, sinon les
+  rappels ne fonctionnent plus »). **Audit** : (1) `devaliderEcheance` gardait la date d'envoi d'un appel de fonds / projet → l'étape était ancrée sur un jour PASSÉ
+  (« Dépassée », plus aucun rappel J-15/J-10) ; (2) ces deux lignes de la fiche n'avaient aucune case (`sansValidation`) et le projet un bouton à part ; (3) la mention
+  « envoyé » du lieu du rendez-vous Outlook n'était jamais retirée (décochage, date supprimée, « Annuler » d'« Aujourd'hui ») ; (4) « Annuler » d'une tâche ne touchait pas
+  Outlook ; (5) « Confirmer la vente préalable » / « Relancer l'offre » ne cochaient pas l'échéance (la tâche revenait chaque jour) ; (6) une tâche cochée puis décochée
+  restait listée « faite » (historique du jour). **Changements** : `commun/planning.js` — `echeanceValidee(d, 'appelFonds'|'projetEnvoye')` vaut vrai dès qu'une date
+  d'envoi existe (règle d'origine « une date d'envoi saisie vaut envoi fait », désormais structurelle côté poste ET serveur : une date d'envoi ne sert jamais
+  d'échéance) ; `basculerEcheance` / `cocherEcheance` / `devaliderEcheance` (client/20) : cocher un envoi = `marquerEnvoiAujourdhui` (date du jour + agenda), décocher =
+  date effacée (+ `marquerXSelonDate(d, '')`), les autres échéances gardent leur date ; les repères `detectionsNas` / `detectionsAgenda` restent (le décompte déjà rangé
+  ne recoche pas seul) ; `majMentionAgendaEnvoi` / `retirerEnvoiDansAgenda` / `lieuPorteMentionEnvoi` — `POST /api/exchange/rendez-vous/lieu` accepte `retrait: true`
+  (les deux envois à faux : seule la mention part, initiales et confrère gardés ; route désormais injectable pour les tests) ; `renderLigneEcheance` : case ronde
+  `.ech-case` (`role="checkbox"`, `aria-checked`, cochée = verte, offre reçue par le NAS = cochée non cliquable), `opts.envoi` / `opts.ancre` (étape d'envoi pas faite : date et
+  J-n du rendez-vous de signature affichés, `.ech-date-ancre`), plus d'icônes ✓ / ↺ ni de bouton « Projet envoyé » ; « Aujourd'hui » — second geste `valider`
+  (« Offre de prêt reçue », « Vente préalable réalisée »), case de « Confirmer la vente préalable » = échéance cochée (`ECHEANCE_FAIT_MAIN_PAR_TYPE`), `annulerTraiteJour` décoche
+  (`entree.echeance`) et remet la mention d'Outlook, `tachesFaitesAilleurs` ignore un « fait » antérieur à une annulation (`annule` par type). Tests : `echeances-cocher-decocher`
+  (poste), `server/test/rappels-decoche`, `exchange-route` (retrait), `echeances-appel-fonds` mis à jour. **Non vérifié au bureau** : l'écriture réelle dans Outlook (retrait de la
+  mention) ; non repris : les échéances perso et le délai SAFER ne sont pas posés dans l'agenda Outlook (seuls prêt et vente préalable le sont).

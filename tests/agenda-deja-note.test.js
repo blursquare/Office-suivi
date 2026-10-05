@@ -51,7 +51,7 @@ test('envoiAgendaARattraper : un envoi validé sans note dans Outlook (décompte
   assert.equal(app.envoiAgendaARattraper(Object.assign({}, sansNote, { rendezVousSignature: '2026-10-01' }), jour), false);
   assert.equal(app.envoiAgendaARattraper(Object.assign({}, sansNote, { rendezVousSignature: '' }), jour), false);
   assert.equal(app.envoiAgendaARattraper(Object.assign({}, sansNote, { archive: true }), jour), false);
-  assert.equal(app.envoiAgendaARattraper(Object.assign({}, sansNote, { echeancesValidees: {} }), jour), false);
+  assert.equal(app.envoiAgendaARattraper(Object.assign({}, sansNote, { echeancesValidees: {}, appelFonds: null }), jour), false);
 });
 
 test('validerEcheance : appel de fonds ou projet marqué fait à la main → noté dans le lieu du rendez-vous (auto) ; une autre échéance, non', () => {

@@ -77,8 +77,10 @@ test('toutesEcheances : appel de fonds, puis projet envoyé, puis signature', ()
   // c'est lui qu'on rappelle, même si le rendez-vous est déjà fixé ; une fois fait, c'est
   // l'envoi du projet d'acte (ajouté après coup, voir agendaWatch.js) ; une fois le projet
   // envoyé, la signature.
-  const d = { appelFonds: '2026-11-20', rendezVousSignature: '2026-12-05' };
+  // (Une date d'envoi saisie vaut envoi fait : l'étape à faire n'a jamais de date propre, c'est le rendez-vous qui l'ancre.)
+  const d = { rendezVousSignature: '2026-12-05' };
   assert.deepEqual(toutesEcheances(d).map((e) => e.type), ['appelFonds']);
+  assert.equal(toutesEcheances(d)[0].iso, '2026-12-05');
 
   const faitAppel = { ...d, echeancesValidees: { appelFonds: true } };
   const apresAppel = toutesEcheances(faitAppel);
@@ -145,7 +147,7 @@ test('calculerRappelsDus : l appel de fonds part a J-15 et J-10, pas a J-7', () 
   // seul, ce qui isole ses seuils propres.
   const d = {
     id: 'd1', nom: 'X / Y', responsable: 'Julie VASSELIN',
-    offrePretStatut: 'recue', appelFonds: '2026-11-11'
+    offrePretStatut: 'recue', rendezVousSignature: '2026-11-11'
   };
   assert.equal(calculerRappelsDus([d], '2026-10-27', new Set()).length, 1); // J-15
   assert.equal(calculerRappelsDus([d], '2026-11-01', new Set()).length, 1); // J-10
@@ -441,7 +443,7 @@ test('echeanceValidee : un rendez-vous fixé clôt la date butoir', () => {
 test('toutesEcheances : la date butoir ne figure JAMAIS au planning, dans l\'ordre métier du dossier', () => {
   const d = {
     ventebien: '2026-08-01', pret: '2026-09-01', acte: '2026-10-01',
-    appelFonds: '2026-09-25', rendezVousSignature: '2026-10-06'
+    rendezVousSignature: '2026-10-06'
   };
   assert.equal(
     toutesEcheances(d).map((e) => e.type).join(','),
@@ -451,7 +453,7 @@ test('toutesEcheances : la date butoir ne figure JAMAIS au planning, dans l\'ord
   const sansRdv = Object.assign({}, d, { rendezVousSignature: '' });
   assert.equal(
     toutesEcheances(sansRdv).map((e) => e.type).join(','),
-    'ventebien,pret,appelFonds'
+    'ventebien,pret'
   );
 });
 

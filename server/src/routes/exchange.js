@@ -394,7 +394,9 @@ function creerRouteurExchange(parametresRepo, injections = {}) {
     if (!reference) {
       return res.status(400).json({ ok: false, message: 'Nom du dossier manquant.' });
     }
-    if (!etat.appelFonds && !etat.projet) {
+    // `retrait` : l'envoi a été décoché dans CLAIRE, la mention « envoyé » doit quitter le lieu (rien d'autre n'est touché).
+    const retrait = b.retrait === true && !etat.appelFonds && !etat.projet;
+    if (!etat.appelFonds && !etat.projet && !retrait) {
       return res.status(400).json({ ok: false, message: "Rien à noter dans l'agenda." });
     }
     const { debutUtc, finUtc } = fenetreJourneeParis(date);
@@ -404,7 +406,7 @@ function creerRouteurExchange(parametresRepo, injections = {}) {
     const trouve = await trouverRendezVousExchange({
       url: reglages.url, email: reglages.email, motDePasse: reglages.motDePasse,
       debutUtc, finUtc, mailbox: reglages.calendrierPartage
-    });
+    }, injections);
     if (!trouve.ok) {
       return res.json({ ok: false, message: trouve.message });
     }
@@ -426,13 +428,13 @@ function creerRouteurExchange(parametresRepo, injections = {}) {
     const evt = candidats[0];
     const nouveauLieu = composerLieuAgenda(evt.location, etat);
     if (nouveauLieu === (evt.location || '')) {
-      return res.json({ ok: true, message: 'Le rendez-vous portait déjà cette mention dans l\'agenda.' });
+      return res.json({ ok: true, message: retrait ? 'Aucune mention d\'envoi à retirer dans l\'agenda.' : 'Le rendez-vous portait déjà cette mention dans l\'agenda.' });
     }
     const maj = await mettreAJourLieuExchange({
       url: reglages.url, email: reglages.email, motDePasse: reglages.motDePasse,
       itemId: evt.itemId, changeKey: evt.changeKey, lieu: nouveauLieu
-    });
-    res.json({ ok: !!maj.ok, message: maj.ok ? ('Agenda mis à jour : « ' + nouveauLieu + ' ».') : maj.message });
+    }, injections);
+    res.json({ ok: !!maj.ok, message: maj.ok ? (retrait ? 'Agenda mis à jour : mention d\'envoi retirée.' : 'Agenda mis à jour : « ' + nouveauLieu + ' ».') : maj.message });
   });
 
   // Dates butoir (obtention du prêt, vente préalable) tenues dans le calendrier partagé — voir

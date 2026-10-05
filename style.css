@@ -6475,7 +6475,7 @@ wa-button.rappel-perso-modif:hover { color: var(--focus); }
 /* ---- Fiche › Échéances : une ligne par étape (voir renderLigneEcheance) ---- */
 .ech-liste { list-style: none; margin: 0; padding: 0; }
 .ech {
-  display: grid; grid-template-columns: 12px minmax(0, 1fr) auto 96px auto; align-items: center;
+  display: grid; grid-template-columns: 20px minmax(0, 1fr) auto 96px auto; align-items: center;
   column-gap: 12px; row-gap: 2px; padding: 8px 6px; border-radius: var(--rayon-m);
 }
 .ech > * { min-width: 0; }
@@ -6484,6 +6484,27 @@ wa-button.rappel-perso-modif:hover { color: var(--focus); }
 /* Pastille : un anneau tant que l'étape est à venir, pleine une fois faite. */
 .ech-pastille .dot { width: 9px; height: 9px; }
 .ech:not(.fait) .ech-pastille .dot { background: transparent; box-shadow: inset 0 0 0 2px currentColor; }
+/* Case ronde cocher / décocher (même geste que la tâche d'« Aujourd'hui », voir .ja-case-ronde) : cerclée de la couleur de l'étape,
+   la coche apparaît au survol, pleine et verte une fois l'étape faite. */
+.ech-pastille { display: inline-flex; align-items: center; justify-content: center; }
+.ech button.ech-case {
+  width: 20px; height: 20px; flex: none; padding: 0; margin: 0; box-sizing: border-box;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 1.75px solid currentColor; border-radius: 50%; background: var(--paper-card);
+  color: inherit; font-size: var(--texte-xs); cursor: pointer; transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+.ech button.ech-case svg { opacity: 0; color: var(--success); transition: opacity 0.15s ease; }
+.ech button.ech-case:hover { border-color: var(--success); }
+.ech button.ech-case:hover svg { opacity: 1; }
+.ech button.ech-case:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.ech button.ech-case.cochee { background: var(--success); border-color: var(--success); }
+.ech button.ech-case.cochee svg { opacity: 1; color: var(--on-accent); }
+.ech button.ech-case.cochee:hover { background: transparent; }
+.ech button.ech-case.cochee:hover svg { color: var(--success); }
+.ech button.ech-case:disabled { cursor: default; }
+.ech button.ech-case.cochee:disabled:hover { background: var(--success); }
+.ech button.ech-case.cochee:disabled:hover svg { color: var(--on-accent); }
+.ech-date.ech-date-ancre { color: var(--muted); }
 .ech-nom-cell { display: inline-flex; align-items: center; gap: 4px; }
 .ech-nom { font-size: var(--texte-base); font-weight: 500; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ech-nom.ech-nom-fort { font-weight: 700; }
@@ -6523,7 +6544,7 @@ wa-button.ech-ico.ech-ico-suppr:hover { color: var(--urgent); }
 @media (prefers-reduced-motion: reduce) { .ech-actions { transition: none; } }
 /* Étroit : l'état passe sous la date, les gestes restent à droite. */
 @media (max-width: 600px) {
-  .ech { grid-template-columns: 12px minmax(0, 1fr) auto auto; grid-template-areas: "p n d a" "p n e a"; }
+  .ech { grid-template-columns: 20px minmax(0, 1fr) auto auto; grid-template-areas: "p n d a" "p n e a"; }
   .ech > .ech-pastille { grid-area: p; }
   .ech > .ech-nom-cell { grid-area: n; }
   .ech > .ech-date-cell { grid-area: d; }

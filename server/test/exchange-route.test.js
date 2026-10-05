@@ -22,7 +22,9 @@ let db, serveurApp, baseUrl, jeton;
 // Faux transport EWS (modification d'un rendez-vous) : garde la dernière requête, répond `reponseEws`.
 const envoisEws = [];
 let reponseEws = '';
-const fauxPoster = (opts, cb) => { envoisEws.push(opts.body); cb(null, { statusCode: 200, body: reponseEws }); };
+// `fileReponsesEws` : réponses à la suite (FindItem puis UpdateItem), à défaut `reponseEws`.
+const fileReponsesEws = [];
+const fauxPoster = (opts, cb) => { envoisEws.push(opts.body); cb(null, { statusCode: 200, body: fileReponsesEws.length ? fileReponsesEws.shift() : reponseEws }); };
 
 before(async () => {
   db = ouvrirDb(':memory:');
@@ -293,4 +295,30 @@ test('POST /api/exchange/evenement/modifier : catégories remplacées (couleur),
   assert.match(envoisEws[envoisEws.length - 1], /<t:DeleteItemField><t:FieldURI FieldURI="item:Categories"\/><\/t:DeleteItemField>/);
   await poster({ itemId: 'ID9', date: '2026-10-07', heure: '14:00', heureFin: '15:00' });
   assert.doesNotMatch(envoisEws[envoisEws.length - 1], /Categories/, 'catégories non envoyées : non touchées');
+});
+
+test('POST /api/exchange/rendez-vous/lieu : « retrait » enlève la mention d\'envoi du lieu (envoi décoché), sans rien ajouter', async () => {
+  await appeler('/api/exchange/reglages', { method: 'PUT', body: JSON.stringify({ actif: true, email: 'notaire@gossart.notaires.fr', motDePasse: 'SECRET123' }) });
+  const trouve = (lieu) => '<m:FindItemResponse><m:ResponseMessages><m:FindItemResponseMessage ResponseClass="Success"><m:ResponseCode>NoError</m:ResponseCode><m:RootFolder><t:Items>'
+    + '<t:CalendarItem><t:ItemId Id="RDV1" ChangeKey="CK1"/><t:Subject>VTE - DUPONT / MARTIN</t:Subject><t:Location>' + lieu + '</t:Location></t:CalendarItem>'
+    + '</t:Items></m:RootFolder></m:FindItemResponseMessage></m:ResponseMessages></m:FindItemResponse>';
+  const maj = '<m:UpdateItemResponseMessage ResponseClass="Success"><m:ResponseCode>NoError</m:ResponseCode><t:ItemId Id="RDV1" ChangeKey="CK2"/>';
+  const envoyer = (corps) => appeler('/api/exchange/rendez-vous/lieu', { method: 'POST', body: JSON.stringify(Object.assign({ date: '2026-10-14', reference: 'DUPONT / MARTIN', appelFonds: false, projet: false }, corps)) });
+
+  // Sans « retrait », rien à noter : toujours refusé.
+  assert.equal((await envoyer({})).status, 400);
+
+  fileReponsesEws.push(trouve('BA - Me DURAND en 2nd - Appel de fonds et projet envoyé'), maj);
+  const r = await (await envoyer({ retrait: true })).json();
+  assert.equal(r.ok, true, JSON.stringify(r));
+  assert.match(r.message, /retirée/);
+  assert.match(envoisEws[envoisEws.length - 1], /<t:Location>BA - Me DURAND en 2nd<\/t:Location>/, 'initiales et confrère gardés, mention partie');
+
+  // Lieu sans mention : aucun UpdateItem.
+  const avant = envoisEws.length;
+  fileReponsesEws.push(trouve('BA - Me DURAND en 2nd'));
+  const rien = await (await envoyer({ retrait: true })).json();
+  assert.equal(rien.ok, true);
+  assert.match(rien.message, /Aucune mention/);
+  assert.equal(envoisEws.length, avant + 1, 'une lecture, aucune écriture');
 });

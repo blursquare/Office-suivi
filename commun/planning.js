@@ -10,6 +10,10 @@
     if (type === 'fixerRdv') return !!d.rendezVousSignature;
     if (type === 'pret') return d.offrePretStatut === 'recue' || !!(d.echeancesValidees && d.echeancesValidees.pret);
     if (type === 'acte') return !!d.rendezVousSignature || !!(d.echeancesValidees && d.echeancesValidees.acte);
+    // Appel de fonds / projet : la date saisie EST la date d'envoi, elle vaut envoi fait (étude : « une date d'envoi saisie vaut
+    // envoi fait »). Une date d'envoi sans case cochée ne doit jamais servir d'échéance : elle est dans le passé, le délai
+    // jusqu'au rendez-vous (et les rappels qui en partent) ne reviendrait pas après un décochage.
+    if ((type === 'appelFonds' || type === 'projetEnvoye') && d[type]) return true;
     return !!(d.echeancesValidees && d.echeancesValidees[type]);
   }
 

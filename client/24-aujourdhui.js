@@ -122,7 +122,9 @@
               contexte: `Butoir ${courtDateJour(d.pret)}${j < 0 ? ` (dépassé de ${-j} j)` : ''}. ${constat}${relance}${dest ? '' : " Email de l'acquéreur non renseigné."}`,
               jours: j, gravite: j <= 7 ? 'critique' : 'vigilance',
               geste: dest ? { type: 'email', motif: 'pret' } : { type: 'fiche' },
-              bouton: dest ? 'Ouvrir la relance' : 'Ouvrir la fiche'
+              bouton: dest ? 'Ouvrir la relance' : 'Ouvrir la fiche',
+              // Offre reçue par un autre canal : l'échéance se coche d'ici, comme sur la fiche (décochable).
+              second: { type: 'valider', champ: 'pret', libelle: 'Offre de prêt reçue', fait: 'Offre de prêt notée reçue' }
             });
           } else {
             const prochaine = addDays(d.derniereRelanceAuto, JOURS_ENTRE_RELANCES_OFFRE);
@@ -232,7 +234,8 @@
             type: 'ventePrealable', categorie: 'ventebien', categorieLabel: 'Vente préalable',
             titre: 'Relancer la vente préalable', contexte: p.detail + (notaireParticipantRepresenteAcquereur(d) ? ' — email au confrère.' : ' — email au client.'),
             jours: p.jours, gravite: p.gravite,
-            geste: { type: 'email', motif: 'ventePrealable' }, bouton: 'Ouvrir l’email'
+            geste: { type: 'email', motif: 'ventePrealable' }, bouton: 'Ouvrir l’email',
+            second: { type: 'valider', champ: 'ventebien', libelle: 'Vente préalable réalisée', fait: 'Vente préalable notée réalisée' }
           });
           continue;
         }
@@ -363,9 +366,11 @@
   // tâche de « À faire », et seulement quand la tâche n'est plus due.
   var TACHES_JOUR_PAR_TYPE = {
     appelFonds: { titre: 'Envoyer l’appel de fonds', categorie: 'appelFonds',
-      re: /^(Appel de fonds marqué réalisé|Envoi de l’appel de fonds noté automatiquement|Envoi appel de fonds relevé dans l’agenda|Envoi appel de fonds marquée réalisée)/ },
+      re: /^(Appel de fonds marqué réalisé|Envoi de l’appel de fonds noté automatiquement|Envoi appel de fonds relevé dans l’agenda|Envoi appel de fonds marquée réalisée)/,
+      annule: /^(Envoi appel de fonds : validation annulée|Envoi de l’appel de fonds : noté par erreur, annulé|Envoyer l’appel de fonds : « déjà fait » annulé|Tâche du jour « Envoyer l’appel de fonds » : « fait » annulé)/ },
     projetEnvoye: { titre: 'Envoyer le projet d’acte', categorie: 'projetEnvoye',
-      re: /^(Projet d’acte envoyé marqué réalisé|Envoi projet relevé dans l’agenda|Envoi projet marquée réalisée|Email envoyé — projet d’acte)/ },
+      re: /^(Projet d’acte envoyé marqué réalisé|Envoi projet relevé dans l’agenda|Envoi projet marquée réalisée|Email envoyé — projet d’acte)/,
+      annule: /^(Envoi projet : validation annulée|Envoi du projet : noté par erreur, annulé|Envoyer le projet d’acte : « déjà fait » annulé|Tâche du jour « Envoyer le projet d’acte » : « fait » annulé)/ },
     pret: { titre: 'Relancer l’offre de prêt', categorie: 'pret',
       re: /^(Relance manuelle envoyée — offre de prêt|Relance automatique ouverte)/ },
     fonds: { titre: 'Confirmer la réception des fonds', categorie: 'appelFonds',
@@ -373,7 +378,8 @@
     rib: { titre: 'Demander le RIB et la pièce d’identité', categorie: 'rendezVousSignature',
       re: /^Relance manuelle envoyée — RIB/ },
     ventePrealable: { titre: 'Relancer la vente préalable', categorie: 'ventebien',
-      re: /^(Relance envoyée — vente préalable|Vente préalable marquée réalisée)/ },
+      re: /^(Relance envoyée — vente préalable|Vente préalable marquée réalisée)/,
+      annule: /^(Vente préalable : validation annulée|Relancer la vente préalable : « déjà fait » annulé)/ },
     questionnaire: { titre: 'Envoyer le questionnaire de satisfaction', categorie: 'neutre',
       re: /^Questionnaire de satisfaction envoyé/ }
   };
@@ -391,12 +397,15 @@
   function tachesFaitesAilleurs(dossiersPerimetre, utilisateur, aujourdhuiIso, clesDues, clesIci) {
     const pad2 = (n) => String(n).padStart(2, '0');
     const parCle = new Map();
+    const annulees = new Map();
     for (const d of dossiersPerimetre || []) {
       for (const e of (d && d.historique) || []) {
         if (!e || typeof e.texte !== 'string') continue;
         const dt = new Date(e.date);
         if (isNaN(dt) || `${dt.getFullYear()}-${pad2(dt.getMonth() + 1)}-${pad2(dt.getDate())}` !== aujourdhuiIso) continue;
         for (const [type, t] of Object.entries(TACHES_JOUR_PAR_TYPE)) {
+          // Coché puis décoché (par erreur) : le « fait » plus ancien que l'annulation ne compte plus.
+          if (t.annule && t.annule.test(e.texte)) { annulees.set(`${d.id}:${type}`, dt.getTime()); continue; }
           const noteeALaMain = e.texte.indexOf(t.titre + ' : noté fait') === 0 || e.texte.indexOf(`Tâche du jour « ${t.titre} »`) === 0;
           if (!t.re.test(e.texte) && !noteeALaMain) continue;
           const cle = `${d.id}:${type}`;
@@ -411,7 +420,8 @@
         }
       }
     }
-    return [...parCle.values()].sort((a, b) => b.t - a.t);
+    // Une annulation (« validation annulée », « noté par erreur, annulé ») postérieure au « fait » le retire : la tâche est de nouveau à faire.
+    return [...parCle.values()].filter(x => !(annulees.has(x.cle) && annulees.get(x.cle) >= x.t)).sort((a, b) => b.t - a.t);
   }
 
   // Les actions du jour telles que les écrans les montrent : sans celles reportées à demain.
@@ -536,6 +546,11 @@
       noterTraite(a, texte, { champ: geste.champ, precedent });
       marquerEnvoiAujourdhui(id, geste.champ);
       afficherToast(`${texte} — ${libelleDossierAffiche(a.dossier)}.`, 'Annuler', () => annulerTraiteJour(cle));
+    } else if (geste.type === 'valider') {
+      // Cocher l'échéance elle-même (même geste que la case de la fiche) ; « Annuler » la décoche.
+      noterTraite(a, geste.fait, { echeance: geste.champ });
+      cocherEcheance(id, geste.champ);
+      afficherToast(`${geste.fait} — ${libelleDossierAffiche(a.dossier)}.`, 'Annuler', () => annulerTraiteJour(cle));
     } else if (geste.type === 'appelFonds') {
       fermerFenetreAujourdhui();
       preparerAppelFondsDepuisDossier(id);
@@ -584,9 +599,23 @@
     ventePrealable: 'relanceVentePrealableLe', relanceFonds: 'relanceFondsLe'
   };
 
+  // Tâches qui SONT une échéance du dossier : la case ronde coche l'échéance (même geste que sur la fiche, décochable par « Annuler »),
+  // au lieu de ne laisser qu'une trace dans le journal — la tâche revenait chaque jour tant que l'échéance restait ouverte.
+  var ECHEANCE_FAIT_MAIN_PAR_TYPE = {
+    'point-confirmer-la-vente-prealable': { champ: 'ventebien', fait: 'Vente préalable notée réalisée' }
+  };
+
   function marquerFaitJour(cle) {
     const a = trouverActionJour(cle);
     if (!a) return;
+    const echeance = ECHEANCE_FAIT_MAIN_PAR_TYPE[a.type];
+    if (echeance) {
+      noterTraite(a, echeance.fait, { echeance: echeance.champ });
+      cocherEcheance(a.dossier.id, echeance.champ);
+      apercusJour.delete(cle);
+      afficherToast(`${echeance.fait} — ${libelleDossierAffiche(a.dossier)}.`, 'Annuler', () => annulerTraiteJour(cle));
+      return;
+    }
     const champ = CHAMP_FAIT_MAIN_PAR_TYPE[a.type];
     const d = champ ? dossiers.find(x => x.id === a.dossier.id) : null;
     const annulation = { manuel: true };
@@ -662,7 +691,14 @@
         else marquerAppelFondsSelonDate(d, d.appelFonds);
         ajouterHistorique(d, `${entree.champ === 'projetEnvoye' ? 'Envoi du projet' : 'Envoi de l’appel de fonds'} : noté par erreur, annulé`);
         sauvegarder(d);
+        // La mention « envoyé » du lieu du rendez-vous Outlook suit (retirée, ou remise si l'envoi d'avant était fait).
+        majMentionAgendaEnvoi(d.id, true);
       }
+    }
+    // Échéance cochée depuis une tâche (offre reçue, vente préalable réalisée) : la même case, décochée — le délai revient.
+    if (entree && entree.echeance) {
+      const d = dossiers.find(x => x.id === entree.dossierId);
+      if (d && echeanceValidee(d, entree.echeance)) devaliderEcheance(d.id, entree.echeance);
     }
     render();
   }
@@ -805,7 +841,7 @@
           <span class="ja-titre">${escapeHtml(t.titre)}</span>
           <span class="ja-sous">${escapeHtml(libelleDossierParNom(t.dossier, t.dossierId))} · ${escapeHtml(t.etat)} · ${escapeHtml(t.heure)}</span>
         </span>
-        ${t.etat === 'Reporté à demain' || t.champ || t.manuel ? `<button type="button" class="lien-discret ja-annuler" onclick="annulerTraiteJour('${escapeOnclickArg(t.cle)}')">Annuler</button>` : ''}
+        ${t.etat === 'Reporté à demain' || t.champ || t.manuel || t.echeance ? `<button type="button" class="lien-discret ja-annuler" onclick="annulerTraiteJour('${escapeOnclickArg(t.cle)}')">Annuler</button>` : ''}
         ${t.courrier ? `<button type="button" class="lien-discret ja-annuler" onclick="ouvrirCourrierAppelFonds('${escapeOnclickArg(t.dossierId)}')">Voir le courrier</button>` : ''}
       </li>`).join('');
   }

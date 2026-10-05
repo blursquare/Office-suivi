@@ -285,6 +285,11 @@ dans `index.html`** (le test `structure-client` refuse tout décalage).
   (30/09) : section « Nouveau » (ex-« À voir en premier ») en tête (`signauxDossierSuivi`, `partagerAVoirSuivi`) —
   notifications (`piecesNotifications` : offre, pièces nommées) puis fonds tous reçus non confirmés ;
   le dossier en sort à l'ouverture de sa fiche, sans doublon dans la suite de la liste. **Colonnes, partout dans le Suivi** (vue Échéances, vue Tableau, « Nouveau », « Archivés » ; étude 01/10) : Date, Dossier, Échéance, Resp., Statut — `COLGROUP_SUIVI`/`ENTETE_SUIVI`, mêmes largeurs ; plus de colonne « Offre de prêt » en vue Tableau ; responsable en **initiales dans une pastille ronde** (`pastilleCollaborateur`, étude 01/10) ; bouton « Scanner le commun » (ex-« Revérifier tous les dossiers », `reverifierTousLesDossiers`) ; `statutDossier` (pièces trouvées) ne sert plus qu'aux points « À traiter ».
+- **Cocher / décocher une échéance** (étude 05/10, `basculerEcheance`, case ronde `.ech-case` sur chaque ligne de la fiche, même geste que la tâche d'« Aujourd'hui ») :
+  cocher un **envoi** (appel de fonds, projet) = date d'envoi du jour (`echeanceValidee` y est vrai dès qu'une date existe, poste ET serveur) ; **décocher = effacer cette
+  date** — l'étape redevient due avant le rendez-vous de signature et son délai J-n, donc ses rappels, reviennent ; les autres échéances (prêt, vente préalable, butoir,
+  perso, signature) gardent leur date, seule la coche tombe. La mention « envoyé » du lieu du rendez-vous Outlook suit (`majMentionAgendaEnvoi`, `retrait: true`) ; l'événement
+  Outlook du prêt / de la vente préalable est retiré à la coche et reposé à la décoche. Un nouveau chemin qui coche une échéance passe par `cocherEcheance` / `devaliderEcheance`.
 - **Seuils des rappels email** : prêt J-15/J-7, vente préalable J-15/J-7, appel de fonds J-15/J-10,
   signature J-25/J-15, personnalisées J-15/J-7 (`SEUILS_RAPPELS_PAR_TYPE`).
 - **Relance de l'offre de prêt au client** : première à J-15, puis tous les 10 jours, y compris

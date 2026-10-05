@@ -2401,6 +2401,8 @@
       sauvegarder(d);
       render();
       if (type === 'pret' || type === 'ventebien') synchroniserEcheanceAgenda(d, type, false);
+      // Envoi supprimé : la mention « envoyé » du lieu du rendez-vous s'efface (ou se réduit à l'autre envoi).
+      if (type === 'appelFonds' || type === 'projetEnvoye') majMentionAgendaEnvoi(d.id, true);
       if (retraitAgenda) retirerRdvDeAgenda(d, ancienne);
     });
   }

@@ -1385,14 +1385,11 @@
         const note = (detecte ? '<span class="ech-note">Relevé dans l’agenda</span>'
           : nas ? '<span class="ech-note">Noté automatiquement : courrier trouvé sur le NAS</span>' : '')
           + (cle === 'appelFonds' ? renderLienCourrierAppelFonds(d) : '');
-        // « Projet envoyé » (demandé par l'étude le 30/09) : un clic note l'envoi à la date du jour,
-        // même effet que la date saisie (agenda compris, voir marquerEnvoiAujourdhui).
-        const action = cle === 'projetEnvoye' && !iso
-          ? { libelle: 'Projet envoyé', onclick: `marquerEnvoiAujourdhui('${d.id}','projetEnvoye')`, titre: 'Noter le projet d’acte envoyé aujourd’hui' }
-          : null;
+        // La case ronde de la ligne note l'envoi à la date du jour (comme « Projet envoyé » / « Déjà envoyé » d'« Aujourd'hui », agenda compris,
+        // voir marquerEnvoiAujourdhui) et le décoche (date effacée, délai et rappels rétablis, mention d'Outlook retirée).
         lignes.push({ iso, html: renderLigneEcheance(cle, label, iso, d.id, null, null, null, false,
           note, false,
-          iso ? true : echeanceValidee(d, cle), { etatSansDate: 'À envoyer', etatFait: '✓ Envoyé', sansValidation: true, action }) });
+          echeanceValidee(d, cle), { etatSansDate: 'À envoyer', etatFait: '✓ Envoyé', envoi: true, ancre: d.rendezVousSignature || '' }) });
       });
     }
     const aReplacer = !d.rendezVousSignature && d.rendezVousARemplacer && d.rendezVousARemplacer.date ? d.rendezVousARemplacer : null;
@@ -1620,15 +1617,89 @@
     }
   }
 
+  // Cocher / décocher une échéance, UN seul geste partout (fiche, « Aujourd'hui », encadré « Prochaine étape ») — étude 05/10 :
+  // « un bouton pour cocher et décocher comme une tâche ». Cocher un appel de fonds ou un projet = noter l'envoi à la date du jour
+  // (la date EST la validation) ; décocher = effacer cette date : l'échéance retrouve son ancrage (le rendez-vous de signature) et
+  // avec lui son délai J-n, donc ses rappels. Les autres échéances (prêt, vente préalable, butoir, perso, signature) gardent leur
+  // date, seule la coche tombe.
+  var TYPES_ENVOI_ECHEANCE = ['appelFonds', 'projetEnvoye'];
+
+  function basculerEcheance(id, type) {
+    const d = dossiers.find(x => x.id === id);
+    if (!d) return;
+    if (echeanceValidee(d, type)) devaliderEcheance(id, type); else cocherEcheance(id, type);
+  }
+
+  function cocherEcheance(id, type) {
+    if (TYPES_ENVOI_ECHEANCE.includes(type)) marquerEnvoiAujourdhui(id, type); else validerEcheance(id, type);
+  }
+
   function devaliderEcheance(id, type) {
     const d = dossiers.find(x => x.id === id);
-    if (!d || !d.echeancesValidees) return;
-    delete d.echeancesValidees[type];
+    if (!d) return;
+    const envoi = TYPES_ENVOI_ECHEANCE.includes(type);
+    if (!envoi && !d.echeancesValidees) return;
+    if (envoi) {
+      // La date d'envoi part avec la coche : gardée, elle ferait de « il y a trois jours » l'échéance de l'étape (dépassée, plus
+      // aucun rappel). Le repère du NAS / de l'agenda (detectionsNas, detectionsAgenda) reste, pour que le décompte déjà rangé
+      // ne recoche pas l'étape tout seul.
+      d[type] = '';
+      if (type === 'projetEnvoye') marquerProjetEnvoyeSelonDate(d, ''); else marquerAppelFondsSelonDate(d, '');
+    } else {
+      delete d.echeancesValidees[type];
+    }
     ajouterHistorique(d, `${libelleEcheancePourHistorique(d, type)} : validation annulée`);
     sauvegarder(d);
     render();
     // Geste de l'étude sur cette échéance : elle redevient à suivre, on la repose dans l'agenda.
     synchroniserEcheanceAgenda(d, type, true);
+    // La mention « envoyé » du lieu du rendez-vous suit : retirée (ou réduite à ce qui reste fait).
+    if (envoi) majMentionAgendaEnvoi(id, true);
+  }
+
+  // Le lieu du rendez-vous de signature dans Outlook dit « Appel de fonds [et projet] envoyé » tant qu'un envoi est coché : il doit
+  // se corriger quand on décoche, supprime la date ou annule un « fait » par erreur (sinon un collègue lit un envoi qui n'a pas eu lieu).
+  async function majMentionAgendaEnvoi(id, silencieux) {
+    const d = dossiers.find(x => x.id === id);
+    if (!d || !d.rendezVousSignature) return;
+    if (echeanceValidee(d, 'appelFonds') || echeanceValidee(d, 'projetEnvoye')) { await noterEnvoiDansAgenda(id, true, silencieux); return; }
+    await retirerEnvoiDansAgenda(id, silencieux);
+  }
+
+  // Le lieu relevé dans l'agenda porte-t-il une mention d'envoi (écrite par CLAIRE ou à la main) ? Pure.
+  function lieuPorteMentionEnvoi(d) {
+    if (!d || !d.rendezVousSignatureLieu) return false;
+    const rep = d.detectionsAgenda || {};
+    if (rep.rendezVousSignature !== d.rendezVousSignature) return false;
+    const lieu = normaliserPourRecherche(d.rendezVousSignatureLieu).replace(/[^a-z0-9]+/g, ' ');
+    return /\benvoye/.test(lieu) && /\b(appel de fonds?|projets?)\b/.test(lieu);
+  }
+
+  // Un seul essai, sans toast d'échec en mode silencieux (l'échec reste visible sur la fiche, « Noter dans l'agenda »).
+  async function retirerEnvoiDansAgenda(id, silencieux) {
+    const d = dossiers.find(x => x.id === id);
+    if (!d || !d.rendezVousSignature || !exchangeAgendaPret()) return;
+    if (!d.agendaLieuNoteLe && !lieuPorteMentionEnvoi(d)) return;
+    try {
+      const reponse = await fetchAvecAuth('/api/exchange/rendez-vous/lieu', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ date: d.rendezVousSignature, reference: d.nom, appelFonds: false, projet: false, retrait: true })
+      });
+      const corps = await reponse.json();
+      if (corps.ok) {
+        d.agendaLieuNoteLe = null;
+        d.agendaLieuEchec = null;
+        ajouterHistorique(d, 'Mention d’envoi retirée du lieu du rendez-vous dans l’agenda Outlook (envoi décoché).');
+        sauvegarder(d);
+        render();
+        if (!silencieux) afficherToast(corps.message || 'Agenda mis à jour.', 'OK', null);
+      } else if (!silencieux) {
+        afficherToast(`Mention d’envoi non retirée de l’agenda (${libelleDossierAffiche(d)}) : ${corps.message || 'échec'} — à corriger à la main dans Outlook.`, 'OK', null);
+      }
+    } catch (e) {
+      if (!silencieux) afficherToast('Serveur injoignable — la mention reste dans l’agenda Outlook, à retirer à la main.', 'OK', null);
+    }
   }
 
   // Échange le contenu de deux échéances fixes d'un dossier (aucune perte de données : si la

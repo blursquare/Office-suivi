@@ -87,41 +87,45 @@ test('renderLigneEcheance : croix de suppression et bouton de validation présen
   const app = chargerApplication();
   const htmlAppelFonds = app.renderLigneEcheance('appelFonds', 'Appel de fonds', '2099-11-20', 'd1', null, null, null, false, '', false, false);
   assert.match(htmlAppelFonds, /supprimerDateEcheance\('d1', 'appelFonds'\)/);
-  assert.match(htmlAppelFonds, /validerEcheance\('d1','appelFonds'\)/);
+  assert.match(htmlAppelFonds, /basculerEcheance\('d1','appelFonds'\)/);
+  assert.match(htmlAppelFonds, /aria-checked="false"/);
   assert.match(htmlAppelFonds, /Marquer réalisée/);
 
   const htmlRdv = app.renderLigneEcheance('rendezVousSignature', 'Rendez-vous de signature', '2026-12-01', 'd1', null, null, null, false, '', false, true);
   assert.match(htmlRdv, /supprimerDateEcheance\('d1', 'rendezVousSignature'\)/);
-  assert.match(htmlRdv, /devaliderEcheance\('d1','rendezVousSignature'\)/);
-  assert.match(htmlRdv, /Annuler la validation/);
+  assert.match(htmlRdv, /basculerEcheance\('d1','rendezVousSignature'\)/);
+  assert.match(htmlRdv, /aria-checked="true"/);
+  assert.match(htmlRdv, /cliquer pour décocher/);
 });
 
 test('renderLigneEcheance : le bouton de validation utilise la clé "autre-N" pour une échéance personnalisée', () => {
   const app = chargerApplication();
   const html = app.renderLigneEcheance('autre', 'Diagnostic amiante', '2026-10-01', 'd1', null, null, 2, false, '', false, false);
-  assert.match(html, /validerEcheance\('d1','autre-2'\)/);
+  assert.match(html, /basculerEcheance\('d1','autre-2'\)/);
 });
 
-test('renderLigneEcheance : aucun bouton "Annuler la validation" mort quand le prêt est déjà auto-confirmé reçu', () => {
+test('renderLigneEcheance : la case d\'un prêt dont l\'offre est reçue (NAS) est cochée et non cliquable', () => {
   const app = chargerApplication();
   const html = app.renderLigneEcheance('pret', 'Obtention du prêt', '2026-09-01', 'd1', null, null, null, true, '', false, true);
-  assert.doesNotMatch(html, /devaliderEcheance/);
-  assert.doesNotMatch(html, /validerEcheance/);
+  assert.doesNotMatch(html, /basculerEcheance/);
+  assert.match(html, /class="ech-case cochee"[^>]*aria-checked="true"[^>]*disabled/);
 });
 
 test('renderLigneEcheance : le prêt non encore reçu propose bien "Marquer réalisée" (validation manuelle possible)', () => {
   const app = chargerApplication();
   const html = app.renderLigneEcheance('pret', 'Obtention du prêt', '2026-09-01', 'd1', null, null, null, false, '', false, false);
-  assert.match(html, /validerEcheance\('d1','pret'\)/);
+  assert.match(html, /basculerEcheance\('d1','pret'\)/);
+  assert.match(html, /aria-checked="false"/);
 });
 
 test('tant que l’appel de fonds n’est pas fait, c’est lui que le planning annonce', () => {
   // Règle donnée par l'étude : le rendez-vous a beau être fixé, ce qu'il reste À FAIRE est
   // l'appel de fonds — le planning n'annonce donc qu'une seule chose, celle-là.
   const app = chargerApplication();
-  const d = dossierBase({ appelFonds: '2026-11-20', rendezVousSignature: '2026-12-01' });
+  const d = dossierBase({ rendezVousSignature: '2026-12-01' });
   assert.equal(app.toutesEcheances(d).map((e) => e.type).join(','), 'appelFonds');
   assert.equal(app.prochaineEcheanceDetail(d).type, 'appelFonds');
+  assert.equal(app.prochaineEcheanceDetail(d).iso, '2026-12-01', 'son échéance est le rendez-vous de signature');
 
   // Tout validé, y compris l'étape intermédiaire « projet envoyé » : plus rien à annoncer.
   const validees = Object.assign({}, d, {
@@ -300,7 +304,7 @@ test('rendez-vous fixé : la date butoir devient une précision sous la signatur
   // Sans rendez-vous, la date butoir garde sa ligne et sa validation manuelle.
   const normal = app.echeancesOrdonneesFiche(dossierBase({ acte: '2099-10-01' }), {}, '');
   assert.ok(normal.includes('<span class="ech-nom">Date butoir</span>'));
-  assert.ok(normal.includes("validerEcheance('d1','acte')"));
+  assert.ok(normal.includes("basculerEcheance('d1','acte')"));
   assert.ok(!normal.includes('la date butoir'));
 });
 
@@ -340,14 +344,16 @@ test('envois avant signature : deux lignes, dates et états propres à chacune',
   const vide = app.echeancesOrdonneesFiche(dossierBase({ rendezVousSignature: '2099-12-01' }), {}, '');
   assert.ok(vide.includes('<span class="ech-nom">Envoi appel de fonds</span>'));
   assert.ok(vide.includes('<span class="ech-nom">Envoi projet</span>'));
-  // Appel de fonds : « À envoyer » ; projet : le bouton « Projet envoyé » prend la place de l'état.
-  assert.equal((vide.match(/À envoyer/g) || []).length, 1);
-  assert.ok(vide.includes(`onclick="marquerEnvoiAujourdhui('d1','projetEnvoye')"`));
-  assert.ok(vide.includes('>Projet envoyé</wa-button>'));
+  // Chaque envoi a sa case ronde (même sans date) : un clic note l'envoi d'aujourd'hui, un second le décoche.
+  assert.ok(vide.includes(`onclick="basculerEcheance('d1','appelFonds')"`));
+  assert.ok(vide.includes(`onclick="basculerEcheance('d1','projetEnvoye')"`));
+  assert.ok(!vide.includes('>Projet envoyé</wa-button>'), 'plus de bouton à part : la case le fait');
+  // Pas encore envoyés : l'échéance affichée est celle du rendez-vous de signature, avec son délai J-n.
+  assert.equal((vide.match(/ech-date-ancre/g) || []).length, 2);
+  assert.ok(vide.includes('1 déc. 2099'));
   // Les deux champs de saisie existent, avec les id attendus par validerEditionDate.
   assert.ok(vide.includes('id="tabdate-d1-appelFonds-input"'));
   assert.ok(vide.includes('id="tabdate-d1-projetEnvoye-input"'));
-  // La date EST la validation : pas de « Marquer réalisée » sur un envoi.
   assert.ok(!vide.includes("validerEcheance('d1','appelFonds')"));
 
   const html = app.echeancesOrdonneesFiche(dossierBase({
@@ -358,10 +364,12 @@ test('envois avant signature : deux lignes, dates et états propres à chacune',
   assert.ok(html.includes('title="25 septembre 2026"'));
   assert.ok(html.includes('Relevé dans l’agenda'));
   assert.ok(html.includes('✓ Envoyé'));
-  assert.ok(html.includes('>Projet envoyé</wa-button>'), "l'envoi du projet reste à faire");
-  // Une fois daté, plus de bouton.
+  // Appel de fonds coché ; le projet reste à faire (case vide, échéance du rendez-vous).
+  assert.match(html, /aria-checked="true"[^>]*title="Fait[^"]*"[^>]*aria-label="Fait[^"]*Envoi appel de fonds"/);
+  assert.equal((html.match(/ech-date-ancre/g) || []).length, 1);
+  // Une fois daté, le projet est coché lui aussi.
   const fait = app.echeancesOrdonneesFiche(dossierBase({ rendezVousSignature: '2099-12-01', projetEnvoye: '2026-09-26' }), {}, '');
-  assert.ok(!fait.includes('>Projet envoyé</wa-button>'));
+  assert.equal((fait.match(/class="ech-case cochee"/g) || []).length, 1);
 });
 
 test('etatLigneEcheance : un mot par état', () => {
