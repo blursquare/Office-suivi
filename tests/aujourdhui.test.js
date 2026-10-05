@@ -304,3 +304,38 @@ test('rappelsDuJour : les rappels à venir (échéance datée après aujourd\'hu
   assert.equal(r.aFaire.map(x => x.id).sort().join(','), 'c,d', 'du jour et sans date : inchangé');
   assert.equal(r.faits.length, 0);
 });
+
+test('tâches imbriquées : deux tâches d’un même dossier forment un groupe, au rang de la plus pressante', () => {
+  const a = (id, cle, titre) => ({ cle, titre, type: 'x', categorie: 'appelFonds', gravite: 'normal', dossier: { id, nom: 'NOM ' + id } });
+  const actions = [a('d1', 'k1', 'Envoyer l’appel de fonds'), a('d2', 'k2', 'Relancer'), a('d1', 'k3', 'Envoyer le projet')];
+  const elements = app.grouperActionsParDossier(actions).elements;
+  assert.strictEqual(elements.length, 2);
+  assert.strictEqual(elements[0].groupe.dossier.id, 'd1');
+  assert.strictEqual(elements[0].groupe.actions.map(x => x.cle).join(','), 'k1,k3');
+  assert.strictEqual(elements[1].action.cle, 'k2');
+  // Une seule tâche par dossier : rien n'est regroupé.
+  assert.strictEqual(app.grouperActionsParDossier([actions[0], actions[1]]).elements.filter(e => e.groupe).length, 0);
+  assert.strictEqual(app.grouperActionsParDossier(undefined).elements.length, 0);
+  // Une tâche faite aujourd'hui compte : le groupe reste après la première coche, la tâche faite y est rangée (plus en bas).
+  const faite = { cle: 'k0', titre: 'Envoyer le projet', dossierId: 'd2', dossier: 'VTE - NOM d2', etat: 'Déjà fait', heure: '10 h 00' };
+  const ailleurs = { cle: 'k9', titre: 'Autre', dossierId: 'd9', dossier: 'VTE - NOM d9', etat: 'Déjà fait', heure: '9 h 00' };
+  const r = app.grouperActionsParDossier([actions[1]], [faite, ailleurs]);
+  assert.strictEqual(r.elements[0].groupe.faites[0].cle, 'k0');
+  assert.strictEqual(r.traites.map(t => t.cle).join(','), 'k9');
+});
+
+test('tâches imbriquées : la ligne du groupe porte la case commune et le tiroir des tâches une par une', () => {
+  const d = dossier({ rendezVousSignature: '2026-09-30', sansPret: true });
+  const r = app.actionsDuJour([d], AUJ);
+  assert.ok(r.actions.length >= 2, types(r));
+  const html = app.renderActionsJour(r.actions, false);
+  assert.strictEqual((html.match(/class="ja ja-avec-case ja-groupe/g) || []).length, 1);
+  assert.match(html, /marquerFaitGroupeJour\('d1'\)/);
+  assert.match(html, new RegExp(`${r.actions.length} tâches`));
+  assert.match(html, /ja-groupe-tiroir/);
+  assert.match(html, /ja-sous-liste/);
+  // Dans le tiroir, chaque tâche garde sa case, sans répéter le nom du dossier.
+  const tiroir = html.slice(html.indexOf('ja-sous-liste'));
+  assert.strictEqual((tiroir.match(/ja-case-ronde/g) || []).length, r.actions.length);
+  assert.doesNotMatch(tiroir, /VTE - DUPONT/);
+});

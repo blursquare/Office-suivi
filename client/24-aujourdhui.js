@@ -605,16 +605,17 @@
     'point-confirmer-la-vente-prealable': { champ: 'ventebien', fait: 'Vente préalable notée réalisée' }
   };
 
-  function marquerFaitJour(cle) {
+  // `silencieux` : appelé pour chaque tâche d'un groupe (marquerFaitGroupeJour) — ni rendu ni notification, le groupe s'en charge.
+  function marquerFaitJour(cle, silencieux) {
     const a = trouverActionJour(cle);
-    if (!a) return;
+    if (!a) return false;
     const echeance = ECHEANCE_FAIT_MAIN_PAR_TYPE[a.type];
     if (echeance) {
       noterTraite(a, echeance.fait, { echeance: echeance.champ });
       cocherEcheance(a.dossier.id, echeance.champ);
       apercusJour.delete(cle);
-      afficherToast(`${echeance.fait} — ${libelleDossierAffiche(a.dossier)}.`, 'Annuler', () => annulerTraiteJour(cle));
-      return;
+      if (!silencieux) afficherToast(`${echeance.fait} — ${libelleDossierAffiche(a.dossier)}.`, 'Annuler', () => annulerTraiteJour(cle));
+      return true;
     }
     const champ = CHAMP_FAIT_MAIN_PAR_TYPE[a.type];
     const d = champ ? dossiers.find(x => x.id === a.dossier.id) : null;
@@ -653,9 +654,115 @@
     noterTraite(a, 'Déjà fait', annulation);
     notifierTacheFaite(dossiers.find(x => x.id === a.dossier.id), a.titre, 'notée faite à la main');
     apercusJour.delete(cle);
-    render();
-    afficherToast(`Marqué fait — ${a.titre.toLowerCase()}.`, 'Annuler', () => annulerTraiteJour(cle));
+    if (!silencieux) {
+      render();
+      afficherToast(`Marqué fait — ${a.titre.toLowerCase()}.`, 'Annuler', () => annulerTraiteJour(cle));
+    }
     if (envoiANoter) noterEnvoiDansAgenda(d.id, true);
+    return true;
+  }
+
+  // ---- Tâches imbriquées par dossier (étude 05/10 : « système de tâches imbriqué par dossier — une ligne commune avec une
+  // case qui valide les tâches, et un tiroir qui les déroule une par une ») ----
+  // Pure : la liste d'« À faire » où les tâches d'un MÊME dossier (deux ou plus, en comptant celles déjà faites aujourd'hui —
+  // `traites`, facultatif) sont réunies en un groupe, placé au rang de sa tâche la plus pressante (l'ordre d'actionsDuJour est
+  // gardé). Un groupe garde au moins une tâche à faire : cocher une tâche du tiroir ne le défait pas, elle y reste barrée.
+  // Rend { elements: [{ action }] ou [{ groupe: { dossier, actions, faites } }], traites: ceux qui ne sont dans aucun groupe }.
+  function grouperActionsParDossier(actions, traites) {
+    const parDossier = new Map();
+    for (const a of actions || []) {
+      const id = a && a.dossier && a.dossier.id;
+      if (!id) continue;
+      if (!parDossier.has(id)) parDossier.set(id, []);
+      parDossier.get(id).push(a);
+    }
+    const faitesPar = new Map();
+    for (const t of traites || []) {
+      if (!t || !t.dossierId || !parDossier.has(t.dossierId)) continue;
+      if (!faitesPar.has(t.dossierId)) faitesPar.set(t.dossierId, []);
+      faitesPar.get(t.dossierId).push(t);
+    }
+    const groupes = new Set([...parDossier.keys()].filter(id => parDossier.get(id).length + (faitesPar.get(id) || []).length >= 2));
+    const vus = new Set();
+    const elements = [];
+    for (const a of actions || []) {
+      const id = a && a.dossier && a.dossier.id;
+      if (!id || !groupes.has(id)) { elements.push({ action: a }); continue; }
+      if (vus.has(id)) continue;
+      vus.add(id);
+      elements.push({ groupe: { dossier: a.dossier, actions: parDossier.get(id), faites: faitesPar.get(id) || [] } });
+    }
+    return { elements, traites: (traites || []).filter(t => !(t && groupes.has(t.dossierId))) };
+  }
+
+  // Tiroirs ouverts (par dossier), gardés d'un rendu à l'autre. Basculer ne reconstruit pas la liste : la classe change sur
+  // place, le tiroir s'ouvre en glissant.
+  var groupesOuvertsJour = new Set();
+  function basculerGroupeJour(id) {
+    const ouvrir = !groupesOuvertsJour.has(id);
+    if (ouvrir) groupesOuvertsJour.add(id); else groupesOuvertsJour.delete(id);
+    if (typeof document === 'undefined') return;
+    document.querySelectorAll(`.ja-groupe[data-groupe="${CSS.escape(id)}"]`).forEach(li => {
+      li.classList.toggle('ouvert', ouvrir);
+      const b = li.querySelector('.ja-groupe-ouvrir');
+      if (b) b.setAttribute('aria-expanded', String(ouvrir));
+      const t = li.querySelector('.ja-texte');
+      if (t) t.setAttribute('aria-expanded', String(ouvrir));
+      // Dans une carte du tableau de bord, le tiroir ouvert ne doit pas être coupé : la carte défile.
+      const corps = li.closest('.w-corps');
+      if (corps && ouvrir) corps.classList.add('w-defile');
+    });
+  }
+
+  // La case commune : toutes les tâches du dossier faites d'un geste, défaisables d'un seul « Annuler ».
+  function marquerFaitGroupeJour(id) {
+    const d = dossiers.find(x => x.id === id);
+    const cles = etatAujourdhui().actions.filter(a => a.dossier.id === id).map(a => a.cle);
+    const faites = cles.filter(cle => marquerFaitJour(cle, true));
+    if (!faites.length) return;
+    groupesOuvertsJour.delete(id);
+    render();
+    afficherToast(`${faites.length} tâche${faites.length > 1 ? 's' : ''} faite${faites.length > 1 ? 's' : ''} — ${d ? libelleDossierAffiche(d) : ''}.`, 'Annuler',
+      () => faites.forEach(cle => annulerTraiteJour(cle)));
+  }
+
+  // Le groupe d'un dossier : sa case commune, son nom, ce qu'il reste (une puce par tâche, de la couleur de sa catégorie), le
+  // délai le plus proche ; le tiroir déroule les tâches, chacune avec sa propre case et son geste.
+  function renderGroupeActionsJour(groupe, global) {
+    const { dossier: d, actions } = groupe;
+    const id = escapeOnclickArg(d.id);
+    const ouvert = groupesOuvertsJour.has(d.id);
+    const faites = groupe.faites || [];
+    const premiere = actions[0];
+    const n = actions.length;
+    const total = n + faites.length;
+    const compte = faites.length ? `${faites.length}/${total} faites` : `${n} tâches`;
+    const sous = [global && d.responsable ? prenomCollaborateur(d.responsable) : '', actions.map(a => a.titre).join(' · ')].filter(Boolean).join(' · ');
+    const puces = faites.map(t => `<span class="dot-label dl-success ja-groupe-puce-faite" title="${escapeAttr(`${t.titre} — fait`)}"><span class="dot"></span></span>`).join('')
+      + actions.map(a => `<span class="dot-label dl-${a.categorie || 'neutre'}" title="${escapeAttr(a.titre)}"><span class="dot"></span></span>`).join('');
+    return `
+      <li class="ja ja-avec-case ja-groupe g-${premiere.gravite || 'normal'}${ouvert ? ' ouvert' : ''}" data-groupe="${escapeAttr(d.id)}">
+        <span class="dot-label dl-${premiere.categorie || 'neutre'} ja-case-cadre"><button type="button" class="ja-case-ronde" role="checkbox" aria-checked="false" onclick="marquerFaitGroupeJour('${id}')" title="${n > 1 ? `Tout est fait — valider les ${n} tâches` : 'Valider la dernière tâche'}" aria-label="${escapeAttr(n > 1 ? `Valider les ${n} tâches de ${libelleDossierAffiche(d)}` : `Valider la dernière tâche de ${libelleDossierAffiche(d)}`)}">${icone('check')}</button></span>
+        <button type="button" class="ja-texte" aria-expanded="${ouvert}" onclick="basculerGroupeJour('${id}')" title="Voir les tâches une par une">
+          <span class="ja-titre">${escapeHtml(libelleDossierAffiche(d))} <span class="ja-groupe-compte${faites.length ? ' entame' : ''}">${compte}</span></span>
+          <span class="ja-sous">${escapeHtml(sous)}</span>
+        </button>
+        <span class="ja-delai${premiere.gravite === 'critique' ? ' proche' : ''}">${escapeHtml(delaiAction(premiere))}</span>
+        <span class="ja-groupe-puces" aria-hidden="true">${puces}</span>
+        <span class="ja-actions-sec"><wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-btn ja-groupe-ouvrir" aria-expanded="${ouvert}" onclick="basculerGroupeJour('${id}')" title="Dérouler les tâches" aria-label="Dérouler les tâches">${icone('chevron-down')}</wa-button></span>
+        <div class="ja-groupe-tiroir"><div class="ja-groupe-tiroir-int">
+          <ul class="ja-liste ja-sous-liste">${actions.map(a => renderLigneActionJour(a, false, false, true)).join('')}${renderLignesTraitees(faites, true)}</ul>
+        </div></div>
+      </li>`;
+  }
+
+  // Les lignes d'« À faire » : une tâche seule telle quelle, plusieurs tâches d'un même dossier en groupe ; puis les tâches
+  // faites aujourd'hui qui ne sont dans aucun groupe (celles d'un groupe sont barrées dans son tiroir) — sauf `sansTraites` :
+  // l'appelant les place plus bas lui-même (carte du tableau de bord : après les rappels à venir).
+  function renderActionsJour(actions, global, traites, sansTraites) {
+    const { elements, traites: horsGroupes } = grouperActionsParDossier(actions, traites);
+    return elements.map(e => e.groupe ? renderGroupeActionsJour(e.groupe, global) : renderLigneActionJour(e.action, global)).join('')
+      + (sansTraites ? '' : renderLignesTraitees(horsGroupes));
   }
 
   // Défait un report, ou un « Marquer envoyé » (la date d'avant est remise). Un brouillon déjà
@@ -805,11 +912,12 @@
   // Une action sur UNE ligne : le geste à droite (un clic), « Plus tard » à côté ; un clic sur le
   // texte déplie le contexte et le texte du brouillon. `dansFiche` : la même ligne dans la fiche du
   // dossier (encadré « Prochaine étape ») — sans le nom du dossier, et sans « Ouvrir la fiche ».
-  function renderLigneActionJour(a, global, dansFiche) {
+  // `sansDossier` : la tâche dans le tiroir de son dossier (le nom est déjà sur la ligne du groupe).
+  function renderLigneActionJour(a, global, dansFiche, sansDossier) {
     const cle = escapeOnclickArg(a.cle);
     const ouverte = apercusJour.has(a.cle);
     const brouillon = ouverte ? brouillonAction(a) : null;
-    const sous = [dansFiche ? '' : libelleDossierAffiche(a.dossier), global && a.dossier.responsable ? prenomCollaborateur(a.dossier.responsable) : '', a.categorieLabel].filter(Boolean).join(' · ');
+    const sous = [dansFiche || sansDossier ? '' : libelleDossierAffiche(a.dossier), global && a.dossier.responsable ? prenomCollaborateur(a.dossier.responsable) : '', a.categorieLabel].filter(Boolean).join(' · ');
     const sansGeste = dansFiche && (!a.geste || a.geste.type === 'fiche');
     return renderLigneAction({
       categorie: a.categorie, categorieLabel: a.categorieLabel, gravite: a.gravite,
@@ -833,13 +941,14 @@
   }
 
   // Ce qui a été traité aujourd'hui, coché, dans la même liste : la journée se voit avancer.
-  function renderLignesTraitees(traites) {
+  // `sansDossier` : la tâche faite dans le tiroir de son dossier (le nom est déjà sur la ligne du groupe).
+  function renderLignesTraitees(traites, sansDossier) {
     return traites.map(t => `
       <li class="ja fait${t.etat === 'Reporté à demain' ? ' reporte' : ''}${vientDEtreTraitee(t.cle) ? ' vient-de-finir' : ''}">
         <span class="ja-coche" aria-hidden="true">${t.etat === 'Reporté à demain' ? icone('clock') : icone('check')}</span>
         <span class="ja-texte-fait">
           <span class="ja-titre">${escapeHtml(t.titre)}</span>
-          <span class="ja-sous">${escapeHtml(libelleDossierParNom(t.dossier, t.dossierId))} · ${escapeHtml(t.etat)} · ${escapeHtml(t.heure)}</span>
+          <span class="ja-sous">${sansDossier ? '' : `${escapeHtml(libelleDossierParNom(t.dossier, t.dossierId))} · `}${escapeHtml(t.etat)} · ${escapeHtml(t.heure)}</span>
         </span>
         ${t.etat === 'Reporté à demain' || t.champ || t.manuel || t.echeance ? `<button type="button" class="lien-discret ja-annuler" onclick="annulerTraiteJour('${escapeOnclickArg(t.cle)}')">Annuler</button>` : ''}
         ${t.courrier ? `<button type="button" class="lien-discret ja-annuler" onclick="ouvrirCourrierAppelFonds('${escapeOnclickArg(t.dossierId)}')">Voir le courrier</button>` : ''}
@@ -908,7 +1017,7 @@
   function renderListeJour(actions, traites, global) {
     const rappels = utilisateurPoste ? renderRappelsJour(isoAujourdhuiLocal()) : '';
     if (!actions.length && !traites.length && !rappels) return '<p class="jour-vide jour-vide-ok">✓ Rien à faire aujourd’hui sur vos dossiers.</p>';
-    return `<ul class="ja-liste">${rappels}${actions.map(a => renderLigneActionJour(a, global)).join('')}${renderLignesTraitees(traites)}</ul>`;
+    return `<ul class="ja-liste">${rappels}${renderActionsJour(actions, global, traites)}</ul>`;
   }
 
   function executerActionJourFiche(cle) {
@@ -1001,7 +1110,7 @@
       // Mes rappels à venir (échéance datée plus tard) : dans la même liste, après les tâches du jour, avec leur date.
       const rappelsAVenir = utilisateurPoste ? renderRappelsJour(aujourdhui, true, 'avenir') : '';
       const liste = actions.length || traites.length || rappelsJour || rappelsCoches || rappelsAVenir
-        ? `<ul class="ja-liste" data-ajuster="1" data-min="1">${rappelsJour}${actions.map(a => renderLigneActionJour(a, global)).join('')}${rappelsAVenir}${rappelsCoches}${renderLignesTraitees(traites)}${plusWidget(versPage)}</ul>`
+        ? `<ul class="ja-liste" data-ajuster="1" data-min="1">${rappelsJour}${renderActionsJour(actions, global, traites, true)}${rappelsAVenir}${rappelsCoches}${renderLignesTraitees(grouperActionsParDossier(actions, traites).traites)}${plusWidget(versPage)}</ul>`
         : '<p class="jour-vide jour-vide-ok">✓ Rien à faire aujourd’hui sur vos dossiers.</p>';
       // Un rappel en cours de saisie (ajout ou modification) passe avant tout (étude, 01/10 : « quand je
       // clique sur Ajouter un rappel, il m'ouvre À venir ») : la carte pleine masquait toute la section

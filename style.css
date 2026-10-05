@@ -6249,6 +6249,34 @@ wa-button.rappel-perso-modif:hover { color: var(--focus); }
 .ja.fait .ja-annuler { font-size: var(--texte-s); }
 @keyframes ja-fait { from { opacity: 0; transform: translateY(-3px); } to { opacity: 1; transform: none; } }
 
+/* Tâches imbriquées par dossier (étude 05/10, renderGroupeActionsJour) : une ligne commune — sa case valide toutes les tâches —,
+   une puce par tâche, et un tiroir qui glisse (grille 0fr → 1fr) pour les cocher une par une, reliées par un filet. */
+.ja.ja-groupe { row-gap: 0; }
+.ja-groupe-compte {
+  display: inline-flex; align-items: center; margin-left: 6px; padding: 1px 8px; border-radius: var(--rayon-pilule);
+  font-size: var(--texte-xxs); font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; vertical-align: 2px;
+  color: var(--focus); background: color-mix(in srgb, var(--focus) 12%, transparent);
+}
+.ja-groupe-compte.entame { color: var(--success); background: color-mix(in srgb, var(--success) 12%, transparent); }
+.ja-groupe-puces { display: inline-flex; align-items: center; gap: 4px; }
+.ja-groupe-puces .dot-label .dot { width: 8px; height: 8px; }
+.ja-groupe .ja-groupe-ouvrir .icone { transition: transform 0.2s ease; }
+.ja-groupe.ouvert .ja-groupe-ouvrir .icone { transform: rotate(180deg); }
+.ja-groupe.ouvert { background: var(--paper-sunk); }
+.ja-groupe-tiroir {
+  grid-column: 1 / -1; grid-row: auto; display: grid; grid-template-rows: 0fr;
+  transition: grid-template-rows 0.25s ease;
+}
+.ja-groupe.ouvert > .ja-groupe-tiroir { grid-template-rows: 1fr; }
+.ja-groupe-tiroir-int { overflow: hidden; min-height: 0; }
+.ja-sous-liste {
+  margin: 6px 0 2px 8px; padding-left: 16px; border-left: 2px solid var(--line);
+  opacity: 0; transform: translateY(-4px); transition: opacity 0.2s ease, transform 0.2s ease;
+}
+.ja-groupe.ouvert .ja-sous-liste { opacity: 1; transform: none; }
+.ja-sous-liste > .ja { padding-top: 6px; padding-bottom: 6px; }
+.ja-sous-liste > .ja:hover { background: var(--paper-card); }
+
 /* Anneau de la journée dans l'en-tête de la carte « Aujourd'hui » du tableau de bord. */
 .w-tete-droite .jour-anneau { width: 44px; height: 44px; }
 .w-tete-droite .jour-anneau svg { width: 44px; height: 44px; }
@@ -6262,6 +6290,9 @@ wa-button.rappel-perso-modif:hover { color: var(--focus); }
 .ja-compacte .ja > .ja-detail { grid-column: 2 / -1; grid-row: 3; }
 .ja-compacte .ja-titre { font-size: var(--texte-m); }
 .ja-compacte .ja-go span { display: none; }
+.ja-compacte .ja.ja-groupe > .ja-groupe-puces { display: none; }
+.ja-compacte .ja.ja-groupe > .ja-groupe-tiroir { grid-column: 1 / -1; grid-row: 3; }
+.ja-compacte .ja-sous-liste { margin-left: 8px; padding-left: 10px; }
 
 /* « Mes rappels » sous la liste « À faire » de la carte Aujourd'hui (voir renderAlertesDashboard) :
    un filet et un petit titre le séparent de la liste du dessus. */
@@ -6417,9 +6448,12 @@ wa-button.rappel-perso-modif:hover { color: var(--focus); }
   .ja > .ja-detail { grid-column: 2 / -1; grid-row: 3; }
   .ja.fait { grid-template-areas: none; }
   .ja-go span { display: none; }
+  .ja.ja-groupe > .ja-groupe-puces { display: none; }
+  .ja.ja-groupe > .ja-groupe-tiroir { grid-column: 1 / -1; grid-row: 3; }
+  .ja-sous-liste { padding-left: 10px; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .jour-anneau-plein, .ja { transition: none; }
+  .jour-anneau-plein, .ja, .ja-groupe-tiroir, .ja-sous-liste, .ja-groupe .ja-groupe-ouvrir .icone { transition: none; }
   .jour-anneau.fini.vient-de-finir .jour-anneau-texte, .ja.fait.vient-de-finir { animation: none; }
 }
 @media print { .jour-overlay { display: none !important; } }
