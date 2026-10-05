@@ -83,12 +83,6 @@
              d.piecesNotifications dans script.js) : masqué tant qu'il n'y a rien à signaler. -->
         <span class="sidebar-badge-notif" id="badge-notif-suivi" style="display:none;"></span>
       </button>
-      <!-- Outil 2, relecture d'un acte (règles déterministes, sans IA depuis le 23/09/2026) :
-           distinct du wizard "Nouveau dossier" — ici on dépose l'acte ET ses annexes séparément
-           pour une relecture croisée, sans créer de dossier. -->
-      <button type="button" id="tab-analyse-ia" class="sidebar-link" role="tab" aria-selected="false" onclick="definirOnglet('analyse-ia')">
-        <span class="sidebar-link-icone" id="icon-nav-analyse-ia" aria-hidden="true"></span>Relecture d'actes<span class="stade-badge stade-badge-nav" title="Alpha : outil encore en test, à utiliser avec le mode commentaires.">Alpha</span>
-      </button>
 
       <!-- Outils (étude, 01/10, sur un exemple de barre sans titres de section) : « Outils » est un lien
            vers la page des outils en grosses icônes ; le + à sa droite ouvre le tiroir des outils dans
@@ -130,6 +124,11 @@
              autres interlocuteurs de l'étude par thème (server/src/repertoire.js), partagés en base. -->
         <button type="button" id="tab-confreres" class="sidebar-link sidebar-sousmenu-item" role="tab" aria-selected="false" onclick="definirOnglet('confreres')">
           <span class="sidebar-link-icone" id="icon-nav-confreres" aria-hidden="true"></span>Répertoire
+        </button>
+        <!-- Outil 2, relecture d'un acte : rangée parmi les outils (étude 05/10 : « passe Relecture d'actes sous les outils »).
+             Distinct du wizard « Nouveau dossier » — on dépose l'acte ET ses annexes pour une relecture croisée, sans créer de dossier. -->
+        <button type="button" id="tab-analyse-ia" class="sidebar-link sidebar-sousmenu-item" role="tab" aria-selected="false" onclick="definirOnglet('analyse-ia')">
+          <span class="sidebar-link-icone" id="icon-nav-analyse-ia" aria-hidden="true"></span>Relecture d'actes<span class="stade-badge stade-badge-nav" title="Alpha : outil encore en test, à utiliser avec le mode commentaires.">Alpha</span>
         </button>
       </div>
 

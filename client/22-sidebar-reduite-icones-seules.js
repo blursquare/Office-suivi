@@ -223,7 +223,8 @@
     { onglet: 'prorata', titre: 'Prorata & répartitions', icone: 'part-disque', description: 'Taxe foncière, charges de copropriété, loyers au jour de l’acte.' },
     { onglet: 'quotites', titre: 'Quotités d’acquisition', icone: 'users', description: 'La part de chaque acquéreur et l’annexe des quotités.' },
     { onglet: 'inventaire', titre: 'Arbitrage forfait mobilier', icone: 'scale', description: 'Forfait de 5 % ou prisée d’un commissaire de justice.' },
-    { onglet: 'confreres', titre: 'Répertoire', icone: 'book', description: 'Les offices du département et les interlocuteurs de l’étude.' }
+    { onglet: 'confreres', titre: 'Répertoire', icone: 'book', description: 'Les offices du département et les interlocuteurs de l’étude.' },
+    { onglet: 'analyse-ia', titre: 'Relecture d’actes', icone: 'eye', description: 'Un avant-contrat ou un projet relu contre ses pièces (alpha).' }
   ];
 
   function renderPageOutils() {

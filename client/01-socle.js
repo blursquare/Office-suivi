@@ -145,6 +145,8 @@
     // Caméra (visio ADNOV).
     video: '<rect x="1.5" y="4" width="9.5" height="8" rx="1.6"/><path d="M11 7.2 14.5 5v6L11 8.8"/>',
     layout: '<rect x="1.5" y="2" width="13" height="12" rx="1.6"/><line x1="6" y1="2" x2="6" y2="14"/>',
+    // Tableau de bord (étude 05/10 : « change d'icône ») : des tuiles de tailles différentes, comme ses widgets.
+    'tableau-bord': '<rect x="1.8" y="1.8" width="5.4" height="6.6" rx="1.3"/><rect x="8.8" y="1.8" width="5.4" height="3.8" rx="1.3"/><rect x="8.8" y="7.2" width="5.4" height="7" rx="1.3"/><rect x="1.8" y="10" width="5.4" height="4.2" rx="1.3"/>',
     // Trombone (joindre un fichier) et avion en papier (envoyer un email).
     paperclip: '<path d="M13.5 7.5 8 13a3.2 3.2 0 0 1-4.5-4.5l6-6a2.1 2.1 0 0 1 3 3L6.6 11.4a1 1 0 0 1-1.5-1.5L10.5 4.5"/>',
     send: '<path d="M14.5 1.5 7 9"/><path d="M14.5 1.5 10 14.5 7 9 1.5 6z"/>',

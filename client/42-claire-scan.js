@@ -885,7 +885,7 @@
   function initIconesStatiques() {
     const cibles = {
       'icon-burger': 'menu',
-      'icon-nav-dashboard': 'layout',
+      'icon-nav-dashboard': 'tableau-bord',
       'icon-nav-suivi': 'list',
       'icon-recherche-suivi': 'search',
       'icon-nav-scans': 'bannette',

@@ -770,7 +770,7 @@ Plainte principale de l'étude : **le bruit**, pas les oublis — ne pas élargi
   de « À faire », même titre et même verbe qu'elle pour le même geste) ; tout « Ajouter … » est un
   `button.bouton-ajout` ; l'édition d'une donnée passe par des icônes (crayon, ✓, ×) ; seuls les
   formulaires gardent des boutons classiques.
-  **Barre latérale** (01/10) : pas de titres de section, des liens seulement ; « Outils » = page à grosses
+  **Barre latérale** (01/10) : pas de titres de section, des liens seulement ; « Relecture d'actes » est un outil (étude 05/10, tiroir et page Outils) ; « Outils » = page à grosses
   icônes (`OUTILS_PAGE`, `renderPageOutils`) — tout nouvel outil y est ajouté ET dans le tiroir
   (`#sidebar-sousmenu-outils`, ouvert par le + `#sidebar-groupe-outils`) ; compteurs en carré arrondi rouge.
 - **Nom d'un dossier cité (étude, 30/09)** : partout (écrans, cartes, toasts, journaux, Teams), toujours
@@ -793,7 +793,7 @@ Plainte principale de l'étude : **le bruit**, pas les oublis — ne pas élargi
   `ajusterWidgets` les remplit par priorité (N petit d'abord) jusqu'à la hauteur de la tuile, avec
   « Voir N de plus » ; une carte qui a de la place reçoit du contenu d'appoint (à venir, prochaines
   signatures, pièces encore attendues…), pas un blanc. « Personnaliser » (ou appui long sur un titre) :
-  glisser-déposer au pointeur, largeur et hauteur, retirer (×). **Widget Agenda** (01/10) = l'agenda partagé de l'office (liste du jour **jamais coupée : elle défile**, ouverte sur le rendez-vous en cours, `data-defiler` dans `ajusterWidgets`, étude 02/10) (stock `agenda-office`, `chargerAgendaWidget`,
+  glisser-déposer au pointeur, largeur et hauteur, retirer (×). **Widget Agenda** (01/10) = l'agenda partagé de l'office (liste du jour **jamais coupée : elle défile**, ouverte sur le rendez-vous en cours, `data-defiler` dans `ajusterWidgets`, étude 02/10 ; **sans barre visible et qui suit l'heure** — `suivreHeureAgendaJour`, chaque minute, étude 05/10) (stock `agenda-office`, `chargerAgendaWidget`,
   + `signaturesHorsAgenda`), lignes `lignesEvenementsAgendaJour` ; un clic ouvre la page Agenda au rendez-vous
   (`ouvrirEvenementDepuisWidgetAgenda`). **« Widgets »** (01/10) : liste de tous les widgets
   (`lignesGalerieWidgets`, `#widgets-overlay`), Retirer / Ajouter — retirer = `masque`, taille gardée ; tout nouveau

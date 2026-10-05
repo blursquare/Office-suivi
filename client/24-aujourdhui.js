@@ -1361,6 +1361,40 @@
     return e.heure < heureActuelle ? 'passe' : 'a-venir';
   }
 
+  // La journée défile avec l'heure (étude 05/10 : « fais défiler la journée au fur et à mesure que le temps passe ») : chaque
+  // minute, les rendez-vous du jour d'une liste qui défile (widget Agenda, data-defiler) changent d'état sur place — passé,
+  // en cours, à venir, sans redessiner le tableau de bord — et la liste glisse jusqu'au rendez-vous en cours ou au prochain.
+  // Jamais pendant que la souris est sur la liste, ni dans les 2 minutes qui suivent un défilement à la main.
+  var DELAI_REPRISE_DEFILEMENT_MS = 2 * 60 * 1000;
+  function suivreHeureAgendaJour(maintenant) {
+    if (typeof document === 'undefined') return;
+    const m = maintenant || new Date();
+    const heure = String(m.getHours()).padStart(2, '0') + ':' + String(m.getMinutes()).padStart(2, '0');
+    document.querySelectorAll('ol.ajd-liste[data-defiler]').forEach(liste => {
+      liste.querySelectorAll('li.ajd-evt[data-heure]').forEach(li => {
+        const moment = momentEvenementAgenda({ heure: li.dataset.heure, heureFin: li.dataset.heureFin }, heure);
+        ['passe', 'en-cours', 'a-venir'].forEach(k => li.classList.toggle('ajd-' + k, k === moment));
+        const etiquette = li.querySelector('.ajd-etiquette');
+        const marque = etiquette && etiquette.querySelector('.ajd-maintenant');
+        if (etiquette && moment === 'en-cours' && !marque) etiquette.insertAdjacentHTML('beforeend', ' <span class="ajd-maintenant">en cours</span>');
+        if (marque && moment !== 'en-cours') marque.remove();
+      });
+      if (liste.matches(':hover') || Date.now() - Number(liste.dataset.defileMain || 0) < DELAI_REPRISE_DEFILEMENT_MS) return;
+      if (!liste.dataset.ecouteDefilement) {
+        liste.dataset.ecouteDefilement = '1';
+        ['wheel', 'touchmove', 'keydown'].forEach(ev => liste.addEventListener(ev, () => { liste.dataset.defileMain = String(Date.now()); }, { passive: true }));
+      }
+      const cible = liste.querySelector('.ajd-en-cours, .ajd-a-venir');
+      const premier = liste.firstElementChild;
+      if (!premier || liste.scrollHeight <= liste.clientHeight) return;
+      const haut = cible ? cible.offsetTop - premier.offsetTop : liste.scrollHeight;
+      if (Math.abs(liste.scrollTop - haut) > 2) liste.scrollTo({ top: haut, behavior: 'smooth' });
+    });
+  }
+  if (typeof window !== 'undefined' && typeof setInterval === 'function' && typeof document !== 'undefined' && document.querySelectorAll) {
+    setInterval(() => { try { suivreHeureAgendaJour(); } catch (e) { /* écran sans widget Agenda */ } }, 60 * 1000);
+  }
+
   function renderAgendaDuJour() {
     const liste = evenementsAgendaDuJour(agendaDuJourOffice, isoAujourdhuiLocal());
     if (!liste) return '<p class="jour-vide">L’agenda de l’office n’a pas encore été lu aujourd’hui.</p>';
@@ -1392,7 +1426,7 @@
         connu && (!dejaCite || versAgenda) ? `<button type="button" class="ajd-dossier" onclick="${ouvrir}" title="Ouvrir la fiche du dossier">${versAgenda ? 'Fiche' : escapeHtml(libelleDossierParNom(e.dossierNom, e.dossierId))}</button>` : ''
       ].filter(Boolean).join('<span aria-hidden="true"> · </span>');
       const titre = escapeHtml(e.sujet || '(sans titre)');
-      return `<li class="ajd-evt ajd-${teinte} ajd-${moment}${e.horsAgenda ? ' ajd-hors-agenda' : ''}">
+      return `<li class="ajd-evt ajd-${teinte} ajd-${moment}${e.horsAgenda ? ' ajd-hors-agenda' : ''}"${estAujourdhui && e.heure && !e.journeeEntiere ? ` data-heure="${escapeAttr(e.heure)}" data-heure-fin="${escapeAttr(e.heureFin || '')}"` : ''}>
           <span class="ajd-heure">${heures}</span>
           <span class="ajd-barre" aria-hidden="true"></span>
           <span class="ajd-texte">

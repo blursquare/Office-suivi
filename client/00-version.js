@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.153.2';
+  const VERSION_APP = '0.153.3';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.153.3', date: '2026-10-05 22:27', resume: "Widget Agenda : plus de barre de défilement visible, et la journée défile seule avec l'heure (rendez-vous en cours mis à jour chaque minute). « Relecture d'actes » rangée parmi les Outils (barre latérale et page Outils). Nouvelle icône pour le tableau de bord." },
     { version: '0.153.2', date: '2026-10-05 22:23', resume: "Barre latérale : les outils retrouvent leur icône (libellés sur une seule ligne) et le liseré s'arrête sur l'arrondi du dernier outil au lieu de dépasser dessous." },
     { version: '0.153.1', date: '2026-10-05 22:09', resume: "« Confirmer la réception des fonds » arrive dans « À faire » 3 jours avant le rendez-vous de signature (et non plus 7) : à ce moment-là, la confirmation si les fonds sont reçus, la relance sinon." },
     { version: '0.153.0', date: '2026-10-05 22:07', resume: "Email envoyé depuis CLAIRE : une carte « Email envoyé » s'affiche en haut à droite (destinataire, objet, boîte d'envoi, dossier, pièces jointes), avec une note si l'email est parti d'une autre boîte. Dans « À faire », le nom du dossier d'une tâche (ou d'un groupe de tâches) ouvre directement sa fiche ; le reste de la ligne garde son geste (détail, tiroir)." },

@@ -921,7 +921,8 @@
   .sidebar-sousmenu::before { content: none; }
   .sidebar-sousmenu-item { position: relative; }
   /* Avec leur icône (05/10), les outils restent sur une ligne : libellé en 13 px, icône plus près du texte. */
-  .sidebar-sousmenu .sidebar-link.sidebar-sousmenu-item { font-size: var(--texte-m); gap: 8px; padding: 8px 6px 8px 8px; white-space: nowrap; }
+  .sidebar-sousmenu .sidebar-link.sidebar-sousmenu-item { font-size: var(--texte-m); gap: 8px; padding: 8px 4px 8px 8px; white-space: nowrap; }
+  .sidebar-sousmenu .stade-badge-nav { padding: 1px 4px; }
   /* Essai : coin arrondi plutôt qu'un angle droit entre le tronc et la branche — un cadre
      border-left + border-bottom avec border-bottom-left-radius, positionné pile sur la même
      colonne que le tronc (voir .sidebar-sousmenu::before), la branche s'arrêtant à l'aplomb du
@@ -8133,6 +8134,9 @@ button.outil-tuile:focus-visible { outline: 2px solid var(--focus); outline-offs
 
 /* ---- Widget Agenda relié à l'agenda de l'office (01/10) ---- */
 .ajd-liste.ajd-compacte { gap: 8px; }
+/* Widget Agenda : la journée défile sans barre de défilement visible (étude 05/10) — molette, doigt et clavier gardés. */
+.ajd-liste[data-defiler] { scrollbar-width: none; -ms-overflow-style: none; }
+.ajd-liste[data-defiler]::-webkit-scrollbar { display: none; }
 .ajd-compacte .ajd-evt { grid-template-columns: 44px 3px minmax(0, 1fr); gap: 8px; }
 .ajd-compacte .ajd-heure .ajd-duree { display: none; }
 .ajd-compacte .ajd-titre { font-size: var(--texte-m); }
