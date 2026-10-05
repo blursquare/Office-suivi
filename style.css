@@ -913,19 +913,15 @@
     flex-direction: column;
     gap: 2px;
     margin-left: 20px;
-    padding-left: 12px;
+    padding-left: 10px;
   }
-  .sidebar-sousmenu::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    bottom: 14px;
-    left: 0;
-    width: 1.5px;
-    border-radius: var(--rayon-xs);
-    background: var(--sidebar-trait);
-  }
+  /* Plus de tronc d'un seul tenant (étude 05/10 : « termine le liseré par l'arrondi ») : il dépassait sous la dernière
+     branche. Chaque outil dessine sa part — du milieu de l'outil du dessus jusqu'à son propre milieu, où le trait tourne
+     (voir .sidebar-sousmenu-item::before) — : le liseré s'arrête donc sur l'arrondi du dernier outil. */
+  .sidebar-sousmenu::before { content: none; }
   .sidebar-sousmenu-item { position: relative; }
+  /* Avec leur icône (05/10), les outils restent sur une ligne : libellé en 13 px, icône plus près du texte. */
+  .sidebar-sousmenu .sidebar-link.sidebar-sousmenu-item { font-size: var(--texte-m); gap: 8px; padding: 8px 6px 8px 8px; white-space: nowrap; }
   /* Essai : coin arrondi plutôt qu'un angle droit entre le tronc et la branche — un cadre
      border-left + border-bottom avec border-bottom-left-radius, positionné pile sur la même
      colonne que le tronc (voir .sidebar-sousmenu::before), la branche s'arrêtant à l'aplomb du
@@ -933,14 +929,18 @@
   .sidebar-sousmenu-item::before {
     content: '';
     position: absolute;
-    left: -12px;
+    left: -10px;
     top: 0;
-    width: 12px;
+    width: 10px;
     height: 50%;
     border-left: 1.5px solid var(--sidebar-trait);
     border-bottom: 1.5px solid var(--sidebar-trait);
     border-bottom-left-radius: var(--rayon-m);
+    pointer-events: none;
   }
+  /* À partir du deuxième outil, le trait remonte jusque dans l'outil du dessus (au-delà de son arrondi) pour que le tronc
+     reste continu ; les outils ont la même hauteur, le recouvrement de 16 px absorbe un libellé sur deux lignes. */
+  .sidebar-sousmenu-item ~ .sidebar-sousmenu-item::before { top: calc(-50% - 16px); height: calc(100% + 16px); }
   /* Fermé (repli du groupe, pas de la sidebar entière) : masqué, le trait avec. */
   .sidebar-sousmenu.ferme { display: none; }
 
@@ -1071,7 +1071,6 @@
       background: var(--sidebar-bg); border: 1px solid var(--sidebar-border); border-radius: var(--rayon-carte);
       box-shadow: var(--shadow-float);
     }
-    .sidebar.repliee .sidebar-sousmenu.volet-ouvert::before { display: block; left: 22px; top: 12px; bottom: 34px; }
     .sidebar.repliee .sidebar-sousmenu.volet-ouvert .sidebar-sousmenu-item::before { display: block; }
     .sidebar.repliee .sidebar-sousmenu.volet-ouvert .sidebar-link {
       font-size: var(--texte-base); justify-content: flex-start; gap: 10px; padding: 12px 12px; border-radius: var(--rayon-m);
@@ -8102,8 +8101,7 @@ button.sidebar-outils-plus:focus-visible { outline: 2px solid var(--focus); outl
   background: var(--sidebar-actif-bg); color: var(--ink); box-shadow: inset 3px 0 0 var(--focus);
 }
 /* Liseré gardé (étude, 01/10 : « remettre le liseré ») : le tronc part sous l'icône Outils, une branche
-   par outil ; le texte des outils, sans icône, tombe à l'aplomb de celui des liens. */
-.sidebar-sousmenu:not(.volet-ouvert) .sidebar-sousmenu-item .sidebar-link-icone { display: none; }
+   par outil, et s'arrête sur l'arrondi du dernier ; chaque outil a son icône (étude 05/10 : « remets des icônes aux outils »). */
 @media (min-width: 901px) {
   .sidebar.repliee button.sidebar-outils-plus { display: none; }
   .sidebar.repliee .sidebar-sousmenu:not(.volet-ouvert) { display: none; }
