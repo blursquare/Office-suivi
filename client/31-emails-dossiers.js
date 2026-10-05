@@ -1189,6 +1189,9 @@
     verifierSaferTacites().catch(() => {});
     retirerDatesAvantContratLuesNas().then(() => render()).catch(() => {});
     setInterval(() => { verifierSaferTacites().catch(() => {}); }, 60 * 60 * 1000);
+    // Envois validés sans date saisie ici (décompte retrouvé sur le NAS, case cochée ailleurs) : notés dans le lieu du rendez-vous.
+    setTimeout(() => { rattraperNotesAgenda().catch(() => {}); }, 30 * 1000);
+    setInterval(() => { rattraperNotesAgenda().catch(() => {}); }, 5 * 60 * 1000);
     demanderUtilisateurPosteSiInconnu();
     // Première connexion de la journée : le point du matin (voir « Aujourd'hui »).
     ouvrirFenetreAujourdhuiSiPremiereFois();

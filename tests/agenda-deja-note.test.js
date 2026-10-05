@@ -37,3 +37,32 @@ test('renderDossiersRecusLus : dit sous quel nom et dans quels dossiers les reç
   assert.match(app.renderDossiersRecusLus({ dossiersRecus: [{ dossier: 'X:\\VENTES', recus: 0 }] }, ['groffal']), /aucun fichier de reçus dans : X:\\VENTES/);
   assert.equal(app.renderDossiersRecusLus({}, []), '');
 });
+
+test('envoiAgendaARattraper : un envoi validé sans note dans Outlook (décompte du NAS, case cochée) est à noter, une seule fois', () => {
+  const app = chargerApplication();
+  const jour = '2026-10-05';
+  const sansNote = base({ detectionsAgenda: { rendezVousSignature: '2026-10-15' }, rendezVousSignatureLieu: 'BA - Me DURAND en 2nd', projetEnvoye: null, echeancesValidees: { appelFonds: true } });
+  assert.equal(app.envoiAgendaARattraper(sansNote, jour), true);
+  // Déjà dans le lieu relevé, déjà noté par CLAIRE, ou refusé (reste affiché sur la fiche) : rien.
+  assert.equal(app.envoiAgendaARattraper(Object.assign({}, sansNote, { rendezVousSignatureLieu: 'BA - Appel de fonds envoyé' }), jour), false);
+  assert.equal(app.envoiAgendaARattraper(Object.assign({}, sansNote, { agendaLieuNoteLe: '2026-10-05T10:00:00Z' }), jour), false);
+  assert.equal(app.envoiAgendaARattraper(Object.assign({}, sansNote, { agendaLieuEchec: { le: '2026-10-05T10:00:00Z', message: 'Aucun rendez-vous' } }), jour), false);
+  // Rendez-vous passé, sans rendez-vous, archivé, ou aucun envoi validé : rien.
+  assert.equal(app.envoiAgendaARattraper(Object.assign({}, sansNote, { rendezVousSignature: '2026-10-01' }), jour), false);
+  assert.equal(app.envoiAgendaARattraper(Object.assign({}, sansNote, { rendezVousSignature: '' }), jour), false);
+  assert.equal(app.envoiAgendaARattraper(Object.assign({}, sansNote, { archive: true }), jour), false);
+  assert.equal(app.envoiAgendaARattraper(Object.assign({}, sansNote, { echeancesValidees: {} }), jour), false);
+});
+
+test('validerEcheance : appel de fonds ou projet marqué fait à la main → noté dans le lieu du rendez-vous (auto) ; une autre échéance, non', () => {
+  const vm = require('node:vm');
+  const app = chargerApplication();
+  vm.runInContext("dossiers.push({ id: 'dx', nom: 'DUPONT / MARTIN', rendezVousSignature: '2026-10-15', echeancesValidees: {}, historique: [] })", app);
+  const appels = [];
+  app.noterEnvoiDansAgenda = (id, auto) => { appels.push([id, auto]); };
+  app.sauvegarder = () => {}; app.render = () => {}; app.synchroniserEcheanceAgenda = () => {}; app.notifierTacheFaite = () => {};
+  app.validerEcheance('dx', 'appelFonds');
+  app.validerEcheance('dx', 'projetEnvoye');
+  app.validerEcheance('dx', 'pret');
+  assert.deepEqual(appels, [['dx', true], ['dx', true]]);
+});

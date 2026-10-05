@@ -1120,7 +1120,7 @@
   // « Noté le… » et la présence du bouton signalent qu'il reste à faire, et le bouton permet de
   // réessayer avec un retour complet. Sur SUCCÈS, un toast bref confirme quand même : écrire dans un
   // agenda partagé que des collègues lisent doit rester un geste visible.
-  async function noterEnvoiDansAgenda(id, auto) {
+  async function noterEnvoiDansAgenda(id, auto, silencieux) {
     const d = dossiers.find(x => x.id === id);
     if (!d || !d.rendezVousSignature) return;
     const af = echeanceValidee(d, 'appelFonds');
@@ -1143,19 +1143,45 @@
         render();
         afficherToast(corps.message || 'Agenda mis à jour.', 'OK', null);
       } else {
-        signalerEchecNoteAgenda(d, corps.message || "La mise à jour de l'agenda a échoué.");
+        signalerEchecNoteAgenda(d, corps.message || "La mise à jour de l'agenda a échoué.", silencieux);
       }
     } catch (e) {
-      signalerEchecNoteAgenda(d, 'Serveur injoignable — agenda non mis à jour.');
+      signalerEchecNoteAgenda(d, 'Serveur injoignable — agenda non mis à jour.', silencieux);
+    }
+  }
+
+  // Un envoi (appel de fonds, projet) validé SANS passer par une date saisie sur ce poste — décompte retrouvé sur le NAS par le
+  // serveur (nasWatch), case cochée dans une autre fenêtre, dossier ancien — n'a jamais été noté dans le lieu du rendez-vous de
+  // signature d'Outlook (étude 05/10). Pure : ce dossier attend-il cette note ? Rendez-vous à venir, envoi validé, jamais noté
+  // ni refusé (un refus reste affiché sur la fiche, « Réessayer »), mention absente du lieu relevé dans l'agenda.
+  function envoiAgendaARattraper(d, aujourdhui) {
+    if (!d || d.archive || estSuccession(d)) return false;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(d.rendezVousSignature || '')) || d.rendezVousSignature < aujourdhui) return false;
+    if (!echeanceValidee(d, 'appelFonds') && !echeanceValidee(d, 'projetEnvoye')) return false;
+    if (d.agendaLieuNoteLe || (d.agendaLieuEchec && d.agendaLieuEchec.message)) return false;
+    return !mentionDejaDansAgenda(d);
+  }
+
+  // Une tentative par dossier et par session, espacées (un seul essai par appel : verrouillage du compte), jamais de toast d'échec.
+  var notesAgendaTentees = new Set();
+  async function rattraperNotesAgenda() {
+    if (!exchangeAgendaPret()) return;
+    const aujourdhui = isoAujourdhuiLocal();
+    for (const d of (dossiers || []).slice()) {
+      if (notesAgendaTentees.has(d.id) || !envoiAgendaARattraper(d, aujourdhui)) continue;
+      notesAgendaTentees.add(d.id);
+      await noterEnvoiDansAgenda(d.id, true, true);
+      await new Promise(ok => setTimeout(ok, 3000));
     }
   }
 
   // Un échec (automatique ou non) est gardé sur le dossier et affiché sur la carte « Envoi au
   // client », avec un toast : l'ancien mode silencieux laissait croire la mention écrite.
-  function signalerEchecNoteAgenda(d, message) {
+  function signalerEchecNoteAgenda(d, message, silencieux) {
     d.agendaLieuEchec = { le: new Date().toISOString(), message };
     sauvegarder(d);
     render();
+    if (silencieux) return;
     afficherToast(`Agenda non mis à jour (${libelleDossierAffiche(d)}) : ${message}`, 'OK', null);
   }
 
@@ -1558,6 +1584,9 @@
     render();
     // Condition levée : l'événement posé dans l'agenda n'a plus lieu d'être.
     synchroniserEcheanceAgenda(d, type, false);
+    // Appel de fonds / projet marqué fait à la main : la mention part aussi dans le lieu du rendez-vous Outlook, comme quand
+    // la date est saisie (étude 05/10 : « même coché à la main ça ne remonte pas »).
+    if (type === 'appelFonds' || type === 'projetEnvoye') noterEnvoiDansAgenda(id, true);
   }
 
   // Une date d'appel de fonds renseignée vaut appel de fonds fait (voir validerEditionDate) ;

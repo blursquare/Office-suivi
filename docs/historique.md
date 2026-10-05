@@ -16742,3 +16742,16 @@ trouvée/introuvable toutes les 20 min venait de fenêtres qui n'avaient pas la 
   `d.telephoneConfrereVendeur`), sinon celui de l'office de l'annuaire (« (annuaire) »), écrit en texte pour 3CX, champ pour le corriger ;
   un numéro saisi complète l'office de l'annuaire qui n'en avait pas (`changerTelephoneConfrere`) ; le serveur reconnaît ce numéro à
   l'appel (`reconnaitreAppelant`, partie « Confrère »). Point terrain `telephone-3cx-texte` (à confirmer à l'œil au bureau).
+
+- **0.146.1 (05/10 17 h 46) — appel de fonds marqué fait mais pas noté dans Outlook** (étude : « un décompte acquéreur a été détecté
+  automatiquement sur le commun, a coché l'appel de fonds fait dans le dossier et sur l'agenda mais pas noté dans Outlook » ; « même coché à
+  la main ça ne remonte pas »). Cause : `noterEnvoiDansAgenda` (mention « Appel de fonds [et projet] envoyé » dans le LIEU du rendez-vous de
+  signature, `POST /api/exchange/rendez-vous/lieu`) n'était appelée que par les chemins « date d'envoi saisie » (`validerEditionDate`,
+  « Marquer envoyé » d'Aujourd'hui, projet préparé) ; la coche de la timeline (`validerEcheance`) et la détection du serveur (`nasWatch`,
+  `noterAppelFondsDetecte` : date du jour + `echeancesValidees.appelFonds`, repère `detectionsNas`) ne la déclenchaient pas. Changements :
+  (1) `validerEcheance` appelle `noterEnvoiDansAgenda(id, true)` pour `appelFonds` / `projetEnvoye` ; (2) `rattraperNotesAgenda` (30 s après
+  le démarrage puis toutes les 5 min, `envoiAgendaARattraper`) note les envois validés d'un rendez-vous à venir, jamais notés (`agendaLieuNoteLe`)
+  ni refusés (`agendaLieuEchec`, « Réessayer » reste sur la fiche) dont la mention n'est pas déjà dans le lieu relevé
+  (`mentionDejaDansAgenda`) : UNE tentative par dossier et par session (un seul essai par appel), espacées de 3 s, échec sans toast
+  (`silencieux`, gardé sur la fiche). Tests `agenda-deja-note`. **À vérifier au bureau** (Exchange injoignable d'ici) : la mention
+  apparaît dans le lieu du rendez-vous Outlook après une coche à la main et après une détection du décompte sur le commun.
