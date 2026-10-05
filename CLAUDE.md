@@ -208,6 +208,7 @@ dans `index.html`** (le test `structure-client` refuse tout décalage).
    l'aperçu Exchange (256 car.) de 60 emails au plus, rend `{ demandes: [{ email, demande, priorite }] }` → `ia.points`
    (texte, priorité, expéditeur, heure, dossier de l'email cité, jamais deviné ; une demande sans email connu est écartée) ;
    l'aperçu n'est jamais gardé ; liste gardée telle quelle à la relecture si aucun email nouveau (`signature`).
+   **Compte Exchange d'un collaborateur** (étude 05/10, `comptesCollaborateurs.js`) : avec son identifiant et son mot de passe, ses « Éléments envoyés » sont lus dans sa propre boîte et ses emails partent de sa boîte, sans accès délégué ni « Envoyer en tant que » ; refus d'identifiants → compte retenu (`refuseLe`), aucun nouvel essai avant correction, repli sur le compte relié ; sans compte, rien ne change.
    **Emails des dossiers** (étude 02/10 : « tu peux lire le contenu », « lire les emails envoyés pour confirmer » ;
    choix : repérer, ranger sur le NAS, résumé IA ; « boîte de chacun ») — `server/src/emailsDossiers.js`, **toutes les minutes** (étude 02/10, un seul tour à la fois, résumés IA en file),
    même disjoncteur, lecture seule (FindItem/GetItem/GetAttachment) : boîte de réception du compte relié → emails
@@ -233,7 +234,8 @@ dans `index.html`** (le test `structure-client` refuse tout décalage).
    (`construireEmailAccuseReception`, RE: + objet, documents listés, signature de l'office, formule confrère par
    `expediteurConfrere` ; geste `accuseReception:<id>`, suivi préparé → envoyé) — premier jet de CLAIRE. Réglages › Agenda et Outlook › Emails des dossiers : état
    de chaque boîte, interrupteur, « Lire maintenant ». Clé `emails-dossiers` (3 000 emails, 500 préparés).
-6. **Secrets** (mot de passe SMTP, clés API Mistral/Anthropic, mot de passe Exchange, jeton GitHub
+6. **Secrets** (mot de passe SMTP, clés API Mistral/Anthropic, mot de passe Exchange, **mots de passe Exchange des collaborateurs**
+   — étude 05/10, `comptesCollaborateurs.js`, Réglages › Collaborateurs › Comptes Exchange —, jeton GitHub
    de mise à jour) : stockés en base, **jamais renvoyés par une route** (remplacés par un booléen
    « enregistré »), conservés si le formulaire ne les réémet pas, effacés sur chaîne vide explicite,
    jamais journalisés ni repris dans un message d'erreur.

@@ -35,6 +35,7 @@ const { creerRouteurSignalements } = require('./routes/signalements');
 const { creerRouteurMiseAJour } = require('./routes/miseAJour');
 const { creerRouteurAgenda } = require('./routes/agenda');
 const { creerRouteurExchange } = require('./routes/exchange');
+const { creerRouteurComptesCollaborateurs } = require('./routes/comptesCollaborateurs');
 const { creerRouteurSondages } = require('./routes/sondages');
 const { creerRouteurEmailsMatin } = require('./routes/emailsMatin');
 const { creerRouteurEmailsDossiers } = require('./routes/emailsDossiers');
@@ -207,6 +208,7 @@ function creerApp({ db, config, envoyerEmailFn, creerClientClaude, appelerMistra
   // crée les rendez-vous de signature dans l'agenda. À valider sur un poste du bureau (l'Exchange
   // n'est joignable que depuis le réseau de l'étude).
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurExchange(parametresRepo, exchange || {}));
+  app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurComptesCollaborateurs(parametresRepo, { exchange: exchange || {} }));
   // Sondage de créneaux de signature (voir sondagesCreneaux.js). `sondages.poster` : faux transport
   // EWS, tests seulement.
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurSondages(parametresRepo, sondages || {}));

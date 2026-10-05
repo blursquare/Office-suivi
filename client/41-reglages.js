@@ -87,6 +87,7 @@
       document.getElementById('reglages-copie-email').value = reglages.copieEmail || '';
       memoriserReglagesEnregistres(reglages);
       renderReglagesEmails(reglages.emailsResponsables || {}, reglages.fonctionsResponsables || {});
+      chargerComptesCollaborateurs();
       renderReglages3cx();
       renderReglagesAuthentic();
       document.getElementById('reglages-etat').style.display = 'none';
@@ -243,6 +244,101 @@
         </div>
       </div>
     `).join('');
+  }
+
+  // Comptes Exchange des collaborateurs (étude 05/10) : identifiant + mot de passe de chacun, pour lire ses « Éléments envoyés »
+  // et envoyer depuis SA boîte sans accès délégué. Le mot de passe n'est jamais renvoyé par le serveur : champ vide + invite.
+  var comptesCollaborateurs = {};
+
+  // Pure : l'état d'un compte pour l'écran { texte, classe }.
+  function etatCompteCollaborateur(c) {
+    if (!c || (!c.motDePasseEnregistre && !c.identifiant)) return { texte: 'Aucun compte enregistré : CLAIRE passe par le compte relié (accès délégué et « Envoyer en tant que » à demander à Fichorga).', classe: '' };
+    if (!c.motDePasseEnregistre) return { texte: 'Mot de passe manquant : le compte n’est pas utilisé.', classe: 'reglages-email-echec' };
+    if (c.refuseLe) return { texte: `Identifiants refusés par Exchange le ${formatDateFr(String(c.refuseLe).slice(0, 10))} : plus aucun essai tant qu’ils ne sont pas corrigés. Réécrivez le mot de passe puis « Tester ».`, classe: 'reglages-email-echec' };
+    return { texte: 'Compte enregistré : ses envois sont lus et ses emails partent de sa boîte.', classe: 'reglages-email-ok' };
+  }
+
+  function renderComptesCollaborateurs() {
+    const zone = document.getElementById('reglages-comptes-liste');
+    if (!zone) return;
+    zone.innerHTML = RESPONSABLES.map((nom, i) => {
+      const c = comptesCollaborateurs[nom] || null;
+      const etat = etatCompteCollaborateur(c);
+      return `
+      <div class="reglages-champ reglages-champ-haut">
+        <div class="reglages-champ-libelle"><label for="compte-id-${i}">${escapeHtml(nom)}</label></div>
+        <div class="reglages-champ-pile">
+          <input type="text" id="compte-id-${i}" autocomplete="off" aria-label="Identifiant Exchange de ${escapeAttr(nom)}" placeholder="Identifiant (par défaut : son adresse ci-dessus)" value="${escapeAttr((c && c.identifiant) || '')}">
+          <div class="reglages-champ-ligne">
+            <input type="password" id="compte-mdp-${i}" autocomplete="new-password" aria-label="Mot de passe Exchange de ${escapeAttr(nom)}" placeholder="${c && c.motDePasseEnregistre ? 'Déjà enregistré — laisser vide pour le conserver' : 'Mot de passe'}" value="">
+            <wa-button appearance="outlined" class="secondary" onclick="enregistrerCompteCollaborateur('${escapeOnclickArg(nom)}')">Enregistrer</wa-button>
+            <wa-button appearance="outlined" class="secondary" onclick="testerCompteCollaborateur('${escapeOnclickArg(nom)}')">Tester</wa-button>
+            ${c ? `<wa-button appearance="plain" class="secondary" onclick="retirerCompteCollaborateur('${escapeOnclickArg(nom)}')">Retirer</wa-button>` : ''}
+          </div>
+          <p class="hint reglages-email-resultat ${etat.classe}" id="compte-etat-${i}">${escapeHtml(etat.texte)}</p>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  async function chargerComptesCollaborateurs() {
+    try {
+      const reponse = await fetchAvecAuth('/api/comptes-collaborateurs');
+      comptesCollaborateurs = reponse.ok ? await reponse.json() : {};
+    } catch (e) { comptesCollaborateurs = {}; }
+    renderComptesCollaborateurs();
+  }
+
+  function direEtatCompte(nom, texte, classe) {
+    afficherResultatTest(document.getElementById(`compte-etat-${RESPONSABLES.indexOf(nom)}`), texte, classe);
+  }
+
+  // Enregistre le compte tel que saisi ; le mot de passe n'accompagne la requête que s'il vient d'être tapé.
+  async function enregistrerCompteCollaborateur(nom, silencieux) {
+    const i = RESPONSABLES.indexOf(nom);
+    const corps = { identifiant: (document.getElementById(`compte-id-${i}`).value || '').trim() };
+    const mdp = document.getElementById(`compte-mdp-${i}`).value;
+    if (mdp) corps.motDePasse = mdp;
+    try {
+      const reponse = await fetchAvecAuth(`/api/comptes-collaborateurs/${encodeURIComponent(nom)}`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corps)
+      });
+      if (!reponse.ok) throw new Error('refus');
+      const c = await reponse.json();
+      if (c.identifiant || c.motDePasseEnregistre) comptesCollaborateurs[nom] = c; else delete comptesCollaborateurs[nom];
+      renderComptesCollaborateurs();
+      if (!silencieux) afficherToast(`Compte de ${nom} enregistré.`, 'OK', null);
+      return true;
+    } catch (e) {
+      direEtatCompte(nom, 'Impossible d’enregistrer — vérifiez la connexion au serveur intranet.', 'reglages-email-echec');
+      return false;
+    }
+  }
+
+  async function testerCompteCollaborateur(nom) {
+    const i = RESPONSABLES.indexOf(nom);
+    const modifie = (document.getElementById(`compte-mdp-${i}`).value || '') !== ''
+      || (document.getElementById(`compte-id-${i}`).value || '').trim() !== ((comptesCollaborateurs[nom] || {}).identifiant || '');
+    if (modifie && !(await enregistrerCompteCollaborateur(nom, true))) return;
+    direEtatCompte(nom, 'Essai de connexion à Exchange…', '');
+    try {
+      const reponse = await fetchAvecAuth(`/api/comptes-collaborateurs/${encodeURIComponent(nom)}/tester`, { method: 'POST' });
+      const r = await reponse.json();
+      await chargerComptesCollaborateurs();
+      direEtatCompte(nom, r.ok ? (r.message || 'Connexion réussie.') : (r.message || 'Connexion refusée.'), r.ok ? 'reglages-email-ok' : 'reglages-email-echec');
+    } catch (e) {
+      direEtatCompte(nom, 'Essai impossible — vérifiez la connexion au serveur intranet.', 'reglages-email-echec');
+    }
+  }
+
+  async function retirerCompteCollaborateur(nom) {
+    try {
+      const reponse = await fetchAvecAuth(`/api/comptes-collaborateurs/${encodeURIComponent(nom)}`, { method: 'DELETE' });
+      if (!reponse.ok) throw new Error('refus');
+      delete comptesCollaborateurs[nom];
+      renderComptesCollaborateurs();
+      afficherToast(`Compte de ${nom} retiré.`, 'OK', null);
+    } catch (e) { direEtatCompte(nom, 'Retrait impossible.', 'reglages-email-echec'); }
   }
 
   function reglagesFormulaireVersObjet() {

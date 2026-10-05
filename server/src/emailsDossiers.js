@@ -22,6 +22,7 @@
 
 const crypto = require('node:crypto');
 const { noterVerification } = require('./verificationsTerrain');
+const { accesCollaborateur, marquerRefus, leverRefus } = require('./comptesCollaborateurs');
 const { lireXml, tous, premier, texte: texteXml, texteDe, attribut, identifiantElement, codeReponse: codeReponseXml, succesSansErreur } = require('./exchange/xml');
 const {
   contexteClassement, dossierDeEmail, normaliser, SUJETS_EMAIL, echapperXml, ENVELOPPE_DEBUT, ENVELOPPE_FIN
@@ -430,19 +431,30 @@ async function tourEmailsDossiers(depot, parametresRepo, injections = {}, manuel
   // 2. Éléments envoyés de chaque boîte.
   for (const b of boitesEnvoyes(reglages, rappels)) {
     const prec = etat.etat.envoyes[b.adresse] || assainirEtatBoite({});
-    const f = await poster(corpsFind('sentitems', b.propre ? null : b.adresse, prec.dernier || depuisDefaut, 'item:DateTimeSent'));
+    // Compte du collaborateur enregistré (étude 05/10) : lecture avec SON identifiant, dans sa propre boîte (aucun accès délégué à
+    // donner) ; refusé par Exchange → compte retenu, un seul essai, le tour continue (le compte relié n'y est pour rien).
+    const acces = b.propre ? null : accesCollaborateur(parametresRepo, b.collaborateur, b.adresse);
+    const posterBoite = acces ? (body) => posterEws({ url: reglages.url, email: acces.email, motDePasse: acces.motDePasse, body }, injections) : poster;
+    const f = await posterBoite(corpsFind('sentitems', b.propre || acces ? null : b.adresse, prec.dernier || depuisDefaut, 'item:DateTimeSent'));
+    if (acces && refus(f)) {
+      marquerRefus(parametresRepo, b.collaborateur, maintenant.getTime());
+      etat.etat.envoyes[b.adresse] = { ...prec, collaborateur: b.collaborateur, luLe: maintenant.toISOString(), statut: 'refuse',
+        message: 'Identifiants du collaborateur refusés par Exchange : corrigez-les dans Réglages › Collaborateurs.' };
+      noterVerification(parametresRepo, 'emails-envoyes-compte-collaborateur', { ok: false, message: 'identifiants du collaborateur refusés par Exchange' });
+      continue;
+    }
     if (refus(f)) { agendaWatch.signalerIdentifiantsRefuses(reglages); resultat.erreur = 'Identifiants de messagerie refusés : vérifiez les Réglages.'; break; }
     const code = f.echec ? '' : codeReponse(f.corps);
     if (f.echec || !succes(f.corps)) {
       const refuse = CODES_ACCES_REFUSE.test(code);
       etat.etat.envoyes[b.adresse] = { ...prec, collaborateur: b.collaborateur, luLe: maintenant.toISOString(),
-        statut: refuse ? 'refuse' : 'erreur', message: refuse ? 'Accès aux « Éléments envoyés » non donné au compte relié.' : (f.echec ? f.echec.message : `Lecture impossible (${code || f.statut}).`) };
-      if (!b.propre) noterVerification(parametresRepo, 'emails-envoyes-collaborateur', { ok: false, message: etat.etat.envoyes[b.adresse].message });
+        statut: refuse ? 'refuse' : 'erreur', message: refuse ? (acces ? 'Accès à la boîte refusé par Exchange avec le compte du collaborateur.' : 'Accès aux « Éléments envoyés » non donné au compte relié.') : (f.echec ? f.echec.message : `Lecture impossible (${code || f.statut}).`) };
+      if (!b.propre) noterVerification(parametresRepo, acces ? 'emails-envoyes-compte-collaborateur' : 'emails-envoyes-collaborateur', { ok: false, message: etat.etat.envoyes[b.adresse].message });
       continue;
     }
     const trouves = parseFind(f.corps).filter((e) => !connus.has(idCourt(e.itemId)));
     const lot = trouves.slice(0, 50);
-    const det = lot.length ? await poster(corpsGetItems(lot.map((e) => e.itemId), false)) : null;
+    const det = lot.length ? await posterBoite(corpsGetItems(lot.map((e) => e.itemId), false)) : null;
     const parId = det && !det.echec ? parseGetItems(det.corps) : new Map();
     for (const e of lot) {
       const a = (parId.get(e.itemId) || {}).a || [];
@@ -459,7 +471,8 @@ async function tourEmailsDossiers(depot, parametresRepo, injections = {}, manuel
       if (prepare) { prepare.envoyeLe = email.date; prepare.boite = b.adresse; prepare.emailId = email.id; resultat.confirmes++; noterVerification(parametresRepo, 'email-prepare-envoye'); }
     }
     const dernier = lot.length < trouves.length ? lot[lot.length - 1].date : (trouves.length ? trouves[trouves.length - 1].date : null);
-    if (!b.propre) noterVerification(parametresRepo, 'emails-envoyes-collaborateur');
+    if (!b.propre) noterVerification(parametresRepo, acces ? 'emails-envoyes-compte-collaborateur' : 'emails-envoyes-collaborateur');
+    if (acces) leverRefus(parametresRepo, b.collaborateur);
     etat.etat.envoyes[b.adresse] = { collaborateur: b.collaborateur, statut: 'ok', message: '', luLe: maintenant.toISOString(),
       lus: (prec.lus || 0) + lot.length, dernier: dateIso(dernier) || prec.dernier || depuisDefaut };
   }
@@ -507,7 +520,11 @@ async function lireEmailComplet(parametresRepo, emailId, injections = {}) {
   if (!connexionPrete(reglages)) return { erreur: 'La connexion Exchange n’est pas configurée.', statut: 503 };
   const email = lireEtat(parametresRepo).emails.find((e) => e.id === emailId);
   if (!email || !email.itemId) return { erreur: 'Email inconnu.', statut: 404 };
-  const r = await posterEws({ url: reglages.url, email: reglages.email, motDePasse: reglages.motDePasse, body: corpsGetItems([email.itemId], true), delaiMs: 30000 }, injections);
+  // Un email envoyé lu avec le compte du collaborateur n'existe que dans sa boîte : on le relit avec ce compte.
+  const rappels = parametresRepo.lireReglages ? parametresRepo.lireReglages() : {};
+  const acces = email.sens === 'envoye' && email.collaborateur && email.boite !== String(reglages.email || '').toLowerCase()
+    ? accesCollaborateur(parametresRepo, email.collaborateur, ((rappels.emailsResponsables || {})[email.collaborateur]) || email.boite) : null;
+  const r = await posterEws({ url: reglages.url, email: acces ? acces.email : reglages.email, motDePasse: acces ? acces.motDePasse : reglages.motDePasse, body: corpsGetItems([email.itemId], true), delaiMs: 30000 }, injections);
   if (r.echec) return { erreur: r.echec.message, statut: 502 };
   if (r.statut === 401 || r.statut === 403) return { erreur: 'Identifiants de messagerie refusés.', statut: 502 };
   const lu = succes(r.corps) ? parseGetItems(r.corps).get(email.itemId) : null;

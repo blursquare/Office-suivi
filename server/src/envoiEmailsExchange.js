@@ -16,6 +16,7 @@
 // l'email n'est jamais journalisé ni gardé par le serveur.
 
 const { noterVerification } = require('./verificationsTerrain');
+const { accesCollaborateur, marquerRefus } = require('./comptesCollaborateurs');
 const { echapperXml, ENVELOPPE_DEBUT, ENVELOPPE_FIN } = require('./emailsMatin');
 const { lireXml, tous: tousXml, attribut: attributXml, identifiantElement, analyseEws, succesSansErreur } = require('./exchange/xml');
 
@@ -180,7 +181,6 @@ async function envoyerEmailExchange(parametresRepo, demande, injections = {}) {
   const agendaWatch = require('./agendaWatch');
   const reglages = parametresRepo.lireReglagesExchange ? parametresRepo.lireReglagesExchange() : {};
   if (!connexionPrete(reglages)) return { ok: false, statut: 503, message: 'La connexion Exchange n’est pas configurée (Réglages › Agenda et Outlook).' };
-  if (agendaWatch.lectureAgendaSuspendue(reglages)) return { ok: false, statut: 503, message: 'Identifiants de messagerie refusés : corrigez-les dans Réglages › Agenda et Outlook.' };
   const d = demande || {};
   const a = adressesDepuisTexte(d.a);
   const cc = adressesDepuisTexte(d.cc).filter((x) => !a.includes(x));
@@ -202,7 +202,16 @@ async function envoyerEmailExchange(parametresRepo, demande, injections = {}) {
   const souhaitee = adresseCollaborateur(rappels, d.collaborateur);
   const etatEnvoi = lireEtatEnvoi(parametresRepo);
   const enTantQue = souhaitee && souhaitee !== compte && !refusRecent(etatEnvoi, souhaitee, maintenant) ? souhaitee : '';
-  const poster = (body, delaiMs = 60000) => posterEws({ url: reglages.url, email: reglages.email, motDePasse: reglages.motDePasse, body, delaiMs }, injections);
+  // Compte du collaborateur (étude 05/10) : l'email part de SA boîte avec son propre identifiant, sans droit « Envoyer en tant que ».
+  // Une réponse à un email du compte relié reste sur le compte relié quand « Envoyer en tant que » a déjà fonctionné (l'email
+  // cité n'existe que dans cette boîte) ; sinon elle part du compte du collaborateur, sans l'email cité (`sansFil`).
+  const acces = souhaitee && souhaitee !== compte ? accesCollaborateur(parametresRepo, d.collaborateur, souhaitee) : null;
+  const reponseParCompteRelie = Boolean(reponse && souhaitee && etatEnvoi.enTantQueReussi[souhaitee] && !refusRecent(etatEnvoi, souhaitee, maintenant));
+  let propre = acces && acces.email.toLowerCase() !== compte && !reponseParCompteRelie ? acces : null;
+  if (!propre && agendaWatch.lectureAgendaSuspendue(reglages)) return { ok: false, statut: 503, message: 'Identifiants de messagerie refusés : corrigez-les dans Réglages › Agenda et Outlook.' };
+  const poster = (body, delaiMs = 60000) => posterEws(propre
+    ? { url: reglages.url, email: propre.email, motDePasse: propre.motDePasse, body, delaiMs }
+    : { url: reglages.url, email: reglages.email, motDePasse: reglages.motDePasse, body, delaiMs }, injections);
   const refusIdentifiants = (r) => r.statut === 401 || r.statut === 403;
 
   const essayer = async (de) => {
@@ -211,7 +220,11 @@ async function envoyerEmailExchange(parametresRepo, demande, injections = {}) {
       ? corpsBrouillonReponse({ itemId: reponse.itemId, tous: reponse.tous, a, cc, sujet, html, de })
       : corpsBrouillonNouveau({ a, cc, sujet, html, pieces, de }));
     if (r1.echec) return { ok: false, message: r1.echec.message };
-    if (refusIdentifiants(r1)) { agendaWatch.signalerIdentifiantsRefuses(reglages); return { ok: false, message: 'Identifiants de messagerie refusés.' }; }
+    if (refusIdentifiants(r1)) {
+      if (propre) return { ok: false, refusPropre: true, message: 'Identifiants du collaborateur refusés.' };
+      agendaWatch.signalerIdentifiantsRefuses(reglages);
+      return { ok: false, message: 'Identifiants de messagerie refusés.' };
+    }
     const code1 = codeReponse(r1.corps);
     if (!succes(r1.corps)) return { ok: false, code: code1, refusEnTantQue: Boolean(de && CODES_REFUS_EN_TANT_QUE.test(code1)), message: messageEchec(code1, r1.statut) };
     const brouillon = idBrouillon(r1.corps);
@@ -238,7 +251,19 @@ async function envoyerEmailExchange(parametresRepo, demande, injections = {}) {
     return { ok: true };
   };
 
-  let resultat = await essayer(enTantQue);
+  const deParDefaut = propre ? '' : enTantQue;
+  let resultat = await essayer(deParDefaut);
+  let repliCompte = false;
+  if (!resultat.ok && resultat.refusPropre) {
+    // Identifiants du collaborateur refusés par Exchange : compte retenu (aucun nouvel essai avant correction), l'email part
+    // du compte relié comme avant — un seul essai, jamais de réessai sur le compte refusé.
+    marquerRefus(parametresRepo, d.collaborateur);
+    noterVerification(parametresRepo, 'email-envoye-compte-collaborateur', { ok: false, message: 'identifiants du collaborateur refusés par Exchange' });
+    propre = null;
+    repliCompte = true;
+    if (agendaWatch.lectureAgendaSuspendue(reglages)) return { ok: false, statut: 503, message: 'Identifiants du collaborateur refusés, et ceux de la messagerie aussi : corrigez-les dans Réglages.' };
+    resultat = await essayer(enTantQue);
+  }
   // Email d'origine déplacé ou supprimé dans Outlook (son identifiant EWS change au déplacement : ErrorItemNotFound) :
   // la réponse part quand même, comme un nouvel email « RE: … » au même destinataire, sans l'email cité dessous
   // (étude 05/10 : « quand un email est déplacé, permettre d'y répondre quand même »).
@@ -246,9 +271,10 @@ async function envoyerEmailExchange(parametresRepo, demande, injections = {}) {
   if (!resultat.ok && reponse && a.length && /ErrorItemNotFound|ErrorInvalidIdMalformed/.test(resultat.code || '')) {
     reponse = null;
     sansFil = true;
-    resultat = await essayer(enTantQue);
+    resultat = await essayer(deParDefaut);
   }
-  let repli = Boolean(souhaitee && souhaitee !== compte && !enTantQue);
+  const compteDedie = Boolean(propre && resultat.ok);
+  let repli = Boolean(souhaitee && souhaitee !== compte && !enTantQue && !compteDedie) || repliCompte;
   if (!resultat.ok && resultat.refusEnTantQue && enTantQue) {
     // « Envoyer en tant que » pas encore donné dans Exchange : refus retenu, l'email part du compte relié.
     etatEnvoi.refusEnTantQue[enTantQue] = new Date(maintenant).toISOString();
@@ -256,6 +282,8 @@ async function envoyerEmailExchange(parametresRepo, demande, injections = {}) {
     noterVerification(parametresRepo, 'email-envoye-en-tant-que', { ok: false, message: 'droit « Envoyer en tant que » refusé par Exchange' });
     resultat = await essayer('');
     repli = true;
+  } else if (compteDedie) {
+    noterVerification(parametresRepo, 'email-envoye-compte-collaborateur', {});
   } else if (resultat.ok && enTantQue) {
     delete etatEnvoi.refusEnTantQue[enTantQue];
     etatEnvoi.enTantQueReussi[enTantQue] = new Date(maintenant).toISOString();
@@ -268,7 +296,7 @@ async function envoyerEmailExchange(parametresRepo, demande, injections = {}) {
   }
   noterVerification(parametresRepo, reponse ? 'email-reponse-exchange' : 'email-envoye-exchange', {});
   if (sansFil) noterVerification(parametresRepo, 'email-reponse-email-deplace', {});
-  return { ok: true, envoyeLe: new Date(maintenant).toISOString(), de: repli || !enTantQue ? compte : enTantQue, repli, sansFil, destinataires: a.concat(cc) };
+  return { ok: true, envoyeLe: new Date(maintenant).toISOString(), de: compteDedie ? souhaitee : (repli || !enTantQue ? compte : enTantQue), repli, sansFil, compteDedie, destinataires: a.concat(cc) };
 }
 
 function messageEchec(code, statut) {
