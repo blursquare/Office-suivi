@@ -829,8 +829,10 @@
     const etat = etatEnvoiRedaction();
     if (!etat.possible) { r.erreur = etat.motif; renderRedaction(); return; }
     r.envoi = true; r.erreur = '';
-    renderRedaction();
+    // Tout dans le try, le redessin compris (étude 05/10 : « rien n'est parti », ni message ni brouillon — le redessin levait
+    // avant l'appel au serveur et le bouton restait sur « Envoi… ») : une erreur, quelle qu'elle soit, se dit dans la fenêtre.
     try {
+      renderRedaction();
       const corps = r.texte === r.texteDepart && !r.proposition ? r.corpsOrigine : corpsDepuisTexteEditable(r.texte, r.boutons);
       const images = await imagesSignatureEmail();
       const signataire = signataireEmail(utilisateurPoste || r.responsableSignature, await reglagesSignature());
@@ -851,8 +853,8 @@
     } catch (e) {
       if (redaction !== r) return;
       r.envoi = false;
-      r.erreur = 'Email non envoyé : ' + e.message;
-      renderRedaction();
+      r.erreur = 'Email non envoyé : ' + ((e && e.message) || 'erreur inattendue');
+      try { renderRedaction(); } catch (_) { afficherToast(r.erreur, 'OK', null); }
     }
   }
 

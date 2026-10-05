@@ -119,6 +119,25 @@ try {
       await pause(300);
       verifier(erreurs.length === avantEmail, 'fenêtre d’email : redessin avec le focus sur « Envoyer » sans erreur');
       await geste(page, 'abandonner l’email', () => abandonnerRedaction());
+      // Envoi réel au clic de la souris (étude 05/10 : « rien n'est parti », ni message ni brouillon) : la requête doit
+      // atteindre le serveur — réponse simulée ici, Exchange étant injoignable — et la fenêtre se fermer.
+      let envoiRecu = null;
+      await page.route('**/api/emails/envoyer', async (r) => {
+        envoiRecu = JSON.parse(r.request().postData() || '{}');
+        await r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true, envoyeLe: new Date().toISOString(), de: 'essai@exemple.fr' }) });
+      });
+      await geste(page, 'fenêtre d’email › ouvrir pour envoyer', () => {
+        envoiDirectPossible = () => true;
+        window.__envoiFumee = null;
+        ouvrirRedactionEmail({ mode: 'nouveau', destinataire: 'client@exemple.fr', sujet: 'Essai', corps: 'Bonjour', dossierId: 'f1', responsableSignature: 'Julie VASSELIN' })
+          .then((r) => { window.__envoiFumee = r; });
+      });
+      await pause(400);
+      try { await page.click('#redaction-envoyer', { timeout: 3000 }); } catch (e) { erreurs.push(`[${ecran.nom}] fenêtre d’email : clic sur « Envoyer » impossible`); }
+      await page.waitForFunction(() => !!window.__envoiFumee, null, { timeout: 5000 }).catch(() => {});
+      const envoi = await page.evaluate(() => window.__envoiFumee);
+      verifier(!!envoiRecu && envoiRecu.a === 'client@exemple.fr' && envoi && envoi.ok && envoi.mode === 'envoye', `[${ecran.nom}] fenêtre d’email : un clic sur « Envoyer » atteint le serveur`);
+      await page.unroute('**/api/emails/envoyer');
       await page.evaluate(() => definirOnglet('dashboard'));
       await pause(300);
     }
