@@ -51,15 +51,15 @@ test('montant attendu lu dans un décompte, et état de l’indicateur', () => {
   assert.equal(app.bilanFondsRecus(500, null).etat, 'inconnu');
 });
 
-// Règle de l'étude (29/09) : à l'euro près, quelques dizaines d'euros d'écart au plus (erreur du
-// client), dans un sens comme dans l'autre. Bien au-delà du montant attendu : écart à vérifier.
-test('bilanFondsRecus : complet à 50 € près, excédent jamais « complet »', () => {
+// Règle de l'étude (05/10) : 2 € d'écart au plus (50 € jusque-là), dans un sens comme dans l'autre. Bien au-delà du montant attendu : écart à vérifier.
+test('bilanFondsRecus : complet à 2 € près, excédent jamais « complet »', () => {
   assert.equal(app.bilanFondsRecus(331158.76, 331158.76).etat, 'complet');
-  const plus = app.bilanFondsRecus(331188.76, 331158.76);
+  const plus = app.bilanFondsRecus(331160.76, 331158.76);
   assert.equal(plus.etat, 'complet');
-  assert.equal(plus.ecart, 30);
-  assert.equal(app.bilanFondsRecus(331120, 331158.76).etat, 'complet');
-  assert.equal(app.bilanFondsRecus(331100, 331158.76).etat, 'partiel');
+  assert.equal(plus.ecart, 2);
+  assert.equal(app.bilanFondsRecus(331157, 331158.76).etat, 'complet');
+  assert.equal(app.bilanFondsRecus(331156.5, 331158.76).etat, 'partiel');
+  assert.equal(app.bilanFondsRecus(331188.76, 331158.76).etat, 'excedent');
   const trop = app.bilanFondsRecus(405977.91, 331158.76);
   assert.equal(trop.etat, 'excedent');
   assert.equal(trop.reste, 0);

@@ -1,6 +1,6 @@
 // @ts-check
 'use strict';
-// Montants en euros : format « 360.000,00 € » (étude, 29/09) et bilan des fonds reçus (à 50 € près).
+// Montants en euros : format « 360.000,00 € » (étude, 29/09) et bilan des fonds reçus (à 2 € près).
 // Code COMMUN au poste (navigateur, <script> classique chargé avant client/) et au serveur (require) — écrit une fois,
 // jamais en miroir (étude, 04/10). Dans le navigateur, les noms exportés deviennent des globaux (comme les fonctions de
 // client/) ; côté Node, module.exports. Pas de syntaxe réservée à l'un des deux mondes.
@@ -33,11 +33,10 @@
   }
 
   // Pure : l'état de l'indicateur. Les fonds doivent correspondre au montant attendu à l'euro près,
-  // avec une marge de quelques dizaines d'euros au plus pour une erreur du client (règle de l'étude,
-  // 29/09) — dans les DEUX sens : bien au-delà du montant attendu, ce n'est pas « complet » mais un
+  // avec une marge de 2 € au plus (arrondi, centimes ; étude 05/10 : « maximum 2 euros » — 50 € jusque-là) — dans les DEUX sens : bien au-delà du montant attendu, ce n'est pas « complet » mais un
   // écart à vérifier (des versements d'un autre dossier ont probablement été comptés).
   // `ecart` = reçu − attendu (négatif s'il manque). Miroir bilanFonds (server/src/jobs/rappels.js).
-  var MARGE_FONDS_RECUS = 50;
+  var MARGE_FONDS_RECUS = 2;
   function bilanFondsRecus(total, attendu) {
     const t = Math.round((Number(total) || 0) * 100) / 100;
     if (!(attendu > 0)) return { etat: t > 0 ? 'inconnu' : 'aucun', total: t, attendu: null, reste: null, ecart: null };

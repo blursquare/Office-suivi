@@ -490,7 +490,7 @@
 
   // Réception des fonds, en visuel (demandé par l'étude le 29/09 : « plus clair, moins de texte ») :
   // trois chiffres (reçu, attendu, reste ou écart), une jauge, puis les versements retenus en lignes
-  // courtes. Le détail (fichiers lus, noms cherchés, marge de 50 €) passe dans les pastilles « i ».
+  // courtes. Le détail (fichiers lus, noms cherchés, marge de 2 €) passe dans les pastilles « i ».
   function renderFondsRecus(d) {
     if (!echeanceValidee(d, 'appelFonds') && !d.fondsRecus && !d.rendezVousSignature) return '';
     const f = d.fondsRecus;
@@ -523,7 +523,7 @@
     const jauge = `<div class="fonds-jauge">
         <div class="fonds-chiffres">
           ${f ? `<div class="fonds-chiffre"><span class="fonds-chiffre-libelle">Reçu</span><strong>${formaterPrixCentimes(b.total)}</strong></div>` : ''}
-          <div class="fonds-chiffre"><span class="fonds-chiffre-libelle">Attendu ${infoBulle('À 50 € près : au-delà, en plus ou en moins, CLAIRE signale un écart.')}</span>
+          <div class="fonds-chiffre"><span class="fonds-chiffre-libelle">Attendu ${infoBulle('À 2 € près : au-delà, en plus ou en moins, CLAIRE signale un écart.')}</span>
             <span class="fonds-chiffre-valeur">${champFondsEditable(d, 'attendu', `<strong>${valeurAttendu}</strong>${sourceAttendu}`, attendu ? String(attendu).replace('.', ',') : '', 'lu dans le décompte', 'inputmode="decimal"')}</span></div>
           ${troisieme ? `<div class="fonds-chiffre ${troisieme.cls}"><span class="fonds-chiffre-libelle">${troisieme.libelle}</span><strong>${troisieme.valeur}</strong></div>` : ''}
         </div>

@@ -16599,3 +16599,12 @@ CLAIRE sur l'appel, même pour un numéro que personne ne connaît. Désormais, 
 du répertoire (`entree.dossiers` vide et `entree.contact` nul) → la page se ferme aussitôt (`inconnu`). L'appel reste noté dans le
 journal et le bandeau « Appel entrant » de la fenêtre CLAIRE du poste est inchangé. Limite : `window.close()` ne marche que pour un
 onglet ouvert par script ; si 3CX l'ouvre autrement, le navigateur laisse « Appel noté dans CLAIRE. ». Non vérifié avec un vrai 3CX.
+
+### 05/10/2026 — 0.144.30 — Fonds reçus : marge de 2 €
+
+Demande de l'étude : « pour les appels de fonds il faut que l'écart soit de maximum 2 euros ». Lecture retenue : l'écart entre les
+fonds reçus et le montant attendu de l'appel de fonds. `MARGE_FONDS_RECUS` (`commun/montants.js`, partagé poste/serveur) passe de
+50 à 2 € : « complet » à 2 € près dans les deux sens, au-delà « partiel » (manque) ou « excédent » (à vérifier). L'état est
+calculé à l'affichage (`bilanFondsRecus`), donc les dossiers déjà lus changent d'état sans relecture. Non touché : la tolérance du
+contrôle du barème des frais de l'appel de fonds (1 %, 50 € au moins, `client/40-generateur-appel-fonds.js`) — c'est un autre
+contrôle ; à resserrer aussi si l'étude le vise.

@@ -675,9 +675,11 @@ test('fonds incomplets : rendez-vous lundi ou mardi → alerte le vendredi, jama
   assert.equal(alertesFondsDues([lundi], '2026-10-13', new Set()).length, 0);
 });
 
-test('fonds : à 50 € près ; un excédent n’est jamais « tous les fonds reçus »', () => {
-  const pres = dossierFonds({ rendezVousSignature: '2026-10-20', fondsRecus: recus(150030, 150000) });
+test('fonds : à 2 € près ; un excédent n’est jamais « tous les fonds reçus »', () => {
+  const pres = dossierFonds({ rendezVousSignature: '2026-10-20', fondsRecus: recus(150002, 150000) });
   assert.equal(alertesFondsDues([pres], '2026-10-06', new Set())[0].genre, 'complets');
+  const peuTrop = dossierFonds({ rendezVousSignature: '2026-10-07', fondsRecus: recus(150030, 150000) });
+  assert.equal(alertesFondsDues([peuTrop], '2026-10-05', new Set())[0].genre, 'incomplets');
   const trop = dossierFonds({ rendezVousSignature: '2026-10-07', fondsRecus: recus(405977.91, 331158.76) });
   const dus = alertesFondsDues([trop], '2026-10-05', new Set());
   assert.equal(dus.length, 1);
