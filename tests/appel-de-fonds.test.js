@@ -681,22 +681,24 @@ test('situation : l’appel de fonds reprend la fiche (rôle en capitales, civil
   assert.match(sansSituation.aCompleter.join(' '), /Situation des acquéreurs/);
 });
 
-test('appel de fonds du confrère sur le NAS : candidats par le nom, le rattaché et la racine d’abord, le courrier de CLAIRE en dernier', () => {
+test('appel de fonds du confrère sur le NAS : « Projet VENTE confrère » d’abord, jamais le décompte de l’étude à la racine', () => {
   const app = chargerApplication();
   const f = (chemin) => ({ nom: chemin.split('/').pop(), chemin });
   const fichiers = [
+    f('Decompte acquéreur DUPONT.pdf'),                                      // le nôtre, à la racine : jamais
     f('Convocation au rendez-vous contenant l\'appel de fonds - VTE - DUPONT.pdf'),
     f('5 - Comptabilité/Décompte acquéreur 2026.pdf'),
-    f('Appel de fonds Me FOURNIER.pdf'),
-    f('Décompte remboursement prêt.pdf'),
-    f('Compromis signé.pdf'),
-    f('Decompte 2025.pdf'),
-    { nom: 'Appel de fonds.docx', chemin: 'Appel de fonds.docx' }
+    f('Projet VENTE confrère/Projet acte de vente.pdf'),
+    f('Projet VENTE confrère/Décompte Me FOURNIER.pdf'),
+    f('Projet VENTE confrère/Annexes.docx'),
+    f('5 - Comptabilité/Décompte remboursement prêt.pdf'),
+    f('2 - Acquéreur/Pièce identité.pdf')
   ];
-  const ordre = app.candidatsDecompteConfrereNas(fichiers, '').map(x => x.nom).join(' | ');
-  // À la racine, le nom qui porte une année passe devant (le plus récent d'abord).
-  assert.strictEqual(ordre, 'Decompte 2025.pdf | Appel de fonds Me FOURNIER.pdf | Décompte acquéreur 2026.pdf | Convocation au rendez-vous contenant l\'appel de fonds - VTE - DUPONT.pdf');
-  const rattache = app.candidatsDecompteConfrereNas(fichiers, '5 - Comptabilité/Décompte acquéreur 2026.pdf')[0];
-  assert.strictEqual(rattache.chemin, '5 - Comptabilité/Décompte acquéreur 2026.pdf', 'le courrier rattaché à « Envoi appel de fonds » d’abord');
-  assert.strictEqual(app.candidatsDecompteConfrereNas([f('Titre de propriété.pdf')], '').length, 0);
+  const ordre = app.candidatsDecompteConfrereNas(fichiers, '5 - Comptabilité/Décompte acquéreur 2026.pdf').map(x => x.chemin).join(' | ');
+  assert.strictEqual(ordre, 'Projet VENTE confrère/Décompte Me FOURNIER.pdf | Projet VENTE confrère/Projet acte de vente.pdf',
+    'dossier du confrère : le décompte avant le reste ; le courrier rattaché (le nôtre) écarté');
+  const sansRattache = app.candidatsDecompteConfrereNas(fichiers, '').map(x => x.chemin);
+  assert.strictEqual(sansRattache[2], '5 - Comptabilité/Décompte acquéreur 2026.pdf', 'autre sous-dossier : seulement par le nom, après le dossier du confrère');
+  assert.ok(!sansRattache.some(c => !/[\\/]/.test(c)), 'rien à la racine');
+  assert.ok(app.candidatsDecompteConfrereNas([f('PROJET VTE CONFRERE/AF.pdf')], '').length === 1, 'dossier du confrère en capitales, sans accent');
 });

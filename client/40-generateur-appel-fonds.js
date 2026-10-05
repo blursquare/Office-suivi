@@ -2231,19 +2231,27 @@
 
   // --- décompte du confrère retrouvé sur le NAS (étude 05/10 : « quand on choisit le dossier pour faire l'appel de fonds,
   // récupère l'appel de fonds du confrère enregistré dans le dossier NAS ») ------------------------------------------------
-  // En participation seulement (décompte « confrère »). Candidats : les PDF du dossier dont le NOM dit appel de fonds,
-  // décompte ou convocation (mêmes motifs que les fonds reçus, sans les décomptes de prêt), le courrier rattaché à
-  // « Envoi appel de fonds » d'abord, la racine avant les sous-dossiers, le plus récent d'abord ; le courrier produit par
-  // CLAIRE (« … contenant l'appel de fonds ») en dernier. Le premier dont le tableau se lit remplace le décompte.
+  // Deux décomptes à ne JAMAIS confondre (étude 05/10) : celui du confrère, qu'il nous envoie et qui sert à compléter le nôtre,
+  // « souvent enregistré dans un dossier Projet VENTE confrère » ; et celui de l'étude, mis en forme et envoyé au client,
+  // enregistré à la RACINE du dossier — c'est lui qui est rattaché à « Envoi appel de fonds » (courrierAppelFondsDossier).
+  // Ici, seul celui du confrère : jamais un PDF de la racine, jamais le courrier rattaché, jamais le courrier produit par
+  // CLAIRE. En participation seulement (décompte « confrère »). Candidats, dans l'ordre : les PDF d'un sous-dossier qui nomme
+  // le confrère (« Projet VENTE confrère ») — ceux dont le nom dit décompte / appel de fonds d'abord —, puis, dans les autres
+  // sous-dossiers, les PDF dont le nom le dit ; le plus récent d'abord. Le premier dont le tableau se lit remplace le décompte.
   var RE_NOM_COURRIER_CLAIRE_APPEL_FONDS = /contenant\s+l.?appel\s+de\s+fonds/i;
+  var RE_DOSSIER_CONFRERE = /confrer/;
   var MAX_CANDIDATS_DECOMPTE_NAS = 6;
   var afRechercheDecompteNas = 0;
   // Pure.
   function candidatsDecompteConfrereNas(fichiers, rattache) {
     const nom = f => normaliserNomPourMotif(String(f.nom || ''));
-    const rang = f => (RE_NOM_COURRIER_CLAIRE_APPEL_FONDS.test(nom(f)) ? 8 : 0) + (f.chemin === rattache ? 0 : 4) + (/[\\/]/.test(f.chemin) ? 1 : 0);
+    const dansDossierConfrere = f => segmentsDossier(f.chemin).some(seg => RE_DOSSIER_CONFRERE.test(normaliserPourRecherche(seg)));
+    const ditDecompte = f => RE_NOM_DECOMPTE.test(nom(f)) && !RE_NOM_DECOMPTE_EXCLU.test(nom(f));
+    const rang = f => (dansDossierConfrere(f) ? 0 : 2) + (ditDecompte(f) ? 0 : 1);
     return (fichiers || [])
-      .filter(f => f && f.chemin && /\.pdf$/i.test(String(f.nom || f.chemin)) && RE_NOM_DECOMPTE_SUR.test(nom(f)) && !RE_NOM_DECOMPTE_EXCLU.test(nom(f)))
+      .filter(f => f && f.chemin && /\.pdf$/i.test(String(f.nom || f.chemin)))
+      .filter(f => segmentsDossier(f.chemin).length > 0 && f.chemin !== rattache && !RE_NOM_COURRIER_CLAIRE_APPEL_FONDS.test(nom(f)))
+      .filter(f => dansDossierConfrere(f) || ditDecompte(f))
       .sort((a, b) => rang(a) - rang(b)
         || (anneeDansNomFichier(b.nom) || 0) - (anneeDansNomFichier(a.nom) || 0)
         || String(b.modifie || '').localeCompare(String(a.modifie || '')));
@@ -2274,7 +2282,7 @@
         afficherRapportAppelFonds(candidats.length
           ? 'Appel de fonds du confrère trouvé sur le NAS, mais son tableau n’a pas pu être lu.'
           : 'Aucun appel de fonds du confrère dans le dossier du NAS.',
-        [candidats.length ? `Fichier(s) essayé(s) : ${candidats.map(f => f.nom).join(', ')}.` : 'Cherché : un PDF dont le nom dit « appel de fonds », « décompte » ou « convocation ».', 'Déposez son PDF ou collez son texte ci-dessous.'], true);
+        [candidats.length ? `Fichier(s) essayé(s) : ${candidats.map(f => f.nom).join(', ')}.` : 'Cherché : le dossier « Projet VENTE confrère » (ou un sous-dossier qui nomme le confrère), puis un PDF de sous-dossier dont le nom dit « appel de fonds » ou « décompte » — jamais le décompte de l’étude, à la racine.', 'Déposez son PDF ou collez son texte ci-dessous.'], true);
       }
     } catch (e) {
       if (toujoursLa()) afficherRapportAppelFonds('Dossier du NAS illisible : appel de fonds du confrère non repris.', ['Déposez son PDF ou collez son texte ci-dessous.'], true);

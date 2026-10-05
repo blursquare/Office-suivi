@@ -364,8 +364,12 @@ dans `index.html`** (le test `structure-client` refuse tout décalage).
   le remboursement. À la charge de l'acquéreur / remboursé → ligne au débit de l'appel de fonds.
 - **Appel de fonds** : établi par l'office, ou repris du décompte du confrère quand l'étude est en
   participation — **retrouvé seul sur le NAS au choix du dossier** (étude 05/10, `reprendreDecompteConfrereNas`,
-  `candidatsDecompteConfrereNas` : nom « appel de fonds/décompte/convocation » hors prêt, courrier rattaché puis racine puis
-  plus récent, courrier produit par CLAIRE en dernier ; le premier tableau lisible remplace le décompte). Prêt hypothécaire : montant du prêt **déduit**, frais de garantie **appelés au
+  `candidatsDecompteConfrereNas`). **Deux décomptes distincts** : celui du **confrère** (sert à compléter le nôtre, « souvent dans
+  un dossier Projet VENTE confrère » — sous-dossier dont le nom contient « confrère », `RE_DOSSIER_CONFRERE`) et celui de
+  l'**étude** (mis en forme, envoyé au client, enregistré à la **racine**, rattaché à « Envoi appel de fonds »,
+  `courrierAppelFondsDossier`, lu par les fonds reçus et l'agenda). Le premier n'est jamais cherché à la racine ni dans le
+  courrier rattaché ou produit par CLAIRE ; ordre : dossier du confrère (nom décompte d'abord), puis autres sous-dossiers par le
+  nom ; le premier tableau lisible remplace le décompte. Prêt hypothécaire : montant du prêt **déduit**, frais de garantie **appelés au
   débit**. Taxe foncière : montant lu en page 1 (« Montant de vos taxes foncières », jamais la
   « somme à prélever ») et contrôlé en bas à droite de la page 2 (entier nu possible) ; avis sur
   plusieurs biens (lus en page 2 par position, `biensAvisTaxeFonciere`) → **le bien vendu est demandé**

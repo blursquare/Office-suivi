@@ -16928,3 +16928,18 @@ Madame prénom nom, ou si deux hommes ou deux femmes. »
   « Monsieur et Madame NOM ». `salutationAppelFonds` suit les civilités (« Chers Messieurs, », « Chères Mesdames, »).
   `clientsDepuisDossier` : « à compléter » seulement si la civilité manque (le prénom est dans le nom) ; une partie sans nom
   est écartée ; deux personnes sans aucune civilité : Monsieur puis Madame, « vérifiez qui est qui ».
+
+### 05/10/2026 23 h 12 — 0.157.2 : décompte du confrère ≠ décompte de l'étude
+
+Étude : « Il faut bien que tu distingues les deux décomptes. Le confrère nous envoie son décompte, que l'on utilise pour
+compléter notre décompte avec notre mise en forme, que l'on envoie aux clients ; le décompte à rattacher au dossier est celui
+que l'on envoie et enregistre à la racine du dossier — celui que tu connais déjà. Celui du confrère est souvent enregistré dans
+un dossier Projet VENTE confrère. »
+
+- `candidatsDecompteConfrereNas` : plus jamais un PDF de la racine (le décompte de l'étude), ni le courrier rattaché à
+  « Envoi appel de fonds », ni le courrier produit par CLAIRE. Candidats : tout PDF d'un sous-dossier dont le nom contient
+  « confrère » (`RE_DOSSIER_CONFRERE`, sans accent, toute casse — « Projet VENTE confrère », « PROJET VTE CONFRERE »), celui dont
+  le nom dit décompte / appel de fonds / convocation d'abord (un projet d'acte de plus de 6 pages est sauté à la lecture) ; puis,
+  dans les autres sous-dossiers, les PDF dont le nom le dit (`RE_NOM_DECOMPTE`, hors prêt) ; le plus récent d'abord.
+- Inchangé : le décompte de l'étude à la racine reste celui du dossier (`courrierAppelFondsDossier`, `appelFondsCourrier` posé
+  par le serveur, fonds reçus `montantAttenduDepuisNas`, « Décompte » de l'agenda en succession).
