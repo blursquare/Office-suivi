@@ -366,8 +366,9 @@
   // Repère une éventuelle mention d'un achat sans recours à un prêt.
   // Attention : "paiement comptant" seul est un FAUX AMI — cette formule désigne presque toujours
   // le règlement du solde en une fois à la signature de l'acte, pas l'absence de prêt.
-  // On ne se fie donc qu'à des marqueurs juridiques non ambigus (dont la renonciation Scrivener).
-  const CASH_RE = /ne\s+recourt?\s+pas\s+[àa]\s+(?:un\s+)?(?:pr[êe]t|emprunt)|sans\s+recours\s+[àa]\s+(?:un\s+)?(?:pr[êe]t|emprunt)|sans\s+financement\s+bancaire|sans\s+condition\s+suspensive\s+d.obtention\s+de\s+pr[êe]t|renonce\s+(?:express[ée]ment\s+)?au\s+b[ée]n[ée]fice\s+(?:des\s+dispositions\s+)?de\s+l.article\s*l\.?\s*313|d[ée]clare\s+ne\s+pas\s+recourir\s+[àa]\s+(?:un\s+)?(?:pr[êe]t|emprunt)|financement\s+(?:se\s+fera|r[ée]alis[ée])\s+(?:exclusivement\s+)?(?:sur|par)\s+(?:ses\s+)?fonds\s+propres|ne\s+recourir\s+[àa]\s+aucun\s+(?:pr[êe]t|emprunt)|absence\s+de\s+condition\s+suspensive\s+d['’]?\s*obtention\s+(?:d['’]un\s+|de\s+|du\s+)?pr[êe]t/i;
+  // On ne se fie donc qu'à des marqueurs juridiques non ambigus (dont la renonciation Scrivener). Ajoutés le 05/10 sur deux
+  // promesses réelles : « n'entend pas contracter d'emprunt », « déclare ne pas vouloir recourir à un prêt ».
+  const CASH_RE = /ne\s+recourt?\s+pas\s+[àa]\s+(?:un\s+)?(?:pr[êe]t|emprunt)|sans\s+recours\s+[àa]\s+(?:un\s+)?(?:pr[êe]t|emprunt)|sans\s+financement\s+bancaire|sans\s+condition\s+suspensive\s+d.obtention\s+de\s+pr[êe]t|renonce\s+(?:express[ée]ment\s+)?au\s+b[ée]n[ée]fice\s+(?:des\s+dispositions\s+)?de\s+l.article\s*l\.?\s*313|d[ée]clare\s+ne\s+pas\s+recourir\s+[àa]\s+(?:un\s+)?(?:pr[êe]t|emprunt)|financement\s+(?:se\s+fera|r[ée]alis[ée])\s+(?:exclusivement\s+)?(?:sur|par)\s+(?:ses\s+)?fonds\s+propres|ne\s+recourir\s+[àa]\s+aucun\s+(?:pr[êe]t|emprunt)|absence\s+de\s+condition\s+suspensive\s+d['’]?\s*obtention\s+(?:d['’]un\s+|de\s+|du\s+)?pr[êe]t|n['’]entend\s+pas\s+(?:contracter|recourir\s+[àa])\s+(?:d['’]\s*|un\s+|aucun\s+)?(?:emprunt|pr[êe]t)|ne\s+pas\s+vouloir\s+recourir\s+[àa]\s+(?:un\s+)?(?:pr[êe]t|emprunt)/i;
 
   function detecterFinancementComptant(texte) {
     return CASH_RE.test(texte);
@@ -523,7 +524,9 @@
   // tournure d'intermédiation explicite ("par l'intermédiaire de l'agence...", "par l'entremise
   // de...") — jamais sur le seul mot "agence", trop ambigu (agence bancaire, agence France
   // Travail...) pour être un signal fiable à lui seul.
-  const AGENCE_RE = /(?:l['’]interm[ée]diaire\s+de\s+(?:l['’]agence\s+)?|par\s+l['’]entremise\s+de\s+(?:l['’]agence\s+)?|n[ée]goci[ée]e?s?\s+par\s+(?:l['’]agence\s+)?|mandat[ée]?e?\s+[àa]\s+l['’]agence\s+|l['’]agence\s+immobili[èe]re\s+)["«“]?\s*([A-Z0-9][^,.\n(;"»”]{1,60}?)\s*["»”]?(?=\s*[,.;\n(]|\s+(?:sise|situ[ée]e?|dont|repr[ée]sent[ée]e?|immatricul[ée]e?)\b)/i;
+  // Trame d'agence (05/10, deux compromis réels) : « négociées par l'AGENCE   l'Agence Blois Immo  exploitée par la société … »,
+  // « … par l'AGENCE   AIM TRANSACTIONS  Montlouis   exploitée par … » — l'article répété et « exploitée par » terminent le nom.
+  const AGENCE_RE = /(?:l['’]interm[ée]diaire\s+de\s+(?:l['’]agence\s+)?|par\s+l['’]entremise\s+de\s+(?:l['’]agence\s+)?|n[ée]goci[ée]e?s?\s+par\s+(?:l['’]agence\s+)?|mandat[ée]?e?\s+[àa]\s+l['’]agence\s+|l['’]agence\s+immobili[èe]re\s+)(?:l['’](?=agence))?["«“]?\s*([A-Z0-9][^,.\n(;"»”]{1,60}?)\s*["»”]?(?=\s*[,.;\n(]|\s+(?:sise|situ[ée]e?|dont|repr[ée]sent[ée]e?|immatricul[ée]e?|exploit[ée]e?|avec\s+le\s+concours|qu['’](?:elles?|ils?))(?![A-Za-zÀ-ɏ]))/i;
 
   function detecterNomAgence(texte) {
     const m = AGENCE_RE.exec(texte);
@@ -545,7 +548,9 @@
   var RE_NEGOCIATION_DIRECTE = /n[ée]goci[ée]e?s\s+directement\s+entre\s+(?:elles|les\s+parties)|sans\s+le\s+concours\s+(?:ni\s+la\s+participation\s+)?d['’]un\s+interm[ée]diaire/i;
   var RE_NEGOCIE_PAR = /n[ée]goci[ée]e?s?\s+par\s+(l['’]agence|l['’]office\s+notarial|l['’][ée]tude|Ma[îi]tre|Me|la\s+soci[ée]t[ée]|la\s+SARL|la\s+SAS|la\s+SCP|la\s+SELARL|la\s+SELAS|le\s+cabinet)\s*["«“]?\s*([^,.;"»”(]{2,70})/i;
   var RE_CHARGE_NEGOCIATION = /[àa]\s+la\s+charge\s+(?:exclusive\s+)?(?:du|de\s+l['’])\s*(PROMETTANT|B[ÉE]N[ÉE]FICIAIRE|VENDEUR|ACQU[ÉE]REUR)/i;
-  var RE_MONTANT_TTC = /(\d{1,3}(?:[ .  ]\d{3})*(?:,\d{2})?)\s*(?:€|eur(?:os?)?)(?![A-Za-zÀ-ɏ])/gi;
+  // Montant avec ou sans séparateur de milliers : « 9 900 € TTC », mais aussi « 14000 € TTC » (trame d'agence, 05/10 —
+  // le « 14000 » ne donnait que « 000 », écarté, et les honoraires restaient « À compléter »).
+  var RE_MONTANT_TTC = /((?:\d{1,3}(?:[ .  ]\d{3})+|\d+)(?:,\d{2})?)\s*(?:€|eur(?:os?)?)(?![A-Za-zÀ-ɏ])/gi;
   var FENETRE_HONORAIRES = 900;
 
   function montantHonorairesDansFenetre(fenetre) {
@@ -925,19 +930,24 @@
   // Pure et testable. `montant` est la somme réellement versée (celle à déduire de l'appel de
   // fonds), `total` l'indemnité stipulée quand elle diffère, `index` l'endroit où chercher à qui
   // elle a été remise (voir detecterSequestreDepot).
+  // Le dépôt de garantie d'un BAIL en cours (« Montant du loyer et charges : … Montant du dépôt de garantie : 455 € »,
+  // bien vendu loué — compromis réel du 05/10) n'est jamais celui de la vente : il était pris à la place de l'acompte.
+  var RE_CONTEXTE_BAIL = /\bloyers?\b|\bbail\b|locataires?|locaux\s+lou[ée]s|location\s+n[°o]/i;
+  function premierHorsBail(re, source) {
+    const g = new RegExp(re.source, 'gi');
+    let m;
+    while ((m = g.exec(source)) !== null) {
+      if (RE_CONTEXTE_BAIL.test(source.slice(Math.max(0, m.index - 220), m.index + 40))) continue;
+      const valeur = montantDepuisCapture(m[1]);
+      if (valeur !== null) return { valeur, index: m.index, fin: m.index + m[0].length };
+    }
+    return null;
+  }
+
   function detecterDepotGarantieDetail(texte) {
     const source = String(texte || '');
-    let trouve = null;
-    const parenthese = DEPOT_GARANTIE_PARENTHESES_RE.exec(source);
-    if (parenthese) {
-      const valeur = montantDepuisCapture(parenthese[1]);
-      if (valeur !== null) trouve = { valeur, index: parenthese.index, fin: parenthese.index + parenthese[0].length };
-    }
-    if (!trouve) {
-      const chiffres = DEPOT_GARANTIE_CHIFFRES_RE.exec(source);
-      const valeur = chiffres ? montantDepuisCapture(chiffres[1]) : null;
-      if (valeur !== null) trouve = { valeur, index: chiffres.index, fin: chiffres.index + chiffres[0].length };
-    }
+    let trouve = premierHorsBail(DEPOT_GARANTIE_PARENTHESES_RE, source);
+    if (!trouve) trouve = premierHorsBail(DEPOT_GARANTIE_CHIFFRES_RE, source);
     if (!trouve) {
       const avant = DEPOT_MONTANT_AVANT_RE.exec(source);
       const valeur = avant ? montantDepuisCapture(avant[1]) : null;
@@ -1415,10 +1425,80 @@
         debut--; n++;
       }
       const fenetre = texte.slice(debut, m.index + 300);
-      const em = fenetre.match(EMAIL_RE);
-      if (em && (!exclu || em[0].toLowerCase() !== String(exclu).toLowerCase())) return em[0];
+      // Jamais une adresse générique d'agence ou d'office (contact@…, …@notaires.fr) : la présentation de l'agence suit
+      // souvent celle de l'acquéreur dans les trames d'agence (05/10).
+      const em = (fenetre.match(new RegExp(EMAIL_RE.source, 'gi')) || []).find(e => !RE_EMAIL_GENERIQUE.test(e));
+      if (em && (!exclu || em.toLowerCase() !== String(exclu).toLowerCase())) return em;
     }
     return null;
+  }
+
+  // Repli (05/10, compromis réels d'agence et promesses) : l'email d'une partie rattaché par son NOM, quand aucune mention
+  // « acquéreur / vendeur » n'est assez proche — « Adresses électroniques : alexis.rigny@… / marion.gadriot@… » à la fin de la
+  // présentation, tableau « Nom du titulaire  Adresse mail  Mr X  x@… », « les adresses électroniques des parties sont les
+  // suivantes : Madame Y : y@… ». Une adresse va au côté dont un nom figure dans l'adresse elle-même, sinon au côté dont un nom
+  // la précède de près (200 caractères, sans agence, société, notaire ni délégué entre les deux). Jamais une adresse générique
+  // (contact@, dpo@…) ni d'un office notarial. Pure : « a@x.fr; b@y.fr » ou null.
+  var RE_EMAIL_GLOBAL = /[\w.+-]+@[\w-]+(?:\.[\w-]+)*\.[a-z]{2,}/gi;
+  var RE_EMAIL_GENERIQUE = /^(?:contact|dpo|info|infos|accueil|agence|office|negociation|transaction|transactions|secretariat|immo|direction|gestion|noreply|no-reply)[.\d]*@|@(?:[\w-]+\.)*(?:notaires\.fr|adnov\.fr|notaires\.com)$/i;
+  var RE_COUPURE_EMAIL_PARTIE = /agence|soci[ée]t[ée]|exploit[ée]|notaire|office|d[ée]l[ée]gu|courriel|cnil|mandataire|s[ée]questre/i;
+  var MOTS_NOM_IGNORES = ['dit', 'dite', 'epouse', 'veuve', 'nee', 'monsieur', 'madame', 'mademoiselle', 'consorts', 'societe'];
+  function sansAccentsMinuscules(t) { return String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase(); }
+  function motsNomsParties(parties, role) {
+    const mots = [];
+    for (const p of parties || []) {
+      if (!p || p.role !== role || !p.nom) continue;
+      for (const w of sansAccentsMinuscules(p.nom).split(/[^a-z]+/)) {
+        if (w.length >= 4 && MOTS_NOM_IGNORES.indexOf(w) === -1 && mots.indexOf(w) === -1) mots.push(w);
+      }
+    }
+    return mots;
+  }
+  // Pure : pour chaque adresse du texte, le ou les côtés que les NOMS des parties lui attribuent (Map adresse → Set de rôles).
+  function attributionEmailsParNom(texte, parties) {
+    const source = String(texte || '');
+    const mots = { VENDEUR: motsNomsParties(parties, 'VENDEUR'), ACQUEREUR: motsNomsParties(parties, 'ACQUEREUR') };
+    mots.VENDEUR = mots.VENDEUR.filter(w => mots.ACQUEREUR.indexOf(w) === -1);
+    mots.ACQUEREUR = mots.ACQUEREUR.filter(w => motsNomsParties(parties, 'VENDEUR').indexOf(w) === -1);
+    const resultat = new Map();
+    if (!mots.VENDEUR.length && !mots.ACQUEREUR.length) return resultat;
+    const re = new RegExp(RE_EMAIL_GLOBAL.source, 'gi');
+    let m;
+    while ((m = re.exec(source)) !== null) {
+      const email = m[0].replace(/[.]+$/, '').toLowerCase();
+      if (RE_EMAIL_GENERIQUE.test(email)) continue;
+      const local = sansAccentsMinuscules(email.split('@')[0]).replace(/[^a-z]/g, '');
+      const dans = { VENDEUR: mots.VENDEUR.some(w => local.indexOf(w) !== -1), ACQUEREUR: mots.ACQUEREUR.some(w => local.indexOf(w) !== -1) };
+      let cote = null;
+      if (dans.VENDEUR !== dans.ACQUEREUR) cote = dans.VENDEUR ? 'VENDEUR' : 'ACQUEREUR';
+      else if (!dans.VENDEUR) {
+        const avant = sansAccentsMinuscules(source.slice(Math.max(0, m.index - 200), m.index));
+        let meilleur = -1;
+        for (const c of ['VENDEUR', 'ACQUEREUR']) {
+          for (const w of mots[c]) {
+            const k = avant.lastIndexOf(w);
+            if (k > meilleur) { meilleur = k; cote = c; }
+          }
+        }
+        if (meilleur === -1 || RE_COUPURE_EMAIL_PARTIE.test(avant.slice(meilleur))) cote = null;
+      }
+      if (!cote) continue;
+      if (!resultat.has(email)) resultat.set(email, new Set());
+      resultat.get(email).add(cote);
+    }
+    return resultat;
+  }
+  function emailsPartieParNom(texte, parties, role) {
+    const trouves = [];
+    for (const [email, cotes] of attributionEmailsParNom(texte, parties)) if (cotes.has(role) && cotes.size === 1) trouves.push(email);
+    return trouves.length ? trouves.join('; ') : null;
+  }
+  // Pure : une adresse trouvée près du mot « acquéreur » / « vendeur » que les noms attribuent à L'AUTRE côté seulement est
+  // écartée (la fenêtre de 300 caractères déborde souvent sur le tableau des adresses qui suit).
+  function emailContreditParNom(email, texte, parties, role) {
+    if (!email) return false;
+    const cotes = attributionEmailsParNom(texte, parties).get(String(email).toLowerCase());
+    return !!cotes && !cotes.has(role);
   }
 
   // Pour un rôle donné, trouve le nom de la personne ET le point où s'arrête sa présentation

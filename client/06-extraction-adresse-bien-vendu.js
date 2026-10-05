@@ -194,8 +194,23 @@
     return null;
   }
 
+  // Trame d'agence (05/10, deux compromis réels) : « Biens objet de la vente  Adresse des biens : 8 B Rue X - 41000 BLOIS . »
+  // Étiquette sans ambiguïté : passe avant tout, car l'en-tête de ces compromis porte l'adresse de L'AGENCE, qui était prise
+  // pour celle du bien.
+  var RE_ADRESSE_DES_BIENS = /Adresse\s+des?\s+biens?\s*:\s*([^:]{5,160}?)\s*\.(?=\s|$)/i;
+  function adresseDesBiensEtiquetee(source) {
+    const m = RE_ADRESSE_DES_BIENS.exec(source);
+    if (!m) return null;
+    const adresse = parserAdresse(m[1].replace(/\s+/g, ' ').trim());
+    if (!adresse.codePostal) return null;
+    adresse.adresseComplete = adresseLisible(adresse);
+    return { adresse, source: { extrait: extraireContexte(source, m.index, m[0].length), index: m.index, page: pageDepuisIndex(m.index) } };
+  }
+
   function detecterAdresseBienStructuree(texte) {
     const source = String(texte || '');
+    const etiquetee = adresseDesBiensEtiquetee(source);
+    if (etiquetee) return etiquetee;
     const parTrame = adresseDesignationTrame(source);
     if (parTrame) return parTrame;
     const section = extraireSection(source, RE_SECTION_DESIGNATION, RE_SECTION_APRES_DESIGNATION);
@@ -274,6 +289,16 @@
   // ensuite compléter (voir fusionnerExtractionIa) : les deux passes ne parlent qu'une langue.
   // `nomFichier` (facultatif) : le nom du PDF d'origine, un indice de forme quand l'en-tête du
   // texte n'en déclare aucune (voir detecterFormeActe — « AAE » dans le nom = acte authentique).
+  // Email d'une partie : celui lu près de sa qualité, sauf si les noms le donnent à l'autre côté ; à défaut, ceux que les noms
+  // lui attribuent (05/10, trames d'agence et promesses réelles).
+  // Plusieurs personnes d'un même côté : toutes leurs adresses (« a@x.fr; b@y.fr »), celle lue près de la qualité en tête.
+  function emailPartieExtraction(source, parties, role, parQualite) {
+    const adresses = [];
+    if (parQualite && !emailContreditParNom(parQualite, source, parties, role)) adresses.push(String(parQualite).toLowerCase());
+    for (const e of String(emailsPartieParNom(source, parties, role) || '').split('; ')) if (e && adresses.indexOf(e) === -1) adresses.push(e);
+    return adresses.length ? adresses.join('; ') : null;
+  }
+
   function construireExtractionRegex(texte, dateCompromis, detectedDatesFournies, nomFichier) {
     const source = String(texte || '');
     const typeActe = detecterTypeActe(source);
@@ -281,12 +306,13 @@
       ? detectedDatesFournies
       : detecterDatesDepuisTexte(source, dateCompromis);
     const bien = detecterAdresseBienStructuree(source);
+    const parties = detecterParties(source, typeActe.valeur);
     const notaires = determinerNotaires(detecterNotaires(source, typeActe.valeur), bien.adresse.departement, typeActe.valeur, zoneNotairesPourActe(source, typeActe.valeur, nomFichier));
 
     const extraction = {
       version: 1,
       typeActe,
-      parties: detecterParties(source, typeActe.valeur),
+      parties,
       honoraires: detecterHonorairesNegociation(source, typeActe.valeur),
       fondsTravaux: detecterFondsTravaux(source),
       notaires,
@@ -300,8 +326,8 @@
         nom: champAvecSource(source, 'nom', detecterNomDossier(source)),
         prixVente: champPrixVente(source),
         prixMobilier: champAvecSource(source, 'prixMobilier', detecterPrixMobilier(source)),
-        emailAcquereur: champAvecSource(source, 'emailAcquereur', detecterEmailAcquereur(source, typeActe.valeur)),
-        emailVendeur: champAvecSource(source, 'emailVendeur', detecterEmailVendeur(source, typeActe.valeur)),
+        emailAcquereur: champAvecSource(source, 'emailAcquereur', emailPartieExtraction(source, parties, 'ACQUEREUR', detecterEmailAcquereur(source, typeActe.valeur))),
+        emailVendeur: champAvecSource(source, 'emailVendeur', emailPartieExtraction(source, parties, 'VENDEUR', detecterEmailVendeur(source, typeActe.valeur))),
         nomAgence: champAvecSource(source, 'nomAgence', detecterNomAgence(source)),
         honorairesAgence: honorairesAgenceChamp(source),
         depotGarantie: champAvecSource(source, 'depotGarantie', detecterDepotGarantie(source)),
