@@ -16608,3 +16608,22 @@ fonds reçus et le montant attendu de l'appel de fonds. `MARGE_FONDS_RECUS` (`co
 calculé à l'affichage (`bilanFondsRecus`), donc les dossiers déjà lus changent d'état sans relecture. Non touché : la tolérance du
 contrôle du barème des frais de l'appel de fonds (1 %, 50 € au moins, `client/40-generateur-appel-fonds.js`) — c'est un autre
 contrôle ; à resserrer aussi si l'étude le vise.
+
+### 05/10/2026 — Structure d'une page de succession d'Authentic (reçue, à retenir, non lue)
+
+Copie de structure d'une page de sous-dossier de succession, envoyée par l'étude « à retenir » (aucune demande de lecture). Rien n'est
+branché ; aucun nom ne figure dans la copie (tout est masqué).
+- En-tête du sous-dossier : « N - … veuve de … » (intitulé au nom du défunt, pas de « VTE X / Y ») ; statut du badge « Demande de pièces » ;
+  boutons « Supprimer le sous-dossier », « Informations détaillées » ; compteurs Pièces jointes, Notes et liens, et un « infos comptables ».
+- **Comparants (5)** : héritiers et conjoint, avec leur situation dans le libellé (« … veuve de … », « … épouse de … », « … divorcé de … »,
+  « … époux de … ») — c'est là que se lit la qualité des parties d'une succession (aujourd'hui `PARTIE`, jamais devinée). **Immeubles (1)** :
+  adresse + « Immeuble commun ».
+- Onglets du sous-dossier : Formalités préalables · Actes · Formalités postérieures ; bouton « Nouvelle demande », « Ajouter des pièces
+  automatiques », modèle de courrier (liste déroulante « Modèle », recherche, « Filtrer »).
+- Tableaux de « Formalités préalables » (colonnes : intitulé, —, date, —, état) : **Courrier** (1 : « Matrice de courrier libre (sans
+  intervenant) »), **Demande** (8 : « Interrogation d'une Banque - … » ×2, sécurité sociale, caisse de retraite, … ; état « Mail le
+  JJ/MM/AAAA »), **Etat civil** (6 : « Acte de … - … » ; états « Envoyé », « Réponse positive »), une demande de **réquisition** au
+  service de publicité foncière (« En préparation … en cours »), **Rédaction** (3 ; état « Non rédigé »).
+- Pistes si l'étude le demande (nouveautés, hors semaine de débogage) : checklist propre aux successions tirée de ces tableaux (banques,
+  caisses, état civil par héritier), qualité des parties lue dans les comparants, état d'avancement (« Réponse positive », « Non rédigé »)
+  sur la fiche. Vérifier d'abord que l'extension envoie cette page (intitulé reconnu par `pageConnue` : « N - … » suivi de Comparants).

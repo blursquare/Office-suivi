@@ -412,7 +412,7 @@ dans `index.html`** (le test `structure-client` refuse tout décalage).
   adresse, type, parcelles). **`estSuccession(d)`** neutralise la vente : planning = signature placée + échéances
   ajoutées (même code pour le serveur, `commun/planning.js`), checklist = pièces personnalisées seules, pas de préemption ni de
   créneaux proposés ni d'emails de vente, fiche = responsable, NAS, parties, biens. Planning et checklist propres aux
-  successions : à définir avec l'étude.
+  successions : à définir avec l'étude. **Structure réelle d'une page de succession reçue le 05/10** (copie de structure, `docs/historique.md`) : intitulé « N - … veuve de … » (le défunt en tête, pas « VTE X / Y »), rubriques Comparants (héritiers : « veuve de », « épouse de », « divorcé de », « époux de »), Immeubles (« Immeuble commun »), onglets Formalités préalables / Actes / Formalités postérieures, tableaux **Courrier**, **Demande** (banque, sécurité sociale, retraite… avec « Mail le JJ/MM/AAAA »), **Etat civil** (« Envoyé », « Réponse positive »), réquisitions, **Rédaction** (« Non rédigé ») — **non lue** : à brancher seulement sur demande de l'étude.
 - **Classeur des scans du copieur** — nom affiché **« Claire Scan »**, **bannette à papier** (icône `bannette`, `#tab-scans`) avec pastille du nombre de scans à ranger, dans la rangée d'icônes sous le logo de la barre latérale (étude, 30/09 — visible barre repliée et sur téléphone) (30/09, `TYPES_SCAN`, `propositionScan`, `server/src/scans.js`) :
   dossier du copieur = **`\\192.168.60.5\Scan`, partage à part** du NAS (étude, 30/09) — trouvé
   comme `\\serveur\Scan` du serveur de `nasRacine` (`partagesScansCandidats`), sinon un dossier
