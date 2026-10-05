@@ -16770,3 +16770,10 @@ trouvée/introuvable toutes les 20 min venait de fenêtres qui n'avaient pas la 
   s'il est représenté par son notaire »). `champsCoordonneesPartie` : `coordonneesPartiesDossier` porte `represente`
   (`notaireParticipantRepresenteAcquereur` / `confrereRepresenteVendeur`) ; représentée et sans numéro saisi → seul « Par son notaire » / l'email
   reste, le téléphone du confrère étant sur « Tél. confrère » ; un numéro déjà saisi garde son champ. Test `authentic-pages`.
+
+- **0.147.2 — 05/10 18:06 : courrier d'appel de fonds et ligne « Tél. confrère »** (étude : « dans le courrier appel de fonds en .docx mets 5 retours
+  de ligne sous l'adresse de l'acquéreur » ; capture : « Tél. confrère » à côté de l'email, numéro qui déborde). (1) `donneesCourrierAppelFonds` :
+  `addrLines` + `RETOURS_SOUS_ADRESSE_COURRIER` (5 « \n », rendus en `<w:br/>` par docxtemplater `linebreaks`, vérifié sur le modèle réel avec
+  docxtemplater 3 + pizzip : 5 `<w:br/>` après la dernière ligne) — .docx seulement, l'aperçu à l'écran ne change pas. (2) Fiche : lignes email et
+  « Tél. confrère » du confrère en `prop-pleine` (toute la largeur), `.coord-tel-texte` sans retour à la ligne, placeholder du champ « Corriger ou
+  ajouter un numéro » (il répétait le numéro de l'annuaire déjà écrit à gauche).

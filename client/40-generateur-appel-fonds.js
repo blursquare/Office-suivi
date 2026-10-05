@@ -2199,6 +2199,10 @@
   // suivante.
   var MENTION_ENVOI_APPEL_FONDS = "Envoi par e-mail uniquement";
 
+  // Cinq retours à la ligne sous l'adresse du destinataire dans le .docx (étude 05/10), pour aérer avant la date : posés dans le
+  // texte de l'adresse (docxtemplater `linebreaks` en fait des <w:br/>), jamais dans l'aperçu à l'écran.
+  var RETOURS_SOUS_ADRESSE_COURRIER = '\n'.repeat(5);
+
   function composerAdresseCourrier(lignesAdresse, mention) {
     const lignes = [];
     String(lignesAdresse || '').split('\n').forEach(l => { if (l.trim()) lignes.push(l.trim()); });
@@ -2236,7 +2240,7 @@
       addrLines: composerAdresseCourrier(
         blocAdresse ? blocAdresse.innerHTML.split('<br>').map(s => s.replace(/<[^>]+>/g, '').trim()).filter(Boolean).join('\n') : '',
         mentionAffichee() ? lire('af-p-mention') : ''
-      ),
+      ) + RETOURS_SOUS_ADRESSE_COURRIER,
       ville: lire('af-p-ville'),
       dateLettre: lire('af-p-datelettre'),
       salut1: lire('af-p-salut1'),

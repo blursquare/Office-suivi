@@ -8212,7 +8212,7 @@ button.complement-option.actif .complement-option-source { color: var(--focus); 
 .rep-ligne-valeur .coord-appel, .coord-tel-texte .coord-appel { color: var(--muted); }
 .rep-ligne-valeur .coord-appel:hover, .coord-tel-texte .coord-appel:hover { color: var(--focus); }
 tcxspan { cursor: pointer; }
-.coord-tel-texte { display: inline-flex; align-items: center; gap: 4px; font-size: var(--texte-m); color: var(--ink); }
+.coord-tel-texte { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 4px; white-space: nowrap; font-size: var(--texte-m); color: var(--ink); }
 @media (max-width: 560px) {
   .coord-paire { grid-template-columns: 1fr; gap: 4px; }
 }

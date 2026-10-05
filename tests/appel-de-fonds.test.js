@@ -614,3 +614,12 @@ test('detecterRendezVousDecompte rend la date seule quand l’heure n’est pas 
   assert.equal(r.date, '2026-10-14');
   assert.equal(r.heure, null);
 });
+
+test('donneesCourrierAppelFonds : cinq retours à la ligne sous l\'adresse du destinataire dans le .docx', () => {
+  const app = chargerApplication();
+  const adresse = { innerHTML: '<u>Monsieur Jean DUPONT<br>12 rue des Lices</u>' };
+  app.afEl = (id) => (id === 'af-p-adresse' ? adresse : null);
+  app.afValeur = () => '';
+  const { addrLines } = app.donneesCourrierAppelFonds();
+  assert.equal(addrLines, 'Monsieur Jean DUPONT\n12 rue des Lices' + '\n'.repeat(5));
+});
