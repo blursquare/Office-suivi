@@ -615,15 +615,19 @@
     // dans d.fichiersTrouves, pas dans d.compromisNomFichier). Signalé par l'étude.
     const cheminCompromisTrouve = fichierTrouve(d, NAS_CLE_COMPROMIS);
     const nomCompromisTrouve = cheminCompromisTrouve ? (String(cheminCompromisTrouve).split(/[\\/]/).pop() || '') : '';
-    const compromisConnu = !!(d.compromisNomFichier || nomCompromisTrouve);
-    const libelleCompromis = d.compromisNomFichier
-      ? d.compromisNomFichier
+    const nomAttendu = nomCompromisAttendu(d);
+    const compromisConnu = !!(nomAttendu || nomCompromisTrouve);
+    const libelleCompromis = nomAttendu
+      ? nomAttendu
       : (nomCompromisTrouve || (d.dossierLie ? 'Recherché dans le dossier NAS à l’ouverture' : 'Aucun fichier mémorisé'));
     // Compromis jamais lu par CLAIRE (dossier créé depuis Authentic ou à la main) : « Compléter » relit le
     // compromis — déposé, ou trouvé sur le NAS — pour les échéances, engagements, prix… (étude, 03/10).
     const boutonCompleter = !d.compromisNomFichier && !d.archive && !estSuccession(d)
       ? `<wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="demarrerComplementCompromis('${d.id}')" title="Lire le compromis pour compléter la fiche : échéances, engagements du vendeur, prix, notaires…">${icone('file-text')} Compléter</wa-button>` : '';
-    const avantContrat = `<span class="prop-texte${compromisConnu ? '' : ' vide'}" title="${escapeAttr(cheminCompromisTrouve || d.compromisNomFichier || '')}">${escapeHtml(libelleCompromis)}</span>${boutonOuvrirCompromis}${boutonCompleter}`;
+    // « Changer » : choisir à la main le bon PDF du NAS quand l'avant-contrat retrouvé n'est pas le bon (étude 05/10).
+    const boutonChangerCompromis = d.dossierLie && d.nasDossier && !d.archive && !estSuccession(d)
+      ? `<wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="ouvrirChoixCompromis('${d.id}')" title="Choisir un autre fichier du dossier du NAS comme avant-contrat">Changer</wa-button>` : '';
+    const avantContrat = `<span class="prop-texte${compromisConnu ? '' : ' vide'}" title="${escapeAttr(cheminCompromisTrouve || nomAttendu || '')}">${escapeHtml(libelleCompromis)}</span>${boutonOuvrirCompromis}${boutonChangerCompromis}${boutonCompleter}`;
 
     // Groupe 2 — le bien et son financement.
     const offre = statutOffreAffichage(d);

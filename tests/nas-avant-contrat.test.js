@@ -112,3 +112,40 @@ test('le nom attendu introuvable retombe sur l\'emplacement et le signale par la
   assert.equal(choix.methode, 'emplacement-nom', 'tout ce qui n\'est pas nom-exact est un repli');
   assert.equal(choix.fichier.chemin, PROMESSE_RACINE.chemin);
 });
+
+test('nomCompromisAttendu : le fichier choisi à la main passe devant le nom lu à la création, sauf si le dossier NAS a changé', () => {
+  const app = chargerApplication();
+  const d = { nasDossier: 'VENTES/DUPONT', compromisNomFichier: 'Compromis lu.pdf', compromisChoisiNas: 'VENTES/DUPONT/8 - SRU/Le bon.pdf' };
+  assert.equal(app.nomCompromisAttendu(d), 'Le bon.pdf');
+  assert.equal(app.nomCompromisAttendu(Object.assign({}, d, { nasDossier: 'VENTES/AUTRE' })), 'Compromis lu.pdf', 'dossier NAS relié autre : le choix ne vaut plus');
+  assert.equal(app.nomCompromisAttendu({ nasDossier: 'VENTES/DUPONT', compromisNomFichier: 'Compromis lu.pdf' }), 'Compromis lu.pdf');
+  assert.equal(app.nomCompromisAttendu({}), '');
+});
+
+test('choisirAvantContratNas : un nom identique l\'emporte sur un nom qui le contient', () => {
+  const app = chargerApplication();
+  const court = { nom: 'Compromis.pdf', chemin: '2 - Acquéreur/Compromis.pdf' };
+  const long = { nom: 'Compromis signé Compromis.pdf', chemin: 'Compromis signé Compromis.pdf' };
+  const choix = app.choisirAvantContratNas([long, court], 'Compromis.pdf');
+  assert.equal(choix.fichier.chemin, court.chemin);
+  assert.equal(choix.methode, 'nom-exact');
+});
+
+test('choisirCompromisNas / revenirCompromisAutomatique : choix gardé sur la fiche, mémorisé, puis oublié', async () => {
+  const vm = require('node:vm');
+  const app = chargerApplication();
+  vm.runInContext("dossiers.push({ id: 'dc', nom: 'DUPONT', dossierLie: true, nasDossier: 'VENTES/DUPONT', historique: [] })", app);
+  app.sauvegarder = async () => {}; app.render = () => {}; app.afficherToast = () => {};
+  vm.runInContext("choixCompromisEnCours = { id: 'dc', fichiers: [{ nom: 'Le bon.pdf', chemin: '8 - SRU/Le bon.pdf' }] }", app);
+  await app.choisirCompromisNas(0);
+  const lire = () => JSON.parse(vm.runInContext("JSON.stringify(dossiers.find(x => x.id === 'dc'))", app));
+  let d = lire();
+  assert.equal(d.compromisChoisiNas, 'VENTES/DUPONT/8 - SRU/Le bon.pdf');
+  assert.equal(d.fichiersTrouves.compromis, 'VENTES/DUPONT/8 - SRU/Le bon.pdf');
+  assert.match(d.historique[0].texte || JSON.stringify(d.historique), /Le bon\.pdf/);
+  vm.runInContext("choixCompromisEnCours = { id: 'dc', fichiers: [] }", app);
+  await app.revenirCompromisAutomatique();
+  d = lire();
+  assert.equal(d.compromisChoisiNas, undefined);
+  assert.equal((d.fichiersTrouves || {}).compromis, undefined);
+});

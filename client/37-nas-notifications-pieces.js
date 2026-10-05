@@ -182,7 +182,9 @@
     const bienPlace = f => estEmplacementAvantContrat(f.chemin);
     if (nomAttendu) {
       const cible = normaliserNomPourMotif(nomAttendu).toLowerCase();
-      const exacts = liste.filter(f => nomNormalise(f).includes(cible));
+      // Nom identique d'abord (« Compromis.pdf » ne doit pas être pris pour « Compromis signé Compromis.pdf »), puis nom contenu.
+      const identiques = liste.filter(f => nomNormalise(f) === cible);
+      const exacts = identiques.length ? identiques : liste.filter(f => nomNormalise(f).includes(cible));
       if (exacts.length) return { fichier: exacts.find(bienPlace) || exacts[0], methode: 'nom-exact' };
     }
     const parNom = liste.filter(f => RE_NOM_COMPROMIS.test(nomNormalise(f)))
@@ -193,6 +195,20 @@
     const dansSRU = liste.filter(f => estDansRubriqueSRU(f.chemin));
     if (dansSRU.length === 1) return { fichier: dansSRU[0], methode: 'sru-seul' };
     return { fichier: null, methode: null };
+  }
+
+  // Nom de l'avant-contrat que CLAIRE doit retrouver sur le NAS : le fichier choisi à la main sur la fiche (étude 05/10 : « permettre
+  // de changer le compromis s'il n'a pas été bien rattaché », `d.compromisChoisiNas`, chemin depuis la racine du NAS — ignoré si le
+  // dossier NAS relié a changé depuis), sinon le nom du PDF lu à la création (`d.compromisNomFichier`).
+  function compromisChoisiValide(d) {
+    const chemin = String((d && d.compromisChoisiNas) || '');
+    const base = String((d && d.nasDossier) || '').replace(/[\\/]+$/, '');
+    return chemin && base && chemin.startsWith(base + '/') ? chemin : '';
+  }
+  function nomCompromisAttendu(d) {
+    const choisi = compromisChoisiValide(d);
+    if (choisi) return choisi.split(/[\\/]/).pop() || '';
+    return (d && d.compromisNomFichier) || '';
   }
 
   // Liste les PDF du dossier NAS relié, sous-dossiers compris. Le parcours en largeur et les
@@ -1123,11 +1139,11 @@
       const fichiers = await listerFichiersNas(d);
       // Nom exact d'abord, puis racine/rubrique SRU, mots « compromis »/« promesse » en dernier —
       // voir choisirAvantContratNas() pour l'ordre complet et ce qu'il départage.
-      const choix = choisirAvantContratNas(fichiers, d.compromisNomFichier);
+      const choix = choisirAvantContratNas(fichiers, nomCompromisAttendu(d));
       const trouve = choix.fichier;
       const parRepli = choix.methode !== 'nom-exact';
-      if (d.compromisNomFichier && parRepli) {
-        afficherToast(`\u00ab\u00a0${d.compromisNomFichier}\u00a0\u00bb introuvable dans le dossier NAS \u2014 recherche \u00e9largie.`, 'OK', null);
+      if (nomCompromisAttendu(d) && parRepli) {
+        afficherToast(`\u00ab\u00a0${nomCompromisAttendu(d)}\u00a0\u00bb introuvable dans le dossier NAS \u2014 recherche \u00e9largie.`, 'OK', null);
       }
       if (!trouve) {
         afficherToast('Aucun avant-contrat trouv\u00e9 dans le dossier NAS reli\u00e9 : ni fichier contenant \u00ab\u00a0compromis\u00a0\u00bb ou \u00ab\u00a0promesse\u00a0\u00bb.', 'OK', null);
@@ -1148,6 +1164,87 @@
     } finally {
       if (btn) { btn.disabled = false; btn.innerHTML = texteOriginal; }
     }
+  }
+
+  // « Changer » l'avant-contrat (étude 05/10 : « permettre de changer le compromis s'il n'a pas été bien rattaché ») : fenêtre
+  // des PDF du dossier NAS relié — ceux de la racine et de « SRU » d'abord, le fichier actuel marqué. Le choix est gardé sur la
+  // fiche (`d.compromisChoisiNas`) ET mémorisé comme fichier trouvé : « Ouvrir », la lecture du mobilier, la relecture d'actes
+  // et les fonds reçus s'en servent désormais. « Revenir au choix automatique » l'oublie.
+  var choixCompromisEnCours = null;
+  async function ouvrirChoixCompromis(id) {
+    const d = dossiers.find(x => x.id === id);
+    const overlay = document.getElementById('compromis-choix-overlay');
+    const liste = document.getElementById('compromis-choix-liste');
+    if (!d || !overlay || !liste) return;
+    if (!d.dossierLie || !d.nasDossier) { afficherToast('Reliez d’abord un dossier du NAS pour choisir le compromis.', 'OK', null); return; }
+    choixCompromisEnCours = { id, fichiers: [] };
+    const intro = document.getElementById('compromis-choix-intro');
+    if (intro) intro.textContent = `Quel fichier est l’avant-contrat de ${libelleDossierAffiche(d)} ?`;
+    const recherche = document.getElementById('compromis-choix-recherche');
+    if (recherche) recherche.value = '';
+    liste.innerHTML = `<p class="nas-choix-vide">${icone('spinner', null, true)} Lecture du dossier du NAS…</p>`;
+    overlay.style.display = 'flex';
+    try {
+      const fichiers = await listerFichiersNas(d);
+      if (!choixCompromisEnCours || choixCompromisEnCours.id !== id) return;
+      const actuel = choisirAvantContratNas(fichiers, nomCompromisAttendu(d)).fichier;
+      const bienPlace = f => estEmplacementAvantContrat(f.chemin);
+      const tri = fichiers.slice().sort((a, b) => (bienPlace(b) - bienPlace(a)) || String(a.chemin).localeCompare(String(b.chemin), 'fr'));
+      choixCompromisEnCours.fichiers = tri;
+      liste.innerHTML = tri.length ? tri.map((f, i) => {
+        const dossierDe = segmentsDossier(f.chemin).join(' / ');
+        const estActuel = actuel && actuel.chemin === f.chemin;
+        return `<button type="button" class="nas-choix-item${estActuel ? ' actuel' : ''}" data-cherche="${escapeAttr(normaliserPourRecherche(f.chemin))}" onclick="choisirCompromisNas(${i})">`
+          + `<span class="nas-choix-nom">${escapeHtml(f.nom)}</span>`
+          + `<span class="nas-choix-marque">${escapeHtml(estActuel ? 'actuel' : (dossierDe || 'racine'))}</span></button>`;
+      }).join('') : '<p class="nas-choix-vide">Aucun PDF dans le dossier du NAS.</p>';
+      if (recherche) recherche.style.display = tri.length > 6 ? '' : 'none';
+      const retour = document.getElementById('compromis-choix-auto');
+      if (retour) retour.style.display = compromisChoisiValide(d) ? '' : 'none';
+    } catch (e) {
+      liste.innerHTML = `<p class="nas-choix-vide">Dossier du NAS illisible (${escapeHtml(e.message)}).</p>`;
+    }
+  }
+
+  function filtrerChoixCompromis(texte) {
+    const q = normaliserPourRecherche(texte || '').trim();
+    document.querySelectorAll('#compromis-choix-liste .nas-choix-item').forEach(b => {
+      b.style.display = !q || (b.dataset.cherche || '').includes(q) ? '' : 'none';
+    });
+  }
+
+  function fermerChoixCompromis() {
+    choixCompromisEnCours = null;
+    const overlay = document.getElementById('compromis-choix-overlay');
+    if (overlay) overlay.style.display = 'none';
+  }
+
+  // `indice` = rang dans la liste affichée (pas de chemin dans l'attribut onclick).
+  async function choisirCompromisNas(indice) {
+    const choix = choixCompromisEnCours;
+    const d = choix ? dossiers.find(x => x.id === choix.id) : null;
+    const f = choix ? choix.fichiers[indice] : null;
+    if (!d || !f) return;
+    fermerChoixCompromis();
+    const chemin = cheminNasComplet(d, f.chemin);
+    d.compromisChoisiNas = chemin;
+    memoriserFichierTrouve(d, NAS_CLE_COMPROMIS, chemin);
+    ajouterHistorique(d, `Avant-contrat choisi à la main : « ${f.nom} »`);
+    await sauvegarder(d);
+    render();
+    afficherToast(`Avant-contrat : « ${f.nom} ».`, 'OK', null);
+  }
+
+  async function revenirCompromisAutomatique() {
+    const choix = choixCompromisEnCours;
+    const d = choix ? dossiers.find(x => x.id === choix.id) : null;
+    if (!d) return;
+    fermerChoixCompromis();
+    delete d.compromisChoisiNas;
+    memoriserFichierTrouve(d, NAS_CLE_COMPROMIS, null);
+    ajouterHistorique(d, 'Avant-contrat : retour au choix automatique');
+    await sauvegarder(d);
+    render();
   }
 
   // Ouvre automatiquement une relance pré-rédigée si l'échéance approche et qu'aucune offre n'a

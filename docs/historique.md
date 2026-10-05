@@ -16755,3 +16755,13 @@ trouvée/introuvable toutes les 20 min venait de fenêtres qui n'avaient pas la 
   (`mentionDejaDansAgenda`) : UNE tentative par dossier et par session (un seul essai par appel), espacées de 3 s, échec sans toast
   (`silencieux`, gardé sur la fiche). Tests `agenda-deja-note`. **À vérifier au bureau** (Exchange injoignable d'ici) : la mention
   apparaît dans le lieu du rendez-vous Outlook après une coche à la main et après une détection du décompte sur le commun.
+
+- **0.147.0 — 05/10 17:55 : changer l'avant-contrat mal rattaché** (étude : « permettre de changer le compromis s'il n'a pas été bien rattaché »).
+  Bouton « Changer » sur la ligne « Avant-contrat » de la fiche (dossier relié au NAS, ni archivé ni succession) → fenêtre
+  `#compromis-choix-overlay` (`ouvrirChoixCompromis`) : PDF du dossier NAS (racine et « SRU » d'abord, fichier actuel marqué, recherche au-delà de 6).
+  `choisirCompromisNas` garde le chemin sur la fiche (`d.compromisChoisiNas`, depuis la racine du NAS — ignoré si le dossier NAS relié change,
+  `compromisChoisiValide`), le mémorise comme fichier trouvé (`fichiersTrouves.compromis`) et note l'historique ; `nomCompromisAttendu(d)`
+  (choix à la main, sinon `d.compromisNomFichier`) remplace `d.compromisNomFichier` dans tous les appels de `choisirAvantContratNas` et
+  `fichiersDecompteRacine` ; `d.compromisNomFichier` reste le PDF lu à la création (le bouton « Compléter » ne dépend que de lui).
+  `choisirAvantContratNas` : un nom identique l'emporte sur un nom qui le contient. « Revenir au choix automatique »
+  (`revenirCompromisAutomatique`) oublie le choix. Tests `nas-avant-contrat`.

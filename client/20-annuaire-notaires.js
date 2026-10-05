@@ -1451,7 +1451,7 @@
     if (connu) { ouvrirFichierNas(cheminNasComplet(d, connu)); return; }
     const onglet = window.open('', '_blank');
     try {
-      const { parNom } = fichiersDecompteRacine(await listerFichiersNas(d), d.compromisNomFichier || '');
+      const { parNom } = fichiersDecompteRacine(await listerFichiersNas(d), nomCompromisAttendu(d));
       if (!parNom.length) {
         if (onglet) onglet.close();
         afficherToast('Aucune convocation ni décompte à la racine du dossier du NAS.', 'OK', null);
@@ -1802,7 +1802,7 @@
     if (viaClic) render();
     let message = null;
     try {
-      const trouve = choisirAvantContratNas(await listerFichiersNas(d), d.compromisNomFichier).fichier;
+      const trouve = choisirAvantContratNas(await listerFichiersNas(d), nomCompromisAttendu(d)).fichier;
       if (!trouve) {
         message = 'Avant-contrat introuvable dans le dossier du NAS : saisissez le mobilier à la main s’il y en a.';
       } else {

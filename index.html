@@ -2187,6 +2187,19 @@
   </div>
 </div>
 
+<!-- Choix de l'avant-contrat parmi les PDF du dossier NAS relié (« Changer » sur la ligne Avant-contrat de la fiche, étude 05/10). -->
+<div class="confirm-overlay" id="compromis-choix-overlay" style="display:none;" onmousedown="if (event.target === this) this.dataset.fond = '1'" onclick="if (event.target === this && this.dataset.fond) fermerChoixCompromis(); this.dataset.fond = ''">
+  <div class="confirm-box nas-choix-box" role="dialog" aria-modal="true" aria-labelledby="compromis-choix-intro">
+    <p id="compromis-choix-intro"></p>
+    <input type="search" id="compromis-choix-recherche" class="authentic-choix-recherche" placeholder="Rechercher un fichier" autocomplete="off" oninput="filtrerChoixCompromis(this.value)" style="display:none;">
+    <div id="compromis-choix-liste" class="nas-choix-liste"></div>
+    <div class="confirm-actions">
+      <wa-button appearance="plain" id="compromis-choix-auto" onclick="revenirCompromisAutomatique()" style="display:none;">Revenir au choix automatique</wa-button>
+      <wa-button appearance="outlined" class="btn-annuler" onclick="fermerChoixCompromis()">Annuler</wa-button>
+    </div>
+  </div>
+</div>
+
 <!-- Copie de l'acte / attestation de vente aux clients (dossiers en participation, étude 03/10). -->
 <div class="confirm-overlay" id="copie-acte-overlay" style="display:none;" onmousedown="if (event.target === this) this.dataset.fond = '1'" onclick="if (event.target === this && this.dataset.fond) fermerEnvoiCopieActe(); this.dataset.fond = ''">
   <div class="confirm-box nas-choix-box copie-acte-box" role="dialog" aria-modal="true" aria-label="Envoyer la copie de l'acte ou l'attestation de vente">

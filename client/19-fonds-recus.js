@@ -271,7 +271,7 @@
 
   async function montantAttenduDepuisNas(d) {
     if (!d.nasDossier) return null;
-    const { parNom, autres } = fichiersDecompteRacine(await listerFichiersNas(d), d.compromisNomFichier || '');
+    const { parNom, autres } = fichiersDecompteRacine(await listerFichiersNas(d), nomCompromisAttendu(d));
     // Le courrier déjà rattaché à la ligne « Envoi appel de fonds » est lu en premier.
     const rattache = courrierAppelFondsDossier(d);
     parNom.sort((a, b) => (b.chemin === rattache) - (a.chemin === rattache));
