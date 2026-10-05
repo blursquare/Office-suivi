@@ -183,7 +183,7 @@ dans `index.html`** (le test `structure-client` refuse tout décalage).
    geste, le serveur pose ce qui manque à chaque tour de lecture (`echeancesAgenda.js`) en adoptant
    d'abord un événement de même titre et même date (jamais de doublon) ; depuis la **page Agenda**
    (30/09), création de tout rendez-vous et **suppression de n'importe lequel après confirmation**
-   (`POST /exchange/evenement/supprimer`, `MoveToDeletedItems`) ; **modification** (01/10, titre + Start/End
+   (`POST /exchange/evenement/supprimer`, `MoveToDeletedItems`) — **touche Suppr** sur le rendez-vous sélectionné (05/10, même confirmation, jamais dans un champ de saisie ni pendant une fenêtre ouverte ; `evenementSupprimableAgenda`) ; **modification** (01/10, titre + Start/End
    seulement, `POST /exchange/evenement/modifier`) par le crayon du détail ou en **glissant** le rendez-vous
    (Semaine/Jour, souris, confirmé au lâcher ; la signature d'un dossier emmène la fiche) ou en **tirant son
    bord** haut/bas pour changer début/fin (`horaireRedimensionneAgenda`, même confirmation) ; la **catégorie** s'y change aussi
@@ -785,7 +785,7 @@ Plainte principale de l'étude : **le bruit**, pas les oublis — ne pas élargi
   (`lignesGalerieWidgets`, `#widgets-overlay`), Retirer / Ajouter — retirer = `masque`, taille gardée ; tout nouveau
   widget de `WIDGETS_DASHBOARD` porte `icone` et `description`. Disposition par collaborateur : préférence
   `widgets` en base (liste blanche `WIDGETS_PREFERENCES` côté serveur, `WIDGETS_DASHBOARD` côté
-  client — à modifier ensemble). Un nouveau bloc du tableau de bord = un nouveau widget. Disposition
+  client — à modifier ensemble). Un nouveau bloc du tableau de bord = un nouveau widget. **Carte « Aujourd'hui » : une seule liste** (étude 05/10) — mes rappels du jour et sans date en tête, les tâches, puis mes rappels à venir avec leur date (`rappelsDuJour` → `aVenir`, `renderRappelsJour(…, 'avenir')`), les cochés ; « Ajouter un rappel » reste toujours visible (`data-garder`), plus de section « Mes rappels ». Disposition
   par défaut = rectangle plein (4 × 4, 2 × 8 sur téléphone, vérifié par `placementWidgets` dans les
   tests), les plus utiles d'abord ; la changer = incrémenter `VERSION_DISPOSITION_WIDGETS` (chaque
   collaborateur y est ramené une fois).

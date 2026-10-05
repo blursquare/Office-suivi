@@ -290,3 +290,17 @@ test('fiche › Prochaine étape : la préemption n’est pas rangée sous l’o
   assert.strictEqual(app.actionLieeEtape({ categorie: 'appelFonds', titre: 'Envoyer l’appel de fonds' }, 'appelFonds'), true);
   assert.strictEqual(app.actionLieeEtape({ categorie: 'appelFonds', titre: 'Envoyer l’appel de fonds' }, 'pret'), false);
 });
+
+test('rappelsDuJour : les rappels à venir (échéance datée après aujourd\'hui) rejoignent la liste, triés par date', () => {
+  const app = chargerApplication();
+  const r = app.rappelsDuJour([
+    { id: 'a', texte: 'A', echeance: '2026-10-12', creeLe: '2026-10-01T08:00:00', fait: false },
+    { id: 'b', texte: 'B', echeance: '2026-10-06', creeLe: '2026-10-02T08:00:00', fait: false },
+    { id: 'c', texte: 'C', echeance: '2026-10-05', creeLe: '2026-10-02T08:00:00', fait: false },
+    { id: 'd', texte: 'D', echeance: '', creeLe: '2026-10-02T08:00:00', fait: false },
+    { id: 'e', texte: 'E', echeance: '2026-10-09', creeLe: '2026-10-02T08:00:00', fait: true, faitLe: '2026-10-04T10:00:00' }
+  ], '2026-10-05');
+  assert.equal(r.aVenir.map(x => x.id).join(','), 'b,a', 'à venir : non faits, datés après aujourd\'hui, du plus proche au plus lointain');
+  assert.equal(r.aFaire.map(x => x.id).sort().join(','), 'c,d', 'du jour et sans date : inchangé');
+  assert.equal(r.faits.length, 0);
+});

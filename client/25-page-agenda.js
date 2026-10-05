@@ -1087,6 +1087,28 @@
     if (overlay) overlay.style.display = 'none';
     document.body.classList.remove('tiroir-dates-ouvert');
   }
+  // Rendez-vous que CLAIRE peut retirer de l'agenda de l'office : lu dans Exchange (itemId), réel (ni fantôme ni option hors
+  // agenda), du stock courant (pas l'historique en lecture seule), et l'écriture Outlook réglée. Commun au bouton « Supprimer » du
+  // détail et à la touche Suppr.
+  function evenementSupprimableAgenda(e) {
+    return !!(e && exchangeAgendaPret() && e.itemId && !e.horsAgenda && !e.archive && !e.fantome);
+  }
+
+  // Touche Suppr (étude 05/10) : sur le rendez-vous sélectionné, elle ouvre la MÊME confirmation que le bouton (jamais de
+  // suppression silencieuse : l'élément part dans les éléments supprimés d'Outlook). Sans effet pendant une saisie, une fenêtre
+  // ouverte, une confirmation en cours, ou hors de la page Agenda.
+  document.addEventListener('keydown', (ev) => {
+    if (ev.key !== 'Delete' || ev.defaultPrevented || ev.ctrlKey || ev.metaKey || ev.altKey) return;
+    if (ongletActuel !== 'agenda' || !agendaSelection || agendaModale || notesAgendaEdition) return;
+    const cible = ev.target;
+    if (cible && (cible.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(cible.tagName || ''))) return;
+    if (document.querySelector('#confirm-overlay[style*="flex"]')) return;
+    const e = evenementsAffichesAgenda().find(x => cleEvenementAgenda(x) === agendaSelection);
+    if (!evenementSupprimableAgenda(e)) return;
+    ev.preventDefault();
+    supprimerEvenementAgenda(agendaSelection);
+  });
+
   document.addEventListener('keydown', (e) => {
     const overlay = document.getElementById('dates-proposees-overlay');
     if (e.key === 'Escape' && overlay && overlay.style.display !== 'none' && !document.querySelector('#confirm-overlay[style*="flex"]')) fermerSuiviDatesProposees();
@@ -1519,7 +1541,7 @@
     const relation = d && e.signature && !d.archive && d.rendezVousSignature === e.date && e.date >= auj && !notaireParticipantRepresenteAcquereur(d)
       ? `<div class="ag-detail-actions">${renderLigneEmailDossier(d, 'confirmationRdv')}${relanceFondsDue(d, auj) ? renderLigneEmailDossier(d, 'relanceFonds') : ''}</div>` : '';
     // Un rendez-vous de l'historique (`archive`) se consulte (détail, notes) mais ne se modifie pas.
-    const peutSupprimer = exchangeAgendaPret() && e.itemId && !e.horsAgenda && !e.archive;
+    const peutSupprimer = evenementSupprimableAgenda(e);
     const notesLisibles = exchangeAgendaPret() && e.itemId && e.archive;
     const ligne = (ic, html) => `<div class="ag-detail-ligne">${icone(ic)}<span>${html}</span></div>`;
     return `<section class="ag-detail ajd-${teinte}" aria-labelledby="agenda-detail-titre">

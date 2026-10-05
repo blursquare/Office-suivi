@@ -16571,3 +16571,22 @@ d'un champ qui en porte plusieurs (« 06 … / 02 … », 3 au plus, doublons é
 quand il est réglé comme application par défaut du poste — rien de propre à 3CX n'est codé, et **rien n'a pu être éprouvé ici** (point
 terrain `telephone-3cx-lien`, coché au premier clic, à confirmer à l'œil au bureau). Vérifié dans Chromium : trois liens `tel:`
 (deux numéros d'un champ + un), 24 × 24 px, aucune erreur.
+
+### 0.144.28 — 05/10/2026 09 h 32 : touche Suppr dans l'agenda ; « Mes rappels » dans la liste du jour
+- Demande : « permettre la suppression d'un rendez-vous sur l'agenda avec la touche Suppr du clavier ». Gestionnaire `keydown`
+  (`client/25-page-agenda.js`) : Suppr sur le rendez-vous sélectionné (détail ouvert) appelle `supprimerEvenementAgenda`, donc la
+  MÊME confirmation (« Supprimer le rendez-vous … ? Il ira dans les éléments supprimés d'Outlook ») ; sans effet pendant une
+  saisie (champ, zone de texte, liste), sans sélection, avec une fenêtre ou une confirmation ouverte, Ctrl/Alt/Cmd enfoncés, ni sur
+  un rendez-vous non supprimable (fantôme, option, historique en lecture seule, Outlook non réglé) — prédicat commun
+  `evenementSupprimableAgenda`, repris par le bouton du détail. Vérifié dans Chromium (appel réseau simulé) : confirmation à la
+  1re pression, rien dans un champ, rien sans sélection, un seul appel de suppression après « Supprimer ».
+  Seulement Suppr (pas Retour arrière, trop facile à presser par erreur).
+- Demande : « mettre mes rappels ajoutés dans la même liste que les tâches à faire aujourd'hui ». Sur la carte « Aujourd'hui », les
+  rappels du jour et sans date étaient déjà dans « À faire », mais ceux datés plus tard restaient dans une section « Mes rappels »
+  séparée. `rappelsDuJour` rend aussi `aVenir` ; la carte les place dans la même liste, après les tâches du jour, avec leur date
+  (« Demain », « Dimanche », « 12 oct. ») ; la section « Mes rappels » (titre et doublons) disparaît, « Ajouter un rappel » reste
+  toujours visible en bas de la carte (`data-garder`, il disparaissait quand la liste remplissait la tuile). La fenêtre du matin
+  n'est pas touchée (elle ne montre que le jour). Test `rappelsDuJour` ; vérifié sur la carte (rappel du jour, sans date, demain,
+  dans 6 jours).
+  Lecture retenue : **tous** mes rappels dans une seule liste. Si seuls les rappels du jour étaient visés, il suffit de ne pas
+  afficher les « à venir » (une ligne).

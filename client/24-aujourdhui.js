@@ -824,24 +824,27 @@
     const l = Array.isArray(rappels) ? rappels : [];
     const aFaire = rappelsAffiches(l.filter(r => !r.fait && (dateRappelJour(r) || aujourdhuiIso) <= aujourdhuiIso), aujourdhuiIso);
     const faits = l.filter(r => r.fait && String(r.faitLe || '').slice(0, 10) === aujourdhuiIso);
-    return { aFaire, faits };
+    // À venir : échéance datée après aujourd'hui (étude, 05/10 : « mes rappels dans la même liste que les tâches du jour »).
+    const aVenir = rappelsAffiches(l.filter(r => !r.fait && /^\d{4}-\d{2}-\d{2}$/.test(String(r.echeance || '')) && r.echeance > aujourdhuiIso), aujourdhuiIso);
+    return { aFaire, faits, aVenir };
   }
 
   // `fixe` : sur la carte du tableau de bord, un rappel non coché n'est jamais masqué faute de place
   // (étude, 01/10 : « mes rappels en cours visibles tant qu'ils ne sont pas cochés »).
   // `partie` : 'aFaire' ou 'faits' pour n'en rendre qu'une (la carte met les cochés après les actions).
   function renderRappelsJour(aujourdhuiIso, fixe, partie) {
-    const { aFaire, faits } = rappelsDuJour(rappelsPerso, aujourdhuiIso);
+    const { aFaire, faits, aVenir } = rappelsDuJour(rappelsPerso, aujourdhuiIso);
     const dossierDe = r => r.dossierId ? dossiers.find(x => x.id === r.dossierId) : null;
-    const lignes = aFaire.map(r => {
+    const lignes = (partie === 'avenir' ? aVenir : aFaire).map(r => {
       const d = dossierDe(r);
       const date = dateRappelJour(r);
       const retard = date && date < aujourdhuiIso ? libelleEcheanceRappel(date, aujourdhuiIso) : '';
+      const quand = partie === 'avenir' ? libelleEcheanceRappel(r.echeance, aujourdhuiIso) : '';
       return renderLigneAction({
         categorie: 'neutre', categorieLabel: 'Rappel',
         titre: r.texte,
         titreHtml: retard ? `<span class="ja-non-faite">${escapeHtml(retard)}</span>` : '',
-        sousHtml: [d ? `<button type="button" class="lien-discret" onclick="executerFicheDossierJour('${escapeOnclickArg(d.id)}')">${escapeHtml(libelleDossierAffiche(d))}</button>` : '', r.agendaItemId ? 'Tâche de l’agenda' : 'Mon rappel'].filter(Boolean).join(' · '),
+        sousHtml: [quand,d ? `<button type="button" class="lien-discret" onclick="executerFicheDossierJour('${escapeOnclickArg(d.id)}')">${escapeHtml(libelleDossierAffiche(d))}</button>` : '', r.agendaItemId ? 'Tâche de l’agenda' : 'Mon rappel'].filter(Boolean).join(' · '),
         caseRonde: { onclick: `basculerRappelPerso('${escapeOnclickArg(r.id)}')`, libelle: 'Fait' },
         bouton: rappelParleEmail(r.texte) ? { libelle: 'Email', icone: icone('mail'), onclick: `ouvrirEmailRappelPerso('${escapeOnclickArg(r.id)}')`, titre: "Préparer un email vierge avec la signature de l'office" } : null,
         classe: fixe ? 'ja-rappel w-fixe' : 'ja-rappel',
@@ -863,7 +866,7 @@
         <button type="button" class="lien-discret ja-annuler" onclick="basculerRappelPerso('${escapeOnclickArg(r.id)}')">Annuler</button>
       </li>`;
     }).join('');
-    return partie === 'aFaire' ? lignes : partie === 'faits' ? coches : lignes + coches;
+    return partie === 'aFaire' || partie === 'avenir' ? lignes : partie === 'faits' ? coches : lignes + coches;
   }
 
   function renderListeJour(actions, traites, global) {
@@ -959,8 +962,10 @@
       // Rappels non cochés (échus ou du jour) en tête de « À faire », jamais masqués (w-fixe).
       const rappelsJour = utilisateurPoste ? renderRappelsJour(aujourdhui, true, 'aFaire') : '';
       const rappelsCoches = utilisateurPoste ? renderRappelsJour(aujourdhui, true, 'faits') : '';
-      const liste = actions.length || traites.length || rappelsJour || rappelsCoches
-        ? `<ul class="ja-liste" data-ajuster="1" data-min="1">${rappelsJour}${actions.map(a => renderLigneActionJour(a, global)).join('')}${rappelsCoches}${renderLignesTraitees(traites)}${plusWidget(versPage)}</ul>`
+      // Mes rappels à venir (échéance datée plus tard) : dans la même liste, après les tâches du jour, avec leur date.
+      const rappelsAVenir = utilisateurPoste ? renderRappelsJour(aujourdhui, true, 'avenir') : '';
+      const liste = actions.length || traites.length || rappelsJour || rappelsCoches || rappelsAVenir
+        ? `<ul class="ja-liste" data-ajuster="1" data-min="1">${rappelsJour}${actions.map(a => renderLigneActionJour(a, global)).join('')}${rappelsAVenir}${rappelsCoches}${renderLignesTraitees(traites)}${plusWidget(versPage)}</ul>`
         : '<p class="jour-vide jour-vide-ok">✓ Rien à faire aujourd’hui sur vos dossiers.</p>';
       // Un rappel en cours de saisie (ajout ou modification) passe avant tout (étude, 01/10 : « quand je
       // clique sur Ajouter un rappel, il m'ouvre À venir ») : la carte pleine masquait toute la section
@@ -975,8 +980,7 @@
         </div>` : '';
       corps = `${feteHtml}${liste}
         <div class="w-section dash-rappels-bloc">
-          <h3 class="jour-carte-sous-titre">Mes rappels</h3>
-          <div class="rappels-perso" data-ajuster="${saisieRappel ? 0 : 2}"${saisieRappel ? ' data-garder' : ''}>${renderMesRappels(perimetreActifs, true)}</div>
+          <div class="rappels-perso" data-ajuster="0" data-garder>${renderMesRappels(perimetreActifs, true)}</div>
         </div>
         ${aVenirHtml}`;
     }

@@ -2091,14 +2091,14 @@
     annoncerEmailPret(res, true);
   }
 
-  // `sansDuJour` (carte « Aujourd'hui ») : les rappels déjà en tête de « À faire » (échus, non cochés,
-  // ou cochés aujourd'hui) n'y sont pas répétés ; restent ceux à venir, et l'ajout.
+  // `sansDuJour` (carte « Aujourd'hui ») : les rappels déjà dans la liste « À faire » (échus, non cochés, à venir datés,
+  // ou cochés aujourd'hui) n'y sont pas répétés ; restent ceux sans échéance datée future… et l'ajout.
   function renderMesRappels(perimetreActifs, sansDuJour) {
     if (!utilisateurPoste) {
       return `<div class="rappels-perso-vide">Pour noter vos rappels, <button type="button" class="lien-discret" onclick="ouvrirChoixPoste()">indiquez qui utilise ce poste</button>.</div>`;
     }
     const aujourdhui = isoAujourdhuiLocal();
-    const dejaAffiches = sansDuJour ? (rd => new Set(rd.aFaire.concat(rd.faits).map(r => r.id)))(rappelsDuJour(rappelsPerso, aujourdhui)) : new Set();
+    const dejaAffiches = sansDuJour ? (rd => new Set(rd.aFaire.concat(rd.faits, rd.aVenir).map(r => r.id)))(rappelsDuJour(rappelsPerso, aujourdhui)) : new Set();
     const liste = rappelsAffiches(rappelsPerso, aujourdhui).filter(r => !dejaAffiches.has(r.id) || r.id === rappelEnEdition);
     const optionsDossiers = (selection) => perimetreActifs.slice().sort((a, b) => String(a.nom).localeCompare(String(b.nom)))
       .map(d => `<option value="${escapeAttr(d.id)}"${d.id === selection ? ' selected' : ''}>${escapeHtml(libelleDossierAffiche(d))}</option>`).join('');
