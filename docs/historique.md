@@ -16681,3 +16681,15 @@ ces fenêtres ne se rechargeaient jamais. `GET /script.js` répond maintenant pa
 recharger à la prochaine mise à jour du serveur. Une fenêtre ouverte avant le 03/10 n'a pas de surveillance : F5. **Non confirmé
 au bureau** : à vérifier par la version affichée dans « À propos » de chaque fenêtre ouverte, et le « Diagnostic du dernier
 parcours » de l'onglet Pièces si le défaut revient.
+
+### 05/10/2026 — 0.144.36 — « Certificat_Assainissement.pdf » : une réponse « Non » écartait la pièce sans le dire
+
+Le diagnostic du parcours collé par l'étude (dossier de copropriété, 14 rue Pétion, noms inventés ici) montre « Certificat_Assainissement.pdf →
+écarté pour l'offre (1 page) » et **aucune** ligne « pièce trouvée par nom : Courrier réponse assainissement », alors que les autres pièces
+(taxe foncière, numérotage, titre, ERP) en ont une. Rejoué : le motif reconnaît ce nom (`exact`) ; seule une réponse **« Non »** apprise
+(`decisionFormePourNom` → `correspondancePieceNom` rend `null`, sans trace) donne exactement ce diagnostic et la pièce « manquante ». Le
+« Non » l'emporte sur tout motif et sur tout « Oui » (règle du 03/10). Scénario probable : un « Non » donné à une forme proche
+(« Certificat Assainissement ») dans Réglages › Noms de fichiers du NAS, puis un « Oui » sur « Courrier assainissement » ; l'alternance
+trouvée/introuvable toutes les 20 min venait de fenêtres qui n'avaient pas la même liste de décisions (0.144.34/35). Changement : le parcours
+écrit maintenant la ligne « … écarté par une réponse « Non » … (« Annuler » la décision pour le rétablir) ». Test `parcours-nas-diagnostic`
+(rejoue le parcours complet). **À confirmer au bureau** : la liste des réponses de la pièce dans Réglages › Noms de fichiers du NAS.

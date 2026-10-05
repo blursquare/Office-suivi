@@ -889,6 +889,11 @@
         // aussi, pas seulement la recherche ponctuelle faite à son ajout.
         let correspond = false;
         const reconnaissance = correspondancePieceNom(piece, nomNormalise);
+        // Un nom que le motif prend mais qu'une réponse « Non » de l'étude écarte (Réglages › Noms de fichiers du NAS) : dit dans le
+        // diagnostic, sinon la pièce reste « manquante » sans qu'aucune ligne n'explique pourquoi (05/10, « Certificat_Assainissement.pdf »).
+        if (!reconnaissance && !piece.personnalisee && decisionFormePourNom(piece.cle, nomNormalise) === 'non' && correspondancePieceNomMotifs(piece, nomNormalise)) {
+          diagnosticJournal.push(`${fichier.nom} → correspond à « ${piece.label} » mais écarté par une réponse « Non » donnée dans Réglages › Noms de fichiers du NAS (« Annuler » la décision pour le rétablir)`);
+        }
         if (piece.personnalisee) {
           correspond = !!reconnaissance;
         } else if (reconnaissance) {
