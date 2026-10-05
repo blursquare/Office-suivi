@@ -16796,3 +16796,10 @@ trouvée/introuvable toutes les 20 min venait de fenêtres qui n'avaient pas la 
   (`entree.echeance`) et remet la mention d'Outlook, `tachesFaitesAilleurs` ignore un « fait » antérieur à une annulation (`annule` par type). Tests : `echeances-cocher-decocher`
   (poste), `server/test/rappels-decoche`, `exchange-route` (retrait), `echeances-appel-fonds` mis à jour. **Non vérifié au bureau** : l'écriture réelle dans Outlook (retrait de la
   mention) ; non repris : les échéances perso et le délai SAFER ne sont pas posés dans l'agenda Outlook (seuls prêt et vente préalable le sont).
+
+- **0.148.1 — 2026-10-05 20:42 : fenêtre d'email, « Envoyer » ne partait pas** (rapport technique de 17 h, #13 : `TypeError: Cannot read properties of null (reading 'focus')`
+  dans `renderRedaction` ← `envoyerRedaction`, 1 fois à 14 h 10, poste en 0.144.34 ; correctif préparé sur la branche `claude/rapport-2026-10-05-17h` en 0.145.1, repris ici
+  sur l'accord de l'étude, renuméroté). Cause reproduite dans Chromium : `renderRedaction` remet le focus sur l'élément qui l'avait avant le redessin ; quand c'est le
+  `<wa-button id="redaction-envoyer">` (cliqué), le nouveau bouton, tout juste créé, n'a pas encore son bouton interne et son `focus()` lève — dans `envoyerRedaction`, avant
+  l'appel à `/api/emails/envoyer` : l'email ne partait pas. Correctif : le focus attend `updateComplete` et toute erreur de focus est avalée. Test de fumée : redessin de la
+  fenêtre avec le focus sur « Envoyer ». **À vérifier au bureau** : un envoi par « Envoyer » depuis la fenêtre d'email (point terrain `email-envoye-exchange`).

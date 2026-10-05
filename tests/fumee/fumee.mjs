@@ -107,6 +107,18 @@ try {
       verifier(/^\d+\.\d+\.\d+$/.test(propos.numero || '') && propos.numero === propos.attendu, `À propos : version ${propos.numero}`);
       verifier(propos.lignes === propos.entrees && /\d{2}\/\d{2} \d{2}:\d{2}/.test(propos.jour || ''), `À propos : ${propos.lignes} versions listées, date ${propos.jour}`);
       await geste(page, 'fermer À propos', () => fermerAPropos());
+      // Fenêtre d'email : redessinée alors que « Envoyer » (un <wa-button> recréé) a le focus — c'est ce qui empêchait l'envoi
+      // (rapport du 05/10, « Cannot read properties of null (reading 'focus') »).
+      await geste(page, 'fenêtre d’email', () => {
+        envoiDirectPossible = () => true;
+        ouvrirRedactionEmail({ mode: 'nouveau', destinataire: 'client@exemple.fr', sujet: 'Essai', corps: 'Bonjour', dossierId: 'f1', responsableSignature: 'Julie VASSELIN' });
+      });
+      await pause(500);
+      const avantEmail = erreurs.length;
+      await geste(page, 'fenêtre d’email › redessin avec le focus sur Envoyer', () => { const b = document.getElementById('redaction-envoyer'); if (b) b.focus(); renderRedaction(); });
+      await pause(300);
+      verifier(erreurs.length === avantEmail, 'fenêtre d’email : redessin avec le focus sur « Envoyer » sans erreur');
+      await geste(page, 'abandonner l’email', () => abandonnerRedaction());
       await page.evaluate(() => definirOnglet('dashboard'));
       await pause(300);
     }
