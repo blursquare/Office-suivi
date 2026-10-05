@@ -131,7 +131,7 @@ test('renderQuestionnaireSatisfaction : absent pour un dossier archivé, propos�
 
 test('relances : ouvertes en participation, toujours routées vers le confrère quand un autre office représente l’acquéreur', () => {
   const app = chargerApplication();
-  const participant = app.renderEchangesDossier(dossierBase(app, { roleNotaire: 'participant' }));
+  const participant = app.renderFondsDossier(dossierBase(app, { roleNotaire: 'participant' }));
   assert.match(participant, /envoyerRelanceCiblee\('d1', 'provision'\)/);
   const confrere = dossierBase(app, { roleNotaire: 'participant', notaireAcquereur: 'Maître DURAND', emailNotaireParticipant: 'durand@notaires.fr' });
   assert.equal(app.emailDestinataireRelance(confrere), 'durand@notaires.fr');
@@ -143,7 +143,7 @@ test('fonds reçus : vérifier d’abord, « Confirmer » une fois tous les fond
   // Appel de fonds pas encore fait : rien à confirmer, seulement vérifier.
   const avecRdv = dossierBase(app, { rendezVousSignature: '2026-11-20', acte: '2026-11-30' });
   assert.doesNotMatch(app.renderFondsRecus(avecRdv), /'fonds'/);
-  assert.doesNotMatch(app.renderEchangesDossier(avecRdv), /Confirmer la réception des fonds/);
+  assert.doesNotMatch(app.renderFondsDossier(avecRdv), /Confirmer la réception des fonds/);
 
   // Appel de fonds fait, reçus pas encore lus : « Vérifier » en geste principal ; la confirmation
   // reste possible « quand même » depuis le détail.
@@ -151,7 +151,9 @@ test('fonds reçus : vérifier d’abord, « Confirmer » une fois tous les fond
   const pasVerifie = app.renderFondsRecus(fait);
   assert.match(pasVerifie, /<span>Vérifier<\/span>/);
   assert.match(pasVerifie, /Confirmer quand même/);
-  assert.match(app.renderEchangesDossier(fait), /Confirmer quand même/);
+  assert.match(app.renderFondsDossier(fait), /Confirmer quand même/);
+  // Onglet Fonds (étude 05/10) : les gestes d'argent n'apparaissent plus dans Échanges.
+  assert.doesNotMatch(app.renderEchangesDossier(fait), /Confirmer quand même|'provision'|'rib'/);
 
   // Tous les fonds reçus : « Confirmer » devient le geste principal, « Revérifier » passe en icône.
   const complet = Object.assign({}, fait, { fondsRecus: { total: 1500, attendu: 1500, recus: [], depuis: '2026-10-15', fichiersLus: 1, verifieLe: '2026-11-02T10:00:00Z' } });
@@ -526,7 +528,9 @@ test('renderEchangesDossier : le destinataire, le stade, puis les lignes utiles 
   const html = app.renderEchangesDossier(dossierBase(app, { sansPret: true, rendezVousSignature: '2099-12-01' }));
   assert.match(html, /Rendez-vous de signature fixé/);
   assert.match(html, /Échanges avec le client/);
-  const [utile, replie] = html.split('<details class="echanges-autres">');
+  // RIB et provision : dans l'onglet Fonds (étude 05/10), même partage utile / replié.
+  assert.doesNotMatch(html, /'rib'|'provision'/);
+  const [utile, replie] = app.renderFondsDossier(dossierBase(app, { sansPret: true, rendezVousSignature: '2099-12-01' })).split('<details class="echanges-autres">');
   assert.match(utile, /envoyerRelanceCiblee\('d1', 'rib'\)/);
   assert.doesNotMatch(utile, /'provision'/);
   assert.match(replie, /envoyerRelanceCiblee\('d1', 'provision'\)/);

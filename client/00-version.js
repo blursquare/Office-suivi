@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.149.0';
+  const VERSION_APP = '0.149.1';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.149.1', date: '2026-10-05 21:05', resume: "Fiche : l'onglet « Analyse » rejoint l'onglet des pièces, renommé « Pièces et analyse » (analyse de l'avant-contrat sous la liste des pièces). Nouvel onglet « Fonds » : provision, appel de fonds, fonds reçus et leur confirmation, relance des fonds et RIB, retirés de l'onglet Échanges." },
     { version: '0.149.0', date: '2026-10-05 20:52', resume: "Réglages › Collaborateurs › Comptes Exchange : l'identifiant et le mot de passe de chaque collaborateur peuvent être enregistrés (« Tester » vérifie la connexion). Avec eux, CLAIRE lit ses « Éléments envoyés » dans sa propre boîte (plus d'accès délégué « Relecteur » à demander) et envoie ses emails depuis sa boîte (plus de droit « Envoyer en tant que » à demander à Fichorga). Un refus d'identifiants met le compte de côté sans nouvel essai, et l'email part du compte relié comme avant." },
     { version: '0.148.1', date: '2026-10-05 20:42', resume: "Fenêtre d'email : le bouton « Envoyer » n'envoyait rien quand la fenêtre se redessinait (erreur « Cannot read properties of null (reading 'focus') », relevée par le rapport technique de 17 h) ; le focus est maintenant remis après le rendu du bouton, et une erreur de focus n'arrête plus l'envoi." },
     { version: '0.148.0', date: '2026-10-05 19:51', resume: "Échéances : une case ronde à cocher / décocher sur chaque ligne de la fiche (prêt, vente préalable, date butoir, envoi appel de fonds, envoi projet, signature, échéances perso), comme une tâche d'« Aujourd'hui ». Décocher rend le délai jusqu'à la date butoir (donc les rappels) : l'appel de fonds ou le projet décoché perd sa date d'envoi et redevient dû avant le rendez-vous (J-n affiché). La mention « Appel de fonds [et projet] envoyé » du lieu du rendez-vous Outlook suit (retirée à la décoche). « Aujourd'hui » : « Offre de prêt reçue », « Vente préalable réalisée » cochent l'échéance (« Annuler » la décoche) ; une tâche cochée puis décochée ne reste plus « faite »." },

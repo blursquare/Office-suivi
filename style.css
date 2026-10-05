@@ -3820,6 +3820,9 @@
   .fiche-panneau[hidden] { display: none; }
   .fiche-panneau > :first-child { margin-top: 0; }
   .fiche-vide { margin: 4px 0 12px; font-size: var(--texte-m); color: var(--muted); }
+  /* Onglet « Pièces et analyse » (05/10) : l'analyse de l'avant-contrat sous la liste des pièces, séparée par un filet. */
+  .fiche-panneau .fiche-sous-partie:not(:first-child) { margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--line); }
+  .fiche-panneau .fiche-sous-titre { margin-bottom: 8px; }
   /* L'onglet porte déjà le cadre : l'analyse n'a pas besoin d'une boîte de plus autour de ses cartes. */
   .fiche-panneau .analyse-juridique { margin-top: 0; padding: 0; background: none; border: none; }
 

@@ -1870,7 +1870,7 @@
       const notifications = d.piecesNotifications || [];
       const notifPieces = notifications.some(c => c !== CLE_NOTIF_OFFRE_PRET);
       const nbEcheancesAVenir = echeancesPlanning(d).length;
-      const onglet = (ongletFiche === 'pieces' && !avecPieces) ? 'echeances' : ongletFiche;
+      const onglet = ongletFiche === 'analyse' ? 'pieces' : (ongletFiche === 'fonds' && estSuccession(d) ? 'echeances' : ongletFiche);
       const cache = nom => onglet === nom ? '' : ' hidden';
 
       // Un onglet par geste, dans l'ordre où on les accomplit sur un dossier : ce qui arrive
@@ -1880,9 +1880,14 @@
       const avAnalyse = avancementAnalyse(d);
       const ongletsFiche = [
         { cle: 'echeances', libelle: 'Échéances', compteur: nbEcheancesAVenir ? String(nbEcheancesAVenir) : '', titre: `${nbEcheancesAVenir} échéance(s) à venir`, nouveau: notifications.includes(CLE_NOTIF_OFFRE_PRET) },
-        avecPieces ? { cle: 'pieces', libelle: 'Pièces', compteur: `${nbPiecesRecues}/${checklist.length}`, titre: `${nbPiecesRecues} pièce(s) reçue(s) sur ${checklist.length}`, complet: checklist.length > 0 && nbPiecesRecues === checklist.length, nouveau: notifPieces } : null,
-        { cle: 'analyse', libelle: 'Analyse', compteur: avAnalyse.total ? `${avAnalyse.faits}/${avAnalyse.total}` : '', titre: `${avAnalyse.faits} reçu(s) ou réalisé(s) sur ${avAnalyse.total} : obligations du vendeur et documents relevés dans l’avant-contrat`, complet: avAnalyse.total > 0 && avAnalyse.faits === avAnalyse.total },
-        { cle: 'echanges', libelle: 'Échanges', compteur: '', titre: 'Emails au client, questionnaire, appel de fonds' },
+        // Pièces et analyse de l'avant-contrat dans le même onglet (étude 05/10) ; sans checklist (participation), l'analyse seule.
+        { cle: 'pieces', libelle: avecPieces ? 'Pièces et analyse' : 'Analyse',
+          compteur: avecPieces ? `${nbPiecesRecues}/${checklist.length}` : (avAnalyse.total ? `${avAnalyse.faits}/${avAnalyse.total}` : ''),
+          titre: (avecPieces ? `${nbPiecesRecues} pièce(s) reçue(s) sur ${checklist.length}` : '') + (avAnalyse.total ? `${avecPieces ? ' · ' : ''}${avAnalyse.faits} engagement(s) ou document(s) de l’avant-contrat sur ${avAnalyse.total}` : ''),
+          complet: avecPieces ? checklist.length > 0 && nbPiecesRecues === checklist.length : avAnalyse.total > 0 && avAnalyse.faits === avAnalyse.total, nouveau: avecPieces && notifPieces },
+        // Fonds (étude 05/10) : provision, appel de fonds, fonds reçus et confirmation, relance, RIB — sortis d'Échanges.
+        estSuccession(d) ? null : { cle: 'fonds', libelle: 'Fonds', compteur: '', titre: 'Provision, appel de fonds, fonds reçus, relance, RIB' },
+        { cle: 'echanges', libelle: 'Échanges', compteur: '', titre: 'Emails, appels, sondages de dates, questionnaire' },
         { cle: 'historique', libelle: 'Historique', compteur: historique.length ? String(historique.length) : '', titre: `${historique.length} entrée(s)` }
       ].filter(Boolean);
 
@@ -1938,12 +1943,11 @@
               ${renderAjoutEcheance(d)}
             </section>
 
-            ${avecPieces ? `<section class="fiche-panneau" data-onglet="pieces" role="tabpanel"${cache('pieces')}>
-              ${renderPiecesDossier(d)}
-              ${renderDiagnosticParcours(d)}
-            </section>` : ''}
-
-            <section class="fiche-panneau" data-onglet="analyse" role="tabpanel"${cache('analyse')}>
+            <section class="fiche-panneau" data-onglet="pieces" role="tabpanel"${cache('pieces')}>
+              ${avecPieces ? `${renderPiecesDossier(d)}
+              ${renderDiagnosticParcours(d)}` : ''}
+              <div class="fiche-sous-partie">
+              ${avecPieces ? `<div class="section-eyebrow fiche-sous-titre">Analyse de l'avant-contrat</div>` : ''}
               ${analyseVide ? `<p class="fiche-vide">Aucune obligation du vendeur ni aucun document relevé dans l'avant-contrat.</p>` : `
               <div class="analyse-juridique">
                 ${analyse.engagements.length > 0 ? `
@@ -1953,7 +1957,7 @@
                   </div>
                 ` : ''}
                 <div class="analyse-section">
-                  <div class="analyse-sous-titre">Documents et pièces identifiés <span class="analyse-compteur">${analyse.documents.filter(doc => documentAnalyseRecu(d, doc)).length}/${analyse.documents.length}</span>${infoBulle('Cochez un document une fois reçu. S’il figure aussi dans la checklist (« checklist »), c’est la même case que dans l’onglet Pièces.')}</div>
+                  <div class="analyse-sous-titre">Documents et pièces identifiés <span class="analyse-compteur">${analyse.documents.filter(doc => documentAnalyseRecu(d, doc)).length}/${analyse.documents.length}</span>${infoBulle('Cochez un document une fois reçu. S’il figure aussi dans la checklist (« checklist »), c’est la même case que dans la liste des pièces ci-dessus.')}</div>
                   <div class="analyse-documents-cases">
                     ${analyse.documents.length > 0
                       ? analyse.documents.map((doc, i) => renderDocumentAnalyse(d, doc, i)).join('')
@@ -1963,7 +1967,12 @@
               </div>`}
               ${renderAjoutEngagement(d)}
               ${renderExtractionDossier(d)}
+              </div>
             </section>
+
+            ${estSuccession(d) ? '' : `<section class="fiche-panneau" data-onglet="fonds" role="tabpanel"${cache('fonds')}>
+              ${renderFondsDossier(d)}
+            </section>`}
 
             <section class="fiche-panneau" data-onglet="echanges" role="tabpanel"${cache('echanges')}>
               ${renderEchangesDossier(d)}
@@ -2002,6 +2011,8 @@
   // Bascule sans reconstruire le tiroir : les champs en cours de saisie et le défilement restent
   // en place.
   function definirOngletFiche(nom) {
+    // « analyse » : ancien onglet, fondu dans « Pièces et analyse » (étude 05/10).
+    if (nom === 'analyse') nom = 'pieces';
     ongletFiche = nom;
     const tiroir = document.getElementById('dossier-drawer');
     if (!tiroir) return;
@@ -2102,7 +2113,7 @@
       const quand = p.le ? new Date(p.le).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : '';
       const clic = p.type === 'offre' ? (fichierTrouve(d, NAS_CLE_OFFRE) ? `ouvrirOffreTrouvee('${escapeOnclickArg(d.id)}')` : "definirOngletFiche('echeances')")
         : p.type === 'piece' && !p.main ? `ouvrirPieceTrouvee('${escapeOnclickArg(d.id)}', '${escapeOnclickArg(p.cle)}')`
-          : `definirOngletFiche('${p.type === 'analyse' ? 'analyse' : 'pieces'}')`;
+          : "definirOngletFiche('pieces')";
       const titre = `${p.label}${p.main ? ' — validée à la main' : ' — ouvrir le fichier'}${p.nouvelle ? ' (nouveau)' : ''}`;
       return `<li><button type="button" class="fiche-piece-recue${p.nouvelle ? ' nouvelle' : ''}" onclick="${clic}" title="${escapeAttr(titre)}">
           <span class="fiche-piece-point" aria-hidden="true"></span>

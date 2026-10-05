@@ -405,20 +405,42 @@
     return renderLigneEmailDossier(d, cle);
   }
 
-  // Onglet Échanges de la fiche : le destinataire (client, ou confrère quand un autre office
-  // représente l'acquéreur), puis ce qui sert À CE STADE du dossier en lignes d'action (même forme
-  // que « À faire »), puis le reste replié.
-  function renderEchangesDossier(d) {
+  // Gestes d'argent (étude 05/10 : « un onglet unique pour les fonds ») : rendus dans l'onglet Fonds de la fiche, plus dans
+  // Échanges. echangesSelonStade les range toujours (utile maintenant / replié) — seule la répartition entre onglets change.
+  var CLES_ECHANGES_FONDS = ['provision', 'appelFonds', 'relanceFonds', 'fondsRecus', 'rib'];
+
+  // Destinataire des emails (client, ou confrère quand un autre office représente l'acquéreur) : partagé par Échanges et Fonds.
+  function texteDestinataireEchanges(d) {
     const notaireParticipant = notaireParticipantRepresenteAcquereur(d);
-    const { stade, utiles, autres } = echangesSelonStade(d, isoAujourdhuiLocal());
-    const lignes = (cles) => cles.map(c => renderLigneEchange(d, c)).filter(Boolean);
-    const lignesUtiles = lignes(utiles);
-    const lignesAutres = lignes(autres);
-    const hint = emailDestinataireRelance(d)
+    return emailDestinataireRelance(d)
       ? (notaireParticipant ? 'Adressé au notaire de l’acquéreur.' : '')
       : (notaireParticipant
         ? 'Renseignez l’email du confrère en haut de la fiche pour écrire : l’acquéreur a son propre notaire.'
         : 'Renseignez l’email de l’acquéreur en haut de la fiche pour écrire.');
+  }
+
+  // Lignes d'un onglet (Échanges ou Fonds) : ce qui sert à ce stade, puis le reste replié.
+  function lignesEchangesOnglet(d, fonds) {
+    const { stade, utiles, autres } = echangesSelonStade(d, isoAujourdhuiLocal());
+    const garder = (c) => CLES_ECHANGES_FONDS.includes(c) === fonds;
+    const lignes = (cles) => cles.filter(garder).map(c => renderLigneEchange(d, c)).filter(Boolean);
+    return { stade, utiles: lignes(utiles), autres: lignes(autres) };
+  }
+
+  function renderAutresEchanges(lignesAutres) {
+    return lignesAutres.length ? `<details class="echanges-autres">
+        <summary>Hors de ce stade (${lignesAutres.length})</summary>
+        <ul class="ja-liste">${lignesAutres.join('')}</ul>
+      </details>` : '';
+  }
+
+  // Onglet Échanges de la fiche : le destinataire (client, ou confrère quand un autre office
+  // représente l'acquéreur), puis ce qui sert À CE STADE du dossier en lignes d'action (même forme
+  // que « À faire »), puis le reste replié. Les gestes d'argent sont dans l'onglet Fonds.
+  function renderEchangesDossier(d) {
+    const notaireParticipant = notaireParticipantRepresenteAcquereur(d);
+    const { stade, utiles, autres } = lignesEchangesOnglet(d, false);
+    const hint = texteDestinataireEchanges(d);
     return `<div class="echanges-groupe">
         <div class="echanges-tete">
           <span class="section-eyebrow">${notaireParticipant ? 'Échanges avec le confrère' : 'Échanges avec le client'}</span>
@@ -428,10 +450,22 @@
         ${renderAppelsDossier(d)}
         ${renderEmailsDossier(d)}
         ${renderSondageDossier(d)}
-        ${lignesUtiles.length ? `<ul class="ja-liste">${lignesUtiles.join('')}</ul>` : '<p class="fiche-vide">Rien à envoyer à ce stade.</p>'}
+        ${utiles.length ? `<ul class="ja-liste">${utiles.join('')}</ul>` : '<p class="fiche-vide">Rien à envoyer à ce stade.</p>'}
       </div>
-      ${lignesAutres.length ? `<details class="echanges-autres">
-        <summary>Hors de ce stade (${lignesAutres.length})</summary>
-        <ul class="ja-liste">${lignesAutres.join('')}</ul>
-      </details>` : ''}`;
+      ${renderAutresEchanges(autres)}`;
+  }
+
+  // Onglet Fonds de la fiche (étude 05/10) : provision, appel de fonds, fonds reçus et leur confirmation, relance, RIB.
+  function renderFondsDossier(d) {
+    const { stade, utiles, autres } = lignesEchangesOnglet(d, true);
+    const hint = texteDestinataireEchanges(d);
+    return `<div class="echanges-groupe">
+        <div class="echanges-tete">
+          <span class="section-eyebrow">Fonds du dossier</span>
+          <span class="echanges-stade" title="Stade du dossier, lu dans ses dates">${escapeHtml(STADES_DOSSIER[stade])}</span>
+        </div>
+        ${hint ? `<p class="hint echanges-destinataire">${hint}</p>` : ''}
+        ${utiles.length ? `<ul class="ja-liste">${utiles.join('')}</ul>` : '<p class="fiche-vide">Rien à faire sur les fonds à ce stade.</p>'}
+      </div>
+      ${renderAutresEchanges(autres)}`;
   }
