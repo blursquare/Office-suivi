@@ -500,6 +500,7 @@ dans `index.html`** (le test `structure-client` refuse tout décalage).
   (`notesAvecVisio`, bloc « Visio ADNOV : … » remplacé à l’invitation suivante), puis « Rejoindre la visio ». « Envoyer le lien » prépare l'email aux clients et/ou au confrère (`corpsEmailVisio`, premier jet de CLAIRE) avec les informations de connexion relues dans la note (`blocVisioDansNotes`).
   `gestesRelationClient` (**« Confirmer le rendez-vous » retiré le 05/10** — étude : doublon de « Demander le RIB et la pièce
   d'identité » ; son modèle reste dans Réglages › Modèles d'emails et le menu « Modèles » ; rappel du rendez-vous retiré le 03/10 ;
+  **« Confirmer la réception des fonds »** dans « À faire » à 3 jours du rendez-vous seulement (étude 05/10, `JOURS_CONFIRMATION_FONDS`) ;
   **« Relancer pour les fonds »** si les fonds ne sont pas arrivés 3 jours avant (`relanceFondsDue`, `JOURS_RELANCE_FONDS`,
   `construireEmailRelanceFonds`, une fois par date `relanceFondsPour`, À faire + Échanges, premier jet de CLAIRE),
   questionnaire J+1…J+14, un mot un an après — **jamais quand un confrère accompagne l'acquéreur**,

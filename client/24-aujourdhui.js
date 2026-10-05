@@ -13,7 +13,8 @@
   // Toute la sélection est PURE et testable (tests/aujourdhui.test.js) : la date du jour est
   // toujours passée en paramètre.
 
-  var JOURS_ACTIONS_RENDEZ_VOUS = 7;   // projet, confirmation des fonds (l’appel de fonds : JOURS_APPEL_FONDS_AVANT_RDV, commun/planning.js)
+  var JOURS_ACTIONS_RENDEZ_VOUS = 7;   // projet (l’appel de fonds : JOURS_APPEL_FONDS_AVANT_RDV, commun/planning.js)
+  var JOURS_CONFIRMATION_FONDS = 3;    // confirmer la réception des fonds (étude 05/10 : « confirmer les fonds 3 j avant »)
   var JOURS_RAPPEL_RIB = 3;            // email « RIB et pièce d'identité » avant la signature
   var JOURS_QUESTIONNAIRE = 30;        // questionnaire proposé dans le mois qui suit la signature
   var JOURS_A_VENIR = 30;              // horizon de « À venir »
@@ -174,7 +175,7 @@
             second: { type: 'marquer', champ: 'relanceFonds', libelle: 'Déjà relancé' }
           });
         }
-        if (!relanceDue && jRdv <= JOURS_ACTIONS_RENDEZ_VOUS && af && !d.receptionFondsConfirmeeLe && dest) {
+        if (!relanceDue && jRdv <= JOURS_CONFIRMATION_FONDS && af && !d.receptionFondsConfirmeeLe && dest) {
           // Ce que dit la dernière lecture des reçus (onglet Échanges › Fonds reçus), s'il y en a une.
           const fr = d.fondsRecus;
           const bilan = fr ? bilanFondsRecus(fr.total, d.fondsAttendusManuel || fr.attendu) : null;

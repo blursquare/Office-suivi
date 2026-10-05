@@ -623,7 +623,11 @@ test('À faire : relance des fonds à J-3 (à la place de « Confirmer la récep
   const types = (auj, dd) => app.actionsDuJour([dd || d], auj).actions.map(a => a.type);
   assert.ok(types('2026-10-01').includes('relanceFonds'));
   assert.ok(!types('2026-10-01').includes('fonds'), 'une seule ligne à la fois');
-  assert.ok(types('2026-09-28').includes('fonds') && !types('2026-09-28').includes('relanceFonds'), 'J-6 : seulement la confirmation');
+  // Étude 05/10 : « confirmer les fonds 3 j avant » — rien à J-6 ; à J-3, la confirmation si les fonds sont là.
+  assert.ok(!types('2026-09-28').includes('fonds') && !types('2026-09-28').includes('relanceFonds'), 'J-6 : rien encore');
+  const recus = Object.assign({}, d, { fondsRecus: { total: 250000, attendu: 250000 } });
+  assert.ok(types('2026-10-01', recus).includes('fonds') && !types('2026-10-01', recus).includes('relanceFonds'), 'J-3, fonds reçus : la confirmation');
+  assert.ok(!types('2026-09-30', recus).includes('fonds'), 'J-4 : pas encore');
   const relance = app.actionsDuJour([d], '2026-10-01').actions.find(a => a.type === 'relanceFonds');
   assert.equal(relance.geste.motif, 'relanceFonds');
 });
