@@ -631,6 +631,10 @@ dans `index.html`** (le test `structure-client` refuse tout décalage).
   saisie, test « aucun nom ne sort ») ; clauses apprises avec « Oublier »
   (`DELETE /api/corrections-apprises/:id`) ; fichiers écartés des pièces ; commentaires de relecture d'actes.
 
+- **Fonds tous reçus, pas encore confirmés** (étude 05/10, `fondsCompletsAConfirmer`) : comptés dans la pastille rouge de « Suivi des
+  dossiers » et en tête du Suivi (« Nouveau ») jusqu'à la confirmation au client ; alerte Teams « Tous les fonds sont reçus » au
+  responsable, une fois par dossier (`alertesFondsDues`, même sans appel de fonds noté envoyé).
+
 ## Relecture d'actes (Outil 2) — état actuel
 
 Quatre étapes : documents (dépôt ou dossier NAS complet) → pseudonymisation (vérifiable) →

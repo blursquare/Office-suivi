@@ -23,13 +23,22 @@
   // Nombre total de notifications non vues, tous dossiers actifs confondus — affiché en badge dans
   // la sidebar à côté de "Suivi des dossiers" (voir majBadgeNotificationsSidebar). Un dossier
   // archivé n'est jamais compté : rien à signaler sur un dossier qu'on ne consulte plus.
+  // Pure : tous les fonds sont reçus (reçus comptables, à 2 € près) et la réception n'a pas encore été confirmée au client.
+  function fondsCompletsAConfirmer(d) {
+    if (!d || d.archive || d.receptionFondsConfirmeeLe) return false;
+    const f = d.fondsRecus;
+    return !!(f && typeof f === 'object' && bilanFondsRecus(f.total, d.fondsAttendusManuel || f.attendu).etat === 'complet');
+  }
+
   function totalNotificationsPieces() {
     // Limité aux dossiers du collaborateur du poste, sauf pour l'administrateur (voir
-    // « Collaborateur du poste ») : ce badge dit « il y a du nouveau POUR MOI ».
+    // « Collaborateur du poste ») : ce badge dit « il y a du nouveau POUR MOI ». Un dossier dont tous les fonds sont reçus
+    // compte aussi, jusqu'à la confirmation au client (étude 05/10 : « une pastille de notification pour trouver le dossier ») —
+    // il est en tête du Suivi, section « Nouveau ».
     const global = !utilisateurPoste || estAdministrateur(utilisateurPoste);
     return dossiersDuPerimetre(dossiers, utilisateurPoste, global)
       .filter(d => !d.archive)
-      .reduce((total, d) => total + ((d.piecesNotifications || []).length), 0);
+      .reduce((total, d) => total + ((d.piecesNotifications || []).length) + (fondsCompletsAConfirmer(d) ? 1 : 0), 0);
   }
 
   // Met à jour le badge numérique de la sidebar — appelée depuis render(), comme les autres

@@ -871,8 +871,7 @@
       const noms = pieces.map(c => { const p = liste.find(x => x.cle === c); return p ? p.label : libellePieceParCle(c); });
       out.push({ cle: 'pieces', rang: 0, texte: pieces.length === 1 ? `Nouvelle pièce : ${noms[0]}` : `${pieces.length} nouvelles pièces : ${noms.join(', ')}` });
     }
-    const f = d.fondsRecus;
-    if (f && !d.receptionFondsConfirmeeLe && bilanFondsRecus(f.total, d.fondsAttendusManuel || f.attendu).etat === 'complet') {
+    if (fondsCompletsAConfirmer(d)) {
       out.push({ cle: 'fonds', rang: 1, texte: 'Tous les fonds reçus — confirmation à envoyer' });
     }
     return out;

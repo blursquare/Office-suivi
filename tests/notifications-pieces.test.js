@@ -50,3 +50,14 @@ test('tagNotificationsDossier : vide sans notification, singulier/pluriel sinon'
 // non testables unitairement ici, même limite déjà documentée pour les autres fonctions de
 // lecture/mutation de `dossiers` dans ce fichier. Vérifiées par lecture de code (une simple somme
 // filtrée sur !d.archive) plutôt que par un test committé.
+
+test('fondsCompletsAConfirmer (05/10) : tous les fonds reçus, réception pas encore confirmée — compte dans la pastille du Suivi', () => {
+  const app = chargerApplication();
+  const d = (extra) => dossierBase(Object.assign({ fondsRecus: { total: 180000, attendu: 180000 } }, extra));
+  assert.equal(app.fondsCompletsAConfirmer(d()), true);
+  assert.equal(app.fondsCompletsAConfirmer(d({ fondsRecus: { total: 179999, attendu: 180000 } })), true, 'à 2 € près');
+  assert.equal(app.fondsCompletsAConfirmer(d({ fondsRecus: { total: 100000, attendu: 180000 } })), false, 'partiel');
+  assert.equal(app.fondsCompletsAConfirmer(d({ receptionFondsConfirmeeLe: '2026-10-05' })), false, 'déjà confirmée');
+  assert.equal(app.fondsCompletsAConfirmer(d({ archive: true })), false);
+  assert.equal(app.fondsCompletsAConfirmer(dossierBase()), false, 'aucun reçu lu');
+});

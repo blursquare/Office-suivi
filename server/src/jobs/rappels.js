@@ -130,7 +130,6 @@ function alertesFondsDues(dossiers, aujourdHui, dejaEnvoyes) {
   const jourAuj = jourSemaine(aujourdHui);
   for (const d of dossiers || []) {
     if (!d || d.archive || !d.responsable || d.receptionFondsConfirmeeLe) continue;
-    if (!(d.appelFonds || echeanceValidee(d, 'appelFonds'))) continue;
     const j = d.rendezVousSignature ? joursRestants(d.rendezVousSignature, aujourdHui) : null;
     if (j !== null && j < 0) continue;
     const f = d.fondsRecus && typeof d.fondsRecus === 'object' ? d.fondsRecus : null;
@@ -139,10 +138,13 @@ function alertesFondsDues(dossiers, aujourdHui, dejaEnvoyes) {
       dossierId: d.id, nomDossier: libelleDossier(d), responsable: d.responsable, libelle: 'Fonds reçus',
       rdv: d.rendezVousSignature || '', heure: d.rendezVousSignatureHeure || '', bilan, verifieLe: f ? f.verifieLe || '' : ''
     };
+    // Tous les fonds reçus (étude 05/10 : « recevoir une notification Teams ») : prévenu même si l'appel de fonds n'a pas été
+    // noté envoyé dans CLAIRE — des fonds complets disent qu'il est parti.
     if (bilan && bilan.etat === 'complet') {
       if (!deja(d, 'fonds-complets')) dus.push(Object.assign(base, { genre: 'complets', reminderKey: 'fonds-complets' }));
       continue;
     }
+    if (!(d.appelFonds || echeanceValidee(d, 'appelFonds'))) continue;
     if (j === null || jourAuj === 0 || jourAuj === 6) continue;
     const rdvLundiMardi = [1, 2].includes(jourSemaine(d.rendezVousSignature));
     const leVendredi = jourAuj === 5 && rdvLundiMardi && j <= 4;

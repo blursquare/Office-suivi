@@ -649,8 +649,10 @@ test('fonds : tous reçus → une seule alerte par dossier, rien si la réceptio
   assert.match(texteAlerteFonds(dus[0]), /Tous les fonds sont reçus pour le dossier VTE - DUPONT \/ MARTIN \(150\.000,00\s€\)/);
   assert.equal(alertesFondsDues([d], '2026-10-06', new Set(['f1:fonds-complets'])).length, 0);
   assert.equal(alertesFondsDues([Object.assign({}, d, { receptionFondsConfirmeeLe: '2026-10-06' })], '2026-10-06', new Set()).length, 0);
-  // Pas avant l'appel de fonds.
-  assert.equal(alertesFondsDues([dossierFonds({ appelFonds: '', echeancesValidees: {}, fondsRecus: recus(1, 1) })], '2026-10-06', new Set()).length, 0);
+  // Étude 05/10 : tous les fonds reçus préviennent même si l'appel de fonds n'a pas été noté envoyé…
+  assert.equal(alertesFondsDues([dossierFonds({ appelFonds: '', echeancesValidees: {}, fondsRecus: recus(1, 1) })], '2026-10-06', new Set())[0].genre, 'complets');
+  // … mais des fonds incomplets, eux, ne disent rien tant que l'appel de fonds n'est pas parti.
+  assert.equal(alertesFondsDues([dossierFonds({ appelFonds: '', echeancesValidees: {}, rendezVousSignature: '2026-10-08', fondsRecus: recus(1000, 150000) })], '2026-10-06', new Set()).length, 0);
 });
 
 test('fonds incomplets : 48 h avant le rendez-vous (mercredi → lundi précédent)', () => {
