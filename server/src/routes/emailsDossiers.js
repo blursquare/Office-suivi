@@ -176,7 +176,13 @@ function creerRouteurEmailsDossiers(parametresRepo, depot, options = {}) {
   // jamais gardé : l'email est relu dans Exchange, la proposition rendue au poste, le texte jeté.
   routeur.post('/emails-dossiers/proposition', routeAsync(async (req, res) => {
     const b = req.body || {};
-    const lu = await lireEmailComplet(parametresRepo, String(b.emailId || ''), injections);
+    let lu = await lireEmailComplet(parametresRepo, String(b.emailId || ''), injections);
+    // Email classé hors du serveur (archive locale d'Outlook, étude 05/10) : on ne peut plus le relire, mais son résumé
+    // d'une phrase, gardé à l'arrivée, suffit pour un premier jet.
+    if (lu.erreur && lu.introuvable) {
+      const conserve = lireEtat(parametresRepo).emails.find((e) => e.id === String(b.emailId || ''));
+      if (conserve && conserve.resume) lu = { texte: `(Texte d’origine non disponible, résumé de l’email : ${conserve.resume})`, de: conserve.de, objet: conserve.objet };
+    }
     if (lu.erreur) { res.status(lu.statut || 400).json({ erreur: lu.erreur }); return; }
     const ollama = injections.ollama || require('../llm').creerClientOllama(config);
     let dispo;

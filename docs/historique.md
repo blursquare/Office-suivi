@@ -16646,3 +16646,12 @@ répondait `ErrorItemNotFound` et CLAIRE refusait (« n'est plus dans la boîte 
 pièces jointes, même boîte d'envoi), sans l'email cité ni le fil Exchange (Outlook regroupe par objet) ; le résultat porte `sansFil` et le
 toast le dit. Sans destinataire, rien ne change (le message d'avant). Piste non faite : retrouver l'email déplacé (FindItem sur toute la
 boîte) pour garder le fil. **Non vérifié avec un vrai Exchange** : point terrain `email-reponse-email-deplace`.
+
+### 05/10/2026 — 0.144.33 — Email classé dans une archive locale d'Outlook
+
+Précision de l'étude sur la 0.144.32 : l'email d'origine est classé dans un **dossier d'archives local d'Outlook** (fichier .pst du poste),
+donc il n'est plus sur le serveur Exchange du tout — CLAIRE ne peut ni le relire ni le retrouver par EWS (le « retrouver pour garder le
+fil » envisagé en piste est donc exclu). Conséquences : la réponse part déjà comme nouvel email (0.144.32) ; le premier jet de l'IA
+locale (`POST /emails-dossiers/proposition`) échouait faute de texte — il part maintenant du **résumé d'une phrase** gardé à l'arrivée
+de l'email (`resume`), et sans résumé l'erreur dit « archive locale d'Outlook, que CLAIRE ne peut pas lire » (`introuvable`). Le texte
+complet d'un tel email reste illisible dans CLAIRE (même message). Non vérifié avec un vrai Exchange.

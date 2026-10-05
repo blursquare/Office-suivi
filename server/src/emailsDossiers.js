@@ -511,7 +511,7 @@ async function lireEmailComplet(parametresRepo, emailId, injections = {}) {
   if (r.echec) return { erreur: r.echec.message, statut: 502 };
   if (r.statut === 401 || r.statut === 403) return { erreur: 'Identifiants de messagerie refusés.', statut: 502 };
   const lu = succes(r.corps) ? parseGetItems(r.corps).get(email.itemId) : null;
-  if (!lu) return { erreur: `Email introuvable dans la boîte (${codeReponse(r.corps) || r.statut}) : il a peut-être été déplacé ou supprimé.`, statut: 404 };
+  if (!lu) return { erreur: `Email introuvable dans la boîte (${codeReponse(r.corps) || r.statut}) : il a été déplacé ou supprimé (par exemple classé dans une archive locale d’Outlook, que CLAIRE ne peut pas lire).`, statut: 404, introuvable: true };
   return { texte: lu.corps, a: lu.a.length ? lu.a : email.a, de: email.de, objet: email.objet, date: email.date, sens: email.sens };
 }
 

@@ -131,6 +131,31 @@ test('réponse à un email déplacé (ErrorItemNotFound) : part quand même comm
   assert.match(sans.message, /déplacé ou supprimé/);
 });
 
+test('route : email classé hors du serveur (archive locale) — le premier jet de l’IA part du résumé gardé', async () => {
+  const { creerApp } = require('../src/app');
+  const db = ouvrirDb(':memory:');
+  const f = fauxExchange({ GetItem: erreur('GetItem', 'ErrorItemNotFound') });
+  const prompts = [];
+  const ollama = { verifierDisponibilite: async () => ({ disponible: true }), genererJson: async (p) => { prompts.push(p); return { reponse: 'Madame, Monsieur,\nBien reçu.\nBien cordialement,' }; } };
+  const { app, parametresRepo: repo } = creerApp({ db, config: { authActive: false, racineRepo: os.tmpdir(), estSea: () => false }, emailsDossiers: { poster: f.poster, ollama } });
+  repo.ecrireReglagesExchange({ actif: true, url: 'https://ex/ews', email: 'bastien@office.fr', motDePasse: 'secret' });
+  E.ecrireEtat(repo, { emails: [
+    { id: 'e1', itemId: 'IN9', dossierId: 'd1', sens: 'recu', date: '2026-10-03T08:00:00Z', de: { nom: 'Camille FOURNIER', adresse: 'camille.fournier@exemple.fr' }, a: [], objet: 'Mon RIB', pj: [], resume: 'Camille envoie son RIB pour le virement.' },
+    { id: 'e2', itemId: 'IN10', dossierId: 'd1', sens: 'recu', date: '2026-10-03T08:00:00Z', de: { nom: 'Camille FOURNIER', adresse: 'camille.fournier@exemple.fr' }, a: [], objet: 'Autre', pj: [] }] });
+  const serveur = app.listen(0);
+  try {
+    await new Promise((r) => serveur.once('listening', r));
+    const base = `http://127.0.0.1:${serveur.address().port}`;
+    const post = (emailId) => fetch(`${base}/api/emails-dossiers/proposition`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ emailId, dossier: 'VTE - MARTEL / FOURNIER' }) });
+    const ok = await post('e1');
+    assert.equal(ok.status, 200);
+    assert.match(prompts[0], /Texte d’origine non disponible.*Camille envoie son RIB/);
+    const sans = await post('e2');
+    assert.equal(sans.status, 404);
+    assert.match((await sans.json()).erreur, /archive locale d’Outlook/);
+  } finally { serveur.close(); }
+});
+
 test('route : réponse dans le fil avec pièce jointe, notée envoyée ; proposition de l’IA locale', async () => {
   const { creerApp } = require('../src/app');
   const db = ouvrirDb(':memory:');
