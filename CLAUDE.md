@@ -282,7 +282,7 @@ dans `index.html`** (le test `structure-client` refuse tout décalage).
   `renderColonneSuivi` (étude 01/10 au soir, remplace « Prévu en {mois} ») : le **mois civil en cours** en quatre
   tuiles-filtres (`syntheseMoisSuivi`, `filtreMoisSuivi`) — à signer (rendez-vous dans le mois), à placer (sans
   rendez-vous, date butoir dans le mois ou déjà dépassée), ventes, successions (`d.typeAffaire`) —, puis
-  « Dernières pièces » rattachées sur le commun (`dernieresPiecesTrouvees`, 14 jours, 10 au plus), puis le carré « Activité de l'étude — En direct » (même fil que le widget du tableau de bord, tous dossiers, `partiesActiviteEtude`, `renderActiviteColonneSuivi`). Refusés par
+  « Derniers dossiers ouverts » sur ce poste (étude 05/10, à la place des dernières pièces : `noterDossierConsulte`, localStorage par collaborateur, 10 au plus), puis le carré « Activité de l'étude — En direct » (même fil que le widget du tableau de bord, tous dossiers, `partiesActiviteEtude`, `renderActiviteColonneSuivi`). Refusés par
   l'étude : graphique par semaine, charge par collaborateur, montant des ventes, le mot « portefeuille ». **Vue Échéances : tous les dossiers** (étude 02/10) — une échéance par dossier, semaines puis « Plus tard » (au-delà de `SEMAINES_AFFICHEES`), puis **« Signés »** (acte signé dans Authentic ou signature marquée faite — `signatureFaiteSuivi` ; plus récent d'abord ; étude 02/10), puis « Sans échéance datée » (jamais omis, `grouperEcheancesParSemaine`) ; un dossier signé montre **« Signé le … »** en vert à la place de la date et « Acte signé » en Échéance, partout dans le Suivi (`texteSigneSuivi`). **Liste « intelligente »**
   (30/09) : section « Nouveau » (ex-« À voir en premier ») en tête (`signauxDossierSuivi`, `partagerAVoirSuivi`) —
   notifications (`piecesNotifications` : offre, pièces nommées) puis fonds tous reçus non confirmés ;
@@ -491,7 +491,7 @@ dans `index.html`** (le test `structure-client` refuse tout décalage).
   placer » les liste par semaine, et la semaine affichée porte une **carte fantôme** en pointillé
   (`fantomesSemaineAgenda`, premier créneau libre dans les règles, clé `probable:<id>`) — **sauf rendez-vous « ?? » en attente de confirmation** dans l'agenda (étude 02/10, `rendezVousAConfirmerDossier` : sa date fait la semaine probable, « À confirmer », pourcentage sur le rendez-vous, −5 pts, ni fantôme ni créneaux) dont le détail
   propose « Placer » (confirmé) et **rappelle la date butoir** (étude 02/10, `rappelButoirSignatureProbable` : jours restants, marge < 7 j ou dépassement en rouge) ; **notes d'un rendez-vous = son corps dans Outlook** (choix de l'étude,
-  `GET/PUT /api/exchange/evenement/notes`, GetItem/UpdateItem du seul `item:Body` en texte brut, lues à
+  `GET/PUT /api/exchange/evenement/notes`, GetItem/UpdateItem du seul `item:Body` en texte brut — lu dans le `CalendarItem`, jamais le `<s:Body>` de l'enveloppe (vides du 04 au 05/10) —, lues à
   l'ouverture du détail, jamais journalisées ; la mise en forme HTML d'un corps n'est pas gardée à
   l'écriture),
   **Visio ADNOV** (01/10) : sur un rendez-vous en visio, « Créer la visio » ouvre `https://ls.visio.adnov.fr/` ;

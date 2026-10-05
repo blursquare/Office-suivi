@@ -738,10 +738,13 @@ function corpsLireNotes({ itemId }) {
 // Réponse d'un GetItem → { notes, itemId, changeKey }. PURE. Retours à la ligne ramenés à \n.
 function parseNotesEws(corps) {
   const doc = lireXml(corps);
+  // Le corps du RENDEZ-VOUS, jamais le <s:Body> de l'enveloppe SOAP : sans son préfixe, celui-ci s'appelle aussi
+  // « Body » et vient en premier — les notes revenaient toujours vides depuis le lecteur XML du 04/10 (étude 05/10).
+  const element = premier(doc, 'CalendarItem') || premier(doc, 'Items') || doc;
   return {
     // « &#xD; » resté en clair : trace d'une note relue avant la correction du 01/10 puis réenregistrée
     // (le texte « &#xD; » a alors été écrit tel quel dans Outlook) — retiré à la lecture.
-    notes: texteDe(doc, 'Body').replace(/&#(?:x0*D|0*13);/gi, '').replace(/\r\n?/g, '\n').trim(),
+    notes: texteDe(element, 'Body').replace(/&#(?:x0*D|0*13);/gi, '').replace(/\r\n?/g, '\n').trim(),
     ...identifiantElement(doc)
   };
 }

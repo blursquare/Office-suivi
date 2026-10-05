@@ -438,6 +438,19 @@ test('Notes : le retour chariot d\'Exchange ne traîne plus en clair (étude, 01
   assert.equal(parseNotesEws(ancienne).notes, 'A\nB');
 });
 
+test('Notes : lues dans la réponse ENTIÈRE d\'Exchange, pas dans le <s:Body> de l\'enveloppe (étude, 05/10)', () => {
+  const { parseNotesEws } = require('../src/exchange/ews');
+  const reponse = '<?xml version="1.0" encoding="utf-8"?><s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/">'
+    + '<s:Header><h:ServerVersionInfo MajorVersion="15" xmlns:h="http://schemas.microsoft.com/exchange/services/2006/types"/></s:Header>'
+    + '<s:Body><m:GetItemResponse xmlns:m="http://schemas.microsoft.com/exchange/services/2006/messages" xmlns:t="http://schemas.microsoft.com/exchange/services/2006/types">'
+    + '<m:ResponseMessages><m:GetItemResponseMessage ResponseClass="Success"><m:ResponseCode>NoError</m:ResponseCode><m:Items>'
+    + '<t:CalendarItem><t:ItemId Id="ID9" ChangeKey="CK9"/><t:Body BodyType="Text" IsTruncated="false">Clés chez l’agence&#xD;\nVenir avec le RIB</t:Body></t:CalendarItem>'
+    + '</m:Items></m:GetItemResponseMessage></m:ResponseMessages></m:GetItemResponse></s:Body></s:Envelope>';
+  const lu = parseNotesEws(reponse);
+  assert.equal(lu.notes, 'Clés chez l’agence\nVenir avec le RIB');
+  assert.equal(`${lu.itemId}/${lu.changeKey}`, 'ID9/CK9');
+});
+
 test('Modifier un rendez-vous : horaire à Paris, journée entière, incohérences refusées', async () => {
   const { horaireModifie, corpsModifierRendezVous, modifierRendezVousExchange } = require('../src/exchange/ews');
   assert.equal(JSON.stringify(horaireModifie({ date: '2026-12-03', heure: '09:30', heureFin: '10:15' })),

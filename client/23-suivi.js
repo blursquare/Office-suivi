@@ -410,8 +410,43 @@
     return garde ? (liste || []).filter(d => garde.includes(d)) : (liste || []);
   }
 
-  var MAX_PIECES_COLONNE_SUIVI = 10;
   var MAX_ACTIVITE_COLONNE_SUIVI = 12;
+
+  // « Derniers dossiers ouverts » (étude 05/10 : à la place des dernières pièces, les fiches consultées récemment
+  // sur ce poste, pour y revenir d'un clic). Gardés dans le navigateur du poste, par collaborateur : une commodité,
+  // jamais une donnée du dossier — sans stockage, la liste est simplement vide.
+  var MAX_DOSSIERS_CONSULTES = 10;
+  function cleDossiersConsultes() { return 'claire-dossiers-consultes:' + (utilisateurPoste || 'poste'); }
+  function lireDossiersConsultes() {
+    try {
+      const l = JSON.parse(localStorage.getItem(cleDossiersConsultes()) || '[]');
+      return Array.isArray(l) ? l.filter(x => x && typeof x.id === 'string') : [];
+    } catch (e) { return []; }
+  }
+  // Pure : la liste après l'ouverture de `id` à `le` — en tête, sans doublon, `max` au plus.
+  function ajouterDossierConsulte(liste, id, le, max) {
+    return [{ id, le }].concat((liste || []).filter(x => x && x.id !== id)).slice(0, max || MAX_DOSSIERS_CONSULTES);
+  }
+  function noterDossierConsulte(id) {
+    if (!id) return;
+    ecrireLocal(cleDossiersConsultes(), JSON.stringify(ajouterDossierConsulte(lireDossiersConsultes(), id, new Date().toISOString())));
+  }
+  // Pure : [{ dossier, le }] des dossiers encore présents (un dossier supprimé disparaît de la liste).
+  function dossiersConsultesRecents(consultes, tous) {
+    const parId = new Map((tous || []).map(d => [d.id, d]));
+    return (consultes || []).map(c => ({ dossier: parId.get(c.id), le: c.le })).filter(x => x.dossier);
+  }
+  // « 10:32 » aujourd'hui, « hier », sinon « 3 oct. ».
+  function quandConsulte(iso, maintenant) {
+    const d = new Date(iso);
+    if (isNaN(d)) return '';
+    const m = maintenant || new Date();
+    const jour = x => `${x.getFullYear()}-${x.getMonth()}-${x.getDate()}`;
+    if (jour(d) === jour(m)) return d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+    const hier = new Date(m); hier.setDate(hier.getDate() - 1);
+    if (jour(d) === jour(hier)) return 'hier';
+    return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+  }
 
   // Carré « Activité de l'étude » de la colonne du Suivi (étude, 01/10 : « l'activité en live de
   // l'office en carré ») : le même fil que le widget du tableau de bord — tous les dossiers, tous les
@@ -450,15 +485,14 @@
       tuile('succession', s.successions.length, pluriel(s.successions.length, 'succession'), 'en cours', false, 'Afficher les successions')
     ].join('');
 
-    const pieces = dernieresPiecesTrouvees(actifs, undefined, MAX_PIECES_COLONNE_SUIVI);
-    const quand = iso => iso ? new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : '';
-    const lignes = pieces.map(e => {
-      const libelle = libelleNotificationPiece(e.dossier, e.cle);
-      return `<button type="button" class="sm-piece${e.nouvelle ? ' nouvelle' : ''}" onclick="ouvrirDossierDrawer('${escapeOnclickArg(e.dossier.id)}')"
-          title="${escapeAttr(libelle + ' — ' + libelleDossierAffiche(e.dossier) + (e.nouvelle ? ' (nouveau)' : ''))}">
-          <span class="sm-piece-point" aria-hidden="true"></span>
-          <span class="sm-piece-texte"><span class="sm-piece-titre">${escapeHtml(libelle)}</span><span class="sm-piece-dossier">${escapeHtml(libelleDossierAffiche(e.dossier))}</span></span>
-          <span class="sm-piece-date">${escapeHtml(quand(e.le))}</span>
+    const consultes = dossiersConsultesRecents(lireDossiersConsultes(), dossiers);
+    const lignes = consultes.map(({ dossier: d, le }) => {
+      const etat = etatDossier(d);
+      return `<button type="button" class="sm-piece${dossierOuvert === d.id ? ' ouvert' : ''}" onclick="ouvrirDossierDrawer('${escapeOnclickArg(d.id)}')"
+          title="${escapeAttr('Ouvrir la fiche — ' + libelleDossierAffiche(d))}">
+          <span class="sm-piece-point pf-point pf-${escapeAttr(etat.cle)}" aria-hidden="true"></span>
+          <span class="sm-piece-texte"><span class="sm-piece-titre">${escapeHtml(libelleDossierAffiche(d))}</span><span class="sm-piece-dossier">${escapeHtml(etat.texte)}${d.responsable ? ' · ' + escapeHtml(prenomCollaborateur(d.responsable)) : ''}</span></span>
+          <span class="sm-piece-date">${escapeHtml(quandConsulte(le))}</span>
         </button>`;
     }).join('');
 
@@ -466,9 +500,9 @@
         <h2 class="sm-titre">${escapeHtml(nomMois.charAt(0).toUpperCase() + nomMois.slice(1))}${filtreMoisSuivi ? `<button type="button" class="sm-effacer" onclick="filtrerMoisSuivi('')">Tout afficher</button>` : ''}</h2>
         <div class="sm-tuiles" role="group" aria-label="Filtrer la liste">${tuiles}</div>
       </section>
-      <section class="sm-bloc" aria-label="Dernières pièces">
-        <h2 class="sm-titre">Dernières pièces${infoBulle(`Pièces rattachées sur le commun (NAS) ces ${JOURS_DERNIERES_PIECES} derniers jours, les nouvelles d’abord.`)}</h2>
-        ${lignes ? `<div class="sm-pieces">${lignes}</div>` : `<p class="sm-rien">Aucune pièce ces ${JOURS_DERNIERES_PIECES} derniers jours.</p>`}
+      <section class="sm-bloc" aria-label="Derniers dossiers ouverts">
+        <h2 class="sm-titre">Derniers dossiers ouverts${infoBulle(`Les ${MAX_DOSSIERS_CONSULTES} dernières fiches ouvertes sur ce poste, la plus récente d’abord.`)}</h2>
+        ${lignes ? `<div class="sm-pieces">${lignes}</div>` : '<p class="sm-rien">Aucune fiche ouverte pour l’instant.</p>'}
       </section>
       ${renderActiviteColonneSuivi()}`;
   }

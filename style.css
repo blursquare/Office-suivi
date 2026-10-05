@@ -7228,9 +7228,9 @@ button.scan-nom:focus-visible { outline: 2px solid var(--focus); outline-offset:
 .sm-pieces button.sm-piece:hover { background: color-mix(in srgb, var(--ink) 5%, transparent); }
 .sm-pieces button.sm-piece:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
 .sm-piece-point { width: 7px; height: 7px; margin-top: 6px; border-radius: 50%; background: var(--line); }
-.sm-piece.nouvelle .sm-piece-point { background: var(--notif-nouveau); }
+.sm-pieces button.sm-piece.ouvert { background: color-mix(in srgb, var(--focus) 10%, transparent); }
 .sm-piece-texte { display: flex; flex-direction: column; min-width: 0; }
-.sm-piece-titre { font-size: var(--texte-m); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sm-piece-titre { font-size: var(--texte-m); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sm-piece-dossier { font-size: var(--texte-s); color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sm-piece-date { padding-top: 1px; font-size: var(--texte-s); color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
 .sm-rien { margin: 0 2px; font-size: var(--texte-m); color: var(--muted); }

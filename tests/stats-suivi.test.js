@@ -82,3 +82,23 @@ test('partagerAVoirSuivi : les notifications d’abord, puis les fonds, le reste
   assert.equal(aVoir.map(x => x.d.id).join(','), 'piece,fonds');
   assert.equal(reste.map(d => d.id).join(','), 'calme,calme2');
 });
+
+test('Derniers dossiers ouverts : le dernier en tête, sans doublon, 10 au plus ; un dossier supprimé disparaît', () => {
+  let l = [];
+  for (let i = 1; i <= 12; i++) l = app.ajouterDossierConsulte(l, 'd' + i, '2026-10-05T08:' + String(i).padStart(2, '0') + ':00Z');
+  assert.equal(l.length, 10);
+  assert.equal(l.map(x => x.id).slice(0, 3).join(','), 'd12,d11,d10');
+  l = app.ajouterDossierConsulte(l, 'd5', '2026-10-05T09:00:00Z');
+  assert.equal(l.map(x => x.id).slice(0, 2).join(','), 'd5,d12');
+  assert.equal(l.filter(x => x.id === 'd5').length, 1);
+  const r = app.dossiersConsultesRecents([{ id: 'a', le: 'x' }, { id: 'perdu', le: 'y' }, { id: 'b', le: 'z' }], [{ id: 'b' }, { id: 'a' }]);
+  assert.equal(r.map(x => x.dossier.id + '@' + x.le).join(','), 'a@x,b@z');
+});
+
+test('Derniers dossiers ouverts : heure aujourd’hui, « hier », sinon la date', () => {
+  const m = new Date(2026, 9, 5, 15, 0);
+  assert.match(app.quandConsulte(new Date(2026, 9, 5, 10, 32).toISOString(), m), /10:32/);
+  assert.equal(app.quandConsulte(new Date(2026, 9, 4, 18, 0).toISOString(), m), 'hier');
+  assert.match(app.quandConsulte(new Date(2026, 9, 1, 9, 0).toISOString(), m), /1 oct/);
+  assert.equal(app.quandConsulte('pas une date', m), '');
+});

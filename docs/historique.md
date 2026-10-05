@@ -16839,3 +16839,17 @@ trouvée/introuvable toutes les 20 min venait de fenêtres qui n'avaient pas la 
 - **0.154.0 — 05/10 2026-10-05 22:39 — Fonds tous reçus : pastille et Teams** (étude 05/10 : « quand tous les fonds sont reçus mettre une pastille de notification pour trouver le dossier et recevoir une notification Teams »). (1) `fondsCompletsAConfirmer(d)` (pure, `client/37-nas-notifications-pieces.js` ; reçus comptables complets à 2 € près — `bilanFondsRecus` —, réception pas confirmée, dossier non archivé) : compte pour 1 dans `totalNotificationsPieces`, donc dans la pastille rouge de « Suivi des dossiers » (périmètre du poste, tout pour l'administrateur), jusqu'à `receptionFondsConfirmeeLe` ; `signauxDossierSuivi` (section « Nouveau » du Suivi) l'utilise aussi. Vérifié dans Chromium (pastille à 1 avec un dossier inventé aux fonds complets). (2) Teams : l'alerte « Tous les fonds sont reçus » existait déjà (`alertesFondsDues`, une fois par dossier, clé `fonds-complets`) mais ne partait que si l'appel de fonds était noté envoyé ; condition levée pour ce cas (des fonds complets disent qu'il est parti), gardée pour l'alerte « fonds incomplets ». Envoi réel par la passerelle Teams non vérifiable ici.
 
 - **0.154.1 — 05/10 2026-10-05 22:44 — Agenda : « Décompte » réservé aux successions** (étude 05/10 : « sur l'agenda j'ai appel de fonds envoyé, projet envoyé et décompte envoyé. Mais le décompte, c'est à noter dans les dossiers de successions. Pour les ventes, on a l'appel de fonds si on représente l'acquéreur et un décompte acquéreur si c'est un confrère qui représente l'acquéreur, mais on marque qu'appel de fonds envoyé »). `infosRendezVousDossier` (`client/25-page-agenda.js`) : vente → Appel de fonds (`echeanceValidee(d, 'appelFonds')`) + Projet ; succession (`estSuccession`) → Décompte (`decompteAcquereurFait`) + Projet. La mention écrite dans le Lieu du rendez-vous Outlook (« Appel de fonds (et projet) envoyé ») est inchangée.
+
+### 05/10/2026 22 h 50 — 0.155.0 : notes des rendez-vous Outlook, « Derniers dossiers ouverts » dans le Suivi
+
+- **Notes d'un rendez-vous** (étude : « les notes de rdv Outlook ne remontent pas dans l'agenda CLAIRE ») : depuis le passage au
+  lecteur XML (04/10), `parseNotesEws` cherchait le premier élément « Body » de la réponse — préfixes retirés, c'était le
+  `<s:Body>` de l'enveloppe SOAP, sans texte : toute note revenait vide (« Aucune note. »). Les tests ne passaient que des
+  fragments sans enveloppe. Corrigé : le corps est lu dans le `CalendarItem` ; test sur une réponse Exchange entière. Les
+  autres lectures de « Body » (emails des dossiers, sondages) lisaient déjà dans l'élément de l'email, pas touchées.
+  Le poste relisait déjà la note à chaque ouverture du détail.
+- **Suivi, colonne de gauche** (étude : « au lieu des dernières pièces reçues, mettre les derniers dossiers ouverts » ; choix :
+  consultés récemment) : « Derniers dossiers ouverts » — les 10 dernières fiches ouvertes sur ce poste (`noterDossierConsulte`
+  dans `ouvrirDossierDrawer`, localStorage `claire-dossiers-consultes:<collaborateur>`, `ajouterDossierConsulte`,
+  `dossiersConsultesRecents`), point de couleur du statut, statut et prénom du responsable, heure (aujourd'hui), « hier » ou
+  date (`quandConsulte`) ; la fiche ouverte est surlignée. Les dernières pièces restent dans le widget du tableau de bord.
