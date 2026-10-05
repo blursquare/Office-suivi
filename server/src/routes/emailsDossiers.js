@@ -83,6 +83,16 @@ function creerRouteurEmailsDossiers(parametresRepo, depot, options = {}) {
     res.status(201).json({ prepare });
   });
 
+  // Un email préparé jamais envoyé (fenêtre Outlook fermée sans enregistrer) : retiré de la liste « en attente ».
+  routeur.delete('/emails-prepares/:id', (req, res) => {
+    const etat = lireEtat(parametresRepo);
+    const reste = etat.prepares.filter((p) => p.id !== req.params.id);
+    if (reste.length === etat.prepares.length) { res.status(404).json({ erreur: 'Email préparé introuvable.' }); return; }
+    etat.prepares = reste;
+    ecrireEtat(parametresRepo, etat);
+    res.json({ ok: true });
+  });
+
   // L'email en entier, relu dans Exchange (jamais gardé ni journalisé par le serveur).
   routeur.get('/emails-dossiers/contenu', routeAsync(async (req, res) => {
     const r = await lireEmailComplet(parametresRepo, String(req.query.emailId || ''), injections);

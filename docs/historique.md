@@ -16705,3 +16705,9 @@ trouvée/introuvable toutes les 20 min venait de fenêtres qui n'avaient pas la 
   — et la pièce restait décochée). Avant : « non » l'emportait toujours sur « oui » (règle du 03/10). Maintenant `decisionFormePourNom` retient,
   parmi les formes qui correspondent au nom, celle de date `le` la plus récente (à date égale, « non ») ; le « non » reste prioritaire sur le
   motif et sur un « oui » plus ancien seulement s'il est plus récent. Test `noms-fichiers-nas`.
+
+- **0.144.39 (05/10 14 h 48) — email préparé jamais envoyé : croix pour le retirer** (étude : « 1 email préparé, pas encore retrouvé dans les
+  envois — RE: VENTE …/… — il n'est nulle part dans Outlook »). Cause : `noterEmailPrepare` note l'email au moment où CLAIRE ouvre le `.eml`
+  (brouillon `X-Unsent`) ; fermé sans enregistrer dans Outlook, il n'existe ni en Brouillons ni en Envoyés et la ligne « en attente » restait
+  (correspondance possible 30 jours). Ajout : `DELETE /api/emails-prepares/:id` + croix sur chaque ligne en attente (`retirerEmailPrepare`).
+  Pas d'expiration automatique (un envoi tardif reste retrouvable). Test serveur dans `emails-dossiers.test.js`.

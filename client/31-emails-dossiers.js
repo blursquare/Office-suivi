@@ -274,7 +274,8 @@
     })}</ul>` : '';
     const attente = enAttente.length ? `<details class="appels-plus emails-attente"><summary>${enAttente.length} email${enAttente.length > 1 ? 's' : ''} préparé${enAttente.length > 1 ? 's' : ''}, pas encore retrouvé${enAttente.length > 1 ? 's' : ''} dans les envois</summary><ul class="appels-liste">${enAttente.map(p => {
       const st = etatEmailPrepare(p, etat && etat.envoyes);
-      return `<li><span class="appels-quand">${escapeHtml(dateCourteEmail(p.prepareLe))}</span><span>${escapeHtml(p.objet)}</span><span class="dot-label ${st.classe}"><span class="dot"></span>${escapeHtml(st.texte)}</span></li>`;
+      const retirer = p.envoyeLe ? '' : `<wa-button appearance="plain" size="s" type="button" class="bouton-icone" onclick="retirerEmailPrepare('${d.id}', '${escapeOnclickArg(p.id)}')" title="Retirer : cet email n’a pas été envoyé (brouillon Outlook fermé sans enregistrer)" aria-label="Retirer cet email préparé">${icone('x')}</wa-button>`;
+      return `<li><span class="appels-quand">${escapeHtml(dateCourteEmail(p.prepareLe))}</span><span>${escapeHtml(p.objet)}</span><span class="dot-label ${st.classe}"><span class="dot"></span>${escapeHtml(st.texte)}</span>${retirer}</li>`;
     }).join('')}</ul></details>` : '';
     const reste = liste.length - Math.min(f.n, liste.length);
     return `<div class="emails-dossier">
@@ -509,6 +510,16 @@
     fetchAvecAuth('/api/emails-prepares', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
       dossierId: dossierId || '', objet: sujet, destinataires: destinatairesEmail(destinataire || ''), collaborateur: utilisateurPoste || '', geste: geste || ''
     }) }).then(() => { if (dossierId) delete emailsParDossier[dossierId]; }).catch(() => {});
+  }
+
+  // L'email préparé n'a jamais été envoyé (le brouillon d'Outlook se ferme sans rien garder) : on le retire de la liste.
+  async function retirerEmailPrepare(dossierId, id) {
+    try {
+      const r = await fetchAvecAuth('/api/emails-prepares/' + encodeURIComponent(id), { method: 'DELETE' });
+      if (!r.ok && r.status !== 404) throw new Error();
+    } catch (e) { afficherToast('Impossible de retirer cet email pour le moment.'); return; }
+    delete emailsParDossier[dossierId];
+    render();
   }
 
   // Réglages › Agenda et Outlook › Emails des dossiers : boîtes lues et leur état.

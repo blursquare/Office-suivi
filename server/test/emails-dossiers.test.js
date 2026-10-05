@@ -259,3 +259,23 @@ test('email lu en entier : relu dans Exchange à la demande, jamais gardé ; un 
     assert.equal(finds, findsUnTour * 2);
   } finally { db.close(); }
 });
+
+test('email préparé jamais envoyé : retiré de la liste en attente', async () => {
+  const db = ouvrirDb(':memory:');
+  const { creerApp } = require('../src/app');
+  const { app } = creerApp({ db, config: { authActive: false, racineRepo: os.tmpdir(), estSea: () => false }, emailsDossiers: { poster: (o, cb) => cb(null, { statusCode: 200, body: '' }) } });
+  const serveur = app.listen(0);
+  await new Promise((r) => serveur.once('listening', r));
+  const base = `http://127.0.0.1:${serveur.address().port}`;
+  try {
+    const json = { 'Content-Type': 'application/json' };
+    const cree = await (await fetch(`${base}/api/emails-prepares`, { method: 'POST', headers: json, body: JSON.stringify({ dossierId: 'd1', objet: 'RE: VENTE X/Y', destinataires: ['a@x.fr'], collaborateur: 'Julie VASSELIN' }) })).json();
+    const avant = await (await fetch(`${base}/api/emails-dossiers?dossierId=d1`)).json();
+    assert.equal(avant.prepares.length, 1);
+    const r = await fetch(`${base}/api/emails-prepares/${cree.prepare.id}`, { method: 'DELETE' });
+    assert.equal(r.status, 200);
+    const apres = await (await fetch(`${base}/api/emails-dossiers?dossierId=d1`)).json();
+    assert.equal(apres.prepares.length, 0);
+    assert.equal((await fetch(`${base}/api/emails-prepares/inconnu`, { method: 'DELETE' })).status, 404);
+  } finally { serveur.close(); db.close(); }
+});
