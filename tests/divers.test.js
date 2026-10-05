@@ -495,6 +495,21 @@ test('buildEvent : un dossier sans reminderDays donne un événement sans rappel
   assert.equal((avec.match(/BEGIN:VALARM/g) || []).length, 2);
 });
 
+test('rafraichirReconnaissanceNom : relit les formes de noms décidées par un autre poste, au plus une fois par minute', async () => {
+  const app = chargerApplication();
+  let appels = 0;
+  app.fetchAvecAuth = async (url) => {
+    if (String(url).startsWith('/api/formes-noms')) { appels++; return { ok: true, json: async () => ({ decisions: [{ cle: 'reponseAssainissement', forme: 'raccordement …', decision: 'oui' }] }) }; }
+    return { ok: true, json: async () => ({ exclusions: {} }) };
+  };
+  assert.equal(app.decisionFormePourNom('reponseAssainissement', 'raccordement dupont.pdf'), null);
+  await app.rafraichirReconnaissanceNom();
+  assert.equal(appels, 1);
+  assert.equal(app.decisionFormePourNom('reponseAssainissement', 'raccordement dupont.pdf'), 'oui');
+  await app.rafraichirReconnaissanceNom();
+  assert.equal(appels, 1, 'pas de nouvelle lecture dans la minute');
+});
+
 test('liensAppelTelephone : un lien tel: par numéro (3CX), rien sans numéro, doublons et texte autour ignorés', () => {
   const app = chargerApplication();
   const h = app.liensAppelTelephone('06 12 34 56 78 / 02.54.00.00.00 ou 06 12 34 56 78');

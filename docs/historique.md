@@ -16655,3 +16655,16 @@ fil » envisagé en piste est donc exclu). Conséquences : la réponse part déj
 locale (`POST /emails-dossiers/proposition`) échouait faute de texte — il part maintenant du **résumé d'une phrase** gardé à l'arrivée
 de l'email (`resume`), et sans résumé l'erreur dit « archive locale d'Outlook, que CLAIRE ne peut pas lire » (`introuvable`). Le texte
 complet d'un tel email reste illisible dans CLAIRE (même message). Non vérifié avec un vrai Exchange.
+
+### 05/10/2026 — 0.144.34 — Forme de nom validée : cochée puis décochée par une autre fenêtre
+
+Signalement de l'étude : après avoir validé des noms de PDF pour « Courrier réponse assainissement » (Réglages › Noms de fichiers du NAS),
+CLAIRE a notifié un courrier trouvé puis l'a décoché (historique : « Pièce(s) devenue(s) introuvable(s) sur le NAS : Courrier réponse
+assainissement » à 13 h 09 puis 13 h 29, signé Bastien). Cause (lue dans le code, pas rejouée au bureau) : les décisions de formes
+(`GET /api/formes-noms`) et les fichiers écartés n'étaient chargés qu'au **démarrage** de la fenêtre (`31-emails-dossiers.js`) ; seule
+la fenêtre qui décide recompile ses décisions (`deciderFormeNomsNas`). Les autres fenêtres (poste serveur, autres collaborateurs)
+parcouraient le NAS avec l'ancienne liste : le fichier n'y était pas reconnu et la pièce « reçue » repassait à « manquante »
+(`desynchronisees`, garde-fou `nbFichiersRencontres > 0`), puis la fenêtre à jour la recochait et renotifiait, en boucle toutes les
+20 min. Correctif : `rafraichirReconnaissanceNom` relit formes et exclusions avant chaque parcours d'un dossier, au plus une fois par
+minute. Une fenêtre reste donc à l'ancienne liste au plus une minute après la décision. Ouvert : la notification « pièce trouvée »
+n'est dédoublonnée qu'une fois par fichier (registre serveur 30 jours) ; celle vue par l'étude venait de la première reconnaissance.

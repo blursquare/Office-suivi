@@ -682,9 +682,21 @@
     return p;
   }
 
+  // Formes de noms décidées et fichiers écartés : relus avant un parcours du NAS, au plus une fois par minute. Ils ne se chargeaient
+  // qu'au démarrage de la fenêtre : une fenêtre restée ouverte pendant que l'étude validait une forme dans « Noms de fichiers du NAS »
+  // ne la connaissait pas, et son parcours suivant repassait à « manquante » la pièce que l'autre fenêtre venait de cocher
+  // (« Courrier réponse assainissement » cochée puis « devenue introuvable » toutes les 20 min, étude 05/10).
+  var derniereRelectureReconnaissanceNom = 0;
+  async function rafraichirReconnaissanceNom() {
+    if (Date.now() - derniereRelectureReconnaissanceNom < 60000) return;
+    derniereRelectureReconnaissanceNom = Date.now();
+    await Promise.all([chargerFormesNoms(), chargerExclusionsMotifNom()]);
+  }
+
   async function verifierDossierLocalUneFois(id, viaClicUtilisateur) {
     const d = dossiers.find(x => x.id === id);
     if (!d || !d.dossierLie || !d.nasDossier) return;
+    await rafraichirReconnaissanceNom();
     // Achat comptant (sans prêt) : rien à chercher côté offre, seul le nom de la fonction reste
     // générique. Notaire participant/concourant : la checklist de pièces ne le concerne pas (voir
     // renderCarteDossier/statutDossier) — inutile de tester quoi que ce soit dessus.
