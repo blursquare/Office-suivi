@@ -346,3 +346,14 @@ test('appel de fonds : la tâche apparaît 10 jours avant le rendez-vous, le jou
   assert.ok(types(app.actionsDuJour([dossier({ rendezVousSignature: '2026-10-08', sansPret: true })], AUJ)).includes('appelFonds'));
   assert.ok(!types(app.actionsDuJour([dossier({ rendezVousSignature: '2026-10-09', sansPret: true })], AUJ)).includes('appelFonds'));
 });
+
+test('nom du dossier dans une tâche : un lien vers la fiche (05/10), sur la ligne seule comme sur le groupe', () => {
+  const r = app.actionsDuJour([dossier({ pret: '2026-10-02' })], AUJ);
+  const seule = app.renderLigneActionJour(r.actions[0], false);
+  assert.match(seule, /class="ja-dossier-lien" data-ouvrir-dossier="d1"[^>]*>VTE - DUPONT \/ MARTIN</);
+  const groupe = app.renderActionsJour(app.actionsDuJour([dossier({ rendezVousSignature: '2026-09-30', sansPret: true })], AUJ).actions, false);
+  const tete = groupe.slice(0, groupe.indexOf('ja-groupe-tiroir'));
+  assert.match(tete, /class="ja-titre"><span class="ja-dossier-lien" data-ouvrir-dossier="d1"/);
+  // Dans la fiche du dossier, pas de lien vers elle-même.
+  assert.doesNotMatch(app.renderLigneActionJour(r.actions[0], false, true), /data-ouvrir-dossier/);
+});

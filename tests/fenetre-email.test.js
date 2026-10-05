@@ -45,3 +45,14 @@ test('« À répondre » : dernier email reçu de l’expéditeur, sans réponse
   assert.equal(app.emailARepondre({ ...recu, date: '2026-09-10T09:00:00Z' }, [], [], n), false);
   assert.equal(app.emailARepondre(envoye, [envoye], [], n), false);
 });
+
+test('carte « Email envoyé » (05/10) : destinataire, objet, boîte, dossier, pièces, et l’envoi de repli dit en clair', () => {
+  const d = { id: 'n1', nom: 'MOREAU / LAMBERT', parties: [], pieces: {} };
+  const { lignes, notes } = app.lignesNotifEmailEnvoye({ a: 'a@exemple.fr, b@exemple.fr', sujet: 'RIB', de: 'julie@exemple.fr', dossierId: 'n1', pieces: 2 }, d);
+  assert.strictEqual(lignes.map(l => l.join(' : ')).join(' | '),
+    'À : a@exemple.fr, b@exemple.fr | Objet : RIB | De : julie@exemple.fr | Dossier : VTE - MOREAU / LAMBERT | Pièces : 2 pièces jointes');
+  assert.strictEqual(notes.length, 0);
+  const repli = app.lignesNotifEmailEnvoye({ a: 'a@exemple.fr', sujet: '', repli: true, sansFil: true });
+  assert.strictEqual(repli.lignes.map(l => l[1]).join(' | '), 'a@exemple.fr | (sans objet)');
+  assert.match(repli.notes.join(' '), /compte relié.*Envoyer en tant que.*nouvel email/);
+});

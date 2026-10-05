@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.152.3';
+  const VERSION_APP = '0.153.0';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.153.0', date: '2026-10-05 22:07', resume: "Email envoyé depuis CLAIRE : une carte « Email envoyé » s'affiche en haut à droite (destinataire, objet, boîte d'envoi, dossier, pièces jointes), avec une note si l'email est parti d'une autre boîte. Dans « À faire », le nom du dossier d'une tâche (ou d'un groupe de tâches) ouvre directement sa fiche ; le reste de la ligne garde son geste (détail, tiroir)." },
     { version: '0.152.3', date: '2026-10-05 22:00', resume: "Appel de fonds : le rappel Teams part une seule fois, 10 jours avant le rendez-vous (le jour de son échéance), au lieu de 15 et 10 jours avant cette échéance ; la tâche « Envoyer l'appel de fonds » apparaît dans « À faire » dès cette date (et non plus à 7 jours du rendez-vous)." },
     { version: '0.152.2', date: '2026-10-05 21:56', resume: "Fenêtre d'email : une erreur survenue au clic sur « Envoyer » s'affiche désormais (« Email non envoyé : … ») au lieu de laisser le bouton bloqué sur « Envoi… » sans rien dire. Le test de construction vérifie qu'un clic sur « Envoyer » atteint bien le serveur." },
     { version: '0.152.1', date: '2026-10-05 21:53', resume: "L'appel de fonds est attendu 10 jours avant le rendez-vous de signature (et non la veille) : échéance de la fiche, tâche du jour et rappels J-15 / J-10 se comptent depuis cette date. Dans le tiroir d'un groupe de tâches, chaque tâche n'a plus que son titre (sans sous-titre)." },

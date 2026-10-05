@@ -3333,6 +3333,39 @@
     .toast.visible .toast-duree { animation: none; }
   }
 
+  /* Carte « Email envoyé » (étude 05/10 : « une notification claire » à chaque envoi, notifierEmailEnvoye) : en haut à droite,
+     coche verte, destinataire, objet, boîte d'envoi et dossier ; une note ambre quand l'envoi n'est pas parti comme prévu. */
+  .notif-envoi {
+    position: fixed; top: 16px; right: 16px; z-index: 1100;
+    width: min(380px, calc(100vw - 32px)); box-sizing: border-box;
+    display: none; grid-template-columns: 32px minmax(0, 1fr) 24px; gap: 12px; align-items: start;
+    padding: 14px 12px 14px 14px;
+    background: var(--paper-card); color: var(--ink);
+    border: 1px solid var(--line); border-left: 4px solid var(--success); border-radius: var(--rayon-carte);
+    box-shadow: var(--shadow-float);
+    opacity: 0; transform: translateY(-8px); transition: opacity 0.2s ease, transform 0.2s ease;
+  }
+  .notif-envoi.visible { opacity: 1; transform: none; }
+  .notif-envoi-icone {
+    width: 32px; height: 32px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;
+    background: var(--success); color: var(--blanc-fixe); font-size: var(--texte-l);
+  }
+  .notif-envoi-corps { min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+  .notif-envoi-titre { font-size: var(--texte-base); font-weight: 600; color: var(--success); display: flex; align-items: baseline; gap: 8px; }
+  .notif-envoi-heure { font-size: var(--texte-s); font-weight: 400; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .notif-envoi-lignes { margin: 0; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 2px 10px; font-size: var(--texte-m); }
+  .notif-envoi-lignes dt { color: var(--muted); }
+  .notif-envoi-lignes dd { margin: 0; color: var(--ink); overflow-wrap: anywhere; }
+  .notif-envoi-note { margin: 0; font-size: var(--texte-s); color: var(--pret); }
+  .notif-envoi-fermer {
+    width: 24px; height: 24px; padding: 0; display: inline-flex; align-items: center; justify-content: center;
+    background: none; border: none; border-radius: var(--rayon-s); color: var(--muted); cursor: pointer;
+  }
+  .notif-envoi-fermer:hover { background: var(--paper-sunk); color: var(--ink); }
+  .notif-envoi-fermer:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+  @media (prefers-reduced-motion: reduce) { .notif-envoi { transition: none; transform: none; } }
+  @media print { .notif-envoi { display: none !important; } }
+
   /* ---- badges de confiance / statut du dossier / appris / estimé ----
      Tous en .dot-label désormais (voir sa définition plus bas, section "tab-offre-pret") : ce
      bloc n'a donc plus besoin de dupliquer taille/graisse/fond pour chacun. `.dossier-nom-tableau`
@@ -6209,6 +6242,11 @@ wa-button.rappel-perso-modif:hover { color: var(--focus); }
 .ja-sous { font-size: var(--texte-s); color: var(--muted); overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow-wrap: anywhere; }
 .ja-texte:hover .ja-titre { color: var(--focus); }
 .ja.ouverte .ja-sous { -webkit-line-clamp: unset; line-clamp: unset; }
+/* Nom du dossier dans une tâche : il ouvre la fiche (étude 05/10, lienDossierTache) — souligné au survol, couleur de l'accent. */
+.ja-dossier-lien { cursor: pointer; color: var(--ink-soft); font-weight: 500; text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 2px; }
+.ja-dossier-lien:hover { color: var(--focus); text-decoration-color: currentColor; }
+.ja-titre .ja-dossier-lien { color: inherit; font-weight: inherit; }
+.ja-titre .ja-dossier-lien:hover { color: var(--focus); }
 .ja-delai { font-size: var(--texte-s); font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .ja-delai.proche { color: var(--urgent); }
 .ja-actions-sec { display: inline-flex; align-items: center; gap: 2px; }

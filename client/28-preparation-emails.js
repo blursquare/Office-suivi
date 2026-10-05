@@ -848,6 +848,8 @@
       if (!reponse.ok || !res.ok) throw new Error(res.message || res.erreur || 'statut ' + reponse.status);
       if (r.dossierId) delete emailsParDossier[r.dossierId];
       const mode = r.mode;
+      notifierEmailEnvoye({ a: r.a, sujet: r.mode === 'reponse' ? sujetReponse((r.email && r.email.objet) || r.sujet) : r.sujet,
+        de: res.de || '', repli: !!res.repli, sansFil: !!res.sansFil, dossierId: r.dossierId, pieces: r.pieces.length });
       fermerRedaction({ ok: true, mode: 'envoye', repli: !!res.repli, sansFil: !!res.sansFil, de: res.de || '' });
       if (mode === 'reponse') reponseEnvoyee(r, res);
     } catch (e) {
@@ -906,6 +908,63 @@
     if (e.key === 'Escape' && overlay && overlay.style.display !== 'none') { e.stopPropagation(); abandonnerRedaction(); }
   }, true);
 
+  // Carte « Email envoyé » (étude 05/10 : « indique aussi quand l'email est envoyé dans une notification claire ») : posée en
+  // haut à droite dès qu'Exchange a accepté l'envoi, quel que soit le geste qui a ouvert la fenêtre — destinataire, objet,
+  // boîte d'envoi, dossier ; 8 s, en pause au survol, fermée par la croix. Le cas d'un envoi parti d'une autre boîte (droit
+  // « Envoyer en tant que » pas encore donné) ou d'une réponse hors du fil y est dit en clair.
+  var DUREE_NOTIF_ENVOI_MS = 8000;
+  let minuterieNotifEnvoi = null;
+  // Pure : les lignes et les notes de la carte (`d` : le dossier de l'email, s'il y en a un).
+  function lignesNotifEmailEnvoye(o, d) {
+    const lignes = [
+      ['À', destinatairesEmail(o.a).join(', ') || o.a || ''],
+      ['Objet', o.sujet || '(sans objet)']
+    ];
+    if (o.de) lignes.push(['De', o.de]);
+    if (d) lignes.push(['Dossier', libelleDossierAffiche(d)]);
+    if (o.pieces) lignes.push(['Pièces', `${o.pieces} pièce${o.pieces > 1 ? 's' : ''} jointe${o.pieces > 1 ? 's' : ''}`]);
+    const notes = [];
+    if (o.repli) notes.push('Parti de la boîte du compte relié : le droit « Envoyer en tant que » n’est pas encore donné.');
+    if (o.sansFil) notes.push('L’email d’origine avait été déplacé : réponse envoyée comme nouvel email.');
+    return { lignes, notes };
+  }
+  function notifierEmailEnvoye(o) {
+    if (typeof document === 'undefined') return;
+    let el = document.getElementById('notif-envoi');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'notif-envoi';
+      el.className = 'notif-envoi';
+      el.setAttribute('role', 'status');
+      el.setAttribute('aria-live', 'polite');
+      document.body.appendChild(el);
+      el.addEventListener('mouseenter', () => clearTimeout(minuterieNotifEnvoi));
+      el.addEventListener('mouseleave', () => { minuterieNotifEnvoi = setTimeout(fermerNotifEnvoi, 2500); });
+    }
+    const { lignes, notes } = lignesNotifEmailEnvoye(o, o.dossierId ? dossiers.find(x => x.id === o.dossierId) : null);
+    const heure = new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+    el.innerHTML = `<span class="notif-envoi-icone" aria-hidden="true">${icone('check')}</span>
+      <div class="notif-envoi-corps">
+        <div class="notif-envoi-titre">Email envoyé <span class="notif-envoi-heure">${escapeHtml(heure)}</span></div>
+        <dl class="notif-envoi-lignes">${lignes.map(([k, v]) => `<dt>${escapeHtml(k)}</dt><dd>${escapeHtml(v)}</dd>`).join('')}</dl>
+        ${notes.map(n => `<p class="notif-envoi-note">${escapeHtml(n)}</p>`).join('')}
+      </div>
+      <button type="button" class="notif-envoi-fermer" onclick="fermerNotifEnvoi()" aria-label="Fermer" title="Fermer">${icone('x')}</button>`;
+    el.classList.remove('visible');
+    el.style.display = 'grid';
+    void el.offsetWidth;
+    el.classList.add('visible');
+    clearTimeout(minuterieNotifEnvoi);
+    minuterieNotifEnvoi = setTimeout(fermerNotifEnvoi, DUREE_NOTIF_ENVOI_MS);
+  }
+  function fermerNotifEnvoi() {
+    clearTimeout(minuterieNotifEnvoi);
+    const el = typeof document !== 'undefined' ? document.getElementById('notif-envoi') : null;
+    if (!el) return;
+    el.classList.remove('visible');
+    setTimeout(() => { if (!el.classList.contains('visible')) el.style.display = 'none'; }, 200);
+  }
+
   // Pure : « Email envoyé » quand il est parti de CLAIRE, « Email préparé » quand il a été ouvert dans Outlook.
   function libelleEmailFait(r) { return r && r.mode === 'envoye' ? 'Email envoyé' : 'Email préparé'; }
 
@@ -915,8 +974,10 @@
   // sinon). `detail` complète le message (ex. dossier archivé).
   function annoncerEmailPret(r, discret, detail) {
     const suite = detail ? ' ' + detail : '';
+    // Envoyé depuis CLAIRE : la carte « Email envoyé » (notifierEmailEnvoye) l'a déjà dit, au moment de l'envoi ; seule une
+    // précision propre au geste (dossier archivé, options d'agenda…) passe encore par le message du bas.
     if (r.mode === 'envoye') {
-      afficherToast('Email envoyé' + (r.sansFil ? ' (l’email d’origine a été déplacé : réponse envoyée sans lui, comme nouvel email)' : '') + (r.repli ? ' depuis la boîte du compte relié (droit « Envoyer en tant que » pas encore donné).' : '.') + suite, 'OK', null);
+      if (suite.trim()) afficherToast(suite.trim(), 'OK', null);
       return;
     }
     if (r.mode === 'eml') {

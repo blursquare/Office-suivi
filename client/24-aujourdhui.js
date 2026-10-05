@@ -746,7 +746,7 @@
       <li class="ja ja-avec-case ja-groupe g-${premiere.gravite || 'normal'}${ouvert ? ' ouvert' : ''}" data-groupe="${escapeAttr(d.id)}">
         <span class="dot-label dl-${premiere.categorie || 'neutre'} ja-case-cadre"><button type="button" class="ja-case-ronde" role="checkbox" aria-checked="false" onclick="marquerFaitGroupeJour('${id}')" title="${n > 1 ? `Tout est fait — valider les ${n} tâches` : 'Valider la dernière tâche'}" aria-label="${escapeAttr(n > 1 ? `Valider les ${n} tâches de ${libelleDossierAffiche(d)}` : `Valider la dernière tâche de ${libelleDossierAffiche(d)}`)}">${icone('check')}</button></span>
         <button type="button" class="ja-texte" aria-expanded="${ouvert}" onclick="basculerGroupeJour('${id}')" title="Voir les tâches une par une">
-          <span class="ja-titre">${escapeHtml(libelleDossierAffiche(d))} <span class="ja-groupe-compte${faites.length ? ' entame' : ''}">${compte}</span></span>
+          <span class="ja-titre">${lienDossierTache(d)} <span class="ja-groupe-compte${faites.length ? ' entame' : ''}">${compte}</span></span>
           <span class="ja-sous">${escapeHtml(sous)}</span>
         </button>
         <span class="ja-delai${premiere.gravite === 'critique' ? ' proche' : ''}">${escapeHtml(delaiAction(premiere))}</span>
@@ -919,14 +919,15 @@
     const cle = escapeOnclickArg(a.cle);
     const ouverte = apercusJour.has(a.cle);
     const brouillon = ouverte ? brouillonAction(a) : null;
-    // Dans le tiroir d'un groupe : le titre seul, sans sous-titre (étude 05/10).
-    const sous = sansDossier ? '' : [dansFiche ? '' : libelleDossierAffiche(a.dossier), global && a.dossier.responsable ? prenomCollaborateur(a.dossier.responsable) : '', a.categorieLabel].filter(Boolean).join(' · ');
+    // Dans le tiroir d'un groupe : le titre seul, sans sous-titre (étude 05/10). Le nom du dossier ouvre sa fiche (étude 05/10 :
+    // « je clique souvent sur le nom du dossier dans la tâche pour atteindre le dossier ») — voir lienDossierTache.
+    const sousHtml = sansDossier ? '' : [dansFiche ? '' : lienDossierTache(a.dossier), global && a.dossier.responsable ? escapeHtml(prenomCollaborateur(a.dossier.responsable)) : '', escapeHtml(a.categorieLabel || '')].filter(Boolean).join(' · ');
     const sansGeste = dansFiche && (!a.geste || a.geste.type === 'fiche');
     return renderLigneAction({
       categorie: a.categorie, categorieLabel: a.categorieLabel, gravite: a.gravite,
       titre: a.titre,
       titreHtml: veilleJour.hier.has(a.cle) ? `<span class="ja-non-faite">${escapeHtml(libelleNonFaite(veilleJour.hierDate, isoAujourdhuiLocal()))}</span>` : '',
-      sous, delai: delaiAction(a), delaiProche: a.gravite === 'critique',
+      sousHtml, delai: delaiAction(a), delaiProche: a.gravite === 'critique',
       bouton: sansGeste ? null : { libelle: libelleCourtGeste(a), icone: iconeGeste(a), onclick: `executerActionJour('${cle}')`, titre: a.bouton },
       // Vue « Aujourd'hui » : la case ronde devant la tâche la valide à la main (étude, 01/10) ; la
       // fiche garde sa pastille et le ✓ « Déjà fait » parmi les icônes.
@@ -951,7 +952,7 @@
         <span class="ja-coche" aria-hidden="true">${t.etat === 'Reporté à demain' ? icone('clock') : icone('check')}</span>
         <span class="ja-texte-fait">
           <span class="ja-titre">${escapeHtml(t.titre)}</span>
-          ${sansDossier ? '' : `<span class="ja-sous">${escapeHtml(libelleDossierParNom(t.dossier, t.dossierId))} · ${escapeHtml(t.etat)} · ${escapeHtml(t.heure)}</span>`}
+          ${sansDossier ? '' : `<span class="ja-sous">${t.dossierId ? lienDossierTache({ id: t.dossierId }, libelleDossierParNom(t.dossier, t.dossierId)) : escapeHtml(libelleDossierParNom(t.dossier, t.dossierId))} · ${escapeHtml(t.etat)} · ${escapeHtml(t.heure)}</span>`}
         </span>
         ${t.etat === 'Reporté à demain' || t.champ || t.manuel || t.echeance ? `<button type="button" class="lien-discret ja-annuler" onclick="annulerTraiteJour('${escapeOnclickArg(t.cle)}')">Annuler</button>` : ''}
         ${t.courrier ? `<button type="button" class="lien-discret ja-annuler" onclick="ouvrirCourrierAppelFonds('${escapeOnclickArg(t.dossierId)}')">Voir le courrier</button>` : ''}
@@ -1033,6 +1034,22 @@
   function executerFicheDossierJour(id) {
     fermerFenetreAujourdhui();
     ouvrirDossierDepuisDashboard(id);
+  }
+
+  // Le nom du dossier dans une tâche : un lien vers sa fiche (étude 05/10 : « je clique souvent sur le nom du dossier dans la
+  // tâche pour atteindre le dossier »). Il vit dans le texte de la ligne — un bouton qui déplie le détail ou le tiroir — : le
+  // clic est donc pris à la capture (ci-dessous), avant que le bouton ne le reçoive ; le reste de la ligne garde son geste.
+  function lienDossierTache(d, libelle) {
+    return `<span class="ja-dossier-lien" data-ouvrir-dossier="${escapeAttr(d.id)}" title="Ouvrir la fiche du dossier">${escapeHtml(libelle || libelleDossierAffiche(d))}</span>`;
+  }
+  if (typeof document !== 'undefined' && document.addEventListener) {
+    document.addEventListener('click', (e) => {
+      const lien = e.target && e.target.closest && e.target.closest('[data-ouvrir-dossier]');
+      if (!lien) return;
+      e.preventDefault();
+      e.stopPropagation();
+      executerFicheDossierJour(lien.getAttribute('data-ouvrir-dossier'));
+    }, true);
   }
 
   function renderNouveautesListe(groupes) {
