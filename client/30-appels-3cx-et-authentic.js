@@ -2643,9 +2643,9 @@
   function coordonneesPartiesDossier(d) {
     return [
       { partie: 'vendeur', libelle: 'Vendeur', email: d.emailVendeur || '', tel: d.telephoneVendeur || '',
-        parNotaire: confrereRepresenteVendeur(d) && !d.emailVendeur, changerEmail: 'changerEmailVendeur' },
+        parNotaire: confrereRepresenteVendeur(d) && !d.emailVendeur, represente: !!confrereRepresenteVendeur(d), changerEmail: 'changerEmailVendeur' },
       { partie: 'acquereur', libelle: 'Acquéreur', email: d.emailAcquereur || '', tel: d.telephoneAcquereur || '',
-        parNotaire: !!notaireParticipantRepresenteAcquereur(d) && !d.emailAcquereur, changerEmail: 'changerEmailAcquereur' }
+        parNotaire: !!notaireParticipantRepresenteAcquereur(d) && !d.emailAcquereur, represente: !!notaireParticipantRepresenteAcquereur(d), changerEmail: 'changerEmailAcquereur' }
     ];
   }
 
@@ -2657,6 +2657,9 @@
       ? `<span class="prop-texte vide" title="Un autre office représente cette partie : on écrit à son notaire.">Par son notaire</span>`
       : `<input type="email" id="${prefixe}-email-${c.partie}-${d.id}" class="prop-champ coord-email" value="${escapeAttr(c.email)}" placeholder="Email" aria-label="Email ${c.libelle === 'Vendeur' ? 'du vendeur' : 'de l’acquéreur'}" onblur="${c.changerEmail}('${d.id}', this.value)" ${entree}>`;
     const tel = `<input type="tel" id="${prefixe}-tel-${c.partie}-${d.id}" class="prop-champ coord-tel" value="${escapeAttr(c.tel)}" placeholder="Téléphone" autocomplete="off" aria-label="Téléphone ${c.libelle === 'Vendeur' ? 'du vendeur' : 'de l’acquéreur'}" title="Reconnu quand il appelle (3CX). Plusieurs numéros : séparés par « / »." onblur="changerTelephoneDossier('${d.id}', '${c.partie}', this.value)" ${entree}>`;
+    // Représentée par un autre office (étude 05/10) : pas de champ téléphone — c'est celui du confrère, sur sa ligne « Tél. confrère » ;
+    // un numéro déjà saisi reste visible (rien n'est caché).
+    if (c.represente && !c.tel) return `<span class="coord-paire">${email}</span>`;
     return `<span class="coord-paire">${email}<span class="coord-tel-ligne">${tel}${liensAppelTelephone(c.tel)}</span></span>`;
   }
 

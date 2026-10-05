@@ -615,6 +615,16 @@ test('coordonneesPartiesDossier : email et téléphone par partie ; « par son n
   assert.equal(c.map(x => `${x.libelle}:${x.email}:${x.tel}:${x.parNotaire}`).join('|'), 'Vendeur:v@ex.fr:0601020304:false|Acquéreur:::false');
 });
 
+test('champsCoordonneesPartie : pas de champ téléphone pour une partie représentée par un autre office (sauf numéro déjà saisi)', () => {
+  const d = { id: 'dt', notaireAcquereur: 'Maître Paul MARTIN (BLOIS)', notaireVendeur: 'Maître Sophie GOSSART (BLOIS)', emailVendeur: '', telephoneVendeur: '', emailAcquereur: '', telephoneAcquereur: '' };
+  const html = (dossier) => app.coordonneesPartiesDossier(dossier).map(c => app.champsCoordonneesPartie(dossier, c, 'x')).join('|');
+  const [vendeur, acquereur] = html(d).split('|');
+  assert.match(vendeur, /coord-tel/, 'vendeur pour lequel l\'étude instrumente : champ téléphone');
+  assert.doesNotMatch(acquereur, /coord-tel/, 'acquéreur représenté par son notaire : pas de téléphone');
+  assert.match(acquereur, /Par son notaire/);
+  assert.match(html(Object.assign({}, d, { telephoneAcquereur: '0601020304' })).split('|')[1], /0601020304/, 'un numéro déjà saisi reste visible');
+});
+
 test('succession depuis Authentic : intitulé reconnu, parties sans qualité devinée, biens, rien d’une vente', () => {
   const gestionSucc = {
     titre: 'Authentic',

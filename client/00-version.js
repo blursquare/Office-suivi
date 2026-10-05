@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.147.0';
+  const VERSION_APP = '0.147.1';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.147.1', date: '2026-10-05 17:58', resume: "Fiche : plus de champ téléphone sous « Acquéreur » (ni « Vendeur ») quand un autre office le représente — son numéro est celui du confrère, sur la ligne « Tél. confrère » ; un numéro déjà saisi reste visible." },
     { version: '0.147.0', date: '2026-10-05 17:55', resume: "Avant-contrat mal rattaché : un bouton « Changer » sur la ligne Avant-contrat de la fiche liste les PDF du dossier du NAS (racine et SRU d'abord, fichier actuel marqué, recherche) ; le fichier choisi devient l'avant-contrat de la fiche — « Ouvrir », lecture du mobilier, relecture d'actes, fonds reçus — jusqu'à « Revenir au choix automatique »." },
     { version: '0.146.1', date: '2026-10-05 17:46', resume: "Agenda Outlook : un appel de fonds ou un projet marqué fait à la main (case de la timeline) est maintenant noté aussi dans le lieu du rendez-vous de signature, comme quand la date est saisie ; un envoi validé sans passer par là (décompte retrouvé sur le NAS par le serveur, case cochée dans une autre fenêtre) est rattrapé automatiquement : une tentative par dossier et par session, jamais de toast d'échec." },
   { version: '0.146.0', date: '2026-10-05 17:14', resume: "Numéros 3CX : dans le répertoire (offices et autres contacts), le numéro est maintenant écrit en texte avec la balise de l'extension 3CX Click to Call (avant, il était dans un lien, que l'extension ne voit pas) ; fiche : une ligne « Tél. confrère » sous l'email du confrère montre son numéro — saisi sur le dossier, sinon celui de l'office dans l'annuaire — cliquable pour 3CX ; un numéro saisi complète l'annuaire et fait reconnaître le confrère quand il appelle." },

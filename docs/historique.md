@@ -16765,3 +16765,8 @@ trouvée/introuvable toutes les 20 min venait de fenêtres qui n'avaient pas la 
   `fichiersDecompteRacine` ; `d.compromisNomFichier` reste le PDF lu à la création (le bouton « Compléter » ne dépend que de lui).
   `choisirAvantContratNas` : un nom identique l'emporte sur un nom qui le contient. « Revenir au choix automatique »
   (`revenirCompromisAutomatique`) oublie le choix. Tests `nas-avant-contrat`.
+
+- **0.147.1 — 2026-10-05 17:58 : pas de téléphone pour une partie représentée par un autre office** (étude : « retirer le champ téléphone dans acquéreur
+  s'il est représenté par son notaire »). `champsCoordonneesPartie` : `coordonneesPartiesDossier` porte `represente`
+  (`notaireParticipantRepresenteAcquereur` / `confrereRepresenteVendeur`) ; représentée et sans numéro saisi → seul « Par son notaire » / l'email
+  reste, le téléphone du confrère étant sur « Tél. confrère » ; un numéro déjà saisi garde son champ. Test `authentic-pages`.
