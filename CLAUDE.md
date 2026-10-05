@@ -360,7 +360,9 @@ dans `index.html`** (le test `structure-client` refuse tout décalage).
   promesse ; « négociation directe » = aucun) ; fonds de travaux seulement sur une phrase qui tranche
   le remboursement. À la charge de l'acquéreur / remboursé → ligne au débit de l'appel de fonds.
 - **Appel de fonds** : établi par l'office, ou repris du décompte du confrère quand l'étude est en
-  participation. Prêt hypothécaire : montant du prêt **déduit**, frais de garantie **appelés au
+  participation — **retrouvé seul sur le NAS au choix du dossier** (étude 05/10, `reprendreDecompteConfrereNas`,
+  `candidatsDecompteConfrereNas` : nom « appel de fonds/décompte/convocation » hors prêt, courrier rattaché puis racine puis
+  plus récent, courrier produit par CLAIRE en dernier ; le premier tableau lisible remplace le décompte). Prêt hypothécaire : montant du prêt **déduit**, frais de garantie **appelés au
   débit**. Taxe foncière : montant lu en page 1 (« Montant de vos taxes foncières », jamais la
   « somme à prélever ») et contrôlé en bas à droite de la page 2 (entier nu possible) ; avis sur
   plusieurs biens (lus en page 2 par position, `biensAvisTaxeFonciere`) → **le bien vendu est demandé**

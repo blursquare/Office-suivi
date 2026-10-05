@@ -16893,3 +16893,21 @@ l'acquéreur ; pacsés et concubins nommés chacun, formule « Chers Monsieur et
   en `ACQUEREUR` — le courrier ne reprenait jamais les parties, seulement le nom du dossier. Il reprend désormais leur prénom et
   leur civilité quand ils sont connus. Couple sans civilité connue : Monsieur puis Madame dans l'ordre des parties, signalé
   « vérifiez qui est qui » dans « À compléter ».
+
+### 05/10/2026 23 h 04 — 0.157.0 : appel de fonds du confrère repris du NAS
+
+Étude : « Quand on choisit le dossier pour faire l'appel de fonds dans CLAIRE, récupère l'appel de fonds du confrère
+enregistré dans le dossier NAS. »
+
+- `appliquerPrefillAppelFonds` (choix du dossier dans l'outil, ou « Préparer l'appel de fonds » de la fiche) : en mode
+  décompte « confrère » (étude en participation), `reprendreDecompteConfrereNas(d)` liste le dossier du NAS relié et lit les
+  candidats de `candidatsDecompteConfrereNas` (pure) : PDF dont le nom dit « appel de fonds », « décompte » ou
+  « convocation » (`RE_NOM_DECOMPTE_SUR`), jamais un décompte de prêt/remboursement (`RE_NOM_DECOMPTE_EXCLU`) ; le courrier
+  rattaché à « Envoi appel de fonds » (`courrierAppelFondsDossier`) d'abord, la racine avant les sous-dossiers, l'année la
+  plus récente du nom d'abord, le courrier produit par CLAIRE (« … contenant l'appel de fonds ») en dernier ; 6 fichiers
+  au plus, 6 pages au plus. Le premier dont `parserDecompteConfrere` lit des lignes passe par `appliquerDecompteAppelFonds`
+  (remplace le tableau, rendez-vous et référence repris sans écraser) ; le rapport commence par « Appel de fonds du confrère
+  repris du dossier du NAS : « … » ». Rien de lisible : le rapport le dit (fichiers essayés) et renvoie au dépôt du PDF.
+- Abandonné si l'étude change de dossier pendant la lecture (jeton `afRechercheDecompteNas`, aussi incrémenté par
+  « Réinitialiser »). Vérifié dans Chromium avec NAS et lecteur PDF simulés ; pas encore sur de vrais appels de fonds de
+  confrères rangés sur le NAS.

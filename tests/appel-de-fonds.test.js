@@ -669,3 +669,23 @@ test('situation : l’appel de fonds reprend la fiche (rôle en capitales, prén
   const sansSituation = app.prefillAppelFonds(Object.assign({}, d, { situationAcquereur: undefined }));
   assert.match(sansSituation.aCompleter.join(' '), /Situation de l’acquéreur/);
 });
+
+test('appel de fonds du confrère sur le NAS : candidats par le nom, le rattaché et la racine d’abord, le courrier de CLAIRE en dernier', () => {
+  const app = chargerApplication();
+  const f = (chemin) => ({ nom: chemin.split('/').pop(), chemin });
+  const fichiers = [
+    f('Convocation au rendez-vous contenant l\'appel de fonds - VTE - DUPONT.pdf'),
+    f('5 - Comptabilité/Décompte acquéreur 2026.pdf'),
+    f('Appel de fonds Me FOURNIER.pdf'),
+    f('Décompte remboursement prêt.pdf'),
+    f('Compromis signé.pdf'),
+    f('Decompte 2025.pdf'),
+    { nom: 'Appel de fonds.docx', chemin: 'Appel de fonds.docx' }
+  ];
+  const ordre = app.candidatsDecompteConfrereNas(fichiers, '').map(x => x.nom).join(' | ');
+  // À la racine, le nom qui porte une année passe devant (le plus récent d'abord).
+  assert.strictEqual(ordre, 'Decompte 2025.pdf | Appel de fonds Me FOURNIER.pdf | Décompte acquéreur 2026.pdf | Convocation au rendez-vous contenant l\'appel de fonds - VTE - DUPONT.pdf');
+  const rattache = app.candidatsDecompteConfrereNas(fichiers, '5 - Comptabilité/Décompte acquéreur 2026.pdf')[0];
+  assert.strictEqual(rattache.chemin, '5 - Comptabilité/Décompte acquéreur 2026.pdf', 'le courrier rattaché à « Envoi appel de fonds » d’abord');
+  assert.strictEqual(app.candidatsDecompteConfrereNas([f('Titre de propriété.pdf')], '').length, 0);
+});

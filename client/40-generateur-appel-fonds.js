@@ -1363,6 +1363,7 @@
     renderClientsAppelFonds();
     renderTableAppelFonds();
     majApercuAppelFonds();
+    if (p.modeDecompte === 'confrere') reprendreDecompteConfrereNas(d);
 
     const recap = afEl('af-recap-prefill');
     if (recap) {
@@ -2178,6 +2179,58 @@
     }
   }
 
+  // --- décompte du confrère retrouvé sur le NAS (étude 05/10 : « quand on choisit le dossier pour faire l'appel de fonds,
+  // récupère l'appel de fonds du confrère enregistré dans le dossier NAS ») ------------------------------------------------
+  // En participation seulement (décompte « confrère »). Candidats : les PDF du dossier dont le NOM dit appel de fonds,
+  // décompte ou convocation (mêmes motifs que les fonds reçus, sans les décomptes de prêt), le courrier rattaché à
+  // « Envoi appel de fonds » d'abord, la racine avant les sous-dossiers, le plus récent d'abord ; le courrier produit par
+  // CLAIRE (« … contenant l'appel de fonds ») en dernier. Le premier dont le tableau se lit remplace le décompte.
+  var RE_NOM_COURRIER_CLAIRE_APPEL_FONDS = /contenant\s+l.?appel\s+de\s+fonds/i;
+  var MAX_CANDIDATS_DECOMPTE_NAS = 6;
+  var afRechercheDecompteNas = 0;
+  // Pure.
+  function candidatsDecompteConfrereNas(fichiers, rattache) {
+    const nom = f => normaliserNomPourMotif(String(f.nom || ''));
+    const rang = f => (RE_NOM_COURRIER_CLAIRE_APPEL_FONDS.test(nom(f)) ? 8 : 0) + (f.chemin === rattache ? 0 : 4) + (/[\\/]/.test(f.chemin) ? 1 : 0);
+    return (fichiers || [])
+      .filter(f => f && f.chemin && /\.pdf$/i.test(String(f.nom || f.chemin)) && RE_NOM_DECOMPTE_SUR.test(nom(f)) && !RE_NOM_DECOMPTE_EXCLU.test(nom(f)))
+      .sort((a, b) => rang(a) - rang(b)
+        || (anneeDansNomFichier(b.nom) || 0) - (anneeDansNomFichier(a.nom) || 0)
+        || String(b.modifie || '').localeCompare(String(a.modifie || '')));
+  }
+
+  async function reprendreDecompteConfrereNas(d) {
+    if (!d || !d.dossierLie || !d.nasDossier || !nasDisponible() || typeof pdfjsLib === 'undefined') return;
+    const jeton = ++afRechercheDecompteNas;
+    const toujoursLa = () => jeton === afRechercheDecompteNas && afDossierLie === d.id;
+    afficherRapportAppelFonds('Recherche de l’appel de fonds du confrère dans le dossier du NAS…', [], false);
+    try {
+      const candidats = candidatsDecompteConfrereNas(await listerFichiersNas(d), courrierAppelFondsDossier(d)).slice(0, MAX_CANDIDATS_DECOMPTE_NAS);
+      for (const f of candidats) {
+        if (!toujoursLa()) return;
+        let texte = '';
+        try {
+          const pdf = await ouvrirPdfNas(cheminNasComplet(d, f.chemin));
+          if (pdf.numPages > 6) continue;
+          texte = await lireTextePdfEnLignes(pdf);
+        } catch (e) { continue; }
+        const res = parserDecompteConfrere(texte);
+        if (!(res.lignes.debit.length + res.lignes.credit.length)) continue;
+        if (!toujoursLa()) return;
+        appliquerDecompteAppelFonds(texte, `Appel de fonds du confrère repris du dossier du NAS : « ${f.nom} ».`);
+        return;
+      }
+      if (toujoursLa()) {
+        afficherRapportAppelFonds(candidats.length
+          ? 'Appel de fonds du confrère trouvé sur le NAS, mais son tableau n’a pas pu être lu.'
+          : 'Aucun appel de fonds du confrère dans le dossier du NAS.',
+        [candidats.length ? `Fichier(s) essayé(s) : ${candidats.map(f => f.nom).join(', ')}.` : 'Cherché : un PDF dont le nom dit « appel de fonds », « décompte » ou « convocation ».', 'Déposez son PDF ou collez son texte ci-dessous.'], true);
+      }
+    } catch (e) {
+      if (toujoursLa()) afficherRapportAppelFonds('Dossier du NAS illisible : appel de fonds du confrère non repris.', ['Déposez son PDF ou collez son texte ci-dessous.'], true);
+    }
+  }
+
   function importerDecompteColle() {
     const zone = afEl('af-coller-texte');
     if (!zone) return;
@@ -2215,7 +2268,8 @@
 
   // Les lignes du confrère REMPLACENT le tableau : mélanger son décompte avec celui déduit du
   // dossier ferait compter deux fois le prix ou les frais.
-  function appliquerDecompteAppelFonds(texte) {
+  // `source` (facultatif) : d'où vient le texte, dit en tête du rapport (décompte repris du NAS).
+  function appliquerDecompteAppelFonds(texte, source) {
     const res = parserDecompteConfrere(texte);
     const total = res.lignes.debit.length + res.lignes.credit.length;
     // Le rendez-vous est cherché AVANT le retour sur décompte vide : une convocation dont le
@@ -2249,7 +2303,7 @@
     if (!fourchetteFraisActeFormulaire() && afLignes.debit.some(l => !l.memoire && estLigneFraisActeVente(l.libelle))) {
       notes.push('Les frais d’acte n’ont pas été contrôlés : renseignez l’adresse du bien et sa désignation (ou directement le département et la nature du bien, juste sous le tableau).');
     }
-    afficherRapportAppelFonds(`${total} ligne(s) reprises du décompte.`, notes, notes.length > 0);
+    afficherRapportAppelFonds(`${total} ligne(s) reprises du décompte.`, (source ? [source] : []).concat(notes), notes.length > 0);
   }
 
   function afficherRapportAppelFonds(titre, notes, alerte) {
@@ -2454,6 +2508,7 @@
 
   function reinitialiserAppelFonds() {
     afDossierLie = null;
+    afRechercheDecompteNas++;
     afFraisChoisiALaMain = { departement: false, type: false };
     afClients = [{ civilite: 'M', prenom: '', nom: '' }];
     afSituation = '';
