@@ -16668,3 +16668,16 @@ parcouraient le NAS avec l'ancienne liste : le fichier n'y était pas reconnu et
 20 min. Correctif : `rafraichirReconnaissanceNom` relit formes et exclusions avant chaque parcours d'un dossier, au plus une fois par
 minute. Une fenêtre reste donc à l'ancienne liste au plus une minute après la décision. Ouvert : la notification « pièce trouvée »
 n'est dédoublonnée qu'une fois par fichier (registre serveur 30 jours) ; celle vue par l'étude venait de la première reconnaissance.
+
+### 05/10/2026 — 0.144.35 — Anciennes fenêtres : rechargement par /script.js de compatibilité
+
+Suite du signalement « Courrier réponse assainissement » (0.144.34, toujours pareil : notification « trouvée » mais pièce non cochée).
+Rejoué ici : le parcours du NAS actuel, avec un fichier « Courrier assainissement.pdf » et sans aucune décision apprise, reconnaît et
+coche la pièce (motif `ass?ainissement`) puis notifie ; le rapport technique montre 0 fichier écarté. Une pièce cochée puis décochée
+toutes les 20 min avec ce code est donc invraisemblable. Hypothèse retenue : une fenêtre CLAIRE restée ouverte depuis avant le 04/10
+(par exemple l'onglet du Chrome classique avec l'extension 3CX) tourne avec l'ancien code, qui ne connaît pas les formes apprises, et
+décoche la pièce que les fenêtres à jour cochent. Le mécanisme de rechargement du 03/10 relisait `/script.js`, supprimé le 04/10 :
+ces fenêtres ne se rechargeaient jamais. `GET /script.js` répond maintenant par la version courante (`app.js`, testé), de quoi les
+recharger à la prochaine mise à jour du serveur. Une fenêtre ouverte avant le 03/10 n'a pas de surveillance : F5. **Non confirmé
+au bureau** : à vérifier par la version affichée dans « À propos » de chaque fenêtre ouverte, et le « Diagnostic du dernier
+parcours » de l'onglet Pièces si le défaut revient.

@@ -57,6 +57,26 @@ test('/client/00-version.js sert client/00-version.js en application/javascript'
   assert.equal(await reponse.text(), CONTENU_PAR_FICHIER['client/00-version.js']);
 });
 
+test('/script.js : les anciennes fenêtres y relisent la version courante (compatibilité), jamais le programme', async () => {
+  const os = require('node:os'); const fs = require('node:fs'); const path = require('node:path');
+  const { creerApp } = require('../src/app');
+  const { ouvrirDb } = require('../src/db');
+  const racine = fs.mkdtempSync(path.join(os.tmpdir(), 'claire-compat-'));
+  fs.mkdirSync(path.join(racine, 'client'));
+  fs.writeFileSync(path.join(racine, 'client', '00-version.js'), "  const VERSION_APP = '0.144.35';\n  const HISTORIQUE_VERSIONS = [];");
+  const db = ouvrirDb(':memory:');
+  const { app } = creerApp({ db, config: { authActive: false, racineRepo: racine, estSea: () => false } });
+  const srv = app.listen(0);
+  try {
+    await new Promise((r) => srv.once('listening', r));
+    const r = await fetch(`http://127.0.0.1:${srv.address().port}/script.js`);
+    assert.equal(r.status, 200);
+    const texte = await r.text();
+    assert.match(texte, /const VERSION_APP = '0\.144\.35';/);
+    assert.doesNotMatch(texte, /HISTORIQUE_VERSIONS/);
+  } finally { srv.close(); db.close(); fs.rmSync(racine, { recursive: true, force: true }); }
+});
+
 test('police embarquée servie octet pour octet en font/woff2', async () => {
   const reponse = await fetch(`${baseUrl}/vendor/polices/geist-latin-wght-normal.woff2`);
   assert.match(reponse.headers.get('content-type'), /font\/woff2/);

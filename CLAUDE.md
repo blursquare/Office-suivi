@@ -37,6 +37,7 @@ durable, l'architecture ou « Ce qui reste ouvert » change.
   `GET /api/dossiers` rend `demarrage`, `surveillerVersionServeur` relit `/client/00-version.js` et recharge hors saisie — point
   `fenetres-rechargees`) ; avant, elle gardait l'ancien script jusqu'à un F5 (10 h 22 : pages d'Authentic encore
   rangées par le « numéro » retiré à 9 h 33).
+  **Fenêtres d'avant le 04/10** : celles ouvertes entre le 03/10 et le découpage de `script.js` relisent `/script.js` après un redémarrage ; le serveur y répond (05/10) par la seule ligne `const VERSION_APP = '…'` de la version courante pour qu'elles se rechargent. Une fenêtre ouverte avant le 03/10 n'a pas ce mécanisme : F5.
   Avant de retoucher un bug « toujours présent » déjà corrigé, faire vérifier la version affichée
   dans « À propos » : c'est presque toujours un problème de déploiement, pas de code.
 

@@ -4,6 +4,8 @@
 'use strict';
 
 const express = require('express');
+const path = require('node:path');
+const fsp = require('node:fs/promises');
 
 const { creerGestionnaireAuth } = require('./auth');
 const { creerDepot } = require('./dossiersRepo');
@@ -133,6 +135,20 @@ function creerApp({ db, config, envoyerEmailFn, creerClientClaude, appelerMistra
   // en mode développement (`npm start`), depuis les assets embarqués du blob SEA en mode
   // exécutable autonome (`CLAIRE-serveur.exe`, qui n'a pas ces fichiers sur disque à côté de lui).
   // Un seul port dans les deux cas, aucune modification des <link>/<script src> existants.
+  // Compatibilité (étude 05/10) : les fenêtres ouvertes entre le 03/10 et le 04/10 relisent `/script.js` après un
+  // redémarrage du serveur pour savoir si CLAIRE a changé de version (`const VERSION_APP = '…'`) et se recharger. Ce fichier
+  // n'existe plus depuis le découpage en client/ : elles restaient sur leur ancien code jusqu'à un F5 (anciennes règles
+  // de reconnaissance des pièces, décochées à chaque tour). On leur répond avec la version courante, rien d'autre.
+  app.get('/script.js', async (req, res) => {
+    let source = '';
+    try {
+      source = estSea() ? require('node:sea').getAsset('client/00-version.js', 'utf8') : await fsp.readFile(path.join(config.racineRepo, 'client', '00-version.js'), 'utf8');
+    } catch (_) { /* pas de version lisible : 404 ci-dessous */ }
+    const m = /const VERSION_APP = '([^']+)'/.exec(String(source || ''));
+    if (!m) { res.status(404).type('text/plain').send('Introuvable.'); return; }
+    res.setHeader('Cache-Control', 'no-store');
+    res.type('application/javascript').send(`// Compatibilité : anciennes fenêtres CLAIRE (version lue seulement).\nconst VERSION_APP = '${m[1]}';\n`);
+  });
   if (estSea()) {
     app.use(creerMiddlewareAssetsSea(require('node:sea')));
   } else {
