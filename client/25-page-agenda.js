@@ -369,14 +369,14 @@
 
   // ---- Relation client ----
   // Pure : les emails de relation client dus aujourd'hui, du plus pressant au moins pressant.
-  //  - confirmation du rendez-vous de J-45 à J-1 (une fois par date ; plus de rappel à part depuis le 03/10,
-  //    et la confirmation de réception des fonds vaut confirmation — rdvConfirmeParFonds) ;
   //  - questionnaire de satisfaction dans les 14 jours après la signature ;
   //  - un mot un an après la signature.
   // Jamais quand l'acquéreur est accompagné par un confrère (étude, 01/10 : « que pour les clients non
   // accompagnés par un confrère ») — c'est alors son notaire qui tient la relation. Ces emails vivent
   // dans l'onglet Échanges de la fiche (echangesSelonStade), plus dans la barre de l'agenda (01/10).
-  var ORDRE_GESTES_RELATION = { confirmationRdv: 0, questionnaire: 1, anniversaire: 2 };
+  // « Confirmer le rendez-vous » retiré (étude 05/10 : doublon de « Demander le RIB et la pièce d'identité ») ; son modèle
+  // d'email reste dans Réglages › Modèles d'emails et le menu « Modèles » de la fenêtre d'email.
+  var ORDRE_GESTES_RELATION = { questionnaire: 1, anniversaire: 2 };
   function gestesRelationClient(liste, aujourdhuiIso) {
     const auj = aujourdhuiIso || isoAujourdhuiLocal();
     const gestes = [];
@@ -386,7 +386,6 @@
       const j = ecartJours(auj, rdv);
       if (j === null) continue;
       if (notaireParticipantRepresenteAcquereur(d)) continue;
-      if (!d.archive && j >= 1 && j <= 45 && d.confirmationRdvPour !== rdv && !rdvConfirmeParFonds(d)) gestes.push({ d, type: 'confirmationRdv', j });
       if (j <= -1 && j >= -14 && !d.questionnaireEnvoyeLe) gestes.push({ d, type: 'questionnaire', j });
       if (j <= -358 && j >= -372 && !d.anniversaireEnvoyeLe) gestes.push({ d, type: 'anniversaire', j });
     }
@@ -1539,7 +1538,7 @@
         <ul class="ag-facteurs">${proba.facteurs.map(x => `<li class="${x.ok ? 'ok' : 'ko'}">${icone(x.ok ? 'check' : 'alert-triangle')}<span>${escapeHtml(x.libelle)}${x.ok ? '' : ` <em>−${x.retrait} pts</em>`}</span></li>`).join('')}</ul>
       </div>` : '';
     const relation = d && e.signature && !d.archive && d.rendezVousSignature === e.date && e.date >= auj && !notaireParticipantRepresenteAcquereur(d)
-      ? `<div class="ag-detail-actions">${renderLigneEmailDossier(d, 'confirmationRdv')}${relanceFondsDue(d, auj) ? renderLigneEmailDossier(d, 'relanceFonds') : ''}</div>` : '';
+      && relanceFondsDue(d, auj) ? `<div class="ag-detail-actions">${renderLigneEmailDossier(d, 'relanceFonds')}</div>` : '';
     // Un rendez-vous de l'historique (`archive`) se consulte (détail, notes) mais ne se modifie pas.
     const peutSupprimer = evenementSupprimableAgenda(e);
     const notesLisibles = exchangeAgendaPret() && e.itemId && e.archive;

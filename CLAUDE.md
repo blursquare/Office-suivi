@@ -494,8 +494,8 @@ dans `index.html`** (le test `structure-client` refuse tout décalage).
   l'invitation `.ics` rendue, déposée sur l'agenda ou choisie dans le détail, n'est **jamais ajoutée à part** :
   son lien (`lireInvitationIcs`) est écrit dans les notes du rendez-vous de même date et même heure
   (`notesAvecVisio`, bloc « Visio ADNOV : … » remplacé à l’invitation suivante), puis « Rejoindre la visio ». « Envoyer le lien » prépare l'email aux clients et/ou au confrère (`corpsEmailVisio`, premier jet de CLAIRE) avec les informations de connexion relues dans la note (`blocVisioDansNotes`).
-  `gestesRelationClient` (confirmation J-45…J-1 une fois par date `confirmationRdvPour` — **comprise dans la confirmation
-  de réception des fonds** (étude 03/10, `rdvConfirmeParFonds`, `d.receptionFondsPourRdv`) ; rappel du rendez-vous retiré le 03/10 ;
+  `gestesRelationClient` (**« Confirmer le rendez-vous » retiré le 05/10** — étude : doublon de « Demander le RIB et la pièce
+  d'identité » ; son modèle reste dans Réglages › Modèles d'emails et le menu « Modèles » ; rappel du rendez-vous retiré le 03/10 ;
   **« Relancer pour les fonds »** si les fonds ne sont pas arrivés 3 jours avant (`relanceFondsDue`, `JOURS_RELANCE_FONDS`,
   `construireEmailRelanceFonds`, une fois par date `relanceFondsPour`, À faire + Échanges, premier jet de CLAIRE),
   questionnaire J+1…J+14, un mot un an après — **jamais quand un confrère accompagne l'acquéreur**,

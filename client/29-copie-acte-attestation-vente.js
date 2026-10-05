@@ -354,10 +354,9 @@
   //   prêt         tant que l'offre est attendue et la condition non levée
   //   appel fonds  à préparer dès les conditions levées, et jusqu'à la signature
   //   fonds reçus (vérifier puis confirmer au client), RIB, note d'agenda : rendez-vous fixé
-  //   confirmation du rendez-vous : rendez-vous fixé, utile quand elle est due (ou faite, ou comprise dans la confirmation des fonds)
   //   relance des fonds : à J-3 si rien n'est arrivé (client seulement)
   //   questionnaire, un mot un an après : acte signé
-  // Relation client (confirmation, questionnaire, un an après) : jamais quand un confrère
+  // Relation client (questionnaire, un an après) : jamais quand un confrère
   // accompagne l'acquéreur (étude, 01/10), mêmes échéances que gestesRelationClient.
   function echangesSelonStade(d, aujourdhuiIso) {
     const stade = stadeDossier(d, aujourdhuiIso);
@@ -384,9 +383,7 @@
     if (!confrere) ranger('rib', stade === 'signature');
     ranger('agenda', stade === 'signature');
     const dus = gestesRelationClient([d], aujourdhuiIso).map(g => g.type);
-    if (!confrere && stade === 'signature') {
-      ranger('confirmationRdv', dus.indexOf('confirmationRdv') !== -1 || d.confirmationRdvPour === d.rendezVousSignature || rdvConfirmeParFonds(d));
-    }
+    // « Confirmer le rendez-vous » retiré (étude 05/10 : doublon de la demande de RIB et de pièce d'identité).
     if (estDossierParticipation(d)) ranger('copieActe', stade === 'signe');
     if (!confrere || !confrereRepresenteVendeur(d)) ranger('questionnaire', stade === 'signe');
     if (!confrere && stade === 'signe') ranger('anniversaire', dus.indexOf('anniversaire') !== -1 || !!d.anniversaireEnvoyeLe);
