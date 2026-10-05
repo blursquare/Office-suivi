@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.144.28';
+  const VERSION_APP = '0.144.29';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.144.29', date: '2026-10-05 10:02', resume: "Appels 3CX : quand l'appelant n'est connu de CLAIRE (aucun dossier, ni confrère, ni répertoire), la page que 3CX ouvre se ferme aussitôt au lieu d'ouvrir CLAIRE ; l'appel reste noté et montré dans le bandeau de la fenêtre CLAIRE." },
     { version: '0.144.28', date: '2026-10-05 09:32', resume: "Agenda : la touche Suppr supprime le rendez-vous sélectionné, après la même confirmation que le bouton (rien ne part sans votre accord). Tableau de bord, carte « Aujourd'hui » : « Mes rappels » n'est plus une section à part — vos rappels, y compris ceux des jours suivants (avec leur date), sont dans la même liste que les tâches du jour ; « Ajouter un rappel » reste toujours visible en bas." },
     { version: '0.144.27', date: '2026-10-05 09:28', resume: "Les numéros de téléphone des parties (fiche), des appels reçus et du bandeau d'appel entrant ont une icône d'appel qui ouvre 3CX (un lien par numéro, comme dans le Répertoire et l'annuaire des notaires). À confirmer au bureau : 3CX doit être l'application du protocole « tel: » sur le poste." },
     { version: '0.144.26', date: '2026-10-05 09:25', resume: "Outils › Répertoire : 75 agences immobilières et 27 syndics de copropriété ajoutés d'après vos deux recherches de contacts d'Authentic (nom et ville ; ni téléphone ni email, il n'y en avait pas dans les fichiers). Les syndics ont leur propre rubrique. 17 lignes de syndics sans nom n'ont pas pu être reprises." },

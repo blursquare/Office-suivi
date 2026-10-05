@@ -3,7 +3,7 @@
 // Appels reçus (3CX, voir ../appels3cx.js).
 //  - GET /appel (hors /api, sans session) : l'adresse que 3CX ouvre à la sonnerie. Elle note l'appel
 //    et ne renvoie aucune donnée : une page qui se ferme (fenêtre CLAIRE du collaborateur ouverte et
-//    visible) ou qui ouvre CLAIRE sur l'appel. Bornée à 60 appels par minute.
+//    visible, ou appelant inconnu de CLAIRE — étude 05/10) ou qui ouvre CLAIRE sur l'appel. Bornée à 60 appels par minute.
 //  - GET /api/appels/nouveaux?poste=&depuis=&visible= : la fenêtre CLAIRE relève ses appels toutes les
 //    3 s (même cachée) et signale si elle est visible.
 //  - GET /api/appels?dossierId= : le journal (50 derniers, ou ceux d'un dossier).
@@ -70,7 +70,8 @@ function creerRouteurSonnerie(parametresRepo, depot, etat) {
     const vue = etat.fenetres.get(entree.poste);
     const fenetreVisible = !!(entree.poste && vue && vue.visible && maintenant - vue.t < FENETRE_VUE_MS);
     res.setHeader('Cache-Control', 'no-store');
-    res.type('html').send(pageSonnerie({ id: entree.id, fenetreVisible }));
+    const inconnu = !((entree.dossiers && entree.dossiers.length) || entree.contact);
+    res.type('html').send(pageSonnerie({ id: entree.id, fenetreVisible, inconnu }));
   });
   return routeur;
 }

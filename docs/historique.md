@@ -16590,3 +16590,12 @@ terrain `telephone-3cx-lien`, coché au premier clic, à confirmer à l'œil au 
   dans 6 jours).
   Lecture retenue : **tous** mes rappels dans une seule liste. Si seuls les rappels du jour étaient visés, il suffit de ne pas
   afficher les « à venir » (une ligne).
+
+### 05/10/2026 — 0.144.29 — Appel 3CX d'un inconnu : la page de 3CX ne s'ouvre plus sur CLAIRE
+
+Demande de l'étude : « quand un appel 3CX est reçu mais non connu de CLAIRE, ne pas ouvrir la fenêtre 3CX ». La page `/appel`
+que 3CX ouvre à la sonnerie (`pageSonnerie`) ne se fermait que si la fenêtre CLAIRE du poste était visible ; sinon elle ouvrait
+CLAIRE sur l'appel, même pour un numéro que personne ne connaît. Désormais, appelant sans dossier, sans confrère et sans contact
+du répertoire (`entree.dossiers` vide et `entree.contact` nul) → la page se ferme aussitôt (`inconnu`). L'appel reste noté dans le
+journal et le bandeau « Appel entrant » de la fenêtre CLAIRE du poste est inchangé. Limite : `window.close()` ne marche que pour un
+onglet ouvert par script ; si 3CX l'ouvre autrement, le navigateur laisse « Appel noté dans CLAIRE. ». Non vérifié avec un vrai 3CX.

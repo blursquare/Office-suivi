@@ -81,6 +81,9 @@ test('assainirJournalAppels : plus récent d’abord, plus d’un an écarté', 
 test('pageSonnerie : se ferme si la fenêtre CLAIRE est visible, sinon ouvre CLAIRE sur l’appel ; aucune donnée', () => {
   assert.match(pageSonnerie({ id: 'ap-1', fenetreVisible: true }), /window\.close\(\)/);
   assert.match(pageSonnerie({ id: 'ap-1', fenetreVisible: false }), /index\.html#appel=ap-1/);
+  // Appelant inconnu de CLAIRE : rien à ouvrir, l'onglet de 3CX se ferme (étude 05/10).
+  assert.match(pageSonnerie({ id: 'ap-1', fenetreVisible: false, inconnu: true }), /window\.close\(\)/);
+  assert.doesNotMatch(pageSonnerie({ id: 'ap-1', fenetreVisible: false, inconnu: true }), /#appel=/);
 });
 
 let db, serveurApp, baseUrl, jeton, depot;
@@ -111,6 +114,10 @@ test('route : la sonnerie note l’appel sans session ; la fenêtre du poste le 
   assert.match(await r2.text(), /window\.close\(\)/);
   const j = await (await fetch(`${baseUrl}/api/appels/nouveaux?poste=julie&visible=1&depuis=${encodeURIComponent(depuis)}`, { headers: auth })).json();
   assert.equal(j.appels.length, 2);
+  // Un numéro que CLAIRE ne connaît pas, fenêtre non visible : l'onglet de 3CX se ferme, l'appel est noté.
+  const rInconnu = await (await fetch(`${baseUrl}/appel?numero=0611223344&poste=paul`)).text();
+  assert.match(rInconnu, /window\.close\(\)/);
+  assert.doesNotMatch(rInconnu, /#appel=/);
   assert.equal(j.appels[0].dossiers[0].id, 'd9');
   const b = await (await fetch(`${baseUrl}/api/appels/nouveaux?poste=bastien&depuis=${encodeURIComponent(depuis)}`, { headers: auth })).json();
   assert.equal(b.appels.length, 0);

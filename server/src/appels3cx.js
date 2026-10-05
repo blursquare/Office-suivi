@@ -147,14 +147,16 @@ function creerEntreeAppel({ numero, nom, poste }, sources, maintenant = new Date
 
 // Page rendue dans l'onglet que 3CX ouvre à la sonnerie : elle se ferme d'elle-même quand la
 // fenêtre CLAIRE du collaborateur est ouverte et visible (c'est elle qui montre l'appel), sinon elle
-// ouvre CLAIRE sur l'appel. Aucune donnée dans la page.
-function pageSonnerie({ id, fenetreVisible }) {
+// ouvre CLAIRE sur l'appel. Un appelant que CLAIRE ne connaît pas (aucun dossier, ni confrère, ni
+// répertoire) n'ouvre rien : l'onglet se ferme (étude 05/10) — l'appel reste noté et montré dans le
+// bandeau de la fenêtre CLAIRE. Aucune donnée dans la page.
+function pageSonnerie({ id, fenetreVisible, inconnu }) {
   const cible = '/index.html#appel=' + encodeURIComponent(id);
   return '<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>CLAIRE — appel</title>'
     + '<meta name="viewport" content="width=device-width, initial-scale=1">'
     + '<style>body{font:15px system-ui,sans-serif;background:#f4f5f7;color:#1d2433;display:grid;place-items:center;min-height:100vh;margin:0}</style></head>'
     + '<body><p>Appel noté dans CLAIRE.</p><script>'
-    + (fenetreVisible
+    + (fenetreVisible || inconnu
       ? 'window.close();'
       : 'location.replace(' + JSON.stringify(cible) + ');')
     + '</script></body></html>';
