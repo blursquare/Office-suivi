@@ -301,7 +301,7 @@ dans `index.html`** (le test `structure-client` refuse tout décalage).
   **Formes de noms apprises** (étude 03/10, **Réglages › Noms de fichiers du NAS** — rubrique `noms-nas` sous « Dossiers et actes », sortie des Outils le même jour ; `definirOnglet('noms-nas')` y mène —, `server/src/nomsFichiersNas.js`) : l'étude
   dit oui/non à une FORME de nom (`formeNomFichier` : mots d'usage gardés, nombre `#`, nom propre et adresse `…`) pour une
   pièce ; `decisionFormePourNom` passe avant les motifs dans `correspondancePieceNom`/`nomDitOffrePret` (« non » écarte même
-  un nom que le motif prend, « oui » fait reconnaître). Termes élargis (`TERMES_ELARGIS_PIECES`) **pour l'outil seulement**
+  un nom que le motif prend, « oui » fait reconnaître ; entre deux formes qui se contredisent, la plus récente l'emporte, 05/10). Termes élargis (`TERMES_ELARGIS_PIECES`) **pour l'outil seulement**
   (ils proposent, ne cochent jamais) ; noms du commun gardés en mémoire du serveur seulement ; formes décidées dans le rapport
   technique → à reporter dans `motifNom`/`FORMES_NOM_PIECES` (et `EXEMPLES_NOMS_PIECES`).
   Une pièce validée à la main (`piecesValideesManuellement`) n'est jamais repassée en manquante.

@@ -16699,3 +16699,9 @@ trouvée/introuvable toutes les 20 min venait de fenêtres qui n'avaient pas la 
   (seul « Réinitialiser » au survol permettait de la défaire). Changement : la case est un bouton — décocher une pièce trouvée appelle
   `reinitialiserStatutPieceStandard` (confirmation, pièce « manquante », nom de fichier exclu pour cette pièce), la recocher la valide à la
   main ; même geste dans l'onglet Analyse (`renderDocumentAnalyse`, `basculerDocumentAnalyseRecu`). Test `pieces-case-trouvee`.
+
+- **0.144.38 (05/10 14 h 32) — formes de noms : la décision la plus récente l'emporte** (cas « Courrier réponse assainissement » : l'étude a
+  validé « Oui » la forme « certificat assainissement », le diagnostic citait encore un « Non » — ancien, sur un nom précis ou une forme voisine
+  — et la pièce restait décochée). Avant : « non » l'emportait toujours sur « oui » (règle du 03/10). Maintenant `decisionFormePourNom` retient,
+  parmi les formes qui correspondent au nom, celle de date `le` la plus récente (à date égale, « non ») ; le « non » reste prioritaire sur le
+  motif et sur un « oui » plus ancien seulement s'il est plus récent. Test `noms-fichiers-nas`.

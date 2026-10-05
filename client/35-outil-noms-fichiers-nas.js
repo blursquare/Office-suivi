@@ -97,22 +97,22 @@
     formesNomsCompilees = {};
     for (const d of formesNomsDecisions) {
       if (!d || !d.cle || !d.forme || (d.decision !== 'oui' && d.decision !== 'non')) continue;
-      try { (formesNomsCompilees[d.cle] = formesNomsCompilees[d.cle] || []).push({ decision: d.decision, re: regexFormeNom(d.forme) }); } catch (e) { /* forme illisible : ignorée */ }
+      try { (formesNomsCompilees[d.cle] = formesNomsCompilees[d.cle] || []).push({ decision: d.decision, le: Date.parse(d.le) || 0, re: regexFormeNom(d.forme) }); } catch (e) { /* forme illisible : ignorée */ }
     }
   }
-  // Pure (sur les décisions compilées) : 'non' l'emporte sur 'oui', null si aucune forme décidée ne
-  // correspond.
+  // Pure (sur les décisions compilées) : la décision LA PLUS RÉCENTE parmi les formes qui correspondent au nom l'emporte
+  // (étude 05/10 : un « Oui » donné sur une forme ne passait pas devant un ancien « Non » donné sur un nom précis ou une forme
+  // voisine) ; à date égale, « non » ; null si aucune forme décidée ne correspond.
   function decisionFormePourNom(cle, nomNormalise) {
     const liste = formesNomsCompilees[cle];
     if (!liste || !liste.length) return null;
     const joint = tokensNomFichier(nomNormalise).join(' ');
-    let oui = false;
+    let retenue = null;
     for (const f of liste) {
       if (!f.re.test(joint)) continue;
-      if (f.decision === 'non') return 'non';
-      oui = true;
+      if (!retenue || f.le > retenue.le || (f.le === retenue.le && f.decision === 'non')) retenue = f;
     }
-    return oui ? 'oui' : null;
+    return retenue ? retenue.decision : null;
   }
   async function chargerFormesNoms() {
     try {

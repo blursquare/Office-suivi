@@ -39,3 +39,20 @@ test('décisions : « oui » fait reconnaître, « non » écarte même un nom q
   app.compilerFormesNoms([]);
   assert.equal(app.correspondancePieceNom(erp, n('ERP établissement recevant du public.pdf')), 'exact');
 });
+
+test('formes décidées : la décision la plus récente l’emporte (un « Oui » récent passe devant un ancien « Non »)', () => {
+  const app = chargerApplication();
+  const n = (x) => app.normaliserNomPourMotif(x);
+  const nom = n('Certificat_Assainissement.pdf');
+  app.compilerFormesNoms([
+    { cle: 'reponseAssainissement', forme: 'certificat assainissement', decision: 'oui', le: '2026-10-05T14:00:00Z' },
+    { cle: 'reponseAssainissement', forme: 'certificat …', decision: 'non', le: '2026-10-05T12:00:00Z' }
+  ]);
+  assert.equal(app.decisionFormePourNom('reponseAssainissement', nom), 'oui');
+  app.compilerFormesNoms([
+    { cle: 'reponseAssainissement', forme: 'certificat assainissement', decision: 'oui', le: '2026-10-05T12:00:00Z' },
+    { cle: 'reponseAssainissement', forme: 'certificat …', decision: 'non', le: '2026-10-05T14:00:00Z' }
+  ]);
+  assert.equal(app.decisionFormePourNom('reponseAssainissement', nom), 'non');
+  app.compilerFormesNoms([]);
+});
