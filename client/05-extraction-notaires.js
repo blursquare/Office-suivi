@@ -9,6 +9,19 @@
   // isolée ici : y ajouter un confrère associé ne demande de toucher à rien d'autre.
   var IDENTITE_ETUDE = { motifs: [/goss?ar[dt]/i] };
 
+  // Notre office s'écrit toujours de la même façon dans un champ notaire (étude 05/10 : « mettre Sophie GOSSART de base quand il
+  // s'agit de notre office »). Pure : une valeur qui désigne notre office (« Maître GOSSART », « Sophie GOSSARD (Blois) »…) est
+  // ramenée à ce libellé ; une valeur déjà écrite ainsi (à la casse de la ville près) ou qui cite aussi un autre notaire (« et »,
+  // virgule, plus de dix mots) est laissée telle quelle.
+  var NOTAIRE_ETUDE_LIBELLE = 'Maître Sophie GOSSART (BLOIS)';
+  function canoniserNotaireEtude(valeur) {
+    const brut = String(valeur || '').trim();
+    if (!brut || !estEtude({ nom: brut })) return brut;
+    if (brut.split(/\s+/).length > 10 || /\s(?:et|ainsi que)\s|;/i.test(brut)) return brut;
+    const simple = t => String(t).toLowerCase().replace(/\s+/g, ' ');
+    return simple(brut) === simple(NOTAIRE_ETUDE_LIBELLE) ? brut : NOTAIRE_ETUDE_LIBELLE;
+  }
+
   // Règle métier géographique, centralisée en UN SEUL endroit (exigence explicite de la spec :
   // « ne pas coder cette règle de manière dispersée »). Pour un bien situé dans le 41, si le
   // notaire du vendeur est du 41, du 45 ou du 37, c'est lui qui reçoit l'acte. Ajouter un

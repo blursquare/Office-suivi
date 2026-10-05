@@ -96,3 +96,34 @@ test('nettoyerLibelleNotaire : retire l’intitulé du champ suivant d’un comp
   assert.equal(app.nettoyerLibelleNotaire('Maître Hélène MARCHAND (Blois)'), 'Maître Hélène MARCHAND (Blois)');
   assert.equal(app.nettoyerLibelleNotaire('Maître Hélène MARCHAND'), 'Maître Hélène MARCHAND');
 });
+
+test('completerNomNotaire : retrouvé dans l’annuaire par son nom (un seul notaire), notre office toujours « Sophie GOSSART »', () => {
+  const app = chargerApplication();
+  // Un seul VILLIERS, deux DURAND (Orléans, Vendôme) : le prénom ou la ville départage, sinon rien n'est deviné.
+  assert.equal(app.completerNomNotaire('Maître de VILLIERS', CARNET), 'Maître Jean-Marc de VILLIERS (Blois)');
+  assert.equal(app.completerNomNotaire('Maître Luc PETIT', CARNET), 'Maître Luc PETIT (Vendôme)');
+  assert.equal(app.completerNomNotaire('Maître Anne DURAND', CARNET), 'Maître Anne DURAND (Vendôme)');
+  assert.equal(app.completerNomNotaire('Maître DURAND (ORLEANS)', CARNET), 'Maître Paul DURAND (ORLEANS)');
+  assert.equal(app.completerNomNotaire('Maître DURAND', CARNET), 'Maître DURAND');
+  assert.equal(app.completerNomNotaire('Maître Paul DURAND (ORLEANS)', CARNET), 'Maître Paul DURAND (ORLEANS)');
+  // Notre office : un seul libellé, quelle que soit la graphie ; déjà écrit ainsi → intouché ; un confrère cité avec nous → intouché.
+  for (const v of ['Maître GOSSART', 'Sophie GOSSART', 'Me Sophie GOSSARD (Blois)', 'Office Notarial de la Salamandre — Me Sophie GOSSART']) {
+    assert.equal(app.completerNomNotaire(v, CARNET), 'Maître Sophie GOSSART (BLOIS)', v);
+  }
+  assert.equal(app.completerNomNotaire('Maître Sophie GOSSART (Blois)', CARNET), 'Maître Sophie GOSSART (Blois)');
+  assert.equal(app.completerNomNotaire('Maître Sophie GOSSART et Maître Paul DURAND', CARNET), 'Maître Sophie GOSSART et Maître Paul DURAND');
+});
+
+test('rechercherNotairesAnnuaire : tout l’annuaire, par nom, ville ou code postal, notre office en tête', () => {
+  const app = chargerApplication();
+  const carnet = CARNET.concat([{ id: 'etude-gossart', etude: true, office: 'Office Notarial de la Salamandre', notaires: ['Sophie GOSSART'], ville: 'Blois', codePostal: '41000', departement: '41', bureaux: [] }]);
+  const v = (q) => app.rechercherNotairesAnnuaire(q, carnet).map(x => x.valeur).join(' | ');
+  assert.equal(v('durand'), 'Maître Paul DURAND (Orléans) | Maître Anne DURAND (Vendôme)');
+  assert.equal(v('luc ven'), 'Maître Luc PETIT (Vendôme)');
+  assert.equal(v('41000'), 'Maître Sophie GOSSART (Blois) | Maître Jean-Marc de VILLIERS (Blois)');
+  assert.equal(v('zzz'), '');
+  assert.equal(v(''), '');
+  assert.equal(app.rechercherNotairesAnnuaire('o', carnet, 2).length, 2);
+  // Notre office d'abord aussi dans la liste de départ.
+  assert.equal(app.optionsNotairesCarnet(carnet)[0], 'Maître Sophie GOSSART (Blois)');
+});

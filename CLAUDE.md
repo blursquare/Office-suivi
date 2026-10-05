@@ -251,7 +251,7 @@ dans `index.html`** (le test `structure-client` refuse tout décalage).
   **type** ; « AAE » dans un nom de fichier = acte authentique électronique.
 - **Notaires** : priorité mention explicite (hors clause d'origine de propriété) > règle
   géographique (`REGLES_NOTAIRE_INSTRUMENTAIRE`, bien dans le 41) > ordre dans la zone attendue ;
-  sinon rien n'est deviné. Le rôle de l'étude (instrumentaire/participant) est déduit du côté qui
+  sinon rien n'est deviné. **Champs notaire liés à l'annuaire** (étude 05/10) : recherche dans tout l'annuaire à la frappe (`proposerNotairesAnnuaire`), nom complété seulement si UN SEUL notaire correspond (`completerNomNotaire`), notre office toujours « Maître Sophie GOSSART (BLOIS) » (`NOTAIRE_ETUDE_LIBELLE`, `canoniserNotaireEtude` ; bouton « Notre office » sur la fiche, placé seul du bon côté dans Nouveau dossier quand le rôle est lu, déduit ou choisi). Le rôle de l'étude (instrumentaire/participant) est déduit du côté qui
   reçoit l'acte ; si un autre office représente l'acquéreur, les emails vont **au confrère**
   (« Mon Cher Maître, … Votre bien dévoué. ») et le questionnaire de satisfaction n'est jamais proposé à
   l'acquéreur ; il peut l'être **au vendeur** quand l'étude le représente (étude 02/10, `renderQuestionnaireVendeur`,

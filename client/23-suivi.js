@@ -646,7 +646,8 @@
     const optionsNotaires = nomsDetectes.concat(optionsNotairesCarnet(carnetConfreres).filter(n => nomsDetectes.indexOf(n) === -1));
     const notaire = (cote, valeur) => {
       const actif = d.coteInstrumentaire === cote;
-      return `<input type="text" id="not-${cote}-${d.id}" class="prop-champ"${optionsNotaires.length ? ` list="${listeId}"` : ''} value="${escapeAttr(valeur || '')}" placeholder="Non détecté" onblur="affecterNotaire('${d.id}', '${cote}', this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">
+      return `<input type="text" id="not-${cote}-${d.id}" class="prop-champ" list="${listeId}" value="${escapeAttr(valeur || '')}" placeholder="Non détecté" oninput="proposerNotairesAnnuaire(this)" onblur="affecterNotaire('${d.id}', '${cote}', this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">
+        ${valeur ? '' : `<button type="button" class="lien-action" onclick="affecterNotaire('${d.id}', '${cote}', NOTAIRE_ETUDE_LIBELLE)" title="Mettre ${escapeAttr(NOTAIRE_ETUDE_LIBELLE)}">Notre office</button>`}
         <button type="button" class="dot-label ${actif ? 'dl-success' : 'dl-neutre'} notaire-redacteur${actif ? ' actif' : ''}"
           onclick="basculerCoteInstrumentaire('${d.id}', '${cote}')"
           title="${actif ? 'Ce notaire reçoit l’acte. Cliquez pour retirer.' : 'Désigner ce notaire comme celui qui reçoit l’acte.'}">${actif ? icone('check') : '<span class="dot"></span>'}Reçoit l’acte</button>
@@ -726,7 +727,7 @@
         ${emailParticipant}
         ${ligne('flag', 'Notre étude', ligneRole)}
       </dl>
-      ${optionsNotaires.length ? `<datalist id="${listeId}">${optionsNotaires.map(n => `<option value="${escapeAttr(n)}"></option>`).join('')}</datalist>` : ''}`;
+      <datalist id="${listeId}" data-base="${escapeAttr(JSON.stringify(nomsDetectes))}">${optionsNotaires.map(n => `<option value="${escapeAttr(n)}"></option>`).join('')}</datalist>`;
     const ouvert = fichesChampsVidesOuverts.has(d.id);
     const bascule = nbVides
       ? `<wa-button appearance="outlined" type="button" class="bouton-ajout bouton-ajout-court fiche-completer${ouvert ? ' ouvert' : ''}" onclick="basculerChampsVidesFiche('${d.id}')" aria-expanded="${ouvert}"><span slot="start" class="bouton-ajout-plus" aria-hidden="true">+</span>${ouvert ? 'Masquer les champs vides' : `Compléter la fiche (${nbVides})`}</wa-button>`

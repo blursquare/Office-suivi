@@ -358,11 +358,11 @@
         <div class="field-row vente-seul revision-double">
           <div>
             <label for="f-notaire-vendeur">Notaire du vendeur</label>
-            <input type="text" id="f-notaire-vendeur" list="f-notaires-liste" placeholder="Ex. Maître Sophie GOSSART (Blois)" oninput="majApercuPieces()">
+            <input type="text" id="f-notaire-vendeur" list="f-notaires-liste" placeholder="Ex. Maître Sophie GOSSART (Blois)" oninput="proposerNotairesAnnuaire(this); majApercuPieces()" onchange="completerNotaireWizard(this)">
           </div>
           <div>
             <label for="f-notaire-acquereur">Notaire de l'acquéreur</label>
-            <input type="text" id="f-notaire-acquereur" list="f-notaires-liste" placeholder="Ex. Maître Sophie GOSSART (Blois)" oninput="majApercuPieces()">
+            <input type="text" id="f-notaire-acquereur" list="f-notaires-liste" placeholder="Ex. Maître Sophie GOSSART (Blois)" oninput="proposerNotairesAnnuaire(this); majApercuPieces()" onchange="completerNotaireWizard(this)">
           </div>
           <datalist id="f-notaires-liste"></datalist>
         </div>

@@ -181,6 +181,7 @@
       select.value = role;
     }
     if (marque) marque.textContent = role ? '· déduit des notaires' : '';
+    placerEtudeParDefautWizard();
   }
 
   // Liste proposée sous les deux champs notaire de l'assistant : les notaires lus dans l'acte,
@@ -190,7 +191,36 @@
     if (!liste) return;
     const noms = (detectes || []).filter(Boolean);
     const options = noms.concat(optionsNotairesCarnet(carnetConfreres).filter(n => noms.indexOf(n) === -1));
+    liste.setAttribute('data-base', JSON.stringify(noms));
     liste.innerHTML = options.map(n => `<option value="${escapeAttr(n)}"></option>`).join('');
+  }
+
+  // Champ notaire de l'assistant, une fois la saisie validée : le notaire est retrouvé dans l'annuaire et son nom complété ;
+  // notre office s'écrit « Maître Sophie GOSSART (BLOIS) » (étude 05/10).
+  function completerNotaireWizard(champ) {
+    if (!champ) return;
+    const saisi = champ.value.trim();
+    const complet = completerNomNotaire(saisi, carnetConfreres);
+    if (complet !== saisi) champ.value = complet;
+    noterOrigineDossierWizard(champ.id, 'manuel');
+    majApercuPieces();
+    if (extractionActuelle) renderPanneauRevision(extractionActuelle);
+  }
+
+  // Rôle et côté choisis, notre office par défaut dans son champ notaire (étude 05/10 : « Sophie GOSSART de base quand il s'agit
+  // de notre office ») : instrumentaire → du côté qui reçoit l'acte, participant → de l'autre côté. Une seule fois par champ, et
+  // jamais sur une saisie ou un choix à la main.
+  function placerEtudeParDefautWizard() {
+    const cote = (document.getElementById('f-cote-instrumentaire') || {}).value || '';
+    const role = (document.getElementById('f-role-notaire') || {}).value || '';
+    if (!cote || !role) return;
+    // Le rôle par défaut du formulaire (instrumentaire) n'est pas un choix : il faut qu'il soit lu, déduit ou choisi à la main.
+    const origineRole = originesDossierWizard['f-role-notaire'];
+    if (!origineRole || origineRole === 'defaut') return;
+    const coteEtude = role === 'participant' ? (cote === 'vendeur' ? 'acquereur' : 'vendeur') : cote;
+    const id = coteEtude === 'vendeur' ? 'f-notaire-vendeur' : 'f-notaire-acquereur';
+    if (valeursAppliquees[id] !== undefined || choixManuelDossierWizard(id)) return;
+    if (appliquerValeurChamp(id, NOTAIRE_ETUDE_LIBELLE)) noterOrigineDossierWizard(id, 'defaut');
   }
 
   // Côté qui reçoit l'acte pour un nouveau dossier. Celui lu dans l'acte tant que le notaire de ce

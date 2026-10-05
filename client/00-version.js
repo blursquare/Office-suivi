@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.144.39';
+  const VERSION_APP = '0.145.0';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,7 +20,8 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
-    { version: '0.144.39', date: '2026-10-05 14:48', resume: "Emails préparés « pas encore retrouvés dans les envois » : une croix retire un email qui n'a jamais été envoyé (brouillon Outlook fermé sans enregistrer) — avant, la ligne restait pour toujours." },
+    { version: '0.145.0', date: '2026-10-05 16:15', resume: "Notaires liés au répertoire : les champs notaire (fiche et Nouveau dossier) cherchent dans tout l'annuaire de France au fil de la frappe (nom, ville, code postal ; notre office en tête, puis les départements voisins) et complètent le nom d'un notaire retrouvé de façon certaine (prénom, ville). Notre office s'écrit toujours « Maître Sophie GOSSART (BLOIS) » : un bouton « Notre office » sur un champ vide de la fiche, et dans Nouveau dossier il se place seul du bon côté quand le rôle de l'étude et le notaire qui reçoit l'acte sont choisis." },
+  { version: '0.144.39', date: '2026-10-05 14:48', resume: "Emails préparés « pas encore retrouvés dans les envois » : une croix retire un email qui n'a jamais été envoyé (brouillon Outlook fermé sans enregistrer) — avant, la ligne restait pour toujours." },
   { version: '0.144.38', date: '2026-10-05 14:32', resume: "Formes de noms décidées (Réglages › Noms de fichiers du NAS) : la décision la plus récente l'emporte — un « Oui » donné sur une forme passe maintenant devant un ancien « Non » donné sur un nom précis ou une forme voisine (avant, le « Non » gagnait toujours et la pièce restait décochée)." },
   { version: '0.144.37', date: '2026-10-05 14:21', resume: "Pièces du dossier : la case d'une pièce trouvée sur le NAS se décoche de nouveau d'un clic (elle réinitialise la pièce, avec confirmation), dans l'onglet Pièces comme dans l'onglet Analyse." },
   { version: '0.144.36', date: '2026-10-05 14:13', resume: "Diagnostic du parcours du NAS : un fichier que CLAIRE reconnaîtrait mais qu'une réponse « Non » donnée dans Réglages › Noms de fichiers du NAS écarte est maintenant dit (avant, aucune ligne n'expliquait pourquoi la pièce restait manquante)." },

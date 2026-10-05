@@ -54,21 +54,100 @@
   // correspondent, rien n'est deviné : la valeur revient telle quelle. Pure.
   function completerNomNotaire(valeur, carnet) {
     const brut = nettoyerLibelleNotaire(valeur);
+    // Notre office : toujours « Maître Sophie GOSSART (BLOIS) » (étude 05/10).
+    const etude = canoniserNotaireEtude(brut);
+    if (etude !== brut) return etude;
     const sans = brut.replace(/\([^)]*\)/g, ' ').replace(/^\s*(ma[iî]tre|me)\.?\s+/i, '').trim();
     const ville = ((brut.match(/\(([^)]*)\)/) || [])[1] || '').trim();
-    if (!sans || /\s/.test(sans) || !ville || !Array.isArray(carnet)) return brut;
+    if (!sans || !Array.isArray(carnet)) return brut;
     const norm = t => normaliserPourRecherche(t || '').replace(/[^a-z0-9]+/g, ' ').trim();
-    const prenom = norm(sans);
-    const cibleVille = norm(ville);
-    const trouves = [];
-    for (const office of carnet) {
-      const lieux = [office && office.ville].concat((office && office.bureaux) || []).map(norm);
-      if (!lieux.some(l => l && (' ' + l + ' ').indexOf(' ' + cibleVille + ' ') !== -1)) continue;
-      for (const n of (office && office.notaires) || []) {
-        if (decomposerNomNotaire(n).prenom === prenom && trouves.indexOf(n) === -1) trouves.push(n);
+    // Un seul mot suivi d'une ville : un prénom seul (« Maître SOPHIE (BLOIS) »).
+    if (!/\s/.test(sans) && ville) {
+      const prenom = norm(sans);
+      const cibleVille = norm(ville);
+      const trouves = [];
+      for (const office of carnet) {
+        const lieux = [office && office.ville].concat((office && office.bureaux) || []).map(norm);
+        if (!lieux.some(l => l && (' ' + l + ' ').indexOf(' ' + cibleVille + ' ') !== -1)) continue;
+        for (const n of (office && office.notaires) || []) {
+          if (decomposerNomNotaire(n).prenom === prenom && trouves.indexOf(n) === -1) trouves.push(n);
+        }
       }
+      if (trouves.length === 1) return `Maître ${trouves[0]} (${ville})`;
     }
-    return trouves.length === 1 ? `Maître ${trouves[0]} (${ville})` : brut;
+    // Sinon, le notaire est retrouvé dans l'annuaire par son nom (et son prénom, sa ville quand ils sont écrits) : un seul
+    // notaire de ce nom → « Maître Eve CHAMPION (Blois) » (étude 05/10 : retrouver les notaires dans le répertoire et compléter
+    // leur nom). Une valeur déjà complète (prénom, nom et ville) n'est pas touchée.
+    const c = decomposerNomNotaire(brut);
+    if (c.prenom && c.ville) return brut;
+    const t = notaireUniqueAnnuaire(brut, carnet);
+    if (!t) return brut;
+    return `Maître ${t.notaire} (${ville || t.office.ville || ''})`.replace(/\s*\(\)$/, '');
+  }
+
+  // Le seul notaire de l'annuaire qui correspond à cette saisie (nom de famille, plus prénom et ville quand ils sont écrits), ou
+  // null : plusieurs notaires, plusieurs bureaux ou aucun → rien n'est deviné. Pure.
+  function notaireUniqueAnnuaire(valeur, carnet) {
+    const c = decomposerNomNotaire(valeur);
+    if (!c.famille || !Array.isArray(carnet)) return null;
+    let candidats = (indexNotairesParFamille(carnet).get(c.famille) || []).slice();
+    if (c.prenom) candidats = candidats.filter(x => x.c.prenom === c.prenom);
+    if (c.ville) {
+      candidats = candidats.filter(x => [x.office.ville].concat(x.office.bureaux || [])
+        .map(v => normaliserPourRecherche(v || '').replace(/[^a-z0-9]+/g, ' ').trim())
+        .some(l => l && (' ' + l + ' ').indexOf(' ' + c.ville + ' ') !== -1));
+    }
+    const distincts = new Set(candidats.map(x => x.office.id + '|' + x.notaire));
+    return distincts.size === 1 ? { office: candidats[0].office, notaire: candidats[0].notaire } : null;
+  }
+
+  // Recherche dans TOUT l'annuaire pour les champs notaire (étude 05/10 : « lier tous les champs pour les notaires au
+  // répertoire ») : chaque mot tapé doit figurer dans le nom du notaire, sa ville ou son code postal (l'office s'affiche à côté). Notre office d'abord,
+  // puis par ville. Rend { valeur: « Maître Eve CHAMPION (Blois) », libelle: « Office … · 41 » } (`max` au plus). Pure.
+  var indexRechercheNotairesListe = new WeakMap();
+  function rechercherNotairesAnnuaire(texte, carnet, max) {
+    const mots = normaliserPourRecherche(texte || '').split(/[^a-z0-9]+/).filter(Boolean);
+    if (!mots.length || !Array.isArray(carnet)) return [];
+    let index = indexRechercheNotairesListe.get(carnet);
+    if (!index) {
+      index = [];
+      for (const o of carnet) {
+        for (const n of (o && o.notaires) || []) {
+          index.push({
+            valeur: `Maître ${n}${o.ville ? ` (${o.ville})` : ''}`,
+            libelle: [o.office, o.departement].filter(Boolean).join(' · '),
+            etude: !!o.etude,
+            proche: !!o.etude || !o.departement || DEPARTEMENTS_PROCHES_ANNUAIRE.indexOf(o.departement) !== -1,
+            ville: o.ville || '',
+            botte: normaliserPourRecherche([n, o.ville, o.codePostal].join(' '))
+          });
+        }
+      }
+      indexRechercheNotairesListe.set(carnet, index);
+    }
+    return index.filter(x => mots.every(m => x.botte.indexOf(m) !== -1))
+      .sort((a, b) => (b.etude ? 1 : 0) - (a.etude ? 1 : 0) || (b.proche ? 1 : 0) - (a.proche ? 1 : 0) || a.ville.localeCompare(b.ville, 'fr') || a.valeur.localeCompare(b.valeur, 'fr'))
+      .slice(0, max || 25)
+      .map(x => ({ valeur: x.valeur, libelle: x.libelle }));
+  }
+
+  // Champ notaire : la liste déroulante se remplit au fil de la frappe avec les notaires de tout l'annuaire (notre office en
+  // tête), ceux lus dans l'acte restant proposés (`data-base` de la liste).
+  function proposerNotairesAnnuaire(champ) {
+    const liste = champ && (champ.list || document.getElementById(champ.getAttribute('list') || ''));
+    if (!liste) return;
+    let base = [];
+    try { base = JSON.parse(liste.getAttribute('data-base') || '[]'); } catch (e) { /* liste de départ seule */ }
+    const q = String(champ.value || '').trim();
+    const nomsBase = Array.isArray(base) ? base : [];
+    let options;
+    if (q.length < 2) {
+      options = nomsBase.concat(optionsNotairesCarnet(carnetConfreres).filter(n => nomsBase.indexOf(n) === -1)).map(v => ({ valeur: v, libelle: '' }));
+    } else {
+      const lus = nomsBase.filter(n => normaliserPourRecherche(n).indexOf(normaliserPourRecherche(q)) !== -1).map(v => ({ valeur: v, libelle: 'Lu dans l’acte' }));
+      options = lus.concat(rechercherNotairesAnnuaire(q, carnetConfreres, 25).filter(x => !lus.some(l => l.valeur === x.valeur)));
+    }
+    liste.innerHTML = options.map(o => `<option value="${escapeAttr(o.valeur)}"${o.libelle ? ` label="${escapeAttr(o.libelle)}"` : ''}></option>`).join('');
   }
 
   // Complète, une fois le carnet chargé, les notaires des fiches nommés par leur seul prénom
@@ -139,7 +218,9 @@
       if (o.departement && !o.etude && !o.modifie && o.annuaire !== false && DEPARTEMENTS_PROCHES_ANNUAIRE.indexOf(o.departement) === -1) continue;
       for (const n of o.notaires || []) options.push(`Maître ${n}${o.ville ? ` (${o.ville})` : ''}`);
     }
-    return options.sort((a, b) => a.localeCompare(b, 'fr'));
+    // Notre office d'abord (étude 05/10), les autres par ordre alphabétique.
+    const etude = (carnet || []).filter(o => o.etude).reduce((acc, o) => acc.concat((o.notaires || []).map(n => `Maître ${n}${o.ville ? ` (${o.ville})` : ''}`)), []);
+    return etude.concat(options.filter(x => etude.indexOf(x) === -1).sort((a, b) => a.localeCompare(b, 'fr')));
   }
 
   // Recherche dans le carnet : nom de l'office, notaires, ville, bureaux, email. Notre office en
@@ -1745,8 +1826,9 @@
     const d = dossiers.find(x => x.id === id);
     if (!d) return;
     const champ = cote === 'vendeur' ? 'notaireVendeur' : 'notaireAcquereur';
-    const nouveau = String(valeur || '').trim();
-    if (nouveau === (d[champ] || '')) return;
+    // Retrouvé dans l'annuaire et complété (nom, prénom, ville) ; notre office toujours écrit « Maître Sophie GOSSART (BLOIS) ».
+    const nouveau = completerNomNotaire(String(valeur || '').trim(), carnetConfreres);
+    if (nouveau === (d[champ] || '')) { render(); return; }
     d[champ] = nouveau;
     ajouterHistorique(d, `${cote === 'vendeur' ? 'Notaire du vendeur' : 'Notaire de l’acquéreur'} : ${nouveau || '—'}`);
     // Le rédacteur repéré à l'import n'avait pas de côté tant qu'aucun des deux champs ne portait

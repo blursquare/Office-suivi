@@ -16711,3 +16711,23 @@ trouvée/introuvable toutes les 20 min venait de fenêtres qui n'avaient pas la 
   (brouillon `X-Unsent`) ; fermé sans enregistrer dans Outlook, il n'existe ni en Brouillons ni en Envoyés et la ligne « en attente » restait
   (correspondance possible 30 jours). Ajout : `DELETE /api/emails-prepares/:id` + croix sur chaque ligne en attente (`retirerEmailPrepare`).
   Pas d'expiration automatique (un envoi tardif reste retrouvable). Test serveur dans `emails-dossiers.test.js`.
+
+- **0.145.0 (05/10 16 h 15) — notaires liés au répertoire, notre office par défaut** (étude : « lier tous les champs pour les notaires de
+  CLAIRE au répertoire pour les retrouver et compléter leurs nom ou coordonnées. Mettre Sophie GOSSART de base quand il s'agit de notre
+  office »). Champs concernés : notaire du vendeur / de l'acquéreur de la fiche et de Nouveau dossier (étape Vérifier). Changements :
+  (1) `rechercherNotairesAnnuaire` / `proposerNotairesAnnuaire` : la liste déroulante se remplit à la frappe avec les notaires de TOUT
+  l'annuaire (nom, ville ou code postal ; notre office, puis les départements voisins, puis par ville ; 25 au plus, office et département
+  en libellé) — avant, seuls les départements voisins étaient proposés ; les notaires lus dans l'acte restent en tête (`data-base`).
+  (2) `completerNomNotaire` retrouve un notaire par son nom dans l'annuaire quand UN SEUL correspond (nom de famille, plus prénom et ville
+  s'ils sont écrits) : « Maître LACOUR » → « Maître Aurélien LACOUR (CELLETTES) » ; plusieurs ou aucun → rien n'est deviné (règle des
+  notaires inchangée) ; appelé à la saisie (`affecterNotaire`, `completerNotaireWizard`), à la lecture de l'acte, à la création et au
+  chargement (`completerNotairesDossiers`). (3) Notre office : `canoniserNotaireEtude` ramène toute graphie reconnue (« Maître GOSSART »,
+  « Sophie GOSSARD (Blois) », « Office Notarial de la Salamandre — Me Sophie GOSSART ») à `NOTAIRE_ETUDE_LIBELLE` =
+  « Maître Sophie GOSSART (BLOIS) » ; une valeur déjà écrite ainsi (casse de la ville près) ou citant aussi un autre notaire n'est pas
+  touchée ; bouton « Notre office » sur un champ vide de la fiche ; dans Nouveau dossier, `placerEtudeParDefautWizard` écrit ce libellé
+  dans le champ du côté de l'étude (instrumentaire : côté qui reçoit l'acte ; participant : l'autre) dès que le rôle et le côté sont lus,
+  déduits ou choisis (jamais sur le rôle par défaut du formulaire, jamais sur une saisie ou un choix à la main, une seule fois par champ,
+  origine « Par défaut »). Pas fait : remplissage automatique d'un champ vide de la fiche (le rôle par défaut `instrumentaire` n'est pas un
+  choix) — le bouton « Notre office » le fait en un clic. Coordonnées : inchangées (office du confrère à un clic dans le répertoire,
+  email repris du répertoire pour les relances à défaut d'adresse saisie, `completerEmailCarnet` complète le répertoire). Tests
+  `carnet-confreres`.
