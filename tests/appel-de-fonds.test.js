@@ -624,50 +624,61 @@ test('donneesCourrierAppelFonds : cinq retours à la ligne sous l\'adresse du de
   assert.equal(addrLines, 'Monsieur Jean DUPONT\n12 rue des Lices' + '\n'.repeat(5));
 });
 
-// Étude 05/10 : situation des clients sur la fiche (homme, femme, couple marié, pacsé, concubins) ; pacsés et concubins
-// nommés chacun, même formule que les mariés (« Chers Monsieur et Madame, »). Noms inventés.
+// Étude 05/10 : sur la fiche, chaque personne en « Monsieur / Madame Prénom NOM » et la seule situation matrimoniale du
+// couple (marié, pacsé, concubins) ; deux hommes ou deux femmes compris. Noms inventés.
 test('situation : destinataire et formule d’appel du courrier', () => {
   const app = chargerApplication();
-  const paul = { civilite: 'M', prenom: 'Paul', nom: 'DUPONT' };
-  const lea = { civilite: 'Mme', prenom: 'Léa', nom: 'MARTIN' };
+  const paul = { civilite: 'M', prenom: '', nom: 'Paul DUPONT' };
+  const lea = { civilite: 'Mme', prenom: '', nom: 'Léa MARTIN' };
+  const marc = { civilite: 'M', prenom: '', nom: 'Marc LEROY' };
+  const anne = { civilite: 'Mme', prenom: '', nom: 'Anne ROCHE' };
   assert.equal(app.lignesDestinatairesAppelFonds([paul, lea], 'marie').join('|'), 'Monsieur et Madame Paul DUPONT');
   assert.equal(app.lignesDestinatairesAppelFonds([lea, paul], 'marie').join('|'), 'Monsieur et Madame Paul DUPONT', 'Monsieur trouvé par sa civilité');
-  assert.equal(app.lignesDestinatairesAppelFonds([paul, lea], 'pacse').join('|'), 'Monsieur Paul DUPONT et Madame Léa MARTIN');
+  assert.equal(app.lignesDestinatairesAppelFonds([lea, paul], 'pacse').join('|'), 'Monsieur Paul DUPONT et Madame Léa MARTIN');
   assert.equal(app.lignesDestinatairesAppelFonds([paul, lea], 'concubin').join('|'), 'Monsieur Paul DUPONT et Madame Léa MARTIN');
-  assert.equal(app.lignesDestinatairesAppelFonds([{ civilite: 'M', prenom: '', nom: 'DUPONT' }], 'marie').join('|'), 'Monsieur et Madame DUPONT');
-  assert.equal(app.lignesDestinatairesAppelFonds([{ civilite: 'M', prenom: 'Léa', nom: 'MARTIN' }], 'femme').join('|'), 'Madame Léa MARTIN');
-  assert.equal(app.lignesDestinatairesAppelFonds([paul, lea], '').join('|'), 'Monsieur Paul DUPONT|Madame Léa MARTIN', 'sans situation : comme avant');
-  assert.equal(app.salutationAppelFonds([paul], 'femme'), 'Chère Madame,');
-  assert.equal(app.salutationAppelFonds([lea], 'homme'), 'Cher Monsieur,');
+  assert.equal(app.lignesDestinatairesAppelFonds([paul, marc], 'marie').join('|'), 'Monsieur Paul DUPONT et Monsieur Marc LEROY', 'deux hommes mariés');
+  assert.equal(app.lignesDestinatairesAppelFonds([lea, anne], 'pacse').join('|'), 'Madame Léa MARTIN et Madame Anne ROCHE', 'deux femmes pacsées');
+  assert.equal(app.lignesDestinatairesAppelFonds([{ civilite: 'M', prenom: '', nom: 'DUPONT' }], 'marie').join('|'), 'Monsieur et Madame DUPONT', 'couple en une seule ligne');
+  assert.equal(app.lignesDestinatairesAppelFonds([lea], '').join('|'), 'Madame Léa MARTIN');
+  assert.equal(app.lignesDestinatairesAppelFonds([paul, lea], '').join('|'), 'Monsieur Paul DUPONT|Madame Léa MARTIN', 'sans situation : une ligne par personne');
   ['marie', 'pacse', 'concubin'].forEach(s => assert.equal(app.salutationAppelFonds([paul, lea], s), 'Chers Monsieur et Madame,'));
-  assert.equal(app.salutationAppelFonds([paul, lea], ''), 'Chers Monsieur et Madame,');
+  assert.equal(app.salutationAppelFonds([paul, marc], 'marie'), 'Chers Messieurs,');
+  assert.equal(app.salutationAppelFonds([lea, anne], 'concubin'), 'Chères Mesdames,');
   assert.equal(app.salutationAppelFonds([lea], ''), 'Chère Madame,');
+  assert.equal(app.salutationAppelFonds([paul], ''), 'Cher Monsieur,');
+  assert.equal(app.salutationAppelFonds([{ civilite: 'M', nom: 'DUPONT' }], 'marie'), 'Chers Monsieur et Madame,');
 });
 
-test('situation : saisie sur la fiche, sinon déduite d’Authentic sans deviner', () => {
+test('situation matrimoniale : saisie sur la fiche, sinon déduite d’Authentic pour un couple, jamais homme/femme', () => {
   const app = chargerApplication();
-  const seul = { parties: [{ role: 'ACQUEREUR', nom: 'MARTIN', civilite: 'Madame' }] };
-  assert.equal(app.situationClientDossier(seul, 'acquereur'), 'femme');
-  assert.equal(app.situationClientDossier(Object.assign({ situationAcquereur: 'concubin' }, seul), 'acquereur'), 'concubin', 'la fiche l’emporte');
+  assert.equal(app.SITUATIONS_CLIENT.map(x => x.cle).join(','), 'marie,pacse,concubin');
+  const seul = { parties: [{ role: 'ACQUEREUR', nom: 'Léa MARTIN', civilite: 'Madame' }] };
+  assert.equal(app.situationClientDossier(seul, 'acquereur'), '', 'une personne seule n’a pas de situation de couple');
   const couple = { parties: [{ role: 'ACQUEREUR', nom: 'DUPONT', situationMatrimoniale: { situation: 'Marié(e)' } }, { role: 'ACQUEREUR', nom: 'MARTIN' }] };
   assert.equal(app.situationClientDossier(couple, 'acquereur'), 'marie');
+  assert.equal(app.situationClientDossier(Object.assign({ situationAcquereur: 'concubin' }, couple), 'acquereur'), 'concubin', 'la fiche l’emporte');
+  assert.equal(app.situationClientDossier(Object.assign({ situationAcquereur: 'homme' }, couple), 'acquereur'), 'marie', 'ancienne valeur « homme » ignorée');
   const pacses = { parties: [{ role: 'VENDEUR', nom: 'A', situationMatrimoniale: { situation: 'Pacte civil de solidarité' } }, { role: 'VENDEUR', nom: 'B' }] };
   assert.equal(app.situationClientDossier(pacses, 'vendeur'), 'pacse');
-  assert.equal(app.situationClientDossier({ parties: [{ role: 'ACQUEREUR', nom: 'X' }, { role: 'ACQUEREUR', nom: 'Y' }] }, 'acquereur'), '', 'deux personnes sans rien de dit : à préciser');
-  assert.equal(app.situationClientDossier({ parties: [{ role: 'ACQUEREUR', nom: 'X', prenom: 'Marie' }] }, 'acquereur'), '', 'jamais depuis un prénom');
+  assert.equal(app.situationClientDossier({ parties: [{ role: 'ACQUEREUR', nom: 'X' }, { role: 'ACQUEREUR', nom: 'Y' }] }, 'acquereur'), '');
+  assert.equal(app.civiliteDepuisTexte('Monsieur'), 'M');
+  assert.equal(app.civiliteDepuisTexte('Mme'), 'Mme');
+  assert.equal(app.civiliteDepuisTexte('Marie'), '', 'jamais un prénom');
 });
 
-test('situation : l’appel de fonds reprend la fiche (rôle en capitales, prénom, civilité)', () => {
+test('situation : l’appel de fonds reprend la fiche (rôle en capitales, civilités saisies)', () => {
   const app = chargerApplication();
   const d = { id: 'x', nom: 'LEROY / DUPONT', situationAcquereur: 'pacse',
-    parties: [{ role: 'VENDEUR', nom: 'LEROY' }, { role: 'ACQUEREUR', nom: 'DUPONT', prenom: 'Paul' }, { role: 'ACQUEREUR', nom: 'MARTIN', prenom: 'Léa' }] };
+    parties: [{ role: 'VENDEUR', nom: 'LEROY' }, { role: 'ACQUEREUR', nom: 'Paul DUPONT' }, { role: 'ACQUEREUR', nom: 'Léa MARTIN' }, { role: 'ACQUEREUR', nom: '' }] };
   const p = app.prefillAppelFonds(d);
   assert.equal(p.situation, 'pacse');
-  assert.equal(p.clients.map(c => `${c.civilite} ${c.prenom} ${c.nom}`).join('|'), 'M Paul DUPONT|Mme Léa MARTIN');
+  assert.equal(p.clients.map(c => `${c.civilite} ${c.nom}`).join('|'), 'M Paul DUPONT|Mme Léa MARTIN', 'sans civilité connue : Monsieur puis Madame, une personne sans nom écartée');
   assert.match(p.aCompleter.join(' '), /vérifiez qui est qui/);
-  assert.equal(app.lignesDestinatairesAppelFonds(p.clients, p.situation).join('|'), 'Monsieur Paul DUPONT et Madame Léa MARTIN');
+  const deuxHommes = app.prefillAppelFonds(Object.assign({}, d, { parties: [{ role: 'ACQUEREUR', nom: 'Paul DUPONT', civilite: 'M' }, { role: 'ACQUEREUR', nom: 'Marc LEROY', civilite: 'M' }] }));
+  assert.equal(app.lignesDestinatairesAppelFonds(deuxHommes.clients, deuxHommes.situation).join('|'), 'Monsieur Paul DUPONT et Monsieur Marc LEROY');
+  assert.doesNotMatch(deuxHommes.aCompleter.join(' '), /qui est qui|Civilité/);
   const sansSituation = app.prefillAppelFonds(Object.assign({}, d, { situationAcquereur: undefined }));
-  assert.match(sansSituation.aCompleter.join(' '), /Situation de l’acquéreur/);
+  assert.match(sansSituation.aCompleter.join(' '), /Situation des acquéreurs/);
 });
 
 test('appel de fonds du confrère sur le NAS : candidats par le nom, le rattaché et la racine d’abord, le courrier de CLAIRE en dernier', () => {

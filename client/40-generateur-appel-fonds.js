@@ -474,13 +474,12 @@
   // --- clients et formule d'appel ---------------------------------------------------------------
   // La formule d'appel dépend de la civilité de CHAQUE destinataire : c'est pour ça que la
   // civilité est un champ à part entière et jamais devinée depuis un prénom.
-  // Situation des clients d'un côté de la vente (étude 05/10 : « préciser sur la fiche s'il s'agit d'un homme, d'une femme, d'un
-  // couple marié, pacsé ou de concubins », pour ajuster le courrier d'appel de fonds). Saisie sur la fiche (`d.situationVendeur`,
-  // `d.situationAcquereur`) ; vide, elle se déduit seulement de ce qu'Authentic a dit sans ambiguïté (civilité d'une personne
-  // seule, situation matrimoniale d'un couple) — jamais d'un prénom.
+  // Personnes et situation matrimoniale d'un côté de la vente (étude 05/10 : « préciser sur la fiche la situation matrimoniale,
+  // mais pas homme ou femme : plutôt Monsieur prénom nom et Madame prénom nom, ou deux hommes, ou deux femmes »). Sur la fiche :
+  // chaque partie avec sa civilité (`p.civilite` 'M' / 'Mme', ou le texte d'Authentic) et « Prénom NOM » (`p.nom`) ; pour un
+  // couple, la situation (`d.situationVendeur`, `d.situationAcquereur`) — vide, déduite seulement de la situation matrimoniale
+  // qu'Authentic a relevée, jamais d'un prénom.
   var SITUATIONS_CLIENT = [
-    { cle: 'homme', libelle: 'Homme' },
-    { cle: 'femme', libelle: 'Femme' },
     { cle: 'marie', libelle: 'Couple marié' },
     { cle: 'pacse', libelle: 'Couple pacsé' },
     { cle: 'concubin', libelle: 'Concubins' }
@@ -493,22 +492,18 @@
     if (/^(mme|mlle|madame|mademoiselle)$/.test(n)) return 'Mme';
     return '';
   }
+  function roleDeCote(cote) { return cote === 'vendeur' ? 'VENDEUR' : 'ACQUEREUR'; }
   function partiesCoteDossier(d, cote) {
-    const role = cote === 'vendeur' ? 'vendeur' : 'acquereur';
+    const role = roleDeCote(cote).toLowerCase();
     return (Array.isArray(d && d.parties) ? d.parties : []).filter(p => p && String(p.role || '').toLowerCase() === role);
   }
-  // Pure : la situation que les données du dossier disent sans ambiguïté ('' sinon).
+  // Pure : la situation d'un couple que les données du dossier disent sans ambiguïté ('' sinon).
   function situationClientDeduite(d, cote) {
     const personnes = partiesCoteDossier(d, cote).filter(p => p.qualitePersonne !== 'morale');
-    if (personnes.length === 1) {
-      const c = civiliteDepuisTexte(personnes[0].civilite);
-      return c === 'M' ? 'homme' : c === 'Mme' ? 'femme' : '';
-    }
-    if (personnes.length === 2) {
-      const situations = personnes.map(p => normaliserPourRecherche(String((p.situationMatrimoniale && p.situationMatrimoniale.situation) || '')));
-      if (situations.some(t => /pacs|pacte civil/.test(t))) return 'pacse';
-      if (situations.some(t => /mari/.test(t))) return 'marie';
-    }
+    if (personnes.length !== 2) return '';
+    const situations = personnes.map(p => normaliserPourRecherche(String((p.situationMatrimoniale && p.situationMatrimoniale.situation) || '')));
+    if (situations.some(t => /pacs|pacte civil/.test(t))) return 'pacse';
+    if (situations.some(t => /mari/.test(t))) return 'marie';
     return '';
   }
   // Pure : la situation retenue — celle saisie sur la fiche, sinon la déduite.
@@ -520,17 +515,69 @@
     const s = SITUATIONS_CLIENT.find(x => x.cle === situation);
     return s ? s.libelle : '';
   }
-  // Fiche : la liste d'un côté. Vide et déduite d'Authentic, la première option le dit (« Homme (Authentic) »).
-  function selectSituationClient(d, cote) {
-    const saisie = d[cote === 'vendeur' ? 'situationVendeur' : 'situationAcquereur'] || '';
-    const deduite = saisie ? '' : situationClientDeduite(d, cote);
-    const qui = cote === 'vendeur' ? 'Vendeur' : 'Acquéreur';
-    return `<label class="situation-cote"><span class="situation-qui">${qui}</span>`
-      + `<select id="sit-${cote}-${escapeAttr(d.id)}" class="prop-champ" aria-label="Situation ${cote === 'vendeur' ? 'du vendeur' : 'de l’acquéreur'}" onchange="changerSituationClient('${escapeOnclickArg(d.id)}', '${cote}', this.value)">`
-      + `<option value="">${escapeHtml(deduite ? libelleSituationClient(deduite) + ' (Authentic)' : 'À préciser')}</option>`
-      + SITUATIONS_CLIENT.map(x => `<option value="${x.cle}"${saisie === x.cle ? ' selected' : ''}>${escapeHtml(x.libelle)}</option>`).join('')
-      + '</select></label>';
+
+  // Fiche : les personnes d'un côté, « [Monsieur ▾] Prénom NOM » chacune, puis la situation du couple (dès deux personnes),
+  // puis « + Personne ». Une société n'a pas de civilité.
+  function renderPersonnesCoteFiche(d, cote) {
+    const id = escapeOnclickArg(d.id);
+    const parties = Array.isArray(d.parties) ? d.parties : [];
+    const indices = parties.map((p, i) => i).filter(i => parties[i] && String(parties[i].role || '').toLowerCase() === roleDeCote(cote).toLowerCase());
+    const qui = cote === 'vendeur' ? 'du vendeur' : 'de l’acquéreur';
+    const lignes = indices.map(i => {
+      const p = parties[i];
+      const nomComplet = [p.prenom, p.nom].map(x => String(x || '').trim()).filter(Boolean).join(' ');
+      const champNom = `<input type="text" id="pers-${escapeAttr(d.id)}-${i}" class="prop-champ personne-nom" value="${escapeAttr(nomComplet)}" placeholder="Prénom NOM" aria-label="Prénom et nom ${qui}" onblur="changerPersonneDossier('${id}', ${i}, 'nom', this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">`;
+      if (p.qualitePersonne === 'morale') return `<span class="personne-ligne"><span class="personne-civ-texte">Société</span>${champNom}</span>`;
+      const civ = civiliteDepuisTexte(p.civilite);
+      return `<span class="personne-ligne"><select class="prop-champ personne-civ" aria-label="Civilité ${qui}" onchange="changerPersonneDossier('${id}', ${i}, 'civilite', this.value)">`
+        + `<option value=""${civ ? '' : ' selected'}>Civilité</option><option value="M"${civ === 'M' ? ' selected' : ''}>Monsieur</option><option value="Mme"${civ === 'Mme' ? ' selected' : ''}>Madame</option></select>${champNom}</span>`;
+    });
+    let situation = '';
+    if (indices.filter(i => parties[i].qualitePersonne !== 'morale').length >= 2) {
+      const saisie = d[cote === 'vendeur' ? 'situationVendeur' : 'situationAcquereur'] || '';
+      const valide = SITUATIONS_CLIENT.some(x => x.cle === saisie) ? saisie : '';
+      const deduite = valide ? '' : situationClientDeduite(d, cote);
+      situation = `<select id="sit-${cote}-${escapeAttr(d.id)}" class="prop-champ personne-situation" aria-label="Situation matrimoniale ${qui}" onchange="changerSituationClient('${id}', '${cote}', this.value)">`
+        + `<option value="">${escapeHtml(deduite ? libelleSituationClient(deduite) + ' (Authentic)' : 'Situation à préciser')}</option>`
+        + SITUATIONS_CLIENT.map(x => `<option value="${x.cle}"${valide === x.cle ? ' selected' : ''}>${escapeHtml(x.libelle)}</option>`).join('')
+        + '</select>';
+    }
+    const ajout = `<button type="button" class="lien-action personne-ajout" onclick="ajouterPersonneDossier('${id}', '${cote}')">+ Personne</button>`;
+    return `<span class="personnes-cote">${lignes.join('')}${lignes.length ? '' : '<span class="prop-texte vide">Aucune personne relevée</span>'}<span class="personne-pied">${situation}${ajout}</span></span>`;
   }
+
+  function changerPersonneDossier(id, index, champ, valeur) {
+    const d = dossiers.find(x => x.id === id);
+    const p = d && Array.isArray(d.parties) ? d.parties[index] : null;
+    if (!p) return;
+    if (champ === 'civilite') {
+      const c = valeur === 'M' || valeur === 'Mme' ? valeur : '';
+      if (civiliteDepuisTexte(p.civilite) === c) return;
+      if (c) p.civilite = c; else delete p.civilite;
+      ajouterHistorique(d, `Civilité : ${c === 'M' ? 'Monsieur' : c === 'Mme' ? 'Madame' : '—'} ${[p.prenom, p.nom].filter(Boolean).join(' ')}`);
+    } else {
+      const nom = String(valeur || '').replace(/\s+/g, ' ').trim().slice(0, 160);
+      const avant = [p.prenom, p.nom].map(x => String(x || '').trim()).filter(Boolean).join(' ');
+      if (nom === avant) return;
+      if (!nom) { afficherToast('Le nom ne peut pas être vide.', 'OK', null); render(); return; }
+      p.nom = nom;
+      delete p.prenom;
+      ajouterHistorique(d, `${String(p.role || '').toUpperCase() === 'VENDEUR' ? 'Vendeur' : 'Acquéreur'} : ${avant || '—'} → ${nom}`);
+    }
+    sauvegarder(d);
+    render();
+  }
+
+  function ajouterPersonneDossier(id, cote) {
+    const d = dossiers.find(x => x.id === id);
+    if (!d) return;
+    if (!Array.isArray(d.parties)) d.parties = [];
+    d.parties.push({ nom: '', role: roleDeCote(cote), qualitePersonne: 'physique', origine: 'manuel' });
+    render();
+    const champ = document.getElementById(`pers-${d.id}-${d.parties.length - 1}`);
+    if (champ) champ.focus();
+  }
+
   function changerSituationClient(id, cote, valeur) {
     const d = dossiers.find(x => x.id === id);
     if (!d) return;
@@ -538,34 +585,39 @@
     const nouvelle = SITUATIONS_CLIENT.some(x => x.cle === valeur) ? valeur : '';
     if ((d[champ] || '') === nouvelle) return;
     if (nouvelle) d[champ] = nouvelle; else delete d[champ];
-    ajouterHistorique(d, `${cote === 'vendeur' ? 'Vendeur' : 'Acquéreur'} : ${libelleSituationClient(nouvelle) || 'situation à préciser'}`);
+    ajouterHistorique(d, `${cote === 'vendeur' ? 'Vendeurs' : 'Acquéreurs'} : ${libelleSituationClient(nouvelle) || 'situation à préciser'}`);
     sauvegarder(d);
     render();
   }
 
-  // Lignes du destinataire du courrier selon la situation (étude 05/10) : couple marié « Monsieur et Madame Paul DUPONT » ;
-  // couple pacsé ou concubins « Monsieur Paul DUPONT et Madame Léa MARTIN » ; homme / femme : civilité de chaque personne.
-  // Sans situation (ou une SCI, ou plus de deux personnes) : une ligne par client, comme avant. Pure.
+  // Lignes du destinataire du courrier (étude 05/10) : couple marié Monsieur + Madame « Monsieur et Madame Paul DUPONT » ;
+  // sinon chacun nommé avec sa civilité, Monsieur d'abord — « Monsieur Paul DUPONT et Madame Léa MARTIN » (pacsés, concubins),
+  // « Monsieur Paul DUPONT et Monsieur Marc LEROY », « Madame … et Madame … ». Une SCI ou plus de deux personnes : une ligne
+  // par client, comme avant. Pure.
   function lignesDestinatairesAppelFonds(clients, situation) {
     const liste = (Array.isArray(clients) ? clients : []).filter(c => c && String(c.nom || '').trim());
     const estPersonne = c => c.civilite !== 'SCI' && c.civilite !== 'Indivision';
-    if (situation === 'homme' || situation === 'femme') {
-      return liste.map(c => ligneClientComplete(estPersonne(c) ? Object.assign({}, c, { civilite: situation === 'homme' ? 'M' : 'Mme' }) : c)).filter(Boolean);
+    if (estCoupleSituation(situation) && liste.length === 1 && estPersonne(liste[0])) {
+      return [['Monsieur et Madame', liste[0].prenom, liste[0].nom].map(x => String(x || '').trim()).filter(Boolean).join(' ')];
     }
-    if (estCoupleSituation(situation) && liste.length && liste.length <= 2 && liste.every(estPersonne)) {
-      const monsieur = liste.find(c => c.civilite === 'M') || liste[0];
-      const madame = liste.find(c => c !== monsieur);
-      if (situation === 'marie' || !madame) return [['Monsieur et Madame', monsieur.prenom, monsieur.nom].map(x => String(x || '').trim()).filter(Boolean).join(' ')];
-      return [ligneClientComplete(Object.assign({}, monsieur, { civilite: 'M' })) + ' et ' + ligneClientComplete(Object.assign({}, madame, { civilite: 'Mme' }))];
+    if (liste.length === 2 && liste.every(estPersonne)) {
+      const monsieur = liste.find(c => c.civilite === 'M');
+      const madame = liste.find(c => c.civilite === 'Mme' || c.civilite === 'Mlle');
+      if (monsieur && madame && situation === 'marie') {
+        return [['Monsieur et Madame', monsieur.prenom, monsieur.nom].map(x => String(x || '').trim()).filter(Boolean).join(' ')];
+      }
+      if (estCoupleSituation(situation)) {
+        const ordre = monsieur && madame ? [monsieur, madame] : liste;
+        return [ordre.map(ligneClientComplete).join(' et ')];
+      }
     }
     return liste.map(ligneClientComplete).filter(Boolean);
   }
 
+  // Formule d'appel : selon les civilités (« Chers Monsieur et Madame, », « Chers Messieurs, », « Chères Mesdames, ») ; un couple
+  // saisi en une seule ligne (« DUPONT ») reste « Chers Monsieur et Madame, ».
   function salutationAppelFonds(clients, situation) {
-    if (situation === 'homme') return 'Cher Monsieur,';
-    if (situation === 'femme') return 'Chère Madame,';
-    // Couple marié, pacsé ou concubins : même formule (choix de l'étude, 05/10).
-    if (estCoupleSituation(situation)) return 'Chers Monsieur et Madame,';
+    if (estCoupleSituation(situation) && (Array.isArray(clients) ? clients : []).length < 2) return 'Chers Monsieur et Madame,';
     const liste = Array.isArray(clients) ? clients : [];
     // Une personne morale n'a pas de civilité : on s'adresse à son gérant, sans présumer son genre.
     if (liste.some(c => c && c.civilite === 'SCI')) return 'Cher Monsieur/Madame le gérant,';
@@ -596,13 +648,13 @@
   function clientsDepuisDossier(d) {
     if (!d) return [];
     // Rôle en capitales (« ACQUEREUR ») comme partout ailleurs : le filtre en minuscules ne trouvait jamais les parties.
-    const parties = partiesCoteDossier(d, 'acquereur');
+    const parties = partiesCoteDossier(d, 'acquereur').filter(p => String(p.nom || '').trim());
     if (parties.length) {
       return parties.map(p => {
         if (p.qualitePersonne === 'morale') return { civilite: 'SCI', prenom: '', nom: p.nom || '', aCompleter: false };
         const civilite = civiliteDepuisTexte(p.civilite);
         const prenom = String(p.prenom || '').trim();
-        return { civilite: civilite || 'M', prenom, nom: p.nom || '', aCompleter: !civilite || !prenom, civiliteLue: !!civilite };
+        return { civilite: civilite || 'M', prenom, nom: p.nom || '', aCompleter: !civilite, civiliteLue: !!civilite };
       });
     }
     // Repli pour un dossier créé à la main ou antérieur à l'extraction structurée : le nom du
@@ -663,12 +715,10 @@
     if (!d) return null;
     const clients = clientsDepuisDossier(d);
     const situation = situationClientDossier(d, 'acquereur');
-    // Homme / femme déclarés sur la fiche : la civilité de chaque personne suit. Couple sans civilité connue : Monsieur puis
-    // Madame dans l'ordre des parties — à vérifier, d'où la ligne « à compléter » plus bas.
+    // Couple sans aucune civilité connue : Monsieur puis Madame dans l'ordre des parties — à vérifier (ligne « à compléter »
+    // plus bas) ; la civilité saisie sur la fiche, elle, est reprise telle quelle (deux hommes, deux femmes compris).
     let ordreCoupleSuppose = false;
-    if (situation === 'homme' || situation === 'femme') {
-      clients.forEach(c => { if (c.civilite !== 'SCI') c.civilite = situation === 'homme' ? 'M' : 'Mme'; });
-    } else if (estCoupleSituation(situation) && clients.length === 2 && clients.every(c => c.civilite !== 'SCI')) {
+    if (estCoupleSituation(situation) && clients.length === 2 && clients.every(c => c.civilite !== 'SCI')) {
       if (!clients.some(c => c.civiliteLue)) { clients[0].civilite = 'M'; clients[1].civilite = 'Mme'; ordreCoupleSuppose = true; }
     }
     const depot = depotDeductible(d);
@@ -679,9 +729,9 @@
     if (clients.length) {
       repris.push(clients.length > 1 ? `${clients.length} acquéreurs` : 'Acquéreur');
       if (situation) repris.push(`Situation : ${libelleSituationClient(situation)}`);
-      else aCompleter.push('Situation de l’acquéreur (homme, femme, couple marié, pacsé, concubins) — à préciser sur la fiche pour ajuster le courrier.');
+      else if (clients.filter(c => c.civilite !== 'SCI').length === 2) aCompleter.push('Situation des acquéreurs (couple marié, pacsé, concubins) — à préciser sur la fiche pour ajuster le courrier.');
       if (ordreCoupleSuppose) aCompleter.push('Monsieur et Madame posés dans l’ordre des acquéreurs du dossier — vérifiez qui est qui.');
-      if (clients.some(c => c.aCompleter)) aCompleter.push('Civilité et prénom de chaque client — l’acte n’en donne que le nom.');
+      if (clients.some(c => c.aCompleter)) aCompleter.push('Civilité et prénom de chaque acquéreur — à préciser sur la fiche (Monsieur / Madame, Prénom NOM).');
     } else {
       aCompleter.push('Nom du ou des acquéreurs — aucun n’a pu être lu sur ce dossier.');
     }

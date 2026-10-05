@@ -16911,3 +16911,20 @@ enregistré dans le dossier NAS. »
 - Abandonné si l'étude change de dossier pendant la lecture (jeton `afRechercheDecompteNas`, aussi incrémenté par
   « Réinitialiser »). Vérifié dans Chromium avec NAS et lecteur PDF simulés ; pas encore sur de vrais appels de fonds de
   confrères rangés sur le NAS.
+
+### 05/10/2026 23 h 09 — 0.157.1 : personnes en « Monsieur / Madame Prénom NOM », situation matrimoniale seule
+
+Étude : « Tu peux mettre dans la fiche la situation matrimoniale, mais pas homme ou femme. Mets plutôt Monsieur prénom nom et
+Madame prénom nom, ou si deux hommes ou deux femmes. »
+
+- `SITUATIONS_CLIENT` réduit à couple marié / pacsé / concubins (une ancienne valeur « homme »/« femme » est ignorée). La ligne
+  « Situation » de la fiche est remplacée par « Vendeurs » et « Acquéreurs » (au-dessus des emails/téléphones) :
+  `renderPersonnesCoteFiche` — par partie, liste Monsieur/Madame (`p.civilite` 'M'/'Mme' ; la civilité texte d'Authentic est
+  comprise par `civiliteDepuisTexte`) et champ « Prénom NOM » (`p.nom`, `p.prenom` fusionné puis retiré à la modification,
+  nom vide refusé) ; une société : « Société » sans civilité ; dès deux personnes, la situation du couple ; « + Personne »
+  ajoute une partie vide du côté. Rien n'est deviné d'un prénom.
+- Courrier : `lignesDestinatairesAppelFonds` — marié avec un Monsieur et une Madame : « Monsieur et Madame Paul DUPONT » ;
+  autrement (pacsés, concubins, deux hommes, deux femmes) chacun nommé, Monsieur d'abord ; couple saisi en une ligne :
+  « Monsieur et Madame NOM ». `salutationAppelFonds` suit les civilités (« Chers Messieurs, », « Chères Mesdames, »).
+  `clientsDepuisDossier` : « à compléter » seulement si la civilité manque (le prénom est dans le nom) ; une partie sans nom
+  est écartée ; deux personnes sans aucune civilité : Monsieur puis Madame, « vérifiez qui est qui ».

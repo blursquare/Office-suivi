@@ -335,12 +335,15 @@ dans `index.html`** (le test `structure-client` refuse tout décalage).
   fois ; un engagement dont toutes les pièces sont reçues est réalisé de lui-même (`etatEngagementAnalyse`, case
   grisée) ; cocher un engagement valide à la main les pièces de la checklist qu'il fait réclamer (`e.piecesValidees`,
   rendues au décochage). Notification Teams « dossier complet » seulement si l'analyse ne laisse rien en attente.
-- **Situation des clients** (étude 05/10, `SITUATIONS_CLIENT`, `d.situationVendeur`/`d.situationAcquereur`, ligne « Situation » de la
-  fiche, `selectSituationClient`) : homme, femme, couple marié, couple pacsé, concubins ; vide → déduite d'Authentic seulement si
-  c'est dit (civilité d'une personne seule, situation matrimoniale d'un couple — `situationClientDeduite`), jamais d'un prénom.
-  Courrier d'appel de fonds (`lignesDestinatairesAppelFonds`, `salutationAppelFonds`, champ « Situation » du générateur) : marié
-  « Monsieur et Madame Paul DUPONT » ; pacsés et concubins nommés chacun « Monsieur Paul DUPONT et Madame Léa MARTIN » ; formule
-  « Chers Monsieur et Madame, » pour tout couple (choix de l'étude), « Cher Monsieur, » / « Chère Madame, » sinon.
+- **Personnes et situation matrimoniale** (étude 05/10, « pas homme ou femme : Monsieur prénom nom, Madame prénom nom, ou deux
+  hommes, deux femmes ») : lignes « Vendeurs » / « Acquéreurs » de la fiche (`renderPersonnesCoteFiche`) — chaque partie
+  « [Monsieur|Madame] Prénom NOM » (`p.civilite` 'M'/'Mme', `p.nom` ; `changerPersonneDossier`, « + Personne »
+  `ajouterPersonneDossier`) et, dès deux personnes, la situation du couple (`SITUATIONS_CLIENT` : marié, pacsé, concubins ;
+  `d.situationVendeur`/`d.situationAcquereur` ; vide → déduite de la situation matrimoniale relevée dans Authentic, jamais d'un
+  prénom). Courrier d'appel de fonds (`lignesDestinatairesAppelFonds`, `salutationAppelFonds`) : marié Monsieur + Madame
+  « Monsieur et Madame Paul DUPONT » ; sinon chacun nommé avec sa civilité, Monsieur d'abord (« Monsieur Paul DUPONT et Madame
+  Léa MARTIN », « Monsieur … et Monsieur … ») ; formule selon les civilités (« Chers Monsieur et Madame, », « Chers Messieurs, »,
+  « Chères Mesdames, »).
 - **Dépôt de garantie** : toujours déduit de l'appel de fonds (l'agence reverse la somme) ; le
   détenteur dit seulement quoi réclamer.
 - **Fonds reçus** (reçus comptables du NAS) : le client est le **titulaire** en début de ligne, et

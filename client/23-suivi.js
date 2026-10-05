@@ -751,8 +751,9 @@
         ${estSuccession(d) ? '' : ligne('calendar', 'Signé le', `<input type="date" id="date-ac-${d.id}" class="prop-champ" value="${escapeAttr(d.dateAvantContrat || '')}" onchange="changerDateAvantContrat('${d.id}', this.value)">`, `date-ac-${d.id}`, siVide(!d.dateAvantContrat).trim())}
       </dl>
       <dl class="fiche-proprietes fiche-coordonnees">
+        ${ligne('user', 'Vendeurs', renderPersonnesCoteFiche(d, 'vendeur'), null, 'prop-pleine')}
+        ${ligne('users', 'Acquéreurs', renderPersonnesCoteFiche(d, 'acquereur'), null, 'prop-pleine')}
         ${coordonneesPartiesDossier(d).map(c => ligne(c.partie === 'vendeur' ? 'user' : 'users', c.libelle, champsCoordonneesPartie(d, c, 'fiche'), c.parNotaire ? `fiche-tel-${c.partie}-${d.id}` : `fiche-email-${c.partie}-${d.id}`, 'prop-pleine')).join('')}
-        ${ligne('users', 'Situation', `<span class="situation-paire">${selectSituationClient(d, 'vendeur')}${selectSituationClient(d, 'acquereur')}</span>`, `sit-vendeur-${d.id}`, 'prop-pleine')}
         ${renderClientsAPlacer(d, ligne)}
         ${renderPersonnesConnues(d, ligne)}
       </dl>

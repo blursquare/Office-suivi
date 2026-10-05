@@ -981,11 +981,9 @@
       <div class="dash-section-titre" style="margin-top:18px;">3 · Client(s)</div>
       <div class="calc-champs">
         <div class="calc-champ">
-          <label for="af-situation">Situation <span class="info-i" tabindex="0" data-info="Reprise de la fiche du dossier. Ajuste le destinataire (« Monsieur et Madame Paul DUPONT » pour un couple marié, « Monsieur Paul DUPONT et Madame Léa MARTIN » pour un couple pacsé ou des concubins) et la formule d&#x27;appel."></span></label>
+          <label for="af-situation">Situation matrimoniale <span class="info-i" tabindex="0" data-info="Situation matrimoniale reprise de la fiche du dossier. Couple marié Monsieur et Madame : « Monsieur et Madame Paul DUPONT » ; sinon chacun nommé avec sa civilité (« Monsieur Paul DUPONT et Madame Léa MARTIN », deux hommes ou deux femmes compris). La formule d&#x27;appel suit les civilités."></span></label>
           <select id="af-situation" onchange="changerSituationAppelFonds(this.value)">
-            <option value="">Selon les civilités</option>
-            <option value="homme">Homme</option>
-            <option value="femme">Femme</option>
+            <option value="">Personne seule ou couple sans précision</option>
             <option value="marie">Couple marié</option>
             <option value="pacse">Couple pacsé</option>
             <option value="concubin">Concubins</option>
