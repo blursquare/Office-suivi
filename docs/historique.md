@@ -16627,3 +16627,12 @@ branché ; aucun nom ne figure dans la copie (tout est masqué).
 - Pistes si l'étude le demande (nouveautés, hors semaine de débogage) : checklist propre aux successions tirée de ces tableaux (banques,
   caisses, état civil par héritier), qualité des parties lue dans les comparants, état d'avancement (« Réponse positive », « Non rédigé »)
   sur la fiche. Vérifier d'abord que l'extension envoie cette page (intitulé reconnu par `pageConnue` : « N - … » suivi de Comparants).
+
+### 05/10/2026 — 0.144.31 — Numéros cliquables : balise de l'extension Chrome « 3CX Click to Call »
+
+Les liens `tel:` de la 0.144.27 ne lançaient rien dans le Chrome classique de l'étude. Elle a relevé ce que l'extension 3CX y fait d'un
+numéro affiché dans le texte d'une page : `<tcxspan tcxhref="0254445050" title="Call 02 54 44 50 50 via 3CX">02 54 44 50 50</tcxspan>`.
+`liensAppelTelephone` enveloppe donc l'icône de téléphone dans cette même balise (`tcxhref` = le numéro sans espaces), à l'intérieur du
+lien `tel:` conservé pour un poste sans l'extension (fenêtre « application » : pas d'extension). **Non vérifié** : l'extension
+réagit-elle à une balise posée par la page (elle la pose normalement elle-même) ? un clic peut aussi déclencher le lien `tel:`
+(invite du navigateur) — à voir au bureau ; repli si besoin : afficher le numéro en texte pour que l'extension le saisisse seule.

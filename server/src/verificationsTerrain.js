@@ -51,7 +51,7 @@ const VERIFICATIONS_TERRAIN = [
   { id: 'notification-logo', depuis: '0.132.2', source: 'manuel', titre: 'Le logo de CLAIRE apparaît dans la notification Windows',
     comment: 'À confirmer à l’œil à la prochaine notification « Nouvelle(s) pièce(s) trouvée(s) ».' },
   { id: 'telephone-3cx-lien', depuis: '0.144.27', source: 'poste', titre: 'Un numéro cliquable de CLAIRE ouvre 3CX pour appeler',
-    comment: 'Coché au premier clic sur l’icône de téléphone d’un numéro (fiche, appels reçus, bandeau d’appel) ; à confirmer à l’œil : 3CX doit composer le numéro (protocole « tel: » réglé sur 3CX sur le poste).' },
+    comment: 'Coché au premier clic sur l’icône de téléphone d’un numéro (fiche, appels reçus, bandeau d’appel) ; à confirmer à l’œil : 3CX doit composer le numéro (extension Chrome « Click to Call » via la balise tcxspan de l’icône, ou protocole « tel: » réglé sur 3CX sur le poste).' },
   { id: 'actes-agenda-historique', depuis: '0.132.0', source: 'serveur', titre: 'Statistiques : historique de l’agenda lu sur deux années (actes à l’agenda)',
     comment: 'Coché quand tous les mois de l’année précédente et de l’année en cours ont été lus dans Exchange.' },
   { id: 'actes-agenda-chiffres', depuis: '0.132.0', source: 'manuel', titre: 'Statistiques : ventes, successions et donations conformes à l’agenda',

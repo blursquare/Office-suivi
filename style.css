@@ -8207,6 +8207,7 @@ button.complement-option.actif .complement-option-source { color: var(--focus); 
 .coord-appel { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: var(--rayon-m); color: var(--muted); }
 .coord-appel:hover, .coord-appel:focus-visible { color: var(--focus); background: var(--paper-sunk); }
 .coord-appel-inline { margin-left: 4px; vertical-align: middle; }
+.coord-appel tcxspan { display: inline-flex; align-items: center; justify-content: center; width: 100%; height: 100%; }
 @media (max-width: 560px) {
   .coord-paire { grid-template-columns: 1fr; gap: 4px; }
 }

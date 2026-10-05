@@ -542,13 +542,16 @@
     return m ? m[0].replace(/[ .]/g, '') : '';
   }
 
-  // Un lien « tel: » par numéro d'un champ qui peut en porter plusieurs (« 06 12 34 56 78 / 02 54 00 00 00 ») : 3CX, installé
-  // comme application par défaut du protocole « tel: » (ou son extension « Click to Call »), compose le numéro (étude 05/10 :
-  // « les numéros de téléphone cliquables pour les ouvrir dans 3CX »). Pure : le HTML des liens, '' sans numéro.
+  // Un lien par numéro d'un champ qui peut en porter plusieurs (« 06 12 34 56 78 / 02 54 00 00 00 ») pour appeler avec 3CX
+  // (étude 05/10 : « les numéros de téléphone cliquables pour les ouvrir dans 3CX »). Deux voies dans le même lien : l'icône est
+  // enveloppée dans un <tcxspan tcxhref="…"> — la forme exacte que l'extension Chrome « 3CX Click to Call » pose elle-même sur
+  // un numéro du texte d'une page (relevée par l'étude : `<tcxspan tcxhref="0254445050" title="Call … via 3CX">`), qu'elle
+  // ne voit pas dans un champ de saisie ni derrière une icône — et le lien « tel: » reste pour un poste sans l'extension
+  // (3CX application du protocole). Pure : le HTML des liens, '' sans numéro.
   function liensAppelTelephone(texte, classe) {
     const numeros = [];
     String(texte || '').split(/[\/;,]|\bou\b/i).forEach(part => { const n = numeroAppelable(part); if (n && !numeros.includes(n)) numeros.push(n); });
-    return numeros.slice(0, 3).map(n => `<a class="${classe || 'coord-appel'}" href="tel:${escapeAttr(n)}" title="Appeler le ${escapeAttr(n)} (3CX)" aria-label="Appeler le ${escapeAttr(n)}" onclick="noterVerificationPoste('telephone-3cx-lien', { detail: 'lien tel: ouvert' })">${icone('phone')}</a>`).join('');
+    return numeros.slice(0, 3).map(n => `<a class="${classe || 'coord-appel'}" href="tel:${escapeAttr(n)}" title="Appeler le ${escapeAttr(n)} (3CX)" aria-label="Appeler le ${escapeAttr(n)}" onclick="noterVerificationPoste('telephone-3cx-lien', { detail: 'lien tel: ouvert' })"><tcxspan tcxhref="${escapeAttr(n)}" title="Call ${escapeAttr(n)} via 3CX">${icone('phone')}</tcxspan></a>`).join('');
   }
 
   function renderFormContactRepertoire(c) {
