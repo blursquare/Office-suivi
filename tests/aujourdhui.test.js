@@ -57,7 +57,7 @@ test('signature lointaine : rien à faire, elle part dans « À venir »', () =>
   assert.strictEqual(types(r), '');
   const datees = r.aVenir.filter(v => v.iso);
   assert.strictEqual(datees.length, 1);
-  assert.strictEqual(datees[0].iso, '2026-10-19', 'appel de fonds : la veille du rendez-vous (05/10)');
+  assert.strictEqual(datees[0].iso, '2026-10-10', 'appel de fonds : 10 jours avant le rendez-vous (05/10)');
   // Le dossier pas encore relié au NAS y figure aussi, sans date.
   assert.ok(r.aVenir.some(v => v.titre === 'Relier le dossier du NAS'));
 });
@@ -338,4 +338,5 @@ test('tâches imbriquées : la ligne du groupe porte la case commune et le tiroi
   const tiroir = html.slice(html.indexOf('ja-sous-liste'));
   assert.strictEqual((tiroir.match(/ja-case-ronde/g) || []).length, r.actions.length);
   assert.doesNotMatch(tiroir, /VTE - DUPONT/);
+  assert.doesNotMatch(tiroir, /class="ja-sous"/, 'pas de sous-titre dans le tiroir (étude 05/10)');
 });

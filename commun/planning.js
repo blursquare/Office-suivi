@@ -6,9 +6,9 @@
 // client/) ; côté Node, module.exports. Pas de syntaxe réservée à l'un des deux mondes.
 /** @param {typeof import('./dates') & typeof import('./dossier')} C — les autres fichiers de commun/ dont celui-ci dépend */
 (function (C) {
-  // Date limite de l'envoi de l'appel de fonds : la VEILLE du rendez-vous de signature (étude 05/10 : « le délai de l'appel de
-  // fonds doit être fait 1 jour avant le rendez-vous de signature ») ; les rappels J-15 / J-10 se comptent depuis elle.
-  var JOURS_APPEL_FONDS_AVANT_RDV = 1;
+  // Date limite de l'envoi de l'appel de fonds : 10 jours avant le rendez-vous de signature (étude 05/10 : « c'est dix jours
+  // avant pour l'appel de fonds » — 1 jour le même soir, corrigé) ; les rappels J-15 / J-10 se comptent depuis elle.
+  var JOURS_APPEL_FONDS_AVANT_RDV = 10;
   /** @param {any} d @returns {string} */
   function echeanceAppelFonds(d) {
     return d && d.rendezVousSignature ? C.addDays(d.rendezVousSignature, -JOURS_APPEL_FONDS_AVANT_RDV) : '';

@@ -26,15 +26,15 @@ test('prêt : coché, plus de rappel ; décoché (date gardée), le rappel J-15 
   assert.equal(types(calculerRappelsDus([decoche], jour, new Set())), 'pret:15');
 });
 
-test('appel de fonds : décoché, la date d’envoi est partie — le rappel J-15 est ancré sur la veille du rendez-vous', () => {
+test('appel de fonds : décoché, la date d’envoi est partie — le rappel J-15 est ancré sur J-10 du rendez-vous', () => {
   const base = { echeancesValidees: { pret: true } };
-  // Rendez-vous le 10/12 : appel de fonds la veille (09/12, étude 05/10), J-15 = 24/11.
-  const jour = '2026-11-24';
+  // Rendez-vous le 10/12 : appel de fonds 10 jours avant (30/11, étude 05/10), J-15 = 15/11.
+  const jour = '2026-11-15';
   const avantCoche = dossier(base);
   assert.equal(types(calculerRappelsDus([avantCoche], jour, new Set())), 'appelFonds:15');
   const coche = dossier({ echeancesValidees: { pret: true, appelFonds: true }, appelFonds: '2026-11-03' });
   // Coché : plus de rappel « appel de fonds » — c'est l'envoi du projet qui prend le relais, ancré sur le rendez-vous (J-15 = 25/11).
-  assert.equal(types(calculerRappelsDus([coche], jour, new Set())), '', 'J-16 du projet : rien encore');
+  assert.equal(types(calculerRappelsDus([coche], jour, new Set())), '', 'J-25 du projet : rien encore');
   assert.equal(types(calculerRappelsDus([coche], '2026-11-25', new Set())), 'projetEnvoye:15');
   // Décoché par le poste : flag retiré ET date effacée → comme avant la coche.
   const decoche = dossier({ echeancesValidees: { pret: true }, appelFonds: '' });

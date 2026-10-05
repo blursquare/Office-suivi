@@ -912,12 +912,13 @@
   // Une action sur UNE ligne : le geste à droite (un clic), « Plus tard » à côté ; un clic sur le
   // texte déplie le contexte et le texte du brouillon. `dansFiche` : la même ligne dans la fiche du
   // dossier (encadré « Prochaine étape ») — sans le nom du dossier, et sans « Ouvrir la fiche ».
-  // `sansDossier` : la tâche dans le tiroir de son dossier (le nom est déjà sur la ligne du groupe).
+  // `sansDossier` : la tâche dans le tiroir de son dossier — titre seul, sans sous-titre (étude 05/10).
   function renderLigneActionJour(a, global, dansFiche, sansDossier) {
     const cle = escapeOnclickArg(a.cle);
     const ouverte = apercusJour.has(a.cle);
     const brouillon = ouverte ? brouillonAction(a) : null;
-    const sous = [dansFiche || sansDossier ? '' : libelleDossierAffiche(a.dossier), global && a.dossier.responsable ? prenomCollaborateur(a.dossier.responsable) : '', a.categorieLabel].filter(Boolean).join(' · ');
+    // Dans le tiroir d'un groupe : le titre seul, sans sous-titre (étude 05/10).
+    const sous = sansDossier ? '' : [dansFiche ? '' : libelleDossierAffiche(a.dossier), global && a.dossier.responsable ? prenomCollaborateur(a.dossier.responsable) : '', a.categorieLabel].filter(Boolean).join(' · ');
     const sansGeste = dansFiche && (!a.geste || a.geste.type === 'fiche');
     return renderLigneAction({
       categorie: a.categorie, categorieLabel: a.categorieLabel, gravite: a.gravite,
@@ -941,14 +942,14 @@
   }
 
   // Ce qui a été traité aujourd'hui, coché, dans la même liste : la journée se voit avancer.
-  // `sansDossier` : la tâche faite dans le tiroir de son dossier (le nom est déjà sur la ligne du groupe).
+  // `sansDossier` : la tâche faite dans le tiroir de son dossier — titre seul, sans sous-titre (étude 05/10).
   function renderLignesTraitees(traites, sansDossier) {
     return traites.map(t => `
       <li class="ja fait${t.etat === 'Reporté à demain' ? ' reporte' : ''}${vientDEtreTraitee(t.cle) ? ' vient-de-finir' : ''}">
         <span class="ja-coche" aria-hidden="true">${t.etat === 'Reporté à demain' ? icone('clock') : icone('check')}</span>
         <span class="ja-texte-fait">
           <span class="ja-titre">${escapeHtml(t.titre)}</span>
-          <span class="ja-sous">${sansDossier ? '' : `${escapeHtml(libelleDossierParNom(t.dossier, t.dossierId))} · `}${escapeHtml(t.etat)} · ${escapeHtml(t.heure)}</span>
+          ${sansDossier ? '' : `<span class="ja-sous">${escapeHtml(libelleDossierParNom(t.dossier, t.dossierId))} · ${escapeHtml(t.etat)} · ${escapeHtml(t.heure)}</span>`}
         </span>
         ${t.etat === 'Reporté à demain' || t.champ || t.manuel || t.echeance ? `<button type="button" class="lien-discret ja-annuler" onclick="annulerTraiteJour('${escapeOnclickArg(t.cle)}')">Annuler</button>` : ''}
         ${t.courrier ? `<button type="button" class="lien-discret ja-annuler" onclick="ouvrirCourrierAppelFonds('${escapeOnclickArg(t.dossierId)}')">Voir le courrier</button>` : ''}

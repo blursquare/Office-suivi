@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.152.0';
+  const VERSION_APP = '0.152.1';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.152.1', date: '2026-10-05 21:53', resume: "L'appel de fonds est attendu 10 jours avant le rendez-vous de signature (et non la veille) : échéance de la fiche, tâche du jour et rappels J-15 / J-10 se comptent depuis cette date. Dans le tiroir d'un groupe de tâches, chaque tâche n'a plus que son titre (sans sous-titre)." },
     { version: '0.152.0', date: '2026-10-05 21:49', resume: "« À faire » : les tâches d'un même dossier sont réunies sur une ligne commune (nom du dossier, nombre de tâches, une pastille de couleur par tâche, délai le plus proche). Sa case valide toutes les tâches d'un geste (un seul « Annuler ») ; un clic sur la ligne ou la flèche déroule le tiroir, où chaque tâche se coche une par une et reste barrée dans le groupe (« 1/3 faites »)." },
     { version: '0.151.0', date: '2026-10-05 21:40', resume: "Nouveau dossier avec un compromis : le dossier d'Authentic qui correspond au compromis est proposé en tête (« Dossier trouvé dans Authentic », « Pré-remplir ») ; ses données remplissent le dossier (prix compris) et le compromis complète le reste. Les notaires lus dans le compromis sont retrouvés dans le Répertoire et prennent son libellé (« Maître Prénom NOM (Ville) ») ; l'agence lue est retrouvée parmi les agences du Répertoire et prend son nom." },
     { version: '0.150.0', date: '2026-10-05 21:35', resume: "L'appel de fonds est attendu la veille du rendez-vous de signature (et non plus le jour même) : l'échéance de la fiche, la tâche du jour et les rappels J-15 / J-10 se comptent depuis cette veille." },

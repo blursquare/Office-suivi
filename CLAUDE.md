@@ -292,8 +292,9 @@ dans `index.html`** (le test `structure-client` refuse tout décalage).
   date** — l'étape redevient due avant le rendez-vous de signature et son délai J-n, donc ses rappels, reviennent ; les autres échéances (prêt, vente préalable, butoir,
   perso, signature) gardent leur date, seule la coche tombe. La mention « envoyé » du lieu du rendez-vous Outlook suit (`majMentionAgendaEnvoi`, `retrait: true`) ; l'événement
   Outlook du prêt / de la vente préalable est retiré à la coche et reposé à la décoche. Un nouveau chemin qui coche une échéance passe par `cocherEcheance` / `devaliderEcheance`.
-- **Échéance de l'appel de fonds = la VEILLE du rendez-vous de signature** (étude 05/10, `echeanceAppelFonds`,
-  `JOURS_APPEL_FONDS_AVANT_RDV` dans `commun/planning.js`) ; ses rappels J-15/J-10 se comptent depuis cette veille.
+- **Échéance de l'appel de fonds = 10 JOURS AVANT le rendez-vous de signature** (étude 05/10 — la veille, posée le même
+  soir, était une erreur ; `echeanceAppelFonds`, `JOURS_APPEL_FONDS_AVANT_RDV` dans `commun/planning.js`) ; ses rappels J-15/J-10
+  se comptent depuis cette date.
 - **Seuils des rappels email** : prêt J-15/J-7, vente préalable J-15/J-7, appel de fonds J-15/J-10,
   signature J-25/J-15, personnalisées J-15/J-7 (`SEUILS_RAPPELS_PAR_TYPE`).
 - **Relance de l'offre de prêt au client** : première à J-15, puis tous les 10 jours, y compris
@@ -796,7 +797,7 @@ Plainte principale de l'étude : **le bruit**, pas les oublis — ne pas élargi
   (`lignesGalerieWidgets`, `#widgets-overlay`), Retirer / Ajouter — retirer = `masque`, taille gardée ; tout nouveau
   widget de `WIDGETS_DASHBOARD` porte `icone` et `description`. Disposition par collaborateur : préférence
   `widgets` en base (liste blanche `WIDGETS_PREFERENCES` côté serveur, `WIDGETS_DASHBOARD` côté
-  client — à modifier ensemble). Un nouveau bloc du tableau de bord = un nouveau widget. **Carte « Aujourd'hui » : une seule liste** (étude 05/10) — mes rappels du jour et sans date en tête, les tâches, puis mes rappels à venir avec leur date (`rappelsDuJour` → `aVenir`, `renderRappelsJour(…, 'avenir')`), les cochés ; « Ajouter un rappel » reste toujours visible (`data-garder`), plus de section « Mes rappels ». **Tâches d'un même dossier groupées** (étude 05/10, partout où « À faire » est listé, `renderActionsJour` → `grouperActionsParDossier`) : une ligne commune dont la case valide tout (`marquerFaitGroupeJour`, un seul « Annuler »), un tiroir qui déroule les tâches à cocher une par une — les faites du jour y restent barrées (« k/N faites ») ; tout nouveau lieu qui liste les actions du jour passe par `renderActionsJour`. Disposition
+  client — à modifier ensemble). Un nouveau bloc du tableau de bord = un nouveau widget. **Carte « Aujourd'hui » : une seule liste** (étude 05/10) — mes rappels du jour et sans date en tête, les tâches, puis mes rappels à venir avec leur date (`rappelsDuJour` → `aVenir`, `renderRappelsJour(…, 'avenir')`), les cochés ; « Ajouter un rappel » reste toujours visible (`data-garder`), plus de section « Mes rappels ». **Tâches d'un même dossier groupées** (étude 05/10, partout où « À faire » est listé, `renderActionsJour` → `grouperActionsParDossier`) : une ligne commune dont la case valide tout (`marquerFaitGroupeJour`, un seul « Annuler »), un tiroir qui déroule les tâches à cocher une par une — les faites du jour y restent barrées (« k/N faites »), titre seul sans sous-titre dans le tiroir ; tout nouveau lieu qui liste les actions du jour passe par `renderActionsJour`. Disposition
   par défaut = rectangle plein (4 × 4, 2 × 8 sur téléphone, vérifié par `placementWidgets` dans les
   tests), les plus utiles d'abord ; la changer = incrémenter `VERSION_DISPOSITION_WIDGETS` (chaque
   collaborateur y est ramené une fois).
