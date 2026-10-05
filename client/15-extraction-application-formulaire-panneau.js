@@ -38,6 +38,15 @@
     if (champs.prixMobilier) appliquerValeurChamp('f-prix-mobilier', champs.prixMobilier.valeur);
     if (champs.emailAcquereur) appliquerEmailsChamp('f-email-acquereur', champs.emailAcquereur.valeur);
     if (champs.emailVendeur) appliquerEmailsChamp('f-email-vendeur', champs.emailVendeur.valeur);
+    // Agence retrouvée dans le Répertoire (étude 05/10) : son nom tel qu'il y est enregistré, la source dit d'où il vient.
+    if (champs.nomAgence && champs.nomAgence.valeur) {
+      const rep = agenceDepuisRepertoire(champs.nomAgence.valeur, repertoireContacts);
+      if (rep && rep.organisme !== champs.nomAgence.valeur) {
+        champs.nomAgence.valeurActe = champs.nomAgence.valeurActe || champs.nomAgence.valeur;
+        champs.nomAgence.valeur = rep.organisme;
+        champs.nomAgence.raison = `Retrouvée dans le Répertoire (lu dans l’acte : « ${champs.nomAgence.valeurActe} »).`;
+      }
+    }
     if (champs.nomAgence) appliquerValeurChamp('f-nom-agence', champs.nomAgence.valeur);
     if (champs.honorairesAgence) appliquerValeurChamp('f-honoraires-agence', champs.honorairesAgence.valeur);
     if (champs.depotGarantie) appliquerValeurChamp('f-depot-garantie', champs.depotGarantie.valeur);
@@ -80,8 +89,9 @@
     // Notaire de chaque côté, lu dans l'acte et complété par le carnet : proposé dans les deux
     // champs de l'étape Finaliser, où l'étude le corrige avant d'enregistrer.
     const cotes = cotesNotairesPourDossier(extraction.notaires);
-    if (appliquerValeurChamp('f-notaire-vendeur', completerNomNotaire(cotes.vendeur, carnetConfreres))) noterOrigineDossierWizard('f-notaire-vendeur', 'acte');
-    if (appliquerValeurChamp('f-notaire-acquereur', completerNomNotaire(cotes.acquereur, carnetConfreres))) noterOrigineDossierWizard('f-notaire-acquereur', 'acte');
+    // Chaque notaire lu dans l'acte est remplacé par sa fiche du Répertoire quand elle est trouvée (étude 05/10).
+    if (appliquerValeurChamp('f-notaire-vendeur', notaireDepuisRepertoire(cotes.vendeur, carnetConfreres))) noterOrigineDossierWizard('f-notaire-vendeur', 'acte');
+    if (appliquerValeurChamp('f-notaire-acquereur', notaireDepuisRepertoire(cotes.acquereur, carnetConfreres))) noterOrigineDossierWizard('f-notaire-acquereur', 'acte');
     if (cotes.coteInstrumentaire && appliquerValeurChamp('f-cote-instrumentaire', cotes.coteInstrumentaire)) noterOrigineDossierWizard('f-cote-instrumentaire', 'acte');
     remplirListeNotairesWizard(notairesProposesWizard().map(n => n.nom));
     majApercuPieces();
@@ -94,7 +104,7 @@
   // reçoit l'acte, comme sur la fiche (deduireRoleNotaireDossier).
   function notairesProposesWizard() {
     const c = cotesNotairesPourDossier(extractionActuelle ? extractionActuelle.notaires : null);
-    const liste = c.detectes.map(n => ({ nom: completerNomNotaire(n.nom, carnetConfreres), role: n.role, source: 'acte' }));
+    const liste = c.detectes.map(n => ({ nom: notaireDepuisRepertoire(n.nom, carnetConfreres), role: n.role, source: 'acte' }));
     const auth = exportAuthenticActuel && exportAuthenticActuel.infosAuthentic && exportAuthenticActuel.infosAuthentic.notaire;
     if (auth) {
       const nom = /^ma[iî]tre\b/i.test(auth) ? auth : 'Maître ' + auth;

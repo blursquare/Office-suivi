@@ -8135,6 +8135,8 @@ button.w-jour-lien { border: none; background: none; padding: 0; cursor: pointer
 
 /* « Nouveau dossier » : dossiers relevés dans Authentic (étude, 02/10). */
 .authentic-releves { margin-top: 16px; }
+/* « Nouveau dossier », compromis lu : le dossier d'Authentic qui lui correspond, proposé en tête (05/10). */
+.authentic-trouve { padding: 12px 12px 4px; margin: 0 0 16px; border: 1px solid var(--focus); border-radius: var(--rayon-m); background: var(--paper-card); }
 .authentic-releves-titre { display: flex; align-items: center; gap: 6px; font-size: var(--texte-xs); font-weight: 600; color: var(--ink-soft); text-transform: uppercase; letter-spacing: 0.06em; margin: 0 0 6px; }
 .authentic-releves-titre .sidebar-compteur { margin-left: 0; background: var(--urgent); color: var(--on-accent); border-radius: var(--rayon-s); }
 .authentic-releves-titre + .ja-liste { margin-bottom: 14px; }

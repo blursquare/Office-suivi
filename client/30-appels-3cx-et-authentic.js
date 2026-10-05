@@ -2483,6 +2483,15 @@
       .sort((a, b) => b.s - a.s || a.i - b.i);
   }
 
+  // Pure : le dossier d'Authentic à proposer pour le compromis lu — le mieux classé s'il correspond aux noms lus, qu'il n'est
+  // pas déjà suivi dans CLAIRE, n'est pas une succession, et qu'aucun autre ne correspond aussi bien. Sinon null.
+  function dossierAuthenticPourCompromis(tries, correspond, existantDe) {
+    const candidats = (tries || []).filter(x => x && x.g && correspond(x.g) && !existantDe(x.g) && !RE_INTITULE_SUCCESSION_AUTHENTIC.test(x.g.intitule || ''));
+    if (!candidats.length) return null;
+    if (candidats.length > 1 && candidats[1].s === candidats[0].s) return null;
+    return candidats[0];
+  }
+
   function renderRelevesAuthenticWizard() {
     const bloc = document.getElementById('authentic-releves');
     if (!bloc) return;
@@ -2521,11 +2530,26 @@
             : { libelle: avecPdf ? 'Compléter' : g.aCreer ? 'Créer' : 'Reprendre', onclick: `creerDepuisAuthentic(${i})`, icone: icone('plus') }
       });
     };
+    // Compromis lu : le dossier d'Authentic qui lui correspond est PROPOSÉ en tête (étude 05/10 : « proposer un dossier trouvé
+    // sur Authentic qui vient pré-remplir tous les champs, puis ceux restant complétés par le compromis »).
+    const trouve = dossierAuthenticPourCompromis(tries, correspond, existantDe);
+    const autres = trouve ? restants.filter(x => x !== trouve) : restants;
+    const blocTrouve = trouve ? `<div class="authentic-trouve">
+        <h3 class="authentic-releves-titre">Dossier trouvé dans Authentic ${infoBulle('Ses données (parties, état civil, bien, cadastre, prix, pièces reçues) pré-remplissent le dossier ; le compromis complète ce qui manque (dates butoir, engagements du vendeur, agence, dépôt…).')}</h3>
+        <ul class="ja-liste">${renderLigneAction({
+          titre: libelleDossierParNom(trouve.g.intitule.replace(/^\s*(?:vente|vte)\.?\s+/i, '')),
+          sous: 'Correspond au compromis · ' + resumeGroupeAuthentic(trouve.g),
+          delai: trouve.g.derniere ? heureAppel(trouve.g.derniere) : '',
+          categorie: 'acte',
+          bouton: { libelle: 'Pré-remplir', onclick: `creerDepuisAuthentic(${trouve.i})`, icone: icone('plus') }
+        })}</ul>
+      </div>` : '';
     const lignesACreer = aCreer.map(ligneGroupe).join('');
-    const lignes = restants.map(ligneGroupe).join('');
+    const lignes = autres.map(ligneGroupe).join('');
     bloc.innerHTML = `
+      ${blocTrouve}
       ${lignesACreer ? `<h3 class="authentic-releves-titre">À créer <span class="sidebar-compteur">${aCreer.length}</span> ${infoBulle('Dossiers de vente ouverts dans Authentic aujourd’hui qu’aucun dossier de CLAIRE ne porte. « Créer » ouvre le dossier pré-rempli.')}</h3><ul class="ja-liste">${lignesACreer}</ul>` : ''}
-      <h3 class="authentic-releves-titre">${escapeHtml(lignesACreer ? 'Autres dossiers ouverts dans Authentic' : titre)} ${infoBulle(aide)}</h3>
+      <h3 class="authentic-releves-titre">${escapeHtml(lignesACreer || trouve ? 'Autres dossiers ouverts dans Authentic' : titre)} ${infoBulle(aide)}</h3>
       ${lignes ? `<ul class="ja-liste">${lignes}</ul>` : `<p class="authentic-releves-vide">Aucun ${lignesACreer ? 'autre ' : ''}dossier ouvert dans Authentic aujourd’hui. Ouvrez-y la page du dossier, puis les fiches vendeur, acquéreur et bien : il apparaîtra ici${modeImport === 'pdf' ? ' — ou continuez sans Authentic' : ''}.</p>`}`;
   }
 

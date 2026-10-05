@@ -253,7 +253,7 @@ dans `index.html`** (le test `structure-client` refuse tout décalage).
   **type** ; « AAE » dans un nom de fichier = acte authentique électronique.
 - **Notaires** : priorité mention explicite (hors clause d'origine de propriété) > règle
   géographique (`REGLES_NOTAIRE_INSTRUMENTAIRE`, bien dans le 41) > ordre dans la zone attendue ;
-  sinon rien n'est deviné. **Champs notaire liés à l'annuaire** (étude 05/10) : recherche dans tout l'annuaire à la frappe (`proposerNotairesAnnuaire`), nom complété seulement si UN SEUL notaire correspond (`completerNomNotaire`), notre office toujours « Maître Sophie GOSSART (BLOIS) » (`NOTAIRE_ETUDE_LIBELLE`, `canoniserNotaireEtude` ; bouton « Notre office » sur la fiche, placé seul du bon côté dans Nouveau dossier quand le rôle est lu, déduit ou choisi). Le rôle de l'étude (instrumentaire/participant) est déduit du côté qui
+  sinon rien n'est deviné. **Champs notaire liés à l'annuaire** (étude 05/10) : recherche dans tout l'annuaire à la frappe (`proposerNotairesAnnuaire`), nom complété seulement si UN SEUL notaire correspond (`completerNomNotaire`) ; à la création, un notaire lu dans le compromis prend le libellé de l'annuaire (`notaireDepuisRepertoire`, seul de son nom en France ou dans le 41 et ses voisins), et l'agence lue celui du Répertoire (`agenceDepuisRepertoire`, thème « immobilier »), notre office toujours « Maître Sophie GOSSART (BLOIS) » (`NOTAIRE_ETUDE_LIBELLE`, `canoniserNotaireEtude` ; bouton « Notre office » sur la fiche, placé seul du bon côté dans Nouveau dossier quand le rôle est lu, déduit ou choisi). Le rôle de l'étude (instrumentaire/participant) est déduit du côté qui
   reçoit l'acte ; si un autre office représente l'acquéreur, les emails vont **au confrère**
   (« Mon Cher Maître, … Votre bien dévoué. ») et le questionnaire de satisfaction n'est jamais proposé à
   l'acquéreur ; il peut l'être **au vendeur** quand l'étude le représente (étude 02/10, `renderQuestionnaireVendeur`,
@@ -368,7 +368,7 @@ dans `index.html`** (le test `structure-client` refuse tout décalage).
   items) → acomptes sur prix et sur frais versés à l'étude, qui **remplacent** la ligne d'acompte du
   dossier (même somme), reversements au confrère signalés. Rien n'est enregistré sur le dossier.
 - **« Nouveau dossier » : deux entrées** (étude, 02/10 au soir, `MODES_IMPORT`, `choisirModeImport`,
-  `renderChoixImport`) — **« Compromis (PDF) »** : le compromis lu, on reste sur l'étape 1 : « Compléter depuis Authentic
+  `renderChoixImport`) — **« Compromis (PDF) »** : le compromis lu, on reste sur l'étape 1 — le dossier d'Authentic qui correspond est proposé en tête (« Dossier trouvé dans Authentic », `dossierAuthenticPourCompromis`, étude 05/10 : Authentic pré-remplit, prix compris, le compromis complète) : « Compléter depuis Authentic
   (facultatif) » (`groupesAuthenticPourCompromis` : le dossier du compromis en tête, « Correspond au compromis ») ou
   « Continuer sans Authentic → » (`majBoutonSuivantEtape1`) ; **« Depuis Authentic »** (`seul`, sans PDF) : repris d'un
   clic puis « Vérifier » (vente : aucune date exigée) ou directement « Finaliser » (succession, assistant réduit

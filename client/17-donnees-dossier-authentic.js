@@ -179,7 +179,8 @@
     if (bien && bien.type) extraction.champs.typeVente = champExtraction(bien.type, origine);
     // Prix « Capital » des informations financières d'Authentic : seulement si le texte n'en donne pas.
     const prixAuth = donnees.infosAuthentic && donnees.infosAuthentic.prix;
-    if (prixAuth && !(extraction.champs.prixVente && extraction.champs.prixVente.valeur)) extraction.champs.prixVente = champExtraction(prixAuth, origine);
+    // Authentic pré-remplit, le compromis complète ce qui manque (étude 05/10) : le prix d'Authentic passe donc avant celui lu.
+    if (prixAuth) extraction.champs.prixVente = champExtraction(prixAuth, origine);
     const notaires = extraction.notaires || {};
     if (notaires.statut !== 'CONFIRMED') {
       const n = notairesExportAuthentic(donnees);

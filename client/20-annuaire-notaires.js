@@ -101,6 +101,51 @@
     return distincts.size === 1 ? { office: candidats[0].office, notaire: candidats[0].notaire } : null;
   }
 
+  // Notaire lu dans un compromis → sa fiche du Répertoire (étude 05/10 : « les notaires sont détectés dans le compromis et
+  // recherchés directement dans le Répertoire pour trouver la correspondance ») : le libellé de l'annuaire, « Maître Prénom NOM
+  // (Ville) », même quand l'acte a déjà écrit nom, prénom et ville à sa façon. Un nom porté par plusieurs notaires en France est
+  // retenu s'il n'y en a qu'un dans notre département et ses voisins ; sinon rien n'est deviné (la valeur complétée comme avant).
+  function notaireDepuisRepertoire(valeur, carnet) {
+    const brut = nettoyerLibelleNotaire(valeur);
+    if (!brut) return brut;
+    const etude = canoniserNotaireEtude(brut);
+    if (etude !== brut) return etude;
+    const t = notaireUniqueAnnuaire(brut, carnet) || notaireProcheAnnuaire(brut, carnet);
+    if (!t) return completerNomNotaire(valeur, carnet);
+    return `Maître ${t.notaire}${t.office.ville ? ` (${t.office.ville})` : ''}`;
+  }
+  // Pure : le seul notaire de ce nom (et de ce prénom quand il est écrit) exerçant dans notre département ou un voisin, ou null.
+  function notaireProcheAnnuaire(valeur, carnet) {
+    const c = decomposerNomNotaire(valeur);
+    if (!c.famille || !Array.isArray(carnet)) return null;
+    let candidats = (indexNotairesParFamille(carnet).get(c.famille) || [])
+      .filter(x => x.office.etude || !x.office.departement || DEPARTEMENTS_PROCHES_ANNUAIRE.indexOf(x.office.departement) !== -1);
+    if (c.prenom) candidats = candidats.filter(x => x.c.prenom === c.prenom);
+    const distincts = new Set(candidats.map(x => x.office.id + '|' + x.notaire));
+    return distincts.size === 1 ? { office: candidats[0].office, notaire: candidats[0].notaire } : null;
+  }
+
+  // Agence lue dans un compromis → l'agence du Répertoire (thème « immobilier », étude 05/10 : « pareil pour les agences ») :
+  // noms comparés sans casse, accents, ponctuation ni mots d'usage (agence, immobilier, l', sarl…) ; l'un contient l'autre.
+  // Un seul candidat (le nom identique d'abord) → { organisme, id, adresse } ; plusieurs ou aucun → null. Pure.
+  var MOTS_AGENCE_IGNORES = ['agence', 'agences', 'immobiliere', 'immobilier', 'immobilieres', 'l', 'la', 'le', 'les', 'de', 'du', 'des', 'sarl', 'sas', 'sa', 'eurl', 'societe', 'et'];
+  function cleNomAgence(nom) {
+    return normaliserPourRecherche(nom || '').split(/[^a-z0-9]+/).filter(w => w && MOTS_AGENCE_IGNORES.indexOf(w) === -1).join('');
+  }
+  function agenceDepuisRepertoire(nom, contacts) {
+    const cle = cleNomAgence(nom);
+    if (cle.length < 2 || !Array.isArray(contacts)) return null;
+    const agences = contacts.filter(c => c && c.theme === 'immobilier' && c.organisme);
+    // Même nom (casse et graphie à part) : la même agence, même enregistrée deux fois.
+    const identiques = agences.filter(c => cleNomAgence(c.organisme) === cle);
+    const retenus = identiques.length ? identiques.slice(0, 1) : (cle.length < 4 ? [] : agences.filter(c => {
+      const k = cleNomAgence(c.organisme);
+      return k.length >= 4 && (k.indexOf(cle) !== -1 || cle.indexOf(k) !== -1);
+    }));
+    if (new Set(retenus.map(c => cleNomAgence(c.organisme))).size !== 1) return null;
+    return { organisme: retenus[0].organisme, id: retenus[0].id, adresse: retenus[0].adresse || '' };
+  }
+
   // Recherche dans TOUT l'annuaire pour les champs notaire (étude 05/10 : « lier tous les champs pour les notaires au
   // répertoire ») : chaque mot tapé doit figurer dans le nom du notaire, sa ville ou son code postal (l'office s'affiche à côté). Notre office d'abord,
   // puis par ville. Rend { valeur: « Maître Eve CHAMPION (Blois) », libelle: « Office … · 41 » } (`max` au plus). Pure.

@@ -1226,6 +1226,8 @@
     await chargerApprentissageServeur();
     // Carnet des confrères : la fiche rapproche chaque notaire de son office dès le premier rendu.
     chargerCarnetConfreres().then(() => render());
+    // Répertoire (agences, organismes) : « Nouveau dossier » y retrouve l'agence lue dans le compromis (étude 05/10).
+    chargerRepertoire();
     // Le polling démarre AVANT la relecture du NAS, et celle-ci n'est plus attendue : sur un
     // portefeuille d'une soixantaine de dossiers, ce parcours peut prendre plusieurs minutes
     // (il ouvre des PDF, voir verifierDossierLocal) — tant qu'il n'avait pas fini, aucune synchro

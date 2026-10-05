@@ -57,3 +57,39 @@ test('sans prêt : « n’entend pas contracter d’emprunt », « déclare ne p
   assert.equal(app.detecterFinancementComptant('Le BENEFICIAIRE déclare ne pas vouloir recourir à un prêt régi par les dispositions du Code de la consommation.'), true);
   assert.equal(app.detecterFinancementComptant("L'acquéreur entend recourir à un prêt de 150 000 €."), false);
 });
+
+test('Répertoire : le notaire lu dans l’acte prend son libellé de l’annuaire, l’agence son nom du Répertoire', () => {
+  const carnet = [
+    { id: 'etude', etude: true, office: 'Office GOSSART', notaires: ['Sophie GOSSART'], ville: 'BLOIS', departement: '41' },
+    { id: 'a1', office: 'SCP Exemple', notaires: ['Aurélien LEBLANC', 'Florence MOREAU'], ville: 'Les Montils', departement: '41' },
+    { id: 'a2', office: 'Office du Nord', notaires: ['Paul LEBLANC'], ville: 'Lille', departement: '59' },
+    { id: 'a3', office: 'Office de Tours', notaires: ['Fanny NOIRET'], ville: 'Tours', departement: '37' }
+  ];
+  assert.equal(app.notaireDepuisRepertoire('GOSSART Sophie', carnet), 'Maître Sophie GOSSART (BLOIS)');
+  assert.equal(app.notaireDepuisRepertoire('Maître Aurélien LEBLANC (MONTILS)', carnet), 'Maître Aurélien LEBLANC (Les Montils)');
+  assert.equal(app.notaireDepuisRepertoire('Me LEBLANC', carnet), 'Maître Aurélien LEBLANC (Les Montils)', 'un seul LEBLANC dans le 41 et ses voisins');
+  assert.equal(app.notaireDepuisRepertoire('NOIRET Fanny', carnet), 'Maître Fanny NOIRET (Tours)');
+  assert.equal(app.notaireDepuisRepertoire('Maître Inconnu DUPONT', carnet), 'Maître Inconnu DUPONT', 'rien n’est deviné');
+  const contacts = [
+    { id: 'r1', theme: 'immobilier', organisme: 'AGENCE DU CHATEAU' },
+    { id: 'r1b', theme: 'immobilier', organisme: 'Agence du Château' },
+    { id: 'r2', theme: 'immobilier', organisme: 'LAFORET BLOIS' },
+    { id: 'r3', theme: 'immobilier', organisme: 'LAFORET TOURS' },
+    { id: 'r4', theme: 'syndic', organisme: 'SYNDIC DU CHATEAU' }
+  ];
+  assert.equal(app.agenceDepuisRepertoire('l’Agence du Château', contacts).organisme, 'AGENCE DU CHATEAU');
+  assert.equal(app.agenceDepuisRepertoire('Laforêt', contacts), null, 'deux Laforêt : rien n’est deviné');
+  assert.equal(app.agenceDepuisRepertoire('Laforêt Blois', contacts).id, 'r2');
+  assert.equal(app.agenceDepuisRepertoire('Inconnue Immo', contacts), null);
+});
+
+test('Authentic proposé pour le compromis : le seul dossier qui correspond, jamais une succession ni un dossier déjà suivi', () => {
+  const groupe = (intitule) => ({ intitule });
+  const tries = [{ g: groupe('VTE DURAND / MARTIN'), i: 0, s: 8 }, { g: groupe('VTE AUTRE / NOM'), i: 1, s: 0 }];
+  const correspond = (g) => /DURAND/.test(g.intitule);
+  assert.equal(app.dossierAuthenticPourCompromis(tries, correspond, () => null).i, 0);
+  assert.equal(app.dossierAuthenticPourCompromis(tries, correspond, () => ({ id: 'd1' })), null, 'déjà suivi dans CLAIRE');
+  const egalite = [{ g: groupe('VTE DURAND / MARTIN'), i: 0, s: 8 }, { g: groupe('VTE DURAND / PETIT'), i: 1, s: 8 }];
+  assert.equal(app.dossierAuthenticPourCompromis(egalite, correspond, () => null), null, 'deux dossiers aussi proches : on ne choisit pas');
+  assert.equal(app.dossierAuthenticPourCompromis([{ g: groupe('SUCC DURAND'), i: 0, s: 8 }], correspond, () => null), null);
+});
