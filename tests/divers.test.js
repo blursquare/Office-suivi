@@ -494,3 +494,16 @@ test('buildEvent : un dossier sans reminderDays donne un événement sans rappel
   const avec = app.buildEvent('x-pret', 'Obtention du prêt', '2026-11-10', [15, 7]);
   assert.equal((avec.match(/BEGIN:VALARM/g) || []).length, 2);
 });
+
+test('liensAppelTelephone : un lien tel: par numéro (3CX), rien sans numéro, doublons et texte autour ignorés', () => {
+  const app = chargerApplication();
+  const h = app.liensAppelTelephone('06 12 34 56 78 / 02.54.00.00.00 ou 06 12 34 56 78');
+  const hrefs = [...h.matchAll(/href="tel:([^"]+)"/g)].map(m => m[1]);
+  assert.deepEqual(hrefs, ['0612345678', '0254000000']);
+  assert.match(h, /class="coord-appel"/);
+  assert.equal(app.liensAppelTelephone(''), '');
+  assert.equal(app.liensAppelTelephone('pas de numéro ici'), '');
+  assert.match(app.liensAppelTelephone('+33 6 12 34 56 78', 'coord-appel coord-appel-inline'), /href="tel:\+33612345678"/);
+  // Aucun HTML venu du champ n'est repris tel quel.
+  assert.doesNotMatch(app.liensAppelTelephone('<img src=x onerror=alert(1)> 0612345678'), /<img/);
+});

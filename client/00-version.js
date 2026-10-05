@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.144.26';
+  const VERSION_APP = '0.144.27';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.144.27', date: '2026-10-05 09:28', resume: "Les numéros de téléphone des parties (fiche), des appels reçus et du bandeau d'appel entrant ont une icône d'appel qui ouvre 3CX (un lien par numéro, comme dans le Répertoire et l'annuaire des notaires). À confirmer au bureau : 3CX doit être l'application du protocole « tel: » sur le poste." },
     { version: '0.144.26', date: '2026-10-05 09:25', resume: "Outils › Répertoire : 75 agences immobilières et 27 syndics de copropriété ajoutés d'après vos deux recherches de contacts d'Authentic (nom et ville ; ni téléphone ni email, il n'y en avait pas dans les fichiers). Les syndics ont leur propre rubrique. 17 lignes de syndics sans nom n'ont pas pu être reprises." },
     { version: '0.144.25', date: '2026-10-05 08:27', resume: "Fiche dossier : « Télécharger les rappels (.ics) » ne plante plus sur un dossier sans rappels réglés (il plantait sans message) ; l'échéance du prêt est exportée sans alarme." },
     { version: '0.144.24', date: '2026-10-04 22:04', resume: "Agenda : les boutons « Nouveau rendez-vous » et « Proposer des dates » restaient parfois cachés quand la page Agenda s'affichait avant la fin du chargement des réglages Outlook (au démarrage ou après une mise à jour). Ils apparaissent maintenant dès que les réglages sont lus." },

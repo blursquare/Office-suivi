@@ -16561,3 +16561,13 @@ postal — aucun téléphone ni email, aucun inventé.
 - Nouvelle rubrique « Syndics de copropriété » (`THEMES_REPERTOIRE` + repli de `repertoireThemes` côté poste).
 - Tests : ids uniques, thèmes connus, aucune coordonnée inventée, lot appliqué une seule fois, contact retiré non ressuscité, contact
   modifié intact ; les tests existants comptent désormais relevé + lots.
+
+### 0.144.27 — 05/10/2026 09 h 28 : numéros de téléphone cliquables (3CX)
+Demande : « les numéros de téléphone, les rendre cliquables pour les ouvrir dans 3CX ». Le Répertoire et l'annuaire des notaires
+avaient déjà des liens `tel:` ; la fiche (champs téléphone des parties), la liste des appels reçus et le bandeau d'appel entrant
+n'en avaient pas. `liensAppelTelephone(texte, classe)` (client/20-annuaire-notaires.js, pure, testée) rend un lien `tel:` par numéro
+d'un champ qui en porte plusieurs (« 06 … / 02 … », 3 au plus, doublons écartés) ; icône de 24 px à droite du champ (`.coord-tel-ligne`,
+`.coord-appel`). Choix : le protocole standard `tel:`, que 3CX (application Windows ou extension « Click to Call ») prend en charge
+quand il est réglé comme application par défaut du poste — rien de propre à 3CX n'est codé, et **rien n'a pu être éprouvé ici** (point
+terrain `telephone-3cx-lien`, coché au premier clic, à confirmer à l'œil au bureau). Vérifié dans Chromium : trois liens `tel:`
+(deux numéros d'un champ + un), 24 × 24 px, aucune erreur.

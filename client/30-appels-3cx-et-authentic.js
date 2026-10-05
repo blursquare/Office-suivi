@@ -2630,7 +2630,7 @@
         <span class="appel-entrant-titre"><b>Appel entrant</b><span>${escapeHtml(heureAppel(a.t))}</span></span>
         <button type="button" class="appel-entrant-fermer" onclick="fermerAppelEntrant()" aria-label="Fermer">${icone('x')}</button>
       </div>
-      <p class="appel-entrant-numero">${escapeHtml(a.numero || 'Numéro masqué')}${a.nom ? ` · ${escapeHtml(a.nom)}` : ''}</p>
+      <p class="appel-entrant-numero">${escapeHtml(a.numero || 'Numéro masqué')}${a.nom ? ` · ${escapeHtml(a.nom)}` : ''}${liensAppelTelephone(a.numero, 'coord-appel coord-appel-inline')}</p>
       ${contact}
       ${ds.length ? `<div class="appel-entrant-dossiers">${ds.slice(0, 4).map(y => `<wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="ouvrirFicheAppel('${y.d.id}'); fermerAppelEntrant()">${y.partie ? `<span class="appel-entrant-partie">${escapeHtml(y.partie)}</span>` : ''}${escapeHtml(libelleDossierAffiche(y.d))}${y.d.archive ? ' · archivé' : ''}</wa-button>`).join('')}</div>`
         : (contact ? '' : `<p class="hint">Numéro inconnu de CLAIRE ${infoBulle('Saisissez-le dans l’onglet Échanges du dossier (téléphone du vendeur ou de l’acquéreur) : le prochain appel ouvrira la fiche.')}</p>`)}`;
@@ -2657,7 +2657,7 @@
       ? `<span class="prop-texte vide" title="Un autre office représente cette partie : on écrit à son notaire.">Par son notaire</span>`
       : `<input type="email" id="${prefixe}-email-${c.partie}-${d.id}" class="prop-champ coord-email" value="${escapeAttr(c.email)}" placeholder="Email" aria-label="Email ${c.libelle === 'Vendeur' ? 'du vendeur' : 'de l’acquéreur'}" onblur="${c.changerEmail}('${d.id}', this.value)" ${entree}>`;
     const tel = `<input type="tel" id="${prefixe}-tel-${c.partie}-${d.id}" class="prop-champ coord-tel" value="${escapeAttr(c.tel)}" placeholder="Téléphone" autocomplete="off" aria-label="Téléphone ${c.libelle === 'Vendeur' ? 'du vendeur' : 'de l’acquéreur'}" title="Reconnu quand il appelle (3CX). Plusieurs numéros : séparés par « / »." onblur="changerTelephoneDossier('${d.id}', '${c.partie}', this.value)" ${entree}>`;
-    return `<span class="coord-paire">${email}${tel}</span>`;
+    return `<span class="coord-paire">${email}<span class="coord-tel-ligne">${tel}${liensAppelTelephone(c.tel)}</span></span>`;
   }
 
   function changerTelephoneDossier(id, partie, valeur) {
@@ -2679,7 +2679,7 @@
     if (!liste || !liste.length) return '';
     const ligne = (a) => {
       const x = (a.dossiers || []).find(y => y.id === d.id);
-      return `<li><span class="appels-quand">${escapeHtml(dateHeureAppel(a.t))}</span><span>${escapeHtml(x ? LIBELLES_PARTIE_APPEL[x.partie] || '' : '')}${a.nom ? ` · ${escapeHtml(a.nom)}` : ''}</span><span class="appels-numero">${escapeHtml(a.numero || '')}</span></li>`;
+      return `<li><span class="appels-quand">${escapeHtml(dateHeureAppel(a.t))}</span><span>${escapeHtml(x ? LIBELLES_PARTIE_APPEL[x.partie] || '' : '')}${a.nom ? ` · ${escapeHtml(a.nom)}` : ''}</span><span class="appels-numero">${escapeHtml(a.numero || '')}${liensAppelTelephone(a.numero, 'coord-appel coord-appel-inline')}</span></li>`;
     };
     return `<div class="appels-dossier">
         <span class="section-eyebrow">Appels reçus <span class="jour-onglet-nb">${liste.length}</span></span>
