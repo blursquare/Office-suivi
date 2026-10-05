@@ -740,7 +740,7 @@
     const n = actions.length;
     const total = n + faites.length;
     const compte = faites.length ? `${faites.length}/${total} faites` : `${n} tâches`;
-    const sous = [global && d.responsable ? prenomCollaborateur(d.responsable) : '', actions.map(a => a.titre).join(' · ')].filter(Boolean).join(' · ');
+    const sous = actions.map(a => a.titre).join(' · ');
     const puces = faites.map(t => `<span class="dot-label dl-success ja-groupe-puce-faite" title="${escapeAttr(`${t.titre} — fait`)}"><span class="dot"></span></span>`).join('')
       + actions.map(a => `<span class="dot-label dl-${a.categorie || 'neutre'}" title="${escapeAttr(a.titre)}"><span class="dot"></span></span>`).join('');
     return `
@@ -750,7 +750,7 @@
           <span class="ja-titre">${lienDossierTache(d)} <span class="ja-groupe-compte${faites.length ? ' entame' : ''}">${compte}</span></span>
           <span class="ja-sous">${escapeHtml(sous)}</span>
         </button>
-        <span class="ja-delai${premiere.gravite === 'critique' ? ' proche' : ''}">${escapeHtml(delaiAction(premiere))}</span>
+        <span class="ja-delai${premiere.gravite === 'critique' ? ' proche' : ''}">${d.responsable ? pastilleResponsableTache(d.responsable) : ''}${escapeHtml(delaiAction(premiere))}</span>
         <span class="ja-groupe-puces" aria-hidden="true">${puces}</span>
         <span class="ja-actions-sec"><wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-btn ja-groupe-ouvrir" aria-expanded="${ouvert}" onclick="basculerGroupeJour('${id}')" title="Dérouler les tâches" aria-label="Dérouler les tâches">${icone('chevron-down')}</wa-button></span>
         <div class="ja-groupe-tiroir"><div class="ja-groupe-tiroir-int">
@@ -873,11 +873,17 @@
   // geste en un bouton à droite, des icônes secondaires à côté. Un clic sur le texte déplie le
   // détail quand il y en a un (clé `apercu`, même mémoire que « À faire »). Une ligne `faite` garde
   // son bouton (Renvoyer…), en contour, et une pastille verte.
-  //   o = { categorie, categorieLabel, titre, titreHtml?, sous?, sousHtml?, delai?, delaiProche?,
+  //   o = { categorie, categorieLabel, titre, titreHtml?, sous?, sousHtml?, delai?, delaiProche?, responsable? (initiales),
   //         gravite?, bouton?: { libelle, icone? (html), onclick, titre? }, secondaires?: html,
   //         faite?, apercu?, detail?: html, detailOuvert?, classe? }
   //   o.caseRonde = { onclick, libelle } : une case ronde à cocher à la place de la pastille (vue
   //   « Aujourd'hui », étude 01/10), cerclée de la couleur de la catégorie ; la cocher fait la tâche.
+  // Initiales du responsable dans une petite pastille ronde, posée devant le délai d'une tâche (même pastille que le Suivi).
+  function pastilleResponsableTache(nom) {
+    const ini = initialesCollaborateur(nom);
+    return ini ? `<span class="pastille-collab pastille-tache" title="${escapeAttr(nom)}" aria-label="${escapeAttr('Responsable : ' + nom)}">${escapeHtml(ini)}</span>` : '';
+  }
+
   function renderLigneAction(o) {
     const ouverte = !!o.detailOuvert || !!(o.apercu && apercusJour.has(o.apercu));
     const sous = o.sousHtml != null ? o.sousHtml : (o.sous ? escapeHtml(o.sous) : '');
@@ -897,7 +903,7 @@
       <li class="${classes}">
         ${pastille}
         ${texte}
-        <span class="ja-delai${o.delaiProche ? ' proche' : ''}">${escapeHtml(o.delai || '')}</span>
+        <span class="ja-delai${o.delaiProche ? ' proche' : ''}">${o.responsable ? pastilleResponsableTache(o.responsable) : ''}${escapeHtml(o.delai || '')}</span>
         ${go}
         <span class="ja-actions-sec">${o.secondaires || ''}</span>
         ${ouverte && o.detail ? `<div class="ja-detail">${o.detail}</div>` : ''}
@@ -922,13 +928,16 @@
     const brouillon = ouverte ? brouillonAction(a) : null;
     // Dans le tiroir d'un groupe : le titre seul, sans sous-titre (étude 05/10). Le nom du dossier ouvre sa fiche (étude 05/10 :
     // « je clique souvent sur le nom du dossier dans la tâche pour atteindre le dossier ») — voir lienDossierTache.
-    const sousHtml = sansDossier ? '' : [dansFiche ? '' : lienDossierTache(a.dossier), global && a.dossier.responsable ? escapeHtml(prenomCollaborateur(a.dossier.responsable)) : '', escapeHtml(a.categorieLabel || '')].filter(Boolean).join(' · ');
+    const sousHtml = sansDossier ? '' : [dansFiche ? '' : lienDossierTache(a.dossier), escapeHtml(a.categorieLabel || '')].filter(Boolean).join(' · ');
     const sansGeste = dansFiche && (!a.geste || a.geste.type === 'fiche');
     return renderLigneAction({
       categorie: a.categorie, categorieLabel: a.categorieLabel, gravite: a.gravite,
       titre: a.titre,
       titreHtml: veilleJour.hier.has(a.cle) ? `<span class="ja-non-faite">${escapeHtml(libelleNonFaite(veilleJour.hierDate, isoAujourdhuiLocal()))}</span>` : '',
       sousHtml, delai: delaiAction(a), delaiProche: a.gravite === 'critique',
+      // Initiales du responsable du dossier (étude 05/10 : « remets les initiales de la personne en charge ») — pas dans la fiche
+      // ni dans le tiroir d'un groupe, où elles sont déjà sur la ligne du dossier.
+      responsable: dansFiche || sansDossier ? '' : a.dossier.responsable,
       bouton: sansGeste ? null : { libelle: libelleCourtGeste(a), icone: iconeGeste(a), onclick: `executerActionJour('${cle}')`, titre: a.bouton },
       // Vue « Aujourd'hui » : la case ronde devant la tâche la valide à la main (étude, 01/10) ; la
       // fiche garde sa pastille et le ✓ « Déjà fait » parmi les icônes.
