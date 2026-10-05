@@ -6568,6 +6568,12 @@ wa-button.bouton-ajout.ajout-piece-btn { width: calc(100% - 24px); margin: 10px 
 /* Onglet Échanges selon le stade du dossier (voir echangesSelonStade). */
 .echanges-tete { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 4px 12px; padding-right: 6px; }
 .echanges-stade { font-size: var(--texte-s); font-weight: 600; color: var(--ink-soft); }
+/* Hors du stade du dossier (05/10) : visibles mais en grisé ; la couleur revient au survol ou au clavier. */
+.echanges-hors-stade { margin: -6px 0 20px; }
+.echanges-hors-stade-titre { padding: 6px 6px 2px; font-size: var(--texte-m); color: var(--muted); }
+.echanges-hors-stade > .ja-liste { opacity: 0.55; filter: grayscale(1); transition: opacity 0.15s, filter 0.15s; }
+.echanges-hors-stade > .ja-liste:hover, .echanges-hors-stade > .ja-liste:focus-within { opacity: 1; filter: none; }
+.echanges-hors-stade .ja-titre { font-weight: 500; }
 details.echanges-autres { margin: -6px 0 20px; }
 details.echanges-autres > summary {
   cursor: pointer; list-style: none; display: inline-flex; align-items: center; gap: 6px;

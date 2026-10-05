@@ -427,11 +427,12 @@
     return { stade, utiles: lignes(utiles), autres: lignes(autres) };
   }
 
+  // Lignes hors du stade du dossier : toujours visibles, en grisé sous les lignes utiles (étude 05/10, plus de repli).
   function renderAutresEchanges(lignesAutres) {
-    return lignesAutres.length ? `<details class="echanges-autres">
-        <summary>Hors de ce stade (${lignesAutres.length})</summary>
+    return lignesAutres.length ? `<div class="echanges-hors-stade">
+        <div class="echanges-hors-stade-titre">Hors de ce stade</div>
         <ul class="ja-liste">${lignesAutres.join('')}</ul>
-      </details>` : '';
+      </div>` : '';
   }
 
   // Onglet Échanges de la fiche : le destinataire (client, ou confrère quand un autre office

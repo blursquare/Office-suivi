@@ -530,7 +530,7 @@ test('renderEchangesDossier : le destinataire, le stade, puis les lignes utiles 
   assert.match(html, /Échanges avec le client/);
   // RIB et provision : dans l'onglet Fonds (étude 05/10), même partage utile / replié.
   assert.doesNotMatch(html, /'rib'|'provision'/);
-  const [utile, replie] = app.renderFondsDossier(dossierBase(app, { sansPret: true, rendezVousSignature: '2099-12-01' })).split('<details class="echanges-autres">');
+  const [utile, replie] = app.renderFondsDossier(dossierBase(app, { sansPret: true, rendezVousSignature: '2099-12-01' })).split('<div class="echanges-hors-stade">');
   assert.match(utile, /envoyerRelanceCiblee\('d1', 'rib'\)/);
   assert.doesNotMatch(utile, /'provision'/);
   assert.match(replie, /envoyerRelanceCiblee\('d1', 'provision'\)/);
