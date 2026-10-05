@@ -673,6 +673,17 @@
       ? ligne('mail', deuxConfreres ? 'Confrère de l’acquéreur' : 'Confrère', `<input type="email" id="not-email-participant-${d.id}" class="prop-champ" value="${escapeAttr(d.emailNotaireParticipant || '')}" placeholder="${escapeAttr(emailOfficeConfrereAcquereur(d) ? emailOfficeConfrereAcquereur(d) + ' (carnet)' : 'Non renseigné')}" title="Les relances (prêt, RIB) seront adressées à cette adresse plutôt qu'à l'acquéreur lui-même. Vide : l'email de l'office tiré du carnet des confrères." onblur="changerEmailNotaireParticipant('${d.id}', this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">`, `not-email-participant-${d.id}`)
       : '';
 
+    // Téléphone du confrère, sous son email : saisi sur le dossier, sinon celui de l'annuaire ; le numéro est écrit en texte
+    // (reconnu par l'extension 3CX) et le champ le corrige (étude 05/10).
+    const telConfrere = (cote, libelle) => {
+      const t = telephoneConfrereDossier(d, cote);
+      const texte = t.effectif ? `<span class="coord-tel-texte">${liensAppelTelephone(t.effectif)}<span>${texteAppel3cx(t.effectif)}${t.saisi ? '' : ' <span class="hint">(annuaire)</span>'}</span></span>` : '';
+      const champ = `<input type="tel" id="not-tel-${cote}-${d.id}" class="prop-champ coord-tel" value="${escapeAttr(t.saisi)}" placeholder="${escapeAttr(t.annuaire ? t.annuaire + ' (annuaire)' : 'Téléphone')}" autocomplete="off" aria-label="Téléphone du ${escapeAttr(libelle.toLowerCase())}" title="Plusieurs numéros : séparés par « / ». Vide : le numéro de l'office tiré de l'annuaire. Un numéro saisi complète l'annuaire." onblur="changerTelephoneConfrere('${d.id}', '${cote}', this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">`;
+      return ligne('phone', 'Tél. ' + libelle.charAt(0).toLowerCase() + libelle.slice(1), `<span class="coord-tel-ligne">${texte}${champ}</span>`, `not-tel-${cote}-${d.id}`);
+    };
+    const telConfrereVendeur = confrereRepresenteVendeur(d) ? telConfrere('vendeur', deuxConfreres ? 'Confrère du vendeur' : 'Confrère') : '';
+    const telParticipant = notaireParticipantRepresenteAcquereur(d) ? telConfrere('acquereur', deuxConfreres ? 'Confrère de l’acquéreur' : 'Confrère') : '';
+
     // Succession : responsable, dossier du NAS, parties (coordonnées reprises d'Authentic) et biens.
     if (estSuccession(d)) {
       const parties = (Array.isArray(d.parties) ? d.parties : []).filter(p => p && p.nom);
@@ -724,7 +735,9 @@
           <button type="button" class="lien-action" onclick="placerNotaireFiche('${d.id}', ${detectes.indexOf(n)}, 'acquereur')">Acquéreur</button>
           <button type="button" class="lien-action" onclick="placerNotaireFiche('${d.id}', ${detectes.indexOf(n)}, 'deux')">Les deux</button></span>`).join('')}</span>`, null, 'prop-pleine') : ''}
         ${emailConfrereVendeur}
+        ${telConfrereVendeur}
         ${emailParticipant}
+        ${telParticipant}
         ${ligne('flag', 'Notre étude', ligneRole)}
       </dl>
       <datalist id="${listeId}" data-base="${escapeAttr(JSON.stringify(nomsDetectes))}">${optionsNotaires.map(n => `<option value="${escapeAttr(n)}"></option>`).join('')}</datalist>`;

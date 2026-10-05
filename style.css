@@ -8208,6 +8208,11 @@ button.complement-option.actif .complement-option-source { color: var(--focus); 
 .coord-appel:hover, .coord-appel:focus-visible { color: var(--focus); background: var(--paper-sunk); }
 .coord-appel-inline { margin-left: 4px; vertical-align: middle; }
 .coord-appel tcxspan { display: inline-flex; align-items: center; justify-content: center; width: 100%; height: 100%; }
+/* Numéro en texte pour l'extension Chrome 3CX Click to Call (répertoire, fiche) : le lien « tel: » ne porte que l'icône. */
+.rep-ligne-valeur .coord-appel, .coord-tel-texte .coord-appel { color: var(--muted); }
+.rep-ligne-valeur .coord-appel:hover, .coord-tel-texte .coord-appel:hover { color: var(--focus); }
+tcxspan { cursor: pointer; }
+.coord-tel-texte { display: inline-flex; align-items: center; gap: 4px; font-size: var(--texte-m); color: var(--ink); }
 @media (max-width: 560px) {
   .coord-paire { grid-template-columns: 1fr; gap: 4px; }
 }

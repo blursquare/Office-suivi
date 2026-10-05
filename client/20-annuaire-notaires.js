@@ -404,7 +404,7 @@
           ${enCours}
         </div>
         <div class="annuaire-ligne-contact">
-          ${o.telephone ? `<a href="tel:${escapeAttr(o.telephone.replace(/\s+/g, ''))}" title="Appeler">${icone('phone')}<span>${escapeHtml(o.telephone)}</span></a>` : ''}
+          ${o.telephone ? ligneTelephoneRepertoire('', o.telephone) : ''}
           ${o.email ? `<a href="mailto:${escapeAttr(o.email)}" title="${escapeAttr(o.email)}">${icone('mail')}<span>${escapeHtml(o.email)}</span></a>` : '<span class="carnet-manque">Email non renseigné</span>'}
         </div>
         <div class="annuaire-ligne-action rep-ligne-icones">
@@ -418,11 +418,7 @@
   // libellé), emails et liens ; crayon et ×.
   function renderLigneContactRepertoire(c) {
     const valeurs = (liste, rendu) => (liste || []).map(x => { const { libelle, valeur } = valeurLibelleeRepertoire(x); return rendu(libelle, valeur); });
-    const tels = valeurs(c.telephones, (libelle, valeur) => {
-      const num = numeroAppelable(valeur);
-      const texte = `<span>${libelle ? `<span class="rep-libelle">${escapeHtml(libelle)}</span> ` : ''}${escapeHtml(valeur)}</span>`;
-      return num && !/^fax$/i.test(libelle) ? `<a href="tel:${escapeAttr(num)}" title="Appeler">${icone('phone')}${texte}</a>` : `<span class="rep-ligne-valeur">${icone('phone')}${texte}</span>`;
-    });
+    const tels = valeurs(c.telephones, (libelle, valeur) => ligneTelephoneRepertoire(libelle, valeur));
     const mails = valeurs(c.emails, (libelle, valeur) => `<a href="mailto:${escapeAttr(valeur)}" title="${escapeAttr(valeur)}">${icone('mail')}<span>${libelle ? `<span class="rep-libelle">${escapeHtml(libelle)}</span> ` : ''}${escapeHtml(valeur)}</span></a>`);
     const liens = (c.liens || []).map(l => `<a href="${escapeAttr(l)}" target="_blank" rel="noopener" title="${escapeAttr(l)}">${icone('link')}<span>${escapeHtml(l.replace(/^https?:\/\//, '').replace(/\/$/, ''))}</span></a>`);
     const sous = [c.service, (c.personnes || []).join(', ')].filter(Boolean).join(' · ');
@@ -623,16 +619,40 @@
     return m ? m[0].replace(/[ .]/g, '') : '';
   }
 
-  // Un lien par numéro d'un champ qui peut en porter plusieurs (« 06 12 34 56 78 / 02 54 00 00 00 ») pour appeler avec 3CX
-  // (étude 05/10 : « les numéros de téléphone cliquables pour les ouvrir dans 3CX »). Deux voies dans le même lien : l'icône est
-  // enveloppée dans un <tcxspan tcxhref="…"> — la forme exacte que l'extension Chrome « 3CX Click to Call » pose elle-même sur
-  // un numéro du texte d'une page (relevée par l'étude : `<tcxspan tcxhref="0254445050" title="Call … via 3CX">`), qu'elle
-  // ne voit pas dans un champ de saisie ni derrière une icône — et le lien « tel: » reste pour un poste sans l'extension
-  // (3CX application du protocole). Pure : le HTML des liens, '' sans numéro.
+  // Un lien « tel: » (icône) par numéro d'un champ qui peut en porter plusieurs (« 06 12 34 56 78 / 02 54 00 00 00 ») pour appeler avec
+  // 3CX (étude 05/10 : « les numéros de téléphone cliquables pour les ouvrir dans 3CX ») : 3CX compose si c'est l'application du
+  // protocole `tel:` du poste. L'extension Chrome « 3CX Click to Call », elle, ne voit qu'un numéro écrit en TEXTE (jamais dans un
+  // champ de saisie, un lien ou derrière une icône) : voir `texteAppel3cx`, posé à côté de ce lien. Pure : le HTML des liens,
+  // '' sans numéro.
   function liensAppelTelephone(texte, classe) {
     const numeros = [];
     String(texte || '').split(/[\/;,]|\bou\b/i).forEach(part => { const n = numeroAppelable(part); if (n && !numeros.includes(n)) numeros.push(n); });
-    return numeros.slice(0, 3).map(n => `<a class="${classe || 'coord-appel'}" href="tel:${escapeAttr(n)}" title="Appeler le ${escapeAttr(n)} (3CX)" aria-label="Appeler le ${escapeAttr(n)}" onclick="noterVerificationPoste('telephone-3cx-lien', { detail: 'lien tel: ouvert' })"><tcxspan tcxhref="${escapeAttr(n)}" title="Call ${escapeAttr(n)} via 3CX">${icone('phone')}</tcxspan></a>`).join('');
+    return numeros.slice(0, 3).map(n => `<a class="${classe || 'coord-appel'}" href="tel:${escapeAttr(n)}" title="Appeler le ${escapeAttr(n)} (3CX)" aria-label="Appeler le ${escapeAttr(n)}" onclick="noterVerificationPoste('telephone-3cx-lien', { detail: 'lien tel: ouvert' })">${icone('phone')}</a>`).join('');
+  }
+
+  // Un numéro écrit EN TEXTE dans une page (répertoire, fiche) : enveloppé dans la balise que l'extension Chrome « 3CX Click to Call »
+  // pose sur un numéro du texte (`<tcxspan tcxhref="0254445050" title="Call … via 3CX">`, forme relevée par l'étude le 05/10).
+  // Dans un lien « tel: » ou un champ de saisie l'extension ne le voit pas : le texte est donc posé à côté du lien, jamais dedans
+  // (étude 05/10 : « mettre aussi le call 3CX dans les numéros du répertoire »). Plusieurs numéros séparés par « / ; , ou » :
+  // chacun est enveloppé. Pure : du HTML échappé.
+  function texteAppel3cx(valeur) {
+    return String(valeur || '').split(/([\/;,]|\bou\b)/i).map(part => {
+      if (/^(?:[\/;,]|ou)$/i.test(part)) return escapeHtml(part);
+      return part.split(/(\+?\d[\d .]{2,}\d)/).map(morceau => {
+        const n = numeroAppelable(morceau);
+        return n && morceau === morceau.match(/\+?\d[\d .]{2,}\d/)[0]
+          ? `<tcxspan tcxhref="${escapeAttr(n)}" title="Call ${escapeAttr(morceau)} via 3CX">${escapeHtml(morceau)}</tcxspan>` : escapeHtml(morceau);
+      }).join('');
+    }).join('');
+  }
+
+  // Un téléphone du répertoire : icône « tel: » (3CX application du protocole, poste sans extension) puis le numéro en texte
+  // reconnu par l'extension 3CX. `libelle` : « Standard », « Fax »… (jamais appelé pour un fax). Pure.
+  function ligneTelephoneRepertoire(libelle, valeur) {
+    const num = numeroAppelable(valeur);
+    const etiquette = libelle ? `<span class="rep-libelle">${escapeHtml(libelle)}</span> ` : '';
+    if (!num || /^fax$/i.test(libelle || '')) return `<span class="rep-ligne-valeur">${icone('phone')}<span>${etiquette}${escapeHtml(valeur)}</span></span>`;
+    return `<span class="rep-ligne-valeur"><a class="coord-appel" href="tel:${escapeAttr(num)}" title="Appeler le ${escapeAttr(num)} (3CX)" aria-label="Appeler le ${escapeAttr(num)}" onclick="noterVerificationPoste('telephone-3cx-lien', { detail: 'lien tel: ouvert' })">${icone('phone')}</a><span>${etiquette}${texteAppel3cx(valeur)}</span></span>`;
   }
 
   function renderFormContactRepertoire(c) {
@@ -1856,6 +1876,30 @@
     d.emailConfrereVendeur = nouveau;
     ajouterHistorique(d, `Email du notaire du vendeur : ${nouveau || '—'}`);
     completerEmailCarnet(d.notaireVendeur, nouveau);
+    sauvegarder(d);
+    render();
+  }
+
+  // Téléphone du confrère de ce côté de la fiche (étude 05/10 : « le notaire est connu mais son numéro n'est pas noté ») : celui
+  // saisi sur le dossier, sinon celui de l'office dans l'annuaire. Un numéro saisi complète l'office de l'annuaire qui n'en avait
+  // pas, comme l'email. Pure : { saisi, annuaire, effectif }.
+  function telephoneConfrereDossier(d, cote) {
+    const saisi = String((cote === 'vendeur' ? d.telephoneConfrereVendeur : d.telephoneNotaireParticipant) || '').trim();
+    const t = officeConfrereDossier(d, cote);
+    const annuaire = (t && t.office.telephone) || '';
+    return { saisi, annuaire, effectif: saisi || annuaire };
+  }
+
+  function changerTelephoneConfrere(id, cote, valeur) {
+    const d = dossiers.find(x => x.id === id);
+    if (!d) return;
+    const champ = cote === 'vendeur' ? 'telephoneConfrereVendeur' : 'telephoneNotaireParticipant';
+    const nouveau = String(valeur || '').trim().slice(0, 120);
+    if (nouveau === (d[champ] || '')) return;
+    d[champ] = nouveau;
+    ajouterHistorique(d, `Téléphone du notaire ${cote === 'vendeur' ? 'du vendeur' : 'de l’acquéreur'} : ${nouveau || '—'}`);
+    const t = officeConfrereDossier(d, cote);
+    if (nouveau && t && !t.office.telephone && numeroAppelable(nouveau)) enregistrerOfficeCarnet(Object.assign({}, t.office, { telephone: nouveau })).catch(() => {});
     sauvegarder(d);
     render();
   }

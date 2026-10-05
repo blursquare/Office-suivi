@@ -516,8 +516,8 @@ test('liensAppelTelephone : un lien tel: par numéro (3CX), rien sans numéro, d
   const hrefs = [...h.matchAll(/href="tel:([^"]+)"/g)].map(m => m[1]);
   assert.deepEqual(hrefs, ['0612345678', '0254000000']);
   assert.match(h, /class="coord-appel"/);
-  // La forme de l'extension Chrome « 3CX Click to Call » : <tcxspan tcxhref="numéro"> autour de l'icône, dans le lien tel:.
-  assert.deepEqual([...h.matchAll(/<tcxspan tcxhref="([^"]+)" title="Call \1 via 3CX">/g)].map(m => m[1]), ['0612345678', '0254000000']);
+  // L'extension Chrome « 3CX Click to Call » ne voit que le numéro écrit en texte (texteAppel3cx) : jamais derrière l'icône du lien.
+  assert.doesNotMatch(h, /tcxspan/);
   assert.equal(app.liensAppelTelephone(''), '');
   assert.equal(app.liensAppelTelephone('pas de numéro ici'), '');
   assert.match(app.liensAppelTelephone('+33 6 12 34 56 78', 'coord-appel coord-appel-inline'), /href="tel:\+33612345678"/);

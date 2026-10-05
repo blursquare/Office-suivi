@@ -167,3 +167,11 @@ test('reconnaitreAppelant : partie d’une succession reconnue par ses télépho
   const r = reconnaitreAppelant('06 12 34 56 78', { dossiers: [{ id: 's', typeAffaire: 'succession', parties: [{ nom: 'Marie DUPONT', telephones: ['06 12 34 56 78'] }] }] });
   assert.equal(r.dossiers.map(x => `${x.id}:${x.partie}`).join(','), 's:partie');
 });
+
+test('reconnaitreAppelant : le téléphone d’un confrère saisi sur la fiche reconnaît le dossier', () => {
+  const { reconnaitreAppelant } = require('../src/appels3cx');
+  const dossiers = [{ id: 'd1', telephoneNotaireParticipant: '06 00 00 00 01 / 02 38 00 00 00' }, { id: 'd2', telephoneConfrereVendeur: '06 11 22 33 44', archive: true }];
+  assert.deepEqual(reconnaitreAppelant('0238000000', { dossiers }).dossiers, [{ id: 'd1', partie: 'confrere', archive: false }]);
+  assert.deepEqual(reconnaitreAppelant('0611223344', { dossiers }).dossiers, [{ id: 'd2', partie: 'confrere', archive: true }]);
+  assert.deepEqual(reconnaitreAppelant('0699999999', { dossiers }).dossiers, []);
+});

@@ -59,6 +59,11 @@ function reconnaitreAppelant(numero, { dossiers = [], carnet = [], repertoire = 
       const champ = partie === 'vendeur' ? d.telephoneVendeur : d.telephoneAcquereur;
       if (numerosDansTexte(champ).indexOf(cle) !== -1) res.dossiers.push({ id: d.id, partie, archive: !!d.archive });
     }
+    // Confrère saisi sur la fiche (téléphone du notaire du vendeur ou de l'acquéreur, étude 05/10).
+    if ([d.telephoneConfrereVendeur, d.telephoneNotaireParticipant].some(champ => numerosDansTexte(champ).indexOf(cle) !== -1)
+      && !res.dossiers.some(x => x.id === d.id)) {
+      res.dossiers.push({ id: d.id, partie: 'confrere', archive: !!d.archive });
+    }
     // Succession : téléphones des parties reprises d'Authentic.
     if (d.typeAffaire === 'succession' && Array.isArray(d.parties)
       && d.parties.some(p => p && numerosDansTexte((p.telephones || []).join(' / ')).indexOf(cle) !== -1)) {

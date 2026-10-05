@@ -127,3 +127,30 @@ test('rechercherNotairesAnnuaire : tout l’annuaire, par nom, ville ou code pos
   // Notre office d'abord aussi dans la liste de départ.
   assert.equal(app.optionsNotairesCarnet(carnet)[0], 'Maître Sophie GOSSART (Blois)');
 });
+
+test('texteAppel3cx : le numéro en texte est enveloppé dans la balise de l’extension 3CX, jamais dans un lien', () => {
+  const app = chargerApplication();
+  assert.equal(app.texteAppel3cx('02 54 78 61 70'), '<tcxspan tcxhref="0254786170" title="Call 02 54 78 61 70 via 3CX">02 54 78 61 70</tcxspan>');
+  const deux = app.texteAppel3cx('06 12 34 56 78 / 02.54.00.00.00');
+  assert.equal((deux.match(/<tcxspan /g) || []).length, 2);
+  assert.match(deux, /tcxhref="0612345678"/);
+  assert.match(deux, /tcxhref="02\.54\.00\.00\.00"|tcxhref="0254000000"/);
+  assert.equal(app.texteAppel3cx('standard'), 'standard');
+  assert.equal(app.texteAppel3cx('<b>02 54 78 61 70</b>').includes('<b>'), false, 'échappé');
+  const ligne = app.ligneTelephoneRepertoire('Standard', '02 54 78 61 70');
+  assert.match(ligne, /<a class="coord-appel" href="tel:0254786170"[^>]*>[^<]*<svg|<a class="coord-appel" href="tel:0254786170"/);
+  assert.ok(!/<a [^>]*>[^<]*<span>[^<]*<tcxspan/.test(ligne), 'le texte n’est pas dans le lien');
+  assert.ok(!/tcxspan/.test(app.ligneTelephoneRepertoire('Fax', '02 54 78 61 71')), 'un fax n’est pas appelé');
+});
+
+test('telephoneConfrereDossier : le numéro saisi sur la fiche, sinon celui de l’office de l’annuaire', () => {
+  const app = chargerApplication();
+  const carnet = CARNET.map(o => Object.assign({}, o, { telephone: o.id === 'a' ? '02 38 00 00 00' : '' }));
+  app.carnetConfreres = carnet;
+  const d = { notaireAcquereur: 'Maître Paul DURAND (ORLEANS)' };
+  assert.equal(app.telephoneConfrereDossier(d, 'acquereur').effectif, '02 38 00 00 00');
+  assert.equal(app.telephoneConfrereDossier(d, 'acquereur').saisi, '');
+  d.telephoneNotaireParticipant = '06 00 00 00 01';
+  assert.equal(app.telephoneConfrereDossier(d, 'acquereur').effectif, '06 00 00 00 01');
+  assert.equal(app.telephoneConfrereDossier({ notaireVendeur: 'Maître Luc PETIT (VENDOME)' }, 'vendeur').effectif, '');
+});

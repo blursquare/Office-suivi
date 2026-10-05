@@ -16731,3 +16731,14 @@ trouvée/introuvable toutes les 20 min venait de fenêtres qui n'avaient pas la 
   choix) — le bouton « Notre office » le fait en un clic. Coordonnées : inchangées (office du confrère à un clic dans le répertoire,
   email repris du répertoire pour les relances à défaut d'adresse saisie, `completerEmailCarnet` complète le répertoire). Tests
   `carnet-confreres`.
+
+- **0.146.0 (05/10 17 h 14) — appel 3CX dans le répertoire, téléphone du confrère sur la fiche** (étude : « mettre aussi le call 3CX dans les
+  numéros du répertoire » ; « dans ce dossier le notaire est connu mais son numéro n'est pas noté, à passer dans la partie confrère de la
+  fiche »). (1) Répertoire : les numéros étaient dans un lien `tel:` ; l'extension « 3CX Click to Call » ne voit que le TEXTE d'une page
+  (jamais un lien, un champ ou une icône). `texteAppel3cx` écrit chaque numéro en `<tcxspan tcxhref="…" title="Call … via 3CX">` (forme
+  relevée par l'étude le 05/10), `ligneTelephoneRepertoire` pose l'icône `tel:` à côté (poste sans extension) ; offices et contacts du
+  répertoire ; un fax n'est pas appelé. La balise autour de l'icône (0.144.27) est retirée. (2) Fiche : sous l'email du confrère, ligne « Tél.
+  confrère » (`telConfrere`, `telephoneConfrereDossier`) : numéro saisi sur le dossier (`d.telephoneNotaireParticipant`,
+  `d.telephoneConfrereVendeur`), sinon celui de l'office de l'annuaire (« (annuaire) »), écrit en texte pour 3CX, champ pour le corriger ;
+  un numéro saisi complète l'office de l'annuaire qui n'en avait pas (`changerTelephoneConfrere`) ; le serveur reconnaît ce numéro à
+  l'appel (`reconnaitreAppelant`, partie « Confrère »). Point terrain `telephone-3cx-texte` (à confirmer à l'œil au bureau).
