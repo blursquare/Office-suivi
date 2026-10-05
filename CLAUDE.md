@@ -315,6 +315,10 @@ dans `index.html`** (le test `structure-client` refuse tout décalage).
   un nom que le motif prend, « oui » fait reconnaître ; entre deux formes qui se contredisent, la plus récente l'emporte, 05/10). Termes élargis (`TERMES_ELARGIS_PIECES`) **pour l'outil seulement**
   (ils proposent, ne cochent jamais) ; noms du commun gardés en mémoire du serveur seulement ; formes décidées dans le rapport
   technique → à reporter dans `motifNom`/`FORMES_NOM_PIECES` (et `EXEMPLES_NOMS_PIECES`).
+  **Avant-contrat retrouvé sur le NAS** (`choisirAvantContratNas`) : jamais un nom qui dit « projet »/« relecture » (projet d'acte),
+  ni un nom qui porte un autre dossier ou une autre personne (vente préalable) — `raisonExclusionAvantContrat`,
+  `contexteNomsAvantContrat` (noms des autres dossiers de CLAIRE, mots en capitales hors parties, adresse, notaires et mots d'usage
+  `MOTS_NON_NOMS_AVANT_CONTRAT`) ; le fichier choisi à la main ou lu à la création n'y est pas soumis (étude 05/10).
   Une pièce validée à la main (`piecesValideesManuellement`) n'est jamais repassée en manquante.
   Une exclusion (« Réinitialiser ») est globale et stockée en base — elle est la première cause
   d'une pièce « jamais reconnue » malgré un nom correct.

@@ -185,17 +185,73 @@
   // Fonction pure (liste `{nom, chemin}` en entrée), testable — voir tests/nas-avant-contrat.test.js.
   var RE_NOM_COMPROMIS = /compromis/i;
   var RE_NOM_PROMESSE = /promesse/i;
-  function choisirAvantContratNas(fichiers, nomAttendu) {
-    const liste = Array.isArray(fichiers) ? fichiers : [];
+
+  // Jamais pris pour l'avant-contrat signé (étude 05/10) :
+  //  - un nom qui dit « projet » ou « relecture » : souvent le projet d'acte, pas le compromis signé ;
+  //  - un nom qui porte le nom d'un AUTRE dossier ou d'une autre personne : souvent la promesse ou le compromis de la
+  //    vente préalable de l'acquéreur, rangé dans son dossier. « Autre personne » = un nom d'un autre dossier de CLAIRE
+  //    (parties, nom du dossier), ou un mot écrit en capitales qui n'est ni une partie, ni le nom du dossier, ni un mot de
+  //    l'adresse du bien ou des notaires, ni un mot d'usage (COMPROMIS, VENTE, AAE…).
+  // Le fichier mémorisé (choisi à la main, ou lu à la création) n'est pas concerné : c'est un choix de l'étude.
+  var RE_NOM_PROJET_AVANT_CONTRAT = /(?<![a-z])(projets?|relecture)(?![a-z])/;
+  var MOTS_NON_NOMS_AVANT_CONTRAT = new Set(('compromis promesse promesses vente ventes vte unilaterale synallagmatique achat avant contrat '
+    + 'signe signee signes signees signature copie aae sru scan scanne claire acte actes original originale definitif definitive final '
+    + 'version annexe annexes avenant lot lots bien biens maison appartement terrain immeuble local garage parcelle cadastre '
+    + 'les des dans pour par sur avec une aux mme mlle monsieur madame messieurs mesdames epoux epouse consorts consort indivision '
+    + 'sci sarl sas scp selarl office etude notaire notaires maitre gossart blois pdf doc docx '
+    + 'copro copropriete ssp seing prive authentique vendeur vendeurs acquereur acquereurs rdv '
+    + 'janvier fevrier mars avril mai juin juillet aout septembre octobre novembre decembre').split(/\s+/));
+  // Pure : les mots (≥ 3 lettres, sans accent, en minuscules) d'un texte.
+  function motsNomAvantContrat(texte) {
+    return normaliserPourRecherche(String(texte || '')).split(/[^a-z]+/).filter(m => m.length >= 3);
+  }
+  // Pure : ce qui désigne ce dossier (`propres`) et les noms des autres dossiers (`autres`), pour écarter un fichier qui
+  // porte un autre nom. `tous` = tous les dossiers de CLAIRE (archivés compris).
+  function contexteNomsAvantContrat(d, tous) {
+    const nomsPartie = p => [p && p.nom, p && p.nomUsage, p && p.nomNaissance].filter(Boolean).join(' ');
+    const propres = new Set([
+      d && d.nom, d && d.adresseBien, d && d.bien && d.bien.adresse, d && d.notaireVendeur, d && d.notaireAcquereur,
+      ...((d && d.parties) || []).map(p => nomsPartie(p) + ' ' + ((p && p.prenom) || ''))
+    ].flatMap(motsNomAvantContrat));
+    const autres = new Set();
+    (tous || []).forEach(x => {
+      if (!x || !d || x.id === d.id) return;
+      [x.nom, ...(x.parties || []).map(nomsPartie)].flatMap(motsNomAvantContrat)
+        .forEach(m => { if (!propres.has(m) && !MOTS_NON_NOMS_AVANT_CONTRAT.has(m)) autres.add(m); });
+    });
+    return { propres, autres };
+  }
+  // Pure : les noms étrangers au dossier que porte le nom du fichier ([] = aucun).
+  function nomsEtrangersAvantContrat(nomFichier, contexte) {
+    if (!contexte) return [];
+    const nom = String(nomFichier || '').replace(/\.pdf$/i, '');
+    const etrangers = new Set(motsNomAvantContrat(nom).filter(m => contexte.autres.has(m)));
+    // Mots en capitales (un nom de famille, dans les usages de l'étude) qui ne sont pas ceux du dossier.
+    nom.split(/[^A-Za-zÀ-ÖØ-öø-ÿ]+/).filter(t => t.length >= 3 && t === t.toUpperCase() && t !== t.toLowerCase())
+      .forEach(t => motsNomAvantContrat(t).forEach(m => {
+        if (!contexte.propres.has(m) && !MOTS_NON_NOMS_AVANT_CONTRAT.has(m)) etrangers.add(m);
+      }));
+    return [...etrangers];
+  }
+  // Pure : pourquoi ce fichier n'est jamais pris pour l'avant-contrat ('' = il peut l'être).
+  function raisonExclusionAvantContrat(nomFichier, contexte) {
+    if (RE_NOM_PROJET_AVANT_CONTRAT.test(normaliserPourRecherche(String(nomFichier || '')))) return 'projet';
+    return nomsEtrangersAvantContrat(nomFichier, contexte).length ? 'autre-nom' : '';
+  }
+
+  // `contexte` (facultatif) : contexteNomsAvantContrat(d, dossiers) — sans lui, seuls « projet » et « relecture » écartent.
+  function choisirAvantContratNas(fichiers, nomAttendu, contexte) {
+    const tous = Array.isArray(fichiers) ? fichiers : [];
     const nomNormalise = f => normaliserNomPourMotif(String(f.nom || '')).toLowerCase();
     const bienPlace = f => estEmplacementAvantContrat(f.chemin);
     if (nomAttendu) {
       const cible = normaliserNomPourMotif(nomAttendu).toLowerCase();
       // Nom identique d'abord (« Compromis.pdf » ne doit pas être pris pour « Compromis signé Compromis.pdf »), puis nom contenu.
-      const identiques = liste.filter(f => nomNormalise(f) === cible);
-      const exacts = identiques.length ? identiques : liste.filter(f => nomNormalise(f).includes(cible));
+      const identiques = tous.filter(f => nomNormalise(f) === cible);
+      const exacts = identiques.length ? identiques : tous.filter(f => nomNormalise(f).includes(cible));
       if (exacts.length) return { fichier: exacts.find(bienPlace) || exacts[0], methode: 'nom-exact' };
     }
+    const liste = tous.filter(f => !raisonExclusionAvantContrat(f.nom, contexte));
     const parNom = liste.filter(f => RE_NOM_COMPROMIS.test(nomNormalise(f)))
       .concat(liste.filter(f => RE_NOM_PROMESSE.test(nomNormalise(f)) && !RE_NOM_COMPROMIS.test(nomNormalise(f))));
     const parNomBienPlace = parNom.find(bienPlace);
@@ -213,6 +269,16 @@
     const chemin = String((d && d.compromisChoisiNas) || '');
     const base = String((d && d.nasDossier) || '').replace(/[\\/]+$/, '');
     return chemin && base && chemin.startsWith(base + '/') ? chemin : '';
+  }
+  // Avant-contrat mémorisé, sauf s'il est désormais écarté (projet, relecture, autre nom — étude 05/10) sans avoir été choisi à
+  // la main ni lu à la création : un projet retenu avant cette règle n'est plus ouvert, la recherche reprend.
+  function compromisMemoriseValide(d) {
+    const chemin = fichierTrouve(d, NAS_CLE_COMPROMIS);
+    if (!chemin) return '';
+    const nom = String(chemin).split(/[\\/]/).pop() || '';
+    const attendu = nomCompromisAttendu(d);
+    if (attendu && normaliserNomPourMotif(nom).toLowerCase() === normaliserNomPourMotif(attendu).toLowerCase()) return chemin;
+    return raisonExclusionAvantContrat(nom, contexteNomsAvantContrat(d, dossiers)) ? '' : chemin;
   }
   function nomCompromisAttendu(d) {
     const choisi = compromisChoisiValide(d);
@@ -1136,7 +1202,7 @@
   async function ouvrirCompromisTrouve(dossierId, btn) {
     const d = dossiers.find(x => x.id === dossierId);
     if (!d) return;
-    const dejaTrouve = fichierTrouve(d, NAS_CLE_COMPROMIS);
+    const dejaTrouve = compromisMemoriseValide(d);
     if (dejaTrouve) { ouvrirFichierNas(dejaTrouve); return; }
     if (!d.dossierLie || !d.nasDossier) {
       afficherToast('Reliez d\u2019abord un dossier du NAS pour retrouver le compromis.', 'OK', null);
@@ -1148,14 +1214,14 @@
       const fichiers = await listerFichiersNas(d);
       // Nom exact d'abord, puis racine/rubrique SRU, mots « compromis »/« promesse » en dernier —
       // voir choisirAvantContratNas() pour l'ordre complet et ce qu'il départage.
-      const choix = choisirAvantContratNas(fichiers, nomCompromisAttendu(d));
+      const choix = choisirAvantContratNas(fichiers, nomCompromisAttendu(d), contexteNomsAvantContrat(d, dossiers));
       const trouve = choix.fichier;
       const parRepli = choix.methode !== 'nom-exact';
       if (nomCompromisAttendu(d) && parRepli) {
         afficherToast(`\u00ab\u00a0${nomCompromisAttendu(d)}\u00a0\u00bb introuvable dans le dossier NAS \u2014 recherche \u00e9largie.`, 'OK', null);
       }
       if (!trouve) {
-        afficherToast('Aucun avant-contrat trouv\u00e9 dans le dossier NAS reli\u00e9 : ni fichier contenant \u00ab\u00a0compromis\u00a0\u00bb ou \u00ab\u00a0promesse\u00a0\u00bb.', 'OK', null);
+        afficherToast('Aucun avant-contrat trouv\u00e9 dans le dossier NAS reli\u00e9 (les projets, relectures et fichiers au nom d\u2019un autre dossier sont \u00e9cart\u00e9s) : choisissez-le avec \u00ab\u00a0Changer\u00a0\u00bb.', 'OK', null);
         return;
       }
       const chemin = cheminNasComplet(d, trouve.chemin);
@@ -1196,16 +1262,19 @@
     try {
       const fichiers = await listerFichiersNas(d);
       if (!choixCompromisEnCours || choixCompromisEnCours.id !== id) return;
-      const actuel = choisirAvantContratNas(fichiers, nomCompromisAttendu(d)).fichier;
+      const contexte = contexteNomsAvantContrat(d, dossiers);
+      const actuel = choisirAvantContratNas(fichiers, nomCompromisAttendu(d), contexte).fichier;
+      const ECARTS = { projet: 'projet ou relecture', 'autre-nom': 'autre nom' };
       const bienPlace = f => estEmplacementAvantContrat(f.chemin);
       const tri = fichiers.slice().sort((a, b) => (bienPlace(b) - bienPlace(a)) || String(a.chemin).localeCompare(String(b.chemin), 'fr'));
       choixCompromisEnCours.fichiers = tri;
       liste.innerHTML = tri.length ? tri.map((f, i) => {
         const dossierDe = segmentsDossier(f.chemin).join(' / ');
         const estActuel = actuel && actuel.chemin === f.chemin;
+        const ecart = ECARTS[raisonExclusionAvantContrat(f.nom, contexte)] || '';
         return `<button type="button" class="nas-choix-item${estActuel ? ' actuel' : ''}" data-cherche="${escapeAttr(normaliserPourRecherche(f.chemin))}" onclick="choisirCompromisNas(${i})">`
           + `<span class="nas-choix-nom">${escapeHtml(f.nom)}</span>`
-          + `<span class="nas-choix-marque">${escapeHtml(estActuel ? 'actuel' : (dossierDe || 'racine'))}</span></button>`;
+          + `<span class="nas-choix-marque">${escapeHtml(estActuel ? 'actuel' : (dossierDe || 'racine') + (ecart ? ' · ' + ecart : ''))}</span></button>`;
       }).join('') : '<p class="nas-choix-vide">Aucun PDF dans le dossier du NAS.</p>';
       if (recherche) recherche.style.display = tri.length > 6 ? '' : 'none';
       const retour = document.getElementById('compromis-choix-auto');

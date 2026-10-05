@@ -1918,7 +1918,7 @@
     if (viaClic) render();
     let message = null;
     try {
-      const trouve = choisirAvantContratNas(await listerFichiersNas(d), nomCompromisAttendu(d)).fichier;
+      const trouve = choisirAvantContratNas(await listerFichiersNas(d), nomCompromisAttendu(d), contexteNomsAvantContrat(d, dossiers)).fichier;
       if (!trouve) {
         message = 'Avant-contrat introuvable dans le dossier du NAS : saisissez le mobilier à la main s’il y en a.';
       } else {

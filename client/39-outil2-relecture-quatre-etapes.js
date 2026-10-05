@@ -191,7 +191,7 @@
     try {
       const fichiers = await listerFichiersNas(d);
       const deja = new Set(fichiersAnalyseIa.map(f => f.cheminNas));
-      const avantContrat = choisirAvantContratNas(fichiers, nomCompromisAttendu(d)).fichier;
+      const avantContrat = choisirAvantContratNas(fichiers, nomCompromisAttendu(d), contexteNomsAvantContrat(d, dossiers)).fichier;
       const coches = new Set();
       for (const f of fichiers) {
         if (deja.has(cheminNasComplet(d, f.chemin))) continue;
@@ -298,7 +298,7 @@
     const d = auditDossierLie;
     if (!d || !d.nasDossier) return;
     try {
-      const trouve = choisirAvantContratNas(await listerFichiersNas(d), nomCompromisAttendu(d)).fichier;
+      const trouve = choisirAvantContratNas(await listerFichiersNas(d), nomCompromisAttendu(d), contexteNomsAvantContrat(d, dossiers)).fichier;
       if (!trouve) return;
       const entree = {
         id: `analyse-ia-${++compteurFichierAnalyseIa}`, file: null, cheminNas: cheminNasComplet(d, trouve.chemin),

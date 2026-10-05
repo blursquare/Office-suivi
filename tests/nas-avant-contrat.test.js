@@ -149,3 +149,51 @@ test('choisirCompromisNas / revenirCompromisAutomatique : choix gardé sur la fi
   assert.equal(d.compromisChoisiNas, undefined);
   assert.equal((d.fichiersTrouves || {}).compromis, undefined);
 });
+
+// Étude 05/10 : « ne pas détecter les PDF avec le mot projet ou relecture » (souvent des projets d'actes) ; « ne pas prendre
+// de fichier qui porte d'autres noms de dossier ou de personnes » (souvent la promesse ou le compromis de la vente préalable).
+const DOSSIER = { id: 'd1', nom: 'DUPONT / MARTIN', adresseBien: 'BLOIS (41000), 3 rue des Lices',
+  parties: [{ role: 'VENDEUR', nom: 'DUPONT', prenom: 'Paul' }, { role: 'ACQUEREUR', nom: 'MARTIN', prenom: 'Léa', nomUsage: 'GIRAUD' }] };
+const AUTRE = { id: 'd2', nom: 'LEROY / FAURE', parties: [{ role: 'VENDEUR', nom: 'LEROY' }, { role: 'ACQUEREUR', nom: 'FAURE' }] };
+
+test('avant-contrat : « projet » et « relecture » ne sont jamais pris, même à la racine', () => {
+  const app = chargerApplication();
+  const ctx = app.contexteNomsAvantContrat(DOSSIER, [DOSSIER, AUTRE]);
+  const projet = { nom: 'Projet compromis DUPONT MARTIN.pdf', chemin: 'Projet compromis DUPONT MARTIN.pdf' };
+  const relecture = { nom: 'Promesse de vente - relecture.pdf', chemin: '8 - SRU/Promesse de vente - relecture.pdf' };
+  const projets = { nom: 'PROJETS promesse.pdf', chemin: 'PROJETS promesse.pdf' };
+  const bon = { nom: 'Compromis signé DUPONT MARTIN.pdf', chemin: '2 - Acquéreur/Compromis signé DUPONT MARTIN.pdf' };
+  const choix = app.choisirAvantContratNas([projet, relecture, projets, bon], null, ctx);
+  assert.equal(choix.fichier.chemin, bon.chemin);
+  assert.equal(app.choisirAvantContratNas([projet, relecture], null, ctx).fichier, null);
+  assert.equal(app.raisonExclusionAvantContrat('Projet d’acte de vente.pdf', ctx), 'projet');
+  assert.equal(app.raisonExclusionAvantContrat('Compromis projeté.pdf', ctx), '', 'un autre mot ne compte pas');
+  // Sans contexte (appel ancien), « projet » écarte quand même.
+  assert.equal(app.choisirAvantContratNas([projet], null).fichier, null);
+});
+
+test('avant-contrat : un fichier au nom d’un autre dossier ou d’une autre personne est écarté', () => {
+  const app = chargerApplication();
+  const ctx = app.contexteNomsAvantContrat(DOSSIER, [DOSSIER, AUTRE]);
+  const autreDossier = { nom: 'Compromis Leroy Faure.pdf', chemin: 'Compromis Leroy Faure.pdf' };
+  const ventePrealable = { nom: 'Promesse de vente MARTIN - BERTIN.pdf', chemin: '8 - SRU/Promesse de vente MARTIN - BERTIN.pdf' };
+  const bon = { nom: 'Copie AAE PROMESSE DE VENTE DUPONT MARTIN signée.pdf', chemin: 'Scans/Copie AAE PROMESSE DE VENTE DUPONT MARTIN signée.pdf' };
+  assert.equal(app.raisonExclusionAvantContrat(autreDossier.nom, ctx), 'autre-nom', 'nom d’un autre dossier, même en minuscules');
+  assert.equal(app.nomsEtrangersAvantContrat(ventePrealable.nom, ctx).join(','), 'bertin', 'nom en capitales inconnu du dossier');
+  const choix = app.choisirAvantContratNas([autreDossier, ventePrealable, bon], null, ctx);
+  assert.equal(choix.fichier.chemin, bon.chemin);
+  // Ce qui désigne le dossier n'écarte jamais : parties (nom d'usage, prénom), ville du bien, mots d'usage.
+  ['Compromis DUPONT GIRAUD BLOIS.pdf', 'Compromis signé PAUL DUPONT.pdf', 'COMPROMIS SIGNE SRU OCTOBRE.pdf', 'Promesse VTE DUPONT-MARTIN.pdf']
+    .forEach(n => assert.equal(app.raisonExclusionAvantContrat(n, ctx), '', n));
+  // Un fichier mémorisé ou choisi (nom exact) n'est pas soumis à la règle.
+  assert.equal(app.choisirAvantContratNas([ventePrealable], 'Promesse de vente MARTIN - BERTIN.pdf', ctx).methode, 'nom-exact');
+});
+
+test('avant-contrat : « SRU seul » ne reprend pas un fichier écarté', () => {
+  const app = chargerApplication();
+  const ctx = app.contexteNomsAvantContrat(DOSSIER, [DOSSIER, AUTRE]);
+  const projetSru = { nom: 'Acte 2026.pdf', chemin: '8 - SRU/Acte 2026.pdf' };
+  const relectureSru = { nom: 'Relecture.pdf', chemin: '8 - SRU/Relecture.pdf' };
+  const choix = app.choisirAvantContratNas([projetSru, relectureSru], null, ctx);
+  assert.equal(`${choix.methode}:${choix.fichier && choix.fichier.chemin}`, 'sru-seul:8 - SRU/Acte 2026.pdf');
+});

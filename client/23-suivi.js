@@ -647,7 +647,7 @@
     // et affichait donc « Aucun fichier mémorisé » même sur un dossier relié dont l'avant-contrat est
     // parfaitement joignable (et même après l'avoir ouvert une fois, le fichier trouvé étant rangé
     // dans d.fichiersTrouves, pas dans d.compromisNomFichier). Signalé par l'étude.
-    const cheminCompromisTrouve = fichierTrouve(d, NAS_CLE_COMPROMIS);
+    const cheminCompromisTrouve = compromisMemoriseValide(d);
     const nomCompromisTrouve = cheminCompromisTrouve ? (String(cheminCompromisTrouve).split(/[\\/]/).pop() || '') : '';
     const nomAttendu = nomCompromisAttendu(d);
     const compromisConnu = !!(nomAttendu || nomCompromisTrouve);

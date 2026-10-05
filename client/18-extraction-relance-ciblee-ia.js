@@ -455,7 +455,7 @@
     try {
       const fichiers = await listerFichiersNas(d);
       if (dossierComplementEnCours() !== d) return;
-      const choix = choisirAvantContratNas(fichiers, nomCompromisAttendu(d));
+      const choix = choisirAvantContratNas(fichiers, nomCompromisAttendu(d), contexteNomsAvantContrat(d, dossiers));
       if (!choix.fichier) { zone.innerHTML = '<p class="hint">Aucun avant-contrat trouvé dans le dossier du NAS : déposez-le ci-dessous.</p>'; return; }
       const chemin = cheminNasComplet(d, choix.fichier.chemin);
       zone.innerHTML = `<ul class="ja-liste">${renderLigneAction({

@@ -1010,7 +1010,7 @@
     try {
       // Même ordre de préférence que le bouton « Ouvrir le compromis » (choisirAvantContratNas) :
       // nom exact, puis racine/rubrique SRU, puis mots « compromis »/« promesse ».
-      const trouve = choisirAvantContratNas(await listerFichiersNas(d), nomCompromisAttendu(d)).fichier;
+      const trouve = choisirAvantContratNas(await listerFichiersNas(d), nomCompromisAttendu(d), contexteNomsAvantContrat(d, dossiers)).fichier;
       if (!trouve) return null;
       const pdf = await ouvrirPdfNas(cheminNasComplet(d, trouve.chemin));
       const { texte, pages, pagesLues, pagesTotal, viaOcr, tronque } = await lireTextePdfParPage(pdf);

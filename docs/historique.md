@@ -16853,3 +16853,22 @@ trouvée/introuvable toutes les 20 min venait de fenêtres qui n'avaient pas la 
   dans `ouvrirDossierDrawer`, localStorage `claire-dossiers-consultes:<collaborateur>`, `ajouterDossierConsulte`,
   `dossiersConsultesRecents`), point de couleur du statut, statut et prénom du responsable, heure (aujourd'hui), « hier » ou
   date (`quandConsulte`) ; la fiche ouverte est surlignée. Les dernières pièces restent dans le widget du tableau de bord.
+
+### 05/10/2026 22 h 55 — 0.155.1 : avant-contrat du NAS, projets et autres noms écartés
+
+Étude : « Ne pas détecter les PDF avec le mot projet pour les promesses de vente / compromis, ou avec le mot relecture —
+souvent des projets d'actes. Ne pas prendre non plus de fichier qui porte d'autres noms de dossier ou de personnes dans
+l'intitulé : souvent des promesses de vente ou compromis pour des ventes préalables. »
+
+- `choisirAvantContratNas(fichiers, nomAttendu, contexte)` écarte avant la recherche par mots (« compromis »/« promesse »)
+  et avant « SRU seul » : `RE_NOM_PROJET_AVANT_CONTRAT` (« projet(s) », « relecture », mot entier, sans accent) et les noms
+  étrangers (`nomsEtrangersAvantContrat`) — un mot des autres dossiers de CLAIRE (nom du dossier, noms et noms d'usage des
+  parties, archivés compris, quelle que soit la casse), ou un mot écrit en CAPITALES (≥ 3 lettres) qui n'est ni une partie
+  du dossier (nom, nom d'usage, prénom), ni le nom du dossier, ni un mot de l'adresse du bien ou des notaires, ni un mot
+  d'usage (`MOTS_NON_NOMS_AVANT_CONTRAT` : COMPROMIS, VENTE, VTE, AAE, SRU, SIGNÉ, COPIE, mois…).
+- Le nom exact (choisi à la main par « Changer », ou PDF lu à la création) reste prioritaire et n'est pas soumis à la règle.
+- `compromisMemoriseValide` : un avant-contrat déjà mémorisé que la règle écarte n'est plus ouvert ni affiché (la recherche
+  reprend), sauf s'il est le fichier attendu. Fenêtre « Changer » : chaque fichier écarté porte « projet ou relecture » ou
+  « autre nom ». Message « aucun avant-contrat » : dit les écarts et renvoie à « Changer ».
+- Limite : une personne inconnue de CLAIRE écrite en minuscules (« Compromis Martin Bertin ») n'est pas détectée ;
+  l'emplacement (racine / SRU d'abord) départage toujours en second.
