@@ -494,12 +494,10 @@
     const cle = cleChecklistDocumentAnalyse(d, doc);
     const recu = documentAnalyseRecu(d, doc);
     const trouveeNas = cle && recu && !(d.piecesValideesManuellement || []).includes(cle);
-    const titre = trouveeNas ? 'Reçue — trouvée dans le dossier du NAS'
+    const titre = trouveeNas ? 'Reçue — trouvée dans le dossier du NAS — cliquer pour la décocher (réinitialiser)'
       : recu ? `Reçu${doc && doc.recuLe ? ` (coché le ${formatDateFr(String(doc.recuLe).slice(0, 10))})` : ' (validé à la main)'} — cliquer pour le remettre à recevoir`
         : 'Cocher une fois reçu';
-    const caseHtml = trouveeNas
-      ? `<span class="piece-case analyse-case" role="checkbox" aria-checked="true" aria-disabled="true" aria-label="${escapeAttr(label)}" title="${escapeAttr(titre)}">${icone('check')}</span>`
-      : `<button type="button" class="piece-case analyse-case" role="checkbox" aria-checked="${recu}" aria-label="${escapeAttr(label)}" title="${escapeAttr(titre)}" onclick="basculerDocumentAnalyseRecu('${d.id}', ${index})">${recu ? icone('check') : ''}</button>`;
+    const caseHtml = `<button type="button" class="piece-case analyse-case" role="checkbox" aria-checked="${recu}" aria-label="${escapeAttr(label)}" title="${escapeAttr(titre)}" onclick="basculerDocumentAnalyseRecu('${d.id}', ${index})">${recu ? icone('check') : ''}</button>`;
     return `<div class="analyse-doc-ligne${recu ? ' recu' : ''}">${caseHtml}<span class="analyse-doc-nom">${escapeHtml(label)}</span>${cle ? '<span class="piece-tag" title="Même pièce que dans l’onglet Pièces">checklist</span>' : ''}<wa-button appearance="plain" size="s" type="button" class="bouton-icone analyse-doc-suppr" onclick="supprimerDocumentDossier('${d.id}', ${index})" title="Retirer ce document de la liste" aria-label="Retirer ce document">${icone('x')}</wa-button></div>`;
   }
 
@@ -550,6 +548,8 @@
       const recue = (d.pieces || {})[cle] === 'recue';
       if (!recue) validerPieceManuellement(d.id, cle, piece.label);
       else if ((d.piecesValideesManuellement || []).includes(cle)) retirerValidationManuellePiece(d.id, cle, piece.label);
+      else if (piece.personnalisee) basculerStatutPiecePersonnalisee(d.id, cle);
+      else reinitialiserStatutPieceStandard(d.id, cle, piece.label);
       return;
     }
     if (typeof liste[index] === 'string') liste[index] = { label: liste[index], cat: '' };

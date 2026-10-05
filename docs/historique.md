@@ -16693,3 +16693,9 @@ Le diagnostic du parcours collé par l'étude (dossier de copropriété, 14 rue 
 trouvée/introuvable toutes les 20 min venait de fenêtres qui n'avaient pas la même liste de décisions (0.144.34/35). Changement : le parcours
 écrit maintenant la ligne « … écarté par une réponse « Non » … (« Annuler » la décision pour le rétablir) ». Test `parcours-nas-diagnostic`
 (rejoue le parcours complet). **À confirmer au bureau** : la liste des réponses de la pièce dans Réglages › Noms de fichiers du NAS.
+
+- **0.144.37 (05/10 14 h 21) — pièces trouvées de nouveau cochables/décochables** (étude : « les pièces trouvées ne sont plus cochables et
+  décochables »). Cause : depuis la liste à cocher (529f90d) la case d'une pièce standard trouvée sur le NAS était un `<span>` désactivé
+  (seul « Réinitialiser » au survol permettait de la défaire). Changement : la case est un bouton — décocher une pièce trouvée appelle
+  `reinitialiserStatutPieceStandard` (confirmation, pièce « manquante », nom de fichier exclu pour cette pièce), la recocher la valide à la
+  main ; même geste dans l'onglet Analyse (`renderDocumentAnalyse`, `basculerDocumentAnalyseRecu`). Test `pieces-case-trouvee`.

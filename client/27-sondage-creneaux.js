@@ -1239,8 +1239,8 @@
   // La CASE est le geste principal, et elle suit le même sens partout : cocher = « reçue ».
   //   - pièce standard en attente → cocher la marque reçue à la main (validerPieceManuellement) ;
   //   - pièce standard validée à la main → décocher retire cette validation ;
-  //   - pièce standard trouvée sur le NAS → case non cliquable (c'est le parcours qui l'a cochée ;
-  //     « Réinitialiser » reste disponible au survol, en cas de mauvaise correspondance) ;
+  //   - pièce standard trouvée sur le NAS → décocher la réinitialise (reinitialiserStatutPieceStandard,
+  //     comme « Réinitialiser » au survol : mauvaise correspondance, fichier renommé) ;
   //   - pièce personnalisée → la case fait défiler son statut (à vérifier → manquante → reçue).
   // Le NOM d'une pièce reçue avec un fichier ouvre ce fichier.
   function renderPiecesDossier(d) {
@@ -1267,7 +1267,7 @@
       const valideeMain = !p.personnalisee && (d.piecesValideesManuellement || []).includes(p.cle);
       const label = escapeAttr(p.label);
       const arg = escapeOnclickArg(p.label);
-      let caseAction = '';
+      let caseAction;
       let caseTitre = s.titre;
       if (p.personnalisee) {
         caseAction = `basculerStatutPiecePersonnalisee('${d.id}', '${p.cle}')`;
@@ -1279,12 +1279,13 @@
         caseAction = `validerPieceManuellement('${d.id}', '${p.cle}', '${arg}')`;
         caseTitre = `${statut === 'manquante' ? 'Introuvable dans le dossier du NAS' : s.titre} — cliquer pour la marquer reçue (document détenu hors du NAS)`;
       } else {
-        caseTitre = 'Reçue — trouvée dans le dossier du NAS';
+        // Trouvée sur le NAS : décocher = réinitialiser (bonne pièce mal reconnue, fichier renommé) ;
+        // elle repart « manquante » et se recoche alors à la main si besoin (étude 05/10 : « cochables et décochables »).
+        caseAction = `reinitialiserStatutPieceStandard('${d.id}', '${p.cle}', '${arg}')`;
+        caseTitre = 'Reçue — trouvée dans le dossier du NAS — cliquer pour la décocher (réinitialiser)';
       }
       const coche = recue ? icone('check') : (statut === 'manquante' && p.personnalisee ? icone('x') : '');
-      const caseHtml = caseAction
-        ? `<button type="button" class="piece-case" role="checkbox" aria-checked="${recue}" aria-label="${label}" title="${escapeAttr(caseTitre)}" onclick="piecesToutesVisibles = true; ${caseAction}">${coche}</button>`
-        : `<span class="piece-case" role="checkbox" aria-checked="true" aria-disabled="true" aria-label="${label}" title="${escapeAttr(caseTitre)}">${coche}</span>`;
+      const caseHtml = `<button type="button" class="piece-case" role="checkbox" aria-checked="${recue}" aria-label="${label}" title="${escapeAttr(caseTitre)}" onclick="piecesToutesVisibles = true; ${caseAction}">${coche}</button>`;
       const ouvrable = recue && !valideeMain;
       const titreNom = p.autoEngagement && !recue ? ' title="Relevée dans les engagements du vendeur de l’avant-contrat."' : '';
       const nom = ouvrable

@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.144.36';
+  const VERSION_APP = '0.144.37';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,7 +20,8 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
-    { version: '0.144.36', date: '2026-10-05 14:13', resume: "Diagnostic du parcours du NAS : un fichier que CLAIRE reconnaîtrait mais qu'une réponse « Non » donnée dans Réglages › Noms de fichiers du NAS écarte est maintenant dit (avant, aucune ligne n'expliquait pourquoi la pièce restait manquante)." },
+    { version: '0.144.37', date: '2026-10-05 14:21', resume: "Pièces du dossier : la case d'une pièce trouvée sur le NAS se décoche de nouveau d'un clic (elle réinitialise la pièce, avec confirmation), dans l'onglet Pièces comme dans l'onglet Analyse." },
+  { version: '0.144.36', date: '2026-10-05 14:13', resume: "Diagnostic du parcours du NAS : un fichier que CLAIRE reconnaîtrait mais qu'une réponse « Non » donnée dans Réglages › Noms de fichiers du NAS écarte est maintenant dit (avant, aucune ligne n'expliquait pourquoi la pièce restait manquante)." },
     { version: '0.144.35', date: '2026-10-05 13:59', resume: "Fenêtres ouvertes depuis le 03/10 (avant le découpage du 04/10) : elles se rechargent enfin seules à la prochaine mise à jour. Leur ancien code relisait un fichier disparu et restait sur de vieilles règles de reconnaissance des pièces (pièce cochée puis décochée à chaque tour)." },
     { version: '0.144.34', date: '2026-10-05 13:45', resume: "Pièces du NAS : une forme de nom validée (ou un fichier écarté) dans « Noms de fichiers du NAS » est connue de toutes les fenêtres avant leur prochain parcours, au lieu de l'être seulement après un rechargement. Avant, une autre fenêtre ouverte repassait à « manquante » la pièce que la première venait de cocher (« Courrier réponse assainissement » cochée puis « devenue introuvable »)." },
     { version: '0.144.33', date: '2026-10-05 12:58', resume: "Email classé dans une archive locale d'Outlook (donc plus sur le serveur) : le premier jet de réponse de l'IA part du résumé gardé à l'arrivée au lieu d'échouer, et le message d'erreur dit pourquoi le texte n'est plus lisible." },
