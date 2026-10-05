@@ -485,3 +485,12 @@ test("estDebutPageAnnexe : une page qui parle encore la langue de l'acte est enc
     'Numéro ADEME : 2141E0123456X. Classe énergie : D. Classe climat : B. '.repeat(6);
   assert.equal(app.estDebutPageAnnexe(vraieAnnexe), true);
 });
+
+test('buildEvent : un dossier sans reminderDays donne un événement sans rappel, pas un plantage', () => {
+  const app = chargerApplication();
+  const sans = app.buildEvent('x-pret', 'Obtention du prêt', '2026-11-10', undefined);
+  assert.match(sans, /BEGIN:VEVENT/);
+  assert.doesNotMatch(sans, /VALARM/);
+  const avec = app.buildEvent('x-pret', 'Obtention du prêt', '2026-11-10', [15, 7]);
+  assert.equal((avec.match(/BEGIN:VALARM/g) || []).length, 2);
+});

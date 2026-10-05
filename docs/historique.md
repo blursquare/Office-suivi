@@ -16516,3 +16516,22 @@ Demande : « Je ne vois pas le bouton ajout et proposition de rdv sur agenda ? �
 - Vérifié dans Chromium avec une réponse Exchange retardée de 2 s, page Agenda ouverte avant : ancien code → boutons
   toujours masqués ; nouveau → visibles dès la réponse, aucune erreur. Si les boutons restent absents au bureau, c'est
   qu'Outlook n'est pas réglé sur ce poste-là (Réglages › Agenda et Outlook : activé, adresse, mot de passe enregistré).
+
+### 0.144.25 — 05/10/2026 08 h 27 : semaine de débogage, premier balayage
+Consigne (05/10) : « cette semaine on débogue CLAIRE, pas de nouvelle fonctionnalité » — que des CORRECTIFS.
+Méthode : scripts hors dépôt (scratchpad) sur une base inventée de 15 dossiers aux cas limites (sans date, dates passées,
+participation, sans prêt, terrain, copropriété, nom très long, apostrophes/HTML/guillemets, archivé, succession, champs
+du mauvais type, sans responsable, échéances perso, signé) dans le vrai serveur et Chromium, CDN coupés :
+1. balayage : chaque écran, chaque rubrique des Réglages, chaque onglet de chaque fiche, vues du Suivi et de l'Agenda,
+   recherche, filtres, galerie de widgets — bureau et téléphone, clair et sombre, textes « undefined / NaN / [object Object] /
+   Invalid Date » et débordement horizontal recherchés ;
+2. « singe » : clic sur chaque bouton visible de chaque écran et de 7 fiches (1 029 clics, fenêtres de confirmation refusées) ;
+3. saisies hostiles : 11 valeurs (apostrophe, guillemets, balises, `<img onerror>`, 300 caractères, négatif, 99999999999, vide,
+   dates impossibles) dans chaque champ de chaque écran (3 949 saisies) — aucune erreur, aucun code injecté exécuté.
+Trouvé : `telechargerICS` (fiche › icône calendrier) → `buildEvent(…, d.reminderDays)` appelait `.map` sur `undefined` quand
+le dossier n'a pas `reminderDays` (ancien dossier, import) : plantage muet, aucun toast. Corrigé (sans alarme dans ce cas),
+test dans `tests/divers.test.js`.
+Constaté, NON corrigé (pas de cause réaliste) : une date du planning qui est une chaîne non datée (« pas une date »,
+« 2026-13-45 ») s'affiche « Invalid Date » dans le Suivi et « Semaine du Invalid Date » dans l'Agenda ; l'assainisseur
+(`assainirStructureDossier`) ne vérifie que le type, pas la validité. Aucune saisie de CLAIRE ne peut la produire
+(`<input type=date>` et lectures d'Authentic/compromis rendent de l'ISO ou du vide).

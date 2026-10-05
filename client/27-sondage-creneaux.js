@@ -2499,7 +2499,8 @@
     const dtend = icsDate(addDays(iso, 1));
     const now = new Date();
     const dtstamp = `${now.getUTCFullYear()}${pad(now.getUTCMonth()+1)}${pad(now.getUTCDate())}T${pad(now.getUTCHours())}${pad(now.getUTCMinutes())}${pad(now.getUTCSeconds())}Z`;
-    const alarms = reminderDays.map(n => {
+    // Un dossier sans `reminderDays` (ancien, importé) exportait par un plantage muet : sans rappel plutôt que rien.
+    const alarms = (Array.isArray(reminderDays) ? reminderDays : []).map(n => {
       const trigger = n === 0 ? 'PT0S' : `-P${n}D`;
       return `BEGIN:VALARM\r\nACTION:DISPLAY\r\nDESCRIPTION:Rappel — ${summary}\r\nTRIGGER:${trigger}\r\nEND:VALARM\r\n`;
     }).join('');

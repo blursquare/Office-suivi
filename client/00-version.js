@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.144.24';
+  const VERSION_APP = '0.144.25';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.144.25', date: '2026-10-05 08:27', resume: "Fiche dossier : « Télécharger les rappels (.ics) » ne plante plus sur un dossier sans rappels réglés (il plantait sans message) ; l'échéance du prêt est exportée sans alarme." },
     { version: '0.144.24', date: '2026-10-04 22:04', resume: "Agenda : les boutons « Nouveau rendez-vous » et « Proposer des dates » restaient parfois cachés quand la page Agenda s'affichait avant la fin du chargement des réglages Outlook (au démarrage ou après une mise à jour). Ils apparaissent maintenant dès que les réglages sont lus." },
     { version: '0.144.23', date: '2026-10-04 22:00', resume: "Boutons secondaires plus nets partout : fond blanc et contour visible au lieu d'un fond transparent qui les faisait paraître désactivés sur le gris de la page. « Scanner le commun » (Suivi) prend en plus une icône et un texte foncé." },
     { version: '0.144.22', date: '2026-10-04 21:56', resume: "Suivi : « Archivés » devient un interrupteur dans un cadre aligné sur les autres filtres (au lieu d'une case à cocher), et l'affichage des dossiers archivés se met bien à jour quand on le bascule." },
