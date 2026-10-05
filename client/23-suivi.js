@@ -752,6 +752,7 @@
       </dl>
       <dl class="fiche-proprietes fiche-coordonnees">
         ${coordonneesPartiesDossier(d).map(c => ligne(c.partie === 'vendeur' ? 'user' : 'users', c.libelle, champsCoordonneesPartie(d, c, 'fiche'), c.parNotaire ? `fiche-tel-${c.partie}-${d.id}` : `fiche-email-${c.partie}-${d.id}`, 'prop-pleine')).join('')}
+        ${ligne('users', 'Situation', `<span class="situation-paire">${selectSituationClient(d, 'vendeur')}${selectSituationClient(d, 'acquereur')}</span>`, `sit-vendeur-${d.id}`, 'prop-pleine')}
         ${renderClientsAPlacer(d, ligne)}
         ${renderPersonnesConnues(d, ligne)}
       </dl>

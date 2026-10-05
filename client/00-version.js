@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.155.1';
+  const VERSION_APP = '0.156.0';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.156.0', date: '2026-10-05 23:01', resume: "Fiche : ligne « Situation » pour le vendeur et l'acquéreur — homme, femme, couple marié, couple pacsé ou concubins (proposée d'après Authentic quand il le dit). Le courrier d'appel de fonds s'y ajuste : « Monsieur et Madame Paul DUPONT » pour un couple marié, « Monsieur Paul DUPONT et Madame Léa MARTIN » pour des pacsés ou concubins, « Cher Monsieur, », « Chère Madame, » ou « Chers Monsieur et Madame, ». Le courrier reprend aussi les prénoms et civilités connus des acquéreurs." },
     { version: '0.155.1', date: '2026-10-05 22:55', resume: "Avant-contrat retrouvé sur le NAS : un PDF dont le nom dit « projet » ou « relecture » (souvent un projet d'acte) n'est plus pris, ni un PDF qui porte le nom d'un autre dossier ou d'une autre personne (souvent la promesse ou le compromis de la vente préalable). Un tel fichier déjà retenu est oublié, sauf s'il a été choisi à la main ; dans « Changer », il est marqué « projet ou relecture » ou « autre nom »." },
     { version: '0.155.0', date: '2026-10-05 22:50', resume: "Agenda : les notes d'un rendez-vous écrites dans Outlook s'affichent de nouveau dans CLAIRE (elles revenaient toujours vides depuis le 04/10 : le serveur lisait l'enveloppe de la réponse d'Exchange au lieu du rendez-vous). Suivi : la colonne de gauche montre les « Derniers dossiers ouverts » sur ce poste (10 au plus, statut et responsable, un clic rouvre la fiche) à la place des dernières pièces." },
     { version: '0.154.1', date: '2026-10-05 22:44', resume: "Agenda : un rendez-vous de vente montre « Appel de fonds » et « Projet » (plus de « Décompte », que l'étude ou un confrère représente l'acquéreur) ; « Décompte » est réservé aux successions." },

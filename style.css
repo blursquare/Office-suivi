@@ -8309,6 +8309,11 @@ button.complement-option.actif .complement-option-source { color: var(--focus); 
 /* Coordonnées des parties : email et téléphone sur une ligne, en haut de la fiche (étude 02/10). */
 .coord-paire { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 8px; width: 100%; align-items: center; }
 .coord-paire > * { min-width: 0; }
+.situation-paire { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; width: 100%; align-items: center; }
+.situation-paire > * { min-width: 0; }
+.situation-cote { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.situation-cote select.prop-champ { flex: 1 1 auto; min-width: 0; }
+.situation-qui { font-size: var(--texte-s); color: var(--muted); white-space: nowrap; }
 /* Téléphone d'une partie : le champ et, à droite, un lien « tel: » par numéro (ouvre 3CX). */
 .coord-tel-ligne { display: flex; align-items: center; gap: 4px; }
 .coord-tel-ligne > input { flex: 1 1 auto; min-width: 0; }
@@ -8323,6 +8328,7 @@ tcxspan { cursor: pointer; }
 .coord-tel-texte { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 4px; white-space: nowrap; font-size: var(--texte-m); color: var(--ink); }
 @media (max-width: 560px) {
   .coord-paire { grid-template-columns: 1fr; gap: 4px; }
+  .situation-paire { grid-template-columns: 1fr; gap: 4px; }
 }
 
 /* « Nouveau dossier » pour une succession reprise d'Authentic (étude, 02/10) : ni prix, ni agence, ni

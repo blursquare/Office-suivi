@@ -16872,3 +16872,24 @@ l'intitulé : souvent des promesses de vente ou compromis pour des ventes préal
   « autre nom ». Message « aucun avant-contrat » : dit les écarts et renvoie à « Changer ».
 - Limite : une personne inconnue de CLAIRE écrite en minuscules (« Compromis Martin Bertin ») n'est pas détectée ;
   l'emplacement (racine / SRU d'abord) départage toujours en second.
+
+### 05/10/2026 23 h 01 — 0.156.0 : situation des clients sur la fiche, courrier d'appel de fonds ajusté
+
+Étude : « Rajouter dans la fiche dossier s'il s'agit d'un homme ou d'une femme ou d'un couple marié ou pacsé ou concubin. S'en
+servir pour la rédaction du courrier d'appel de fonds pour ajuster le texte. » Choix de l'étude : pour le vendeur et
+l'acquéreur ; pacsés et concubins nommés chacun, formule « Chers Monsieur et Madame, » comme les mariés.
+
+- Fiche (vente) : ligne « Situation » sous les coordonnées, une liste par côté (`selectSituationClient`,
+  `changerSituationClient`, historique « Acquéreur : Couple pacsé »). Vide : « À préciser », ou la situation qu'Authentic dit
+  sans ambiguïté en première option (« Femme (Authentic) ») — civilité d'une personne seule, situation matrimoniale (« marié »,
+  « pacte civil de solidarité ») d'un couple ; jamais un prénom.
+- Générateur d'appel de fonds : champ « Situation » (section Clients), repris de la fiche. Destinataire
+  (`lignesDestinatairesAppelFonds`) : marié « Monsieur et Madame Paul DUPONT » (Monsieur trouvé par sa civilité, sinon le
+  premier) ; pacsés / concubins « Monsieur Paul DUPONT et Madame Léa MARTIN » ; homme / femme : civilité de chaque personne ;
+  SCI, indivision ou plus de deux personnes : une ligne par client comme avant. Formule (`salutationAppelFonds`) : « Cher
+  Monsieur, », « Chère Madame, », « Chers Monsieur et Madame, ». Le corps du courrier est déjà au « vous » : rien d'autre à
+  accorder.
+- Corrigé au passage : `clientsDepuisDossier` filtrait les parties sur `role === 'acquereur'` alors qu'elles sont enregistrées
+  en `ACQUEREUR` — le courrier ne reprenait jamais les parties, seulement le nom du dossier. Il reprend désormais leur prénom et
+  leur civilité quand ils sont connus. Couple sans civilité connue : Monsieur puis Madame dans l'ordre des parties, signalé
+  « vérifiez qui est qui » dans « À compléter ».
