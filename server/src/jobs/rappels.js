@@ -46,7 +46,9 @@ function toutesEcheances(d) {
 const SEUILS_RAPPELS_PAR_TYPE = {
   pret: [15, 7],
   ventebien: [15, 7],
-  appelFonds: [15, 10],
+  // Appel de fonds (étude 05/10 : « pour Teams il faut suivre les délais des échanges, donc appel de fonds 10 j avant,
+  // pas 15 j ») : un seul rappel, le jour de son échéance — 10 jours avant le rendez-vous (echeanceAppelFonds).
+  appelFonds: [0],
   rendezVousSignature: [25, 15],
   // Délai SAFER (étude, 02/10) : une date butoir du planning, sans rappel — à son terme la
   // non-préemption est acquise d'elle-même (appliquerSaferTacite côté client).
@@ -183,7 +185,9 @@ Vous pouvez confirmer la réception des fonds au client depuis la fiche (onglet 
 // façon que répéter la première phrase de ce corps, déjà autonome.
 function texteRappel(r) {
   const jour = r.seuil === 1 ? 'jour' : 'jours';
-  let texte = `📌 CLAIRE — Rappel : « ${r.libelle} » du dossier ${r.nomDossier} arrive à échéance dans ${r.seuil} ${jour} (le ${r.iso}).`;
+  let texte = r.seuil === 0
+    ? `📌 CLAIRE — Rappel : « ${r.libelle} » du dossier ${r.nomDossier} est à faire aujourd'hui (le ${r.iso}).`
+    : `📌 CLAIRE — Rappel : « ${r.libelle} » du dossier ${r.nomDossier} arrive à échéance dans ${r.seuil} ${jour} (le ${r.iso}).`;
   const { recues, manquantes } = r.pieces || { recues: [], manquantes: [] };
   if (recues.length || manquantes.length) {
     texte += `\n\nPièces reçues (${recues.length}) : ${recues.length ? recues.join(', ') : 'aucune'}`;

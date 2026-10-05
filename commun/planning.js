@@ -7,7 +7,7 @@
 /** @param {typeof import('./dates') & typeof import('./dossier')} C — les autres fichiers de commun/ dont celui-ci dépend */
 (function (C) {
   // Date limite de l'envoi de l'appel de fonds : 10 jours avant le rendez-vous de signature (étude 05/10 : « c'est dix jours
-  // avant pour l'appel de fonds » — 1 jour le même soir, corrigé) ; les rappels J-15 / J-10 se comptent depuis elle.
+  // avant pour l'appel de fonds » — 1 jour le même soir, corrigé) ; le rappel Teams part ce jour-là (seuil 0, jobs/rappels.js).
   var JOURS_APPEL_FONDS_AVANT_RDV = 10;
   /** @param {any} d @returns {string} */
   function echeanceAppelFonds(d) {

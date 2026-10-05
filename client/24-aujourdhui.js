@@ -13,7 +13,7 @@
   // Toute la sélection est PURE et testable (tests/aujourdhui.test.js) : la date du jour est
   // toujours passée en paramètre.
 
-  var JOURS_ACTIONS_RENDEZ_VOUS = 7;   // appel de fonds, projet, confirmation des fonds
+  var JOURS_ACTIONS_RENDEZ_VOUS = 7;   // projet, confirmation des fonds (l’appel de fonds : JOURS_APPEL_FONDS_AVANT_RDV, commun/planning.js)
   var JOURS_RAPPEL_RIB = 3;            // email « RIB et pièce d'identité » avant la signature
   var JOURS_QUESTIONNAIRE = 30;        // questionnaire proposé dans le mois qui suit la signature
   var JOURS_A_VENIR = 30;              // horizon de « À venir »
@@ -140,7 +140,9 @@
         const pr = echeanceValidee(d, 'projetEnvoye');
         ['Envoyer l’appel de fonds et le projet', 'Envoyer l’appel de fonds', 'Envoyer le projet'].forEach(t => couverts.add(t));
         const signature = phraseSignature(d, aujourdhuiIso);
-        if (jRdv <= JOURS_ACTIONS_RENDEZ_VOUS && !af) {
+        // L'appel de fonds est dû 10 jours avant le rendez-vous (échéance de la fiche, rappel Teams du même jour) : la tâche
+        // apparaît dès cette date, pas à J-7 seulement (étude 05/10).
+        if (jRdv <= JOURS_APPEL_FONDS_AVANT_RDV && !af) {
           ajouter({
             type: 'appelFonds', categorie: 'appelFonds', categorieLabel: 'Envoi appel de fonds',
             titre: 'Envoyer l’appel de fonds',

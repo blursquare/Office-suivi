@@ -178,7 +178,7 @@
   // Heures de début essayées, dans l'ordre : les créneaux normaux d'abord.
   var CRENEAUX_SIGNATURE = ['09:30', '10:00', '10:30', '11:00', '14:00', '14:30', '15:00', '15:30', '16:00', '16:30', '17:00'];
   var CRENEAUX_EXCEPTIONNELS = ['09:00', '12:00', '12:30', '13:00', '13:30', '17:30', '18:00'];
-  // Le temps d'envoyer l'appel de fonds (rappels J-15/J-10) et le projet avant la signature.
+  // Le temps d'envoyer l'appel de fonds (dû 10 jours avant le rendez-vous) et le projet avant la signature.
   var DELAI_MIN_SIGNATURE_JOURS = 14;
 
   // Pure : les rendez-vous horaires d'un jour (hors journées entières), comme le compte la règle des 6.

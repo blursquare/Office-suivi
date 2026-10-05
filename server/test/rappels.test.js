@@ -24,7 +24,7 @@ const { creerRepoParametres } = require('../src/parametresRepo');
 test('les seuils de rappel sont ceux donnes par l etude, echeance par echeance', () => {
   assert.deepEqual(seuilsPourType('pret'), [15, 7]);
   assert.deepEqual(seuilsPourType('ventebien'), [15, 7]);
-  assert.deepEqual(seuilsPourType('appelFonds'), [15, 10]);
+  assert.deepEqual(seuilsPourType('appelFonds'), [0], 'le jour de son échéance, 10 jours avant le rendez-vous (étude 05/10)');
   assert.deepEqual(seuilsPourType('rendezVousSignature'), [25, 15]);
 });
 
@@ -142,17 +142,21 @@ test('calculerRappelsDus : un rappel tombe pile à J-15 et à J-7, jamais entre 
   assert.equal(calculerRappelsDus([d], '2026-11-01', new Set()).length, 0); // ni l'un ni l'autre
 });
 
-test('calculerRappelsDus : l appel de fonds part a J-15 et J-10, pas a J-7', () => {
-  // Un dossier dont l offre de pret est recue : le planning annonce alors l appel de fonds,
-  // seul, ce qui isole ses seuils propres.
+test('calculerRappelsDus : l appel de fonds part une seule fois, 10 jours avant le rendez-vous', () => {
+  // Étude 05/10 : « pour Teams il faut suivre les délais des échanges, donc appel de fonds 10 j avant, pas 15 j ».
+  // Un dossier dont l offre de pret est recue : le planning annonce alors l appel de fonds, seul.
   const d = {
     id: 'd1', nom: 'X / Y', responsable: 'Julie VASSELIN',
     offrePretStatut: 'recue', rendezVousSignature: '2026-11-11'
   };
-  // Échéance de l'appel de fonds : 10 jours avant le rendez-vous (01/11).
-  assert.equal(calculerRappelsDus([d], '2026-10-17', new Set()).length, 1); // J-15
-  assert.equal(calculerRappelsDus([d], '2026-10-22', new Set()).length, 1); // J-10
-  assert.equal(calculerRappelsDus([d], '2026-10-25', new Set()).length, 0); // J-7 : plus un seuil
+  // Échéance de l'appel de fonds : 10 jours avant le rendez-vous (01/11) — le rappel part ce jour-là, et seulement ce jour-là.
+  assert.equal(calculerRappelsDus([d], '2026-10-17', new Set()).length, 0); // plus de rappel 15 jours avant l'échéance
+  assert.equal(calculerRappelsDus([d], '2026-10-27', new Set()).length, 0); // ni 15 jours avant le rendez-vous
+  const dus = calculerRappelsDus([d], '2026-11-01', new Set());
+  assert.equal(dus.length, 1); // J-10 du rendez-vous
+  assert.equal(dus[0].reminderKey, 'appelFonds:0');
+  assert.match(texteRappel(dus[0]), /est à faire aujourd'hui \(le 2026-11-01\)/);
+  assert.equal(calculerRappelsDus([d], '2026-11-04', new Set()).length, 0); // J-7 : rien
 });
 
 test('calculerRappelsDus : la signature part de plus loin, a J-25 et J-15', () => {

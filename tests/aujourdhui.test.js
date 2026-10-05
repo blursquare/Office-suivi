@@ -340,3 +340,9 @@ test('tâches imbriquées : la ligne du groupe porte la case commune et le tiroi
   assert.doesNotMatch(tiroir, /VTE - DUPONT/);
   assert.doesNotMatch(tiroir, /class="ja-sous"/, 'pas de sous-titre dans le tiroir (étude 05/10)');
 });
+
+test('appel de fonds : la tâche apparaît 10 jours avant le rendez-vous, le jour de son échéance (05/10)', () => {
+  // AUJ = 28/09 : rendez-vous le 08/10 (J-10) → à faire ; le 09/10 (J-11) → pas encore.
+  assert.ok(types(app.actionsDuJour([dossier({ rendezVousSignature: '2026-10-08', sansPret: true })], AUJ)).includes('appelFonds'));
+  assert.ok(!types(app.actionsDuJour([dossier({ rendezVousSignature: '2026-10-09', sansPret: true })], AUJ)).includes('appelFonds'));
+});

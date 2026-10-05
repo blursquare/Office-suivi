@@ -293,9 +293,10 @@ dans `index.html`** (le test `structure-client` refuse tout décalage).
   perso, signature) gardent leur date, seule la coche tombe. La mention « envoyé » du lieu du rendez-vous Outlook suit (`majMentionAgendaEnvoi`, `retrait: true`) ; l'événement
   Outlook du prêt / de la vente préalable est retiré à la coche et reposé à la décoche. Un nouveau chemin qui coche une échéance passe par `cocherEcheance` / `devaliderEcheance`.
 - **Échéance de l'appel de fonds = 10 JOURS AVANT le rendez-vous de signature** (étude 05/10 — la veille, posée le même
-  soir, était une erreur ; `echeanceAppelFonds`, `JOURS_APPEL_FONDS_AVANT_RDV` dans `commun/planning.js`) ; ses rappels J-15/J-10
-  se comptent depuis cette date.
-- **Seuils des rappels email** : prêt J-15/J-7, vente préalable J-15/J-7, appel de fonds J-15/J-10,
+  soir, était une erreur ; `echeanceAppelFonds`, `JOURS_APPEL_FONDS_AVANT_RDV` dans `commun/planning.js`) ; la tâche « Envoyer l'appel de fonds »
+  d'« À faire » apparaît dès cette date et le rappel Teams part ce jour-là (étude 05/10 : « pour Teams il faut suivre les délais
+  des échanges »).
+- **Seuils des rappels email** : prêt J-15/J-7, vente préalable J-15/J-7, appel de fonds **le jour de son échéance** (J-10 du rendez-vous, seuil `[0]`, étude 05/10),
   signature J-25/J-15, personnalisées J-15/J-7 (`SEUILS_RAPPELS_PAR_TYPE`).
 - **Relance de l'offre de prêt au client** : première à J-15, puis tous les 10 jours, y compris
   après l'échéance, jusqu'à réception de l'offre ou archivage.
