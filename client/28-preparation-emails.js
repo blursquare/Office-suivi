@@ -809,8 +809,17 @@
     }
     if (actif && document.getElementById(actif)) {
       const el = document.getElementById(actif);
-      el.focus();
-      if (el.setSelectionRange && typeof el.value === 'string') { try { el.setSelectionRange(el.value.length, el.value.length); } catch (e) { /* champ sans sélection */ } }
+      // Un bouton Web Awesome juste recréé n'a pas encore son bouton interne : son focus() lève une erreur (rapport du 05/10, 14 h 10 :
+      // « Envoyer » ne partait pas, renderRedaction() plantait avant l'envoi). On attend son rendu, et une erreur de focus ne
+      // doit jamais arrêter l'envoi.
+      const remettreFocus = () => {
+        try {
+          el.focus();
+          if (el.setSelectionRange && typeof el.value === 'string') el.setSelectionRange(el.value.length, el.value.length);
+        } catch (e) { /* focus impossible ou champ sans sélection : sans importance */ }
+      };
+      if (el.updateComplete && typeof el.updateComplete.then === 'function') el.updateComplete.then(remettreFocus, () => {});
+      else remettreFocus();
     }
   }
 

@@ -16731,3 +16731,12 @@ trouvée/introuvable toutes les 20 min venait de fenêtres qui n'avaient pas la 
   choix) — le bouton « Notre office » le fait en un clic. Coordonnées : inchangées (office du confrère à un clic dans le répertoire,
   email repris du répertoire pour les relances à défaut d'adresse saisie, `completerEmailCarnet` complète le répertoire). Tests
   `carnet-confreres`.
+
+- **0.145.1 (05/10 17 h 09) — fenêtre d'email : « Envoyer » ne partait pas** (rapport technique de 17 h, #13 : `TypeError: Cannot read properties of
+  null (reading 'focus')` dans `renderRedaction` ← `envoyerRedaction`, 1 fois à 14 h 10, poste en 0.144.34). Cause reproduite dans Chromium :
+  `renderRedaction` remet le focus sur l'élément qui l'avait avant le redessin ; quand c'est le `<wa-button id="redaction-envoyer">` (cliqué), le
+  nouveau bouton, tout juste créé, n'a pas encore son bouton interne et son `focus()` lève — dans `envoyerRedaction`, avant l'appel à
+  `/api/emails/envoyer` : l'email ne partait pas (l'étude a pu se rabattre sur « Ouvrir dans Outlook »). Correctif : le focus attend
+  `updateComplete` (règle déjà notée dans CLAUDE.md pour les wa-button) et toute erreur de focus est avalée. Test de fumée : redessin de la fenêtre
+  avec le focus sur « Envoyer » (échoue sans le correctif). **À vérifier au bureau** : un envoi par « Envoyer » depuis la fenêtre d'email
+  (point terrain `email-envoye-exchange` toujours « pas encore observé »). Préparé sur la branche `claude/rapport-2026-10-05-17h`, pas sur `main`.
