@@ -177,15 +177,20 @@ test('jourSuivantAgenda : le dimanche est sauté dans les deux sens', () => {
   assert.equal(app.jourSuivantAgenda('2026-10-01', 1), '2026-10-02');
 });
 
-test('infosRendezVousDossier : responsable, confrère, appel de fonds et décompte acquéreur (comme dans Outlook)', () => {
+test('infosRendezVousDossier : responsable, confrère, appel de fonds (vente) ou décompte (succession), comme dans Outlook', () => {
   const base = { id: 'x', nom: 'DURAND / MARTIN', responsable: 'Bastien ANGLUMENT', notaireVendeur: 'Maître Sophie GOSSART', notaireAcquereur: 'Maître Paul LEBRUN' };
   const rien = app.infosRendezVousDossier(base);
   assert.equal(rien.responsable, 'Bastien');
   assert.match(rien.confrere, /LEBRUN/);
-  assert.equal(rien.etats.map(x => `${x.cle}:${x.fait}`).join(','), 'appelFonds:false,decompte:false,projet:false');
+  // Vente (étude 05/10) : l'appel de fonds seul, que l'étude ou un confrère représente l'acquéreur — jamais « Décompte ».
+  assert.equal(rien.etats.map(x => `${x.cle}:${x.fait}`).join(','), 'appelFonds:false,projet:false');
 
   const faits = app.infosRendezVousDossier({ ...base, echeancesValidees: { appelFonds: true }, detectionsNas: { appelFondsFichier: 'Comptabilité/Appel de fonds DURAND.pdf' } });
-  assert.equal(faits.etats.map(x => `${x.cle}:${x.fait}`).join(','), 'appelFonds:true,decompte:true,projet:false');
+  assert.equal(faits.etats.map(x => `${x.cle}:${x.fait}`).join(','), 'appelFonds:true,projet:false');
+
+  // Succession : le décompte, pas d'appel de fonds.
+  const succ = app.infosRendezVousDossier({ id: 's', nom: 'DURAND', typeAffaire: 'succession', responsable: 'Julie VASSELIN', detectionsNas: { appelFondsFichier: 'Comptabilité/Décompte DURAND.pdf' } });
+  assert.equal(succ.etats.map(x => `${x.cle}:${x.fait}`).join(','), 'decompte:true,projet:false');
 
   // Le décompte vaut aussi fait quand le montant attendu a été lu dans un courrier pour les fonds reçus.
   assert.equal(app.decompteAcquereurFait({ fondsRecus: { attenduChemin: 'Comptabilité/Décompte.pdf' } }), true);

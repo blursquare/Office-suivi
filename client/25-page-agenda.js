@@ -642,9 +642,13 @@
     return {
       responsable: d.responsable ? prenomCollaborateur(d.responsable) : '',
       confrere: confrereLieuAgenda(d),
+      // Étude 05/10 : « le décompte, c'est à noter dans les dossiers de successions. Pour les ventes, on a l'appel de fonds si on
+      // représente l'acquéreur et un décompte acquéreur si c'est un confrère, mais on marque appel de fonds envoyé » — une vente
+      // montre donc l'appel de fonds seul, une succession le décompte.
       etats: [
-        { cle: 'appelFonds', libelle: 'Appel de fonds', fait: echeanceValidee(d, 'appelFonds') },
-        { cle: 'decompte', libelle: 'Décompte', fait: decompteAcquereurFait(d) },
+        estSuccession(d)
+          ? { cle: 'decompte', libelle: 'Décompte', fait: decompteAcquereurFait(d) }
+          : { cle: 'appelFonds', libelle: 'Appel de fonds', fait: echeanceValidee(d, 'appelFonds') },
         // Projet d'acte envoyé (étude, 30/09 : la probabilité se lit « sous projet envoyé »).
         { cle: 'projet', libelle: 'Projet', fait: echeanceValidee(d, 'projetEnvoye') }
       ]
@@ -664,7 +668,7 @@
   // Hauteur d'une heure dans la grille, en pixels — la même que --ag-heure (style.css), 60 px depuis
   // le 01/10 (étude : « réduis la hauteur de l'agenda », 90 px auparavant).
   var AGENDA_PX_HEURE = 60;
-  // Pure : les lignes « Appel de fonds / Décompte / Projet » d'une signature ne s'affichent que si la
+  // Pure : les lignes « Appel de fonds (Décompte en succession) / Projet » d'une signature ne s'affichent que si la
   // carte peut les tenir sans les couper (≈ 80 px : 1 h 20 à 60 px l'heure).
   function etatsTiennentAgenda(minutes) {
     return minutes * AGENDA_PX_HEURE / 60 >= 81;
