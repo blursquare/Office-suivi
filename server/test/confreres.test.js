@@ -131,6 +131,10 @@ test('GET rend tout l’annuaire corrigé (compressé) ; POST corrige ou ajoute 
 
 // ---- Répertoire (src/repertoire.js) : les autres interlocuteurs de l'étude, par thème ----
 const { repertoireInitial, assainirContact, THEMES_REPERTOIRE, REPERTOIRE_INITIAL } = require('../src/repertoire');
+const { LOTS_REPERTOIRE } = require('../src/repertoireAjouts');
+const { creerRepoParametres } = require('../src/parametresRepo');
+// Le répertoire lu à la première fois : le relevé du Word + les lots de contacts ajoutés ensuite (repertoireAjouts.js).
+const TOTAL_INITIAL = REPERTOIRE_INITIAL.length + LOTS_REPERTOIRE.reduce((n, l) => n + l.contacts.length, 0);
 
 test('répertoire initial : identifiants uniques, chaque contact dans un thème connu, emails bien formés', () => {
   const contacts = repertoireInitial();
@@ -159,20 +163,20 @@ test('assainirContact : liste blanche, thème inconnu rangé en divers, lien non
 test('routes /api/repertoire : relevé initial à la première lecture, ajout, modification, retrait', async () => {
   let r = await appeler('/api/repertoire');
   let j = await r.json();
-  assert.equal(j.contacts.length, REPERTOIRE_INITIAL.length);
+  assert.equal(j.contacts.length, TOTAL_INITIAL);
   assert.equal(j.themes[0].cle, 'confreres');
   r = await appeler('/api/repertoire', 'POST', { contact: { id: 'saisie-essai', theme: 'banquesPrets', organisme: 'Banque d’essai', emails: ['pret@banque-essai.fr'] } });
   j = await r.json();
-  assert.equal(j.contacts.length, REPERTOIRE_INITIAL.length + 1);
+  assert.equal(j.contacts.length, TOTAL_INITIAL + 1);
   r = await appeler('/api/repertoire', 'POST', { contact: { id: 'saisie-essai', theme: 'banquesSuccessions', organisme: 'Banque d’essai' } });
   j = await r.json();
   assert.equal(j.contacts.find((c) => c.id === 'saisie-essai').theme, 'banquesSuccessions');
-  assert.equal(j.contacts.length, REPERTOIRE_INITIAL.length + 1);
+  assert.equal(j.contacts.length, TOTAL_INITIAL + 1);
   r = await appeler('/api/repertoire', 'POST', { contact: { id: 'vide' } });
   assert.equal(r.status, 400);
   r = await appeler('/api/repertoire/saisie-essai', 'DELETE');
   j = await r.json();
-  assert.equal(j.contacts.length, REPERTOIRE_INITIAL.length);
+  assert.equal(j.contacts.length, TOTAL_INITIAL);
 });
 
 test('annuaire des notaires de France : départements, offices d’un département, recherche (noms inventés)', async () => {
@@ -200,4 +204,36 @@ test('annuaire des notaires de France : départements, offices d’un départeme
   } finally {
     annuaire.definirDonneesAnnuaire(null);
   }
+});
+
+test('lots du répertoire : identifiants uniques, thèmes connus, aucune coordonnée inventée, syndics rangés à part', () => {
+  const themes = new Set(THEMES_REPERTOIRE.map((t) => t.cle));
+  assert.ok(themes.has('syndics'));
+  const tous = LOTS_REPERTOIRE.flatMap((l) => l.contacts);
+  const ids = tous.concat(REPERTOIRE_INITIAL).map((c) => c.id);
+  assert.equal(new Set(ids).size, ids.length, 'identifiant en double');
+  assert.ok(tous.every((c) => themes.has(c.theme) && (c.organisme || (c.personnes || []).length) && assainirContact({ ...c, source: 'x' })));
+  assert.ok(tous.every((c) => !c.telephones && !c.emails), 'le relevé n\'a ni téléphone ni email : rien n\'est inventé');
+  assert.ok(tous.some((c) => c.theme === 'syndics') && tous.some((c) => c.theme === 'immobilier'));
+});
+
+test('lots du répertoire : appliqués une seule fois à un répertoire existant, sans ressusciter un contact retiré', () => {
+  const base = ouvrirDb(':memory:');
+  try {
+    const repo = creerRepoParametres(base);
+    // Répertoire déjà enregistré AVANT les lots (relevé du Word seul), un contact modifié par l'étude au même id qu'un lot.
+    const idLot = LOTS_REPERTOIRE[0].contacts[0].id;
+    repo.ecrireRepertoire([...repertoireInitial(), { id: idLot, theme: 'immobilier', organisme: 'Modifié par l\'étude', telephones: ['02 54 00 00 00'] }]);
+    base.prepare("DELETE FROM parametres WHERE cle = 'repertoire-lots'").run();
+    let liste = repo.lireRepertoire();
+    assert.equal(liste.length, TOTAL_INITIAL, 'tous les contacts des lots, le contact modifié compté une fois');
+    assert.equal(liste.find((c) => c.id === idLot).organisme, 'Modifié par l\'étude');
+    assert.ok(liste.filter((c) => c.id !== idLot && c.source === LOTS_REPERTOIRE[0].source).length > 50);
+    // L'étude retire un contact d'un lot : il ne revient pas à la lecture suivante.
+    const retire = LOTS_REPERTOIRE[0].contacts[5].id;
+    repo.ecrireRepertoire(liste.filter((c) => c.id !== retire));
+    liste = repo.lireRepertoire();
+    assert.ok(!liste.some((c) => c.id === retire));
+    assert.equal(liste.length, TOTAL_INITIAL - 1);
+  } finally { base.close(); }
 });

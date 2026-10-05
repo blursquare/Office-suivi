@@ -3,6 +3,10 @@
 'use strict';
 
 const A = require('./parametres/assainir');
+const { LOTS_REPERTOIRE } = require('./repertoireAjouts');
+
+// Repère des lots du répertoire déjà appliqués (liste de noms de lots).
+const CLE_REPERTOIRE_LOTS = 'repertoire-lots';
 const {
   assainirCarnet, carnetInitial, avecOfficeEtude, assainirRepertoire, repertoireInitial, CLE_SONDAGES, assainirSondages, assainirJournalAppels, CLE_APPELS, CLE_REGLAGES, CLE_DERNIER_TOUR, CLE_COPIES_GMAIL, CLE_SECRET_LIENS, CLE_EXCLUSIONS_PIECES, CLE_CORRECTIONS_APPRISES, MAX_CORRECTIONS_APPRISES, assainirCorrectionApprise, assainirCorrectionsApprises, CLE_JOURNAL_CORRECTIONS, MAX_JOURNAL_CORRECTIONS, assainirJournalCorrections, CLE_RAPPELS_PERSO, MAX_RAPPELS_PERSO, assainirRappelPerso, assainirRappelsPerso, CLE_PREFERENCES, assainirWidgetsPreference, assainirPreference, assainirPreferences, CLE_REGLAGE_SAUVEGARDE, CLE_ETAT_SAUVEGARDE, assainirEtatSauvegarde, assainirExclusionsPieces, assainirCopiesEnAttente, CLE_RETOURS_AUDIT, MAX_RETOURS_AUDIT, texteBorne, assainirRetourAudit, assainirRetoursAudit, PORT_SMTP_PAR_DEFAUT, REGLAGES_PAR_DEFAUT, assainirReglages, assainirDernierTour, CLE_REGLAGES_CLAUDE, MODELES_CLAUDE, MODELE_CLAUDE_PAR_DEFAUT, assainirReglagesClaude, CLE_MISE_A_JOUR, assainirReglagesMiseAJour, CLE_REGLAGES_EXCHANGE, URL_EWS_DEFAUT, CATEGORIES_RDV_DEFAUT, assainirCategoriesRdv, assainirReglagesExchange, CLE_DERNIER_TOUR_AGENDA, CLE_ABSENCES_AGENDA, CLE_CATEGORIES_AGENDA, assainirCategoriesAgenda, CLE_AGENDA_DU_JOUR, CLE_AGENDA_COMPARAISON, assainirComparaisonAgenda, assainirAgendaDuJour, CLE_AGENDA_OFFICE, assainirEvenementAgenda, assainirAgendaOffice, assainirAbsenceAgenda, assainirAbsencesAgenda, assainirDernierTourAgenda, CLE_RESUME_EMAILS, CLE_SCANS_REGLAGES, CLE_SCANS_JOURNAL, CLE_SCANS_ECARTES, CLE_PIECES_NOTIFIEES, assainirPiecesNotifiees, assainirReglagesScans, assainirJournalScans, assainirScansEcartes, CLE_RAPPORT_TECHNIQUE, assainirRapportTechnique, CLE_CARNET_CONFRERES, CLE_REPERTOIRE, assainirResumeEmails
 } = A;
@@ -414,10 +418,27 @@ function creerRepoParametres(db) {
     return propre;
   }
 
+  // Lots de contacts ajoutés après coup (repertoireAjouts.js) : chaque lot est appliqué UNE fois (repère `repertoire-lots`),
+  // sans toucher à un contact de même id déjà présent — un contact que l'étude retire ensuite ne revient pas.
+  function avecLotsRepertoire(contacts, tous = false) {
+    const brut = tous ? [] : lireJsonBrut(CLE_REPERTOIRE_LOTS, []);
+    const appliques = new Set(Array.isArray(brut) ? brut : []);
+    const nouveaux = LOTS_REPERTOIRE.filter((l) => !appliques.has(l.lot));
+    if (!nouveaux.length) return { contacts, change: false };
+    const ids = new Set(contacts.map((c) => c.id));
+    const ajoutes = [];
+    for (const lot of nouveaux) for (const c of lot.contacts) if (!ids.has(c.id)) { ids.add(c.id); ajoutes.push({ source: lot.source, ...c }); }
+    ecrireJsonBrut(CLE_REPERTOIRE_LOTS, [...appliques, ...nouveaux.map((l) => l.lot)]);
+    return { contacts: contacts.concat(ajoutes), change: ajoutes.length > 0 };
+  }
+
   function lireRepertoire() {
     const ligne = lireStmt.get(CLE_REPERTOIRE);
-    if (!ligne) return ecrireRepertoire(repertoireInitial());
-    try { return assainirRepertoire(JSON.parse(ligne.valeur)); } catch (e) { return []; }
+    if (!ligne) return ecrireRepertoire(avecLotsRepertoire(repertoireInitial(), true).contacts);
+    let contacts;
+    try { contacts = assainirRepertoire(JSON.parse(ligne.valeur)); } catch (e) { return []; }
+    const r = avecLotsRepertoire(contacts);
+    return r.change ? ecrireRepertoire(r.contacts) : contacts;
   }
 
   function ecrireRepertoire(contacts) {

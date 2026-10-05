@@ -374,6 +374,7 @@
     { cle: 'mairies', libelle: 'Mairies et urbanisme' },
     { cle: 'departement', libelle: 'Département et services de l’État' },
     { cle: 'immobilier', libelle: 'Agences immobilières' },
+    { cle: 'syndics', libelle: 'Syndics de copropriété' },
     { cle: 'divers', libelle: 'Chambres consulaires et divers' }
   ];
   var repertoireTheme = 'annuaire'; // plus d'onglet « Tout » (étude 03/10) : les notaires d'abord

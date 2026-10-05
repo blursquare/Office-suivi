@@ -31,6 +31,7 @@ const THEMES_REPERTOIRE = [
   { cle: 'mairies', libelle: 'Mairies et urbanisme' },
   { cle: 'departement', libelle: 'Département et services de l’État' },
   { cle: 'immobilier', libelle: 'Agences immobilières' },
+  { cle: 'syndics', libelle: 'Syndics de copropriété' },
   { cle: 'divers', libelle: 'Chambres consulaires et divers' }
 ];
 const CLES_THEMES = new Set(THEMES_REPERTOIRE.map((t) => t.cle));

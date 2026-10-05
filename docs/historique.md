@@ -16544,3 +16544,20 @@ de vente, référence « A 2026 00247 », « Signé le … » → acte signé, 7
 utilisée que pour savoir quel dossier est ouvert. Rien de nouveau n'est lu (hors périmètre de la semaine) : les statuts
 (Nouveau, Demande de pièces, Réception des pièces, Préparation projet, Préparation définitive, Signé, En attente, Sans suite)
 et les pages non lues sont notés dans CLAUDE.md (« Extension Firefox »), pistes à reprendre sur demande.
+
+### 0.144.26 — 05/10/2026 09 h 25 : Répertoire — agences immobilières et syndics d'après Authentic
+Demande : deux exports de « Recherche de Contact » d'Authentic (type « Agence immobilière », 89 résultats ; « Syndic de
+copropriété », 44 résultats) « à compléter dans le répertoire ». Les fichiers ne portent que l'intitulé, la ville et le code
+postal — aucun téléphone ni email, aucun inventé.
+- `server/src/repertoireAjouts.js` (nouveau, `// @ts-check`) : le lot `authentic-agences-syndics-2026-10-05` (102 contacts).
+  Doublons de graphie fusionnés (casse, accents, apostrophes : « L'ADRESSE VINEUIL » ×5, « LA RESIDENCE BLOIS » ×3, « FM CONSEIL »
+  / « F&M CONSEIL »…) : 89 → 75 agences ; les noms de personnes écrits « Nom (AGENCE) » donnent l'agence + la personne, « Morgan
+  MENAHEZE » (écrit dans les deux sens) une seule fois. 44 → 27 syndics : **17 lignes sans intitulé** (seule la ville est connue) n'ont
+  pas pu être reprises. Un même nom présent comme agence ET comme syndic (CITYA BLOIS) est gardé dans les deux rubriques.
+- Mécanisme : `parametresRepo.lireRepertoire` applique chaque lot UNE fois à un répertoire déjà enregistré (repère
+  `repertoire-lots`) ; un contact de même id déjà présent n'est pas touché, un contact retiré ensuite ne revient pas. Première
+  installation : relevé du Word + tous les lots. (Sans cela les nouveaux contacts n'auraient jamais atteint le répertoire du
+  bureau, déjà créé en base : il n'est semé qu'à la première lecture.)
+- Nouvelle rubrique « Syndics de copropriété » (`THEMES_REPERTOIRE` + repli de `repertoireThemes` côté poste).
+- Tests : ids uniques, thèmes connus, aucune coordonnée inventée, lot appliqué une seule fois, contact retiré non ressuscité, contact
+  modifié intact ; les tests existants comptent désormais relevé + lots.
