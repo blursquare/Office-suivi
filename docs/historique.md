@@ -16535,3 +16535,12 @@ Constaté, NON corrigé (pas de cause réaliste) : une date du planning qui est 
 « 2026-13-45 ») s'affiche « Invalid Date » dans le Suivi et « Semaine du Invalid Date » dans l'Agenda ; l'assainisseur
 (`assainirStructureDossier`) ne vérifie que le type, pas la validité. Aucune saisie de CLAIRE ne peut la produire
 (`<input type=date>` et lectures d'Authentic/compromis rendent de l'ISO ou du vide).
+
+### 05/10/2026 — Authentic : structures reçues, statuts d'un sous-dossier (documentation seulement, aucune version)
+Pendant la semaine de débogage, l'étude a transmis : la structure d'un dossier Authentic (page « Informations détaillées »),
+celle d'un sous-dossier de vente (tableaux Rédaction, Attestation, Base des références immobilières, Micen, virement) et la
+capture du menu des statuts d'un sous-dossier. Vérifié : la page du sous-dossier est reconnue (page de gestion, sous-dossier
+de vente, référence « A 2026 00247 », « Signé le … » → acte signé, 7 lignes lues) ; la page « Informations détaillées » n'est
+utilisée que pour savoir quel dossier est ouvert. Rien de nouveau n'est lu (hors périmètre de la semaine) : les statuts
+(Nouveau, Demande de pièces, Réception des pièces, Préparation projet, Préparation définitive, Signé, En attente, Sans suite)
+et les pages non lues sont notés dans CLAUDE.md (« Extension Firefox »), pistes à reprendre sur demande.
