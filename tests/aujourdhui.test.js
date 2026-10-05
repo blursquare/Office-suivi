@@ -57,7 +57,7 @@ test('signature lointaine : rien à faire, elle part dans « À venir »', () =>
   assert.strictEqual(types(r), '');
   const datees = r.aVenir.filter(v => v.iso);
   assert.strictEqual(datees.length, 1);
-  assert.strictEqual(datees[0].iso, '2026-10-20');
+  assert.strictEqual(datees[0].iso, '2026-10-19', 'appel de fonds : la veille du rendez-vous (05/10)');
   // Le dossier pas encore relié au NAS y figure aussi, sans date.
   assert.ok(r.aVenir.some(v => v.titre === 'Relier le dossier du NAS'));
 });

@@ -53,7 +53,7 @@ test('prêt, vente préalable, échéance perso : cocher retire du planning, dé
 test('appel de fonds et projet : cocher note l’envoi d’aujourd’hui, décocher EFFACE la date — l’échéance redevient le rendez-vous', () => {
   const { app, d } = appareil({ echeancesValidees: { pret: true, ventebien: true }, autres: [] });
   assert.equal(app.prochaineEcheanceDetail(d).type, 'appelFonds');
-  assert.equal(app.prochaineEcheanceDetail(d).iso, '2026-12-10');
+  assert.equal(app.prochaineEcheanceDetail(d).iso, '2026-12-09', 'la veille du rendez-vous');
   const jours = app.prochaineEcheanceDetail(d).jours;
 
   app.basculerEcheance('dx', 'appelFonds');
@@ -66,7 +66,7 @@ test('appel de fonds et projet : cocher note l’envoi d’aujourd’hui, décoc
   assert.equal(d.appelFonds, '', 'la date d’envoi est partie avec la coche');
   const apres = app.prochaineEcheanceDetail(d);
   assert.equal(apres.type, 'appelFonds');
-  assert.equal(apres.iso, '2026-12-10', 'ancré sur le rendez-vous, pas sur la date d’hier');
+  assert.equal(apres.iso, '2026-12-09', 'ancré sur la veille du rendez-vous, pas sur la date d’hier');
   assert.equal(apres.jours, jours, 'le délai J-n est exactement celui d’avant');
 
   app.basculerEcheance('dx', 'appelFonds'); app.basculerEcheance('dx', 'projetEnvoye');

@@ -6,6 +6,14 @@
 // client/) ; côté Node, module.exports. Pas de syntaxe réservée à l'un des deux mondes.
 /** @param {typeof import('./dates') & typeof import('./dossier')} C — les autres fichiers de commun/ dont celui-ci dépend */
 (function (C) {
+  // Date limite de l'envoi de l'appel de fonds : la VEILLE du rendez-vous de signature (étude 05/10 : « le délai de l'appel de
+  // fonds doit être fait 1 jour avant le rendez-vous de signature ») ; les rappels J-15 / J-10 se comptent depuis elle.
+  var JOURS_APPEL_FONDS_AVANT_RDV = 1;
+  /** @param {any} d @returns {string} */
+  function echeanceAppelFonds(d) {
+    return d && d.rendezVousSignature ? C.addDays(d.rendezVousSignature, -JOURS_APPEL_FONDS_AVANT_RDV) : '';
+  }
+
   function echeanceValidee(d, type) {
     if (type === 'fixerRdv') return !!d.rendezVousSignature;
     if (type === 'pret') return d.offrePretStatut === 'recue' || !!(d.echeancesValidees && d.echeancesValidees.pret);
@@ -175,7 +183,7 @@
         : !saferLevee(d) ? (echeanceSafer ? null : { type: 'safer', label: 'Réponse SAFER attendue', iso: null })
           : { type: 'fixerRdv', label: 'Fixer le rendez-vous', iso: d.acte };
     } else if (!echeanceValidee(d, 'appelFonds')) {
-      etape = { type: 'appelFonds', label: 'Envoi appel de fonds', iso: d.appelFonds || d.rendezVousSignature };
+      etape = { type: 'appelFonds', label: 'Envoi appel de fonds', iso: d.appelFonds || echeanceAppelFonds(d) };
     } else if (!echeanceValidee(d, 'projetEnvoye')) {
       etape = { type: 'projetEnvoye', label: 'Envoi projet', iso: d.projetEnvoye || d.rendezVousSignature };
     } else if (!echeanceValidee(d, 'rendezVousSignature')) {
@@ -202,7 +210,7 @@
     return reels;
   }
 
-  const exportes = { echeanceValidee, pretLeve, preemptionLevee, DELAIS_SAFER, delaiSafer, echeanceSaferTacite, saferLevee, echeanceSaferDossier, echeancesPlanning };
+  const exportes = { JOURS_APPEL_FONDS_AVANT_RDV, echeanceAppelFonds, echeanceValidee, pretLeve, preemptionLevee, DELAIS_SAFER, delaiSafer, echeanceSaferTacite, saferLevee, echeanceSaferDossier, echeancesPlanning };
   // Node : module.exports ; navigateur : des globaux (noms nus, comme les fonctions de client/).
   if (typeof module !== 'undefined' && module.exports) module.exports = exportes; else Object.assign(globalThis, exportes);
 })(

@@ -125,7 +125,7 @@ test('tant que l’appel de fonds n’est pas fait, c’est lui que le planning 
   const d = dossierBase({ rendezVousSignature: '2026-12-01' });
   assert.equal(app.toutesEcheances(d).map((e) => e.type).join(','), 'appelFonds');
   assert.equal(app.prochaineEcheanceDetail(d).type, 'appelFonds');
-  assert.equal(app.prochaineEcheanceDetail(d).iso, '2026-12-01', 'son échéance est le rendez-vous de signature');
+  assert.equal(app.prochaineEcheanceDetail(d).iso, '2026-11-30', 'son échéance est la veille du rendez-vous de signature (étude 05/10)');
 
   // Tout validé, y compris l'étape intermédiaire « projet envoyé » : plus rien à annoncer.
   const validees = Object.assign({}, d, {
@@ -156,14 +156,15 @@ test('une fois l’appel de fonds fait, le planning annonce le projet d’acte e
   assert.equal(suivante2.label, 'Signature de l’acte');
 });
 
-test('sans date propre, l’appel de fonds prend celle du rendez-vous', () => {
+test('sans date propre, l’appel de fonds prend la veille du rendez-vous', () => {
+  // Étude 05/10 : « le délai de l'appel de fonds doit être fait 1 jour avant le rendez-vous de signature ».
   // L'étude ne saisit pas toujours la date de l'appel de fonds ; il doit de toute façon être parti
   // avant la signature, c'est donc sa vraie échéance — mieux que de ne rien annoncer du tout.
   const app = chargerApplication();
   const d = dossierBase({ rendezVousSignature: '2026-12-01' });
   const suivante = app.prochaineEcheanceDetail(d);
   assert.equal(suivante.type, 'appelFonds');
-  assert.equal(suivante.iso, '2026-12-01');
+  assert.equal(suivante.iso, '2026-11-30');
 });
 
 test('normaliserDossierImporte conserve appelFonds/rendezVousSignature comme les autres dates fixes', () => {
@@ -271,7 +272,7 @@ test('date butoir : pas d\'échéance propre, mais elle sert d\'ancre quand rien
   const avecRdv = dossierBase({ acte: '2026-10-01', rendezVousSignature: '2026-10-06' });
   const e1 = app.toutesEcheances(avecRdv);
   assert.equal(e1.map((e) => e.type).join(','), 'appelFonds');
-  assert.equal(e1[0].iso, '2026-10-06');
+  assert.equal(e1[0].iso, '2026-10-05');
 
   // Sans rendez-vous et sans autre échéance : le dossier reste visible, ancré sur le butoir
   // (demande de l'étude), mais jamais avec une échéance de TYPE 'acte'.
@@ -394,11 +395,11 @@ test('offre reçue : « Fixer le rendez-vous » précède l’appel de fonds', (
   const app = chargerApplication();
   const d = { id: 'f', nom: 'F / G', offrePretStatut: 'recue', acte: '2026-11-20', pieces: { renonciationPreemption: 'recue' } };
   assert.equal(app.toutesEcheances(d).map((e) => e.type).join(','), 'fixerRdv');
-  // Rendez-vous placé : l'appel de fonds est à faire, à la date du rendez-vous.
+  // Rendez-vous placé : l'appel de fonds est à faire, la veille du rendez-vous.
   const place = Object.assign({}, d, { rendezVousSignature: '2026-11-18' });
   const e = app.toutesEcheances(place);
   assert.equal(e.map((x) => x.type).join(','), 'appelFonds');
-  assert.equal(e[0].iso, '2026-11-18');
+  assert.equal(e[0].iso, '2026-11-17');
   // Offre pas encore reçue, ou vente préalable en attente : pas encore le moment.
   assert.ok(!app.toutesEcheances({ id: 'h', pret: '2026-10-30', acte: '2026-11-20' }).some((x) => x.type === 'fixerRdv'));
   assert.ok(!app.toutesEcheances(Object.assign({}, d, { ventebien: '2026-10-25' })).some((x) => x.type === 'fixerRdv'));

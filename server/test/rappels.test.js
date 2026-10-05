@@ -80,7 +80,7 @@ test('toutesEcheances : appel de fonds, puis projet envoyé, puis signature', ()
   // (Une date d'envoi saisie vaut envoi fait : l'étape à faire n'a jamais de date propre, c'est le rendez-vous qui l'ancre.)
   const d = { rendezVousSignature: '2026-12-05' };
   assert.deepEqual(toutesEcheances(d).map((e) => e.type), ['appelFonds']);
-  assert.equal(toutesEcheances(d)[0].iso, '2026-12-05');
+  assert.equal(toutesEcheances(d)[0].iso, '2026-12-04', 'la veille du rendez-vous (étude 05/10)');
 
   const faitAppel = { ...d, echeancesValidees: { appelFonds: true } };
   const apresAppel = toutesEcheances(faitAppel);
@@ -96,10 +96,10 @@ test('toutesEcheances : appel de fonds, puis projet envoyé, puis signature', ()
   assert.deepEqual(toutesEcheances(validees), []);
 });
 
-test('toutesEcheances : sans date propre, l\'appel de fonds prend celle du rendez-vous', () => {
+test('toutesEcheances : sans date propre, l\'appel de fonds prend la veille du rendez-vous', () => {
   const items = toutesEcheances({ rendezVousSignature: '2026-12-05' });
   assert.deepEqual(items.map((e) => e.type), ['appelFonds']);
-  assert.equal(items[0].iso, '2026-12-05');
+  assert.equal(items[0].iso, '2026-12-04');
 });
 
 test('toutesEcheances : un dossier sans prêt (sansPret) garde ses autres échéances', () => {
@@ -149,9 +149,10 @@ test('calculerRappelsDus : l appel de fonds part a J-15 et J-10, pas a J-7', () 
     id: 'd1', nom: 'X / Y', responsable: 'Julie VASSELIN',
     offrePretStatut: 'recue', rendezVousSignature: '2026-11-11'
   };
-  assert.equal(calculerRappelsDus([d], '2026-10-27', new Set()).length, 1); // J-15
-  assert.equal(calculerRappelsDus([d], '2026-11-01', new Set()).length, 1); // J-10
-  assert.equal(calculerRappelsDus([d], '2026-11-04', new Set()).length, 0); // J-7 : plus un seuil
+  // Échéance de l'appel de fonds : la veille du rendez-vous (10/11).
+  assert.equal(calculerRappelsDus([d], '2026-10-26', new Set()).length, 1); // J-15
+  assert.equal(calculerRappelsDus([d], '2026-10-31', new Set()).length, 1); // J-10
+  assert.equal(calculerRappelsDus([d], '2026-11-03', new Set()).length, 0); // J-7 : plus un seuil
 });
 
 test('calculerRappelsDus : la signature part de plus loin, a J-25 et J-15', () => {

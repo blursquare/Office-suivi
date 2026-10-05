@@ -1389,7 +1389,7 @@
         // voir marquerEnvoiAujourdhui) et le décoche (date effacée, délai et rappels rétablis, mention d'Outlook retirée).
         lignes.push({ iso, html: renderLigneEcheance(cle, label, iso, d.id, null, null, null, false,
           note, false,
-          echeanceValidee(d, cle), { etatSansDate: 'À envoyer', etatFait: '✓ Envoyé', envoi: true, ancre: d.rendezVousSignature || '' }) });
+          echeanceValidee(d, cle), { etatSansDate: 'À envoyer', etatFait: '✓ Envoyé', envoi: true, ancre: (cle === 'appelFonds' ? echeanceAppelFonds(d) : d.rendezVousSignature) || '' }) });
       });
     }
     const aReplacer = !d.rendezVousSignature && d.rendezVousARemplacer && d.rendezVousARemplacer.date ? d.rendezVousARemplacer : null;
