@@ -65,6 +65,8 @@
   function reinitialiserFormulaire() {
     masquerErreurFormulaire();
     exportAuthenticActuel = null;
+    authenticRetenuPourPdf = '';
+    groupeAuthenticRetenu = null;
     complementDossierId = null;
     choixComplement = {};
     complementFichierNas = '';

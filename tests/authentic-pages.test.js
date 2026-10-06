@@ -1179,3 +1179,100 @@ test('création depuis Authentic : parcelles gardées sans adresse, et celles de
   assert.equal(extraction.bien.cadastre.parcelles.map(p => p.section + p.numero).join(','), 'AB123,ZC7');
   assert.equal(extraction.bien.cadastre.section, 'AB');
 });
+
+// ---- Copropriété (structure reçue de l'étude le 06/10 : onglet « Informations du bien » avec « Parcelle Assise volumétrique »,
+// onglet « Lots » avec le tableau des lots et le détail du lot ouvert ; noms et chiffres inventés) ----
+const IDC = 'ui-ficho-tabs:mainTabPanel:tabForm99:tabContent:ficheImmeubleTabView:';
+const coproInfos = {
+  titre: 'Authentic',
+  champs: [
+    { groupe: 'Informations du bien', libelle: IDC + 'infosComponent:ficheImmeubleIdentite:typeWithDialog:selectOneMenu_input', valeur: 'Appartement' },
+    { groupe: 'Informations du bien', libelle: 'N° de voie', valeur: '9' },
+    { groupe: 'Informations du bien', libelle: 'Type de voie', valeur: 'rue' },
+    { groupe: 'Informations du bien', libelle: 'Nom de la voie', valeur: 'des Tilleuls' },
+    { groupe: 'Informations du bien', libelle: 'CP - Ville*', valeur: '41000 BLOIS' }
+  ],
+  tableaux: [{ titre: 'Parcelle Assise volumétrique', entete: ['Commune', 'Préfixe', 'Section', 'Numéro', 'Adresse ou lieu-dit', 'Nature', 'Zone urbanisme', 'SPF', 'surface', ''],
+    lignes: [['BLOIS', '', 'DK', '412', '9 rue des Tilleuls', '', '', 'BLOIS 1', '1250', '']] }],
+  texte: ''
+};
+const coproLots = {
+  titre: 'Authentic',
+  champs: [
+    { groupe: '', libelle: 'Rechercher', valeur: '' },
+    { groupe: '', libelle: IDC + 'lotsComponent:listeLotComponent:coproLotDatatable:selectAllCheckbox_input', valeur: 'non' },
+    { groupe: '', libelle: 'Total Tantièmes immeuble', valeur: '10 000' },
+    { groupe: '', libelle: IDC + 'lotsComponent:lotDetailsComponent:detailsTabView:infoGeneralComponent:type:selectonemenu_input', valeur: 'Appartement' },
+    { groupe: '', libelle: 'Désignation', valeur: 'Appartement deux pièces' },
+    { groupe: '', libelle: 'N° de lot', valeur: '12' },
+    { groupe: '', libelle: 'Tantièmes lot', valeur: '125' },
+    { groupe: '', libelle: 'Etage', valeur: '3' },
+    { groupe: '', libelle: 'Surface m²', valeur: '48,20' },
+    { groupe: '', libelle: 'Surface carrez', valeur: '46,80' }
+  ],
+  tableaux: [{ titre: 'Liste des lots', entete: ['', 'N°Filter by N°', 'Ancien N°Filter by Ancien N°', 'TypeFilter by Type', 'BâtimentFilter by Bâtiment', 'EtageFilter by Etage', 'EntréeFilter by Entrée', 'Tantièmes lot', '', ''],
+    lignes: [['', 'Total Tantièmes immeuble', '10 000', ''], ['non', '12', '', 'Appartement', '', '3', '', '125', '', 'Enregistrer et quitter'], ['non', '34', '', 'Cave', 'A', '-1', '', '8', '', '']] }],
+  texte: ''
+};
+
+test('copropriété : fiche bien avec assise volumétrique, page des lots (tableau + détail du lot ouvert), type copropriété', () => {
+  const infos = app.bienDepuisFicheAuthentic(coproInfos);
+  assert.equal(infos.type, 'copropriete');
+  assert.equal(infos.adresse.texte, '9 rue des Tilleuls 41000 BLOIS');
+  assert.equal(infos.parcelles.map(p => p.section + p.numero).join(','), 'DK412');
+  assert.equal(infos.lots.length, 0);
+  const lots = app.bienDepuisFicheAuthentic(coproLots);
+  assert.equal(lots.type, 'copropriete');
+  assert.equal(lots.adresse, null);
+  assert.equal(lots.tantiemesTotal, 10000);
+  assert.equal(lots.lots.map(l => `${l.numero}:${l.type}:${l.etage}:${l.tantiemes}`).join(' | '), '12:Appartement:3:125 | 34:Cave:-1:8');
+  const lot12 = lots.lots[0];
+  assert.equal(lot12.designation, 'Appartement deux pièces');
+  assert.equal(lot12.surface, 48.2);
+  assert.equal(lot12.surfaceCarrez, 46.8);
+  assert.equal(lot12.batiment, null);
+  assert.equal(lots.lots[1].batiment, 'A');
+});
+
+test('copropriété : les deux pages d’un même dossier font UN bien (lots fusionnés), repris à la création', () => {
+  const releves = [
+    { recueLe: '2026-10-06T09:00:00Z', capture: gestion },
+    { recueLe: '2026-10-06T09:01:00Z', capture: coproInfos },
+    { recueLe: '2026-10-06T09:02:00Z', capture: coproLots }
+  ];
+  const ex = app.dossiersDepuisRelevesAuthentic(releves)[0].export;
+  assert.equal(ex.immeubles.length, 1);
+  assert.equal(ex.immeubles[0].adresse.texte, '9 rue des Tilleuls 41000 BLOIS');
+  assert.equal(ex.immeubles[0].lots.length, 2);
+  assert.equal(ex.immeubles[0].tantiemesTotal, 10000);
+  const l = app.lotsExportAuthentic(ex);
+  assert.equal(l.lots.map(x => x.numero).join(','), '12,34');
+  assert.equal(l.tantiemesTotal, 10000);
+  const extraction = app.completerExtractionDepuisAuthentic({ champs: {} }, ex);
+  assert.equal(extraction.champs.typeVente.valeur, 'copropriete');
+  assert.equal(extraction.bien.lots.length, 2);
+  assert.equal(extraction.bien.cadastre.parcelles[0].section, 'DK');
+  // Ce que la fiche garde de l'extraction : les lots passent la normalisation et l'instantané.
+  const norm = app.normaliserExtractionImportee({ bien: extraction.bien });
+  assert.equal(norm.bien.lots.length, 2);
+  assert.equal(norm.bien.tantiemesTotal, 10000);
+  const inst = app.instantaneExtraction({ bien: extraction.bien, champs: {}, notaires: {} });
+  assert.equal(inst.bien.lots.length, 2);
+});
+
+test('copropriété : page des lots appliquée sur un dossier existant — lots ajoutés, type passé en copropriété, jamais retirés', () => {
+  const d = { id: 'c', nom: 'MARTEL / FOURNIER', typeVente: 'maison', bien: { cadastre: { section: 'DK', numero: '412', parcelles: [{ section: 'DK', numero: '412' }] } }, pieces: {}, historique: [] };
+  const r = app.appliquerReleveSurDossier(d, coproLots, '2026-10-06T10:00:00Z');
+  assert.equal(r.modifie, true);
+  assert.equal(d.typeVente, 'copropriete');
+  assert.equal(d.bien.lots.map(l => l.numero).join(','), '12,34');
+  assert.equal(d.bien.tantiemesTotal, 10000);
+  assert.ok(d.historique.some(h => /Lots de copropriété relevés dans Authentic : n° 12 \(Appartement\), n° 34 \(Cave\)/.test(h.texte)));
+  assert.ok(d.historique.some(h => /Type de vente passé en copropriété/.test(h.texte)));
+  // Relue : rien de neuf.
+  const r2 = app.appliquerReleveSurDossier(d, coproLots, '2026-10-06T10:05:00Z');
+  assert.equal(r2.modifie, false);
+  // Libellé sur la fiche.
+  assert.equal(app.libelleLotCopropriete(d.bien.lots[0], d.bien.tantiemesTotal), 'Lot n° 12 — Appartement, 3e étage, 46,8 m² Carrez, 125/10 000 tantièmes');
+  assert.equal(app.libelleLotCopropriete({ numero: '7' }, null), 'Lot n° 7');
+});

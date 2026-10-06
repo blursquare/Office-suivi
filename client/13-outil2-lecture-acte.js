@@ -420,7 +420,7 @@
         }
         : null,
       bien: bien
-        ? { adresse: adresse || null, cadastre: objet(bien.cadastre) }
+        ? { adresse: adresse || null, cadastre: objet(bien.cadastre), lots: Array.isArray(bien.lots) ? bien.lots.filter(l => l && typeof l === 'object' && l.numero).slice(0, 40) : [], tantiemesTotal: typeof bien.tantiemesTotal === 'number' ? bien.tantiemesTotal : null }
         : null,
       extraction: extraction
         ? {

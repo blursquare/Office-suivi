@@ -551,7 +551,10 @@
           commune: adresse.commune || null, departement: adresse.departement || null,
           statut: adresse.statut || 'NOT_FOUND'
         } : null,
-        cadastre: (extraction.bien && extraction.bien.cadastre) || null
+        cadastre: (extraction.bien && extraction.bien.cadastre) || null,
+        // Lots d'une copropriété relevés dans Authentic (06/10).
+        lots: (extraction.bien && Array.isArray(extraction.bien.lots)) ? extraction.bien.lots : [],
+        tantiemesTotal: (extraction.bien && typeof extraction.bien.tantiemesTotal === 'number') ? extraction.bien.tantiemesTotal : null
       },
       extraction: {
         version: extraction.version || 1,

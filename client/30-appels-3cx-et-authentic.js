@@ -1277,15 +1277,83 @@
     return r;
   }
 
-  // Pure : la fiche bien → immeuble au format de l'export ZIP (type, adresse, parcelles du cadastre).
+  // Pure : un nombre écrit dans Authentic (« 99 999 », « 85,50 », « 1 250 ») → nombre, ou null.
+  function nombreAuthentic(texte) {
+    const t = String(texte == null ? '' : texte).replace(/\s|\u00a0/g, '').replace(',', '.');
+    if (!/^\d+(\.\d+)?$/.test(t)) return null;
+    return Number(t);
+  }
+
+  // Pure : les lots d'une fiche bien en copropriété (onglet « Lots » d'Authentic, structure reçue le 06/10) : le tableau des
+  // lots (N°, Type, Bâtiment, Étage, Entrée, Tantièmes lot — en-têtes pollués par « Filter by … »), le total des tantièmes de
+  // l'immeuble, et le détail du lot sélectionné (désignation, surfaces, étage). → { lots: [{ numero, type, designation, batiment,
+  // etage, entree, tantiemes, surface, surfaceCarrez }], tantiemesTotal }. Jamais deviné : un lot sans numéro n'est pas gardé.
+  function lotsFicheAuthentic(capture) {
+    const c = capture || {};
+    const champs = c.champs || [];
+    const lots = [];
+    const texte = (v) => String(v == null ? '' : v).replace(/\s+/g, ' ').trim();
+    let tantiemesTotal = null;
+    (c.tableaux || []).forEach(t => {
+      const entete = (t.entete || []).map(e => libelleNetAuthentic(String(e || '').replace(/filter by.*$/i, '')));
+      const iTant = entete.findIndex(e => /^tantiemes? lot/.test(e));
+      if (iTant < 0) return;
+      const iNum = entete.findIndex(e => /^(n°|no\b|numero)/.test(e) && !/ancien/.test(e));
+      const iType = entete.findIndex(e => /^type/.test(e));
+      const iBat = entete.findIndex(e => /^batiment/.test(e));
+      const iEtage = entete.findIndex(e => /^etage/.test(e));
+      const iEntree = entete.findIndex(e => /^entree/.test(e));
+      (t.lignes || []).forEach(l => {
+        const cellules = (l || []).map(texte);
+        // Ligne de total (« Total Tantièmes immeuble | 99 999 ») : le total, pas un lot.
+        const iTotal = cellules.findIndex(x => /tantiemes? immeuble|total/i.test(normaliserPourRecherche(x)));
+        if (iTotal >= 0) { const n = cellules.slice(iTotal + 1).map(nombreAuthentic).find(x => x !== null); if (n !== null && n !== undefined) tantiemesTotal = n; return; }
+        const numero = iNum >= 0 ? cellules[iNum] : '';
+        if (!/^\d+$/.test(numero)) return;
+        if (lots.some(x => x.numero === numero)) return;
+        lots.push({
+          numero, type: (iType >= 0 && cellules[iType]) || null, batiment: (iBat >= 0 && cellules[iBat]) || null,
+          etage: (iEtage >= 0 && cellules[iEtage]) || null, entree: (iEntree >= 0 && cellules[iEntree]) || null,
+          tantiemes: nombreAuthentic(cellules[iTant]), designation: null, surface: null, surfaceCarrez: null
+        });
+      });
+    });
+    // Détail du lot ouvert (volet « Informations générales » du lot).
+    const v = (test) => valeurChampAuthentic(champs, test);
+    const numDetail = v(n => /^(n°|no) de lot$/.test(n));
+    if (/^\d+$/.test(numDetail)) {
+      let lot = lots.find(x => x.numero === numDetail);
+      if (!lot) { lot = { numero: numDetail, type: null, batiment: null, etage: null, entree: null, tantiemes: null, designation: null, surface: null, surfaceCarrez: null }; lots.push(lot); }
+      const typeDetail = v((n, b) => /lotDetailsComponent.*:type:selectonemenu_input/i.test(b));
+      if (typeDetail) lot.type = typeDetail;
+      const designation = v(n => n === 'designation');
+      if (designation) lot.designation = designation;
+      const tant = nombreAuthentic(v(n => /^tantiemes? lot$/.test(n)));
+      if (tant !== null) lot.tantiemes = tant;
+      const etage = v(n => n === 'etage');
+      if (etage) lot.etage = etage;
+      const surface = nombreAuthentic(v(n => /^surface m/.test(n) && !/carrez/.test(n)));
+      if (surface !== null) lot.surface = surface;
+      const carrez = nombreAuthentic(v(n => /^surface carrez/.test(n)));
+      if (carrez !== null) lot.surfaceCarrez = carrez;
+    }
+    const total = nombreAuthentic(v(n => /^total tantiemes? immeuble/.test(n)));
+    if (total !== null) tantiemesTotal = total;
+    return { lots, tantiemesTotal };
+  }
+
+  // Pure : la fiche bien → immeuble au format de l'export ZIP (type, adresse, parcelles du cadastre, lots d'une copropriété).
+  // Copropriété (structure reçue le 06/10) : l'onglet « Informations du bien » porte le cadastre sous « Parcelle Assise
+  // volumétrique » (mêmes colonnes Section / Numéro) ; l'onglet « Lots » n'a ni adresse ni cadastre, seulement les lots.
   function bienDepuisFicheAuthentic(capture) {
     const c = capture || {};
     const champs = c.champs || [];
     const champsBien = champs.filter(ch => /informations du bien/i.test(ch.groupe || ''));
     const adresse = adresseFicheAuthentic(champsBien.length ? champsBien : champs);
     const typeBrut = normaliserPourRecherche(valeurChampAuthentic(champs, (n, b) => /typeWithDialog/i.test(b)));
+    const { lots, tantiemesTotal } = lotsFicheAuthentic(c);
     const type = /maison|pavillon|villa/.test(typeBrut) ? 'maison'
-      : /appartement|copro|lot/.test(typeBrut) ? 'copropriete'
+      : /appartement|copro|lot/.test(typeBrut) || lots.length ? 'copropriete'
         : /terrain/.test(typeBrut) ? 'terrain' : null;
     const parcelles = [];
     (c.tableaux || []).forEach(t => {
@@ -1299,11 +1367,22 @@
         if (section && numero && !parcelles.some(p => p.section === section && p.numero === numero)) parcelles.push({ section, numero });
       });
     });
-    if (!adresse && !parcelles.length) return null;
+    if (!adresse && !parcelles.length && !lots.length) return null;
     return {
-      id: 'authentic-bien-' + normaliserPourRecherche((adresse && adresse.texte) || parcelles.map(p => p.section + p.numero).join('')).replace(/[^a-z0-9]+/g, '').slice(0, 40),
-      adresse, type, parcelles, surface: null, description: valeurChampAuthentic(champs, n => n === 'designation')
+      id: 'authentic-bien-' + normaliserPourRecherche((adresse && adresse.texte) || parcelles.map(p => p.section + p.numero).join('') || 'lots' + lots.map(l => l.numero).join('-')).replace(/[^a-z0-9]+/g, '').slice(0, 40),
+      adresse, type, parcelles, lots, tantiemesTotal, surface: null, description: valeurChampAuthentic(champs, n => n === 'designation')
     };
+  }
+
+  // Pure : une page « Lots » (ni adresse ni cadastre) complète le bien déjà relevé du même dossier plutôt que d'en faire un second.
+  function fusionnerBienAuthentic(existant, nouveau) {
+    if (!existant) return nouveau;
+    const lots = (existant.lots || []).slice();
+    (nouveau.lots || []).forEach(l => { const i = lots.findIndex(x => x.numero === l.numero); if (i < 0) lots.push(l); else lots[i] = Object.assign({}, lots[i], Object.fromEntries(Object.entries(l).filter(([, v]) => v !== null && v !== ''))); });
+    return Object.assign({}, existant, {
+      type: existant.type || nouveau.type, lots, tantiemesTotal: nouveau.tantiemesTotal != null ? nouveau.tantiemesTotal : (existant.tantiemesTotal != null ? existant.tantiemesTotal : null),
+      parcelles: (existant.parcelles || []).concat((nouveau.parcelles || []).filter(p => !(existant.parcelles || []).some(q => q.section === p.section && q.numero === p.numero)))
+    });
   }
 
   // Pure : les pages relevées (dans l'ordre où elles ont été vues) regroupées par dossier, au format
@@ -1328,7 +1407,16 @@
       if (intituleDossierAuthentic(cap) && adresseBienPageAuthentic(cap)) g.adresse = adresseBienPageAuthentic(cap);
       g.derniere = r.recueLe || g.derniere;
       if (type === 'client') { const p = clientDepuisFicheAuthentic(cap); if (p) g.personnes.set(p.id, p); }
-      if (type === 'bien') { const b = bienDepuisFicheAuthentic(cap); if (b) g.immeubles.set(b.id, b); }
+      if (type === 'bien') {
+        const b = bienDepuisFicheAuthentic(cap);
+        if (b) {
+          // Page « Lots » d'une copropriété : sans adresse ni cadastre, elle complète le dernier bien vu (06/10).
+          const sansIdentite = !b.adresse && !b.parcelles.length && b.lots.length;
+          const dernier = [...g.immeubles.values()].pop();
+          if (sansIdentite && dernier) g.immeubles.set(dernier.id, fusionnerBienAuthentic(dernier, b));
+          else g.immeubles.set(b.id, g.immeubles.has(b.id) ? fusionnerBienAuthentic(g.immeubles.get(b.id), b) : b);
+        }
+      }
       if (type === 'gestion') piecesRecuesAuthentic(lignesDocumentsAuthentic(cap), [], /succ/i.test(intitule) ? 'succession' : 'vente')
         .forEach(p => g.documents.set(p.cle, { intitule: p.titre, nomFichier: '', chemin: '', date: p.date, personne: null, piece: p }));
       if (type === 'gestion' || type === 'autre') g.infos = fusionnerInfosAuthentic(g.infos, infosDossierAuthentic(cap));
@@ -1673,9 +1761,13 @@
   // Fiche bien lue après la création (étude 06/10) : ses parcelles absentes de la fiche du dossier y sont ajoutées — jamais à la
   // place de celles déjà là (saisies à la main ou lues dans le compromis). Rien si la fiche contredit le dossier (resultat.raison).
   function appliquerBienAuthentic(d, bien, noter, resultat) {
-    if (!bien || !(bien.parcelles || []).length) return resultat;
+    if (!bien) return resultat;
+    // Page « Lots » (ni adresse ni cadastre) : rien à contredire, les lots complètent la fiche.
+    if ((bien.lots || []).length && !bien.adresse && !(bien.parcelles || []).length) return appliquerLotsAuthentic(d, bien, noter, resultat);
+    if (!(bien.parcelles || []).length) return resultat;
     const raison = bienAuthenticContreditDossier(d, bien);
     if (raison) { resultat.raison = raison; return resultat; }
+    if ((bien.lots || []).length) appliquerLotsAuthentic(d, bien, noter, resultat);
     const cad = (d.bien && d.bien.cadastre) || null;
     const deja = cad ? (Array.isArray(cad.parcelles) && cad.parcelles.length ? cad.parcelles : (cad.section ? [{ section: cad.section, numero: cad.numero }] : [])) : [];
     const cles = new Set(deja.map(p => cleParcelle(p.section, p.numero)).filter(Boolean));
@@ -1685,6 +1777,21 @@
     d.bien = Object.assign({}, d.bien || {});
     d.bien.cadastre = Object.assign({}, cad || {}, { section: parcelles[0].section, numero: parcelles[0].numero, parcelles });
     noter(`Parcelle${nouvelles.length > 1 ? 's' : ''} relevée${nouvelles.length > 1 ? 's' : ''} dans Authentic ajoutée${nouvelles.length > 1 ? 's' : ''} : ${nouvelles.map(p => `${p.section} ${p.numero}`).join(', ')}`);
+    resultat.modifie = true;
+    return resultat;
+  }
+
+  // Lots d'une copropriété relevés dans Authentic (06/10) : ajoutés ou complétés sur la fiche (jamais retirés) ; un dossier
+  // qui n'était pas en copropriété le devient (checklist de copropriété), dit dans l'historique.
+  function appliquerLotsAuthentic(d, bien, noter, resultat) {
+    const anciens = (d.bien && Array.isArray(d.bien.lots)) ? d.bien.lots : [];
+    const fusion = fusionnerBienAuthentic({ lots: anciens, parcelles: [], tantiemesTotal: d.bien && d.bien.tantiemesTotal }, bien);
+    const nouveaux = fusion.lots.filter(l => !anciens.some(a => a.numero === l.numero));
+    const change = nouveaux.length || JSON.stringify(fusion.lots) !== JSON.stringify(anciens) || (fusion.tantiemesTotal != null && fusion.tantiemesTotal !== (d.bien && d.bien.tantiemesTotal));
+    if (!change) return resultat;
+    d.bien = Object.assign({}, d.bien || {}, { lots: fusion.lots.slice(0, 40), tantiemesTotal: fusion.tantiemesTotal != null ? fusion.tantiemesTotal : null });
+    if (nouveaux.length) noter(`Lot${nouveaux.length > 1 ? 's' : ''} de copropriété relevé${nouveaux.length > 1 ? 's' : ''} dans Authentic : ${nouveaux.map(l => `n° ${l.numero}${l.type ? ' (' + l.type + ')' : ''}`).join(', ')}`);
+    if (d.typeVente !== 'copropriete' && !estSuccession(d)) { noter(`Type de vente passé en copropriété (lots relevés dans Authentic ; avant : ${d.typeVente || 'non renseigné'})`); d.typeVente = 'copropriete'; }
     resultat.modifie = true;
     return resultat;
   }
@@ -2089,7 +2196,10 @@
     if (i < 0) { afficherToast('Page d’Authentic illisible : dossier à créer à la main.', 'OK', null); return; }
     definirOnglet('nouveau');
     reinitialiserFormulaire();
-    creerDepuisAuthentic(i);
+    // Étude 06/10 : « Créer » mène à l'import AVEC PDF — le compromis déposé, le dossier d'Authentic retenu le complète de
+    // lui-même (voir renderRelevesAuthenticWizard). Une succession n'a pas de compromis : reprise seule, comme avant.
+    if (typeAffaireAuthentic(groupesAuthenticRecents[i].export) === 'succession') creerDepuisAuthentic(i);
+    else { authenticRetenuPourPdf = intitule; groupeAuthenticRetenu = groupesAuthenticRecents[i]; choisirModeImport('pdf'); }
     noterVerificationPoste('authentic-creer-dossier', { detail: 'création ouverte depuis une page de vente' });
     if (attente.releveId) rapporterResultatsAuthentic([{ id: attente.releveId, etat: 'a-creer', texte: 'création du dossier ouverte depuis la page' }]);
   }
@@ -2427,6 +2537,15 @@
   // VENDEUR/ACQUÉREUR »), même bien, mêmes pièces présentes, même formulaire à vérifier. Un avant-
   // contrat déjà déposé garde ses dates et son prix : Authentic le complète.
   let groupesAuthenticRecents = [];
+  // Dossier d'Authentic retenu par « Créer » (intitulé) : appliqué dès que le compromis est lu (06/10). Son groupe (la page
+  // qui a déclenché « Créer ») est gardé à part : le rafraîchissement des relevés récents ne le connaît pas toujours.
+  let authenticRetenuPourPdf = '';
+  let groupeAuthenticRetenu = null;
+  // Pure : les groupes relevés, complétés du groupe retenu s'il n'y figure pas.
+  function groupesAvecRetenu(groupes, retenu) {
+    const liste = groupes || [];
+    return retenu && !liste.some(g => g.intitule === retenu.intitule) ? liste.concat([retenu]) : liste;
+  }
 
   async function chargerRelevesAuthenticRecents() {
     const bloc = document.getElementById('authentic-releves');
@@ -2435,7 +2554,7 @@
       const r = await fetchAvecAuth('/api/authentic/releves/recents');
       if (!r.ok) return;
       const { releves } = await r.json();
-      groupesAuthenticRecents = dossiersDepuisRelevesAuthentic(releves || []);
+      groupesAuthenticRecents = groupesAvecRetenu(dossiersDepuisRelevesAuthentic(releves || []), groupeAuthenticRetenu);
     } catch (e) { return; }
     renderRelevesAuthenticWizard();
   }
@@ -2468,6 +2587,7 @@
 
   function choisirModeImport(mode) {
     if (!MODES_IMPORT.some(m => m.cle === mode)) return;
+    if (mode !== 'pdf') { authenticRetenuPourPdf = ''; groupeAuthenticRetenu = null; }
     modeImport = mode;
     renderChoixImport();
     chargerRelevesAuthenticRecents();
@@ -2540,6 +2660,21 @@
     const repris = exportAuthenticActuel && exportAuthenticActuel.origine === 'pages' ? exportAuthenticActuel.intitule : '';
     // Après le compromis : Authentic proposé en complément (même sans dossier ouvert : le dire) ;
     // « Depuis Authentic » : la liste des dossiers ouverts.
+    // Dossier retenu par « Créer » (06/10) : compromis lu → appliqué sans clic ; pas encore lu → rappelé sous la zone de dépôt.
+    if (authenticRetenuPourPdf && modeImport === 'pdf' && !exportAuthenticActuel) {
+      const iRetenu = groupesAuthenticRecents.findIndex(g => g.intitule === authenticRetenuPourPdf);
+      if (avecPdf && iRetenu >= 0) { authenticRetenuPourPdf = ''; groupeAuthenticRetenu = null; creerDepuisAuthentic(iRetenu); return; }
+      if (!avecPdf) {
+        bloc.style.display = '';
+        bloc.innerHTML = `<h3 class="authentic-releves-titre">Dossier d’Authentic retenu</h3><ul class="ja-liste">${renderLigneAction({
+          titre: libelleDossierParNom(authenticRetenuPourPdf.replace(/^\s*(?:vente|vte)\.?\s+/i, '')),
+          sous: 'Déposez le compromis ci-dessus : Authentic pré-remplit, le compromis complète.' + (iRetenu >= 0 ? ' ' + resumeGroupeAuthentic(groupesAuthenticRecents[iRetenu]) : ''),
+          categorie: 'acte',
+          bouton: iRetenu >= 0 ? { libelle: 'Sans compromis', onclick: `creerDepuisAuthentic(${iRetenu})`, titre: 'Créer le dossier depuis Authentic seul, sans compromis' } : null
+        })}</ul>`;
+        return;
+      }
+    }
     const afficher = modeImport === 'seul' || (modeImport === 'pdf' && avecPdf && !exportAuthenticActuel);
     if (!afficher) { bloc.style.display = 'none'; bloc.innerHTML = ''; return; }
     bloc.style.display = '';

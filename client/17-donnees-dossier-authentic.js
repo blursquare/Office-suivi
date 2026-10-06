@@ -120,6 +120,21 @@
     return immeubles.find(im => (d.biens || []).includes(im.id)) || immeubles[0] || null;
   }
 
+  // Pure : les lots de copropriété de tous les biens du dossier Authentic, sans doublon de numéro, 40 au plus ; le total des
+  // tantièmes du premier bien qui le donne.
+  function lotsExportAuthentic(donnees) {
+    const d = donnees || {};
+    const ids = d.biens || [];
+    const immeubles = (d.immeubles || []).filter(im => !ids.length || ids.includes(im.id));
+    const lots = [];
+    let tantiemesTotal = null;
+    immeubles.forEach(im => {
+      (im.lots || []).forEach(l => { if (l && l.numero && !lots.some(x => x.numero === l.numero)) lots.push(l); });
+      if (tantiemesTotal === null && im.tantiemesTotal != null) tantiemesTotal = im.tantiemesTotal;
+    });
+    return { lots: lots.slice(0, 40), tantiemesTotal };
+  }
+
   // Pure : les parcelles de tous les biens du dossier Authentic, sans doublon (section + numéro).
   function parcellesExportAuthentic(donnees) {
     const d = donnees || {};
@@ -197,6 +212,13 @@
       if (fusion && fusion !== valeur(cle)) extraction.champs[cle] = champExtraction(fusion, origine);
     });
     if (bien && bien.type) extraction.champs.typeVente = champExtraction(bien.type, origine);
+    // Lots d'une copropriété (tous les biens relevés, 06/10) : gardés sur la fiche.
+    const lots = lotsExportAuthentic(donnees);
+    if (lots.lots.length) {
+      extraction.bien = extraction.bien || {};
+      extraction.bien.lots = lots.lots;
+      extraction.bien.tantiemesTotal = lots.tantiemesTotal;
+    }
     // Prix « Capital » des informations financières d'Authentic : seulement si le texte n'en donne pas.
     const prixAuth = donnees.infosAuthentic && donnees.infosAuthentic.prix;
     // Authentic pré-remplit, le compromis complète ce qui manque (étude 05/10) : le prix d'Authentic passe donc avant celui lu.

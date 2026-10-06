@@ -1488,6 +1488,12 @@
       blocs.push(`<div class="extraction-ligne"><span class="extraction-libelle">Cadastre</span>
         <span>${escapeHtml(libelleCadastre(cadastre))}</span></div>`);
     }
+    // Lots de copropriété relevés dans Authentic (06/10) : numéro, type, étage, surface Carrez, tantièmes.
+    const lots = d.bien && Array.isArray(d.bien.lots) ? d.bien.lots : [];
+    if (lots.length) {
+      blocs.push(`<div class="extraction-ligne"><span class="extraction-libelle">Lot${lots.length > 1 ? 's' : ''}</span>
+        <span>${lots.map(l => escapeHtml(libelleLotCopropriete(l, d.bien.tantiemesTotal))).join(' · ')}</span></div>`);
+    }
 
     const LIBELLES_CHAMP_EXTRACTION = {
       nom: 'Nom du dossier', prixVente: 'Prix de vente', prixMobilier: 'Mobilier compris dans le prix', emailAcquereur: 'Email de l’acquéreur',
@@ -2011,6 +2017,17 @@
 
   // Bascule sans reconstruire le tiroir : les champs en cours de saisie et le défilement restent
   // en place.
+  // Pure : « Lot n° 12 — Appartement, 3e étage, 85 m² Carrez, 125/10 000 tantièmes ».
+  function libelleLotCopropriete(l, total) {
+    const parts = [];
+    if (l.type || l.designation) parts.push(l.type || l.designation);
+    if (l.etage) parts.push(/^\d+$/.test(String(l.etage)) ? `${l.etage}${l.etage === '1' ? 'er' : 'e'} étage` : `étage ${l.etage}`);
+    if (l.surfaceCarrez != null) parts.push(`${String(l.surfaceCarrez).replace('.', ',')} m² Carrez`);
+    else if (l.surface != null) parts.push(`${String(l.surface).replace('.', ',')} m²`);
+    if (l.tantiemes != null) parts.push(`${l.tantiemes}${total ? '/' + String(Math.round(Number(total))).replace(/\B(?=(\d{3})+(?!\d))/g, ' ') : ''} tantièmes`);
+    return `Lot n° ${l.numero}${parts.length ? ' — ' + parts.join(', ') : ''}`;
+  }
+
   function definirOngletFiche(nom) {
     // « analyse » : ancien onglet, fondu dans « Pièces et analyse » (étude 05/10).
     if (nom === 'analyse') nom = 'pieces';

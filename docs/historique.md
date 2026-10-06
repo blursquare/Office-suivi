@@ -17287,3 +17287,22 @@ verser 100.892,60 € » dès qu'il a le texte (testé avec le texte tel que l'O
 texte lu est vide et que le PDF fait 4 pages au plus, OCR des deux premières pages (même `creerWorkerOcr`/`ocrPage` que Claire
 Scan). Non vérifié ici (tesseract.js vient d'un CDN) : la qualité de l'OCR sur ce scan réel, à regarder au bureau sur ce dossier.
 
+### 06/10/2026 14 h 02 — 0.168.0 : fiche bien en copropriété (lots) ; « Créer » depuis Authentic → import avec PDF
+
+- Étude : structure (sans données) d'une fiche bien en copropriété d'Authentic — onglet « Informations du bien » avec le tableau
+  « Parcelle Assise volumétrique » (Commune, Préfixe, Section, Numéro, …, SPF, surface), onglet « Lots » (tableau N°, Ancien N°,
+  Type, Bâtiment, Etage, Entrée, Tantièmes lot — en-têtes pollués par « Filter by … » —, ligne « Total Tantièmes immeuble »,
+  détail du lot ouvert : Type de lot, Désignation, N° de lot, Tantièmes lot, Étage, Surface m², Surface carrez). `lotsFicheAuthentic`
+  (pure), `bienDepuisFicheAuthentic` rend `lots`/`tantiemesTotal` et type copropriété ; une page « Lots » (ni adresse ni cadastre)
+  complète le bien du même dossier (`fusionnerBienAuthentic`) ; dossier existant : `appliquerLotsAuthentic` (lots ajoutés/complétés,
+  type → copropriété avec historique) ; création : `lotsExportAuthentic` → `extraction.bien.lots`, conservés par la normalisation
+  et l'instantané ; fiche : ligne « Lot(s) » (« Lot n° 12 — Appartement, 3e étage, 46,8 m² Carrez, 125/10 000 tantièmes »).
+  Tests sur une copie de la structure (chiffres inventés). Non vérifié : une vraie page relevée par l'extension (noms exacts des
+  en-têtes avec « Filter by », cellule de total).
+- Étude : « dans la notification qui propose de créer le dossier dans CLAIRE, rendez-vous vers l'import avec PDF ». « Créer »
+  ouvre « Nouveau dossier » › Compromis (PDF) avec le dossier d'Authentic retenu (ligne « Dossier d'Authentic retenu »,
+  bouton « Sans compromis ») ; dès que le compromis est lu, `creerDepuisAuthentic` s'applique seul (étape Vérifier). Le groupe
+  retenu est gardé à part (`groupeAuthenticRetenu`) : le rafraîchissement des relevés récents l'effaçait (vu dans Chromium).
+  Succession : reprise seule comme avant. Joué dans Chromium : bandeau → mode PDF, ligne affichée, compromis « lu » → export
+  appliqué, étape 2 ; « Annuler » oublie tout.
+
