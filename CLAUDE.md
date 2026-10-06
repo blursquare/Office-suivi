@@ -369,7 +369,10 @@ dans `index.html`** (le test `structure-client` refuse tout décalage).
   l'**étude** (mis en forme, envoyé au client, enregistré à la **racine**, rattaché à « Envoi appel de fonds »,
   `courrierAppelFondsDossier`, lu par les fonds reçus et l'agenda). Le premier n'est jamais cherché à la racine ni dans le
   courrier rattaché ou produit par CLAIRE ; ordre : dossier du confrère (nom décompte d'abord), puis autres sous-dossiers par le
-  nom ; le premier tableau lisible remplace le décompte. Prêt hypothécaire : montant du prêt **déduit**, frais de garantie **appelés au
+  nom ; le premier tableau lisible remplace le décompte. **Pièces du dossier lues seules** quand l'office établit le décompte
+  (étude 06/10, `reprendrePiecesNasAppelFonds`, `fichierPieceNasAppelFonds`) : avis de taxe foncière et, en copropriété, état daté —
+  fichier retrouvé par la checklist (`fichierTrouve`), sinon le plus récent dont le nom dit la pièce —, lus par les mêmes lecteurs
+  qu'un dépôt, jamais par-dessus une pièce déposée ; les pièces d'un autre dossier sont oubliées au changement de dossier. Prêt hypothécaire : montant du prêt **déduit**, frais de garantie **appelés au
   débit**. Taxe foncière : montant lu en page 1 (« Montant de vos taxes foncières », jamais la
   « somme à prélever ») et contrôlé en bas à droite de la page 2 (entier nu possible) ; avis sur
   plusieurs biens (lus en page 2 par position, `biensAvisTaxeFonciere`) → **le bien vendu est demandé**
@@ -589,7 +592,10 @@ dans `index.html`** (le test `structure-client` refuse tout décalage).
   d'envoi du **projet d'acte** (`construireEmailProjetActe`, 30/09) est un premier jet de CLAIRE,
   à remplacer par le texte de l'étude dès qu'elle le fournit.
 - **Barème du simulateur de provision : validé par l'étude le 02/10/2026** (avertissement « montant à valider »
-  retiré). Le contrôle du barème de l'appel de fonds reste un signal, il ne remplit rien ; débours du dossier à vérifier.
+  retiré). **Depuis le 06/10 il remplit la ligne des frais et droits de l'acte du décompte** (étude : « avec l'ensemble des données
+  recueillies durant la vie du dossier, le décompte se remplit tout seul » ; `fraisActeEstimesAppelFonds` : assiette hors mobilier,
+  taux plein arrondi à l'euro supérieur, montant d'un primo-accédant dit dans « À compléter », « à vérifier, débours du dossier
+  compris ») — seulement quand l'office établit le décompte ; le contrôle du barème reste affiché sur la ligne.
 - **Répertoire** (Outils, 30/09 ; présentation revue le 02/10 : thèmes dans une colonne à gauche `renderNavRepertoire`, sans onglet « Tout » — étude 03/10, « Notaires » ouvert par défaut, une
   ligne compacte par office/interlocuteur `renderLigneOfficeCarnet`/`renderLigneContactRepertoire`, modification dans la ligne) :
   **un seul annuaire des notaires** (étude 03/10 : « fusionner le carnet des confrères avec tous les notaires de France ; que
@@ -920,8 +926,9 @@ Plainte principale de l'étude : **le bruit**, pas les oublis — ne pas élargi
   tous les courriers ou seulement les siens. Le modèle Word n'a pas de placeholder d'image : poser
   l'image dans `word/document.xml` + `word/media/` et régénérer le base64, et déclarer tout nouveau
   fichier dans les deux listes d'assets.
-- **Appel de fonds** : aperçu de pagination A4 non repris ; frais et droits de l'acte de vente à
-  saisir à la main (barème validé par l'étude le 02/10). **Encore à lire, en attente d'exemples réels** : montant des
+- **Appel de fonds** : aperçu de pagination A4 non repris ; frais et droits de l'acte estimés par le barème depuis le 06/10
+  (à vérifier). **Restent à brancher pour un décompte entièrement rempli** (étude 06/10) : appel de charges du syndic lu seul sur
+  le NAS, acompte sur frais (relevé JurisWeb — emplacement à demander). **Encore à lire, en attente d'exemples réels** : montant des
   frais de garantie dans l'offre de prêt.
   **À confirmer par l'étude** : exclusion de la cotisation au fonds de travaux du prorata de charges
   (choix par défaut, décochable). Piste : reporter le fonds de travaux lu dans l'état daté trouvé sur

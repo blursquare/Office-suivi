@@ -159,9 +159,11 @@ test('prefillAppelFonds dit aussi ce qu’il n’a PAS pu remplir', () => {
   assert.strictEqual(p.prixVente, 185000);
   assert.strictEqual(p.designation, 'une maison');
   assert.ok(p.repris.some(t => t.includes('Adresse')));
-  // Les frais d'acte ne sont JAMAIS repris du simulateur de provision (barème non audité, voir
-  // l'avertissement de cet écran) : ils restent toujours à saisir.
-  assert.ok(p.aCompleter.some(t => t.includes('frais et droits')));
+  // Frais d'acte estimés par le barème validé (étude 06/10 : « que le décompte se remplisse tout seul »), au taux plein,
+  // et signalés « à vérifier » avec le montant d'un primo-accédant.
+  assert.ok(p.fraisActe > 0);
+  assert.ok(p.aCompleter.some(t => /Frais et droits de l’acte estimés par le barème : .* primo-accédant .* à vérifier/.test(t)));
+  assert.strictEqual(app.lignesDecompteDepuisPrefill(p).debit[1].montant, p.fraisActe);
   assert.ok(p.aCompleter.some(t => t.includes('Civilité')));
 });
 
@@ -701,4 +703,29 @@ test('appel de fonds du confrère sur le NAS : « Projet VENTE confrère » d’
   assert.strictEqual(sansRattache[2], '5 - Comptabilité/Décompte acquéreur 2026.pdf', 'autre sous-dossier : seulement par le nom, après le dossier du confrère');
   assert.ok(!sansRattache.some(c => !/[\\/]/.test(c)), 'rien à la racine');
   assert.ok(app.candidatsDecompteConfrereNas([f('PROJET VTE CONFRERE/AF.pdf')], '').length === 1, 'dossier du confrère en capitales, sans accent');
+});
+
+test('frais d’acte estimés : assiette hors mobilier, taux plein arrondi à l’euro supérieur, jamais en participation', () => {
+  const app = chargerApplication();
+  const avec = app.fraisActeEstimesAppelFonds(200000, 5000, '41', 'house');
+  const sans = app.fraisActeEstimesAppelFonds(195000, 0, '41', 'house');
+  assert.strictEqual(avec.montant, sans.montant, 'le mobilier sort de l’assiette');
+  assert.ok(avec.primo < avec.montant, 'un primo-accédant paie moins');
+  assert.strictEqual(avec.montant, Math.ceil(avec.montant));
+  assert.strictEqual(app.fraisActeEstimesAppelFonds(200000, 0, null, 'house'), null);
+  assert.strictEqual(app.fraisActeEstimesAppelFonds(0, 0, '41', 'house'), null);
+  const d = { id: 'p', nom: 'A / B', typeVente: 'maison', adresseBien: 'BLOIS (41000), 3 rue des Lices', prixVente: 200000, roleNotaire: 'participant', parties: [] };
+  assert.strictEqual(app.prefillAppelFonds(d).fraisActe, null, 'en participation, le décompte vient du confrère');
+});
+
+test('pièces du NAS pour le décompte : le fichier de la checklist d’abord, sinon le plus récent par le nom', () => {
+  const app = chargerApplication();
+  const d = { nasDossier: 'VTE DUPONT', fichiersTrouves: {} };
+  const fichiers = [{ nom: 'Taxe fonciere 2024.pdf', chemin: 'Comptabilité/Taxe fonciere 2024.pdf' }, { nom: 'TF 2025.pdf', chemin: 'TF 2025.pdf' }, { nom: 'Titre.pdf', chemin: 'Titre.pdf' }];
+  const motif = /\bTF\b|taxes?\s+fonci[èe]\s?re/i;
+  const r = app.fichierPieceNasAppelFonds(d, fichiers, 'avisTaxeFonciere', motif);
+  assert.strictEqual(`${r.chemin}|${r.nom}`, 'VTE DUPONT/TF 2025.pdf|TF 2025.pdf');
+  d.fichiersTrouves.avisTaxeFonciere = 'VTE DUPONT/Comptabilité/Avis 2025.pdf';
+  assert.strictEqual(app.fichierPieceNasAppelFonds(d, fichiers, 'avisTaxeFonciere', motif).nom, 'Avis 2025.pdf', 'fichier retrouvé par la checklist');
+  assert.strictEqual(app.fichierPieceNasAppelFonds({ nasDossier: 'X' }, [{ nom: 'Titre.pdf', chemin: 'Titre.pdf' }], 'etatDate', /[ée]tat\s+dat[ée]/i), null);
 });

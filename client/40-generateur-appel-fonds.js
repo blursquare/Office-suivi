@@ -456,6 +456,17 @@
     };
   }
 
+  // Pure : l'estimation des frais et droits de l'acte de vente pour le décompte — assiette = prix hors mobilier, taux plein
+  // (cas général ; `primo` = le montant d'un acquéreur primo-accédant), arrondie à l'euro supérieur. null si le barème ne
+  // peut rien dire (prix, département ou nature du bien inconnus).
+  function fraisActeEstimesAppelFonds(prix, mobilier, cleDepartement, typeBien) {
+    const assiette = assietteImmobiliere(prix, mobilier);
+    if (!assiette || !cleDepartement || !typeBien) return null;
+    const f = fourchetteFraisActe(assiette, cleDepartement, typeBien);
+    if (!f) return null;
+    return { montant: Math.ceil(f.max), primo: Math.ceil(f.min) };
+  }
+
   // Tolérance au-delà de la fourchette : 1 % du montant attendu, au moins 50 €. Le barème est
   // interpolé entre deux paliers et ne couvre pas les débours variables (copies, formalités) —
   // signaler un écart de quelques dizaines d'euros ferait du bruit sans rien apprendre.
@@ -768,7 +779,6 @@
       else aCompleter.push('Fonds de travaux remboursé au vendeur : montant à reprendre de l’état daté.');
     }
 
-    aCompleter.push('Montant des frais et droits de l’acte de vente — à reprendre de votre provision.');
 
     // Pour le CONTRÔLE des frais (jamais pour les remplir) : le département vient du code postal du
     // bien, le type de bien du type de vente. Ni l'un ni l'autre n'est deviné quand le dossier ne
@@ -776,6 +786,16 @@
     const cpBien = (String(d.adresseBien || '').match(/\b\d{5}\b/) || [null])[0];
     const departementFrais = cleBaremeDepuisDepartement(departementDepuisCodePostal(cpBien));
     const typeBienFrais = AF_TYPE_BIEN_PAR_TYPE_VENTE[d.typeVente] || null;
+    // Frais et droits de l'acte : estimés par le barème (étude 06/10 : « que le décompte se remplisse tout seul »), au taux
+    // plein — un primo-accédant paie moins, dit dans « À compléter ». Seulement quand l'office établit le décompte.
+    const fraisActe = modeDecompteParDefaut(d) === 'office' ? fraisActeEstimesAppelFonds(d.prixVente, d.prixMobilier, departementFrais, typeBienFrais) : null;
+    if (fraisActe) {
+      aCompleter.push(`Frais et droits de l’acte estimés par le barème : ${formaterPrixCentimes(fraisActe.montant)}${fraisActe.primo < fraisActe.montant ? ` (acquéreur primo-accédant : ${formaterPrixCentimes(fraisActe.primo)})` : ''} — à vérifier, débours du dossier compris.`);
+    } else if (modeDecompteParDefaut(d) === 'office') {
+      aCompleter.push('Montant des frais et droits de l’acte de vente — à reprendre de votre provision (le barème n’a pas pu l’estimer : prix, département ou nature du bien manquant).');
+    } else {
+      aCompleter.push('Montant des frais et droits de l’acte de vente — à reprendre de votre provision.');
+    }
 
     return {
       dossierId: d.id,
@@ -792,6 +812,7 @@
       depotMotif: depot.motif,
       departementFrais,
       typeBienFrais,
+      fraisActe: fraisActe ? fraisActe.montant : null,
       pretHypothecaire: hypo === true,
       montantPret: hypo === true && d.montantPret > 0 ? d.montantPret : null,
       honoraires: honoraires ? { nom: honoraires.nom || '', negociateur: honoraires.negociateur, montantTTC: honoraires.montantTTC || null } : null,
@@ -810,7 +831,7 @@
   function lignesDecompteDepuisPrefill(p) {
     const debit = [
       { libelle: "Prix d'acquisition", montant: (p && p.prixVente) || 0, formule: null, id: afIdLigne() },
-      { libelle: "Montant des frais et droits de l'acte de vente", montant: 0, formule: null, id: afIdLigne() }
+      { libelle: "Montant des frais et droits de l'acte de vente", montant: (p && p.fraisActe) || 0, formule: null, id: afIdLigne() }
     ];
     if (p && p.pretHypothecaire) {
       debit.push({ libelle: "Frais d'acte de prêt (garantie hypothécaire)", montant: 0, formule: null, id: afIdLigne() });
@@ -1378,6 +1399,13 @@
   function appliquerPrefillAppelFonds(d) {
     const p = prefillAppelFonds(d);
     if (!p) return;
+    // Les pièces lues pour un AUTRE dossier (avis de taxe foncière, état daté…) ne le suivent pas ; celles déposées avant
+    // tout choix de dossier restent.
+    if (afDossierLie && afDossierLie !== p.dossierId) {
+      tfAvis.af = null;
+      renderBlocTaxeFonciere('af');
+      ['charges', 'etatDate', 'releve'].forEach(type => { afPieces[type] = null; renderBlocPieceAppelFonds(type); });
+    }
     afDossierLie = p.dossierId;
 
     afClients = p.clients.map(c => ({ civilite: c.civilite, prenom: c.prenom, nom: c.nom }));
@@ -1414,6 +1442,7 @@
     renderTableAppelFonds();
     majApercuAppelFonds();
     if (p.modeDecompte === 'confrere') reprendreDecompteConfrereNas(d);
+    else reprendrePiecesNasAppelFonds(d);
 
     const recap = afEl('af-recap-prefill');
     if (recap) {
@@ -2257,6 +2286,69 @@
         || String(b.modifie || '').localeCompare(String(a.modifie || '')));
   }
 
+  // --- pièces du dossier lues seules sur le NAS (étude 06/10 : « avec l'ensemble des données recueillies durant la vie du
+  // dossier, le décompte se remplit tout seul ») ------------------------------------------------------------------------
+  // Quand l'office établit le décompte : l'avis de taxe foncière (prorata du jour de l'acte au 31/12) et, en copropriété,
+  // l'état daté (remboursement du fonds de travaux) — le fichier que la checklist a déjà retrouvé, sinon le plus récent dont
+  // le NOM dit la pièce. Lus comme une pièce déposée à la main (mêmes lecteurs, même bloc) ; jamais par-dessus une pièce
+  // déposée, jamais pour un autre dossier que celui choisi entre-temps.
+  var afRecherchePiecesNas = 0;
+  // Pure : le fichier du dossier à lire pour la pièce `cle` — chemin depuis la racine du NAS, ou null.
+  function fichierPieceNasAppelFonds(d, fichiers, cle, motif) {
+    const memorise = fichierTrouve(d, cle);
+    if (memorise) return { chemin: memorise, nom: String(memorise).split(/[\\/]/).pop() };
+    const candidats = (fichiers || []).filter(f => f && f.chemin && /\.pdf$/i.test(String(f.nom || ''))
+      && motif && motif.test(normaliserNomPourMotif(String(f.nom || ''))))
+      .sort((a, b) => (anneeDansNomFichier(b.nom) || 0) - (anneeDansNomFichier(a.nom) || 0) || String(b.modifie || '').localeCompare(String(a.modifie || '')));
+    return candidats.length ? { chemin: cheminNasComplet(d, candidats[0].chemin), nom: candidats[0].nom } : null;
+  }
+  function motifPieceChecklist(d, cle) {
+    const piece = checklistPieces(d.typeVente, d).find(p => p.cle === cle);
+    return piece && piece.motifNom ? piece.motifNom : null;
+  }
+  async function fichierNasPourLecture(chemin, nom) {
+    const r = await fetchAvecAuth('/api/nas/fichier?chemin=' + encodeURIComponent(chemin));
+    if (!r.ok) throw new Error(`Lecture impossible (${r.status})`);
+    return new File([await r.blob()], nom || 'piece.pdf', { type: 'application/pdf' });
+  }
+  function ajouterRecapAppelFonds(texte) {
+    const recap = afEl('af-recap-prefill');
+    if (!recap) return;
+    let liste = recap.querySelector('.af-recap-bloc ul:not(.af-recap-manquant)');
+    if (!liste) {
+      recap.insertAdjacentHTML('afterbegin', '<div class="af-recap-bloc"><div class="af-recap-titre">Repris du dossier</div><ul></ul></div>');
+      liste = recap.querySelector('.af-recap-bloc ul');
+    }
+    liste.insertAdjacentHTML('beforeend', `<li>${escapeHtml(texte)}</li>`);
+  }
+
+  async function reprendrePiecesNasAppelFonds(d) {
+    if (!d || !d.dossierLie || !d.nasDossier || !nasDisponible() || typeof pdfjsLib === 'undefined') return;
+    const jeton = ++afRecherchePiecesNas;
+    const toujoursLa = () => jeton === afRecherchePiecesNas && afDossierLie === d.id;
+    let fichiers = [];
+    try { fichiers = await listerFichiersNas(d); } catch (e) { return; }
+    if (!toujoursLa()) return;
+    const tf = !tfAvis.af ? fichierPieceNasAppelFonds(d, fichiers, 'avisTaxeFonciere', motifPieceChecklist(d, 'avisTaxeFonciere')) : null;
+    if (tf) {
+      try {
+        const fichier = await fichierNasPourLecture(tf.chemin, tf.nom);
+        if (!toujoursLa() || tfAvis.af) return;
+        await importerAvisTaxeFonciere('af', fichier);
+        if (toujoursLa()) ajouterRecapAppelFonds(`Avis de taxe foncière lu sur le NAS : « ${tf.nom} »`);
+      } catch (e) { /* pièce suivante */ }
+    }
+    if (d.typeVente !== 'copropriete' || !toujoursLa() || afPieces.etatDate) return;
+    const ed = fichierPieceNasAppelFonds(d, fichiers, 'etatDate', motifPieceChecklist(d, 'etatDate'));
+    if (!ed) return;
+    try {
+      const fichier = await fichierNasPourLecture(ed.chemin, ed.nom);
+      if (!toujoursLa() || afPieces.etatDate) return;
+      await importerPieceAppelFonds('etatDate', fichier);
+      if (toujoursLa()) ajouterRecapAppelFonds(`État daté lu sur le NAS : « ${ed.nom} »`);
+    } catch (e) { /* rien de plus à lire */ }
+  }
+
   async function reprendreDecompteConfrereNas(d) {
     if (!d || !d.dossierLie || !d.nasDossier || !nasDisponible() || typeof pdfjsLib === 'undefined') return;
     const jeton = ++afRechercheDecompteNas;
@@ -2567,6 +2659,7 @@
   function reinitialiserAppelFonds() {
     afDossierLie = null;
     afRechercheDecompteNas++;
+    afRecherchePiecesNas++;
     afFraisChoisiALaMain = { departement: false, type: false };
     afClients = [{ civilite: 'M', prenom: '', nom: '' }];
     afSituation = '';

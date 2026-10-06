@@ -16943,3 +16943,28 @@ un dossier Projet VENTE confrère. »
   dans les autres sous-dossiers, les PDF dont le nom le dit (`RE_NOM_DECOMPTE`, hors prêt) ; le plus récent d'abord.
 - Inchangé : le décompte de l'étude à la racine reste celui du dossier (`courrierAppelFondsDossier`, `appelFondsCourrier` posé
   par le serveur, fonds reçus `montantAttenduDepuisNas`, « Décompte » de l'agenda en succession).
+
+### 06/10/2026 — 0.158.0 : le décompte se remplit davantage tout seul (frais d'acte estimés, avis de TF et état daté lus sur le NAS)
+
+Étude : « L'objectif, c'est qu'avec l'ensemble des données recueillies durant la vie du dossier, le décompte se remplisse
+tout seul. » Choix de l'étude parmi les pistes proposées : 1 (avis de taxe foncière et état daté lus seuls) et 3 (frais d'acte
+estimés par le barème). Pas retenus pour l'instant : appel de charges du syndic, acompte sur frais (relevé JurisWeb), frais de
+garantie du prêt (pas d'offre réelle lue).
+
+- **Frais et droits de l'acte** (`fraisActeEstimesAppelFonds`, pure) : `fourchetteFraisActe` sur l'assiette hors mobilier
+  (`assietteImmobiliere`), au taux plein (`max`), arrondi à l'euro supérieur ; `prefillAppelFonds` le pose sur la ligne « Montant
+  des frais et droits de l'acte de vente » (`p.fraisActe`) quand l'office établit le décompte ; « À compléter » : « Frais et droits
+  de l'acte estimés par le barème : X (acquéreur primo-accédant : Y) — à vérifier, débours du dossier compris. » Sans prix,
+  département ou nature du bien : 0 et « à reprendre de votre provision ». Participation : rien (décompte du confrère). Règle
+  précédente (« le barème ne remplit rien ») levée par cette demande ; le contrôle reste sur la ligne.
+- **Pièces du NAS** (`reprendrePiecesNasAppelFonds`, après `appliquerPrefillAppelFonds`, mode office) : avis de taxe foncière
+  puis, en copropriété, état daté — `fichierPieceNasAppelFonds` : le fichier mémorisé par la checklist (`fichierTrouve`), sinon le
+  PDF le plus récent (année du nom, puis date) dont le nom répond au motif de la pièce (`motifPieceChecklist`) ; récupéré par
+  `fichierNasPourLecture` (`/api/nas/fichier` → `File`) puis lu par `importerAvisTaxeFonciere('af', …)` /
+  `importerPieceAppelFonds('etatDate', …)` comme un dépôt à la main (prorata TF du jour de l'acte au 31/12, remboursement du fonds
+  de travaux) ; « Repris du dossier » : « Avis de taxe foncière lu sur le NAS : « … » », « État daté lu sur le NAS : « … » ».
+  Jamais par-dessus une pièce déjà déposée ; abandonné si un autre dossier est choisi entre-temps (jeton `afRecherchePiecesNas`).
+- Corrigé au passage : choisir un autre dossier oublie l'avis de TF et les pièces lus pour le précédent (ils restaient appliqués
+  au nouveau dossier) ; les pièces déposées avant tout choix de dossier restent.
+- Vérifié dans Chromium avec NAS et lecteurs PDF simulés (prorata TF et fonds de travaux ajoutés, récapitulatif) ; pas encore sur
+  de vrais avis ni états datés du NAS.
