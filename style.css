@@ -2199,6 +2199,10 @@
   .reglages-restauration summary { cursor: pointer; color: var(--focus); font-weight: 500; }
   .reglages-restauration ol { margin: 10px 0 6px; padding-left: 20px; }
   .reglages-restauration li { margin-bottom: 4px; }
+  .restauration-liste { display: flex; flex-direction: column; gap: 4px; margin: 10px 0; max-width: 520px; }
+  .restauration-ligne { display: flex; align-items: center; gap: 12px; padding: 4px 0; border-bottom: 1px solid var(--line); }
+  .restauration-date { flex: 1; min-width: 0; }
+  .restauration-taille { margin: 0; }
   /* « Comment ça marche » des rappels : replié par défaut pour alléger l'écran Réglages. */
   .reglages-aide { font-size: var(--texte-m); }
   .reglages-aide > summary { cursor: pointer; margin-bottom: 0; }

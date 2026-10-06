@@ -917,6 +917,69 @@
     }
   }
 
+  // ---- Restaurer une sauvegarde (étude 06/10) : la sauvegarde choisie est déposée et vérifiée par le serveur, qui redémarre et
+  // la met à la place de la base (l'ancienne gardée à côté avec son journal, voir server/src/restauration.js). ----
+
+  // Pure : « claire-2026-10-05.db » → « lundi 5 octobre 2026 ».
+  function libelleSauvegarde(nom) {
+    const m = /^claire-(\d{4})-(\d{2})-(\d{2})\.db$/.exec(String(nom || ''));
+    if (!m) return String(nom || '');
+    const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+    return d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  }
+
+  async function chargerSauvegardesRestaurables() {
+    const zone = document.getElementById('reglages-restauration-liste');
+    if (!zone) return;
+    zone.innerHTML = '<p class="hint">Lecture du dossier des sauvegardes…</p>';
+    try {
+      const r = await fetchAvecAuth('/api/sauvegarde/liste');
+      const corps = await r.json();
+      const liste = corps.sauvegardes || [];
+      if (!liste.length) { zone.innerHTML = `<p class="hint">${escapeHtml(corps.erreur || 'Aucune sauvegarde dans le dossier des sauvegardes.')}</p>`; return; }
+      zone.innerHTML = liste.map((x) => `<div class="restauration-ligne">
+          <span class="restauration-date">${escapeHtml(libelleSauvegarde(x.nom))}</span>
+          <span class="hint restauration-taille">${escapeHtml(tailleLisible(x.taille))}</span>
+          <wa-button appearance="outlined" size="s" onclick="restaurerSauvegarde('${escapeOnclickArg(x.nom)}')">Restaurer</wa-button>
+        </div>`).join('');
+    } catch (e) {
+      zone.innerHTML = '<p class="hint">Serveur injoignable.</p>';
+    }
+  }
+
+  function restaurerSauvegarde(nom) {
+    demanderConfirmation(`Restaurer la sauvegarde du ${libelleSauvegarde(nom)} ? Ce qui a été saisi depuis sera remplacé (la base actuelle est gardée à côté). CLAIRE redémarre, pour tous les postes.`, async () => {
+      try {
+        const r = await fetchAvecAuth('/api/sauvegarde/restaurer', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fichier: nom })
+        });
+        const corps = await r.json().catch(() => ({}));
+        if (!r.ok) { afficherToast(corps.erreur || 'Restauration impossible.'); return; }
+        if (!corps.redemarrage) { afficherToast('Sauvegarde vérifiée et déposée : relancez CLAIRE pour la mettre en place.', null, null, { fixe: true, cle: 'restauration' }); return; }
+        afficherToast('Sauvegarde vérifiée. CLAIRE redémarre…', null, null, { fixe: true, cle: 'restauration' });
+        attendreRedemarrageServeur();
+      } catch (e) {
+        afficherToast('Serveur injoignable.');
+      }
+    }, { bouton: 'Restaurer', ton: 'danger' });
+  }
+
+  // Le serveur s'arrête puis revient : la page se recharge dès qu'il répond de nouveau (2 min au plus).
+  function attendreRedemarrageServeur() {
+    let arrete = false;
+    const debut = Date.now();
+    const sonder = async () => {
+      if (Date.now() - debut > 120000) { afficherToast('CLAIRE ne répond pas encore : relancez-la si besoin, puis rechargez la page.', null, null, { fixe: true, cle: 'restauration' }); return; }
+      try {
+        const r = await fetch('/client/00-version.js', { cache: 'no-store' });
+        if (r.ok && arrete) { location.reload(); return; }
+        if (!r.ok) arrete = true;
+      } catch (e) { arrete = true; }
+      setTimeout(sonder, 2000);
+    };
+    setTimeout(sonder, 1500);
+  }
+
   // ===== Mise à jour de CLAIRE (server/src/miseAJour.js) =====
   // En un clic (« Mettre à jour maintenant »), ou automatiquement (étude 03/10 : « au démarrage et dès
   // que c'est détecté », interrupteur « Installer automatiquement », actif par défaut) — c'est alors le

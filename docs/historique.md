@@ -17087,3 +17087,30 @@ collaborateurs.
 relecture de 30 jours des adresses nouvelles étendue aux adresses des parties et des dossiers archivés (une fois chacune).
 Points terrain `emails-rattachement-fil`, `emails-rattachement-archive` (à contrôler sur la fiche : le bon dossier). Tests
 `server/test/emails-rattachement.test.js` et un tour complet dans `emails-dossiers.test.js`.
+
+### 0.163.0 — 06/10/2026 10:13 — Restauration d'une sauvegarde : « database disk image is malformed »
+
+Retour de l'étude (test de restauration, critère de sortie de bêta) : « [CLAIRE] ÉCHEC AU DÉMARRAGE — Error: database disk image
+is malformed at lireJson … creerRouteurMiseAJour ». Cause : la base tourne en WAL (04/10) ; la procédure affichée dans les
+Réglages (« renommer claire.db, copier la sauvegarde sous claire.db ») ne disait pas de retirer `claire.db-wal`/`-shm` (le
+README, si) — le journal de l'ancienne base, jamais reversé (arrêt par `Arreter-CLAIRE.bat`), est alors REJOUÉ par-dessus la
+sauvegarde, dont les pages n'ont plus la même disposition (VACUUM) : base incohérente. Reproduit ici avec de vrais fichiers
+(quick_check : « 2nd reference to page… »). Vérifié aussi : ouvrir puis FERMER normalement une telle base reverse le journal
+étranger dans le fichier et l'abîme pour de bon ; une connexion en lecture seule ne touche à rien. Le serveur qui échoue au
+démarrage sort sans fermer la base : chez l'étude, retirer `claire.db-wal`/`-shm` suffit à retrouver la sauvegarde intacte.
+
+`server/src/restauration.js` (@ts-check) :
+- `appliquerRestaurationEnAttente(cheminDb)` (index.js, AVANT d'ouvrir la base) : `data/claire-restauration.db` présent →
+  journal éventuel de ce fichier écarté, `integrity_check` ; illisible → renommé `claire-restauration-refusee-…db`, base actuelle
+  gardée ; sinon ancienne base + `-wal` + `-shm` renommés ensemble `claire-avant-restauration-AAAA-MM-JJ-HHhMM.db(-wal/-shm)`
+  (paire cohérente, rien de perdu), sauvegarde mise à la place.
+- `ouvrirDbVerifiee(cheminDb, ouvrirDb)` : contrôle EN LECTURE SEULE (`quick_check(1)`) avant d'ouvrir ; illisible avec un
+  journal → base copiée et journal déplacé sous `claire-abimee-…db(-wal)`, base recontrôlée seule puis ouverte ; toujours
+  illisible → erreur qui dit comment restaurer (déposer `claire-restauration.db`).
+- Routes `GET /api/sauvegarde/liste` (dossier des sauvegardes) et `POST /api/sauvegarde/restaurer` (copie vérifiée sous
+  `claire-restauration.db`, puis redémarrage par le mécanisme de la mise à jour — exécutable seulement).
+- Réglages › Mise à jour et sauvegarde › « Restaurer une sauvegarde » : une ligne par sauvegarde (date, taille, « Restaurer »),
+  confirmation, toast fixe « CLAIRE redémarre… », la page se recharge quand le serveur répond de nouveau ; la procédure à la
+  main (serveur arrêté) devient : déposer la sauvegarde sous `claire-restauration.db` et relancer.
+Point terrain `restauration-sauvegarde`. Tests `server/test/restauration.test.js` (cas du bureau reproduit, sauvegarde
+illisible refusée, base saine avec son journal intacte, routes).

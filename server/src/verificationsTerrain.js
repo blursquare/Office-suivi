@@ -68,6 +68,8 @@ const VERIFICATIONS_TERRAIN = [
     comment: 'À confirmer en comparant un mois avec l’agenda d’Outlook (titres VTE, SUCC, DONATION).' },
   { id: 'fenetres-rechargees', depuis: '0.135.0', source: 'poste', titre: 'Après une mise à jour automatique, une fenêtre CLAIRE déjà ouverte s’est rechargée seule sur la nouvelle version',
     comment: 'Coché la première fois qu’une fenêtre voit le serveur redémarrer sur une autre version et se recharge.' },
+  { id: 'restauration-sauvegarde', depuis: '0.163.0', source: 'serveur', titre: 'Sauvegarde restaurée au démarrage (vérifiée, ancienne base gardée à côté avec son journal)',
+    comment: 'Coché à la première restauration réussie (bouton « Restaurer » des Réglages, ou claire-restauration.db déposé à la main). Vérifier ensuite les dossiers dans le Suivi.' },
   { id: 'emails-rattachement-fil', depuis: '0.162.0', source: 'serveur', titre: 'Emails des dossiers : un email d’une adresse absente de la fiche rattaché par son fil (réponse « RE: » ou adresse à qui l’étude a écrit)',
     comment: 'Coché la première fois qu’un email reçu est rattaché à un dossier par le fil de la conversation. À contrôler sur la fiche : le bon dossier.' },
   { id: 'emails-rattachement-archive', depuis: '0.162.0', source: 'serveur', titre: 'Emails des dossiers : un email d’un client ou d’un confrère rattaché à un dossier archivé',

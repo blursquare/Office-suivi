@@ -187,7 +187,7 @@ function demarrerSauvegardeAutomatique(db, config, parametresRepo) {
 }
 
 module.exports = {
-  NB_SAUVEGARDES_CONSERVEES, JOURS_AVANT_ALERTE,
+  NB_SAUVEGARDES_CONSERVEES, JOURS_AVANT_ALERTE, RE_NOM_SAUVEGARDE,
   jourLocal, nomFichierSauvegarde, sauvegardesARetirer, destinationSauvegarde, validerDossierSauvegarde,
   executerSauvegarde, sauvegardeDuJourFaite, etatApresTentative, joursDepuisDerniereSauvegarde,
   sauvegarderEtEnregistrer, demarrerSauvegardeAutomatique

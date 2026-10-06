@@ -524,12 +524,16 @@ nom provisoire renommé à la fin. Le compte rendu s'affiche dans les Réglages,
 sur le Tableau de bord si la dernière tentative a échoué ou si aucune sauvegarde n'a réussi depuis
 3 jours.
 
-**Restaurer** : arrêter le serveur (`Arreter-CLAIRE.bat`), renommer `data/claire.db` en
-`claire-avant-restauration.db` **et retirer les fichiers `claire.db-wal` et `claire.db-shm` s'ils existent** (journal
-d'écriture de la base en cours, sans valeur pour la copie restaurée), copier la sauvegarde voulue dans `data/` sous le nom
-`claire.db`, relancer. Tout ce qui a été saisi après la date de la sauvegarde est perdu. **Tester une
-restauration une fois** (sur un poste de test, ou en gardant la base d'origine à côté) avant de
-compter dessus.
+**Restaurer** (06/10) : Réglages › Mise à jour et sauvegarde › « Restaurer une sauvegarde » → « Restaurer » sur la date voulue.
+Le serveur copie la sauvegarde à côté de la base sous `claire-restauration.db`, la vérifie (`integrity_check`), redémarre, et
+au démarrage la met à la place de `claire.db` (voir `src/restauration.js`) : l'ancienne base est gardée sous
+`claire-avant-restauration-AAAA-MM-JJ-HHhMM.db` **avec son journal** (`-wal`, `-shm`). Si CLAIRE ne démarre plus : copier la
+sauvegarde dans `data/` sous le nom `claire-restauration.db` et relancer — même vérification, même mise en place. **Ne jamais
+copier une sauvegarde directement sur `claire.db`** : le journal `claire.db-wal` de l'ancienne base serait rejoué par-dessus
+et la rendrait illisible (« database disk image is malformed », vu au bureau le 06/10). Filet : au démarrage, la base est
+contrôlée EN LECTURE SEULE (une connexion normale reverserait un journal étranger dans la base en se fermant) ; illisible avec
+un journal présent → base et journal copiés à part (`claire-abimee-…db` + `-wal`), journal retiré, base rouverte seule.
+Tout ce qui a été saisi après la date de la sauvegarde est perdu.
 
 ### Fichiers écartés
 

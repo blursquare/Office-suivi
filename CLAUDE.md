@@ -665,7 +665,7 @@ dans `index.html`** (le test `structure-client` refuse tout décalage).
   `assainirStructureDossier` (listes/objets/dates du planning ramenés à un conteneur vide ou '' quand le type est faux, valeurs
   correctes intactes). `ecrireLocal(cle, valeur)` pour tout `localStorage.setItem`. **Base SQLite en WAL** (`db.js`, sauf
   chemin réseau, `busy_timeout` 5 s, `synchronous` par défaut) ; la sauvegarde reste un `VACUUM INTO` (lit le WAL) ; une
-  restauration retire aussi `claire.db-wal`/`-shm` (README). `SIGINT`/`SIGTERM` → `arreterProprement` (port puis base).
+  restauration ne copie JAMAIS une sauvegarde sur `claire.db` (06/10 : le `claire.db-wal` de l'ancienne base rejoué dessus → « database disk image is malformed ») : bouton « Restaurer » des Réglages, ou `data/claire-restauration.db` déposé à la main, mis en place au démarrage par `restauration.js` (ancienne base gardée avec son journal) ; la base est contrôlée EN LECTURE SEULE avant d'être ouverte (une connexion normale reverse un journal étranger en se fermant) — `ouvrirDbVerifiee`. `SIGINT`/`SIGTERM` → `arreterProprement` (port puis base).
 - **Rendez-vous retiré de CLAIRE** → retiré aussi de l'agenda (et repère `rendezVousRetire` pour
   que le flux ne le remette pas). Une date saisie à la main n'est jamais écrasée par l'agenda.
 - **Apprentissage** : corrections de classification (dates, engagements) et exclusions stockées en

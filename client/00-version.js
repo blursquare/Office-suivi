@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.162.0';
+  const VERSION_APP = '0.163.0';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.163.0', date: '2026-10-06 10:13', resume: "Sauvegardes : « Restaurer » en un clic dans Réglages › Mise à jour et sauvegarde (la sauvegarde est vérifiée, CLAIRE redémarre, l'ancienne base est gardée à côté). Corrige « database disk image is malformed » après une restauration à la main : le journal de l'ancienne base (claire.db-wal) n'est plus jamais rejoué sur la sauvegarde — au démarrage, une base illisible à cause d'un journal étranger est rouverte sans lui (copie gardée à part)." },
     { version: '0.162.0', date: '2026-10-06 10:05', resume: "Emails des dossiers : les échanges avec les clients se retrouvent mieux sur la fiche — adresses des parties relevées dans Authentic (héritiers d'une succession compris), réponses « RE: » à un échange du dossier, adresses à qui l'étude a écrit pour ce seul dossier ; les dossiers archivés reçoivent aussi les emails des clients et des confrères ; un confrère de plusieurs dossiers n'est plus rangé au hasard : l'objet départage." },
     { version: '0.161.3', date: '2026-10-06 09:47', resume: "Réponse à un email reçu (accusé de réception, répondre) : Exchange refusait l'envoi (ErrorChangeKeyRequiredForWriteOperations) — CLAIRE relit d'abord la clé de modification de l'email reçu et la joint à la réponse." },
     { version: '0.161.2', date: '2026-10-06 09:46', resume: "Claire Scan : la copie rangée du courrier d'appel de fonds s'appelle « Convocation au rendez-vous contenant l'appel de fonds - Claire Scan » (au lieu de « Convocation »), toujours reconnue comme décompte de l'étude." },

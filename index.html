@@ -2106,14 +2106,10 @@
         <wa-button appearance="outlined" class="secondary" id="reglages-sauvegarde-lancer" onclick="lancerSauvegarde()">Sauvegarder maintenant</wa-button>
         <span id="reglages-sauvegarde-resultat" class="hint" style="margin:0;"></span>
       </div>
-      <details class="reglages-restauration">
+      <details class="reglages-restauration" ontoggle="if (this.open) chargerSauvegardesRestaurables()">
         <summary>Restaurer une sauvegarde</summary>
-        <ol>
-          <li>Arrêter le serveur : double-cliquer sur <code>Arreter-CLAIRE.bat</code>, à côté de <code>CLAIRE-serveur.exe</code>.</li>
-          <li>Dans le dossier <code>data</code>, à côté de l'exécutable, renommer <code>claire.db</code> en <code>claire-avant-restauration.db</code> (à garder tant que la restauration n'est pas vérifiée).</li>
-          <li>Copier la sauvegarde voulue (par exemple <code>claire-2026-09-24.db</code>) dans ce dossier <code>data</code> et la renommer <code>claire.db</code>.</li>
-          <li>Relancer CLAIRE, puis vérifier dans le Suivi que les dossiers sont là. Ce qui a été saisi après la date de la sauvegarde est perdu.</li>
-        </ol>
+        <div id="reglages-restauration-liste" class="restauration-liste"></div>
+        <p class="hint">Si CLAIRE ne démarre plus : copier la sauvegarde voulue (par exemple <code>claire-2026-09-24.db</code>) dans le dossier <code>data</code>, à côté de l'exécutable, sous le nom <code>claire-restauration.db</code>, puis relancer CLAIRE. Elle est vérifiée et mise en place au démarrage ; l'ancienne base est gardée à côté (<code>claire-avant-restauration-…</code>). Ne jamais copier une sauvegarde directement sur <code>claire.db</code>.</p>
       </details>
     </div>
   </section>

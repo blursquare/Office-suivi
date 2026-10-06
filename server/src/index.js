@@ -56,6 +56,8 @@ try {
 }
 
 const { ouvrirDb } = require('./db');
+const { appliquerRestaurationEnAttente, ouvrirDbVerifiee } = require('./restauration');
+const { noterVerification } = require('./verificationsTerrain');
 const { creerApp } = require('./app');
 const { resoudreCheminNavigateurApp } = require('./navigateurApp');
 const { demarrerSurveillanceNas } = require('./nasWatch');
@@ -229,7 +231,14 @@ function redemarrerApresMiseAJour(serveur, db) {
 }
 
 function demarrer() {
-  const db = ouvrirDb(config.cheminDb);
+  // Sauvegarde déposée sous « claire-restauration.db » (bouton « Restaurer » des Réglages, ou à la main) : vérifiée puis mise à
+  // la place de la base AVANT de l'ouvrir ; l'ancienne base est gardée à côté avec son journal (voir restauration.js).
+  const restauration = appliquerRestaurationEnAttente(config.cheminDb);
+  if (restauration.fait) console.log(`[CLAIRE] Sauvegarde restaurée. Ancienne base gardée : ${restauration.ancienne}`);
+  if (restauration.refusee) console.warn(`[CLAIRE] Sauvegarde à restaurer illisible, base actuelle gardée (${restauration.raison}) : ${restauration.ecartee}`);
+  // Base contrôlée à l'ouverture : abîmée par un journal (claire.db-wal) qui n'est pas le sien → copiée à part, journal retiré.
+  const { db, reparee } = config.cheminDb === ':memory:' ? { db: ouvrirDb(config.cheminDb), reparee: null } : ouvrirDbVerifiee(config.cheminDb, ouvrirDb);
+  if (reparee) console.warn(`[CLAIRE] Base illisible avec son journal (${reparee.controle}) : journal écarté, base rouverte seule. Copie gardée : ${reparee.copie}`);
   let serveur = null;
   const { app, depot, parametresRepo, journalTechnique, routeurMiseAJour } = creerApp({
     db,
@@ -273,6 +282,10 @@ function demarrer() {
   // sans fenêtre, sont gardés dans le journal technique ; à 12 h et 17 h les jours ouvrés, un
   // rapport anonymisé part en issue sur GitHub, lu ensuite par la routine Claude. Démarré ici seulement.
   installerCaptureConsole(journalTechnique);
+  // Après la capture de la console : ces événements du démarrage restent dans le journal technique et le rapport.
+  if (restauration.fait) noterVerification(parametresRepo, 'restauration-sauvegarde', {});
+  if (restauration.refusee) { console.warn('[CLAIRE] Sauvegarde à restaurer refusée au démarrage (contrôle d’intégrité).'); noterVerification(parametresRepo, 'restauration-sauvegarde', { ok: false, message: 'sauvegarde illisible, base actuelle gardée' }); }
+  if (reparee) console.warn('[CLAIRE] Base rouverte sans son journal au démarrage (journal d’une autre base ou abîmé).');
   demarrerRapportTechnique({
     journal: journalTechnique, parametresRepo, depot, db,
     buildInstalle: lireBuildInstalle(seaOuNull()),

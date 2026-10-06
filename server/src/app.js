@@ -178,7 +178,7 @@ function creerApp({ db, config, envoyerEmailFn, creerClientClaude, appelerMistra
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurNomsFichiersNas(config, parametresRepo));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurScans(config, parametresRepo));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurReglages(parametresRepo, envoyerEmailFn, { depot, db }));
-  app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurSauvegarde(parametresRepo, db, config));
+  app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurSauvegarde(parametresRepo, db, config, miseAJour || {}));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurNotifications(parametresRepo, envoyerEmailFn));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurEmailsMatin(parametresRepo, depot, { config, ...(emailsMatin || {}) }));
   // Emails des dossiers (voir emailsDossiers.js) : reçus et envoyés rattachés aux dossiers, pièces jointes.
