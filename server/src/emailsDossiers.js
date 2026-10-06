@@ -24,6 +24,7 @@
 const crypto = require('node:crypto');
 const { noterVerification } = require('./verificationsTerrain');
 const { accesCollaborateur, marquerRefus, leverRefus } = require('./comptesCollaborateurs');
+const { cocherProjetEnvoye } = require('./projetEnvoyeEmail');
 const { lireXml, tous, premier, texte: texteXml, texteDe, attribut, identifiantElement, codeReponse: codeReponseXml, succesSansErreur } = require('./exchange/xml');
 const {
   contexteClassement, dossierDeEmail, parmiDossiersAdresse, normaliserObjet, normaliser, SUJETS_EMAIL, echapperXml, ENVELOPPE_DEBUT, ENVELOPPE_FIN
@@ -489,6 +490,12 @@ async function tourEmailsDossiers(depot, parametresRepo, injections = {}, manuel
       etat.emails.push(email);
       connus.add(email.id);
       resultat.envoyes++;
+      // Projet d'acte envoyé (étude 06/10) : l'échéance du dossier est cochée ; la mention de l'agenda suit côté poste.
+      if (d && typeof depot.remplacer === 'function' && cocherProjetEnvoye(d, envoye)) {
+        depot.remplacer(d.id, d);
+        resultat.projetsCoches = (resultat.projetsCoches || 0) + 1;
+        noterVerification(parametresRepo, 'email-projet-detecte');
+      }
       if (prepare) { prepare.envoyeLe = email.date; prepare.boite = b.adresse; prepare.emailId = email.id; resultat.confirmes++; noterVerification(parametresRepo, 'email-prepare-envoye'); }
     }
     const dernier = lot.length < trouves.length ? lot[lot.length - 1].date : (trouves.length ? trouves[trouves.length - 1].date : null);

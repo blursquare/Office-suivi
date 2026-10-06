@@ -92,6 +92,8 @@ const VERIFICATIONS_TERRAIN = [
     comment: 'Coché quand la boîte d’envoi d’un collaborateur a pu être lue ; en échec tant que l’accès « Relecteur » n’est pas donné dans Outlook.' },
   { id: 'email-prepare-envoye', depuis: '0.127.0', source: 'serveur', titre: 'Un email préparé par CLAIRE retrouvé dans les envoyés (« envoyé le … »)',
     comment: 'Coché la première fois qu’un .eml préparé est retrouvé envoyé.' },
+  { id: 'email-projet-detecte', depuis: '0.177.0', source: 'serveur', titre: 'Projet d’acte envoyé détecté dans les emails envoyés (échéance cochée, mention dans l’agenda)',
+    comment: 'Coché la première fois qu’un email envoyé au client ou au confrère, dont l’objet dit « projet d’acte », coche l’envoi du projet sur la fiche ; la mention « projet envoyé » du rendez-vous Outlook se vérifie dans l’agenda.' },
   { id: 'email-resume-ia', depuis: '0.127.0', source: 'serveur', titre: 'Résumé d’un email par l’IA locale (Ollama)',
     comment: 'Coché au premier résumé rendu ; en échec si l’IA est indisponible ou ne répond pas.' },
   { id: 'piece-jointe-nas', depuis: '0.128.0', source: 'serveur', titre: 'Pièce jointe d’un email rangée dans le dossier client du NAS',

@@ -309,3 +309,43 @@ test('tour : client d’un dossier archivé et réponse « RE: » d’une adress
     assert.equal(emails.find((e) => e.itemId === 'IN6').dossierId, 'd1');
   } finally { db.close(); }
 });
+
+test('projet d\'acte envoyé : détecté dans les envoyés, échéance cochée une seule fois, jamais sur un objet interne ou une réponse', async () => {
+  const P = require('../src/projetEnvoyeEmail');
+  assert.equal(P.objetDitProjetActe('Projet d’acte de vente — VTE - MARTEL / FOURNIER'), true);
+  assert.equal(P.objetDitProjetActe('VTE MARTEL : projet de vente pour relecture'), false);
+  assert.equal(P.objetDitProjetActe('RE: Projet d’acte'), false);
+  assert.equal(P.objetDitProjetActe('Compromis de vente'), false);
+  const d = { id: 'd9', nom: 'MARTEL / FOURNIER', emailAcquereur: 'camille.fournier@exemple.fr', historique: [] };
+  assert.equal(P.projetEnvoyeADetecter(d, { objet: 'Projet d’acte de vente', a: ['interne@office.fr'], date: '2026-10-05T10:00:00Z' }), false, 'destinataire hors dossier');
+  assert.equal(P.projetEnvoyeADetecter({ ...d, typeAffaire: 'succession' }, { objet: 'Projet d’acte', a: ['camille.fournier@exemple.fr'], date: '2026-10-05T10:00:00Z' }), false);
+  assert.equal(P.cocherProjetEnvoye(d, { objet: 'Projet d’acte de vente', a: ['Camille.Fournier@exemple.fr'], date: '2026-10-05T22:30:00Z' }), true);
+  assert.equal(d.projetEnvoye, '2026-10-06', 'jour de Paris');
+  assert.equal(d.echeancesValidees.projetEnvoye, true);
+  assert.equal(P.cocherProjetEnvoye(d, { objet: 'Projet d’acte de vente', a: ['camille.fournier@exemple.fr'], date: '2026-10-07T10:00:00Z' }), false, 'déjà coché');
+  // Décoché à la main : jamais recoché.
+  d.projetEnvoye = ''; d.echeancesValidees.projetEnvoye = false;
+  assert.equal(P.cocherProjetEnvoye(d, { objet: 'Projet d’acte de vente', a: ['camille.fournier@exemple.fr'], date: '2026-10-08T10:00:00Z' }), false);
+
+  // Dans le tour : l'email envoyé coche le dossier du dépôt.
+  const db = ouvrirDb(':memory:');
+  const repo = creerRepoParametres(db);
+  repo.ecrireReglagesExchange({ actif: true, url: 'https://ex/ews', email: 'bastien@office.fr', motDePasse: 'secret' });
+  const dossier = { id: 'd5', nom: 'LEGRAND / ROUX', emailAcquereur: 'roux@exemple.fr', historique: [] };
+  const remplaces = [];
+  const depot = { tousActifs: () => [dossier], remplacer: (id, x) => remplaces.push([id, x]) };
+  const poster = (o, cb) => {
+    const b = o.body;
+    if (/FindItem/.test(b) && /Id="sentitems"/.test(b)) return cb(null, { statusCode: 200, body: find([msgFind('S9', 'Projet d’acte de vente — VTE - LEGRAND / ROUX', '2026-10-05T09:00:00Z', 'Bastien', 'bastien@office.fr', true)]) });
+    if (/GetItem/.test(b) && /S9/.test(b)) return cb(null, { statusCode: 200, body: getItems([{ id: 'S9', a: ['roux@exemple.fr'] }]) });
+    if (/FindItem/.test(b)) return cb(null, { statusCode: 200, body: find([]) });
+    cb(null, { statusCode: 500, body: '' });
+  };
+  try {
+    const r = await E.executerTourEmailsDossiers(depot, repo, { poster, maintenant: '2026-10-06T08:00:00Z' }, true);
+    assert.equal(r.projetsCoches, 1);
+    assert.equal(dossier.projetEnvoye, '2026-10-05');
+    assert.equal(dossier.echeancesValidees.projetEnvoye, true);
+    assert.equal(remplaces.length, 1);
+  } finally { db.close(); }
+});

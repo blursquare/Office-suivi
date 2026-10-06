@@ -48,11 +48,15 @@ function promptAssistant(texte, contexte) {
     .map((i) => `${i.cle} = ${i.libelle}`).join('\n');
   const echanges = (c.historique || []).slice(-2).filter((h) => h && h.texte)
     .map((h) => `« ${String(h.texte).slice(0, 120)} » → ${h.intention || 'inconnu'}`).join('\n');
+  // Les exemples de la base les plus proches de la phrase, donnés comme modèles (étude 06/10 : le modèle doit comprendre ce qui
+  // ressemble à la base d'exemples) — 4 lignes courtes, pas plus.
+  const proches = A.exemplesProches(texte, 4).filter((x) => x.score >= 0.25)
+    .map((x) => `« ${x.exemple} » → ${x.cle}`).join('\n');
   return `Assistant d'une étude notariale. Choisis UNE intention pour la phrase et recopie ce qu'elle dit (rien d'inventé : "" si absent).
 Intentions :
 ${intentions}
 inconnu = hors liste ou trop vague
-${c.dossierLibelle ? `Dossier en consultation : ${c.dossierLibelle} (« ce dossier », « lui »).\n` : ''}${echanges ? `Avant :\n${echanges}\n` : ''}Aujourd'hui : ${dateEnFrancais(c.aujourdhui || '')}.
+${proches ? `Exemples proches :\n${proches}\n` : ''}${c.dossierLibelle ? `Dossier en consultation : ${c.dossierLibelle} (« ce dossier », « lui »).\n` : ''}${echanges ? `Avant :\n${echanges}\n` : ''}Aujourd'hui : ${dateEnFrancais(c.aujourdhui || '')}.
 Phrase : « ${String(texte || '').replace(/\s+/g, ' ').trim()} »
 JSON seul : {"intention":"<clé>","parametres":{"dossier":"<nom cité>","date":"<AAAA-MM-JJ>","heure":"<HH:MM>","texte":"","modele":"<pret|rib|provision|ventePrealable|fonds|relanceFonds|projet|confirmationRdv|questionnaire|anniversaire|copieActe|accuseReception>","echeance":"<appelFonds|projetEnvoye|pret|ventebien|rendezVousSignature>","champ":"<appelFonds|projetEnvoye|pret|ventebien|acte>","partie":"<vendeur|acquereur|confrere|agence>","ecran":"<dashboard|agenda|suivi|scans|outils|reglages|nouveau|confreres|analyse-ia>","montant":null,"collaborateur":"<Bastien|Julie|Jérémy>","titre":""}}`;
 }

@@ -18,43 +18,43 @@
   /** @type {IntentionAssistant[]} */
   var INTENTIONS_ASSISTANT = [
     { cle: 'etat_dossier', libelle: 'Où en est un dossier', description: 'état général d’un dossier : statut, pièces attendues, prochaine échéance, rendez-vous, fonds',
-      dossier: true, exemples: ['Où en est le dossier MARTIN ?'], motifs: [/\bou en est\b/, /\betat (du|de ce|de mon)? ?dossier\b/, /\b(point|resume|resumer|situation|statut|avancement)\b/, /\bou en sommes\b/] },
+      dossier: true, exemples: ['Où en est le dossier MARTIN ?', 'Fais-moi un point sur LEROY', 'Où on en est avec DUPONT ?', 'Situation du dossier MARTIN'], motifs: [/\bou en est\b/, /\betat (du|de ce|de mon)? ?dossier\b/, /\b(point|resume|resumer|situation|statut|avancement)\b/, /\bou en sommes\b/, /\bou on en est\b/, /\bun point (sur|avec)\b/] },
     { cle: 'pieces_manquantes', libelle: 'Pièces manquantes', description: 'les pièces encore attendues sur un dossier',
-      dossier: true, exemples: ['Quelles pièces manquent pour DUPONT ?'], motifs: [/\bpieces?\b/, /\bmanqu/, /\bil (me |nous )?reste a recevoir\b/, /\bqu.?est.?ce qu.?on attend\b/, /\battend(u|ue|ues|us)?\b/] },
+      dossier: true, exemples: ['Quelles pièces manquent pour DUPONT ?', 'Il manque quoi comme pièces pour DUPONT ?', 'Qu’est-ce qu’on attend encore pour MARTIN ?'], motifs: [/\bpieces?\b/, /\bmanqu/, /\bil (me |nous )?reste a recevoir\b/, /\bqu.?est.?ce qu.?on attend\b/, /\battend(u|ue|ues|us)?\b/] },
     { cle: 'echeances_dossier', libelle: 'Échéances d’un dossier', description: 'les échéances et dates butoir d’un dossier, la prochaine étape',
-      dossier: true, exemples: ['Quelles sont les échéances de MARTIN ?'], motifs: [/\becheance/, /\bdate butoir\b/, /\bbutoir\b/, /\bprochaine etape\b/, /\bplanning\b/, /\bdelai/, /\bquand (est|doit|faut|signe)/] },
+      dossier: true, exemples: ['Quelles sont les échéances de MARTIN ?', 'Quand est la date butoir du prêt de LEROY ?', 'Quelle est la prochaine étape pour MARTIN ?'], motifs: [/\becheance/, /\bdate butoir\b/, /\bbutoir\b/, /\bprochaine etape\b/, /\bplanning\b/, /\bdelai/, /\bquand (est|doit|faut|signe)/] },
     { cle: 'coordonnees', libelle: 'Coordonnées d’une partie', description: 'téléphone, email, notaire ou agence d’une partie du dossier (vendeur, acquéreur, confrère)',
-      dossier: true, parametres: ['partie'], exemples: ['Quel est le téléphone du vendeur dans MARTIN ?'], motifs: [/\btelephone\b/, /\btel\b/, /\bnumero (du|de la|de l)\b/, /\b(e-?mail|adresse mail|courriel)\b/, /\bqui est le notaire\b/, /\bnotaire (du|de l)/, /\bconfrere\b/, /\bcoordonnees\b/, /\bjoindre\b/, /\bcontact\b/] },
+      dossier: true, parametres: ['partie'], exemples: ['Quel est le téléphone du vendeur dans MARTIN ?', 'Donne-moi l’email de l’acquéreur de DUPONT', 'Comment joindre le notaire de MARTIN ?'], motifs: [/\btelephone\b/, /\btel\b/, /\bnumero (du|de la|de l)\b/, /\b(e-?mail|adresse mail|courriel)\b/, /\bqui est le notaire\b/, /\bnotaire (du|de l)/, /\bconfrere\b/, /\bcoordonnees\b/, /\bjoindre\b/, /\bcontact\b/] },
     { cle: 'fonds_dossier', libelle: 'Fonds du dossier', description: 'fonds reçus et montant encore attendu sur un dossier',
-      dossier: true, exemples: ['Combien il manque sur les fonds de MARTIN ?'], motifs: [/\bfonds\b/, /\bvirement/, /\bargent\b/, /\bcombien (il )?(manque|reste)\b/] },
+      dossier: true, exemples: ['Combien il manque sur les fonds de MARTIN ?', 'Les fonds de LEROY sont arrivés ?', 'A-t-on reçu le virement de MARTIN ?'], motifs: [/\bfonds\b/, /\bvirement/, /\bargent\b/, /\bcombien (il )?(manque|reste)\b/] },
     { cle: 'taches_jour', libelle: 'Ce que j’ai à faire', description: 'la liste « À faire » du collaborateur : tâches du jour et rappels',
-      exemples: ['Qu’est-ce que j’ai à faire aujourd’hui ?'], motifs: [/\ba faire\b/, /\bdois[- ]je faire\b/, /\bje dois faire\b/, /\bj.ai (a|quoi) faire\b/, /\bqu.?est.?ce (que )?(je|j.ai)\b.{0,20}\bfaire\b/, /\bquoi de prevu\b/, /\bma journee\b/, /\bmes taches\b/, /\btaches? (du jour|d.aujourd)/, /\bquoi faire\b/, /\bprogramme\b/] },
+      exemples: ['Qu’est-ce que j’ai à faire aujourd’hui ?', 'Quelles sont mes tâches du jour ?', 'Mon programme aujourd’hui'], motifs: [/\ba faire\b/, /\bdois[- ]je faire\b/, /\bje dois faire\b/, /\bj.ai (a|quoi) faire\b/, /\bqu.?est.?ce (que )?(je|j.ai)\b.{0,20}\bfaire\b/, /\bquoi de prevu\b/, /\bma journee\b/, /\bmes taches\b/, /\btaches? (du jour|d.aujourd)/, /\bquoi faire\b/, /\bprogramme\b/] },
     { cle: 'depuis_hier', libelle: 'Depuis hier', description: 'ce qui a changé depuis hier 18 h : documents reçus, emails, demandes des clients',
-      exemples: ['Qu’est-ce qui a changé depuis hier ?'], motifs: [/\bdepuis hier\b/, /\bquoi de neuf\b/, /\bnouveaut/, /\bqu.?est.?ce qui (a|s.est) (change|passe)\b/, /\bdu nouveau\b/] },
+      exemples: ['Qu’est-ce qui a changé depuis hier ?', 'Quoi de neuf depuis hier ?', 'Y a-t-il du nouveau depuis hier 18 h ?'], motifs: [/\bdepuis hier\b/, /\bquoi de neuf\b/, /\bnouveaut/, /\bqu.?est.?ce qui (a|s.est) (change|passe)\b/, /\bdu nouveau\b/] },
     { cle: 'rappel_ajouter', libelle: 'Ajouter un rappel', description: 'poser un rappel personnel (texte, date facultative, dossier facultatif) — fait aussitôt, annulable',
-      parametres: ['texte', 'date'], ecrit: 'rappel', exemples: ['Rappelle-moi vendredi d’appeler le syndic pour DUPONT'], motifs: [/\brappelle[- ]moi\b/, /\brappel\b/, /\bpense[- ]bete\b/, /\bnote (que|de)\b/, /\bn.oublie pas\b/, /\bfais[- ]moi penser\b/], poids: 2 },
+      parametres: ['texte', 'date'], ecrit: 'rappel', exemples: ['Rappelle-moi vendredi d’appeler le syndic pour DUPONT', 'Pense-bête : appeler le notaire demain', 'Fais-moi penser à relancer LEROY lundi'], motifs: [/\brappelle[- ]moi\b/, /\brappel\b/, /\bpense[- ]bete\b/, /\bnote (que|de)\b/, /\bn.oublie pas\b/, /\bfais[- ]moi penser\b/], poids: 2 },
     { cle: 'rappel_lister', libelle: 'Mes rappels', description: 'la liste des rappels personnels en cours',
       exemples: ['Mes rappels'], motifs: [/\bmes rappels\b/, /\bliste des rappels\b/] },
     { cle: 'email', libelle: 'Préparer un email', description: 'ouvrir la fenêtre d’email d’un dossier avec un modèle (prêt, RIB, provision, vente préalable, fonds, projet d’acte, confirmation du rendez-vous, relance des fonds, questionnaire, copie de l’acte) ou un texte libre — rien ne part sans « Envoyer »',
-      dossier: true, parametres: ['modele', 'texte'], ecrit: 'email', exemples: ['Relance MARTIN pour son offre de prêt', 'Demande le RIB à DUPONT'], motifs: [/\b(e-?mail|mail|courriel|message)\b/, /\brelanc/, /\becri[st] a\b/, /\benvoi/, /\bdemande[rz]? (le|la|les|un|une|son|sa)\b/, /\brib\b/, /\bconfirm/, /\bquestionnaire\b/, /\bprojet d.acte\b/, /\bprovision\b/, /\bcopie de l.acte\b/, /\battestation/], poids: 1 },
+      dossier: true, parametres: ['modele', 'texte'], ecrit: 'email', exemples: ['Relance MARTIN pour son offre de prêt', 'Demande le RIB à DUPONT', 'Écris un mail à MARTIN pour lui demander son RIB', 'Envoie la provision à DUPONT', 'Relance LEROY pour les fonds'], motifs: [/\b(e-?mail|mail|courriel|message)\b/, /\brelanc/, /\becri[st] a\b/, /\benvoi/, /\bdemande[rz]? (le|la|les|un|une|son|sa)\b/, /\brib\b/, /\bconfirm/, /\bquestionnaire\b/, /\bprojet d.acte\b/, /\bprovision\b/, /\bcopie de l.acte\b/, /\battestation/], poids: 1 },
     { cle: 'echeance_cocher', libelle: 'Cocher une échéance', description: 'noter une étape faite : appel de fonds envoyé, projet envoyé, offre de prêt reçue, vente préalable réalisée, signature faite',
-      dossier: true, parametres: ['echeance'], ecrit: 'fiche', exemples: ['Marque le projet envoyé pour DUPONT'], motifs: [/\bmarque[rz]?\b/, /\bcoche[rz]?\b/, /\bnote[rz]? (envoye|recu|fait|realise)/, /\b(c.est|est) (envoye|parti|fait|recu|signe)\b/, /\ba ete (envoye|recu|signe)\b/, /\bon a recu\b/, /\bj.ai (envoye|recu)\b/, /\bvalide[rz]?\b/], poids: 1 },
+      dossier: true, parametres: ['echeance'], ecrit: 'fiche', exemples: ['Marque le projet envoyé pour DUPONT', 'Le projet est parti pour LEROY', 'On a reçu l’offre de prêt de MARTIN'], motifs: [/\bmarque[rz]?\b/, /\bcoche[rz]?\b/, /\bnote[rz]? (envoye|recu|fait|realise)/, /\b(c.est|est) (envoye|parti|fait|recu|signe)\b/, /\ba ete (envoye|recu|signe)\b/, /\bon a recu\b/, /\bj.ai (envoye|recu)\b/, /\bvalide[rz]?\b/], poids: 1 },
     { cle: 'echeance_decocher', libelle: 'Décocher une échéance', description: 'annuler la coche d’une étape (envoi effacé, offre à nouveau attendue)',
-      dossier: true, parametres: ['echeance'], ecrit: 'fiche', exemples: ['Décoche l’appel de fonds de MARTIN'], motifs: [/\bdecoche/, /\bannule[rz]? la coche\b/, /\bpas (encore )?(envoye|recu|fait)\b/, /\bfinalement pas\b/, /\bn.est pas (envoye|recu|fait)\b/], poids: 3 },
+      dossier: true, parametres: ['echeance'], ecrit: 'fiche', exemples: ['Décoche l’appel de fonds de MARTIN', 'Décoche le projet envoyé de DUPONT'], motifs: [/\bdecoche/, /\bannule[rz]? la coche\b/, /\bpas (encore )?(envoye|recu|fait)\b/, /\bfinalement pas\b/, /\bn.est pas (envoye|recu|fait)\b/], poids: 3 },
     { cle: 'date_fiche', libelle: 'Noter une date sur la fiche', description: 'écrire une date sur la fiche : obtention du prêt, vente préalable, date butoir, appel de fonds, projet envoyé',
-      dossier: true, parametres: ['champ', 'date'], ecrit: 'fiche', exemples: ['Mets la date butoir du prêt de MARTIN au 15 novembre'], motifs: [/\b(mets|mettre|note[rz]?|change[rz]?|modifie[rz]?|decale[rz]?|repousse[rz]?|reporte[rz]?) la date\b/, /\bdate (butoir |du pret |de la vente prealable |de l.appel |du projet )?(au|le) \d/, /\bbutoir (au|le) \d/, /\bpret (au|le) \d/], poids: 2 },
+      dossier: true, parametres: ['champ', 'date'], ecrit: 'fiche', exemples: ['Mets la date butoir du prêt de MARTIN au 15 novembre', 'Change la date du prêt de DUPONT au 20 novembre'], motifs: [/\b(mets|mettre|note[rz]?|change[rz]?|modifie[rz]?|decale[rz]?|repousse[rz]?|reporte[rz]?) la date\b/, /\bdate (butoir |du pret |de la vente prealable |de l.appel |du projet )?(au|le) \d/, /\bbutoir (au|le) \d/, /\bpret (au|le) \d/], poids: 2 },
     { cle: 'creneaux_signature', libelle: 'Créneaux de signature', description: 'proposer des dates de signature possibles pour un dossier (règles de l’office)',
-      dossier: true, exemples: ['Trouve une date de signature pour MARTIN'], motifs: [/\bcreneau/, /\btrouve[rz]? (une |des )?dates?\b/, /\bquand (peut[- ]on|pourrait[- ]on|signer)\b/, /\bdisponibilit/, /\bdates? (possible|libre)/, /\bproposer? (une |des )?dates?\b/, /\bquelle date\b/] },
+      dossier: true, exemples: ['Trouve une date de signature pour MARTIN', 'Quelles dates de signature possibles pour DUPONT ?'], motifs: [/\bcreneau/, /\btrouve[rz]? (une |des )?dates?\b/, /\bquand (peut[- ]on|pourrait[- ]on|signer)\b/, /\bdisponibilit/, /\bdates? (possible|libre)/, /\bproposer? (une |des )?dates?\b/, /\bquelle date\b/] },
     { cle: 'rendez_vous_placer', libelle: 'Placer la signature', description: 'placer le rendez-vous de signature d’un dossier dans l’agenda de l’office, à une date et une heure (confirmé avant)',
-      dossier: true, parametres: ['date', 'heure'], ecrit: 'agenda', exemples: ['Place la signature MARTIN le 14 novembre à 10 h'], motifs: [/\bplace[rz]?\b/, /\bfixe[rz]?\b/, /\bcale[rz]?\b/, /\bsignature (le|du|au) \d/, /\brendez[- ]vous de signature\b/, /\bprends? (le )?rendez/], poids: 2 },
+      dossier: true, parametres: ['date', 'heure'], ecrit: 'agenda', exemples: ['Place la signature MARTIN le 14 novembre à 10 h', 'Fixe la signature de LEROY le 20 novembre à 14 h'], motifs: [/\bplace[rz]?\b/, /\bfixe[rz]?\b/, /\bcale[rz]?\b/, /\bsignature (le|du|au) \d/, /\brendez[- ]vous de signature\b/, /\bprends? (le )?rendez/], poids: 2 },
     { cle: 'sondage_dates', libelle: 'Proposer des dates aux clients', description: 'lancer un sondage de dates de signature auprès des clients ou du confrère (comme un Doodle)',
       dossier: true, ecrit: 'email', exemples: ['Propose des dates de signature aux clients de MARTIN'], motifs: [/\bsondage\b/, /\bdoodle\b/, /\bpropose[rz]? (des|plusieurs) dates\b/, /\bdates? aux clients\b/, /\bdemande[rz]? (leurs? )?disponibilit/], poids: 3 },
     { cle: 'rendez_vous_creer', libelle: 'Nouveau rendez-vous', description: 'créer un rendez-vous ordinaire dans l’agenda de l’office (titre, date, heure) — formulaire à valider',
       parametres: ['titre', 'date', 'heure'], ecrit: 'agenda', exemples: ['Rendez-vous avec le syndic jeudi à 14 h'], motifs: [/\b(nouveau|un|ajoute[rz]?|cree[rz]?|mets?) (un )?(rendez[- ]vous|rdv)\b/, /\brendez[- ]vous avec\b/, /\brdv avec\b/, /\b(mets?|ajoute[rz]?|cree[rz]?|note[rz]?|pose[rz]?)\b.{0,40}\b(dans|a) l.agenda\b/, /\breunion\b/], poids: 1 },
     { cle: 'agenda_jour', libelle: 'Agenda d’un jour', description: 'les rendez-vous de l’agenda de l’office un jour donné (aujourd’hui par défaut)',
-      parametres: ['date'], exemples: ['Qu’est-ce qu’il y a à l’agenda demain ?'], motifs: [/\bagenda\b/, /\bqu.?est.?ce qu.?il y a\b/, /\brendez[- ]vous (de |d.)?(aujourd|demain|lundi|mardi|mercredi|jeudi|vendredi|samedi|ce |cette |la semaine|du jour)/, /\bqui (vient|signe|passe)\b/, /\bsignatures? (de |d.)?(aujourd|demain|la semaine|cette semaine)/] },
+      parametres: ['date'], exemples: ['Qu’est-ce qu’il y a à l’agenda demain ?', 'Quels rendez-vous demain ?', 'Qui signe vendredi ?'], motifs: [/\bagenda\b/, /\bqu.?est.?ce qu.?il y a\b/, /\brendez[- ]vous (de |d.)?(aujourd|demain|lundi|mardi|mercredi|jeudi|vendredi|samedi|ce |cette |la semaine|du jour)/, /\bqui (vient|signe|passe)\b/, /\bsignatures? (de |d.)?(aujourd|demain|la semaine|cette semaine)/] },
     { cle: 'appel_fonds', libelle: 'Appel de fonds', description: 'ouvrir l’outil Appel de fonds sur un dossier, pièces du NAS lues',
-      dossier: true, exemples: ['Fais l’appel de fonds de MARTIN'], motifs: [/\bappel de fonds\b/, /\bdecompte\b/], poids: 3 },
+      dossier: true, exemples: ['Fais l’appel de fonds de MARTIN', 'Prépare l’appel de fonds pour DUPONT'], motifs: [/\bappel de fonds\b/, /\bdecompte\b/], poids: 3 },
     { cle: 'quotites', libelle: 'Quotités d’acquisition', description: 'calculer les quotités d’acquisition entre acquéreurs (apports, prêts, parts) et ouvrir l’outil',
       parametres: ['nombres', 'montant'], exemples: ['Quotités 60/40 pour LEROY sur 250 000 €'], motifs: [/\bquotite/, /\brepartition entre (les )?acquereurs\b/, /\bparts? (de |d.)?(chaque|chacun|acquisition)/], poids: 3 },
     { cle: 'provision', libelle: 'Provision sur frais', description: 'estimer la provision sur frais d’acte (frais de notaire) pour un prix, un type de bien et un département',
@@ -64,15 +64,15 @@
     { cle: 'preemption', libelle: 'Droits de préemption', description: 'ouvrir l’outil des droits de préemption (DPU, SAFER, bois) sur un dossier',
       dossier: true, exemples: ['Préemption sur le dossier MARTIN'], motifs: [/\bpreempt/, /\bdpu\b/, /\bsafer\b/, /\bdia\b/, /\bpurge/], poids: 3 },
     { cle: 'ouvrir_dossier', libelle: 'Ouvrir une fiche', description: 'ouvrir la fiche d’un dossier',
-      dossier: true, exemples: ['Ouvre le dossier MARTIN'], motifs: [/\bouvr/, /\bmontre[rz]?\b/, /\baffiche[rz]?\b/, /\bla fiche\b/, /\bva (sur|dans|au)\b/] },
+      dossier: true, exemples: ['Ouvre le dossier MARTIN', 'Montre-moi la fiche de LEROY'], motifs: [/\bouvr/, /\bmontre[rz]?\b/, /\baffiche[rz]?\b/, /\bla fiche\b/, /\bva (sur|dans|au)\b/] },
     { cle: 'ouvrir_ecran', libelle: 'Ouvrir un écran', description: 'aller sur un écran de CLAIRE : tableau de bord, agenda, suivi, Claire Scan, outils, réglages, nouveau dossier, répertoire',
       parametres: ['ecran'], exemples: ['Ouvre l’agenda'], motifs: [/\b(ouvr|va (sur|dans|au|a)|affiche|montre)[a-z]* (le |la |les |l.)?(tableau de bord|agenda|suivi|claire scan|scans?|outils|reglages|parametres|nouveau dossier|repertoire|annuaire|relecture)\b/] },
     { cle: 'rechercher', libelle: 'Chercher un dossier', description: 'retrouver un dossier par un nom, une adresse ou un mot',
-      parametres: ['texte'], exemples: ['Quel dossier est rue des Lices à Blois ?'], motifs: [/\bcherch/, /\btrouve[rz]? le dossier\b/, /\bquel dossier\b/, /\bqui (habite|vend|achete)\b/, /\bdossiers? (de|avec|a) \b/, /\bretrouve/] },
+      parametres: ['texte'], exemples: ['Quel dossier est rue des Lices à Blois ?', 'Cherche le dossier rue Nationale'], motifs: [/\bcherch/, /\btrouve[rz]? le dossier\b/, /\bquel dossier\b/, /\bqui (habite|vend|achete)\b/, /\bdossiers? (de|avec|a) \b/, /\bretrouve/] },
     { cle: 'archiver', libelle: 'Archiver un dossier', description: 'archiver un dossier (annulable)',
-      dossier: true, ecrit: 'fiche', exemples: ['Archive le dossier MARTIN'], motifs: [/\barchiv/, /\bclotur/, /\bclasse[rz]? (le |ce )?dossier\b/], poids: 3 },
+      dossier: true, ecrit: 'fiche', exemples: ['Archive le dossier MARTIN', 'Classe le dossier MARTIN'], motifs: [/\barchiv/, /\bclotur/, /\bclasse[rz]? (le |ce )?dossier\b/], poids: 3 },
     { cle: 'responsable', libelle: 'Changer le responsable', description: 'attribuer un dossier à un collaborateur (Bastien, Julie, Jérémy)',
-      dossier: true, parametres: ['collaborateur'], ecrit: 'fiche', exemples: ['Attribue le dossier MARTIN à Julie'], motifs: [/\bresponsable\b/, /\battribu/, /\bconfie[rz]?\b/, /\b(donne[rz]?|passe[rz]?) (le |ce )?dossier a\b/], poids: 2 },
+      dossier: true, parametres: ['collaborateur'], ecrit: 'fiche', exemples: ['Attribue le dossier MARTIN à Julie', 'Donne le dossier LEROY à Jérémy'], motifs: [/\bresponsable\b/, /\battribu/, /\bconfie[rz]?\b/, /\b(donne[rz]?|passe[rz]?) (le |ce )?dossier a\b/], poids: 2 },
     { cle: 'aide', libelle: 'Aide', description: 'ce que l’assistant sait faire',
       exemples: ['Que sais-tu faire ?'], motifs: [/\baide\b/, /\bhelp\b/, /\bque (sais|peux)[- ]tu\b/, /\bqu.?est.?ce que tu (sais|peux)\b/, /\bcomment (ca marche|tu marches|t.utiliser)\b/, /^(bonjour|salut|hello|merci)\b/], poids: 2 },
     { cle: 'inconnu', libelle: 'Je n’ai pas compris', description: 'demande hors de la liste, ou trop vague', exemples: [], motifs: [] }
@@ -308,6 +308,60 @@
     return t ? t.charAt(0).toUpperCase() + t.slice(1) : '';
   }
 
+  // ---- Proximité avec la base d'exemples (étude 06/10 : « il faut que le LLM comprenne des prompts qui se rapprochent de la base
+  // de prompts ») : une phrase qui ressemble à un exemple d'une intention est comprise comme cette intention, même sans le
+  // mot-clé exact ; les exemples les plus proches servent aussi de modèles dans le prompt de l'IA. Aucune IA ici.
+  var MOTS_VIDES_DEMANDE = new Set(['le', 'la', 'les', 'l', 'un', 'une', 'des', 'du', 'de', 'd', 'a', 'au', 'aux', 'en', 'et', 'ou', 'que', 'qu',
+    'qui', 'quoi', 'est', 'ce', 'cette', 'ces', 'il', 'elle', 'je', 'j', 'tu', 'on', 'me', 'moi', 'mon', 'ma', 'mes', 'son', 'sa', 'ses', 'pour', 'sur',
+    'dans', 'par', 's', 'y', 'ca', 'svp', 'stp', 'merci', 'peux', 'peut', 'sont', 'quel', 'quels', 'quelle', 'quelles', 'a', 'veux', 'voudrais', 'faut', 'dossier', 'client']);
+
+  /** Les « mots à sens » d'une phrase, réduits à leur début (« manquent » ~ « manque »), noms propres et nombres écartés. @param {string} texte @param {boolean} [exemple] */
+  function empreinteDemande(texte, exemple) {
+    const brut = String(texte || '');
+    const noms = new Set();
+    if (exemple) (brut.match(/\b[A-ZÉÈÀÂÊÎÔÛÇ]{3,}\b/g) || []).forEach(m => noms.add(normaliserDemande(m)));
+    const mots = normaliserDemande(brut).replace(/[^a-z0-9']+/g, ' ').split(/[\s']+/).filter(Boolean);
+    const racines = new Set();
+    mots.forEach(m => {
+      if (noms.has(m) || /^\d/.test(m) || MOTS_VIDES_DEMANDE.has(m) || m.length < 2) return;
+      racines.add(m.slice(0, 5));
+    });
+    return racines;
+  }
+
+  /**
+   * Pure : les `n` exemples de la base les plus proches d'une phrase, du plus proche au moins proche. Le score tient surtout à la
+   * part de l'exemple retrouvée dans la phrase (un nom de dossier en plus ne pénalise pas), un peu à la part de la phrase
+   * expliquée par l'exemple. @param {string} texte @param {number} [n]
+   * @returns {Array<{ cle: string, exemple: string, score: number }>}
+   */
+  function exemplesProches(texte, n) {
+    const phrase = empreinteDemande(texte, false);
+    if (!phrase.size) return [];
+    const liste = [];
+    INTENTIONS_ASSISTANT.forEach(i => (i.exemples || []).forEach(ex => {
+      const e = empreinteDemande(ex, true);
+      if (!e.size) return;
+      let commun = 0;
+      e.forEach(r => { if (phrase.has(r)) commun++; });
+      if (!commun) return;
+      liste.push({ cle: i.cle, exemple: ex, score: 0.7 * (commun / e.size) + 0.3 * (commun / phrase.size) });
+    }));
+    liste.sort((a, b) => b.score - a.score);
+    return liste.slice(0, n || 5);
+  }
+
+  /**
+   * Pure : l'intention de la base dont un exemple ressemble assez à la phrase (score ≥ 0,6 et avance de 0,12 sur toute autre
+   * intention), sinon ''. @param {string} texte
+   */
+  function intentionParExemples(texte) {
+    const proches = exemplesProches(texte, 12);
+    if (!proches.length || proches[0].score < 0.6) return '';
+    const autre = proches.find(x => x.cle !== proches[0].cle);
+    return !autre || proches[0].score - autre.score >= 0.12 ? proches[0].cle : '';
+  }
+
   /**
    * Pure : lecture d'une demande par mots-clés, sans IA — le repli quand Ollama ne répond pas, et la voie rapide quand la
    * phrase est sans ambiguïté. Rend { intention, parametres, surete } : surete 'haute' (un seul groupe de mots-clés
@@ -325,7 +379,12 @@
     const parametres = parametresDepuisTexte(t, texte, auj);
     // Des parts qui font 100 (« 60/40 ») sans autre mot : des quotités, pas une date.
     if (parametres.parts.length && !touches.some(x => x.cle === 'quotites')) touches.push({ cle: 'quotites', score: 1 });
-    if (!touches.length) return { intention: 'inconnu', parametres, surete: 'aucune' };
+    // Aucun mot-clé : une phrase proche d'un exemple de la base est comprise comme cette intention (surete 'moyenne' : les
+    // gestes qui écrivent restent confirmés ou annulables côté poste).
+    if (!touches.length) {
+      const proche = intentionParExemples(texte);
+      return proche ? { intention: proche, parametres, surete: 'haute', parExemple: true } : { intention: 'inconnu', parametres, surete: 'aucune' };
+    }
     touches.sort((a, b) => b.score - a.score);
     let cle = touches[0].cle;
     // Quelques départages de bon sens avant l'IA : une date + une heure avec « signature » = placer ; un modèle d'email
@@ -335,7 +394,12 @@
     if (touches.some(x => x.cle === 'appel_fonds') && /\bappel de fonds\b/.test(t) && !/\b(marque|coche|envoye|decoche|date|relanc|mail|email)\b/.test(t)) cle = 'appel_fonds';
     if (touches.some(x => x.cle === 'ouvrir_ecran') && parametres.ecran && !parametres.dossierTexte) cle = 'ouvrir_ecran';
     const second = touches[1];
-    const surete = !second || touches[0].score >= second.score + 2 || cle !== touches[0].cle ? 'haute' : 'basse';
+    let surete = !second || touches[0].score >= second.score + 2 || cle !== touches[0].cle ? 'haute' : 'basse';
+    // Plusieurs intentions se disputent la phrase : l'exemple le plus proche tranche s'il est parmi elles.
+    if (surete === 'basse') {
+      const proche = intentionParExemples(texte);
+      if (proche && touches.some(x => x.cle === proche)) { cle = proche; surete = 'haute'; }
+    }
     return { intention: cle, parametres, surete };
   }
 
@@ -382,7 +446,7 @@
   const exportes = {
     INTENTIONS_ASSISTANT, MODELES_EMAIL_ASSISTANT, ECHEANCES_ASSISTANT, CHAMPS_DATE_ASSISTANT, ECRANS_ASSISTANT, MOIS_ASSISTANT, JOURS_ASSISTANT,
     normaliserDemande, dateDepuisTexte, heureDepuisTexte, montantsDepuisTexte, partsDepuisTexte, reconnaitreDossier, motsUtilesAssistant,
-    interpreterParMotsCles, parametresDepuisTexte, texteRappelDepuisPhrase, validerReponseAssistant, intentionAssistant
+    interpreterParMotsCles, exemplesProches, intentionParExemples, parametresDepuisTexte, texteRappelDepuisPhrase, validerReponseAssistant, intentionAssistant
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = exportes; else Object.assign(globalThis, exportes);
 })(

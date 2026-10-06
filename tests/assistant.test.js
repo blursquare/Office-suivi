@@ -149,3 +149,15 @@ test('page : suggestions avec les noms des dossiers du poste, titre d’un rende
   const liste = app.dossiersPourAssistant([{ id: 'a', nom: 'X / Y', parties: [{ nom: 'X', prenom: 'P', telephones: ['06'] }], emailAcquereur: 'secret@x.fr' }]);
   assert.equal(JSON.stringify(liste), '[{"id":"a","nom":"X / Y","archive":false,"parties":[{"nom":"X"}]}]');
 });
+
+test('proximité avec la base d\'exemples : des variantes sans le mot-clé exact sont comprises, les phrases hors base restent inconnues', () => {
+  const lire = (t) => A.interpreterParMotsCles(t, { aujourdhui: AUJ });
+  assert.equal(lire('Dis-moi ce qu\'il manque comme pièces pour Bernard').intention, 'pieces_manquantes');
+  assert.equal(lire('Je veux savoir où on en est avec Garnier').intention, 'etat_dossier');
+  assert.equal(lire('Peux-tu me trouver une date de signature pour Bernard').intention, 'creneaux_signature');
+  assert.equal(lire('Quel temps fait-il à Blois ?').intention, 'inconnu');
+  assert.equal(A.intentionParExemples('Quel temps fait-il à Blois ?'), '');
+  const proches = A.exemplesProches('Où en sommes-nous avec Garnier ?', 3);
+  assert.equal(proches[0].cle, 'etat_dossier');
+  assert.ok(proches.every((x, i) => i === 0 || proches[i - 1].score >= x.score), 'du plus proche au moins proche');
+});
