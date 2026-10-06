@@ -905,6 +905,7 @@
       'icon-af-dropzone': 'upload',
       'icon-reglages-apropos': 'info',
       'icon-nav-quotites': 'users',
+      'icon-nav-preemption': 'shield',
       'icon-nav-confreres': 'book',
       'icon-calc-warning': 'alert-triangle',
       'icon-inv-warning': 'alert-triangle',

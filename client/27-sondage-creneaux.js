@@ -1945,7 +1945,8 @@
 
             <section class="fiche-panneau" data-onglet="pieces" role="tabpanel"${cache('pieces')}>
               ${avecPieces ? `${renderPiecesDossier(d)}
-              ${renderDiagnosticParcours(d)}` : ''}
+              ${renderDiagnosticParcours(d)}
+              ${renderPreemptionFiche(d)}` : ''}
               <div class="fiche-sous-partie">
               ${avecPieces ? `<div class="section-eyebrow fiche-sous-titre">Analyse de l'avant-contrat</div>` : ''}
               ${analyseVide ? `<p class="fiche-vide">Aucune obligation du vendeur ni aucun document relevé dans l'avant-contrat.</p>` : `

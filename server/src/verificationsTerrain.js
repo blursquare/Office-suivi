@@ -68,6 +68,8 @@ const VERIFICATIONS_TERRAIN = [
     comment: 'À confirmer en comparant un mois avec l’agenda d’Outlook (titres VTE, SUCC, DONATION).' },
   { id: 'fenetres-rechargees', depuis: '0.135.0', source: 'poste', titre: 'Après une mise à jour automatique, une fenêtre CLAIRE déjà ouverte s’est rechargée seule sur la nouvelle version',
     comment: 'Coché la première fois qu’une fenêtre voit le serveur redémarrer sur une autre version et se recharge.' },
+  { id: 'zonage-parcelle-gpu', depuis: '0.164.0', source: 'serveur', titre: 'Droits de préemption : zonage d’une parcelle lu sur le Géoportail de l’urbanisme (API Carto de l’IGN)',
+    comment: 'Coché à la première lecture réussie depuis le serveur du bureau (accès Internet sortant vers apicarto.ign.fr).' },
   { id: 'restauration-sauvegarde', depuis: '0.163.0', source: 'serveur', titre: 'Sauvegarde restaurée au démarrage (vérifiée, ancienne base gardée à côté avec son journal)',
     comment: 'Coché à la première restauration réussie (bouton « Restaurer » des Réglages, ou claire-restauration.db déposé à la main). Vérifier ensuite les dossiers dans le Suivi.' },
   { id: 'emails-rattachement-fil', depuis: '0.162.0', source: 'serveur', titre: 'Emails des dossiers : un email d’une adresse absente de la fiche rattaché par son fil (réponse « RE: » ou adresse à qui l’étude a écrit)',

@@ -222,6 +222,7 @@
     { onglet: 'calculateur', titre: 'Simulateur de provision', icone: 'banknote', description: 'Une estimation des frais d’acte à demander.' },
     { onglet: 'prorata', titre: 'Prorata & répartitions', icone: 'part-disque', description: 'Taxe foncière, charges de copropriété, loyers au jour de l’acte.' },
     { onglet: 'quotites', titre: 'Quotités d’acquisition', icone: 'users', description: 'La part de chaque acquéreur et l’annexe des quotités.' },
+    { onglet: 'preemption', titre: 'Droits de préemption', icone: 'shield', description: 'DPU, SAFER, bois et forêts selon le zonage de la parcelle et le bien vendu.' },
     { onglet: 'inventaire', titre: 'Arbitrage forfait mobilier', icone: 'scale', description: 'Forfait de 5 % ou prisée d’un commissaire de justice.' },
     { onglet: 'confreres', titre: 'Répertoire', icone: 'book', description: 'Les offices du département et les interlocuteurs de l’étude.' },
     { onglet: 'analyse-ia', titre: 'Relecture d’actes', icone: 'eye', description: 'Un avant-contrat ou un projet relu contre ses pièces (alpha).' }
@@ -243,7 +244,7 @@
   var LIBELLES_ONGLETS = {
     dashboard: 'Tableau de bord', nouveau: 'Nouveau dossier', suivi: 'Suivi des dossiers',
     calculateur: 'Simulateur de provision', prorata: 'Prorata & répartitions', 'appel-fonds': 'Appel de fonds',
-    scans: 'Claire Scan', inventaire: 'Arbitrage forfait mobilier', quotites: "Quotités d'acquisition", confreres: 'Répertoire', 'analyse-ia': "Relecture d'actes",
+    scans: 'Claire Scan', inventaire: 'Arbitrage forfait mobilier', quotites: "Quotités d'acquisition", preemption: 'Droits de préemption', confreres: 'Répertoire', 'analyse-ia': "Relecture d'actes",
     reglages: 'Réglages', outils: 'Outils'
   };
 
@@ -267,6 +268,7 @@
     document.getElementById('onglet-appel-fonds').style.display = nom === 'appel-fonds' ? '' : 'none';
     document.getElementById('onglet-inventaire').style.display = nom === 'inventaire' ? '' : 'none';
     document.getElementById('onglet-quotites').style.display = nom === 'quotites' ? '' : 'none';
+    document.getElementById('onglet-preemption').style.display = nom === 'preemption' ? '' : 'none';
     document.getElementById('onglet-confreres').style.display = nom === 'confreres' ? '' : 'none';
     document.getElementById('onglet-analyse-ia').style.display = nom === 'analyse-ia' ? '' : 'none';
     document.getElementById('onglet-reglages').style.display = nom === 'reglages' ? '' : 'none';
@@ -283,6 +285,7 @@
     document.getElementById('tab-appel-fonds').setAttribute('aria-selected', String(nom === 'appel-fonds'));
     document.getElementById('tab-inventaire').setAttribute('aria-selected', String(nom === 'inventaire'));
     document.getElementById('tab-quotites').setAttribute('aria-selected', String(nom === 'quotites'));
+    document.getElementById('tab-preemption').setAttribute('aria-selected', String(nom === 'preemption'));
     document.getElementById('tab-confreres').setAttribute('aria-selected', String(nom === 'confreres'));
     document.getElementById('tab-analyse-ia').setAttribute('aria-selected', String(nom === 'analyse-ia'));
     document.getElementById('tab-reglages').setAttribute('aria-selected', String(nom === 'reglages'));
@@ -295,6 +298,7 @@
     document.getElementById('tab-appel-fonds').classList.toggle('actif', nom === 'appel-fonds');
     document.getElementById('tab-inventaire').classList.toggle('actif', nom === 'inventaire');
     document.getElementById('tab-quotites').classList.toggle('actif', nom === 'quotites');
+    document.getElementById('tab-preemption').classList.toggle('actif', nom === 'preemption');
     document.getElementById('tab-confreres').classList.toggle('actif', nom === 'confreres');
     // Ctrl+P depuis cet onglet doit sortir la FEUILLE, pas l'application autour (voir @media
     // print dans style.css) — un onglet n'ayant pas de classe sur <body>, on la pose ici.
@@ -334,4 +338,5 @@
     // Premier passage : coûts habituels posés, droits vides — le verdict et le message d'invite
     // sont posés dans la foulée (voir initInventaire / reinitialiserInventaire).
     if (nom === 'inventaire') initInventaire();
+    if (nom === 'preemption') initPreemption();
   }

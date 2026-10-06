@@ -120,6 +120,11 @@
         <button type="button" id="tab-quotites" class="sidebar-link sidebar-sousmenu-item" role="tab" aria-selected="false" onclick="definirOnglet('quotites')">
           <span class="sidebar-link-icone" id="icon-nav-quotites" aria-hidden="true"></span>Quotités d'acquisition
         </button>
+        <!-- Droits de préemption (étude 06/10) : DPU/DPUR, SAFER, bois et forêts selon le zonage de la parcelle et le bien
+             vendu ; résultat enregistré sur la fiche (client/45-preemption-regles.js, 46-droits-preemption.js). -->
+        <button type="button" id="tab-preemption" class="sidebar-link sidebar-sousmenu-item" role="tab" aria-selected="false" onclick="definirOnglet('preemption')">
+          <span class="sidebar-link-icone" id="icon-nav-preemption" aria-hidden="true"></span>Droits de préemption
+        </button>
         <!-- Répertoire : offices notariaux (carnet des confrères, server/src/carnetConfreres.js) et
              autres interlocuteurs de l'étude par thème (server/src/repertoire.js), partagés en base. -->
         <button type="button" id="tab-confreres" class="sidebar-link sidebar-sousmenu-item" role="tab" aria-selected="false" onclick="definirOnglet('confreres')">
@@ -1514,6 +1519,51 @@
      carnet des confrères (relevé de l'annuaire du 41, la fiche d'un dossier rapproche chaque notaire
      de son office, trouverOfficeConfrere) ; les autres thèmes = le répertoire Word de l'étude
      (server/src/repertoire.js). -->
+<!-- Droits de préemption (étude 06/10) : un seul écran, comme les autres outils (barre d'étapes, sections numérotées). -->
+<div class="onglet-panel" id="onglet-preemption" style="display:none;">
+  <div class="dash-header">
+    <div>
+      <div class="dash-eyebrow">Purge des droits</div>
+      <div class="dash-titre-ligne">
+        <h1 class="dash-titre">Droits de préemption</h1>
+      </div>
+    </div>
+    <div class="dash-header-actions">
+      <wa-button appearance="outlined" class="secondary" onclick="reinitialiserPreemption()">Effacer</wa-button>
+    </div>
+  </div>
+  <div class="outil-sommaire-place" data-outil="preemption"></div>
+  <div class="af-grid pr-grid">
+    <div class="calc-card af-form">
+      <h2 class="outil-section-tete" data-etape="dossier">Dossier suivi</h2>
+      <div class="calc-champ">
+        <label for="pr-dossier-recherche">Reprendre la commune, les parcelles et le bien d'un dossier</label>
+        <div class="dash-recherche" style="width:100%;">
+          <input type="search" id="pr-dossier-recherche" placeholder="Rechercher un dossier par nom ou responsable…" oninput="rechercherDossierPreemption(this.value)" autocomplete="off">
+          <div id="pr-dossier-resultats" class="dash-recherche-resultats" style="display:none;"></div>
+        </div>
+        <div id="pr-dossier-pill"></div>
+      </div>
+
+      <h2 class="outil-section-tete" data-etape="parcelle">Parcelle et zonage</h2>
+      <div id="pr-parcelle"></div>
+
+      <h2 class="outil-section-tete" data-etape="mutation">Mutation</h2>
+      <div id="pr-mutation-zone"></div>
+
+      <h2 class="outil-section-tete" data-etape="bien">Bien vendu</h2>
+      <div id="pr-bien-zone"></div>
+
+      <h2 class="outil-section-tete" data-etape="rural">Agricole et forestier</h2>
+      <div id="pr-rural-zone"></div>
+    </div>
+    <div class="calc-card af-apercu-col">
+      <h2 class="outil-section-tete" data-etape="resultat">Droits à purger</h2>
+      <div id="pr-resultat"></div>
+    </div>
+  </div>
+</div>
+
 <div class="onglet-panel" id="onglet-confreres" style="display:none;">
   <div class="dash-header">
     <div>
@@ -2512,5 +2562,7 @@
 <script src="client/42-claire-scan.js"></script>
 <script src="client/43-historique-appels-fonds.js"></script>
 <script src="client/44-presentation-outils.js"></script>
+<script src="client/45-preemption-regles.js"></script>
+<script src="client/46-droits-preemption.js"></script>
 </body>
 </html>

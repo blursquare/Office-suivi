@@ -40,6 +40,14 @@
       { cle: 'acte', libelle: "Date de l'acte", fait: () => !!valeurChamp('prorata-date') },
       { cle: 'repartition', libelle: 'Répartition', fait: () => elementVisible('prorata-resultat') }
     ],
+    preemption: [
+      { cle: 'dossier', libelle: 'Dossier', fait: () => !!(prEtat && prEtat.dossierId) },
+      { cle: 'parcelle', libelle: 'Parcelle', fait: () => !!(prEtat && prEtat.zonage) },
+      { cle: 'mutation', libelle: 'Mutation', fait: () => !!(prEtat && prEtat.reponses.mutation) },
+      { cle: 'bien', libelle: 'Bien', fait: () => !!(prEtat && prEtat.reponses.bien) },
+      { cle: 'rural', libelle: 'Agricole et forestier' },
+      { cle: 'resultat', libelle: 'Droits', fait: () => !!(prEtat && !analyserPreemption(reponsesPreemption(prEtat)).manques.length) }
+    ],
     inventaire: [
       { cle: 'droits', libelle: 'Droits simulés', fait: () => !!(valeurChamp('inv-droits-sans') && valeurChamp('inv-droits-avec')) },
       { cle: 'cout', libelle: "Coût de l'inventaire" },

@@ -106,7 +106,7 @@ dans `index.html`** (le test `structure-client` refuse tout décalage).
    cadrées par l'étude : l'API de relecture d'actes (Mistral par défaut, Claude en option), qui ne
    reçoit que du texte **pseudonymisé dans le navigateur** (la table de correspondance ne quitte
    jamais le poste) ; l'autocomplétion d'adresse `api-adresse.data.gouv.fr` (seul le texte tapé part) ;
-   les CDN de bibliothèques (pdf.js, tesseract.js 7.0.0, docxtemplater, docx) ; le **rapport technique**
+   les CDN de bibliothèques (pdf.js, tesseract.js 7.0.0, docxtemplater, docx) ; l'**API Carto de l'IGN** (outil « Droits de préemption », étude 06/10 : zonage d'une parcelle sur le Géoportail de l'urbanisme — ne part que le code postal, ou le code INSEE + section + numéro de parcelle, `server/src/urbanisme.js`) ; le **rapport technique**
    (accord de l'étude du 30/09, `rapportTechnique.js`) : issue GitHub à 12 h et 17 h les jours ouvrés,
    **anonymisée par le serveur avant l'envoi** (`anonymiserTexte` : chemins, fichiers, emails, montants,
    téléphones, mots tirés des dossiers et des collaborateurs, mots en capitales hors sigles techniques ;
@@ -605,6 +605,13 @@ dans `index.html`** (le test `structure-client` refuse tout décalage).
   cachée (`releverAppels`), montre le bandeau « Appel entrant » (en bas à gauche ; fermé seul 45 s après la sonnerie — 3CX ne signale pas la fin d'un appel, choix de l'étude 02/10 contre le journal CRM de 3CX —, en pause au survol, fermé à l'ouverture d'une fiche depuis le bandeau) et ouvre la fiche (Échanges) d'un seul dossier
   en cours, jamais pendant une saisie ; l'onglet ouvert par 3CX se ferme si la fenêtre du poste est visible **ou si l'appelant est inconnu de CLAIRE** (étude 05/10 : aucun dossier, ni confrère, ni répertoire → rien à ouvrir, `pageSonnerie({ inconnu })` ; l'appel reste noté et montré dans le bandeau),
   sinon il affiche CLAIRE sur l'appel (`#appel=`). Appels du dossier dans l'onglet Échanges. **Numéros cliquables** (étude 05/10, « les ouvrir dans 3CX », `liensAppelTelephone` : un lien `tel:` par numéro d'un champ, jusqu'à 3) : téléphones des parties de la fiche, appels reçus, bandeau d'appel entrant, en plus du Répertoire et de l'annuaire des notaires ; le numéro écrit **en texte** est enveloppé dans la balise `<tcxspan tcxhref="numéro">` de l'extension Chrome « 3CX Click to Call » (`texteAppel3cx`, forme relevée par l'étude le 05/10 : l'extension ne voit qu'un numéro du TEXTE d'une page, jamais dans un lien, un champ de saisie ni derrière une icône — répertoire `ligneTelephoneRepertoire`, ligne « Tél. confrère » de la fiche `telephoneConfrereDossier` : numéro saisi `d.telephoneNotaireParticipant`/`d.telephoneConfrereVendeur`, sinon celui de l'annuaire, reconnu à l'appel), l'icône à côté étant un lien `tel:` (3CX application du protocole du poste ; points terrain `telephone-3cx-lien`, `telephone-3cx-texte`, **non vérifiés au bureau**). **Coupé collaborateur par collaborateur** (étude 02/10, interrupteur sur sa ligne dans Réglages › Téléphonie 3CX, clé `telephonie-3cx` `postesCoupes`) : ses sonneries ne sont plus notées, sa fenêtre ne relève plus rien.
+- **Droits de préemption** (étude 06/10, outil `preemption`, `client/45-preemption-regles.js` + `46-droits-preemption.js`,
+  `server/src/urbanisme.js`) : DPU/DPUR d'après le tableau Cheuvreux (mutation puis bien), Agglopolys = DPU sur toutes les zones
+  U et AU du PLUi (délibération 29/11/2022, exercé par la commune, Agglopolys pour les ZAE), DPU renforcé de Blois = parcelle AL 839
+  + centre-ville ACV/ORT (plans de la délibération A_D2025_200 dans `vendor/plans/`, rue = « probable, à vérifier sur le plan ») ;
+  SAFER d'après le CRIDON n° 87 (terrain p. 63, bâtiment p. 64) ; bois et forêts d'après Letulle (L.331-19 à 24). Zonage lu sur le
+  Géoportail de l'urbanisme (API Carto), le périmètre du DPU s'en déduit, la nature « bois » est demandée. Réponse manquante →
+  « À vérifier », jamais « non » ; questions posées seulement si utiles ; résultat sur la fiche (`d.preemption`, onglet Pièces).
 - **Mobilier** : le prix reste le prix total ; `d.prixMobilier` sort seulement de l'assiette des
   droits (frais d'acte, contrôle du barème).
 - **Prorata** : jours réels, jour de l'acte à la charge de l'acquéreur, arrondi du vendeur par

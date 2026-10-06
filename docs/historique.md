@@ -17114,3 +17114,42 @@ démarrage sort sans fermer la base : chez l'étude, retirer `claire.db-wal`/`-s
   main (serveur arrêté) devient : déposer la sauvegarde sous `claire-restauration.db` et relancer.
 Point terrain `restauration-sauvegarde`. Tests `server/test/restauration.test.js` (cas du bureau reproduit, sauvegarde
 illisible refusée, base saine avec son journal intacte, routes).
+
+### 0.164.0 — 06/10/2026 10:35 — Outil « Droits de préemption »
+
+Demande de l'étude : « Créer un outil droit de préemption en fonction du bien vendu », avec quatre sources (courrier
+d'Agglopolys du 05/11/2025 + délibération A_D2025_200 du 07/10/2025 instituant le DPU renforcé à Blois ; fiche Cheuvreux
+« Tableau champ d'application DPU-DPUR » ; Cahier du CRIDON Lyon n° 87 p. 63-64 SAFER ; minute visuelle Letulle « bois et
+forêts »). Choix de l'étude (questions posées) : DPU/DPUR, SAFER et bois et forêts, « à identifier en fonction du zonage et du
+type de bien », « essayer de récupérer le zonage de la parcelle sur une plateforme open source » ; outil + fiche ; zone et DPUR
+proposés puis confirmés (rien d'affirmé sans confirmation).
+
+- Règles (`client/45-preemption-regles.js`, pures, `tests/preemption.test.js`) : `mutationSoumiseDpu` et `bienSoumisDpu` suivent
+  le tableau Cheuvreux ligne à ligne (copropriété de plus de 10 ans, immeuble de moins de 4 ans, parts de société d'attribution →
+  DPU renforcé seulement ; VEFA neuf, crédit-bail, HLM au locataire, usufruit, DUP, mise en demeure → hors champ ; donation hors
+  parents jusqu'au 6e degré ; parts de SCI majoritaires hors SCI familiale ; bail à construction si transfert de propriété) ;
+  `perimetreDpu` : Agglopolys (PLUi, SIREN 200030385) → DPU sur toutes les zones U et AU (délibération du 29/11/2022), ailleurs
+  jamais présumé (« DPU institué par la commune » demandé) ; `droitSafer` = les deux arbres du CRIDON (terrain : zone à vocation
+  agricole, bois, massif ≥ 4 ha, installations, usage agricole et seuil ; bâtiment : usage agricole, zone A/N, 5 dernières années —
+  ni montagne ni littoral en Loir-et-Cher ; lot de copropriété : pas de préemption) ; `droitsForet` = arbre Letulle (État si forêt
+  domaniale contiguë, commune si parcelle boisée contiguë soumise à un document de gestion, sinon droit de préférence des voisins
+  et de la commune, sauf acquéreur privilégié ou partie boisée < moitié). Toute réponse manquante → « À vérifier », jamais
+  « non ». Formalités : DIA à la mairie (Agglopolys : délégataire ; ZAE : Agglopolys ; DPUR de Blois : la Ville), notification
+  SAFER, LRAR au préfet / au maire / aux voisins.
+- DPU renforcé de Blois (`DPUR_BLOIS`, `dpurBlois`) : parcelle AL 839 → « oui » ; adresse sur une rue lue sur le plan du
+  centre-ville (Porte Côté, Commerce, Saint-Martin, Orfèvres, Denis Papin, Émile Laurens, Henri Drussy, Haute, Juifs,
+  Saint-Honoré) → « probable, à vérifier sur le plan » ; les deux plans de la délibération sont affichés dans l'outil
+  (`vendor/plans/`, déclarés dans ASSETS_STATIQUES et les assets du .exe).
+- Zonage (`server/src/urbanisme.js`, `routes/urbanisme.js`, @ts-check, `server/test/urbanisme.test.js`) : API Carto de l'IGN —
+  `codes-postaux/communes/{cp}`, `cadastre/parcelle` (géométrie), puis `gpu/document`, `gpu/zone-urba`, `gpu/info-surf`,
+  `gpu/prescription-surf`, `gpu/municipality` sur cette géométrie ; ne part que le code postal ou INSEE + section + numéro ;
+  cache mémoire 24 h ; injoignable → 502 « répondre à la main ». Essayé réellement depuis l'environnement de développement :
+  AL 839 à Blois → PLUi d'Agglopolys, zone Ui2 (U), UNESCO. Le périmètre du DPU n'est PAS publié sur le Géoportail pour
+  Agglopolys : il se déduit de la zone. La nature cadastrale « bois » n'est pas ouverte : demandée.
+- Écran (`client/46-droits-preemption.js`, onglet `preemption`, barre d'étapes) : dossier → commune/parcelles/adresse
+  pré-remplies (`prefillPreemption`, nature du bien d'après `typeVente`), zonage lu seul, zone et DPUR modifiables ; questions
+  oui/non posées seulement si l'analyse en a besoin (`QUESTIONS_PREEMPTION`, `manques`) ; résultat par droit (À purger / Non
+  applicable / À vérifier, motif, formalité) ; « Enregistrer sur la fiche » → `d.preemption` (`preemptionPourFiche`, historique).
+  Fiche › Pièces et analyse : bloc « Droits de préemption » (`renderPreemptionFiche`) — résultat enregistré + « Revoir », sinon
+  la ligne « Vérifier les droits de préemption ».
+Point terrain `zonage-parcelle-gpu` (accès Internet sortant du serveur vers apicarto.ign.fr).

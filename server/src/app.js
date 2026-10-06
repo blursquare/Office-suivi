@@ -18,6 +18,7 @@ const { creerRouteurNas, creerRouteurLienPiece } = require('./routes/nas');
 const { creerRouteurScans } = require('./routes/scans');
 const { creerRouteurReglages } = require('./routes/reglages');
 const { creerRouteurSauvegarde } = require('./routes/sauvegarde');
+const { creerRouteurUrbanisme } = require('./routes/urbanisme');
 const { creerRouteurNotifications } = require('./routes/notifications');
 const { creerRouteurExclusionsPieces } = require('./routes/exclusionsPieces');
 const { creerRouteurCorrectionsApprises } = require('./routes/correctionsApprises');
@@ -74,6 +75,9 @@ const ASSETS_STATIQUES = {
   // Police de l'interface (Geist, OFL — étude 04/10), embarquée : aucun appel extérieur. Binaire : lue sans encodage.
   '/vendor/polices/geist-latin-wght-normal.woff2': { fichier: 'vendor/polices/geist-latin-wght-normal.woff2', type: 'font/woff2', binaire: true },
   '/vendor/polices/geist-latin-ext-wght-normal.woff2': { fichier: 'vendor/polices/geist-latin-ext-wght-normal.woff2', type: 'font/woff2', binaire: true },
+  // Plans des périmètres de DPU renforcé de Blois (outil « Droits de préemption », délibération Agglopolys A_D2025_200).
+  '/vendor/plans/dpur-blois-centre-ville.jpg': { fichier: 'vendor/plans/dpur-blois-centre-ville.jpg', type: 'image/jpeg', binaire: true },
+  '/vendor/plans/dpur-blois-coty.jpg': { fichier: 'vendor/plans/dpur-blois-coty.jpg', type: 'image/jpeg', binaire: true },
   '/manifest.json': { fichier: 'manifest.json', type: 'application/manifest+json; charset=utf-8' },
   '/sw.js': { fichier: 'sw.js', type: 'application/javascript; charset=utf-8' },
   '/icone.svg': { fichier: 'icone.svg', type: 'image/svg+xml; charset=utf-8' }
@@ -109,7 +113,7 @@ function seaOuNull() {
   try { return require('node:sea'); } catch (_) { return null; }
 }
 
-function creerApp({ db, config, envoyerEmailFn, creerClientClaude, appelerMistral, testerMistral, miseAJour, agenda, emailsMatin, rapportTechnique, sondages, exchange, emailsDossiers }) {
+function creerApp({ db, config, envoyerEmailFn, creerClientClaude, appelerMistral, testerMistral, miseAJour, agenda, emailsMatin, rapportTechnique, sondages, exchange, emailsDossiers, urbanisme }) {
   const app = express();
   const depot = creerDepot(db);
   const parametresRepo = creerRepoParametres(db);
@@ -188,6 +192,8 @@ function creerApp({ db, config, envoyerEmailFn, creerClientClaude, appelerMistra
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurCorrectionsApprises(parametresRepo));
   // Historique des courriers d'appel de fonds (outil Appel de fonds, onglet Fonds de la fiche) : voir appelsFonds.js.
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurAppelsFonds(parametresRepo));
+  // Zonage d'une parcelle (outil « Droits de préemption ») : API Carto de l'IGN, voir urbanisme.js.
+  app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurUrbanisme(parametresRepo, urbanisme || {}));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurConfreres(parametresRepo));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurPoste());
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurVerificationsTerrain(parametresRepo));

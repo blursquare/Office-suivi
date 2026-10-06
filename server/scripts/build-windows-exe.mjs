@@ -195,6 +195,8 @@ async function main() {
       'vendor/web-awesome/web-awesome-theme.css': '../vendor/web-awesome/web-awesome-theme.css',
       'vendor/polices/geist-latin-wght-normal.woff2': '../vendor/polices/geist-latin-wght-normal.woff2',
       'vendor/polices/geist-latin-ext-wght-normal.woff2': '../vendor/polices/geist-latin-ext-wght-normal.woff2',
+      'vendor/plans/dpur-blois-centre-ville.jpg': '../vendor/plans/dpur-blois-centre-ville.jpg',
+      'vendor/plans/dpur-blois-coty.jpg': '../vendor/plans/dpur-blois-coty.jpg',
       'manifest.json': '../manifest.json',
       'sw.js': '../sw.js',
       'icone.svg': '../icone.svg',
