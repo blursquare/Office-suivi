@@ -789,7 +789,7 @@
         <span class="ja-groupe-puces" aria-hidden="true">${puces}</span>
         <span class="ja-actions-sec"><wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-btn ja-ouvrir-fiche" data-ouvrir-dossier="${escapeAttr(d.id)}" title="Ouvrir la fiche du dossier" aria-label="Ouvrir la fiche de ${escapeAttr(libelleDossierAffiche(d))}">${icone('file-text')}</wa-button><wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-btn ja-groupe-ouvrir" aria-expanded="${ouvert}" onclick="basculerGroupeJour('${id}')" title="Dérouler les tâches" aria-label="Dérouler les tâches">${icone('chevron-down')}</wa-button></span>
         <div class="ja-groupe-tiroir"><div class="ja-groupe-tiroir-int">
-          <ul class="ja-liste ja-sous-liste">${actions.map(a => renderLigneActionJour(a, false, false, true)).join('')}${renderLignesTraitees(faites, true)}</ul>
+          <ul class="ja-liste ja-taches ja-sous-liste">${actions.map(a => renderLigneActionJour(a, false, false, true)).join('')}${renderLignesTraitees(faites, true)}</ul>
         </div></div>
       </li>`;
   }
@@ -1070,7 +1070,7 @@
   function renderListeJour(actions, traites, global) {
     const rappels = utilisateurPoste ? renderRappelsJour(isoAujourdhuiLocal()) : '';
     if (!actions.length && !traites.length && !rappels) return '<p class="jour-vide jour-vide-ok">✓ Rien à faire aujourd’hui sur vos dossiers.</p>';
-    return `<ul class="ja-liste">${rappels}${renderActionsJour(actions, global, traites)}</ul>`;
+    return `<ul class="ja-liste ja-taches">${rappels}${renderActionsJour(actions, global, traites)}</ul>`;
   }
 
   function executerActionJourFiche(cle) {
@@ -1179,7 +1179,7 @@
       // Mes rappels à venir (échéance datée plus tard) : dans la même liste, après les tâches du jour, avec leur date.
       const rappelsAVenir = utilisateurPoste ? renderRappelsJour(aujourdhui, true, 'avenir') : '';
       const liste = actions.length || traites.length || rappelsJour || rappelsCoches || rappelsAVenir
-        ? `<ul class="ja-liste" data-ajuster="1" data-min="1">${rappelsJour}${renderActionsJour(actions, global, traites, true)}${rappelsAVenir}${rappelsCoches}${renderLignesTraitees(grouperActionsParDossier(actions, traites).traites)}${plusWidget(versPage)}</ul>`
+        ? `<ul class="ja-liste ja-taches" data-ajuster="1" data-min="1">${rappelsJour}${renderActionsJour(actions, global, traites, true)}${rappelsAVenir}${rappelsCoches}${renderLignesTraitees(grouperActionsParDossier(actions, traites).traites)}${plusWidget(versPage)}</ul>`
         : '<p class="jour-vide jour-vide-ok">✓ Rien à faire aujourd’hui sur vos dossiers.</p>';
       // Un rappel en cours de saisie (ajout ou modification) passe avant tout (étude, 01/10 : « quand je
       // clique sur Ajouter un rappel, il m'ouvre À venir ») : la carte pleine masquait toute la section

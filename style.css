@@ -6365,6 +6365,16 @@ wa-button.rappel-perso-modif:hover { color: var(--focus); }
 .ja-liste > :where(.ja) > .ja-actions-sec { grid-column: 5; justify-self: end; }
 .ja-liste > :where(.ja.ja-groupe) > .ja-groupe-puces { grid-column: 4; justify-self: center; }
 .ja-liste > :where(.ja) > .ja-detail { grid-column: 2 / -1; }
+/* Listes de tâches (« À faire » : fenêtre du matin, carte Aujourd'hui, page, tiroir d'un dossier) : colonnes de LARGEUR FIXE,
+   les mêmes pour toutes les listes (étude 06/10 : « toutes les colonnes sont décalées, aligne bien tout ») — la grille commune
+   (subgrid) alignait les lignes d'une liste, pas le tiroir d'un groupe ni une liste avec une autre. Case 20 px, délai 100 px
+   (initiales à gauche, « J-n » à droite), geste 132 px (bouton pleine largeur), actions 66 px (deux icônes de 32 px calées à
+   droite). Le tiroir colle au bord droit de la ligne : ses colonnes tombent sous celles de la liste. */
+.ja-liste.ja-taches { display: block; --ja-cols: 20px minmax(0, 1fr) 100px 132px 66px; }
+.ja-liste.ja-taches .ja-actions-sec { gap: 2px; }
+.ja-liste.ja-taches .ja-actions-sec wa-button { --wa-form-control-height: 32px; width: 32px; }
+.ja-liste.ja-taches .ja-actions-sec wa-button::part(base) { width: 32px; padding: 0; justify-content: center; }
+.ja-liste.ja-taches.ja-sous-liste > .ja { padding-right: 0; }
 .ja wa-button.ja-fait-manuel:hover { color: var(--success); }
 .ja-detail { grid-column: 2 / -1; padding: 4px 0 6px; font-size: var(--texte-m); color: var(--ink-soft); }
 .ja-detail > p { margin: 0; max-width: 72ch; }

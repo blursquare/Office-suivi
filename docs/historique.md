@@ -17462,3 +17462,15 @@ Pas touché : une valeur déjà sur la fiche (adresse, prix, type, nom complet) 
 civilité et nom d'usage, qui suivent la fiche client. Si l'étude veut qu'Authentic remplace aussi ces valeurs, c'est un
 choix à poser (une correction faite à la main dans CLAIRE serait alors perdue au relevé suivant).
 
+### 06/10/2026 18 h 09 — 0.173.1 : colonnes des tâches alignées partout
+
+**Étude : « Toutes les colonnes sont décalées dans les tâches, aligne bien tout » (sinon revenir comme avant).** Mesuré dans
+Chromium : la grille commune (subgrid, 0.170.0) alignait les lignes d'UNE liste, mais le tiroir d'un dossier groupé avait sa
+propre grille (délai 29 px sans initiales contre 57 px, bouton décalé de 30 px), et les icônes de droite n'avaient pas la même
+largeur (fiche 24 px, plus tard 32 px : décalage de 8 px). Corrigé par des **colonnes de largeur fixe communes à toutes les
+listes de tâches** (`.ja-liste.ja-taches`, posée sur les listes de `renderActionsJour` : fenêtre du matin, carte Aujourd'hui,
+page, tiroir) : case 20 px, délai 100 px, geste 132 px, actions 66 px (icônes de 32 px calées à droite) ; les lignes du tiroir
+sans marge droite pour tomber sous celles de la liste. Mesuré : délai, bouton et icônes au même pixel dans la liste et dans
+les tiroirs ouverts ; « Marquer envoyé » (118 px de libellé) et « dépassé de 12 j » tiennent. Les autres listes d'actions (fiche,
+Échanges) gardent la grille commune ; téléphone inchangé (zones).
+
