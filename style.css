@@ -7570,6 +7570,12 @@ button.annuaire-proche.actif { background: var(--focus); border-color: var(--foc
   flex-direction: column; align-items: stretch; flex-wrap: nowrap; gap: 12px;
   padding: 16px; margin-bottom: 20px; border: 1px solid var(--bord-carte); border-radius: var(--rayon-carte);
   background: var(--paper-card); box-shadow: var(--shadow-card);
+  /* Collée en haut au défilement (étude 06/10) ; seulement si l'écran est assez haut pour que la liste garde sa place. */
+}
+@media (min-height: 760px) and (min-width: 901px) {
+  .list-toolbar.suivi-barre { position: sticky; top: 12px; z-index: 5; }
+  /* Bande du fond de page au-dessus de la carte : les lignes qui défilent ne se voient pas dans l'interstice. */
+  .list-toolbar.suivi-barre::before { content: ''; position: absolute; left: 0; right: 0; top: -12px; height: 12px; background: var(--paper); }
 }
 .suivi-barre-ligne { display: flex; align-items: center; gap: 12px; min-width: 0; }
 .suivi-barre-recherche { gap: 14px; }

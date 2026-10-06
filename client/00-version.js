@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.176.10';
+  const VERSION_APP = '0.176.11';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.176.11', date: '2026-10-06 22:55', resume: "Suivi : la carte de recherche, de filtres et de statuts reste collée en haut de la page quand on descend dans la liste." },
     { version: '0.176.10', date: '2026-10-06 22:47', resume: "Suivi : la recherche, les filtres et les pastilles de statut sont réunis dans une carte blanche, comme le reste de la page (moins flottants)." },
     { version: '0.176.9', date: '2026-10-06 22:32', resume: "Barre latérale : le lien ouvert est marqué par un contour fin à l'accent et un petit point à droite (à la place du fond et du liseré) ; tiroir des outils un peu plus large." },
     { version: '0.176.8', date: '2026-10-06 22:25', resume: "Barre latérale : le fond derrière « Outils » et son tiroir est plus foncé, et les outils sont rangés par ordre alphabétique." },

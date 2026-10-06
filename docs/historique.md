@@ -17563,3 +17563,6 @@ Lien actif de la barre latérale (`.sidebar-link.actif`, tous les liens et les o
 
 **Étude (06/10 au soir) : « Comment faire pour que la partie recherche, filtres et dossiers soit moins flottante ? » → « Ok »** (0.176.10, option 1 proposée : barre dans une carte)
 `.list-toolbar.suivi-barre` devient une carte (`--paper-card`, `--rayon-carte`, `1px solid var(--bord-carte)`, `--shadow-card`, 16 px de marge intérieure, 20 px dessous) qui réunit la recherche, la bascule Échéances/Tableau, les filtres et les pastilles de statut ; plus de trait de séparation sous la barre. Le champ de recherche perd son ombre propre (filet seul). Options non retenues : barre et liste dans une même carte, barre collée en haut au défilement.
+
+**Étude (06/10 au soir) : « Option 3 » — la barre du Suivi collée en haut au défilement** (0.176.11)
+`.list-toolbar.suivi-barre` en `position: sticky; top: 12px; z-index: 5` quand la fenêtre fait au moins 760 px de haut et 901 px de large (en dessous, la barre défile avec la page : elle prendrait trop de place) ; une bande du fond de page (`::before`, 12 px) masque l'interstice au-dessus de la carte. Hauteur de la carte ≈ 220 px (filtres sur deux lignes) : si l'étude la juge trop haute, piste = replier les filtres une fois la barre collée.
