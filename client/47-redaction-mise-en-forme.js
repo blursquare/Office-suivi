@@ -3,8 +3,74 @@
   // La zone de saisie de la fenêtre d'email (renderCarteRedaction) est une zone éditable : gras, italique, souligné, listes,
   // effacer la mise en forme (barre d'outils et Ctrl+B / Ctrl+I / Ctrl+U). Ce qui y est écrit est relu à l'envoi par
   // htmlCorpsDepuisEditeur, qui ne garde que ces mises en forme et les liens (jamais une image, un style ou un script venus
-  // d'ailleurs) ; un texte collé l'est toujours en texte brut. Un fichier collé (Ctrl+V d'un fichier ou d'une capture) ou
+  // d'ailleurs) ; un texte collé l'est en texte brut, ses liens gardés (voir « Liens »). Un fichier collé (Ctrl+V d'un fichier ou d'une capture) ou
   // déposé sur la fenêtre devient une pièce jointe.
+
+  // ---- Liens (étude 06/10 : « détecter les liens hypertexte dans les emails rédigés et les copier-coller dans les emails ») ----
+  // Une adresse web (https://…, www.…) ou un email écrits dans le texte deviennent un lien : au collage, à la frappe (après
+  // l'espace ou l'Entrée qui suit) et de toute façon à l'envoi. Un lien collé depuis un email ou une page garde son adresse.
+  var RE_LIEN_TEXTE = /(https?:\/\/[^\s<>"']+|www\.[^\s<>"']+|[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,})/g;
+  // Pure : l'adresse d'un lien écrit en texte (« www.x.fr » → https, un email → mailto), '' si ce n'en est pas un.
+  function hrefDepuisLienTexte(t) {
+    const v = String(t || '').trim();
+    if (/^https?:\/\//i.test(v)) return v;
+    if (/^www\./i.test(v)) return 'https://' + v;
+    if (/^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/.test(v)) return 'mailto:' + v;
+    return '';
+  }
+  // Pure : la ponctuation de fin de phrase ne fait pas partie du lien (« voir https://x.fr. »).
+  function separerLienTexte(brut) {
+    const m = /[.,;:!?)\]]+$/.exec(brut);
+    const fin = m ? m[0] : '';
+    return { lien: fin ? brut.slice(0, -fin.length) : brut, reste: fin };
+  }
+  // Pure : les liens d'un texte HTML-échappé (hors balises) enveloppés dans <a href> ; `style` = attribut de style posé sur
+  // chaque lien ('' dans la zone éditable, la couleur de l'office à l'envoi).
+  function lierLiensTexte(texteEchappe, style) {
+    return String(texteEchappe || '').replace(RE_LIEN_TEXTE, (brut) => {
+      const { lien } = separerLienTexte(brut.replace(/(?:&amp;)+$/i, ''));
+      // Le texte est déjà échappé (« &amp; ») : l'adresse le reste dans l'attribut, comme un lien écrit par la zone.
+      const href = hrefDepuisLienTexte(lien);
+      if (!href) return brut;
+      const suite = brut.slice(lien.length);
+      return `<a href="${href.replace(/"/g, '&quot;')}"${style ? ` style="${style}"` : ''}>${lien}</a>${suite}`;
+    });
+  }
+  // Pure : ce qu'on garde d'un HTML collé (email, page web, Word) : le texte, ses retours à la ligne et ses liens http(s) /
+  // mailto — rien d'autre (ni image, ni style, ni script). Le texte hors lien est lui aussi passé au détecteur de liens.
+  function htmlColleRedaction(html) {
+    const sans = String(html || '').replace(/<(script|style|head|title|template)\b[\s\S]*?<\/\1\s*>/gi, '').replace(/<!--[\s\S]*?-->/g, '');
+    let sortie = '';
+    let lienOuvert = false;
+    const re = /<(\/?)([a-zA-Z][a-zA-Z0-9]*)([^>]*)>|([^<]+)/g;
+    let m;
+    while ((m = re.exec(sans))) {
+      if (m[4] != null) {
+        const texte = m[4].replace(/[\r\n\t]+/g, ' ');
+        sortie += lienOuvert ? texte : lierLiensTexte(texte, '');
+        continue;
+      }
+      const fin = m[1] === '/';
+      const nom = m[2].toLowerCase();
+      if (nom === 'a') {
+        if (fin) { if (lienOuvert) sortie += '</a>'; lienOuvert = false; continue; }
+        const href = (/\shref\s*=\s*"([^"]*)"/i.exec(m[3]) || /\shref\s*=\s*'([^']*)'/i.exec(m[3]) || [])[1] || '';
+        if (lienOuvert) sortie += '</a>';
+        lienOuvert = /^(?:https?:|mailto:)/i.test(href.trim());
+        if (lienOuvert) sortie += `<a href="${href.trim().replace(/"/g, '&quot;')}">`;
+        continue;
+      }
+      if (nom === 'br' || (BALISES_BLOC_REDACTION[nom] && !/^(div|span)$/.test(nom)) || nom === 'li' || nom === 'tr') { if (!fin || nom === 'li' || nom === 'tr') sortie += '<br>'; continue; }
+      if (nom === 'div' && !fin && sortie && !/<br>$/.test(sortie)) sortie += '<br>';
+    }
+    if (lienOuvert) sortie += '</a>';
+    return sortie.replace(/^(<br>)+/, '').replace(/(<br>)+$/, '').replace(/(<br>){3,}/g, '<br><br>').replace(/ {2,}/g, ' ');
+  }
+  // Pure : un texte brut collé (adresse d'un lien copiée, texte avec des adresses dedans) → HTML pour la zone éditable.
+  function htmlTexteColleRedaction(texte) {
+    // Une espace en tête ou en fin du collage ne doit pas disparaître (le HTML l'avale) : elle devient insécable.
+    return lierLiensTexte(escapeHtml(String(texte || '').replace(/\r/g, '')), '').replace(/\n/g, '<br>').replace(/^ /, '&nbsp;').replace(/ $/, '&nbsp;');
+  }
 
   // Pure : HTML de la zone éditable pour un corps d'email en texte (une ligne par bloc, lignes vides gardées, marques de
   // mise en forme des textes de l'étude rendues en gras souligné, « {{BOUTONS}} » nommé).
@@ -48,7 +114,6 @@
     let liste = null;
     let item = null;
     let ignorer = 0;
-    const lien = (u) => `<a href="${u}" style="color:${COULEUR_EMAIL_OFFICE};">${u}</a>`;
     const fermer = () => ouvertes.slice().reverse().map(o => `</${o.nom}>`).join('');
     const rouvrir = () => ouvertes.map(o => o.ouverture).join('');
     const ajouter = (morceau) => { if (item != null) item += morceau; else ligne += morceau; };
@@ -73,7 +138,7 @@
         if (ignorer) continue;
         const texte = m[4].replace(/>/g, '&gt;');
         const dansLien = ouvertes.some(o => o.nom === 'a');
-        ajouter(dansLien ? texte : texte.replace(/https?:\/\/[^\s<&]+(?:&amp;[^\s<&]+)*/g, lien));
+        ajouter(dansLien ? texte : lierLiensTexte(texte, `color:${COULEUR_EMAIL_OFFICE};`));
         continue;
       }
       const fin = m[1] === '/';
@@ -251,7 +316,55 @@
     e.preventDefault();
     if (fichiers.length) { ajouterFichiersRedaction(fichiers); return; }
     const texte = dt.getData('text/plain');
+    const html = dt.getData('text/html');
+    // Un lien collé depuis un email, une page ou Word garde son adresse ; une adresse écrite en texte devient un lien.
+    if (html && /<a\s/i.test(html)) { document.execCommand('insertHTML', false, htmlColleRedaction(html)); saisieRedaction(zoneEditeurRedaction()); return; }
+    if (texte && RE_LIEN_TEXTE.test(texte)) { RE_LIEN_TEXTE.lastIndex = 0; document.execCommand('insertHTML', false, htmlTexteColleRedaction(texte)); saisieRedaction(zoneEditeurRedaction()); return; }
+    RE_LIEN_TEXTE.lastIndex = 0;
     if (texte) document.execCommand('insertText', false, texte);
+  }
+
+  // À la frappe : l'adresse qu'on vient de taper (suivie d'un espace ou d'une Entrée) devient un lien, si elle n'en est pas déjà un.
+  function toucheRedaction(e) {
+    majOutilsRedaction();
+    if (!e || (e.key !== ' ' && e.key !== 'Enter')) return;
+    const el = zoneEditeurRedaction();
+    if (el && lierAvantCurseur(el)) saisieRedaction(el);
+  }
+  function lierAvantCurseur(el) {
+    const sel = typeof window !== 'undefined' && window.getSelection ? window.getSelection() : null;
+    if (!sel || !sel.rangeCount || !sel.isCollapsed) return false;
+    let noeud = sel.focusNode;
+    let offset = sel.focusOffset;
+    // Après Entrée, le curseur est au début du bloc suivant : on regarde la fin du texte du bloc précédent.
+    if (noeud && noeud.nodeType !== 3) {
+      const bloc = noeud.childNodes[offset - 1] || noeud.previousSibling;
+      const texte = (n) => { let t = n; while (t && t.nodeType !== 3) t = t.lastChild; return t; };
+      noeud = texte(bloc && bloc.nodeType === 3 ? bloc : (bloc && bloc.tagName !== 'BR' ? bloc : (bloc && bloc.previousSibling)));
+      offset = noeud ? noeud.nodeValue.length : 0;
+    }
+    if (!noeud || noeud.nodeType !== 3 || !el.contains(noeud)) return false;
+    if (noeud.parentNode && noeud.parentNode.closest && noeud.parentNode.closest('a')) return false;
+    const avant = noeud.nodeValue.slice(0, offset);
+    const m = /(\S+)\s?$/.exec(avant);
+    if (!m) return false;
+    const { lien } = separerLienTexte(m[1]);
+    const href = hrefDepuisLienTexte(lien);
+    if (!href) return false;
+    const debut = m.index;
+    const a = document.createElement('a');
+    a.href = href;
+    const suite = noeud.splitText(debut);
+    suite.splitText(lien.length);
+    a.appendChild(document.createTextNode(suite.nodeValue));
+    suite.parentNode.replaceChild(a, suite);
+    const r = document.createRange();
+    const apres = a.nextSibling;
+    if (apres && apres.nodeType === 3) r.setStart(apres, Math.min(apres.nodeValue.length, offset - debut - lien.length)); else r.setStartAfter(a);
+    r.collapse(true);
+    sel.removeAllRanges();
+    sel.addRange(r);
+    return true;
   }
 
   function fichiersGlisses(e) {

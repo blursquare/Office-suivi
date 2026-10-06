@@ -770,7 +770,7 @@
         ${r.voirCc ? `<div class="redaction-ligne"><label class="redaction-etiquette" for="redaction-cc">Cc</label><input type="text" id="redaction-cc" class="redaction-champ" value="${escapeAttr(r.cc)}" oninput="champRedaction('cc', this.value)" autocomplete="off" spellcheck="false"></div>` : ''}
         ${r.mode === 'nouveau' ? `<div class="redaction-ligne"><label class="redaction-etiquette" for="redaction-sujet">Objet</label><input type="text" id="redaction-sujet" class="redaction-champ" value="${escapeAttr(r.sujet)}" oninput="champRedaction('sujet', this.value)"></div>` : ''}
         ${renderOutilsRedaction()}
-        <div id="redaction-texte" class="redaction-texte redaction-editeur${r.mode === 'reponse' ? ' redaction-editeur-reponse' : ''}" contenteditable="true" role="textbox" aria-multiline="true" aria-label="Message" spellcheck="true" oninput="saisieRedaction(this)" onpaste="collerRedaction(event)" onkeyup="majOutilsRedaction()" onmouseup="majOutilsRedaction()">${htmlEditeurSur(r.html)}</div>
+        <div id="redaction-texte" class="redaction-texte redaction-editeur${r.mode === 'reponse' ? ' redaction-editeur-reponse' : ''}" contenteditable="true" role="textbox" aria-multiline="true" aria-label="Message" spellcheck="true" oninput="saisieRedaction(this)" onpaste="collerRedaction(event)" onkeyup="toucheRedaction(event)" onmouseup="majOutilsRedaction()">${htmlEditeurSur(r.html)}</div>
         ${pieces ? `<div class="redaction-pieces">${pieces}</div>` : ''}
         ${r.erreur ? `<p class="redaction-erreur">${escapeHtml(r.erreur)}</p>` : ''}
         <div class="redaction-pied">

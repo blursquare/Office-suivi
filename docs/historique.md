@@ -17306,3 +17306,14 @@ Scan). Non vérifié ici (tesseract.js vient d'un CDN) : la qualité de l'OCR su
   Succession : reprise seule comme avant. Joué dans Chromium : bandeau → mode PDF, ligne affichée, compromis « lu » → export
   appliqué, étape 2 ; « Annuler » oublie tout.
 
+### 06/10/2026 14 h 16 — 0.169.0 : liens dans la fenêtre d'email
+
+Étude : « détecter les liens hypertexte dans les emails rédigés et les copier-coller dans les emails ». Avant, un texte collé
+l'était toujours en brut (un lien copié depuis un email perdait son adresse) et seule une adresse `https://` écrite en texte
+devenait un lien à l'envoi. Désormais (`client/47-redaction-mise-en-forme.js`) : `lierLiensTexte` (https://, www., email →
+`<a href>`, ponctuation de fin exclue, jamais dans un lien existant) à l'envoi et au collage d'un texte brut
+(`htmlTexteColleRedaction`) ; HTML collé passé par `htmlColleRedaction` (texte, retours à la ligne, liens http(s)/mailto —
+ni image, ni style, ni script, ni `javascript:`) ; à la frappe `toucheRedaction` → `lierAvantCurseur` enveloppe l'adresse qui
+précède l'espace ou l'Entrée. Joué dans Chromium : frappe de trois adresses, collage HTML avec lien + image + script, collage
+texte avec adresse → cinq liens, corps envoyé correct, aucune erreur.
+

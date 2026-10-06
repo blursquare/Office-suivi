@@ -8686,7 +8686,7 @@ div.redaction-editeur.redaction-editeur-reponse { min-height: 120px; }
 #email-redaction-contenu div.redaction-editeur { max-height: none; }
 div.redaction-editeur:focus { outline: none; }
 div.redaction-editeur ul, div.redaction-editeur ol { margin: 0; padding-left: 24px; }
-div.redaction-editeur a { color: var(--focus); }
+div.redaction-editeur a { color: var(--focus); text-decoration: underline; }
 .redaction-carte.redaction-depot { border-color: var(--focus); box-shadow: 0 0 0 2px var(--focus), var(--shadow-float); background: var(--paper-sunk); }
 .redaction-carte.redaction-depot::after { content: "Déposez ici pour joindre"; align-self: center; padding: 4px 0; font-size: var(--texte-m); color: var(--focus); }
 .redaction-pieces { display: flex; flex-wrap: wrap; gap: 6px; padding: 6px 0 2px; }

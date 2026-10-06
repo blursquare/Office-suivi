@@ -106,3 +106,26 @@ test('capture collée : nommée par la date et l’heure, un vrai nom de fichier
   assert.strictEqual(app.nomPieceCollee('', 'image/jpeg', d), 'Capture 06-10 14h0509.jpg');
   assert.strictEqual(app.nomPieceCollee('Compromis.pdf', 'application/pdf', d), 'Compromis.pdf');
 });
+
+// Liens dans la fenêtre d'email (étude 06/10 : « détecter les liens hypertexte dans les emails rédigés et les copier-coller »).
+test('liens : adresse web, www., email écrits dans le texte → liens à l’envoi ; ponctuation de fin exclue ; lien existant intact', () => {
+  const corps = app.htmlCorpsDepuisEditeur('<div>Voir https://exemple.fr/a?b=1&amp;c=2, puis www.notaires.fr. Écrire à julie@exemple.fr !</div><div><a href="https://x.fr">déjà un lien https://y.fr</a></div>', null);
+  assert.match(corps, /<a href="https:\/\/exemple\.fr\/a\?b=1&amp;c=2" style="color:#6D2332;">https:\/\/exemple\.fr\/a\?b=1&amp;c=2<\/a>, puis /);
+  assert.match(corps, /<a href="https:\/\/www\.notaires\.fr" style="color:#6D2332;">www\.notaires\.fr<\/a>\. Écrire à <a href="mailto:julie@exemple\.fr" style="color:#6D2332;">julie@exemple\.fr<\/a> !/);
+  assert.match(corps, /<a href="https:\/\/x\.fr" style="color:#6D2332;">déjà un lien https:\/\/y\.fr<\/a>/, 'pas de lien dans un lien');
+  assert.strictEqual(app.hrefDepuisLienTexte('www.x.fr/page'), 'https://www.x.fr/page');
+  assert.strictEqual(app.hrefDepuisLienTexte('a@b.fr'), 'mailto:a@b.fr');
+  assert.strictEqual(app.hrefDepuisLienTexte('bonjour'), '');
+});
+
+test('liens : HTML collé — seuls le texte, les retours à la ligne et les liens http/mailto sont gardés', () => {
+  const colle = '<html><body><style>p{color:red}</style><p>Bonjour,</p><p>Le dossier est <b>ici</b> : <a href="https://drive.exemple.fr/d/1" style="color:blue" onclick="x()">Dossier partagé</a><img src="x.png"></p>'
+    + '<p>Lien douteux : <a href="javascript:alert(1)">clic</a> et une adresse en clair https://www.service-public.fr/x</p><script>alert(1)</script></body></html>';
+  assert.strictEqual(app.htmlColleRedaction(colle),
+    'Bonjour,<br>Le dossier est ici : <a href="https://drive.exemple.fr/d/1">Dossier partagé</a><br>Lien douteux : clic et une adresse en clair <a href="https://www.service-public.fr/x">https://www.service-public.fr/x</a>');
+  // Texte brut collé : adresses détectées, retours à la ligne gardés.
+  assert.strictEqual(app.htmlTexteColleRedaction('Voir www.x.fr\nou a@b.fr.'), 'Voir <a href="https://www.x.fr">www.x.fr</a><br>ou <a href="mailto:a@b.fr">a@b.fr</a>.');
+  assert.strictEqual(app.htmlTexteColleRedaction(' https://x.fr '), '&nbsp;<a href="https://x.fr">https://x.fr</a>&nbsp;');
+  // Ce que la zone garde entre deux rendus : le lien et son adresse.
+  assert.strictEqual(app.htmlEditeurSur('<div>Voir <a href="https://x.fr">x</a></div>'), '<div>Voir <a href="https://x.fr">x</a></div>');
+});
