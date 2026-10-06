@@ -17494,3 +17494,16 @@ maison/copropriété/terrain — une copropriété posée par les lots ne doit p
 plus grossier) ; les téléphones et emails, qui s'ajoutent (plusieurs numéros possibles). Contrepartie assumée : une correction
 faite à la main sur l'adresse ou le prix est écrasée au relevé suivant (retrouvable dans l'historique). Tests mis à jour.
 
+### 06/10/2026 19 h 19 — 0.174.1 : type de vente repris de la fiche bien d'Authentic
+
+**Étude : « Le type de bien, tu peux le détecter dans la fiche bien. »** Lecture déjà en place (`bienDepuisFicheAuthentic` :
+« maison/pavillon/villa » → maison, « appartement/copropriété/lot » ou lots relevés → copropriété, « terrain » → terrain ; la
+recherche « lot » est devenue `\blot\b` pour ne plus prendre « lotissement » pour une copropriété). Nouveau :
+`appliquerTypeBienAuthentic(d, type)` (client/30) remplace `d.typeVente` quand il diffère — jamais pour une succession, jamais
+sans type lu —, l'ancien dit dans l'historique (« Type de vente : maison (fiche bien Authentic ; avant : copropriété) ») ; appelée
+à la lecture d'une fiche bien (`appliquerBienAuthentic`) et par `complementDossierDepuisAuthentic` (« Compléter » et complément
+automatique). Les lots relevés passent toujours le dossier en copropriété. Remplace la réserve de 0.174.0 sur le type de vente.
+`client/30-appels-3cx-et-authentic.js` dépassait 3 000 lignes : sa dernière section (« Nouveau dossier » depuis les pages relevées
+dans Authentic, choix d'import) est passée dans `client/51-nouveau-dossier-depuis-authentic.js` (manifeste, `index.html`), sans
+changement de code.
+

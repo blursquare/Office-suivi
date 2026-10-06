@@ -524,7 +524,11 @@
         textes.push(actuelle ? `adresse du bien (avant : ${actuelle})` : 'adresse du bien');
       }
     }
-    if (bien && bien.type && !d.typeVente) { d.typeVente = bien.type; textes.push('type de vente'); }
+    if (bien && bien.type) {
+      const avantType = d.typeVente;
+      const texteType = appliquerTypeBienAuthentic(d, bien.type);
+      if (texteType) textes.push(avantType ? `type de vente (avant : ${LIBELLES_TYPE_VENTE_AUTHENTIC[avantType] || avantType})` : 'type de vente');
+    }
     const parcelles = parcellesExportAuthentic(donnees);
     const lots = lotsExportAuthentic(donnees);
     if (parcelles.length || lots.lots.length) {

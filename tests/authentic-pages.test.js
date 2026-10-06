@@ -1154,7 +1154,10 @@ test('fiche bien lue après la création : parcelles manquantes ajoutées, jamai
   const r = app.appliquerReleveSurDossier(d, bien, '2026-10-06T10:00:00Z');
   assert.ok(r.modifie);
   assert.equal(d.bien.cadastre.parcelles.map(p => p.section + p.numero).join(','), 'AB123,AB124');
-  assert.match(d.historique[0].texte, /Parcelle relevée dans Authentic ajoutée : AB 124/);
+  assert.match(d.historique.map(h => h.texte).join('\n'), /Parcelle relevée dans Authentic ajoutée : AB 124/);
+  // Le type de bien de la fiche bien fait le type de vente (étude 06/10), dit dans l'historique.
+  assert.equal(d.typeVente, 'maison');
+  assert.match(d.historique.map(h => h.texte).join('\n'), /Type de vente : maison \(fiche bien Authentic ; avant : non renseigné\)/);
   // Relue : rien de neuf.
   assert.ok(!app.appliquerReleveSurDossier(d, bien, '2026-10-06T10:05:00Z').modifie);
   // Dossier sans cadastre : toutes les parcelles.
@@ -1326,16 +1329,21 @@ test('complementDossierDepuisAuthentic (06/10) : personnes, emails, téléphones
   assert.match(textes.join(' | '), /email du vendeur/);
   // Une seconde fois : rien à faire.
   assert.equal(app.complementDossierDepuisAuthentic(d, donnees, [d]).length, 0);
-  // Authentic fait foi (étude 06/10) : adresse et prix différents → remplacés, l'ancienne valeur dite dans l'historique ;
-  // le type de vente (classement propre à CLAIRE) n'est jamais remplacé.
+  // Authentic fait foi (étude 06/10) : adresse, prix et type de bien (fiche bien) différents → remplacés, l'ancienne valeur
+  // dite dans l'historique.
   const plein = { id: 'c2', nom: 'MARTEL / FOURNIER', parties: [{ role: 'VENDEUR', nom: 'MARTEL' }, { role: 'ACQUEREUR', nom: 'FOURNIER' }], adresseBien: 'TOURS (37000), 1 rue Nationale', prixVente: 100, typeVente: 'copropriete', historique: [] };
   const remplaces = app.complementDossierDepuisAuthentic(plein, donnees, [plein]).join(' | ');
   assert.equal(plein.adresseBien, app.normaliserAdresse('12 rue des Lices 41000 BLOIS'));
   assert.match(remplaces, /adresse du bien \(avant : TOURS \(37000\), 1 rue Nationale\)/);
   assert.equal(plein.prixVente, 245000);
   assert.match(remplaces, /prix \(avant : 100,00.€\)/);
-  assert.equal(plein.typeVente, 'copropriete');
+  assert.equal(plein.typeVente, 'maison');
+  assert.match(remplaces, /type de vente \(avant : copropriété\)/);
   assert.equal(app.complementDossierDepuisAuthentic(plein, donnees, [plein]).length, 0, 'relu : stable, pas de réécriture');
+  // Jamais pour une succession ni quand Authentic ne dit pas le type.
+  assert.equal(app.appliquerTypeBienAuthentic({ typeAffaire: 'succession', typeVente: '' }, 'maison'), '');
+  assert.equal(app.appliquerTypeBienAuthentic({ typeVente: 'copropriete' }, null), '');
+  assert.equal(app.appliquerTypeBienAuthentic({ typeVente: 'maison' }, 'maison'), '');
 });
 
 test('indexGroupeAuthenticPourDossier : par la référence, sinon par les noms de l’intitulé', () => {
