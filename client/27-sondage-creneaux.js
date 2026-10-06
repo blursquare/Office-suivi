@@ -852,8 +852,17 @@
   // sur la même pièce, ce qui noyait justement le signal "nouveau".
   function tagNotificationsDossier(d) {
     const n = (d.piecesNotifications || []).length;
-    if (!n) return '';
-    return `<span class="dot-label dl-urgent notif-nouveau-tag" title="${n} document${n > 1 ? 's' : ''} nouvellement trouvé${n > 1 ? 's' : ''} — ouvrez la fiche pour les voir"><span class="dot"></span>${n} nouvelle${n > 1 ? 's' : ''} pièce${n > 1 ? 's' : ''}</span>`;
+    const pieces = n ? `<span class="dot-label dl-urgent notif-nouveau-tag" title="${n} document${n > 1 ? 's' : ''} nouvellement trouvé${n > 1 ? 's' : ''} — ouvrez la fiche pour les voir"><span class="dot"></span>${n} nouvelle${n > 1 ? 's' : ''} pièce${n > 1 ? 's' : ''}</span>` : '';
+    return pieces + tagMajAuthentic(d);
+  }
+
+  // Pastille « Mise à jour » (étude 06/10 au soir : « une pastille de notification quand un dossier demande une mise à jour ») :
+  // Authentic a changé une donnée déjà reprise, la fiche attend la décision (client/52). Même rouge que « nouvelle pièce ».
+  function tagMajAuthentic(d) {
+    const majs = majsEnAttenteAuthentic(d);
+    if (!majs.length || d.archive) return '';
+    const detail = majs.map(m => m.libelle).join(', ');
+    return `<span class="dot-label dl-urgent notif-nouveau-tag notif-maj-authentic" title="Authentic a changé : ${escapeAttr(detail)} — ouvrez la fiche pour mettre à jour ou ignorer"><span class="dot"></span>Mise à jour</span>`;
   }
 
   // ---- Suivi « intelligent » (étude, 30/09 : « les dossiers avec une notification remontent en haut

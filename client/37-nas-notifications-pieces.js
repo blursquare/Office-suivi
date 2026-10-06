@@ -34,11 +34,12 @@
     // Limité aux dossiers du collaborateur du poste, sauf pour l'administrateur (voir
     // « Collaborateur du poste ») : ce badge dit « il y a du nouveau POUR MOI ». Un dossier dont tous les fonds sont reçus
     // compte aussi, jusqu'à la confirmation au client (étude 05/10 : « une pastille de notification pour trouver le dossier ») —
-    // il est en tête du Suivi, section « Nouveau ».
+    // il est en tête du Suivi, section « Nouveau ». Un dossier dont une donnée a changé dans Authentic (mise à jour à décider) compte pour 1 aussi
+    // (étude 06/10 au soir : « une pastille de notification quand un dossier demande une mise à jour »).
     const global = !utilisateurPoste || estAdministrateur(utilisateurPoste);
     return dossiersDuPerimetre(dossiers, utilisateurPoste, global)
       .filter(d => !d.archive)
-      .reduce((total, d) => total + ((d.piecesNotifications || []).length) + (fondsCompletsAConfirmer(d) ? 1 : 0), 0);
+      .reduce((total, d) => total + ((d.piecesNotifications || []).length) + (fondsCompletsAConfirmer(d) ? 1 : 0) + (majsEnAttenteAuthentic(d).length ? 1 : 0), 0);
   }
 
   // Met à jour le badge numérique de la sidebar — appelée depuis render(), comme les autres

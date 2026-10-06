@@ -198,3 +198,19 @@ test('enregistrement : ce qu’Authentic a retenu rend la page « à enregistrer
   d.authentic.majEnAttente = { prixVente: { type: 'champ', champ: 'prixVente', valeur: 250000, libelle: 'Prix de vente', avant: '245.000,00 €', apres: '250.000,00 €', le: '2026-10-06T10:00:00Z' } };
   assert.equal(app.authenticPersistable(d.authentic).majEnAttente.prixVente.valeur, 250000);
 });
+
+test('pastille « Mise à jour » (étude 06/10 au soir) : sur la ligne du dossier tant qu’une mise à jour attend, plus après la décision', () => {
+  const d = dossier();
+  app.appliquerReleveSurDossier(d, ficheClient({ email: 'erreur@exemple.fr' }));
+  assert.equal(app.tagMajAuthentic(d), '', 'rien à décider : pas de pastille');
+  assert.equal(app.tagNotificationsDossier(d), '');
+  app.appliquerReleveSurDossier(d, ficheClient({ email: 'bon@exemple.fr' }));
+  assert.match(app.tagMajAuthentic(d), /notif-maj-authentic[^>]*title="Authentic a changé : Email du vendeur[^"]*"[^>]*>.*Mise à jour/);
+  assert.match(app.tagNotificationsDossier(d), /Mise à jour/);
+  // Avec une pièce nouvelle, les deux pastilles se suivent.
+  d.piecesNotifications = ['erp'];
+  assert.match(app.tagNotificationsDossier(d), /nouvelle pièce.*Mise à jour/);
+  assert.equal(app.tagMajAuthentic(Object.assign({}, d, { archive: true })), '', 'jamais sur un dossier archivé');
+  app.ignorerMajAuthentic(d, app.majsEnAttenteAuthentic(d)[0].cle);
+  assert.equal(app.tagMajAuthentic(d), '');
+});
