@@ -82,3 +82,14 @@ test('etapeCouranteOutil : titre passé le plus proche de la ligne, colonne vois
   // Bas de page : la dernière section à l'écran, même sous la ligne.
   assert.strictEqual(app.etapeCouranteOutil([{ cle: 'bien', haut: 200 }, { cle: 'financement', haut: 770 }, { cle: 'courrier', haut: -900 }], 350, 1000), 'financement');
 });
+
+test('etatTuilePiece : à choisir, lue avec ce qui est retenu, ou illisible', () => {
+  assert.strictEqual(app.etatTuilePiece('tf', null).etat, 'vide');
+  assert.match(app.etatTuilePiece('tf', { montantAvis: 1200, retenu: 1250 }).texte, /^Lu · 1\.250,00/);
+  assert.strictEqual(app.etatTuilePiece('tf', { erreur: true }).etat, 'erreur');
+  assert.strictEqual(app.etatTuilePiece('charges', { analyse: { montant: null } }).etat, 'erreur');
+  assert.match(app.etatTuilePiece('charges', { analyse: { montant: 450.5 } }).texte, /450,50/);
+  assert.strictEqual(app.etatTuilePiece('etatDate', { analyse: { montant: 0, absent: true } }).texte, 'Lu · pas de fonds de travaux');
+  assert.match(app.etatTuilePiece('releve', { analyse: { recu: { prix: 1000, frais: 500 } } }).texte, /1\.500,00\s€ versés/);
+  assert.strictEqual(app.etatTuilePiece('charges', { erreur: true }).texte, 'PDF illisible');
+});

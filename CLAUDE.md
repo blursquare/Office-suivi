@@ -391,6 +391,8 @@ dans `index.html`** (le test `structure-client` refuse tout décalage).
   de compte client JurisWeb (`analyserReleveCompteClient`, colonne Débit/Crédit par position des
   items) → acomptes sur prix et sur frais versés à l'étude, qui **remplacent** la ligne d'acompte du
   dossier (même somme), reversements au confrère signalés. Rien n'est enregistré sur le dossier.
+- **Lignes du courrier reprises d'un décompte** : jamais de tiret ni de réserve « à parfaire » (« sauf à parfaire », « à parfaire
+  ou à diminuer », entre parenthèses ou non) — `afNettoyerLibelle` (étude 06/10).
 - **Historique des courriers d'appel de fonds** (étude 06/10 : « pour les retrouver » ; `client/43-historique-appels-fonds.js`,
   `server/src/appelsFonds.js`, `routes/appelsFonds.js`, clé `appels-fonds`, 1 000 au plus) : tout courrier téléchargé ou envoyé
   par email depuis l'outil est gardé **tel qu'il est sorti** (`donnees` = champs du modèle Word, corrections de l'aperçu comprises)
@@ -407,7 +409,9 @@ dans `index.html`** (le test `structure-client` refuse tout décalage).
   (`client/44-presentation-outils.js`, `ETAPES_OUTILS` : clé, libellé court, `fait` → coche ; `.outil-sommaire-place[data-outil]`),
   qui suit le défilement (`etapeCouranteOutil`) et mène à la section au clic ; chaque section a un titre
   `h2.outil-section-tete[data-etape]` numéroté comme son étape (`.outil-num`) ; explications longues dans un
-  `wa-details.outil-notes` replié. Un nouvel outil de ce genre : ses étapes dans `ETAPES_OUTILS`, ses titres de section, la place
+  `wa-details.outil-notes` replié. **Pièces à lire** (appel de fonds, prorata ; étude 06/10 « revoir les boutons ») : une tuile
+  par pièce dans une zone de dépôt (`renderTuilesPieces`, `TUILES_PIECES_OUTILS`, `etatTuilePiece` : à choisir / « Lu · montant » /
+  illisible), clic = choisir le PDF, glisser sur une tuile = la lire comme cette pièce. Un nouvel outil de ce genre : ses étapes dans `ETAPES_OUTILS`, ses titres de section, la place
   de la barre. Composants Web Awesome embarqués : button, switch, button-group, stepper, step, details.
 - **« Nouveau dossier » : deux entrées** (étude, 02/10 au soir, `MODES_IMPORT`, `choisirModeImport`,
   `renderChoixImport`) — **« Compromis (PDF) »** : le compromis lu, on reste sur l'étape 1 — le dossier d'Authentic qui correspond est proposé en tête (« Dossier trouvé dans Authentic », `dossierAuthenticPourCompromis`, étude 05/10 : Authentic pré-remplit, prix compris, le compromis complète) : « Compléter depuis Authentic

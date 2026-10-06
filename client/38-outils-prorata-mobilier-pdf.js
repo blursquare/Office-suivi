@@ -430,21 +430,26 @@
   }
 
   // Ce qu'un dossier d'Outil 1 permet de reprendre, et ce qu'il ne dit pas. Les acquéreurs viennent
-  // de clientsDepuisDossier (partagée avec l'appel de fonds) ; la civilité n'est jamais lue dans
-  // l'acte, elle est donc mise par défaut ET signalée. Le montant du prêt n'est reporté sur un
-  // acquéreur que s'il est seul : à plusieurs, sa répartition ne se devine pas.
+  // de clientsDepuisDossier (partagée avec l'appel de fonds) : civilité (Monsieur / Madame) et prénom
+  // tels qu'ils sont sur la fiche du dossier (étude 06/10 : « reprendre de la fiche dossier les acquéreurs,
+  // M ou Mme ou les deux, et prénom et nom »). Une civilité que la fiche ne donne pas est mise par défaut
+  // ET signalée, comme un prénom absent. Le montant du prêt n'est reporté sur un acquéreur que s'il est
+  // seul : à plusieurs, sa répartition ne se devine pas.
   function prefillQuotites(d) {
     if (!d) return null;
     const clients = clientsDepuisDossier(d);
     const repris = [];
     const aCompleter = [];
     const acquereurs = clients.map(c => ({
-      civilite: c.civilite === 'SCI' ? 'SCI' : 'Monsieur',
-      nom: String(c.nom || '').trim()
+      civilite: c.civilite === 'SCI' ? 'SCI' : (c.civilite === 'Mme' || c.civilite === 'Mlle' ? 'Madame' : 'Monsieur'),
+      nom: [c.civilite === 'SCI' ? '' : String(c.prenom || '').trim(), String(c.nom || '').trim()].filter(Boolean).join(' ')
     }));
     if (acquereurs.length) {
       repris.push(acquereurs.length > 1 ? `${acquereurs.length} acquéreurs` : 'Acquéreur');
-      if (clients.some(c => c.aCompleter)) aCompleter.push('Civilité et prénom de chaque acquéreur — l’acte n’en donne que le nom.');
+      const sansCivilite = clients.filter(c => c.aCompleter).map(c => String(c.nom || '').trim()).filter(Boolean);
+      const sansPrenom = clients.filter(c => c.civilite !== 'SCI' && !String(c.prenom || '').trim()).map(c => String(c.nom || '').trim()).filter(Boolean);
+      if (sansCivilite.length) aCompleter.push(`Civilité de ${sansCivilite.join(', ')} — à préciser sur la fiche (Monsieur / Madame).`);
+      if (sansPrenom.length) aCompleter.push(`Prénom de ${sansPrenom.join(', ')} — à préciser sur la fiche.`);
     } else {
       aCompleter.push('Acquéreurs — aucun n’a pu être lu sur ce dossier.');
     }

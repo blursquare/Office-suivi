@@ -6847,7 +6847,6 @@ button.confrere-carnet-office:focus-visible, button.carnet-dossier:focus-visible
 .signature-image-ligne .bouton-ajout { margin: 0; }
 
 /* ---- Avis de taxe foncière (Prorata, appel de fonds) et mode du décompte (29/09) ---- */
-.tf-import { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 4px 0 10px; }
 .tf-bloc:empty { display: none; }
 .tf-bloc { margin-bottom: 12px; }
 .tf-bloc .tf-lu { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 0 0 6px; }
@@ -6855,10 +6854,34 @@ button.confrere-carnet-office:focus-visible, button.carnet-dossier:focus-visible
 .tf-case { display: flex; align-items: center; gap: 6px; font-size: var(--texte-m); color: var(--ink-soft); margin: 0 0 6px; }
 .tf-case input { margin: 0; }
 .tf-multi-champs { margin-top: 8px; }
-/* Glisser-déposer des pièces (30/09) : la ligne de boutons est la zone de dépôt. */
-.tf-import { border: 1px dashed transparent; border-radius: var(--rayon-m); padding: 4px; margin-left: -6px; margin-right: -6px; transition: border-color 0.15s, background 0.15s; }
-.tf-import.survol { border-color: var(--focus); background: var(--acte-bg); }
-.tf-import-depot { font-size: var(--texte-s); color: var(--muted); }
+/* Pièces à lire (étude 06/10 : « revoir les boutons lire taxe foncière et appel de charges ») : une tuile par pièce, qui dit
+   son état (à choisir, lue avec le montant retenu, illisible), dans une zone de dépôt en pointillés comme celle de
+   « Nouveau dossier ». Voir renderTuilesPieces. */
+.pieces-depot {
+  display: flex; flex-direction: column; gap: 10px; margin: 0 0 12px; padding: 12px;
+  border: 1px dashed var(--line); border-radius: var(--rayon-m); background: var(--paper-sunk); transition: border-color 0.15s, background 0.15s;
+}
+.pieces-depot.survol { border-color: var(--focus); background: var(--acte-bg); }
+.pieces-tuiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.piece-tuile {
+  display: flex; align-items: center; gap: 10px; min-width: 0; padding: 10px 12px; cursor: pointer;
+  background: var(--paper-card); border: 1px solid var(--line); border-radius: var(--rayon-m); transition: border-color 0.15s;
+}
+.piece-tuile:hover, .piece-tuile:focus-visible { border-color: var(--focus); }
+.piece-tuile-icone {
+  display: inline-flex; align-items: center; justify-content: center; flex: none; width: 32px; height: 32px;
+  border-radius: var(--rayon-s); background: var(--paper-sunk); color: var(--ink-soft);
+}
+.piece-tuile-icone svg { width: 16px; height: 16px; }
+.piece-tuile-texte { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.piece-tuile-titre { font-size: var(--texte-m); font-weight: 500; color: var(--ink); line-height: 1.25; }
+.piece-tuile-etat { font-size: var(--texte-s); color: var(--muted); line-height: 1.3; overflow-wrap: anywhere; }
+.piece-lu { border-color: color-mix(in srgb, var(--success) 45%, var(--line)); }
+.piece-lu .piece-tuile-icone { background: var(--success-bg); color: var(--success); }
+.piece-lu .piece-tuile-etat { color: var(--success); font-weight: 500; }
+.piece-erreur .piece-tuile-icone { background: color-mix(in srgb, var(--urgent) 12%, var(--paper-card)); color: var(--urgent); }
+.piece-erreur .piece-tuile-etat { color: var(--urgent); }
+.pieces-depot-aide { margin: 0; font-size: var(--texte-s); color: var(--muted); }
 /* Avis portant sur plusieurs biens : un choix par bien. */
 .tf-biens { display: flex; flex-direction: column; gap: 6px; margin: 0 0 8px; }
 .tf-biens > .hint { margin: 0; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }

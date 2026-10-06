@@ -141,3 +141,61 @@
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initPresentationOutils);
   else initPresentationOutils();
+
+  // ==== Pièces à lire (appel de fonds, prorata) : une tuile par pièce ====
+  //
+  // Étude 06/10 : « revoir les boutons lire taxe foncière et appel de charges ». Les boutons texte sont remplacés par une tuile
+  // par pièce (un <label> sur le champ fichier caché) qui dit son état — à choisir, lue avec ce qui en a été retenu, ou
+  // illisible — : on voit d'un coup d'œil ce qui a déjà été lu. Une tuile reçoit aussi un PDF glissé dessus (data-piece).
+  var TUILES_PIECES_OUTILS = {
+    af: [
+      { cle: 'tf', champ: 'af-avis-tf', titre: 'Avis de taxe foncière' },
+      { cle: 'charges', champ: 'af-appel-charges', titre: 'Appel de charges' },
+      { cle: 'etatDate', champ: 'af-etat-date', titre: 'État daté' },
+      { cle: 'releve', champ: 'af-releve-compte', titre: 'Relevé de compte client' }
+    ],
+    prorata: [
+      { cle: 'tf', champ: 'prorata-avis-tf', titre: 'Avis de taxe foncière' },
+      { cle: 'charges', champ: 'prorata-appel-charges', titre: 'Appel de charges' }
+    ]
+  };
+
+  // Pure : l'état d'une pièce lue, d'après ce que son lecteur a retenu (`lue` : avis, pièce de l'appel de fonds ou appel de
+  // charges du prorata ; null si rien n'a été choisi).
+  function etatTuilePiece(cle, lue) {
+    if (!lue) return { etat: 'vide', texte: 'Choisir le PDF' };
+    if (lue.erreur) return { etat: 'erreur', texte: cle === 'tf' ? 'Montant introuvable — à saisir' : 'PDF illisible' };
+    if (cle === 'tf') return { etat: 'lu', texte: 'Lu · ' + formaterPrixCentimes(lue.retenu || lue.montantAvis) };
+    const a = lue.analyse || {};
+    if (cle === 'charges') {
+      return a.montant == null ? { etat: 'erreur', texte: 'Montant introuvable — à saisir' } : { etat: 'lu', texte: 'Lu · ' + formaterPrixCentimes(a.montant) };
+    }
+    if (cle === 'etatDate') {
+      if (a.montant == null) return { etat: 'erreur', texte: 'Fonds de travaux introuvable' };
+      return { etat: 'lu', texte: a.absent ? 'Lu · pas de fonds de travaux' : 'Lu · fonds ' + formaterPrixCentimes(a.montant) };
+    }
+    const recu = a.recu || {};
+    const total = (Number(recu.prix) || 0) + (Number(recu.frais) || 0);
+    return { etat: 'lu', texte: total > 0 ? 'Lu · ' + formaterPrixCentimes(total) + ' versés' : 'Lu · aucun versement' };
+  }
+
+  function pieceLueOutil(outil, cle) {
+    if (cle === 'tf') return typeof tfAvis !== 'undefined' ? tfAvis[outil] || null : null;
+    if (outil === 'prorata') return typeof prorataCharges !== 'undefined' ? prorataCharges : null;
+    return typeof afPieces !== 'undefined' ? afPieces[cle] || null : null;
+  }
+
+  function renderTuilesPieces(outil) {
+    const zone = document.getElementById(outil + '-pieces-tuiles');
+    if (!zone) return;
+    zone.innerHTML = (TUILES_PIECES_OUTILS[outil] || []).map(t => {
+      const e = etatTuilePiece(t.cle, pieceLueOutil(outil, t.cle));
+      const ico = e.etat === 'lu' ? 'check' : e.etat === 'erreur' ? 'alert-triangle' : 'file-text';
+      return `<label for="${t.champ}" class="piece-tuile piece-${e.etat}" data-piece="${t.cle}" title="${e.etat === 'vide' ? 'Choisir' : 'Remplacer'} : ${escapeAttr(t.titre)}">
+        <span class="piece-tuile-icone" aria-hidden="true">${icone(ico)}</span>
+        <span class="piece-tuile-texte"><span class="piece-tuile-titre">${escapeHtml(t.titre)}</span><span class="piece-tuile-etat">${escapeHtml(e.texte)}</span></span>
+      </label>`;
+    }).join('');
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => { renderTuilesPieces('af'); renderTuilesPieces('prorata'); });
+  else { renderTuilesPieces('af'); renderTuilesPieces('prorata'); }

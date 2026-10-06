@@ -97,11 +97,18 @@
   // au libellé final, couvre tous les chemins.
   var AF_PUCE_DEBUT_RE = /^[\s\u2022\u00b7\u2043\u25aa\u25cf\u2010-\u2015*\u2212-]+/;
 
+  // « À parfaire » (et ses variantes « sauf à parfaire », « à parfaire ou à diminuer », entre parenthèses ou non) est la
+  // réserve du confrère sur une provision : elle ne passe pas dans le courrier de l'étude (étude 06/10 : « ne pas reprendre
+  // les - ou les à parfaire »). Les tirets et puces restés en bout de libellé partent avec.
+  var AF_A_PARFAIRE_RE = /[\s,;–—-]*[(\[]?\s*(?:sauf\s+)?[àa]\s+parfaire(?:\s+ou\s+(?:[àa]\s+)?diminuer)?\s*[)\]]?/gi;
+  var AF_PUCE_FIN_RE = /[\s\u2022\u00b7\u2043\u25aa\u25cf\u2010-\u2015*\u2212-]+$/;
+
   function afNettoyerLibelle(s) {
     // Le deux-points final vient de la mise en page du décompte (« Prix de vente: 220 000,00 € »),
     // où il annonce la colonne des montants : il n'a plus de sens une fois la valeur dans sa
     // propre cellule.
-    return String(s || '').replace(AF_PUCE_DEBUT_RE, '').replace(/\s*:\s*$/, '').trim();
+    return String(s || '').replace(AF_A_PARFAIRE_RE, '').replace(AF_PUCE_DEBUT_RE, '')
+      .replace(/\s*:\s*$/, '').replace(AF_PUCE_FIN_RE, '').replace(/\s*:\s*$/, '').trim();
   }
 
   // Vocabulaire de l'étude. Chaque confrère nomme les mêmes lignes à sa façon (« Prix de vente »,
@@ -1774,6 +1781,7 @@
   }
 
   function renderBlocTaxeFonciere(cible) {
+    renderTuilesPieces(cible);
     const zone = document.getElementById(cible + '-tf-bloc');
     const t = tfAvis[cible];
     if (!zone) return;
@@ -2075,6 +2083,7 @@
   }
 
   function renderBlocPieceAppelFonds(type) {
+    renderTuilesPieces('af');
     const zone = afEl('af-' + type + '-bloc');
     if (!zone) return;
     const piece = afPieces[type];
@@ -2201,6 +2210,7 @@
   }
 
   function renderBlocChargesProrata() {
+    renderTuilesPieces('prorata');
     const zone = document.getElementById('prorata-charges-bloc');
     if (!zone) return;
     const t = prorataCharges;

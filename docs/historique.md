@@ -17023,3 +17023,21 @@ tous en étapes, ou l'appel de fonds d'abord) ; réponse : « Non, tous sur le m
 - **Explications repliées** (`wa-details.outil-notes`) : « Règles et références » (provision ; la phrase du régime appliqué
   passe sous le tableau du résultat), « Convention de calcul » (prorata), « Ce que dit le texte » (forfait mobilier).
 - Vérifié dans Chromium (bureau et téléphone) : coches, suivi du défilement, clic vers Rendez-vous / Financement / Dossier.
+
+### 06/10/2026 — 0.161.1 : quotités depuis la fiche, tuiles des pièces à lire, lignes sans « à parfaire »
+
+Étude : « Pour l'outil quotités, il faut bien reprendre de la fiche dossier les acquéreurs, s'il y en a deux, M ou Mme ou
+les deux, et prénom et nom. Revoir les boutons lire taxe foncière et appel de fonds. Pour les lignes du courrier, ne pas
+reprendre les - ou les à parfaire. »
+
+- **Quotités** (`prefillQuotites`) : civilité de chaque acquéreur prise sur la fiche (`clientsDepuisDossier`, `p.civilite`
+  M/Mme → Monsieur/Madame, deux de la même civilité comprises) et « Prénom NOM » ; elle était toujours mise à « Monsieur » et
+  le prénom n'était pas repris. Une civilité ou un prénom absents de la fiche sont dits dans « À compléter », nommément.
+- **Pièces à lire** (appel de fonds : avis de taxe foncière, appel de charges, état daté, relevé de compte client ; prorata :
+  avis de taxe foncière, appel de charges) : les boutons texte deviennent une tuile par pièce dans une zone de dépôt en
+  pointillés (`renderTuilesPieces`, client/44-presentation-outils.js), qui dit son état — « Choisir le PDF », « Lu · 1.200,00 € »
+  (vert), « PDF illisible » / « Montant introuvable — à saisir » (rouge) — ; clic = choisir, glisser sur la tuile = la lire comme
+  cette pièce, glisser ailleurs dans la zone = type reconnu. Le détail lu reste dessous comme avant.
+- **Lignes du courrier** (`afNettoyerLibelle`, `AF_A_PARFAIRE_RE`, `AF_PUCE_FIN_RE`) : « (à parfaire) », « sauf à parfaire »,
+  « à parfaire ou à diminuer » et les tirets restés en bout de libellé sont retirés des lignes reprises d'un décompte ; un tiret
+  au milieu d'un libellé reste.

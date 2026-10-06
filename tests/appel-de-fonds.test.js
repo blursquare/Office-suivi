@@ -729,3 +729,12 @@ test('pièces du NAS pour le décompte : le fichier de la checklist d’abord, s
   assert.strictEqual(app.fichierPieceNasAppelFonds(d, fichiers, 'avisTaxeFonciere', motif).nom, 'Avis 2025.pdf', 'fichier retrouvé par la checklist');
   assert.strictEqual(app.fichierPieceNasAppelFonds({ nasDossier: 'X' }, [{ nom: 'Titre.pdf', chemin: 'Titre.pdf' }], 'etatDate', /[ée]tat\s+dat[ée]/i), null);
 });
+
+test('afNettoyerLibelle : ni « à parfaire » ni tirets dans les lignes du courrier', () => {
+  assert.strictEqual(app.afNettoyerLibelle("- Frais d'acte (à parfaire)"), "Frais d'acte");
+  assert.strictEqual(app.afNettoyerLibelle('Frais divers - sauf à parfaire'), 'Frais divers');
+  assert.strictEqual(app.afNettoyerLibelle('Provision sur frais à parfaire ou à diminuer :'), 'Provision sur frais');
+  assert.strictEqual(app.afNettoyerLibelle('– Frais de garantie –'), 'Frais de garantie');
+  assert.strictEqual(app.afNettoyerLibelle('Taxe - foncière'), 'Taxe - foncière');
+  assert.strictEqual(app.afNettoyerLibelle('Prix de vente: '), 'Prix de vente');
+});

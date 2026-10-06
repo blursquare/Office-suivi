@@ -93,7 +93,28 @@ test('prefillQuotites : acquéreurs, prix, prêt reporté seulement pour un acqu
   assert.strictEqual(p.prix, 90000);
   assert.ok(p.aCompleter.some(x => /Répartition du prêt/.test(x)));
   assert.ok(p.aCompleter.some(x => /Civilité/.test(x)));
+  assert.ok(p.aCompleter.some(x => /Prénom/.test(x)));
   const sansPret = app.prefillQuotites({ nom: 'A / B', sansPret: true, montantPret: 5000 });
   assert.strictEqual(sansPret.montantPret, 0);
   assert.ok(sansPret.repris.includes('Achat sans prêt'));
+});
+
+test('prefillQuotites : civilité et prénom repris de la fiche du dossier (Monsieur, Madame, ou deux de la même civilité)', () => {
+  const d = {
+    nom: 'DUPONT / ROCHE', prixVente: 200000,
+    parties: [
+      { role: 'VENDEUR', nom: 'DUPONT' },
+      { role: 'ACQUEREUR', civilite: 'M', prenom: 'Paul', nom: 'ROCHE' },
+      { role: 'ACQUEREUR', civilite: 'Mme', prenom: 'Léa', nom: 'ROCHE' }
+    ]
+  };
+  const p = app.prefillQuotites(d);
+  assert.strictEqual(p.acquereurs.map(a => a.civilite + ' ' + a.nom).join(' | '), 'Monsieur Paul ROCHE | Madame Léa ROCHE');
+  assert.ok(!p.aCompleter.some(x => /Civilité|Prénom/.test(x)));
+  const deux = app.prefillQuotites({ nom: 'A / B', parties: [
+    { role: 'ACQUEREUR', civilite: 'Mme', prenom: 'Inès', nom: 'MOREAU' },
+    { role: 'ACQUEREUR', civilite: 'Madame', prenom: 'Zoé', nom: 'FAURE' }
+  ] });
+  assert.strictEqual(deux.acquereurs.map(a => a.civilite).join(','), 'Madame,Madame');
+  assert.strictEqual(deux.acquereurs.map(a => a.nom).join(','), 'Inès MOREAU,Zoé FAURE');
 });
