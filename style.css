@@ -1066,10 +1066,8 @@
     .sidebar.repliee .sidebar-groupe-titre:hover { background: var(--sidebar-actif-bg); color: var(--ink); }
     .sidebar.repliee .sidebar-groupe-titre:has(+ .sidebar-sousmenu .actif) { color: var(--ink); box-shadow: inset 3px 0 0 var(--focus); }
     .sidebar.repliee .sidebar-groupe-chevron, .sidebar.repliee .sidebar-groupe-label { display: none; }
-    .sidebar.repliee .sidebar-sousmenu {
-      align-items: stretch; gap: 2px; margin: 4px 0 6px; padding: 6px 4px;
-      background: color-mix(in srgb, var(--paper-sunk) 55%, transparent); border-radius: var(--rayon-carte);
-    }
+    .sidebar.repliee .sidebar-sousmenu { align-items: stretch; gap: 2px; margin: 4px 0 0; padding: 0; }
+    .sidebar.repliee .sidebar-outils-groupe:has(.sidebar-sousmenu:not(.ferme)) { padding: 2px 2px 4px; }
     .sidebar.repliee .sidebar-sousmenu .sidebar-link.sidebar-sousmenu-item { font-size: 0; justify-content: center; gap: 0; padding: 10px 0; }
     .sidebar.repliee .sidebar-sousmenu .sidebar-link-icone { font-size: var(--texte-xl); }
   }
@@ -8225,6 +8223,11 @@ wa-button.widgets-galerie-retirer svg { width: 14px; height: 14px; }
 
 /* ---- Barre latérale sans titres de section (étude, 01/10, sur un exemple) : « Outils » déplie ou replie le tiroir
    (plus de page des outils, étude 06/10) ; dans le tiroir, les outils reliés par le liseré. ---- */
+/* Léger fond derrière « Outils » et son tiroir déplié, pour repérer la section (étude 06/10). */
+.sidebar-outils-groupe:has(.sidebar-sousmenu:not(.ferme)) {
+  padding: 2px 4px 6px; border-radius: var(--rayon-carte);
+  background: color-mix(in srgb, var(--ink) 8%, transparent);
+}
 .sidebar-outils-ligne { display: flex; align-items: center; }
 .sidebar-outils-ligne #tab-outils { flex: 1 1 auto; min-width: 0; }
 .sidebar-outils-chevron { display: inline-flex; margin-left: auto; font-size: var(--texte-s); opacity: 0.7; }

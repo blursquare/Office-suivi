@@ -91,6 +91,7 @@
 
       <!-- Outils (étude, 01/10 puis 06/10) : plus de page des outils — « Outils » déplie ou replie le tiroir dans la barre
            (toggleGroupeSidebar) ; barre repliée, le tiroir reste déplié sous l'icône, en icônes seules. -->
+      <div class="sidebar-outils-groupe">
       <div class="sidebar-outils-ligne">
         <button type="button" id="tab-outils" class="sidebar-link" aria-expanded="true" aria-controls="sidebar-sousmenu-outils" onclick="toggleGroupeSidebar('outils')">
           <span class="sidebar-link-icone" id="icon-nav-outils-groupe" aria-hidden="true"></span>Outils
@@ -137,6 +138,7 @@
         <button type="button" id="tab-analyse-ia" class="sidebar-link sidebar-sousmenu-item" role="tab" aria-selected="false" onclick="definirOnglet('analyse-ia')">
           <span class="sidebar-link-icone" id="icon-nav-analyse-ia" aria-hidden="true"></span>Relecture d'actes<span class="stade-badge stade-badge-nav" title="Alpha : outil encore en test, à utiliser avec le mode commentaires.">Alpha</span>
         </button>
+      </div>
       </div>
 
       <!-- Réglages de l'étude (URL du flux Power Automate + adresse email de chaque collaborateur) :

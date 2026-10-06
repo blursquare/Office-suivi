@@ -17551,3 +17551,6 @@ Barre repliée : le tiroir des outils n'est plus un volet flottant ouvert au sur
 
 **Étude (06/10 au soir) : « Supprime la page avec tous les outils et ouvre le tiroir en cliquant sur Outils »** (0.176.6)
 Page Outils supprimée (`#onglet-outils`, `OUTILS_PAGE`, `renderPageOutils`, tuiles `.outil-tuile` : retirés ; `outils` retiré de `LIBELLES_ONGLETS` et du test de fumée). `#tab-outils` n'ouvre plus d'écran : `onclick="toggleGroupeSidebar('outils')"`, `aria-expanded`, chevron `#icon-groupe-outils-chevron` (haut/bas) à droite de la ligne, masqué barre repliée. Le petit bouton +/− de la 0.176.5 est retiré (le clic sur l'icône le remplace). Un ancien `definirOnglet('outils')` déplie le tiroir et mène au tableau de bord (`ouvrirTiroirOutils`) ; « Demander à CLAIRE » › « ouvre les outils » fait de même. Vérifié dans Chromium, barre ouverte et repliée.
+
+**Étude (06/10 au soir) : « Mets un léger fond derrière le tiroir déplié pour identifier la section Outils »** (0.176.7)
+`.sidebar-outils-groupe` (nouveau conteneur de `.sidebar-outils-ligne` + `#sidebar-sousmenu-outils`) porte, tant que le tiroir est déplié, un fond léger (`color-mix(in srgb, var(--ink) 8%, transparent)`, `--rayon-carte`) derrière la ligne « Outils » et ses outils, barre ouverte comme repliée (le bloc propre au tiroir replié est remplacé). Vérifié dans Chromium, barre ouverte et repliée.
