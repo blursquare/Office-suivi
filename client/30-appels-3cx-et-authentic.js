@@ -1649,6 +1649,46 @@
   //    d.authentic ; le prix remplit la fiche s'il manque ;
   //  - fiche client : téléphones et email de la partie s'ils manquent, situation matrimoniale.
   // Chaque fait nouveau entre une fois dans l'historique. → { pieces, textes, modifie }
+  // Pure : une fiche bien relevée contredit-elle le dossier en consultation ? (code postal différent, ou voie sans aucun mot commun
+  // avec l'adresse du dossier quand aucune parcelle n'est déjà en commun) → le motif, sinon ''.
+  function bienAuthenticContreditDossier(d, bien) {
+    const adresseDossier = (d.bien && d.bien.adresse) || {};
+    const texteDossier = String(d.adresseBien || adresseDossier.adresseComplete || '');
+    const cpDossier = adresseDossier.codePostal || (/\b(\d{5})\b/.exec(texteDossier) || [])[1] || '';
+    const a = bien.adresse || {};
+    const cpBien = a.codePostal || (/\b(\d{5})\b/.exec(a.texte || '') || [])[1] || '';
+    if (cpDossier && cpBien && cpDossier !== cpBien) return `fiche bien d'une autre commune (${cpBien}) que le dossier`;
+    const cad = d.bien && d.bien.cadastre;
+    const deja = cad ? (Array.isArray(cad.parcelles) && cad.parcelles.length ? cad.parcelles : [cad]) : [];
+    const clesDeja = new Set(deja.map(p => cleParcelle(p.section, p.numero)).filter(Boolean));
+    if ((bien.parcelles || []).some(p => clesDeja.has(cleParcelle(p.section, p.numero)))) return '';
+    const mots = (t) => new Set(normaliserPourRecherche(String(t || '').replace(/\(?\d{5}\)?/g, ' ')).split(/[^a-z0-9]+/)
+      .filter(m => m.length >= 4 && !/^(rue|avenue|chemin|route|place|allee|impasse|boulevard|lieu|dit)$/.test(m)));
+    const voieBien = mots(a.nomVoie || a.texte || '');
+    const voieDossier = mots(texteDossier.split(',').slice(1).join(' ') || texteDossier);
+    if (voieBien.size && voieDossier.size && ![...voieBien].some(m => voieDossier.has(m))) return 'fiche bien à une autre adresse que le dossier';
+    return '';
+  }
+
+  // Fiche bien lue après la création (étude 06/10) : ses parcelles absentes de la fiche du dossier y sont ajoutées — jamais à la
+  // place de celles déjà là (saisies à la main ou lues dans le compromis). Rien si la fiche contredit le dossier (resultat.raison).
+  function appliquerBienAuthentic(d, bien, noter, resultat) {
+    if (!bien || !(bien.parcelles || []).length) return resultat;
+    const raison = bienAuthenticContreditDossier(d, bien);
+    if (raison) { resultat.raison = raison; return resultat; }
+    const cad = (d.bien && d.bien.cadastre) || null;
+    const deja = cad ? (Array.isArray(cad.parcelles) && cad.parcelles.length ? cad.parcelles : (cad.section ? [{ section: cad.section, numero: cad.numero }] : [])) : [];
+    const cles = new Set(deja.map(p => cleParcelle(p.section, p.numero)).filter(Boolean));
+    const nouvelles = bien.parcelles.filter(p => { const c = cleParcelle(p.section, p.numero); if (!c || cles.has(c)) return false; cles.add(c); return true; });
+    if (!nouvelles.length) return resultat;
+    const parcelles = deja.map(p => ({ section: p.section, numero: p.numero })).concat(nouvelles.map(p => ({ section: p.section, numero: p.numero }))).slice(0, 40);
+    d.bien = Object.assign({}, d.bien || {});
+    d.bien.cadastre = Object.assign({}, cad || {}, { section: parcelles[0].section, numero: parcelles[0].numero, parcelles });
+    noter(`Parcelle${nouvelles.length > 1 ? 's' : ''} relevée${nouvelles.length > 1 ? 's' : ''} dans Authentic ajoutée${nouvelles.length > 1 ? 's' : ''} : ${nouvelles.map(p => `${p.section} ${p.numero}`).join(', ')}`);
+    resultat.modifie = true;
+    return resultat;
+  }
+
   function appliquerReleveSurDossier(d, capture, maintenantIso) {
     const resultat = { pieces: [], textes: [], modifie: false, echeancesFaites: [] };
     if (!d || !capture) return resultat;
@@ -1675,7 +1715,7 @@
       }
       return appliquerClientAuthentic(d, personne, role, noter, resultat, maintenant);
     }
-    if (type === 'bien') return resultat;
+    if (type === 'bien') return appliquerBienAuthentic(d, bienDepuisFicheAuthentic(capture), noter, resultat);
 
     // Pièces reçues (page de gestion).
     const pieces = type === 'gestion' ? piecesAuthenticAAppliquer(d, capture) : [];
@@ -2139,7 +2179,7 @@
     }
     const r = appliquerReleveSurDossier(d, capture);
     const avecComment = (t) => [comment, t].filter(Boolean).join(' — ');
-    if (!r.modifie && !referenceNotee) return { etat: 'sans-changement', dossierId: d.id, texte: avecComment('rien de neuf') };
+    if (!r.modifie && !referenceNotee) return { etat: 'sans-changement', dossierId: d.id, texte: avecComment(r.raison || 'rien de neuf') };
     await sauvegarder(d);
     render();
     // Comme une validation à la main : les dates butoir levées quittent l'agenda.

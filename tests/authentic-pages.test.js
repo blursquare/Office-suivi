@@ -1142,3 +1142,40 @@ test('dossiersDepuisRelevesAuthentic : « à créer » sur une page de vente en 
   const gs = app.dossiersDepuisRelevesAuthentic([{ recueLe: '2026-10-03T09:00:00Z', capture: succ }])[0];
   assert.ok(!gs || gs.aCreer === false);
 });
+
+// Parcelles d'Authentic sur la fiche (étude 06/10 : « mets en place le 1 2 3 »).
+test('fiche bien lue après la création : parcelles manquantes ajoutées, jamais à la place de celles déjà là', () => {
+  const d = { id: 'v', nom: 'MARTEL / FOURNIER', adresseBien: 'VINEUIL (41350), 3 chemin des Vignes', historique: [],
+    bien: { cadastre: { section: 'AB', numero: '123', parcelles: [{ section: 'AB', numero: '123' }] } } };
+  const r = app.appliquerReleveSurDossier(d, bien, '2026-10-06T10:00:00Z');
+  assert.ok(r.modifie);
+  assert.equal(d.bien.cadastre.parcelles.map(p => p.section + p.numero).join(','), 'AB123,AB124');
+  assert.match(d.historique[0].texte, /Parcelle relevée dans Authentic ajoutée : AB 124/);
+  // Relue : rien de neuf.
+  assert.ok(!app.appliquerReleveSurDossier(d, bien, '2026-10-06T10:05:00Z').modifie);
+  // Dossier sans cadastre : toutes les parcelles.
+  const vide = { id: 'w', nom: 'X', adresseBien: '', historique: [] };
+  app.appliquerReleveSurDossier(vide, bien);
+  assert.equal(vide.bien.cadastre.parcelles.length, 2);
+});
+
+test('fiche bien d’une autre commune ou d’une autre adresse : rien n’est ajouté, le motif est dit', () => {
+  const autreCp = { id: 'a', nom: 'X', adresseBien: 'BLOIS (41000), 3 chemin des Vignes', historique: [] };
+  const r1 = app.appliquerReleveSurDossier(autreCp, bien);
+  assert.ok(!r1.modifie);
+  assert.match(r1.raison, /autre commune/);
+  const autreRue = { id: 'b', nom: 'X', adresseBien: 'VINEUIL (41350), 12 rue des Écoles', historique: [] };
+  const r2 = app.appliquerReleveSurDossier(autreRue, bien);
+  assert.ok(!r2.modifie);
+  assert.match(r2.raison, /autre adresse/);
+});
+
+test('création depuis Authentic : parcelles gardées sans adresse, et celles de tous les biens', () => {
+  const ex = { immeubles: [
+    { id: 'i1', adresse: null, parcelles: [{ section: 'AB', numero: '123' }] },
+    { id: 'i2', adresse: null, parcelles: [{ section: 'ZC', numero: '7' }, { section: 'AB', numero: '123' }] }
+  ], biens: ['i1', 'i2'], personnes: [], parties: [] };
+  const extraction = app.completerExtractionDepuisAuthentic({ champs: {} }, ex);
+  assert.equal(extraction.bien.cadastre.parcelles.map(p => p.section + p.numero).join(','), 'AB123,ZC7');
+  assert.equal(extraction.bien.cadastre.section, 'AB');
+});

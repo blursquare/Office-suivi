@@ -1031,7 +1031,7 @@ Plainte principale de l'étude : **le bruit**, pas les oublis — ne pas élargi
   ventebien, pret, appelFonds, projetEnvoye, rendezVousSignature, acte (une fois, annulable ; butoirs retirés de l'agenda) ;
   demande/envoi/en attente exclus ; acte d'état civil et **« Réponse SAFER »** de non-préemption ajoutés comme
   pièces — jamais la DIA/DPU de la commune), une fois par pièce (`d.piecesAuthentic`), jamais en participation ;
-  **fiche client** (`clientDepuisFicheAuthentic`) et **fiche bien** (`bienDepuisFicheAuthentic`, cadastre) →
+  **fiche client** (`clientDepuisFicheAuthentic`) et **fiche bien** (`bienDepuisFicheAuthentic`, cadastre ; lue sur un dossier existant → parcelles manquantes ajoutées à `d.bien.cadastre`, jamais remplacées, rien si autre code postal ou autre voie — `appliquerBienAuthentic`, `bienAuthenticContreditDossier`, étude 06/10 ; à la création, parcelles de tous les biens même sans adresse, `parcellesExportAuthentic`) →
   « Nouveau dossier » › « Depuis Authentic » (`dossiersDepuisRelevesAuthentic` au format de l'export ZIP, rôles
   par l'intitulé, `creerDepuisAuthentic` ; complète un avant-contrat déjà déposé). Notaires et agence : pas encore
   relevés (page non fournie). Cellules copiées en **vocabulaire** (`vocabulaireCelluleAuthentic`). **Deuxième passe (02/10, `appliquerReleveSurDossier`)** : état de rédaction de l'acte jamais montré ni noté pour un notaire en second (participation, étude 02/10 — seul « signé » l'est) ;

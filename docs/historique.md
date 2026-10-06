@@ -17233,3 +17233,18 @@ Point terrain `zonage-parcelle-gpu` (accès Internet sortant du serveur vers api
 - Fiche : `d.preemption.zone` liste la zone de chaque parcelle, `d.preemption.parcelles` les garde.
 - Vérifié dans Chromium (bureau, sombre, téléphone) avec un faux Géoportail : trois parcelles (U, A, introuvable), tableau,
   total, analyse, enregistrement sur la fiche ; hauteur de la section ramenée de 916 à 725 px (champs côte à côte).
+
+### 06/10/2026 — 0.166.2 : parcelles d'Authentic gardées sur la fiche
+
+- Question de l'étude : « les parcelles sont-elles bien stockées dans la fiche dossier lors de la lecture Authentic ? ». Trois
+  trous relevés à la lecture du code, puis « mets en place le 1 2 3 » :
+  1. fiche bien lue après la création du dossier : ignorée (`appliquerReleveSurDossier` rendait sans rien faire) → désormais
+     `appliquerBienAuthentic` ajoute les parcelles absentes de `d.bien.cadastre` (jamais à la place de celles déjà là), historique
+     « Parcelle(s) relevée(s) dans Authentic ajoutée(s) : … » ; rien si la fiche contredit le dossier (`bienAuthenticContreditDossier` :
+     autre code postal, ou voie sans mot commun quand aucune parcelle n'est déjà en commun) — le motif va au journal de
+     Réglages › Authentic (`r.raison`) ;
+  2. parcelles perdues à la création quand ni Authentic ni le compromis ne donnaient l'adresse → `extraction.bien` créé ;
+  3. vente de plusieurs biens : seul le premier gardait ses parcelles → `parcellesExportAuthentic` (tous les biens du dossier, sans
+     doublon, 40 au plus).
+- Tests `tests/authentic-pages.test.js` (fiche bien inventée des tests existants). Non vérifié sur une vraie fiche bien d'Authentic
+  ouverte après la création.

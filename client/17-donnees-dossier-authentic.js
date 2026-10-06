@@ -120,6 +120,22 @@
     return immeubles.find(im => (d.biens || []).includes(im.id)) || immeubles[0] || null;
   }
 
+  // Pure : les parcelles de tous les biens du dossier Authentic, sans doublon (section + numéro).
+  function parcellesExportAuthentic(donnees) {
+    const d = donnees || {};
+    const ids = d.biens || [];
+    const immeubles = (d.immeubles || []).filter(im => !ids.length || ids.includes(im.id));
+    const vues = new Set();
+    const out = [];
+    immeubles.forEach(im => (im.parcelles || []).forEach(p => {
+      const cle = cleParcelle(p.section, p.numero);
+      if (!cle || vues.has(cle)) return;
+      vues.add(cle);
+      out.push({ section: String(p.section).toUpperCase(), numero: String(p.numero) });
+    }));
+    return out.slice(0, 40);
+  }
+
   // Complète l'extraction (lue dans le texte de l'acte, ou vide) par les données structurées de
   // l'export, plus sûres que la lecture d'un texte : parties et état civil, adresse et type du bien,
   // email de l'acquéreur, nom du dossier ; notaires seulement si le texte n'a rien établi. Les
@@ -154,8 +170,12 @@
       };
       extraction.bien.source = origine.source;
     }
-    if (bien && bien.parcelles.length && extraction.bien) {
-      extraction.bien.cadastre = Object.assign({}, extraction.bien.cadastre || {}, { section: bien.parcelles[0].section, numero: bien.parcelles[0].numero, parcelles: bien.parcelles });
+    // Parcelles de TOUS les biens de la vente relevés dans Authentic (étude 06/10 : une vente de plusieurs biens n'en gardait que le
+    // premier), même sans adresse lue (elles étaient perdues quand ni Authentic ni le compromis ne donnaient l'adresse).
+    const parcelles = parcellesExportAuthentic(donnees);
+    if (parcelles.length) {
+      extraction.bien = extraction.bien || {};
+      extraction.bien.cadastre = Object.assign({}, extraction.bien.cadastre || {}, { section: parcelles[0].section, numero: parcelles[0].numero, parcelles });
     }
     extraction.champs = extraction.champs || {};
     const nom = String(donnees.intitule || '').replace(/^\s*(?:vte|vente|succession|succ)\b\.?\s*[-:]?\s*/i, '').trim();
