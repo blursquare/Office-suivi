@@ -287,7 +287,7 @@ test('pageAuthenticConnue : « VTE X / Y » sans numéro, en onglet actif ou en 
   assert.equal(pageAuthenticConnue({ champs: [{ libelle: 'Rechercher', valeur: '' }], texte: 'VTE MARTEL / FOURNIER\nVTE COLIN / DUPUIS' }), false);
 });
 
-test('pages récentes gardées 12 h (étude, 03/10 : les dossiers vus dans la journée), la file à traiter 60 min', async () => {
+test('pages récentes gardées 24 h (étude, 03/10 puis 06/10 : les dossiers vus dans la journée), la file à traiter 60 min', async () => {
   const express = require('express');
   const { creerRouteurAuthentic, DUREE_RELEVE_MS, DUREE_RECENTS_MS } = require('../src/routes/authentic');
   let t = 30_000_000;

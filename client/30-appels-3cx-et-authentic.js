@@ -2225,7 +2225,7 @@
       const r = await fetchAvecAuth('/api/authentic/releves/' + encodeURIComponent(releveId));
       if (r.ok) rel = await r.json();
     } catch (e) { /* serveur injoignable */ }
-    if (!rel || !rel.capture) { afficherToast('Page plus en mémoire (12 h) : rouvrez-la dans Authentic.', 'OK', null); return; }
+    if (!rel || !rel.capture) { afficherToast('Page plus en mémoire (24 h) : rouvrez-la dans Authentic.', 'OK', null); return; }
     const nature = typePageAuthentic(rel.capture) === 'client' ? 'client' : 'dossier';
     const creation = nature === 'dossier' && proposerCreationDossierAuthentic(rel.capture, intituleDossierAuthentic(rel.capture));
     const cle = 'f' + (++numeroFicheEnAttente);

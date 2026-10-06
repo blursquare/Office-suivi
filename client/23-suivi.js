@@ -769,7 +769,6 @@
         ${renderMajAuthentic(d, ligne)}
         ${renderClientsAPlacer(d, ligne)}
         ${renderPersonnesConnues(d, ligne)}
-        ${renderCompleterAuthenticFiche(d, ligne)}
       </dl>
       <dl class="fiche-proprietes">
         ${ligne('map-pin', 'Adresse', saisie('adresse', normaliserAdresse(d.adresseBien), 'changerAdresseBien'), `adresse-${d.id}`, 'prop-pleine')}
@@ -800,7 +799,9 @@
     const bascule = nbVides
       ? `<wa-button appearance="outlined" type="button" class="bouton-ajout bouton-ajout-court fiche-completer${ouvert ? ' ouvert' : ''}" onclick="basculerChampsVidesFiche('${d.id}')" aria-expanded="${ouvert}"><span slot="start" class="bouton-ajout-plus" aria-hidden="true">+</span>${ouvert ? 'Masquer les champs vides' : `Compléter la fiche (${nbVides})`}</wa-button>`
       : '';
-    return `<div class="fiche-proprietes-bloc${ouvert ? ' champs-vides-ouverts' : ''}">${blocBien}${bascule}</div>`;
+    // Ligne « Authentic » (étude 06/10 au soir : « sous Compléter la fiche ») : le dossier d'Authentic à reprendre, juste sous le bouton.
+    const ligneAuthentic = renderCompleterAuthenticFiche(d, ligne);
+    return `<div class="fiche-proprietes-bloc${ouvert ? ' champs-vides-ouverts' : ''}">${blocBien}${bascule}${ligneAuthentic ? `<dl class="fiche-proprietes fiche-authentic-completer">${ligneAuthentic}</dl>` : ''}</div>`;
   }
 
   // ---- Collaborateur du poste ----

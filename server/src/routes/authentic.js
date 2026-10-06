@@ -9,7 +9,7 @@
 //    et met la fiche du dossier à jour (pièces reçues) — ou l'attend (POST /api/authentic/releves/attendre :
 //    requête gardée ouverte jusqu'à 25 s, rendue dès qu'une page arrive ; une fenêtre cachée, que le
 //    navigateur ne réveille plus qu'une fois par minute, est ainsi servie tout de suite) ; elle reste aussi 60 min parmi les relevés
-//    récents (GET /api/authentic/releves/recents, 12 h) pour créer un dossier depuis Authentic.
+//    récents (GET /api/authentic/releves/recents, 24 h) pour créer un dossier depuis Authentic.
 //
 // Fiabilité (étude, 02/10 : « pourquoi parfois les données ne remontent pas ? ») :
 //  - Une page revue est REMISE en file avec son contenu (avant : l'intitulé seul) : si la première
@@ -20,7 +20,7 @@
 //    adresse de la fenêtre ; le poste serveur, en local ou par son adresse réseau, compte pour un) :
 //    avant, la fenêtre d'un collègue pouvait la prendre — message sur son écran, fiche client suivante
 //    rangée sans le dossier ouvert. Sans fenêtre de ce poste vue depuis 90 s, n'importe laquelle la prend.
-//  - Un journal en mémoire (12 h, 100 lignes) suit chaque page : reçue, prise par quel poste, et ce que
+//  - Un journal en mémoire (24 h, 100 lignes) suit chaque page : reçue, prise par quel poste, et ce que
 //    la fenêtre en a fait (POST /api/authentic/releves/resultats) — GET /api/authentic/journal, affiché
 //    dans Réglages › Authentic. Une page restée 60 min sans fenêtre y est marquée « expirée ».
 // Une capture contient des données de clients : gardée en MÉMOIRE seulement (30 min, 20 au plus),
@@ -37,9 +37,10 @@ var MAX_CAPTURES = 20;
 var DUREE_RELEVE_MS = 60 * 60 * 1000;
 var MAX_RELEVES = 80;
 // Pages gardées pour « Nouveau dossier » › Depuis Authentic et le journal (étude, 03/10 : « je navigue
-// dans plein de dossiers la journée ») : la journée, pas l'heure. Mémoire seule, jamais en base.
-var DUREE_RECENTS_MS = 12 * 60 * 60 * 1000;
-var MAX_RECENTS = 300;
+// dans plein de dossiers la journée ») : la journée, pas l'heure (24 h depuis le 06/10 au soir : « garde en mémoire 24 h »). Mémoire seule, jamais en base, vidée
+// par un redémarrage du serveur.
+var DUREE_RECENTS_MS = 24 * 60 * 60 * 1000;
+var MAX_RECENTS = 500;
 var LIMITES_CAPTURE = { titre: 300, adresse: 500, champs: 800, libelle: 200, valeur: 2000, tableaux: 40, lignes: 300, cellules: 40, cellule: 500, texte: 200000 };
 
 function chaine(v, max) {
@@ -77,7 +78,7 @@ function normaliserCaptureAuthentic(corps) {
 var DUREE_ATTENTE_RELEVES_MS = 25 * 1000;
 var DUREE_FENETRE_VUE_MS = 90 * 1000;
 var DUREE_DOUBLON_MS = 15 * 1000;
-var DUREE_JOURNAL_MS = 12 * 60 * 60 * 1000;
+var DUREE_JOURNAL_MS = 24 * 60 * 60 * 1000;
 var MAX_JOURNAL = 100;
 var ETATS_RESULTAT = ['applique', 'sans-changement', 'sans-dossier', 'a-choisir', 'a-creer', 'erreur', 'rattache'];
 
@@ -275,11 +276,11 @@ function creerRouteurAuthentic(options) {
     res.setHeader('Cache-Control', 'no-store');
     res.json({ releves: recents.map(({ empreinte, ...r }) => r) });
   });
-  // Une page encore en mémoire (12 h), pour la ranger à la main ou créer le dossier depuis le journal.
+  // Une page encore en mémoire (24 h), pour la ranger à la main ou créer le dossier depuis le journal.
   routeur.get('/authentic/releves/:id', (req, res) => {
     purgerReleves();
     const r = recents.find(x => x.id === String(req.params.id || ''));
-    if (!r) { res.status(404).json({ error: 'Page plus en mémoire (12 h) : rouvrez-la dans Authentic.' }); return; }
+    if (!r) { res.status(404).json({ error: 'Page plus en mémoire (24 h) : rouvrez-la dans Authentic.' }); return; }
     res.setHeader('Cache-Control', 'no-store');
     const { empreinte, ...releve } = r;
     res.json(releve);

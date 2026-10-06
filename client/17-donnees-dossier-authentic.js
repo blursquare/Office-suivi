@@ -470,7 +470,7 @@
 
   // ---- Compléter un dossier EXISTANT avec un dossier d'Authentic (étude 06/10 : « compléter avec les données Authentic
   // avant ou après création » — avant : « Compléter depuis Authentic » de Nouveau dossier ; après : ici). Même source que la
-  // création (`dossiersDepuisRelevesAuthentic`, pages relevées dans les 12 h), même règle que le complément par le compromis :
+  // création (`dossiersDepuisRelevesAuthentic`, pages relevées dans les 24 h), même règle que le complément par le compromis :
   // la fiche gagne toujours, seuls les vides sont remplis — personnes d'un côté sans personne nommée (ou absentes du côté),
   // emails et téléphones ajoutés, adresse du bien, parcelles et lots, type de vente, prix « Capital », référence Authentic.
   // Pure (modifie le dossier passé) : rend les libellés de ce qui a été posé (vide = rien à compléter). ----
@@ -574,7 +574,7 @@
   }
 
   // Après tout relevé appliqué sur un dossier : ce qui manque encore sur la fiche est repris du dossier d'Authentic relevé
-  // ces 12 h (page de gestion, fiches client, fiche bien — les pages arrivées AVANT la création comprises), sans rien
+  // ces 24 h (page de gestion, fiches client, fiche bien — les pages arrivées AVANT la création comprises), sans rien
   // remplacer. → vrai si la fiche a changé.
   async function completerDossierDepuisRelevesRecents(d) {
     if (!d || d.archive || (typeof authToken !== 'undefined' && !authToken)) return false;

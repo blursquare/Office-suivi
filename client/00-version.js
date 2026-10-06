@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.176.0';
+  const VERSION_APP = '0.176.1';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.176.1', date: '2026-10-06 20:44', resume: "Fiche : la ligne « Authentic » (dossier d'Authentic à reprendre, bouton « Compléter ») passe sous « Compléter la fiche ». Les pages relevées dans Authentic restent 24 h en mémoire du serveur (12 h avant) : un dossier vu hier en fin de journée peut encore être complété ou créé ce matin." },
     { version: '0.176.0', date: '2026-10-06 20:38', resume: "Authentic passe en premier partout : la première fois, ses emails, téléphones, identité des parties (civilité, prénom, nom d'usage, naissance), adresse, prix et type de bien remplacent ceux de la fiche. Ensuite la fiche ne bouge plus ; si Authentic change une donnée déjà reprise (un email erroné corrigé, par exemple), CLAIRE le dit (message, ligne « À mettre à jour » sur la fiche, signal dans « Nouveau » du Suivi) et attend un clic sur « Mettre à jour » ou « Ignorer »." },
     { version: '0.175.2', date: '2026-10-06 19:59', resume: "Agenda — probabilité de tenue d'un rendez-vous : plafond à 99 % (au lieu de 97 %) ; l'absence d'un collaborateur ne la baisse plus (il n'est pas indispensable, seule Sophie reçoit les actes) ; en revanche, pour un rendez-vous pas encore placé, CLAIRE évite les jours où le responsable du dossier est absent (date probable repoussée à son retour, créneaux proposés déjà filtrés), car il peut falloir modifier l'acte." },
     { version: '0.175.1', date: '2026-10-06 19:36', resume: "Agenda : la colonne de gauche (mini-calendrier, rendez-vous à placer) passe de 300 à 224 px ; les journées de rendez-vous sont plus larges." },
