@@ -1054,41 +1054,24 @@
       padding-right: 0;
     }
     .sidebar.repliee .sidebar-link-icone { font-size: var(--texte-xl); }
-    .sidebar.repliee .sidebar-sousmenu {
-      margin-left: 0;
-      padding-left: 0;
-    }
     .sidebar.repliee .sidebar-sousmenu::before,
     .sidebar.repliee .sidebar-sousmenu-item::before {
       display: none;
     }
-    /* Barre repliée (étude, 30/09, sur un exemple) : le groupe Outils redevient une seule icône
-       (surlignée quand un outil est ouvert) ; ses outils s'ouvrent dans un volet flottant. */
+    /* Barre repliée (étude, 30/09 puis 06/10, sur un exemple) : le groupe Outils est une icône, surlignée quand un outil est
+       ouvert, et son tiroir reste DÉPLIÉ dessous — les outils en icônes seules dans un bloc arrondi (plus de volet flottant). */
     .sidebar.repliee .sidebar-groupe-titre { display: flex; margin-top: 0; }
     .sidebar.repliee .sidebar-groupe-titre .sidebar-link-icone { font-size: var(--texte-xl); opacity: 1; }
     .sidebar.repliee .sidebar-groupe-titre:has(+ .sidebar-sousmenu .actif),
-    .sidebar.repliee .sidebar-groupe-titre:hover,
-    .sidebar.repliee .sidebar-groupe-titre.volet-ouvert { background: var(--sidebar-actif-bg); color: var(--ink); }
+    .sidebar.repliee .sidebar-groupe-titre:hover { background: var(--sidebar-actif-bg); color: var(--ink); }
     .sidebar.repliee .sidebar-groupe-titre:has(+ .sidebar-sousmenu .actif) { color: var(--ink); box-shadow: inset 3px 0 0 var(--focus); }
     .sidebar.repliee .sidebar-groupe-chevron, .sidebar.repliee .sidebar-groupe-label { display: none; }
-    .sidebar.repliee .sidebar-sousmenu { display: none; }
-    .sidebar.repliee.volet-ouvert { z-index: 1150; }
-    .sidebar.repliee .sidebar-sousmenu.volet-ouvert {
-      display: flex; position: fixed; z-index: 1150; width: 250px; box-sizing: border-box;
-      margin: 0; padding: 12px 12px 12px 32px; gap: 4px;
-      background: var(--sidebar-bg); border: 1px solid var(--sidebar-border); border-radius: var(--rayon-carte);
-      box-shadow: var(--shadow-float);
+    .sidebar.repliee .sidebar-sousmenu {
+      align-items: stretch; gap: 2px; margin: 4px 0 6px; padding: 6px 4px;
+      background: color-mix(in srgb, var(--paper-sunk) 55%, transparent); border-radius: var(--rayon-carte);
     }
-    .sidebar.repliee .sidebar-sousmenu.volet-ouvert .sidebar-sousmenu-item::before { display: block; }
-    .sidebar.repliee .sidebar-sousmenu.volet-ouvert .sidebar-link {
-      font-size: var(--texte-base); justify-content: flex-start; gap: 10px; padding: 12px 12px; border-radius: var(--rayon-m);
-    }
-    .sidebar.repliee .sidebar-sousmenu.volet-ouvert .sidebar-link .sidebar-link-icone { display: none; }
-    .sidebar.repliee .sidebar-sousmenu.volet-ouvert .sidebar-link.actif { background: var(--sidebar-actif-bg); color: var(--ink); font-weight: 600; box-shadow: none; }
-    .sidebar.repliee .sidebar-sousmenu.volet-ouvert .sidebar-link.actif::after {
-      content: ''; margin-left: auto; width: 7px; height: 7px; flex: none;
-      border-top: 1.8px solid currentColor; border-right: 1.8px solid currentColor; transform: rotate(45deg);
-    }
+    .sidebar.repliee .sidebar-sousmenu .sidebar-link.sidebar-sousmenu-item { font-size: 0; justify-content: center; gap: 0; padding: 10px 0; }
+    .sidebar.repliee .sidebar-sousmenu .sidebar-link-icone { font-size: var(--texte-xl); }
   }
   /* Bulle du libellé d'une icône de la barre repliée (et de la bannette Claire Scan). */
   .sidebar-infobulle {
@@ -8260,11 +8243,14 @@ button.sidebar-outils-plus:focus-visible { outline: 2px solid var(--focus); outl
 /* Liseré gardé (étude, 01/10 : « remettre le liseré ») : le tronc part sous l'icône Outils, une branche
    par outil, et s'arrête sur l'arrondi du dernier ; chaque outil a son icône (étude 05/10 : « remets des icônes aux outils »). */
 @media (min-width: 901px) {
-  .sidebar.repliee button.sidebar-outils-plus { display: none; }
-  .sidebar.repliee .sidebar-sousmenu:not(.volet-ouvert) { display: none; }
-  .sidebar.repliee .sidebar-outils-ligne:has(+ .sidebar-sousmenu .actif) #tab-outils,
-  .sidebar.repliee #tab-outils.volet-ouvert { background: var(--sidebar-actif-bg); color: var(--ink); }
-  .sidebar.repliee .sidebar-outils-ligne:has(+ .sidebar-sousmenu .actif) #tab-outils { box-shadow: inset 3px 0 0 var(--focus); }
+  /* Barre repliée : « Outils » et, dessous, le petit bouton +/− qui referme ou rouvre le tiroir (comme la pastille sous
+     l'icône de l'exemple de l'étude, 06/10). */
+  .sidebar.repliee .sidebar-outils-ligne { flex-direction: column; gap: 4px; }
+  .sidebar.repliee .sidebar-outils-ligne #tab-outils { flex: none; width: 100%; }
+  .sidebar.repliee button.sidebar-outils-plus {
+    width: 28px; height: 20px; margin: 0; border-radius: var(--rayon-s); background: var(--paper-sunk); font-size: var(--texte-xs);
+  }
+  .sidebar.repliee .sidebar-outils-ligne:has(+ .sidebar-sousmenu .actif) #tab-outils { background: var(--sidebar-actif-bg); color: var(--ink); box-shadow: inset 3px 0 0 var(--focus); }
 }
 
 /* ---- Page Outils : une tuile par outil, grosse icône ---- */

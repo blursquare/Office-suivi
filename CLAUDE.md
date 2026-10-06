@@ -888,7 +888,7 @@ point du bilan passe par le plan, jamais par un bloc à part.
   formulaires gardent des boutons classiques.
   **Barre latérale** (01/10) : pas de titres de section, des liens seulement ; « Relecture d'actes » est un outil (étude 05/10, tiroir et page Outils) ; « Outils » = page à grosses
   icônes (`OUTILS_PAGE`, `renderPageOutils`) — tout nouvel outil y est ajouté ET dans le tiroir
-  (`#sidebar-sousmenu-outils`, ouvert par le + `#sidebar-groupe-outils`) ; compteurs en carré arrondi rouge.
+  (`#sidebar-sousmenu-outils`, ouvert par le + `#sidebar-groupe-outils`) ; compteurs en carré arrondi rouge. **Barre repliée** (étude 06/10, sur un exemple) : le tiroir des outils reste déplié sous l'icône Outils, en icônes seules dans un bloc arrondi, un petit +/− le referme ; pas de volet flottant.
 - **Nom d'un dossier cité (étude, 30/09)** : partout (écrans, cartes, toasts, journaux, Teams), toujours
   par `libelleDossierAffiche(d)` — « VTE - NOM », « SUCC - NOM » pour une succession — ou
   `libelleDossierParNom(nom, id)` quand seul le nom a été gardé ; jamais `d.nom` brut à l'écran.

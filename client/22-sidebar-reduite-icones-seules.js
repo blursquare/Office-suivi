@@ -6,6 +6,8 @@
   // la barre pour la séance seulement, sans changer ce réglage. Le groupe Outils est fermé à chaque
   // démarrage (« ferme le tiroir outils de base »). Sans rapport avec le repli mobile (sous 900 px,
   // la barre y est un panneau ouvert par le burger).
+  // Barre repliée (étude, 06/10, sur un exemple) : le tiroir des outils reste DÉPLIÉ sous l'icône Outils — ses outils en icônes
+  // seules dans un bloc arrondi, un petit bouton +/− sous l'icône le referme ou le rouvre ; plus de volet flottant au survol.
   var CLE_SIDEBAR_DEMARRAGE = 'claire-sidebar-demarrage';
   var SIDEBAR_DEMARRAGE = ['ouverte', 'fermee'];
 
@@ -44,8 +46,7 @@
     if (btnCollapse) btnCollapse.setAttribute('aria-label', reduite ? 'Agrandir la sidebar' : 'Réduire la sidebar');
     const ouvert = groupeOutilsOuvert();
     const sousMenu = document.getElementById('sidebar-sousmenu-outils');
-    if (sousMenu) sousMenu.classList.toggle('ferme', !ouvert && !reduite);
-    if (!reduite) fermerVoletOutils(0);
+    if (sousMenu) sousMenu.classList.toggle('ferme', !ouvert);
     masquerInfobulleSidebar();
     const chevronGroupe = document.getElementById('icon-groupe-outils-chevron');
     if (chevronGroupe) chevronGroupe.innerHTML = icone(ouvert ? 'minus' : 'plus');
@@ -76,56 +77,14 @@
 
   function toggleGroupeSidebar(nom) {
     if (nom !== 'outils') return;
-    // Barre repliée : le groupe s'ouvre en volet flottant à droite de son icône.
-    // Le clic l'ouvre toujours (le survol vient souvent de l'ouvrir) ; il se ferme en sortant du
-    // volet, par un clic ailleurs ou par Échap.
-    if (sidebarReduiteBureau()) { ouvrirVoletOutils(); return; }
     groupeOutilsOuvertSeance = !groupeOutilsOuvertSeance;
     appliquerEtatSidebar();
   }
 
-  // ---- Barre repliée (étude, 30/09, sur un exemple) : le nom de chaque icône dans une bulle sombre
-  // au survol, et le groupe Outils en volet flottant (arborescence, outil ouvert surligné). ----
+  // ---- Barre repliée (étude, 30/09, sur un exemple) : le nom de chaque icône dans une bulle sombre au survol. ----
   function sidebarReduiteBureau() {
     const s = document.getElementById('sidebar');
     return !!(s && s.classList.contains('repliee') && window.innerWidth > 900);
-  }
-
-  let voletOutilsMinuteur = null;
-  function ouvrirVoletOutils() {
-    // Ancré sur le lien « Outils » (le + est masqué quand la barre est repliée).
-    const titre = document.getElementById('tab-outils');
-    const menu = document.getElementById('sidebar-sousmenu-outils');
-    const sidebar = document.getElementById('sidebar');
-    if (!titre || !menu || !sidebarReduiteBureau()) return;
-    clearTimeout(voletOutilsMinuteur);
-    sidebar.classList.add('volet-ouvert');
-    menu.classList.add('volet-ouvert');
-    titre.classList.add('volet-ouvert');
-    // Étude, 30/09 : le volet se place SOUS l'icône Outils (bord gauche aligné sur elle), l'icône
-    // restant marquée ouverte avec son nom dans la bulle à côté ; au-dessus seulement s'il manque
-    // la place en bas de l'écran.
-    const r = titre.getBoundingClientRect();
-    const h = menu.offsetHeight;
-    const dessous = r.bottom + 8;
-    const top = dessous + h + 12 <= window.innerHeight ? dessous : Math.max(12, r.top - 8 - h);
-    menu.style.left = `${Math.round(r.left)}px`;
-    menu.style.top = `${Math.round(top)}px`;
-    afficherInfobulleSidebar(titre);
-  }
-
-  function fermerVoletOutils(delai) {
-    clearTimeout(voletOutilsMinuteur);
-    const fermer = () => {
-      const menu = document.getElementById('sidebar-sousmenu-outils');
-      const sidebar = document.getElementById('sidebar');
-      if (menu) { menu.classList.remove('volet-ouvert'); menu.style.left = ''; menu.style.top = ''; }
-      if (sidebar) sidebar.classList.remove('volet-ouvert');
-      const titre = document.getElementById('tab-outils');
-      if (titre) titre.classList.remove('volet-ouvert');
-      masquerInfobulleSidebar();
-    };
-    if (delai) voletOutilsMinuteur = setTimeout(fermer, delai); else fermer();
   }
 
   // Le libellé d'un bouton de la barre : son aria-label, sinon son texte propre (sans les pastilles).
@@ -165,55 +124,29 @@
     if (bulle) bulle.classList.remove('visible');
   }
 
+  var SELECTEUR_BOUTONS_SIDEBAR = '.sidebar-link, .sidebar-scan-bannette, .sidebar-icon-btn, .sidebar-groupe-titre, .sidebar-outils-plus';
+
   // Branché une fois au démarrage (délégation sur la barre).
   function initSidebarRepliee() {
     const sidebar = document.getElementById('sidebar');
     if (!sidebar || sidebar.dataset.repliInit) return;
     sidebar.dataset.repliInit = '1';
     const cible = (e) => {
-      const el = e.target.closest && e.target.closest('.sidebar-link, .sidebar-scan-bannette, .sidebar-icon-btn, .sidebar-groupe-titre');
-      if (!el || el.closest('.sidebar-sousmenu.volet-ouvert')) return null;
+      const el = e.target.closest && e.target.closest(SELECTEUR_BOUTONS_SIDEBAR);
+      if (!el) return null;
       // Barre ouverte : seule la bannette (icône sans texte) a besoin de sa bulle.
       if (!sidebarReduiteBureau() && !el.classList.contains('sidebar-scan-bannette')) return null;
       return el;
     };
-    const survol = (e) => {
-      const el = cible(e);
-      if (!el) return;
-      if (el.id === 'tab-outils') { ouvrirVoletOutils(); return; }
-      afficherInfobulleSidebar(el);
-    };
-    sidebar.addEventListener('mouseover', survol);
-    sidebar.addEventListener('focusin', (e) => { const el = cible(e); if (el && el.id !== 'tab-outils') afficherInfobulleSidebar(el); });
+    sidebar.addEventListener('mouseover', (e) => { const el = cible(e); if (el) afficherInfobulleSidebar(el); });
+    sidebar.addEventListener('focusin', (e) => { const el = cible(e); if (el) afficherInfobulleSidebar(el); });
     sidebar.addEventListener('mouseout', (e) => {
-      const el = e.target.closest && e.target.closest('.sidebar-link, .sidebar-scan-bannette, .sidebar-icon-btn, .sidebar-groupe-titre');
-      // Le nom de l'icône Outils reste affiché tant que son volet est ouvert.
-      const voletOuvert = el && el.id === 'tab-outils' && el.classList.contains('volet-ouvert');
-      if (el && !voletOuvert && !(e.relatedTarget && el.contains(e.relatedTarget))) masquerInfobulleSidebar();
-      const titre = document.getElementById('tab-outils');
-      const menu = document.getElementById('sidebar-sousmenu-outils');
-      const vers = e.relatedTarget;
-      if (menu && menu.classList.contains('volet-ouvert') && !(vers && (menu.contains(vers) || (titre && titre.contains(vers))))) {
-        if ((titre && titre.contains(e.target)) || menu.contains(e.target)) fermerVoletOutils(250);
-      }
+      const el = e.target.closest && e.target.closest(SELECTEUR_BOUTONS_SIDEBAR);
+      if (el && !(e.relatedTarget && el.contains(e.relatedTarget))) masquerInfobulleSidebar();
     });
-    sidebar.addEventListener('focusout', (e) => { if (!(e.target.classList && e.target.classList.contains('volet-ouvert'))) masquerInfobulleSidebar(); });
-    sidebar.addEventListener('scroll', () => { masquerInfobulleSidebar(); fermerVoletOutils(0); }, { passive: true });
-    const menu = document.getElementById('sidebar-sousmenu-outils');
-    if (menu) {
-      menu.addEventListener('mouseenter', () => clearTimeout(voletOutilsMinuteur));
-      // Un outil choisi : le volet se referme.
-      menu.addEventListener('click', (e) => { if (menu.classList.contains('volet-ouvert') && e.target.closest('.sidebar-link')) fermerVoletOutils(0); });
-    }
-    document.addEventListener('click', (e) => {
-      const m = document.getElementById('sidebar-sousmenu-outils');
-      if (m && m.classList.contains('volet-ouvert') && !e.target.closest('#sidebar-sousmenu-outils, #tab-outils')) fermerVoletOutils(0);
-    });
-    document.addEventListener('keydown', (e) => {
-      const m = document.getElementById('sidebar-sousmenu-outils');
-      if (e.key === 'Escape' && m && m.classList.contains('volet-ouvert')) fermerVoletOutils(0);
-    });
-    window.addEventListener('resize', () => { masquerInfobulleSidebar(); fermerVoletOutils(0); });
+    sidebar.addEventListener('focusout', masquerInfobulleSidebar);
+    sidebar.addEventListener('scroll', masquerInfobulleSidebar, { passive: true });
+    window.addEventListener('resize', masquerInfobulleSidebar);
   }
 
   // ---- Page Outils (étude, 01/10) : chaque outil en grosse icône, avec ce qu'il fait. ----
