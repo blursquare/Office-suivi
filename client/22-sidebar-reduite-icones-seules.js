@@ -7,7 +7,8 @@
   // démarrage (« ferme le tiroir outils de base »). Sans rapport avec le repli mobile (sous 900 px,
   // la barre y est un panneau ouvert par le burger).
   // Barre repliée (étude, 06/10, sur un exemple) : le tiroir des outils reste DÉPLIÉ sous l'icône Outils — ses outils en icônes
-  // seules dans un bloc arrondi, un petit bouton +/− sous l'icône le referme ou le rouvre ; plus de volet flottant au survol.
+  // seules dans un bloc arrondi ; plus de volet flottant au survol. Étude, 06/10 : plus de page « Outils » — un clic sur « Outils »
+  // déplie ou replie le tiroir (barre ouverte comme repliée).
   var CLE_SIDEBAR_DEMARRAGE = 'claire-sidebar-demarrage';
   var SIDEBAR_DEMARRAGE = ['ouverte', 'fermee'];
 
@@ -49,13 +50,11 @@
     if (sousMenu) sousMenu.classList.toggle('ferme', !ouvert);
     masquerInfobulleSidebar();
     const chevronGroupe = document.getElementById('icon-groupe-outils-chevron');
-    if (chevronGroupe) chevronGroupe.innerHTML = icone(ouvert ? 'minus' : 'plus');
-    const btnGroupe = document.getElementById('sidebar-groupe-outils');
+    if (chevronGroupe) chevronGroupe.innerHTML = icone(ouvert ? 'chevron-up' : 'chevron-down');
+    const btnGroupe = document.getElementById('tab-outils');
     if (btnGroupe) {
       btnGroupe.setAttribute('aria-expanded', String(ouvert));
-      const lib = ouvert ? 'Refermer les outils dans la barre' : 'Afficher les outils dans la barre';
-      btnGroupe.title = lib;
-      btnGroupe.setAttribute('aria-label', lib);
+      btnGroupe.setAttribute('aria-label', ouvert ? 'Outils : refermer le tiroir' : 'Outils : ouvrir le tiroir');
     }
     const choix = document.getElementById('reglages-sidebar-demarrage');
     if (choix) choix.value = sidebarDemarrage();
@@ -78,6 +77,11 @@
   function toggleGroupeSidebar(nom) {
     if (nom !== 'outils') return;
     groupeOutilsOuvertSeance = !groupeOutilsOuvertSeance;
+    appliquerEtatSidebar();
+  }
+  // Pour qui veut montrer les outils (assistant, ancien lien vers la page « Outils »).
+  function ouvrirTiroirOutils() {
+    groupeOutilsOuvertSeance = true;
     appliquerEtatSidebar();
   }
 
@@ -124,7 +128,7 @@
     if (bulle) bulle.classList.remove('visible');
   }
 
-  var SELECTEUR_BOUTONS_SIDEBAR = '.sidebar-link, .sidebar-scan-bannette, .sidebar-icon-btn, .sidebar-groupe-titre, .sidebar-outils-plus';
+  var SELECTEUR_BOUTONS_SIDEBAR = '.sidebar-link, .sidebar-scan-bannette, .sidebar-icon-btn, .sidebar-groupe-titre';
 
   // Branché une fois au démarrage (délégation sur la barre).
   function initSidebarRepliee() {
@@ -149,39 +153,18 @@
     window.addEventListener('resize', masquerInfobulleSidebar);
   }
 
-  // ---- Page Outils (étude, 01/10) : chaque outil en grosse icône, avec ce qu'il fait. ----
-  var OUTILS_PAGE = [
-    { onglet: 'appel-fonds', titre: 'Appel de fonds', icone: 'mail', description: 'Le courrier de convocation et le décompte des sommes à virer.' },
-    { onglet: 'calculateur', titre: 'Simulateur de provision', icone: 'banknote', description: 'Une estimation des frais d’acte à demander.' },
-    { onglet: 'prorata', titre: 'Prorata & répartitions', icone: 'part-disque', description: 'Taxe foncière, charges de copropriété, loyers au jour de l’acte.' },
-    { onglet: 'quotites', titre: 'Quotités d’acquisition', icone: 'users', description: 'La part de chaque acquéreur et l’annexe des quotités.' },
-    { onglet: 'preemption', titre: 'Droits de préemption', icone: 'shield', description: 'DPU, SAFER, bois et forêts selon le zonage de la parcelle et le bien vendu.' },
-    { onglet: 'inventaire', titre: 'Arbitrage forfait mobilier', icone: 'scale', description: 'Forfait de 5 % ou prisée d’un commissaire de justice.' },
-    { onglet: 'confreres', titre: 'Répertoire', icone: 'book', description: 'Les offices du département et les interlocuteurs de l’étude.' },
-    { onglet: 'analyse-ia', titre: 'Relecture d’actes', icone: 'eye', description: 'Un avant-contrat ou un projet relu contre ses pièces (alpha).' }
-  ];
-
-  function renderPageOutils() {
-    const grille = document.getElementById('outils-grille');
-    if (!grille) return;
-    grille.innerHTML = OUTILS_PAGE.map(o => `
-      <button type="button" class="outil-tuile" onclick="definirOnglet('${o.onglet}')">
-        <span class="outil-tuile-icone" aria-hidden="true">${icone(o.icone)}</span>
-        <span class="outil-tuile-titre">${escapeHtml(o.titre)}</span>
-        <span class="outil-tuile-texte">${escapeHtml(o.description)}</span>
-      </button>`).join('');
-  }
-
   // Écran affiché, joint au contexte d'un signalement de problème (voir contexteSignalement).
   var ongletActuel = 'dashboard';
   var LIBELLES_ONGLETS = {
     dashboard: 'Tableau de bord', nouveau: 'Nouveau dossier', suivi: 'Suivi des dossiers',
     calculateur: 'Simulateur de provision', prorata: 'Prorata & répartitions', 'appel-fonds': 'Appel de fonds',
     scans: 'Claire Scan', inventaire: 'Arbitrage forfait mobilier', quotites: "Quotités d'acquisition", preemption: 'Droits de préemption', confreres: 'Répertoire', 'analyse-ia': "Relecture d'actes",
-    reglages: 'Réglages', outils: 'Outils', assistant: 'Demander à CLAIRE'
+    reglages: 'Réglages', assistant: 'Demander à CLAIRE'
   };
 
   function definirOnglet(nom) {
+    // Plus de page « Outils » (étude, 06/10) : un ancien lien déplie le tiroir et mène au tableau de bord.
+    if (nom === 'outils') { ouvrirTiroirOutils(); nom = 'dashboard'; }
     // Page « Aujourd'hui » retirée (étude, 30/09) : un ancien lien mène au tableau de bord.
     if (nom === 'aujourdhui') nom = 'dashboard';
     // « Noms de fichiers du NAS » est une rubrique des Réglages depuis le 03/10 (étude) : un ancien lien y mène.
@@ -205,14 +188,10 @@
     document.getElementById('onglet-confreres').style.display = nom === 'confreres' ? '' : 'none';
     document.getElementById('onglet-analyse-ia').style.display = nom === 'analyse-ia' ? '' : 'none';
     document.getElementById('onglet-reglages').style.display = nom === 'reglages' ? '' : 'none';
-    document.getElementById('onglet-outils').style.display = nom === 'outils' ? '' : 'none';
     document.getElementById('onglet-assistant').style.display = nom === 'assistant' ? '' : 'none';
     document.getElementById('tab-assistant').setAttribute('aria-selected', String(nom === 'assistant'));
     document.getElementById('tab-assistant').classList.toggle('actif', nom === 'assistant');
     if (nom === 'assistant') initAssistant();
-    document.getElementById('tab-outils').setAttribute('aria-selected', String(nom === 'outils'));
-    document.getElementById('tab-outils').classList.toggle('actif', nom === 'outils');
-    if (nom === 'outils') renderPageOutils();
     document.getElementById('tab-dashboard').setAttribute('aria-selected', String(nom === 'dashboard'));
     document.getElementById('tab-suivi').setAttribute('aria-selected', String(nom === 'suivi'));
     document.getElementById('tab-agenda').setAttribute('aria-selected', String(nom === 'agenda'));

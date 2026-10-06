@@ -582,7 +582,7 @@
   function gesteOuvrirEcranAssistant(p) {
     const e = ECRANS_ASSISTANT.find(x => x.cle === p.ecran);
     if (!e) return { html: '<p>Quel écran ? Tableau de bord, agenda, suivi, Claire Scan, outils, réglages, nouveau dossier, répertoire.</p>' };
-    definirOnglet(e.cle);
+    if (e.cle === 'outils') ouvrirTiroirOutils(); else definirOnglet(e.cle);
     return { html: `<p>${escapeHtml(e.libelle)} ouvert.</p>` };
   }
 

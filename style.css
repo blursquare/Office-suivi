@@ -8223,19 +8223,11 @@ wa-button.widgets-galerie-retirer svg { width: 14px; height: 14px; }
 }
 
 
-/* ---- Barre latérale sans titres de section (étude, 01/10, sur un exemple) : « Outils » est un lien
-   vers la page des outils, le + à sa droite ouvre le tiroir ; dans le tiroir, les outils sans icône,
-   reliés par le liseré. ---- */
-.sidebar-outils-ligne { display: flex; align-items: center; gap: 2px; }
+/* ---- Barre latérale sans titres de section (étude, 01/10, sur un exemple) : « Outils » déplie ou replie le tiroir
+   (plus de page des outils, étude 06/10) ; dans le tiroir, les outils reliés par le liseré. ---- */
+.sidebar-outils-ligne { display: flex; align-items: center; }
 .sidebar-outils-ligne #tab-outils { flex: 1 1 auto; min-width: 0; }
-button.sidebar-outils-plus {
-  display: inline-flex; align-items: center; justify-content: center; flex: none;
-  width: 32px; height: 32px; margin-right: 2px; padding: 0; border: none; border-radius: var(--rayon-m);
-  background: none; color: var(--muted); font-size: var(--texte-l); cursor: pointer;
-  transition: background-color 0.15s ease, color 0.15s ease;
-}
-button.sidebar-outils-plus:hover, button.sidebar-outils-plus[aria-expanded="true"] { background: var(--paper-sunk); color: var(--ink); }
-button.sidebar-outils-plus:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.sidebar-outils-chevron { display: inline-flex; margin-left: auto; font-size: var(--texte-s); opacity: 0.7; }
 /* Un outil ouvert, tiroir fermé : le lien « Outils » le signale. */
 .sidebar-outils-ligne:has(+ .sidebar-sousmenu.ferme .actif) #tab-outils {
   background: var(--sidebar-actif-bg); color: var(--ink); box-shadow: inset 3px 0 0 var(--focus);
@@ -8243,35 +8235,11 @@ button.sidebar-outils-plus:focus-visible { outline: 2px solid var(--focus); outl
 /* Liseré gardé (étude, 01/10 : « remettre le liseré ») : le tronc part sous l'icône Outils, une branche
    par outil, et s'arrête sur l'arrondi du dernier ; chaque outil a son icône (étude 05/10 : « remets des icônes aux outils »). */
 @media (min-width: 901px) {
-  /* Barre repliée : « Outils » et, dessous, le petit bouton +/− qui referme ou rouvre le tiroir (comme la pastille sous
-     l'icône de l'exemple de l'étude, 06/10). */
-  .sidebar.repliee .sidebar-outils-ligne { flex-direction: column; gap: 4px; }
-  .sidebar.repliee .sidebar-outils-ligne #tab-outils { flex: none; width: 100%; }
-  .sidebar.repliee button.sidebar-outils-plus {
-    width: 28px; height: 20px; margin: 0; border-radius: var(--rayon-s); background: var(--paper-sunk); font-size: var(--texte-xs);
-  }
+  /* Barre repliée : « Outils » est une icône, un clic déplie ou replie le tiroir dessous (pas de chevron). */
+  .sidebar.repliee .sidebar-outils-chevron { display: none; }
   .sidebar.repliee .sidebar-outils-ligne:has(+ .sidebar-sousmenu .actif) #tab-outils { background: var(--sidebar-actif-bg); color: var(--ink); box-shadow: inset 3px 0 0 var(--focus); }
 }
 
-/* ---- Page Outils : une tuile par outil, grosse icône ---- */
-.outils-grille { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 16px; margin-top: 8px; }
-.outils-grille > * { min-width: 0; }
-button.outil-tuile {
-  display: flex; flex-direction: column; align-items: flex-start; gap: 8px; text-align: left;
-  padding: 24px 20px 20px; border: 1px solid var(--bord-carte); border-radius: var(--rayon-carte); background: var(--paper-card);
-  color: var(--ink); font-family: inherit; cursor: pointer; box-shadow: var(--shadow-card);
-  transition: border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
-}
-button.outil-tuile:hover { border-color: var(--focus); transform: translateY(-2px); box-shadow: var(--shadow-float); }
-button.outil-tuile:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
-.outil-tuile-icone {
-  display: inline-flex; align-items: center; justify-content: center; width: 60px; height: 60px; margin-bottom: 6px;
-  border-radius: var(--rayon-carte); background: color-mix(in srgb, var(--focus) 12%, var(--paper-card)); color: var(--focus); font-size: var(--texte-4xl);
-}
-.outil-tuile-titre { font-size: var(--texte-l); font-weight: 700; }
-.outil-tuile-texte { font-size: var(--texte-m); line-height: 1.4; color: var(--ink-soft); }
-@media (prefers-reduced-motion: reduce) { button.outil-tuile { transition: none; } button.outil-tuile:hover { transform: none; } }
-@media (max-width: 480px) { .outils-grille { grid-template-columns: 1fr 1fr; gap: 10px; } button.outil-tuile { padding: 16px 14px; } .outil-tuile-icone { width: 48px; height: 48px; font-size: var(--texte-3xl); } }
 
 
 /* ---- Widget Agenda relié à l'agenda de l'office (01/10) ---- */

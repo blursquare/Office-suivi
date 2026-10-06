@@ -89,15 +89,12 @@
         <span class="sidebar-link-icone" id="icon-nav-assistant" aria-hidden="true"></span>Demander à CLAIRE
       </button>
 
-      <!-- Outils (étude, 01/10, sur un exemple de barre sans titres de section) : « Outils » est un lien
-           vers la page des outils en grosses icônes ; le + à sa droite ouvre le tiroir des outils dans
-           la barre (toggleGroupeSidebar). Barre repliée : le tiroir reste déplié sous l’icône, en icônes seules, et le +/− sous l’icône le referme. -->
+      <!-- Outils (étude, 01/10 puis 06/10) : plus de page des outils — « Outils » déplie ou replie le tiroir dans la barre
+           (toggleGroupeSidebar) ; barre repliée, le tiroir reste déplié sous l'icône, en icônes seules. -->
       <div class="sidebar-outils-ligne">
-        <button type="button" id="tab-outils" class="sidebar-link" role="tab" aria-selected="false" onclick="definirOnglet('outils')">
+        <button type="button" id="tab-outils" class="sidebar-link" aria-expanded="true" aria-controls="sidebar-sousmenu-outils" onclick="toggleGroupeSidebar('outils')">
           <span class="sidebar-link-icone" id="icon-nav-outils-groupe" aria-hidden="true"></span>Outils
-        </button>
-        <button type="button" class="sidebar-outils-plus" id="sidebar-groupe-outils" aria-expanded="true" aria-controls="sidebar-sousmenu-outils" onclick="toggleGroupeSidebar('outils')" title="Afficher les outils dans la barre" aria-label="Afficher les outils dans la barre">
-          <span id="icon-groupe-outils-chevron" aria-hidden="true"></span>
+          <span class="sidebar-outils-chevron" id="icon-groupe-outils-chevron" aria-hidden="true"></span>
         </button>
       </div>
       <div class="sidebar-sousmenu" id="sidebar-sousmenu-outils">
@@ -1516,7 +1513,6 @@
   <div id="relecture-cr-print" class="cr-print"></div>
 </div>
 
-<!-- Page Outils (étude, 01/10) : chaque outil en grosse icône (renderPageOutils, OUTILS_PAGE). -->
 <!-- « Demander à CLAIRE » (étude 06/10) : conversation façon Claude — messages au centre, champ en bas. Le rendu des
      messages est en JS (renderAssistant) ; le champ de saisie reste en HTML pour ne pas perdre la frappe au rendu. -->
 <div class="onglet-panel" id="onglet-assistant" style="display:none;">
@@ -1535,15 +1531,6 @@
     </form>
     <p class="asst-pied">Les emails s’ouvrent dans la fenêtre d’envoi, l’agenda demande une confirmation ; le reste se fait tout de suite et s’annule d’un clic. Tout reste sur le réseau du bureau.</p>
   </div>
-</div>
-
-<div class="onglet-panel" id="onglet-outils" style="display:none;">
-  <div class="dash-header">
-    <div>
-      <h1 class="dash-titre">Outils</h1>
-    </div>
-  </div>
-  <div class="outils-grille" id="outils-grille"></div>
 </div>
 
 <!-- Répertoire (étude, 30/09) — voir renderCarnetConfreres (script.js). Thème « Confrères » = le
