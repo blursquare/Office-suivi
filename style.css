@@ -8226,7 +8226,7 @@ wa-button.widgets-galerie-retirer svg { width: 14px; height: 14px; }
 /* Léger fond derrière « Outils » et son tiroir déplié, pour repérer la section (étude 06/10). */
 .sidebar-outils-groupe:has(.sidebar-sousmenu:not(.ferme)) {
   padding: 2px 4px 6px; border-radius: var(--rayon-carte);
-  background: color-mix(in srgb, var(--ink) 8%, transparent);
+  background: color-mix(in srgb, var(--sidebar-bg) 45%, black);
 }
 .sidebar-outils-ligne { display: flex; align-items: center; }
 .sidebar-outils-ligne #tab-outils { flex: 1 1 auto; min-width: 0; }

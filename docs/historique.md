@@ -17554,3 +17554,6 @@ Page Outils supprimée (`#onglet-outils`, `OUTILS_PAGE`, `renderPageOutils`, tui
 
 **Étude (06/10 au soir) : « Mets un léger fond derrière le tiroir déplié pour identifier la section Outils »** (0.176.7)
 `.sidebar-outils-groupe` (nouveau conteneur de `.sidebar-outils-ligne` + `#sidebar-sousmenu-outils`) porte, tant que le tiroir est déplié, un fond léger (`color-mix(in srgb, var(--ink) 8%, transparent)`, `--rayon-carte`) derrière la ligne « Outils » et ses outils, barre ouverte comme repliée (le bloc propre au tiroir replié est remplacé). Vérifié dans Chromium, barre ouverte et repliée.
+
+**Étude (06/10 au soir) : « Plus foncé le fond ; mets dans l'ordre alphabétique les outils »** (0.176.8)
+Fond de `.sidebar-outils-groupe` : `color-mix(in srgb, var(--sidebar-bg) 45%, black)` (plus sombre que la barre, au lieu du voile clair de la 0.176.7). Outils du tiroir dans l'ordre alphabétique : Appel de fonds, Arbitrage forfait mobilier, Droits de préemption, Prorata & répartitions, Quotités d'acquisition, Relecture d'actes, Répertoire, Simulateur de provision (`index.html`, `#sidebar-sousmenu-outils` ; un nouvel outil s'y range à sa place alphabétique).
