@@ -1918,9 +1918,11 @@
       });
       if (resultat.echeancesFaites.length) noter(`Signature de l’acte marquée réalisée (acte signé dans Authentic${apres.acte.date ? ` le ${formatDateFr(apres.acte.date)}` : ''})`);
     }
-    if (apres.prix && !(Number(d.prixVente) > 0)) {
+    if (apres.prix && Number(d.prixVente) !== apres.prix) {
+      const avantPrix = Number(d.prixVente) > 0 ? ` (avant : ${formaterPrix(d.prixVente)})` : '';
       d.prixVente = apres.prix;
-      noter(`Prix de vente repris d’Authentic (Capital) : ${formaterPrix(apres.prix)}`);
+      noter(`Prix de vente repris d’Authentic (Capital) : ${formaterPrix(apres.prix)}${avantPrix}`);
+      resultat.modifie = true;
     }
     if (apres.avantContratLe && !d.dateAvantContrat) {
       d.dateAvantContrat = apres.avantContratLe;

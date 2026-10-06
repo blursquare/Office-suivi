@@ -298,8 +298,12 @@ test('appliquerReleveSurDossier : prix (Capital) seulement s’il manque ; colla
   assert.match(lignes, /Notaire = Sophie GOSSART/);
   const e = { id: 'b', nom: 'MARTEL / FOURNIER', typeVente: 'maison', prixVente: 250000, pieces: {}, historique: [] };
   app.appliquerReleveSurDossier(e, finances);
-  assert.equal(e.prixVente, 250000);
-  assert.match(app.lignesAuthenticDossier(e).map(l => l.valeur).join('\n'), /fiche : 250\.000,00.€, à vérifier/);
+  // Authentic fait foi (étude 06/10) : le prix de la fiche (250 000) est remplacé par le Capital d'Authentic, l'ancien dit dans l'historique.
+  assert.equal(e.prixVente, 245000);
+  assert.match(e.historique.map(h => h.texte).join('\n'), /Prix de vente repris d’Authentic \(Capital\) : 245\.000,00.€ \(avant : 250\.000,00.€\)/);
+  const nbHistPrix = e.historique.length;
+  app.appliquerReleveSurDossier(e, finances);
+  assert.equal(e.historique.length, nbHistPrix, 'relu : rien à redire');
 });
 
 test('appliquerReleveSurDossier : fiche client → téléphone, email, situation matrimoniale de la bonne partie', () => {
@@ -1296,7 +1300,7 @@ test('« Importer avec 6e SENS » (bouton d’Authentic collé à l’intitulé)
   assert.equal(app.retirerImporterAuthentic({ nom: 'MARTEL / FOURNIER' }), false);
 });
 
-test('complementDossierDepuisAuthentic (06/10) : seuls les vides sont remplis — personnes, emails, téléphones, bien, prix, référence', () => {
+test('complementDossierDepuisAuthentic (06/10) : personnes, emails, téléphones, bien, prix, référence — Authentic fait foi pour adresse et prix', () => {
   const donnees = { intitule: 'Vente MARTEL / FOURNIER', reference: 'A 2026 00247', origine: 'pages',
     personnes: [
       { id: 'p1', nom: 'MARTEL', prenom: 'Alexandre', civilite: 'M', emails: ['martel@exemple.fr'], telephones: ['06 00 00 00 01'] },
@@ -1322,12 +1326,16 @@ test('complementDossierDepuisAuthentic (06/10) : seuls les vides sont remplis �
   assert.match(textes.join(' | '), /email du vendeur/);
   // Une seconde fois : rien à faire.
   assert.equal(app.complementDossierDepuisAuthentic(d, donnees, [d]).length, 0);
-  // Une fiche déjà remplie n'est jamais écrasée (adresse, prix, type).
+  // Authentic fait foi (étude 06/10) : adresse et prix différents → remplacés, l'ancienne valeur dite dans l'historique ;
+  // le type de vente (classement propre à CLAIRE) n'est jamais remplacé.
   const plein = { id: 'c2', nom: 'MARTEL / FOURNIER', parties: [{ role: 'VENDEUR', nom: 'MARTEL' }, { role: 'ACQUEREUR', nom: 'FOURNIER' }], adresseBien: 'TOURS (37000), 1 rue Nationale', prixVente: 100, typeVente: 'copropriete', historique: [] };
-  app.complementDossierDepuisAuthentic(plein, donnees, [plein]);
-  assert.equal(plein.adresseBien, 'TOURS (37000), 1 rue Nationale');
-  assert.equal(plein.prixVente, 100);
+  const remplaces = app.complementDossierDepuisAuthentic(plein, donnees, [plein]).join(' | ');
+  assert.equal(plein.adresseBien, app.normaliserAdresse('12 rue des Lices 41000 BLOIS'));
+  assert.match(remplaces, /adresse du bien \(avant : TOURS \(37000\), 1 rue Nationale\)/);
+  assert.equal(plein.prixVente, 245000);
+  assert.match(remplaces, /prix \(avant : 100,00.€\)/);
   assert.equal(plein.typeVente, 'copropriete');
+  assert.equal(app.complementDossierDepuisAuthentic(plein, donnees, [plein]).length, 0, 'relu : stable, pas de réécriture');
 });
 
 test('indexGroupeAuthenticPourDossier : par la référence, sinon par les noms de l’intitulé', () => {

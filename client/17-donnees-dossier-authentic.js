@@ -514,9 +514,15 @@
       if (fusion && fusion !== (d[cle] || '')) { d[cle] = fusion; textes.push(libelle); }
     });
     const bien = bienExportAuthentic(donnees);
-    if (bien && bien.adresse && bien.adresse.texte && !String(d.adresseBien || '').trim()) {
-      d.adresseBien = normaliserAdresse(bien.adresse.texte);
-      textes.push('adresse du bien');
+    // Authentic fait foi (étude 06/10 : « on prend toujours de base les données d'Authentic ») : une adresse ou un prix différents
+    // de ceux de la fiche les REMPLACENT, l'ancienne valeur restant dans l'historique.
+    if (bien && bien.adresse && bien.adresse.texte) {
+      const nouvelle = normaliserAdresse(bien.adresse.texte);
+      const actuelle = String(d.adresseBien || '').trim();
+      if (nouvelle && normaliserAdresse(actuelle) !== nouvelle) {
+        d.adresseBien = nouvelle;
+        textes.push(actuelle ? `adresse du bien (avant : ${actuelle})` : 'adresse du bien');
+      }
     }
     if (bien && bien.type && !d.typeVente) { d.typeVente = bien.type; textes.push('type de vente'); }
     const parcelles = parcellesExportAuthentic(donnees);
@@ -528,7 +534,11 @@
       if (resultat.modifie) textes.push(lots.lots.length ? 'parcelles et lots' : 'parcelles');
     }
     const prix = donnees.infosAuthentic && Number(donnees.infosAuthentic.prix);
-    if (prix > 0 && !(d.prixVente > 0)) { d.prixVente = prix; textes.push('prix'); }
+    if (prix > 0 && Number(d.prixVente) !== prix) {
+      const avantPrix = Number(d.prixVente) > 0 ? formaterPrix(d.prixVente) : '';
+      d.prixVente = prix;
+      textes.push(avantPrix ? `prix (avant : ${avantPrix})` : 'prix');
+    }
     if (donnees.reference && retenirReferenceAuthentic(d, donnees.reference, liste || [])) textes.push('référence Authentic');
     return textes;
   }
@@ -614,7 +624,7 @@
     const id = escapeOnclickArg(d.id);
     const options = groupes.map((g, i) => `<option value="${i}"${i === choisi ? ' selected' : ''}>${escapeHtml(g.intitule)}${g.reference ? ` (${escapeHtml(g.reference)})` : ''} — ${escapeHtml(resumeGroupeAuthentic(g))}</option>`).join('');
     const html = `<span class="auth-completer"><select id="auth-comp-${escapeAttr(d.id)}" class="prop-champ auth-completer-choix" aria-label="Dossier d’Authentic à reprendre">${choisi < 0 ? '<option value="" selected>Choisir le dossier d’Authentic…</option>' : ''}${options}</select>
-      <wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="completerDossierDepuisAuthentic('${id}')" title="Reprendre d’Authentic ce qui manque sur la fiche : personnes, emails, téléphones, bien, prix — rien n’est remplacé">${icone('download')} Compléter</wa-button></span>`;
+      <wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="completerDossierDepuisAuthentic('${id}')" title="Reprendre d’Authentic personnes, emails, téléphones, bien et prix : Authentic fait foi, l’ancienne valeur reste dans l’historique">${icone('download')} Compléter</wa-button></span>`;
     return ligne('download', 'Authentic', html, `auth-comp-${d.id}`, 'prop-pleine');
   }
 

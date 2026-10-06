@@ -17482,3 +17482,15 @@ de `.ja-titre` ; `renderLigneActionJour` y met le dossier (plus de « - VTE - NO
 groupe a le même surtitre, puis « tâche · tâche » et son compte. Pas de surtitre dans le tiroir d'un groupe ni dans la fiche.
 Colonnes de 0.173.1 inchangées (mesuré). Tests d'`aujourdhui` mis à jour.
 
+### 06/10/2026 19 h 10 — 0.174.0 : Authentic fait foi pour l'adresse et le prix
+
+**Étude, réponse à la question de 0.173.0 : « Authentic remplace aussi une adresse, un prix ou un nom ? » — « Oui. »**
+(et, sur la SAFER sans préemption : « aucune exemption » — information obligatoire pour tous les cas, inchangé.)
+`complementDossierDepuisAuthentic` (client/17) remplace l'adresse du bien (comparée après `normaliserAdresse`, donc stable) et le
+prix (« Capital ») quand ils diffèrent, l'ancienne valeur dite dans l'historique (« adresse du bien (avant : …) », « prix (avant : … ») ;
+`appliquerReleveSurDossier` (client/30) fait de même pour le prix de la page de gestion. Les noms de parties suivaient déjà
+Authentic (prénom, civilité, nom d'usage, 0.173.0). **Volontairement pas remplacés** : le type de vente (classement propre à CLAIRE,
+maison/copropriété/terrain — une copropriété posée par les lots ne doit pas redevenir « maison » sur un type d'immeuble Authentic
+plus grossier) ; les téléphones et emails, qui s'ajoutent (plusieurs numéros possibles). Contrepartie assumée : une correction
+faite à la main sur l'adresse ou le prix est écrasée au relevé suivant (retrouvable dans l'historique). Tests mis à jour.
+
