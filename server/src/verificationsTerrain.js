@@ -40,6 +40,8 @@ const VERIFICATIONS_TERRAIN = [
     comment: 'Coché au premier email parti avec l’identifiant du collaborateur (sans droit « Envoyer en tant que ») ; en échec si Exchange refuse ses identifiants (l’email part alors du compte relié).' },
   { id: 'email-proposition-ia', depuis: '0.140.0', source: 'serveur', titre: 'Premier jet de réponse proposé par l’IA locale',
     comment: 'Coché à la première proposition de réponse rendue par Ollama ; en échec si l’IA locale est indisponible.' },
+  { id: 'assistant-ia-locale', depuis: '0.167.0', source: 'serveur', titre: '« Demander à CLAIRE » : une phrase ambiguë comprise par l’IA locale',
+    comment: 'Coché la première fois qu’Ollama rend une intention de la liste pour une phrase que les mots-clés ne tranchaient pas ; en échec si l’IA locale est indisponible ou répond hors format (les mots-clés prennent alors le relais).' },
   { id: 'fausses-minutes', depuis: '0.139.0', source: 'poste', titre: 'Dossier « Fausses minutes » trouvé et lu (envoi de la copie de l’acte au client)',
     comment: 'Coché la première fois que la fenêtre « Envoyer la copie de l’acte / l’attestation de vente » lit le dossier des fausses minutes ; en échec s’il est introuvable (renseigner alors « nasFaussesMinutes » dans config.json).' },
   { id: 'authentic-creer-dossier', depuis: '0.137.0', source: 'poste', titre: 'Authentic : « Créer » proposé sur une page de vente sans dossier, « Nouveau dossier » ouvert pré-rempli',

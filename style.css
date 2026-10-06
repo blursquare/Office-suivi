@@ -8893,3 +8893,48 @@ table.pr-zt td.pr-zt-retenue select { min-width: 120px; min-height: 32px; height
 .pr-fiche-ligne { display: grid; grid-template-columns: 130px minmax(0, 220px) minmax(0, 1fr); gap: 12px; align-items: baseline; font-size: var(--texte-m); }
 .pr-fiche-ligne .hint { margin: 0; }
 @media (max-width: 700px) { .pr-fiche-ligne { grid-template-columns: 1fr; gap: 2px; } .pr-question { flex-direction: column; align-items: flex-start; } }
+
+/* ==== « Demander à CLAIRE » (étude 06/10) : conversation façon Claude — colonne centrée, bulles, champ en bas ==== */
+.asst-page { display: flex; flex-direction: column; max-width: 860px; margin: 0 auto; height: calc(100vh - 72px); }
+.asst-tete { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 8px; }
+.asst-etat { margin-top: 4px; font-size: var(--texte-s); min-height: 20px; }
+.asst-messages { flex: 1 1 auto; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; padding: 8px 0 16px; min-height: 0; }
+.asst-accueil { margin: auto; text-align: center; max-width: 620px; padding: 24px 0; }
+.asst-accueil-logo { display: inline-flex; width: 48px; height: 48px; border-radius: 50%; align-items: center; justify-content: center; background: var(--focus); color: var(--on-accent); margin-bottom: 12px; }
+.asst-accueil-logo .icone { width: 24px; height: 24px; }
+.asst-accueil-titre { font-size: var(--texte-3xl); font-weight: 500; letter-spacing: -0.02em; margin: 0 0 6px; }
+.asst-accueil-texte { color: var(--muted); margin: 0 0 20px; font-size: var(--texte-base); }
+.asst-suggestions { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+.asst-suggestion { font: inherit; font-size: var(--texte-m); color: var(--ink); background: var(--paper-card); border: 1px solid var(--line); border-radius: var(--rayon-pilule); padding: 8px 14px; cursor: pointer; text-align: left; max-width: 100%; }
+.asst-suggestion:hover { background: var(--paper-sunk); border-color: var(--muted); }
+.asst-message { display: flex; gap: 10px; align-items: flex-start; max-width: 100%; }
+.asst-moi { justify-content: flex-end; }
+.asst-avatar { flex: 0 0 auto; display: inline-flex; width: 28px; height: 28px; border-radius: 50%; align-items: center; justify-content: center; background: var(--focus); color: var(--on-accent); margin-top: 2px; }
+.asst-avatar .icone { width: 14px; height: 14px; }
+.asst-bulle { background: var(--paper-card); border: 1px solid var(--bord-carte); border-radius: var(--rayon-carte); padding: 12px 16px; font-size: var(--texte-base); line-height: 1.5; max-width: min(100%, 680px); box-shadow: var(--shadow-card); overflow-wrap: anywhere; }
+.asst-moi .asst-bulle { background: var(--focus); color: var(--on-accent); border-color: transparent; box-shadow: none; }
+.asst-bulle p { margin: 0 0 8px; }
+.asst-bulle p:last-child, .asst-bulle ul:last-child { margin-bottom: 0; }
+.asst-liste { margin: 0 0 8px; padding-left: 20px; }
+.asst-liste li { margin: 2px 0; }
+.asst-liste.asst-aide li { margin: 4px 0; }
+.asst-note { color: var(--muted); font-size: var(--texte-s); }
+.asst-boutons { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.asst-attente { display: inline-flex; gap: 4px; align-items: center; padding: 14px 16px; }
+.asst-attente span { width: 6px; height: 6px; border-radius: 50%; background: var(--muted); animation: asst-pulse 1.2s infinite ease-in-out; }
+.asst-attente span:nth-child(2) { animation-delay: 0.2s; }
+.asst-attente span:nth-child(3) { animation-delay: 0.4s; }
+@keyframes asst-pulse { 0%, 80%, 100% { opacity: 0.3; } 40% { opacity: 1; } }
+.asst-saisie { position: sticky; bottom: 0; display: flex; align-items: flex-end; gap: 8px; background: var(--paper-card); border: 1px solid var(--line); border-radius: var(--rayon-carte); padding: 8px 8px 8px 16px; box-shadow: var(--shadow-card); }
+.asst-saisie textarea#assistant-saisie { flex: 1 1 auto; min-height: 24px; max-height: 160px; border: 0; background: transparent; padding: 8px 0; resize: none; font-size: var(--texte-base); line-height: 1.4; box-shadow: none; }
+.asst-saisie textarea#assistant-saisie:focus { outline: none; box-shadow: none; }
+.asst-envoyer { flex: 0 0 auto; }
+.asst-envoyer .icone { width: 16px; height: 16px; }
+.asst-pied { color: var(--muted); font-size: var(--texte-s); text-align: center; margin: 8px 0 0; }
+@media (max-width: 700px) {
+  .asst-page { height: calc(100vh - 104px); }
+  .asst-tete { flex-direction: column; align-items: stretch; }
+  .asst-bulle { padding: 10px 12px; }
+  .asst-suggestion { font-size: var(--texte-s); padding: 6px 10px; }
+}
+@media (prefers-reduced-motion: reduce) { .asst-attente span { animation: none; opacity: 0.7; } }

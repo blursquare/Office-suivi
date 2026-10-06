@@ -83,6 +83,11 @@
              d.piecesNotifications dans script.js) : masqué tant qu'il n'y a rien à signaler. -->
         <span class="sidebar-badge-notif" id="badge-notif-suivi" style="display:none;"></span>
       </button>
+      <!-- « Demander à CLAIRE » (étude 06/10) : page de conversation — une phrase, CLAIRE répond ou fait le geste
+           (client/49-assistant.js, commun/assistant.js, IA locale côté serveur). -->
+      <button type="button" id="tab-assistant" class="sidebar-link" role="tab" aria-selected="false" onclick="definirOnglet('assistant')">
+        <span class="sidebar-link-icone" id="icon-nav-assistant" aria-hidden="true"></span>Demander à CLAIRE
+      </button>
 
       <!-- Outils (étude, 01/10, sur un exemple de barre sans titres de section) : « Outils » est un lien
            vers la page des outils en grosses icônes ; le + à sa droite ouvre le tiroir des outils dans
@@ -1509,6 +1514,26 @@
 </div>
 
 <!-- Page Outils (étude, 01/10) : chaque outil en grosse icône (renderPageOutils, OUTILS_PAGE). -->
+<!-- « Demander à CLAIRE » (étude 06/10) : conversation façon Claude — messages au centre, champ en bas. Le rendu des
+     messages est en JS (renderAssistant) ; le champ de saisie reste en HTML pour ne pas perdre la frappe au rendu. -->
+<div class="onglet-panel" id="onglet-assistant" style="display:none;">
+  <div class="asst-page">
+    <div class="asst-tete">
+      <div>
+        <h1 class="dash-titre">Demander à CLAIRE</h1>
+        <div class="asst-etat" id="assistant-etat"></div>
+      </div>
+      <wa-button appearance="outlined" size="s" type="button" onclick="nouvelleConversationAssistant()">Nouvelle conversation</wa-button>
+    </div>
+    <div class="asst-messages" id="assistant-messages" aria-live="polite"></div>
+    <form class="asst-saisie" onsubmit="event.preventDefault(); envoyerDemandeAssistant();">
+      <textarea id="assistant-saisie" rows="1" placeholder="Posez une question ou demandez un geste…" aria-label="Votre demande à CLAIRE" onkeydown="toucheSaisieAssistant(event)" oninput="this.style.height = ''; this.style.height = Math.min(160, this.scrollHeight) + 'px';"></textarea>
+      <wa-button variant="brand" type="submit" class="asst-envoyer" aria-label="Envoyer"><span id="icon-assistant-envoyer" aria-hidden="true"></span></wa-button>
+    </form>
+    <p class="asst-pied">Les emails s’ouvrent dans la fenêtre d’envoi, l’agenda demande une confirmation ; le reste se fait tout de suite et s’annule d’un clic. Tout reste sur le réseau du bureau.</p>
+  </div>
+</div>
+
 <div class="onglet-panel" id="onglet-outils" style="display:none;">
   <div class="dash-header">
     <div>
@@ -2530,6 +2555,7 @@
 <script src="commun/montants.js"></script>
 <script src="commun/pieces.js"></script>
 <script src="commun/planning.js"></script>
+<script src="commun/assistant.js"></script>
 <script src="client/00-version.js"></script>
 <script src="client/01-socle.js"></script>
 <script src="client/02-extraction-type-acte-qualites.js"></script>
@@ -2579,5 +2605,6 @@
 <script src="client/46-droits-preemption.js"></script>
 <script src="client/47-redaction-mise-en-forme.js"></script>
 <script src="client/48-surlignage-pdf.js"></script>
+<script src="client/49-assistant.js"></script>
 </body>
 </html>

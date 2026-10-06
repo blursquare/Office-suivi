@@ -3,5 +3,6 @@
   "dossier.js",
   "montants.js",
   "pieces.js",
-  "planning.js"
+  "planning.js",
+  "assistant.js"
 ]

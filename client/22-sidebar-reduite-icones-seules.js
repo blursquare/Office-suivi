@@ -245,7 +245,7 @@
     dashboard: 'Tableau de bord', nouveau: 'Nouveau dossier', suivi: 'Suivi des dossiers',
     calculateur: 'Simulateur de provision', prorata: 'Prorata & répartitions', 'appel-fonds': 'Appel de fonds',
     scans: 'Claire Scan', inventaire: 'Arbitrage forfait mobilier', quotites: "Quotités d'acquisition", preemption: 'Droits de préemption', confreres: 'Répertoire', 'analyse-ia': "Relecture d'actes",
-    reglages: 'Réglages', outils: 'Outils'
+    reglages: 'Réglages', outils: 'Outils', assistant: 'Demander à CLAIRE'
   };
 
   function definirOnglet(nom) {
@@ -273,6 +273,10 @@
     document.getElementById('onglet-analyse-ia').style.display = nom === 'analyse-ia' ? '' : 'none';
     document.getElementById('onglet-reglages').style.display = nom === 'reglages' ? '' : 'none';
     document.getElementById('onglet-outils').style.display = nom === 'outils' ? '' : 'none';
+    document.getElementById('onglet-assistant').style.display = nom === 'assistant' ? '' : 'none';
+    document.getElementById('tab-assistant').setAttribute('aria-selected', String(nom === 'assistant'));
+    document.getElementById('tab-assistant').classList.toggle('actif', nom === 'assistant');
+    if (nom === 'assistant') initAssistant();
     document.getElementById('tab-outils').setAttribute('aria-selected', String(nom === 'outils'));
     document.getElementById('tab-outils').classList.toggle('actif', nom === 'outils');
     if (nom === 'outils') renderPageOutils();

@@ -44,6 +44,7 @@ const { creerRouteurEmailsDossiers } = require('./routes/emailsDossiers');
 const { creerRouteurRapportTechnique } = require('./routes/rapportTechnique');
 const { creerRouteurSonnerie, creerRouteurAppels, creerEtatAppels } = require('./routes/appels');
 const { creerRouteurAuthentic } = require('./routes/authentic');
+const { creerRouteurAssistant } = require('./routes/assistant');
 const { creerJournalTechnique } = require('./journalTechnique');
 const { COLLABORATEURS_ABSENCE } = require('./agendaOffice');
 const { lireBuildInstalle } = require('./miseAJour');
@@ -113,7 +114,7 @@ function seaOuNull() {
   try { return require('node:sea'); } catch (_) { return null; }
 }
 
-function creerApp({ db, config, envoyerEmailFn, creerClientClaude, appelerMistral, testerMistral, miseAJour, agenda, emailsMatin, rapportTechnique, sondages, exchange, emailsDossiers, urbanisme }) {
+function creerApp({ db, config, envoyerEmailFn, creerClientClaude, appelerMistral, testerMistral, miseAJour, agenda, emailsMatin, rapportTechnique, sondages, exchange, emailsDossiers, urbanisme, assistant }) {
   const app = express();
   const depot = creerDepot(db);
   const parametresRepo = creerRepoParametres(db);
@@ -178,6 +179,8 @@ function creerApp({ db, config, envoyerEmailFn, creerClientClaude, appelerMistra
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurAuthentic());
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurDossiers(depot));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurOffrePret(config));
+  // Assistant « Demander à CLAIRE » (étude 06/10) : compréhension d'une phrase, IA locale à défaut des mots-clés.
+  app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurAssistant(config, assistant || {}, parametresRepo));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurNas(config));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurNomsFichiersNas(config, parametresRepo));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurScans(config, parametresRepo));

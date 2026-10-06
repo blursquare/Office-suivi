@@ -46,7 +46,8 @@ durable, l'architecture ou « Ce qui reste ouvert » change.
 ```
 index.html / style.css               Client (une seule page, tout le rendu est en JS sans framework)
 commun/*.js, commun/manifest.json    Code COMMUN poste + serveur (04/10) : dates, dossier (VTE/SUCC, estSuccession), montants,
-                                     pièces de la checklist, planning (échéances, SAFER). Un fichier = un IIFE qui exporte en
+                                     pièces de la checklist, planning (échéances, SAFER), assistant (intentions, mots-clés,
+                                     dates/montants écrits en français, dossier cité). Un fichier = un IIFE qui exporte en
                                      module.exports sous Node et en globaux dans le navigateur ; chargé avant client/.
 client/NN-sujet.js, client/manifest.json  Le programme du poste, découpé par sujet (04/10 ; 43 fichiers, ≤ 3 000 lignes
                                      chacun) : des <script> classiques chargés dans l'ordre du manifeste — fonctions et
@@ -67,7 +68,8 @@ server/                              Serveur (son propre package.json ; le packa
        parametres/assainir.js        dans parametres/assainir.js, fusionDossiers.js pour les PUT concurrents)
   src/routes/*.js                    API (dossiers, nas, reglages, notifications, agenda, exchange,
                                      relectureClaude, relectures, offrePret, appelsFonds,
-                                     signatureImages — images de la signature des emails, …)
+                                     signatureImages — images de la signature des emails, assistant, …)
+  src/assistant.js                   « Demander à CLAIRE » : compréhension d'une phrase (mots-clés, puis IA locale)
   src/carnetConfreres.js             Carnet des confrères (relevé initial des offices du 41, liste blanche)
   src/annuaireNotaires.js            Notaires de France par département (data/annuaire-notaires.json, lecture seule)
   src/repertoire.js                  Répertoire hors notaires (relevé du répertoire Word de l'étude, par thème)
@@ -691,6 +693,31 @@ dans `index.html`** (le test `structure-client` refuse tout décalage).
   dossiers » et en tête du Suivi (« Nouveau ») jusqu'à la confirmation au client ; alerte Teams « Tous les fonds sont reçus » au
   responsable, une fois par dossier (`alertesFondsDues`, même sans appel de fonds noté envoyé).
 
+- **« Demander à CLAIRE »** (étude 06/10 : « un agent conversationnel où l'on pourrait poser n'importe quelle demande » ; choix de
+  l'étude : IA locale seule, page dans la barre latérale « du type Claude », tous les gestes dès la première version, **tout sans
+  carte de confirmation SAUF les emails et l'agenda**) — `client/49-assistant.js` (page `#onglet-assistant`, conversation en
+  mémoire du poste, `assistantMessages`, boutons par `assistantActions` — jamais de code dans l'attribut onclick),
+  `commun/assistant.js`, `server/src/assistant.js`, `routes/assistant.js` (`POST /api/assistant/comprendre`,
+  `GET /api/assistant/disponibilite`). **Liste FERMÉE d'intentions** (`INTENTIONS_ASSISTANT` : état d'un dossier, pièces, échéances,
+  coordonnées, fonds, À faire, depuis hier, rappel, mes rappels, email, cocher/décocher une échéance, date de la fiche, créneaux,
+  placer la signature, sondage de dates, nouveau rendez-vous, agenda d'un jour, appel de fonds, quotités, provision, prorata,
+  préemption, ouvrir une fiche/un écran, chercher, archiver, responsable, aide, inconnu) ; **l'IA ne choisit qu'une intention et
+  recopie la phrase, tout le reste est du code** : lecture par mots-clés d'abord (`interpreterParMotsCles`, sûreté haute = Ollama
+  jamais appelé), Ollama seulement quand plusieurs intentions se disputent la phrase (prompt sans la liste des dossiers ni aucune
+  donnée de fiche : la phrase, la date du jour, le libellé du dossier en consultation, les 3 derniers échanges), repli mots-clés
+  sans Ollama ; date, heure, montants, parts (`dateDepuisTexte`, `heureDepuisTexte`, `montantsDepuisTexte`, `partsDepuisTexte`) et
+  **dossier désigné** (`reconnaitreDossier` : mots du nom ou d'une partie, ≥ 3 lettres hors mots d'usage ; égalité → « Lequel ? »
+  avec les candidats, jamais deviné ; rien → dossier en consultation, sinon la phrase suivante est prise pour un nom) relus par le
+  code, qui gagne sur l'IA. **Exécution = les fonctions existantes** (`etatDossier`, `piecesAttenduesDossier`, `echeancesPlanning`,
+  `actionsDuJour`, `rappelsDuJour`, `envoyerRelanceCiblee`/`livrerEmailDossier`, `cocherEcheance`/`devaliderEcheance`,
+  `appliquerDateEcheance` — extrait de `validerEditionDate`, voie unique de la fiche et de l'assistant —, `creneauxProposesSignature`,
+  `placerCreneauSignature` (sa confirmation), `ouvrirSondageCreneaux`, `ouvrirCreationAgenda` (son formulaire),
+  `preparerAppelFondsDepuisDossier`, `choisirDossierQuotites`/`calculerQuotites`, `estimerFraisActe`, `calculerProrata`,
+  `ouvrirPreemptionDepuisFiche`, `archiverDossier`, `changerResponsable`) ; un geste fait aussitôt porte un bouton « Annuler » ;
+  réponses écrites par le code (jamais par l'IA). Rien n'est journalisé ni gardé (la phrase peut nommer un client). Point terrain
+  `assistant-ia-locale`. Une nouvelle intention = une entrée d'`INTENTIONS_ASSISTANT` (motifs, exemples — chaque exemple doit être
+  compris sans IA, test `tests/assistant.test.js`) + son exécutant dans `executerDemandeAssistant`.
+
 ## Relecture d'actes (Outil 2) — état actuel
 
 Quatre étapes : documents (dépôt ou dossier NAS complet) → pseudonymisation (vérifiable) →
@@ -984,7 +1011,7 @@ Plainte principale de l'étude : **le bruit**, pas les oublis — ne pas élargi
   ouverts dans Outlook), la création d'un nouveau dossier depuis l'export Authentic (ZIP) ; puis la
   mise à jour en un clic (Réglages › Mise à jour), le démarrage automatique de CLAIRE au lancement du
   serveur, le lien vers une pièce ouvert depuis une notification Teams et l'icône de l'exe (nette).
-- **Non vérifié au bureau** : l'installateur « CLAIRE en application » d'un poste (`.vbs`, PowerShell, icône servie
+- **Non vérifié au bureau** : « Demander à CLAIRE » avec un vrai Ollama (compréhension des phrases ambiguës par llama 8B, temps de réponse ; ici seuls les mots-clés et un faux Ollama ont été joués) ; l'installateur « CLAIRE en application » d'un poste (`.vbs`, PowerShell, icône servie
   par l'exe) ; les emails des dossiers (réponses EWS réelles, accès délégué aux « Éléments envoyés » des
   collaborateurs, pièces jointes réelles, résumé par Ollama) ; la forme réelle du `.ics` de la visio ADNOV (aucun exemple reçu) ; l'envoi d'email depuis CLAIRE (CreateItem/SendItem réels, ReplyToItem avec pièces jointes, droit « Envoyer en tant que » chez Fichorga, taille maximale acceptée par Exchange, premier jet d'Ollama) ; le dossier « Fausses minutes » (emplacement, nommage des PDF, tailles réelles, `.eml` lourd dans Outlook, WeTransfer) ; l'intégration
   3CX (forme réelle de %CallerNumber%, fermeture de l'onglet ouvert par 3CX) ; le repli `SoftDelete` d'une suppression ; le sondage de créneaux (lecture réelle des réponses dans la boîte, boutons

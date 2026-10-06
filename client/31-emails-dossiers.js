@@ -1143,7 +1143,7 @@
     const el = document.activeElement;
     if (el && (el.tagName === 'TEXTAREA' || el.isContentEditable || (el.tagName === 'INPUT' && !/^(checkbox|radio|button|submit)$/i.test(el.type || '')) || el.tagName === 'SELECT')) return true;
     // Les outils (nouveau dossier, relecture, appel de fonds, calculs…) gardent un travail non enregistré.
-    return !['dashboard', 'suivi', 'agenda', 'scans', 'confreres', 'reglages'].includes(ongletActuel);
+    return !['dashboard', 'suivi', 'agenda', 'scans', 'confreres', 'reglages', 'assistant'].includes(ongletActuel);
   }
   function rechargerQuandPossible(version) {
     if (saisieEnCoursPoste()) { setTimeout(() => rechargerQuandPossible(version), 30000); return; }

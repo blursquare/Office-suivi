@@ -17248,3 +17248,22 @@ Point terrain `zonage-parcelle-gpu` (accès Internet sortant du serveur vers api
      doublon, 40 au plus).
 - Tests `tests/authentic-pages.test.js` (fiche bien inventée des tests existants). Non vérifié sur une vraie fiche bien d'Authentic
   ouverte après la création.
+
+### 06/10/2026 13 h 30 — « Demander à CLAIRE » (0.167.0)
+
+- Demande : « Réfléchi à un agent conversationnel CLAIRE où l'on pourrait poser n'importe quelle demande sur un dossier, une tâche à
+  faire, un e-mail à envoyer, un appel de fonds à faire, des quotités à calculer, une date de rendez-vous, placer un rendez-vous…
+  connecter tous les outils et anticiper toutes les demandes ». Réflexion donnée en conversation, puis quatre questions posées ;
+  réponses de l'étude : **Ollama local seul** ; **tout sans carte de confirmation sauf les emails et l'agenda** (rappels, coches,
+  champs de la fiche passent avec historique et « Annuler ») ; **une page dans la barre latérale, « du type Claude »** ; **tout d'un
+  coup** (outils de calcul compris).
+- Architecture : `commun/assistant.js` (liste fermée des intentions avec motifs et exemples, lecture par mots-clés, dates/heures/
+  montants/parts en français, dossier cité par son nom ou une partie, validation de la réponse de l'IA), `server/src/assistant.js`
+  (mots-clés sûrs → sans IA ; sinon Ollama avec un prompt court — jamais la liste des dossiers — ; sinon repli mots-clés ; le code
+  relit date/heure/dossier et gagne sur l'IA), `routes/assistant.js`, `client/49-assistant.js` (page de conversation, exécution par
+  les fonctions existantes, réponses écrites par le code).
+- `validerEditionDate` découpé : `appliquerDateEcheance(d, cle, date)` (fiche + assistant). Point terrain `assistant-ia-locale`.
+- Vérifié ici : lint, types, 1 334 tests client (+9), suite serveur (+10 avec faux Ollama), fumée ; conversation de 18 phrases jouée
+  dans Chromium (bureau, sombre, téléphone) sans Ollama → mots-clés : chaque réponse juste, aucune erreur de page. Non vérifié : un
+  vrai Ollama (phrases ambiguës, temps de réponse du 8B).
+

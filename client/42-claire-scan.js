@@ -887,6 +887,8 @@
       'icon-burger': 'menu',
       'icon-nav-dashboard': 'tableau-bord',
       'icon-nav-suivi': 'list',
+      'icon-nav-assistant': 'sparkle',
+      'icon-assistant-envoyer': 'send',
       'icon-recherche-suivi': 'search',
       'icon-nav-scans': 'bannette',
       'icon-nav-agenda': 'calendar',

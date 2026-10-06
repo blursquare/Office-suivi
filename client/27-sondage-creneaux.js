@@ -2244,6 +2244,60 @@
     if (input) input.focus();
   }
 
+  // Écrit une date d'échéance sur la fiche (prêt, vente préalable, butoir, appel de fonds, projet, rendez-vous) avec tout ce
+  // qui la suit : historique, notification, agenda de l'office. Voie unique de la fiche (validerEditionDate) et de l'assistant
+  // (étude 06/10). Rend 'rendu' quand elle a déjà rafraîchi l'écran et ouvert le formulaire d'horaire.
+  function appliquerDateEcheance(d, cle, nouvelleDate) {
+    const ancienneRdv = cle === 'rendezVousSignature' ? (d[cle] || '') : '';
+    // L'heure et le lieu lus dans l'agenda se rapportaient à l'ancienne date du rendez-vous.
+    if (cle === 'rendezVousSignature') effacerHoraireRendezVous(d);
+    ajouterHistorique(d, `« ${LIBELLES_CATEGORIE[cle]} » modifiée : ${d[cle] ? formatDateFr(d[cle]) : 'non renseignée'} → ${nouvelleDate ? formatDateFr(nouvelleDate) : 'non renseignée'}`);
+    notifierDateAjoutee(d, LIBELLES_CATEGORIE[cle] || cle, nouvelleDate, d[cle] || '');
+    d[cle] = nouvelleDate || '';
+    d.confiance = d.confiance || {};
+    d.confiance[cle] = 'manuel'; // corrigée à la main : à revérifier comme toute saisie manuelle
+    // Symétrique de supprimerDateEcheance (qui passe sansPret à true en vidant cette date) : si
+    // une date de prêt est saisie sur un dossier jusque-là "sans prêt", le suivi de l'offre doit
+    // reprendre — sans ce basculement, d.sansPret restait bloqué à true indéfiniment, malgré une
+    // vraie date désormais renseignée (verifierDossierLocal()/la checklist continuaient d'ignorer
+    // le prêt).
+    if (cle === 'pret') d.sansPret = !nouvelleDate;
+    // Saisir la date de l'appel de fonds, c'est constater qu'il est parti : demandé par l'étude,
+    // l'échéance passe aussitôt en « réalisée » (la carte le dit, le planning passe au
+    // rendez-vous de signature, et la section « Appel de fonds » du bas de fiche disparaît).
+    // Vider la date annule la validation — sinon un appel de fonds sans date resterait « fait ».
+    if (cle === 'appelFonds') marquerAppelFondsSelonDate(d, nouvelleDate);
+    if (cle === 'projetEnvoye') marquerProjetEnvoyeSelonDate(d, nouvelleDate);
+    sauvegarder(d);
+    // Batch D : noter automatiquement l'envoi dans l'agenda de l'office dès qu'une date d'envoi
+    // (appel de fonds / projet) est validée, sans clic sur « Noter dans l'agenda ». Best-effort et
+    // silencieux si Exchange n'est pas prêt ou en cas d'échec (voir noterEnvoiDansAgenda(auto)) ;
+    // le bouton reste disponible pour réessayer. Fire-and-forget : re-render à la résolution.
+    if ((cle === 'appelFonds' || cle === 'projetEnvoye') && nouvelleDate) {
+      noterEnvoiDansAgenda(d.id, true);
+    }
+    // Date butoir du prêt ou de la vente préalable : posée, déplacée ou retirée dans le
+    // calendrier partagé (voir synchroniserEcheanceAgenda). Seul geste qui en CRÉE une.
+    if (cle === 'pret' || cle === 'ventebien') synchroniserEcheanceAgenda(d, cle, true);
+    // Rendez-vous de signature saisi à la main : proposer tout de suite l'horaire pour le créer
+    // dans l'agenda Outlook (demandé par l'étude). Pas quand la date vient de l'agenda lui-même :
+    // le rendez-vous y est déjà. Le formulaire reste une confirmation, rien n'est écrit sans clic.
+    // Rendez-vous déplacé : l'événement déjà dans l'agenda suit (même heure, même couleur) ; il
+    // n'est proposé d'en créer un que s'il n'y en avait aucun à l'ancienne date.
+    if (cle === 'rendezVousSignature' && ancienneRdv && exchangeAgendaPret()) {
+      render();
+      deplacerRdvDansAgenda(d, ancienneRdv, nouvelleDate).then((r) => {
+        if (r === 'introuvable' && proposerHoraireRdv(d)) ouvrirFormRdvAgenda(d);
+      });
+      return 'rendu';
+    }
+    if (cle === 'rendezVousSignature' && proposerHoraireRdv(d)) {
+      ouvrirFormRdvAgenda(d);
+      return 'rendu';
+    }
+    return '';
+  }
+
   function validerEditionDate(dossierId, cle) {
     const idBase = `tabdate-${dossierId}-${cle}`;
     const input = document.getElementById(idBase + '-input');
@@ -2270,53 +2324,7 @@
       supprimerDateEcheance(dossierId, cle);
       return;
     } else if (nouvelleDate !== (d[cle] || '')) {
-      const ancienneRdv = cle === 'rendezVousSignature' ? (d[cle] || '') : '';
-      // L'heure et le lieu lus dans l'agenda se rapportaient à l'ancienne date du rendez-vous.
-      if (cle === 'rendezVousSignature') effacerHoraireRendezVous(d);
-      ajouterHistorique(d, `« ${LIBELLES_CATEGORIE[cle]} » modifiée : ${d[cle] ? formatDateFr(d[cle]) : 'non renseignée'} → ${nouvelleDate ? formatDateFr(nouvelleDate) : 'non renseignée'}`);
-      notifierDateAjoutee(d, LIBELLES_CATEGORIE[cle] || cle, nouvelleDate, d[cle] || '');
-      d[cle] = nouvelleDate || '';
-      d.confiance = d.confiance || {};
-      d.confiance[cle] = 'manuel'; // corrigée à la main : à revérifier comme toute saisie manuelle
-      // Symétrique de supprimerDateEcheance (qui passe sansPret à true en vidant cette date) : si
-      // une date de prêt est saisie sur un dossier jusque-là "sans prêt", le suivi de l'offre doit
-      // reprendre — sans ce basculement, d.sansPret restait bloqué à true indéfiniment, malgré une
-      // vraie date désormais renseignée (verifierDossierLocal()/la checklist continuaient d'ignorer
-      // le prêt).
-      if (cle === 'pret') d.sansPret = !nouvelleDate;
-      // Saisir la date de l'appel de fonds, c'est constater qu'il est parti : demandé par l'étude,
-      // l'échéance passe aussitôt en « réalisée » (la carte le dit, le planning passe au
-      // rendez-vous de signature, et la section « Appel de fonds » du bas de fiche disparaît).
-      // Vider la date annule la validation — sinon un appel de fonds sans date resterait « fait ».
-      if (cle === 'appelFonds') marquerAppelFondsSelonDate(d, nouvelleDate);
-      if (cle === 'projetEnvoye') marquerProjetEnvoyeSelonDate(d, nouvelleDate);
-      sauvegarder(d);
-      // Batch D : noter automatiquement l'envoi dans l'agenda de l'office dès qu'une date d'envoi
-      // (appel de fonds / projet) est validée, sans clic sur « Noter dans l'agenda ». Best-effort et
-      // silencieux si Exchange n'est pas prêt ou en cas d'échec (voir noterEnvoiDansAgenda(auto)) ;
-      // le bouton reste disponible pour réessayer. Fire-and-forget : re-render à la résolution.
-      if ((cle === 'appelFonds' || cle === 'projetEnvoye') && nouvelleDate) {
-        noterEnvoiDansAgenda(d.id, true);
-      }
-      // Date butoir du prêt ou de la vente préalable : posée, déplacée ou retirée dans le
-      // calendrier partagé (voir synchroniserEcheanceAgenda). Seul geste qui en CRÉE une.
-      if (cle === 'pret' || cle === 'ventebien') synchroniserEcheanceAgenda(d, cle, true);
-      // Rendez-vous de signature saisi à la main : proposer tout de suite l'horaire pour le créer
-      // dans l'agenda Outlook (demandé par l'étude). Pas quand la date vient de l'agenda lui-même :
-      // le rendez-vous y est déjà. Le formulaire reste une confirmation, rien n'est écrit sans clic.
-      // Rendez-vous déplacé : l'événement déjà dans l'agenda suit (même heure, même couleur) ; il
-      // n'est proposé d'en créer un que s'il n'y en avait aucun à l'ancienne date.
-      if (cle === 'rendezVousSignature' && ancienneRdv && exchangeAgendaPret()) {
-        render();
-        deplacerRdvDansAgenda(d, ancienneRdv, nouvelleDate).then((r) => {
-          if (r === 'introuvable' && proposerHoraireRdv(d)) ouvrirFormRdvAgenda(d);
-        });
-        return;
-      }
-      if (cle === 'rendezVousSignature' && proposerHoraireRdv(d)) {
-        ouvrirFormRdvAgenda(d);
-        return;
-      }
+      if (appliquerDateEcheance(d, cle, nouvelleDate) === 'rendu') return;
     }
     render();
   }
