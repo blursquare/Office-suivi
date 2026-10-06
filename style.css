@@ -7567,7 +7567,7 @@ button.annuaire-proche.actif { background: var(--focus); border-color: var(--foc
    en couleur dessous. ---- */
 /* Carte (étude 06/10 : « moins flottante ») : recherche, filtres et statuts réunis dans une carte, comme le reste de la page. */
 .list-toolbar.suivi-barre {
-  flex-direction: column; align-items: stretch; flex-wrap: nowrap; gap: 12px;
+  flex-direction: column; align-items: stretch; flex-wrap: nowrap; gap: 0;
   padding: 16px; margin-bottom: 20px; border: 1px solid var(--bord-carte); border-radius: var(--rayon-carte);
   background: var(--paper-card); box-shadow: var(--shadow-card);
   /* Collée en haut au défilement (étude 06/10) ; seulement si l'écran est assez haut pour que la liste garde sa place. */
@@ -7577,6 +7577,11 @@ button.annuaire-proche.actif { background: var(--focus); border-color: var(--foc
   /* Bande du fond de page au-dessus de la carte : les lignes qui défilent ne se voient pas dans l'interstice. */
   .list-toolbar.suivi-barre::before { content: ''; position: absolute; left: 0; right: 0; top: -12px; height: 12px; background: var(--paper); }
 }
+/* Les trois lignes de la carte (recherche, filtres, statuts) sont séparées par un liseré gris (étude 06/10). */
+.suivi-barre > * { padding-block: 12px; }
+.suivi-barre > :first-child { padding-top: 0; }
+.suivi-barre > :last-child { padding-bottom: 0; }
+.suivi-barre > * + * { border-top: 1px solid var(--line); }
 .suivi-barre-ligne { display: flex; align-items: center; gap: 12px; min-width: 0; }
 .suivi-barre-recherche { gap: 14px; }
 .suivi-recherche { position: relative; flex: 1 1 auto; min-width: 0; display: flex; }
@@ -7590,9 +7595,19 @@ button.annuaire-proche.actif { background: var(--focus); border-color: var(--foc
 .suivi-barre input[type="search"]#recherche-dossiers::placeholder { color: var(--muted); }
 .suivi-barre input[type="search"]#recherche-dossiers:focus { outline: none; border-color: var(--focus); }
 .suivi-barre-recherche .vue-bascule { flex: none; }
-.suivi-barre-filtres { flex-wrap: nowrap; gap: 8px 16px; }
+.suivi-barre-filtres { flex-wrap: nowrap; gap: 8px; }
 .suivi-barre-filtres .toolbar-item { flex: none; font-size: var(--texte-m); color: var(--muted); }
 .suivi-barre .suivi-barre-filtres .toolbar-item select { width: auto; min-width: 0; max-width: 190px; font-size: var(--texte-m); padding: 4px 8px; border-radius: var(--rayon-m); }
+/* Le titre du filtre est dans le menu déroulant : un seul champ « Responsable  Julie VASSELIN » (étude 06/10). */
+.suivi-barre .suivi-barre-filtres .toolbar-item:not(.toolbar-checkbox) {
+  gap: 2px; min-height: 32px; padding-left: 10px; border: 1px solid var(--line); border-radius: var(--rayon-m);
+  background: var(--paper-card); color: var(--muted);
+}
+.suivi-barre .suivi-barre-filtres .toolbar-item:not(.toolbar-checkbox):focus-within { border-color: var(--focus); }
+.suivi-barre .suivi-barre-filtres .toolbar-item:not(.toolbar-checkbox) select {
+  min-height: 30px; padding: 0 4px 0 4px; border: none; background: transparent; color: var(--ink); font-weight: 500;
+}
+.suivi-barre .suivi-barre-filtres .toolbar-item:not(.toolbar-checkbox) select:focus { outline: none; }
 @media (max-width: 1180px) {
   .suivi-barre-filtres { flex-wrap: wrap; }
 }

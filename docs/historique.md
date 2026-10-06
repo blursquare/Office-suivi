@@ -17566,3 +17566,6 @@ Lien actif de la barre latérale (`.sidebar-link.actif`, tous les liens et les o
 
 **Étude (06/10 au soir) : « Option 3 » — la barre du Suivi collée en haut au défilement** (0.176.11)
 `.list-toolbar.suivi-barre` en `position: sticky; top: 12px; z-index: 5` quand la fenêtre fait au moins 760 px de haut et 901 px de large (en dessous, la barre défile avec la page : elle prendrait trop de place) ; une bande du fond de page (`::before`, 12 px) masque l'interstice au-dessus de la carte. Hauteur de la carte ≈ 220 px (filtres sur deux lignes) : si l'étude la juge trop haute, piste = replier les filtres une fois la barre collée.
+
+**Étude (06/10 au soir) : « Mets les titres des filtres dans les menus déroulants ; sépare les trois lignes de la carte du haut par un liseré gris »** (0.176.12)
+Barre du Suivi : chaque filtre (Responsable, Échéance, Offre de prêt, Rôle, Trier par) est un seul champ à bord fin dont le titre, en gris, précède la valeur (le `<label>` garde son `<select>`, rendu sans bord ; focus = bord à l'accent) ; « Archivés » inchangé. Les trois lignes de la carte (recherche, filtres, statuts) sont séparées par un trait de 1 px `var(--line)` (`.suivi-barre > * + *`, 12 px de part et d'autre). Écart entre filtres 8 px ; « Rôle » et « Archivés » passent encore sur une seconde ligne à 1 440 px.
