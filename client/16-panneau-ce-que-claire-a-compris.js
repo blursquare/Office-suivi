@@ -337,12 +337,12 @@
     modifierDonneeRevision(cle, objet.propositionIa.valeur);
   }
 
-  function boutonPageRevision(source) {
+  function boutonPageRevision(source, cle) {
     if (!source || !source.page) return '';
     // Cliquable seulement tant que le PDF est chargé en mémoire (import en cours) — même principe
-    // que pour les engagements du vendeur.
+    // que pour les engagements du vendeur. Le clic surligne ce qui a été trouvé (voirDonneeRevisionDansPdf, 06/10).
     return pdfActuel
-      ? `<button type="button" class="voir-pdf-btn" onclick="allerALaPageDuPdf(${source.page})" title="Aller à la page ${source.page} du document">${icone('eye')} p.${source.page}</button>`
+      ? `<button type="button" class="voir-pdf-btn" onclick="voirDonneeRevisionDansPdf('${escapeOnclickArg(cle)}')" title="Voir à la page ${source.page} du document">${icone('eye')} p.${source.page}</button>`
       : `<span class="chip-page">p.${source.page}</span>`;
   }
 
@@ -372,7 +372,7 @@
   function renderLigneRevision(definition, champ) {
     const cle = definition.cle;
     let autresOptions = '';
-    const page = boutonPageRevision(champ && champ.source);
+    const page = boutonPageRevision(champ && champ.source, cle);
     const verifie = !!(champ && champ.verifie);
     const methode = champ && champ.methode === 'CALCULATED' && champ.calcul
       ? `<div class="revision-raison">${champ.valeur ? 'Calculée' : 'Délai trouvé'} : ${escapeHtml(String(champ.calcul.delai ? champ.calcul.delai.valeur + ' ' + champ.calcul.delai.unite : ''))} ${escapeHtml(libellePointDepart(champ.calcul.pointDepart))}.</div>` : '';
@@ -1127,60 +1127,11 @@
     afficherAnalyseJuridique();
   }
 
-  // Fait simplement défiler l'aperçu jusqu'à la page indiquée, sans tenter de surligner un passage
-  // précis — utilisé pour les engagements du vendeur (renderEngagement), dont la phrase détectée
-  // fait plusieurs dizaines/centaines de caractères de texte libre : contrairement à une date
-  // (voir voirDateDansPdf ci-dessous, qui cherche le dernier "mot" du texte fourni, en général
-  // l'année, un ancrage fiable), il n'y a pas de mot de fin fiable à chercher dans un extrait de
-  // clause tronqué à 80 caractères — le tenter produisait une recherche qui échouait presque
-  // toujours silencieusement, et risquait même de mal échapper la phrase dans l'attribut onclick.
-  function allerALaPageDuPdf(numeroPage) {
-    if (!pdfActuel || !numeroPage) return;
-    const bloc = document.getElementById('pdf-page-bloc-' + numeroPage);
-    if (!bloc) return;
-    bloc.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  }
-
-  // Fait défiler l'aperçu jusqu'à la page indiquée et surligne brièvement le texte de la date
-  // (ex. "5 novembre 2026") pour la retrouver immédiatement dans le document original.
-  async function voirDateDansPdf(numeroPage, texteDate) {
-    if (!pdfActuel || !numeroPage) return;
-    const bloc = document.getElementById('pdf-page-bloc-' + numeroPage);
-    const canvas = document.getElementById('pdf-page-' + numeroPage);
-    if (!bloc || !canvas) return;
-    bloc.scrollIntoView({ behavior: 'smooth', block: 'center' });
-
-    try {
-      const page = await pdfActuel.getPage(numeroPage);
-      const content = await page.getTextContent();
-      const echelle = canvas.width / page.getViewport({ scale: 1 }).width;
-      const viewport = page.getViewport({ scale: echelle });
-
-      // Le dernier mot de la date (souvent l'année) est en général assez unique sur la page.
-      const tokens = String(texteDate).trim().split(/\s+/).filter(Boolean);
-      const cible = tokens[tokens.length - 1];
-      const item = content.items.find(it => it.str && it.str.includes(cible));
-      if (!item) return;
-
-      const tx = pdfjsLib.Util.transform(viewport.transform, item.transform);
-      const hauteur = Math.hypot(tx[2], tx[3]) || 14;
-      const largeur = (item.width || 0) * echelle;
-      const x = tx[4];
-      const yBase = tx[5];
-
-      document.querySelectorAll('.pdf-highlight').forEach(h => h.remove());
-      const surlignage = document.createElement('div');
-      surlignage.className = 'pdf-highlight';
-      surlignage.style.left = Math.max(0, x - 4) + 'px';
-      surlignage.style.top = Math.max(0, yBase - hauteur - 2) + 'px';
-      surlignage.style.width = (largeur + 8) + 'px';
-      surlignage.style.height = (hauteur + 6) + 'px';
-      bloc.appendChild(surlignage);
-      setTimeout(() => surlignage.classList.add('fondu'), 3000);
-      setTimeout(() => surlignage.remove(), 3700);
-    } catch (e) {
-      console.error('Surlignage impossible', e);
-    }
+  // Fait défiler l'aperçu jusqu'à la page indiquée et surligne la date (« 5 novembre 2026 ») dans le document original
+  // — le texte entier, à défaut son dernier mot (l'année).
+  function voirDateDansPdf(numeroPage, texteDate) {
+    const mots = String(texteDate || '').trim().split(/\s+/).filter(Boolean);
+    return surlignerApercuImport(numeroPage, [texteDate, mots[mots.length - 1]]);
   }
 
   // Encode/décode un texte libre (guillemets, apostrophes, accents...) pour le faire transiter
@@ -1202,78 +1153,8 @@
   // par ligne/segment de mise en page), il faut donc retrouver TOUS les items concernés, pas un
   // seul. Demandé par l'étude après une première tentative abandonnée (voir CLAUDE.md) qui
   // cherchait le "dernier mot" de la phrase, une ancre bien trop peu fiable sur du texte libre.
-  async function voirEngagementDansPdf(numeroPage, phraseB64) {
-    if (!pdfActuel || !numeroPage) return;
-    const bloc = document.getElementById('pdf-page-bloc-' + numeroPage);
-    const canvas = document.getElementById('pdf-page-' + numeroPage);
-    if (!bloc || !canvas) return;
-    bloc.scrollIntoView({ behavior: 'smooth', block: 'center' });
-
-    try {
-      const phrase = decoderAttribut(phraseB64);
-      const page = await pdfActuel.getPage(numeroPage);
-      const content = await page.getTextContent();
-      const echelle = canvas.width / page.getViewport({ scale: 1 }).width;
-      const viewport = page.getViewport({ scale: echelle });
-
-      // Texte concaténé de la page, en mémorisant pour chaque caractère l'item pdf.js d'origine
-      // (-1 pour les espaces insérés entre deux items, non rattachés à un item précis) — nécessaire
-      // pour retrouver ensuite QUELS items surligner une fois la position du passage repérée.
-      let texte = '';
-      const origines = [];
-      content.items.forEach((item, i) => {
-        for (const ch of item.str) { texte += ch; origines.push(i); }
-        texte += ' '; origines.push(-1);
-      });
-
-      // normaliserAvecIndex (définie au niveau racine, section « localisation d'un extrait »)
-      // conserve, pour chaque caractère du résultat, l'index correspondant dans le texte d'origine
-      // — la phrase mémorisée a déjà ses espaces multiples réduits à un seul au moment de
-      // l'extraction (voir extraireEngagementsVendeur), pas forcément identique à la mise en page
-      // réelle de la page ; casse, accents et apostrophes peuvent aussi différer.
-      const { texte: texteNorm, index: indexOrigine } = normaliserAvecIndex(texte);
-      const cibleNorm = normaliserAvecIndex(phrase).texte;
-      // Un préfixe assez long pour être unique sur la page, réduit par paliers si le préfixe
-      // complet ne matche pas telle quelle (la phrase peut légèrement différer de la mise en page
-      // réelle, ex. un saut de ligne au milieu d'un mot) — jamais toute la phrase, qui peut
-      // dépasser la fin de la page ou du texte réellement extrait.
-      let longueur = Math.min(60, cibleNorm.length);
-      let pos = -1;
-      while (longueur >= 15 && pos === -1) {
-        pos = texteNorm.indexOf(cibleNorm.slice(0, longueur));
-        if (pos === -1) longueur -= 10;
-      }
-      if (pos === -1) return; // repérage impossible : le défilement vers la page reste fait
-
-      // La borne de fin se cale sur la longueur de la PHRASE ENTIÈRE (cibleNorm.length), pas sur
-      // le préfixe réduit ayant servi à l'ancrer (`longueur`) : sans ça, seuls les premiers items
-      // couvrant ce préfixe seraient surlignés, coupant une phrase de plusieurs lignes en plein
-      // milieu au lieu de la couvrir en entier.
-      const debutOrig = indexOrigine[pos];
-      const finOrig = indexOrigine[Math.min(pos + cibleNorm.length - 1, indexOrigine.length - 1)];
-      const itemsConcernes = new Set();
-      for (let i = debutOrig; i <= finOrig; i++) { if (origines[i] >= 0) itemsConcernes.add(origines[i]); }
-      if (itemsConcernes.size === 0) return;
-
-      document.querySelectorAll('.pdf-highlight').forEach(h => h.remove());
-      itemsConcernes.forEach(i => {
-        const item = content.items[i];
-        const tx = pdfjsLib.Util.transform(viewport.transform, item.transform);
-        const hauteur = Math.hypot(tx[2], tx[3]) || 14;
-        const largeur = (item.width || 0) * echelle;
-        const surlignage = document.createElement('div');
-        surlignage.className = 'pdf-highlight';
-        surlignage.style.left = Math.max(0, tx[4] - 4) + 'px';
-        surlignage.style.top = Math.max(0, tx[5] - hauteur - 2) + 'px';
-        surlignage.style.width = (largeur + 8) + 'px';
-        surlignage.style.height = (hauteur + 6) + 'px';
-        bloc.appendChild(surlignage);
-      });
-      setTimeout(() => document.querySelectorAll('.pdf-highlight').forEach(h => h.classList.add('fondu')), 3000);
-      setTimeout(() => document.querySelectorAll('.pdf-highlight').forEach(h => h.remove()), 3700);
-    } catch (e) {
-      console.error('Surlignage impossible', e);
-    }
+  function voirEngagementDansPdf(numeroPage, phraseB64) {
+    return surlignerApercuImport(numeroPage, [decoderAttribut(phraseB64)]);
   }
 
   // Recherche de texte dans l'aperçu du compromis, sur le modèle d'un vrai lecteur PDF (Ctrl+F).

@@ -57,7 +57,7 @@
     for (const aiguille of aiguillesPourValeur(cle, valeur)) {
       const index = localiserValeur(texte, aiguille);
       if (index >= 0) {
-        return { index, page: pageDepuisIndex(index), extrait: extraitAutour(texte, index, String(aiguille).length) };
+        return { index, page: pageDepuisIndex(index), extrait: extraitAutour(texte, index, String(aiguille).length), trouve: String(aiguille) };
       }
     }
     return null;

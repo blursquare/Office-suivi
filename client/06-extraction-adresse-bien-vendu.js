@@ -188,7 +188,7 @@
       adresse.adresseComplete = adresseLisible(adresse);
       return {
         adresse,
-        source: { extrait: extraireContexte(source, m.index, m[0].length), index: m.index, page: pageDepuisIndex(m.index) }
+        source: { extrait: extraireContexte(source, m.index, m[0].length), trouve: m[3].replace(/\s+/g, ' ').trim(), index: m.index, page: pageDepuisIndex(m.index) }
       };
     }
     return null;
@@ -204,7 +204,7 @@
     const adresse = parserAdresse(m[1].replace(/\s+/g, ' ').trim());
     if (!adresse.codePostal) return null;
     adresse.adresseComplete = adresseLisible(adresse);
-    return { adresse, source: { extrait: extraireContexte(source, m.index, m[0].length), index: m.index, page: pageDepuisIndex(m.index) } };
+    return { adresse, source: { extrait: extraireContexte(source, m.index, m[0].length), trouve: m[1].replace(/\s+/g, ' ').trim(), index: m.index, page: pageDepuisIndex(m.index) } };
   }
 
   function detecterAdresseBienStructuree(texte) {
@@ -232,6 +232,7 @@
             adresse,
             source: {
               extrait: extraireContexte(zone, m.index, m[0].length),
+              trouve: fragment,
               index: index === -1 ? null : index,
               page: index === -1 ? null : pageDepuisIndex(index)
             }
@@ -249,7 +250,7 @@
           adresse.adresseComplete = adresseLisible(adresse);
           return {
             adresse,
-            source: { extrait: fragment, index: index === -1 ? null : index, page: index === -1 ? null : pageDepuisIndex(index) }
+            source: { extrait: fragment, trouve: fragment, index: index === -1 ? null : index, page: index === -1 ? null : pageDepuisIndex(index) }
           };
         }
       }

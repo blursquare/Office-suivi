@@ -254,7 +254,7 @@
         </div>
 
         <div class="wizard-nav">
-          <span></span>
+          <wa-button appearance="outlined" class="secondary" onclick="annulerNouveauDossier()">Annuler</wa-button>
           <wa-button variant="brand" class="primary" id="wizard-suivant-1" onclick="definirEtapeWizard(2)">Suivant : Vérifier →</wa-button>
         </div>
       </div>
@@ -503,7 +503,10 @@
 
         <div class="wizard-nav">
           <wa-button appearance="outlined" class="secondary" onclick="definirEtapeWizard(1)">← Précédent</wa-button>
-          <wa-button variant="brand" class="primary" onclick="definirEtapeWizard(3)">Suivant : Valider →</wa-button>
+          <div class="actions-row">
+            <wa-button appearance="outlined" class="secondary" onclick="annulerNouveauDossier()">Annuler</wa-button>
+            <wa-button variant="brand" class="primary" onclick="definirEtapeWizard(3)">Suivant : Valider →</wa-button>
+          </div>
         </div>
       </div>
 
@@ -520,7 +523,7 @@
         <div class="wizard-nav">
           <wa-button appearance="outlined" class="secondary" onclick="definirEtapeWizard(2)">← Précédent</wa-button>
           <div class="actions-row">
-            <wa-button appearance="outlined" class="secondary" onclick="reinitialiserFormulaire()">Effacer</wa-button>
+            <wa-button appearance="outlined" class="secondary" onclick="annulerNouveauDossier()">Annuler</wa-button>
             <wa-button variant="brand" class="primary" id="btn-ajouter-dossier" onclick="validerWizard()">Ajouter le dossier</wa-button>
           </div>
         </div>
@@ -2575,5 +2578,6 @@
 <script src="client/45-preemption-regles.js"></script>
 <script src="client/46-droits-preemption.js"></script>
 <script src="client/47-redaction-mise-en-forme.js"></script>
+<script src="client/48-surlignage-pdf.js"></script>
 </body>
 </html>

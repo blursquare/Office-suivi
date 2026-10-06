@@ -17194,3 +17194,25 @@ Point terrain `zonage-parcelle-gpu` (accès Internet sortant du serveur vers api
 - Vérifié dans Chromium (bureau, sombre, téléphone) : saisie, gras + souligné, liste, capture collée, PDF glissé, texte HTML
   collé en brut, corps envoyé à `/api/emails/envoyer` conforme, carte à 16 px du bas et de la gauche, aucune erreur de page.
   Non vérifié au bureau : rendu dans Outlook du destinataire (mêmes balises que les emails existants : b/i/u, p, ul/ol).
+
+### 06/10/2026 — 0.166.0 : surlignage de ce qui a été trouvé dans les PDF, bouton « Annuler » de Nouveau dossier
+
+- Demandes de l'étude : « surligner dans les documents PDF au clic sur une page dans une analyse ou nouveau dossier ; pas
+  d'encadrement, juste un surlignage de ce qui a été trouvé » et « rajouter un bouton Annuler lors de l'ajout d'un nouveau
+  dossier pour revenir au début sans variable ».
+- `client/48-surlignage-pdf.js` : `plagesSurlignagePdf(items, cibles)` (pur, testé — `tests/surlignage-pdf.test.js`) rend les
+  CARACTÈRES de chaque item pdf.js à surligner pour la première cible retrouvée sur la page (accents/casse/espaces ignorés par
+  `normaliserAvecIndex`, puis second essai sans ponctuation `sansPonctuationSurlignage` ; passage long ancré sur son début).
+  `surlignerDansPagePdf` pose un trait par partie de ligne, sa largeur mesurée dans la police de l'item (proportion de la
+  largeur pdf.js) — avant, le cadre orange couvrait toute la ligne pdf.js. `.pdf-highlight` : jaune surligneur
+  (`mix-blend-mode: multiply`), sans bordure ; il reste jusqu'au clic suivant (plus de fondu).
+- Branché : panneau Vérifier de Nouveau dossier (`boutonPageRevision` → `voirDonneeRevisionDansPdf(cle)`,
+  `ciblesSurlignageRevision` : `source.trouve` — texte exact retenu par la lecture, ajouté à `sourcePourValeur`, notaires et
+  adresse —, la valeur sous ses formes d'acte, dates en toutes lettres `formesDateSurlignage`, puis l'extrait), engagements et
+  documents (`voirEngagementDansPdf`), dates repérées (`voirDateDansPdf`), Relecture d'actes (`surlignerExtraitVisionneuseRelecture`).
+  `allerALaPageDuPdf` (page sans surlignage) retiré.
+- « Annuler » sur chaque étape de Nouveau dossier (remplace « Effacer » de l'étape Valider) : `annulerNouveauDossier` —
+  confirmation « Tout effacer » si quelque chose a été lu ou saisi (`saisieNouveauDossierEnCours`), puis
+  `reinitialiserFormulaire`, entrée « Compromis (PDF) », étape Importer ; un complément de dossier en cours est abandonné aussi.
+- Vérifié dans Chromium : surlignage sur une page simulée (pdf.js injoignable ici), Annuler à l'étape Vérifier → confirmation,
+  champs vidés, étape 1. Non vérifié sur de vrais PDF au bureau (justesse des largeurs selon les polices embarquées).

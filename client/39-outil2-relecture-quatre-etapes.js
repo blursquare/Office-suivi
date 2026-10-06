@@ -1487,8 +1487,7 @@
     return { echelle, largeur: Math.floor(l * echelle), hauteur: Math.floor(h * echelle) };
   }
 
-  // Même principe que voirEngagementDansPdf (Outil 1) : retrouver l'extrait dans le texte de la
-  // page et poser un surlignage sur les items pdf.js concernés.
+  // Même surlignage que « Nouveau dossier » (surlignerDansPagePdf) : l'extrait retrouvé sur la page, surligné, sans cadre.
   async function surlignerExtraitVisionneuseRelecture(numero, extrait) {
     try {
       const v = visionneuseRelecture;
@@ -1496,35 +1495,7 @@
       const canvas = bloc && bloc.querySelector('canvas');
       if (!canvas) return;
       const page = await v.pdf.getPage(numero);
-      const content = await page.getTextContent();
-      const echelleAffichee = canvas.clientWidth / page.getViewport({ scale: 1 }).width;
-      const viewport = page.getViewport({ scale: echelleAffichee });
-      let texte = '';
-      const origines = [];
-      content.items.forEach((item, i) => { for (const ch of item.str) { texte += ch; origines.push(i); } texte += ' '; origines.push(-1); });
-      const { texte: texteNorm, index } = normaliserAvecIndex(texte);
-      const cible = normaliserAvecIndex(extrait).texte;
-      let longueur = Math.min(60, cible.length);
-      let pos = -1;
-      while (longueur >= 15 && pos === -1) { pos = texteNorm.indexOf(cible.slice(0, longueur)); if (pos === -1) longueur -= 10; }
-      if (pos === -1) return;
-      const debut = index[pos];
-      const fin = index[Math.min(pos + cible.length - 1, index.length - 1)];
-      const items = new Set();
-      for (let i = debut; i <= fin; i++) if (origines[i] >= 0) items.add(origines[i]);
-      bloc.querySelectorAll('.pdf-highlight').forEach(h => h.remove());
-      items.forEach(i => {
-        const item = content.items[i];
-        const tx = pdfjsLib.Util.transform(viewport.transform, item.transform);
-        const hauteur = Math.hypot(tx[2], tx[3]) || 12;
-        const s = document.createElement('div');
-        s.className = 'pdf-highlight visionneuse-surlignage';
-        s.style.left = Math.max(0, tx[4] - 3) + 'px';
-        s.style.top = Math.max(0, tx[5] - hauteur - 2) + 'px';
-        s.style.width = ((item.width || 0) * echelleAffichee + 6) + 'px';
-        s.style.height = (hauteur + 5) + 'px';
-        bloc.appendChild(s);
-      });
+      await surlignerDansPagePdf(v.pdf, numero, bloc, canvas.clientWidth / page.getViewport({ scale: 1 }).width, [extrait]);
     } catch (e) {
       console.warn('Surlignage impossible', e);
     }

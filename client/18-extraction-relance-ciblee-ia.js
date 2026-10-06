@@ -429,6 +429,27 @@
     reinitialiserFormulaire();
   }
 
+  // « Annuler » de Nouveau dossier (étude 06/10 : « revenir au début sans variable ») : tout ce qui a été lu ou saisi est
+  // oublié — compromis, page d'Authentic, complément d'un dossier — et l'assistant revient à l'étape Importer, entrée
+  // « Compromis (PDF) ». Confirmé seulement si quelque chose a déjà été lu ou saisi.
+  function saisieNouveauDossierEnCours() {
+    const champ = (id) => { const el = typeof document !== 'undefined' ? document.getElementById(id) : null; return !!(el && String(el.value || '').trim()); };
+    return !!(dernierTexteTraite || exportAuthenticActuel || complementDossierId || extractionActuelle || pdfActuel
+      || ['f-nom', 'f-adresse-bien', 'f-prix-vente', 'f-pret', 'f-acte', 'f-email-acquereur', 'f-email-vendeur'].some(champ));
+  }
+  function annulerNouveauDossier() {
+    const remettre = () => {
+      reinitialiserFormulaire();
+      modeImport = 'pdf';
+      renderChoixImport();
+      const panneau = document.getElementById('panel');
+      if (panneau && panneau.scrollIntoView) panneau.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    };
+    if (!saisieNouveauDossierEnCours()) { remettre(); return; }
+    demanderConfirmation('Tout effacer et revenir au début ? Ce qui a été lu ou saisi pour ce nouveau dossier est oublié.', remettre,
+      { bouton: 'Tout effacer', ton: 'danger' });
+  }
+
   // En-tête de l'assistant, bouton final et bloc « Dossier à compléter » selon le mode.
   function majEnteteComplement() {
     const d = dossierComplementEnCours();

@@ -444,7 +444,7 @@
         // seul de la zone consultée.
         enTete: mention.index < ZONE_ENTETE_ACTE,
         enFin: mention.index >= source.length - ZONE_FIN_ACTE,
-        source: { extrait: extraireContexte(source, mention.index, mention.longueur), index: mention.index, page: pageDepuisIndex(mention.index) }
+        source: { extrait: extraireContexte(source, mention.index, mention.longueur), trouve: source.substr(mention.index, mention.longueur), index: mention.index, page: pageDepuisIndex(mention.index) }
       });
     });
     return resultats;

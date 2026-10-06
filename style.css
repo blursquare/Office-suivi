@@ -492,15 +492,16 @@
     margin-top: 4px;
   }
 
+  /* Surlignage de ce qui a été trouvé (étude 06/10 : « pas d'encadrement, juste un surlignage ») : trait de surligneur
+     jaune posé sur les seuls caractères trouvés, l'encre du document reste lisible au travers (multiply). Le PDF reste
+     blanc dans les deux thèmes : même teinte. */
   .pdf-highlight {
     position: absolute;
-    background: rgba(217, 114, 10, 0.32);
-    border: 2px solid var(--urgent);
+    background: rgba(255, 214, 0, 0.5);
+    mix-blend-mode: multiply;
     border-radius: var(--rayon-xs);
     pointer-events: none;
-    transition: opacity 0.6s ease;
   }
-  .pdf-highlight.fondu { opacity: 0; }
 
   /* Couche de texte invisible mais sélectionnable, posée par-dessus chaque page rendue en canvas
      (voir construireCoucheTexte()/chargerToutesLesPagesPdf() dans script.js) : permet de
@@ -5811,7 +5812,6 @@ wa-button.qt-suppr:hover { color: var(--urgent); }
   0% { box-shadow: 0 0 0 3px var(--focus); }
   100% { box-shadow: var(--shadow-card); }
 }
-.visionneuse-surlignage { transition: none; }
 @media (prefers-reduced-motion: reduce) { .visionneuse-page.flash { animation: none; } }
 /* Sous 1180px, l'aperçu passe sous les thèmes, toujours ouvert, à hauteur d'écran. */
 @media (max-width: 1180px) {
