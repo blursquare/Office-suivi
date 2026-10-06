@@ -53,15 +53,14 @@ test('probabiliteTenueSignature : dossier prêt → haute, facteurs expliqués',
   const d = { rendezVousSignature: '2026-10-20', offrePretStatut: 'recue', pieces: TOUS_RECUS, typeVente: 'maison',
     appelFonds: '2026-10-01', echeancesValidees: { appelFonds: true, projetEnvoye: true }, projetEnvoye: '2026-10-05' };
   const p = app.probabiliteTenueSignature(d, '2026-10-12', []);
-  assert.equal(p.pourcent, 97);
+  assert.equal(p.pourcent, 99);
   assert.equal(p.niveau, 'haute');
   assert.ok(p.facteurs.every(f => f.ok));
 });
 
-test('probabiliteTenueSignature : offre non reçue, pièces et envois manquants, collaborateur absent → basse', () => {
+test('probabiliteTenueSignature : offre non reçue, pièces et envois manquants → basse', () => {
   const d = { rendezVousSignature: '2026-10-08', pret: '2026-10-01', pieces: { erp: 'recue' }, typeVente: 'maison', responsable: 'Julie VASSELIN' };
-  const absences = [{ collaborateur: 'Julie VASSELIN', debut: '2026-10-08', fin: '2026-10-08' }];
-  const p = app.probabiliteTenueSignature(d, '2026-10-01', absences);
+  const p = app.probabiliteTenueSignature(d, '2026-10-01', []);
   assert.equal(p.niveau, 'basse');
   assert.equal(p.pourcent, 5);
   const libelles = p.facteurs.filter(f => !f.ok).map(f => f.libelle).join(' | ');
@@ -69,7 +68,27 @@ test('probabiliteTenueSignature : offre non reçue, pièces et envois manquants,
   assert.match(libelles, /Renonciation au droit de préemption/);
   assert.match(libelles, /pièces manquantes/);
   assert.match(libelles, /Appel de fonds à envoyer/);
-  assert.match(libelles, /Julie absent/);
+});
+
+test('probabiliteTenueSignature : l’absence d’un collaborateur ne retire rien (seule Sophie reçoit les actes)', () => {
+  const d = { rendezVousSignature: '2026-10-20', offrePretStatut: 'recue', pieces: TOUS_RECUS, typeVente: 'maison', responsable: 'Julie VASSELIN',
+    echeancesValidees: { appelFonds: true, projetEnvoye: true }, appelFonds: '2026-10-01', projetEnvoye: '2026-10-05' };
+  const absences = [{ collaborateur: 'Julie VASSELIN', debut: '2026-10-20', fin: '2026-10-20' }];
+  const p = app.probabiliteTenueSignature(d, '2026-10-12', absences);
+  assert.equal(p.pourcent, 99);
+  assert.ok(p.facteurs.every(f => !/absent/.test(f.libelle)));
+});
+
+test('semaineProbableSignature : jamais un jour où le responsable est absent (il peut falloir modifier l’acte)', () => {
+  const d = { id: 'z', nom: 'Z', sansPret: true, pieces: TOUS_RECUS, responsable: 'Julie VASSELIN' };
+  const sans = app.semaineProbableSignature(d, '2026-10-01', []);
+  const absences = [{ collaborateur: 'Julie VASSELIN', debut: sans.date, fin: app.addDays(sans.date, 4) }];
+  const avec = app.semaineProbableSignature(d, '2026-10-01', absences);
+  assert.ok(avec.date > absences[0].fin, `${avec.date} après ${absences[0].fin}`);
+  assert.match(avec.raison, /absent\(e\)/);
+  // Un autre collaborateur absent ne change rien.
+  const autre = app.semaineProbableSignature(d, '2026-10-01', [{ collaborateur: 'Jérémy SAUJOT', debut: sans.date, fin: app.addDays(sans.date, 4) }]);
+  assert.equal(autre.date, sans.date);
 });
 
 test('probabiliteTenueSignature : rien pour une signature passée ou absente', () => {

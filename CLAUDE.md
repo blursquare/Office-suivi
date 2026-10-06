@@ -532,9 +532,11 @@ dans `index.html`** (le test `structure-client` refuse tout décalage).
   sur une case vide surligne un créneau d'1 h à la demi-heure près (`choisirCaseAgenda`, `heureCaseAgenda`,
   `agendaCaseChoisie`), un double-clic (01/10 : à la souris, un second clic simple déplace le créneau ; au clavier et au doigt, un second appui) ouvre « Nouveau rendez-vous », 1 h par défaut ; rendez-vous lus par le serveur (stock `agenda-office`, tenu à jour à la création/suppression
   depuis CLAIRE entre deux tours) ; signatures de CLAIRE absentes d'Outlook en pointillé. Agenda
-  « intelligent », **sans IA, chaque point expliqué** : `probabiliteTenueSignature` (97 % moins des
-  retraits pondérés par la proximité : financement, vente préalable, préemption, pièces, envois, fonds,
-  collaborateur absent), `creneauxProposesSignature` (dossiers de `dossiersAPlacer`, un créneau par jour
+  « intelligent », **sans IA, chaque point expliqué** : `probabiliteTenueSignature` (99 % moins des
+  retraits pondérés par la proximité : financement, vente préalable, préemption, pièces, envois, fonds ;
+  **l'absence d'un collaborateur ne retire rien** — étude 06/10 : seule Sophie reçoit les actes ; mais un rendez-vous PAS ENCORE PLACÉ
+  évite les jours d'absence du responsable, qui peut devoir modifier l'acte : `semaineProbableSignature` repousse la date),
+  `creneauxProposesSignature` (dossiers de `dossiersAPlacer`, un créneau par jour
   ouvré, ≥ 14 jours, hors fériés `joursFeriesFrance`, absences, chevauchements ; **règles de l'étude,
   30/09 : jamais à 9 h, ni entre 12 h et 14 h, ni après 18 h, 6 rendez-vous par jour au plus** —
   `motifCreneauExceptionnel` ; une exception n'est proposée qu'à défaut de tout créneau normal, marquée,

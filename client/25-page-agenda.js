@@ -108,7 +108,8 @@
   }
 
   // ---- Probabilité de tenue d'une signature ----
-  // Pure et indicative : part de 97 % et retire des points pour ce qui reste à faire, d'autant plus
+  var PROBABILITE_MAX_SIGNATURE = 99;
+  // Pure et indicative : part de 99 % et retire des points pour ce qui reste à faire, d'autant plus
   // que la date approche. Chaque retrait est un facteur affiché avec le geste qui le lève — rien de
   // caché, rien de deviné. null pour un dossier sans rendez-vous à venir.
   function probabiliteTenueSignature(d, aujourdhuiIso, absences) {
@@ -156,11 +157,10 @@
       if (b.etat === 'complet') f('Fonds reçus', 0);
       else f(d.fondsRecus ? 'Fonds pas encore tous reçus' : 'Arrivée des fonds pas encore vérifiée', 10, 'Vérifier l’arrivée des fonds');
     }
-    if (d.responsable && responsableAbsentLeJour(absences, d.responsable, d.rendezVousSignature)) {
-      f(`${prenomCollaborateur(d.responsable)} absent(e) ce jour-là`, 30, 'Déplacer le rendez-vous');
-    }
+    // Étude 06/10 : l'absence d'un collaborateur ne retire rien à un rendez-vous déjà placé — il n'est
+    // pas indispensable, seule Sophie reçoit les actes (`absences` ne sert plus qu'à proposer des dates).
     const retrait = facteurs.reduce((t, x) => t + x.retrait, 0);
-    const pourcent = Math.max(5, Math.min(97, 97 - retrait));
+    const pourcent = Math.max(5, Math.min(PROBABILITE_MAX_SIGNATURE, PROBABILITE_MAX_SIGNATURE - retrait));
     return { pourcent, niveau: pourcent >= 80 ? 'haute' : pourcent >= 55 ? 'moyenne' : 'basse', jours, facteurs };
   }
 
@@ -301,7 +301,7 @@
       const facteursConf = (tenueConf ? tenueConf.facteurs : []).concat([{ libelle: 'Rendez-vous en attente de confirmation (« ? » dans l’agenda)', retrait: 5, ok: false, action: 'Confirmer le rendez-vous' }]);
       const depasse = !!(d.acte && aConfirmer.date > d.acte);
       if (depasse) facteursConf.push({ libelle: `Au-delà de la date butoir (${formatDateFr(d.acte)})`, retrait: 15, ok: false, action: 'Prévoir la prorogation' });
-      const pc = Math.max(5, Math.min(97, 97 - facteursConf.reduce((t, x) => t + x.retrait, 0)));
+      const pc = Math.max(5, Math.min(PROBABILITE_MAX_SIGNATURE, PROBABILITE_MAX_SIGNATURE - facteursConf.reduce((t, x) => t + x.retrait, 0)));
       return {
         date: aConfirmer.date, lundi: debutSemaine(aConfirmer.date), heure: aConfirmer.heure,
         raison: `rendez-vous en attente de confirmation le ${formatDateFr(aConfirmer.date)} à ${String(aConfirmer.heure).replace(':', ' h ')}`,
@@ -324,9 +324,14 @@
     }
     const echeanceSafer = echeanceSaferDossier(d);
     if (echeanceSafer) auPlusTot(addDays(echeanceSafer, 1), `délai SAFER jusqu’au ${formatDateFr(echeanceSafer)}`);
-    for (let i = 0; i < 10; i++) {
+    // Jour ouvré, et jamais un jour où le responsable est absent : il peut falloir modifier l'acte
+    // (étude 06/10) — contrairement à un rendez-vous déjà placé, où son absence ne pèse pas.
+    for (let i = 0; i < 90; i++) {
       const js = new Date(date + 'T00:00:00').getDay();
-      if (js !== 0 && js !== 6 && !estJourFerie(date)) break;
+      if (js !== 0 && js !== 6 && !estJourFerie(date) && !responsableAbsentLeJour(absences, d.responsable, date)) break;
+      if (responsableAbsentLeJour(absences, d.responsable, date) && raison.indexOf('absence') === -1) {
+        raison += ` ; ${prenomCollaborateur(d.responsable)} absent(e), le rendez-vous est repoussé à son retour`;
+      }
       date = addDays(date, 1);
     }
     const tenue = probabiliteTenueSignature(Object.assign({}, d, { rendezVousSignature: date }), auj, absences);
@@ -334,7 +339,7 @@
     const depasseButoir = !!(d.acte && date > d.acte);
     if (depasseButoir) facteurs.push({ libelle: `Au-delà de la date butoir (${formatDateFr(d.acte)})`, retrait: 15, ok: false, action: 'Prévoir la prorogation' });
     const retrait = facteurs.reduce((t, x) => t + x.retrait, 0);
-    const pourcent = Math.max(5, Math.min(97, 97 - retrait));
+    const pourcent = Math.max(5, Math.min(PROBABILITE_MAX_SIGNATURE, PROBABILITE_MAX_SIGNATURE - retrait));
     return {
       date, lundi: debutSemaine(date), raison, depasseButoir, facteurs, pourcent,
       niveau: pourcent >= 80 ? 'haute' : pourcent >= 55 ? 'moyenne' : 'basse'
@@ -1545,7 +1550,7 @@
     const horaire = e.journeeEntiere || !e.heure ? 'Toute la journée' : `${duree ? duree + ' ' : ''}(${e.heure}${e.heureFin ? ' – ' + e.heureFin : ''})`;
     const proba = probabiliteEvenementAgenda(d, e, auj, absencesOffice);
     const blocProba = proba ? `<div class="ag-detail-proba">
-        <div class="ag-detail-proba-tete">${renderPastilleProbabilite(proba)} <b>de chances que le rendez-vous soit maintenu</b> ${infoBulle('Indicatif : 97 % moins les points de ce qui reste à faire avant la date (financement, préemption, pièces, envois, fonds, absence du collaborateur), pondérés par sa proximité. Sans IA.')}</div>
+        <div class="ag-detail-proba-tete">${renderPastilleProbabilite(proba)} <b>de chances que le rendez-vous soit maintenu</b> ${infoBulle('Indicatif : 99 % moins les points de ce qui reste à faire avant la date (financement, préemption, pièces, envois, fonds), pondérés par sa proximité. Sans IA.')}</div>
         <ul class="ag-facteurs">${proba.facteurs.map(x => `<li class="${x.ok ? 'ok' : 'ko'}">${icone(x.ok ? 'check' : 'alert-triangle')}<span>${escapeHtml(x.libelle)}${x.ok ? '' : ` <em>−${x.retrait} pts</em>`}</span></li>`).join('')}</ul>
       </div>` : '';
     const relation = d && e.signature && !d.archive && d.rendezVousSignature === e.date && e.date >= auj && !notaireParticipantRepresenteAcquereur(d)

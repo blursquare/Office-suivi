@@ -17524,3 +17524,6 @@ par les relevés d'Authentic. Première moitié de la phrase (Authentic comme r�
 `.ag-page-corps` : colonne de 300 → 224 px, marges de 16 → 12 px (`.ag-cote`) ; le mini-calendrier tient (mesuré), les colonnes de
 jours gagnent environ 13 px chacune en vue Semaine. Au besoin, descendre encore à 200 px.
 
+
+**Étude : « Au lieu de 97 met 99 % — si un collaborateur n'est pas là le rendez-vous peut être tenu, il n'est pas indispensable, seule Sophie reçoit les actes — éviter de proposer un rendez-vous futur (pas encore placé) un jour où un collaborateur n'est pas là, car il peut être là pour modifier les actes si besoin. »** (0.175.2)
+`PROBABILITE_MAX_SIGNATURE = 99` (`client/25-page-agenda.js`) remplace le 97 en dur (probabilité d'un rendez-vous placé, semaine probable, rendez-vous « ?? »). Le facteur « X absent(e) ce jour-là » (−30) est retiré de `probabiliteTenueSignature` ; l'absence de Sophie n'est pas modélisée (`absences` ne porte que BA/JV/JS). `semaineProbableSignature` saute désormais aussi les jours d'absence du responsable du dossier (jusqu'à 90 jours) et le dit dans `raison` ; `creneauxProposesSignature` le faisait déjà. Seul le responsable est évité, pas tous les collaborateurs (à confirmer par l'étude si elle veut tous les absents).
