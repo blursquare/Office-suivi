@@ -17518,3 +17518,9 @@ en tirets = pas encore (lettres seules, l'information ne repose pas sur la seule
 lettres). Les états restent ceux de la fiche (`echeanceValidee`) : cochés dans CLAIRE ou, pour l'appel de fonds et le projet, posés
 par les relevés d'Authentic. Première moitié de la phrase (Authentic comme référence) : déjà la règle depuis 0.173.0/0.174.0.
 
+### 06/10/2026 19 h 36 — 0.175.1 : colonne de gauche de l'agenda plus étroite
+
+**Étude : « Essaie de réduire un peu la taille de la sidebar de l'agenda pour avoir des journées de rendez-vous plus larges. »**
+`.ag-page-corps` : colonne de 300 → 224 px, marges de 16 → 12 px (`.ag-cote`) ; le mini-calendrier tient (mesuré), les colonnes de
+jours gagnent environ 13 px chacune en vue Semaine. Au besoin, descendre encore à 200 px.
+

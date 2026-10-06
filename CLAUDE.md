@@ -282,7 +282,7 @@ dans `index.html`** (le test `structure-client` refuse tout décalage).
   (`.suivi-barre`) — grande recherche (nom du dossier seulement ; le collaborateur passe par le filtre
   « Responsable », pré-réglé sur celui du poste à chaque session, **sauf l'administrateur, qui voit « Tous »** (étude 02/10) — `filtreSuiviParDefaut`, `appliquerFiltreSuiviCollaborateur`, reposé au changement de poste) + bascule de vue, filtres sur une ligne (« Trier par »
   en vue Tableau seulement ; interrupteur « Archivés » (`wa-switch#voir-archives`, cadre des filtres, étude 04/10) allumé → section « Archivés » en bas de la vue Échéances,
-  `archivesPourEcheances`, date de signature sinon d'archivage, jamais dans une semaine), statuts en pastilles de filtre (`syntheseEtatsSuivi`, `renderEtatsSuivi`) ; **à gauche** (colonne de 300 px comme celle de l'agenda, étude 01/10, `.suivi-corps`/`.suivi-cote` ; au-dessus sous 1100 px),
+  `archivesPourEcheances`, date de signature sinon d'archivage, jamais dans une semaine), statuts en pastilles de filtre (`syntheseEtatsSuivi`, `renderEtatsSuivi`) ; **à gauche** (colonne comme celle de l'agenda — 224 px depuis le 06/10 pour l'agenda, 300 px pour le Suivi —, étude 01/10, `.suivi-corps`/`.suivi-cote` ; au-dessus sous 1100 px),
   `renderColonneSuivi` (étude 01/10 au soir, remplace « Prévu en {mois} ») : le **mois civil en cours** en quatre
   tuiles-filtres (`syntheseMoisSuivi`, `filtreMoisSuivi`) — à signer (rendez-vous dans le mois), à placer (sans
   rendez-vous, date butoir dans le mois ou déjà dépassée), ventes, successions (`d.typeAffaire`) —, puis

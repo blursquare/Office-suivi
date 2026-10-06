@@ -7719,9 +7719,9 @@ wa-button.ag-ajout svg { width: 14px; height: 14px; }
 .ag-ajout-double wa-button.ag-ajout::part(base) { border-radius: 0; }
 @media (max-width: 480px) { .ag-ajout-double wa-button.ag-ajout { --wa-form-control-padding-inline: 10px; font-size: var(--texte-m); } }
 .ag-ajout-double wa-button.ag-ajout-dates::part(base) { border-left: 1px solid color-mix(in srgb, var(--paper-card) 45%, transparent); }
-.ag-page-corps { display: grid; grid-template-columns: 300px minmax(0, 1fr); align-items: start; }
+.ag-page-corps { display: grid; grid-template-columns: 224px minmax(0, 1fr); align-items: start; }
 .ag-page-corps > * { min-width: 0; }
-.ag-cote { border-right: 1px solid var(--line); padding: 14px 16px 20px; display: flex; flex-direction: column; gap: 16px; }
+.ag-cote { border-right: 1px solid var(--line); padding: 14px 12px 20px; display: flex; flex-direction: column; gap: 16px; }
 .ag-principal { padding: 0; }
 @media (max-width: 1100px) {
   .ag-page-corps { grid-template-columns: minmax(0, 1fr); }
