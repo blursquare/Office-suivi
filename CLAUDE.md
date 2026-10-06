@@ -139,7 +139,7 @@ dans `index.html`** (le test `structure-client` refuse tout décalage).
    du poste (adresse des Réglages › Collaborateurs, jamais fournie par le poste) via le droit « Envoyer en tant que » donné
    au compte relié **à demander à Fichorga** ; refus d'Exchange → brouillon retiré, email parti du compte relié, refus
    retenu 7 jours (clé `envoi-emails`). **Réponse à un email reçu** : carte sous l'email dans la fenêtre de lecture
-   (`repondreEmail`, ReplyToItem — même fil, email cité dessous), accusé de réception aussi dans le fil ; **premier jet par
+   (`repondreEmail`, ReplyToItem — même fil, email cité dessous ; `ReferenceItemId` porte la clé de modification relue juste avant par GetItem `IdOnly`, exigée par Exchange — 06/10), accusé de réception aussi dans le fil ; **premier jet par
    l'IA locale** (`POST /api/emails-dossiers/proposition`, `promptPropositionReponse` : rien d'inventé, « [à compléter] »
    où l'information manque — un tel passage, comme « [lien WeTransfer à coller ici] », bloque l'envoi). **Email d'origine déplacé** (étude 05/10 : son identifiant EWS change, `ErrorItemNotFound`) : la réponse part quand même, en nouvel email « RE: … » au même destinataire sans l'email cité (`sansFil`, point terrain `email-reponse-email-deplace`). **Envoi réussi → carte « Email envoyé »** en haut à droite (étude 05/10, `notifierEmailEnvoye` : À, objet, boîte, dossier, pièces ; repli dit en clair), posée par `envoyerRedaction` pour tout geste. Annuler la fenêtre
    rend `{ ok: false, annule: true }` : l'appelant ne marque rien et ne dit rien. Mode `mailto:` du poste inchangé. Pastille

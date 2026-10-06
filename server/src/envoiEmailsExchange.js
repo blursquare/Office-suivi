@@ -75,16 +75,26 @@ function corpsBrouillonNouveau({ a, cc, sujet, html, pieces, de }) {
 // Brouillon d'une RÉPONSE à un email reçu : le texte écrit va dans NewBodyContent, Exchange ajoute l'email cité
 // dessous et garde le fil. Ordre du schéma de ReplyToItem : Subject, ToRecipients, CcRecipients, From,
 // ReferenceItemId, NewBodyContent.
-function corpsBrouillonReponse({ itemId, a, cc, sujet, html, de, tous }) {
+// ReferenceItemId porte la clé de modification de l'email reçu : Exchange l'exige pour une réponse
+// (ErrorChangeKeyRequiredForWriteOperations sans elle, vu au bureau le 06/10) — relue juste avant par `corpsCleEmail`.
+function corpsBrouillonReponse({ itemId, changeKey, a, cc, sujet, html, de, tous }) {
   const balise = tous ? 'ReplyAllToItem' : 'ReplyToItem';
   return ENVELOPPE_DEBUT
     + '<m:CreateItem MessageDisposition="SaveOnly"><m:SavedItemFolderId><t:DistinguishedFolderId Id="drafts"/></m:SavedItemFolderId>'
     + `<m:Items><t:${balise}>`
     + (sujet ? `<t:Subject>${echapperXml(sujet)}</t:Subject>` : '')
     + destinatairesXml('ToRecipients', a || []) + destinatairesXml('CcRecipients', cc || []) + deXml(de)
-    + `<t:ReferenceItemId Id="${echapperXml(itemId)}"/>`
+    + `<t:ReferenceItemId Id="${echapperXml(itemId)}"${changeKey ? ` ChangeKey="${echapperXml(changeKey)}"` : ''}/>`
     + `<t:NewBodyContent BodyType="HTML">${echapperXml(html || '')}</t:NewBodyContent>`
     + `</t:${balise}></m:Items></m:CreateItem>` + ENVELOPPE_FIN;
+}
+
+// Clé de modification actuelle de l'email auquel on répond (elle change dès qu'il est lu, marqué ou classé) :
+// identifiant seul, jamais le contenu.
+function corpsCleEmail({ itemId }) {
+  return ENVELOPPE_DEBUT
+    + '<m:GetItem><m:ItemShape><t:BaseShape>IdOnly</t:BaseShape></m:ItemShape>'
+    + `<m:ItemIds><t:ItemId Id="${echapperXml(itemId)}"/></m:ItemIds></m:GetItem>` + ENVELOPPE_FIN;
 }
 
 function corpsAjoutPieces({ itemId, changeKey, pieces }) {
@@ -215,9 +225,23 @@ async function envoyerEmailExchange(parametresRepo, demande, injections = {}) {
   const refusIdentifiants = (r) => r.statut === 401 || r.statut === 403;
 
   const essayer = async (de) => {
+    // 0. Réponse : clé de modification actuelle de l'email reçu (exigée par Exchange dans ReferenceItemId).
+    let cleReponse = '';
+    if (reponse) {
+      const r0 = await poster(corpsCleEmail({ itemId: reponse.itemId }), 30000);
+      if (r0.echec) return { ok: false, message: r0.echec.message };
+      if (refusIdentifiants(r0)) {
+        if (propre) return { ok: false, refusPropre: true, message: 'Identifiants du collaborateur refusés.' };
+        agendaWatch.signalerIdentifiantsRefuses(reglages);
+        return { ok: false, message: 'Identifiants de messagerie refusés.' };
+      }
+      const code0 = codeReponse(r0.corps);
+      if (!succes(r0.corps)) return { ok: false, code: code0, message: messageEchec(code0, r0.statut) };
+      cleReponse = identifiantElement(lireXml(r0.corps)).changeKey || '';
+    }
     // 1. Brouillon.
     const r1 = await poster(reponse
-      ? corpsBrouillonReponse({ itemId: reponse.itemId, tous: reponse.tous, a, cc, sujet, html, de })
+      ? corpsBrouillonReponse({ itemId: reponse.itemId, changeKey: cleReponse, tous: reponse.tous, a, cc, sujet, html, de })
       : corpsBrouillonNouveau({ a, cc, sujet, html, pieces, de }));
     if (r1.echec) return { ok: false, message: r1.echec.message };
     if (refusIdentifiants(r1)) {
@@ -268,7 +292,8 @@ async function envoyerEmailExchange(parametresRepo, demande, injections = {}) {
   // la réponse part quand même, comme un nouvel email « RE: … » au même destinataire, sans l'email cité dessous
   // (étude 05/10 : « quand un email est déplacé, permettre d'y répondre quand même »).
   let sansFil = false;
-  if (!resultat.ok && reponse && a.length && /ErrorItemNotFound|ErrorInvalidIdMalformed/.test(resultat.code || '')) {
+  // Email du compte relié auquel le compte du collaborateur n'a pas accès : même chose (« sans l'email cité »).
+  if (!resultat.ok && reponse && a.length && (/ErrorItemNotFound|ErrorInvalidIdMalformed/.test(resultat.code || '') || (propre && /ErrorAccessDenied/.test(resultat.code || '')))) {
     reponse = null;
     sansFil = true;
     resultat = await essayer(deParDefaut);
@@ -339,7 +364,7 @@ const validerProposition = (o) => {
 
 module.exports = {
   CLE_ENVOI_EMAILS, JOURS_REFUS_RETENU, MAX_BASE64_TOTAL,
-  adresseValide, adressesDepuisTexte, corpsBrouillonNouveau, corpsBrouillonReponse, corpsAjoutPieces, corpsEnvoiBrouillon,
+  adresseValide, adressesDepuisTexte, corpsBrouillonNouveau, corpsBrouillonReponse, corpsCleEmail, corpsAjoutPieces, corpsEnvoiBrouillon,
   corpsRetraitBrouillon, idBrouillon, changeKeyApresPieces, piecesValides, adresseCollaborateur, refusRecent, lireEtatEnvoi,
   envoyerEmailExchange, messageEchec, promptPropositionReponse, validerProposition, MOTS_MAX_PROPOSITION, LONGUEUR_MAX_PROPOSITION
 };

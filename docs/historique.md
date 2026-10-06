@@ -17049,3 +17049,15 @@ Le type `convocation` de `TYPES_SCAN` (courrier « J'ai le plaisir de vous confi
 « Convocation au rendez-vous contenant l'appel de fonds » : copie rangée « Convocation au rendez-vous contenant l'appel de fonds -
 Claire Scan.pdf » à la racine du dossier. Contrôlé (test `scans`) : toujours reconnue comme décompte de l'étude par les fonds reçus
 (`RE_NOM_DECOMPTE_SUR`, aucun mot exclu), jamais prise pour une pièce de la checklist ni pour une offre de prêt.
+
+### 0.161.3 — 06/10/2026 09:47 — Réponse à un email : clé de modification exigée par Exchange
+
+Retour de l'étude (essai au bureau) : « Email non envoyé : Exchange a refusé l'envoi (ErrorChangeKeyRequiredForWriteOperations) ».
+Le message sans « resté dans les Brouillons » désigne la PREMIÈRE requête : le brouillon d'une réponse (`ReplyToItem` /
+`ReplyAllToItem`, accusé de réception, « Répondre ») portait `<t:ReferenceItemId Id="…"/>` sans `ChangeKey` — Exchange l'exige
+pour un objet de réponse (les faux Exchange des tests l'acceptaient). Correctif (`envoiEmailsExchange.js`) : avant le brouillon,
+`corpsCleEmail` (GetItem `IdOnly`, jamais le contenu) relit la clé ACTUELLE de l'email reçu (elle change dès qu'il est lu, marqué
+ou classé : jamais une clé gardée) et `corpsBrouillonReponse` la pose sur `ReferenceItemId`. Un email reçu déplacé répond
+maintenant `ErrorItemNotFound` dès cette lecture → même repli qu'avant (nouvel email « RE: … » sans l'email cité, `sansFil`) ;
+avec le compte propre d'un collaborateur, un `ErrorAccessDenied` sur l'email du compte relié prend aussi ce repli. Les nouveaux
+emails (sans réponse) ne changent pas. Point terrain `email-reponse-exchange` inchangé (à se cocher au prochain essai).

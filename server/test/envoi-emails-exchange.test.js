@@ -53,6 +53,9 @@ test('pur : adresses lues dans un champ libre, corps EWS dans l’ordre du sché
   const r = X.corpsBrouillonReponse({ itemId: 'IN9', a: ['camille@x.fr'], html: '<p>Merci</p>', tous: false });
   assert.match(r, /<t:ReplyToItem><t:ToRecipients>.*<t:ReferenceItemId Id="IN9"\/><t:NewBodyContent BodyType="HTML">/);
   assert.match(X.corpsBrouillonReponse({ itemId: 'IN9', html: '', tous: true }), /<t:ReplyAllToItem>/);
+  // Exchange exige la clé de modification de l'email reçu (ErrorChangeKeyRequiredForWriteOperations sans elle, 06/10).
+  assert.match(X.corpsBrouillonReponse({ itemId: 'IN9', changeKey: 'CKIN', html: '' }), /<t:ReferenceItemId Id="IN9" ChangeKey="CKIN"\/>/);
+  assert.match(X.corpsCleEmail({ itemId: 'IN9' }), /<m:GetItem><m:ItemShape><t:BaseShape>IdOnly<\/t:BaseShape><\/m:ItemShape><m:ItemIds><t:ItemId Id="IN9"\/>/);
   assert.match(X.corpsEnvoiBrouillon({ itemId: 'BR1', changeKey: 'CK2' }), /<m:SendItem SaveItemToFolder="true">.*ChangeKey="CK2".*Id="sentitems"/);
   assert.equal(X.changeKeyApresPieces(okAttach('CK9')), 'CK9');
   assert.equal(X.idBrouillon(okCreate('BR1', 'CK1')).changeKey, 'CK1');
@@ -108,9 +111,26 @@ test('envoi interrompu : l’email reste dans les Brouillons, jamais renvoyé ; 
   agendaWatch.signalerIdentifiantsRefuses({});
 });
 
+test('réponse : clé de modification de l’email reçu relue puis portée par ReferenceItemId', async () => {
+  const { repo } = preparer();
+  const f = fauxExchange({
+    GetItem: env('<m:GetItemResponse><m:ResponseMessages><m:GetItemResponseMessage ResponseClass="Success"><m:ResponseCode>NoError</m:ResponseCode><m:Items><t:Message><t:ItemId Id="IN9" ChangeKey="CKIN"/></t:Message></m:Items></m:GetItemResponseMessage></m:ResponseMessages></m:GetItemResponse>'),
+    CreateItem: (corps) => /ReferenceItemId Id="IN9" ChangeKey="CKIN"/.test(corps) ? okCreate('BR1', 'CK1') : erreur('CreateItem', 'ErrorChangeKeyRequiredForWriteOperations'),
+    SendItem: okSend
+  });
+  const r = await X.envoyerEmailExchange(repo, { collaborateur: 'Bastien ANGLUMENT', a: 'camille.fournier@exemple.fr', sujet: 'RE: Mon RIB', html: '<p>Merci</p>', reponseA: { itemId: 'IN9' } }, { poster: f.poster });
+  assert.equal(r.ok, true);
+  assert.equal(r.sansFil, false);
+  assert.match(f.corps[0], /<m:GetItem>.*IdOnly.*<t:ItemId Id="IN9"\/>/);
+  assert.doesNotMatch(f.corps[0], /item:Body|AdditionalProperties/);
+  assert.match(f.corps[1], /<t:ReplyToItem>/);
+  assert.match(f.corps[2], /<m:SendItem/);
+});
+
 test('réponse à un email déplacé (ErrorItemNotFound) : part quand même comme nouvel email, sans l’email cité', async () => {
   const { repo } = preparer();
   const f = fauxExchange({
+    GetItem: erreur('GetItem', 'ErrorItemNotFound'),
     CreateItem: (corps) => /<t:ReplyToItem>/.test(corps) ? erreur('CreateItem', 'ErrorItemNotFound') : okCreate('BR2', 'CK2'),
     SendItem: okSend
   });
@@ -118,14 +138,13 @@ test('réponse à un email déplacé (ErrorItemNotFound) : part quand même comm
   assert.equal(r.ok, true);
   assert.equal(r.sansFil, true);
   const creations = f.corps.filter((c) => /<m:CreateItem/.test(c));
-  assert.equal(creations.length, 2);
-  assert.match(creations[0], /<t:ReplyToItem>/);
-  assert.doesNotMatch(creations[1], /ReplyToItem|ReferenceItemId/);
-  assert.match(creations[1], /<t:Subject>RE: Mon RIB<\/t:Subject>/);
-  assert.match(creations[1], /camille\.fournier@exemple\.fr/);
+  assert.equal(creations.length, 1);
+  assert.doesNotMatch(creations[0], /ReplyToItem|ReferenceItemId/);
+  assert.match(creations[0], /<t:Subject>RE: Mon RIB<\/t:Subject>/);
+  assert.match(creations[0], /camille\.fournier@exemple\.fr/);
   assert.equal(f.corps.filter((c) => /<m:SendItem/.test(c)).length, 1);
   // Sans destinataire connu, pas de repli : le message d'erreur d'avant reste.
-  const g = fauxExchange({ CreateItem: erreur('CreateItem', 'ErrorItemNotFound') });
+  const g = fauxExchange({ GetItem: erreur('GetItem', 'ErrorItemNotFound') });
   const sans = await X.envoyerEmailExchange(repo, { collaborateur: 'Bastien ANGLUMENT', sujet: 'RE: Mon RIB', html: '<p>x</p>', reponseA: { itemId: 'IN9' } }, { poster: g.poster });
   assert.equal(sans.ok, false);
   assert.match(sans.message, /déplacé ou supprimé/);
@@ -184,7 +203,7 @@ test('route : réponse dans le fil avec pièce jointe, notée envoyée ; proposi
     }) });
     const corps = await r.json();
     assert.equal(corps.ok, true);
-    assert.match(f.corps.find((c) => /CreateItem/.test(c)), /<t:ReplyToItem>.*ReferenceItemId Id="IN9"/);
+    assert.match(f.corps.find((c) => /CreateItem/.test(c)), /<t:ReplyToItem>.*ReferenceItemId Id="IN9" ChangeKey="x"/);
     assert.match(f.corps.find((c) => /CreateAttachment/.test(c)), /ParentItemId Id="BR1" ChangeKey="CK1".*<t:ContentId>logo1/);
     assert.match(f.corps.find((c) => /SendItem/.test(c)), /ChangeKey="CK2"/);
     const vue = await (await fetch(`${base}/api/emails-dossiers?dossierId=d1`)).json();
