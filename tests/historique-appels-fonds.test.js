@@ -68,3 +68,17 @@ test('texteDernierGesteAppelFonds : dernier geste, quand et par qui', () => {
   assert.strictEqual(app.texteDernierGesteAppelFonds({ gestes: [] }, m), '');
   assert.match(app.texteDernierGesteAppelFonds({ gestes: [{ type: 'modifie', le: new Date(2026, 9, 6, 11, 5).toISOString(), par: 'Julie' }] }, m), /^Modifié à 11:05 par Julie$/);
 });
+
+// Barre d'étapes des outils (client/44-presentation-outils.js).
+test('etapeCouranteOutil : titre passé le plus proche de la ligne, colonne voisine remontée ignorée, bas de page', () => {
+  const positions = [
+    { cle: 'dossier', haut: -900 }, { cle: 'decompte', haut: -500 }, { cle: 'clients', haut: 120 },
+    { cle: 'rdv', haut: 600 }, { cle: 'courrier', haut: -1400 }
+  ];
+  assert.strictEqual(app.etapeCouranteOutil(positions, 350), 'clients');
+  // Haut de page : premier titre et aperçu voisin à la même hauteur → la première étape.
+  assert.strictEqual(app.etapeCouranteOutil([{ cle: 'dossier', haut: 250 }, { cle: 'courrier', haut: 255 }], 350), 'dossier');
+  assert.strictEqual(app.etapeCouranteOutil([{ cle: 'dossier', haut: 500 }], 350), 'dossier');
+  // Bas de page : la dernière section à l'écran, même sous la ligne.
+  assert.strictEqual(app.etapeCouranteOutil([{ cle: 'bien', haut: 200 }, { cle: 'financement', haut: 770 }, { cle: 'courrier', haut: -900 }], 350, 1000), 'financement');
+});

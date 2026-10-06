@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.160.0';
+  const VERSION_APP = '0.161.0';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.161.0', date: '2026-10-06 08:11', resume: "Outils (appel de fonds, quotités, provision, prorata, forfait mobilier) : présentation claire comme « Nouveau dossier », tout sur le même écran — barre d’étapes en tête (coche quand une section est remplie, suit le défilement, un clic mène à la section), sections numérotées, explications repliées sous « Règles et références »." },
     { version: '0.160.0', date: '2026-10-06 07:47', resume: "Appel de fonds : un courrier de l’historique se remodifie. « Modifier » le reprend dans l’outil tel qu’il est sorti (retouches de l’aperçu comprises) ; « Enregistrer les modifications » le met à jour dans l’historique sans le retélécharger." },
     { version: '0.159.0', date: '2026-10-06 07:40', resume: "Appel de fonds : historique des courriers créés. Chaque courrier téléchargé ou envoyé par email est gardé tel qu’il est sorti ; « Courriers créés » dans l’outil (recherche par dossier ou client) et l’onglet Fonds de la fiche permettent de le retélécharger à l’identique ou de le rouvrir pour le reprendre." },
     { version: '0.158.0', date: '2026-10-06 07:31', resume: "Appel de fonds : au choix du dossier, le décompte se remplit davantage tout seul — les frais et droits de l'acte sont estimés par le barème (taux plein, montant d'un primo-accédant indiqué, à vérifier), et l'avis de taxe foncière et l'état daté du dossier NAS sont lus sans dépôt : prorata de taxe foncière et remboursement du fonds de travaux ajoutés. Le récapitulatif dit quels fichiers ont été lus." },

@@ -13,7 +13,7 @@ import { fileURLToPath } from 'node:url';
 
 const VERSION = '3.14.0';
 /** Composants embarqués : un nom de dossier de dist/components par composant. Ajouter ici, puis relancer. */
-export const COMPOSANTS = ['button', 'switch', 'button-group'];
+export const COMPOSANTS = ['button', 'switch', 'button-group', 'stepper', 'step', 'details'];
 
 const racine = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const require = createRequire(path.join(racine, 'package.json'));

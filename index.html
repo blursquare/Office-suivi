@@ -681,9 +681,10 @@
     </div>
   </div>
 
+  <div class="outil-sommaire-place" data-outil="calculateur"></div>
   <div class="dash-grid">
     <div class="calc-card">
-      <div class="dash-section-titre">Paramètres de l'acquisition</div>
+      <h2 class="outil-section-tete" data-etape="prix">Prix</h2>
       <div class="calc-champs">
         <div class="calc-champ">
           <label for="calc-price">Prix / valeur d'assiette (€)</label>
@@ -693,10 +694,9 @@
           <label for="calc-mobilier">Dont mobilier (€) <span class="info-i" tabindex="0" data-info="Les meubles vendus avec le bien sortent de l&#x27;assiette des droits de mutation."></span></label>
           <input type="number" id="calc-mobilier" min="0" step="1" placeholder="Aucun" oninput="calculerFraisActe()">
         </div>
-        <div class="calc-champ">
-          <label for="calc-dept">Département de situation du bien</label>
-          <select id="calc-dept" onchange="calculerFraisActe()"></select>
-        </div>
+      </div>
+      <h2 class="outil-section-tete" data-etape="acquereur">Acquéreur et destination</h2>
+      <div class="calc-champs">
         <div class="calc-champ">
           <label>Acquéreur</label>
           <div class="calc-radios">
@@ -711,6 +711,13 @@
             <label><input type="radio" name="calc-rp" value="no" onchange="calculerFraisActe()"> Autre destination</label>
           </div>
         </div>
+      </div>
+      <h2 class="outil-section-tete" data-etape="bien">Bien</h2>
+      <div class="calc-champs">
+        <div class="calc-champ">
+          <label for="calc-dept">Département de situation du bien</label>
+          <select id="calc-dept" onchange="calculerFraisActe()"></select>
+        </div>
         <div class="calc-champ">
           <label for="calc-type">Nature du bien</label>
           <select id="calc-type" onchange="calculerFraisActe()">
@@ -723,7 +730,7 @@
     </div>
 
     <div class="calc-card">
-      <div class="dash-section-titre">Résultat de la provision</div>
+      <h2 class="outil-section-tete" data-etape="resultat">Provision</h2>
       <div class="calc-resultat">
         <div class="calc-tag" id="calc-tag"></div>
         <div class="calc-total" id="calc-total"></div>
@@ -743,22 +750,17 @@
         <tr><td>Débours (selon le tableau)</td><td>200 €</td></tr>
         <tr><td><strong>Total provisionnel</strong></td><td id="calc-total2"></td></tr>
       </table>
+      <p class="calc-regime" id="calc-regime"></p>
     </div>
 
   </div>
 
-  <div class="calc-card calc-card-notes">
-    <div class="dash-section-titre">Régime appliqué</div>
-    <p id="calc-regime"></p>
+  <wa-details class="outil-notes" summary="Règles et références">
     <p>Pour un département à 5,00 %, le non-primo-accédant utilise la colonne 6,3185 % du tableau fourni et le primo-accédant éligible la colonne 5,80665 %. Si le département est resté à 4,50 %, les deux régimes utilisent la colonne 5,80665 %. Pour un département à 3,80 %, le montant « Trésor » est extrapolé à partir des deux colonnes du tableau.</p>
-  </div>
-
-  <div class="calc-card calc-card-notes">
-    <div class="dash-section-titre">Règles et références</div>
     <p><strong>Primo-accédant :</strong> la hausse temporaire du taux départemental ne s'applique pas lorsque le bien constitue la première propriété de l'acquéreur et est destiné à sa résidence principale (art. L. 31-10-3 du CCH).</p>
     <p><strong>Barème :</strong> taux départementaux DGFiP applicables au 1er juin 2026. Le tarif réglementé des notaires est fixé pour la période du 1er mars 2026 au 29 février 2028 (art. A444-91 du Code de commerce). L'article 116 de la loi de finances pour 2025 permet une hausse temporaire du taux départemental jusqu'à 5 % du 1er avril 2025 au 31 mars 2028, avec exception pour les primo-accédants achetant leur résidence principale (condition de première propriété appréciée notamment sur les deux années précédentes, cf. BOFiP).</p>
     <p>Barème validé par l'étude (02/10/2026). Les débours propres au dossier restent à vérifier avant émission.</p>
-  </div>
+  </wa-details>
 </div>
 
 <!-- Prorata : répartir entre vendeur et acquéreur une somme déjà appelée pour une période que la
@@ -825,9 +827,10 @@
     </div>
   </div>
 
+  <div class="outil-sommaire-place" data-outil="prorata"></div>
   <div class="dash-grid">
     <div class="calc-card">
-      <div class="dash-section-titre">Somme à répartir</div>
+      <h2 class="outil-section-tete" data-etape="somme">Somme à répartir</h2>
       <div class="tf-import" ondragover="survolDepotPieces(event)" ondragleave="quitteDepotPieces(event)" ondrop="deposerPiecesOutil(event, 'prorata')">
         <label for="prorata-avis-tf" class="file-btn" data-piece="tf">Lire un avis de taxe foncière</label>
         <input type="file" id="prorata-avis-tf" accept="application/pdf" hidden onchange="importerAvisTaxeFonciere('prorata', this.files && this.files[0]); this.value='';">
@@ -843,17 +846,16 @@
           <label for="prorata-montant">Montant appelé (€)</label>
           <input type="number" id="prorata-montant" min="1" step="0.01" placeholder="Saisir le montant appelé" oninput="calculerProrataAffichage()">
         </div>
+      </div>
+      <h2 class="outil-section-tete" data-etape="periode">Période appelée</h2>
+      <div class="calc-champs">
         <div class="calc-champ">
-          <label for="prorata-periode">Période appelée</label>
+          <label for="prorata-periode">Période</label>
           <select id="prorata-periode" onchange="majPeriodeProrata()">
             <option value="annee">Année civile — taxe foncière</option>
             <option value="trimestre">Trimestre civil — charges de copropriété</option>
             <option value="mois">Mois civil — charges mensuelles ou loyer</option>
           </select>
-        </div>
-        <div class="calc-champ">
-          <label for="prorata-date">Date de l'acte</label>
-          <input type="date" id="prorata-date" onchange="majPeriodeProrata()">
         </div>
         <div class="calc-champ calc-champ-paire">
           <div>
@@ -866,10 +868,17 @@
           </div>
         </div>
       </div>
+      <h2 class="outil-section-tete" data-etape="acte">Date de l'acte</h2>
+      <div class="calc-champs">
+        <div class="calc-champ">
+          <label for="prorata-date">Date prévue de signature</label>
+          <input type="date" id="prorata-date" onchange="majPeriodeProrata()">
+        </div>
+      </div>
     </div>
 
     <div class="calc-card">
-      <div class="dash-section-titre">Répartition</div>
+      <h2 class="outil-section-tete" data-etape="repartition">Répartition</h2>
       <div id="prorata-erreur" class="prorata-erreur"></div>
       <div id="prorata-resultat" style="display:none;">
         <div class="prorata-parts">
@@ -892,13 +901,12 @@
     </div>
   </div>
 
-  <div class="calc-card calc-card-notes">
-    <div class="dash-section-titre">Convention de calcul</div>
+  <wa-details class="outil-notes" summary="Convention de calcul">
     <p>Jours <strong>réels</strong> sur la période réelle : 365 jours, 366 une année bissextile — pas de mois forfaitaire de 30 jours.</p>
     <p>Le <strong>jour de l'acte est à la charge de l'acquéreur</strong> : il est compté dans sa part.</p>
     <p>La part du vendeur est le complément exact de celle de l'acquéreur, de sorte que les deux totalisent toujours la somme appelée au centime près.</p>
     <p><strong>Taxe foncière :</strong> elle reste due par le propriétaire au 1<sup>er</sup> janvier, donc par le vendeur ; ce calcul donne la somme que l'acquéreur lui rembourse. Cette répartition est conventionnelle entre les parties, elle n'est pas opposable à l'administration fiscale.</p>
-  </div>
+  </wa-details>
 </div>
 
 <!-- Générateur d'appel de fonds (voir CLAUDE.md, "Générateur d'appel de fonds"). Deux moitiés
@@ -923,11 +931,12 @@
     </div>
   </div>
 
+  <div class="outil-sommaire-place" data-outil="appel-fonds"></div>
   <div class="af-grid">
     <!-- ---------- Colonne de gauche : le formulaire, aux couleurs de CLAIRE ---------- -->
     <div class="calc-card af-form">
 
-      <div class="dash-section-titre">1 · Dossier suivi</div>
+      <h2 class="outil-section-tete" data-etape="dossier">Dossier suivi</h2>
       <div class="calc-champs">
         <div class="calc-champ">
           <label for="af-dossier-recherche">Reprendre les données d'un dossier</label>
@@ -940,7 +949,7 @@
         <div id="af-recap-prefill" class="af-recap"></div>
       </div>
 
-      <div class="dash-section-titre" style="margin-top:18px;">2 · Décompte</div>
+      <h2 class="outil-section-tete" data-etape="decompte">Décompte</h2>
       <wa-button-group class="vue-bascule af-mode-decompte" label="Qui établit le décompte">
         <wa-button appearance="outlined" size="s" type="button" class="vue-bascule-btn actif" id="af-mode-btn-office" onclick="definirModeDecompteAppelFonds('office')">Établi par l'office</wa-button>
         <wa-button appearance="outlined" size="s" type="button" class="vue-bascule-btn" id="af-mode-btn-confrere" onclick="definirModeDecompteAppelFonds('confrere')">Décompte du confrère</wa-button>
@@ -979,7 +988,7 @@
       <div id="af-rapport-parse" class="af-rapport"></div>
       </div>
 
-      <div class="dash-section-titre" style="margin-top:18px;">3 · Client(s)</div>
+      <h2 class="outil-section-tete" data-etape="clients">Client(s)</h2>
       <div class="calc-champs">
         <div class="calc-champ">
           <label for="af-situation">Situation matrimoniale <span class="info-i" tabindex="0" data-info="Situation matrimoniale reprise de la fiche du dossier. Couple marié Monsieur et Madame : « Monsieur et Madame Paul DUPONT » ; sinon chacun nommé avec sa civilité (« Monsieur Paul DUPONT et Madame Léa MARTIN », deux hommes ou deux femmes compris). La formule d&#x27;appel suit les civilités."></span></label>
@@ -1000,7 +1009,7 @@
         </div>
       </div>
 
-      <div class="dash-section-titre" style="margin-top:18px;">4 · Rendez-vous</div>
+      <h2 class="outil-section-tete" data-etape="rdv">Rendez-vous</h2>
       <div class="calc-champs">
         <div class="calc-champ">
           <label for="af-ref">Référence du dossier</label>
@@ -1031,7 +1040,7 @@
         </div>
       </div>
 
-      <div class="dash-section-titre" style="margin-top:18px;">5 · Bien vendu</div>
+      <h2 class="outil-section-tete" data-etape="bien">Bien vendu</h2>
       <div class="calc-champs">
         <div class="calc-champ">
           <label for="af-designation">Désignation</label>
@@ -1066,7 +1075,7 @@
         </div>
       </div>
 
-      <div class="dash-section-titre" style="margin-top:18px;">6 · Financement</div>
+      <h2 class="outil-section-tete" data-etape="financement">Financement</h2>
       <div class="calc-champs">
         <label class="af-checkline"><input type="checkbox" id="af-sans-pret" onchange="majApercuAppelFonds()"> Achat sans prêt (apport personnel seul)</label>
         <label class="af-checkline"><input type="checkbox" id="af-pret-hypothecaire" onchange="majApercuAppelFonds()"> Prêt garanti par une hypothèque (acte de prêt à recevoir) <span class="info-i" tabindex="0" data-info="Un prêt cautionné (Crédit Logement…) ne donne lieu à aucun acte notarié, donc à aucun frais d&#x27;acte de prêt à appeler. CLAIRE coche cette case toute seule quand elle a lu une garantie hypothécaire dans l&#x27;offre de prêt du dossier."></span></label>
@@ -1077,7 +1086,7 @@
     <!-- ---------- Colonne de droite : l'aperçu du courrier, identité papier de l'étude ---------- -->
     <div class="af-apercu">
       <div class="af-apercu-barre">
-        <span class="hint">Aperçu modifiable <span class="info-i" tabindex="0" data-info="Cliquez dans un texte ou un montant pour le corriger ; double-cliquez une ligne du tableau pour la supprimer. Le .docx téléchargé reprend l&#x27;en-tête réel de l&#x27;étude."></span></span>
+        <h2 class="outil-section-tete" data-etape="courrier">Courrier <span class="info-i" tabindex="0" data-info="Aperçu modifiable : cliquez dans un texte ou un montant pour le corriger ; double-cliquez une ligne du tableau pour la supprimer. Le .docx téléchargé reprend l&#x27;en-tête réel de l&#x27;étude."></span></h2>
       </div>
 
       <div class="af-lettre" id="af-lettre" contenteditable="true" spellcheck="false" oninput="saisieApercuAppelFonds()">
@@ -1207,10 +1216,11 @@
     </div>
   </div>
 
+  <div class="outil-sommaire-place" data-outil="inventaire"></div>
   <div class="dash-grid">
     <div>
       <div class="calc-card">
-        <div class="dash-section-titre">Droits de succession simulés <span class="info-i" tabindex="0" data-info="Ces deux montants viennent de votre propre simulation des droits : CLAIRE ne les calcule pas et ne connaît ni les abattements ni le degré de parenté."></span></div>
+        <h2 class="outil-section-tete" data-etape="droits">Droits de succession simulés <span class="info-i" tabindex="0" data-info="Ces deux montants viennent de votre propre simulation des droits : CLAIRE ne les calcule pas et ne connaît ni les abattements ni le degré de parenté."></span></h2>
         <div class="calc-champs">
           <div class="calc-champ">
             <label for="inv-dossier">Dossier</label>
@@ -1225,10 +1235,7 @@
             <input type="number" id="inv-droits-avec" min="0" step="1" placeholder="Droits dus sur la valeur réelle du mobilier" oninput="calculerInventaireAffichage()">
           </div>
         </div>
-      </div>
-
-      <div class="calc-card">
-        <div class="dash-section-titre">Coût de l'inventaire <span class="info-i" tabindex="0" data-info="Montants habituels de l&#x27;étude posés d&#x27;office, à ajuster si besoin. Un poste vidé n&#x27;est pas compté ; serments et trajets n&#x27;apparaissent au décompte que s&#x27;ils sont chiffrés."></span></div>
+        <h2 class="outil-section-tete" data-etape="cout">Coût de l'inventaire <span class="info-i" tabindex="0" data-info="Montants habituels de l&#x27;étude posés d&#x27;office, à ajuster si besoin. Un poste vidé n&#x27;est pas compté ; serments et trajets n&#x27;apparaissent au décompte que s&#x27;ils sont chiffrés."></span></h2>
         <div class="calc-champs">
           <div class="calc-champ">
             <label for="inv-frais-ouverture">Provision — acte d'inventaire (€)</label>
@@ -1273,7 +1280,7 @@
     </div>
 
     <div class="calc-card">
-      <div class="dash-section-titre">Verdict</div>
+      <h2 class="outil-section-tete" data-etape="verdict">Verdict</h2>
       <div id="inv-verdict-badge"></div>
       <div class="calc-resultat inv-resultat">
         <div class="calc-tag">Économie nette estimée</div>
@@ -1303,12 +1310,11 @@
     </div>
   </div>
 
-  <div class="calc-card calc-card-notes">
-    <div class="dash-section-titre">Ce que dit le texte</div>
+  <wa-details class="outil-notes" summary="Ce que dit le texte">
     <p><strong>Article 764 du CGI :</strong> à défaut d'inventaire ou de prisée, les meubles meublants sont réputés valoir <strong>5 % de l'ensemble des autres biens</strong> de la succession. Ce forfait est un plancher d'évaluation, pas une option de confort.</p>
     <p>Un <strong>inventaire notarié avec prisée par un commissaire de justice</strong> écarte ce forfait et lui substitue la valeur réellement constatée. L'arbitrage n'a donc d'intérêt que lorsque le mobilier vaut sensiblement moins que 5 % de l'actif.</p>
     <p>Ce simulateur compare la seule <strong>économie de droits</strong> au <strong>coût de la démarche</strong>. Il ne dit rien des autres raisons de dresser un inventaire — protection du conjoint survivant, indivision conflictuelle, démembrement, recel successoral — qui peuvent le justifier même sans gain fiscal.</p>
-  </div>
+  </wa-details>
 
   <!-- Note imprimable : masquée à l'écran, seule chose que sort Ctrl+P depuis cet onglet (voir
        @media print). Reconstruite à chaque saisie par construireNoteInventaire(). -->
@@ -1334,9 +1340,10 @@
     </div>
   </div>
 
+  <div class="outil-sommaire-place" data-outil="quotites"></div>
   <div class="af-grid qt-grid">
     <div class="calc-card af-form">
-      <div class="dash-section-titre">Dossier suivi</div>
+      <h2 class="outil-section-tete" data-etape="dossier">Dossier suivi</h2>
       <div class="calc-champs">
         <div class="calc-champ">
           <label for="qt-dossier-recherche">Reprendre les acquéreurs et le prix d'un dossier</label>
@@ -1349,22 +1356,22 @@
         <div id="qt-recap-prefill" class="af-recap"></div>
       </div>
 
-      <div class="dash-section-titre qt-titre">Nature du bien</div>
+      <h2 class="outil-section-tete" data-etape="bien">Nature du bien</h2>
       <div class="calc-radios qt-radios-bien">
         <label><input type="radio" name="qt-type-bien" value="immeuble" checked onchange="changerTypeBienQuotites(this.value)"> Maison ou lot de copropriété</label>
         <label><input type="radio" name="qt-type-bien" value="terrain" onchange="changerTypeBienQuotites(this.value)"> Terrain + construction</label>
       </div>
 
-      <div class="dash-section-titre qt-titre">Acquéreurs</div>
+      <h2 class="outil-section-tete" data-etape="acquereurs">Acquéreurs</h2>
       <div id="qt-acquereurs" class="qt-liste"></div>
       <wa-button appearance="outlined" type="button" class="bouton-ajout" onclick="ajouterAcquereurQuotites()"><span slot="start" class="bouton-ajout-plus" aria-hidden="true">+</span>Ajouter un acquéreur</wa-button>
 
-      <div class="dash-section-titre qt-titre">Montant de l'opération</div>
+      <h2 class="outil-section-tete" data-etape="montant">Montant de l'opération</h2>
       <div id="qt-lignes" class="qt-liste"></div>
       <wa-button appearance="outlined" type="button" class="bouton-ajout" onclick="ajouterLigneQuotites()"><span slot="start" class="bouton-ajout-plus" aria-hidden="true">+</span>Ajouter une ligne</wa-button>
       <div class="qt-total-ligne"><span>Total de l'opération</span><strong id="qt-total-operation">—</strong></div>
 
-      <div class="dash-section-titre qt-titre">Origine du financement</div>
+      <h2 class="outil-section-tete" data-etape="financement">Origine du financement</h2>
       <div id="qt-sources" class="qt-liste"></div>
       <div class="qt-ajout-sources">
         <wa-button appearance="outlined" type="button" class="bouton-ajout bouton-ajout-court" onclick="ajouterSourceQuotites('apport')"><span slot="start" class="bouton-ajout-plus" aria-hidden="true">+</span>Apport personnel</wa-button>
@@ -1375,14 +1382,14 @@
 
     <div class="qt-colonne-droite">
       <div class="calc-card qt-resultat">
-        <div class="dash-section-titre">Quotités <span class="info-i" tabindex="0" data-info="Proportions arrondies au centième, ajustées pour totaliser exactement 100 %. Elles suivent le financement de chacun, pas le montant de l&#x27;opération."></span></div>
+        <h2 class="outil-section-tete" data-etape="quotites">Quotités <span class="info-i" tabindex="0" data-info="Proportions arrondies au centième, ajustées pour totaliser exactement 100 %. Elles suivent le financement de chacun, pas le montant de l&#x27;opération."></span></h2>
         <div id="qt-controle"></div>
         <div id="qt-quotites" class="qt-quotites"></div>
       </div>
 
       <div class="af-apercu qt-apercu">
         <div class="af-apercu-barre">
-          <span class="section-eyebrow">Aperçu de l'annexe</span>
+          <h2 class="outil-section-tete" data-etape="annexe">Annexe</h2>
         </div>
         <div class="qt-feuille" id="qt-feuille"></div>
       </div>
@@ -2514,5 +2521,6 @@
 <script src="client/41-reglages.js"></script>
 <script src="client/42-claire-scan.js"></script>
 <script src="client/43-historique-appels-fonds.js"></script>
+<script src="client/44-presentation-outils.js"></script>
 </body>
 </html>

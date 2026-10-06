@@ -17001,3 +17001,25 @@ garantie du prêt (pas d'offre réelle lue).
 - **« Enregistrer les modifications »** dans l'encadré « Courrier repris pour modification » (`enregistrerModificationsAppelFonds`) :
   met à jour la même ligne sans télécharger (geste `modifie`, « Modifié à 10:32 par … », ajouté à `GESTES_APPEL_FONDS` côté
   serveur) ; le nom du .docx d'origine est gardé (`afHistoriqueNom`). Un téléchargement ou un email font de même.
+
+### 06/10/2026 — 0.161.0 : présentation des outils, claire comme « Nouveau dossier », tout sur le même écran
+
+Étude : « Pour les outils, reprends bien la présentation. Claire comme dans création de dossier. Utilise Web Awesome et fais
+quelque chose de facile à utiliser et où l'on se repère bien. » Question posée (étapes avec « Suivant » pour les outils longs,
+tous en étapes, ou l'appel de fonds d'abord) ; réponse : « Non, tous sur le même écran ».
+
+- **Barre d'étapes** (`wa-stepper` de Web Awesome 3.14, ajouté au paquet local avec `wa-step` et `wa-details` —
+  `scripts/construire-web-awesome.mjs`, `COMPOSANTS`) en tête de chaque outil, collée en haut quand on défile
+  (`.outil-sommaire-place`, carte comme celle de « Nouveau dossier ») : numéros des sections, **coche** quand la section est
+  remplie (`ETAPES_OUTILS[outil][i].fait`), l'étape où l'on se trouve **suit le défilement** (`etapeCouranteOutil` : titre passé
+  le plus près de la ligne de lecture, un titre de la colonne voisine remonté ne l'emporte pas, en bas de page la dernière
+  section à l'écran), **un clic mène à la section** (étape cliquée gardée allumée 1,2 s). Sur téléphone, seul le libellé de
+  l'étape en cours est écrit. Marqueurs en carré arrondi, comme l'assistant.
+- **Sections numérotées** (`h2.outil-section-tete[data-etape]`, numéro `.outil-num` posé par la barre) : appel de fonds —
+  Dossier · Décompte · Clients · Rendez-vous · Bien vendu · Financement · Courrier (coché une fois le courrier sorti) ;
+  quotités — Dossier · Bien · Acquéreurs · Montant · Financement · Quotités · Annexe ; provision — Prix · Acquéreur et
+  destination · Bien · Provision ; prorata — Somme à répartir · Période appelée · Date de l'acte (déplacée après la période) ·
+  Répartition ; forfait mobilier — Droits simulés · Coût de l'inventaire (une seule carte) · Verdict.
+- **Explications repliées** (`wa-details.outil-notes`) : « Règles et références » (provision ; la phrase du régime appliqué
+  passe sous le tableau du résultat), « Convention de calcul » (prorata), « Ce que dit le texte » (forfait mobilier).
+- Vérifié dans Chromium (bureau et téléphone) : coches, suivi du défilement, clic vers Rendez-vous / Financement / Dossier.

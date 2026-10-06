@@ -153,7 +153,7 @@ test('Web Awesome : boutons d’action, boutons à icône, « Ajouter », pastil
     }
     // Interrupteur : wa-switch, plus l'ancien <input type="checkbox"> + .slider.
     if (/class="slider"/.test(src)) fautes.push(`${f} : ancien interrupteur (.slider) — utiliser <wa-switch>`);
-    for (const balise of ['wa-button', 'wa-switch', 'wa-button-group']) {
+    for (const balise of ['wa-button', 'wa-switch', 'wa-button-group', 'wa-stepper', 'wa-step', 'wa-details']) {
       const ouverts = (src.match(new RegExp(`<${balise}(?![\\w-])`, 'g')) || []).length, fermes = (src.match(new RegExp(`</${balise}>`, 'g')) || []).length;
       if (ouverts !== fermes) fautes.push(`${f} : ${ouverts} <${balise}> pour ${fermes} </${balise}>`);
     }

@@ -253,6 +253,8 @@
     // « Noms de fichiers du NAS » est une rubrique des Réglages depuis le 03/10 (étude) : un ancien lien y mène.
     if (nom === 'noms-nas') { definirOnglet('reglages'); definirSousOngletReglages('noms-nas'); return; }
     ongletActuel = nom;
+    // Barre d'étapes d'un outil (client/44-presentation-outils.js) : à jour dès l'arrivée sur l'écran.
+    if (typeof ETAPES_OUTILS !== 'undefined' && ETAPES_OUTILS[nom]) setTimeout(() => majSommaireOutil(nom), 0);
     // Sur mobile, choisir une section referme la sidebar repliable (voir toggleSidebarMobile).
     toggleSidebarMobile(false);
     document.getElementById('onglet-dashboard').style.display = nom === 'dashboard' ? '' : 'none';

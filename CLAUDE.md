@@ -401,6 +401,14 @@ dans `index.html`** (le test `structure-client` refuse tout décalage).
   modifications » (geste `modifie`, sans téléchargement), un nouveau téléchargement ou l'email mettent à jour la même ligne
   (`afHistoriqueId`, oublié à « Effacer », au choix d'un dossier ou d'un autre dossier relié). La liste ne rend que des résumés,
   le courrier est relu à la demande (`GET /api/appels-fonds/:id`).
+- **Présentation des outils** (étude 06/10 : « claire comme dans création de dossier, Web Awesome, facile, que l'on s'y
+  repère » ; puis « non, tous sur le même écran ») — appel de fonds, quotités, provision, prorata, forfait mobilier :
+  **un seul écran, jamais d'étapes à « Suivant »**. En tête, barre d'étapes `wa-stepper` collée en haut au défilement
+  (`client/44-presentation-outils.js`, `ETAPES_OUTILS` : clé, libellé court, `fait` → coche ; `.outil-sommaire-place[data-outil]`),
+  qui suit le défilement (`etapeCouranteOutil`) et mène à la section au clic ; chaque section a un titre
+  `h2.outil-section-tete[data-etape]` numéroté comme son étape (`.outil-num`) ; explications longues dans un
+  `wa-details.outil-notes` replié. Un nouvel outil de ce genre : ses étapes dans `ETAPES_OUTILS`, ses titres de section, la place
+  de la barre. Composants Web Awesome embarqués : button, switch, button-group, stepper, step, details.
 - **« Nouveau dossier » : deux entrées** (étude, 02/10 au soir, `MODES_IMPORT`, `choisirModeImport`,
   `renderChoixImport`) — **« Compromis (PDF) »** : le compromis lu, on reste sur l'étape 1 — le dossier d'Authentic qui correspond est proposé en tête (« Dossier trouvé dans Authentic », `dossierAuthenticPourCompromis`, étude 05/10 : Authentic pré-remplit, prix compris, le compromis complète) : « Compléter depuis Authentic
   (facultatif) » (`groupesAuthenticPourCompromis` : le dossier du compromis en tête, « Correspond au compromis ») ou

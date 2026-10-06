@@ -164,7 +164,7 @@
      (clair/sombre, accent choisi). Déclarés aussi sur chaque composant (wa-button…) : un jeton --wa-* se calcule là où
      il est déclaré, et la barre latérale redéfinit localement --focus, --ink… (toujours sombre) — sur le composant, il
      reprend les valeurs de son voisinage. Ajouter ici tout nouveau composant embarqué (scripts/construire-web-awesome.mjs). */
-  :root, wa-button, wa-switch, wa-button-group {
+  :root, wa-button, wa-switch, wa-button-group, wa-stepper, wa-step, wa-details {
     --wa-font-family-body: var(--police);
     --wa-font-family-heading: var(--wa-font-family-body);
     --wa-font-weight-action: 500;
@@ -212,6 +212,12 @@
     --wa-color-success-on-loud: var(--on-accent);
     --wa-color-success-on-quiet: var(--success);
     --wa-color-success-fill-quiet: var(--success-bg);
+    /* Surfaces et textes (barre d'étapes, volets « Règles et références » des outils). */
+    --wa-color-surface-default: var(--paper-card);
+    --wa-color-surface-raised: var(--paper-card);
+    --wa-color-surface-border: var(--line);
+    --wa-color-text-normal: var(--ink);
+    --wa-color-text-quiet: var(--muted);
   }
   wa-button { font-size: var(--texte-base); vertical-align: middle; }
   /* Bouton secondaire : fond de carte (blanc en clair), comme les champs et les bascules, au lieu d'un fond transparent qui
@@ -4844,6 +4850,38 @@
    le menu se calerait sur toute la hauteur du bloc au lieu du seul champ de saisie. */
 .af-adresse-auto { position: relative; }
 
+/* ---- Outils : barre d'étapes et titres de section, tout sur le même écran (étude 06/10, client/44-presentation-outils.js) ----
+   La barre suit le défilement (collée en haut), ses numéros sont ceux des titres de section : on sait où l'on est et ce
+   qui reste à remplir, comme dans « Nouveau dossier ». Marqueurs en carré arrondi, comme ceux de l'assistant. */
+.outil-sommaire-place {
+  position: sticky; top: 8px; z-index: 6; margin-bottom: 20px; padding: 14px 20px;
+  background: var(--paper-card); border: 1px solid var(--bord-carte); border-radius: var(--rayon-carte); box-shadow: var(--shadow-card);
+}
+.outil-sommaire-place:empty { display: none; }
+wa-stepper.outil-sommaire { display: block; --marker-size: 30px; --gap: 8px; --connector-color: var(--line); font-size: var(--texte-m); }
+wa-step::part(marker) { border-radius: var(--rayon-m); font-weight: 600; font-size: var(--texte-m); }
+wa-step::part(label) { font-weight: 500; }
+.outil-section-tete {
+  display: flex; align-items: center; gap: 10px; margin: 24px 0 12px; padding-top: 20px; border-top: 1px solid var(--line-soft);
+  font-size: var(--texte-l); font-weight: 500; color: var(--ink); line-height: 1.3; scroll-margin-top: 112px;
+}
+.calc-card > .outil-section-tete:first-child, .af-apercu-barre > .outil-section-tete, .qt-resultat > .outil-section-tete:first-child {
+  margin-top: 0; padding-top: 0; border-top: none;
+}
+.outil-num {
+  display: inline-flex; align-items: center; justify-content: center; flex: none; width: 28px; height: 28px;
+  border: 2px solid var(--focus); border-radius: var(--rayon-m); color: var(--focus); font-size: var(--texte-m); font-weight: 600;
+}
+wa-details.outil-notes { display: block; margin-bottom: 20px; font-size: var(--texte-m); }
+wa-details.outil-notes::part(base) { background: var(--paper-card); border: 1px solid var(--bord-carte); border-radius: var(--rayon-carte); box-shadow: var(--shadow-card); }
+wa-details.outil-notes::part(summary) { font-size: var(--texte-base); font-weight: 500; color: var(--ink); }
+wa-details.outil-notes p { margin: 0 0 10px; line-height: 1.5; }
+wa-details.outil-notes p:last-child { margin-bottom: 0; }
+.calc-regime { margin: 12px 0 0; font-size: var(--texte-s); color: var(--muted); }
+@media (max-width: 700px) {
+  .outil-sommaire-place { top: 0; padding: 10px 12px; }
+  wa-step:not(:state(active))::part(content) { display: none; }
+}
 .af-recap { display: none; flex-direction: column; gap: 10px; }
 /* Courriers d'appel de fonds créés (fenêtre de l'outil, onglet Fonds de la fiche) : voir client/43-historique-appels-fonds.js. */
 .confirm-box.af-historique-box { max-width: none; width: min(760px, calc(100vw - 32px)); max-height: min(80vh, 760px); display: flex; flex-direction: column; gap: 12px; }

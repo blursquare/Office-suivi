@@ -42,5 +42,6 @@
   "40-generateur-appel-fonds.js",
   "41-reglages.js",
   "42-claire-scan.js",
-  "43-historique-appels-fonds.js"
+  "43-historique-appels-fonds.js",
+  "44-presentation-outils.js"
 ]
