@@ -17169,3 +17169,28 @@ Point terrain `zonage-parcelle-gpu` (accès Internet sortant du serveur vers api
   l'extension « 3CX Click to Call » du Chrome habituel. Réglages › Téléphonie 3CX : section « Numéros cliquables dans la fenêtre
   CLAIRE », bouton qui ouvre le Chrome Web Store dans le profil courant (à cliquer depuis la fenêtre CLAIRE ; la page dit si on y
   est, `fenetreApplicationClaire`). Point terrain manuel `telephone-3cx-fenetre-app`.
+
+### 06/10/2026 — 0.165.0 : mise en forme et pièces jointes collées/glissées dans la fenêtre d'email, notification d'envoi en bas à gauche
+
+- Demande de l'étude : « rédaction d'email : mettre des outils de gras, souligné… ; permettre de copier-coller des pièces jointes
+  ou glisser-déposer » et « mettre la notification envoi d'email en bas à gauche ».
+- `client/47-redaction-mise-en-forme.js` : la zone de saisie de la fenêtre d'email (`renderCarteRedaction`) passe d'un `<textarea>`
+  à une zone éditable (`#redaction-texte`, `contenteditable`) avec une barre d'outils (`OUTILS_REDACTION` : gras « G »,
+  italique, souligné « S », liste à puces, liste numérotée, effacer la mise en forme ; `document.execCommand`, sélection
+  retenue pour qu'un clic sur la barre ne la perde pas ; boutons actifs selon le curseur). Le corps de départ est mis en HTML par
+  `htmlRedactionDepuisTexte` (une `<div>` par ligne, marques de l'étude en gras souligné, « [Boutons de réponse] »).
+- État de la fenêtre : `r.html` (HTML de la zone) et `r.texte` (son texte visible, pour les contrôles avant envoi). Email
+  **intact** (`r.html === r.htmlDepart`) → le corps d'origine part comme avant (textes de l'étude mot pour mot) ; modifié →
+  `htmlCorpsDepuisEditeur` (pur, testé) refait des paragraphes `<p style="margin:0 0 11pt;">` comme `htmlEmail`, des listes,
+  les liens (http(s)/mailto seulement, URL nues reliées), les boutons du sondage à leur place ; une balise en ligne ouverte sur
+  plusieurs lignes est refermée/rouverte ; tout autre élément (image, style, script, lien javascript:) ne laisse que son texte.
+  `htmlEmail(…, corpsHtml)` et `livrerEmlDossier({ corpsHtml })` le posent tel quel (envoi par Exchange et « Ouvrir dans
+  Outlook »). Modèle et proposition de l'IA reposent le HTML (`poserTexteRedaction`) ; « Annuler le modèle » le rétablit.
+- Pièces jointes : `collerRedaction` (Ctrl+V d'un fichier ou d'une capture — nommée « Capture JJ-MM HHhMMSS.png » par
+  `nomPieceCollee` —, sinon le texte collé entre en texte brut, jamais avec la mise en forme d'une autre page) ; glisser un
+  fichier n'importe où sur la fenêtre d'email (carte surlignée « Déposez ici pour joindre ») → `ajouterFichiersRedaction`, le
+  navigateur n'ouvre jamais le fichier à la place de CLAIRE ; un texte glissé entre en brut au point de dépôt.
+- Carte « Email envoyé » : en bas à gauche, posée au-dessus du bandeau d'appel entrant s'il est affiché.
+- Vérifié dans Chromium (bureau, sombre, téléphone) : saisie, gras + souligné, liste, capture collée, PDF glissé, texte HTML
+  collé en brut, corps envoyé à `/api/emails/envoyer` conforme, carte à 16 px du bas et de la gauche, aucune erreur de page.
+  Non vérifié au bureau : rendu dans Outlook du destinataire (mêmes balises que les emails existants : b/i/u, p, ul/ol).

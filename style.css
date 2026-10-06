@@ -3343,17 +3343,18 @@
     .toast.visible .toast-duree { animation: none; }
   }
 
-  /* Carte « Email envoyé » (étude 05/10 : « une notification claire » à chaque envoi, notifierEmailEnvoye) : en haut à droite,
+  /* Carte « Email envoyé » (étude 05/10 : « une notification claire » à chaque envoi, notifierEmailEnvoye) : en bas à gauche
+     (étude 06/10 ; posée au-dessus du bandeau d'appel entrant s'il est affiché),
      coche verte, destinataire, objet, boîte d'envoi et dossier ; une note ambre quand l'envoi n'est pas parti comme prévu. */
   .notif-envoi {
-    position: fixed; top: 16px; right: 16px; z-index: 1100;
+    position: fixed; bottom: 16px; left: 16px; z-index: 1100;
     width: min(380px, calc(100vw - 32px)); box-sizing: border-box;
     display: none; grid-template-columns: 32px minmax(0, 1fr) 24px; gap: 12px; align-items: start;
     padding: 14px 12px 14px 14px;
     background: var(--paper-card); color: var(--ink);
     border: 1px solid var(--line); border-left: 4px solid var(--success); border-radius: var(--rayon-carte);
     box-shadow: var(--shadow-float);
-    opacity: 0; transform: translateY(-8px); transition: opacity 0.2s ease, transform 0.2s ease;
+    opacity: 0; transform: translateY(8px); transition: opacity 0.2s ease, transform 0.2s ease;
   }
   .notif-envoi.visible { opacity: 1; transform: none; }
   .notif-envoi-icone {
@@ -8673,8 +8674,21 @@ button.redaction-pastille:focus-visible { outline: 2px solid var(--focus); outli
 .redaction-pastille svg { width: 14px; height: 14px; }
 .redaction-pastille.redaction-pastille-attente { background: var(--paper-sunk); color: var(--muted); }
 .redaction-pastille.redaction-pastille-erreur { background: var(--paper-sunk); color: var(--muted); font-weight: 500; }
-textarea.redaction-texte { flex: 1; width: 100%; min-height: 110px; margin-top: 8px; border: 0; padding: 4px 0; resize: none; background: transparent; font: inherit; font-size: var(--texte-base); line-height: 1.6; color: var(--ink); box-shadow: none; }
-textarea.redaction-texte:focus { outline: none; }
+/* Zone de saisie mise en forme (étude 06/10 : gras, souligné… ; fichiers collés ou glissés = pièces jointes) */
+.redaction-outils { display: flex; align-items: center; gap: 2px; padding: 4px 0; border-bottom: 1px solid var(--line-soft); }
+.redaction-outils wa-button.bouton-icone { --wa-form-control-height: 28px; color: var(--ink-soft); }
+.redaction-outils wa-button.bouton-icone:hover { color: var(--ink); }
+.redaction-outils wa-button.bouton-icone.actif::part(base) { background: var(--paper-sunk); color: var(--focus); }
+.redaction-outil-lettre { display: inline-block; min-width: 14px; font-size: var(--texte-base); line-height: 1; text-align: center; }
+.redaction-outil-lettre b { font-weight: 700; }
+div.redaction-editeur { flex: 1; width: 100%; min-height: 180px; max-height: 50vh; overflow-y: auto; margin-top: 4px; padding: 6px 0; box-sizing: border-box; font-size: var(--texte-base); line-height: 1.6; color: var(--ink); overflow-wrap: anywhere; cursor: text; }
+div.redaction-editeur.redaction-editeur-reponse { min-height: 120px; }
+#email-redaction-contenu div.redaction-editeur { max-height: none; }
+div.redaction-editeur:focus { outline: none; }
+div.redaction-editeur ul, div.redaction-editeur ol { margin: 0; padding-left: 24px; }
+div.redaction-editeur a { color: var(--focus); }
+.redaction-carte.redaction-depot { border-color: var(--focus); box-shadow: 0 0 0 2px var(--focus), var(--shadow-float); background: var(--paper-sunk); }
+.redaction-carte.redaction-depot::after { content: "Déposez ici pour joindre"; align-self: center; padding: 4px 0; font-size: var(--texte-m); color: var(--focus); }
 .redaction-pieces { display: flex; flex-wrap: wrap; gap: 6px; padding: 6px 0 2px; }
 .redaction-piece { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; padding: 4px 4px 4px 10px; border: 1px solid var(--line); border-radius: var(--rayon-m); font-size: var(--texte-m); color: var(--ink); background: var(--paper-sunk); }
 .redaction-piece svg { width: 14px; height: 14px; flex-shrink: 0; color: var(--muted); }

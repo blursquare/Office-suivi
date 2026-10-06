@@ -56,3 +56,53 @@ test('carte « Email envoyé » (05/10) : destinataire, objet, boîte, dossier, 
   assert.strictEqual(repli.lignes.map(l => l[1]).join(' | '), 'a@exemple.fr | (sans objet)');
   assert.match(repli.notes.join(' '), /compte relié.*Envoyer en tant que.*nouvel email/);
 });
+
+// Mise en forme dans la fenêtre d'email (étude 06/10 : gras, souligné… ; pièces jointes collées ou glissées).
+test('zone éditable : le corps en texte devient une ligne par bloc, marques en gras souligné, boutons nommés', () => {
+  const html = app.htmlRedactionDepuisTexte('Madame,\n\nRendez-vous le lundi <ici>.\n{{BOUTONS}}');
+  assert.strictEqual(html, '<div>Madame,</div><div><br></div><div>Rendez-vous le <b><u>lundi</u></b> &lt;ici&gt;.</div><div>[Boutons de réponse]</div>');
+});
+
+test('zone éditable → corps de l’email : paragraphes, gras, italique, souligné, listes, liens', () => {
+  const html = '<div>Madame,</div><div><br></div><div>Merci de <b>signer</b> et <i>dater</i>,</div><div><u>avant lundi</u>.</div>'
+    + '<div><br></div><ul><li>RIB</li><li>pièce d’identité</li></ul><ol><li>un</li></ol><div>Voir https://exemple.fr/a?b=1&amp;c=2 ici</div>';
+  const corps = app.htmlCorpsDepuisEditeur(html, null);
+  assert.strictEqual(corps, '<p style="margin:0 0 11pt;">Madame,</p>'
+    + '<p style="margin:0 0 11pt;">Merci de <b>signer</b> et <i>dater</i>,<br><u>avant lundi</u>.</p>'
+    + '<ul style="margin:0 0 11pt;padding-left:24pt;"><li style="margin:0 0 4pt;">RIB</li><li style="margin:0 0 4pt;">pièce d’identité</li></ul>'
+    + '<ol style="margin:0 0 11pt;padding-left:24pt;"><li style="margin:0 0 4pt;">un</li></ol>'
+    + '<p style="margin:0 0 11pt;">Voir <a href="https://exemple.fr/a?b=1&amp;c=2" style="color:#6D2332;">https://exemple.fr/a?b=1&amp;c=2</a> ici</p>');
+});
+
+test('zone éditable → corps : rien d’autre que la mise en forme permise (images, styles, scripts, liens javascript)', () => {
+  const corps = app.htmlCorpsDepuisEditeur('<div><span style="color:red">Rouge</span><img src="x" onerror="alert(1)"><script>alert(2)</script>'
+    + '<a href="javascript:alert(3)">lien</a> <a href="mailto:a@b.fr" onclick="x()">écrire</a></div>', null);
+  assert.strictEqual(corps, '<p style="margin:0 0 11pt;">Rougelien <a href="mailto:a@b.fr" style="color:#6D2332;">écrire</a></p>');
+  assert.strictEqual(app.htmlEditeurSur('<div onclick="x()"><b class="k">a</b><img src=x onerror=y><script>z()</script><a href="javascript:q">l</a></div>'),
+    '<div><b>a</b><a>l</a></div>');
+});
+
+test('zone éditable → corps : gras sur deux lignes refermé et rouvert, boutons du sondage à leur place', () => {
+  const corps = app.htmlCorpsDepuisEditeur('<div><b>un<br>deux</b></div><div><br></div><div><b>trois</b></div><div><br></div><div>[Boutons de réponse]</div>',
+    [{ libelle: 'Oui', href: 'mailto:x@y.fr' }]);
+  assert.match(corps, /^<p style="margin:0 0 11pt;"><b>un<\/b><br><b>deux<\/b><\/p><p style="margin:0 0 11pt;"><b>trois<\/b><\/p><table /);
+  assert.match(corps, />Oui<\/a>/);
+});
+
+test('zone éditable intacte : la ligne « cliquez ici : lien » garde son lien sur les mots', () => {
+  const corps = app.htmlCorpsDepuisEditeur(app.htmlRedactionDepuisTexte('Pour répondre, cliquez ici : https://exemple.fr/q'), null);
+  assert.match(corps, /Pour répondre, <a href="https:\/\/exemple.fr\/q" [^>]*>cliquez ici<\/a>/);
+});
+
+test('htmlEmail : un corps déjà en HTML est posé tel quel avant la signature', () => {
+  const html = app.htmlEmail('ignoré', {}, null, null, '<p style="margin:0 0 11pt;"><b>Bonjour</b></p>');
+  assert.ok(html.includes('<b>Bonjour</b>'));
+  assert.ok(!html.includes('ignoré'));
+});
+
+test('capture collée : nommée par la date et l’heure, un vrai nom de fichier gardé', () => {
+  const d = new Date(2026, 9, 6, 14, 5, 9);
+  assert.strictEqual(app.nomPieceCollee('image.png', 'image/png', d), 'Capture 06-10 14h0509.png');
+  assert.strictEqual(app.nomPieceCollee('', 'image/jpeg', d), 'Capture 06-10 14h0509.jpg');
+  assert.strictEqual(app.nomPieceCollee('Compromis.pdf', 'application/pdf', d), 'Compromis.pdf');
+});

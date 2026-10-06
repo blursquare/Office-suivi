@@ -179,8 +179,9 @@
   // `boutons` ([{ libelle, href, secondaire }]) : posés à la place du paragraphe « {{BOUTONS}} »
   // (sondage de créneaux) — des cellules de tableau colorées, seule forme de bouton qu'Outlook
   // affiche.
-  function htmlEmail(corps, images, signataire, boutons) {
-    const paragraphes = String(corps || '').split(/\n{2,}/).map(p => p.trim() === '{{BOUTONS}}'
+  // `corpsHtml` : le corps déjà en HTML (écrit et mis en forme dans la fenêtre d'email, htmlCorpsDepuisEditeur), posé tel quel.
+  function htmlEmail(corps, images, signataire, boutons, corpsHtml) {
+    const paragraphes = corpsHtml ? corpsHtml : String(corps || '').split(/\n{2,}/).map(p => p.trim() === '{{BOUTONS}}'
       ? boutonsEmailHtml(boutons || [])
       : `<p style="margin:0 0 11pt;">${marquesEnHtml(p.split('\n').map(ligneHtmlEmail).join('<br>'))}</p>`).join('');
     return `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="${POLICE_EMAIL}">`
@@ -490,7 +491,7 @@
   }
 
   // Le fichier .eml d'avant (« Ouvrir dans Outlook ») : HTML, signature, pièces jointes, prêt à envoyer.
-  async function livrerEmlDossier({ destinataire, sujet, corps, pieces = [], responsableSignature = '', boutons = null, dossierId = '', geste = '' }) {
+  async function livrerEmlDossier({ destinataire, sujet, corps, corpsHtml = '', pieces = [], responsableSignature = '', boutons = null, dossierId = '', geste = '' }) {
     const corpsFinal = corps;
     try {
       const images = await imagesSignatureEmail();
@@ -498,7 +499,7 @@
       const eml = construireEml({
         destinataire, sujet,
         texte: texteSansMarques(texteAvecBoutons(corpsFinal, boutons)) + texteSignatureEmail(signataire),
-        html: htmlEmail(corpsFinal, images.cids, signataire, boutons),
+        html: htmlEmail(corpsFinal, images.cids, signataire, boutons, corpsHtml),
         images: images.parties,
         pieces
       });
@@ -585,6 +586,7 @@
         mode: o.mode === 'reponse' ? 'reponse' : 'nouveau', resolve,
         dossierId: o.dossierId || '', geste: o.geste || '', a: o.destinataire || '', cc: '', voirCc: false,
         sujet: o.sujet || '', texte, texteDepart: texte, corpsOrigine: o.corps || '', pieces: (o.pieces || []).slice(),
+        html: htmlRedactionDepuisTexte(o.corps), htmlDepart: '',
         boutons: o.boutons || null, confrere: !!o.confrere, responsableSignature: o.responsableSignature || '',
         reponseA: o.reponseA || '', email: o.email || null, proposition: null, envoi: false, erreur: ''
       };
@@ -592,6 +594,7 @@
         const overlay = document.getElementById('email-redaction-overlay');
         if (overlay) overlay.style.display = 'flex';
       }
+      redaction.htmlDepart = redaction.html;
       renderRedaction();
       if (redaction.mode === 'reponse' && redaction.reponseA) demanderPropositionReponse(true);
     });
@@ -627,12 +630,9 @@
 
   async function ajouterPiecesRedaction(input) {
     if (!redaction || !input || !input.files) return;
-    for (const f of [...input.files]) {
-      try { redaction.pieces.push({ nom: f.name, type: f.type || 'application/octet-stream', contenuBase64: await blobVersBase64(f) }); }
-      catch (e) { afficherToast(`« ${f.name} » n’a pas pu être lu.`, 'OK', null); }
-    }
+    const fichiers = [...input.files];
     input.value = '';
-    renderRedaction();
+    await ajouterFichiersRedaction(fichiers);
   }
   function retirerPieceRedaction(i) {
     if (!redaction) return;
@@ -674,9 +674,10 @@
     if (!m) return;
     const d = dossiers.find(x => x.id === r.dossierId) || null;
     const rempli = remplirModeleEmail(m, d);
-    r.avantModele = { texte: r.texte, texteDepart: r.texteDepart, corpsOrigine: r.corpsOrigine, sujet: r.sujet, proposition: r.proposition };
+    r.avantModele = { texte: r.texte, texteDepart: r.texteDepart, corpsOrigine: r.corpsOrigine, html: r.html, htmlDepart: r.htmlDepart, sujet: r.sujet, proposition: r.proposition };
     const corps = adapterCorpsEmail(rempli.corps, r.confrere);
     r.corpsOrigine = corps;
+    poserTexteRedaction(r, corps);
     r.texte = texteEditableEmail(corps);
     r.texteDepart = r.texte;
     r.proposition = null;
@@ -711,7 +712,7 @@
       if (!rep.ok || !corps.reponse) throw new Error(corps.erreur || 'indisponible');
       const intact = r.texte === r.texteDepart;
       r.proposition = { etat: 'pret', texte: String(corps.reponse) };
-      if (intact) { r.texte = r.proposition.texte; r.texteDepart = r.texte; r.proposition.posee = true; }
+      if (intact) { r.texte = r.proposition.texte; r.texteDepart = r.texte; r.corpsOrigine = r.texte; poserTexteRedaction(r, r.texte); r.proposition.posee = true; }
       renderRedaction();
     } catch (e) {
       if (redaction !== r) return;
@@ -723,6 +724,8 @@
     if (!redaction || !redaction.proposition || !redaction.proposition.texte) return;
     redaction.texte = redaction.proposition.texte;
     redaction.texteDepart = redaction.texte;
+    redaction.corpsOrigine = redaction.texte;
+    poserTexteRedaction(redaction, redaction.texte);
     redaction.proposition.posee = true;
     renderRedaction();
   }
@@ -759,7 +762,6 @@
       : prop.posee ? `<span class="redaction-pastille" title="Premier jet de l’IA locale : relisez avant d’envoyer">${icone('sparkle')}Proposition de CLAIRE</span>`
       : `<button type="button" class="redaction-pastille" onclick="utiliserPropositionReponse()">${icone('sparkle')}Utiliser la proposition de CLAIRE</button>`;
     const pieces = r.pieces.map((p, i) => `<span class="redaction-piece">${icone('file-text')}<span class="redaction-piece-nom">${escapeHtml(p.nom)}</span><span class="redaction-piece-taille">${escapeHtml(tailleLisible(poidsPiecesEmail([p])))}</span><wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-btn" onclick="retirerPieceRedaction(${i})" aria-label="Retirer ${escapeAttr(p.nom)}">${icone('x')}</wa-button></span>`).join('');
-    const lignes = Math.min(18, Math.max(r.mode === 'reponse' ? 5 : 8, String(r.texte).split('\n').length + 1));
     return `<div class="redaction-carte">
         <div class="redaction-ligne redaction-de"><span class="redaction-etiquette">De</span><span>${escapeHtml(qui)}</span>${pastille}</div>
         <div class="redaction-ligne"><label class="redaction-etiquette" for="redaction-a">À</label>
@@ -767,11 +769,12 @@
           ${r.voirCc ? '' : `<button type="button" class="lien-discret" onclick="afficherCcRedaction()">Cc</button>`}</div>
         ${r.voirCc ? `<div class="redaction-ligne"><label class="redaction-etiquette" for="redaction-cc">Cc</label><input type="text" id="redaction-cc" class="redaction-champ" value="${escapeAttr(r.cc)}" oninput="champRedaction('cc', this.value)" autocomplete="off" spellcheck="false"></div>` : ''}
         ${r.mode === 'nouveau' ? `<div class="redaction-ligne"><label class="redaction-etiquette" for="redaction-sujet">Objet</label><input type="text" id="redaction-sujet" class="redaction-champ" value="${escapeAttr(r.sujet)}" oninput="champRedaction('sujet', this.value)"></div>` : ''}
-        <textarea id="redaction-texte" class="redaction-texte" rows="${lignes}" aria-label="Message" oninput="champRedaction('texte', this.value)">${escapeHtml(r.texte)}</textarea>
+        ${renderOutilsRedaction()}
+        <div id="redaction-texte" class="redaction-texte redaction-editeur${r.mode === 'reponse' ? ' redaction-editeur-reponse' : ''}" contenteditable="true" role="textbox" aria-multiline="true" aria-label="Message" spellcheck="true" oninput="saisieRedaction(this)" onpaste="collerRedaction(event)" onkeyup="majOutilsRedaction()" onmouseup="majOutilsRedaction()">${htmlEditeurSur(r.html)}</div>
         ${pieces ? `<div class="redaction-pieces">${pieces}</div>` : ''}
         ${r.erreur ? `<p class="redaction-erreur">${escapeHtml(r.erreur)}</p>` : ''}
         <div class="redaction-pied">
-          <label class="icon-btn redaction-joindre" title="Joindre un fichier">${icone('paperclip')}<input type="file" multiple hidden onchange="ajouterPiecesRedaction(this)"></label>
+          <label class="icon-btn redaction-joindre" title="Joindre un fichier (ou glissez-le, ou collez-le dans le message)">${icone('paperclip')}<input type="file" multiple hidden onchange="ajouterPiecesRedaction(this)"></label>
           <div class="redaction-modeles">
             <wa-button appearance="plain" size="s" type="button" class="bouton-discret icon-btn redaction-modeles-btn" onclick="basculerMenuModelesRedaction()" aria-expanded="${r.menuModeles ? 'true' : 'false'}" title="Remplacer le texte par un modèle">${icone('file-text')}<span>Modèles</span></wa-button>
             ${r.menuModeles ? renderMenuModelesRedaction() : ''}
@@ -816,6 +819,10 @@
         try {
           el.focus();
           if (el.setSelectionRange && typeof el.value === 'string') el.setSelectionRange(el.value.length, el.value.length);
+          else if (el.isContentEditable && window.getSelection) {
+            const s = window.getSelection(); const fin = document.createRange();
+            fin.selectNodeContents(el); fin.collapse(false); s.removeAllRanges(); s.addRange(fin);
+          }
         } catch (e) { /* focus impossible ou champ sans sélection : sans importance */ }
       };
       if (el.updateComplete && typeof el.updateComplete.then === 'function') el.updateComplete.then(remettreFocus, () => {});
@@ -833,10 +840,11 @@
     // avant l'appel au serveur et le bouton restait sur « Envoi… ») : une erreur, quelle qu'elle soit, se dit dans la fenêtre.
     try {
       renderRedaction();
-      const corps = r.texte === r.texteDepart && !r.proposition ? r.corpsOrigine : corpsDepuisTexteEditable(r.texte, r.boutons);
+      const edite = r.html !== r.htmlDepart;
+      const corps = edite ? corpsDepuisTexteEditable(r.texte, r.boutons) : r.corpsOrigine;
       const images = await imagesSignatureEmail();
       const signataire = signataireEmail(utilisateurPoste || r.responsableSignature, await reglagesSignature());
-      const html = htmlEmail(corps, images.cids, signataire, r.boutons);
+      const html = htmlEmail(corps, images.cids, signataire, r.boutons, edite ? htmlCorpsDepuisEditeur(r.html, r.boutons) : '');
       const reponse = await fetchAvecAuth('/api/emails/envoyer', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
         dossierId: r.dossierId, geste: r.geste || (r.reponseA ? 'reponse:' + r.reponseA : ''), collaborateur: utilisateurPoste || r.responsableSignature,
         a: r.a, cc: r.cc, sujet: r.mode === 'reponse' ? sujetReponse((r.email && r.email.objet) || r.sujet) : r.sujet, html,
@@ -864,9 +872,10 @@
   async function ouvrirRedactionDansOutlook() {
     const r = redaction;
     if (!r) return;
-    const corps = r.texte === r.texteDepart && !r.proposition ? r.corpsOrigine : corpsDepuisTexteEditable(r.texte, r.boutons);
+    const edite = r.html !== r.htmlDepart;
+    const corps = edite ? corpsDepuisTexteEditable(r.texte, r.boutons) : r.corpsOrigine;
     const res = await livrerEmlDossier({ destinataire: r.a, sujet: r.mode === 'reponse' ? sujetReponse((r.email && r.email.objet) || r.sujet) : r.sujet,
-      corps, pieces: r.pieces, responsableSignature: r.responsableSignature, boutons: r.boutons, dossierId: r.dossierId, geste: r.geste || (r.reponseA ? 'reponse:' + r.reponseA : '') });
+      corps, corpsHtml: edite ? htmlCorpsDepuisEditeur(r.html, r.boutons) : '', pieces: r.pieces, responsableSignature: r.responsableSignature, boutons: r.boutons, dossierId: r.dossierId, geste: r.geste || (r.reponseA ? 'reponse:' + r.reponseA : '') });
     if (!res.ok) { r.erreur = res.message || 'L’email n’a pas pu être préparé.'; renderRedaction(); return; }
     const mode = r.mode;
     fermerRedaction(res);
@@ -909,7 +918,7 @@
   }, true);
 
   // Carte « Email envoyé » (étude 05/10 : « indique aussi quand l'email est envoyé dans une notification claire ») : posée en
-  // haut à droite dès qu'Exchange a accepté l'envoi, quel que soit le geste qui a ouvert la fenêtre — destinataire, objet,
+  // bas à gauche (étude 06/10 ; au-dessus du bandeau d'appel entrant s'il est affiché) dès qu'Exchange a accepté l'envoi, quel que soit le geste qui a ouvert la fenêtre — destinataire, objet,
   // boîte d'envoi, dossier ; 8 s, en pause au survol, fermée par la croix. Le cas d'un envoi parti d'une autre boîte (droit
   // « Envoyer en tant que » pas encore donné) ou d'une réponse hors du fil y est dit en clair.
   var DUREE_NOTIF_ENVOI_MS = 8000;
@@ -950,6 +959,9 @@
         ${notes.map(n => `<p class="notif-envoi-note">${escapeHtml(n)}</p>`).join('')}
       </div>
       <button type="button" class="notif-envoi-fermer" onclick="fermerNotifEnvoi()" aria-label="Fermer" title="Fermer">${icone('x')}</button>`;
+    // Au-dessus du bandeau d'appel entrant (en bas à gauche lui aussi) quand il est affiché.
+    const appel = document.getElementById('appel-entrant');
+    el.style.bottom = appel ? Math.round(appel.getBoundingClientRect().height + 28) + 'px' : '';
     el.classList.remove('visible');
     el.style.display = 'grid';
     void el.offsetWidth;

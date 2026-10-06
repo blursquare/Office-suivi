@@ -45,5 +45,6 @@
   "43-historique-appels-fonds.js",
   "44-presentation-outils.js",
   "45-preemption-regles.js",
-  "46-droits-preemption.js"
+  "46-droits-preemption.js",
+  "47-redaction-mise-en-forme.js"
 ]

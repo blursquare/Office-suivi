@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.164.1';
+  const VERSION_APP = '0.165.0';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.165.0', date: '2026-10-06 10:49', resume: "Fenêtre d'email : mise en forme du message (gras, italique, souligné, listes à puces ou numérotées, effacer la mise en forme — barre d'outils et Ctrl+B/I/U), gardée dans l'email envoyé ou ouvert dans Outlook ; pièces jointes ajoutées en collant un fichier ou une capture (Ctrl+V) ou en le glissant sur la fenêtre ; un texte collé l'est sans sa mise en forme d'origine. La carte « Email envoyé » s'affiche désormais en bas à gauche (au-dessus du bandeau d'appel entrant s'il est affiché)." },
     { version: '0.164.1', date: '2026-10-06 10:39', resume: "« Derniers dossiers ouverts » liés au collaborateur (enregistrés sur le serveur, le suivent d'un poste à l'autre) et plus au navigateur. Vérifications sur le terrain : un point vérifié disparaît de la liste des Réglages et n'est cité qu'une fois, dans le rapport technique qui suit. Téléphonie 3CX : la fenêtre CLAIRE a son propre profil Chrome — bouton « Ajouter l'extension 3CX » pour y rendre les numéros cliquables comme dans un onglet." },
     { version: '0.164.0', date: '2026-10-06 10:35', resume: "Nouvel outil « Droits de préemption » (Outils, et onglet Pièces et analyse de la fiche) : d'après la commune et la parcelle, CLAIRE lit le zonage sur le Géoportail de l'urbanisme (IGN), puis indique pour la mutation et le bien vendu les droits à purger et la formalité — DPU et DPU renforcé (tableau Cheuvreux ; Agglopolys : zones U et AU ; périmètres renforcés de Blois : centre-ville et parcelle AL 839, plans affichés), SAFER (CRIDON, terrain et bâtiment), bois et forêts (État, commune, droit de préférence des voisins). Seules les questions utiles sont posées ; le résultat s'enregistre sur la fiche." },
     { version: '0.163.0', date: '2026-10-06 10:13', resume: "Sauvegardes : « Restaurer » en un clic dans Réglages › Mise à jour et sauvegarde (la sauvegarde est vérifiée, CLAIRE redémarre, l'ancienne base est gardée à côté). Corrige « database disk image is malformed » après une restauration à la main : le journal de l'ancienne base (claire.db-wal) n'est plus jamais rejoué sur la sauvegarde — au démarrage, une base illisible à cause d'un journal étranger est rouverte sans lui (copie gardée à part)." },
