@@ -1408,6 +1408,7 @@
     }
     afDossierLie = p.dossierId;
     afHistoriqueId = null;
+    afHistoriqueNom = '';
 
     afClients = p.clients.map(c => ({ civilite: c.civilite, prenom: c.prenom, nom: c.nom }));
     if (!afClients.length) afClients = [{ civilite: 'M', prenom: '', nom: '' }];
@@ -2664,6 +2665,7 @@
   function reinitialiserAppelFonds() {
     afDossierLie = null;
     afHistoriqueId = null;
+    afHistoriqueNom = '';
     afRechercheDecompteNas++;
     afRecherchePiecesNas++;
     afFraisChoisiALaMain = { departement: false, type: false };

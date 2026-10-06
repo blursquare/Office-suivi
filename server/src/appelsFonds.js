@@ -9,7 +9,7 @@
 const CLE_APPELS_FONDS = 'appels-fonds';
 const MAX_APPELS_FONDS = 1000;
 const MAX_OCTETS_ETAT = 200000;
-const GESTES_APPEL_FONDS = ['telecharge', 'prepare', 'envoye'];
+const GESTES_APPEL_FONDS = ['telecharge', 'prepare', 'envoye', 'modifie'];
 const CHAMPS_TEXTE_COURRIER = ['ref', 'addrLines', 'ville', 'dateLettre', 'salut1', 'designation', 'adresseBien', 'rdvPhrase',
   'totalDebit', 'totalCredit', 'solde', 'salut2', 'phraseDeblocage', 'notaire'];
 

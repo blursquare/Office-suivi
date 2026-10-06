@@ -16989,3 +16989,15 @@ garantie du prêt (pas d'offre réelle lue).
   (`genererBlobAppelFonds(donnees, nom)`), « Rouvrir » restaure clients, situation, décompte, champs, cases et mention de l'aperçu
   (`rouvrirAppelFondsHistorique`), × retire la ligne après confirmation (le fichier envoyé n'est pas touché).
 - Tests : `server/test/appels-fonds.test.js`, `tests/historique-appels-fonds.test.js`.
+
+### 06/10/2026 — 0.160.0 : remodifier un courrier d'appel de fonds de l'historique
+
+Étude : « Et les remodifier si possible. »
+
+- « Rouvrir » devient **« Modifier »** (fenêtre « Courriers créés » et onglet Fonds de la fiche, `modifierAppelFondsHistorique`) :
+  l'état de l'outil est remis, puis les textes du courrier tels qu'ils sont sortis — y compris ceux retouchés directement dans
+  l'aperçu (ville, date, formules, désignation, adresse du bien, phrase du rendez-vous, déblocage, notaire :
+  `CHAMPS_APERCU_APPEL_FONDS`, repris des `donnees` gardées).
+- **« Enregistrer les modifications »** dans l'encadré « Courrier repris pour modification » (`enregistrerModificationsAppelFonds`) :
+  met à jour la même ligne sans télécharger (geste `modifie`, « Modifié à 10:32 par … », ajouté à `GESTES_APPEL_FONDS` côté
+  serveur) ; le nom du .docx d'origine est gardé (`afHistoriqueNom`). Un téléchargement ou un email font de même.

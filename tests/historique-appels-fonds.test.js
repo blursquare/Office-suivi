@@ -66,4 +66,5 @@ test('texteDernierGesteAppelFonds : dernier geste, quand et par qui', () => {
   assert.match(app.texteDernierGesteAppelFonds({ gestes: [a.gestes[0]] }, m), /^Téléchargé le 1 oct\.? par Julie$/);
   assert.strictEqual(app.texteDernierGesteAppelFonds({ gestes: [{ type: 'prepare', le: new Date(2026, 9, 5, 9, 0).toISOString(), par: '' }] }, m), 'Email préparé hier');
   assert.strictEqual(app.texteDernierGesteAppelFonds({ gestes: [] }, m), '');
+  assert.match(app.texteDernierGesteAppelFonds({ gestes: [{ type: 'modifie', le: new Date(2026, 9, 6, 11, 5).toISOString(), par: 'Julie' }] }, m), /^Modifié à 11:05 par Julie$/);
 });

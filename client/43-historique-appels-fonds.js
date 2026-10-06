@@ -3,7 +3,7 @@
   // Étude 06/10 : « faire un historique des appels de fonds créés pour les retrouver ». Chaque courrier téléchargé ou
   // envoyé par email depuis l'outil Appel de fonds est gardé sur le serveur (clé `appels-fonds`, server/src/appelsFonds.js) :
   // le courrier TEL QU'IL EST SORTI (`donnees`, les champs du modèle Word — de quoi refaire le même .docx, corrections faites
-  // dans l'aperçu comprises) et l'état de l'outil (`etat`, pour le rouvrir et le reprendre). Retrouvé par la fenêtre
+  // dans l'aperçu comprises) et l'état de l'outil (`etat`, pour le reprendre et le remodifier). Retrouvé par la fenêtre
   // « Courriers créés » de l'outil et dans l'onglet Fonds de la fiche du dossier. Un même courrier retéléchargé après une
   // retouche met à jour sa ligne (`afHistoriqueId`) ; choisir un autre dossier ou « Effacer » en commence une nouvelle.
 
@@ -14,7 +14,14 @@
   var CHAMPS_ETAT_APPEL_FONDS = ['af-ref', 'af-date-lettre', 'af-date-rdv', 'af-heure-rdv', 'af-lieu', 'af-lieu-autre', 'af-designation',
     'af-adresse-bien', 'af-adresse-clients', 'af-frais-departement', 'af-frais-type', 'af-prix-mobilier'];
   var CASES_ETAT_APPEL_FONDS = ['af-sans-pret', 'af-pret-hypothecaire'];
-  var LIBELLES_GESTES_APPEL_FONDS = { telecharge: 'Téléchargé', prepare: 'Email préparé', envoye: 'Email envoyé' };
+  var LIBELLES_GESTES_APPEL_FONDS = { telecharge: 'Téléchargé', prepare: 'Email préparé', envoye: 'Email envoyé', modifie: 'Modifié' };
+  // Textes du courrier que l'on peut retoucher dans l'aperçu (la lettre est modifiable) et que le .docx reprend : remis tels
+  // qu'ils sont sortis quand on reprend un courrier, pour le remodifier là où on l'avait laissé.
+  var CHAMPS_APERCU_APPEL_FONDS = {
+    ville: 'af-p-ville', dateLettre: 'af-p-datelettre', salut1: 'af-p-salut1', designation: 'af-p-designation',
+    adresseBien: 'af-p-adressebien', rdvPhrase: 'af-p-rdv', salut2: 'af-p-salut2', phraseDeblocage: 'af-p-deblocage', notaire: 'af-p-notaire'
+  };
+  var afHistoriqueNom = '';           // nom du .docx du courrier repris, gardé à l'enregistrement des modifications
 
   function nouvelIdAppelFonds() {
     return 'af-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
@@ -60,7 +67,7 @@
     return `${LIBELLES_GESTES_APPEL_FONDS[dernier.type] || 'Créé'} ${prefixe}${quand}${dernier.par ? ` par ${dernier.par}` : ''}`;
   }
 
-  // L'outil tel qu'il est : de quoi le rouvrir plus tard.
+  // L'outil tel qu'il est : de quoi le reprendre plus tard.
   function etatOutilAppelFonds() {
     const champs = {};
     CHAMPS_ETAT_APPEL_FONDS.forEach(id => { const e = afEl(id); if (e) champs[id] = String(e.value || ''); });
@@ -97,9 +104,12 @@
       if (Array.isArray(appelsFondsHistorique)) appelsFondsHistorique = [appel, ...appelsFondsHistorique.filter(a => a.id !== appel.id)];
       renderHistoriqueAppelsFonds();
       majCompteurHistoriqueAppelsFonds();
+      return true;
     } catch (e) {
       console.warn('Historique des appels de fonds :', e);
-      afficherToast("Le courrier est sorti, mais n'a pas pu être ajouté à l'historique.", 'OK', null);
+      afficherToast(geste === 'modifie' ? "Les modifications n'ont pas pu être enregistrées : serveur injoignable."
+        : "Le courrier est sorti, mais n'a pas pu être ajouté à l'historique.", 'OK', null);
+      return false;
     }
   }
 
@@ -173,7 +183,7 @@
       ${a.solde ? `<span class="af-histo-solde">${escapeHtml(a.solde)}</span>` : ''}
       <div class="af-histo-actions">
         <wa-button appearance="outlined" size="s" pill class="action-rapide" onclick="telechargerAppelFondsHistorique('${id}', this)">Télécharger</wa-button>
-        ${a.rouvrable ? `<wa-button appearance="outlined" size="s" pill class="action-rapide" onclick="rouvrirAppelFondsHistorique('${id}')">Rouvrir</wa-button>` : ''}
+        ${a.rouvrable ? `<wa-button appearance="outlined" size="s" pill class="action-rapide" onclick="modifierAppelFondsHistorique('${id}')">Modifier</wa-button>` : ''}
         <wa-button appearance="plain" size="s" class="bouton-icone" title="Retirer de l'historique" onclick="supprimerAppelFondsHistorique('${id}')">${icone('x')}</wa-button>
       </div>
     </li>`;
@@ -232,8 +242,9 @@
     }
   }
 
-  // Remet l'outil dans l'état où le courrier est sorti ; le retélécharger ensuite met à jour la même ligne.
-  async function rouvrirAppelFondsHistorique(id) {
+  // Reprend le courrier dans l'outil, tel qu'il est sorti (retouches de l'aperçu comprises), pour le remodifier : « Enregistrer
+  // les modifications », un nouveau téléchargement ou un email mettent ensuite à jour la même ligne de l'historique.
+  async function modifierAppelFondsHistorique(id) {
     let a;
     try { a = await lireAppelFondsComplet(id); } catch (e) {
       console.error(e);
@@ -266,13 +277,38 @@
     renderTableAppelFonds();
     majLieuAppelFonds();
     const mention = afEl('af-p-mention');
-    if (mention && etat.mention) { mention.textContent = etat.mention; majApercuAppelFonds(); }
+    if (mention && etat.mention) mention.textContent = etat.mention;
+    majApercuAppelFonds();
+    const donnees = a.donnees || {};
+    Object.keys(CHAMPS_APERCU_APPEL_FONDS).forEach(cle => {
+      const e = afEl(CHAMPS_APERCU_APPEL_FONDS[cle]);
+      if (e && typeof donnees[cle] === 'string' && donnees[cle].trim()) e.textContent = donnees[cle];
+    });
     afHistoriqueId = a.id;
     afHistoriqueDossier = afDossierLie || '';
+    afHistoriqueNom = a.nomFichier || '';
     const recap = afEl('af-recap-prefill');
     if (recap) {
-      recap.innerHTML = `<div class="af-recap-bloc"><div class="af-recap-titre">Courrier rouvert</div><ul><li>${escapeHtml(texteDernierGesteAppelFonds(a))}. Retéléchargé ou envoyé, il met à jour la même ligne de l'historique.</li></ul></div>`;
+      recap.innerHTML = `<div class="af-recap-bloc"><div class="af-recap-titre">Courrier repris pour modification ${infoBulle("Modifiez le formulaire ou directement l'aperçu. « Enregistrer les modifications », un nouveau téléchargement ou l'email mettent à jour ce courrier dans l'historique, sans en créer un autre.")}</div><ul><li>${escapeHtml(texteDernierGesteAppelFonds(a))}</li></ul></div>
+        <wa-button appearance="outlined" size="s" class="af-histo-enregistrer" onclick="enregistrerModificationsAppelFonds(this)">Enregistrer les modifications</wa-button>`;
       recap.className = 'af-recap af-recap-visible';
+    }
+  }
+
+  // Le courrier repris et retouché, gardé sans le retélécharger.
+  async function enregistrerModificationsAppelFonds(btn) {
+    if (!afHistoriqueId) return;
+    if (btn) btn.disabled = true;
+    try {
+      const ok = await enregistrerAppelFondsHistorique('modifie', afHistoriqueNom || afNomFichierDocx(afClients.filter(c => String(c.nom || '').trim())));
+      if (ok) {
+        const ligne = document.querySelector('#af-recap-prefill li');
+        const a = Array.isArray(appelsFondsHistorique) ? appelsFondsHistorique.find(x => x.id === afHistoriqueId) : null;
+        if (ligne && a) ligne.textContent = texteDernierGesteAppelFonds(a);
+        afficherToast('Modifications enregistrées dans l’historique.', 'OK', null);
+      }
+    } finally {
+      if (btn) btn.disabled = false;
     }
   }
 

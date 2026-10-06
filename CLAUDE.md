@@ -396,7 +396,9 @@ dans `index.html`** (le test `structure-client` refuse tout décalage).
   par email depuis l'outil est gardé **tel qu'il est sorti** (`donnees` = champs du modèle Word, corrections de l'aperçu comprises)
   avec l'état de l'outil (`etat`) et ses gestes (téléchargé / email préparé / envoyé, par qui) ; « Courriers créés » dans l'outil
   (recherche dossier/client/auteur) et l'onglet Fonds de la fiche : « Télécharger » refait le même .docx
-  (`genererBlobAppelFonds(donnees, nom)`), « Rouvrir » remet l'outil dans cet état — retéléchargé, il met à jour la même ligne
+  (`genererBlobAppelFonds(donnees, nom)`), « Modifier » (étude 06/10 : « les remodifier ») reprend le courrier dans l'outil tel
+  qu'il est sorti — état de l'outil, puis textes retouchés de l'aperçu (`CHAMPS_APERCU_APPEL_FONDS`) — ; « Enregistrer les
+  modifications » (geste `modifie`, sans téléchargement), un nouveau téléchargement ou l'email mettent à jour la même ligne
   (`afHistoriqueId`, oublié à « Effacer », au choix d'un dossier ou d'un autre dossier relié). La liste ne rend que des résumés,
   le courrier est relu à la demande (`GET /api/appels-fonds/:id`).
 - **« Nouveau dossier » : deux entrées** (étude, 02/10 au soir, `MODES_IMPORT`, `choisirModeImport`,

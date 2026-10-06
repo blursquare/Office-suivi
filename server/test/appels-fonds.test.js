@@ -77,12 +77,12 @@ test('fusionnerAppelFonds : création et auteur d’origine gardés, gestes des 
   const ancien = assainirAppelFonds(appel('af-abc123'));
   const nouveau = assainirAppelFonds(appel('af-abc123', {
     creeLe: '2026-10-06T09:00:00.000Z', modifieLe: '2026-10-06T09:00:00.000Z', par: 'Bastien',
-    gestes: [{ type: 'envoye', le: '2026-10-06T09:00:00.000Z', par: 'Bastien' }]
+    gestes: [{ type: 'envoye', le: '2026-10-06T09:00:00.000Z', par: 'Bastien' }, { type: 'modifie', le: '2026-10-06T09:30:00.000Z', par: 'Bastien' }]
   }));
   const f = fusionnerAppelFonds(ancien, nouveau);
   assert.equal(f.creeLe, '2026-10-06T08:00:00.000Z');
   assert.equal(f.par, 'Julie');
-  assert.equal(f.gestes.map((g) => g.type).join(','), 'telecharge,envoye');
+  assert.equal(f.gestes.map((g) => g.type).join(','), 'telecharge,envoye,modifie');
   assert.equal(f.modifieLe, '2026-10-06T09:00:00.000Z');
 });
 

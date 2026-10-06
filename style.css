@@ -4861,6 +4861,7 @@ input[type="search"].af-historique-recherche { width: 100%; }
 .af-histo-detail { font-size: var(--texte-s); color: var(--muted); }
 .af-histo-solde { font-size: var(--texte-m); font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .af-histo-actions { display: flex; align-items: center; gap: 6px; }
+.af-recap wa-button.af-histo-enregistrer { align-self: flex-start; }
 @media (max-width: 640px) {
   .af-histo-ligne { grid-template-columns: minmax(0, 1fr) auto; }
   .af-histo-actions { grid-column: 1 / -1; }
