@@ -66,7 +66,7 @@ server/                              Serveur (son propre package.json ; le packa
        parametresRepo.js             clé→JSON pour réglages et états produits par le serveur ; assainisseurs purs
        parametres/assainir.js        dans parametres/assainir.js, fusionDossiers.js pour les PUT concurrents)
   src/routes/*.js                    API (dossiers, nas, reglages, notifications, agenda, exchange,
-                                     relectureClaude, relectures, offrePret,
+                                     relectureClaude, relectures, offrePret, appelsFonds,
                                      signatureImages — images de la signature des emails, …)
   src/carnetConfreres.js             Carnet des confrères (relevé initial des offices du 41, liste blanche)
   src/annuaireNotaires.js            Notaires de France par département (data/annuaire-notaires.json, lecture seule)
@@ -391,6 +391,14 @@ dans `index.html`** (le test `structure-client` refuse tout décalage).
   de compte client JurisWeb (`analyserReleveCompteClient`, colonne Débit/Crédit par position des
   items) → acomptes sur prix et sur frais versés à l'étude, qui **remplacent** la ligne d'acompte du
   dossier (même somme), reversements au confrère signalés. Rien n'est enregistré sur le dossier.
+- **Historique des courriers d'appel de fonds** (étude 06/10 : « pour les retrouver » ; `client/43-historique-appels-fonds.js`,
+  `server/src/appelsFonds.js`, `routes/appelsFonds.js`, clé `appels-fonds`, 1 000 au plus) : tout courrier téléchargé ou envoyé
+  par email depuis l'outil est gardé **tel qu'il est sorti** (`donnees` = champs du modèle Word, corrections de l'aperçu comprises)
+  avec l'état de l'outil (`etat`) et ses gestes (téléchargé / email préparé / envoyé, par qui) ; « Courriers créés » dans l'outil
+  (recherche dossier/client/auteur) et l'onglet Fonds de la fiche : « Télécharger » refait le même .docx
+  (`genererBlobAppelFonds(donnees, nom)`), « Rouvrir » remet l'outil dans cet état — retéléchargé, il met à jour la même ligne
+  (`afHistoriqueId`, oublié à « Effacer », au choix d'un dossier ou d'un autre dossier relié). La liste ne rend que des résumés,
+  le courrier est relu à la demande (`GET /api/appels-fonds/:id`).
 - **« Nouveau dossier » : deux entrées** (étude, 02/10 au soir, `MODES_IMPORT`, `choisirModeImport`,
   `renderChoixImport`) — **« Compromis (PDF) »** : le compromis lu, on reste sur l'étape 1 — le dossier d'Authentic qui correspond est proposé en tête (« Dossier trouvé dans Authentic », `dossierAuthenticPourCompromis`, étude 05/10 : Authentic pré-remplit, prix compris, le compromis complète) : « Compléter depuis Authentic
   (facultatif) » (`groupesAuthenticPourCompromis` : le dossier du compromis en tête, « Correspond au compromis ») ou

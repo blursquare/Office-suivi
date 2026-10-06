@@ -1407,6 +1407,7 @@
       ['charges', 'etatDate', 'releve'].forEach(type => { afPieces[type] = null; renderBlocPieceAppelFonds(type); });
     }
     afDossierLie = p.dossierId;
+    afHistoriqueId = null;
 
     afClients = p.clients.map(c => ({ civilite: c.civilite, prenom: c.prenom, nom: c.nom }));
     if (!afClients.length) afClients = [{ civilite: 'M', prenom: '', nom: '' }];
@@ -2586,23 +2587,25 @@
     return arr;
   }
 
-  // Génère le .docx du courrier et renvoie { blob, nom } — partagé par le téléchargement et la
-  // création d'un brouillon Outlook (pièce jointe). Lève si les bibliothèques ne sont pas chargées.
-  async function genererBlobAppelFonds() {
+  // Génère le .docx du courrier et renvoie { blob, nom, donnees } — partagé par le téléchargement, la
+  // création d'un brouillon Outlook (pièce jointe) et l'historique (`donnees` et `nom` d'un courrier gardé :
+  // le même .docx refait). Lève si les bibliothèques ne sont pas chargées.
+  async function genererBlobAppelFonds(donneesGardees, nomGarde) {
     await chargerModeleAppelFonds();
     const Ctor = window.docxtemplater.default || window.docxtemplater;
     const zip = new window.PizZip(afBase64VersOctets(window.APPEL_FONDS_MODELE.docxB64));
     const doc = new Ctor(zip, { paragraphLoop: true, linebreaks: true });
-    doc.render(donneesCourrierAppelFonds());
+    const donnees = donneesGardees || donneesCourrierAppelFonds();
+    doc.render(donnees);
     const blob = doc.getZip().generate({ type: 'blob', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
-    return { blob, nom: afNomFichierDocx(afClients.filter(c => String(c.nom || '').trim())) };
+    return { blob, nom: nomGarde || afNomFichierDocx(afClients.filter(c => String(c.nom || '').trim())), donnees };
   }
 
   async function telechargerAppelFondsDocx(btn) {
     const libelleInitial = btn ? btn.textContent : '';
     if (btn) { btn.disabled = true; btn.textContent = 'Génération…'; }
     try {
-      const { blob, nom } = await genererBlobAppelFonds();
+      const { blob, nom, donnees } = await genererBlobAppelFonds();
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -2610,6 +2613,7 @@
       a.click();
       ouvrirApresTelechargement(nom);
       setTimeout(() => URL.revokeObjectURL(url), 2000);
+      enregistrerAppelFondsHistorique('telecharge', nom, donnees);
     } catch (e) {
       console.error(e);
       afficherToast('Le courrier n\'a pas pu être généré. Vérifiez que le poste a accès au réseau la première fois (deux bibliothèques sont téléchargées une seule fois).', 'OK', null);
@@ -2632,7 +2636,7 @@
     const libelleInitial = btn ? btn.textContent : '';
     if (btn) { btn.disabled = true; btn.textContent = 'Préparation…'; }
     try {
-      const { blob, nom } = await genererBlobAppelFonds();
+      const { blob, nom, donnees } = await genererBlobAppelFonds();
       const contenuBase64 = await blobVersBase64(blob);
       const confrere = notaireParticipantRepresenteAcquereur(d);
       const r = await livrerEmailDossier({
@@ -2645,6 +2649,7 @@
       });
       if (!r.ok) { if (!r.annule) afficherToast(r.message || "L'email n'a pas pu être préparé.", 'OK', null); return; }
       if (r.mode === 'mailto') telechargerFichier(blob, nom);
+      enregistrerAppelFondsHistorique(r.mode === 'envoye' ? 'envoye' : 'prepare', nom, donnees);
       ajouterHistorique(d, r.mode === 'envoye' ? 'Email du courrier d’appel de fonds envoyé' : 'Email du courrier d’appel de fonds préparé');
       sauvegarder(d);
       annoncerEmailPret(r, false, r.mode === 'mailto' ? 'Joignez le courrier, qui vient d’être téléchargé.' : '');
@@ -2658,6 +2663,7 @@
 
   function reinitialiserAppelFonds() {
     afDossierLie = null;
+    afHistoriqueId = null;
     afRechercheDecompteNas++;
     afRecherchePiecesNas++;
     afFraisChoisiALaMain = { departement: false, type: false };
@@ -2701,6 +2707,7 @@
     // téléchargement. Un échec de chargement est silencieux ici — la mise en page tient sans les
     // images, et le message d'erreur a sa place au moment où on demande vraiment le fichier.
     chargerModeleAppelFonds().catch(() => {});
+    chargerAppelsFondsHistorique(true);
     if (appelFondsInitialise) return;
     appelFondsInitialise = true;
     const dateLettre = afEl('af-date-lettre');

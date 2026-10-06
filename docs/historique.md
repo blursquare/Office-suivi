@@ -16968,3 +16968,24 @@ garantie du prêt (pas d'offre réelle lue).
   au nouveau dossier) ; les pièces déposées avant tout choix de dossier restent.
 - Vérifié dans Chromium avec NAS et lecteurs PDF simulés (prorata TF et fonds de travaux ajoutés, récapitulatif) ; pas encore sur
   de vrais avis ni états datés du NAS.
+
+### 06/10/2026 — 0.159.0 : historique des courriers d'appel de fonds créés
+
+Étude : « Faire un historique des appels de fonds créés pour les retrouver. »
+
+- **Serveur** (`server/src/appelsFonds.js`, pur, `// @ts-check` ; `routes/appelsFonds.js`) : clé `appels-fonds` de `parametres`,
+  1 000 courriers au plus (les plus récents). `GET /api/appels-fonds[?dossier=]` rend des résumés (sans courrier ni état,
+  `solde`, `ref`, `rouvrable`), `GET /api/appels-fonds/:id` le courrier entier, `POST` un courrier (fusion par identifiant :
+  création et auteur d'origine gardés, gestes des deux côtés), `DELETE /:id`. Le courrier est réduit aux champs du modèle Word
+  (`assainirDonneesCourrier`), l'état de l'outil gardé tel quel sous 200 Ko (relu et contrôlé par le poste).
+- **Poste** (`client/43-historique-appels-fonds.js`) : après un téléchargement (`telechargerAppelFondsDocx`) ou un email réussi
+  (`preparerEmailAppelFonds`, `r.ok`), `enregistrerAppelFondsHistorique(geste, nom, donnees)` — les `donnees` sont celles du .docx
+  produit, donc l'aperçu retouché à la main compris. Une même session de l'outil met à jour la même ligne (`afHistoriqueId`) ;
+  « Effacer », le choix d'un dossier, ou un autre dossier relié en commencent une nouvelle. Un échec d'enregistrement est dit
+  par un toast, le courrier est déjà parti.
+- **Retrouver** : bouton « Courriers créés (N) » de l'en-tête de l'outil → fenêtre `#af-historique-overlay` (recherche par dossier,
+  client, référence, auteur ; dernier geste « Email envoyé à 10:32 par Bastien ») ; onglet Fonds de la fiche → bloc « Courriers
+  d'appel de fonds » du dossier (`renderAppelsFondsDossier`, chargé à la première ouverture). « Télécharger » refait le même .docx
+  (`genererBlobAppelFonds(donnees, nom)`), « Rouvrir » restaure clients, situation, décompte, champs, cases et mention de l'aperçu
+  (`rouvrirAppelFondsHistorique`), × retire la ligne après confirmation (le fichier envoyé n'est pas touché).
+- Tests : `server/test/appels-fonds.test.js`, `tests/historique-appels-fonds.test.js`.

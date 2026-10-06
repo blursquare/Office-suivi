@@ -21,6 +21,7 @@ const { creerRouteurSauvegarde } = require('./routes/sauvegarde');
 const { creerRouteurNotifications } = require('./routes/notifications');
 const { creerRouteurExclusionsPieces } = require('./routes/exclusionsPieces');
 const { creerRouteurCorrectionsApprises } = require('./routes/correctionsApprises');
+const { creerRouteurAppelsFonds } = require('./routes/appelsFonds');
 const { creerRouteurConfreres } = require('./routes/confreres');
 const { creerRouteurPoste, creerRouteurIconePoste } = require('./routes/poste');
 const { creerRouteurVerificationsTerrain } = require('./routes/verificationsTerrain');
@@ -185,6 +186,8 @@ function creerApp({ db, config, envoyerEmailFn, creerClientClaude, appelerMistra
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurAuditRetours(parametresRepo));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurExclusionsPieces(parametresRepo));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurCorrectionsApprises(parametresRepo));
+  // Historique des courriers d'appel de fonds (outil Appel de fonds, onglet Fonds de la fiche) : voir appelsFonds.js.
+  app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurAppelsFonds(parametresRepo));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurConfreres(parametresRepo));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurPoste());
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurVerificationsTerrain(parametresRepo));

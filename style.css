@@ -4845,6 +4845,26 @@
 .af-adresse-auto { position: relative; }
 
 .af-recap { display: none; flex-direction: column; gap: 10px; }
+/* Courriers d'appel de fonds créés (fenêtre de l'outil, onglet Fonds de la fiche) : voir client/43-historique-appels-fonds.js. */
+.confirm-box.af-historique-box { max-width: none; width: min(760px, calc(100vw - 32px)); max-height: min(80vh, 760px); display: flex; flex-direction: column; gap: 12px; }
+input[type="search"].af-historique-recherche { width: 100%; }
+.af-historique-liste { overflow-y: auto; min-height: 0; flex: 1 1 auto; }
+.af-histo-liste { list-style: none; margin: 0; padding: 0; }
+.af-histo-ligne {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 4px 12px;
+  padding: 8px 6px; border-top: 1px solid var(--line-soft); border-radius: var(--rayon-m);
+}
+.af-histo-ligne:first-child { border-top: none; }
+.af-histo-ligne:hover { background: var(--paper-sunk); }
+.af-histo-texte { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.af-histo-titre { font-size: var(--texte-base); font-weight: 500; color: var(--ink); overflow-wrap: anywhere; }
+.af-histo-detail { font-size: var(--texte-s); color: var(--muted); }
+.af-histo-solde { font-size: var(--texte-m); font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.af-histo-actions { display: flex; align-items: center; gap: 6px; }
+@media (max-width: 640px) {
+  .af-histo-ligne { grid-template-columns: minmax(0, 1fr) auto; }
+  .af-histo-actions { grid-column: 1 / -1; }
+}
 .af-recap.af-recap-visible { display: flex; }
 .af-recap-bloc { font-size: var(--texte-m); line-height: 1.5; }
 .af-recap-titre {

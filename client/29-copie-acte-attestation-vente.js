@@ -465,5 +465,6 @@
         ${hint ? `<p class="hint echanges-destinataire">${hint}</p>` : ''}
         ${utiles.length ? `<ul class="ja-liste">${utiles.join('')}</ul>` : '<p class="fiche-vide">Rien à faire sur les fonds à ce stade.</p>'}
       </div>
+      ${renderAppelsFondsDossier(d)}
       ${renderAutresEchanges(autres)}`;
   }

@@ -916,6 +916,7 @@
       </div>
     </div>
     <div class="dash-header-actions">
+      <wa-button appearance="outlined" class="secondary" id="af-historique-btn" onclick="ouvrirHistoriqueAppelsFonds()">Courriers créés</wa-button>
       <wa-button appearance="outlined" class="secondary" onclick="reinitialiserAppelFonds()">Effacer</wa-button>
       <wa-button appearance="outlined" class="secondary" id="af-brouillon-outlook" style="display:none;" onclick="preparerEmailAppelFonds(this)" title="Prépare l’email au destinataire du dossier relié, le courrier déjà joint">Email (courrier joint)</wa-button>
       <wa-button variant="brand" class="primary" id="af-telecharger" onclick="telechargerAppelFondsDocx(this)">Télécharger le courrier (.docx)</wa-button>
@@ -2289,6 +2290,18 @@
   </div>
 </div>
 
+<!-- Courriers d'appel de fonds créés (voir client/43-historique-appels-fonds.js) : retrouvés, retéléchargés, rouverts. -->
+<div class="confirm-overlay" id="af-historique-overlay" style="display:none;" onclick="if (clicSurFond(event)) fermerHistoriqueAppelsFonds()">
+  <div class="confirm-box af-historique-box" role="dialog" aria-modal="true" aria-labelledby="af-historique-titre" onclick="event.stopPropagation()">
+    <div class="poste-titre" id="af-historique-titre">Courriers d’appel de fonds créés <span class="info-i" tabindex="0" data-info="Chaque courrier téléchargé ou envoyé par email depuis l’outil est gardé tel qu’il est sorti. « Télécharger » refait le même .docx ; « Rouvrir » le remet dans l’outil pour le reprendre."></span></div>
+    <input type="search" id="af-historique-recherche" class="af-historique-recherche" placeholder="Rechercher un dossier, un client…" oninput="renderHistoriqueAppelsFonds()" autocomplete="off">
+    <div id="af-historique-liste" class="af-historique-liste"></div>
+    <div class="confirm-actions">
+      <wa-button appearance="outlined" class="btn-annuler" onclick="fermerHistoriqueAppelsFonds()">Fermer</wa-button>
+    </div>
+  </div>
+</div>
+
 <!-- Lecture d'un email en entier (voir ouvrirEmailComplet) : relu dans Exchange, jamais gardé. -->
 <div class="confirm-overlay" id="email-lecture-overlay" style="display:none;" onclick="if (clicSurFond(event)) fermerEmailComplet()">
   <div class="confirm-box email-lecture-box" role="dialog" aria-modal="true" aria-labelledby="email-lecture-titre" onclick="event.stopPropagation()">
@@ -2500,5 +2513,6 @@
 <script src="client/40-generateur-appel-fonds.js"></script>
 <script src="client/41-reglages.js"></script>
 <script src="client/42-claire-scan.js"></script>
+<script src="client/43-historique-appels-fonds.js"></script>
 </body>
 </html>
