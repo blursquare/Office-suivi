@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.173.1';
+  const VERSION_APP = '0.173.2';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.173.2', date: '2026-10-06 18:16', resume: "À faire : le nom du dossier passe en petit au-dessus de la tâche (ou du groupe de tâches d'un dossier), toujours cliquable vers la fiche ; la tâche reste seule sur sa ligne." },
     { version: '0.173.1', date: '2026-10-06 18:09', resume: "À faire : colonnes des tâches alignées partout — délai, bouton et icônes à la même place sur chaque ligne, dans la liste comme dans le tiroir d'un dossier ouvert, sur la carte du tableau de bord, la page et la fenêtre du matin." },
     { version: '0.173.0', date: '2026-10-06 17:35', resume: "Authentic est la base de la fiche : une fiche client relevée aligne l'identité de la partie (prénom dans le nom, civilité, nom d'usage, date de naissance ; conjoint sous son propre nom ajouté de son côté) en plus des téléphones et emails ; après chaque page relevée, ce qui manque sur la fiche (personnes, coordonnées, bien, prix, référence) est repris seul du dossier d'Authentic relevé ces 12 h — pages arrivées avant la création comprises —, par sa référence d'abord, sans rien remplacer." },
     { version: '0.172.0', date: '2026-10-06 17:25', resume: "Tâches sur une ligne (« la tâche - dossier », icône pour ouvrir la fiche). Fiche : ligne « Authentic › Compléter » (reprend d'Authentic ce qui manque — personnes, emails, téléphones, bien, prix, référence — sans rien remplacer) ; email et téléphone du vendeur masqués quand son notaire l'accompagne. « Demander son décompte au confrère » seulement tant que l'appel de fonds n'est pas coché. Courrier d'appel de fonds (.docx) : adresse une ligne plus bas, « Envoi par e-mail uniquement » en italique, deux lignes sous le lieu et la date. Droits de préemption : la SAFER est informée même sans droit de préemption (information obligatoire, affichée). Bascules « Mes dossiers / Tous » : le choix actif ne passait plus en blanc sur blanc au survol." },

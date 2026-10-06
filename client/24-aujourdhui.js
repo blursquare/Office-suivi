@@ -775,7 +775,7 @@
     const n = actions.length;
     const total = n + faites.length;
     const compte = faites.length ? `${faites.length}/${total} faites` : `${n} tâches`;
-    // Une ligne aussi pour le groupe (étude 06/10) : « tâche · tâche - VTE - NOM », le compte en badge.
+    // Le groupe comme une tâche : le dossier en surtitre (étude 06/10), puis « tâche · tâche » et le compte en badge.
     const taches = actions.map(a => a.titre).join(' · ');
     const puces = faites.map(t => `<span class="dot-label dl-success ja-groupe-puce-faite" title="${escapeAttr(`${t.titre} — fait`)}"><span class="dot"></span></span>`).join('')
       + actions.map(a => `<span class="dot-label dl-${a.categorie || 'neutre'}" title="${escapeAttr(a.titre)}"><span class="dot"></span></span>`).join('');
@@ -783,7 +783,8 @@
       <li class="ja ja-avec-case ja-groupe g-${premiere.gravite || 'normal'}${ouvert ? ' ouvert' : ''}" data-groupe="${escapeAttr(d.id)}">
         <span class="dot-label dl-${premiere.categorie || 'neutre'} ja-case-cadre"><button type="button" class="ja-case-ronde" role="checkbox" aria-checked="false" onclick="marquerFaitGroupeJour('${id}')" title="${n > 1 ? `Tout est fait — valider les ${n} tâches` : 'Valider la dernière tâche'}" aria-label="${escapeAttr(n > 1 ? `Valider les ${n} tâches de ${libelleDossierAffiche(d)}` : `Valider la dernière tâche de ${libelleDossierAffiche(d)}`)}">${icone('check')}</button></span>
         <button type="button" class="ja-texte" aria-expanded="${ouvert}" onclick="basculerGroupeJour('${id}')" title="Voir les tâches une par une">
-          <span class="ja-titre">${escapeHtml(taches)} <span class="ja-sep">-</span> ${lienDossierTache(d)} <span class="ja-groupe-compte${faites.length ? ' entame' : ''}">${compte}</span></span>
+          <span class="ja-surtitre">${lienDossierTache(d)}</span>
+          <span class="ja-titre">${escapeHtml(taches)} <span class="ja-groupe-compte${faites.length ? ' entame' : ''}">${compte}</span></span>
         </button>
         <span class="ja-delai${premiere.gravite === 'critique' ? ' proche' : ''}">${d.responsable ? pastilleResponsableTache(d.responsable) : ''}${escapeHtml(delaiAction(premiere))}</span>
         <span class="ja-groupe-puces" aria-hidden="true">${puces}</span>
@@ -922,7 +923,7 @@
   function renderLigneAction(o) {
     const ouverte = !!o.detailOuvert || !!(o.apercu && apercusJour.has(o.apercu));
     const sous = o.sousHtml != null ? o.sousHtml : (o.sous ? escapeHtml(o.sous) : '');
-    const contenu = `<span class="ja-titre">${escapeHtml(o.titre)}${o.titreHtml || ''}</span>${sous ? `<span class="ja-sous">${sous}</span>` : ''}`;
+    const contenu = `${o.surtitreHtml ? `<span class="ja-surtitre">${o.surtitreHtml}</span>` : ''}<span class="ja-titre">${escapeHtml(o.titre)}${o.titreHtml || ''}</span>${sous ? `<span class="ja-sous">${sous}</span>` : ''}`;
     const texte = o.apercu
       ? `<button type="button" class="ja-texte" aria-expanded="${ouverte}" onclick="basculerApercuJour('${escapeOnclickArg(o.apercu)}')" title="Voir le détail">${contenu}</button>`
       : `<span class="ja-texte ja-texte-fixe">${contenu}</span>`;
@@ -963,15 +964,15 @@
     const brouillon = ouverte ? brouillonAction(a) : null;
     // Dans le tiroir d'un groupe : le titre seul, sans sous-titre (étude 05/10). Le nom du dossier ouvre sa fiche (étude 05/10 :
     // « je clique souvent sur le nom du dossier dans la tâche pour atteindre le dossier ») — voir lienDossierTache.
-    // Tout sur UNE ligne (étude 06/10 : « la tâche - nom dossier sur une ligne », plus de sous-titre) ; le nom ouvre la fiche,
-    // et une icône « fiche » parmi les icônes de droite fait de même.
+    // Le nom du dossier en petit AU-DESSUS de la tâche (étude 06/10 : « met en surtitre de la tâche ou groupe de tâches le nom du
+    // dossier en petit ») ; il ouvre la fiche, et une icône « fiche » parmi les icônes de droite fait de même.
     const avecDossier = !dansFiche && !sansDossier;
     const sansGeste = dansFiche && (!a.geste || a.geste.type === 'fiche');
     return renderLigneAction({
       categorie: a.categorie, categorieLabel: a.categorieLabel, gravite: a.gravite,
       titre: a.titre,
-      titreHtml: (avecDossier ? ` <span class="ja-sep">-</span> ${lienDossierTache(a.dossier)}` : '')
-        + (veilleJour.hier.has(a.cle) ? ` <span class="ja-non-faite">${escapeHtml(libelleNonFaite(veilleJour.hierDate, isoAujourdhuiLocal()))}</span>` : ''),
+      surtitreHtml: avecDossier ? lienDossierTache(a.dossier) : '',
+      titreHtml: (veilleJour.hier.has(a.cle) ? ` <span class="ja-non-faite">${escapeHtml(libelleNonFaite(veilleJour.hierDate, isoAujourdhuiLocal()))}</span>` : ''),
       sousHtml: '', delai: delaiAction(a), delaiProche: a.gravite === 'critique',
       // Initiales du responsable du dossier (étude 05/10 : « remets les initiales de la personne en charge ») — pas dans la fiche
       // ni dans le tiroir d'un groupe, où elles sont déjà sur la ligne du dossier.

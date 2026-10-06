@@ -17474,3 +17474,11 @@ sans marge droite pour tomber sous celles de la liste. Mesuré : délai, bouton 
 les tiroirs ouverts ; « Marquer envoyé » (118 px de libellé) et « dépassé de 12 j » tiennent. Les autres listes d'actions (fiche,
 Échanges) gardent la grille commune ; téléphone inchangé (zones).
 
+### 06/10/2026 18 h 16 — 0.173.2 : nom du dossier en surtitre des tâches
+
+**Étude : « C'est mieux. Mets en surtitre de la tâche ou du groupe de tâches le nom du dossier en petit. »** `renderLigneAction`
+prend `surtitreHtml` (`.ja-surtitre`, `var(--texte-xs)`, gris, une ligne coupée, lien vers la fiche par `lienDossierTache`) au-dessus
+de `.ja-titre` ; `renderLigneActionJour` y met le dossier (plus de « - VTE - NOM » dans le titre, `.ja-sep` retiré) ; la ligne d'un
+groupe a le même surtitre, puis « tâche · tâche » et son compte. Pas de surtitre dans le tiroir d'un groupe ni dans la fiche.
+Colonnes de 0.173.1 inchangées (mesuré). Tests d'`aujourdhui` mis à jour.
+
