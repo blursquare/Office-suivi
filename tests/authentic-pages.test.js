@@ -1276,3 +1276,22 @@ test('copropriété : page des lots appliquée sur un dossier existant — lots 
   assert.equal(app.libelleLotCopropriete(d.bien.lots[0], d.bien.tantiemesTotal), 'Lot n° 12 — Appartement, 3e étage, 46,8 m² Carrez, 125/10 000 tantièmes');
   assert.equal(app.libelleLotCopropriete({ numero: '7' }, null), 'Lot n° 7');
 });
+
+test('« Importer avec 6e SENS » (bouton d’Authentic collé à l’intitulé) n’entre jamais dans un nom de dossier (étude 06/10)', () => {
+  assert.equal(app.intituleVenteNormalise('Vente MARTEL/FOURNIER Importer avec 6e SENS'), 'Vente MARTEL / FOURNIER');
+  assert.equal(app.intituleVenteNormalise('VTE MARTEL / FOURNIER Importer avec 2e SENSComparants (3)'), 'Vente MARTEL / FOURNIER');
+  assert.equal(app.intituleVenteNormalise('Succession DUPONT Jean Importer avec 2e SENS'), 'Succession DUPONT Jean');
+  assert.equal(app.intituleVenteNormalise('Vente MARTEL/FOURNIER Importer'), 'Vente MARTEL / FOURNIER');
+  assert.equal(app.intituleVenteNormalise('Vente IMPORTERAND / ROUX'), 'Vente IMPORTERAND / ROUX', 'un nom qui commence par Importer reste');
+  // Onglet actif dont le titre porte le bouton : l'intitulé retenu est propre.
+  const capture = { onglets: [{ titre: '12 - Vente MARTEL/FOURNIER Importer avec 6e SENS', actif: true }], champs: [], tableaux: [], texte: '' };
+  assert.equal(app.intituleNumeroteAuthentic(capture).intitule, 'Vente MARTEL / FOURNIER');
+  // Dossier créé avant la correction : nom nettoyé une fois, historique posé, intitulés retenus aussi.
+  const d = { id: 'x', nom: 'MARTEL / FOURNIER Importer avec 6e SENS', intitulesAuthentic: ['vente martel / fournier importer avec 6e sens'], historique: [] };
+  assert.equal(app.retirerImporterAuthentic(d), true);
+  assert.equal(d.nom, 'MARTEL / FOURNIER');
+  assert.equal(d.intitulesAuthentic[0], 'vente martel / fournier');
+  assert.match(d.historique[0].texte, /Nom du dossier nettoyé/);
+  assert.equal(app.retirerImporterAuthentic(d), false, 'rien à refaire');
+  assert.equal(app.retirerImporterAuthentic({ nom: 'MARTEL / FOURNIER' }), false);
+});

@@ -931,35 +931,10 @@
   function pastilleCitationRelecture(c) {
     if (!c) return '';
     const idx = citationsRelecture.push(c) - 1;
-    const doc = documentsEnvoyesRelecture.find(d => d.numero === c.document);
-    const f = doc ? (fichiersAnalyseIa.find(x => x.id === doc.fichierId) || (doc.nom ? doc : null)) : null;
-    const nomDoc = f ? f.nom : 'Document';
-    const court = f ? (f.type === 'principal' ? 'Projet' : f.type === 'reference_compromis' ? 'Avant-contrat' : libelleNaturePieceOutil2(f.nature)) : `Doc ${c.document || '?'}`;
+    const { court, nomDoc } = libelleCitationRelecture(c);
     const verif = c.verifie ? '' : ` <span class="page-chip-alerte" title="Extrait introuvable mot pour mot dans le document : à vérifier en priorité">${icone('alert-triangle')}</span>`;
     return `<button type="button" class="page-chip${c.verifie ? '' : ' non-verifiee'}" onclick="ouvrirCitationRelecture(${idx})" title="${escapeAttr(nomDoc)}${c.extrait ? ' — « ' + escapeAttr(c.extrait.slice(0, 160)) + ' »' : ''}">
       ${icone('eye')}${escapeHtml(court)}${c.page ? ` · p.${c.page}` : ''}${verif}</button>`;
-  }
-
-  function lignePointRelecture(l) {
-    const c = constatsClaudeRelecture.find(x => x.uid === 'g-' + l.id);
-    let niveau = l.niveau;
-    let exclu = false;
-    if (c) {
-      if (c.retour && c.retour.verdict === 'faux_positif') exclu = true;
-      else niveau = niveauDepuisGraviteRelecture(c.gravite);
-    }
-    const n = NIVEAUX_RELECTURE_OUTIL2[exclu ? 'na' : niveau];
-    const pied = c ? (modeCommentairesAudit ? renderCommentaireConstatAudit(c) : renderRetourResumeAudit(c)) : '';
-    const citations = l.citations.map(pastilleCitationRelecture).join('');
-    return `<div class="point-ligne niveau-${exclu ? 'na' : niveau}"${c ? ` id="audit-constat-${c.uid}"` : ''}>
-      <span class="dot-label ${n.dl}">${icone(n.icone)}${exclu ? 'Faux positif' : n.texte}</span>
-      <div class="point-corps">
-        <div class="point-intitule">${escapeHtml(l.intitule)}${l.base_legale ? `<span class="hint"> · ${escapeHtml(l.base_legale)}</span>` : ''}</div>
-        ${l.commentaire ? `<p class="point-commentaire">${escapeHtml(l.commentaire)}</p>` : ''}
-        ${citations ? `<div class="point-citations">${citations}</div>` : ''}
-        ${pied}
-      </div>
-    </div>`;
   }
 
   // Niveau d'une ligne une fois les commentaires de l'étude appliqués (faux positif = sans objet).
@@ -998,14 +973,6 @@
   // grille relue par Claude, qui couvre les mêmes sujets pièce par pièce, citations à l'appui.
   function categoriesClaireBilanRelecture() {
     return new Set(SOUS_SECTIONS_RAPPORT_OUTIL2.filter(x => x.section === 'ACTE').map(x => x.cle));
-  }
-
-  // Validés d'un côté, à traiter de l'autre, pour chaque thème : on voit d'un coup d'œil ce qui est
-  // acquis et ce qui reste à faire, sans déplier une liste. Pure, testable.
-  function repartirLignesThemeRelecture(lignes) {
-    const aTraiter = lignes.filter(l => l.niveau === 'critique' || l.niveau === 'surveiller')
-      .sort((x, y) => NIVEAUX_RELECTURE_OUTIL2[x.niveau].rang - NIVEAUX_RELECTURE_OUTIL2[y.niveau].rang);
-    return { aTraiter, valides: lignes.filter(l => l.niveau === 'valide'), na: lignes.filter(l => l.niveau === 'na') };
   }
 
   let derniereSanteRelecture = null;
@@ -1163,75 +1130,25 @@
       </button>`;
     }).join('');
 
-    const detailSections = sectionsEffectives.map(s => {
-      const { aTraiter, valides, na } = repartirLignesThemeRelecture(s.lignesEff);
-      const ns = NIVEAUX_RELECTURE_OUTIL2[s.niveau];
-      return `<section class="grille-section niveau-${s.niveau}" id="relecture-section-${s.cle}">
-        <h3 class="grille-section-titre"><span>${escapeHtml(s.titre)}</span><span class="dot-label ${ns.dl}"><span class="dot"></span>${ns.texte}</span></h3>
-        <div class="grille-colonnes">
-          <div class="grille-col grille-col-traiter">
-            <span class="section-eyebrow">À surveiller <span class="grille-col-compte">${aTraiter.length}</span></span>
-            ${aTraiter.length ? aTraiter.map(l => lignePointRelecture(l._source)).join('') : '<p class="hint grille-col-vide">Rien à surveiller sur ce thème.</p>'}
-          </div>
-          <div class="grille-col grille-col-valides">
-            <span class="section-eyebrow">Validé <span class="grille-col-compte">${valides.length}</span></span>
-            ${valides.length ? valides.map(l => lignePointRelecture(l._source)).join('') : '<p class="hint grille-col-vide">Aucun point validé.</p>'}
-          </div>
-        </div>
-        ${na.length ? `<p class="hint grille-na">${na.length} point(s) sans objet : ${escapeHtml(na.map(l => l.intitule.split(' (')[0]).join(' · '))}</p>` : ''}
-      </section>`;
-    }).join('');
-
-    // Clauses contradictoires : les deux passages côte à côte, chacun avec sa page — c'est en les
-    // lisant ensemble que le notaire tranche. Affichée même vide quand l'IA a tourné : « aucune
-    // contradiction relevée » est une information, pas un silence.
-    const clauseContradiction = (c, lettre) => c ? `<div class="contradiction-clause">
-        <span class="contradiction-lettre">${lettre}</span>
-        <blockquote class="obligation-clause${c.verifie ? '' : ' non-verifiee'}">${escapeHtml(c.extrait || '')}</blockquote>
-        <div class="point-citations">${pastilleCitationRelecture(c)}</div>
-      </div>` : '';
-    // Une analyse enregistrée avant cette rubrique n'a pas de liste : rien n'y a été cherché, on
-    // n'affiche donc pas « aucune contradiction ».
-    const contradictionsHtml = a && Array.isArray(a.contradictions) ? `<section class="grille-section" id="relecture-section-contradictions">
-        <h3 class="grille-section-titre"><span>Clauses contradictoires</span><span class="audit-section-compte">${contradictions.length}</span></h3>
-        ${contradictions.length ? contradictions.map(c => {
-          const exclu = c.retour && c.retour.verdict === 'faux_positif';
-          const niv = exclu ? 'na' : niveauDepuisGraviteRelecture(c.gravite);
-          const nn = NIVEAUX_RELECTURE_OUTIL2[niv];
-          const pied = modeCommentairesAudit ? renderCommentaireConstatAudit(c) : renderRetourResumeAudit(c);
-          return `<div class="point-ligne niveau-${niv}" id="audit-constat-${c.uid}">
-            <span class="dot-label ${nn.dl}">${icone(nn.icone)}${exclu ? 'Faux positif' : nn.texte}</span>
-            <div class="point-corps"><div class="point-intitule">${escapeHtml(c.titre)}</div>
-              ${c.description ? `<p class="point-commentaire">${escapeHtml(c.description)}</p>` : ''}
-              <div class="contradiction-paire">${clauseContradiction(c.contradiction.clause_a, 'A')}${clauseContradiction(c.contradiction.clause_b, 'B')}</div>${pied}</div>
-          </div>`;
-        }).join('') : '<p class="hint grille-col-vide">Aucune contradiction relevée entre les clauses.</p>'}
-      </section>` : '';
-
-    const anomaliesHtml = anomalies.length ? `<section class="grille-section" id="relecture-section-anomalies">
-        <h3 class="grille-section-titre"><span>Autres points relevés</span><span class="audit-section-compte">${anomalies.length}</span></h3>
-        ${anomalies.map(c => {
-          const exclu = c.retour && c.retour.verdict === 'faux_positif';
-          const niv = exclu ? 'na' : niveauDepuisGraviteRelecture(c.gravite);
-          const nn = NIVEAUX_RELECTURE_OUTIL2[niv];
-          const pied = modeCommentairesAudit ? renderCommentaireConstatAudit(c) : renderRetourResumeAudit(c);
-          return `<div class="point-ligne niveau-${niv}" id="audit-constat-${c.uid}">
-            <span class="dot-label ${nn.dl}">${icone(nn.icone)}${exclu ? 'Faux positif' : nn.texte}</span>
-            <div class="point-corps"><div class="point-intitule">${escapeHtml(c.titre)}</div>
-              ${c.description ? `<p class="point-commentaire">${escapeHtml(c.description)}</p>` : ''}
-              <div class="point-citations">${(c.anomalie.citations || []).map(pastilleCitationRelecture).join('')}</div>${pied}</div>
-          </div>`;
-        }).join('')}
-      </section>` : '';
+    // Contrôles CLAIRE affichés (« Ce que dit l'acte ») : ils rejoignent les alertes et les points à surveiller du compte
+    // rendu compact (étude 06/10), avec les clauses contradictoires et les autres points relevés par l'IA.
+    const constatsClaireAffiches = (r.constats || []).filter(c => catsClaire.has(c.categorie) && !constatExcluOutil2(c) && !rubriqueMasqueeAudit(c.categorie));
+    const plan = planBilanCourantRelecture(sectionsEffectives, constatsClaireAffiches, contradictions, anomalies, a ? a.synthese : '');
+    dernierPlanRelecture = plan;
 
     // Contrôle automatique CLAIRE, sans IA : seulement ce que dit l'acte lui-même.
     const blocActe = SECTIONS_RAPPORT_OUTIL2.find(b => b.cle === 'ACTE');
-    const claire = `<section class="claire-controles claire-acte">
-        <div class="claire-acte-tete"><span class="section-eyebrow">Contrôle automatique CLAIRE</span>
-          <span class="hint">Règles locales, sans IA</span></div>
-        ${renderPartiesDossierAudit(r)}
-        ${renderBlocAudit(blocActe, r, r.constats || [])}
-      </section>`;
+    // En tête : seulement la fiche de l'acte (ce que CLAIRE y a lu) et l'écart des parties ; le détail des contrôles,
+    // le coût et le diagnostic sont repliés en bas (étude 06/10 : « plus succinct »).
+    const ficheActe = renderFicheActe(r.fiche);
+    const parties = renderPartiesDossierAudit(r);
+    const claire = ficheActe || parties ? `<section class="claire-controles claire-acte">
+        <div class="claire-acte-tete"><span class="section-eyebrow">Ce que dit l'acte</span>
+          <span class="hint">Lu par CLAIRE, sans IA</span></div>
+        ${parties}
+        ${ficheActe}
+      </section>` : '';
+    const detailClaire = renderBlocAudit(blocActe, r, r.constats || []);
 
     const f = factureRelecture;
     const cout = f ? `<section class="relecture-cout">
@@ -1259,14 +1176,22 @@
             <span class="sante-compteur c-valide"><strong>${sante.compte.valide}</strong>validé(s)</span>
             <span class="sante-compteur c-na"><strong>${sante.compte.na}</strong>sans objet</span>
           </div>
-          ${a && a.synthese ? `<p class="sante-synthese">${escapeHtml(a.synthese)}</p>` : ''}
+          ${plan.resume ? `<p class="sante-synthese">${escapeHtml(plan.resume)}</p>` : ''}
           ${a ? '' : `<p class="hint">${erreurClaudeRelecture ? escapeHtml(erreurClaudeRelecture) + ' — ' : ''}Analyse par l'IA non effectuée : ce bilan ne repose que sur les contrôles automatiques de CLAIRE.</p>`}
         </div>
-        <label class="audit-bascule-commentaires" title="Donner votre avis sur chaque point : il est retenu pour les prochaines relectures (pour ce dossier ou pour tous).">
-          <wa-switch size="s" class="switch" ${modeCommentairesAudit ? 'checked' : ''} onchange="basculerModeCommentairesAudit(this.checked)"></wa-switch>
-          Mode commentaires
-        </label>
+        <div class="sante-outils">
+          <wa-button appearance="outlined" size="s" type="button" class="sante-imprimer" onclick="imprimerCompteRenduRelecture()" title="Compte rendu sur une page recto verso A4 au plus">${icone('printer')} Imprimer (A4)</wa-button>
+          <label class="audit-bascule-commentaires" title="Donner votre avis sur chaque point : il est retenu pour les prochaines relectures (pour ce dossier ou pour tous).">
+            <wa-switch size="s" class="switch" ${modeCommentairesAudit ? 'checked' : ''} onchange="basculerModeCommentairesAudit(this.checked)"></wa-switch>
+            Mode commentaires
+          </label>
+        </div>
       </section>`;
+    enTeteCompteRenduRelecture = {
+      titre: a && a.type_acte ? a.type_acte : (auditMode === 'acte' ? "Projet d'acte de vente" : "Projet d'avant-contrat"),
+      typeBien: libelleType || '', dossier: auditDossierLie ? libelleDossierAffiche(auditDossierLie) : '',
+      date: new Date().toLocaleDateString('fr-FR'), niveau: sante.niveau, compte: sante.compte
+    };
 
     zone.innerHTML = `${renderBandeauArchiveRelecture()}
     <div class="relecture-bilan-haut">
@@ -1277,11 +1202,13 @@
     <div class="relecture-bilan-grille">
       <div class="relecture-bilan-principal">
         ${tuiles ? `<div class="sante-tuiles">${tuiles}</div>` : ''}
-        ${detailSections}
-        ${contradictionsHtml}
-        ${anomaliesHtml}
-        ${cout}
-        ${renderDiagnosticRelecture(r, sections)}
+        ${renderCompteRenduRelecture(plan, false)}
+        <wa-details class="outil-notes cr-details" summary="Détail des contrôles CLAIRE, synthèse complète, coût et diagnostic">
+          ${a && a.synthese && a.synthese.length > plan.resume.length ? `<p class="sante-synthese cr-synthese-complete">${escapeHtml(a.synthese)}</p>` : ''}
+          ${detailClaire}
+          ${cout}
+          ${renderDiagnosticRelecture(r, sections)}
+        </wa-details>
         <p class="hint relecture-cadre">Aide à la relecture ${infoBulle("Chaque point est une proposition, citée page à l'appui, que le notaire vérifie et tranche. Les données identifiantes ont été masquées avant l'envoi et la correspondance est restée sur ce poste.")}</p>
       </div>
       <aside class="relecture-visionneuse" id="relecture-visionneuse" aria-label="Aperçu du document"></aside>
@@ -1296,8 +1223,11 @@
     }
   }
 
+  // Une tuile mène à la première ligne de son thème dans le compte rendu (alerte, à surveiller, sinon le bloc « Validé »).
   function allerSectionRelecture(cle) {
-    const el = document.getElementById('relecture-section-' + cle);
+    const el = document.getElementById('relecture-section-' + cle)
+      || document.querySelector(`#relecture-bilan .cr-ligne[data-theme="${CSS.escape(cle)}"]`)
+      || document.querySelector(`#relecture-bilan .cr-valide-theme[data-theme="${CSS.escape(cle)}"]`);
     if (el && el.scrollIntoView) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 

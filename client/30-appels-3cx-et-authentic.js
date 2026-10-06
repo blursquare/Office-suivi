@@ -371,8 +371,14 @@
 
   // Pure : « Promesse de vente MARTEL/FOURNIER », « MARTEL / FOURNIER »… → « Vente MARTEL / FOURNIER » ;
   // un intitulé sans « / » (ni succession) est rendu tel quel.
+  // Bouton « Importer avec 6e SENS » d'Authentic, collé à l'intitulé dans le texte de la page ou le titre de l'onglet (étude
+  // 06/10 : « parfois il note dans le nom du dossier : Importer avec 6e SENS ») : jamais dans un nom.
+  var RE_IMPORTER_SENS_AUTHENTIC = /\s*(?:Importer(?:\s+avec\s+\d+\s*(?:e|er|ème|eme)\s+SENS)?)(?![A-Za-zÀ-ÿ]).*$/i;
+  function sansImporterAuthentic(texte) {
+    return String(texte || '').replace(RE_IMPORTER_SENS_AUTHENTIC, '').trim();
+  }
   function intituleVenteNormalise(intitule) {
-    const t = String(intitule || '').replace(/\s+/g, ' ').trim();
+    const t = sansImporterAuthentic(String(intitule || '').replace(/\s+/g, ' ').trim());
     if (!t || RE_INTITULE_SUCCESSION_AUTHENTIC.test(t)) return t;
     const m = /^(?:(?:vente|vte|promesse|compromis|avant[\s-]*contrat|pv|puv|unilat[ée]rale|synallagmatique|achat|de|d'|d’)\.?\s*)*(.+?)\s*\/\s*(.+)$/i.exec(t);
     return m ? `Vente ${m[1].trim()} / ${m[2].trim()}` : t;
@@ -2422,12 +2428,32 @@
     return change;
   }
 
+  // Pure (modifie le dossier passé) : un nom de dossier ou un intitulé retenu qui porte « Importer avec 6e SENS » (créé
+  // avant le 06/10) est nettoyé une fois, avec une ligne d'historique.
+  function retirerImporterAuthentic(d) {
+    if (!d) return false;
+    let change = false;
+    if (typeof d.nom === 'string' && RE_IMPORTER_SENS_AUTHENTIC.test(d.nom) && sansImporterAuthentic(d.nom)) {
+      const ancien = d.nom;
+      d.nom = sansImporterAuthentic(d.nom);
+      d.historique = d.historique || [];
+      d.historique.push({ date: new Date().toISOString(), texte: `Nom du dossier nettoyé : « ${ancien} » → « ${d.nom} » (bouton d’Authentic collé à l’intitulé)` });
+      change = true;
+    }
+    if (Array.isArray(d.intitulesAuthentic)) {
+      const propres = d.intitulesAuthentic.map(i => (typeof i === 'string' ? sansImporterAuthentic(i) || i : i));
+      if (propres.join('\n') !== d.intitulesAuthentic.join('\n')) { d.intitulesAuthentic = propres; change = true; }
+    }
+    return change;
+  }
+
   async function retirerDatesAvantContratLuesNas() {
     for (const d of dossiers || []) {
       const date = retirerDateAvantContratLueNas(d);
       const numero = retirerNumeroAuthentic(d);
       const notaires = nettoyerCommunesNotairesDossier(d);
-      if (date || numero || notaires) await sauvegarder(d);
+      const importer = retirerImporterAuthentic(d);
+      if (date || numero || notaires || importer) await sauvegarder(d);
     }
   }
 

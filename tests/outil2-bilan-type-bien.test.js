@@ -45,7 +45,7 @@ test('grille : les retours de l’étude deviennent des consignes durables', () 
   assert.match(consigne('situation_urbanisme'), /monument historique/);
 });
 
-test('bilan : les points d’un thème filtrés par type de bien, puis répartis validé / à surveiller', () => {
+test('bilan : les points d’un thème filtrés par type de bien', () => {
   const analyse = { points: [
     { id: 'dpe', statut: 'present', commentaire: 'DPE du 3 mars 2024.', citations: [] },
     { id: 'terrain_bornage', statut: 'absent', commentaire: 'Aucun bornage.', citations: [] },
@@ -53,12 +53,6 @@ test('bilan : les points d’un thème filtrés par type de bien, puis répartis
   ] };
   const diag = app.sectionsTableauDeBordOutil2(analyse, 'compromis', 'terrain').find(s => s.cle === 'diagnostics');
   assert.ok(!diag.lignes.some(l => l.id === 'dpe'), 'pas de DPE sur un terrain');
-  const r = app.repartirLignesThemeRelecture([
-    { id: 'a', niveau: 'valide' }, { id: 'b', niveau: 'surveiller' }, { id: 'c', niveau: 'critique' }, { id: 'd', niveau: 'na' }
-  ]);
-  assert.equal(r.aTraiter.map(l => l.id).join(','), 'c,b', 'le critique d’abord');
-  assert.equal(r.valides.map(l => l.id).join(','), 'a');
-  assert.equal(r.na.map(l => l.id).join(','), 'd');
 });
 
 test('bilan : le contrôle CLAIRE n’affiche que « Ce que dit l’acte »', () => {

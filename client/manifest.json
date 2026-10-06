@@ -48,5 +48,6 @@
   "46-droits-preemption.js",
   "47-redaction-mise-en-forme.js",
   "48-surlignage-pdf.js",
-  "49-assistant.js"
+  "49-assistant.js",
+  "50-relecture-compte-rendu.js"
 ]

@@ -310,6 +310,8 @@
     // Même raison pour l'arbitrage du forfait mobilier : Ctrl+P doit sortir la note de calcul,
     // pas les cartes de saisie autour (voir @media print dans style.css).
     document.body.classList.toggle('onglet-inventaire-actif', nom === 'inventaire');
+    // Relecture d'actes : Ctrl+P sort le compte rendu A4 (#relecture-cr-print), pas l'écran (étude 06/10).
+    document.body.classList.toggle('onglet-analyse-ia-actif', nom === 'analyse-ia');
     document.getElementById('tab-analyse-ia').classList.toggle('actif', nom === 'analyse-ia');
     document.getElementById('tab-reglages').classList.toggle('actif', nom === 'reglages');
     if (nom === 'suivi') appliquerFiltreSuiviCollaborateur();

@@ -17348,3 +17348,31 @@ Quatre demandes de l'étude dans la foulée.
   d'une ligne à l'autre dans la fenêtre du matin et le widget.
 - **« Pop-up email : une petite croix en haut à droite pour fermer la fenêtre. »** Le chevron « retour » à gauche du titre est
   remplacé par une croix à droite (`.redaction-fermer`, même `abandonnerRedaction`).
+
+### 06/10/2026 14 h 53 — 0.171.0 : compte rendu de relecture succinct et imprimable ; « Importer avec 6e SENS »
+
+**Étude : « Pour les relectures d'acte, il faut que le compte rendu soit plus succinct. Il faut que ça tienne sur une page
+recto verso A4 maximum. Prévoir à la fin les éléments validés sur 1/4 de page max. Un résumé plus court au début. Lister les
+choses à surveiller et les alertes mais faire plus compact et visuel. Possibilité de sortir le compte rendu pour impression
+format A4 papier. »** Nouveau fichier `client/50-relecture-compte-rendu.js` :
+- `planCompteRenduRelecture(entree, limites)` (pure) range points de la grille, contrôles CLAIRE affichés, clauses
+  contradictoires et autres points relevés en trois listes — alertes (critique), à surveiller, validé par thème — ; résumé =
+  deux phrases (`resumeCourtRelecture`, 320 car.), commentaire d'un point = sa première phrase (`commentaireCourtRelecture`,
+  170 car.) ; au-delà de `lignesDetaillees` (30) lignes détaillées, les points à surveiller restants passent en intitulés seuls
+  (« Également à surveiller ») ; « Validé » borné à `validesCaracteres` (850, un quart de page) avec « … et N autres ».
+- `renderCompteRenduRelecture(plan, impression)` : une ligne par point — pastille du niveau (icône seule), thème en étiquette,
+  intitulé, commentaire court, pages (pastilles cliquables à l'écran, texte « Projet · p.12 » au papier), avis de l'étude à
+  l'écran seulement. `renderTableauDeBordRelecture` garde la carte de santé (résumé court) et les tuiles par thème, puis ces
+  blocs ; le détail des contrôles CLAIRE, la synthèse complète, le coût et le diagnostic sont repliés dans un `wa-details`.
+  Les anciennes sections par thème (deux colonnes) et `lignePointRelecture` / `repartirLignesThemeRelecture` sont retirées.
+- Impression : bouton « Imprimer (A4) » dans la carte de santé (`imprimerCompteRenduRelecture` → `#relecture-cr-print`, hors des
+  sections d'étape, puis `window.print()`) ; Ctrl+P donne la même feuille (`body.onglet-analyse-ia-actif`, posé par
+  `definirOnglet`). Piège : l'onglet est DANS `.app-shell` — masquer l'ancêtre n'imprimait rien (PDF d'1 Ko) ; on masque les
+  frères. Mesuré dans Chromium (PDF A4) : cas courant 2 pages (la seconde au tiers), cas le plus chargé (49 points tous à
+  traiter) 2 pages.
+
+**Étude : « Attention, parfois en important depuis Authentic il note dans le nom du dossier : Importer avec 6e SENS. »** Le bouton
+d'Authentic est collé à l'intitulé dans le titre de l'onglet (« 12 - Vente MARTEL/FOURNIER Importer avec 6e SENS ») ; les
+regex des en-têtes s'arrêtaient avant « Importer », pas celle du titre d'onglet. `sansImporterAuthentic` (`RE_IMPORTER_SENS_AUTHENTIC`)
+dans `intituleVenteNormalise`, par où passent tous les chemins ; `retirerImporterAuthentic(d)` au démarrage nettoie une fois
+les noms et `intitulesAuthentic` des dossiers créés avant (ligne d'historique).

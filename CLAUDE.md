@@ -473,7 +473,8 @@ dans `index.html`** (le test `structure-client` refuse tout décalage).
   (ou « SUCC NOM », **forme supposée, à confirmer sur une vraie page**) reconnu par le poste
   (`RE_INTITULE_DOSSIER_AUTHENTIC`, `RE_INTITULE_SUCCESSION_AUTHENTIC`), le serveur (`pageAuthenticConnue`) et
   l'extension (0.3.4) ; rapproché par le nom (`scoreDossierAuthentic` : identique 6, proche 4, dossiers de succession
-  seulement). Dossier `typeAffaire: 'succession'`, `sansPret`, `parties` = toutes les personnes ouvertes (rôle
+  seulement). **Jamais « Importer avec 6e SENS » dans un intitulé** (étude 06/10, bouton d'Authentic collé au titre de l'onglet :
+  `sansImporterAuthentic` dans `intituleVenteNormalise`, noms existants nettoyés au démarrage par `retirerImporterAuthentic`). Dossier `typeAffaire: 'succession'`, `sansPret`, `parties` = toutes les personnes ouvertes (rôle
   `PARTIE`, qualité jamais devinée, téléphones/emails gardés — reconnus par 3CX), `biens` (`biensDepuisAuthentic` :
   adresse, type, parcelles). **`estSuccession(d)`** neutralise la vente : planning = signature placée + échéances
   ajoutées (même code pour le serveur, `commun/planning.js`), checklist = pièces personnalisées seules, pas de préemption ni de
@@ -745,6 +746,12 @@ renvoyés au modèle comme consignes, après pseudonymisation. Les analyses sont
 sur le serveur (table `relectures`), la requête pseudonymisée dans `analyses_claude`. Les contrôles
 déterministes de CLAIRE (sans IA) complètent l'analyse et fonctionnent sans clé API.
 Plainte principale de l'étude : **le bruit**, pas les oublis — ne pas élargir de motif sans acte réel.
+**Compte rendu succinct** (étude 06/10, `client/50-relecture-compte-rendu.js`) : carte de santé avec résumé en deux phrases,
+tuiles par thème, puis **Alertes** / **À surveiller** en lignes compactes (pastille, thème, intitulé, première phrase du
+commentaire, pages) et **Validé** en fin, borné à un quart de page ; au-delà de 30 lignes détaillées, intitulés seuls ; détail des
+contrôles CLAIRE, synthèse complète, coût et diagnostic repliés. `planCompteRenduRelecture` (pure) sert à l'écran et au papier ;
+**« Imprimer (A4) »** / Ctrl+P sortent `#relecture-cr-print` seul (une page recto verso au plus, mesuré). Une nouvelle sorte de
+point du bilan passe par le plan, jamais par un bloc à part.
 
 ## Pièges techniques déjà payés
 
