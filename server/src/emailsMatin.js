@@ -129,44 +129,106 @@ const SUJETS_EMAIL = [
   { cle: 'urgent', libelle: 'Urgent', re: /URGENT/ }
 ];
 
-// `dossiers` : les dossiers actifs ; `adressesIgnorees` : les adresses de CLAIRE elle-même (envoi
-// des rappels, passerelle Teams), dont les copies ne sont pas des emails reçus.
-function contexteClassement(dossiers, adressesIgnorees) {
-  const ignorees = new Set((adressesIgnorees || []).filter(Boolean).map(a => String(a).toLowerCase()));
-  const actifs = (dossiers || []).filter(d => d && !d.archive);
-  const parAdresse = new Map();
-  for (const d of actifs) {
-    // Un champ peut porter plusieurs adresses (« a@x.fr; b@y.fr », étude 02/10).
-    for (const champ of [d.emailAcquereur, d.emailVendeur, d.emailNotaireParticipant, d.emailConfrereVendeur]) {
-      for (const a of String(champ || '').split(/[;,\s]+/)) {
-        if (/@/.test(a)) parAdresse.set(a.trim().toLowerCase(), d);
-      }
-    }
+// Objet comparé sans « RE : », « TR : », accents ni espaces multiples (fils d'une conversation).
+function normaliserObjet(s) {
+  let o = String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+  for (let i = 0; i < 4; i++) o = o.replace(/^(?:re|tr|fw|fwd|aw)\s*:\s*/, '');
+  return o;
+}
+const estReponse = (s) => normaliserObjet(s) !== String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+// Un objet trop court ou banal (« Documents », « Bonjour ») ne désigne aucun fil.
+const MIN_OBJET_FIL = 12;
+
+// Toutes les adresses d'un dossier : champs de la fiche (un champ peut en porter plusieurs, « a@x.fr; b@y.fr »,
+// étude 02/10) et emails des parties relevés dans Authentic (vendeurs, acquéreurs, héritiers — étude 06/10).
+function adressesDuDossier(d) {
+  const brutes = [d.emailAcquereur, d.emailVendeur, d.emailNotaireParticipant, d.emailConfrereVendeur];
+  for (const p of Array.isArray(d.parties) ? d.parties : []) {
+    if (!p || typeof p !== 'object') continue;
+    if (Array.isArray(p.emails)) brutes.push(...p.emails);
+    if (typeof p.email === 'string') brutes.push(p.email);
   }
-  return { ignorees, actifs, parAdresse };
+  const adresses = new Set();
+  for (const champ of brutes) {
+    for (const a of String(champ || '').split(/[;,\s]+/)) if (/@/.test(a)) adresses.add(a.trim().toLowerCase());
+  }
+  return [...adresses];
 }
 
-// Le dossier d'un email (ou null) : l'expéditeur est le client ou le confrère du dossier, sinon
-// « VTE - NOM » cité, sinon un nom du dossier en mot entier dans l'objet.
+// `dossiers` : les dossiers du serveur (archivés compris, étude 06/10 : « un client ou un confrère qui écrit après la
+// signature ») ; `adressesIgnorees` : les adresses de CLAIRE elle-même (envoi des rappels, passerelle Teams), dont les
+// copies ne sont pas des emails reçus. `historique` (facultatif) : { emails, prepares } déjà rattachés, pour suivre les
+// fils (une réponse « RE: … » à un échange d'un dossier, une adresse à qui l'étude a écrit pour un seul dossier) ;
+// `internes` : adresses de l'étude (compte relié, collaborateurs), jamais apprises comme adresse d'un dossier.
+function contexteClassement(dossiers, adressesIgnorees, historique) {
+  const ignorees = new Set((adressesIgnorees || []).filter(Boolean).map(a => String(a).toLowerCase()));
+  const tousDossiers = (dossiers || []).filter(d => d && d.id);
+  const actifs = tousDossiers.filter(d => !d.archive);
+  const archives = tousDossiers.filter(d => d.archive);
+  const parId = new Map(tousDossiers.map(d => [d.id, d]));
+  // Adresse → dossiers qui la portent (un confrère a souvent plusieurs dossiers : l'objet départage).
+  const ajouter = (carte, d) => { for (const a of adressesDuDossier(d)) { if (!carte.has(a)) carte.set(a, []); carte.get(a).push(d); } };
+  const parAdresse = new Map();
+  actifs.forEach(d => ajouter(parAdresse, d));
+  const parAdresseArchive = new Map();
+  archives.forEach(d => ajouter(parAdresseArchive, d));
+  // Fils : objet (sans RE:/TR:) → dossier, et adresse écrite par l'étude → dossier ; null quand plusieurs dossiers.
+  const parObjet = new Map();
+  const adressesEcrites = new Map();
+  const noter = (carte, cle, id) => { if (!cle || !parId.has(id)) return; carte.set(cle, carte.has(cle) && carte.get(cle) !== id ? null : id); };
+  const h = historique || {};
+  const internes = new Set((h.internes || []).filter(Boolean).map(a => String(a).toLowerCase()));
+  for (const e of Array.isArray(h.emails) ? h.emails : []) {
+    if (!e || !e.dossierId) continue;
+    const o = normaliserObjet(e.objet);
+    if (o.length >= MIN_OBJET_FIL) noter(parObjet, o, e.dossierId);
+    if (e.sens === 'envoye') for (const a of e.a || []) if (!ignorees.has(a) && !internes.has(String(a).toLowerCase())) noter(adressesEcrites, String(a).toLowerCase(), e.dossierId);
+  }
+  for (const p of Array.isArray(h.prepares) ? h.prepares : []) {
+    if (!p || !p.dossierId) continue;
+    const o = normaliserObjet(p.objet);
+    if (o.length >= MIN_OBJET_FIL) noter(parObjet, o, p.dossierId);
+  }
+  return { ignorees, actifs, archives, parId, parAdresse, parAdresseArchive, parObjet, adressesEcrites };
+}
+
+// Le dossier dont les noms sont le plus cités dans l'OBJET (mot entier ; le corps cite trop de noms), parmi `candidats`.
+function meilleurParNoms(sujetN, candidats) {
+  let meilleur = null, score = 0;
+  for (const d of candidats) {
+    const n = motsDuDossier(d).filter(m => new RegExp(`(^|[^A-Z])${m}([^A-Z]|$)`).test(sujetN)).length;
+    if (n > score) { score = n; meilleur = d; }
+  }
+  return meilleur;
+}
+
+// Un des dossiers qui portent l'adresse : le seul, sinon celui que l'objet nomme (`exigerNom` : toujours par l'objet —
+// une adresse aussi portée par un dossier en cours ne désigne jamais d'office un dossier archivé).
+function parmiDossiersAdresse(liste, sujetN, exigerNom) {
+  if (!liste || !liste.length) return null;
+  return liste.length === 1 && !exigerNom ? liste[0] : meilleurParNoms(sujetN, liste);
+}
+
+const dossierVteCite = (texteN, liste) => liste.find(d => d.nom && (texteN.includes(normaliser('VTE - ' + d.nom))
+  || texteN.includes(normaliser('VENTE - ' + d.nom)))) || null;
+
+// Le dossier d'un email (ou null), par ordre de certitude : l'expéditeur est une adresse d'un dossier en cours
+// (client, partie, confrère) ; « VTE - NOM » cité ; réponse à un échange d'un seul dossier (même objet sans RE:) ;
+// adresse à qui l'étude a écrit pour un seul dossier ; un nom du dossier en mot entier dans l'objet ; puis les
+// dossiers archivés (adresse, « VTE - NOM »).
 function dossierDeEmail(e, ctx) {
   const sujetN = normaliser(e.sujet);
   const texteN = sujetN + ' ' + normaliser(e.apercu);
-  let dossier = ctx.parAdresse.get(e.deAdresse) || null;
-  if (!dossier) {
-    // « VTE - NOM » ou « VENTE - NOM » cité dans l'objet ou le début du message.
-    dossier = ctx.actifs.find(d => d.nom && (texteN.includes(normaliser('VTE - ' + d.nom))
-      || texteN.includes(normaliser('VENTE - ' + d.nom)))) || null;
-  }
-  if (!dossier) {
-    // Un nom du dossier, en mot entier, dans l'OBJET seulement (le corps cite trop de noms).
-    let meilleur = null, score = 0;
-    for (const d of ctx.actifs) {
-      const n = motsDuDossier(d).filter(m => new RegExp(`(^|[^A-Z])${m}([^A-Z]|$)`).test(sujetN)).length;
-      if (n > score) { score = n; meilleur = d; }
-    }
-    dossier = meilleur;
-  }
-  return dossier;
+  const adresse = String(e.deAdresse || '').toLowerCase();
+  const parFil = (carte, cle) => { const id = carte && cle ? carte.get(cle) : null; return id ? ctx.parId.get(id) || null : null; };
+  return parmiDossiersAdresse(ctx.parAdresse.get(adresse), sujetN)
+    || dossierVteCite(texteN, ctx.actifs)
+    || (estReponse(e.sujet) ? parFil(ctx.parObjet, normaliserObjet(e.sujet)) : null)
+    || parFil(ctx.adressesEcrites, adresse)
+    || meilleurParNoms(sujetN, ctx.actifs)
+    || parmiDossiersAdresse(ctx.parAdresseArchive && ctx.parAdresseArchive.get(adresse), sujetN, ctx.parAdresse.has(adresse))
+    || dossierVteCite(texteN, ctx.archives || [])
+    || null;
 }
 
 function classerEmails(emails, dossiers, adressesIgnorees) {
@@ -419,7 +481,7 @@ function demarrerResumeEmails(depot, parametresRepo, intervalleMs = 60 * 1000, c
 }
 
 module.exports = {
-  contexteClassement, dossierDeEmail, normaliser, SUJETS_EMAIL, echapperXml, ENVELOPPE_DEBUT, ENVELOPPE_FIN,
+  contexteClassement, dossierDeEmail, parmiDossiersAdresse, adressesDuDossier, normaliserObjet, normaliser, SUJETS_EMAIL, echapperXml, ENVELOPPE_DEBUT, ENVELOPPE_FIN,
   CLE_RESUME_EMAILS, debutFenetreEmails, corpsFindEmails, parseFindEmails, classerEmails, motsDuDossier,
   genererResumeEmails, lireResume, resumeDu, demarrerResumeEmails, momentParis,
   entreesSyntheseEmails, promptSyntheseEmails, validerSyntheseEmails, normaliserSyntheseEmails, completerSyntheseIa,

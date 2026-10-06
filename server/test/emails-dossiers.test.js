@@ -279,3 +279,33 @@ test('email préparé jamais envoyé : retiré de la liste en attente', async ()
     assert.equal((await fetch(`${base}/api/emails-prepares/inconnu`, { method: 'DELETE' })).status, 404);
   } finally { serveur.close(); db.close(); }
 });
+
+test('tour : client d’un dossier archivé et réponse « RE: » d’une adresse inconnue retrouvés sur leur fiche (étude, 06/10)', async () => {
+  const db = ouvrirDb(':memory:');
+  const repo = creerRepoParametres(db);
+  repo.ecrireReglagesExchange({ actif: true, url: 'https://ex/ews', email: 'bastien@office.fr', motDePasse: 'secret' });
+  repo.ecrireReglages({ ...repo.lireReglages(), emailsResponsables: { 'Bastien ANGLUMENT': 'bastien@office.fr' } });
+  const archive = { id: 'd9', nom: 'GARNIER / LEBLANC', archive: true, parties: [{ nom: 'Jean GARNIER', role: 'VENDEUR', emails: ['jean.garnier@exemple.fr'] }] };
+  const depot = { tousActifs: () => [DOSSIER, archive] };
+  try {
+    const etat0 = E.lireEtat(repo);
+    etat0.etat.adressesVues = ['camille.fournier@exemple.fr', 'c.fournier@travail.fr', 'alex.martel@exemple.fr', 'jean.garnier@exemple.fr'];
+    etat0.etat.dossiersVus = ['d1'];
+    etat0.prepares.push(E.assainirPrepare({ id: 'p1', dossierId: 'd1', objet: 'Votre projet d’acte de vente', destinataires: ['alex.martel@exemple.fr'], collaborateur: 'Bastien ANGLUMENT', prepareLe: '2026-10-01T08:00:00Z' }));
+    E.ecrireEtat(repo, etat0);
+    const poster = (o, cb) => {
+      const b = o.body;
+      if (/FindItem/.test(b) && /Id="inbox"/.test(b)) return cb(null, { statusCode: 200, body: find([
+        msgFind('IN5', 'Taxe foncière', '2026-10-05T10:00:00Z', 'Jean GARNIER', 'jean.garnier@exemple.fr', false),
+        msgFind('IN6', 'RE: Votre projet d’acte de vente', '2026-10-05T11:00:00Z', 'Sœur', 'soeur.martel@ailleurs.fr', false)]) });
+      if (/GetItem/.test(b)) return cb(null, { statusCode: 200, body: getItems([{ id: 'IN5', corps: 'Question' }, { id: 'IN6', corps: 'Bien reçu' }]) });
+      if (/FindItem/.test(b)) return cb(null, { statusCode: 200, body: find([]) });
+      cb(null, { statusCode: 500, body: '' });
+    };
+    const r = await E.executerTourEmailsDossiers(depot, repo, { poster, maintenant: '2026-10-06T08:00:00Z' }, true);
+    assert.equal(r.recus, 2);
+    const emails = E.lireEtat(repo).emails;
+    assert.equal(emails.find((e) => e.itemId === 'IN5').dossierId, 'd9');
+    assert.equal(emails.find((e) => e.itemId === 'IN6').dossierId, 'd1');
+  } finally { db.close(); }
+});

@@ -17061,3 +17061,29 @@ ou classé : jamais une clé gardée) et `corpsBrouillonReponse` la pose sur `Re
 maintenant `ErrorItemNotFound` dès cette lecture → même repli qu'avant (nouvel email « RE: … » sans l'email cité, `sansFil`) ;
 avec le compte propre d'un collaborateur, un `ErrorAccessDenied` sur l'email du compte relié prend aussi ce repli. Les nouveaux
 emails (sans réponse) ne changent pas. Point terrain `email-reponse-exchange` inchangé (à se cocher au prochain essai).
+
+### 0.162.0 — 06/10/2026 10:05 — Emails des dossiers : échanges avec les clients et dossiers archivés
+
+Demande de l'étude : « retrouver aussi les emails et échanges avec les clients dans les fiches dossier », puis « dossier archivé
+aussi pour les échanges avec les confrères ». Constat : seuls les champs email de la fiche (acquéreur, vendeur, confrères)
+servaient ; les adresses des parties relevées dans Authentic (héritiers d'une succession…) étaient ignorées, une réponse d'un
+proche ou d'un second email du client ne retrouvait pas son dossier, les dossiers archivés n'étaient jamais regardés, et une
+adresse portée par plusieurs dossiers (confrère) allait au DERNIER dossier lu, au hasard. Choix de l'étude (question posée) :
+toutes les adresses connues, suivre les fils, dossiers archivés aussi — pas la lecture des boîtes de réception des
+collaborateurs.
+
+`emailsMatin.js` (règle commune au résumé du matin et aux emails des dossiers) :
+- `adressesDuDossier(d)` : champs de la fiche (plusieurs adresses par champ) + `parties[].emails` / `parties[].email`.
+- `contexteClassement(dossiers, ignorees, historique)` : adresse → LISTE de dossiers (`parAdresse` pour les dossiers en cours,
+  `parAdresseArchive` pour les archivés), et, avec l'historique des emails rattachés et des emails préparés, `parObjet` (objet sans
+  RE:/TR:, 12 caractères au moins → dossier, `null` si plusieurs) et `adressesEcrites` (destinataire d'un email ENVOYÉ rattaché →
+  dossier, `null` si plusieurs, jamais une adresse de l'étude : `historique.internes`).
+- `dossierDeEmail` par ordre de certitude : adresse d'un dossier en cours (plusieurs → l'objet départage par les noms, sinon
+  rien) ; « VTE - NOM » cité ; réponse (« RE: », « TR: ») à un fil d'un seul dossier ; adresse à qui l'étude a écrit pour un seul
+  dossier ; un nom du dossier dans l'objet ; adresse d'un dossier archivé (une adresse aussi portée par un dossier en cours exige
+  le nom dans l'objet) ; « VTE - NOM » d'un archivé.
+`emailsDossiers.js` : contexte construit avec l'historique (`etat.emails`, `etat.prepares`) et les adresses de l'étude ;
+`dossierDeEmailEnvoye` suit les mêmes règles (destinataire d'un dossier en cours, objet et fil, destinataire d'un archivé) ;
+relecture de 30 jours des adresses nouvelles étendue aux adresses des parties et des dossiers archivés (une fois chacune).
+Points terrain `emails-rattachement-fil`, `emails-rattachement-archive` (à contrôler sur la fiche : le bon dossier). Tests
+`server/test/emails-rattachement.test.js` et un tour complet dans `emails-dossiers.test.js`.

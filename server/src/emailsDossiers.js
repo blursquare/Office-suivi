@@ -6,8 +6,9 @@
 // Toutes les minutes (étude 02/10), par EWS (mêmes identifiants et même disjoncteur que l'agenda, un seul essai par
 // appel) :
 //   - BOÎTE DE RÉCEPTION du compte relié (celle de Bastien, qui « reçoit tout en double ») : chaque email
-//     rattaché à un dossier (expéditeur = client ou confrère du dossier, sinon « VTE - NOM » ou un nom du
-//     dossier dans l'objet — mêmes règles que le résumé du matin) est relu en entier : texte et liste des
+//     rattaché à un dossier (expéditeur = client, partie ou confrère du dossier, sinon « VTE - NOM », réponse à un
+//     échange du dossier, adresse à qui l'étude a écrit pour ce seul dossier, un nom du dossier dans l'objet, puis
+//     les dossiers archivés — mêmes règles que le résumé du matin, étude 06/10) est relu en entier : texte et liste des
 //     pièces jointes. Le TEXTE N'EST JAMAIS GARDÉ : il sert au résumé de l'IA locale (Ollama, sur le
 //     serveur), puis il est jeté ; seuls l'expéditeur, l'objet, la date, les sujets repérés, le résumé et
 //     la liste des pièces jointes sont conservés.
@@ -25,7 +26,7 @@ const { noterVerification } = require('./verificationsTerrain');
 const { accesCollaborateur, marquerRefus, leverRefus } = require('./comptesCollaborateurs');
 const { lireXml, tous, premier, texte: texteXml, texteDe, attribut, identifiantElement, codeReponse: codeReponseXml, succesSansErreur } = require('./exchange/xml');
 const {
-  contexteClassement, dossierDeEmail, normaliser, SUJETS_EMAIL, echapperXml, ENVELOPPE_DEBUT, ENVELOPPE_FIN
+  contexteClassement, dossierDeEmail, parmiDossiersAdresse, normaliserObjet, normaliser, SUJETS_EMAIL, echapperXml, ENVELOPPE_DEBUT, ENVELOPPE_FIN
 } = require('./emailsMatin');
 
 const CLE_EMAILS_DOSSIERS = 'emails-dossiers';
@@ -120,13 +121,6 @@ function ecrireEtat(parametresRepo, e) { return parametresRepo.ecrireJsonBrut(CL
 // ---- Pur ----
 const idCourt = (itemId) => crypto.createHash('sha1').update(String(itemId)).digest('hex').slice(0, 20);
 
-// Objet comparé sans « RE : », « TR : », accents ni espaces multiples.
-function normaliserObjet(s) {
-  let o = String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
-  for (let i = 0; i < 4; i++) o = o.replace(/^(?:re|tr|fw|fwd|aw)\s*:\s*/, '');
-  return o;
-}
-
 // Un email envoyé est-il celui qu'un poste a préparé ? Même objet, un destinataire commun (si le
 // préparé en nomme), envoyé après la préparation (10 min de marge d'horloge) et dans les 30 jours.
 function correspondAuPrepare(prepare, envoye) {
@@ -138,10 +132,33 @@ function correspondAuPrepare(prepare, envoye) {
   return prepare.destinataires.some((a) => (envoye.a || []).includes(a));
 }
 
-// Le dossier d'un email envoyé : un destinataire est une adresse du dossier, sinon l'objet le désigne.
+// Le dossier d'un email envoyé : un destinataire est une adresse d'un dossier en cours (l'objet départage un confrère
+// de plusieurs dossiers), sinon l'objet le désigne (« VTE - NOM », réponse à un échange du dossier, nom), sinon un
+// destinataire d'un dossier archivé (étude 06/10).
 function dossierDeEmailEnvoye(e, ctx) {
-  for (const a of e.a || []) { const d = ctx.parAdresse.get(a); if (d) return d; }
-  return dossierDeEmail({ sujet: e.objet, apercu: '', deAdresse: '' }, ctx);
+  const sujetN = normaliser(e.objet);
+  const parmi = (carte, archive) => {
+    for (const a of e.a || []) {
+      const adresse = String(a).toLowerCase();
+      const d = parmiDossiersAdresse(carte && carte.get(adresse), sujetN, archive && ctx.parAdresse.has(adresse));
+      if (d) return d;
+    }
+    return null;
+  };
+  return parmi(ctx.parAdresse)
+    || dossierDeEmail({ sujet: e.objet, apercu: '', deAdresse: '' }, { ...ctx, archives: [] })
+    || parmi(ctx.parAdresseArchive, true)
+    || dossierDeEmail({ sujet: e.objet, apercu: '', deAdresse: '' }, ctx);
+}
+
+// Point terrain (étude 06/10) : un email reçu rattaché par une règle nouvelle — dossier archivé, ou fil de la conversation
+// (adresse absente des fiches en cours, dossier désigné par une réponse « RE: » ou par une adresse écrite par l'étude).
+function noterRegleRattachement(parametresRepo, ctx, e, d) {
+  if (!d) return;
+  if (d.archive) { noterVerification(parametresRepo, 'emails-rattachement-archive'); return; }
+  const adresse = String(e.deAdresse || '').toLowerCase();
+  if (ctx.parAdresse.has(adresse)) return;
+  if (ctx.adressesEcrites.get(adresse) === d.id || ctx.parObjet.get(normaliserObjet(e.objet)) === d.id) noterVerification(parametresRepo, 'emails-rattachement-fil');
 }
 
 const sujetsDe = (objet, extrait) => {
@@ -334,7 +351,9 @@ async function tourEmailsDossiers(depot, parametresRepo, injections = {}, manuel
   const dossiers = depot.tousActifs();
   const rappels = parametresRepo.lireReglages ? parametresRepo.lireReglages() : {};
   const ignorees = [rappels.smtpUtilisateur, rappels.emailPasserelle].filter(Boolean);
-  const ctx = contexteClassement(dossiers, ignorees);
+  // Adresses de l'étude (compte relié, collaborateurs) : jamais une adresse « écrite pour un dossier ».
+  const internes = [reglages.email, ...Object.values((rappels && rappels.emailsResponsables) || {})].filter(Boolean);
+  const ctx = contexteClassement(dossiers, ignorees, { emails: etat.emails, prepares: etat.prepares, internes });
   const connus = new Set(etat.emails.map((e) => e.id));
   const aResumer = [];
 
@@ -367,6 +386,7 @@ async function tourEmailsDossiers(depot, parametresRepo, injections = {}, manuel
       etat.emails.push(email);
       connus.add(email.id);
       resultat.recus++;
+      noterRegleRattachement(parametresRepo, ctx, e, d);
       if (corps) aResumer.push({ email, dossierNom: d.nom, corps });
     }
     // Le repère n'avance que jusqu'au dernier email traité (le reste au tour suivant).
@@ -377,7 +397,7 @@ async function tourEmailsDossiers(depot, parametresRepo, injections = {}, manuel
 
     // 1 bis. Adresses nouvellement saisies sur une fiche (client, confrère) : relecture des 30 derniers jours,
     // emails de ces adresses seulement — sans toucher au repère de lecture.
-    const adressesFiches = [...ctx.parAdresse.keys()];
+    const adressesFiches = [...new Set([...ctx.parAdresse.keys(), ...ctx.parAdresseArchive.keys()])];
     if (etat.etat.adressesVues === null) etat.etat.adressesVues = adressesFiches;
     const parDossiers = dossiersNouveauxEmails(ctx.actifs, etat.etat.dossiersVus, maintenant);
     const nouveauxDossiers = parDossiers.nouveaux;
@@ -392,7 +412,7 @@ async function tourEmailsDossiers(depot, parametresRepo, injections = {}, manuel
         if (!rr.echec && succes(rr.corps)) {
           const aRattraper = parseFind(rr.corps).filter((e) => !connus.has(idCourt(e.itemId)) && !ctx.ignorees.has(e.deAdresse) && !/\[CLAIRE-/i.test(e.objet))
             .map((e) => {
-              if (nouvelles.has(e.deAdresse)) return { e, d: ctx.parAdresse.get(e.deAdresse) };
+              if (nouvelles.has(e.deAdresse)) { const d = dossierDeEmail({ sujet: e.objet, apercu: e.apercu, deAdresse: e.deAdresse }, ctx); return d ? { e, d } : null; }
               const d = nouveauxDossiers.size ? dossierDeEmail({ sujet: e.objet, apercu: e.apercu, deAdresse: e.deAdresse }, ctx) : null;
               return d && nouveauxDossiers.has(d.id) ? { e, d } : null;
             }).filter(Boolean);
@@ -412,6 +432,7 @@ async function tourEmailsDossiers(depot, parametresRepo, injections = {}, manuel
               connus.add(email.id);
               resultat.recus++;
               resultat.rattrapes = (resultat.rattrapes || 0) + 1;
+              noterRegleRattachement(parametresRepo, ctx, e, d);
               if (corps) aResumer.push({ email, dossierNom: d.nom, corps });
             }
             if (lot2.length) noterVerification(parametresRepo, 'emails-adresse-rattrapage', { detail: `${lot2.length} email(s) retrouvé(s)` });
