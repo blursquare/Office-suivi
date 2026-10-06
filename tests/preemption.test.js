@@ -113,9 +113,8 @@ test('parcelles lues dans un texte, pré-remplissage depuis la fiche, réponses 
   assert.strictEqual(e.parcelles, 'AL 839');
   assert.strictEqual(e.reponses.bien, 'lot-copro');
   e.insee = '41018';
-  e.zonage = { epciSiren: '200030385', zones: [{ libelle: 'Ui2', typezone: 'U' }] };
+  e.zonages = [{ section: 'AL', numero: '839', statut: 'ok', resultat: { epciSiren: '200030385', zones: [{ libelle: 'Ui2', typezone: 'U' }] } }];
   const rep = app.reponsesPreemption(e);
-  assert.strictEqual(rep.zone, 'U');
   assert.strictEqual(rep.agglopolys, true);
   assert.strictEqual(rep.dpur, 'oui');
   assert.match(rep.dpurDelegataire, /Ville de Blois/);
@@ -125,4 +124,32 @@ test('parcelles lues dans un texte, pré-remplissage depuis la fiche, réponses 
   assert.strictEqual(fiche.zone, 'Ui2 (U)');
   assert.strictEqual(fiche.droits.find(x => x.cle === 'dpu').statut, 'oui');
   assert.strictEqual(fiche.droits.find(x => x.cle === 'safer').statut, 'non');
+});
+
+test('plusieurs parcelles : zone lue par parcelle, zone choisie à la main, droit le plus exigeant gardé', () => {
+  const zonages = [
+    { section: 'AL', numero: '839', statut: 'ok', resultat: { zones: [{ libelle: 'Ui2', typezone: 'U' }], parcelle: { contenance: 1624 } } },
+    { section: 'B', numero: '12', statut: 'ok', resultat: { zones: [{ libelle: 'A', typezone: 'A' }], parcelle: { contenance: 5400 } } },
+    { section: 'B', numero: '13', statut: 'erreur', erreur: 'Parcelle introuvable.' }
+  ];
+  const lignes = app.lignesZonageParcelles(zonages, { [app.cleParcelle('B', '13')]: 'A' });
+  assert.strictEqual(lignes.map(l => `${l.libelle}:${l.lue || '-'}>${l.famille}`).join(' '), 'AL 839:U>U B 12:A>A B 13:->A');
+  const rep = { mutation: 'vente', bien: 'terrain', agglopolys: true, dpur: 'non', bois: false, installations: false };
+  const a = app.analyserPreemptionParcelles(rep, lignes);
+  const dpu = a.droits.find(d => d.cle === 'dpu');
+  assert.strictEqual(dpu.statut, 'oui');
+  assert.match(dpu.motif, /AL 839 : zone U ; B 12, B 13 : zone A/);
+  const safer = a.droits.find(d => d.cle === 'safer');
+  assert.strictEqual(safer.statut, 'oui');
+  assert.ok(a.manques.includes('usageAgricole'), 'la parcelle en zone U demande encore l’usage agricole');
+  // Toutes dans la même zone : analyse simple, sans détail par parcelle.
+  const memes = app.lignesZonageParcelles(zonages.slice(0, 1), {});
+  assert.strictEqual(app.analyserPreemptionParcelles(rep, memes).droits.find(d => d.cle === 'dpu').motif, app.analyserPreemption(Object.assign({}, rep, { zone: 'U' })).droits.find(d => d.cle === 'dpu').motif);
+  // Sur la fiche : la zone de chaque parcelle.
+  const e = app.etatPreemptionVierge();
+  e.zonages = zonages.slice(0, 2);
+  e.reponses = Object.assign({}, rep);
+  const fiche = app.preemptionPourFiche(e, new Date(2026, 9, 6, 12, 0));
+  assert.strictEqual(fiche.zone, 'AL 839 : Ui2 (U) · B 12 : A (A)');
+  assert.strictEqual(fiche.parcelles.length, 2);
 });

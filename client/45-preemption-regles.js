@@ -288,3 +288,65 @@
     if (rue) return { statut: 'probable', motif: `adresse sur une rue du périmètre du centre-ville (${rue.toLowerCase()}) — à vérifier sur le plan` };
     return { statut: 'non', motif: 'hors des périmètres de DPU renforcé de Blois (centre-ville, AL 839) — à vérifier sur le plan si le bien est au centre' };
   }
+
+  // ---- Plusieurs parcelles (étude 06/10 : « le zonage doit être détecté par parcelle, il peut y en avoir plusieurs ») ----
+  // Pure : une ligne par parcelle lue — zone du Géoportail, famille retenue (celle choisie à la main pour cette parcelle, sinon
+  // celle de la zone lue), contenance. `zonages` : [{ section, numero, statut: 'lecture'|'ok'|'erreur', resultat, erreur }].
+  function lignesZonageParcelles(zonages, surcharges) {
+    const choix = surcharges || {};
+    return (zonages || []).map(z => {
+      const r = z.resultat || null;
+      const zone = r && r.zones && r.zones[0] ? r.zones[0] : null;
+      const cle = cleParcelle(z.section, z.numero);
+      const lue = zone ? familleZonePreemption(zone.typezone) : '';
+      return {
+        cle, libelle: `${z.section} ${Number(z.numero) || z.numero}`, statut: z.statut, erreur: z.erreur || '',
+        zone: zone ? zone.libelle : '', typezone: zone ? zone.typezone : '', libelong: zone ? zone.libelong || '' : '',
+        lue, famille: choix[cle] || lue, choisie: !!choix[cle],
+        contenance: r && r.parcelle && r.parcelle.contenance ? r.parcelle.contenance : null
+      };
+    });
+  }
+
+  var PRIORITE_STATUT_PREEMPTION = { oui: 3, verifier: 2, non: 1 };
+  var LIBELLES_FAMILLE_ZONE = { U: 'zone U', AU: 'zone AU', A: 'zone A', N: 'zone N', '': 'zone inconnue' };
+
+  // Pure : l'analyse quand les parcelles ne sont pas toutes dans la même zone — chaque zone est analysée à part, puis chaque
+  // droit garde le statut le plus exigeant (à purger > à vérifier > non applicable) : un droit qui touche une seule des
+  // parcelles vendues reste à purger. Le motif dit quelle zone (et quelles parcelles) le déclenche.
+  function analyserPreemptionParcelles(rep, lignes) {
+    const lues = (lignes || []).filter(l => l.statut !== 'lecture');
+    if (!lues.length) return analyserPreemption(rep);
+    const groupes = new Map();
+    lues.forEach(l => {
+      const f = l.famille || '';
+      if (!groupes.has(f)) groupes.set(f, []);
+      groupes.get(f).push(l.libelle);
+    });
+    if (groupes.size === 1) {
+      const f = [...groupes.keys()][0];
+      return analyserPreemption(Object.assign({}, rep, { zone: f || rep.zone || undefined }));
+    }
+    const analyses = [...groupes.entries()].map(([f, parcelles]) => ({ f, parcelles, a: analyserPreemption(Object.assign({}, rep, { zone: f || undefined })) }));
+    const ordre = [];
+    const parCle = new Map();
+    analyses.forEach(({ f, parcelles, a }) => a.droits.forEach(dr => {
+      if (!parCle.has(dr.cle)) { parCle.set(dr.cle, []); ordre.push(dr.cle); }
+      parCle.get(dr.cle).push({ f, parcelles, dr });
+    }));
+    const droits = ordre.map(cle => {
+      const vus = parCle.get(cle);
+      const pire = vus.reduce((m, v) => (PRIORITE_STATUT_PREEMPTION[v.dr.statut] || 0) > (PRIORITE_STATUT_PREEMPTION[m.dr.statut] || 0) ? v : m, vus[0]);
+      const memeMotif = vus.every(v => v.dr.motif === vus[0].dr.motif && v.dr.statut === vus[0].dr.statut);
+      const motif = memeMotif ? vus[0].dr.motif
+        : vus.map(v => {
+          const zone = LIBELLES_FAMILLE_ZONE[v.f] || 'zone ' + v.f;
+          const dit = new RegExp('(^|[^A-Za-z])zones? (?:' + (v.f || 'inconnue') + ')(?![A-Za-z])', 'i').test(v.dr.motif || '');
+          return `${v.parcelles.join(', ')}${dit ? '' : ` (${zone})`} : ${v.dr.motif}`;
+        }).join(' ; ');
+      return Object.assign({}, pire.dr, { motif, manque: [...new Set(vus.flatMap(v => v.dr.manque || []))] });
+    });
+    const aFaire = droits.filter(dr => dr.statut === 'oui' && dr.formalite).map(dr => dr.formalite);
+    const manques = [...new Set(droits.flatMap(dr => dr.manque || []))];
+    return { droits, aFaire, manques };
+  }

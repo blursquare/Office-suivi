@@ -17216,3 +17216,20 @@ Point terrain `zonage-parcelle-gpu` (accès Internet sortant du serveur vers api
   `reinitialiserFormulaire`, entrée « Compromis (PDF) », étape Importer ; un complément de dossier en cours est abandonné aussi.
 - Vérifié dans Chromium : surlignage sur une page simulée (pdf.js injoignable ici), Annuler à l'étape Vérifier → confirmation,
   champs vidés, étape 1. Non vérifié sur de vrais PDF au bureau (justesse des largeurs selon les polices embarquées).
+
+### 06/10/2026 — 0.166.1 : droits de préemption, zonage par parcelle
+
+- Demande de l'étude : « il faut que le zonage soit détecté par parcelle, il peut y en avoir plusieurs. Attention à ne pas mettre
+  trop de scroll, pense à un tableau si besoin ».
+- `lireZonagePreemption` lit toutes les parcelles du champ (20 au plus, trois requêtes à la fois, chaque ligne remplie à son
+  arrivée) ; `prEtat.zonages` remplace `prEtat.zonage`. `lignesZonageParcelles` (pur) : zone lue, famille retenue (choix à la main
+  par parcelle, `reponses.zonesParcelles`, clé `cleParcelle`), contenance. Tableau `renderTableauZonagePreemption` : Parcelle ·
+  Zone lue · Zone retenue · Contenance (+ total), document dessous, informations et prescriptions dans un `wa-details` replié ;
+  « Zone retenue » globale seulement sans parcelle lue.
+- `analyserPreemptionParcelles` (pur, `tests/preemption.test.js`) : une seule zone → analyse inchangée ; zones différentes →
+  une analyse par zone, puis pour chaque droit le statut le plus exigeant (à purger > à vérifier > non applicable : un droit
+  qui touche une seule parcelle vendue reste à purger), motif détaillé par parcelles, questions manquantes réunies. Choix
+  assumé, à confirmer par l'étude si un cas réel le contredit.
+- Fiche : `d.preemption.zone` liste la zone de chaque parcelle, `d.preemption.parcelles` les garde.
+- Vérifié dans Chromium (bureau, sombre, téléphone) avec un faux Géoportail : trois parcelles (U, A, introuvable), tableau,
+  total, analyse, enregistrement sur la fiche ; hauteur de la section ramenée de 916 à 725 px (champs côte à côte).

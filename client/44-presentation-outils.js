@@ -42,7 +42,7 @@
     ],
     preemption: [
       { cle: 'dossier', libelle: 'Dossier', fait: () => !!(prEtat && prEtat.dossierId) },
-      { cle: 'parcelle', libelle: 'Parcelle', fait: () => !!(prEtat && prEtat.zonage) },
+      { cle: 'parcelle', libelle: 'Parcelle', fait: () => !!(prEtat && (prEtat.zonages || []).some(z => z.statut === 'ok')) },
       { cle: 'mutation', libelle: 'Mutation', fait: () => !!(prEtat && prEtat.reponses.mutation) },
       { cle: 'bien', libelle: 'Bien', fait: () => !!(prEtat && prEtat.reponses.bien) },
       { cle: 'rural', libelle: 'Agricole et forestier' },

@@ -1,10 +1,10 @@
   // ===== Outil « Droits de préemption » (étude 06/10) : l'écran, pré-rempli depuis la fiche, zonage lu sur le Géoportail de
   // l'urbanisme (server/src/urbanisme.js), règles dans 45-preemption-regles.js, résultat gardé sur la fiche (d.preemption). =====
 
-  var prEtat = null;           // { dossierId, cp, insee, communes, parcelles, adresse, zonage, erreurZonage, lecture, reponses }
+  var prEtat = null;           // { dossierId, cp, insee, communes, parcelles, adresse, zonages, erreurZonage, lecture, reponses }
 
   function etatPreemptionVierge() {
-    return { dossierId: '', cp: '', insee: '', communes: [], parcelles: '', adresse: '', zonage: null, erreurZonage: '', lecture: false, reponses: { mutation: 'vente' } };
+    return { dossierId: '', cp: '', insee: '', communes: [], parcelles: '', adresse: '', zonages: [], erreurZonage: '', lecture: false, reponses: { mutation: 'vente' } };
   }
 
   // Les questions oui / non, par section de l'écran. Une question n'est posée que si l'analyse en a besoin, ou si elle a déjà
@@ -35,14 +35,19 @@
     { cle: 'partieBoiseeMoinsMoitie', section: 'rural', libelle: 'La partie réellement boisée représente-t-elle moins de la moitié de la surface totale ?' }
   ];
 
-  // Pure : les réponses de l'outil enrichies de ce qui se déduit du zonage lu (zone, Agglopolys, DPU renforcé de Blois).
+  // Pure : les zonages lus avec succès.
+  function zonagesLusPreemption(etat) {
+    return ((etat && etat.zonages) || []).filter(z => z.statut === 'ok' && z.resultat).map(z => z.resultat);
+  }
+
+  // Pure : les réponses de l'outil enrichies de ce qui se déduit du zonage lu (Agglopolys, DPU renforcé de Blois). La zone de
+  // chaque parcelle est prise à part par analyserPreemptionParcelles ; `zone` ne sert qu'au choix à la main sans parcelle lue.
   function reponsesPreemption(etat) {
     const e = etat || etatPreemptionVierge();
     const r = Object.assign({}, e.reponses);
-    const zonage = e.zonage;
-    const zoneLue = zonage && zonage.zones && zonage.zones[0] ? familleZonePreemption(zonage.zones[0].typezone) : '';
-    if (!r.zone && zoneLue) r.zone = zoneLue;
-    if (zonage && zonage.epciSiren === SIREN_AGGLOPOLYS) r.agglopolys = true;
+    const lus = zonagesLusPreemption(e);
+    const zonage = lus[0] || null;
+    if (lus.some(z => z.epciSiren === SIREN_AGGLOPOLYS)) r.agglopolys = true;
     if (!r.dpur) {
       const blois = dpurBlois(e.insee, parcellesDepuisTexte(e.parcelles), e.adresse);
       if (blois.statut === 'oui') r.dpur = 'oui';
@@ -151,28 +156,43 @@
     if (puisZonage && prEtat.insee && parcellesDepuisTexte(prEtat.parcelles).length) lireZonagePreemption();
   }
 
+  // Toutes les parcelles (20 au plus), trois à la fois : chaque ligne du tableau se remplit dès que sa réponse arrive.
   async function lireZonagePreemption() {
-    const p = parcellesDepuisTexte(prEtat.parcelles)[0];
-    if (!prEtat.insee || !p) { prEtat.erreurZonage = 'Choisir la commune et indiquer la parcelle (ex. AL 839).'; renderPreemption(); return; }
-    prEtat.lecture = true;
-    prEtat.erreurZonage = '';
+    const parcelles = parcellesDepuisTexte(prEtat.parcelles);
+    if (!prEtat.insee || !parcelles.length) { prEtat.erreurZonage = 'Choisir la commune et indiquer la ou les parcelles (ex. AL 839, AL 840).'; renderPreemption(); return; }
+    const etat = prEtat;
+    etat.lecture = true;
+    etat.erreurZonage = '';
+    etat.zonages = parcelles.map(p => ({ section: p.section, numero: p.numero, statut: 'lecture', resultat: null, erreur: '' }));
     renderPreemption();
-    try {
-      const r = await fetchAvecAuth(`/api/urbanisme/parcelle?insee=${encodeURIComponent(prEtat.insee)}&section=${encodeURIComponent(p.section)}&numero=${encodeURIComponent(p.numero)}`);
-      const corps = await r.json().catch(() => ({}));
-      if (!r.ok) { prEtat.zonage = null; prEtat.erreurZonage = corps.erreur || 'Zonage illisible.'; }
-      else { prEtat.zonage = corps; delete prEtat.reponses.zone; }
-    } catch (e) {
-      prEtat.erreurZonage = 'Serveur injoignable.';
-    } finally {
-      prEtat.lecture = false;
-      renderPreemption();
-    }
+    const lire = async (z) => {
+      try {
+        const r = await fetchAvecAuth(`/api/urbanisme/parcelle?insee=${encodeURIComponent(etat.insee)}&section=${encodeURIComponent(z.section)}&numero=${encodeURIComponent(z.numero)}`);
+        const corps = await r.json().catch(() => ({}));
+        if (r.ok && !corps.erreur) { z.statut = 'ok'; z.resultat = corps; }
+        else { z.statut = 'erreur'; z.erreur = corps.erreur || 'Zonage illisible.'; }
+      } catch (e) {
+        z.statut = 'erreur'; z.erreur = 'Serveur injoignable.';
+      }
+      if (prEtat === etat) renderPreemption();
+    };
+    const file = etat.zonages.slice();
+    await Promise.all([0, 1, 2].map(async () => { while (file.length) await lire(file.shift()); }));
+    etat.lecture = false;
+    if (prEtat === etat) renderPreemption();
+  }
+
+  // Zone retenue d'une parcelle, choisie à la main (vide = celle du Géoportail).
+  function choisirZoneParcellePreemption(cle, valeur) {
+    const choix = Object.assign({}, prEtat.reponses.zonesParcelles || {});
+    if (valeur) choix[cle] = valeur; else delete choix[cle];
+    if (Object.keys(choix).length) prEtat.reponses.zonesParcelles = choix; else delete prEtat.reponses.zonesParcelles;
+    renderPreemption();
   }
 
   function changerChampPreemption(champ, valeur) {
     prEtat[champ] = valeur;
-    if (champ === 'insee' || champ === 'parcelles') { prEtat.zonage = null; prEtat.erreurZonage = ''; }
+    if (champ === 'insee' || champ === 'parcelles') { prEtat.zonages = []; prEtat.erreurZonage = ''; }
     if (champ === 'cp') { prEtat.insee = ''; chargerCommunesPreemption(false); return; }
     renderPreemption();
   }
@@ -204,6 +224,43 @@
     </select>`;
   }
 
+  var ZONES_PREEMPTION = [{ cle: 'U', libelle: 'U — urbaine' }, { cle: 'AU', libelle: 'AU — à urbaniser' }, { cle: 'A', libelle: 'A — agricole' }, { cle: 'N', libelle: 'N — naturelle' }];
+
+  // Le zonage lu, une ligne par parcelle (étude 06/10 : « attention à ne pas mettre trop de scroll, pense à un tableau ») :
+  // parcelle, zone du document d'urbanisme, zone retenue (modifiable), contenance ; document, informations et prescriptions
+  // communes en dessous, les secondes repliées.
+  function renderTableauZonagePreemption(e, lignes) {
+    if (!lignes.length) return '';
+    const lus = zonagesLusPreemption(e);
+    const docs = [...new Set(lus.map(z => z.document ? `${z.document.type} — ${z.document.titre}` : z.rnu ? 'Règlement national d’urbanisme (aucun document)' : 'Aucun document d’urbanisme publié'))];
+    const infos = [...new Set(lus.flatMap(z => z.infos || []))];
+    const prescriptions = [...new Set(lus.flatMap(z => z.prescriptions || []))];
+    const total = lignes.reduce((s, l) => s + (l.contenance || 0), 0);
+    const ligne = (l) => `<tr>
+        <td class="pr-zt-parcelle">${escapeHtml(l.libelle)}</td>
+        <td class="pr-zt-zone">${l.statut === 'lecture' ? `<span class="hint">${icone('spinner')} Lecture…</span>`
+          : l.statut === 'erreur' ? `<span class="pr-zt-erreur" title="${escapeAttr(l.erreur)}">${icone('alert-triangle')} ${escapeHtml(l.erreur)}</span>`
+          : l.zone ? `<strong>${escapeHtml(l.zone)}</strong>${l.libelong ? ` <span class="pr-zt-long" title="${escapeAttr(l.libelong)}">${escapeHtml(l.libelong)}</span>` : ''}` : '<span class="hint">aucune zone lue</span>'}</td>
+        <td class="pr-zt-retenue"><select aria-label="Zone retenue pour ${escapeAttr(l.libelle)}" onchange="choisirZoneParcellePreemption('${escapeOnclickArg(l.cle)}', this.value)">
+          <option value="">${l.lue ? escapeHtml(l.lue) + ' (lue)' : 'Inconnue'}</option>
+          ${ZONES_PREEMPTION.map(z => `<option value="${z.cle}"${l.choisie && l.famille === z.cle ? ' selected' : ''}>${escapeHtml(z.libelle)}</option>`).join('')}
+        </select></td>
+        <td class="pr-zt-surface">${l.contenance ? escapeHtml(formaterContenance(l.contenance)) : ''}</td>
+      </tr>`;
+    return `<div class="pr-zonage">
+        <div class="pr-zt-cadre"><table class="pr-zt">
+          <thead><tr><th>Parcelle</th><th>Zone lue</th><th>Zone retenue</th><th class="pr-zt-surface">Contenance</th></tr></thead>
+          <tbody>${lignes.map(ligne).join('')}</tbody>
+          ${lignes.length > 1 && total ? `<tfoot><tr><td colspan="3">Total</td><td class="pr-zt-surface">${escapeHtml(formaterContenance(total))}</td></tr></tfoot>` : ''}
+        </table></div>
+        ${docs.length ? `<div class="pr-zonage-ligne"><span class="pr-zonage-libelle">Document</span><span>${docs.map(escapeHtml).join(' · ')}</span></div>` : ''}
+        ${infos.length || prescriptions.length ? `<wa-details class="pr-zt-details" summary="Informations et prescriptions (${infos.length + prescriptions.length})">
+            ${infos.length ? `<div class="pr-zonage-ligne"><span class="pr-zonage-libelle">Informations</span><span>${infos.map(escapeHtml).join(' · ')}</span></div>` : ''}
+            ${prescriptions.length ? `<div class="pr-zonage-ligne"><span class="pr-zonage-libelle">Prescriptions</span><span>${prescriptions.map(escapeHtml).join(' · ')}</span></div>` : ''}
+          </wa-details>` : ''}
+      </div>`;
+  }
+
   var LIBELLES_STATUT_PREEMPTION = { oui: 'À purger', non: 'Non applicable', verifier: 'À vérifier' };
   var CLASSES_STATUT_PREEMPTION = { oui: 'dl-pret', non: 'dl-success', verifier: 'dl-neutre' };
 
@@ -211,7 +268,8 @@
     if (!prEtat) prEtat = etatPreemptionVierge();
     const e = prEtat;
     const rep = reponsesPreemption(e);
-    const analyse = analyserPreemption(rep);
+    const lignes = lignesZonageParcelles(e.zonages, rep.zonesParcelles);
+    const analyse = analyserPreemptionParcelles(rep, lignes);
     const d = e.dossierId ? dossiers.find(x => x.id === e.dossierId) : null;
 
     const pill = document.getElementById('pr-dossier-pill');
@@ -222,8 +280,6 @@
 
     const zone = document.getElementById('pr-parcelle');
     if (zone) {
-      const z = e.zonage;
-      const zoneLue = z && z.zones && z.zones[0];
       const blois = dpurBlois(e.insee, parcellesDepuisTexte(e.parcelles), e.adresse);
       const actif = document.activeElement && document.activeElement.id;
       zone.innerHTML = `<div class="calc-champs pr-champs">
@@ -241,19 +297,13 @@
         </div>
         <div class="pr-zonage-actions">
           <wa-button appearance="outlined" size="s" onclick="lireZonagePreemption()"${e.lecture ? ' loading' : ''}>${icone('map-pin')} Lire le zonage</wa-button>
-          <span class="hint">Géoportail de l’urbanisme (IGN) : seuls la commune et le numéro de parcelle sont envoyés.</span>
+          <span class="hint">Géoportail de l’urbanisme (IGN) : chaque parcelle est lue ; seuls la commune et les numéros de parcelle sont envoyés.</span>
         </div>
         ${e.erreurZonage ? `<p class="pr-erreur">${icone('alert-triangle')} ${escapeHtml(e.erreurZonage)}</p>` : ''}
-        ${z ? `<div class="pr-zonage">
-            <div class="pr-zonage-ligne"><span class="pr-zonage-libelle">Document</span><span>${escapeHtml(z.document ? `${z.document.type} — ${z.document.titre}` : z.rnu ? 'Règlement national d’urbanisme (aucun document)' : 'Aucun document d’urbanisme publié')}</span></div>
-            <div class="pr-zonage-ligne"><span class="pr-zonage-libelle">Zone</span><span>${zoneLue ? `<strong>${escapeHtml(zoneLue.libelle)}</strong> (${escapeHtml(zoneLue.typezone)})${zoneLue.libelong ? ` — ${escapeHtml(zoneLue.libelong)}` : ''}` : 'aucune zone lue'}</span></div>
-            ${z.infos && z.infos.length ? `<div class="pr-zonage-ligne"><span class="pr-zonage-libelle">Informations</span><span>${z.infos.map(escapeHtml).join(' · ')}</span></div>` : ''}
-            ${z.prescriptions && z.prescriptions.length ? `<div class="pr-zonage-ligne"><span class="pr-zonage-libelle">Prescriptions</span><span>${z.prescriptions.map(escapeHtml).join(' · ')}</span></div>` : ''}
-            ${z.parcelle && z.parcelle.contenance ? `<div class="pr-zonage-ligne"><span class="pr-zonage-libelle">Contenance</span><span>${escapeHtml(String(z.parcelle.contenance))} m² (parcelle ${escapeHtml(z.parcelle.section)} ${escapeHtml(String(Number(z.parcelle.numero)))})</span></div>` : ''}
-          </div>` : ''}
+        ${renderTableauZonagePreemption(e, lignes)}
         <div class="calc-champs pr-champs">
-          <div class="calc-champ"><label for="pr-zone">Zone retenue</label>
-            ${selectPreemption('zone', [{ cle: 'U', libelle: 'U — urbaine' }, { cle: 'AU', libelle: 'AU — à urbaniser' }, { cle: 'A', libelle: 'A — agricole' }, { cle: 'N', libelle: 'N — naturelle' }], rep.zone || '', 'Inconnue')}</div>
+          ${lignes.length ? '' : `<div class="calc-champ"><label for="pr-zone">Zone retenue</label>
+            ${selectPreemption('zone', ZONES_PREEMPTION, rep.zone || '', 'Inconnue')}</div>`}
           <div class="calc-champ"><label for="pr-dpur">DPU renforcé</label>
             ${selectPreemption('dpur', [{ cle: 'oui', libelle: 'Dans un périmètre' }, { cle: 'non', libelle: 'Hors périmètre' }], rep.dpur || '', 'Inconnu')}</div>
           ${!rep.agglopolys ? `<div class="calc-champ"><label for="pr-dpuInstitue">DPU institué par la commune</label>
@@ -311,13 +361,17 @@
   // Pure : ce qui est gardé sur la fiche — les réponses données, la zone lue, le résultat de chaque droit.
   function preemptionPourFiche(etat, maintenant) {
     const rep = reponsesPreemption(etat);
-    const analyse = analyserPreemption(rep);
-    const z = etat.zonage;
-    const zoneLue = z && z.zones && z.zones[0];
+    const lignes = lignesZonageParcelles(etat.zonages || [], rep.zonesParcelles);
+    const analyse = analyserPreemptionParcelles(rep, lignes);
+    const z = zonagesLusPreemption(etat)[0] || null;
+    const zoneLigne = (l) => l.zone ? `${l.zone} (${l.typezone})` : (l.famille || 'inconnue');
+    const zone = lignes.length === 1 ? zoneLigne(lignes[0])
+      : lignes.length ? lignes.map(l => `${l.libelle} : ${zoneLigne(l)}`).join(' · ') : (rep.zone || '');
     return {
       le: (maintenant || new Date()).toISOString(),
       insee: etat.insee || '',
-      zone: zoneLue ? `${zoneLue.libelle} (${zoneLue.typezone})` : (rep.zone || ''),
+      zone,
+      parcelles: lignes.map(l => ({ parcelle: l.libelle, zone: l.zone, famille: l.famille, contenance: l.contenance })),
       document: z && z.document ? `${z.document.type} — ${z.document.titre}` : '',
       reponses: Object.assign({}, etat.reponses),
       droits: analyse.droits.map(dr => ({ cle: dr.cle, titre: dr.titre, statut: dr.statut, motif: dr.motif, formalite: dr.formalite }))
@@ -342,7 +396,7 @@
     const ouvrir = `ouvrirPreemptionDepuisFiche('${escapeOnclickArg(d.id)}')`;
     if (!p || !Array.isArray(p.droits)) {
       return `<div class="fiche-sous-partie"><div class="section-eyebrow fiche-sous-titre">Droits de préemption</div>
-        <ul class="ja-liste">${renderLigneAction({ titre: 'Vérifier les droits de préemption', sous: 'DPU, SAFER, bois et forêts — d’après le zonage de la parcelle', bouton: { libelle: 'Vérifier', onclick: ouvrir } })}</ul></div>`;
+        <ul class="ja-liste">${renderLigneAction({ titre: 'Vérifier les droits de préemption', sous: 'DPU, SAFER, bois et forêts — d’après le zonage de chaque parcelle', bouton: { libelle: 'Vérifier', onclick: ouvrir } })}</ul></div>`;
     }
     return `<div class="fiche-sous-partie"><div class="section-eyebrow fiche-sous-titre">Droits de préemption
         <span class="hint">${p.zone ? 'zone ' + escapeHtml(p.zone) + ' · ' : ''}vérifiés le ${escapeHtml(formatDateFr(String(p.le || '').slice(0, 10)))}</span></div>

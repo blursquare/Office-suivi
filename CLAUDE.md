@@ -610,7 +610,7 @@ dans `index.html`** (le test `structure-client` refuse tout décalage).
   U et AU du PLUi (délibération 29/11/2022, exercé par la commune, Agglopolys pour les ZAE), DPU renforcé de Blois = parcelle AL 839
   + centre-ville ACV/ORT (plans de la délibération A_D2025_200 dans `vendor/plans/`, rue = « probable, à vérifier sur le plan ») ;
   SAFER d'après le CRIDON n° 87 (terrain p. 63, bâtiment p. 64) ; bois et forêts d'après Letulle (L.331-19 à 24). Zonage lu sur le
-  Géoportail de l'urbanisme (API Carto), le périmètre du DPU s'en déduit, la nature « bois » est demandée. Réponse manquante →
+  Géoportail de l'urbanisme (API Carto) **pour chaque parcelle** (étude 06/10, tableau compact `renderTableauZonagePreemption`, zone retenue modifiable par parcelle `reponses.zonesParcelles` ; zones différentes → `analyserPreemptionParcelles` : chaque zone analysée, le droit garde le statut le plus exigeant et nomme les parcelles), le périmètre du DPU s'en déduit, la nature « bois » est demandée. Réponse manquante →
   « À vérifier », jamais « non » ; questions posées seulement si utiles ; résultat sur la fiche (`d.preemption`, onglet Pièces).
 - **Mobilier** : le prix reste le prix total ; `d.prixMobilier` sort seulement de l'assiette des
   droits (frais d'acte, contrôle du barème).

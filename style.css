@@ -8850,7 +8850,8 @@ label.copie-acte-fichier wa-button.bouton-icone { grid-column: 3; grid-row: 1 / 
 /* ===== Outil « Droits de préemption » (client/46-droits-preemption.js, étude 06/10) ===== */
 .pr-grid { grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); }
 @media (max-width: 1100px) { .pr-grid { grid-template-columns: 1fr; } }
-.pr-champs { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
+.calc-champs.pr-champs { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+.calc-champs.pr-champs > * { min-width: 0; }
 .pr-champ-large { grid-column: 1 / -1; }
 .pr-zonage-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin: 12px 0; }
 .pr-zonage-actions .hint { margin: 0; }
@@ -8858,6 +8859,20 @@ label.copie-acte-fichier wa-button.bouton-icone { grid-column: 3; grid-row: 1 / 
 .pr-zonage { display: flex; flex-direction: column; gap: 6px; padding: 12px 16px; margin: 0 0 12px; border-radius: var(--rayon-m); background: var(--paper-sunk); font-size: var(--texte-m); }
 .pr-zonage-ligne { display: grid; grid-template-columns: 110px minmax(0, 1fr); gap: 12px; }
 .pr-zonage-libelle { color: var(--muted); }
+.pr-zt-cadre { overflow-x: auto; margin: -4px -8px 4px; }
+table.pr-zt { width: 100%; border-collapse: collapse; font-size: var(--texte-m); }
+table.pr-zt th { white-space: nowrap; text-align: left; font-size: var(--texte-xs); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); padding: 4px 8px; border-bottom: 1px solid var(--line); }
+table.pr-zt td { padding: 4px 8px; border-bottom: 1px solid var(--line-soft); vertical-align: middle; }
+table.pr-zt tbody tr:last-child td { border-bottom: 0; }
+table.pr-zt tfoot td { border-top: 1px solid var(--line); border-bottom: 0; font-weight: 500; }
+.pr-zt-parcelle { white-space: nowrap; font-variant-numeric: tabular-nums; font-weight: 500; }
+.pr-zt-zone { min-width: 0; }
+.pr-zt-long { color: var(--muted); display: inline-block; max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: bottom; }
+.pr-zt-erreur { color: var(--urgent); display: inline-flex; gap: 4px; align-items: center; }
+table.pr-zt td.pr-zt-retenue select { min-width: 120px; min-height: 32px; height: 32px; padding: 2px 8px; font-size: var(--texte-m); }
+.pr-zt-surface { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.pr-zt-details { font-size: var(--texte-m); }
+@media (max-width: 600px) { .pr-zt-long { display: none; } }
 .pr-blois { display: flex; gap: 6px; align-items: flex-start; }
 .pr-plans { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); margin: 8px 0 12px; }
 .pr-plans figure { margin: 0; }
