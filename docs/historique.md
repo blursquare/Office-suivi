@@ -17538,3 +17538,6 @@ La ligne « Authentic » (`renderCompleterAuthenticFiche`) quitte le bloc des co
 
 **Étude (06/10 au soir) : « Mettre en place une pastille de notification quand un dossier demande une mise à jour. »** (0.176.2)
 `tagMajAuthentic(d)` (client/27) : pastille rouge « Mise à jour » (même rendu que « nouvelle pièce », titre = les libellés à décider) ajoutée par `tagNotificationsDossier` à la ligne du dossier dans le Suivi (vues Échéances et Tableau) ; jamais sur un dossier archivé. `totalNotificationsPieces` (client/37) compte 1 de plus par dossier qui a une mise à jour d'Authentic en attente : c'est le nombre de la pastille rouge de « Suivi des dossiers » dans la barre latérale (mesuré dans Chromium : « 1 » pour un dossier avec deux mises à jour en attente). Les deux s'éteignent à « Mettre à jour » / « Ignorer ».
+
+**Étude (06/10 au soir) : « oui aussi » — la ligne « À mettre à jour » sous « Compléter la fiche », comme la ligne « Authentic »** (0.176.3)
+client/23 : `renderMajAuthentic` quitte le bloc des coordonnées et se place dans le `dl.fiche-authentic-completer` sous le bouton, avant `renderCompleterAuthenticFiche`.

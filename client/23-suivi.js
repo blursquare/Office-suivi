@@ -766,7 +766,6 @@
         ${ligne('user', 'Vendeurs', renderPersonnesCoteFiche(d, 'vendeur'), null, 'prop-pleine')}
         ${ligne('users', 'Acquéreurs', renderPersonnesCoteFiche(d, 'acquereur'), null, 'prop-pleine')}
         ${coordonneesPartiesDossier(d).map(c => ligne(c.partie === 'vendeur' ? 'user' : 'users', c.libelle, champsCoordonneesPartie(d, c, 'fiche'), c.parNotaire ? `fiche-tel-${c.partie}-${d.id}` : `fiche-email-${c.partie}-${d.id}`, 'prop-pleine')).join('')}
-        ${renderMajAuthentic(d, ligne)}
         ${renderClientsAPlacer(d, ligne)}
         ${renderPersonnesConnues(d, ligne)}
       </dl>
@@ -800,7 +799,8 @@
       ? `<wa-button appearance="outlined" type="button" class="bouton-ajout bouton-ajout-court fiche-completer${ouvert ? ' ouvert' : ''}" onclick="basculerChampsVidesFiche('${d.id}')" aria-expanded="${ouvert}"><span slot="start" class="bouton-ajout-plus" aria-hidden="true">+</span>${ouvert ? 'Masquer les champs vides' : `Compléter la fiche (${nbVides})`}</wa-button>`
       : '';
     // Ligne « Authentic » (étude 06/10 au soir : « sous Compléter la fiche ») : le dossier d'Authentic à reprendre, juste sous le bouton.
-    const ligneAuthentic = renderCompleterAuthenticFiche(d, ligne);
+    // La ligne « À mettre à jour » (changements proposés par Authentic) y est aussi, au-dessus (étude 06/10 au soir : « oui aussi »).
+    const ligneAuthentic = renderMajAuthentic(d, ligne) + renderCompleterAuthenticFiche(d, ligne);
     return `<div class="fiche-proprietes-bloc${ouvert ? ' champs-vides-ouverts' : ''}">${blocBien}${bascule}${ligneAuthentic ? `<dl class="fiche-proprietes fiche-authentic-completer">${ligneAuthentic}</dl>` : ''}</div>`;
   }
 
