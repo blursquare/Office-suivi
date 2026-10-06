@@ -7817,6 +7817,12 @@ body.ag-redim-en-cours, body.ag-redim-en-cours * { cursor: ns-resize !important;
 .ag-etat svg { width: 14px; height: 14px; }
 .ag-etat.fait { color: var(--success); }
 .ag-etat.afaire { color: var(--urgent); }
+/* Pastilles « AF » « P » d'une carte trop courte pour les lignes complètes (étude 06/10) : vert plein = fait, rouge au contour en
+   tirets = pas encore. */
+.ag-etats-mini { display: inline-flex; gap: 2px; margin-left: 4px; flex: none; vertical-align: middle; }
+.ag-mini { display: inline-flex; align-items: center; padding: 0 4px; border-radius: var(--rayon-pilule); font-size: var(--texte-xxs); font-weight: 700; line-height: 14px; letter-spacing: 0; }
+.ag-mini.fait { color: var(--success); background: color-mix(in srgb, var(--success) 14%, transparent); }
+.ag-mini.afaire { color: var(--urgent); background: color-mix(in srgb, var(--urgent) 8%, transparent); border: 1px dashed color-mix(in srgb, var(--urgent) 60%, transparent); padding: 0 2px; }
 .ag-evt-court { flex-direction: row; align-items: center; gap: 6px; padding-top: 1px; padding-bottom: 1px; }
 .ag-evt-court .ag-evt-titre { flex: 1 1 auto; min-width: 0; }
 /* Comme Outlook : le titre passe sur deux lignes quand la carte a la place (1 h 30 et plus). */

@@ -17507,3 +17507,14 @@ automatique). Les lots relevés passent toujours le dossier en copropriété. Re
 dans Authentic, choix d'import) est passée dans `client/51-nouveau-dossier-depuis-authentic.js` (manifeste, `index.html`), sans
 changement de code.
 
+### 06/10/2026 19 h 28 — 0.175.0 : agenda, appel de fonds et projet visibles d'un coup d'œil
+
+**Étude : « Authentic est la référence car c'est ce qui ressort dans nos actes. Sur l'agenda, il faut que je voie en un coup d'œil si
+l'appel de fonds et le projet ont été envoyés. »** Les lignes « Appel de fonds ✓/✗ — Projet ✓/✗ » (`renderEtatsRendezVous`) n'existaient
+que pour une carte d'au moins 1 h 20 : une signature d'une heure, la plus courante, ne montrait rien. Nouveau :
+`renderEtatsMiniRendezVous` (client/25) — pastilles « AF » (« D » pour le décompte d'une succession) et « P » sur la ligne de l'heure
+de la carte (vue Semaine) ou du responsable (vue Jour) quand les lignes complètes ne tiennent pas ; vert plein = fait, rouge au contour
+en tirets = pas encore (lettres seules, l'information ne repose pas sur la seule couleur ; la bulle au survol la dit en toutes
+lettres). Les états restent ceux de la fiche (`echeanceValidee`) : cochés dans CLAIRE ou, pour l'appel de fonds et le projet, posés
+par les relevés d'Authentic. Première moitié de la phrase (Authentic comme référence) : déjà la règle depuis 0.173.0/0.174.0.
+

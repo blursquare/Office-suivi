@@ -654,6 +654,14 @@
     };
   }
 
+  // Les mêmes états en deux pastilles courtes (« AF » « P »), pour la carte d'une heure qui ne tient pas les lignes complètes
+  // (étude 06/10 : « sur l'agenda, que je voie en un coup d'œil si l'appel de fonds et le projet ont été envoyés ») : lettres seules,
+  // vert plein = fait, rouge au contour en tirets = pas encore (la couleur ne porte pas seule l'information).
+  var ABREGES_ETATS_RENDEZ_VOUS = { appelFonds: 'AF', decompte: 'D', projet: 'P' };
+  function renderEtatsMiniRendezVous(infos) {
+    return `<span class="ag-etats-mini">${infos.etats.map(x => `<span class="ag-mini ${x.fait ? 'fait' : 'afaire'}" title="${escapeAttr(`${x.libelle} ${x.fait ? 'fait' : 'pas encore fait'}`)}">${escapeHtml(ABREGES_ETATS_RENDEZ_VOUS[x.cle] || x.libelle)}</span>`).join('')}</span>`;
+  }
+
   function renderEtatsRendezVous(infos) {
     return infos.etats.map(x => `<span class="ag-etat ${x.fait ? 'fait' : 'afaire'}" title="${escapeAttr(`${x.libelle} ${x.fait ? 'fait' : 'pas encore fait'}`)}">${icone(x.fait ? 'check' : 'x')}${escapeHtml(x.libelle)}</span>`).join('');
   }
@@ -703,7 +711,7 @@
         data-cle="${escapeAttr(cle)}"${attributGlisseAgenda(e)} onclick="ouvrirDetailAgenda('${escapeOnclickArg(cle)}')" title="${escapeAttr(bulle)}">
         ${e.option && !court ? `<span class="ag-fantome-tete ag-option-tete">Option ${escapeHtml(libelleOptionSondage(e.sujet).rang)}</span>` : ''}
         <span class="ag-evt-titre" style="--lignes:${e.option && !court ? Math.max(1, lignes - 1) : lignes}">${court ? heure + ' ' : ''}${escapeHtml(e.option ? libelleOptionSondage(e.sujet).titre : (e.sujet || '(sans titre)'))}</span>
-        ${court ? '' : `<span class="ag-evt-meta">${heure}${meta.length ? ` · ${escapeHtml(meta.join(' · '))}` : (e.lieu && !d ? ` · ${escapeHtml(e.lieu)}` : '')}</span>`}
+        ${court ? '' : `<span class="ag-evt-meta">${heure}${meta.length ? ` · ${escapeHtml(meta.join(' · '))}` : (e.lieu && !d ? ` · ${escapeHtml(e.lieu)}` : '')}${!etats && infos && e.signature ? renderEtatsMiniRendezVous(infos) : ''}</span>`}
         ${etats ? `<span class="ag-evt-etats">${renderEtatsRendezVous(infos)}</span>` : ''}
         ${proba && !court ? renderPastilleProbabilite(proba) : ''}
         ${poigneesAgenda(e)}
@@ -735,7 +743,7 @@
         data-cle="${escapeAttr(cleEvenementAgenda(e))}"${attributGlisseAgenda(e)} onclick="ouvrirDetailAgenda('${escapeOnclickArg(cleEvenementAgenda(e))}')" title="${escapeAttr(bulle)}">
         <span class="ag-evt-titre">${e.option ? `<span class="ag-fantome-tete ag-option-tete">Option ${escapeHtml(libelleOptionSondage(e.sujet).rang)}</span> ` : ''}${escapeHtml(e.option ? libelleOptionSondage(e.sujet).titre : (e.sujet || '(sans titre)'))}</span>
         <span class="ag-evt-heure"><span>${escapeHtml(e.heure)}</span>${e.heureFin ? `<span class="ag-evt-fin">– ${escapeHtml(e.heureFin)}</span>` : ''}${duree ? `<span class="ag-evt-duree">${escapeHtml(duree)}</span>` : ''}</span>
-        ${qui ? `<span class="ag-evt-qui">${escapeHtml(qui)}</span>` : (e.lieu ? `<span class="ag-evt-qui">${escapeHtml(e.lieu)}</span>` : '')}
+        ${qui ? `<span class="ag-evt-qui">${escapeHtml(qui)}${infos && e.signature && !court && !etatsTiennentAgenda(minutesAffichees) ? renderEtatsMiniRendezVous(infos) : ''}</span>` : (e.lieu ? `<span class="ag-evt-qui">${escapeHtml(e.lieu)}</span>` : '')}
         ${infos && e.signature && etatsTiennentAgenda(minutesAffichees) ? `<span class="ag-evt-etats">${renderEtatsRendezVous(infos)}</span>` : ''}
         ${proba ? renderPastilleProbabilite(proba) : ''}
         ${poigneesAgenda(e)}

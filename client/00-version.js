@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.174.1';
+  const VERSION_APP = '0.175.0';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.175.0', date: '2026-10-06 19:28', resume: "Agenda : sur chaque signature d'un dossier, deux pastilles « AF » (appel de fonds, « D » décompte en succession) et « P » (projet) montrent d'un coup d'œil ce qui est envoyé — vert plein = fait, rouge au contour en tirets = pas encore — même sur les rendez-vous d'une heure, trop courts pour les lignes complètes." },
     { version: '0.174.1', date: '2026-10-06 19:19', resume: "Authentic fait foi aussi pour le type de vente : le type de bien lu dans la fiche bien d'Authentic (maison, copropriété, terrain) remplace celui de la fiche, l'ancien dit dans l'historique ; jamais pour une succession ni quand Authentic ne le dit pas." },
     { version: '0.174.0', date: '2026-10-06 19:10', resume: "Authentic fait foi : une adresse du bien ou un prix différents de ceux d'Authentic sont remplacés par ceux d'Authentic (l'ancienne valeur reste dans l'historique de la fiche), à chaque relevé et par « Authentic › Compléter ». Le type de vente reste celui de CLAIRE ; téléphones et emails sont toujours ajoutés, jamais retirés." },
     { version: '0.173.2', date: '2026-10-06 18:16', resume: "À faire : le nom du dossier passe en petit au-dessus de la tâche (ou du groupe de tâches d'un dossier), toujours cliquable vers la fiche ; la tâche reste seule sur sa ligne." },
