@@ -279,7 +279,7 @@ dans `index.html`** (le test `structure-client` refuse tout décalage).
   un rendez-vous placé avec une pièce manquante reste « Attente de pièces » ; une vente préalable non
   réalisée (financement, comme l'offre) empêche « Complet » et « Prêt ». Couleurs : rouge, gris, ambre, bleu `--acte`
   (jamais l'accent, qui peut être orange ou vert), vert. **Suivi** (30/09, choix de l'étude) : barre en trois lignes
-  (`.suivi-barre`, **une carte collée en haut au défilement** — étude 06/10, fenêtre ≥ 760 × 901 px) — grande recherche (nom du dossier seulement ; le collaborateur passe par le filtre
+  (`.suivi-barre`, **une carte collée en haut au défilement** — étude 06/10, fenêtre ≥ 760 × 901 px ; une fois collée, les filtres se replient et se rouvrent au survol ou au focus — `initBarreSuiviCollee` ; titre du filtre = texte de son option vide) — grande recherche (nom du dossier seulement ; le collaborateur passe par le filtre
   « Responsable », pré-réglé sur celui du poste à chaque session, **sauf l'administrateur, qui voit « Tous »** (étude 02/10) — `filtreSuiviParDefaut`, `appliquerFiltreSuiviCollaborateur`, reposé au changement de poste) + bascule de vue, filtres sur une ligne (« Trier par »
   en vue Tableau seulement ; interrupteur « Archivés » (`wa-switch#voir-archives`, cadre des filtres, étude 04/10) allumé → section « Archivés » en bas de la vue Échéances,
   `archivesPourEcheances`, date de signature sinon d'archivage, jamais dans une semaine), statuts en pastilles de filtre (`syntheseEtatsSuivi`, `renderEtatsSuivi`) ; **à gauche** (colonne comme celle de l'agenda — 224 px depuis le 06/10 pour l'agenda, 300 px pour le Suivi —, étude 01/10, `.suivi-corps`/`.suivi-cote` ; au-dessus sous 1100 px),

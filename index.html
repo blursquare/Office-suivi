@@ -606,7 +606,8 @@
 
   <!-- Barre du Suivi en trois lignes (étude, 30/09) : la recherche mise en avant (avec la bascule de
        vue), les options pour affiner sur une ligne, les statuts en couleur sur la dernière. -->
-  <div class="list-toolbar suivi-barre">
+  <div id="suivi-barre-sentinelle" aria-hidden="true"></div>
+  <div class="list-toolbar suivi-barre" id="suivi-barre">
     <div class="suivi-barre-ligne suivi-barre-recherche">
       <label class="suivi-recherche" for="recherche-dossiers">
         <span class="suivi-recherche-icone" id="icon-recherche-suivi" aria-hidden="true"></span>
@@ -621,27 +622,24 @@
     </div>
     <div class="suivi-barre-ligne suivi-barre-filtres" role="group" aria-label="Affiner la recherche">
       <label class="toolbar-item">
-        Responsable
-        <select id="filtre-responsable" onchange="render()">
-          <option value="">Tous</option>
+        <select id="filtre-responsable" aria-label="Responsable" onchange="render()">
+          <option value="">Responsable</option>
           <option>Bastien ANGLUMENT</option>
           <option>Julie VASSELIN</option>
           <option>Jérémy SAUJOT</option>
         </select>
       </label>
       <label class="toolbar-item">
-        Échéance
-        <select id="filtre-type" onchange="render()">
-          <option value="">Toutes</option>
+        <select id="filtre-type" aria-label="Échéance" onchange="render()">
+          <option value="">Échéance</option>
           <option value="pret">Obtention du prêt</option>
           <option value="acte">Signature de l'acte</option>
           <option value="ventebien">Vente préalable</option>
         </select>
       </label>
       <label class="toolbar-item">
-        Offre de prêt
-        <select id="filtre-offre" onchange="render()">
-          <option value="">Tous statuts</option>
+        <select id="filtre-offre" aria-label="Offre de prêt" onchange="render()">
+          <option value="">Offre de prêt</option>
           <option value="recue">Reçue</option>
           <option value="aconfirmer">À confirmer</option>
           <option value="manquante">Introuvable</option>
@@ -649,9 +647,8 @@
         </select>
       </label>
       <label class="toolbar-item">
-        Rôle
-        <select id="filtre-role" onchange="render()">
-          <option value="">Tous</option>
+        <select id="filtre-role" aria-label="Rôle" onchange="render()">
+          <option value="">Rôle</option>
           <option value="instrumentaire">Instrumentaire</option>
           <option value="participant">Participant</option>
         </select>
@@ -659,13 +656,12 @@
       <!-- Le tri ne sert qu'au tableau (la vue Échéances est rangée par date) : affiché avec lui
            seulement, en doublon utile des en-têtes de colonnes cliquables (« Priorité » n'a pas de colonne). -->
       <label class="toolbar-item" id="tri-dossiers-bloc" style="display:none;">
-        Trier par
-        <select id="tri-dossiers" onchange="render()">
-          <option value="priorite">Priorité (recommandé)</option>
-          <option value="echeance">Échéance la plus proche</option>
-          <option value="statut">Statut</option>
-          <option value="nom">Nom du dossier</option>
-          <option value="responsable">Responsable</option>
+        <select id="tri-dossiers" aria-label="Trier par" onchange="render()">
+          <option value="priorite">Trier : priorité (recommandé)</option>
+          <option value="echeance">Trier : échéance la plus proche</option>
+          <option value="statut">Trier : statut</option>
+          <option value="nom">Trier : nom du dossier</option>
+          <option value="responsable">Trier : responsable</option>
         </select>
       </label>
       <label class="toolbar-item toolbar-checkbox">

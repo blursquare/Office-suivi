@@ -226,7 +226,7 @@
     document.body.classList.toggle('onglet-analyse-ia-actif', nom === 'analyse-ia');
     document.getElementById('tab-analyse-ia').classList.toggle('actif', nom === 'analyse-ia');
     document.getElementById('tab-reglages').classList.toggle('actif', nom === 'reglages');
-    if (nom === 'suivi') appliquerFiltreSuiviCollaborateur();
+    if (nom === 'suivi') { appliquerFiltreSuiviCollaborateur(); initBarreSuiviCollee(); }
     // Relu à chaque retour sur le tableau de bord : un rappel ajouté depuis un autre poste.
     if (nom === 'dashboard' && typeof chargerRappelsPerso === 'function' && authToken) chargerRappelsPerso();
     if (nom === 'dashboard' && authToken) chargerAbsencesOffice();

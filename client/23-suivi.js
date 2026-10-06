@@ -1055,6 +1055,44 @@
     f.value = filtreSuiviParDefaut(utilisateurPoste);
   }
 
+  // Barre du Suivi collée en haut (étude 06/10) : une fois collée, les filtres se replient (la recherche et les statuts restent)
+  // et se rouvrent au survol ou au focus de la barre — voir `.suivi-barre.collee` dans style.css. Le repli retire de la hauteur
+  // de la barre : `margin-bottom` la rend à la liste, qui ne bouge donc pas sous les yeux.
+  var barreSuiviColleeInitialisee = false;
+  function majBarreSuiviCollee() {
+    const barre = document.getElementById('suivi-barre');
+    const sentinelle = document.getElementById('suivi-barre-sentinelle');
+    const filtres = barre ? barre.querySelector('.suivi-barre-filtres') : null;
+    if (!barre || !sentinelle || !filtres || !barre.offsetParent) return;
+    const colleePossible = getComputedStyle(barre).position === 'sticky';
+    const collee = colleePossible && sentinelle.getBoundingClientRect().top < 12;
+    if (collee === barre.classList.contains('collee')) return;
+    if (collee) {
+      const hauteur = filtres.offsetHeight;
+      barre.style.marginBottom = `${20 + hauteur}px`;
+    } else {
+      barre.style.marginBottom = '';
+    }
+    barre.classList.toggle('collee', collee);
+  }
+
+  function initBarreSuiviCollee() {
+    if (barreSuiviColleeInitialisee) return;
+    barreSuiviColleeInitialisee = true;
+    let attente = false;
+    const planifier = () => {
+      if (attente) return;
+      attente = true;
+      requestAnimationFrame(() => { attente = false; majBarreSuiviCollee(); });
+    };
+    document.addEventListener('scroll', planifier, { capture: true, passive: true });
+    window.addEventListener('resize', () => {
+      const barre = document.getElementById('suivi-barre');
+      if (barre && barre.classList.contains('collee')) { barre.classList.remove('collee'); barre.style.marginBottom = ''; }
+      planifier();
+    });
+  }
+
   function renderAccueilDashboard(perimetreActifs, stats) {
     const eyebrow = document.getElementById('dash-date-jour');
     if (eyebrow) eyebrow.textContent = libelleDateDuJour();
