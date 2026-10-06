@@ -17,9 +17,9 @@ function creerClientOllama(config) {
   const url = (config.ollama && config.ollama.url) || 'http://localhost:11434';
   const modele = (config.ollama && config.ollama.modele) || 'llama3.1:8b';
 
-  async function appelAvecTimeout(chemin, options) {
+  async function appelAvecTimeout(chemin, options, delaiMs) {
     const controleur = new AbortController();
-    const minuteur = setTimeout(() => controleur.abort(), TIMEOUT_MS);
+    const minuteur = setTimeout(() => controleur.abort(), delaiMs || TIMEOUT_MS);
     try {
       return await fetch(`${url}${chemin}`, { ...options, signal: controleur.signal });
     } finally {
@@ -57,6 +57,7 @@ function creerClientOllama(config) {
   // valide — le CONTENU reste sous la responsabilité du modèle (voir les prompts dans
   // extraction/prompts.js, routes/offrePret.js), mais ça évite déjà la moitié des échecs de parsing
   // observés avec un modèle non contraint.
+  // `limites.delaiMs` : abandon au bout de ce délai (défaut 180 s) ; `limites.sansRelance` : voir genererJson.
   // `limites.longueurMax` : nombre de jetons au plus (num_predict d'Ollama) — une réponse courte demandée ne peut pas
   // déborder (premier jet d'email : étude 03/10, « aller à l'essentiel »).
   async function generer(prompt, limites = {}) {
@@ -68,10 +69,12 @@ function creerClientOllama(config) {
         prompt,
         format: 'json',
         stream: false,
+        // Modèle gardé en mémoire 30 min : le premier appel après 5 min d'inactivité (défaut d'Ollama) recharge plusieurs Go.
+        keep_alive: '30m',
         options: { temperature: 0.1, ...(limites.longueurMax ? { num_predict: limites.longueurMax } : {}) } // Une analyse juridique doit rester factuelle et reproductible,
         // pas créative — température basse plutôt que la valeur par défaut d'Ollama (0.8).
       })
-    });
+    }, limites.delaiMs);
     if (!reponse.ok) {
       const texte = await reponse.text().catch(() => '');
       throw new Error(`Ollama a répondu ${reponse.status} : ${texte.slice(0, 200)}`);
@@ -105,6 +108,8 @@ function creerClientOllama(config) {
 
     const premier = await tenter(prompt);
     if (!premier.erreur) return premier.objet;
+    // `sansRelance` : une demande interactive (assistant) préfère rendre la main tout de suite à une seconde attente.
+    if (limites.sansRelance) throw new Error(`Le modèle local n'a pas produit de réponse exploitable (${premier.erreur}).`);
 
     const second = await tenter(
       `${prompt}\n\nTa réponse précédente a été rejetée : ${premier.erreur}. Réponds à nouveau, ` +

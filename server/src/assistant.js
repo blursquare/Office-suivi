@@ -14,7 +14,9 @@
 
 const A = require('../../commun/assistant');
 
-const LONGUEUR_MAX_REPONSE = 320;
+const LONGUEUR_MAX_REPONSE = 160;
+// Au-delà, le repli par mots-clés répond : mieux vaut une réponse moyenne tout de suite qu'une attente de plusieurs minutes.
+const DELAI_IA_MS = 45 * 1000;
 const DUREE_CACHE_DISPONIBILITE_MS = 60 * 1000;
 const PARAMETRES_TEXTE = ['dossier', 'date', 'heure', 'texte', 'modele', 'echeance', 'champ', 'partie', 'ecran', 'collaborateur', 'titre'];
 const VALEURS_PERMISES = {
@@ -40,22 +42,19 @@ function dateEnFrancais(iso) {
  */
 function promptAssistant(texte, contexte) {
   const c = contexte || {};
+  // Court exprès : sur un CPU de bureau le prompt est lu à quelques dizaines de jetons par seconde (4 900 caractères = plus
+  // d'une minute avant le premier mot). Libellé seul par intention ; la description complète sert à la page d'aide.
   const intentions = A.INTENTIONS_ASSISTANT.filter((i) => i.cle !== 'inconnu')
-    .map((i) => `- ${i.cle} : ${i.description}${i.dossier ? ' (porte sur un dossier)' : ''}`).join('\n');
-  const echanges = (c.historique || []).slice(-3).filter((h) => h && h.texte)
-    .map((h) => `- « ${String(h.texte).slice(0, 160)} » → ${h.intention || 'inconnu'}`).join('\n');
-  return `Tu es l'assistant de CLAIRE, l'outil de suivi des dossiers de vente d'une étude notariale. Un collaborateur te parle en une phrase. Choisis UNE intention dans la liste ci-dessous et recopie dans "parametres" ce que la phrase dit. Tu ne décides rien et tu n'inventes rien : un paramètre que la phrase ne dit pas reste "" (ou null pour un montant).
-
-Intentions possibles (clé : sens) :
+    .map((i) => `${i.cle} = ${i.libelle}`).join('\n');
+  const echanges = (c.historique || []).slice(-2).filter((h) => h && h.texte)
+    .map((h) => `« ${String(h.texte).slice(0, 120)} » → ${h.intention || 'inconnu'}`).join('\n');
+  return `Assistant d'une étude notariale. Choisis UNE intention pour la phrase et recopie ce qu'elle dit (rien d'inventé : "" si absent).
+Intentions :
 ${intentions}
-- inconnu : la phrase ne correspond à rien de cette liste, ou reste trop vague.
-
-Aujourd'hui : ${dateEnFrancais(c.aujourdhui || '')}.${c.dossierLibelle ? `\nDossier en consultation : ${c.dossierLibelle} — « ce dossier », « lui », « le client » le désignent.` : ''}${echanges ? `\nPhrases précédentes du collaborateur :\n${echanges}` : ''}
-
+inconnu = hors liste ou trop vague
+${c.dossierLibelle ? `Dossier en consultation : ${c.dossierLibelle} (« ce dossier », « lui »).\n` : ''}${echanges ? `Avant :\n${echanges}\n` : ''}Aujourd'hui : ${dateEnFrancais(c.aujourdhui || '')}.
 Phrase : « ${String(texte || '').replace(/\s+/g, ' ').trim()} »
-
-Réponds UNIQUEMENT avec un objet JSON valide, sans texte avant ni après, au format exact :
-{"intention": "<clé de la liste>", "parametres": {"dossier": "<nom du dossier ou de la personne tel qu'écrit dans la phrase, sinon \\"\\">", "date": "<AAAA-MM-JJ si la phrase donne un jour, sinon \\"\\">", "heure": "<HH:MM si la phrase donne une heure, sinon \\"\\">", "texte": "<le texte du rappel, de l'email ou de la recherche, sinon \\"\\">", "modele": "<pret|rib|provision|ventePrealable|fonds|relanceFonds|projet|confirmationRdv|questionnaire|anniversaire|copieActe|accuseReception ou \\"\\">", "echeance": "<appelFonds|projetEnvoye|pret|ventebien|rendezVousSignature ou \\"\\">", "champ": "<appelFonds|projetEnvoye|pret|ventebien|acte ou \\"\\">", "partie": "<vendeur|acquereur|confrere|agence ou \\"\\">", "ecran": "<dashboard|agenda|suivi|scans|outils|reglages|nouveau|confreres|analyse-ia ou \\"\\">", "montant": <nombre en euros ou null>, "collaborateur": "<Bastien|Julie|Jérémy ou \\"\\">", "titre": "<titre d'un rendez-vous, sinon \\"\\">"}}`;
+JSON seul : {"intention":"<clé>","parametres":{"dossier":"<nom cité>","date":"<AAAA-MM-JJ>","heure":"<HH:MM>","texte":"","modele":"<pret|rib|provision|ventePrealable|fonds|relanceFonds|projet|confirmationRdv|questionnaire|anniversaire|copieActe|accuseReception>","echeance":"<appelFonds|projetEnvoye|pret|ventebien|rendezVousSignature>","champ":"<appelFonds|projetEnvoye|pret|ventebien|acte>","partie":"<vendeur|acquereur|confrere|agence>","ecran":"<dashboard|agenda|suivi|scans|outils|reglages|nouveau|confreres|analyse-ia>","montant":null,"collaborateur":"<Bastien|Julie|Jérémy>","titre":""}}`;
 }
 
 /** Paramètres de l'IA ramenés à des chaînes propres, valeurs hors liste écartées. @param {any} brut */
@@ -93,6 +92,12 @@ async function comprendreDemande(entree, ollama, options) {
   let source = 'motscles';
   let raisonIa = '';
 
+  // Un nom de dossier seul (« Martin », « dossier Martin ») : l'état du dossier, sans demander à l'IA (lecture seule).
+  if (motsCles.intention === 'inconnu' && texte.split(' ').length <= 4) {
+    const seul = A.reconnaitreDossier(texte, dossiers);
+    if (seul.dossier || seul.candidats.length) { intention = 'etat_dossier'; source = 'motscles'; motsCles.surete = 'haute'; }
+  }
+
   if (motsCles.surete !== 'haute' && ollama) {
     const disponibilite = options && options.disponibilite ? options.disponibilite : () => ollama.verifierDisponibilite();
     /** @type {{ disponible: boolean, raison?: string }} */
@@ -100,7 +105,7 @@ async function comprendreDemande(entree, ollama, options) {
     try { statut = await disponibilite(); } catch (err) { statut = { disponible: false, raison: err && err.message }; }
     if (statut.disponible) {
       try {
-        const objet = await ollama.genererJson(promptAssistant(texte, contexte), A.validerReponseAssistant, { longueurMax: LONGUEUR_MAX_REPONSE });
+        const objet = await ollama.genererJson(promptAssistant(texte, contexte), A.validerReponseAssistant, { longueurMax: LONGUEUR_MAX_REPONSE, delaiMs: DELAI_IA_MS, sansRelance: true });
         const ia = nettoyerParametresIa(objet.parametres);
         intention = objet.intention;
         source = 'ia';

@@ -22,14 +22,14 @@ const CONTEXTE = { aujourdhui: '2026-10-06', dossierId: 'd2', dossierLibelle: 'V
 
 test('le prompt liste les intentions, la date du jour en français et le dossier en consultation — jamais la liste des dossiers', () => {
   const p = promptAssistant('Où en est ce dossier ?', { ...CONTEXTE, historique: [{ texte: 'Relance MARTIN', intention: 'email' }] });
-  assert.match(p, /etat_dossier : /);
+  assert.match(p, /etat_dossier = /);
   assert.match(p, /rendez_vous_placer/);
   assert.match(p, /mardi 6 octobre 2026/);
   assert.match(p, /Dossier en consultation : VTE - LEROY/);
   assert.match(p, /« Relance MARTIN » → email/);
   assert.match(p, /Phrase : « Où en est ce dossier \? »/);
   assert.doesNotMatch(p, /DUPONT \/ ROUX/);
-  assert.match(p, /tu n'inventes rien/);
+  assert.match(p, /rien d'invent/);
 });
 
 test('nettoyerParametresIa écarte une valeur hors liste et une date mal formée, et normalise le collaborateur', () => {
@@ -51,6 +51,27 @@ test('phrase sans ambiguïté : mots-clés seuls, Ollama jamais appelé, dossier
   assert.equal(r.source, 'motscles');
   assert.equal(r.dossier, 'd1');
   assert.equal(appels, 0);
+});
+
+test('un nom de dossier seul : l\'état du dossier, sans appeler Ollama', async () => {
+  let appels = 0;
+  const ollama = { verifierDisponibilite: async () => { appels += 1; return { disponible: true }; }, genererJson: async () => { appels += 1; return {}; } };
+  const r = await comprendreDemande({ texte: 'dossier Martin', contexte: { aujourdhui: '2026-10-06' }, dossiers: DOSSIERS }, ollama);
+  assert.equal(r.intention, 'etat_dossier');
+  assert.equal(r.dossier, 'd1');
+  assert.equal(appels, 0);
+});
+
+test('l\'IA locale est appelée sans relance et avec un délai borné, le prompt reste court', async () => {
+  let limites = null;
+  const ollama = {
+    verifierDisponibilite: async () => ({ disponible: true }),
+    genererJson: async (prompt, valider, l) => { limites = l; return { intention: 'inconnu', parametres: {} }; }
+  };
+  await comprendreDemande({ texte: 'machin truc bidule', contexte: { aujourdhui: '2026-10-06' }, dossiers: DOSSIERS }, ollama);
+  assert.equal(limites.sansRelance, true);
+  assert.ok(limites.delaiMs <= 60000);
+  assert.ok(promptAssistant('x', { aujourdhui: '2026-10-06' }).length < 2500);
 });
 
 test('dossier non cité : celui en consultation est pris, et dit comme tel', async () => {

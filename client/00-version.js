@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.176.13';
+  const VERSION_APP = '0.176.14';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.176.14', date: '2026-10-06 23:20', resume: "« Demander à CLAIRE » répond plus vite : prompt de l'IA locale trois fois plus court, une seule tentative, abandon à 45 s (les mots-clés répondent alors), modèle gardé en mémoire 30 min ; un nom de dossier seul ouvre son état ; « qu'est-ce que je dois faire » est compris sans IA." },
     { version: '0.176.13', date: '2026-10-06 23:08', resume: "Suivi : le titre de chaque filtre est le texte de son choix vide (« Échéance », « Responsable », « Offre de prêt », « Rôle ») au lieu de « Toutes/Tous » ; une fois la barre collée en haut, les filtres se replient (la recherche et les statuts restent) et se rouvrent au survol ou au clic." },
     { version: '0.176.12', date: '2026-10-06 23:00', resume: "Suivi : le titre de chaque filtre est dans son menu déroulant (« Responsable  Julie VASSELIN »), et les trois lignes de la carte du haut sont séparées par un liseré gris." },
     { version: '0.176.11', date: '2026-10-06 22:55', resume: "Suivi : la carte de recherche, de filtres et de statuts reste collée en haut de la page quand on descend dans la liste." },

@@ -28,7 +28,7 @@
     { cle: 'fonds_dossier', libelle: 'Fonds du dossier', description: 'fonds reçus et montant encore attendu sur un dossier',
       dossier: true, exemples: ['Combien il manque sur les fonds de MARTIN ?'], motifs: [/\bfonds\b/, /\bvirement/, /\bargent\b/, /\bcombien (il )?(manque|reste)\b/] },
     { cle: 'taches_jour', libelle: 'Ce que j’ai à faire', description: 'la liste « À faire » du collaborateur : tâches du jour et rappels',
-      exemples: ['Qu’est-ce que j’ai à faire aujourd’hui ?'], motifs: [/\ba faire\b/, /\bdois[- ]je faire\b/, /\bma journee\b/, /\bmes taches\b/, /\btaches? (du jour|d.aujourd)/, /\bquoi faire\b/, /\bprogramme\b/] },
+      exemples: ['Qu’est-ce que j’ai à faire aujourd’hui ?'], motifs: [/\ba faire\b/, /\bdois[- ]je faire\b/, /\bje dois faire\b/, /\bj.ai (a|quoi) faire\b/, /\bqu.?est.?ce (que )?(je|j.ai)\b.{0,20}\bfaire\b/, /\bquoi de prevu\b/, /\bma journee\b/, /\bmes taches\b/, /\btaches? (du jour|d.aujourd)/, /\bquoi faire\b/, /\bprogramme\b/] },
     { cle: 'depuis_hier', libelle: 'Depuis hier', description: 'ce qui a changé depuis hier 18 h : documents reçus, emails, demandes des clients',
       exemples: ['Qu’est-ce qui a changé depuis hier ?'], motifs: [/\bdepuis hier\b/, /\bquoi de neuf\b/, /\bnouveaut/, /\bqu.?est.?ce qui (a|s.est) (change|passe)\b/, /\bdu nouveau\b/] },
     { cle: 'rappel_ajouter', libelle: 'Ajouter un rappel', description: 'poser un rappel personnel (texte, date facultative, dossier facultatif) — fait aussitôt, annulable',
