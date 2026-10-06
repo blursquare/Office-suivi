@@ -333,30 +333,32 @@ test('adressesDepuisReponseDataGouv lit le GeoJSON et écarte ce qui n’est pas
   assert.strictEqual(app.adressesDepuisReponseDataGouv({ features: 'pas un tableau' }).length, 0);
 });
 
-test('composerAdresseCourrier ajoute la mention d envoi APRES les lignes du destinataire', () => {
+test('composerAdresseCourrier : lignes du destinataire nettoyées, sans la mention (champ à part depuis le 06/10)', () => {
   const app = chargerApplication();
-  const combine = app.composerAdresseCourrier('Monsieur Jean DUPONT', 'Envoi par e-mail uniquement');
-  const lignes = combine.split('\n');
-  assert.equal(lignes.length, 2);
-  assert.equal(lignes[0], 'Monsieur Jean DUPONT');
-  assert.equal(lignes[1], 'Envoi par e-mail uniquement');
-});
-
-test('composerAdresseCourrier omet la mention quand une adresse postale est saisie', () => {
-  const app = chargerApplication();
+  assert.equal(app.composerAdresseCourrier('Monsieur Jean DUPONT'), 'Monsieur Jean DUPONT');
   const adresse = 'Monsieur Jean DUPONT\n12 rue des Lilas\n41000 BLOIS';
-  // L appelant ne transmet pas la mention des qu une adresse est renseignee : les deux
-  // se contrediraient sur le meme courrier.
-  assert.equal(app.composerAdresseCourrier(adresse, ''), adresse);
-  assert.equal(app.composerAdresseCourrier(adresse, '   '), adresse);
-  assert.equal(app.composerAdresseCourrier(adresse, null), adresse);
+  assert.equal(app.composerAdresseCourrier(adresse + '\n\n'), adresse);
+  assert.equal(app.composerAdresseCourrier('  Monsieur Jean DUPONT \n\n 12 rue des Lilas '), 'Monsieur Jean DUPONT\n12 rue des Lilas');
+  assert.equal(app.composerAdresseCourrier(''), '');
+  assert.equal(app.composerAdresseCourrier(null), '');
+  assert.equal(app.MENTION_ENVOI_APPEL_FONDS, 'Envoi par e-mail uniquement');
 });
 
-test('composerAdresseCourrier tient sans destinataire, et la mention par defaut est celle attendue', () => {
+test('normaliserDonneesCourrierAppelFonds (06/10) : un courrier gardé avant perd la mention et les retours d’addrLines, qui passent au modèle', () => {
   const app = chargerApplication();
-  assert.equal(app.composerAdresseCourrier('', 'Envoi par e-mail uniquement'), 'Envoi par e-mail uniquement');
-  assert.equal(app.composerAdresseCourrier('', ''), '');
-  assert.equal(app.MENTION_ENVOI_APPEL_FONDS, 'Envoi par e-mail uniquement');
+  // Données d'avant : mention en dernière ligne + cinq retours.
+  const ancien = app.normaliserDonneesCourrierAppelFonds({ addrLines: 'Monsieur Jean DUPONT\nEnvoi par e-mail uniquement\n\n\n\n\n', ville: 'Blois' });
+  assert.equal(ancien.addrLines, 'Monsieur Jean DUPONT');
+  assert.equal(ancien.mention, 'Envoi par e-mail uniquement');
+  assert.equal(ancien.ville, 'Blois');
+  // Adresse postale (sans mention) + retours.
+  const postal = app.normaliserDonneesCourrierAppelFonds({ addrLines: 'Monsieur Jean DUPONT\n12 rue des Lilas\n41000 BLOIS\n\n\n\n\n' });
+  assert.equal(postal.addrLines, 'Monsieur Jean DUPONT\n12 rue des Lilas\n41000 BLOIS');
+  assert.equal(postal.mention, '');
+  // Données d'aujourd'hui : rien ne bouge (la mention peut être vide).
+  const neuf = { addrLines: 'Monsieur Jean DUPONT', mention: '' };
+  assert.deepEqual(app.normaliserDonneesCourrierAppelFonds(neuf), neuf);
+  assert.equal(app.normaliserDonneesCourrierAppelFonds({ addrLines: 'Envoi par e-mail uniquement' }).addrLines, '', 'mention seule, sans destinataire');
 });
 
 test('typeBienDepuisDesignation lit la nature du bien dans la désignation libre', () => {
@@ -617,13 +619,17 @@ test('detecterRendezVousDecompte rend la date seule quand l’heure n’est pas 
   assert.equal(r.heure, null);
 });
 
-test('donneesCourrierAppelFonds : cinq retours à la ligne sous l\'adresse du destinataire dans le .docx', () => {
+test('donneesCourrierAppelFonds (06/10) : adresse sans retour d’aération (ils sont dans le modèle Word), mention dans son propre champ', () => {
   const app = chargerApplication();
   const adresse = { innerHTML: '<u>Monsieur Jean DUPONT<br>12 rue des Lices</u>' };
-  app.afEl = (id) => (id === 'af-p-adresse' ? adresse : null);
+  const mention = { textContent: 'Envoi par e-mail uniquement', style: { display: '' } };
+  app.afEl = (id) => (id === 'af-p-adresse' ? adresse : id === 'af-p-mention' || id === 'af-p-mention-ligne' ? mention : null);
   app.afValeur = () => '';
-  const { addrLines } = app.donneesCourrierAppelFonds();
-  assert.equal(addrLines, 'Monsieur Jean DUPONT\n12 rue des Lices' + '\n'.repeat(5));
+  const avecMention = app.donneesCourrierAppelFonds();
+  assert.equal(avecMention.addrLines, 'Monsieur Jean DUPONT\n12 rue des Lices');
+  assert.equal(avecMention.mention, 'Envoi par e-mail uniquement');
+  mention.style.display = 'none';
+  assert.equal(app.donneesCourrierAppelFonds().mention, '', 'mention masquée (adresse postale saisie) : champ vide');
 });
 
 // Étude 05/10 : sur la fiche, chaque personne en « Monsieur / Madame Prénom NOM » et la seule situation matrimoniale du

@@ -1295,3 +1295,54 @@ test('« Importer avec 6e SENS » (bouton d’Authentic collé à l’intitulé)
   assert.equal(app.retirerImporterAuthentic(d), false, 'rien à refaire');
   assert.equal(app.retirerImporterAuthentic({ nom: 'MARTEL / FOURNIER' }), false);
 });
+
+test('complementDossierDepuisAuthentic (06/10) : seuls les vides sont remplis — personnes, emails, téléphones, bien, prix, référence', () => {
+  const donnees = { intitule: 'Vente MARTEL / FOURNIER', reference: 'A 2026 00247', origine: 'pages',
+    personnes: [
+      { id: 'p1', nom: 'MARTEL', prenom: 'Alexandre', civilite: 'M', emails: ['martel@exemple.fr'], telephones: ['06 00 00 00 01'] },
+      { id: 'p2', nom: 'FOURNIER', prenom: 'Camille', civilite: 'Mme', emails: ['fournier@exemple.fr'], telephones: [] }
+    ],
+    immeubles: [{ id: 'b1', adresse: { texte: '12 rue des Lices 41000 BLOIS', codePostal: '41000', commune: 'BLOIS', nomVoie: 'des Lices', numero: '12' }, type: 'maison', parcelles: [{ section: 'AB', numero: '12' }], lots: [] }],
+    biens: ['b1'], parties: [], documents: [], infosAuthentic: { prix: 245000 } };
+  // Fiche vide d'un côté (placeholder « Prénom NOM »), acquéreur déjà saisi : seul le vendeur est ajouté.
+  const d = { id: 'c1', nom: 'MARTEL / FOURNIER', parties: [{ role: 'VENDEUR', nom: '', prenom: '' }, { role: 'ACQUEREUR', nom: 'FOURNIER', prenom: 'Camille' }], emailAcquereur: 'autre@exemple.fr', adresseBien: '', prixVente: null, historique: [] };
+  const textes = app.complementDossierDepuisAuthentic(d, donnees, [d]);
+  assert.equal(d.parties.filter(p => p.role === 'VENDEUR').length, 1);
+  assert.equal(d.parties.find(p => p.role === 'VENDEUR').nom, 'Alexandre MARTEL');
+  assert.equal(d.parties.filter(p => p.role === 'ACQUEREUR').length, 1, 'acquéreur déjà présent : pas de doublon');
+  assert.equal(d.emailVendeur, 'martel@exemple.fr');
+  assert.equal(d.emailAcquereur, 'autre@exemple.fr; fournier@exemple.fr', 'email ajouté, jamais remplacé');
+  assert.equal(d.telephoneVendeur, '06 00 00 00 01');
+  assert.equal(d.adresseBien, app.normaliserAdresse('12 rue des Lices 41000 BLOIS'));
+  assert.equal(d.typeVente, 'maison');
+  assert.equal(d.bien.cadastre.parcelles.length, 1);
+  assert.equal(d.prixVente, 245000);
+  assert.equal(d.referenceAuthentic, 'A 2026 00247');
+  assert.match(textes.join(' | '), /1 vendeur \(Alexandre MARTEL\)/);
+  assert.match(textes.join(' | '), /email du vendeur/);
+  // Une seconde fois : rien à faire.
+  assert.equal(app.complementDossierDepuisAuthentic(d, donnees, [d]).length, 0);
+  // Une fiche déjà remplie n'est jamais écrasée (adresse, prix, type).
+  const plein = { id: 'c2', nom: 'MARTEL / FOURNIER', parties: [{ role: 'VENDEUR', nom: 'MARTEL' }, { role: 'ACQUEREUR', nom: 'FOURNIER' }], adresseBien: 'TOURS (37000), 1 rue Nationale', prixVente: 100, typeVente: 'copropriete', historique: [] };
+  app.complementDossierDepuisAuthentic(plein, donnees, [plein]);
+  assert.equal(plein.adresseBien, 'TOURS (37000), 1 rue Nationale');
+  assert.equal(plein.prixVente, 100);
+  assert.equal(plein.typeVente, 'copropriete');
+});
+
+test('indexGroupeAuthenticPourDossier : par la référence, sinon par les noms de l’intitulé', () => {
+  const groupes = [{ intitule: 'Vente DURAND / PETIT', reference: 'A 2026 00001' }, { intitule: 'Vente MARTEL / FOURNIER', reference: 'A 2026 00247' }];
+  assert.equal(app.indexGroupeAuthenticPourDossier({ nom: 'X / Y', referenceAuthentic: 'A 2026 00247' }, groupes), 1);
+  assert.equal(app.indexGroupeAuthenticPourDossier({ nom: 'DURAND / PETIT' }, groupes), 0);
+  assert.equal(app.indexGroupeAuthenticPourDossier({ nom: 'Époux MARTEL / FOURNIER Camille' }, groupes), 1);
+  assert.equal(app.indexGroupeAuthenticPourDossier({ nom: 'ROUX / BLANC' }, groupes), -1);
+  assert.equal(app.indexGroupeAuthenticPourDossier({ nom: '' }, groupes), -1);
+});
+
+test('coordonnées de la fiche : ni email ni téléphone du vendeur quand son notaire l’accompagne (étude 06/10)', () => {
+  const seul = app.coordonneesPartiesDossier({ emailVendeur: 'v@exemple.fr', telephoneVendeur: '06', emailAcquereur: 'a@exemple.fr' });
+  assert.equal(seul.map(c => c.partie).join(','), 'vendeur,acquereur');
+  const represente = app.coordonneesPartiesDossier({ notaireVendeur: 'Maître Paul DUPUIS (Tours)', emailVendeur: 'v@exemple.fr', telephoneVendeur: '06', emailAcquereur: 'a@exemple.fr' });
+  assert.equal(represente.map(c => c.partie).join(','), 'acquereur');
+  assert.equal(app.coordonneesPartiesDossier({ notaireVendeur: 'Maître Sophie GOSSART (BLOIS)', emailVendeur: 'v@exemple.fr' }).length, 2, 'notre office : vendeur affiché');
+});

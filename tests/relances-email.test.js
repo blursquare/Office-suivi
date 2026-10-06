@@ -673,6 +673,9 @@ test('décompte du confrère (étude 06/10) : demandé à J-7 quand un confrère
   assert.equal(app.relanceDecompteConfrereDue(base({ notaireAcquereur: 'Maître Paul DUPUIS (Tours)' }), '2026-10-06'), false, 'l’acquéreur a aussi son notaire');
   assert.equal(app.relanceDecompteConfrereDue(base({ rendezVousSignature: '' }), '2026-10-06'), false, 'sans rendez-vous');
   assert.equal(app.relanceDecompteConfrereDue(base({ typeAffaire: 'succession' }), '2026-10-06'), false, 'succession');
+  // Étude 06/10 : l'appel de fonds déjà coché (envoyé) = le décompte a servi, plus rien à demander.
+  assert.equal(app.relanceDecompteConfrereDue(base({ appelFonds: '2026-10-05' }), '2026-10-06'), false, 'appel de fonds envoyé (date)');
+  assert.equal(app.relanceDecompteConfrereDue(base({ echeancesValidees: { appelFonds: true } }), '2026-10-06'), false, 'appel de fonds coché');
 
   // Texte de l'étude, mot pour mot ; destinataire = le confrère du vendeur, jamais l'acquéreur.
   const m = app.MODELES_EMAIL_RELANCE.relanceDecompteConfrere;

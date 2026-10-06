@@ -468,3 +468,126 @@
   // wizard reste utilisable exactement comme avant l'ajout de cette fonctionnalité dans ce cas,
   // jamais une condition bloquante pour créer un dossier.
 
+
+  // ---- Compléter un dossier EXISTANT avec un dossier d'Authentic (étude 06/10 : « compléter avec les données Authentic
+  // avant ou après création » — avant : « Compléter depuis Authentic » de Nouveau dossier ; après : ici). Même source que la
+  // création (`dossiersDepuisRelevesAuthentic`, pages relevées dans les 12 h), même règle que le complément par le compromis :
+  // la fiche gagne toujours, seuls les vides sont remplis — personnes d'un côté sans personne nommée (ou absentes du côté),
+  // emails et téléphones ajoutés, adresse du bien, parcelles et lots, type de vente, prix « Capital », référence Authentic.
+  // Pure (modifie le dossier passé) : rend les libellés de ce qui a été posé (vide = rien à compléter). ----
+  // Pure : la personne d'Authentic (« Prénom NOM ») est déjà sur la fiche — même personne au sens de memePersonneParNom,
+  // ou le nom de famille seul de la fiche (« FOURNIER ») contenu dans le nom venu d'Authentic (« Camille FOURNIER »).
+  function memePartieComplement(p, v) {
+    if (!p || !v) return false;
+    if (memePersonneParNom(p.nom, v.nom) || (p.nomUsage && memePersonneParNom(p.nomUsage, v.nom))) return true;
+    const mots = (x) => normaliserPourRecherche(String(x || '')).replace(/[^a-z0-9]+/g, ' ').trim().split(' ').filter(m => m.length >= 3);
+    const fiche = mots(p.nom);
+    const venue = mots(v.nom);
+    return fiche.length > 0 && fiche.every(m => venue.includes(m));
+  }
+
+  function complementDossierDepuisAuthentic(d, donnees, liste) {
+    if (!d || !donnees) return [];
+    const textes = [];
+    const parties = partiesExportAuthentic(donnees);
+    const nomme = (p) => p && String(p.nom || '').trim();
+    d.parties = Array.isArray(d.parties) ? d.parties : [];
+    for (const role of ['VENDEUR', 'ACQUEREUR']) {
+      const venues = parties.filter(p => p.role === role && nomme(p));
+      if (!venues.length) continue;
+      const presentes = d.parties.filter(p => p && String(p.role || '').toUpperCase() === role && nomme(p));
+      const ajoutees = venues.filter(v => !presentes.some(p => memePartieComplement(p, v)));
+      if (!ajoutees.length) continue;
+      // Les lignes vides du côté (« Prénom NOM » à saisir) laissent la place aux personnes d'Authentic.
+      if (!presentes.length) d.parties = d.parties.filter(p => !(p && String(p.role || '').toUpperCase() === role && !nomme(p)));
+      ajoutees.forEach(v => d.parties.push(Object.assign({}, v, { role })));
+      textes.push(`${ajoutees.length} ${role === 'VENDEUR' ? 'vendeur' : 'acquéreur'}${ajoutees.length > 1 ? 's' : ''} (${ajoutees.map(v => v.nom).join(', ')})`);
+    }
+    const emailsCote = (role) => parties.filter(p => p.role === role).reduce((t, p) => t.concat(p.emails || []), []);
+    const telsCote = (role) => parties.filter(p => p.role === role).reduce((t, p) => t.concat(p.telephones || []), []);
+    [['emailVendeur', 'VENDEUR', 'email du vendeur'], ['emailAcquereur', 'ACQUEREUR', 'email de l’acquéreur']].forEach(([cle, role, libelle]) => {
+      const fusion = fusionnerEmailsTexte(d[cle] || '', emailsCote(role));
+      if (fusion && fusion !== (d[cle] || '')) { d[cle] = fusion; textes.push(libelle); }
+    });
+    [['telephoneVendeur', 'VENDEUR', 'téléphone du vendeur'], ['telephoneAcquereur', 'ACQUEREUR', 'téléphone de l’acquéreur']].forEach(([cle, role, libelle]) => {
+      const fusion = fusionnerTelephonesTexte(d[cle] || '', telsCote(role));
+      if (fusion && fusion !== (d[cle] || '')) { d[cle] = fusion; textes.push(libelle); }
+    });
+    const bien = bienExportAuthentic(donnees);
+    if (bien && bien.adresse && bien.adresse.texte && !String(d.adresseBien || '').trim()) {
+      d.adresseBien = normaliserAdresse(bien.adresse.texte);
+      textes.push('adresse du bien');
+    }
+    if (bien && bien.type && !d.typeVente) { d.typeVente = bien.type; textes.push('type de vente'); }
+    const parcelles = parcellesExportAuthentic(donnees);
+    const lots = lotsExportAuthentic(donnees);
+    if (parcelles.length || lots.lots.length) {
+      const resultat = { modifie: false };
+      const noter = () => {};
+      appliquerBienAuthentic(d, { adresse: bien && bien.adresse ? bien.adresse : null, parcelles, lots: lots.lots, tantiemesTotal: lots.tantiemesTotal }, noter, resultat);
+      if (resultat.modifie) textes.push(lots.lots.length ? 'parcelles et lots' : 'parcelles');
+    }
+    const prix = donnees.infosAuthentic && Number(donnees.infosAuthentic.prix);
+    if (prix > 0 && !(d.prixVente > 0)) { d.prixVente = prix; textes.push('prix'); }
+    if (donnees.reference && retenirReferenceAuthentic(d, donnees.reference, liste || [])) textes.push('référence Authentic');
+    return textes;
+  }
+
+  // Pure : le dossier d'Authentic qui correspond à la fiche parmi les groupes relevés — par la référence, sinon par les noms
+  // de l'intitulé (chaque nom de famille du dossier retrouvé dans l'intitulé d'Authentic) ; -1 sinon.
+  function indexGroupeAuthenticPourDossier(d, groupes) {
+    const liste = groupes || [];
+    if (!d) return -1;
+    if (d.referenceAuthentic) {
+      const i = liste.findIndex(g => g.reference && g.reference === d.referenceAuthentic);
+      if (i >= 0) return i;
+    }
+    const noms = String(d.nom || '').split('/').map(x => normaliserPourRecherche(x).replace(/[^a-z0-9]+/g, ' ').trim()).filter(Boolean)
+      .map(x => x.split(' ').sort((a, b) => b.length - a.length)[0]).filter(n => n && n.length >= 3);
+    if (!noms.length) return -1;
+    return liste.findIndex(g => { const t = ' ' + normaliserPourRecherche(g.intitule || '').replace(/[^a-z0-9]+/g, ' ') + ' '; return noms.every(n => t.includes(' ' + n + ' ')); });
+  }
+
+  // Ligne « Authentic » de la fiche : les dossiers relevés récemment, celui qui correspond présélectionné, « Compléter ».
+  let groupesAuthenticFiche = { quand: 0, liste: [] };
+  var DUREE_CACHE_GROUPES_AUTHENTIC_FICHE_MS = 60 * 1000;
+
+  async function chargerGroupesAuthenticFiche() {
+    if (typeof authToken !== 'undefined' && !authToken) return;
+    if (Date.now() - groupesAuthenticFiche.quand < DUREE_CACHE_GROUPES_AUTHENTIC_FICHE_MS) return;
+    groupesAuthenticFiche.quand = Date.now();
+    try {
+      const r = await fetchAvecAuth('/api/authentic/releves/recents');
+      if (!r.ok) return;
+      const { releves } = await r.json();
+      const liste = dossiersDepuisRelevesAuthentic(releves || []);
+      const avant = groupesAuthenticFiche.liste.map(g => g.intitule).join('\n');
+      groupesAuthenticFiche.liste = liste;
+      if (liste.map(g => g.intitule).join('\n') !== avant) render();
+    } catch (e) { /* hors ligne : la ligne n'apparaît pas */ }
+  }
+
+  function renderCompleterAuthenticFiche(d, ligne) {
+    if (!d || d.archive) return '';
+    const groupes = groupesAuthenticFiche.liste;
+    if (!groupes.length) return '';
+    const choisi = indexGroupeAuthenticPourDossier(d, groupes);
+    const id = escapeOnclickArg(d.id);
+    const options = groupes.map((g, i) => `<option value="${i}"${i === choisi ? ' selected' : ''}>${escapeHtml(g.intitule)}${g.reference ? ` (${escapeHtml(g.reference)})` : ''} — ${escapeHtml(resumeGroupeAuthentic(g))}</option>`).join('');
+    const html = `<span class="auth-completer"><select id="auth-comp-${escapeAttr(d.id)}" class="prop-champ auth-completer-choix" aria-label="Dossier d’Authentic à reprendre">${choisi < 0 ? '<option value="" selected>Choisir le dossier d’Authentic…</option>' : ''}${options}</select>
+      <wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="completerDossierDepuisAuthentic('${id}')" title="Reprendre d’Authentic ce qui manque sur la fiche : personnes, emails, téléphones, bien, prix — rien n’est remplacé">${icone('download')} Compléter</wa-button></span>`;
+    return ligne('download', 'Authentic', html, `auth-comp-${d.id}`, 'prop-pleine');
+  }
+
+  function completerDossierDepuisAuthentic(id) {
+    const d = dossiers.find(x => x.id === id);
+    const select = document.getElementById('auth-comp-' + id);
+    const g = d && select && select.value !== '' ? groupesAuthenticFiche.liste[Number(select.value)] : null;
+    if (!d || !g) { afficherToast('Choisissez le dossier d’Authentic à reprendre.', 'OK', null); return; }
+    const textes = complementDossierDepuisAuthentic(d, g.export, dossiers);
+    if (!textes.length) { afficherToast(`Rien à compléter : la fiche a déjà ce qu’Authentic montre pour « ${g.intitule} ».`, 'OK', null); return; }
+    ajouterHistorique(d, `Complété depuis Authentic (« ${g.intitule} ») : ${textes.join(', ')}`);
+    sauvegarder(d);
+    render();
+    afficherToast(`${libelleDossierAffiche(d)} complété depuis Authentic : ${textes.join(', ')}.`, 'OK', null);
+  }

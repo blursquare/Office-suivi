@@ -353,7 +353,29 @@ test('nom du dossier dans une tâche : un lien vers la fiche (05/10), sur la lig
   assert.match(seule, /class="ja-dossier-lien" data-ouvrir-dossier="d1"[^>]*>VTE - DUPONT \/ MARTIN</);
   const groupe = app.renderActionsJour(app.actionsDuJour([dossier({ rendezVousSignature: '2026-09-30', sansPret: true })], AUJ).actions, false);
   const tete = groupe.slice(0, groupe.indexOf('ja-groupe-tiroir'));
-  assert.match(tete, /class="ja-titre"><span class="ja-dossier-lien" data-ouvrir-dossier="d1"/);
+  // Depuis le 06/10 le groupe commence par ses tâches, puis « - » et le nom du dossier en lien.
+  assert.match(tete, /class="ja-titre">[^<]+<span class="ja-sep">-<\/span> <span class="ja-dossier-lien" data-ouvrir-dossier="d1"/);
   // Dans la fiche du dossier, pas de lien vers elle-même.
   assert.doesNotMatch(app.renderLigneActionJour(r.actions[0], false, true), /data-ouvrir-dossier/);
+});
+
+test('tâches sur une ligne (étude 06/10) : « tâche - dossier », icône fiche, plus de sous-titre ; groupe sur une ligne aussi', () => {
+  const app = chargerApplication();
+  const d = { id: 'u1', nom: 'MARTEL / FOURNIER', responsable: 'Julie VASSELIN', sansPret: true, rendezVousSignature: AUJ, emailAcquereur: 'a@exemple.fr', pieces: {}, historique: [] };
+  const a = app.actionsDuJour([d], AUJ).actions[0];
+  const html = app.renderLigneActionJour(a, false, false, false);
+  assert.match(html, /<span class="ja-titre">[^<]+ <span class="ja-sep">-<\/span> <span class="ja-dossier-lien" data-ouvrir-dossier="u1"[^>]*>VTE - MARTEL \/ FOURNIER<\/span>/);
+  assert.doesNotMatch(html, /class="ja-sous"/, 'plus de sous-titre');
+  assert.match(html, /class="bouton-icone icon-btn ja-ouvrir-fiche" data-ouvrir-dossier="u1"/, 'icône fiche');
+  // Dans la fiche : ni nom du dossier ni icône.
+  const fiche = app.renderLigneActionJour(a, false, true, false);
+  assert.doesNotMatch(fiche, /ja-sep|ja-ouvrir-fiche/);
+  // Groupe : « tâche · tâche - VTE - NOM », compte en badge, icône fiche à côté du chevron.
+  const d2 = Object.assign({}, d, { id: 'u2', appelFonds: AUJ, echeancesValidees: { appelFonds: true }, rendezVousSignature: app.addDays(AUJ, 2) });
+  const actions = app.actionsDuJour([d2], AUJ).actions;
+  assert.ok(actions.length >= 2, actions.map(x => x.type).join(','));
+  const groupe = app.renderActionsJour(actions, false, []);
+  assert.match(groupe, /<span class="ja-titre">[^<]+ · [^<]+ <span class="ja-sep">-<\/span> <span class="ja-dossier-lien" data-ouvrir-dossier="u2"/);
+  assert.doesNotMatch(groupe.split('ja-groupe-tiroir')[0], /class="ja-sous"/);
+  assert.match(groupe, /ja-ouvrir-fiche" data-ouvrir-dossier="u2"/);
 });

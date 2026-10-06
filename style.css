@@ -3165,6 +3165,9 @@
   wa-button.vue-bascule-btn:not(.actif):hover { color: var(--ink); }
   wa-button.vue-bascule-btn.actif { color: var(--on-accent); z-index: 2; }
   wa-button.vue-bascule-btn.actif::part(base) { background: var(--focus); border-color: var(--focus); }
+  /* Au survol, le choix actif garde son fond accent : la règle générale des boutons outlined posait --paper-sunk sous un
+     texte resté blanc (étude 06/10 : « texte blanc sur fond blanc »). */
+  wa-button.vue-bascule-btn.actif:not([disabled]):hover::part(base) { background: var(--focus); border-color: var(--focus); }
 
   /* ---- Vue "Semaines" : les mêmes dossiers, regroupés par semaine d'échéance (une ligne par
      échéance, voir grouperEcheancesParSemaine). Chaque groupe réutilise .dossiers-table tel quel :
@@ -6326,7 +6329,14 @@ wa-button.rappel-perso-modif:hover { color: var(--focus); }
   display: flex; flex-direction: column; gap: 1px; min-width: 0; text-align: left;
   font-family: inherit; background: none; border: none; padding: 0; cursor: pointer; color: var(--ink);
 }
-.ja-titre { font-size: var(--texte-base); font-weight: 500; color: var(--ink); line-height: 1.3; }
+.ja-titre { font-size: var(--texte-base); font-weight: 500; color: var(--ink); line-height: 1.3; display: block; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* « tâche - nom du dossier » sur une ligne (étude 06/10) : le tiret discret, le nom en lien. */
+.ja-sep { color: var(--muted); font-weight: 400; margin: 0 2px; }
+/* Fiche › « Authentic » : dossier relevé à reprendre + « Compléter » (étude 06/10). */
+.auth-completer { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; min-width: 0; max-width: 100%; }
+/* width explicite : une liste déroulante prend sinon la largeur de sa plus longue option et fait déborder la fiche. */
+.auth-completer .auth-completer-choix { width: 220px; flex: 1 1 220px; min-width: 0; max-width: 100%; }
+.ja.ouverte .ja-titre { white-space: normal; }
 /* Deux lignes plutôt qu'une coupée : le nom du dossier est justement ce qu'on cherche à lire
    (« ROUSSEL / CHE… » coupé dans la carte étroite du tableau de bord — revue de l'interface, 29/09). */
 .ja-sous { font-size: var(--texte-s); color: var(--muted); overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow-wrap: anywhere; }

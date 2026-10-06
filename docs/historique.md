@@ -17376,3 +17376,57 @@ d'Authentic est collé à l'intitulé dans le titre de l'onglet (« 12 - Vente M
 regex des en-têtes s'arrêtaient avant « Importer », pas celle du titre d'onglet. `sansImporterAuthentic` (`RE_IMPORTER_SENS_AUTHENTIC`)
 dans `intituleVenteNormalise`, par où passent tous les chemins ; `retirerImporterAuthentic(d)` au démarrage nettoie une fois
 les noms et `intitulesAuthentic` des dossiers créés avant (ligne d'historique).
+
+### 06/10/2026 17 h 25 — 0.172.0 : tâches sur une ligne, compléter depuis Authentic, décompte du confrère, courrier .docx, SAFER, survol
+
+**Étude : « Ça ne va pas du tout la liste de tâches, essaie de tout mettre sur une ligne avec une icône pour accéder au dossier ;
+le libellé de la tâche c'est : la tâche - nom du dossier sur une ligne. »** `renderActionsJour` (client/24) : titre
+« Relancer l'offre de prêt - VTE - PETIT / ROUX » (`.ja-sep`, lien `lienDossierTache`), plus de sous-ligne, icône « fiche »
+(`.ja-ouvrir-fiche`, `data-ouvrir-dossier`) dans les actions secondaires ; même forme pour la ligne commune d'un groupe
+(« tâche · tâche - dossier », compteur). `.ja-titre` sur une ligne (ellipse), déplié quand la ligne est ouverte.
+Les tests d'`aujourdhui` qui lisaient le sous-titre lisent le titre.
+
+**Étude : « Si le vendeur est accompagné par son notaire, ne pas afficher les email et tél du vendeur. »**
+`coordonneesPartiesDossier` (client/30) écarte le côté vendeur quand `represente` (un autre office représente le vendeur) :
+plus de ligne « Vendeur » email/téléphone sur la fiche — les valeurs restent sur le dossier (emails des dossiers, 3CX).
+
+**Étude : « Compléter avec les données Authentic avant ou après création. »** Capture d'une fiche aux « Prénom NOM » vides.
+Ligne **« Authentic »** de la fiche (`renderCompleterAuthenticFiche`, client/17, après « Déjà connu ») : liste des dossiers
+relevés dans Authentic ces 12 h (`chargerGroupesAuthenticFiche`, `GET /api/authentic/releves/recents`, 60 s de cache, relue
+à l'ouverture d'une fiche), celui de la fiche présélectionné (`indexGroupeAuthenticPourDossier` : référence, sinon chaque
+nom de famille du dossier dans l'intitulé), bouton « Compléter » → `complementDossierDepuisAuthentic(d, donnees, liste)`
+(pure, testée) : **seuls les vides sont remplis** — personnes d'un côté sans personne nommée (les lignes « Prénom NOM » vides
+cèdent la place), emails et téléphones fusionnés (jamais remplacés), adresse du bien, type de vente, parcelles et lots
+(`appliquerBienAuthentic`), prix « Capital », référence Authentic (`retenirReferenceAuthentic`) ; une personne déjà sur la
+fiche est reconnue par `memePartieComplement` (nom de famille seul « FOURNIER » = « Camille FOURNIER » d'Authentic).
+Historique « Complété depuis Authentic (« … ») : … », toast. Rien n'est écrasé : une fiche pleine ne bouge pas (testé).
+
+**Étude : « Ne pas mettre "demander son décompte au confrère" si l'appel de fonds a déjà été coché ; uniquement si 7 j
+avant l'appel de fonds n'a pas été coché. »** `relanceDecompteConfrereDue` rend faux dès `echeanceValidee(d, 'appelFonds')`
+(date d'envoi ou coche) ; l'onglet Fonds suit (`echangesSelonStade`). Tests ajoutés.
+
+**Étude : « Pour les courriers d'appel de fonds .docx, fais descendre d'une ligne l'adresse, deux lignes de retour sous
+lieu et date, "Envoi par e-mail uniquement" en italique. »** Modèle Word régénéré (`appel-de-fonds-modele.js`, `docxB64`) :
+paragraphe vide avant `{addrLines}` ; la mention a son **propre champ `{mention}`** dans une partie en italique
+(`{#mention}<w:br/>…{/mention}`, même mécanique que `{#formula}`) ; les cinq retours sous l'adresse (05/10) et les deux
+retours sous « {ville}, le {dateLettre} » sont **dans le modèle** (`<w:br/>`), plus dans les données.
+`composerAdresseCourrier(lignes)` ne porte plus la mention, `donneesCourrierAppelFonds` rend `mention` ;
+`normaliserDonneesCourrierAppelFonds` (pure) retire d'un courrier gardé avant le 06/10 la mention en dernière ligne et les
+retours d'`addrLines` pour que « Télécharger » le refasse à l'identique. Vérifié par docxtemplater en Node sur le XML rendu
+(LibreOffice ne charge aucun fichier ici : rendu papier à regarder au bureau).
+
+**Étude : « Outil droits de préemption : pour les notifications SAFER, même si le bien n'est pas préemptable il y a une
+information obligatoire. »** `droitSafer` : tout statut « non » porte la formalité « Information obligatoire de la SAFER
+(notification Vigifoncier) — pas de droit de préemption » (lot de copropriété compris — choix par défaut, à confirmer par
+l'étude si un cas doit en être exempté) ; l'écran de l'outil affichait la formalité seulement hors « non » (client/46, corrigé)
+et la ligne de la fiche la joint au motif.
+
+**Étude : « Passage souris sur Mes dossiers / Tous les dossiers et autres curseurs : texte blanc sur fond blanc. »** Reproduit
+dans Chromium (fond `rgb(247,249,251)` sous un texte blanc) : la règle générale `wa-button[appearance="outlined"]:hover::part(base)
+{ background: var(--paper-sunk) }` battait `.actif::part(base)`. Règle `.vue-bascule-btn.actif:not([disabled]):hover::part(base)`
+qui garde l'accent ; mesuré après : fond `rgb(109,35,50)` au survol.
+
+**Rapport technique #15 (17 h)** : « ErrorChangeKeyRequiredForWriteOperations » à 9 h 46, corrigé à 9 h 47 par 0.161.3 ;
+« Éléments envoyés » d'un collaborateur (ErrorItemNotFound) déjà suivi dans #12 ; corrections à la main (notaires, adresse)
+déjà en question à l'étude dans #11.
+

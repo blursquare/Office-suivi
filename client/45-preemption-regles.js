@@ -175,25 +175,26 @@
     return droit;
   }
 
-  // Pure : SAFER (CRIDON Lyon n° 87, p. 63 terrain et p. 64 bâtiment). Formalité : notification ou rien.
+  // Pure : SAFER (CRIDON Lyon n° 87, p. 63 terrain et p. 64 bâtiment). Formalité : notification (droit de préemption) ou
+  // information obligatoire — l'étude (06/10) : la SAFER est informée de la vente même quand le bien n'est pas préemptable.
   function droitSafer(r) {
     const droit = { cle: 'safer', titre: 'SAFER', statut: 'verifier', motif: '', formalite: '', manque: [] };
     const notification = 'Notification à la SAFER (Vigifoncier) avant la vente — 2 mois pour préempter.';
-    const information = 'Information de la SAFER (notification) — pas de droit de préemption.';
-    const reponse = (statut, motif, notifier) => Object.assign(droit, { statut, motif, formalite: notifier ? (statut === 'oui' ? notification : information) : 'Aucune notification à la SAFER.' });
+    const information = 'Information obligatoire de la SAFER (notification Vigifoncier) — pas de droit de préemption.';
+    const reponse = (statut, motif) => Object.assign(droit, { statut, motif, formalite: statut === 'oui' ? notification : information });
     const manque = (...cles) => Object.assign(droit, { statut: 'verifier', manque: cles, motif: 'à préciser : ' + cles.map(m => LIBELLES_MANQUES_PREEMPTION[m] || m).join(', ') });
-    if (r.bien === 'lot-copro') return reponse('non', 'lot de copropriété : pas de préemption de la SAFER', false);
+    if (r.bien === 'lot-copro') return reponse('non', 'lot de copropriété : pas de préemption de la SAFER');
     if (r.bien === 'bati') {
       // Bâtiment (p. 64) — Loir-et-Cher : aucune commune de montagne ni littorale.
       if (r.usageAgricole == null) return manque('usageAgricole');
-      if (r.usageAgricole) return reponse('oui', 'bâtiment à usage agricole au moment de la vente', true);
+      if (r.usageAgricole) return reponse('oui', 'bâtiment à usage agricole au moment de la vente');
       const zoneAN = r.zone === 'A' || r.zone === 'N' ? true : r.zone === 'U' || r.zone === 'AU' ? false : null;
       if (zoneAN == null) return manque('zone');
-      if (!zoneAN) return reponse('non', 'bâtiment sans usage agricole, hors zone A ou N', false);
+      if (!zoneAN) return reponse('non', 'bâtiment sans usage agricole, hors zone A ou N');
       if (r.utilise5ans == null) return manque('utilise5ans');
       return r.utilise5ans
-        ? reponse('oui', 'zone A ou N, activité agricole dans les 5 dernières années', true)
-        : reponse('non', 'zone A ou N, sans activité agricole dans les 5 dernières années', true);
+        ? reponse('oui', 'zone A ou N, activité agricole dans les 5 dernières années')
+        : reponse('non', 'zone A ou N, sans activité agricole dans les 5 dernières années');
     }
     // Terrain (p. 63).
     const zoneAgricole = r.zoneAgricole != null ? r.zoneAgricole
@@ -204,20 +205,20 @@
       if (r.bois) {
         if (r.massif4ha == null) return manque('massif4ha');
         return r.massif4ha
-          ? reponse('non', 'bois dans un massif forestier d’au moins 4 ha', true)
-          : reponse('oui', 'parcelles en bois hors massif forestier de 4 ha (sauf exemption : parent jusqu’au 4e degré, preneur en place…)', true);
+          ? reponse('non', 'bois dans un massif forestier d’au moins 4 ha')
+          : reponse('oui', 'parcelles en bois hors massif forestier de 4 ha (sauf exemption : parent jusqu’au 4e degré, preneur en place…)');
       }
       if (r.installations == null) return manque('installations');
       return r.installations
-        ? reponse('non', 'installations compromettant définitivement la vocation agricole', true)
-        : reponse('oui', 'zone à vocation agricole (sauf exemption : parent jusqu’au 4e degré, preneur en place…)', true);
+        ? reponse('non', 'installations compromettant définitivement la vocation agricole')
+        : reponse('oui', 'zone à vocation agricole (sauf exemption : parent jusqu’au 4e degré, preneur en place…)');
     }
     if (r.usageAgricole == null) return manque('usageAgricole');
-    if (!r.usageAgricole) return reponse('non', 'hors zone agricole et sans usage agricole', false);
+    if (!r.usageAgricole) return reponse('non', 'hors zone agricole et sans usage agricole');
     if (r.seuilSafer == null) return manque('seuilSafer');
     return r.seuilSafer
-      ? reponse('oui', 'usage agricole, superficie au-dessus du seuil de la SAFER', true)
-      : reponse('non', 'usage agricole sous le seuil de la SAFER', true);
+      ? reponse('oui', 'usage agricole, superficie au-dessus du seuil de la SAFER')
+      : reponse('non', 'usage agricole sous le seuil de la SAFER');
   }
 
   // Pure : bois et forêts (C. for. L.331-19 à L.331-24, arbre Letulle). → plusieurs droits (État, commune, préférence).

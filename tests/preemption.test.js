@@ -55,18 +55,21 @@ test('DPU : immeuble de moins de 4 ans, VEFA, HLM, mutations hors champ', () => 
   assert.strictEqual(droit(Object.assign({ mutation: 'parts-sci', bien: 'parts-attribution' }, u, { dpur: 'oui', partsMajoritaires: true, sciFamiliale: false }), 'dpu').statut, 'oui');
 });
 
-test('SAFER : maison en zone U sans usage agricole → aucune notification ; lot de copropriété → non', () => {
+test('SAFER : maison en zone U sans usage agricole → pas de préemption mais information obligatoire (étude 06/10) ; lot de copropriété → non, informée aussi', () => {
   const s = droit({ bien: 'bati', usageAgricole: false, zone: 'U' }, 'safer');
   assert.strictEqual(s.statut, 'non');
-  assert.match(s.formalite, /Aucune notification/);
+  assert.match(s.formalite, /Information obligatoire de la SAFER/);
+  assert.doesNotMatch(s.formalite, /Aucune notification/);
   assert.strictEqual(droit({ bien: 'lot-copro' }, 'safer').statut, 'non');
+  assert.match(droit({ bien: 'lot-copro' }, 'safer').formalite, /Information obligatoire de la SAFER/);
+  assert.match(droit({ bien: 'terrain', zone: 'U', usageAgricole: false }, 'safer').formalite, /Information obligatoire/);
   assert.strictEqual(droit({ bien: 'bati' }, 'safer').statut, 'verifier');
 });
 
 test('SAFER : bâtiment en zone A ou N (5 dernières années) ; terrain en zone agricole, bois, massif, installations', () => {
   const bati = droit({ bien: 'bati', usageAgricole: false, zone: 'A', utilise5ans: false }, 'safer');
   assert.strictEqual(bati.statut, 'non');
-  assert.match(bati.formalite, /Information de la SAFER/);
+  assert.match(bati.formalite, /Information obligatoire de la SAFER/);
   assert.strictEqual(droit({ bien: 'bati', usageAgricole: false, zone: 'N', utilise5ans: true }, 'safer').statut, 'oui');
   assert.strictEqual(droit({ bien: 'bati', usageAgricole: true }, 'safer').statut, 'oui');
   assert.strictEqual(droit({ bien: 'terrain', zone: 'A', bois: false, installations: false }, 'safer').statut, 'oui');

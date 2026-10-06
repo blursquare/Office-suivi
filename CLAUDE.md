@@ -400,6 +400,7 @@ dans `index.html`** (le test `structure-client` refuse tout décalage).
   de compte client JurisWeb (`analyserReleveCompteClient`, colonne Débit/Crédit par position des
   items) → acomptes sur prix et sur frais versés à l'étude, qui **remplacent** la ligne d'acompte du
   dossier (même somme), reversements au confrère signalés. Rien n'est enregistré sur le dossier.
+- **Mise en page du courrier d'appel de fonds (.docx)** (étude 05/10 et 06/10) : les retours d'aération sont **dans le modèle Word** (`appel-de-fonds-modele.js`, `docxB64`, régénéré par un script qui réécrit `word/document.xml` puis le base64) — paragraphe vide avant `{addrLines}`, cinq `<w:br/>` sous l'adresse, deux sous « {ville}, le {dateLettre} » ; la mention « Envoi par e-mail uniquement » a son propre champ `{mention}` en italique (`{#mention}<w:br/>…{/mention}`) : `donneesCourrierAppelFonds` rend `addrLines` (lignes du destinataire seules) et `mention` ; un courrier gardé avant passe par `normaliserDonneesCourrierAppelFonds` (mention et retours retirés d'`addrLines`) pour être refait à l'identique. LibreOffice ne charge rien ici : le rendu papier se regarde au bureau.
 - **Lignes du courrier reprises d'un décompte** : jamais de tiret ni de réserve « à parfaire » (« sauf à parfaire », « à parfaire
   ou à diminuer », entre parenthèses ou non) — `afNettoyerLibelle` (étude 06/10).
 - **Historique des courriers d'appel de fonds** (étude 06/10 : « pour les retrouver » ; `client/43-historique-appels-fonds.js`,
@@ -619,7 +620,7 @@ dans `index.html`** (le test `structure-client` refuse tout décalage).
   + centre-ville ACV/ORT (plans de la délibération A_D2025_200 dans `vendor/plans/`, rue = « probable, à vérifier sur le plan ») ;
   SAFER d'après le CRIDON n° 87 (terrain p. 63, bâtiment p. 64) ; bois et forêts d'après Letulle (L.331-19 à 24). Zonage lu sur le
   Géoportail de l'urbanisme (API Carto) **pour chaque parcelle** (étude 06/10, tableau compact `renderTableauZonagePreemption`, zone retenue modifiable par parcelle `reponses.zonesParcelles` ; zones différentes → `analyserPreemptionParcelles` : chaque zone analysée, le droit garde le statut le plus exigeant et nomme les parcelles), le périmètre du DPU s'en déduit, la nature « bois » est demandée. Réponse manquante →
-  « À vérifier », jamais « non » ; questions posées seulement si utiles ; résultat sur la fiche (`d.preemption`, onglet Pièces).
+  « À vérifier », jamais « non » ; questions posées seulement si utiles ; résultat sur la fiche (`d.preemption`, onglet Pièces). **SAFER : une formalité même sans droit de préemption** (étude 06/10 : « information obligatoire ») — tout statut « non » de `droitSafer` porte « Information obligatoire de la SAFER (notification Vigifoncier) », lot de copropriété compris (choix par défaut, à confirmer par l'étude) ; l'outil affiche la formalité quel que soit le statut, la fiche la joint au motif.
 - **Mobilier** : le prix reste le prix total ; `d.prixMobilier` sort seulement de l'assiette des
   droits (frais d'acte, contrôle du barème).
 - **Prorata** : jours réels, jour de l'acte à la charge de l'acquéreur, arrondi du vendeur par
@@ -702,7 +703,7 @@ dans `index.html`** (le test `structure-client` refuse tout décalage).
   sur un dossier.
 - **Décompte du confrère du vendeur** (étude 06/10) : quand un autre office représente le vendeur et que l'acquéreur est notre
   client, « Demander son décompte au confrère » 7 jours avant le rendez-vous (`relanceDecompteConfrereDue`,
-  `JOURS_RELANCE_DECOMPTE_CONFRERE`, une fois par date `relanceDecompteConfrerePour`) — À faire, onglet Fonds, modèle
+  `JOURS_RELANCE_DECOMPTE_CONFRERE`, une fois par date `relanceDecompteConfrerePour`), **jamais une fois l'appel de fonds coché** (étude 06/10 : `echeanceValidee(d, 'appelFonds')` → plus rien à demander) — À faire, onglet Fonds, modèle
   `relanceDecompteConfrere` au texte de l'étude mot pour mot, adressé à `emailConfrereVendeurDossier(d)`. Un modèle de
   `MODELES_EMAIL_RELANCE` peut porter `destinataire(d)` et `confrere: true` à la place de la règle acquéreur.
 - **Fonds tous reçus, pas encore confirmés** (étude 05/10, `fondsCompletsAConfirmer`) : comptés dans la pastille rouge de « Suivi des
@@ -764,6 +765,7 @@ point du bilan passe par le plan, jamais par un bloc à part.
   Contrôle obligatoire : `grep -c $'\x08' client/*.js` doit rendre 0.
 - **Noms de fichiers macOS en NFD** : `normaliserNomPourMotif` normalise en NFC (et `_`/`-` → espace).
   Si un nom « évidemment correct » ne matche pas, comparer les points de code.
+- **Survol d'un `wa-button` outlined actif** : la règle générale `wa-button[appearance="outlined"]:hover::part(base) { background: var(--paper-sunk) }` bat `.actif::part(base)` (texte blanc sur fond blanc, étude 06/10) — tout état « actif » à l'accent pose aussi sa règle `:hover::part(base)` (`.vue-bascule-btn.actif`).
 - **Gestionnaire en ligne sur un composant Web Awesome** (`<wa-switch onchange="…">`, `<wa-button onclick="…">`) : le corps
   s'exécute avec le composant dans sa portée — `render()` y appelle la méthode `render` de Lit, pas celle de CLAIRE, sans
   erreur (payé le 04/10 : « Archivés » ne rafraîchissait rien). Écrire `window.render()` ; refusé par `structure-client`.
@@ -911,7 +913,7 @@ point du bilan passe par le plan, jamais par un bloc à part.
   (`lignesGalerieWidgets`, `#widgets-overlay`), Retirer / Ajouter — retirer = `masque`, taille gardée ; tout nouveau
   widget de `WIDGETS_DASHBOARD` porte `icone` et `description`. Disposition par collaborateur : préférence
   `widgets` en base (liste blanche `WIDGETS_PREFERENCES` côté serveur, `WIDGETS_DASHBOARD` côté
-  client — à modifier ensemble). Un nouveau bloc du tableau de bord = un nouveau widget. **Carte « Aujourd'hui » : une seule liste** (étude 05/10) — mes rappels du jour et sans date en tête, les tâches, puis mes rappels à venir avec leur date (`rappelsDuJour` → `aVenir`, `renderRappelsJour(…, 'avenir')`), les cochés ; « Ajouter un rappel » reste toujours visible (`data-garder`), plus de section « Mes rappels ». **Tâches d'un même dossier groupées** (étude 05/10, partout où « À faire » est listé, `renderActionsJour` → `grouperActionsParDossier`) : une ligne commune dont la case valide tout (`marquerFaitGroupeJour`, un seul « Annuler »), un tiroir qui déroule les tâches à cocher une par une — les faites du jour y restent barrées (« k/N faites »), titre seul sans sous-titre dans le tiroir ; **le nom du dossier d'une tâche ouvre sa fiche** (étude 05/10, `lienDossierTache`, `[data-ouvrir-dossier]` pris à la capture du clic) ; tout nouveau lieu qui liste les actions du jour passe par `renderActionsJour`. Disposition
+  client — à modifier ensemble). Un nouveau bloc du tableau de bord = un nouveau widget. **Carte « Aujourd'hui » : une seule liste** (étude 05/10) — mes rappels du jour et sans date en tête, les tâches, puis mes rappels à venir avec leur date (`rappelsDuJour` → `aVenir`, `renderRappelsJour(…, 'avenir')`), les cochés ; « Ajouter un rappel » reste toujours visible (`data-garder`), plus de section « Mes rappels ». **Tâches sur une ligne** (étude 06/10 : « la tâche - nom dossier sur une ligne », `renderActionsJour`) : titre « Relancer l'offre de prêt - VTE - PETIT / ROUX » (`.ja-sep`, `lienDossierTache`), pas de sous-ligne, icône « fiche » (`.ja-ouvrir-fiche`) parmi les actions secondaires ; `.ja-titre` en ellipse, déplié quand la ligne est ouverte. **Tâches d'un même dossier groupées** (étude 05/10, partout où « À faire » est listé, `renderActionsJour` → `grouperActionsParDossier`) : une ligne commune dont la case valide tout (`marquerFaitGroupeJour`, un seul « Annuler »), un tiroir qui déroule les tâches à cocher une par une — les faites du jour y restent barrées (« k/N faites »), titre seul sans sous-titre dans le tiroir ; **le nom du dossier d'une tâche ouvre sa fiche** (étude 05/10, `lienDossierTache`, `[data-ouvrir-dossier]` pris à la capture du clic) ; tout nouveau lieu qui liste les actions du jour passe par `renderActionsJour`. Disposition
   par défaut = rectangle plein (4 × 4, 2 × 8 sur téléphone, vérifié par `placementWidgets` dans les
   tests), les plus utiles d'abord ; la changer = incrémenter `VERSION_DISPOSITION_WIDGETS` (chaque
   collaborateur y est ramené une fois).
@@ -1114,7 +1116,7 @@ point du bilan passe par le plan, jamais par un bloc à part.
   pages de structure connue** sont envoyées (extension 0.3.3, `pageConnue`) et gardées (`pageAuthenticConnue`). **Navigation** (0.3.5, étude 02/10) : sur une page de dossier d'un autre type (« 15 - Donation SIMOND »), l'extension n'envoie que l'intitulé (`POST /api/authentic/navigation`, mis en file sans contenu ; une page connue déjà vue renvoie aussi sa navigation) → `suivreNavigationAuthentic` change le dossier en consultation (aucun s'il n'est pas suivi).
   Aperçu d'un document Comedec : pas de lien relevé. **Coordonnées** (étude 02/10) : email + téléphone de chaque
   partie sur la première page de la fiche (`fiche-coordonnees`, `champsCoordonneesPartie`) — seulement là
-  (étude 04/10 : retirées de l'onglet Échanges, doublon).
+  (étude 04/10 : retirées de l'onglet Échanges, doublon) ; **jamais celles du vendeur quand son notaire l'accompagne** (étude 06/10, `coordonneesPartiesDossier` écarte le côté `represente` ; les valeurs restent sur le dossier). **Ligne « Authentic » de la fiche** (étude 06/10, « compléter avec les données Authentic avant ou après création » ; `renderCompleterAuthenticFiche`, client/17) : dossiers relevés dans Authentic ces 12 h (`chargerGroupesAuthenticFiche`, 60 s de cache), celui de la fiche présélectionné (`indexGroupeAuthenticPourDossier` : référence, sinon noms de famille dans l'intitulé), « Compléter » = `complementDossierDepuisAuthentic` (pure) : **seuls les vides sont remplis** — personnes d'un côté sans personne nommée, emails/téléphones fusionnés, adresse, type, parcelles et lots, prix, référence ; `memePartieComplement` reconnaît « FOURNIER » dans « Camille FOURNIER » ; historique « Complété depuis Authentic ».
 - **Arborescence type des dossiers clients sur le NAS** (MAISON, COPRO, TERRAIN, SUCC, CESSION DE
   FONDS) : détaillée dans `docs/historique.md` (fin du fichier). L'avant-contrat signé est à la
   racine du dossier client ou sous « SRU » ; la rubrique « AAE » contient les pièces réunies entre

@@ -768,6 +768,7 @@
         ${coordonneesPartiesDossier(d).map(c => ligne(c.partie === 'vendeur' ? 'user' : 'users', c.libelle, champsCoordonneesPartie(d, c, 'fiche'), c.parNotaire ? `fiche-tel-${c.partie}-${d.id}` : `fiche-email-${c.partie}-${d.id}`, 'prop-pleine')).join('')}
         ${renderClientsAPlacer(d, ligne)}
         ${renderPersonnesConnues(d, ligne)}
+        ${renderCompleterAuthenticFiche(d, ligne)}
       </dl>
       <dl class="fiche-proprietes">
         ${ligne('map-pin', 'Adresse', saisie('adresse', normaliserAdresse(d.adresseBien), 'changerAdresseBien'), `adresse-${d.id}`, 'prop-pleine')}

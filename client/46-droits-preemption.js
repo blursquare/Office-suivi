@@ -344,7 +344,7 @@
           <div class="pr-droit-tete"><span class="pr-droit-titre">${escapeHtml(dr.titre)}</span>
             <span class="dot-label ${CLASSES_STATUT_PREEMPTION[dr.statut]}"><span class="dot"></span>${LIBELLES_STATUT_PREEMPTION[dr.statut]}</span></div>
           ${dr.motif ? `<div class="pr-droit-motif">${escapeHtml(dr.motif)}</div>` : ''}
-          ${dr.formalite && dr.statut !== 'non' ? `<div class="pr-droit-formalite">${icone('file-text')} ${escapeHtml(dr.formalite)}</div>` : ''}
+          ${dr.formalite ? `<div class="pr-droit-formalite">${icone('file-text')} ${escapeHtml(dr.formalite)}</div>` : ''}
         </div>`).join('')}</div>
         <p class="hint">Assistance à la décision, d’après les tableaux fournis par l’étude (Cheuvreux, CRIDON, Letulle) : le notaire garde la décision. Exceptions (parent jusqu’au 4e degré, preneur en place…) à vérifier au cas par cas.</p>
         ${d ? `<div class="reglages-actions"><wa-button variant="brand" onclick="enregistrerPreemptionFiche()">${icone('check')} Enregistrer sur la fiche</wa-button>
@@ -403,7 +403,7 @@
       <div class="pr-fiche">${p.droits.map(dr => `<div class="pr-fiche-ligne">
           <span class="dot-label ${CLASSES_STATUT_PREEMPTION[dr.statut] || 'dl-neutre'}"><span class="dot"></span>${escapeHtml(LIBELLES_STATUT_PREEMPTION[dr.statut] || dr.statut)}</span>
           <span class="pr-fiche-titre">${escapeHtml(dr.titre)}</span>
-          <span class="hint">${escapeHtml(dr.statut === 'oui' ? dr.formalite : dr.motif)}</span>
+          <span class="hint">${escapeHtml(dr.statut === 'oui' ? dr.formalite : [dr.motif, dr.formalite].filter(Boolean).join(' — '))}</span>
         </div>`).join('')}</div>
       <wa-button appearance="plain" size="s" class="bouton-discret" onclick="${ouvrir}">${icone('pencil')} Revoir</wa-button></div>`;
   }

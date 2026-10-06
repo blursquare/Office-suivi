@@ -98,6 +98,8 @@
     if (!d || d.archive || !d.rendezVousSignature || estSuccession(d)) return false;
     if (!confrereRepresenteVendeur(d) || notaireParticipantRepresenteAcquereur(d)) return false;
     if (d.relanceDecompteConfrerePour === d.rendezVousSignature) return false;
+    // Appel de fonds déjà coché (envoyé) : le décompte du confrère a servi, plus rien à demander (étude 06/10).
+    if (echeanceValidee(d, 'appelFonds')) return false;
     const j = ecartJours(aujourdhuiIso || isoAujourdhuiLocal(), d.rendezVousSignature);
     return j !== null && j >= 0 && j <= JOURS_RELANCE_DECOMPTE_CONFRERE;
   }
@@ -773,19 +775,19 @@
     const n = actions.length;
     const total = n + faites.length;
     const compte = faites.length ? `${faites.length}/${total} faites` : `${n} tâches`;
-    const sous = actions.map(a => a.titre).join(' · ');
+    // Une ligne aussi pour le groupe (étude 06/10) : « tâche · tâche - VTE - NOM », le compte en badge.
+    const taches = actions.map(a => a.titre).join(' · ');
     const puces = faites.map(t => `<span class="dot-label dl-success ja-groupe-puce-faite" title="${escapeAttr(`${t.titre} — fait`)}"><span class="dot"></span></span>`).join('')
       + actions.map(a => `<span class="dot-label dl-${a.categorie || 'neutre'}" title="${escapeAttr(a.titre)}"><span class="dot"></span></span>`).join('');
     return `
       <li class="ja ja-avec-case ja-groupe g-${premiere.gravite || 'normal'}${ouvert ? ' ouvert' : ''}" data-groupe="${escapeAttr(d.id)}">
         <span class="dot-label dl-${premiere.categorie || 'neutre'} ja-case-cadre"><button type="button" class="ja-case-ronde" role="checkbox" aria-checked="false" onclick="marquerFaitGroupeJour('${id}')" title="${n > 1 ? `Tout est fait — valider les ${n} tâches` : 'Valider la dernière tâche'}" aria-label="${escapeAttr(n > 1 ? `Valider les ${n} tâches de ${libelleDossierAffiche(d)}` : `Valider la dernière tâche de ${libelleDossierAffiche(d)}`)}">${icone('check')}</button></span>
         <button type="button" class="ja-texte" aria-expanded="${ouvert}" onclick="basculerGroupeJour('${id}')" title="Voir les tâches une par une">
-          <span class="ja-titre">${lienDossierTache(d)} <span class="ja-groupe-compte${faites.length ? ' entame' : ''}">${compte}</span></span>
-          <span class="ja-sous">${escapeHtml(sous)}</span>
+          <span class="ja-titre">${escapeHtml(taches)} <span class="ja-sep">-</span> ${lienDossierTache(d)} <span class="ja-groupe-compte${faites.length ? ' entame' : ''}">${compte}</span></span>
         </button>
         <span class="ja-delai${premiere.gravite === 'critique' ? ' proche' : ''}">${d.responsable ? pastilleResponsableTache(d.responsable) : ''}${escapeHtml(delaiAction(premiere))}</span>
         <span class="ja-groupe-puces" aria-hidden="true">${puces}</span>
-        <span class="ja-actions-sec"><wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-btn ja-groupe-ouvrir" aria-expanded="${ouvert}" onclick="basculerGroupeJour('${id}')" title="Dérouler les tâches" aria-label="Dérouler les tâches">${icone('chevron-down')}</wa-button></span>
+        <span class="ja-actions-sec"><wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-btn ja-ouvrir-fiche" data-ouvrir-dossier="${escapeAttr(d.id)}" title="Ouvrir la fiche du dossier" aria-label="Ouvrir la fiche de ${escapeAttr(libelleDossierAffiche(d))}">${icone('file-text')}</wa-button><wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-btn ja-groupe-ouvrir" aria-expanded="${ouvert}" onclick="basculerGroupeJour('${id}')" title="Dérouler les tâches" aria-label="Dérouler les tâches">${icone('chevron-down')}</wa-button></span>
         <div class="ja-groupe-tiroir"><div class="ja-groupe-tiroir-int">
           <ul class="ja-liste ja-sous-liste">${actions.map(a => renderLigneActionJour(a, false, false, true)).join('')}${renderLignesTraitees(faites, true)}</ul>
         </div></div>
@@ -961,13 +963,16 @@
     const brouillon = ouverte ? brouillonAction(a) : null;
     // Dans le tiroir d'un groupe : le titre seul, sans sous-titre (étude 05/10). Le nom du dossier ouvre sa fiche (étude 05/10 :
     // « je clique souvent sur le nom du dossier dans la tâche pour atteindre le dossier ») — voir lienDossierTache.
-    const sousHtml = sansDossier ? '' : [dansFiche ? '' : lienDossierTache(a.dossier), escapeHtml(a.categorieLabel || '')].filter(Boolean).join(' · ');
+    // Tout sur UNE ligne (étude 06/10 : « la tâche - nom dossier sur une ligne », plus de sous-titre) ; le nom ouvre la fiche,
+    // et une icône « fiche » parmi les icônes de droite fait de même.
+    const avecDossier = !dansFiche && !sansDossier;
     const sansGeste = dansFiche && (!a.geste || a.geste.type === 'fiche');
     return renderLigneAction({
       categorie: a.categorie, categorieLabel: a.categorieLabel, gravite: a.gravite,
       titre: a.titre,
-      titreHtml: veilleJour.hier.has(a.cle) ? `<span class="ja-non-faite">${escapeHtml(libelleNonFaite(veilleJour.hierDate, isoAujourdhuiLocal()))}</span>` : '',
-      sousHtml, delai: delaiAction(a), delaiProche: a.gravite === 'critique',
+      titreHtml: (avecDossier ? ` <span class="ja-sep">-</span> ${lienDossierTache(a.dossier)}` : '')
+        + (veilleJour.hier.has(a.cle) ? ` <span class="ja-non-faite">${escapeHtml(libelleNonFaite(veilleJour.hierDate, isoAujourdhuiLocal()))}</span>` : ''),
+      sousHtml: '', delai: delaiAction(a), delaiProche: a.gravite === 'critique',
       // Initiales du responsable du dossier (étude 05/10 : « remets les initiales de la personne en charge ») — pas dans la fiche
       // ni dans le tiroir d'un groupe, où elles sont déjà sur la ligne du dossier.
       responsable: dansFiche || sansDossier ? '' : a.dossier.responsable,
@@ -976,6 +981,7 @@
       // fiche garde sa pastille et le ✓ « Déjà fait » parmi les icônes.
       caseRonde: dansFiche ? null : { onclick: `marquerFaitJour('${cle}')`, libelle: 'Fait — valider à la main' },
       secondaires: `${dansFiche ? `<wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-btn ja-fait-manuel" onclick="marquerFaitJour('${cle}')" title="Déjà fait — valider à la main" aria-label="Marquer comme déjà fait">${icone('check')}</wa-button>` : ''}
+          ${avecDossier ? `<wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-btn ja-ouvrir-fiche" data-ouvrir-dossier="${escapeAttr(a.dossier.id)}" title="Ouvrir la fiche du dossier" aria-label="Ouvrir la fiche de ${escapeAttr(libelleDossierAffiche(a.dossier))}">${icone('file-text')}</wa-button>` : ''}
           <wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-btn ja-plus-tard" onclick="reporterActionJour('${cle}')" title="Plus tard (demain)" aria-label="Reporter à demain">${icone('clock')}</wa-button>`,
       apercu: a.cle,
       detail: `<p>${escapeHtml(a.contexte)}</p>

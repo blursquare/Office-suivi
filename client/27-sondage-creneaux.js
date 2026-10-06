@@ -1101,6 +1101,8 @@
   function ouvrirDossierDrawer(id) {
     dossierOuvert = id;
     noterDossierConsulte(id);
+    // Dossiers d'Authentic relevés récemment, pour la ligne « Authentic › Compléter » de la fiche (étude 06/10).
+    chargerGroupesAuthenticFiche();
     // La fiche s'ouvre sur ses échéances, sauf s'il y a du nouveau : on arrive alors directement
     // sur les pièces trouvées depuis le dernier passage.
     const d = dossiers.find(x => x.id === id);

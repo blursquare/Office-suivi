@@ -2865,13 +2865,15 @@
   // la première page de la fiche » et, dans Échanges, « sur la même ligne, ça prend moins de place »).
   // Pure : ce qu'on montre pour chaque partie — l'email est remplacé par « Par son notaire » quand un
   // autre office la représente (déontologie, voir renderEmailAcquereurDossier).
+  // Vendeur accompagné par son propre notaire (étude 06/10) : ni son email ni son téléphone sur la fiche — on écrit au confrère
+  // (ligne « Tél. confrère », `d.emailConfrereVendeur`) ; les valeurs restent sur le dossier, seulement masquées.
   function coordonneesPartiesDossier(d) {
     return [
       { partie: 'vendeur', libelle: 'Vendeur', email: d.emailVendeur || '', tel: d.telephoneVendeur || '',
         parNotaire: confrereRepresenteVendeur(d) && !d.emailVendeur, represente: !!confrereRepresenteVendeur(d), changerEmail: 'changerEmailVendeur' },
       { partie: 'acquereur', libelle: 'Acquéreur', email: d.emailAcquereur || '', tel: d.telephoneAcquereur || '',
         parNotaire: !!notaireParticipantRepresenteAcquereur(d) && !d.emailAcquereur, represente: !!notaireParticipantRepresenteAcquereur(d), changerEmail: 'changerEmailAcquereur' }
-    ];
+    ].filter(c => !(c.partie === 'vendeur' && c.represente));
   }
 
   // Les deux champs (email, téléphone) d'une partie, côte à côte ; `prefixe` distingue les deux

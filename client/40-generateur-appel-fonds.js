@@ -2525,24 +2525,31 @@
   // Mention du mode d'envoi. Elle REMPLACE l'adresse postale du destinataire tant qu'aucune
   // adresse n'est saisie ; dès qu'une adresse l'est, c'est elle qui s'affiche et la mention
   // disparaît (une adresse postale et « envoi par e-mail uniquement » se contrediraient).
-  // Éditable dans l'aperçu comme le reste du courrier, et reprise dans le .docx via `addrLines` :
-  // c'est le seul champ du modèle Word qui accepte des lignes libres (le modèle est stocké en
-  // base64 dans appel-de-fonds-modele.js, un placeholder dédié obligerait à le régénérer).
+  // Éditable dans l'aperçu comme le reste du courrier ; dans le .docx elle a son propre champ `mention`,
+  // en italique sous l'adresse (étude 06/10 — avant, elle était la dernière ligne d'`addrLines`).
   // Elle vit dans son PROPRE élément, hors de #af-p-adresse : majApercuAppelFonds() réécrit ce
   // dernier en entier à chaque frappe, une mention placée dedans serait effacée à la saisie
   // suivante.
   var MENTION_ENVOI_APPEL_FONDS = "Envoi par e-mail uniquement";
 
-  // Cinq retours à la ligne sous l'adresse du destinataire dans le .docx (étude 05/10), pour aérer avant la date : posés dans le
-  // texte de l'adresse (docxtemplater `linebreaks` en fait des <w:br/>), jamais dans l'aperçu à l'écran.
-  var RETOURS_SOUS_ADRESSE_COURRIER = '\n'.repeat(5);
-
-  function composerAdresseCourrier(lignesAdresse, mention) {
+  // Les retours à la ligne du courrier sont dans le modèle Word lui-même (étude 06/10 : une ligne vide avant l'adresse, cinq
+  // retours sous l'adresse et la mention, deux sous le lieu et la date) : les données ne portent plus aucun retour d'aération.
+  function composerAdresseCourrier(lignesAdresse) {
     const lignes = [];
     String(lignesAdresse || '').split('\n').forEach(l => { if (l.trim()) lignes.push(l.trim()); });
-    const m = String(mention || '').trim();
-    if (m) lignes.push(m);
     return lignes.join('\n');
+  }
+
+  // Pure : un courrier gardé avant le 06/10 portait la mention en dernière ligne d'`addrLines` et cinq retours derrière ;
+  // le modèle Word d'aujourd'hui les pose lui-même — on les retire des données pour que « Télécharger » refasse le même courrier.
+  function normaliserDonneesCourrierAppelFonds(donnees) {
+    const d = Object.assign({}, donnees || {});
+    if (d.mention !== undefined) return d;
+    const lignes = String(d.addrLines || '').replace(/\n+$/, '').split('\n');
+    const derniere = (lignes[lignes.length - 1] || '').trim();
+    d.mention = derniere.toLowerCase() === MENTION_ENVOI_APPEL_FONDS.toLowerCase() ? lignes.pop().trim() : '';
+    d.addrLines = lignes.join('\n');
+    return d;
   }
 
   // Relit le courrier TEL QU'IL EST AFFICHÉ (et non le modèle interne) : une correction faite
@@ -2571,10 +2578,8 @@
     const blocAdresse = afEl('af-p-adresse');
     return {
       ref: afValeur('af-ref'),
-      addrLines: composerAdresseCourrier(
-        blocAdresse ? blocAdresse.innerHTML.split('<br>').map(s => s.replace(/<[^>]+>/g, '').trim()).filter(Boolean).join('\n') : '',
-        mentionAffichee() ? lire('af-p-mention') : ''
-      ) + RETOURS_SOUS_ADRESSE_COURRIER,
+      addrLines: composerAdresseCourrier(blocAdresse ? blocAdresse.innerHTML.split('<br>').map(s => s.replace(/<[^>]+>/g, '').trim()).filter(Boolean).join('\n') : ''),
+      mention: mentionAffichee() ? lire('af-p-mention') : '',
       ville: lire('af-p-ville'),
       dateLettre: lire('af-p-datelettre'),
       salut1: lire('af-p-salut1'),
@@ -2607,7 +2612,7 @@
     const Ctor = window.docxtemplater.default || window.docxtemplater;
     const zip = new window.PizZip(afBase64VersOctets(window.APPEL_FONDS_MODELE.docxB64));
     const doc = new Ctor(zip, { paragraphLoop: true, linebreaks: true });
-    const donnees = donneesGardees || donneesCourrierAppelFonds();
+    const donnees = normaliserDonneesCourrierAppelFonds(donneesGardees || donneesCourrierAppelFonds());
     doc.render(donnees);
     const blob = doc.getZip().generate({ type: 'blob', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
     return { blob, nom: nomGarde || afNomFichierDocx(afClients.filter(c => String(c.nom || '').trim())), donnees };
