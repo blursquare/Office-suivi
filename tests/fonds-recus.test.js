@@ -262,6 +262,18 @@ test('décompte du confrère (nom du fichier) : jamais le courrier de l’étude
   assert.equal(app.courrierAppelFondsDossier({ appelFondsCourrier: 'Décompte acquéreur.pdf' }), 'Décompte acquéreur.pdf');
 });
 
+test('solde attendu d’un courrier de convocation scanné, tel que l’OCR le rend (étude 06/10)', () => {
+  const app = chargerApplication();
+  // Structure du courrier réel « Convocation au RDV contenant l'appel de fonds » (montants inventés), lignes rendues par l'OCR.
+  const texte = ['Votre décompte prévisionnel s\'établit comme suit :', 'Prix d\'acquisition 93.000,00 €',
+    'Montant des frais et droits de l\'acte de vente 8.800,00 €', 'Honoraires négociation agence immobilière 7.000,00 €',
+    'Quote-part de taxes foncières 92,60 €', 'Soit au total 108.892,60 €', 'A déduire', 'Acompte sur prix versé à l\'agence 8.000,00 €',
+    'Acompte sur frais versé à l\'étude 0,00 €', 'Soit au total 8.000,00 €', 'Solde a verser 100.892,60€',
+    'ATTENTION : Les paiements effectués ou reçus par un notaire doivent être assurés par virement'].join('\n');
+  assert.equal(app.soldeAttenduDepuisDecompte(texte), 100892.6);
+  assert.equal(app.PAGES_MAX_OCR_DECOMPTE, 4);
+});
+
 test('ligne « Envoi appel de fonds » : lien vers le courrier rattaché, ou « Retrouver le courrier »', () => {
   const app = chargerApplication();
   const base = { id: 'd1', nom: 'X / Y', nasDossier: 'X', appelFonds: '2026-10-01', echeancesValidees: { appelFonds: true } };

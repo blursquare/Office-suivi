@@ -271,6 +271,20 @@
     return { parNom, autres };
   }
 
+  var PAGES_MAX_OCR_DECOMPTE = 4;
+  // OCR des deux premières pages d'un décompte scanné ('' si l'OCR est indisponible) — même lecteur que Claire Scan.
+  async function texteOcrDecompte(pdf) {
+    const worker = await creerWorkerOcr();
+    if (!worker) return '';
+    try {
+      const pages = [];
+      for (let p = 1; p <= Math.min(pdf.numPages, PAGES_OCR_SCAN); p++) pages.push(await ocrPage(pdf, p, worker));
+      return pages.join('\n');
+    } finally {
+      await worker.terminate();
+    }
+  }
+
   async function montantAttenduDepuisNas(d) {
     if (!d.nasDossier) return null;
     const { parNom, autres } = fichiersDecompteRacine(await listerFichiersNas(d), nomCompromisAttendu(d));
@@ -281,7 +295,11 @@
       const chemin = cheminNasComplet(d, f.chemin);
       const pdf = await ouvrirPdfNas(chemin);
       if (strict && pdf.numPages > 4) return null;
-      const texte = await lireTextePdfEnLignes(pdf);
+      let texte = await lireTextePdfEnLignes(pdf);
+      // Courrier scanné (signé puis numérisé, sans couche texte — étude 06/10 : « l'appel de fonds a été retrouvé mais le
+      // montant à recevoir n'est pas dans l'onglet Fonds ») : les deux premières pages passent par l'OCR, comme un scan de
+      // Claire Scan. Jamais sur un document long (un scan de quatre pages au plus).
+      if (texte.trim().length < 40 && pdf.numPages <= PAGES_MAX_OCR_DECOMPTE) texte = await texteOcrDecompte(pdf);
       if (strict) {
         const declare = Number(parserDecompteConfrere(texte).meta.soldeDeclare);
         return declare > 0 ? { montant: declare, source: f.nom, chemin } : null;

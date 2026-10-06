@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.167.1';
+  const VERSION_APP = '0.167.2';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.167.2', date: '2026-10-06 13:52', resume: "Fonds : le montant à recevoir se lit aussi dans un courrier d'appel de fonds SCANNÉ (signé puis numérisé, sans texte) — les deux premières pages passent par l'OCR, comme un scan de Claire Scan." },
     { version: '0.167.1', date: '2026-10-06 13:40', resume: "Appel de fonds : le décompte du confrère (« Décompte Me X », « confrère », « notaire » dans le nom) n'est plus jamais rattaché à « Envoi appel de fonds » ni pris pour le courrier de l'étude — notre courrier (celui écrit par CLAIRE d'abord) l'est ; un décompte du confrère rattaché par erreur est détaché au prochain tour du NAS." },
     { version: '0.167.0', date: '2026-10-06 13:30', resume: "« Demander à CLAIRE » : une page de conversation dans la barre latérale — une phrase (état d'un dossier, pièces, échéances, coordonnées, fonds, À faire, rappel, email par modèle, cocher une étape, date de la fiche, créneaux, placer la signature, sondage, rendez-vous, agenda du jour, appel de fonds, quotités, provision, prorata, préemption, ouvrir, chercher, archiver, responsable) ; IA locale seule, emails et agenda toujours confirmés, le reste fait aussitôt et annulable." },
     { version: '0.166.2', date: '2026-10-06 12:25', resume: "Parcelles d'Authentic sur la fiche : une fiche bien ouverte dans Authentic après la création du dossier ajoute ses parcelles manquantes (jamais à la place de celles déjà là ; rien si la fiche est d'une autre commune ou d'une autre adresse, motif dans Réglages › Authentic) ; à la création, les parcelles sont gardées même sans adresse lue, et celles de tous les biens de la vente (plus seulement le premier)." },

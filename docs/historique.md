@@ -17278,3 +17278,12 @@ bien son décompte, candidat en tête), `nasWatch.fichierAppelFondsRacine` (excl
 `courrierAppelFondsARattacher` (détache ou remplace). Tests dans les trois suites. Non vérifié : les noms réels des décomptes de
 confrères sur le NAS de l'étude (si un confrère nomme son décompte sans « Me », « confrère » ni « notaire », il sera encore pris).
 
+### 06/10/2026 13 h 52 — 0.167.2 : montant attendu d'un courrier d'appel de fonds scanné
+
+Étude (PDF réel « Convocation au RDV contenant l'appel de fonds », 2 pages) : « cet appel de fonds a été retrouvé mais le montant à
+recevoir n'est pas dans l'onglet Fonds ». Rejoué par `tests/outils/rejouer-pdf.mjs` : 0 ligne de texte — le courrier a été signé
+puis numérisé, pdf.js n'y lit rien, donc `montantAttenduDepuisNas` ne trouvait aucun solde. Le parseur, lui, lit bien « Solde à
+verser 100.892,60 € » dès qu'il a le texte (testé avec le texte tel que l'OCR le rend). Correction : `texteOcrDecompte` — quand le
+texte lu est vide et que le PDF fait 4 pages au plus, OCR des deux premières pages (même `creerWorkerOcr`/`ocrPage` que Claire
+Scan). Non vérifié ici (tesseract.js vient d'un CDN) : la qualité de l'OCR sur ce scan réel, à regarder au bureau sur ce dossier.
+
