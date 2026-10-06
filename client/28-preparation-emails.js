@@ -797,10 +797,11 @@
       if (!zone) return;
       const d = dossiers.find(x => x.id === r.dossierId);
       const emailCite = r.reponseA && d ? ((emailsParDossier[d.id] || {}).emails || []).find(e => e.id === r.reponseA) : null;
+      // Fermeture par une petite croix en haut à droite (étude 06/10), comme la fenêtre de lecture d'un email.
       zone.innerHTML = `<div class="redaction-tete">
-          <wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-btn" onclick="abandonnerRedaction()" aria-label="Fermer">${icone('chevron-left')}</wa-button>
           <div class="redaction-titre" id="email-redaction-titre">${escapeHtml(r.sujet || 'Nouvel email')}</div>
           ${d && !String(r.sujet || '').includes(libelleDossierAffiche(d)) ? `<span class="redaction-dossier">${escapeHtml(libelleDossierAffiche(d))}</span>` : ''}
+          <wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-btn redaction-fermer" onclick="abandonnerRedaction()" title="Fermer" aria-label="Fermer">${icone('x')}</wa-button>
         </div>
         ${emailCite ? `<p class="hint redaction-cite">En réponse à l’email de ${escapeHtml(emailCite.de.nom || emailCite.de.adresse)} du ${escapeHtml(dateCourteEmail(emailCite.date))}, dans le même fil.</p>` : ''}
         ${envoiDirectPossible() ? '' : '<p class="hint">Envoi direct indisponible : la connexion Exchange n’est pas réglée (Réglages › Agenda et Outlook).</p>'}
@@ -1153,6 +1154,9 @@
     confirmationRdv: { cle: 'confirmationRdv', libelle: 'Confirmer le rendez-vous de signature', construire: d => emailDepuisModele('confirmationRdv', d), historique: 'Email envoyé — confirmation du rendez-vous de signature', date: 'confirmationRdvLe' },
     // Fonds pas encore reçus à J-3 du rendez-vous (étude, 03/10) — premier jet de CLAIRE, à remplacer par le texte de l'étude.
     relanceFonds: { cle: 'relanceFonds', libelle: 'Relancer pour les fonds', construire: d => emailDepuisModele('relanceFonds', d), historique: 'Email envoyé — relance : fonds pas encore reçus', date: 'relanceFondsLe' },
+    // Décompte du confrère qui représente le vendeur, demandé 7 jours avant le rendez-vous (étude 06/10) : au confrère, jamais
+    // au client — `destinataire` et `confrere` remplacent la règle par défaut (emailDestinataireRelance, côté acquéreur).
+    relanceDecompteConfrere: { cle: 'relanceDecompteConfrere', libelle: 'Demander son décompte au confrère', construire: d => emailDepuisModele('relanceDecompteConfrere', d), historique: 'Email envoyé — décompte demandé au confrère du vendeur', date: 'relanceDecompteConfrereLe', destinataire: d => emailConfrereVendeurDossier(d), confrere: true },
     anniversaire: { cle: 'anniversaire', libelle: 'Un an après la signature', construire: d => emailDepuisModele('anniversaire', d), historique: 'Email envoyé — un an après la signature', date: 'anniversaireEnvoyeLe' }
   };
 
@@ -1191,6 +1195,14 @@
       'Si le virement a déjà été effectué, merci de nous en adresser le justificatif en réponse à cet email.',
       'Nous restons à votre disposition pour toute question.',
       'Bien cordialement,'].join('\n\n') };
+  }
+  // Texte fourni mot pour mot par l'étude (06/10) : « Mon Cher Maître, / Pouvez-vous nous envoyer votre décompte s'il vous
+  // plait ? / Dans l'attente et vous en remerciant par avance, / Votre bien dévoué. » — à ne pas reformuler.
+  function construireEmailRelanceDecompteConfrere(d) {
+    return { sujet: `Votre décompte — ${libelleDossierAffiche(d)}`, corps: ['Mon Cher Maître,',
+      'Pouvez-vous nous envoyer votre décompte s\'il vous plait ?',
+      'Dans l\'attente et vous en remerciant par avance,',
+      'Votre bien dévoué.'].join('\n\n') };
   }
   function construireEmailAnniversaire(d) {
     return { sujet: `Un an déjà — ${libelleDossierAffiche(d)}`, corps: ['Bonjour,',
@@ -1343,6 +1355,9 @@
         corps: ['Bonjour,', 'Sauf erreur de notre part, les fonds destinés à votre acquisition ne nous sont pas encore parvenus en comptabilité.',
           'Le rendez-vous de signature de l’acte authentique est fixé le {date et heure du rendez-vous}, {lieu du rendez-vous}. Pour qu’il puisse se tenir, nous vous remercions de bien vouloir effectuer le virement dès que possible, selon les indications de notre appel de fonds.',
           'Si le virement a déjà été effectué, merci de nous en adresser le justificatif en réponse à cet email.', 'Nous restons à votre disposition pour toute question.', 'Bien cordialement,'].join('\n\n') },
+      { cle: 'relanceDecompteConfrere', nom: 'Demande du décompte (au confrère du vendeur)', construire: construireEmailRelanceDecompteConfrere,
+        sujet: 'Votre décompte — {dossier}',
+        corps: ['Mon Cher Maître,', 'Pouvez-vous nous envoyer votre décompte s\'il vous plait ?', 'Dans l\'attente et vous en remerciant par avance,', 'Votre bien dévoué.'].join('\n\n') },
       { cle: 'appelFonds', nom: 'Courrier d’appel de fonds', construire: construireEmailAppelFonds,
         sujet: 'Appel de fonds — rendez-vous de signature — {dossier}',
         corps: ['{si client}Madame, Monsieur,', '{si client}Veuillez trouver ci-joint le courrier de convocation et d’appel de fonds relatif à votre acquisition.',
@@ -1551,6 +1566,7 @@
     ventePrealable: [[/vente prealable/, 12], [/vente de (votre|son|sa|leur) (bien|maison|appartement)/, 6]],
     fonds: [[/reception des fonds|fonds (bien )?recus|virement (a ete )?(effectue|fait|envoye|realise|passe)/, 12], [/virement|versement/, 5]],
     relanceFonds: [[/fonds|virement/, 3]],
+    relanceDecompteConfrere: [[/decompte/, 8]],
     projet: [[/projet d.acte/, 12], [/\bprojet\b/, 6]],
     confirmationRdv: [[/rendez-vous|\brdv\b|date de (la )?signature/, 6], [/confirm/, 3]],
     appelFonds: [[/appel de fonds|decompte/, 12], [/montant a (virer|verser|regler)|somme a (virer|verser|regler)|combien/, 6]],
@@ -1763,20 +1779,23 @@
     const d = dossiers.find(x => x.id === id);
     const modele = MODELES_EMAIL_RELANCE[type];
     if (!d || !modele) return;
-    const destinataire = emailDestinataireRelance(d);
+    const destinataire = modele.destinataire ? modele.destinataire(d) : emailDestinataireRelance(d);
+    const auConfrere = modele.confrere === true || notaireParticipantRepresenteAcquereur(d);
     if (!destinataire) {
-      const message = notaireParticipantRepresenteAcquereur(d)
+      const message = modele.confrere === true
+        ? "Aucun email renseigné pour le notaire du vendeur — impossible de préparer cette demande."
+        : notaireParticipantRepresenteAcquereur(d)
         ? "Aucun email renseigné pour le notaire de l'acquéreur — impossible de préparer cette relance."
         : "Aucun email d'acquéreur renseigné pour ce dossier — impossible de préparer cette relance.";
       afficherToast(message, 'OK', null);
       return;
     }
     const { sujet, corps } = modele.construire(d);
-    const r = await livrerEmailDossier({ destinataire, sujet, corps, confrere: notaireParticipantRepresenteAcquereur(d), responsableSignature: d.responsable, dossierId: d.id, geste: type });
+    const r = await livrerEmailDossier({ destinataire, sujet, corps, confrere: auConfrere, responsableSignature: d.responsable, dossierId: d.id, geste: type });
     // Préparation impossible : ne rien marquer sur le dossier, l'email n'est pas parti.
     if (!r.ok) { if (!r.annule) afficherToast(r.message || "L'email n'a pas pu être préparé.", 'OK', null); return; }
     ajouterHistorique(d, modele.historique);
-    notifierTacheFaite(d, (ACTIONS_EMAIL_DOSSIER[type] && ACTIONS_EMAIL_DOSSIER[type].titre) || modele.libelle, `${libelleEmailFait(r).toLowerCase()} ${notaireParticipantRepresenteAcquereur(d) ? 'au confrère' : 'au client'}`);
+    notifierTacheFaite(d, (ACTIONS_EMAIL_DOSSIER[type] && ACTIONS_EMAIL_DOSSIER[type].titre) || modele.libelle, `${libelleEmailFait(r).toLowerCase()} ${auConfrere ? 'au confrère' : 'au client'}`);
     const aujourdhui = isoAujourdhuiLocal();
     if (modele.date) d[modele.date] = aujourdhui;
     if (type === 'projet') marquerProjetEnvoyeSelonDate(d, aujourdhui);
@@ -1784,6 +1803,7 @@
     // La confirmation de réception des fonds rappelle le rendez-vous : elle vaut confirmation (rdvConfirmeParFonds).
     if (type === 'fonds') d.receptionFondsPourRdv = d.rendezVousSignature || '';
     if (type === 'relanceFonds') d.relanceFondsPour = d.rendezVousSignature || '';
+    if (type === 'relanceDecompteConfrere') d.relanceDecompteConfrerePour = d.rendezVousSignature || '';
     // Une relance de l'offre faite à la main compte comme la relance du jour : la suivante, manuelle
     // ou automatique, n'est reproposée que 10 jours plus tard (voir relanceOffreDue).
     if (type === 'pret') d.derniereRelanceAuto = isoAujourdhuiLocal();
@@ -1841,6 +1861,7 @@
     rib: { titre: 'Demander le RIB et la pièce d’identité', verbe: 'Envoyer', categorie: 'rendezVousSignature', categorieLabel: 'Avant la signature' },
     confirmationRdv: { titre: 'Confirmer le rendez-vous', verbe: 'Confirmer', categorie: 'rendezVousSignature', categorieLabel: 'Relation client' },
     relanceFonds: { titre: 'Relancer pour les fonds', verbe: 'Relancer', categorie: 'appelFonds', categorieLabel: 'Réception des fonds' },
+    relanceDecompteConfrere: { titre: 'Demander son décompte au confrère', verbe: 'Demander', categorie: 'appelFonds', categorieLabel: 'Appel de fonds' },
     anniversaire: { titre: 'Un mot un an après la signature', verbe: 'Écrire', categorie: 'neutre', categorieLabel: 'Relation client' }
   };
 
@@ -1853,6 +1874,7 @@
     // Confirmation et relance des fonds valent pour UNE date de rendez-vous : déplacé, il faut les refaire.
     if (motif === 'confirmationRdv' && d.confirmationRdvPour !== d.rendezVousSignature) return rdvConfirmeParFonds(d) ? d.receptionFondsConfirmeeLe : null;
     if (motif === 'relanceFonds' && d.relanceFondsPour !== d.rendezVousSignature) return null;
+    if (motif === 'relanceDecompteConfrere' && d.relanceDecompteConfrerePour !== d.rendezVousSignature) return null;
     if (m.date && d[m.date]) return d[m.date];
     const entrees = (d.historique || []).filter(e => e && typeof e.texte === 'string' && e.texte.indexOf(m.historique) === 0 && typeof e.date === 'string');
     return entrees.length ? entrees[entrees.length - 1].date.slice(0, 10) : null;

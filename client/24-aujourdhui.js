@@ -84,10 +84,22 @@
     if (!echeanceValidee(d, 'appelFonds') || d.receptionFondsConfirmeeLe || d.relanceFondsPour === d.rendezVousSignature) return false;
     const j = ecartJours(aujourdhuiIso || isoAujourdhuiLocal(), d.rendezVousSignature);
     if (j === null || j < 0 || j > JOURS_RELANCE_FONDS) return false;
-    const f = d.fondsRecus;
-    if (!f) return true;
-    const etat = bilanFondsRecus(f.total, d.fondsAttendusManuel || f.attendu).etat;
+    if (d.fondsValidesLe) return false;
+    if (!d.fondsRecus) return true;
+    const etat = bilanFondsDossier(d).etat;
     return etat === 'aucun' || etat === 'partiel';
+  }
+
+  // Pure : le décompte du confrère est à demander 7 jours avant le rendez-vous (étude 06/10 : « si le confrère représente les
+  // vendeurs et nous les acquéreurs ») — un autre office représente le vendeur, l'acquéreur est notre client, rendez-vous placé,
+  // demande pas encore faite pour cette date (relanceDecompteConfrerePour). Un décompte déjà reçu se dit par « Déjà reçu ».
+  var JOURS_RELANCE_DECOMPTE_CONFRERE = 7;
+  function relanceDecompteConfrereDue(d, aujourdhuiIso) {
+    if (!d || d.archive || !d.rendezVousSignature || estSuccession(d)) return false;
+    if (!confrereRepresenteVendeur(d) || notaireParticipantRepresenteAcquereur(d)) return false;
+    if (d.relanceDecompteConfrerePour === d.rendezVousSignature) return false;
+    const j = ecartJours(aujourdhuiIso || isoAujourdhuiLocal(), d.rendezVousSignature);
+    return j !== null && j >= 0 && j <= JOURS_RELANCE_DECOMPTE_CONFRERE;
   }
 
   // Pure : la confirmation de réception des fonds a été envoyée pour le rendez-vous actuel — elle en rappelle
@@ -175,11 +187,23 @@
             second: { type: 'marquer', champ: 'relanceFonds', libelle: 'Déjà relancé' }
           });
         }
+        if (relanceDecompteConfrereDue(d, aujourdhuiIso)) {
+          const emailConfrere = emailConfrereVendeurDossier(d);
+          ajouter({
+            type: 'relanceDecompteConfrere', categorie: 'appelFonds', categorieLabel: 'Appel de fonds',
+            titre: 'Demander son décompte au confrère',
+            contexte: `${signature}. Le vendeur est représenté par ${d.notaireVendeur} : son décompte sert à établir le nôtre.${emailConfrere ? '' : ' Email du confrère non renseigné.'}`,
+            jours: jRdv, gravite: jRdv <= 3 ? 'critique' : 'vigilance',
+            geste: emailConfrere ? { type: 'email', motif: 'relanceDecompteConfrere' } : { type: 'fiche' },
+            bouton: emailConfrere ? 'Ouvrir la demande' : 'Ouvrir la fiche',
+            second: { type: 'marquer', champ: 'relanceDecompteConfrere', libelle: 'Déjà reçu' }
+          });
+        }
         if (!relanceDue && jRdv <= JOURS_CONFIRMATION_FONDS && af && !d.receptionFondsConfirmeeLe && dest) {
           // Ce que dit la dernière lecture des reçus (onglet Échanges › Fonds reçus), s'il y en a une.
-          const fr = d.fondsRecus;
-          const bilan = fr ? bilanFondsRecus(fr.total, d.fondsAttendusManuel || fr.attendu) : null;
+          const bilan = d.fondsRecus || d.fondsValidesLe ? bilanFondsDossier(d) : null;
           const etatFonds = !bilan ? 'À envoyer une fois les fonds arrivés en comptabilité (vérifiez les reçus sur la fiche).'
+            : bilan.manuel ? `Fonds validés à la main le ${formatDateFr(d.fondsValidesLe)} (arrivés sur le compte de l’étude).`
             : bilan.etat === 'complet' ? 'Tous les fonds sont reçus d’après les reçus comptables.'
             : bilan.etat === 'excedent' ? `Reçus comptables : ${formaterPrixCentimes(bilan.total)} pour ${formaterPrixCentimes(bilan.attendu)} attendus — écart à vérifier.`
             : bilan.etat === 'partiel' ? `Reçus comptables : ${formaterPrixCentimes(bilan.total)} sur ${formaterPrixCentimes(bilan.attendu)}, reste ${formaterPrixCentimes(bilan.reste)}.`
@@ -282,7 +306,8 @@
       const modele = MODELES_EMAIL_RELANCE[action.geste.motif];
       if (!modele) return null;
       const { sujet, corps } = modele.construire(d);
-      return { a: emailDestinataireRelance(d), objet: sujet, corps: adapterCorpsEmail(corps, notaireParticipantRepresenteAcquereur(d)) };
+      const auConfrere = modele.confrere === true || notaireParticipantRepresenteAcquereur(d);
+      return { a: modele.destinataire ? modele.destinataire(d) : emailDestinataireRelance(d), objet: sujet, corps: adapterCorpsEmail(corps, auConfrere) };
     }
     if (action.geste.type === 'questionnaire') {
       const { sujet, corps } = construireEmailQuestionnaireSatisfaction(d);
@@ -542,6 +567,10 @@
     } else if (geste.type === 'questionnaire') {
       noterTraite(a, 'Questionnaire ouvert, dossier archivé');
       envoyerQuestionnaireSatisfaction(id, true);
+    } else if (geste.type === 'marquer' && geste.champ !== 'appelFonds' && geste.champ !== 'projetEnvoye') {
+      // « Déjà relancé » / « Déjà reçu » : la trace du dossier est posée par « Déjà fait » (CHAMP_FAIT_MAIN_PAR_TYPE, date du
+      // rendez-vous retenue) — ce chemin posait une date d'appel de fonds à tort et la tâche revenait le lendemain.
+      marquerFaitJour(cle);
     } else if (geste.type === 'marquer') {
       const d = dossiers.find(x => x.id === id);
       const precedent = d ? (d[geste.champ] || '') : '';
@@ -599,7 +628,7 @@
   var CHAMP_FAIT_MAIN_PAR_TYPE = {
     pret: 'derniereRelanceAuto', rib: 'ribDemandeLe', fonds: 'receptionFondsConfirmeeLe',
     questionnaire: 'questionnaireEnvoyeLe', appelFonds: 'appelFonds', projetEnvoye: 'projetEnvoye',
-    ventePrealable: 'relanceVentePrealableLe', relanceFonds: 'relanceFondsLe'
+    ventePrealable: 'relanceVentePrealableLe', relanceFonds: 'relanceFondsLe', relanceDecompteConfrere: 'relanceDecompteConfrereLe'
   };
 
   // Tâches qui SONT une échéance du dossier : la case ronde coche l'échéance (même geste que sur la fiche, décochable par « Annuler »),
@@ -640,6 +669,10 @@
         if (a.type === 'relanceFonds') {
           annulation.champsDossier.relanceFondsPour = d.relanceFondsPour || null;
           d.relanceFondsPour = d.rendezVousSignature || '';
+        }
+        if (a.type === 'relanceDecompteConfrere') {
+          annulation.champsDossier.relanceDecompteConfrerePour = d.relanceDecompteConfrerePour || null;
+          d.relanceDecompteConfrerePour = d.rendezVousSignature || '';
         }
       }
       ajouterHistorique(d, `${a.titre} : noté fait à la main`);

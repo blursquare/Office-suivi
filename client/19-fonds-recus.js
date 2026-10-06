@@ -399,7 +399,7 @@
       if (j === null || j < 0 || j > JOURS_VERIF_FONDS_AVANT_RDV) return false;
       const f = d.fondsRecus;
       if (f && f.regle !== REGLE_RAPPROCHEMENT_RECUS) return true;
-      if (f && bilanFondsRecus(f.total, d.fondsAttendusManuel || f.attendu).etat === 'complet') return false;
+      if (bilanFondsDossier(d).etat === 'complet') return false;
       const derniere = f && Date.parse(f.verifieLe);
       return !(Number.isFinite(derniere) && maintenantMs - derniere < DELAI_VERIF_FONDS_MS);
     });
@@ -512,12 +512,13 @@
   // trois chiffres (reçu, attendu, reste ou écart), une jauge, puis les versements retenus en lignes
   // courtes. Le détail (fichiers lus, noms cherchés, marge de 2 €) passe dans les pastilles « i ».
   function renderFondsRecus(d) {
-    if (!echeanceValidee(d, 'appelFonds') && !d.fondsRecus && !d.rendezVousSignature) return '';
+    if (!echeanceValidee(d, 'appelFonds') && !d.fondsRecus && !d.rendezVousSignature && !d.fondsValidesLe) return '';
     const f = d.fondsRecus;
     const attendu = d.fondsAttendusManuel || (f && f.attendu) || null;
-    const b = bilanFondsRecus(f ? f.total : 0, attendu);
+    const b = bilanFondsDossier(d);
     const confirmee = d.receptionFondsConfirmeeLe;
-    const etatCourt = !f ? ['dl-neutre', 'Pas encore vérifié']
+    const etatCourt = b.manuel ? ['dl-success', `Fonds validés le ${formatDateFr(d.fondsValidesLe)}${d.fondsValidesPar ? ' par ' + prenomCollaborateur(d.fondsValidesPar) : ''}`]
+      : !f ? ['dl-neutre', 'Pas encore vérifié']
       : b.etat === 'complet' ? ['dl-success', 'Tous les fonds sont reçus']
       : b.etat === 'excedent' ? ['dl-pret', 'Écart à vérifier']
       : b.etat === 'partiel' ? ['dl-pret', `Reste ${formaterPrixCentimes(b.reste)}`]
@@ -531,14 +532,14 @@
       ? `<wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-btn fonds-source" onclick="ouvrirFichierNas('${escapeOnclickArg(f.attenduChemin)}')" title="${escapeAttr('Lu dans ' + (f.attenduSource || 'le décompte'))}" aria-label="Ouvrir le décompte">${icone('file-text')}</wa-button>`
       : '';
     const valeurAttendu = attendu ? formaterPrixCentimes(attendu) : '—';
-    const troisieme = b.etat === 'excedent'
+    const troisieme = b.manuel ? null : b.etat === 'excedent'
       ? { libelle: 'Écart', valeur: '+' + formaterPrixCentimes(b.ecart), cls: 'fonds-chiffre-alerte' }
       : b.attendu
         ? (b.etat === 'complet' && Math.abs(b.ecart) >= 1
           ? { libelle: 'Écart', valeur: (b.ecart > 0 ? '+' : '−') + formaterPrixCentimes(Math.abs(b.ecart)), cls: '' }
           : { libelle: 'Reste', valeur: formaterPrixCentimes(b.reste), cls: b.reste > 0 ? 'fonds-chiffre-attente' : 'fonds-chiffre-ok' })
         : null;
-    const pct = b.attendu ? Math.min(100, Math.round((b.total / b.attendu) * 100)) : 0;
+    const pct = b.manuel ? 100 : b.attendu ? Math.min(100, Math.round((b.total / b.attendu) * 100)) : 0;
     const clsBarre = b.etat === 'complet' ? 'fonds-barre-ok' : b.etat === 'excedent' ? 'fonds-barre-alerte' : 'fonds-barre-attente';
     const jauge = `<div class="fonds-jauge">
         <div class="fonds-chiffres">
@@ -547,7 +548,7 @@
             <span class="fonds-chiffre-valeur">${champFondsEditable(d, 'attendu', `<strong>${valeurAttendu}</strong>${sourceAttendu}`, attendu ? String(attendu).replace('.', ',') : '', 'lu dans le décompte', 'inputmode="decimal"')}</span></div>
           ${troisieme ? `<div class="fonds-chiffre ${troisieme.cls}"><span class="fonds-chiffre-libelle">${troisieme.libelle}</span><strong>${troisieme.valeur}</strong></div>` : ''}
         </div>
-        ${b.attendu ? `<div class="fonds-barre ${clsBarre}" role="img" aria-label="${pct} % des fonds attendus reçus"><span style="width:${pct}%"></span></div>` : ''}
+        ${b.attendu || b.manuel ? `<div class="fonds-barre ${clsBarre}" role="img" aria-label="${pct} % des fonds attendus reçus"><span style="width:${pct}%"></span></div>` : ''}
       </div>`;
 
     // Les versements retenus, une ligne courte chacun.
@@ -567,15 +568,18 @@
     const lecture = f ? `${f.fichiersLus} reçu${f.fichiersLus > 1 ? 's' : ''} lu${f.fichiersLus > 1 ? 's' : ''} · ${new Date(f.verifieLe).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })} ${infoBulle([`Reçus lus depuis le ${formatDateFr(f.depuis)}.`, 'Chaque versement au nom de l’acquéreur est listé : vérifiez qu’il concerne bien ce dossier.', renderDossiersRecusLus(f, mots),
       (f.recus || []).some(r => r.memorise) ? 'Icône boîte : fichier de reçus supprimé du commun, montant conservé par CLAIRE.' : ''].filter(Boolean).join(' '))}` : '';
     const peutConfirmer = echeanceValidee(d, 'appelFonds') && !!emailDestinataireRelance(d);
-    const complet = !!f && b.etat === 'complet';
+    const complet = b.manuel || (!!f && b.etat === 'complet');
     const confirmer = `envoyerRelanceCiblee('${d.id}', 'fonds')`;
-    const quandMeme = peutConfirmer && !confirmee && !complet
-      ? `<button type="button" class="lien-action" onclick="${confirmer}">Confirmer quand même</button>${infoBulle('Fonds arrivés mais absents des reçus lus : la confirmation au client reste possible.')}`
-      : '';
+    // Validation à la main (étude 06/10) : fonds vus sur le compte de l'étude à la Caisse des Dépôts sans reçu lu — vaut
+    // réception complète (confirmation au client, Teams, probabilité de signature) ; annulable tant que rien n'est confirmé.
+    const validation = b.manuel
+      ? (confirmee ? '' : `<button type="button" class="lien-action" onclick="annulerValidationFonds('${d.id}')">Annuler la validation</button>`)
+      : (b.etat === 'complet' ? ''
+        : `<wa-button appearance="outlined" size="s" type="button" class="fonds-valider" onclick="validerFondsArrives('${d.id}')" title="Les fonds sont arrivés sur le compte de l’étude sans reçu lu">${icone('check')} Valider les fonds reçus</wa-button>${infoBulle('Fonds vus sur le compte CDC de l’étude mais absents des reçus lus : la validation vaut réception complète (confirmation au client, alerte Teams, probabilité de signature). Annulable.')}`);
     const pied = `<div class="fonds-pied">
         <span class="fonds-noms">${icone('user')} ${noms}</span>
         ${lecture ? `<span class="fonds-lecture">${lecture}</span>` : ''}
-        ${quandMeme ? `<span class="fonds-quand-meme">${quandMeme}</span>` : ''}
+        ${validation ? `<span class="fonds-quand-meme">${validation}</span>` : ''}
       </div>`;
     const detail = `<div class="fonds-recus">${jauge}${versements}${pied}</div>`;
 
@@ -589,6 +593,29 @@
       sousHtml, faite: !!confirmee, bouton, secondaires: reverifierIcone,
       detail, detailOuvert: true
     });
+  }
+
+  // « Valider les fonds reçus » (étude 06/10) : les fonds sont sur le compte de l'étude à la Caisse des Dépôts mais aucun reçu
+  // comptable ne les montre. Pose d.fondsValidesLe / fondsValidesPar — bilanFondsDossier rend alors « complet » partout (fiche,
+  // Suivi « Nouveau », À faire, agenda, alerte Teams) ; historique ; « Annuler » dans le toast ou sur la ligne.
+  function validerFondsArrives(id) {
+    const d = dossiers.find(x => x.id === id);
+    if (!d || d.fondsValidesLe) return;
+    d.fondsValidesLe = isoAujourdhuiLocal();
+    d.fondsValidesPar = utilisateurPoste || '';
+    ajouterHistorique(d, 'Fonds validés à la main : arrivés sur le compte de l’étude, sans reçu comptable');
+    sauvegarder(d);
+    render();
+    afficherToast(`Fonds notés reçus — ${libelleDossierAffiche(d)}.`, 'Annuler', () => annulerValidationFonds(id));
+  }
+  function annulerValidationFonds(id) {
+    const d = dossiers.find(x => x.id === id);
+    if (!d || !d.fondsValidesLe) return;
+    delete d.fondsValidesLe;
+    delete d.fondsValidesPar;
+    ajouterHistorique(d, 'Validation à la main des fonds annulée');
+    sauvegarder(d);
+    render();
   }
 
   // Noter dans l'agenda Outlook de l'office qu'un envoi vient d'être fait : écrit « Appel de fonds

@@ -26,8 +26,8 @@
   // Pure : tous les fonds sont reçus (reçus comptables, à 2 € près) et la réception n'a pas encore été confirmée au client.
   function fondsCompletsAConfirmer(d) {
     if (!d || d.archive || d.receptionFondsConfirmeeLe) return false;
-    const f = d.fondsRecus;
-    return !!(f && typeof f === 'object' && bilanFondsRecus(f.total, d.fondsAttendusManuel || f.attendu).etat === 'complet');
+    if (!d.fondsValidesLe && !(d.fondsRecus && typeof d.fondsRecus === 'object')) return false;
+    return bilanFondsDossier(d).etat === 'complet';
   }
 
   function totalNotificationsPieces() {

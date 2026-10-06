@@ -1036,8 +1036,10 @@
     if (d.depotGarantie) etat[4].note = 'Séquestre : ' + euros(d.depotGarantie) + (d.sequestreDepot ? ' — ' + d.sequestreDepot : '');
     // 7 — Projet d'acte envoyé.
     if (d.projetEnvoye || echeanceValidee(d, 'projetEnvoye')) etat[6] = { fait: true, date: iso(d.projetEnvoye), note: '' };
-    // 8 — Arrivée des fonds : cochée quand les reçus couvrent le montant attendu.
-    if (f.verifieLe) {
+    // 8 — Arrivée des fonds : cochée quand les reçus couvrent le montant attendu, ou validée à la main (compte CDC).
+    if (d.fondsValidesLe) {
+      etat[7] = { fait: true, date: iso(d.fondsValidesLe), note: 'Fonds validés à la main (arrivés sur le compte de l’étude).' };
+    } else if (f.verifieLe) {
       const b = bilanFondsRecus(f.total, f.attendu);
       const derniere = (f.recus || []).map(r => iso(r.date)).filter(Boolean).sort().pop() || '';
       if (b.etat === 'complet') etat[7] = { fait: true, date: derniere, note: 'Fonds complets : ' + euros(b.total) + ' reçus.' };

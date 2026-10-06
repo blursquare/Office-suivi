@@ -694,6 +694,16 @@ dans `index.html`** (le test `structure-client` refuse tout décalage).
   saisie, test « aucun nom ne sort ») ; clauses apprises avec « Oublier »
   (`DELETE /api/corrections-apprises/:id`) ; fichiers écartés des pièces ; commentaires de relecture d'actes.
 
+- **Fonds validés à la main** (étude 06/10 : « parfois ils ne sont pas comptabilisés dans des reçus mais sont bien arrivés sur le
+  compte CDC ») : bouton « Valider les fonds reçus » du bloc Fonds reçus (`validerFondsArrives`, `d.fondsValidesLe` /
+  `fondsValidesPar`, annulable tant que la réception n'est pas confirmée) ; **tout bilan des fonds passe par `bilanFondsDossier(d)`**
+  (`commun/montants.js`, poste et serveur) qui rend `complet` + `manuel: true` dans ce cas — jamais `bilanFondsRecus` directement
+  sur un dossier.
+- **Décompte du confrère du vendeur** (étude 06/10) : quand un autre office représente le vendeur et que l'acquéreur est notre
+  client, « Demander son décompte au confrère » 7 jours avant le rendez-vous (`relanceDecompteConfrereDue`,
+  `JOURS_RELANCE_DECOMPTE_CONFRERE`, une fois par date `relanceDecompteConfrerePour`) — À faire, onglet Fonds, modèle
+  `relanceDecompteConfrere` au texte de l'étude mot pour mot, adressé à `emailConfrereVendeurDossier(d)`. Un modèle de
+  `MODELES_EMAIL_RELANCE` peut porter `destinataire(d)` et `confrere: true` à la place de la règle acquéreur.
 - **Fonds tous reçus, pas encore confirmés** (étude 05/10, `fondsCompletsAConfirmer`) : comptés dans la pastille rouge de « Suivi des
   dossiers » et en tête du Suivi (« Nouveau ») jusqu'à la confirmation au client ; alerte Teams « Tous les fonds sont reçus » au
   responsable, une fois par dossier (`alertesFondsDues`, même sans appel de fonds noté envoyé).
@@ -860,7 +870,9 @@ Plainte principale de l'étude : **le bruit**, pas les oublis — ne pas élargi
   plus », `icon-btn` à texte seul), lignes cliquables de liste, onglets,
   étapes du wizard, pastilles de source (`page-chip`, `voir-pdf-btn`), réglages des widgets, champs, listes et fenêtres.
   **Tout geste** (email, préparer, noter, créer…) est une ligne d'action `renderLigneAction` (forme
-  de « À faire », même titre et même verbe qu'elle pour le même geste) ; tout « Ajouter … » est un
+  de « À faire », même titre et même verbe qu'elle pour le même geste ; **colonnes alignées d'une ligne à l'autre** — étude 06/10 :
+  `.ja-liste` est une grille, chaque `.ja` en reprend les colonnes par `--ja-cols: subgrid`, les modes compact et téléphone gardent
+  leurs zones) ; tout « Ajouter … » est un
   `button.bouton-ajout` ; l'édition d'une donnée passe par des icônes (crayon, ✓, ×) ; seuls les
   formulaires gardent des boutons classiques.
   **Barre latérale** (01/10) : pas de titres de section, des liens seulement ; « Relecture d'actes » est un outil (étude 05/10, tiroir et page Outils) ; « Outils » = page à grosses

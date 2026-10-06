@@ -17317,3 +17317,34 @@ ni image, ni style, ni script, ni `javascript:`) ; à la frappe `toucheRedaction
 précède l'espace ou l'Entrée. Joué dans Chromium : frappe de trois adresses, collage HTML avec lien + image + script, collage
 texte avec adresse → cinq liens, corps envoyé correct, aucune erreur.
 
+
+### 06/10/2026 14 h 37 — 0.170.0 : validation des fonds à la main, décompte du confrère, colonnes des tâches, croix de la fenêtre d'email
+
+Quatre demandes de l'étude dans la foulée.
+
+- **« Dans Fonds, rajouter un bouton de validation des fonds : parfois ils ne sont pas comptabilisés dans des reçus mais sont bien
+  arrivés sur le compte CDC. »** `bilanFondsDossier(d)` (commun/montants.js) remplace les appels à `bilanFondsRecus` dispersés
+  (fiche, À faire, agenda, Suivi « Nouveau », assistant, signalement, alerte Teams du serveur) : `d.fondsValidesLe` /
+  `fondsValidesPar` → `{ etat: 'complet', manuel: true }` quel que soit le total lu. Bouton « Valider les fonds reçus » dans le pied
+  du bloc (`validerFondsArrives`, historique, toast « Annuler »), « Annuler la validation » sur la ligne tant que la réception n'est
+  pas confirmée ; l'ancien « Confirmer quand même » disparaît (la validation puis « Confirmer » le remplacent). La vérification
+  automatique des reçus s'arrête pour un dossier validé ; la relance des fonds à J-3 ne part plus. Teams : « validés à la main,
+  arrivés sur le compte de l'étude » à la place du montant.
+- **« 7 jours avant le rdv, si le confrère représente les vendeurs et nous les acquéreurs : créer une relance de décompte du
+  confrère »** avec le texte fourni mot pour mot (« Mon Cher Maître, / Pouvez-vous nous envoyer votre décompte s'il vous plait ? /
+  Dans l'attente et vous en remerciant par avance, / Votre bien dévoué. »). `relanceDecompteConfrereDue` (client/24,
+  `JOURS_RELANCE_DECOMPTE_CONFRERE` = 7 ; `confrereRepresenteVendeur` et pas `notaireParticipantRepresenteAcquereur`, rendez-vous
+  placé, une fois par date — `relanceDecompteConfrerePour`) ; tâche « Demander son décompte au confrère » (second geste « Déjà
+  reçu ») ; ligne de l'onglet Fonds (`CLES_ECHANGES_FONDS`, utile à J-7, repliée avant) ; modèle `relanceDecompteConfrere` dans
+  `MODELES_EMAIL_RELANCE` avec son propre destinataire (`destinataire: emailConfrereVendeurDossier` = email saisi sur la fiche,
+  sinon l'office dans l'annuaire) et `confrere: true` — `envoyerRelanceCiblee` et `brouillonAction` lisent ces deux champs ;
+  modèle dans Réglages › Modèles d'emails (« Demande du décompte (au confrère du vendeur) »). Au passage : « Déjà relancé » /
+  « Déjà reçu » passent par `marquerFaitJour` (le chemin `marquer` posait une date d'appel de fonds à tort et la tâche revenait
+  le lendemain).
+- **« Tâches : aligner les dates, les collaborateurs, courrier, remise à plus tard. »** `.ja-liste` devient une grille à cinq
+  colonnes et chaque ligne en reprend les colonnes (`subgrid` par la variable `--ja-cols`, pour ne pas toucher à la cascade des
+  modes compact et téléphone) : initiales à gauche et délai à droite de la même colonne, bouton du geste de la largeur du plus
+  large (`::part(base)` à 100 %), « Plus tard » et chevron des groupes alignés à droite. Mesuré dans Chromium : bords identiques
+  d'une ligne à l'autre dans la fenêtre du matin et le widget.
+- **« Pop-up email : une petite croix en haut à droite pour fermer la fenêtre. »** Le chevron « retour » à gauche du titre est
+  remplacé par une croix à droite (`.redaction-fermer`, même `abandonnerRedaction`).

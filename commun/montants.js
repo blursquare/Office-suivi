@@ -47,7 +47,24 @@
     return { etat, total: t, attendu, reste: Math.max(0, -ecart), ecart };
   }
 
-  const exportes = { formaterMontantEuros, formaterPrix, formaterPrixCentimes, MARGE_FONDS_RECUS, bilanFondsRecus };
+  /**
+   * Bilan des fonds d'un dossier : les reçus comptables lus (d.fondsRecus, montant attendu saisi à la main en priorité) —
+   * sauf quand le collaborateur a VALIDÉ les fonds à la main (étude 06/10 : « parfois ils ne sont pas comptabilisés dans des
+   * reçus mais sont bien arrivés sur le compte CDC ») : `d.fondsValidesLe` vaut alors réception complète, `manuel: true`,
+   * quel que soit le total lu. Même règle pour le poste (fiche, À faire, agenda, Suivi) et le serveur (alerte Teams).
+   * @param {{ fondsRecus?: any, fondsAttendusManuel?: number, fondsValidesLe?: string } | null | undefined} d
+   */
+  function bilanFondsDossier(d) {
+    const f = d && d.fondsRecus && typeof d.fondsRecus === 'object' ? d.fondsRecus : null;
+    const attendu = (d && d.fondsAttendusManuel) || (f && f.attendu) || null;
+    const bilan = bilanFondsRecus(f ? f.total : 0, attendu);
+    if (d && typeof d.fondsValidesLe === 'string' && d.fondsValidesLe) {
+      return { etat: 'complet', total: bilan.total, attendu: bilan.attendu, reste: 0, ecart: bilan.ecart, manuel: true };
+    }
+    return Object.assign(bilan, { manuel: false });
+  }
+
+  const exportes = { formaterMontantEuros, formaterPrix, formaterPrixCentimes, MARGE_FONDS_RECUS, bilanFondsRecus, bilanFondsDossier };
   // Node : module.exports ; navigateur : des globaux (noms nus, comme les fonctions de client/).
   if (typeof module !== 'undefined' && module.exports) module.exports = exportes; else Object.assign(globalThis, exportes);
 })(

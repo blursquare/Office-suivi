@@ -716,6 +716,13 @@
     return d.emailAcquereur || '';
   }
 
+  // Email du confrère qui représente le vendeur : celui saisi sur la fiche (d.emailConfrereVendeur, relevé dans les emails
+  // des dossiers), à défaut l'email de son office dans l'annuaire ; '' quand le vendeur n'a pas d'autre notaire.
+  function emailConfrereVendeurDossier(d) {
+    if (!confrereRepresenteVendeur(d)) return '';
+    return (d && d.emailConfrereVendeur) || emailOfficeConfrereVendeur(d);
+  }
+
   // Email de l'office qui représente le vendeur, tiré de l'annuaire ('' sinon).
   function emailOfficeConfrereVendeur(d) {
     if (!confrereRepresenteVendeur(d)) return '';

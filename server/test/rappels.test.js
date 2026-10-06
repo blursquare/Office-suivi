@@ -655,6 +655,16 @@ test('fonds : tous reçus → une seule alerte par dossier, rien si la réceptio
   assert.equal(alertesFondsDues([dossierFonds({ appelFonds: '', echeancesValidees: {}, rendezVousSignature: '2026-10-08', fondsRecus: recus(1000, 150000) })], '2026-10-06', new Set()).length, 0);
 });
 
+test('fonds validés à la main (06/10, compte CDC) : alerte « complets » même sans reçu lu, texte sans montant', () => {
+  const d = dossierFonds({ rendezVousSignature: '2026-10-20', fondsRecus: recus(1000, 150000), fondsValidesLe: '2026-10-06', fondsValidesPar: 'Julie VASSELIN' });
+  const dus = alertesFondsDues([d], '2026-10-06', new Set());
+  assert.equal(dus.length, 1);
+  assert.equal(dus[0].genre, 'complets');
+  assert.match(texteAlerteFonds(dus[0]), /Tous les fonds sont reçus .* \(validés à la main, arrivés sur le compte de l’étude\)/);
+  const sansRecu = alertesFondsDues([dossierFonds({ rendezVousSignature: '2026-10-20', fondsValidesLe: '2026-10-06' })], '2026-10-06', new Set());
+  assert.equal(sansRecu[0].genre, 'complets');
+});
+
 test('fonds incomplets : 48 h avant le rendez-vous (mercredi → lundi précédent)', () => {
   const d = dossierFonds({ rendezVousSignature: '2026-10-14', fondsRecus: recus(100000, 150000) }); // mercredi
   assert.equal(alertesFondsDues([d], '2026-10-09', new Set()).length, 0, 'vendredi, J-5 : trop tôt');

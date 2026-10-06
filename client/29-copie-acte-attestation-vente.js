@@ -380,6 +380,11 @@
     if (!confrere && stade === 'signature' && echeanceValidee(d, 'appelFonds') && (!d.receptionFondsConfirmeeLe || d.relanceFondsPour === d.rendezVousSignature)) {
       ranger('relanceFonds', relanceFondsDue(d, aujourdhuiIso) || d.relanceFondsPour === d.rendezVousSignature);
     }
+    // Décompte du confrère qui représente le vendeur (étude 06/10) : utile à J-7 du rendez-vous, replié tant que le rendez-vous
+    // est placé, coché une fois demandé pour cette date.
+    if (confrereRepresenteVendeur(d) && !confrere && d.rendezVousSignature && stade !== 'signe') {
+      ranger('relanceDecompteConfrere', relanceDecompteConfrereDue(d, aujourdhuiIso) || d.relanceDecompteConfrerePour === d.rendezVousSignature);
+    }
     if (!confrere) ranger('rib', stade === 'signature');
     ranger('agenda', stade === 'signature');
     const dus = gestesRelationClient([d], aujourdhuiIso).map(g => g.type);
@@ -398,13 +403,15 @@
     if (cle === 'agenda') return renderNoterAgenda(d);
     if (cle === 'questionnaire') return renderQuestionnaireSatisfaction(d);
     if (cle === 'copieActe') return renderEnvoiCopieActe(d);
+    // Au confrère du vendeur, pas à l'acquéreur : son propre destinataire.
+    if (cle === 'relanceDecompteConfrere') return emailConfrereVendeurDossier(d) ? renderLigneEmailDossier(d, cle) : '';
     if (!avecDestinataire) return '';
     return renderLigneEmailDossier(d, cle);
   }
 
   // Gestes d'argent (étude 05/10 : « un onglet unique pour les fonds ») : rendus dans l'onglet Fonds de la fiche, plus dans
   // Échanges. echangesSelonStade les range toujours (utile maintenant / replié) — seule la répartition entre onglets change.
-  var CLES_ECHANGES_FONDS = ['provision', 'appelFonds', 'relanceFonds', 'fondsRecus', 'rib'];
+  var CLES_ECHANGES_FONDS = ['provision', 'appelFonds', 'relanceDecompteConfrere', 'relanceFonds', 'fondsRecus', 'rib'];
 
   // Destinataire des emails (client, ou confrère quand un autre office représente l'acquéreur) : partagé par Échanges et Fonds.
   function texteDestinataireEchanges(d) {

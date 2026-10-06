@@ -304,10 +304,11 @@
 
   function bilanFondsAssistant(d) {
     const f = d.fondsRecus;
-    if (!f || typeof f !== 'object') return '';
-    const b = bilanFondsRecus(f.total, d.fondsAttendusManuel || f.attendu);
+    if (!d.fondsValidesLe && (!f || typeof f !== 'object')) return '';
+    const b = bilanFondsDossier(d);
     if (b.etat === 'aucun' && !b.attendu) return '';
     const total = formaterMontantEuros(b.total);
+    if (b.manuel) return `fonds validés à la main le ${formatDateFr(d.fondsValidesLe)} (arrivés sur le compte de l’étude)${d.receptionFondsConfirmeeLe ? ', confirmé au client' : ', pas encore confirmé au client'}.`;
     if (b.etat === 'complet') return `${total} reçus, tout est là${d.receptionFondsConfirmeeLe ? ', confirmé au client' : ', pas encore confirmé au client'}.`;
     if (b.etat === 'excedent') return `${total} reçus pour ${formaterMontantEuros(b.attendu)} attendus : excédent de ${formaterMontantEuros(b.ecart)} à vérifier.`;
     if (b.etat === 'partiel') return `${total} reçus sur ${formaterMontantEuros(b.attendu)} : il manque ${formaterMontantEuros(b.reste)}.`;

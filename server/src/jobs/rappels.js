@@ -27,7 +27,7 @@ const { piecesRecuesEtManquantes } = require('../piecesChecklist');
 // Code commun au poste et au serveur (commun/, 04/10) : le planning, la validation d'une échéance, la SAFER, le bilan des
 // fonds, le format des montants et le libellé d'un dossier ne sont plus recopiés ici — une seule écriture pour les deux.
 const { echeanceValidee, echeanceSaferDossier, echeancesPlanning } = require('../../../commun/planning');
-const { bilanFondsRecus: bilanFonds, formaterMontantEuros: formaterEuros } = require('../../../commun/montants');
+const { bilanFondsRecus: bilanFonds, bilanFondsDossier, formaterMontantEuros: formaterEuros } = require('../../../commun/montants');
 const { libelleDossierAffiche: libelleDossier } = require('../../../commun/dossier');
 
 // Les échéances d'un dossier pour les rappels : celles du planning du poste (echeancesPlanning), une échéance
@@ -133,7 +133,8 @@ function alertesFondsDues(dossiers, aujourdHui, dejaEnvoyes) {
     const j = d.rendezVousSignature ? joursRestants(d.rendezVousSignature, aujourdHui) : null;
     if (j !== null && j < 0) continue;
     const f = d.fondsRecus && typeof d.fondsRecus === 'object' ? d.fondsRecus : null;
-    const bilan = f ? bilanFonds(f.total, d.fondsAttendusManuel || f.attendu) : null;
+    // Fonds validés à la main (compte CDC, étude 06/10) : réception complète même sans reçu lu.
+    const bilan = f || d.fondsValidesLe ? bilanFondsDossier(d) : null;
     const base = {
       dossierId: d.id, nomDossier: libelleDossier(d), responsable: d.responsable, libelle: 'Fonds reçus',
       rdv: d.rendezVousSignature || '', heure: d.rendezVousSignatureHeure || '', bilan, verifieLe: f ? f.verifieLe || '' : ''
@@ -163,7 +164,8 @@ function formaterJourRdv(iso, heure) {
 function texteAlerteFonds(a) {
   const rdv = a.rdv ? ` Rendez-vous de signature le ${formaterJourRdv(a.rdv, a.heure)}.` : '';
   if (a.genre === 'complets') {
-    return `💶 CLAIRE — Tous les fonds sont reçus pour le dossier ${a.nomDossier} (${formaterEuros(a.bilan.total)}).${rdv}
+    const combien = a.bilan && a.bilan.manuel ? 'validés à la main, arrivés sur le compte de l’étude' : formaterEuros(a.bilan.total);
+    return `💶 CLAIRE — Tous les fonds sont reçus pour le dossier ${a.nomDossier} (${combien}).${rdv}
 Vous pouvez confirmer la réception des fonds au client depuis la fiche (onglet Échanges).`;
   }
   const b = a.bilan;

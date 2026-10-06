@@ -152,10 +152,9 @@
     if (echeanceValidee(d, 'projetEnvoye')) f('Projet d’acte envoyé', 0);
     else if (jours <= 10) f('Projet d’acte à envoyer', jours <= 5 ? 12 : 5, 'Envoyer le projet');
     if (appelFait && jours <= 5) {
-      const fr = d.fondsRecus;
-      const b = bilanFondsRecus(fr ? fr.total : 0, d.fondsAttendusManuel || (fr && fr.attendu) || null);
+      const b = bilanFondsDossier(d);
       if (b.etat === 'complet') f('Fonds reçus', 0);
-      else f(fr ? 'Fonds pas encore tous reçus' : 'Arrivée des fonds pas encore vérifiée', 10, 'Vérifier l’arrivée des fonds');
+      else f(d.fondsRecus ? 'Fonds pas encore tous reçus' : 'Arrivée des fonds pas encore vérifiée', 10, 'Vérifier l’arrivée des fonds');
     }
     if (d.responsable && responsableAbsentLeJour(absences, d.responsable, d.rendezVousSignature)) {
       f(`${prenomCollaborateur(d.responsable)} absent(e) ce jour-là`, 30, 'Déplacer le rendez-vous');

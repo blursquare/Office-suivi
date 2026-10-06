@@ -129,3 +129,19 @@ test('liens : HTML collé — seuls le texte, les retours à la ligne et les lie
   // Ce que la zone garde entre deux rendus : le lien et son adresse.
   assert.strictEqual(app.htmlEditeurSur('<div>Voir <a href="https://x.fr">x</a></div>'), '<div>Voir <a href="https://x.fr">x</a></div>');
 });
+
+test('fenêtre d’email : une croix en haut à droite ferme la fenêtre (étude 06/10)', () => {
+  const app = chargerApplication();
+  const vm = require('node:vm');
+  vm.runInContext("dossiers.push({ id: 'x1', nom: 'MARTEL / FOURNIER', parties: [], historique: [] })", app);
+  // Le faux DOM rend un élément neuf à chaque getElementById : on garde la zone de la fenêtre pour lire ce qui y est écrit.
+  const zone = app.document.createElement('div');
+  const getElementById = app.document.getElementById;
+  app.document.getElementById = (id) => (id === 'email-redaction-contenu' ? zone : getElementById(id));
+  app.ouvrirRedactionEmail({ destinataire: 'a@exemple.fr', sujet: 'Objet', corps: 'Bonjour,', dossierId: 'x1' });
+  const html = zone.innerHTML;
+  assert.match(html, /<div class="redaction-tete">\s*<div class="redaction-titre"/);
+  assert.match(html, /class="bouton-icone icon-btn redaction-fermer" onclick="abandonnerRedaction\(\)" title="Fermer"/);
+  assert.doesNotMatch(html, /chevron-left/);
+  app.abandonnerRedaction();
+});

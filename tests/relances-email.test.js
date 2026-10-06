@@ -42,9 +42,9 @@ test('construireEmailRelanceRib reprend mot pour mot le texte de l’étude, san
   assert.equal(corps, 'Bonjour,\n\nEn prévision du rendez-vous de signature je vous remercie de vous munir de votre RIB et de votre pièce d’identité.\n\nBien cordialement,');
 });
 
-test('MODELES_EMAIL_RELANCE couvre exactement les neuf motifs (relation client de la page Agenda, relance des fonds)', () => {
+test('MODELES_EMAIL_RELANCE couvre exactement les dix motifs (relation client de la page Agenda, relance des fonds, décompte du confrère)', () => {
   const app = chargerApplication();
-  assert.equal(Object.keys(app.MODELES_EMAIL_RELANCE).sort().join(','), 'anniversaire,confirmationRdv,fonds,pret,projet,provision,relanceFonds,rib,ventePrealable');
+  assert.equal(Object.keys(app.MODELES_EMAIL_RELANCE).sort().join(','), 'anniversaire,confirmationRdv,fonds,pret,projet,provision,relanceDecompteConfrere,relanceFonds,rib,ventePrealable');
 });
 
 test('relance de la vente préalable : au client, ou au confrère quand un autre office représente l’acquéreur', () => {
@@ -145,15 +145,15 @@ test('fonds reçus : vérifier d’abord, « Confirmer » une fois tous les fond
   assert.doesNotMatch(app.renderFondsRecus(avecRdv), /'fonds'/);
   assert.doesNotMatch(app.renderFondsDossier(avecRdv), /Confirmer la réception des fonds/);
 
-  // Appel de fonds fait, reçus pas encore lus : « Vérifier » en geste principal ; la confirmation
-  // reste possible « quand même » depuis le détail.
+  // Appel de fonds fait, reçus pas encore lus : « Vérifier » en geste principal ; les fonds se valident à la main depuis le
+  // détail (étude 06/10 : arrivés sur le compte CDC sans reçu lu).
   const fait = dossierBase(app, { rendezVousSignature: '2026-11-20', appelFonds: '2026-10-30', echeancesValidees: { appelFonds: true } });
   const pasVerifie = app.renderFondsRecus(fait);
   assert.match(pasVerifie, /<span>Vérifier<\/span>/);
-  assert.match(pasVerifie, /Confirmer quand même/);
-  assert.match(app.renderFondsDossier(fait), /Confirmer quand même/);
+  assert.match(pasVerifie, /validerFondsArrives\('d1'\)/);
+  assert.match(app.renderFondsDossier(fait), /Valider les fonds reçus/);
   // Onglet Fonds (étude 05/10) : les gestes d'argent n'apparaissent plus dans Échanges.
-  assert.doesNotMatch(app.renderEchangesDossier(fait), /Confirmer quand même|'provision'|'rib'/);
+  assert.doesNotMatch(app.renderEchangesDossier(fait), /Valider les fonds reçus|'provision'|'rib'/);
 
   // Tous les fonds reçus : « Confirmer » devient le geste principal, « Revérifier » passe en icône.
   const complet = Object.assign({}, fait, { fondsRecus: { total: 1500, attendu: 1500, recus: [], depuis: '2026-10-15', fichiersLus: 1, verifieLe: '2026-11-02T10:00:00Z' } });
@@ -161,7 +161,21 @@ test('fonds reçus : vérifier d’abord, « Confirmer » une fois tous les fond
   assert.match(html, /<span>Confirmer<\/span>/);
   assert.match(html, /envoyerRelanceCiblee\('d1', 'fonds'\)/);
   assert.match(html, /title="Revérifier les reçus"/);
-  assert.doesNotMatch(html, /quand même/);
+  assert.doesNotMatch(html, /Valider les fonds reçus/);
+
+  // Validés à la main (étude 06/10) : « complet » sans reçu — « Confirmer » en geste principal, jauge pleine, date et
+  // collaborateur affichés, « Annuler la validation » tant que rien n'est confirmé au client.
+  const valides = Object.assign({}, fait, { fondsValidesLe: '2026-11-15', fondsValidesPar: 'Julie VASSELIN' });
+  const htmlValides = app.renderFondsRecus(valides);
+  assert.match(htmlValides, /<span>Confirmer<\/span>/);
+  assert.match(htmlValides, /Fonds validés le 15 novembre 2026 par Julie/);
+  assert.match(htmlValides, /width:100%/);
+  assert.match(htmlValides, /annulerValidationFonds\('d1'\)/);
+  assert.doesNotMatch(htmlValides, /validerFondsArrives/);
+  assert.doesNotMatch(app.renderFondsRecus(Object.assign({}, valides, { receptionFondsConfirmeeLe: '2026-11-16' })), /Annuler la validation/);
+  // Partout ailleurs : fonds complets à confirmer (Suivi « Nouveau »), plus de relance des fonds, agenda « Fonds reçus ».
+  assert.equal(app.fondsCompletsAConfirmer(valides), true);
+  assert.equal(app.relanceFondsDue(Object.assign({}, valides, { rendezVousSignature: '2026-11-17' }), '2026-11-16'), false);
 
   // Reçus partiels : pas de « Confirmer » en geste principal.
   const partiel = Object.assign({}, fait, { fondsRecus: Object.assign({}, complet.fondsRecus, { total: 1000 }) });
@@ -630,4 +644,69 @@ test('À faire : relance des fonds à J-3 (à la place de « Confirmer la récep
   assert.ok(!types('2026-09-30', recus).includes('fonds'), 'J-4 : pas encore');
   const relance = app.actionsDuJour([d], '2026-10-01').actions.find(a => a.type === 'relanceFonds');
   assert.equal(relance.geste.motif, 'relanceFonds');
+});
+
+test('bilanFondsDossier (06/10) : reçus lus, montant saisi à la main, validation à la main = complet', () => {
+  const app = chargerApplication();
+  assert.equal(app.bilanFondsDossier({}).etat, 'aucun');
+  assert.equal(app.bilanFondsDossier({ fondsRecus: { total: 40000, attendu: 100000 } }).etat, 'partiel');
+  assert.equal(app.bilanFondsDossier({ fondsRecus: { total: 40000, attendu: 100000 }, fondsAttendusManuel: 40000 }).etat, 'complet');
+  const manuel = app.bilanFondsDossier({ fondsRecus: { total: 40000, attendu: 100000 }, fondsValidesLe: '2026-10-06' });
+  assert.equal(manuel.etat, 'complet');
+  assert.equal(manuel.manuel, true);
+  assert.equal(manuel.reste, 0);
+  assert.equal(app.bilanFondsDossier({ fondsValidesLe: '2026-10-06' }).etat, 'complet', 'validé sans aucun reçu lu');
+  assert.equal(app.bilanFondsDossier({ fondsRecus: { total: 100000, attendu: 100000 } }).manuel, false);
+});
+
+test('décompte du confrère (étude 06/10) : demandé à J-7 quand un confrère représente le vendeur et nous l’acquéreur', () => {
+  const app = chargerApplication();
+  const base = (extra) => dossierBase(app, Object.assign({ sansPret: true, rendezVousSignature: '2026-10-13', roleNotaire: 'participant',
+    notaireVendeur: 'Maître Paul DUPUIS (Tours)', notaireAcquereur: 'Maître Sophie GOSSART (BLOIS)', emailConfrereVendeur: 'dupuis@notaires.fr', emailAcquereur: 'acq@exemple.fr' }, extra));
+  assert.equal(app.relanceDecompteConfrereDue(base({}), '2026-10-06'), true, 'J-7');
+  assert.equal(app.relanceDecompteConfrereDue(base({}), '2026-10-12'), true, 'veille');
+  assert.equal(app.relanceDecompteConfrereDue(base({}), '2026-10-05'), false, 'J-8 : trop tôt');
+  assert.equal(app.relanceDecompteConfrereDue(base({}), '2026-10-14'), false, 'rendez-vous passé');
+  assert.equal(app.relanceDecompteConfrereDue(base({ relanceDecompteConfrerePour: '2026-10-13' }), '2026-10-06'), false, 'déjà demandé pour cette date');
+  assert.equal(app.relanceDecompteConfrereDue(base({ relanceDecompteConfrerePour: '2026-09-20' }), '2026-10-06'), true, 'demande d’un ancien rendez-vous');
+  assert.equal(app.relanceDecompteConfrereDue(base({ notaireVendeur: 'Maître Sophie GOSSART (BLOIS)' }), '2026-10-06'), false, 'le vendeur est notre client');
+  assert.equal(app.relanceDecompteConfrereDue(base({ notaireAcquereur: 'Maître Paul DUPUIS (Tours)' }), '2026-10-06'), false, 'l’acquéreur a aussi son notaire');
+  assert.equal(app.relanceDecompteConfrereDue(base({ rendezVousSignature: '' }), '2026-10-06'), false, 'sans rendez-vous');
+  assert.equal(app.relanceDecompteConfrereDue(base({ typeAffaire: 'succession' }), '2026-10-06'), false, 'succession');
+
+  // Texte de l'étude, mot pour mot ; destinataire = le confrère du vendeur, jamais l'acquéreur.
+  const m = app.MODELES_EMAIL_RELANCE.relanceDecompteConfrere;
+  const { sujet, corps } = m.construire(base({}));
+  assert.equal(corps, 'Mon Cher Maître,\n\nPouvez-vous nous envoyer votre décompte s\'il vous plait ?\n\nDans l\'attente et vous en remerciant par avance,\n\nVotre bien dévoué.');
+  assert.match(sujet, /^Votre décompte — VTE - /);
+  assert.equal(m.destinataire(base({})), 'dupuis@notaires.fr');
+  assert.equal(m.destinataire(base({ emailConfrereVendeur: '' })), '', 'rien sans email du confrère (annuaire vide dans les tests)');
+  assert.equal(m.confrere, true);
+  const b = app.brouillonAction({ dossier: base({}), geste: { type: 'email', motif: 'relanceDecompteConfrere' } });
+  assert.equal(b.a, 'dupuis@notaires.fr');
+
+  // « À faire » : la tâche à J-7, « Déjà reçu » en second ; sans email du confrère, « Ouvrir la fiche ».
+  const actions = app.actionsDuJour([base({})], '2026-10-06').actions;
+  const t = actions.find(a => a.type === 'relanceDecompteConfrere');
+  assert.ok(t, actions.map(a => a.type).join(','));
+  assert.equal(t.titre, 'Demander son décompte au confrère');
+  assert.equal(t.geste.motif, 'relanceDecompteConfrere');
+  assert.equal(t.second.libelle, 'Déjà reçu');
+  assert.match(t.contexte, /DUPUIS/);
+  const sansEmail = app.actionsDuJour([base({ emailConfrereVendeur: '' })], '2026-10-06').actions.find(a => a.type === 'relanceDecompteConfrere');
+  assert.equal(sansEmail.geste.type, 'fiche');
+  assert.equal(app.actionsDuJour([base({})], '2026-10-04').actions.some(a => a.type === 'relanceDecompteConfrere'), false, 'J-9 : pas encore');
+
+  // Onglet Fonds : ligne utile à J-7, repliée avant, cochée une fois demandée ; jamais dans Échanges.
+  const e = app.echangesSelonStade(base({}), '2026-10-06');
+  assert.ok(e.utiles.includes('relanceDecompteConfrere'), e.utiles.join(','));
+  assert.ok(app.echangesSelonStade(base({}), '2026-09-20').autres.includes('relanceDecompteConfrere'));
+  assert.ok(app.echangesSelonStade(base({ relanceDecompteConfrerePour: '2026-10-13', relanceDecompteConfrereLe: '2026-10-06' }), '2026-10-07').utiles.includes('relanceDecompteConfrere'));
+  assert.ok(!app.echangesSelonStade(base({ notaireVendeur: 'Maître Sophie GOSSART (BLOIS)' }), '2026-10-06').utiles.concat().includes('relanceDecompteConfrere'));
+  const fonds = app.renderFondsDossier(base({}));
+  assert.match(fonds, /Demander son décompte au confrère/);
+  assert.match(fonds, /envoyerRelanceCiblee\('d1', 'relanceDecompteConfrere'\)/);
+  assert.doesNotMatch(app.renderEchangesDossier(base({})), /Demander son décompte au confrère/);
+  assert.match(app.renderFondsDossier(base({ relanceDecompteConfrerePour: '2026-10-13', relanceDecompteConfrereLe: '2026-10-06' })), /Envoyé le 6 octobre 2026/);
+  assert.doesNotMatch(app.renderFondsDossier(base({ emailConfrereVendeur: '' })), /Demander son décompte au confrère/);
 });
