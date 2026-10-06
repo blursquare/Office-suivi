@@ -766,6 +766,7 @@
         ${ligne('user', 'Vendeurs', renderPersonnesCoteFiche(d, 'vendeur'), null, 'prop-pleine')}
         ${ligne('users', 'Acquéreurs', renderPersonnesCoteFiche(d, 'acquereur'), null, 'prop-pleine')}
         ${coordonneesPartiesDossier(d).map(c => ligne(c.partie === 'vendeur' ? 'user' : 'users', c.libelle, champsCoordonneesPartie(d, c, 'fiche'), c.parNotaire ? `fiche-tel-${c.partie}-${d.id}` : `fiche-email-${c.partie}-${d.id}`, 'prop-pleine')).join('')}
+        ${renderMajAuthentic(d, ligne)}
         ${renderClientsAPlacer(d, ligne)}
         ${renderPersonnesConnues(d, ligne)}
         ${renderCompleterAuthenticFiche(d, ligne)}

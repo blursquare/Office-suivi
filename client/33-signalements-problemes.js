@@ -715,6 +715,11 @@
     return Object.keys(r).length ? r : null;
   }
 
+  function donneesBornees(o, max) {
+    if (!o || typeof o !== 'object' || Array.isArray(o)) return null;
+    try { const t = JSON.stringify(o); return t.length <= max ? JSON.parse(t) : null; } catch (e) { return null; }
+  }
+
   function authenticPersistable(a) {
     if (!a || typeof a !== 'object') return null;
     const texte = (v) => typeof v === 'string' ? v.slice(0, 160) : '';
@@ -736,7 +741,9 @@
         emails: Array.isArray(c.emails) ? c.emails.filter(t => typeof t === 'string').slice(0, 3).map(texte) : [],
         situationMatrimoniale: situationMatrimonialePersistable(c.situationMatrimoniale)
       })) : [],
-      clientsEcartes: Array.isArray(a.clientsEcartes) ? a.clientsEcartes.filter(n => typeof n === 'string').slice(-20).map(texte) : []
+      clientsEcartes: Array.isArray(a.clientsEcartes) ? a.clientsEcartes.filter(n => typeof n === 'string').slice(-20).map(texte) : [],
+      // Ce qu'Authentic a déjà rempli et ce qu'il propose de changer (client/52) : retenus tels quels, dans une taille raisonnable.
+      valeurs: donneesBornees(a.valeurs, 4000), fichesAuthentic: donneesBornees(a.fichesAuthentic, 12000), majEnAttente: donneesBornees(a.majEnAttente, 12000)
     };
     Object.keys(r).forEach(k => { const v = r[k]; if (v == null || v === '' || v === false || (typeof v === 'object' && !Object.keys(v).length)) delete r[k]; });
     return Object.keys(r).length ? r : null;

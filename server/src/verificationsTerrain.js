@@ -20,6 +20,8 @@ const CLE_VERIFICATIONS = 'verifications-terrain';
 // `source` : 'serveur' (noté par le serveur), 'poste' (noté par une fenêtre CLAIRE, POST
 // /api/verifications-terrain/noter — seuls ces points-là y sont acceptés) ou 'manuel'.
 const VERIFICATIONS_TERRAIN = [
+  { id: 'authentic-changement-propose', depuis: '0.176.0', source: 'poste', titre: 'Authentic : une donnée déjà reprise a changé dans Authentic, la mise à jour est proposée (fiche inchangée)',
+    comment: 'Coché la première fois qu’une page d’Authentic relevée porte une valeur différente de celle qu’Authentic avait déjà donnée (par exemple un email corrigé) : le message « Mettre à jour la fiche ? » s’affiche et la fiche ne bouge qu’au clic. À éprouver en corrigeant un email dans la fiche client d’Authentic.' },
   { id: 'lecture-xml-exchange', depuis: '0.144.1', source: 'serveur', titre: 'Réponses d’Exchange lues par le nouveau lecteur XML (agenda de l’office)',
     comment: 'Coché au premier tour de lecture de l’agenda qui rend des rendez-vous après le passage à fast-xml-parser ; si l’agenda reste vide alors qu’Outlook en montre, c’est la lecture à examiner.' },
   { id: 'tache-agenda-supprimee-cochee', depuis: '0.144.11', source: 'serveur', titre: 'Rendez-vous rouge « JV - … » supprimé dans Outlook : tâche cochée dans CLAIRE',

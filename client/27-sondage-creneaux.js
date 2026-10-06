@@ -874,6 +874,9 @@
     if (fondsCompletsAConfirmer(d)) {
       out.push({ cle: 'fonds', rang: 1, texte: 'Tous les fonds reçus — confirmation à envoyer' });
     }
+    // Authentic a changé une donnée déjà reprise (étude 06/10 au soir) : la mise à jour attend une décision sur la fiche.
+    const majs = majsEnAttenteAuthentic(d);
+    if (majs.length) out.push({ cle: 'authentic', rang: 1, texte: majs.length === 1 ? `Authentic a changé : ${majs[0].libelle}` : `Authentic a changé : ${majs.length} données` });
     return out;
   }
 
@@ -900,7 +903,7 @@
     return `
       <section class="semaine-groupe a-voir">
         <div class="semaine-entete">
-          <span class="section-eyebrow">Nouveau ${infoBulle('Dossiers avec du nouveau : offre de prêt ou pièce trouvée depuis la dernière ouverture de la fiche, ou fonds tous reçus sans confirmation au client. Ils reprennent leur place dès que la fiche est ouverte (ou la réception confirmée).')}</span>
+          <span class="section-eyebrow">Nouveau ${infoBulle('Dossiers avec du nouveau : offre de prêt ou pièce trouvée depuis la dernière ouverture de la fiche, fonds tous reçus sans confirmation au client, ou donnée qu’Authentic a changée (mise à jour à décider sur la fiche). Ils reprennent leur place dès que la fiche est ouverte (ou la réception confirmée).')}</span>
           <span class="semaine-compteur">${aVoir.length} dossier${aVoir.length > 1 ? 's' : ''}</span>
         </div>
         <div class="table-scroll">

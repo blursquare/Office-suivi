@@ -195,21 +195,20 @@
     extraction.champs = extraction.champs || {};
     const nom = String(donnees.intitule || '').replace(/^\s*(?:vte|vente|succession|succ)\b\.?\s*[-:]?\s*/i, '').trim();
     if (nom) extraction.champs.nom = champExtraction(nom, origine);
-    // Emails et téléphones : ceux de TOUTES les parties du côté, ajoutés à ceux déjà lus dans le compromis
-    // (étude, 02/10 : « garder les deux » — avant, seul le premier email d'Authentic était repris, et il
-    // remplaçait celui du compromis).
+    // Emails et téléphones : ceux de TOUTES les parties du côté (Authentic d'abord, étude 06/10 au soir : « Authentic passe en
+    // premier partout et remplace les champs si déjà rempli ») REMPLACENT ceux lus dans le compromis — quand Authentic en a.
     const valeur = (cle) => (extraction.champs[cle] && extraction.champs[cle].valeur) || '';
     const emailsCote = (role) => parties.filter(p => p.role === role).reduce((t, p) => t.concat(p.emails || []), []);
     const telsCote = (role) => parties.filter(p => p.role === role).reduce((t, p) => t.concat(p.telephones || []), []);
     [['emailAcquereur', 'ACQUEREUR'], ['emailVendeur', 'VENDEUR']].forEach(([cle, role]) => {
-      const fusion = fusionnerEmailsTexte(valeur(cle), emailsCote(role));
-      if (fusion && fusion !== valeur(cle)) extraction.champs[cle] = champExtraction(fusion, origine);
+      const authentic = fusionnerEmailsTexte('', emailsCote(role));
+      if (authentic && authentic !== valeur(cle)) extraction.champs[cle] = champExtraction(authentic, origine);
     });
     // Téléphones des parties (appels 3CX reconnus) : repris sur la fiche à la création, sans passer
     // par le formulaire (modifiables ensuite dans l'onglet Échanges).
     [['telephoneAcquereur', 'ACQUEREUR'], ['telephoneVendeur', 'VENDEUR']].forEach(([cle, role]) => {
-      const fusion = fusionnerTelephonesTexte(valeur(cle), telsCote(role));
-      if (fusion && fusion !== valeur(cle)) extraction.champs[cle] = champExtraction(fusion, origine);
+      const authentic = fusionnerTelephonesTexte('', telsCote(role));
+      if (authentic && authentic !== valeur(cle)) extraction.champs[cle] = champExtraction(authentic, origine);
     });
     if (bien && bien.type) extraction.champs.typeVente = champExtraction(bien.type, origine);
     // Lots d'une copropriété (tous les biens relevés, 06/10) : gardés sur la fiche.
@@ -486,8 +485,12 @@
     return fiche.length > 0 && fiche.every(m => venue.includes(m));
   }
 
-  function complementDossierDepuisAuthentic(d, donnees, liste) {
+  // `options` = { forcer, maintenant } : `forcer` (bouton « Compléter », geste explicite) reprend tout d'Authentic, même ce qu'il
+  // avait déjà donné et changé depuis — sinon un changement d'Authentic sur une valeur déjà reprise est PROPOSÉ (client/52).
+  function complementDossierDepuisAuthentic(d, donnees, liste, options) {
     if (!d || !donnees) return [];
+    const o = options || {};
+    const maintenant = o.maintenant || new Date().toISOString();
     const textes = [];
     const parties = partiesExportAuthentic(donnees);
     const nomme = (p) => p && String(p.nom || '').trim();
@@ -503,30 +506,24 @@
       ajoutees.forEach(v => d.parties.push(Object.assign({}, v, { role })));
       textes.push(`${ajoutees.length} ${role === 'VENDEUR' ? 'vendeur' : 'acquéreur'}${ajoutees.length > 1 ? 's' : ''} (${ajoutees.map(v => v.nom).join(', ')})`);
     }
-    const emailsCote = (role) => parties.filter(p => p.role === role).reduce((t, p) => t.concat(p.emails || []), []);
-    const telsCote = (role) => parties.filter(p => p.role === role).reduce((t, p) => t.concat(p.telephones || []), []);
-    [['emailVendeur', 'VENDEUR', 'email du vendeur'], ['emailAcquereur', 'ACQUEREUR', 'email de l’acquéreur']].forEach(([cle, role, libelle]) => {
-      const fusion = fusionnerEmailsTexte(d[cle] || '', emailsCote(role));
-      if (fusion && fusion !== (d[cle] || '')) { d[cle] = fusion; textes.push(libelle); }
-    });
-    [['telephoneVendeur', 'VENDEUR', 'téléphone du vendeur'], ['telephoneAcquereur', 'ACQUEREUR', 'téléphone de l’acquéreur']].forEach(([cle, role, libelle]) => {
-      const fusion = fusionnerTelephonesTexte(d[cle] || '', telsCote(role));
-      if (fusion && fusion !== (d[cle] || '')) { d[cle] = fusion; textes.push(libelle); }
+    // Emails et téléphones de chaque personne d'Authentic (Authentic d'abord : ils remplacent ceux de la fiche la première fois,
+    // ensuite un changement est proposé).
+    parties.filter(p => (p.role === 'VENDEUR' || p.role === 'ACQUEREUR') && nomme(p)).forEach(p => {
+      appliquerContactAuthentic(d, p.role, p.nom, { emails: p.emails, telephones: p.telephones }, { maintenant, forcer: o.forcer }).forEach(t => textes.push(t));
     });
     const bien = bienExportAuthentic(donnees);
     // Authentic fait foi (étude 06/10 : « on prend toujours de base les données d'Authentic ») : une adresse ou un prix différents
-    // de ceux de la fiche les REMPLACENT, l'ancienne valeur restant dans l'historique.
+    // de ceux de la fiche les REMPLACENT la première fois, l'ancienne valeur restant dans l'historique ; ensuite la fiche ne bouge plus.
     if (bien && bien.adresse && bien.adresse.texte) {
       const nouvelle = normaliserAdresse(bien.adresse.texte);
-      const actuelle = String(d.adresseBien || '').trim();
-      if (nouvelle && normaliserAdresse(actuelle) !== nouvelle) {
-        d.adresseBien = nouvelle;
-        textes.push(actuelle ? `adresse du bien (avant : ${actuelle})` : 'adresse du bien');
+      if (nouvelle) {
+        const r = poserChampAuthentic(d, { cle: 'adresseBien', champ: 'adresseBien', libelle: 'Adresse du bien', valeur: nouvelle, maintenant, forcer: o.forcer, egal: (a, b) => normaliserAdresse(a) === normaliserAdresse(b) });
+        if (r.etat === 'pose') textes.push(r.avant ? `adresse du bien (avant : ${r.avant})` : 'adresse du bien');
       }
     }
     if (bien && bien.type) {
       const avantType = d.typeVente;
-      const texteType = appliquerTypeBienAuthentic(d, bien.type);
+      const texteType = appliquerTypeBienAuthentic(d, bien.type, { maintenant, forcer: o.forcer });
       if (texteType) textes.push(avantType ? `type de vente (avant : ${LIBELLES_TYPE_VENTE_AUTHENTIC[avantType] || avantType})` : 'type de vente');
     }
     const parcelles = parcellesExportAuthentic(donnees);
@@ -534,14 +531,13 @@
     if (parcelles.length || lots.lots.length) {
       const resultat = { modifie: false };
       const noter = () => {};
-      appliquerBienAuthentic(d, { adresse: bien && bien.adresse ? bien.adresse : null, parcelles, lots: lots.lots, tantiemesTotal: lots.tantiemesTotal }, noter, resultat);
+      appliquerBienAuthentic(d, { adresse: bien && bien.adresse ? bien.adresse : null, parcelles, lots: lots.lots, tantiemesTotal: lots.tantiemesTotal }, noter, resultat, { maintenant, forcer: o.forcer });
       if (resultat.modifie) textes.push(lots.lots.length ? 'parcelles et lots' : 'parcelles');
     }
     const prix = donnees.infosAuthentic && Number(donnees.infosAuthentic.prix);
-    if (prix > 0 && Number(d.prixVente) !== prix) {
-      const avantPrix = Number(d.prixVente) > 0 ? formaterPrix(d.prixVente) : '';
-      d.prixVente = prix;
-      textes.push(avantPrix ? `prix (avant : ${avantPrix})` : 'prix');
+    if (prix > 0) {
+      const r = poserChampAuthentic(d, { cle: 'prixVente', champ: 'prixVente', libelle: 'Prix de vente', valeur: prix, maintenant, forcer: o.forcer, egal: (a, b) => Number(a) === Number(b), formater: v => Number(v) > 0 ? formaterPrix(v) : '' });
+      if (r.etat === 'pose') textes.push(r.avant ? `prix (avant : ${r.avant})` : 'prix');
     }
     if (donnees.reference && retenirReferenceAuthentic(d, donnees.reference, liste || [])) textes.push('référence Authentic');
     return textes;
@@ -590,11 +586,16 @@
       groupesAuthenticFiche = { quand: Date.now(), liste: groupes };
       const g = groupeAuthenticPourComplementAuto(d, groupes, dossiers);
       if (!g || !g.export) return false;
+      const majAvant = instantaneMajsAuthentic(d);
+      const empreinteAvant = empreinteRegistreAuthentic(d);
       const textes = complementDossierDepuisAuthentic(d, g.export, dossiers);
-      if (!textes.length) return false;
-      ajouterHistorique(d, `Complété depuis Authentic (« ${g.intitule} ») : ${textes.join(', ')}`);
+      const nouvelles = nouvellesMajsAuthentic(majAvant, d);
+      if (!textes.length && !nouvelles.length && empreinteRegistreAuthentic(d) === empreinteAvant) return false;
+      if (textes.length) ajouterHistorique(d, `Complété depuis Authentic (« ${g.intitule} ») : ${textes.join(', ')}`);
+      nouvelles.forEach(m => ajouterHistorique(d, `Authentic a changé — ${m.libelle} : ${m.avant ? `${m.avant} → ` : ''}${m.apres} (mise à jour proposée)`));
       await sauvegarder(d);
       render();
+      notifierMajAuthentic(d, nouvelles);
       return true;
     } catch (e) {
       return false;
@@ -637,7 +638,7 @@
     const select = document.getElementById('auth-comp-' + id);
     const g = d && select && select.value !== '' ? groupesAuthenticFiche.liste[Number(select.value)] : null;
     if (!d || !g) { afficherToast('Choisissez le dossier d’Authentic à reprendre.', 'OK', null); return; }
-    const textes = complementDossierDepuisAuthentic(d, g.export, dossiers);
+    const textes = complementDossierDepuisAuthentic(d, g.export, dossiers, { forcer: true });
     if (!textes.length) { afficherToast(`Rien à compléter : la fiche a déjà ce qu’Authentic montre pour « ${g.intitule} ».`, 'OK', null); return; }
     ajouterHistorique(d, `Complété depuis Authentic (« ${g.intitule} ») : ${textes.join(', ')}`);
     sauvegarder(d);

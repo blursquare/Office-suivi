@@ -308,9 +308,9 @@ test('appliquerReleveSurDossier : prix (Capital) seulement s’il manque ; colla
 
 test('appliquerReleveSurDossier : fiche client → téléphone, email, situation matrimoniale de la bonne partie', () => {
   const d = { id: 'a', nom: 'MARTEL / FOURNIER', typeVente: 'maison', telephoneAcquereur: '0612345678', pieces: {}, historique: [] };
-  // FOURNIER = acquéreur d'après le nom du dossier ; son numéro est déjà connu, l'autre est ajouté.
+  // FOURNIER = acquéreur d'après le nom du dossier ; Authentic d'abord (étude 06/10 au soir) : ses numéros remplacent ceux de la fiche.
   app.appliquerReleveSurDossier(d, client);
-  assert.equal(d.telephoneAcquereur, '0612345678 / 02 54 00 00 01');
+  assert.equal(d.telephoneAcquereur, '06 12 34 56 78 / 02 54 00 00 01');
   assert.equal(d.emailAcquereur, 'camille.fournier@exemple.fr');
   app.appliquerReleveSurDossier(d, clientMarie);
   assert.equal(d.telephoneVendeur, '06 98 76 54 32');
@@ -1081,11 +1081,11 @@ test('commentDossierRetrouveAuthentic : noms vérifiés par l’adresse — dit 
   assert.equal(app.dossierPourIntituleAuthentic('Vente MARTEL / FOURNIER', [d], '12 rue des Lilas 41000 BLOIS').id, 'a');
 });
 
-test('garder les deux : emails et téléphones d’Authentic ajoutés à ceux déjà lus, jamais à leur place', () => {
+test('fusion de listes d’emails et de téléphones ; à la création Authentic passe en premier et remplace le compromis (étude 06/10 au soir)', () => {
   assert.equal(app.fusionnerEmailsTexte('jean@exemple.fr', ['Jean@Exemple.fr', 'marie@exemple.fr']), 'jean@exemple.fr; marie@exemple.fr');
   assert.equal(app.fusionnerEmailsTexte('', ['a@x.fr;b@y.fr']), 'a@x.fr; b@y.fr');
   assert.equal(app.fusionnerTelephonesTexte('06 12 34 56 78', ['+33 6 12 34 56 78', '02 54 00 00 00']), '06 12 34 56 78 / 02 54 00 00 00');
-  // Création : le compromis donnait un email, Authentic en donne deux autres (un par acquéreur).
+  // Création : le compromis donnait un email, Authentic en donne deux autres (un par acquéreur) : Authentic d'abord, il remplace.
   const extraction = { champs: { emailAcquereur: { valeur: 'compromis@exemple.fr' } } };
   app.completerExtractionDepuisAuthentic(extraction, {
     intitule: 'VTE MARTEL / FOURNIER', immeubles: [], documents: [], parties: [],
@@ -1095,7 +1095,7 @@ test('garder les deux : emails et téléphones d’Authentic ajoutés à ceux d�
       { id: 'p3', nom: 'FOURNIER', prenom: 'Paul', emails: ['paul@exemple.fr'], telephones: ['06 11 22 33 44'] }
     ]
   });
-  assert.equal(extraction.champs.emailAcquereur.valeur, 'compromis@exemple.fr; camille@exemple.fr; paul@exemple.fr');
+  assert.equal(extraction.champs.emailAcquereur.valeur, 'camille@exemple.fr; paul@exemple.fr');
   assert.equal(extraction.champs.telephoneAcquereur.valeur, '06 11 22 33 44');
 });
 
@@ -1318,7 +1318,7 @@ test('complementDossierDepuisAuthentic (06/10) : personnes, emails, téléphones
   assert.equal(d.parties.find(p => p.role === 'VENDEUR').nom, 'Alexandre MARTEL');
   assert.equal(d.parties.filter(p => p.role === 'ACQUEREUR').length, 1, 'acquéreur déjà présent : pas de doublon');
   assert.equal(d.emailVendeur, 'martel@exemple.fr');
-  assert.equal(d.emailAcquereur, 'autre@exemple.fr; fournier@exemple.fr', 'email ajouté, jamais remplacé');
+  assert.equal(d.emailAcquereur, 'fournier@exemple.fr', 'Authentic d’abord : son email remplace celui de la fiche');
   assert.equal(d.telephoneVendeur, '06 00 00 00 01');
   assert.equal(d.adresseBien, app.normaliserAdresse('12 rue des Lices 41000 BLOIS'));
   assert.equal(d.typeVente, 'maison');

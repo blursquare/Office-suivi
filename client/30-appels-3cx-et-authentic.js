@@ -1517,27 +1517,13 @@
   // Pure (modifie le dossier passé) : téléphones et email d'une fiche client reportés sur le côté
   // `role` du dossier (s'ils manquent), situation matrimoniale gardée ; la fiche quitte « à rattacher ».
   function appliquerClientAuthentic(d, personne, role, noter, resultat, maintenant) {
-    const avant = d.authentic || {};
     const qui = role === 'VENDEUR' ? 'du vendeur' : 'de l’acquéreur';
-    const champTel = role === 'VENDEUR' ? 'telephoneVendeur' : 'telephoneAcquereur';
-    const champEmail = role === 'VENDEUR' ? 'emailVendeur' : 'emailAcquereur';
-    const chiffres = (t) => String(t || '').replace(/\D/g, '').slice(-9);
-    const connus = String(d[champTel] || '').split('/').map(chiffres).filter(Boolean);
-    const nouveaux = (personne.telephones || []).filter(t => chiffres(t).length === 9 && !connus.includes(chiffres(t)));
-    if (nouveaux.length) {
-      d[champTel] = [d[champTel], ...nouveaux].filter(Boolean).join(' / ');
-      noter(`Téléphone ${qui} repris d’Authentic : ${nouveaux.join(' / ')}`);
-    }
-    const emailsConnus = emailsDepuisTexte(d[champEmail]).map(e => e.toLowerCase());
-    const emailsNouveaux = (personne.emails || []).filter(e => !emailsConnus.includes(String(e).toLowerCase()));
-    if (emailsNouveaux.length) {
-      d[champEmail] = [String(d[champEmail] || '').trim().replace(/[;,]\s*$/, ''), ...emailsNouveaux].filter(Boolean).join('; ');
-      noter(`Email ${qui} repris d’Authentic : ${emailsNouveaux.join('; ')}`);
-    }
-    // Identité de la partie (étude 06/10 : « Authentic est la base — état civil, nom, prénom ») : civilité, prénom dans
-    // le nom, nom d'usage, date de naissance alignés sur la fiche client.
-    alignerIdentitePartieAuthentic(d, personne, role).forEach(noter);
     const nomComplet = [personne.prenom, personne.nom].filter(Boolean).join(' ');
+    // Authentic d'abord (étude 06/10 au soir) : la première fois, ses emails et téléphones REMPLACENT ceux de la fiche ; ensuite un
+    // changement d'Authentic est proposé, jamais écrit (voir client/52-authentic-fait-foi.js). Même règle pour l'identité de la partie.
+    appliquerContactAuthentic(d, role, nomComplet, { emails: personne.emails, telephones: personne.telephones }, { noter, maintenant });
+    alignerIdentitePartieAuthentic(d, personne, role, { noter, maintenant }).forEach(noter);
+    const avant = d.authentic || {};
     const cle = normaliserPourRecherche(nomComplet).replace(/[^a-z0-9]+/g, ' ').trim();
     const personnes = (avant.personnes || []).filter(p => normaliserPourRecherche(p.nom).replace(/[^a-z0-9]+/g, ' ').trim() !== cle);
     const ancienne = (avant.personnes || []).find(p => normaliserPourRecherche(p.nom).replace(/[^a-z0-9]+/g, ' ').trim() === cle);
@@ -1555,9 +1541,12 @@
 
   // Pure (modifie d.parties) : la partie du côté `role` que décrit la fiche client d'Authentic prend son identité —
   // « Prénom NOM » quand la fiche n'avait que le nom, civilité, nom d'usage, date de naissance ; une personne du côté
-  // qui n'est pas encore sur la fiche (conjoint sous son propre nom, fiche sans partie) y entre. Rien n'est effacé.
+  // qui n'est pas encore sur la fiche (conjoint sous son propre nom, fiche sans partie) y entre. Authentic d'abord (étude 06/10
+  // au soir) : la PREMIÈRE fois, son identité remplace celle de la fiche ; ensuite la fiche ne bouge plus, et ce qu'Authentic
+  // change est proposé (« Authentic a changé »), jamais écrit — `o.forcer` (bouton « Compléter ») écrit tout.
   // → les textes d'historique.
-  function alignerIdentitePartieAuthentic(d, personne, role) {
+  function alignerIdentitePartieAuthentic(d, personne, role, o) {
+    const opts = o || {};
     const textes = [];
     if (!d || !personne || !personne.nom || !role) return textes;
     const parties = Array.isArray(d.parties) ? d.parties : [];
@@ -1571,27 +1560,51 @@
     const memeNom = duCote.filter(x => contient(x.nom, nomFamille) || (personne.nomUsage && contient(x.nom, personne.nomUsage)) || (x.nomUsage && contient(x.nomUsage, nomFamille)));
     let p = memeNom.find(x => premierPrenom && contient(x.nom, premierPrenom)) || (memeNom.length === 1 ? memeNom[0] : null);
     const qui = role === 'VENDEUR' ? 'Vendeur' : 'Acquéreur';
+    let creee = false;
     if (!p) {
       if (memeNom.length > 1) return textes; // deux homonymes sans prénom : jamais deviné
       p = { nom: complet, role, qualitePersonne: 'physique', origine: 'authentic' };
       d.parties = parties.concat(p);
       textes.push(`${qui} ajouté d’après sa fiche Authentic : ${complet}`);
-    } else if (premierPrenom && !contient(p.nom, premierPrenom)) {
-      const avantNom = [p.prenom, p.nom].map(x => String(x || '').trim()).filter(Boolean).join(' ');
-      p.nom = complet;
-      delete p.prenom;
-      textes.push(`${qui} : ${avantNom} → ${complet} (fiche Authentic)`);
+      creee = true;
     }
-    const civ = civiliteDepuisTexte(personne.civilite);
-    if (civ && civiliteDepuisTexte(p.civilite) !== civ) {
-      p.civilite = civ;
-      textes.push(`Civilité de ${complet} : ${civ === 'M' ? 'Monsieur' : 'Madame'} (fiche Authentic)`);
+    // L'identité qu'Authentic donne, et ce qui en diffère sur la fiche.
+    const cible = { nom: complet, civilite: civiliteDepuisTexte(personne.civilite), nomUsage: personne.nomUsage || '', dateNaissance: personne.dateNaissance || '' };
+    const ecarts = [];
+    if (premierPrenom && !contient(p.nom, premierPrenom)) ecarts.push('nom');
+    if (cible.civilite && civiliteDepuisTexte(p.civilite) !== cible.civilite) ecarts.push('civilite');
+    if (cible.nomUsage && p.nomUsage !== cible.nomUsage) ecarts.push('nomUsage');
+    if (cible.dateNaissance && p.dateNaissance !== cible.dateNaissance) ecarts.push('dateNaissance');
+    const { id, fiche } = ficheAuthenticPersonne(d, role, complet);
+    const connue = fiche && fiche.identite ? fiche.identite : null;
+    const cleMaj = 'identite:' + id;
+    // Déjà rempli par Authentic : seules les données qu'Authentic a CHANGÉES depuis sont proposées ; ce que la fiche a de différent
+    // sans changement d'Authentic (correction à la main) reste.
+    const aEcrire = connue && !creee && !opts.forcer ? [] : ecarts;
+    const aProposer = connue && !creee && !opts.forcer ? ecarts.filter(k => String(connue[k] || '') !== String(cible[k] || '')) : [];
+    const libelleChamp = (k) => CHAMPS_IDENTITE_AUTHENTIC[k];
+    const valeurFiche = (k) => k === 'nom' ? p.nom : k === 'civilite' ? (civiliteDepuisTexte(p.civilite) === 'M' ? 'Monsieur' : civiliteDepuisTexte(p.civilite) === 'Mme' ? 'Madame' : '') : (p[k] || '');
+    const valeurCible = (k) => k === 'civilite' ? (cible.civilite === 'M' ? 'Monsieur' : 'Madame') : cible[k];
+    aEcrire.forEach(k => {
+      const avantValeur = valeurFiche(k);
+      if (k === 'nom') textes.push(`${qui} : ${[p.prenom, p.nom].map(x => String(x || '').trim()).filter(Boolean).join(' ')} → ${complet} (fiche Authentic)`);
+      else if (k === 'civilite') textes.push(`Civilité de ${complet} : ${valeurCible(k)} (fiche Authentic)`);
+      else if (k === 'nomUsage') textes.push(`Nom d’usage de ${complet} : ${cible.nomUsage} (fiche Authentic)`);
+      else if (avantValeur) textes.push(`Date de naissance de ${complet} : ${formatDateFr(avantValeur)} → ${formatDateFr(cible.dateNaissance)} (fiche Authentic)`);
+      appliquerChampIdentiteAuthentic(p, k, cible);
+    });
+    if (aProposer.length) {
+      mettreEnAttenteAuthentic(d, cleMaj, {
+        type: 'identite', libelle: `Identité de ${complet}`, fiche: id, role, nom: complet, partie: p.nom, champs: aProposer, cible,
+        avant: aProposer.map(k => `${libelleChamp(k)} ${valeurFiche(k) || 'vide'}`).join(' ; '),
+        apres: aProposer.map(k => `${libelleChamp(k)} ${k === 'dateNaissance' ? formatDateFr(cible[k]) : valeurCible(k)}`).join(' ; '),
+        le: opts.maintenant || new Date().toISOString()
+      });
+    } else {
+      retirerMajAuthentic(d, cleMaj);
+      // Authentic retenu tel qu'il est (rien de proposé) : un changement ultérieur sera comparé à cette identité.
+      majFicheAuthentic(d, id, role, complet, { identite: cible });
     }
-    if (personne.nomUsage && p.nomUsage !== personne.nomUsage) {
-      p.nomUsage = personne.nomUsage;
-      textes.push(`Nom d’usage de ${complet} : ${personne.nomUsage} (fiche Authentic)`);
-    }
-    if (personne.dateNaissance && !p.dateNaissance) p.dateNaissance = personne.dateNaissance;
     return textes;
   }
 
@@ -1813,25 +1826,30 @@
   // bien, tu peux le détecter dans la fiche bien »). Remplace un type différent, jamais pour une succession ni sans type lu.
   // → le texte d'historique, ou ''.
   var LIBELLES_TYPE_VENTE_AUTHENTIC = { maison: 'maison', copropriete: 'copropriété', terrain: 'terrain' };
-  function appliquerTypeBienAuthentic(d, type) {
-    if (!d || !type || !LIBELLES_TYPE_VENTE_AUTHENTIC[type] || estSuccession(d) || d.typeVente === type) return '';
-    const avant = d.typeVente ? LIBELLES_TYPE_VENTE_AUTHENTIC[d.typeVente] || d.typeVente : 'non renseigné';
-    d.typeVente = type;
-    return `Type de vente : ${LIBELLES_TYPE_VENTE_AUTHENTIC[type]} (fiche bien Authentic ; avant : ${avant})`;
+  // Authentic d'abord, puis la fiche ne bouge plus (étude 06/10 au soir, client/52) : la première fois le type d'Authentic remplace
+  // celui de la fiche ; si Authentic le change ensuite, la mise à jour est proposée. `o` = { maintenant, forcer }.
+  function appliquerTypeBienAuthentic(d, type, o) {
+    if (!d || !type || !LIBELLES_TYPE_VENTE_AUTHENTIC[type] || estSuccession(d)) return '';
+    const r = poserChampAuthentic(d, {
+      cle: 'typeVente', champ: 'typeVente', libelle: 'Type de vente', valeur: type, maintenant: o && o.maintenant, forcer: o && o.forcer,
+      formater: v => LIBELLES_TYPE_VENTE_AUTHENTIC[v] || String(v)
+    });
+    if (r.etat !== 'pose') return '';
+    return `Type de vente : ${LIBELLES_TYPE_VENTE_AUTHENTIC[type]} (fiche bien Authentic ; avant : ${r.avant || 'non renseigné'})`;
   }
 
   // Fiche bien lue après la création (étude 06/10) : ses parcelles absentes de la fiche du dossier y sont ajoutées — jamais à la
   // place de celles déjà là (saisies à la main ou lues dans le compromis). Rien si la fiche contredit le dossier (resultat.raison).
-  function appliquerBienAuthentic(d, bien, noter, resultat) {
+  function appliquerBienAuthentic(d, bien, noter, resultat, o) {
     if (!bien) return resultat;
     // Page « Lots » (ni adresse ni cadastre) : rien à contredire, les lots complètent la fiche.
-    if ((bien.lots || []).length && !bien.adresse && !(bien.parcelles || []).length) return appliquerLotsAuthentic(d, bien, noter, resultat);
+    if ((bien.lots || []).length && !bien.adresse && !(bien.parcelles || []).length) return appliquerLotsAuthentic(d, bien, noter, resultat, o);
     if (!(bien.parcelles || []).length) return resultat;
     const raison = bienAuthenticContreditDossier(d, bien);
     if (raison) { resultat.raison = raison; return resultat; }
-    if ((bien.lots || []).length) appliquerLotsAuthentic(d, bien, noter, resultat);
+    if ((bien.lots || []).length) appliquerLotsAuthentic(d, bien, noter, resultat, o);
     else {
-      const texteType = appliquerTypeBienAuthentic(d, bien.type);
+      const texteType = appliquerTypeBienAuthentic(d, bien.type, o);
       if (texteType) { noter(texteType); resultat.modifie = true; }
     }
     const cad = (d.bien && d.bien.cadastre) || null;
@@ -1849,7 +1867,7 @@
 
   // Lots d'une copropriété relevés dans Authentic (06/10) : ajoutés ou complétés sur la fiche (jamais retirés) ; un dossier
   // qui n'était pas en copropriété le devient (checklist de copropriété), dit dans l'historique.
-  function appliquerLotsAuthentic(d, bien, noter, resultat) {
+  function appliquerLotsAuthentic(d, bien, noter, resultat, o) {
     const anciens = (d.bien && Array.isArray(d.bien.lots)) ? d.bien.lots : [];
     const fusion = fusionnerBienAuthentic({ lots: anciens, parcelles: [], tantiemesTotal: d.bien && d.bien.tantiemesTotal }, bien);
     const nouveaux = fusion.lots.filter(l => !anciens.some(a => a.numero === l.numero));
@@ -1857,12 +1875,31 @@
     if (!change) return resultat;
     d.bien = Object.assign({}, d.bien || {}, { lots: fusion.lots.slice(0, 40), tantiemesTotal: fusion.tantiemesTotal != null ? fusion.tantiemesTotal : null });
     if (nouveaux.length) noter(`Lot${nouveaux.length > 1 ? 's' : ''} de copropriété relevé${nouveaux.length > 1 ? 's' : ''} dans Authentic : ${nouveaux.map(l => `n° ${l.numero}${l.type ? ' (' + l.type + ')' : ''}`).join(', ')}`);
-    if (d.typeVente !== 'copropriete' && !estSuccession(d)) { noter(`Type de vente passé en copropriété (lots relevés dans Authentic ; avant : ${d.typeVente || 'non renseigné'})`); d.typeVente = 'copropriete'; }
+    if (!estSuccession(d)) {
+      const r = poserChampAuthentic(d, { cle: 'typeVente', champ: 'typeVente', libelle: 'Type de vente', valeur: 'copropriete', maintenant: o && o.maintenant, forcer: o && o.forcer, formater: v => LIBELLES_TYPE_VENTE_AUTHENTIC[v] || String(v) });
+      if (r.etat === 'pose') noter(`Type de vente passé en copropriété (lots relevés dans Authentic ; avant : ${r.avant || 'non renseigné'})`);
+    }
     resultat.modifie = true;
     return resultat;
   }
 
+  // Une page d'Authentic appliquée à la fiche. Ce qu'Authentic CHANGE sur une valeur qu'il avait déjà donnée n'est pas écrit : il est
+  // proposé (`resultat.majEnAttente`, voir client/52-authentic-fait-foi.js) — le dossier est alors à enregistrer (`modifie`).
   function appliquerReleveSurDossier(d, capture, maintenantIso, liste) {
+    const majAvant = instantaneMajsAuthentic(d);
+    const empreinteAvant = empreinteRegistreAuthentic(d);
+    const resultat = appliquerReleveSurDossierBrut(d, capture, maintenantIso, liste);
+    resultat.majEnAttente = nouvellesMajsAuthentic(majAvant, d);
+    // Ce qu'Authentic vient de donner est retenu sur la fiche : à enregistrer, même si aucun champ visible n'a bougé.
+    if (empreinteRegistreAuthentic(d) !== empreinteAvant) resultat.modifie = true;
+    if (resultat.majEnAttente.length) {
+      d.historique = d.historique || [];
+      resultat.majEnAttente.forEach(m => d.historique.push({ date: maintenantIso || new Date().toISOString(), texte: `Authentic a changé — ${m.libelle} : ${m.avant ? `${m.avant} → ` : ''}${m.apres} (mise à jour proposée)` }));
+    }
+    return resultat;
+  }
+
+  function appliquerReleveSurDossierBrut(d, capture, maintenantIso, liste) {
     const resultat = { pieces: [], textes: [], modifie: false, echeancesFaites: [] };
     if (!d || !capture) return resultat;
     const maintenant = maintenantIso || new Date().toISOString();
@@ -1933,12 +1970,6 @@
       });
       if (resultat.echeancesFaites.length) noter(`Signature de l’acte marquée réalisée (acte signé dans Authentic${apres.acte.date ? ` le ${formatDateFr(apres.acte.date)}` : ''})`);
     }
-    if (apres.prix && Number(d.prixVente) !== apres.prix) {
-      const avantPrix = Number(d.prixVente) > 0 ? ` (avant : ${formaterPrix(d.prixVente)})` : '';
-      d.prixVente = apres.prix;
-      noter(`Prix de vente repris d’Authentic (Capital) : ${formaterPrix(apres.prix)}${avantPrix}`);
-      resultat.modifie = true;
-    }
     if (apres.avantContratLe && !d.dateAvantContrat) {
       d.dateAvantContrat = apres.avantContratLe;
       noter(`Date de signature de l’avant-contrat reprise d’Authentic : ${formatDateFr(apres.avantContratLe)}`);
@@ -1980,6 +2011,14 @@
       apres.releveLe = maintenant;
       d.authentic = apres;
       resultat.modifie = true;
+    }
+    // Prix « Capital » : Authentic d'abord, puis la fiche ne bouge plus (après d.authentic = apres : le registre des valeurs y vit).
+    if (apres.prix) {
+      const r = poserChampAuthentic(d, { cle: 'prixVente', champ: 'prixVente', libelle: 'Prix de vente', valeur: apres.prix, maintenant, egal: (a, b) => Number(a) === Number(b), formater: v => Number(v) > 0 ? formaterPrix(v) : '' });
+      if (r.etat === 'pose') {
+        noter(`Prix de vente repris d’Authentic (Capital) : ${formaterPrix(apres.prix)}${r.avant ? ` (avant : ${r.avant})` : ''}`);
+        resultat.modifie = true;
+      }
     }
     // La page de gestion est la base de la fiche (étude 06/10 : « on prend toujours de base les données d'Authentic, avant
     // et après la création ») : ce qui manque sur la fiche — personnes, emails, téléphones, bien, prix, référence — est
@@ -2175,6 +2214,7 @@
     const texte = r.modifie ? `${r.textes[0] || 'page reprise'}${r.textes.length > 1 ? ` (+${r.textes.length - 1})` : ''}`
       : attente.nature === 'dossier' ? 'dossier rattaché, rien de neuf sur la page' : raisonFicheClientSansChangement(attente.capture);
     afficherToast(`Authentic · ${libelleDossierAffiche(d)} : ${texte}.`, 'Voir', () => ouvrirDossierDrawer(d.id));
+    notifierMajAuthentic(d, r.majEnAttente);
     if (attente.releveId) rapporterResultatsAuthentic([{ id: attente.releveId, etat: 'rattache', dossierId: d.id, texte }]);
   }
 
@@ -2318,6 +2358,7 @@
       await sauvegarder(d);
       render();
       if (r0.textes.length) afficherToast(`Authentic · ${libelleDossierAffiche(d)} : ${r0.textes[0]}${r0.textes.length > 1 ? ` (+${r0.textes.length - 1})` : ''}.`, 'Voir', () => ouvrirDossierDrawer(d.id));
+      notifierMajAuthentic(d, r0.majEnAttente);
       return { etat: 'applique', dossierId: d.id, texte: r0.textes.join(' · ') || 'fiche client reprise' };
     }
     const lu = intituleDossierAuthentic(capture);
@@ -2387,6 +2428,7 @@
         : r.textes[0] + (r.textes.length > 1 ? ` (+${r.textes.length - 1})` : '');
       afficherToast(`Authentic · ${libelleDossierAffiche(d)} : ${resume}.`, 'Voir', () => ouvrirDossierDrawer(d.id));
     }
+    notifierMajAuthentic(d, r.majEnAttente);
     return { etat: 'applique', dossierId: d.id, texte: avecComment(r.textes.join(' · ') || 'page reprise') };
   }
 
@@ -2456,7 +2498,7 @@
       delete d.piecesAuthentic;
       retire.push(`${cles.size} pièce${cles.size > 1 ? 's' : ''}`);
     }
-    const champsDossier = ['acte', 'rhf', 'safer', 'prix', 'collaborateur', 'notaire', 'etatsCivils', 'demandes', 'avantContratLe', 'saferPieceAjoutee'];
+    const champsDossier = ['acte', 'rhf', 'safer', 'prix', 'collaborateur', 'notaire', 'etatsCivils', 'demandes', 'avantContratLe', 'saferPieceAjoutee', 'valeurs', 'majEnAttente'];
     if (champsDossier.some(k => a[k])) {
       const reste = Object.assign({}, a);
       champsDossier.forEach(k => { delete reste[k]; });
