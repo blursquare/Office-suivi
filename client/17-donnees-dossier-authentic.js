@@ -548,6 +548,45 @@
     return liste.findIndex(g => { const t = ' ' + normaliserPourRecherche(g.intitule || '').replace(/[^a-z0-9]+/g, ' ') + ' '; return noms.every(n => t.includes(' ' + n + ' ')); });
   }
 
+  // Pure : le dossier d'Authentic d'où compléter la fiche SANS CLIC (étude 06/10 : « on prend toujours de base les données
+  // d'Authentic ») — plus strict que la présélection de la ligne « Authentic » : une fiche rattachée à une référence ne prend
+  // que le dossier de cette référence ; sans référence, les noms, sauf si la référence du dossier trouvé est déjà celle
+  // d'une autre fiche. null sinon.
+  function groupeAuthenticPourComplementAuto(d, groupes, liste) {
+    const tous = groupes || [];
+    if (!d) return null;
+    if (d.referenceAuthentic) return tous.find(g => g.reference && g.reference === d.referenceAuthentic) || null;
+    const i = indexGroupeAuthenticPourDossier(d, tous);
+    const g = i >= 0 ? tous[i] : null;
+    if (!g) return null;
+    if (g.reference && (liste || []).some(x => x && x !== d && !x.deleted && x.referenceAuthentic === g.reference)) return null;
+    return g;
+  }
+
+  // Après tout relevé appliqué sur un dossier : ce qui manque encore sur la fiche est repris du dossier d'Authentic relevé
+  // ces 12 h (page de gestion, fiches client, fiche bien — les pages arrivées AVANT la création comprises), sans rien
+  // remplacer. → vrai si la fiche a changé.
+  async function completerDossierDepuisRelevesRecents(d) {
+    if (!d || d.archive || (typeof authToken !== 'undefined' && !authToken)) return false;
+    try {
+      const r = await fetchAvecAuth('/api/authentic/releves/recents');
+      if (!r.ok) return false;
+      const { releves } = await r.json();
+      const groupes = dossiersDepuisRelevesAuthentic(releves || []);
+      groupesAuthenticFiche = { quand: Date.now(), liste: groupes };
+      const g = groupeAuthenticPourComplementAuto(d, groupes, dossiers);
+      if (!g || !g.export) return false;
+      const textes = complementDossierDepuisAuthentic(d, g.export, dossiers);
+      if (!textes.length) return false;
+      ajouterHistorique(d, `Complété depuis Authentic (« ${g.intitule} ») : ${textes.join(', ')}`);
+      await sauvegarder(d);
+      render();
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
   // Ligne « Authentic » de la fiche : les dossiers relevés récemment, celui qui correspond présélectionné, « Compléter ».
   let groupesAuthenticFiche = { quand: 0, liste: [] };
   var DUREE_CACHE_GROUPES_AUTHENTIC_FICHE_MS = 60 * 1000;

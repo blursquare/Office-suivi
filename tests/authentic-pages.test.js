@@ -1346,3 +1346,69 @@ test('coordonnées de la fiche : ni email ni téléphone du vendeur quand son no
   assert.equal(represente.map(c => c.partie).join(','), 'acquereur');
   assert.equal(app.coordonneesPartiesDossier({ notaireVendeur: 'Maître Sophie GOSSART (BLOIS)', emailVendeur: 'v@exemple.fr' }).length, 2, 'notre office : vendeur affiché');
 });
+
+// Étude 06/10 : « on prend toujours de base les données d'Authentic, avant et après la création d'un dossier ; un numéro
+// ajouté à la fiche Authentic, l'état civil, le nom, le prénom… se retrouvent sur la fiche. »
+test('fiche client (06/10) : identité de la partie alignée sur Authentic — prénom, civilité, date de naissance ; conjoint ajouté', () => {
+  const d = { id: 'i1', nom: 'MARTEL / FOURNIER', typeVente: 'maison', parties: [{ role: 'VENDEUR', nom: 'MARTEL' }, { role: 'ACQUEREUR', nom: 'FOURNIER' }], pieces: {}, historique: [] };
+  app.appliquerReleveSurDossier(d, client);
+  const acq = d.parties.find(p => p.role === 'ACQUEREUR');
+  assert.equal(acq.nom, 'Camille FOURNIER', 'prénom repris dans le nom');
+  assert.equal(acq.civilite, 'Mme');
+  assert.equal(acq.dateNaissance, '1985-02-14');
+  assert.equal(d.parties.length, 2, 'pas de doublon');
+  assert.match(d.historique.map(h => h.texte).join('\n'), /Acquéreur : FOURNIER → Camille FOURNIER \(fiche Authentic\)/);
+  const nb = d.historique.length;
+  app.appliquerReleveSurDossier(d, client);
+  assert.equal(d.historique.length, nb, 'relue : rien à redire');
+  assert.equal(acq.nom, 'Camille FOURNIER');
+  // Une partie saisie « Camille FOURNIER » avec sa civilité ne bouge pas ; une civilité différente suit Authentic.
+  const e = { id: 'i2', nom: 'MARTEL / FOURNIER', parties: [{ role: 'ACQUEREUR', nom: 'Camille FOURNIER', civilite: 'M' }], pieces: {}, historique: [] };
+  app.appliquerReleveSurDossier(e, client);
+  assert.equal(e.parties[0].civilite, 'Mme');
+  assert.equal(e.parties.length, 1);
+  // Fiche sans aucune partie : la personne entre sur la fiche du côté que dit le nom du dossier.
+  const f = { id: 'i3', nom: 'MARTEL / FOURNIER', pieces: {}, historique: [] };
+  app.appliquerReleveSurDossier(f, client);
+  assert.equal(f.parties.map(p => p.role + ':' + p.nom).join(','), 'ACQUEREUR:Camille FOURNIER');
+  // Deux homonymes sans prénom du même côté : jamais deviné.
+  const g = { id: 'i4', nom: 'MARTEL / FOURNIER', parties: [{ role: 'ACQUEREUR', nom: 'FOURNIER' }, { role: 'ACQUEREUR', nom: 'FOURNIER' }], pieces: {}, historique: [] };
+  app.appliquerReleveSurDossier(g, client);
+  assert.equal(g.parties.filter(p => p.nom === 'FOURNIER').length, 2);
+});
+
+test('page de gestion (06/10) : la fiche se complète seule depuis Authentic — personnes, bien, référence ; rien n’est remplacé', () => {
+  const page = Object.assign({}, gestion, { texte: 'A 2026 00451 VTE MARTEL / FOURNIER\n' + (gestion.texte || '') });
+  const d = { id: 'g1', nom: 'MARTEL / FOURNIER', typeVente: 'maison', parties: [{ role: 'VENDEUR', nom: '', prenom: '' }], pieces: {}, historique: [] };
+  const r = app.appliquerReleveSurDossier(d, page, '2026-10-06T10:00:00Z', [d]);
+  assert.equal(r.modifie, true);
+  // Une page de gestion seule ne porte pas les personnes (elles viennent des fiches client relevées, reprises par
+  // completerDossierDepuisRelevesRecents sur tout le groupe) : ici la référence est retenue, la ligne vide reste.
+  assert.equal(d.referenceAuthentic, 'A 2026 00451');
+  assert.match(d.historique.map(h => h.texte).join('\n'), /Complété depuis Authentic : référence Authentic/);
+  const nbHist = d.historique.length;
+  app.appliquerReleveSurDossier(d, page, '2026-10-06T11:00:00Z', [d]);
+  assert.ok(!d.historique.slice(nbHist).some(h => /Complété depuis Authentic/.test(h.texte)), 'relue : rien à compléter');
+  // Le groupe des relevés (gestion + fiche client) apporte les personnes : même reprise, par la référence d'abord.
+  const groupes = app.dossiersDepuisRelevesAuthentic([{ recueLe: '2026-10-06T10:00:00Z', capture: page }, { recueLe: '2026-10-06T10:01:00Z', capture: client }, { recueLe: '2026-10-06T10:02:00Z', capture: clientMarie }]);
+  const g = app.groupeAuthenticPourComplementAuto(d, groupes, [d]);
+  assert.ok(g && g.reference === 'A 2026 00451', 'groupe retrouvé par la référence');
+  const textes = app.complementDossierDepuisAuthentic(d, g.export, [d]);
+  assert.ok(d.parties.some(p => p.role === 'VENDEUR' && /MARTEL/.test(p.nom)), 'vendeur repris : ' + JSON.stringify(d.parties));
+  assert.ok(d.parties.some(p => p.role === 'ACQUEREUR' && /FOURNIER/.test(p.nom)), 'acquéreur repris');
+  assert.ok(!d.parties.some(p => !String(p.nom || '').trim()), 'la ligne vide a cédé la place');
+  assert.match(textes.join(', '), /vendeur/);
+  assert.equal(app.complementDossierDepuisAuthentic(d, g.export, [d]).length, 0, 'relu : rien');
+  // Fiche rattachée à une AUTRE référence : jamais complétée depuis ce dossier d'Authentic, même aux mêmes noms.
+  assert.equal(app.groupeAuthenticPourComplementAuto({ id: 'x', nom: 'MARTEL / FOURNIER', referenceAuthentic: 'A 2025 00001' }, groupes, []), null);
+  // Sans référence : par les noms, sauf si la référence trouvée est déjà celle d'une autre fiche.
+  assert.ok(app.groupeAuthenticPourComplementAuto({ id: 'y', nom: 'MARTEL / FOURNIER' }, groupes, []));
+  assert.equal(app.groupeAuthenticPourComplementAuto({ id: 'y', nom: 'MARTEL / FOURNIER' }, groupes, [{ id: 'z', referenceAuthentic: 'A 2026 00451' }]), null);
+  // Fiche déjà remplie : la main de l'étude gagne.
+  const e = { id: 'g2', nom: 'MARTEL / FOURNIER', typeVente: 'copropriete', adresseBien: 'TOURS (37000), 1 rue Nationale', prixVente: 100, parties: [{ role: 'VENDEUR', nom: 'Alexandre MARTEL' }, { role: 'ACQUEREUR', nom: 'Camille FOURNIER' }], pieces: {}, historique: [] };
+  app.appliquerReleveSurDossier(e, page, '2026-10-06T10:00:00Z', [e]);
+  assert.equal(e.adresseBien, 'TOURS (37000), 1 rue Nationale');
+  assert.equal(e.prixVente, 100);
+  assert.equal(e.typeVente, 'copropriete');
+});
+

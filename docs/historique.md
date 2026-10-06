@@ -17430,3 +17430,35 @@ qui garde l'accent ; mesuré après : fond `rgb(109,35,50)` au survol.
 « Éléments envoyés » d'un collaborateur (ErrorItemNotFound) déjà suivi dans #12 ; corrections à la main (notaires, adresse)
 déjà en question à l'étude dans #11.
 
+### 06/10/2026 17 h 35 — 0.173.0 : Authentic, base de la fiche (identité des parties, complément automatique)
+
+**Étude : « Il faut que tu repenses la gestion des outils entre eux. On prend toujours de base les données d'Authentic,
+avant et après création d'un dossier. Si un numéro de téléphone est ajouté à la fiche Authentic, le modifier dans la fiche ;
+idem pour toutes les autres données (état civil, nom, prénom…). Bien identifier le dossier avec son numéro de fiche pour ne
+plus bouger après, comme c'était le cas. La fiche dossier est la base pour le reste des outils. »**
+
+Ce qui existait : téléphones et emails d'une fiche client ajoutés (jamais remplacés), situation matrimoniale notée dans
+`d.authentic.personnes`, fiche bien → parcelles et lots, page de gestion → pièces, SAFER, acte, prix « Capital » ; la
+référence « A 2026 00247 » retenue au premier passage (`retenirReferenceAuthentic`) et jamais changée ensuite — un dossier
+rattaché à une référence est exclu du score d'une page d'une autre référence (inchangé : c'est bien « comme c'était le cas »).
+
+Ajouté :
+- **Identité de la partie alignée sur la fiche client** (`alignerIdentitePartieAuthentic`, client/30, appelée par
+  `appliquerClientAuthentic`) : la partie du côté reconnu (nom de famille, ou nom d'usage, prénom pour départager) prend
+  « Prénom NOM » quand la fiche n'avait que le nom, la civilité d'Authentic (qui gagne sur une civilité différente), le nom
+  d'usage, la date de naissance si vide ; une personne du côté absente de la fiche (conjoint sous son propre nom, fiche sans
+  partie) y entre ; deux homonymes sans prénom du même côté → rien (jamais deviné). Historique « Acquéreur : FOURNIER →
+  Camille FOURNIER (fiche Authentic) ». Idempotent (relue : rien).
+- **Complément automatique après chaque page appliquée** (`completerDossierDepuisRelevesRecents`, client/17, lancé après
+  `appliquerReleveSurDossier` aux trois endroits de client/30) : relit `GET /api/authentic/releves/recents` (12 h), regroupe
+  (`dossiersDepuisRelevesAuthentic`), choisit le dossier d'Authentic par `groupeAuthenticPourComplementAuto` — **une fiche
+  rattachée à une référence ne prend que ce dossier-là** ; sans référence, les noms, sauf si la référence trouvée est déjà
+  celle d'une autre fiche — puis `complementDossierDepuisAuthentic` (0.172.0 : seuls les vides sont remplis). Les pages
+  arrivées AVANT la création du dossier (fiches client ouvertes la veille) sont ainsi reprises sans clic. La page de
+  gestion seule passe aussi par le complément dans `appliquerReleveSurDossier` (référence, prix) : une page de gestion ne
+  porte pas les personnes, elles viennent des fiches client du groupe (test).
+
+Pas touché : une valeur déjà sur la fiche (adresse, prix, type, nom complet) n'est jamais remplacée par Authentic — hors
+civilité et nom d'usage, qui suivent la fiche client. Si l'étude veut qu'Authentic remplace aussi ces valeurs, c'est un
+choix à poser (une correction faite à la main dans CLAIRE serait alors perdue au relevé suivant).
+

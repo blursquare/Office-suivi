@@ -1534,6 +1534,9 @@
       d[champEmail] = [String(d[champEmail] || '').trim().replace(/[;,]\s*$/, ''), ...emailsNouveaux].filter(Boolean).join('; ');
       noter(`Email ${qui} repris d’Authentic : ${emailsNouveaux.join('; ')}`);
     }
+    // Identité de la partie (étude 06/10 : « Authentic est la base — état civil, nom, prénom ») : civilité, prénom dans
+    // le nom, nom d'usage, date de naissance alignés sur la fiche client.
+    alignerIdentitePartieAuthentic(d, personne, role).forEach(noter);
     const nomComplet = [personne.prenom, personne.nom].filter(Boolean).join(' ');
     const cle = normaliserPourRecherche(nomComplet).replace(/[^a-z0-9]+/g, ' ').trim();
     const personnes = (avant.personnes || []).filter(p => normaliserPourRecherche(p.nom).replace(/[^a-z0-9]+/g, ' ').trim() !== cle);
@@ -1548,6 +1551,48 @@
     if (reste.length) d.authentic.clientsAPlacer = reste; else delete d.authentic.clientsAPlacer;
     resultat.modifie = true;
     return resultat;
+  }
+
+  // Pure (modifie d.parties) : la partie du côté `role` que décrit la fiche client d'Authentic prend son identité —
+  // « Prénom NOM » quand la fiche n'avait que le nom, civilité, nom d'usage, date de naissance ; une personne du côté
+  // qui n'est pas encore sur la fiche (conjoint sous son propre nom, fiche sans partie) y entre. Rien n'est effacé.
+  // → les textes d'historique.
+  function alignerIdentitePartieAuthentic(d, personne, role) {
+    const textes = [];
+    if (!d || !personne || !personne.nom || !role) return textes;
+    const parties = Array.isArray(d.parties) ? d.parties : [];
+    const mots = (x) => ' ' + normaliserPourRecherche(x || '').replace(/[^a-z0-9]+/g, ' ').trim() + ' ';
+    const contient = (texte, m) => !!m && mots(m).trim() !== '' && mots(texte).includes(' ' + mots(m).trim() + ' ');
+    const nomFamille = String(personne.nom || '').trim().toUpperCase();
+    const prenom = String(personne.prenom || '').trim();
+    const premierPrenom = prenom.split(/\s+/)[0] || '';
+    const complet = [prenom, nomFamille].filter(Boolean).join(' ');
+    const duCote = parties.filter(x => x && String(x.role || '').toUpperCase() === role && x.qualitePersonne !== 'morale');
+    const memeNom = duCote.filter(x => contient(x.nom, nomFamille) || (personne.nomUsage && contient(x.nom, personne.nomUsage)) || (x.nomUsage && contient(x.nomUsage, nomFamille)));
+    let p = memeNom.find(x => premierPrenom && contient(x.nom, premierPrenom)) || (memeNom.length === 1 ? memeNom[0] : null);
+    const qui = role === 'VENDEUR' ? 'Vendeur' : 'Acquéreur';
+    if (!p) {
+      if (memeNom.length > 1) return textes; // deux homonymes sans prénom : jamais deviné
+      p = { nom: complet, role, qualitePersonne: 'physique', origine: 'authentic' };
+      d.parties = parties.concat(p);
+      textes.push(`${qui} ajouté d’après sa fiche Authentic : ${complet}`);
+    } else if (premierPrenom && !contient(p.nom, premierPrenom)) {
+      const avantNom = [p.prenom, p.nom].map(x => String(x || '').trim()).filter(Boolean).join(' ');
+      p.nom = complet;
+      delete p.prenom;
+      textes.push(`${qui} : ${avantNom} → ${complet} (fiche Authentic)`);
+    }
+    const civ = civiliteDepuisTexte(personne.civilite);
+    if (civ && civiliteDepuisTexte(p.civilite) !== civ) {
+      p.civilite = civ;
+      textes.push(`Civilité de ${complet} : ${civ === 'M' ? 'Monsieur' : 'Madame'} (fiche Authentic)`);
+    }
+    if (personne.nomUsage && p.nomUsage !== personne.nomUsage) {
+      p.nomUsage = personne.nomUsage;
+      textes.push(`Nom d’usage de ${complet} : ${personne.nomUsage} (fiche Authentic)`);
+    }
+    if (personne.dateNaissance && !p.dateNaissance) p.dateNaissance = personne.dateNaissance;
+    return textes;
   }
 
   // Fiches client d'Authentic dont le côté n'a pas pu être reconnu : une ligne « À rattacher » sur la
@@ -1802,7 +1847,7 @@
     return resultat;
   }
 
-  function appliquerReleveSurDossier(d, capture, maintenantIso) {
+  function appliquerReleveSurDossier(d, capture, maintenantIso, liste) {
     const resultat = { pieces: [], textes: [], modifie: false, echeancesFaites: [] };
     if (!d || !capture) return resultat;
     const maintenant = maintenantIso || new Date().toISOString();
@@ -1918,6 +1963,14 @@
       apres.releveLe = maintenant;
       d.authentic = apres;
       resultat.modifie = true;
+    }
+    // La page de gestion est la base de la fiche (étude 06/10 : « on prend toujours de base les données d'Authentic, avant
+    // et après la création ») : ce qui manque sur la fiche — personnes, emails, téléphones, bien, prix, référence — est
+    // repris à chaque relevé, sans rien remplacer (même reprise que « Authentic › Compléter » sur la fiche).
+    if (type === 'gestion') {
+      const groupe = dossiersDepuisRelevesAuthentic([{ recueLe: maintenant, capture }])[0];
+      const complements = groupe && groupe.export ? complementDossierDepuisAuthentic(d, groupe.export, liste || []) : [];
+      if (complements.length) { noter(`Complété depuis Authentic : ${complements.join(', ')}`); resultat.modifie = true; }
     }
     // SAFER sans réponse au-delà de son délai : non-préemption (pièce cochée).
     const nbHist = (d.historique || []).length;
@@ -2098,7 +2151,8 @@
       const quittes = rattacherIntituleAuthentic(d, intituleDossierAuthentic(attente.capture), dossiers, referenceDossierAuthentic(attente.capture));
       for (const x of quittes) await sauvegarder(x);
     }
-    const r = appliquerReleveSurDossier(d, attente.capture);
+    const r = appliquerReleveSurDossier(d, attente.capture, undefined, dossiers);
+    completerDossierDepuisRelevesRecents(d); // ce qui manque encore, d'après toutes les pages relevées (asynchrone)
     await sauvegarder(d);
     render();
     const texte = r.modifie ? `${r.textes[0] || 'page reprise'}${r.textes.length > 1 ? ` (+${r.textes.length - 1})` : ''}`
@@ -2237,7 +2291,8 @@
         if (raison && !revu) afficherToast(`Authentic · ${raison}.`, 'OK', null);
         return { etat: 'sans-dossier', texte: raison || 'fiche client illisible' };
       }
-      const r0 = appliquerReleveSurDossier(d, capture);
+      const r0 = appliquerReleveSurDossier(d, capture, undefined, dossiers);
+      completerDossierDepuisRelevesRecents(d); // ce qui manque encore, d'après toutes les pages relevées (asynchrone)
       if (!r0.modifie) {
         const raison = raisonFicheClientSansChangement(capture);
         if (raison && !revu) afficherToast(`Authentic · ${libelleDossierAffiche(d)} : ${raison}.`, 'Voir', () => ouvrirDossierDrawer(d.id));
@@ -2293,7 +2348,8 @@
       else if (creation) direPageACreerAuthentic(capture, rel, raison);
       return { etat: lu ? (creation ? 'a-creer' : 'sans-dossier') : 'sans-changement', texte: raison };
     }
-    const r = appliquerReleveSurDossier(d, capture);
+    const r = appliquerReleveSurDossier(d, capture, undefined, dossiers);
+    completerDossierDepuisRelevesRecents(d); // ce qui manque encore, d'après toutes les pages relevées (asynchrone)
     const avecComment = (t) => [comment, t].filter(Boolean).join(' — ');
     if (!r.modifie && !referenceNotee) return { etat: 'sans-changement', dossierId: d.id, texte: avecComment(r.raison || 'rien de neuf') };
     await sauvegarder(d);
