@@ -33,11 +33,10 @@ test('une echeance personnalisee retombe sur le couple par defaut', () => {
   assert.deepEqual(seuilsPourType('autre-7'), [15, 7]);
 });
 
-// projetEnvoye a ete ajoutee apres coup (lecture de l'agenda de l'office) sans seuil donne par
-// l'etude : elle doit retomber sur le meme couple par defaut qu'une echeance personnalisee.
-test('projetEnvoye n a pas de seuil dedie : retombe sur le couple par defaut', () => {
-  assert.equal(SEUILS_RAPPELS_PAR_TYPE.projetEnvoye, undefined);
-  assert.deepEqual(seuilsPourType('projetEnvoye'), SEUILS_RAPPELS_DEFAUT);
+// Envoi du projet d'acte (etude 06/10) : pas de rappel 15 jours avant, un seul a J-7.
+test('projetEnvoye : un seul rappel, a J-7 (pas de J-15)', () => {
+  assert.deepEqual(seuilsPourType('projetEnvoye'), [7]);
+  assert.notDeepEqual(seuilsPourType('projetEnvoye'), SEUILS_RAPPELS_DEFAUT);
 });
 
 test('la date butoir n a aucun seuil declare : elle ne doit jamais etre rappelee', () => {

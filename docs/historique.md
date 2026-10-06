@@ -17541,3 +17541,7 @@ La ligne « Authentic » (`renderCompleterAuthenticFiche`) quitte le bloc des co
 
 **Étude (06/10 au soir) : « oui aussi » — la ligne « À mettre à jour » sous « Compléter la fiche », comme la ligne « Authentic »** (0.176.3)
 client/23 : `renderMajAuthentic` quitte le bloc des coordonnées et se place dans le `dl.fiche-authentic-completer` sous le bouton, avant `renderCompleterAuthenticFiche`.
+
+**Étude (06/10 au soir) : « Pas de rappel d'envoi du projet d'acte 15 j avant »** (0.176.4)
+`SEUILS_RAPPELS_PAR_TYPE.projetEnvoye = [7]` (server/src/jobs/rappels.js) : l'envoi du projet d'acte, qui retombait sur le couple par défaut J-15/J-7, n'a plus qu'un rappel, à J-7 du rendez-vous (même jour que la tâche « Envoyer le projet » d'« À faire »). J-15 reste celui de la signature. Tests : `rappels.test.js` (seuil `[7]`), `rappels-decoche.test.js` (rien à J-15, `projetEnvoye:7` à J-7).
+**Rôles du notaire, rappel de l'étude (06/10 au soir)** : « un confrère qui représente l'acquéreur » et « notaire en second » sont la même chose (le vocabulaire de l'agenda : « Me X en 2nd », `19-fonds-recus.js`). Un confrère qui représente le VENDEUR mais exerce hors 41/37/45, pour un bien dans le 41 : l'étude reçoit l'acte (RPN 30.4.2, déjà encodé dans `attribuerMinute`, client/05). Aucun changement de code.

@@ -33,9 +33,10 @@ test('appel de fonds : décoché, la date d’envoi est partie — le rappel rev
   const avantCoche = dossier(base);
   assert.equal(types(calculerRappelsDus([avantCoche], jour, new Set())), 'appelFonds:0');
   const coche = dossier({ echeancesValidees: { pret: true, appelFonds: true }, appelFonds: '2026-11-03' });
-  // Coché : plus de rappel « appel de fonds » — c'est l'envoi du projet qui prend le relais, ancré sur le rendez-vous (J-15 = 25/11).
+  // Coché : plus de rappel « appel de fonds » — c'est l'envoi du projet qui prend le relais, ancré sur le rendez-vous (J-7 = 03/12 ; pas de rappel à J-15, étude 06/10).
   assert.equal(types(calculerRappelsDus([coche], jour, new Set())), '', 'J-10 du projet : rien encore');
-  assert.equal(types(calculerRappelsDus([coche], '2026-11-25', new Set())), 'projetEnvoye:15');
+  assert.equal(types(calculerRappelsDus([coche], '2026-11-25', new Set())), '', 'pas de rappel du projet 15 jours avant');
+  assert.equal(types(calculerRappelsDus([coche], '2026-12-03', new Set())), 'projetEnvoye:7');
   // Décoché par le poste : flag retiré ET date effacée → comme avant la coche.
   const decoche = dossier({ echeancesValidees: { pret: true }, appelFonds: '' });
   assert.equal(types(calculerRappelsDus([decoche], jour, new Set())), 'appelFonds:0');
@@ -44,7 +45,7 @@ test('appel de fonds : décoché, la date d’envoi est partie — le rappel rev
 test('une date d’envoi sans case cochée vaut envoi fait : pas d’échéance passée qui fausserait les rappels', () => {
   const d = dossier({ echeancesValidees: { pret: true }, appelFonds: '2026-11-03' });
   assert.equal(echeanceValidee(d, 'appelFonds'), true);
-  assert.equal(types(calculerRappelsDus([d], '2026-11-25', new Set())), 'projetEnvoye:15', 'seule l’étape suivante reste à rappeler');
+  assert.equal(types(calculerRappelsDus([d], '2026-12-03', new Set())), 'projetEnvoye:7', 'seule l’étape suivante reste à rappeler');
 });
 
 test('composerLieuAgenda : mention d’envoi retirée à la décoche, initiales et confrère gardés', () => {

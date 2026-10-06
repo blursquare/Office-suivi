@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.176.3';
+  const VERSION_APP = '0.176.4';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.176.4', date: '2026-10-06 21:35', resume: "Rappels : plus de rappel Teams ni email de l'envoi du projet d'acte 15 jours avant le rendez-vous — un seul, à J-7 (comme la tâche « Envoyer le projet »)." },
     { version: '0.176.3', date: '2026-10-06 21:08', resume: "Fiche : la ligne « À mettre à jour » (changements proposés par Authentic) passe elle aussi sous « Compléter la fiche », au-dessus de la ligne « Authentic »." },
     { version: '0.176.2', date: '2026-10-06 21:03', resume: "Une pastille de notification signale un dossier qui demande une mise à jour : la pastille rouge de « Suivi des dossiers » dans la barre latérale le compte (1 par dossier), et sa ligne du Suivi porte la pastille « Mise à jour ». Elles s'éteignent dès que la mise à jour est faite ou ignorée sur la fiche." },
     { version: '0.176.1', date: '2026-10-06 20:44', resume: "Fiche : la ligne « Authentic » (dossier d'Authentic à reprendre, bouton « Compléter ») passe sous « Compléter la fiche ». Les pages relevées dans Authentic restent 24 h en mémoire du serveur (12 h avant) : un dossier vu hier en fin de journée peut encore être complété ou créé ce matin." },

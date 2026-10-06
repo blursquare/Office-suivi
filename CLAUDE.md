@@ -301,7 +301,7 @@ dans `index.html`** (le test `structure-client` refuse tout décalage).
   d'« À faire » apparaît dès cette date et le rappel Teams part ce jour-là (étude 05/10 : « pour Teams il faut suivre les délais
   des échanges »).
 - **Seuils des rappels email** : prêt J-15/J-7, vente préalable J-15/J-7, appel de fonds **le jour de son échéance** (J-10 du rendez-vous, seuil `[0]`, étude 05/10),
-  signature J-25/J-15, personnalisées J-15/J-7 (`SEUILS_RAPPELS_PAR_TYPE`).
+  signature J-25/J-15, **envoi du projet J-7 seulement** (étude 06/10 : pas de rappel 15 jours avant), personnalisées J-15/J-7 (`SEUILS_RAPPELS_PAR_TYPE`).
 - **Relance de l'offre de prêt au client** : première à J-15, puis tous les 10 jours, y compris
   après l'échéance, jusqu'à réception de l'offre ou archivage.
 - **Offre de prêt** : reconnue par le nom du fichier, à défaut par le titre de la page de garde
