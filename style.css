@@ -827,14 +827,26 @@
   }
   .sidebar-link:hover { background: var(--paper-sunk); color: var(--ink); transform: translateX(1px); }
 
-  /* Lien actif : aplat neutre + trait d'accent bordeaux à gauche, comme la navigation d'Outlook —
-     plus de « pilule de verre » (dégradé, reflet, ombre), retirée avec l'effet verre. */
+  /* Lien actif (étude 06/10, « contour plus point ») : un contour fin à l'accent et un petit point à droite, sans fond. */
   .sidebar-link.actif {
-    background: var(--sidebar-actif-bg);
+    position: relative;
+    background: none;
     color: var(--ink);
-    box-shadow: inset 3px 0 0 var(--focus);
+    box-shadow: inset 0 0 0 1.5px var(--focus);
   }
+  .sidebar-link.actif::after {
+    content: ''; position: absolute; right: 12px; top: 50%; width: 6px; height: 6px; transform: translateY(-50%);
+    border-radius: 50%; background: var(--focus); pointer-events: none;
+  }
+  /* Le point s'efface devant un compteur de notifications (Suivi, Agenda) ou le badge Alpha. */
+  .sidebar-link.actif:has(.sidebar-badge-notif:not([style*="none"]))::after, .sidebar-link.actif:has(.stade-badge-nav)::after { display: none; }
   .sidebar-link.actif .sidebar-link-icone { opacity: 1; }
+  /* Dans le tiroir, la place est comptée : le libellé laisse la sienne au point. */
+  .sidebar-sousmenu .sidebar-link.actif::after { right: 8px; }
+  .sidebar-sousmenu .sidebar-link.sidebar-sousmenu-item.actif { padding-right: 20px; }
+  /* « Arbitrage forfait mobilier » remplit déjà toute la ligne : pas de point, le contour suffit. */
+  .sidebar-sousmenu #tab-inventaire.actif { padding-right: 4px; }
+  .sidebar-sousmenu #tab-inventaire.actif::after { display: none; }
 
   /* En-têtes de catégorie dans la nav (Dossier/Outils/Admin) : même registre que .section-eyebrow
      (10px/0.1em/--muted, définition complète plus bas dans ce fichier) — un seul style d'étiquette
@@ -905,7 +917,7 @@
   }
   .sidebar-groupe-titre:hover { background: var(--paper-sunk); color: var(--ink); }
   /* Groupe fermé alors qu'un de ses outils est ouvert : le titre le signale. */
-  .sidebar-groupe-titre:has(+ .sidebar-sousmenu.ferme .actif) { color: var(--ink); background: var(--sidebar-actif-bg); box-shadow: inset 3px 0 0 var(--focus); }
+  .sidebar-groupe-titre:has(+ .sidebar-sousmenu.ferme .actif) { color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--focus); }
   .sidebar-groupe-titre .sidebar-link-icone { opacity: 0.85; font-size: var(--texte-base); }
   .sidebar-groupe-label { flex: 1 1 auto; }
   .sidebar-groupe-chevron { display: inline-flex; flex-shrink: 0; font-size: var(--texte-s); opacity: 0.7; }
@@ -919,7 +931,7 @@
     display: flex;
     flex-direction: column;
     gap: 2px;
-    margin-left: 20px;
+    margin-left: 10px;
     padding-left: 10px;
   }
   /* Plus de tronc d'un seul tenant (étude 05/10 : « termine le liseré par l'arrondi ») : il dépassait sous la dernière
@@ -1064,7 +1076,7 @@
     .sidebar.repliee .sidebar-groupe-titre .sidebar-link-icone { font-size: var(--texte-xl); opacity: 1; }
     .sidebar.repliee .sidebar-groupe-titre:has(+ .sidebar-sousmenu .actif),
     .sidebar.repliee .sidebar-groupe-titre:hover { background: var(--sidebar-actif-bg); color: var(--ink); }
-    .sidebar.repliee .sidebar-groupe-titre:has(+ .sidebar-sousmenu .actif) { color: var(--ink); box-shadow: inset 3px 0 0 var(--focus); }
+    .sidebar.repliee .sidebar-groupe-titre:has(+ .sidebar-sousmenu .actif) { color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--focus); }
     .sidebar.repliee .sidebar-groupe-chevron, .sidebar.repliee .sidebar-groupe-label { display: none; }
     .sidebar.repliee .sidebar-sousmenu { align-items: stretch; gap: 2px; margin: 4px 0 0; padding: 0; }
     .sidebar.repliee .sidebar-outils-groupe:has(.sidebar-sousmenu:not(.ferme)) { padding: 2px 2px 4px; }
@@ -8233,14 +8245,15 @@ wa-button.widgets-galerie-retirer svg { width: 14px; height: 14px; }
 .sidebar-outils-chevron { display: inline-flex; margin-left: auto; font-size: var(--texte-s); opacity: 0.7; }
 /* Un outil ouvert, tiroir fermé : le lien « Outils » le signale. */
 .sidebar-outils-ligne:has(+ .sidebar-sousmenu.ferme .actif) #tab-outils {
-  background: var(--sidebar-actif-bg); color: var(--ink); box-shadow: inset 3px 0 0 var(--focus);
+  color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--focus);
 }
 /* Liseré gardé (étude, 01/10 : « remettre le liseré ») : le tronc part sous l'icône Outils, une branche
    par outil, et s'arrête sur l'arrondi du dernier ; chaque outil a son icône (étude 05/10 : « remets des icônes aux outils »). */
 @media (min-width: 901px) {
   /* Barre repliée : « Outils » est une icône, un clic déplie ou replie le tiroir dessous (pas de chevron). */
   .sidebar.repliee .sidebar-outils-chevron { display: none; }
-  .sidebar.repliee .sidebar-outils-ligne:has(+ .sidebar-sousmenu .actif) #tab-outils { background: var(--sidebar-actif-bg); color: var(--ink); box-shadow: inset 3px 0 0 var(--focus); }
+  .sidebar.repliee .sidebar-outils-ligne:has(+ .sidebar-sousmenu .actif) #tab-outils { color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--focus); }
+  .sidebar.repliee .sidebar-link.actif::after { display: none; }
 }
 
 
