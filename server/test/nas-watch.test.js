@@ -126,6 +126,10 @@ test('appel de fonds : noms de l’étude reconnus à la racine, jamais un déco
   assert.equal(fichierAppelFondsRacine(['AAE/Décompte acquéreur.pdf']), null);
   assert.equal(fichierAppelFondsRacine(['AAE\\Décompte acquéreur.pdf']), null);
   assert.equal(fichierAppelFondsRacine(['DECOMPTE de remboursement ECO PRET.pdf', 'Tableau amortissement.pdf']), null);
+  // Étude 06/10 : le décompte du confrère n'est jamais le courrier de l'étude ; celui de CLAIRE passe avant les autres noms.
+  assert.equal(fichierAppelFondsRacine(['Décompte Me FOURNIER.pdf', 'Décompte confrère.pdf']), null);
+  assert.equal(fichierAppelFondsRacine(['Décompte Me FOURNIER.pdf', 'Décompte acquéreur.pdf']), 'Décompte acquéreur.pdf');
+  assert.equal(fichierAppelFondsRacine(['Décompte acquéreur.pdf', 'Convocation au rendez-vous contenant l’appel de fonds - DUPONT.pdf']), 'Convocation au rendez-vous contenant l’appel de fonds - DUPONT.pdf');
 });
 
 test('appel de fonds : noté à la date de détection, validé, une seule fois, jamais par-dessus une date connue', () => {
@@ -175,4 +179,8 @@ test('courrier d’appel de fonds rattaché au dossier : gardé tant qu’il exi
   assert.equal(courrierAppelFondsARattacher(rattache, ['Convocation RDV.pdf']), 'Convocation RDV.pdf');
   assert.equal(courrierAppelFondsARattacher(rattache, ['AAE/Convocation RDV.pdf']), null);
   assert.equal(courrierAppelFondsARattacher(Object.assign({}, d, { archive: true }), ['Décompte acquéreur.pdf']), null);
+  // Décompte du confrère rattaché par erreur : remplacé par le nôtre, ou détaché ('' : rien à la place).
+  const confrere = Object.assign({}, d, { appelFondsCourrier: 'Décompte Me FOURNIER.pdf' });
+  assert.equal(courrierAppelFondsARattacher(confrere, ['Décompte Me FOURNIER.pdf', 'Décompte acquéreur.pdf']), 'Décompte acquéreur.pdf');
+  assert.equal(courrierAppelFondsARattacher(confrere, ['Décompte Me FOURNIER.pdf']), '');
 });

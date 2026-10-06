@@ -1473,7 +1473,10 @@
   // (d.appelFondsCourrier, voir courrierAppelFondsARattacher dans nasWatch.js) ; à défaut, et si un
   // dossier du NAS est relié, le lien le cherche à la racine au premier clic.
   function courrierAppelFondsDossier(d) {
-    return (d && (d.appelFondsCourrier || (d.detectionsNas && d.detectionsNas.appelFondsFichier))) || '';
+    // Un décompte du confrère rattaché par erreur (avant le 06/10) n'est pas le courrier de l'étude : ignoré, « Retrouver le
+    // courrier » cherche le nôtre (le serveur le détache à son prochain tour, voir nasWatch.js).
+    const c = (d && (d.appelFondsCourrier || (d.detectionsNas && d.detectionsNas.appelFondsFichier))) || '';
+    return c && !nomDitDecompteConfrere(c) ? c : '';
   }
 
   function renderLienCourrierAppelFonds(d) {

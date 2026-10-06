@@ -2279,7 +2279,7 @@
   // CLAIRE. En participation seulement (décompte « confrère »). Candidats, dans l'ordre : les PDF d'un sous-dossier qui nomme
   // le confrère (« Projet VENTE confrère ») — ceux dont le nom dit décompte / appel de fonds d'abord —, puis, dans les autres
   // sous-dossiers, les PDF dont le nom le dit ; le plus récent d'abord. Le premier dont le tableau se lit remplace le décompte.
-  var RE_NOM_COURRIER_CLAIRE_APPEL_FONDS = /contenant\s+l.?appel\s+de\s+fonds/i;
+  // RE_NOM_COURRIER_CLAIRE_APPEL_FONDS et nomDitDecompteConfrere : commun/decompte.js (même règle que la fiche et le serveur).
   var RE_DOSSIER_CONFRERE = /confrer/;
   var MAX_CANDIDATS_DECOMPTE_NAS = 6;
   var afRechercheDecompteNas = 0;
@@ -2288,11 +2288,12 @@
     const nom = f => normaliserNomPourMotif(String(f.nom || ''));
     const dansDossierConfrere = f => segmentsDossier(f.chemin).some(seg => RE_DOSSIER_CONFRERE.test(normaliserPourRecherche(seg)));
     const ditDecompte = f => RE_NOM_DECOMPTE.test(nom(f)) && !RE_NOM_DECOMPTE_EXCLU.test(nom(f));
-    const rang = f => (dansDossierConfrere(f) ? 0 : 2) + (ditDecompte(f) ? 0 : 1);
+    const rang = f => (dansDossierConfrere(f) || nomDitDecompteConfrere(f.nom) ? 0 : 2) + (ditDecompte(f) ? 0 : 1);
     return (fichiers || [])
       .filter(f => f && f.chemin && /\.pdf$/i.test(String(f.nom || f.chemin)))
-      .filter(f => segmentsDossier(f.chemin).length > 0 && f.chemin !== rattache && !RE_NOM_COURRIER_CLAIRE_APPEL_FONDS.test(nom(f)))
-      .filter(f => dansDossierConfrere(f) || ditDecompte(f))
+      // Jamais un PDF de la racine (le décompte de l'étude) — sauf s'il dit lui-même qu'il vient du confrère (étude 06/10).
+      .filter(f => (segmentsDossier(f.chemin).length > 0 || nomDitDecompteConfrere(f.nom)) && f.chemin !== rattache && !RE_NOM_COURRIER_CLAIRE_APPEL_FONDS.test(nom(f)))
+      .filter(f => dansDossierConfrere(f) || ditDecompte(f) || nomDitDecompteConfrere(f.nom))
       .sort((a, b) => rang(a) - rang(b)
         || (anneeDansNomFichier(b.nom) || 0) - (anneeDansNomFichier(a.nom) || 0)
         || String(b.modifie || '').localeCompare(String(a.modifie || '')));

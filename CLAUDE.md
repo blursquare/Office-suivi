@@ -372,8 +372,13 @@ dans `index.html`** (le test `structure-client` refuse tout décalage).
   un dossier Projet VENTE confrère » — sous-dossier dont le nom contient « confrère », `RE_DOSSIER_CONFRERE`) et celui de
   l'**étude** (mis en forme, envoyé au client, enregistré à la **racine**, rattaché à « Envoi appel de fonds »,
   `courrierAppelFondsDossier`, lu par les fonds reçus et l'agenda). Le premier n'est jamais cherché à la racine ni dans le
-  courrier rattaché ou produit par CLAIRE ; ordre : dossier du confrère (nom décompte d'abord), puis autres sous-dossiers par le
-  nom ; le premier tableau lisible remplace le décompte. **Pièces du dossier lues seules** quand l'office établit le décompte
+  courrier rattaché ou produit par CLAIRE — sauf un PDF de la racine dont le **nom dit le confrère** ; ordre : dossier du confrère
+  (nom décompte d'abord), puis autres sous-dossiers par le nom ; le premier tableau lisible remplace le décompte. **Par le nom du
+  fichier** (étude 06/10 : « ne pas rattacher le décompte du confrère mais bien le nôtre » ; `commun/decompte.js`,
+  `nomDitDecompteConfrere` : « confrère », « consœur », « Me X », « Maître », « notaire » ; `nomDitCourrierClaireAppelFonds`) : un
+  décompte du confrère n'est jamais rattaché à « Envoi appel de fonds » ni lu comme notre courrier (fiche, fonds reçus, tour du
+  NAS `fichierAppelFondsRacine`), le courrier écrit par CLAIRE passe avant « Décompte acquéreur » ; un décompte du confrère
+  rattaché par erreur est ignoré par la fiche et détaché par le serveur (`courrierAppelFondsARattacher` rend ''). **Pièces du dossier lues seules** quand l'office établit le décompte
   (étude 06/10, `reprendrePiecesNasAppelFonds`, `fichierPieceNasAppelFonds`) : avis de taxe foncière et, en copropriété, état daté —
   fichier retrouvé par la checklist (`fichierTrouve`), sinon le plus récent dont le nom dit la pièce —, lus par les mêmes lecteurs
   qu'un dépôt, jamais par-dessus une pièce déposée ; les pièces d'un autre dossier sont oubliées au changement de dossier. Prêt hypothécaire : montant du prêt **déduit**, frais de garantie **appelés au

@@ -49,6 +49,9 @@ function memeInventaire(a, b) {
 // écartant les décomptes qui n'en sont pas (remboursement d'un prêt, tableau d'amortissement…).
 const RE_NOM_APPEL_FONDS = /(appel\s*de\s*fonds|d[ée]compte|convocation)/i;
 const RE_NOM_APPEL_FONDS_EXCLU = /(rembours|pr[eê]t|amortissement|offre|cr[ée]dit|re[cç]u)/i;
+// Le décompte du confrère (« Décompte Me DURAND ») n'est jamais le courrier de l'étude (étude 06/10) ; le courrier écrit par
+// CLAIRE passe avant tout autre nom — règle commune au poste (commun/decompte.js).
+const { nomDitDecompteConfrere, nomDitCourrierClaireAppelFonds } = require('../../commun/decompte');
 
 function dateDuJourParis() {
   return new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Paris' });
@@ -56,11 +59,12 @@ function dateDuJourParis() {
 
 // Pure : le premier PDF de la racine (chemin relatif sans séparateur) qui est un appel de fonds.
 function fichierAppelFondsRacine(chemins) {
-  return (chemins || []).find((c) => {
+  const candidats = (chemins || []).filter((c) => {
     if (typeof c !== 'string' || /[\\/]/.test(c)) return false;
     const nom = c.normalize('NFC').replace(/[_-]+/g, ' ');
-    return RE_NOM_APPEL_FONDS.test(nom) && !RE_NOM_APPEL_FONDS_EXCLU.test(nom);
-  }) || null;
+    return RE_NOM_APPEL_FONDS.test(nom) && !RE_NOM_APPEL_FONDS_EXCLU.test(nom) && !nomDitDecompteConfrere(nom);
+  });
+  return candidats.find((c) => nomDitCourrierClaireAppelFonds(c)) || candidats[0] || null;
 }
 
 // Pure : le fichier qui justifie de noter l'envoi sur ce dossier, ou null.
@@ -94,10 +98,13 @@ function noterAppelFondsDetecte(d, chemins, jour) {
 // 29/09) — que l'envoi ait été noté à la main ou par CLAIRE. Pure : le chemin à mémoriser, ou null
 // si rien ne change. Un courrier déjà rattaché et toujours présent est gardé (pas de va-et-vient
 // entre deux fichiers) ; renommé ou retiré, il est remplacé par celui qu'on trouve.
+// Un décompte du confrère rattaché par erreur (avant le 06/10) est détaché ('' = rien à la place) ou remplacé par le nôtre.
 function courrierAppelFondsARattacher(d, chemins) {
   if (!d || d.archive) return null;
-  if (d.appelFondsCourrier && (chemins || []).includes(d.appelFondsCourrier)) return null;
+  const confrereRattache = !!d.appelFondsCourrier && nomDitDecompteConfrere(d.appelFondsCourrier);
+  if (d.appelFondsCourrier && !confrereRattache && (chemins || []).includes(d.appelFondsCourrier)) return null;
   const trouve = fichierAppelFondsRacine(chemins);
+  if (confrereRattache) return trouve || '';
   return trouve && trouve !== d.appelFondsCourrier ? trouve : null;
 }
 
@@ -141,7 +148,7 @@ async function executerTourSurveillanceNas(depot, racineNas, aujourdHui) {
     let base = avecAppelFonds || d;
     if (avecAppelFonds) resultat.appelsFondsNotes++;
     const courrier = courrierAppelFondsARattacher(base, fichiers);
-    if (courrier) base = { ...base, appelFondsCourrier: courrier };
+    if (courrier !== null) base = { ...base, appelFondsCourrier: courrier };
     if (nouveaux.length > 0) {
       resultat.dossiersNotifies++;
       depot.remplacer(d.id, { ...base, nasInventaire: fichiers, nasNouveaute: { at: Date.now(), fichiers: nouveaux } });

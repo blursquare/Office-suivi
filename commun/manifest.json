@@ -1,6 +1,7 @@
 [
   "dates.js",
   "dossier.js",
+  "decompte.js",
   "montants.js",
   "pieces.js",
   "planning.js",

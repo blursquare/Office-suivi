@@ -17267,3 +17267,14 @@ Point terrain `zonage-parcelle-gpu` (accès Internet sortant du serveur vers api
   dans Chromium (bureau, sombre, téléphone) sans Ollama → mots-clés : chaque réponse juste, aucune erreur de page. Non vérifié : un
   vrai Ollama (phrases ambiguës, temps de réponse du 8B).
 
+### 06/10/2026 13 h 40 — 0.167.1 : le décompte du confrère n'est plus rattaché comme le nôtre
+
+Étude : « ne pas rattacher dans l'appel de fonds le décompte du confrère mais bien le nôtre ». Règle par le NOM du fichier,
+écrite une fois dans `commun/decompte.js` (`nomDitDecompteConfrere` : « confrère », « consœur », « Me X », « Maître », « notaire » —
+« me » seulement comme mot entier ; `nomDitCourrierClaireAppelFonds`) et appliquée : `fichiersDecompteRacine` (fiche « Retrouver
+le courrier », montant attendu — le décompte du confrère reste lisible dans `autres`, jamais dans `parNom`), `courrierAppelFondsDossier`
+(un décompte du confrère déjà rattaché est ignoré), `candidatsDecompteConfrereNas` (un PDF de la racine qui nomme le confrère est
+bien son décompte, candidat en tête), `nasWatch.fichierAppelFondsRacine` (exclu ; courrier de CLAIRE en premier) et
+`courrierAppelFondsARattacher` (détache ou remplace). Tests dans les trois suites. Non vérifié : les noms réels des décomptes de
+confrères sur le NAS de l'étude (si un confrère nomme son décompte sans « Me », « confrère » ni « notaire », il sera encore pris).
+

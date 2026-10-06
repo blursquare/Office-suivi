@@ -703,6 +703,9 @@ test('appel de fonds du confrère sur le NAS : « Projet VENTE confrère » d’
   assert.strictEqual(sansRattache[2], '5 - Comptabilité/Décompte acquéreur 2026.pdf', 'autre sous-dossier : seulement par le nom, après le dossier du confrère');
   assert.ok(!sansRattache.some(c => !/[\\/]/.test(c)), 'rien à la racine');
   assert.ok(app.candidatsDecompteConfrereNas([f('PROJET VTE CONFRERE/AF.pdf')], '').length === 1, 'dossier du confrère en capitales, sans accent');
+  // Étude 06/10 : un PDF de la racine dont le NOM dit le confrère (« Décompte Me FOURNIER ») est bien son décompte — candidat en tête.
+  const racineConfrere = app.candidatsDecompteConfrereNas([f('Décompte acquéreur.pdf'), f('Décompte Me FOURNIER.pdf'), f('5 - Comptabilité/Décompte 2026.pdf')], '').map(x => x.chemin);
+  assert.strictEqual(racineConfrere.join(' | '), 'Décompte Me FOURNIER.pdf | 5 - Comptabilité/Décompte 2026.pdf');
 });
 
 test('frais d’acte estimés : assiette hors mobilier, taux plein arrondi à l’euro supérieur, jamais en participation', () => {

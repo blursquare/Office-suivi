@@ -240,6 +240,28 @@ test('fichiersDecompteRacine : noms employés par l’étude, jamais un décompt
   assert.equal(parNom.map(f => f.nom).sort().join(' | '), 'Convocation au rendez-vous contenant l’appel de fonds.pdf | Décompte acquéreur.pdf');
 });
 
+test('décompte du confrère (nom du fichier) : jamais le courrier de l’étude, ni à rattacher, ni déjà rattaché (étude 06/10)', () => {
+  const app = chargerApplication();
+  const D = require('../commun/decompte');
+  assert.equal(D.nomDitDecompteConfrere('Décompte Me FOURNIER.pdf'), true);
+  assert.equal(D.nomDitDecompteConfrere('DECOMPTE_CONSOEUR_DURAND.pdf'), true);
+  assert.equal(D.nomDitDecompteConfrere('Décompte confrère.pdf'), true);
+  assert.equal(D.nomDitDecompteConfrere('Décompte acquéreur.pdf'), false);
+  assert.equal(D.nomDitDecompteConfrere('Décompte meublé.pdf'), false, '« me » seulement comme mot entier');
+  assert.equal(D.nomDitDecompteConfrere('Convocation au rendez-vous contenant l’appel de fonds - Me DUPONT.pdf'), false, 'le courrier de CLAIRE, même s’il nomme un Me');
+  const { parNom, autres } = app.fichiersDecompteRacine([
+    { nom: 'Décompte Me FOURNIER.pdf', chemin: 'Décompte Me FOURNIER.pdf' },
+    { nom: 'Décompte acquéreur.pdf', chemin: 'Décompte acquéreur.pdf' },
+    { nom: 'Convocation au rendez-vous contenant l’appel de fonds - DUPONT.pdf', chemin: 'Convocation au rendez-vous contenant l’appel de fonds - DUPONT.pdf' }
+  ], '');
+  assert.equal(parNom.map(f => f.nom).join(' | '), 'Convocation au rendez-vous contenant l’appel de fonds - DUPONT.pdf | Décompte acquéreur.pdf', 'le courrier de CLAIRE d’abord, jamais celui du confrère');
+  assert.equal(autres.map(f => f.nom).join(' | '), 'Décompte Me FOURNIER.pdf', 'le décompte du confrère reste lisible pour le montant attendu');
+  // Déjà rattaché par erreur : ignoré par la fiche.
+  assert.equal(app.courrierAppelFondsDossier({ appelFondsCourrier: 'Décompte Me FOURNIER.pdf' }), '');
+  assert.equal(app.courrierAppelFondsDossier({ detectionsNas: { appelFondsFichier: 'Décompte confrère.pdf' } }), '');
+  assert.equal(app.courrierAppelFondsDossier({ appelFondsCourrier: 'Décompte acquéreur.pdf' }), 'Décompte acquéreur.pdf');
+});
+
 test('ligne « Envoi appel de fonds » : lien vers le courrier rattaché, ou « Retrouver le courrier »', () => {
   const app = chargerApplication();
   const base = { id: 'd1', nom: 'X / Y', nasDossier: 'X', appelFonds: '2026-10-01', echeancesValidees: { appelFonds: true } };

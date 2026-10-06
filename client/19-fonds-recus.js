@@ -262,8 +262,10 @@
     const racine = (fichiers || []).filter(f => f && f.chemin && !/[\\/]/.test(f.chemin));
     const recent = (a, b) => (anneeDansNomFichier(b.nom) || 0) - (anneeDansNomFichier(a.nom) || 0);
     const n = (f) => normaliserNomPourMotif(f.nom);
-    const parNom = racine.filter(f => (RE_NOM_DECOMPTE_SUR.test(n(f)) && !RE_NOM_DECOMPTE_EXCLU.test(n(f)))
-      || (RE_NOM_DECOMPTE.test(n(f)) && !RE_NOM_PAS_DECOMPTE.test(n(f)))).sort(recent);
+    // Le décompte du confrère (« Décompte Me DURAND », « Décompte confrère ») n'est jamais le courrier de l'étude : il reste
+    // dans `autres` (lisible pour le montant attendu), jamais rattaché (étude 06/10). Le courrier écrit par CLAIRE passe en tête.
+    const parNom = racine.filter(f => !nomDitDecompteConfrere(f.nom) && ((RE_NOM_DECOMPTE_SUR.test(n(f)) && !RE_NOM_DECOMPTE_EXCLU.test(n(f)))
+      || (RE_NOM_DECOMPTE.test(n(f)) && !RE_NOM_PAS_DECOMPTE.test(n(f))))).sort((a, b) => (nomDitCourrierClaireAppelFonds(b.nom) ? 1 : 0) - (nomDitCourrierClaireAppelFonds(a.nom) ? 1 : 0) || recent(a, b));
     const autres = racine.filter(f => !parNom.includes(f) && f.nom !== nomAvantContrat
       && !RE_NOM_PAS_DECOMPTE.test(normaliserNomPourMotif(f.nom))).sort(recent);
     return { parNom, autres };
