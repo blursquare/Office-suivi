@@ -7565,7 +7565,12 @@ button.annuaire-proche.actif { background: var(--focus); border-color: var(--foc
 
 /* ---- Barre du Suivi (étude, 30/09) : recherche mise en avant, filtres sur une ligne, statuts
    en couleur dessous. ---- */
-.list-toolbar.suivi-barre { flex-direction: column; align-items: stretch; flex-wrap: nowrap; gap: 10px; }
+/* Carte (étude 06/10 : « moins flottante ») : recherche, filtres et statuts réunis dans une carte, comme le reste de la page. */
+.list-toolbar.suivi-barre {
+  flex-direction: column; align-items: stretch; flex-wrap: nowrap; gap: 12px;
+  padding: 16px; margin-bottom: 20px; border: 1px solid var(--bord-carte); border-radius: var(--rayon-carte);
+  background: var(--paper-card); box-shadow: var(--shadow-card);
+}
 .suivi-barre-ligne { display: flex; align-items: center; gap: 12px; min-width: 0; }
 .suivi-barre-recherche { gap: 14px; }
 .suivi-recherche { position: relative; flex: 1 1 auto; min-width: 0; display: flex; }
@@ -7575,10 +7580,9 @@ button.annuaire-proche.actif { background: var(--focus); border-color: var(--foc
   width: 100%; max-width: none; box-sizing: border-box; height: 40px; padding: 0 14px 0 40px;
   font-family: inherit; font-size: var(--texte-l); color: var(--ink);
   background: var(--paper-card); border: 1px solid var(--line); border-radius: var(--rayon-m);
-  box-shadow: var(--shadow-card);
 }
 .suivi-barre input[type="search"]#recherche-dossiers::placeholder { color: var(--muted); }
-.suivi-barre input[type="search"]#recherche-dossiers:focus { outline: none; border-color: var(--focus); box-shadow: var(--shadow-card); }
+.suivi-barre input[type="search"]#recherche-dossiers:focus { outline: none; border-color: var(--focus); }
 .suivi-barre-recherche .vue-bascule { flex: none; }
 .suivi-barre-filtres { flex-wrap: nowrap; gap: 8px 16px; }
 .suivi-barre-filtres .toolbar-item { flex: none; font-size: var(--texte-m); color: var(--muted); }
