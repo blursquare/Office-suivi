@@ -412,16 +412,27 @@
 
   var MAX_ACTIVITE_COLONNE_SUIVI = 12;
 
-  // « Derniers dossiers ouverts » (étude 05/10 : à la place des dernières pièces, les fiches consultées récemment
-  // sur ce poste, pour y revenir d'un clic). Gardés dans le navigateur du poste, par collaborateur : une commodité,
-  // jamais une donnée du dossier — sans stockage, la liste est simplement vide.
+  // « Derniers dossiers ouverts » (étude 05/10 : à la place des dernières pièces, les fiches consultées récemment, pour y
+  // revenir d'un clic). Liés au COLLABORATEUR, plus au navigateur (étude 06/10 : « il faut que ce soit lié à la personne
+  // qui ouvre ») : gardés dans ses préférences sur le serveur (`dossiersConsultes`), chargés avec elles
+  // (chargerPreferencesCollaborateur) ; la liste d'avant, gardée dans le navigateur, est reprise une fois.
   var MAX_DOSSIERS_CONSULTES = 10;
+  var dossiersConsultesCollaborateur = null;   // null tant que les préférences du collaborateur ne sont pas lues
   function cleDossiersConsultes() { return 'claire-dossiers-consultes:' + (utilisateurPoste || 'poste'); }
-  function lireDossiersConsultes() {
+  function lireDossiersConsultesLocaux() {
     try {
       const l = JSON.parse(localStorage.getItem(cleDossiersConsultes()) || '[]');
       return Array.isArray(l) ? l.filter(x => x && typeof x.id === 'string') : [];
     } catch (e) { return []; }
+  }
+  function lireDossiersConsultes() {
+    return Array.isArray(dossiersConsultesCollaborateur) ? dossiersConsultesCollaborateur : lireDossiersConsultesLocaux();
+  }
+  // Préférences du collaborateur lues : sa liste du serveur, sinon (premier passage) celle de ce navigateur, envoyée.
+  function appliquerDossiersConsultesServeur(liste) {
+    if (Array.isArray(liste)) { dossiersConsultesCollaborateur = liste.slice(0, MAX_DOSSIERS_CONSULTES); return; }
+    dossiersConsultesCollaborateur = lireDossiersConsultesLocaux().slice(0, MAX_DOSSIERS_CONSULTES);
+    if (dossiersConsultesCollaborateur.length) enregistrerPreferenceCollaborateur({ dossiersConsultes: dossiersConsultesCollaborateur });
   }
   // Pure : la liste après l'ouverture de `id` à `le` — en tête, sans doublon, `max` au plus.
   function ajouterDossierConsulte(liste, id, le, max) {
@@ -429,7 +440,8 @@
   }
   function noterDossierConsulte(id) {
     if (!id) return;
-    ecrireLocal(cleDossiersConsultes(), JSON.stringify(ajouterDossierConsulte(lireDossiersConsultes(), id, new Date().toISOString())));
+    dossiersConsultesCollaborateur = ajouterDossierConsulte(lireDossiersConsultes(), id, new Date().toISOString());
+    enregistrerPreferenceCollaborateur({ dossiersConsultes: dossiersConsultesCollaborateur });
   }
   // Pure : [{ dossier, le }] des dossiers encore présents (un dossier supprimé disparaît de la liste).
   function dossiersConsultesRecents(consultes, tous) {
@@ -963,6 +975,7 @@
     ajoutRappelOuvert = false;
     rappelsPerso = [];
     rappelsPersoCharges = false;
+    dossiersConsultesCollaborateur = null;   // la liste du nouveau collaborateur arrive avec ses préférences
     render();
     chargerRappelsPerso();
     chargerPreferencesCollaborateur();

@@ -66,6 +66,11 @@ test('rapport : section des vérifications, échec de la période à examiner, a
   assert.match(lignes, /✅ 3CX : une sonnerie reçue.*\*\*nouveau\*\*.*10 chiffres/);
   assert.match(lignes, /⚠️ Emails des dossiers : « Éléments envoyés »/);
   assert.match(lignes, /⬜ Le logo de CLAIRE apparaît.*à confirmer à la main/);
+  // Rapport suivant : le point vérifié n'est plus cité, seulement compté (étude 06/10).
+  const suivant = sectionVerificationsTerrain(etat, jusqua, '2026-10-03T15:00:00.000Z').join('\n');
+  assert.doesNotMatch(suivant, /3CX : une sonnerie reçue/);
+  assert.match(suivant, /1 point\(s\) vérifié\(s\) lors d'un rapport précédent/);
+  assert.match(suivant, /⚠️ Emails des dossiers : « Éléments envoyés »/);
   const r = construireRapport({
     depuis, jusqua, mots: new Set(['DURAND', 'JULIE', 'VASSELIN']), dossiers: [], evenements: [], verificationsTerrain: etat
   });

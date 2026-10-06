@@ -624,7 +624,19 @@
   }
 
   // Réglages › Téléphonie 3CX : l'adresse de chaque collaborateur pour 3CX, et les derniers appels notés.
+  // Pure : la page est-elle affichée dans la fenêtre « application » (raccourci CLAIRE, --app) plutôt que dans un onglet ?
+  function fenetreApplicationClaire(standalone, toolbarVisible) {
+    return !!standalone || toolbarVisible === false;
+  }
+
   async function renderReglages3cx() {
+    const fenetre = document.getElementById('reglages-3cx-fenetre');
+    if (fenetre) {
+      const app = fenetreApplicationClaire(window.matchMedia && window.matchMedia('(display-mode: standalone)').matches, window.toolbar && window.toolbar.visible);
+      fenetre.textContent = app
+        ? 'Vous êtes dans la fenêtre CLAIRE : le bouton ci-dessous ajoute l’extension à son profil.'
+        : 'Vous êtes dans un onglet du navigateur : pour la fenêtre CLAIRE, cliquer ce bouton depuis la fenêtre CLAIRE elle-même.';
+    }
     const liste = document.getElementById('reglages-3cx-liste');
     if (!liste) return;
     try {

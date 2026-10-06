@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.164.0';
+  const VERSION_APP = '0.164.1';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.164.1', date: '2026-10-06 10:39', resume: "« Derniers dossiers ouverts » liés au collaborateur (enregistrés sur le serveur, le suivent d'un poste à l'autre) et plus au navigateur. Vérifications sur le terrain : un point vérifié disparaît de la liste des Réglages et n'est cité qu'une fois, dans le rapport technique qui suit. Téléphonie 3CX : la fenêtre CLAIRE a son propre profil Chrome — bouton « Ajouter l'extension 3CX » pour y rendre les numéros cliquables comme dans un onglet." },
     { version: '0.164.0', date: '2026-10-06 10:35', resume: "Nouvel outil « Droits de préemption » (Outils, et onglet Pièces et analyse de la fiche) : d'après la commune et la parcelle, CLAIRE lit le zonage sur le Géoportail de l'urbanisme (IGN), puis indique pour la mutation et le bien vendu les droits à purger et la formalité — DPU et DPU renforcé (tableau Cheuvreux ; Agglopolys : zones U et AU ; périmètres renforcés de Blois : centre-ville et parcelle AL 839, plans affichés), SAFER (CRIDON, terrain et bâtiment), bois et forêts (État, commune, droit de préférence des voisins). Seules les questions utiles sont posées ; le résultat s'enregistre sur la fiche." },
     { version: '0.163.0', date: '2026-10-06 10:13', resume: "Sauvegardes : « Restaurer » en un clic dans Réglages › Mise à jour et sauvegarde (la sauvegarde est vérifiée, CLAIRE redémarre, l'ancienne base est gardée à côté). Corrige « database disk image is malformed » après une restauration à la main : le journal de l'ancienne base (claire.db-wal) n'est plus jamais rejoué sur la sauvegarde — au démarrage, une base illisible à cause d'un journal étranger est rouverte sans lui (copie gardée à part)." },
     { version: '0.162.0', date: '2026-10-06 10:05', resume: "Emails des dossiers : les échanges avec les clients se retrouvent mieux sur la fiche — adresses des parties relevées dans Authentic (héritiers d'une succession compris), réponses « RE: » à un échange du dossier, adresses à qui l'étude a écrit pour ce seul dossier ; les dossiers archivés reçoivent aussi les emails des clients et des confrères ; un confrère de plusieurs dossiers n'est plus rangé au hasard : l'objet départage." },

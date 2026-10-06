@@ -83,3 +83,14 @@ test('Préférence « barre latérale au démarrage » : ouverte ou fermée seul
   assert.equal(p['Jérémy SAUJOT'].sidebarDemarrage, undefined);
   assert.equal(p['Jérémy SAUJOT'].theme, 'dark');
 });
+
+test('derniers dossiers ouverts : gardés par collaborateur, identifiant et heure seulement, sans doublon, 10 au plus', () => {
+  const { assainirPreference: assainir } = require('../src/parametres/assainir');
+  const liste = [{ id: 'd1', le: '2026-10-06T08:00:00Z', nom: 'DUPONT' }, { id: 'd1', le: '2026-10-05T08:00:00Z' }, { id: '../x', le: '2026-10-06T08:00:00Z' }, { id: 'd2', le: 'pas une date' }];
+  for (let i = 3; i < 20; i++) liste.push({ id: 'd' + i, le: '2026-10-04T08:00:00Z' });
+  const p = assainir({ dossiersConsultes: liste });
+  assert.equal(p.dossiersConsultes.length, 10);
+  assert.equal(p.dossiersConsultes[0].id, 'd1');
+  assert.equal(p.dossiersConsultes[0].nom, undefined);
+  assert.ok(!p.dossiersConsultes.some((x) => x.id === '../x' || x.id === 'd2'));
+});

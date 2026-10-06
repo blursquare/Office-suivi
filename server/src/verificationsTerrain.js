@@ -68,6 +68,8 @@ const VERIFICATIONS_TERRAIN = [
     comment: 'À confirmer en comparant un mois avec l’agenda d’Outlook (titres VTE, SUCC, DONATION).' },
   { id: 'fenetres-rechargees', depuis: '0.135.0', source: 'poste', titre: 'Après une mise à jour automatique, une fenêtre CLAIRE déjà ouverte s’est rechargée seule sur la nouvelle version',
     comment: 'Coché la première fois qu’une fenêtre voit le serveur redémarrer sur une autre version et se recharge.' },
+  { id: 'telephone-3cx-fenetre-app', depuis: '0.164.1', source: 'manuel', titre: 'Dans la fenêtre CLAIRE (raccourci du bureau), après l’ajout de l’extension 3CX à son profil, un numéro écrit est cliquable',
+    comment: 'Réglages › Téléphonie 3CX › « Ajouter l’extension 3CX », depuis la fenêtre CLAIRE, puis connexion au compte 3CX.' },
   { id: 'zonage-parcelle-gpu', depuis: '0.164.0', source: 'serveur', titre: 'Droits de préemption : zonage d’une parcelle lu sur le Géoportail de l’urbanisme (API Carto de l’IGN)',
     comment: 'Coché à la première lecture réussie depuis le serveur du bureau (accès Internet sortant vers apicarto.ign.fr).' },
   { id: 'restauration-sauvegarde', depuis: '0.163.0', source: 'serveur', titre: 'Sauvegarde restaurée au démarrage (vérifiée, ancienne base gardée à côté avec son journal)',
@@ -203,13 +205,19 @@ function listeVerifications(etat) {
 }
 
 // Pure : section du rapport technique. `anonymiser` = anonymiserTexte déjà lié aux mots sensibles.
+// Un point vérifié n'est cité qu'une fois, dans le rapport de la période où il l'a été (étude 06/10) ; ensuite il est
+// seulement compté. Les points en attente et en échec sont toujours listés.
 function sectionVerificationsTerrain(etat, depuis, jusqua, anonymiser = (t) => t, dateHeure = (d) => d) {
   const liste = listeVerifications(etat);
   const dans = (d) => d && d > depuis && d <= jusqua;
   const verifies = liste.filter((v) => v.statut === 'verifie');
+  const nouveauVerifie = (v) => v.statut === 'verifie' && dans(v.source === 'manuel' ? (v.etat || {}).confirmeLe : (v.etat || {}).premiereFois);
+  const anciens = verifies.filter((v) => !nouveauVerifie(v)).length;
   const L = ['', `## Vérifications sur le terrain (${verifies.length}/${liste.length} vérifiées)`];
+  if (anciens) L.push(`${anciens} point(s) vérifié(s) lors d'un rapport précédent, plus repris ici.`);
   const icone = { verifie: '✅', echec: '⚠️', attente: '⬜' };
   for (const v of liste) {
+    if (v.statut === 'verifie' && !nouveauVerifie(v)) continue;
     const e = v.etat || {};
     let etatTexte;
     if (v.statut === 'verifie') {

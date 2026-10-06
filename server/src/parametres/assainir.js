@@ -214,8 +214,19 @@ function assainirPreference(brut) {
   // Version de la disposition par défaut à laquelle se rapporte `widgets` (le client repart de la
   // nouvelle disposition par défaut quand elle change).
   if (Number.isInteger(b.widgetsVersion) && b.widgetsVersion > 0 && b.widgetsVersion < 100) out.widgetsVersion = b.widgetsVersion;
+  // Derniers dossiers ouverts par ce collaborateur (étude 06/10 : « lié à la personne qui ouvre », plus au navigateur) :
+  // identifiant et heure seulement, 10 au plus, sans doublon.
+  if (Array.isArray(b.dossiersConsultes)) {
+    const vus = new Set();
+    out.dossiersConsultes = b.dossiersConsultes
+      .filter((x) => x && typeof x.id === 'string' && /^[A-Za-z0-9_-]{1,80}$/.test(x.id) && typeof x.le === 'string' && !Number.isNaN(Date.parse(x.le)))
+      .filter((x) => (vus.has(x.id) ? false : (vus.add(x.id), true)))
+      .slice(0, MAX_DOSSIERS_CONSULTES_PREFERENCE)
+      .map((x) => ({ id: x.id, le: new Date(x.le).toISOString() }));
+  }
   return out;
 }
+const MAX_DOSSIERS_CONSULTES_PREFERENCE = 10;
 
 function assainirPreferences(brut) {
   const out = {};

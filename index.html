@@ -1792,6 +1792,16 @@
       <h4 class="reglages-sous-titre">Derniers appels</h4>
       <div id="reglages-3cx-journal"></div>
     </div>
+    <!-- Numéros cliquables dans la fenêtre CLAIRE (étude 06/10 : « fonctionne en onglet Chrome mais pas dans l'app séparée ») :
+         la fenêtre « application » a son propre profil Chrome (« Claire », « ClaireServeur » sur le serveur), sans les extensions
+         du Chrome habituel — l'extension 3CX y est à ajouter une fois, depuis la fenêtre CLAIRE elle-même. -->
+    <div class="reglages-section">
+      <h3 class="reglages-section-titre">Numéros cliquables dans la fenêtre CLAIRE <span class="info-i" tabindex="0" data-info="La fenêtre CLAIRE (raccourci « CLAIRE » du bureau) a son propre profil Chrome : les extensions installées dans Chrome ne la suivent pas. Pour que les numéros s'appellent par 3CX dans cette fenêtre comme dans un onglet Chrome, l'extension « 3CX Click to Call » doit y être ajoutée une fois, sur chaque poste : cliquer « Ajouter l'extension 3CX » DEPUIS la fenêtre CLAIRE (pas depuis un onglet Chrome), choisir l'extension, « Ajouter à Chrome », puis se connecter avec le même compte 3CX que dans Chrome. Les icônes de téléphone (lien tel:) fonctionnent sans l'extension si 3CX est l'application d'appel du poste."></span></h3>
+      <p class="hint" id="reglages-3cx-fenetre"></p>
+      <div class="reglages-actions">
+        <wa-button appearance="outlined" class="secondary" onclick="window.open('https://chromewebstore.google.com/search/3CX%20Click%20to%20Call', '_blank', 'noopener')">Ajouter l'extension 3CX</wa-button>
+      </div>
+    </div>
   </section>
 
   <!-- ===== Authentic : journal des pages relevées par l'extension Firefox (étude, 02/10 : « pourquoi

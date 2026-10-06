@@ -1124,10 +1124,14 @@
   function renderVerificationsTerrain() {
     const bloc = document.getElementById('reglages-verifications');
     if (!bloc) return;
+    // Un point vérifié ne s'affiche plus (étude 06/10 : « quand les tests passent, ne plus les afficher, une fois validés lors
+    // du rapport ») : seuls restent ceux en attente ou en échec ; le rapport technique cite le point vérifié une seule fois.
     const n = verificationsTerrain.filter(v => v.statut === 'verifie').length;
+    const restants = verificationsTerrain.filter(v => v.statut !== 'verifie');
     const compte = document.getElementById('reglages-verifications-compte');
-    if (compte) compte.textContent = verificationsTerrain.length ? `${n} sur ${verificationsTerrain.length} vérifiées` : '';
-    bloc.innerHTML = verificationsTerrain.length ? lignesVerificationsTerrain(verificationsTerrain) : '<p class="hint">Aucune vérification en cours.</p>';
+    if (compte) compte.textContent = verificationsTerrain.length ? `${restants.length} à vérifier · ${n} vérifié${n > 1 ? 's' : ''}` : '';
+    bloc.innerHTML = restants.length ? lignesVerificationsTerrain(restants)
+      : `<p class="hint">${verificationsTerrain.length ? 'Tout est vérifié.' : 'Aucune vérification en cours.'}</p>`;
   }
 
   async function confirmerVerificationTerrain(id, confirme) {

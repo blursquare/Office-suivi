@@ -17153,3 +17153,19 @@ proposés puis confirmés (rien d'affirmé sans confirmation).
   Fiche › Pièces et analyse : bloc « Droits de préemption » (`renderPreemptionFiche`) — résultat enregistré + « Revoir », sinon
   la ligne « Vérifier les droits de préemption ».
 Point terrain `zonage-parcelle-gpu` (accès Internet sortant du serveur vers apicarto.ign.fr).
+
+### 0.164.1 — 06/10/2026 — Derniers dossiers ouverts par collaborateur, vérifications masquées, 3CX dans la fenêtre CLAIRE
+
+- « Le suivi des derniers dossiers ouverts est lié au navigateur, il faut que ce soit lié à la personne qui ouvre » : la liste
+  (`noterDossierConsulte`) va dans les préférences du collaborateur sur le serveur (`dossiersConsultes`, `assainirPreference` :
+  identifiant + heure, 10 au plus, sans doublon), chargée avec elles (`appliquerDossiersConsultesServeur`) ; au premier
+  passage, la liste gardée dans ce navigateur est reprise et envoyée ; vidée au changement de collaborateur du poste.
+- « Quand les tests passent, dans Vérifications sur le terrain, ne plus les afficher une fois validés lors du rapport » :
+  Réglages ne liste plus que les points en attente ou en échec (« N à vérifier · M vérifiés ») ;
+  `sectionVerificationsTerrain` ne cite un point vérifié que dans le rapport de la période où il l'a été, ensuite il est compté
+  (« N point(s) vérifié(s) lors d'un rapport précédent »).
+- « Les numéros cliquables 3CX fonctionnent en onglet Chrome mais pas dans l'app séparée » : la fenêtre CLAIRE (raccourci,
+  `--app`) s'ouvre sur un profil Chrome à part (`--profile-directory="Claire"`, `ClaireServeur` sur le serveur), qui n'a pas
+  l'extension « 3CX Click to Call » du Chrome habituel. Réglages › Téléphonie 3CX : section « Numéros cliquables dans la fenêtre
+  CLAIRE », bouton qui ouvre le Chrome Web Store dans le profil courant (à cliquer depuis la fenêtre CLAIRE ; la page dit si on y
+  est, `fenetreApplicationClaire`). Point terrain manuel `telephone-3cx-fenetre-app`.

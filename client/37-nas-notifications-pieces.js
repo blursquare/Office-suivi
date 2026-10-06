@@ -1679,6 +1679,7 @@
     } catch (e) { return; }
     if (serveur.theme) appliquerTheme(serveur.theme);
     if (serveur.accent) appliquerAccent(serveur.accent);
+    appliquerDossiersConsultesServeur(serveur.dossiersConsultes);
     if (serveur.sidebarDemarrage && serveur.sidebarDemarrage !== sidebarDemarrage()) {
       // Réglage d'un autre poste : pris comme cache ; appliqué seulement si la barre n'a pas été basculée.
       try { localStorage.setItem(CLE_SIDEBAR_DEMARRAGE, serveur.sidebarDemarrage); } catch (e) { /* cache local */ }
