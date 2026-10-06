@@ -153,6 +153,19 @@ test('nom d’un scan non reconnu : « Claire Scan », sans date ni référence'
   assert.equal(app.nomCibleScan(null, {}), 'Claire Scan');
 });
 
+test('convocation contenant l’appel de fonds : nom de l’étude, toujours reconnue comme décompte de l’étude, jamais une pièce', () => {
+  const app = chargerApplication();
+  const ty = app.TYPES_SCAN.find(t => t.cle === 'convocation');
+  const nom = app.nomCibleScan(ty, { date: '2026-10-06' });
+  assert.equal(nom, "Convocation au rendez-vous contenant l'appel de fonds - Claire Scan");
+  assert.equal(app.RE_NOM_DECOMPTE_SUR.test(nom + '.pdf'), true);
+  assert.equal(app.RE_NOM_DECOMPTE_EXCLU.test(nom + '.pdf'), false);
+  const toutes = app.PIECES_URBANISME.concat(app.PIECES_AUTRES, app.PIECES_COPROPRIETE, app.PIECES_TERRAIN_AUTRES, app.PIECES_ENGAGEMENTS_AUTO);
+  const normalise = app.normaliserNomPourMotif(nom + '.pdf');
+  assert.equal(toutes.filter(p => app.correspondancePieceNom(p, normalise)).map(p => p.cle).join(','), '');
+  assert.equal(app.nomDitOffrePret(normalise), false);
+});
+
 test('score : barème du script de l’étude (partie 3, adresse 4, parcelle 5), seuil 4 (étude, 30/09), marge ×1,3', () => {
   const app = chargerApplication();
   const b = app.BAREME_SCORE_SCAN;

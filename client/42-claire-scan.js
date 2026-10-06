@@ -55,7 +55,7 @@
     { cle: 'etudeSol', label: 'Étude de sol', piece: 'etudeSol', motif: /etude (geotechnique|de sol)/, rubriques: ['construction', 'environnement', 'aae'] },
     { cle: 'offrePret', label: 'Offre de prêt', motif: /offre de (pret|credit)|offre prealable de credit|contrat de (pret|credit) immobilier/, rubriques: ['pret', 'comptabilite'] },
     { cle: 'decompte', label: 'Décompte', motif: /decompte (previsionnel|financier|definitif|acquereur|vendeur)/, rubriques: ['comptabilite'] },
-    { cle: 'convocation', label: 'Convocation', motif: /confirmer le rendez-vous|confirme le rendez-vous|convocation/, rubriques: [] },
+    { cle: 'convocation', label: "Convocation au rendez-vous contenant l'appel de fonds", motif: /confirmer le rendez-vous|confirme le rendez-vous|convocation/, rubriques: [] },
     { cle: 'etatHypothecaire', label: 'État hypothécaire', motif: /etat hypothecaire|renseignements sommaires|etat (hors|sur) formalites?|demande de renseignements/, rubriques: ['hypotheque'] },
     { cle: 'avisTaxeFonciere', label: 'Avis de taxe foncière', piece: 'avisTaxeFonciere', motif: /avis_tf|montant de vos taxes foncieres|avis d'impots? locaux|avis d'(impot|imposition).{0,80}foncier|taxes? foncieres? \d{4}/, rubriques: ['comptabilite'] },
     { cle: 'appelCharges', label: 'Appel de charges', motif: /appel (trimestriel|de fonds|de charges|provisionnel|de provisions?)/, exige: /coproprietaire|syndic|lot/, rubriques: ['copro'] },

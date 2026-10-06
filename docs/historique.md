@@ -17041,3 +17041,11 @@ reprendre les - ou les à parfaire. »
 - **Lignes du courrier** (`afNettoyerLibelle`, `AF_A_PARFAIRE_RE`, `AF_PUCE_FIN_RE`) : « (à parfaire) », « sauf à parfaire »,
   « à parfaire ou à diminuer » et les tirets restés en bout de libellé sont retirés des lignes reprises d'un décompte ; un tiret
   au milieu d'un libellé reste.
+
+### 0.161.2 — 06/10/2026 09:46 — Claire Scan : nom de la convocation contenant l'appel de fonds
+
+Demande de l'étude : « Pour claire scan renommé la pièces d'appel de fonds "Convocation au rendez-vous contenant l'appel de fonds" ».
+Le type `convocation` de `TYPES_SCAN` (courrier « J'ai le plaisir de vous confirmer le rendez-vous… ») a pour libellé
+« Convocation au rendez-vous contenant l'appel de fonds » : copie rangée « Convocation au rendez-vous contenant l'appel de fonds -
+Claire Scan.pdf » à la racine du dossier. Contrôlé (test `scans`) : toujours reconnue comme décompte de l'étude par les fonds reçus
+(`RE_NOM_DECOMPTE_SUR`, aucun mot exclu), jamais prise pour une pièce de la checklist ni pour une offre de prêt.

@@ -486,7 +486,7 @@ dans `index.html`** (le test `structure-client` refuse tout décalage).
   partie nommée (tous ses mots, ou nom d'usage + prénom) 3 pts, deux au plus ; voie de l'adresse du
   bien 4 ; parcelle 5 ; sûr à 4 (abaissé de 6 par l'étude le 30/09) et ×1,3 devant le second, sinon suggestion ; score affiché **sur 6, plafonné** (`noteScoreScan`, « 6/6 » dès 6 points, comparaisons sur le score brut) avec le détail des points
   (`explicationScoreScan`) et journalisés. **Copie
-  nommée du libellé de la pièce de la checklist** (« État daté - Claire Scan », sans date ni référence du scan — « Nom (2) » si le nom existe) pour que le
+  nommée du libellé de la pièce de la checklist** (« État daté - Claire Scan », sans date ni référence du scan — « Nom (2) » si le nom existe ; courrier d'appel de fonds de l'étude = « Convocation au rendez-vous contenant l'appel de fonds - Claire Scan », étude 06/10) pour que le
   parcours du NAS la coche seul ; « Compromis signé » / « Promesse de vente signée » pour
   `choisirAvantContratNas`. **Rubrique retrouvée par son nom** (`RUBRIQUES_SCANS`, numéro ignoré),
   racine du dossier à défaut ; pièce d'identité / état civil / RIB → Vendeur ou Acquéreur selon la
