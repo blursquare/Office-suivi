@@ -20,6 +20,23 @@
     return (d && d.authentic && d.authentic.valeurs) || {};
   }
 
+  // Pure : Authentic a-t-il déjà donné les emails (ou téléphones) d'une personne de ce côté ? nature : 'emails' | 'telephones'.
+  function contactRetenuAuthentic(d, role, nature) {
+    const reg = (d && d.authentic && d.authentic.fichesAuthentic) || {};
+    return Object.values(reg).some(f => f && f.role === role && Array.isArray(f[nature]) && f[nature].length);
+  }
+
+  // Pure : les clés du complément par le compromis qu'Authentic a déjà remplies — la fiche y est gardée telle quelle, le compromis
+  // ne la change jamais (étude 07/10 : « toutes les valeurs client et bien doivent venir d'Authentic partout dans CLAIRE »).
+  function clesComplementAuthentic(d) {
+    const v = valeursAuthenticDossier(d);
+    const cles = ['adresseBien', 'typeVente', 'prixVente'].filter(c => v[c] != null && v[c] !== '');
+    if (v['parties:VENDEUR'] || v['parties:ACQUEREUR']) cles.push('nom');
+    if (contactRetenuAuthentic(d, 'VENDEUR', 'emails')) cles.push('emailVendeur');
+    if (contactRetenuAuthentic(d, 'ACQUEREUR', 'emails')) cles.push('emailAcquereur');
+    return cles;
+  }
+
   // Pure : les mises à jour proposées par Authentic, en attente de décision — [{ cle, type, libelle, avant, apres, le }].
   function majsEnAttenteAuthentic(d) {
     const att = (d && d.authentic && d.authentic.majEnAttente) || {};

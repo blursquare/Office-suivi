@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.190.1';
+  const VERSION_APP = '0.191.0';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.191.0', date: '2026-10-07 21:12', resume: "Audit de cohérence. DIA envoyée (relevée dans Authentic) : nouvelle échéance « Délai DIA » (envoi + 2 mois, le silence de la commune vaut renonciation) sur la fiche et au planning, créneaux et semaine probable après ce délai, pourcentage de tenue qui en tient compte. Les pièces de préemption ajoutées par l’analyse (DIA d’un lot de copropriété, droit de préférence ou préemption des bois) retiennent le rendez-vous et la rédaction jusqu’à réception. Agenda : une SAFER attendue sans date n’ouvre plus de créneaux (le planning disait déjà « Réponse SAFER attendue »). Notaires : « Nouveau dossier » et « Compléter le dossier » n’acceptent plus qu’un notaire du répertoire, et le notaire d’Authentic absent du répertoire n’est plus proposé. Compléter avec le compromis : une valeur venue d’Authentic (adresse, prix, type, noms, emails, téléphones) n’est plus jamais remplacée." },
     { version: '0.190.1', date: '2026-10-07 20:33', resume: "Agenda › Nouveau rendez-vous : un titre avec « ? » ou « ?? » (dates proposées, à confirmer) n’est plus jamais noté comme rendez-vous de signature sur la fiche — la case « Rendez-vous de signature » disparaît dès qu’un « ? » est tapé, et cocher cette case ne remet plus le titre à zéro. La lecture de l’agenda par le serveur appliquait déjà cette règle." },
     { version: '0.190.0', date: '2026-10-07 20:24', resume: "Nouveau dossier de vente : les droits de préemption sont lus seuls avec l’outil (zonage de chaque parcelle sur le Géoportail, nature du bien de la fiche). Un droit à purger ajoute sa pièce à attendre — « Réponse SAFER », « Renonciation au droit de préemption (DIA) » pour un lot de copropriété soumis au DPU, « Purge du droit de préférence (bois et forêts) » — et la fiche (Pièces) montre le résultat. Une réponse manquante laisse le droit « À vérifier » et sa question se répond sur la fiche ; relu si la commune, les parcelles ou la nature du bien changent. DPU non applicable : proposition de retirer la renonciation des pièces." },
     { version: '0.189.17', date: '2026-10-07 19:46', resume: "Fiche dossier, notaires du vendeur et de l’acquéreur : la liste déroulante ne propose plus que des notaires du répertoire (les noms déjà tapés que le navigateur gardait n’y apparaissent plus), et un nom qui ne désigne pas un seul notaire du répertoire n’est plus enregistré — CLAIRE demande de le choisir dans la liste ; une ancienne valeur laissée telle quelle n’est pas touchée." },

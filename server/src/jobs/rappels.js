@@ -53,6 +53,7 @@ const SEUILS_RAPPELS_PAR_TYPE = {
   // Délai SAFER (étude, 02/10) : une date butoir du planning, sans rappel — à son terme la
   // non-préemption est acquise d'elle-même (appliquerSaferTacite côté client).
   safer: [],
+  dia: [],
   // Envoi du projet d'acte (étude 06/10 : « pas de rappel d'envoi du projet d'acte 15 j avant ») : un seul rappel, à J-7 du
   // rendez-vous — le même jour que la tâche « Envoyer le projet » d'« À faire ». J-15 est déjà celui de la signature.
   projetEnvoye: [7],

@@ -126,8 +126,19 @@
   // une pièce de préemption a été AJOUTÉE À LA MAIN au dossier (pièce personnalisée) et n'est pas
   // encore reçue : c'est alors l'étude qui a dit qu'il fallait l'attendre.
   var RE_PIECE_PREEMPTION = /pr[ée]emption|\bDPU\b|\bDIA\b/i;
+  // Pièces de préemption ajoutées par l'analyse des droits de préemption (client/54, d.preemption.piecesAjoutees : DIA d'un lot
+  // de copropriété, droit de préférence ou préemption des bois et forêts) et pas encore reçues — elles retiennent la signature
+  // comme la renonciation de la mairie (étude 07/10 : « cohérence des échéances avec les pièces reçues pour droit de préemption »).
+  // « Réponse SAFER » est suivie à part (saferLevee).
+  /** @param {any} d @returns {string[]} */
+  function piecesPreemptionEnAttente(d) {
+    const ajoutees = d && d.preemption && Array.isArray(d.preemption.piecesAjoutees) ? d.preemption.piecesAjoutees : [];
+    const perso = (d && d.piecesPersonnalisees) || [];
+    return ajoutees.filter(c => c !== 'perso-safer' && perso.some(p => p && p.cle === c) && !(d.pieces && d.pieces[c] === 'recue'));
+  }
   function preemptionLevee(d) {
     if (d.roleNotaire === 'participant' || C.estSuccession(d)) return true;
+    if (piecesPreemptionEnAttente(d).length) return false;
     if (d.typeVente === 'copropriete') {
       return !(d.piecesPersonnalisees || []).some(p => p && RE_PIECE_PREEMPTION.test(p.label || '')
         && !(d.pieces && d.pieces[p.cle] === 'recue'));
@@ -170,6 +181,20 @@
   // Pure : date jusqu'à laquelle la SAFER peut encore préempter ('' si levée ou sans date connue).
   function echeanceSaferDossier(d) {
     return saferLevee(d) ? '' : echeanceSaferTacite(d.authentic && d.authentic.safer);
+  }
+
+  // Pure : fin du délai de réponse à la DIA — 2 mois après son envoi relevé dans Authentic (« Demande envoyée le … » de la
+  // ligne DIA), le silence de la commune valant renonciation (règle reprise de l'outil « Droits de préemption » : « réponse
+  // dans les 2 mois, son silence vaut renonciation »). '' si la renonciation est levée ou si l'envoi n'est pas daté. Comme le
+  // délai SAFER : une date butoir du dossier, pas de signature avant (étude 07/10 : cohérence des échéances et de la préemption).
+  var MOIS_REPONSE_DIA = 2;
+  /** @param {any} d @returns {string} */
+  function echeanceDiaDossier(d) {
+    if (!d || preemptionLevee(d)) return '';
+    const dia = d.authentic && d.authentic.demandes && d.authentic.demandes.renonciationPreemption;
+    const envoi = dia && dia.date;
+    if (!envoi || !/^\d{4}-\d{2}-\d{2}$/.test(envoi)) return '';
+    return C.ajouterMois(envoi, MOIS_REPONSE_DIA);
   }
 
   // Toutes les échéances ACTIVES d'un dossier, pas seulement la plus proche. Même exclusion que
@@ -225,6 +250,9 @@
     // est une date butoir du dossier (étude, 02/10) — jusqu'à elle, pas de « Fixer le rendez-vous ».
     const echeanceSafer = echeanceSaferDossier(d);
     if (echeanceSafer) items.push({ type: 'safer', label: 'Délai SAFER', iso: echeanceSafer });
+    // DIA envoyée (Authentic), renonciation pas encore reçue : la fin du délai de réponse de la commune.
+    const echeanceDia = echeanceDiaDossier(d);
+    if (echeanceDia) items.push({ type: 'dia', label: 'Délai DIA', iso: echeanceDia });
 
     // L'étape courante avant signature : appel de fonds, puis projet d'acte envoyé, puis signature.
     // À défaut de date propre, elle prend celle du rendez-vous de signature (elle doit de toute
@@ -243,7 +271,7 @@
     // cette attente, SANS date propre : elle ne ressort que par le filet de sécurité ci-dessous
     // (dossier qui n'a plus rien d'autre à surveiller), ancrée sur la date butoir.
     if (!d.rendezVousSignature && pretLeve(d) && !d.appelFonds && !echeanceValidee(d, 'appelFonds')) {
-      etape = !preemptionLevee(d) ? { type: 'preemption', label: 'Renonciation préemption attendue', iso: null }
+      etape = !preemptionLevee(d) ? (echeanceDia ? null : { type: 'preemption', label: 'Renonciation préemption attendue', iso: null })
         : !saferLevee(d) ? (echeanceSafer ? null : { type: 'safer', label: 'Réponse SAFER attendue', iso: null })
           : { type: 'fixerRdv', label: 'Fixer le rendez-vous', iso: d.acte };
     } else if (!echeanceValidee(d, 'appelFonds')) {
@@ -276,7 +304,7 @@
     return reels;
   }
 
-  const exportes = { JOURS_APPEL_FONDS_AVANT_RDV, echeanceAppelFonds, echeanceValidee, JOURS_REDACTION_AVANT_RDV, etatRedactionActe, repereSignatureRedaction, echeanceRedaction, attentesRedaction, redactionAProposer, pretLeve, preemptionLevee, DELAIS_SAFER, delaiSafer, echeanceSaferTacite, saferLevee, echeanceSaferDossier, echeancesPlanning };
+  const exportes = { JOURS_APPEL_FONDS_AVANT_RDV, echeanceAppelFonds, echeanceValidee, JOURS_REDACTION_AVANT_RDV, etatRedactionActe, repereSignatureRedaction, echeanceRedaction, attentesRedaction, redactionAProposer, pretLeve, piecesPreemptionEnAttente, preemptionLevee, MOIS_REPONSE_DIA, echeanceDiaDossier, DELAIS_SAFER, delaiSafer, echeanceSaferTacite, saferLevee, echeanceSaferDossier, echeancesPlanning };
   // Node : module.exports ; navigateur : des globaux (noms nus, comme les fonctions de client/).
   if (typeof module !== 'undefined' && module.exports) module.exports = exportes; else Object.assign(globalThis, exportes);
 })(

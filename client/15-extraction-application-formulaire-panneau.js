@@ -107,10 +107,11 @@
     const liste = c.detectes.map(n => ({ nom: notaireDepuisRepertoire(n.nom, carnetConfreres), role: n.role, source: 'acte' }));
     const auth = exportAuthenticActuel && exportAuthenticActuel.infosAuthentic && exportAuthenticActuel.infosAuthentic.notaire;
     if (auth) {
-      // Le notaire d'Authentic prend aussi le libellé de l'annuaire quand il y figure.
-      const nom = notaireDepuisRepertoire(auth, carnetConfreres) || (/^ma[iî]tre\b/i.test(auth) ? auth : 'Maître ' + auth);
+      // Le notaire d'Authentic prend le libellé du répertoire ; s'il n'y désigne personne, il n'est pas proposé (étude 07/10 :
+      // « les notaires du répertoire partout dans CLAIRE »).
+      const nom = notaireDepuisRepertoire(auth, carnetConfreres);
       const cle = normaliserPourRecherche(auth).replace(/[^a-z]+/g, ' ').trim();
-      if (!liste.some(n => normaliserPourRecherche(n.nom).includes(cle))) liste.push({ nom, role: null, source: 'authentic' });
+      if (nom && !liste.some(n => normaliserPourRecherche(n.nom).includes(cle) || n.nom === nom)) liste.push({ nom, role: null, source: 'authentic' });
     }
     return liste.filter((n, i, l) => n.nom && l.findIndex(x => x.nom === n.nom) === i);
   }
@@ -212,7 +213,11 @@
     if (!champ) return;
     const saisi = champ.value.trim();
     const complet = completerNomNotaire(saisi, carnetConfreres);
-    if (complet !== saisi) champ.value = complet;
+    // Seul un notaire du répertoire est accepté, comme sur la fiche (étude 07/10).
+    if (saisi && !notaireDuRepertoire(complet, carnetConfreres)) {
+      champ.value = '';
+      afficherToast(`« ${saisi} » ne désigne pas un seul notaire du répertoire : choisissez-le dans la liste.`, 'OK', null);
+    } else if (complet !== saisi) champ.value = complet;
     noterOrigineDossierWizard(champ.id, 'manuel');
     majApercuPieces();
     if (extractionActuelle) renderPanneauRevision(extractionActuelle);

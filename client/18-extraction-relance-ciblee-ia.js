@@ -238,13 +238,16 @@
 
   // Pure : la comparaison fiche / compromis, une ligne par clé → { cle, libelle, fiche, lu, etat } avec etat :
   // 'identique', 'different', 'fiche-seule' (rien lu), 'lu-seul' (fiche vide), 'fusion' (emails : les deux gardés).
-  function comparaisonComplement(fiche, lu) {
+  // `authentic` : clés déjà remplies par Authentic (clesComplementAuthentic) — état 'authentic', la fiche est gardée.
+  function comparaisonComplement(fiche, lu, authentic) {
     const f = fiche || {}, l = lu || {};
+    const verrous = new Set(authentic || []);
     const vide = (v) => v === null || v === undefined || v === '';
     return CLES_COMPLEMENT.map(cle => {
       const a = vide(f[cle]) ? '' : f[cle], b = vide(l[cle]) ? '' : l[cle];
       let etat;
       if (a === '' && b === '') etat = 'vide';
+      else if (verrous.has(cle) && b !== '' && !memeValeurComplement(cle, a, b)) etat = 'authentic';
       else if (a === '') etat = 'lu-seul';
       else if (b === '') etat = 'fiche-seule';
       else if (memeValeurComplement(cle, a, b)) etat = 'identique';
@@ -348,7 +351,10 @@
     }
     const detectes = (e.notairesDetectes || []).filter(n => n && n.nom && !(d.notairesDetectes || []).some(x => x && x.nom === n.nom));
     if (detectes.length) d.notairesDetectes = (d.notairesDetectes || []).concat(detectes);
-    const tel = e.telephones || {};
+    const tel = Object.assign({}, e.telephones || {});
+    // Téléphones déjà donnés par Authentic pour ce côté : le compromis n'y ajoute rien (Authentic d'abord, étude 07/10).
+    if (tel.acquereur && contactRetenuAuthentic(d, 'ACQUEREUR', 'telephones')) delete tel.acquereur;
+    if (tel.vendeur && contactRetenuAuthentic(d, 'VENDEUR', 'telephones')) delete tel.vendeur;
     if (tel.acquereur) { const f = fusionnerTelephonesTexte(d.telephoneAcquereur, [tel.acquereur]); if (f !== (d.telephoneAcquereur || '')) { d.telephoneAcquereur = f; textes.push('téléphone de l’acquéreur'); } }
     if (tel.vendeur) { const f = fusionnerTelephonesTexte(d.telephoneVendeur, [tel.vendeur]); if (f !== (d.telephoneVendeur || '')) { d.telephoneVendeur = f; textes.push('téléphone du vendeur'); } }
     if (!d.compromisNomFichier && e.compromisNomFichier) d.compromisNomFichier = e.compromisNomFichier;
@@ -517,7 +523,7 @@
     if (!zone) return;
     const d = dossierComplementEnCours();
     if (!d || !dernierTexteTraite) { zone.style.display = 'none'; zone.innerHTML = ''; return; }
-    const comparaison = comparaisonComplement(valeursFicheComplement(d), valeursLuesComplement());
+    const comparaison = comparaisonComplement(valeursFicheComplement(d), valeursLuesComplement(), clesComplementAuthentic(d));
     const lignes = comparaison.filter(x => x.etat !== 'lu-seul');
     const ligne = (x) => {
       const corps = x.etat === 'different'
@@ -527,6 +533,8 @@
           </span>`
         : x.etat === 'fusion'
           ? `<span class="complement-valeur">${escapeHtml(fusionnerEmailsTexte(x.fiche, [x.lu]))}</span><span class="dot-label dl-neutre"><span class="dot"></span>Fiche + compromis</span>`
+          : x.etat === 'authentic'
+            ? `<span class="complement-valeur">${escapeHtml(texteValeurComplement(x.cle, x.fiche) || '—')}</span><span class="dot-label dl-neutre"><span class="dot"></span>Fiche gardée : vient d’Authentic</span>`
           : x.etat === 'identique'
             ? `<span class="complement-valeur">${escapeHtml(texteValeurComplement(x.cle, x.fiche))}</span><span class="dot-label dl-success">${icone('check')}Identique</span>`
             : `<span class="complement-valeur">${escapeHtml(texteValeurComplement(x.cle, x.fiche))}</span><span class="dot-label dl-neutre"><span class="dot"></span>Fiche gardée, rien lu</span>`;
@@ -553,7 +561,7 @@
     const d = dossierComplementEnCours();
     if (!cible || !d) return;
     if (!dernierTexteTraite) { cible.innerHTML = '<p class="recap-manque">Déposez d’abord le compromis (étape Importer).</p>'; return; }
-    const comparaison = comparaisonComplement(valeursFicheComplement(d), valeursLuesComplement());
+    const comparaison = comparaisonComplement(valeursFicheComplement(d), valeursLuesComplement(), clesComplementAuthentic(d));
     const { resolu, changements } = resolutionComplement(comparaison, choixComplement);
     const copie = JSON.parse(JSON.stringify(d));
     const textes = appliquerComplementSurDossier(copie, resolu, extrasComplementWizard());
@@ -574,14 +582,23 @@
     return ajouterDossier();
   }
 
+  // Pure : les champs notaire du formulaire dont la valeur n'est pas un notaire du répertoire (étude 07/10 : « les notaires du
+  // répertoire partout dans CLAIRE ») → libellés à citer dans le message ; [] si tout va bien.
+  function notairesHorsRepertoireFormulaire(valeurs, carnet) {
+    return [['notaireVendeur', 'notaire du vendeur'], ['notaireAcquereur', 'notaire de l’acquéreur']]
+      .filter(([cle]) => valeurs[cle] && !notaireDuRepertoire(valeurs[cle], carnet)).map(([, libelle]) => libelle);
+  }
+
   async function completerDossierDepuisWizard() {
     if (creationDossierEnCours) return;
     const d = dossierComplementEnCours();
     if (!d) { afficherErreurFormulaire('Le dossier à compléter n’existe plus.'); return; }
     if (!dernierTexteTraite) { afficherErreurFormulaire('Déposez d’abord le compromis.'); return; }
+    const horsRepertoire = notairesHorsRepertoireFormulaire(valeursLuesComplement(), carnetConfreres);
+    if (horsRepertoire.length) { afficherErreurFormulaire(`Le ${horsRepertoire.join(' et le ')} n’est pas un notaire du répertoire : choisissez-le dans la liste.`); return; }
     masquerErreurFormulaire();
     const avantDates = { pret: d.pret || '', ventebien: d.ventebien || '' };
-    const comparaison = comparaisonComplement(valeursFicheComplement(d), valeursLuesComplement());
+    const comparaison = comparaisonComplement(valeursFicheComplement(d), valeursLuesComplement(), clesComplementAuthentic(d));
     const { resolu } = resolutionComplement(comparaison, choixComplement);
     const textes = appliquerComplementSurDossier(d, resolu, extrasComplementWizard());
     if (complementFichierNas) {
@@ -700,6 +717,8 @@
     // Les deux notaires tels que l'étude les a laissés à l'étape Finaliser.
     const notaireVendeur = completerNomNotaire(document.getElementById('f-notaire-vendeur').value.trim(), carnetConfreres);
     const notaireAcquereur = completerNomNotaire(document.getElementById('f-notaire-acquereur').value.trim(), carnetConfreres);
+    const horsRepertoire = notairesHorsRepertoireFormulaire({ notaireVendeur, notaireAcquereur }, carnetConfreres);
+    if (horsRepertoire.length) { afficherErreurFormulaire(`Le ${horsRepertoire.join(' et le ')} n’est pas un notaire du répertoire : choisissez-le dans la liste.`); return; }
 
     const dossier = {
       id: (crypto.randomUUID ? crypto.randomUUID() : 'd-' + Date.now() + '-' + Math.random().toString(16).slice(2)),

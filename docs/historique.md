@@ -18154,3 +18154,35 @@ comme signature sur la fiche, et le rendez-vous LEDRU ouvrait la fiche CHEYMOL. 
   « VTE - NOM » par-dessus un titre tapé commençant par « VTE - ».
 - Une date posée à la main (confiance « manuel ») n'est pas retirée seule par la remise en ordre du serveur : à effacer sur la
   fiche si elle y est encore.
+
+### 07/10/2026 21 h 12 — 0.191.0 : audit de cohérence (notaires, Authentic d'abord, échéances et préemption)
+
+Étude : « Fais un audit de toutes les fonctions et vérifie les logiques. Toutes les valeurs client et bien doivent venir
+d'Authentic partout dans CLAIRE, et les notaires du répertoire partout. Corrige les incohérences et les bugs, fais fonctionner les
+outils entre eux. Vérifie la cohérence des échéances entre elles et avec les pièces reçues pour le droit de préemption. »
+
+Relevé de toutes les écritures des champs notaire, client et bien (poste et serveur), puis du planning face aux pièces.
+- **Notaires** : la fiche n'acceptait déjà qu'un notaire du répertoire (0.189.17), mais « Nouveau dossier » et « Compléter le
+  dossier » prenaient tout nom tapé, et le notaire d'Authentic absent du répertoire était proposé sous son nom brut
+  (`notairesProposesWizard` : `'Maître ' + auth`). Corrigé : `completerNotaireWizard` vide une saisie hors répertoire (toast),
+  `notairesHorsRepertoireFormulaire` bloque l'enregistrement, le notaire d'Authentic n'est proposé que s'il est au répertoire,
+  `autocomplete="off"` sur les deux champs (l'historique du navigateur n'entre plus dans la liste).
+- **Authentic d'abord** : le complément par le compromis pouvait remplacer une valeur venue d'Authentic (choix « Compromis » sur
+  la ligne) et ajoutait ses emails et téléphones à ceux d'Authentic. Corrigé : `clesComplementAuthentic` (adresse, prix, type,
+  nom si les parties viennent d'Authentic, emails d'un côté repris d'Authentic) → état `authentic`, fiche gardée ; téléphones
+  d'un côté repris d'Authentic jamais complétés (`contactRetenuAuthentic`). Les autres écritures relevées (fiche à la main,
+  sondage et visio — adresse saisie par l'utilisateur —, « Déjà connu » qui ne remplit que le vide) restent des gestes explicites.
+- **Échéances et préemption** :
+  - DIA envoyée relevée dans Authentic (`d.authentic.demandes.renonciationPreemption.date`) : rien ne datait l'attente de la
+    renonciation. Nouvelle échéance « Délai DIA » = envoi + 2 mois (`echeanceDiaDossier`, règle de l'outil : « réponse dans les
+    2 mois, son silence vaut renonciation »), comme le délai SAFER : planning (remplace « Renonciation préemption attendue »),
+    fiche (note « après le rendez-vous » ou « délai écoulé : cochez la renonciation »), créneaux et semaine probable après le
+    délai, facteur de tenue, Suivi ; sans rappel Teams (`dia: []`). La renonciation n'est jamais cochée seule.
+  - Les pièces ajoutées par l'analyse des droits de préemption (0.190.0) ne retenaient rien hors copropriété : le droit de
+    préférence des bois pouvait rester attendu pendant que le planning proposait « Fixer le rendez-vous » et « Rédiger l'acte ».
+    `preemptionLevee` les attend désormais (`piecesPreemptionEnAttente`, « Réponse SAFER » restant à `saferLevee`).
+  - Agenda : `dossiersAPlacer` ne regardait pas la SAFER — une SAFER attendue sans date ouvrait des créneaux pendant que le
+    planning disait « Réponse SAFER attendue ». Même règle que le planning : renonciation et SAFER levées, ou délai daté.
+
+Tests : tests/audit-coherence.test.js. Vérifié dans Chromium (fiche avec DIA envoyée). Non vérifié au bureau : la date réelle
+d'envoi d'une DIA sur une page Authentic.
