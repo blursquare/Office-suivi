@@ -162,6 +162,60 @@ test('route : téléphonie coupée pour un collaborateur — ses appels ne sont 
   assert.equal((await (await fetch(`${baseUrl}/api/appels/reglages`, { headers: auth })).json()).postesCoupes.length, 0);
 });
 
+test('pageSonnerie avec relais (étude 07/10) : lance claire-appel:<id> puis se ferme, jamais CLAIRE dans l’onglet', () => {
+  const p = pageSonnerie({ id: 'ap-1', fenetreVisible: false, relais: true });
+  assert.match(p, /claire-appel:ap-1/);
+  assert.match(p, /window\.close\(\)/);
+  assert.doesNotMatch(p, /index\.html#appel=/);
+  // Titre sans « CLAIRE » en tête : le relais cherche la fenêtre CLAIRE par son titre.
+  assert.match(p, /<title>Appel 3CX<\/title>/);
+  // Identifiant nettoyé ; fenêtre visible ou appelant inconnu : fermeture seule, comme avant.
+  assert.doesNotMatch(pageSonnerie({ id: 'ap-1"<x>', fenetreVisible: false, relais: true }), /<x>/);
+  assert.doesNotMatch(pageSonnerie({ id: 'ap-1', fenetreVisible: true, relais: true }), /claire-appel/);
+  assert.doesNotMatch(pageSonnerie({ id: 'ap-1', fenetreVisible: false, inconnu: true, relais: true }), /claire-appel/);
+});
+
+test('relais claire-appel : installateur (protocole HKCU, fenêtre CLAIRE au premier plan, sinon ouverte sur l’appel)', () => {
+  const { scriptInstallationRelaisAppel } = require('../src/relaisAppel3cx');
+  const v = scriptInstallationRelaisAppel({ url: 'http://192.168.60.10:3000/', profil: 'Claire' });
+  assert.match(v, /HKCU\\Software\\Classes\\claire-appel\\shell\\open\\command/);
+  assert.match(v, /appel-claire\.ps1/);
+  assert.match(v, /SetForegroundWindow/);
+  assert.match(v, /CLAIRE \\u2014/);
+  assert.match(v, /'http:\/\/192\.168\.60\.10:3000\/'/);
+  assert.match(v, /'Claire'/);
+  // Seul un identifiant d'appel est repris du lien ; aucun accent dans le .vbs (lu en ANSI).
+  assert.match(v, /\[\^A-Za-z0-9_-\]/);
+  assert.doesNotMatch(v, /[^\x00-\x7f]/);
+  // `$cible` posé juste après param(...).
+  const i = v.indexOf('param([string]$lien');
+  assert.ok(i > 0 && v.indexOf('$cible = \'', i) > i && v.indexOf('$cible = \'', i) < v.indexOf('$url =', i));
+});
+
+test('route : relais claire-appel — installateur téléchargé = poste retenu ; appel suivant par le relais ; retiré à la demande', async () => {
+  const auth = { authorization: `Bearer ${jeton}` };
+  const json = { ...auth, 'Content-Type': 'application/json' };
+  depot.creer({ id: 'd10', nom: 'RELAIS / ESSAI', telephoneAcquereur: '06 55 44 33 22', historique: [] });
+  assert.equal((await fetch(`${baseUrl}/api/appels/relais/installateur`, { headers: auth })).status, 400);
+  const inst = await fetch(`${baseUrl}/api/appels/relais/installateur?poste=Jeremy`, { headers: auth });
+  assert.equal(inst.status, 200);
+  assert.match(inst.headers.get('content-disposition'), /Installer-appels-3CX-dans-CLAIRE\.vbs/);
+  // Téléchargé depuis le serveur lui-même (127.0.0.1) : profil de la fenêtre du serveur.
+  assert.match(await inst.text(), /'ClaireServeur'/);
+  const reglages = await (await fetch(`${baseUrl}/api/appels/reglages`, { headers: auth })).json();
+  assert.equal(reglages.postesRelais.join(','), 'jeremy');
+  // Couper puis rétablir 3CX ne touche pas au relais.
+  await fetch(`${baseUrl}/api/appels/reglages`, { method: 'PUT', headers: json, body: JSON.stringify({ poste: 'jeremy', actif: false }) });
+  const coupe = await (await fetch(`${baseUrl}/api/appels/reglages`, { method: 'PUT', headers: json, body: JSON.stringify({ poste: 'jeremy', actif: true }) })).json();
+  assert.equal(coupe.postesRelais.join(','), 'jeremy');
+  const page = await (await fetch(`${baseUrl}/appel?numero=0655443322&poste=jeremy`)).text();
+  assert.match(page, /claire-appel:ap-/);
+  assert.doesNotMatch(page, /index\.html#appel=/);
+  const retire = await (await fetch(`${baseUrl}/api/appels/reglages`, { method: 'PUT', headers: json, body: JSON.stringify({ poste: 'jeremy', relais: false }) })).json();
+  assert.equal(retire.postesRelais.length, 0);
+  assert.match(await (await fetch(`${baseUrl}/appel?numero=0655443322&poste=jeremy`)).text(), /index\.html#appel=/);
+});
+
 test('reconnaitreAppelant : partie d’une succession reconnue par ses téléphones repris d’Authentic', () => {
   const { reconnaitreAppelant } = require('../src/appels3cx');
   const r = reconnaitreAppelant('06 12 34 56 78', { dossiers: [{ id: 's', typeAffaire: 'succession', parties: [{ nom: 'Marie DUPONT', telephones: ['06 12 34 56 78'] }] }] });

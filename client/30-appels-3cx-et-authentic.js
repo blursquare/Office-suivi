@@ -63,13 +63,15 @@
   // Intégration 3CX coupée collaborateur par collaborateur (Réglages › Téléphonie 3CX, étude 02/10 ; le
   // serveur fait foi : pour un poste coupé, il ne note ni ne rend plus aucun appel).
   let postes3cxCoupes = [];
+  // Postes où le relais « claire-appel: » est installé : 3CX ouvre l'appel dans la fenêtre CLAIRE (étude 07/10).
+  let postes3cxRelais = [];
 
   async function basculerTelephonie3cx(i, actif) {
     const nom = RESPONSABLES[i];
     if (!nom) return;
     try {
       const r = await fetchAvecAuth('/api/appels/reglages', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ poste: clePosteAppels(nom), actif: !!actif }) });
-      if (r.ok) postes3cxCoupes = (await r.json()).postesCoupes || [];
+      if (r.ok) { const j = await r.json(); postes3cxCoupes = j.postesCoupes || []; postes3cxRelais = j.postesRelais || []; }
     } catch (e) { /* état affiché relu ci-dessous */ }
     const coupe = postes3cxCoupes.includes(clePosteAppels(nom));
     if (coupe && nom === utilisateurPoste) fermerAppelEntrant();

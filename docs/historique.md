@@ -17868,3 +17868,17 @@ compris : `a-confirmer`, sinon `probable`) ; sinon (serveur, ou rien d'estimable
 date estimée n'est jamais avant aujourd'hui (pièces réunies, signature au plus tôt à J+14 : sinon « en retard » dès le premier jour) ;
 avant, sans rendez-vous, l'échéance était la date butoir elle-même. Tâche et ligne de la fiche disent le repère
 (`phraseRepereRedaction` : « Première date proposée pour la signature : … », « Signature possible au plus tôt le … »…).
+
+**Appels 3CX dans la fenêtre CLAIRE** (0.189.0 ; étude 07/10 : « 3CX ouvre l'appel dans un onglet Chrome et pas dans mon app
+séparée »). Cause : 3CX ouvre `/appel` dans un onglet du navigateur de son client web ; quand la fenêtre CLAIRE du poste n'est pas
+visible (réduite, recouverte — Chrome la dit alors « hidden »), `pageSonnerie` affichait CLAIRE dans cet onglet. Une page ne peut
+pas faire mieux seule : la fenêtre `--app` est un autre profil Chrome (introuvable par `window.open`), `window.focus()` sans geste
+est refusé, les notifications du système exigent HTTPS. Relais Windows `claire-appel:` (`server/src/relaisAppel3cx.js`, même
+principe que `claire-ouvrir:`) : protocole HKCU, `appel-claire.vbs` (sans console) → `appel-claire.ps1` caché : fenêtre de titre
+« CLAIRE — … » sans « Google Chrome »/« Microsoft »/« Firefox » (EnumWindows), restaurée si réduite, premier plan après une
+pression d'Alt (sinon Windows ne fait que clignoter le bouton) ; aucune → `chrome --profile-directory=<profil> --app=<url>#appel=<id>`.
+Installé par Réglages › Téléphonie 3CX › « Installer sur ce poste » (collaborateur du poste) : le téléchargement retient le poste
+(`postesRelais`) ; l'onglet de 3CX de ce poste lance alors `claire-appel:<id>` et se ferme 1,5 s après. « Retirer » sur la ligne du
+collaborateur revient à l'onglet. Le PUT des réglages 3CX garde désormais les deux listes (il réécrivait `postesCoupes` seul).
+Non vérifié sur un vrai Windows : premier plan obtenu, temps de PowerShell (≈ 1 s), lancement d'un protocole externe sans geste de
+l'utilisateur dans l'onglet ouvert par 3CX (Chrome peut l'exiger après un premier lancement) — point terrain `3cx-appel-fenetre-claire`.

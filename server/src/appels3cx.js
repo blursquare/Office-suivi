@@ -155,16 +155,20 @@ function creerEntreeAppel({ numero, nom, poste }, sources, maintenant = new Date
 // ouvre CLAIRE sur l'appel. Un appelant que CLAIRE ne connaît pas (aucun dossier, ni confrère, ni
 // répertoire) n'ouvre rien : l'onglet se ferme (étude 05/10) — l'appel reste noté et montré dans le
 // bandeau de la fenêtre CLAIRE. Aucune donnée dans la page.
-function pageSonnerie({ id, fenetreVisible, inconnu }) {
+// `relais` (étude 07/10 : « 3CX ouvre l'appel dans un onglet Chrome et pas dans mon app séparée ») : le poste a le relais
+// `claire-appel:` (relaisAppel3cx.js) — l'onglet le lance (fenêtre CLAIRE ramenée au premier plan, ou ouverte sur l'appel)
+// puis se ferme, au lieu d'afficher CLAIRE lui-même. Titre sans « CLAIRE » en tête : le relais cherche la fenêtre par son titre.
+function pageSonnerie({ id, fenetreVisible, inconnu, relais }) {
   const cible = '/index.html#appel=' + encodeURIComponent(id);
-  return '<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>CLAIRE — appel</title>'
+  const script = fenetreVisible || inconnu
+    ? 'window.close();'
+    : relais
+      ? 'location.href = ' + JSON.stringify('claire-appel:' + String(id || '').replace(/[^A-Za-z0-9_-]/g, '')) + '; setTimeout(function () { window.close(); }, 1500);'
+      : 'location.replace(' + JSON.stringify(cible) + ');';
+  return '<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>Appel 3CX</title>'
     + '<meta name="viewport" content="width=device-width, initial-scale=1">'
     + '<style>body{font:15px system-ui,sans-serif;background:#f4f5f7;color:#1d2433;display:grid;place-items:center;min-height:100vh;margin:0}</style></head>'
-    + '<body><p>Appel noté dans CLAIRE.</p><script>'
-    + (fenetreVisible || inconnu
-      ? 'window.close();'
-      : 'location.replace(' + JSON.stringify(cible) + ');')
-    + '</script></body></html>';
+    + '<body><p>Appel noté dans CLAIRE.</p><script>' + script + '</script></body></html>';
 }
 
 module.exports = {

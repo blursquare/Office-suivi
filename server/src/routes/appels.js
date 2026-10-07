@@ -7,15 +7,19 @@
 //  - GET /api/appels/nouveaux?poste=&depuis=&visible= : la fenêtre CLAIRE relève ses appels toutes les
 //    3 s (même cachée) et signale si elle est visible.
 //  - GET /api/appels?dossierId= : le journal (50 derniers, ou ceux d'un dossier).
-//  - GET /api/appels/reglages → { postesCoupes } ; PUT { poste, actif } : intégration coupée pour un
+//  - GET /api/appels/reglages → { postesCoupes, postesRelais } ; PUT { poste, actif } : intégration coupée pour un
 //    collaborateur (étude, 02/10) — /appel de son poste ne note plus rien et la page se ferme, sa
-//    fenêtre ne relève plus d'appel.
+//    fenêtre ne relève plus d'appel ; PUT { poste, relais: false } : relais retiré, l'onglet de 3CX affiche de nouveau CLAIRE.
+//  - GET /api/appels/relais/installateur?poste= : l'installateur du relais « claire-appel: » de ce poste (appels ouverts
+//    dans la fenêtre CLAIRE, étude 07/10, voir ../relaisAppel3cx.js) ; le poste est retenu dans postesRelais.
 
 const express = require('express');
 const { creerEntreeAppel, pageSonnerie, clePoste, valeur3cx } = require('../appels3cx');
 const { noterVerification, formeNumero } = require('../verificationsTerrain');
 const { adressesLan } = require('../reseau');
 const { officesAnnuaire } = require('../annuaireNotaires');
+const { scriptInstallationRelaisAppel } = require('../relaisAppel3cx');
+const { adresseClairePoste } = require('../installationPoste');
 
 // Le carnet, suivi des offices de l'annuaire qui n'y sont pas déjà (même identifiant).
 function carnetEtAnnuaire(carnet) {
@@ -71,7 +75,8 @@ function creerRouteurSonnerie(parametresRepo, depot, etat) {
     const fenetreVisible = !!(entree.poste && vue && vue.visible && maintenant - vue.t < FENETRE_VUE_MS);
     res.setHeader('Cache-Control', 'no-store');
     const inconnu = !((entree.dossiers && entree.dossiers.length) || entree.contact);
-    res.type('html').send(pageSonnerie({ id: entree.id, fenetreVisible, inconnu }));
+    const relais = !!entree.poste && parametresRepo.lireReglagesTelephonie().postesRelais.includes(clePoste(entree.poste));
+    res.type('html').send(pageSonnerie({ id: entree.id, fenetreVisible, inconnu, relais }));
   });
   return routeur;
 }
@@ -83,9 +88,29 @@ function creerRouteurAppels(parametresRepo, etat) {
   routeur.put('/appels/reglages', (req, res) => {
     const poste = clePoste((req.body || {}).poste);
     if (!poste) { res.status(400).json({ error: 'Collaborateur attendu.' }); return; }
-    const coupes = new Set(parametresRepo.lireReglagesTelephonie().postesCoupes);
+    const actuel = parametresRepo.lireReglagesTelephonie();
+    if ((req.body || {}).relais === false) {
+      res.json(parametresRepo.ecrireReglagesTelephonie(Object.assign({}, actuel, { postesRelais: actuel.postesRelais.filter(p => p !== poste) })));
+      return;
+    }
+    const coupes = new Set(actuel.postesCoupes);
     if ((req.body || {}).actif === false) coupes.add(poste); else coupes.delete(poste);
-    res.json(parametresRepo.ecrireReglagesTelephonie({ postesCoupes: [...coupes] }));
+    res.json(parametresRepo.ecrireReglagesTelephonie(Object.assign({}, actuel, { postesCoupes: [...coupes] })));
+  });
+  // Installateur du relais « claire-appel: » pour le poste qui le télécharge : fenêtre CLAIRE ouverte sur l'adresse par
+  // laquelle il voit le serveur, profil « ClaireServeur » sur le serveur lui-même (index.js), « Claire » ailleurs
+  // (installationPoste.js). Télécharger l'installateur, c'est le vouloir : le poste passe dans postesRelais.
+  routeur.get('/appels/relais/installateur', (req, res) => {
+    const poste = clePoste(req.query.poste);
+    if (!poste) { res.status(400).json({ error: 'Collaborateur attendu.' }); return; }
+    const url = adresseClairePoste(req.protocol, req.get('host'));
+    if (!url) { res.status(400).json({ error: 'Adresse du serveur illisible.' }); return; }
+    const local = /^https?:\/\/(localhost|127(\.\d+){3}|\[::1\])(:\d+)?\/$/i.test(url);
+    const actuel = parametresRepo.lireReglagesTelephonie();
+    parametresRepo.ecrireReglagesTelephonie(Object.assign({}, actuel, { postesRelais: actuel.postesRelais.filter(p => p !== poste).concat([poste]) }));
+    res.setHeader('Content-Type', 'text/vbscript; charset=windows-1252');
+    res.setHeader('Content-Disposition', 'attachment; filename="Installer-appels-3CX-dans-CLAIRE.vbs"');
+    res.send(Buffer.from(scriptInstallationRelaisAppel({ url, profil: local ? 'ClaireServeur' : 'Claire' }), 'latin1'));
   });
   routeur.get('/appels/nouveaux', (req, res) => {
     if (posteCoupe(parametresRepo, req.query.poste)) { res.json({ appels: [], serverTime: new Date().toISOString(), coupe: true }); return; }

@@ -629,6 +629,39 @@
     return !!standalone || toolbarVisible === false;
   }
 
+  // Appels 3CX dans la fenêtre CLAIRE (étude 07/10 : « 3CX ouvre l'appel dans un onglet Chrome et pas dans mon app séparée ») :
+  // l'installateur du relais « claire-appel: » (server/src/relaisAppel3cx.js) pour le collaborateur de ce poste.
+  async function telechargerRelaisAppel3cx() {
+    if (!utilisateurPoste) { afficherToast('Choisissez d’abord le collaborateur de ce poste.', 'OK', null); return; }
+    try {
+      const r = await fetchAvecAuth('/api/appels/relais/installateur?poste=' + encodeURIComponent(clePosteAppels(utilisateurPoste)));
+      if (!r.ok) throw new Error('statut ' + r.status);
+      const blob = await r.blob();
+      const lien = document.createElement('a');
+      lien.href = URL.createObjectURL(blob);
+      lien.download = 'Installer-appels-3CX-dans-CLAIRE.vbs';
+      document.body.appendChild(lien);
+      lien.click();
+      document.body.removeChild(lien);
+      setTimeout(() => URL.revokeObjectURL(lien.href), 60000);
+      afficherInfoAction('Installateur téléchargé', 'Ouvrez le fichier téléchargé (le navigateur peut demander de le conserver) : un message confirme l’installation. Au premier appel, le navigateur de 3CX demande s’il peut ouvrir le lien « claire-appel » : cochez « Toujours autoriser », puis « Ouvrir ». Ensuite, à chaque sonnerie, l’onglet de 3CX se ferme et la fenêtre CLAIRE passe au premier plan sur l’appel (elle s’ouvre si elle était fermée).');
+    } catch (e) {
+      afficherToast('Téléchargement de l’installateur impossible : ' + e.message, 'OK', null);
+    }
+    renderReglages3cx();
+  }
+
+  // Relais retiré pour ce collaborateur : l'onglet de 3CX affiche de nouveau CLAIRE quand la fenêtre est cachée.
+  async function retirerRelaisAppel3cx(i) {
+    const nom = RESPONSABLES[i];
+    if (!nom) return;
+    try {
+      const r = await fetchAvecAuth('/api/appels/reglages', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ poste: clePosteAppels(nom), relais: false }) });
+      if (r.ok) postes3cxRelais = (await r.json()).postesRelais || [];
+    } catch (e) { /* état affiché relu ci-dessous */ }
+    renderReglages3cx();
+  }
+
   async function renderReglages3cx() {
     const fenetre = document.getElementById('reglages-3cx-fenetre');
     if (fenetre) {
@@ -641,8 +674,15 @@
     if (!liste) return;
     try {
       const r = await fetchAvecAuth('/api/appels/reglages');
-      if (r.ok) postes3cxCoupes = (await r.json()).postesCoupes || [];
+      if (r.ok) { const j = await r.json(); postes3cxCoupes = j.postesCoupes || []; postes3cxRelais = j.postesRelais || []; }
     } catch (e) { /* dernier état connu */ }
+    const relaisPoste = document.getElementById('reglages-3cx-relais');
+    if (relaisPoste) {
+      relaisPoste.textContent = !utilisateurPoste ? 'Choisissez d’abord le collaborateur de ce poste.'
+        : postes3cxRelais.includes(clePosteAppels(utilisateurPoste))
+          ? `Installé pour ${prenomCollaborateur(utilisateurPoste)} : ses appels s’ouvrent dans la fenêtre CLAIRE.`
+          : `Pas encore installé pour ${prenomCollaborateur(utilisateurPoste)} : ses appels s’ouvrent dans un onglet quand la fenêtre CLAIRE est cachée.`;
+    }
     if (!origine3cx) {
       let adresses = [];
       try {
@@ -663,7 +703,8 @@
       <div class="reglages-champ${actif ? '' : ' reglages-3cx-coupe'}">
         <div class="reglages-champ-libelle"><span class="reglages-3cx-tete"><label for="reglages-3cx-${i}">${escapeHtml(nom)}</label>
           <wa-switch class="switch reglages-switch reglages-3cx-switch" title="${actif ? 'Couper 3CX pour ce collaborateur' : 'Activer 3CX pour ce collaborateur'}" id="reglages-3cx-actif-${i}" ${actif ? 'checked' : ''} onchange="basculerTelephonie3cx(${i}, this.checked)" aria-label="Intégration 3CX de ${escapeAttr(nom)}"></wa-switch></span>
-          <span class="reglages-3cx-etat">${actif ? etatPoste3cx(postes[clePosteAppels(nom)], maintenant).map(e => `<span class="dot-label ${e.classe}">${escapeHtml(e.texte)}</span>`).join('') : '<span class="dot-label dl-neutre"><span class="dot"></span>3CX coupé : appels non notés</span>'}</span></div>
+          <span class="reglages-3cx-etat">${actif ? etatPoste3cx(postes[clePosteAppels(nom)], maintenant).map(e => `<span class="dot-label ${e.classe}">${escapeHtml(e.texte)}</span>`).join('')
+            + (postes3cxRelais.includes(clePosteAppels(nom)) ? `<span class="dot-label dl-success">Appels dans la fenêtre CLAIRE</span><button type="button" class="lien-discret" onclick="retirerRelaisAppel3cx(${i})" title="L’onglet de 3CX affichera de nouveau CLAIRE quand la fenêtre est cachée">Retirer</button>` : '') : '<span class="dot-label dl-neutre"><span class="dot"></span>3CX coupé : appels non notés</span>'}</span></div>
         <div class="reglages-champ-ligne">
           <input type="text" id="reglages-3cx-${i}" readonly spellcheck="false" value="${escapeAttr(adresseIntegration3cx(origine3cx, nom))}" onfocus="this.select()">
           <wa-button appearance="outlined" class="secondary" onclick="copierAdresse3cx(${i})">Copier</wa-button>

@@ -1809,6 +1809,15 @@
       <h4 class="reglages-sous-titre">Derniers appels</h4>
       <div id="reglages-3cx-journal"></div>
     </div>
+    <!-- Appels dans la fenêtre CLAIRE (étude 07/10 : « 3CX ouvre l'appel dans un onglet Chrome et pas dans mon app séparée ») :
+         relais Windows « claire-appel: » installé une fois par poste (server/src/relaisAppel3cx.js). -->
+    <div class="reglages-section">
+      <h3 class="reglages-section-titre">Appels dans la fenêtre CLAIRE <span class="info-i" tabindex="0" data-info="3CX ouvre l'appel dans un onglet du navigateur où tourne son client web : une page ne peut pas faire passer la fenêtre CLAIRE (raccourci « CLAIRE » du bureau) au premier plan. Le petit relais Windows installé par ce bouton, une fois par poste et sans droit d'administrateur, s'en charge : à chaque sonnerie, l'onglet de 3CX se ferme, la fenêtre CLAIRE est ramenée au premier plan (rouverte si elle était réduite) et montre l'appel ; si elle était fermée, elle s'ouvre sur l'appel. Au premier appel, le navigateur de 3CX demande s'il peut ouvrir le lien « claire-appel » : cocher « Toujours autoriser ». À installer sur le poste du collaborateur, depuis sa session Windows."></span></h3>
+      <p class="hint" id="reglages-3cx-relais"></p>
+      <div class="reglages-actions">
+        <wa-button appearance="outlined" class="secondary" onclick="telechargerRelaisAppel3cx()">Installer sur ce poste</wa-button>
+      </div>
+    </div>
     <!-- Numéros cliquables dans la fenêtre CLAIRE (étude 06/10 : « fonctionne en onglet Chrome mais pas dans l'app séparée ») :
          la fenêtre « application » a son propre profil Chrome (« Claire », « ClaireServeur » sur le serveur), sans les extensions
          du Chrome habituel — l'extension 3CX y est à ajouter une fois, depuis la fenêtre CLAIRE elle-même. -->

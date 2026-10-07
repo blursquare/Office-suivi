@@ -344,11 +344,12 @@ function creerRepoParametres(db) {
 
   // Téléphonie 3CX coupée collaborateur par collaborateur (étude, 02/10) : la liste des postes coupés
   // (clé de poste, voir clePoste) ; active pour tous par défaut.
+  // postesRelais : postes où le relais « claire-appel: » est installé (appels 3CX dans la fenêtre CLAIRE, étude 07/10).
   function assainirReglagesTelephonie(r) {
-    const postes = Array.isArray(r && r.postesCoupes) ? r.postesCoupes : [];
-    return { postesCoupes: [...new Set(postes.map(x => String(x || '').toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 40)).filter(Boolean))].slice(0, 30) };
+    const liste = (v) => [...new Set((Array.isArray(v) ? v : []).map(x => String(x || '').toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 40)).filter(Boolean))].slice(0, 30);
+    return { postesCoupes: liste(r && r.postesCoupes), postesRelais: liste(r && r.postesRelais) };
   }
-  function lireReglagesTelephonie() { return lireJson('telephonie-3cx', assainirReglagesTelephonie, { postesCoupes: [] }); }
+  function lireReglagesTelephonie() { return lireJson('telephonie-3cx', assainirReglagesTelephonie, { postesCoupes: [], postesRelais: [] }); }
   function ecrireReglagesTelephonie(r) { const p = assainirReglagesTelephonie(r); ecrireStmt.run('telephonie-3cx', JSON.stringify(p)); return p; }
   function lireJournalAppels() { return lireJson(CLE_APPELS, assainirJournalAppels, []); }
   function ecrireJournalAppels(l) { const p = assainirJournalAppels(l); ecrireStmt.run(CLE_APPELS, JSON.stringify(p)); return p; }
