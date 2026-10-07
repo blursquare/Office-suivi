@@ -1170,7 +1170,7 @@
     confirmationRdv: { cle: 'confirmationRdv', libelle: 'Confirmer le rendez-vous de signature', construire: d => emailDepuisModele('confirmationRdv', d), historique: 'Email envoyé — confirmation du rendez-vous de signature', date: 'confirmationRdvLe' },
     // Fonds pas encore reçus à J-3 du rendez-vous (étude, 03/10) — premier jet de CLAIRE, à remplacer par le texte de l'étude.
     relanceFonds: { cle: 'relanceFonds', libelle: 'Relancer pour les fonds', construire: d => emailDepuisModele('relanceFonds', d), historique: 'Email envoyé — relance : fonds pas encore reçus', date: 'relanceFondsLe' },
-    // Décompte du confrère qui représente le vendeur, demandé 7 jours avant le rendez-vous (étude 06/10) : au confrère, jamais
+    // Décompte du confrère qui représente le vendeur, demandé 10 jours avant le rendez-vous (étude 06/10, J-10 depuis le 07/10) : au confrère, jamais
     // au client — `destinataire` et `confrere` remplacent la règle par défaut (emailDestinataireRelance, côté acquéreur).
     relanceDecompteConfrere: { cle: 'relanceDecompteConfrere', libelle: 'Demander son décompte au confrère', construire: d => emailDepuisModele('relanceDecompteConfrere', d), historique: 'Email envoyé — décompte demandé au confrère du vendeur', date: 'relanceDecompteConfrereLe', destinataire: d => emailConfrereVendeurDossier(d), confrere: true },
     anniversaire: { cle: 'anniversaire', libelle: 'Un an après la signature', construire: d => emailDepuisModele('anniversaire', d), historique: 'Email envoyé — un an après la signature', date: 'anniversaireEnvoyeLe' }
@@ -2013,6 +2013,28 @@
     if (!confrereRepresenteVendeur(d) && !d.questionnaireVendeurEnvoyeLe) restants.push('vendeur');
     return restants;
   }
+  // Pure : le dossier s'archive seul 30 jours après la signature quand un questionnaire de satisfaction attendu n'est pas parti
+  // (étude 07/10 : « archiver après 30 jours » — la tâche d'« À faire » s'arrête à J+30, JOURS_QUESTIONNAIRE, et le dossier restait
+  // ouvert sans rien rappeler). Jamais une succession, jamais un rendez-vous pas encore passé.
+  function archivageSansQuestionnaireDu(d, aujourdhuiIso) {
+    if (!d || d.archive || d.deleted || !d.rendezVousSignature || estSuccession(d)) return false;
+    const j = ecartJours(aujourdhuiIso || isoAujourdhuiLocal(), d.rendezVousSignature);
+    return j !== null && j < -JOURS_QUESTIONNAIRE && questionnairesRestants(d).length > 0;
+  }
+
+  async function archiverSansQuestionnaire() {
+    const aujourdhui = isoAujourdhuiLocal();
+    for (const d of dossiers || []) {
+      if (!archivageSansQuestionnaireDu(d, aujourdhui)) continue;
+      d.archive = true;
+      ajouterHistorique(d, `Dossier archivé automatiquement (30 jours après la signature, questionnaire de satisfaction non envoyé ${questionnairesRestants(d).map(p => p === 'vendeur' ? 'au vendeur' : 'à l’acquéreur').join(' ni ')})`);
+      await sauvegarder(d);
+      synchroniserEcheanceAgenda(d, 'pret', false);
+      synchroniserEcheanceAgenda(d, 'ventebien', false);
+    }
+    render();
+  }
+
   // Pure : ce que l'envoi du questionnaire à `partie` fera du dossier — « archivé à l'envoi » quand c'est le dernier côté attendu.
   function texteArchivageQuestionnaire(d, partie) {
     const autres = questionnairesRestants(d).filter(x => x !== partie);

@@ -101,10 +101,11 @@
     return etat === 'aucun' || etat === 'partiel';
   }
 
-  // Pure : le décompte du confrère est à demander 7 jours avant le rendez-vous (étude 06/10 : « si le confrère représente les
+  // Pure : le décompte du confrère est à demander 10 jours avant le rendez-vous, le jour où l'appel de fonds qu'il sert à établir est
+  // dû (étude 07/10 : « mets J-10 aussi » ; J-7 le 06/10, après l'appel de fonds) (étude 06/10 : « si le confrère représente les
   // vendeurs et nous les acquéreurs ») — un autre office représente le vendeur, l'acquéreur est notre client, rendez-vous placé,
   // demande pas encore faite pour cette date (relanceDecompteConfrerePour). Un décompte déjà reçu se dit par « Déjà reçu ».
-  var JOURS_RELANCE_DECOMPTE_CONFRERE = 7;
+  var JOURS_RELANCE_DECOMPTE_CONFRERE = JOURS_APPEL_FONDS_AVANT_RDV;
   function relanceDecompteConfrereDue(d, aujourdhuiIso) {
     if (!d || d.archive || !d.rendezVousSignature || estSuccession(d)) return false;
     if (!confrereRepresenteVendeur(d) || notaireParticipantRepresenteAcquereur(d)) return false;

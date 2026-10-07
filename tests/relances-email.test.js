@@ -677,13 +677,14 @@ test('bilanFondsDossier (06/10) : reçus lus, montant saisi à la main, validati
   assert.equal(app.bilanFondsDossier({ fondsRecus: { total: 100000, attendu: 100000 } }).manuel, false);
 });
 
-test('décompte du confrère (étude 06/10) : demandé à J-7 quand un confrère représente le vendeur et nous l’acquéreur', () => {
+test('décompte du confrère (étude 06/10) : demandé à J-10 (07/10) quand un confrère représente le vendeur et nous l’acquéreur', () => {
   const app = chargerApplication();
   const base = (extra) => dossierBase(app, Object.assign({ sansPret: true, rendezVousSignature: '2026-10-13', roleNotaire: 'participant',
     notaireVendeur: 'Maître Paul DUPUIS (Tours)', notaireAcquereur: 'Maître Sophie GOSSART (BLOIS)', emailConfrereVendeur: 'dupuis@notaires.fr', emailAcquereur: 'acq@exemple.fr' }, extra));
+  assert.equal(app.relanceDecompteConfrereDue(base({}), '2026-10-03'), true, 'J-10, avec l’appel de fonds');
   assert.equal(app.relanceDecompteConfrereDue(base({}), '2026-10-06'), true, 'J-7');
   assert.equal(app.relanceDecompteConfrereDue(base({}), '2026-10-12'), true, 'veille');
-  assert.equal(app.relanceDecompteConfrereDue(base({}), '2026-10-05'), false, 'J-8 : trop tôt');
+  assert.equal(app.relanceDecompteConfrereDue(base({}), '2026-10-02'), false, 'J-11 : trop tôt');
   assert.equal(app.relanceDecompteConfrereDue(base({}), '2026-10-14'), false, 'rendez-vous passé');
   assert.equal(app.relanceDecompteConfrereDue(base({ relanceDecompteConfrerePour: '2026-10-13' }), '2026-10-06'), false, 'déjà demandé pour cette date');
   assert.equal(app.relanceDecompteConfrereDue(base({ relanceDecompteConfrerePour: '2026-09-20' }), '2026-10-06'), true, 'demande d’un ancien rendez-vous');
@@ -716,9 +717,10 @@ test('décompte du confrère (étude 06/10) : demandé à J-7 quand un confrère
   assert.match(t.contexte, /DUPUIS/);
   const sansEmail = app.actionsDuJour([base({ emailConfrereVendeur: '' })], '2026-10-06').actions.find(a => a.type === 'relanceDecompteConfrere');
   assert.equal(sansEmail.geste.type, 'fiche');
-  assert.equal(app.actionsDuJour([base({})], '2026-10-04').actions.some(a => a.type === 'relanceDecompteConfrere'), false, 'J-9 : pas encore');
+  assert.equal(app.actionsDuJour([base({})], '2026-10-02').actions.some(a => a.type === 'relanceDecompteConfrere'), false, 'J-11 : pas encore');
+  assert.equal(app.actionsDuJour([base({})], '2026-10-03').actions.some(a => a.type === 'relanceDecompteConfrere'), true, 'J-10 : avec l’appel de fonds (étude 07/10)');
 
-  // Onglet Fonds : ligne utile à J-7, repliée avant, cochée une fois demandée ; jamais dans Échanges.
+  // Onglet Fonds : ligne utile à J-10, repliée avant, cochée une fois demandée ; jamais dans Échanges.
   const e = app.echangesSelonStade(base({}), '2026-10-06');
   assert.ok(e.utiles.includes('relanceDecompteConfrere'), e.utiles.join(','));
   assert.ok(app.echangesSelonStade(base({}), '2026-09-20').autres.includes('relanceDecompteConfrere'));

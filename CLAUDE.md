@@ -279,7 +279,7 @@ dans `index.html`** (le test `structure-client` refuse tout décalage).
   reçoit l'acte ; si un autre office représente l'acquéreur, les emails vont **au confrère**
   (« Mon Cher Maître, … Votre bien dévoué. ») et le questionnaire de satisfaction n'est jamais proposé à
   l'acquéreur ; il peut l'être **au vendeur** quand l'étude le représente (étude 02/10, `renderQuestionnaireVendeur`,
-  `d.questionnaireVendeurEnvoyeLe` ; tâche « Envoyer le questionnaire de satisfaction au vendeur » dans « À faire » comme celle de l'acquéreur ; **le dossier n'est archivé qu'une fois TOUS les côtés que l'étude représente servis** — étude 07/10, `questionnairesRestants`, avant : au premier envoi ; un côté sans email reste attendu et sa tâche devient « Renseigner l'email … pour le questionnaire de satisfaction », qui ouvre la fiche — étude 07/10 : « s'il n'y a pas de mail, demander à remplir le mail »).
+  `d.questionnaireVendeurEnvoyeLe` ; tâche « Envoyer le questionnaire de satisfaction au vendeur » dans « À faire » comme celle de l'acquéreur ; **le dossier n'est archivé qu'une fois TOUS les côtés que l'étude représente servis** — **ou 30 jours après la signature si un questionnaire n'est pas parti** (étude 07/10, `archivageSansQuestionnaireDu`, `archiverSansQuestionnaire` au démarrage puis toutes les heures) — étude 07/10, `questionnairesRestants`, avant : au premier envoi ; un côté sans email reste attendu et sa tâche devient « Renseigner l'email … pour le questionnaire de satisfaction », qui ouvre la fiche — étude 07/10 : « s'il n'y a pas de mail, demander à remplir le mail »).
 - **Responsables** : liste fermée (Bastien ANGLUMENT — administrateur, vue globale —, Julie
   VASSELIN, Jérémy SAUJOT).
 - **Planning** (`echeancesPlanning`, **`commun/planning.js`**, partagé poste/serveur depuis le 04/10 ; côté serveur
@@ -733,7 +733,7 @@ dans `index.html`** (le test `structure-client` refuse tout décalage).
   (`commun/montants.js`, poste et serveur) qui rend `complet` + `manuel: true` dans ce cas — jamais `bilanFondsRecus` directement
   sur un dossier.
 - **Décompte du confrère du vendeur** (étude 06/10) : quand un autre office représente le vendeur et que l'acquéreur est notre
-  client, « Demander son décompte au confrère » 7 jours avant le rendez-vous (`relanceDecompteConfrereDue`,
+  client, « Demander son décompte au confrère » 10 jours avant le rendez-vous (07/10 : avec l'appel de fonds ; 7 jours le 06/10) (`relanceDecompteConfrereDue`,
   `JOURS_RELANCE_DECOMPTE_CONFRERE`, une fois par date `relanceDecompteConfrerePour`), **jamais une fois l'appel de fonds coché** (étude 06/10 : `echeanceValidee(d, 'appelFonds')` → plus rien à demander) — À faire, onglet Fonds, modèle
   `relanceDecompteConfrere` au texte de l'étude mot pour mot, adressé à `emailConfrereVendeurDossier(d)`. Un modèle de
   `MODELES_EMAIL_RELANCE` peut porter `destinataire(d)` et `confrere: true` à la place de la règle acquéreur.

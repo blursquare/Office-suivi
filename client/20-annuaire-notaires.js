@@ -2235,7 +2235,8 @@
     let archive = false;
     for (const h of historique) {
       if (new Date(h.date) > dateRef) break;
-      if (h.texte === 'Dossier archivé') archive = true;
+      // « Dossier archivé automatiquement (…) » compte aussi (archivage au questionnaire ou à J+30) — il était oublié.
+      if (typeof h.texte === 'string' && h.texte.indexOf('Dossier archivé') === 0) archive = true;
       else if (h.texte === 'Dossier désarchivé') archive = false;
     }
     return !archive;

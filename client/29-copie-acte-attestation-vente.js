@@ -383,7 +383,7 @@
     if (!confrere && stade === 'signature' && echeanceValidee(d, 'appelFonds') && (!d.receptionFondsConfirmeeLe || d.relanceFondsPour === d.rendezVousSignature)) {
       ranger('relanceFonds', relanceFondsDue(d, aujourdhuiIso) || d.relanceFondsPour === d.rendezVousSignature);
     }
-    // Décompte du confrère qui représente le vendeur (étude 06/10) : utile à J-7 du rendez-vous, replié tant que le rendez-vous
+    // Décompte du confrère qui représente le vendeur (étude 06/10) : utile à J-10 du rendez-vous (07/10, avec l'appel de fonds), replié tant que le rendez-vous
     // est placé, coché une fois demandé pour cette date.
     if (confrereRepresenteVendeur(d) && !confrere && d.rendezVousSignature && stade !== 'signe') {
       ranger('relanceDecompteConfrere', relanceDecompteConfrereDue(d, aujourdhuiIso) || d.relanceDecompteConfrerePour === d.rendezVousSignature);

@@ -85,3 +85,15 @@ test('rendez-vous à placer : même règle que le planning (SAFER attendue sans 
   // DIA envoyée mais document de renonciation pas reçu : pas de créneau (étude 07/10 : « on doit avoir le document pour signer »).
   assert.strictEqual(app.dossiersAPlacer([libre, saferSansDate, saferDatee, diaDatee, diaSansDate]).map(d => d.id).join(','), 'a,c');
 });
+
+test('questionnaire non envoyé 30 jours après la signature : archivage (étude 07/10) ; un archivage automatique compte comme archivé', () => {
+  const d = { id: 'q1', rendezVousSignature: '2026-09-01', emailAcquereur: 'a@exemple.fr', historique: [{ date: '2026-08-01T09:00:00Z', texte: 'Dossier créé' }] };
+  assert.strictEqual(app.archivageSansQuestionnaireDu(d, '2026-10-01'), false, 'J+30 : encore dans « À faire »');
+  assert.strictEqual(app.archivageSansQuestionnaireDu(d, '2026-10-02'), true, 'J+31');
+  assert.strictEqual(app.archivageSansQuestionnaireDu(Object.assign({}, d, { questionnaireEnvoyeLe: '2026-09-02', questionnaireVendeurEnvoyeLe: '2026-09-02' }), '2026-10-02'), false);
+  assert.strictEqual(app.archivageSansQuestionnaireDu(Object.assign({}, d, { archive: true }), '2026-10-02'), false);
+  assert.strictEqual(app.archivageSansQuestionnaireDu(Object.assign({}, d, { typeAffaire: 'succession' }), '2026-10-02'), false);
+  const auto = Object.assign({}, d, { historique: d.historique.concat({ date: '2026-09-05T09:00:00Z', texte: 'Dossier archivé automatiquement (questionnaire de satisfaction envoyé au vendeur et à l’acquéreur)' }) });
+  assert.strictEqual(app.etaitDossierActifA(auto, new Date('2026-09-10')), false);
+  assert.strictEqual(app.etaitDossierActifA(auto, new Date('2026-09-01')), true);
+});

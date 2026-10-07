@@ -18238,3 +18238,17 @@ l'agenda (`gestesRelationClient`) proposent chaque geste.
 - Soumis à l'étude : « Demander son décompte au confrère » à J-7 (règle du 06/10) alors que l'appel de fonds, qu'il sert à
   établir, est dû à J-10 et que la demande disparaît dès l'appel de fonds parti ; questionnaire non envoyé à J+30 : la tâche
   disparaît et le dossier n'est jamais archivé seul.
+
+### 07/10/2026 22 h — 0.191.5 : décompte du confrère à J-10, archivage à J+30 sans questionnaire
+
+Réponses de l'étude aux deux points soumis avec 0.191.4 : « Mets J-10 aussi » (décompte du confrère) et « Archiver après
+30 jours » (questionnaire non envoyé).
+- `JOURS_RELANCE_DECOMPTE_CONFRERE` = `JOURS_APPEL_FONDS_AVANT_RDV` (10) : la demande arrive avec l'appel de fonds qu'elle sert à
+  établir (« À faire », onglet Fonds) ; elle disparaît toujours dès l'appel de fonds coché.
+- `archivageSansQuestionnaireDu` / `archiverSansQuestionnaire` (client/28, lancé au démarrage puis toutes les heures, comme la
+  SAFER tacite) : dossier signé depuis plus de 30 jours (`JOURS_QUESTIONNAIRE`), questionnaire attendu non parti → archivé,
+  historique « Dossier archivé automatiquement (30 jours après la signature, questionnaire … non envoyé …) », dates butoir
+  retirées de l'agenda comme un archivage à la main. Jamais une succession.
+- Trouvé au passage : `etaitDossierActifA` (statistiques des dossiers actifs) ne reconnaissait que « Dossier archivé » exact — un
+  dossier archivé automatiquement (questionnaire envoyé, ou J+30) restait compté actif. Corrigé (« Dossier archivé… »).
+Tests : audit-coherence, relances-email (décompte J-10).
