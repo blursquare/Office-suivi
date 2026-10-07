@@ -747,7 +747,7 @@
       coteInstrumentaire: ['vendeur', 'acquereur'].includes(document.getElementById('f-cote-instrumentaire').value)
         ? document.getElementById('f-cote-instrumentaire').value
         : coteInstrumentaireNouveauDossier(cotesNotaires, notaireVendeur, notaireAcquereur, roleNotaire),
-      notairesDetectes: notairesDetectesAnnuaire(cotesNotaires.detectes).concat(notairesProposesWizard().filter(n => n.source === 'authentic').map(n => ({ nom: n.nom, role: null }))),
+      notairesDetectes: notairesDetectesAnnuaire(cotesNotaires.detectes),
       // Email de l'office du notaire de l'acquéreur, à renseigner UNIQUEMENT quand cet office est
       // distinct du nôtre (voir notaireParticipantRepresenteAcquereur/emailDestinataireRelance) :
       // la déontologie interdit alors à l'instrumentaire de contacter directement l'acquéreur, les

@@ -840,7 +840,6 @@
     if (n === 2) {
       majMarquesPreRemplies();
       remplirListeNotairesWizard(notairesProposesWizard().map(x => x.nom));
-      placerNotaireAuthenticParDefaut();
       majApercuPieces();
       if (extractionActuelle) renderPanneauRevision(extractionActuelle);
       renderComparaisonComplement();

@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.191.1';
+  const VERSION_APP = '0.191.2';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.191.2', date: '2026-10-07 21:30', resume: "Le notaire n’est plus repris d’Authentic : ni proposé ni posé à la création (le placement des deux côtés est retiré), ni déduit des parties du dossier Authentic, ni relevé dans les « Parties prenantes » (ligne « Notaire » retirée du bloc « Dans Authentic »). Les notaires viennent du compromis, pris au répertoire, ou se choisissent dans le répertoire." },
     { version: '0.191.1', date: '2026-10-07 21:24', resume: "DIA : jamais de renonciation tacite — le document de renonciation est indispensable pour signer. L’échéance devient « Réponse à la DIA » (date où la commune doit avoir répondu, pour relancer la mairie) ; une DIA envoyée sans document reçu n’ouvre plus de créneaux de signature ; délai écoulé : « réclamer le document de renonciation à la mairie » au lieu de « renonciation acquise ». L’outil Droits de préemption le dit aussi dans sa formalité." },
     { version: '0.191.0', date: '2026-10-07 21:12', resume: "Audit de cohérence. DIA envoyée (relevée dans Authentic) : nouvelle échéance « Délai DIA » (envoi + 2 mois, le silence de la commune vaut renonciation) sur la fiche et au planning, créneaux et semaine probable après ce délai, pourcentage de tenue qui en tient compte. Les pièces de préemption ajoutées par l’analyse (DIA d’un lot de copropriété, droit de préférence ou préemption des bois) retiennent le rendez-vous et la rédaction jusqu’à réception. Agenda : une SAFER attendue sans date n’ouvre plus de créneaux (le planning disait déjà « Réponse SAFER attendue »). Notaires : « Nouveau dossier » et « Compléter le dossier » n’acceptent plus qu’un notaire du répertoire, et le notaire d’Authentic absent du répertoire n’est plus proposé. Compléter avec le compromis : une valeur venue d’Authentic (adresse, prix, type, noms, emails, téléphones) n’est plus jamais remplacée." },
     { version: '0.190.1', date: '2026-10-07 20:33', resume: "Agenda › Nouveau rendez-vous : un titre avec « ? » ou « ?? » (dates proposées, à confirmer) n’est plus jamais noté comme rendez-vous de signature sur la fiche — la case « Rendez-vous de signature » disparaît dès qu’un « ? » est tapé, et cocher cette case ne remet plus le titre à zéro. La lecture de l’agenda par le serveur appliquait déjà cette règle." },

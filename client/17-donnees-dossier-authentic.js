@@ -100,41 +100,6 @@
     return String(cote || '').split(/\s+(?:et|&)\s+|\s*[,;]\s*/i).map(x => x.replace(/\s+/g, ' ').trim()).filter(x => RE_SOCIETE_AUTHENTIC.test(x));
   }
 
-  var ETUDE_AUTHENTIC = { nom: 'Sophie GOSSART', office: 'BLOIS', codePostal: '41000', departement: '41', crpcen: '41089' };
-
-  // Notaires d'après les parties du flux : un confrère attaché à une partie intervient pour elle ;
-  // l'export venant de notre Authentic, l'étude est de l'autre côté et reçoit l'acte s'il est en
-  // participation. Sans confrère : rien n'est affirmé (NEEDS_REVIEW). Pure.
-  function notairesExportAuthentic(donnees) {
-    const vide = { liste: [], vendeur: null, acquereur: null, instrumentaire: null, participant: null, statut: 'NOT_FOUND', raison: '', roleEtude: null, origine: 'authentic' };
-    const parties = (donnees && donnees.parties) || [];
-    const etude = Object.assign({ cote: null }, ETUDE_AUTHENTIC);
-    const confrere = parties.find(pa => pa.notaire && pa.notaire.crpcen !== ETUDE_AUTHENTIC.crpcen && !estEtude({ nom: pa.notaire.nom }) && ROLES_PARTIE_AUTHENTIC[motCleAuthentic(pa.type)]);
-    if (!confrere) {
-      const nous = parties.find(pa => pa.notaire && (pa.notaire.crpcen === ETUDE_AUTHENTIC.crpcen || estEtude({ nom: pa.notaire.nom })));
-      if (!nous) return Object.assign(vide, { raison: 'L’export ne nomme aucun notaire pour les parties.' });
-      return Object.assign(vide, { liste: [etude], statut: 'NEEDS_REVIEW', raison: 'L’export ne nomme que l’étude : à vérifier.' });
-    }
-    const cote = ROLES_PARTIE_AUTHENTIC[motCleAuthentic(confrere.type)] === 'VENDEUR' ? 'vendeur' : 'acquereur';
-    const autreCote = cote === 'vendeur' ? 'acquereur' : 'vendeur';
-    const n = confrere.notaire;
-    const lui = { nom: [n.prenom, n.nom].filter(Boolean).join(' '), office: n.ville || null, codePostal: null, departement: null, cote, roleExplicite: /particip/i.test(confrere.roleNotaire) ? 'participant' : null };
-    etude.cote = autreCote;
-    const participation = lui.roleExplicite === 'participant';
-    return {
-      liste: [etude, lui],
-      [cote]: lui, [autreCote]: etude,
-      instrumentaire: participation ? etude : null,
-      participant: participation ? lui : null,
-      statut: participation ? 'CONFIRMED' : 'NEEDS_REVIEW',
-      raison: participation
-        ? `Export Authentic : Maître ${lui.nom} intervient en participation pour ${cote === 'vendeur' ? 'le vendeur' : 'l’acquéreur'} ; l’étude reçoit l’acte.`
-        : `Export Authentic : Maître ${lui.nom} intervient pour ${cote === 'vendeur' ? 'le vendeur' : 'l’acquéreur'} (rôle « ${confrere.roleNotaire || 'non précisé'} ») : à vérifier.`,
-      roleEtude: participation ? 'instrumentaire' : null,
-      origine: 'authentic'
-    };
-  }
-
   // Le bien de la vente : l'immeuble référencé par le dossier, à défaut le premier. Pure.
   function bienExportAuthentic(donnees) {
     const d = donnees || {};
@@ -244,11 +209,7 @@
     const prixAuth = donnees.infosAuthentic && donnees.infosAuthentic.prix;
     // Authentic pré-remplit, le compromis complète ce qui manque (étude 05/10) : le prix d'Authentic passe donc avant celui lu.
     if (prixAuth) extraction.champs.prixVente = champExtraction(prixAuth, origine);
-    const notaires = extraction.notaires || {};
-    if (notaires.statut !== 'CONFIRMED') {
-      const n = notairesExportAuthentic(donnees);
-      if (n.liste.length) extraction.notaires = n;
-    }
+    // Notaires : jamais repris d'Authentic (étude 07/10) — seuls ceux du compromis, pris au répertoire.
     extraction.alertes = controlerCoherence(extraction);
     return extraction;
   }

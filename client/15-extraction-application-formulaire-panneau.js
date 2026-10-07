@@ -105,14 +105,8 @@
   function notairesProposesWizard() {
     const c = cotesNotairesPourDossier(extractionActuelle ? extractionActuelle.notaires : null);
     const liste = c.detectes.map(n => ({ nom: notaireDepuisRepertoire(n.nom, carnetConfreres), role: n.role, source: 'acte' }));
-    const auth = exportAuthenticActuel && exportAuthenticActuel.infosAuthentic && exportAuthenticActuel.infosAuthentic.notaire;
-    if (auth) {
-      // Le notaire d'Authentic prend le libellé du répertoire ; s'il n'y désigne personne, il n'est pas proposé (étude 07/10 :
-      // « les notaires du répertoire partout dans CLAIRE »).
-      const nom = notaireDepuisRepertoire(auth, carnetConfreres);
-      const cle = normaliserPourRecherche(auth).replace(/[^a-z]+/g, ' ').trim();
-      if (nom && !liste.some(n => normaliserPourRecherche(n.nom).includes(cle) || n.nom === nom)) liste.push({ nom, role: null, source: 'authentic' });
-    }
+    // Le notaire d'Authentic n'est plus repris (étude 07/10 : « ne plus récupérer le notaire de Authentic ») : seuls ceux du
+    // compromis, pris au répertoire, sont proposés.
     return liste.filter((n, i, l) => n.nom && l.findIndex(x => x.nom === n.nom) === i);
   }
 
@@ -124,22 +118,6 @@
     if (!etude || !coteInstrumentaire) return null;
     if (etude === 'vendeur' && notaireAcquereur && estEtude({ nom: notaireAcquereur })) return 'instrumentaire';
     return etude === coteInstrumentaire ? 'instrumentaire' : 'participant';
-  }
-
-  // Étude, 02/10 : « le notaire était vide ». Le notaire du dossier dans Authentic (« Parties prenantes »),
-  // quand ni le compromis ni la saisie n'ont placé de notaire, va des deux côtés et reçoit l'acte
-  // (choix de l'étude : « les deux côtés » ; un confrère se corrige à la main).
-  function placerNotaireAuthenticParDefaut() {
-    const v = document.getElementById('f-notaire-vendeur');
-    const a = document.getElementById('f-notaire-acquereur');
-    if (!v || !a || v.value.trim() || a.value.trim()) return false;
-    const n = notairesProposesWizard().find(x => x.source === 'authentic');
-    if (!n) return false;
-    if (appliquerValeurChamp('f-notaire-vendeur', n.nom)) noterOrigineDossierWizard('f-notaire-vendeur', 'authentic');
-    if (appliquerValeurChamp('f-notaire-acquereur', n.nom)) noterOrigineDossierWizard('f-notaire-acquereur', 'authentic');
-    const sel = document.getElementById('f-cote-instrumentaire');
-    if (sel && !sel.value) { sel.value = 'vendeur'; noterOrigineDossierWizard('f-cote-instrumentaire', 'authentic'); }
-    return true;
   }
 
   function placerNotaireWizard(index, cote) {
@@ -171,7 +149,7 @@
       <ul class="notaires-wizard-liste">${liste.map((n, i) => {
         const p = place(n.nom);
         return `<li class="notaires-wizard-ligne">
-          <span class="notaires-wizard-nom">${escapeHtml(n.nom)}<span class="hint"> · ${n.source === 'authentic' ? 'Authentic' : 'compromis'}${n.role === 'instrumentaire' ? ', reçoit l’acte' : n.role === 'participant' ? ', participe' : ''}${p ? ` · ${p}` : ''}</span></span>
+          <span class="notaires-wizard-nom">${escapeHtml(n.nom)}<span class="hint"> · compromis${n.role === 'instrumentaire' ? ', reçoit l’acte' : n.role === 'participant' ? ', participe' : ''}${p ? ` · ${p}` : ''}</span></span>
           <span class="notaires-wizard-gestes">
             <button type="button" class="lien-action" onclick="placerNotaireWizard(${i}, 'vendeur')">Vendeur</button>
             <button type="button" class="lien-action" onclick="placerNotaireWizard(${i}, 'acquereur')">Acquéreur</button>

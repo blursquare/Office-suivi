@@ -1465,7 +1465,6 @@
       const autre = d.responsable && d.responsable !== a.collaborateur;
       lignes.push({ libelle: 'Collaborateur', valeur: a.collaborateur + (autre ? ` — fiche : ${d.responsable}` : ''), classe: autre ? 'dl-pret' : '' });
     }
-    if (a.notaire) lignes.push({ libelle: 'Notaire', valeur: a.notaire, classe: '' });
     (a.personnes || []).filter(p => p.situationMatrimoniale).forEach(p => {
       lignes.push({ libelle: `${p.role === 'VENDEUR' ? 'Vendeur' : 'Acquéreur'} · ${p.nom}`, valeur: libelleSituationMatrimoniale(p.situationMatrimoniale), classe: '' });
     });

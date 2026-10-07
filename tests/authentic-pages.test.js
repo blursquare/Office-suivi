@@ -227,7 +227,7 @@ test('suiviSaferAuthentic et suiviRhfAuthentic : notifiée, prise en compte, ré
   assert.equal(app.suiviRhfAuthentic(app.lignesDocumentsAuthentic(gestion)), null);
 });
 
-test('etatActeAuthentic, prixAuthentic, collaborateurAuthentic, notaireAuthentic', () => {
+test('etatActeAuthentic, prixAuthentic, collaborateurAuthentic', () => {
   assert.equal(app.etatActeAuthentic(gestionAttente).etat, 'redaction');
   assert.equal(app.etatActeAuthentic({ champs: [{ groupe: 'Acte', libelle: 'État', valeur: 'Signé le 30/09/2026' }] }).date, '2026-09-30');
   // Étude, 03/10 : un mot avant « signé » ne vaut pas acte signé.
@@ -236,7 +236,6 @@ test('etatActeAuthentic, prixAuthentic, collaborateurAuthentic, notaireAuthentic
   assert.equal(app.etatActeAuthentic(gestion), null);
   assert.equal(app.prixAuthentic(finances), 245000);
   assert.equal(app.collaborateurAuthentic(finances), 'Julie VASSELIN');
-  assert.equal(app.notaireAuthentic(finances), 'Sophie GOSSART');
   // Hors « Parties prenantes », un nom de collaborateur ne compte pas.
   assert.equal(app.collaborateurAuthentic({ champs: [{ groupe: 'Notes', libelle: 'Note', valeur: 'appeler Julie VASSELIN' }] }), '');
 });
@@ -288,14 +287,15 @@ test('appliquerReleveSurDossier : SAFER notifiée sans réponse → « Réponse 
   assert.ok(!(p.piecesPersonnalisees || []).length);
 });
 
-test('appliquerReleveSurDossier : prix (Capital) seulement s’il manque ; collaborateur et notaire gardés', () => {
+test('appliquerReleveSurDossier : prix (Capital) ; collaborateur gardé ; le notaire n’est plus repris (étude 07/10)', () => {
   const d = { id: 'a', nom: 'MARTEL / FOURNIER', typeVente: 'maison', responsable: 'Bastien ANGLUMENT', pieces: {}, historique: [] };
   app.appliquerReleveSurDossier(d, finances);
   assert.equal(d.prixVente, 245000);
   assert.equal(d.authentic.collaborateur, 'Julie VASSELIN');
   const lignes = app.lignesAuthenticDossier(d).map(l => l.libelle + ' = ' + l.valeur).join('\n');
   assert.match(lignes, /Collaborateur = Julie VASSELIN — fiche : Bastien ANGLUMENT/);
-  assert.match(lignes, /Notaire = Sophie GOSSART/);
+  assert.doesNotMatch(lignes, /Notaire/);
+  assert.strictEqual(d.authentic.notaire, undefined);
   const e = { id: 'b', nom: 'MARTEL / FOURNIER', typeVente: 'maison', prixVente: 250000, pieces: {}, historique: [] };
   app.appliquerReleveSurDossier(e, finances);
   // Authentic fait foi (étude 06/10) : le prix de la fiche (250 000) est remplacé par le Capital d'Authentic, l'ancien dit dans l'historique.
@@ -412,12 +412,11 @@ Julie
 Tél. 06 12 34 56 78 camille@exemple.fr
 Réquisition hors formalité envoyée le 01/09/2026 Retour le 14/09/2026`;
 
-test('texte seul : prix (Capital), collaborateur et notaire des parties prenantes', () => {
+test('texte seul : prix (Capital) et collaborateur des parties prenantes', () => {
   const cap = { champs: [], tableaux: [], texte: texteDossier };
   assert.equal(app.prixAuthentic(cap), 245000);
   assert.equal(app.prixAuthentic({ texte: 'Capital : 312 500,00 €' }), 312500);
   assert.equal(app.collaborateurAuthentic(cap), 'Julie VASSELIN');
-  assert.equal(app.notaireAuthentic(cap), 'Sophie GOSSART');
   // Un collaborateur nommé hors de la rubrique ne compte pas.
   assert.equal(app.collaborateurAuthentic({ texte: 'Notes\nappeler Julie VASSELIN' }), '');
 });

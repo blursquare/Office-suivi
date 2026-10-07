@@ -18199,3 +18199,12 @@ doit avoir le document de renonciation pour signer. »
   délai daté (règle de l'étude du 02/10). Facteur de tenue : « Renonciation attendue (réponse de la commune au plus tard le …) ».
 - Outil « Droits de préemption » : formalité du DPU « réponse dans les 2 mois ; le document de renonciation est indispensable pour
   signer » (au lieu de « son silence vaut renonciation »).
+
+### 07/10/2026 21 h 30 — 0.191.2 : le notaire n'est plus repris d'Authentic
+
+Étude : « Ne plus récupérer le notaire de Authentic. » Retirés : la proposition du notaire d'Authentic à la création
+(`notairesProposesWizard`) et son placement des deux côtés quand rien n'était rempli (`placerNotaireAuthenticParDefaut`, 02/10) ;
+les notaires déduits des parties du flux Authentic (`notairesExportAuthentic`, `ETUDE_AUTHENTIC`) ; le relevé du notaire des
+« Parties prenantes » (`notaireAuthentic`, `d.authentic.notaire`, ligne « Notaire » du bloc « Dans Authentic », copie du signalement).
+Les notaires viennent du compromis (pris au répertoire) ou d'un choix dans le répertoire. Un `d.authentic.notaire` déjà gardé
+n'est plus lu ni affiché.

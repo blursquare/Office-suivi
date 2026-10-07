@@ -1255,17 +1255,6 @@
     return trouves.length === 1 ? trouves[0] : '';
   }
 
-  // Pure : le notaire nommé dans les parties prenantes (« Notaire · Maître Jean DUPONT »).
-  function notaireAuthentic(capture) {
-    for (const t of textesPartiesPrenantesAuthentic(capture)) {
-      if (!/notaire|ma[iî]tre|(?:^|\s)me\s/i.test(t)) continue;
-      const m = /(?:Ma[iî]tre|(?:^|\s)Me)\s+([A-ZÀ-Ý][\wÀ-ɏ'’-]*(?:\s+[A-ZÀ-Ý][\wÀ-ɏ'’-]*){0,3})/.exec(t)
-        || /notaire\s*(?::|·)\s*([A-ZÀ-Ý][\wÀ-ɏ'’-]*(?:\s+[A-ZÀ-Ý][\wÀ-ɏ'’-]*){0,3})/i.exec(t);
-      if (m) return m[1].trim();
-    }
-    return '';
-  }
-
   // Pure : date de signature de l'avant-contrat d'après la page du dossier — une ligne « compromis »,
   // « promesse » ou « avant-contrat » qui dit « signé le … », ou marquée signée avec une seule date.
   // Jamais une demande, un envoi ni un projet.
@@ -1287,7 +1276,7 @@
     const lignes = lignesDocumentsAuthentic(capture);
     const r = {
       acte: etatActeAuthentic(capture), rhf: suiviRhfAuthentic(lignes), safer: suiviSaferAuthentic(lignes),
-      prix: prixAuthentic(capture), collaborateur: collaborateurAuthentic(capture), notaire: notaireAuthentic(capture),
+      prix: prixAuthentic(capture), collaborateur: collaborateurAuthentic(capture),
       etatsCivils: suiviEtatsCivilsAuthentic(lignes, typeAffaire), demandes: demandesUrbanismeAuthentic(lignes),
       avantContratLe: dateAvantContratAuthentic(lignes)
     };
@@ -2543,7 +2532,7 @@
       delete d.piecesAuthentic;
       retire.push(`${cles.size} pièce${cles.size > 1 ? 's' : ''}`);
     }
-    const champsDossier = ['acte', 'rhf', 'safer', 'prix', 'collaborateur', 'notaire', 'etatsCivils', 'demandes', 'avantContratLe', 'saferPieceAjoutee', 'valeurs', 'majEnAttente'];
+    const champsDossier = ['acte', 'rhf', 'safer', 'prix', 'collaborateur', 'etatsCivils', 'demandes', 'avantContratLe', 'saferPieceAjoutee', 'valeurs', 'majEnAttente'];
     if (champsDossier.some(k => a[k])) {
       const reste = Object.assign({}, a);
       champsDossier.forEach(k => { delete reste[k]; });

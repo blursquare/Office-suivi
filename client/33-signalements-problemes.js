@@ -730,7 +730,7 @@
       acte: sous(a.acte, ['etat', 'libelle', 'date']), rhf: sous(a.rhf, ['envoyeeLe', 'retourLe']),
       safer: sous(a.safer, ['creeeLe', 'envoyeeLe', 'notifieeLe', 'priseEnCompteLe', 'priseEnCompte', 'delaiManuel', 'decision', 'decisionLe', 'tacite', 'pieceCocheeTacite', 'titre']),
       etatsCivils: carte(a.etatsCivils, ['label', 'etat', 'date']), demandes: carte(a.demandes, ['date', 'titre']),
-      prix: Number.isFinite(a.prix) && a.prix > 0 ? a.prix : null, collaborateur: texte(a.collaborateur), notaire: texte(a.notaire),
+      prix: Number.isFinite(a.prix) && a.prix > 0 ? a.prix : null, collaborateur: texte(a.collaborateur),
       avantContratLe: /^\d{4}-\d{2}-\d{2}$/.test(a.avantContratLe || '') ? a.avantContratLe : '',
       personnes: Array.isArray(a.personnes) ? a.personnes.filter(p => p && typeof p.nom === 'string').slice(0, 12)
         .map(p => ({ nom: texte(p.nom), role: p.role === 'ACQUEREUR' ? 'ACQUEREUR' : 'VENDEUR', situationMatrimoniale: situationMatrimonialePersistable(p.situationMatrimoniale) })) : [],

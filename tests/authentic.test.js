@@ -187,13 +187,6 @@ test('dossier Authentic : bien, parties par l’intitulé « VTE VENDEUR / ACQU�
   assert.strictEqual(parties.map(p => `${p.nom}:${p.role}`).join('|'), 'Paul DURAND:VENDEUR|Claire MARTIN:ACQUEREUR');
   assert.strictEqual(parties[1].nomUsage, 'LEROY');
 
-  // Confrère en participation pour le vendeur : l'étude reçoit l'acte, côté acquéreur.
-  const n = app.notairesExportAuthentic(d);
-  assert.strictEqual(n.statut, 'CONFIRMED');
-  assert.strictEqual(n.roleEtude, 'instrumentaire');
-  assert.strictEqual(n.vendeur.nom, 'Jeanne LEFEBVRE');
-  assert.strictEqual(n.acquereur.nom, 'Sophie GOSSART');
-  assert.strictEqual(n.instrumentaire.nom, 'Sophie GOSSART');
 });
 
 test('dossier Authentic : parties par référence quand Authentic la remplit', () => {
@@ -210,7 +203,7 @@ test('dossier Authentic : une succession est reconnue', () => {
   assert.strictEqual(app.typeAffaireAuthentic(d), 'succession');
 });
 
-test('extraction complétée : parties, adresse, type, email, nom du dossier et notaires repris d’Authentic', () => {
+test('extraction complétée : parties, adresse, type, email et nom du dossier repris d’Authentic — jamais les notaires (étude 07/10)', () => {
   const d = donnees();
   const e = app.completerExtractionDepuisAuthentic(app.construireExtractionRegex('', '', [], ''), d);
   assert.strictEqual(e.champs.nom.valeur, 'DURAND / MARTIN');
@@ -220,7 +213,7 @@ test('extraction complétée : parties, adresse, type, email, nom du dossier et 
   assert.strictEqual(e.champs.typeVente.valeur, 'maison');
   assert.strictEqual(e.bien.adresse.commune, 'VINEUIL');
   assert.strictEqual(e.parties.length, 2);
-  assert.strictEqual(e.notaires.roleEtude, 'instrumentaire');
+  assert.ok(!e.notaires || !(e.notaires.liste || []).length, 'aucun notaire repris d’Authentic');
   assert.strictEqual(app.origineRevision(e.champs.nom).texte, 'Reprise d’Authentic');
   // Ce qui est enregistré sur le dossier garde le format habituel.
   const inst = app.instantaneExtraction(e);
