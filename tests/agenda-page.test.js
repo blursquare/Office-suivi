@@ -456,3 +456,10 @@ test('periodeChargeeAgenda : agenda jamais ouvert (rapport 07/10, « Placer » d
   assert.match(p.fin, /^\d{4}-\d{2}-\d{2}$/);
   assert.ok(p.debut <= app2.isoAujourdhuiLocal() && app2.isoAujourdhuiLocal() <= p.fin);
 });
+
+test('Nouveau rendez-vous : un titre « ? » / « ?? » n’est jamais une signature notée sur la fiche (étude 07/10, CHEYMOL)', () => {
+  assert.equal(app.titreRendezVousProvisoire('VTE - CHEYMOL / QUEVA ROY ??'), true);
+  assert.equal(app.titreRendezVousProvisoire('VTE - CHEYMOL ?'), true);
+  assert.equal(app.titreRendezVousProvisoire('VTE - CHEYMOL / QUEVA ROY'), false);
+  assert.equal(app.titreRendezVousProvisoire('Visio https://ls.visio.adnov.fr/?id=12'), false, 'le « ? » d’une adresse web ne compte pas');
+});

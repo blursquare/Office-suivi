@@ -2137,8 +2137,8 @@
             ${actifs.map(d => `<option value="${escapeAttr(d.id)}">${escapeHtml(libelleDossierAffiche(d))}</option>`).join('')}
           </select></label>
         <label class="ag-champ ag-case-signature" id="agenda-creation-signature-bloc" style="display:none">
-          <input type="checkbox" id="agenda-creation-signature" onchange="choisirDossierCreationAgenda(document.getElementById('agenda-creation-dossier').value)"> Rendez-vous de signature (date notée sur la fiche)</label>
-        <label class="ag-champ">Titre <input type="text" id="agenda-creation-titre" required maxlength="200" placeholder="Ex. : Rendez-vous client, lecture d’acte…"></label>
+          <input type="checkbox" id="agenda-creation-signature" onchange="majCaseSignatureCreationAgenda()"> Rendez-vous de signature (date notée sur la fiche)</label>
+        <label class="ag-champ">Titre <input type="text" id="agenda-creation-titre" required maxlength="200" placeholder="Ex. : Rendez-vous client, lecture d’acte…" oninput="majCaseSignatureCreationAgenda()"></label>
         <div class="ag-champs-ligne">
           <label class="ag-champ">Date <input type="date" id="agenda-creation-date" value="${escapeAttr(m.date)}" required></label>
           <label class="ag-champ">Début <input type="time" id="agenda-creation-heure" value="${escapeAttr(m.heure)}" step="900" required></label>
@@ -2166,12 +2166,9 @@
   // dossier n'a pas de rendez-vous de signature.
   function choisirDossierCreationAgenda(id) {
     const d = dossiers.find(x => x.id === id);
-    const bloc = document.getElementById('agenda-creation-signature-bloc');
     const titre = document.getElementById('agenda-creation-titre');
-    if (bloc) bloc.style.display = d && !d.rendezVousSignature ? '' : 'none';
     if (d && titre && (!titre.value || RE_NOM_DEJA_PREFIXE.test(titre.value))) titre.value = libelleDossierAffiche(d);
-    const sig = document.getElementById('agenda-creation-signature');
-    if (sig && (!d || d.rendezVousSignature)) sig.checked = false;
+    majCaseSignatureCreationAgenda();
     // Le lieu reprend celui que CLAIRE écrit pour une signature (étude, 01/10 : responsable, confrère
     // en 1er / en 2nd, appel de fonds et projet envoyés) : « BA - Me DURAND en 2nd - Appel de fonds
     // envoyé ». Rempli tant qu'il est vide ou qu'il porte encore la proposition précédente ; un lieu
@@ -2185,6 +2182,18 @@
     // de signature), ou un sondage sans dossier.
     const plusieurs = document.getElementById('agenda-creation-plusieurs');
     if (plusieurs) plusieurs.style.display = !d || !d.rendezVousSignature ? '' : 'none';
+  }
+
+  // La case « Rendez-vous de signature » : offerte pour un dossier sans signature, jamais pour un titre « ? » / « ?? »
+  // (étude 07/10, dates proposées par un confrère : un rendez-vous à confirmer n'est pas une signature).
+  function majCaseSignatureCreationAgenda() {
+    const d = dossiers.find(x => x.id === ((document.getElementById('agenda-creation-dossier') || {}).value || ''));
+    const titre = document.getElementById('agenda-creation-titre');
+    const provisoire = !!titre && titreRendezVousProvisoire(titre.value);
+    const bloc = document.getElementById('agenda-creation-signature-bloc');
+    if (bloc) bloc.style.display = d && !d.rendezVousSignature && !provisoire ? '' : 'none';
+    const sig = document.getElementById('agenda-creation-signature');
+    if (sig && (!d || d.rendezVousSignature || provisoire)) sig.checked = false;
   }
 
   // Étude, 01/10 : « lors de l'ajout d'un rendez-vous, proposer l'option pour proposer plusieurs
@@ -2240,9 +2249,17 @@
     else creer();
   }
 
+  // Pure : un titre qui porte « ? » (hors adresse web) est un rendez-vous à confirmer — même règle que la lecture de l'agenda
+  // par le serveur (estRendezVousSignature) : jamais une date de signature.
+  function titreRendezVousProvisoire(sujet) {
+    return /\?/.test(String(sujet || '').replace(/\b(?:https?|webcals?):\/\/\S+/gi, ' '));
+  }
+
   // Écrit un rendez-vous dans l'agenda de l'office (un seul essai). Rendez-vous de signature d'un
-  // dossier : la date et l'heure sont notées sur la fiche, comme depuis la fiche elle-même.
-  async function posterEvenementAgenda({ sujet, date, heure, dureeMinutes, lieu, typeRdv, dossier, signature, notes }) {
+  // dossier : la date et l'heure sont notées sur la fiche, comme depuis la fiche elle-même — jamais pour un titre « ? »
+  // (étude 07/10 : deux dates « ?? » proposées par le confrère, la première était devenue la signature de la fiche).
+  async function posterEvenementAgenda({ sujet, date, heure, dureeMinutes, lieu, typeRdv, dossier, signature: signatureDemandee, notes }) {
+    const signature = !!signatureDemandee && !titreRendezVousProvisoire(sujet);
     const categorie = typeRdv ? (categoriesRdvReglees()[typeRdv] || '') : '';
     try {
       const reponse = await fetchAvecAuth('/api/exchange/rendez-vous', {

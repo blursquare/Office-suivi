@@ -18138,3 +18138,19 @@ Tests : tests/preemption.test.js (déclenchement et relecture, maison zone U, te
 de doublon avec Authentic —, copropriété et DIA qui retient le planning, bois et droit de préférence, pièce standard retirée,
 listes réunies par la fusion). Vérifié dans Chromium avec le Géoportail simulé. Non vérifié : le vrai Géoportail (API Carto)
 depuis le serveur du bureau.
+
+### 07/10/2026 20 h 33 — 0.190.1 : un rendez-vous « ?? » créé dans CLAIRE n'est jamais une signature
+
+Étude (deux dossiers ROY) : LEDRU / ROY, signé le 06/10 à 11 h, bien rattaché ; CHEYMOL / QUEVA ROY, deux dates proposées par
+le confrère posées dans l'agenda de CLAIRE avec « ?? » (18/11 toute la journée, 20/11 après-midi) — CLAIRE avait mis le 18/11
+comme signature sur la fiche, et le rendez-vous LEDRU ouvrait la fiche CHEYMOL. « Cela va-t-il se reproduire ? »
+- Rejoué avec le code actuel (test `deux dossiers ROY` de server/test/agenda-office.test.js) : « VTE - LEDRU / ROY » du 06/10 →
+  LEDRU (0.189.12–13 : nom propre à un dossier, dossier archivé candidat jusqu'à sa signature) ; les deux « ?? » → CHEYMOL, jamais
+  des signatures (`estRendezVousSignature` refuse « ? » et les journées entières depuis le 29/09) : le serveur n'écrit rien.
+- Le seul chemin restant était le poste : « Nouveau rendez-vous » avec la case « Rendez-vous de signature » cochée notait la date
+  sur la fiche quel que soit le titre. Désormais `posterEvenementAgenda` ne note jamais une signature pour un titre « ? »
+  (`titreRendezVousProvisoire`, même règle que le serveur, adresses web exclues) et la case disparaît dès qu'un « ? » est tapé
+  (`majCaseSignatureCreationAgenda`). Au passage : cocher la case rappelait `choisirDossierCreationAgenda`, qui remettait le titre
+  « VTE - NOM » par-dessus un titre tapé commençant par « VTE - ».
+- Une date posée à la main (confiance « manuel ») n'est pas retirée seule par la remise en ordre du serveur : à effacer sur la
+  fiche si elle y est encore.

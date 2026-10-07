@@ -493,3 +493,20 @@ test('dossierPourReferenceAgenda : un rendez-vous passé d\'un dossier ARCHIVÉ 
   // Sans date (ancienne voie), un archivé n'est jamais candidat.
   assert.equal(dossierPourReferenceAgenda('ROY / LAMBERT', tous), null);
 });
+
+test('deux dossiers ROY (étude 07/10) : LEDRU / ROY signé le 06/10 garde son rendez-vous, les dates « ?? » de CHEYMOL / QUEVA ROY ne sont jamais des signatures', () => {
+  const { dossierPourReferenceAgenda: rapprocher, referenceDossierEvenement, estRendezVousSignature, actionsDetecteesDepuisEvenements } = require('../src/agendaOffice');
+  const ledru = { id: 'L', nom: 'LEDRU / ROY', archive: true, archiveLe: '2026-10-06', rendezVousSignature: '2026-10-06', rendezVousSignatureHeure: '11:00',
+    echeancesValidees: { acte: true }, parties: [{ role: 'VENDEUR', nom: 'Paul LEDRU' }, { role: 'ACQUEREUR', nom: 'Marc ROY' }], authentic: { acte: { etat: 'signe', date: '2026-10-06' } } };
+  const cheymol = { id: 'C', nom: 'CHEYMOL / QUEVA ROY', parties: [{ role: 'VENDEUR', nom: 'Anne CHEYMOL' }, { role: 'ACQUEREUR', nom: 'Luc QUEVA ROY' }] };
+  const dossiers = [ledru, cheymol];
+  const evts = [
+    { sujet: 'VTE - LEDRU / ROY', date: '2026-10-06', heure: '11:00', lieu: 'BA - Appel de fonds et projet envoyé' },
+    { sujet: 'VTE - CHEYMOL / QUEVA ROY ??', date: '2026-11-18', journeeEntiere: true },
+    { sujet: 'VTE - CHEYMOL / QUEVA ROY ??', date: '2026-11-20', heure: '14:00' }
+  ];
+  const fiche = (e) => { const d = rapprocher(referenceDossierEvenement(e), dossiers, e); return d ? d.id : null; };
+  assert.deepEqual(evts.map(fiche), ['L', 'C', 'C']);
+  assert.deepEqual(evts.map(estRendezVousSignature), [true, false, false]);
+  assert.equal(actionsDetecteesDepuisEvenements(evts, dossiers, '2026-10-07').length, 0, 'rien n’est écrit sur aucune fiche');
+});
