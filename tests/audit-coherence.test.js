@@ -172,3 +172,15 @@ test('copropriété soumise au DPU : une seule pièce de renonciation, celle que
   assert.strictEqual(planning.preemptionLevee(e), false);
   assert.strictEqual(planning.preemptionLevee(Object.assign({}, e, { piecesRetirees: ['renonciationPreemption'] })), true);
 });
+
+test('participation : « Envoyer la copie de l’acte / l’attestation de vente » dans « À faire » une fois signé, jusqu’à l’envoi', () => {
+  const d = { id: 'pa1', nom: 'A / B', roleNotaire: 'participant', notaireAcquereur: 'Maître Paul DURAND (VENDÔME)', emailVendeur: 'v@exemple.fr',
+    sansPret: true, rendezVousSignature: '2026-10-01' };
+  const titre = 'Envoyer la copie de l’acte / l’attestation de vente';
+  assert.ok(!app.actionsDuJour([Object.assign({}, d, { rendezVousSignature: '2026-10-10' })], '2026-10-07').actions.some(a => a.type === 'copieActe'), 'pas avant la signature');
+  const a = app.actionsDuJour([d], '2026-10-07').actions.find(x => x.type === 'copieActe');
+  assert.ok(a && a.titre === titre && a.geste.type === 'copieActe');
+  assert.ok(!app.actionsDuJour([Object.assign({}, d, { copieActeEnvoyeeLe: '2026-10-05' })], '2026-10-07').actions.some(x => x.type === 'copieActe'));
+  assert.strictEqual(app.actionsDuJour([Object.assign({}, d, { emailVendeur: '' })], '2026-10-07').actions.find(x => x.type === 'copieActe').geste.type, 'fiche');
+  assert.ok(!app.actionsDuJour([Object.assign({}, d, { roleNotaire: 'instrumentaire' })], '2026-10-07').actions.some(x => x.type === 'copieActe'));
+});

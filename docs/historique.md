@@ -18303,3 +18303,14 @@ Tests : audit-coherence (deux cas).
   (`estimerFraisActe` partout), outil Préemption et analyse automatique (même `prefillPreemption`), forfait mobilier (succession,
   autonome), Répertoire et Relecture d'actes (lecture seule de la fiche).
 Tests : audit-coherence (4 cas), preemption, relances-email, agenda-page.
+
+### 07/10/2026 22 h 51 — 0.191.9 : copie de l'acte en participation dans « À faire »
+
+Réponse de l'étude au point soumis avec 0.191.8 : « Ajoute à à faire ».
+- `actionsDuJour` (client/24, 3 ter) : dossier en participation (`estDossierParticipation`), acte signé (`dateSignatureDossier`), copie
+  pas encore envoyée (`d.copieActeEnvoyeeLe`) → tâche « Envoyer la copie de l'acte / l'attestation de vente » (titre de la ligne
+  Échanges), geste `copieActe` → `ouvrirEnvoiCopieActe` (bouton « Choisir les PDF ») ; sans email du client (`clientsParticipation`),
+  la tâche ouvre la fiche. « Déjà fait » pose `copieActeEnvoyeeLe` (`CHAMP_FAIT_MAIN_PAR_TYPE`) ; envoyée ailleurs, la tâche reste
+  cochée « faite » (`TACHES_JOUR_PAR_TYPE.copieActe`, historique « Email envoyé/préparé — copie de l'acte… »).
+- L'archivage n'attend pas l'envoi de la copie : seule l'inscription dans « À faire » a été demandée.
+Tests : audit-coherence.

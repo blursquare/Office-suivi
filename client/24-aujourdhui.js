@@ -277,6 +277,24 @@
         }));
       }
 
+      // 3 ter. Participation : la copie de l'acte / l'attestation de vente à notre client, une fois l'acte signé chez le confrère (étude
+      //    07/10 : « ajoute à À faire » — elle n'était que dans l'onglet Échanges, jamais rappelée). Même titre et même geste que la
+      //    ligne de l'onglet Échanges (renderEnvoiCopieActe) ; partie dès l'envoi (copieActeEnvoyeeLe) ou par « Déjà fait ».
+      if (!succession && estDossierParticipation(d) && !d.copieActeEnvoyeeLe) {
+        const dateSig = dateSignatureDossier(d, aujourdhuiIso);
+        if (dateSig) {
+          const jSig = ecartJours(aujourdhuiIso, dateSig);
+          const avecEmail = clientsParticipation(d).some(c => c.email);
+          ajouter({
+            type: 'copieActe', categorie: 'neutre', categorieLabel: 'Après la signature',
+            titre: 'Envoyer la copie de l’acte / l’attestation de vente',
+            contexte: `Acte signé le ${formatDateFr(dateSig)} chez le confrère.${avecEmail ? ' Lue dans les fausses minutes.' : ' Renseignez l’email du client pour l’envoyer.'}`,
+            jours: jSig, delaiTexte: `signé ${quandJour(dateSig, aujourdhuiIso)}`, gravite: 'normal',
+            geste: avecEmail ? { type: 'copieActe' } : { type: 'fiche' }, bouton: avecEmail ? 'Choisir les PDF' : 'Ouvrir la fiche'
+          });
+        }
+      }
+
       // 3 bis. Rédaction de l'acte (étude 07/10) : Authentic dit « Non rédigé » et plus rien ne la retient (offre de prêt, vente
       //    préalable, préemption, SAFER — les pièces d'urbanisme ne comptent pas). Elle part d'elle-même quand Authentic passe
       //    à « En cours » ; la case ronde la note commencée à la main.
@@ -467,6 +485,8 @@
       re: /^Questionnaire de satisfaction envoyé(?! au vendeur)/ },
     questionnaireVendeur: { titre: 'Envoyer le questionnaire de satisfaction au vendeur', categorie: 'neutre',
       re: /^Questionnaire de satisfaction envoyé au vendeur/ },
+    copieActe: { titre: 'Envoyer la copie de l’acte / l’attestation de vente', categorie: 'neutre',
+      re: /^Email (?:envoyé|préparé) — (?:copie de l’acte|attestation de vente)/ },
     redaction: { titre: 'Rédiger l’acte', categorie: 'redaction',
       re: /^(Rédaction de l’acte marquée réalisée|Acte dans Authentic : En cours de rédaction)/,
       annule: /^(Rédaction de l’acte : validation annulée|Tâche du jour « Rédiger l’acte » : « fait » annulé)/ }
@@ -646,6 +666,9 @@
     } else if (geste.type === 'appelFonds') {
       fermerFenetreAujourdhui();
       preparerAppelFondsDepuisDossier(id);
+    } else if (geste.type === 'copieActe') {
+      fermerFenetreAujourdhui();
+      ouvrirEnvoiCopieActe(id);
     } else {
       fermerFenetreAujourdhui();
       ouvrirDossierDepuisDashboard(id);
@@ -688,7 +711,8 @@
   var CHAMP_FAIT_MAIN_PAR_TYPE = {
     pret: 'derniereRelanceAuto', rib: 'ribDemandeLe', fonds: 'receptionFondsConfirmeeLe',
     questionnaire: 'questionnaireEnvoyeLe', questionnaireVendeur: 'questionnaireVendeurEnvoyeLe', appelFonds: 'appelFonds', projetEnvoye: 'projetEnvoye',
-    ventePrealable: 'relanceVentePrealableLe', relanceFonds: 'relanceFondsLe', relanceDecompteConfrere: 'relanceDecompteConfrereLe'
+    ventePrealable: 'relanceVentePrealableLe', relanceFonds: 'relanceFondsLe', relanceDecompteConfrere: 'relanceDecompteConfrereLe',
+    copieActe: 'copieActeEnvoyeeLe'
   };
 
   // Tâches qui SONT une échéance du dossier : la case ronde coche l'échéance (même geste que sur la fiche, décochable par « Annuler »),
@@ -917,7 +941,7 @@
   // ---- Rendu ----
   // Libellé du bouton d'une ligne : un verbe court, le même à chaque fois pour le même geste.
   function libelleCourtGeste(a) {
-    const parType = { pret: 'Relancer', ventePrealable: 'Relancer', fonds: 'Confirmer', rib: 'Envoyer', questionnaire: 'Envoyer', questionnaireVendeur: 'Envoyer', appelFonds: 'Préparer' };
+    const parType = { pret: 'Relancer', ventePrealable: 'Relancer', fonds: 'Confirmer', rib: 'Envoyer', questionnaire: 'Envoyer', questionnaireVendeur: 'Envoyer', appelFonds: 'Préparer', copieActe: 'Choisir' };
     if (a.type === 'projetEnvoye') return a.geste && a.geste.type === 'email' ? 'Envoyer' : 'Marquer envoyé';
     if (parType[a.type]) return parType[a.type];
     return 'Ouvrir';
@@ -927,7 +951,7 @@
     if (!a.geste) return icone('folder');
     if (a.geste.type === 'email' || a.geste.type === 'questionnaire') return icone('mail');
     if (a.geste.type === 'marquer') return icone('check');
-    if (a.geste.type === 'appelFonds') return icone('file-text');
+    if (a.geste.type === 'appelFonds' || a.geste.type === 'copieActe') return icone('file-text');
     return icone('folder');
   }
 

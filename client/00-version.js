@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.191.8';
+  const VERSION_APP = '0.191.9';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.191.9', date: '2026-10-07 22:51', resume: "Dossier en participation : « Envoyer la copie de l’acte / l’attestation de vente » apparaît dans « À faire » dès l’acte signé chez le confrère, jusqu’à son envoi (elle n’était que dans l’onglet Échanges). « Choisir les PDF » ouvre la même fenêtre que la fiche ; sans email du client, la tâche ouvre la fiche." },
     { version: '0.191.8', date: '2026-10-07 22:41', resume: "« Un mot un an après la signature » retiré. Appel de fonds : l’heure et le lieu du rendez-vous (visio, office du confrère) viennent de la fiche, un dossier ne garde plus les champs du précédent, et l’email du courrier envoyé depuis CLAIRE coche « Envoi appel de fonds ». Quotités : frais et droits de l’acte estimés comme dans l’appel de fonds. Copropriété soumise au droit de préemption urbain : une seule pièce « Renonciation au droit de préemption », celle que le scan, le NAS et Authentic cochent (la seconde pièce « (DIA) » est reprise)." },
     { version: '0.191.7', date: '2026-10-07 22:19', resume: "Un acte signé dans Authentic compte aussi comme signé dans les statistiques du tableau de bord, l’avancement des dossiers, les tuiles « à signer » du mois et la bulle du statut (« acte signé le … »). Le délai de 3 jours de l’alerte Teams « fonds pas encore reçus » est désormais le même nombre que la relance des fonds." },
     { version: '0.191.6', date: '2026-10-07 22:16', resume: "Un acte signé dans Authentic sans rendez-vous noté sur la fiche compte partout comme signé : stade de la fiche, questionnaire de satisfaction proposé, archivage à 30 jours et mot un an après (avant, seul le Suivi le voyait). « À faire » ne propose plus appel de fonds, projet, RIB, fonds ni questionnaire pour une succession, comme son planning." },
