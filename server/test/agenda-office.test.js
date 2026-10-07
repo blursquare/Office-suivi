@@ -474,3 +474,22 @@ test('periodesActesAnnee : année en cours au jour, même période et toute l’
   assert.equal(`${p.anneePrecedente.debut} ${p.anneePrecedente.fin}`, '2025-01-01 2025-12-31');
   assert.equal(periodesActesAnnee('2028-02-29').memePeriode.fin, '2027-02-28');
 });
+
+test('dossierPourReferenceAgenda : un rendez-vous passé d\'un dossier ARCHIVÉ retrouve sa fiche (étude 07/10, ROY signé le 6)', () => {
+  const archive = { id: 'a', nom: 'ROY / LAMBERT', archive: true, rendezVousSignature: '2026-10-06',
+    authentic: { acte: { etat: 'signe', date: '2026-10-06' } }, parties: [{ role: 'VENDEUR', nom: 'Paul ROY' }] };
+  const enCours = { id: 'b', nom: 'GARNIER / ROY', parties: [{ role: 'ACQUEREUR', nom: 'Sylvie ROY' }] };
+  const tous = [archive, enCours];
+  // Titre qui ne cite que ROY : avant, seul le dossier en cours était regardé et prenait le rendez-vous.
+  assert.equal(dossierPourReferenceAgenda('ROY', tous, { date: '2026-10-06' }).id, 'a', 'signé dans Authentic ce jour-là');
+  assert.equal(dossierPourReferenceAgenda('ROY / LAMBERT', tous, { date: '2026-10-06' }).id, 'a');
+  // Après sa signature, un dossier archivé n'est plus candidat : un rendez-vous « VTE - ROY » à venir va au dossier en cours.
+  assert.equal(dossierPourReferenceAgenda('ROY', tous, { date: '2026-11-20' }).id, 'b');
+  assert.equal(dossierPourReferenceAgenda('ROY / LAMBERT', tous, { date: '2026-11-20' }), null, 'ni l\'archivé ni l\'autre ROY');
+  // Un ancien dossier archivé des mêmes clients ne gêne jamais une vente nouvelle.
+  const ancien = { id: 'v', nom: 'DUPONT / MARTIN', archive: true, rendezVousSignature: '2025-03-10' };
+  const nouveau = { id: 'n', nom: 'DUPONT / MARTIN' };
+  assert.equal(dossierPourReferenceAgenda('DUPONT / MARTIN', [ancien, nouveau], { date: '2026-10-20' }).id, 'n');
+  // Sans date (ancienne voie), un archivé n'est jamais candidat.
+  assert.equal(dossierPourReferenceAgenda('ROY / LAMBERT', tous), null);
+});

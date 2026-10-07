@@ -284,13 +284,42 @@ function prenomsPartiesDossier(d) {
   return [...prenoms];
 }
 
-// Date de signature posée sur la fiche par l'étude ou par CLAIRE (pas relevée dans l'agenda) : seule
-// celle-là peut départager deux dossiers du même nom — une date écrite par l'agenda serait la
-// conséquence d'un rapprochement, pas un indice indépendant.
-function dateSignatureFicheDossier(d) {
-  if (!d || !d.rendezVousSignature) return '';
-  const ecritParAgenda = d.detectionsAgenda && d.detectionsAgenda.rendezVousSignature;
-  return ecritParAgenda === d.rendezVousSignature ? '' : d.rendezVousSignature;
+// Dates de signature SÛRES d'un dossier : l'acte signé dans Authentic (« Signé le … »,
+// `d.authentic.acte`) et la date posée sur la fiche par l'étude ou par CLAIRE. Une date écrite par
+// l'agenda lui-même n'en est pas une : elle serait la conséquence d'un rapprochement, pas un indice
+// indépendant.
+function datesSignatureSuresDossier(d) {
+  const dates = [];
+  const acte = d && d.authentic && d.authentic.acte;
+  if (acte && acte.etat === 'signe' && /^\d{4}-\d{2}-\d{2}$/.test(String(acte.date || ''))) dates.push(acte.date);
+  if (d && d.rendezVousSignature) {
+    const ecritParAgenda = d.detectionsAgenda && d.detectionsAgenda.rendezVousSignature;
+    if (ecritParAgenda !== d.rendezVousSignature) dates.push(d.rendezVousSignature);
+  }
+  return dates;
+}
+
+// Dernier jour où un dossier ARCHIVÉ peut encore porter un rendez-vous : sa signature (Authentic, puis
+// la fiche), sinon son archivage (historique). Un dossier archivé n'est candidat que pour un rendez-vous
+// de ce jour ou d'avant (étude 07/10 : l'acte signé le 6 d'un dossier ROY archivé allait à l'autre ROY,
+// le seul encore en cours) ; un ancien dossier des mêmes clients ne gêne jamais une vente nouvelle.
+function dernierJourDossierArchive(d) {
+  const acte = d && d.authentic && d.authentic.acte;
+  if (acte && acte.etat === 'signe' && /^\d{4}-\d{2}-\d{2}$/.test(String(acte.date || ''))) return acte.date;
+  if (d && /^\d{4}-\d{2}-\d{2}$/.test(String(d.rendezVousSignature || ''))) return d.rendezVousSignature;
+  let fin = '';
+  for (const h of (d && Array.isArray(d.historique) ? d.historique : [])) {
+    if (!h || !/^Dossier archivé/.test(String(h.texte || ''))) continue;
+    const jour = String(h.date || '').slice(0, 10);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(jour) && jour > fin) fin = jour;
+  }
+  return fin;
+}
+
+function dossierCandidatPourDate(d, date) {
+  if (!d.archive) return true;
+  const fin = dernierJourDossierArchive(d);
+  return !!date && !!fin && date <= fin;
 }
 
 // Le dossier d'un rendez-vous « VTE - … ». Étude 07/10 (deux dossiers ROY inversés dans l'agenda :
@@ -304,11 +333,13 @@ function dateSignatureFicheDossier(d) {
 //      d'eux : le dossier retenu doit avoir au moins un mot qui n'appartient qu'à lui (l'autre nom, un
 //      prénom) et porter tous les noms reconnus de la référence (« PETIT / DUPONT », noms de deux
 //      dossiers : rien) ;
-//   4. à défaut, la date du rendez-vous départage si un seul des dossiers en lice a CETTE date posée sur
-//      sa fiche à la main ou par CLAIRE (`dateSignatureFicheDossier`) ;
+//   4. à défaut, la date du rendez-vous départage si un seul des dossiers en lice a CETTE date pour
+//      signature sûre (`datesSignatureSuresDossier` : signé dans Authentic, ou posée à la main ou par CLAIRE) ;
 //   5. sinon rien : jamais un dossier deviné entre deux homonymes.
-// `evt` (facultatif) : { itemId, date } de l'événement.
+// Les dossiers archivés sont dans la liste (`dossierCandidatPourDate` borne leurs dates) : un rendez-vous
+// d'un dossier archivé retrouve sa fiche. `evt` (facultatif) : { itemId, date } de l'événement.
 function dossierPourReferenceAgenda(reference, dossiersActifs, evt) {
+  const date = evt && evt.date ? String(evt.date) : '';
   const liste = (dossiersActifs || []).filter((d) => d && typeof d.nom === 'string');
   const itemId = evt && evt.itemId ? String(evt.itemId) : '';
   if (itemId) {
@@ -318,17 +349,25 @@ function dossierPourReferenceAgenda(reference, dossiersActifs, evt) {
   const motsRef = [...new Set(motsNomsDeFamille(reference))];
   if (motsRef.length === 0) return null;
   const candidats = [];
+  // Noms de la référence portés par un dossier hors de cause à cette date (archivé déjà signé) : ils
+  // désignent ce dossier-là, jamais un autre (« VTE - ROY / LAMBERT » ne va pas à « GARNIER / ROY »).
+  const nomsAilleurs = new Set();
   for (const d of liste) {
     const attendus = [...new Set(motsNomsDeFamille(d.nom))];
     if (attendus.length === 0) continue;
     const communs = attendus.filter((mot) => motsRef.some((r) => motsVoisins(mot, r)));
     if (communs.length === 0) continue;
+    if (!dossierCandidatPourDate(d, date)) {
+      for (const r of motsRef) if (communs.some((mot) => motsVoisins(mot, r))) nomsAilleurs.add(r);
+      continue;
+    }
     const prenoms = prenomsPartiesDossier(d);
     const touches = motsRef.filter((r) => communs.some((mot) => motsVoisins(mot, r)) || prenoms.includes(r));
     candidats.push({ d, touches, communs: communs.length });
   }
   if (candidats.length === 0) return null;
-  if (candidats.length === 1) return candidats[0].d;
+  const expliqueTout = (c) => [...nomsAilleurs].every((r) => c.touches.includes(r));
+  if (candidats.length === 1) return expliqueTout(candidats[0]) ? candidats[0].d : null;
   for (const c of candidats) {
     c.propres = c.touches.filter((r) => !candidats.some((autre) => autre !== c && autre.touches.includes(r))).length;
   }
@@ -338,12 +377,11 @@ function dossierPourReferenceAgenda(reference, dossiersActifs, evt) {
     // Le dossier retenu doit expliquer TOUS les noms reconnus de la référence : « PETIT / DUPONT »
     // cite un nom d'un autre dossier, elle en désigne deux — rien n'est retenu.
     const reconnus = new Set(candidats.flatMap((c) => c.touches));
-    return [...reconnus].every((r) => premier.touches.includes(r)) ? premier.d : null;
+    return [...reconnus].every((r) => premier.touches.includes(r)) && expliqueTout(premier) ? premier.d : null;
   }
-  const date = evt && evt.date ? String(evt.date) : '';
   if (date) {
-    const memeDate = candidats.filter((c) => dateSignatureFicheDossier(c.d) === date);
-    if (memeDate.length === 1) return memeDate[0].d;
+    const memeDate = candidats.filter((c) => datesSignatureSuresDossier(c.d).includes(date));
+    if (memeDate.length === 1 && expliqueTout(memeDate[0])) return memeDate[0].d;
   }
   return null;
 }

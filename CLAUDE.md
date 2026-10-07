@@ -266,7 +266,11 @@ dans `index.html`** (le test `structure-client` refuse tout décalage).
   Outlook mémorisé (`d.rdvAgendaItem.itemId`) d'abord ; un nom de famille porté par plusieurs dossiers ne désigne aucun d'eux
   (l'autre nom ou un prénom de partie propre à un seul dossier, sinon la date posée sur la fiche à la main ou par CLAIRE, jamais
   une date écrite par l'agenda) ; les routes qui retirent, déplacent ou notent un envoi reçoivent `dossierId` et vérifient que
-  l'événement est celui de CE dossier parmi tous (`evenementDuDossier`). NAS : un dossier du commun déjà relié à un dossier en
+  l'événement est celui de CE dossier parmi tous (`evenementDuDossier`). Dossiers ARCHIVÉS dans la liste, candidats
+  seulement jusqu'à leur signature (`dossierCandidatPourDate`, Authentic puis fiche puis archivage) ; leurs noms gardés hors
+  de cause ensuite (`nomsAilleurs`). Date « sûre » qui départage = signé dans Authentic ou posée à la main/par CLAIRE.
+  Remise en ordre à chaque tour (`corrigerRendezVousEcritsParAgenda`) : une date ÉCRITE PAR L'AGENDA est retirée si le
+  rendez-vous de ce jour est celui d'un autre dossier, ou s'il est repassé « ? » (provisoire). NAS : un dossier du commun déjà relié à un dossier en
   cours n'est jamais relié seul à un second (`dossierNasPrisParUnAutre`).
   Un cas non départagé reste « à rattacher », jamais deviné.
 - **Notaires** : priorité mention explicite (hors clause d'origine de propriété) > règle

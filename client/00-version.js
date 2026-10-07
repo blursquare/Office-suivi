@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.189.12';
+  const VERSION_APP = '0.189.13';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.189.13', date: '2026-10-07 18:55', resume: "Agenda, suite des deux dossiers ROY : un rendez-vous d’un dossier archivé (acte signé le 6) retrouve sa fiche au lieu d’aller au dossier en cours du même nom — un dossier archivé est reconnu pour les rendez-vous jusqu’à sa signature, jamais après (un ancien dossier des mêmes clients ne gêne pas une vente nouvelle), et la date de signature lue dans Authentic départage deux homonymes. Remise en ordre automatique : une date de signature que l’agenda avait écrite sur la mauvaise fiche est retirée (le rendez-vous est celui d’un autre dossier), de même qu’une date dont le rendez-vous est repassé provisoire (« ? », « ??? ») — elle revient seule quand il est confirmé. Une date posée à la main n’est jamais touchée." },
     { version: '0.189.12', date: '2026-10-07 18:08', resume: "Agenda : un rendez-vous n’est plus rattaché au mauvais dossier quand deux dossiers portent le même nom de famille (deux dossiers ROY inversés : mauvaise fiche ouverte, appel de fonds et projet lus sur l’autre dossier). Le rendez-vous créé depuis CLAIRE est reconnu par son identifiant Outlook ; sinon il faut, dans son titre, un nom ou un prénom propre à un seul dossier (« VTE - ROY / LAMBERT », « VTE - ROY Sylvie »), ou la date de signature posée sur la fiche ; un « VTE - ROY » seul ne désigne plus aucun des deux dossiers — rien n’est écrit sur une fiche au hasard. Même règle pour retirer, déplacer un rendez-vous ou y noter l’envoi de l’appel de fonds ou du projet. Le commun : un dossier du NAS déjà relié à un dossier en cours n’est plus relié seul à un second." },
     { version: '0.189.11', date: '2026-10-07 17:49', resume: "Dossier archivé : CLAIRE ne va plus chercher ses pièces sur le commun, quel que soit le déclencheur (email reçu, scan rangé, relecture des noms de fichiers) ; plus de bouton « Revérifier » ni de lecture du mobilier à l’ouverture de sa fiche." },
     { version: '0.189.10', date: '2026-10-07 17:34', resume: "Notaires lus dans l’acte : plus jamais proposés sous le nom lu — CLAIRE retient toujours le notaire de l’annuaire le plus proche (même prénom, même ville, puis le Loir-et-Cher et ses voisins ; une lettre de différence tolérée) ; un nom absent de l’annuaire n’est plus proposé. Vaut pour « Nouveau dossier », la ligne « Lus, à placer » de la fiche (dossiers existants compris) et le notaire d’Authentic." },

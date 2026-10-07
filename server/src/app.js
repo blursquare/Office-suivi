@@ -219,7 +219,7 @@ function creerApp({ db, config, envoyerEmailFn, creerClientClaude, appelerMistra
   // identifiants de messagerie (mot de passe jamais renvoyé au navigateur), teste la connexion et
   // crée les rendez-vous de signature dans l'agenda. À valider sur un poste du bureau (l'Exchange
   // n'est joignable que depuis le réseau de l'étude).
-  app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurExchange(parametresRepo, { ...(exchange || {}), dossiersActifs: () => depot.tousActifs().filter((d) => !d.archive) }));
+  app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurExchange(parametresRepo, { ...(exchange || {}), dossiersActifs: () => depot.tousActifs() }));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurComptesCollaborateurs(parametresRepo, { exchange: exchange || {} }));
   // Sondage de créneaux de signature (voir sondagesCreneaux.js). `sondages.poster` : faux transport
   // EWS, tests seulement.

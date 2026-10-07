@@ -18032,3 +18032,29 @@ parfaite) ne relie plus un dossier du commun déjà relié à un autre dossier e
 Données déjà écrites : un dossier ROY a pu recevoir la date de signature ou un envoi d'un rendez-vous de l'autre ; au tour suivant
 il est dit « rendez-vous retiré de l'agenda — date conservée » : à vérifier à la main sur les deux fiches.
 Tests : server/test/agenda-office.test.js, server/test/exchange-route.test.js, tests/homonymes-parties.test.js.
+
+### 07/10/2026 18 h 55 — 0.189.13 : le rendez-vous du ROY archivé retrouve sa fiche, « ??? » n'est plus une signature
+
+Étude : « le premier rendez-vous est un acte déjà signé le 6 octobre, il est rattaché à la mauvaise fiche. Le second est sur
+l'agenda avec des ??? : il a été détecté comme rendez-vous de signature mais c'est un rendez-vous provisoire » ; « il faut
+réinitialiser le premier rendez-vous pour qu'il retrouve sa fiche même archivée ».
+
+Causes :
+1. agendaWatch ne donnait au rapprochement que les dossiers NON archivés : le ROY signé le 6 (archivé) n'était pas candidat,
+   le rendez-vous allait au seul ROY en cours — même après 0.189.12 (un seul candidat = retenu).
+2. une date de signature écrite par l'agenda reste sur la fiche quand le rendez-vous disparaît ou passe « ? » (choix du 25/09,
+   « date conservée ») : le rendez-vous provisoire gardait l'air d'une signature fixée.
+
+Correctifs (server/src/agendaOffice.js, agendaWatch.js) :
+- tous les dossiers non supprimés sont donnés au rapprochement (agendaWatch, routes Exchange) ; un dossier archivé n'est
+  candidat que pour un rendez-vous de sa date de fin ou d'avant (`dernierJourDossierArchive` : signé dans Authentic, sinon
+  rendez-vous de la fiche, sinon entrée « Dossier archivé » de l'historique) ; après, ses noms restent « pris »
+  (`nomsAilleurs`) : « VTE - ROY / LAMBERT » ne va jamais à « GARNIER / ROY ». Rien n'est jamais écrit sur un archivé
+  (garde déjà présente dans appliquerDetectionsAgenda).
+- date « sûre » qui départage (`datesSignatureSuresDossier`) : acte signé dans Authentic, ou date posée à la main/par CLAIRE.
+- `corrigerRendezVousEcritsParAgenda` (à chaque tour, sur le stock de l'agenda) : une date écrite par l'agenda
+  (detectionsAgenda.rendezVousSignature) est retirée de la fiche, avec une ligne d'historique, si le rendez-vous de ce jour
+  (même heure) est rattaché avec certitude à un autre dossier et qu'aucun rendez-vous confirmé ne porte celui-ci, ou si le
+  rendez-vous de ce dossier à cette date est repassé « ? ». Elle revient seule quand le « ? » est retiré. Une date posée à la
+  main n'est jamais touchée ; un archivé non plus.
+Tests : server/test/agenda-office.test.js (archivé signé le 6, ancien dossier des mêmes clients), server/test/agenda-watch.test.js.

@@ -249,6 +249,48 @@ function appliquerRendezVousAgenda(depot, detections, resultat, categoriesRdv) {
   }
 }
 
+// Remet en ordre les dates de signature que l'agenda a écrites sur la MAUVAISE fiche ou trop tôt (étude
+// 07/10, deux dossiers ROY) — d'après le stock de l'agenda (`evenements` d'evenementsAgendaOffice, dossiers
+// archivés compris, depuis le lundi de la semaine précédente). Seule une date ÉCRITE PAR L'AGENDA
+// (d.detectionsAgenda.rendezVousSignature = d.rendezVousSignature) est retirée, jamais une date posée à la
+// main ou par CLAIRE :
+//   - le rendez-vous de cette date est rattaché avec certitude à un AUTRE dossier (en cours ou archivé) et
+//     aucun rendez-vous confirmé de ce jour ne porte ce dossier-ci → la date lui avait été donnée à tort ;
+//   - le rendez-vous de ce dossier à cette date est repassé provisoire (« ? », « ??? ») → rien n'est
+//     confirmé, la date quitte la fiche (elle y reviendra seule quand les « ? » seront retirés).
+// Rend la liste des corrections faites.
+function corrigerRendezVousEcritsParAgenda(depot, evenements, jour) {
+  const corrections = [];
+  const liste = Array.isArray(evenements) ? evenements : [];
+  const signatures = liste.filter((e) => e && e.signature && e.dossierId && e.date && !e.option);
+  for (const d of (typeof depot.tousActifs === 'function' ? depot.tousActifs() : [])) {
+    if (!d || d.archive || !d.rendezVousSignature) continue;
+    const date = d.rendezVousSignature;
+    if (!d.detectionsAgenda || d.detectionsAgenda.rendezVousSignature !== date) continue;
+    if (signatures.some((e) => e.dossierId === d.id && e.date === date)) continue;
+    const autre = signatures.find((e) => e.date === date && e.dossierId !== d.id
+      && String(e.heure || '') === String(d.rendezVousSignatureHeure || e.heure || ''));
+    const provisoire = liste.find((e) => e && e.dossierId === d.id && e.date === date && !e.signature && !e.option
+      && !e.journeeEntiere && /\?/.test(String(e.sujet || '') + ' ' + String(e.lieu || '')));
+    if (!autre && !provisoire) continue;
+    const texte = autre
+      ? `Rendez-vous de signature du ${formatDateFr(date)} retiré de la fiche : dans l’agenda, il est celui d’un autre dossier (« ${String(autre.sujet || '').slice(0, 80)} »)`
+      : `Rendez-vous du ${formatDateFr(date)} repassé provisoire dans l’agenda (« ? ») — date retirée de la fiche, elle reviendra une fois le rendez-vous confirmé`;
+    d.rendezVousSignature = null;
+    d.rendezVousSignatureHeure = '';
+    d.rendezVousSignatureHeureFin = '';
+    d.rendezVousSignatureLieu = '';
+    d.rendezVousSignatureCategories = [];
+    delete d.detectionsAgenda.rendezVousSignature;
+    delete d.detectionsAgenda.rendezVousDisparu;
+    d.historique = d.historique || [];
+    d.historique.push({ date: new Date().toISOString(), texte });
+    depot.remplacer(d.id, d);
+    corrections.push({ dossierId: d.id, dossierNom: d.nom, dateIso: date, raison: autre ? 'autre-dossier' : 'provisoire', jour });
+  }
+  return corrections;
+}
+
 let empreinteRefusee = null;
 
 function empreinteIdentifiants(reglages) {
@@ -303,8 +345,11 @@ async function executerTourSurveillanceAgenda(depot, reglagesExchange, injection
     }
     const evenements = evenementsDepuisEws(lu.evenements);
     resultat.evenementsLus = evenements.length;
-    const dossiersActifs = depot.tousActifs().filter((d) => !d.archive);
-    resultat.dossiersVerifies = dossiersActifs.length;
+    // Dossiers archivés compris (étude 07/10) : un rendez-vous d'un dossier archivé retrouve sa fiche au
+    // lieu d'aller à un dossier en cours du même nom ; rien n'est jamais ÉCRIT sur un archivé (voir
+    // appliquerDetectionsAgenda) et un archivé n'est candidat que jusqu'à sa signature (agendaOffice.js).
+    const dossiersActifs = depot.tousActifs();
+    resultat.dossiersVerifies = dossiersActifs.filter((d) => !d.archive).length;
     const detections = actionsDetecteesDepuisEvenements(evenements, dossiersActifs, jour);
     const applique = appliquerDetectionsAgenda(depot, detections, jour, r.categoriesRdv);
     resultat.ok = true;
@@ -318,6 +363,7 @@ async function executerTourSurveillanceAgenda(depot, reglagesExchange, injection
     // Les rendez-vous du jour, pour la fenêtre du matin (persistés à part, comme les absences).
     resultat.agendaDuJour = { jour, evenements: agendaDuJourDepuisEvenements(evenements, jour, dossiersActifs) };
     resultat.agendaOffice = { debut: lundiSemainePrecedente(jour), evenements: evenementsAgendaOffice(evenements, dossiersActifs) };
+    resultat.corrections = corrigerRendezVousEcritsParAgenda(depot, resultat.agendaOffice.evenements, jour);
     // Dates butoir (prêt, vente préalable) pas encore dans l'agenda : posées ou retrouvées, avec
     // la lecture qu'on vient de faire pour ne jamais créer de doublon (voir echeancesAgenda.js).
     const poses = await poserEcheancesManquantes(depot, r, lu.evenements, jour, injections);
@@ -435,7 +481,7 @@ function demarrerSurveillanceAgenda(depot, parametresRepo, injections, intervall
 }
 
 module.exports = {
-  appliquerDetectionsAgenda, texteHistoriqueEnvoiAgenda, appliquerRendezVousAgenda, rendezVousMarqueAnnule, marquerSignatureAReplacer, dateDuJourParis, executerTourSurveillanceAgenda,
+  appliquerDetectionsAgenda, texteHistoriqueEnvoiAgenda, appliquerRendezVousAgenda, corrigerRendezVousEcritsParAgenda, rendezVousMarqueAnnule, marquerSignatureAReplacer, dateDuJourParis, executerTourSurveillanceAgenda,
   executerEtEnregistrerTourAgenda, notifierRendezVousRelevesAgenda, demarrerSurveillanceAgenda, INTERVALLE_SURVEILLANCE_AGENDA_MS,
   connexionAgendaConfiguree, lectureAgendaSuspendue, reinitialiserDisjoncteurAgenda, signalerIdentifiantsRefuses
 };
