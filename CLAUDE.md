@@ -734,7 +734,7 @@ dans `index.html`** (le test `structure-client` refuse tout décalage).
   `preparerAppelFondsDepuisDossier`, `choisirDossierQuotites`/`calculerQuotites`, `estimerFraisActe`, `calculerProrata`,
   `ouvrirPreemptionDepuisFiche`, `archiverDossier`, `changerResponsable`) ; un geste fait aussitôt porte un bouton « Annuler » ;
   réponses écrites par le code (jamais par l'IA). Rien n'est journalisé ni gardé (la phrase peut nommer un client). Point terrain
-  `assistant-ia-locale`. **Widget « Demander à CLAIRE »** du tableau de bord (étude 07/10, `renderWidgetAssistant`, en tête par `enTete`) : la question tapée ou l'exemple cliqué part sur la page (`envoyerDepuisWidgetAssistant`) ; le champ n'est écrit qu'une fois (la saisie survit aux redessins). Une nouvelle intention = une entrée d'`INTENTIONS_ASSISTANT` (motifs, exemples — chaque exemple doit être
+  `assistant-ia-locale`. **Widget « Demander à CLAIRE »** du tableau de bord (étude 07/10, `renderWidgetAssistant`, en tête par `enTete`) : la question tapée ou l'exemple cliqué part sur la page (`envoyerDepuisWidgetAssistant`) ; le champ n'est écrit qu'une fois (la saisie survit aux redessins). **Sur une rangée, demi-hauteur** (étude 07/10 : « moins haut, une ligne ») : la grille des widgets est en demi-rangées (`--w-demi`, chaque widget couvre 2/4/6 demi-rangées), « Demander à CLAIRE » 1/3/5 — forme compacte `w-asst-compact` (titre, champ et bouton sur une ligne, exemples sur une ligne). Une nouvelle intention = une entrée d'`INTENTIONS_ASSISTANT` (motifs, exemples — chaque exemple doit être
   compris sans IA, test `tests/assistant.test.js`) + son exécutant dans `executerDemandeAssistant`.
 
 ## Relecture d'actes (Outil 2) — état actuel

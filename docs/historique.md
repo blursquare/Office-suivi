@@ -17660,3 +17660,10 @@ bord : `renderMesRappels(…, sansDuJour)` ne dit plus « Aucun rappel pour le m
 bouton suffit) ; style.css : `.w-carte .dash-rappels-bloc .rappels-perso` sans marge intérieure (aligné sur les tâches, avant 20 px
 de retrait), bouton `rappel-perso-ajout` court (largeur du texte, 28 px de haut, `--texte-s`) au lieu de la bande pointillée pleine
 largeur, séparateur à 8 px. Page et fenêtre du matin inchangées. Vérifié dans Chromium (bureau, téléphone).
+
+**Étude (07/10) : « Moins haut le Demander à CLAIRE, en une colonne une ligne »** (0.181.3) — la grille des widgets passe en
+demi-rangées (`--w-demi` = (rangée − écart) / 2 ; chaque widget couvre 2, 4 ou 6 demi-rangées : hauteurs inchangées au pixel près),
+et « Demander à CLAIRE » sur une rangée n'en couvre qu'UNE (102 px au lieu de 219 sur un écran de bureau ; 3 et 5 sur 2 et 3
+rangées). `renderWidgetAssistant` : forme compacte `w-asst-compact` — icône + « Demander à CLAIRE » + champ + bouton sur une ligne
+(`.w-asst-ligne`), exemples sur une seule ligne dessous (`.w-asst-pied`, hauteur bornée), « Reprendre la conversation » en tête de
+cette ligne ; titre réduit à l'icône en largeur étroite et sur téléphone. Vérifié dans Chromium (grand et petit, bureau et téléphone).

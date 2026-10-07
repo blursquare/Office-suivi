@@ -683,26 +683,37 @@
     const bloc = document.getElementById('widget-assistant');
     if (!bloc) return;
     const presentation = presentationWidget('assistant');
+    // Une rangée (étude 07/10 : « moins haut, une ligne ») : demi-hauteur de la grille — titre, champ et bouton sur une ligne,
+    // exemples sur une seule ligne dessous (ce qui ne tient pas est retiré par ajusterWidgets).
+    const w = dispositionWidgetsCourante().find(x => x.id === 'assistant') || {};
+    const compact = (w.hauteur || 1) === 1;
+    const forme = presentation + (compact ? '-compact' : '');
     const exemples = presentation === 'petit' ? [] : suggestionsAssistant(perimetre);
-    const droite = assistantMessages.length
+    const reprendre = assistantMessages.length
       ? `<button type="button" class="lien-discret" onclick="definirOnglet('assistant')">Reprendre la conversation</button>` : '';
     const puces = exemples.map(s => `<button type="button" class="asst-suggestion w-asst-exemple" onclick="envoyerDepuisWidgetAssistant(this.textContent)">${escapeHtml(s)}</button>`).join('');
     const existant = bloc.querySelector('.w-carte.assistant');
-    if (existant && existant.dataset.presentation === presentation && bloc.querySelector('#widget-assistant-saisie')) {
+    if (existant && existant.dataset.forme === forme && bloc.querySelector('#widget-assistant-saisie')) {
       const d = existant.querySelector('.w-tete-droite-asst');
-      if (d && d.innerHTML !== droite) d.innerHTML = droite;
+      if (d && d.innerHTML !== reprendre) d.innerHTML = reprendre;
       const liste = existant.querySelector('.w-asst-exemples');
       if (liste && liste.dataset.cle !== exemples.join('|')) { liste.dataset.cle = exemples.join('|'); liste.innerHTML = puces; planifierAjustementWidgets(); }
       return;
     }
-    const corps = `<form class="asst-saisie w-asst-saisie w-fixe" onsubmit="event.preventDefault(); envoyerDepuisWidgetAssistant();">
+    const titre = `<span class="w-asst-titre">${icone('sparkle')}<span class="w-asst-titre-texte">Demander à CLAIRE</span></span>`;
+    const formulaire = `<form class="asst-saisie w-asst-saisie w-fixe" onsubmit="event.preventDefault(); envoyerDepuisWidgetAssistant();">
         <input type="text" id="widget-assistant-saisie" autocomplete="off" placeholder="Posez votre question…" aria-label="Votre question à CLAIRE">
         <wa-button variant="brand" type="submit" size="s" class="asst-envoyer" aria-label="Demander">${icone('send')}</wa-button>
-      </form>
-      ${exemples.length ? `<div class="w-asst-exemples" data-ajuster="1" data-cle="${escapeAttr(exemples.join('|'))}">${puces}</div>` : ''}`;
-    bloc.innerHTML = carteWidget({ presentation, classe: 'assistant', attributs: `data-presentation="${presentation}"`,
-      titre: `<span class="w-asst-titre">${icone('sparkle')}Demander à CLAIRE</span>`,
-      droite: `<span class="w-tete-droite-asst">${droite}</span>`, corps });
+      </form>`;
+    const listeExemples = exemples.length ? `<div class="w-asst-exemples" data-ajuster="1" data-cle="${escapeAttr(exemples.join('|'))}">${puces}</div>` : '';
+    if (compact) {
+      bloc.innerHTML = `<div class="w-carte w-${presentation} assistant w-asst-compact" data-forme="${forme}">
+          <div class="w-corps"><div class="w-asst-ligne">${titre}${formulaire}</div>${exemples.length || reprendre ? `<div class="w-asst-pied"><span class="w-tete-droite-asst">${reprendre}</span>${listeExemples}</div>` : ''}</div>
+        </div>`;
+      return;
+    }
+    bloc.innerHTML = carteWidget({ presentation, classe: 'assistant', attributs: `data-forme="${forme}"`, titre,
+      droite: `<span class="w-tete-droite-asst">${reprendre}</span>`, corps: formulaire + listeExemples });
   }
 
   // La question du widget (ou l'exemple cliqué) part sur la page « Demander à CLAIRE ». Champ vide : la page s'ouvre.
