@@ -17987,3 +17987,11 @@ et liste de saisie (`notairesDetectesDossier` : dossiers déjà créés compris,
 « Vendeur / Acquéreur / Les deux » de « Lus, à placer » est retrouvé par le nom (l'`indexOf` sur un objet recopié rendait -1).
 Le choix « le plus proche » peut se tromper quand plusieurs notaires du même nom exercent près de Blois sans prénom ni ville lus : le
 champ reste corrigeable sur la fiche.
+
+**Dossier archivé : plus de recherche de pièces sur le commun** (0.189.11 ; étude 07/10 : « si un dossier est archivé ne pas aller lui
+rechercher des pièces sur le commun »). Le tour automatique, « Scanner le commun » et la surveillance du serveur (`nasWatch`) sautaient
+déjà les archivés, mais `verifierDossierLocal` restait appelé par d'autres chemins : email d'un dossier archivé avec un document
+(`emailsDossiers`, rattachement aux archivés), scan rangé, relecture après une forme de nom décidée, bouton « Revérifier » de la fiche.
+Garde unique dans `verifierDossierLocalUneFois` (`d.archive` → rien) ; « Revérifier » masqué sur une fiche archivée ; la lecture du
+mobilier dans l'avant-contrat à l'ouverture de la fiche n'est plus lancée pour un archivé (le bouton « Lire » reste, geste explicite).
+Test : aucun appel au serveur pour un dossier archivé (tests/homonymes-parties.test.js), et il échoue sans la garde.

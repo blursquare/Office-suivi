@@ -45,3 +45,13 @@ test('Claire Scan : une partie connue par son seul nom, porté des deux côtés,
   d.parties = [{ role: 'VENDEUR', nom: 'MARTIN' }, { role: 'ACQUEREUR', nom: 'Léa MARTIN' }];
   assert.equal(app.scoreDossierScan(d, mots).role, 'ACQUEREUR', 'le vendeur sans prénom ne compte pas pour le côté');
 });
+
+// Étude 07/10 : « si un dossier est archivé, ne pas aller lui rechercher des pièces sur le commun ».
+test('dossier archivé : aucune recherche de pièces sur le NAS, quel que soit le chemin', async () => {
+  const vm = require('node:vm');
+  const a = chargerApplication();
+  vm.runInContext(`var __appelsNas = 0; fetchAvecAuth = async function () { __appelsNas++; return { ok: false, status: 500, json: async () => ({}) }; };
+    dossiers.push({ id: 'arc', nom: 'ANCIEN / DOSSIER', archive: true, dossierLie: true, nasDossier: 'ANCIEN', pieces: {}, historique: [] });`, a);
+  await vm.runInContext(`verifierDossierLocal('arc', true)`, a);
+  assert.equal(vm.runInContext('__appelsNas', a), 0);
+});

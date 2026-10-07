@@ -788,6 +788,9 @@
   async function verifierDossierLocalUneFois(id, viaClicUtilisateur) {
     const d = dossiers.find(x => x.id === id);
     if (!d || !d.dossierLie || !d.nasDossier) return;
+    // Dossier archivé : terminé, aucune pièce à y chercher sur le commun (étude 07/10), quel que soit le chemin qui le demande
+    // (email reçu, scan rangé, bouton de la fiche, relecture des formes de noms).
+    if (d.archive) return;
     await rafraichirReconnaissanceNom();
     // Achat comptant (sans prêt) : rien à chercher côté offre, seul le nom de la fonction reste
     // générique. Notaire participant/concourant : la checklist de pièces ne le concerne pas (voir

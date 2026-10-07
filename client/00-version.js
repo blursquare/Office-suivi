@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.189.10';
+  const VERSION_APP = '0.189.11';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.189.11', date: '2026-10-07 17:49', resume: "Dossier archivé : CLAIRE ne va plus chercher ses pièces sur le commun, quel que soit le déclencheur (email reçu, scan rangé, relecture des noms de fichiers) ; plus de bouton « Revérifier » ni de lecture du mobilier à l’ouverture de sa fiche." },
     { version: '0.189.10', date: '2026-10-07 17:34', resume: "Notaires lus dans l’acte : plus jamais proposés sous le nom lu — CLAIRE retient toujours le notaire de l’annuaire le plus proche (même prénom, même ville, puis le Loir-et-Cher et ses voisins ; une lettre de différence tolérée) ; un nom absent de l’annuaire n’est plus proposé. Vaut pour « Nouveau dossier », la ligne « Lus, à placer » de la fiche (dossiers existants compris) et le notaire d’Authentic." },
     { version: '0.189.9', date: '2026-10-07 17:22', resume: "Vendeur et acquéreur du même nom : une partie est reconnue par son nom ET son prénom — fiche client d’Authentic rangée du bon côté (sinon « à rattacher »), création depuis Authentic, fonds reçus (le versement du vendeur du même nom ne compte plus pour l’acquéreur), côté d’une pièce dans Claire Scan." },
     { version: '0.189.8', date: '2026-10-07 17:18', resume: "Fiche, onglet « Pièces et analyse » : « Dans Authentic », « Diagnostic du dernier parcours » et « Ce que l’outil avait compris de l’acte » sont regroupés en fin d’onglet, repliés (un clic les déplie) ; une alerte d’Authentic reste signalée sur la ligne repliée." },

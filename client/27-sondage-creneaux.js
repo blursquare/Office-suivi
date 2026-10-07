@@ -1203,7 +1203,7 @@
     authenticDossierOuvert = false;
     rdvAgendaOuvert = false;
     render();
-    if (d && !d.prixMobilier && !d.mobilierLuLe && d.dossierLie && d.nasDossier) lireMobilierDepuisAvantContrat(id, false);
+    if (d && !d.archive && !d.prixMobilier && !d.mobilierLuLe && d.dossierLie && d.nasDossier) lireMobilierDepuisAvantContrat(id, false);
   }
 
   // Un clic sur le fond grisé d'une fenêtre la ferme — seulement si l'appui A COMMENCÉ sur ce fond.
@@ -1397,7 +1397,7 @@
         <div class="pieces-entete">
           <div class="pieces-entete-ligne">
             <span class="pieces-titre">${icone('list-check')}<span class="pieces-titre-texte">Pièces du dossier</span><span class="pieces-type">· ${libelleType}</span></span>
-            ${d.dossierLie ? `<wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="verifierDossierLocalDepuisBouton('${d.id}', this)" title="Relire le dossier du NAS">${icone('rotate-ccw')} Revérifier</wa-button>` : ''}
+            ${d.dossierLie && !d.archive ? `<wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="verifierDossierLocalDepuisBouton('${d.id}', this)" title="Relire le dossier du NAS">${icone('rotate-ccw')} Revérifier</wa-button>` : ''}
             <span class="pieces-compteur${complet ? ' complet' : ''}">${nbRecues}/${total}</span>
           </div>
           <div class="pieces-barre${complet ? ' complet' : ''}" role="progressbar" aria-valuemin="0" aria-valuemax="${total}" aria-valuenow="${nbRecues}" aria-label="Pièces reçues"><span style="width:${pct}%"></span></div>
