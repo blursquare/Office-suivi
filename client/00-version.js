@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.181.1';
+  const VERSION_APP = '0.181.2';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.181.2', date: '2026-10-07 10:19', resume: "Carte « Aujourd’hui » : l’ajout d’un rappel prend moins de place — plus de « Aucun rappel pour le moment » sous les tâches, bouton « + Ajouter un rappel » court et aligné sur les tâches, marges resserrées." },
     { version: '0.181.1', date: '2026-10-07 09:41', resume: "Authentic : la substitution d’une SCI (ou d’une autre société) à l’acquéreur personne physique est reconnue — la société citée par le nom du dossier d’Authentic (« VTE MARTEL / SCI DU MOULIN ») devient la partie de son côté, et le remplacement « Paul DUBOIS → SCI DU MOULIN » est proposé, même quand la SCI porte le nom de la personne (« SCI DUBOIS »). « Société civile immobilière … » du compromis = « SCI … » d’Authentic." },
     { version: '0.181.0', date: '2026-10-07 09:38', resume: "Authentic : quand l’acquéreur (ou le vendeur) change dans le dossier Authentic, CLAIRE le propose sur la fiche — « Acquéreurs : Camille FOURNIER → Paul DUBOIS », Mettre à jour / Ignorer. « Mettre à jour » retire l’ancien acquéreur et ses coordonnées, pose le nouveau (civilité, emails, téléphones d’Authentic) et renomme le dossier ; « Ignorer » garde la fiche telle quelle. Jamais sur une page partielle : une personne encore citée par le nom du dossier d’Authentic n’est pas retirée." },
     { version: '0.180.0', date: '2026-10-07 09:29', resume: "Fiche : la civilité de chaque partie (Monsieur / Madame) et la situation du couple (marié, pacsé, concubins) se remplissent seules d’après les fiches client d’Authentic — à la lecture d’une fiche client comme au complément depuis Authentic. Couple marié ou pacsé seulement si Authentic nomme l’autre personne comme conjoint. Authentic d’abord : la première valeur remplace celle de la fiche, un changement ensuite est proposé." },

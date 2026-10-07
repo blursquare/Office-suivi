@@ -2256,6 +2256,8 @@
         </div>`;
     }).join('');
     const formulaire = ajoutRappelOuvert ? formulaireRappel(null) : `<wa-button appearance="outlined" type="button" class="bouton-ajout rappel-perso-ajout" onclick="ouvrirAjoutRappel(true)"><span slot="start" class="bouton-ajout-plus" aria-hidden="true">+</span>Ajouter un rappel</wa-button>`;
-    const vide = !rappelsPersoCharges ? '' : dejaAffiches.size ? '' : '<div class="rappels-perso-vide">Aucun rappel pour le moment.</div>';
+    // Carte « Aujourd'hui » : pas de « Aucun rappel » sous la liste des tâches (étude 07/10 : « trop d'espace pour ajouter un
+    // rappel ») — le bouton d'ajout suffit.
+    const vide = !rappelsPersoCharges || sansDuJour ? '' : '<div class="rappels-perso-vide">Aucun rappel pour le moment.</div>';
     return `${lignes || vide}${formulaire}`;
   }

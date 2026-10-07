@@ -7032,7 +7032,11 @@ button.confrere-carnet-office:focus-visible, button.carnet-dossier:focus-visible
 .w-petit .w-corps { padding: 0 14px 12px; gap: 8px; }
 .w-section { display: flex; flex-direction: column; gap: 4px; padding-top: 8px; border-top: 1px solid var(--line-soft); }
 .w-section > .jour-carte-sous-titre { margin: 0; }
-.w-carte .dash-rappels-bloc { margin-top: 0; }
+.w-carte .dash-rappels-bloc { margin-top: 0; padding-top: 8px; }
+/* Carte « Aujourd'hui » : l'ajout d'un rappel tient sur une ligne courte, aligné sur les tâches (étude 07/10 : « trop d'espace »). */
+.w-carte .dash-rappels-bloc .rappels-perso { padding: 0; }
+.w-carte .dash-rappels-bloc wa-button.bouton-ajout.rappel-perso-ajout { display: inline-block; width: auto; margin: 0; font-size: var(--texte-s); }
+.w-carte .dash-rappels-bloc wa-button.bouton-ajout.rappel-perso-ajout::part(base) { min-height: 0; height: 28px; padding: 0 12px; }
 .w-section-seule { border-top: 0; padding-top: 0; }
 .w-note { font-size: var(--texte-s); color: var(--muted); margin-left: auto; }
 /* Liste coupée (ajusterWidgets) : les lignes se répartissent la hauteur, « Voir N de plus » en bas. */

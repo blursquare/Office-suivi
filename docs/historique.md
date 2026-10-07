@@ -17654,3 +17654,9 @@ sont retirées**.
 - `memePartieComplement` : « Société civile immobilière X » / « Société à responsabilité limitée X » = « SCI X » / « SARL X ».
 - Tests (2) : substitution par une SCI au nom de la personne (proposé, puis posé en société, coordonnées retirées, dossier
   renommé) ; sociétés des deux côtés de l'intitulé, forme longue reconnue.
+
+**Étude (07/10) : « Trop d'espace dans tâches pour ajouter un rappel, à revoir »** (0.181.2) — carte « Aujourd'hui » du tableau de
+bord : `renderMesRappels(…, sansDuJour)` ne dit plus « Aucun rappel pour le moment » (la liste des tâches est juste au-dessus, le
+bouton suffit) ; style.css : `.w-carte .dash-rappels-bloc .rappels-perso` sans marge intérieure (aligné sur les tâches, avant 20 px
+de retrait), bouton `rappel-perso-ajout` court (largeur du texte, 28 px de haut, `--texte-s`) au lieu de la bande pointillée pleine
+largeur, séparateur à 8 px. Page et fenêtre du matin inchangées. Vérifié dans Chromium (bureau, téléphone).
