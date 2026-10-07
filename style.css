@@ -7859,14 +7859,18 @@ body.ag-redim-en-cours, body.ag-redim-en-cours * { cursor: ns-resize !important;
 /* Pastilles « AF » « P » (étude 06/10) : vert plein = fait, rouge au contour en tirets = pas encore. En haut à droite de la carte
    (étude 07/10), sur le fond de la carte (qui masque la fin du titre dessous) ; sans pointeur : la poignée du bord haut et le clic
    restent ceux de la carte. */
-.ag-etats-mini { position: absolute; top: 2px; right: 2px; z-index: 1; display: inline-flex; gap: 2px; padding: 1px 0 1px 4px; background: inherit; border-radius: var(--rayon-xs); pointer-events: none; }
+.ag-etats-mini { position: absolute; top: 2px; right: 4px; z-index: 1; display: inline-flex; align-items: center; gap: 2px; padding: 1px 0 1px 4px; background: inherit; border-radius: var(--rayon-xs); pointer-events: none; }
+/* Le pourcentage de maintien dans le même coin, après les pastilles (étude 07/10 : en bas d'une carte d'une heure il débordait). */
+.ag-evt .ag-etats-mini .ag-proba { align-self: center; margin: 0 0 0 4px; }
 .ag-evt-court .ag-etats-mini { top: 50%; transform: translateY(-50%); }
 /* La place des pastilles : le titre d'une ligne (vue Jour, carte courte) s'arrête avant elles ; en vue Semaine, où le titre passe
    sur plusieurs lignes dans une colonne étroite, elles sont posées en tête du titre, flottant à droite : seule sa première ligne
    leur laisse la place. */
-.ag-evt-titre > .ag-etats-mini { position: static; float: right; margin: 0 -4px 0 4px; padding: 0; background: none; }
+.ag-evt-titre > .ag-etats-mini { position: static; float: right; margin: 0 0 0 4px; padding: 0; background: none; }
 .ag-evt-avec-mini:not(.ag-evt-compact) > .ag-evt-titre { padding-right: 40px; }
+.ag-evt-avec-mini.ag-evt-avec-proba:not(.ag-evt-compact) > .ag-evt-titre { padding-right: 88px; }
 .ag-evt-court.ag-evt-avec-mini { padding-right: 48px; }
+.ag-evt-court.ag-evt-avec-mini.ag-evt-avec-proba { padding-right: 88px; }
 .ag-mini { display: inline-flex; align-items: center; padding: 0 4px; border-radius: var(--rayon-pilule); font-size: var(--texte-xxs); font-weight: 700; line-height: 14px; letter-spacing: 0; }
 .ag-mini.fait { color: var(--success); background: color-mix(in srgb, var(--success) 14%, transparent); }
 .ag-mini.afaire { color: var(--urgent); background: color-mix(in srgb, var(--urgent) 8%, transparent); border: 1px dashed color-mix(in srgb, var(--urgent) 60%, transparent); padding: 0 2px; }
@@ -7887,6 +7891,10 @@ body.ag-redim-en-cours, body.ag-redim-en-cours * { cursor: ns-resize !important;
 /* Jamais étiré ni écrasé par la colonne : sinon une ligne coupée apparaît sous les lignes gardées. */
 .ag-evt-compact .ag-evt-titre, .ag-evt-compact.ag-evt-court .ag-evt-titre { flex: none; }
 .ag-evt-meta { display: flex; align-items: center; gap: 0 4px; font-size: var(--texte-xs); color: var(--ink-soft); white-space: nowrap; overflow: hidden; flex: none; font-variant-numeric: tabular-nums; }
+/* Vue Semaine (étude 07/10 : « le 99 % est coupé ») : le pourcentage de maintien au bout de la ligne de l'heure, jamais coupé — c'est le
+   texte « 10:00 · JV · confrère » qui raccourcit. */
+.ag-evt-meta-texte { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.ag-evt .ag-evt-meta .ag-proba { margin: 0 0 0 auto; align-self: center; flex: none; }
 .ag-evt-debut { font-weight: 700; color: var(--ink); }
 .ag-evt-compact .ag-evt-titre .ag-evt-debut { font-weight: 700; margin-right: 2px; }
 .ag-hors-agenda { background: var(--paper-card); border: 1.5px dashed var(--ag-teinte, var(--line)); border-left-width: 4px; }

@@ -17902,3 +17902,9 @@ l'étude — `internes` (compte relié, collaborateurs) et toute adresse de leur
 (`domainesEtude`, `DOMAINES_PUBLICS`) — ne sont jamais des adresses de dossier, même saisies sur une fiche. Ménage : à chaque tour,
 `emailLieAuxAdressesDuDossier` retire les emails déjà rattachés hors de ces adresses (sauf ceux préparés depuis la fiche, `prepareId`) ;
 `resultat.retires`. Point terrain `emails-rattachement-fil` retiré (règle abandonnée).
+
+**Agenda : P et pourcentage coupés** (0.189.3 ; étude 07/10 : « sur l'agenda P et le 99 % sont coupés »). Mesuré dans Chromium (1280, 1400,
+1920 px) : sur une carte d'une heure (60 px), la pastille de probabilité, posée en bas, débordait de 4 px ; « P » touchait le bord
+(3 px). Vue Semaine : le pourcentage passe au bout de la ligne « 10:00 · JV » (`.ag-evt-meta-texte` raccourci en « … », pourcentage
+jamais coupé) ; vue Jour et cartes courtes : dans le coin, après « AF » « P » (`renderEtatsMiniRendezVous(infos, proba)`, titre réservant
+88 px) ; coin à 4 px du bord, plus de marge négative. Mesure après correction : rien hors de la carte.

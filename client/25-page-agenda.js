@@ -667,8 +667,10 @@
   // ne porte pas seule l'information). En haut à droite de toute carte de signature, quelle que soit sa hauteur (étude 07/10 :
   // « mettez AF P en haut à droite du rendez-vous ») — les lignes « Appel de fonds / Projet » restent dans le détail.
   var ABREGES_ETATS_RENDEZ_VOUS = { appelFonds: 'AF', decompte: 'D', projet: 'P' };
-  function renderEtatsMiniRendezVous(infos) {
-    return `<span class="ag-etats-mini" aria-hidden="true">${infos.etats.map(x => `<span class="ag-mini ${x.fait ? 'fait' : 'afaire'}" title="${escapeAttr(`${x.libelle} ${x.fait ? 'fait' : 'pas encore fait'}`)}">${escapeHtml(ABREGES_ETATS_RENDEZ_VOUS[x.cle] || x.libelle)}</span>`).join('')}</span>`;
+  // `proba` (facultatif) : le pourcentage de maintien suit les pastilles dans le même coin (étude 07/10 : « P et le 99 % sont
+  // coupés » — en bas d'une carte d'une heure, il débordait).
+  function renderEtatsMiniRendezVous(infos, proba) {
+    return `<span class="ag-etats-mini" aria-hidden="true">${infos.etats.map(x => `<span class="ag-mini ${x.fait ? 'fait' : 'afaire'}" title="${escapeAttr(`${x.libelle} ${x.fait ? 'fait' : 'pas encore fait'}`)}">${escapeHtml(ABREGES_ETATS_RENDEZ_VOUS[x.cle] || x.libelle)}</span>`).join('')}${proba ? renderPastilleProbabilite(proba) : ''}</span>`;
   }
 
   function renderEtatsRendezVous(infos) {
@@ -715,9 +717,8 @@
         data-cle="${escapeAttr(cle)}"${attributGlisseAgenda(e)} onclick="ouvrirDetailAgenda('${escapeOnclickArg(cle)}')" title="${escapeAttr(bulle)}">
         ${e.option && !court ? `<span class="ag-fantome-tete ag-option-tete">Option ${escapeHtml(libelleOptionSondage(e.sujet).rang)}</span>` : ''}
         <span class="ag-evt-titre" style="--lignes:${e.option && !court ? Math.max(1, lignes - 1) : lignes}">${mini && !court ? renderEtatsMiniRendezVous(infos) : ''}${court ? heure + ' ' : ''}${escapeHtml(e.option ? libelleOptionSondage(e.sujet).titre : (e.sujet || '(sans titre)'))}</span>
-        ${court ? '' : `<span class="ag-evt-meta">${heure}${meta.length ? ` · ${escapeHtml(meta.join(' · '))}` : (e.lieu && !d ? ` · ${escapeHtml(e.lieu)}` : '')}</span>`}
+        ${court ? '' : `<span class="ag-evt-meta"><span class="ag-evt-meta-texte">${heure}${meta.length ? ` · ${escapeHtml(meta.join(' · '))}` : (e.lieu && !d ? ` · ${escapeHtml(e.lieu)}` : '')}</span>${proba ? renderPastilleProbabilite(proba) : ''}</span>`}
         ${mini && court ? renderEtatsMiniRendezVous(infos) : ''}
-        ${proba && !court ? renderPastilleProbabilite(proba) : ''}
         ${poigneesAgenda(e)}
       </button>`;
   }
@@ -749,8 +750,8 @@
         <span class="ag-evt-titre">${e.option ? `<span class="ag-fantome-tete ag-option-tete">Option ${escapeHtml(libelleOptionSondage(e.sujet).rang)}</span> ` : ''}${escapeHtml(e.option ? libelleOptionSondage(e.sujet).titre : (e.sujet || '(sans titre)'))}</span>
         <span class="ag-evt-heure"><span>${escapeHtml(e.heure)}</span>${e.heureFin ? `<span class="ag-evt-fin">– ${escapeHtml(e.heureFin)}</span>` : ''}${duree ? `<span class="ag-evt-duree">${escapeHtml(duree)}</span>` : ''}</span>
         ${qui ? `<span class="ag-evt-qui">${escapeHtml(qui)}</span>` : (e.lieu ? `<span class="ag-evt-qui">${escapeHtml(e.lieu)}</span>` : '')}
-        ${mini ? renderEtatsMiniRendezVous(infos) : ''}
-        ${proba ? renderPastilleProbabilite(proba) : ''}
+        ${mini ? renderEtatsMiniRendezVous(infos, proba) : ''}
+        ${proba && !mini ? renderPastilleProbabilite(proba) : ''}
         ${poigneesAgenda(e)}
       </button>`;
   }
