@@ -38,7 +38,7 @@
     { cle: 'email', libelle: 'Préparer un email', description: 'ouvrir la fenêtre d’email d’un dossier avec un modèle (prêt, RIB, provision, vente préalable, fonds, projet d’acte, confirmation du rendez-vous, relance des fonds, questionnaire, copie de l’acte) ou un texte libre — rien ne part sans « Envoyer »',
       dossier: true, parametres: ['modele', 'texte'], ecrit: 'email', exemples: ['Relance MARTIN pour son offre de prêt', 'Demande le RIB à DUPONT', 'Écris un mail à MARTIN pour lui demander son RIB', 'Envoie la provision à DUPONT', 'Relance LEROY pour les fonds'], motifs: [/\b(e-?mail|mail|courriel|message)\b/, /\brelanc/, /\becri[st] a\b/, /\benvoi/, /\bdemande[rz]? (le|la|les|un|une|son|sa)\b/, /\brib\b/, /\bconfirm/, /\bquestionnaire\b/, /\bprojet d.acte\b/, /\bprovision\b/, /\bcopie de l.acte\b/, /\battestation/], poids: 1 },
     { cle: 'echeance_cocher', libelle: 'Cocher une échéance', description: 'noter une étape faite : appel de fonds envoyé, projet envoyé, offre de prêt reçue, vente préalable réalisée, signature faite',
-      dossier: true, parametres: ['echeance'], ecrit: 'fiche', exemples: ['Marque le projet envoyé pour DUPONT', 'Le projet est parti pour LEROY', 'On a reçu l’offre de prêt de MARTIN'], motifs: [/\bmarque[rz]?\b/, /\bcoche[rz]?\b/, /\bnote[rz]? (envoye|recu|fait|realise)/, /\b(c.est|est) (envoye|parti|fait|recu|signe)\b/, /\ba ete (envoye|recu|signe)\b/, /\bon a recu\b/, /\bj.ai (envoye|recu)\b/, /\bvalide[rz]?\b/], poids: 1 },
+      dossier: true, parametres: ['echeance'], ecrit: 'fiche', exemples: ['Marque le projet envoyé pour DUPONT', 'Le projet est parti pour LEROY', 'On a reçu l’offre de prêt de MARTIN', 'Appel de fonds envoyé pour DUPONT', 'Note dans l’agenda l’appel de fonds envoyé pour MARTIN'], motifs: [/\bmarque[rz]?\b/, /\bcoche[rz]?\b/, /\bnote[rz]? (envoye|recu|fait|realise)/, /\b(c.est|est) (envoye|parti|fait|recu|signe)\b/, /\ba ete (envoye|recu|signe)\b/, /\bon a recu\b/, /\bj.ai (envoye|recu)\b/, /\bvalide[rz]?\b/], poids: 1 },
     { cle: 'echeance_decocher', libelle: 'Décocher une échéance', description: 'annuler la coche d’une étape (envoi effacé, offre à nouveau attendue)',
       dossier: true, parametres: ['echeance'], ecrit: 'fiche', exemples: ['Décoche l’appel de fonds de MARTIN', 'Décoche le projet envoyé de DUPONT'], motifs: [/\bdecoche/, /\bannule[rz]? la coche\b/, /\bpas (encore )?(envoye|recu|fait)\b/, /\bfinalement pas\b/, /\bn.est pas (envoye|recu|fait)\b/], poids: 3 },
     { cle: 'date_fiche', libelle: 'Noter une date sur la fiche', description: 'écrire une date sur la fiche : obtention du prêt, vente préalable, date butoir, appel de fonds, projet envoyé',
@@ -132,7 +132,8 @@
     'pret offre fonds email mail rib date rendez vous signature projet acte appel butoir vendeur acquereur notaire client clients ' +
     'ouvre ouvrir montre affiche place placer fixe marque coche note mets relance relancer envoie envoyer demande cherche trouve ' +
     'aujourd hui demain lundi mardi mercredi jeudi vendredi samedi dimanche heure heures janvier fevrier mars avril mai juin juillet ' +
-    'aout septembre octobre novembre decembre jour jours semaine mois annee euros euro').split(' '));
+    'aout septembre octobre novembre decembre jour jours semaine mois annee euros euro ' +
+    'monsieur madame mademoiselle messieurs mesdames mme mlle').split(' '));
 
   var MOIS_ASSISTANT = ['janvier', 'fevrier', 'mars', 'avril', 'mai', 'juin', 'juillet', 'aout', 'septembre', 'octobre', 'novembre', 'decembre'];
   var MOIS_COURTS_ASSISTANT = ['janv', 'fev', 'mars', 'avr', 'mai', 'juin', 'juil', 'aout', 'sept', 'oct', 'nov', 'dec'];
@@ -258,12 +259,33 @@
 
   /**
    * Pure : le dossier désigné par une phrase — par les mots de son nom (« MARTIN / DUPONT ») ou d'une de ses parties.
-   * `dossiers` = [{ id, nom, parties?: [{ nom }], archive? }] ; les dossiers en cours passent avant les archivés.
+   * `dossiers` = [{ id, nom, parties?: [{ nom, civilite? }], archive? }] ; une civilité écrite (« Monsieur MARTIN ») départage ; les dossiers en cours passent avant les archivés.
    * Rend { dossier: id|'', candidats: [{ id, nom }] } — plusieurs candidats à égalité = à demander, jamais deviné.
    * @param {string} texte
-   * @param {Array<{id:string, nom:string, parties?:Array<{nom?:string}>, archive?:boolean}>} dossiers
+   * @param {Array<{id:string, nom:string, parties?:Array<{nom?:string, civilite?:string}>, archive?:boolean}>} dossiers
    */
+  // Civilité écrite devant un nom (étude 07/10 : « prendre aussi la civilité du client, ex. Monsieur MARTIN ») : 'M' ou 'Mme' + le
+  // mot du nom qui suit. Sert à départager deux dossiers où le même nom désigne un homme et une femme.
+  /** @param {string} texte @returns {Array<{ civilite: string, mot: string }>} */
+  function civilitesDansPhrase(texte) {
+    const t = normaliserDemande(texte);
+    const liste = [];
+    const re = /(?:^|[^a-z])(monsieur|mr\.?|m\.|madame|mme\.?|mademoiselle|mlle\.?)\s*([a-z][a-z-]{2,})/g;
+    let m;
+    while ((m = re.exec(t))) liste.push({ civilite: /^m(onsieur|r|\.)/.test(m[1]) && !/^m(me|lle|ademoiselle)/.test(m[1]) ? 'M' : 'Mme', mot: m[2] });
+    return liste;
+  }
+
+  /** La civilité d'une partie ramenée à 'M', 'Mme' ou '' (inconnue). @param {any} p */
+  function civilitePartieAssistant(p) {
+    const c = normaliserDemande((p && p.civilite) || '');
+    if (/^(m|mr|monsieur)\.?$/.test(c)) return 'M';
+    if (/^(mme|mlle|madame|mademoiselle)\.?$/.test(c)) return 'Mme';
+    return '';
+  }
+
   function reconnaitreDossier(texte, dossiers) {
+    const civilites = civilitesDansPhrase(texte);
     const mots = motsUtilesAssistant(texte);
     if (!mots.length) return { dossier: '', candidats: [] };
     const scores = [];
@@ -279,7 +301,13 @@
         else if (nomsParties.some(n => n === m)) { score += 2; vus.add(m); }
         else if (m.length >= 5 && (nomsDossier.some(n => n.startsWith(m) || m.startsWith(n) && n.length >= 5))) { score += 1; vus.add(m); }
       });
-      if (score) scores.push({ id: d.id, nom: d.nom || '', score: score + (d.archive ? -0.5 : 0) });
+      // « Monsieur MARTIN » : la partie de ce nom et de cette civilité gagne un point ; de l'autre civilité, elle en perd un.
+      if (score) civilites.forEach(c => (Array.isArray(d.parties) ? d.parties : []).forEach(p => {
+        const civ = civilitePartieAssistant(p);
+        if (!civ || !motsUtilesAssistant((p && p.nom) || '').includes(c.mot)) return;
+        score += civ === c.civilite ? 1 : -1;
+      }));
+      if (score > 0) scores.push({ id: d.id, nom: d.nom || '', score: score + (d.archive ? -0.5 : 0) });
     });
     if (!scores.length) return { dossier: '', candidats: [] };
     scores.sort((a, b) => b.score - a.score || a.nom.localeCompare(b.nom));
@@ -393,6 +421,13 @@
     if (touches.some(x => x.cle === 'fonds_dossier') && /\bfonds\b/.test(t) && !/\b(appel de fonds|relanc|envoi|mail|confirm)/.test(t)) cle = 'fonds_dossier';
     if (touches.some(x => x.cle === 'appel_fonds') && /\bappel de fonds\b/.test(t) && !/\b(marque|coche|envoye|decoche|date|relanc|mail|email)\b/.test(t)) cle = 'appel_fonds';
     if (touches.some(x => x.cle === 'ouvrir_ecran') && parametres.ecran && !parametres.dossierTexte) cle = 'ouvrir_ecran';
+    // « Appel de fonds envoyé pour MARTIN », « Note dans l'agenda le projet envoyé » (étude 07/10) : un envoi FAIT, à cocher — la
+    // coche note aussi « Appel de fonds envoyé » dans le lieu du rendez-vous Outlook. Jamais quand la phrase demande de le faire.
+    if (parametres.echeance && /^(appelFonds|projetEnvoye)$/.test(parametres.echeance) && /\b(envoyee?s?|partie?s?)\b/.test(t)
+      && !/\b(fais|faire|prepare[rz]?|redige[rz]?|calcule[rz]?|decoche[rz]?|pas (encore )?envoye|relanc|mail|email)\b/.test(t)) {
+      if (!touches.some(x => x.cle === 'echeance_cocher')) touches.push({ cle: 'echeance_cocher', score: 0 });
+      cle = 'echeance_cocher';
+    }
     const second = touches[1];
     let surete = !second || touches[0].score >= second.score + 2 || cle !== touches[0].cle ? 'haute' : 'basse';
     // Plusieurs intentions se disputent la phrase : l'exemple le plus proche tranche s'il est parmi elles.
@@ -446,7 +481,7 @@
   const exportes = {
     INTENTIONS_ASSISTANT, MODELES_EMAIL_ASSISTANT, ECHEANCES_ASSISTANT, CHAMPS_DATE_ASSISTANT, ECRANS_ASSISTANT, MOIS_ASSISTANT, JOURS_ASSISTANT,
     normaliserDemande, dateDepuisTexte, heureDepuisTexte, montantsDepuisTexte, partsDepuisTexte, reconnaitreDossier, motsUtilesAssistant,
-    interpreterParMotsCles, exemplesProches, intentionParExemples, parametresDepuisTexte, texteRappelDepuisPhrase, validerReponseAssistant, intentionAssistant
+    interpreterParMotsCles, civilitesDansPhrase, exemplesProches, intentionParExemples, parametresDepuisTexte, texteRappelDepuisPhrase, validerReponseAssistant, intentionAssistant
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = exportes; else Object.assign(globalThis, exportes);
 })(

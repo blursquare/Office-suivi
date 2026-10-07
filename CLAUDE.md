@@ -725,7 +725,7 @@ dans `index.html`** (le test `structure-client` refuse tout décalage).
   jamais appelé), Ollama seulement quand plusieurs intentions se disputent la phrase (prompt sans la liste des dossiers ni aucune
   donnée de fiche : la phrase, la date du jour, le libellé du dossier en consultation, les 3 derniers échanges), repli mots-clés
   sans Ollama ; date, heure, montants, parts (`dateDepuisTexte`, `heureDepuisTexte`, `montantsDepuisTexte`, `partsDepuisTexte`) et
-  **dossier désigné** (`reconnaitreDossier` : mots du nom ou d'une partie, ≥ 3 lettres hors mots d'usage ; égalité → « Lequel ? »
+  **dossier désigné** (`reconnaitreDossier` : mots du nom ou d'une partie, ≥ 3 lettres hors mots d'usage ; civilité écrite « Monsieur MARTIN » qui départage, `civilitesDansPhrase` ; égalité → « Lequel ? »
   avec les candidats, jamais deviné ; rien → dossier en consultation, sinon la phrase suivante est prise pour un nom) relus par le
   code, qui gagne sur l'IA. **Exécution = les fonctions existantes** (`etatDossier`, `piecesAttenduesDossier`, `echeancesPlanning`,
   `actionsDuJour`, `rappelsDuJour`, `envoyerRelanceCiblee`/`livrerEmailDossier`, `cocherEcheance`/`devaliderEcheance`,

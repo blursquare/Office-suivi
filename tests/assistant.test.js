@@ -147,7 +147,7 @@ test('page : suggestions avec les noms des dossiers du poste, titre d’un rende
   assert.equal(app.titreRendezVousDepuisPhrase('Rendez-vous avec le syndic jeudi à 14 h'), 'Rendez-vous avec le syndic');
   assert.equal(app.titreRendezVousDepuisPhrase("Ajoute un rdv lecture d'acte demain à 9h30 dans l'agenda"), "Rendez-vous lecture d'acte");
   const liste = app.dossiersPourAssistant([{ id: 'a', nom: 'X / Y', parties: [{ nom: 'X', prenom: 'P', telephones: ['06'] }], emailAcquereur: 'secret@x.fr' }]);
-  assert.equal(JSON.stringify(liste), '[{"id":"a","nom":"X / Y","archive":false,"parties":[{"nom":"X"}]}]');
+  assert.equal(JSON.stringify(liste), '[{"id":"a","nom":"X / Y","archive":false,"parties":[{"nom":"X","civilite":""}]}]');
 });
 
 test('proximité avec la base d\'exemples : des variantes sans le mot-clé exact sont comprises, les phrases hors base restent inconnues', () => {
@@ -160,4 +160,26 @@ test('proximité avec la base d\'exemples : des variantes sans le mot-clé exact
   const proches = A.exemplesProches('Où en sommes-nous avec Garnier ?', 3);
   assert.equal(proches[0].cle, 'etat_dossier');
   assert.ok(proches.every((x, i) => i === 0 || proches[i - 1].score >= x.score), 'du plus proche au moins proche');
+});
+
+test('civilité dans la phrase : « Monsieur MARTIN » / « Madame MARTIN » départagent deux dossiers du même nom', () => {
+  const D = [{ id: 'a', nom: 'MARTIN / DUPONT', parties: [{ nom: 'MARTIN', civilite: 'M' }, { nom: 'DUPONT', civilite: 'Mme' }] },
+    { id: 'b', nom: 'MARTIN / ROUX', parties: [{ nom: 'MARTIN', civilite: 'Mme' }, { nom: 'ROUX' }] }];
+  assert.equal(A.reconnaitreDossier('Où en est Monsieur MARTIN ?', D).dossier, 'a');
+  assert.equal(A.reconnaitreDossier('Relance M. Martin pour son prêt', D).dossier, 'a');
+  assert.equal(A.reconnaitreDossier('Où en est Madame MARTIN ?', D).dossier, 'b');
+  assert.equal(A.reconnaitreDossier('Où en est Mme Martin', D).dossier, 'b');
+  assert.equal(A.reconnaitreDossier('Où en est MARTIN ?', D).candidats.length, 2, 'sans civilité : toujours « Lequel ? »');
+  assert.equal(A.civilitesDansPhrase('Monsieur MARTIN et Mme Dupont').map(c => c.civilite + ':' + c.mot).join(), 'M:martin,Mme:dupont');
+});
+
+test('« Appel de fonds envoyé pour MARTIN », « Note dans l\'agenda l\'appel de fonds envoyé » : cocher l\'envoi (mention dans le lieu Outlook)', () => {
+  const lire = (t) => A.interpreterParMotsCles(t, { aujourdhui: AUJ });
+  for (const t of ['Appel de fonds envoyé pour MARTIN', 'Note dans l\'agenda l\'appel de fonds envoyé pour MARTIN', 'Mets dans l\'agenda appel de fonds envoyé MARTIN']) {
+    const r = lire(t);
+    assert.equal(r.intention, 'echeance_cocher', t);
+    assert.equal(r.parametres.echeance, 'appelFonds', t);
+  }
+  assert.equal(lire('Fais l\'appel de fonds de MARTIN').intention, 'appel_fonds');
+  assert.equal(lire('Prépare l\'appel de fonds pour DUPONT').intention, 'appel_fonds');
 });

@@ -31,7 +31,7 @@ function creerRouteurAssistant(config, injections, parametresRepo) {
     const contexte = corps.contexte && typeof corps.contexte === 'object' ? corps.contexte : {};
     const dossiers = Array.isArray(corps.dossiers) ? corps.dossiers.filter((d) => d && typeof d.id === 'string').map((d) => ({
       id: d.id, nom: typeof d.nom === 'string' ? d.nom : '', archive: !!d.archive,
-      parties: Array.isArray(d.parties) ? d.parties.filter((p) => p && typeof p.nom === 'string').map((p) => ({ nom: p.nom })) : []
+      parties: Array.isArray(d.parties) ? d.parties.filter((p) => p && typeof p.nom === 'string').map((p) => ({ nom: p.nom, civilite: typeof p.civilite === 'string' ? p.civilite.slice(0, 12) : '' })) : []
     })) : [];
     const resultat = await comprendreDemande({
       texte,

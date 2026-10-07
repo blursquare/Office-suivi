@@ -106,7 +106,7 @@
   function dossiersPourAssistant(liste) {
     return (liste || []).filter(d => d && d.id).map(d => ({
       id: d.id, nom: String(d.nom || ''), archive: !!d.archive,
-      parties: (Array.isArray(d.parties) ? d.parties : []).map(p => ({ nom: String((p && p.nom) || '') })).filter(p => p.nom)
+      parties: (Array.isArray(d.parties) ? d.parties : []).map(p => ({ nom: String((p && p.nom) || ''), civilite: String((p && p.civilite) || '') })).filter(p => p.nom)
     }));
   }
 
@@ -386,6 +386,19 @@
     return { html: r && r.ok ? '<p>Email envoyé.</p>' : (r && r.annule ? '<p>Email annulé.</p>' : `<p>${escapeHtml((r && r.message) || 'Fenêtre d’email fermée sans envoi.')}</p>`) };
   }
 
+  // Ce que devient le lieu du rendez-vous de signature dans Outlook après la coche d'un envoi (étude 07/10 : « noter l'envoi dans
+  // Outlook, dans le lieu, avec Appel de fonds envoyé ») — l'écriture elle-même est faite par cocherEcheance / devaliderEcheance.
+  function noteAgendaEnvoiAssistant(d, type, decocher) {
+    if (!TYPES_ENVOI_ECHEANCE.includes(type)) return '';
+    if (!d.rendezVousSignature) return decocher ? '' : '<p>Pas encore de rendez-vous de signature : la mention sera notée dans le lieu du rendez-vous Outlook dès qu’il sera placé.</p>';
+    if (!exchangeAgendaPret()) return '<p>Agenda Outlook non relié : mention à noter à la main dans le lieu du rendez-vous.</p>';
+    const af = echeanceValidee(d, 'appelFonds');
+    const pj = echeanceValidee(d, 'projetEnvoye');
+    const mention = af && pj ? 'Appel de fonds et projet envoyé' : af ? 'Appel de fonds envoyé' : pj ? 'Projet envoyé' : '';
+    const quand = `rendez-vous de signature du ${escapeHtml(formatDateFr(d.rendezVousSignature))}`;
+    return mention ? `<p>Outlook : « ${mention} » noté dans le lieu du ${quand}.</p>` : `<p>Outlook : mention d’envoi retirée du lieu du ${quand}.</p>`;
+  }
+
   function gesteCocherAssistant(d, p, decocher) {
     const type = p.echeance || '';
     const def = ECHEANCES_ASSISTANT.find(e => e.cle === type);
@@ -396,7 +409,7 @@
     if (!decocher && deja) return { html: `<p>${escapeHtml(def.libelle.charAt(0).toUpperCase() + def.libelle.slice(1))} : déjà coché sur ${escapeHtml(libelleDossierAffiche(d))}.</p>` };
     if (decocher && !deja) return { html: `<p>${escapeHtml(def.libelle.charAt(0).toUpperCase() + def.libelle.slice(1))} : pas coché sur ${escapeHtml(libelleDossierAffiche(d))}, rien à décocher.</p>` };
     if (decocher) devaliderEcheance(d.id, type); else cocherEcheance(d.id, type);
-    return { html: `<p>${decocher ? 'Décoché' : 'Coché'} : ${escapeHtml(def.libelle)} — ${escapeHtml(libelleDossierAffiche(d))}.</p>`,
+    return { html: `<p>${decocher ? 'Décoché' : 'Coché'} : ${escapeHtml(def.libelle)} — ${escapeHtml(libelleDossierAffiche(d))}.</p>${noteAgendaEnvoiAssistant(d, type, decocher)}`,
       boutons: [{ libelle: 'Annuler', action: () => { if (decocher) cocherEcheance(d.id, type); else devaliderEcheance(d.id, type); poserMessageAssistant('claire', '<p>Annulé.</p>'); } }, boutonFicheAssistant(d)] };
   }
 
