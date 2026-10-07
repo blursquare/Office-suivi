@@ -17940,3 +17940,12 @@ le bien est en zone A ou N (zone non lue) » et la zone est demandée (`manque: 
 (`analyserPreemptionParcelles`) : à statut égal, la formalité la plus sûre l'emporte — une parcelle en zone A suffit à garder
 l'information. La notification d'un bien préemptable ne change pas. Une analyse déjà enregistrée sur une fiche garde son ancien texte
 jusqu'à ce que l'outil soit relancé.
+
+**Claire Scan : taper le nom du dossier** (0.189.7 ; étude 07/10 : « dans le champ de recherche du dossier, mettre de quoi taper le nom »).
+La liste déroulante « Dossier » de chaque scan devient un champ de saisie avec liste de propositions (`champDossierScan`, `<datalist>`) :
+les dossiers reconnus dans le scan en tête avec leur score, puis tous les dossiers en cours (« non relié au NAS » signalé). Un dossier
+choisi dans la liste est pris aussitôt ; Entrée ou la sortie du champ prend le seul dossier dont le nom ou celui d'une partie contient
+tous les mots tapés (`dossierScanDepuisSaisie` ; deux dossiers du même libellé numérotés « (2) », `valeursDossiersScan`), sinon un message
+dit « N dossiers correspondent » ou « Aucun dossier ne correspond » ; champ vidé = plus de dossier choisi. Redessiner retire le champ qui a
+le focus et y déclenche « change » : garde `saisieDossierScanEnCours` (erreur innerHTML vue dans Chromium avant elle). Vérifié dans
+Chromium (taper « leroy » + Entrée, choix dans la liste, aucune erreur de page).

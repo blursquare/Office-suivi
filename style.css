@@ -7322,7 +7322,7 @@ button.scan-nom:focus-visible { outline: 2px solid var(--focus); outline-offset:
 .scan-champs > * { min-width: 0; }
 .scan-champ { display: flex; flex-direction: column; gap: 4px; font-size: var(--texte-s); color: var(--muted); }
 .scan-champ-large { grid-column: 1 / -1; }
-.scan-champ select, .scan-champ input[type="text"] { width: 100%; box-sizing: border-box; }
+.scan-champ select, .scan-champ input[type="text"], .scan-champ input[type="search"] { width: 100%; box-sizing: border-box; }
 .scan-actions { display: flex; align-items: center; justify-content: flex-end; gap: 10px; flex-wrap: wrap; }
 .scan-actions .hint { margin: 0 auto 0 0; }
 .scans-vide { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }

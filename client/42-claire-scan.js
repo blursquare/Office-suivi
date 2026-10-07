@@ -715,15 +715,76 @@
       </div>`;
   }
 
-  function optionsDossiersScan(choisi, proposition) {
+  // Champ « Dossier » d'un scan (étude 07/10 : « dans le champ de recherche du dossier, de quoi taper le nom ») : on tape le nom,
+  // la liste propose les dossiers — ceux reconnus dans le scan en tête, avec leur score. Pure : la valeur affichée de chaque dossier
+  // (son libellé, numéroté s'il y en a deux du même nom) → son id.
+  function valeursDossiersScan(candidats) {
+    const valeurs = new Map();
+    (candidats || []).forEach(d => {
+      const base = libelleDossierAffiche(d);
+      let v = base;
+      for (let i = 2; valeurs.has(v); i++) v = `${base} (${i})`;
+      valeurs.set(v, d.id);
+    });
+    return valeurs;
+  }
+
+  // Pure : le dossier désigné par ce qui est tapé — le libellé exact d'un dossier de la liste, sinon le seul dossier dont le nom
+  // (ou celui d'une partie) contient tous les mots tapés. → { id, exact } | { ambigu: n } | { aucun: true } | null (rien tapé).
+  function dossierScanDepuisSaisie(saisie, candidats) {
+    const n = (x) => normaliserPourRecherche(String(x || '')).replace(/[^a-z0-9]+/g, ' ').trim();
+    const q = n(saisie);
+    if (!q) return null;
+    for (const [v, id] of valeursDossiersScan(candidats)) if (n(v) === q) return { id, exact: true };
+    const mots = q.split(' ');
+    const trouves = (candidats || []).filter(d => {
+      const texte = ' ' + n([libelleDossierAffiche(d), d.nom, ...(Array.isArray(d.parties) ? d.parties.map(p => p && p.nom) : [])].join(' ')) + ' ';
+      return mots.every(m => texte.includes(' ' + m));
+    });
+    if (trouves.length === 1) return { id: trouves[0].id, exact: false };
+    return trouves.length ? { ambigu: trouves.length } : { aucun: true };
+  }
+
+  function champDossierScan(scan, index, choisi, proposition, bloque) {
     const candidats = dossiersCandidatsScans().slice().sort((a, b) => libelleDossierAffiche(a).localeCompare(libelleDossierAffiche(b), 'fr'));
+    const valeurs = valeursDossiersScan(candidats);
+    const valeurDe = new Map([...valeurs].map(([v, id]) => [id, v]));
     const scores = new Map(((proposition && proposition.candidats) || []).map(c => [c.id, c.score]));
-    const suggeres = candidats.filter(d => scores.has(d.id)).sort((a, b) => scores.get(b.id) - scores.get(a.id));
-    const autres = candidats.filter(d => !scores.has(d.id));
-    const opt = d => `<option value="${escapeAttr(d.id)}"${d.id === choisi ? ' selected' : ''}>${escapeHtml(libelleDossierAffiche(d))}${scores.has(d.id) ? ` — score ${noteScoreScan(scores.get(d.id))}` : ''}${d.nasDossier ? '' : ' (non relié au NAS)'}</option>`;
-    return `<option value=""${choisi ? '' : ' selected'}>Choisir le dossier…</option>`
-      + (suggeres.length ? `<optgroup label="Reconnus dans le scan">${suggeres.map(opt).join('')}</optgroup>` : '')
-      + `<optgroup label="Tous les dossiers">${autres.map(opt).join('')}</optgroup>`;
+    const ordre = candidats.filter(d => scores.has(d.id)).sort((a, b) => scores.get(b.id) - scores.get(a.id))
+      .concat(candidats.filter(d => !scores.has(d.id)));
+    const opt = d => {
+      const infos = [scores.has(d.id) ? `reconnu dans le scan — score ${noteScoreScan(scores.get(d.id))}` : '', d.nasDossier ? '' : 'non relié au NAS'].filter(Boolean).join(' · ');
+      return `<option value="${escapeAttr(valeurDe.get(d.id))}"${infos ? ` label="${escapeAttr(infos)}"` : ''}></option>`;
+    };
+    const liste = 'scan-dossiers-' + index;
+    const nomArg = escapeOnclickArg(scan.nom);
+    return `<input type="search" class="scan-dossier-saisie" list="${liste}" value="${escapeAttr(valeurDe.get(choisi) || '')}" placeholder="Taper le nom du dossier…" autocomplete="off" aria-label="Dossier du scan"
+        oninput="saisieDossierScan('${nomArg}', this, false)" onchange="saisieDossierScan('${nomArg}', this, true)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}"${bloque}>
+      <datalist id="${liste}">${ordre.map(opt).join('')}</datalist>`;
+  }
+
+  // Ce qui est tapé dans le champ « Dossier » : un dossier choisi dans la liste est pris aussitôt ; à la validation (Entrée, sortie du
+  // champ), le seul dossier qui correspond est pris, sinon un message dit pourquoi.
+  // Redessiner retire le champ qui a le focus : le navigateur y déclenche alors « change », qui ne doit rien refaire.
+  var saisieDossierScanEnCours = false;
+  function saisieDossierScan(nom, champ, valider) {
+    if (saisieDossierScanEnCours) return;
+    saisieDossierScanEnCours = true;
+    try { appliquerSaisieDossierScan(nom, champ, valider); } finally { saisieDossierScanEnCours = false; }
+  }
+
+  function appliquerSaisieDossierScan(nom, champ, valider) {
+    const scan = scanParNom(nom);
+    const l = scan && lecturesScans[cleScan(scan)];
+    if (!l || !l.choix || !champ) return;
+    const r = dossierScanDepuisSaisie(champ.value, dossiersCandidatsScans());
+    if (!valider) {
+      if (r && r.exact && r.id !== l.choix.dossierId) { changerChoixScan(nom, 'dossierId', r.id); renderScans(true); }
+      return;
+    }
+    if (!r) { if (l.choix.dossierId) { changerChoixScan(nom, 'dossierId', ''); renderScans(true); } return; }
+    if (r.id) { if (r.id !== l.choix.dossierId) changerChoixScan(nom, 'dossierId', r.id); renderScans(true); return; }
+    afficherToast(r.ambigu ? `${r.ambigu} dossiers correspondent à « ${champ.value.trim()} » : choisissez-le dans la liste.` : `Aucun dossier ne correspond à « ${champ.value.trim()} ».`, 'OK', null);
   }
 
   function optionsTypesScan(choisi) {
@@ -830,7 +891,7 @@
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && apercuScanOuvert) { e.stopPropagation(); fermerApercuScan(); } }, true);
   }
 
-  function renderLigneScan(scan) {
+  function renderLigneScan(scan, index) {
     const l = lecturesScans[cleScan(scan)] || null;
     const nomArg = escapeOnclickArg(scan.nom);
     const quand = new Date(scan.date).toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
@@ -859,7 +920,7 @@
     return `<li class="scan-ligne${occupe ? ' scan-occupe' : ''}"${occupe ? ' aria-busy="true"' : ''}>${vignette}<div class="scan-corps">${tete}
       <div class="scan-statut">${statut}</div>
       <div class="scan-champs">
-        <label class="scan-champ"><span>Dossier</span><select onchange="changerChoixScan('${nomArg}', 'dossierId', this.value)"${bloque}>${optionsDossiersScan(c.dossierId, p)}</select></label>
+        <label class="scan-champ"><span>Dossier</span>${champDossierScan(scan, index, c.dossierId, p, bloque)}</label>
         <label class="scan-champ"><span>Pièce</span><select onchange="changerChoixScan('${nomArg}', 'type', this.value)"${bloque}>${optionsTypesScan(c.type)}</select></label>
         <label class="scan-champ scan-champ-large"><span>Nom de la copie</span><input type="text" value="${escapeAttr(c.nomCible)}" oninput="changerChoixScan('${nomArg}', 'nomCible', this.value)" onchange="renderScans()"${bloque}></label>
       </div>

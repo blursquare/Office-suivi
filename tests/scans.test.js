@@ -282,3 +282,21 @@ test('Actualiser (étude 07/10) : relance les lectures en échec, garde celles r
   // Le contexte de test n'a pas de vraie minuterie : la borne est éprouvée par une lecture qui échoue d'elle-même.
   await assert.rejects(app.avecDureeMaxScan(Promise.reject(new Error('PDF illisible')), 50), /illisible/);
 });
+
+// Étude 07/10 : « dans le champ de recherche du dossier, mettre de quoi taper le nom ».
+test('Claire Scan : le dossier se choisit en tapant son nom (libellé exact, mots d’un nom ou d’une partie, ambiguïté)', () => {
+  const app = chargerApplication();
+  const candidats = [
+    { id: 'a', nom: 'MARTIN / DUPONT', parties: [{ role: 'VENDEUR', nom: 'Paul MARTIN' }, { role: 'ACQUEREUR', nom: 'Léa DUPONT' }] },
+    { id: 'b', nom: 'MARTIN / BERNARD', parties: [] },
+    { id: 'c', nom: 'MARTIN / DUPONT', parties: [] }
+  ];
+  const valeurs = [...app.valeursDossiersScan(candidats).keys()].join(' | ');
+  assert.equal(valeurs, 'VTE - MARTIN / DUPONT | VTE - MARTIN / BERNARD | VTE - MARTIN / DUPONT (2)');
+  assert.equal(app.dossierScanDepuisSaisie('VTE - MARTIN / DUPONT (2)', candidats).id, 'c');
+  assert.equal(app.dossierScanDepuisSaisie('bernard', candidats).id, 'b');
+  assert.equal(app.dossierScanDepuisSaisie('Léa', candidats).id, 'a', 'le prénom d’une partie suffit');
+  assert.equal(app.dossierScanDepuisSaisie('martin', candidats).ambigu, 3);
+  assert.ok(app.dossierScanDepuisSaisie('durand', candidats).aucun);
+  assert.equal(app.dossierScanDepuisSaisie('  ', candidats), null);
+});
