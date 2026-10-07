@@ -47,11 +47,17 @@
       const p = pa.personneRef && personnes.find(x => x.id === pa.personneRef);
       if (role && p) roles.set(p, role);
     });
+    // Sociétés (SCI, SARL…) nommées par l'intitulé : parties à part entière (étude 07/10 : substitution d'une SCI à l'acquéreur
+    // personne physique) — Authentic n'en relève pas de fiche client lisible ; une personne dont le nom n'apparaît que dans le
+    // nom de la société (le gérant de la « SCI DUBOIS ») n'est pas partie.
+    const morales = [];
     if (!roles.size) {
-      const m = /^\s*(?:vte|vente)\b\s*[-:]?\s*(.+?)\s*\/\s*(.+?)\s*$/i.exec(d.intitule || '');
+      const m = /^\s*(?:vte|vente)\b\s*[-:]?\s*(.+?)\s*\/\s*(.+?)\s*$/i.exec(sansReferenceAuthentic(d.intitule || ''));
       if (m) {
         const mots = (s) => ' ' + normaliserPourRecherche(s).replace(/[^a-z0-9]+/g, ' ') + ' ';
-        const cotes = [[mots(m[1]), 'VENDEUR'], [mots(m[2]), 'ACQUEREUR']];
+        [[m[1], 'VENDEUR'], [m[2], 'ACQUEREUR']].forEach(([cote, role]) => societesCoteAuthentic(cote).forEach(nom => morales.push({ nom, role })));
+        const sansSocietes = (cote) => societesCoteAuthentic(cote).reduce((t, n) => t.replace(n, ' '), cote);
+        const cotes = [[mots(sansSocietes(m[1])), 'VENDEUR'], [mots(sansSocietes(m[2])), 'ACQUEREUR']];
         personnes.forEach(p => {
           const noms = [p.nom, p.nomUsage].filter(Boolean).map(n => normaliserPourRecherche(n).replace(/[^a-z0-9]+/g, ' ').trim());
           const cote = cotes.filter(([texte]) => noms.some(n => n && texte.includes(' ' + n + ' ')));
@@ -66,6 +72,10 @@
       const cotes = new Set([...roles.entries()].filter(([q]) => conj.length >= 2 && conj.every(m => motsIdentitePersonne([q.prenom, q.nom, q.nomUsage].filter(Boolean).join(' ')).includes(m))).map(([, r]) => r));
       if (cotes.size === 1) roles.set(p, [...cotes][0]);
     });
+    const societes = morales.map(({ nom, role }) => ({
+      nom, role, qualiteActe: role === 'VENDEUR' ? 'vendeur' : 'acquéreur', qualitePersonne: 'morale', representant: null, origine: 'authentic',
+      source: { extrait: 'Export Authentic', index: null, page: null }, emails: [], telephones: []
+    }));
     return personnes.filter(p => roles.has(p)).map(p => {
       const role = roles.get(p);
       return Object.assign({
@@ -75,7 +85,13 @@
         source: { extrait: 'Export Authentic', index: null, page: null },
         emails: p.emails.slice(), telephones: (p.telephones || []).slice(), civilite: p.civilite, dateNaissance: p.dateNaissance, lieuNaissance: p.lieuNaissance
       }, p.nomUsage ? { nomUsage: p.nomUsage } : {}, p.situationMatrimoniale ? { situationMatrimoniale: p.situationMatrimoniale } : {});
-    });
+    }).concat(societes);
+  }
+
+  // Pure : les sociétés citées par un côté de l'intitulé d'Authentic (« SCI DU MOULIN et Paul DUBOIS » → ['SCI DU MOULIN']).
+  var RE_SOCIETE_AUTHENTIC = /^(?:SCI|SCCV|SARL|SARLU|SASU|SAS|EURL|SNC|SCEA|SCP|SCM|SA|SC|GFA|GAEC|EARL|SEM|SPL|SOCI[ÉE]T[ÉE]|STE|ASSOCIATION|COMMUNE|OPH)(?![A-Za-zÀ-ÿ])/i;
+  function societesCoteAuthentic(cote) {
+    return String(cote || '').split(/\s+(?:et|&)\s+|\s*[,;]\s*/i).map(x => x.replace(/\s+/g, ' ').trim()).filter(x => RE_SOCIETE_AUTHENTIC.test(x));
   }
 
   var ETUDE_AUTHENTIC = { nom: 'Sophie GOSSART', office: 'BLOIS', codePostal: '41000', departement: '41', crpcen: '41089' };
@@ -478,6 +494,9 @@
   // ou le nom de famille seul de la fiche (« FOURNIER ») contenu dans le nom venu d'Authentic (« Camille FOURNIER »).
   function memePartieComplement(p, v) {
     if (!p || !v) return false;
+    // « Société civile immobilière DU MOULIN » (compromis) = « SCI DU MOULIN » (Authentic).
+    const court = (x) => String(x || '').replace(/soci[ée]t[ée]\s+civile\s+immobili[èe]re/ig, 'SCI').replace(/soci[ée]t[ée]\s+[àa]\s+responsabilit[ée]\s+limit[ée]e/ig, 'SARL');
+    if (court(p.nom) !== String(p.nom || '') || court(v.nom) !== String(v.nom || '')) return memePartieComplement({ nom: court(p.nom), nomUsage: p.nomUsage }, { nom: court(v.nom) });
     if (memePersonneParNom(p.nom, v.nom) || (p.nomUsage && memePersonneParNom(p.nomUsage, v.nom))) return true;
     const mots = (x) => normaliserPourRecherche(String(x || '')).replace(/[^a-z0-9]+/g, ' ').trim().split(' ').filter(m => m.length >= 3);
     const fiche = mots(p.nom);

@@ -17641,3 +17641,16 @@ sont retirées**.
   pas (seule une personne NOUVELLE dans Authentic est ajoutée). Marche sur les dossiers rattachés à leur référence Authentic
   (« A 2026 00247 ») : sans référence, le dossier d'Authentic au nouveau nom n'est pas reconnu par les noms.
 - Tests `tests/authentic-fait-foi.test.js` (4) : proposé sans rien écrire, Mettre à jour, Ignorer, page partielle.
+
+**Étude (07/10) : « C'est le cas avec une substitution quand une personne physique achète en SCI »** (0.181.1)
+- Authentic ne donne pas de fiche client lisible pour une société (`clientDepuisFicheAuthentic` exige « Nom de famille ») : la SCI
+  n'était donc jamais une personne d'Authentic, et le changement d'acquéreur n'était pas vu (aucune personne venue du côté).
+- `partiesExportAuthentic` (client/17) : chaque société citée par un côté de l'intitulé (« Vente MARTEL / SCI DU MOULIN »,
+  segments séparés par « et », « & », virgule ; `societesCoteAuthentic`, `RE_SOCIETE_AUTHENTIC` : SCI, SCCV, SARL(U), SAS(U),
+  EURL, SNC, SCEA, SCP, SCM, SA, SC, GFA, GAEC, EARL, SEM, SPL, Société, Ste, Association, Commune, OPH en tête du segment) devient
+  une partie `qualitePersonne: 'morale'` de ce côté ; le nom d'une personne qui n'apparaît que DANS le nom de la société (le gérant de
+  la « SCI DUBOIS ») ne fait pas d'elle une partie, et ne la « cite » pas pour la garde de page partielle
+  (`personnesPartiesAuthentic`) — la substitution « Paul DUBOIS → SCI DUBOIS » est donc proposée.
+- `memePartieComplement` : « Société civile immobilière X » / « Société à responsabilité limitée X » = « SCI X » / « SARL X ».
+- Tests (2) : substitution par une SCI au nom de la personne (proposé, puis posé en société, coordonnées retirées, dossier
+  renommé) ; sociétés des deux côtés de l'intitulé, forme longue reconnue.

@@ -247,7 +247,9 @@
     if (!Array.isArray(retenus) || !retenus.length || !(venues || []).length) return [];
     const cote = coteIntituleAuthentic(intitule, role);
     if (!cote) return [];
-    return retenus.filter(n => !venues.some(v => memePersonneParNom(n, v.nom) || memePartieComplement({ nom: n }, v)) && !personneDansCoteIntitule(n, cote));
+    // Le nom d'une société (« SCI DUBOIS ») ne « cite » pas la personne DUBOIS : la substitution reste vue.
+    const coteSansSocietes = societesCoteAuthentic(cote).reduce((t, n) => t.replace(n, ' '), cote);
+    return retenus.filter(n => !venues.some(v => memePersonneParNom(n, v.nom) || memePartieComplement({ nom: n }, v)) && !personneDansCoteIntitule(n, coteSansSocietes));
   }
 
   // Modifie d : propose le changement de personnes d'un côté. `venues` = parties d'Authentic (partiesExportAuthentic), `personnes`

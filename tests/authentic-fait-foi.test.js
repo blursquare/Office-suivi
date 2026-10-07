@@ -340,3 +340,29 @@ test('page partielle : une personne encore citée par le nom du dossier d’Auth
   assert.equal(app.majsEnAttenteAuthentic(d).filter(m => m.cle === 'parties:ACQUEREUR').length, 0);
   assert.equal(d.parties.filter(p => p.role === 'ACQUEREUR').map(p => p.nom).join(','), 'Camille FOURNIER,Paul DUBOIS', 'un co-acquéreur nouveau est ajouté comme avant');
 });
+
+// Étude 07/10 : « c'est le cas avec une substitution quand une personne physique achète en SCI ».
+test('substitution : l’acquéreur personne physique remplacé par une SCI dans Authentic → proposé, puis posé en société', () => {
+  const d = dossierChangement();
+  d.emailAcquereur = 'camille@exemple.fr';
+  const sci = exportAuthentic({ nom: 'FOURNIER', prenom: 'Camille', civilite: 'Madame', email: 'camille@exemple.fr' });
+  sci.intitule = 'Vente MARTEL / SCI FOURNIER';   // la SCI porte le nom de la gérante, dont la fiche client reste relevée
+  app.complementDossierDepuisAuthentic(d, sci, [d]);
+  const m = app.majsEnAttenteAuthentic(d).find(x => x.cle === 'parties:ACQUEREUR');
+  assert.ok(m, 'substitution vue même si la SCI porte le nom de la personne');
+  assert.equal(m.avant + ' → ' + m.apres, 'Camille FOURNIER → SCI FOURNIER');
+  app.appliquerMajAuthentic(d, 'parties:ACQUEREUR');
+  const acq = d.parties.filter(p => p.role === 'ACQUEREUR');
+  assert.equal(acq.map(p => p.nom + ':' + p.qualitePersonne).join(','), 'SCI FOURNIER:morale');
+  assert.equal(d.emailAcquereur, undefined, 'coordonnées de l’ancienne acquéreuse retirées');
+  assert.equal(d.nom, 'MARTEL / SCI FOURNIER');
+});
+
+test('sociétés de l’intitulé d’Authentic : parties du bon côté ; forme longue du compromis reconnue', () => {
+  const parties = app.partiesExportAuthentic({ intitule: 'Vente SARL LES TILLEULS / SCI DU MOULIN et Paul DUBOIS', personnes: [
+    { id: 'a', nom: 'DUBOIS', prenom: 'Paul', emails: [], telephones: [] }], parties: [] });
+  assert.equal(parties.map(p => p.role + ':' + p.nom + ':' + p.qualitePersonne).sort().join(','),
+    'ACQUEREUR:Paul DUBOIS:physique,ACQUEREUR:SCI DU MOULIN:morale,VENDEUR:SARL LES TILLEULS:morale');
+  assert.equal(app.memePartieComplement({ nom: 'Société civile immobilière DU MOULIN' }, { nom: 'SCI DU MOULIN' }), true);
+  assert.equal(app.memePartieComplement({ nom: 'SCI DES CHÊNES' }, { nom: 'SCI DU MOULIN' }), false);
+});
