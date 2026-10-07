@@ -202,7 +202,7 @@ dans `index.html`** (le test `structure-client` refuse tout décalage).
    réception** du même compte (celle de Bastien, qui reçoit tout en double) **depuis la veille 18 h** pour le résumé
    des emails du matin (`emailsMatin.js`, FindItem seul ; étude 02/10 : dès 7 h 30, relu toutes les 30 min jusqu'à midi,
    jamais pendant que la lecture de l'agenda est suspendue, un seul essai après une erreur) : seuls expéditeur, objet et
-   heure sont gardés, jamais le corps ; affiché **pour Bastien seulement** (`DESTINATAIRES_EMAILS_MATIN`).
+   heure sont gardés, jamais le corps ; affiché **pour Bastien seulement** (`DESTINATAIRES_EMAILS_MATIN`). **Retiré le 07/10** (étude : « retire les emails reçus de CLAIRE ») : `DESTINATAIRES_EMAILS_MATIN` vide, `demarrerResumeEmails` plus lancé par `index.js` — le reste de ce paragraphe décrit le code gardé, pour le rétablir.
    **Écartés du résumé** (étude 02/10 : « SPFE ou SPF, publicité, spam, CRIDON, INFN, INAFON… ») : `MOTIFS_EXCLUSION_RESUME`
    (expéditeur + objet, lien de désinscription dans l'aperçu) + termes de Réglages › Agenda et Outlook (clé
    `resume-emails-exclusions`) — comptés (`exclus.parMotif`), jamais listés ni lus par l'IA. **Liste des demandes par
@@ -223,7 +223,7 @@ dans `index.html`** (le test `structure-client` refuse tout décalage).
    écartées) ; « Éléments envoyés » du compte relié et de chaque collaborateur des Réglages (accès délégué « Relecteur » à
    donner dans Outlook, sinon « Accès non donné ») → objet, destinataires, date seulement ; un email préparé par CLAIRE
    (`livrerEmailDossier` → `POST /api/emails-prepares`) retrouvé (même objet, un destinataire commun, après la préparation)
-   passe « envoyé le … ». Onglet Échanges : bloc « Emails » (`renderEmailsDossier`, fiche ouverte relue chaque minute ; étude 02/10 « une
+   passe « envoyé le … ». **Emails REÇUS plus affichés nulle part** (étude 07/10 : « garde juste la lecture des emails pour déclencher des choses mais ne les affiche plus dans Échanges ; laisse l'envoi d'email depuis CLAIRE dans un pop-up ») : le bloc ne liste que les **envoyés** et les préparés pas encore retrouvés (plus de filtres Reçus, ni « Confirmer la réception », ni « À répondre ») ; plus de ligne « Email : dernier reçu » dans « Demander à CLAIRE » ; la lecture côté serveur continue (rattachement, adresses du confrère, sondages, envoi retrouvé). Onglet Échanges : bloc « Emails » (`renderEmailsDossier`, fiche ouverte relue chaque minute ; étude 02/10 « une
    multitude d'emails, allège » : une ligne par email façon boîte de réception, filtres Tous/Reçus/Envoyés, recherche, 8 puis
    « Voir plus », un seul « Confirmer la réception » en tête — `emailsAConfirmer` —, tout le détail dans la fenêtre de lecture) ;
    **email lisible en entier** (étude 02/10) en cliquant son objet : `ouvrirEmailComplet` → `GET /api/emails-dossiers/contenu`

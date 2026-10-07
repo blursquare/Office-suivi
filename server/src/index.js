@@ -63,7 +63,6 @@ const { resoudreCheminNavigateurApp } = require('./navigateurApp');
 const { demarrerSurveillanceNas } = require('./nasWatch');
 const { demarrerSurveillanceAgenda } = require('./agendaWatch');
 const { demarrerTacheRappels } = require('./jobs/rappels');
-const { demarrerResumeEmails } = require('./emailsMatin');
 const { demarrerSurveillanceSondages } = require('./sondagesCreneaux');
 const { demarrerSurveillanceEmailsDossiers } = require('./emailsDossiers');
 const { demarrerSauvegardeAutomatique } = require('./sauvegarde');
@@ -269,10 +268,8 @@ function demarrer() {
   // une fois par jour. Même règle que les deux minuteurs ci-dessus : démarrée ici seulement.
   demarrerSauvegardeAutomatique(db, config, parametresRepo);
 
-  // Résumé des emails du matin (voir emailsMatin.js) : 8 h 50 les jours ouvrés, un seul essai par
-  // jour. Silencieux tant que la connexion Exchange n'est pas configurée. Démarré ici seulement.
-  // Le résumé en texte est rédigé par le modèle local d'Ollama (config.ollama), s'il est installé.
-  demarrerResumeEmails(depot, parametresRepo, undefined, config);
+  // Résumé des emails du matin (emailsMatin.js) : plus lancé depuis le 07/10 (étude : « retire les emails reçus de CLAIRE ») — il ne
+  // servait qu'à l'affichage de la fenêtre du matin. Les emails des dossiers restent lus (ci-dessous) pour ce qu'ils déclenchent.
   // Sondages de créneaux : réponses relues dans la boîte, options expirées retirées (5 min).
   demarrerSurveillanceSondages(parametresRepo);
   // Emails des dossiers : boîte de réception et « Éléments envoyés » relus toutes les minutes.

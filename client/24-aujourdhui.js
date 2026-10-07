@@ -1330,7 +1330,9 @@
   // Réservé à Bastien (demandé le 29/09 : « que pour moi, pas pour Julie et Jérémy ») : c'est sa
   // boîte ; il voit tous les dossiers, et les emails qu'aucun dossier ne reconnaît. Sur les autres
   // postes, rien n'est chargé ni affiché.
-  var DESTINATAIRES_EMAILS_MATIN = ['Bastien ANGLUMENT'];
+  // Plus personne depuis le 07/10 (étude : « retire les emails reçus de CLAIRE », fenêtre du matin comprise) : rien n'est chargé ni
+  // affiché, le serveur ne prépare plus le résumé (demarrerResumeEmails n'est plus lancé). Remettre ['Bastien ANGLUMENT'] pour le rétablir.
+  var DESTINATAIRES_EMAILS_MATIN = [];
   function recoitEmailsMatin(nom) { return DESTINATAIRES_EMAILS_MATIN.indexOf(nom) !== -1; }
   var PREFIXE_EMAILS_VUS = 'claire-emails-matin-vus:';
   let resumeEmails = null;

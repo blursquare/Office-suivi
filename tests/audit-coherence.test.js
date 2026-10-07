@@ -191,3 +191,14 @@ test('après la signature : la copie de l’acte juste avant le questionnaire (�
   const types = app.actionsDuJour([d], '2026-10-07').actions.map(a => a.type).filter(t => /copieActe|questionnaire/.test(t));
   assert.strictEqual(types.join(','), 'copieActe,questionnaireVendeur');
 });
+
+test('onglet Échanges : les emails reçus ne sont plus affichés, les envoyés restent', () => {
+  const d = { id: 'em1', nom: 'A / B' };
+  app.emailsParDossier[d.id] = { prepares: [], etat: {}, emails: [
+    { id: 'r1', sens: 'recu', de: { nom: 'Client', adresse: 'client@exemple.fr' }, a: [], objet: 'Mes documents', pj: [{ nom: 'rib.pdf' }], date: '2026-10-06T10:00:00Z' },
+    { id: 'e1', sens: 'envoye', de: { adresse: 'office@exemple.fr' }, a: ['client@exemple.fr'], objet: 'Votre projet d’acte', pj: [], date: '2026-10-06T11:00:00Z' }
+  ] };
+  const html = app.renderEmailsDossier(d);
+  assert.match(html, /Votre projet d’acte/);
+  assert.doesNotMatch(html, /Mes documents|Confirmer la réception|À répondre/);
+});

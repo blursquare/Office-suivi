@@ -229,8 +229,8 @@ test('Emails du matin : chacun voit ses dossiers, l’administrateur aussi les e
   assert.equal(app.emailsMatinPourPoste(null, ['d1'], true).nb, 0);
 });
 
-test('Emails du matin : réservés à Bastien', () => {
-  assert.equal(app.recoitEmailsMatin('Bastien ANGLUMENT'), true);
+test('Emails du matin : plus affichés à personne (étude 07/10 : « retire les emails reçus de CLAIRE »)', () => {
+  assert.equal(app.recoitEmailsMatin('Bastien ANGLUMENT'), false);
   assert.equal(app.recoitEmailsMatin('Julie VASSELIN'), false);
   assert.equal(app.recoitEmailsMatin('Jérémy SAUJOT'), false);
 });

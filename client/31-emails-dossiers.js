@@ -4,7 +4,7 @@
   // collaborateur (server/src/emailsDossiers.js) : emails rattachés au dossier, résumé de l'IA locale,
   // pièces jointes, emails préparés par CLAIRE retrouvés dans les envois. Le texte d'un email n'est
   // jamais gardé. Les pièces jointes reconnues par leur NOM sont rangées dans le dossier client du NAS.
-  const emailsParDossier = {};      // id → { emails, prepares, etat } (null pendant le chargement)
+  var emailsParDossier = {};        // id → { emails, prepares, etat } (null pendant le chargement)
 
   // Pure : la pièce de la checklist qu'un nom de pièce jointe désigne (même règle que le parcours du
   // NAS : le nom seul, motif exact puis forme approchante, exclusions de l'étude respectées), l'offre de
@@ -210,10 +210,6 @@
   // Filtre de la liste par dossier : sens (tous, reçus, envoyés) et nombre de lignes montrées.
   const filtresEmailsDossier = {};
   var EMAILS_PAR_PAGE = 8;
-  function filtrerSensEmails(dossierId, sens) {
-    filtresEmailsDossier[dossierId] = { sens, n: EMAILS_PAR_PAGE };
-    render();
-  }
   function voirPlusEmails(dossierId) {
     const f = filtresEmailsDossier[dossierId] || { sens: 'tous', n: EMAILS_PAR_PAGE };
     filtresEmailsDossier[dossierId] = { ...f, n: f.n + 20 };
@@ -237,41 +233,35 @@
   }
 
   // Onglet Échanges, bloc « Emails » (étude 02/10 : « pour un dossier on peut recevoir une multitude
-  // d'emails ; allège ») : une ligne par email comme une boîte de réception (sens, correspondant, objet,
-  // résumé d'une ligne, pièces jointes, date), filtres Tous/Reçus/Envoyés, recherche, 8 lignes puis
-  // « Voir plus ». Le détail (texte entier, pièces jointes et leur rangement, accusé) est dans la fenêtre
-  // de lecture. Un seul geste en tête : confirmer la réception du dernier envoi de documents.
+  // d'emails ; allège ») : une ligne par email (destinataire, objet, pièces jointes, date), recherche, 8 lignes puis « Voir plus » ;
+  // le texte entier dans la fenêtre de lecture.
+  // Emails REÇUS plus montrés (étude 07/10 : « retire les emails reçus de CLAIRE ; garde juste la lecture des emails pour
+  // déclencher des choses mais ne les affiche plus dans Échanges ; laisse l'envoi d'email depuis CLAIRE dans une fenêtre ») : le
+  // serveur les lit toujours (rattachement, adresses des confrères, réponses aux sondages, envoi retrouvé), le bloc ne liste plus que
+  // les emails envoyés et ceux préparés pas encore retrouvés — ni « Confirmer la réception », ni « À répondre », ni filtres.
   function renderEmailsDossier(d) {
     if (!(d.id in emailsParDossier)) { chargerEmailsDossier(d.id); return ''; }
     const donnees = emailsParDossier[d.id];
     if (!donnees) return '';
-    const { emails, prepares, etat } = donnees;
+    const { prepares, etat } = donnees;
+    const emails = (donnees.emails || []).filter(e => e && e.sens !== 'recu');
     const enAttente = prepares.filter(p => !p.envoyeLe && !String(p.geste || '').startsWith('accuseReception:'));
     if (!emails.length && !enAttente.length) return '';
     const f = filtresEmailsDossier[d.id] || { sens: 'tous', n: EMAILS_PAR_PAGE };
-    const recus = emails.filter(e => e.sens === 'recu').length;
-    const liste = f.sens === 'tous' ? emails : emails.filter(e => e.sens === f.sens);
-    const pastille = (sens, libelle, nombre) => `<button type="button" class="suivi-statut${f.sens === sens ? ' actif' : ''}${nombre ? '' : ' vide'}" aria-pressed="${f.sens === sens}" onclick="filtrerSensEmails('${d.id}', '${sens}')">${libelle} <span class="suivi-statut-n">${nombre}</span></button>`;
+    const liste = emails;
     const ligne = (e, i) => {
-      const qui = e.sens === 'recu' ? (e.de.nom || e.de.adresse) : `À ${e.a[0] || '—'}${e.a.length > 1 ? ` +${e.a.length - 1}` : ''}`;
+      const qui = `À ${e.a[0] || '—'}${e.a.length > 1 ? ` +${e.a.length - 1}` : ''}`;
       const pjs = e.pj.filter(p => !p.ignoree).length;
       const texte = normaliserPourRecherche([qui, e.objet, e.resume, e.de.adresse, ...e.pj.map(p => p.nom)].filter(Boolean).join(' '));
       return `<li class="email-rang" data-texte="${escapeAttr(texte)}" data-page="${i < f.n ? '1' : '0'}"${i < f.n ? '' : ' hidden'}>
           <button type="button" class="email-rang-btn email-${e.sens}" onclick="ouvrirEmailComplet('${d.id}', '${escapeOnclickArg(e.id)}')" title="Lire l’email en entier">
-            <span class="email-rang-sens" aria-label="${e.sens === 'recu' ? 'Reçu' : 'Envoyé'}">${icone(e.sens === 'recu' ? 'download' : 'upload')}</span>
+            <span class="email-rang-sens" aria-label="Envoyé">${icone('upload')}</span>
             <span class="email-rang-qui">${escapeHtml(qui)}</span>
             <span class="email-rang-corps"><span class="email-rang-objet">${escapeHtml(e.objet || '(sans objet)')}</span>${e.resume ? `<span class="email-rang-resume">${escapeHtml(e.resume)}</span>` : ''}</span>
-            <span class="email-rang-meta">${emailARepondre(e, emails, prepares) ? '<span class="email-etat email-etat-petit">À répondre</span>' : ''}${pjs ? `<span class="email-rang-pj" title="${pjs} pièce${pjs > 1 ? 's' : ''} jointe${pjs > 1 ? 's' : ''}">${icone('file-text')}${pjs}</span>` : ''}<span class="email-rang-date">${escapeHtml(dateCourteEmail(e.date))}</span></span>
+            <span class="email-rang-meta">${pjs ? `<span class="email-rang-pj" title="${pjs} pièce${pjs > 1 ? 's' : ''} jointe${pjs > 1 ? 's' : ''}">${icone('file-text')}${pjs}</span>` : ''}<span class="email-rang-date">${escapeHtml(dateCourteEmail(e.date))}</span></span>
           </button>
         </li>`;
     };
-    const aConfirmer = emailsAConfirmer(emails, prepares);
-    const premier = aConfirmer[0];
-    const accuse = premier ? `<ul class="ja-liste email-accuse">${renderLigneAction({
-      categorie: 'acte', titre: 'Confirmer la réception',
-      sous: `${premier.de.nom || premier.de.adresse} · ${documentsEmailRecu(premier).length} document${documentsEmailRecu(premier).length > 1 ? 's' : ''} · ${dateCourteEmail(premier.date)}${aConfirmer.length > 1 ? ` · ${aConfirmer.length - 1} autre${aConfirmer.length > 2 ? 's' : ''} à confirmer` : ''}`,
-      bouton: { libelle: 'Préparer', icone: icone('mail'), onclick: `confirmerReceptionEmail('${d.id}', '${escapeOnclickArg(premier.id)}')`, titre: 'Préparer l’email d’accusé de réception, avec la signature de l’office' }
-    })}</ul>` : '';
     const attente = enAttente.length ? `<details class="appels-plus emails-attente"><summary>${enAttente.length} email${enAttente.length > 1 ? 's' : ''} préparé${enAttente.length > 1 ? 's' : ''}, pas encore retrouvé${enAttente.length > 1 ? 's' : ''} dans les envois</summary><ul class="appels-liste">${enAttente.map(p => {
       const st = etatEmailPrepare(p, etat && etat.envoyes);
       const retirer = p.envoyeLe ? '' : `<wa-button appearance="plain" size="s" type="button" class="bouton-icone" onclick="retirerEmailPrepare('${d.id}', '${escapeOnclickArg(p.id)}')" title="Retirer : cet email n’a pas été envoyé (brouillon Outlook fermé sans enregistrer)" aria-label="Retirer cet email préparé">${icone('x')}</wa-button>`;
@@ -280,11 +270,9 @@
     const reste = liste.length - Math.min(f.n, liste.length);
     return `<div class="emails-dossier">
         <div class="emails-tete">
-          <span class="section-eyebrow">Emails <span class="jour-onglet-nb">${emails.length}</span> ${infoBulle('Emails de la boîte de l’office et des collaborateurs rattachés à ce dossier, relevés chaque minute. Cliquer un email pour le lire en entier (relu dans la messagerie, jamais gardé par CLAIRE) et voir où ses pièces jointes ont été rangées sur le NAS.')}</span>
+          <span class="section-eyebrow">Emails envoyés <span class="jour-onglet-nb">${emails.length}</span> ${infoBulle('Emails envoyés par l’office et les collaborateurs à une adresse de ce dossier, relevés chaque minute. Les emails reçus ne sont plus affichés : CLAIRE les lit seulement pour reconnaître les réponses et les envois.')}</span>
           ${emails.length > EMAILS_PAR_PAGE ? `<input type="search" class="emails-recherche" placeholder="Rechercher un email" aria-label="Rechercher dans les emails du dossier" oninput="rechercherEmailsDossier(this)">` : ''}
         </div>
-        ${recus && recus < emails.length ? `<div class="suivi-statuts emails-filtres">${pastille('tous', 'Tous', emails.length)}${pastille('recu', 'Reçus', recus)}${pastille('envoye', 'Envoyés', emails.length - recus)}</div>` : ''}
-        ${accuse}
         <ul class="emails-liste">${liste.map(ligne).join('')}</ul>
         <p class="hint emails-aucun" hidden>Aucun email ne correspond.</p>
         ${reste > 0 ? `<button type="button" class="lien-discret emails-plus" onclick="voirPlusEmails('${d.id}')">Voir ${Math.min(reste, 20)} de plus${reste > 20 ? ` (${reste} en tout)` : ''}</button>` : ''}

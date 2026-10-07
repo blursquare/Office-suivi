@@ -18323,3 +18323,18 @@ rangeait déjà dans cet ordre. Test : audit-coherence.
 Question de l'étude, sans changement de code : retrouver un email classé dans une archive LOCALE d'Outlook (.pst) — impossible par
 EWS (le fichier est sur le poste, pas sur le serveur Exchange) ; une archive EN LIGNE d'Exchange (ArchiveMsgFolderRoot) serait lisible
 si Fichorga l'a ouverte, et CLAIRE ne lit aujourd'hui que la boîte de réception et les éléments envoyés (pas les sous-dossiers).
+
+### 07/10/2026 23 h 15 — 0.191.11 : emails reçus retirés de l'affichage
+
+Étude : « Retire les emails reçus de CLAIRE. Garde juste la lecture des emails pour déclencher des choses mais ne les affiche plus
+dans Échanges. Laisse quand même l'envoi d'email depuis CLAIRE dans un pop-up. » Puis, aux questions : « les reçus seulement » dans
+Échanges, et aussi « Demander à CLAIRE » et la fenêtre du matin.
+- `renderEmailsDossier` (client/31) : ne liste que les emails envoyés (`sens !== 'recu'`) et les emails préparés pas encore retrouvés ;
+  retirés : filtres Tous/Reçus/Envoyés (`filtrerSensEmails` supprimée), « Confirmer la réception » (accusé de réception), pastille
+  « À répondre ». Titre « Emails envoyés ». `emailsParDossier` passe en `var` (test).
+- « Demander à CLAIRE » : ligne « Email : dernier reçu … » de l'état d'un dossier retirée (`emailARepondreAssistant` supprimée).
+- Fenêtre du matin : `DESTINATAIRES_EMAILS_MATIN = []` (plus de bloc Emails ni de compte des demandes) ; le serveur ne lance plus
+  `demarrerResumeEmails` (lecture et IA qui ne servaient qu'à cet affichage). Code gardé pour un retour en arrière.
+- Gardés : lecture serveur des emails des dossiers (`emailsDossiers.js`, chaque minute) pour le rattachement, les adresses du confrère,
+  l'envoi retrouvé (« envoyé le … »), les réponses aux sondages ; fenêtre d'email pour envoyer depuis CLAIRE (`ouvrirRedactionEmail`).
+Tests : audit-coherence, aujourdhui.

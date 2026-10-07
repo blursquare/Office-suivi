@@ -261,18 +261,7 @@
     if (manque.length) lignes.push(`<li><b>Attendu</b> : ${manque.slice(0, 6).map(escapeHtml).join(', ')}${manque.length > 6 ? ` et ${manque.length - 6} de plus` : ''}</li>`);
     const fonds = bilanFondsAssistant(d);
     if (fonds) lignes.push(`<li><b>Fonds</b> : ${fonds}</li>`);
-    const email = emailARepondreAssistant(d);
-    if (email) lignes.push(`<li><b>Email</b> : ${email}</li>`);
     return { html: `<p><b>${escapeHtml(libelleDossierAffiche(d))}</b></p><ul class="asst-liste">${lignes.join('')}</ul>`, boutons: [boutonFicheAssistant(d)] };
-  }
-
-  function emailARepondreAssistant(d) {
-    const donnees = typeof emailsParDossier !== 'undefined' ? emailsParDossier[d.id] : null;
-    const emails = donnees && Array.isArray(donnees.emails) ? donnees.emails : [];
-    const dernier = emails.filter(e => e && e.sens === 'recu').sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')))[0];
-    if (!dernier) return '';
-    const de = dernier.de ? (dernier.de.nom || dernier.de.adresse || '') : '';
-    return `dernier reçu ${escapeHtml(formatDateFr(String(dernier.date || '').slice(0, 10)))}${de ? ` de ${escapeHtml(de)}` : ''} — « ${escapeHtml(dernier.objet || '')} »`;
   }
 
   function reponsePiecesAssistant(d) {
