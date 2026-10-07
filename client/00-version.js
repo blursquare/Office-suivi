@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.187.0';
+  const VERSION_APP = '0.188.0';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.188.0', date: '2026-10-07 14:10', resume: "Nouvelle étape « Rédaction de l’acte », avant l’envoi du projet : CLAIRE lit dans le tableau « Rédaction » d’Authentic « Non rédigé » puis « En cours » (en plus de « Signé le … »). Quand Authentic dit « Non rédigé » et que l’offre de prêt, la vente préalable, la renonciation au droit de préemption (DIA) et la SAFER sont levées — les pièces d’urbanisme ne comptent pas —, la tâche « Rédiger l’acte » arrive dans « À faire » et l’étape dans le planning (échéance 15 jours avant le rendez-vous, sinon la date butoir) ; elle part d’elle-même quand Authentic passe à « En cours », ou se coche à la main. La fiche montre la ligne « Rédaction de l’acte » et ce qui la retient encore. Jamais en participation." },
     { version: '0.187.0', date: '2026-10-07 13:39', resume: "Options de rendez-vous et sondages de dates : quand toutes les options sauf une ont été effacées à la main dans Outlook, la dernière devient seule le rendez-vous (titre sans « ? », occupé, couleur du rendez-vous, rappel la veille) ; la fiche prend la date à la relecture suivante de l’agenda et le responsable est prévenu par Teams. Le suivi « Dates proposées » le signale." },
     { version: '0.186.0', date: '2026-10-07 12:32', resume: "Questionnaire de satisfaction : sans email de l’acquéreur ou du vendeur, la tâche « Renseigner l’email … pour le questionnaire de satisfaction » s’affiche dans « À faire » (le dossier n’est toujours archivé qu’une fois les deux côtés servis). Options de rendez-vous et sondages de dates : les options restent dans l’agenda tant que rien n’est décidé — plus de retrait après 5 jours ouvrés ; « Placer » retire toujours les autres, « Annuler » les retire toutes. Demander à CLAIRE : Mistral ne lit plus que les phrases que les mots-clés ne départagent pas (clé gratuite, limite de Mistral atteinte) ; « Mistral lit toutes les demandes » se rallume dans Réglages › IA et relecture d’actes." },
     { version: '0.185.2', date: '2026-10-07 12:07', resume: "Agenda : plus d’erreur quand l’agenda est relu avant d’avoir été ouvert (par exemple après « Placer » depuis « Demander à CLAIRE ») — il part de la semaine du jour." },

@@ -1428,3 +1428,19 @@ test('page de gestion (06/10) : la fiche se complète seule depuis Authentic —
   assert.equal(e.typeVente, 'copropriete');
 });
 
+
+test('tableau « Rédaction » d’Authentic (étude 07/10) : « Non rédigé » → à rédiger, « En cours » → rédaction commencée, signé avant tout', () => {
+  const page = (etat, extra) => ({ titre: 'Authentic', champs: [], texte: '2 - VTE MARTEL / FOURNIER',
+    tableaux: [{ titre: 'Rédaction', entete: [], lignes: [['Vente MARTEL / FOURNIER', '', etat]].concat(extra || []) }] });
+  assert.strictEqual(app.etatActeAuthentic(page('Non rédigé')).etat, 'a_rediger');
+  assert.strictEqual(app.etatActeAuthentic(page('En cours')).etat, 'redaction');
+  // Une procuration en cours ne dit rien de l'acte de vente.
+  assert.strictEqual(app.etatActeAuthentic(page('Non rédigé', [['Procuration pour vendre', '', 'En cours']])).etat, 'a_rediger');
+  // « En cours » hors du tableau Rédaction (une réquisition…) : rien.
+  const ailleurs = { titre: 'Authentic', champs: [], texte: '', tableaux: [{ titre: 'Réquisitions', entete: [], lignes: [['Réquisition', '01/09/2026', 'En cours']] }] };
+  assert.strictEqual(app.etatActeAuthentic(ailleurs), null);
+  // Signé le … reste prioritaire.
+  const signe = page('Signé le 29/09/2026');
+  signe.tableaux[0].lignes[0] = ['Vente MARTEL / FOURNIER', '29/09/2026', 'Signé le 29/09/2026'];
+  assert.strictEqual(app.etatActeAuthentic(signe).etat, 'signe');
+});

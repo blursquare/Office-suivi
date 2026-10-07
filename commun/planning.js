@@ -22,7 +22,41 @@
     // envoi fait »). Une date d'envoi sans case cochée ne doit jamais servir d'échéance : elle est dans le passé, le délai
     // jusqu'au rendez-vous (et les rappels qui en partent) ne reviendrait pas après un décochage.
     if ((type === 'appelFonds' || type === 'projetEnvoye') && d[type]) return true;
+    // Rédaction de l'acte (étude 07/10) : faite dès qu'Authentic la dit « En cours » (ou l'acte signé), ou cochée à la main.
+    if (type === 'redaction' && ['redaction', 'signe'].includes(etatRedactionActe(d))) return true;
     return !!(d.echeancesValidees && d.echeancesValidees[type]);
+  }
+
+  // ---- Rédaction de l'acte (étude 07/10 : « rajouter une étape avant l'envoi du projet » — Authentic dit « Non rédigé », puis
+  // « En cours » quand l'acte commence à être rédigé, puis « Signé le … ») ----
+  // État lu dans le tableau « Rédaction » d'Authentic : 'a_rediger' (Non rédigé), 'redaction' (En cours), 'signe', ou ''.
+  function etatRedactionActe(d) {
+    const a = d && d.authentic && d.authentic.acte;
+    return (a && a.etat) || '';
+  }
+  // Échéance de la rédaction : 15 jours avant le rendez-vous de signature (avant l'appel de fonds à J-10 et l'envoi du projet), à
+  // défaut la date butoir de l'avant-contrat.
+  var JOURS_REDACTION_AVANT_RDV = 15;
+  function echeanceRedaction(d) {
+    if (d && d.rendezVousSignature) return C.addDays(d.rendezVousSignature, -JOURS_REDACTION_AVANT_RDV);
+    return (d && d.acte) || '';
+  }
+  // Ce qui retient encore la rédaction : les conditions à date butoir — offre de prêt (et vente préalable, voir pretLeve),
+  // renonciation au droit de préemption (DIA), SAFER. Les pièces d'urbanisme ne la retiennent jamais (étude 07/10).
+  function attentesRedaction(d) {
+    const r = [];
+    if (!d.sansPret && !echeanceValidee(d, 'pret')) r.push('offre de prêt');
+    if (d.ventebien && !echeanceValidee(d, 'ventebien')) r.push('vente préalable');
+    if (!preemptionLevee(d)) r.push('renonciation au droit de préemption');
+    if (!saferLevee(d)) r.push('réponse de la SAFER');
+    return r;
+  }
+  // « Rédiger l'acte » est proposé quand Authentic dit « Non rédigé » (jamais sans état lu — choix de l'étude), que plus rien ne
+  // retient la rédaction et qu'elle n'est pas déjà notée commencée ; jamais en participation (le confrère rédige) ni en succession.
+  function redactionAProposer(d) {
+    if (!d || d.archive || C.estSuccession(d) || d.roleNotaire === 'participant') return false;
+    if (etatRedactionActe(d) !== 'a_rediger' || echeanceValidee(d, 'redaction')) return false;
+    return !attentesRedaction(d).length;
   }
 
   // Détermine, parmi les échéances d'un dossier, la plus proche à afficher en un coup d'œil dans
@@ -190,6 +224,8 @@
       etape = { type: 'rendezVousSignature', label: 'Signature de l’acte', iso: d.rendezVousSignature };
     }
     if (etape) items.push(etape);
+    // Rédaction de l'acte (étude 07/10) : à côté de l'étape en cours, dès que les pièces sont réunies et qu'Authentic dit « Non rédigé ».
+    if (redactionAProposer(d)) items.push({ type: 'redaction', label: 'Rédaction de l’acte', iso: echeanceRedaction(d) || null });
 
     (d.autres || []).forEach((a, i) => {
       if (!echeanceValidee(d, 'autre-' + i)) items.push({ type: 'autre', label: a.label, iso: a.date, index: i });
@@ -210,7 +246,7 @@
     return reels;
   }
 
-  const exportes = { JOURS_APPEL_FONDS_AVANT_RDV, echeanceAppelFonds, echeanceValidee, pretLeve, preemptionLevee, DELAIS_SAFER, delaiSafer, echeanceSaferTacite, saferLevee, echeanceSaferDossier, echeancesPlanning };
+  const exportes = { JOURS_APPEL_FONDS_AVANT_RDV, echeanceAppelFonds, echeanceValidee, JOURS_REDACTION_AVANT_RDV, etatRedactionActe, echeanceRedaction, attentesRedaction, redactionAProposer, pretLeve, preemptionLevee, DELAIS_SAFER, delaiSafer, echeanceSaferTacite, saferLevee, echeanceSaferDossier, echeancesPlanning };
   // Node : module.exports ; navigateur : des globaux (noms nus, comme les fonctions de client/).
   if (typeof module !== 'undefined' && module.exports) module.exports = exportes; else Object.assign(globalThis, exportes);
 })(

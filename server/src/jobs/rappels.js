@@ -55,7 +55,9 @@ const SEUILS_RAPPELS_PAR_TYPE = {
   safer: [],
   // Envoi du projet d'acte (étude 06/10 : « pas de rappel d'envoi du projet d'acte 15 j avant ») : un seul rappel, à J-7 du
   // rendez-vous — le même jour que la tâche « Envoyer le projet » d'« À faire ». J-15 est déjà celui de la signature.
-  projetEnvoye: [7]
+  projetEnvoye: [7],
+  // Rédaction de l'acte (étude 07/10) : une tâche d'« À faire », sans rappel Teams.
+  redaction: []
 };
 
 // Échéance personnalisée (`autre-0`, `autre-1`…) : l'étude n'a pas de seuil à donner pour une date

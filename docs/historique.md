@@ -17837,3 +17837,18 @@ retiré. La fiche prend la date à la relecture suivante de l'agenda comme une s
 responsable). Un échec est retenu (`placementSeulEchoue`), jamais retenté seul. Non vérifié avec un vrai Exchange (identifiant
 d'un élément identique entre CreateItem et FindItem supposé — sinon aucune option n'est vue « présente » et rien ne se passe).
 
+**Rédaction de l'acte, étape avant l'envoi du projet** (0.188.0 ; étude 07/10 : « détecter l'étape juste avant [signé], qui est
+en cours, et celle d'avant, non rédigée ; une fois le dossier presque complet, proposer la rédaction et la mettre dans les tâches ».
+Réponses de l'étude : pièces = prêt, SAFER, DIA + vente préalable ; seulement si Authentic dit « Non rédigé » ; rendez-vous pas
+exigé). `etatTableauRedactionAuthentic` lit le tableau dont le titre ou l'en-tête dit « Rédaction » : ligne de l'acte (jamais
+avant-contrat, procuration, courrier…, `RE_AUTRE_DOCUMENT_SIGNE_AUTHENTIC`), état = dernière cellule qui n'est pas une date ;
+« En cours » l'emporte sur « Non rédigé » ; « Signé le … » reste lu avant (inchangé) ; « En cours » hors de ce tableau ne dit
+rien. `commun/planning.js` : `etatRedactionActe`, `attentesRedaction` (offre de prêt, vente préalable, renonciation au droit de
+préemption, SAFER), `redactionAProposer`, `echeanceRedaction` (rendez-vous − 15 j, `JOURS_REDACTION_AVANT_RDV`, sinon date
+butoir — délai choisi par CLAIRE, à ajuster par l'étude) ; `echeanceValidee(d, 'redaction')` vrai dès « En cours »/signé ou
+coche. Tâche « Rédiger l'acte » (`jours: null` : hors fenêtre des 15 jours, délai « avant le … »), case ronde = étape cochée
+(`ECHEANCE_FAIT_MAIN_PAR_TYPE`), faite ailleurs reconnue par l'historique (« Acte dans Authentic : En cours de rédaction ») ;
+ligne de la fiche (`cochable`, `sansCrayon` de `renderLigneEcheance`) avec « En attente : … » ; rappels Teams : aucun
+(`SEUILS_RAPPELS_PAR_TYPE.redaction = []`). Point terrain `redaction-acte-authentic` : la forme réelle du tableau
+« Rédaction » d'un sous-dossier de vente (« En cours » seul ?) n'a été vue que décrite, pas copiée.
+

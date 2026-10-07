@@ -4437,6 +4437,7 @@
      incolore dans le tableau du Suivi et la vue Échéances (voir `dl-${e.type}`), contrairement
      aux trois autres catégories. */
   .dot-label.dl-appelFonds { color: var(--appelfonds); }
+  .dot-label.dl-redaction { color: var(--acte); }
   .dot-label.dl-rendezVousSignature { color: var(--success); }
   .dot-label.dl-success { color: var(--success); }
   /* « Complet » (etatDossier) : toutes les pièces reçues, rendez-vous pas encore placé — bleu fixe

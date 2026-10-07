@@ -1420,6 +1420,17 @@
       lignes.push({ iso: echeanceSaferFiche, html: renderLigneEcheance('safer', 'Délai SAFER', echeanceSaferFiche, null, null, null, null, false, note, false, levee, { etatFait: '✓ Non-préemption' }) });
     }
     if (!butoirSousRdv) lignes.push({ iso: d.acte, html: renderLigneEcheance('acte', 'Date butoir', d.acte, d.id, d.actePage, confiance.acte, null, false, '', false, echeanceValidee(d, 'acte')) });
+    // Rédaction de l'acte (étude 07/10) : dès qu'Authentic en donne l'état (« Non rédigé », « En cours », signé) ou qu'elle est
+    // cochée à la main ; jamais en participation (le confrère rédige). Ce qui la retient encore est dit sous la ligne.
+    if (!estSuccession(d) && d.roleNotaire !== 'participant' && (etatRedactionActe(d) || echeanceValidee(d, 'redaction'))) {
+      const faite = echeanceValidee(d, 'redaction');
+      const attentes = faite ? [] : attentesRedaction(d);
+      const note = faite ? (etatRedactionActe(d) === 'redaction' ? '<span class="ech-note">En cours dans Authentic</span>' : '')
+        : attentes.length ? `<span class="ech-note">En attente : ${escapeHtml(attentes.join(', '))}</span>` : '<span class="ech-note">Pièces réunies : à rédiger</span>';
+      const iso = faite ? '' : echeanceRedaction(d);
+      lignes.push({ iso, html: renderLigneEcheance('redaction', 'Rédaction de l’acte', iso, d.id, null, null, null, false, note, false, faite,
+        { etatSansDate: attentes.length ? 'En attente' : 'À rédiger', etatFait: '✓ Commencée', cochable: true, sansCrayon: true }) });
+    }
     if (d.appelFonds || d.projetEnvoye || d.rendezVousSignature || dossierEntierementComplet(d)) {
       ENVOIS_AVANT_SIGNATURE.forEach(({ cle, label }) => {
         const iso = d[cle] || '';
@@ -1758,7 +1769,7 @@
   const LIBELLES_CATEGORIE = {
     pret: 'Obtention du prêt', acte: 'Date butoir', ventebien: 'Vente préalable',
     fixerRdv: 'Fixer le rendez-vous', preemption: 'Renonciation préemption attendue', safer: 'Délai SAFER',
-    appelFonds: 'Envoi appel de fonds', projetEnvoye: 'Envoi projet',
+    appelFonds: 'Envoi appel de fonds', redaction: 'Rédaction de l’acte', projetEnvoye: 'Envoi projet',
     rendezVousSignature: 'Rendez-vous de signature'
   };
 

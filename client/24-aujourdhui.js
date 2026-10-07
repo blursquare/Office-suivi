@@ -259,6 +259,24 @@
         }));
       }
 
+      // 3 bis. Rédaction de l'acte (étude 07/10) : Authentic dit « Non rédigé » et plus rien ne la retient (offre de prêt, vente
+      //    préalable, préemption, SAFER — les pièces d'urbanisme ne comptent pas). Elle part d'elle-même quand Authentic passe
+      //    à « En cours » ; la case ronde la note commencée à la main.
+      if (redactionAProposer(d)) {
+        const iso = echeanceRedaction(d);
+        const j = iso ? ecartJours(aujourdhuiIso, iso) : 0;
+        ajouter({
+          type: 'redaction', categorie: 'redaction', categorieLabel: 'Rédaction de l’acte',
+          titre: 'Rédiger l’acte',
+          contexte: `Pièces réunies (financement, préemption, SAFER) ; Authentic indique « Non rédigé ».${d.rendezVousSignature ? ' ' + phraseSignature(d, aujourdhuiIso) + '.' : ''}`,
+          // Sans « jours » : à faire dès maintenant, hors de la fenêtre des 15 jours (étude : « une fois le dossier presque complet,
+          // proposer la rédaction ») ; l'échéance (15 jours avant le rendez-vous) se lit dans le délai.
+          jours: null, delaiTexte: iso ? `avant le ${courtDateJour(iso)}` : 'pièces réunies',
+          gravite: j !== null && j <= 3 ? 'critique' : 'vigilance',
+          geste: { type: 'fiche' }, bouton: 'Ouvrir la fiche'
+        });
+      }
+
       // 4. Le reste des points qui demandent une décision (vente préalable, date butoir, pièces…) :
       //    pas de geste tout prêt, la fiche s'ouvre.
       const points = alertesImportantes([d], aujourdhuiIso).concat(pointsEtatDossier(d));
@@ -429,7 +447,10 @@
     questionnaire: { titre: 'Envoyer le questionnaire de satisfaction à l’acquéreur', categorie: 'neutre',
       re: /^Questionnaire de satisfaction envoyé(?! au vendeur)/ },
     questionnaireVendeur: { titre: 'Envoyer le questionnaire de satisfaction au vendeur', categorie: 'neutre',
-      re: /^Questionnaire de satisfaction envoyé au vendeur/ }
+      re: /^Questionnaire de satisfaction envoyé au vendeur/ },
+    redaction: { titre: 'Rédiger l’acte', categorie: 'redaction',
+      re: /^(Rédaction de l’acte marquée réalisée|Acte dans Authentic : En cours de rédaction)/,
+      annule: /^(Rédaction de l’acte : validation annulée|Tâche du jour « Rédiger l’acte » : « fait » annulé)/ }
   };
 
   // Pure : « qui » a fait la tâche, dit sur la ligne cochée.
@@ -654,7 +675,8 @@
   // Tâches qui SONT une échéance du dossier : la case ronde coche l'échéance (même geste que sur la fiche, décochable par « Annuler »),
   // au lieu de ne laisser qu'une trace dans le journal — la tâche revenait chaque jour tant que l'échéance restait ouverte.
   var ECHEANCE_FAIT_MAIN_PAR_TYPE = {
-    'point-confirmer-la-vente-prealable': { champ: 'ventebien', fait: 'Vente préalable notée réalisée' }
+    'point-confirmer-la-vente-prealable': { champ: 'ventebien', fait: 'Vente préalable notée réalisée' },
+    redaction: { champ: 'redaction', fait: 'Rédaction de l’acte notée commencée' }
   };
 
   // `silencieux` : appelé pour chaque tâche d'un groupe (marquerFaitGroupeJour) — ni rendu ni notification, le groupe s'en charge.

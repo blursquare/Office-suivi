@@ -1213,7 +1213,8 @@
           <select class="tab-select-icone" onchange="changerCategorie('${dossierId}','${type}', this.value)" aria-label="Changer la catégorie de cette échéance">${optionsCategorie(type)}</select>
           <span class="tab-select-icone-chevron">${icone('chevron-down')}</span>
         </span>` : '';
-    const editable = dossierId != null;
+    // `sansCrayon` : étape sans date propre à saisir (rédaction de l'acte — sa date vient du rendez-vous).
+    const editable = dossierId != null && !o.sansCrayon;
     const cleEdition = autreIndex != null ? 'autre-' + autreIndex : type;
     const idBase = `tabdate-${dossierId}-${cleEdition}`;
 
@@ -1225,7 +1226,7 @@
     // La case ronde (même geste que la tâche d'« Aujourd'hui », étude 05/10 : « un bouton pour cocher et décocher comme une tâche »)
     // remplace les icônes ✓ / ↺ : un clic coche, un clic décoche, partout. Sur une échéance datée, ou sur une étape d'envoi (appel de
     // fonds, projet) même sans date — cocher note l'envoi à la date du jour. Offre de prêt reçue par le NAS : cochée d'office, non cliquable.
-    const caseCochable = !!dossierId && !o.comptant && (!!iso || !!o.envoi);
+    const caseCochable = !!dossierId && !o.comptant && (!!iso || !!o.envoi || !!o.cochable);
     const dejaFaite = !!validee || !!offrePretRecue;
     const verrouillee = type === 'pret' && !!offrePretRecue;
     const libelleCase = verrouillee ? 'Offre reçue — se décoche en retirant l’offre du dossier'

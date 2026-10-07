@@ -1176,10 +1176,34 @@
       const m = RE_SIGNE_LE_AUTHENTIC.exec(l.etat);
       if (m) return { etat: 'signe', libelle: 'Acte signé', date: dateIsoDepuisFr(m[1]) };
     }
+    // Tableau « Rédaction » de la page du sous-dossier (étude 07/10) : « Non rédigé », puis « En cours » quand l'acte commence à être
+    // rédigé, puis « Signé le … » — l'état seul (« En cours ») n'est lu que dans ce tableau, ailleurs il ne dit rien de l'acte.
+    const redaction = etatTableauRedactionAuthentic(c);
+    if (redaction) return redaction;
     const tout = lignes.map(l => l.etat).join('\n');
     if (/en\s+cours\s+de\s+r[ée]daction|r[ée]daction\s+en\s+cours/i.test(tout)) return { etat: 'redaction', libelle: 'En cours de rédaction', date: '' };
     if (/(?:non|pas\s+encore)\s+r[ée]dig[ée]|[àa]\s+r[ée]diger/i.test(tout)) return { etat: 'a_rediger', libelle: 'Pas encore rédigé', date: '' };
     return null;
+  }
+
+  // Pure : état de l'acte lu dans le tableau « Rédaction » (titre du tableau, ou son en-tête) — la ligne de l'acte de vente (jamais un
+  // avant-contrat, une procuration, un courrier…), son état dans la dernière cellule qui n'est pas une date. « En cours » l'emporte
+  // sur « Non rédigé » (une autre ligne peut rester non rédigée) ; null si le tableau n'est pas sur la page.
+  function etatTableauRedactionAuthentic(capture) {
+    let etat = null;
+    ((capture && capture.tableaux) || []).forEach(t => {
+      const titre = [t.titre, ...(t.entete || [])].join(' ');
+      if (!/r[ée]daction/i.test(titre)) return;
+      (t.lignes || []).forEach(l => {
+        const cellules = (l || []).map(x => String(x == null ? '' : x).replace(/\s+/g, ' ').trim()).filter(x => x && !/^⟦icône⟧/.test(x));
+        const textes = cellules.filter(x => !/^\d{1,2}[\/.-]\d{1,2}[\/.-]\d{4}$/.test(x));
+        if (!textes.length || RE_AUTRE_DOCUMENT_SIGNE_AUTHENTIC.test(textes[0])) return;
+        const e = textes[textes.length - 1];
+        if (/^en\s+cours/i.test(e)) etat = { etat: 'redaction', libelle: 'En cours de rédaction', date: '' };
+        else if (/^(?:non|pas\s+encore)\s+r[ée]dig/i.test(e) && !etat) etat = { etat: 'a_rediger', libelle: 'Pas encore rédigé', date: '' };
+      });
+    });
+    return etat;
   }
 
   // Pure : le prix de vente — champ « Capital » (Informations financières).
@@ -1955,6 +1979,9 @@
     }
     const nouveau = (k, kk) => apres[k] && apres[k][kk] && apres[k][kk] !== (avant[k] || {})[kk];
     if (nouveau('acte', 'etat') && !(d.roleNotaire === 'participant' && apres.acte.etat !== 'signe')) noter(`Acte dans Authentic : ${apres.acte.libelle}${apres.acte.date ? ` le ${formatDateFr(apres.acte.date)}` : ''}`);
+    if (nouveau('acte', 'etat') && ['a_rediger', 'redaction'].includes(apres.acte.etat)) {
+      noterVerificationPoste('redaction-acte-authentic', { detail: `état de rédaction lu : ${apres.acte.etat === 'redaction' ? 'en cours' : 'non rédigé'}` });
+    }
     if (nouveau('rhf', 'envoyeeLe')) noter(`Réquisition hors formalité envoyée le ${formatDateFr(apres.rhf.envoyeeLe)} (Authentic)`);
     if (nouveau('rhf', 'retourLe')) noter(`Retour de la réquisition hors formalité le ${formatDateFr(apres.rhf.retourLe)} (Authentic)`);
     if (nouveau('safer', 'envoyeeLe')) noter(`Notification SAFER envoyée le ${formatDateFr(apres.safer.envoyeeLe)} (Authentic)`);

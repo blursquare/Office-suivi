@@ -419,3 +419,40 @@ test('questionnaire sans email du côté : la tâche demande de renseigner l’e
   assert.strictEqual(ok.titre, 'Envoyer le questionnaire de satisfaction au vendeur');
   assert.strictEqual(ok.geste.type, 'questionnaire');
 });
+
+test('rédaction de l’acte (étude 07/10) : proposée quand Authentic dit « Non rédigé » et que prêt, préemption, SAFER, vente préalable sont levés', () => {
+  const pret = { offrePretStatut: 'recue', pieces: { renonciationPreemption: 'recue' }, typeVente: 'maison' };
+  const aRediger = { authentic: { acte: { etat: 'a_rediger', libelle: 'Pas encore rédigé' } } };
+  const base = Object.assign({ pret: '2026-09-20', rendezVousSignature: '2026-10-30' }, pret, aRediger);
+  const r = app.actionsDuJour([dossier(base)], AUJ);
+  const red = r.actions.find(a => a.type === 'redaction');
+  assert.ok(red, 'tâche « Rédiger l’acte »');
+  assert.strictEqual(red.titre, 'Rédiger l’acte');
+  assert.strictEqual(app.redactionAProposer(dossier(base)), true);
+  // Échéance : 15 jours avant le rendez-vous ; dans le planning, à côté de l'étape en cours.
+  assert.strictEqual(app.echeanceRedaction(dossier(base)), '2026-10-15');
+  assert.ok(app.echeancesPlanning(dossier(base)).some(e => e.type === 'redaction' && e.iso === '2026-10-15'));
+  // Sans état lu dans Authentic : rien (choix de l'étude).
+  assert.strictEqual(app.redactionAProposer(dossier(Object.assign({}, base, { authentic: {} }))), false);
+  // Ce qui la retient : offre de prêt, préemption, SAFER, vente préalable — jamais l'urbanisme.
+  const sansOffre = dossier(Object.assign({}, base, { offrePretStatut: 'manquante' }));
+  assert.strictEqual(app.redactionAProposer(sansOffre), false);
+  assert.strictEqual(app.attentesRedaction(sansOffre).join(','), 'offre de prêt');
+  const sansDia = dossier(Object.assign({}, base, { pieces: {} }));
+  assert.strictEqual(app.attentesRedaction(sansDia).join(','), 'renonciation au droit de préemption');
+  const venteAFaire = dossier(Object.assign({}, base, { ventebien: '2026-10-05' }));
+  assert.strictEqual(app.attentesRedaction(venteAFaire).join(','), 'vente préalable');
+  const safer = dossier(Object.assign({}, base, { authentic: { acte: aRediger.authentic.acte, safer: { envoyeeLe: '2026-09-20' } } }));
+  assert.strictEqual(app.attentesRedaction(safer).join(','), 'réponse de la SAFER');
+  // « En cours » dans Authentic (ou cochée à la main) : faite, plus de tâche ; jamais en participation.
+  const enCours = dossier(Object.assign({}, base, { authentic: { acte: { etat: 'redaction' } } }));
+  assert.strictEqual(app.echeanceValidee(enCours, 'redaction'), true);
+  assert.ok(!app.actionsDuJour([enCours], AUJ).actions.some(a => a.type === 'redaction'));
+  const cochee = dossier(Object.assign({}, base, { echeancesValidees: { redaction: true } }));
+  assert.strictEqual(app.redactionAProposer(cochee), false);
+  assert.strictEqual(app.redactionAProposer(dossier(Object.assign({}, base, { roleNotaire: 'participant' }))), false);
+  // Rendez-vous pas encore fixé : proposée quand même, échéance = date butoir.
+  const sansRdv = dossier(Object.assign({}, base, { rendezVousSignature: '', acte: '2026-11-30' }));
+  assert.strictEqual(app.redactionAProposer(sansRdv), true);
+  assert.strictEqual(app.echeanceRedaction(sansRdv), '2026-11-30');
+});

@@ -20,6 +20,8 @@ const CLE_VERIFICATIONS = 'verifications-terrain';
 // `source` : 'serveur' (noté par le serveur), 'poste' (noté par une fenêtre CLAIRE, POST
 // /api/verifications-terrain/noter — seuls ces points-là y sont acceptés) ou 'manuel'.
 const VERIFICATIONS_TERRAIN = [
+  { id: 'redaction-acte-authentic', depuis: '0.188.0', source: 'poste', titre: 'Rédaction de l’acte : état « Non rédigé » / « En cours » lu dans Authentic',
+    comment: 'Coché à la première page d’un sous-dossier de vente dont le tableau « Rédaction » dit « Non rédigé » ou « En cours ». Vérifier sur la fiche la ligne « Rédaction de l’acte » et, pièces réunies, la tâche « Rédiger l’acte » dans « À faire » ; elle doit partir quand Authentic passe à « En cours ».' },
   { id: 'option-restante-placee', depuis: '0.187.0', source: 'serveur', titre: 'Options de rendez-vous : la dernière restée dans l’agenda devient le rendez-vous',
     comment: 'Coché la première fois que le serveur transforme seul la dernière option (les autres effacées à la main dans Outlook) ; en échec si Exchange refuse la modification. Vérifier dans Outlook : titre sans « ? », occupé, couleur du rendez-vous, puis la date sur la fiche après la relecture suivante de l’agenda.' },
   { id: 'options-rendez-vous', depuis: '0.183.0', source: 'poste', titre: 'Demander à CLAIRE : options de rendez-vous posées dans l’agenda, sans email',
