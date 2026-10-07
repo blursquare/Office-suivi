@@ -1444,3 +1444,27 @@ test('tableau « Rédaction » d’Authentic (étude 07/10) : « Non rédigé »
   signe.tableaux[0].lignes[0] = ['Vente MARTEL / FOURNIER', '29/09/2026', 'Signé le 29/09/2026'];
   assert.strictEqual(app.etatActeAuthentic(signe).etat, 'signe');
 });
+
+test('rédaction (étude 07/10) : « En cours » dans Authentic coche l’étape (tâche faite par CLAIRE), « Non rédigé » ne coche rien', () => {
+  const page = (etat) => ({ titre: 'Authentic', champs: [{ groupe: '', libelle: '12 - Vente MARTEL/FOURNIER Importer', valeur: '' }],
+    texte: '12 - Vente MARTEL/FOURNIER', tableaux: [{ titre: 'Rédaction', entete: [], lignes: [['Vente MARTEL / FOURNIER', '', etat]] }] });
+  const d = { id: 'a', nom: 'MARTEL / FOURNIER', typeVente: 'maison', pieces: {}, historique: [] };
+  app.appliquerReleveSurDossier(d, page('Non rédigé'), '2026-10-07T09:00:00.000Z');
+  assert.equal(d.authentic.acte.etat, 'a_rediger');
+  assert.equal(app.echeanceValidee(d, 'redaction'), false);
+  assert.ok(!(d.echeancesValidees || {}).redaction);
+  app.appliquerReleveSurDossier(d, page('En cours'), '2026-10-07T10:00:00.000Z');
+  assert.equal(d.echeancesValidees.redaction, true);
+  assert.equal(app.echeanceValidee(d, 'redaction'), true);
+  assert.ok(d.historique.some(h => h.texte === 'Rédaction de l’acte marquée réalisée (en cours dans Authentic)' && !h.auteur));
+  // Décochée à la main : retenue malgré « En cours » ; Authentic revenu à « Non rédigé » : décochée.
+  d.echeancesValidees.redaction = false;
+  assert.equal(app.echeanceValidee(d, 'redaction'), false);
+  app.appliquerReleveSurDossier(d, page('Non rédigé'), '2026-10-07T11:00:00.000Z');
+  assert.equal(d.echeancesValidees.redaction, undefined);
+  assert.equal(app.echeanceValidee(d, 'redaction'), false);
+  // En participation : jamais coché par Authentic.
+  const p = { id: 'b', nom: 'MARTEL / FOURNIER', typeVente: 'maison', roleNotaire: 'participant', pieces: {}, historique: [] };
+  app.appliquerReleveSurDossier(p, page('En cours'), '2026-10-07T10:00:00.000Z');
+  assert.ok(!(p.echeancesValidees || {}).redaction);
+});

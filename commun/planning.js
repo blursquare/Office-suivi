@@ -22,8 +22,13 @@
     // envoi fait »). Une date d'envoi sans case cochée ne doit jamais servir d'échéance : elle est dans le passé, le délai
     // jusqu'au rendez-vous (et les rappels qui en partent) ne reviendrait pas après un décochage.
     if ((type === 'appelFonds' || type === 'projetEnvoye') && d[type]) return true;
-    // Rédaction de l'acte (étude 07/10) : faite dès qu'Authentic la dit « En cours » (ou l'acte signé), ou cochée à la main.
-    if (type === 'redaction' && ['redaction', 'signe'].includes(etatRedactionActe(d))) return true;
+    // Rédaction de l'acte (étude 07/10) : cochée dès qu'Authentic la dit « En cours » (ou l'acte signé), jamais tant qu'il dit
+    // « Non rédigé » ; une coche ou une décoche à la main (true / false) l'emporte jusqu'au prochain changement d'état dans Authentic.
+    if (type === 'redaction') {
+      const v = d.echeancesValidees && d.echeancesValidees.redaction;
+      if (v === false || v === true) return v;
+      return ['redaction', 'signe'].includes(etatRedactionActe(d));
+    }
     return !!(d.echeancesValidees && d.echeancesValidees[type]);
   }
 

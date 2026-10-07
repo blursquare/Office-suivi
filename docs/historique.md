@@ -17852,3 +17852,10 @@ ligne de la fiche (`cochable`, `sansCrayon` de `renderLigneEcheance`) avec « En
 (`SEUILS_RAPPELS_PAR_TYPE.redaction = []`). Point terrain `redaction-acte-authentic` : la forme réelle du tableau
 « Rédaction » d'un sous-dossier de vente (« En cours » seul ?) n'a été vue que décrite, pas copiée.
 
+**Rédaction : coche au passage à « En cours »** (0.188.1 ; étude 07/10 : « si l'acte est en non rédigé ne pas cocher l'acte, s'il est en
+en cours cocher la tâche et l'échéance ») — `appliquerReleveSurDossier` : passage à « En cours » → `echeancesValidees.redaction = true`
+et historique « Rédaction de l'acte marquée réalisée (en cours dans Authentic) » (sans auteur : la tâche du jour apparaît cochée,
+« Faite par CLAIRE », par `tachesFaitesAilleurs`) ; passage à « Non rédigé » → coche retirée ; jamais en participation ni succession.
+`echeanceValidee(d, 'redaction')` : `true`/`false` posés (coche ou décoche à la main, `devaliderEcheance` retient `false`) l'emportent,
+sinon l'état d'Authentic (« En cours »/signé). Aucune autre échéance (« acte », signature) n'est touchée par ces états.
+

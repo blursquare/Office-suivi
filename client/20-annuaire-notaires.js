@@ -1704,6 +1704,9 @@
       // ne recoche pas l'étape tout seul.
       d[type] = '';
       if (type === 'projetEnvoye') marquerProjetEnvoyeSelonDate(d, ''); else marquerAppelFondsSelonDate(d, '');
+    } else if (type === 'redaction') {
+      // Décochée à la main : retenue (false), sinon l'état « En cours » d'Authentic la recocherait aussitôt.
+      d.echeancesValidees.redaction = false;
     } else {
       delete d.echeancesValidees[type];
     }

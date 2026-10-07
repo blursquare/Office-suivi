@@ -1981,6 +1981,17 @@
     if (nouveau('acte', 'etat') && !(d.roleNotaire === 'participant' && apres.acte.etat !== 'signe')) noter(`Acte dans Authentic : ${apres.acte.libelle}${apres.acte.date ? ` le ${formatDateFr(apres.acte.date)}` : ''}`);
     if (nouveau('acte', 'etat') && ['a_rediger', 'redaction'].includes(apres.acte.etat)) {
       noterVerificationPoste('redaction-acte-authentic', { detail: `état de rédaction lu : ${apres.acte.etat === 'redaction' ? 'en cours' : 'non rédigé'}` });
+      // Étude 07/10 : « si l'acte est en non rédigé ne pas cocher, s'il est en cours cocher la tâche et l'échéance ». Le passage à
+      // « En cours » coche l'étape (la tâche du jour apparaît cochée, « Faite par CLAIRE ») ; « Non rédigé » la décoche.
+      if (d.roleNotaire !== 'participant' && !estSuccession(d)) {
+        d.echeancesValidees = d.echeancesValidees || {};
+        if (apres.acte.etat === 'redaction' && d.echeancesValidees.redaction !== true) {
+          d.echeancesValidees.redaction = true;
+          noter('Rédaction de l’acte marquée réalisée (en cours dans Authentic)');
+        } else if (apres.acte.etat === 'a_rediger' && d.echeancesValidees.redaction !== undefined) {
+          delete d.echeancesValidees.redaction;
+        }
+      }
     }
     if (nouveau('rhf', 'envoyeeLe')) noter(`Réquisition hors formalité envoyée le ${formatDateFr(apres.rhf.envoyeeLe)} (Authentic)`);
     if (nouveau('rhf', 'retourLe')) noter(`Retour de la réquisition hors formalité le ${formatDateFr(apres.rhf.retourLe)} (Authentic)`);
