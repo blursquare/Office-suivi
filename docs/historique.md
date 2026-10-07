@@ -18208,3 +18208,10 @@ les notaires déduits des parties du flux Authentic (`notairesExportAuthentic`, 
 « Parties prenantes » (`notaireAuthentic`, `d.authentic.notaire`, ligne « Notaire » du bloc « Dans Authentic », copie du signalement).
 Les notaires viennent du compromis (pris au répertoire) ou d'un choix dans le répertoire. Un `d.authentic.notaire` déjà gardé
 n'est plus lu ni affiché.
+
+### 07/10/2026 21 h 45 — 0.191.3 : RIB et pièce d'identité juste avant la signature
+
+Étude, sur la liste des étapes d'un dossier : « Placer le 7. Demander le RIB et la pièce d'identité juste avant la signature
+(étape 12). » La tâche d'« À faire » venait déjà à J-3 (`JOURS_RAPPEL_RIB`), mais l'onglet Fonds de la fiche mettait la ligne
+« RIB » en avant dès le rendez-vous placé (`echangesSelonStade` : `stade === 'signature'`). Elle n'y est plus utile qu'à J-3 du
+rendez-vous ou une fois demandée (`ribDejaDemande`) ; avant, repliée. Tests : relances-email (stades, onglet Fonds).

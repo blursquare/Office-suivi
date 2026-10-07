@@ -383,7 +383,11 @@
     if (confrereRepresenteVendeur(d) && !confrere && d.rendezVousSignature && stade !== 'signe') {
       ranger('relanceDecompteConfrere', relanceDecompteConfrereDue(d, aujourdhuiIso) || d.relanceDecompteConfrerePour === d.rendezVousSignature);
     }
-    if (!confrere) ranger('rib', stade === 'signature');
+    // RIB et pièce d'identité : juste avant la signature (étude 07/10 : « placer la demande de RIB et de pièce d'identité juste
+    // avant la signature ») — utile à J-3 du rendez-vous comme la tâche d'« À faire » (JOURS_RAPPEL_RIB), ou une fois demandée ;
+    // avant, repliée.
+    const jRdvRib = d.rendezVousSignature ? ecartJours(aujourdhuiIso, d.rendezVousSignature) : null;
+    if (!confrere) ranger('rib', stade === 'signature' && ((jRdvRib !== null && jRdvRib <= JOURS_RAPPEL_RIB) || ribDejaDemande(d)));
     ranger('agenda', stade === 'signature');
     const dus = gestesRelationClient([d], aujourdhuiIso).map(g => g.type);
     // « Confirmer le rendez-vous » retiré (étude 05/10 : doublon de la demande de RIB et de pièce d'identité).
