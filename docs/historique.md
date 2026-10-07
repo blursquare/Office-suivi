@@ -18351,3 +18351,12 @@ une tâche, supprime le reste. »
   fête de fin de journée (`renderFeteJour`, `feteJourDejaCelebree`, `marquerFeteJourCelebree`, `CLE_FETE_JOUR` supprimés), bouton
   « Point du matin ». Petite tuile : nombre de choses à faire et la première, sans message ni compte de rappels.
 - Une tâche ajoutée avec une date future n'apparaît qu'à sa date (plus de rappels à venir sur la carte).
+
+### 07/10 23 h 51 — 0.191.13 : carte « Aujourd'hui », tâches faites et progression rétablies
+
+Étude : « Reprends ce widget et remets les tâches effectuées barrées comme avant et la progression des tâches. »
+`renderAlertesDashboard` (client/24) : `traites` de `etatAujourdhui()` repassé à `renderActionsJour`, mes rappels cochés du jour
+(`renderRappelsJour(…, 'faits')`) et les tâches des dossiers traitées (`renderLignesTraitees`) barrés en fin de liste ; message
+`messageProgressionJour` sous le titre, anneau `renderAnneauJour` à droite ; petite tuile : message de progression quand il n'y a
+plus rien à faire. Restent retirés (0.191.12) : rappels à venir, section « À venir », fête, bouton « Point du matin ». Test dans
+`tests/audit-coherence.test.js`.

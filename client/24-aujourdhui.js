@@ -1198,17 +1198,19 @@
       </li>`).join('')}</ul>`;
   }
 
-  // Carte « Aujourd'hui » du tableau de bord (étude 07/10 : « pour le widget Aujourd'hui laisse simplement les tâches à faire et
-  // ajouter une tâche, supprime le reste ») : mes tâches du jour (rappels échus ou sans date) puis les tâches des dossiers, et
-  // « Ajouter une tâche ». Plus de tâches cochées, de rappels à venir, de section « À venir », d'anneau, de message de progression,
-  // de fête ni de bouton « Point du matin ». Petite tuile : le nombre de choses à faire et la première. Les listes sont coupées à
-  // la hauteur de la tuile (ajusterWidgets), « Voir N de plus » ouvre la fenêtre du jour.
+  // Carte « Aujourd'hui » du tableau de bord (étude 07/10 : « laisse simplement les tâches à faire et ajouter une tâche », puis
+  // « remets les tâches effectuées barrées comme avant et la progression des tâches ») : mes tâches du jour (rappels échus ou sans
+  // date) puis les tâches des dossiers, les tâches faites aujourd'hui barrées en fin de liste, « Ajouter une tâche », et la
+  // progression (message sous le titre, anneau à droite). Restent retirés : rappels à venir, section « À venir », fête, bouton
+  // « Point du matin ». Petite tuile : le nombre de choses à faire et la première. Les listes sont coupées à la hauteur de la
+  // tuile (ajusterWidgets), « Voir N de plus » ouvre la fenêtre du jour.
   function renderAlertesDashboard(perimetreActifs) {
     const bloc = document.getElementById('alertes-dashboard');
     if (!bloc) return;
     const global = vueGlobaleDashboard();
     const presentation = presentationWidget('aujourdhui');
-    const { aujourdhui, actions } = etatAujourdhui();
+    const { aujourdhui, actions, traites } = etatAujourdhui();
+    const anneau = actions.length || traites.length ? renderAnneauJour(actions.length, traites.length) : '';
     const versPage = "ouvrirFenetreAujourdhui()";
     let corps;
     if (presentation === 'petit') {
@@ -1220,19 +1222,27 @@
         ${premiere ? `<div class="w-bas" data-ajuster="2"><button type="button" class="w-prochaine g-${premiere.gravite}" onclick="${versPage}">
             <span class="w-prochaine-titre">${escapeHtml(premiere.titre)}</span>
             <span class="w-prochaine-sous">${escapeHtml(libelleDossierAffiche(premiere.dossier))}</span>
-          </button></div>` : ''}`;
+          </button></div>` : `<p class="w-message">${escapeHtml(messageProgressionJour(actions.length, traites.length))}</p>`}`;
     } else {
-      // Mes tâches non cochées (échues, du jour ou sans date) en tête, jamais masquées (w-fixe), puis celles des dossiers.
+      // Mes tâches non cochées (échues, du jour ou sans date) en tête, jamais masquées (w-fixe), puis celles des dossiers ; les
+      // tâches faites aujourd'hui (mes rappels cochés, tâches des dossiers traitées) barrées à la suite.
       const rappelsJour = utilisateurPoste ? renderRappelsJour(aujourdhui, true, 'aFaire') : '';
-      const liste = actions.length || rappelsJour
-        ? `<ul class="ja-liste ja-taches" data-ajuster="1" data-min="1">${rappelsJour}${renderActionsJour(actions, global, [], true)}${plusWidget(versPage)}</ul>`
+      const rappelsCoches = utilisateurPoste ? renderRappelsJour(aujourdhui, true, 'faits') : '';
+      const liste = actions.length || traites.length || rappelsJour || rappelsCoches
+        ? `<ul class="ja-liste ja-taches" data-ajuster="1" data-min="1">${rappelsJour}${renderActionsJour(actions, global, traites, true)}${rappelsCoches}${renderLignesTraitees(grouperActionsParDossier(actions, traites).traites)}${plusWidget(versPage)}</ul>`
         : '<p class="jour-vide jour-vide-ok">✓ Rien à faire aujourd’hui sur vos dossiers.</p>';
       corps = `${liste}
         <div class="w-section dash-rappels-bloc">
           <div class="rappels-perso" data-ajuster="0" data-garder>${renderMesRappels(perimetreActifs, 'ajout')}</div>
         </div>`;
     }
-    bloc.innerHTML = carteWidget({ presentation, titre: 'Aujourd’hui', sous: '', droite: '', corps });
+    bloc.innerHTML = carteWidget({
+      presentation,
+      titre: 'Aujourd’hui',
+      sous: presentation === 'petit' ? '' : escapeHtml(messageProgressionJour(actions.length, traites.length)),
+      droite: anneau,
+      corps
+    });
     renderFenetreAujourdhui();
     planifierAjustementWidgets();
   }

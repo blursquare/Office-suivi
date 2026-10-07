@@ -202,3 +202,13 @@ test('onglet Échanges : les emails reçus ne sont plus affichés, les envoyés 
   assert.match(html, /Votre projet d’acte/);
   assert.doesNotMatch(html, /Mes documents|Confirmer la réception|À répondre/);
 });
+
+test('carte « Aujourd’hui » : tâches faites barrées et progression rendues, ni « Point du matin » ni « À venir »', () => {
+  const src = app.renderAlertesDashboard.toString();
+  assert.ok(src.includes('renderLignesTraitees('), 'tâches des dossiers traitées');
+  assert.ok(src.includes("renderRappelsJour(aujourdhui, true, 'faits')"), 'mes rappels cochés');
+  assert.ok(src.includes('renderAnneauJour('), 'anneau de progression');
+  assert.ok(src.includes('messageProgressionJour('), 'message de progression');
+  assert.ok(!src.includes('Point du matin') && !src.includes("'avenir'"), 'rien de ce qui a été retiré');
+  assert.strictEqual(app.messageProgressionJour(1, 2), 'Plus qu’une !');
+});
