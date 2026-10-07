@@ -2602,7 +2602,8 @@
       const numero = retirerNumeroAuthentic(d);
       const notaires = nettoyerCommunesNotairesDossier(d);
       const importer = retirerImporterAuthentic(d);
-      if (date || numero || notaires || importer) await sauvegarder(d);
+      const dia = migrerPieceDiaCopropriete(d);
+      if (date || numero || notaires || importer || dia) await sauvegarder(d);
     }
   }
 

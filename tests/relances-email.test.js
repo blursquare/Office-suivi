@@ -44,7 +44,7 @@ test('construireEmailRelanceRib reprend mot pour mot le texte de l’étude, san
 
 test('MODELES_EMAIL_RELANCE couvre exactement les dix motifs (relation client de la page Agenda, relance des fonds, décompte du confrère)', () => {
   const app = chargerApplication();
-  assert.equal(Object.keys(app.MODELES_EMAIL_RELANCE).sort().join(','), 'anniversaire,confirmationRdv,fonds,pret,projet,provision,relanceDecompteConfrere,relanceFonds,rib,ventePrealable');
+  assert.equal(Object.keys(app.MODELES_EMAIL_RELANCE).sort().join(','), 'confirmationRdv,fonds,pret,projet,provision,relanceDecompteConfrere,relanceFonds,rib,ventePrealable');
 });
 
 test('relance de la vente préalable : au client, ou au confrère quand un autre office représente l’acquéreur', () => {
@@ -521,7 +521,7 @@ test('echangesSelonStade : ce qui sert maintenant d’abord, le reste replié, r
 
   const signe = app.echangesSelonStade(dossierBase(app, { sansPret: true, rendezVousSignature: '2026-09-15' }), auj);
   assert.equal(signe.utiles.join(','), 'questionnaire');
-  assert.ok(signe.autres.includes('anniversaire'));
+  assert.ok(!signe.utiles.concat(signe.autres).includes('anniversaire'), 'un an après : retiré (07/10)');
 });
 
 test('relation client dans l’onglet Échanges : confirmation, un an après — jamais avec un confrère', () => {
@@ -530,9 +530,9 @@ test('relation client dans l’onglet Échanges : confirmation, un an après —
   // Confirmation du rendez-vous retirée (étude 05/10), même déjà faite pour cette date ; plus de rappel à part.
   const rappel = app.echangesSelonStade(dossierBase(app, { sansPret: true, rendezVousSignature: '2026-10-03', confirmationRdvPour: '2026-10-03' }), auj);
   assert.ok(!rappel.utiles.includes('confirmationRdv') && !rappel.utiles.includes('rappelRdv'), rappel.utiles.join(','));
-  // Un an après : utile.
+  // Un an après : retiré (étude 07/10).
   const unAn = app.echangesSelonStade(dossierBase(app, { sansPret: true, rendezVousSignature: '2025-10-01', archive: true }), auj);
-  assert.ok(unAn.utiles.includes('anniversaire'), unAn.utiles.join(','));
+  assert.ok(!unAn.utiles.concat(unAn.autres).includes('anniversaire'), unAn.utiles.join(','));
   // Confrère : aucun email de relation client, ni utile ni replié.
   const confrere = { roleNotaire: 'participant', notaireAcquereur: 'Maître DURAND', emailNotaireParticipant: 'durand@notaires.fr', sansPret: true };
   for (const rdv of ['2026-10-03', '2026-10-15', '2026-09-15', '2025-10-01']) {
@@ -634,19 +634,15 @@ test('email de relance des fonds : date et heure en gras, lieu, sans montant, ja
 
 test('la confirmation de réception des fonds vaut confirmation du rendez-vous (et son rappel) pour CE rendez-vous', () => {
   const app = chargerApplication();
-  const auj = '2026-10-01';
   const d = dossierBase(app, { sansPret: true, rendezVousSignature: '2026-10-15', receptionFondsConfirmeeLe: '2026-09-30', echeancesValidees: { appelFonds: true } });
   assert.equal(app.rdvConfirmeParFonds(d), true, 'confirmation antérieure au suivi de la date : comptée');
-  assert.equal(app.gestesRelationClient([d], auj).length, 0, 'plus de confirmation à proposer');
   // Le geste « Confirmer le rendez-vous » est retiré (étude 05/10) : la date d'une confirmation passée reste lisible.
   assert.equal(app.dateDernierEmail(d, 'confirmationRdv'), '2026-09-30');
   // Rendez-vous déplacé après la confirmation : à refaire.
   const deplace = Object.assign({}, d, { receptionFondsPourRdv: '2026-10-08' });
   assert.equal(app.rdvConfirmeParFonds(deplace), false);
-  assert.equal(app.gestesRelationClient([deplace], auj).length, 0);
   assert.equal(app.dateDernierEmail(deplace, 'confirmationRdv'), null);
   // Fonds pas confirmés : la confirmation reste due.
-  assert.equal(app.gestesRelationClient([Object.assign({}, d, { receptionFondsConfirmeeLe: null })], auj).length, 0, 'plus jamais proposée');
 });
 
 test('À faire : relance des fonds à J-3 (à la place de « Confirmer la réception »), confirmation sinon', () => {

@@ -458,7 +458,12 @@
     const prix = montantQuotite(d.prixVente);
     if (prix) repris.push('Prix d’acquisition'); else aCompleter.push('Prix d’acquisition.');
     if (typeBien === 'terrain') aCompleter.push('Coût de la construction.');
-    aCompleter.push('Frais et droits de l’acte, frais bancaires et de garantie.');
+    // Frais et droits de l'acte : le même montant que la ligne du décompte de l'appel de fonds (barème, taux plein, assiette hors
+    // mobilier — fraisActeEstimesAppelFonds), au lieu d'une ligne vide (audit 07/10 : deux outils, deux réponses pour un dossier).
+    const cpBien = (String(d.adresseBien || '').match(/\b\d{5}\b/) || [null])[0];
+    const fraisActe = fraisActeEstimesAppelFonds(d.prixVente, d.prixMobilier, cleBaremeDepuisDepartement(departementDepuisCodePostal(cpBien)), AF_TYPE_BIEN_PAR_TYPE_VENTE[d.typeVente] || null);
+    if (fraisActe) aCompleter.push(`Frais et droits de l’acte estimés par le barème : ${formaterPrixCentimes(fraisActe.montant)}${fraisActe.primo < fraisActe.montant ? ` (acquéreur primo-accédant : ${formaterPrixCentimes(fraisActe.primo)})` : ''} — à vérifier.`);
+    aCompleter.push(fraisActe ? 'Frais bancaires et de garantie.' : 'Frais et droits de l’acte, frais bancaires et de garantie.');
 
     const montantPret = d.sansPret ? 0 : montantQuotite(d.montantPret);
     if (d.sansPret) repris.push('Achat sans prêt');
@@ -466,7 +471,7 @@
     else if (montantPret) aCompleter.push(`Répartition du prêt de ${formaterPrixCentimes(montantPret)} entre les acquéreurs.`);
     else aCompleter.push('Montant et établissement du prêt.');
     aCompleter.push('Apport personnel de chacun.');
-    return { typeBien, acquereurs, prix, montantPret, sansPret: !!d.sansPret, repris, aCompleter };
+    return { typeBien, acquereurs, prix, fraisActe: fraisActe ? fraisActe.montant : 0, montantPret, sansPret: !!d.sansPret, repris, aCompleter };
   }
 
   // --- état et rendu ------------------------------------------------------------------------
@@ -731,6 +736,8 @@
     qtEtat.typeBien = p.typeBien;
     qtEtat.lignes = lignesOperationParDefaut(p.typeBien).map(l => Object.assign({ id: qtId() }, l));
     if (p.prix) qtEtat.lignes[0].montant = p.prix;
+    const ligneFrais = qtEtat.lignes.find(l => /^Frais et droits de l'acte/.test(l.libelle));
+    if (p.fraisActe && ligneFrais) ligneFrais.montant = p.fraisActe;
     if (p.acquereurs.length) qtEtat.acquereurs = p.acquereurs.map(a => Object.assign({ id: qtId() }, a));
     if (p.sansPret) qtEtat.sources = qtEtat.sources.filter(s => s.type !== 'pret');
     else if (p.montantPret && qtEtat.acquereurs.length === 1) {

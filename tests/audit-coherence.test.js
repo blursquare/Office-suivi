@@ -133,3 +133,42 @@ test('délai de relance des fonds : un seul nombre pour le poste et le serveur (
   const src = require('node:fs').readFileSync(require('node:path').join(__dirname, '..', 'server', 'src', 'jobs', 'rappels.js'), 'utf8');
   assert.ok(/j > JOURS_RELANCE_FONDS/.test(src), 'alerte Teams « fonds pas reçus » sur la constante commune');
 });
+
+test('appel de fonds : heure et lieu du rendez-vous repris de la fiche, comme dans les emails', () => {
+  const base = { id: 'af1', nom: 'A / B', rendezVousSignature: '2026-10-20', rendezVousSignatureHeure: '14:30', prixVente: 200000 };
+  const p = app.prefillAppelFonds(base, {});
+  assert.strictEqual(p.heureRdv, '14:30');
+  assert.strictEqual(p.lieuRdv.valeur, "en l'étude");
+  assert.strictEqual(app.prefillAppelFonds(Object.assign({}, base, { rendezVousType: 'visio' }), {}).lieuRdv.valeur, 'par visioconférence');
+  const conf = app.prefillAppelFonds(Object.assign({}, base, { rendezVousType: 'confrere', notaireAcquereur: 'Maître Paul DURAND (VENDÔME)' }), {});
+  assert.strictEqual(conf.lieuRdv.valeur, '__autre');
+  assert.match(conf.lieuRdv.autre, /office de Maître Paul DURAND \(VENDÔME\)/);
+  const sansHeure = app.prefillAppelFonds(Object.assign({}, base, { rendezVousSignatureHeure: '' }), {});
+  assert.ok(sansHeure.aCompleter.some(t => /Heure du rendez-vous/.test(t)));
+});
+
+test('quotités : frais et droits de l’acte = le montant du décompte de l’appel de fonds (même barème)', () => {
+  const d = { id: 'q1', nom: 'A / B', adresseBien: 'BLOIS (41000), 2 rue des Lilas', typeVente: 'maison', prixVente: 200000,
+    parties: [{ role: 'ACQUEREUR', nom: 'Paul DUPONT', civilite: 'M' }] };
+  const q = app.prefillQuotites(d);
+  const af = app.prefillAppelFonds(d, {});
+  assert.ok(q.fraisActe > 0);
+  assert.strictEqual(q.fraisActe, af.fraisActe);
+});
+
+test('copropriété soumise au DPU : une seule pièce de renonciation, celle que le scan coche ; ancienne pièce « (DIA) » reprise', () => {
+  const d = { id: 'sc1', typeVente: 'copropriete', piecesPersonnalisees: [{ cle: 'perso-dia', label: 'Renonciation au droit de préemption (DIA)' }],
+    pieces: { 'perso-dia': 'recue' }, preemption: { droits: [], piecesAjoutees: ['perso-dia'] } };
+  assert.strictEqual(app.migrerPieceDiaCopropriete(d), true);
+  assert.strictEqual(d.piecesPersonnalisees.length, 0);
+  assert.strictEqual(d.pieces.renonciationPreemption, 'recue');
+  assert.strictEqual(d.preemption.piecesAjoutees.join(','), 'renonciationPreemption');
+  assert.strictEqual(planning.preemptionLevee(d), true);
+  const liste = app.checklistPieces('copropriete', d);
+  const p = app.pieceDepuisScanRange(d, 'renonciationPreemption', 'Renonciation au droit de préemption - Claire Scan.pdf', liste, '2026-10-07T10:00:00Z');
+  assert.strictEqual(p.cle, 'renonciationPreemption');
+  // Attendue mais pas reçue : retient le planning ; retirée à la main : ne retient plus.
+  const e = { typeVente: 'copropriete', pieces: {}, preemption: { piecesAjoutees: ['renonciationPreemption'] } };
+  assert.strictEqual(planning.preemptionLevee(e), false);
+  assert.strictEqual(planning.preemptionLevee(Object.assign({}, e, { piecesRetirees: ['renonciationPreemption'] })), true);
+});

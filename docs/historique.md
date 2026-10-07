@@ -18277,3 +18277,29 @@ Suite de l'audit.
 - Relevé, non changé (à soumettre) : « Un mot un an après la signature » n'apparaît que dans l'onglet Échanges d'une fiche, or
   le dossier est archivé dès le questionnaire envoyé (ou à J+30) — le geste n'est jamais proposé nulle part.
 Tests : audit-coherence (deux cas).
+
+### 07/10/2026 22 h 41 — 0.191.8 : « un an après » retiré, audit outil par outil
+
+Étude : « Retire le mot d'anniversaire et continue ton audit jusqu'à ne plus trouver d'incohérences pour tous les outils un par un ».
+- **« Un mot un an après la signature » retiré** : `gestesRelationClient` (il ne portait plus que lui), modèle `anniversaire`
+  (`MODELES_EMAIL_RELANCE`, modèles intégrés, `construireEmailAnniversaire`, mots des modèles, `ACTIONS_EMAIL_DOSSIER`), ligne
+  Échanges, intention de l'assistant. Un modèle modifié par l'étude sous cette clé reste en base, ignoré.
+- **Appel de fonds** : `prefillAppelFonds(d, categoriesRdv)` reprend l'heure (`rendezVousSignatureHeure`) et le lieu
+  (`lieuAppelFondsDossier` : visio → « par visioconférence », confrère → « en l'office de Maître … », sinon « en l'étude » — la règle
+  de `lieuRdvEmail`) ; le courrier disait « en l'étude » sans heure pour une signature chez le confrère. Au changement de dossier, un
+  champ vide du nouveau dossier efface celui du précédent (date, adresse, désignation restaient). L'email du courrier parti de CLAIRE
+  coche « Envoi appel de fonds » (`marquerEnvoiAujourdhui`, agenda compris) comme l'email du projet coche « Envoi projet » : la tâche
+  d'« À faire » et le rappel restaient dus.
+- **Quotités** : la ligne « Frais et droits de l'acte de vente » prend le montant du décompte (`fraisActeEstimesAppelFonds`, même
+  barème, assiette hors mobilier) au lieu d'être vide.
+- **Demander à CLAIRE** : « Ouvrir le simulateur » de la provision vide le mobilier et repasse en résidence principale pour un
+  primo-accédant (le simulateur montrait un autre total que la réponse) ; le prorata remet la période « année civile ».
+- **Copropriété soumise au DPU** : 0.190.0 ajoutait une seconde pièce « Renonciation au droit de préemption (DIA) » (`perso-dia`) pour
+  retenir le planning, alors que la checklist de copropriété a déjà la pièce standard — le scan (`TYPES_SCAN`), le NAS et Authentic
+  cochaient la standard, la seconde restait attendue et bloquait « Fixer le rendez-vous ». Désormais l'analyse retient la pièce
+  standard (`retenir`, `piecesAjoutees`, comptée par `piecesPreemptionEnAttente` sauf retirée) ; `migrerPieceDiaCopropriete` reprend
+  les dossiers déjà touchés (reçue → standard reçue), au démarrage et à chaque analyse.
+- Vérifié cohérent : prorata (une seule fonction `calculerProrata` pour l'outil, l'appel de fonds et l'assistant), barème des frais
+  (`estimerFraisActe` partout), outil Préemption et analyse automatique (même `prefillPreemption`), forfait mobilier (succession,
+  autonome), Répertoire et Relecture d'actes (lecture seule de la fiche).
+Tests : audit-coherence (4 cas), preemption, relances-email, agenda-page.

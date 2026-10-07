@@ -387,31 +387,8 @@
   }
 
   // ---- Relation client ----
-  // Pure : les emails de relation client dus aujourd'hui, du plus pressant au moins pressant.
-  //  - questionnaire de satisfaction dans les 14 jours après la signature ;
-  //  - un mot un an après la signature.
-  // Jamais quand l'acquéreur est accompagné par un confrère (étude, 01/10 : « que pour les clients non
-  // accompagnés par un confrère ») — c'est alors son notaire qui tient la relation. Ces emails vivent
-  // dans l'onglet Échanges de la fiche (echangesSelonStade), plus dans la barre de l'agenda (01/10).
-  // « Confirmer le rendez-vous » retiré (étude 05/10 : doublon de « Demander le RIB et la pièce d'identité ») ; son modèle
-  // d'email reste dans Réglages › Modèles d'emails et le menu « Modèles » de la fenêtre d'email.
-  // Le questionnaire n'est plus ici (audit 07/10) : sa fenêtre de 14 jours n'était lue nulle part et contredisait celle de
-  // 30 jours d'« À faire » (JOURS_QUESTIONNAIRE) — il vit dans « À faire » et l'onglet Échanges.
-  var ORDRE_GESTES_RELATION = { anniversaire: 2 };
-  function gestesRelationClient(liste, aujourdhuiIso) {
-    const auj = aujourdhuiIso || isoAujourdhuiLocal();
-    const gestes = [];
-    for (const d of liste || []) {
-      // Après la signature : la date retenue partout (Authentic d'abord, sinon le rendez-vous passé).
-      const rdv = d && dateSignatureDossier(d, auj);
-      if (!rdv) continue;
-      const j = ecartJours(auj, rdv);
-      if (j === null) continue;
-      if (notaireParticipantRepresenteAcquereur(d)) continue;
-      if (j <= -358 && j >= -372 && !d.anniversaireEnvoyeLe) gestes.push({ d, type: 'anniversaire', j });
-    }
-    return gestes.sort((a, b) => ORDRE_GESTES_RELATION[a.type] - ORDRE_GESTES_RELATION[b.type] || Math.abs(a.j) - Math.abs(b.j));
-  }
+  // « Un mot un an après la signature » retiré le 07/10 (étude : « retire le mot d'anniversaire ») — le dossier est archivé dès le
+  // questionnaire envoyé (ou à J+30), le geste n'était proposé nulle part. Questionnaire : « À faire » et l'onglet Échanges.
 
   // ---- État de la page ----
   // Trois vues (étude, 30/09, sur un exemple de design fourni) : Mois, Semaine (lundi → samedi),
@@ -1226,8 +1203,7 @@
 
   var LIBELLES_GESTES_RELATION = {
     confirmationRdv: (g) => `Signature le ${formatDateFr(g.d.rendezVousSignature)}`,
-    questionnaire: (g) => `Signé il y a ${-g.j} jour${-g.j > 1 ? 's' : ''}`,
-    anniversaire: (g) => `Signé le ${formatDateFr(g.d.rendezVousSignature)}`
+    questionnaire: (g) => `Signé il y a ${-g.j} jour${-g.j > 1 ? 's' : ''}`
   };
 
   // ---- Comparaison avec la même semaine l'an dernier (étude, 01/10 : « + x rendez-vous, hausse ou

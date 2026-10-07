@@ -152,23 +152,9 @@ test('creneauxProposesSignature : date butoir proche → au plus tôt dans 3 jou
   assert.equal(c[1].apresButoir, true);
 });
 
-test('gestesRelationClient : un mot un an après — le questionnaire vit dans « À faire » (30 jours), jamais au client d’un confrère', () => {
-  const liste = [
-    { id: 'rappel', rendezVousSignature: '2026-10-03' },
-    { id: 'confirme', rendezVousSignature: '2026-10-20' },
-    { id: 'dejaConfirme', rendezVousSignature: '2026-10-21', confirmationRdvPour: '2026-10-21' },
-    { id: 'deplace', rendezVousSignature: '2026-10-22', confirmationRdvPour: '2026-10-15' },
-    { id: 'signe', rendezVousSignature: '2026-09-25' },
-    { id: 'signeConfrere', rendezVousSignature: '2026-09-25', notaireAcquereur: 'Maître DUPUIS' },
-    { id: 'rdvConfrere', rendezVousSignature: '2026-10-03', notaireAcquereur: 'Maître DUPUIS' },
-    { id: 'confirmeConfrere', rendezVousSignature: '2026-10-20', notaireAcquereur: 'Maître DUPUIS' },
-    { id: 'questionnaireFait', rendezVousSignature: '2026-09-25', questionnaireEnvoyeLe: '2026-09-26' },
-    { id: 'unAn', rendezVousSignature: '2025-10-01', archive: true },
-    { id: 'loin', rendezVousSignature: '2026-12-31' }
-  ];
-  const g = app.gestesRelationClient(liste, '2026-10-01');
-  assert.equal(g.map(x => `${x.type}:${x.d.id}`).join(' | '),
-    'anniversaire:unAn');
+test('« un mot un an après la signature » retiré (étude 07/10)', () => {
+  assert.strictEqual(typeof app.gestesRelationClient, 'undefined');
+  assert.ok(!('anniversaire' in app.MODELES_EMAIL_RELANCE));
 });
 
 test('emails de relation client : date et heure en gras, lieu selon le type, formule du confrère', () => {

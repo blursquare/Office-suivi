@@ -94,7 +94,6 @@
     { cle: 'projet', libelle: 'projet d’acte', re: /\bprojet\b/ },
     { cle: 'confirmationRdv', libelle: 'confirmation du rendez-vous', re: /\b(confirm[a-z]* (le )?rendez|rendez[- ]vous|rdv)\b/ },
     { cle: 'questionnaire', libelle: 'questionnaire de satisfaction', re: /\b(questionnaire|satisfaction)\b/ },
-    { cle: 'anniversaire', libelle: 'un an après la signature', re: /\b(anniversaire|un an apres)\b/ },
     { cle: 'copieActe', libelle: 'copie de l’acte', re: /\b(copie de l.acte|attestation de vente|attestations?)\b/ },
     { cle: 'accuseReception', libelle: 'accusé de réception', re: /\baccuse de reception\b/ }
   ];

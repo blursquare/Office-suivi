@@ -135,10 +135,15 @@
   // comme la renonciation de la mairie (étude 07/10 : « cohérence des échéances avec les pièces reçues pour droit de préemption »).
   // « Réponse SAFER » est suivie à part (saferLevee).
   /** @param {any} d @returns {string[]} */
+  // La pièce standard « Renonciation au droit de préemption » y figure pour un lot de copropriété soumis au DPU (audit 07/10 : une
+  // seconde pièce « (DIA) » doublait la checklist et ni le scan ni Authentic ne la cochaient) — sauf retirée à la main.
   function piecesPreemptionEnAttente(d) {
     const ajoutees = d && d.preemption && Array.isArray(d.preemption.piecesAjoutees) ? d.preemption.piecesAjoutees : [];
     const perso = (d && d.piecesPersonnalisees) || [];
-    return ajoutees.filter(c => c !== 'perso-safer' && perso.some(p => p && p.cle === c) && !(d.pieces && d.pieces[c] === 'recue'));
+    const presente = c => (c === 'renonciationPreemption'
+      ? ((d && d.piecesRetirees) || []).indexOf(c) === -1
+      : perso.some(p => p && p.cle === c));
+    return ajoutees.filter(c => c !== 'perso-safer' && presente(c) && !(d.pieces && d.pieces[c] === 'recue'));
   }
   function preemptionLevee(d) {
     if (d.roleNotaire === 'participant' || C.estSuccession(d)) return true;

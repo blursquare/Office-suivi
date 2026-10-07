@@ -39,15 +39,33 @@
     'foret-commune': { cle: 'perso-foret-commune', label: 'Réponse de la commune (bois et forêts)' },
     'foret-etat': { cle: 'perso-foret-etat', label: 'Réponse de l’État (bois et forêts)' }
   };
-  var PIECE_DIA_COPROPRIETE = { cle: 'perso-dia', label: 'Renonciation au droit de préemption (DIA)', deja: /pr[ée]emption|\bDPU\b|\bDIA\b/i };
+  // Lot de copropriété soumis au DPU : la pièce STANDARD de la checklist, retenue par l'analyse (piecesAjoutees) pour retenir le
+  // planning — plus de seconde pièce « Renonciation au droit de préemption (DIA) » (perso-dia, 0.190.0 → 0.191.8 : le scan, le NAS et
+  // Authentic cochaient la pièce standard, la seconde restait attendue). Les dossiers qui l'ont passent par migrerPieceDiaCopropriete.
+  var CLE_PIECE_DIA_ANCIENNE = 'perso-dia';
+  function migrerPieceDiaCopropriete(d) {
+    const perso = (d && d.piecesPersonnalisees) || [];
+    if (!perso.some(p => p && p.cle === CLE_PIECE_DIA_ANCIENNE)) return false;
+    d.pieces = d.pieces || {};
+    if (d.pieces[CLE_PIECE_DIA_ANCIENNE] === 'recue' && d.pieces.renonciationPreemption !== 'recue') {
+      d.pieces.renonciationPreemption = 'recue';
+      d.piecesValideesManuellement = Array.from(new Set([...(d.piecesValideesManuellement || []), 'renonciationPreemption']));
+    }
+    d.piecesPersonnalisees = perso.filter(p => p && p.cle !== CLE_PIECE_DIA_ANCIENNE);
+    delete d.pieces[CLE_PIECE_DIA_ANCIENNE];
+    if (d.preemption && Array.isArray(d.preemption.piecesAjoutees)) {
+      d.preemption.piecesAjoutees = Array.from(new Set(d.preemption.piecesAjoutees.map(c => (c === CLE_PIECE_DIA_ANCIENNE ? 'renonciationPreemption' : c))));
+    }
+    return true;
+  }
 
   // Pure : les pièces attendues d'après les droits à purger de `p` → [{ droit, cle, label, deja?, standard? }].
   function piecesPreemptionAttendues(d, p) {
     const out = [];
     droitsPreemptionFiche(p).filter(dr => dr.statut === 'oui').forEach(dr => {
       if (dr.cle === 'dpu') {
-        out.push(d.typeVente === 'copropriete' ? Object.assign({ droit: 'dpu' }, PIECE_DIA_COPROPRIETE)
-          : { droit: 'dpu', cle: 'renonciationPreemption', label: 'Renonciation au droit de préemption', standard: true });
+        // Copropriété : la pièce standard ne retient pas le planning d'elle-même (preemptionLevee) — l'analyse la retient.
+        out.push({ droit: 'dpu', cle: 'renonciationPreemption', label: 'Renonciation au droit de préemption', standard: true, retenir: d.typeVente === 'copropriete' });
       } else if (PIECES_DROITS_PREEMPTION[dr.cle]) out.push(Object.assign({ droit: dr.cle }, PIECES_DROITS_PREEMPTION[dr.cle]));
     });
     return out;
@@ -60,6 +78,7 @@
   function appliquerPreemptionSurPieces(d, o) {
     const p = d && d.preemption;
     if (!p || !Array.isArray(p.droits) || d.roleNotaire === 'participant' || estSuccession(d)) return [];
+    migrerPieceDiaCopropriete(d);
     const textes = [];
     const perso = () => d.piecesPersonnalisees || [];
     d.pieces = d.pieces || {};
@@ -83,6 +102,10 @@
         if (o && o.explicite && (d.piecesRetirees || []).includes(a.cle)) {
           d.piecesRetirees = d.piecesRetirees.filter(c => c !== a.cle);
           textes.push(`« ${a.label} » remise dans les pièces`);
+        }
+        if (a.retenir && !ajoutees.has(a.cle)) {
+          ajoutees.add(a.cle);
+          if (d.pieces[a.cle] !== 'recue') textes.push(`« ${a.label} » à attendre pour signer (lot soumis au droit de préemption urbain)`);
         }
         return;
       }

@@ -745,10 +745,23 @@
     return garanties.some(g => g === 'hypothequeLegale' || g === 'hypothequeConventionnelle');
   }
 
+  // Pure : le lieu du rendez-vous dans le courrier, d'après la fiche — même règle que les emails (lieuRdvEmail) : visio, office du
+  // confrère, sinon en l'étude (audit 07/10 : l'outil ne reprenait ni l'heure ni le lieu, le courrier disait « en l'étude » pour une
+  // signature chez le confrère). { valeur } = option de la liste, { autre } = texte libre quand valeur vaut '__autre'.
+  function lieuAppelFondsDossier(d, categoriesRdv) {
+    const t = typeRendezVous(d, categoriesRdv);
+    if (t === 'visio') return { valeur: 'par visioconférence', autre: '' };
+    if (t === 'confrere') {
+      const nom = notaireParticipantRepresenteAcquereur(d) ? d.notaireAcquereur : (confrereRepresenteVendeur(d) ? d.notaireVendeur : '');
+      return { valeur: '__autre', autre: nom ? `en l’office de ${String(nom).trim()}` : 'en l’office du notaire de l’acquéreur' };
+    }
+    return { valeur: "en l'étude", autre: '' };
+  }
+
   // Assemble tout ce que le dossier permet de préremplir, et surtout ce qu'il NE permet PAS :
   // `aCompleter` alimente le récapitulatif affiché à l'écran, pour que l'étude sache exactement
   // ce qui a été repris et ce qui reste à sa charge. Fonction pure, testable.
-  function prefillAppelFonds(d) {
+  function prefillAppelFonds(d, categoriesRdv) {
     if (!d) return null;
     const clients = clientsDepuisDossier(d);
     const situation = situationClientDossier(d, 'acquereur');
@@ -775,8 +788,12 @@
 
     if (d.adresseBien) repris.push('Adresse du bien'); else aCompleter.push('Adresse du bien.');
     if (designationDepuisTypeVente(d.typeVente)) repris.push('Désignation du bien');
-    if (d.rendezVousSignature) repris.push('Date du rendez-vous de signature');
-    else aCompleter.push('Date du rendez-vous — aucune n’est encore fixée sur le dossier.');
+    const lieuRdv = lieuAppelFondsDossier(d, categoriesRdv);
+    if (d.rendezVousSignature) {
+      repris.push(d.rendezVousSignatureHeure ? 'Date et heure du rendez-vous de signature' : 'Date du rendez-vous de signature');
+      repris.push('Lieu du rendez-vous');
+      if (!d.rendezVousSignatureHeure) aCompleter.push('Heure du rendez-vous — aucune n’est notée sur le dossier.');
+    } else aCompleter.push('Date du rendez-vous — aucune n’est encore fixée sur le dossier.');
     if (d.prixVente) repris.push('Prix d’acquisition'); else aCompleter.push('Prix d’acquisition.');
 
     // Le dépôt est déduit dans tous les cas (voir depotDeductible), mais son DÉTENTEUR change ce que
@@ -832,6 +849,8 @@
       adresseBien: normaliserAdresse(d.adresseBien),
       designation: designationDepuisTypeVente(d.typeVente),
       dateRdv: d.rendezVousSignature || '',
+      heureRdv: d.rendezVousSignature ? (d.rendezVousSignatureHeure || '') : '',
+      lieuRdv,
       prixVente: d.prixVente || null,
       prixMobilier: d.prixMobilier || null,
       depotGarantie: depot.deductible ? d.depotGarantie : null,
@@ -1423,11 +1442,12 @@
   // Le second point est le plus important : un champ laissé vide sur un courrier adressé à un
   // client se voit, et rien dans l'outil ne dirait pourquoi sans ce récapitulatif.
   function appliquerPrefillAppelFonds(d) {
-    const p = prefillAppelFonds(d);
+    const p = prefillAppelFonds(d, categoriesRdvReglees());
     if (!p) return;
     // Les pièces lues pour un AUTRE dossier (avis de taxe foncière, état daté…) ne le suivent pas ; celles déposées avant
     // tout choix de dossier restent.
-    if (afDossierLie && afDossierLie !== p.dossierId) {
+    const autreDossier = !!afDossierLie && afDossierLie !== p.dossierId;
+    if (autreDossier) {
       tfAvis.af = null;
       renderBlocTaxeFonciere('af');
       ['charges', 'etatDate', 'releve'].forEach(type => { afPieces[type] = null; renderBlocPieceAppelFonds(type); });
@@ -1442,7 +1462,9 @@
     const champSituation = afEl('af-situation');
     if (champSituation) champSituation.value = afSituation;
 
-    const ecrire = (id, v) => { const e = afEl(id); if (e && v) e.value = v; };
+    // Un champ que le dossier laisse vide garde ce qui a été saisi avant tout choix de dossier, mais jamais la valeur d'un AUTRE
+    // dossier (audit 07/10 : la date ou l'adresse du dossier précédent restaient dans le courrier).
+    const ecrire = (id, v) => { const e = afEl(id); if (e && (v || autreDossier)) e.value = v || ''; };
     ecrire('af-ref', p.dossierNom);
     ecrire('af-designation', p.designation);
     ecrire('af-adresse-bien', p.adresseBien);
@@ -1450,6 +1472,13 @@
     // n'ont plus lieu d'être tant que l'étude ne la retouche pas.
     majSourceAdresseBien(!!p.adresseBien);
     ecrire('af-date-rdv', p.dateRdv);
+    ecrire('af-heure-rdv', p.heureRdv);
+    const champLieu = afEl('af-lieu');
+    if (champLieu && p.lieuRdv) {
+      champLieu.value = p.lieuRdv.valeur;
+      const champAutre = afEl('af-lieu-autre');
+      if (champAutre) { champAutre.value = p.lieuRdv.autre || ''; champAutre.style.display = p.lieuRdv.valeur === '__autre' ? 'block' : 'none'; }
+    }
     const casePret = afEl('af-pret-hypothecaire');
     if (casePret) casePret.checked = !!p.pretHypothecaire;
     const caseSansPret = afEl('af-sans-pret');
@@ -2687,7 +2716,10 @@
       if (r.mode === 'mailto') telechargerFichier(blob, nom);
       enregistrerAppelFondsHistorique(r.mode === 'envoye' ? 'envoye' : 'prepare', nom, donnees);
       ajouterHistorique(d, r.mode === 'envoye' ? 'Email du courrier d’appel de fonds envoyé' : 'Email du courrier d’appel de fonds préparé');
-      sauvegarder(d);
+      // L'échéance « Envoi appel de fonds » se coche comme celle du projet quand son email part de CLAIRE (audit 07/10 : la
+      // tâche d'« À faire » et le rappel restaient dus après l'envoi) — même chemin que « Déjà envoyé », agenda compris.
+      if (!echeanceValidee(d, 'appelFonds')) marquerEnvoiAujourdhui(d.id, 'appelFonds');
+      else sauvegarder(d);
       annoncerEmailPret(r, false, r.mode === 'mailto' ? 'Joignez le courrier, qui vient d’être téléchargé.' : '');
     } catch (e) {
       console.error(e);

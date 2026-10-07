@@ -254,8 +254,11 @@ test('lot de copropriété soumis au DPU : la DIA retient la signature ; bois : 
   assert.strictEqual(c.preemption.droits.find(x => x.cle === 'dpu').statut, 'oui');
   assert.strictEqual(app.preemptionLevee(c), true, 'avant : la copropriété n’attend rien');
   app.appliquerPreemptionSurPieces(c);
-  assert.strictEqual(c.piecesPersonnalisees.map(p => p.label).join(','), 'Renonciation au droit de préemption (DIA)');
-  assert.strictEqual(app.preemptionLevee(c), false, 'la pièce ajoutée retient « Fixer le rendez-vous » comme une pièce posée à la main');
+  assert.strictEqual((c.piecesPersonnalisees || []).length, 0, 'plus de seconde pièce « (DIA) » : la pièce standard est retenue');
+  assert.ok(c.preemption.piecesAjoutees.includes('renonciationPreemption'));
+  assert.strictEqual(app.preemptionLevee(c), false, 'la renonciation retient « Fixer le rendez-vous »');
+  c.pieces.renonciationPreemption = 'recue';
+  assert.strictEqual(app.preemptionLevee(c), true, 'reçue (scan, NAS, Authentic) : levée');
   // Bois de moins de 4 ha, aucun voisin privilégié : droit de préférence des voisins.
   const b = venteInventee({ typeVente: 'terrain', bien: { adresse: { codePostal: '41350' }, cadastre: { section: 'ZC', numero: '4' } } });
   b.preemption = ficheAuto(b, zoneA, { bois: true, massif4ha: true, superficieMoins4ha: true, foretDomaniale: false, communeBoiseeContigue: false, acquereurPrivilegie: false, partieBoiseeMoinsMoitie: false });

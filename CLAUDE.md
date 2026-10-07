@@ -153,7 +153,7 @@ dans `index.html`** (le test `structure-client` refuse tout décalage).
    **Modèles d'emails** (étude 03/10, Réglages › Modèles d'emails, `renderReglagesModelesEmails` ; clé `modeles-emails`,
    `server/src/modelesEmails.js`, `routes/modelesEmails.js`) : les modèles de CLAIRE (`modelesEmailIntegres` : provision,
    prêt, RIB, vente préalable client/confrère, fonds, projet, confirmation client/confrère, relance des fonds, appel de fonds,
-   questionnaire, anniversaire — texte « à variables » **identique mot pour mot** aux `construireEmail…`, vérifié par
+   questionnaire — « un an après la signature » retiré le 07/10 (étude) — texte « à variables » **identique mot pour mot** aux `construireEmail…`, vérifié par
    `tests/modeles-emails.test.js`) se modifient (`modifies[cle]`) et **les boutons de la fiche suivent** (choix de l'étude :
    `emailDepuisModele` — variante confrère choisie seule, version modifiée sinon la fonction d'origine), « Revenir au texte
    d'origine » ; modèles de l'étude (`perso`). Variables `{…}` (`VARIABLES_MODELE_EMAIL`), **lien sur des mots `[mots](https://…)`** (07/10, `RE_LIEN_SUR_MOTS`, rendu par `ligneHtmlEmail` dans la fenêtre, l'aperçu et l'email ; collage avec liens gardé), paragraphe retiré si une variable est
@@ -286,7 +286,7 @@ dans `index.html`** (le test `structure-client` refuse tout décalage).
   `toutesEcheances` n'en est que l'habillage `autre-<index>`) : vente préalable → obtention du prêt → *renonciation au droit de
   préemption* (bloquante hors copropriété, sauf pièce retirée ou participation ; en copropriété
   seulement si une pièce personnalisée « préemption/DPU/DIA » a été ajoutée ; toute pièce ajoutée par l'analyse des droits de
-  préemption et pas encore reçue la retient aussi — `piecesPreemptionEnAttente`, 07/10 ; « Réponse SAFER » relève de `saferLevee`) → *délai SAFER*
+  préemption et pas encore reçue la retient aussi — `piecesPreemptionEnAttente`, 07/10 ; en copropriété soumise au DPU, la pièce STANDARD « Renonciation au droit de préemption » retenue par l'analyse, sauf retirée — plus de seconde pièce « (DIA) », `migrerPieceDiaCopropriete` ; « Réponse SAFER » relève de `saferLevee`) → *délai SAFER*
   (date butoir tirée d'Authentic, voir l'extension) → *réponse à la DIA* (étude 07/10, `echeanceDiaDossier` : DIA envoyée relevée dans Authentic
   `d.authentic.demandes.renonciationPreemption.date` + 2 mois, `MOIS_REPONSE_DIA`, tant que la renonciation n'est pas reçue ; **jamais une renonciation
   tacite** — étude : « pour la DIA on doit avoir le document de renonciation pour signer » : la date sert à suivre et relancer la mairie, le rendez-vous
@@ -423,6 +423,7 @@ dans `index.html`** (le test `structure-client` refuse tout décalage).
   items) → acomptes sur prix et sur frais versés à l'étude, qui **remplacent** la ligne d'acompte du
   dossier (même somme), reversements au confrère signalés. Rien n'est enregistré sur le dossier.
 - **Mise en page du courrier d'appel de fonds (.docx)** (étude 05/10 et 06/10) : les retours d'aération sont **dans le modèle Word** (`appel-de-fonds-modele.js`, `docxB64`, régénéré par un script qui réécrit `word/document.xml` puis le base64) — paragraphe vide avant `{addrLines}`, cinq `<w:br/>` sous l'adresse, deux sous « {ville}, le {dateLettre} » ; la mention « Envoi par e-mail uniquement » a son propre champ `{mention}` en italique (`{#mention}<w:br/>…{/mention}`) : `donneesCourrierAppelFonds` rend `addrLines` (lignes du destinataire seules) et `mention` ; un courrier gardé avant passe par `normaliserDonneesCourrierAppelFonds` (mention et retours retirés d'`addrLines`) pour être refait à l'identique. LibreOffice ne charge rien ici : le rendu papier se regarde au bureau.
+- **Outil Appel de fonds depuis un dossier** (audit 07/10, `prefillAppelFonds(d, categoriesRdv)`) : date, **heure** et **lieu** du rendez-vous repris de la fiche (`lieuAppelFondsDossier` : visio, office du confrère nommé, sinon en l'étude — même règle que les emails) ; un champ que le nouveau dossier laisse vide ne garde jamais la valeur du dossier précédent ; l'email du courrier parti de CLAIRE **coche « Envoi appel de fonds »** (`marquerEnvoiAujourdhui`, comme le projet). Outil Quotités : frais et droits de l'acte = le montant du décompte (`fraisActeEstimesAppelFonds`, même barème).
 - **Lignes du courrier reprises d'un décompte** : jamais de tiret ni de réserve « à parfaire » (« sauf à parfaire », « à parfaire
   ou à diminuer », entre parenthèses ou non) — `afNettoyerLibelle` (étude 06/10).
 - **Historique des courriers d'appel de fonds** (étude 06/10 : « pour les retrouver » ; `client/43-historique-appels-fonds.js`,
@@ -582,7 +583,7 @@ dans `index.html`** (le test `structure-client` refuse tout décalage).
   **Chaque geste au même moment partout** (audit 07/10 : « À faire », onglets Échanges/Fonds, planning, rappels Teams) — appel de fonds J-10 du rendez-vous (jamais avant que le rendez-vous soit fixé), projet J-7 ou dès l'appel de fonds parti, fonds reçus après l'appel de fonds, relance et confirmation des fonds J-3 (alerte Teams « fonds pas reçus » aussi à J-3, le vendredi si J-3 tombe un week-end) ; **« Demander le RIB et la pièce d'identité » juste avant la signature** (étude 07/10 : tâche d'« À faire » à J-3, `JOURS_RAPPEL_RIB`, et ligne utile de l'onglet Fonds au même moment seulement — repliée avant ; jamais quand un confrère accompagne l'acquéreur) ; **« Confirmer la réception des fonds »** dans « À faire » à 3 jours du rendez-vous seulement (étude 05/10, `JOURS_CONFIRMATION_FONDS`) ;
   **« Relancer pour les fonds »** si les fonds ne sont pas arrivés 3 jours avant (`relanceFondsDue`, `JOURS_RELANCE_FONDS`,
   `construireEmailRelanceFonds`, une fois par date `relanceFondsPour`, À faire + Échanges, premier jet de CLAIRE),
-  questionnaire J+1…J+30 (« À faire », `JOURS_QUESTIONNAIRE`), un mot un an après — **date de signature = `dateSignatureDossier`** (07/10 : signé dans Authentic ou coché, sinon rendez-vous passé ; stade, questionnaire, archivage à J+30, un an après ; jamais `d.rendezVousSignature` seul ; jamais pour une succession) — **jamais quand un confrère accompagne l'acquéreur**,
+  questionnaire J+1…J+30 (« À faire », `JOURS_QUESTIONNAIRE`) ; **« un mot un an après la signature » retiré le 07/10** (étude : « retire le mot d'anniversaire » — dossier archivé avant, jamais proposé ; `gestesRelationClient` supprimée) — **date de signature = `dateSignatureDossier`** (07/10 : signé dans Authentic ou coché, sinon rendez-vous passé ; stade, questionnaire, archivage à J+30, statistiques, avancement, tuiles du mois ; jamais `d.rendezVousSignature` seul ; jamais pour une succession) — **jamais quand un confrère accompagne l'acquéreur**,
   étude 01/10) : ces emails vivent dans l'**onglet Échanges de la fiche** (`echangesSelonStade`, utiles quand ils sont
   dus ou faits), plus dans la barre de l'agenda (retirés le 01/10). **Couleur d'un
   rendez-vous = celle d'Outlook** (étude, 30/09) : couleur nommée dans la catégorie
@@ -592,7 +593,7 @@ dans `index.html`** (le test `structure-client` refuse tout décalage).
   à droite (étude 02/10 : « ce qui s'est passé depuis hier 18 h ») onglets **« Depuis hier 18 h »** (`renderDepuisHier18h` :
   documents reçus et cochés listés — `documentsDepuis`, `d.piecesTrouveesLe` ; nombre d'emails reçus et écartés ; liste des
   demandes de l'IA ; autres nouveautés repliées) · Agenda du jour (`ongletFenetreJour`), 660 px de haut au plus. Emails de confirmation,
-  rappel et anniversaire = **premiers jets de CLAIRE**, à remplacer par les textes de l'étude.
+  rappel = **premiers jets de CLAIRE**, à remplacer par les textes de l'étude.
 - **Sondage de créneaux de signature** (01/10, « comme un Doodle », `server/src/sondagesCreneaux.js`,
   `routes/sondages.js`, client `ouvrirSondageCreneaux`/`renderSondageDossier`) : rien d'hébergé — un
   `.eml` aux clients ensemble (et un par confrère, formule d'usage) dont chaque bouton est un `mailto:`
@@ -648,8 +649,7 @@ dans `index.html`** (le test `structure-client` refuse tout décalage).
   (`analyserPreemptionDossier`, drapeau `d.preemptionAuto` posé par « Ajouter le dossier » / « Compléter le dossier », relu à
   l'ouverture de la fiche si code postal, parcelles ou nature du bien changent — `signature` —, jamais par-dessus un résultat
   enregistré depuis l'outil) ; un droit à purger ajoute sa pièce (`appliquerPreemptionSurPieces`, aussi à « Enregistrer sur la
-  fiche ») : « Réponse SAFER » (`perso-safer`, la même qu'Authentic), « Renonciation au droit de préemption (DIA) » pour un lot de
-  copropriété (retient le planning), droit de préférence / préemption bois et forêts — retirée si le droit tombe et qu'elle n'est
+  fiche ») : « Réponse SAFER » (`perso-safer`, la même qu'Authentic), pour un lot de copropriété la pièce standard « Renonciation au droit de préemption », retenue par l'analyse (`retenir`, piecesAjoutees ; 07/10 : la seconde pièce « (DIA) » du 0.190.0 doublait la checklist, le scan/NAS/Authentic ne la cochaient pas — reprise par `migrerPieceDiaCopropriete`, au démarrage et à chaque analyse), droit de préférence / préemption bois et forêts — retirée si le droit tombe et qu'elle n'est
   pas reçue ; les questions restantes se répondent sur la fiche ; droits recalculés depuis `lignes` + réponses
   (`droitsPreemptionFiche`, la liste `droits` gardée peut avoir été réunie par la fusion du serveur).
 - **Mobilier** : le prix reste le prix total ; `d.prixMobilier` sort seulement de l'assiette des

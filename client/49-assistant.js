@@ -617,6 +617,10 @@
       if (champ('calc-type')) champ('calc-type').value = type;
       const radio = document.querySelector(`input[name="calc-first"][value="${primo ? 'yes' : 'no'}"]`);
       if (radio) radio.checked = true;
+      // Le simulateur doit montrer le total annoncé ici (audit 07/10) : aucun mobilier, et le primo-accédant n'est éligible qu'en
+      // résidence principale (calculerFraisActe) — une saisie précédente restée dans l'écran changeait le résultat.
+      if (champ('calc-mobilier')) champ('calc-mobilier').value = '';
+      if (primo) { const rp = document.querySelector('input[name="calc-rp"][value="yes"]'); if (rp) rp.checked = true; }
       calculerFraisActe();
     };
     return { html: `<p>Provision sur frais pour ${escapeHtml(formaterMontantEuros(prix))}, ${escapeHtml(libelleType)}, ${escapeHtml(DEPARTEMENTS_FRAIS_ACTE[dept].name)} (${dept})${primo ? ', primo-accédant' : ''} :</p><ul class="asst-liste"><li><b>Total estimé : ${escapeHtml(formaterPrix(e.total))}</b></li><li>Émoluments : ${escapeHtml(formaterPrix(e.emoluments))}</li><li>Trésor (droits) : ${escapeHtml(formaterPrix(e.tresor))}</li></ul><p class="asst-note">Barème validé par l’étude le 02/10/2026 ; débours forfaitaires compris.</p>`,
@@ -638,6 +642,8 @@
       if (champ('prorata-debut')) champ('prorata-debut').value = debut;
       if (champ('prorata-fin')) champ('prorata-fin').value = fin;
       if (champ('prorata-date')) champ('prorata-date').value = dateActe;
+      // Période de la liste accordée aux bornes (une période trimestrielle choisie avant restait affichée sur une année).
+      if (champ('prorata-periode') && debut === `${dateActe.slice(0, 4)}-01-01` && fin === `${dateActe.slice(0, 4)}-12-31`) champ('prorata-periode').value = 'annee';
       if (typeof calculerProrataAffichage === 'function') calculerProrataAffichage();
     };
     return { html: `<p>Prorata de ${escapeHtml(formaterMontantEuros(montant))} sur la période du ${escapeHtml(formatDateFr(debut))} au ${escapeHtml(formatDateFr(fin))}, acte le ${escapeHtml(formatDateFr(dateActe))} :</p><ul class="asst-liste"><li>Part du vendeur : <b>${escapeHtml(formaterMontantEuros(r.partVendeur))}</b> (${r.joursVendeur} j)</li><li>Part de l’acquéreur : <b>${escapeHtml(formaterMontantEuros(r.partAcquereur))}</b> (${r.joursAcquereur} j, jour de l’acte compris)</li></ul>`,

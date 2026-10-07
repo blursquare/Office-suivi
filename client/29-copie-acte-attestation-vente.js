@@ -353,9 +353,8 @@
   //   projet       J-7 du rendez-vous, ou dès l'appel de fonds parti
   //   fonds reçus  une fois l'appel de fonds parti ; RIB à J-3 ; note d'agenda : rendez-vous fixé
   //   relance des fonds : à J-3 si rien n'est arrivé (client seulement)
-  //   questionnaire, un mot un an après : acte signé
-  // Relation client (questionnaire, un an après) : jamais quand un confrère
-  // accompagne l'acquéreur (étude, 01/10), mêmes échéances que gestesRelationClient.
+  //   questionnaire : acte signé
+  // Questionnaire : jamais à l'acquéreur qu'un confrère accompagne (étude, 01/10).
   function echangesSelonStade(d, aujourdhuiIso) {
     const stade = stadeDossier(d, aujourdhuiIso);
     if (estSuccession(d)) return { stade, utiles: [], autres: [] };
@@ -392,11 +391,9 @@
     // avant, repliée.
     if (!confrere) ranger('rib', stade === 'signature' && ((jRdv !== null && jRdv <= JOURS_RAPPEL_RIB) || ribDejaDemande(d)));
     ranger('agenda', stade === 'signature');
-    const dus = gestesRelationClient([d], aujourdhuiIso).map(g => g.type);
     // « Confirmer le rendez-vous » retiré (étude 05/10 : doublon de la demande de RIB et de pièce d'identité).
     if (estDossierParticipation(d)) ranger('copieActe', stade === 'signe');
     if (!confrere || !confrereRepresenteVendeur(d)) ranger('questionnaire', stade === 'signe');
-    if (!confrere && stade === 'signe') ranger('anniversaire', dus.indexOf('anniversaire') !== -1 || !!d.anniversaireEnvoyeLe);
     return { stade, utiles, autres };
   }
 

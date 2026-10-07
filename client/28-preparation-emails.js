@@ -1165,15 +1165,14 @@
     // effet que la date saisie sur la fiche ou « Marquer envoyé », agenda compris).
     projet: { cle: 'projet', libelle: 'Projet d’acte', construire: d => emailDepuisModele('projet', d), historique: 'Email envoyé — projet d’acte', date: 'projetEnvoye' },
     // Relation client (page Agenda, 30/09) : confirmation du rendez-vous — mémorisée pour CETTE date
-    // (confirmationRdvPour), un rendez-vous déplacé la repropose —, et un mot un an après la signature.
+    // (confirmationRdvPour), un rendez-vous déplacé la repropose. « Un an après la signature » retiré le 07/10 (étude).
     // Le rappel du rendez-vous à part a été retiré le 03/10 (étude).
     confirmationRdv: { cle: 'confirmationRdv', libelle: 'Confirmer le rendez-vous de signature', construire: d => emailDepuisModele('confirmationRdv', d), historique: 'Email envoyé — confirmation du rendez-vous de signature', date: 'confirmationRdvLe' },
     // Fonds pas encore reçus à J-3 du rendez-vous (étude, 03/10) — premier jet de CLAIRE, à remplacer par le texte de l'étude.
     relanceFonds: { cle: 'relanceFonds', libelle: 'Relancer pour les fonds', construire: d => emailDepuisModele('relanceFonds', d), historique: 'Email envoyé — relance : fonds pas encore reçus', date: 'relanceFondsLe' },
     // Décompte du confrère qui représente le vendeur, demandé 10 jours avant le rendez-vous (étude 06/10, J-10 depuis le 07/10) : au confrère, jamais
     // au client — `destinataire` et `confrere` remplacent la règle par défaut (emailDestinataireRelance, côté acquéreur).
-    relanceDecompteConfrere: { cle: 'relanceDecompteConfrere', libelle: 'Demander son décompte au confrère', construire: d => emailDepuisModele('relanceDecompteConfrere', d), historique: 'Email envoyé — décompte demandé au confrère du vendeur', date: 'relanceDecompteConfrereLe', destinataire: d => emailConfrereVendeurDossier(d), confrere: true },
-    anniversaire: { cle: 'anniversaire', libelle: 'Un an après la signature', construire: d => emailDepuisModele('anniversaire', d), historique: 'Email envoyé — un an après la signature', date: 'anniversaireEnvoyeLe' }
+    relanceDecompteConfrere: { cle: 'relanceDecompteConfrere', libelle: 'Demander son décompte au confrère', construire: d => emailDepuisModele('relanceDecompteConfrere', d), historique: 'Email envoyé — décompte demandé au confrère du vendeur', date: 'relanceDecompteConfrereLe', destinataire: d => emailConfrereVendeurDossier(d), confrere: true }
   };
 
   // Premiers jets de CLAIRE (comme l'email du projet d'acte) : à remplacer par les textes de l'étude
@@ -1220,12 +1219,7 @@
       'Dans l\'attente et vous en remerciant par avance,',
       'Votre bien dévoué.'].join('\n\n') };
   }
-  function construireEmailAnniversaire(d) {
-    return { sujet: `Un an déjà — ${libelleDossierAffiche(d)}`, corps: ['Bonjour,',
-      'Il y a un an, vous signiez l’acte d’acquisition de votre bien. Toute l’équipe de l’office espère que vous vous y plaisez.',
-      'Nous restons à votre disposition pour tout nouveau projet : donation, testament, contrat de mariage ou de PACS, succession, ou une nouvelle acquisition.',
-      'Bien cordialement,'].join('\n\n') };
-  }
+
   // ---- Modèles d'emails (étude, 03/10 : « un créateur de modèles d'emails dans les réglages, qu'on retrouve dans
   // l'interface email ; que je puisse éditer les modèles, mets déjà ceux existants » ; choix : les boutons de la fiche
   // suivent un modèle modifié) ----
@@ -1382,11 +1376,7 @@
         sujet: 'Questionnaire de satisfaction',
         corps: ['Madame, Monsieur,', 'La qualité du service rendu à nos clients est une priorité pour notre office. Elle traduit l’engagement de notre équipe pour s’adapter à vos attentes.',
           'Afin de recueillir votre avis, deux solutions s’offrent à vous :\n1. Répondre au questionnaire satisfaction ci-joint, de manière anonyme, et nous le retourner.\n2. Laisser un avis en ligne afin de faire profiter de votre expérience au sein de notre office. Cliquez ici pour laisser votre avis : {lien avis Google}',
-          'Sachez que toute l’office notarial a eu à cœur de vous accompagner et espère pouvoir collaborer à vos côtés de nouveau.', 'Dans l’attente et vous en remerciant vivement par avance,', 'Bien cordialement.'].join('\n\n') },
-      { cle: 'anniversaire', nom: 'Un an après la signature', construire: construireEmailAnniversaire,
-        sujet: 'Un an déjà — {dossier}',
-        corps: ['Bonjour,', 'Il y a un an, vous signiez l’acte d’acquisition de votre bien. Toute l’équipe de l’office espère que vous vous y plaisez.',
-          'Nous restons à votre disposition pour tout nouveau projet : donation, testament, contrat de mariage ou de PACS, succession, ou une nouvelle acquisition.', 'Bien cordialement,'].join('\n\n') }
+          'Sachez que toute l’office notarial a eu à cœur de vous accompagner et espère pouvoir collaborer à vos côtés de nouveau.', 'Dans l’attente et vous en remerciant vivement par avance,', 'Bien cordialement.'].join('\n\n') }
     ];
   }
 
@@ -1586,8 +1576,7 @@
     projet: [[/projet d.acte/, 12], [/\bprojet\b/, 6]],
     confirmationRdv: [[/rendez-vous|\brdv\b|date de (la )?signature/, 6], [/confirm/, 3]],
     appelFonds: [[/appel de fonds|decompte/, 12], [/montant a (virer|verser|regler)|somme a (virer|verser|regler)|combien/, 6]],
-    questionnaire: [[/questionnaire|satisfaction/, 12]],
-    anniversaire: []
+    questionnaire: [[/questionnaire|satisfaction/, 12]]
   };
   var GESTES_MODELES_EMAIL = { relancePret: 'pret', fondsRecus: 'fonds' };
 
@@ -1906,8 +1895,7 @@
     rib: { titre: 'Demander le RIB et la pièce d’identité', verbe: 'Envoyer', categorie: 'rendezVousSignature', categorieLabel: 'Avant la signature' },
     confirmationRdv: { titre: 'Confirmer le rendez-vous', verbe: 'Confirmer', categorie: 'rendezVousSignature', categorieLabel: 'Relation client' },
     relanceFonds: { titre: 'Relancer pour les fonds', verbe: 'Relancer', categorie: 'appelFonds', categorieLabel: 'Réception des fonds' },
-    relanceDecompteConfrere: { titre: 'Demander son décompte au confrère', verbe: 'Demander', categorie: 'appelFonds', categorieLabel: 'Appel de fonds' },
-    anniversaire: { titre: 'Un mot un an après la signature', verbe: 'Écrire', categorie: 'neutre', categorieLabel: 'Relation client' }
+    relanceDecompteConfrere: { titre: 'Demander son décompte au confrère', verbe: 'Demander', categorie: 'appelFonds', categorieLabel: 'Appel de fonds' }
   };
 
   // Date du dernier envoi d'un email : le champ daté du dossier, à défaut la dernière ligne
@@ -1939,7 +1927,7 @@
     else if (motif === 'projet') sous = 'Le projet d’acte se joint dans Outlook';
     else if (LIBELLES_GESTES_RELATION[motif] && d.rendezVousSignature) {
       const j = ecartJours(isoAujourdhuiLocal(), d.rendezVousSignature);
-      if (j !== null && (motif === 'anniversaire' ? j < 0 : j > 0)) sous = LIBELLES_GESTES_RELATION[motif]({ d, j });
+      if (j !== null && j > 0) sous = LIBELLES_GESTES_RELATION[motif]({ d, j });
     }
     // L'offre de prêt se relance tous les 10 jours : « faite » seulement tant que la dernière
     // relance est récente, sinon la ligne redevient une action à faire.
