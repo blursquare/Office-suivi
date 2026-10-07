@@ -495,11 +495,28 @@
     const parties = partiesExportAuthentic(donnees);
     const nomme = (p) => p && String(p.nom || '').trim();
     d.parties = Array.isArray(d.parties) ? d.parties : [];
+    // Côtés dont Authentic a changé les personnes (étude 07/10) : changement proposé, rien d'autre n'y est repris tant que l'étude
+    // n'a pas décidé (« Mettre à jour » ou « Ignorer »).
+    const enAttente = new Set();
+    const surLaFiche = (role, v) => d.parties.some(p => p && String(p.role || '').toUpperCase() === role && memePartieComplement(p, v));
     for (const role of ['VENDEUR', 'ACQUEREUR']) {
       const venues = parties.filter(p => p.role === role && nomme(p));
       if (!venues.length) continue;
+      const retires = personnesPartiesAuthentic(d, role, venues, donnees.intitule);
+      if (retires.length) {
+        const personnes = (donnees.personnes || []).filter(pers => venues.some(v => v.nom === [pers.prenom, pers.nom].filter(Boolean).join(' ')));
+        proposerChangementPartiesAuthentic(d, role, retires, venues, personnes, donnees.intitule, maintenant);
+        if (!o.forcer) { enAttente.add(role); continue; }
+        textes.push(appliquerChangementPartiesAuthentic(d, d.authentic.majEnAttente['parties:' + role]));
+        continue;
+      }
+      // Personnes déjà données par Authentic : une personne retenue absente de la fiche y a été retirée à la main — elle n'y
+      // revient pas ; seule une personne NOUVELLE dans Authentic est ajoutée.
+      const retenus = valeursAuthenticDossier(d)['parties:' + role];
+      const dejaDonnee = (v) => Array.isArray(retenus) && retenus.some(n => memePersonneParNom(n, v.nom) || memePartieComplement({ nom: n }, v));
+      memoriserValeurAuthentic(d, 'parties:' + role, venues.map(v => v.nom));
       const presentes = d.parties.filter(p => p && String(p.role || '').toUpperCase() === role && nomme(p));
-      const ajoutees = venues.filter(v => !presentes.some(p => memePartieComplement(p, v)));
+      const ajoutees = venues.filter(v => !presentes.some(p => memePartieComplement(p, v)) && !dejaDonnee(v));
       if (!ajoutees.length) continue;
       // Les lignes vides du côté (« Prénom NOM » à saisir) laissent la place aux personnes d'Authentic.
       if (!presentes.length) d.parties = d.parties.filter(p => !(p && String(p.role || '').toUpperCase() === role && !nomme(p)));
@@ -511,7 +528,8 @@
     (donnees.personnes || []).forEach(pers => {
       const complet = [pers.prenom, pers.nom].filter(Boolean).join(' ');
       const venue = parties.find(p => (p.role === 'VENDEUR' || p.role === 'ACQUEREUR') && p.nom === complet);
-      if (!venue) return;
+      // Seulement les personnes présentes sur la fiche (une personne écartée ou en attente de décision n'y entre pas par là).
+      if (!venue || enAttente.has(venue.role) || !surLaFiche(venue.role, venue)) return;
       alignerIdentitePartieAuthentic(d, pers, venue.role, { maintenant, forcer: o.forcer }).forEach(t => textes.push(t));
       const p = d.parties.find(x => x && String(x.role || '').toUpperCase() === venue.role && memePartieComplement(x, venue));
       if (p && pers.situationMatrimoniale && !(p.situationMatrimoniale && p.situationMatrimoniale.situation)) p.situationMatrimoniale = Object.assign({}, pers.situationMatrimoniale);
@@ -519,7 +537,7 @@
     appliquerSituationsAuthentic(d, { maintenant, forcer: o.forcer }).forEach(t => textes.push(t));
     // Emails et téléphones de chaque personne d'Authentic (Authentic d'abord : ils remplacent ceux de la fiche la première fois,
     // ensuite un changement est proposé).
-    parties.filter(p => (p.role === 'VENDEUR' || p.role === 'ACQUEREUR') && nomme(p)).forEach(p => {
+    parties.filter(p => (p.role === 'VENDEUR' || p.role === 'ACQUEREUR') && nomme(p) && !enAttente.has(p.role) && surLaFiche(p.role, p)).forEach(p => {
       appliquerContactAuthentic(d, p.role, p.nom, { emails: p.emails, telephones: p.telephones }, { maintenant, forcer: o.forcer }).forEach(t => textes.push(t));
     });
     const bien = bienExportAuthentic(donnees);

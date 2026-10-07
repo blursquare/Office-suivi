@@ -276,3 +276,67 @@ test('compléter depuis Authentic : civilité et situation des parties déjà su
   assert.equal(d.situationAcquereur, 'marie');
   assert.ok(textes.some(t => /Situation des acquéreurs : Couple marié/.test(t)));
 });
+
+// Étude 07/10 : « Si l'acquéreur change dans le dossier Authentic, le modifier dans la fiche CLAIRE » — proposé, jamais écrit
+// d'office ; à la mise à jour, le nom du dossier suit et les coordonnées de l'ancien acquéreur sont retirées.
+function exportAuthentic(acquereur) {
+  const pers = (id, nom, prenom, civilite, email) => ({ id, nom, prenom, civilite, emails: email ? [email] : [], telephones: [] });
+  return {
+    intitule: `Vente MARTEL / ${acquereur.nom}`, reference: 'A 2026 00247',
+    personnes: [pers('v', 'MARTEL', 'Alexandre', 'Monsieur', 'alex@exemple.fr'), pers('a', acquereur.nom, acquereur.prenom, acquereur.civilite, acquereur.email)],
+    parties: [], documents: [], immeubles: []
+  };
+}
+function dossierChangement() {
+  const d = dossier({ referenceAuthentic: 'A 2026 00247', parties: [{ role: 'VENDEUR', nom: 'MARTEL' }, { role: 'ACQUEREUR', nom: 'FOURNIER' }] });
+  app.complementDossierDepuisAuthentic(d, exportAuthentic({ nom: 'FOURNIER', prenom: 'Camille', civilite: 'Madame', email: 'camille@exemple.fr' }), [d]);
+  return d;
+}
+
+test('acquéreur changé dans Authentic : proposé, la fiche ne bouge pas avant la décision', () => {
+  const d = dossierChangement();
+  assert.equal(d.emailAcquereur, 'camille@exemple.fr');
+  app.complementDossierDepuisAuthentic(d, exportAuthentic({ nom: 'DUBOIS', prenom: 'Paul', civilite: 'Monsieur', email: 'paul@exemple.fr' }), [d]);
+  const acq = d.parties.filter(p => p.role === 'ACQUEREUR').map(p => p.nom).join(',');
+  assert.equal(acq, 'Camille FOURNIER', 'rien d’écrit d’office');
+  assert.equal(d.emailAcquereur, 'camille@exemple.fr');
+  const m = app.majsEnAttenteAuthentic(d).find(x => x.cle === 'parties:ACQUEREUR');
+  assert.ok(m, 'changement proposé');
+  assert.equal(m.libelle + ' : ' + m.avant + ' → ' + m.apres, 'Acquéreurs : Camille FOURNIER → Paul DUBOIS');
+});
+
+test('« Mettre à jour » : nouvel acquéreur posé, ancien et ses coordonnées retirés, nom du dossier qui suit', () => {
+  const d = dossierChangement();
+  app.complementDossierDepuisAuthentic(d, exportAuthentic({ nom: 'DUBOIS', prenom: 'Paul', civilite: 'Monsieur', email: 'paul@exemple.fr' }), [d]);
+  const texte = app.appliquerMajAuthentic(d, 'parties:ACQUEREUR');
+  assert.match(texte, /Acquéreurs mis à jour d’après Authentic : Paul DUBOIS \(avant : Camille FOURNIER\) ; nom du dossier : MARTEL \/ FOURNIER → MARTEL \/ DUBOIS/);
+  const acq = d.parties.filter(p => p.role === 'ACQUEREUR');
+  assert.equal(acq.map(p => p.nom + ':' + p.civilite).join(','), 'Paul DUBOIS:M');
+  assert.equal(d.emailAcquereur, 'paul@exemple.fr', 'email de l’ancien acquéreur retiré, celui du nouveau repris');
+  assert.equal(d.nom, 'MARTEL / DUBOIS');
+  assert.equal(d.parties.filter(p => p.role === 'VENDEUR').length, 1, 'le vendeur ne bouge pas');
+  assert.equal(app.majsEnAttenteAuthentic(d).length, 0);
+  // Relevé suivant : plus rien à proposer.
+  app.complementDossierDepuisAuthentic(d, exportAuthentic({ nom: 'DUBOIS', prenom: 'Paul', civilite: 'Monsieur', email: 'paul@exemple.fr' }), [d]);
+  assert.equal(app.majsEnAttenteAuthentic(d).length, 0);
+});
+
+test('« Ignorer » : la fiche garde son acquéreur, le nouveau n’y entre pas aux relevés suivants', () => {
+  const d = dossierChangement();
+  const nouveau = exportAuthentic({ nom: 'DUBOIS', prenom: 'Paul', civilite: 'Monsieur', email: 'paul@exemple.fr' });
+  app.complementDossierDepuisAuthentic(d, nouveau, [d]);
+  assert.equal(app.ignorerMajAuthentic(d, 'parties:ACQUEREUR'), true);
+  app.complementDossierDepuisAuthentic(d, nouveau, [d]);
+  assert.equal(d.parties.filter(p => p.role === 'ACQUEREUR').map(p => p.nom).join(','), 'Camille FOURNIER');
+  assert.equal(d.emailAcquereur, 'camille@exemple.fr');
+  assert.equal(app.majsEnAttenteAuthentic(d).length, 0);
+});
+
+test('page partielle : une personne encore citée par le nom du dossier d’Authentic n’est jamais proposée au retrait', () => {
+  const d = dossierChangement();
+  const partiel = exportAuthentic({ nom: 'DUBOIS', prenom: 'Paul', civilite: 'Monsieur' });
+  partiel.intitule = 'Vente MARTEL / FOURNIER DUBOIS';   // co-acquéreur ajouté, la fiche de Camille pas relevée cette fois
+  app.complementDossierDepuisAuthentic(d, partiel, [d]);
+  assert.equal(app.majsEnAttenteAuthentic(d).filter(m => m.cle === 'parties:ACQUEREUR').length, 0);
+  assert.equal(d.parties.filter(p => p.role === 'ACQUEREUR').map(p => p.nom).join(','), 'Camille FOURNIER,Paul DUBOIS', 'un co-acquéreur nouveau est ajouté comme avant');
+});

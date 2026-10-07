@@ -17622,3 +17622,22 @@ Cause de la lenteur : toute phrase que les mots-clés ne tranchaient pas partait
   (`alignerIdentitePartieAuthentic`) et leur recopie la situation matrimoniale lue.
 - Tests `tests/authentic-fait-foi.test.js` (4 nouveaux) : civilité + couple marié, conjoint qui n'est pas l'autre personne, pacs,
   union libre, Authentic d'abord puis proposition, complément.
+
+**Étude (07/10) : « Si l'acquéreur change dans le dossier Authentic, le modifier dans la fiche CLAIRE »** (0.181.0) — choix de
+l'étude : **proposé** (comme un email changé), et à la mise à jour **le nom du dossier suit, les coordonnées de l'ancien acquéreur
+sont retirées**.
+- Avant : le complément depuis Authentic n'ajoutait que les personnes manquantes, jamais ne retirait ; un acquéreur remplacé
+  restait sur la fiche, le nouveau s'y ajoutait à côté.
+- `client/52-authentic-fait-foi.js` : personnes d'un côté retenues d'Authentic (`d.authentic.valeurs['parties:VENDEUR' |
+  'parties:ACQUEREUR']`, noms « Prénom NOM », posées au premier complément) ; `personnesPartiesAuthentic` : une personne retenue
+  absente du dossier d'Authentic ET que le nom du dossier d'Authentic ne cite plus (`coteIntituleAuthentic`,
+  `personneDansCoteIntitule` — garde contre une page partielle) → `proposerChangementPartiesAuthentic` (maj `type: 'parties'`,
+  « Acquéreurs : ancien → nouveau ») ; `appliquerChangementPartiesAuthentic` (« Mettre à jour ») : anciennes personnes retirées,
+  leurs coordonnées reprises d'Authentic retirées du champ du côté (tout le champ quand plus personne ne reste), leur registre
+  oublié, nouvelles posées avec identité/civilité/emails/téléphones d'Authentic (forcés), situation du couple recalculée, nom du
+  dossier « VENDEUR / ACQUÉREUR » dont le côté prend le nom d'Authentic ; « Ignorer » retient la nouvelle liste sans rien écrire.
+- `complementDossierDepuisAuthentic` (client/17) : côté en attente → rien d'autre repris de ce côté ; identité et coordonnées
+  seulement pour les personnes présentes sur la fiche ; une personne déjà donnée par Authentic et retirée de la fiche n'y revient
+  pas (seule une personne NOUVELLE dans Authentic est ajoutée). Marche sur les dossiers rattachés à leur référence Authentic
+  (« A 2026 00247 ») : sans référence, le dossier d'Authentic au nouveau nom n'est pas reconnu par les noms.
+- Tests `tests/authentic-fait-foi.test.js` (4) : proposé sans rien écrire, Mettre à jour, Ignorer, page partielle.

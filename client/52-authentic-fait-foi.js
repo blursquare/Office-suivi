@@ -219,6 +219,104 @@
     else if (k === 'dateNaissance') p.dateNaissance = cible.dateNaissance;
   }
 
+  // ---- Changement d'acquéreur (ou de vendeur) dans Authentic (étude 07/10 : « si l'acquéreur change dans le dossier Authentic, le
+  // modifier dans la fiche CLAIRE » ; choix : proposé, jamais écrit d'office ; à la mise à jour, le nom du dossier suit et les
+  // coordonnées de l'ancien acquéreur sont retirées). Les personnes d'un côté qu'Authentic a données sont retenues
+  // (d.authentic.valeurs['parties:ACQUEREUR'], noms « Prénom NOM ») ; si une personne retenue disparaît d'Authentic — et que le
+  // nom du dossier dans Authentic ne la cite plus —, la mise à jour est proposée (« Acquéreurs : Camille FOURNIER → Paul DUBOIS »). ----
+
+  var LIBELLES_PARTIES_AUTHENTIC = { VENDEUR: 'Vendeurs', ACQUEREUR: 'Acquéreurs' };
+
+  // Pure : le côté `role` du nom du dossier dans Authentic (« Vente MARTEL / DUBOIS » → « DUBOIS » pour l'acquéreur), '' sinon.
+  function coteIntituleAuthentic(intitule, role) {
+    const m = /^\s*(?:vte|vente)\b\s*[-:]?\s*(.+?)\s*\/\s*(.+?)\s*$/i.exec(sansReferenceAuthentic(intitule || ''));
+    if (!m) return '';
+    return (role === 'VENDEUR' ? m[1] : m[2]).trim();
+  }
+
+  // Pure : la personne (« Camille FOURNIER ») est-elle encore citée par ce côté du nom du dossier d'Authentic ?
+  function personneDansCoteIntitule(nom, cote) {
+    const texte = ' ' + normaliserPourRecherche(cote || '').replace(/[^a-z0-9]+/g, ' ').trim() + ' ';
+    return motsIdentitePersonne(nom).filter(m => m.length >= 3).some(m => texte.includes(' ' + m + ' '));
+  }
+
+  // Pure : les personnes retenues d'Authentic pour ce côté que le dossier d'Authentic ne porte plus — [] si rien n'a changé, si
+  // Authentic n'avait encore rien donné, ou si le nom du dossier d'Authentic est illisible (prudence : jamais sur une page partielle).
+  function personnesPartiesAuthentic(d, role, venues, intitule) {
+    const retenus = valeursAuthenticDossier(d)['parties:' + role];
+    if (!Array.isArray(retenus) || !retenus.length || !(venues || []).length) return [];
+    const cote = coteIntituleAuthentic(intitule, role);
+    if (!cote) return [];
+    return retenus.filter(n => !venues.some(v => memePersonneParNom(n, v.nom) || memePartieComplement({ nom: n }, v)) && !personneDansCoteIntitule(n, cote));
+  }
+
+  // Modifie d : propose le changement de personnes d'un côté. `venues` = parties d'Authentic (partiesExportAuthentic), `personnes`
+  // = leurs fiches (nom de famille, prénom, civilité, emails, téléphones…).
+  function proposerChangementPartiesAuthentic(d, role, retires, venues, personnes, intitule, maintenant) {
+    const noms = venues.map(v => v.nom);
+    return mettreEnAttenteAuthentic(d, 'parties:' + role, {
+      type: 'parties', role, libelle: LIBELLES_PARTIES_AUTHENTIC[role], retires: retires.slice(), noms,
+      nouveaux: venues.map(v => JSON.parse(JSON.stringify(v))), personnes: JSON.parse(JSON.stringify(personnes || [])),
+      cote: coteIntituleAuthentic(intitule, role),
+      avant: retires.join(', '), apres: noms.join(', '), le: maintenant || new Date().toISOString()
+    });
+  }
+
+  // Modifie d : la mise à jour « personnes d'un côté » écrite — anciennes personnes retirées avec leurs coordonnées, nouvelles
+  // posées (identité, civilité, emails, téléphones d'Authentic), situation du couple recalculée, nom du dossier qui suit.
+  // → le texte d'historique.
+  function appliquerChangementPartiesAuthentic(d, m) {
+    const role = m.role;
+    const estRetiree = (p) => (m.retires || []).some(n => memePersonneParNom(p.nom, n) || memePartieComplement(p, { nom: n }) || (p.nomUsage && memePersonneParNom(p.nomUsage, n)));
+    const duCote = (p) => p && String(p.role || '').toUpperCase() === role;
+    const avantCote = (d.parties || []).filter(duCote);
+    const restantes = avantCote.filter(p => String(p.nom || '').trim() && !estRetiree(p));
+    // Coordonnées : celles qu'Authentic avait données pour les personnes retirées ; tout le champ quand plus personne ne reste.
+    [['emails', role === 'VENDEUR' ? 'emailVendeur' : 'emailAcquereur'], ['telephones', role === 'VENDEUR' ? 'telephoneVendeur' : 'telephoneAcquereur']].forEach(([nature, champ]) => {
+      if (!restantes.length) { delete d[champ]; return; }
+      (m.retires || []).forEach(n => {
+        const { fiche } = ficheAuthenticPersonne(d, role, n);
+        if (fiche && Array.isArray(fiche[nature]) && fiche[nature].length) d[champ] = remplacerContactAuthentic(nature, d[champ], fiche[nature], []);
+      });
+      if (!String(d[champ] || '').trim()) delete d[champ];
+    });
+    // Registre des personnes retirées oublié (une nouvelle venue sous ce nom repartira de zéro).
+    const reg = Object.assign({}, (d.authentic && d.authentic.fichesAuthentic) || {});
+    const att = Object.assign({}, (d.authentic && d.authentic.majEnAttente) || {});
+    (m.retires || []).forEach(n => {
+      const { id, fiche } = ficheAuthenticPersonne(d, role, n);
+      if (!fiche) return;
+      delete reg[id];
+      Object.keys(att).filter(k => k.endsWith(':' + id)).forEach(k => delete att[k]);
+    });
+    ecrireDonneesAuthentic(d, { fichesAuthentic: reg, majEnAttente: att });
+    d.parties = (d.parties || []).filter(p => !(duCote(p) && (estRetiree(p) || !String(p.nom || '').trim())));
+    (m.nouveaux || []).forEach(v => { if (!d.parties.some(p => duCote(p) && memePartieComplement(p, v))) d.parties.push(Object.assign({}, v, { role }, civiliteDepuisTexte(v.civilite) ? { civilite: civiliteDepuisTexte(v.civilite) } : {})); });
+    (m.personnes || []).forEach(pers => {
+      const complet = [pers.prenom, pers.nom].filter(Boolean).join(' ');
+      if (!d.parties.some(p => duCote(p) && memePartieComplement(p, { nom: complet }))) return;
+      alignerIdentitePartieAuthentic(d, pers, role, { forcer: true });
+      appliquerContactAuthentic(d, role, complet, { emails: pers.emails, telephones: pers.telephones }, { forcer: true });
+    });
+    // La situation du couple repart d'Authentic quand le côté a changé de personnes.
+    const champSituation = role === 'VENDEUR' ? 'situationVendeur' : 'situationAcquereur';
+    delete d[champSituation];
+    const valeurs = Object.assign({}, valeursAuthenticDossier(d));
+    delete valeurs[champSituation];
+    valeurs['parties:' + role] = (m.noms || []).slice();
+    ecrireDonneesAuthentic(d, { valeurs });
+    appliquerSituationsAuthentic(d, {});
+    // Nom du dossier : le côté changé prend le nom que lui donne Authentic.
+    let renomme = '';
+    const parts = /^(.*?)\s*\/\s*(.*)$/.exec(String(d.nom || ''));
+    if (parts && m.cote) {
+      const nouveau = role === 'VENDEUR' ? `${m.cote} / ${parts[2].trim()}` : `${parts[1].trim()} / ${m.cote}`;
+      if (nouveau !== d.nom) { renomme = ` ; nom du dossier : ${d.nom} → ${nouveau}`; d.nom = nouveau; }
+    }
+    retirerMajAuthentic(d, 'parties:' + role);
+    return `${m.libelle} mis à jour d’après Authentic : ${m.apres} (avant : ${m.avant})${renomme}`;
+  }
+
   // ---- Situation du couple (étude 07/10 : « choisir la civilité à partir des données d'Authentic et remplir automatiquement,
   // idem pour la situation matrimoniale ») ----
 
@@ -261,6 +359,8 @@
       majFicheAuthentic(d, m.fiche, m.role, m.nom, { [m.nature]: m.nouveaux });
       retirerMajAuthentic(d, cle);
       texte = `${m.libelle} mis à jour d’après Authentic : ${m.apres}${m.avant ? ` (avant : ${m.avant})` : ''}`;
+    } else if (m.type === 'parties') {
+      texte = appliquerChangementPartiesAuthentic(d, m);
     } else if (m.type === 'identite') {
       const p = partieDeLaMajAuthentic(d, m);
       if (p) (m.champs || []).forEach(k => appliquerChampIdentiteAuthentic(p, k, m.cible));
@@ -279,6 +379,7 @@
     if (m.type === 'champ') memoriserValeurAuthentic(d, cle, m.valeur);
     else if (m.type === 'contact') { majFicheAuthentic(d, m.fiche, m.role, m.nom, { [m.nature]: m.nouveaux }); retirerMajAuthentic(d, cle); }
     else if (m.type === 'identite') { majFicheAuthentic(d, m.fiche, m.role, m.nom, { identite: m.cible }); retirerMajAuthentic(d, cle); }
+    else if (m.type === 'parties') memoriserValeurAuthentic(d, cle, (m.noms || []).slice());
     else retirerMajAuthentic(d, cle);
     return true;
   }
