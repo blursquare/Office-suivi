@@ -674,3 +674,49 @@
       if (sortie) sortie.textContent = `Non enregistré : ${e.message || e}`;
     }
   }
+
+  // ---- Widget « Demander à CLAIRE » du tableau de bord (étude 07/10 : « où l'on peut poser une question et qui renvoie vers
+  // la page ») : un champ et quelques exemples ; la question part sur la page de conversation, où la réponse s'affiche.
+  // Le champ n'est écrit qu'une fois : le tableau de bord se redessine toutes les quelques secondes, la saisie en cours et le
+  // focus restent ; seuls les exemples et l'en-tête suivent la taille de la carte. ----
+  function renderWidgetAssistant(perimetre) {
+    const bloc = document.getElementById('widget-assistant');
+    if (!bloc) return;
+    const presentation = presentationWidget('assistant');
+    const exemples = presentation === 'petit' ? [] : suggestionsAssistant(perimetre);
+    const droite = assistantMessages.length
+      ? `<button type="button" class="lien-discret" onclick="definirOnglet('assistant')">Reprendre la conversation</button>` : '';
+    const puces = exemples.map(s => `<button type="button" class="asst-suggestion w-asst-exemple" onclick="envoyerDepuisWidgetAssistant(this.textContent)">${escapeHtml(s)}</button>`).join('');
+    const existant = bloc.querySelector('.w-carte.assistant');
+    if (existant && existant.dataset.presentation === presentation && bloc.querySelector('#widget-assistant-saisie')) {
+      const d = existant.querySelector('.w-tete-droite-asst');
+      if (d && d.innerHTML !== droite) d.innerHTML = droite;
+      const liste = existant.querySelector('.w-asst-exemples');
+      if (liste && liste.dataset.cle !== exemples.join('|')) { liste.dataset.cle = exemples.join('|'); liste.innerHTML = puces; planifierAjustementWidgets(); }
+      return;
+    }
+    const corps = `<form class="asst-saisie w-asst-saisie w-fixe" onsubmit="event.preventDefault(); envoyerDepuisWidgetAssistant();">
+        <input type="text" id="widget-assistant-saisie" autocomplete="off" placeholder="Posez votre question…" aria-label="Votre question à CLAIRE">
+        <wa-button variant="brand" type="submit" size="s" class="asst-envoyer" aria-label="Demander">${icone('send')}</wa-button>
+      </form>
+      ${exemples.length ? `<div class="w-asst-exemples" data-ajuster="1" data-cle="${escapeAttr(exemples.join('|'))}">${puces}</div>` : ''}`;
+    bloc.innerHTML = carteWidget({ presentation, classe: 'assistant', attributs: `data-presentation="${presentation}"`,
+      titre: `<span class="w-asst-titre">${icone('sparkle')}Demander à CLAIRE</span>`,
+      droite: `<span class="w-tete-droite-asst">${droite}</span>`, corps });
+  }
+
+  // La question du widget (ou l'exemple cliqué) part sur la page « Demander à CLAIRE ». Champ vide : la page s'ouvre.
+  // Une réponse encore en cours sur la page : la question attend dans son champ, rien n'est perdu.
+  function envoyerDepuisWidgetAssistant(texteForce) {
+    const champ = document.getElementById('widget-assistant-saisie');
+    const texte = String(texteForce || (champ ? champ.value : '') || '').trim();
+    if (champ) champ.value = '';
+    definirOnglet('assistant');
+    if (!texte) return;
+    if (assistantEnCours) {
+      const saisie = document.getElementById('assistant-saisie');
+      if (saisie) saisie.value = texte;
+      return;
+    }
+    envoyerDemandeAssistant(texte);
+  }

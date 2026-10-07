@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.178.0';
+  const VERSION_APP = '0.179.0';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.179.0', date: '2026-10-07 08:04', resume: "Tableau de bord : nouveau widget « Demander à CLAIRE » — une question tapée (ou un exemple cliqué, avec les noms de vos dossiers) part sur la page « Demander à CLAIRE », où la réponse s’affiche ; « Reprendre la conversation » quand une conversation est en cours. Placé en tête du tableau de bord, déplaçable et redimensionnable comme les autres cartes." },
     { version: '0.178.0', date: '2026-10-07 07:50', resume: "« Demander à CLAIRE » peut comprendre les demandes avec Mistral Small (en ligne) : seule la phrase part, noms, adresses, emails et téléphones remplacés par des codes ; choix du moteur et coût du mois dans Réglages › IA et relecture d'actes (clé Mistral de la relecture)." },
     { version: '0.177.3', date: '2026-10-07 07:29', resume: "« Demander à CLAIRE » reconnaît le dossier par toute la fiche : prénom (« Paul MARTIN » / « Anne MARTIN »), nom d'usage, adresse du bien, agence, référence Authentic, email ou téléphone d'un client." },
     { version: '0.177.2', date: '2026-10-07 07:22', resume: "« Demander à CLAIRE » : la civilité départage les clients du même nom (« Monsieur MARTIN » / « Madame MARTIN ») ; « Appel de fonds envoyé pour MARTIN » ou « Note dans l'agenda l'appel de fonds envoyé » cochent l'envoi, et la réponse dit la mention notée dans le lieu du rendez-vous Outlook." },

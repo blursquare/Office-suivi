@@ -1144,7 +1144,9 @@
   var VERSION_DISPOSITION_WIDGETS = 2;
   var TAILLES_WIDGET = ['petit', 'moyen', 'grand'];
   var HAUTEURS_WIDGET = [1, 2, 3];
+  // enTete : un widget ajouté après coup, placé en tête (et non à la fin) chez qui avait déjà sa disposition.
   var WIDGETS_DASHBOARD = [
+    { id: 'assistant', titre: 'Demander à CLAIRE', tailles: TAILLES_WIDGET, defaut: 'grand', hauteur: 1, icone: 'sparkle', enTete: true, description: 'Une question ou un geste en une phrase : la réponse s’affiche sur la page « Demander à CLAIRE ».' },
     { id: 'aujourdhui', titre: 'Aujourd’hui', tailles: TAILLES_WIDGET, defaut: 'moyen', hauteur: 2, icone: 'sun', description: 'Ce qui est à faire aujourd’hui sur vos dossiers, et vos rappels.' },
     { id: 'agenda', titre: 'Agenda', tailles: TAILLES_WIDGET, defaut: 'moyen', hauteur: 1, icone: 'calendar', description: 'La semaine de l’office et les prochaines signatures.' },
     { id: 'portefeuille', titre: 'Dossiers ouverts', tailles: TAILLES_WIDGET, defaut: 'petit', hauteur: 1, icone: 'folder', description: 'Les dossiers en cours, par statut, et les signatures du mois.' },
@@ -1180,10 +1182,13 @@
       }
       out.push({ id: p.id, taille, hauteur, masque: p.masque === true });
     });
+    const enTete = [];
     WIDGETS_DASHBOARD.forEach(def => {
-      if (!vus.has(def.id)) out.push({ id: def.id, taille: def.defaut, hauteur: def.hauteur, masque: false });
+      if (vus.has(def.id)) return;
+      const w = { id: def.id, taille: def.defaut, hauteur: def.hauteur, masque: false };
+      if (def.enTete && out.length) enTete.push(w); else out.push(w);
     });
-    return out;
+    return enTete.concat(out);
   }
 
   // Pure : `id` déplacé à la position `index` parmi les widgets (bornée), les autres dans le même ordre.

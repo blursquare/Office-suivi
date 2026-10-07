@@ -17592,3 +17592,17 @@ Cause de la lenteur : toute phrase que les mots-clés ne tranchaient pas partait
 
 **Étude (07/10) : « Comment rendre le serveur intelligent ? » → « Combien coûterait Mistral API par mois ? » (≈ 0,30 €/mois avec Mistral Small pour ≈ 2 000 demandes) → « Ok, vas-y, on essaie »** (0.178.0)
 `server/src/assistantMistral.js` (ts-check) : client Mistral à l'interface du client Ollama (`verifierDisponibilite`, `genererJson`), `mistral-small-latest`, point d'accès UE (région de la relecture), `response_format: json_object`, un essai, 20 s, `max_tokens` 160. **Pseudonymisation par le serveur** (`pseudonymiserDemande`) : emails → [EMAIL], téléphones → [TEL], références « A 2026 00247 » → [REF], suites de 6 chiffres et plus → [NUM], mot après une civilité, mots en capitales hors sigles du métier (`SIGLES`), et tout mot (≥ 3 lettres) des noms de dossier, noms/prénoms/noms d'usage des parties, adresses, agences et notaires des fiches transmises → [NOM] ; les mots écrits en minuscules dans la base d'exemples ne sont jamais masqués (vocabulaire du métier) ; la phrase, le libellé du dossier en consultation et les échanges précédents partagent la même table ; `dossier`/`texte`/`titre` recopiés par l'IA rétablis (`retablirTexte`) avant `reconnaitreDossier`. `comprendreDemande(…, { pseudonymiser: true })` ; résultat `moteur: 'mistral'`. Route : `GET/PUT /api/assistant/reglages` (clé `assistant-ia`, `moteur` mistral|locale, Mistral par défaut ; sans clé Mistral → IA locale, dit par `disponibilite`), usage du mois `assistant-ia-usage` (demandes, jetons, erreurs, mois précédent ; coût au tarif Small 0,15 $/0,60 $ × 1,1). Réglages › « IA et relecture d'actes » (ex-« Relecture d'actes ») › section « Demander à CLAIRE » (moteur, usage du mois en euros) ; badge de la page « IA Mistral prête — noms masqués ». Point terrain `assistant-mistral`. Les phrases comprises par les mots-clés (sûreté haute) ne partent jamais.
+
+**Étude (07/10) : « Crée un widget Demander à CLAIRE où l'on peut poser une question et qui renvoie vers la page. »** (0.179.0)
+- `client/49-assistant.js` : `renderWidgetAssistant(perimetre)` (champ « Posez votre question… », bouton d'envoi, exemples de
+  `suggestionsAssistant` aux noms des dossiers du collaborateur, liste ajustée à la hauteur de la carte, aucun exemple en petit ;
+  « Reprendre la conversation » en tête quand une conversation existe) ; `envoyerDepuisWidgetAssistant(texte)` : ouvre la page
+  `definirOnglet('assistant')` puis `envoyerDemandeAssistant(texte)` — champ vide : la page s'ouvre ; réponse encore en cours :
+  la question attend dans le champ de la page. Le champ du widget n'est écrit qu'une fois : le tableau de bord se redessine
+  toutes les quelques secondes, la saisie et le focus restent (seuls les exemples et l'en-tête suivent).
+- `WIDGETS_DASHBOARD` : `assistant` (grand × 1 rangée, icône sparkle) en tête ; nouvelle propriété `enTete` — un widget ajouté
+  après coup se place en tête (et non à la fin) chez qui avait déjà sa disposition (`dispositionWidgetsDepuis`), sans toucher
+  à `VERSION_DISPOSITION_WIDGETS` (personne n'est ramené à la disposition d'origine). Liste blanche serveur
+  `WIDGETS_PREFERENCES` complétée. Vérifié dans Chromium (bureau, téléphone) : saisie gardée après `render()`, Entrée → page
+  ouverte, question posée et réponse affichée.
+- Pied de la page « Demander à CLAIRE » corrigé : « Tout reste sur le réseau du bureau » n'était plus vrai avec Mistral.

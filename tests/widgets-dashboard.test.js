@@ -13,8 +13,8 @@ const ids = (dispo) => dispo.map(w => w.id).join(',');
 
 test('sans préférence : tous les widgets, dans l’ordre et aux tailles par défaut', () => {
   const d = app.dispositionWidgetsDepuis(null);
-  assert.equal(ids(d), 'aujourdhui,agenda,portefeuille,pieces,avancement,activite,statistiques');
-  assert.equal(d.map(w => w.taille + w.hauteur).join(','), 'moyen2,moyen1,petit1,petit1,moyen2,moyen2,grand1');
+  assert.equal(ids(d), 'assistant,aujourdhui,agenda,portefeuille,pieces,avancement,activite,statistiques');
+  assert.equal(d.map(w => w.taille + w.hauteur).join(','), 'grand1,moyen2,moyen1,petit1,petit1,moyen2,moyen2,grand1');
   assert.ok(d.every(w => w.masque === false));
 });
 
@@ -25,7 +25,9 @@ test('préférence partielle ou abîmée : ordre gardé, taille ramenée à une 
     { id: 'avancement', taille: 'grand', masque: true },
     { id: 'agenda', taille: 'petit' }             // doublon ignoré
   ]);
-  assert.equal(ids(d), 'agenda,avancement,aujourdhui,portefeuille,pieces,activite,statistiques');
+  // « Demander à CLAIRE », ajouté après coup, se place en tête ; les autres manquants à la fin.
+  assert.equal(ids(d), 'assistant,agenda,avancement,aujourdhui,portefeuille,pieces,activite,statistiques');
+  d.shift();
   assert.equal(d[0].taille + d[0].hauteur, 'moyen1');
   // Préférence d'avant la hauteur réglable : « grand » (2 × 2) devient moyen sur 2 rangées.
   assert.equal(d[1].taille + d[1].hauteur, 'moyen2');
@@ -34,8 +36,8 @@ test('préférence partielle ou abîmée : ordre gardé, taille ramenée à une 
 
 test('déplacer : à une position donnée, bornée', () => {
   const d = app.dispositionWidgetsDepuis(null);
-  assert.equal(ids(app.deplacerWidgetDans(d, 'pieces', 0)), 'pieces,aujourdhui,agenda,portefeuille,avancement,activite,statistiques');
-  assert.equal(ids(app.deplacerWidgetDans(d, 'aujourdhui', 99)), 'agenda,portefeuille,pieces,avancement,activite,statistiques,aujourdhui');
+  assert.equal(ids(app.deplacerWidgetDans(d, 'pieces', 0)), 'pieces,assistant,aujourdhui,agenda,portefeuille,avancement,activite,statistiques');
+  assert.equal(ids(app.deplacerWidgetDans(d, 'aujourdhui', 99)), 'assistant,agenda,portefeuille,pieces,avancement,activite,statistiques,aujourdhui');
   assert.equal(ids(app.deplacerWidgetDans(d, 'inconnu', 0)), ids(d));
 });
 
@@ -43,17 +45,23 @@ test('flèches : un pas parmi les widgets visibles, les masqués sont sautés', 
   let d = app.dispositionWidgetsDepuis(null);
   d = d.map(w => w.id === 'agenda' ? Object.assign({}, w, { masque: true }) : w);
   // portefeuille avance d'un cran « visible » : il passe devant aujourdhui (agenda masqué est sauté).
-  assert.equal(ids(app.decalerWidgetDans(d, 'portefeuille', -1)), 'portefeuille,aujourdhui,agenda,pieces,avancement,activite,statistiques');
-  assert.equal(ids(app.decalerWidgetDans(d, 'aujourdhui', -1)), ids(d), 'déjà premier');
+  assert.equal(ids(app.decalerWidgetDans(d, 'portefeuille', -1)), 'assistant,portefeuille,aujourdhui,agenda,pieces,avancement,activite,statistiques');
+  assert.equal(ids(app.decalerWidgetDans(d, 'assistant', -1)), ids(d), 'déjà premier');
   assert.equal(ids(app.decalerWidgetDans(d, 'statistiques', 1)), ids(d), 'déjà dernier');
 });
 
 test('glisser-déposer : la disposition suit l’ordre du DOM, tailles et masquage gardés', () => {
   const d = app.dispositionWidgetsDepuis([{ id: 'pieces', taille: 'grand', hauteur: 3, masque: true }]);
   const n = app.dispositionDansOrdre(d, ['activite', 'inconnu', 'aujourdhui', 'pieces']);
-  assert.equal(ids(n), 'activite,aujourdhui,pieces,agenda,portefeuille,avancement,statistiques');
+  assert.equal(ids(n), 'activite,aujourdhui,pieces,assistant,agenda,portefeuille,avancement,statistiques');
   const p = n.find(w => w.id === 'pieces');
   assert.equal(p.taille + p.hauteur + ':' + p.masque, 'grand3:true');
+});
+
+test('« Demander à CLAIRE » : en tête par défaut, jamais déplacé chez qui l’a déjà rangé, seul s’il est seul', () => {
+  const d = app.dispositionWidgetsDepuis([{ id: 'agenda', taille: 'moyen', hauteur: 1 }, { id: 'assistant', taille: 'petit', hauteur: 1 }]);
+  assert.equal(ids(d).split(',').slice(0, 2).join(','), 'agenda,assistant');
+  assert.equal(ids(app.dispositionWidgetsDepuis([])).split(',')[0], 'assistant');
 });
 
 test('toutes les cartes existent en petit, moyen et grand', () => {
@@ -77,8 +85,8 @@ test('hauteur réglable : 1, 2 ou 3 rangées, largeur indépendante ; valeur inc
     { id: 'agenda', taille: 'grand', hauteur: 3 },
     { id: 'pieces', taille: 'petit', hauteur: 9 }
   ]);
-  assert.equal(d[0].taille + d[0].hauteur, 'grand3');
-  assert.equal(d[1].taille + d[1].hauteur, 'petit1');
+  assert.equal(d[1].taille + d[1].hauteur, 'grand3');
+  assert.equal(d[2].taille + d[2].hauteur, 'petit1');
 });
 
 test('contenu selon la place : une case = petit, une rangée = moyen, deux rangées ou plus = grand', () => {

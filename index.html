@@ -202,6 +202,7 @@
          fonction selon sa taille (petit, moyen, grand) ; l'ordre et la taille sont ceux du
          collaborateur du poste. -->
     <div class="widgets-grille" id="widgets-dashboard">
+      <section class="widget" data-widget="assistant"><div class="dash-bloc" id="widget-assistant"></div></section>
       <section class="widget" data-widget="aujourdhui"><div class="dash-bloc" id="alertes-dashboard"></div></section>
       <section class="widget" data-widget="agenda"><div class="dash-bloc" id="agenda-dashboard"></div></section>
       <section class="widget" data-widget="avancement"><div class="dash-bloc" id="dash-avancement" style="display:none;"></div></section>
@@ -1527,7 +1528,7 @@
       <textarea id="assistant-saisie" rows="1" placeholder="Posez une question ou demandez un geste…" aria-label="Votre demande à CLAIRE" onkeydown="toucheSaisieAssistant(event)" oninput="this.style.height = ''; this.style.height = Math.min(160, this.scrollHeight) + 'px';"></textarea>
       <wa-button variant="brand" type="submit" class="asst-envoyer" aria-label="Envoyer"><span id="icon-assistant-envoyer" aria-hidden="true"></span></wa-button>
     </form>
-    <p class="asst-pied">Les emails s’ouvrent dans la fenêtre d’envoi, l’agenda demande une confirmation ; le reste se fait tout de suite et s’annule d’un clic. Tout reste sur le réseau du bureau.</p>
+    <p class="asst-pied">Les emails s’ouvrent dans la fenêtre d’envoi, l’agenda demande une confirmation ; le reste se fait tout de suite et s’annule d’un clic. Avec Mistral, seule la phrase part, les noms masqués.</p>
   </div>
 </div>
 

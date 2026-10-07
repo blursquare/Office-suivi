@@ -9048,3 +9048,14 @@ table.pr-zt td.pr-zt-retenue select { min-width: 120px; min-height: 32px; height
   .cr-print .cr-vide, .cr-print .cr-valide-reste { font-size: 8.5pt; color: #555; }
   .cr-print-pied { margin-top: 4mm; padding-top: 1.5mm; border-top: 0.6pt solid #999; font-size: 7.5pt; color: #555; }
 }
+
+/* Widget « Demander à CLAIRE » du tableau de bord (étude 07/10) : le champ de la page, en plus sobre, et les exemples. */
+.w-asst-titre { display: inline-flex; align-items: center; gap: 8px; }
+.w-asst-titre .icone { color: var(--focus); }
+.w-carte.assistant .w-asst-saisie { position: static; align-items: center; box-shadow: none; border-radius: var(--rayon-m); padding: 4px 4px 4px 14px; background: var(--paper); }
+.w-asst-saisie input#widget-assistant-saisie { flex: 1 1 auto; min-width: 0; height: 32px; min-height: 0; border: 0; background: transparent; padding: 0; box-shadow: none; font-size: var(--texte-base); }
+.w-asst-saisie input#widget-assistant-saisie:focus { outline: none; box-shadow: none; }
+.w-carte.assistant .w-asst-saisie:focus-within { border-color: var(--focus); }
+.w-asst-exemples { display: flex; flex-wrap: wrap; gap: 6px; }
+.w-corps .w-asst-exemples.w-coupee { flex-direction: row; justify-content: flex-start; align-content: flex-start; }
+.w-asst-exemples .asst-suggestion.w-asst-exemple { font-size: var(--texte-s); padding: 4px 12px; }
