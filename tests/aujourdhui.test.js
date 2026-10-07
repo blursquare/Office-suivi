@@ -381,3 +381,23 @@ test('tâches (étude 06/10) : nom du dossier en surtitre au-dessus de la tâche
   assert.doesNotMatch(groupe.split('ja-groupe-tiroir')[0], /class="ja-sous"/);
   assert.match(groupe, /ja-ouvrir-fiche" data-ouvrir-dossier="u2"/);
 });
+
+test('questionnaire au vendeur aussi (étude 07/10), jamais au client d’un confrère ; archivé quand les deux sont envoyés', () => {
+  const base = { rendezVousSignature: '2026-09-24', sansPret: true, echeancesValidees: { appelFonds: true, projetEnvoye: true }, emailVendeur: 'vendeur@exemple.fr' };
+  const r = app.actionsDuJour([dossier(base)], AUJ);
+  assert.strictEqual(types(r), 'questionnaire,questionnaireVendeur');
+  const v = r.actions.find(a => a.type === 'questionnaireVendeur');
+  assert.strictEqual(v.titre, 'Envoyer le questionnaire de satisfaction au vendeur');
+  assert.strictEqual(v.geste.partie, 'vendeur');
+  assert.match(v.contexte, /archivé une fois l’acquéreur servi aussi/);
+  // Acquéreur déjà servi : la tâche du vendeur archivera le dossier.
+  const apres = app.actionsDuJour([dossier(Object.assign({}, base, { questionnaireEnvoyeLe: '2026-09-25' }))], AUJ);
+  assert.strictEqual(types(apres), 'questionnaireVendeur');
+  assert.match(apres.actions[0].contexte, /archivé à l’envoi/);
+  // Vendeur représenté par un confrère : rien pour lui, et l'acquéreur seul suffit à archiver.
+  const confrere = dossier(Object.assign({}, base, { notaireVendeur: 'Maître Paul LAMBERT' }));
+  assert.strictEqual(types(app.actionsDuJour([confrere], AUJ)), 'questionnaire');
+  assert.strictEqual(app.questionnairesRestants(confrere).join(','), 'acquereur');
+  assert.strictEqual(app.questionnairesRestants(Object.assign({}, confrere, { questionnaireEnvoyeLe: '2026-09-25' })).length, 0);
+  assert.strictEqual(app.questionnairesRestants(dossier(base)).join(','), 'acquereur,vendeur');
+});

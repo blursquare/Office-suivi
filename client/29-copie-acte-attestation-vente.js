@@ -250,8 +250,8 @@
     return renderQuestionnaireAcquereur(d) + renderQuestionnaireVendeur(d);
   }
 
-  // Questionnaire au vendeur : même texte et même PDF, archive le dossier comme celui de l'acquéreur. Proposé une fois une
-  // date de signature connue, et encore après l'archivage dû au questionnaire de l'acquéreur.
+  // Questionnaire au vendeur : même texte et même PDF. Proposé une fois une date de signature connue ; le dossier est archivé
+  // quand vendeur ET acquéreur l'ont reçu (étude 07/10, `questionnairesRestants`).
   function renderQuestionnaireVendeur(d) {
     if (confrereRepresenteVendeur(d)) return '';
     const base = { categorie: 'neutre', categorieLabel: 'Clôture du dossier', titre: 'Questionnaire de satisfaction au vendeur' };
@@ -265,8 +265,8 @@
     if (!d.acte && !d.rendezVousSignature) return '';
     if (!d.emailVendeur) return renderLigneAction(Object.assign(base, { sous: 'Renseignez l’email du vendeur.' }));
     return renderLigneAction(Object.assign(base, {
-      sous: 'Le PDF est joint',
-      bouton: { libelle: 'Envoyer', icone: icone('mail'), onclick: `envoyerQuestionnaireSatisfaction('${d.id}', false, 'vendeur')`, titre: (modeEmailPoste() === 'mailto' ? 'Ouvre le brouillon et télécharge le PDF à joindre' : 'Prépare l’email avec le questionnaire joint') + (d.archive ? '' : ', et archive le dossier') }
+      sous: `Le PDF est joint${d.archive ? '' : ' ; ' + texteArchivageQuestionnaire(d, 'vendeur')}`,
+      bouton: { libelle: 'Envoyer', icone: icone('mail'), onclick: `envoyerQuestionnaireSatisfaction('${d.id}', false, 'vendeur')`, titre: modeEmailPoste() === 'mailto' ? 'Ouvre le brouillon et télécharge le PDF à joindre' : 'Prépare l’email avec le questionnaire joint' }
     }));
   }
 
@@ -278,7 +278,7 @@
     // sinon la trace disparaîtrait à l'instant même où elle devient utile.
     if (d.questionnaireEnvoyeLe) {
       return renderLigneAction(Object.assign(base, {
-        sous: `Envoyé le ${formatDateFr(d.questionnaireEnvoyeLe)} — dossier archivé`, faite: true,
+        sous: `Envoyé le ${formatDateFr(d.questionnaireEnvoyeLe)}${d.archive ? ' — dossier archivé' : ''}`, faite: true,
         bouton: d.emailAcquereur ? { libelle: 'Renvoyer', icone: icone('mail'), onclick: `envoyerQuestionnaireSatisfaction('${d.id}')` } : null
       }));
     }
@@ -290,13 +290,11 @@
     if (!d.emailAcquereur) {
       return renderLigneAction(Object.assign(base, { sous: 'Renseignez l’email de l’acquéreur.' }));
     }
-    const titre = modeEmailPoste() === 'mailto'
-      ? 'Ouvre le brouillon, télécharge le PDF à joindre, et archive le dossier'
-      : 'Prépare l’email avec le questionnaire joint, et archive le dossier';
+    const titre = modeEmailPoste() === 'mailto' ? 'Ouvre le brouillon et télécharge le PDF à joindre' : 'Prépare l’email avec le questionnaire joint';
     const cle = `questionnaire:${d.id}`;
     const brouillon = apercusJour.has(cle) ? brouillonAction({ dossier: d, geste: { type: 'questionnaire' } }) : null;
     return renderLigneAction(Object.assign(base, {
-      sous: 'Le PDF est joint ; le dossier est archivé à l’envoi',
+      sous: `Le PDF est joint${d.archive ? '' : ' ; ' + texteArchivageQuestionnaire(d, 'acquereur')}`,
       bouton: { libelle: 'Envoyer', icone: icone('mail'), onclick: `envoyerQuestionnaireSatisfaction('${d.id}')`, titre },
       apercu: cle, detail: brouillon ? renderBrouillonEmail(brouillon) : ''
     }));

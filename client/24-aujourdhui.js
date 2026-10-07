@@ -236,10 +236,22 @@
           && !notaireParticipantRepresenteAcquereur(d) && d.emailAcquereur) {
         ajouter({
           type: 'questionnaire', categorie: 'neutre', categorieLabel: 'Signature passée',
-          titre: 'Envoyer le questionnaire de satisfaction',
-          contexte: `Acte signé le ${formatDateFr(d.rendezVousSignature)}. Le dossier sera archivé à l’envoi.`,
+          titre: 'Envoyer le questionnaire de satisfaction à l’acquéreur',
+          contexte: `Acte signé le ${formatDateFr(d.rendezVousSignature)}. ${texteArchivageQuestionnaire(d, 'acquereur').replace(/^l/, 'L')}.`,
           jours: jRdv, delaiTexte: `signé ${quandJour(d.rendezVousSignature, aujourdhuiIso)}`, gravite: 'normal',
           geste: { type: 'questionnaire' }, bouton: 'Préparer le questionnaire'
+        });
+      }
+      // Le même questionnaire au vendeur (étude 07/10 : « mettre dans les tâches aussi le questionnaire de satisfaction au
+      // vendeur ») — jamais quand un confrère le représente ; le dossier n'est archivé qu'une fois les deux envoyés.
+      if (jRdv !== null && jRdv < 0 && jRdv >= -JOURS_QUESTIONNAIRE && !d.questionnaireVendeurEnvoyeLe
+          && !confrereRepresenteVendeur(d) && d.emailVendeur) {
+        ajouter({
+          type: 'questionnaireVendeur', categorie: 'neutre', categorieLabel: 'Signature passée',
+          titre: 'Envoyer le questionnaire de satisfaction au vendeur',
+          contexte: `Acte signé le ${formatDateFr(d.rendezVousSignature)}. ${texteArchivageQuestionnaire(d, 'vendeur').replace(/^l/, 'L')}.`,
+          jours: jRdv, delaiTexte: `signé ${quandJour(d.rendezVousSignature, aujourdhuiIso)}`, gravite: 'normal',
+          geste: { type: 'questionnaire', partie: 'vendeur' }, bouton: 'Préparer le questionnaire'
         });
       }
 
@@ -313,7 +325,7 @@
     }
     if (action.geste.type === 'questionnaire') {
       const { sujet, corps } = construireEmailQuestionnaireSatisfaction(d);
-      return { a: d.emailAcquereur || '', objet: sujet, corps: adapterCorpsEmail(corps, false) };
+      return { a: (action.geste.partie === 'vendeur' ? d.emailVendeur : d.emailAcquereur) || '', objet: sujet, corps: adapterCorpsEmail(corps, false) };
     }
     return null;
   }
@@ -410,8 +422,10 @@
     ventePrealable: { titre: 'Relancer la vente préalable', categorie: 'ventebien',
       re: /^(Relance envoyée — vente préalable|Vente préalable marquée réalisée)/,
       annule: /^(Vente préalable : validation annulée|Relancer la vente préalable : « déjà fait » annulé)/ },
-    questionnaire: { titre: 'Envoyer le questionnaire de satisfaction', categorie: 'neutre',
-      re: /^Questionnaire de satisfaction envoyé/ }
+    questionnaire: { titre: 'Envoyer le questionnaire de satisfaction à l’acquéreur', categorie: 'neutre',
+      re: /^Questionnaire de satisfaction envoyé(?! au vendeur)/ },
+    questionnaireVendeur: { titre: 'Envoyer le questionnaire de satisfaction au vendeur', categorie: 'neutre',
+      re: /^Questionnaire de satisfaction envoyé au vendeur/ }
   };
 
   // Pure : « qui » a fait la tâche, dit sur la ligne cochée.
@@ -567,8 +581,8 @@
       noterTraite(a, 'Brouillon ouvert');
       envoyerRelanceCiblee(id, geste.motif, true);
     } else if (geste.type === 'questionnaire') {
-      noterTraite(a, 'Questionnaire ouvert, dossier archivé');
-      envoyerQuestionnaireSatisfaction(id, true);
+      noterTraite(a, 'Questionnaire ouvert');
+      envoyerQuestionnaireSatisfaction(id, true, geste.partie);
     } else if (geste.type === 'marquer' && geste.champ !== 'appelFonds' && geste.champ !== 'projetEnvoye') {
       // « Déjà relancé » / « Déjà reçu » : la trace du dossier est posée par « Déjà fait » (CHAMP_FAIT_MAIN_PAR_TYPE, date du
       // rendez-vous retenue) — ce chemin posait une date d'appel de fonds à tort et la tâche revenait le lendemain.
@@ -629,7 +643,7 @@
   // lendemain alors qu'elle est faite. Les valeurs d'avant sont gardées pour « Annuler ».
   var CHAMP_FAIT_MAIN_PAR_TYPE = {
     pret: 'derniereRelanceAuto', rib: 'ribDemandeLe', fonds: 'receptionFondsConfirmeeLe',
-    questionnaire: 'questionnaireEnvoyeLe', appelFonds: 'appelFonds', projetEnvoye: 'projetEnvoye',
+    questionnaire: 'questionnaireEnvoyeLe', questionnaireVendeur: 'questionnaireVendeurEnvoyeLe', appelFonds: 'appelFonds', projetEnvoye: 'projetEnvoye',
     ventePrealable: 'relanceVentePrealableLe', relanceFonds: 'relanceFondsLe', relanceDecompteConfrere: 'relanceDecompteConfrereLe'
   };
 
@@ -858,7 +872,7 @@
   // ---- Rendu ----
   // Libellé du bouton d'une ligne : un verbe court, le même à chaque fois pour le même geste.
   function libelleCourtGeste(a) {
-    const parType = { pret: 'Relancer', ventePrealable: 'Relancer', fonds: 'Confirmer', rib: 'Envoyer', questionnaire: 'Envoyer', appelFonds: 'Préparer' };
+    const parType = { pret: 'Relancer', ventePrealable: 'Relancer', fonds: 'Confirmer', rib: 'Envoyer', questionnaire: 'Envoyer', questionnaireVendeur: 'Envoyer', appelFonds: 'Préparer' };
     if (a.type === 'projetEnvoye') return a.geste && a.geste.type === 'email' ? 'Envoyer' : 'Marquer envoyé';
     if (parType[a.type]) return parType[a.type];
     return 'Ouvrir';

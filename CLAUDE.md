@@ -261,7 +261,7 @@ dans `index.html`** (le test `structure-client` refuse tout décalage).
   reçoit l'acte ; si un autre office représente l'acquéreur, les emails vont **au confrère**
   (« Mon Cher Maître, … Votre bien dévoué. ») et le questionnaire de satisfaction n'est jamais proposé à
   l'acquéreur ; il peut l'être **au vendeur** quand l'étude le représente (étude 02/10, `renderQuestionnaireVendeur`,
-  `d.questionnaireVendeurEnvoyeLe` ; chaque envoi archive le dossier, l'autre reste proposé).
+  `d.questionnaireVendeurEnvoyeLe` ; tâche « Envoyer le questionnaire de satisfaction au vendeur » dans « À faire » comme celle de l'acquéreur ; **le dossier n'est archivé qu'une fois TOUS les côtés que l'étude représente servis** — étude 07/10, `questionnairesRestants`, avant : au premier envoi).
 - **Responsables** : liste fermée (Bastien ANGLUMENT — administrateur, vue globale —, Julie
   VASSELIN, Jérémy SAUJOT).
 - **Planning** (`echeancesPlanning`, **`commun/planning.js`**, partagé poste/serveur depuis le 04/10 ; côté serveur

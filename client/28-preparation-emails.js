@@ -2004,9 +2004,24 @@
     }
   }
 
-  // `partie` : 'acquereur' (par défaut — l'envoi clôt et archive le dossier) ou 'vendeur' (étude,
-  // 02/10 : « permettre l'envoi au vendeur aussi » — sans archiver ; jamais si un confrère le
-  // représente, même règle que pour l'acquéreur).
+  // Questionnaire de satisfaction (étude 07/10 : « archiver que si les deux sont envoyés, vendeur et acquéreur ») : chaque côté
+  // que l'étude représente le reçoit — jamais le client d'un confrère. Pure : les côtés attendus et ceux qui restent.
+  function questionnairesRestants(d) {
+    const restants = [];
+    if (!d) return restants;
+    if (!notaireParticipantRepresenteAcquereur(d) && !d.questionnaireEnvoyeLe) restants.push('acquereur');
+    if (!confrereRepresenteVendeur(d) && !d.questionnaireVendeurEnvoyeLe) restants.push('vendeur');
+    return restants;
+  }
+  // Pure : ce que l'envoi du questionnaire à `partie` fera du dossier — « archivé à l'envoi » quand c'est le dernier côté attendu.
+  function texteArchivageQuestionnaire(d, partie) {
+    const autres = questionnairesRestants(d).filter(x => x !== partie);
+    if (!autres.length) return 'le dossier est archivé à l’envoi';
+    return `le dossier sera archivé une fois ${autres[0] === 'vendeur' ? 'le vendeur' : 'l’acquéreur'} servi aussi`;
+  }
+
+  // `partie` : 'acquereur' (par défaut) ou 'vendeur' (étude 02/10 : « permettre l'envoi au vendeur aussi ») ; jamais au client
+  // d'un confrère. Le dossier est archivé quand TOUS les côtés attendus l'ont reçu (étude 07/10), plus au premier envoi.
   async function envoyerQuestionnaireSatisfaction(id, discret, partie) {
     const d = dossiers.find(x => x.id === id);
     const vendeur = partie === 'vendeur';
@@ -2023,8 +2038,7 @@
     if (!r.ok) { if (!r.annule) afficherToast(r.message || "L'email n'a pas pu être préparé.", 'OK', null); return; }
     // Le fichier .eml porte le PDF ; en mode mailto (texte seul), il est téléchargé à côté, à joindre.
     const pdfTelecharge = r.mode === 'mailto' ? telechargerPdfQuestionnaire() : false;
-    // Les deux envois archivent le dossier (étude, 02/10 : « archiver le dossier quand le
-    // questionnaire est envoyé aussi au vendeur ») ; le second reste proposé une fois archivé.
+    // Archivé quand le dernier côté attendu l'a reçu (étude 07/10) ; avant, le premier envoi archivait.
     const dejaArchive = !!d.archive;
     if (vendeur) {
       d.questionnaireVendeurEnvoyeLe = new Date().toISOString().slice(0, 10);
@@ -2032,15 +2046,17 @@
     } else {
       d.questionnaireEnvoyeLe = new Date().toISOString().slice(0, 10);
       ajouterHistorique(d, 'Questionnaire de satisfaction envoyé');
-      notifierTacheFaite(d, 'Envoyer le questionnaire de satisfaction', dejaArchive ? '' : 'dossier archivé');
     }
-    if (!dejaArchive) {
+    const restants = questionnairesRestants(d);
+    const archiver = !dejaArchive && !restants.length;
+    notifierTacheFaite(d, vendeur ? 'Envoyer le questionnaire de satisfaction au vendeur' : 'Envoyer le questionnaire de satisfaction à l’acquéreur', archiver ? 'dossier archivé' : '');
+    if (archiver) {
       d.archive = true;
-      ajouterHistorique(d, `Dossier archivé automatiquement (questionnaire de satisfaction envoyé${vendeur ? ' au vendeur' : ''})`);
+      ajouterHistorique(d, 'Dossier archivé automatiquement (questionnaire de satisfaction envoyé au vendeur et à l’acquéreur)');
     }
     sauvegarder(d);
     render();
-    let detail = dejaArchive ? '' : 'Dossier archivé.';
+    let detail = archiver ? 'Dossier archivé.' : dejaArchive ? '' : `Le dossier sera archivé une fois ${restants[0] === 'vendeur' ? 'le vendeur' : 'l’acquéreur'} servi aussi.`;
     if (r.mode === 'eml' && !pdfDispo) detail += ' Le PDF du questionnaire n’a pas pu être joint.';
     if (r.mode === 'mailto') detail += pdfTelecharge ? ' Joignez le PDF du questionnaire, qui vient d’être téléchargé.' : ' Le PDF du questionnaire n’a pas pu être téléchargé.';
     annoncerEmailPret(r, discret, detail.trim());

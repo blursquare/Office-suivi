@@ -17766,3 +17766,20 @@ d'email (`htmlRedactionDepuisTexte`) et l'aperçu des Réglages › Modèles d'e
   `texteModeleDepuisHtmlColle` (pure, sur `htmlColleRedaction`) écrit chaque lien sur des mots en `[mots](adresse)` ; un lien dont
   les mots sont l'adresse reste l'adresse ; un collage sans lien reste ordinaire. Avant : le textarea ne gardait que les mots.
 - Tests : fenetre-email (fenêtre sans l'adresse, syntaxe, envoi après modification, texte brut, collage).
+
+**Étude (07/10) : « Mettre dans les tâches aussi le questionnaire de satisfaction au vendeur, et archiver que si les deux sont envoyés
+(vendeur et acquéreur) »** (0.185.0) :
+- **Tâche** `questionnaireVendeur` dans `actionsDuJour` (client/24) : « Envoyer le questionnaire de satisfaction au vendeur », mêmes
+  conditions que celle de l'acquéreur (signature passée depuis 30 jours au plus, `JOURS_QUESTIONNAIRE`), jamais quand un confrère
+  représente le vendeur (`confrereRepresenteVendeur`), email du vendeur connu ; geste `{ type: 'questionnaire', partie: 'vendeur' }`
+  → `envoyerQuestionnaireSatisfaction(id, true, 'vendeur')`, aperçu adressé à `d.emailVendeur`, « Déjà fait » pose
+  `questionnaireVendeurEnvoyeLe`, fait ailleurs reconnu à « Questionnaire de satisfaction envoyé au vendeur ». La tâche de
+  l'acquéreur s'appelle désormais « Envoyer le questionnaire de satisfaction à l'acquéreur » (son repère d'historique ne prend plus
+  l'envoi au vendeur).
+- **Archivage** : `questionnairesRestants(d)` (pure : côtés que l'étude représente — pas le client d'un confrère — et pas encore
+  servis) ; `envoyerQuestionnaireSatisfaction` n'archive qu'au dernier côté (« Dossier archivé automatiquement (questionnaire de
+  satisfaction envoyé au vendeur et à l'acquéreur) »), sinon le message dit « Le dossier sera archivé une fois le vendeur /
+  l'acquéreur servi aussi ». Avant : le premier envoi archivait. Un côté sans email reste attendu (le dossier attend, ou s'archive à
+  la main). Fiche (onglet Échanges) et tâches disent ce que fera l'envoi (`texteArchivageQuestionnaire`) ; « — dossier archivé » sous
+  un envoi fait seulement si le dossier l'est.
+- Dossiers déjà archivés par l'ancienne règle : rien ne change (la fiche propose toujours l'envoi au vendeur). Test aujourdhui.
