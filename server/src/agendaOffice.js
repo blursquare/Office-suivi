@@ -403,6 +403,28 @@ function estRendezVousSignature(evenement) {
   return !/\?/.test(sansAdresses(evenement.sujet) + ' ' + sansAdresses(evenement.lieu));
 }
 
+// Rendez-vous PROVISOIRE (étude 07/10 : « ne pas prendre en compte le rendez-vous, peu importe le nombre de ? ») : un
+// « ? » (un, deux, trois…) dans le titre ou le lieu, hors options d'un sondage de CLAIRE (suivies par le sondage). Un tel
+// rendez-vous reste affiché dans l'agenda mais n'est rattaché à AUCUN dossier : ni signature, ni envoi relevé, ni « à
+// confirmer », ni pastilles. Seule `corrigerRendezVousEcritsParAgenda` (agendaWatch) le regarde, pour retirer d'une
+// fiche une date que l'agenda y avait écrite avant l'ajout des « ? » (`rendezVousProvisoiresDossiers`).
+function estRendezVousProvisoire(evenement) {
+  const texte = sansAdresses(evenement && evenement.sujet) + ' ' + sansAdresses(evenement && evenement.lieu);
+  return /[?？¿]/.test(texte) && !/option CLAIRE/i.test(String((evenement && evenement.sujet) || ''));
+}
+
+// Les rendez-vous provisoires d'un dossier : { dossierId, date, heure, sujet }. Pure.
+function rendezVousProvisoiresDossiers(evenements, dossiers) {
+  const liste = [];
+  for (const evt of evenements || []) {
+    if (!evt || evt.annule || !evt.date || evt.journeeEntiere || !estRendezVousProvisoire(evt)) continue;
+    const reference = referenceDossierEvenement(evt);
+    const dossier = reference ? dossierPourReferenceAgenda(reference, dossiers, evt) : null;
+    if (dossier) liste.push({ dossierId: dossier.id, date: evt.date, heure: evt.heure || '', sujet: String(evt.sujet || '').slice(0, 200) });
+  }
+  return liste;
+}
+
 // Fonction d'ensemble, pure et testable de bout en bout à partir des événements (voir
 // evenementDepuisEws) et de la liste des dossiers actifs (chacun avec au moins {id, nom}) : une
 // entrée par événement porteur d'une référence et d'au moins une action — un même événement peut
@@ -416,7 +438,7 @@ function actionsDetecteesDepuisEvenements(evenements, dossiersActifs, aujourdHui
   for (const evt of evenements || []) {
     if (!evt || evt.annule) continue;
     const reference = referenceDossierEvenement(evt);
-    if (!reference) continue;
+    if (!reference || estRendezVousProvisoire(evt)) continue;
     const dateIso = evt.date;
     if (!/^\d{4}-\d{2}-\d{2}$/.test(String(dateIso || ''))) continue;
     if (aujourdHui && dateIso < aujourdHui) continue;
@@ -542,7 +564,7 @@ function agendaDuJourDepuisEvenements(evenements, jour, dossiersActifs) {
     if (evt.date > jour || fin < jour) continue;
     const journeeEntiere = !!evt.journeeEntiere || !evt.heure || evt.date < jour || fin > jour;
     const reference = referenceDossierEvenement(evt);
-    const dossier = reference ? dossierPourReferenceAgenda(reference, dossiersActifs, evt) : null;
+    const dossier = reference && !estRendezVousProvisoire(evt) ? dossierPourReferenceAgenda(reference, dossiersActifs, evt) : null;
     const titre = String(evt.sujet || '');
     liste.push({
       sujet: titre.slice(0, 200),
@@ -727,7 +749,7 @@ function evenementsAgendaOffice(evenements, dossiersActifs) {
   for (const evt of evenements || []) {
     if (!evt || evt.annule || !evt.date) continue;
     const reference = referenceDossierEvenement(evt);
-    const dossier = reference ? dossierPourReferenceAgenda(reference, dossiersActifs, evt) : null;
+    const dossier = reference && !estRendezVousProvisoire(evt) ? dossierPourReferenceAgenda(reference, dossiersActifs, evt) : null;
     const titre = String(evt.sujet || '');
     const journeeEntiere = !!evt.journeeEntiere || !evt.heure;
     liste.push({
@@ -757,7 +779,7 @@ function evenementsAgendaOffice(evenements, dossiersActifs) {
 module.exports = {
   momentParisDepuisIso, veilleDe, formatDateFr, evenementDepuisEws, evenementsDepuisEws,
   extraireReferenceVte, referenceDossierEvenement, detecteAppelDeFonds, detecteProjetEnvoye,
-  detecterActionsEvenement, dossierPourReferenceAgenda, actionsDetecteesDepuisEvenements, motsVoisins,
+  detecterActionsEvenement, dossierPourReferenceAgenda, estRendezVousProvisoire, rendezVousProvisoiresDossiers, actionsDetecteesDepuisEvenements, motsVoisins,
   estRendezVousSignature, composerLieuAgenda, compterRendezVousPeriode, natureActeAgenda, compterActesAgendaPeriode, periodesActesAnnee, dureeRendezVousMinutes, REGLE_COMPTAGE_RENDEZ_VOUS, lundiAnneePrecedente, decalerJours, ecartRendezVous, moisDePeriode, archiveAgendaARelire, evenementsAgendaOffice,
   absencesDepuisEvenements, estEvenementJourneeEntiere, collaborateursDansTexte, COLLABORATEURS_ABSENCE,
   categoriesDistinctes, agendaDuJourDepuisEvenements, lundiSemainePrecedente

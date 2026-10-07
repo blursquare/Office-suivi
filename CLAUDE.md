@@ -270,7 +270,7 @@ dans `index.html`** (le test `structure-client` refuse tout décalage).
   seulement jusqu'à leur signature (`dossierCandidatPourDate`, Authentic puis fiche puis archivage) ; leurs noms gardés hors
   de cause ensuite (`nomsAilleurs`). Date « sûre » qui départage = signé dans Authentic ou posée à la main/par CLAIRE.
   Remise en ordre à chaque tour (`corrigerRendezVousEcritsParAgenda`) : une date ÉCRITE PAR L'AGENDA est retirée si le
-  rendez-vous de ce jour est celui d'un autre dossier, ou s'il est repassé « ? » (provisoire). NAS : un dossier du commun déjà relié à un dossier en
+  rendez-vous de ce jour est celui d'un autre dossier, ou s'il est repassé « ? » (provisoire, `rendezVousProvisoiresDossiers`). Un rendez-vous « ? » n'est rattaché à aucun dossier (`estRendezVousProvisoire`). NAS : un dossier du commun déjà relié à un dossier en
   cours n'est jamais relié seul à un second (`dossierNasPrisParUnAutre`).
   Un cas non départagé reste « à rattacher », jamais deviné.
 - **Notaires** : priorité mention explicite (hors clause d'origine de propriété) > règle
@@ -564,7 +564,7 @@ dans `index.html`** (le test `structure-client` refuse tout décalage).
   aujourd'hui si dépassée — + 11 j de réflexion, vente préalable), jour ouvré ; probabilité = celle de
   `probabiliteTenueSignature` à cette date − 10 (non fixé) − 15 (après la date butoir) ; « Rendez-vous à
   placer » les liste par semaine, et la semaine affichée porte une **carte fantôme** en pointillé
-  (`fantomesSemaineAgenda`, premier créneau libre dans les règles, clé `probable:<id>`) — **sauf rendez-vous « ?? » en attente de confirmation** dans l'agenda (étude 02/10, `rendezVousAConfirmerDossier` : sa date fait la semaine probable, « À confirmer », pourcentage sur le rendez-vous, −5 pts, ni fantôme ni créneaux) dont le détail
+  (`fantomesSemaineAgenda`, premier créneau libre dans les règles, clé `probable:<id>`) ; **un rendez-vous « ? » (un ou plusieurs) de l'agenda est ignoré complètement** (étude 07/10 : « ne pas prendre en compte le rendez-vous, peu importe le nombre de ? » — l'« À confirmer » du 02/10 est retiré ; `estRendezVousProvisoire` côté serveur : rattaché à aucun dossier, aucune action relevée, jamais retiré/déplacé/annoté pour une fiche ; options des sondages de CLAIRE exceptées) ; le détail d'une carte fantôme
   propose « Placer » (confirmé) et **rappelle la date butoir** (étude 02/10, `rappelButoirSignatureProbable` : jours restants, marge < 7 j ou dépassement en rouge) ; **notes d'un rendez-vous = son corps dans Outlook** (choix de l'étude,
   `GET/PUT /api/exchange/evenement/notes`, GetItem/UpdateItem du seul `item:Body` en texte brut — lu dans le `CalendarItem`, jamais le `<s:Body>` de l'enveloppe (vides du 04 au 05/10) —, lues à
   l'ouverture du détail, jamais journalisées ; la mise en forme HTML d'un corps n'est pas gardée à

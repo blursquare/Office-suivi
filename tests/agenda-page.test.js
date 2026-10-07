@@ -390,36 +390,16 @@ test('rappelButoirSignatureProbable : date butoir rappelée, marge, dépassement
   assert.equal(app.rappelButoirSignatureProbable({}, { date: '2026-10-16' }, null, auj).niveau, 'inconnue');
 });
 
-test('rendez-vous « ?? » en attente de confirmation : il donne la date probable, sans carte fantôme (étude, 02/10)', () => {
+test('rendez-vous « ? » : ignoré complètement par le poste (étude 07/10, « peu importe le nombre de ? »)', () => {
   const auj = '2026-09-30';
   const d = { id: 'b', nom: 'BLANC / NOIR', sansPret: true, pieces: TOUS_RECUS, responsable: 'Julie VASSELIN' };
-  const attente = { sujet: 'VTE - BLANC / NOIR ??', date: '2026-10-22', heure: '15:00', heureFin: '16:00', dossierId: 'b', signature: false };
-  const evenements = [
-    attente,
-    { sujet: 'VTE - BLANC ? — option CLAIRE, créneau 1/3', date: '2026-10-08', heure: '10:00', heureFin: '11:00', dossierId: 'b', option: true },
-    { sujet: 'VTE - BLANC / NOIR ??', date: '2026-09-20', heure: '10:00', heureFin: '11:00', dossierId: 'b' },
-    { sujet: 'VTE - AUTRE ??', date: '2026-10-05', heure: '10:00', heureFin: '11:00', dossierId: 'z' }
-  ];
-  assert.equal(app.rendezVousAConfirmerDossier(d, evenements, auj), attente);
-  assert.equal(app.rendezVousAConfirmerDossier(d, [{ sujet: 'VTE - BLANC / NOIR', date: '2026-10-22', heure: '15:00', dossierId: 'b' }], auj), null);
-  const p = app.semaineProbableSignature(d, auj, [], evenements);
-  assert.equal(`${p.date} ${p.heure} ${p.lundi}`, '2026-10-22 15:00 2026-10-19');
-  assert.ok(p.aConfirmer);
-  assert.ok(p.facteurs.some(f => /attente de confirmation/.test(f.libelle)));
-  assert.ok(!p.facteurs.some(f => f.libelle === 'Rendez-vous pas encore fixé'));
-  // Sans l'agenda, la date au plus tôt comme avant.
-  assert.equal(app.semaineProbableSignature(d, auj, []).date, '2026-10-14');
-  // Pas de carte fantôme : le vrai rendez-vous est déjà dans l'agenda.
-  assert.equal(app.fantomesSemaineAgenda([d], evenements, [], app.joursSemaineAgenda('2026-10-19'), auj).length, 0);
-  assert.equal(app.fantomesSemaineAgenda([d], evenements, [], app.joursSemaineAgenda('2026-10-12'), auj).length, 0);
-  // La probabilité est portée par le rendez-vous « ?? » lui-même.
-  const proba = app.probabiliteEvenementAgenda(d, attente, auj, []);
-  assert.equal(proba.pourcent, p.pourcent);
-  assert.equal(proba.lundi, null);
-  assert.equal(app.probabiliteEvenementAgenda(d, { sujet: 'Réunion', date: '2026-10-22', heure: '09:00', dossierId: 'b' }, auj, []), null);
-  // Recherche de l'agenda : « À confirmer ».
-  const r = app.resultatsRechercheAgenda('blanc', [d], auj, [], evenements)[0];
-  assert.equal(`${r.type} ${r.date} ${r.heure}`, 'aConfirmer 2026-10-22 15:00');
+  // Même si un ancien stock le rattachait encore au dossier, il ne donne ni date « à confirmer » ni pourcentage.
+  const attente = { sujet: 'VTE - BLANC / NOIR ???', date: '2026-10-22', heure: '15:00', heureFin: '16:00', dossierId: 'b', signature: false };
+  const p = app.semaineProbableSignature(d, auj, [], [attente]);
+  assert.equal(p.date, '2026-10-14', 'la date au plus tôt, comme sans agenda');
+  assert.equal(p.aConfirmer, undefined);
+  assert.equal(app.probabiliteEvenementAgenda(d, attente, auj, []), null);
+  assert.equal(app.resultatsRechercheAgenda('blanc', [d], auj, [], [attente])[0].type, 'probable');
 });
 
 test('ordreRendezVousAPlacer : prêts à signer d\'abord, puis le pourcentage, puis la date (étude, 07/10)', () => {

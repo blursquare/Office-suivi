@@ -69,7 +69,6 @@
     if (!r || r.source === 'rdv') return '';
     const quand = formatDateFr(r.date);
     return r.source === 'propositions' ? `Première date proposée pour la signature : ${quand}`
-      : r.source === 'a-confirmer' ? `Rendez-vous à confirmer le ${quand}`
       : r.source === 'butoir' ? `Date butoir le ${quand}, rendez-vous pas encore placé`
       : `Signature possible au plus tôt le ${quand}, rendez-vous pas encore placé`;
   }

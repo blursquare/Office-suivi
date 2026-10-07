@@ -18058,3 +18058,18 @@ Correctifs (server/src/agendaOffice.js, agendaWatch.js) :
   rendez-vous de ce dossier à cette date est repassé « ? ». Elle revient seule quand le « ? » est retiré. Une date posée à la
   main n'est jamais touchée ; un archivé non plus.
 Tests : server/test/agenda-office.test.js (archivé signé le 6, ancien dossier des mêmes clients), server/test/agenda-watch.test.js.
+
+### 07/10/2026 19 h 31 — 0.189.14 : un rendez-vous « ? » est ignoré complètement
+
+Étude : « ne pas prendre en compte le rendez-vous, peu importe le nombre de ? » ; à la question (garder « À confirmer » ou
+l'ignorer complètement), réponse : **l'ignorer complètement**. Retire la règle du 02/10 (« vérifier avant si un rendez-vous
+n'est pas en attente de confirmation avec des ?? » : sa date faisait la semaine probable, « À confirmer », pourcentage, « Placer »).
+
+- Serveur (`agendaOffice.js`) : `estRendezVousProvisoire` — « ? », « ¿ » ou « ？ » dans le titre ou le lieu (liens retirés),
+  hors options de sondage (« option CLAIRE ») ; un tel rendez-vous n'est plus rattaché à aucun dossier dans le stock et l'agenda
+  du jour, ni lu par `actionsDetecteesDepuisEvenements` (un « AF envoyé » dans son lieu ne coche plus rien) ; routes Exchange :
+  `evenementDuDossier` le refuse (jamais retiré, déplacé ni annoté pour une fiche). `rendezVousProvisoiresDossiers` garde son
+  dossier pour la seule remise en ordre (`corrigerRendezVousEcritsParAgenda` : date écrite par l'agenda avant l'ajout des « ? »).
+- Poste : `rendezVousAConfirmerDossier` retiré ; `semaineProbableSignature` ne regarde plus l'agenda ; plus de type
+  « aConfirmer » dans la recherche de l'agenda, « Rendez-vous à placer », la rédaction de l'acte (`phraseRepereRedaction`).
+Tests : server/test/agenda-office.test.js (« ? », « ?? », « ??? », « ？ », « ¿ », lien de visio, option), agenda-watch, tests/agenda-page.test.js.

@@ -74,7 +74,7 @@
       .map(c => String((c && c.date) || '')).filter(x => /^\d{4}-\d{2}-\d{2}$/.test(x) && x >= auj).sort();
     if (proposees.length) return { date: proposees[0], source: 'propositions' };
     const p = semaineProbableSignature(d, auj, absencesOffice, agendaEvenements);
-    return p && p.date ? { date: p.date, source: p.aConfirmer ? 'a-confirmer' : 'probable' } : null;
+    return p && p.date ? { date: p.date, source: 'probable' } : null;
   }
 
   // Pur : les destinataires du sondage d'après le dossier. Une partie représentée par un confrère
