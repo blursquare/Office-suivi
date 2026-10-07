@@ -436,6 +436,33 @@
   // une lecture relance un passage à la fin plutôt que d'être perdu.
   var lectureScansEnCours = false;
   var relancerLectureScans = false;
+  // Lecture d'un scan (texte, puis OCR des deux premières pages) : au-delà, elle est comptée en échec et « Actualiser » la relance.
+  var DUREE_MAX_LECTURE_SCAN_MS = 3 * 60 * 1000;
+  function avecDureeMaxScan(promesse, ms) {
+    let minuterie = null;
+    const delai = new Promise((_, rejeter) => { minuterie = setTimeout(() => rejeter(new Error('Lecture trop longue : « Actualiser » la relance.')), ms); });
+    return Promise.race([promesse, delai]).finally(() => clearTimeout(minuterie));
+  }
+
+  // Pure : les lectures à refaire quand l'étude clique « Actualiser » — celles en échec (PDF illisible un instant, NAS lent, lecture
+  // trop longue) ; une lecture réussie est gardée.
+  function lecturesARelancerScans(lectures) {
+    return Object.keys(lectures || {}).filter(k => lectures[k] && lectures[k].statut === 'erreur');
+  }
+
+  // Bouton « Actualiser » de Claire Scan (étude 07/10 : « le bouton Actualiser ne fonctionne pas ») : il relisait le dossier sans
+  // rien montrer, et ne relançait jamais une lecture en échec. Désormais : le bouton tourne, les lectures en échec repartent, la liste
+  // est relue tout de suite (les lectures continuent derrière) et le résultat est dit.
+  async function actualiserScans(bouton) {
+    if (bouton) bouton.loading = true;
+    lecturesARelancerScans(lecturesScans).forEach(k => { delete lecturesScans[k]; delete apercusScans[k]; });
+    let ok = false;
+    try { ok = await chargerScans(true); } finally { if (bouton) bouton.loading = false; }
+    // chargerScans rend faux quand le dossier du copieur est introuvable, ou quand le serveur n'a pas répondu (l'état d'avant reste).
+    if (!ok) { afficherToast(etatScans.configure ? 'Serveur injoignable : le dossier « Scan » n’a pas pu être relu.' : (etatScans.raison || 'Dossier « Scan » introuvable.'), 'OK', null); return; }
+    const n = (etatScans.scans || []).length;
+    afficherToast(n ? `Dossier « Scan » relu : ${n} scan${n > 1 ? 's' : ''} à ranger.` : 'Dossier « Scan » relu : aucun scan en attente.', 'OK', null);
+  }
   function rangementAutoScansActif() {
     return !!(etatScans.reglages.actif && etatScans.reglages.auto && relaisScansAccorde);
   }
@@ -452,10 +479,12 @@
           if (ongletActuel === 'scans') renderScans();
           try {
             const debutLecture = Date.now();
-            const lecture = await lireScan(scan, (url) => {
+            // Borne de durée (étude 07/10 : « le bouton Actualiser ne fonctionne pas ») : une lecture qui ne rend jamais la main
+            // (OCR bloqué) arrêtait toutes les suivantes, et « Actualiser » n'y pouvait rien.
+            const lecture = await avecDureeMaxScan(lireScan(scan, (url) => {
               apercusScans[cle] = url || 'echec';
               if (ongletActuel === 'scans') renderScans();
-            });
+            }), DUREE_MAX_LECTURE_SCAN_MS);
             const proposition = propositionScan(lecture, dossiersCandidatsScans(), scan.date);
             noterJournalTechnique({ categorie: 'scan-lu', dureeMs: Date.now() - debutLecture, ocr: !!lecture.viaOcr, reconnu: !!(proposition && proposition.type), sur: !!(proposition && proposition.automatique), type: (proposition && proposition.type) || '' });
             lecturesScans[cle] = { statut: 'pret', lecture: { viaOcr: lecture.viaOcr, pages: lecture.pages, texte: lecture.texte }, proposition, choix: choixDepuisProposition(proposition) };

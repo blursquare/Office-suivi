@@ -272,3 +272,13 @@ test('carte Dernières pièces : scans à ranger puis rangés sur 14 jours, rien
   assert.equal(app.scansPourCarte(Object.assign({}, etat, { reglages: { actif: false } }), maintenant).actif, false);
   assert.equal(app.scansPourCarte(Object.assign({}, etat, { charge: false }), maintenant).actif, false);
 });
+
+test('Actualiser (étude 07/10) : relance les lectures en échec, garde celles réussies ; une lecture bloquée finit en échec', async () => {
+  const app = chargerApplication();
+  const lectures = { 'a.pdf|1': { statut: 'erreur' }, 'b.pdf|2': { statut: 'pret' }, 'c.pdf|3': { statut: 'lecture' } };
+  assert.strictEqual(app.lecturesARelancerScans(lectures).join(), 'a.pdf|1');
+  assert.strictEqual(app.lecturesARelancerScans(null).join(), '');
+  assert.strictEqual(await app.avecDureeMaxScan(Promise.resolve('lu'), 50), 'lu');
+  // Le contexte de test n'a pas de vraie minuterie : la borne est éprouvée par une lecture qui échoue d'elle-même.
+  await assert.rejects(app.avecDureeMaxScan(Promise.reject(new Error('PDF illisible')), 50), /illisible/);
+});

@@ -17908,3 +17908,12 @@ l'étude — `internes` (compte relié, collaborateurs) et toute adresse de leur
 (3 px). Vue Semaine : le pourcentage passe au bout de la ligne « 10:00 · JV » (`.ag-evt-meta-texte` raccourci en « … », pourcentage
 jamais coupé) ; vue Jour et cartes courtes : dans le coin, après « AF » « P » (`renderEtatsMiniRendezVous(infos, proba)`, titre réservant
 88 px) ; coin à 4 px du bord, plus de marge négative. Mesure après correction : rien hors de la carte.
+
+**Claire Scan : « Actualiser »** (0.189.4 ; étude 07/10 : « le bouton actualiser de Claire Scan ne fonctionne pas »). Le serveur relisait
+bien le dossier « Scan » (`GET /api/scans` relit à chaque appel), mais rien ne le montrait : la liste restait identique, les scans dont la
+lecture avait échoué restaient « en erreur » (`lecturesScans`, jamais relancés), et une lecture bloquée (OCR qui ne rend jamais la main)
+tenait `lectureScansEnCours` et arrêtait toutes les suivantes. `actualiserScans(bouton)` : bouton en rotation (`loading`), lectures en échec
+oubliées (`lecturesARelancerScans`) pour être relues, puis message « Dossier « Scan » relu : N scans à ranger » / « aucun scan en attente »,
+ou la raison (serveur injoignable, dossier introuvable). Chaque lecture est bornée à 3 minutes (`avecDureeMaxScan`,
+`DUREE_MAX_LECTURE_SCAN_MS`) : au-delà elle passe en erreur (« Lecture trop longue : « Actualiser » la relance ») et la suivante démarre.
+Vérifié dans Chromium (sans NAS : message « Aucun dossier NAS configuré »), OCR réel non joué ici.

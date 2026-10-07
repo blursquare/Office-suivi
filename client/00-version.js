@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.189.3';
+  const VERSION_APP = '0.189.4';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.189.4', date: '2026-10-07 16:29', resume: "Claire Scan : « Actualiser » dit ce qu’il a relu (nombre de scans à ranger, ou pourquoi le dossier « Scan » n’a pas pu l’être), tourne pendant la relecture et relance les scans dont la lecture avait échoué ; une lecture bloquée s’arrête au bout de 3 minutes au lieu d’arrêter les suivantes." },
     { version: '0.189.3', date: '2026-10-07 16:06', resume: "Agenda : le « P » et le pourcentage de maintien (« 99 % ») ne sont plus coupés sur les rendez-vous d’une heure — vue Semaine : le pourcentage au bout de la ligne de l’heure (c’est le texte qui raccourcit), vue Jour : à côté de « AF » « P » en haut à droite ; les pastilles ne touchent plus le bord." },
     { version: '0.189.2', date: '2026-10-07 16:04', resume: "Emails des dossiers : seuls les emails venus d’une adresse inscrite sur la fiche (clients, parties d’Authentic, confrère) — ou envoyés à l’une d’elles — sont rangés dans le dossier ; plus par l’objet, un nom cité ou le fil d’une conversation. Les adresses de l’étude elle-même (office@…) ne désignent jamais un dossier. Les emails déjà rangés à tort sont retirés au prochain tour de lecture ; ceux préparés depuis la fiche restent." },
     { version: '0.189.1', date: '2026-10-07 15:25', resume: "Agenda : les pastilles « AF » (appel de fonds) et « P » (projet) sont en haut à droite de chaque rendez-vous de signature, quelle que soit sa durée — vert = envoyé, rouge en pointillés = pas encore (« D » pour le décompte d’une succession). Les lignes « Appel de fonds / Projet » des longs rendez-vous laissent la place au titre ; le détail du rendez-vous les garde." },
