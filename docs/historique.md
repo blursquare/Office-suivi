@@ -17949,3 +17949,11 @@ tous les mots tapés (`dossierScanDepuisSaisie` ; deux dossiers du même libell�
 dit « N dossiers correspondent » ou « Aucun dossier ne correspond » ; champ vidé = plus de dossier choisi. Redessiner retire le champ qui a
 le focus et y déclenche « change » : garde `saisieDossierScanEnCours` (erreur innerHTML vue dans Chromium avant elle). Vérifié dans
 Chromium (taper « leroy » + Entrée, choix dans la liste, aucune erreur de page).
+
+**Fiche : blocs de consultation en fin d'onglet, repliés** (0.189.8 ; étude 07/10 : « Dans Authentic, Diagnostic du dernier parcours (17:13),
+Ce que l'outil avait compris de l'acte : à mettre en fin de fiche avec plier déplier »). Onglet « Pièces et analyse » : les trois blocs
+quittent le milieu de l'onglet (« Dans Authentic » sous la liste des pièces, le diagnostic juste après, la trace de l'extraction dans
+l'analyse) pour un groupe `.fiche-fin-repliables` après l'analyse de l'avant-contrat. « Dans Authentic » devient un `<details>` replié
+(`authenticDossierOuvert`, `basculerAuthenticDossier`, refermé à l'ouverture d'une autre fiche comme le diagnostic) au même gabarit que
+les deux autres ; une alerte (vendeur marié sans son conjoint) est dite sur la ligne repliée (« 1 alerte ») ; « Oublier ce qui vient
+d'Authentic » passe dans le bloc déplié (une croix dans la ligne repliée l'aurait aussi ouvert). Vérifié dans Chromium.

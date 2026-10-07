@@ -1200,6 +1200,7 @@
     piecesToutesVisibles = false;
     engagementEnEdition = null;
     diagnosticParcoursOuvert = false;
+    authenticDossierOuvert = false;
     rdvAgendaOuvert = false;
     render();
     if (d && !d.prixMobilier && !d.mobilierLuLe && d.dossierLie && d.nasDossier) lireMobilierDepuisAvantContrat(id, false);
@@ -1234,6 +1235,7 @@
     piecesToutesVisibles = false;
     engagementEnEdition = null;
     diagnosticParcoursOuvert = false;
+    authenticDossierOuvert = false;
     rdvAgendaOuvert = false;
     render();
   }
@@ -1404,7 +1406,6 @@
         ${cachees > 0 ? `<button type="button" class="pieces-voir-plus" onclick="piecesToutesVisibles = true; render();">Voir les ${cachees} autre${cachees > 1 ? 's' : ''} (reçue${cachees > 1 ? 's' : ''})</button>`
           : (piecesToutesVisibles && ordonnees.some((p, i) => i >= MAX_PIECES_VISIBLES && pieces[p.cle] === 'recue' && !notifs.includes(p.cle)) ? `<button type="button" class="pieces-voir-plus" onclick="piecesToutesVisibles = false; render();">Voir moins</button>` : '')}
         ${renderAjoutPiece(d)}
-        ${renderAuthenticDossier(d)}
       </div>
     `;
   }
@@ -1481,19 +1482,26 @@
     });
   }
 
+  // En fin d'onglet « Pièces et analyse », replié (étude 07/10 : « à mettre en fin de fiche avec plier déplier ») ; une alerte
+  // (conjoint absent) reste dite dans la ligne repliée.
+  let authenticDossierOuvert = false;
+  function basculerAuthenticDossier(ouvert) { authenticDossierOuvert = !!ouvert; }
+
   function renderAuthenticDossier(d) {
     const lignes = lignesAuthenticDossier(d);
     const alertes = alertesConjointDossier(d);
     if (!lignes.length && !alertes.length && !(d.piecesAuthentic || []).length && !d.referenceAuthentic) return '';
     const releve = d.authentic && d.authentic.releveLe;
     return `
-      <div class="authentic-dossier">
-        <div class="authentic-dossier-titre">Dans Authentic${releve ? `<span class="hint"> · relevé le ${escapeHtml(formatDateFr(releve.slice(0, 10)))}</span>` : ''}
-          <wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-btn authentic-oublier" onclick="confirmerOublierDonneesAuthentic('${escapeOnclickArg(d.id)}')" title="Oublier ce qui vient d’Authentic (page d’un autre dossier)" aria-label="Oublier ce qui vient d’Authentic">${icone('x')}</wa-button></div>
-        <dl class="authentic-infos">${lignes.map(l => `<div class="authentic-info"><dt>${escapeHtml(l.libelle)}</dt><dd>${l.classe
-          ? `<span class="dot-label ${l.classe}"><span class="dot"></span>${escapeHtml(l.valeur)}</span>` : escapeHtml(l.valeur)}</dd></div>`).join('')}</dl>
-        ${alertes.map(al => `<p class="authentic-alerte"><span class="dot-label dl-pret">${icone('alert-triangle')}${escapeHtml(al.texte)}</span></p>`).join('')}
-      </div>`;
+      <details class="authentic-dossier"${authenticDossierOuvert ? ' open' : ''} ontoggle="basculerAuthenticDossier(this.open)">
+        <summary><span class="section-eyebrow">Dans Authentic</span>${releve ? `<span class="hint"> · relevé le ${escapeHtml(formatDateFr(releve.slice(0, 10)))}</span>` : ''}${alertes.length ? ` <span class="dot-label dl-pret"><span class="dot"></span>${alertes.length > 1 ? `${alertes.length} alertes` : '1 alerte'}</span>` : ''}</summary>
+        <div class="authentic-dossier-corps">
+          <dl class="authentic-infos">${lignes.map(l => `<div class="authentic-info"><dt>${escapeHtml(l.libelle)}</dt><dd>${l.classe
+            ? `<span class="dot-label ${l.classe}"><span class="dot"></span>${escapeHtml(l.valeur)}</span>` : escapeHtml(l.valeur)}</dd></div>`).join('')}</dl>
+          ${alertes.map(al => `<p class="authentic-alerte"><span class="dot-label dl-pret">${icone('alert-triangle')}${escapeHtml(al.texte)}</span></p>`).join('')}
+          <wa-button appearance="plain" size="s" type="button" class="bouton-discret authentic-oublier" onclick="confirmerOublierDonneesAuthentic('${escapeOnclickArg(d.id)}')" title="Oublier ce qui vient d’Authentic (page d’un autre dossier)">${icone('x')} Oublier ce qui vient d’Authentic</wa-button>
+        </div>
+      </details>`;
   }
 
   function afficherFormAjoutPiece() {
@@ -2039,7 +2047,6 @@
 
             <section class="fiche-panneau" data-onglet="pieces" role="tabpanel"${cache('pieces')}>
               ${avecPieces ? `${renderPiecesDossier(d)}
-              ${renderDiagnosticParcours(d)}
               ${renderPreemptionFiche(d)}` : ''}
               <div class="fiche-sous-partie">
               ${avecPieces ? `<div class="section-eyebrow fiche-sous-titre">Analyse de l'avant-contrat</div>` : ''}
@@ -2061,7 +2068,10 @@
                 </div>
               </div>`}
               ${renderAjoutEngagement(d)}
-              ${renderExtractionDossier(d)}
+              </div>
+              <div class="fiche-fin-repliables">
+                ${avecPieces ? `${renderAuthenticDossier(d)}${renderDiagnosticParcours(d)}` : ''}
+                ${renderExtractionDossier(d)}
               </div>
             </section>
 

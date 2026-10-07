@@ -8413,11 +8413,17 @@ button.w-jour-lien { border: none; background: none; padding: 0; cursor: pointer
 .authentic-releves-titre + .ja-liste { margin-bottom: 14px; }
 
 /* Onglet Pièces : ce que CLAIRE a relevé dans Authentic (étude, 02/10). */
-.authentic-dossier { border-top: 1px solid var(--line-soft); padding: 12px 16px 14px; display: grid; gap: 8px; }
-.authentic-dossier-titre { font-size: var(--texte-xs); font-weight: 600; color: var(--ink-soft); text-transform: uppercase; letter-spacing: 0.06em; }
-.authentic-dossier-titre .hint { text-transform: none; letter-spacing: 0; font-weight: 400; }
-.authentic-dossier-titre { display: flex; align-items: center; flex-wrap: wrap; gap: 0 4px; }
-.authentic-dossier-titre .authentic-oublier { margin-left: auto; text-transform: none; }
+/* « Dans Authentic », diagnostic du parcours et trace de l'extraction : en fin d'onglet « Pièces et analyse », repliés
+   (étude 07/10), même gabarit que .diagnostic-parcours. */
+.fiche-fin-repliables { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; }
+.fiche-fin-repliables > * { margin-top: 0; }
+.authentic-dossier { padding: 10px 14px; background: var(--paper-sunk); border: 1px solid var(--line); border-radius: var(--rayon-s); }
+.authentic-dossier > summary { cursor: pointer; list-style: none; }
+.authentic-dossier > summary::-webkit-details-marker { display: none; }
+.authentic-dossier > summary::after { content: " ▸"; color: var(--muted); }
+.authentic-dossier[open] > summary::after { content: " ▾"; }
+.authentic-dossier-corps { margin-top: 10px; display: grid; gap: 8px; justify-items: start; }
+.authentic-dossier-corps > .authentic-infos { justify-self: stretch; }
 .authentic-infos { margin: 0; display: grid; gap: 4px; }
 .authentic-info { display: grid; grid-template-columns: minmax(150px, 34%) 1fr; gap: 10px; font-size: var(--texte-m); align-items: baseline; }
 .authentic-info > * { min-width: 0; }

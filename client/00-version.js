@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.189.7';
+  const VERSION_APP = '0.189.8';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.189.8', date: '2026-10-07 17:18', resume: "Fiche, onglet « Pièces et analyse » : « Dans Authentic », « Diagnostic du dernier parcours » et « Ce que l’outil avait compris de l’acte » sont regroupés en fin d’onglet, repliés (un clic les déplie) ; une alerte d’Authentic reste signalée sur la ligne repliée." },
     { version: '0.189.7', date: '2026-10-07 16:51', resume: "Claire Scan : le champ « Dossier » se remplit en tapant le nom (dossier, vendeur ou acquéreur) ; la liste propose d’abord les dossiers reconnus dans le scan, avec leur score." },
     { version: '0.189.6', date: '2026-10-07 16:43', resume: "Droits de préemption : l’information obligatoire de la SAFER (Vigifoncier) n’est plus demandée hors zone A ou N (maison en ville, lot de copropriété en zone U) ; zone non lue : « à vérifier »." },
     { version: '0.189.5', date: '2026-10-07 16:35', resume: "Nouveau dossier avec Authentic : civilité, emails, téléphones et situation matrimoniale des fiches client d’Authentic posés dès « Ajouter le dossier » (avant : à la page d’Authentic suivante) ; une correction faite dans « Vérifier » reste." },
