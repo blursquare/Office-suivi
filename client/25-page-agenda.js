@@ -662,12 +662,13 @@
     };
   }
 
-  // Les mêmes états en deux pastilles courtes (« AF » « P »), pour la carte d'une heure qui ne tient pas les lignes complètes
-  // (étude 06/10 : « sur l'agenda, que je voie en un coup d'œil si l'appel de fonds et le projet ont été envoyés ») : lettres seules,
-  // vert plein = fait, rouge au contour en tirets = pas encore (la couleur ne porte pas seule l'information).
+  // Les mêmes états en deux pastilles courtes (« AF » « P ») (étude 06/10 : « sur l'agenda, que je voie en un coup d'œil si l'appel
+  // de fonds et le projet ont été envoyés ») : lettres seules, vert plein = fait, rouge au contour en tirets = pas encore (la couleur
+  // ne porte pas seule l'information). En haut à droite de toute carte de signature, quelle que soit sa hauteur (étude 07/10 :
+  // « mettez AF P en haut à droite du rendez-vous ») — les lignes « Appel de fonds / Projet » restent dans le détail.
   var ABREGES_ETATS_RENDEZ_VOUS = { appelFonds: 'AF', decompte: 'D', projet: 'P' };
   function renderEtatsMiniRendezVous(infos) {
-    return `<span class="ag-etats-mini">${infos.etats.map(x => `<span class="ag-mini ${x.fait ? 'fait' : 'afaire'}" title="${escapeAttr(`${x.libelle} ${x.fait ? 'fait' : 'pas encore fait'}`)}">${escapeHtml(ABREGES_ETATS_RENDEZ_VOUS[x.cle] || x.libelle)}</span>`).join('')}</span>`;
+    return `<span class="ag-etats-mini" aria-hidden="true">${infos.etats.map(x => `<span class="ag-mini ${x.fait ? 'fait' : 'afaire'}" title="${escapeAttr(`${x.libelle} ${x.fait ? 'fait' : 'pas encore fait'}`)}">${escapeHtml(ABREGES_ETATS_RENDEZ_VOUS[x.cle] || x.libelle)}</span>`).join('')}</span>`;
   }
 
   function renderEtatsRendezVous(infos) {
@@ -683,16 +684,11 @@
   // Hauteur d'une heure dans la grille, en pixels — la même que --ag-heure (style.css), 60 px depuis
   // le 01/10 (étude : « réduis la hauteur de l'agenda », 90 px auparavant).
   var AGENDA_PX_HEURE = 60;
-  // Pure : les lignes « Appel de fonds (Décompte en succession) / Projet » d'une signature ne s'affichent que si la
-  // carte peut les tenir sans les couper (≈ 80 px : 1 h 20 à 60 px l'heure).
-  function etatsTiennentAgenda(minutes) {
-    return minutes * AGENDA_PX_HEURE / 60 >= 81;
-  }
-  // Pure : lignes du titre d'une carte de la vue Semaine — la carte moins l'heure (« 10:00 · BA »),
-  // le rembourrage et, s'il y en a, les états ; 15 px par ligne, 1 à 6.
-  function lignesTitreEvenement(minutes, avecEtats) {
+  // Pure : lignes du titre d'une carte de la vue Semaine — la carte moins l'heure (« 10:00 · BA ») et
+  // le rembourrage ; 15 px par ligne, 1 à 6.
+  function lignesTitreEvenement(minutes) {
     const px = minutes * AGENDA_PX_HEURE / 60;
-    return Math.max(1, Math.min(6, Math.floor((px - 24 - (avecEtats ? 42 : 0)) / 15)));
+    return Math.max(1, Math.min(6, Math.floor((px - 24) / 15)));
   }
 
   function renderEvenementSemaine(place, auj) {
@@ -705,8 +701,8 @@
     const style = `top:${place.haut.toFixed(2)}%;height:${place.hauteur.toFixed(2)}%;left:calc(${(place.colonne * largeur).toFixed(2)}% + 2px);width:calc(${largeur.toFixed(2)}% - 4px)`;
     const minutes = place.hauteur * (AGENDA_HEURE_FIN - AGENDA_HEURE_DEBUT) * 60 / 100;
     const court = minutes < 40;
-    const etats = infos && e.signature && !court && etatsTiennentAgenda(minutes);
-    const lignes = lignesTitreEvenement(minutes, etats);
+    const mini = infos && e.signature && !e.option;
+    const lignes = lignesTitreEvenement(minutes);
     const initiales = d && d.responsable ? initialesResponsable(d) : '';
     const meta = [initiales, infos && infos.confrere ? infos.confrere.replace(/\s+en 2nd$/, '') : ''].filter(Boolean);
     const cle = cleEvenementAgenda(e);
@@ -715,12 +711,12 @@
       infos ? [infos.responsable, infos.confrere].filter(Boolean).join(' · ') : '',
       proba ? `${proba.pourcent} % de chances que le rendez-vous soit maintenu` : ''].filter(Boolean).join(' · ');
     const heure = `<b class="ag-evt-debut">${escapeHtml(e.heure)}</b>`;
-    return `<button type="button" class="ag-evt ag-evt-compact ajd-${teinte}${e.horsAgenda ? ' ag-hors-agenda' : ''}${e.option ? ' ag-option' : ''}${court ? ' ag-evt-court' : ''}${agendaSelection === cle ? ' selection' : ''}" style="${style}"
+    return `<button type="button" class="ag-evt ag-evt-compact ajd-${teinte}${e.horsAgenda ? ' ag-hors-agenda' : ''}${e.option ? ' ag-option' : ''}${court ? ' ag-evt-court' : ''}${mini ? ' ag-evt-avec-mini' : ''}${agendaSelection === cle ? ' selection' : ''}" style="${style}"
         data-cle="${escapeAttr(cle)}"${attributGlisseAgenda(e)} onclick="ouvrirDetailAgenda('${escapeOnclickArg(cle)}')" title="${escapeAttr(bulle)}">
         ${e.option && !court ? `<span class="ag-fantome-tete ag-option-tete">Option ${escapeHtml(libelleOptionSondage(e.sujet).rang)}</span>` : ''}
-        <span class="ag-evt-titre" style="--lignes:${e.option && !court ? Math.max(1, lignes - 1) : lignes}">${court ? heure + ' ' : ''}${escapeHtml(e.option ? libelleOptionSondage(e.sujet).titre : (e.sujet || '(sans titre)'))}</span>
-        ${court ? '' : `<span class="ag-evt-meta">${heure}${meta.length ? ` · ${escapeHtml(meta.join(' · '))}` : (e.lieu && !d ? ` · ${escapeHtml(e.lieu)}` : '')}${!etats && infos && e.signature ? renderEtatsMiniRendezVous(infos) : ''}</span>`}
-        ${etats ? `<span class="ag-evt-etats">${renderEtatsRendezVous(infos)}</span>` : ''}
+        <span class="ag-evt-titre" style="--lignes:${e.option && !court ? Math.max(1, lignes - 1) : lignes}">${mini && !court ? renderEtatsMiniRendezVous(infos) : ''}${court ? heure + ' ' : ''}${escapeHtml(e.option ? libelleOptionSondage(e.sujet).titre : (e.sujet || '(sans titre)'))}</span>
+        ${court ? '' : `<span class="ag-evt-meta">${heure}${meta.length ? ` · ${escapeHtml(meta.join(' · '))}` : (e.lieu && !d ? ` · ${escapeHtml(e.lieu)}` : '')}</span>`}
+        ${mini && court ? renderEtatsMiniRendezVous(infos) : ''}
         ${proba && !court ? renderPastilleProbabilite(proba) : ''}
         ${poigneesAgenda(e)}
       </button>`;
@@ -744,15 +740,16 @@
     const etroit = court && place.colonnes > 1;
     const selection = agendaSelection === cleEvenementAgenda(e);
     const qui = infos ? [infos.responsable, infos.confrere].filter(Boolean).join(' · ') : '';
+    const mini = infos && e.signature && !e.option;
     const bulle = [`${heures}${duree ? ' (' + duree + ')' : ''}`, e.sujet, e.lieu, qui,
       infos ? infos.etats.map(x => `${x.libelle} ${x.fait ? 'fait' : 'à faire'}`).join(', ') : '',
       proba ? `${proba.pourcent} % de chances que la signature se tienne` : ''].filter(Boolean).join(' · ');
-    return `<button type="button" class="ag-evt ajd-${teinte}${e.horsAgenda ? ' ag-hors-agenda' : ''}${e.option ? ' ag-option' : ''}${court ? ' ag-evt-court' : ''}${haut ? ' ag-evt-haut' : ''}${etroit ? ' ag-evt-etroit' : ''}${selection ? ' selection' : ''}${proba ? ' ag-evt-avec-proba' : ''}" style="${style}"
+    return `<button type="button" class="ag-evt ajd-${teinte}${e.horsAgenda ? ' ag-hors-agenda' : ''}${e.option ? ' ag-option' : ''}${court ? ' ag-evt-court' : ''}${haut ? ' ag-evt-haut' : ''}${etroit ? ' ag-evt-etroit' : ''}${selection ? ' selection' : ''}${proba ? ' ag-evt-avec-proba' : ''}${mini ? ' ag-evt-avec-mini' : ''}" style="${style}"
         data-cle="${escapeAttr(cleEvenementAgenda(e))}"${attributGlisseAgenda(e)} onclick="ouvrirDetailAgenda('${escapeOnclickArg(cleEvenementAgenda(e))}')" title="${escapeAttr(bulle)}">
         <span class="ag-evt-titre">${e.option ? `<span class="ag-fantome-tete ag-option-tete">Option ${escapeHtml(libelleOptionSondage(e.sujet).rang)}</span> ` : ''}${escapeHtml(e.option ? libelleOptionSondage(e.sujet).titre : (e.sujet || '(sans titre)'))}</span>
         <span class="ag-evt-heure"><span>${escapeHtml(e.heure)}</span>${e.heureFin ? `<span class="ag-evt-fin">– ${escapeHtml(e.heureFin)}</span>` : ''}${duree ? `<span class="ag-evt-duree">${escapeHtml(duree)}</span>` : ''}</span>
-        ${qui ? `<span class="ag-evt-qui">${escapeHtml(qui)}${infos && e.signature && !court && !etatsTiennentAgenda(minutesAffichees) ? renderEtatsMiniRendezVous(infos) : ''}</span>` : (e.lieu ? `<span class="ag-evt-qui">${escapeHtml(e.lieu)}</span>` : '')}
-        ${infos && e.signature && etatsTiennentAgenda(minutesAffichees) ? `<span class="ag-evt-etats">${renderEtatsRendezVous(infos)}</span>` : ''}
+        ${qui ? `<span class="ag-evt-qui">${escapeHtml(qui)}</span>` : (e.lieu ? `<span class="ag-evt-qui">${escapeHtml(e.lieu)}</span>` : '')}
+        ${mini ? renderEtatsMiniRendezVous(infos) : ''}
         ${proba ? renderPastilleProbabilite(proba) : ''}
         ${poigneesAgenda(e)}
       </button>`;

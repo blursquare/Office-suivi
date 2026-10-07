@@ -7852,14 +7852,21 @@ body.ag-redim-en-cours, body.ag-redim-en-cours * { cursor: ns-resize !important;
 .ag-evt-duree { color: var(--muted); margin-left: 2px; }
 .ag-evt-duree::before { content: '·'; margin-right: 6px; }
 .ag-evt-qui { font-size: var(--texte-xs); color: var(--ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: none; }
-.ag-evt-etats { display: flex; flex-wrap: wrap; gap: 0 8px; overflow: hidden; flex: none; }
 .ag-etat { display: inline-flex; align-items: center; gap: 4px; font-size: var(--texte-xs); font-weight: 600; white-space: nowrap; line-height: 1.2; }
 .ag-etat svg { width: 14px; height: 14px; }
 .ag-etat.fait { color: var(--success); }
 .ag-etat.afaire { color: var(--urgent); }
-/* Pastilles « AF » « P » d'une carte trop courte pour les lignes complètes (étude 06/10) : vert plein = fait, rouge au contour en
-   tirets = pas encore. */
-.ag-etats-mini { display: inline-flex; gap: 2px; margin-left: 4px; flex: none; vertical-align: middle; }
+/* Pastilles « AF » « P » (étude 06/10) : vert plein = fait, rouge au contour en tirets = pas encore. En haut à droite de la carte
+   (étude 07/10), sur le fond de la carte (qui masque la fin du titre dessous) ; sans pointeur : la poignée du bord haut et le clic
+   restent ceux de la carte. */
+.ag-etats-mini { position: absolute; top: 2px; right: 2px; z-index: 1; display: inline-flex; gap: 2px; padding: 1px 0 1px 4px; background: inherit; border-radius: var(--rayon-xs); pointer-events: none; }
+.ag-evt-court .ag-etats-mini { top: 50%; transform: translateY(-50%); }
+/* La place des pastilles : le titre d'une ligne (vue Jour, carte courte) s'arrête avant elles ; en vue Semaine, où le titre passe
+   sur plusieurs lignes dans une colonne étroite, elles sont posées en tête du titre, flottant à droite : seule sa première ligne
+   leur laisse la place. */
+.ag-evt-titre > .ag-etats-mini { position: static; float: right; margin: 0 -4px 0 4px; padding: 0; background: none; }
+.ag-evt-avec-mini:not(.ag-evt-compact) > .ag-evt-titre { padding-right: 40px; }
+.ag-evt-court.ag-evt-avec-mini { padding-right: 48px; }
 .ag-mini { display: inline-flex; align-items: center; padding: 0 4px; border-radius: var(--rayon-pilule); font-size: var(--texte-xxs); font-weight: 700; line-height: 14px; letter-spacing: 0; }
 .ag-mini.fait { color: var(--success); background: color-mix(in srgb, var(--success) 14%, transparent); }
 .ag-mini.afaire { color: var(--urgent); background: color-mix(in srgb, var(--urgent) 8%, transparent); border: 1px dashed color-mix(in srgb, var(--urgent) 60%, transparent); padding: 0 2px; }
@@ -7867,7 +7874,7 @@ body.ag-redim-en-cours, body.ag-redim-en-cours * { cursor: ns-resize !important;
 .ag-evt-court .ag-evt-titre { flex: 1 1 auto; min-width: 0; }
 /* Comme Outlook : le titre passe sur deux lignes quand la carte a la place (1 h 30 et plus). */
 .ag-evt-haut .ag-evt-titre { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow-wrap: anywhere; }
-.ag-evt-court .ag-evt-fin, .ag-evt-court .ag-evt-duree, .ag-evt-court .ag-evt-qui, .ag-evt-court .ag-evt-etats { display: none; }
+.ag-evt-court .ag-evt-fin, .ag-evt-court .ag-evt-duree, .ag-evt-court .ag-evt-qui { display: none; }
 .ag-evt-etroit .ag-evt-heure, .ag-evt-etroit .ag-proba { display: none; }
 /* Probabilité de maintien (étude, 30/09) : discrète, en bas à droite de la carte, sous la ligne
    appel de fonds / décompte / projet, sur sa propre ligne — un point de couleur et le chiffre en gris. */

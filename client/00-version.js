@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.189.0';
+  const VERSION_APP = '0.189.1';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.189.1', date: '2026-10-07 15:25', resume: "Agenda : les pastilles « AF » (appel de fonds) et « P » (projet) sont en haut à droite de chaque rendez-vous de signature, quelle que soit sa durée — vert = envoyé, rouge en pointillés = pas encore (« D » pour le décompte d’une succession). Les lignes « Appel de fonds / Projet » des longs rendez-vous laissent la place au titre ; le détail du rendez-vous les garde." },
     { version: '0.189.0', date: '2026-10-07 15:19', resume: "Téléphonie 3CX : les appels s’ouvrent dans la fenêtre CLAIRE plutôt que dans un onglet du navigateur. Réglages › Téléphonie 3CX › « Installer sur ce poste » pose un petit relais Windows (une fois par poste, sans droit d’administrateur) : à chaque sonnerie, l’onglet de 3CX se ferme et la fenêtre CLAIRE passe au premier plan sur l’appel (rouverte si elle était réduite, ouverte si elle était fermée). Au premier appel, cocher « Toujours autoriser » pour le lien claire-appel. « Retirer » sur la ligne du collaborateur revient à l’onglet." },
     { version: '0.188.2', date: '2026-10-07 14:55', resume: "Rédaction de l’acte : l’échéance est datée même sans rendez-vous de signature placé (étude : « mettez bien l’échéance quand même ») — 15 jours avant la première date encore proposée au client (sondage en cours), sinon avant la date de signature au plus tôt, sinon avant la date butoir ; jamais avant aujourd’hui pour une date estimée. La tâche et la fiche disent sur quelle date elle repose." },
     { version: '0.188.1', date: '2026-10-07 14:47', resume: "Rédaction de l’acte : quand Authentic passe à « En cours », l’étape est cochée sur la fiche et la tâche « Rédiger l’acte » apparaît cochée dans « À faire » (faite par CLAIRE) ; « Non rédigé » ne coche jamais rien (et décoche l’étape si Authentic y revient). Une décoche à la main est retenue." },

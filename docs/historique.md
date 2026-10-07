@@ -17882,3 +17882,11 @@ Installé par Réglages › Téléphonie 3CX › « Installer sur ce poste » (c
 collaborateur revient à l'onglet. Le PUT des réglages 3CX garde désormais les deux listes (il réécrivait `postesCoupes` seul).
 Non vérifié sur un vrai Windows : premier plan obtenu, temps de PowerShell (≈ 1 s), lancement d'un protocole externe sans geste de
 l'utilisateur dans l'onglet ouvert par 3CX (Chrome peut l'exiger après un premier lancement) — point terrain `3cx-appel-fenetre-claire`.
+
+**Agenda : pastilles AF / P en haut à droite** (0.189.1 ; étude 07/10 : « mettez dans l'agenda AF P en haut à droite du rendez-vous »).
+Toute carte de signature (hors options de sondage) porte `renderEtatsMiniRendezVous` en haut à droite, quelle que soit sa hauteur :
+vue Semaine — en tête du titre, flottant à droite (seule la première ligne du titre leur cède la place) ; vue Jour — en coin, le titre
+réservant 40 px ; carte courte — centrée verticalement à droite, la carte réservant 48 px. Les lignes « ✓ Appel de fonds / ✗ Projet »
+des cartes d'1 h 20 et plus (`etatsTiennentAgenda`, retiré) ne sont plus dessinées : doublon ; elles restent dans le détail du
+rendez-vous (`renderEtatsRendezVous`). `lignesTitreEvenement(minutes)` ne retranche plus leur hauteur. Rendu regardé dans Chromium
+(semaine et jour, AF fait / P à faire).
