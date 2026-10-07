@@ -6470,7 +6470,8 @@ wa-button.rappel-perso-modif:hover { color: var(--focus); }
   border: 1px solid color-mix(in srgb, var(--success) 35%, transparent);
 }
 .jour-fete-emoji { font-size: var(--texte-xl); line-height: 1; }
-.jour-fete-texte { font-size: var(--texte-base); font-weight: 600; color: var(--success); }
+.jour-fete-texte { display: flex; flex-direction: column; gap: 2px; font-size: var(--texte-base); font-weight: 600; color: var(--success); }
+.jour-fete-compte { font-size: var(--texte-s); font-weight: 400; color: var(--ink-soft); }
 .jour-confettis { position: absolute; inset: 0; pointer-events: none; }
 .jour-confetti {
   position: absolute; top: -8px; left: calc(6% + var(--i) * 9%);

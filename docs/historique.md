@@ -18360,3 +18360,13 @@ une tâche, supprime le reste. »
 `messageProgressionJour` sous le titre, anneau `renderAnneauJour` à droite ; petite tuile : message de progression quand il n'y a
 plus rien à faire. Restent retirés (0.191.12) : rappels à venir, section « À venir », fête, bouton « Point du matin ». Test dans
 `tests/audit-coherence.test.js`.
+
+### 08/10 0 h 03 — 0.191.14 : carte « Aujourd'hui », la fête revient
+
+Étude : « L'animation quand tout est fait à reprendre aussi. C'est en faire une to-do list. Fais que ça reste attractif. »
+`renderFeteJour(animer, faits)`, `feteJourDejaCelebree`, `marquerFeteJourCelebree` (par `ecrireLocal`) et `CLE_FETE_JOUR`
+rétablis dans client/24 (retirés en 0.191.12 ; le CSS `.jour-fete` était resté). Nouveau : `journeeBouclee(resteActions,
+resteRappels, faits)` (pure) — la fête attend aussi mes tâches du jour, pas seulement celles des dossiers ; le bandeau dit le
+nombre de tâches faites ; `feteJourAAnimer` garde les confettis 2 s (la carte se redessine souvent, l'animation était coupée) ;
+le message « Journée bouclée. » sous le titre est retiré quand le bandeau est là (doublon). Vérifié dans Chromium (bandeau, liste
+barrée, anneau coché). Test dans `tests/audit-coherence.test.js`.

@@ -212,3 +212,13 @@ test('carte « Aujourd’hui » : tâches faites barrées et progression rendues
   assert.ok(!src.includes('Point du matin') && !src.includes("'avenir'"), 'rien de ce qui a été retiré');
   assert.strictEqual(app.messageProgressionJour(1, 2), 'Plus qu’une !');
 });
+
+test('carte « Aujourd’hui » : la fête revient quand toute la liste du jour est faite', () => {
+  assert.strictEqual(app.journeeBouclee(0, 0, 3), true);
+  assert.strictEqual(app.journeeBouclee(0, 1, 3), false, 'un rappel du jour reste à faire');
+  assert.strictEqual(app.journeeBouclee(1, 0, 3), false, 'une tâche de dossier reste à faire');
+  assert.strictEqual(app.journeeBouclee(0, 0, 0), false, 'une journée vide n’est pas une journée bouclée');
+  const html = app.renderFeteJour(true, 3);
+  assert.ok(html.includes('jour-fete anime') && html.includes('3 tâches faites aujourd’hui'));
+  assert.ok(app.renderAlertesDashboard.toString().includes('renderFeteJour('));
+});

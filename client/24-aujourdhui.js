@@ -1198,10 +1198,45 @@
       </li>`).join('')}</ul>`;
   }
 
+  // Célébration quand toute la liste du jour est faite — tâches des dossiers ET mes tâches (étude 07/10 : « l'animation quand
+  // tout est fait à reprendre aussi ; en faire une to-do list qui reste attractive »). Jouée UNE SEULE FOIS par jour et par
+  // poste : render() se relance à chaque action, rejouer l'animation à chaque fois serait pénible. Le repère est en
+  // localStorage (par poste), donc elle ne rejoue pas non plus à un rechargement le même jour ; le bandeau, lui, reste.
+  var CLE_FETE_JOUR = 'claire-fete-jour:';
+  function feteJourDejaCelebree(dateIso) {
+    try { return localStorage.getItem(CLE_FETE_JOUR + (utilisateurPoste || 'poste')) === dateIso; }
+    catch (e) { return false; }
+  }
+  function marquerFeteJourCelebree(dateIso) {
+    ecrireLocal(CLE_FETE_JOUR + (utilisateurPoste || 'poste'), dateIso);
+  }
+  // La carte se redessine souvent (sondage, enregistrement) : la pluie de confettis est gardée 2 s pour aller au bout.
+  var feteJourAnimeeJusqua = 0;
+  function feteJourAAnimer(dateIso) {
+    if (!feteJourDejaCelebree(dateIso)) {
+      marquerFeteJourCelebree(dateIso);
+      feteJourAnimeeJusqua = Date.now() + 2000;
+    }
+    return Date.now() < feteJourAnimeeJusqua;
+  }
+  // Pure : la liste du jour est-elle bouclée ? Plus rien à faire (ni tâche de dossier, ni rappel du jour) et au moins une
+  // chose faite aujourd'hui — une journée vide n'est pas une journée bouclée.
+  function journeeBouclee(resteActions, resteRappels, faits) {
+    return !resteActions && !resteRappels && faits > 0;
+  }
+  function renderFeteJour(animer, faits) {
+    const confettis = Array.from({ length: 10 }, (_, i) => `<span class="jour-confetti jour-confetti-${i % 3}" style="--i:${i}"></span>`).join('');
+    return `<div class="jour-fete${animer ? ' anime' : ''}" role="status">
+      <div class="jour-confettis" aria-hidden="true">${confettis}</div>
+      <span class="jour-fete-emoji" aria-hidden="true">🎉</span>
+      <span class="jour-fete-texte">Journée bouclée, bravo !${faits ? `<span class="jour-fete-compte">${faits} tâche${faits > 1 ? 's' : ''} faite${faits > 1 ? 's' : ''} aujourd’hui</span>` : ''}</span>
+    </div>`;
+  }
+
   // Carte « Aujourd'hui » du tableau de bord (étude 07/10 : « laisse simplement les tâches à faire et ajouter une tâche », puis
   // « remets les tâches effectuées barrées comme avant et la progression des tâches ») : mes tâches du jour (rappels échus ou sans
-  // date) puis les tâches des dossiers, les tâches faites aujourd'hui barrées en fin de liste, « Ajouter une tâche », et la
-  // progression (message sous le titre, anneau à droite). Restent retirés : rappels à venir, section « À venir », fête, bouton
+  // date) puis les tâches des dossiers, les tâches faites aujourd'hui barrées en fin de liste, « Ajouter une tâche », la
+  // progression (message sous le titre, anneau à droite) et la fête quand tout est fait. Restent retirés : rappels à venir, section « À venir », bouton
   // « Point du matin ». Petite tuile : le nombre de choses à faire et la première. Les listes sont coupées à la hauteur de la
   // tuile (ajusterWidgets), « Voir N de plus » ouvre la fenêtre du jour.
   function renderAlertesDashboard(perimetreActifs) {
@@ -1213,6 +1248,7 @@
     const anneau = actions.length || traites.length ? renderAnneauJour(actions.length, traites.length) : '';
     const versPage = "ouvrirFenetreAujourdhui()";
     let corps;
+    let feteHtml = '';
     if (presentation === 'petit') {
       const premiere = actions[0];
       corps = `<div class="w-chiffre-bloc">
@@ -1228,10 +1264,13 @@
       // tâches faites aujourd'hui (mes rappels cochés, tâches des dossiers traitées) barrées à la suite.
       const rappelsJour = utilisateurPoste ? renderRappelsJour(aujourdhui, true, 'aFaire') : '';
       const rappelsCoches = utilisateurPoste ? renderRappelsJour(aujourdhui, true, 'faits') : '';
+      const mesRappels = utilisateurPoste ? rappelsDuJour(rappelsPerso, aujourdhui) : { aFaire: [], faits: [] };
+      const faitsDuJour = traites.length + mesRappels.faits.length;
+      if (journeeBouclee(actions.length, mesRappels.aFaire.length, faitsDuJour)) feteHtml = renderFeteJour(feteJourAAnimer(aujourdhui), faitsDuJour);
       const liste = actions.length || traites.length || rappelsJour || rappelsCoches
         ? `<ul class="ja-liste ja-taches" data-ajuster="1" data-min="1">${rappelsJour}${renderActionsJour(actions, global, traites, true)}${rappelsCoches}${renderLignesTraitees(grouperActionsParDossier(actions, traites).traites)}${plusWidget(versPage)}</ul>`
         : '<p class="jour-vide jour-vide-ok">✓ Rien à faire aujourd’hui sur vos dossiers.</p>';
-      corps = `${liste}
+      corps = `${feteHtml}${liste}
         <div class="w-section dash-rappels-bloc">
           <div class="rappels-perso" data-ajuster="0" data-garder>${renderMesRappels(perimetreActifs, 'ajout')}</div>
         </div>`;
@@ -1239,7 +1278,8 @@
     bloc.innerHTML = carteWidget({
       presentation,
       titre: 'Aujourd’hui',
-      sous: presentation === 'petit' ? '' : escapeHtml(messageProgressionJour(actions.length, traites.length)),
+      // Le bandeau de fête dit déjà « Journée bouclée » : pas de doublon sous le titre.
+      sous: presentation === 'petit' || feteHtml ? '' : escapeHtml(messageProgressionJour(actions.length, traites.length)),
       droite: anneau,
       corps
     });

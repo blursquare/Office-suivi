@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.191.13';
+  const VERSION_APP = '0.191.14';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.191.14', date: '2026-10-08 00:03', resume: "Carte « Aujourd’hui » : la fête revient quand toute la liste du jour est faite (tâches des dossiers et mes tâches) — bandeau vert « Journée bouclée, bravo ! » avec le nombre de tâches faites, pluie de confettis une fois par jour." },
     { version: '0.191.13', date: '2026-10-07 23:51', resume: "Carte « Aujourd’hui » du tableau de bord : les tâches faites dans la journée reviennent, barrées, en fin de liste, avec la progression (message sous le titre, anneau à droite). Les rappels à venir, la section « À venir », la fête et le bouton « Point du matin » restent retirés." },
     { version: '0.191.12', date: '2026-10-07 23:23', resume: "La fenêtre « Aujourd’hui » ne s’ouvre plus toute seule au démarrage. La carte « Aujourd’hui » du tableau de bord ne garde que les tâches à faire (vos rappels du jour puis les tâches des dossiers) et le bouton « Ajouter une tâche » : plus de tâches cochées, de rappels à venir, de section « À venir », d’anneau, de message ni de bouton « Point du matin »." },
     { version: '0.191.11', date: '2026-10-07 23:15', resume: "Les emails reçus ne sont plus affichés dans CLAIRE : l’onglet Échanges ne liste plus que les emails envoyés (plus de « Confirmer la réception » ni « À répondre »), « Demander à CLAIRE » ne cite plus le dernier email reçu, et la fenêtre du matin n’a plus de bloc Emails. CLAIRE continue de lire la boîte pour reconnaître les réponses et les envois ; l’envoi d’un email depuis CLAIRE se fait toujours dans la fenêtre d’email." },
