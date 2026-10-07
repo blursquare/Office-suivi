@@ -1965,7 +1965,7 @@
         const safer = saferLevee(d) ? '' : (echeanceSaferDossier(d) || 'attendue');
         if (preemptionLevee(d) && !safer) ajouter(d, j <= 5 ? 'critique' : 'vigilance', 'Fixer le rendez-vous', `Aucun rendez-vous · butoir le ${court(d.acte)}`, j);
         else if (preemptionLevee(d)) ajouter(d, j <= 5 ? 'critique' : 'vigilance', 'Réponse SAFER attendue', `${safer === 'attendue' ? 'Rendez-vous impossible avant sa réponse' : `Délai SAFER jusqu’au ${court(safer)}`} · butoir le ${court(d.acte)}`, j);
-        else ajouter(d, j <= 5 ? 'critique' : 'vigilance', 'Obtenir la renonciation de préemption', `${echeanceDiaDossier(d) ? `Délai DIA jusqu’au ${court(echeanceDiaDossier(d))}` : 'Rendez-vous impossible sans elle'} · butoir le ${court(d.acte)}`, j);
+        else ajouter(d, j <= 5 ? 'critique' : 'vigilance', 'Obtenir la renonciation de préemption', `${echeanceDiaDossier(d) ? `Rendez-vous impossible sans elle · réponse de la commune au plus tard le ${court(echeanceDiaDossier(d))}` : 'Rendez-vous impossible sans elle'} · butoir le ${court(d.acte)}`, j);
       } else if (pretLeve(d) && !estSuccession(d)) {
         // Offre reçue (ou achat comptant) : placer le rendez-vous est l'étape suivante, avant
         // l'appel de fonds (demandé par l'étude). Le butoir, s'il existe, donne le délai.
@@ -1976,7 +1976,7 @@
         const safer = saferLevee(d) ? '' : (echeanceSaferDossier(d) || 'attendue');
         if (preemptionLevee(d) && !safer) ajouter(d, d.sansPret ? 'info' : 'vigilance', 'Fixer le rendez-vous', d.acte ? `${detail} · butoir le ${court(d.acte)}` : detail, j);
         else if (preemptionLevee(d)) ajouter(d, 'info', 'Réponse SAFER attendue', `${detail} · ${safer === 'attendue' ? 'rendez-vous à fixer ensuite' : `délai SAFER jusqu’au ${court(safer)}`}`, safer === 'attendue' ? j : ecartJours(aujourdhuiIso, safer));
-        else if (echeanceDiaDossier(d)) ajouter(d, 'info', 'Renonciation de préemption attendue', `${detail} · délai DIA jusqu’au ${court(echeanceDiaDossier(d))}`, ecartJours(aujourdhuiIso, echeanceDiaDossier(d)));
+        else if (echeanceDiaDossier(d)) ajouter(d, 'info', 'Renonciation de préemption attendue', `${detail} · réponse de la commune à la DIA au plus tard le ${court(echeanceDiaDossier(d))}`, ecartJours(aujourdhuiIso, echeanceDiaDossier(d)));
         else ajouter(d, 'info', 'Renonciation de préemption attendue', `${detail} · rendez-vous à fixer ensuite`, j);
       }
       // Vente préalable qui approche sans être confirmée.

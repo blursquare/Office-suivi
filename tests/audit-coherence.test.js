@@ -40,13 +40,16 @@ test('complément par le compromis : une valeur venue d’Authentic n’est jama
   assert.strictEqual(app.clesComplementAuthentic({}).length, 0);
 });
 
-test('DIA envoyée (Authentic) : délai de 2 mois au planning, plus de « Renonciation attendue » sans date', () => {
+test('DIA envoyée (Authentic) : réponse attendue datée (envoi + 2 mois), jamais une renonciation tacite', () => {
   const d = { id: 'd1', nom: 'MARTIN', typeVente: 'maison', sansPret: true, acte: '2026-12-20', pieces: {}, piecesPersonnalisees: [],
     authentic: { demandes: { renonciationPreemption: { date: '2026-10-01', titre: 'DIA' } } } };
   assert.strictEqual(planning.echeanceDiaDossier(d), '2026-12-01');
   const items = planning.echeancesPlanning(d);
   assert.ok(items.some(i => i.type === 'dia' && i.iso === '2026-12-01'));
-  assert.ok(!items.some(i => i.type === 'preemption'), 'l’attente sans date laisse place au délai daté');
+  assert.ok(!items.some(i => i.type === 'preemption'), 'l’attente sans date laisse place à l’attente datée');
+  assert.ok(!items.some(i => i.type === 'fixerRdv'), 'pas de rendez-vous sans le document de renonciation');
+  // Délai dépassé sans document : toujours pas levée.
+  assert.strictEqual(planning.preemptionLevee(d), false);
   // Renonciation reçue : plus de délai.
   d.pieces.renonciationPreemption = 'recue';
   assert.strictEqual(planning.echeanceDiaDossier(d), '');
@@ -72,15 +75,13 @@ test('pièces ajoutées par l’analyse des droits de préemption : elles retien
   assert.strictEqual(planning.saferLevee(s), false);
 });
 
-test('rendez-vous à placer : même règle que le planning (SAFER attendue sans date → pas de créneau)', () => {
+test('rendez-vous à placer : même règle que le planning (SAFER attendue sans date, DIA sans document → pas de créneau)', () => {
   const base = { typeVente: 'maison', sansPret: true, pieces: { renonciationPreemption: 'recue' }, piecesPersonnalisees: [] };
   const libre = Object.assign({ id: 'a' }, base);
   const saferSansDate = Object.assign({ id: 'b' }, base, { piecesPersonnalisees: [{ cle: 'perso-safer', label: 'Réponse SAFER' }], pieces: { renonciationPreemption: 'recue', 'perso-safer': 'manquante' } });
   const saferDatee = Object.assign({ id: 'c' }, base, { authentic: { safer: { envoyeeLe: '2026-10-01' } } });
   const diaDatee = Object.assign({ id: 'e' }, base, { pieces: {}, authentic: { demandes: { renonciationPreemption: { date: '2026-10-01' } } } });
   const diaSansDate = Object.assign({ id: 'f' }, base, { pieces: {} });
-  assert.strictEqual(app.dossiersAPlacer([libre, saferSansDate, saferDatee, diaDatee, diaSansDate]).map(d => d.id).join(','), 'a,c,e');
-  // Les créneaux d'une DIA datée commencent après son délai.
-  const creneaux = app.creneauxProposesSignature(diaDatee, [], [], '2026-10-07', 1);
-  assert.ok(!creneaux.length || creneaux[0].date > '2026-12-01');
+  // DIA envoyée mais document de renonciation pas reçu : pas de créneau (étude 07/10 : « on doit avoir le document pour signer »).
+  assert.strictEqual(app.dossiersAPlacer([libre, saferSansDate, saferDatee, diaDatee, diaSansDate]).map(d => d.id).join(','), 'a,c');
 });

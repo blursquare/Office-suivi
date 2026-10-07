@@ -18186,3 +18186,16 @@ Relevé de toutes les écritures des champs notaire, client et bien (poste et se
 
 Tests : tests/audit-coherence.test.js. Vérifié dans Chromium (fiche avec DIA envoyée). Non vérifié au bureau : la date réelle
 d'envoi d'une DIA sur une page Authentic.
+
+### 07/10/2026 21 h 24 — 0.191.1 : DIA, jamais de renonciation tacite
+
+Question posée avec 0.191.0 (cocher seule la renonciation à la fin des 2 mois, comme la SAFER ?). Étude : « Non, pour la DIA on
+doit avoir le document de renonciation pour signer. »
+- `echeanceDiaDossier` reste (envoi + 2 mois) mais n'est plus présentée comme un délai qui lève quoi que ce soit : item
+  « Réponse à la DIA » (date où la commune doit avoir répondu, pour relancer la mairie) ; fiche : « réponse attendue au plus
+  tard… le document de renonciation est indispensable pour signer », puis « délai écoulé : réclamer le document à la mairie »
+  (0.191.0 disait « la renonciation est acquise »).
+- `dossiersAPlacer` exige de nouveau la renonciation REÇUE (0.191.0 ouvrait des créneaux après le délai DIA) ; la SAFER garde son
+  délai daté (règle de l'étude du 02/10). Facteur de tenue : « Renonciation attendue (réponse de la commune au plus tard le …) ».
+- Outil « Droits de préemption » : formalité du DPU « réponse dans les 2 mois ; le document de renonciation est indispensable pour
+  signer » (au lieu de « son silence vaut renonciation »).

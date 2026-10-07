@@ -183,10 +183,10 @@
     return saferLevee(d) ? '' : echeanceSaferTacite(d.authentic && d.authentic.safer);
   }
 
-  // Pure : fin du délai de réponse à la DIA — 2 mois après son envoi relevé dans Authentic (« Demande envoyée le … » de la
-  // ligne DIA), le silence de la commune valant renonciation (règle reprise de l'outil « Droits de préemption » : « réponse
-  // dans les 2 mois, son silence vaut renonciation »). '' si la renonciation est levée ou si l'envoi n'est pas daté. Comme le
-  // délai SAFER : une date butoir du dossier, pas de signature avant (étude 07/10 : cohérence des échéances et de la préemption).
+  // Pure : date à laquelle la commune doit avoir répondu à la DIA — 2 mois après son envoi relevé dans Authentic (« Demande
+  // envoyée le … » de la ligne DIA). '' si la renonciation est reçue ou si l'envoi n'est pas daté. Ce n'est JAMAIS une
+  // renonciation tacite (étude 07/10 : « pour la DIA on doit avoir le document de renonciation pour signer ») : la date sert à
+  // suivre et à relancer la mairie ; le rendez-vous ne se place qu'avec la pièce reçue (preemptionLevee).
   var MOIS_REPONSE_DIA = 2;
   /** @param {any} d @returns {string} */
   function echeanceDiaDossier(d) {
@@ -250,9 +250,10 @@
     // est une date butoir du dossier (étude, 02/10) — jusqu'à elle, pas de « Fixer le rendez-vous ».
     const echeanceSafer = echeanceSaferDossier(d);
     if (echeanceSafer) items.push({ type: 'safer', label: 'Délai SAFER', iso: echeanceSafer });
-    // DIA envoyée (Authentic), renonciation pas encore reçue : la fin du délai de réponse de la commune.
+    // DIA envoyée (Authentic), renonciation pas encore reçue : la date où la commune doit avoir répondu — l'attente de la
+    // renonciation, datée (elle remplace « Renonciation préemption attendue » sans date ; la pièce reste exigée).
     const echeanceDia = echeanceDiaDossier(d);
-    if (echeanceDia) items.push({ type: 'dia', label: 'Délai DIA', iso: echeanceDia });
+    if (echeanceDia) items.push({ type: 'dia', label: 'Réponse à la DIA', iso: echeanceDia });
 
     // L'étape courante avant signature : appel de fonds, puis projet d'acte envoyé, puis signature.
     // À défaut de date propre, elle prend celle du rendez-vous de signature (elle doit de toute

@@ -163,7 +163,7 @@
     const destinataire = dpur === 'oui' && r.dpurDelegataire ? r.dpurDelegataire
       : r.agglopolys ? 'la mairie de la commune (délégataire d’Agglopolys ; Agglopolys pour une zone d’activités économiques)'
         : 'la mairie de la commune';
-    droit.formalite = `DIA à adresser à ${destinataire} — réponse dans les 2 mois, son silence vaut renonciation.`;
+    droit.formalite = `DIA à adresser à ${destinataire} — réponse dans les 2 mois ; le document de renonciation est indispensable pour signer.`;
     if (droit.manque.length) {
       droit.statut = 'verifier';
       droit.motif = 'à préciser : ' + droit.manque.map(m => LIBELLES_MANQUES_PREEMPTION[m] || m).join(', ');

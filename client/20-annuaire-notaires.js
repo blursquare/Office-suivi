@@ -1456,15 +1456,16 @@
       const note = `<span class="ech-note${avantRdv ? ' ech-alerte' : ''}">${escapeHtml(avantRdv ? 'Après le rendez-vous de signature : la SAFER peut encore préempter ce jour-là' : suiviSaferPiece(d))}</span>`;
       lignes.push({ iso: echeanceSaferFiche, html: renderLigneEcheance('safer', 'Délai SAFER', echeanceSaferFiche, null, null, null, null, false, note, false, levee, { etatFait: '✓ Non-préemption' }) });
     }
-    // Délai de réponse à la DIA (envoi relevé dans Authentic + 2 mois), tant que la renonciation n'est pas reçue.
+    // Réponse à la DIA (envoi relevé dans Authentic + 2 mois), tant que la renonciation n'est pas reçue — jamais tacite : le document
+    // de renonciation est indispensable pour signer (étude 07/10).
     const echeanceDiaFiche = echeanceDiaDossier(d);
     if (echeanceDiaFiche) {
       const apresRdv = d.rendezVousSignature && echeanceDiaFiche >= d.rendezVousSignature;
       const passe = echeanceDiaFiche < isoAujourdhuiLocal();
-      const texte = apresRdv ? 'Après le rendez-vous de signature : la commune peut encore préempter ce jour-là'
-        : passe ? 'Délai écoulé sans réponse : la renonciation est acquise — cochez « Renonciation au droit de préemption » dans les pièces'
-          : 'DIA envoyée : sans réponse de la commune à cette date, son silence vaut renonciation';
-      lignes.push({ iso: echeanceDiaFiche, html: renderLigneEcheance('dia', 'Délai DIA', echeanceDiaFiche, null, null, null, null, false, `<span class="ech-note${apresRdv || passe ? ' ech-alerte' : ''}">${escapeHtml(texte)}</span>`, false, false) });
+      const texte = apresRdv ? 'Après le rendez-vous de signature : sans le document de renonciation, l’acte ne peut pas être signé'
+        : passe ? 'Délai de réponse écoulé : réclamer le document de renonciation à la mairie, indispensable pour signer'
+          : 'DIA envoyée : réponse de la commune attendue au plus tard à cette date — le document de renonciation est indispensable pour signer';
+      lignes.push({ iso: echeanceDiaFiche, html: renderLigneEcheance('dia', 'Réponse à la DIA', echeanceDiaFiche, null, null, null, null, false, `<span class="ech-note${apresRdv || passe ? ' ech-alerte' : ''}">${escapeHtml(texte)}</span>`, false, false) });
     }
     if (!butoirSousRdv) lignes.push({ iso: d.acte, html: renderLigneEcheance('acte', 'Date butoir', d.acte, d.id, d.actePage, confiance.acte, null, false, '', false, echeanceValidee(d, 'acte')) });
     // Rédaction de l'acte (étude 07/10) : dès qu'Authentic en donne l'état (« Non rédigé », « En cours », signé) ou qu'elle est

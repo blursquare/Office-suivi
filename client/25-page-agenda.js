@@ -127,11 +127,11 @@
       else f('Vente préalable non réalisée', jours <= 15 ? 35 : 25, 'Relancer la vente préalable');
     }
     if (!preemptionLevee(d)) {
-      // DIA envoyée (Authentic) : la commune a 2 mois pour répondre, son silence vaut renonciation.
+      // Le document de renonciation est indispensable pour signer (étude 07/10) ; la DIA envoyée (Authentic) donne seulement la
+      // date où la commune doit avoir répondu.
       const echeanceDia = echeanceDiaDossier(d);
-      if (!echeanceDia) f('Renonciation au droit de préemption attendue', 20, 'Obtenir la renonciation');
-      else if (echeanceDia >= d.rendezVousSignature) f(`Délai DIA jusqu’au ${formatDateFr(echeanceDia)}, après le rendez-vous`, 40, 'Déplacer le rendez-vous');
-      else f(`Délai DIA jusqu’au ${formatDateFr(echeanceDia)}`, jours <= 15 ? 10 : 5, 'Suivre la DIA');
+      if (echeanceDia && echeanceDia >= d.rendezVousSignature) f(`Renonciation attendue — la commune a jusqu’au ${formatDateFr(echeanceDia)}, après le rendez-vous`, 40, 'Déplacer le rendez-vous');
+      else f(echeanceDia ? `Renonciation au droit de préemption attendue (réponse de la commune au plus tard le ${formatDateFr(echeanceDia)})` : 'Renonciation au droit de préemption attendue', 20, 'Obtenir la renonciation');
     }
     if (!saferLevee(d)) {
       const echeanceSafer = echeanceSaferDossier(d);
@@ -206,13 +206,12 @@
 
   // Pure : les dossiers prêts à signer sans rendez-vous — financement levé, vente préalable réalisée,
   // préemption purgée — ceux à qui CLAIRE propose des créneaux (étape « Fixer le rendez-vous »).
-  // Même règle que le planning (commun/planning.js) : la renonciation au droit de préemption et la réponse de la SAFER retiennent le
-  // rendez-vous, sauf quand leur délai de réponse est connu (DIA ou notification SAFER datées dans Authentic) — les créneaux sont
-  // alors proposés après ce délai (creneauxProposesSignature). Avant le 07/10, une SAFER attendue sans date laissait proposer des
-  // créneaux que le planning refusait (« Réponse SAFER attendue »).
+  // Même règle que le planning (commun/planning.js) : la renonciation au droit de préemption REÇUE (le document est indispensable
+  // pour signer, étude 07/10 — une DIA envoyée ne suffit pas) ; la SAFER levée, ou son délai daté (créneaux proposés après lui).
+  // Avant le 07/10, une SAFER attendue sans date laissait proposer des créneaux que le planning refusait.
   function dossiersAPlacer(liste) {
     return (liste || []).filter(d => d && !d.archive && !estSuccession(d) && !d.rendezVousSignature && pretLeve(d)
-      && (preemptionLevee(d) || !!echeanceDiaDossier(d)) && (saferLevee(d) || !!echeanceSaferDossier(d))
+      && preemptionLevee(d) && (saferLevee(d) || !!echeanceSaferDossier(d))
       && (!d.ventebien || echeanceValidee(d, 'ventebien')));
   }
 
@@ -232,7 +231,7 @@
     // Pas de signature avant la fin du délai de la SAFER (étude, 02/10).
     const echeanceSafer = echeanceSaferDossier(d);
     if (echeanceSafer && addDays(echeanceSafer, 1) > depuis) depuis = addDays(echeanceSafer, 1);
-    // Ni avant la fin du délai de réponse à la DIA (renonciation pas encore reçue).
+    // Ni avant la date où la commune doit avoir répondu à la DIA (renonciation pas encore reçue).
     const echeanceDia = echeanceDiaDossier(d);
     if (echeanceDia && addDays(echeanceDia, 1) > depuis) depuis = addDays(echeanceDia, 1);
     const limite = bornes && bornes.limite ? bornes.limite : addDays(depuis, 60);
@@ -339,7 +338,7 @@
     const echeanceSafer = echeanceSaferDossier(d);
     if (echeanceSafer) auPlusTot(addDays(echeanceSafer, 1), `délai SAFER jusqu’au ${formatDateFr(echeanceSafer)}`);
     const echeanceDia = echeanceDiaDossier(d);
-    if (echeanceDia) auPlusTot(addDays(echeanceDia, 1), `délai de réponse à la DIA jusqu’au ${formatDateFr(echeanceDia)}`);
+    if (echeanceDia) auPlusTot(addDays(echeanceDia, 1), `renonciation à la DIA attendue (réponse de la commune au plus tard le ${formatDateFr(echeanceDia)})`);
     // Jour ouvré, et jamais un jour où le responsable est absent : il peut falloir modifier l'acte
     // (étude 06/10) — contrairement à un rendez-vous déjà placé, où son absence ne pèse pas.
     for (let i = 0; i < 90; i++) {
