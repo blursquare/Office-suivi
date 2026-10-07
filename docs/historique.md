@@ -18102,3 +18102,39 @@ déjà que l'annuaire et les notaires lus mis au libellé de l'annuaire, mais le
 mêlait les valeurs déjà tapées (noms bruts). Corrigé, et `affecterNotaire` refuse au départ du champ un nom qui ne désigne pas un
 seul notaire du répertoire (`notaireDuRepertoire` : notre office, ou `trouverOfficeConfrere` non nul ; annuaire pas chargé → accepté),
 avec un toast ; un champ quitté sans changement garde son ancienne valeur. Test : tests/extraction-compromis-agence.test.js.
+
+### 07/10/2026 20 h 24 — 0.190.0 : droits de préemption lus seuls à l'ajout d'un dossier de vente
+
+Étude : « Lors de l'ajout d'un dossier de vente utiliser l'outil de droit de préemption pour détecter s'il y a une SAFER ou un
+droit de préemption ou droit de préférence si terrain non à bâtir à attendre dans les pièces. Et compléter la fiche comme avec
+l'outil. Pense les outils pour qu'ils travaillent ensemble et prends en compte ce qui existe déjà. »
+
+- `client/54-preemption-dossier.js` : `analyserPreemptionDossier(id)` reprend les fonctions de l'outil — `prefillPreemption`,
+  `lireCommunesEtatPreemption` / `lireZonagesEtatPreemption` (sorties de `chargerCommunesPreemption` / `lireZonagePreemption`,
+  que l'outil appelle désormais aussi), `preemptionPourFiche` — et pose `d.preemption` avec `auto: true` et `signature`
+  (code postal | parcelles | nature du bien, `signaturePreemptionDossier`). Lancée après « Ajouter le dossier » et après
+  « Compléter le dossier » (drapeau `d.preemptionAuto`, ventes dont l'étude reçoit l'acte), puis à l'ouverture de la fiche quand
+  la signature a changé ou qu'une lecture restée incomplète a plus d'une heure (`preemptionAutoAFaire`). Jamais par-dessus un
+  résultat enregistré depuis l'outil (`auto` faux) ; dossiers d'avant la règle non touchés. Sans réseau : rien d'écrit, refait
+  à la prochaine ouverture.
+- Pièces (`appliquerPreemptionSurPieces`, aussi appelée par « Enregistrer sur la fiche » de l'outil) : un droit À PURGER ajoute
+  sa pièce à attendre — SAFER → « Réponse SAFER » (`perso-safer`, la même que celle posée par Authentic, jamais en double) ; DPU
+  d'un lot de copropriété → « Renonciation au droit de préemption (DIA) » (`perso-dia` : retient « Fixer le rendez-vous » par la
+  règle existante de `preemptionLevee` pour une pièce de préemption ajoutée) ; DPU d'une maison ou d'un terrain → la pièce
+  standard, déjà là ; bois : « Purge du droit de préférence (bois et forêts) », « Réponse de la commune / de l'État (bois et
+  forêts) ». Une pièce ajoutée ainsi (`piecesAjoutees`) est retirée si le droit tombe et qu'elle n'est pas reçue (sauf SAFER
+  notifiée dans Authentic). Une pièce standard retirée à la main n'est remise que par l'outil (geste explicite).
+- Fiche › Pièces et analyse : « lus seuls le … » ; les questions qui laissent un droit « À vérifier » se répondent sur la fiche
+  (Oui/Non, `repondrePreemptionFiche` → analyse refaite depuis ce qui est gardé : `deduites` du zonage, `lignes` par parcelle,
+  `reponses`) ; le reste (zone, nature de la mutation) « à préciser dans l'outil » ; DPU non applicable et renonciation encore
+  attendue → ligne « Retirer « Renonciation au droit de préemption » des pièces » (jamais retirée d'office).
+- Piège vu dans Chromium : deux enregistrements rapprochés font fusionner par le serveur deux listes `droits` (SAFER affichée deux
+  fois). Les droits sont donc recalculés depuis `lignes` + réponses (`droitsPreemptionFiche`), la liste gardée n'est lue que pour
+  un résultat d'avant (sans `lignes`).
+- Rien n'est deviné : une maison demande « achevé depuis moins de 4 ans ? » et « usage agricole ? », un terrain en zone A ou N
+  « classé en bois ? » — tant que ce n'est pas répondu, le droit reste « À vérifier » et aucune pièce n'est ajoutée.
+
+Tests : tests/preemption.test.js (déclenchement et relecture, maison zone U, terrain zone A — ajout puis retrait de la pièce, pas
+de doublon avec Authentic —, copropriété et DIA qui retient le planning, bois et droit de préférence, pièce standard retirée,
+listes réunies par la fusion). Vérifié dans Chromium avec le Géoportail simulé. Non vérifié : le vrai Géoportail (API Carto)
+depuis le serveur du bureau.

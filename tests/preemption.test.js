@@ -168,3 +168,116 @@ test('plusieurs parcelles : zone lue par parcelle, zone choisie à la main, droi
   assert.strictEqual(fiche.zone, 'AL 839 : Ui2 (U) · B 12 : A (A)');
   assert.strictEqual(fiche.parcelles.length, 2);
 });
+
+// ---- À l'ajout d'un dossier de vente (étude 07/10) : l'outil lu seul, la fiche et les pièces complétées ----
+function ficheAuto(d, zonages, reponses) {
+  const e = app.prefillPreemption(d);
+  e.insee = '41018';
+  e.zonages = zonages;
+  Object.assign(e.reponses, reponses || {});
+  return Object.assign(app.preemptionPourFiche(e, new Date(2026, 9, 7, 10, 0)), { auto: true, signature: app.signaturePreemptionDossier(d) });
+}
+const zoneU = [{ section: 'AB', numero: '12', statut: 'ok', resultat: { epciSiren: '200030385', zones: [{ libelle: 'UB', typezone: 'U' }], parcelle: { contenance: 640 } } }];
+const zoneA = [{ section: 'ZC', numero: '4', statut: 'ok', resultat: { epciSiren: '200030385', zones: [{ libelle: 'A', typezone: 'A' }], parcelle: { contenance: 12000 } } }];
+const venteInventee = (o) => Object.assign({ id: 'v1', nom: 'MARTIN / DUPUIS', typeVente: 'maison', roleNotaire: 'instrumentaire', preemptionAuto: true,
+  adresseBien: 'VINEUIL (41350), 3 rue des Tilleuls', pieces: {}, piecesPersonnalisees: [],
+  bien: { adresse: { codePostal: '41350' }, cadastre: { section: 'AB', numero: '12' } } }, o || {});
+
+test('analyse automatique : seulement les ventes ajoutées depuis la règle, refaite quand commune, parcelles ou nature changent', () => {
+  const d = venteInventee();
+  assert.strictEqual(app.signaturePreemptionDossier(d), '41350|AB 12|bati');
+  assert.strictEqual(app.preemptionAutoAFaire(d), true);
+  assert.strictEqual(app.preemptionAutoAFaire(venteInventee({ preemptionAuto: false })), false, 'dossier d’avant la règle');
+  assert.strictEqual(app.preemptionAutoAFaire(venteInventee({ roleNotaire: 'participant' })), false);
+  assert.strictEqual(app.preemptionAutoAFaire(venteInventee({ archive: true })), false);
+  d.preemption = ficheAuto(d, zoneU);
+  assert.strictEqual(app.preemptionAutoAFaire(d), false);
+  d.bien.cadastre = { parcelles: [{ section: 'AB', numero: '12' }, { section: 'AB', numero: '13' }] };
+  assert.strictEqual(app.preemptionAutoAFaire(d), true, 'une parcelle de plus');
+  d.preemption.signature = app.signaturePreemptionDossier(d);
+  d.preemption.auto = false;
+  d.typeVente = 'terrain';
+  assert.strictEqual(app.preemptionAutoAFaire(d), false, 'résultat enregistré depuis l’outil : jamais remplacé');
+  const incomplet = venteInventee();
+  incomplet.preemption = Object.assign(ficheAuto(incomplet, zoneU), { incomplet: true, le: '2026-10-07T08:00:00.000Z' });
+  assert.strictEqual(app.preemptionAutoAFaire(incomplet, new Date('2026-10-07T08:30:00Z')), false);
+  assert.strictEqual(app.preemptionAutoAFaire(incomplet, new Date('2026-10-07T09:30:00Z')), true, 'Géoportail injoignable : relu une heure plus tard');
+});
+
+test('maison en zone U d’Agglopolys : questions posées sur la fiche, rien d’ajouté tant que rien n’est à purger', () => {
+  const d = venteInventee();
+  d.preemption = ficheAuto(d, zoneU);
+  assert.strictEqual(d.preemption.deduites.agglopolys, true);
+  assert.strictEqual(d.preemption.lignes.length, 1);
+  assert.strictEqual(d.preemption.droits.find(x => x.cle === 'dpu').statut, 'verifier');
+  assert.strictEqual(app.questionsPreemptionFiche(d.preemption).map(q => q.cle).join(','), 'achevementMoins4ans,usageAgricole');
+  assert.strictEqual(app.appliquerPreemptionSurPieces(d).length, 0);
+  // Réponses données sur la fiche : DPU à purger (la pièce standard existe déjà), SAFER non applicable.
+  app.appliquerReponsePreemptionFiche(d, 'achevementMoins4ans', false);
+  const r = app.appliquerReponsePreemptionFiche(d, 'usageAgricole', false);
+  assert.strictEqual(d.preemption.droits.find(x => x.cle === 'dpu').statut, 'oui');
+  assert.strictEqual(d.preemption.droits.find(x => x.cle === 'safer').statut, 'non');
+  assert.strictEqual(r.pieces.length, 0);
+  assert.strictEqual(d.piecesPersonnalisees.length, 0);
+  assert.strictEqual(app.questionsPreemptionFiche(d.preemption).length, 0);
+  // Recliquer la même réponse l'efface : la question revient.
+  app.appliquerReponsePreemptionFiche(d, 'usageAgricole', false);
+  assert.strictEqual(app.questionsPreemptionFiche(d.preemption).map(q => q.cle).join(','), 'usageAgricole');
+});
+
+test('terrain en zone A : « Réponse SAFER » à attendre, retirée si le droit tombe, jamais en double d’Authentic', () => {
+  const d = venteInventee({ typeVente: 'terrain', bien: { adresse: { codePostal: '41350' }, cadastre: { section: 'ZC', numero: '4' } } });
+  d.preemption = ficheAuto(d, zoneA, { bois: false, installations: false });
+  assert.strictEqual(d.preemption.droits.find(x => x.cle === 'safer').statut, 'oui');
+  assert.strictEqual(d.preemption.droits.find(x => x.cle === 'dpu').statut, 'non', 'zone A d’Agglopolys : hors DPU');
+  const textes = app.appliquerPreemptionSurPieces(d);
+  assert.match(textes.join(' '), /Réponse SAFER/);
+  assert.strictEqual(d.piecesPersonnalisees.map(p => p.cle).join(','), 'perso-safer');
+  assert.strictEqual(d.pieces['perso-safer'], 'manquante');
+  assert.strictEqual(d.preemption.piecesAjoutees.join(','), 'perso-safer');
+  assert.strictEqual(app.appliquerPreemptionSurPieces(d).length, 0, 'une seule fois');
+  // Le droit tombe (installations) : la pièce ajoutée par l'analyse, pas reçue, est retirée.
+  app.appliquerReponsePreemptionFiche(d, 'installations', true);
+  assert.strictEqual(d.piecesPersonnalisees.length, 0);
+  assert.strictEqual(d.pieces['perso-safer'], undefined);
+  // SAFER déjà posée par Authentic : pas de seconde pièce, et la sienne n'est jamais retirée.
+  const a = venteInventee({ typeVente: 'terrain', piecesPersonnalisees: [{ cle: 'perso-safer', label: 'Réponse SAFER' }], pieces: { 'perso-safer': 'manquante' },
+    authentic: { safer: { envoyeeLe: '2026-10-01' }, saferPieceAjoutee: true } });
+  a.preemption = ficheAuto(a, zoneA, { bois: false, installations: false });
+  assert.strictEqual(app.appliquerPreemptionSurPieces(a).length, 0);
+  assert.strictEqual(a.piecesPersonnalisees.length, 1);
+});
+
+test('lot de copropriété soumis au DPU : la DIA retient la signature ; bois : droit de préférence à attendre', () => {
+  const c = venteInventee({ typeVente: 'copropriete' });
+  c.preemption = ficheAuto(c, zoneU, { achevementMoins4ans: false, reglementPlusDe10ans: false });
+  assert.strictEqual(c.preemption.droits.find(x => x.cle === 'dpu').statut, 'oui');
+  assert.strictEqual(app.preemptionLevee(c), true, 'avant : la copropriété n’attend rien');
+  app.appliquerPreemptionSurPieces(c);
+  assert.strictEqual(c.piecesPersonnalisees.map(p => p.label).join(','), 'Renonciation au droit de préemption (DIA)');
+  assert.strictEqual(app.preemptionLevee(c), false, 'la pièce ajoutée retient « Fixer le rendez-vous » comme une pièce posée à la main');
+  // Bois de moins de 4 ha, aucun voisin privilégié : droit de préférence des voisins.
+  const b = venteInventee({ typeVente: 'terrain', bien: { adresse: { codePostal: '41350' }, cadastre: { section: 'ZC', numero: '4' } } });
+  b.preemption = ficheAuto(b, zoneA, { bois: true, massif4ha: true, superficieMoins4ha: true, foretDomaniale: false, communeBoiseeContigue: false, acquereurPrivilegie: false, partieBoiseeMoinsMoitie: false });
+  assert.strictEqual(b.preemption.droits.find(x => x.cle === 'foret-preference').statut, 'oui');
+  app.appliquerPreemptionSurPieces(b);
+  assert.strictEqual(b.piecesPersonnalisees.map(p => p.cle).join(','), 'perso-foret-preference');
+  // Une pièce standard retirée à la main n'est remise que par l'outil (geste explicite).
+  const m = venteInventee({ piecesRetirees: ['renonciationPreemption'] });
+  m.preemption = ficheAuto(m, zoneU, { achevementMoins4ans: false, usageAgricole: false });
+  assert.strictEqual(app.appliquerPreemptionSurPieces(m).length, 0);
+  assert.strictEqual(app.appliquerPreemptionSurPieces(m, { explicite: true }).join(''), '« Renonciation au droit de préemption » remise dans les pièces');
+  assert.strictEqual(m.piecesRetirees.length, 0);
+});
+
+test('droits relus depuis les réponses gardées : une liste réunie par la fusion du serveur ne double rien', () => {
+  const d = venteInventee({ typeVente: 'terrain', bien: { adresse: { codePostal: '41350' }, cadastre: { section: 'ZC', numero: '4' } } });
+  d.preemption = ficheAuto(d, zoneA, { bois: false, installations: false });
+  const juste = app.droitsPreemptionFiche(d.preemption).map(x => x.cle + ':' + x.statut).join(' ');
+  d.preemption.droits = d.preemption.droits.concat({ cle: 'safer', titre: 'SAFER', statut: 'verifier', motif: 'ancien', formalite: '' });
+  d.preemption.lignes = d.preemption.lignes.concat(d.preemption.lignes);
+  assert.strictEqual(app.droitsPreemptionFiche(d.preemption).map(x => x.cle + ':' + x.statut).join(' '), juste);
+  assert.strictEqual(juste, 'dpu:non safer:oui foret:non');
+  // Résultat d'avant cette règle (sans lignes) : lu tel quel.
+  assert.strictEqual(app.droitsPreemptionFiche({ droits: [{ cle: 'dpu', statut: 'oui' }] }).length, 1);
+});

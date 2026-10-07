@@ -589,6 +589,9 @@
       noterVerificationPoste('complement-compromis-nas', { detail: 'compromis du NAS lu et dossier complété' });
     }
     ajouterHistorique(d, `Complété avec le compromis « ${compromisNomFichierImporte || 'déposé'} »${textes.length ? ' : ' + textes.join(', ') : ' — rien de nouveau'}`);
+    // Droits de préemption lus seuls après l'ajout (étude 07/10, client/54-preemption-dossier.js) : ventes dont l'étude reçoit l'acte.
+    if (!estSuccession(d) && d.roleNotaire !== 'participant' && !d.archive) d.preemptionAuto = true;
+
     creationDossierEnCours = true;
     const bouton = document.getElementById('btn-ajouter-dossier');
     if (bouton) { bouton.disabled = true; bouton.textContent = 'Enregistrement…'; }
@@ -832,6 +835,12 @@
       utilisateurPoste ? { auteur: utilisateurPoste } : {}));
     }
 
+    // Droits de préemption lus seuls après l'ajout (étude 07/10, client/54-preemption-dossier.js) : ventes dont l'étude reçoit l'acte.
+    if (!estSuccession(dossier) && dossier.roleNotaire !== 'participant') dossier.preemptionAuto = true;
+
+    // Droits de préemption lus seuls après l'ajout (étude 07/10, client/54-preemption-dossier.js) : ventes dont l'étude reçoit l'acte.
+    if (!estSuccession(dossier) && dossier.roleNotaire !== 'participant') dossier.preemptionAuto = true;
+
     creationDossierEnCours = true;
     const bouton = document.getElementById('btn-ajouter-dossier');
     if (bouton) { bouton.disabled = true; bouton.textContent = 'Enregistrement…'; }
@@ -856,6 +865,7 @@
     // dossier du NAS » juste après avoir créé le dossier. Jamais attendu (la fiche s'affiche tout
     // de suite), et sans effet si aucune correspondance parfaite n'existe.
     lierDossierNasAutomatique(dossier.id);
+    analyserPreemptionDossier(dossier.id);
   }
 
   // Pure : les biens d'un dossier Authentic gardés sur la fiche (succession : « éventuellement des

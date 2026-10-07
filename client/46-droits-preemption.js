@@ -135,23 +135,50 @@
     choisirDossierPreemption(id);
   }
 
-  async function chargerCommunesPreemption(puisZonage) {
-    const cp = String(prEtat.cp || '').trim();
-    if (!/^\d{5}$/.test(cp)) { prEtat.communes = []; renderPreemption(); return; }
+  // Pure : la commune retenue parmi celles du code postal — celle citée dans l'adresse, sinon la seule ; '' si rien ne départage.
+  function communeDuCodePostalPreemption(communes, adresse) {
+    const liste = communes || [];
+    const texte = normaliserPourRecherche(adresse || '');
+    const citee = liste.find(c => texte.includes(normaliserPourRecherche(c.nom)));
+    return (citee || (liste.length === 1 ? liste[0] : {})).insee || '';
+  }
+
+  // Les communes du code postal de l'état (outil ou analyse d'un dossier) et la commune retenue. Rend '' ou l'erreur.
+  async function lireCommunesEtatPreemption(etat) {
+    const cp = String(etat.cp || '').trim();
+    if (!/^\d{5}$/.test(cp)) { etat.communes = []; return ''; }
     try {
       const r = await fetchAvecAuth(`/api/urbanisme/communes?cp=${encodeURIComponent(cp)}`);
       const corps = await r.json().catch(() => ({}));
-      prEtat.communes = r.ok ? (corps.communes || []) : [];
-      if (!r.ok) prEtat.erreurZonage = corps.erreur || 'Communes introuvables.';
-      if (prEtat.communes.length && !prEtat.communes.some(c => c.insee === prEtat.insee)) {
-        // Commune de l'adresse si elle est citée, sinon la seule du code postal.
-        const adresse = normaliserPourRecherche(prEtat.adresse || '');
-        const citee = prEtat.communes.find(c => adresse.includes(normaliserPourRecherche(c.nom)));
-        prEtat.insee = (citee || (prEtat.communes.length === 1 ? prEtat.communes[0] : {})).insee || '';
-      }
+      etat.communes = r.ok ? (corps.communes || []) : [];
+      if (etat.communes.length && !etat.communes.some(c => c.insee === etat.insee)) etat.insee = communeDuCodePostalPreemption(etat.communes, etat.adresse);
+      return r.ok ? '' : (corps.erreur || 'Communes introuvables.');
     } catch (e) {
-      prEtat.erreurZonage = 'Serveur injoignable.';
+      return 'Serveur injoignable.';
     }
+  }
+
+  // Le zonage de chaque parcelle de l'état (20 au plus), trois à la fois ; `apres` est appelé à chaque réponse.
+  async function lireZonagesEtatPreemption(etat, apres) {
+    etat.zonages = parcellesDepuisTexte(etat.parcelles).map(p => ({ section: p.section, numero: p.numero, statut: 'lecture', resultat: null, erreur: '' }));
+    const lire = async (z) => {
+      try {
+        const r = await fetchAvecAuth(`/api/urbanisme/parcelle?insee=${encodeURIComponent(etat.insee)}&section=${encodeURIComponent(z.section)}&numero=${encodeURIComponent(z.numero)}`);
+        const corps = await r.json().catch(() => ({}));
+        if (r.ok && !corps.erreur) { z.statut = 'ok'; z.resultat = corps; }
+        else { z.statut = 'erreur'; z.erreur = corps.erreur || 'Zonage illisible.'; }
+      } catch (e) {
+        z.statut = 'erreur'; z.erreur = 'Serveur injoignable.';
+      }
+      if (apres) apres();
+    };
+    const file = etat.zonages.slice();
+    await Promise.all([0, 1, 2].map(async () => { while (file.length) await lire(file.shift()); }));
+  }
+
+  async function chargerCommunesPreemption(puisZonage) {
+    const erreur = await lireCommunesEtatPreemption(prEtat);
+    if (erreur) prEtat.erreurZonage = erreur;
     renderPreemption();
     if (puisZonage && prEtat.insee && parcellesDepuisTexte(prEtat.parcelles).length) lireZonagePreemption();
   }
@@ -163,21 +190,9 @@
     const etat = prEtat;
     etat.lecture = true;
     etat.erreurZonage = '';
-    etat.zonages = parcelles.map(p => ({ section: p.section, numero: p.numero, statut: 'lecture', resultat: null, erreur: '' }));
+    const lecture = lireZonagesEtatPreemption(etat, () => { if (prEtat === etat) renderPreemption(); });
     renderPreemption();
-    const lire = async (z) => {
-      try {
-        const r = await fetchAvecAuth(`/api/urbanisme/parcelle?insee=${encodeURIComponent(etat.insee)}&section=${encodeURIComponent(z.section)}&numero=${encodeURIComponent(z.numero)}`);
-        const corps = await r.json().catch(() => ({}));
-        if (r.ok && !corps.erreur) { z.statut = 'ok'; z.resultat = corps; }
-        else { z.statut = 'erreur'; z.erreur = corps.erreur || 'Zonage illisible.'; }
-      } catch (e) {
-        z.statut = 'erreur'; z.erreur = 'Serveur injoignable.';
-      }
-      if (prEtat === etat) renderPreemption();
-    };
-    const file = etat.zonages.slice();
-    await Promise.all([0, 1, 2].map(async () => { while (file.length) await lire(file.shift()); }));
+    await lecture;
     etat.lecture = false;
     if (prEtat === etat) renderPreemption();
   }
@@ -205,8 +220,7 @@
   }
 
   function boutonOuiNonPreemption(cle, valeur) {
-    const btn = (v, lib) => `<wa-button appearance="outlined" size="s" class="vue-bascule-btn${valeur === v ? ' actif' : ''}" onclick="repondrePreemption('${cle}', ${v})">${lib}</wa-button>`;
-    return `<wa-button-group label="Réponse">${btn(true, 'Oui')}${btn(false, 'Non')}</wa-button-group>`;
+    return boutonsReponsePreemption(v => `repondrePreemption('${cle}', ${v})`, valeur);
   }
 
   function renderQuestionsPreemption(section, rep, manques) {
@@ -374,36 +388,72 @@
       parcelles: lignes.map(l => ({ parcelle: l.libelle, zone: l.zone, famille: l.famille, contenance: l.contenance })),
       document: z && z.document ? `${z.document.type} — ${z.document.titre}` : '',
       reponses: Object.assign({}, etat.reponses),
+      // Ce que le zonage a fait déduire (Agglopolys, DPU renforcé de Blois) et la zone de chaque parcelle : de quoi refaire
+      // l'analyse sur la fiche quand une question y reçoit sa réponse, sans relire le Géoportail.
+      deduites: deduitesPreemption(etat.reponses, rep),
+      lignes: lignes.map(l => ({ cle: l.cle, libelle: l.libelle, statut: l.statut, zone: l.zone, typezone: l.typezone, lue: l.lue, famille: l.famille, choisie: l.choisie, contenance: l.contenance })),
       droits: analyse.droits.map(dr => ({ cle: dr.cle, titre: dr.titre, statut: dr.statut, motif: dr.motif, formalite: dr.formalite }))
     };
+  }
+
+  // Pure : les réponses ajoutées par le zonage à celles données (Agglopolys, DPU renforcé et son délégataire).
+  function deduitesPreemption(donnees, completes) {
+    const out = {};
+    Object.keys(completes || {}).forEach(k => { if (k !== 'zonesParcelles' && (donnees || {})[k] !== completes[k]) out[k] = completes[k]; });
+    return out;
   }
 
   function enregistrerPreemptionFiche() {
     const d = prEtat && prEtat.dossierId ? dossiers.find(x => x.id === prEtat.dossierId) : null;
     if (!d) return;
-    d.preemption = preemptionPourFiche(prEtat);
+    // Pièces déjà ajoutées par une analyse précédente : suivies, pour être retirées si le droit tombe.
+    const avant = d.preemption && d.preemption.piecesAjoutees;
+    d.preemption = Object.assign(preemptionPourFiche(prEtat), { signature: signaturePreemptionDossier(d) }, avant ? { piecesAjoutees: avant } : {});
+    const pieces = appliquerPreemptionSurPieces(d, { explicite: true });
     const aPurger = d.preemption.droits.filter(dr => dr.statut === 'oui').map(dr => dr.titre);
-    ajouterHistorique(d, `Droits de préemption vérifiés : ${aPurger.length ? 'à purger — ' + aPurger.join(', ') : 'aucun droit à purger'}`);
+    ajouterHistorique(d, `Droits de préemption vérifiés : ${aPurger.length ? 'à purger — ' + aPurger.join(', ') : 'aucun droit à purger'}${pieces.length ? ' — ' + pieces.join(' ; ') : ''}`);
     sauvegarder(d);
     afficherToast(aPurger.length ? `Enregistré sur la fiche : ${aPurger.join(', ')} à purger.` : 'Enregistré sur la fiche : aucun droit à purger.');
     renderPreemption();
   }
 
-  // Fiche › Pièces et analyse : le dernier résultat enregistré, ou le geste pour vérifier.
+  // Une réponse oui / non posée sur la ligne d'une question (outil ou fiche).
+  function boutonsReponsePreemption(onclick, valeur, valeurs) {
+    const [oui, non] = valeurs || [true, false];
+    const btn = (v, lib) => `<wa-button appearance="outlined" size="s" class="vue-bascule-btn${valeur === v ? ' actif' : ''}" onclick="${onclick(v)}">${lib}</wa-button>`;
+    return `<wa-button-group label="Réponse">${btn(oui, 'Oui')}${btn(non, 'Non')}</wa-button-group>`;
+  }
+
+  // Fiche › Pièces et analyse : le dernier résultat (lu seul à la création, ou enregistré depuis l'outil), les questions qui
+  // restent — à répondre sur place —, ou le geste pour vérifier.
   function renderPreemptionFiche(d) {
     if (!d || estSuccession(d)) return '';
     const p = d.preemption;
     const ouvrir = `ouvrirPreemptionDepuisFiche('${escapeOnclickArg(d.id)}')`;
     if (!p || !Array.isArray(p.droits)) {
+      const enCours = preemptionsAutoEnCours.has(d.id);
       return `<div class="fiche-sous-partie"><div class="section-eyebrow fiche-sous-titre">Droits de préemption</div>
-        <ul class="ja-liste">${renderLigneAction({ titre: 'Vérifier les droits de préemption', sous: 'DPU, SAFER, bois et forêts — d’après le zonage de chaque parcelle', bouton: { libelle: 'Vérifier', onclick: ouvrir } })}</ul></div>`;
+        <ul class="ja-liste">${renderLigneAction({ titre: enCours ? 'Lecture du zonage…' : 'Vérifier les droits de préemption', sous: 'DPU, SAFER, bois et forêts — d’après le zonage de chaque parcelle', bouton: { libelle: 'Vérifier', onclick: ouvrir } })}</ul></div>`;
     }
+    const droits = droitsPreemptionFiche(p);
+    const questions = questionsPreemptionFiche(p);
+    const reste = resteAPreciserPreemptionFiche(p);
+    const piecesChecklist = checklistPieces(d.typeVente, d);
+    const dpu = droits.find(dr => dr.cle === 'dpu');
+    const renonciationInutile = dpu && dpu.statut === 'non' && d.typeVente !== 'copropriete'
+      && piecesChecklist.some(pc => pc.cle === 'renonciationPreemption') && !(d.pieces && d.pieces.renonciationPreemption === 'recue');
     return `<div class="fiche-sous-partie"><div class="section-eyebrow fiche-sous-titre">Droits de préemption
-        <span class="hint">${p.zone ? 'zone ' + escapeHtml(p.zone) + ' · ' : ''}vérifiés le ${escapeHtml(formatDateFr(String(p.le || '').slice(0, 10)))}</span></div>
-      <div class="pr-fiche">${p.droits.map(dr => `<div class="pr-fiche-ligne">
+        <span class="hint">${p.zone ? 'zone ' + escapeHtml(p.zone) + ' · ' : ''}${p.auto ? 'lus seuls' : 'vérifiés'} le ${escapeHtml(formatDateFr(String(p.le || '').slice(0, 10)))}</span>${p.auto ? infoBulle('Analyse faite par CLAIRE à l’ajout du dossier, avec l’outil « Droits de préemption » : zonage de chaque parcelle lu sur le Géoportail de l’urbanisme, nature du bien d’après la fiche. Un droit à purger ajoute sa pièce à attendre ; une réponse manquante laisse le droit « À vérifier ».') : ''}</div>
+      <div class="pr-fiche">${droits.map(dr => `<div class="pr-fiche-ligne">
           <span class="dot-label ${CLASSES_STATUT_PREEMPTION[dr.statut] || 'dl-neutre'}"><span class="dot"></span>${escapeHtml(LIBELLES_STATUT_PREEMPTION[dr.statut] || dr.statut)}</span>
           <span class="pr-fiche-titre">${escapeHtml(dr.titre)}</span>
           <span class="hint">${escapeHtml(dr.statut === 'oui' ? dr.formalite : [dr.motif, dr.formalite].filter(Boolean).join(' — '))}</span>
         </div>`).join('')}</div>
+      ${questions.length ? `<div class="pr-fiche-questions">${questions.map(q => `<div class="pr-question pr-question-due">
+          <span class="pr-question-texte">${escapeHtml(q.libelle)}${q.aide ? infoBulle(q.aide) : ''}</span>
+          ${boutonsReponsePreemption(v => `repondrePreemptionFiche('${escapeOnclickArg(d.id)}', '${q.cle}', ${JSON.stringify(v).replace(/"/g, '&quot;')})`, (p.reponses || {})[q.cle], q.valeurs)}
+        </div>`).join('')}</div>` : ''}
+      ${reste.length ? `<p class="hint">À préciser dans l’outil : ${escapeHtml(reste.join(', '))}.</p>` : ''}
+      ${renonciationInutile ? `<ul class="ja-liste">${renderLigneAction({ titre: 'Retirer « Renonciation au droit de préemption » des pièces', sous: 'Le droit de préemption urbain ne s’applique pas à cette vente', bouton: { libelle: 'Retirer', onclick: `retirerPieceStandard('${escapeOnclickArg(d.id)}', 'renonciationPreemption', 'Renonciation au droit de préemption')` } })}</ul>` : ''}
       <wa-button appearance="plain" size="s" class="bouton-discret" onclick="${ouvrir}">${icone('pencil')} Revoir</wa-button></div>`;
   }
