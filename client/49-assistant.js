@@ -207,6 +207,7 @@
       creneaux_signature: () => reponseCreneauxAssistant(d),
       rendez_vous_placer: () => gestePlacerSignatureAssistant(d, p),
       sondage_dates: () => gesteSondageAssistant(d),
+      options_rendez_vous: () => gesteOptionsAssistant(d, p),
       rendez_vous_creer: () => gesteRendezVousAssistant(p, r.texte),
       agenda_jour: () => reponseAgendaJourAssistant(p),
       appel_fonds: () => gesteOutilAssistant(d, 'appel-fonds'),
@@ -491,6 +492,41 @@
   function gesteSondageAssistant(d) {
     ouvrirSondageCreneaux(d.id);
     return { html: `<p>Sondage de dates ouvert pour ${escapeHtml(libelleDossierAffiche(d))} : choisissez les créneaux, puis l’email part par « Envoyer ».</p>` };
+  }
+
+  // « Pose des options pour MARTIN mardi à 14 h et jeudi à 10 h » (étude 07/10 ; choix : options seules, sans email, confirmées
+  // avant). Sans créneau écrit, ceux que CLAIRE propose dans les règles de l'office (« 3 options », 3 par défaut). Les options sont
+  // celles du sondage de créneaux, sans destinataire (`poserOptionsRendezVous`) : « Placer » sur l'une en fait la signature et
+  // retire les autres.
+  async function gesteOptionsAssistant(d, p) {
+    if (!exchangeAgendaPret()) return { html: '<p>L’agenda Outlook n’est pas relié (Réglages › Agenda et Outlook) : impossible de poser des options.</p>' };
+    const nom = escapeHtml(libelleDossierAffiche(d));
+    if (d.rendezVousSignature) {
+      return { html: `<p>${nom} a déjà son rendez-vous de signature le ${escapeHtml(formatDateFr(d.rendezVousSignature))} : retirez-le d’abord pour poser des options.</p>`, boutons: [boutonFicheAssistant(d)] };
+    }
+    const ouvert = sondageOuvertDossier(d.id);
+    if (ouvert) {
+      return { html: `<p>${nom} a déjà ${ouvert.optionsSeules ? 'des options' : 'un sondage de dates'} en cours : placez-en une ou retirez-les d’abord.</p>`,
+        boutons: [{ libelle: 'Voir les dates proposées', action: () => { definirOnglet('agenda'); ouvrirSuiviDatesProposees(); } }] };
+    }
+    let creneaux = (Array.isArray(p.creneaux) ? p.creneaux : []).filter(c => c && /^\d{4}-\d{2}-\d{2}$/.test(c.date) && /^\d{2}:\d{2}$/.test(c.heure));
+    let proposes = false;
+    if (!creneaux.length) {
+      const auj = isoAujourdhuiLocal();
+      const evenements = (await evenementsAgendaAssistant(auj, addDays(auj, 90))) || agendaEvenements;
+      creneaux = creneauxProposesSignature(d, evenements, absencesOffice, auj, Math.min(MAX_CRENEAUX_SONDAGE, p.nombre || 3));
+      proposes = true;
+    }
+    creneaux = creneaux.slice(0, MAX_CRENEAUX_SONDAGE).map(c => ({ date: c.date, heure: c.heure, exceptionnel: c.exceptionnel || '' }));
+    if (!creneaux.length) {
+      return { html: `<p>Aucun créneau proposable pour ${nom} dans les règles de l’office : dites les dates (« mardi à 14 h et jeudi à 10 h »).</p>`, boutons: [{ libelle: 'Ouvrir l’agenda', action: () => definirOnglet('agenda') }] };
+    }
+    const texte = (c) => `${dateAvecJourFr(c.date)} à ${c.heure.replace(':', ' h ')}`;
+    const n = creneaux.length;
+    demanderConfirmation(`Poser ${n > 1 ? `${n} options` : 'une option'} pour ${libelleDossierAffiche(d)} dans l’agenda de l’office : ${creneaux.map(texte).join(' ; ')} ? Aucun email n’est envoyé. « Placer » sur l’une en fera la signature et retirera les autres ; sans décision, elles sont retirées après 5 jours ouvrés.`,
+      () => poserOptionsRendezVous(d, creneaux), { bouton: n > 1 ? 'Poser les options' : 'Poser l’option', ton: 'valider' });
+    const lignes = creneaux.map(c => `<li>${escapeHtml(texte(c))}${c.exceptionnel ? ` <span class="asst-note">(exceptionnel : ${escapeHtml(c.exceptionnel)})</span>` : ''}</li>`);
+    return { html: `<p>${proposes ? 'Créneaux proposés par CLAIRE pour' : 'Options pour'} ${nom} :</p><ul class="asst-liste">${lignes.join('')}</ul><p class="asst-note">Confirmez dans la fenêtre avant l’écriture dans l’agenda.</p>` };
   }
 
   function gesteRendezVousAssistant(p, phrase) {

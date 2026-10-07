@@ -17709,3 +17709,29 @@ plutôt qu'un formulaire pré-rempli) — `client/53-agenda-copier-coller.js` :
 - Ctrl+C / Ctrl+V jamais pris pendant une saisie, une fenêtre ou une confirmation ouverte ; Ctrl+C laissé au navigateur quand du
   texte est sélectionné. Point terrain `agenda-copier-coller`. Vérifié dans Chromium (Exchange simulé : création, signature « ? »,
   Annuler) ; non vérifié avec le vrai Exchange.
+
+**Étude (07/10) : « Demander à CLAIRE : possibilité de placer plusieurs options de rendez-vous »** (0.183.0 ; choix de l'étude :
+« options seules », plutôt qu'un sondage aux clients ou un choix dans la carte) :
+- **Intention `options_rendez_vous`** (commun/assistant.js, « Poser des options », `ecrit: 'agenda'`) : « options », « provisoire(s) »,
+  « bloque », « plusieurs rendez-vous/créneaux/dates », « pose/mets des créneaux ». `creneauxDepuisTexte` (pure, testée) lit
+  plusieurs créneaux dans la phrase : coupée sur « et », « ou », « puis », virgule, point-virgule ; une heure seule reprend la
+  dernière date (« le 20 novembre à 10 h et 15 h »), une date seule prend l'heure qui suit (« mardi et jeudi à 14 h »), un jour seul
+  prend le mois de la date d'avant (« le 20 novembre à 10 h et le 21 à 15 h ») ; triés, sans doublon, 5 au plus. Paramètre `nombre`
+  (« 3 options », « trois créneaux ») quand aucun créneau n'est écrit. « option(s) », « créneau(x) », « pose », « bloque »,
+  « provisoire(s) », « plusieurs » ajoutés aux mots qui ne désignent jamais un dossier.
+- **Geste** (`gesteOptionsAssistant`, client/49) : refusé si l'agenda n'est pas relié, si la signature est déjà placée, ou si des
+  options/un sondage sont déjà en cours sur le dossier ; sans créneau écrit, ceux que CLAIRE propose (`creneauxProposesSignature`,
+  règles de l'office, 3 par défaut) ; **carte de confirmation** listant les créneaux (« Poser les options »), puis
+  `poserOptionsRendezVous` (client/27).
+- **Les options sont celles du sondage de créneaux, sans destinataire** : `POST /api/sondages` accepte `optionsSeules: true` (aucun
+  participant, options toujours posées, aucun email ; refusé sans destinataire sinon ; rien n'est gardé si aucune option n'a pu être
+  posée), sondage marqué `optionsSeules`. Tout le reste est repris : titre « VTE - X ? — option CLAIRE, créneau n/N » (hachuré, « ? »
+  = rien n'est écrit sur la fiche), « Placer » sur l'une = rendez-vous de signature + autres retirées (MoveToDeletedItems), retrait
+  sans décision après 5 jours ouvrés, pas de carte fantôme pendant ce temps. Corps de l'option dans Outlook : « Option posée depuis
+  CLAIRE (sans email aux parties)… ».
+- Affichage : fiche (onglet Échanges) « Options dans l'agenda — Sans email · retirées le … sans décision », Placer par créneau,
+  « Retirer les options » ; détail d'une option dans l'agenda « Option n/N » + « Placer ce créneau » (sans liste de réponses) ;
+  volet « Dates proposées » (en attente) même carte ; confirmation de « Placer » sans la phrase « seuls 0 destinataire… ».
+- Point terrain `options-rendez-vous`. Vérifié dans Chromium (sondage simulé : phrase → confirmation → requête `optionsSeules`,
+  historique, toast ; « Mets 2 options… » → créneaux proposés) et serveur (test : options posées, aucun autre appel EWS, Placer
+  retire les deux, refus d'Exchange → rien gardé). Non vérifié avec le vrai Exchange.

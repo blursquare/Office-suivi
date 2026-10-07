@@ -186,7 +186,7 @@ dans `index.html`** (le test `structure-client` refuse tout décalage).
    geste, le serveur pose ce qui manque à chaque tour de lecture (`echeancesAgenda.js`) en adoptant
    d'abord un événement de même titre et même date (jamais de doublon) ; depuis la **page Agenda**
    (30/09), création de tout rendez-vous et **suppression de n'importe lequel après confirmation**
-   (`POST /exchange/evenement/supprimer`, `MoveToDeletedItems`) — **touche Suppr** sur le rendez-vous sélectionné (05/10, même confirmation, jamais dans un champ de saisie ni pendant une fenêtre ouverte ; `evenementSupprimableAgenda`) ; **modification** (01/10, titre + Start/End
+   (`POST /exchange/evenement/supprimer`, `MoveToDeletedItems`) — **touche Suppr** sur le rendez-vous sélectionné (05/10, même confirmation, jamais dans un champ de saisie ni pendant une fenêtre ouverte ; `evenementSupprimableAgenda`) ; **copier-coller** (07/10, `client/53-agenda-copier-coller.js` : Ctrl+C ou « Copier » du détail, clic sur une case puis Ctrl+V ou « Coller » → créé aussitôt comme Outlook, « Annuler » ; une signature se colle « ? », à confirmer) ; **modification** (01/10, titre + Start/End
    seulement, `POST /exchange/evenement/modifier`) par le crayon du détail ou en **glissant** le rendez-vous
    (Semaine/Jour, souris, confirmé au lâcher ; la signature d'un dossier emmène la fiche) ou en **tirant son
    bord** haut/bas pour changer début/fin (`horaireRedimensionneAgenda`, même confirmation) ; la **catégorie** s'y change aussi
@@ -719,7 +719,7 @@ dans `index.html`** (le test `structure-client` refuse tout décalage).
   `commun/assistant.js`, `server/src/assistant.js`, `routes/assistant.js` (`POST /api/assistant/comprendre`,
   `GET /api/assistant/disponibilite`). **Liste FERMÉE d'intentions** (`INTENTIONS_ASSISTANT` : état d'un dossier, pièces, échéances,
   coordonnées, fonds, À faire, depuis hier, rappel, mes rappels, email, cocher/décocher une échéance, date de la fiche, créneaux,
-  placer la signature, sondage de dates, nouveau rendez-vous, agenda d'un jour, appel de fonds, quotités, provision, prorata,
+  placer la signature, sondage de dates, **options de rendez-vous** (07/10 : plusieurs créneaux lus par `creneauxDepuisTexte`, posés en option sans email après confirmation — un sondage `optionsSeules` sans destinataire, « Placer » retire les autres), nouveau rendez-vous, agenda d'un jour, appel de fonds, quotités, provision, prorata,
   préemption, ouvrir une fiche/un écran, chercher, archiver, responsable, aide, inconnu) ; **l'IA ne choisit qu'une intention et
   recopie la phrase, tout le reste est du code** : lecture par mots-clés d'abord (`interpreterParMotsCles`, sûreté haute = Ollama
   jamais appelé), Ollama seulement quand plusieurs intentions se disputent la phrase (prompt sans la liste des dossiers ni aucune

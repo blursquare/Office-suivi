@@ -452,6 +452,43 @@
     }
   }
 
+  // Options seules (étude 07/10, « Demander à CLAIRE : placer plusieurs options de rendez-vous ») : les créneaux posés en option
+  // dans l'agenda de l'office, sans destinataire ni email — un sondage `optionsSeules` (même suivi : « Placer » retire les autres,
+  // retrait sans décision après 5 jours ouvrés). Appelé après la confirmation.
+  async function poserOptionsRendezVous(d, creneaux) {
+    try {
+      const r = await fetchAvecAuth('/api/sondages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          dossierId: d.id, dossierNom: d.nom, titre: '', libelle: libelleDossierAffiche(d), creePar: utilisateurPoste || '',
+          typeRdv: typeRendezVous(d, categoriesRdvReglees()) || 'office', optionsSeules: true, poserOptions: true,
+          creneaux: creneaux.map(c => ({ date: c.date, heure: c.heure, dureeMinutes: DUREE_CRENEAU_SIGNATURE })), participants: []
+        })
+      });
+      const corps = await r.json();
+      if (!corps.ok) {
+        noterVerificationPoste('options-rendez-vous', { ok: false, message: 'options refusées par Exchange' });
+        afficherToast(corps.message || 'Les options n’ont pas pu être posées.', 'OK', null);
+        return false;
+      }
+      const s = corps.sondage;
+      sondagesCreneaux = sondagesCreneaux.filter(x => x.id !== s.id).concat([s]);
+      const poses = s.creneaux.filter(c => c.option);
+      ajouterHistorique(d, `Options posées dans l’agenda de l’office, sans email : ${poses.map(c => formatDateFr(c.date) + ' ' + c.heure).join(', ')}.`);
+      sauvegarder(d);
+      noterVerificationPoste('options-rendez-vous', { detail: `${poses.length} option(s) posée(s)` });
+      afficherToast(corps.avertissement || `${poses.length > 1 ? `${poses.length} options posées` : 'Option posée'} pour ${libelleDossierAffiche(d)}.`,
+        'Voir dans l’agenda', () => voirDateProposeeDansAgenda(poses[0].date));
+      if (ongletActuel === 'agenda') { renderPageAgenda(); chargerAgendaSemaine(); }
+      render();
+      return true;
+    } catch (e) {
+      afficherToast('Serveur injoignable — options non posées.', 'OK', null);
+      return false;
+    }
+  }
+
   // Pure : un participant par adresse (« a@x.fr; b@y.fr » → deux votants de même rôle et même nom).
   function participantsParAdresse(participants) {
     return (participants || []).reduce((l, p) => {
@@ -519,14 +556,17 @@
     const d = s && dossiers.find(x => x.id === s.dossierId);
     if (!s) return;
     const options = s.creneaux.some(c => c.option);
-    demanderConfirmation(`Annuler le sondage de créneaux${d ? ' de ' + libelleDossierAffiche(d) : s.titre ? ' « ' + s.titre + ' »' : ''} ?${options ? ' Les options posées dans l’agenda seront retirées.' : ''} Les réponses qui arriveraient ensuite ne seront plus lues.`, async () => {
+    const question = s.optionsSeules
+      ? `Retirer de l’agenda les options${d ? ' de ' + libelleDossierAffiche(d) : ''} ?`
+      : `Annuler le sondage de créneaux${d ? ' de ' + libelleDossierAffiche(d) : s.titre ? ' « ' + s.titre + ' »' : ''} ?${options ? ' Les options posées dans l’agenda seront retirées.' : ''} Les réponses qui arriveraient ensuite ne seront plus lues.`;
+    demanderConfirmation(question, async () => {
       const r = await actionSondage(id, 'annuler');
       if (!r.ok) { afficherToast(r.message || 'Annulation impossible.', 'OK', null); return; }
-      if (d) { ajouterHistorique(d, 'Sondage de créneaux annulé.'); sauvegarder(d); }
+      if (d) { ajouterHistorique(d, s.optionsSeules ? 'Options retirées de l’agenda.' : 'Sondage de créneaux annulé.'); sauvegarder(d); }
       afficherToast(r.message || 'Sondage annulé.', 'OK', null);
       render();
       if (ongletActuel === 'agenda') chargerAgendaSemaine();
-    }, { bouton: 'Annuler le sondage' });
+    }, { bouton: s.optionsSeules ? 'Retirer les options' : 'Annuler le sondage' });
   }
 
   // Place le rendez-vous de signature au créneau choisi, puis clôt le sondage (options retirées).
@@ -537,14 +577,14 @@
     if (!s || !c || (s.dossierId && !d)) return;
     const synthese = (s.synthese || []).find(x => x.n === n);
     const possibles = synthese ? synthese.accepte + (synthese.siBesoin || 0) : 0;
-    const reserve = synthese && !synthese.tous ? ` Seuls ${possibles} destinataire${possibles > 1 ? 's' : ''} sur ${synthese.total} l’ont accepté.` : '';
-    demanderConfirmation(`${d ? `Placer la signature de ${libelleDossierAffiche(d)}` : `Placer « ${s.titre} »`} le ${libelleCreneauSondage(c)} ?${reserve} Les autres options du sondage seront retirées de l’agenda.`, async () => {
+    const reserve = !s.optionsSeules && synthese && !synthese.tous ? ` Seuls ${possibles} destinataire${possibles > 1 ? 's' : ''} sur ${synthese.total} l’ont accepté.` : '';
+    demanderConfirmation(`${d ? `Placer la signature de ${libelleDossierAffiche(d)}` : `Placer « ${s.titre} »`} le ${libelleCreneauSondage(c)} ?${reserve} Les autres options ${s.optionsSeules ? '' : 'du sondage '}seront retirées de l’agenda.`, async () => {
       const ok = d
         ? await posterEvenementAgenda({ sujet: libelleDossierAffiche(d), date: c.date, heure: c.heure, dureeMinutes: c.dureeMinutes || DUREE_CRENEAU_SIGNATURE, lieu: lieuRdvAgenda(d), typeRdv: typeRendezVous(d, categoriesRdvReglees()) || 'office', dossier: d, signature: true })
         : await posterEvenementAgenda({ sujet: s.titre || 'Rendez-vous', date: c.date, heure: c.heure, dureeMinutes: c.dureeMinutes || 60, lieu: '', typeRdv: TYPES_RDV[s.typeRdv] ? s.typeRdv : '', dossier: null, signature: false });
       if (!ok) return;
       const r = await actionSondage(id, 'placer', { n });
-      if (d) { ajouterHistorique(d, `Sondage de créneaux clos : créneau ${n} retenu.`); sauvegarder(d); }
+      if (d) { ajouterHistorique(d, s.optionsSeules ? `Option ${n} retenue, les autres retirées de l’agenda.` : `Sondage de créneaux clos : créneau ${n} retenu.`); sauvegarder(d); }
       if (r.message) afficherToast(r.message, 'OK', null);
       render();
       if (ongletActuel === 'agenda') chargerAgendaSemaine();
@@ -577,6 +617,18 @@
   // Dans la fiche (onglet Échanges) : le sondage en cours, sinon la ligne pour en lancer un.
   function renderSondageDossier(d) {
     const s = sondageOuvertDossier(d.id);
+    if (s && s.optionsSeules) {
+      return `<div class="sondage-panneau">
+          <div class="sondage-tete">
+            <span class="section-eyebrow">Options dans l’agenda</span>
+            <span class="hint">Sans email · retirées le ${escapeHtml(formatDateFr(s.expireLe))} sans décision</span>
+          </div>
+          ${renderTableSondage(s, false)}
+          <div class="sondage-actions">
+            <button type="button" class="lien-bouton" onclick="annulerSondage('${escapeOnclickArg(s.id)}')">${icone('x')} Retirer les options</button>
+          </div>
+        </div>`;
+    }
     if (s) {
       const repondu = s.participants.length - sansReponseSondage(s).length;
       const tous = (s.synthese || []).filter(x => x.tous);
@@ -610,6 +662,13 @@
     if (!s) return '<p class="jour-vide">Option d’un sondage de créneaux déjà clos : elle sera retirée au prochain passage.</p>';
     const c = s.creneaux.find(x => x.option && x.option.itemId === e.itemId);
     const sy = (s.synthese || []).find(x => x.n === c.n);
+    if (s.optionsSeules) {
+      return `<div class="sondage-panneau sondage-panneau-agenda">
+          <div class="sondage-tete"><span class="section-eyebrow">Option ${c.n}/${s.creneaux.length}</span>
+            <span class="hint">Sans email · retirée le ${escapeHtml(formatDateFr(s.expireLe))} sans décision</span></div>
+          <wa-button variant="brand" class="primary ag-ouvrir-fiche" onclick="placerCreneauSondage('${escapeOnclickArg(s.id)}', ${c.n})" ${exchangeAgendaPret() ? '' : 'disabled'}>${icone('calendar')} Placer ce créneau</wa-button>
+        </div>`;
+    }
     return `<div class="sondage-panneau sondage-panneau-agenda">
         <div class="sondage-tete"><span class="section-eyebrow">Sondage — créneau ${c.n}/${s.creneaux.length}</span>
           <span class="hint">${sy ? `${sy.accepte}/${sy.total} l’acceptent${sy.siBesoin ? ` · ${sy.siBesoin} si nécessaire` : ''}` : ''}</span></div>

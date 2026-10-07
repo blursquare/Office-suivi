@@ -1173,6 +1173,13 @@
     const groupe = (texte, n, aide) => `<div class="widgets-galerie-groupe">${texte} <span class="jour-onglet-nb">${n}</span>${aide ? ' ' + infoBulle(aide) : ''}</div>`;
     const nouvelles = new Set(reponsesNonVuesSondages(sondagesCreneaux, datesVuesAvantOuverture).map(r => r.id));
     const carteAttente = (x) => {
+      if (x.optionsSeules) {
+        return `<div class="sondage-panneau dp-carte">
+            <div class="sondage-tete">${titre(x)}<span class="hint">Options posées le ${escapeHtml(dateCourte(x.creeLe))}, sans email · retirées le ${escapeHtml(formatDateFr(x.expireLe))} sans décision</span></div>
+            ${renderTableSondage(x, true)}
+            <div class="sondage-actions"><button type="button" class="lien-bouton" onclick="annulerSondage('${escapeOnclickArg(x.id)}')">${icone('x')} Retirer les options</button></div>
+          </div>`;
+      }
       const repondu = x.participants.length - sansReponseSondage(x).length;
       return `<div class="sondage-panneau dp-carte${nouvelles.has(x.id) ? ' dp-nouveau' : ''}">
           <div class="sondage-tete">${titre(x)}${nouvelles.has(x.id) ? '<span class="dot-label dl-urgent dp-badge-nouveau"><span class="dot"></span>Nouvelle réponse</span>' : ''}<span class="hint">Envoyé le ${escapeHtml(dateCourte(x.creeLe))} · ${repondu}/${x.participants.length} réponse${x.participants.length > 1 ? 's' : ''}${x.expireLe ? ` · options jusqu’au ${escapeHtml(formatDateFr(x.expireLe))}` : ''}</span></div>
@@ -1578,7 +1585,7 @@
     return `<section class="ag-detail ajd-${teinte}" aria-labelledby="agenda-detail-titre">
         <div class="ag-detail-tete">
           <div>
-            <div class="ag-detail-etiquette"><i></i>${escapeHtml(e.horsAgenda ? 'Signature fixée dans CLAIRE — pas dans l’agenda Outlook' : e.option ? 'Option — sondage de créneaux' : etiquetteEvenementAgenda(e, natureEvenementAgenda(e, categoriesRdvReglees())))}</div>
+            <div class="ag-detail-etiquette"><i></i>${escapeHtml(e.horsAgenda ? 'Signature fixée dans CLAIRE — pas dans l’agenda Outlook' : e.option ? (sondagesCreneaux.some(x => x.optionsSeules && x.creneaux.some(c => c.option && c.option.itemId === e.itemId)) ? 'Option' : 'Option — sondage de créneaux') : etiquetteEvenementAgenda(e, natureEvenementAgenda(e, categoriesRdvReglees())))}</div>
             <h3 class="ag-detail-titre" id="agenda-detail-titre">${escapeHtml(e.option ? libelleOptionSondage(e.sujet).titre : (e.sujet || '(sans titre)'))}</h3>
           </div>
           <div class="ag-detail-outils">

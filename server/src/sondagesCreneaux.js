@@ -182,6 +182,9 @@ function assainirSondage(s) {
     expireLe: dateValide(s.expireLe),
     adresseReponse: adresseValide(s.adresseReponse) ? s.adresseReponse.trim() : '',
     typeRdv: texteBorne(s.typeRdv, 20),
+    // Options seules (étude 07/10, « Demander à CLAIRE : placer plusieurs options de rendez-vous ») : des créneaux posés en
+    // option dans l'agenda, sans destinataire ni email ; « Placer » et le retrait des autres comme un sondage.
+    ...(s.optionsSeules === true ? { optionsSeules: true } : {}),
     creneaux, participants, reponses,
     relances: (Array.isArray(s.relances) ? s.relances : []).map((x) => texteBorne(x, 40)).filter(Boolean).slice(-10),
     choisi: Number.isInteger(s.choisi) && s.choisi > 0 ? s.choisi : null,

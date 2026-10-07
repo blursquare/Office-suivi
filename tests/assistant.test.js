@@ -212,3 +212,26 @@ test('dossier reconnu par toute la fiche : prénom (homonymes), nom d\'usage, ad
   assert.equal(r('Le dossier de Sophie').dossier, '', 'un mot présent sur la plupart des fiches (notre office) ne désigne rien');
   assert.equal(r('Le dossier à Blois').dossier, '', 'la ville de l’étude non plus');
 });
+
+test('creneauxDepuisTexte : plusieurs créneaux dans une phrase (étude 07/10, options de rendez-vous)', () => {
+  const c = (t) => A.creneauxDepuisTexte(t, AUJ).map(x => x.date + ' ' + x.heure).join(' | ');
+  // AUJ = mardi 6 octobre 2026.
+  assert.equal(c('Pose des options pour MARTIN mardi à 14 h et jeudi à 10 h'), '2026-10-08 10:00 | 2026-10-13 14:00');
+  assert.equal(c('Bloque le 20 novembre à 10 h et le 21 à 15 h pour LEROY'), '2026-11-20 10:00 | 2026-11-21 15:00', 'jour seul = mois de la date précédente');
+  assert.equal(c('options mardi et jeudi à 14 h pour DUPONT'), '2026-10-08 14:00 | 2026-10-13 14:00', 'une date seule prend l’heure qui suit');
+  assert.equal(c('le 20 novembre à 10 h et 15 h'), '2026-11-20 10:00 | 2026-11-20 15:00', 'une heure seule reprend la date');
+  assert.equal(c('le 20/11 à 10 h, le 21/11 à 15h30 ou le 22/11 à 9 h'), '2026-11-20 10:00 | 2026-11-21 15:30 | 2026-11-22 09:00');
+  assert.equal(c('Mets 3 options de signature pour DUPONT'), '', 'aucune date écrite');
+  assert.equal(c('à 14 h et à 16 h'), '', 'des heures sans aucune date');
+  assert.equal(A.creneauxDepuisTexte('le 1/12 à 9 h, le 2/12 à 9 h, le 3/12 à 9 h, le 4/12 à 9 h, le 7/12 à 9 h, le 8/12 à 9 h', AUJ).length, 5, '5 au plus');
+});
+
+test('options de rendez-vous : intention, nombre demandé, mots qui ne désignent pas un dossier', () => {
+  const r = A.interpreterParMotsCles('Pose des options pour MARTIN mardi à 14 h et jeudi à 10 h', { aujourdhui: AUJ });
+  assert.equal(r.intention, 'options_rendez_vous');
+  assert.equal(r.parametres.creneaux.length, 2);
+  const n = A.interpreterParMotsCles('Mets trois options pour LEROY', { aujourdhui: AUJ });
+  assert.equal(`${n.intention} ${n.parametres.nombre}`, 'options_rendez_vous 3');
+  // « option », « créneaux » ne sont pas des noms de dossier.
+  assert.equal(A.reconnaitreDossier('options créneaux provisoires', DOSSIERS.concat([{ id: 'x', nom: 'OPTION / CRENEAUX', parties: [] }])).dossier, '');
+});

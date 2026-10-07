@@ -47,6 +47,11 @@
       dossier: true, exemples: ['Trouve une date de signature pour MARTIN', 'Quelles dates de signature possibles pour DUPONT ?'], motifs: [/\bcreneau/, /\btrouve[rz]? (une |des )?dates?\b/, /\bquand (peut[- ]on|pourrait[- ]on|signer)\b/, /\bdisponibilit/, /\bdates? (possible|libre)/, /\bproposer? (une |des )?dates?\b/, /\bquelle date\b/] },
     { cle: 'rendez_vous_placer', libelle: 'Placer la signature', description: 'placer le rendez-vous de signature d’un dossier dans l’agenda de l’office, à une date et une heure (confirmé avant)',
       dossier: true, parametres: ['date', 'heure'], ecrit: 'agenda', exemples: ['Place la signature MARTIN le 14 novembre à 10 h', 'Fixe la signature de LEROY le 20 novembre à 14 h'], motifs: [/\bplace[rz]?\b/, /\bfixe[rz]?\b/, /\bcale[rz]?\b/, /\bsignature (le|du|au) \d/, /\brendez[- ]vous de signature\b/, /\bprends? (le )?rendez/], poids: 2 },
+    // Étude 07/10 : « Demander à CLAIRE : possibilité de placer plusieurs options de rendez-vous » — choix : options seules, sans
+    // email, carte de confirmation avant ; « Placer » sur l'une en fait la signature et retire les autres.
+    { cle: 'options_rendez_vous', libelle: 'Poser des options', description: 'poser plusieurs rendez-vous provisoires (options) dans l’agenda de l’office pour un dossier, sans email aux parties (confirmé avant)',
+      dossier: true, parametres: ['creneaux'], ecrit: 'agenda', exemples: ['Pose des options pour MARTIN mardi à 14 h et jeudi à 10 h', 'Mets 3 options de signature pour DUPONT', 'Bloque le 20 novembre à 10 h et le 21 à 15 h pour LEROY'],
+      motifs: [/\boptions?\b/, /\bprovisoires?\b/, /\bbloque[rz]?\b/, /\bplusieurs (rendez[- ]vous|rdv|creneaux|dates)\b/, /\b(pose[rz]?|mets?) (\d+ )?(des |deux |trois )?creneaux\b/], poids: 3 },
     { cle: 'sondage_dates', libelle: 'Proposer des dates aux clients', description: 'lancer un sondage de dates de signature auprès des clients ou du confrère (comme un Doodle)',
       dossier: true, ecrit: 'email', exemples: ['Propose des dates de signature aux clients de MARTIN'], motifs: [/\bsondage\b/, /\bdoodle\b/, /\bpropose[rz]? (des|plusieurs) dates\b/, /\bdates? aux clients\b/, /\bdemande[rz]? (leurs? )?disponibilit/], poids: 3 },
     { cle: 'rendez_vous_creer', libelle: 'Nouveau rendez-vous', description: 'créer un rendez-vous ordinaire dans l’agenda de l’office (titre, date, heure) — formulaire à valider',
@@ -133,7 +138,8 @@
     'ouvre ouvrir montre affiche place placer fixe marque coche note mets relance relancer envoie envoyer demande cherche trouve ' +
     'aujourd hui demain lundi mardi mercredi jeudi vendredi samedi dimanche heure heures janvier fevrier mars avril mai juin juillet ' +
     'aout septembre octobre novembre decembre jour jours semaine mois annee euros euro ' +
-    'monsieur madame mademoiselle messieurs mesdames mme mlle').split(' '));
+    'monsieur madame mademoiselle messieurs mesdames mme mlle option options pose poser bloque bloquer provisoire provisoires ' +
+    'creneau creneaux plusieurs').split(' '));
 
   var MOIS_ASSISTANT = ['janvier', 'fevrier', 'mars', 'avril', 'mai', 'juin', 'juillet', 'aout', 'septembre', 'octobre', 'novembre', 'decembre'];
   var MOIS_COURTS_ASSISTANT = ['janv', 'fev', 'mars', 'avr', 'mai', 'juin', 'juil', 'aout', 'sept', 'oct', 'nov', 'dec'];
@@ -213,6 +219,39 @@
     const mn = m[2] ? Number(m[2]) : 0;
     if (h > 23 || mn > 59) return '';
     return `${String(h).padStart(2, '0')}:${String(mn).padStart(2, '0')}`;
+  }
+
+  /**
+   * Pure : les créneaux (date + heure) d'une phrase qui en cite plusieurs — « mardi à 14 h et jeudi à 10 h », « le 20 novembre à
+   * 10 h et 15 h », « mardi et jeudi à 14 h », « le 20/11 à 10 h, le 21/11 à 15 h ». Coupée sur « et », « ou », « puis », la virgule
+   * et le point-virgule : une heure seule reprend la dernière date dite, une date seule prend l'heure qui suit. Triés, sans doublon,
+   * `max` au plus. @param {string} texte @param {string} aujourdhui @param {number} [max] @returns {{date: string, heure: string}[]}
+   */
+  function creneauxDepuisTexte(texte, aujourdhui, max) {
+    const morceaux = normaliserDemande(texte).split(/\s*(?:,|;|\bet\b|\bou\b|\bpuis\b)\s*/);
+    const creneaux = [];
+    let derniereDate = '';
+    let enAttente = [];
+    for (const m of morceaux) {
+      // « le 21 à 15 h » après « le 20 novembre » : le jour seul reprend le mois de la date précédente.
+      let date = dateDepuisTexte(m, aujourdhui);
+      const jourSeul = !date && derniereDate ? /\b(?:le )?(1er|\d{1,2})(?:er)?\b(?! ?(?:h\b|:|heures?))/.exec(m) : null;
+      if (jourSeul) {
+        const iso = `${derniereDate.slice(0, 8)}${String(jourSeul[1] === '1er' ? 1 : Number(jourSeul[1])).padStart(2, '0')}`;
+        if (dateValideAssistant(iso)) date = iso;
+      }
+      const heure = heureDepuisTexte(m);
+      if (date && !heure) { enAttente.push(date); derniereDate = date; continue; }
+      if (!heure) continue;
+      if (date) derniereDate = date;
+      if (!date && !derniereDate) continue;
+      enAttente.forEach(d => creneaux.push({ date: d, heure }));
+      enAttente = [];
+      creneaux.push({ date: date || derniereDate, heure });
+    }
+    const vus = new Set();
+    return creneaux.filter(c => { const k = c.date + ' ' + c.heure; if (vus.has(k)) return false; vus.add(k); return true; })
+      .sort((a, b) => (a.date + a.heure).localeCompare(b.date + b.heure)).slice(0, max || 5);
   }
 
   /**
@@ -485,6 +524,9 @@
     return {
       date: aujourdhui ? dateDepuisTexte(brut, aujourdhui) : '',
       heure: heureDepuisTexte(brut),
+      creneaux: aujourdhui ? creneauxDepuisTexte(brut, aujourdhui) : [],
+      // « 3 options », « trois créneaux » : le nombre demandé quand aucun créneau n'est écrit.
+      nombre: (() => { const m = /\b(\d|deux|trois|quatre|cinq) (options?|creneaux|dates|rendez[- ]vous)\b/.exec(t); return m ? ({ deux: 2, trois: 3, quatre: 4, cinq: 5 }[m[1]] || Number(m[1])) : 0; })(),
       montant: montants.length ? montants[0] : null,
       montants,
       parts: partsDepuisTexte(brut),
@@ -519,7 +561,7 @@
 
   const exportes = {
     INTENTIONS_ASSISTANT, MODELES_EMAIL_ASSISTANT, ECHEANCES_ASSISTANT, CHAMPS_DATE_ASSISTANT, ECRANS_ASSISTANT, MOIS_ASSISTANT, JOURS_ASSISTANT,
-    normaliserDemande, dateDepuisTexte, heureDepuisTexte, montantsDepuisTexte, partsDepuisTexte, reconnaitreDossier, motsUtilesAssistant,
+    normaliserDemande, dateDepuisTexte, heureDepuisTexte, creneauxDepuisTexte, montantsDepuisTexte, partsDepuisTexte, reconnaitreDossier, motsUtilesAssistant,
     interpreterParMotsCles, civilitesDansPhrase, exemplesProches, intentionParExemples, parametresDepuisTexte, texteRappelDepuisPhrase, validerReponseAssistant, intentionAssistant
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = exportes; else Object.assign(globalThis, exportes);

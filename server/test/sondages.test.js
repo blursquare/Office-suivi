@@ -313,6 +313,34 @@ test('sondage sans dossier : titre obligatoire, plusieurs sondages possibles, op
   assert.equal(second.ok, true, 'plusieurs sondages sans dossier ouverts en même temps');
 });
 
+test('options seules (étude 07/10) : sans destinataire, options posées sans email, « Placer » retire les autres', async () => {
+  const corps = { dossierId: 'd5', dossierNom: 'ROUX', libelle: 'VTE - ROUX', optionsSeules: true, participants: [],
+    creneaux: [{ date: '2026-10-22', heure: '14:00', dureeMinutes: 60 }, { date: '2026-10-23', heure: '10:00', dureeMinutes: 60 }] };
+  // Sans « optionsSeules », un sondage sans destinataire reste refusé.
+  assert.equal((await appeler('/api/sondages', { method: 'POST', body: JSON.stringify({ ...corps, optionsSeules: false }) })).status, 400);
+  appelsEws.length = 0;
+  const cree = await (await appeler('/api/sondages', { method: 'POST', body: JSON.stringify(corps) })).json();
+  assert.equal(cree.ok, true);
+  assert.equal(cree.sondage.optionsSeules, true);
+  assert.equal(cree.sondage.participants.length, 0);
+  assert.equal(cree.sondage.creneaux.filter((c) => c.option).length, 2);
+  assert.equal(appelsEws.length, 2, 'deux options, aucun autre appel');
+  assert.match(appelsEws[0], /VTE - ROUX \? — option CLAIRE, créneau 1\/2/);
+  assert.match(appelsEws[0], /sans email aux parties/);
+  appelsEws.length = 0;
+  const place = await (await appeler(`/api/sondages/${cree.sondage.id}/placer`, { method: 'POST', body: JSON.stringify({ n: 1 }) })).json();
+  assert.equal(place.sondage.statut, 'place');
+  assert.equal(appelsEws.filter((b) => /DeleteType="MoveToDeletedItems"/.test(b)).length, 2);
+  // Aucune option posée (Exchange refuse) : rien n'est gardé.
+  refuserIdentifiants = true;
+  const refuse = await (await appeler('/api/sondages', { method: 'POST', body: JSON.stringify({ ...corps, dossierId: 'd6' }) })).json();
+  assert.equal(refuse.ok, false);
+  assert.match(refuse.message, /Options posées : 0\/2/);
+  refuserIdentifiants = false;
+  const liste = await (await appeler('/api/sondages?dossierId=d6')).json();
+  assert.equal(liste.sondages.length, 0);
+});
+
 test('créneau invalide ou adresse invalide : 400', async () => {
   const r1 = await appeler('/api/sondages', { method: 'POST', body: JSON.stringify({ ...corpsCreation, dossierId: 'd3', creneaux: [{ date: '20/10/2026', heure: '10:00' }] }) });
   assert.equal(r1.status, 400);

@@ -53,7 +53,9 @@ function creerRouteurSondages(parametresRepo, injections = {}) {
     if (!creneauxBruts.length || creneauxBruts.length > MAX_CRENEAUX) {
       return res.status(400).json({ ok: false, message: `Proposez entre 1 et ${MAX_CRENEAUX} créneaux.` });
     }
-    if (!participantsBruts.length || participantsBruts.length > MAX_PARTICIPANTS) {
+    // Options seules (étude 07/10) : aucun destinataire, rien n'est envoyé — les créneaux sont seulement posés en option.
+    const optionsSeules = b.optionsSeules === true;
+    if ((!optionsSeules && !participantsBruts.length) || participantsBruts.length > MAX_PARTICIPANTS) {
       return res.status(400).json({ ok: false, message: 'Aucun destinataire avec une adresse email.' });
     }
     const sondages = parametresRepo.lireSondagesCreneaux();
@@ -73,6 +75,7 @@ function creerRouteurSondages(parametresRepo, injections = {}) {
       expireLe: joursOuvresApres(aujourdHui, JOURS_OUVRES_OPTION),
       adresseReponse: reglages.email,
       typeRdv: b.typeRdv,
+      optionsSeules,
       creneaux: creneauxBruts.map((c, i) => ({ n: i + 1, date: c && c.date, heure: c && c.heure, dureeMinutes: c && c.dureeMinutes })),
       participants: attribuerCles(participantsBruts.map((p) => ({ ...(p || {}), cle: '' })), injections.aleatoire),
       reponses: []
@@ -85,7 +88,7 @@ function creerRouteurSondages(parametresRepo, injections = {}) {
     }
     // Les créneaux en option dans l'agenda partagé : un essai par créneau, arrêt au premier échec.
     let avertissement = '';
-    if (b.poserOptions === true) {
+    if (b.poserOptions === true || optionsSeules) {
       const libelle = String(b.libelle || brouillon.dossierNom || brouillon.titre || '').replace(/[?\r\n]/g, ' ').trim().slice(0, 120) || 'VTE';
       const total = brouillon.creneaux.length;
       for (const c of brouillon.creneaux) {
@@ -94,7 +97,9 @@ function creerRouteurSondages(parametresRepo, injections = {}) {
           url: reglages.url, email: reglages.email, motDePasse: reglages.motDePasse,
           rendezVous: {
             sujet, dateStr: c.date, heureStr: c.heure, dureeMinutes: c.dureeMinutes,
-            corps: `Option posée par le sondage de créneaux de CLAIRE (réponses attendues avant le ${brouillon.expireLe.split('-').reverse().join('/')}). Retirée d’elle-même au placement du rendez-vous ou sans décision.`,
+            corps: optionsSeules
+              ? `Option posée depuis CLAIRE (sans email aux parties). Retirée d’elle-même au placement du rendez-vous, ou sans décision le ${brouillon.expireLe.split('-').reverse().join('/')}.`
+              : `Option posée par le sondage de créneaux de CLAIRE (réponses attendues avant le ${brouillon.expireLe.split('-').reverse().join('/')}). Retirée d’elle-même au placement du rendez-vous ou sans décision.`,
             mailbox: reglages.calendrierPartage, provisoire: true
           }
         }, injections);
@@ -108,6 +113,10 @@ function creerRouteurSondages(parametresRepo, injections = {}) {
           });
         }
       }
+    }
+    // Options seules dont aucune n'a pu être posée : rien à suivre, rien n'est gardé.
+    if (optionsSeules && !brouillon.creneaux.some((c) => c.option)) {
+      return res.json({ ok: false, message: avertissement || 'Aucune option n’a pu être posée dans l’agenda.' });
     }
     sondages.push(brouillon);
     parametresRepo.ecrireSondagesCreneaux(sondages);
