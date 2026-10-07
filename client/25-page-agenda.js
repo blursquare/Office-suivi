@@ -1178,14 +1178,14 @@
     const carteAttente = (x) => {
       if (x.optionsSeules) {
         return `<div class="sondage-panneau dp-carte">
-            <div class="sondage-tete">${titre(x)}<span class="hint">Options posées le ${escapeHtml(dateCourte(x.creeLe))}, sans email · retirées le ${escapeHtml(formatDateFr(x.expireLe))} sans décision</span></div>
+            <div class="sondage-tete">${titre(x)}<span class="hint">Options posées le ${escapeHtml(dateCourte(x.creeLe))}, sans email · gardées jusqu’au placement</span></div>
             ${renderTableSondage(x, true)}
             <div class="sondage-actions"><button type="button" class="lien-bouton" onclick="annulerSondage('${escapeOnclickArg(x.id)}')">${icone('x')} Retirer les options</button></div>
           </div>`;
       }
       const repondu = x.participants.length - sansReponseSondage(x).length;
       return `<div class="sondage-panneau dp-carte${nouvelles.has(x.id) ? ' dp-nouveau' : ''}">
-          <div class="sondage-tete">${titre(x)}${nouvelles.has(x.id) ? '<span class="dot-label dl-urgent dp-badge-nouveau"><span class="dot"></span>Nouvelle réponse</span>' : ''}<span class="hint">Envoyé le ${escapeHtml(dateCourte(x.creeLe))} · ${repondu}/${x.participants.length} réponse${x.participants.length > 1 ? 's' : ''}${x.expireLe ? ` · options jusqu’au ${escapeHtml(formatDateFr(x.expireLe))}` : ''}</span></div>
+          <div class="sondage-tete">${titre(x)}${nouvelles.has(x.id) ? '<span class="dot-label dl-urgent dp-badge-nouveau"><span class="dot"></span>Nouvelle réponse</span>' : ''}<span class="hint">Envoyé le ${escapeHtml(dateCourte(x.creeLe))} · ${repondu}/${x.participants.length} réponse${x.participants.length > 1 ? 's' : ''}</span></div>
           ${renderTableSondage(x, true)}
           <div class="sondage-actions">
             <button type="button" class="lien-bouton" onclick="relancerSondage('${escapeOnclickArg(x.id)}')" ${sansReponseSondage(x).length ? '' : 'disabled'}>${icone('mail')} Relancer</button>

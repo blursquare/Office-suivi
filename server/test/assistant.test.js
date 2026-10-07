@@ -264,11 +264,15 @@ test('« Mistral lit toutes les demandes » (étude 07/10) : même une phrase cl
   assert.match(repli.raisonIa, /IA Mistral/);
 });
 
-test('route : « Mistral lit toutes les demandes » vrai par défaut, se coupe et se garde', async () => {
+test('route : « Mistral lit toutes les demandes » coupé par défaut (07/10 au soir, clé gratuite), se rallume et se garde', async () => {
   const h = { Authorization: `Bearer ${jeton}`, 'Content-Type': 'application/json' };
   await fetch(`${baseUrl}/api/assistant/reglages`, { method: 'PUT', headers: h, body: JSON.stringify({ moteur: 'mistral' }) });
+  assert.equal((await (await fetch(`${baseUrl}/api/assistant/reglages`, { headers: h })).json()).toutesDemandes, false);
+  await fetch(`${baseUrl}/api/assistant/reglages`, { method: 'PUT', headers: h, body: JSON.stringify({ moteur: 'mistral', toutesDemandes: true }) });
   assert.equal((await (await fetch(`${baseUrl}/api/assistant/reglages`, { headers: h })).json()).toutesDemandes, true);
-  await fetch(`${baseUrl}/api/assistant/reglages`, { method: 'PUT', headers: h, body: JSON.stringify({ moteur: 'mistral', toutesDemandes: false }) });
+  // Un réglage gardé le matin (coché d'office, sans révision) ne compte plus.
+  const { creerRepoParametres } = require('../src/parametresRepo');
+  creerRepoParametres(db).ecrireJsonBrut('assistant-ia', { moteur: 'mistral', toutesDemandes: true });
   assert.equal((await (await fetch(`${baseUrl}/api/assistant/reglages`, { headers: h })).json()).toutesDemandes, false);
 });
 

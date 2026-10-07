@@ -1468,7 +1468,7 @@
     if (g === 'sondage') {
       const ouvre = (n) => { let j = addDays(isoAujourdhuiLocal(), n); while ([0, 6].includes(new Date(j + 'T12:00:00').getDay())) j = addDays(j, 1); return j; };
       const premier = ouvre(14);
-      return contexteSondage(d, { titre: '', expireLe: ouvre(7), creneaux: [{ n: 1, date: premier, heure: '10:00' }, { n: 2, date: ouvre(Math.round((new Date(premier) - new Date(isoAujourdhuiLocal())) / 864e5) + 1), heure: '15:00' }] }, confrere, false, true, false);
+      return contexteSondage(d, { titre: '', expireLe: '', creneaux: [{ n: 1, date: premier, heure: '10:00' }, { n: 2, date: ouvre(Math.round((new Date(premier) - new Date(isoAujourdhuiLocal())) / 864e5) + 1), heure: '15:00' }] }, confrere, false, true, false);
     }
     return null;
   }

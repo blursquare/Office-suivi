@@ -10,8 +10,9 @@
 // Les créneaux proposés peuvent être bloqués « en option » dans l'agenda partagé (rendez-vous
 // provisoire, titre « VTE - NOM ? … » : le point d'interrogation est la marque de l'étude pour un
 // rendez-vous non confirmé, il n'écrit rien sur la fiche — voir agendaOffice.estRendezVousSignature).
-// Les options sont retirées (MoveToDeletedItems) au placement, à l'annulation, ou d'elles-mêmes
-// après 5 jours ouvrés sans décision.
+// Les options sont retirées (MoveToDeletedItems) au placement ou à l'annulation, jamais d'elles-mêmes
+// (étude 07/10 : « on les laisse tant que ce n'est pas validé » — plus de retrait après 5 jours ouvrés ;
+// le statut « expire » ne reste que pour les sondages clos ainsi avant).
 //
 // Règles EWS reprises d'ews.js : un seul essai par appel, disjoncteur partagé avec la lecture de
 // l'agenda (mêmes identifiants) — un refus suspend la relecture automatique.
@@ -24,7 +25,6 @@ const CLE_SONDAGES = 'sondages-creneaux';
 const MAX_SONDAGES = 200;
 const MAX_CRENEAUX = 5;
 const MAX_PARTICIPANTS = 6;
-const JOURS_OUVRES_OPTION = 5;
 const STATUTS = ['ouvert', 'place', 'annule', 'expire'];
 const ROLES_PARTICIPANT = ['vendeur', 'acquereur', 'confrere-vendeur', 'confrere-acquereur', 'autre'];
 const ALPHABET_CODE = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -90,18 +90,6 @@ function choixDepuisTexteListe(texte, numeros) {
     if (m && valides.has(Number(m[1]))) choix.add(Number(m[1]));
   }
   return [...choix].sort();
-}
-
-// Pure : n jours ouvrés (lundi → vendredi) après une date.
-function joursOuvresApres(dateIso, n) {
-  const d = new Date(dateIso + 'T12:00:00Z');
-  let restants = n;
-  while (restants > 0) {
-    d.setUTCDate(d.getUTCDate() + 1);
-    const j = d.getUTCDay();
-    if (j !== 0 && j !== 6) restants--;
-  }
-  return d.toISOString().slice(0, 10);
 }
 
 function assainirCreneau(c, i) {
@@ -270,11 +258,6 @@ function syntheseSondage(s) {
   });
 }
 
-// Pure : sondages ouverts dont le délai des options est passé.
-function sondagesExpires(sondages, aujourdHui) {
-  return (sondages || []).filter((s) => s.statut === 'ouvert' && s.expireLe && s.expireLe < aujourdHui);
-}
-
 // FindItem sur la boîte de réception : objets contenant « CLAIRE- », depuis `depuisUtc`. Objet,
 // expéditeur et heure seulement — jamais le corps ni l'aperçu.
 const ENVELOPPE_DEBUT = '<?xml version="1.0" encoding="utf-8"?>'
@@ -400,15 +383,15 @@ async function clore(s, statut, reglages, parametresRepo, injections, choisi) {
   return { refus };
 }
 
-// Un tour : relit la boîte (s'il y a des sondages ouverts), puis clôt les sondages expirés et
-// retente les options restées en place. `manuel` : demandé par une personne (le disjoncteur ne
+// Un tour : relit la boîte (s'il y a des sondages ouverts), puis retente le retrait des options
+// d'un sondage clos restées en place. `manuel` : demandé par une personne (le disjoncteur ne
 // l'empêche pas, comme « Tester maintenant »).
 async function executerTourSondages(parametresRepo, injections = {}, manuel = false) {
   const agendaWatch = require('./agendaWatch');
   const { posterEws } = require('./exchange/ews');
   const reglages = parametresRepo.lireReglagesExchange ? parametresRepo.lireReglagesExchange() : {};
   const sondages = parametresRepo.lireSondagesCreneaux();
-  const resultat = { ok: false, lus: 0, nouvelles: [], expires: [], erreur: null };
+  const resultat = { ok: false, lus: 0, nouvelles: [], erreur: null };
   const ouverts = sondages.filter((s) => s.statut === 'ouvert');
   const aRetirer = sondages.filter((s) => (s.optionsARetirer || []).length);
   if (!ouverts.length && !aRetirer.length) { resultat.ok = true; return resultat; }
@@ -451,12 +434,6 @@ async function executerTourSondages(parametresRepo, injections = {}, manuel = fa
     if (resultat.nouvelles.length) noterVerification(parametresRepo, 'sondage-reponse', { detail: resultat.nouvelles.some((x) => x.n === 'page') ? 'réponse par la page' : resultat.nouvelles.some((x) => x.n === 'liste') ? 'réponse en une seule fois' : 'réponse par bouton' });
   }
 
-  const aujourdHui = dateDuJourParis();
-  for (const s of sondagesExpires(sondages, aujourdHui)) {
-    const { refus } = await clore(s, 'expire', reglages, parametresRepo, injections);
-    resultat.expires.push(s.id);
-    if (refus) { agendaWatch.signalerIdentifiantsRefuses(reglages); break; }
-  }
   for (const s of sondages.filter((x) => x.statut !== 'ouvert' && (x.optionsARetirer || []).length)) {
     const { restantes, refus } = await retirerOptions(s.optionsARetirer, reglages, injections);
     s.optionsARetirer = restantes;
@@ -488,10 +465,10 @@ function demarrerSurveillanceSondages(parametresRepo, injections, intervalleMs) 
 }
 
 module.exports = {
-  CLE_SONDAGES, MAX_CRENEAUX, MAX_PARTICIPANTS, JOURS_OUVRES_OPTION, ROLES_PARTICIPANT,
-  codeSondage, jetonReponse, jetonsDansObjet, joursOuvresApres, adresseValide, attribuerCles,
+  CLE_SONDAGES, MAX_CRENEAUX, MAX_PARTICIPANTS, ROLES_PARTICIPANT,
+  codeSondage, jetonReponse, jetonsDansObjet, adresseValide, attribuerCles,
   choixDepuisTexteListe, parseFindReponses, corpsLireTextesReponses, parseTextesReponses, reponsesListeALire,
-  assainirSondage, assainirSondages, appliquerReponses, syntheseSondage, sondagesExpires,
+  assainirSondage, assainirSondages, appliquerReponses, syntheseSondage,
   corpsFindReponsesSondages, executerTourSondages, demarrerSurveillanceSondages, clore, retirerOptions,
   dateDuJourParis, connexionPrete
 };

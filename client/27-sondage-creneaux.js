@@ -362,7 +362,7 @@
           </li>`).join('')}</ul>`}
         </div>
         <label class="ag-champ ag-case-signature"><input type="checkbox" id="sondage-options" ${m.options ? 'checked' : ''} ${exchangeAgendaPret() ? '' : 'disabled'} onchange="sondageModale.options = this.checked">
-          Bloquer ces créneaux en option dans l’agenda ${infoBulle('Rendez-vous provisoires « VTE - … ? » dans l’agenda partagé, retirés d’eux-mêmes au placement du rendez-vous, à l’annulation du sondage ou après 5 jours ouvrés sans décision.')}</label>
+          Bloquer ces créneaux en option dans l’agenda ${infoBulle('Rendez-vous provisoires « VTE - … ? » dans l’agenda partagé, retirés d’eux-mêmes au placement du rendez-vous ou à l’annulation du sondage ; gardés tant que rien n’est décidé.')}</label>
         <footer class="ag-modale-pied ag-modale-pied-form">
           <span class="jour-espace"></span>
           <wa-button appearance="outlined" class="secondary" onclick="fermerModaleSondage()">Annuler</wa-button>
@@ -454,7 +454,7 @@
 
   // Options seules (étude 07/10, « Demander à CLAIRE : placer plusieurs options de rendez-vous ») : les créneaux posés en option
   // dans l'agenda de l'office, sans destinataire ni email — un sondage `optionsSeules` (même suivi : « Placer » retire les autres,
-  // retrait sans décision après 5 jours ouvrés). Appelé après la confirmation.
+  // gardées tant que rien n'est décidé — étude 07/10, plus de retrait après 5 jours ouvrés). Appelé après la confirmation.
   async function poserOptionsRendezVous(d, creneaux) {
     try {
       const r = await fetchAvecAuth('/api/sondages', {
@@ -621,7 +621,7 @@
       return `<div class="sondage-panneau">
           <div class="sondage-tete">
             <span class="section-eyebrow">Options dans l’agenda</span>
-            <span class="hint">Sans email · retirées le ${escapeHtml(formatDateFr(s.expireLe))} sans décision</span>
+            <span class="hint">Sans email · gardées jusqu’au placement</span>
           </div>
           ${renderTableSondage(s, false)}
           <div class="sondage-actions">
@@ -636,7 +636,7 @@
       return `<div class="sondage-panneau">
           <div class="sondage-tete">
             <span class="section-eyebrow">Sondage de créneaux</span>
-            <span class="hint">${repondu}/${s.participants.length} réponse${s.participants.length > 1 ? 's' : ''} · options jusqu’au ${escapeHtml(formatDateFr(s.expireLe))}</span>
+            <span class="hint">${repondu}/${s.participants.length} réponse${s.participants.length > 1 ? 's' : ''}</span>
           </div>
           ${tous.length ? `<p class="sondage-accord">${icone('check')} ${tous.length > 1 ? 'Créneaux possibles' : 'Créneau possible'} pour tous : ${tous.map(x => escapeHtml(libelleCreneauSondage(x)) + (x.tousOui ? '' : ' (si nécessaire pour certains)')).join(' · ')}</p>` : ''}
           ${renderTableSondage(s, false)}
@@ -665,7 +665,7 @@
     if (s.optionsSeules) {
       return `<div class="sondage-panneau sondage-panneau-agenda">
           <div class="sondage-tete"><span class="section-eyebrow">Option ${c.n}/${s.creneaux.length}</span>
-            <span class="hint">Sans email · retirée le ${escapeHtml(formatDateFr(s.expireLe))} sans décision</span></div>
+            <span class="hint">Sans email · gardée jusqu’au placement</span></div>
           <wa-button variant="brand" class="primary ag-ouvrir-fiche" onclick="placerCreneauSondage('${escapeOnclickArg(s.id)}', ${c.n})" ${exchangeAgendaPret() ? '' : 'disabled'}>${icone('calendar')} Placer ce créneau</wa-button>
         </div>`;
     }

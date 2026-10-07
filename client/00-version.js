@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.185.2';
+  const VERSION_APP = '0.186.0';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.186.0', date: '2026-10-07 12:32', resume: "Questionnaire de satisfaction : sans email de l’acquéreur ou du vendeur, la tâche « Renseigner l’email … pour le questionnaire de satisfaction » s’affiche dans « À faire » (le dossier n’est toujours archivé qu’une fois les deux côtés servis). Options de rendez-vous et sondages de dates : les options restent dans l’agenda tant que rien n’est décidé — plus de retrait après 5 jours ouvrés ; « Placer » retire toujours les autres, « Annuler » les retire toutes. Demander à CLAIRE : Mistral ne lit plus que les phrases que les mots-clés ne départagent pas (clé gratuite, limite de Mistral atteinte) ; « Mistral lit toutes les demandes » se rallume dans Réglages › IA et relecture d’actes." },
     { version: '0.185.2', date: '2026-10-07 12:07', resume: "Agenda : plus d’erreur quand l’agenda est relu avant d’avoir été ouvert (par exemple après « Placer » depuis « Demander à CLAIRE ») — il part de la semaine du jour." },
     { version: '0.185.1', date: '2026-10-07 11:49', resume: "Demander à CLAIRE : Mistral ne répondait pas (« Je n’ai pas compris la demande… sans l’IA ») — sa réponse était coupée à 160 jetons quand il recopiait le gabarit demandé ; elle peut maintenant aller jusqu’à 400, le gabarit recopié est ignoré, et quand l’IA échoue la raison s’affiche à l’écran (clé refusée, délai, réponse coupée…)." },
     { version: '0.185.0', date: '2026-10-07 11:39', resume: "Questionnaire de satisfaction : nouvelle tâche « Envoyer le questionnaire de satisfaction au vendeur » dans « À faire » (dans le mois qui suit la signature, jamais au client d’un confrère), à côté de celle de l’acquéreur. Le dossier n’est plus archivé au premier envoi : seulement quand le vendeur ET l’acquéreur l’ont reçu (ou le seul que l’étude représente)." },

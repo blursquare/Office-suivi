@@ -17798,11 +17798,29 @@ n'allant qu'à la console. Cause la plus probable, reproduite en test : la répo
   Réglages › IA et relecture d'actes (l'IA locale est alors utilisée — l'indicateur en haut de la page le dit), clé refusée, Mistral
   injoignable depuis le serveur (pare-feu), délai de 20 s dépassé. Non vérifié avec la vraie API ici.
 
-**Rapport technique du 07/10 12 h (issue n° 16), passage programmé** (0.185.2, branche `claude/rapport-2026-10-07-12h`, en
-attente du oui de l'étude) — erreur navigateur `TypeError: Cannot read properties of null (reading 'slice')` dans
+**Rapport technique du 07/10 12 h (issue n° 16), passage programmé** (0.185.2, branche `claude/rapport-2026-10-07-12h`,
+installée sur `main` après le « oui » de l'étude) — erreur navigateur `TypeError: Cannot read properties of null (reading 'slice')` dans
 `grilleMoisAgenda` ← `periodeChargeeAgenda` ← `chargerAgendaSemaine`, écran « Demander à CLAIRE » : un geste d'agenda lancé hors
 de la page Agenda (« Placer » d'un créneau → `posterEvenementAgenda` puis `chargerAgendaSemaine`) relisait l'agenda alors que
 `agendaMois` n'avait jamais été posé (il l'est à la première ouverture de la page). `periodeChargeeAgenda` positionne désormais
 l'agenda sur le jour (`positionnerAgenda`) quand il ne l'a jamais été. Reproduit par un test (agenda-page) qui échoue sans le
 correctif. Autres points du rapport sans correctif de code : voir le commentaire de l'issue (Mistral « limite de débit atteinte »,
 lecture des « Éléments envoyés » d'un collaborateur, commentaires de relecture d'actes).
+
+**Réponses de l'étude aux questions du 07/10 midi** (0.186.0) :
+- Mistral : « c'est une clé gratuite » → « Mistral lit toutes les demandes » coupé par défaut (seulement les phrases ambiguës) ;
+  un réglage enregistré le matin (alors coché d'office) est lu éteint (`revision` absente) ; il se rallume dans Réglages › IA.
+- Questionnaire de satisfaction : « pour ceux qui sont déjà archivés, c'est pas grave, c'est juste pour les prochains » (rien
+  rouvert) ; « s'il n'y a pas de mail, demander à remplir le mail » → tâche « Renseigner l'email de l'acquéreur / du vendeur pour le
+  questionnaire de satisfaction » (geste : ouvrir la fiche), le côté reste attendu pour l'archivage.
+- Copier-coller d'une signature : « il faut bien mettre les points d'interrogation pour indiquer que ce n'est pas un rendez-vous
+  sûr » → inchangé (« VTE - X ? »).
+- Durée des options : « on va pas en laisser, on va annuler ça. Pareil pour les propositions, on va le laisser tant que c'est pas
+  validé » → plus de retrait des options après 5 jours ouvrés, ni pour les options seules ni pour les sondages de dates
+  (`sondagesExpires`, `joursOuvresApres`, `JOURS_OUVRES_OPTION` retirés ; `expireLe` vide pour les nouveaux, plus de date limite
+  dans l'email et la page de réponse) ; « Placer » retire les autres, « Annuler » les retire toutes. La fin de phrase « et qu'il en
+  reste pas plus qu'un » est lue comme « jusqu'à ce qu'il n'en reste qu'un, celui qui est placé » — rien n'est fait seul quand les
+  autres options sont effacées à la main dans Outlook (question posée à l'étude).
+- Relecture d'actes (données du DPE lues comme des travaux) : l'étude cherche le modèle envoyé.
+- **Matériel du serveur** : processeur graphique Intel UHD Graphics 630 (intégré) — trop faible pour faire tourner le modèle de
+  l'IA locale, qui tourne donc sur le processeur : d'où sa lenteur (« Demander à CLAIRE » en IA locale, résumé des emails).

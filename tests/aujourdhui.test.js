@@ -64,9 +64,10 @@ test('signature lointaine : rien à faire, elle part dans « À venir »', () =>
 
 test('après la signature : questionnaire, jamais au confrère', () => {
   const r = app.actionsDuJour([dossier({ rendezVousSignature: '2026-09-24', sansPret: true, echeancesValidees: { appelFonds: true, projetEnvoye: true } })], AUJ);
-  assert.strictEqual(types(r), 'questionnaire');
+  // Le vendeur sans email : la tâche demande de le renseigner (étude 07/10).
+  assert.strictEqual(types(r), 'questionnaire,questionnaireVendeur');
   const confrere = app.actionsDuJour([dossier({ rendezVousSignature: '2026-09-24', sansPret: true, notaireAcquereur: 'Maître Paul LAMBERT', echeancesValidees: { appelFonds: true, projetEnvoye: true } })], AUJ);
-  assert.strictEqual(types(confrere), '');
+  assert.strictEqual(types(confrere), 'questionnaireVendeur');
 });
 
 test('les autres points ouvrent la fiche ; un dossier archivé ne produit rien', () => {
@@ -400,4 +401,21 @@ test('questionnaire au vendeur aussi (étude 07/10), jamais au client d’un con
   assert.strictEqual(app.questionnairesRestants(confrere).join(','), 'acquereur');
   assert.strictEqual(app.questionnairesRestants(Object.assign({}, confrere, { questionnaireEnvoyeLe: '2026-09-25' })).length, 0);
   assert.strictEqual(app.questionnairesRestants(dossier(base)).join(','), 'acquereur,vendeur');
+});
+
+test('questionnaire sans email du côté : la tâche demande de renseigner l’email (étude 07/10), le côté reste attendu', () => {
+  const base = { rendezVousSignature: '2026-09-24', sansPret: true, echeancesValidees: { appelFonds: true, projetEnvoye: true }, emailAcquereur: '', emailVendeur: '' };
+  const r = app.actionsDuJour([dossier(base)], AUJ);
+  assert.strictEqual(types(r), 'questionnaire,questionnaireVendeur');
+  const a = r.actions.find(x => x.type === 'questionnaire');
+  const v = r.actions.find(x => x.type === 'questionnaireVendeur');
+  assert.strictEqual(a.titre, 'Renseigner l’email de l’acquéreur pour le questionnaire de satisfaction');
+  assert.strictEqual(v.titre, 'Renseigner l’email du vendeur pour le questionnaire de satisfaction');
+  assert.strictEqual(v.geste.type, 'fiche');
+  assert.match(v.contexte, /Sans email, le questionnaire ne peut pas partir ; le dossier sera archivé une fois l’acquéreur servi aussi/);
+  assert.strictEqual(app.questionnairesRestants(dossier(base)).join(','), 'acquereur,vendeur');
+  // L'email saisi : la tâche redevient « Envoyer ».
+  const ok = app.actionsDuJour([dossier(Object.assign({}, base, { emailVendeur: 'v@exemple.fr' }))], AUJ).actions.find(x => x.type === 'questionnaireVendeur');
+  assert.strictEqual(ok.titre, 'Envoyer le questionnaire de satisfaction au vendeur');
+  assert.strictEqual(ok.geste.type, 'questionnaire');
 });

@@ -231,28 +231,32 @@
         }
       }
 
-      // 3. Après la signature : le questionnaire de satisfaction (jamais au confrère).
-      if (jRdv !== null && jRdv < 0 && jRdv >= -JOURS_QUESTIONNAIRE && !d.questionnaireEnvoyeLe
-          && !notaireParticipantRepresenteAcquereur(d) && d.emailAcquereur) {
-        ajouter({
-          type: 'questionnaire', categorie: 'neutre', categorieLabel: 'Signature passée',
-          titre: 'Envoyer le questionnaire de satisfaction à l’acquéreur',
-          contexte: `Acte signé le ${formatDateFr(d.rendezVousSignature)}. ${texteArchivageQuestionnaire(d, 'acquereur').replace(/^l/, 'L')}.`,
-          jours: jRdv, delaiTexte: `signé ${quandJour(d.rendezVousSignature, aujourdhuiIso)}`, gravite: 'normal',
-          geste: { type: 'questionnaire' }, bouton: 'Préparer le questionnaire'
-        });
-      }
-      // Le même questionnaire au vendeur (étude 07/10 : « mettre dans les tâches aussi le questionnaire de satisfaction au
-      // vendeur ») — jamais quand un confrère le représente ; le dossier n'est archivé qu'une fois les deux envoyés.
-      if (jRdv !== null && jRdv < 0 && jRdv >= -JOURS_QUESTIONNAIRE && !d.questionnaireVendeurEnvoyeLe
-          && !confrereRepresenteVendeur(d) && d.emailVendeur) {
-        ajouter({
-          type: 'questionnaireVendeur', categorie: 'neutre', categorieLabel: 'Signature passée',
-          titre: 'Envoyer le questionnaire de satisfaction au vendeur',
-          contexte: `Acte signé le ${formatDateFr(d.rendezVousSignature)}. ${texteArchivageQuestionnaire(d, 'vendeur').replace(/^l/, 'L')}.`,
-          jours: jRdv, delaiTexte: `signé ${quandJour(d.rendezVousSignature, aujourdhuiIso)}`, gravite: 'normal',
-          geste: { type: 'questionnaire', partie: 'vendeur' }, bouton: 'Préparer le questionnaire'
-        });
+      // 3. Après la signature : le questionnaire de satisfaction (jamais au confrère), à l'acquéreur et au vendeur (étude 07/10 :
+      //    « mettre dans les tâches aussi le questionnaire de satisfaction au vendeur ») ; le dossier n'est archivé qu'une fois
+      //    les deux envoyés. Sans email du côté, la tâche demande de le renseigner (étude 07/10 : « s'il n'y a pas de mail,
+      //    demander à remplir le mail ») — le côté reste attendu pour l'archivage.
+      for (const q of [
+        { type: 'questionnaire', partie: 'acquereur', fait: d.questionnaireEnvoyeLe, exclu: notaireParticipantRepresenteAcquereur(d),
+          email: d.emailAcquereur, de: 'de l’acquéreur', a: 'à l’acquéreur' },
+        { type: 'questionnaireVendeur', partie: 'vendeur', fait: d.questionnaireVendeurEnvoyeLe, exclu: confrereRepresenteVendeur(d),
+          email: d.emailVendeur, de: 'du vendeur', a: 'au vendeur' }
+      ]) {
+        if (jRdv === null || jRdv >= 0 || jRdv < -JOURS_QUESTIONNAIRE || q.fait || q.exclu) continue;
+        const signe = `Acte signé le ${formatDateFr(d.rendezVousSignature)}.`;
+        const archivage = texteArchivageQuestionnaire(d, q.partie).replace(/^l/, 'L');
+        ajouter(Object.assign({
+          type: q.type, categorie: 'neutre', categorieLabel: 'Signature passée',
+          jours: jRdv, delaiTexte: `signé ${quandJour(d.rendezVousSignature, aujourdhuiIso)}`, gravite: 'normal'
+        }, q.email ? {
+          titre: `Envoyer le questionnaire de satisfaction ${q.a}`,
+          contexte: `${signe} ${archivage}.`,
+          geste: q.partie === 'vendeur' ? { type: 'questionnaire', partie: 'vendeur' } : { type: 'questionnaire' },
+          bouton: 'Préparer le questionnaire'
+        } : {
+          titre: `Renseigner l’email ${q.de} pour le questionnaire de satisfaction`,
+          contexte: `${signe} Sans email, le questionnaire ne peut pas partir ; ${archivage.replace(/^L/, 'l')}.`,
+          geste: { type: 'fiche' }, bouton: 'Ouvrir la fiche'
+        }));
       }
 
       // 4. Le reste des points qui demandent une décision (vente préalable, date butoir, pièces…) :

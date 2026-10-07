@@ -532,7 +532,7 @@
     }
     const texte = (c) => `${dateAvecJourFr(c.date)} à ${c.heure.replace(':', ' h ')}`;
     const n = creneaux.length;
-    demanderConfirmation(`Poser ${n > 1 ? `${n} options` : 'une option'} pour ${libelleDossierAffiche(d)} dans l’agenda de l’office : ${creneaux.map(texte).join(' ; ')} ? Aucun email n’est envoyé. « Placer » sur l’une en fera la signature et retirera les autres ; sans décision, elles sont retirées après 5 jours ouvrés.`,
+    demanderConfirmation(`Poser ${n > 1 ? `${n} options` : 'une option'} pour ${libelleDossierAffiche(d)} dans l’agenda de l’office : ${creneaux.map(texte).join(' ; ')} ? Aucun email n’est envoyé. « Placer » sur l’une en fera la signature et retirera les autres ; elles restent dans l’agenda tant que rien n’est décidé.`,
       () => poserOptionsRendezVous(d, creneaux), { bouton: n > 1 ? 'Poser les options' : 'Poser l’option', ton: 'valider' });
     const lignes = creneaux.map(c => `<li>${escapeHtml(texte(c))}${c.exceptionnel ? ` <span class="asst-note">(exceptionnel : ${escapeHtml(c.exceptionnel)})</span>` : ''}</li>`);
     return { html: `<p>${proposes ? 'Créneaux proposés par CLAIRE pour' : 'Options pour'} ${nom} :</p><ul class="asst-liste">${lignes.join('')}</ul><p class="asst-note">Confirmez dans la fenêtre avant l’écriture dans l’agenda.</p>` };
@@ -703,7 +703,7 @@
       const choix = document.getElementById('reglages-assistant-moteur');
       if (choix) choix.value = data.moteur || 'mistral';
       const toutes = document.getElementById('reglages-assistant-toutes');
-      if (toutes) toutes.checked = data.toutesDemandes !== false;
+      if (toutes) toutes.checked = data.toutesDemandes === true;
       const usage = document.getElementById('reglages-assistant-usage');
       if (usage) usage.textContent = texteUsageAssistant(data.usage) + (data.moteur === 'mistral' && !data.cleMistralEnregistree ? ' Aucune clé Mistral : l’IA locale est utilisée.' : '');
     } catch (e) { /* Réglages sans connexion : rien à afficher */ }

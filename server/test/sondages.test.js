@@ -8,8 +8,8 @@ const assert = require('node:assert/strict');
 const os = require('node:os');
 
 const {
-  codeSondage, jetonReponse, jetonsDansObjet, joursOuvresApres, appliquerReponses, syntheseSondage,
-  sondagesExpires, corpsFindReponsesSondages, assainirSondage,
+  codeSondage, jetonReponse, jetonsDansObjet, appliquerReponses, syntheseSondage,
+  corpsFindReponsesSondages, assainirSondage,
   choixDepuisTexteListe, reponsesListeALire, corpsLireTextesReponses, parseTextesReponses, parseFindReponses
 } = require('../src/sondagesCreneaux');
 const { corpsCreateRendezVous } = require('../src/exchange/ews');
@@ -17,6 +17,7 @@ const { evenementsAgendaOffice } = require('../src/agendaOffice');
 const { reinitialiserDisjoncteurAgenda } = require('../src/agendaWatch');
 const { creerApp } = require('../src/app');
 const { ouvrirDb } = require('../src/db');
+const { creerRepoParametres } = require('../src/parametresRepo');
 
 function sondageExemple() {
   return assainirSondage({
@@ -43,11 +44,6 @@ test('jetons lus dans un objet de réponse, préfixes RE:/TR: compris', () => {
   assert.equal(jetonsDansObjet('Votre dossier DURAND').length, 0);
   // Un code avec O/0/I/1 n'est pas un code de CLAIRE.
   assert.equal(jetonsDansObjet('[CLAIRE-ABC0I1-2]').length, 0);
-});
-
-test('5 jours ouvrés : le week-end ne compte pas', () => {
-  assert.equal(joursOuvresApres('2026-10-01', 5), '2026-10-08'); // jeudi → jeudi suivant
-  assert.equal(joursOuvresApres('2026-10-02', 5), '2026-10-09'); // vendredi → vendredi suivant
 });
 
 test('réponses : un email par créneau s’ajoute, « aucun » efface, l’expéditeur est rapproché du participant', () => {
@@ -147,13 +143,10 @@ test('un créneau accepté par tous est signalé', () => {
   assert.equal(syntheseSondage(s).find((c) => c.n === 2).tous, true);
 });
 
-test('un sondage clos ne reçoit plus de réponse ; expiration après la date', () => {
+test('un sondage clos ne reçoit plus de réponse', () => {
   const s = sondageExemple();
   s.statut = 'annule';
   assert.equal(appliquerReponses([s], [{ sujet: '[CLAIRE-ABC234-1]', deAdresse: 'paul.durand@exemple.fr', recuLe: '2026-10-01T09:00:00Z' }]).nouvelles.length, 0);
-  const o = sondageExemple();
-  assert.equal(sondagesExpires([o], '2026-10-08').length, 0);
-  assert.equal(sondagesExpires([o], '2026-10-09').length, 1);
 });
 
 test('FindItem des réponses : objet « CLAIRE- », boîte de réception, jamais le corps ni l’aperçu', () => {
@@ -327,6 +320,15 @@ test('options seules (étude 07/10) : sans destinataire, options posées sans em
   assert.equal(appelsEws.length, 2, 'deux options, aucun autre appel');
   assert.match(appelsEws[0], /VTE - ROUX \? — option CLAIRE, créneau 1\/2/);
   assert.match(appelsEws[0], /sans email aux parties/);
+  // Plus de retrait sans décision (étude 07/10) : aucune date limite, et un sondage d'avant à la date passée reste ouvert.
+  assert.equal(cree.sondage.expireLe, '');
+  assert.match(appelsEws[0], /gardée tant que rien n’est décidé/);
+  const repo = creerRepoParametres(db);
+  repo.ecrireSondagesCreneaux(repo.lireSondagesCreneaux().map((x) => x.id === cree.sondage.id ? { ...x, expireLe: '2026-01-05' } : x));
+  appelsEws.length = 0;
+  const relu = await (await appeler(`/api/sondages/${cree.sondage.id}/relire`, { method: 'POST', body: '{}' })).json();
+  assert.equal(relu.sondage.statut, 'ouvert');
+  assert.equal(appelsEws.some((b) => /DeleteItem/.test(b)), false, 'aucune option retirée d’elle-même');
   appelsEws.length = 0;
   const place = await (await appeler(`/api/sondages/${cree.sondage.id}/placer`, { method: 'POST', body: JSON.stringify({ n: 1 }) })).json();
   assert.equal(place.sondage.statut, 'place');

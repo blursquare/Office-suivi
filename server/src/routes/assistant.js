@@ -7,7 +7,7 @@
 const express = require('express');
 const { creerClientOllama } = require('../llm');
 const { comprendreDemande, creerCacheDisponibilite } = require('../assistant');
-const { CLE_REGLAGES, MOTEURS, assainirReglagesAssistant, creerClientMistralAssistant, lireUsageAssistant, MODELE_ASSISTANT_MISTRAL } = require('../assistantMistral');
+const { CLE_REGLAGES, MOTEURS, REVISION_REGLAGES_ASSISTANT, assainirReglagesAssistant, creerClientMistralAssistant, lireUsageAssistant, MODELE_ASSISTANT_MISTRAL } = require('../assistantMistral');
 const { noterVerification } = require('../verificationsTerrain');
 
 const chaine = (v, max) => (typeof v === 'string' ? v.slice(0, max) : '');
@@ -24,7 +24,12 @@ function creerRouteurAssistant(config, injections, parametresRepo) {
 
   // Moteur de l'assistant (étude 07/10 : essai de Mistral) : Mistral quand il est choisi ET qu'une clé existe (celle de la
   // Relecture d'actes), sinon l'IA locale. La clé ne sort jamais d'ici.
-  const lireReglages = () => assainirReglagesAssistant(parametresRepo.lireJsonBrut(CLE_REGLAGES, {}));
+  const lireReglages = () => {
+    const brut = parametresRepo.lireJsonBrut(CLE_REGLAGES, {}) || {};
+    const r = assainirReglagesAssistant(brut);
+    if (brut.revision !== REVISION_REGLAGES_ASSISTANT) r.toutesDemandes = false;
+    return r;
+  };
   function cleMistral() {
     const r = parametresRepo.lireReglagesClaude ? parametresRepo.lireReglagesClaude() : {};
     return { cle: (r && r.cleMistral) || process.env.MISTRAL_API_KEY || '', region: (r && r.regionMistral) || 'eu' };
@@ -48,7 +53,7 @@ function creerRouteurAssistant(config, injections, parametresRepo) {
 
   routeur.put('/assistant/reglages', (req, res) => {
     const propre = assainirReglagesAssistant(req.body);
-    parametresRepo.ecrireJsonBrut(CLE_REGLAGES, propre);
+    parametresRepo.ecrireJsonBrut(CLE_REGLAGES, { ...propre, revision: REVISION_REGLAGES_ASSISTANT });
     res.json({ ...propre, cleMistralEnregistree: !!cleMistral().cle });
   });
 

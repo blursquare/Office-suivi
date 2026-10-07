@@ -14,8 +14,8 @@
 const express = require('express');
 const crypto = require('node:crypto');
 const {
-  MAX_CRENEAUX, MAX_PARTICIPANTS, JOURS_OUVRES_OPTION, codeSondage, joursOuvresApres, assainirSondage, attribuerCles,
-  syntheseSondage, executerTourSondages, clore, dateDuJourParis, connexionPrete, adresseValide
+  MAX_CRENEAUX, MAX_PARTICIPANTS, codeSondage, assainirSondage, attribuerCles,
+  syntheseSondage, executerTourSondages, clore, connexionPrete, adresseValide
 } = require('../sondagesCreneaux');
 const { creerRendezVousExchange } = require('../exchange/ews');
 
@@ -62,7 +62,6 @@ function creerRouteurSondages(parametresRepo, injections = {}) {
     if (dossierId && sondages.some((s) => s.dossierId === dossierId && s.statut === 'ouvert')) {
       return res.status(409).json({ ok: false, message: 'Un sondage est déjà ouvert pour ce dossier : placez-le ou annulez-le d’abord.' });
     }
-    const aujourdHui = dateDuJourParis();
     const brouillon = assainirSondage({
       id: crypto.randomUUID(),
       code: codeSondage(injections.aleatoire),
@@ -72,7 +71,7 @@ function creerRouteurSondages(parametresRepo, injections = {}) {
       statut: 'ouvert',
       creeLe: new Date().toISOString(),
       creePar: b.creePar,
-      expireLe: joursOuvresApres(aujourdHui, JOURS_OUVRES_OPTION),
+      expireLe: '',
       adresseReponse: reglages.email,
       typeRdv: b.typeRdv,
       optionsSeules,
@@ -98,8 +97,8 @@ function creerRouteurSondages(parametresRepo, injections = {}) {
           rendezVous: {
             sujet, dateStr: c.date, heureStr: c.heure, dureeMinutes: c.dureeMinutes,
             corps: optionsSeules
-              ? `Option posée depuis CLAIRE (sans email aux parties). Retirée d’elle-même au placement du rendez-vous, ou sans décision le ${brouillon.expireLe.split('-').reverse().join('/')}.`
-              : `Option posée par le sondage de créneaux de CLAIRE (réponses attendues avant le ${brouillon.expireLe.split('-').reverse().join('/')}). Retirée d’elle-même au placement du rendez-vous ou sans décision.`,
+              ? 'Option posée depuis CLAIRE (sans email aux parties). Retirée d’elle-même au placement du rendez-vous ; gardée tant que rien n’est décidé.'
+              : 'Option posée par le sondage de créneaux de CLAIRE. Retirée d’elle-même au placement du rendez-vous ou à l’annulation du sondage ; gardée tant que rien n’est décidé.',
             mailbox: reglages.calendrierPartage, provisoire: true
           }
         }, injections);

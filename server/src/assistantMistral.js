@@ -25,14 +25,18 @@ const SIGLES = new Set(['VTE', 'SUCC', 'RIB', 'SAFER', 'DPU', 'DIA', 'PDF', 'TVA
   'OK', 'RDV', 'SCI', 'SARL', 'PLU', 'CU', 'DPE', 'RHF', 'AAE', 'ECV', 'APR', 'JV', 'BA', 'JS', 'PJ', 'CDC']);
 
 /**
- * Réglages de l'assistant : moteur 'mistral' (par défaut, choix de l'étude 07/10) ou 'locale' ; `toutesDemandes` (étude 07/10,
- * « active Mistral de base pour voir ») : Mistral lit TOUTES les phrases, pas seulement celles que les mots-clés ne départagent
- * pas — vrai par défaut pendant l'essai, sans effet avec l'IA locale (trop lente sur le processeur du serveur). @param {any} brut
+ * Réglages de l'assistant : moteur 'mistral' (par défaut, choix de l'étude 07/10) ou 'locale' ; `toutesDemandes` : Mistral lit
+ * TOUTES les phrases, pas seulement celles que les mots-clés ne départagent pas. Vrai par défaut le matin du 07/10 (« active
+ * Mistral de base pour voir »), FAUX depuis le soir (étude : clé gratuite, « limite de débit Mistral atteinte » — chaque phrase
+ * comptait) ; se rallume dans Réglages › IA. Sans effet avec l'IA locale (trop lente sur le processeur du serveur). @param {any} brut
  */
 function assainirReglagesAssistant(brut) {
   const b = brut && typeof brut === 'object' ? brut : {};
-  return { moteur: MOTEURS.includes(b.moteur) ? b.moteur : 'mistral', toutesDemandes: b.toutesDemandes !== false };
+  return { moteur: MOTEURS.includes(b.moteur) ? b.moteur : 'mistral', toutesDemandes: b.toutesDemandes === true };
 }
+
+// Révision des réglages enregistrés : un « toutes les demandes » gardé avant le 07/10 au soir (alors coché d'office) ne compte pas.
+const REVISION_REGLAGES_ASSISTANT = 2;
 
 /**
  * Masque dans une phrase tout ce qui peut désigner une personne ou un dossier. `table` (Map jeton → texte d'origine) est complétée
@@ -193,6 +197,6 @@ function creerClientMistralAssistant({ cle, region, fetchFn, parametresRepo }) {
 }
 
 module.exports = {
-  MODELE_ASSISTANT_MISTRAL, CLE_REGLAGES, MOTEURS, assainirReglagesAssistant, pseudonymiserDemande, retablirTexte,
+  REVISION_REGLAGES_ASSISTANT, MODELE_ASSISTANT_MISTRAL, CLE_REGLAGES, MOTEURS, assainirReglagesAssistant, pseudonymiserDemande, retablirTexte,
   coutAssistantUsd, lireUsageAssistant, noterUsageAssistant, creerClientMistralAssistant
 };
