@@ -349,3 +349,47 @@ test('projet d\'acte envoyé : détecté dans les envoyés, échéance cochée u
     assert.equal(remplaces.length, 1);
   } finally { db.close(); }
 });
+
+test('projet d\'acte de vente dans le TEXTE d\'un email envoyé avec pièce jointe : coché, texte jamais gardé ; annoncé ou cité : rien', async () => {
+  const P = require('../src/projetEnvoyeEmail');
+  assert.equal(P.corpsDitProjetActe('Bonjour,\nVeuillez trouver ci-joint le projet d’acte de vente.\nBien cordialement'), true);
+  assert.equal(P.corpsDitProjetActe('Ci-joint le projet de l\'acte de vente pour relecture.'), true);
+  assert.equal(P.corpsDitProjetActe('Je vous enverrai le projet d’acte de vente la semaine prochaine.'), false, 'annoncé, pas envoyé');
+  assert.equal(P.corpsDitProjetActe('Ci-joint le diagnostic.'), false);
+  const d = { id: 'd8', nom: 'NOEL / BRUN', emailAcquereur: 'brun@exemple.fr', historique: [] };
+  const envoye = { objet: 'Votre dossier', a: ['brun@exemple.fr'], date: '2026-10-07T09:00:00Z', pj: true };
+  assert.equal(P.corpsALirePourProjet(d, envoye), true);
+  assert.equal(P.corpsALirePourProjet(d, { ...envoye, pj: false }), false, 'sans pièce jointe, le texte n’est pas lu');
+  assert.equal(P.projetEnvoyeADetecter(d, { ...envoye, pj: false, corps: 'ci-joint le projet d’acte de vente' }), false);
+
+  const db = ouvrirDb(':memory:');
+  const repo = creerRepoParametres(db);
+  repo.ecrireReglagesExchange({ actif: true, url: 'https://ex/ews', email: 'bastien@office.fr', motDePasse: 'secret' });
+  const dossier = { id: 'd6', nom: 'NOEL / BRUN', emailAcquereur: 'brun@exemple.fr', historique: [] };
+  const remplaces = [];
+  const depot = { tousActifs: () => [dossier], remplacer: (id) => remplaces.push(id) };
+  const lus = [];
+  const poster = (o, cb) => {
+    const b = o.body;
+    if (/FindItem/.test(b) && /Id="sentitems"/.test(b)) return cb(null, { statusCode: 200, body: find([
+      msgFind('S7', 'Votre vente — VTE - NOEL / BRUN', '2026-10-07T09:00:00Z', 'Bastien', 'bastien@office.fr', true),
+      msgFind('S8', 'RE: question', '2026-10-07T10:00:00Z', 'Bastien', 'bastien@office.fr', true)]) });
+    if (/GetItem/.test(b)) {
+      lus.push(/item:Body/.test(b));
+      if (/item:Body/.test(b)) return cb(null, { statusCode: 200, body: getItems([
+        { id: 'S7', a: ['brun@exemple.fr'], corps: 'Bonjour, veuillez trouver ci-joint le projet d’acte de vente. CONFIDENTIEL 9876' },
+        { id: 'S8', a: ['brun@exemple.fr'], corps: 'Merci.\n\nLe 6 oct. 2026, Office a écrit :\n> le projet d’acte de vente suivra' }]) });
+      return cb(null, { statusCode: 200, body: getItems([{ id: 'S7', a: ['brun@exemple.fr'] }, { id: 'S8', a: ['brun@exemple.fr'] }]) });
+    }
+    if (/FindItem/.test(b)) return cb(null, { statusCode: 200, body: find([]) });
+    cb(null, { statusCode: 500, body: '' });
+  };
+  try {
+    const r = await E.executerTourEmailsDossiers(depot, repo, { poster, maintenant: '2026-10-07T12:00:00Z' }, true);
+    assert.equal(r.projetsCoches, 1);
+    assert.equal(dossier.projetEnvoye, '2026-10-07');
+    assert.match(dossier.historique.at(-1).texte, /texte de l’email/);
+    assert.deepEqual(lus, [false, true], 'texte lu en second temps seulement');
+    assert.doesNotMatch(JSON.stringify(E.lireEtat(repo)), /CONFIDENTIEL|9876/, 'texte jamais gardé');
+  } finally { db.close(); }
+});

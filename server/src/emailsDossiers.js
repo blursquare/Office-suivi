@@ -24,7 +24,7 @@
 const crypto = require('node:crypto');
 const { noterVerification } = require('./verificationsTerrain');
 const { accesCollaborateur, marquerRefus, leverRefus } = require('./comptesCollaborateurs');
-const { cocherProjetEnvoye } = require('./projetEnvoyeEmail');
+const { cocherProjetEnvoye, corpsALirePourProjet } = require('./projetEnvoyeEmail');
 const { lireXml, tous, premier, texte: texteXml, texteDe, attribut, identifiantElement, codeReponse: codeReponseXml, succesSansErreur } = require('./exchange/xml');
 const {
   contexteClassement, dossierDeEmail, parmiDossiersAdresse, normaliserObjet, normaliser, SUJETS_EMAIL, echapperXml, ENVELOPPE_DEBUT, ENVELOPPE_FIN
@@ -330,6 +330,9 @@ function connexionPrete(r) { return Boolean(r && r.actif && r.url && r.email && 
 // second appel pendant un tour reçoit le résultat de celui en cours.
 let tourCourant = null;
 let fileResumes = Promise.resolve();
+// Envois dont le texte est relu dans un tour pour y chercher « projet d'acte de vente » (objet muet, pièce jointe).
+const MAX_CORPS_PROJET_TOUR = 20;
+
 function executerTourEmailsDossiers(depot, parametresRepo, injections = {}, manuel = false) {
   if (tourCourant) return tourCourant;
   tourCourant = tourEmailsDossiers(depot, parametresRepo, injections, manuel).finally(() => { tourCourant = null; });
@@ -478,9 +481,11 @@ async function tourEmailsDossiers(depot, parametresRepo, injections = {}, manuel
     const lot = trouves.slice(0, 50);
     const det = lot.length ? await posterBoite(corpsGetItems(lot.map((e) => e.itemId), false)) : null;
     const parId = det && !det.echec ? parseGetItems(det.corps) : new Map();
+    /** @type {Array<{ itemId: string, envoye: any, d: any }>} */
+    const corpsALire = [];
     for (const e of lot) {
       const a = (parId.get(e.itemId) || {}).a || [];
-      const envoye = { objet: e.objet, a, date: e.date };
+      const envoye = { objet: e.objet, a, date: e.date, pj: e.pj };
       const prepare = etat.prepares.find((p) => correspondAuPrepare(p, envoye));
       const d = prepare ? dossiers.find((x) => x.id === prepare.dossierId) || dossierDeEmailEnvoye(envoye, ctx) : dossierDeEmailEnvoye(envoye, ctx);
       if (!d && !prepare) continue;
@@ -490,13 +495,29 @@ async function tourEmailsDossiers(depot, parametresRepo, injections = {}, manuel
       etat.emails.push(email);
       connus.add(email.id);
       resultat.envoyes++;
-      // Projet d'acte envoyé (étude 06/10) : l'échéance du dossier est cochée ; la mention de l'agenda suit côté poste.
-      if (d && typeof depot.remplacer === 'function' && cocherProjetEnvoye(d, envoye)) {
-        depot.remplacer(d.id, d);
-        resultat.projetsCoches = (resultat.projetsCoches || 0) + 1;
-        noterVerification(parametresRepo, 'email-projet-detecte');
+      // Projet d'acte envoyé (étude 06/10) : l'échéance du dossier est cochée ; la mention de l'agenda suit côté poste. Objet muet
+      // mais pièce jointe : le texte est relu après la boucle (étude 07/10).
+      if (d && typeof depot.remplacer === 'function') {
+        if (cocherProjetEnvoye(d, envoye)) {
+          depot.remplacer(d.id, d);
+          resultat.projetsCoches = (resultat.projetsCoches || 0) + 1;
+          noterVerification(parametresRepo, 'email-projet-detecte');
+        } else if (corpsALirePourProjet(d, envoye) && corpsALire.length < MAX_CORPS_PROJET_TOUR) corpsALire.push({ itemId: e.itemId, envoye, d });
       }
       if (prepare) { prepare.envoyeLe = email.date; prepare.boite = b.adresse; prepare.emailId = email.id; resultat.confirmes++; noterVerification(parametresRepo, 'email-prepare-envoye'); }
+    }
+    // Texte des envois candidats, lu le temps du test (partie citée retirée), jamais gardé ni journalisé.
+    if (corpsALire.length) {
+      const lu = await posterBoite(corpsGetItems(corpsALire.map((x) => x.itemId), true));
+      const textes = lu && !lu.echec ? parseGetItems(lu.corps) : new Map();
+      for (const x of corpsALire) {
+        const corps = texteSansCitation((textes.get(x.itemId) || {}).corps || '');
+        if (cocherProjetEnvoye(x.d, { ...x.envoye, corps })) {
+          depot.remplacer(x.d.id, x.d);
+          resultat.projetsCoches = (resultat.projetsCoches || 0) + 1;
+          noterVerification(parametresRepo, 'email-projet-detecte');
+        }
+      }
     }
     const dernier = lot.length < trouves.length ? lot[lot.length - 1].date : (trouves.length ? trouves[trouves.length - 1].date : null);
     if (!b.propre) noterVerification(parametresRepo, acces ? 'emails-envoyes-compte-collaborateur' : 'emails-envoyes-collaborateur');
