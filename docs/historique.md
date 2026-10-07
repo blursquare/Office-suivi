@@ -17606,3 +17606,19 @@ Cause de la lenteur : toute phrase que les mots-clés ne tranchaient pas partait
   `WIDGETS_PREFERENCES` complétée. Vérifié dans Chromium (bureau, téléphone) : saisie gardée après `render()`, Entrée → page
   ouverte, question posée et réponse affichée.
 - Pied de la page « Demander à CLAIRE » corrigé : « Tout reste sur le réseau du bureau » n'était plus vrai avec Mistral.
+
+**Étude (07/10) : « Fiche client : choisir la civilité à partir des données Authentic et remplir automatiquement, idem pour la situation matrimoniale »** (0.180.0)
+- Cause : la civilité n'était posée qu'à la lecture d'une fiche client, et pas au complément depuis Authentic ; la situation du
+  couple n'était jamais ÉCRITE (`d.situationVendeur`/`d.situationAcquereur` restaient vides, la liste montrait seulement
+  « Couple marié (Authentic) » comme choix vide) et sa déduction ne lisait que `p.situationMatrimoniale` des parties — or une fiche
+  client relevée sur un dossier existant range la situation dans `d.authentic.personnes`, jamais sur la partie.
+- `situationClientDeduite` (client/40) : situation de chaque personne prise sur la partie, sinon sur sa fiche client d'Authentic
+  (`d.authentic.personnes`, même côté, `memePersonneParNom`) ; marié / pacsé seulement si le conjoint nommé par Authentic est l'autre
+  personne du côté (absent : accepté) ; concubins quand Authentic dit « concubin », « union libre », « vie maritale ».
+- `appliquerSituationsAuthentic` (client/52) : la situation déduite de chaque côté posée par `poserChampAuthentic` (Authentic
+  d'abord : première fois elle remplace, ensuite un changement est proposé, « Situation des vendeurs/acquéreurs ») — appelée par
+  `appliquerClientAuthentic` (fiche client relevée) et `complementDossierDepuisAuthentic` (complément sans clic après chaque page, et
+  bouton « Compléter »), qui aligne aussi désormais l'identité (civilité comprise) des personnes déjà sur la fiche
+  (`alignerIdentitePartieAuthentic`) et leur recopie la situation matrimoniale lue.
+- Tests `tests/authentic-fait-foi.test.js` (4 nouveaux) : civilité + couple marié, conjoint qui n'est pas l'autre personne, pacs,
+  union libre, Authentic d'abord puis proposition, complément.

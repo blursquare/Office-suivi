@@ -515,13 +515,32 @@
     const role = roleDeCote(cote).toLowerCase();
     return (Array.isArray(d && d.parties) ? d.parties : []).filter(p => p && String(p.role || '').toLowerCase() === role);
   }
-  // Pure : la situation d'un couple que les données du dossier disent sans ambiguïté ('' sinon).
+  // Pure : la situation d'un couple que les données du dossier disent sans ambiguïté ('' sinon). Source : la situation
+  // matrimoniale de chaque personne — portée par la partie, sinon par sa fiche client relevée dans Authentic
+  // (`d.authentic.personnes`, étude 07/10 : « remplir automatiquement la situation matrimoniale »). Marié ou pacsé seulement
+  // si le conjoint nommé par Authentic est l'autre personne du côté (un acquéreur marié qui achète avec son frère n'est pas
+  // un couple marié) ; concubins quand Authentic le dit (« concubin », « union libre », « vie maritale »).
   function situationClientDeduite(d, cote) {
     const personnes = partiesCoteDossier(d, cote).filter(p => p.qualitePersonne !== 'morale');
     if (personnes.length !== 2) return '';
-    const situations = personnes.map(p => normaliserPourRecherche(String((p.situationMatrimoniale && p.situationMatrimoniale.situation) || '')));
-    if (situations.some(t => /pacs|pacte civil/.test(t))) return 'pacse';
-    if (situations.some(t => /mari/.test(t))) return 'marie';
+    const role = roleDeCote(cote);
+    const fiches = ((d && d.authentic && d.authentic.personnes) || []).filter(f => f && f.role === role && f.situationMatrimoniale);
+    const situationDe = (p) => p.situationMatrimoniale && p.situationMatrimoniale.situation ? p.situationMatrimoniale
+      : ((fiches.find(f => memePersonneParNom(f.nom, p.nom) || (p.nomUsage && memePersonneParNom(f.nom, p.nomUsage))) || {}).situationMatrimoniale || null);
+    const mots = (x) => normaliserPourRecherche(String(x || '')).replace(/[^a-z0-9]+/g, ' ').trim().split(' ').filter(m => m.length >= 2 && !/^(m|mr|mme|mlle|monsieur|madame|nee|ne)$/.test(m));
+    // Le conjoint nommé est-il l'autre personne ? (absent : on ne peut pas dire le contraire)
+    const conjointEstAutre = (sm, autre) => {
+      if (!sm.conjoint) return true;
+      const conj = mots(sm.conjoint);
+      const noms = [autre.nom, autre.nomUsage].filter(Boolean).map(mots).filter(l => l.length);
+      return noms.some(l => l.every(m => conj.includes(m)) || conj.every(m => l.includes(m)));
+    };
+    const lus = personnes.map((p, i) => ({ sm: situationDe(p), autre: personnes[1 - i] }))
+      .map(x => ({ ...x, texte: normaliserPourRecherche(String((x.sm && x.sm.situation) || '')) }));
+    const couple = (re) => lus.some(x => re.test(x.texte)) && lus.every(x => !re.test(x.texte) || conjointEstAutre(x.sm, x.autre));
+    if (couple(/pacs|pacte civil/)) return 'pacse';
+    if (couple(/mari/)) return 'marie';
+    if (lus.some(x => /concubin|union libre|vie maritale/.test(x.texte))) return 'concubin';
     return '';
   }
   // Pure : la situation retenue — celle saisie sur la fiche, sinon la déduite.

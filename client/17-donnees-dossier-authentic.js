@@ -506,6 +506,17 @@
       ajoutees.forEach(v => d.parties.push(Object.assign({}, v, { role })));
       textes.push(`${ajoutees.length} ${role === 'VENDEUR' ? 'vendeur' : 'acquéreur'}${ajoutees.length > 1 ? 's' : ''} (${ajoutees.map(v => v.nom).join(', ')})`);
     }
+    // Identité de chaque personne d'Authentic — civilité comprise (étude 07/10 : « choisir la civilité à partir des données
+    // d'Authentic ») — et sa situation matrimoniale sur la partie qui n'en a pas ; puis la situation du couple de chaque côté.
+    (donnees.personnes || []).forEach(pers => {
+      const complet = [pers.prenom, pers.nom].filter(Boolean).join(' ');
+      const venue = parties.find(p => (p.role === 'VENDEUR' || p.role === 'ACQUEREUR') && p.nom === complet);
+      if (!venue) return;
+      alignerIdentitePartieAuthentic(d, pers, venue.role, { maintenant, forcer: o.forcer }).forEach(t => textes.push(t));
+      const p = d.parties.find(x => x && String(x.role || '').toUpperCase() === venue.role && memePartieComplement(x, venue));
+      if (p && pers.situationMatrimoniale && !(p.situationMatrimoniale && p.situationMatrimoniale.situation)) p.situationMatrimoniale = Object.assign({}, pers.situationMatrimoniale);
+    });
+    appliquerSituationsAuthentic(d, { maintenant, forcer: o.forcer }).forEach(t => textes.push(t));
     // Emails et téléphones de chaque personne d'Authentic (Authentic d'abord : ils remplacent ceux de la fiche la première fois,
     // ensuite un changement est proposé).
     parties.filter(p => (p.role === 'VENDEUR' || p.role === 'ACQUEREUR') && nomme(p)).forEach(p => {

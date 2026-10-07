@@ -219,6 +219,27 @@
     else if (k === 'dateNaissance') p.dateNaissance = cible.dateNaissance;
   }
 
+  // ---- Situation du couple (étude 07/10 : « choisir la civilité à partir des données d'Authentic et remplir automatiquement,
+  // idem pour la situation matrimoniale ») ----
+
+  // Modifie d : la situation de chaque côté (`d.situationVendeur`, `d.situationAcquereur`) que les fiches client d'Authentic
+  // disent sans ambiguïté (`situationClientDeduite`) est posée — Authentic d'abord : la première fois elle remplace celle de la
+  // fiche, ensuite un changement d'Authentic est proposé. → les textes d'historique.
+  function appliquerSituationsAuthentic(d, o) {
+    const opts = o || {};
+    const textes = [];
+    if (!d || estSuccession(d)) return textes;
+    ['vendeur', 'acquereur'].forEach(cote => {
+      const valeur = situationClientDeduite(d, cote);
+      if (!valeur) return;
+      const champ = cote === 'vendeur' ? 'situationVendeur' : 'situationAcquereur';
+      const libelle = cote === 'vendeur' ? 'Situation des vendeurs' : 'Situation des acquéreurs';
+      const r = poserChampAuthentic(d, { cle: champ, champ, libelle, valeur, maintenant: opts.maintenant, forcer: opts.forcer, formater: v => libelleSituationClient(v) });
+      if (r.etat === 'pose') textes.push(`${libelle} : ${libelleSituationClient(valeur)} (fiche Authentic)${r.avant ? ` — avant : ${r.avant}` : ''}`);
+    });
+    return textes;
+  }
+
   // ---- Décision de l'étude ----
 
   function partieDeLaMajAuthentic(d, m) {

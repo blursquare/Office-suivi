@@ -214,3 +214,65 @@ test('pastille « Mise à jour » (étude 06/10 au soir) : sur la ligne du dossi
   app.ignorerMajAuthentic(d, app.majsEnAttenteAuthentic(d)[0].cle);
   assert.equal(app.tagMajAuthentic(d), '');
 });
+
+// Étude 07/10 : « Fiche client : choisir la civilité à partir des données d'Authentic et remplir automatiquement, idem pour la
+// situation matrimoniale. »
+function ficheMariee(o) {
+  const f = ficheClient(o);
+  f.tableaux = [{ titre: '', entete: ['Situation', 'Date', 'Conjoint'], lignes: [[o.situation || 'Marié(e)', '12/06/2010', o.conjoint || '']] }];
+  return f;
+}
+
+test('fiche client : civilité choisie et situation du couple remplie d’après Authentic', () => {
+  const d = dossier({ parties: [{ role: 'VENDEUR', nom: 'MARTEL' }, { role: 'VENDEUR', nom: 'Nadia DUVAL' }] });
+  app.appliquerReleveSurDossier(d, ficheMariee({ civilite: 'Monsieur', conjoint: 'DUVAL Nadia' }));
+  assert.equal(d.parties[0].civilite, 'M');
+  assert.equal(d.situationVendeur, 'marie', 'couple marié rempli seul');
+  assert.ok(d.historique.some(h => /Situation des vendeurs : Couple marié \(fiche Authentic\)/.test(h.texte)));
+  app.appliquerReleveSurDossier(d, ficheMariee({ civilite: 'Madame', nom: 'Duval', prenom: 'Nadia', email: 'nadia@exemple.fr', conjoint: 'MARTEL Alexandre' }));
+  assert.equal(d.parties.find(p => /DUVAL/.test(p.nom)).civilite, 'Mme');
+  assert.equal(d.situationVendeur, 'marie');
+});
+
+test('situation du couple : jamais quand le conjoint nommé n’est pas l’autre personne ; pacs et concubinage lus', () => {
+  const d = dossier({ parties: [{ role: 'VENDEUR', nom: 'MARTEL' }, { role: 'VENDEUR', nom: 'Paul MARTEL' }] });
+  app.appliquerReleveSurDossier(d, ficheMariee({ conjoint: 'LEROY Sophie' }));
+  assert.equal(d.situationVendeur, undefined, 'marié à une autre personne : les deux vendeurs ne sont pas un couple marié');
+  const p = dossier({ parties: [{ role: 'VENDEUR', nom: 'MARTEL' }, { role: 'VENDEUR', nom: 'Nadia DUVAL' }] });
+  app.appliquerReleveSurDossier(p, ficheMariee({ situation: 'Pacte civil de solidarité', conjoint: 'Nadia DUVAL' }));
+  assert.equal(p.situationVendeur, 'pacse');
+  const c = dossier({ parties: [{ role: 'VENDEUR', nom: 'MARTEL' }, { role: 'VENDEUR', nom: 'Nadia DUVAL' }] });
+  app.appliquerReleveSurDossier(c, ficheMariee({ situation: 'Union libre' }));
+  assert.equal(c.situationVendeur, 'concubin');
+});
+
+test('situation du couple : Authentic d’abord, puis la fiche ne bouge plus, un changement est proposé', () => {
+  const d = dossier({ situationVendeur: 'concubin', parties: [{ role: 'VENDEUR', nom: 'MARTEL' }, { role: 'VENDEUR', nom: 'Nadia DUVAL' }] });
+  app.appliquerReleveSurDossier(d, ficheMariee({ conjoint: 'DUVAL Nadia' }));
+  assert.equal(d.situationVendeur, 'marie', 'la première fois, Authentic remplace');
+  assert.ok(d.historique.some(h => /avant : Concubins/.test(h.texte)));
+  d.situationVendeur = 'concubin';  // correction à la main
+  app.appliquerReleveSurDossier(d, ficheMariee({ conjoint: 'DUVAL Nadia' }));
+  assert.equal(d.situationVendeur, 'concubin', 'Authentic n’a pas changé : la correction reste');
+  app.appliquerReleveSurDossier(d, ficheMariee({ situation: 'Pacte civil de solidarité', conjoint: 'DUVAL Nadia' }));
+  assert.equal(d.situationVendeur, 'concubin', 'changement d’Authentic : proposé, pas écrit');
+  assert.ok(app.majsEnAttenteAuthentic(d).some(m => m.libelle === 'Situation des vendeurs' && m.apres === 'Couple pacsé'));
+});
+
+test('compléter depuis Authentic : civilité et situation des parties déjà sur la fiche', () => {
+  const d = dossier({ parties: [{ role: 'ACQUEREUR', nom: 'FOURNIER' }, { role: 'ACQUEREUR', nom: 'Léo BRUNET' }] });
+  const sm = (conjoint) => ({ situation: 'Marié(e)', date: '', conjoint, contrat: '', regime: '', dateMariage: '' });
+  const donnees = {
+    intitule: 'VTE MARTEL / FOURNIER BRUNET',
+    personnes: [
+      { id: 'p1', nom: 'FOURNIER', prenom: 'Camille', civilite: 'Madame', emails: [], telephones: [], situationMatrimoniale: sm('BRUNET Léo') },
+      { id: 'p2', nom: 'BRUNET', prenom: 'Léo', civilite: 'Monsieur', emails: [], telephones: [], situationMatrimoniale: sm('FOURNIER Camille') }
+    ],
+    parties: [], documents: [], immeubles: []
+  };
+  const textes = app.complementDossierDepuisAuthentic(d, donnees, [d]);
+  const civ = d.parties.map(p => p.nom + ':' + p.civilite).join(',');
+  assert.equal(civ, 'Camille FOURNIER:Mme,Léo BRUNET:M');
+  assert.equal(d.situationAcquereur, 'marie');
+  assert.ok(textes.some(t => /Situation des acquéreurs : Couple marié/.test(t)));
+});

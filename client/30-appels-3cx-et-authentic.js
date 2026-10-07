@@ -1532,6 +1532,8 @@
       noter(`Situation matrimoniale ${qui} (${nomComplet}) dans Authentic : ${libelleSituationMatrimoniale(sm)}`);
     }
     d.authentic = Object.assign({}, avant, { personnes: personnes.concat({ nom: nomComplet, role, situationMatrimoniale: sm }), releveLe: maintenant });
+    // Situation du couple déduite des fiches client (étude 07/10 : « remplir automatiquement ») — Authentic d'abord, comme l'identité.
+    appliquerSituationsAuthentic(d, { maintenant }).forEach(noter);
     const nomFiche = [personne.prenom, personne.nom].filter(Boolean).join(' ');
     const reste = (d.authentic.clientsAPlacer || []).filter(c => c.nom !== nomFiche);
     if (reste.length) d.authentic.clientsAPlacer = reste; else delete d.authentic.clientsAPlacer;
