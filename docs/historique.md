@@ -17752,3 +17752,17 @@ widget »** (0.184.0 ; choix de l'étude : « Mistral lit toutes les phrases »)
   L'ancien titre maison (icône + texte, texte masqué en petit et sous 720 px) est retiré.
 - Tests serveur : phrase claire envoyée à l'IA en mode `toujours`, `motsCles` rendu seulement s'il diffère, nom seul sans IA, panne →
   mots-clés ; route : réglage vrai par défaut, se coupe et se garde. Non vérifié avec la vraie API Mistral ici.
+
+**Étude (07/10) : « Pour les modèles d'email déjà créés, bien faire attention aux liens hypertexte s'ils sont sur des mots, car là ça
+affiche le lien et là le mot surligné »** (0.184.1) — le modèle du questionnaire porte « Cliquez ici pour laisser votre avis :
+{lien avis Google} » : l'email envoyé (`ligneHtmlEmail`) posait le lien sur « Cliquez ici pour laisser votre avis », mais la fenêtre
+d'email (`htmlRedactionDepuisTexte`) et l'aperçu des Réglages › Modèles d'emails montraient l'adresse Google entière.
+- `htmlRedactionDepuisTexte` et `majApercuModele` passent maintenant par `ligneHtmlEmail` : même rendu partout (les mots soulignés à
+  la couleur de l'office, l'adresse jamais affichée) ; l'aperçu ouvre un lien dans un nouvel onglet.
+- **Lien sur des mots dans un modèle** : `[mots](https://adresse)` (ou `mailto:`), `RE_LIEN_SUR_MOTS` — rendu par `ligneHtmlEmail`
+  (fenêtre, aperçu, email), gardé après une modification dans la fenêtre (`htmlCorpsDepuisEditeur` garde les `<a>`), « mots :
+  adresse » en texte brut (`texteSansMarques` : mailto, partie texte du .eml). Pastille « i » du champ Texte du modèle.
+- **Coller dans le texte d'un modèle** un texte qui porte des liens (Outlook, Word, page web) : `collerDansModeleEmail` →
+  `texteModeleDepuisHtmlColle` (pure, sur `htmlColleRedaction`) écrit chaque lien sur des mots en `[mots](adresse)` ; un lien dont
+  les mots sont l'adresse reste l'adresse ; un collage sans lien reste ordinaire. Avant : le textarea ne gardait que les mots.
+- Tests : fenetre-email (fenêtre sans l'adresse, syntaxe, envoi après modification, texte brut, collage).

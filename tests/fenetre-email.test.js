@@ -145,3 +145,27 @@ test('fenêtre d’email : une croix en haut à droite ferme la fenêtre (étude
   assert.doesNotMatch(html, /chevron-left/);
   app.abandonnerRedaction();
 });
+
+// Étude 07/10 : « bien faire attention aux liens hypertexte s'ils sont sur des mots » — la fenêtre d'email montrait l'adresse
+// (« Cliquez ici … : https://… ») alors que l'email envoyé montrait les mots soulignés.
+test('liens sur des mots : la fenêtre d’email montre les mots, comme l’email envoyé', () => {
+  const avis = 'https://www.google.com/maps/place/Office/@47.6,1.3,15z/data=!4m7';
+  const ligne = `Laisser un avis. Cliquez ici pour laisser votre avis : ${avis}`;
+  const html = app.htmlRedactionDepuisTexte(ligne);
+  assert.match(html, /Laisser un avis\. <a href="https:\/\/www\.google\.com\/maps\/place\/Office\/@47\.6,1\.3,15z\/data=!4m7" [^>]*>Cliquez ici pour laisser votre avis<\/a>/);
+  assert.equal(app.texteDeHtmlRedaction(html).indexOf('https://'), -1, 'l’adresse ne s’affiche pas dans la fenêtre');
+  // Syntaxe des modèles : [mots](adresse).
+  const mots = app.ligneHtmlEmail('Merci de [remplir le questionnaire](https://exemple.fr/q?a=1&b=2) avant lundi, voir https://exemple.fr/x');
+  assert.equal(mots, 'Merci de <a href="https://exemple.fr/q?a=1&amp;b=2" style="color:#6D2332;">remplir le questionnaire</a> avant lundi, voir <a href="https://exemple.fr/x" style="color:#6D2332;">https://exemple.fr/x</a>');
+  // La fenêtre, puis l’envoi après une modification, gardent le lien sur les mots.
+  const corps = app.htmlCorpsDepuisEditeur(app.htmlRedactionDepuisTexte('Merci de [remplir le questionnaire](https://exemple.fr/q).'), null);
+  assert.match(corps, /Merci de <a href="https:\/\/exemple\.fr\/q"[^>]*>remplir le questionnaire<\/a>\./);
+  // Texte brut (mailto, partie texte) : « mots : adresse ».
+  assert.equal(app.texteSansMarques('Merci de [remplir le questionnaire](https://exemple.fr/q).'), 'Merci de remplir le questionnaire : https://exemple.fr/q.');
+});
+
+test('modèle d’email : un texte collé avec des liens sur des mots les garde en [mots](adresse)', () => {
+  const html = '<p>Bonjour,</p><p>Merci de <a href="https://exemple.fr/q">remplir ce questionnaire</a> et de voir <a href="https://exemple.fr/site">https://exemple.fr/site</a>.</p>';
+  assert.equal(app.texteModeleDepuisHtmlColle(html), 'Bonjour,\nMerci de [remplir ce questionnaire](https://exemple.fr/q) et de voir https://exemple.fr/site.');
+  assert.equal(app.texteModeleDepuisHtmlColle('<p>Sans lien</p>'), '', 'sans lien : collage ordinaire');
+});

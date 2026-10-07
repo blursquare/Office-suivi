@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.184.0';
+  const VERSION_APP = '0.184.1';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.184.1', date: '2026-10-07 11:36', resume: "Emails : un lien posé sur des mots s’affiche sur les mots partout — dans la fenêtre d’email (avant : l’adresse entière, « Cliquez ici pour laisser votre avis : https://… »), dans l’aperçu des modèles et dans l’email envoyé. Dans un modèle, un lien sur des mots s’écrit [mots](https://adresse) ; un texte copié avec ses liens (Outlook, Word) les garde ainsi." },
     { version: '0.184.0', date: '2026-10-07 11:31', resume: "Demander à CLAIRE : pour l’essai, Mistral lit toutes les demandes (plus seulement les phrases ambiguës) — dates, heures, montants et dossier restent lus par CLAIRE ; la réponse dit « Compris par Mistral » et ce que les mots-clés auraient compris s’ils différaient ; réglage « Mistral lit toutes les demandes » dans Réglages › IA et relecture d’actes. Widget « Demander à CLAIRE » : le titre revient en tête, comme sur les autres cartes." },
     { version: '0.183.0', date: '2026-10-07 11:26', resume: "Demander à CLAIRE : « Pose des options pour MARTIN mardi à 14 h et jeudi à 10 h » pose plusieurs rendez-vous provisoires dans l’agenda de l’office, sans email aux parties, après confirmation (sans date dite : les créneaux que CLAIRE propose, « 3 options »). « Placer » sur l’une en fait la signature et retire les autres ; sans décision, elles partent après 5 jours ouvrés." },
     { version: '0.182.0', date: '2026-10-07 11:16', resume: "Agenda : copier-coller d’un rendez-vous, comme dans Outlook — Ctrl+C (ou l’icône « Copier » du détail) sur le rendez-vous, un clic sur une case, puis Ctrl+V (ou « Coller » sur le créneau surligné) : la copie est créée aussitôt dans l’agenda de l’office (titre, durée, couleur, lieu, notes), avec « Annuler ». Une signature copiée se colle « ? » (à confirmer), pour ne pas changer la date de la fiche." },

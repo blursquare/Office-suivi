@@ -156,7 +156,7 @@ dans `index.html`** (le test `structure-client` refuse tout décalage).
    questionnaire, anniversaire — texte « à variables » **identique mot pour mot** aux `construireEmail…`, vérifié par
    `tests/modeles-emails.test.js`) se modifient (`modifies[cle]`) et **les boutons de la fiche suivent** (choix de l'étude :
    `emailDepuisModele` — variante confrère choisie seule, version modifiée sinon la fonction d'origine), « Revenir au texte
-   d'origine » ; modèles de l'étude (`perso`). Variables `{…}` (`VARIABLES_MODELE_EMAIL`), paragraphe retiré si une variable est
+   d'origine » ; modèles de l'étude (`perso`). Variables `{…}` (`VARIABLES_MODELE_EMAIL`), **lien sur des mots `[mots](https://…)`** (07/10, `RE_LIEN_SUR_MOTS`, rendu par `ligneHtmlEmail` dans la fenêtre, l'aperçu et l'email ; collage avec liens gardé), paragraphe retiré si une variable est
    vide, `{si client}` / `{si confrère}` / `{si rendez-vous}` / `{si prêt attendu}` en tête de paragraphe
    (`remplirModeleEmail`). Fenêtre d'email : bouton « Modèles » (texte et objet remplacés, « Annuler le modèle »). **Modèles
    liés à un geste** (étude 03/10 au soir, `modelesEmailContexte`, groupe « Liés à un geste ») : accusé de réception, copie de

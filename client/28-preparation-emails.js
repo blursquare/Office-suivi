@@ -103,14 +103,28 @@
     return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
 
+  // Lien posé sur des mots dans un modèle d'email (étude 07/10 : « bien faire attention aux liens hypertexte s'ils sont sur des
+  // mots ») : « [laisser un avis](https://…) » — les mots sont le lien, l'adresse ne s'affiche pas.
+  var RE_LIEN_SUR_MOTS = /\[([^\]\n]{1,200})\]\(((?:https?:\/\/|mailto:)[^\s()]+)\)/g;
+
   // Une ligne « Cliquez ici … : https://… » devient un lien sur « Cliquez ici … » (l'adresse, très
-  // longue, disparaît) ; toute autre adresse web reste visible et devient cliquable.
+  // longue, disparaît) ; « [mots](https://…) » devient un lien sur les mots ; toute autre adresse web reste visible et
+  // devient cliquable. Le même rendu sert à la fenêtre d'email, à l'aperçu des modèles et à l'email envoyé.
   function ligneHtmlEmail(ligne) {
+    const style = `color:${COULEUR_EMAIL_OFFICE};`;
     const cliquez = /^(.*?cliquez ici[^:]*?)\s*:\s*(https?:\/\/\S+)\s*$/i.exec(ligne);
-    if (cliquez) {
-      return `${echapperHtmlEmail(cliquez[1].replace(/cliquez ici.*$/i, ''))}<a href="${echapperHtmlEmail(cliquez[2])}" style="color:${COULEUR_EMAIL_OFFICE};">${echapperHtmlEmail(cliquez[1].replace(/^.*?(cliquez ici)/i, '$1'))}</a>`;
+    if (cliquez && !/\[[^\]\n]+\]\(/.test(cliquez[1])) {
+      return `${echapperHtmlEmail(cliquez[1].replace(/cliquez ici.*$/i, ''))}<a href="${echapperHtmlEmail(cliquez[2])}" style="${style}">${echapperHtmlEmail(cliquez[1].replace(/^.*?(cliquez ici)/i, '$1'))}</a>`;
     }
-    return echapperHtmlEmail(ligne).replace(/https?:\/\/[^\s<]+/g, u => `<a href="${u}" style="color:${COULEUR_EMAIL_OFFICE};">${u}</a>`);
+    const texte = (t) => echapperHtmlEmail(t).replace(/https?:\/\/[^\s<]+/g, u => `<a href="${u}" style="${style}">${u}</a>`);
+    let html = '';
+    let fin = 0;
+    String(ligne == null ? '' : ligne).replace(RE_LIEN_SUR_MOTS, (m, mots, href, i) => {
+      html += texte(ligne.slice(fin, i)) + `<a href="${echapperHtmlEmail(href)}" style="${style}">${echapperHtmlEmail(mots)}</a>`;
+      fin = i + m.length;
+      return m;
+    });
+    return html + texte(String(ligne == null ? '' : ligne).slice(fin));
   }
 
   // `images` : cid des images disponibles ({ logoOffice, logoNotaires, iconVisio, iconFacebook,
@@ -1094,8 +1108,10 @@
   // texte simple (mailto, version texte du .eml).
   var MARQUE_FORT_DEBUT = '\uE000';
   var MARQUE_FORT_FIN = '\uE001';
+  // Texte brut (mailto, partie texte du .eml) : sans les marques de gras, un lien sur des mots devient « mots : adresse ».
   function texteSansMarques(t) {
-    return String(t == null ? '' : t).split(MARQUE_FORT_DEBUT).join('').split(MARQUE_FORT_FIN).join('');
+    return String(t == null ? '' : t).split(MARQUE_FORT_DEBUT).join('').split(MARQUE_FORT_FIN).join('')
+      .replace(RE_LIEN_SUR_MOTS, (m, mots, href) => `${mots} : ${href.replace(/^mailto:/i, '')}`);
   }
   function marquesEnHtml(html) {
     return String(html).split(MARQUE_FORT_DEBUT).join('<b><u>').split(MARQUE_FORT_FIN).join('</u></b>');
@@ -1661,8 +1677,8 @@
             ? `<div class="modeles-titre">${escapeHtml(e.nom)} ${infoBulle('Les boutons de la fiche envoient ce texte. « Revenir au texte d’origine » rétablit celui de CLAIRE.')}</div>`
             : `<label class="modeles-champ"><span>Nom du modèle</span><input type="text" id="modele-nom" value="${escapeAttr(e.nom)}" oninput="champModeleEdite('nom', this.value)" placeholder="Ex. Demande de diagnostics"></label>`}
           ${e.sansObjet ? '' : `<label class="modeles-champ"><span>Objet</span><input type="text" id="modele-sujet" value="${escapeAttr(e.sujet)}" oninput="champModeleEdite('sujet', this.value)" onfocus="dernierChampModele = this.id"></label>`}
-          <label class="modeles-champ"><span>Texte ${infoBulle('Une variable entre accolades est remplacée par la donnée du dossier. Un paragraphe dont une variable est vide disparaît. Un paragraphe qui commence par {si …} n’apparaît que dans ce cas. La signature de l’office est ajoutée à l’envoi.')}</span>
-            <textarea id="modele-corps" rows="14" oninput="champModeleEdite('corps', this.value)" onfocus="dernierChampModele = this.id">${escapeHtml(e.corps)}</textarea></label>
+          <label class="modeles-champ"><span>Texte ${infoBulle('Une variable entre accolades est remplacée par la donnée du dossier. Un paragraphe dont une variable est vide disparaît. Un paragraphe qui commence par {si …} n’apparaît que dans ce cas. Un lien sur des mots s’écrit [mots](https://adresse) — un texte copié avec ses liens les garde ainsi. La signature de l’office est ajoutée à l’envoi.')}</span>
+            <textarea id="modele-corps" rows="14" oninput="champModeleEdite('corps', this.value)" onpaste="collerDansModeleEmail(event)" onfocus="dernierChampModele = this.id">${escapeHtml(e.corps)}</textarea></label>
           <div class="modeles-puces"><span class="modeles-puces-titre">Insérer</span>${(VARIABLES_CONTEXTE_MODELES[GROUPE_CONTEXTE_MODELE[e.cle]] || []).map(v => puce(v.nom, v.aide)).join('')}${VARIABLES_MODELE_EMAIL.map(v => puce(v.nom, v.aide)).join('')}${CONDITIONS_MODELE_EMAIL.map(v => puce(v.nom, v.aide)).join('')}</div>
           <div class="modeles-actions">
             <wa-button variant="brand" class="primary" id="modele-enregistrer" onclick="enregistrerModeleEdite()"${e.change ? '' : ' disabled'}>Enregistrer</wa-button>
@@ -1713,7 +1729,36 @@
     const contexte = modeleEdite.contexte ? contexteExempleModele(modeleEdite.cle, d) : null;
     const r = remplirModeleEmail({ sujet: modeleEdite.sujet, corps: modeleEdite.corps }, d, contexte);
     const corps = adapterCorpsEmail(r.corps, contexte ? contexte.confrere : notaireParticipantRepresenteAcquereur(d)).replace(/\{\{BOUTONS\}\}/g, '[Boutons]');
-    zone.innerHTML = `${modeleEdite.sansObjet ? '' : `<div class="modeles-apercu-sujet">${escapeHtml(r.sujet || '(sans objet)')}</div>`}${contexte ? '<p class="hint">Exemple : documents, fichiers ou créneaux inventés.</p>' : ''}<div class="modeles-apercu-corps">${marquesEnHtml(escapeHtml(corps))}</div>`;
+    // Les liens comme dans l'email (sur les mots, pas l'adresse) ; un clic les ouvre dans un nouvel onglet.
+    zone.innerHTML = `${modeleEdite.sansObjet ? '' : `<div class="modeles-apercu-sujet">${escapeHtml(r.sujet || '(sans objet)')}</div>`}${contexte ? '<p class="hint">Exemple : documents, fichiers ou créneaux inventés.</p>' : ''}<div class="modeles-apercu-corps">${corps.split('\n').map(l => marquesEnHtml(ligneHtmlEmail(l))).join('\n')}</div>`;
+    zone.querySelectorAll('a[href]').forEach(a => { a.target = '_blank'; a.rel = 'noopener'; });
+  }
+
+  // Pure : un texte copié avec ses liens (Outlook, Word, page web) → le texte du modèle, chaque lien posé sur des mots écrit
+  // « [mots](adresse) » ; un lien dont les mots sont l'adresse elle-même reste l'adresse. '' si le collage n'a aucun lien.
+  function texteModeleDepuisHtmlColle(html) {
+    const garde = htmlColleRedaction(html);
+    if (!/<a\s/i.test(garde)) return '';
+    return texteDeHtmlRedaction(garde.replace(/<br>/g, '\n').replace(/<a href="([^"]*)">([\s\S]*?)<\/a>/g, (m, href, mots) => {
+      const adresse = href.replace(/&quot;/g, '"');
+      const texte = texteDeHtmlRedaction(mots).trim();
+      if (!texte || texte === adresse || 'mailto:' + texte === adresse) return adresse.replace(/^mailto:/i, '');
+      return `[${texte.replace(/[[\]]/g, '')}](${adresse.replace(/[()\s]/g, encodeURIComponent)})`;
+    }));
+  }
+
+  // Collage dans le texte d'un modèle : un texte qui porte des liens les garde, en « [mots](adresse) ».
+  function collerDansModeleEmail(e) {
+    const dt = e && e.clipboardData;
+    const html = dt ? dt.getData('text/html') : '';
+    const texte = html ? texteModeleDepuisHtmlColle(html) : '';
+    if (!texte) return;
+    e.preventDefault();
+    const champ = e.target;
+    const debut = champ.selectionStart, fin = champ.selectionEnd;
+    champ.value = champ.value.slice(0, debut) + texte + champ.value.slice(fin);
+    champ.selectionStart = champ.selectionEnd = debut + texte.length;
+    champModeleEdite('corps', champ.value);
   }
 
   async function enregistrerModeleEdite() {

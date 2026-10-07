@@ -76,7 +76,9 @@
   // mise en forme des textes de l'étude rendues en gras souligné, « {{BOUTONS}} » nommé).
   function htmlRedactionDepuisTexte(corps) {
     return String(corps == null ? '' : corps).replace(/\r/g, '').replace('{{BOUTONS}}', LIBELLE_BOUTONS_REDACTION).split('\n')
-      .map(l => l === '' ? '<div><br></div>' : `<div>${marquesEnHtml(escapeHtml(l))}</div>`).join('');
+      // Les liens comme dans l'email envoyé (étude 07/10) : « Cliquez ici … : adresse » et « [mots](adresse) » montrent les mots,
+      // jamais l'adresse.
+      .map(l => l === '' ? '<div><br></div>' : `<div>${marquesEnHtml(ligneHtmlEmail(l))}</div>`).join('');
   }
 
   // Pure : le HTML gardé de la zone éditable, avant de le remettre dans la zone (un nouveau rendu de la fenêtre) : seules
