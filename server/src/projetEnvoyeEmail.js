@@ -82,9 +82,28 @@ function cocherProjetEnvoye(d, envoye) {
   d.echeancesValidees.projetEnvoye = true;
   d.detectionsEmails = Object.assign({}, d.detectionsEmails, { projetEnvoye: jour });
   d.historique = Array.isArray(d.historique) ? d.historique : [];
-  const ou = objetDitProjetActe(envoye.objet) ? 'objet' : 'texte';
-  d.historique.push({ date: new Date().toISOString(), texte: `Envoi projet : projet d’acte retrouvé dans les emails envoyés (${ou} de l’email du ${jour.split('-').reverse().join('/')}) — échéance cochée` });
+  d.historique.push({ date: new Date().toISOString(), texte: texteHistoriqueProjetEnvoye(envoye, adressesDuDossier(d)) });
   return true;
 }
 
-module.exports = { objetDitProjetActe, corpsDitProjetActe, corpsALirePourProjet, projetEnvoyeADetecter, cocherProjetEnvoye };
+/**
+ * Ce que l'historique du dossier dit d'une détection (étude 07/10 : « mettre dans l'historique comment est détecté l'envoi du
+ * projet ») : quel email (jour et heure, boîte, destinataires du dossier, objet) et ce qui l'a fait reconnaître — l'objet, ou la
+ * pièce jointe et la mention « projet d'acte de vente » du texte (le texte lui-même n'est jamais écrit). Pure.
+ * @param {{ objet: string, a?: string[], date: string, pj?: boolean, collaborateur?: string, boite?: string }} envoye
+ * @param {string[]} [adressesDossier]
+ */
+function texteHistoriqueProjetEnvoye(envoye, adressesDossier) {
+  const t = new Date(envoye.date);
+  const quand = Number.isNaN(t.getTime()) ? '' : ` le ${t.toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris' })} à ${t.toLocaleTimeString('fr-FR', { timeZone: 'Europe/Paris', hour: '2-digit', minute: '2-digit' }).replace(':', ' h ')}`;
+  const de = envoye.collaborateur || envoye.boite || '';
+  const connues = adressesDossier ? new Set(adressesDossier.map((x) => String(x).toLowerCase())) : null;
+  const a = (envoye.a || []).filter((x) => !connues || connues.has(String(x).toLowerCase())).slice(0, 3);
+  const objet = String(envoye.objet || '').replace(/\s+/g, ' ').trim().slice(0, 120);
+  const motif = objetDitProjetActe(envoye.objet)
+    ? 'son objet parle d’un projet d’acte'
+    : 'il porte une pièce jointe et son texte dit « projet d’acte de vente »';
+  return `Envoi projet coché seul : email envoyé${quand}${de ? ` par ${de}` : ''}${a.length ? ` à ${a.join(', ')}` : ''}${objet ? `, objet « ${objet} »` : ''} — ${motif}. À décocher si ce n’était pas le projet.`;
+}
+
+module.exports = { objetDitProjetActe, corpsDitProjetActe, corpsALirePourProjet, projetEnvoyeADetecter, cocherProjetEnvoye, texteHistoriqueProjetEnvoye };

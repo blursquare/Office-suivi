@@ -540,3 +540,12 @@ test('texteDateAjoutee : heures données (rendez-vous déplacé depuis la page A
   assert.equal(texteDateAjoutee('VTE - X', 'Bastien ANGLUMENT', 'Rendez-vous de signature', '2099-11-12', ''),
     '📅 CLAIRE — Bastien ANGLUMENT a ajouté une date au dossier VTE - X : Rendez-vous de signature le 12 novembre 2099.', 'sans heure : texte inchangé');
 });
+
+// Étude 07/10 : « mettre dans l'historique comment est détecté l'envoi du projet ».
+test('historique : l’envoi relevé dans l’agenda dit la mention trouvée (lieu, sinon titre) et le rendez-vous', () => {
+  const { texteHistoriqueEnvoiAgenda } = require('../src/agendaWatch');
+  assert.equal(texteHistoriqueEnvoiAgenda('projetEnvoye', { reference: 'VTE - MARTEL', resume: 'VTE - MARTEL', lieu: 'JV - Appel de fonds et projet envoyé', dateIso: '2026-10-20' }),
+    'Envoi projet relevé dans l’agenda de l’office : lieu « JV - Appel de fonds et projet envoyé » du rendez-vous « VTE - MARTEL » du 20/10/2026');
+  assert.match(texteHistoriqueEnvoiAgenda('projetEnvoye', { reference: 'VTE - MARTEL', resume: 'VTE - MARTEL projet envoyé', lieu: 'Office', dateIso: '2026-10-20' }),
+    /titre « VTE - MARTEL projet envoyé »/);
+});

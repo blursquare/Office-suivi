@@ -485,7 +485,7 @@ async function tourEmailsDossiers(depot, parametresRepo, injections = {}, manuel
     const corpsALire = [];
     for (const e of lot) {
       const a = (parId.get(e.itemId) || {}).a || [];
-      const envoye = { objet: e.objet, a, date: e.date, pj: e.pj };
+      const envoye = { objet: e.objet, a, date: e.date, pj: e.pj, boite: b.adresse, collaborateur: b.collaborateur };
       const prepare = etat.prepares.find((p) => correspondAuPrepare(p, envoye));
       const d = prepare ? dossiers.find((x) => x.id === prepare.dossierId) || dossierDeEmailEnvoye(envoye, ctx) : dossierDeEmailEnvoye(envoye, ctx);
       if (!d && !prepare) continue;

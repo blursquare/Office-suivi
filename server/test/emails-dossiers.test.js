@@ -388,8 +388,17 @@ test('projet d\'acte de vente dans le TEXTE d\'un email envoyé avec pièce join
     const r = await E.executerTourEmailsDossiers(depot, repo, { poster, maintenant: '2026-10-07T12:00:00Z' }, true);
     assert.equal(r.projetsCoches, 1);
     assert.equal(dossier.projetEnvoye, '2026-10-07');
-    assert.match(dossier.historique.at(-1).texte, /texte de l’email/);
+    assert.match(dossier.historique.at(-1).texte, /il porte une pièce jointe et son texte dit « projet d’acte de vente »/);
     assert.deepEqual(lus, [false, true], 'texte lu en second temps seulement');
     assert.doesNotMatch(JSON.stringify(E.lireEtat(repo)), /CONFIDENTIEL|9876/, 'texte jamais gardé');
   } finally { db.close(); }
+});
+
+// Étude 07/10 : « mettre dans l'historique comment est détecté l'envoi du projet ».
+test('historique : l’envoi du projet détecté dit quel email et pourquoi', () => {
+  const { texteHistoriqueProjetEnvoye } = require('../src/projetEnvoyeEmail');
+  const t = texteHistoriqueProjetEnvoye({ objet: 'Projet d’acte de vente FOURNIER', a: ['client@exemple.fr', 'interne@office.fr'], date: '2026-10-07T08:42:00Z', collaborateur: 'Julie VASSELIN' }, ['client@exemple.fr']);
+  assert.equal(t, 'Envoi projet coché seul : email envoyé le 07/10/2026 à 10 h 42 par Julie VASSELIN à client@exemple.fr, objet « Projet d’acte de vente FOURNIER » — son objet parle d’un projet d’acte. À décocher si ce n’était pas le projet.');
+  const c = texteHistoriqueProjetEnvoye({ objet: 'Votre dossier', a: ['client@exemple.fr'], date: '2026-10-07T08:42:00Z', pj: true, boite: 'jv@office.fr' }, ['client@exemple.fr']);
+  assert.match(c, /par jv@office\.fr à client@exemple\.fr, objet « Votre dossier » — il porte une pièce jointe et son texte dit « projet d’acte de vente »/);
 });

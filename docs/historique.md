@@ -17667,3 +17667,15 @@ et « Demander à CLAIRE » sur une rangée n'en couvre qu'UNE (102 px au lieu d
 rangées). `renderWidgetAssistant` : forme compacte `w-asst-compact` — icône + « Demander à CLAIRE » + champ + bouton sur une ligne
 (`.w-asst-ligne`), exemples sur une seule ligne dessous (`.w-asst-pied`, hauteur bornée), « Reprendre la conversation » en tête de
 cette ligne ; titre réduit à l'icône en largeur étroite et sur téléphone. Vérifié dans Chromium (grand et petit, bureau et téléphone).
+
+**Étude (07/10) : « Mettre dans l'historique comment est détecté l'envoi du projet »** (0.181.4) — l'entrée d'historique du dossier dit
+désormais la preuve :
+- **Emails envoyés** (`texteHistoriqueProjetEnvoye`, server/src/projetEnvoyeEmail.js) : « Envoi projet coché seul : email envoyé le
+  07/10/2026 à 10 h 42 par Julie VASSELIN à client@…, objet « … » — son objet parle d'un projet d'acte » (ou « — il porte une pièce
+  jointe et son texte dit « projet d'acte de vente » »). « À décocher si ce n'était pas le projet. » Destinataires : seulement les
+  adresses du dossier (3 au plus) ; expéditeur = collaborateur de la boîte lue (`envoye.collaborateur`/`boite`, passés par
+  emailsDossiers.js) ; le texte de l'email n'est jamais écrit, seule la mention reconnue.
+- **Agenda de l'office** (`texteHistoriqueEnvoiAgenda`, server/src/agendaWatch.js, appel de fonds et projet) : « Envoi projet relevé
+  dans l'agenda de l'office : lieu « JV - Appel de fonds et projet envoyé » du rendez-vous « VTE - X » du 20/10/2026 » — le titre
+  quand la mention n'est pas dans le lieu.
+- Coche à la main inchangée (« Projet d'acte envoyé marqué réalisé », avec l'auteur). Tests : emails-dossiers, agenda-watch.

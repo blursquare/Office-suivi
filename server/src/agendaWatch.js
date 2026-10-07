@@ -21,7 +21,7 @@ const { noterVerification } = require('./verificationsTerrain');
 const crypto = require('node:crypto');
 const {
   actionsDetecteesDepuisEvenements, absencesDepuisEvenements, categoriesDistinctes, evenementsDepuisEws, formatDateFr,
-  agendaDuJourDepuisEvenements, lundiSemainePrecedente, evenementsAgendaOffice
+  agendaDuJourDepuisEvenements, lundiSemainePrecedente, evenementsAgendaOffice, detecteProjetEnvoye, detecteAppelDeFonds
 } = require('./agendaOffice');
 const { lireCalendrierExchange } = require('./exchange/ews');
 const { poserEcheancesManquantes } = require('./echeancesAgenda');
@@ -37,6 +37,16 @@ const ACTIONS_CONNUES = Object.keys(CHAMP_PAR_ACTION);
 // donnerait la date UTC, fausse entre minuit et 2 h.
 function dateDuJourParis() {
   return new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Paris' });
+}
+
+// Ce que l'historique du dossier dit d'un envoi relevé dans l'agenda (étude 07/10 : « mettre dans l'historique comment est
+// détecté l'envoi du projet ») : la mention trouvée — dans le Lieu du rendez-vous, sinon dans son titre — et le rendez-vous. Pure.
+function texteHistoriqueEnvoiAgenda(action, det) {
+  const lieu = String(det.lieu || '').trim();
+  const detecte = action === 'projetEnvoye' ? detecteProjetEnvoye : detecteAppelDeFonds;
+  const ou = lieu && detecte(lieu) ? `lieu « ${lieu} »` : `titre « ${String(det.resume || det.reference || '').trim()} »`;
+  const quand = /^\d{4}-\d{2}-\d{2}$/.test(String(det.dateIso || '')) ? ` du ${det.dateIso.split('-').reverse().join('/')}` : '';
+  return `${LIBELLE_PAR_ACTION[action]} relevé dans l’agenda de l’office : ${ou} du rendez-vous « ${det.reference} »${quand}`;
 }
 
 // Applique les détections aux dossiers. Deux règles données par l'étude (25/09) :
@@ -79,7 +89,7 @@ function appliquerDetectionsAgenda(depot, detections, aujourdHui, categoriesRdv)
       d.historique = d.historique || [];
       d.historique.push({
         date: new Date().toISOString(),
-        texte: `${LIBELLE_PAR_ACTION[action]} relevé dans l’agenda de l’office (« ${det.reference} »)`
+        texte: texteHistoriqueEnvoiAgenda(action, det)
       });
       depot.remplacer(d.id, d);
       resultat.misAJour.push({ dossierId: d.id, dossierNom: d.nom, action, dateIso: jour });
@@ -425,7 +435,7 @@ function demarrerSurveillanceAgenda(depot, parametresRepo, injections, intervall
 }
 
 module.exports = {
-  appliquerDetectionsAgenda, appliquerRendezVousAgenda, rendezVousMarqueAnnule, marquerSignatureAReplacer, dateDuJourParis, executerTourSurveillanceAgenda,
+  appliquerDetectionsAgenda, texteHistoriqueEnvoiAgenda, appliquerRendezVousAgenda, rendezVousMarqueAnnule, marquerSignatureAReplacer, dateDuJourParis, executerTourSurveillanceAgenda,
   executerEtEnregistrerTourAgenda, notifierRendezVousRelevesAgenda, demarrerSurveillanceAgenda, INTERVALLE_SURVEILLANCE_AGENDA_MS,
   connexionAgendaConfiguree, lectureAgendaSuspendue, reinitialiserDisjoncteurAgenda, signalerIdentifiantsRefuses
 };
