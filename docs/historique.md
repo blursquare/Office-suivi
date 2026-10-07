@@ -18215,3 +18215,26 @@ n'est plus lu ni affiché.
 (étape 12). » La tâche d'« À faire » venait déjà à J-3 (`JOURS_RAPPEL_RIB`), mais l'onglet Fonds de la fiche mettait la ligne
 « RIB » en avant dès le rendez-vous placé (`echangesSelonStade` : `stade === 'signature'`). Elle n'y est plus utile qu'à J-3 du
 rendez-vous ou une fois demandée (`ribDejaDemande`) ; avant, repliée. Tests : relances-email (stades, onglet Fonds).
+
+### 07/10/2026 21 h 54 — 0.191.4 : chaque geste au même moment sur tous les écrans
+
+Étude : « Reprends tout le code de CLAIRE depuis sa création et repère ce type d'incohérence » (après le RIB proposé à deux
+moments différents). Relevé, geste par geste, des moments où « À faire » (`actionsDuJour`), les onglets Échanges/Fonds
+(`echangesSelonStade`), le planning (`echeancesPlanning`), les rappels Teams (`SEUILS_RAPPELS_PAR_TYPE`, `alertesFondsDues`) et
+l'agenda (`gestesRelationClient`) proposent chaque geste.
+- Corrigé :
+  - appel de fonds : Échanges/Fonds le mettaient en avant dès les conditions levées, avant même que le rendez-vous soit fixé,
+    alors que planning, « À faire » et Teams le placent à J-10 du rendez-vous → J-10 (ou déjà parti) ;
+  - projet d'acte : en avant dès le rendez-vous placé → J-7 ou dès l'appel de fonds parti (« À faire » : J-7 après l'appel) ;
+  - fonds reçus : dès le rendez-vous placé → une fois l'appel de fonds parti ;
+  - Teams « fonds pas encore reçus » à J-2 (28/09) alors que relance et confirmation sont à J-3 (03/10, 05/10) → J-3 (étude 05/10 :
+    « pour Teams il faut suivre les délais des échanges »), le vendredi quand J-3 tombe un week-end (rendez-vous mardi ou mercredi) ;
+  - questionnaire : `gestesRelationClient` portait une fenêtre de 14 jours lue nulle part, contraire aux 30 jours d'« À faire » →
+    retirée (doc CLAUDE.md « J+14 » corrigée en J+30) ;
+  - textes qui citaient un onglet disparu : message Teams « onglet Échanges » → Fonds, téléphone inconnu « onglet Échanges » → fiche,
+    « Même pièce que dans l'onglet Pièces » → « dans la checklist ».
+- Vérifié cohérent : prêt (J-15 puis tous les 10 jours, Teams J-15/J-7), vente préalable, signature (Teams J-25/J-15), RIB (J-3,
+  0.191.3), relance des fonds (J-3), rédaction (dès les pièces réunies, échéance J-15), SAFER/DIA (0.191.0–0.191.1).
+- Soumis à l'étude : « Demander son décompte au confrère » à J-7 (règle du 06/10) alors que l'appel de fonds, qu'il sert à
+  établir, est dû à J-10 et que la demande disparaît dès l'appel de fonds parti ; questionnaire non envoyé à J+30 : la tâche
+  disparaît et le dossier n'est jamais archivé seul.

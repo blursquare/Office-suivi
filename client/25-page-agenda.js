@@ -395,7 +395,9 @@
   // dans l'onglet Échanges de la fiche (echangesSelonStade), plus dans la barre de l'agenda (01/10).
   // « Confirmer le rendez-vous » retiré (étude 05/10 : doublon de « Demander le RIB et la pièce d'identité ») ; son modèle
   // d'email reste dans Réglages › Modèles d'emails et le menu « Modèles » de la fenêtre d'email.
-  var ORDRE_GESTES_RELATION = { questionnaire: 1, anniversaire: 2 };
+  // Le questionnaire n'est plus ici (audit 07/10) : sa fenêtre de 14 jours n'était lue nulle part et contredisait celle de
+  // 30 jours d'« À faire » (JOURS_QUESTIONNAIRE) — il vit dans « À faire » et l'onglet Échanges.
+  var ORDRE_GESTES_RELATION = { anniversaire: 2 };
   function gestesRelationClient(liste, aujourdhuiIso) {
     const auj = aujourdhuiIso || isoAujourdhuiLocal();
     const gestes = [];
@@ -405,7 +407,6 @@
       const j = ecartJours(auj, rdv);
       if (j === null) continue;
       if (notaireParticipantRepresenteAcquereur(d)) continue;
-      if (j <= -1 && j >= -14 && !d.questionnaireEnvoyeLe) gestes.push({ d, type: 'questionnaire', j });
       if (j <= -358 && j >= -372 && !d.anniversaireEnvoyeLe) gestes.push({ d, type: 'anniversaire', j });
     }
     return gestes.sort((a, b) => ORDRE_GESTES_RELATION[a.type] - ORDRE_GESTES_RELATION[b.type] || Math.abs(a.j) - Math.abs(b.j));

@@ -498,7 +498,7 @@
       : recu ? `Reçu${doc && doc.recuLe ? ` (coché le ${formatDateFr(String(doc.recuLe).slice(0, 10))})` : ' (validé à la main)'} — cliquer pour le remettre à recevoir`
         : 'Cocher une fois reçu';
     const caseHtml = `<button type="button" class="piece-case analyse-case" role="checkbox" aria-checked="${recu}" aria-label="${escapeAttr(label)}" title="${escapeAttr(titre)}" onclick="basculerDocumentAnalyseRecu('${d.id}', ${index})">${recu ? icone('check') : ''}</button>`;
-    return `<div class="analyse-doc-ligne${recu ? ' recu' : ''}">${caseHtml}<span class="analyse-doc-nom">${escapeHtml(label)}</span>${cle ? '<span class="piece-tag" title="Même pièce que dans l’onglet Pièces">checklist</span>' : ''}<wa-button appearance="plain" size="s" type="button" class="bouton-icone analyse-doc-suppr" onclick="supprimerDocumentDossier('${d.id}', ${index})" title="Retirer ce document de la liste" aria-label="Retirer ce document">${icone('x')}</wa-button></div>`;
+    return `<div class="analyse-doc-ligne${recu ? ' recu' : ''}">${caseHtml}<span class="analyse-doc-nom">${escapeHtml(label)}</span>${cle ? '<span class="piece-tag" title="Même pièce que dans la checklist">checklist</span>' : ''}<wa-button appearance="plain" size="s" type="button" class="bouton-icone analyse-doc-suppr" onclick="supprimerDocumentDossier('${d.id}', ${index})" title="Retirer ce document de la liste" aria-label="Retirer ce document">${icone('x')}</wa-button></div>`;
   }
 
   function basculerEngagementFait(dossierId, index) {

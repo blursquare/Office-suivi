@@ -116,10 +116,10 @@ function calculerRappelsDus(dossiers, aujourdHui, dejaEnvoyes) {
 // comptables faite par CLAIRE (d.fondsRecus, écrit par le client : la lecture des PDF se fait dans
 // le navigateur, le serveur ne fait que lire le résultat) :
 //   1. « tous les fonds sont reçus » — une seule fois par dossier, dès que la lecture le montre ;
-//   2. « fonds pas encore reçus en entier » — une seule fois par date de rendez-vous : 48 h avant
-//      (J-2), ou LE VENDREDI quand le rendez-vous tombe un lundi ou un mardi (J-2 serait alors un
-//      week-end). Jamais le samedi ni le dimanche ; si le vendredi a été manqué, le premier jour
-//      ouvré suivant avant le rendez-vous rattrape.
+//   2. « fonds pas encore reçus en entier » — une seule fois par date de rendez-vous : à J-3, le jour de la relance au client
+//      et de la confirmation des fonds (audit 07/10 ; étude 05/10 : « pour Teams il faut suivre les délais des échanges » —
+//      J-2 avant), ou LE VENDREDI quand J-3 tombe un week-end (rendez-vous un mardi ou un mercredi). Jamais le samedi ni le
+//      dimanche ; un jour manqué est rattrapé le premier jour ouvré suivant avant le rendez-vous.
 // Rien quand la réception a déjà été confirmée au client (receptionFondsConfirmeeLe) : les fonds
 // sont là, le collaborateur le sait. Rien non plus avant l'appel de fonds.
 
@@ -151,9 +151,9 @@ function alertesFondsDues(dossiers, aujourdHui, dejaEnvoyes) {
     }
     if (!(d.appelFonds || echeanceValidee(d, 'appelFonds'))) continue;
     if (j === null || jourAuj === 0 || jourAuj === 6) continue;
-    const rdvLundiMardi = [1, 2].includes(jourSemaine(d.rendezVousSignature));
-    const leVendredi = jourAuj === 5 && rdvLundiMardi && j <= 4;
-    if (!leVendredi && j > 2) continue;
+    const rdvMardiMercredi = [2, 3].includes(jourSemaine(d.rendezVousSignature));
+    const leVendredi = jourAuj === 5 && rdvMardiMercredi && j <= 5;
+    if (!leVendredi && j > 3) continue;
     const cle = `fonds-incomplets:${d.rendezVousSignature}`;
     if (!deja(d, cle)) dus.push(Object.assign(base, { genre: 'incomplets', reminderKey: cle }));
   }
@@ -170,7 +170,7 @@ function texteAlerteFonds(a) {
   if (a.genre === 'complets') {
     const combien = a.bilan && a.bilan.manuel ? 'validés à la main, arrivés sur le compte de l’étude' : formaterEuros(a.bilan.total);
     return `💶 CLAIRE — Tous les fonds sont reçus pour le dossier ${a.nomDossier} (${combien}).${rdv}
-Vous pouvez confirmer la réception des fonds au client depuis la fiche (onglet Échanges).`;
+Vous pouvez confirmer la réception des fonds au client depuis la fiche (onglet Fonds).`;
   }
   const b = a.bilan;
   const quand = a.verifieLe ? ` (reçus lus le ${new Date(a.verifieLe).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', timeZone: 'Europe/Paris' })})` : '';

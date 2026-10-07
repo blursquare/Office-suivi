@@ -152,7 +152,7 @@ test('creneauxProposesSignature : date butoir proche → au plus tôt dans 3 jou
   assert.equal(c[1].apresButoir, true);
 });
 
-test('gestesRelationClient : questionnaire, un an après — plus de confirmation ni de rappel du rendez-vous, jamais au client d’un confrère', () => {
+test('gestesRelationClient : un mot un an après — le questionnaire vit dans « À faire » (30 jours), jamais au client d’un confrère', () => {
   const liste = [
     { id: 'rappel', rendezVousSignature: '2026-10-03' },
     { id: 'confirme', rendezVousSignature: '2026-10-20' },
@@ -168,7 +168,7 @@ test('gestesRelationClient : questionnaire, un an après — plus de confirmatio
   ];
   const g = app.gestesRelationClient(liste, '2026-10-01');
   assert.equal(g.map(x => `${x.type}:${x.d.id}`).join(' | '),
-    'questionnaire:signe | anniversaire:unAn');
+    'anniversaire:unAn');
 });
 
 test('emails de relation client : date et heure en gras, lieu selon le type, formule du confrère', () => {

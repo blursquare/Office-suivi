@@ -664,26 +664,27 @@ test('fonds validés à la main (06/10, compte CDC) : alerte « complets » mêm
   assert.equal(sansRecu[0].genre, 'complets');
 });
 
-test('fonds incomplets : 48 h avant le rendez-vous (mercredi → lundi précédent)', () => {
-  const d = dossierFonds({ rendezVousSignature: '2026-10-14', fondsRecus: recus(100000, 150000) }); // mercredi
-  assert.equal(alertesFondsDues([d], '2026-10-09', new Set()).length, 0, 'vendredi, J-5 : trop tôt');
-  const dus = alertesFondsDues([d], '2026-10-12', new Set()); // lundi, J-2
+test('fonds incomplets : à J-3, le jour de la relance au client (jeudi → lundi précédent)', () => {
+  const d = dossierFonds({ rendezVousSignature: '2026-10-15', fondsRecus: recus(100000, 150000) }); // jeudi
+  assert.equal(alertesFondsDues([d], '2026-10-09', new Set()).length, 0, 'vendredi, J-6 : trop tôt');
+  const dus = alertesFondsDues([d], '2026-10-12', new Set()); // lundi, J-3
   assert.equal(dus.length, 1);
-  assert.equal(dus[0].reminderKey, 'fonds-incomplets:2026-10-14');
+  assert.equal(dus[0].reminderKey, 'fonds-incomplets:2026-10-15');
   const texte = texteAlerteFonds(dus[0]);
   assert.match(texte, /Fonds pas encore reçus en entier/);
   assert.match(texte, /100\.000,00\s€ reçus sur 150\.000,00\s€, il manque 50\.000,00\s€/);
-  assert.match(texte, /mercredi 14 octobre/);
+  assert.match(texte, /jeudi 15 octobre/);
   // Une seule fois par date de rendez-vous.
-  assert.equal(alertesFondsDues([d], '2026-10-13', new Set(['f1:fonds-incomplets:2026-10-14'])).length, 0);
+  assert.equal(alertesFondsDues([d], '2026-10-13', new Set(['f1:fonds-incomplets:2026-10-15'])).length, 0);
 });
 
-test('fonds incomplets : rendez-vous lundi ou mardi → alerte le vendredi, jamais le week-end', () => {
+test('fonds incomplets : J-3 un week-end (rendez-vous mardi ou mercredi) → alerte le vendredi, jamais le week-end', () => {
   const lundi = dossierFonds({ rendezVousSignature: '2026-10-12' });
   const mardi = dossierFonds({ id: 'f2', rendezVousSignature: '2026-10-13' });
-  assert.equal(alertesFondsDues([lundi, mardi], '2026-10-08', new Set()).length, 0, 'jeudi : pas encore');
-  const vendredi = alertesFondsDues([lundi, mardi], '2026-10-09', new Set());
-  assert.equal(vendredi.length, 2);
+  const mercredi = dossierFonds({ id: 'f3', rendezVousSignature: '2026-10-14' });
+  assert.equal(alertesFondsDues([lundi, mardi, mercredi], '2026-10-08', new Set()).length, 0, 'jeudi : pas encore');
+  const vendredi = alertesFondsDues([lundi, mardi, mercredi], '2026-10-09', new Set());
+  assert.equal(vendredi.length, 3);
   assert.match(texteAlerteFonds(vendredi[0]), /pas encore été vérifiés dans CLAIRE/);
   assert.equal(alertesFondsDues([lundi, mardi], '2026-10-10', new Set()).length, 0, 'samedi');
   assert.equal(alertesFondsDues([lundi, mardi], '2026-10-11', new Set()).length, 0, 'dimanche');

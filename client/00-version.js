@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.191.3';
+  const VERSION_APP = '0.191.4';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.191.4', date: '2026-10-07 21:54', resume: "Chaque geste au même moment partout. Onglets Échanges et Fonds de la fiche : l’appel de fonds n’est plus mis en avant avant que le rendez-vous soit fixé, mais à 10 jours du rendez-vous (comme « À faire » et le rappel Teams) ; le projet d’acte à 7 jours ou dès l’appel de fonds parti ; les fonds reçus une fois l’appel de fonds parti. Teams « fonds pas encore reçus » : à 3 jours du rendez-vous, le jour de la relance au client (48 h avant jusqu’ici), le vendredi si ce jour tombe un week-end ; le message renvoie à l’onglet Fonds (plus Échanges). Textes qui citaient un onglet disparu corrigés." },
     { version: '0.191.3', date: '2026-10-07 21:45', resume: "« Demander le RIB et la pièce d’identité » vient juste avant la signature : dans l’onglet Fonds de la fiche, la ligne n’est plus mise en avant dès que le rendez-vous est placé, seulement à 3 jours du rendez-vous (comme la tâche d’« À faire ») ou une fois la demande faite ; avant, elle reste repliée." },
     { version: '0.191.2', date: '2026-10-07 21:30', resume: "Le notaire n’est plus repris d’Authentic : ni proposé ni posé à la création (le placement des deux côtés est retiré), ni déduit des parties du dossier Authentic, ni relevé dans les « Parties prenantes » (ligne « Notaire » retirée du bloc « Dans Authentic »). Les notaires viennent du compromis, pris au répertoire, ou se choisissent dans le répertoire." },
     { version: '0.191.1', date: '2026-10-07 21:24', resume: "DIA : jamais de renonciation tacite — le document de renonciation est indispensable pour signer. L’échéance devient « Réponse à la DIA » (date où la commune doit avoir répondu, pour relancer la mairie) ; une DIA envoyée sans document reçu n’ouvre plus de créneaux de signature ; délai écoulé : « réclamer le document de renonciation à la mairie » au lieu de « renonciation acquise ». L’outil Droits de préemption le dit aussi dans sa formalité." },

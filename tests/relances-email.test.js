@@ -497,16 +497,24 @@ test('echangesSelonStade : ce qui sert maintenant d’abord, le reste replié, r
   assert.equal(ouverture.utiles.join(','), 'provision,ventePrealable,pret');
   assert.equal(ouverture.autres.join(','), 'appelFonds,projet,fondsRecus,rib,agenda,questionnaire');
 
+  // Rendez-vous pas encore fixé : l'appel de fonds attend (audit 07/10 — planning et « À faire » le placent après le rendez-vous).
   const rdvAFixer = app.echangesSelonStade(dossierBase(app, { pret: '2026-09-20', offrePretStatut: 'recue' }), auj);
-  assert.equal(rdvAFixer.utiles.join(','), 'provision,appelFonds');
+  assert.equal(rdvAFixer.utiles.join(','), 'provision');
+  assert.ok(rdvAFixer.autres.includes('appelFonds'));
 
   // Rendez-vous fixé : la provision passe « hors de ce stade », l'offre reçue ne se relance plus.
   const signature = app.echangesSelonStade(dossierBase(app, { sansPret: true, rendezVousSignature: '2026-10-15' }), auj);
-  // RIB et pièce d'identité : juste avant la signature (étude 07/10) — replié à 14 jours du rendez-vous, utile à 3 jours.
-  assert.equal(signature.utiles.join(','), 'appelFonds,projet,fondsRecus,agenda');
-  assert.ok(signature.autres.includes('rib'));
-  const veille = app.echangesSelonStade(dossierBase(app, { sansPret: true, rendezVousSignature: '2026-10-04' }), auj);
-  assert.equal(veille.utiles.join(','), 'appelFonds,projet,fondsRecus,rib,agenda');
+  // Mêmes moments que « À faire » (audit 07/10) : à J-14, seule la note d'agenda sert ; appel de fonds à J-10, projet à J-7 ou
+  // dès l'appel de fonds parti, fonds reçus après l'appel de fonds, RIB à J-3.
+  assert.equal(signature.utiles.join(','), 'agenda');
+  assert.ok(['appelFonds', 'projet', 'fondsRecus', 'rib'].every(c => signature.autres.includes(c)));
+  const j10 = app.echangesSelonStade(dossierBase(app, { sansPret: true, rendezVousSignature: '2026-10-11' }), auj);
+  assert.equal(j10.utiles.join(','), 'appelFonds,agenda');
+  const afParti = app.echangesSelonStade(dossierBase(app, { sansPret: true, rendezVousSignature: '2026-10-11', appelFonds: '2026-10-01' }), auj);
+  assert.equal(afParti.utiles.join(','), 'appelFonds,projet,fondsRecus,agenda');
+  const veille = app.echangesSelonStade(dossierBase(app, { sansPret: true, rendezVousSignature: '2026-10-04', appelFonds: '2026-09-24' }), auj);
+  // À J-3 sans fonds relevés : la relance des fonds s'ajoute, comme dans « À faire ».
+  assert.equal(veille.utiles.join(','), 'appelFonds,projet,fondsRecus,relanceFonds,rib,agenda');
   assert.ok(!signature.utiles.concat(signature.autres).includes('confirmationRdv'), 'confirmation du rendez-vous retirée (doublon du RIB, 05/10)');
   assert.ok(signature.autres.includes('provision'));
   assert.ok(!signature.utiles.concat(signature.autres).includes('rappelRdv'), 'plus de rappel du rendez-vous');

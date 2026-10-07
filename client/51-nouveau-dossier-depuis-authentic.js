@@ -299,7 +299,7 @@
       <p class="appel-entrant-numero">${escapeHtml(a.numero || 'Numéro masqué')}${a.nom ? ` · ${escapeHtml(a.nom)}` : ''}${liensAppelTelephone(a.numero, 'coord-appel coord-appel-inline')}</p>
       ${contact}
       ${ds.length ? `<div class="appel-entrant-dossiers">${ds.slice(0, 4).map(y => `<wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="ouvrirFicheAppel('${y.d.id}'); fermerAppelEntrant()">${y.partie ? `<span class="appel-entrant-partie">${escapeHtml(y.partie)}</span>` : ''}${escapeHtml(libelleDossierAffiche(y.d))}${y.d.archive ? ' · archivé' : ''}</wa-button>`).join('')}</div>`
-        : (contact ? '' : `<p class="hint">Numéro inconnu de CLAIRE ${infoBulle('Saisissez-le dans l’onglet Échanges du dossier (téléphone du vendeur ou de l’acquéreur) : le prochain appel ouvrira la fiche.')}</p>`)}`;
+        : (contact ? '' : `<p class="hint">Numéro inconnu de CLAIRE ${infoBulle('Saisissez-le sur la fiche du dossier (coordonnées du vendeur ou de l’acquéreur, en tête de fiche) : le prochain appel ouvrira la fiche.')}</p>`)}`;
   }
 
   // Coordonnées des parties sur une ligne par partie (étude, 02/10 : « les emails et téléphones dès

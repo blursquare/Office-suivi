@@ -350,8 +350,9 @@
   //   provision    ouverture du dossier, tant qu'aucun rendez-vous n'est fixé
   //   vente préal. tant qu'elle est attendue (avant la signature)
   //   prêt         tant que l'offre est attendue et la condition non levée
-  //   appel fonds  à préparer dès les conditions levées, et jusqu'à la signature
-  //   fonds reçus (vérifier puis confirmer au client), RIB, note d'agenda : rendez-vous fixé
+  //   appel fonds  J-10 du rendez-vous (ou déjà parti), comme « À faire » et le rappel Teams
+  //   projet       J-7 du rendez-vous, ou dès l'appel de fonds parti
+  //   fonds reçus  une fois l'appel de fonds parti ; RIB à J-3 ; note d'agenda : rendez-vous fixé
   //   relance des fonds : à J-3 si rien n'est arrivé (client seulement)
   //   questionnaire, un mot un an après : acte signé
   // Relation client (questionnaire, un an après) : jamais quand un confrère
@@ -368,11 +369,15 @@
     ranger('provision', avantRdv);
     if (d.ventebien && !echeanceValidee(d, 'ventebien')) ranger('ventePrealable', stade !== 'signe');
     if (!d.sansPret && d.offrePretStatut !== 'recue') ranger('pret', stade !== 'signe' && !echeanceValidee(d, 'pret'));
-    ranger('appelFonds', stade === 'rendezVous' || stade === 'signature');
-    // Le projet d'acte se lit avant la signature : utile une fois le rendez-vous fixé, sans objet
-    // une fois l'acte signé.
-    if (stade !== 'signe') ranger('projet', stade === 'signature');
-    ranger('fondsRecus', stade === 'signature');
+    // Mêmes moments que « À faire » et les rappels Teams (audit 07/10 : un geste mis en avant ici avant d'être dû ailleurs
+    // brouillait l'ordre du dossier) : l'appel de fonds à J-10 du rendez-vous (JOURS_APPEL_FONDS_AVANT_RDV), jamais avant que le
+    // rendez-vous soit fixé ; le projet à J-7 ou dès l'appel de fonds parti ; les fonds reçus une fois l'appel de fonds parti.
+    // Ce qui est déjà fait reste utile (on y lit la date). Avant, replié.
+    const jRdv = d.rendezVousSignature ? ecartJours(aujourdhuiIso, d.rendezVousSignature) : null;
+    const afFait = echeanceValidee(d, 'appelFonds');
+    ranger('appelFonds', stade === 'signature' && (afFait || (jRdv !== null && jRdv <= JOURS_APPEL_FONDS_AVANT_RDV)));
+    if (stade !== 'signe') ranger('projet', stade === 'signature' && (afFait || echeanceValidee(d, 'projetEnvoye') || (jRdv !== null && jRdv <= JOURS_ACTIONS_RENDEZ_VOUS)));
+    ranger('fondsRecus', stade === 'signature' && afFait);
     // Relance des fonds (client seulement) : utile à J-3 si rien n'est arrivé, sinon repliée tant que l'appel
     // de fonds est parti et les fonds pas confirmés ; cochée une fois envoyée pour ce rendez-vous.
     if (!confrere && stade === 'signature' && echeanceValidee(d, 'appelFonds') && (!d.receptionFondsConfirmeeLe || d.relanceFondsPour === d.rendezVousSignature)) {
@@ -386,8 +391,7 @@
     // RIB et pièce d'identité : juste avant la signature (étude 07/10 : « placer la demande de RIB et de pièce d'identité juste
     // avant la signature ») — utile à J-3 du rendez-vous comme la tâche d'« À faire » (JOURS_RAPPEL_RIB), ou une fois demandée ;
     // avant, repliée.
-    const jRdvRib = d.rendezVousSignature ? ecartJours(aujourdhuiIso, d.rendezVousSignature) : null;
-    if (!confrere) ranger('rib', stade === 'signature' && ((jRdvRib !== null && jRdvRib <= JOURS_RAPPEL_RIB) || ribDejaDemande(d)));
+    if (!confrere) ranger('rib', stade === 'signature' && ((jRdv !== null && jRdv <= JOURS_RAPPEL_RIB) || ribDejaDemande(d)));
     ranger('agenda', stade === 'signature');
     const dus = gestesRelationClient([d], aujourdhuiIso).map(g => g.type);
     // « Confirmer le rendez-vous » retiré (étude 05/10 : doublon de la demande de RIB et de pièce d'identité).
