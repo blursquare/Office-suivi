@@ -448,3 +448,11 @@ test('copieRendezVousAgenda / sujetCopieRendezVous : copier-coller d\'un rendez-
   assert.equal(app.sujetCopieRendezVous(sig), 'VTE - MOREAU / LAMBERT ?');
   assert.equal(app.sujetCopieRendezVous(Object.assign({}, sig, { sujet: 'VTE - X ??' })), 'VTE - X ??');
 });
+
+test('periodeChargeeAgenda : agenda jamais ouvert (rapport 07/10, « Placer » depuis Demander à CLAIRE) — la semaine du jour, sans erreur', () => {
+  const app2 = chargerApplication();
+  const p = app2.periodeChargeeAgenda();
+  assert.match(p.debut, /^\d{4}-\d{2}-\d{2}$/);
+  assert.match(p.fin, /^\d{4}-\d{2}-\d{2}$/);
+  assert.ok(p.debut <= app2.isoAujourdhuiLocal() && app2.isoAujourdhuiLocal() <= p.fin);
+});

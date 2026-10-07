@@ -474,6 +474,9 @@
   }
 
   function periodeChargeeAgenda() {
+    // Agenda jamais ouvert (rapport du 07/10 : « Placer » depuis « Demander à CLAIRE » relit l'agenda avant tout affichage de la
+    // page — agendaMois vide, grilleMoisAgenda(null) levait) : la semaine du jour.
+    if (!agendaJour || !agendaMois || !agendaLundi) positionnerAgenda(isoAujourdhuiLocal());
     const grille = grilleMoisAgenda(agendaMois);
     const debut = [agendaLundi, grille[0][0]].sort()[0];
     const fin = [addDays(agendaLundi, 6), grille[grille.length - 1][6]].sort()[1];

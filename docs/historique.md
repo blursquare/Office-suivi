@@ -17797,3 +17797,12 @@ n'allant qu'à la console. Cause la plus probable, reproduite en test : la répo
 - Autres causes possibles à vérifier au bureau si le message revient (la raison le dira) : pas de clé Mistral enregistrée dans
   Réglages › IA et relecture d'actes (l'IA locale est alors utilisée — l'indicateur en haut de la page le dit), clé refusée, Mistral
   injoignable depuis le serveur (pare-feu), délai de 20 s dépassé. Non vérifié avec la vraie API ici.
+
+**Rapport technique du 07/10 12 h (issue n° 16), passage programmé** (0.185.2, branche `claude/rapport-2026-10-07-12h`, en
+attente du oui de l'étude) — erreur navigateur `TypeError: Cannot read properties of null (reading 'slice')` dans
+`grilleMoisAgenda` ← `periodeChargeeAgenda` ← `chargerAgendaSemaine`, écran « Demander à CLAIRE » : un geste d'agenda lancé hors
+de la page Agenda (« Placer » d'un créneau → `posterEvenementAgenda` puis `chargerAgendaSemaine`) relisait l'agenda alors que
+`agendaMois` n'avait jamais été posé (il l'est à la première ouverture de la page). `periodeChargeeAgenda` positionne désormais
+l'agenda sur le jour (`positionnerAgenda`) quand il ne l'a jamais été. Reproduit par un test (agenda-page) qui échoue sans le
+correctif. Autres points du rapport sans correctif de code : voir le commentaire de l'issue (Mistral « limite de débit atteinte »,
+lecture des « Éléments envoyés » d'un collaborateur, commentaires de relecture d'actes).
