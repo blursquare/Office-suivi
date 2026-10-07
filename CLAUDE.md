@@ -257,6 +257,12 @@ dans `index.html`** (le test `structure-client` refuse tout décalage).
   rôle se déduit du type d'acte (`ROLES_PAR_TYPE_ACTE`). La **forme** de l'acte (authentique : les
   notaires sont nommés en première page ; sous seing privé : en fin d'acte) est distincte de son
   **type** ; « AAE » dans un nom de fichier = acte authentique électronique.
+  **Vendeur et acquéreur du même nom** (étude 07/10 : « les parties doivent partout dans CLAIRE être identifiées par nom et prénom ») :
+  le nom seul ne désigne jamais un côté quand il est porté des deux côtés — fiche client d'Authentic (`roleClientAuthenticParNom` :
+  prénom exigé dès que le nom est des deux côtés du nom du dossier), création depuis Authentic (`partiesExportAuthentic` : prénom de
+  l'intitulé, sinon rien), fonds reçus (`motsPayeurDossier` : « nom prénom », tous les mots dans le titulaire, le prénom n'est plus
+  cherché seul), Claire Scan (`scoreDossierScan` : une partie sans prénom dont le nom est de l'autre côté ne donne pas le côté).
+  Un cas non départagé reste « à rattacher », jamais deviné.
 - **Notaires** : priorité mention explicite (hors clause d'origine de propriété) > règle
   géographique (`REGLES_NOTAIRE_INSTRUMENTAIRE`, bien dans le 41) > ordre dans la zone attendue ;
   sinon rien n'est deviné. **Champs notaire liés à l'annuaire** (étude 05/10) : recherche dans tout l'annuaire à la frappe (`proposerNotairesAnnuaire`), nom complété seulement si UN SEUL notaire correspond (`completerNomNotaire`) ; à la création, un notaire lu dans le compromis prend le libellé de l'annuaire (`notaireDepuisRepertoire`, seul de son nom en France ou dans le 41 et ses voisins), et l'agence lue celui du Répertoire (`agenceDepuisRepertoire`, thème « immobilier »), notre office toujours « Maître Sophie GOSSART (BLOIS) » (`NOTAIRE_ETUDE_LIBELLE`, `canoniserNotaireEtude` ; bouton « Notre office » sur la fiche, placé seul du bon côté dans Nouveau dossier quand le rôle est lu, déduit ou choisi). Le rôle de l'étude (instrumentaire/participant) est déduit du côté qui

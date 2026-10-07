@@ -17957,3 +17957,19 @@ l'analyse) pour un groupe `.fiche-fin-repliables` après l'analyse de l'avant-co
 (`authenticDossierOuvert`, `basculerAuthenticDossier`, refermé à l'ouverture d'une autre fiche comme le diagnostic) au même gabarit que
 les deux autres ; une alerte (vendeur marié sans son conjoint) est dite sur la ligne repliée (« 1 alerte ») ; « Oublier ce qui vient
 d'Authentic » passe dans le bloc déplié (une croix dans la ligne repliée l'aurait aussi ouvert). Vérifié dans Chromium.
+
+**Vendeur et acquéreur du même nom : nom ET prénom partout** (0.189.9 ; étude 07/10 : « attention, bien faire attention quand vendeur et
+acquéreurs portent le même nom ; les parties doivent partout dans CLAIRE être identifiées par nom et prénom pour être reconnues »).
+Passés en revue : les endroits où une partie était reconnue par son nom de famille seul.
+- Fiche client d'Authentic (`roleClientAuthenticParNom`, utilisé aussi par `dossierPourFicheClientAuthentic`) : une seule partie du
+  nom suffisait même avec un autre prénom ; dès que le nom est des deux côtés du nom du dossier (« MARTIN / MARTIN »), le prénom est
+  exigé — sinon « à rattacher ».
+- Création depuis Authentic (`partiesExportAuthentic`) : une personne dont le nom est des deux côtés de l'intitulé prend le côté où son
+  prénom figure, sinon aucun (elle n'était déjà jamais devinée).
+- Fonds reçus (`motsPayeurDossier`, `ligneNommeLePayeur`) : le nom partagé avec le vendeur est cherché en paire « nom prénom » (tous les
+  mots dans le titulaire, dans n'importe quel ordre), le prénom n'est plus cherché seul ; un acquéreur sans prénom connu garde le nom
+  seul (rien de mieux).
+- Claire Scan (`scoreDossierScan`) : une partie connue par son seul nom, porté par une partie de l'autre côté, ne donne plus le côté
+  (Vendeur / Acquéreur) d'une pièce d'identité ; le score du dossier ne change pas.
+Inchangés car déjà sûrs : appels 3CX (téléphone), emails des dossiers (adresse), `memePersonneParNom` (deux mots au moins), identité
+alignée par côté (`alignerIdentitePartieAuthentic`). Tests : tests/homonymes-parties.test.js.

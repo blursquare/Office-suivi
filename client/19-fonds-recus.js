@@ -37,8 +37,20 @@
       nomsCourrierAppelFonds(d),
       String(d && d.nomsRecus || '')
     ].join(' ');
-    const mots = normaliserPourRecherche(source).split(/[^a-z]+/).filter(m => m.length >= 3 && !MOTS_IGNORES_PAYEUR.includes(m));
-    return [...new Set(mots)];
+    const motsDe = (texte) => normaliserPourRecherche(texte || '').split(/[^a-z]+/).filter(m => m.length >= 3 && !MOTS_IGNORES_PAYEUR.includes(m));
+    const mots = [...new Set(motsDe(source))];
+    // Vendeur et acquéreur du même nom (étude 07/10 : « les parties doivent partout être identifiées par nom et prénom ») : le nom
+    // partagé ne désigne plus l'acquéreur seul — il est cherché avec le prénom (« martin lea », tous les mots dans le titulaire).
+    const vendeurs = new Set(parties.filter(p => p && String(p.role || '').toUpperCase() === 'VENDEUR').map(p => [p.nom, p.nomUsage].filter(Boolean).join(' '))
+      .concat(nom.includes('/') ? [nom.split('/')[0]] : []).flatMap(motsDe));
+    const paires = new Map();
+    mots.filter(m => vendeurs.has(m)).forEach(m => {
+      const liste = acquereurs.map(motsDe).filter(ws => ws.includes(m)).flatMap(ws => ws.filter(w => w !== m && !vendeurs.has(w)));
+      if (liste.length) paires.set(m, liste);
+    });
+    // Le prénom d'une paire n'est plus cherché seul (« Léa » d'un autre client).
+    const prenomsDePaire = new Set([...paires.values()].flat());
+    return [...new Set(mots.filter(m => !prenomsDePaire.has(m)).flatMap(m => paires.has(m) ? paires.get(m).map(w => m + ' ' + w) : [m]))];
   }
 
   var RE_MONTANT_RECU = /(?<![\d,])(\d{1,3}(?:[ .  ]\d{3})+|\d+),(\d{2})(?!\d)/g;
@@ -55,9 +67,10 @@
     return out;
   }
 
+  // Une entrée de plusieurs mots (« martin lea ») demande chacun de ses mots, dans n'importe quel ordre.
   function ligneNommeLePayeur(ligne, mots) {
     const n = ' ' + normaliserPourRecherche(ligne).replace(/[^a-z0-9]+/g, ' ') + ' ';
-    return mots.some(m => n.includes(' ' + m + ' '));
+    return mots.some(m => String(m).split(' ').every(w => n.includes(' ' + w + ' ')));
   }
 
   // ---- Mise en page RÉELLE des reçus de l'étude (JasperReports, un reçu par page, vue sur les

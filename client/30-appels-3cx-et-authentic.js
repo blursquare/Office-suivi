@@ -1528,13 +1528,16 @@
     const nom = mots(personne.nom).trim();
     const prenom = mots(personne.prenom).trim().split(' ')[0] || '';
     const contient = (texte, m) => !!m && mots(texte).includes(' ' + m + ' ');
+    const m = /^\s*(.+?)\s*\/\s*(.+?)\s*$/.exec(String(d.nom || ''));
+    // Vendeur et acquéreur du même nom (« MARTIN / MARTIN », étude 07/10 : « les parties doivent partout être identifiées par
+    // nom et prénom ») : le prénom est alors exigé, jamais le nom seul.
+    const nomDesDeuxCotes = !!m && nom.split(' ').every(x => contient(m[1], x)) && nom.split(' ').every(x => contient(m[2], x));
     const roles = new Set();
     (Array.isArray(d.parties) ? d.parties : []).forEach(p => {
-      if (p && contient(p.nom, nom) && (!prenom || contient(p.nom, prenom) || !(d.parties || []).some(q => q !== p && contient(q.nom, nom)))) roles.add(p.role);
+      if (p && contient(p.nom, nom) && (!prenom || contient(p.nom, prenom) || (!nomDesDeuxCotes && !(d.parties || []).some(q => q !== p && contient(q.nom, nom))))) roles.add(p.role);
     });
     if (roles.size === 1) return [...roles][0];
     if (roles.size > 1) return '';
-    const m = /^\s*(.+?)\s*\/\s*(.+?)\s*$/.exec(String(d.nom || ''));
     if (!m) return '';
     const v = nom.split(' ').every(x => contient(m[1], x)), a = nom.split(' ').every(x => contient(m[2], x));
     return v && !a ? 'VENDEUR' : a && !v ? 'ACQUEREUR' : '';

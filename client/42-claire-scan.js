@@ -196,7 +196,11 @@
       const re = new RegExp(`\\s${p.section}\\s(?:\\S+\\s){0,3}?0*${p.numero}\\s`);
       if (re.test(mots)) { score += b.parcelle; raisons.push(`parcelle ${p.section.toUpperCase()} ${p.numero} +${b.parcelle}`); break; }
     }
-    const roles = [...new Set(trouvees.map(p => p.role))];
+    // Une personne connue par son seul nom, porté aussi par une partie de l'autre côté (vendeur et acquéreur du même nom), ne dit
+    // pas le côté de la pièce : il faut le nom ET le prénom (étude 07/10).
+    const personnes = personnesDossierScan(d);
+    const ambigue = (p) => p.mots.length < 2 && personnes.some(q => q.role !== p.role && q.mots.includes(p.mots[0]));
+    const roles = [...new Set(trouvees.filter(p => !ambigue(p)).map(p => p.role))];
     return { score, raisons, role: roles.length === 1 ? roles[0] : null, personnes: trouvees.map(p => p.nom) };
   }
 

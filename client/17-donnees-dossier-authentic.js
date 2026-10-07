@@ -62,6 +62,12 @@
           const noms = [p.nom, p.nomUsage].filter(Boolean).map(n => normaliserPourRecherche(n).replace(/[^a-z0-9]+/g, ' ').trim());
           const cote = cotes.filter(([texte]) => noms.some(n => n && texte.includes(' ' + n + ' ')));
           if (cote.length === 1) roles.set(p, cote[0][1]);
+          // Même nom des deux côtés (« VTE MARTIN Paul / MARTIN Léa ») : le prénom départage, sinon rien (jamais le nom seul).
+          else if (cote.length === 2 && p.prenom) {
+            const prenoms = normaliserPourRecherche(p.prenom).replace(/[^a-z0-9]+/g, ' ').trim().split(' ').filter(x => x.length >= 2);
+            const parPrenom = cote.filter(([texte]) => prenoms.some(x => texte.includes(' ' + x + ' ')));
+            if (parPrenom.length === 1) roles.set(p, parPrenom[0][1]);
+          }
         });
       }
     }
