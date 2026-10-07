@@ -17859,3 +17859,12 @@ et historique « Rédaction de l'acte marquée réalisée (en cours dans Authent
 `echeanceValidee(d, 'redaction')` : `true`/`false` posés (coche ou décoche à la main, `devaliderEcheance` retient `false`) l'emportent,
 sinon l'état d'Authentic (« En cours »/signé). Aucune autre échéance (« acte », signature) n'est touchée par ces états.
 
+
+**Rédaction : échéance toujours datée** (0.188.2 ; étude 07/10 : « si pas de rendez-vous placé de signature de vente ou des propositions
+en cours, mettez bien l'échéance quand même ») — `repereSignatureRedaction(d, aujourdhuiIso)` (`commun/planning.js`) : rendez-vous placé ;
+sinon, sur le poste, `signaturePrevueDossier` (client/27, appelée par `globalThis`, garde contre la récursion) : première date encore à
+venir d'un sondage ouvert du dossier (`source: 'propositions'`), sinon `semaineProbableSignature` (rendez-vous « ? » de l'agenda
+compris : `a-confirmer`, sinon `probable`) ; sinon (serveur, ou rien d'estimable) la date butoir. Échéance = repère − 15 jours ; une
+date estimée n'est jamais avant aujourd'hui (pièces réunies, signature au plus tôt à J+14 : sinon « en retard » dès le premier jour) ;
+avant, sans rendez-vous, l'échéance était la date butoir elle-même. Tâche et ligne de la fiche disent le repère
+(`phraseRepereRedaction` : « Première date proposée pour la signature : … », « Signature possible au plus tôt le … »…).

@@ -1426,7 +1426,8 @@
       const faite = echeanceValidee(d, 'redaction');
       const attentes = faite ? [] : attentesRedaction(d);
       const note = faite ? (etatRedactionActe(d) === 'redaction' ? '<span class="ech-note">En cours dans Authentic</span>' : '')
-        : attentes.length ? `<span class="ech-note">En attente : ${escapeHtml(attentes.join(', '))}</span>` : '<span class="ech-note">Pièces réunies : à rédiger</span>';
+        : (attentes.length ? `<span class="ech-note">En attente : ${escapeHtml(attentes.join(', '))}</span>` : '<span class="ech-note">Pièces réunies : à rédiger</span>')
+          + ((repere) => repere ? ` <span class="ech-note">${escapeHtml(repere)}</span>` : '')(d.rendezVousSignature ? '' : phraseRepereRedaction(d, isoAujourdhuiLocal()));
       const iso = faite ? '' : echeanceRedaction(d);
       lignes.push({ iso, html: renderLigneEcheance('redaction', 'Rédaction de l’acte', iso, d.id, null, null, null, false, note, false, faite,
         { etatSansDate: attentes.length ? 'En attente' : 'À rédiger', etatFait: '✓ Commencée', cochable: true, sansCrayon: true }) });

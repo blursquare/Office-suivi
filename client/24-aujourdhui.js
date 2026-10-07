@@ -63,6 +63,17 @@
     return `Signature ${quandJour(d.rendezVousSignature, aujourdhuiIso)}${heure}`;
   }
 
+  // La signature qui sert de repère à la rédaction quand aucun rendez-vous n'est placé (étude 07/10), dite en clair ('' sinon).
+  function phraseRepereRedaction(d, aujourdhuiIso) {
+    const r = repereSignatureRedaction(d, aujourdhuiIso);
+    if (!r || r.source === 'rdv') return '';
+    const quand = formatDateFr(r.date);
+    return r.source === 'propositions' ? `Première date proposée pour la signature : ${quand}`
+      : r.source === 'a-confirmer' ? `Rendez-vous à confirmer le ${quand}`
+      : r.source === 'butoir' ? `Date butoir le ${quand}, rendez-vous pas encore placé`
+      : `Signature possible au plus tôt le ${quand}, rendez-vous pas encore placé`;
+  }
+
   // Pure. Renvoie { actions, aVenir } :
   //  - actions : ce qui est à faire aujourd'hui, du plus grave au moins grave puis du plus proche au
   //    plus lointain, UNE entrée par geste (un dossier peut en porter deux : appel de fonds à
@@ -263,12 +274,13 @@
       //    préalable, préemption, SAFER — les pièces d'urbanisme ne comptent pas). Elle part d'elle-même quand Authentic passe
       //    à « En cours » ; la case ronde la note commencée à la main.
       if (redactionAProposer(d)) {
-        const iso = echeanceRedaction(d);
+        const iso = echeanceRedaction(d, aujourdhuiIso);
         const j = iso ? ecartJours(aujourdhuiIso, iso) : 0;
+        const repere = d.rendezVousSignature ? phraseSignature(d, aujourdhuiIso) : phraseRepereRedaction(d, aujourdhuiIso);
         ajouter({
           type: 'redaction', categorie: 'redaction', categorieLabel: 'Rédaction de l’acte',
           titre: 'Rédiger l’acte',
-          contexte: `Pièces réunies (financement, préemption, SAFER) ; Authentic indique « Non rédigé ».${d.rendezVousSignature ? ' ' + phraseSignature(d, aujourdhuiIso) + '.' : ''}`,
+          contexte: `Pièces réunies (financement, préemption, SAFER) ; Authentic indique « Non rédigé ».${repere ? ' ' + repere + '.' : ''}`,
           // Sans « jours » : à faire dès maintenant, hors de la fenêtre des 15 jours (étude : « une fois le dossier presque complet,
           // proposer la rédaction ») ; l'échéance (15 jours avant le rendez-vous) se lit dans le délai.
           jours: null, delaiTexte: iso ? `avant le ${courtDateJour(iso)}` : 'pièces réunies',

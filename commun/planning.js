@@ -39,12 +39,37 @@
     const a = d && d.authentic && d.authentic.acte;
     return (a && a.etat) || '';
   }
-  // Échéance de la rédaction : 15 jours avant le rendez-vous de signature (avant l'appel de fonds à J-10 et l'envoi du projet), à
-  // défaut la date butoir de l'avant-contrat.
+  // Échéance de la rédaction : 15 jours avant la signature (avant l'appel de fonds à J-10 et l'envoi du projet). Étude 07/10 :
+  // « si pas de rendez-vous placé ou des propositions en cours, mettez bien l'échéance quand même » — la signature qui sert de
+  // repère est le rendez-vous placé ; sinon, sur le poste, la première date encore proposée au client (sondage ouvert), puis la
+  // date de signature au plus tôt (signaturePrevueDossier, client/27 : sondages et agenda ne sont connus que du poste) ; sinon
+  // la date butoir. Une signature estimée ne met jamais la rédaction avant aujourd'hui (à faire dès maintenant, pas « en retard »).
   var JOURS_REDACTION_AVANT_RDV = 15;
-  function echeanceRedaction(d) {
-    if (d && d.rendezVousSignature) return C.addDays(d.rendezVousSignature, -JOURS_REDACTION_AVANT_RDV);
-    return (d && d.acte) || '';
+  let calculRepereRedaction = false;
+  /** @param {any} d @param {string} [aujourdhuiIso] @returns {{ date: string, source: string } | null} */
+  function repereSignatureRedaction(d, aujourdhuiIso) {
+    if (!d) return null;
+    if (d.rendezVousSignature) return { date: d.rendezVousSignature, source: 'rdv' };
+    const g = /** @type {any} */ (globalThis);
+    if (typeof g.signaturePrevueDossier === 'function' && !calculRepereRedaction) {
+      calculRepereRedaction = true;
+      try {
+        const p = g.signaturePrevueDossier(d, aujourdhuiIso);
+        if (p && /^\d{4}-\d{2}-\d{2}$/.test(String(p.date || ''))) return { date: p.date, source: p.source || 'probable' };
+      } finally { calculRepereRedaction = false; }
+    }
+    if (d.acte) return { date: d.acte, source: 'butoir' };
+    return null;
+  }
+  /** @param {any} d @param {string} [aujourdhuiIso] @returns {string} */
+  function echeanceRedaction(d, aujourdhuiIso) {
+    const r = repereSignatureRedaction(d, aujourdhuiIso);
+    if (!r) return '';
+    const iso = C.addDays(r.date, -JOURS_REDACTION_AVANT_RDV);
+    if (r.source === 'rdv') return iso;
+    const t = new Date();
+    const auj = aujourdhuiIso || `${t.getFullYear()}-${C.pad(t.getMonth() + 1)}-${C.pad(t.getDate())}`;
+    return iso < auj ? auj : iso;
   }
   // Ce qui retient encore la rédaction : les conditions à date butoir — offre de prêt (et vente préalable, voir pretLeve),
   // renonciation au droit de préemption (DIA), SAFER. Les pièces d'urbanisme ne la retiennent jamais (étude 07/10).
@@ -251,7 +276,7 @@
     return reels;
   }
 
-  const exportes = { JOURS_APPEL_FONDS_AVANT_RDV, echeanceAppelFonds, echeanceValidee, JOURS_REDACTION_AVANT_RDV, etatRedactionActe, echeanceRedaction, attentesRedaction, redactionAProposer, pretLeve, preemptionLevee, DELAIS_SAFER, delaiSafer, echeanceSaferTacite, saferLevee, echeanceSaferDossier, echeancesPlanning };
+  const exportes = { JOURS_APPEL_FONDS_AVANT_RDV, echeanceAppelFonds, echeanceValidee, JOURS_REDACTION_AVANT_RDV, etatRedactionActe, repereSignatureRedaction, echeanceRedaction, attentesRedaction, redactionAProposer, pretLeve, preemptionLevee, DELAIS_SAFER, delaiSafer, echeanceSaferTacite, saferLevee, echeanceSaferDossier, echeancesPlanning };
   // Node : module.exports ; navigateur : des globaux (noms nus, comme les fonctions de client/).
   if (typeof module !== 'undefined' && module.exports) module.exports = exportes; else Object.assign(globalThis, exportes);
 })(

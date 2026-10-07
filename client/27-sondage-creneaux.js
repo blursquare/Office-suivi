@@ -63,6 +63,20 @@
     return sondagesCreneaux.find(s => s.dossierId === id && s.statut === 'ouvert') || null;
   }
 
+  // Signature prévue d'un dossier sans rendez-vous placé (étude 07/10, repère de l'échéance « Rédaction de l'acte », appelée par
+  // repereSignatureRedaction de commun/planning.js) : la première date encore proposée au client par un sondage ouvert, sinon
+  // la date au plus tôt (semaineProbableSignature : rendez-vous « ? » de l'agenda compris). null si le rendez-vous est placé.
+  function signaturePrevueDossier(d, aujourdhuiIso) {
+    if (!d || d.rendezVousSignature) return null;
+    const auj = aujourdhuiIso || isoAujourdhuiLocal();
+    const s = d.id != null ? sondageOuvertDossier(d.id) : null;
+    const proposees = (s && Array.isArray(s.creneaux) ? s.creneaux : [])
+      .map(c => String((c && c.date) || '')).filter(x => /^\d{4}-\d{2}-\d{2}$/.test(x) && x >= auj).sort();
+    if (proposees.length) return { date: proposees[0], source: 'propositions' };
+    const p = semaineProbableSignature(d, auj, absencesOffice, agendaEvenements);
+    return p && p.date ? { date: p.date, source: p.aConfirmer ? 'a-confirmer' : 'probable' } : null;
+  }
+
   // Pur : les destinataires du sondage d'après le dossier. Une partie représentée par un confrère
   // est remplacée par ce confrère (jamais l'adresse personnelle du client d'un autre office).
   function participantsSondage(d, carnet) {

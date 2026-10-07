@@ -451,8 +451,21 @@ test('rédaction de l’acte (étude 07/10) : proposée quand Authentic dit « N
   const cochee = dossier(Object.assign({}, base, { echeancesValidees: { redaction: true } }));
   assert.strictEqual(app.redactionAProposer(cochee), false);
   assert.strictEqual(app.redactionAProposer(dossier(Object.assign({}, base, { roleNotaire: 'participant' }))), false);
-  // Rendez-vous pas encore fixé : proposée quand même, échéance = date butoir.
+  // Rendez-vous pas encore fixé (étude 07/10 : « mettez bien l'échéance quand même ») : proposée, et toujours datée.
   const sansRdv = dossier(Object.assign({}, base, { rendezVousSignature: '', acte: '2026-11-30' }));
   assert.strictEqual(app.redactionAProposer(sansRdv), true);
-  assert.strictEqual(app.echeanceRedaction(sansRdv), '2026-11-30');
+  // Ni sondage ni agenda : 15 jours avant la signature au plus tôt (aujourd'hui + 14), jamais avant aujourd'hui.
+  assert.strictEqual(app.echeanceRedaction(sansRdv, AUJ), AUJ);
+  assert.strictEqual(app.repereSignatureRedaction(sansRdv, AUJ).source, 'probable');
+  // Dates proposées au client (sondage ouvert) : 15 jours avant la première encore à venir.
+  require('node:vm').runInContext(`sondagesCreneaux = [{ id: 's1', dossierId: ${JSON.stringify(sansRdv.id)}, statut: 'ouvert', creneaux: [{ date: '2099-11-20', heure: '10:00' }, { date: '2099-11-12', heure: '14:00' }, { date: '2026-09-01', heure: '10:00' }] }]`, app);
+  assert.strictEqual(app.echeanceRedaction(sansRdv, AUJ), '2099-10-28');
+  assert.strictEqual(app.repereSignatureRedaction(sansRdv, AUJ).source, 'propositions');
+  const t = app.actionsDuJour([sansRdv], AUJ).actions.find(a => a.type === 'redaction');
+  assert.ok(t && /avant le/.test(t.delaiTexte) && /Première date proposée/.test(t.contexte), t && t.contexte);
+  assert.ok(app.echeancesPlanning(sansRdv).some(e => e.type === 'redaction' && e.iso === '2099-10-28'));
+  require('node:vm').runInContext('sondagesCreneaux = []', app);
+  // Côté serveur (sans sondage ni agenda) : la date butoir, 15 jours avant.
+  const commun = require('../commun/planning.js');
+  assert.strictEqual(commun.echeanceRedaction(Object.assign({}, sansRdv), '2026-10-01'), '2026-11-15');
 });
