@@ -26,22 +26,43 @@ const { extraireReferenceVte, dossierPourReferenceAgenda, composerLieuAgenda } =
 const { URL_EWS_DEFAUT } = require('../parametresRepo');
 const { noterVerification } = require('../verificationsTerrain');
 
+// Un événement « VTE - … » est-il celui du dossier ? Avec la liste des dossiers en cours
+// (`contexte.actifs`) et l'identifiant du dossier (`contexte.dossierId`), l'événement doit être
+// rapproché de CE dossier parmi tous — un « VTE - ROY » ne désigne pas l'un de deux dossiers ROY
+// (étude 07/10) ; la date demandée (`contexte.date`) vaut date posée sur sa fiche. Sans contexte
+// (ancien poste), test sur le seul nom du dossier, comme avant. Pure.
+function evenementDuDossier(evt, reference, contexte) {
+  const ref = extraireReferenceVte(evt && evt.subject);
+  if (!ref) return false;
+  const actifs = contexte && Array.isArray(contexte.actifs) ? contexte.actifs : [];
+  const d = contexte && contexte.dossierId ? actifs.find((x) => x && x.id === contexte.dossierId) : null;
+  if (!d) return !!dossierPourReferenceAgenda(ref, [{ id: 'x', nom: reference }]);
+  const date = contexte.date || d.rendezVousSignature || '';
+  const liste = actifs.map((x) => (x === d ? { ...x, rendezVousSignature: date, detectionsAgenda: null } : x));
+  const choisi = dossierPourReferenceAgenda(ref, liste, { itemId: evt.itemId, date });
+  return !!choisi && choisi.id === d.id;
+}
+
 // Le rendez-vous d'un dossier parmi ceux d'une journée. Pure, testable. L'identifiant mémorisé
-// quand CLAIRE a créé l'événement l'emporte ; sinon le titre « VTE - … » doit correspondre au nom du
-// dossier (mêmes tolérances que la lecture de l’agenda), et un seul événement doit correspondre —
-// jamais deviner entre deux.
-function choisirRendezVousDossier(evenements, reference, itemId) {
+// quand CLAIRE a créé l'événement l'emporte ; sinon le titre « VTE - … » doit désigner le dossier
+// (evenementDuDossier, mêmes règles que la lecture de l'agenda), et un seul événement doit
+// correspondre — jamais deviner entre deux.
+function choisirRendezVousDossier(evenements, reference, itemId, contexte) {
   const liste = Array.isArray(evenements) ? evenements : [];
   if (itemId) {
     const exact = liste.find((e) => e.itemId === itemId);
     if (exact) return { evt: exact };
   }
-  const candidats = liste.filter((evt) => {
-    const ref = extraireReferenceVte(evt.subject);
-    return ref && dossierPourReferenceAgenda(ref, [{ id: 'x', nom: reference }]);
-  });
+  const candidats = liste.filter((evt) => evenementDuDossier(evt, reference, contexte));
   if (candidats.length === 1) return { evt: candidats[0] };
   return candidats.length ? { plusieurs: true } : { aucun: true };
+}
+
+// Contexte du rapprochement d'une requête : dossiers en cours (injection `dossiersActifs`) et
+// dossier désigné par le poste.
+function contexteRapprochement(injections, b, date) {
+  const actifs = typeof injections.dossiersActifs === 'function' ? injections.dossiersActifs() : [];
+  return { actifs, dossierId: String(b.dossierId || '').trim(), date };
 }
 
 // Nom de catégorie Outlook : texte court, sans caractère de contrôle.
@@ -187,7 +208,7 @@ function creerRouteurExchange(parametresRepo, injections = {}) {
     const { debutUtc, finUtc } = fenetreJourneeParis(date);
     const trouve = await trouverRendezVousExchange({ ...acces, debutUtc, finUtc, mailbox: reglages.calendrierPartage });
     if (!trouve.ok) return res.json({ ok: false, message: trouve.message, raison: trouve.raison || '' });
-    const choix = choisirRendezVousDossier(trouve.evenements, reference, itemId);
+    const choix = choisirRendezVousDossier(trouve.evenements, reference, itemId, contexteRapprochement(injections, b, date));
     if (choix.aucun) {
       return res.json({ ok: true, introuvable: true, message: "Aucun rendez-vous de ce dossier dans l'agenda à cette date : rien à retirer." });
     }
@@ -343,7 +364,7 @@ function creerRouteurExchange(parametresRepo, injections = {}) {
     const { debutUtc, finUtc } = fenetreJourneeParis(ancienneDate);
     const trouve = await trouverRendezVousExchange({ ...acces, debutUtc, finUtc, mailbox: reglages.calendrierPartage });
     if (!trouve.ok) return res.json({ ok: false, message: trouve.message, raison: trouve.raison || '' });
-    const choix = choisirRendezVousDossier(trouve.evenements, reference, itemId);
+    const choix = choisirRendezVousDossier(trouve.evenements, reference, itemId, contexteRapprochement(injections, b, ancienneDate));
     if (choix.aucun) {
       return res.json({ ok: true, introuvable: true, message: "Aucun rendez-vous de ce dossier dans l'agenda à l'ancienne date." });
     }
@@ -410,14 +431,12 @@ function creerRouteurExchange(parametresRepo, injections = {}) {
     if (!trouve.ok) {
       return res.json({ ok: false, message: trouve.message });
     }
-    // Rapprochement par la référence « VTE - … » : on ne garde que les rendez-vous du bon dossier.
-    // dossierPourReferenceAgenda renvoie le dossier si un nom significatif est commun (avec ses
-    // tolérances) — appelé avec une liste d'un seul dossier, il sert ici de simple test de
-    // correspondance.
-    const candidats = (trouve.evenements || []).filter((evt) => {
-      const ref = extraireReferenceVte(evt.subject);
-      return ref && dossierPourReferenceAgenda(ref, [{ id: 'x', nom: reference }]);
-    });
+    // L'identifiant mémorisé quand CLAIRE a créé le rendez-vous, sinon la référence « VTE - … » qui
+    // doit désigner CE dossier parmi tous (evenementDuDossier : jamais l'un de deux homonymes).
+    const contexte = contexteRapprochement(injections, b, date);
+    const itemIdLieu = String(b.itemId || '').trim();
+    const parId = itemIdLieu ? (trouve.evenements || []).filter((evt) => evt.itemId === itemIdLieu) : [];
+    const candidats = parId.length ? parId : (trouve.evenements || []).filter((evt) => evenementDuDossier(evt, reference, contexte));
     if (candidats.length === 0) {
       return res.json({ ok: false, message: "Aucun rendez-vous de ce dossier trouvé dans l'agenda à cette date — notez-le à la main dans Outlook." });
     }
@@ -489,4 +508,4 @@ function creerRouteurExchange(parametresRepo, injections = {}) {
   return routeur;
 }
 
-module.exports = { heureFinDepuisDuree, creerRouteurExchange, reglagesExchangePublics, choisirRendezVousDossier, URL_EWS_DEFAUT };
+module.exports = { heureFinDepuisDuree, creerRouteurExchange, reglagesExchangePublics, choisirRendezVousDossier, evenementDuDossier, URL_EWS_DEFAUT };

@@ -1130,7 +1130,7 @@
       const reponse = await fetchAvecAuth('/api/exchange/rendez-vous/supprimer', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ date: ancienneDate, reference: d.nom, itemId: item.itemId || '', changeKey: item.changeKey || '' })
+        body: JSON.stringify({ date: ancienneDate, reference: d.nom, dossierId: d.id, itemId: item.itemId || '', changeKey: item.changeKey || '' })
       });
       const corps = await reponse.json();
       if (corps.ok) {
@@ -1158,7 +1158,7 @@
       const reponse = await fetchAvecAuth('/api/exchange/rendez-vous/deplacer', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ancienneDate, nouvelleDate, reference: d.nom, itemId: item.itemId || '' })
+        body: JSON.stringify({ ancienneDate, nouvelleDate, reference: d.nom, dossierId: d.id, itemId: item.itemId || '' })
       });
       const corps = await reponse.json();
       if (corps.ok && corps.introuvable) return 'introuvable';
@@ -1213,7 +1213,7 @@
       const reponse = await fetchAvecAuth('/api/exchange/rendez-vous/lieu', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ date: d.rendezVousSignature, reference: d.nom, appelFonds: af, projet: pj, confrere: confrereLieuAgenda(d), initiales: initialesResponsable(d) })
+        body: JSON.stringify({ date: d.rendezVousSignature, reference: d.nom, dossierId: d.id, itemId: (d.rdvAgendaItem && d.rdvAgendaItem.itemId) || '', appelFonds: af, projet: pj, confrere: confrereLieuAgenda(d), initiales: initialesResponsable(d) })
       });
       const corps = await reponse.json();
       if (corps.ok) {
@@ -1784,7 +1784,7 @@
       const reponse = await fetchAvecAuth('/api/exchange/rendez-vous/lieu', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ date: d.rendezVousSignature, reference: d.nom, appelFonds: false, projet: false, retrait: true })
+        body: JSON.stringify({ date: d.rendezVousSignature, reference: d.nom, dossierId: d.id, itemId: (d.rdvAgendaItem && d.rdvAgendaItem.itemId) || '', appelFonds: false, projet: false, retrait: true })
       });
       const corps = await reponse.json();
       if (corps.ok) {

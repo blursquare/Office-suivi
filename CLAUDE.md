@@ -262,6 +262,12 @@ dans `index.html`** (le test `structure-client` refuse tout décalage).
   prénom exigé dès que le nom est des deux côtés du nom du dossier), création depuis Authentic (`partiesExportAuthentic` : prénom de
   l'intitulé, sinon rien), fonds reçus (`motsPayeurDossier` : « nom prénom », tous les mots dans le titulaire, le prénom n'est plus
   cherché seul), Claire Scan (`scoreDossierScan` : une partie sans prénom dont le nom est de l'autre côté ne donne pas le côté).
+  **Agenda** (étude 07/10, deux dossiers ROY inversés) : `dossierPourReferenceAgenda(reference, actifs, evt)` — identifiant
+  Outlook mémorisé (`d.rdvAgendaItem.itemId`) d'abord ; un nom de famille porté par plusieurs dossiers ne désigne aucun d'eux
+  (l'autre nom ou un prénom de partie propre à un seul dossier, sinon la date posée sur la fiche à la main ou par CLAIRE, jamais
+  une date écrite par l'agenda) ; les routes qui retirent, déplacent ou notent un envoi reçoivent `dossierId` et vérifient que
+  l'événement est celui de CE dossier parmi tous (`evenementDuDossier`). NAS : un dossier du commun déjà relié à un dossier en
+  cours n'est jamais relié seul à un second (`dossierNasPrisParUnAutre`).
   Un cas non départagé reste « à rattacher », jamais deviné.
 - **Notaires** : priorité mention explicite (hors clause d'origine de propriété) > règle
   géographique (`REGLES_NOTAIRE_INSTRUMENTAIRE`, bien dans le 41) > ordre dans la zone attendue ;

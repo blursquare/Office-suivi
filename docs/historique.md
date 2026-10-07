@@ -17995,3 +17995,40 @@ déjà les archivés, mais `verifierDossierLocal` restait appelé par d'autres c
 Garde unique dans `verifierDossierLocalUneFois` (`d.archive` → rien) ; « Revérifier » masqué sur une fiche archivée ; la lecture du
 mobilier dans l'avant-contrat à l'ouverture de la fiche n'est plus lancée pour un archivé (le bouton « Lire » reste, geste explicite).
 Test : aucun appel au serveur pour un dossier archivé (tests/homonymes-parties.test.js), et il échoue sans la garde.
+
+### 07/10/2026 18 h 08 — 0.189.12 : deux dossiers ROY confondus par l'agenda
+
+Étude : « J'ai un rendez-vous qui porte le nom de famille ROY mais ce n'est pas les mêmes personnes. Il affiche le bon nom de
+dossier dans l'agenda mais n'ouvre pas la bonne fiche et met projet et appel de fonds pas envoyés » ; « il a échangé deux
+dossiers avec le nom ROY » ; puis « essaie d'anticiper tous ces problèmes partout dans CLAIRE ».
+
+Cause : `dossierPourReferenceAgenda` (server/src/agendaOffice.js) ne comparait que les noms de famille de `d.nom` avec le titre
+« VTE - … », et départageait deux dossiers retenus sur le même nom par la part de leurs noms citée. Le `dossierId` ainsi calculé
+sert partout (stock `agenda-office` → `dossierDeEvenement` côté poste, pastilles AF/P par `infosRendezVousDossier`, détections de
+l'agenda qui écrivent la date de signature et les envois sur la fiche) et était recalculé à chaque tour de lecture, même pour un
+rendez-vous créé depuis la fiche avec le bon dossier.
+
+Nouvelle règle (`dossierPourReferenceAgenda(reference, dossiersActifs, evt)`) :
+1. l'identifiant de l'événement mémorisé par CLAIRE (`d.rdvAgendaItem.itemId`) l'emporte ;
+2. candidats par les noms de famille de `d.nom` (exacts ou à une faute près) ; un prénom d'une partie (`prenomsPartiesDossier` :
+   mots non capitales de « Prénom NOM ») compte pour départager, jamais pour désigner ;
+3. un mot de la référence retrouvé dans plusieurs dossiers ne désigne aucun d'eux : le dossier retenu doit avoir un mot à lui
+   ET porter tous les noms reconnus de la référence (« PETIT / DUPONT » : rien) ;
+4. à défaut, la date du rendez-vous départage si un seul candidat a cette date posée sur sa fiche à la main ou par CLAIRE
+   (`dateSignatureFicheDossier` — une date écrite par l'agenda lui-même ne compte pas : elle peut venir d'une erreur) ;
+5. sinon `null`. Changement assumé : « VTE - DUPONT » face aux dossiers « DUPONT » et « DUPONT / MARTIN » rendait « DUPONT »
+   (meilleure part), il ne rend plus rien.
+
+Routes d'écriture (server/src/routes/exchange.js : retirer, déplacer, noter l'envoi dans le lieu) : le poste envoie `dossierId`
+(et l'`itemId` mémorisé pour le lieu) ; `evenementDuDossier` exige que l'événement soit rapproché de CE dossier parmi tous les
+dossiers en cours (injection `dossiersActifs` posée par app.js), la date demandée valant date de la fiche. Sans `dossierId`
+(fenêtre d'avant), test sur le seul nom comme avant.
+
+Tour des autres rapprochements par le nom : Authentic, fonds reçus, Claire Scan déjà traités le jour même (0.189.9) ; emails par
+l'adresse, 3CX par le numéro, assistant (« Lequel ? »), personnes déjà connues (`memePersonneParNom`, deux mots), emails lus dans
+le compromis (`attributionEmailsParNom` retire les noms des deux côtés) : sûrs. NAS : la liaison automatique (correspondance
+parfaite) ne relie plus un dossier du commun déjà relié à un autre dossier en cours (`dossierNasPrisParUnAutre`, client/37).
+
+Données déjà écrites : un dossier ROY a pu recevoir la date de signature ou un envoi d'un rendez-vous de l'autre ; au tour suivant
+il est dit « rendez-vous retiré de l'agenda — date conservée » : à vérifier à la main sur les deux fiches.
+Tests : server/test/agenda-office.test.js, server/test/exchange-route.test.js, tests/homonymes-parties.test.js.

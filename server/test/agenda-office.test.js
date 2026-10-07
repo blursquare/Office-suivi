@@ -11,7 +11,7 @@ const assert = require('node:assert/strict');
 const {
   evenementDepuisEws, evenementsDepuisEws, momentParisDepuisIso,
   extraireReferenceVte, referenceDossierEvenement, detecteAppelDeFonds, detecteProjetEnvoye,
-  detecterActionsEvenement, dossierPourReferenceAgenda, actionsDetecteesDepuisEvenements, composerLieuAgenda,
+  detecterActionsEvenement, dossierPourReferenceAgenda, actionsDetecteesDepuisEvenements, composerLieuAgenda, evenementsAgendaOffice,
   categoriesDistinctes, agendaDuJourDepuisEvenements
 } = require('../src/agendaOffice');
 
@@ -178,17 +178,60 @@ test('dossierPourReferenceAgenda : une faute de frappe sur un nom long est toler
   assert.equal(dossierPourReferenceAgenda('TUPONT', dossiers), null, 'la premiere lettre n\'est jamais toleree');
 });
 
-test('dossierPourReferenceAgenda : a egalite, le dossier le mieux couvert gagne, sinon rien', () => {
+test('dossierPourReferenceAgenda : un nom porte par deux dossiers ne designe aucun des deux (etude 07/10)', () => {
   const dossiers = [
     { id: 'd1', nom: 'DUPONT / MARTIN' },
     { id: 'd2', nom: 'DUPONT' },
     { id: 'd3', nom: 'LEROY / PETIT' }
   ];
-  assert.equal(dossierPourReferenceAgenda('DUPONT', dossiers).id, 'd2', 'meme nom cite : le dossier dont la plus grande part est citee');
-  assert.equal(dossierPourReferenceAgenda('DUPONT MARTIN', dossiers).id, 'd1', 'plus de noms en commun');
+  assert.equal(dossierPourReferenceAgenda('DUPONT', dossiers), null, 'DUPONT est dans deux dossiers : rien');
+  assert.equal(dossierPourReferenceAgenda('DUPONT MARTIN', dossiers).id, 'd1', 'MARTIN n\'est qu\'a lui');
   assert.equal(dossierPourReferenceAgenda('PETIT / DUPONT', dossiers), null, 'des noms de deux dossiers differents : ambigu');
+  assert.equal(dossierPourReferenceAgenda('DUPONT MARTIN LEROY PETIT', [dossiers[0], dossiers[2]]), null, 'deux dossiers cites a parts egales');
   const homonymes = [{ id: 'a', nom: 'DUPONT / MARTIN' }, { id: 'b', nom: 'DUPONT / LEROY' }];
   assert.equal(dossierPourReferenceAgenda('DUPONT', homonymes), null, 'deux dossiers egalement couverts : rien');
+});
+
+test('dossierPourReferenceAgenda : deux dossiers ROY — l\'autre nom, le prenom, l\'identifiant ou la date de la fiche departagent', () => {
+  const roy = [
+    { id: 'r1', nom: 'ROY / LAMBERT', parties: [{ role: 'VENDEUR', nom: 'Paul ROY' }, { role: 'ACQUEREUR', nom: 'Anne LAMBERT' }] },
+    { id: 'r2', nom: 'GARNIER / ROY', parties: [{ role: 'VENDEUR', nom: 'Luc GARNIER' }, { role: 'ACQUEREUR', nom: 'Sylvie ROY' }],
+      rdvAgendaItem: { itemId: 'AAA=' } }
+  ];
+  assert.equal(dossierPourReferenceAgenda('ROY / LAMBERT', roy).id, 'r1');
+  assert.equal(dossierPourReferenceAgenda('GARNIER ROY', roy).id, 'r2');
+  assert.equal(dossierPourReferenceAgenda('ROY', roy), null, 'le seul nom ROY ne choisit jamais');
+  assert.equal(dossierPourReferenceAgenda('ROY Sylvie', roy).id, 'r2', 'le prenom d\'une partie departage');
+  assert.equal(dossierPourReferenceAgenda('ROY Paul', roy).id, 'r1');
+  assert.equal(dossierPourReferenceAgenda('ROY / LAMBERT', roy, { itemId: 'AAA=' }).id, 'r2', 'l\'identifiant memorise par CLAIRE l\'emporte sur le titre');
+  const avecDates = [
+    Object.assign({}, roy[0], { rendezVousSignature: '2026-10-20' }),
+    Object.assign({}, roy[1], { rendezVousSignature: '2026-11-05', rdvAgendaItem: null })
+  ];
+  assert.equal(dossierPourReferenceAgenda('ROY', avecDates, { date: '2026-11-05' }).id, 'r2', 'date posee sur la fiche');
+  assert.equal(dossierPourReferenceAgenda('ROY', avecDates, { date: '2026-12-01' }), null);
+  // Une date ecrite par l'agenda lui-meme (relevee d'un rapprochement) ne departage pas : elle pourrait venir d'une erreur.
+  const ecriteParAgenda = [
+    Object.assign({}, avecDates[0], { detectionsAgenda: { rendezVousSignature: '2026-10-20' } }),
+    avecDates[1]
+  ];
+  assert.equal(dossierPourReferenceAgenda('ROY', ecriteParAgenda, { date: '2026-10-20' }), null);
+  // Un prenom ne fait jamais seul un candidat : « VTE - SYLVIE » ne designe pas le dossier de Sylvie ROY.
+  assert.equal(dossierPourReferenceAgenda('SYLVIE', roy), null);
+});
+
+test('actionsDetecteesDepuisEvenements et agenda de l\'office : un rendez-vous ROY ne va jamais a l\'autre dossier ROY', () => {
+  const roy = [
+    { id: 'r1', nom: 'ROY / LAMBERT', parties: [{ role: 'VENDEUR', nom: 'Paul ROY' }] },
+    { id: 'r2', nom: 'GARNIER / ROY', parties: [{ role: 'ACQUEREUR', nom: 'Sylvie ROY' }], rdvAgendaItem: { itemId: 'ID-R2' } }
+  ];
+  const evenements = [
+    Object.assign(rdv({ sujet: 'VTE - ROY', lieu: 'AF envoyé', start: '2026-10-14T09:00:00Z' }), {}),
+  ];
+  const det = actionsDetecteesDepuisEvenements(evenements, roy);
+  assert.equal(det[0].dossierId, null, 'titre ambigu : aucune fiche touchee');
+  const office = evenementsAgendaOffice([{ sujet: 'VTE - ROY', date: '2026-10-14', heure: '11:00', itemId: 'ID-R2' }], roy);
+  assert.equal(office[0].dossierId, 'r2', 'cree depuis la fiche : identifiant memorise');
 });
 
 test('actionsDetecteesDepuisEvenements : bout en bout, un evenement = une detection', () => {

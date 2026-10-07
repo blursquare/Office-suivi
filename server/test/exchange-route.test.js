@@ -322,3 +322,21 @@ test('POST /api/exchange/rendez-vous/lieu : « retrait » enlève la mention d\'
   assert.match(rien.message, /Aucune mention/);
   assert.equal(envoisEws.length, avant + 1, 'une lecture, aucune écriture');
 });
+
+test('choisirRendezVousDossier : avec les dossiers en cours, le rendez-vous de l\'autre dossier ROY n\'est jamais touché (étude 07/10)', () => {
+  const { choisirRendezVousDossier } = require('../src/routes/exchange');
+  const actifs = [
+    { id: 'r1', nom: 'ROY / LAMBERT', parties: [{ role: 'VENDEUR', nom: 'Paul ROY' }] },
+    { id: 'r2', nom: 'GARNIER / ROY', parties: [{ role: 'ACQUEREUR', nom: 'Sylvie ROY' }] }
+  ];
+  const seulAutre = [{ itemId: 'X', subject: 'VTE - GARNIER / ROY' }];
+  // Sans contexte (ancien poste), le seul nom ROY suffisait : le rendez-vous de r2 aurait été pris pour r1.
+  assert.ok(choisirRendezVousDossier(seulAutre, 'ROY / LAMBERT', '', { actifs, dossierId: 'r1', date: '2026-10-14' }).aucun);
+  assert.equal(choisirRendezVousDossier(seulAutre, 'GARNIER / ROY', '', { actifs, dossierId: 'r2', date: '2026-10-14' }).evt.itemId, 'X');
+  // Titre ambigu « VTE - ROY » : la date demandée vaut date de la fiche du dossier qui demande, l'autre n'a pas cette date.
+  const ambigu = [{ itemId: 'Y', subject: 'VTE - ROY' }];
+  assert.equal(choisirRendezVousDossier(ambigu, 'ROY / LAMBERT', '', { actifs, dossierId: 'r1', date: '2026-10-14' }).evt.itemId, 'Y');
+  const lesDeuxCeJour = actifs.map((d) => ({ ...d, rendezVousSignature: '2026-10-14' }));
+  assert.ok(choisirRendezVousDossier(ambigu, 'ROY / LAMBERT', '', { actifs: lesDeuxCeJour, dossierId: 'r1', date: '2026-10-14' }).aucun,
+    'les deux dossiers ROY signent ce jour-là : jamais deviner');
+});

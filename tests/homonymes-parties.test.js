@@ -55,3 +55,14 @@ test('dossier archivé : aucune recherche de pièces sur le NAS, quel que soit l
   await vm.runInContext(`verifierDossierLocal('arc', true)`, a);
   assert.equal(vm.runInContext('__appelsNas', a), 0);
 });
+
+test('NAS : un dossier du commun déjà relié à un autre dossier en cours n’est jamais relié seul une seconde fois', () => {
+  const a = { id: 'a', nom: 'ROY / LAMBERT', nasDossier: 'ROY' };
+  const b = { id: 'b', nom: 'GARNIER / ROY' };
+  const archive = { id: 'c', nom: 'ROY', nasDossier: 'ROY ancien', archive: true };
+  const liste = [a, b, archive];
+  assert.equal(app.dossierNasPrisParUnAutre(b, 'ROY', liste), true);
+  assert.equal(app.dossierNasPrisParUnAutre(a, 'ROY', liste), false, 'son propre lien');
+  assert.equal(app.dossierNasPrisParUnAutre(b, 'ROY ancien', liste), false, 'un dossier archivé ne retient pas son dossier du commun');
+  assert.equal(app.dossierNasPrisParUnAutre(b, 'GARNIER ROY', liste), false);
+});

@@ -270,32 +270,82 @@ function motsNomsDeFamille(texte) {
   return motsSignificatifs(texte).filter((m) => !MOTS_AGENDA_IGNORES.has(m));
 }
 
-// Score d'un dossier : nombre de ses noms retrouvés (exactement ou à une faute près) dans la
-// référence. Au moins un nom en commun est exigé, et le dossier en tête l'emporte s'il y est SEUL.
-// À score égal, deux cas :
-//   - les deux dossiers ont été retenus sur les MÊMES noms de la référence (« VTE - DUPONT » face à
-//     « DUPONT » et « DUPONT / MARTIN ») : celui dont la plus grande part des noms est citée gagne ;
-//   - ils l'ont été sur des noms DIFFÉRENTS (« VTE - PETIT DUPONT » face à « DUPONT / MARTIN » et
-//     « LEROY / PETIT ») : la référence désigne deux dossiers à la fois, rien n'est retenu.
-function dossierPourReferenceAgenda(reference, dossiersActifs) {
+// Prénoms des parties d'un dossier : dans « Jean ROY » (forme de la fiche, voir
+// renderPersonnesCoteFiche), le nom de famille est en capitales, le prénom ne l'est pas. Seuls les
+// prénoms servent ici — à départager deux dossiers du même nom de famille, jamais à en désigner un
+// (« VTE - MARTIN » ne doit pas tomber sur le dossier d'un « Martin LEROY »).
+function prenomsPartiesDossier(d) {
+  const prenoms = new Set();
+  for (const p of (d && Array.isArray(d.parties) ? d.parties : [])) {
+    const nom = String((p && (p.nom || [p.prenom, p.nomFamille].filter(Boolean).join(' '))) || '');
+    const brut = p && p.prenom ? String(p.prenom) : nom.split(/\s+/).filter((m) => /[a-zà-ÿ]/.test(m)).join(' ');
+    for (const mot of motsSignificatifs(brut)) prenoms.add(mot);
+  }
+  return [...prenoms];
+}
+
+// Date de signature posée sur la fiche par l'étude ou par CLAIRE (pas relevée dans l'agenda) : seule
+// celle-là peut départager deux dossiers du même nom — une date écrite par l'agenda serait la
+// conséquence d'un rapprochement, pas un indice indépendant.
+function dateSignatureFicheDossier(d) {
+  if (!d || !d.rendezVousSignature) return '';
+  const ecritParAgenda = d.detectionsAgenda && d.detectionsAgenda.rendezVousSignature;
+  return ecritParAgenda === d.rendezVousSignature ? '' : d.rendezVousSignature;
+}
+
+// Le dossier d'un rendez-vous « VTE - … ». Étude 07/10 (deux dossiers ROY inversés dans l'agenda :
+// « les parties doivent partout dans CLAIRE être identifiées par nom et prénom ») :
+//   1. l'identifiant de l'événement mémorisé quand CLAIRE l'a créé (`d.rdvAgendaItem.itemId`) l'emporte
+//      sur tout — aucun nom n'est alors lu ;
+//   2. sinon les noms de famille du dossier (`d.nom`, exactement ou à une faute près) retrouvés dans la
+//      référence ; un prénom d'une partie cité dans la référence compte aussi, mais ne fait jamais seul
+//      un candidat ;
+//   3. un mot de la référence retrouvé dans PLUSIEURS dossiers (deux dossiers ROY) ne désigne aucun
+//      d'eux : le dossier retenu doit avoir au moins un mot qui n'appartient qu'à lui (l'autre nom, un
+//      prénom) et porter tous les noms reconnus de la référence (« PETIT / DUPONT », noms de deux
+//      dossiers : rien) ;
+//   4. à défaut, la date du rendez-vous départage si un seul des dossiers en lice a CETTE date posée sur
+//      sa fiche à la main ou par CLAIRE (`dateSignatureFicheDossier`) ;
+//   5. sinon rien : jamais un dossier deviné entre deux homonymes.
+// `evt` (facultatif) : { itemId, date } de l'événement.
+function dossierPourReferenceAgenda(reference, dossiersActifs, evt) {
+  const liste = (dossiersActifs || []).filter((d) => d && typeof d.nom === 'string');
+  const itemId = evt && evt.itemId ? String(evt.itemId) : '';
+  if (itemId) {
+    const ancre = liste.find((d) => d.rdvAgendaItem && d.rdvAgendaItem.itemId === itemId);
+    if (ancre) return ancre;
+  }
   const motsRef = [...new Set(motsNomsDeFamille(reference))];
   if (motsRef.length === 0) return null;
   const candidats = [];
-  for (const d of dossiersActifs || []) {
-    if (!d || typeof d.nom !== 'string') continue;
+  for (const d of liste) {
     const attendus = [...new Set(motsNomsDeFamille(d.nom))];
     if (attendus.length === 0) continue;
     const communs = attendus.filter((mot) => motsRef.some((r) => motsVoisins(mot, r)));
     if (communs.length === 0) continue;
-    const refTouches = motsRef.filter((r) => communs.some((mot) => motsVoisins(mot, r))).sort().join(' ');
-    candidats.push({ d, communs: communs.length, part: communs.length / attendus.length, refTouches });
+    const prenoms = prenomsPartiesDossier(d);
+    const touches = motsRef.filter((r) => communs.some((mot) => motsVoisins(mot, r)) || prenoms.includes(r));
+    candidats.push({ d, touches, communs: communs.length });
   }
   if (candidats.length === 0) return null;
-  candidats.sort((x, y) => (y.communs - x.communs) || (y.part - x.part));
+  if (candidats.length === 1) return candidats[0].d;
+  for (const c of candidats) {
+    c.propres = c.touches.filter((r) => !candidats.some((autre) => autre !== c && autre.touches.includes(r))).length;
+  }
+  candidats.sort((x, y) => (y.propres - x.propres) || (y.communs - x.communs));
   const premier = candidats[0];
-  const exAequo = candidats.slice(1).filter((c) => c.communs === premier.communs);
-  if (exAequo.some((c) => c.refTouches !== premier.refTouches || c.part === premier.part)) return null;
-  return premier.d;
+  if (premier.propres > 0) {
+    // Le dossier retenu doit expliquer TOUS les noms reconnus de la référence : « PETIT / DUPONT »
+    // cite un nom d'un autre dossier, elle en désigne deux — rien n'est retenu.
+    const reconnus = new Set(candidats.flatMap((c) => c.touches));
+    return [...reconnus].every((r) => premier.touches.includes(r)) ? premier.d : null;
+  }
+  const date = evt && evt.date ? String(evt.date) : '';
+  if (date) {
+    const memeDate = candidats.filter((c) => dateSignatureFicheDossier(c.d) === date);
+    if (memeDate.length === 1) return memeDate[0].d;
+  }
+  return null;
 }
 
 // Rendez-vous de signature (demandé par l'étude, 25/09) : tout rendez-vous « VTE - … » à venir est
@@ -335,7 +385,7 @@ function actionsDetecteesDepuisEvenements(evenements, dossiersActifs, aujourdHui
     const actions = detecterActionsEvenement(evt);
     const rendezVous = estRendezVousSignature(evt);
     if (!actions.appelFonds && !actions.projetEnvoye && !rendezVous) continue;
-    const dossier = dossierPourReferenceAgenda(reference, dossiersActifs);
+    const dossier = dossierPourReferenceAgenda(reference, dossiersActifs, evt);
     resultats.push({
       reference,
       dateIso,
@@ -454,7 +504,7 @@ function agendaDuJourDepuisEvenements(evenements, jour, dossiersActifs) {
     if (evt.date > jour || fin < jour) continue;
     const journeeEntiere = !!evt.journeeEntiere || !evt.heure || evt.date < jour || fin > jour;
     const reference = referenceDossierEvenement(evt);
-    const dossier = reference ? dossierPourReferenceAgenda(reference, dossiersActifs) : null;
+    const dossier = reference ? dossierPourReferenceAgenda(reference, dossiersActifs, evt) : null;
     const titre = String(evt.sujet || '');
     liste.push({
       sujet: titre.slice(0, 200),
@@ -639,7 +689,7 @@ function evenementsAgendaOffice(evenements, dossiersActifs) {
   for (const evt of evenements || []) {
     if (!evt || evt.annule || !evt.date) continue;
     const reference = referenceDossierEvenement(evt);
-    const dossier = reference ? dossierPourReferenceAgenda(reference, dossiersActifs) : null;
+    const dossier = reference ? dossierPourReferenceAgenda(reference, dossiersActifs, evt) : null;
     const titre = String(evt.sujet || '');
     const journeeEntiere = !!evt.journeeEntiere || !evt.heure;
     liste.push({

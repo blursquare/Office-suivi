@@ -424,12 +424,19 @@
     // journalisé comme tout autre rattachement. Jamais sur un simple « propose », qui n'est qu'un
     // meilleur candidat : se tromper de dossier ferait chercher les pièces d'une vente dans celles
     // d'une autre.
-    if (data.parfait && data.parfait !== d.nasDossier) {
+    if (data.parfait && data.parfait !== d.nasDossier && !dossierNasPrisParUnAutre(d, data.parfait)) {
       afficherToast(`Dossier NAS « ${data.parfait} » relié automatiquement (correspondance exacte du nom).`, 'OK', null);
       await definirDossierNas(id, data.parfait);
       return;
     }
     ouvrirChoixDossierNas(d, data.dossiers, data.propose);
+  }
+
+  // Pure : le dossier NAS est déjà relié à un AUTRE dossier en cours (étude 07/10, deux dossiers du même
+  // nom de famille) — jamais relié seul une seconde fois : les pièces d'une vente iraient à l'autre.
+  // Le choix à la main reste possible (fenêtre de choix).
+  function dossierNasPrisParUnAutre(d, nomNas, liste) {
+    return (liste || dossiers || []).some(x => x && x !== d && x.id !== (d && d.id) && !x.archive && x.nasDossier === nomNas);
   }
 
   // Dossiers pour lesquels une liaison automatique a déjà été tentée dans CETTE session : sans ce
@@ -453,7 +460,7 @@
       const reponse = await fetchAvecAuth('/api/nas/dossiers?nom=' + encodeURIComponent(d.nom || ''));
       if (!reponse.ok) return false;
       const data = await reponse.json();
-      if (!data.parfait) return false;
+      if (!data.parfait || dossierNasPrisParUnAutre(d, data.parfait)) return false;
       await definirDossierNas(id, data.parfait);
       afficherToast(`Dossier NAS « ${data.parfait} » relié automatiquement.`, 'OK', null);
       return true;
