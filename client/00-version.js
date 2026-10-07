@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.185.0';
+  const VERSION_APP = '0.185.1';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.185.1', date: '2026-10-07 11:49', resume: "Demander à CLAIRE : Mistral ne répondait pas (« Je n’ai pas compris la demande… sans l’IA ») — sa réponse était coupée à 160 jetons quand il recopiait le gabarit demandé ; elle peut maintenant aller jusqu’à 400, le gabarit recopié est ignoré, et quand l’IA échoue la raison s’affiche à l’écran (clé refusée, délai, réponse coupée…)." },
     { version: '0.185.0', date: '2026-10-07 11:39', resume: "Questionnaire de satisfaction : nouvelle tâche « Envoyer le questionnaire de satisfaction au vendeur » dans « À faire » (dans le mois qui suit la signature, jamais au client d’un confrère), à côté de celle de l’acquéreur. Le dossier n’est plus archivé au premier envoi : seulement quand le vendeur ET l’acquéreur l’ont reçu (ou le seul que l’étude représente)." },
     { version: '0.184.1', date: '2026-10-07 11:36', resume: "Emails : un lien posé sur des mots s’affiche sur les mots partout — dans la fenêtre d’email (avant : l’adresse entière, « Cliquez ici pour laisser votre avis : https://… »), dans l’aperçu des modèles et dans l’email envoyé. Dans un modèle, un lien sur des mots s’écrit [mots](https://adresse) ; un texte copié avec ses liens (Outlook, Word) les garde ainsi." },
     { version: '0.184.0', date: '2026-10-07 11:31', resume: "Demander à CLAIRE : pour l’essai, Mistral lit toutes les demandes (plus seulement les phrases ambiguës) — dates, heures, montants et dossier restent lus par CLAIRE ; la réponse dit « Compris par Mistral » et ce que les mots-clés auraient compris s’ils différaient ; réglage « Mistral lit toutes les demandes » dans Réglages › IA et relecture d’actes. Widget « Demander à CLAIRE » : le titre revient en tête, comme sur les autres cartes." },

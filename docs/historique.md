@@ -17783,3 +17783,17 @@ d'email (`htmlRedactionDepuisTexte`) et l'aperçu des Réglages › Modèles d'e
   la main). Fiche (onglet Échanges) et tâches disent ce que fera l'envoi (`texteArchivageQuestionnaire`) ; « — dossier archivé » sous
   un envoi fait seulement si le dossier l'est.
 - Dossiers déjà archivés par l'ancienne règle : rien ne change (la fiche propose toujours l'envoi au vendeur). Test aujourdhui.
+
+**Étude (07/10) : « Pourquoi Mistral ne répond pas quand on lui demande quelque chose : « Je n'ai pas compris la demande. (sans
+l'IA, je ne lis que les mots-clés) » »** (0.185.1) — ce message veut dire que l'appel à l'IA a échoué (`raisonIa`), la raison
+n'allant qu'à la console. Cause la plus probable, reproduite en test : la réponse de Mistral était bornée à 160 jetons
+(`LONGUEUR_MAX_REPONSE`, pensé pour Ollama) ; Mistral recopie souvent le gabarit du JSON demandé (« <pret|rib|provision|…> »,
+« <AAAA-MM-JJ> »…), dépasse et rend un JSON coupé → « réponse illisible » → repli sur les mots-clés, à chaque phrase. Corrigé :
+- `creerClientMistralAssistant` : `max_tokens` 400 au moins (`MAX_JETONS_MISTRAL`) ; réponse entourée de ```json``` lue ; réponse
+  coupée (`finish_reason: 'length'`) dite « réponse de Mistral coupée (trop longue) ».
+- `nettoyerParametresIa` : une valeur « <…> » (gabarit recopié) vaut vide — « <nom cité> » ne désigne plus un dossier.
+- Page : la raison s'affiche sous « Je n'ai pas compris » (« IA Mistral : clé Mistral refusée — je ne lis que les mots-clés »,
+  adresses retirées) au lieu de « sans l'IA ».
+- Autres causes possibles à vérifier au bureau si le message revient (la raison le dira) : pas de clé Mistral enregistrée dans
+  Réglages › IA et relecture d'actes (l'IA locale est alors utilisée — l'indicateur en haut de la page le dit), clé refusée, Mistral
+  injoignable depuis le serveur (pare-feu), délai de 20 s dépassé. Non vérifié avec la vraie API ici.

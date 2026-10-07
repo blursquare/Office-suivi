@@ -69,6 +69,8 @@ function nettoyerParametresIa(brut) {
   const propre = {};
   PARAMETRES_TEXTE.forEach((k) => {
     let v = typeof p[k] === 'string' ? p[k].trim() : '';
+    // Le gabarit recopié tel quel (« <nom cité> », « <pret|rib|…> ») n'est pas une valeur.
+    if (/^<[^>]*>$/.test(v)) v = '';
     if (VALEURS_PERMISES[k] && v && !VALEURS_PERMISES[k].includes(v)) v = '';
     if (k === 'date' && v && !/^\d{4}-\d{2}-\d{2}$/.test(v)) v = '';
     if (k === 'heure' && v && !/^\d{2}:\d{2}$/.test(v)) v = '';

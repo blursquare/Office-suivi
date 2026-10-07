@@ -679,7 +679,9 @@
   function reponseInconnuAssistant(r) {
     // La raison technique (adresse d'Ollama, message de fetch) reste dans la console ; à l'écran, le fait seul.
     if (r && r.raisonIa) console.warn('Assistant : ' + r.raisonIa);
-    const motif = r && r.raisonIa ? ' <span class="asst-note">(sans l’IA, je ne lis que les mots-clés)</span>' : '';
+    // La raison dite à l'écran (07/10 : « pourquoi Mistral ne répond pas ») : clé refusée, délai, réponse illisible… — un fait
+    // technique, jamais la phrase.
+    const motif = r && r.raisonIa ? ` <span class="asst-note">(${escapeHtml(String(r.raisonIa).replace(/https?:\/\/\S+/g, '').slice(0, 160))} — je ne lis que les mots-clés)</span>` : '';
     return { html: `<p>Je n’ai pas compris la demande.${motif} Essayez avec le nom d’un dossier et un verbe : « où en est… », « relance… », « rappelle-moi… », « place la signature… », ou demandez-moi « que sais-tu faire ? ».</p>`,
       boutons: [{ libelle: 'Que sais-tu faire ?', action: () => envoyerDemandeAssistant('Que sais-tu faire ?') }] };
   }

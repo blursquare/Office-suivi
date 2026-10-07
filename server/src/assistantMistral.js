@@ -14,6 +14,7 @@ const MODELE_ASSISTANT_MISTRAL = 'mistral-small-latest';
 const TARIF_ASSISTANT_MISTRAL = { entree: 0.15, sortie: 0.6 };
 const MAJORATION_UE = 1.1;
 const DELAI_MISTRAL_MS = 20 * 1000;
+const MAX_JETONS_MISTRAL = 400;
 const CLE_USAGE = 'assistant-ia-usage';
 const CLE_REGLAGES = 'assistant-ia';
 const MOTEURS = ['mistral', 'locale'];
@@ -158,7 +159,9 @@ function creerClientMistralAssistant({ cle, region, fetchFn, parametresRepo }) {
           method: 'POST',
           headers: { Authorization: `Bearer ${cle}`, 'Content-Type': 'application/json', Accept: 'application/json' },
           body: JSON.stringify({
-            model: MODELE_ASSISTANT_MISTRAL, temperature: 0.1, max_tokens: (limites && limites.longueurMax) || 200,
+            // 400 jetons au moins (07/10 : « Mistral ne répond pas ») : à 160, Mistral qui recopie le gabarit du JSON
+            // (« <pret|rib|…> ») était coupé avant la fin — réponse illisible, repli sur les mots-clés à chaque phrase.
+            model: MODELE_ASSISTANT_MISTRAL, temperature: 0.1, max_tokens: Math.max(MAX_JETONS_MISTRAL, (limites && limites.longueurMax) || 0),
             response_format: { type: 'json_object' }, messages: [{ role: 'user', content: prompt }]
           }),
           signal: AbortSignal.timeout(DELAI_MISTRAL_MS)
@@ -174,9 +177,14 @@ function creerClientMistralAssistant({ cle, region, fetchFn, parametresRepo }) {
       const corps = await r.json().catch(() => ({}));
       const usage = corps && corps.usage ? corps.usage : {};
       if (parametresRepo) noterUsageAssistant(parametresRepo, { entree: usage.prompt_tokens || 0, sortie: usage.completion_tokens || 0 });
-      const contenu = corps && corps.choices && corps.choices[0] && corps.choices[0].message ? corps.choices[0].message.content : '';
+      const choix = corps && corps.choices && corps.choices[0];
+      const contenu = choix && choix.message ? choix.message.content : '';
+      // Un JSON entouré de ```json … ``` reste lisible ; une réponse coupée par la limite de jetons est dite comme telle.
+      const brut = String(typeof contenu === 'string' ? contenu : '').trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
       let objet;
-      try { objet = JSON.parse(typeof contenu === 'string' ? contenu : ''); } catch (_) { throw new Error('réponse de Mistral illisible'); }
+      try { objet = JSON.parse(brut); } catch (_) {
+        throw new Error(choix && choix.finish_reason === 'length' ? 'réponse de Mistral coupée (trop longue)' : 'réponse de Mistral illisible');
+      }
       const probleme = valider ? valider(objet) : null;
       if (probleme) throw new Error(`réponse de Mistral hors format (${probleme})`);
       return objet;

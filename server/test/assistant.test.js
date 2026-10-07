@@ -271,3 +271,23 @@ test('route : « Mistral lit toutes les demandes » vrai par défaut, se coupe e
   await fetch(`${baseUrl}/api/assistant/reglages`, { method: 'PUT', headers: h, body: JSON.stringify({ moteur: 'mistral', toutesDemandes: false }) });
   assert.equal((await (await fetch(`${baseUrl}/api/assistant/reglages`, { headers: h })).json()).toutesDemandes, false);
 });
+
+test('Mistral (07/10, « ne répond pas ») : 400 jetons au moins, réponse coupée dite comme telle, gabarit recopié écarté, ```json``` lu', async () => {
+  const { creerClientMistralAssistant } = require('../src/assistantMistral');
+  const repo = { lireJsonBrut: (k, d) => d, ecrireJsonBrut: () => {} };
+  let corpsEnvoye = null;
+  const reponse = (content, finish) => async (url, o) => { corpsEnvoye = JSON.parse(o.body); return { ok: true, json: async () => ({ choices: [{ message: { content }, finish_reason: finish || 'stop' }] }) }; };
+  // Coupée par la limite : la raison le dit.
+  const coupe = creerClientMistralAssistant({ cle: 'x', fetchFn: reponse('{"intention":"etat_dossier","parametres":{"modele":"<pret|rib|prov', 'length'), parametresRepo: repo });
+  const r1 = await comprendreDemande({ texte: 'Le virement et les pièces de MARTIN, c\'est bon ?', contexte: CONTEXTE, dossiers: DOSSIERS }, coupe, { toujours: true });
+  assert.ok(corpsEnvoye.max_tokens >= 400);
+  assert.match(r1.raisonIa, /réponse de Mistral coupée/);
+  assert.equal(r1.source, 'motscles');
+  // Le gabarit recopié tel quel : ses « <…> » ne valent rien ; un JSON entre ``` est lu.
+  const gabarit = creerClientMistralAssistant({ cle: 'x', parametresRepo: repo, fetchFn: reponse('```json\n{"intention":"etat_dossier","parametres":{"dossier":"<nom cité>","date":"<AAAA-MM-JJ>","modele":"<pret|rib>","titre":"<titre>"}}\n```') });
+  const r2 = await comprendreDemande({ texte: 'Le virement et les pièces de MARTIN, c\'est bon ?', contexte: CONTEXTE, dossiers: DOSSIERS }, gabarit, { toujours: true });
+  assert.equal(r2.source, 'ia');
+  assert.equal(r2.intention, 'etat_dossier');
+  assert.equal(r2.dossier, 'd1', 'dossier relu dans la phrase, pas « <nom cité> »');
+  assert.equal(r2.parametres.titre || '', '');
+});
