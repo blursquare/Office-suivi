@@ -17917,3 +17917,16 @@ oubliées (`lecturesARelancerScans`) pour être relues, puis message « Dossier 
 ou la raison (serveur injoignable, dossier introuvable). Chaque lecture est bornée à 3 minutes (`avecDureeMaxScan`,
 `DUREE_MAX_LECTURE_SCAN_MS`) : au-delà elle passe en erreur (« Lecture trop longue : « Actualiser » la relance ») et la suivante démarre.
 Vérifié dans Chromium (sans NAS : message « Aucun dossier NAS configuré »), OCR réel non joué ici.
+
+**Nouveau dossier avec Authentic : fiches client reprises dès la création** (0.189.5 ; étude 07/10 : « lors de l'ajout d'un nouveau dossier
+avec les informations Authentic, récupérer dès ce moment civilité, email, téléphone, situation maritale »). Avant, la création gardait les
+parties d'Authentic mais perdait leur civilité (`instantaneExtraction` ne la copie pas), ne posait pas la situation du couple et ne
+retenait rien de ce qu'Authentic avait donné : tout arrivait à la page d'Authentic suivante — qui, faute de registre, reposait une fois
+les valeurs corrigées à la main. `fichesAuthenticACreation(dossier, export)` (client/52), appelée par « Ajouter le dossier » après
+`infosAuthenticACreation` : identité de chaque partie présente sur la fiche (`alignerIdentitePartieAuthentic` : civilité, « Prénom NOM »,
+nom d'usage, date de naissance), sa situation matrimoniale, `d.authentic.personnes`, puis la situation du couple
+(`appliquerSituationsAuthentic`) ; emails et téléphones seulement sur un côté resté vide (le formulaire, déjà rempli par Authentic, fait
+foi : une correction faite dans « Vérifier » reste), mais retenus dans `fichesAuthentic` ; personnes (`parties:ROLE`), adresse, prix et
+type retenus dans `valeurs` sans être réécrits. Historique « Repris des fiches client d'Authentic : … ». Succession : la civilité est
+gardée sur chaque partie (`partiesSuccessionDepuisAuthentic`). Tests dans tests/authentic-fait-foi.test.js (dont : le relevé suivant
+ne repose rien et ne propose rien).

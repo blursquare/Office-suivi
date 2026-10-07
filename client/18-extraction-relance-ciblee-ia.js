@@ -820,6 +820,9 @@
         dossier.piecesAuthentic = reprises.map(pc => pc.cle);
       }
       infosAuthenticACreation(dossier, exportAuthenticActuel.infosAuthentic);
+      // Civilité, coordonnées et situation matrimoniale des fiches client d'Authentic, dès la création (étude 07/10).
+      const repris = fichesAuthenticACreation(dossier, exportAuthenticActuel);
+      if (repris.length) dossier.historique.push(Object.assign({ date: new Date().toISOString(), texte: 'Repris des fiches client d’Authentic : ' + repris.join(' ; ') }, utilisateurPoste ? { auteur: utilisateurPoste } : {}));
       if (referenceAuthenticValide(exportAuthenticActuel.reference) && !dossiers.some(x => x && !x.deleted && x.referenceAuthentic === exportAuthenticActuel.reference)) {
         dossier.referenceAuthentic = exportAuthenticActuel.reference;
         if (exportAuthenticActuel.intitule) dossier.intituleAuthentic = String(exportAuthenticActuel.intitule).slice(0, 150);
@@ -871,7 +874,7 @@
     return partiesExportAuthentic(donnees).map(p => Object.assign({
       nom: p.nom, role: 'PARTIE', qualiteActe: '', qualitePersonne: 'physique', representant: null,
       emails: (p.emails || []).slice(0, 3), telephones: (p.telephones || []).slice(0, 3)
-    }, p.nomUsage ? { nomUsage: p.nomUsage } : {}, p.situationMatrimoniale ? { situationMatrimoniale: p.situationMatrimoniale } : {})).slice(0, 20);
+    }, civiliteDepuisTexte(p.civilite) ? { civilite: civiliteDepuisTexte(p.civilite) } : {}, p.nomUsage ? { nomUsage: p.nomUsage } : {}, p.situationMatrimoniale ? { situationMatrimoniale: p.situationMatrimoniale } : {})).slice(0, 20);
   }
 
   // Pure (modifie le dossier passé) : à la création depuis les pages d'Authentic, les informations du

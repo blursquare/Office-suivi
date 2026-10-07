@@ -340,6 +340,71 @@
     return textes;
   }
 
+  // ---- À la création d'un dossier avec Authentic (étude 07/10 : « lors de l'ajout d'un nouveau dossier avec les informations
+  // Authentic, récupérer dès ce moment civilité, email, téléphone, situation maritale ») ----
+
+  // Modifie d (le dossier qu'on va enregistrer) : ce que les fiches client d'Authentic disent des parties est posé TOUT DE SUITE —
+  // civilité, identité, situation matrimoniale de chaque personne et situation du couple de chaque côté ; emails et téléphones sur
+  // un côté resté vide. Ce qu'Authentic a donné est retenu (personnes, coordonnées, identité, adresse, prix, type de vente) : la
+  // première page relevée après la création ne repose rien, et une valeur corrigée à la main dans « Vérifier » reste.
+  // → les textes d'historique.
+  function fichesAuthenticACreation(d, donnees, o) {
+    const textes = [];
+    if (!d || !donnees) return textes;
+    const maintenant = (o && o.maintenant) || new Date().toISOString();
+    const parties = partiesExportAuthentic(donnees);
+    // Succession : la civilité est déjà sur chaque partie (partiesSuccessionDepuisAuthentic) ; ni côté ni couple.
+    if (estSuccession(d)) return textes;
+    d.parties = Array.isArray(d.parties) ? d.parties : [];
+    const surLaFiche = (v) => d.parties.find(p => p && String(p.role || '').toUpperCase() === v.role && memePartieComplement(p, v)) || null;
+    const venues = parties.filter(v => (v.role === 'VENDEUR' || v.role === 'ACQUEREUR') && v.qualitePersonne !== 'morale' && String(v.nom || '').trim());
+    ['VENDEUR', 'ACQUEREUR'].forEach(role => {
+      const noms = parties.filter(v => v.role === role && String(v.nom || '').trim()).map(v => v.nom);
+      if (noms.length) memoriserValeurAuthentic(d, 'parties:' + role, noms);
+    });
+    const fiches = ((d.authentic && d.authentic.personnes) || []).slice();
+    (donnees.personnes || []).forEach(pers => {
+      const complet = [pers.prenom, pers.nom].filter(Boolean).join(' ');
+      const venue = venues.find(v => v.nom === complet);
+      if (!venue || !surLaFiche(venue)) return;
+      alignerIdentitePartieAuthentic(d, pers, venue.role, { maintenant }).forEach(t => textes.push(t));
+      const p = surLaFiche(venue);
+      const sm = pers.situationMatrimoniale || null;
+      if (p && sm && !(p.situationMatrimoniale && p.situationMatrimoniale.situation)) p.situationMatrimoniale = Object.assign({}, sm);
+      const cle = normaliserPourRecherche(complet).replace(/[^a-z0-9]+/g, ' ').trim();
+      const i = fiches.findIndex(f => normaliserPourRecherche(f.nom).replace(/[^a-z0-9]+/g, ' ').trim() === cle);
+      const fiche = { nom: complet, role: venue.role, situationMatrimoniale: sm };
+      if (i >= 0) fiches[i] = fiche; else fiches.push(fiche);
+    });
+    if (fiches.length) ecrireDonneesAuthentic(d, { personnes: fiches, releveLe: maintenant });
+    appliquerSituationsAuthentic(d, { maintenant }).forEach(t => textes.push(t));
+    // Coordonnées : le formulaire a déjà été rempli avec celles d'Authentic (completerExtractionDepuisAuthentic) — ce qui y est
+    // reste (une correction à la main dans « Vérifier » est gardée) ; un côté vide les reçoit. Authentic est retenu dans tous les cas.
+    const remplis = new Set();
+    venues.filter(surLaFiche).forEach(v => {
+      const { id } = ficheAuthenticPersonne(d, v.role, v.nom);
+      const retenu = {};
+      [['emails', v.role === 'VENDEUR' ? 'emailVendeur' : 'emailAcquereur', 'Email'], ['telephones', v.role === 'VENDEUR' ? 'telephoneVendeur' : 'telephoneAcquereur', 'Téléphone']].forEach(([nature, champ, libelle]) => {
+        const nouveaux = nettoyerContactAuthentic(nature, v[nature]);
+        if (!nouveaux.length) return;
+        retenu[nature] = nouveaux;
+        if (String(d[champ] || '').trim() && !remplis.has(champ)) return;
+        d[champ] = remplacerContactAuthentic(nature, d[champ], [], nouveaux);
+        remplis.add(champ);
+        textes.push(`${libelle} ${LIBELLES_COTE_AUTHENTIC[v.role]} : ${formaterContactAuthentic(nature, nouveaux)}`);
+      });
+      if (Object.keys(retenu).length) majFicheAuthentic(d, id, v.role, v.nom, retenu);
+    });
+    // Champs simples : retenus tels qu'Authentic les donne, jamais écrits ici (le formulaire fait foi à la création).
+    const bien = bienExportAuthentic(donnees);
+    const adresse = bien && bien.adresse && bien.adresse.texte ? normaliserAdresse(bien.adresse.texte) : '';
+    if (adresse) memoriserValeurAuthentic(d, 'adresseBien', adresse);
+    if (bien && bien.type && LIBELLES_TYPE_VENTE_AUTHENTIC[bien.type]) memoriserValeurAuthentic(d, 'typeVente', bien.type);
+    const prix = donnees.infosAuthentic && Number(donnees.infosAuthentic.prix);
+    if (prix > 0) memoriserValeurAuthentic(d, 'prixVente', prix);
+    return textes;
+  }
+
   // ---- Décision de l'étude ----
 
   function partieDeLaMajAuthentic(d, m) {

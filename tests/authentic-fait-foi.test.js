@@ -366,3 +366,41 @@ test('sociétés de l’intitulé d’Authentic : parties du bon côté ; forme 
   assert.equal(app.memePartieComplement({ nom: 'Société civile immobilière DU MOULIN' }, { nom: 'SCI DU MOULIN' }), true);
   assert.equal(app.memePartieComplement({ nom: 'SCI DES CHÊNES' }, { nom: 'SCI DU MOULIN' }), false);
 });
+
+// Étude 07/10 : « lors de l'ajout d'un nouveau dossier avec les informations Authentic, récupérer dès ce moment civilité, email,
+// téléphone, situation maritale » — fichesAuthenticACreation, appelée par « Ajouter le dossier ».
+test('création avec Authentic : civilité, situation du couple et coordonnées posées tout de suite, Authentic retenu', () => {
+  const sm = (conjoint) => ({ situation: 'Marié(e)', date: '', conjoint, contrat: '', regime: '', dateMariage: '' });
+  const donnees = {
+    intitule: 'VTE MARTEL / FOURNIER BRUNET', reference: 'A 2026 00311', infosAuthentic: { prix: 210000 },
+    personnes: [
+      { id: 'v', nom: 'MARTEL', prenom: 'Alexandre', civilite: 'Monsieur', dateNaissance: '1970-03-02', emails: ['alex@exemple.fr'], telephones: ['06 98 76 54 32'] },
+      { id: 'a1', nom: 'FOURNIER', prenom: 'Camille', civilite: 'Madame', emails: ['camille@exemple.fr'], telephones: [], situationMatrimoniale: sm('BRUNET Léo') },
+      { id: 'a2', nom: 'BRUNET', prenom: 'Léo', civilite: 'Monsieur', emails: ['leo@exemple.fr'], telephones: ['06 12 34 56 78'], situationMatrimoniale: sm('FOURNIER Camille') }
+    ],
+    parties: [], documents: [], immeubles: []
+  };
+  // Le dossier tel que « Ajouter le dossier » le construit : parties d'Authentic (sans civilité, perdue par l'instantané),
+  // email du vendeur corrigé à la main dans « Vérifier », champs de l'acquéreur vides.
+  const d = dossier({
+    nom: 'MARTEL / FOURNIER BRUNET', prixVente: 210000, emailVendeur: 'corrige@exemple.fr', telephoneVendeur: '06 98 76 54 32',
+    parties: [{ role: 'VENDEUR', nom: 'Alexandre MARTEL' }, { role: 'ACQUEREUR', nom: 'Camille FOURNIER' }, { role: 'ACQUEREUR', nom: 'Léo BRUNET' }]
+  });
+  const textes = app.fichesAuthenticACreation(d, donnees).join(' | ');
+  assert.equal(d.parties.map(p => p.nom + ':' + p.civilite).join(','), 'Alexandre MARTEL:M,Camille FOURNIER:Mme,Léo BRUNET:M');
+  assert.equal(d.situationAcquereur, 'marie');
+  assert.equal(d.emailVendeur, 'corrige@exemple.fr', 'la correction faite dans « Vérifier » reste');
+  assert.equal(d.emailAcquereur, 'camille@exemple.fr; leo@exemple.fr');
+  assert.equal(d.telephoneAcquereur, '06 12 34 56 78');
+  assert.match(textes, /Civilité de Camille FOURNIER : Madame/);
+  assert.match(textes, /Situation des acquéreurs : Couple marié/);
+  // La première page relevée ensuite ne repose rien : ni l'email corrigé, ni une mise à jour proposée.
+  const r = app.appliquerReleveSurDossier(d, ficheClient({ nom: 'Martel', prenom: 'Alexandre', email: 'alex@exemple.fr' }));
+  assert.equal(d.emailVendeur, 'corrige@exemple.fr');
+  assert.equal(r.majEnAttente.length, 0);
+});
+
+test('création d’une succession avec Authentic : la civilité de chaque partie est gardée', () => {
+  const donnees = { intitule: 'SUCC DURAND', personnes: [{ id: 'p', nom: 'DURAND', prenom: 'Odile', civilite: 'Madame', emails: [], telephones: [] }], parties: [], documents: [], immeubles: [] };
+  assert.equal(app.partiesSuccessionDepuisAuthentic(donnees).map(p => p.nom + ':' + p.civilite).join(','), 'Odile DURAND:Mme');
+});
