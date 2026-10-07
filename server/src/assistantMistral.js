@@ -23,10 +23,14 @@ const BASES = { eu: 'https://api.eu.mistral.ai', global: 'https://api.mistral.ai
 const SIGLES = new Set(['VTE', 'SUCC', 'RIB', 'SAFER', 'DPU', 'DIA', 'PDF', 'TVA', 'TTC', 'HT', 'AF', 'NAS', 'CLAIRE', 'IA', 'EUR',
   'OK', 'RDV', 'SCI', 'SARL', 'PLU', 'CU', 'DPE', 'RHF', 'AAE', 'ECV', 'APR', 'JV', 'BA', 'JS', 'PJ', 'CDC']);
 
-/** Réglages de l'assistant : moteur 'mistral' (par défaut, choix de l'étude 07/10) ou 'locale'. @param {any} brut */
+/**
+ * Réglages de l'assistant : moteur 'mistral' (par défaut, choix de l'étude 07/10) ou 'locale' ; `toutesDemandes` (étude 07/10,
+ * « active Mistral de base pour voir ») : Mistral lit TOUTES les phrases, pas seulement celles que les mots-clés ne départagent
+ * pas — vrai par défaut pendant l'essai, sans effet avec l'IA locale (trop lente sur le processeur du serveur). @param {any} brut
+ */
 function assainirReglagesAssistant(brut) {
   const b = brut && typeof brut === 'object' ? brut : {};
-  return { moteur: MOTEURS.includes(b.moteur) ? b.moteur : 'mistral' };
+  return { moteur: MOTEURS.includes(b.moteur) ? b.moteur : 'mistral', toutesDemandes: b.toutesDemandes !== false };
 }
 
 /**

@@ -84,7 +84,7 @@ function creerRouteurAssistant(config, injections, parametresRepo) {
         historique: Array.isArray(contexte.historique) ? contexte.historique.slice(-3) : []
       },
       dossiers
-    }, m.client, { disponibilite: m.disponibilite, pseudonymiser: m.pseudonymiser });
+    }, m.client, { disponibilite: m.disponibilite, pseudonymiser: m.pseudonymiser, toujours: m.moteur === 'mistral' && lireReglages().toutesDemandes });
     // Point terrain : l'IA locale a compris une phrase ambiguë (ou n'a pas pu) — jamais la phrase elle-même.
     const point = /Mistral/.test(resultat.raisonIa || '') || resultat.moteur === 'mistral' ? 'assistant-mistral' : 'assistant-ia-locale';
     if (resultat.source === 'ia') noterVerification(parametresRepo, point, { detail: `intention ${resultat.intention}` });

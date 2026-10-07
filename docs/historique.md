@@ -17735,3 +17735,20 @@ plutôt qu'un formulaire pré-rempli) — `client/53-agenda-copier-coller.js` :
 - Point terrain `options-rendez-vous`. Vérifié dans Chromium (sondage simulé : phrase → confirmation → requête `optionsSeules`,
   historique, toast ; « Mets 2 options… » → créneaux proposés) et serveur (test : options posées, aucun autre appel EWS, Placer
   retire les deux, refus d'Exchange → rien gardé). Non vérifié avec le vrai Exchange.
+
+**Étude (07/10) : « Active Mistral de base pour Demander à CLAIRE pour voir » + « Widget Demander à CLAIRE : remettre le titre du
+widget »** (0.184.0 ; choix de l'étude : « Mistral lit toutes les phrases ») :
+- Mistral était déjà le moteur par défaut mais n'était appelé que pour les phrases que les mots-clés ne départagent pas (sûreté
+  basse) — presque jamais. Nouveau réglage `toutesDemandes` (clé `assistant-ia`, **vrai par défaut**, `assainirReglagesAssistant`) :
+  avec Mistral, `comprendreDemande(…, { toujours: true })` envoie TOUTE phrase (noms masqués, comme avant), sauf un nom de dossier
+  seul ; l'intention de Mistral l'emporte, les paramètres lus par le code (dates, heures, montants, créneaux…) restent, le dossier
+  est toujours relu par le code ; en panne ou hors délai, repli sur les mots-clés. La réponse rend `motsCles` quand les mots-clés
+  avaient compris autre chose. Sans effet avec l'IA locale (trop lente sur le processeur du serveur).
+- Page : sous chaque réponse comprise par l'IA, « Compris par Mistral » (et « — les mots-clés auraient compris « … » » s'ils
+  différaient), `noteMoteurAssistant`. Réglages › IA et relecture d'actes : interrupteur « Mistral lit toutes les demandes ».
+  Coût : chaque demande compte désormais dans l'usage du mois (quelques dixièmes de centime par demande avec Mistral Small).
+- Widget : titre standard « Demander à CLAIRE » (`carteWidget`, comme les autres cartes) aussi sur une rangée — titre en tête, champ
+  et exemples sur une ligne dessous (exemples masqués sous 560 px de large) ; même hauteur (102 px sur un écran de bureau).
+  L'ancien titre maison (icône + texte, texte masqué en petit et sous 720 px) est retiré.
+- Tests serveur : phrase claire envoyée à l'IA en mode `toujours`, `motsCles` rendu seulement s'il diffère, nom seul sans IA, panne →
+  mots-clés ; route : réglage vrai par défaut, se coupe et se garde. Non vérifié avec la vraie API Mistral ici.

@@ -84,7 +84,9 @@ function nettoyerParametresIa(brut) {
  * @param {{ texte: string, contexte?: { aujourdhui?: string, dossierId?: string, dossierLibelle?: string, historique?: any[] },
  *   dossiers?: Array<{id:string, nom:string, parties?: any[], archive?: boolean}> }} entree
  * @param {{ verifierDisponibilite: () => Promise<{disponible: boolean, raison?: string}>, genererJson: Function, moteur?: string } | null} ollama
- * @param {{ disponibilite?: () => Promise<{disponible: boolean, raison?: string}>, pseudonymiser?: boolean }} [options]
+ * @param {{ disponibilite?: () => Promise<{disponible: boolean, raison?: string}>, pseudonymiser?: boolean, toujours?: boolean }} [options]
+ *   `toujours` : l'IA lit aussi les phrases que les mots-clés ont comprises sûrement (essai de Mistral, étude 07/10) ; son
+ *   intention l'emporte, les paramètres lus par le code restent, et `motsCles` dit ce que les mots-clés avaient compris.
  */
 async function comprendreDemande(entree, ollama, options) {
   const texte = String((entree && entree.texte) || '').replace(/\s+/g, ' ').trim().slice(0, 500);
@@ -99,12 +101,14 @@ async function comprendreDemande(entree, ollama, options) {
   const moteur = (ollama && ollama.moteur) || 'locale';
 
   // Un nom de dossier seul (« Martin », « dossier Martin ») : l'état du dossier, sans demander à l'IA (lecture seule).
+  let nomSeul = false;
   if (motsCles.intention === 'inconnu' && texte.split(' ').length <= 4) {
     const seul = A.reconnaitreDossier(texte, dossiers);
-    if (seul.dossier || seul.candidats.length) { intention = 'etat_dossier'; source = 'motscles'; motsCles.surete = 'haute'; }
+    if (seul.dossier || seul.candidats.length) { intention = 'etat_dossier'; source = 'motscles'; motsCles.surete = 'haute'; nomSeul = true; }
   }
+  const intentionMotsCles = intention;
 
-  if (motsCles.surete !== 'haute' && ollama) {
+  if ((motsCles.surete !== 'haute' || (options && options.toujours && !nomSeul)) && ollama) {
     const disponibilite = options && options.disponibilite ? options.disponibilite : () => ollama.verifierDisponibilite();
     /** @type {{ disponible: boolean, raison?: string }} */
     let statut = { disponible: false, raison: '' };
@@ -150,7 +154,8 @@ async function comprendreDemande(entree, ollama, options) {
       parametres.dossierParContexte = true;
     }
   }
-  return { intention, parametres, dossier, candidats, source, moteur: source === 'ia' ? moteur : '', surete: motsCles.surete, raisonIa, texte };
+  return { intention, parametres, dossier, candidats, source, moteur: source === 'ia' ? moteur : '', surete: motsCles.surete, raisonIa, texte,
+    ...(source === 'ia' && intentionMotsCles !== intention && intentionMotsCles !== 'inconnu' ? { motsCles: intentionMotsCles } : {}) };
 }
 
 /** Disponibilité d'Ollama gardée une minute : la page vérifie à chaque demande, pas la peine d'interroger Ollama à chaque fois. */

@@ -240,3 +240,34 @@ test('route : réglage du moteur (Mistral par défaut, IA locale au choix), usag
   await fetch(`${baseUrl}/api/assistant/reglages`, { method: 'PUT', headers: { Authorization: `Bearer ${jeton}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ moteur: 'n importe quoi' }) });
   assert.equal((await (await fetch(`${baseUrl}/api/assistant/reglages`, { headers: { Authorization: `Bearer ${jeton}` } })).json()).moteur, 'mistral');
 });
+
+test('« Mistral lit toutes les demandes » (étude 07/10) : même une phrase claire part à l’IA, son intention l’emporte, le code garde ses paramètres', async () => {
+  let appels = 0;
+  const ia = { moteur: 'mistral', verifierDisponibilite: async () => ({ disponible: true }),
+    genererJson: async () => { appels += 1; return { intention: 'echeances_dossier', parametres: { dossier: 'Martin', date: '2026-01-01' } }; } };
+  const r = await comprendreDemande({ texte: 'Où en est le dossier MARTIN ?', contexte: CONTEXTE, dossiers: DOSSIERS }, ia, { toujours: true });
+  assert.equal(appels, 1);
+  assert.equal(r.source, 'ia');
+  assert.equal(r.intention, 'echeances_dossier');
+  assert.equal(r.motsCles, 'etat_dossier', 'ce que les mots-clés avaient compris');
+  assert.equal(r.dossier, 'd1');
+  // Même réponse : pas de « motsCles ».
+  const pareil = { ...ia, genererJson: async () => ({ intention: 'etat_dossier', parametres: {} }) };
+  assert.equal('motsCles' in await comprendreDemande({ texte: 'Où en est le dossier MARTIN ?', contexte: CONTEXTE, dossiers: DOSSIERS }, pareil, { toujours: true }), false);
+  // Un nom de dossier seul reste sans IA ; une IA en panne rend la lecture des mots-clés.
+  appels = 0;
+  assert.equal((await comprendreDemande({ texte: 'Martin', contexte: CONTEXTE, dossiers: DOSSIERS }, ia, { toujours: true })).source, 'motscles');
+  assert.equal(appels, 0);
+  const panne = { ...ia, genererJson: async () => { throw new Error('délai dépassé'); } };
+  const repli = await comprendreDemande({ texte: 'Où en est le dossier MARTIN ?', contexte: CONTEXTE, dossiers: DOSSIERS }, panne, { toujours: true });
+  assert.equal(`${repli.intention} ${repli.source}`, 'etat_dossier motscles');
+  assert.match(repli.raisonIa, /IA Mistral/);
+});
+
+test('route : « Mistral lit toutes les demandes » vrai par défaut, se coupe et se garde', async () => {
+  const h = { Authorization: `Bearer ${jeton}`, 'Content-Type': 'application/json' };
+  await fetch(`${baseUrl}/api/assistant/reglages`, { method: 'PUT', headers: h, body: JSON.stringify({ moteur: 'mistral' }) });
+  assert.equal((await (await fetch(`${baseUrl}/api/assistant/reglages`, { headers: h })).json()).toutesDemandes, true);
+  await fetch(`${baseUrl}/api/assistant/reglages`, { method: 'PUT', headers: h, body: JSON.stringify({ moteur: 'mistral', toutesDemandes: false }) });
+  assert.equal((await (await fetch(`${baseUrl}/api/assistant/reglages`, { headers: h })).json()).toutesDemandes, false);
+});

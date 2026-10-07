@@ -225,11 +225,20 @@
     };
     try {
       const reponse = await (executants[intention.cle] || executants.inconnu)();
-      if (reponse) poserMessageAssistant('claire', reponse.html, reponse.boutons);
+      if (reponse) poserMessageAssistant('claire', reponse.html + noteMoteurAssistant(r), reponse.boutons);
     } catch (e) {
       console.error('Assistant : geste impossible', e);
       poserMessageAssistant('claire', `<p>Le geste n’a pas abouti : ${escapeHtml(e.message || e)}</p>`);
     }
+  }
+
+  // Pure : la mention discrète de ce qui a compris la phrase (étude 07/10, essai de Mistral « pour voir ») — « Compris par
+  // Mistral », et ce que les mots-clés auraient compris quand ils disaient autre chose. Rien quand les mots-clés ont suffi.
+  function noteMoteurAssistant(r) {
+    if (!r || r.source !== 'ia') return '';
+    const moteur = r.moteur === 'mistral' ? 'Mistral' : 'l’IA locale';
+    const autre = r.motsCles ? intentionAssistant(r.motsCles) : null;
+    return `<p class="asst-note asst-moteur">Compris par ${moteur}${autre ? ` — les mots-clés auraient compris « ${escapeHtml(autre.libelle)} »` : ''}.</p>`;
   }
 
   // ---- Réponses en lecture ----
@@ -670,7 +679,7 @@
   function reponseInconnuAssistant(r) {
     // La raison technique (adresse d'Ollama, message de fetch) reste dans la console ; à l'écran, le fait seul.
     if (r && r.raisonIa) console.warn('Assistant : ' + r.raisonIa);
-    const motif = r && r.raisonIa ? ' <span class="asst-note">(sans l’IA locale, je ne lis que les mots-clés)</span>' : '';
+    const motif = r && r.raisonIa ? ' <span class="asst-note">(sans l’IA, je ne lis que les mots-clés)</span>' : '';
     return { html: `<p>Je n’ai pas compris la demande.${motif} Essayez avec le nom d’un dossier et un verbe : « où en est… », « relance… », « rappelle-moi… », « place la signature… », ou demandez-moi « que sais-tu faire ? ».</p>`,
       boutons: [{ libelle: 'Que sais-tu faire ?', action: () => envoyerDemandeAssistant('Que sais-tu faire ?') }] };
   }
@@ -691,6 +700,8 @@
       const data = await r.json();
       const choix = document.getElementById('reglages-assistant-moteur');
       if (choix) choix.value = data.moteur || 'mistral';
+      const toutes = document.getElementById('reglages-assistant-toutes');
+      if (toutes) toutes.checked = data.toutesDemandes !== false;
       const usage = document.getElementById('reglages-assistant-usage');
       if (usage) usage.textContent = texteUsageAssistant(data.usage) + (data.moteur === 'mistral' && !data.cleMistralEnregistree ? ' Aucune clé Mistral : l’IA locale est utilisée.' : '');
     } catch (e) { /* Réglages sans connexion : rien à afficher */ }
@@ -700,7 +711,7 @@
     const choix = document.getElementById('reglages-assistant-moteur');
     const sortie = document.getElementById('reglages-assistant-resultat');
     try {
-      const r = await fetchAvecAuth('/api/assistant/reglages', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ moteur: choix ? choix.value : 'mistral' }) });
+      const r = await fetchAvecAuth('/api/assistant/reglages', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ moteur: choix ? choix.value : 'mistral', toutesDemandes: !!(document.getElementById('reglages-assistant-toutes') || {}).checked }) });
       const data = await r.json();
       if (!r.ok) throw new Error(data.erreur || `Le serveur a répondu ${r.status}.`);
       assistantDisponibilite.quand = 0;
@@ -736,19 +747,18 @@
       if (liste && liste.dataset.cle !== exemples.join('|')) { liste.dataset.cle = exemples.join('|'); liste.innerHTML = puces; planifierAjustementWidgets(); }
       return;
     }
-    const titre = `<span class="w-asst-titre">${icone('sparkle')}<span class="w-asst-titre-texte">Demander à CLAIRE</span></span>`;
+    // Le titre du widget, comme sur les autres cartes (étude 07/10 : « remettre le titre du widget »).
+    const titre = 'Demander à CLAIRE';
     const formulaire = `<form class="asst-saisie w-asst-saisie w-fixe" onsubmit="event.preventDefault(); envoyerDepuisWidgetAssistant();">
         <input type="text" id="widget-assistant-saisie" autocomplete="off" placeholder="Posez votre question…" aria-label="Votre question à CLAIRE">
         <wa-button variant="brand" type="submit" size="s" class="asst-envoyer" aria-label="Demander">${icone('send')}</wa-button>
       </form>`;
     const listeExemples = exemples.length ? `<div class="w-asst-exemples" data-ajuster="1" data-cle="${escapeAttr(exemples.join('|'))}">${puces}</div>` : '';
-    if (compact) {
-      bloc.innerHTML = `<div class="w-carte w-${presentation} assistant w-asst-compact" data-forme="${forme}">
-          <div class="w-corps"><div class="w-asst-ligne">${titre}${formulaire}</div>${exemples.length || reprendre ? `<div class="w-asst-pied"><span class="w-tete-droite-asst">${reprendre}</span>${listeExemples}</div>` : ''}</div>
-        </div>`;
-      return;
-    }
-    bloc.innerHTML = carteWidget({ presentation, classe: 'assistant', attributs: `data-forme="${forme}"`, titre,
+    // Une rangée : le titre en tête comme ailleurs, puis le champ et les exemples sur une seule ligne.
+    bloc.innerHTML = compact
+      ? carteWidget({ presentation, classe: 'assistant w-asst-compact', attributs: `data-forme="${forme}"`, titre,
+        droite: `<span class="w-tete-droite-asst">${reprendre}</span>`, corps: `<div class="w-asst-ligne">${formulaire}${listeExemples}</div>` })
+      : carteWidget({ presentation, classe: 'assistant', attributs: `data-forme="${forme}"`, titre,
       droite: `<span class="w-tete-droite-asst">${reprendre}</span>`, corps: formulaire + listeExemples });
   }
 
