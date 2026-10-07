@@ -17973,3 +17973,17 @@ Passés en revue : les endroits où une partie était reconnue par son nom de fa
   (Vendeur / Acquéreur) d'une pièce d'identité ; le score du dossier ne change pas.
 Inchangés car déjà sûrs : appels 3CX (téléphone), emails des dossiers (adresse), `memePersonneParNom` (deux mots au moins), identité
 alignée par côté (`alignerIdentitePartieAuthentic`). Tests : tests/homonymes-parties.test.js.
+
+**Notaires lus dans l'acte : toujours la fiche de l'annuaire** (0.189.10 ; étude 07/10 : « ne plus proposer le nom du notaire lu dans
+l'acte, trouver toujours une correspondance avec le répertoire »). Avant, `notaireDepuisRepertoire` ne remplaçait le nom lu que si un
+SEUL notaire correspondait (en France, ou dans le 41 et ses voisins) et rendait sinon le nom de l'acte. Désormais
+`notaireAnnuaireLePlusProche` choisit toujours parmi les notaires du même nom de famille (un mot du nom quand l'acte écrit tout en
+capitales, « Maître JEAN DUPONT ») : même prénom +8 (premier prénom +6), même ville ou bureau +6, le 41 (ou notre office) +3, un
+département voisin +2 ; à égalité, l'ordre de l'annuaire ; sans nom exact, un nom à une lettre près dans le 41 et ses voisins
+(`distanceEdition`). Aucun notaire de ce nom → rien (champ vide, jamais le nom brut) ; annuaire pas encore chargé → nom gardé.
+`notaireProcheAnnuaire` retiré (remplacé). Appliqué : champs notaires de « Nouveau dossier », liste « lus » du panneau, notaire
+d'Authentic, `notairesDetectes` gardés à la création et au complément (`notairesDetectesAnnuaire`), ligne « Lus, à placer » de la fiche
+et liste de saisie (`notairesDetectesDossier` : dossiers déjà créés compris, sans réécrire la fiche). Correction : l'index passé à
+« Vendeur / Acquéreur / Les deux » de « Lus, à placer » est retrouvé par le nom (l'`indexOf` sur un objet recopié rendait -1).
+Le choix « le plus proche » peut se tromper quand plusieurs notaires du même nom exercent près de Blois sans prénom ni ville lus : le
+champ reste corrigeable sur la fiche.

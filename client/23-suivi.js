@@ -686,7 +686,7 @@
 
     // Groupe 3 — les notaires. Le bouton « Reçoit l'acte » EST le contrôle (voir
     // basculerCoteInstrumentaire), sur les deux lignes au même endroit.
-    const detectes = (Array.isArray(d.notairesDetectes) ? d.notairesDetectes : []).filter(n => n && n.nom);
+    const detectes = notairesDetectesDossier(d);
     // Notaires lus dans l'acte et pas encore placés (étude, 02/10 : « le notaire était dans le
     // compromis mais a disparu de la fiche ») — visibles, à placer d'un clic, jamais repliés.
     const nonPlaces = notairesNonPlacesDossier(d);
@@ -784,9 +784,9 @@
         ${ligne('scale', 'Notaire vendeur', notaire('vendeur', d.notaireVendeur), `not-vendeur-${d.id}`, 'prop-pleine' + siVide(!d.notaireVendeur && d.coteInstrumentaire !== 'vendeur' && !nonPlaces.length))}
         ${ligne('scale', 'Notaire acquéreur', notaire('acquereur', d.notaireAcquereur), `not-acquereur-${d.id}`, 'prop-pleine' + siVide(!d.notaireAcquereur && d.coteInstrumentaire !== 'acquereur' && !nonPlaces.length))}
         ${nonPlaces.length ? ligne('scale', 'Lus, à placer', `<span class="notaires-a-placer">${nonPlaces.map(n => `<span class="notaires-a-placer-ligne"><span class="prop-texte">${escapeHtml(n.nom)}${n.role === 'instrumentaire' ? ' <span class="hint">· reçoit l’acte</span>' : n.role === 'participant' ? ' <span class="hint">· participe</span>' : ''}</span>
-          <button type="button" class="lien-action" onclick="placerNotaireFiche('${d.id}', ${detectes.indexOf(n)}, 'vendeur')">Vendeur</button>
-          <button type="button" class="lien-action" onclick="placerNotaireFiche('${d.id}', ${detectes.indexOf(n)}, 'acquereur')">Acquéreur</button>
-          <button type="button" class="lien-action" onclick="placerNotaireFiche('${d.id}', ${detectes.indexOf(n)}, 'deux')">Les deux</button></span>`).join('')}</span>`, null, 'prop-pleine') : ''}
+          <button type="button" class="lien-action" onclick="placerNotaireFiche('${d.id}', ${detectes.findIndex(x => x.nom === n.nom)}, 'vendeur')">Vendeur</button>
+          <button type="button" class="lien-action" onclick="placerNotaireFiche('${d.id}', ${detectes.findIndex(x => x.nom === n.nom)}, 'acquereur')">Acquéreur</button>
+          <button type="button" class="lien-action" onclick="placerNotaireFiche('${d.id}', ${detectes.findIndex(x => x.nom === n.nom)}, 'deux')">Les deux</button></span>`).join('')}</span>`, null, 'prop-pleine') : ''}
         ${emailConfrereVendeur}
         ${telConfrereVendeur}
         ${emailParticipant}

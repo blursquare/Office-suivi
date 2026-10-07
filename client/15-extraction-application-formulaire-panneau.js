@@ -107,7 +107,8 @@
     const liste = c.detectes.map(n => ({ nom: notaireDepuisRepertoire(n.nom, carnetConfreres), role: n.role, source: 'acte' }));
     const auth = exportAuthenticActuel && exportAuthenticActuel.infosAuthentic && exportAuthenticActuel.infosAuthentic.notaire;
     if (auth) {
-      const nom = /^ma[iî]tre\b/i.test(auth) ? auth : 'Maître ' + auth;
+      // Le notaire d'Authentic prend aussi le libellé de l'annuaire quand il y figure.
+      const nom = notaireDepuisRepertoire(auth, carnetConfreres) || (/^ma[iî]tre\b/i.test(auth) ? auth : 'Maître ' + auth);
       const cle = normaliserPourRecherche(auth).replace(/[^a-z]+/g, ' ').trim();
       if (!liste.some(n => normaliserPourRecherche(n.nom).includes(cle))) liste.push({ nom, role: null, source: 'authentic' });
     }

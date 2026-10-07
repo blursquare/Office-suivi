@@ -103,28 +103,65 @@
 
   // Notaire lu dans un compromis → sa fiche du Répertoire (étude 05/10 : « les notaires sont détectés dans le compromis et
   // recherchés directement dans le Répertoire pour trouver la correspondance ») : le libellé de l'annuaire, « Maître Prénom NOM
-  // (Ville) », même quand l'acte a déjà écrit nom, prénom et ville à sa façon. Un nom porté par plusieurs notaires en France est
-  // retenu s'il n'y en a qu'un dans notre département et ses voisins ; sinon rien n'est deviné (la valeur complétée comme avant).
+  // (Ville) », même quand l'acte a déjà écrit nom, prénom et ville à sa façon. Étude 07/10 : « ne plus proposer le nom du notaire lu
+  // dans l'acte, trouver toujours une correspondance avec le répertoire » — le notaire de l'annuaire le plus proche est toujours
+  // retenu (`notaireAnnuaireLePlusProche`) ; aucun notaire de ce nom dans l'annuaire → rien (jamais le nom brut de l'acte).
   function notaireDepuisRepertoire(valeur, carnet) {
     const brut = nettoyerLibelleNotaire(valeur);
-    if (!brut) return brut;
+    if (!brut) return '';
     const etude = canoniserNotaireEtude(brut);
     if (etude !== brut) return etude;
-    const t = notaireUniqueAnnuaire(brut, carnet) || notaireProcheAnnuaire(brut, carnet);
-    if (!t) return completerNomNotaire(valeur, carnet);
+    // Annuaire pas encore chargé : rien où chercher, le nom est gardé tel quel.
+    if (!Array.isArray(carnet) || !carnet.length) return brut;
+    const t = notaireAnnuaireLePlusProche(brut, carnet);
+    if (!t) return '';
+    if (t.office && t.office.etude) return NOTAIRE_ETUDE_LIBELLE;
     return `Maître ${t.notaire}${t.office.ville ? ` (${t.office.ville})` : ''}`;
   }
-  // Pure : le seul notaire de ce nom (et de ce prénom quand il est écrit) exerçant dans notre département ou un voisin, ou null.
-  function notaireProcheAnnuaire(valeur, carnet) {
+
+  // Pure : le notaire de l'annuaire le plus proche de ce qui est écrit, ou null s'il n'y a personne de ce nom. Nom de famille
+  // (un mot du nom quand l'acte écrit tout en capitales, « Maître JEAN DUPONT »), puis, par ordre : même prénom, même ville,
+  // notre département, un département voisin ; à défaut de nom exact, un nom à une lettre près dans notre département ou ses voisins
+  // (lecture du PDF). À égalité, l'ordre de l'annuaire.
+  function notaireAnnuaireLePlusProche(valeur, carnet) {
     const c = decomposerNomNotaire(valeur);
     if (!c.famille || !Array.isArray(carnet)) return null;
-    let candidats = (indexNotairesParFamille(carnet).get(c.famille) || [])
-      .filter(x => x.office.etude || !x.office.departement || DEPARTEMENTS_PROCHES_ANNUAIRE.indexOf(x.office.departement) !== -1);
-    if (c.prenom) candidats = candidats.filter(x => x.c.prenom === c.prenom);
-    const distincts = new Set(candidats.map(x => x.office.id + '|' + x.notaire));
-    return distincts.size === 1 ? { office: candidats[0].office, notaire: candidats[0].notaire } : null;
+    const index = indexNotairesParFamille(carnet);
+    const motsFamille = c.famille.split(' ').filter(m => m.length >= 2);
+    // Familles essayées : le nom tel quel, puis chaque mot (le reste devient le prénom).
+    const essais = [{ famille: c.famille, prenom: c.prenom }].concat(motsFamille.length > 1
+      ? motsFamille.map(m => ({ famille: m, prenom: [c.prenom].concat(motsFamille.filter(x => x !== m)).filter(Boolean).join(' ') })) : []);
+    let candidats = [];
+    for (const e of essais) {
+      candidats = (index.get(e.famille) || []).map(x => Object.assign({ prenomLu: e.prenom }, x));
+      if (candidats.length) break;
+    }
+    const proche = (x) => x.office.etude || !x.office.departement || DEPARTEMENTS_PROCHES_ANNUAIRE.indexOf(x.office.departement) !== -1;
+    if (!candidats.length && c.famille.length >= 5) {
+      for (const [famille, liste] of index) {
+        if (Math.abs(famille.length - c.famille.length) <= 1 && distanceEdition(famille, c.famille) <= 1) {
+          candidats = candidats.concat(liste.filter(proche).map(x => Object.assign({ prenomLu: c.prenom }, x)));
+        }
+      }
+    }
+    if (!candidats.length) return null;
+    const norm = (v) => normaliserPourRecherche(v || '').replace(/[^a-z0-9]+/g, ' ').trim();
+    const score = (x) => {
+      let s = 0;
+      if (x.prenomLu && x.c.prenom) s += x.c.prenom === x.prenomLu ? 8 : (x.c.prenom.split(' ')[0] === x.prenomLu.split(' ')[0] ? 6 : 0);
+      if (c.ville && [x.office.ville].concat(x.office.bureaux || []).map(norm).some(l => l && (' ' + l + ' ').indexOf(' ' + c.ville + ' ') !== -1)) s += 6;
+      if (x.office.etude || x.office.departement === '41') s += 3;
+      else if (proche(x)) s += 2;
+      return s;
+    };
+    let meilleur = candidats[0];
+    let meilleurScore = score(meilleur);
+    for (const x of candidats.slice(1)) {
+      const sx = score(x);
+      if (sx > meilleurScore) { meilleur = x; meilleurScore = sx; }
+    }
+    return { office: meilleur.office, notaire: meilleur.notaire };
   }
-
   // Agence lue dans un compromis → l'agence du Répertoire (thème « immobilier », étude 05/10 : « pareil pour les agences ») :
   // noms comparés sans casse, accents, ponctuation ni mots d'usage (agence, immobilier, l', sarl…) ; l'un contient l'autre.
   // Un seul candidat (le nom identique d'abord) → { organisme, id, adresse } ; plusieurs ou aucun → null. Pure.
@@ -1990,16 +2027,30 @@
   // fausse, ou saisir un notaire que l'acte ne nommait pas du tout.
   // Pure : notaires lus à la création qui ne sont ni notaire du vendeur ni notaire de l'acquéreur,
   // tant que l'un des deux champs est vide.
+  // Les notaires lus dans l'acte d'un dossier, chacun remplacé par sa fiche de l'annuaire (étude 07/10 : « ne plus proposer le nom
+  // du notaire lu dans l'acte ») ; un nom sans aucune correspondance n'est plus proposé. Dossiers créés avant compris.
+  function notairesDetectesDossier(d) {
+    const vus = new Set();
+    return (Array.isArray(d && d.notairesDetectes) ? d.notairesDetectes : []).filter(n => n && n.nom)
+      .map(n => Object.assign({}, n, { nom: notaireDepuisRepertoire(n.nom, carnetConfreres) }))
+      .filter(n => n.nom && !vus.has(n.nom) && vus.add(n.nom));
+  }
+
+  // Les notaires lus dans l'acte, au libellé de l'annuaire, pour être gardés sur la fiche (création, complément).
+  function notairesDetectesAnnuaire(liste) {
+    return notairesDetectesDossier({ notairesDetectes: liste });
+  }
+
   function notairesNonPlacesDossier(d) {
     if (!d || (d.notaireVendeur && d.notaireAcquereur)) return [];
     const cle = (x) => normaliserPourRecherche(String(x || '').replace(/\([^)]*\)/g, ' ')).replace(/^\s*(?:maitre|me)\s+/, '').replace(/[^a-z]+/g, ' ').trim();
     const places = [cle(d.notaireVendeur), cle(d.notaireAcquereur)].filter(Boolean);
-    return (Array.isArray(d.notairesDetectes) ? d.notairesDetectes : []).filter(n => n && n.nom && !places.includes(cle(n.nom)));
+    return notairesDetectesDossier(d).filter(n => !places.includes(cle(n.nom)));
   }
 
   function placerNotaireFiche(id, index, cote) {
     const d = dossiers.find(x => x.id === id);
-    const n = d && (Array.isArray(d.notairesDetectes) ? d.notairesDetectes : []).filter(x => x && x.nom)[index];
+    const n = d && notairesDetectesDossier(d)[index];
     if (!n) return;
     if (cote === 'vendeur' || cote === 'deux') affecterNotaire(id, 'vendeur', n.nom);
     if (cote === 'acquereur' || cote === 'deux') affecterNotaire(id, 'acquereur', n.nom);
@@ -2019,7 +2070,7 @@
     // affecte, le badge « Reçoit l'acte » peut se poser — mais jamais par-dessus un côté déjà
     // choisi à la main.
     if (!d.coteInstrumentaire && nouveau
-      && (d.notairesDetectes || []).some(n => n.role === 'instrumentaire' && n.nom === nouveau)) {
+      && notairesDetectesDossier(d).some(n => n.role === 'instrumentaire' && n.nom === nouveau)) {
       d.coteInstrumentaire = cote;
     }
     deduireRoleNotaireDossier(d);

@@ -69,7 +69,16 @@ test('Répertoire : le notaire lu dans l’acte prend son libellé de l’annuai
   assert.equal(app.notaireDepuisRepertoire('Maître Aurélien LEBLANC (MONTILS)', carnet), 'Maître Aurélien LEBLANC (Les Montils)');
   assert.equal(app.notaireDepuisRepertoire('Me LEBLANC', carnet), 'Maître Aurélien LEBLANC (Les Montils)', 'un seul LEBLANC dans le 41 et ses voisins');
   assert.equal(app.notaireDepuisRepertoire('NOIRET Fanny', carnet), 'Maître Fanny NOIRET (Tours)');
-  assert.equal(app.notaireDepuisRepertoire('Maître Inconnu DUPONT', carnet), 'Maître Inconnu DUPONT', 'rien n’est deviné');
+  // Étude 07/10 : « ne plus proposer le nom du notaire lu dans l'acte, trouver toujours une correspondance avec le répertoire ».
+  assert.equal(app.notaireDepuisRepertoire('Maître Inconnu DUPONT', carnet), '', 'personne de ce nom dans l’annuaire : rien, jamais le nom brut');
+  assert.equal(app.notaireDepuisRepertoire('Maître Paul LEBLANC', carnet), 'Maître Paul LEBLANC (Lille)', 'le prénom passe avant la région');
+  assert.equal(app.notaireDepuisRepertoire('Maître Jean LEBLANC', carnet), 'Maître Aurélien LEBLANC (Les Montils)', 'prénom inconnu : le plus proche de l’étude');
+  assert.equal(app.notaireDepuisRepertoire('Maître FANNY NOIRET', carnet), 'Maître Fanny NOIRET (Tours)', 'tout en capitales : un mot du nom');
+  assert.equal(app.notaireDepuisRepertoire('Maître Fanny NOIRETT', carnet), 'Maître Fanny NOIRET (Tours)', 'une lettre de trop (lecture du PDF)');
+  assert.equal(app.notaireDepuisRepertoire('Maître Inconnu DUPONT', []), 'Maître Inconnu DUPONT', 'annuaire pas encore chargé : gardé');
+  const d = { notaireVendeur: '', notaireAcquereur: '', notairesDetectes: [{ nom: 'Maître Inconnu DUPONT', role: null }, { nom: 'NOIRET Fanny', role: 'instrumentaire' }] };
+  app.carnetConfreres.splice(0, app.carnetConfreres.length, ...carnet);
+  assert.equal(app.notairesNonPlacesDossier(d).map(n => n.nom).join(','), 'Maître Fanny NOIRET (Tours)', 'fiche : seuls les notaires de l’annuaire');
   const contacts = [
     { id: 'r1', theme: 'immobilier', organisme: 'AGENCE DU CHATEAU' },
     { id: 'r1b', theme: 'immobilier', organisme: 'Agence du Château' },

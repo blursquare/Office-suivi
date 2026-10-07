@@ -387,7 +387,7 @@
       analyse: { documents: analyseJuridiqueActuelle.documents.slice(), engagements: analyseJuridiqueActuelle.engagements.slice() },
       piecesEngagements: analyseJuridiqueActuelle.documents.map(doc => doc.cleChecklist).filter(Boolean),
       instantane: instantaneExtraction(extractionActuelle),
-      notairesDetectes: cotes.detectes,
+      notairesDetectes: notairesDetectesAnnuaire(cotes.detectes),
       telephones: { acquereur: (ch.telephoneAcquereur && ch.telephoneAcquereur.valeur) || '', vendeur: (ch.telephoneVendeur && ch.telephoneVendeur.valeur) || '' },
       compromisNomFichier: compromisNomFichierImporte || '', pdfNumPages: pdfDernierePageUtile,
       sansPret: !echeanceActive.pret, reminderDays: getSelectedReminderDays()
@@ -725,7 +725,7 @@
       coteInstrumentaire: ['vendeur', 'acquereur'].includes(document.getElementById('f-cote-instrumentaire').value)
         ? document.getElementById('f-cote-instrumentaire').value
         : coteInstrumentaireNouveauDossier(cotesNotaires, notaireVendeur, notaireAcquereur, roleNotaire),
-      notairesDetectes: cotesNotaires.detectes.concat(notairesProposesWizard().filter(n => n.source === 'authentic').map(n => ({ nom: n.nom, role: null }))),
+      notairesDetectes: notairesDetectesAnnuaire(cotesNotaires.detectes).concat(notairesProposesWizard().filter(n => n.source === 'authentic').map(n => ({ nom: n.nom, role: null }))),
       // Email de l'office du notaire de l'acquéreur, à renseigner UNIQUEMENT quand cet office est
       // distinct du nôtre (voir notaireParticipantRepresenteAcquereur/emailDestinataireRelance) :
       // la déontologie interdit alors à l'instrumentaire de contacter directement l'acquéreur, les
