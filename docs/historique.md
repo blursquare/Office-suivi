@@ -18338,3 +18338,16 @@ dans Échanges. Laisse quand même l'envoi d'email depuis CLAIRE dans un pop-up.
 - Gardés : lecture serveur des emails des dossiers (`emailsDossiers.js`, chaque minute) pour le rattachement, les adresses du confrère,
   l'envoi retrouvé (« envoyé le … »), les réponses aux sondages ; fenêtre d'email pour envoyer depuis CLAIRE (`ouvrirRedactionEmail`).
 Tests : audit-coherence, aujourdhui.
+
+### 07/10/2026 23 h 23 — 0.191.12 : plus de fenêtre « Aujourd'hui » à l'ouverture, carte réduite aux tâches
+
+Étude : « Supprime le pop-up Aujourd'hui à l'ouverture et pour le widget Aujourd'hui laisse simplement les tâches à faire et ajouter
+une tâche, supprime le reste. »
+- `ouvrirFenetreAujourdhuiSiPremiereFois` et `PREFIXE_FENETRE_VUE` supprimés (appelés au démarrage et au changement de poste) ; la
+  fenêtre reste accessible par « Voir N de plus » de la carte.
+- `renderAlertesDashboard` : moyenne/grande tuile = mes rappels non cochés (échus, du jour, sans date) + `renderActionsJour(actions,
+  global, [], true)` (sans les tâches faites) + « Voir N de plus », puis `renderMesRappels(…, 'ajout')` (bouton « Ajouter une tâche »
+  et formulaire d'un rappel en modification seulement). Retirés : cochés, rappels à venir, « À venir », anneau, message de progression,
+  fête de fin de journée (`renderFeteJour`, `feteJourDejaCelebree`, `marquerFeteJourCelebree`, `CLE_FETE_JOUR` supprimés), bouton
+  « Point du matin ». Petite tuile : nombre de choses à faire et la première, sans message ni compte de rappels.
+- Une tâche ajoutée avec une date future n'apparaît qu'à sa date (plus de rappels à venir sur la carte).

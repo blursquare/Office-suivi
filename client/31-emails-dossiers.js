@@ -1237,8 +1237,6 @@
     setTimeout(() => { rattraperNotesAgenda().catch(() => {}); }, 30 * 1000);
     setInterval(() => { rattraperNotesAgenda().catch(() => {}); }, 5 * 60 * 1000);
     demanderUtilisateurPosteSiInconnu();
-    // Première connexion de la journée : le point du matin (voir « Aujourd'hui »).
-    ouvrirFenetreAujourdhuiSiPremiereFois();
     chargerRappelsPerso();
     chargerPreferencesCollaborateur();
     // Connexion à l'agenda Outlook : chargée au démarrage pour que la fiche dossier sache si le

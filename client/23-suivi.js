@@ -986,7 +986,6 @@
     render();
     chargerRappelsPerso();
     chargerPreferencesCollaborateur();
-    ouvrirFenetreAujourdhuiSiPremiereFois();
   }
 
   function initUtilisateurPoste() {
@@ -2210,14 +2209,16 @@
   }
 
   // `sansDuJour` (carte « Aujourd'hui ») : les rappels déjà dans la liste « À faire » (échus, non cochés, à venir datés,
-  // ou cochés aujourd'hui) n'y sont pas répétés ; restent ceux sans échéance datée future… et l'ajout.
+  // ou cochés aujourd'hui) n'y sont pas répétés ; restent ceux sans échéance datée future… et l'ajout. 'ajout' (carte
+  // « Aujourd'hui » depuis le 07/10) : seulement « Ajouter une tâche » et le formulaire d'un rappel en cours de modification.
   function renderMesRappels(perimetreActifs, sansDuJour) {
+    const ajoutSeul = sansDuJour === 'ajout';
     if (!utilisateurPoste) {
       return `<div class="rappels-perso-vide">Pour noter vos rappels, <button type="button" class="lien-discret" onclick="ouvrirChoixPoste()">indiquez qui utilise ce poste</button>.</div>`;
     }
     const aujourdhui = isoAujourdhuiLocal();
     const dejaAffiches = sansDuJour ? (rd => new Set(rd.aFaire.concat(rd.faits, rd.aVenir).map(r => r.id)))(rappelsDuJour(rappelsPerso, aujourdhui)) : new Set();
-    const liste = rappelsAffiches(rappelsPerso, aujourdhui).filter(r => !dejaAffiches.has(r.id) || r.id === rappelEnEdition);
+    const liste = rappelsAffiches(rappelsPerso, aujourdhui).filter(r => (ajoutSeul ? false : !dejaAffiches.has(r.id)) || r.id === rappelEnEdition);
     const optionsDossiers = (selection) => perimetreActifs.slice().sort((a, b) => String(a.nom).localeCompare(String(b.nom)))
       .map(d => `<option value="${escapeAttr(d.id)}"${d.id === selection ? ' selected' : ''}>${escapeHtml(libelleDossierAffiche(d))}</option>`).join('');
     const formulaireRappel = (r) => {
@@ -2259,7 +2260,7 @@
           <wa-button appearance="plain" size="s" type="button" class="bouton-icone rappel-perso-suppr" onclick="supprimerRappelPerso('${escapeOnclickArg(r.id)}')" aria-label="Supprimer le rappel" title="Supprimer">${icone('x')}</wa-button>`}
         </div>`;
     }).join('');
-    const formulaire = ajoutRappelOuvert ? formulaireRappel(null) : `<wa-button appearance="outlined" type="button" class="bouton-ajout rappel-perso-ajout" onclick="ouvrirAjoutRappel(true)"><span slot="start" class="bouton-ajout-plus" aria-hidden="true">+</span>Ajouter un rappel</wa-button>`;
+    const formulaire = ajoutRappelOuvert ? formulaireRappel(null) : `<wa-button appearance="outlined" type="button" class="bouton-ajout rappel-perso-ajout" onclick="ouvrirAjoutRappel(true)"><span slot="start" class="bouton-ajout-plus" aria-hidden="true">+</span>${ajoutSeul ? 'Ajouter une tâche' : 'Ajouter un rappel'}</wa-button>`;
     // Carte « Aujourd'hui » : pas de « Aucun rappel » sous la liste des tâches (étude 07/10 : « trop d'espace pour ajouter un
     // rappel ») — le bouton d'ajout suffit.
     const vide = !rappelsPersoCharges || sansDuJour ? '' : '<div class="rappels-perso-vide">Aucun rappel pour le moment.</div>';

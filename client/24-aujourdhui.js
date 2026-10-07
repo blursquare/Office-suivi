@@ -433,7 +433,6 @@
   // navigateur (comme le collaborateur du poste) : rien à partager, et une perte ne coûte rien —
   // l'action réapparaît simplement.
   var PREFIXE_ETAT_JOUR = 'claire-aujourdhui:';
-  var PREFIXE_FENETRE_VUE = 'claire-aujourdhui-vue:';
 
   function lireEtatJour() {
     const vide = { reports: {}, traites: { date: '', liste: [] } };
@@ -1199,49 +1198,21 @@
       </li>`).join('')}</ul>`;
   }
 
-  // Célébration quand toutes les tâches DU JOUR (les actions, pas les rappels) sont faites — demandé
-  // par l'étude. Jouée UNE SEULE FOIS par jour et par poste : render() se relance à chaque action,
-  // rejouer l'animation à chaque fois serait pénible. Le repère est en localStorage (par poste), donc
-  // elle ne rejoue pas non plus à un rechargement le même jour.
-  var CLE_FETE_JOUR = 'claire-fete-jour:';
-  function feteJourDejaCelebree(dateIso) {
-    try { return localStorage.getItem(CLE_FETE_JOUR + (utilisateurPoste || 'poste')) === dateIso; }
-    catch (e) { return false; }
-  }
-  function marquerFeteJourCelebree(dateIso) {
-    try { localStorage.setItem(CLE_FETE_JOUR + (utilisateurPoste || 'poste'), dateIso); }
-    catch (e) { /* pas bloquant */ }
-  }
-  function renderFeteJour(animer) {
-    const confettis = Array.from({ length: 10 }, (_, i) => `<span class="jour-confetti jour-confetti-${i % 3}" style="--i:${i}"></span>`).join('');
-    return `<div class="jour-fete${animer ? ' anime' : ''}" role="status">
-      <div class="jour-confettis" aria-hidden="true">${confettis}</div>
-      <span class="jour-fete-emoji" aria-hidden="true">🎉</span>
-      <span class="jour-fete-texte">Journée bouclée, bravo !</span>
-    </div>`;
-  }
-
-  // Carte « Aujourd'hui » du tableau de bord, selon la présentation du widget (presentationWidget) :
-  //  - petit : le nombre de choses à faire, l'anneau de la journée et la première action ;
-  //  - moyen : la liste « À faire » (même présentation que la fenêtre du matin, renderListeJour),
-  //    puis « Mes rappels » pour remplir la tuile quand la journée est courte ;
-  //  - grand : la même chose avec « À venir » (les 30 jours) en appoint et la saisie d'un rappel.
-  // Les listes sont coupées à la hauteur de la tuile (ajusterWidgets), « Voir N de plus » ouvre la
-  // page Aujourd'hui.
+  // Carte « Aujourd'hui » du tableau de bord (étude 07/10 : « pour le widget Aujourd'hui laisse simplement les tâches à faire et
+  // ajouter une tâche, supprime le reste ») : mes tâches du jour (rappels échus ou sans date) puis les tâches des dossiers, et
+  // « Ajouter une tâche ». Plus de tâches cochées, de rappels à venir, de section « À venir », d'anneau, de message de progression,
+  // de fête ni de bouton « Point du matin ». Petite tuile : le nombre de choses à faire et la première. Les listes sont coupées à
+  // la hauteur de la tuile (ajusterWidgets), « Voir N de plus » ouvre la fenêtre du jour.
   function renderAlertesDashboard(perimetreActifs) {
     const bloc = document.getElementById('alertes-dashboard');
     if (!bloc) return;
     const global = vueGlobaleDashboard();
     const presentation = presentationWidget('aujourdhui');
-    const { aujourdhui, actions, traites, aVenir } = etatAujourdhui();
-    const fini = actions.length === 0 && traites.length > 0;
-    const anneau = actions.length || traites.length ? renderAnneauJour(actions.length, traites.length) : '';
-    // La page « Aujourd'hui » est retirée (étude, 30/09) : « voir plus » ouvre la fenêtre du jour.
+    const { aujourdhui, actions } = etatAujourdhui();
     const versPage = "ouvrirFenetreAujourdhui()";
     let corps;
     if (presentation === 'petit') {
       const premiere = actions[0];
-      const rappelsAFaire = rappelsPerso.filter(r => !r.fait).length;
       corps = `<div class="w-chiffre-bloc">
           <span class="w-chiffre">${actions.length}</span>
           <span class="w-chiffre-lib">${actions.length > 1 ? 'choses à faire' : actions.length ? 'chose à faire' : 'rien à faire'}</span>
@@ -1249,54 +1220,26 @@
         ${premiere ? `<div class="w-bas" data-ajuster="2"><button type="button" class="w-prochaine g-${premiere.gravite}" onclick="${versPage}">
             <span class="w-prochaine-titre">${escapeHtml(premiere.titre)}</span>
             <span class="w-prochaine-sous">${escapeHtml(libelleDossierAffiche(premiere.dossier))}</span>
-          </button></div>` : `<p class="w-message">${escapeHtml(messageProgressionJour(actions.length, traites.length))}</p>`}
-        ${rappelsAFaire ? `<button type="button" class="w-pied lien-discret" onclick="${versPage}">${rappelsAFaire} rappel${rappelsAFaire > 1 ? 's' : ''} à faire</button>` : ''}`;
+          </button></div>` : ''}`;
     } else {
-      let feteHtml = '';
-      if (fini) {
-        const animer = !feteJourDejaCelebree(aujourdhui);
-        if (animer) marquerFeteJourCelebree(aujourdhui);
-        feteHtml = renderFeteJour(animer);
-      }
-      // Rappels non cochés (échus ou du jour) en tête de « À faire », jamais masqués (w-fixe).
+      // Mes tâches non cochées (échues, du jour ou sans date) en tête, jamais masquées (w-fixe), puis celles des dossiers.
       const rappelsJour = utilisateurPoste ? renderRappelsJour(aujourdhui, true, 'aFaire') : '';
-      const rappelsCoches = utilisateurPoste ? renderRappelsJour(aujourdhui, true, 'faits') : '';
-      // Mes rappels à venir (échéance datée plus tard) : dans la même liste, après les tâches du jour, avec leur date.
-      const rappelsAVenir = utilisateurPoste ? renderRappelsJour(aujourdhui, true, 'avenir') : '';
-      const liste = actions.length || traites.length || rappelsJour || rappelsCoches || rappelsAVenir
-        ? `<ul class="ja-liste ja-taches" data-ajuster="1" data-min="1">${rappelsJour}${renderActionsJour(actions, global, traites, true)}${rappelsAVenir}${rappelsCoches}${renderLignesTraitees(grouperActionsParDossier(actions, traites).traites)}${plusWidget(versPage)}</ul>`
+      const liste = actions.length || rappelsJour
+        ? `<ul class="ja-liste ja-taches" data-ajuster="1" data-min="1">${rappelsJour}${renderActionsJour(actions, global, [], true)}${plusWidget(versPage)}</ul>`
         : '<p class="jour-vide jour-vide-ok">✓ Rien à faire aujourd’hui sur vos dossiers.</p>';
-      // Un rappel en cours de saisie (ajout ou modification) passe avant tout (étude, 01/10 : « quand je
-      // clique sur Ajouter un rappel, il m'ouvre À venir ») : la carte pleine masquait toute la section
-      // « Mes rappels », formulaire compris, et « À venir » prenait sa place. Le formulaire ouvert est
-      // rempli en premier (data-ajuster 0, jamais masqué), « À venir » se retire le temps de la saisie.
-      const saisieRappel = !!(ajoutRappelOuvert || rappelEnEdition);
-      const aVenirHtml = presentation === 'grand' && aVenir.length && !saisieRappel ? `<div class="w-section">
-          <h3 class="jour-carte-sous-titre">À venir</h3>
-          <ul class="w-lignes" data-ajuster="3">${aVenir.map(v => `<li><button type="button" class="w-ligne" onclick="ouvrirDossierDepuisDashboard('${v.dossier.id}')">
-            <span class="w-ligne-texte"><b>${escapeHtml(v.titre)}</b> · ${escapeHtml(libelleDossierAffiche(v.dossier))}</span>
-            <span class="w-ligne-meta">${escapeHtml(v.detail || '')}</span></button></li>`).join('')}${plusWidget(versPage)}</ul>
-        </div>` : '';
-      corps = `${feteHtml}${liste}
+      corps = `${liste}
         <div class="w-section dash-rappels-bloc">
-          <div class="rappels-perso" data-ajuster="0" data-garder>${renderMesRappels(perimetreActifs, true)}</div>
-        </div>
-        ${aVenirHtml}`;
+          <div class="rappels-perso" data-ajuster="0" data-garder>${renderMesRappels(perimetreActifs, 'ajout')}</div>
+        </div>`;
     }
-    bloc.innerHTML = carteWidget({
-      presentation,
-      titre: 'Aujourd’hui',
-      sous: presentation === 'petit' ? '' : escapeHtml(messageProgressionJour(actions.length, traites.length)),
-      droite: `${presentation !== 'petit' ? `<wa-button appearance="outlined" size="s" pill type="button" class="action-rapide w-point-matin" onclick="ouvrirFenetreAujourdhui()" title="Rouvrir la fenêtre du point du matin">${icone('sun')}<span>Point du matin</span></wa-button>` : ''}${anneau}`,
-      corps
-    });
+    bloc.innerHTML = carteWidget({ presentation, titre: 'Aujourd’hui', sous: '', droite: '', corps });
     renderFenetreAujourdhui();
     planifierAjustementWidgets();
   }
 
   // ---- Fenêtre du matin ----
-  // S'ouvre à la première connexion de la journée de ce collaborateur sur ce poste, et se rouvre
-  // depuis la carte « Aujourd'hui » du tableau de bord (icône soleil, « voir plus »).
+  // Plus ouverte d'elle-même à la première connexion de la journée (étude 07/10 : « supprime le pop-up Aujourd'hui à
+  // l'ouverture ») ; elle s'ouvre par « Voir N de plus » de la carte « Aujourd'hui ».
   let fenetreAujourdhuiOuverte = false;
 
   function ouvrirFenetreAujourdhui() {
@@ -1313,16 +1256,7 @@
     renderFenetreAujourdhui();
   }
 
-  function ouvrirFenetreAujourdhuiSiPremiereFois() {
-    if (!utilisateurPoste) return;
-    const cle = PREFIXE_FENETRE_VUE + utilisateurPoste;
-    const aujourdhui = isoAujourdhuiLocal();
-    let vue = '';
-    try { vue = localStorage.getItem(cle) || ''; } catch (e) { vue = aujourdhui; }
-    if (vue === aujourdhui) return;
-    try { localStorage.setItem(cle, aujourdhui); } catch (e) { /* pas bloquant */ }
-    ouvrirFenetreAujourdhui();
-  }
+
 
   // ---- Emails du matin (voir server/src/emailsMatin.js) ----
   // Le serveur lit à 8 h 50 la boîte de réception du compte Exchange de l'office (celle de Bastien,
