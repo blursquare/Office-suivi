@@ -961,6 +961,19 @@
       </div>`;
   }
 
+  // « Rendez-vous à placer » (étude 07/10 : « mettre en premier les plus complets, que ça prenne moins de hauteur ») : les dossiers
+  // prêts à signer d'abord (`dossiersAPlacer`), puis la plus forte probabilité de tenue, puis la semaine la plus proche. Pure.
+  var NB_RDV_A_PLACER_AFFICHES = 5;
+  let agendaPlacerTous = false;
+  function ordreRendezVousAPlacer(probables, prets) {
+    const pret = (x) => (prets || []).indexOf(x.d.id) !== -1 ? 0 : 1;
+    return (probables || []).slice().sort((a, b) => pret(a) - pret(b) || (b.p.pourcent || 0) - (a.p.pourcent || 0) || String(a.p.date).localeCompare(String(b.p.date)));
+  }
+  function basculerRendezVousAPlacerTous() {
+    agendaPlacerTous = !agendaPlacerTous;
+    renderPageAgenda();
+  }
+
   // Anticipations : ce que CLAIRE voit venir, avec le geste qui y répond.
   function renderAnticipationsAgenda() {
     const auj = isoAujourdhuiLocal();
@@ -971,28 +984,29 @@
     // Dossiers sans rendez-vous, par semaine probable de signature (au plus tôt) : un clic affiche
     // cette semaine, carte fantôme ouverte. Ceux qui sont prêts à signer gardent trois créneaux libres.
     const prets = dossiersAPlacer(perimetre).map(d => d.id);
-    const probables = perimetre.map(d => ({ d, p: semaineProbableSignature(d, auj, absencesOffice, agendaEvenements) })).filter(x => x.p)
-      .sort((a, b) => a.p.date.localeCompare(b.p.date) || a.p.pourcent - b.p.pourcent);
-    const aPlacer = probables.slice(0, 8);
+    const probables = ordreRendezVousAPlacer(perimetre.map(d => ({ d, p: semaineProbableSignature(d, auj, absencesOffice, agendaEvenements) })).filter(x => x.p), prets);
+    const aPlacer = agendaPlacerTous ? probables : probables.filter((x, i) => i < NB_RDV_A_PLACER_AFFICHES || agendaSelection === 'probable:' + x.d.id);
+    // Créneaux proposés seulement sur le premier dossier et sur celui qu'on vient de choisir (étude 07/10 : « que ça prenne moins de
+    // hauteur ») — un clic sur un autre dossier lui donne les siens.
+    const avecCreneaux = (d, i) => i === 0 || agendaSelection === 'probable:' + d.id;
     const ecrire = exchangeAgendaPret();
     const blocPlacer = `<section class="ag-anticipe">
-        <h3 class="jour-section-titre">Rendez-vous à placer${probables.length ? ` <span class="jour-onglet-nb">${probables.length}</span>` : ''} ${infoBulle('Dossiers sans rendez-vous de signature, par semaine probable : au plus tôt, une fois l’offre de prêt attendue reçue et ses 11 jours de réflexion passés, la vente préalable faite, et au moins deux semaines après aujourd’hui (appel de fonds et projet). Le pourcentage tient compte de ce qui reste à lever. Un clic affiche la semaine, où le rendez-vous est proposé en pointillé sur un créneau libre. Pour les dossiers prêts à signer, trois créneaux libres : jamais à 9 h, entre 12 h et 14 h ni après 18 h, 6 rendez-vous par jour au plus (triangle = exception).')}</h3>
-        ${aPlacer.length ? `<ul class="ag-liste">${aPlacer.map(({ d, p }) => {
-          const creneaux = prets.indexOf(d.id) !== -1 && !p.aConfirmer ? creneauxProposesSignature(d, agendaEvenements, absencesOffice, auj, 3) : [];
+        <h3 class="jour-section-titre">Rendez-vous à placer${probables.length ? ` <span class="jour-onglet-nb">${probables.length}</span>` : ''} ${infoBulle('Dossiers sans rendez-vous de signature, les plus complets d’abord (prêts à signer, puis par pourcentage). Semaine probable : au plus tôt, une fois l’offre de prêt attendue reçue et ses 11 jours de réflexion passés, la vente préalable faite, et au moins deux semaines après aujourd’hui (appel de fonds et projet). Le pourcentage tient compte de ce qui reste à lever. Un clic affiche la semaine, où le rendez-vous est proposé en pointillé sur un créneau libre. Pour le premier dossier prêt à signer (ou celui choisi), trois créneaux libres : jamais à 9 h, entre 12 h et 14 h ni après 18 h, 6 rendez-vous par jour au plus (triangle = exception).')}</h3>
+        ${aPlacer.length ? `<ul class="ag-liste">${aPlacer.map(({ d, p }, i) => {
+          const creneaux = avecCreneaux(d, i) && prets.indexOf(d.id) !== -1 && !p.aConfirmer ? creneauxProposesSignature(d, agendaEvenements, absencesOffice, auj, 3) : [];
           const semaine = new Date(p.lundi + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
           return `<li class="ag-placer">
-              <button type="button" class="ag-ligne${agendaSelection === 'probable:' + d.id ? ' selection' : ''}" onclick="allerSemaineProbableAgenda('${d.id}')" title="${escapeAttr(p.aConfirmer ? `Rendez-vous en attente de confirmation (« ? » dans l’agenda) le ${formatDateFr(p.date)}. L’afficher.` : `Au plus tôt le ${formatDateFr(p.date)} : ${p.raison}. Afficher cette semaine.`)}">
-                ${renderPastilleProbabilite(p)}
+              <button type="button" class="ag-ligne${agendaSelection === 'probable:' + d.id ? ' selection' : ''}" onclick="allerSemaineProbableAgenda('${d.id}')" title="${escapeAttr(libelleDossierAffiche(d) + ' — ' + (p.aConfirmer ? `Rendez-vous en attente de confirmation (« ? » dans l’agenda) le ${formatDateFr(p.date)}. L’afficher.` : `Au plus tôt le ${formatDateFr(p.date)} : ${p.raison}. Afficher cette semaine.`))}">
                 <span class="ag-ligne-texte"><b>${escapeHtml(libelleDossierAffiche(d))}</b>
-                <span>${p.aConfirmer ? `À confirmer : ${escapeHtml(new Date(p.date + 'T00:00:00').toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' }).replace('.', ''))} ${escapeHtml(String(p.heure).replace(':', ' h '))}` : `Semaine du ${escapeHtml(semaine)}`}${p.depasseButoir ? ' · après la date butoir' : ''}${d.responsable ? ' · ' + escapeHtml(prenomCollaborateur(d.responsable)) : ''}</span></span>
+                <span class="ag-placer-meta">${renderPastilleProbabilite(p)}<span>${p.aConfirmer ? `À confirmer : ${escapeHtml(new Date(p.date + 'T00:00:00').toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' }).replace('.', ''))} ${escapeHtml(String(p.heure).replace(':', ' h '))}` : `Semaine du ${escapeHtml(semaine)}`}${p.depasseButoir ? ' · après la date butoir' : ''}${d.responsable ? ' · ' + escapeHtml(prenomCollaborateur(d.responsable)) : ''}</span></span></span>
               </button>
               ${creneaux.length ? `<span class="ag-creneaux">${creneaux.map(c => `<wa-button appearance="outlined" size="s" pill type="button" class="action-rapide ag-creneau${c.apresButoir ? ' apres-butoir' : ''}${c.exceptionnel ? ' exceptionnel' : ''}"
                   onclick="placerCreneauSignature('${d.id}', '${c.date}', '${c.heure}')" ${ecrire ? '' : 'disabled'}
-                  title="${escapeAttr([c.exceptionnel ? 'Créneau exceptionnel : ' + c.exceptionnel : '', c.apresButoir ? 'Après la date butoir' : ''].filter(Boolean).join(' · ') || 'Placer le rendez-vous de signature à ce créneau')}">${c.exceptionnel ? icone('alert-triangle') : ''}${escapeHtml(new Date(c.date + 'T00:00:00').toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' }).replace('.', ''))} ${escapeHtml(c.heure.replace(':', ' h '))}</wa-button>`).join('')}${sondageOuvertDossier(d.id)
+                  title="${escapeAttr([c.exceptionnel ? 'Créneau exceptionnel : ' + c.exceptionnel : '', c.apresButoir ? 'Après la date butoir' : ''].filter(Boolean).join(' · ') || 'Placer le rendez-vous de signature à ce créneau')}">${c.exceptionnel ? icone('alert-triangle') : ''}${escapeHtml(new Date(c.date + 'T00:00:00').toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric' }).replace('.', ''))} · ${escapeHtml(c.heure.replace(/^0/, '').replace(':', ' h '))}</wa-button>`).join('')}${sondageOuvertDossier(d.id)
                   ? `<span class="ag-sondage-en-cours" title="Sondage de créneaux en cours">${icone('users')} sondage</span>`
                   : `<wa-button appearance="outlined" size="s" pill type="button" class="action-rapide ag-creneau ag-sonder" onclick="ouvrirSondageCreneaux('${d.id}')" title="Proposer plusieurs créneaux aux parties, qui choisissent par email">${icone('users')} Proposer</wa-button>`}</span>` : ''}
             </li>`;
-        }).join('')}</ul>${probables.length > aPlacer.length ? `<p class="jour-vide">Et ${probables.length - aPlacer.length} autre${probables.length - aPlacer.length > 1 ? 's' : ''}, plus tard.</p>` : ''}` : '<p class="jour-vide">Tous les dossiers ont un rendez-vous de signature.</p>'}
+        }).join('')}</ul>${probables.length > NB_RDV_A_PLACER_AFFICHES ? `<button type="button" class="lien-discret ag-placer-plus" onclick="basculerRendezVousAPlacerTous()">${agendaPlacerTous ? 'Voir moins' : `Voir ${probables.length - aPlacer.length} de plus`}</button>` : ''}` : '<p class="jour-vide">Tous les dossiers ont un rendez-vous de signature.</p>'}
       </section>`;
     // « Relation client » retiré de la barre (étude, 01/10) : ces emails sont dans l'onglet Échanges
     // de la fiche du dossier (echangesSelonStade).

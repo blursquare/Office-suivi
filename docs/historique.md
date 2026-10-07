@@ -17679,3 +17679,15 @@ désormais la preuve :
   dans l'agenda de l'office : lieu « JV - Appel de fonds et projet envoyé » du rendez-vous « VTE - X » du 20/10/2026 » — le titre
   quand la mention n'est pas dans le lieu.
 - Coche à la main inchangée (« Projet d'acte envoyé marqué réalisé », avec l'auteur). Tests : emails-dossiers, agenda-watch.
+
+**Étude (07/10) : « Agenda, rendez-vous à placer : mettre en premier les plus complets, que ça prenne moins de hauteur dans la
+colonne »** (0.181.5) — client/25-page-agenda.js :
+- **Ordre** (`ordreRendezVousAPlacer`, pure, testée dans agenda-page.test.js) : dossiers prêts à signer (`dossiersAPlacer` : prêt,
+  préemption et vente préalable levés) d'abord, puis le plus fort pourcentage de tenue, puis la date probable la plus proche. Avant :
+  l'ordre des dossiers.
+- **Hauteur** : 5 dossiers affichés (`NB_RDV_A_PLACER_AFFICHES`), « Voir N de plus » / « Voir moins » (`basculerRendezVousAPlacerTous`) ;
+  un dossier choisi (carte fantôme ouverte) reste affiché même au-delà des 5. Les trois créneaux proposés et « Proposer » ne sont
+  plus montrés que pour le premier dossier et pour celui qu'on vient de choisir (avant : pour chaque dossier prêt à signer). Nom du
+  dossier sur une ligne (ellipse, nom entier au survol), pourcentage déplacé sur la ligne « Semaine du … · responsable » ; créneaux
+  plus courts (« mer 21 · 9 h 30 », le mois est sur la ligne de la semaine), deux par ligne. Mesuré dans Chromium (8 dossiers
+  inventés, colonne de 224 px) : 556 → 401 px pour les 5 premiers (tous les dossiers dépliés auparavant).

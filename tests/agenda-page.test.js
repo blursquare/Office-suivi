@@ -421,3 +421,12 @@ test('rendez-vous « ?? » en attente de confirmation : il donne la date probabl
   const r = app.resultatsRechercheAgenda('blanc', [d], auj, [], evenements)[0];
   assert.equal(`${r.type} ${r.date} ${r.heure}`, 'aConfirmer 2026-10-22 15:00');
 });
+
+test('ordreRendezVousAPlacer : prêts à signer d\'abord, puis le pourcentage, puis la date (étude, 07/10)', () => {
+  const p = (id, pourcent, date) => ({ d: { id }, p: { pourcent, date } });
+  const liste = [p('a', 60, '2026-10-20'), p('b', 85, '2026-11-02'), p('c', 40, '2026-10-19'), p('d', 85, '2026-10-26'), p('e', 30, '2026-12-01')];
+  const ordre = app.ordreRendezVousAPlacer(liste, ['e', 'c']);
+  assert.equal(ordre.map(x => x.d.id).join(','), 'c,e,d,b,a');
+  assert.equal(liste.map(x => x.d.id).join(','), 'a,b,c,d,e', 'la liste d\'origine reste intacte');
+  assert.equal(app.ordreRendezVousAPlacer(null, null).length, 0);
+});

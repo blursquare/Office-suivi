@@ -7986,10 +7986,19 @@ body.ag-redim-en-cours, body.ag-redim-en-cours * { cursor: ns-resize !important;
 .ag-ligne-texte { display: flex; flex-direction: column; min-width: 0; font-size: var(--texte-m); }
 .ag-ligne-texte b { font-size: var(--texte-m); overflow-wrap: anywhere; }
 .ag-ligne-texte span, .ag-ligne-meta { font-size: var(--texte-s); color: var(--muted); }
-.ag-placer { display: flex; flex-direction: column; gap: 4px; padding: 6px 0; border-top: 1px solid var(--line-soft); }
+.ag-placer { display: flex; flex-direction: column; gap: 4px; padding: 2px 0; border-top: 1px solid var(--line-soft); }
+/* Moins de hauteur (étude 07/10) : lignes serrées, une seule ligne de texte sous le nom. */
+.ag-placer .ag-ligne { padding: 4px 6px; }
+.ag-placer .ag-ligne-texte b { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ag-placer .ag-placer-meta { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.ag-placer .ag-placer-meta .ag-proba { flex: none; }
+.ag-placer .ag-placer-meta > span:last-child { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.ag-placer-plus { margin-top: 4px; }
 .ag-placer:first-child { border-top: none; padding-top: 0; }
 .ag-creneaux { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 2px; }
 wa-button.action-rapide.ag-creneau { margin: 0; font-variant-numeric: tabular-nums; }
+.ag-placer wa-button.action-rapide.ag-creneau { --wa-form-control-padding-inline: 6px; }
+.ag-placer .ag-creneaux { gap: 4px; }
 wa-button.action-rapide.ag-creneau.apres-butoir::part(base) { border-style: dashed; }
 wa-button.action-rapide.ag-creneau.exceptionnel, wa-button.action-rapide.ag-creneau.exceptionnel:hover { color: var(--pret); }
 wa-button.action-rapide.ag-creneau.exceptionnel::part(base) { border-color: var(--pret); }
