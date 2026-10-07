@@ -1033,6 +1033,19 @@
     if (d.echeancesValidees && d.echeancesValidees.rendezVousSignature && d.rendezVousSignature) return { iso: d.rendezVousSignature };
     return null;
   }
+  // Pure : la date de signature à retenir pour tout ce qui vient APRÈS la signature (stade de la fiche, questionnaire, archivage,
+  // un mot un an après) — signé dans Authentic ou signature cochée (signatureFaiteSuivi, date d'Authentic d'abord), sinon le
+  // rendez-vous de signature passé. '' si l'acte n'est pas (encore) signé. Avant le 07/10, chaque écran avait sa règle : un acte
+  // signé dans Authentic sans rendez-vous noté sur la fiche était « Signé » dans le Suivi mais jamais pour le questionnaire.
+  function dateSignatureDossier(d, aujourdhuiIso) {
+    if (!d) return '';
+    const s = signatureFaiteSuivi(d);
+    if (s && s.iso) return s.iso;
+    if (s) return d.rendezVousSignature || '';
+    const auj = aujourdhuiIso || isoAujourdhuiLocal();
+    return d.rendezVousSignature && d.rendezVousSignature < auj ? d.rendezVousSignature : '';
+  }
+
   // Pure : « Signé le 30 septembre 2026 » (étude, 02/10 : à la place de la date dans le Suivi).
   function texteSigneSuivi(signe) {
     return signe && signe.iso ? `Signé le ${formatDateFr(signe.iso)}` : 'Signé';

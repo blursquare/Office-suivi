@@ -97,3 +97,22 @@ test('questionnaire non envoyé 30 jours après la signature : archivage (étude
   assert.strictEqual(app.etaitDossierActifA(auto, new Date('2026-09-10')), false);
   assert.strictEqual(app.etaitDossierActifA(auto, new Date('2026-09-01')), true);
 });
+
+test('acte signé : une seule règle pour tout ce qui suit la signature (Authentic « signé le … » compris, sans rendez-vous sur la fiche)', () => {
+  const auth = { id: 's1', emailAcquereur: 'a@exemple.fr', authentic: { acte: { etat: 'signe', date: '2026-09-20' } } };
+  assert.strictEqual(app.dateSignatureDossier(auth, '2026-10-01'), '2026-09-20');
+  assert.strictEqual(app.stadeDossier(auth, '2026-10-01'), 'signe');
+  assert.ok(app.actionsDuJour([auth], '2026-10-01').actions.some(a => a.type === 'questionnaire'), 'questionnaire proposé');
+  assert.strictEqual(app.archivageSansQuestionnaireDu(auth, '2026-10-21'), true);
+  // Rendez-vous passé non coché : signé pour la suite du dossier ; rendez-vous à venir : pas encore.
+  assert.strictEqual(app.dateSignatureDossier({ rendezVousSignature: '2026-09-30' }, '2026-10-01'), '2026-09-30');
+  assert.strictEqual(app.dateSignatureDossier({ rendezVousSignature: '2026-10-02' }, '2026-10-01'), '');
+});
+
+test('succession : « À faire » ne propose ni appel de fonds, ni projet, ni RIB, ni questionnaire (comme le planning)', () => {
+  const succ = { id: 'su', nom: 'SUCC DURAND', typeAffaire: 'succession', sansPret: true, emailAcquereur: 'a@exemple.fr', rendezVousSignature: '2026-10-03' };
+  const types = app.actionsDuJour([succ], '2026-10-01').actions.map(a => a.type);
+  assert.ok(!types.some(t => ['appelFonds', 'projetEnvoye', 'rib', 'fonds', 'relanceFonds'].includes(t)), types.join(','));
+  const apres = app.actionsDuJour([Object.assign({}, succ, { rendezVousSignature: '2026-09-20' })], '2026-10-01').actions.map(a => a.type);
+  assert.ok(!apres.includes('questionnaire'), apres.join(','));
+});

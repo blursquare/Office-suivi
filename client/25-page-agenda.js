@@ -402,7 +402,8 @@
     const auj = aujourdhuiIso || isoAujourdhuiLocal();
     const gestes = [];
     for (const d of liste || []) {
-      const rdv = d && d.rendezVousSignature;
+      // Après la signature : la date retenue partout (Authentic d'abord, sinon le rendez-vous passé).
+      const rdv = d && dateSignatureDossier(d, auj);
       if (!rdv) continue;
       const j = ecartJours(auj, rdv);
       if (j === null) continue;

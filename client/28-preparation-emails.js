@@ -2017,8 +2017,10 @@
   // (étude 07/10 : « archiver après 30 jours » — la tâche d'« À faire » s'arrête à J+30, JOURS_QUESTIONNAIRE, et le dossier restait
   // ouvert sans rien rappeler). Jamais une succession, jamais un rendez-vous pas encore passé.
   function archivageSansQuestionnaireDu(d, aujourdhuiIso) {
-    if (!d || d.archive || d.deleted || !d.rendezVousSignature || estSuccession(d)) return false;
-    const j = ecartJours(aujourdhuiIso || isoAujourdhuiLocal(), d.rendezVousSignature);
+    if (!d || d.archive || d.deleted || estSuccession(d)) return false;
+    const dateSig = dateSignatureDossier(d, aujourdhuiIso);
+    if (!dateSig) return false;
+    const j = ecartJours(aujourdhuiIso || isoAujourdhuiLocal(), dateSig);
     return j !== null && j < -JOURS_QUESTIONNAIRE && questionnairesRestants(d).length > 0;
   }
 

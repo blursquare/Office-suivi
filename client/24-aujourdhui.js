@@ -162,7 +162,10 @@
 
       // 2. Avant la signature : appel de fonds, projet, réception des fonds, RIB.
       const jRdv = d.rendezVousSignature ? ecartJours(aujourdhuiIso, d.rendezVousSignature) : null;
-      if (jRdv !== null && jRdv >= 0) {
+      // Succession : ni appel de fonds, ni projet, ni RIB, ni questionnaire de vente — comme le planning et l'onglet Échanges
+      // (audit 07/10 : « À faire » les proposait seul) ; son planning se limite à la signature et aux échéances ajoutées.
+      const succession = estSuccession(d);
+      if (jRdv !== null && jRdv >= 0 && !succession) {
         const af = echeanceValidee(d, 'appelFonds');
         const pr = echeanceValidee(d, 'projetEnvoye');
         ['Envoyer l’appel de fonds et le projet', 'Envoyer l’appel de fonds', 'Envoyer le projet'].forEach(t => couverts.add(t));
@@ -253,12 +256,15 @@
         { type: 'questionnaireVendeur', partie: 'vendeur', fait: d.questionnaireVendeurEnvoyeLe, exclu: confrereRepresenteVendeur(d),
           email: d.emailVendeur, de: 'du vendeur', a: 'au vendeur' }
       ]) {
-        if (jRdv === null || jRdv >= 0 || jRdv < -JOURS_QUESTIONNAIRE || q.fait || q.exclu) continue;
-        const signe = `Acte signé le ${formatDateFr(d.rendezVousSignature)}.`;
+        if (succession) break;
+        const dateSig = dateSignatureDossier(d, aujourdhuiIso);
+        const jSig = dateSig ? ecartJours(aujourdhuiIso, dateSig) : null;
+        if (jSig === null || jSig >= 0 || jSig < -JOURS_QUESTIONNAIRE || q.fait || q.exclu) continue;
+        const signe = `Acte signé le ${formatDateFr(dateSig)}.`;
         const archivage = texteArchivageQuestionnaire(d, q.partie).replace(/^l/, 'L');
         ajouter(Object.assign({
           type: q.type, categorie: 'neutre', categorieLabel: 'Signature passée',
-          jours: jRdv, delaiTexte: `signé ${quandJour(d.rendezVousSignature, aujourdhuiIso)}`, gravite: 'normal'
+          jours: jSig, delaiTexte: `signé ${quandJour(dateSig, aujourdhuiIso)}`, gravite: 'normal'
         }, q.email ? {
           titre: `Envoyer le questionnaire de satisfaction ${q.a}`,
           contexte: `${signe} ${archivage}.`,

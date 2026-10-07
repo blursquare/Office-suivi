@@ -333,10 +333,9 @@
   };
 
   function stadeDossier(d, aujourdhuiIso) {
-    if (d.rendezVousSignature) {
-      const j = ecartJours(aujourdhuiIso, d.rendezVousSignature);
-      return (j !== null && j < 0) || echeanceValidee(d, 'rendezVousSignature') ? 'signe' : 'signature';
-    }
+    // Signé : même règle partout (dateSignatureDossier) — Authentic « signé le … » compris, même sans rendez-vous sur la fiche.
+    if (signatureFaiteSuivi(d) || dateSignatureDossier(d, aujourdhuiIso)) return 'signe';
+    if (d.rendezVousSignature) return 'signature';
     const venteAttendue = !!d.ventebien && !echeanceValidee(d, 'ventebien');
     const pretAttendu = !d.sansPret && !echeanceValidee(d, 'pret');
     return venteAttendue || pretAttendu ? 'conditions' : 'rendezVous';

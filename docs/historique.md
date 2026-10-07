@@ -18252,3 +18252,16 @@ Réponses de l'étude aux deux points soumis avec 0.191.4 : « Mets J-10 aussi �
 - Trouvé au passage : `etaitDossierActifA` (statistiques des dossiers actifs) ne reconnaissait que « Dossier archivé » exact — un
   dossier archivé automatiquement (questionnaire envoyé, ou J+30) restait compté actif. Corrigé (« Dossier archivé… »).
 Tests : audit-coherence, relances-email (décompte J-10).
+
+### 07/10/2026 22 h 16 — 0.191.6 : une seule date de signature, successions hors des gestes de vente
+
+Suite de l'audit des incohérences (« Continue ton audit des incohérence sur toutes les fonctions »).
+- Date de signature : chaque écran avait sa règle — le Suivi tenait pour signé un acte « Signé le … » dans Authentic
+  (`signatureFaiteSuivi`), mais le stade de la fiche, le questionnaire d'« À faire », l'archivage à J+30 et le mot un an après ne
+  lisaient que `d.rendezVousSignature`. Un acte signé dans Authentic sans rendez-vous noté sur la fiche n'avait donc jamais de
+  questionnaire ni d'archivage. Nouvelle fonction pure `dateSignatureDossier(d, auj)` (client/27) : signé (Authentic d'abord, ou
+  signature cochée), sinon rendez-vous passé ; '' sinon. Utilisée par `stadeDossier`, `actionsDuJour` (questionnaire),
+  `archivageSansQuestionnaireDu`, `gestesRelationClient`.
+- Successions : planning et Échanges les excluaient déjà des gestes de vente, mais `actionsDuJour` proposait appel de fonds,
+  projet, réception/relance des fonds, RIB et questionnaire → exclues (`estSuccession`).
+Tests : audit-coherence (deux cas).
