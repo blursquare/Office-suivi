@@ -146,8 +146,11 @@ test('page : suggestions avec les noms des dossiers du poste, titre d’un rende
   assert.ok(s.join(' ').indexOf('MARTIN') === -1);
   assert.equal(app.titreRendezVousDepuisPhrase('Rendez-vous avec le syndic jeudi à 14 h'), 'Rendez-vous avec le syndic');
   assert.equal(app.titreRendezVousDepuisPhrase("Ajoute un rdv lecture d'acte demain à 9h30 dans l'agenda"), "Rendez-vous lecture d'acte");
-  const liste = app.dossiersPourAssistant([{ id: 'a', nom: 'X / Y', parties: [{ nom: 'X', prenom: 'P', telephones: ['06'] }], emailAcquereur: 'secret@x.fr' }]);
-  assert.equal(JSON.stringify(liste), '[{"id":"a","nom":"X / Y","archive":false,"parties":[{"nom":"X","civilite":""}]}]');
+  // Toutes les données de la fiche qui désignent un dossier (étude 07/10) — lues par le code du serveur, jamais par l'IA.
+  const liste = app.dossiersPourAssistant([{ id: 'a', nom: 'X / Y', parties: [{ nom: 'X', prenom: 'P', civilite: 'M', telephones: ['06'] }],
+    emailAcquereur: 'acq@x.fr', bien: { adresse: 'BLOIS (41000), 2 rue des Lices' }, nomAgence: 'Agence du Château', referenceAuthentic: 'A 2026 00247' }]);
+  assert.equal(JSON.stringify(liste), '[{"id":"a","nom":"X / Y","archive":false,"parties":[{"nom":"X","prenom":"P","nomUsage":"","civilite":"M"}],'
+    + '"autres":["BLOIS (41000), 2 rue des Lices","Agence du Château"],"reference":"A 2026 00247","contacts":["acq@x.fr","06"]}]');
 });
 
 test('proximité avec la base d\'exemples : des variantes sans le mot-clé exact sont comprises, les phrases hors base restent inconnues', () => {
@@ -182,4 +185,30 @@ test('« Appel de fonds envoyé pour MARTIN », « Note dans l\'agenda l\'appel 
   }
   assert.equal(lire('Fais l\'appel de fonds de MARTIN').intention, 'appel_fonds');
   assert.equal(lire('Prépare l\'appel de fonds pour DUPONT').intention, 'appel_fonds');
+});
+
+test('dossier reconnu par toute la fiche : prénom (homonymes), nom d\'usage, adresse, agence, référence Authentic, email, téléphone', () => {
+  const D = [
+    { id: 'a', nom: 'MARTIN / DUPONT', parties: [{ nom: 'MARTIN', prenom: 'Paul' }, { nom: 'DUPONT', prenom: 'Léa', nomUsage: 'GARNIER' }],
+      autres: ['BLOIS (41000), 2 rue des Lices', 'Agence du Château', 'Maître Sophie GOSSART (BLOIS)'], reference: 'A 2026 00247',
+      contacts: ['paul.martin@exemple.fr', '06 12 34 56 78'] },
+    { id: 'b', nom: 'MARTIN / ROUX', parties: [{ nom: 'MARTIN', prenom: 'Anne' }, { nom: 'ROUX' }],
+      autres: ['VINEUIL (41350), 8 allée des Tilleuls', 'Maître Sophie GOSSART (BLOIS)'], reference: 'A 2026 00311', contacts: ['anne@exemple.fr'] },
+    { id: 'c', nom: 'LEROY', parties: [{ nom: 'LEROY' }], autres: ['BLOIS (41000), 5 rue Denis Papin', 'Maître Sophie GOSSART (BLOIS)'] },
+    { id: 'e', nom: 'BERNARD', parties: [{ nom: 'BERNARD' }], autres: ['BLOIS (41000), 9 rue du Bourg Neuf', 'Maître Sophie GOSSART (BLOIS)'] }
+  ];
+  const r = (t) => A.reconnaitreDossier(t, D);
+  assert.equal(r('Où en est Paul MARTIN ?').dossier, 'a', 'prénom : homonymes départagés');
+  assert.equal(r('Où en est Anne Martin').dossier, 'b');
+  assert.equal(r('Où en est MARTIN ?').candidats.length, 2, 'nom seul : toujours « Lequel ? »');
+  assert.equal(r('Où en est Madame GARNIER ?').dossier, 'a', 'nom d’usage');
+  assert.equal(r('Le dossier de la rue des Lices').dossier, 'a', 'adresse du bien');
+  assert.equal(r('Le dossier à Vineuil').dossier, 'b');
+  assert.equal(r('Le dossier de l’agence du Château').dossier, 'a');
+  assert.equal(r('Dossier A 2026 00311').dossier, 'b', 'référence Authentic');
+  assert.equal(r('Le dossier 00247').dossier, 'a');
+  assert.equal(r('Le client paul.martin@exemple.fr').dossier, 'a', 'email');
+  assert.equal(r('Le client au 06 12 34 56 78').dossier, 'a', 'téléphone');
+  assert.equal(r('Le dossier de Sophie').dossier, '', 'un mot présent sur la plupart des fiches (notre office) ne désigne rien');
+  assert.equal(r('Le dossier à Blois').dossier, '', 'la ville de l’étude non plus');
 });

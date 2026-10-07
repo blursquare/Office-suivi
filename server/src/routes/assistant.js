@@ -9,6 +9,9 @@ const { creerClientOllama } = require('../llm');
 const { comprendreDemande, creerCacheDisponibilite } = require('../assistant');
 const { noterVerification } = require('../verificationsTerrain');
 
+const chaine = (v, max) => (typeof v === 'string' ? v.slice(0, max) : '');
+const listeChaines = (v, n, max) => (Array.isArray(v) ? v.filter((x) => typeof x === 'string').slice(0, n).map((x) => x.slice(0, max)) : []);
+
 function routeAsync(fn) {
   return (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
 }
@@ -31,7 +34,12 @@ function creerRouteurAssistant(config, injections, parametresRepo) {
     const contexte = corps.contexte && typeof corps.contexte === 'object' ? corps.contexte : {};
     const dossiers = Array.isArray(corps.dossiers) ? corps.dossiers.filter((d) => d && typeof d.id === 'string').map((d) => ({
       id: d.id, nom: typeof d.nom === 'string' ? d.nom : '', archive: !!d.archive,
-      parties: Array.isArray(d.parties) ? d.parties.filter((p) => p && typeof p.nom === 'string').map((p) => ({ nom: p.nom, civilite: typeof p.civilite === 'string' ? p.civilite.slice(0, 12) : '' })) : []
+      parties: Array.isArray(d.parties) ? d.parties.filter((p) => p && typeof p.nom === 'string').slice(0, 20).map((p) => ({
+        nom: p.nom.slice(0, 120), prenom: chaine(p.prenom, 80), nomUsage: chaine(p.nomUsage, 120), civilite: chaine(p.civilite, 12)
+      })) : [],
+      autres: listeChaines(d.autres, 10, 300),
+      reference: chaine(d.reference, 40),
+      contacts: listeChaines(d.contacts, 20, 200)
     })) : [];
     const resultat = await comprendreDemande({
       texte,

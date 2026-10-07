@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.177.2';
+  const VERSION_APP = '0.177.3';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.177.3', date: '2026-10-07 07:29', resume: "« Demander à CLAIRE » reconnaît le dossier par toute la fiche : prénom (« Paul MARTIN » / « Anne MARTIN »), nom d'usage, adresse du bien, agence, référence Authentic, email ou téléphone d'un client." },
     { version: '0.177.2', date: '2026-10-07 07:22', resume: "« Demander à CLAIRE » : la civilité départage les clients du même nom (« Monsieur MARTIN » / « Madame MARTIN ») ; « Appel de fonds envoyé pour MARTIN » ou « Note dans l'agenda l'appel de fonds envoyé » cochent l'envoi, et la réponse dit la mention notée dans le lieu du rendez-vous Outlook." },
     { version: '0.177.1', date: '2026-10-07 07:14', resume: "Projet d'acte envoyé : aussi détecté dans le texte d'un email envoyé avec pièce jointe (« projet d'acte de vente », hors partie citée et hors annonce « je vous enverrai… »), même si l'objet ne le dit pas." },
     { version: '0.177.0', date: '2026-10-06 23:31', resume: "Projet d'acte envoyé : CLAIRE le détecte dans les emails envoyés (objet « projet d'acte », destinataire du dossier), coche l'envoi du projet sur la fiche et la mention est posée dans l'agenda Outlook. « Demander à CLAIRE » comprend aussi les phrases qui ressemblent à la base d'exemples, et l'IA reçoit les exemples les plus proches." },

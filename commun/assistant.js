@@ -257,13 +257,6 @@
       .map(m => m.replace(/^-+|-+$/g, '')).filter(m => m.length >= 3 && !MOTS_VIDES_ASSISTANT.has(m) && !/^\d+$/.test(m));
   }
 
-  /**
-   * Pure : le dossier désigné par une phrase — par les mots de son nom (« MARTIN / DUPONT ») ou d'une de ses parties.
-   * `dossiers` = [{ id, nom, parties?: [{ nom, civilite? }], archive? }] ; une civilité écrite (« Monsieur MARTIN ») départage ; les dossiers en cours passent avant les archivés.
-   * Rend { dossier: id|'', candidats: [{ id, nom }] } — plusieurs candidats à égalité = à demander, jamais deviné.
-   * @param {string} texte
-   * @param {Array<{id:string, nom:string, parties?:Array<{nom?:string, civilite?:string}>, archive?:boolean}>} dossiers
-   */
   // Civilité écrite devant un nom (étude 07/10 : « prendre aussi la civilité du client, ex. Monsieur MARTIN ») : 'M' ou 'Mme' + le
   // mot du nom qui suit. Sert à départager deux dossiers où le même nom désigne un homme et une femme.
   /** @param {string} texte @returns {Array<{ civilite: string, mot: string }>} */
@@ -284,27 +277,73 @@
     return '';
   }
 
+  // Mots d'une adresse ou d'un intitulé qui ne désignent rien à eux seuls.
+  var MOTS_ADRESSE_ASSISTANT = new Set(['rue', 'avenue', 'chemin', 'route', 'allee', 'impasse', 'boulevard', 'place', 'quai', 'cours',
+    'lieu', 'dit', 'lieudit', 'lotissement', 'residence', 'hameau', 'saint', 'sainte', 'grande', 'grand', 'petite', 'petit', 'cedex',
+    'maitre', 'office', 'notarial', 'notaires', 'associes', 'scp', 'selarl', 'agence', 'immobilier', 'immobiliere', 'immo']);
+
+  /** Chiffres d'un texte, sans le reste (téléphone, référence). @param {string} t */
+  const chiffresAssistant = (t) => String(t || '').replace(/\D/g, '');
+
+  /**
+   * Pure : le dossier désigné par une phrase — par toutes les données de sa fiche (étude 07/10 : « ajoute le prénom s'il y a des
+   * homonymes, prends même toutes les données des fiches ») : nom du dossier (3), nom ou nom d'usage d'une partie (2), prénom (1),
+   * civilité écrite devant un nom (±1), mots de l'adresse du bien, de l'agence, des notaires (1 chacun, 2 au plus, sauf les mots
+   * présents sur une grande part des fiches — la ville de l'étude, notre office), référence Authentic (6), email ou téléphone d'une
+   * partie (6). `dossiers` = [{ id, nom, archive?, parties?: [{ nom, prenom?, nomUsage?, civilite? }], autres?: string[],
+   * reference?: string, contacts?: string[] }] ; les dossiers en cours passent avant les archivés.
+   * Rend { dossier: id|'', candidats: [{ id, nom }] } — plusieurs candidats à égalité = à demander, jamais deviné.
+   * @param {string} texte
+   * @param {Array<{id:string, nom:string, archive?:boolean, parties?:Array<{nom?:string, prenom?:string, nomUsage?:string, civilite?:string}>,
+   *   autres?:string[], reference?:string, contacts?:string[]}>} dossiers
+   */
   function reconnaitreDossier(texte, dossiers) {
     const civilites = civilitesDansPhrase(texte);
     const mots = motsUtilesAssistant(texte);
-    if (!mots.length) return { dossier: '', candidats: [] };
+    const brut = normaliserDemande(texte);
+    const emails = brut.match(/[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/g) || [];
+    const nombres = (String(texte || '').match(/\d[\d .]{3,}\d/g) || []).map(chiffresAssistant).filter(n => n.length >= 4);
+    const chiffresPhrase = chiffresAssistant(texte);
+    if (!mots.length && !emails.length && !nombres.length) return { dossier: '', candidats: [] };
+    const liste = (dossiers || []).filter(d => d && d.id);
+    // Mots « autres » trop répandus (présents sur plus d'un tiers des fiches, dès 4 fiches) : ignorés.
+    const motsAutres = new Map(liste.map(d => [d.id, [...new Set((Array.isArray(d.autres) ? d.autres : []).flatMap(x => motsUtilesAssistant(x || '')))]
+      .filter(m => !MOTS_ADRESSE_ASSISTANT.has(m))]));
+    const frequence = new Map();
+    motsAutres.forEach(ms => ms.forEach(m => frequence.set(m, (frequence.get(m) || 0) + 1)));
+    const tropRepandu = (m) => liste.length >= 4 && (frequence.get(m) || 0) > liste.length / 3;
     const scores = [];
-    (dossiers || []).forEach(d => {
-      if (!d || !d.id) return;
+    liste.forEach(d => {
+      const parties = Array.isArray(d.parties) ? d.parties : [];
       const nomsDossier = motsUtilesAssistant(d.nom || '');
-      const nomsParties = (Array.isArray(d.parties) ? d.parties : []).flatMap(p => motsUtilesAssistant((p && p.nom) || ''));
+      const nomsParties = parties.flatMap(p => motsUtilesAssistant(((p && p.nom) || '') + ' ' + ((p && p.nomUsage) || '')));
+      const prenoms = parties.flatMap(p => motsUtilesAssistant((p && p.prenom) || ''));
+      const autres = (motsAutres.get(d.id) || []).filter(m => !tropRepandu(m));
       let score = 0;
+      let pointsAutres = 0;
       const vus = new Set();
       mots.forEach(m => {
         if (vus.has(m)) return;
         if (nomsDossier.some(n => n === m)) { score += 3; vus.add(m); }
         else if (nomsParties.some(n => n === m)) { score += 2; vus.add(m); }
+        else if (prenoms.some(n => n === m)) { score += 1; vus.add(m); }
         else if (m.length >= 5 && (nomsDossier.some(n => n.startsWith(m) || m.startsWith(n) && n.length >= 5))) { score += 1; vus.add(m); }
+        else if (pointsAutres < 2 && autres.includes(m)) { score += 1; pointsAutres++; vus.add(m); }
       });
+      // Référence Authentic (« A 2026 00247 ») : tous ses chiffres dans la phrase, ou son dernier groupe (≥ 4 chiffres).
+      const ref = chiffresAssistant(d.reference || '');
+      const dernierGroupe = (String(d.reference || '').match(/\d{4,}(?!.*\d)/) || [''])[0];
+      if ((ref.length >= 6 && chiffresPhrase.includes(ref)) || (dernierGroupe && nombres.includes(dernierGroupe))) score += 6;
+      // Email ou téléphone d'une partie cité tel quel.
+      const contacts = (Array.isArray(d.contacts) ? d.contacts : []).map(c => String(c || '').toLowerCase());
+      if (emails.some(e => contacts.some(c => c.split(/[;,\s]+/).includes(e)))) score += 6;
+      const tels = contacts.flatMap(c => (c.match(/(?:\+33|0)[\d .-]{8,}/g) || []).map(chiffresAssistant)).filter(n => n.length >= 9).map(n => n.slice(-9));
+      if (nombres.some(n => n.length >= 9 && tels.includes(n.slice(-9)))) score += 6;
       // « Monsieur MARTIN » : la partie de ce nom et de cette civilité gagne un point ; de l'autre civilité, elle en perd un.
-      if (score) civilites.forEach(c => (Array.isArray(d.parties) ? d.parties : []).forEach(p => {
+      if (score) civilites.forEach(c => parties.forEach(p => {
         const civ = civilitePartieAssistant(p);
-        if (!civ || !motsUtilesAssistant((p && p.nom) || '').includes(c.mot)) return;
+        const sesMots = motsUtilesAssistant(((p && p.nom) || '') + ' ' + ((p && p.nomUsage) || '') + ' ' + ((p && p.prenom) || ''));
+        if (!civ || !sesMots.includes(c.mot)) return;
         score += civ === c.civilite ? 1 : -1;
       }));
       if (score > 0) scores.push({ id: d.id, nom: d.nom || '', score: score + (d.archive ? -0.5 : 0) });

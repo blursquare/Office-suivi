@@ -103,11 +103,24 @@
   }
 
   // Pure : la liste envoyée au serveur pour reconnaître le dossier cité — id, nom, noms des parties, rien d'autre.
+  // Ce que le serveur reçoit pour reconnaître le dossier d'une phrase (étude 07/10 : « toutes les données des fiches ») : noms, prénoms,
+  // noms d'usage et civilités des parties, adresse(s) du bien, agence, notaires, référence Authentic, emails et téléphones. Rien de
+  // cela ne part vers l'IA : seul le code du serveur s'en sert (`reconnaitreDossier`).
   function dossiersPourAssistant(liste) {
-    return (liste || []).filter(d => d && d.id).map(d => ({
-      id: d.id, nom: String(d.nom || ''), archive: !!d.archive,
-      parties: (Array.isArray(d.parties) ? d.parties : []).map(p => ({ nom: String((p && p.nom) || ''), civilite: String((p && p.civilite) || '') })).filter(p => p.nom)
-    }));
+    const texte = (v) => (typeof v === 'string' ? v : '');
+    return (liste || []).filter(d => d && d.id).map(d => {
+      const parties = Array.isArray(d.parties) ? d.parties : [];
+      return {
+        id: d.id, nom: String(d.nom || ''), archive: !!d.archive,
+        parties: parties.map(p => ({ nom: String((p && p.nom) || ''), prenom: texte(p && p.prenom), nomUsage: texte(p && p.nomUsage),
+          civilite: String((p && p.civilite) || '') })).filter(p => p.nom),
+        autres: [d.bien && d.bien.adresse, ...(Array.isArray(d.biens) ? d.biens.map(b => b && b.adresse) : []), d.nomAgence,
+          d.notaireVendeur, d.notaireAcquereur].map(texte).filter(Boolean),
+        reference: texte(d.referenceAuthentic),
+        contacts: [d.emailVendeur, d.emailAcquereur, d.telephoneVendeur, d.telephoneAcquereur,
+          ...parties.flatMap(p => [p && p.email, ...((p && p.emails) || []), ...((p && p.telephones) || [])])].map(texte).filter(Boolean)
+      };
+    });
   }
 
   async function envoyerDemandeAssistant(texteForce) {
