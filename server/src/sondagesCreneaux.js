@@ -173,6 +173,11 @@ function assainirSondage(s) {
     // Options seules (étude 07/10, « Demander à CLAIRE : placer plusieurs options de rendez-vous ») : des créneaux posés en
     // option dans l'agenda, sans destinataire ni email ; « Placer » et le retrait des autres comme un sondage.
     ...(s.optionsSeules === true ? { optionsSeules: true } : {}),
+    // Titre du rendez-vous à poser au placement (« VTE - ROUX ») : celui des options sans « ? ».
+    libelle: texteBorne(s.libelle, 120),
+    // Dernière option restée seule dans l'agenda, devenue le rendez-vous (étude 07/10) — ou l'essai qui a échoué, pas retenté.
+    ...(s.placeSeul === true ? { placeSeul: true } : {}),
+    placementSeulEchoue: texteBorne(s.placementSeulEchoue, 40),
     creneaux, participants, reponses,
     relances: (Array.isArray(s.relances) ? s.relances : []).map((x) => texteBorne(x, 40)).filter(Boolean).slice(-10),
     choisi: Number.isInteger(s.choisi) && s.choisi > 0 ? s.choisi : null,
@@ -364,6 +369,74 @@ async function retirerOptions(options, reglages, injections) {
   return { restantes, refus };
 }
 
+// Pure (étude 07/10 : « oui » — une option restée seule quand les autres ont été effacées à la main dans Outlook devient le
+// rendez-vous) : l'option encore dans l'agenda d'un sondage ouvert dont au moins deux options ont été posées et toutes les autres
+// ont disparu. Seulement sur un agenda relu APRÈS la pose des options (`lu` > `creeLe`), complet (moins de `MAX_AGENDA_OFFICE`
+// événements) et dont la période couvre toutes les options : une option hors de la lecture n'est jamais crue effacée. Rend
+// { n, evenement } ou null.
+var JOURS_AGENDA_LU = 186; // 3 tranches de 62 jours depuis le lundi de la semaine précédente (agendaWatch, ews.js)
+function optionRestanteSeule(s, agenda) {
+  if (!s || s.statut !== 'ouvert' || s.placementSeulEchoue) return null;
+  const posees = (s.creneaux || []).filter((c) => c.option && c.option.itemId);
+  if (posees.length < 2 || !agenda || !agenda.debut || !agenda.lu || !s.creeLe || !(agenda.lu > s.creeLe)) return null;
+  const evenements = Array.isArray(agenda.evenements) ? agenda.evenements : [];
+  if (evenements.length >= 3000) return null;
+  const fin = new Date(Date.parse(agenda.debut + 'T12:00:00Z') + JOURS_AGENDA_LU * 86400000).toISOString().slice(0, 10);
+  if (posees.some((c) => !c.date || c.date < agenda.debut || c.date >= fin)) return null;
+  const parId = new Map(evenements.filter((e) => e && e.itemId).map((e) => [e.itemId, e]));
+  const presentes = posees.filter((c) => parId.has(c.option.itemId));
+  if (presentes.length !== 1) return null;
+  const evenement = parId.get(presentes[0].option.itemId);
+  if (!evenement.heure || evenement.journeeEntiere) return null;
+  return { n: presentes[0].n, evenement };
+}
+
+// Pure : le titre du rendez-vous qui remplace une option — le libellé gardé au sondage, sinon celui de l'option sans
+// « ? — option CLAIRE, créneau n/N », sinon le titre du sondage ou « VTE - » et le nom du dossier.
+function sujetPlacementOption(s, evenement) {
+  if (s && s.libelle) return s.libelle;
+  const sujet = String((evenement && evenement.sujet) || '');
+  const m = /^(.*?)\s*\?\s*—\s*option CLAIRE\b/i.exec(sujet);
+  if (m && m[1].trim()) return m[1].trim();
+  return (s && (s.titre || (s.dossierNom ? 'VTE - ' + s.dossierNom : ''))) || 'Rendez-vous';
+}
+
+// La dernière option devient le rendez-vous : même élément d'Outlook (notes et déplacement gardés), titre sans « ? », catégorie du
+// type de rendez-vous, occupé avec rappel — la relecture suivante de l'agenda le pose sur la fiche comme une signature relevée
+// dans Outlook (et prévient le responsable par Teams). Un seul essai : un échec est retenu, jamais retenté seul.
+async function placerOptionRestante(s, trouve, reglages, parametresRepo, injections) {
+  const { modifierRendezVousExchange, horaireModifie } = require('./exchange/ews');
+  const e = trouve.evenement;
+  const c = s.creneaux.find((x) => x.n === trouve.n) || {};
+  const finParDuree = () => {
+    const [h, m] = e.heure.split(':').map(Number);
+    const total = Math.min(23 * 60 + 59, h * 60 + m + (c.dureeMinutes > 0 ? c.dureeMinutes : 60));
+    return String(Math.floor(total / 60)).padStart(2, '0') + ':' + String(total % 60).padStart(2, '0');
+  };
+  const horaire = horaireModifie({ date: e.date, heure: e.heure, heureFin: e.heureFin && e.heureFin > e.heure ? e.heureFin : finParDuree() });
+  const sujet = sujetPlacementOption(s, e);
+  const categorie = reglages.categoriesRdv && reglages.categoriesRdv[s.typeRdv || (s.dossierId ? 'office' : '')];
+  const r = horaire ? await modifierRendezVousExchange({
+    url: reglages.url, email: reglages.email, motDePasse: reglages.motDePasse, itemId: e.itemId, changeKey: e.changeKey,
+    sujet, debut: horaire.debut, fin: horaire.fin, categories: categorie ? [categorie] : undefined, confirme: true
+  }, injections) : { ok: false, message: 'horaire illisible' };
+  if (!r.ok) {
+    if (r.raison !== 'auth') s.placementSeulEchoue = new Date().toISOString();
+    noterVerification(parametresRepo, 'option-restante-placee', { ok: false, message: r.raison === 'auth' ? 'identifiants refusés' : 'modification refusée par Exchange' });
+    return { ok: false, refus: r.raison === 'auth' };
+  }
+  if (typeof parametresRepo.ajouterEvenementAgendaOffice === 'function') {
+    parametresRepo.ajouterEvenementAgendaOffice({ ...e, changeKey: r.changeKey || e.changeKey, sujet, option: false, categories: categorie ? [categorie] : e.categories });
+  }
+  // Les autres options sont déjà effacées ; celle-ci est devenue le rendez-vous : aucune à retirer. Le créneau retenu prend
+  // la date et l'heure de l'agenda (l'option a pu être déplacée dans Outlook).
+  s.creneaux = s.creneaux.map((x) => ({ ...x, option: null, ...(x.n === trouve.n ? { date: e.date, heure: e.heure } : {}) }));
+  s.placeSeul = true;
+  await clore(s, 'place', reglages, parametresRepo, injections, trouve.n);
+  noterVerification(parametresRepo, 'option-restante-placee', { detail: 'dernière option devenue le rendez-vous' });
+  return { ok: true };
+}
+
 // Clôt un sondage (placé, annulé, expiré) : ses options sont retirées de l'agenda. Pur sur la
 // liste passée ; les options non retirées restent dans `optionsARetirer`.
 async function clore(s, statut, reglages, parametresRepo, injections, choisi) {
@@ -391,7 +464,7 @@ async function executerTourSondages(parametresRepo, injections = {}, manuel = fa
   const { posterEws } = require('./exchange/ews');
   const reglages = parametresRepo.lireReglagesExchange ? parametresRepo.lireReglagesExchange() : {};
   const sondages = parametresRepo.lireSondagesCreneaux();
-  const resultat = { ok: false, lus: 0, nouvelles: [], erreur: null };
+  const resultat = { ok: false, lus: 0, nouvelles: [], placesSeuls: [], erreur: null };
   const ouverts = sondages.filter((s) => s.statut === 'ouvert');
   const aRetirer = sondages.filter((s) => (s.optionsARetirer || []).length);
   if (!ouverts.length && !aRetirer.length) { resultat.ok = true; return resultat; }
@@ -434,6 +507,15 @@ async function executerTourSondages(parametresRepo, injections = {}, manuel = fa
     if (resultat.nouvelles.length) noterVerification(parametresRepo, 'sondage-reponse', { detail: resultat.nouvelles.some((x) => x.n === 'page') ? 'réponse par la page' : resultat.nouvelles.some((x) => x.n === 'liste') ? 'réponse en une seule fois' : 'réponse par bouton' });
   }
 
+  // Options effacées à la main dans Outlook jusqu'à la dernière : celle-ci devient le rendez-vous (étude 07/10).
+  const agendaLu = typeof parametresRepo.lireAgendaOffice === 'function' ? parametresRepo.lireAgendaOffice() : null;
+  for (const s of sondages) {
+    const trouve = optionRestanteSeule(s, agendaLu);
+    if (!trouve) continue;
+    const r = await placerOptionRestante(s, trouve, reglages, parametresRepo, injections);
+    if (r.ok) resultat.placesSeuls.push({ id: s.id, n: trouve.n });
+    if (r.refus) { agendaWatch.signalerIdentifiantsRefuses(reglages); break; }
+  }
   for (const s of sondages.filter((x) => x.statut !== 'ouvert' && (x.optionsARetirer || []).length)) {
     const { restantes, refus } = await retirerOptions(s.optionsARetirer, reglages, injections);
     s.optionsARetirer = restantes;
@@ -468,7 +550,7 @@ module.exports = {
   CLE_SONDAGES, MAX_CRENEAUX, MAX_PARTICIPANTS, ROLES_PARTICIPANT,
   codeSondage, jetonReponse, jetonsDansObjet, adresseValide, attribuerCles,
   choixDepuisTexteListe, parseFindReponses, corpsLireTextesReponses, parseTextesReponses, reponsesListeALire,
-  assainirSondage, assainirSondages, appliquerReponses, syntheseSondage,
+  assainirSondage, assainirSondages, appliquerReponses, syntheseSondage, optionRestanteSeule, sujetPlacementOption,
   corpsFindReponsesSondages, executerTourSondages, demarrerSurveillanceSondages, clore, retirerOptions,
   dateDuJourParis, connexionPrete
 };

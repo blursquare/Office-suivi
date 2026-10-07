@@ -8,7 +8,7 @@ const assert = require('node:assert/strict');
 const os = require('node:os');
 
 const {
-  codeSondage, jetonReponse, jetonsDansObjet, appliquerReponses, syntheseSondage,
+  codeSondage, jetonReponse, jetonsDansObjet, appliquerReponses, optionRestanteSeule, sujetPlacementOption, syntheseSondage,
   corpsFindReponsesSondages, assainirSondage,
   choixDepuisTexteListe, reponsesListeALire, corpsLireTextesReponses, parseTextesReponses, parseFindReponses
 } = require('../src/sondagesCreneaux');
@@ -183,6 +183,7 @@ function fauxPoster(options, cb) {
     const n = appelsEws.filter((b) => /<m:CreateItem/.test(b)).length;
     return cb(null, { statusCode: 200, body: `<m:CreateItemResponseMessage ResponseClass="Success"><m:ResponseCode>NoError</m:ResponseCode><t:ItemId Id="OPT${n}" ChangeKey="CK${n}"/></m:CreateItemResponseMessage>` });
   }
+  if (/<m:UpdateItem/.test(body)) return cb(null, { statusCode: 200, body: '<m:UpdateItemResponseMessage ResponseClass="Success"><m:ResponseCode>NoError</m:ResponseCode><m:Items><t:CalendarItem><t:ItemId Id="MAJ" ChangeKey="CK-MAJ"/></t:CalendarItem></m:Items></m:UpdateItemResponseMessage>' });
   if (/<m:DeleteItem/.test(body)) return cb(null, { statusCode: 200, body: '<m:DeleteItemResponseMessage ResponseClass="Success"><m:ResponseCode>NoError</m:ResponseCode></m:DeleteItemResponseMessage>' });
   if (/<m:GetItem/.test(body)) {
     const ids = [...body.matchAll(/<t:ItemId Id="([^"]+)"/g)].map((m) => m[1]);
@@ -341,6 +342,58 @@ test('options seules (étude 07/10) : sans destinataire, options posées sans em
   refuserIdentifiants = false;
   const liste = await (await appeler('/api/sondages?dossierId=d6')).json();
   assert.equal(liste.sondages.length, 0);
+});
+
+test('dernière option restée seule (étude 07/10) : trouvée seulement sur un agenda relu après la pose, complet, qui couvre les options', () => {
+  const s = assainirSondage({ id: 's9', code: 'ABCDEF', dossierId: 'd9', dossierNom: 'ROUX', statut: 'ouvert', optionsSeules: true,
+    creeLe: '2026-10-07T10:00:00.000Z', libelle: 'VTE - ROUX', participants: [],
+    creneaux: [{ date: '2026-10-22', heure: '14:00', option: { itemId: 'A', changeKey: 'a' } }, { date: '2026-10-23', heure: '10:00', option: { itemId: 'B', changeKey: 'b' } }] });
+  const evt = (id, date, heure) => ({ itemId: id, changeKey: 'k', sujet: 'VTE - ROUX ? — option CLAIRE, créneau 2/2', date, heure, heureFin: '11:00', option: true });
+  const agenda = (evenements, lu) => ({ debut: '2026-09-28', lu: lu || '2026-10-07T10:05:00.000Z', evenements });
+  assert.equal(optionRestanteSeule(s, agenda([evt('A', '2026-10-22', '14:00'), evt('B', '2026-10-23', '10:00')])), null, 'les deux encore là');
+  assert.equal(optionRestanteSeule(s, agenda([])), null, 'toutes effacées : rien à placer');
+  const trouve = optionRestanteSeule(s, agenda([evt('B', '2026-10-23', '10:00')]));
+  assert.equal(trouve && trouve.n, 2);
+  // Agenda relu avant la pose des options, ou qui ne couvre pas la date d'une option : jamais cru.
+  assert.equal(optionRestanteSeule(s, agenda([evt('B', '2026-10-23', '10:00')], '2026-10-07T09:00:00.000Z')), null);
+  assert.equal(optionRestanteSeule(s, { ...agenda([evt('B', '2026-10-23', '10:00')]), debut: '2026-04-01' }), null);
+  // Une seule option posée, un sondage clos ou un essai déjà manqué : rien.
+  assert.equal(optionRestanteSeule({ ...s, creneaux: [s.creneaux[1]] }, agenda([evt('B', '2026-10-23', '10:00')])), null);
+  assert.equal(optionRestanteSeule({ ...s, statut: 'place' }, agenda([evt('B', '2026-10-23', '10:00')])), null);
+  assert.equal(optionRestanteSeule({ ...s, placementSeulEchoue: '2026-10-07T11:00:00.000Z' }, agenda([evt('B', '2026-10-23', '10:00')])), null);
+  // Titre : libellé gardé, sinon celui de l'option sans « ? — option CLAIRE ».
+  assert.equal(sujetPlacementOption(s, evt('B')), 'VTE - ROUX');
+  assert.equal(sujetPlacementOption({ ...s, libelle: '' }, { sujet: 'SUCC - PETIT ? — option CLAIRE, créneau 1/3' }), 'SUCC - PETIT');
+});
+
+test('dernière option restée seule : devient le rendez-vous (titre sans « ? », occupé, rappel), sondage clos, rien de retiré', async () => {
+  const corps = { dossierId: 'd7', dossierNom: 'ROUX', libelle: 'VTE - ROUX', optionsSeules: true, participants: [],
+    creneaux: [{ date: '2026-10-22', heure: '14:00', dureeMinutes: 60 }, { date: '2026-10-23', heure: '10:00', dureeMinutes: 60 }] };
+  const cree = await (await appeler('/api/sondages', { method: 'POST', body: JSON.stringify(corps) })).json();
+  assert.equal(cree.ok, true);
+  assert.equal(cree.sondage.libelle, 'VTE - ROUX');
+  const [o1, o2] = cree.sondage.creneaux.map((c) => c.option);
+  // L'option 1 effacée à la main dans Outlook ; la relecture de l'agenda ne voit plus que la 2.
+  const repo = creerRepoParametres(db);
+  repo.ecrireAgendaOffice({ debut: '2026-09-28', lu: new Date(Date.now() + 1000).toISOString(), evenements: [
+    { itemId: o2.itemId, changeKey: o2.changeKey, sujet: 'VTE - ROUX ? — option CLAIRE, créneau 2/2', date: '2026-10-23', heure: '10:00', heureFin: '11:00', option: true }
+  ] });
+  appelsEws.length = 0;
+  const relu = await (await appeler(`/api/sondages/${cree.sondage.id}/relire`, { method: 'POST', body: '{}' })).json();
+  assert.equal(relu.sondage.statut, 'place');
+  assert.equal(relu.sondage.choisi, 2);
+  assert.equal(relu.sondage.placeSeul, true);
+  const maj = appelsEws.find((b) => /<m:UpdateItem/.test(b));
+  assert.ok(maj, 'la dernière option est modifiée');
+  assert.match(maj, new RegExp('Id="' + o2.itemId + '"'));
+  assert.match(maj, /<t:Subject>VTE - ROUX<\/t:Subject>/);
+  assert.match(maj, /<t:LegacyFreeBusyStatus>Busy<\/t:LegacyFreeBusyStatus>/);
+  assert.match(maj, /<t:ReminderIsSet>true<\/t:ReminderIsSet>/);
+  assert.equal(appelsEws.some((b) => /<m:DeleteItem/.test(b)), false, 'rien de retiré : l’option est devenue le rendez-vous');
+  const stocke = repo.lireAgendaOffice().evenements.find((e) => e.itemId === o2.itemId);
+  assert.equal(stocke.sujet, 'VTE - ROUX');
+  assert.equal(stocke.option, false);
+  assert.ok(!o1 || !repo.lireAgendaOffice().evenements.some((e) => e.itemId === o1.itemId));
 });
 
 test('créneau invalide ou adresse invalide : 400', async () => {

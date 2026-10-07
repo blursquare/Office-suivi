@@ -75,6 +75,7 @@ function creerRouteurSondages(parametresRepo, injections = {}) {
       adresseReponse: reglages.email,
       typeRdv: b.typeRdv,
       optionsSeules,
+      libelle: String(b.libelle || (dossierId ? b.dossierNom : titre) || '').replace(/[?\r\n]/g, ' ').trim().slice(0, 120),
       creneaux: creneauxBruts.map((c, i) => ({ n: i + 1, date: c && c.date, heure: c && c.heure, dureeMinutes: c && c.dureeMinutes })),
       participants: attribuerCles(participantsBruts.map((p) => ({ ...(p || {}), cle: '' })), injections.aleatoire),
       reponses: []

@@ -685,7 +685,7 @@ function horaireModifie({ date, heure, heureFin, dateFin, journeeEntiere }) {
   };
 }
 
-function corpsModifierRendezVous({ itemId, changeKey, sujet, debut, fin, categories }) {
+function corpsModifierRendezVous({ itemId, changeKey, sujet, debut, fin, categories, confirme }) {
   const champ = (uri, xml) => '<t:SetItemField><t:FieldURI FieldURI="' + uri + '"/><t:CalendarItem>' + xml + '</t:CalendarItem></t:SetItemField>';
   return ENVELOPPE_DEBUT
     + '<m:UpdateItem ConflictResolution="AutoResolve" SendMeetingInvitationsOrCancellations="SendToNone">'
@@ -701,13 +701,19 @@ function corpsModifierRendezVous({ itemId, changeKey, sujet, debut, fin, categor
       : '')
     + champ('calendar:Start', '<t:Start>' + debut + '</t:Start>')
     + champ('calendar:End', '<t:End>' + fin + '</t:End>')
+    // Option confirmée (une option de sondage devenue le rendez-vous) : occupé, rappel la veille, comme un rendez-vous posé.
+    + (confirme
+      ? champ('item:ReminderIsSet', '<t:ReminderIsSet>true</t:ReminderIsSet>')
+        + champ('item:ReminderMinutesBeforeStart', '<t:ReminderMinutesBeforeStart>1440</t:ReminderMinutesBeforeStart>')
+        + champ('calendar:LegacyFreeBusyStatus', '<t:LegacyFreeBusyStatus>Busy</t:LegacyFreeBusyStatus>')
+      : '')
     + '</t:Updates>'
     + '</t:ItemChange></m:ItemChanges>'
     + '</m:UpdateItem>' + ENVELOPPE_FIN;
 }
 
-async function modifierRendezVousExchange({ url, email, motDePasse, itemId, changeKey, sujet, debut, fin, categories, delaiMs }, injections) {
-  const r = await posterEws({ url, email, motDePasse, delaiMs, body: corpsModifierRendezVous({ itemId, changeKey, sujet, debut, fin, categories }) }, injections);
+async function modifierRendezVousExchange({ url, email, motDePasse, itemId, changeKey, sujet, debut, fin, categories, confirme, delaiMs }, injections) {
+  const r = await posterEws({ url, email, motDePasse, delaiMs, body: corpsModifierRendezVous({ itemId, changeKey, sujet, debut, fin, categories, confirme }) }, injections);
   if (r.echec) return r.echec;
   const texte = String(r.corps || '');
   if (aCodeReponse(texte, 'ErrorItemNotFound')) {

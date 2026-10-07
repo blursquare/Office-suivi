@@ -17824,3 +17824,16 @@ lecture des « Éléments envoyés » d'un collaborateur, commentaires de relect
 - Relecture d'actes (données du DPE lues comme des travaux) : l'étude cherche le modèle envoyé.
 - **Matériel du serveur** : processeur graphique Intel UHD Graphics 630 (intégré) — trop faible pour faire tourner le modèle de
   l'IA locale, qui tourne donc sur le processeur : d'où sa lenteur (« Demander à CLAIRE » en IA locale, résumé des emails).
+
+**Dernière option restée seule = le rendez-vous** (0.187.0 ; étude 07/10, « Oui » à la question : « si vous effacez vous-même les
+autres options dans Outlook, voulez-vous que la dernière devienne automatiquement le rendez-vous de signature ? ») — au tour des
+sondages (5 min), `optionRestanteSeule` (pure) : sondage ouvert, au moins deux options posées, une seule encore dans le stock de
+l'agenda (`agenda-office`), lu APRÈS la pose (`lu` > `creeLe`), moins de 3 000 événements, période lue (lundi de la semaine
+précédente + 186 jours) couvrant toutes les options — une option hors lecture n'est jamais crue effacée ; toutes effacées → rien.
+`placerOptionRestante` : UpdateItem du même élément (notes et déplacement gardés) — titre = `s.libelle` (gardé à la création ;
+anciens sondages : le titre de l'option sans « ? — option CLAIRE »), catégorie du type de rendez-vous, `confirme` (occupé, rappel
+la veille, `corpsModifierRendezVous`) — puis sondage clos « placé » (`placeSeul`, créneau retenu à la date de l'agenda), rien de
+retiré. La fiche prend la date à la relecture suivante de l'agenda comme une signature relevée dans Outlook (Teams au
+responsable). Un échec est retenu (`placementSeulEchoue`), jamais retenté seul. Non vérifié avec un vrai Exchange (identifiant
+d'un élément identique entre CreateItem et FindItem supposé — sinon aucune option n'est vue « présente » et rien ne se passe).
+

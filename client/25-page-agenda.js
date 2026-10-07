@@ -1195,7 +1195,7 @@
         </div>`;
     };
     const ligneValidee = ({ s: x, creneau }) => `<li class="dp-ligne">
-        <span class="dp-ligne-texte">${titre(x)}<span class="hint">${creneau ? `Validé : ${escapeHtml(jourCourt(creneau.date))} ${escapeHtml(creneau.heure.replace(':', ' h '))}` : 'Validé'}${x.closLe ? ` · le ${escapeHtml(dateCourte(x.closLe))}` : ''}</span></span>
+        <span class="dp-ligne-texte">${titre(x)}<span class="hint">${creneau ? `Validé : ${escapeHtml(jourCourt(creneau.date))} ${escapeHtml(creneau.heure.replace(':', ' h '))}` : 'Validé'}${x.closLe ? ` · le ${escapeHtml(dateCourte(x.closLe))}` : ''}${x.placeSeul ? ' · dernière option, les autres effacées dans Outlook' : ''}</span></span>
         ${creneau ? `<wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="voirDateProposeeDansAgenda('${creneau.date}')">${icone('calendar')} Voir dans l’agenda</wa-button>` : ''}
       </li>`;
     const ligneSansSuite = (x) => `<li class="dp-ligne dp-sans-suite">

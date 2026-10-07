@@ -20,6 +20,8 @@ const CLE_VERIFICATIONS = 'verifications-terrain';
 // `source` : 'serveur' (noté par le serveur), 'poste' (noté par une fenêtre CLAIRE, POST
 // /api/verifications-terrain/noter — seuls ces points-là y sont acceptés) ou 'manuel'.
 const VERIFICATIONS_TERRAIN = [
+  { id: 'option-restante-placee', depuis: '0.187.0', source: 'serveur', titre: 'Options de rendez-vous : la dernière restée dans l’agenda devient le rendez-vous',
+    comment: 'Coché la première fois que le serveur transforme seul la dernière option (les autres effacées à la main dans Outlook) ; en échec si Exchange refuse la modification. Vérifier dans Outlook : titre sans « ? », occupé, couleur du rendez-vous, puis la date sur la fiche après la relecture suivante de l’agenda.' },
   { id: 'options-rendez-vous', depuis: '0.183.0', source: 'poste', titre: 'Demander à CLAIRE : options de rendez-vous posées dans l’agenda, sans email',
     comment: 'Coché aux premières options posées depuis « Demander à CLAIRE » (« Pose des options pour X mardi à 14 h et jeudi à 10 h ») ; en échec si Exchange refuse. Vérifier dans Outlook les rendez-vous provisoires « VTE - X ? — option CLAIRE », puis « Placer » sur l’un : les autres doivent partir.' },
   { id: 'agenda-copier-coller', depuis: '0.182.0', source: 'poste', titre: 'Agenda : rendez-vous copié (Ctrl+C) puis collé (Ctrl+V) dans l’agenda de l’office',
