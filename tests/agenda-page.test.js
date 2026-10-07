@@ -430,3 +430,21 @@ test('ordreRendezVousAPlacer : prêts à signer d\'abord, puis le pourcentage, p
   assert.equal(liste.map(x => x.d.id).join(','), 'a,b,c,d,e', 'la liste d\'origine reste intacte');
   assert.equal(app.ordreRendezVousAPlacer(null, null).length, 0);
 });
+
+test('copieRendezVousAgenda / sujetCopieRendezVous : copier-coller d\'un rendez-vous (étude, 07/10)', () => {
+  const c = app.copieRendezVousAgenda({ sujet: 'Réunion syndic', lieu: 'Salle 2', date: '2026-10-08', heure: '14:00', heureFin: '15:30', categories: ['Catégorie violette', 'Autre'], itemId: 'X1' }, 'Apporter le PV');
+  assert.equal(`${c.sujet}|${c.lieu}|${c.categorie}|${c.dureeMinutes}|${c.notes}|${c.signature}`, 'Réunion syndic|Salle 2|Catégorie violette|90|Apporter le PV|false');
+  assert.equal(app.sujetCopieRendezVous(c), 'Réunion syndic');
+  // Sans heure de fin : 1 h ; jamais plus de 10 h.
+  assert.equal(app.copieRendezVousAgenda({ sujet: 'A', heure: '09:00' }).dureeMinutes, 60);
+  assert.equal(app.copieRendezVousAgenda({ sujet: 'A', heure: '08:00', heureFin: '23:30' }).dureeMinutes, 600);
+  // Ne se copient pas : journée entière, carte fantôme, option d'un sondage, sans heure.
+  assert.equal(app.copieRendezVousAgenda({ sujet: 'Absence', journeeEntiere: true, heure: null }), null);
+  assert.equal(app.copieRendezVousAgenda({ sujet: 'VTE - X', fantome: true, heure: '10:00' }), null);
+  assert.equal(app.copieRendezVousAgenda({ sujet: 'VTE - X ? — option CLAIRE, créneau 1/3', option: true, heure: '10:00' }), null);
+  assert.equal(app.copieRendezVousAgenda(null), null);
+  // Une signature se colle « à confirmer », sans doubler le « ? ».
+  const sig = app.copieRendezVousAgenda({ sujet: 'VTE - MOREAU / LAMBERT', heure: '10:00', heureFin: '11:00', signature: true, dossierId: 'a' });
+  assert.equal(app.sujetCopieRendezVous(sig), 'VTE - MOREAU / LAMBERT ?');
+  assert.equal(app.sujetCopieRendezVous(Object.assign({}, sig, { sujet: 'VTE - X ??' })), 'VTE - X ??');
+});

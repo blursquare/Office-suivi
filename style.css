@@ -7805,6 +7805,14 @@ wa-button.ag-ajout svg { width: 14px; height: 14px; }
 }
 .ag-case-choisie span { display: inline-flex; align-items: center; gap: 4px; font-size: var(--texte-xs); font-weight: 600; color: var(--focus); font-variant-numeric: tabular-nums; }
 .ag-case-choisie svg { width: 14px; height: 14px; }
+/* « Coller » sur le créneau choisi quand un rendez-vous est copié (étude 07/10). */
+.ag-case-choisie button.ag-case-coller {
+  pointer-events: auto; display: inline-flex; align-items: center; gap: 4px; margin-left: 6px; padding: 1px 6px; cursor: pointer;
+  font-family: inherit; font-size: var(--texte-xs); font-weight: 600; color: var(--blanc-fixe); background: var(--focus);
+  border: none; border-radius: var(--rayon-xs);
+}
+.ag-case-choisie button.ag-case-coller:hover { filter: brightness(1.08); }
+.ag-case-choisie button.ag-case-coller:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .ag-evt {
   position: absolute; z-index: 1; overflow: hidden; display: flex; flex-direction: column; gap: 1px; min-height: 0;
   font-family: inherit; text-align: left; cursor: pointer; padding: 4px 6px 4px 8px; box-sizing: border-box;

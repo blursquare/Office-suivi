@@ -829,7 +829,9 @@
     const hauteur = Math.min(60, AGENDA_HEURE_FIN * 60 - debut) / total * 100;
     const fin = debut + 60;
     const libelleFin = `${String(Math.floor(fin / 60)).padStart(2, '0')}:${String(fin % 60).padStart(2, '0')}`;
-    return `<div class="ag-case-choisie" style="top:${haut.toFixed(2)}%;height:${hauteur.toFixed(2)}%" aria-hidden="true"><span>${icone('plus')}${escapeHtml(c.heure)} – ${escapeHtml(libelleFin)}</span></div>`;
+    // Un rendez-vous copié (client/53) : « Coller » sur le créneau choisi, pour la souris et le doigt (Ctrl+V au clavier).
+    const coller = agendaPressePapier ? `<button type="button" class="ag-case-coller" onclick="event.stopPropagation(); collerRendezVousAgenda()" title="${escapeAttr(`Coller « ${agendaPressePapier.sujet} » ici (Ctrl+V)`)}">${icone('copier')} Coller</button>` : '';
+    return `<div class="ag-case-choisie" style="top:${haut.toFixed(2)}%;height:${hauteur.toFixed(2)}%"${coller ? '' : ' aria-hidden="true"'}><span>${icone('plus')}${escapeHtml(c.heure)} – ${escapeHtml(libelleFin)}</span>${coller}</div>`;
   }
 
   function choisirCaseAgenda(evt, iso, h) {
@@ -1581,6 +1583,7 @@
           </div>
           <div class="ag-detail-outils">
             ${peutSupprimer && evenementModifiableAgenda(e) ? `<wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-btn" onclick="ouvrirModificationAgenda('${escapeOnclickArg(cleEvenementAgenda(e))}')" aria-label="Modifier le rendez-vous" title="Modifier le titre, la date ou l’horaire${e.heure && !e.journeeEntiere ? ' — ou glisser le rendez-vous dans la grille' : ''}">${icone('pencil')}</wa-button>` : ''}
+            ${copieRendezVousAgenda(e) && exchangeAgendaPret() ? `<wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-btn" onclick="copierRendezVousAgenda('${escapeOnclickArg(cleEvenementAgenda(e))}')" aria-label="Copier le rendez-vous" title="Copier (Ctrl+C), puis choisir une case et Coller (Ctrl+V)">${icone('copier')}</wa-button>` : ''}
             ${peutSupprimer ? `<wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-btn ag-supprimer-ico" onclick="supprimerEvenementAgenda('${escapeOnclickArg(cleEvenementAgenda(e))}')" aria-label="Supprimer le rendez-vous" title="Supprimer de l’agenda (après confirmation)">${icone('trash')}</wa-button>` : ''}
             <wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-btn" onclick="fermerModaleAgenda()" aria-label="Fermer le détail">${icone('x')}</wa-button>
           </div>

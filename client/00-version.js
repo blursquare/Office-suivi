@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.181.5';
+  const VERSION_APP = '0.182.0';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.182.0', date: '2026-10-07 11:16', resume: "Agenda : copier-coller d’un rendez-vous, comme dans Outlook — Ctrl+C (ou l’icône « Copier » du détail) sur le rendez-vous, un clic sur une case, puis Ctrl+V (ou « Coller » sur le créneau surligné) : la copie est créée aussitôt dans l’agenda de l’office (titre, durée, couleur, lieu, notes), avec « Annuler ». Une signature copiée se colle « ? » (à confirmer), pour ne pas changer la date de la fiche." },
     { version: '0.181.5', date: '2026-10-07 10:42', resume: "Agenda › Rendez-vous à placer : les dossiers les plus complets d’abord (prêts à signer, puis le plus fort pourcentage), cinq affichés puis « Voir N de plus », nom sur une ligne et pourcentage sur la ligne de la semaine, créneaux proposés seulement pour le premier dossier (ou celui choisi) et plus courts — la colonne prend moins de hauteur." },
     { version: '0.181.4', date: '2026-10-07 10:36', resume: "Historique du dossier : quand CLAIRE coche seule l’envoi du projet, elle dit comment — l’email (jour et heure, qui l’a envoyé, à qui, objet) et ce qui l’a fait reconnaître (l’objet, ou la pièce jointe et « projet d’acte de vente » dans le texte), ou la mention trouvée dans l’agenda (lieu ou titre du rendez-vous et sa date)." },
     { version: '0.181.3', date: '2026-10-07 10:23', resume: "Tableau de bord : « Demander à CLAIRE » moins haut — sur une rangée, la carte ne prend plus qu’une demi-hauteur : titre, champ et bouton sur une ligne, exemples sur une seule ligne dessous (champ seul en largeur étroite). Sur 2 ou 3 rangées, la carte complète reste." },

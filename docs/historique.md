@@ -17691,3 +17691,21 @@ colonne »** (0.181.5) — client/25-page-agenda.js :
   dossier sur une ligne (ellipse, nom entier au survol), pourcentage déplacé sur la ligne « Semaine du … · responsable » ; créneaux
   plus courts (« mer 21 · 9 h 30 », le mois est sur la ligne de la semaine), deux par ligne. Mesuré dans Chromium (8 dossiers
   inventés, colonne de 224 px) : 556 → 401 px pour les 5 premiers (tous les dossiers dépliés auparavant).
+
+**Étude (07/10) : « Permettre copie coller de rdv dans agenda »** (0.182.0 ; choix de l'étude : « créé aussitôt, comme Outlook »,
+plutôt qu'un formulaire pré-rempli) — `client/53-agenda-copier-coller.js` :
+- **Copier** : Ctrl+C (Cmd+C) sur le rendez-vous sélectionné de la page Agenda, ou l'icône « Copier » (nouvelle icône `copier`
+  d'`ICONES`) dans l'en-tête de son détail. `copieRendezVousAgenda` (pure) garde titre, lieu, PREMIÈRE catégorie (couleur), durée
+  (heure de fin − début, 1 h à défaut, 10 h au plus) et notes (déjà lues, sinon relues par GetItem en arrière-plan) ; une journée
+  entière, une carte fantôme ou une option de sondage ne se copient pas. Le presse-papier (`agendaPressePapier`) reste tant que la
+  fenêtre est ouverte : on colle autant de fois qu'on veut.
+- **Coller** : un clic sur une case (créneau surligné, qui affiche alors un bouton « Coller » — souris et doigt), puis Ctrl+V ou
+  « Coller » → `POST /api/exchange/rendez-vous` aussitôt (même route que « Nouveau rendez-vous »), sans confirmation ni contrôle des
+  règles de l'étude (9 h, 12 h – 14 h…, comme Outlook). Message « … collé le jeudi 8 octobre à 14 h 00 » avec **« Annuler »**
+  (`/api/exchange/evenement/supprimer`, MoveToDeletedItems). Historique du dossier quand le rendez-vous en avait un.
+- **Signature d'un dossier copiée** : collée « VTE - X ? » (`sujetCopieRendezVous`) — sans le « ? », le serveur lirait la copie
+  comme LE rendez-vous de signature (le plus proche « VTE - X » à venir) et changerait la date de la fiche ; avec, c'est une date à
+  confirmer (convention de l'étude), le message le dit.
+- Ctrl+C / Ctrl+V jamais pris pendant une saisie, une fenêtre ou une confirmation ouverte ; Ctrl+C laissé au navigateur quand du
+  texte est sélectionné. Point terrain `agenda-copier-coller`. Vérifié dans Chromium (Exchange simulé : création, signature « ? »,
+  Annuler) ; non vérifié avec le vrai Exchange.

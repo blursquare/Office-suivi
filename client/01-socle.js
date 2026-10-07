@@ -156,6 +156,8 @@
     bannette: '<path d="M1.8 9.2 3.4 5.2h9.2l1.6 4v3.6a.9.9 0 0 1-.9.9H2.7a.9.9 0 0 1-.9-.9z"/><path d="M1.8 9.2h3.6l.9 1.6h3.4l.9-1.6h3.6"/><path d="M4.6 5.2V2.6h6.8v2.6"/><line x1="6.2" y1="4" x2="9.8" y2="4"/>',
     list: '<circle cx="2.3" cy="4" r="0.9" fill="currentColor" stroke="none"/><line x1="5.4" y1="4" x2="14" y2="4"/><circle cx="2.3" cy="8" r="0.9" fill="currentColor" stroke="none"/><line x1="5.4" y1="8" x2="14" y2="8"/><circle cx="2.3" cy="12" r="0.9" fill="currentColor" stroke="none"/><line x1="5.4" y1="12" x2="14" y2="12"/>',
     menu: '<line x1="2.4" y1="4.5" x2="13.6" y2="4.5"/><line x1="2.4" y1="8" x2="13.6" y2="8"/><line x1="2.4" y1="11.5" x2="13.6" y2="11.5"/>',
+    // Copier (copier-coller d'un rendez-vous de l'agenda) : deux feuilles décalées.
+    copier: '<rect x="5.2" y="5.2" width="8.8" height="8.8" rx="1.4"/><path d="M10.8 5.2V3.4a1.4 1.4 0 0 0-1.4-1.4H3.4A1.4 1.4 0 0 0 2 3.4v6a1.4 1.4 0 0 0 1.4 1.4h1.8"/>',
     download: '<path d="M8 2v8"/><path d="M4.5 7 8 10.5 11.5 7"/><path d="M3 13.5h10"/>',
     search: '<circle cx="7" cy="7" r="4.3"/><line x1="10.2" y1="10.2" x2="14" y2="14"/>',
     clock: '<circle cx="8" cy="8" r="6.2"/><path d="M8 4.6V8l2.4 1.6"/>',

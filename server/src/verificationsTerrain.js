@@ -20,6 +20,8 @@ const CLE_VERIFICATIONS = 'verifications-terrain';
 // `source` : 'serveur' (noté par le serveur), 'poste' (noté par une fenêtre CLAIRE, POST
 // /api/verifications-terrain/noter — seuls ces points-là y sont acceptés) ou 'manuel'.
 const VERIFICATIONS_TERRAIN = [
+  { id: 'agenda-copier-coller', depuis: '0.182.0', source: 'poste', titre: 'Agenda : rendez-vous copié (Ctrl+C) puis collé (Ctrl+V) dans l’agenda de l’office',
+    comment: 'Coché au premier rendez-vous collé depuis la page Agenda ; en échec si Exchange refuse la création. Vérifier dans Outlook que la copie porte le titre, la durée, la couleur et les notes du rendez-vous copié.' },
   { id: 'authentic-changement-propose', depuis: '0.176.0', source: 'poste', titre: 'Authentic : une donnée déjà reprise a changé dans Authentic, la mise à jour est proposée (fiche inchangée)',
     comment: 'Coché la première fois qu’une page d’Authentic relevée porte une valeur différente de celle qu’Authentic avait déjà donnée (par exemple un email corrigé) : le message « Mettre à jour la fiche ? » s’affiche et la fiche ne bouge qu’au clic. À éprouver en corrigeant un email dans la fiche client d’Authentic.' },
   { id: 'lecture-xml-exchange', depuis: '0.144.1', source: 'serveur', titre: 'Réponses d’Exchange lues par le nouveau lecteur XML (agenda de l’office)',
