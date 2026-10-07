@@ -102,3 +102,17 @@ test('Authentic proposé pour le compromis : le seul dossier qui correspond, jam
   assert.equal(app.dossierAuthenticPourCompromis(egalite, correspond, () => null), null, 'deux dossiers aussi proches : on ne choisit pas');
   assert.equal(app.dossierAuthenticPourCompromis([{ g: groupe('SUCC DURAND'), i: 0, s: 8 }], correspond, () => null), null);
 });
+
+test('Fiche : un champ notaire n’accepte qu’un notaire du répertoire (étude 07/10)', () => {
+  const carnet = [
+    { id: 'etude', etude: true, office: 'Office GOSSART', notaires: ['Sophie GOSSART'], ville: 'BLOIS', departement: '41' },
+    { id: 'a1', office: 'SCP Exemple', notaires: ['Aurélien LEBLANC', 'Florence MOREAU'], ville: 'Les Montils', departement: '41' },
+    { id: 'a2', office: 'Office du Nord', notaires: ['Paul LEBLANC'], ville: 'Lille', departement: '59' }
+  ];
+  assert.equal(app.notaireDuRepertoire('Maître Aurélien LEBLANC (Les Montils)', carnet), true);
+  assert.equal(app.notaireDuRepertoire('Maître Sophie GOSSART (BLOIS)', carnet), true);
+  assert.equal(app.notaireDuRepertoire('Maître Inconnu DUPONT', carnet), false, 'personne de ce nom');
+  assert.equal(app.notaireDuRepertoire('LEBLANC', carnet), false, 'deux LEBLANC : pas un seul notaire');
+  assert.equal(app.notaireDuRepertoire('', carnet), false);
+  assert.equal(app.notaireDuRepertoire('Maître Inconnu DUPONT', []), true, 'annuaire pas encore chargé : rien où vérifier');
+});

@@ -18094,3 +18094,11 @@ CLAIRE n'est pas sûre (même nom, archivé, provisoire), elle ne rattache rien.
   « Choisir » sinon), notaire de l'annuaire le plus proche ; déjà sûrs : emails (adresse), 3CX (numéro, un seul dossier),
   assistant (« Lequel ? »), personnes connues (deux mots), NAS (correspondance parfaite, plus jamais un dossier déjà pris).
 Tests : tests/homonymes-parties.test.js.
+
+### 07/10/2026 19 h 46 — 0.189.17 : notaires de la fiche, seulement ceux du répertoire
+
+Étude : « dans la fiche dossier ne proposer en liste déroulante que des notaires du répertoire ». La liste (datalist) ne contenait
+déjà que l'annuaire et les notaires lus mis au libellé de l'annuaire, mais le champ n'avait pas `autocomplete="off"` : Chrome y
+mêlait les valeurs déjà tapées (noms bruts). Corrigé, et `affecterNotaire` refuse au départ du champ un nom qui ne désigne pas un
+seul notaire du répertoire (`notaireDuRepertoire` : notre office, ou `trouverOfficeConfrere` non nul ; annuaire pas chargé → accepté),
+avec un toast ; un champ quitté sans changement garde son ancienne valeur. Test : tests/extraction-compromis-agence.test.js.

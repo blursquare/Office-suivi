@@ -696,7 +696,7 @@
     const optionsNotaires = nomsDetectes.concat(optionsNotairesCarnet(carnetConfreres).filter(n => nomsDetectes.indexOf(n) === -1));
     const notaire = (cote, valeur) => {
       const actif = d.coteInstrumentaire === cote;
-      return `<input type="text" id="not-${cote}-${d.id}" class="prop-champ" list="${listeId}" value="${escapeAttr(valeur || '')}" placeholder="Non détecté" oninput="proposerNotairesAnnuaire(this)" onblur="affecterNotaire('${d.id}', '${cote}', this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">
+      return `<input type="text" id="not-${cote}-${d.id}" class="prop-champ" list="${listeId}" autocomplete="off" value="${escapeAttr(valeur || '')}" placeholder="Non détecté" oninput="proposerNotairesAnnuaire(this)" onblur="affecterNotaire('${d.id}', '${cote}', this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">
         ${valeur ? '' : `<button type="button" class="lien-action" onclick="affecterNotaire('${d.id}', '${cote}', NOTAIRE_ETUDE_LIBELLE)" title="Mettre ${escapeAttr(NOTAIRE_ETUDE_LIBELLE)}">Notre office</button>`}
         <button type="button" class="dot-label ${actif ? 'dl-success' : 'dl-neutre'} notaire-redacteur${actif ? ' actif' : ''}"
           onclick="basculerCoteInstrumentaire('${d.id}', '${cote}')"

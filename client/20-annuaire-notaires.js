@@ -2056,12 +2056,31 @@
     if (cote === 'acquereur' || cote === 'deux') affecterNotaire(id, 'acquereur', n.nom);
   }
 
+  // Pure : le libellé désigne-t-il un seul notaire du répertoire (notre office compris) ? Annuaire pas encore chargé : oui
+  // (rien où vérifier, comme notaireDepuisRepertoire).
+  function notaireDuRepertoire(libelle, carnet) {
+    const v = String(libelle || '').trim();
+    if (!v) return false;
+    if (v === NOTAIRE_ETUDE_LIBELLE || canoniserNotaireEtude(v) === NOTAIRE_ETUDE_LIBELLE) return true;
+    if (!Array.isArray(carnet) || !carnet.length) return true;
+    return !!trouverOfficeConfrere(v, carnet);
+  }
+
   function affecterNotaire(id, cote, valeur) {
     const d = dossiers.find(x => x.id === id);
     if (!d) return;
     const champ = cote === 'vendeur' ? 'notaireVendeur' : 'notaireAcquereur';
     // Retrouvé dans l'annuaire et complété (nom, prénom, ville) ; notre office toujours écrit « Maître Sophie GOSSART (BLOIS) ».
-    const nouveau = completerNomNotaire(String(valeur || '').trim(), carnetConfreres);
+    const saisi = String(valeur || '').trim();
+    if (saisi === (d[champ] || '')) { render(); return; }   // champ quitté sans changement (ancienne valeur gardée)
+    const nouveau = completerNomNotaire(saisi, carnetConfreres);
+    // Seul un notaire du répertoire est accepté (étude 07/10 : « ne proposer que des notaires du répertoire ») : un nom tapé
+    // qui n'y désigne personne, ou plusieurs notaires, laisse la fiche telle quelle.
+    if (saisi && !notaireDuRepertoire(nouveau, carnetConfreres)) {
+      afficherToast(`« ${saisi} » ne désigne pas un seul notaire du répertoire : choisissez-le dans la liste.`, 'OK', null);
+      render();
+      return;
+    }
     if (nouveau === (d[champ] || '')) { render(); return; }
     d[champ] = nouveau;
     ajouterHistorique(d, `${cote === 'vendeur' ? 'Notaire du vendeur' : 'Notaire de l’acquéreur'} : ${nouveau || '—'}`);

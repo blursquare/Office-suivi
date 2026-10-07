@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.189.16';
+  const VERSION_APP = '0.189.17';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.189.17', date: '2026-10-07 19:46', resume: "Fiche dossier, notaires du vendeur et de l’acquéreur : la liste déroulante ne propose plus que des notaires du répertoire (les noms déjà tapés que le navigateur gardait n’y apparaissent plus), et un nom qui ne désigne pas un seul notaire du répertoire n’est plus enregistré — CLAIRE demande de le choisir dans la liste ; une ancienne valeur laissée telle quelle n’est pas touchée." },
     { version: '0.189.16', date: '2026-10-07 19:41', resume: "Ne plus rien deviner entre deux dossiers du même nom : une fiche ne se complète plus seule depuis un dossier relevé dans Authentic quand plusieurs dossiers d’Authentic portent ses noms (deux ROY : aucun, la référence d’Authentic reste la voie sûre) ; les fonds reçus d’un acquéreur dont le nom de famille est porté par un autre dossier en cours sont cherchés avec son prénom (« ROY Paul »), pour qu’un versement de l’autre ROY ne soit plus compté." },
     { version: '0.189.15', date: '2026-10-07 19:33', resume: "Retour à la règle d’avant 0.189.14 (demandé par l’étude) : un rendez-vous « ? » de l’agenda est de nouveau rattaché à son dossier et montré « À confirmer », avec sa date pour la signature probable — il n’écrit toujours rien sur la fiche comme signature, et une date que l’agenda y avait mise avant l’ajout des « ? » en est toujours retirée (0.189.13)." },
     { version: '0.189.14', date: '2026-10-07 19:31', resume: "Agenda : un rendez-vous marqué d’un ou plusieurs « ? » (« ? », « ?? », « ??? ») est ignoré complètement — il reste affiché dans l’agenda, mais n’est plus rattaché à aucun dossier : ni signature, ni envoi relevé dans son lieu, ni pastilles AF/P, ni « À confirmer », ni pourcentage, ni semaine probable de signature ; CLAIRE ne le retire, ne le déplace ni ne l’annote jamais pour une fiche. Seule exception : si l’agenda avait déjà écrit sa date sur la fiche avant l’ajout des « ? », elle en est retirée. Les options posées par un sondage de dates de CLAIRE ne changent pas." },
