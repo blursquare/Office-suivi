@@ -18265,3 +18265,15 @@ Suite de l'audit des incohérences (« Continue ton audit des incohérence sur t
 - Successions : planning et Échanges les excluaient déjà des gestes de vente, mais `actionsDuJour` proposait appel de fonds,
   projet, réception/relance des fonds, RIB et questionnaire → exclues (`estSuccession`).
 Tests : audit-coherence (deux cas).
+
+### 07/10/2026 22 h 19 — 0.191.7 : « signé » aussi dans les statistiques, délai des fonds partagé
+
+Suite de l'audit.
+- Encore quatre endroits qui ne tenaient pour signé qu'un rendez-vous passé : `dateSignatureFaite` (délais du widget
+  Statistiques), `etapesAvancement` (étape « signature » de l'avancement), `syntheseMoisSuivi` (tuile « à signer », signées du
+  mois), `statsPortefeuilleVisuel` (signatures faites du mois) → `dateSignatureDossier` (le rendez-vous du jour même reste compté
+  dans les délais). Bulle du statut d'un dossier signé : « acte signé le … » au lieu de « signature le … ».
+- `JOURS_RELANCE_FONDS` (3) déplacé dans `commun/planning.js` : l'alerte Teams « fonds pas encore reçus » l'écrivait en dur (`j > 3`).
+- Relevé, non changé (à soumettre) : « Un mot un an après la signature » n'apparaît que dans l'onglet Échanges d'une fiche, or
+  le dossier est archivé dès le questionnaire envoyé (ou à J+30) — le geste n'est jamais proposé nulle part.
+Tests : audit-coherence (deux cas).

@@ -306,6 +306,9 @@
     if (!d.dossierLie) return etat('arelier', 'Dossier du NAS pas encore relié : pièces et offre non vérifiées');
     const manque = piecesAttenduesDossier(d);
     if (manque.length) return etat('attente', `En attente : ${manque.join(', ')}`);
+    // Acte déjà signé (Authentic ou signature cochée, dateSignatureDossier) : la bulle le dit au passé, avec la date retenue partout.
+    const signeLe = dateSignatureDossier(d, auj);
+    if (signeLe) return etat('pret', `Toutes les pièces sont reçues ; acte signé le ${formatDateFr(signeLe)}`);
     if (d.rendezVousSignature) return etat('pret', `Toutes les pièces sont reçues ; signature le ${formatDateFr(d.rendezVousSignature)}`);
     return etat('complet', 'Toutes les pièces sont reçues ; rendez-vous de signature à placer');
   }
@@ -394,7 +397,7 @@
       .sort((a, b) => a.acte.localeCompare(b.acte));
     return {
       mois: { cle: debut.slice(0, 7), debut, fin },
-      aSigner, signees: aSigner.filter(d => d.rendezVousSignature < auj).length,
+      aSigner, signees: aSigner.filter(d => !!dateSignatureDossier(d, auj)).length,
       aPlacer, depassees: aPlacer.filter(d => d.acte < auj).length,
       ventes: liste.filter(d => d.typeAffaire !== 'succession'),
       successions: liste.filter(d => d.typeAffaire === 'succession')

@@ -89,7 +89,7 @@
   // si pas de réception des fonds 3 jours avant le rendez-vous ») — appel de fonds parti, réception pas
   // confirmée, aucune relance déjà faite pour cette date, jamais au confrère. « Pas arrivés » = aucun reçu
   // retenu à la dernière lecture, ou un reçu partiel ; un montant attendu inconnu ou un excédent ne disent rien.
-  var JOURS_RELANCE_FONDS = 3;
+  // JOURS_RELANCE_FONDS (3) : commun/planning.js, partagé avec l'alerte Teams du serveur.
   function relanceFondsDue(d, aujourdhuiIso) {
     if (!d || d.archive || !d.rendezVousSignature || estSuccession(d) || notaireParticipantRepresenteAcquereur(d)) return false;
     if (!echeanceValidee(d, 'appelFonds') || d.receptionFondsConfirmeeLe || d.relanceFondsPour === d.rendezVousSignature) return false;

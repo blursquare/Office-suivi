@@ -26,7 +26,7 @@ const { mettreCopiesEnAttente, executerNettoyageGmail } = require('../nettoyageG
 const { piecesRecuesEtManquantes } = require('../piecesChecklist');
 // Code commun au poste et au serveur (commun/, 04/10) : le planning, la validation d'une échéance, la SAFER, le bilan des
 // fonds, le format des montants et le libellé d'un dossier ne sont plus recopiés ici — une seule écriture pour les deux.
-const { echeanceValidee, echeanceSaferDossier, echeancesPlanning } = require('../../../commun/planning');
+const { echeanceValidee, echeanceSaferDossier, echeancesPlanning, JOURS_RELANCE_FONDS } = require('../../../commun/planning');
 const { bilanFondsRecus: bilanFonds, bilanFondsDossier, formaterMontantEuros: formaterEuros } = require('../../../commun/montants');
 const { libelleDossierAffiche: libelleDossier } = require('../../../commun/dossier');
 
@@ -153,7 +153,7 @@ function alertesFondsDues(dossiers, aujourdHui, dejaEnvoyes) {
     if (j === null || jourAuj === 0 || jourAuj === 6) continue;
     const rdvMardiMercredi = [2, 3].includes(jourSemaine(d.rendezVousSignature));
     const leVendredi = jourAuj === 5 && rdvMardiMercredi && j <= 5;
-    if (!leVendredi && j > 3) continue;
+    if (!leVendredi && j > JOURS_RELANCE_FONDS) continue;
     const cle = `fonds-incomplets:${d.rendezVousSignature}`;
     if (!deja(d, cle)) dus.push(Object.assign(base, { genre: 'incomplets', reminderKey: cle }));
   }

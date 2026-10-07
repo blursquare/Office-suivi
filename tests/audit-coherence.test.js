@@ -116,3 +116,20 @@ test('succession : « À faire » ne propose ni appel de fonds, ni projet, ni RI
   const apres = app.actionsDuJour([Object.assign({}, succ, { rendezVousSignature: '2026-09-20' })], '2026-10-01').actions.map(a => a.type);
   assert.ok(!apres.includes('questionnaire'), apres.join(','));
 });
+
+test('signé dans Authentic sans rendez-vous futur : statistiques, avancement et tuiles du mois le comptent signé', () => {
+  const d = { id: 'sa', rendezVousSignature: '2026-10-20', authentic: { acte: { etat: 'signe', date: '2026-10-05' } } };
+  assert.strictEqual(app.dateSignatureFaite(d, '2026-10-07'), '2026-10-05');
+  const sig = app.etapesAvancement(d, '2026-10-07').find(e => e.type === 'signature');
+  assert.ok(sig && sig.fait, 'étape « signature » faite');
+  assert.strictEqual(app.syntheseMoisSuivi([d], '2026-10-07').signees, 1);
+  // Rendez-vous du jour même : compté dans les délais (statistiques), pas encore « signé » ailleurs.
+  assert.strictEqual(app.dateSignatureFaite({ rendezVousSignature: '2026-10-07' }, '2026-10-07'), '2026-10-07');
+  assert.strictEqual(app.dateSignatureDossier({ rendezVousSignature: '2026-10-07' }, '2026-10-07'), '');
+});
+
+test('délai de relance des fonds : un seul nombre pour le poste et le serveur (commun/planning.js)', () => {
+  assert.strictEqual(planning.JOURS_RELANCE_FONDS, 3);
+  const src = require('node:fs').readFileSync(require('node:path').join(__dirname, '..', 'server', 'src', 'jobs', 'rappels.js'), 'utf8');
+  assert.ok(/j > JOURS_RELANCE_FONDS/.test(src), 'alerte Teams « fonds pas reçus » sur la constante commune');
+});

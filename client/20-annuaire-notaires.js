@@ -2314,7 +2314,7 @@
     actifs.forEach(d => { const c = etatDossier(d, aujourdhuiIso).cle; if (c in parEtat) parEtat[c]++; });
     const mois = String(aujourdhuiIso || '').slice(0, 7);
     const duMois = (dossiersTous || actifs).filter(d => d.rendezVousSignature && String(d.rendezVousSignature).slice(0, 7) === mois);
-    const signaturesMois = { total: duMois.length, faites: duMois.filter(d => d.rendezVousSignature < aujourdhuiIso).length };
+    const signaturesMois = { total: duMois.length, faites: duMois.filter(d => !!dateSignatureDossier(d, aujourdhuiIso)).length };
     const finances = actifs.filter(d => !d.sansPret);
     const offres = { total: finances.length, recues: finances.filter(d => d.offrePretStatut === 'recue').length };
     const avancementMoyen = actifs.length

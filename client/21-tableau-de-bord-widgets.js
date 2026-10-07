@@ -40,10 +40,12 @@
     if (!(d.pieces && d.pieces.renonciationPreemption === 'recue')) return null;
     return premiereDateHistorique(d, RE_HISTORIQUE_PREEMPTION, t => /re[cç]u|valid|trouv|rang/i.test(t));
   }
-  // Pure : jour de la signature, une fois passée.
+  // Pure : jour de la signature, une fois passée — même règle que partout (dateSignatureDossier : signé dans Authentic ou coché,
+  // sinon rendez-vous passé), plus le rendez-vous du jour même.
   function dateSignatureFaite(d, aujourdhuiIso) {
     const auj = aujourdhuiIso || isoAujourdhuiLocal();
-    return d && d.rendezVousSignature && d.rendezVousSignature <= auj ? d.rendezVousSignature : null;
+    if (!d) return null;
+    return dateSignatureDossier(d, auj) || (d.rendezVousSignature === auj ? auj : null);
   }
 
   // Pure : { pret, preemption, signature } → { moyenne, mediane, n, min, max } en jours depuis
@@ -681,7 +683,7 @@
       // Pour les deux envois, une date saisie vaut envoi fait (même règle que la carte « Envoi au
       // client »), y compris sur un dossier dont la date précède ce drapeau.
       const fait = e.type === 'signature'
-        ? !!d.rendezVousSignature && d.rendezVousSignature < aujourdhuiIso
+        ? !!dateSignatureDossier(d, aujourdhuiIso)
         : echeanceValidee(d, e.type) || ((e.type === 'appelFonds' || e.type === 'projetEnvoye') && !!d[e.type]);
       const iso = (e.type === 'signature' || e.type === 'fixerRdv') ? (d.rendezVousSignature || '') : (d[e.type] || '');
       return { type: e.type, label: e.label, fait, iso };

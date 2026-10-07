@@ -9,6 +9,10 @@
   // Date limite de l'envoi de l'appel de fonds : 10 jours avant le rendez-vous de signature (étude 05/10 : « c'est dix jours
   // avant pour l'appel de fonds » — 1 jour le même soir, corrigé) ; le rappel Teams part ce jour-là (seuil 0, jobs/rappels.js).
   var JOURS_APPEL_FONDS_AVANT_RDV = 10;
+  // Fonds pas encore arrivés à 3 jours du rendez-vous : relance au client (« À faire », onglet Fonds) et alerte Teams au
+  // responsable le même jour (étude 03/10 et 05/10 : « pour Teams il faut suivre les délais des échanges ») — un seul nombre
+  // pour le poste et le serveur (audit 07/10 : le serveur l'écrivait en dur).
+  var JOURS_RELANCE_FONDS = 3;
   /** @param {any} d @returns {string} */
   function echeanceAppelFonds(d) {
     return d && d.rendezVousSignature ? C.addDays(d.rendezVousSignature, -JOURS_APPEL_FONDS_AVANT_RDV) : '';
@@ -305,7 +309,7 @@
     return reels;
   }
 
-  const exportes = { JOURS_APPEL_FONDS_AVANT_RDV, echeanceAppelFonds, echeanceValidee, JOURS_REDACTION_AVANT_RDV, etatRedactionActe, repereSignatureRedaction, echeanceRedaction, attentesRedaction, redactionAProposer, pretLeve, piecesPreemptionEnAttente, preemptionLevee, MOIS_REPONSE_DIA, echeanceDiaDossier, DELAIS_SAFER, delaiSafer, echeanceSaferTacite, saferLevee, echeanceSaferDossier, echeancesPlanning };
+  const exportes = { JOURS_APPEL_FONDS_AVANT_RDV, JOURS_RELANCE_FONDS, echeanceAppelFonds, echeanceValidee, JOURS_REDACTION_AVANT_RDV, etatRedactionActe, repereSignatureRedaction, echeanceRedaction, attentesRedaction, redactionAProposer, pretLeve, piecesPreemptionEnAttente, preemptionLevee, MOIS_REPONSE_DIA, echeanceDiaDossier, DELAIS_SAFER, delaiSafer, echeanceSaferTacite, saferLevee, echeanceSaferDossier, echeancesPlanning };
   // Node : module.exports ; navigateur : des globaux (noms nus, comme les fonctions de client/).
   if (typeof module !== 'undefined' && module.exports) module.exports = exportes; else Object.assign(globalThis, exportes);
 })(
