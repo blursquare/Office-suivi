@@ -214,9 +214,11 @@ dans `index.html`** (le test `structure-client` refuse tout décalage).
    **Emails des dossiers** (étude 02/10 : « tu peux lire le contenu », « lire les emails envoyés pour confirmer » ;
    choix : repérer, ranger sur le NAS, résumé IA ; « boîte de chacun ») — `server/src/emailsDossiers.js`, **toutes les minutes** (étude 02/10, un seul tour à la fois, résumés IA en file),
    même disjoncteur, lecture seule (FindItem/GetItem/GetAttachment) : boîte de réception du compte relié → emails
-   rattachés à un dossier (mêmes règles que le résumé du matin, champs à plusieurs adresses compris ; étude 06/10 : adresses des
-   parties d'Authentic, fils — réponse « RE: » à un échange d'un seul dossier, adresse écrite par l'étude pour un seul dossier —, dossiers
-   archivés après les dossiers en cours ; adresse de plusieurs dossiers → l'objet départage, sinon rien — `contexteClassement`/`dossierDeEmail`) relus en entier,
+   rattachés à un dossier **par l'adresse de la fiche seulement** (étude 07/10 : « ne mettre que les emails liés aux adresses des clients » —
+   `dossierDeEmailParAdresse` : expéditeur = client, partie d'Authentic ou confrère de la fiche, champs à plusieurs adresses compris ; envoyés :
+   un destinataire de la fiche ; plus jamais l'objet, « VTE - NOM » ni le fil ; adresses de l'étude et de son domaine propre jamais des
+   adresses de dossier, `domainesEtude` ; emails déjà rattachés autrement retirés à chaque tour, `emailLieAuxAdressesDuDossier`, sauf préparés
+   depuis la fiche ; dossiers archivés après les dossiers en cours ; adresse de plusieurs dossiers → l'objet départage, sinon rien) relus en entier,
    **texte jamais gardé** (résumé d'une phrase par l'IA locale, puis jeté), pièces jointes listées (images intégrées
    écartées) ; « Éléments envoyés » du compte relié et de chaque collaborateur des Réglages (accès délégué « Relecteur » à
    donner dans Outlook, sinon « Accès non donné ») → objet, destinataires, date seulement ; un email préparé par CLAIRE

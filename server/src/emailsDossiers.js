@@ -27,7 +27,7 @@ const { accesCollaborateur, marquerRefus, leverRefus } = require('./comptesColla
 const { cocherProjetEnvoye, corpsALirePourProjet } = require('./projetEnvoyeEmail');
 const { lireXml, tous, premier, texte: texteXml, texteDe, attribut, identifiantElement, codeReponse: codeReponseXml, succesSansErreur } = require('./exchange/xml');
 const {
-  contexteClassement, dossierDeEmail, parmiDossiersAdresse, normaliserObjet, normaliser, SUJETS_EMAIL, echapperXml, ENVELOPPE_DEBUT, ENVELOPPE_FIN
+  contexteClassement, dossierDeEmailParAdresse, emailLieAuxAdressesDuDossier, parmiDossiersAdresse, normaliserObjet, normaliser, SUJETS_EMAIL, echapperXml, ENVELOPPE_DEBUT, ENVELOPPE_FIN
 } = require('./emailsMatin');
 
 const CLE_EMAILS_DOSSIERS = 'emails-dossiers';
@@ -134,8 +134,8 @@ function correspondAuPrepare(prepare, envoye) {
 }
 
 // Le dossier d'un email envoyé : un destinataire est une adresse d'un dossier en cours (l'objet départage un confrère
-// de plusieurs dossiers), sinon l'objet le désigne (« VTE - NOM », réponse à un échange du dossier, nom), sinon un
-// destinataire d'un dossier archivé (étude 06/10).
+// de plusieurs dossiers), sinon un destinataire d'un dossier archivé (étude 06/10) — jamais l'objet seul (étude 07/10 :
+// « ne mettre que les emails liés aux adresses des clients », voir dossierDeEmailParAdresse).
 function dossierDeEmailEnvoye(e, ctx) {
   const sujetN = normaliser(e.objet);
   const parmi = (carte, archive) => {
@@ -146,20 +146,13 @@ function dossierDeEmailEnvoye(e, ctx) {
     }
     return null;
   };
-  return parmi(ctx.parAdresse)
-    || dossierDeEmail({ sujet: e.objet, apercu: '', deAdresse: '' }, { ...ctx, archives: [] })
-    || parmi(ctx.parAdresseArchive, true)
-    || dossierDeEmail({ sujet: e.objet, apercu: '', deAdresse: '' }, ctx);
+  return parmi(ctx.parAdresse) || parmi(ctx.parAdresseArchive, true);
 }
 
-// Point terrain (étude 06/10) : un email reçu rattaché par une règle nouvelle — dossier archivé, ou fil de la conversation
-// (adresse absente des fiches en cours, dossier désigné par une réponse « RE: » ou par une adresse écrite par l'étude).
+// Point terrain (étude 06/10) : un email reçu rattaché à un dossier archivé. (Le rattachement par le fil de la conversation —
+// réponse « RE: », adresse écrite par l'étude — est retiré depuis le 07/10 : adresses de la fiche seulement.)
 function noterRegleRattachement(parametresRepo, ctx, e, d) {
-  if (!d) return;
-  if (d.archive) { noterVerification(parametresRepo, 'emails-rattachement-archive'); return; }
-  const adresse = String(e.deAdresse || '').toLowerCase();
-  if (ctx.parAdresse.has(adresse)) return;
-  if (ctx.adressesEcrites.get(adresse) === d.id || ctx.parObjet.get(normaliserObjet(e.objet)) === d.id) noterVerification(parametresRepo, 'emails-rattachement-fil');
+  if (d && d.archive) noterVerification(parametresRepo, 'emails-rattachement-archive');
 }
 
 const sujetsDe = (objet, extrait) => {
@@ -358,6 +351,11 @@ async function tourEmailsDossiers(depot, parametresRepo, injections = {}, manuel
   // Adresses de l'étude (compte relié, collaborateurs) : jamais une adresse « écrite pour un dossier ».
   const internes = [reglages.email, ...Object.values((rappels && rappels.emailsResponsables) || {})].filter(Boolean);
   const ctx = contexteClassement(dossiers, ignorees, { emails: etat.emails, prepares: etat.prepares, internes });
+  // Emails rattachés avant la règle « adresses de la fiche seulement » (étude 07/10) par l'objet, un fil ou une adresse de
+  // l'étude : retirés de leur dossier.
+  const avantTri = etat.emails.length;
+  etat.emails = etat.emails.filter((e) => emailLieAuxAdressesDuDossier(e, ctx));
+  if (etat.emails.length < avantTri) resultat.retires = avantTri - etat.emails.length;
   const connus = new Set(etat.emails.map((e) => e.id));
   const aResumer = [];
 
@@ -372,7 +370,7 @@ async function tourEmailsDossiers(depot, parametresRepo, injections = {}, manuel
     const aLire = [];
     for (const e of trouves) {
       if (connus.has(idCourt(e.itemId)) || ctx.ignorees.has(e.deAdresse) || /\[CLAIRE-/i.test(e.objet)) continue;
-      const d = dossierDeEmail({ sujet: e.objet, apercu: e.apercu, deAdresse: e.deAdresse }, ctx);
+      const d = dossierDeEmailParAdresse({ sujet: e.objet, apercu: e.apercu, deAdresse: e.deAdresse }, ctx);
       if (d) aLire.push({ e, d });
     }
     const lot = aLire.slice(0, MAX_LECTURES_TOUR);
@@ -416,8 +414,8 @@ async function tourEmailsDossiers(depot, parametresRepo, injections = {}, manuel
         if (!rr.echec && succes(rr.corps)) {
           const aRattraper = parseFind(rr.corps).filter((e) => !connus.has(idCourt(e.itemId)) && !ctx.ignorees.has(e.deAdresse) && !/\[CLAIRE-/i.test(e.objet))
             .map((e) => {
-              if (nouvelles.has(e.deAdresse)) { const d = dossierDeEmail({ sujet: e.objet, apercu: e.apercu, deAdresse: e.deAdresse }, ctx); return d ? { e, d } : null; }
-              const d = nouveauxDossiers.size ? dossierDeEmail({ sujet: e.objet, apercu: e.apercu, deAdresse: e.deAdresse }, ctx) : null;
+              if (nouvelles.has(e.deAdresse)) { const d = dossierDeEmailParAdresse({ sujet: e.objet, apercu: e.apercu, deAdresse: e.deAdresse }, ctx); return d ? { e, d } : null; }
+              const d = nouveauxDossiers.size ? dossierDeEmailParAdresse({ sujet: e.objet, apercu: e.apercu, deAdresse: e.deAdresse }, ctx) : null;
               return d && nouveauxDossiers.has(d.id) ? { e, d } : null;
             }).filter(Boolean);
           const lot2 = aRattraper.slice(0, MAX_LECTURES_TOUR);

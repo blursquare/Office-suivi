@@ -5,7 +5,7 @@
 // fils de conversation, dossiers archivés (étude 06/10). Noms et adresses inventés.
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { contexteClassement, dossierDeEmail, adressesDuDossier } = require('../src/emailsMatin');
+const { contexteClassement, dossierDeEmail, dossierDeEmailParAdresse, emailLieAuxAdressesDuDossier, adressesDuDossier } = require('../src/emailsMatin');
 const { dossierDeEmailEnvoye } = require('../src/emailsDossiers');
 
 const VENTE = { id: 'd1', nom: 'LAMBERT / ROCHE', emailAcquereur: 'paul.roche@exemple.fr', emailNotaireParticipant: 'office@notaires-exemple.fr' };
@@ -83,10 +83,35 @@ test('dossiers archivés : client ou confrère qui écrit après la signature ; 
   assert.equal(id(dossierDeEmail(recu('jean.garnier@exemple.fr', 'Taxe foncière'), revenu)), 'd7');
 });
 
-test('email envoyé : destinataire d’un dossier (partie, archivé), réponse à un fil, confrère départagé par l’objet', () => {
+test('email envoyé : destinataire d’un dossier (partie, archivé), confrère départagé par l’objet — jamais l’objet seul (étude 07/10)', () => {
   const ctx = contexteClassement(DOSSIERS, [], { emails: [{ dossierId: 'd2', sens: 'recu', objet: 'Question sur le financement', a: [] }] });
   assert.equal(id(dossierDeEmailEnvoye({ objet: 'Rendez-vous', a: ['ines.vallet@exemple.fr'] }, ctx)), 'd3');
   assert.equal(id(dossierDeEmailEnvoye({ objet: 'Votre taxe foncière', a: ['garnier.anne@exemple.fr'] }, ctx)), 'd4');
-  assert.equal(id(dossierDeEmailEnvoye({ objet: 'RE: Question sur le financement', a: ['inconnu@ailleurs.fr'] }, ctx)), 'd2');
+  // Réponse à un fil du dossier, mais à une adresse absente de la fiche : rien (« ne mettre que les emails liés aux adresses des clients »).
+  assert.equal(dossierDeEmailEnvoye({ objet: 'RE: Question sur le financement', a: ['inconnu@ailleurs.fr'] }, ctx), null);
+  assert.equal(dossierDeEmailEnvoye({ objet: 'Demande d’alignement - VTE LAMBERT / ROCHE', a: ['geometre@ailleurs.fr'] }, ctx), null);
   assert.equal(id(dossierDeEmailEnvoye({ objet: 'Projet ROCHE', a: ['office@notaires-exemple.fr'] }, ctx)), 'd1');
+});
+
+test('emails des dossiers (étude 07/10) : rattachés par l’adresse de la fiche seulement ; les adresses de l’étude ne désignent aucun dossier', () => {
+  // L'adresse de l'office (domaine de l'étude) saisie sur une fiche par erreur : écartée, comme celles des collaborateurs.
+  const avecOffice = DOSSIERS.concat([{ id: 'd8', nom: 'SIMOND / PINTO', emailAcquereur: 'criste.pinto@exemple.fr', emailConfrereVendeur: 'Office@etude-exemple.notaires.fr' }]);
+  const ctx = contexteClassement(avecOffice, [], {
+    internes: ['bastien@etude-exemple.notaires.fr', 'collaborateur@gmail.com'],
+    emails: [{ dossierId: 'd8', sens: 'envoye', objet: 'Vente SIMOND / PINTO - pièces', a: ['office@etude-exemple.notaires.fr'] }]
+  });
+  assert.equal(id(dossierDeEmailParAdresse(recu('criste.pinto@exemple.fr', 'Bonjour'), ctx)), 'd8');
+  assert.equal(dossierDeEmailParAdresse(recu('office@etude-exemple.notaires.fr', 'PUV SUCC BOUZY'), ctx), null);
+  // Objet, « VTE - NOM », fil d'une conversation : plus jamais suffisants.
+  assert.equal(dossierDeEmailParAdresse(recu('banque@exemple.fr', 'VTE - SIMOND / PINTO : offre'), ctx), null);
+  assert.equal(dossierDeEmailParAdresse(recu('soeur@ailleurs.fr', 'RE: Vente SIMOND / PINTO - pièces'), ctx), null);
+  // Le confrère de plusieurs dossiers : l'objet départage, comme avant ; un domaine public n'écarte personne.
+  assert.equal(id(dossierDeEmailParAdresse(recu('office@notaires-exemple.fr', 'Dossier MOREAU - état daté'), ctx)), 'd2');
+  assert.ok(!ctx.adresseEtude('client@gmail.com'));
+  // Déjà rattachés : gardés s'ils viennent d'une adresse de la fiche (ou d'un email préparé depuis la fiche), retirés sinon.
+  assert.equal(emailLieAuxAdressesDuDossier({ dossierId: 'd8', sens: 'recu', de: { adresse: 'office@etude-exemple.notaires.fr' } }, ctx), false);
+  assert.equal(emailLieAuxAdressesDuDossier({ dossierId: 'd8', sens: 'recu', de: { adresse: 'criste.pinto@exemple.fr' } }, ctx), true);
+  assert.equal(emailLieAuxAdressesDuDossier({ dossierId: 'd8', sens: 'envoye', a: ['geometre@ailleurs.fr'] }, ctx), false);
+  assert.equal(emailLieAuxAdressesDuDossier({ dossierId: 'd8', sens: 'envoye', a: ['geometre@ailleurs.fr'], prepareId: 'p1' }, ctx), true);
+  assert.equal(emailLieAuxAdressesDuDossier({ dossierId: 'd8', sens: 'envoye', a: ['geometre@ailleurs.fr', 'Criste.Pinto@exemple.fr'] }, ctx), true);
 });

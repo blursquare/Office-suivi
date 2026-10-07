@@ -90,8 +90,6 @@ const VERIFICATIONS_TERRAIN = [
     comment: 'Coché à la première lecture réussie depuis le serveur du bureau (accès Internet sortant vers apicarto.ign.fr).' },
   { id: 'restauration-sauvegarde', depuis: '0.163.0', source: 'serveur', titre: 'Sauvegarde restaurée au démarrage (vérifiée, ancienne base gardée à côté avec son journal)',
     comment: 'Coché à la première restauration réussie (bouton « Restaurer » des Réglages, ou claire-restauration.db déposé à la main). Vérifier ensuite les dossiers dans le Suivi.' },
-  { id: 'emails-rattachement-fil', depuis: '0.162.0', source: 'serveur', titre: 'Emails des dossiers : un email d’une adresse absente de la fiche rattaché par son fil (réponse « RE: » ou adresse à qui l’étude a écrit)',
-    comment: 'Coché la première fois qu’un email reçu est rattaché à un dossier par le fil de la conversation. À contrôler sur la fiche : le bon dossier.' },
   { id: 'emails-rattachement-archive', depuis: '0.162.0', source: 'serveur', titre: 'Emails des dossiers : un email d’un client ou d’un confrère rattaché à un dossier archivé',
     comment: 'Coché la première fois qu’un email reçu va sur la fiche d’un dossier archivé. À contrôler sur la fiche : le bon dossier.' },
   { id: 'emails-dossier-rattrapage', depuis: '0.135.0', source: 'serveur', titre: 'Emails des dossiers : dossier tout juste créé, ses emails des 30 derniers jours retrouvés',

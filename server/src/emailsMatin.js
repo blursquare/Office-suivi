@@ -166,8 +166,14 @@ function contexteClassement(dossiers, adressesIgnorees, historique) {
   const actifs = tousDossiers.filter(d => !d.archive);
   const archives = tousDossiers.filter(d => d.archive);
   const parId = new Map(tousDossiers.map(d => [d.id, d]));
+  const h = historique || {};
+  const internes = new Set((h.internes || []).filter(Boolean).map(a => String(a).toLowerCase()));
+  // Les adresses de l'étude (étude 07/10 : l'adresse « Office@ » de l'office rattachait ses propres emails à un dossier) : jamais
+  // une adresse de dossier, même saisie sur une fiche — ni celles de l'étude, ni aucune de leur domaine propre.
+  const etude = domainesEtude(internes);
+  const adresseEtude = (a) => internes.has(a) || etude.has(a.split('@')[1] || '');
   // Adresse → dossiers qui la portent (un confrère a souvent plusieurs dossiers : l'objet départage).
-  const ajouter = (carte, d) => { for (const a of adressesDuDossier(d)) { if (!carte.has(a)) carte.set(a, []); carte.get(a).push(d); } };
+  const ajouter = (carte, d) => { for (const a of adressesDuDossier(d)) { if (adresseEtude(a)) continue; if (!carte.has(a)) carte.set(a, []); carte.get(a).push(d); } };
   const parAdresse = new Map();
   actifs.forEach(d => ajouter(parAdresse, d));
   const parAdresseArchive = new Map();
@@ -176,8 +182,6 @@ function contexteClassement(dossiers, adressesIgnorees, historique) {
   const parObjet = new Map();
   const adressesEcrites = new Map();
   const noter = (carte, cle, id) => { if (!cle || !parId.has(id)) return; carte.set(cle, carte.has(cle) && carte.get(cle) !== id ? null : id); };
-  const h = historique || {};
-  const internes = new Set((h.internes || []).filter(Boolean).map(a => String(a).toLowerCase()));
   for (const e of Array.isArray(h.emails) ? h.emails : []) {
     if (!e || !e.dossierId) continue;
     const o = normaliserObjet(e.objet);
@@ -189,7 +193,17 @@ function contexteClassement(dossiers, adressesIgnorees, historique) {
     const o = normaliserObjet(p.objet);
     if (o.length >= MIN_OBJET_FIL) noter(parObjet, o, p.dossierId);
   }
-  return { ignorees, actifs, archives, parId, parAdresse, parAdresseArchive, parObjet, adressesEcrites };
+  return { ignorees, actifs, archives, parId, parAdresse, parAdresseArchive, parObjet, adressesEcrites, adresseEtude };
+}
+
+// Messageries publiques : leur domaine n'est jamais « celui de l'étude » (un collaborateur sur gmail.com n'écarte pas les clients).
+const DOMAINES_PUBLICS = new Set(['gmail.com', 'googlemail.com', 'hotmail.com', 'hotmail.fr', 'outlook.com', 'outlook.fr', 'live.com', 'live.fr',
+  'msn.com', 'yahoo.com', 'yahoo.fr', 'orange.fr', 'wanadoo.fr', 'free.fr', 'sfr.fr', 'neuf.fr', 'laposte.net', 'bbox.fr', 'icloud.com',
+  'me.com', 'aol.com', 'aol.fr', 'gmx.fr', 'gmx.com', 'protonmail.com', 'proton.me', 'numericable.fr', 'club-internet.fr']);
+function domainesEtude(internes) {
+  const r = new Set();
+  for (const a of internes || []) { const dom = String(a).toLowerCase().split('@')[1]; if (dom && !DOMAINES_PUBLICS.has(dom)) r.add(dom); }
+  return r;
 }
 
 // Le dossier dont les noms sont le plus cités dans l'OBJET (mot entier ; le corps cite trop de noms), parmi `candidats`.
@@ -229,6 +243,29 @@ function dossierDeEmail(e, ctx) {
     || parmiDossiersAdresse(ctx.parAdresseArchive && ctx.parAdresseArchive.get(adresse), sujetN, ctx.parAdresse.has(adresse))
     || dossierVteCite(texteN, ctx.archives || [])
     || null;
+}
+
+// Emails des dossiers (étude 07/10 : « des emails se sont glissés alors qu'ils ne sont pas du dossier ; ne mettre que les emails
+// liés aux adresses des clients ») : un email reçu n'est rattaché que par l'ADRESSE de son expéditeur, inscrite sur une fiche
+// (clients, parties relevées dans Authentic, confrère) — jamais par l'objet, un fil ou une adresse à qui l'étude a écrit ; l'objet
+// ne fait que départager les dossiers qui portent la même adresse. Les dossiers en cours d'abord, puis les archivés.
+function dossierDeEmailParAdresse(e, ctx) {
+  const sujetN = normaliser(e.sujet);
+  const adresse = String(e.deAdresse || '').toLowerCase();
+  return parmiDossiersAdresse(ctx.parAdresse.get(adresse), sujetN)
+    || parmiDossiersAdresse(ctx.parAdresseArchive && ctx.parAdresseArchive.get(adresse), sujetN, ctx.parAdresse.has(adresse))
+    || null;
+}
+
+// Un email déjà rattaché reste-t-il au dossier ? Oui s'il a été préparé depuis la fiche (geste de CLAIRE), sinon seulement si son
+// expéditeur (reçu) ou un destinataire (envoyé) est une adresse de la fiche — même règle que le rattachement.
+function emailLieAuxAdressesDuDossier(email, ctx) {
+  if (!email || !email.dossierId || email.prepareId) return true;
+  const d = ctx.parId.get(email.dossierId);
+  if (!d) return true;
+  const adresses = new Set(adressesDuDossier(d).filter(a => !ctx.adresseEtude(a)));
+  if (email.sens === 'envoye') return (email.a || []).some(a => adresses.has(String(a).toLowerCase()));
+  return adresses.has(String(email.de && email.de.adresse || '').toLowerCase());
 }
 
 function classerEmails(emails, dossiers, adressesIgnorees) {
@@ -481,7 +518,7 @@ function demarrerResumeEmails(depot, parametresRepo, intervalleMs = 60 * 1000, c
 }
 
 module.exports = {
-  contexteClassement, dossierDeEmail, parmiDossiersAdresse, adressesDuDossier, normaliserObjet, normaliser, SUJETS_EMAIL, echapperXml, ENVELOPPE_DEBUT, ENVELOPPE_FIN,
+  contexteClassement, dossierDeEmail, dossierDeEmailParAdresse, emailLieAuxAdressesDuDossier, domainesEtude, parmiDossiersAdresse, adressesDuDossier, normaliserObjet, normaliser, SUJETS_EMAIL, echapperXml, ENVELOPPE_DEBUT, ENVELOPPE_FIN,
   CLE_RESUME_EMAILS, debutFenetreEmails, corpsFindEmails, parseFindEmails, classerEmails, motsDuDossier,
   genererResumeEmails, lireResume, resumeDu, demarrerResumeEmails, momentParis,
   entreesSyntheseEmails, promptSyntheseEmails, validerSyntheseEmails, normaliserSyntheseEmails, completerSyntheseIa,

@@ -130,7 +130,7 @@ test('adresse du confrère saisie après coup : ses emails des 30 derniers jours
   } finally { db.close(); }
 });
 
-test('dossier créé après coup : l’email reçu la veille (objet « RE: VENTE NOM / NOM ») est retrouvé, une fois (étude, 03/10)', async () => {
+test('dossier créé après coup : l’email reçu la veille d’une adresse de sa fiche est retrouvé, une fois (étude, 03/10 ; adresse seule depuis le 07/10)', async () => {
   const db = ouvrirDb(':memory:');
   const repo = creerRepoParametres(db);
   repo.ecrireReglagesExchange({ actif: true, url: 'https://ex/ews', email: 'bastien@office.fr', motDePasse: 'secret' });
@@ -156,7 +156,7 @@ test('dossier créé après coup : l’email reçu la veille (objet « RE: VENTE
     await E.executerTourEmailsDossiers(depot, repo, { poster, maintenant: '2026-10-03T08:00:00Z' }, true);
     assert.ok(!corps.some((b) => /Descending/.test(b)));
     // Le dossier est créé le lendemain de l'email.
-    liste.push({ id: 'd3', nom: 'MORIN / FAURE', historique: [{ date: '2026-10-03T08:02:00Z', texte: 'Dossier créé' }] });
+    liste.push({ id: 'd3', nom: 'MORIN / FAURE', emailNotaireParticipant: 'consoeur@notaires.fr', historique: [{ date: '2026-10-03T08:02:00Z', texte: 'Dossier créé' }] });
     const r = await E.executerTourEmailsDossiers(depot, repo, { poster, maintenant: '2026-10-03T08:05:00Z' }, true);
     assert.equal(r.rattrapes, 1);
     const emails = E.lireEtat(repo).emails;
@@ -280,7 +280,7 @@ test('email préparé jamais envoyé : retiré de la liste en attente', async ()
   } finally { serveur.close(); db.close(); }
 });
 
-test('tour : client d’un dossier archivé et réponse « RE: » d’une adresse inconnue retrouvés sur leur fiche (étude, 06/10)', async () => {
+test('tour : client d’un dossier archivé retrouvé sur sa fiche ; réponse « RE: » d’une adresse absente de la fiche écartée (étude 06/10, 07/10)', async () => {
   const db = ouvrirDb(':memory:');
   const repo = creerRepoParametres(db);
   repo.ecrireReglagesExchange({ actif: true, url: 'https://ex/ews', email: 'bastien@office.fr', motDePasse: 'secret' });
@@ -303,10 +303,10 @@ test('tour : client d’un dossier archivé et réponse « RE: » d’une adress
       cb(null, { statusCode: 500, body: '' });
     };
     const r = await E.executerTourEmailsDossiers(depot, repo, { poster, maintenant: '2026-10-06T08:00:00Z' }, true);
-    assert.equal(r.recus, 2);
+    assert.equal(r.recus, 1);
     const emails = E.lireEtat(repo).emails;
     assert.equal(emails.find((e) => e.itemId === 'IN5').dossierId, 'd9');
-    assert.equal(emails.find((e) => e.itemId === 'IN6').dossierId, 'd1');
+    assert.ok(!emails.some((e) => e.itemId === 'IN6'), 'adresse absente de la fiche : pas sur le dossier (étude 07/10)');
   } finally { db.close(); }
 });
 
@@ -401,4 +401,25 @@ test('historique : l’envoi du projet détecté dit quel email et pourquoi', ()
   assert.equal(t, 'Envoi projet coché seul : email envoyé le 07/10/2026 à 10 h 42 par Julie VASSELIN à client@exemple.fr, objet « Projet d’acte de vente FOURNIER » — son objet parle d’un projet d’acte. À décocher si ce n’était pas le projet.');
   const c = texteHistoriqueProjetEnvoye({ objet: 'Votre dossier', a: ['client@exemple.fr'], date: '2026-10-07T08:42:00Z', pj: true, boite: 'jv@office.fr' }, ['client@exemple.fr']);
   assert.match(c, /par jv@office\.fr à client@exemple\.fr, objet « Votre dossier » — il porte une pièce jointe et son texte dit « projet d’acte de vente »/);
+});
+
+test('tour : les emails rattachés avant le 07/10 hors des adresses de la fiche sont retirés de leur dossier', async () => {
+  const db = ouvrirDb(':memory:');
+  const repo = creerRepoParametres(db);
+  repo.ecrireReglagesExchange({ actif: true, url: 'https://ex/ews', email: 'bastien@office.fr', motDePasse: 'secret' });
+  const depot = { tousActifs: () => [DOSSIER] };
+  try {
+    const etat0 = E.lireEtat(repo);
+    etat0.etat.adressesVues = ['camille.fournier@exemple.fr', 'c.fournier@travail.fr', 'alex.martel@exemple.fr'];
+    etat0.etat.dossiersVus = ['d1'];
+    etat0.emails.push(
+      { id: 'a1', itemId: 'X1', dossierId: 'd1', sens: 'recu', date: '2026-10-05T10:00:00Z', de: { adresse: 'office@office.fr' }, objet: 'PUV SUCC BOUZY' },
+      { id: 'a2', itemId: 'X2', dossierId: 'd1', sens: 'recu', date: '2026-10-05T11:00:00Z', de: { adresse: 'alex.martel@exemple.fr' }, objet: 'Disponibilités' },
+      { id: 'a3', itemId: 'X3', dossierId: 'd1', sens: 'envoye', date: '2026-10-05T12:00:00Z', de: { adresse: 'bastien@office.fr' }, a: ['geometre@ailleurs.fr'], objet: 'Alignement - VTE MARTEL / FOURNIER' });
+    E.ecrireEtat(repo, etat0);
+    const poster = (o, cb) => cb(null, { statusCode: 200, body: find([]) });
+    const r = await E.executerTourEmailsDossiers(depot, repo, { poster, maintenant: '2026-10-07T08:00:00Z' }, true);
+    assert.equal(r.retires, 2);
+    assert.equal(E.lireEtat(repo).emails.map((e) => e.id).join(), 'a2');
+  } finally { db.close(); }
 });

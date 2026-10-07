@@ -17890,3 +17890,15 @@ réservant 40 px ; carte courte — centrée verticalement à droite, la carte r
 des cartes d'1 h 20 et plus (`etatsTiennentAgenda`, retiré) ne sont plus dessinées : doublon ; elles restent dans le détail du
 rendez-vous (`renderEtatsRendezVous`). `lignesTitreEvenement(minutes)` ne retranche plus leur hauteur. Rendu regardé dans Chromium
 (semaine et jour, AF fait / P à faire).
+
+**Emails des dossiers : adresses de la fiche seulement** (0.189.2 ; étude 07/10, capture de l'onglet Échanges d'une vente : « des emails se
+sont glissés alors qu'ils ne sont pas du dossier ; ne mettre que les emails liés aux adresses des clients » — « PUV SUCC … » et
+« SUCC … » envoyés par l'adresse office@ de l'étude, une demande d'alignement au géomètre). `dossierDeEmailParAdresse` (emailsMatin.js) :
+un email reçu n'est rattaché que par l'adresse de son expéditeur, inscrite sur une fiche (`adressesDuDossier` : clients, parties
+d'Authentic, confrères) — l'objet ne fait que départager plusieurs dossiers de la même adresse ; `dossierDeEmailEnvoye` : un
+destinataire de la fiche, jamais l'objet seul. Plus de rattachement par « VTE - NOM », par le fil (« RE: », adresse à qui l'étude a écrit)
+ni par un nom dans l'objet pour les emails des dossiers (le résumé du matin, `dossierDeEmail`, garde ses règles). Les adresses de
+l'étude — `internes` (compte relié, collaborateurs) et toute adresse de leur domaine propre, hors messageries publiques
+(`domainesEtude`, `DOMAINES_PUBLICS`) — ne sont jamais des adresses de dossier, même saisies sur une fiche. Ménage : à chaque tour,
+`emailLieAuxAdressesDuDossier` retire les emails déjà rattachés hors de ces adresses (sauf ceux préparés depuis la fiche, `prepareId`) ;
+`resultat.retires`. Point terrain `emails-rattachement-fil` retiré (règle abandonnée).
