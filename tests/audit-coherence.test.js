@@ -184,3 +184,10 @@ test('participation : « Envoyer la copie de l’acte / l’attestation de vente
   assert.strictEqual(app.actionsDuJour([Object.assign({}, d, { emailVendeur: '' })], '2026-10-07').actions.find(x => x.type === 'copieActe').geste.type, 'fiche');
   assert.ok(!app.actionsDuJour([Object.assign({}, d, { roleNotaire: 'instrumentaire' })], '2026-10-07').actions.some(x => x.type === 'copieActe'));
 });
+
+test('après la signature : la copie de l’acte juste avant le questionnaire (« À faire »)', () => {
+  const d = { id: 'pa2', nom: 'A / B', roleNotaire: 'participant', notaireAcquereur: 'Maître Paul DURAND (VENDÔME)', emailVendeur: 'v@exemple.fr',
+    sansPret: true, rendezVousSignature: '2026-10-01' };
+  const types = app.actionsDuJour([d], '2026-10-07').actions.map(a => a.type).filter(t => /copieActe|questionnaire/.test(t));
+  assert.strictEqual(types.join(','), 'copieActe,questionnaireVendeur');
+});

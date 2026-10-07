@@ -18314,3 +18314,12 @@ Réponse de l'étude au point soumis avec 0.191.8 : « Ajoute à à faire ».
   cochée « faite » (`TACHES_JOUR_PAR_TYPE.copieActe`, historique « Email envoyé/préparé — copie de l'acte… »).
 - L'archivage n'attend pas l'envoi de la copie : seule l'inscription dans « À faire » a été demandée.
 Tests : audit-coherence.
+
+### 07/10/2026 22 h 54 — 0.191.10 : copie de l'acte juste avant le questionnaire
+
+Étude : « Juste avant l'étape questionnaire ». Dans `actionsDuJour`, le bloc de la copie de l'acte (participation) passe avant celui des
+questionnaires (même gravité, même nombre de jours depuis la signature : le tri garde l'ordre d'insertion). L'onglet Échanges les
+rangeait déjà dans cet ordre. Test : audit-coherence.
+Question de l'étude, sans changement de code : retrouver un email classé dans une archive LOCALE d'Outlook (.pst) — impossible par
+EWS (le fichier est sur le poste, pas sur le serveur Exchange) ; une archive EN LIGNE d'Exchange (ArchiveMsgFolderRoot) serait lisible
+si Fichorga l'a ouverte, et CLAIRE ne lit aujourd'hui que la boîte de réception et les éléments envoyés (pas les sous-dossiers).

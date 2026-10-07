@@ -246,7 +246,26 @@
         }
       }
 
-      // 3. Après la signature : le questionnaire de satisfaction (jamais au confrère), à l'acquéreur et au vendeur (étude 07/10 :
+      // 3. Après la signature, d'abord (étude 07/10 : « juste avant l'étape questionnaire ») — participation : la copie de l'acte /
+      //    l'attestation de vente à notre client, une fois l'acte signé chez le confrère (étude 07/10 : « ajoute à À faire » — elle
+      //    n'était que dans l'onglet Échanges, jamais rappelée). Même titre et même geste que la
+      //    ligne de l'onglet Échanges (renderEnvoiCopieActe) ; partie dès l'envoi (copieActeEnvoyeeLe) ou par « Déjà fait ».
+      if (!succession && estDossierParticipation(d) && !d.copieActeEnvoyeeLe) {
+        const dateSig = dateSignatureDossier(d, aujourdhuiIso);
+        if (dateSig) {
+          const jSig = ecartJours(aujourdhuiIso, dateSig);
+          const avecEmail = clientsParticipation(d).some(c => c.email);
+          ajouter({
+            type: 'copieActe', categorie: 'neutre', categorieLabel: 'Après la signature',
+            titre: 'Envoyer la copie de l’acte / l’attestation de vente',
+            contexte: `Acte signé le ${formatDateFr(dateSig)} chez le confrère.${avecEmail ? ' Lue dans les fausses minutes.' : ' Renseignez l’email du client pour l’envoyer.'}`,
+            jours: jSig, delaiTexte: `signé ${quandJour(dateSig, aujourdhuiIso)}`, gravite: 'normal',
+            geste: avecEmail ? { type: 'copieActe' } : { type: 'fiche' }, bouton: avecEmail ? 'Choisir les PDF' : 'Ouvrir la fiche'
+          });
+        }
+      }
+
+      // 3 bis. Puis le questionnaire de satisfaction (jamais au confrère), à l'acquéreur et au vendeur (étude 07/10 :
       //    « mettre dans les tâches aussi le questionnaire de satisfaction au vendeur ») ; le dossier n'est archivé qu'une fois
       //    les deux envoyés. Sans email du côté, la tâche demande de le renseigner (étude 07/10 : « s'il n'y a pas de mail,
       //    demander à remplir le mail ») — le côté reste attendu pour l'archivage.
@@ -277,25 +296,7 @@
         }));
       }
 
-      // 3 ter. Participation : la copie de l'acte / l'attestation de vente à notre client, une fois l'acte signé chez le confrère (étude
-      //    07/10 : « ajoute à À faire » — elle n'était que dans l'onglet Échanges, jamais rappelée). Même titre et même geste que la
-      //    ligne de l'onglet Échanges (renderEnvoiCopieActe) ; partie dès l'envoi (copieActeEnvoyeeLe) ou par « Déjà fait ».
-      if (!succession && estDossierParticipation(d) && !d.copieActeEnvoyeeLe) {
-        const dateSig = dateSignatureDossier(d, aujourdhuiIso);
-        if (dateSig) {
-          const jSig = ecartJours(aujourdhuiIso, dateSig);
-          const avecEmail = clientsParticipation(d).some(c => c.email);
-          ajouter({
-            type: 'copieActe', categorie: 'neutre', categorieLabel: 'Après la signature',
-            titre: 'Envoyer la copie de l’acte / l’attestation de vente',
-            contexte: `Acte signé le ${formatDateFr(dateSig)} chez le confrère.${avecEmail ? ' Lue dans les fausses minutes.' : ' Renseignez l’email du client pour l’envoyer.'}`,
-            jours: jSig, delaiTexte: `signé ${quandJour(dateSig, aujourdhuiIso)}`, gravite: 'normal',
-            geste: avecEmail ? { type: 'copieActe' } : { type: 'fiche' }, bouton: avecEmail ? 'Choisir les PDF' : 'Ouvrir la fiche'
-          });
-        }
-      }
-
-      // 3 bis. Rédaction de l'acte (étude 07/10) : Authentic dit « Non rédigé » et plus rien ne la retient (offre de prêt, vente
+      // 3 ter. Rédaction de l'acte (étude 07/10) : Authentic dit « Non rédigé » et plus rien ne la retient (offre de prêt, vente
       //    préalable, préemption, SAFER — les pièces d'urbanisme ne comptent pas). Elle part d'elle-même quand Authentic passe
       //    à « En cours » ; la case ronde la note commencée à la main.
       if (redactionAProposer(d)) {
