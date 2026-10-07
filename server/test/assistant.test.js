@@ -174,3 +174,69 @@ test('POST /api/assistant/comprendre : 400 sans texte, 401 sans session, répons
   assert.match(fauxOllama.prompts[0], /pièces de MARTIN/);
   assert.doesNotMatch(fauxOllama.prompts[0], /DUPONT \/ ROUX/);
 });
+
+// ---- Mistral (étude 07/10 : essai de l'API, noms masqués) ----
+
+test('Mistral : la phrase part noms masqués, aucune donnée de fiche, le dossier recopié est rétabli puis relu par le code', async () => {
+  const { creerClientMistralAssistant, pseudonymiserDemande, retablirTexte } = require('../src/assistantMistral');
+  const D = [{ id: 'd1', nom: 'FOURNIER / GAUTHIER', parties: [{ nom: 'FOURNIER', prenom: 'Paul' }, { nom: 'GAUTHIER' }],
+    autres: ['BLOIS (41000), 2 rue des Tanneurs'], reference: 'A 2026 00247', contacts: ['paul.fournier@exemple.fr', '06 12 34 56 78'] },
+  { id: 'd2', nom: 'BRUNET', parties: [{ nom: 'BRUNET' }] }];
+  const envoyes = [];
+  const fetchFn = async (url, o) => {
+    envoyes.push({ url, corps: JSON.parse(o.body), auth: o.headers.Authorization });
+    const prompt = JSON.parse(o.body).messages[0].content;
+    const jeton = ((prompt.split('Phrase :')[1] || '').match(/\[NOM\d+\]/) || [''])[0];
+    return { ok: true, json: async () => ({ usage: { prompt_tokens: 600, completion_tokens: 40 },
+      choices: [{ message: { content: JSON.stringify({ intention: 'etat_dossier', parametres: { dossier: jeton } }) } }] }) };
+  };
+  const ecrits = {};
+  const repo = { lireJsonBrut: (k, d) => ecrits[k] || d, ecrireJsonBrut: (k, v) => { ecrits[k] = v; } };
+  const client = creerClientMistralAssistant({ cle: 'cle-secrete', region: 'eu', fetchFn, parametresRepo: repo });
+  const r = await comprendreDemande({ texte: 'Tu peux me dire pour Paul Fournier, rue des Tanneurs, paul.fournier@exemple.fr ?', contexte: { aujourdhui: '2026-10-07', dossierLibelle: 'VTE - BRUNET' }, dossiers: D },
+    client, { pseudonymiser: true });
+  assert.equal(envoyes.length, 1);
+  assert.match(envoyes[0].url, /^https:\/\/api\.eu\.mistral\.ai\/v1\/chat\/completions$/);
+  assert.equal(envoyes[0].corps.model, 'mistral-small-latest');
+  const prompt = envoyes[0].corps.messages[0].content;
+  assert.doesNotMatch(prompt, /Paul|Fournier|FOURNIER|Tanneurs|paul\.fournier|BRUNET|GAUTHIER|00247|06 12/, 'aucun nom, adresse, email ni référence ne part');
+  assert.match(prompt, /\[NOM1\]/);
+  assert.equal(r.source, 'ia');
+  assert.equal(r.moteur, 'mistral');
+  assert.equal(r.intention, 'etat_dossier');
+  assert.equal(r.dossier, 'd1', 'le nom rétabli est relu par le code');
+  assert.equal(ecrits['assistant-ia-usage'].demandes, 1);
+  assert.equal(ecrits['assistant-ia-usage'].entree, 600);
+  const p = pseudonymiserDemande('Relance Monsieur Durand', {}, D);
+  assert.equal(p.texte, 'Relance Monsieur [NOM1]');
+  assert.equal(retablirTexte('dossier [NOM1]', p.table), 'dossier Durand');
+});
+
+test('Mistral indisponible ou en erreur : repli sur les mots-clés, raison dite, erreur comptée', async () => {
+  const { creerClientMistralAssistant } = require('../src/assistantMistral');
+  const ecrits = {};
+  const repo = { lireJsonBrut: (k, d) => ecrits[k] || d, ecrireJsonBrut: (k, v) => { ecrits[k] = v; } };
+  const client = creerClientMistralAssistant({ cle: 'x', fetchFn: async () => ({ ok: false, status: 401, json: async () => ({}) }), parametresRepo: repo });
+  const r = await comprendreDemande({ texte: 'Le virement et les pièces de MARTIN, c\'est bon ?', contexte: { aujourdhui: '2026-10-07' }, dossiers: DOSSIERS }, client, { pseudonymiser: true });
+  assert.equal(r.source, 'motscles');
+  assert.equal(r.intention, 'pieces_manquantes');
+  assert.match(r.raisonIa, /IA Mistral : clé Mistral refusée/);
+  assert.equal(ecrits['assistant-ia-usage'].erreurs, 1);
+  const sansCle = creerClientMistralAssistant({ cle: '' });
+  assert.equal((await sansCle.verifierDisponibilite()).disponible, false);
+});
+
+test('route : réglage du moteur (Mistral par défaut, IA locale au choix), usage du mois, repli local sans clé', async () => {
+  const lire = await fetch(`${baseUrl}/api/assistant/reglages`, { headers: { Authorization: `Bearer ${jeton}` } });
+  const r = await lire.json();
+  assert.equal(r.moteur, 'mistral');
+  assert.equal(r.cleMistralEnregistree, false);
+  assert.equal(r.usage.demandes, 0);
+  const dispo = await (await fetch(`${baseUrl}/api/assistant/disponibilite`, { headers: { Authorization: `Bearer ${jeton}` } })).json();
+  assert.equal(dispo.moteur, 'locale', 'sans clé Mistral : IA locale');
+  assert.match(dispo.raison, /Aucune clé Mistral/);
+  const ecrit = await (await fetch(`${baseUrl}/api/assistant/reglages`, { method: 'PUT', headers: { Authorization: `Bearer ${jeton}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ moteur: 'locale' }) })).json();
+  assert.equal(ecrit.moteur, 'locale');
+  await fetch(`${baseUrl}/api/assistant/reglages`, { method: 'PUT', headers: { Authorization: `Bearer ${jeton}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ moteur: 'n importe quoi' }) });
+  assert.equal((await (await fetch(`${baseUrl}/api/assistant/reglages`, { headers: { Authorization: `Bearer ${jeton}` } })).json()).moteur, 'mistral');
+});

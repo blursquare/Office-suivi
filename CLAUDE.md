@@ -108,7 +108,7 @@ dans `index.html`** (le test `structure-client` refuse tout décalage).
    cadrées par l'étude : l'API de relecture d'actes (Mistral par défaut, Claude en option), qui ne
    reçoit que du texte **pseudonymisé dans le navigateur** (la table de correspondance ne quitte
    jamais le poste) ; l'autocomplétion d'adresse `api-adresse.data.gouv.fr` (seul le texte tapé part) ;
-   les CDN de bibliothèques (pdf.js, tesseract.js 7.0.0, docxtemplater, docx) ; l'**API Carto de l'IGN** (outil « Droits de préemption », étude 06/10 : zonage d'une parcelle sur le Géoportail de l'urbanisme — ne part que le code postal, ou le code INSEE + section + numéro de parcelle, `server/src/urbanisme.js`) ; le **rapport technique**
+   **« Demander à CLAIRE » par Mistral Small** (étude 07/10 : « ok, on essaie », `server/src/assistantMistral.js`) — seule la PHRASE part, noms, prénoms, adresses, agences, notaires, emails, téléphones et références des fiches remplacés par des codes `[NOM1]`… par le SERVEUR avant l'envoi (`pseudonymiserDemande`), rétablis au retour (`retablirTexte`), aucune donnée de fiche dans le prompt ; moteur au choix dans Réglages › IA et relecture d'actes (clé `assistant-ia`, Mistral par défaut, IA locale sans clé), usage du mois `assistant-ia-usage` ; les CDN de bibliothèques (pdf.js, tesseract.js 7.0.0, docxtemplater, docx) ; l'**API Carto de l'IGN** (outil « Droits de préemption », étude 06/10 : zonage d'une parcelle sur le Géoportail de l'urbanisme — ne part que le code postal, ou le code INSEE + section + numéro de parcelle, `server/src/urbanisme.js`) ; le **rapport technique**
    (accord de l'étude du 30/09, `rapportTechnique.js`) : issue GitHub à 12 h et 17 h les jours ouvrés,
    **anonymisée par le serveur avant l'envoi** (`anonymiserTexte` : chemins, fichiers, emails, montants,
    téléphones, mots tirés des dossiers et des collaborateurs, mots en capitales hors sigles techniques ;
@@ -713,7 +713,7 @@ dans `index.html`** (le test `structure-client` refuse tout décalage).
   responsable, une fois par dossier (`alertesFondsDues`, même sans appel de fonds noté envoyé).
 
 - **« Demander à CLAIRE »** (étude 06/10 : « un agent conversationnel où l'on pourrait poser n'importe quelle demande » ; choix de
-  l'étude : IA locale seule, page dans la barre latérale « du type Claude », tous les gestes dès la première version, **tout sans
+  l'étude : IA locale, puis Mistral Small en essai depuis le 07/10 — noms masqués, voir contrainte 1 —, page dans la barre latérale « du type Claude », tous les gestes dès la première version, **tout sans
   carte de confirmation SAUF les emails et l'agenda**) — `client/49-assistant.js` (page `#onglet-assistant`, conversation en
   mémoire du poste, `assistantMessages`, boutons par `assistantActions` — jamais de code dans l'attribut onclick),
   `commun/assistant.js`, `server/src/assistant.js`, `routes/assistant.js` (`POST /api/assistant/comprendre`,
@@ -941,7 +941,7 @@ point du bilan passe par le plan, jamais par un bloc à part.
   class="info-i" tabindex="0" data-info="…">` en HTML, `definirInfoBulle` pour la changer). Restent
   en texte visible : un état, un résultat, une erreur, une liste vide. **Réglages** : rubriques à
   gauche (`SOUS_ONGLETS_REGLAGES`, une par sujet depuis le 01/10 : Général, Collaborateurs, Signature des
-  emails, Modèles d'emails, Rappels, Agenda et Outlook, Téléphonie 3CX, Authentic, Pièces et Claire Scan, Noms de fichiers du NAS, Relecture d'actes,
+  emails, Modèles d'emails, Rappels, Agenda et Outlook, Téléphonie 3CX, Authentic, Pièces et Claire Scan, Noms de fichiers du NAS, IA et relecture d'actes,
   Signalements, Mise à jour et sauvegarde — classées sous quatre titres depuis le 03/10 : L'étude, Connexions, Dossiers et actes, Maintenance, `.reglages-nav-groupe` ; chaque section qui enregistre a son propre bouton), une colonne de lignes `.reglages-option` / `.reglages-champ`
   dans des `.reglages-section` — pas de cartes en grille.
 - **Règles de code** (étude, 04/10) : `npm run lint` à la racine (ESLint, `eslint.config.js` : erreurs réelles seulement —

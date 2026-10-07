@@ -237,7 +237,7 @@
     // installé/démarré/arrêté sur le serveur depuis la dernière visite de cet onglet.
     // Réglages relus à chaque ouverture (un collègue a pu les modifier depuis un autre poste,
     // même principe que la disponibilité d'Ollama ci-dessus).
-    if (nom === 'reglages') { renderReglagesScans(); chargerScans(); definirSousOngletReglages(sousOngletReglagesRetenu()); chargerReglages(); chargerReglagesClaude(); chargerReglagesExchange(); chargerSignalements(); renderReglagesSignatureImages(true); }
+    if (nom === 'reglages') { renderReglagesScans(); chargerScans(); definirSousOngletReglages(sousOngletReglagesRetenu()); chargerReglages(); chargerReglagesClaude(); chargerReglagesAssistant(); chargerReglagesExchange(); chargerSignalements(); renderReglagesSignatureImages(true); }
     if (nom === 'analyse-ia') initRelecture();
     // Date du jour et bornes de période posées au premier affichage seulement (voir initProrata).
     if (nom === 'prorata') initProrata();

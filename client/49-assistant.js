@@ -25,7 +25,7 @@
     try {
       const r = await fetchAvecAuth('/api/assistant/disponibilite');
       const corps = await r.json();
-      assistantDisponibilite = { ia: !!corps.ia, raison: corps.raison || '', modele: corps.modele || '', quand: Date.now() };
+      assistantDisponibilite = { ia: !!corps.ia, moteur: corps.moteur || 'locale', raison: corps.raison || '', modele: corps.modele || '', quand: Date.now() };
     } catch (e) {
       assistantDisponibilite = { ia: false, raison: 'Serveur injoignable.', modele: '', quand: Date.now() };
     }
@@ -37,9 +37,10 @@
     if (!el) return;
     const d = assistantDisponibilite;
     if (d.ia === null) { el.innerHTML = ''; return; }
+    const nom = d.moteur === 'mistral' ? 'IA Mistral' : 'IA locale';
     el.innerHTML = d.ia
-      ? `<span class="dot-label dl-success"><span class="dot"></span>IA locale prête</span>`
-      : `<span class="dot-label dl-neutre" title="${escapeAttr(d.raison)}"><span class="dot"></span>Sans IA locale : mots-clés seulement</span>`;
+      ? `<span class="dot-label dl-success"${d.raison ? ` title="${escapeAttr(d.raison)}"` : ''}><span class="dot"></span>${nom} prête${d.moteur === 'mistral' ? ' — noms masqués' : ''}</span>`
+      : `<span class="dot-label dl-neutre" title="${escapeAttr(d.raison)}"><span class="dot"></span>Sans ${nom} : mots-clés seulement</span>`;
   }
 
   // Pure : les exemples de la page d'accueil, avec les noms des dossiers du collaborateur à la place des noms d'exemple.
@@ -636,4 +637,40 @@
     const motif = r && r.raisonIa ? ' <span class="asst-note">(sans l’IA locale, je ne lis que les mots-clés)</span>' : '';
     return { html: `<p>Je n’ai pas compris la demande.${motif} Essayez avec le nom d’un dossier et un verbe : « où en est… », « relance… », « rappelle-moi… », « place la signature… », ou demandez-moi « que sais-tu faire ? ».</p>`,
       boutons: [{ libelle: 'Que sais-tu faire ?', action: () => envoyerDemandeAssistant('Que sais-tu faire ?') }] };
+  }
+
+  // Réglages › IA et relecture d'actes › « Demander à CLAIRE » : moteur (Mistral, noms masqués, ou IA locale) et usage du mois.
+  // Pure : la ligne d'usage du mois (demandes, coût estimé en euros, erreurs). @param {any} u
+  function texteUsageAssistant(u) {
+    if (!u || !u.demandes) return 'Aucune demande envoyée à Mistral ce mois-ci.';
+    const euros = (u.coutUsd || 0) * 0.92;
+    const cout = euros < 0.01 ? 'moins d’un centime' : `≈ ${euros.toFixed(2).replace('.', ',')} €`;
+    return `${u.demandes} demande${u.demandes > 1 ? 's' : ''} comprise${u.demandes > 1 ? 's' : ''} par Mistral — ${cout}${u.erreurs ? ` · ${u.erreurs} sans réponse` : ''}.`;
+  }
+
+  async function chargerReglagesAssistant() {
+    try {
+      const r = await fetchAvecAuth('/api/assistant/reglages');
+      if (!r.ok) return;
+      const data = await r.json();
+      const choix = document.getElementById('reglages-assistant-moteur');
+      if (choix) choix.value = data.moteur || 'mistral';
+      const usage = document.getElementById('reglages-assistant-usage');
+      if (usage) usage.textContent = texteUsageAssistant(data.usage) + (data.moteur === 'mistral' && !data.cleMistralEnregistree ? ' Aucune clé Mistral : l’IA locale est utilisée.' : '');
+    } catch (e) { /* Réglages sans connexion : rien à afficher */ }
+  }
+
+  async function enregistrerReglagesAssistant() {
+    const choix = document.getElementById('reglages-assistant-moteur');
+    const sortie = document.getElementById('reglages-assistant-resultat');
+    try {
+      const r = await fetchAvecAuth('/api/assistant/reglages', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ moteur: choix ? choix.value : 'mistral' }) });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.erreur || `Le serveur a répondu ${r.status}.`);
+      assistantDisponibilite.quand = 0;
+      if (sortie) sortie.textContent = data.moteur === 'mistral' && !data.cleMistralEnregistree ? 'Enregistré — saisissez la clé Mistral plus bas.' : 'Enregistré.';
+      chargerReglagesAssistant();
+    } catch (e) {
+      if (sortie) sortie.textContent = `Non enregistré : ${e.message || e}`;
+    }
   }

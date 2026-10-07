@@ -1643,7 +1643,7 @@
       <div class="reglages-nav-groupe" role="presentation">Dossiers et actes</div>
       <button type="button" class="reglages-nav-btn" role="tab" id="reglages-onglet-pieces" aria-controls="reglages-panneau-pieces" aria-selected="false" onclick="definirSousOngletReglages('pieces')">Pièces et Claire Scan</button>
       <button type="button" class="reglages-nav-btn" role="tab" id="reglages-onglet-noms-nas" aria-controls="reglages-panneau-noms-nas" aria-selected="false" onclick="definirSousOngletReglages('noms-nas')">Noms de fichiers du NAS</button>
-      <button type="button" class="reglages-nav-btn" role="tab" id="reglages-onglet-relecture" aria-controls="reglages-panneau-relecture" aria-selected="false" onclick="definirSousOngletReglages('relecture')">Relecture d'actes</button>
+      <button type="button" class="reglages-nav-btn" role="tab" id="reglages-onglet-relecture" aria-controls="reglages-panneau-relecture" aria-selected="false" onclick="definirSousOngletReglages('relecture')">IA et relecture d'actes</button>
       <button type="button" class="reglages-nav-btn" role="tab" id="reglages-onglet-apprentissage" aria-controls="reglages-panneau-apprentissage" aria-selected="false" onclick="definirSousOngletReglages('apprentissage')">Ce que CLAIRE a appris</button>
       <div class="reglages-nav-groupe" role="presentation">Maintenance</div>
       <button type="button" class="reglages-nav-btn" role="tab" id="reglages-onglet-signalements" aria-controls="reglages-panneau-signalements" aria-selected="false" onclick="definirSousOngletReglages('signalements')">Signalements<span class="reglages-onglet-compteur" id="reglages-onglet-compteur-signalements" hidden></span></button>
@@ -1960,9 +1960,30 @@
        server/src/routes/relectureClaude.js. Mistral par défaut, Claude en option. Les clés ne
        ressortent jamais du serveur. ===== -->
   <section class="reglages-panneau" id="reglages-panneau-relecture" role="tabpanel" aria-labelledby="reglages-onglet-relecture" hidden>
-    <h2 class="reglages-titre">Relecture d'actes</h2>
+    <h2 class="reglages-titre">IA et relecture d'actes</h2>
+    <!-- « Demander à CLAIRE » (étude 07/10 : essai de l'API Mistral, noms masqués) — voir server/src/assistantMistral.js. -->
     <div class="reglages-section">
-      <h3 class="reglages-section-titre">Modèle d'IA</h3>
+      <h3 class="reglages-section-titre">Demander à CLAIRE</h3>
+      <div class="reglages-liste">
+        <div class="reglages-champ">
+          <div class="reglages-champ-libelle"><label for="reglages-assistant-moteur">IA qui comprend les demandes</label><span class="info-i" tabindex="0" data-info="Seule la phrase part chez Mistral, noms, adresses, emails et téléphones remplacés par des codes. Les fiches restent au bureau. La clé utilisée est celle de la relecture d’actes, plus bas."></span></div>
+          <select id="reglages-assistant-moteur">
+            <option value="mistral">Mistral Small — en ligne, noms masqués</option>
+            <option value="locale">IA locale du serveur (Ollama)</option>
+          </select>
+        </div>
+        <div class="reglages-champ">
+          <div class="reglages-champ-libelle">Ce mois-ci</div>
+          <span class="hint" id="reglages-assistant-usage">—</span>
+        </div>
+      </div>
+      <div class="reglages-actions">
+        <wa-button variant="brand" class="primary" onclick="enregistrerReglagesAssistant()">Enregistrer</wa-button>
+        <span id="reglages-assistant-resultat"></span>
+      </div>
+    </div>
+    <div class="reglages-section">
+      <h3 class="reglages-section-titre">Relecture d'actes : modèle d'IA</h3>
       <div class="reglages-liste">
         <div class="reglages-champ">
           <div class="reglages-champ-libelle"><label for="reglages-ia-fournisseur">Fournisseur</label></div>

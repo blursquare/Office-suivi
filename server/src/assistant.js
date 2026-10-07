@@ -13,6 +13,7 @@
 // jamais la liste des dossiers ni une donnée de fiche. Rien n'est journalisé (la phrase peut nommer un client).
 
 const A = require('../../commun/assistant');
+const { pseudonymiserDemande, retablirTexte } = require('./assistantMistral');
 
 const LONGUEUR_MAX_REPONSE = 160;
 // Au-delà, le repli par mots-clés répond : mieux vaut une réponse moyenne tout de suite qu'une attente de plusieurs minutes.
@@ -82,8 +83,8 @@ function nettoyerParametresIa(brut) {
  * Comprend une demande : voie rapide par mots-clés, sinon l'IA locale, sinon le repli par mots-clés.
  * @param {{ texte: string, contexte?: { aujourdhui?: string, dossierId?: string, dossierLibelle?: string, historique?: any[] },
  *   dossiers?: Array<{id:string, nom:string, parties?: any[], archive?: boolean}> }} entree
- * @param {{ verifierDisponibilite: () => Promise<{disponible: boolean, raison?: string}>, genererJson: Function } | null} ollama
- * @param {{ disponibilite?: () => Promise<{disponible: boolean, raison?: string}> }} [options]
+ * @param {{ verifierDisponibilite: () => Promise<{disponible: boolean, raison?: string}>, genererJson: Function, moteur?: string } | null} ollama
+ * @param {{ disponibilite?: () => Promise<{disponible: boolean, raison?: string}>, pseudonymiser?: boolean }} [options]
  */
 async function comprendreDemande(entree, ollama, options) {
   const texte = String((entree && entree.texte) || '').replace(/\s+/g, ' ').trim().slice(0, 500);
@@ -95,6 +96,7 @@ async function comprendreDemande(entree, ollama, options) {
   let parametres = { ...motsCles.parametres };
   let source = 'motscles';
   let raisonIa = '';
+  const moteur = (ollama && ollama.moteur) || 'locale';
 
   // Un nom de dossier seul (« Martin », « dossier Martin ») : l'état du dossier, sans demander à l'IA (lecture seule).
   if (motsCles.intention === 'inconnu' && texte.split(' ').length <= 4) {
@@ -109,8 +111,12 @@ async function comprendreDemande(entree, ollama, options) {
     try { statut = await disponibilite(); } catch (err) { statut = { disponible: false, raison: err && err.message }; }
     if (statut.disponible) {
       try {
-        const objet = await ollama.genererJson(promptAssistant(texte, contexte), A.validerReponseAssistant, { longueurMax: LONGUEUR_MAX_REPONSE, delaiMs: DELAI_IA_MS, sansRelance: true });
+        // IA en ligne (Mistral) : la phrase part noms masqués, les valeurs recopiées sont rétablies au retour.
+        const ps = options && options.pseudonymiser ? pseudonymiserDemande(texte, contexte, dossiers) : null;
+        const prompt = ps ? promptAssistant(ps.texte, ps.contexte) : promptAssistant(texte, contexte);
+        const objet = await ollama.genererJson(prompt, A.validerReponseAssistant, { longueurMax: LONGUEUR_MAX_REPONSE, delaiMs: DELAI_IA_MS, sansRelance: true });
         const ia = nettoyerParametresIa(objet.parametres);
+        if (ps) ['dossier', 'texte', 'titre'].forEach((k) => { if (ia[k]) ia[k] = retablirTexte(ia[k], ps.table); });
         intention = objet.intention;
         source = 'ia';
         // Le code gagne quand il a lu quelque chose ; l'IA complète ce qu'il n'a pas lu.
@@ -121,7 +127,7 @@ async function comprendreDemande(entree, ollama, options) {
         parametres.dossierTexte = ia.dossier || '';
         if (ia.titre) parametres.titre = ia.titre;
       } catch (err) {
-        raisonIa = `IA locale : ${err && err.message ? err.message : 'réponse illisible'}`;
+        raisonIa = `${moteur === 'mistral' ? 'IA Mistral' : 'IA locale'} : ${err && err.message ? err.message : 'réponse illisible'}`;
       }
     } else {
       raisonIa = statut.raison || 'IA locale indisponible';
@@ -144,7 +150,7 @@ async function comprendreDemande(entree, ollama, options) {
       parametres.dossierParContexte = true;
     }
   }
-  return { intention, parametres, dossier, candidats, source, surete: motsCles.surete, raisonIa, texte };
+  return { intention, parametres, dossier, candidats, source, moteur: source === 'ia' ? moteur : '', surete: motsCles.surete, raisonIa, texte };
 }
 
 /** Disponibilité d'Ollama gardée une minute : la page vérifie à chaque demande, pas la peine d'interroger Ollama à chaque fois. */

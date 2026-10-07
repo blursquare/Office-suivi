@@ -7,6 +7,7 @@
 const express = require('express');
 const { creerClientOllama } = require('../llm');
 const { comprendreDemande, creerCacheDisponibilite } = require('../assistant');
+const { CLE_REGLAGES, MOTEURS, assainirReglagesAssistant, creerClientMistralAssistant, lireUsageAssistant, MODELE_ASSISTANT_MISTRAL } = require('../assistantMistral');
 const { noterVerification } = require('../verificationsTerrain');
 
 const chaine = (v, max) => (typeof v === 'string' ? v.slice(0, max) : '');
@@ -21,10 +22,42 @@ function creerRouteurAssistant(config, injections, parametresRepo) {
   const ollama = (injections && injections.ollama) || creerClientOllama(config);
   const disponibilite = creerCacheDisponibilite(ollama);
 
+  // Moteur de l'assistant (étude 07/10 : essai de Mistral) : Mistral quand il est choisi ET qu'une clé existe (celle de la
+  // Relecture d'actes), sinon l'IA locale. La clé ne sort jamais d'ici.
+  const lireReglages = () => assainirReglagesAssistant(parametresRepo.lireJsonBrut(CLE_REGLAGES, {}));
+  function cleMistral() {
+    const r = parametresRepo.lireReglagesClaude ? parametresRepo.lireReglagesClaude() : {};
+    return { cle: (r && r.cleMistral) || process.env.MISTRAL_API_KEY || '', region: (r && r.regionMistral) || 'eu' };
+  }
+  function moteurCourant() {
+    const reglages = lireReglages();
+    if (reglages.moteur === 'mistral') {
+      const { cle, region } = cleMistral();
+      if (cle) {
+        const client = creerClientMistralAssistant({ cle, region, fetchFn: injections && injections.fetchMistral, parametresRepo });
+        return { client, pseudonymiser: true, disponibilite: () => client.verifierDisponibilite(), moteur: 'mistral', choisi: 'mistral' };
+      }
+    }
+    return { client: ollama, pseudonymiser: false, disponibilite, moteur: 'locale', choisi: reglages.moteur };
+  }
+
+  routeur.get('/assistant/reglages', (req, res) => {
+    res.json({ ...lireReglages(), moteurs: MOTEURS, cleMistralEnregistree: !!cleMistral().cle, modeleMistral: MODELE_ASSISTANT_MISTRAL,
+      usage: lireUsageAssistant(parametresRepo) });
+  });
+
+  routeur.put('/assistant/reglages', (req, res) => {
+    const propre = assainirReglagesAssistant(req.body);
+    parametresRepo.ecrireJsonBrut(CLE_REGLAGES, propre);
+    res.json({ ...propre, cleMistralEnregistree: !!cleMistral().cle });
+  });
+
   routeur.get('/assistant/disponibilite', routeAsync(async (req, res) => {
+    const m = moteurCourant();
     let statut;
-    try { statut = await disponibilite(); } catch (err) { statut = { disponible: false, raison: err.message }; }
-    res.json({ ia: !!statut.disponible, raison: statut.disponible ? '' : String(statut.raison || ''), modele: ollama.modele });
+    try { statut = await m.disponibilite(); } catch (err) { statut = { disponible: false, raison: err.message }; }
+    const raisonChoix = m.choisi === 'mistral' && m.moteur !== 'mistral' ? 'Aucune clé Mistral enregistrée : IA locale utilisée. ' : '';
+    res.json({ ia: !!statut.disponible, moteur: m.moteur, raison: raisonChoix + (statut.disponible ? '' : String(statut.raison || '')), modele: m.client.modele });
   }));
 
   routeur.post('/assistant/comprendre', routeAsync(async (req, res) => {
@@ -41,6 +74,7 @@ function creerRouteurAssistant(config, injections, parametresRepo) {
       reference: chaine(d.reference, 40),
       contacts: listeChaines(d.contacts, 20, 200)
     })) : [];
+    const m = moteurCourant();
     const resultat = await comprendreDemande({
       texte,
       contexte: {
@@ -50,10 +84,11 @@ function creerRouteurAssistant(config, injections, parametresRepo) {
         historique: Array.isArray(contexte.historique) ? contexte.historique.slice(-3) : []
       },
       dossiers
-    }, ollama, { disponibilite });
+    }, m.client, { disponibilite: m.disponibilite, pseudonymiser: m.pseudonymiser });
     // Point terrain : l'IA locale a compris une phrase ambiguë (ou n'a pas pu) — jamais la phrase elle-même.
-    if (resultat.source === 'ia') noterVerification(parametresRepo, 'assistant-ia-locale', { detail: `intention ${resultat.intention}` });
-    else if (resultat.raisonIa) noterVerification(parametresRepo, 'assistant-ia-locale', { ok: false, message: resultat.raisonIa.slice(0, 120) });
+    const point = /Mistral/.test(resultat.raisonIa || '') || resultat.moteur === 'mistral' ? 'assistant-mistral' : 'assistant-ia-locale';
+    if (resultat.source === 'ia') noterVerification(parametresRepo, point, { detail: `intention ${resultat.intention}` });
+    else if (resultat.raisonIa) noterVerification(parametresRepo, point, { ok: false, message: resultat.raisonIa.slice(0, 120) });
     res.json(resultat);
   }));
 
