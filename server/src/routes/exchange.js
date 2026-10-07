@@ -22,7 +22,7 @@ const {
   creerEcheanceExchange, mettreAJourEcheanceExchange, supprimerEcheanceExchange,
   horaireDeplace, deplacerRendezVousExchange, horaireModifie, modifierRendezVousExchange, lireNotesExchange, mettreAJourNotesExchange, TAILLE_MAX_NOTES
 } = require('../exchange/ews');
-const { extraireReferenceVte, dossierPourReferenceAgenda, composerLieuAgenda, estRendezVousProvisoire } = require('../agendaOffice');
+const { extraireReferenceVte, dossierPourReferenceAgenda, composerLieuAgenda } = require('../agendaOffice');
 const { URL_EWS_DEFAUT } = require('../parametresRepo');
 const { noterVerification } = require('../verificationsTerrain');
 
@@ -33,8 +33,7 @@ const { noterVerification } = require('../verificationsTerrain');
 // (ancien poste), test sur le seul nom du dossier, comme avant. Pure.
 function evenementDuDossier(evt, reference, contexte) {
   const ref = extraireReferenceVte(evt && evt.subject);
-  // Un rendez-vous « ? » n'est celui d'aucun dossier (étude 07/10) : jamais retiré, déplacé ni annoté pour une fiche.
-  if (!ref || estRendezVousProvisoire({ sujet: evt.subject, lieu: evt.location })) return false;
+  if (!ref) return false;
   const actifs = contexte && Array.isArray(contexte.actifs) ? contexte.actifs : [];
   const d = contexte && contexte.dossierId ? actifs.find((x) => x && x.id === contexte.dossierId) : null;
   if (!d) return !!dossierPourReferenceAgenda(ref, [{ id: 'x', nom: reference }]);

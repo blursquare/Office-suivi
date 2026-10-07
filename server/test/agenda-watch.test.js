@@ -562,14 +562,12 @@ test('corrigerRendezVousEcritsParAgenda : date donnée à tort par l\'agenda ou 
   depot.creer({ id: 'c', nom: 'DURAND / PETIT', rendezVousSignature: '2026-10-20', detectionsAgenda: { rendezVousSignature: '2026-10-20' } });
   // D : date posée à la main, jamais touchée.
   depot.creer({ id: 'd', nom: 'LEROY / BLANC', rendezVousSignature: '2026-10-20' });
-  // Stock : les rendez-vous « ? » n'y sont rattachés à aucun dossier ; leurs dossiers viennent de rendezVousProvisoiresDossiers.
   const stock = [
     { sujet: 'VTE - ROY', date: '2026-10-06', heure: '10:00', signature: true, dossierId: 'a' },
-    { sujet: 'VTE - DURAND / PETIT ???', date: '2026-10-20', heure: '14:00', signature: false, dossierId: null },
-    { sujet: 'VTE - LEROY / BLANC ??', date: '2026-10-20', heure: '16:00', signature: false, dossierId: null }
+    { sujet: 'VTE - DURAND / PETIT ???', date: '2026-10-20', heure: '14:00', signature: false, dossierId: 'c' },
+    { sujet: 'VTE - LEROY / BLANC ??', date: '2026-10-20', heure: '16:00', signature: false, dossierId: 'd' }
   ];
-  const provisoires = [{ dossierId: 'c', date: '2026-10-20', heure: '14:00' }, { dossierId: 'd', date: '2026-10-20', heure: '16:00' }];
-  const corrections = corrigerRendezVousEcritsParAgenda(depot, stock, '2026-10-07', provisoires);
+  const corrections = corrigerRendezVousEcritsParAgenda(depot, stock, '2026-10-07');
   assert.equal(corrections.map((c) => `${c.dossierId}:${c.raison}`).sort().join(','), 'b:autre-dossier,c:provisoire');
   assert.equal(depot.trouverParId('b').rendezVousSignature, null);
   assert.match(depot.trouverParId('b').historique.at(-1).texte, /celui d’un autre dossier/);
@@ -577,6 +575,6 @@ test('corrigerRendezVousEcritsParAgenda : date donnée à tort par l\'agenda ou 
   assert.equal(depot.trouverParId('d').rendezVousSignature, '2026-10-20', 'date posée à la main');
   assert.equal(depot.trouverParId('a').rendezVousSignature, '2026-10-06', 'un archivé n\'est jamais modifié');
   // Second passage : plus rien à corriger.
-  assert.equal(corrigerRendezVousEcritsParAgenda(depot, stock, '2026-10-07', provisoires).length, 0);
+  assert.equal(corrigerRendezVousEcritsParAgenda(depot, stock, '2026-10-07').length, 0);
   db.close();
 });

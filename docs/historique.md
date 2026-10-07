@@ -18073,3 +18073,10 @@ n'est pas en attente de confirmation avec des ?? » : sa date faisait la semaine
 - Poste : `rendezVousAConfirmerDossier` retiré ; `semaineProbableSignature` ne regarde plus l'agenda ; plus de type
   « aConfirmer » dans la recherche de l'agenda, « Rendez-vous à placer », la rédaction de l'acte (`phraseRepereRedaction`).
 Tests : server/test/agenda-office.test.js (« ? », « ?? », « ??? », « ？ », « ¿ », lien de visio, option), agenda-watch, tests/agenda-page.test.js.
+
+### 07/10/2026 19 h 33 — 0.189.15 : 0.189.14 annulée
+
+Étude : « Non, annule, reste comme ça ». Le code de 0.189.14 est retiré (git revert) : le rendez-vous « ? » redevient
+« À confirmer » comme depuis le 02/10 ; restent de 0.189.13 le rattachement des archivés et la remise en ordre des dates écrites
+par l'agenda (dont celle d'un rendez-vous repassé « ? »). Les entrées 0.189.14 de l'historique des versions sont gardées
+(numérotation continue).

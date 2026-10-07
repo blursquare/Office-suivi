@@ -276,12 +276,39 @@
   // que le rendez-vous n'est pas fixé). Pure ; null pour un dossier archivé ou déjà placé.
   var DELAI_REFLEXION_OFFRE_JOURS = 11;
 
-  // `evenements` (facultatif) : l'agenda de l'office — gardé pour la signature de la fonction. Un rendez-vous « ? » de
-  // l'agenda n'y compte plus (étude 07/10 : « ne pas prendre en compte le rendez-vous, peu importe le nombre de ? » ;
-  // le 02/10, il donnait la date « à confirmer ») : le serveur ne le rattache plus à aucun dossier.
+  // Pure : le rendez-vous du dossier posé dans l'agenda EN ATTENTE DE CONFIRMATION — titre marqué
+  // d'un « ? » ou « ?? » (« VTE - NOM ?? »), marque de l'étude pour un rendez-vous non confirmé, qui
+  // n'écrit rien sur la fiche (estRendezVousSignature côté serveur). Le prochain à venir, horaire,
+  // jamais une option d'un sondage de CLAIRE (suivie par le sondage) ni une carte fantôme. null sinon.
+  function rendezVousAConfirmerDossier(d, evenements, aujourdhuiIso) {
+    if (!d || !d.id) return null;
+    const auj = aujourdhuiIso || isoAujourdhuiLocal();
+    return (evenements || []).filter(e => e && e.dossierId === d.id && !e.fantome && !e.option && !e.journeeEntiere && e.heure
+        && /^\d{4}-\d{2}-\d{2}$/.test(String(e.date || '')) && e.date >= auj
+        && /\?/.test(String(e.sujet || '') + ' ' + String(e.lieu || '')) && !/option CLAIRE/i.test(String(e.sujet || '')))
+      .sort((a, b) => a.date.localeCompare(b.date) || String(a.heure).localeCompare(String(b.heure)))[0] || null;
+  }
+
+  // `evenements` (facultatif) : l'agenda de l'office. Étude, 02/10 : « pour les probabilités de
+  // rendez-vous, vérifier avant si un rendez-vous n'est pas en attente de confirmation avec des ?? » —
+  // un tel rendez-vous donne la date (au lieu de la date au plus tôt), sans carte fantôme.
   function semaineProbableSignature(d, aujourdhuiIso, absences, evenements) {
     if (!d || d.archive || d.rendezVousSignature) return null;
     const auj = aujourdhuiIso || isoAujourdhuiLocal();
+    const aConfirmer = rendezVousAConfirmerDossier(d, evenements, auj);
+    if (aConfirmer) {
+      const tenueConf = probabiliteTenueSignature(Object.assign({}, d, { rendezVousSignature: aConfirmer.date }), auj, absences);
+      const facteursConf = (tenueConf ? tenueConf.facteurs : []).concat([{ libelle: 'Rendez-vous en attente de confirmation (« ? » dans l’agenda)', retrait: 5, ok: false, action: 'Confirmer le rendez-vous' }]);
+      const depasse = !!(d.acte && aConfirmer.date > d.acte);
+      if (depasse) facteursConf.push({ libelle: `Au-delà de la date butoir (${formatDateFr(d.acte)})`, retrait: 15, ok: false, action: 'Prévoir la prorogation' });
+      const pc = Math.max(5, Math.min(PROBABILITE_MAX_SIGNATURE, PROBABILITE_MAX_SIGNATURE - facteursConf.reduce((t, x) => t + x.retrait, 0)));
+      return {
+        date: aConfirmer.date, lundi: debutSemaine(aConfirmer.date), heure: aConfirmer.heure,
+        raison: `rendez-vous en attente de confirmation le ${formatDateFr(aConfirmer.date)} à ${String(aConfirmer.heure).replace(':', ' h ')}`,
+        depasseButoir: depasse, facteurs: facteursConf, pourcent: pc, aConfirmer,
+        niveau: pc >= 80 ? 'haute' : pc >= 55 ? 'moyenne' : 'basse'
+      };
+    }
     let date = addDays(auj, DELAI_MIN_SIGNATURE_JOURS);
     let raison = `le temps d’envoyer l’appel de fonds et le projet (${DELAI_MIN_SIGNATURE_JOURS} jours)`;
     const auPlusTot = (iso, libelle) => { if (iso && iso > date) { date = iso; raison = libelle; } };
@@ -330,7 +357,7 @@
     const fantomes = [];
     (liste || []).forEach(d => {
       const p = semaineProbableSignature(d, auj, absences, evenements);
-      if (!p || p.lundi !== lundi) return;
+      if (!p || p.aConfirmer || p.lundi !== lundi) return;
       const creneau = creneauxProposesSignature(d, (evenements || []).concat(fantomes), absences, auj, 1, { depuis: p.date, limite: fin })[0] || null;
       const debut = creneau ? minutesHeure(creneau.heure) : null;
       const heureFin = debut === null ? null
@@ -590,11 +617,14 @@
     return e && e.dossierId ? dossiers.find(d => d.id === e.dossierId) || null : null;
   }
 
-  // Pure : la probabilité affichée sur un rendez-vous de l'agenda — celle de la signature fixée ; null pour tout autre
-  // rendez-vous (un rendez-vous « ? » n'en porte plus, étude 07/10).
+  // Pure : la probabilité affichée sur un rendez-vous de l'agenda — celle de la signature fixée, ou,
+  // pour un rendez-vous en attente de confirmation (« ?? ») d'un dossier sans signature fixée, celle
+  // de la semaine probable posée à cette date (étude, 02/10). null pour tout autre rendez-vous.
   function probabiliteEvenementAgenda(d, e, aujourdhuiIso, absences) {
-    if (!d || !e || !e.signature) return null;
-    return probabiliteTenueSignature(d, aujourdhuiIso, absences);
+    if (!d || !e) return null;
+    if (e.signature) return probabiliteTenueSignature(d, aujourdhuiIso, absences);
+    const p = semaineProbableSignature(d, aujourdhuiIso, absences, [e]);
+    return p && p.aConfirmer ? Object.assign({}, p, { lundi: null }) : null;
   }
 
   function renderPastilleProbabilite(p) {
@@ -966,12 +996,12 @@
     const blocPlacer = `<section class="ag-anticipe">
         <h3 class="jour-section-titre">Rendez-vous à placer${probables.length ? ` <span class="jour-onglet-nb">${probables.length}</span>` : ''} ${infoBulle('Dossiers sans rendez-vous de signature, les plus complets d’abord (prêts à signer, puis par pourcentage). Semaine probable : au plus tôt, une fois l’offre de prêt attendue reçue et ses 11 jours de réflexion passés, la vente préalable faite, et au moins deux semaines après aujourd’hui (appel de fonds et projet). Le pourcentage tient compte de ce qui reste à lever. Un clic affiche la semaine, où le rendez-vous est proposé en pointillé sur un créneau libre. Pour le premier dossier prêt à signer (ou celui choisi), trois créneaux libres : jamais à 9 h, entre 12 h et 14 h ni après 18 h, 6 rendez-vous par jour au plus (triangle = exception).')}</h3>
         ${aPlacer.length ? `<ul class="ag-liste">${aPlacer.map(({ d, p }, i) => {
-          const creneaux = avecCreneaux(d, i) && prets.indexOf(d.id) !== -1 ? creneauxProposesSignature(d, agendaEvenements, absencesOffice, auj, 3) : [];
+          const creneaux = avecCreneaux(d, i) && prets.indexOf(d.id) !== -1 && !p.aConfirmer ? creneauxProposesSignature(d, agendaEvenements, absencesOffice, auj, 3) : [];
           const semaine = new Date(p.lundi + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
           return `<li class="ag-placer">
-              <button type="button" class="ag-ligne${agendaSelection === 'probable:' + d.id ? ' selection' : ''}" onclick="allerSemaineProbableAgenda('${d.id}')" title="${escapeAttr(libelleDossierAffiche(d) + ' — ' + `Au plus tôt le ${formatDateFr(p.date)} : ${p.raison}. Afficher cette semaine.`)}">
+              <button type="button" class="ag-ligne${agendaSelection === 'probable:' + d.id ? ' selection' : ''}" onclick="allerSemaineProbableAgenda('${d.id}')" title="${escapeAttr(libelleDossierAffiche(d) + ' — ' + (p.aConfirmer ? `Rendez-vous en attente de confirmation (« ? » dans l’agenda) le ${formatDateFr(p.date)}. L’afficher.` : `Au plus tôt le ${formatDateFr(p.date)} : ${p.raison}. Afficher cette semaine.`))}">
                 <span class="ag-ligne-texte"><b>${escapeHtml(libelleDossierAffiche(d))}</b>
-                <span class="ag-placer-meta">${renderPastilleProbabilite(p)}<span>Semaine du ${escapeHtml(semaine)}${p.depasseButoir ? ' · après la date butoir' : ''}${d.responsable ? ' · ' + escapeHtml(prenomCollaborateur(d.responsable)) : ''}</span></span></span>
+                <span class="ag-placer-meta">${renderPastilleProbabilite(p)}<span>${p.aConfirmer ? `À confirmer : ${escapeHtml(new Date(p.date + 'T00:00:00').toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' }).replace('.', ''))} ${escapeHtml(String(p.heure).replace(':', ' h '))}` : `Semaine du ${escapeHtml(semaine)}`}${p.depasseButoir ? ' · après la date butoir' : ''}${d.responsable ? ' · ' + escapeHtml(prenomCollaborateur(d.responsable)) : ''}</span></span></span>
               </button>
               ${creneaux.length ? `<span class="ag-creneaux">${creneaux.map(c => `<wa-button appearance="outlined" size="s" pill type="button" class="action-rapide ag-creneau${c.apresButoir ? ' apres-butoir' : ''}${c.exceptionnel ? ' exceptionnel' : ''}"
                   onclick="placerCreneauSignature('${d.id}', '${c.date}', '${c.heure}')" ${ecrire ? '' : 'disabled'}
@@ -1244,6 +1274,7 @@
           return { id: d.id, libelle: libelleDossierAffiche(d), archive: !!d.archive, type: 'rdv', date: d.rendezVousSignature, heure: d.rendezVousSignatureHeure || '' };
         }
         const probable = semaineProbableSignature(d, aujourdhuiIso, absences, evenements);
+        if (probable && probable.aConfirmer) return { id: d.id, libelle: libelleDossierAffiche(d), archive: !!d.archive, type: 'aConfirmer', date: probable.date, heure: probable.heure || '' };
         return probable
           ? { id: d.id, libelle: libelleDossierAffiche(d), archive: !!d.archive, type: 'probable', date: probable.date, lundi: probable.lundi }
           : { id: d.id, libelle: libelleDossierAffiche(d), archive: !!d.archive, type: 'aucun', date: '' };
@@ -1288,8 +1319,8 @@
     if (!bloc) return;
     if (!agendaRecherche.trim()) { bloc.style.display = 'none'; bloc.innerHTML = ''; return; }
     const res = resultatsRechercheAgenda(agendaRecherche, dossiers, isoAujourdhuiLocal(), absencesOffice, agendaEvenements);
-    const quand = (r) => r.type === 'rdv'
-      ? `Signature le ${formatDateFr(r.date)}${r.heure ? ' à ' + r.heure.replace(':', ' h ') : ''}`
+    const quand = (r) => r.type === 'rdv' || r.type === 'aConfirmer'
+      ? `${r.type === 'aConfirmer' ? 'À confirmer' : 'Signature'} le ${formatDateFr(r.date)}${r.heure ? ' à ' + r.heure.replace(':', ' h ') : ''}`
       : r.type === 'probable' ? `Signature probable semaine du ${formatDateFr(r.lundi)}` : 'Aucun rendez-vous';
     bloc.innerHTML = res.length === 0
       ? '<div class="ag-recherche-vide">Aucun dossier ne correspond.</div>'
@@ -1344,7 +1375,7 @@
     if (agendaVue === 'mois' && r.type === 'probable') agendaVue = 'semaine';
     positionnerAgenda(r.date);
     agendaSelection = r.type === 'probable' ? 'probable:' + id : null;
-    agendaCibleDossier = r.type === 'rdv' ? { id, date: r.date } : null;
+    agendaCibleDossier = r.type === 'rdv' || r.type === 'aConfirmer' ? { id, date: r.date } : null;
     selectionnerCibleDossierAgenda();
     renderPageAgenda();
     chargerAgendaSemaine();
@@ -1645,7 +1676,8 @@
     if (!p) return;
     if (agendaVue === 'mois') agendaVue = 'semaine';
     positionnerAgenda(p.date);
-    agendaSelection = 'probable:' + id;
+    // En attente de confirmation : le vrai rendez-vous « ?? » est ouvert, pas une carte fantôme.
+    agendaSelection = p.aConfirmer ? cleEvenementAgenda(p.aConfirmer) : 'probable:' + id;
     renderPageAgenda();
     chargerAgendaSemaine();
   }

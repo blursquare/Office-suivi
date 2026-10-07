@@ -493,20 +493,3 @@ test('dossierPourReferenceAgenda : un rendez-vous passé d\'un dossier ARCHIVÉ 
   // Sans date (ancienne voie), un archivé n'est jamais candidat.
   assert.equal(dossierPourReferenceAgenda('ROY / LAMBERT', tous), null);
 });
-
-test('rendez-vous « ? » (un, deux, trois) : rattaché à aucun dossier, aucune action relevée (étude 07/10)', () => {
-  const { estRendezVousProvisoire, rendezVousProvisoiresDossiers } = require('../src/agendaOffice');
-  const dossiers = [{ id: 'd1', nom: 'DUPONT / MARTIN' }];
-  for (const sujet of ['VTE - DUPONT / MARTIN ?', 'VTE - DUPONT / MARTIN ??', 'VTE - DUPONT / MARTIN ???', 'VTE - DUPONT ？', '¿ VTE - DUPONT']) {
-    assert.equal(estRendezVousProvisoire({ sujet }), true, sujet);
-    const evt = rdv({ sujet, lieu: 'BA Appel de fonds envoyé', start: '2026-10-14T09:00:00Z' });
-    assert.deepEqual(actionsDetecteesDepuisEvenements([evt], dossiers), [], `aucune action pour « ${sujet} »`);
-    const office = evenementsAgendaOffice([{ sujet, date: '2026-10-14', heure: '11:00' }], dossiers);
-    assert.equal(office[0].dossierId, null, `stock : ${sujet}`);
-    assert.equal(rendezVousProvisoiresDossiers([{ sujet, date: '2026-10-14', heure: '11:00' }], dossiers)[0].dossierId, 'd1');
-  }
-  // Le « ? » d'un lien de visio ne compte pas ; une option d'un sondage de CLAIRE garde son dossier.
-  assert.equal(estRendezVousProvisoire({ sujet: 'VTE - DUPONT', lieu: 'https://visio.test/?id=3' }), false);
-  const option = evenementsAgendaOffice([{ sujet: 'VTE - DUPONT ? — option CLAIRE, créneau 1/3', date: '2026-10-14', heure: '11:00' }], dossiers);
-  assert.equal(option[0].dossierId, 'd1');
-});
