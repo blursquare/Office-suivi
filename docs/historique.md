@@ -17930,3 +17930,13 @@ foi : une correction faite dans « Vérifier » reste), mais retenus dans `fiche
 type retenus dans `valeurs` sans être réécrits. Historique « Repris des fiches client d'Authentic : … ». Succession : la civilité est
 gardée sur chaque partie (`partiesSuccessionDepuisAuthentic`). Tests dans tests/authentic-fait-foi.test.js (dont : le relevé suivant
 ne repose rien et ne propose rien).
+
+**SAFER : information seulement en zone A ou N** (0.189.6 ; étude 07/10 : « Information obligatoire de la SAFER (notification Vigifoncier) —
+pas de droit de préemption : revoir, car pas de notification si hors zone A ou U » ; précisé à la question : zone A ou N, et zone non lue =
+« à vérifier »). `droitSafer` : sans droit de préemption, la formalité « Information obligatoire de la SAFER » n'est posée que pour un bien
+en zone A ou N (zone lue, ou « zone à vocation agricole » répondue pour un terrain) ; en zone U ou AU, aucune formalité SAFER (lot de
+copropriété compris, qui était informé par défaut depuis le 06/10) ; zone inconnue : « Information de la SAFER à vérifier : obligatoire si
+le bien est en zone A ou N (zone non lue) » et la zone est demandée (`manque: ['zone']`). Plusieurs parcelles en zones différentes
+(`analyserPreemptionParcelles`) : à statut égal, la formalité la plus sûre l'emporte — une parcelle en zone A suffit à garder
+l'information. La notification d'un bien préemptable ne change pas. Une analyse déjà enregistrée sur une fiche garde son ancien texte
+jusqu'à ce que l'outil soit relancé.

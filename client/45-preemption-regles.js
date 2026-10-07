@@ -176,12 +176,18 @@
   }
 
   // Pure : SAFER (CRIDON Lyon n° 87, p. 63 terrain et p. 64 bâtiment). Formalité : notification (droit de préemption) ou
-  // information obligatoire — l'étude (06/10) : la SAFER est informée de la vente même quand le bien n'est pas préemptable.
+  // information obligatoire — l'étude (06/10) : la SAFER est informée de la vente même quand le bien n'est pas préemptable,
+  // mais seulement en zone A ou N (étude 07/10 : « pas de notification si hors zone A ou N ») ; zone non lue → « à vérifier ».
+  var FORMALITE_INFORMATION_SAFER = 'Information obligatoire de la SAFER (notification Vigifoncier) — pas de droit de préemption.';
+  var FORMALITE_INFORMATION_SAFER_A_VERIFIER = 'Information de la SAFER à vérifier : obligatoire si le bien est en zone A ou N (zone non lue).';
   function droitSafer(r) {
     const droit = { cle: 'safer', titre: 'SAFER', statut: 'verifier', motif: '', formalite: '', manque: [] };
     const notification = 'Notification à la SAFER (Vigifoncier) avant la vente — 2 mois pour préempter.';
-    const information = 'Information obligatoire de la SAFER (notification Vigifoncier) — pas de droit de préemption.';
-    const reponse = (statut, motif) => Object.assign(droit, { statut, motif, formalite: statut === 'oui' ? notification : information });
+    const enZoneAN = r.zone === 'A' || r.zone === 'N' ? true : r.zone === 'U' || r.zone === 'AU' ? false
+      : r.zoneAgricole != null ? !!r.zoneAgricole : null;
+    const information = enZoneAN === true ? FORMALITE_INFORMATION_SAFER : enZoneAN === false ? '' : FORMALITE_INFORMATION_SAFER_A_VERIFIER;
+    const reponse = (statut, motif) => Object.assign(droit, { statut, motif, formalite: statut === 'oui' ? notification : information },
+      statut !== 'oui' && enZoneAN == null ? { manque: ['zone'] } : {});
     const manque = (...cles) => Object.assign(droit, { statut: 'verifier', manque: cles, motif: 'à préciser : ' + cles.map(m => LIBELLES_MANQUES_PREEMPTION[m] || m).join(', ') });
     if (r.bien === 'lot-copro') return reponse('non', 'lot de copropriété : pas de préemption de la SAFER');
     if (r.bien === 'bati') {
@@ -337,7 +343,13 @@
     }));
     const droits = ordre.map(cle => {
       const vus = parCle.get(cle);
-      const pire = vus.reduce((m, v) => (PRIORITE_STATUT_PREEMPTION[v.dr.statut] || 0) > (PRIORITE_STATUT_PREEMPTION[m.dr.statut] || 0) ? v : m, vus[0]);
+      // À statut égal, la formalité la plus sûre l'emporte (information de la SAFER due pour une parcelle en zone A ou N, puis
+      // « à vérifier », puis rien).
+      const rangFormalite = (dr) => !dr.formalite ? 0 : dr.formalite === FORMALITE_INFORMATION_SAFER_A_VERIFIER ? 1 : 2;
+      const pire = vus.reduce((m, v) => {
+        const pv = PRIORITE_STATUT_PREEMPTION[v.dr.statut] || 0, pm = PRIORITE_STATUT_PREEMPTION[m.dr.statut] || 0;
+        return pv > pm || (pv === pm && rangFormalite(v.dr) > rangFormalite(m.dr)) ? v : m;
+      }, vus[0]);
       const memeMotif = vus.every(v => v.dr.motif === vus[0].dr.motif && v.dr.statut === vus[0].dr.statut);
       const motif = memeMotif ? vus[0].dr.motif
         : vus.map(v => {

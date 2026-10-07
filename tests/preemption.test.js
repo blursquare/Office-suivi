@@ -55,15 +55,27 @@ test('DPU : immeuble de moins de 4 ans, VEFA, HLM, mutations hors champ', () => 
   assert.strictEqual(droit(Object.assign({ mutation: 'parts-sci', bien: 'parts-attribution' }, u, { dpur: 'oui', partsMajoritaires: true, sciFamiliale: false }), 'dpu').statut, 'oui');
 });
 
-test('SAFER : maison en zone U sans usage agricole → pas de préemption mais information obligatoire (étude 06/10) ; lot de copropriété → non, informée aussi', () => {
+test('SAFER : information obligatoire seulement en zone A ou N (étude 07/10) — maison en zone U : rien ; zone non lue : à vérifier', () => {
   const s = droit({ bien: 'bati', usageAgricole: false, zone: 'U' }, 'safer');
   assert.strictEqual(s.statut, 'non');
-  assert.match(s.formalite, /Information obligatoire de la SAFER/);
-  assert.doesNotMatch(s.formalite, /Aucune notification/);
-  assert.strictEqual(droit({ bien: 'lot-copro' }, 'safer').statut, 'non');
-  assert.match(droit({ bien: 'lot-copro' }, 'safer').formalite, /Information obligatoire de la SAFER/);
-  assert.match(droit({ bien: 'terrain', zone: 'U', usageAgricole: false }, 'safer').formalite, /Information obligatoire/);
+  assert.strictEqual(s.formalite, '', 'hors zone A ou N : pas de notification à la SAFER');
+  assert.strictEqual(droit({ bien: 'lot-copro', zone: 'U' }, 'safer').formalite, '');
+  assert.strictEqual(droit({ bien: 'terrain', zone: 'AU', usageAgricole: false }, 'safer').formalite, '');
+  // Zone non lue : ni oui ni non, la zone est demandée.
+  const copro = droit({ bien: 'lot-copro' }, 'safer');
+  assert.strictEqual(copro.statut, 'non');
+  assert.match(copro.formalite, /à vérifier : obligatoire si le bien est en zone A ou N/);
+  assert.ok(copro.manque.includes('zone'));
   assert.strictEqual(droit({ bien: 'bati' }, 'safer').statut, 'verifier');
+  // Zone A ou N sans préemption : informée.
+  assert.match(droit({ bien: 'lot-copro', zone: 'N' }, 'safer').formalite, /Information obligatoire de la SAFER/);
+});
+
+test('SAFER, plusieurs parcelles (U et A) : l’information due pour la parcelle en zone A est gardée', () => {
+  const lignes = [{ libelle: 'AB 1', statut: 'ok', famille: 'U' }, { libelle: 'ZC 2', statut: 'ok', famille: 'A' }];
+  const s = app.analyserPreemptionParcelles({ bien: 'bati', usageAgricole: false, utilise5ans: false }, lignes).droits.find(d => d.cle === 'safer');
+  assert.strictEqual(s.statut, 'non');
+  assert.match(s.formalite, /Information obligatoire de la SAFER/);
 });
 
 test('SAFER : bâtiment en zone A ou N (5 dernières années) ; terrain en zone agricole, bois, massif, installations', () => {
