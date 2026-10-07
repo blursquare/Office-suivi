@@ -27,7 +27,9 @@
   // avoir écrit sous le nom d'usage) et les noms saisis à la main pour les reçus (`d.nomsRecus`) :
   // une acquéreuse désignée dans l'acte sous son nom de naissance (« Yvette MARTIN, épouse … »)
   // verse sous son nom d'épouse, que l'acte lu ne donnait pas (29/09).
-  function motsPayeurDossier(d) {
+  // `autres` (facultatif, sinon les dossiers en cours du poste) : un nom de famille porté aussi par un AUTRE dossier en cours
+  // (deux dossiers ROY, étude 07/10) est cherché avec le prénom de l'acquéreur, comme un nom partagé avec le vendeur.
+  function motsPayeurDossier(d, autres) {
     const parties = Array.isArray(d && d.parties) ? d.parties : [];
     const acquereurs = parties.filter(p => p && String(p.role || '').toUpperCase() === 'ACQUEREUR').map(p => [p.nom, p.nomUsage].filter(Boolean).join(' '));
     const nom = String(d && d.nom || '');
@@ -43,8 +45,17 @@
     // partagé ne désigne plus l'acquéreur seul — il est cherché avec le prénom (« martin lea », tous les mots dans le titulaire).
     const vendeurs = new Set(parties.filter(p => p && String(p.role || '').toUpperCase() === 'VENDEUR').map(p => [p.nom, p.nomUsage].filter(Boolean).join(' '))
       .concat(nom.includes('/') ? [nom.split('/')[0]] : []).flatMap(motsDe));
+    // Noms de FAMILLE des autres dossiers en cours (nom du dossier, mots en capitales des parties) — jamais leurs prénoms.
+    const ailleurs = new Set();
+    const liste = Array.isArray(autres) ? autres : (typeof dossiers !== 'undefined' && Array.isArray(dossiers) ? dossiers : []);
+    for (const x of liste) {
+      if (!x || x === d || x.id === (d && d.id) || x.archive) continue;
+      const capitales = (Array.isArray(x.parties) ? x.parties : [])
+        .map(p => String((p && p.nom) || '').split(/\s+/).filter(w => w.length > 1 && w === w.toUpperCase()).join(' '));
+      capitales.concat([String(x.nom || '')]).flatMap(motsDe).forEach(m => ailleurs.add(m));
+    }
     const paires = new Map();
-    mots.filter(m => vendeurs.has(m)).forEach(m => {
+    mots.filter(m => vendeurs.has(m) || ailleurs.has(m)).forEach(m => {
       const liste = acquereurs.map(motsDe).filter(ws => ws.includes(m)).flatMap(ws => ws.filter(w => w !== m && !vendeurs.has(w)));
       if (liste.length) paires.set(m, liste);
     });

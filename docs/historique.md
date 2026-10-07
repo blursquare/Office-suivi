@@ -18080,3 +18080,17 @@ Tests : server/test/agenda-office.test.js (« ? », « ?? », « ??? », « ？ 
 « À confirmer » comme depuis le 02/10 ; restent de 0.189.13 le rattachement des archivés et la remise en ordre des dates écrites
 par l'agenda (dont celle d'un rendez-vous repassé « ? »). Les entrées 0.189.14 de l'historique des versions sont gardées
 (numérotation continue).
+
+### 07/10/2026 — 0.189.16 : « ne plus rien deviner » (étude : « 2 oui »)
+
+Après le constat de l'étude (« j'ai l'impression que rien ne va, je ne fais que corriger des bugs »), principe retenu : quand
+CLAIRE n'est pas sûre (même nom, archivé, provisoire), elle ne rattache rien. Tour des rapprochements par le nom :
+- Authentic : `indexGroupeAuthenticPourDossier` prenait le PREMIER dossier relevé portant les noms de la fiche — une fiche
+  « ROY » se complétait seule (`groupeAuthenticPourComplementAuto`) du dossier de l'autre ROY. Il faut désormais un seul
+  dossier relevé correspondant ; sinon rien (la référence reste la voie sûre).
+- Fonds reçus : `motsPayeurDossier(d, autres)` — un nom de famille porté aussi par un autre dossier en cours (nom du dossier,
+  mots en capitales des parties ; jamais les prénoms) est cherché avec le prénom de l'acquéreur, comme un nom partagé avec le vendeur.
+- Restent tels quels (choix explicites de l'étude) : seuils de Claire Scan (sûr à 4, ×1,3), score Authentic (6, 2 points d'avance,
+  « Choisir » sinon), notaire de l'annuaire le plus proche ; déjà sûrs : emails (adresse), 3CX (numéro, un seul dossier),
+  assistant (« Lequel ? »), personnes connues (deux mots), NAS (correspondance parfaite, plus jamais un dossier déjà pris).
+Tests : tests/homonymes-parties.test.js.

@@ -609,7 +609,11 @@
     const noms = String(d.nom || '').split('/').map(x => normaliserPourRecherche(x).replace(/[^a-z0-9]+/g, ' ').trim()).filter(Boolean)
       .map(x => x.split(' ').sort((a, b) => b.length - a.length)[0]).filter(n => n && n.length >= 3);
     if (!noms.length) return -1;
-    return liste.findIndex(g => { const t = ' ' + normaliserPourRecherche(g.intitule || '').replace(/[^a-z0-9]+/g, ' ') + ' '; return noms.every(n => t.includes(' ' + n + ' ')); });
+    // Un seul dossier d'Authentic doit porter ces noms (étude 07/10 : « ne plus rien deviner ») : deux dossiers ROY relevés
+    // ne désignent ni l'un ni l'autre.
+    const trouves = [];
+    liste.forEach((g, i) => { const t = ' ' + normaliserPourRecherche(g.intitule || '').replace(/[^a-z0-9]+/g, ' ') + ' '; if (noms.every(n => t.includes(' ' + n + ' '))) trouves.push(i); });
+    return trouves.length === 1 ? trouves[0] : -1;
   }
 
   // Pure : le dossier d'Authentic d'où compléter la fiche SANS CLIC (étude 06/10 : « on prend toujours de base les données

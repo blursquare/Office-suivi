@@ -271,7 +271,7 @@ dans `index.html`** (le test `structure-client` refuse tout décalage).
   de cause ensuite (`nomsAilleurs`). Date « sûre » qui départage = signé dans Authentic ou posée à la main/par CLAIRE.
   Remise en ordre à chaque tour (`corrigerRendezVousEcritsParAgenda`) : une date ÉCRITE PAR L'AGENDA est retirée si le
   rendez-vous de ce jour est celui d'un autre dossier, ou s'il est repassé « ? » (provisoire). NAS : un dossier du commun déjà relié à un dossier en
-  cours n'est jamais relié seul à un second (`dossierNasPrisParUnAutre`).
+  cours n'est jamais relié seul à un second (`dossierNasPrisParUnAutre`). Authentic : une fiche sans référence ne se complète seule que d'un dossier relevé qui est le SEUL à porter ses noms (`indexGroupeAuthenticPourDossier`). Fonds reçus : un nom de famille porté par un autre dossier en cours est cherché avec le prénom (`motsPayeurDossier(d, autres)`).
   Un cas non départagé reste « à rattacher », jamais deviné.
 - **Notaires** : priorité mention explicite (hors clause d'origine de propriété) > règle
   géographique (`REGLES_NOTAIRE_INSTRUMENTAIRE`, bien dans le 41) > ordre dans la zone attendue ;

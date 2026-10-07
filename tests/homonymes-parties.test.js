@@ -66,3 +66,26 @@ test('NAS : un dossier du commun déjà relié à un autre dossier en cours n’
   assert.equal(app.dossierNasPrisParUnAutre(b, 'ROY ancien', liste), false, 'un dossier archivé ne retient pas son dossier du commun');
   assert.equal(app.dossierNasPrisParUnAutre(b, 'GARNIER ROY', liste), false);
 });
+
+test('Authentic : une fiche ne se complète jamais seule d’un dossier relevé qui n’est pas le seul à porter ses noms', () => {
+  const g1 = { intitule: '1 - VTE ROY / LAMBERT', reference: 'A 2026 00001' };
+  const g2 = { intitule: '1 - VTE GARNIER / ROY', reference: 'A 2026 00002' };
+  const seulRoy = { id: 'x', nom: 'ROY' };
+  assert.equal(app.indexGroupeAuthenticPourDossier(seulRoy, [g1, g2]), -1, 'deux dossiers ROY relevés : aucun');
+  assert.equal(app.groupeAuthenticPourComplementAuto(seulRoy, [g1, g2], [seulRoy]), null);
+  assert.equal(app.indexGroupeAuthenticPourDossier({ id: 'y', nom: 'ROY / LAMBERT' }, [g1, g2]), 0);
+  // La référence d'Authentic reste la voie sûre.
+  assert.equal(app.groupeAuthenticPourComplementAuto({ id: 'z', nom: 'ROY', referenceAuthentic: 'A 2026 00002' }, [g1, g2], []), g2);
+});
+
+test('fonds reçus : un nom de famille porté par un autre dossier en cours est cherché avec le prénom', () => {
+  const a = { id: 'a', nom: 'LAMBERT / ROY', parties: [{ role: 'VENDEUR', nom: 'Anne LAMBERT' }, { role: 'ACQUEREUR', nom: 'Paul ROY' }] };
+  const b = { id: 'b', nom: 'GARNIER / ROY', parties: [{ role: 'VENDEUR', nom: 'Luc GARNIER' }, { role: 'ACQUEREUR', nom: 'Sylvie ROY' }] };
+  assert.equal(app.motsPayeurDossier(a, [a, b]).join(','), 'roy paul');
+  assert.equal(app.motsPayeurDossier(b, [a, b]).join(','), 'roy sylvie');
+  // Seul dossier ROY : le nom suffit, comme avant.
+  assert.equal(app.motsPayeurDossier(a, [a]).join(','), 'paul,roy');
+  // Un prénom porté ailleurs n'empêche rien.
+  const c = { id: 'c', nom: 'DURAND / LEROY', parties: [{ role: 'VENDEUR', nom: 'Paul DURAND' }] };
+  assert.equal(app.motsPayeurDossier(a, [a, c]).join(','), 'paul,roy');
+});
