@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.196.0';
+  const VERSION_APP = '0.196.1';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+  { version: '0.196.1', date: '2026-10-08 18:25', resume: "Lecture du compromis : la source des honoraires d'agence pointe sur leur clause (et plus sur le capital social de l'agence du même montant) ; l'email de l'agence n'est plus pris pour celui de l'acquéreur ; l'adresse du bien est lue sur la ligne de la parcelle cadastrale quand l'acte n'a pas d'« Adresse des biens » (avant : l'adresse de l'agence)." },
   { version: '0.196.0', date: '2026-10-08 18:18', resume: "Demander à CLAIRE : Claude comprend toutes les demandes (noms masqués avant l'envoi, comme pour Mistral) ; la clé est celle de la relecture d'actes (Réglages › IA et relecture d'actes, champ affiché dès que l'assistant utilise Claude). Sans clé Claude : Mistral, sinon l'IA locale." },
   { version: '0.195.4', date: '2026-10-08 17:12', resume: "Agenda Outlook : « projet envoyé » ajouté au lieu du rendez-vous même quand l'appel de fonds y était déjà noté (la première note arrêtait le rattrapage). Fiche : une ligne « + Personne » / « + Société » laissée vide est retirée." },
     { version: '0.195.3', date: '2026-10-08 15:34', resume: "Relecture d'actes : compte rendu à l'écran repensé — « À régler avant la signature » en tête (points critiques, un clic mène au point), puis une carte par catégorie avec son icône, sa couleur, ses compteurs et une barre d'avancement ; les catégories qui ont une alerte passent devant, les points validés se replient. L'impression A4 ne change pas." },

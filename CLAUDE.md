@@ -388,6 +388,12 @@ dans `index.html`** (le test `structure-client` refuse tout décalage).
   dans `commun/montants.js`, le serveur l'importe sous le nom `bilanFonds`) ; au-delà, « excédent » à vérifier, jamais « complet ». Noms cherchés :
   parties acquéreurs (et leur `nomUsage`, lu dans l'état civil « Veuve/Épouse de Monsieur … NOM » par
   `nomsUsageDansBloc`) + nom du dossier + nom du courrier d'appel de fonds + `d.nomsRecus`.
+- **Compromis d'agence (étude 08/10, compromis réel scanné)** : source des honoraires cherchée À PARTIR de leur clause
+  (`sourcePourValeur(…, depuis)` — le capital social de l'agence avait le même montant, page 3) ; une adresse email précédée de
+  près d'un mot qui présente l'agence (`emailsAgenceDansTexte`, « concours de », « exploitée par », « courriel en ce sens »…)
+  n'est l'email d'aucune partie, partout dans l'acte ; sans « Adresse des biens » ni trame d'office, l'adresse du bien est celle
+  de la ligne d'une parcelle cadastrale (`adresseLigneCadastrale` : « 000 DZ 187 25 CHEMIN … 41350 VINEUIL 12a 22ca », code
+  postal retrouvé ailleurs pour la même voie s'il manque) avant toute autre adresse.
 - **Honoraires d'agence TTC** (étude 03/10, `detecterHonorairesAgenceTTC`) : montant marqué TTC / TVA incluse (jamais HT)
   près de « négocié(e)s par » ou d'un intitulé honoraires/commission de l'agence → champ `f-honoraires-agence` (panneau
   Vérifier, complément) → `d.honoraires.montantTTC` (`honorairesAvecMontantFormulaire`, le champ fait foi).

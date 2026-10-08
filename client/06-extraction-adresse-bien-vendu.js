@@ -207,12 +207,52 @@
     return { adresse, source: { extrait: extraireContexte(source, m.index, m[0].length), trouve: m[1].replace(/\s+/g, ' ').trim(), index: m.index, page: pageDepuisIndex(m.index) } };
   }
 
+  // Adresse écrite sur la ligne d'une parcelle cadastrale (étude 08/10 : « souvent l'adresse du bien n'est pas retrouvée au bon
+  // endroit à la désignation. Elle est souvent près du tableau ou du numéro de parcelle cadastrale »). Compromis réel d'agence :
+  // « édifié sur une parcelle de terrain cadastrée : 000 DZ 187 25 CHEMIN DES ROCHES 41350 VINEUIL 12a 22ca » — sans l'étiquette
+  // « Adresse des biens », c'était l'adresse de L'AGENCE (lue plus haut) qui était prise. Préfixe « 000 » facultatif, section en
+  // capitales, numéro de parcelle, numéro et type de voie, code postal et commune, puis la contenance qui ferme la ligne. Sans
+  // code postal sur la ligne (tableau « Section N° Lieudit »), la même voie suivie d'un code postal ailleurs dans l'acte le donne.
+  var RE_ADRESSE_PARCELLE = new RegExp('(?:^|\\s)(?:\\d{3}\\s+)?([A-Z]{1,2})\\s+(\\d{1,5})\\s+(\\d{1,4}\\s*(?:bis|ter|[A-Z])?\\s+(?:' + SOURCE_TYPES_VOIE + ')(?![a-zA-ZÀ-ÿ])[^\\d\\n]{2,60}?)\\s+(?:(\\d{5})\\s+([A-Za-zÀ-ÿ\'’ -]{2,40}?)\\s+)?(' + CONTENANCE_SOURCE + ')(?=\\s|$|[.,;])', 'gi');
+  function adresseLigneCadastrale(source) {
+    const reCadastre = /cadastr[ée]e?s?|au\s+c\s?adastre/gi;
+    let c;
+    while ((c = reCadastre.exec(source)) !== null) {
+      if (RE_CADASTRE_ANCIEN.test(source.slice(Math.max(0, c.index - 30), c.index))) continue;
+      const debut = c.index + c[0].length;
+      const zone = source.slice(debut, debut + 600);
+      const re = new RegExp(RE_ADRESSE_PARCELLE.source, 'gi');
+      let m;
+      while ((m = re.exec(zone)) !== null) {
+        if (m[1] !== m[1].toUpperCase()) continue;
+        const voie = m[3].replace(/\s+/g, ' ').trim();
+        let cp = m[4] || '';
+        let commune = (m[5] || '').trim();
+        if (!cp) {
+          const echappe = voie.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\s+/g, '\\s+');
+          const ailleurs = new RegExp(echappe + '[\\s,–-]{1,6}(\\d{5})\\s+([A-ZÀ-Ü][A-ZÀ-Ü\'’ -]{1,40})', 'i').exec(source);
+          if (!ailleurs) continue;
+          cp = ailleurs[1];
+          commune = ailleurs[2].trim();
+        }
+        const adresse = parserAdresse(`${voie}, ${cp} ${commune}`);
+        if (!adresse.codePostal) continue;
+        adresse.adresseComplete = adresseLisible(adresse);
+        const index = debut + m.index + (m[0].length - m[0].trimStart().length);
+        return { adresse, source: { extrait: extraireContexte(source, index, m[0].trim().length), trouve: voie, index, page: pageDepuisIndex(index) } };
+      }
+    }
+    return null;
+  }
+
   function detecterAdresseBienStructuree(texte) {
     const source = String(texte || '');
     const etiquetee = adresseDesBiensEtiquetee(source);
     if (etiquetee) return etiquetee;
     const parTrame = adresseDesignationTrame(source);
     if (parTrame) return parTrame;
+    const parParcelle = adresseLigneCadastrale(source);
+    if (parParcelle) return parParcelle;
     const section = extraireSection(source, RE_SECTION_DESIGNATION, RE_SECTION_APRES_DESIGNATION);
     const zones = section ? [section, source] : [source];
 
@@ -280,9 +320,11 @@
     return champExtraction(valeur, { source: sourcePourValeur(texte, cle, valeur) });
   }
   // Honoraires d'agence TTC : lus dans la clause (detecterHonorairesAgenceTTC), source retrouvée comme les autres montants.
+  // L'index de la clause est pris sur le texte aux espaces réduits : jamais après la clause dans le texte d'origine, donc
+  // la première occurrence du montant à partir de là est celle de la clause, pas un capital social cité plus haut.
   function honorairesAgenceChamp(texte) {
     const h = detecterHonorairesAgenceTTC(texte);
-    return h ? champAvecSource(texte, 'honorairesAgence', h.valeur) : champExtraction(null);
+    return h ? champExtraction(h.valeur, { source: sourcePourValeur(texte, 'honorairesAgence', h.valeur, h.index) }) : champExtraction(null);
   }
 
   // Rassemble tout ce que les regex savent extraire en UN objet, avec pour chaque donnée son

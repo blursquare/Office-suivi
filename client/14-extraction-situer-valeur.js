@@ -52,10 +52,14 @@
     return [brut];
   }
 
-  // Source (page + extrait) d'une valeur extraite par nos règles.
-  function sourcePourValeur(texte, cle, valeur) {
+  // Source (page + extrait) d'une valeur extraite par nos règles. `depuis` (facultatif) : la valeur est cherchée à partir de cet
+  // index — la clause où elle a été lue (étude 08/10 : honoraires de 10 000 € TTC situés page 3 sur le « capital de 10 000 euros »
+  // de l'agence, alors que la clause « Honoraires de l'AGENCE » était page 16). Pas trouvée après : tout le texte, comme avant.
+  function sourcePourValeur(texte, cle, valeur, depuis) {
+    const debut = Number(depuis) > 0 ? Number(depuis) : 0;
     for (const aiguille of aiguillesPourValeur(cle, valeur)) {
-      const index = localiserValeur(texte, aiguille);
+      let index = debut ? localiserValeur(String(texte || '').slice(debut), aiguille) : -1;
+      index = index >= 0 ? index + debut : localiserValeur(texte, aiguille);
       if (index >= 0) {
         return { index, page: pageDepuisIndex(index), extrait: extraitAutour(texte, index, String(aiguille).length), trouve: String(aiguille) };
       }

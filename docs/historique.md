@@ -18502,3 +18502,22 @@ Vérifié dans Chromium avec une relecture inventée (bureau 1440 px et téléph
   Claude » s'affiche dès que l'assistant utilise Claude, même si la relecture reste sur Mistral. Usage à part
   (`assistant-ia-usage-claude`, 5 $/25 $ par million de jetons). Non vérifié avec une vraie clé ici (aucune clé dans
   l'environnement de développement) : point terrain `assistant-claude`.
+
+### 08/10/2026 18 h 25 — 0.196.1 : compromis d'agence — honoraires, email de l'agence, adresse sur la ligne cadastrale
+
+- Étude : « l'honoraire d'agence n'a pas été trouvé au paragraphe honoraires mais en page 3 (capital social) », puis compromis réel
+  envoyé (scanné, 25 pages, relu ici par OCR tesseract fra — jamais commité). Le montant était juste (10 000 € TTC), mais
+  `champAvecSource` cherchait « 10 000 » dans tout l'acte : premier trouvé = « SAS au capital de 10 000 euros » de l'agence, page 3.
+  `honorairesAgenceChamp` cherche maintenant la valeur à partir de l'index de la clause (`sourcePourValeur(texte, cle, valeur,
+  depuis)`) → page 16.
+- Même acte : email de l'acquéreur = « vineuil@… ; tifany… » — l'adresse de l'agence venait (1) de la fenêtre de 300 caractères
+  après « l'ACQUEREUR » (fin de page 2), qui atteint « Avec le concours de … adresse mail … » (page 3), (2) de l'attribution par
+  nom (en-tête « JOUOT / LEMAY l'Adresse Vineuil … vineuil@… »). `emailsAgenceDansTexte` : adresse précédée (250 car., depuis la
+  dernière civilité) de agence / concours de / exploitée par / carte professionnelle / transaction sur immeubles / courriel en ce
+  sens / mandat n → exclue de `detecterEmailPartie` et `attributionEmailsParNom`.
+- Étude : « souvent l'adresse du bien n'est pas retrouvée au bon endroit à la désignation ; elle est souvent près du tableau ou du
+  numéro de parcelle cadastrale ». Rejoué sans la ligne « Adresse des biens » : l'adresse de l'agence était retenue.
+  `adresseLigneCadastrale` (après l'étiquette et la trame d'office, avant les tournures « sis à ») : ligne
+  [préfixe] SECTION NUMÉRO numéro + type de voie … [CP COMMUNE] contenance, dans les 600 caractères qui suivent « cadastré » (pas
+  « anciennement ») ; sans code postal, la même voie suivie d'un code postal ailleurs dans l'acte. Tests
+  `tests/compromis-agence-capital.test.js` (textes inventés, structure réelle).

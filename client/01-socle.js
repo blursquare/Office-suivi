@@ -1416,6 +1416,7 @@
   function detecterEmailPartie(texte, typeActe, role, exclu) {
     const qualite = qualitePourRole(texte, typeActe || detecterTypeActe(texte).valeur, role);
     const roleRe = new RegExp((qualite ? qualite.re : (role === 'VENDEUR' ? RE_ROLE_VENDEUR : RE_ROLE_ACQUEREUR)).source, 'gi');
+    const agence = emailsAgenceDansTexte(texte);
     let m;
     while ((m = roleRe.exec(texte)) !== null) {
       // Recul borné à la phrase courante (s'arrête au point précédent, comme extraireContexte) :
@@ -1434,10 +1435,29 @@
       const fenetre = texte.slice(debut, m.index + 300);
       // Jamais une adresse générique d'agence ou d'office (contact@…, …@notaires.fr) : la présentation de l'agence suit
       // souvent celle de l'acquéreur dans les trames d'agence (05/10).
-      const em = (fenetre.match(new RegExp(EMAIL_RE.source, 'gi')) || []).find(e => !RE_EMAIL_GENERIQUE.test(e));
+      const em = (fenetre.match(new RegExp(EMAIL_RE.source, 'gi')) || []).find(e => !RE_EMAIL_GENERIQUE.test(e) && !agence.has(e.toLowerCase()));
       if (em && (!exclu || em.toLowerCase() !== String(exclu).toLowerCase())) return em;
     }
     return null;
+  }
+
+  // Adresses de l'agence (étude 08/10, compromis réel « l'Adresse » : « Ci-après dénommé(e)s l'ACQUEREUR » en fin de page 2, puis
+  // « Avec le concours de l'Adresse Vineuil, … adresse mail vineuil@… » en tête de page 3 — l'adresse de l'agence, dans les 300
+  // caractères qui suivent la qualité, devenait l'email de l'acquéreur). Une adresse précédée de près (250 caractères) d'un mot
+  // qui présente l'agence l'est partout dans l'acte. Pure : Set des adresses en minuscules.
+  var RE_PRESENTATION_AGENCE = /agence|concours\s+de|exploit[ée]e?s?\s+par|carte\s+professionnelle|transaction\s+sur\s+immeubles|courriel\s+en\s+ce\s+sens|mandat\s+n/i;
+  function emailsAgenceDansTexte(texte) {
+    const source = String(texte || '');
+    const agence = new Set();
+    const re = new RegExp(RE_EMAIL_GLOBAL.source, 'gi');
+    let m;
+    while ((m = re.exec(source)) !== null) {
+      const avant = source.slice(Math.max(0, m.index - 250), m.index);
+      // Seulement depuis la dernière mention d'une personne : « Madame X x@… » après un paragraphe sur l'agence reste à X.
+      const depuisPersonne = avant.split(/\b(?:Monsieur|Madame|Mademoiselle|M\.|Mme)\s/).pop();
+      if (RE_PRESENTATION_AGENCE.test(depuisPersonne)) agence.add(m[0].replace(/[.]+$/, '').toLowerCase());
+    }
+    return agence;
   }
 
   // Repli (05/10, compromis réels d'agence et promesses) : l'email d'une partie rattaché par son NOM, quand aucune mention
@@ -1469,11 +1489,12 @@
     mots.ACQUEREUR = mots.ACQUEREUR.filter(w => motsNomsParties(parties, 'VENDEUR').indexOf(w) === -1);
     const resultat = new Map();
     if (!mots.VENDEUR.length && !mots.ACQUEREUR.length) return resultat;
+    const agence = emailsAgenceDansTexte(source);
     const re = new RegExp(RE_EMAIL_GLOBAL.source, 'gi');
     let m;
     while ((m = re.exec(source)) !== null) {
       const email = m[0].replace(/[.]+$/, '').toLowerCase();
-      if (RE_EMAIL_GENERIQUE.test(email)) continue;
+      if (RE_EMAIL_GENERIQUE.test(email) || agence.has(email)) continue;
       const local = sansAccentsMinuscules(email.split('@')[0]).replace(/[^a-z]/g, '');
       const dans = { VENDEUR: mots.VENDEUR.some(w => local.indexOf(w) !== -1), ACQUEREUR: mots.ACQUEREUR.some(w => local.indexOf(w) !== -1) };
       let cote = null;
