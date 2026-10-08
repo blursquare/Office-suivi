@@ -18629,3 +18629,23 @@ le bloc Contrôle de l'urbanisme de l'onglet Pièces et analyse. À l'ajout d'un
 l'analyse automatique des droits (`lireTravauxDossierAuto`, historique « Travaux déclarés dans le compromis : N »). Point terrain
 `travaux-compromis-nas`. Tests (bilan sans autorisation, tout cité, zone protégée + prescription, intérieur et CREP) ; vu dans
 Chromium avec un dossier inventé (outil et fiche). Non essayé sur un vrai compromis du NAS.
+
+**Contrôle de l'urbanisme : photos aériennes dans le temps et Sitadel** (0.201.0, 08/10 au soir ; question de l'étude « tu compares
+les images satellite dans le temps ? tu peux les afficher ? », réponse : non, mais faisable — photos datées de l'IGN, sortie de
+l'emplacement de la parcelle à accepter — ; étude : « Oui et recoupe aussi en cherchant sur Sitadel des traces de permis »).
+- **Serveur** `server/src/historiqueParcelle.js` (+ `parcelleCadastre` exporté par `urbanisme.js`) : `vueParcelles` (contours du
+  cadastre par l'API Carto, emprise carrée ≥ 40 m de demi-côté), `photoAerienne` (WMS raster `data.geopf.fr/wms-r`, EPSG:4326
+  latitude d'abord, 512 px, anciennes prises de vue en PNG — le JPEG est refusé pour leurs 4 bandes —, image uniforme blanche d'une
+  année sans vol → `vide`, cache 24 h, emprise contrôlée `empriseValide`), `autorisationsSitadel` (jeu DiDo
+  `6513f0189d7d312c80ec5b5b`, dernier millésime de chaque fichier, colonnes choisies sans le demandeur). Relevé réel le 08/10 : à
+  Blois, prises de vue 2002 (période 2000-2005), 2011, 2014, 2018, 2023 ; les années intermédiaires sont blanches ; Sitadel rend
+  pour une parcelle de Blois un PC de 2021 « travaux sur construction existante, extension, 38 m² », « chantier commencé » sans
+  achèvement. Routes `GET /api/urbanisme/vue`, `/photo` (image ou 204), `/sitadel`. Tests `server/test/historique-parcelle.test.js`.
+- **Poste** (`client/55-controle-urbanisme-relecture.js`) : sous « Travaux et autorisations », « Autorisations connues de Sitadel »
+  et « Photos aériennes » (deux listes de prises de vue, image + contour orange), lancés seuls dès que la commune et les parcelles
+  sont connues. Recoupement dans `bilanTravailUrbanisme` (4e argument) : autorisation de Sitadel non citée nommée ; achèvement
+  déclaré dans Sitadel repris ; aucun résultat dit avec la limite de Sitadel. Fiche : ligne « Sitadel » sous les travaux ;
+  `d.preemption.sitadel` gardé par « Enregistrer sur la fiche », conservé par l'analyse automatique et lu par `lireTravauxDossierAuto`.
+- Vu dans Chromium sur une vraie parcelle de Blois (services réels joignables d'ici). Non vu depuis le serveur du bureau (accès
+  sortant à confirmer : points `photos-aeriennes-ign`, `sitadel-parcelle`). Travail refait une fois après un redémarrage du
+  conteneur de développement qui avait perdu les fichiers non encore enregistrés.

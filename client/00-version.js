@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.200.0';
+  const VERSION_APP = '0.201.0';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.201.0', date: '2026-10-08 23:04', resume: "Contrôle de l'urbanisme, section « Travaux et autorisations » : photos aériennes de l'IGN de la parcelle dans le temps (de 1950-1965 à aujourd'hui, deux prises de vue côte à côte, contour du cadastre par-dessus) et autorisations d'urbanisme enregistrées dans Sitadel (permis, déclarations préalables créant un logement ou des locaux, permis d'aménager et de démolir, depuis 2013). Sitadel est recoupé avec les travaux du compromis : une autorisation connue mais non citée est nommée, un achèvement déclaré est repris. Gardé sur la fiche." },
     { version: '0.200.0', date: '2026-10-08 22:31', resume: "Contrôle de l'urbanisme : nouvelle section « Travaux et autorisations ». Les travaux déclarés par le vendeur sont lus dans le compromis du dossier (NAS) ou dans un PDF déposé ; pour chaque travail extérieur ou de gros œuvre, CLAIRE dit si l'autorisation d'urbanisme est citée, si l'achèvement et la conformité le sont, où en est la garantie décennale et, en zone protégée, si l'accord de l'architecte des bâtiments de France est cité — avec ce qu'il faut réclamer. Gardé sur la fiche (Pièces et analyse) ; lu seul à l'ajout d'un dossier relié au NAS." },
     { version: '0.199.0', date: '2026-10-08 22:19', resume: "Relecture d'actes : contrôle de l'urbanisme. Quand la relecture est liée à un dossier, ce que l'outil Contrôle de l'urbanisme a lu sur la fiche est confronté à l'acte : droit de préemption à purger dont l'acte ne parle pas, bien en zone protégée (monument historique, site) non signalé, travaux extérieurs déclarés en zone protégée sans accord de l'architecte des bâtiments de France. Ces points s'affichent dans la catégorie Urbanisme du bilan." },
     { version: '0.198.2', date: '2026-10-08 22:14', resume: "L'outil « Droits de préemption » s'appelle désormais « Contrôle de l'urbanisme » (Outils, fiche › Pièces et analyse, Demander à CLAIRE) ; même contenu : droits de préemption, monuments historiques et sites protégés." },

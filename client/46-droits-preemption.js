@@ -454,7 +454,8 @@
       droits: analyse.droits.map(dr => ({ cle: dr.cle, titre: dr.titre, statut: dr.statut, motif: dr.motif, formalite: dr.formalite })),
       // Toujours un objet : « non lu » est une réponse (sinon la relecture automatique repartirait à chaque ouverture de la fiche).
       patrimoine: patrimoinePreemption(etat) || { lu: false, servitudes: [] },
-      ...(etat.travaux && Array.isArray(etat.travaux.liste) ? { travaux: { le: (maintenant || new Date()).toISOString(), source: etat.travaux.source || '', liste: etat.travaux.liste } } : {})
+      ...(etat.travaux && Array.isArray(etat.travaux.liste) ? { travaux: { le: (maintenant || new Date()).toISOString(), source: etat.travaux.source || '', liste: etat.travaux.liste } } : {}),
+      ...(etat.sitadel && Array.isArray(etat.sitadel.autorisations) ? { sitadel: { le: (maintenant || new Date()).toISOString(), autorisations: etat.sitadel.autorisations } } : {})
     };
   }
 
@@ -471,8 +472,10 @@
     // Pièces déjà ajoutées par une analyse précédente : suivies, pour être retirées si le droit tombe.
     const avant = d.preemption && d.preemption.piecesAjoutees;
     const travauxAvant = d.preemption && d.preemption.travaux;
+    const sitadelAvant = d.preemption && d.preemption.sitadel;
     d.preemption = Object.assign(preemptionPourFiche(prEtat), { signature: signaturePreemptionDossier(d) }, avant ? { piecesAjoutees: avant } : {});
     if (!d.preemption.travaux && travauxAvant) d.preemption.travaux = travauxAvant;
+    if (!d.preemption.sitadel && sitadelAvant) d.preemption.sitadel = sitadelAvant;
     const pieces = appliquerPreemptionSurPieces(d, { explicite: true });
     const aPurger = d.preemption.droits.filter(dr => dr.statut === 'oui').map(dr => dr.titre);
     ajouterHistorique(d, `Droits de préemption vérifiés : ${aPurger.length ? 'à purger — ' + aPurger.join(', ') : 'aucun droit à purger'}${pieces.length ? ' — ' + pieces.join(' ; ') : ''}`);

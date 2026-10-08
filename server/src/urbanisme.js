@@ -129,6 +129,19 @@ async function zonageParcelle(insee, section, numero, injections) {
   });
 }
 
+/** Géométrie d'une parcelle au cadastre (API Carto), gardée 24 h — pour les photos aériennes et Sitadel.
+ * @param {string} insee @param {string} section @param {string} numero @param {any} [injections] */
+async function parcelleCadastre(insee, section, numero, injections) {
+  const code = String(insee || '').trim().toUpperCase();
+  const p = normaliserParcelle(section, numero);
+  if (!/^\d[0-9AB]\d{3}$/.test(code) || !p) return null;
+  return enCache(`c:${code}:${p.section}:${p.numero}`, async () => {
+    const cad = await lireJson(`${BASE}/cadastre/parcelle?code_insee=${code}&section=${p.section}&numero=${p.numero}`, injections);
+    const feature = cad && Array.isArray(cad.features) ? cad.features[0] : null;
+    return feature && feature.geometry ? feature : null;
+  });
+}
+
 function viderCacheUrbanisme() { cache.clear(); }
 
-module.exports = { normaliserParcelle, communesDuCodePostal, syntheseZonage, patrimoineDepuisSup, zonageParcelle, viderCacheUrbanisme };
+module.exports = { normaliserParcelle, parcelleCadastre, communesDuCodePostal, syntheseZonage, patrimoineDepuisSup, zonageParcelle, viderCacheUrbanisme };

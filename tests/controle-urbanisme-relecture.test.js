@@ -125,3 +125,37 @@ test('natureTravailUrbanisme : la nature du travail, pas un bout de clause', () 
   assert.equal(app.natureTravailUrbanisme({ phrase: "Le VENDEUR déclare que des travaux d'agrandissement ont été réalisés en 2021." }), 'Travaux : agrandissement');
   assert.equal(app.natureTravailUrbanisme({ phrase: 'Des travaux ont été réalisés.' }), 'Travaux');
 });
+
+// --- Sitadel et photos aériennes -----------------------------------------------------------------------------------------
+
+const SITADEL_DP = [{ type: 'DP', numero: '0410182100999', etat: 'Achevé', autoriseLe: '2021-05-03', acheveLe: '2022-01-10', parcelles: ['AL 839'], nature: 'Travaux sur une construction existante', travaux: ['extension'] }];
+
+test('bilanTravailUrbanisme : Sitadel connaît une autorisation non citée → la réclamer en la nommant', () => {
+  const app = chargerApplication();
+  const liste = travauxDe(app, "Le VENDEUR déclare que des travaux d'agrandissement ont été réalisés en 2021 par l'entreprise Bâtir Plus.");
+  const a = app.analyseTravauxUrbanisme(liste, null, '2026-10-08', SITADEL_DP);
+  assert.match(a.travaux[0].points.map(p => p.texte).join(' | '), /Sitadel connaît DP n° 0410182100999 du /);
+});
+
+test('bilanTravailUrbanisme : autorisation citée, achèvement non cité mais déclaré dans Sitadel', () => {
+  const app = chargerApplication();
+  const liste = travauxDe(app, "Le VENDEUR déclare qu'une extension a été réalisée en 2021 en vertu d'une déclaration préalable de travaux, par l'entreprise Bâtir Plus assurée en garantie décennale.");
+  const a = app.analyseTravauxUrbanisme(liste, null, '2026-10-08', SITADEL_DP);
+  assert.equal(a.travaux[0].statut, 'ok', a.travaux[0].points.map(p => p.texte).join(' | '));
+  assert.match(a.travaux[0].points.map(p => p.texte).join(' | '), /Achèvement déclaré le .*Sitadel/);
+});
+
+test('bilanTravailUrbanisme : rien dans Sitadel → dit, avec sa limite', () => {
+  const app = chargerApplication();
+  const liste = travauxDe(app, "Le VENDEUR déclare que des travaux d'agrandissement ont été réalisés en 2021 par l'entreprise Bâtir Plus.");
+  const textes = app.analyseTravauxUrbanisme(liste, null, '2026-10-08', []).travaux[0].points.map(p => p.etat + ':' + p.texte).join(' | ');
+  assert.match(textes, /info:Rien dans Sitadel pour ces parcelles/);
+});
+
+test('priseDeVueAvantTravaux et contoursImage', () => {
+  const app = chargerApplication();
+  const couches = [{ cle: '1950-1965', fin: 1965 }, { cle: '2000-2005', fin: 2005 }, { cle: '2006-2010', fin: 2010 }, { cle: '2011-2015', fin: 2015 }, { cle: '2014', fin: 2014 }, { cle: 'actuelle', fin: 9999 }];
+  assert.equal(app.priseDeVueAvantTravaux(couches, [{ annee: 2012 }]), '2006-2010');
+  assert.equal(app.priseDeVueAvantTravaux(couches, []), '2000-2005');
+  assert.equal(app.contoursImage([[[1, 2], [3, 4]]], [1, 2, 3, 4]).join('|'), '0.00,100.00 100.00,0.00');
+});

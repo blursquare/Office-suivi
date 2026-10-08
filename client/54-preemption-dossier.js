@@ -228,7 +228,7 @@
       const avant = d.preemption && Array.isArray(d.preemption.droits) ? d.preemption : null;
       d.preemption = Object.assign(preemptionPourFiche(etat), { auto: true, signature: signaturePreemptionDossier(d) },
         incomplet ? { incomplet: true } : {}, avant && avant.piecesAjoutees ? { piecesAjoutees: avant.piecesAjoutees } : {},
-        avant && avant.travaux ? { travaux: avant.travaux } : {});
+        avant && avant.travaux ? { travaux: avant.travaux } : {}, avant && avant.sitadel ? { sitadel: avant.sitadel } : {});
       const pieces = appliquerPreemptionSurPieces(d);
       const resume = resumePreemptionDossier(d.preemption);
       if (etat.zonages.some(z => z.statut === 'ok')) noterVerificationPoste('preemption-auto-dossier', { detail: `${etat.zonages.length} parcelle(s) lue(s)` });
