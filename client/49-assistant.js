@@ -565,7 +565,7 @@
       return { html: `<p>Outil Appel de fonds ouvert sur ${escapeHtml(libelleDossierAffiche(d))} ; les pièces du NAS sont relues.</p>` };
     }
     ouvrirPreemptionDepuisFiche(d.id);
-    return { html: `<p>Droits de préemption ouverts sur ${escapeHtml(libelleDossierAffiche(d))} ; le zonage de chaque parcelle se lit sur le Géoportail.</p>` };
+    return { html: `<p>Contrôle de l’urbanisme ouvert sur ${escapeHtml(libelleDossierAffiche(d))} ; le zonage de chaque parcelle se lit sur le Géoportail.</p>` };
   }
 
   function gesteQuotitesAssistant(p, phrase) {

@@ -18584,3 +18584,10 @@ la relecture), et ne compte plus « le diagnostic / rapport / constat / état �
 rapport indique que des travaux de toiture ont été réalisés en 2022 » reste retenu). Le constat « absents du projet de vente »
 (`constatsTravauxNonRepris`) et les constats d'autorisation/décennale en profitent. Tests : trois annexes inventées écartées (le
 test échoue sans le correctif), une vraie déclaration gardée. Non rejoué sur le compromis réel de l'étude (pas dans le dépôt).
+
+**« Droits de préemption » devient « Contrôle de l'urbanisme »** (0.198.2, 08/10 au soir ; étude : « intègre cela à l'outil droit
+de préemption, et appelle cela contrôle de l'urbanisme, et dans un second temps à l'outil relecture d'actes » ; à la question de
+cadrage, « seulement renommer » pour l'outil). Libellé de la barre latérale (à la même place dans l'ordre alphabétique), titre de la
+page, sous-titre de la fiche (onglet Pièces et analyse), info-bulle de la lecture automatique, intention `preemption` de « Demander à
+CLAIRE » (libellé, réponse, motifs « contrôle de l'urbanisme » et « monument historique »). Clé `preemption`, `d.preemption` et
+fichiers inchangés ; historique des dossiers inchangé (« Droits de préemption vérifiés… » décrit bien ce qui a été fait).
