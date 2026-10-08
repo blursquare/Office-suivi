@@ -206,7 +206,7 @@
   // Libellé d'une clé de pièce, toutes checklists confondues (l'exclusion ne dit pas de quel type
   // de vente elle vient) — repli sur la clé elle-même.
   function libellePieceParCle(cle) {
-    for (const type of ['maison', 'copropriete', 'terrain']) {
+    for (const type of ['maison', 'copropriete', 'terrain', 'terre']) {
       const p = checklistPieces(type).find(x => x.cle === cle);
       if (p) return p.label;
     }

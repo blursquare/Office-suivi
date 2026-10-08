@@ -1876,7 +1876,7 @@
   function changerTypeVente(id, valeur) {
     const d = dossiers.find(x => x.id === id);
     if (!d || d.typeVente === valeur) return;
-    const libelle = (v) => v === 'copropriete' ? 'copropriété' : v === 'terrain' ? 'terrain à bâtir' : 'maison';
+    const libelle = (v) => v === 'copropriete' ? 'copropriété' : v === 'terrain' ? 'terrain à bâtir' : v === 'terre' ? 'terre agricole / terrain non bâti' : 'maison';
     ajouterHistorique(d, `Type de vente modifié : ${libelle(d.typeVente)} → ${libelle(valeur)}`);
     // La checklist de pièces (checklistPieces) est recalculée à partir de d.typeVente à chaque
     // affichage : pas besoin de retoucher d.pieces ici. Les pièces déjà reconnues sous une clé
@@ -1884,6 +1884,7 @@
     // (ex. etatDate en quittant la copropriété) restent en mémoire mais ne s'affichent plus,
     // inoffensif si l'étude revient un jour au type précédent.
     d.typeVente = valeur;
+    if (ajouterPieceSaferTerre(d)) ajouterHistorique(d, '« Réponse SAFER » ajoutée aux pièces (terre agricole / terrain non bâti)');
     sauvegarder(d);
     render();
   }

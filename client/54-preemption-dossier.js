@@ -42,6 +42,18 @@
   // Lot de copropriété soumis au DPU : la pièce STANDARD de la checklist, retenue par l'analyse (piecesAjoutees) pour retenir le
   // planning — plus de seconde pièce « Renonciation au droit de préemption (DIA) » (perso-dia, 0.190.0 → 0.191.8 : le scan, le NAS et
   // Authentic cochaient la pièce standard, la seconde restait attendue). Les dossiers qui l'ont passent par migrerPieceDiaCopropriete.
+  // Terre agricole / terrain non bâti (étude 08/10 : « Réponse SAFER d'office ») : la pièce « Réponse SAFER » posée dès la création ou
+  // au passage à ce type — la même que celle d'Authentic et de l'analyse (PIECES_DROITS_PREEMPTION.safer), jamais en double, jamais en
+  // participation ni en succession. Hors de `preemption.piecesAjoutees` : l'analyse ne la retire pas si elle ne trouve pas de droit SAFER.
+  function ajouterPieceSaferTerre(d) {
+    if (!d || d.typeVente !== 'terre' || estSuccession(d) || d.roleNotaire === 'participant') return false;
+    const s = PIECES_DROITS_PREEMPTION.safer;
+    if ((d.piecesPersonnalisees || []).some(p => p && (p.cle === s.cle || s.deja.test(p.label || '')))) return false;
+    d.piecesPersonnalisees = (d.piecesPersonnalisees || []).concat({ cle: s.cle, label: s.label });
+    d.pieces = d.pieces || {};
+    if (d.pieces[s.cle] !== 'recue') d.pieces[s.cle] = 'manquante';
+    return true;
+  }
   var CLE_PIECE_DIA_ANCIENNE = 'perso-dia';
   function migrerPieceDiaCopropriete(d) {
     const perso = (d && d.piecesPersonnalisees) || [];

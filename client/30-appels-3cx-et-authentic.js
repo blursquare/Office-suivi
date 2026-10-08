@@ -1845,7 +1845,7 @@
   // Pure (modifie d) : le type de bien de la fiche bien d'Authentic fait le type de vente de la fiche (étude 06/10 : « le type de
   // bien, tu peux le détecter dans la fiche bien »). Remplace un type différent, jamais pour une succession ni sans type lu.
   // → le texte d'historique, ou ''.
-  var LIBELLES_TYPE_VENTE_AUTHENTIC = { maison: 'maison', copropriete: 'copropriété', terrain: 'terrain' };
+  var LIBELLES_TYPE_VENTE_AUTHENTIC = { maison: 'maison', copropriete: 'copropriété', terrain: 'terrain', terre: 'terre agricole / terrain non bâti' };
   // Authentic d'abord, puis la fiche ne bouge plus (étude 06/10 au soir, client/52) : la première fois le type d'Authentic remplace
   // celui de la fiche ; si Authentic le change ensuite, la mise à jour est proposée. `o` = { maintenant, forcer }.
   function appliquerTypeBienAuthentic(d, type, o) {

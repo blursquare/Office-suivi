@@ -109,6 +109,10 @@
   var PIECES_TERRAIN_AUTRES = PIECES_AUTRES.map(p => p.cle === 'diagnosticsTechniques'
     ? { cle: 'etudeSol', label: 'Étude de sol', motifNom: /[ée]tude\s+de\s+sol|\bG1\b|\bG2\b/i }
     : p);
+  // Terre agricole / terrain non bâti (étude 08/10 : « un nouveau type de vente : terrain ou terre ») : pièces d'urbanisme, ERP,
+  // taxe foncière, titre — ni diagnostics techniques ni étude de sol. « Réponse SAFER » est posée d'office sur le dossier, en
+  // pièce personnalisée (la même qu'Authentic et l'analyse des droits de préemption, voir ajouterPieceSaferTerre côté poste).
+  var PIECES_TERRE_AUTRES = PIECES_AUTRES.filter(p => p.cle !== 'diagnosticsTechniques');
 
   // Pièces ajoutées automatiquement à la checklist d'UN dossier précis quand le compromis mentionne
   // le document correspondant (voir `cleChecklist` sur DOCUMENTS_VENDEUR_CONNUS). Même forme que
@@ -157,6 +161,8 @@
       ? [...PIECES_URBANISME, ...PIECES_COPROPRIETE, ...PIECES_AUTRES]
       : typeVente === 'terrain'
         ? [...PIECES_URBANISME, ...PIECES_TERRAIN_AUTRES]
+        : typeVente === 'terre'
+          ? [...PIECES_URBANISME, ...PIECES_TERRE_AUTRES]
         : [...PIECES_URBANISME, ...PIECES_AUTRES];
     if (!d) return base;
     if (C.estSuccession(d)) return (d.piecesPersonnalisees || []).map(p => ({ cle: p.cle, label: p.label, personnalisee: true }));

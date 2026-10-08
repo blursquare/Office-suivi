@@ -81,7 +81,7 @@
     e.parcelles = parcelles.filter(p => p && p.section && p.numero).map(p => `${p.section} ${p.numero}`).join(', ');
     const type = String(d.typeVente || '').toLowerCase();
     if (/copro/.test(type)) e.reponses.bien = 'lot-copro';
-    else if (/terrain/.test(type)) e.reponses.bien = 'terrain';
+    else if (/terrain|terre/.test(type)) e.reponses.bien = 'terrain';
     else if (type) e.reponses.bien = 'bati';
     if (d.preemption && d.preemption.reponses) e.reponses = Object.assign({}, e.reponses, d.preemption.reponses);
     if (d.preemption && d.preemption.insee) e.insee = d.preemption.insee;

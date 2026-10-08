@@ -851,7 +851,7 @@
         ? Object.fromEntries(Object.entries(d.detectionsAgenda)
           .filter(([k, v]) => (k === 'appelFonds' || k === 'projetEnvoye' || k === 'rendezVousSignature' || k === 'rendezVousDisparu' || k === 'rendezVousRetire') && typeof v === 'string'))
         : {},
-      typeVente: (d.typeVente === 'copropriete' || d.typeVente === 'terrain') ? d.typeVente : 'maison',
+      typeVente: (d.typeVente === 'copropriete' || d.typeVente === 'terrain' || d.typeVente === 'terre') ? d.typeVente : 'maison',
       roleNotaire: d.roleNotaire === 'participant' ? 'participant' : 'instrumentaire',
       // Notaires des deux parties : une lecture de l'acte lui-même (ou une saisie de l'étude), la
       // même sur n'importe quel poste — conservés tels quels à l'import, comme adresseBien, et

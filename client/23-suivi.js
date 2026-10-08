@@ -646,6 +646,7 @@
         <option value="maison" ${d.typeVente === 'maison' || !d.typeVente ? 'selected' : ''}>Maison</option>
         <option value="copropriete" ${d.typeVente === 'copropriete' ? 'selected' : ''}>Copropriété</option>
         <option value="terrain" ${d.typeVente === 'terrain' ? 'selected' : ''}>Terrain à bâtir</option>
+        <option value="terre" ${d.typeVente === 'terre' ? 'selected' : ''}>Terre agricole / terrain non bâti</option>
       </select>`;
     const nas = `<span class="prop-texte${d.dossierLie ? '' : ' vide'}" title="${escapeAttr(d.nasDossier || '')}">${d.dossierLie ? escapeHtml(d.nasDossier || 'Relié') : 'Non relié'}</span>${boutonsDossierLocal}`;
     // « Lire » : chercher le mobilier dans l'avant-contrat du NAS (voir lireMobilierDepuisAvantContrat).

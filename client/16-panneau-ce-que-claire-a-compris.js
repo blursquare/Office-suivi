@@ -1253,6 +1253,7 @@
   async function gererUploadPdf(event) {
     const file = event.target.files[0];
     if (!file) return;
+    if (!modeImport) modeImport = 'pdf';
     // Mode « Dossier Authentic » (ou export déjà lu) : le compromis complète, Authentic est gardé.
     if (!(exportAuthenticActuel && modeImport !== 'pdf')) exportAuthenticActuel = null;
     majPiecesAuthentic();
@@ -1283,6 +1284,7 @@
       status.textContent = /\.zip$/i.test(file.name) ? `« ${file.name} » : l’export ZIP d’Authentic n’est plus lu — choisissez « Dossier Authentic » (pages ouvertes dans Authentic).` : `« ${file.name} » n'est pas un PDF.`;
       return;
     }
+    if (!modeImport) modeImport = 'pdf';
     if (!(exportAuthenticActuel && modeImport !== 'pdf')) exportAuthenticActuel = null;
     majPiecesAuthentic();
     // Synchronise le champ de fichier natif, pour rester cohérent si le formulaire est réinitialisé.

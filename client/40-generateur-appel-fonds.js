@@ -397,7 +397,7 @@
     return DEPARTEMENTS_FRAIS_ACTE[dept] ? dept : null;
   }
 
-  var AF_TYPE_BIEN_PAR_TYPE_VENTE = { maison: 'house', copropriete: 'condo', terrain: 'land' };
+  var AF_TYPE_BIEN_PAR_TYPE_VENTE = { maison: 'house', copropriete: 'condo', terrain: 'land', terre: 'land' };
 
   // La désignation du bien est un champ LIBRE (« une maison », « un lot de copropriété », « un
   // terrain à bâtir »…) : elle sert au courrier, mais elle dit aussi de quelle nature de bien il
@@ -708,6 +708,7 @@
   function designationDepuisTypeVente(typeVente) {
     if (typeVente === 'copropriete') return 'un lot de copropriété';
     if (typeVente === 'terrain') return 'un terrain à bâtir';
+    if (typeVente === 'terre') return 'un terrain non bâti';
     if (typeVente === 'maison') return 'une maison';
     return '';
   }

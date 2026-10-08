@@ -64,6 +64,8 @@
 
   function reinitialiserFormulaire() {
     masquerErreurFormulaire();
+    // Retour au choix « avec ou sans PDF » (étude 08/10) ; le complément d'un dossier repose « pdf » juste après.
+    modeImport = '';
     exportAuthenticActuel = null;
     authenticRetenuPourPdf = '';
     groupeAuthenticRetenu = null;
@@ -277,7 +279,7 @@
     if (v === null || v === undefined || v === '') return '—';
     if (['signature', 'pret', 'acte', 'ventebien'].includes(cle)) return formatDateFr(v);
     if (['prixVente', 'prixMobilier', 'depotGarantie', 'honorairesAgence'].includes(cle)) return formaterPrix(Number(v));
-    if (cle === 'typeVente') return { maison: 'Maison', copropriete: 'Copropriété', terrain: 'Terrain à bâtir' }[v] || String(v);
+    if (cle === 'typeVente') return { maison: 'Maison', copropriete: 'Copropriété', terrain: 'Terrain à bâtir', terre: 'Terre agricole / terrain non bâti' }[v] || String(v);
     if (cle === 'coteInstrumentaire') return { vendeur: 'Notaire du vendeur', acquereur: 'Notaire de l’acquéreur' }[v] || String(v);
     if (cle === 'roleNotaire') return { instrumentaire: 'Instrumentaire', participant: 'Participant' }[v] || String(v);
     return String(v);
@@ -448,7 +450,7 @@
   function annulerNouveauDossier() {
     const remettre = () => {
       reinitialiserFormulaire();
-      modeImport = 'pdf';
+      modeImport = '';
       renderChoixImport();
       const panneau = document.getElementById('panel');
       if (panneau && panneau.scrollIntoView) panneau.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -608,6 +610,9 @@
     ajouterHistorique(d, `Complété avec le compromis « ${compromisNomFichierImporte || 'déposé'} »${textes.length ? ' : ' + textes.join(', ') : ' — rien de nouveau'}`);
     // Droits de préemption lus seuls après l'ajout (étude 07/10, client/54-preemption-dossier.js) : ventes dont l'étude reçoit l'acte.
     if (!estSuccession(d) && d.roleNotaire !== 'participant' && !d.archive) d.preemptionAuto = true;
+
+    // Terre agricole / terrain non bâti : « Réponse SAFER » d'office (étude 08/10).
+    ajouterPieceSaferTerre(d);
 
     creationDossierEnCours = true;
     const bouton = document.getElementById('btn-ajouter-dossier');
@@ -859,6 +864,9 @@
 
     // Droits de préemption lus seuls après l'ajout (étude 07/10, client/54-preemption-dossier.js) : ventes dont l'étude reçoit l'acte.
     if (!estSuccession(dossier) && dossier.roleNotaire !== 'participant') dossier.preemptionAuto = true;
+
+    // Terre agricole / terrain non bâti : « Réponse SAFER » d'office (étude 08/10).
+    ajouterPieceSaferTerre(dossier);
 
     creationDossierEnCours = true;
     const bouton = document.getElementById('btn-ajouter-dossier');

@@ -1355,7 +1355,7 @@
     const total = checklist.length;
     const complet = total > 0 && nbRecues === total;
     const pct = total ? Math.round(nbRecues / total * 100) : 0;
-    const libelleType = d.typeVente === 'copropriete' ? 'copropriété' : d.typeVente === 'terrain' ? 'terrain à bâtir' : 'maison';
+    const libelleType = d.typeVente === 'copropriete' ? 'copropriété' : d.typeVente === 'terrain' ? 'terrain à bâtir' : d.typeVente === 'terre' ? 'terre agricole / terrain non bâti' : 'maison';
     const notifs = d.piecesNotifications || [];
     // Ordre de la checklist conservé : une pièce ne change jamais de place quand on la coche.
     // Repliée, la liste ne cache que des pièces DÉJÀ REÇUES (et pas nouvelles) au-delà des

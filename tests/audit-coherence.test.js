@@ -222,3 +222,21 @@ test('carte « Aujourd’hui » : la fête revient quand toute la liste du jour 
   assert.ok(html.includes('jour-fete anime') && html.includes('3 tâches faites aujourd’hui'));
   assert.ok(app.renderAlertesDashboard.toString().includes('renderFeteJour('));
 });
+
+test('type de vente « Terre agricole / terrain non bâti » : pièces d’urbanisme, ERP, taxe foncière, titre — sans diagnostics ni étude de sol — et Réponse SAFER d’office', () => {
+  const cles = app.checklistPieces('terre').map(p => p.cle).join(',');
+  for (const c of ['renonciationPreemption', 'erp', 'avisTaxeFonciere', 'titrePropriete']) assert.ok(cles.includes(c), c);
+  assert.ok(!/diagnosticsTechniques|etudeSol/.test(cles));
+  const d = { typeVente: 'terre', pieces: {} };
+  assert.strictEqual(app.ajouterPieceSaferTerre(d), true);
+  assert.strictEqual(d.piecesPersonnalisees.map(p => p.label).join(), 'Réponse SAFER');
+  assert.strictEqual(d.pieces['perso-safer'], 'manquante');
+  assert.strictEqual(app.ajouterPieceSaferTerre(d), false, 'jamais en double');
+  assert.strictEqual(app.ajouterPieceSaferTerre({ typeVente: 'terre', roleNotaire: 'participant' }), false);
+  assert.strictEqual(app.ajouterPieceSaferTerre({ typeVente: 'maison' }), false);
+  assert.strictEqual(app.designationDepuisTypeVente('terre'), 'un terrain non bâti');
+});
+
+test('Nouveau dossier : aucune entrée choisie au départ (avec ou sans PDF)', () => {
+  assert.ok(/let modeImport = '';/.test(require('fs').readFileSync(require('path').join(__dirname, '..', 'client', '51-nouveau-dossier-depuis-authentic.js'), 'utf8')));
+});

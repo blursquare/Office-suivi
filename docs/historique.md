@@ -18386,3 +18386,17 @@ Réglages › Général (mode d'email du poste : « mailto » ouvre Outlook dire
 Copie de l'acte : texte de l'étude mot pour mot (« Vous en souhaitant bonne réception. » remplace « Nous restons à votre
 disposition… », fonction et modèle) ; fausses minutes retrouvées aussi par le nom du sous-dossier qui contient les PDF (« VTE MARTEL
 FOURNIER/Copie.pdf »), dossier affiché sur chaque ligne, recherche sur le chemin.
+
+### 08/10 — 0.192.0 : « Nouveau dossier » sans entrée présélectionnée, type « Terre agricole / terrain non bâti »
+
+Étude : « lors d'un clic sur ajout nouveau dossier il ne propose pas tout de suite avec ou sans PDF » — « Compromis (PDF) » était
+présélectionné et sa zone de dépôt ouverte. `modeImport` vide au départ (client/51), remis vide par `reinitialiserFormulaire` et
+« Annuler » ; tant qu'il est vide : les deux cartes seules, ni zone de dépôt ni « Suivant » (`majBoutonSuivantEtape1`) ; un PDF
+choisi ou déposé pose « pdf » (`gererUploadPdf`, `gererDepotPdf`) ; le complément d'un dossier et « Créer » depuis Authentic posent
+« pdf » comme avant. Vérifié dans Chromium (capture : deux cartes et « Annuler » seuls).
+Étude : « rajouter lors de la création d'un dossier un nouveau type de vente : terrain ou terre ». Réponses aux questions : libellé
+« Terre agricole / terrain non bâti » ; pièces d'urbanisme, ERP, taxe foncière, titre, sans étude de sol, « Réponse SAFER » d'office.
+Valeur `terre` : `PIECES_TERRE_AUTRES` (commun/pieces.js), `ajouterPieceSaferTerre` (client/54 — création, complément, changement de
+type sur la fiche), options de la création et de la fiche, libellés (historique, sondage, panneau Vérifier, Authentic), courrier
+d'appel de fonds « un terrain non bâti », barème des frais « land », droits de préemption lus comme un terrain nu (`bien: 'terrain'`).
+Restent sans type propre : la grille de relecture d'actes (maison / copropriété / terrain à bâtir) et l'outil Quotités.

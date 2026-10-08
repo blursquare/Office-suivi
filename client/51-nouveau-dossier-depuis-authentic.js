@@ -50,7 +50,9 @@
     { cle: 'pdf', icone: 'file-text', titre: 'Compromis (PDF)', sous: 'Puis Authentic pour compléter, si besoin' },
     { cle: 'seul', icone: 'link', titre: 'Depuis Authentic', sous: 'Sans PDF : vente ou succession' }
   ];
-  let modeImport = 'pdf';
+  // Aucune entrée choisie au départ (étude 08/10 : « il ne propose pas tout de suite avec ou sans PDF ») : les deux cartes
+  // seules, sans zone de dépôt ni « Suivant », jusqu'au choix.
+  let modeImport = '';
 
   function choisirModeImport(mode) {
     if (!MODES_IMPORT.some(m => m.cle === mode)) return;
@@ -87,7 +89,7 @@
     if (input) input.setAttribute('accept', textes[2]);
     // Sans compromis : pas de zone de dépôt, seulement les dossiers ouverts dans Authentic.
     const boite = document.getElementById('import-boite');
-    if (boite) boite.style.display = modeImport === 'seul' ? 'none' : '';
+    if (boite) boite.style.display = modeImport === 'pdf' ? '' : 'none';
     if (boite) boite.classList.toggle('import-boite-lu', compromisLu);
     renderRelevesAuthenticWizard();
     majBoutonSuivantEtape1();
@@ -98,6 +100,7 @@
   function majBoutonSuivantEtape1() {
     const bouton = document.getElementById('wizard-suivant-1');
     if (!bouton) return;
+    bouton.style.display = modeImport || complementDossierId ? '' : 'none';
     bouton.textContent = modeImport === 'pdf' && dernierTexteTraite && !exportAuthenticActuel && !complementDossierId
       ? 'Continuer sans Authentic →' : 'Suivant : Vérifier →';
   }
