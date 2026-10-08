@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.197.0';
+  const VERSION_APP = '0.198.0';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+  { version: '0.198.0', date: '2026-10-08 21:30', resume: "Droits de préemption : l'analyse dit aussi si le bien est dans le périmètre d'un monument historique ou d'un site protégé (Géoportail de l'urbanisme), avec le conseil sur les travaux (accord de l'architecte des bâtiments de France). Affiché dans l'onglet Pièces et analyse de la fiche et dans l'outil ; les dossiers déjà lus sont relus une fois pour l'ajouter." },
   { version: '0.197.0', date: '2026-10-08 20:51', resume: "Demander à CLAIRE : choix du modèle Claude dans Réglages › IA et relecture d'actes — Sonnet 5 (conseillé, par défaut), Opus 5 ou Haiku 4.5 (le moins cher). Le coût du mois est compté au tarif du modèle utilisé." },
   { version: '0.196.3', date: '2026-10-08 18:29', resume: "Appel 3CX : le relais attend que l'onglet de 3CX soit refermé avant de montrer la fenêtre CLAIRE, et la remontre une seconde fois (Chrome reprenait le premier plan). À réinstaller sur chaque poste : Réglages › Téléphonie 3CX › « Installer sur ce poste »." },
   { version: '0.196.2', date: '2026-10-08 18:26', resume: "Une fenêtre qui se recharge pendant le redémarrage du serveur (mise à jour) et rate un fichier se recharge seule quelques secondes plus tard, au lieu de rester incomplète jusqu’au F5. « Étude géotechnique » reconnue comme étude de sol. (Correction préparée par la relecture du rapport de midi, installée sur accord de l’étude.)" },

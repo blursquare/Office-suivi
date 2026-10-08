@@ -25,6 +25,8 @@
     const p = d.preemption;
     if (!p || !Array.isArray(p.droits)) return true;
     if (!p.auto) return false;
+    // Lu avant que les monuments historiques le soient (08/10) : relu une fois pour les ajouter.
+    if (!p.patrimoine) return true;
     if (p.signature !== signaturePreemptionDossier(d)) return true;
     const t = (maintenant || new Date()).getTime();
     return !!p.incomplet && t - (Date.parse(p.le) || 0) > DELAI_RELECTURE_PREEMPTION_MS;

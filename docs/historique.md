@@ -18556,3 +18556,17 @@ collaborateur en ErrorItemNotFound (accès délégué Outlook).
   avec une vraie clé). Réglage `modeleClaude` de la clé `assistant-ia` (inconnu → Sonnet), liste « Modèle Claude » sous « IA qui
   comprend les demandes », montrée seulement quand le moteur est Claude. Usage : coût cumulé à chaque demande (`coutUsd`) au tarif
   du modèle utilisé, le modèle pouvant changer en cours de mois.
+
+### 08/10/2026 21 h 30 — 0.198.0 : monuments historiques et sites protégés dans l'analyse des droits de préemption
+
+- Étude : « Géoportail indique si c'est en zone monument historique ? » → « une information importante à savoir si les acquéreurs
+  veulent faire des travaux, tu peux l'afficher avec la partie analyse ». Réponse de l'API réelle relevée le 08/10 pour un point de
+  Blois (couche `assiette-sup-s`) : propriétés `suptype` (ac1, ac4…), `typeass` (« Périmètre des abords », « Périmètre du SPR »),
+  `nomsuplitt` (nom du monument), `paramcalc` (500). `patrimoineDepuisSup` garde ac1/ac2/ac4 sans doublon ; `lu: false` si la couche
+  est en panne (le reste du zonage est lu quand même, `catch → null`). Poste : `patrimoinePreemption(etat)` réunit les parcelles
+  (`lu` seulement si toutes ont répondu), `preemptionPourFiche` le garde (toujours un objet), `lignePatrimoinePreemption` en fait la
+  ligne (états `oui` « En zone protégée » ambre, `non` « Aucun publié », `verifier`), rendue sous les droits de la fiche
+  (`renderPreemptionFiche`) et de l'outil (`renderPatrimoineOutil`). `preemptionAutoAFaire` relit une fois les lectures automatiques
+  d'avant. Pas de pièce ni d'alerte ajoutées : information seule (choix de l'étude à confirmer si une mention à l'acte est voulue).
+  Le conseil (accord de l'architecte des bâtiments de France pour les travaux visibles) est une aide, à vérifier ; lecture non
+  essayée avec les vraies parcelles de l'étude (essayée seulement sur un point de Blois et des réponses fabriquées).

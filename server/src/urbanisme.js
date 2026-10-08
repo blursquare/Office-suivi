@@ -60,7 +60,30 @@ function proprietes(geo, choisir) {
   return (geo && Array.isArray(geo.features) ? geo.features : []).map((f) => choisir((f && f.properties) || {}));
 }
 
-/** Pure : synthèse lue pour une parcelle. @param {any} parcelle @param {{ document: any, zones: any, infos: any, prescriptions: any, commune: any }} gpu */
+// Servitudes d'utilité publique du patrimoine (étude 08/10 : « le bien est-il en zone monument historique ? — information importante
+// si les acquéreurs veulent faire des travaux »). Types du Géoportail de l'urbanisme : AC1 monuments historiques (le bien est dans
+// le périmètre des abords, 500 m ou périmètre délimité), AC2 sites inscrits et classés, AC4 sites patrimoniaux remarquables.
+const SUP_PATRIMOINE = { ac1: 'Monument historique', ac2: 'Site inscrit ou classé', ac4: 'Site patrimonial remarquable' };
+
+/** Pure : les servitudes patrimoniales qui touchent la parcelle, sans doublon. @param {any} sup assiette-sup-s du Géoportail */
+function patrimoineDepuisSup(sup) {
+  const vus = new Set();
+  /** @type {Array<{ type: string, libelle: string, nom: string, nature: string, rayon: number|null }>} */
+  const liste = [];
+  proprietes(sup, (x) => x).forEach((x) => {
+    const type = String(x.suptype || '').toLowerCase();
+    if (!SUP_PATRIMOINE[type]) return;
+    const nom = String(x.nomsuplitt || '').trim();
+    const nature = String(x.typeass || '').trim();
+    const cle = `${type}|${nom}|${nature}`;
+    if (vus.has(cle)) return;
+    vus.add(cle);
+    liste.push({ type, libelle: SUP_PATRIMOINE[type], nom, nature, rayon: Number(x.paramcalc) > 0 ? Number(x.paramcalc) : null });
+  });
+  return liste.slice(0, 20);
+}
+
+/** Pure : synthèse lue pour une parcelle. @param {any} parcelle @param {{ document: any, zones: any, infos: any, prescriptions: any, commune: any, sup?: any }} gpu */
 function syntheseZonage(parcelle, gpu) {
   const p = parcelle && parcelle.properties ? parcelle.properties : {};
   const docs = proprietes(gpu.document, (x) => ({ type: String(x.du_type || ''), titre: String(x.grid_title || ''), partition: String(x.partition || '') }));
@@ -75,6 +98,8 @@ function syntheseZonage(parcelle, gpu) {
     document: docs[0] || null,
     epciSiren: siren,
     rnu: !!(commune && commune.rnu),
+    // `lu` : la couche des servitudes a répondu ; sans réponse, « aucune servitude » ne veut rien dire.
+    patrimoine: { lu: !!(gpu.sup && Array.isArray(gpu.sup.features)), servitudes: patrimoineDepuisSup(gpu.sup) },
     zones,
     infos: [...new Set(infos)].slice(0, 30),
     prescriptions: [...new Set(prescriptions)].slice(0, 30)
@@ -92,17 +117,18 @@ async function zonageParcelle(insee, section, numero, injections) {
     const feature = cad && Array.isArray(cad.features) ? cad.features[0] : null;
     if (!feature || !feature.geometry) return { erreur: `Parcelle ${p.section} ${Number(p.numero)} introuvable au cadastre de cette commune.` };
     const geom = encodeURIComponent(JSON.stringify(feature.geometry));
-    const [document, zones, infos, prescriptions, commune] = await Promise.all([
+    const [document, zones, infos, prescriptions, commune, sup] = await Promise.all([
       lireJson(`${BASE}/gpu/document?geom=${geom}`, injections),
       lireJson(`${BASE}/gpu/zone-urba?geom=${geom}`, injections),
       lireJson(`${BASE}/gpu/info-surf?geom=${geom}`, injections).catch(() => null),
       lireJson(`${BASE}/gpu/prescription-surf?geom=${geom}`, injections).catch(() => null),
-      lireJson(`${BASE}/gpu/municipality?insee=${code}`, injections).catch(() => null)
+      lireJson(`${BASE}/gpu/municipality?insee=${code}`, injections).catch(() => null),
+      lireJson(`${BASE}/gpu/assiette-sup-s?geom=${geom}`, injections).catch(() => null)
     ]);
-    return syntheseZonage(feature, { document, zones, infos, prescriptions, commune });
+    return syntheseZonage(feature, { document, zones, infos, prescriptions, commune, sup });
   });
 }
 
 function viderCacheUrbanisme() { cache.clear(); }
 
-module.exports = { normaliserParcelle, communesDuCodePostal, syntheseZonage, zonageParcelle, viderCacheUrbanisme };
+module.exports = { normaliserParcelle, communesDuCodePostal, syntheseZonage, patrimoineDepuisSup, zonageParcelle, viderCacheUrbanisme };

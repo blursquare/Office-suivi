@@ -284,3 +284,39 @@ test('droits relus depuis les réponses gardées : une liste réunie par la fusi
   // Résultat d'avant cette règle (sans lignes) : lu tel quel.
   assert.strictEqual(app.droitsPreemptionFiche({ droits: [{ cle: 'dpu', statut: 'oui' }] }).length, 1);
 });
+
+// Monuments historiques et sites protégés (étude 08/10) : lus avec le zonage de chaque parcelle, montrés avec l'analyse.
+const zonageOk = (patrimoine) => ({ statut: 'ok', resultat: { zones: [], patrimoine } });
+const SERV_MONUMENT = { type: 'ac1', libelle: 'Monument historique', nom: 'Maison', nature: 'Périmètre des abords', rayon: 500 };
+
+test('patrimoinePreemption : servitudes de plusieurs parcelles réunies sans doublon ; « lu » seulement si toutes ont répondu', () => {
+  const deux = { zonages: [zonageOk({ lu: true, servitudes: [SERV_MONUMENT] }), zonageOk({ lu: true, servitudes: [SERV_MONUMENT, { type: 'ac4', libelle: 'Site patrimonial remarquable', nom: 'SPR de Blois', nature: 'Périmètre du SPR', rayon: null }] })] };
+  const p = app.patrimoinePreemption(deux);
+  assert.strictEqual(p.lu, true);
+  assert.strictEqual(p.servitudes.length, 2);
+  const partiel = { zonages: [zonageOk({ lu: true, servitudes: [] }), zonageOk({ lu: false, servitudes: [] })] };
+  assert.strictEqual(app.patrimoinePreemption(partiel).lu, false);
+  assert.strictEqual(app.patrimoinePreemption({ zonages: [{ statut: 'erreur' }] }), null);
+});
+
+test('lignePatrimoinePreemption : abords de monument avec le conseil travaux ; aucun publié ; non lu → à vérifier', () => {
+  const l = app.lignePatrimoinePreemption({ lu: true, servitudes: [SERV_MONUMENT] });
+  assert.strictEqual(l.statut, 'oui');
+  assert.strictEqual(l.titre, 'Monument historique');
+  assert.match(l.motif, /^Abords de monument historique : « Maison » \(500 m\)$/);
+  assert.match(l.conseil, /architecte des bâtiments de France/);
+  const spr = app.lignePatrimoinePreemption({ lu: true, servitudes: [{ type: 'ac4', libelle: 'Site patrimonial remarquable', nom: 'SPR de Blois', nature: '', rayon: null }] });
+  assert.strictEqual(spr.titre, 'Site protégé');
+  assert.match(spr.motif, /Site patrimonial remarquable : SPR de Blois/);
+  assert.strictEqual(app.lignePatrimoinePreemption({ lu: true, servitudes: [] }).statut, 'non');
+  assert.strictEqual(app.lignePatrimoinePreemption({ lu: false, servitudes: [] }).statut, 'verifier');
+  assert.strictEqual(app.lignePatrimoinePreemption(undefined), null);
+});
+
+test('preemptionAutoAFaire : une lecture automatique d’avant les monuments historiques est refaite une fois', () => {
+  const d = { id: 'x', preemptionAuto: true, roleNotaire: 'instrumentaire', preemption: { auto: true, droits: [], signature: 'ok' } };
+  assert.strictEqual(app.preemptionAutoAFaire(d), true, 'sans patrimoine → relue');
+  d.preemption.patrimoine = { lu: false, servitudes: [] };
+  d.preemption.signature = app.signaturePreemptionDossier(d);
+  assert.strictEqual(app.preemptionAutoAFaire(d), false, 'patrimoine gardé, même non lu → pas de boucle');
+});

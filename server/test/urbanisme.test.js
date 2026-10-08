@@ -21,6 +21,14 @@ function fauxApiCarto(appels) {
     if (url.includes('/gpu/info-surf')) return reponse(fc([{ libelle: 'Périmètre d’un bien inscrit au patrimoine mondial - UNESCO' }, { libelle: 'Périmètre d’un bien inscrit au patrimoine mondial - UNESCO' }]));
     if (url.includes('/gpu/prescription-surf')) return reponse({}, 500);
     if (url.includes('/gpu/municipality')) return reponse(fc([{ name: 'BLOIS', is_rnu: false }]));
+    // Servitudes (propriétés relevées sur l'API réelle le 08/10, noms de monuments génériques).
+    if (url.includes('/gpu/assiette-sup-s')) return reponse(fc([
+      { suptype: 'ac1', typeass: 'Périmètre des abords', nomsuplitt: 'Maison', paramcalc: 500 },
+      { suptype: 'ac1', typeass: 'Périmètre des abords', nomsuplitt: 'Maison', paramcalc: 500 },
+      { suptype: 'ac1', typeass: 'Périmètre des abords', nomsuplitt: 'Statue de Diane', paramcalc: 500 },
+      { suptype: 'ac4', typeass: 'Périmètre du SPR', nomsuplitt: 'Site patrimonial remarquable de Blois' },
+      { suptype: 'pm1', typeass: 'Zone rouge', nomsuplitt: 'Plan de prévention' }
+    ]));
     return reponse({}, 404);
   };
 }
@@ -45,6 +53,11 @@ test('zonageParcelle : document, zone, informations ; une source en panne n’em
   assert.equal(z.infos.length, 1, 'doublons retirés');
   assert.equal(z.prescriptions.length, 0);
   assert.equal(z.parcelle.contenance, 1624);
+  // Patrimoine : monuments (abords) et site patrimonial remarquable, sans doublon ; une servitude d'un autre type est écartée.
+  assert.equal(z.patrimoine.lu, true);
+  assert.equal(z.patrimoine.servitudes.map((x) => `${x.type}:${x.nom}`).join(' | '), 'ac1:Maison | ac1:Statue de Diane | ac4:Site patrimonial remarquable de Blois');
+  assert.equal(z.patrimoine.servitudes[0].rayon, 500);
+  assert.equal(z.patrimoine.servitudes[0].libelle, 'Monument historique');
   assert.ok(appels[0].includes('code_insee=41018&section=AL&numero=0839'));
   assert.ok(appels.every((u) => !/nom|adresse/i.test(u.replace(/name|nom_com/g, ''))), 'rien d’autre que la commune et la parcelle');
   const n = appels.length;
@@ -77,4 +90,17 @@ test('routes : communes d’un code postal, parcelle ; API injoignable → 502 a
     assert.equal(r.status, 502);
     assert.match((await r.json()).erreur, /injoignable.*à la main/);
   } finally { serveur.close(); db.close(); }
+});
+
+test('patrimoine : couche des servitudes en panne → « pas lu », jamais « aucune servitude »', async () => {
+  const f = fauxApiCarto([]);
+  const panne = async (url) => (url.includes('/gpu/assiette-sup-s') ? reponse({}, 500) : f(url));
+  const z = await U.zonageParcelle('41018', 'AL', '839', { fetch: panne });
+  assert.equal(z.patrimoine.lu, false);
+  assert.equal(z.patrimoine.servitudes.length, 0);
+  assert.equal(z.document.type, 'PLUi', 'le reste du zonage est lu');
+  U.viderCacheUrbanisme();
+  const vide = await U.zonageParcelle('41018', 'AL', '839', { fetch: async (url) => (url.includes('/gpu/assiette-sup-s') ? reponse(fc([])) : f(url)) });
+  assert.equal(vide.patrimoine.lu, true);
+  assert.equal(vide.patrimoine.servitudes.length, 0);
 });

@@ -40,6 +40,49 @@
     return ((etat && etat.zonages) || []).filter(z => z.statut === 'ok' && z.resultat).map(z => z.resultat);
   }
 
+  // Pure : monuments historiques et sites protégés qui touchent les parcelles lues (étude 08/10 : « une information importante si les
+  // acquéreurs veulent faire des travaux »). `lu` : toutes les parcelles lues ont reçu la réponse de la couche des servitudes —
+  // sinon l'absence de servitude ne dit rien. Les servitudes de plusieurs parcelles sont réunies, sans doublon.
+  function patrimoinePreemption(etat) {
+    const lus = zonagesLusPreemption(etat);
+    if (!lus.length) return null;
+    const vus = new Set();
+    const servitudes = [];
+    lus.forEach(z => ((z.patrimoine && z.patrimoine.servitudes) || []).forEach(x => {
+      const cle = `${x.type}|${x.nom}|${x.nature}`;
+      if (!vus.has(cle)) { vus.add(cle); servitudes.push({ type: x.type, libelle: x.libelle, nom: x.nom, nature: x.nature, rayon: x.rayon || null }); }
+    }));
+    return { lu: lus.every(z => z.patrimoine && z.patrimoine.lu === true), servitudes: servitudes.slice(0, 20) };
+  }
+
+  // Pure : la ligne d'information « Monument historique » de l'analyse, d'après ce qui a été gardé. null = rien à montrer.
+  function lignePatrimoinePreemption(patrimoine) {
+    if (!patrimoine || typeof patrimoine !== 'object') return null;
+    const servitudes = Array.isArray(patrimoine.servitudes) ? patrimoine.servitudes : [];
+    if (servitudes.length) {
+      const monuments = servitudes.filter(x => x.type === 'ac1');
+      const autres = servitudes.filter(x => x.type !== 'ac1');
+      const parts = [];
+      if (monuments.length) {
+        const noms = monuments.map(x => `${x.nom ? '« ' + x.nom + ' »' : 'monument'}${x.rayon ? ' (' + x.rayon + ' m)' : ''}`);
+        parts.push(`${monuments.every(x => /abords/i.test(x.nature)) ? 'Abords de monument historique' : 'Monument historique'} : ${noms.join(', ')}`);
+      }
+      autres.forEach(x => parts.push(`${x.libelle}${x.nom ? ' : ' + x.nom : ''}`));
+      return {
+        statut: 'oui',
+        titre: monuments.length ? 'Monument historique' : 'Site protégé',
+        motif: parts.join(' · '),
+        conseil: 'Travaux visibles de l’extérieur (façade, toiture, menuiseries, clôture, abords) : l’accord de l’architecte des bâtiments de France est à prévoir. À signaler aux acquéreurs.'
+      };
+    }
+    if (patrimoine.lu === false) return { statut: 'verifier', titre: 'Monument historique', motif: 'Servitudes du Géoportail non lues — à vérifier', conseil: '' };
+    return { statut: 'non', titre: 'Monument historique', motif: 'Aucun monument historique ni site protégé publié au Géoportail pour cette parcelle', conseil: '', hors: true };
+  }
+
+  var LIBELLES_PATRIMOINE = { oui: 'En zone protégée', non: 'Aucun publié', verifier: 'À vérifier' };
+  var CLASSES_PATRIMOINE = { oui: 'dl-pret', non: 'dl-success', verifier: 'dl-neutre' };
+  var AIDE_PATRIMOINE = 'Servitudes d’utilité publique lues sur le Géoportail de l’urbanisme (monuments historiques AC1, sites inscrits et classés AC2, sites patrimoniaux remarquables AC4). Une commune qui n’a pas versé ses servitudes n’y apparaît pas : l’absence de résultat ne prouve pas l’absence de protection. Information donnée à titre d’aide, à vérifier auprès de la mairie ou du service de l’urbanisme.';
+
   // Pure : les réponses de l'outil enrichies de ce qui se déduit du zonage lu (Agglopolys, DPU renforcé de Blois). La zone de
   // chaque parcelle est prise à part par analyserPreemptionParcelles ; `zone` ne sert qu'au choix à la main sans parcelle lue.
   function reponsesPreemption(etat) {
@@ -360,11 +403,24 @@
           ${dr.motif ? `<div class="pr-droit-motif">${escapeHtml(dr.motif)}</div>` : ''}
           ${dr.formalite ? `<div class="pr-droit-formalite">${icone('file-text')} ${escapeHtml(dr.formalite)}</div>` : ''}
         </div>`).join('')}</div>
+        ${renderPatrimoineOutil(patrimoinePreemption(e))}
         <p class="hint">Assistance à la décision, d’après les tableaux fournis par l’étude (Cheuvreux, CRIDON, Letulle) : le notaire garde la décision. Exceptions (parent jusqu’au 4e degré, preneur en place…) à vérifier au cas par cas.</p>
         ${d ? `<div class="reglages-actions"><wa-button variant="brand" onclick="enregistrerPreemptionFiche()">${icone('check')} Enregistrer sur la fiche</wa-button>
           ${d.preemption && d.preemption.le ? `<span class="hint">Enregistré le ${escapeHtml(formatDateFr(d.preemption.le.slice(0, 10)))}</span>` : ''}</div>` : ''}`;
     }
     if (typeof majSommaireOutil === 'function') majSommaireOutil('preemption');
+  }
+
+  // Le bloc « Monument historique » sous les droits, dans l'outil (même forme qu'un droit : titre, état, motif, conseil).
+  function renderPatrimoineOutil(patrimoine) {
+    const l = lignePatrimoinePreemption(patrimoine);
+    if (!l) return '';
+    return `<div class="pr-droits"><div class="pr-droit pr-droit-${l.statut === 'oui' ? 'oui' : l.statut === 'non' ? 'non' : 'verifier'}">
+        <div class="pr-droit-tete"><span class="pr-droit-titre">${escapeHtml(l.titre)}${infoBulle(AIDE_PATRIMOINE)}</span>
+          <span class="dot-label ${CLASSES_PATRIMOINE[l.statut]}"><span class="dot"></span>${LIBELLES_PATRIMOINE[l.statut]}</span></div>
+        <div class="pr-droit-motif">${escapeHtml(l.motif)}</div>
+        ${l.conseil ? `<div class="pr-droit-formalite">${icone('alert-triangle')} ${escapeHtml(l.conseil)}</div>` : ''}
+      </div></div>`;
   }
 
   function basculerPlansDpurBlois() {
@@ -392,7 +448,9 @@
       // l'analyse sur la fiche quand une question y reçoit sa réponse, sans relire le Géoportail.
       deduites: deduitesPreemption(etat.reponses, rep),
       lignes: lignes.map(l => ({ cle: l.cle, libelle: l.libelle, statut: l.statut, zone: l.zone, typezone: l.typezone, lue: l.lue, famille: l.famille, choisie: l.choisie, contenance: l.contenance })),
-      droits: analyse.droits.map(dr => ({ cle: dr.cle, titre: dr.titre, statut: dr.statut, motif: dr.motif, formalite: dr.formalite }))
+      droits: analyse.droits.map(dr => ({ cle: dr.cle, titre: dr.titre, statut: dr.statut, motif: dr.motif, formalite: dr.formalite })),
+      // Toujours un objet : « non lu » est une réponse (sinon la relecture automatique repartirait à chaque ouverture de la fiche).
+      patrimoine: patrimoinePreemption(etat) || { lu: false, servitudes: [] }
     };
   }
 
@@ -448,7 +506,15 @@
           <span class="dot-label ${CLASSES_STATUT_PREEMPTION[dr.statut] || 'dl-neutre'}"><span class="dot"></span>${escapeHtml(LIBELLES_STATUT_PREEMPTION[dr.statut] || dr.statut)}</span>
           <span class="pr-fiche-titre">${escapeHtml(dr.titre)}</span>
           <span class="hint">${escapeHtml(dr.statut === 'oui' ? dr.formalite : [dr.motif, dr.formalite].filter(Boolean).join(' — '))}</span>
-        </div>`).join('')}</div>
+        </div>`).join('')}
+        ${(() => {
+          const l = lignePatrimoinePreemption(p.patrimoine);
+          return l ? `<div class="pr-fiche-ligne">
+          <span class="dot-label ${CLASSES_PATRIMOINE[l.statut]}"><span class="dot"></span>${LIBELLES_PATRIMOINE[l.statut]}</span>
+          <span class="pr-fiche-titre">${escapeHtml(l.titre)}${infoBulle(AIDE_PATRIMOINE)}</span>
+          <span class="hint">${escapeHtml(l.motif)}${l.conseil ? ' — ' + escapeHtml(l.conseil) : ''}</span>
+        </div>` : '';
+        })()}</div>
       ${questions.length ? `<div class="pr-fiche-questions">${questions.map(q => `<div class="pr-question pr-question-due">
           <span class="pr-question-texte">${escapeHtml(q.libelle)}${q.aide ? infoBulle(q.aide) : ''}</span>
           ${boutonsReponsePreemption(v => `repondrePreemptionFiche('${escapeOnclickArg(d.id)}', '${q.cle}', ${JSON.stringify(v).replace(/"/g, '&quot;')})`, (p.reponses || {})[q.cle], q.valeurs)}

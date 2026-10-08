@@ -665,7 +665,15 @@ dans `index.html`** (le test `structure-client` refuse tout décalage).
   enregistré depuis l'outil) ; un droit à purger ajoute sa pièce (`appliquerPreemptionSurPieces`, aussi à « Enregistrer sur la
   fiche ») : « Réponse SAFER » (`perso-safer`, la même qu'Authentic), pour un lot de copropriété la pièce standard « Renonciation au droit de préemption », retenue par l'analyse (`retenir`, piecesAjoutees ; 07/10 : la seconde pièce « (DIA) » du 0.190.0 doublait la checklist, le scan/NAS/Authentic ne la cochaient pas — reprise par `migrerPieceDiaCopropriete`, au démarrage et à chaque analyse), droit de préférence / préemption bois et forêts — retirée si le droit tombe et qu'elle n'est
   pas reçue ; les questions restantes se répondent sur la fiche ; droits recalculés depuis `lignes` + réponses
-  (`droitsPreemptionFiche`, la liste `droits` gardée peut avoir été réunie par la fusion du serveur).
+  (`droitsPreemptionFiche`, la liste `droits` gardée peut avoir été réunie par la fusion du serveur). **Monuments historiques et
+  sites protégés** (étude 08/10 : « une information importante si les acquéreurs veulent faire des travaux », « affiche-la avec la
+  partie analyse ») : `/gpu/assiette-sup-s` de l'API Carto lu avec le zonage de chaque parcelle (`patrimoineDepuisSup`,
+  `server/src/urbanisme.js` : AC1 monuments historiques — abords, 500 m ou périmètre délimité —, AC2 sites inscrits/classés, AC4
+  sites patrimoniaux remarquables) → `d.preemption.patrimoine` `{ lu, servitudes }` (`patrimoinePreemption`) ; ligne « Monument
+  historique » / « Site protégé » de l'analyse (`lignePatrimoinePreemption` : « En zone protégée » + conseil d'accord de l'architecte
+  des bâtiments de France pour les travaux visibles, « Aucun publié », « À vérifier » si la couche n'a pas répondu) sur la fiche et
+  dans l'outil ; une commune qui n'a pas versé ses servitudes n'y figure pas — jamais « aucune protection » (info-bulle). Une
+  lecture automatique d'avant (sans `patrimoine`) est refaite une fois.
 - **Type de vente « Terre agricole / terrain non bâti »** (`terre`, étude 08/10 : « un nouveau type de vente : terrain ou terre ») à côté de maison, copropriété, terrain à bâtir : checklist = pièces d'urbanisme + ERP, taxe foncière, titre (`PIECES_TERRE_AUTRES`, ni diagnostics ni étude de sol) ; **« Réponse SAFER » d'office** (`ajouterPieceSaferTerre`, client/54 : à la création, au complément et au passage à ce type sur la fiche ; la pièce `perso-safer` d'Authentic et de l'analyse, jamais en double, jamais en participation ; hors `preemption.piecesAjoutees`, l'analyse ne la retire pas) ; droits de préemption lus comme un terrain nu, frais d'acte au barème « terrain », courrier « un terrain non bâti ».
 - **Mobilier** : le prix reste le prix total ; `d.prixMobilier` sort seulement de l'assiette des
   droits (frais d'acte, contrôle du barème).
