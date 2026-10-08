@@ -1616,7 +1616,12 @@
         }
         const montantTexte = l.memoire ? 'Mémoire' : montantVersTexteFr(l.montant || 0);
         const cellMontant = `<span class="af-champ" data-af-section="${section}" data-af-index="${i}" data-af-champ="montant">${escapeHtml(montantTexte)}</span>`;
-        const cellLibelle = `<td><span class="af-champ" data-af-section="${section}" data-af-index="${i}" data-af-champ="libelle">${escapeHtml(l.libelle)}</span>${badge}${l.formule ? `<span class="af-formule">${escapeHtml(l.formule)}</span>` : ''}</td>`;
+        // Flèches d'ordre (étude 08/10 : « faire remonter une ligne ou la descendre ») : hors du texte
+        // du courrier (contenteditable="false", jamais lues par le .docx qui ne prend que les .af-champ).
+        const n = afLignes[section].length;
+        const fleche = (sens, nom, titre, actif) => `<button type="button" class="af-ordre-btn" title="${titre}" aria-label="${titre}"${actif ? '' : ' disabled'} onclick="deplacerLigneAppelFonds('${section}', ${i}, ${sens})" ondblclick="event.stopPropagation()">${icone(nom)}</button>`;
+        const ordre = n > 1 ? `<span class="af-ordre" contenteditable="false">${fleche(-1, 'chevron-up', 'Remonter la ligne', i > 0)}${fleche(1, 'chevron-down', 'Descendre la ligne', i < n - 1)}</span>` : '';
+        const cellLibelle = `<td>${ordre}<span class="af-champ" data-af-section="${section}" data-af-index="${i}" data-af-champ="libelle">${escapeHtml(l.libelle)}</span>${badge}${l.formule ? `<span class="af-formule">${escapeHtml(l.formule)}</span>` : ''}</td>`;
         html += `<tr title="Double-cliquez pour supprimer cette ligne" ondblclick="supprimerLigneAppelFonds('${section}', ${i})">` + (section === 'debit'
           ? `${cellLibelle}<td class="af-montant"></td><td class="af-montant">${cellMontant}</td>`
           : `${cellLibelle}<td class="af-montant">${cellMontant}</td><td class="af-montant"></td>`) + '</tr>';
@@ -1701,6 +1706,27 @@
     if (!afLignes[section] || !afLignes[section][i]) return;
     afLignes[section].splice(i, 1);
     renderTableAppelFonds();
+  }
+
+  // Échange une ligne avec sa voisine (sens -1 = remonter, +1 = descendre) ; rend faux hors bornes.
+  function deplacerElementListe(liste, i, sens) {
+    const j = i + sens;
+    if (!Array.isArray(liste) || i < 0 || i >= liste.length || j < 0 || j >= liste.length) return false;
+    const el = liste[i];
+    liste[i] = liste[j];
+    liste[j] = el;
+    return true;
+  }
+
+  function deplacerLigneAppelFonds(section, i, sens) {
+    synchroniserDecompteDepuisApercu();
+    if (!deplacerElementListe(afLignes[section], i, sens)) return;
+    renderTableAppelFonds();
+    const tbody = afEl(section === 'debit' ? 'af-tbody-debit' : 'af-tbody-credit');
+    const bouton = tbody && tbody.querySelector(`.af-champ[data-af-index="${i + sens}"]`);
+    const tr = bouton && bouton.closest('tr');
+    const cible = tr && tr.querySelector(`.af-ordre-btn:${sens < 0 ? 'first-child' : 'last-child'}:not([disabled])`);
+    if (cible) cible.focus();
   }
 
   // --- report du formulaire vers le courrier ---------------------------------------------------

@@ -5034,6 +5034,17 @@ table.af-table .af-verif-ecart { background: #f6e3c9; color: #8a5417; }
   border: 1px dashed #c9c9c9; border-radius: 6px; padding: 4px 9px; cursor: pointer;
 }
 .af-ajout-ligne:hover { color: #6d2332; border-color: #6d2332; }
+/* Flèches d'ordre d'une ligne du décompte : à droite du libellé, montrées au survol de la ligne
+   (toujours sur un écran tactile) ; jamais dans le .docx. */
+.af-ordre { float: right; display: inline-flex; gap: 2px; margin-left: 6px; opacity: 0; transition: opacity 0.12s; }
+table.af-table tr:hover .af-ordre, table.af-table tr:focus-within .af-ordre { opacity: 1; }
+@media (hover: none) { .af-ordre { opacity: 1; } }
+.af-ordre-btn {
+  display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; padding: 0;
+  background: #fff; border: 1px solid #c9c9c9; border-radius: 4px; color: #6b6250; cursor: pointer; font-size: 12px;
+}
+.af-ordre-btn:hover:not([disabled]) { color: #6d2332; border-color: #6d2332; }
+.af-ordre-btn[disabled] { opacity: 0.35; cursor: default; }
 
 @media (max-width: 640px) {
   .af-lettre { padding: 22px 16px 26px; }

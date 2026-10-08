@@ -240,3 +240,18 @@ test('type de vente « Terre agricole / terrain non bâti » : pièces d’urban
 test('Nouveau dossier : aucune entrée choisie au départ (avec ou sans PDF)', () => {
   assert.ok(/let modeImport = '';/.test(require('fs').readFileSync(require('path').join(__dirname, '..', 'client', '51-nouveau-dossier-depuis-authentic.js'), 'utf8')));
 });
+
+test('appel de fonds : une ligne du décompte se remonte ou se descend (flèches hors du texte du courrier)', () => {
+  const liste = ['Prix', 'Frais', 'Taxe foncière'];
+  assert.strictEqual(app.deplacerElementListe(liste, 2, -1), true);
+  assert.strictEqual(liste.join('|'), 'Prix|Taxe foncière|Frais');
+  assert.strictEqual(app.deplacerElementListe(liste, 0, 1), true);
+  assert.strictEqual(liste.join('|'), 'Taxe foncière|Prix|Frais');
+  assert.strictEqual(app.deplacerElementListe(liste, 0, -1), false);
+  assert.strictEqual(app.deplacerElementListe(liste, 2, 1), false);
+  assert.strictEqual(liste.join('|'), 'Taxe foncière|Prix|Frais');
+  const fs = require('node:fs');
+  const src = fs.readFileSync(require('node:path').join(__dirname, '..', 'client', '40-generateur-appel-fonds.js'), 'utf8');
+  assert.match(src, /class="af-ordre" contenteditable="false"/);
+  assert.match(src, /ondblclick="event\.stopPropagation\(\)"/);
+});

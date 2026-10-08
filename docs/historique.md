@@ -18400,3 +18400,14 @@ Valeur `terre` : `PIECES_TERRE_AUTRES` (commun/pieces.js), `ajouterPieceSaferTer
 type sur la fiche), options de la création et de la fiche, libellés (historique, sondage, panneau Vérifier, Authentic), courrier
 d'appel de fonds « un terrain non bâti », barème des frais « land », droits de préemption lus comme un terrain nu (`bien: 'terrain'`).
 Restent sans type propre : la grille de relecture d'actes (maison / copropriété / terrain à bâtir) et l'outil Quotités.
+
+### 08/10/2026 13 h 28 — Appel de fonds : remonter ou descendre une ligne du décompte (0.193.0)
+
+Étude : « pour l'appel de fonds permettre de faire remonter une ligne ou la descendre pour ordonner les lignes ».
+Deux flèches (chevron haut / bas, jeu `ICONES`) dans la cellule du libellé de chaque ligne du débit et du crédit, montrées
+au survol ou au focus de la ligne, toujours sur écran tactile ; grisées en tête et en fin de liste ; absentes s'il n'y a
+qu'une ligne. `deplacerLigneAppelFonds(section, i, sens)` relit d'abord l'aperçu (`synchroniserDecompteDepuisApercu`,
+comme l'ajout et la suppression), échange avec la voisine (`deplacerElementListe`, pure, testée), redessine et garde le
+focus sur la flèche. Les flèches sont en `contenteditable="false"` et hors des `.af-champ` : le .docx (`donneesCourrierAppelFonds`)
+ne les lit pas — vérifié dans Chromium, l'ordre du .docx suit. `ondblclick` arrêté sur la flèche : le double-clic d'une
+ligne la supprime, deux clics rapides sur une flèche ne doivent pas. L'historique des courriers garde `afLignes`, donc l'ordre.
