@@ -54,3 +54,21 @@ test('tailleLisible et limite de 21 Mo', () => {
   assert.equal(app.tailleLisible(850 * 1024), '850 Ko');
   assert.equal(app.LIMITE_PIECES_JOINTES_OCTETS, 21 * 1024 * 1024);
 });
+
+test('email de l’étude (08/10) mot pour mot quand la copie et l’attestation sont jointes', () => {
+  assert.equal(app.construireEmailCopieActe(DOSSIER, ['copie', 'attestation'], false).corps,
+    'Bonjour,\n\nVeuillez trouver ci-joint la copie de l’acte et l’attestation de vente de la vente signée le 28 septembre 2026.\n\nVous en souhaitant bonne réception.\n\nBien cordialement,');
+});
+
+test('fausses minutes : un sous-dossier au nom du dossier propose tous ses PDF (copie et attestation)', () => {
+  const fichiers = [
+    { chemin: '2026/VTE MARTEL FOURNIER/Copie.pdf', nom: 'Copie.pdf', taille: 3e6, modifie: '2026-09-29T10:00:00Z' },
+    { chemin: '2026/VTE MARTEL FOURNIER/Attestation.pdf', nom: 'Attestation.pdf', taille: 2e5, modifie: '2026-09-29T11:00:00Z' },
+    { chemin: '2026/VTE BERNARD PETIT/Copie.pdf', nom: 'Copie.pdf', taille: 3e6, modifie: '2026-09-29T10:00:00Z' }
+  ];
+  const r = app.faussesMinutesPourDossier(fichiers, DOSSIER);
+  assert.equal(r.map(f => `${f.chemin}:${f.score}:${f.type}`).join(' | '),
+    '2026/VTE MARTEL FOURNIER/Attestation.pdf:2:attestation | 2026/VTE MARTEL FOURNIER/Copie.pdf:2:copie');
+  assert.equal(app.dossierFausseMinute('2026/VTE MARTEL FOURNIER/Copie.pdf'), '2026/VTE MARTEL FOURNIER');
+  assert.equal(app.dossierFausseMinute('Copie.pdf'), '');
+});

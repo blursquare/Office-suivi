@@ -51,8 +51,11 @@
     return !!(d && e && e.signature && !d.archive && d.rendezVousSignature === e.date);
   }
 
-  function ouvrirModificationAgenda(cle) {
+  async function ouvrirModificationAgenda(cle) {
     const e = agendaEvenements.find(x => cleEvenementAgenda(x) === cle);
+    if (!e) return;
+    // Connexion pas encore connue de ce poste : relue avant de refuser (voir chargerReglagesExchange).
+    if (!exchangeAgendaPret()) await chargerReglagesExchange();
     if (!evenementModifiableAgenda(e)) return;
     if (!exchangeAgendaPret()) { afficherToast('Connexion à l’agenda Outlook à activer dans les Réglages pour modifier un rendez-vous.', 'OK', null); return; }
     agendaModale = { type: 'modification', cle };

@@ -18370,3 +18370,19 @@ resteRappels, faits)` (pure) — la fête attend aussi mes tâches du jour, pas 
 nombre de tâches faites ; `feteJourAAnimer` garde les confettis 2 s (la carte se redessine souvent, l'animation était coupée) ;
 le message « Journée bouclée. » sous le titre est retiré quand le bandeau est là (doublon). Vérifié dans Chromium (bandeau, liste
 barrée, anneau coché). Test dans `tests/audit-coherence.test.js`.
+
+### 08/10 10 h 21 — 0.191.15 : connexion Exchange relue, copie de l'acte
+
+Étude : « je ne peux plus envoyer d'email depuis CLAIRE » (copie de l'acte et questionnaire ouverts dans Outlook), « je ne peux plus
+modifier les noms de rendez-vous dans l'agenda », « ni déplacer / modifier les horaires en étendant le rendez-vous ». Code d'envoi et
+d'agenda inchangés depuis la veille ; cause commune : `exchangeReglages` lu une fois au démarrage (`chargerReglagesExchange`), une
+lecture manquée (serveur qui redémarre après la mise à jour automatique, réponse non 200) laissait le poste « sans Exchange » jusqu'au
+F5 — fenêtre d'email sans « Envoyer », pas de crayon (`evenementModifiableAgenda`), pas de `data-glissable`. Rejoué dans Chromium (première
+lecture en 503 : `exchangeAgendaPret()` faux pour toujours avant, vrai 15 s après maintenant). Corrections : nouvel essai 15 s après un
+échec, relecture toutes les 5 min, relecture avant `ouvrirModificationAgenda` et à l'ouverture de la fenêtre d'email (« Envoyer »
+apparaît dès qu'elle arrive), grille redessinée quand l'état change. Non prouvé que ce soit la cause au bureau (aucun accès au poste) ;
+si le problème reste après la mise à jour, regarder Réglages › Agenda et Outlook (connexion active, mot de passe enregistré) et
+Réglages › Général (mode d'email du poste : « mailto » ouvre Outlook directement).
+Copie de l'acte : texte de l'étude mot pour mot (« Vous en souhaitant bonne réception. » remplace « Nous restons à votre
+disposition… », fonction et modèle) ; fausses minutes retrouvées aussi par le nom du sous-dossier qui contient les PDF (« VTE MARTEL
+FOURNIER/Copie.pdf »), dossier affiché sur chaque ligne, recherche sur le chemin.

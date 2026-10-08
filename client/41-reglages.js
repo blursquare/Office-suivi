@@ -673,12 +673,20 @@
     });
   }
 
+  // Lecture manquée (serveur qui redémarre après une mise à jour automatique, 07/10 au soir : « je ne peux plus envoyer d'email
+  // depuis CLAIRE », « je ne peux plus modifier les noms de rendez-vous ») : le poste se croyait sans connexion Exchange jusqu'au
+  // F5 — plus de « Envoyer », plus de crayon dans l'agenda. Un nouvel essai 15 s plus tard, jusqu'à la réussite.
+  var nouvelEssaiReglagesExchange = null;
   async function chargerReglagesExchange() {
     try {
       const reponse = await fetchAvecAuth('/api/exchange/reglages');
+      if (!reponse.ok) throw new Error('statut ' + reponse.status);
       const corps = await reponse.json();
+      const avant = exchangeAgendaPret();
       exchangeReglages = corps || { actif: false };
       renderBoutonsCreationAgenda();
+      // La grille de l'agenda dessinée avant (crayon, glisser, étirer un rendez-vous) suit tout de suite.
+      if (avant !== exchangeAgendaPret()) renderPageAgenda();
       // Ne remplir les champs que si l'écran Réglages est présent (chargé aussi au démarrage, où il
       // ne l'est peut-être pas encore) et hors saisie en cours.
       const actif = document.getElementById('exchange-actif');
@@ -706,7 +714,8 @@
           : 'Un mot de passe erroné compte comme une tentative échouée. CLAIRE ne réessaie jamais toute seule.');
       }
     } catch (e) {
-      // Session expirée : déjà géré par fetchAvecAuth.
+      // Session expirée : déjà géré par fetchAvecAuth. Sinon, nouvel essai (voir plus haut).
+      if (!nouvelEssaiReglagesExchange) nouvelEssaiReglagesExchange = setTimeout(() => { nouvelEssaiReglagesExchange = null; chargerReglagesExchange(); }, 15000);
     }
   }
 

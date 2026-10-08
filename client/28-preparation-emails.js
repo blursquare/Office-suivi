@@ -604,6 +604,8 @@
         boutons: o.boutons || null, confrere: !!o.confrere, responsableSignature: o.responsableSignature || '',
         reponseA: o.reponseA || '', email: o.email || null, proposition: null, envoi: false, erreur: ''
       };
+      // Connexion Exchange pas encore connue de ce poste : relue, « Envoyer » apparaît dès qu'elle l'est.
+      if (!envoiDirectPossible() && typeof chargerReglagesExchange === 'function') chargerReglagesExchange().then(() => { if (redaction) renderRedaction(); }).catch(() => {});
       if (redaction.mode === 'nouveau') {
         const overlay = document.getElementById('email-redaction-overlay');
         if (overlay) overlay.style.display = 'flex';
@@ -1480,7 +1482,7 @@
           '{si lien}{si rendez-vous}Le fichier étant trop volumineux pour être joint à cet email, vous pouvez télécharger {documents envoyés} de la vente signée le {date de signature} à l’adresse suivante :',
           '{si lien}{si sans rendez-vous}Le fichier étant trop volumineux pour être joint à cet email, vous pouvez télécharger {documents envoyés} à l’adresse suivante :',
           '{si lien}[lien WeTransfer à coller ici]', '{si lien}Ce lien reste actif quelques jours : pensez à enregistrer le document.',
-          'Nous restons à votre disposition pour toute question.', 'Bien cordialement,'].join('\n\n') },
+          'Vous en souhaitant bonne réception.', 'Bien cordialement,'].join('\n\n') },
       { cle: 'visio', nom: 'Lien de la visioconférence (au client)', contexte: true, sansObjet: true, construire: (d, c) => ({ sujet: '', corps: corpsEmailVisio(c.args) }),
         sujet: '',
         corps: ['Bonjour,', 'Votre {objet du rendez-vous} du {date et heure} se tiendra en visioconférence.',

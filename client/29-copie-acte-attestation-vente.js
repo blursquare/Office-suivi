@@ -33,20 +33,28 @@
     return { vendeur: [...cote(v, 'VENDEUR')], acquereur: [...cote(a, 'ACQUEREUR')] };
   }
 
-  // Pure : les PDF des fausses minutes qui portent un nom du dossier, les plus sûrs d'abord (les deux côtés
-  // nommés, puis le plus récent). Une fausse minute antérieure de plus de 7 jours au rendez-vous de signature
+  // Pure : le dossier qui contient une fausse minute (« 2026/VTE MARTEL FOURNIER »), '' à la racine.
+  function dossierFausseMinute(chemin) {
+    const parts = String(chemin || '').split('/');
+    return parts.slice(0, -1).join('/');
+  }
+
+  // Pure : les PDF des fausses minutes qui portent un nom du dossier — dans leur NOM ou dans celui du DOSSIER qui les
+  // contient (étude 08/10 : « retrouver le PDF ou le dossier qui contient les PDF, attestation et copie d'acte » : un
+  // sous-dossier « VTE MARTEL FOURNIER » avec « Copie.pdf » et « Attestation.pdf ») —, les plus sûrs d'abord (les deux
+  // côtés nommés, puis le plus récent). Une fausse minute antérieure de plus de 7 jours au rendez-vous de signature
   // est celle d'un autre acte des mêmes clients : écartée.
   function faussesMinutesPourDossier(fichiers, d) {
     const noms = nomsDossierFaussesMinutes(d);
     const depuis = d && d.rendezVousSignature ? addDays(String(d.rendezVousSignature).slice(0, 10), -7) : '';
     return (fichiers || []).map(f => {
-      const n = ' ' + normaliserPourRecherche(String(f.nom || '')).replace(/[^a-z0-9]+/g, ' ') + ' ';
+      const n = ' ' + normaliserPourRecherche(String(f.chemin || f.nom || '').replace(/\.pdf$/i, '')).replace(/[^a-z0-9]+/g, ' ') + ' ';
       const a = (liste) => liste.some(m => n.includes(' ' + m + ' '));
       const score = (a(noms.vendeur) ? 1 : 0) + (a(noms.acquereur) ? 1 : 0);
       return Object.assign({}, f, { score, type: typeFausseMinute(f.nom) });
     }).filter(f => f.score > 0 && (!depuis || String(f.modifie || '').slice(0, 10) >= depuis))
       .sort((x, y) => y.score - x.score || String(y.modifie || '').localeCompare(String(x.modifie || '')))
-      .slice(0, 12);
+      .slice(0, 20);
   }
 
   // Pure : « 3,4 Mo » / « 850 Ko ».
@@ -70,7 +78,9 @@
     } else {
       corps.push(`Veuillez trouver ci-joint ${quoi}${vente}.`);
     }
-    corps.push('Nous restons à votre disposition pour toute question.', 'Bien cordialement,');
+    // Texte de l'étude (08/10), mot pour mot : « Veuillez trouver ci-joint la copie de l’acte et l’attestation de vente de la vente
+    // signée le DATE. / Vous en souhaitant bonne réception. / Bien cordialement, ».
+    corps.push('Vous en souhaitant bonne réception.', 'Bien cordialement,');
     return { sujet: `${Quoi} — ${libelleDossierAffiche(d)}`, corps: corps.join('\n\n') };
   }
 
@@ -158,7 +168,7 @@
   function fichiersVisiblesCopieActe() {
     const q = normaliserPourRecherche(envoiCopieActe.recherche).trim();
     if (!q) return envoiCopieActe.fichiers;
-    return envoiCopieActe.tous.filter(f => normaliserPourRecherche(f.nom).includes(q))
+    return envoiCopieActe.tous.filter(f => normaliserPourRecherche(f.chemin || f.nom).includes(q))
       .sort((x, y) => String(y.modifie || '').localeCompare(String(x.modifie || ''))).slice(0, 30)
       .map(f => Object.assign({ type: typeFausseMinute(f.nom) }, f));
   }
@@ -179,14 +189,14 @@
       : visibles.length ? visibles.map(f => `<label class="copie-acte-fichier">
             <input type="checkbox" ${envoiCopieActe.choisis.has(f.chemin) ? 'checked' : ''} onchange="basculerFichierCopieActe('${escapeOnclickArg(f.chemin)}')">
             <span class="copie-acte-nom">${escapeHtml(f.nom)}</span>
-            <span class="copie-acte-meta">${f.type === 'attestation' ? 'Attestation' : 'Copie de l’acte'} · ${tailleLisible(f.taille)}${f.modifie ? ' · ' + formatDateFr(String(f.modifie).slice(0, 10)) : ''}</span>
+            <span class="copie-acte-meta">${dossierFausseMinute(f.chemin) ? `${icone('folder')} ${escapeHtml(dossierFausseMinute(f.chemin))} · ` : ''}${f.type === 'attestation' ? 'Attestation' : 'Copie de l’acte'} · ${tailleLisible(f.taille)}${f.modifie ? ' · ' + formatDateFr(String(f.modifie).slice(0, 10)) : ''}</span>
             <wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-btn" onclick="event.preventDefault(); ouvrirFausseMinute('${escapeOnclickArg(f.chemin)}')" title="Ouvrir" aria-label="Ouvrir ${escapeAttr(f.nom)}">${icone('eye')}</wa-button>
           </label>`).join('')
-      : `<p class="nas-choix-vide">${envoiCopieActe.recherche ? 'Aucun PDF à ce nom.' : 'Aucune fausse minute au nom du dossier : cherchez-la ci-dessus.'}</p>`;
+      : `<p class="nas-choix-vide">${envoiCopieActe.recherche ? 'Aucun PDF à ce nom.' : 'Aucun PDF ni dossier au nom du dossier : cherchez-le ci-dessus.'}</p>`;
     zone.innerHTML = `
-      <p class="copie-acte-titre">${escapeHtml(libelleDossierAffiche(d))} ${infoBulle('PDF du dossier « Fausses minutes » portant un nom du dossier. Moins de 21 Mo au total : joints à l’email. Au-delà : CLAIRE ouvre WeTransfer et télécharge les PDF pour les y déposer, l’email est préparé avec la place du lien.')}</p>
+      <p class="copie-acte-titre">${escapeHtml(libelleDossierAffiche(d))} ${infoBulle('PDF du dossier « Fausses minutes » dont le nom, ou celui du sous-dossier qui les contient, porte un nom du dossier. Moins de 21 Mo au total : joints à l’email. Au-delà : CLAIRE ouvre WeTransfer et télécharge les PDF pour les y déposer, l’email est préparé avec la place du lien.')}</p>
       <p class="hint">À : ${escapeHtml(dest || '—')}</p>
-      <input type="search" id="copie-acte-recherche" class="authentic-choix-recherche" placeholder="Chercher dans les fausses minutes" autocomplete="off" value="${escapeAttr(envoiCopieActe.recherche)}" oninput="rechercherCopieActe(this.value)" ${envoiCopieActe.etat === 'pret' ? '' : 'style="display:none;"'}>
+      <input type="search" id="copie-acte-recherche" class="authentic-choix-recherche" placeholder="Chercher un PDF ou un dossier dans les fausses minutes" autocomplete="off" value="${escapeAttr(envoiCopieActe.recherche)}" oninput="rechercherCopieActe(this.value)" ${envoiCopieActe.etat === 'pret' ? '' : 'style="display:none;"'}>
       <div class="nas-choix-liste copie-acte-liste">${liste}</div>
       ${choisis.length ? `<p class="copie-acte-total"><span class="dot-label ${lourd ? 'dl-pret' : 'dl-success'}"><span class="dot"></span>${choisis.length} fichier${choisis.length > 1 ? 's' : ''} · ${tailleLisible(total)}</span>${lourd ? ' <span class="hint">Plus de 21 Mo : lien WeTransfer</span>' : ''}</p>` : ''}
       <div class="confirm-actions">

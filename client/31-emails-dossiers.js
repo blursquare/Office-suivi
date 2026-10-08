@@ -1243,6 +1243,8 @@
     // bouton « Créer dans l'agenda » doit apparaître, sans attendre l'ouverture des Réglages.
     // Une fois connue, retente les retraits/déplacements de dates butoir restés en attente.
     chargerReglagesExchange().then(reconcilierEcheancesAgenda);
+    // Relue toutes les 5 minutes : une connexion réglée ou réactivée depuis un autre poste arrive ici sans F5.
+    setInterval(() => { chargerReglagesExchange().catch(() => {}); }, 5 * 60 * 1000);
     chargerModelesEmails();
     // Scans du copieur (voir chargerScans) : dès que les dossiers sont chargés, en tâche de fond —
     // sans attendre l'état du NAS ni les autres lectures du démarrage.
