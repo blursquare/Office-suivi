@@ -45,7 +45,8 @@ test('envoiAgendaARattraper : un envoi validé sans note dans Outlook (décompte
   assert.equal(app.envoiAgendaARattraper(sansNote, jour), true);
   // Déjà dans le lieu relevé, déjà noté par CLAIRE, ou refusé (reste affiché sur la fiche) : rien.
   assert.equal(app.envoiAgendaARattraper(Object.assign({}, sansNote, { rendezVousSignatureLieu: 'BA - Appel de fonds envoyé' }), jour), false);
-  assert.equal(app.envoiAgendaARattraper(Object.assign({}, sansNote, { agendaLieuNoteLe: '2026-10-05T10:00:00Z' }), jour), false);
+  assert.equal(app.envoiAgendaARattraper(Object.assign({}, sansNote, { agendaLieuNoteLe: '2026-10-05T10:00:00Z', agendaLieuNoteEnvois: { appelFonds: true, projet: false } }), jour), false);
+  assert.equal(app.envoiAgendaARattraper(Object.assign({}, sansNote, { agendaLieuNoteLe: '2026-10-05T10:00:00Z', rendezVousSignatureLieu: '' }), jour), false);
   assert.equal(app.envoiAgendaARattraper(Object.assign({}, sansNote, { agendaLieuEchec: { le: '2026-10-05T10:00:00Z', message: 'Aucun rendez-vous' } }), jour), false);
   // Rendez-vous passé, sans rendez-vous, archivé, ou aucun envoi validé : rien.
   assert.equal(app.envoiAgendaARattraper(Object.assign({}, sansNote, { rendezVousSignature: '2026-10-01' }), jour), false);
@@ -65,4 +66,21 @@ test('validerEcheance : appel de fonds ou projet marqué fait à la main → not
   app.validerEcheance('dx', 'projetEnvoye');
   app.validerEcheance('dx', 'pret');
   assert.deepEqual(appels, [['dx', true], ['dx', true]]);
+});
+
+test('envoiAgendaARattraper : appel de fonds noté, puis projet envoyé — la mention est complétée (étude 08/10)', () => {
+  const app = chargerApplication();
+  const jour = '2026-10-05';
+  const noteAf = base({ rendezVousSignatureLieu: '', agendaLieuNoteLe: '2026-10-01T10:00:00Z', agendaLieuNoteEnvois: { appelFonds: true, projet: false } });
+  assert.equal(app.noteAgendaCouvreEnvois(noteAf), false);
+  assert.equal(app.envoiAgendaARattraper(noteAf, jour), true);
+  // Note complète : rien.
+  assert.equal(app.envoiAgendaARattraper(Object.assign({}, noteAf, { agendaLieuNoteEnvois: { appelFonds: true, projet: true } }), jour), false);
+  // Note d'avant ce relevé : le lieu lu dans l'agenda tranche.
+  assert.equal(app.envoiAgendaARattraper(base({ agendaLieuNoteLe: '2026-10-01T10:00:00Z', rendezVousSignatureLieu: 'BA - Appel de fonds envoyé' }), jour), true);
+  assert.equal(app.envoiAgendaARattraper(base({ agendaLieuNoteLe: '2026-10-01T10:00:00Z', rendezVousSignatureLieu: 'BA - Appel de fonds et projet envoyé' }), jour), false);
+  // Refus pour l'appel de fonds seul : le projet envoyé ensuite est retenté ; refus déjà pour les deux : rien.
+  const refus = (envois) => base({ rendezVousSignatureLieu: '', agendaLieuEchec: { le: '2026-10-01T10:00:00Z', message: 'Aucun rendez-vous', envois } });
+  assert.equal(app.envoiAgendaARattraper(refus({ appelFonds: true, projet: false }), jour), true);
+  assert.equal(app.envoiAgendaARattraper(refus({ appelFonds: true, projet: true }), jour), false);
 });

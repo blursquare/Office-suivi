@@ -995,8 +995,9 @@
     const sousHtml = echec
       ? `<span class="dot-label dl-alerte" title="${escapeAttr(d.agendaLieuEchec.message)}">Non noté le ${formatDateFr(String(d.agendaLieuEchec.le || '').slice(0, 10))} : ${escapeHtml(d.agendaLieuEchec.message)}</span>`
       : dejaPresente ? `Déjà dans l’agenda : « ${escapeHtml(d.rendezVousSignatureLieu)} »`
-      : (d.agendaLieuNoteLe ? `Noté le ${formatDateFr(d.agendaLieuNoteLe.slice(0, 10))}, dans le lieu du rendez-vous` : 'Écrit dans le lieu du rendez-vous de signature, après les initiales');
-    const faite = dejaPresente || (!!d.agendaLieuNoteLe && !echec);
+      : (d.agendaLieuNoteLe && !noteAgendaCouvreEnvois(d) ? `Noté le ${formatDateFr(d.agendaLieuNoteLe.slice(0, 10))} sans tout dire : « ${escapeHtml(mention)} » à écrire`
+      : d.agendaLieuNoteLe ? `Noté le ${formatDateFr(d.agendaLieuNoteLe.slice(0, 10))}, dans le lieu du rendez-vous` : 'Écrit dans le lieu du rendez-vous de signature, après les initiales');
+    const faite = dejaPresente || (noteAgendaCouvreEnvois(d) && !echec);
     return renderLigneAction({
       categorie: 'rendezVousSignature', categorieLabel: 'Agenda de l’office',
       titre: `Noter dans l’agenda : ${mention}`, sousHtml, faite, gravite: echec ? 'critique' : '',
@@ -1105,7 +1106,7 @@
         // Identifiant de l'événement : pour le retirer ou le déplacer quand la date change dans CLAIRE.
         d.rdvAgendaItem = corps.itemId ? { itemId: corps.itemId, changeKey: corps.changeKey || '', date: d.rendezVousSignature } : null;
         // L'envoi déjà fait est écrit dans le lieu dès la création : rien à noter ensuite.
-        if (mention) { d.agendaLieuNoteLe = d.rdvAgendaCreeLe; d.agendaLieuEchec = null; }
+        if (mention) { d.agendaLieuNoteLe = d.rdvAgendaCreeLe; d.agendaLieuNoteEnvois = envoisValidesAgenda(d); d.agendaLieuEchec = null; }
         ajouterHistorique(d, `Rendez-vous de signature créé dans l'agenda Outlook (${formatDateFr(d.rendezVousSignature)} à ${heure}, ${TYPES_RDV[typeRdv].libelle.toLowerCase()}${lieu ? `, lieu « ${lieu} »` : ''}).`);
         sauvegarder(d);
         rdvAgendaOuvert = false;
@@ -1137,6 +1138,7 @@
         d.rdvAgendaItem = null;
         d.rdvAgendaCreeLe = null;
         d.agendaLieuNoteLe = null;
+        d.agendaLieuNoteEnvois = null;
         d.agendaLieuEchec = null;
         if (!corps.introuvable) ajouterHistorique(d, `Rendez-vous de signature du ${formatDateFr(ancienneDate)} retiré de l'agenda Outlook de l'office.`);
         sauvegarder(d);
@@ -1218,6 +1220,7 @@
       const corps = await reponse.json();
       if (corps.ok) {
         d.agendaLieuNoteLe = new Date().toISOString();
+        d.agendaLieuNoteEnvois = { appelFonds: af, projet: pj };
         d.agendaLieuEchec = null;
         const libelle = (af && pj) ? 'appel de fonds et projet envoyé' : af ? 'appel de fonds envoyé' : 'projet envoyé';
         ajouterHistorique(d, `Mention « ${libelle} » notée dans l'agenda Outlook${auto ? ' (automatique)' : ''}.`);
@@ -1240,8 +1243,32 @@
     if (!d || d.archive || estSuccession(d)) return false;
     if (!/^\d{4}-\d{2}-\d{2}$/.test(String(d.rendezVousSignature || '')) || d.rendezVousSignature < aujourdhui) return false;
     if (!echeanceValidee(d, 'appelFonds') && !echeanceValidee(d, 'projetEnvoye')) return false;
-    if (d.agendaLieuNoteLe || (d.agendaLieuEchec && d.agendaLieuEchec.message)) return false;
+    if (noteAgendaCouvreEnvois(d)) return false;
+    // Un refus reste affiché sur la fiche (« Réessayer ») ; un envoi validé APRÈS ce refus est retenté une fois.
+    const echec = d.agendaLieuEchec;
+    if (echec && echec.message && (!echec.envois || envoisCouverts(d, echec.envois))) return false;
     return !mentionDejaDansAgenda(d);
+  }
+
+  // Pure : envois validés aujourd'hui sur le dossier (ce que la mention du lieu doit dire).
+  function envoisValidesAgenda(d) {
+    return { appelFonds: echeanceValidee(d, 'appelFonds'), projet: echeanceValidee(d, 'projetEnvoye') };
+  }
+
+  // Pure : la mention notée (ou tentée) couvre-t-elle tous les envois validés ?
+  function envoisCouverts(d, envois) {
+    const v = envoisValidesAgenda(d);
+    return (!v.appelFonds || !!(envois && envois.appelFonds)) && (!v.projet || !!(envois && envois.projet));
+  }
+
+  // Pure : la note déjà écrite par CLAIRE dit-elle tout ? (étude 08/10 : appel de fonds noté, puis projet envoyé jamais ajouté —
+  // la note de l'appel de fonds suffisait à arrêter le rattrapage.) Note d'avant ce relevé : le lieu lu dans l'agenda tranche.
+  function noteAgendaCouvreEnvois(d) {
+    if (!d || !d.agendaLieuNoteLe) return false;
+    if (d.agendaLieuNoteEnvois && typeof d.agendaLieuNoteEnvois === 'object') return envoisCouverts(d, d.agendaLieuNoteEnvois);
+    const rep = d.detectionsAgenda || {};
+    if (d.rendezVousSignatureLieu && rep.rendezVousSignature === d.rendezVousSignature) return mentionDejaDansAgenda(d);
+    return true;
   }
 
   // Une tentative par dossier et par session, espacées (un seul essai par appel : verrouillage du compte), jamais de toast d'échec.
@@ -1260,7 +1287,7 @@
   // Un échec (automatique ou non) est gardé sur le dossier et affiché sur la carte « Envoi au
   // client », avec un toast : l'ancien mode silencieux laissait croire la mention écrite.
   function signalerEchecNoteAgenda(d, message, silencieux) {
-    d.agendaLieuEchec = { le: new Date().toISOString(), message };
+    d.agendaLieuEchec = { le: new Date().toISOString(), message, envois: envoisValidesAgenda(d) };
     sauvegarder(d);
     render();
     if (silencieux) return;
@@ -1800,6 +1827,7 @@
       const corps = await reponse.json();
       if (corps.ok) {
         d.agendaLieuNoteLe = null;
+        d.agendaLieuNoteEnvois = null;
         d.agendaLieuEchec = null;
         ajouterHistorique(d, 'Mention d’envoi retirée du lieu du rendez-vous dans l’agenda Outlook (envoi décoché).');
         sauvegarder(d);

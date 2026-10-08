@@ -606,6 +606,20 @@
     } else {
       const nom = String(valeur || '').replace(/\s+/g, ' ').trim().slice(0, 160);
       const avant = [p.prenom, p.nom].map(x => String(x || '').trim()).filter(Boolean).join(' ');
+      // Ligne ajoutée puis laissée vide (« + Personne » / « + Société » cliqué par erreur, étude 08/10) : retirée, rien à garder.
+      // Différé : le clic sur la civilité de la même ligne ne la retire pas (le nom y reprend le focus).
+      if (!nom && !avant) {
+        setTimeout(() => {
+          const champ = document.getElementById(`pers-${d.id}-${index}`);
+          const ligne = champ && champ.closest('.personne-ligne');
+          if (ligne && ligne.contains(document.activeElement)) return;
+          if (d.parties[index] !== p || String(p.nom || '').trim() || String(p.prenom || '').trim()) return;
+          d.parties.splice(index, 1);
+          sauvegarder(d);
+          render();
+        }, 150);
+        return;
+      }
       if (nom === avant) return;
       if (!nom) { afficherToast('Le nom ne peut pas être vide.', 'OK', null); render(); return; }
       p.nom = nom;
@@ -616,6 +630,11 @@
     }
     sauvegarder(d);
     render();
+    // Civilité choisie avant le nom : le nom reprend la main (et sa sortie à vide retire la ligne).
+    if (champ === 'civilite' && !String(p.nom || '').trim()) {
+      const champNom = document.getElementById(`pers-${d.id}-${index}`);
+      if (champNom) champNom.focus();
+    }
   }
 
   function ajouterPersonneDossier(id, cote, societe) {

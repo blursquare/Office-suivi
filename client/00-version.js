@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.195.3';
+  const VERSION_APP = '0.195.4';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+  { version: '0.195.4', date: '2026-10-08 17:12', resume: "Agenda Outlook : « projet envoyé » ajouté au lieu du rendez-vous même quand l'appel de fonds y était déjà noté (la première note arrêtait le rattrapage). Fiche : une ligne « + Personne » / « + Société » laissée vide est retirée." },
     { version: '0.195.3', date: '2026-10-08 15:34', resume: "Relecture d'actes : compte rendu à l'écran repensé — « À régler avant la signature » en tête (points critiques, un clic mène au point), puis une carte par catégorie avec son icône, sa couleur, ses compteurs et une barre d'avancement ; les catégories qui ont une alerte passent devant, les points validés se replient. L'impression A4 ne change pas." },
     { version: '0.195.2', date: '2026-10-08 15:16', resume: "Fenêtre d'email : avec beaucoup de pièces jointes, leur liste défile dans sa propre zone (trois rangées) au lieu de déborder de la fenêtre et de pousser « Envoyer » hors de l'écran." },
     { version: '0.195.1', date: '2026-10-08 15:13', resume: "Email du projet d'acte au confrère : texte de l'étude (« Mon Cher Maître, Veuillez trouver ci-joint le projet de l'acte de vente en prévision du rendez-vous du … Vous en souhaitant bonne réception. Votre bien dévoué. ») ; modifiable dans Réglages › Modèles d'emails (« Projet d'acte (au confrère) »)." },

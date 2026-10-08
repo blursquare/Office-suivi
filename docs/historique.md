@@ -18477,3 +18477,16 @@ Après (écran seulement, l'impression A4 est inchangée) :
 - Les tuiles de thèmes de l'écran sont retirées (les cartes les remplacent ; `allerSectionRelecture` mène toujours à la carte).
   Le plan rend aussi `tousValides` (tous les points validés par thème, sans le budget du quart de page du papier).
 Vérifié dans Chromium avec une relecture inventée (bureau 1440 px et téléphone 390 px, aucune erreur de page).
+
+### 08/10/2026 17 h 12 — 0.195.4 : « projet envoyé » manquant dans Outlook, ligne de partie vide
+
+- Étude : « j'ai un projet envoyé qui ne s'est pas mis sur l'agenda Outlook ». Cause : le rattrapage `rattraperNotesAgenda`
+  (30 s après l'ouverture puis toutes les 5 min) ignorait tout dossier déjà noté (`d.agendaLieuNoteLe`) — l'appel de fonds noté
+  avant suffisait à ne jamais ajouter le projet ; l'envoi du projet appelle `noterEnvoiDansAgenda(id, true)`, qui ne fait rien si
+  la connexion Exchange n'est pas encore connue du poste. Désormais la note retient ce qu'elle dit (`d.agendaLieuNoteEnvois`
+  { appelFonds, projet }), `noteAgendaCouvreEnvois` dit si elle couvre les envois validés (note d'avant : le lieu relevé dans
+  l'agenda tranche), un refus retient aussi ses envois (`agendaLieuEchec.envois`) : un envoi validé après le refus est retenté
+  une fois. La ligne « Noter dans l'agenda » de la fiche n'est plus marquée faite sur une note incomplète.
+- Étude (capture, « Société / Raison sociale » vide) : « si clique par inadvertance le champ vide reste ». `changerPersonneDossier` :
+  nom vide avant et après → la ligne est retirée (différé de 150 ms, pas si le focus reste sur la même ligne — civilité ; après
+  le choix d'une civilité sur une ligne sans nom, le nom reprend le focus).
