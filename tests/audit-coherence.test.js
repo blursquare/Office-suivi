@@ -255,3 +255,22 @@ test('appel de fonds : une ligne du décompte se remonte ou se descend (flèches
   assert.match(src, /class="af-ordre" contenteditable="false"/);
   assert.match(src, /ondblclick="event\.stopPropagation\(\)"/);
 });
+
+test('onglet Fonds : rappel de l’offre de prêt — reçue ou non, date butoir, garanties', () => {
+  const base = { id: 'p1', dossierLie: true, pret: '2026-10-20', montantPret: 180000, parties: [] };
+  const attendue = app.rappelOffrePretFonds({ ...base }, '2026-10-08');
+  assert.strictEqual(attendue.statut, 'attendue');
+  assert.strictEqual(attendue.jours, 12);
+  assert.strictEqual(attendue.garanties, null);
+  assert.strictEqual(attendue.montant, 180000);
+  const depassee = app.rappelOffrePretFonds({ ...base, pret: '2026-10-01' }, '2026-10-08');
+  assert.strictEqual(depassee.jours, -7);
+  assert.strictEqual(depassee.dl, 'dl-urgent');
+  const recue = app.rappelOffrePretFonds({ ...base, offrePretStatut: 'recue', garantiesPret: [] }, '2026-10-08');
+  assert.strictEqual(recue.statut, 'recue');
+  assert.strictEqual(recue.jours, null);
+  assert.strictEqual(recue.garanties.texte, 'Garantie non identifiée');
+  assert.strictEqual(recue.ouvrable, true);
+  assert.strictEqual(app.rappelOffrePretFonds({ ...base, sansPret: true }, '2026-10-08'), null);
+  assert.strictEqual(app.rappelOffrePretFonds({ ...base, typeAffaire: 'succession' }, '2026-10-08'), null);
+});

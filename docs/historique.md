@@ -18411,3 +18411,13 @@ comme l'ajout et la suppression), échange avec la voisine (`deplacerElementList
 focus sur la flèche. Les flèches sont en `contenteditable="false"` et hors des `.af-champ` : le .docx (`donneesCourrierAppelFonds`)
 ne les lit pas — vérifié dans Chromium, l'ordre du .docx suit. `ondblclick` arrêté sur la flèche : le double-clic d'une
 ligne la supprime, deux clics rapides sur une flèche ne doivent pas. L'historique des courriers garde `afLignes`, donc l'ordre.
+
+### 08/10/2026 13 h 34 — Onglet Fonds : rappel de l'offre de prêt (0.194.0)
+
+Étude : « dans l'onglet fonds mettre un rappel de l'offre de prêt pour voir si reçue et garantie ». Bloc « Offre de prêt »
+sous « Fonds du dossier » (`renderRappelOffrePretFonds`, données par `rappelOffrePretFonds(d, aujourdhui)`, pure, testée) :
+statut (reçue — aussi quand l'échéance du prêt est cochée —, à confirmer, pas encore reçue), condition de prêt avec J-n tant
+que l'offre n'est pas reçue (rouge une fois dépassée), montant du prêt s'il est connu, garanties lues dans l'offre
+(« Garantie non identifiée » en ambre si l'offre est là sans garantie lue, « Lues à la réception de l'offre » avant),
+« Ouvrir l'offre » si un fichier a été retenu sur le NAS, sinon « Revérifier ». Rien pour une vente sans prêt ni une succession.
+Vérifié dans Chromium (offre reçue avec caution ; offre attendue après la date butoir).

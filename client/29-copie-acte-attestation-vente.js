@@ -473,6 +473,54 @@
   }
 
   // Onglet Fonds de la fiche (étude 05/10) : provision, appel de fonds, fonds reçus et leur confirmation, relance, RIB.
+  // Pur : rappel de l'offre de prêt dans l'onglet Fonds (étude 08/10 : « mettre un rappel de l'offre de prêt pour voir si
+  // reçue et garantie »). Reçue / à confirmer / attendue, date butoir de la condition et jours restants tant qu'elle
+  // n'est pas reçue, montant du prêt s'il est connu, garanties lues (« Garantie non identifiée » si l'offre est là sans).
+  // Rien pour une vente sans prêt ni pour une succession.
+  function rappelOffrePretFonds(d, aujourdhui) {
+    if (!d || d.sansPret || estSuccession(d)) return null;
+    const statut = d.offrePretStatut === 'recue' || echeanceValidee(d, 'pret') ? 'recue'
+      : (d.offrePretStatut === 'aconfirmer' ? 'aconfirmer' : 'attendue');
+    const libelles = { recue: 'Reçue', aconfirmer: 'À confirmer', attendue: 'Pas encore reçue' };
+    const dl = { recue: 'dl-success', aconfirmer: 'dl-pret', attendue: 'dl-neutre' };
+    const butoir = /^\d{4}-\d{2}-\d{2}$/.test(d.pret || '') ? d.pret : '';
+    const jours = butoir && statut !== 'recue' ? joursEntre(aujourdhui, butoir) - 1 : null;
+    if (jours !== null && jours < 0) dl.attendue = dl.aconfirmer = 'dl-urgent';
+    return {
+      statut, texte: libelles[statut], dl: dl[statut], butoir, jours,
+      montant: Number(d.montantPret) > 0 ? Number(d.montantPret) : 0,
+      garanties: garantiesPretAffichees(d),
+      ouvrable: !!d.dossierLie && (d.offrePretStatut === 'recue' || d.offrePretStatut === 'aconfirmer')
+    };
+  }
+
+  function renderRappelOffrePretFonds(d) {
+    const r = rappelOffrePretFonds(d, isoAujourdHui());
+    if (!r) return '';
+    const delai = r.jours === null ? ''
+      : (r.jours < 0 ? `date butoir dépassée de ${-r.jours} j` : (r.jours === 0 ? 'date butoir aujourd’hui' : `J-${r.jours}`));
+    const ligneButoir = r.butoir
+      ? `<li><span class="fonds-offre-cle">Condition de prêt</span><span>${escapeHtml(formatDateFr(r.butoir))}${delai ? ` <span class="fonds-offre-delai${r.jours < 0 ? ' depasse' : ''}">${escapeHtml(delai)}</span>` : ''}</span></li>` : '';
+    const ligneMontant = r.montant ? `<li><span class="fonds-offre-cle">Montant du prêt</span><span>${escapeHtml(formaterMontantEuros(r.montant))}</span></li>` : '';
+    const garanties = r.garanties
+      ? `<span class="${r.garanties.identifiee ? '' : 'garantie-inconnue'}">${escapeHtml(r.garanties.texte)}</span>`
+      : '<span class="fonds-offre-muet">Lues à la réception de l’offre</span>';
+    const actions = r.ouvrable
+      ? `<button type="button" class="lien-action" onclick="ouvrirOffreTrouvee('${d.id}')">Ouvrir l’offre</button>`
+      : (d.dossierLie ? `<button type="button" class="lien-action" onclick="verifierDossierLocalDepuisBouton('${d.id}', this)">Revérifier</button>` : '');
+    return `<div class="echanges-groupe fonds-offre">
+        <div class="echanges-tete">
+          <span class="section-eyebrow">Offre de prêt</span>
+          <span class="dot-label ${r.dl}"><span class="dot"></span>${escapeHtml(r.texte)}</span>
+        </div>
+        <ul class="fonds-offre-lignes">
+          ${ligneButoir}${ligneMontant}
+          <li><span class="fonds-offre-cle">Garanties</span>${garanties}</li>
+        </ul>
+        ${actions ? `<div class="fonds-offre-actions">${actions}</div>` : ''}
+      </div>`;
+  }
+
   function renderFondsDossier(d) {
     const { stade, utiles, autres } = lignesEchangesOnglet(d, true);
     const hint = texteDestinataireEchanges(d);
@@ -484,6 +532,7 @@
         ${hint ? `<p class="hint echanges-destinataire">${hint}</p>` : ''}
         ${utiles.length ? `<ul class="ja-liste">${utiles.join('')}</ul>` : '<p class="fiche-vide">Rien à faire sur les fonds à ce stade.</p>'}
       </div>
+      ${renderRappelOffrePretFonds(d)}
       ${renderAppelsFondsDossier(d)}
       ${renderAutresEchanges(autres)}`;
   }

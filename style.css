@@ -6764,6 +6764,14 @@ wa-button.ech-ico.ech-ico-suppr:hover { color: var(--urgent); }
 /* ---- Fiche › Échanges : groupes de lignes d'action (voir renderEchangesDossier) ---- */
 .echanges-groupe { display: flex; flex-direction: column; gap: 6px; margin: 4px 0 20px; }
 .echanges-groupe > .ja-liste { margin-top: 2px; }
+.fonds-offre-lignes { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: var(--texte-m); }
+.fonds-offre-lignes li { display: grid; grid-template-columns: 140px minmax(0, 1fr); gap: 12px; }
+.fonds-offre-cle { color: var(--muted); }
+.fonds-offre-delai { color: var(--muted); font-size: var(--texte-s); margin-left: 4px; }
+.fonds-offre-delai.depasse { color: var(--urgent); font-weight: 600; }
+.fonds-offre-muet { color: var(--muted); }
+.fonds-offre .garantie-inconnue { color: var(--pret); font-weight: 600; }
+.fonds-offre-actions { display: flex; gap: 12px; }
 .hint.echanges-destinataire { margin: 0; }
 
 /* « Ajouter … » : wa-button.bouton-ajout, couche Web Awesome en tête de feuille. */

@@ -351,7 +351,7 @@ dans `index.html`** (le test `structure-client` refuse tout décalage).
   **Notification d'une pièce trouvée : une seule fois** par dossier + pièce + fichier (registre
   serveur `pieces-notifiees`, 30 jours, `dedoublonnerPieces` dans `routes/notifications.js`) ; une
   seule vérification NAS à la fois par dossier et par fenêtre (`verificationsDossierEnCours`).
-- **Onglets de la fiche** (étude 05/10) : Échéances · **Pièces et analyse** (checklist puis analyse de l'avant-contrat ; « Analyse » seule en participation) · **Fonds** (`renderFondsDossier` : provision, appel de fonds, fonds reçus et confirmation, relance, RIB — `CLES_ECHANGES_FONDS`, sortis d'Échanges ; absent en succession) · Échanges · Historique.
+- **Onglets de la fiche** (étude 05/10) : Échéances · **Pièces et analyse** (checklist puis analyse de l'avant-contrat ; « Analyse » seule en participation) · **Fonds** (`renderFondsDossier` : provision, appel de fonds, fonds reçus et confirmation, relance, RIB — `CLES_ECHANGES_FONDS`, sortis d'Échanges ; absent en succession) ; **bloc « Offre de prêt »** en tête de l'onglet Fonds (étude 08/10, `rappelOffrePretFonds`/`renderRappelOffrePretFonds` : reçue / à confirmer / pas encore reçue, date butoir et J-n tant qu'elle n'est pas reçue — rouge une fois dépassée —, montant du prêt, garanties `garantiesPretAffichees` ; rien sans prêt ni en succession) · Échanges · Historique.
 - **Analyse de l'avant-contrat dans la fiche** (étude, 02/10 ; onglet « Pièces et analyse » depuis le 05/10) : chaque engagement du vendeur (`e.fait`, `faitLe`) et chaque
   document relevé (`doc.recu`, `recuLe`) se coche réalisé/reçu ; non coché → compté dans `piecesAttenduesDossier`
   (« Attente de pièces », libellé « Engagement : … » par `libelleCourtEngagement`) et dans
