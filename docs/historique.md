@@ -18449,3 +18449,11 @@ en gras et souligné comme partout ; sans rendez-vous fixé, « Veuillez trouver
 `projetConfrere` (Réglages › Modèles d'emails, variante choisie seule par `VARIANTES_CONFRERE_MODELES`), condition
 `{si sans rendez-vous}` ajoutée à la liste des conditions affichées. Le texte au client reste le premier jet de CLAIRE. Tests :
 `tests/modeles-emails.test.js` (texte exact, avec et sans rendez-vous ; modèle = fonction).
+
+### 08/10/2026 15 h 16 — Fenêtre d'email : pièces jointes nombreuses (0.195.2)
+
+Étude (capture, corbeille entourée) : « les annexes débordent et la présentation est cassée dans l'email ». Reproduit dans
+Chromium avec 14 pièces : la liste sortait du cadre de la fenêtre (1300 × 760 : pièces jusqu'à 782 px, « Envoyer » à 784–832 px,
+hors écran). `.redaction-carte .redaction-pieces` : `max-height: 112px` (≈ trois rangées), défilement propre, `flex: none` ; les
+autres blocs de la carte ne rétrécissent plus, seul l'éditeur le fait (`min-height: 120px` dans la fenêtre). Après : pièces
+549–661, pied 663–711 dans une carte qui finit à 722 ; téléphone (390 × 800) : pied 727–775 dans la carte (786).

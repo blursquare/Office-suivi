@@ -8817,13 +8817,18 @@ button.redaction-pastille:focus-visible { outline: 2px solid var(--focus); outli
 .redaction-outil-lettre b { font-weight: 700; }
 div.redaction-editeur { flex: 1; width: 100%; min-height: 180px; max-height: 50vh; overflow-y: auto; margin-top: 4px; padding: 6px 0; box-sizing: border-box; font-size: var(--texte-base); line-height: 1.6; color: var(--ink); overflow-wrap: anywhere; cursor: text; }
 div.redaction-editeur.redaction-editeur-reponse { min-height: 120px; }
-#email-redaction-contenu div.redaction-editeur { max-height: none; }
+#email-redaction-contenu div.redaction-editeur { max-height: none; min-height: 120px; }
 div.redaction-editeur:focus { outline: none; }
 div.redaction-editeur ul, div.redaction-editeur ol { margin: 0; padding-left: 24px; }
 div.redaction-editeur a { color: var(--focus); text-decoration: underline; }
 .redaction-carte.redaction-depot { border-color: var(--focus); box-shadow: 0 0 0 2px var(--focus), var(--shadow-float); background: var(--paper-sunk); }
 .redaction-carte.redaction-depot::after { content: "Déposez ici pour joindre"; align-self: center; padding: 4px 0; font-size: var(--texte-m); color: var(--focus); }
 .redaction-pieces { display: flex; flex-wrap: wrap; gap: 6px; padding: 6px 0 2px; }
+/* Beaucoup de pièces jointes (étude 08/10 : « les annexes débordent et la présentation est cassée ») : la liste défile dans
+   sa propre zone (trois rangées environ) au lieu de pousser « Envoyer » hors de la fenêtre. */
+.redaction-carte .redaction-pieces { flex: none; max-height: 112px; overflow-y: auto; align-content: flex-start; }
+.redaction-carte > * { flex-shrink: 0; }
+.redaction-carte > div.redaction-editeur { flex-shrink: 1; }
 .redaction-piece { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; padding: 4px 4px 4px 10px; border: 1px solid var(--line); border-radius: var(--rayon-m); font-size: var(--texte-m); color: var(--ink); background: var(--paper-sunk); }
 .redaction-piece svg { width: 14px; height: 14px; flex-shrink: 0; color: var(--muted); }
 .redaction-piece-nom { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
