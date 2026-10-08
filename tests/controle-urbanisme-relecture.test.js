@@ -122,7 +122,7 @@ test('analyseTravauxUrbanisme : travail intérieur compté à part, annexes de d
 
 test('natureTravailUrbanisme : la nature du travail, pas un bout de clause', () => {
   const app = chargerApplication();
-  assert.equal(app.natureTravailUrbanisme({ phrase: "Le VENDEUR déclare que des travaux d'agrandissement ont été réalisés en 2021." }), 'Travaux : agrandissement');
+  assert.equal(app.natureTravailUrbanisme({ phrase: "Le VENDEUR déclare que des travaux d'agrandissement ont été réalisés en 2021." }), 'Agrandissement');
   assert.equal(app.natureTravailUrbanisme({ phrase: 'Des travaux ont été réalisés.' }), 'Travaux');
 });
 

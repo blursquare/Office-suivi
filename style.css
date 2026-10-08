@@ -9195,16 +9195,33 @@ table.pr-zt td.pr-zt-retenue select { min-width: 120px; min-height: 32px; height
 .w-corps .w-asst-exemples.w-coupee { flex-direction: row; justify-content: flex-start; align-content: flex-start; }
 .w-asst-exemples .asst-suggestion.w-asst-exemple { font-size: var(--texte-s); padding: 4px 12px; }
 
-/* Contrôle de l'urbanisme : travaux déclarés dans le compromis (étude 08/10). */
-.pr-travaux-manque .icone { color: var(--pret); }
-.pr-travaux-ok .icone { color: var(--success); }
-.pr-travaux-info { color: var(--muted); }
-.pr-travaux-clause { margin-top: 8px; font-size: var(--texte-s); color: var(--muted); }
-.pr-travaux-clause summary { cursor: pointer; }
-.pr-travaux-clause p { margin: 4px 0 0; }
-.pr-sous-titre { font-weight: 600; font-size: var(--texte-m); margin: 16px 0 6px; display: flex; align-items: center; gap: 6px; }
-.pr-sitadel .pr-fiche-ligne { grid-template-columns: auto minmax(0, 1fr); }
-.pr-sitadel .pr-fiche-ligne .hint { grid-column: 1 / -1; }
+/* Contrôle de l'urbanisme : travaux déclarés, Sitadel, photos (étude 08/10 : « pas trop de texte, attractif, facile à lire du
+   premier coup ») — une carte par travail, des pastilles courtes, le détail dans la bulle au survol. */
+.pr-eyebrow { display: flex; align-items: center; gap: 6px; margin: 20px 0 8px; }
+.pr-vide { display: flex; align-items: center; gap: 6px; margin: 0; color: var(--success); font-size: var(--texte-m); }
+.pr-travaux { display: flex; flex-direction: column; gap: 8px; }
+.pr-travail { padding: 12px 14px; border-radius: var(--rayon-m); border: 1px solid var(--line); background: var(--paper-card); }
+.pr-travail-reclamer { border-color: color-mix(in srgb, var(--pret) 45%, var(--line)); }
+.pr-travail-tete { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 10px; }
+.pr-travail-titre { font-weight: 500; font-size: var(--texte-base); }
+.pr-travail-meta { color: var(--muted); font-size: var(--texte-s); }
+.pr-travail-tete .dot-label { white-space: nowrap; }
+.pr-puces { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.pr-fiche-ligne .pr-puces { margin-top: 0; }
+.pr-puce { display: inline-flex; align-items: center; gap: 4px; padding: 2px 10px; border-radius: var(--rayon-pilule); font-size: var(--texte-s); font-weight: 500; cursor: help; white-space: nowrap; }
+.pr-puce:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.pr-puce-ok { background: color-mix(in srgb, var(--success) 12%, transparent); color: var(--success); }
+.pr-puce-manque { background: color-mix(in srgb, var(--pret) 14%, transparent); color: var(--pret); }
+.pr-puce-info { background: var(--paper-sunk); color: var(--muted); }
+.pr-puce-clause { background: transparent; color: var(--muted); border: 1px solid var(--line); }
+.pr-sitadel { display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: var(--rayon-m); overflow: hidden; background: var(--paper-card); }
+.pr-sitadel-ligne { display: grid; grid-template-columns: 40px auto minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 8px 12px; font-size: var(--texte-m); cursor: help; }
+.pr-sitadel-ligne + .pr-sitadel-ligne { border-top: 1px solid var(--line); }
+.pr-sitadel-ligne:hover, .pr-sitadel-ligne:focus-visible { background: var(--paper-sunk); outline: none; }
+.pr-sitadel-type { font-weight: 700; font-size: var(--texte-xs); letter-spacing: 0.06em; color: var(--acte); text-align: center; padding: 2px 0; border-radius: var(--rayon-xs); background: color-mix(in srgb, var(--acte) 12%, transparent); }
+.pr-sitadel-date { white-space: nowrap; }
+.pr-sitadel-quoi { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 700px) { .pr-sitadel-ligne { grid-template-columns: 40px minmax(0, 1fr) auto; } .pr-sitadel-quoi { display: none; } }
 .pr-photos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .pr-photo { margin: 0; display: flex; flex-direction: column; gap: 6px; }
 .pr-photo select { min-height: 32px; }

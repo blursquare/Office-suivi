@@ -696,6 +696,12 @@ dans `index.html`** (le test `structure-client` refuse tout décalage).
   seulement logements/locaux créés, PA, PD : une DP de piscine ou de clôture n'y est pas). Lancé seul dès que commune et parcelles
   sont connues (`lancerHistoriqueParcellePreemption`, une fois par commune + parcelles). Points terrain `photos-aeriennes-ign`,
   `sitadel-parcelle`.
+  **Présentation** (étude 08/10 : « pas trop de texte, respecte Web Awesome et l'UI/UX de CLAIRE, attractif et facile à lire du
+  premier coup ») : une carte par travail (`.pr-travail` : nature `natureTravailUrbanisme` « Agrandissement », année · extérieur ·
+  page, état à droite), chaque point = une pastille courte (`court` de `bilanTravailUrbanisme`, `puceControleTravaux`, `.pr-puce`
+  ok/manque/info) dont la phrase entière est la bulle au survol (classe `avec-bulle` + `data-info`, prise par
+  `initialiserInfoBulles` comme `.info-i`), clause du compromis en pastille « Clause » ; Sitadel = une ligne par autorisation
+  (type, date, quoi, état ; détail en bulle) ; sous-titres en `section-eyebrow`. Un nouveau point du bilan porte toujours `court`.
 - **Type de vente « Terre agricole / terrain non bâti »** (`terre`, étude 08/10 : « un nouveau type de vente : terrain ou terre ») à côté de maison, copropriété, terrain à bâtir : checklist = pièces d'urbanisme + ERP, taxe foncière, titre (`PIECES_TERRE_AUTRES`, ni diagnostics ni étude de sol) ; **« Réponse SAFER » d'office** (`ajouterPieceSaferTerre`, client/54 : à la création, au complément et au passage à ce type sur la fiche ; la pièce `perso-safer` d'Authentic et de l'analyse, jamais en double, jamais en participation ; hors `preemption.piecesAjoutees`, l'analyse ne la retire pas) ; droits de préemption lus comme un terrain nu, frais d'acte au barème « terrain », courrier « un terrain non bâti ».
 - **Mobilier** : le prix reste le prix total ; `d.prixMobilier` sort seulement de l'assiette des
   droits (frais d'acte, contrôle du barème).

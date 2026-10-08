@@ -83,37 +83,37 @@
     const connues = Array.isArray(sitadel) ? sitadel.filter(a => a && a.type !== 'PD' && a.etat !== 'Annulé') : [];
     const achevee = connues.find(a => a.acheveLe);
     if (t.autorisationMentionnee) {
-      points.push({ etat: 'ok', texte: 'Autorisation d’urbanisme citée (déclaration préalable ou permis)' });
+      points.push({ etat: 'ok', court: 'Autorisation citée', texte: 'Autorisation d’urbanisme citée (déclaration préalable ou permis)' });
       points.push(RE_ACHEVEMENT_TRAVAUX.test(phrase)
-        ? { etat: 'ok', texte: 'Achèvement / conformité cités' }
+        ? { etat: 'ok', court: 'Achèvement cité', texte: 'Achèvement / conformité cités' }
         : achevee
-          ? { etat: 'ok', texte: `Achèvement déclaré le ${formatDateFr(achevee.acheveLe)} (${achevee.type} n° ${achevee.numero}, Sitadel) : réclamer la non-contestation de la conformité` }
-          : { etat: 'manque', texte: 'Déclaration attestant l’achèvement et non-contestation de la conformité non citées : les réclamer' });
+          ? { etat: 'ok', court: 'Achèvement (Sitadel)', texte: `Achèvement déclaré le ${formatDateFr(achevee.acheveLe)} (${achevee.type} n° ${achevee.numero}, Sitadel) : réclamer la non-contestation de la conformité` }
+             : { etat: 'manque', court: 'Achèvement à réclamer', texte: 'Déclaration attestant l’achèvement et non-contestation de la conformité non citées : les réclamer' });
     } else if (connues.length) {
       const a = connues[0];
-      points.push({ etat: 'manque', texte: `Aucune autorisation citée dans le compromis, mais Sitadel connaît ${connues.length > 1 ? connues.length + ' autorisations, dont ' : ''}${a.type} n° ${a.numero}${a.autoriseLe ? ' du ' + formatDateFr(a.autoriseLe) : ''}${a.etat ? ' (' + a.etat.toLowerCase() + ')' : ''} : la réclamer et vérifier qu’elle couvre ces travaux` });
+      points.push({ etat: 'manque', court: `${a.type} ${String(a.autoriseLe || '').slice(0, 4)} dans Sitadel`.replace(/ +dans/, ' dans'), texte: `Aucune autorisation citée dans le compromis, mais Sitadel connaît ${connues.length > 1 ? connues.length + ' autorisations, dont ' : ''}${a.type} n° ${a.numero}${a.autoriseLe ? ' du ' + formatDateFr(a.autoriseLe) : ''}${a.etat ? ' (' + a.etat.toLowerCase() + ')' : ''} : la réclamer et vérifier qu’elle couvre ces travaux` });
     } else {
       const ancien = t.annee && anneeCourante && anneeCourante - t.annee >= 10;
-      points.push({ etat: 'manque', texte: ancien
+      points.push({ etat: 'manque', court: ancien ? 'Autorisation ou prescription' : 'Autorisation à réclamer', texte: ancien
         ? `Aucune autorisation citée : réclamer la déclaration préalable ou le permis ; travaux de ${t.annee}, prescription à vérifier (art. L.421-9 du code de l’urbanisme)`
         : 'Aucune autorisation citée : réclamer la déclaration préalable ou le permis de construire' });
       if (Array.isArray(sitadel) && (!t.annee || t.annee >= 2013)) {
-        points.push({ etat: 'info', texte: 'Rien dans Sitadel pour ces parcelles (Sitadel ne recense, depuis 2013, que les autorisations qui créent un logement ou des locaux, les permis d’aménager et de démolir)' });
+        points.push({ etat: 'info', court: 'Rien dans Sitadel', texte: 'Rien dans Sitadel pour ces parcelles (Sitadel ne recense, depuis 2013, que les autorisations qui créent un logement ou des locaux, les permis d’aménager et de démolir)' });
       }
     }
     if (t.sousDecennale === true) {
-      if (t.decennaleMentionnee) points.push({ etat: 'ok', texte: 'Assurance décennale citée' });
-      else if (t.faitParLeVendeur) points.push({ etat: 'manque', texte: 'Faits par le vendeur lui-même : pas de décennale, à indiquer à l’acte' });
-      else points.push({ etat: 'manque', texte: `Moins de dix ans (${t.annee}) : attestation d’assurance décennale de l’entreprise et factures à réclamer` });
+      if (t.decennaleMentionnee) points.push({ etat: 'ok', court: 'Décennale citée', texte: 'Assurance décennale citée' });
+      else if (t.faitParLeVendeur) points.push({ etat: 'manque', court: 'Sans décennale', texte: 'Faits par le vendeur lui-même : pas de décennale, à indiquer à l’acte' });
+      else points.push({ etat: 'manque', court: 'Décennale à réclamer', texte: `Moins de dix ans (${t.annee}) : attestation d’assurance décennale de l’entreprise et factures à réclamer` });
     } else if (t.sousDecennale === false) {
-      points.push({ etat: 'info', texte: `Plus de dix ans (${t.annee}) : garantie décennale expirée` });
+      points.push({ etat: 'info', court: 'Décennale expirée', texte: `Plus de dix ans (${t.annee}) : garantie décennale expirée` });
     } else {
-      points.push({ etat: 'manque', texte: 'Année non lue : dater les travaux (factures) pour savoir si la décennale court' });
+      points.push({ etat: 'manque', court: 'Année à dater', texte: 'Année non lue : dater les travaux (factures) pour savoir si la décennale court' });
     }
     if (enZoneProtegee) {
       points.push(RE_ACCORD_ABF.test(phrase)
-        ? { etat: 'ok', texte: 'Accord de l’architecte des bâtiments de France cité' }
-        : { etat: 'manque', texte: 'Zone protégée : accord de l’architecte des bâtiments de France à réclamer' });
+        ? { etat: 'ok', court: 'Accord ABF cité', texte: 'Accord de l’architecte des bâtiments de France cité' }
+           : { etat: 'manque', court: 'Accord ABF à réclamer', texte: 'Zone protégée : accord de l’architecte des bâtiments de France à réclamer' });
     }
     return { statut: points.some(p => p.etat === 'manque') ? 'reclamer' : 'ok', points };
   }
@@ -132,29 +132,34 @@
     };
   }
 
-  // Pure : le titre d'un travail — sa nature (« Travaux : agrandissement »), plutôt qu'un bout de clause.
+  // Pure : le titre d'un travail — sa nature (« Agrandissement »), plutôt qu'un bout de clause.
   function natureTravailUrbanisme(t) {
     const mots = String((t && t.phrase) || '').match(new RegExp(RE_TRAVAUX_MOT.source, 'gi')) || [];
     const mot = mots.find(x => !/^travaux$/i.test(x));
-    return mot ? 'Travaux : ' + mot.toLowerCase().replace(/\s+/g, ' ') : 'Travaux';
+    const m = mot ? mot.toLowerCase().replace(/\s+/g, ' ') : '';
+    return m ? m.charAt(0).toUpperCase() + m.slice(1) : 'Travaux';
   }
 
-  var LIBELLES_TRAVAUX_URBANISME = { reclamer: 'À réclamer', ok: 'Cité' };
+  var LIBELLES_TRAVAUX_URBANISME = { reclamer: 'À réclamer', ok: 'Tout est cité' };
   var CLASSES_TRAVAUX_URBANISME = { reclamer: 'dl-pret', ok: 'dl-success' };
   var ICONES_POINTS_TRAVAUX = { ok: 'check', manque: 'alert-triangle', info: 'info' };
 
-  function renderTravauxUrbanismeListe(analyse, compact) {
-    if (!analyse.travaux.length) {
-      return `<p class="hint">Aucun travail extérieur ni de gros œuvre déclaré${analyse.interieurs ? ` (${analyse.interieurs} travail${analyse.interieurs > 1 ? 'x' : ''} intérieur${analyse.interieurs > 1 ? 's' : ''}, sans autorisation exigée)` : ''}.</p>`;
-    }
-    return `<div class="pr-droits">${analyse.travaux.map(t => `<div class="pr-droit pr-droit-${t.statut === 'reclamer' ? 'oui' : 'non'}">
-        <div class="pr-droit-tete"><span class="pr-droit-titre">${escapeHtml(natureTravailUrbanisme(t))}${t.annee ? ` (${t.annee})` : ''}</span>
-          <span class="dot-label ${CLASSES_TRAVAUX_URBANISME[t.statut]}"><span class="dot"></span>${LIBELLES_TRAVAUX_URBANISME[t.statut]}</span></div>
-        <div class="pr-droit-motif">${t.grosOeuvre ? 'Gros œuvre' : 'Extérieur du bien'}${t.page ? ` · page ${t.page}` : ''}</div>
-        ${t.points.filter(p => !compact || p.etat !== 'ok').map(p => `<div class="pr-droit-formalite pr-travaux-${p.etat}">${icone(ICONES_POINTS_TRAVAUX[p.etat])} ${escapeHtml(p.texte)}</div>`).join('')}
-        ${!compact && t.phrase ? `<details class="pr-travaux-clause"><summary>Clause du compromis</summary><p>${escapeHtml(t.phrase)}</p></details>` : ''}
-      </div>`).join('')}</div>
-      ${analyse.interieurs ? `<p class="hint">${analyse.interieurs} travail${analyse.interieurs > 1 ? 'x' : ''} intérieur${analyse.interieurs > 1 ? 's' : ''} sans autorisation exigée, non détaillé${analyse.interieurs > 1 ? 's' : ''}.</p>` : ''}`;
+  // Une pastille courte ; la phrase entière se lit au survol (classe avec-bulle, même bulle que la pastille « i »).
+  function puceControleTravaux(p) {
+    return `<span class="pr-puce pr-puce-${p.etat} avec-bulle" tabindex="0" data-info="${escapeAttr(p.texte)}">${icone(ICONES_POINTS_TRAVAUX[p.etat])}${escapeHtml(p.court || p.texte)}</span>`;
+  }
+
+  function renderTravauxUrbanismeListe(analyse) {
+    const interieurs = analyse.interieurs ? `<p class="hint">+ ${analyse.interieurs} travail${analyse.interieurs > 1 ? 'x' : ''} intérieur${analyse.interieurs > 1 ? 's' : ''} (sans autorisation)</p>` : '';
+    if (!analyse.travaux.length) return `<p class="pr-vide">${icone('check')} Aucun travail extérieur ni de gros œuvre déclaré</p>${interieurs}`;
+    return `<div class="pr-travaux">${analyse.travaux.map(t => `<div class="pr-travail pr-travail-${t.statut}">
+        <div class="pr-travail-tete">
+          <div><div class="pr-travail-titre">${escapeHtml(natureTravailUrbanisme(t))}</div>
+            <div class="pr-travail-meta">${[t.annee, t.grosOeuvre ? 'gros œuvre' : 'extérieur', t.page ? 'p. ' + t.page : ''].filter(Boolean).join(' · ')}</div></div>
+          <span class="dot-label ${CLASSES_TRAVAUX_URBANISME[t.statut]}"><span class="dot"></span>${LIBELLES_TRAVAUX_URBANISME[t.statut]}</span>
+        </div>
+        <div class="pr-puces">${t.points.map(puceControleTravaux).join('')}${t.phrase ? `<span class="pr-puce pr-puce-clause avec-bulle" tabindex="0" data-info="${escapeAttr(t.phrase)}">${icone('file-text')}Clause</span>` : ''}</div>
+      </div>`).join('')}</div>${interieurs}`;
   }
 
   // L'outil : section « Travaux et autorisations ».
@@ -164,15 +169,14 @@
     const tr = prEtat.travaux || {};
     const d = prEtat.dossierId ? dossiers.find(x => x.id === prEtat.dossierId) : null;
     const boutons = `<div class="pr-zonage-actions">
-        ${d && d.dossierLie && d.nasDossier ? `<wa-button appearance="outlined" size="s" onclick="lireTravauxCompromisPreemption()"${tr.lecture ? ' loading' : ''}>${icone('file-text')} Lire le compromis du dossier</wa-button>` : ''}
-        <span class="pr-depot-compromis"><wa-button appearance="outlined" size="s" onclick="document.getElementById('pr-travaux-fichier').click()">${icone('upload')} Déposer un compromis (PDF)</wa-button>
+        ${d && d.dossierLie && d.nasDossier ? `<wa-button appearance="outlined" size="s" onclick="lireTravauxCompromisPreemption()"${tr.lecture ? ' loading' : ''}>${icone('file-text')} Lire le compromis</wa-button>` : ''}
+        <span class="pr-depot-compromis"><wa-button appearance="outlined" size="s" onclick="document.getElementById('pr-travaux-fichier').click()">${icone('upload')} Déposer un PDF</wa-button>
           <input type="file" id="pr-travaux-fichier" accept="application/pdf,.pdf" style="display:none" onchange="deposerCompromisTravauxPreemption(this)"></span>
       </div>`;
     const etat = tr.lecture ? '<p class="hint">Lecture du compromis…</p>'
-      : tr.erreur ? `<p class="pr-erreur">${icone('alert-triangle')} ${escapeHtml(tr.erreur)}</p>`
-      : !tr.liste ? `<p class="hint">Les travaux déclarés par le vendeur sont lus dans le compromis ; pour chacun, CLAIRE dit si l’autorisation d’urbanisme, l’achèvement et la décennale y sont cités.</p>` : '';
+      : tr.erreur ? `<p class="pr-erreur">${icone('alert-triangle')} ${escapeHtml(tr.erreur)}</p>` : '';
     const liste = tr.liste
-      ? `<p class="hint">Lu dans « ${escapeHtml(tr.source || 'compromis')} »${infoBulle('Une autorisation est regardée comme demandée quand le compromis la cite (déclaration préalable, permis, non-opposition). CLAIRE ne consulte aucun registre des permis : en cas de doute, demander à la mairie. Les annexes de diagnostic (DPE, plomb) ne sont pas lues comme des travaux.')}</p>
+      ? `<div class="section-eyebrow pr-eyebrow">Travaux du compromis${infoBulle(`Lus dans « ${tr.source || 'le compromis'} ». Une autorisation compte comme demandée quand le compromis la cite ; survolez une pastille pour le détail.`)}</div>
         ${renderTravauxUrbanismeListe(analyseTravauxUrbanisme(tr.liste, patrimoinePreemption(prEtat) || (d && d.preemption && d.preemption.patrimoine), null, sitadelPreemption()))}`
       : '';
     zone.innerHTML = boutons + etat + liste + renderSitadelPreemption() + renderPhotosPreemption();
@@ -218,9 +222,10 @@
   // Fiche › Pièces et analyse : les travaux gardés (enregistrés depuis l'outil ou lus à l'ajout du dossier).
   function renderTravauxFicheUrbanisme(p) {
     const sit = p && p.sitadel && Array.isArray(p.sitadel.autorisations) ? p.sitadel.autorisations : null;
+    const resumeSitadel = sit ? (sit.map(a => a.type + ' ' + String(a.autoriseLe || '').slice(0, 4) + ' · ' + String(a.etat || '').toLowerCase()).join(' · ') || 'Rien depuis 2013') : '';
     const ligneSitadel = sit ? `<div class="pr-fiche-ligne"><span class="dot-label ${sit.length ? 'dl-acte' : 'dl-neutre'}"><span class="dot"></span>${sit.length ? sit.length + ' trouvée' + (sit.length > 1 ? 's' : '') : 'Aucune'}</span>
         <span class="pr-fiche-titre">Sitadel${infoBulle(AIDE_SITADEL)}</span>
-        <span class="hint">${escapeHtml(sit.map(a => { const l = ligneAutorisationSitadel(a); return `${l.titre} (${l.etat.toLowerCase()}${a.autoriseLe ? ', ' + formatDateFr(a.autoriseLe) : ''})`; }).join(' · ') || 'Aucune autorisation enregistrée depuis 2013 sur ces parcelles')}</span></div>` : '';
+        <span class="hint">${escapeHtml(resumeSitadel)}</span></div>` : '';
     return renderTravauxFicheListe(p, sit) + ligneSitadel;
   }
 
@@ -229,11 +234,11 @@
     if (!tr || !Array.isArray(tr.liste)) return '';
     const a = analyseTravauxUrbanisme(tr.liste, p.patrimoine, null, sit);
     if (!a.travaux.length) return `<div class="pr-fiche-ligne"><span class="dot-label dl-success"><span class="dot"></span>Aucun</span>
-        <span class="pr-fiche-titre">Travaux déclarés</span><span class="hint">Aucun travail extérieur ni de gros œuvre dans le compromis</span></div>`;
+        <span class="pr-fiche-titre">Travaux déclarés</span><span class="hint">Rien d’extérieur ni de gros œuvre</span></div>`;
     return a.travaux.map(t => `<div class="pr-fiche-ligne">
         <span class="dot-label ${CLASSES_TRAVAUX_URBANISME[t.statut]}"><span class="dot"></span>${LIBELLES_TRAVAUX_URBANISME[t.statut]}</span>
         <span class="pr-fiche-titre">${escapeHtml(natureTravailUrbanisme(t))}${t.annee ? ` (${t.annee})` : ''}</span>
-        <span class="hint">${escapeHtml(t.points.filter(x => x.etat === 'manque').map(x => x.texte).join(' · ') || 'Autorisation, achèvement et décennale cités')}</span>
+        <span class="pr-puces">${t.points.filter(x => x.etat !== 'ok').map(puceControleTravaux).join('') || '<span class="hint">Autorisation, achèvement et décennale cités</span>'}</span>
       </div>`).join('');
   }
 
@@ -285,19 +290,25 @@
   var LIBELLES_TYPES_SITADEL = { PC: 'Permis de construire', DP: 'Déclaration préalable', PA: 'Permis d’aménager', PD: 'Permis de démolir' };
   var AIDE_SITADEL = 'Sitadel (ministère de la Transition écologique, données publiques) recense depuis 2013 les permis de construire et déclarations préalables qui créent un logement ou des locaux, les permis d’aménager et les permis de démolir. Une déclaration préalable pour une piscine, une clôture ou un ravalement sans logement créé n’y figure pas : l’absence de résultat ne prouve rien. Seuls la commune et les numéros de parcelle sont envoyés.';
 
+  var CLASSES_ETAT_SITADEL = { 'Achevé': 'dl-success', 'Chantier commencé': 'dl-acte', 'Autorisé': 'dl-acte', 'Annulé': 'dl-neutre' };
+
   function renderSitadelPreemption() {
     const s = prEtat.sitadel || {};
     const liste = sitadelPreemption();
-    const tete = `<div class="pr-sous-titre">Autorisations connues de Sitadel${infoBulle(AIDE_SITADEL)}</div>`;
-    if (s.lecture) return tete + '<p class="hint">Recherche dans Sitadel…</p>';
+    const tete = `<div class="section-eyebrow pr-eyebrow">Sitadel${infoBulle(AIDE_SITADEL)}</div>`;
+    if (s.lecture) return tete + '<p class="hint">Recherche…</p>';
     if (s.erreur) return tete + `<p class="pr-erreur">${icone('alert-triangle')} ${escapeHtml(s.erreur)}</p>`;
     if (!liste) return tete + `<p class="hint">${prEtat.insee && prEtat.parcelles ? 'Pas encore cherché.' : 'Commune et parcelles d’abord.'}</p>`;
-    if (!liste.length) return tete + '<p class="hint">Aucune autorisation enregistrée depuis 2013 sur ces parcelles.</p>';
-    return tete + `<div class="pr-fiche pr-sitadel">${liste.map(a => {
+    if (!liste.length) return tete + `<p class="pr-vide">${icone('info')} Aucune autorisation depuis 2013</p>`;
+    return tete + `<div class="pr-sitadel">${liste.map(a => {
       const l = ligneAutorisationSitadel(a);
-      return `<div class="pr-fiche-ligne"><span class="dot-label ${a.etat === 'Annulé' ? 'dl-neutre' : 'dl-acte'}"><span class="dot"></span>${escapeHtml(l.etat)}</span>
-        <span class="pr-fiche-titre">${escapeHtml(l.titre)}</span>
-        <span class="hint">${escapeHtml([l.dates, l.quoi, l.parcelles ? 'parcelles ' + l.parcelles : ''].filter(Boolean).join(' — '))}</span></div>`;
+      const resume = [a.travaux && a.travaux.length ? a.travaux.join(', ') : a.nature, a.surfaceCreee ? a.surfaceCreee + ' m²' : ''].filter(Boolean).join(' · ');
+      return `<div class="pr-sitadel-ligne avec-bulle" tabindex="0" data-info="${escapeAttr([l.titre, l.dates, l.quoi, l.parcelles ? 'parcelles ' + l.parcelles : ''].filter(Boolean).join(' — '))}">
+          <span class="pr-sitadel-type">${escapeHtml(a.type)}</span>
+          <span class="pr-sitadel-date">${escapeHtml(a.autoriseLe ? formatDateFr(a.autoriseLe) : 'Date inconnue')}</span>
+          <span class="pr-sitadel-quoi">${escapeHtml(resume)}</span>
+          <span class="dot-label ${CLASSES_ETAT_SITADEL[a.etat] || 'dl-neutre'}"><span class="dot"></span>${escapeHtml(l.etat)}</span>
+        </div>`;
     }).join('')}</div>`;
   }
 
@@ -375,7 +386,7 @@
 
   function renderPhotosPreemption() {
     const h = prEtat.historique;
-    const tete = `<div class="pr-sous-titre">Photos aériennes${infoBulle('Photos aériennes de l’IGN (Géoplateforme) sur la parcelle, contour du cadastre par-dessus. Les périodes réunissent les prises de vue de plusieurs années ; une année seule n’a souvent pas de photo du département (le Loir-et-Cher est photographié environ tous les trois ans). À comparer à l’œil : CLAIRE ne détecte pas seule ce qui a changé.')}</div>`;
+    const tete = `<div class="section-eyebrow pr-eyebrow">Photos aériennes${infoBulle('Photos de l’IGN, contour du cadastre en orange. Une année seule n’a souvent pas de photo (le Loir-et-Cher est photographié environ tous les trois ans) : préférer les périodes. À comparer à l’œil.')}</div>`;
     if (!h) return tete + `<p class="hint">${prEtat.insee && prEtat.parcelles ? 'Pas encore chargées.' : 'Commune et parcelles d’abord.'}</p>`;
     if (h.lecture) return tete + '<p class="hint">Contour de la parcelle…</p>';
     if (h.erreur) return tete + `<p class="pr-erreur">${icone('alert-triangle')} ${escapeHtml(h.erreur)}</p>`;
@@ -385,7 +396,7 @@
       const img = h.images[couche] || {};
       const options = h.vue.couches.map(c => `<option value="${escapeAttr(c.cle)}"${c.cle === couche ? ' selected' : ''}>${escapeHtml(c.libelle)}</option>`).join('');
       const fond = img.etat === 'ok' ? `<img src="${escapeAttr(img.url)}" alt="Photo aérienne ${escapeAttr(couche)} de la parcelle">`
-        : `<div class="pr-photo-vide">${img.etat === 'vide' ? 'Pas de prise de vue cette année-là ici' : img.etat === 'erreur' ? 'Photo indisponible' : 'Chargement…'}</div>`;
+        : `<div class="pr-photo-vide">${img.etat === 'vide' ? 'Pas de photo cette année' : img.etat === 'erreur' ? 'Photo indisponible' : 'Chargement…'}</div>`;
       return `<figure class="pr-photo">
           <select id="pr-photo-${cote}" aria-label="Prise de vue" onchange="choisirPhotoPreemption('${cote}', this.value)">${options}</select>
           <div class="pr-photo-cadre">${fond}

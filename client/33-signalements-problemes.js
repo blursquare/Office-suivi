@@ -289,7 +289,7 @@
   function initialiserInfoBulles() {
     if (typeof document === 'undefined' || !document.addEventListener || !document.querySelectorAll) return;
     document.querySelectorAll('.info-i[data-info]:not([aria-label])').forEach(el => el.setAttribute('aria-label', el.getAttribute('data-info')));
-    const cible = (e) => e.target && e.target.closest ? e.target.closest('.info-i') : null;
+    const cible = (e) => e.target && e.target.closest ? e.target.closest('.info-i, .avec-bulle[data-info]') : null;
     document.addEventListener('mouseover', (e) => { const c = cible(e); if (c) afficherInfoBulle(c); });
     document.addEventListener('mouseout', (e) => { const c = cible(e); if (c && c === infoBulleCible) masquerInfoBulle(); });
     document.addEventListener('focusin', (e) => { const c = cible(e); if (c) afficherInfoBulle(c); });

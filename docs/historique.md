@@ -18649,3 +18649,19 @@ l'emplacement de la parcelle à accepter — ; étude : « Oui et recoupe aussi 
 - Vu dans Chromium sur une vraie parcelle de Blois (services réels joignables d'ici). Non vu depuis le serveur du bureau (accès
   sortant à confirmer : points `photos-aeriennes-ign`, `sitadel-parcelle`). Travail refait une fois après un redémarrage du
   conteneur de développement qui avait perdu les fichiers non encore enregistrés.
+
+**Contrôle de l'urbanisme : moins de texte** (0.201.1, 08/10 au soir ; étude : « Pas trop de texte, respecte les cuisines de Web
+Awesome et UI/UX de CLAIRE. Que ça soit attractif et facile à lire du premier coup »). Section « Travaux et autorisations » :
+- chaque travail en carte (`.pr-travail`) : nature en titre (« Agrandissement », plus « Travaux : agrandissement »), année ·
+  extérieur/gros œuvre · page dessous, état « À réclamer » / « Tout est cité » à droite ;
+- chaque contrôle en pastille courte (`court` ajouté à chaque point de `bilanTravailUrbanisme` : « Autorisation citée »,
+  « Autorisation à réclamer », « PC 2021 dans Sitadel », « Achèvement à réclamer », « Décennale citée / à réclamer / expirée »,
+  « Sans décennale », « Année à dater », « Accord ABF cité / à réclamer », « Rien dans Sitadel »), couleur selon l'état ; la phrase
+  complète s'affiche au survol, au focus ou au toucher (classe `avec-bulle` reconnue par `initialiserInfoBulles`) ; la clause du
+  compromis en pastille « Clause » ;
+- Sitadel : une ligne par autorisation (type, date, travaux et surface, état coloré), détail en bulle ; « Aucune autorisation
+  depuis 2013 » sinon ;
+- sous-titres en étiquettes (`section-eyebrow`), aides longues dans les pastilles « i », boutons raccourcis (« Lire le
+  compromis », « Déposer un PDF ») ;
+- fiche : pastilles des seuls points à réclamer, résumé Sitadel « PC 2021 · chantier commencé ».
+Vu dans Chromium (bureau et téléphone) avec une vraie parcelle de Blois.
