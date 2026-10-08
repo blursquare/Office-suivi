@@ -304,6 +304,16 @@
   var RE_REFERENCE_TEXTE_LEGAL = /\b(?:article\s+[LRD]?\.?\s*\d|du\s+(?:m[êe]me\s+)?[Cc]ode\b|loi\s+(?:n[°ºo]|du\s+\d)|d[ée]cret\s+n[°ºo])/;
   var RE_ENONCIATION_LEGALE = /\b(?:dispose|pr[ée]voit|[ée]nonce|stipule)\s+que\b|\baux\s+termes\s+de\s+l['’]article\b|\best\s+ainsi\s+r[ée]dig[ée]\b|\b\d{1,2}°\s/;
 
+  // Le compromis porte souvent ses annexes : le DPE (tableaux « donnée d'entrée / origine de la
+  // donnée / valeur renseignée », « observée ou mesurée »…) et le constat plomb (CREP) parlent de
+  // murs, d'isolation, de construction et de diagnostic « réalisé en … » sans qu'aucun travail
+  // n'y soit déclaré (étude, commentaires de relecture du 07/10 : « données du DPE, ça a dû être
+  // lu dans les annexes »). Ces fenêtres sont écartées.
+  var RE_RAPPORT_DIAGNOSTIC = /observ[ée]e\s+ou\s+mesur[ée]e|donn[ée]e\s+d['’]entr[ée]e|origine\s+de\s+la\s+donn[ée]e|valeur\s+(?:renseign|estim)[ée]e|surface\s+de\s+r[ée]f[ée]rence|m[ée]thode\s+3\s*CL|\bCREP\b|constat\s+de\s+risque\s+d['’]exposition\s+au\s+plomb|rev[êe]tements?\s+privatifs|diagnostiqueur|d[ée]perditions?\s+(?:thermiques?|par)|ponts?\s+thermiques?/i;
+  // « Le diagnostic a été réalisé le … » : c'est le rapport qui est réalisé, pas un travail. Ce
+  // marqueur est retiré de la phrase avant de chercher une réalisation passée.
+  var RE_DIAGNOSTIC_REALISE = /\b(?:diagnostics?|DPE|constats?|rapports?|[ée]tats?|rep[ée]rages?|audits?|mesurages?|expertises?|visites?)\b(?:\s+(?!(?:travaux|que|qu['’]|qui|dont|des)(?![\wÀ-ɏ]))[\wÀ-ɏ'’-]+){0,3}?\s+(?:(?:a|ont)\s+[ée]t[ée]\s+)?(?:r[ée]alis|effectu|[ée]tabli)\w*(?:\s+(?:en|le|courant|depuis|au\s+cours))?/gi;
+
   var RE_TRAVAUX_GROS_OEUVRE = /\b(?:gros\s*[-\s]?\s*(?:œuvre|oeuvre)|murs?\s+porteurs?|charpente|toiture|couverture|fondations?|dalle|plancher|poutre|structure|sur[ée]l[ée]vation|ouverture\s+(?:dans|d['’]un)\s+(?:un\s+)?mur)\b/i;
   var RE_TRAVAUX_EXTERIEUR = /\b(?:ext[ée]rieur|fa[çc]ade|ravalement|toiture|couverture|v[ée]randa|extension|agrandissement|piscine|abri\s+de\s+jardin|carport|garage|terrasse|cl[ôo]ture|portail|pergola|d[ée]pendance|(?:b[âa]timent|construction|local)\s+annexe|combles\s+am[ée]nag)/i;
 
@@ -350,7 +360,8 @@
       // « travaux » la faisait rejuger sur une fenêtre décalée, qui repassait les garde-fous.
       spans.push({ debut, fin });
       const ecarter = (raison) => { noterDiagnosticOutil2('travaux', 'ecartee', raison, phrase, m.index); };
-      if (!RE_TRAVAUX_PASSES.test(phrase)) { ecarter('Simple mention : aucun marqueur de travaux déjà réalisés'); continue; }
+      if (RE_RAPPORT_DIAGNOSTIC.test(phrase)) { ecarter('Rapport de diagnostic annexé (DPE, plomb…) : pas une déclaration de travaux'); continue; }
+      if (!RE_TRAVAUX_PASSES.test(phrase.replace(RE_DIAGNOSTIC_REALISE, ' '))) { ecarter('Simple mention : aucun marqueur de travaux déjà réalisés'); continue; }
       if (RE_AUCUN_TRAVAUX.test(phrase)) { ecarter('Clause de non-travaux (« aucun travaux… »)'); continue; }
       if (RE_TRAVAUX_FUTURS.test(phrase)) { ecarter('Travaux à venir : relève des obligations du vendeur'); continue; }
       if (RE_TRAVAUX_HYPOTHETIQUE.test(phrase)) { ecarter('Formulation conditionnelle (ce qu’un document doit mentionner)'); continue; }

@@ -18570,3 +18570,17 @@ collaborateur en ErrorItemNotFound (accès délégué Outlook).
   d'avant. Pas de pièce ni d'alerte ajoutées : information seule (choix de l'étude à confirmer si une mention à l'acte est voulue).
   Le conseil (accord de l'architecte des bâtiments de France pour les travaux visibles) est une aide, à vérifier ; lecture non
   essayée avec les vraies parcelles de l'étude (essayée seulement sur un point de Blois et des réponses fabriquées).
+
+**Relecture d'actes : annexes de diagnostic lues comme des travaux** (0.198.1, 08/10 au soir ; commentaires de relecture de l'étude
+du rapport du 07/10 midi, issue n° 16 : trois « faux positif » sur « Travaux déclarés dans l'avant-contrat, absents du projet de
+vente », clauses citées tirées du DPE — « donnée d'entrée origine de la donnée valeur renseignée Epaisseur mur observée ou
+mesurée » — et du constat plomb — « il porte uniquement sur les revêtements privatifs… Quand le CREP réalisé en application de
+l'Article L. » ; « ça a dû être lu dans les annexes »). `detecterTravauxRealises` (client/08) écarte désormais une fenêtre qui porte
+le vocabulaire d'un rapport de diagnostic (`RE_RAPPORT_DIAGNOSTIC` : « observée ou mesurée », « donnée d'entrée », « origine de la
+donnée », « valeur renseignée/estimée », « surface de référence », méthode 3CL, CREP, constat de risque d'exposition au plomb,
+revêtements privatifs, diagnostiqueur, déperditions, ponts thermiques — raison « Rapport de diagnostic annexé » dans le diagnostic de
+la relecture), et ne compte plus « le diagnostic / rapport / constat / état … réalisé le » comme une réalisation passée de travaux
+(`RE_DIAGNOSTIC_REALISE` retiré de la phrase avant `RE_TRAVAUX_PASSES` ; jamais par-dessus « travaux », « que », « qui » : « le
+rapport indique que des travaux de toiture ont été réalisés en 2022 » reste retenu). Le constat « absents du projet de vente »
+(`constatsTravauxNonRepris`) et les constats d'autorisation/décennale en profitent. Tests : trois annexes inventées écartées (le
+test échoue sans le correctif), une vraie déclaration gardée. Non rejoué sur le compromis réel de l'étude (pas dans le dépôt).

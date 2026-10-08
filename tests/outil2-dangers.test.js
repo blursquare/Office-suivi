@@ -725,3 +725,26 @@ test('detecterAssembleesGenerales : la fenêtre d’une AG ne déborde pas sur l
   assert.equal(ags[0].travauxVotes, true, 'le vote de 2025 ne doit pas être annulé par la phrase de 2024');
   assert.equal(ags[1].travauxVotes, false);
 });
+
+// Commentaires de relecture de l'étude (07/10) : des tableaux du DPE et le constat plomb annexés au
+// compromis étaient lus comme des travaux déclarés. Structure reprise de ces annexes, valeurs inventées.
+test('detecterTravauxRealises écarte les annexes de diagnostic (DPE, constat plomb)', () => {
+  const app = chargerApplication();
+  const textes = [
+    "Fiche technique du logement (DPE) donnée d'entrée origine de la donnée valeur renseignée Année de construction 1950 Epaisseur mur observée ou mesurée 50 cm Isolation : oui / non / inconnue observée ou mesurée Oui, isolation réalisée en 2010 par l'intérieur, toiture refaite en 2012 Epaisseur isolant observée ou mesurée 10 cm.",
+    "Le présent CREP réalisé en application de l'article L.1334-7 porte uniquement sur les revêtements privatifs d'un logement, y compris les revêtements extérieurs au logement (volets, portail, grille…) ; la construction a été achevée en 1948.",
+    "Le diagnostic de performance énergétique a été réalisé le 12 mars 2024 ; il mentionne une toiture en tuiles et une façade en pierre de taille sur la construction de 1930."
+  ];
+  for (const texte of textes) {
+    const t = app.detecterTravauxRealises(texte, pagesFactices(texte), AUJOURDHUI);
+    assert.equal(t.length, 0, texte.slice(0, 60));
+  }
+});
+
+test('detecterTravauxRealises garde une vraie déclaration qui cite un rapport', () => {
+  const app = chargerApplication();
+  const texte = "Le VENDEUR déclare que le rapport de l'expert indique que des travaux de toiture ont été réalisés en 2022 par l'entreprise Toitures Dupont.";
+  const t = app.detecterTravauxRealises(texte, pagesFactices(texte), AUJOURDHUI);
+  assert.equal(t.length, 1);
+  assert.equal(t[0].grosOeuvre, true);
+});
