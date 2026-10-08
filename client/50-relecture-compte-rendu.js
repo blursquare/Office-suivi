@@ -75,7 +75,8 @@
       if (pointsValides.length) valides.push({ theme: s.titre, themeCle: s.cle, points: pointsValides });
     }
     for (const c of (e.claire || [])) {
-      ranger({ genre: 'claire', theme: 'Contrôle CLAIRE', themeCle: 'claire', intitule: c.titre, commentaire: court(c.description),
+      const urbanisme = c.categorie === 'CONTROLE_URBANISME';
+      ranger({ genre: 'claire', theme: urbanisme ? 'Contrôle de l’urbanisme' : 'Contrôle CLAIRE', themeCle: urbanisme ? 'urbanisme' : 'claire', intitule: c.titre, commentaire: court(c.description),
         citations: c.page ? [{ page: c.page, document: c.document, verifie: true, extrait: c.phrase || '' }] : [], niveau: c.niveau, uid: c.uid || '' });
     }
     for (const c of (e.contradictions || [])) {
@@ -282,7 +283,7 @@
       synthese,
       sections: sectionsEffectives.map(s => ({ cle: s.cle, titre: s.titre, lignes: s.lignesEff.map(l => ({
         id: l.id, intitule: l.intitule, niveau: l.niveau, commentaire: l.commentaire, citations: l.citations, base_legale: l.base_legale, uid: 'g-' + l.id })) })),
-      claire: constatsClaire.map(c => ({ uid: c.uid || '', titre: c.titre, description: c.description || c.detail || '', niveau: niveauConstat(c), page: c.page, document: c.document, phrase: c.phrase })),
+      claire: constatsClaire.map(c => ({ uid: c.uid || '', categorie: c.categorie || '', titre: c.titre, description: c.description || c.detail || '', niveau: niveauConstat(c), page: c.page, document: c.document, phrase: c.phrase })),
       contradictions: contradictions.map(c => ({ uid: c.uid, titre: c.titre, description: c.description, niveau: niveauConstat(c),
         clauses: [c.contradiction && c.contradiction.clause_a, c.contradiction && c.contradiction.clause_b].filter(Boolean) })),
       anomalies: anomalies.map(c => ({ uid: c.uid, titre: c.titre, description: c.description, niveau: niveauConstat(c), citations: (c.anomalie && c.anomalie.citations) || [] }))

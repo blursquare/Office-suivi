@@ -1491,6 +1491,7 @@
     { cle: 'CARNET_ENTRETIEN', section: 'ANNEXES', titre: 'Carnet d’entretien de l’immeuble' },
     { cle: 'ETAT_DATE', section: 'ANNEXES', titre: 'État daté / pré-état daté' },
     { cle: 'URBANISME', section: 'ANNEXES', titre: 'Certificat d’urbanisme' },
+    { cle: 'CONTROLE_URBANISME', section: 'ACTE', titre: 'Contrôle de l’urbanisme (droits de préemption, zone protégée)' },
     { cle: 'PERMIS', section: 'ANNEXES', titre: 'Permis de construire (terrain à bâtir)' }
   ];
 

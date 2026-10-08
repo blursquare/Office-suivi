@@ -222,6 +222,8 @@
     const agsAvantContrat = detecterAssembleesGenerales(texteAvantContrat, pagesAvantContrat, null);
     documentJournalDiagnosticOutil2(nomProjet, (entree && entree.pagesProjet) || []);
     const lectureActe = constatsLectureActe(texteProjet, (entree && entree.pagesProjet) || []);
+    // Travaux déclarés dans le projet lui-même : lus ici, quand le journal de diagnostic suit le projet (contrôle de l'urbanisme).
+    const travauxProjet = detecterTravauxRealises(texteProjet, (entree && entree.pagesProjet) || [], aujourdHui);
     const statutAcquereurs = detecterStatutAcquereurs(texteProjet, (entree && entree.pagesProjet) || []);
     const statutVendeur = detecterStatutVendeur(texteProjet, (entree && entree.pagesProjet) || []);
     const agsProjet = detecterAssembleesGenerales(texteProjet, (entree && entree.pagesProjet) || [], null);
@@ -285,6 +287,9 @@
       .concat(constatsAssembleesGenerales({ ags, estCopropriete, dateAvantContrat, dateVente }))
       .concat(constatsEtatDate(etatsDates, aujourdHui, estCopropriete))
       .concat(constatsCertificatUrbanisme(certificatsUrbanisme, aujourdHui))
+      .concat(constatsControleUrbanisme({ mode: 'acte', texte: texteProjet,
+        travaux: travaux.concat(travauxProjet),
+        preemption: dossierLie ? dossierLie.preemption : null }))
       .concat(estTerrain ? constatsPermisConstruire({ analyse: permis, purge: purgePermis, conditionPermis }) : []);
 
     constats.sort((a, b) => (ORDRE_GRAVITE_OUTIL2[a.gravite] ?? 9) - (ORDRE_GRAVITE_OUTIL2[b.gravite] ?? 9));

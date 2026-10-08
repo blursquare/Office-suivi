@@ -793,6 +793,15 @@ dans `index.html`** (le test `structure-client` refuse tout décalage).
 
 ## Relecture d'actes (Outil 2) — état actuel
 
+**Contrôle de l'urbanisme dans la relecture** (étude 08/10, « dans un second temps à l'outil relecture d'actes » ;
+`client/55-controle-urbanisme-relecture.js`, `constatsControleUrbanisme`, catégorie `CONTROLE_URBANISME`) : seulement quand la
+relecture est liée à un dossier qui porte une analyse (`d.preemption`) — droit retenu (`oui`/`probable`, `droitsPreemptionFiche`)
+que le texte ne cite pas (`MENTIONS_DROITS_URBANISME` : DPU/DIA, SAFER, préférence bois et forêts ; IMPORTANT dans un projet
+de vente, À vérifier dans un avant-contrat) ; zone protégée (`lignePatrimoinePreemption` « oui ») non signalée
+(`RE_PATRIMOINE_DANS_ACTE`, À vérifier) ; travaux extérieurs/gros œuvre déclarés (avant-contrat + projet) sans mention de
+l'architecte des bâtiments de France — un seul point (IMPORTANT). Mode avant-contrat : `dossierLie` passé aussi. Rangés dans la
+carte « Urbanisme » du bilan (`themeCle: 'urbanisme'`, titre « Contrôle de l'urbanisme »). Sans dossier lié ou sans analyse : rien.
+
 Quatre étapes : documents (dépôt ou dossier NAS complet) → pseudonymisation (vérifiable) →
 analyse par API → bilan (carte de santé, grille de points par thème, clauses contradictoires,
 aperçu PDF à la page citée, coût). La grille (`GRILLE_RELECTURE_OUTIL2`) vit côté client et dépend

@@ -143,7 +143,7 @@ test('chaque catégorie de constat est rattachée à une section existante du ra
   }
   // Garde-fou structurel : une catégorie oubliée ici disparaîtrait silencieusement du rapport.
   const couvertes = app.SOUS_SECTIONS_RAPPORT_OUTIL2.map(s => s.cle).sort().join(',');
-  assert.equal(couvertes, ['ACTE', 'CARNET_ENTRETIEN', 'COMPARAISON_COMPROMIS', 'COPROPRIETE',
+  assert.equal(couvertes, ['ACTE', 'CARNET_ENTRETIEN', 'COMPARAISON_COMPROMIS', 'CONTROLE_URBANISME', 'COPROPRIETE',
     'DIAGNOSTICS', 'DOCUMENTS', 'ENTRETIENS', 'ETAT_DATE', 'PARTIES', 'PERMIS', 'TRAVAUX_A_FAIRE',
     'TRAVAUX_REALISES', 'URBANISME'].sort().join(','));
 });

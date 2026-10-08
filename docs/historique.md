@@ -18591,3 +18591,21 @@ cadrage, « seulement renommer » pour l'outil). Libellé de la barre latérale 
 page, sous-titre de la fiche (onglet Pièces et analyse), info-bulle de la lecture automatique, intention `preemption` de « Demander à
 CLAIRE » (libellé, réponse, motifs « contrôle de l'urbanisme » et « monument historique »). Clé `preemption`, `d.preemption` et
 fichiers inchangés ; historique des dossiers inchangé (« Droits de préemption vérifiés… » décrit bien ce qui a été fait).
+
+**Relecture d'actes : contrôle de l'urbanisme** (0.199.0, 08/10 au soir ; second temps de la demande « … et dans un second temps à
+l'outil relecture d'actes »). Nouveau fichier `client/55-controle-urbanisme-relecture.js` (manifeste + `index.html`) :
+`constatsControleUrbanisme({ mode, texte, travaux, preemption })`, pure. N'agit que si la relecture est liée à un dossier dont la fiche
+porte l'analyse du Contrôle de l'urbanisme (`d.preemption`, lue seule à l'ajout du dossier ou enregistrée depuis l'outil). Trois
+points, catégorie `CONTROLE_URBANISME` :
+1. droit de préemption retenu (statut `oui` ou `probable`) dont le texte relu ne parle pas — DPU (« droit de préemption urbain »,
+   DPU, DIA, « déclaration d'intention d'aliéner »), SAFER, bois et forêts (droit de préférence, L.331-19 à 24) ; IMPORTANT dans un
+   projet de vente (la purge doit être relatée), À vérifier dans un avant-contrat ;
+2. bien en zone protégée (servitudes AC1/AC2/AC4 lues sur le Géoportail) que le texte ne signale pas (monument historique, abords,
+   site inscrit/classé, site patrimonial remarquable, ABF) — À vérifier, avec le conseil de l'outil ;
+3. travaux extérieurs ou de gros œuvre déclarés (`detecterTravauxRealises` sur l'avant-contrat et le projet) en zone protégée sans
+   mention de l'architecte des bâtiments de France — IMPORTANT, un seul point (la même déclaration est souvent reprise).
+Branché dans `analyserCompromisOutil2Interne` (le dossier lié lui est désormais passé) et `analyserProjetVenteOutil2Interne` ; sous-section
+du rapport « Contrôle de l'urbanisme (droits de préemption, zone protégée) » ; au bilan par catégorie, ces points vont dans la carte
+« Urbanisme » (`planCompteRenduRelecture` lit `categorie`). Tests `tests/controle-urbanisme-relecture.test.js` (droit absent, zone non
+signalée, travaux sans ABF, acte complet = rien, sans analyse = rien, avant-contrat « à vérifier », bout en bout sur un projet lié,
+rangement dans la carte Urbanisme). Non vu sur un vrai acte ni dans le navigateur de l'étude.

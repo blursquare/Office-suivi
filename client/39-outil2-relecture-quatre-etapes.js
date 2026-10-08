@@ -628,7 +628,7 @@
       dernierAuditContexte = {
         mode: 'compromis',
         entree: {
-          texte: principal.texte, pages: principal.pages, nomTexte: principal.nom, documentsDeposes: justificatifs,
+          texte: principal.texte, pages: principal.pages, nomTexte: principal.nom, documentsDeposes: justificatifs, dossierLie: auditDossierLie,
           extraction: construireExtractionRegex(principal.texte, null, null, principal.nom)
         },
         nbJustificatifs: justificatifs.length,

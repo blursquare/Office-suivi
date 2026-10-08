@@ -267,7 +267,9 @@
       .concat(constatsEngagementsVendeur(engagements, justificatifs, aujourdHui))
       .concat(constatsAssembleesGenerales({ ags, estCopropriete }))
       .concat(constatsEtatDate(etatsDates, aujourdHui, estCopropriete))
-      .concat(constatsCertificatUrbanisme(certificatsUrbanisme, aujourdHui));
+      .concat(constatsCertificatUrbanisme(certificatsUrbanisme, aujourdHui))
+      .concat(constatsControleUrbanisme({ mode: 'compromis', texte, travaux,
+        preemption: entree && entree.dossierLie ? entree.dossierLie.preemption : null }));
 
     constats.sort((a, b) => (ORDRE_GRAVITE_OUTIL2[a.gravite] ?? 9) - (ORDRE_GRAVITE_OUTIL2[b.gravite] ?? 9));
 
