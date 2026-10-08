@@ -229,16 +229,21 @@ test('Mistral indisponible ou en erreur : repli sur les mots-clés, raison dite,
 test('route : réglage du moteur (Mistral par défaut, IA locale au choix), usage du mois, repli local sans clé', async () => {
   const lire = await fetch(`${baseUrl}/api/assistant/reglages`, { headers: { Authorization: `Bearer ${jeton}` } });
   const r = await lire.json();
-  assert.equal(r.moteur, 'mistral');
+  assert.equal(r.moteur, 'claude', 'étude 08/10 : Claude par défaut');
+  assert.equal(r.toutesDemandes, true, 'Claude lit toutes les demandes');
   assert.equal(r.cleMistralEnregistree, false);
+  assert.equal(r.cleClaudeEnregistree, false);
   assert.equal(r.usage.demandes, 0);
   const dispo = await (await fetch(`${baseUrl}/api/assistant/disponibilite`, { headers: { Authorization: `Bearer ${jeton}` } })).json();
-  assert.equal(dispo.moteur, 'locale', 'sans clé Mistral : IA locale');
-  assert.match(dispo.raison, /Aucune clé Mistral/);
+  assert.equal(dispo.moteur, 'locale', 'sans clé Claude ni Mistral : IA locale');
+  assert.match(dispo.raison, /Aucune clé Claude/);
+  await fetch(`${baseUrl}/api/assistant/reglages`, { method: 'PUT', headers: { Authorization: `Bearer ${jeton}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ moteur: 'mistral' }) });
+  const dispoMistral = await (await fetch(`${baseUrl}/api/assistant/disponibilite`, { headers: { Authorization: `Bearer ${jeton}` } })).json();
+  assert.match(dispoMistral.raison, /Aucune clé Mistral/);
   const ecrit = await (await fetch(`${baseUrl}/api/assistant/reglages`, { method: 'PUT', headers: { Authorization: `Bearer ${jeton}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ moteur: 'locale' }) })).json();
   assert.equal(ecrit.moteur, 'locale');
   await fetch(`${baseUrl}/api/assistant/reglages`, { method: 'PUT', headers: { Authorization: `Bearer ${jeton}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ moteur: 'n importe quoi' }) });
-  assert.equal((await (await fetch(`${baseUrl}/api/assistant/reglages`, { headers: { Authorization: `Bearer ${jeton}` } })).json()).moteur, 'mistral');
+  assert.equal((await (await fetch(`${baseUrl}/api/assistant/reglages`, { headers: { Authorization: `Bearer ${jeton}` } })).json()).moteur, 'claude');
 });
 
 test('« Mistral lit toutes les demandes » (étude 07/10) : même une phrase claire part à l’IA, son intention l’emporte, le code garde ses paramètres', async () => {
@@ -264,16 +269,17 @@ test('« Mistral lit toutes les demandes » (étude 07/10) : même une phrase cl
   assert.match(repli.raisonIa, /IA Mistral/);
 });
 
-test('route : « Mistral lit toutes les demandes » coupé par défaut (07/10 au soir, clé gratuite), se rallume et se garde', async () => {
+test('route : « toutes les demandes » se coupe et se rallume ; un réglage ancien passe à Claude (08/10)', async () => {
   const h = { Authorization: `Bearer ${jeton}`, 'Content-Type': 'application/json' };
   await fetch(`${baseUrl}/api/assistant/reglages`, { method: 'PUT', headers: h, body: JSON.stringify({ moteur: 'mistral' }) });
   assert.equal((await (await fetch(`${baseUrl}/api/assistant/reglages`, { headers: h })).json()).toutesDemandes, false);
   await fetch(`${baseUrl}/api/assistant/reglages`, { method: 'PUT', headers: h, body: JSON.stringify({ moteur: 'mistral', toutesDemandes: true }) });
   assert.equal((await (await fetch(`${baseUrl}/api/assistant/reglages`, { headers: h })).json()).toutesDemandes, true);
-  // Un réglage gardé le matin (coché d'office, sans révision) ne compte plus.
+  // Un réglage d'avant le 08/10 (révision 2 ou sans révision) passe à Claude, qui lit toutes les demandes.
   const { creerRepoParametres } = require('../src/parametresRepo');
-  creerRepoParametres(db).ecrireJsonBrut('assistant-ia', { moteur: 'mistral', toutesDemandes: true });
-  assert.equal((await (await fetch(`${baseUrl}/api/assistant/reglages`, { headers: h })).json()).toutesDemandes, false);
+  creerRepoParametres(db).ecrireJsonBrut('assistant-ia', { moteur: 'mistral', toutesDemandes: false, revision: 2 });
+  const migre = await (await fetch(`${baseUrl}/api/assistant/reglages`, { headers: h })).json();
+  assert.equal(`${migre.moteur} ${migre.toutesDemandes}`, 'claude true');
 });
 
 test('Mistral (07/10, « ne répond pas ») : 400 jetons au moins, réponse coupée dite comme telle, gabarit recopié écarté, ```json``` lu', async () => {
@@ -294,4 +300,52 @@ test('Mistral (07/10, « ne répond pas ») : 400 jetons au moins, réponse coup
   assert.equal(r2.intention, 'etat_dossier');
   assert.equal(r2.dossier, 'd1', 'dossier relu dans la phrase, pas « <nom cité> »');
   assert.equal(r2.parametres.titre || '', '');
+});
+
+// ---- Claude (étude 08/10 : « connecte Claude à Demander à CLAIRE pour toutes les requêtes ») ----
+
+test('Claude : la phrase part noms masqués, sortie par schéma, sans réflexion, dossier rétabli, usage compté à part', async () => {
+  const { creerClientClaudeAssistant, SCHEMA_ASSISTANT } = require('../src/assistantClaude');
+  const D = [{ id: 'd1', nom: 'FOURNIER / GAUTHIER', parties: [{ nom: 'FOURNIER', prenom: 'Paul' }, { nom: 'GAUTHIER' }],
+    autres: ['BLOIS (41000), 2 rue des Tanneurs'], contacts: ['paul.fournier@exemple.fr'] }];
+  const envoyes = [];
+  const faux = { messages: { create: async (params) => {
+    envoyes.push(params);
+    const jeton = ((params.messages[0].content.split('Phrase :')[1] || '').match(/\[NOM\d+\]/) || [''])[0];
+    return { stop_reason: 'end_turn', usage: { input_tokens: 900, output_tokens: 60 },
+      content: [{ type: 'text', text: JSON.stringify({ intention: 'etat_dossier', parametres: { dossier: jeton, date: '', heure: '', texte: '', modele: '', echeance: '', champ: '', partie: '', ecran: '', collaborateur: '', titre: '', montant: null } }) }] };
+  } } };
+  const ecrits = {};
+  const repo = { lireJsonBrut: (k, d) => ecrits[k] || d, ecrireJsonBrut: (k, v) => { ecrits[k] = v; } };
+  const client = creerClientClaudeAssistant({ cle: 'cle-secrete', parametresRepo: repo, client: faux });
+  const r = await comprendreDemande({ texte: 'Où en est Paul Fournier, paul.fournier@exemple.fr ?', contexte: { aujourdhui: '2026-10-08' }, dossiers: D },
+    client, { pseudonymiser: true, toujours: true });
+  assert.equal(envoyes.length, 1);
+  assert.equal(envoyes[0].model, 'claude-opus-5');
+  assert.deepEqual(envoyes[0].thinking, { type: 'disabled' });
+  assert.equal(envoyes[0].output_config.effort, 'low');
+  assert.equal(envoyes[0].output_config.format.schema, SCHEMA_ASSISTANT);
+  assert.doesNotMatch(envoyes[0].messages[0].content, /Paul|Fournier|FOURNIER|GAUTHIER|Tanneurs|paul\.fournier/);
+  assert.equal(`${r.source} ${r.moteur} ${r.intention} ${r.dossier}`, 'ia claude etat_dossier d1');
+  assert.equal(ecrits['assistant-ia-usage-claude'].demandes, 1);
+  assert.equal(ecrits['assistant-ia-usage-claude'].entree, 900);
+  assert.equal(ecrits['assistant-ia-usage'], undefined, 'l’usage de Mistral reste à part');
+  // Toutes les intentions de la liste fermée dans le schéma, rien d'autre.
+  assert.ok(SCHEMA_ASSISTANT.properties.intention.enum.includes('inconnu'));
+});
+
+test('Claude en erreur ou sans clé : repli sur les mots-clés, raison dite sans rien de la requête, erreur comptée', async () => {
+  const { creerClientClaudeAssistant } = require('../src/assistantClaude');
+  const ecrits = {};
+  const repo = { lireJsonBrut: (k, d) => ecrits[k] || d, ecrireJsonBrut: (k, v) => { ecrits[k] = v; } };
+  const erreur = Object.assign(new Error('Paul Fournier dans le corps'), { status: 429 });
+  const client = creerClientClaudeAssistant({ cle: 'x', parametresRepo: repo, client: { messages: { create: async () => { throw erreur; } } } });
+  const r = await comprendreDemande({ texte: 'Où en est le dossier MARTIN ?', contexte: CONTEXTE, dossiers: DOSSIERS }, client, { pseudonymiser: true, toujours: true });
+  assert.equal(`${r.intention} ${r.source}`, 'etat_dossier motscles');
+  assert.equal(r.raisonIa, 'IA Claude : limite de débit Claude atteinte');
+  assert.equal(ecrits['assistant-ia-usage-claude'].erreurs, 1);
+  const refus = creerClientClaudeAssistant({ cle: 'x', client: { messages: { create: async () => ({ stop_reason: 'refusal', content: [] }) } } });
+  const r2 = await comprendreDemande({ texte: 'Où en est le dossier MARTIN ?', contexte: CONTEXTE, dossiers: DOSSIERS }, refus, { toujours: true });
+  assert.match(r2.raisonIa, /refusé/);
+  assert.equal((await creerClientClaudeAssistant({ cle: '' }).verifierDisponibilite()).disponible, false);
 });

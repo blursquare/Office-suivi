@@ -18490,3 +18490,15 @@ Vérifié dans Chromium avec une relecture inventée (bureau 1440 px et téléph
 - Étude (capture, « Société / Raison sociale » vide) : « si clique par inadvertance le champ vide reste ». `changerPersonneDossier` :
   nom vide avant et après → la ligne est retirée (différé de 150 ms, pas si le focus reste sur la même ligne — civilité ; après
   le choix d'une civilité sur une ligne sans nom, le nom reprend le focus).
+
+### 08/10/2026 18 h 18 — 0.196.0 : Claude dans « Demander à CLAIRE », pour toutes les demandes
+
+- Étude : « connecte Claude à Demander à CLAIRE pour toutes les requêtes ». `server/src/assistantClaude.js` : client à l'interface
+  d'Ollama (`verifierDisponibilite`, `genererJson`), SDK Anthropic, `claude-opus-5`, `thinking: disabled`, `effort: low`, sortie
+  structurée `json_schema` (intention de la liste fermée, paramètres en chaînes, montant nombre ou null), 600 jetons, 20 s, aucun
+  réessai ; erreur dite sans rien de la requête (`messageErreurClaude`), refus du modèle dit. Phrase pseudonymisée par
+  `pseudonymiserDemande` exactement comme pour Mistral. Moteurs : claude (défaut), mistral, locale ; `REVISION_REGLAGES_ASSISTANT`
+  = 3 : un réglage plus ancien passe à Claude + toutes les demandes. Clé : celle de la relecture d'actes (`cleApi`), le champ « Clé
+  Claude » s'affiche dès que l'assistant utilise Claude, même si la relecture reste sur Mistral. Usage à part
+  (`assistant-ia-usage-claude`, 5 $/25 $ par million de jetons). Non vérifié avec une vraie clé ici (aucune clé dans
+  l'environnement de développement) : point terrain `assistant-claude`.

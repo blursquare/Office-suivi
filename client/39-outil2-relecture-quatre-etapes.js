@@ -1433,7 +1433,9 @@
     const c = document.getElementById('reglages-ia-claude');
     // style.display et non l'attribut hidden : .calc-champs pose un display qui l'emporterait.
     if (m) m.style.display = f === 'mistral' ? '' : 'none';
-    if (c) c.style.display = f === 'claude' ? '' : 'none';
+    // La clé Claude sert aussi à « Demander à CLAIRE » (étude 08/10) : champ montré dès que l'assistant utilise Claude.
+    const assistant = document.getElementById('reglages-assistant-moteur');
+    if (c) c.style.display = f === 'claude' || (assistant && assistant.value === 'claude') ? '' : 'none';
   }
 
   async function chargerReglagesClaude() {

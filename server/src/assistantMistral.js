@@ -17,7 +17,13 @@ const DELAI_MISTRAL_MS = 20 * 1000;
 const MAX_JETONS_MISTRAL = 400;
 const CLE_USAGE = 'assistant-ia-usage';
 const CLE_REGLAGES = 'assistant-ia';
-const MOTEURS = ['mistral', 'locale'];
+// Claude en tête (étude 08/10 : « connecte Claude à Demander à CLAIRE pour toutes les requêtes ») ; voir assistantClaude.js.
+const MOTEURS = ['claude', 'mistral', 'locale'];
+// Usage tenu par moteur en ligne : clé de stockage et tarif (dollars par million de jetons, majoration comprise).
+const USAGES = {
+  mistral: { cle: CLE_USAGE, entree: 0.15 * 1.1, sortie: 0.6 * 1.1 },
+  claude: { cle: 'assistant-ia-usage-claude', entree: 5, sortie: 25 }
+};
 const BASES = { eu: 'https://api.eu.mistral.ai', global: 'https://api.mistral.ai' };
 
 // Sigles du métier gardés tels quels (ils disent l'intention, pas une personne).
@@ -32,11 +38,12 @@ const SIGLES = new Set(['VTE', 'SUCC', 'RIB', 'SAFER', 'DPU', 'DIA', 'PDF', 'TVA
  */
 function assainirReglagesAssistant(brut) {
   const b = brut && typeof brut === 'object' ? brut : {};
-  return { moteur: MOTEURS.includes(b.moteur) ? b.moteur : 'mistral', toutesDemandes: b.toutesDemandes === true };
+  return { moteur: MOTEURS.includes(b.moteur) ? b.moteur : 'claude', toutesDemandes: b.toutesDemandes === true };
 }
 
-// Révision des réglages enregistrés : un « toutes les demandes » gardé avant le 07/10 au soir (alors coché d'office) ne compte pas.
-const REVISION_REGLAGES_ASSISTANT = 2;
+// Révision des réglages enregistrés. 2 : un « toutes les demandes » gardé avant le 07/10 au soir (alors coché d'office) ne compte
+// pas. 3 (étude 08/10) : un réglage d'avant passe à Claude, qui lit toutes les demandes.
+const REVISION_REGLAGES_ASSISTANT = 3;
 
 /**
  * Masque dans une phrase tout ce qui peut désigner une personne ou un dossier. `table` (Map jeton → texte d'origine) est complétée
@@ -114,22 +121,24 @@ function retablirTexte(texte, table) {
   return String(texte || '').replace(/\[(?:NOM|EMAIL|TEL|REF|NUM)\d+\]/g, (j) => table.get(j) || j);
 }
 
-/** Coût en dollars d'un nombre de jetons. Pure. @param {number} entree @param {number} sortie */
-function coutAssistantUsd(entree, sortie) {
+/** Coût en dollars d'un nombre de jetons. Pure. @param {number} entree @param {number} sortie @param {string} [moteur] */
+function coutAssistantUsd(entree, sortie, moteur) {
+  if (moteur === 'claude') return Math.round(((entree || 0) * USAGES.claude.entree + (sortie || 0) * USAGES.claude.sortie) / 1e6 * 10000) / 10000;
   return Math.round(((entree || 0) * TARIF_ASSISTANT_MISTRAL.entree + (sortie || 0) * TARIF_ASSISTANT_MISTRAL.sortie) * MAJORATION_UE / 1e6 * 10000) / 10000;
 }
 
-/** Usage du mois en cours (demandes, jetons, coût estimé). @param {any} parametresRepo @param {Date} [maintenant] */
-function lireUsageAssistant(parametresRepo, maintenant) {
+/** Usage du mois en cours (demandes, jetons, coût estimé). @param {any} parametresRepo @param {Date} [maintenant] @param {string} [moteur] */
+function lireUsageAssistant(parametresRepo, maintenant, moteur) {
   const mois = (maintenant || new Date()).toISOString().slice(0, 7);
-  const u = parametresRepo.lireJsonBrut(CLE_USAGE, {}) || {};
+  const u = parametresRepo.lireJsonBrut((USAGES[moteur || 'mistral'] || USAGES.mistral).cle, {}) || {};
   const courant = u.mois === mois ? u : { mois, demandes: 0, entree: 0, sortie: 0, erreurs: 0 };
-  return { ...courant, coutUsd: coutAssistantUsd(courant.entree, courant.sortie), precedent: u.mois !== mois && u.mois ? u : (u.precedent || null) };
+  return { ...courant, coutUsd: coutAssistantUsd(courant.entree, courant.sortie, moteur), precedent: u.mois !== mois && u.mois ? u : (u.precedent || null) };
 }
 
-/** @param {any} parametresRepo @param {{ entree?: number, sortie?: number, erreur?: boolean }} ajout @param {Date} [maintenant] */
-function noterUsageAssistant(parametresRepo, ajout, maintenant) {
+/** @param {any} parametresRepo @param {{ entree?: number, sortie?: number, erreur?: boolean }} ajout @param {Date} [maintenant] @param {string} [moteur] */
+function noterUsageAssistant(parametresRepo, ajout, maintenant, moteur) {
   const mois = (maintenant || new Date()).toISOString().slice(0, 7);
+  const CLE_USAGE = (USAGES[moteur || 'mistral'] || USAGES.mistral).cle;
   const u = parametresRepo.lireJsonBrut(CLE_USAGE, {}) || {};
   const precedent = u.mois && u.mois !== mois ? { mois: u.mois, demandes: u.demandes || 0, entree: u.entree || 0, sortie: u.sortie || 0 } : (u.precedent || null);
   const base = u.mois === mois ? u : { mois, demandes: 0, entree: 0, sortie: 0, erreurs: 0 };

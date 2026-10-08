@@ -117,7 +117,7 @@ async function comprendreDemande(entree, ollama, options) {
     try { statut = await disponibilite(); } catch (err) { statut = { disponible: false, raison: err && err.message }; }
     if (statut.disponible) {
       try {
-        // IA en ligne (Mistral) : la phrase part noms masqués, les valeurs recopiées sont rétablies au retour.
+        // IA en ligne (Claude, Mistral) : la phrase part noms masqués, les valeurs recopiées sont rétablies au retour.
         const ps = options && options.pseudonymiser ? pseudonymiserDemande(texte, contexte, dossiers) : null;
         const prompt = ps ? promptAssistant(ps.texte, ps.contexte) : promptAssistant(texte, contexte);
         const objet = await ollama.genererJson(prompt, A.validerReponseAssistant, { longueurMax: LONGUEUR_MAX_REPONSE, delaiMs: DELAI_IA_MS, sansRelance: true });
@@ -133,7 +133,7 @@ async function comprendreDemande(entree, ollama, options) {
         parametres.dossierTexte = ia.dossier || '';
         if (ia.titre) parametres.titre = ia.titre;
       } catch (err) {
-        raisonIa = `${moteur === 'mistral' ? 'IA Mistral' : 'IA locale'} : ${err && err.message ? err.message : 'réponse illisible'}`;
+        raisonIa = `${moteur === 'mistral' ? 'IA Mistral' : moteur === 'claude' ? 'IA Claude' : 'IA locale'} : ${err && err.message ? err.message : 'réponse illisible'}`;
       }
     } else {
       raisonIa = statut.raison || 'IA locale indisponible';

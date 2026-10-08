@@ -8,6 +8,7 @@ const express = require('express');
 const { creerClientOllama } = require('../llm');
 const { comprendreDemande, creerCacheDisponibilite } = require('../assistant');
 const { CLE_REGLAGES, MOTEURS, REVISION_REGLAGES_ASSISTANT, assainirReglagesAssistant, creerClientMistralAssistant, lireUsageAssistant, MODELE_ASSISTANT_MISTRAL } = require('../assistantMistral');
+const { creerClientClaudeAssistant, MODELE_ASSISTANT_CLAUDE } = require('../assistantClaude');
 const { noterVerification } = require('../verificationsTerrain');
 
 const chaine = (v, max) => (typeof v === 'string' ? v.slice(0, max) : '');
@@ -26,42 +27,57 @@ function creerRouteurAssistant(config, injections, parametresRepo) {
   // Relecture d'actes), sinon l'IA locale. La clé ne sort jamais d'ici.
   const lireReglages = () => {
     const brut = parametresRepo.lireJsonBrut(CLE_REGLAGES, {}) || {};
-    const r = assainirReglagesAssistant(brut);
-    if (brut.revision !== REVISION_REGLAGES_ASSISTANT) r.toutesDemandes = false;
-    return r;
+    // Réglage d'avant le 08/10 (ou aucun) : Claude, qui lit toutes les demandes (étude 08/10).
+    if (brut.revision !== REVISION_REGLAGES_ASSISTANT) return { moteur: 'claude', toutesDemandes: true };
+    return assainirReglagesAssistant(brut);
   };
+  function cleClaude() {
+    const r = parametresRepo.lireReglagesClaude ? parametresRepo.lireReglagesClaude() : {};
+    return (r && r.cleApi) || process.env.ANTHROPIC_API_KEY || '';
+  }
   function cleMistral() {
     const r = parametresRepo.lireReglagesClaude ? parametresRepo.lireReglagesClaude() : {};
     return { cle: (r && r.cleMistral) || process.env.MISTRAL_API_KEY || '', region: (r && r.regionMistral) || 'eu' };
   }
   function moteurCourant() {
     const reglages = lireReglages();
-    if (reglages.moteur === 'mistral') {
+    // Claude choisi sans clé : Mistral s'il a la sienne, sinon l'IA locale.
+    if (reglages.moteur === 'claude') {
+      const cle = cleClaude();
+      if (cle) {
+        const client = creerClientClaudeAssistant({ cle, parametresRepo, client: injections && injections.clientClaude });
+        return { client, pseudonymiser: true, disponibilite: () => client.verifierDisponibilite(), moteur: 'claude', choisi: 'claude' };
+      }
+    }
+    if (reglages.moteur === 'mistral' || reglages.moteur === 'claude') {
       const { cle, region } = cleMistral();
       if (cle) {
         const client = creerClientMistralAssistant({ cle, region, fetchFn: injections && injections.fetchMistral, parametresRepo });
-        return { client, pseudonymiser: true, disponibilite: () => client.verifierDisponibilite(), moteur: 'mistral', choisi: 'mistral' };
+        return { client, pseudonymiser: true, disponibilite: () => client.verifierDisponibilite(), moteur: 'mistral', choisi: reglages.moteur };
       }
     }
     return { client: ollama, pseudonymiser: false, disponibilite, moteur: 'locale', choisi: reglages.moteur };
   }
 
   routeur.get('/assistant/reglages', (req, res) => {
-    res.json({ ...lireReglages(), moteurs: MOTEURS, cleMistralEnregistree: !!cleMistral().cle, modeleMistral: MODELE_ASSISTANT_MISTRAL,
-      usage: lireUsageAssistant(parametresRepo) });
+    const reglages = lireReglages();
+    res.json({ ...reglages, moteurs: MOTEURS, cleMistralEnregistree: !!cleMistral().cle, cleClaudeEnregistree: !!cleClaude(),
+      modeleMistral: MODELE_ASSISTANT_MISTRAL, modeleClaude: MODELE_ASSISTANT_CLAUDE,
+      usage: lireUsageAssistant(parametresRepo, undefined, reglages.moteur === 'claude' ? 'claude' : 'mistral') });
   });
 
   routeur.put('/assistant/reglages', (req, res) => {
     const propre = assainirReglagesAssistant(req.body);
     parametresRepo.ecrireJsonBrut(CLE_REGLAGES, { ...propre, revision: REVISION_REGLAGES_ASSISTANT });
-    res.json({ ...propre, cleMistralEnregistree: !!cleMistral().cle });
+    res.json({ ...propre, cleMistralEnregistree: !!cleMistral().cle, cleClaudeEnregistree: !!cleClaude() });
   });
 
   routeur.get('/assistant/disponibilite', routeAsync(async (req, res) => {
     const m = moteurCourant();
     let statut;
     try { statut = await m.disponibilite(); } catch (err) { statut = { disponible: false, raison: err.message }; }
-    const raisonChoix = m.choisi === 'mistral' && m.moteur !== 'mistral' ? 'Aucune clé Mistral enregistrée : IA locale utilisée. ' : '';
+    const raisonChoix = m.choisi === 'claude' && m.moteur !== 'claude' ? `Aucune clé Claude enregistrée : ${m.moteur === 'mistral' ? 'Mistral' : 'IA locale'} utilisé${m.moteur === 'mistral' ? '' : 'e'}. `
+      : m.choisi === 'mistral' && m.moteur !== 'mistral' ? 'Aucune clé Mistral enregistrée : IA locale utilisée. ' : '';
     res.json({ ia: !!statut.disponible, moteur: m.moteur, raison: raisonChoix + (statut.disponible ? '' : String(statut.raison || '')), modele: m.client.modele });
   }));
 
@@ -89,9 +105,9 @@ function creerRouteurAssistant(config, injections, parametresRepo) {
         historique: Array.isArray(contexte.historique) ? contexte.historique.slice(-3) : []
       },
       dossiers
-    }, m.client, { disponibilite: m.disponibilite, pseudonymiser: m.pseudonymiser, toujours: m.moteur === 'mistral' && lireReglages().toutesDemandes });
+    }, m.client, { disponibilite: m.disponibilite, pseudonymiser: m.pseudonymiser, toujours: m.moteur !== 'locale' && lireReglages().toutesDemandes });
     // Point terrain : l'IA locale a compris une phrase ambiguë (ou n'a pas pu) — jamais la phrase elle-même.
-    const point = /Mistral/.test(resultat.raisonIa || '') || resultat.moteur === 'mistral' ? 'assistant-mistral' : 'assistant-ia-locale';
+    const point = m.moteur === 'claude' ? 'assistant-claude' : m.moteur === 'mistral' ? 'assistant-mistral' : 'assistant-ia-locale';
     if (resultat.source === 'ia') noterVerification(parametresRepo, point, { detail: `intention ${resultat.intention}` });
     else if (resultat.raisonIa) noterVerification(parametresRepo, point, { ok: false, message: resultat.raisonIa.slice(0, 120) });
     res.json(resultat);

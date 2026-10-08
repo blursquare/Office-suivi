@@ -37,9 +37,9 @@
     if (!el) return;
     const d = assistantDisponibilite;
     if (d.ia === null) { el.innerHTML = ''; return; }
-    const nom = d.moteur === 'mistral' ? 'IA Mistral' : 'IA locale';
+    const nom = d.moteur === 'claude' ? 'IA Claude' : d.moteur === 'mistral' ? 'IA Mistral' : 'IA locale';
     el.innerHTML = d.ia
-      ? `<span class="dot-label dl-success"${d.raison ? ` title="${escapeAttr(d.raison)}"` : ''}><span class="dot"></span>${nom} prête${d.moteur === 'mistral' ? ' — noms masqués' : ''}</span>`
+      ? `<span class="dot-label dl-success"${d.raison ? ` title="${escapeAttr(d.raison)}"` : ''}><span class="dot"></span>${nom} prête${d.moteur === 'mistral' || d.moteur === 'claude' ? ' — noms masqués' : ''}</span>`
       : `<span class="dot-label dl-neutre" title="${escapeAttr(d.raison)}"><span class="dot"></span>Sans ${nom} : mots-clés seulement</span>`;
   }
 
@@ -236,7 +236,7 @@
   // Mistral », et ce que les mots-clés auraient compris quand ils disaient autre chose. Rien quand les mots-clés ont suffi.
   function noteMoteurAssistant(r) {
     if (!r || r.source !== 'ia') return '';
-    const moteur = r.moteur === 'mistral' ? 'Mistral' : 'l’IA locale';
+    const moteur = r.moteur === 'claude' ? 'Claude' : r.moteur === 'mistral' ? 'Mistral' : 'l’IA locale';
     const autre = r.motsCles ? intentionAssistant(r.motsCles) : null;
     return `<p class="asst-note asst-moteur">Compris par ${moteur}${autre ? ` — les mots-clés auraient compris « ${escapeHtml(autre.libelle)} »` : ''}.</p>`;
   }
@@ -683,11 +683,20 @@
 
   // Réglages › IA et relecture d'actes › « Demander à CLAIRE » : moteur (Mistral, noms masqués, ou IA locale) et usage du mois.
   // Pure : la ligne d'usage du mois (demandes, coût estimé en euros, erreurs). @param {any} u
-  function texteUsageAssistant(u) {
-    if (!u || !u.demandes) return 'Aucune demande envoyée à Mistral ce mois-ci.';
+  function texteUsageAssistant(u, moteur) {
+    const nom = moteur === 'claude' ? 'Claude' : 'Mistral';
+    if (!u || !u.demandes) return `Aucune demande envoyée à ${nom} ce mois-ci.`;
     const euros = (u.coutUsd || 0) * 0.92;
     const cout = euros < 0.01 ? 'moins d’un centime' : `≈ ${euros.toFixed(2).replace('.', ',')} €`;
-    return `${u.demandes} demande${u.demandes > 1 ? 's' : ''} comprise${u.demandes > 1 ? 's' : ''} par Mistral — ${cout}${u.erreurs ? ` · ${u.erreurs} sans réponse` : ''}.`;
+    return `${u.demandes} demande${u.demandes > 1 ? 's' : ''} comprise${u.demandes > 1 ? 's' : ''} par ${nom} — ${cout}${u.erreurs ? ` · ${u.erreurs} sans réponse` : ''}.`;
+  }
+
+  // Pure : ce que dit la ligne d'usage quand la clé du moteur choisi manque. @param {any} data
+  function avertissementCleAssistant(data) {
+    if (!data) return '';
+    if (data.moteur === 'claude' && !data.cleClaudeEnregistree) return data.cleMistralEnregistree ? ' Aucune clé Claude : Mistral est utilisé.' : ' Aucune clé Claude : l’IA locale est utilisée.';
+    if (data.moteur === 'mistral' && !data.cleMistralEnregistree) return ' Aucune clé Mistral : l’IA locale est utilisée.';
+    return '';
   }
 
   async function chargerReglagesAssistant() {
@@ -696,11 +705,12 @@
       if (!r.ok) return;
       const data = await r.json();
       const choix = document.getElementById('reglages-assistant-moteur');
-      if (choix) choix.value = data.moteur || 'mistral';
+      if (choix) choix.value = data.moteur || 'claude';
+      if (typeof afficherChampsFournisseurIa === 'function') afficherChampsFournisseurIa();
       const toutes = document.getElementById('reglages-assistant-toutes');
       if (toutes) toutes.checked = data.toutesDemandes === true;
       const usage = document.getElementById('reglages-assistant-usage');
-      if (usage) usage.textContent = texteUsageAssistant(data.usage) + (data.moteur === 'mistral' && !data.cleMistralEnregistree ? ' Aucune clé Mistral : l’IA locale est utilisée.' : '');
+      if (usage) usage.textContent = texteUsageAssistant(data.usage, data.moteur) + avertissementCleAssistant(data);
     } catch (e) { /* Réglages sans connexion : rien à afficher */ }
   }
 
@@ -708,11 +718,12 @@
     const choix = document.getElementById('reglages-assistant-moteur');
     const sortie = document.getElementById('reglages-assistant-resultat');
     try {
-      const r = await fetchAvecAuth('/api/assistant/reglages', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ moteur: choix ? choix.value : 'mistral', toutesDemandes: !!(document.getElementById('reglages-assistant-toutes') || {}).checked }) });
+      const r = await fetchAvecAuth('/api/assistant/reglages', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ moteur: choix ? choix.value : 'claude', toutesDemandes: !!(document.getElementById('reglages-assistant-toutes') || {}).checked }) });
       const data = await r.json();
       if (!r.ok) throw new Error(data.erreur || `Le serveur a répondu ${r.status}.`);
       assistantDisponibilite.quand = 0;
-      if (sortie) sortie.textContent = data.moteur === 'mistral' && !data.cleMistralEnregistree ? 'Enregistré — saisissez la clé Mistral plus bas.' : 'Enregistré.';
+      const manque = (data.moteur === 'claude' && !data.cleClaudeEnregistree) ? 'Claude' : (data.moteur === 'mistral' && !data.cleMistralEnregistree) ? 'Mistral' : '';
+      if (sortie) sortie.textContent = manque ? `Enregistré — saisissez la clé ${manque} plus bas.` : 'Enregistré.';
       chargerReglagesAssistant();
     } catch (e) {
       if (sortie) sortie.textContent = `Non enregistré : ${e.message || e}`;

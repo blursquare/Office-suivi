@@ -1972,20 +1972,21 @@
        ressortent jamais du serveur. ===== -->
   <section class="reglages-panneau" id="reglages-panneau-relecture" role="tabpanel" aria-labelledby="reglages-onglet-relecture" hidden>
     <h2 class="reglages-titre">IA et relecture d'actes</h2>
-    <!-- « Demander à CLAIRE » (étude 07/10 : essai de l'API Mistral, noms masqués) — voir server/src/assistantMistral.js. -->
+    <!-- « Demander à CLAIRE » (étude 07/10 : Mistral ; 08/10 : Claude pour toutes les demandes, noms masqués) — server/src/assistantClaude.js, assistantMistral.js. -->
     <div class="reglages-section">
       <h3 class="reglages-section-titre">Demander à CLAIRE</h3>
       <div class="reglages-liste">
         <div class="reglages-champ">
-          <div class="reglages-champ-libelle"><label for="reglages-assistant-moteur">IA qui comprend les demandes</label><span class="info-i" tabindex="0" data-info="Seule la phrase part chez Mistral, noms, adresses, emails et téléphones remplacés par des codes. Les fiches restent au bureau. La clé utilisée est celle de la relecture d’actes, plus bas."></span></div>
-          <select id="reglages-assistant-moteur">
+          <div class="reglages-champ-libelle"><label for="reglages-assistant-moteur">IA qui comprend les demandes</label><span class="info-i" tabindex="0" data-info="Seule la phrase part chez Claude ou Mistral, noms, adresses, emails et téléphones remplacés par des codes. Les fiches restent au bureau. La clé utilisée est celle de la relecture d’actes, plus bas."></span></div>
+          <select id="reglages-assistant-moteur" onchange="afficherChampsFournisseurIa()">
+            <option value="claude">Claude — en ligne, noms masqués</option>
             <option value="mistral">Mistral Small — en ligne, noms masqués</option>
             <option value="locale">IA locale du serveur (Ollama)</option>
           </select>
         </div>
         <label class="reglages-option" for="reglages-assistant-toutes">
           <span class="reglages-option-texte">
-            <span class="reglages-option-titre">Mistral lit toutes les demandes <span class="info-i" tabindex="0" data-info="Chaque phrase part chez Mistral (noms masqués), pas seulement celles que les mots-clés ne comprennent pas : avec une clé gratuite, la limite de Mistral est vite atteinte. Dates, heures, montants et dossier restent lus par CLAIRE. Éteint (par défaut) : Mistral seulement pour les phrases ambiguës. Sans effet avec l’IA locale."></span></span>
+            <span class="reglages-option-titre">L’IA en ligne lit toutes les demandes <span class="info-i" tabindex="0" data-info="Chaque phrase part chez Claude ou Mistral (noms masqués), pas seulement celles que les mots-clés ne comprennent pas. Dates, heures, montants et dossier restent lus par CLAIRE. Éteint : l’IA seulement pour les phrases ambiguës. Sans effet avec l’IA locale."></span></span>
           </span>
           <wa-switch class="switch reglages-switch" id="reglages-assistant-toutes"></wa-switch>
         </label>
