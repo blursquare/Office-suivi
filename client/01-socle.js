@@ -20,6 +20,32 @@
     return tampon;
   }
 
+  // Fichier du poste qui n'a pas pu être chargé (rapport du 08/10 : « majsEnAttenteAuthentic is not defined », « renderWidgetAssistant
+  // is not defined » — reproduit en coupant le chargement d'un fichier de client/, ce qui arrive quand la fenêtre se recharge
+  // pendant que le serveur redémarre après une mise à jour) : la page restait incomplète jusqu'au F5. Elle se recharge seule
+  // quelques secondes plus tard, trois fois au plus par onglet ; le compteur repart à zéro dès qu'un chargement est complet.
+  var CLE_RECHARGE_SCRIPT_MANQUANT = 'claire-recharge-script';
+  var scriptPosteManquant = false;
+  function rechargerApresScriptManquant() {
+    if (scriptPosteManquant) return;
+    scriptPosteManquant = true;
+    let n = 0;
+    try { n = Number(sessionStorage.getItem(CLE_RECHARGE_SCRIPT_MANQUANT)) || 0; } catch (e) { /* stockage bloqué */ }
+    try { noterJournalTechnique({ categorie: 'erreur-poste', message: `Fichier du poste non chargé (essai ${n + 1})`, source: 'chargement' }); } catch (e) { /* journal facultatif */ }
+    if (n >= 3) return;
+    try { sessionStorage.setItem(CLE_RECHARGE_SCRIPT_MANQUANT, String(n + 1)); } catch (e) { /* stockage bloqué */ }
+    setTimeout(() => location.reload(), 3000 * (n + 1));
+  }
+  if (typeof window !== 'undefined' && window.addEventListener) {
+    window.addEventListener('error', (e) => {
+      const t = e && e.target;
+      if (t && t.tagName === 'SCRIPT' && /\/(?:client|commun|vendor)\//.test(t.src || '')) rechargerApresScriptManquant();
+    }, true);
+    window.addEventListener('load', () => {
+      if (!scriptPosteManquant) { try { sessionStorage.removeItem(CLE_RECHARGE_SCRIPT_MANQUANT); } catch (e) { /* stockage bloqué */ } }
+    });
+  }
+
   // Journal technique (30/09, voir server/src/rapportTechnique.js) : les erreurs du navigateur, les
   // corrections faites à la main après une extraction et la lecture des scans partent au serveur,
   // qui les résume dans le rapport technique anonymisé de 12 h et 17 h. Seuls des champs neutres

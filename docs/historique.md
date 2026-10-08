@@ -18521,3 +18521,19 @@ Vérifié dans Chromium avec une relecture inventée (bureau 1440 px et téléph
   [préfixe] SECTION NUMÉRO numéro + type de voie … [CP COMMUNE] contenance, dans les 600 caractères qui suivent « cadastré » (pas
   « anciennement ») ; sans code postal, la même voie suivie d'un code postal ailleurs dans l'acte. Tests
   `tests/compromis-agence-capital.test.js` (textes inventés, structure réelle).
+
+### 08/10 12 h 13 — 0.192.1, installée en 0.196.2 le 08/10 à 18 h 26 sur accord de l’étude (branche claude/rapport-2026-10-08-12h, relecture des rapports n° 18 et 19)
+
+Rapport n° 19 : « Rendu du bloc badge-notifications : majsEnAttenteAuthentic is not defined » et « renderWidgetAssistant is not
+defined », 2 fois chacune à 9 h 14, postes 0.189.9 et 0.191.14 — les deux fonctions existent (client/52, client/49). Reproduit dans
+Chromium en faisant échouer une fois le chargement de client/52 : mêmes messages, page incomplète jusqu'au F5. Cause probable : fenêtre
+rechargée (surveillerVersionServeur) pendant que le serveur redémarrait après la mise à jour automatique. Correction (client/01-socle) :
+une erreur de chargement d'un script de client/, commun/ ou vendor/ recharge la page 3 s plus tard (puis 6, 9 s ; trois fois au plus
+par onglet, compteur `claire-recharge-script` en sessionStorage remis à zéro au premier chargement complet), noté au journal technique
+(« Fichier du poste non chargé »). Rejoué : après l'échec, la page se recharge et la fonction est définie.
+Rapport n° 18 : formes de noms décidées « oui » pour l'étude de sol — « etude geotechnique » ajouté aux formes tolérantes
+(`FORMES_NOM_PIECES.etudeSol`) et aux exemples (« Étude géotechnique ») ; « etude sol » y était déjà ; G1/G2 seuls gardés tels quels
+(décisions contradictoires : « [nom] etude g1 # » non, « etude g1 » oui — les formes apprises tranchent).
+Non traité, à demander à l'étude : scans dont le type n'est pas reconnu (7 puis 3 lectures « type non reconnu ») — impossible sans les
+PDF ; Mistral « limite de débit » (clé gratuite) ; extension 3CX signalée ne fonctionnant pas (poste) ; « Éléments envoyés » d'un
+collaborateur en ErrorItemNotFound (accès délégué Outlook).
