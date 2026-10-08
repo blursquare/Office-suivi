@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.192.0';
+  const VERSION_APP = '0.192.1';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.192.1', date: '2026-10-08 12:13', resume: "Une fenêtre qui se recharge pendant le redémarrage du serveur (mise à jour) et rate un fichier se recharge seule quelques secondes plus tard, au lieu de rester incomplète jusqu’au F5. « Étude géotechnique » reconnue comme étude de sol." },
     { version: '0.192.0', date: '2026-10-08 11:34', resume: "Nouveau type de vente « Terre agricole / terrain non bâti » (création et fiche) : pièces d’urbanisme, ERP, taxe foncière et titre, sans diagnostics ni étude de sol, et « Réponse SAFER » ajoutée d’office. « Nouveau dossier » propose d’abord le choix « Compromis (PDF) » / « Depuis Authentic », sans rien de présélectionné." },
     { version: '0.191.15', date: '2026-10-08 10:21', resume: "Envoi d’email et agenda : un poste qui n’avait pas pu lire la connexion Exchange au démarrage (serveur en train de redémarrer après une mise à jour) se croyait sans Exchange jusqu’au F5 — plus de « Envoyer » (Outlook seulement), plus de crayon, plus de glisser ni d’étirer un rendez-vous. Il réessaie maintenant seul toutes les 15 s, relit la connexion toutes les 5 min et avant de refuser. Copie de l’acte : texte de l’étude (« Vous en souhaitant bonne réception. »), fausses minutes retrouvées aussi par le nom du sous-dossier qui contient les PDF." },
     { version: '0.191.14', date: '2026-10-08 00:03', resume: "Carte « Aujourd’hui » : la fête revient quand toute la liste du jour est faite (tâches des dossiers et mes tâches) — bandeau vert « Journée bouclée, bravo ! » avec le nombre de tâches faites, pluie de confettis une fois par jour." },

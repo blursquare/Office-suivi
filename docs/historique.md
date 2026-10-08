@@ -18400,3 +18400,19 @@ Valeur `terre` : `PIECES_TERRE_AUTRES` (commun/pieces.js), `ajouterPieceSaferTer
 type sur la fiche), options de la création et de la fiche, libellés (historique, sondage, panneau Vérifier, Authentic), courrier
 d'appel de fonds « un terrain non bâti », barème des frais « land », droits de préemption lus comme un terrain nu (`bien: 'terrain'`).
 Restent sans type propre : la grille de relecture d'actes (maison / copropriété / terrain à bâtir) et l'outil Quotités.
+
+### 08/10 12 h 13 — 0.192.1 (branche claude/rapport-2026-10-08-12h, relecture des rapports n° 18 et 19)
+
+Rapport n° 19 : « Rendu du bloc badge-notifications : majsEnAttenteAuthentic is not defined » et « renderWidgetAssistant is not
+defined », 2 fois chacune à 9 h 14, postes 0.189.9 et 0.191.14 — les deux fonctions existent (client/52, client/49). Reproduit dans
+Chromium en faisant échouer une fois le chargement de client/52 : mêmes messages, page incomplète jusqu'au F5. Cause probable : fenêtre
+rechargée (surveillerVersionServeur) pendant que le serveur redémarrait après la mise à jour automatique. Correction (client/01-socle) :
+une erreur de chargement d'un script de client/, commun/ ou vendor/ recharge la page 3 s plus tard (puis 6, 9 s ; trois fois au plus
+par onglet, compteur `claire-recharge-script` en sessionStorage remis à zéro au premier chargement complet), noté au journal technique
+(« Fichier du poste non chargé »). Rejoué : après l'échec, la page se recharge et la fonction est définie.
+Rapport n° 18 : formes de noms décidées « oui » pour l'étude de sol — « etude geotechnique » ajouté aux formes tolérantes
+(`FORMES_NOM_PIECES.etudeSol`) et aux exemples (« Étude géotechnique ») ; « etude sol » y était déjà ; G1/G2 seuls gardés tels quels
+(décisions contradictoires : « [nom] etude g1 # » non, « etude g1 » oui — les formes apprises tranchent).
+Non traité, à demander à l'étude : scans dont le type n'est pas reconnu (7 puis 3 lectures « type non reconnu ») — impossible sans les
+PDF ; Mistral « limite de débit » (clé gratuite) ; extension 3CX signalée ne fonctionnant pas (poste) ; « Éléments envoyés » d'un
+collaborateur en ErrorItemNotFound (accès délégué Outlook).
