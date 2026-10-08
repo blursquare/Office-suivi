@@ -76,8 +76,11 @@ function lignesRelaisPs({ url, profil }) {
     '}',
     "'@",
     'Add-Type -TypeDefinition $code',
+    // Étude 08/10 : « l'onglet se referme mais le navigateur passe au premier plan » — l'onglet de 3CX se ferme APRÈS le lancement
+    // du relais et Chrome reprend la main. On attend que l'onglet soit fermé, puis on montre la fenêtre deux fois, à 0,6 s d'écart.
+    'Start-Sleep -Milliseconds 900',
     '$h = [FenetreClaire]::Trouver()',
-    'if ($h -ne [IntPtr]::Zero) { [void][FenetreClaire]::Montrer($h); exit 0 }',
+    'if ($h -ne [IntPtr]::Zero) { [void][FenetreClaire]::Montrer($h); Start-Sleep -Milliseconds 600; [void][FenetreClaire]::Montrer($h); exit 0 }',
     "$adresse = if ($id) { $url + '#appel=' + $id } else { $url }",
     'Start-Process -FilePath $cible -ArgumentList (\'--profile-directory="\' + $profil + \'" --app="\' + $adresse + \'"\')'
   ];

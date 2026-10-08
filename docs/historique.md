@@ -18537,3 +18537,12 @@ Rapport n° 18 : formes de noms décidées « oui » pour l'étude de sol — «
 Non traité, à demander à l'étude : scans dont le type n'est pas reconnu (7 puis 3 lectures « type non reconnu ») — impossible sans les
 PDF ; Mistral « limite de débit » (clé gratuite) ; extension 3CX signalée ne fonctionnant pas (poste) ; « Éléments envoyés » d'un
 collaborateur en ErrorItemNotFound (accès délégué Outlook).
+
+### 08/10/2026 18 h 29 — 0.196.3 : relais 3CX, fenêtre CLAIRE montrée après la fermeture de l'onglet
+
+- Étude (réponse à la question du rapport) : « le navigateur Chrome ouvre un onglet puis se referme mais le navigateur passe en
+  premier plan, parfois ouvre la fenêtre CLAIRE et aussi dans l'app séparée ». Le relais `claire-appel:` est lancé par la page de
+  sonnerie juste avant qu'elle ferme son onglet : la fenêtre CLAIRE était montrée, puis Chrome reprenait le premier plan en
+  fermant l'onglet. `appel-claire.ps1` attend 0,9 s, montre la fenêtre, puis la remontre 0,6 s plus tard. Le script est copié
+  dans %APPDATA% par l'installateur : à réinstaller sur chaque poste. **Non vérifié sur Windows.** Le cas « aussi dans l'app
+  séparée » (fenêtre non trouvée par son titre → seconde fenêtre ouverte) reste à observer : question posée à l'étude.
