@@ -370,6 +370,12 @@ dans `index.html`** (le test `structure-client` refuse tout décalage).
   « Monsieur et Madame Paul DUPONT » ; sinon chacun nommé avec sa civilité, Monsieur d'abord (« Monsieur Paul DUPONT et Madame
   Léa MARTIN », « Monsieur … et Monsieur … ») ; formule selon les civilités (« Chers Monsieur et Madame, », « Chers Messieurs, »,
   « Chères Mesdames, »).
+  **Société** (étude 08/10 : « prévoir la situation quand il s'agit d'une société, vendeur ou acquéreur ») : « Société » dans la
+  liste des civilités et « + Société » (`p.qualitePersonne = 'morale'`, raison sociale, ni civilité ni situation de couple) ; une
+  forme juridique tapée en tête (SCI, SARL, SAS…) ou « société / commune de … » la pose seule (`nomDitSociete`), un nom sans forme
+  (« 3F ») se choisit dans la liste. **Une personne n'est jamais deux fois du même côté** (étude 08/10, « Madame Ursula DOYLE » deux
+  fois : `memePartieComplement` ne comparait pas le prénom porté à part) : `dedoublonnerPartiesDossier` (même nom complet, prénom
+  compris, mots dans n'importe quel ordre ; jamais deux dates de naissance différentes) à chaque `sauvegarder` et au démarrage.
 - **Dépôt de garantie** : toujours déduit de l'appel de fonds (l'agence reverse la somme) ; le
   détenteur dit seulement quoi réclamer.
 - **Fonds reçus** (reçus comptables du NAS) : le client est le **titulaire** en début de ligne, et

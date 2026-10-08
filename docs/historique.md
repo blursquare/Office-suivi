@@ -18421,3 +18421,20 @@ que l'offre n'est pas reçue (rouge une fois dépassée), montant du prêt s'il 
 (« Garantie non identifiée » en ambre si l'offre est là sans garantie lue, « Lues à la réception de l'offre » avant),
 « Ouvrir l'offre » si un fichier a été retenu sur le NAS, sinon « Revérifier ». Rien pour une vente sans prêt ni une succession.
 Vérifié dans Chromium (offre reçue avec caution ; offre attendue après la date butoir).
+
+### 08/10/2026 14 h 57 — Fiche : acquéreur en double, parties « société » (0.195.0)
+
+Étude (capture) : « J'ai deux fois l'acquéreur et prévoir la situation quand il s'agit d'une société que ce soit pour vendeur ou
+acquéreur » — vendeur « 3F » montré « Civilité 3F », acquéreur « Madame Ursula DOYLE » deux fois.
+- Cause du doublon : `memePartieComplement` (complément depuis Authentic, 17 et 52) comparait `p.nom` seul ; une personne
+  d'Authentic au prénom porté à part (`prenom: 'Ursula', nom: 'DOYLE'`) ne reconnaissait pas « Ursula DOYLE » de la fiche et
+  était ajoutée. Comparaison sur le nom complet dès qu'un prénom est à part.
+- `dedoublonnerPartiesDossier(d)` (pure, client/40) : réunit les parties d'un même côté au même nom complet (mots triés), la
+  première gardée et complétée (civilité, naissance…), jamais son nom ; deux dates de naissance différentes = homonymes gardés.
+  Appelée par `sauvegarder` et au démarrage (`retirerDatesAvantContratLuesNas`) — les dossiers déjà touchés se réparent seuls.
+- Société : option « Société » dans la liste des civilités (repasser à Monsieur/Madame la refait personne), bouton « + Société »,
+  champ « Raison sociale » ; `nomDitSociete` pose la société seule pour une forme juridique en tête ou « société / commune de … »
+  (« Sabine SAS-MARTIN » reste une personne, « 3F » se choisit). Une société n'entre ni dans la situation du couple
+  (`situationClientDeduite` et le sélecteur l'excluaient déjà) ni dans les civilités du courrier (« Cher Monsieur/Madame le gérant »).
+Vérifié dans Chromium avec le cas de la capture (données inventées) : une seule « Madame Ursula DOYLE » après le démarrage,
+« 3F » passé en société depuis la liste.

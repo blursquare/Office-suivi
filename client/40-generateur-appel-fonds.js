@@ -564,10 +564,13 @@
       const p = parties[i];
       const nomComplet = [p.prenom, p.nom].map(x => String(x || '').trim()).filter(Boolean).join(' ');
       const champNom = `<input type="text" id="pers-${escapeAttr(d.id)}-${i}" class="prop-champ personne-nom" value="${escapeAttr(nomComplet)}" placeholder="Prénom NOM" aria-label="Prénom et nom ${qui}" onblur="changerPersonneDossier('${id}', ${i}, 'nom', this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">`;
-      if (p.qualitePersonne === 'morale') return `<span class="personne-ligne"><span class="personne-civ-texte">Société</span>${champNom}</span>`;
-      const civ = civiliteDepuisTexte(p.civilite);
+      // Société (étude 08/10 : « prévoir la situation quand il s'agit d'une société, vendeur ou acquéreur ») : choisie dans la même
+      // liste que la civilité ; ni civilité ni situation de couple.
+      const morale = p.qualitePersonne === 'morale';
+      const civ = morale ? 'societe' : civiliteDepuisTexte(p.civilite);
+      const champSociete = morale ? champNom.replace('placeholder="Prénom NOM"', 'placeholder="Raison sociale"').replace(`aria-label="Prénom et nom ${qui}"`, `aria-label="Raison sociale ${qui}"`) : champNom;
       return `<span class="personne-ligne"><select class="prop-champ personne-civ" aria-label="Civilité ${qui}" onchange="changerPersonneDossier('${id}', ${i}, 'civilite', this.value)">`
-        + `<option value=""${civ ? '' : ' selected'}>Civilité</option><option value="M"${civ === 'M' ? ' selected' : ''}>Monsieur</option><option value="Mme"${civ === 'Mme' ? ' selected' : ''}>Madame</option></select>${champNom}</span>`;
+        + `<option value=""${civ ? '' : ' selected'}>Civilité</option><option value="M"${civ === 'M' ? ' selected' : ''}>Monsieur</option><option value="Mme"${civ === 'Mme' ? ' selected' : ''}>Madame</option><option value="societe"${morale ? ' selected' : ''}>Société</option></select>${champSociete}</span>`;
     });
     let situation = '';
     if (indices.filter(i => parties[i].qualitePersonne !== 'morale').length >= 2) {
@@ -579,7 +582,8 @@
         + SITUATIONS_CLIENT.map(x => `<option value="${x.cle}"${valide === x.cle ? ' selected' : ''}>${escapeHtml(x.libelle)}</option>`).join('')
         + '</select>';
     }
-    const ajout = `<button type="button" class="lien-action personne-ajout" onclick="ajouterPersonneDossier('${id}', '${cote}')">+ Personne</button>`;
+    const ajout = `<button type="button" class="lien-action personne-ajout" onclick="ajouterPersonneDossier('${id}', '${cote}')">+ Personne</button>`
+      + `<button type="button" class="lien-action personne-ajout" onclick="ajouterPersonneDossier('${id}', '${cote}', true)">+ Société</button>`;
     return `<span class="personnes-cote">${lignes.join('')}${lignes.length ? '' : '<span class="prop-texte vide">Aucune personne relevée</span>'}<span class="personne-pied">${situation}${ajout}</span></span>`;
   }
 
@@ -587,9 +591,16 @@
     const d = dossiers.find(x => x.id === id);
     const p = d && Array.isArray(d.parties) ? d.parties[index] : null;
     if (!p) return;
-    if (champ === 'civilite') {
+    if (champ === 'civilite' && valeur === 'societe') {
+      if (p.qualitePersonne === 'morale') return;
+      p.qualitePersonne = 'morale';
+      delete p.civilite;
+      ajouterHistorique(d, `${[p.prenom, p.nom].filter(Boolean).join(' ') || 'Partie'} : société`);
+    } else if (champ === 'civilite') {
       const c = valeur === 'M' || valeur === 'Mme' ? valeur : '';
-      if (civiliteDepuisTexte(p.civilite) === c) return;
+      const etaitMorale = p.qualitePersonne === 'morale';
+      if (!etaitMorale && civiliteDepuisTexte(p.civilite) === c) return;
+      if (etaitMorale) p.qualitePersonne = 'physique';
       if (c) p.civilite = c; else delete p.civilite;
       ajouterHistorique(d, `Civilité : ${c === 'M' ? 'Monsieur' : c === 'Mme' ? 'Madame' : '—'} ${[p.prenom, p.nom].filter(Boolean).join(' ')}`);
     } else {
@@ -599,20 +610,54 @@
       if (!nom) { afficherToast('Le nom ne peut pas être vide.', 'OK', null); render(); return; }
       p.nom = nom;
       delete p.prenom;
+      // Une forme juridique tapée (« SCI DU MOULIN », « SAS … ») fait de la partie une société, sauf civilité déjà choisie.
+      if (p.qualitePersonne !== 'morale' && !civiliteDepuisTexte(p.civilite) && nomDitSociete(nom)) p.qualitePersonne = 'morale';
       ajouterHistorique(d, `${String(p.role || '').toUpperCase() === 'VENDEUR' ? 'Vendeur' : 'Acquéreur'} : ${avant || '—'} → ${nom}`);
     }
     sauvegarder(d);
     render();
   }
 
-  function ajouterPersonneDossier(id, cote) {
+  function ajouterPersonneDossier(id, cote, societe) {
     const d = dossiers.find(x => x.id === id);
     if (!d) return;
     if (!Array.isArray(d.parties)) d.parties = [];
-    d.parties.push({ nom: '', role: roleDeCote(cote), qualitePersonne: 'physique', origine: 'manuel' });
+    d.parties.push({ nom: '', role: roleDeCote(cote), qualitePersonne: societe ? 'morale' : 'physique', origine: 'manuel' });
     render();
     const champ = document.getElementById(`pers-${d.id}-${d.parties.length - 1}`);
     if (champ) champ.focus();
+  }
+
+  // Pure : le nom dit-il une société ? Forme juridique ou organisme écrit en tête ou en mot entier (SCI, SARL, SAS, SA, EURL,
+  // SNC, SCCV, SEM, OPH, GFA, GAEC, EARL — en tête —, société, commune de…). Un nom sans forme (« 3F ») se choisit dans la liste.
+  function nomDitSociete(nom) {
+    // La forme en TÊTE seulement (« SCI DU MOULIN ») : « Sabine SAS-MARTIN » reste une personne.
+    const n = normaliserPourRecherche(String(nom || '')).replace(/[^a-z0-9]+/g, ' ').trim();
+    return /^(sci|sarl|sas|sasu|sa|eurl|snc|sccv|scpi|scp|sem|selarl|selas|oph|gfa|gaec|earl|scea|sica) /.test(n + ' ')
+      || /(^| )(societe|association|fondation|commune de|ville de|mairie de|office public|departement de|region) /.test(n + ' ');
+  }
+
+  // Pure : réunit les parties d'un même côté qui désignent la même personne (même nom complet, prénom compris) — la première
+  // gardée, complétée de ce que l'autre savait (civilité, nom d'usage, naissance, qualité). Rend vrai si une partie a été
+  // retirée. Étude 08/10 : « j'ai deux fois l'acquéreur ».
+  function dedoublonnerPartiesDossier(d) {
+    if (!d || !Array.isArray(d.parties) || d.parties.length < 2) return false;
+    const cle = (p) => String(p.role || '').toUpperCase() + '|' + normaliserPourRecherche([p.prenom, p.nom].map(x => String(x || '')).join(' '))
+      .replace(/[^a-z0-9]+/g, ' ').trim().split(' ').filter(Boolean).sort().join(' ');
+    const vus = new Map();
+    const gardees = [];
+    for (const p of d.parties) {
+      if (!p || typeof p !== 'object' || !String(p.nom || '').trim()) { gardees.push(p); continue; }
+      const k = cle(p);
+      const premiere = vus.get(k);
+      // Deux dates de naissance différentes : deux homonymes (père et fils), jamais réunis.
+      if (!premiere || (premiere.dateNaissance && p.dateNaissance && premiere.dateNaissance !== p.dateNaissance)) { if (!premiere) vus.set(k, p); gardees.push(p); continue; }
+      // Le nom de la première est gardé tel quel (un prénom recopié donnerait « Ursula Ursula DOYLE »).
+      Object.keys(p).filter(c => c !== 'nom' && c !== 'prenom' && c !== 'role').forEach(c => { if (premiere[c] === undefined || premiere[c] === null || premiere[c] === '') premiere[c] = p[c]; });
+    }
+    if (gardees.length === d.parties.length) return false;
+    d.parties = gardees;
+    return true;
   }
 
   function changerSituationClient(id, cote, valeur) {

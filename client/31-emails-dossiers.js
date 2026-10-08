@@ -991,6 +991,7 @@
   // reste correct, seule la synchro serveur retarde).
   async function sauvegarder(d) {
     if (!d || !d.id) return;
+    dedoublonnerPartiesDossier(d);
     try {
       const reponse = await fetchAvecAuth(`/api/dossiers/${encodeURIComponent(d.id)}`, {
         method: 'PUT',

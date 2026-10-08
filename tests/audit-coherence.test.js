@@ -274,3 +274,28 @@ test('onglet Fonds : rappel de l’offre de prêt — reçue ou non, date butoir
   assert.strictEqual(app.rappelOffrePretFonds({ ...base, sansPret: true }, '2026-10-08'), null);
   assert.strictEqual(app.rappelOffrePretFonds({ ...base, typeAffaire: 'succession' }, '2026-10-08'), null);
 });
+
+test('parties : un acquéreur au prénom porté à part n’entre pas deux fois ; doublons réunis ; société', () => {
+  assert.strictEqual(app.memePartieComplement({ nom: 'Ursula DOYLE' }, { prenom: 'Ursula', nom: 'DOYLE' }), true);
+  assert.strictEqual(app.memePartieComplement({ prenom: 'Ursula', nom: 'DOYLE' }, { nom: 'Ursula DOYLE' }), true);
+  assert.strictEqual(app.memePartieComplement({ prenom: 'Ursula', nom: 'DOYLE' }, { prenom: 'Paul', nom: 'DOYLE' }), false);
+  const d = { parties: [
+    { role: 'VENDEUR', nom: '3F', qualitePersonne: 'physique' },
+    { role: 'ACQUEREUR', nom: 'Ursula DOYLE', civilite: 'Mme' },
+    { role: 'ACQUEREUR', prenom: 'Ursula', nom: 'DOYLE', dateNaissance: '1980-02-03' }
+  ] };
+  assert.strictEqual(app.dedoublonnerPartiesDossier(d), true);
+  assert.strictEqual(d.parties.length, 2);
+  assert.strictEqual(d.parties[1].civilite, 'Mme');
+  assert.strictEqual(d.parties[1].dateNaissance, '1980-02-03');
+  assert.strictEqual(d.parties[1].prenom, undefined);
+  assert.strictEqual(app.dedoublonnerPartiesDossier(d), false);
+  const homonymes = { parties: [{ role: 'VENDEUR', nom: 'Paul ROY', dateNaissance: '1950-01-01' }, { role: 'VENDEUR', nom: 'Paul ROY', dateNaissance: '1980-01-01' }] };
+  assert.strictEqual(app.dedoublonnerPartiesDossier(homonymes), false);
+  assert.strictEqual(app.nomDitSociete('SCI DU MOULIN'), true);
+  assert.strictEqual(app.nomDitSociete('Commune de Blois'), true);
+  assert.strictEqual(app.nomDitSociete('3F'), false);
+  assert.strictEqual(app.nomDitSociete('Sabine SAS-MARTIN'), false);
+  assert.strictEqual(app.nomDitSociete('Société Immobilière 3F'), true);
+  assert.strictEqual(app.nomDitSociete('Ursula DOYLE'), false);
+});

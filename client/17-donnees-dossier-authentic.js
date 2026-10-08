@@ -461,6 +461,10 @@
   // ou le nom de famille seul de la fiche (« FOURNIER ») contenu dans le nom venu d'Authentic (« Camille FOURNIER »).
   function memePartieComplement(p, v) {
     if (!p || !v) return false;
+    // Prénom porté à part (« Ursula » + « DOYLE ») : comparé sur le nom complet, sinon « Ursula DOYLE » ne reconnaissait pas
+    // « DOYLE » prénommée Ursula et l'acquéreur entrait deux fois (étude 08/10).
+    const complet = (x) => [x.prenom, x.nom].map(t => String(t || '').trim()).filter(Boolean).join(' ');
+    if (p.prenom || v.prenom) return memePartieComplement({ nom: complet(p), nomUsage: p.nomUsage }, { nom: complet(v) });
     // « Société civile immobilière DU MOULIN » (compromis) = « SCI DU MOULIN » (Authentic).
     const court = (x) => String(x || '').replace(/soci[ée]t[ée]\s+civile\s+immobili[èe]re/ig, 'SCI').replace(/soci[ée]t[ée]\s+[àa]\s+responsabilit[ée]\s+limit[ée]e/ig, 'SARL');
     if (court(p.nom) !== String(p.nom || '') || court(v.nom) !== String(v.nom || '')) return memePartieComplement({ nom: court(p.nom), nomUsage: p.nomUsage }, { nom: court(v.nom) });
