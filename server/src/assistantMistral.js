@@ -21,9 +21,17 @@ const CLE_REGLAGES = 'assistant-ia';
 const MOTEURS = ['claude', 'mistral', 'locale'];
 // Usage tenu par moteur en ligne : clé de stockage et tarif (dollars par million de jetons, majoration comprise).
 const USAGES = {
-  mistral: { cle: CLE_USAGE, entree: 0.15 * 1.1, sortie: 0.6 * 1.1 },
-  claude: { cle: 'assistant-ia-usage-claude', entree: 5, sortie: 25 }
+  mistral: { cle: CLE_USAGE },
+  claude: { cle: 'assistant-ia-usage-claude' }
 };
+// Modèles Claude au choix (étude 08/10 : « je peux passer en Sonnet ou même Haiku ? ») — tarif en dollars par million de jetons
+// (page des prix d'Anthropic relue le 08/10) ; `effort` : le modèle accepte `output_config.effort` (Haiku 4.5 : non envoyé).
+const MODELES_CLAUDE_ASSISTANT = {
+  'claude-sonnet-5': { libelle: 'Claude Sonnet 5', entree: 2, sortie: 10, effort: true },
+  'claude-opus-5': { libelle: 'Claude Opus 5', entree: 5, sortie: 25, effort: true },
+  'claude-haiku-4-5': { libelle: 'Claude Haiku 4.5', entree: 1, sortie: 5, effort: false }
+};
+const MODELE_CLAUDE_ASSISTANT_DEFAUT = 'claude-sonnet-5';
 const BASES = { eu: 'https://api.eu.mistral.ai', global: 'https://api.mistral.ai' };
 
 // Sigles du métier gardés tels quels (ils disent l'intention, pas une personne).
@@ -38,7 +46,8 @@ const SIGLES = new Set(['VTE', 'SUCC', 'RIB', 'SAFER', 'DPU', 'DIA', 'PDF', 'TVA
  */
 function assainirReglagesAssistant(brut) {
   const b = brut && typeof brut === 'object' ? brut : {};
-  return { moteur: MOTEURS.includes(b.moteur) ? b.moteur : 'claude', toutesDemandes: b.toutesDemandes === true };
+  return { moteur: MOTEURS.includes(b.moteur) ? b.moteur : 'claude', toutesDemandes: b.toutesDemandes === true,
+    modeleClaude: MODELES_CLAUDE_ASSISTANT[b.modeleClaude] ? b.modeleClaude : MODELE_CLAUDE_ASSISTANT_DEFAUT };
 }
 
 // Révision des réglages enregistrés. 2 : un « toutes les demandes » gardé avant le 07/10 au soir (alors coché d'office) ne compte
@@ -121,9 +130,14 @@ function retablirTexte(texte, table) {
   return String(texte || '').replace(/\[(?:NOM|EMAIL|TEL|REF|NUM)\d+\]/g, (j) => table.get(j) || j);
 }
 
-/** Coût en dollars d'un nombre de jetons. Pure. @param {number} entree @param {number} sortie @param {string} [moteur] */
-function coutAssistantUsd(entree, sortie, moteur) {
-  if (moteur === 'claude') return Math.round(((entree || 0) * USAGES.claude.entree + (sortie || 0) * USAGES.claude.sortie) / 1e6 * 10000) / 10000;
+/** Coût en dollars d'un nombre de jetons d'un modèle Claude. Pure. @param {number} entree @param {number} sortie @param {string} modele */
+function coutClaudeUsd(entree, sortie, modele) {
+  const t = MODELES_CLAUDE_ASSISTANT[modele] || MODELES_CLAUDE_ASSISTANT[MODELE_CLAUDE_ASSISTANT_DEFAUT];
+  return ((entree || 0) * t.entree + (sortie || 0) * t.sortie) / 1e6;
+}
+
+/** Coût en dollars d'un nombre de jetons (Mistral). Pure. @param {number} entree @param {number} sortie */
+function coutAssistantUsd(entree, sortie) {
   return Math.round(((entree || 0) * TARIF_ASSISTANT_MISTRAL.entree + (sortie || 0) * TARIF_ASSISTANT_MISTRAL.sortie) * MAJORATION_UE / 1e6 * 10000) / 10000;
 }
 
@@ -132,10 +146,12 @@ function lireUsageAssistant(parametresRepo, maintenant, moteur) {
   const mois = (maintenant || new Date()).toISOString().slice(0, 7);
   const u = parametresRepo.lireJsonBrut((USAGES[moteur || 'mistral'] || USAGES.mistral).cle, {}) || {};
   const courant = u.mois === mois ? u : { mois, demandes: 0, entree: 0, sortie: 0, erreurs: 0 };
-  return { ...courant, coutUsd: coutAssistantUsd(courant.entree, courant.sortie, moteur), precedent: u.mois !== mois && u.mois ? u : (u.precedent || null) };
+  // Claude : le coût est cumulé à chaque demande (le modèle peut changer en cours de mois).
+  const cout = moteur === 'claude' ? Math.round((courant.coutUsd || 0) * 10000) / 10000 : coutAssistantUsd(courant.entree, courant.sortie);
+  return { ...courant, coutUsd: cout, precedent: u.mois !== mois && u.mois ? u : (u.precedent || null) };
 }
 
-/** @param {any} parametresRepo @param {{ entree?: number, sortie?: number, erreur?: boolean }} ajout @param {Date} [maintenant] @param {string} [moteur] */
+/** @param {any} parametresRepo @param {{ entree?: number, sortie?: number, erreur?: boolean, coutUsd?: number }} ajout @param {Date} [maintenant] @param {string} [moteur] */
 function noterUsageAssistant(parametresRepo, ajout, maintenant, moteur) {
   const mois = (maintenant || new Date()).toISOString().slice(0, 7);
   const CLE_USAGE = (USAGES[moteur || 'mistral'] || USAGES.mistral).cle;
@@ -147,7 +163,8 @@ function noterUsageAssistant(parametresRepo, ajout, maintenant, moteur) {
     demandes: (base.demandes || 0) + (ajout.erreur ? 0 : 1),
     erreurs: (base.erreurs || 0) + (ajout.erreur ? 1 : 0),
     entree: (base.entree || 0) + (ajout.entree || 0),
-    sortie: (base.sortie || 0) + (ajout.sortie || 0)
+    sortie: (base.sortie || 0) + (ajout.sortie || 0),
+    coutUsd: (base.coutUsd || 0) + (ajout.coutUsd || 0)
   });
 }
 
@@ -206,6 +223,6 @@ function creerClientMistralAssistant({ cle, region, fetchFn, parametresRepo }) {
 }
 
 module.exports = {
-  REVISION_REGLAGES_ASSISTANT, MODELE_ASSISTANT_MISTRAL, CLE_REGLAGES, MOTEURS, assainirReglagesAssistant, pseudonymiserDemande, retablirTexte,
+  REVISION_REGLAGES_ASSISTANT, MODELE_ASSISTANT_MISTRAL, MODELES_CLAUDE_ASSISTANT, MODELE_CLAUDE_ASSISTANT_DEFAUT, coutClaudeUsd, CLE_REGLAGES, MOTEURS, assainirReglagesAssistant, pseudonymiserDemande, retablirTexte,
   coutAssistantUsd, lireUsageAssistant, noterUsageAssistant, creerClientMistralAssistant
 };

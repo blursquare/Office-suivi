@@ -699,6 +699,13 @@
     return '';
   }
 
+  // Le choix du modèle Claude ne se montre que si l'assistant utilise Claude (étude 08/10 : Sonnet, Opus ou Haiku).
+  function afficherModeleClaudeAssistant() {
+    const ligne = document.getElementById('reglages-assistant-modele-ligne');
+    const choix = document.getElementById('reglages-assistant-moteur');
+    if (ligne) ligne.style.display = !choix || choix.value === 'claude' ? '' : 'none';
+  }
+
   async function chargerReglagesAssistant() {
     try {
       const r = await fetchAvecAuth('/api/assistant/reglages');
@@ -706,6 +713,9 @@
       const data = await r.json();
       const choix = document.getElementById('reglages-assistant-moteur');
       if (choix) choix.value = data.moteur || 'claude';
+      const modele = document.getElementById('reglages-assistant-modele-claude');
+      if (modele && data.modeleClaude) modele.value = data.modeleClaude;
+      afficherModeleClaudeAssistant();
       if (typeof afficherChampsFournisseurIa === 'function') afficherChampsFournisseurIa();
       const toutes = document.getElementById('reglages-assistant-toutes');
       if (toutes) toutes.checked = data.toutesDemandes === true;
@@ -718,7 +728,7 @@
     const choix = document.getElementById('reglages-assistant-moteur');
     const sortie = document.getElementById('reglages-assistant-resultat');
     try {
-      const r = await fetchAvecAuth('/api/assistant/reglages', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ moteur: choix ? choix.value : 'claude', toutesDemandes: !!(document.getElementById('reglages-assistant-toutes') || {}).checked }) });
+      const r = await fetchAvecAuth('/api/assistant/reglages', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ moteur: choix ? choix.value : 'claude', modeleClaude: (document.getElementById('reglages-assistant-modele-claude') || {}).value || '', toutesDemandes: !!(document.getElementById('reglages-assistant-toutes') || {}).checked }) });
       const data = await r.json();
       if (!r.ok) throw new Error(data.erreur || `Le serveur a répondu ${r.status}.`);
       assistantDisponibilite.quand = 0;

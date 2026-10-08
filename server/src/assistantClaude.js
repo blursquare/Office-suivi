@@ -7,9 +7,7 @@
 // Relecture d'actes (Réglages › IA et relecture d'actes), jamais renvoyée par une route.
 
 const A = require('../../commun/assistant');
-const { noterUsageAssistant } = require('./assistantMistral');
-
-const MODELE_ASSISTANT_CLAUDE = 'claude-opus-5';
+const { noterUsageAssistant, MODELES_CLAUDE_ASSISTANT, MODELE_CLAUDE_ASSISTANT_DEFAUT, coutClaudeUsd } = require('./assistantMistral');
 const DELAI_CLAUDE_MS = 20 * 1000;
 const MAX_JETONS_CLAUDE = 600;
 const PARAMETRES_CHAINES = ['dossier', 'date', 'heure', 'texte', 'modele', 'echeance', 'champ', 'partie', 'ecran', 'collaborateur', 'titre'];
@@ -48,14 +46,32 @@ function messageErreurClaude(err) {
 }
 
 /**
- * Client Claude à l'interface du client Ollama. `cle` vide → indisponible. Un seul essai, 20 s au plus, JSON par schéma.
- * @param {{ cle: string, parametresRepo?: any, client?: any }} o  `client` : faux client Anthropic des tests.
+ * Paramètres de la requête pour un modèle (pure) : sans réflexion ; effort bas seulement si le modèle l'accepte (Haiku 4.5 : non).
+ * @param {string} modele @param {string} prompt
  */
-function creerClientClaudeAssistant({ cle, parametresRepo, client }) {
+function requeteAssistantClaude(modele, prompt) {
+  const fiche = MODELES_CLAUDE_ASSISTANT[modele];
+  return {
+    model: modele,
+    max_tokens: MAX_JETONS_CLAUDE,
+    thinking: { type: 'disabled' },
+    output_config: fiche && fiche.effort
+      ? { effort: 'low', format: { type: 'json_schema', schema: SCHEMA_ASSISTANT } }
+      : { format: { type: 'json_schema', schema: SCHEMA_ASSISTANT } },
+    messages: [{ role: 'user', content: prompt }]
+  };
+}
+
+/**
+ * Client Claude à l'interface du client Ollama. `cle` vide → indisponible. Un seul essai, 20 s au plus, JSON par schéma.
+ * @param {{ cle: string, modele?: string, parametresRepo?: any, client?: any }} o  `client` : faux client Anthropic des tests.
+ */
+function creerClientClaudeAssistant({ cle, modele, parametresRepo, client }) {
+  const choisi = MODELES_CLAUDE_ASSISTANT[modele || ''] ? String(modele) : MODELE_CLAUDE_ASSISTANT_DEFAUT;
   let sdk = client || null;
   const noter = (ajout) => { if (parametresRepo) noterUsageAssistant(parametresRepo, ajout, undefined, 'claude'); };
   return {
-    modele: MODELE_ASSISTANT_CLAUDE,
+    modele: choisi,
     moteur: 'claude',
     async verifierDisponibilite() {
       return cle ? { disponible: true, raison: '' } : { disponible: false, raison: 'Aucune clé Claude : à saisir dans Réglages › IA et relecture d’actes.' };
@@ -66,19 +82,13 @@ function creerClientClaudeAssistant({ cle, parametresRepo, client }) {
       let message;
       try {
         // Phrase courte, réponse attendue vite : sans réflexion, effort bas ; JSON garanti par le schéma.
-        message = await sdk.messages.create({
-          model: MODELE_ASSISTANT_CLAUDE,
-          max_tokens: MAX_JETONS_CLAUDE,
-          thinking: { type: 'disabled' },
-          output_config: { effort: 'low', format: { type: 'json_schema', schema: SCHEMA_ASSISTANT } },
-          messages: [{ role: 'user', content: prompt }]
-        });
+        message = await sdk.messages.create(requeteAssistantClaude(choisi, prompt));
       } catch (err) {
         noter({ erreur: true });
         throw new Error(messageErreurClaude(err));
       }
       const usage = (message && message.usage) || {};
-      noter({ entree: usage.input_tokens || 0, sortie: usage.output_tokens || 0 });
+      noter({ entree: usage.input_tokens || 0, sortie: usage.output_tokens || 0, coutUsd: coutClaudeUsd(usage.input_tokens, usage.output_tokens, choisi) });
       if (message.stop_reason === 'refusal') throw new Error('Claude a refusé la demande');
       const brut = (message.content || []).filter((b) => b && b.type === 'text').map((b) => b.text).join('').trim();
       let objet;
@@ -92,4 +102,4 @@ function creerClientClaudeAssistant({ cle, parametresRepo, client }) {
   };
 }
 
-module.exports = { MODELE_ASSISTANT_CLAUDE, SCHEMA_ASSISTANT, creerClientClaudeAssistant, messageErreurClaude };
+module.exports = { SCHEMA_ASSISTANT, creerClientClaudeAssistant, messageErreurClaude, requeteAssistantClaude };

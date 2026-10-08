@@ -18546,3 +18546,13 @@ collaborateur en ErrorItemNotFound (accès délégué Outlook).
   fermant l'onglet. `appel-claire.ps1` attend 0,9 s, montre la fenêtre, puis la remontre 0,6 s plus tard. Le script est copié
   dans %APPDATA% par l'installateur : à réinstaller sur chaque poste. **Non vérifié sur Windows.** Le cas « aussi dans l'app
   séparée » (fenêtre non trouvée par son titre → seconde fenêtre ouverte) reste à observer : question posée à l'étude.
+
+### 08/10/2026 20 h 51 — 0.197.0 : modèle Claude au choix pour « Demander à CLAIRE »
+
+- Étude : « je peux passer en Sonnet pour Demander à CLAIRE ou même Haïku ? » → « oui » au choix dans les Réglages.
+  `MODELES_CLAUDE_ASSISTANT` (assistantMistral.js) : Sonnet 5 (2 $/10 $ par million, défaut), Opus 5 (5 $/25 $), Haiku 4.5
+  (1 $/5 $, prix relus sur la page des tarifs d'Anthropic le 08/10). `requeteAssistantClaude` (pure) : réflexion coupée, sortie
+  par schéma ; `effort: low` seulement pour Sonnet et Opus (non envoyé à Haiku 4.5, qui ne le prend sans doute pas — non vérifié
+  avec une vraie clé). Réglage `modeleClaude` de la clé `assistant-ia` (inconnu → Sonnet), liste « Modèle Claude » sous « IA qui
+  comprend les demandes », montrée seulement quand le moteur est Claude. Usage : coût cumulé à chaque demande (`coutUsd`) au tarif
+  du modèle utilisé, le modèle pouvant changer en cours de mois.

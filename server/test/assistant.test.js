@@ -321,7 +321,7 @@ test('Claude : la phrase part noms masqués, sortie par schéma, sans réflexion
   const r = await comprendreDemande({ texte: 'Où en est Paul Fournier, paul.fournier@exemple.fr ?', contexte: { aujourdhui: '2026-10-08' }, dossiers: D },
     client, { pseudonymiser: true, toujours: true });
   assert.equal(envoyes.length, 1);
-  assert.equal(envoyes[0].model, 'claude-opus-5');
+  assert.equal(envoyes[0].model, 'claude-sonnet-5', 'Sonnet par défaut (étude 08/10)');
   assert.deepEqual(envoyes[0].thinking, { type: 'disabled' });
   assert.equal(envoyes[0].output_config.effort, 'low');
   assert.equal(envoyes[0].output_config.format.schema, SCHEMA_ASSISTANT);
@@ -329,6 +329,7 @@ test('Claude : la phrase part noms masqués, sortie par schéma, sans réflexion
   assert.equal(`${r.source} ${r.moteur} ${r.intention} ${r.dossier}`, 'ia claude etat_dossier d1');
   assert.equal(ecrits['assistant-ia-usage-claude'].demandes, 1);
   assert.equal(ecrits['assistant-ia-usage-claude'].entree, 900);
+  assert.equal(ecrits['assistant-ia-usage-claude'].coutUsd, (900 * 2 + 60 * 10) / 1e6, 'coût au tarif de Sonnet');
   assert.equal(ecrits['assistant-ia-usage'], undefined, 'l’usage de Mistral reste à part');
   // Toutes les intentions de la liste fermée dans le schéma, rien d'autre.
   assert.ok(SCHEMA_ASSISTANT.properties.intention.enum.includes('inconnu'));
@@ -348,4 +349,22 @@ test('Claude en erreur ou sans clé : repli sur les mots-clés, raison dite sans
   const r2 = await comprendreDemande({ texte: 'Où en est le dossier MARTIN ?', contexte: CONTEXTE, dossiers: DOSSIERS }, refus, { toujours: true });
   assert.match(r2.raisonIa, /refusé/);
   assert.equal((await creerClientClaudeAssistant({ cle: '' }).verifierDisponibilite()).disponible, false);
+});
+
+test('modèle Claude au choix (étude 08/10) : Sonnet par défaut, Opus, Haiku sans « effort » ; inconnu → Sonnet ; réglage gardé', async () => {
+  const { requeteAssistantClaude, creerClientClaudeAssistant } = require('../src/assistantClaude');
+  const { assainirReglagesAssistant } = require('../src/assistantMistral');
+  assert.equal(requeteAssistantClaude('claude-opus-5', 'x').output_config.effort, 'low');
+  assert.equal(requeteAssistantClaude('claude-sonnet-5', 'x').output_config.effort, 'low');
+  const haiku = requeteAssistantClaude('claude-haiku-4-5', 'x');
+  assert.equal('effort' in haiku.output_config, false);
+  assert.equal(haiku.output_config.format.type, 'json_schema');
+  assert.equal(creerClientClaudeAssistant({ cle: 'x', modele: 'claude-inconnu' }).modele, 'claude-sonnet-5');
+  assert.equal(assainirReglagesAssistant({ modeleClaude: 'claude-haiku-4-5' }).modeleClaude, 'claude-haiku-4-5');
+  assert.equal(assainirReglagesAssistant({ modeleClaude: 'gpt' }).modeleClaude, 'claude-sonnet-5');
+  const h = { Authorization: `Bearer ${jeton}`, 'Content-Type': 'application/json' };
+  await fetch(`${baseUrl}/api/assistant/reglages`, { method: 'PUT', headers: h, body: JSON.stringify({ moteur: 'claude', modeleClaude: 'claude-haiku-4-5', toutesDemandes: true }) });
+  const r = await (await fetch(`${baseUrl}/api/assistant/reglages`, { headers: h })).json();
+  assert.equal(`${r.moteur} ${r.modeleClaude} ${r.toutesDemandes}`, 'claude claude-haiku-4-5 true');
+  assert.equal(r.modelesClaude.map((m) => m.id).join(','), 'claude-sonnet-5,claude-opus-5,claude-haiku-4-5');
 });

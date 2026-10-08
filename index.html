@@ -1978,10 +1978,18 @@
       <div class="reglages-liste">
         <div class="reglages-champ">
           <div class="reglages-champ-libelle"><label for="reglages-assistant-moteur">IA qui comprend les demandes</label><span class="info-i" tabindex="0" data-info="Seule la phrase part chez Claude ou Mistral, noms, adresses, emails et téléphones remplacés par des codes. Les fiches restent au bureau. La clé utilisée est celle de la relecture d’actes, plus bas."></span></div>
-          <select id="reglages-assistant-moteur" onchange="afficherChampsFournisseurIa()">
+          <select id="reglages-assistant-moteur" onchange="afficherChampsFournisseurIa(); afficherModeleClaudeAssistant()">
             <option value="claude">Claude — en ligne, noms masqués</option>
             <option value="mistral">Mistral Small — en ligne, noms masqués</option>
             <option value="locale">IA locale du serveur (Ollama)</option>
+          </select>
+        </div>
+        <div class="reglages-champ" id="reglages-assistant-modele-ligne">
+          <div class="reglages-champ-libelle"><label for="reglages-assistant-modele-claude">Modèle Claude</label><span class="info-i" tabindex="0" data-info="Sonnet : le bon équilibre (conseillé). Opus : le plus fin, 2,5 fois plus cher. Haiku : le plus rapide et le moins cher, mais se trompe plus souvent d’intention sur une phrase ambiguë."></span></div>
+          <select id="reglages-assistant-modele-claude">
+            <option value="claude-sonnet-5">Claude Sonnet 5 — conseillé</option>
+            <option value="claude-opus-5">Claude Opus 5</option>
+            <option value="claude-haiku-4-5">Claude Haiku 4.5 — le moins cher</option>
           </select>
         </div>
         <label class="reglages-option" for="reglages-assistant-toutes">

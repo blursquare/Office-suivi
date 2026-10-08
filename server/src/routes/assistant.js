@@ -7,8 +7,8 @@
 const express = require('express');
 const { creerClientOllama } = require('../llm');
 const { comprendreDemande, creerCacheDisponibilite } = require('../assistant');
-const { CLE_REGLAGES, MOTEURS, REVISION_REGLAGES_ASSISTANT, assainirReglagesAssistant, creerClientMistralAssistant, lireUsageAssistant, MODELE_ASSISTANT_MISTRAL } = require('../assistantMistral');
-const { creerClientClaudeAssistant, MODELE_ASSISTANT_CLAUDE } = require('../assistantClaude');
+const { CLE_REGLAGES, MOTEURS, REVISION_REGLAGES_ASSISTANT, assainirReglagesAssistant, creerClientMistralAssistant, lireUsageAssistant, MODELE_ASSISTANT_MISTRAL, MODELES_CLAUDE_ASSISTANT } = require('../assistantMistral');
+const { creerClientClaudeAssistant } = require('../assistantClaude');
 const { noterVerification } = require('../verificationsTerrain');
 
 const chaine = (v, max) => (typeof v === 'string' ? v.slice(0, max) : '');
@@ -28,7 +28,7 @@ function creerRouteurAssistant(config, injections, parametresRepo) {
   const lireReglages = () => {
     const brut = parametresRepo.lireJsonBrut(CLE_REGLAGES, {}) || {};
     // Réglage d'avant le 08/10 (ou aucun) : Claude, qui lit toutes les demandes (étude 08/10).
-    if (brut.revision !== REVISION_REGLAGES_ASSISTANT) return { moteur: 'claude', toutesDemandes: true };
+    if (brut.revision !== REVISION_REGLAGES_ASSISTANT) return assainirReglagesAssistant({ moteur: 'claude', toutesDemandes: true });
     return assainirReglagesAssistant(brut);
   };
   function cleClaude() {
@@ -45,7 +45,7 @@ function creerRouteurAssistant(config, injections, parametresRepo) {
     if (reglages.moteur === 'claude') {
       const cle = cleClaude();
       if (cle) {
-        const client = creerClientClaudeAssistant({ cle, parametresRepo, client: injections && injections.clientClaude });
+        const client = creerClientClaudeAssistant({ cle, modele: reglages.modeleClaude, parametresRepo, client: injections && injections.clientClaude });
         return { client, pseudonymiser: true, disponibilite: () => client.verifierDisponibilite(), moteur: 'claude', choisi: 'claude' };
       }
     }
@@ -62,7 +62,8 @@ function creerRouteurAssistant(config, injections, parametresRepo) {
   routeur.get('/assistant/reglages', (req, res) => {
     const reglages = lireReglages();
     res.json({ ...reglages, moteurs: MOTEURS, cleMistralEnregistree: !!cleMistral().cle, cleClaudeEnregistree: !!cleClaude(),
-      modeleMistral: MODELE_ASSISTANT_MISTRAL, modeleClaude: MODELE_ASSISTANT_CLAUDE,
+      modeleMistral: MODELE_ASSISTANT_MISTRAL,
+      modelesClaude: Object.entries(MODELES_CLAUDE_ASSISTANT).map(([id, m]) => ({ id, libelle: m.libelle, entree: m.entree, sortie: m.sortie })),
       usage: lireUsageAssistant(parametresRepo, undefined, reglages.moteur === 'claude' ? 'claude' : 'mistral') });
   });
 
