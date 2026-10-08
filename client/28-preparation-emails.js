@@ -1144,6 +1144,15 @@
   // dès qu'elle le donne, comme les autres emails).
   function construireEmailProjetActe(d) {
     const heure = heureEmail(d.rendezVousSignatureHeure);
+    // Au confrère qui représente l'acquéreur : texte de l'étude, mot pour mot (08/10).
+    if (notaireParticipantRepresenteAcquereur(d)) {
+      const prevision = d.rendezVousSignature
+        ? ` en prévision du rendez-vous du ${MARQUE_FORT_DEBUT}${dateAvecJourFr(d.rendezVousSignature)}${heure ? ' à ' + heure : ''}${MARQUE_FORT_FIN}` : '';
+      return {
+        sujet: `Projet d'acte de vente — ${libelleDossierAffiche(d)}`,
+        corps: [FORMULE_APPEL_CONFRERE, `Veuillez trouver ci-joint le projet de l'acte de vente${prevision}.`, 'Vous en souhaitant bonne réception.', 'Votre bien dévoué.'].join('\n\n')
+      };
+    }
     const rdv = d.rendezVousSignature
       ? `\n\nNous vous rappelons que le rendez-vous de signature de l'acte authentique est fixé au ${MARQUE_FORT_DEBUT}${dateAvecJourFr(d.rendezVousSignature)}${heure ? ' à ' + heure : ''}${MARQUE_FORT_FIN}, en notre office.`
       : '';
@@ -1242,6 +1251,7 @@
     { nom: 'si client', aide: 'au client seulement (pas quand un confrère représente l’acquéreur)' },
     { nom: 'si confrère', aide: 'au confrère seulement' },
     { nom: 'si rendez-vous', aide: 'seulement si le rendez-vous de signature est fixé' },
+    { nom: 'si sans rendez-vous', aide: 'seulement si le rendez-vous de signature n’est pas encore fixé' },
     { nom: 'si prêt attendu', aide: 'seulement si une offre de prêt est encore attendue' }
   ];
 
@@ -1353,6 +1363,10 @@
         corps: ['Bonjour,', "Veuillez trouver ci-joint le projet de l'acte de vente, pour lecture avant la signature.",
           "Nous vous rappelons que le rendez-vous de signature de l'acte authentique est fixé au {date et heure du rendez-vous}, en notre office.",
           'Nous restons à votre disposition pour toute question ou remarque sur ce projet.'].join('\n\n') },
+      { cle: 'projetConfrere', nom: 'Projet d’acte (au confrère)', construire: construireEmailProjetActe,
+        sujet: 'Projet d\'acte de vente — {dossier}',
+        corps: ['Mon Cher Maître,', "{si rendez-vous}Veuillez trouver ci-joint le projet de l'acte de vente en prévision du rendez-vous du {date et heure du rendez-vous}.",
+          "{si sans rendez-vous}Veuillez trouver ci-joint le projet de l'acte de vente.", 'Vous en souhaitant bonne réception.', 'Votre bien dévoué.'].join('\n\n') },
       { cle: 'confirmationRdv', nom: 'Confirmation du rendez-vous (au client)', construire: construireEmailConfirmationRdv,
         sujet: 'Confirmation du rendez-vous de signature — {dossier}',
         corps: ['Bonjour,', 'Nous vous confirmons le rendez-vous de signature de l’acte de vente le {date et heure du rendez-vous}, {lieu du rendez-vous}.',
@@ -1541,7 +1555,7 @@
 
   // Voie unique des boutons de la fiche : la version du confrère quand un autre office représente l'acquéreur, le
   // texte modifié par l'étude s'il existe, sinon la fonction d'origine (textes mot pour mot).
-  var VARIANTES_CONFRERE_MODELES = { ventePrealable: 'ventePrealableConfrere', confirmationRdv: 'confirmationRdvConfrere',
+  var VARIANTES_CONFRERE_MODELES = { ventePrealable: 'ventePrealableConfrere', confirmationRdv: 'confirmationRdvConfrere', projet: 'projetConfrere',
     accuseReception: 'accuseReceptionConfrere', visio: 'visioConfrere', sondage: 'sondageConfrere' };
   function emailDepuisModele(cle, d, etat, contexte) {
     const e = etat || modelesEmailsEtat;

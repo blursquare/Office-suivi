@@ -22,7 +22,7 @@ test('chaque modèle d’origine, rempli, redonne le texte actuel (objet et corp
   for (const m of app.modelesEmailDossier()) {
     for (const d of CAS) {
       const confrere = app.notaireParticipantRepresenteAcquereur(d);
-      if (/Confrere$/.test(m.cle) !== confrere && ['ventePrealable', 'ventePrealableConfrere', 'confirmationRdv', 'confirmationRdvConfrere'].includes(m.cle)) continue;
+      if (/Confrere$/.test(m.cle) !== confrere && ['ventePrealable', 'ventePrealableConfrere', 'confirmationRdv', 'confirmationRdvConfrere', 'projet', 'projetConfrere'].includes(m.cle)) continue;
       // Sans rendez-vous, ces emails ne sont jamais proposés (le texte d'origine y laissait « le , »).
       if (!d.rendezVousSignature && ['confirmationRdv', 'confirmationRdvConfrere', 'relanceFonds'].includes(m.cle)) continue;
       const attendu = m.construire(d);
@@ -105,4 +105,13 @@ test('modelesProposesPourEmail : geste, objet et email reçu, étape du dossier,
   // Rien dans l'email : l'étape du dossier ; rien du tout : aucune proposition.
   assert.equal(cles({ geste: 'email', sujet: 'VTE - MARTEL', utiles: ['fondsRecus', 'rib'] }), 'rib,fonds');
   assert.equal(cles({ geste: 'email', sujet: 'VTE - MARTEL' }), '');
+});
+
+test('projet d’acte au confrère : texte de l’étude mot pour mot (08/10), avec ou sans rendez-vous', () => {
+  const d = { ...BASE, ...CONFRERE, rendezVousSignature: '2026-10-14', rendezVousSignatureHeure: '16:30' };
+  const r = app.emailDepuisModele('projet', d, { modifies: {}, perso: [] });
+  assert.equal(sansMarques(r.corps), "Mon Cher Maître,\n\nVeuillez trouver ci-joint le projet de l'acte de vente en prévision du rendez-vous du mercredi 14 octobre 2026 à 16h30.\n\nVous en souhaitant bonne réception.\n\nVotre bien dévoué.");
+  const sans = app.emailDepuisModele('projet', { ...BASE, ...CONFRERE }, { modifies: {}, perso: [] });
+  assert.equal(sansMarques(sans.corps), "Mon Cher Maître,\n\nVeuillez trouver ci-joint le projet de l'acte de vente.\n\nVous en souhaitant bonne réception.\n\nVotre bien dévoué.");
+  assert.match(app.emailDepuisModele('projet', { ...BASE, rendezVousSignature: '2026-10-14' }, { modifies: {}, perso: [] }).corps, /^Bonjour,/);
 });

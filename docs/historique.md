@@ -18438,3 +18438,14 @@ acquéreur » — vendeur « 3F » montré « Civilité 3F », acquéreur « Mad
   (`situationClientDeduite` et le sélecteur l'excluaient déjà) ni dans les civilités du courrier (« Cher Monsieur/Madame le gérant »).
 Vérifié dans Chromium avec le cas de la capture (données inventées) : une seule « Madame Ursula DOYLE » après le démarrage,
 « 3F » passé en société depuis la liste.
+
+### 08/10/2026 15 h 13 — Email du projet d'acte au confrère : texte de l'étude (0.195.1)
+
+Étude : « email envoi projet confrère : "Mon Cher Maître, / Veuillez trouver ci-joint le projet de l'acte de vente en prévision
+du rendez-vous du mercredi 14 octobre 2026 à 16h30. / Vous en souhaitant bonne réception. / Votre bien dévoué." ».
+`construireEmailProjetActe` rend ce texte, mot pour mot, quand un confrère représente l'acquéreur
+(`notaireParticipantRepresenteAcquereur`) ; date « mercredi 14 octobre 2026 » (`dateAvecJourFr`) et heure « 16h30 » (`heureEmail`),
+en gras et souligné comme partout ; sans rendez-vous fixé, « Veuillez trouver ci-joint le projet de l'acte de vente. ». Modèle
+`projetConfrere` (Réglages › Modèles d'emails, variante choisie seule par `VARIANTES_CONFRERE_MODELES`), condition
+`{si sans rendez-vous}` ajoutée à la liste des conditions affichées. Le texte au client reste le premier jet de CLAIRE. Tests :
+`tests/modeles-emails.test.js` (texte exact, avec et sans rendez-vous ; modèle = fonction).

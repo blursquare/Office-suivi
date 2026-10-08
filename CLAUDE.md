@@ -668,8 +668,10 @@ dans `index.html`** (le test `structure-client` refuse tout décalage).
   questionnaire, vente préalable au confrère) : repris **mot pour mot**, à ne pas reformuler — l'étude peut désormais
   les modifier elle-même (Réglages › Modèles d'emails) ; jamais CLAIRE.
   Même règle pour `PROCEDURE_FONDS` et les clauses de l'annexe des quotités. Exception : l'email
-  d'envoi du **projet d'acte** (`construireEmailProjetActe`, 30/09) est un premier jet de CLAIRE,
-  à remplacer par le texte de l'étude dès qu'elle le fournit.
+  d'envoi du **projet d'acte** au client (`construireEmailProjetActe`, 30/09) est un premier jet de CLAIRE,
+  à remplacer par le texte de l'étude dès qu'elle le fournit ; **au confrère** (variante `projetConfrere`), texte de l'étude
+  du 08/10 mot pour mot (« … en prévision du rendez-vous du {date et heure} … Vous en souhaitant bonne réception. Votre bien
+  dévoué. »), phrase sans le rendez-vous s'il n'est pas fixé (condition `{si sans rendez-vous}`).
 - **Barème du simulateur de provision : validé par l'étude le 02/10/2026** (avertissement « montant à valider »
   retiré). **Depuis le 06/10 il remplit la ligne des frais et droits de l'acte du décompte** (étude : « avec l'ensemble des données
   recueillies durant la vie du dossier, le décompte se remplit tout seul » ; `fraisActeEstimesAppelFonds` : assiette hors mobilier,
