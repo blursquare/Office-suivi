@@ -1120,15 +1120,6 @@
         ${copros.length ? `<ul>${copros.map(c => `<li><strong>${escapeHtml(c.designation)}</strong>${c.lots ? ` — lots ${escapeHtml(c.lots)}` : ''}${c.observations ? `<p class="hint">${escapeHtml(c.observations)}</p>` : ''}</li>`).join('')}</ul>` : '<p class="hint">Chaque point copropriété de la grille doit être vérifié pour chacune d’elles.</p>'}
       </section>` : '';
 
-    const tuiles = sectionsEffectives.map(s => {
-      const ns = NIVEAUX_RELECTURE_OUTIL2[s.niveau];
-      const points = s.lignesEff.map(l => `<span class="tuile-point niveau-${l.niveau}" title="${escapeAttr(l.intitule)} — ${NIVEAUX_RELECTURE_OUTIL2[l.niveau].texte}"></span>`).join('');
-      return `<button type="button" class="sante-tuile niveau-${s.niveau}" onclick="allerSectionRelecture('${s.cle}')">
-        <span class="sante-tuile-titre">${escapeHtml(s.titre)}</span>
-        <span class="dot-label ${ns.dl}"><span class="dot"></span>${ns.texte}</span>
-        <span class="sante-tuile-points">${points}</span>
-      </button>`;
-    }).join('');
 
     // Contrôles CLAIRE affichés (« Ce que dit l'acte ») : ils rejoignent les alertes et les points à surveiller du compte
     // rendu compact (étude 06/10), avec les clauses contradictoires et les autres points relevés par l'IA.
@@ -1201,8 +1192,7 @@
     ${modeCommentairesAudit ? renderPanneauCommentairesAudit() : ''}
     <div class="relecture-bilan-grille">
       <div class="relecture-bilan-principal">
-        ${tuiles ? `<div class="sante-tuiles">${tuiles}</div>` : ''}
-        ${renderCompteRenduRelecture(plan, false)}
+        ${renderCompteRenduEcranRelecture(plan)}
         <wa-details class="outil-notes cr-details" summary="Détail des contrôles CLAIRE, synthèse complète, coût et diagnostic">
           ${a && a.synthese && a.synthese.length > plan.resume.length ? `<p class="sante-synthese cr-synthese-complete">${escapeHtml(a.synthese)}</p>` : ''}
           ${detailClaire}

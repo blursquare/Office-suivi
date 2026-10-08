@@ -5748,6 +5748,62 @@ wa-button.qt-suppr:hover { color: var(--urgent); }
 .cr-synthese-complete { border-top: none; padding-top: 0; margin: 0 0 12px; }
 .cr-print { display: none; }
 
+/* Compte rendu de relecture à l'écran, par catégorie (étude 08/10 : « catégories plus visibles et identifiables, plus
+   ludique, voir ce qui est important au premier coup d'œil »). Couleur propre à chaque catégorie = jetons --cat-* ; les
+   niveaux gardent rouge / ambre / vert. */
+.crc-bleu { --crc: var(--cat-bleu); } .crc-vert { --crc: var(--cat-vert); } .crc-violet { --crc: var(--cat-violet); }
+.crc-orange { --crc: var(--cat-orange); } .crc-marron { --crc: var(--cat-marron); } .crc-rose { --crc: var(--cat-rose); }
+.crc-jaune { --crc: var(--cat-jaune); } .crc-gris { --crc: var(--cat-gris); }
+.cr-priorites { border-radius: var(--rayon-carte); padding: 14px 16px; background: color-mix(in srgb, var(--urgent) 8%, var(--paper-card)); border: 1px solid color-mix(in srgb, var(--urgent) 35%, transparent); }
+.cr-prio-titre { display: flex; align-items: center; gap: 8px; margin: 0 0 8px; font-size: var(--texte-l); font-weight: 500; color: var(--urgent); }
+.cr-prio-titre .icone { width: 16px; height: 16px; }
+.cr-priorites .cr-compte { color: var(--urgent); background: color-mix(in srgb, var(--urgent) 14%, transparent); }
+.cr-prio-liste { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.cr-prio-ligne { display: flex; align-items: center; gap: 10px; width: 100%; padding: 6px 8px; border: none; border-radius: var(--rayon-m); background: var(--paper-card); color: var(--ink); font: inherit; font-size: var(--texte-base); text-align: left; cursor: pointer; }
+.cr-prio-ligne:hover { background: var(--paper-sunk); }
+.cr-prio-ligne:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.cr-prio-intitule { min-width: 0; line-height: 1.35; }
+.crc-chip { flex: none; display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: var(--rayon-pilule); font-size: var(--texte-xs); font-weight: 600; color: var(--crc); background: color-mix(in srgb, var(--crc) 14%, transparent); white-space: nowrap; }
+.crc-chip .icone { width: 14px; height: 14px; }
+.cr-priorites-ok { display: flex; align-items: center; gap: 12px; background: color-mix(in srgb, var(--success) 8%, var(--paper-card)); border-color: color-mix(in srgb, var(--success) 35%, transparent); }
+.cr-priorites-ok .cr-prio-titre { color: var(--success); margin: 0; }
+.cr-prio-sous { margin: 2px 0 0; font-size: var(--texte-m); color: var(--ink-soft); }
+.cr-prio-icone { display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 50%; color: var(--success); background: color-mix(in srgb, var(--success) 16%, transparent); }
+.cr-prio-icone .icone { width: 20px; height: 20px; }
+.crc-grille { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 420px), 1fr)); gap: 12px; align-items: start; }
+.crc-grille > * { min-width: 0; }
+.crc { background: var(--paper-card); border: 1px solid var(--line); border-top: 4px solid var(--crc); border-radius: var(--rayon-carte); padding: 12px 16px; }
+.crc.niveau-critique { border-color: color-mix(in srgb, var(--urgent) 45%, var(--line)); border-top-color: var(--crc); }
+.crc-tete { display: flex; align-items: center; gap: 10px; }
+.crc-icone { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: var(--rayon-m); color: var(--crc); background: color-mix(in srgb, var(--crc) 15%, transparent); }
+.crc-icone .icone { width: 20px; height: 20px; }
+.crc-titre { flex: 1; min-width: 0; margin: 0; font-size: var(--texte-l); font-weight: 500; color: var(--ink); line-height: 1.25; }
+.crc-pills { display: flex; gap: 4px; flex: none; }
+.crc-pill { min-width: 24px; padding: 2px 8px; border-radius: var(--rayon-pilule); font-size: var(--texte-s); font-weight: 700; text-align: center; font-variant-numeric: tabular-nums; }
+.crc-pill.p-critique { color: var(--blanc-fixe); background: var(--urgent); }
+.crc-pill.p-surveiller { color: var(--pret); background: color-mix(in srgb, var(--pret) 18%, transparent); }
+.crc-pill.p-valide { color: var(--success); background: color-mix(in srgb, var(--success) 14%, transparent); }
+.crc-avancement { display: flex; align-items: center; gap: 8px; margin: 10px 0 4px; }
+.crc-barre { flex: 1; display: flex; gap: 2px; height: 6px; border-radius: var(--rayon-pilule); overflow: hidden; background: var(--paper-sunk); }
+.crc-seg { display: block; min-width: 4px; }
+.crc-seg.seg-critique { background: var(--urgent); } .crc-seg.seg-surveiller { background: var(--pret); } .crc-seg.seg-valide { background: var(--success); }
+.crc-pourcent { font-size: var(--texte-xs); color: var(--muted); font-variant-numeric: tabular-nums; min-width: 36px; text-align: right; }
+.crc-points .cr-ligne { padding: 8px 0 8px 10px; border-top: none; border-left: 3px solid var(--line); margin-top: 6px; border-radius: 0; }
+.crc-points .cr-ligne.niveau-critique { border-left-color: var(--urgent); background: color-mix(in srgb, var(--urgent) 5%, transparent); }
+.crc-points .cr-ligne.niveau-surveiller { border-left-color: var(--pret); }
+.cr-ligne-eclair { animation: cr-eclair 1.6s ease-out; }
+@keyframes cr-eclair { 0% { box-shadow: 0 0 0 3px var(--focus); } 100% { box-shadow: 0 0 0 0 transparent; } }
+@media (prefers-reduced-motion: reduce) { .cr-ligne-eclair { animation: none; } }
+.crc-seuls { margin-top: 8px; }
+.crc-bravo { display: flex; align-items: center; gap: 6px; margin: 6px 0 0; font-size: var(--texte-m); color: var(--success); font-weight: 500; }
+.crc-bravo .icone { width: 14px; height: 14px; }
+.crc-valides { margin-top: 8px; font-size: var(--texte-m); color: var(--ink-soft); }
+.crc-valides summary { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; color: var(--success); font-weight: 500; list-style: none; }
+.crc-valides summary::-webkit-details-marker { display: none; }
+.crc-valides summary .icone { width: 14px; height: 14px; }
+.crc-valides ul { margin: 6px 0 0; padding-left: 20px; display: grid; gap: 2px; line-height: 1.4; }
+@media (max-width: 600px) { .cr-prio-ligne { flex-direction: column; align-items: flex-start; gap: 4px; } }
+
 .sante-type-bien { display: inline-block; align-self: flex-start; width: fit-content; font-size: var(--texte-s); font-weight: 600; color: var(--ink-soft); background: var(--paper-sunk); border: 1px solid var(--line-soft); border-radius: var(--rayon-pilule); padding: 1px 10px; margin: 2px 0 4px; }
 
 .relecture-type-bien { display: grid; grid-template-columns: auto minmax(0, 260px); gap: 6px 12px; align-items: center; margin: 14px 0 4px; }

@@ -794,6 +794,13 @@ commentaire, pages) et **Validé** en fin, borné à un quart de page ; au-delà
 contrôles CLAIRE, synthèse complète, coût et diagnostic repliés. `planCompteRenduRelecture` (pure) sert à l'écran et au papier ;
 **« Imprimer (A4) »** / Ctrl+P sortent `#relecture-cr-print` seul (une page recto verso au plus, mesuré). Une nouvelle sorte de
 point du bilan passe par le plan, jamais par un bloc à part.
+**À l'écran, par catégorie** (étude 08/10 : « imbuvable ; catégories plus visibles et identifiables, plus ludique ; voir ce qui
+est important au premier coup d'œil ») : `renderCompteRenduEcranRelecture` remplace les tuiles et les listes Alertes / À
+surveiller / Validé de l'écran — en tête **« À régler avant la signature »** (points critiques seuls, chip de leur catégorie, clic
+→ `allerPointRelecture`), sinon « Aucun point bloquant » ; puis une carte par catégorie (`categoriesCompteRenduRelecture`, pure :
+icône et couleur `--cat-*` de `CATEGORIES_COMPTE_RENDU_RELECTURE`, pastilles critique/à surveiller/validé, barre d'avancement,
+alertes et points à surveiller détaillés, validés repliés ; ordre : alerte d'abord, puis à surveiller, puis tout validé). Le plan
+garde tous les validés (`tousValides`) ; l'impression A4 garde `renderCompteRenduRelecture(plan, true)`.
 
 ## Pièges techniques déjà payés
 

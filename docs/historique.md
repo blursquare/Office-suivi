@@ -18457,3 +18457,23 @@ Chromium avec 14 pièces : la liste sortait du cadre de la fenêtre (1300 × 760
 hors écran). `.redaction-carte .redaction-pieces` : `max-height: 112px` (≈ trois rangées), défilement propre, `flex: none` ; les
 autres blocs de la carte ne rétrécissent plus, seul l'éditeur le fait (`min-height: 120px` dans la fenêtre). Après : pièces
 549–661, pied 663–711 dans une carte qui finit à 722 ; téléphone (390 × 800) : pied 727–775 dans la carte (786).
+
+### 08/10/2026 15 h 34 — Relecture d'actes : compte rendu par catégorie (0.195.3)
+
+Étude : « revoir la présentation du compte rendu de lecture, c'est imbuvable. Faire des catégories plus visibles et
+identifiables, plus ludique », puis « voir ce qui est important au premier coup d'œil ». Avant : tuiles de thèmes puis trois
+longues listes (Alertes, À surveiller, Validé) où le thème n'était qu'une petite étiquette grise en capitales.
+Après (écran seulement, l'impression A4 est inchangée) :
+- **« À régler avant la signature »** en tête, sous la carte de santé : les points critiques seuls, une ligne chacun avec la
+  pastille de sa catégorie ; un clic mène au point dans sa carte (`allerPointRelecture`, éclair de 1,6 s, sans animation si
+  l'utilisateur la refuse). Sans point critique : « Aucun point bloquant » en vert.
+- **Une carte par catégorie** (`categoriesCompteRenduRelecture`, pure, testée ; `renderCategorieRelecture`) : icône et couleur
+  propres (`CATEGORIES_COMPTE_RENDU_RELECTURE` — parties bleu/users, bien vert/home, avant-contrat violet/file-text, diagnostics
+  orange/clipboard, copropriété marron/layout, délais rose/clock, urbanisme jaune/map-pin, financier gris/banknote, contrôles
+  CLAIRE, clauses contradictoires, autres points), filet de couleur en haut, pastilles « critique » (rouge plein), « à
+  surveiller », « validé », barre d'avancement et pourcentage validé ; alertes (fond rosé, liseré rouge) et points à surveiller
+  (liseré ambre) détaillés sans répéter le thème ; points validés repliés (« ✓ N points validés ») ; « Rien à signaler » pour une
+  catégorie toute validée. Ordre : catégories avec alerte d'abord (les plus chargées devant), puis à surveiller, puis tout validé.
+- Les tuiles de thèmes de l'écran sont retirées (les cartes les remplacent ; `allerSectionRelecture` mène toujours à la carte).
+  Le plan rend aussi `tousValides` (tous les points validés par thème, sans le budget du quart de page du papier).
+Vérifié dans Chromium avec une relecture inventée (bureau 1440 px et téléphone 390 px, aucune erreur de page).

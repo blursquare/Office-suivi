@@ -97,3 +97,24 @@ test('htmlImpressionCompteRenduRelecture : en-tête, verdict, compteurs, résum�
   assert.match(html, /cr-print-pied/);
   assert.doesNotMatch(html, /wa-button|onclick/);
 });
+
+test('compte rendu à l’écran : catégories reconnaissables, celles qui ont une alerte d’abord, priorités en tête (étude 08/10)', () => {
+  const ligne = (id, niveau) => ({ id, intitule: 'Point ' + id, niveau, commentaire: 'Texte.', citations: [] });
+  const plan = app.planCompteRenduRelecture({ sections: [
+    { cle: 'parties', titre: 'Parties et capacité', lignes: [ligne('a', 'valide'), ligne('b', 'valide')] },
+    { cle: 'bien', titre: 'Bien et désignation', lignes: [ligne('c', 'surveiller'), ligne('d', 'valide')] },
+    { cle: 'diagnostics', titre: 'Diagnostics techniques (DDT)', lignes: [ligne('e', 'critique'), ligne('f', 'surveiller'), ligne('g', 'valide')] }
+  ] });
+  const cats = app.categoriesCompteRenduRelecture(plan);
+  assert.equal(cats.map(c => c.cle).join(','), 'diagnostics,bien,parties');
+  assert.equal(cats[0].icone, 'clipboard');
+  assert.equal(`${cats[0].compte.critique}/${cats[0].compte.surveiller}/${cats[0].compte.valide}`, '1/1/1');
+  assert.equal(cats[2].niveau, 'valide');
+  assert.equal(cats[2].valides.length, 2);
+  const html = app.renderCompteRenduEcranRelecture(plan);
+  assert.match(html, /À régler avant la signature/);
+  assert.match(html, /id="relecture-section-diagnostics"/);
+  assert.match(html, /Rien à signaler/);
+  const ok = app.renderCompteRenduEcranRelecture(app.planCompteRenduRelecture({ sections: [{ cle: 'bien', titre: 'Bien', lignes: [ligne('x', 'valide')] }] }));
+  assert.match(ok, /Aucun point bloquant/);
+});
