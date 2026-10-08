@@ -227,7 +227,8 @@
       if (!preemptionAutoAFaire(d)) return;
       const avant = d.preemption && Array.isArray(d.preemption.droits) ? d.preemption : null;
       d.preemption = Object.assign(preemptionPourFiche(etat), { auto: true, signature: signaturePreemptionDossier(d) },
-        incomplet ? { incomplet: true } : {}, avant && avant.piecesAjoutees ? { piecesAjoutees: avant.piecesAjoutees } : {});
+        incomplet ? { incomplet: true } : {}, avant && avant.piecesAjoutees ? { piecesAjoutees: avant.piecesAjoutees } : {},
+        avant && avant.travaux ? { travaux: avant.travaux } : {});
       const pieces = appliquerPreemptionSurPieces(d);
       const resume = resumePreemptionDossier(d.preemption);
       if (etat.zonages.some(z => z.statut === 'ok')) noterVerificationPoste('preemption-auto-dossier', { detail: `${etat.zonages.length} parcelle(s) lue(s)` });
@@ -239,6 +240,8 @@
       }
       sauvegarder(d);
       render();
+      // Travaux déclarés dans le compromis : lus une fois, en arrière-plan (Contrôle de l'urbanisme).
+      lireTravauxDossierAuto(id).catch(e => console.warn('Contrôle de l’urbanisme : travaux non lus', e && e.message));
     } catch (e) {
       console.warn('Droits de préemption : analyse automatique impossible', e && e.message);
     } finally {

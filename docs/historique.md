@@ -18609,3 +18609,23 @@ du rapport « Contrôle de l'urbanisme (droits de préemption, zone protégée) 
 « Urbanisme » (`planCompteRenduRelecture` lit `categorie`). Tests `tests/controle-urbanisme-relecture.test.js` (droit absent, zone non
 signalée, travaux sans ABF, acte complet = rien, sans analyse = rien, avant-contrat « à vérifier », bout en bout sur un projet lié,
 rangement dans la carte Urbanisme). Non vu sur un vrai acte ni dans le navigateur de l'étude.
+
+**Contrôle de l'urbanisme : travaux et autorisations** (0.200.0, 08/10 au soir ; étude : « reprends aussi ton idée de détecter les
+travaux dans le compromis et de pouvoir analyser si les autorisations ont été demandées »). Section « Travaux et autorisations » de
+l'outil (étape 7, colonne de droite sous « Droits à purger ») : « Lire le compromis du dossier » (dossier relié au NAS ; lancé seul au
+choix d'un dossier qui n'a pas encore de travaux gardés) ou « Déposer un compromis (PDF) ». Lecture par `detecterTravauxRealises`
+(celle de la relecture d'actes, annexes de diagnostic écartées depuis 0.198.1). Pour chaque travail extérieur ou de gros œuvre
+(`analyseTravauxUrbanisme`, `bilanTravailUrbanisme`, titre `natureTravailUrbanisme` « Travaux : agrandissement ») :
+- autorisation d'urbanisme citée (déclaration préalable, permis, non-opposition) — sinon « réclamer la déclaration préalable ou le
+  permis », et au-delà de dix ans « prescription à vérifier (art. L.421-9 du code de l'urbanisme) » ;
+- autorisation citée → achèvement et conformité cités (DAACT, non-contestation) ou à réclamer ;
+- décennale : moins de dix ans → attestation et factures à réclamer (ou « faits par le vendeur : pas de décennale, à indiquer à
+  l'acte ») ; plus de dix ans → expirée ; année non lue → dater les travaux ;
+- zone protégée (servitudes lues par l'outil) → accord de l'architecte des bâtiments de France cité ou à réclamer.
+Les travaux intérieurs sont comptés, pas détaillés. « Demandée » veut dire **citée dans le compromis** : aucun registre des permis
+n'est consulté (infobulle). Gardé sur la fiche par « Enregistrer sur la fiche » (`d.preemption.travaux` = `{ le, source, liste }`,
+clause bornée à 500 caractères), conservé quand l'analyse automatique des droits est refaite ; lignes « À réclamer » / « Cité » dans
+le bloc Contrôle de l'urbanisme de l'onglet Pièces et analyse. À l'ajout d'un dossier relié au NAS, lu une fois en arrière-plan après
+l'analyse automatique des droits (`lireTravauxDossierAuto`, historique « Travaux déclarés dans le compromis : N »). Point terrain
+`travaux-compromis-nas`. Tests (bilan sans autorisation, tout cité, zone protégée + prescription, intérieur et CREP) ; vu dans
+Chromium avec un dossier inventé (outil et fiche). Non essayé sur un vrai compromis du NAS.

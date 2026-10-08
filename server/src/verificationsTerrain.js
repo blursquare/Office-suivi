@@ -88,6 +88,8 @@ const VERIFICATIONS_TERRAIN = [
     comment: 'Réglages › Téléphonie 3CX › « Installer sur ce poste », sur le poste du collaborateur ; au premier appel, « Toujours autoriser » le lien claire-appel dans le navigateur de 3CX.' },
   { id: 'telephone-3cx-fenetre-app', depuis: '0.164.1', source: 'manuel', titre: 'Dans la fenêtre CLAIRE (raccourci du bureau), après l’ajout de l’extension 3CX à son profil, un numéro écrit est cliquable',
     comment: 'Réglages › Téléphonie 3CX › « Ajouter l’extension 3CX », depuis la fenêtre CLAIRE, puis connexion au compte 3CX.' },
+  { id: 'travaux-compromis-nas', depuis: '0.200.0', source: 'poste', titre: 'Contrôle de l’urbanisme : travaux déclarés lus dans le compromis du NAS (autorisation, achèvement, décennale)',
+    comment: 'Coché à la première lecture réussie du compromis d’un dossier relié au NAS (outil Contrôle de l’urbanisme ou ajout d’un dossier) : voir la fiche › Pièces et analyse.' },
   { id: 'preemption-auto-dossier', depuis: '0.190.0', source: 'poste', titre: 'Droits de préemption lus seuls à l’ajout d’un dossier de vente (zonage de chaque parcelle, pièces à attendre)',
     comment: 'Coché à la première analyse réussie après « Ajouter le dossier » (dossier de vente avec code postal et parcelles) : voir la fiche › Pièces et analyse › Droits de préemption.' },
   { id: 'zonage-parcelle-gpu', depuis: '0.164.0', source: 'serveur', titre: 'Droits de préemption : zonage d’une parcelle lu sur le Géoportail de l’urbanisme (API Carto de l’IGN)',

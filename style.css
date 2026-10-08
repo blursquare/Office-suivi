@@ -9194,3 +9194,11 @@ table.pr-zt td.pr-zt-retenue select { min-width: 120px; min-height: 32px; height
 .w-asst-exemples { display: flex; flex-wrap: wrap; gap: 6px; }
 .w-corps .w-asst-exemples.w-coupee { flex-direction: row; justify-content: flex-start; align-content: flex-start; }
 .w-asst-exemples .asst-suggestion.w-asst-exemple { font-size: var(--texte-s); padding: 4px 12px; }
+
+/* Contrôle de l'urbanisme : travaux déclarés dans le compromis (étude 08/10). */
+.pr-travaux-manque .icone { color: var(--pret); }
+.pr-travaux-ok .icone { color: var(--success); }
+.pr-travaux-info { color: var(--muted); }
+.pr-travaux-clause { margin-top: 8px; font-size: var(--texte-s); color: var(--muted); }
+.pr-travaux-clause summary { cursor: pointer; }
+.pr-travaux-clause p { margin: 4px 0 0; }

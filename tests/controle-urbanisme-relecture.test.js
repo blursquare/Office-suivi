@@ -74,3 +74,54 @@ test('compte rendu : les points du contrôle de l’urbanisme vont dans la caté
   assert.match(cles, /urbanisme:Contrôle de l’urbanisme/);
   assert.match(cles, /claire:Contrôle CLAIRE/);
 });
+
+// --- Travaux déclarés dans le compromis : autorisations demandées ? (outil Contrôle de l'urbanisme) ---------------------
+
+function travauxDe(app, texte) {
+  return app.detecterTravauxRealises(texte, [{ numero: 1, debut: 0, fin: texte.length }], '2026-10-08').map(app.travailPourFiche);
+}
+
+test('analyseTravauxUrbanisme : extension sans autorisation citée, décennale à réclamer', () => {
+  const app = chargerApplication();
+  const liste = travauxDe(app, "Le VENDEUR déclare que des travaux d'agrandissement ont été réalisés en 2021 par l'entreprise Bâtir Plus.");
+  const a = app.analyseTravauxUrbanisme(liste, null, '2026-10-08');
+  assert.equal(a.travaux.length, 1);
+  const t = a.travaux[0];
+  assert.equal(t.statut, 'reclamer');
+  const textes = t.points.map(p => p.etat + ':' + p.texte).join(' | ');
+  assert.match(textes, /manque:Aucune autorisation citée/);
+  assert.match(textes, /manque:Moins de dix ans \(2021\)/);
+});
+
+test('analyseTravauxUrbanisme : permis, conformité et décennale cités → rien à réclamer', () => {
+  const app = chargerApplication();
+  const liste = travauxDe(app, "Le VENDEUR déclare qu'une véranda a été construite en 2020 en vertu d'un permis de construire n° PC 041 18 20 00012, la déclaration attestant l'achèvement et la conformité des travaux ayant été déposée ; l'entreprise était couverte par une assurance décennale.");
+  const a = app.analyseTravauxUrbanisme(liste, null, '2026-10-08');
+  assert.equal(a.travaux.length, 1);
+  assert.equal(a.travaux[0].statut, 'ok', a.travaux[0].points.map(p => p.texte).join(' | '));
+});
+
+test('analyseTravauxUrbanisme : zone protégée → accord de l’architecte des bâtiments de France ; travaux anciens → prescription', () => {
+  const app = chargerApplication();
+  const liste = travauxDe(app, "Le VENDEUR déclare que la toiture a été refaite en 2005 par l'entreprise Couverture Exemple.");
+  const a = app.analyseTravauxUrbanisme(liste, PREEMPTION.patrimoine, '2026-10-08');
+  const textes = a.travaux[0].points.map(p => p.texte).join(' | ');
+  assert.match(textes, /prescription à vérifier/);
+  assert.match(textes, /garantie décennale expirée/);
+  assert.match(textes, /architecte des bâtiments de France à réclamer/);
+});
+
+test('analyseTravauxUrbanisme : travail intérieur compté à part, annexes de diagnostic ignorées', () => {
+  const app = chargerApplication();
+  const liste = travauxDe(app, "Le VENDEUR déclare que des travaux de rénovation de la cuisine ont été réalisés en 2023. "
+    + "Le présent CREP réalisé en application de l'article L.1334-7 porte uniquement sur les revêtements privatifs, y compris les revêtements extérieurs (volets, portail).");
+  const a = app.analyseTravauxUrbanisme(liste, null, '2026-10-08');
+  assert.equal(a.travaux.length, 0);
+  assert.equal(a.interieurs, 1);
+});
+
+test('natureTravailUrbanisme : la nature du travail, pas un bout de clause', () => {
+  const app = chargerApplication();
+  assert.equal(app.natureTravailUrbanisme({ phrase: "Le VENDEUR déclare que des travaux d'agrandissement ont été réalisés en 2021." }), 'Travaux : agrandissement');
+  assert.equal(app.natureTravailUrbanisme({ phrase: 'Des travaux ont été réalisés.' }), 'Travaux');
+});

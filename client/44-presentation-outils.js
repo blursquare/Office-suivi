@@ -46,7 +46,8 @@
       { cle: 'mutation', libelle: 'Mutation', fait: () => !!(prEtat && prEtat.reponses.mutation) },
       { cle: 'bien', libelle: 'Bien', fait: () => !!(prEtat && prEtat.reponses.bien) },
       { cle: 'rural', libelle: 'Agricole et forestier' },
-      { cle: 'resultat', libelle: 'Droits', fait: () => !!(prEtat && !analyserPreemption(reponsesPreemption(prEtat)).manques.length) }
+      { cle: 'resultat', libelle: 'Droits', fait: () => !!(prEtat && !analyserPreemption(reponsesPreemption(prEtat)).manques.length) },
+      { cle: 'travaux', libelle: 'Travaux', fait: () => !!(prEtat && prEtat.travaux && prEtat.travaux.liste) }
     ],
     inventaire: [
       { cle: 'droits', libelle: 'Droits simulés', fait: () => !!(valeurChamp('inv-droits-sans') && valeurChamp('inv-droits-avec')) },

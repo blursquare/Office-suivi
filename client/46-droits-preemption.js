@@ -128,6 +128,7 @@
     else if (type) e.reponses.bien = 'bati';
     if (d.preemption && d.preemption.reponses) e.reponses = Object.assign({}, e.reponses, d.preemption.reponses);
     if (d.preemption && d.preemption.insee) e.insee = d.preemption.insee;
+    if (d.preemption && d.preemption.travaux && Array.isArray(d.preemption.travaux.liste)) e.travaux = { source: d.preemption.travaux.source || '', liste: d.preemption.travaux.liste };
     return e;
   }
 
@@ -170,6 +171,7 @@
     prEtat = prefillPreemption(d);
     renderPreemption();
     if (prEtat.cp) chargerCommunesPreemption(true);
+    if (!prEtat.travaux && d.dossierLie && d.nasDossier) lireTravauxCompromisPreemption();
   }
 
   function ouvrirPreemptionDepuisFiche(id) {
@@ -408,6 +410,7 @@
         ${d ? `<div class="reglages-actions"><wa-button variant="brand" onclick="enregistrerPreemptionFiche()">${icone('check')} Enregistrer sur la fiche</wa-button>
           ${d.preemption && d.preemption.le ? `<span class="hint">Enregistré le ${escapeHtml(formatDateFr(d.preemption.le.slice(0, 10)))}</span>` : ''}</div>` : ''}`;
     }
+    renderTravauxPreemption();
     if (typeof majSommaireOutil === 'function') majSommaireOutil('preemption');
   }
 
@@ -450,7 +453,8 @@
       lignes: lignes.map(l => ({ cle: l.cle, libelle: l.libelle, statut: l.statut, zone: l.zone, typezone: l.typezone, lue: l.lue, famille: l.famille, choisie: l.choisie, contenance: l.contenance })),
       droits: analyse.droits.map(dr => ({ cle: dr.cle, titre: dr.titre, statut: dr.statut, motif: dr.motif, formalite: dr.formalite })),
       // Toujours un objet : « non lu » est une réponse (sinon la relecture automatique repartirait à chaque ouverture de la fiche).
-      patrimoine: patrimoinePreemption(etat) || { lu: false, servitudes: [] }
+      patrimoine: patrimoinePreemption(etat) || { lu: false, servitudes: [] },
+      ...(etat.travaux && Array.isArray(etat.travaux.liste) ? { travaux: { le: (maintenant || new Date()).toISOString(), source: etat.travaux.source || '', liste: etat.travaux.liste } } : {})
     };
   }
 
@@ -466,7 +470,9 @@
     if (!d) return;
     // Pièces déjà ajoutées par une analyse précédente : suivies, pour être retirées si le droit tombe.
     const avant = d.preemption && d.preemption.piecesAjoutees;
+    const travauxAvant = d.preemption && d.preemption.travaux;
     d.preemption = Object.assign(preemptionPourFiche(prEtat), { signature: signaturePreemptionDossier(d) }, avant ? { piecesAjoutees: avant } : {});
+    if (!d.preemption.travaux && travauxAvant) d.preemption.travaux = travauxAvant;
     const pieces = appliquerPreemptionSurPieces(d, { explicite: true });
     const aPurger = d.preemption.droits.filter(dr => dr.statut === 'oui').map(dr => dr.titre);
     ajouterHistorique(d, `Droits de préemption vérifiés : ${aPurger.length ? 'à purger — ' + aPurger.join(', ') : 'aucun droit à purger'}${pieces.length ? ' — ' + pieces.join(' ; ') : ''}`);
@@ -514,7 +520,7 @@
           <span class="pr-fiche-titre">${escapeHtml(l.titre)}${infoBulle(AIDE_PATRIMOINE)}</span>
           <span class="hint">${escapeHtml(l.motif)}${l.conseil ? ' — ' + escapeHtml(l.conseil) : ''}</span>
         </div>` : '';
-        })()}</div>
+        })()}${renderTravauxFicheUrbanisme(p)}</div>
       ${questions.length ? `<div class="pr-fiche-questions">${questions.map(q => `<div class="pr-question pr-question-due">
           <span class="pr-question-texte">${escapeHtml(q.libelle)}${q.aide ? infoBulle(q.aide) : ''}</span>
           ${boutonsReponsePreemption(v => `repondrePreemptionFiche('${escapeOnclickArg(d.id)}', '${q.cle}', ${JSON.stringify(v).replace(/"/g, '&quot;')})`, (p.reponses || {})[q.cle], q.valeurs)}

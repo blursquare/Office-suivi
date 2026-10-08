@@ -674,6 +674,16 @@ dans `index.html`** (le test `structure-client` refuse tout décalage).
   des bâtiments de France pour les travaux visibles, « Aucun publié », « À vérifier » si la couche n'a pas répondu) sur la fiche et
   dans l'outil ; une commune qui n'a pas versé ses servitudes n'y figure pas — jamais « aucune protection » (info-bulle). Une
   lecture automatique d'avant (sans `patrimoine`) est refaite une fois.
+  **Travaux et autorisations** (étude 08/10 : « détecter les travaux dans le compromis et pouvoir analyser si les autorisations ont
+  été demandées » ; `client/55-controle-urbanisme-relecture.js`) : section de l'outil (étape `travaux`, `#pr-travaux`) — compromis du
+  NAS (`recupererTextCompromisDossier`, lu seul au choix du dossier s'il n'y a rien de gardé) ou PDF déposé, `detecterTravauxRealises`
+  (mêmes lecteurs que la relecture, annexes de diagnostic écartées) ; seuls les travaux extérieurs/gros œuvre sont détaillés
+  (`analyseTravauxUrbanisme`, `bilanTravailUrbanisme`) : autorisation citée (sinon « réclamer DP ou permis », prescription L.421-9 à
+  vérifier au-delà de dix ans), achèvement/conformité (`RE_ACHEVEMENT_TRAVAUX`), décennale (moins de dix ans, fait par le vendeur,
+  année non lue), architecte des bâtiments de France en zone protégée. « Demandée » = **citée dans le compromis** : aucun registre
+  des permis n'est consulté. Gardé dans `d.preemption.travaux` `{ le, source, liste }` (« Enregistrer sur la fiche », conservé par la
+  relecture automatique des droits), lignes sur la fiche (`renderTravauxFicheUrbanisme`) ; lu seul après l'analyse automatique
+  d'un dossier relié au NAS (`lireTravauxDossierAuto`, une fois). Point terrain `travaux-compromis-nas`.
 - **Type de vente « Terre agricole / terrain non bâti »** (`terre`, étude 08/10 : « un nouveau type de vente : terrain ou terre ») à côté de maison, copropriété, terrain à bâtir : checklist = pièces d'urbanisme + ERP, taxe foncière, titre (`PIECES_TERRE_AUTRES`, ni diagnostics ni étude de sol) ; **« Réponse SAFER » d'office** (`ajouterPieceSaferTerre`, client/54 : à la création, au complément et au passage à ce type sur la fiche ; la pièce `perso-safer` d'Authentic et de l'analyse, jamais en double, jamais en participation ; hors `preemption.piecesAjoutees`, l'analyse ne la retire pas) ; droits de préemption lus comme un terrain nu, frais d'acte au barème « terrain », courrier « un terrain non bâti ».
 - **Mobilier** : le prix reste le prix total ; `d.prixMobilier` sort seulement de l'assiette des
   droits (frais d'acte, contrôle du barème).
