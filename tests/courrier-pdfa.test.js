@@ -1,6 +1,6 @@
 'use strict';
 
-// Courrier d'appel de fonds en PDF/A-2B (client/56-courrier-pdfa.js) et tampon + signature du modèle Word
+// Courrier d'appel de fonds en PDF/A-2U (client/56-courrier-pdfa.js) et tampon + signature du modèle Word
 // (appel-de-fonds-modele.js). Le PDF est composé à part du .docx : ce test vérifie qu'il dit MOT POUR MOT ce que dit le modèle.
 // Données inventées.
 
@@ -119,11 +119,11 @@ test('PDF/A : aucun glyphe absent de la police (interdit en PDF/A)', () => {
   assert.strictEqual(app.texteImprimablePdfA('a b’c✓', cp => connus.has(cp)), "a b'c?");
 });
 
-test('PDF/A : métadonnées XMP pdfaid 2 / B, mêmes titre et date que le dictionnaire Info', () => {
+test('PDF/A : métadonnées XMP pdfaid 2 / U, mêmes titre et date que le dictionnaire Info', () => {
   const app = chargerApplication();
   const xmp = app.xmpPdfA({ titre: 'Convocation - DUPONT & fils', auteur: 'Office', logiciel: 'CLAIRE', producteur: 'CLAIRE (pdf-lib 1.17.1)', date: new Date('2026-10-09T15:50:12.345Z') });
   assert.match(xmp, /<pdfaid:part>2<\/pdfaid:part>/);
-  assert.match(xmp, /<pdfaid:conformance>B<\/pdfaid:conformance>/);
+  assert.match(xmp, /<pdfaid:conformance>U<\/pdfaid:conformance>/);
   assert.match(xmp, /<xmp:CreateDate>2026-10-09T15:50:12Z<\/xmp:CreateDate>/);
   assert.match(xmp, /DUPONT &amp; fils/);
   assert.strictEqual(app.nomFichierPdfA("Convocation au rendez-vous contenant l'appel de fonds - DUPONT.docx"), "Convocation au rendez-vous contenant l'appel de fonds - DUPONT.pdf");

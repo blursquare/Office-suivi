@@ -1,5 +1,6 @@
-  // Courrier d'appel de fonds en PDF/A-2B (ISO 19005-2), prêt à déposer dans Authentic (étude 09/10 : « le certificat est celui-ci
-  // dans authentic : Conformité Norme : PDF/A-2B, Nom ISO : ISO 19005-2 »).
+  // Courrier d'appel de fonds en PDF/A-2U (ISO 19005-2), prêt à déposer dans Authentic (étude 09/10 : « le certificat est celui-ci
+  // dans authentic : Conformité Norme : PDF/A-2B, Nom ISO : ISO 19005-2 », puis « passe en 2U » — le niveau au-dessus : tout le
+  // texte a sa correspondance Unicode ; un fichier 2U est aussi un 2B valide).
   //
   // Le PDF est COMPOSÉ ici, dans le navigateur, avec pdf-lib : un .docx ne se convertit pas en PDF sans Word ni LibreOffice, et ni
   // l'un ni l'autre ne tourne sur le serveur de l'étude. Il reprend le même courrier que le .docx : mêmes données
@@ -7,11 +8,11 @@
   // `tests/courrier-pdfa.test.js` qui relit le modèle), même en-tête, même tampon et même signature, mêmes positions (relevées sur
   // le modèle : marges de 5 cm à gauche et 1 cm à droite, Times New Roman 11 pt, en-tête en Calibri Light).
   //
-  // Ce qui fait un PDF/A-2B : toutes les polices EMBARQUÉES (Liberation Serif = métriques de Times New Roman, Carlito = métriques
+  // Ce qui fait un PDF/A-2U : toutes les polices EMBARQUÉES (Liberation Serif = métriques de Times New Roman, Carlito = métriques
   // de Calibri, servies par le serveur dans vendor/polices/courrier/, jamais une police standard du PDF) ; aucun glyphe absent
-  // (`texteImprimablePdfA`) ; métadonnées XMP `pdfaid:part 2 / conformance B` identiques au dictionnaire Info (`xmpPdfA`) ; un profil
+  // (`texteImprimablePdfA`) ; métadonnées XMP `pdfaid:part 2 / conformance U` identiques au dictionnaire Info (`xmpPdfA`) ; un profil
   // de couleur sRGB en OutputIntent ; un identifiant de fichier dans le trailer. La transparence (tampon, signature, logos) est
-  // permise en PDF/A-2. Contrôlé avec veraPDF (profil PDF/A-2B) au moment de l'écriture ; l'acceptation par Authentic se vérifie au
+  // permise en PDF/A-2. Contrôlé avec veraPDF (profils PDF/A-2U et 2B) au moment de l'écriture ; l'acceptation par Authentic se vérifie au
   // bureau (point terrain `courrier-pdfa-authentic`).
 
   var URL_PDF_LIB_PDFA = 'https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js';
@@ -141,7 +142,7 @@
     return new Date(Math.floor(date.getTime() / 1000) * 1000).toISOString().replace('.000Z', 'Z');
   }
 
-  // Pure : métadonnées XMP d'un PDF/A-2B. Titre, auteur, logiciel et dates doivent être les mêmes que dans le dictionnaire Info.
+  // Pure : métadonnées XMP d'un PDF/A-2U. Titre, auteur, logiciel et dates doivent être les mêmes que dans le dictionnaire Info.
   function xmpPdfA(meta) {
     const m = meta || {};
     const date = dateXmpPdfA(m.date || new Date());
@@ -150,7 +151,7 @@
       + '<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">\n'
       + '<rdf:Description rdf:about="" xmlns:pdfaid="http://www.aiim.org/pdfa/ns/id/" xmlns:dc="http://purl.org/dc/elements/1.1/"'
       + ' xmlns:xmp="http://ns.adobe.com/xap/1.0/" xmlns:pdf="http://ns.adobe.com/pdf/1.3/">\n'
-      + '<pdfaid:part>2</pdfaid:part>\n<pdfaid:conformance>B</pdfaid:conformance>\n'
+      + '<pdfaid:part>2</pdfaid:part>\n<pdfaid:conformance>U</pdfaid:conformance>\n'
       + '<dc:format>application/pdf</dc:format>\n'
       + '<dc:title><rdf:Alt><rdf:li xml:lang="x-default">' + echapperXmlPdfA(m.titre) + '</rdf:li></rdf:Alt></dc:title>\n'
       + '<dc:creator><rdf:Seq><rdf:li>' + echapperXmlPdfA(m.auteur) + '</rdf:li></rdf:Seq></dc:creator>\n'
@@ -189,7 +190,7 @@
     return afBase64VersOctets(String(uri || '').replace(/^data:[^,]*,/, ''));
   }
 
-  // Génère le PDF/A-2B du courrier et renvoie { blob, nom, donnees } — même contrat que genererBlobAppelFonds.
+  // Génère le PDF/A-2U du courrier et renvoie { blob, nom, donnees } — même contrat que genererBlobAppelFonds.
   async function genererPdfAAppelFonds(donneesGardees, nomGarde) {
     const octetsPolices = await chargerOutilsPdfA();
     const { PDFDocument, PDFName, PDFString, PDFHexString, rgb } = window.PDFLib;
@@ -370,7 +371,7 @@
       }
     }
 
-    // PDF/A-2B : Info = XMP, profil sRGB en OutputIntent, identifiant du fichier.
+    // PDF/A-2U : Info = XMP, profil sRGB en OutputIntent, identifiant du fichier.
     const date = new Date(Math.floor(Date.now() / 1000) * 1000);
     const titre = nomFichierPdfA(nomDocx).replace(/\.pdf$/i, '');
     const meta = { titre, auteur: 'Office notarial de Maître Sophie GOSSART', logiciel: 'CLAIRE', producteur: 'CLAIRE (pdf-lib 1.17.1)', date };

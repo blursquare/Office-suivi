@@ -18785,3 +18785,10 @@ aux questions : « Tous les courriers d'appel de fonds », « Courrier en PDF/A-
   entière ; la ligature « ti » est mal espacée (« desti né ») → ligatures coupées. veraPDF 1.30 (profil PDF/A-2B) : PASS sur deux
   courriers (une et deux pages). Acceptation par Authentic : point terrain `courrier-pdfa-authentic`.
 
+### 09/10/2026 18 h 12 — 0.205.1 : courrier d'appel de fonds en PDF/A-2U
+
+Question de l'étude : « possible d'avoir un certificat plus élevé ? ». Niveaux de PDF/A-2 : B (rendu identique), U (B + texte en
+Unicode), A (U + balisage d'accessibilité, impossible avec pdf-lib). Le courrier passait déjà les règles 2U ; seule la déclaration
+`pdfaid:conformance` disait B → passée à U. veraPDF : PASS en 2U et en 2B (une et deux pages). Signature numérique PAdES (certificat de
+cachet, pour rendre le PDF infalsifiable) proposée ensuite : l'étude a répondu « reste comme ça, passe en 2U » — pas de signature numérique.
+
