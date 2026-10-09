@@ -18817,3 +18817,7 @@ Capture : « Délai SAFER — envoyée le 3 août, non-préemption (délai écou
 
 Étude : « DIA à adresser à la mairie de la commune (délégataire d'Agglopolys ; Agglopolys pour une zone d'activités économiques) — réponse dans les 2 mois ; le document de renonciation est indispensable pour signer : trop long ». Nouveau texte : « DIA à la mairie — réponse sous 2 mois, renonciation indispensable pour signer. » (« la mairie (Agglopolys en zone d'activités) » pour Agglopolys, le délégataire du DPU renforcé inchangé). Sur la fiche le texte est recalculé à l'affichage : les dossiers déjà analysés le montrent raccourci.
 
+### 09/10/2026 19 h 38 — 0.206.6 : avant-contrat retrouvé seul à l'ouverture de la fiche
+
+Capture : « Recherché dans le dossier NAS à l'ouverture » + Ouvrir / Changer / Compléter (« parfois j'ai ça »). Le libellé n'était qu'un repli : le fichier retrouvé n'était mémorisé qu'au clic sur « Ouvrir ». `retrouverCompromisSilencieux` (client/37, appelée à l'ouverture de la fiche, une fois par dossier et par session) fait le même choix que `ouvrirCompromisTrouve` (`choisirAvantContratNas`, mêmes exclusions), mémorise le fichier et redessine ; sans toast, sans ouverture, aucun avant-contrat trouvé = la ligne reste (« Changer »). Non vérifié ici : le NAS est injoignable depuis cet environnement.
+

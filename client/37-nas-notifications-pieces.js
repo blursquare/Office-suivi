@@ -1210,6 +1210,27 @@
   // (`d.compromisNomFichier`) qui est cherché en premier ; la recherche floue ne sert plus que de
   // repli pour un dossier saisi entièrement à la main (ou créé avant cette évolution), et le
   // signale alors explicitement plutôt que d'ouvrir un document au hasard sans prévenir.
+  // Avant-contrat retrouvé SEUL à l'ouverture de la fiche (étude 09/10 : « parfois j'ai "Recherché dans le dossier NAS à l'ouverture" » —
+  // la ligne ne donnait un nom qu'après un clic sur « Ouvrir ») : même choix que `ouvrirCompromisTrouve`, sans toast ni ouverture ;
+  // le fichier est mémorisé et la fiche en montre le nom. Une fois par dossier et par session ; rien trouvé = la ligne reste telle
+  // quelle (« Changer » pour le choisir).
+  var recherchesCompromisAuto = new Set();
+  async function retrouverCompromisSilencieux(dossierId) {
+    const d = dossiers.find(x => x.id === dossierId);
+    if (!d || !d.dossierLie || !d.nasDossier || d.archive || estSuccession(d)) return;
+    if (compromisMemoriseValide(d) || recherchesCompromisAuto.has(dossierId)) return;
+    recherchesCompromisAuto.add(dossierId);
+    try {
+      const choix = choisirAvantContratNas(await listerFichiersNas(d), nomCompromisAttendu(d), contexteNomsAvantContrat(d, dossiers));
+      if (!choix.fichier) return;
+      memoriserFichierTrouve(d, NAS_CLE_COMPROMIS, cheminNasComplet(d, choix.fichier.chemin));
+      await sauvegarder(d);
+      render();
+    } catch (e) {
+      console.warn('Avant-contrat non retrouvé à l’ouverture :', e && e.message);
+    }
+  }
+
   async function ouvrirCompromisTrouve(dossierId, btn) {
     const d = dossiers.find(x => x.id === dossierId);
     if (!d) return;

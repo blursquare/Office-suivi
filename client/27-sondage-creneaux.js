@@ -1217,6 +1217,8 @@
     rdvAgendaOuvert = false;
     render();
     if (d && !d.archive && !d.prixMobilier && !d.mobilierLuLe && d.dossierLie && d.nasDossier) lireMobilierDepuisAvantContrat(id, false);
+    // Avant-contrat du dossier relié : retrouvé seul, son nom s'affiche sans clic sur « Ouvrir ».
+    if (d) retrouverCompromisSilencieux(id);
     // Droits de préemption : lus à l'ajout, relus si la commune, les parcelles ou la nature du bien ont changé depuis.
     if (preemptionAutoAFaire(d)) analyserPreemptionDossier(id);
   }
