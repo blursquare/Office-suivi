@@ -124,3 +124,25 @@ test('rapport technique : « Ce que CLAIRE a appris » — clauses et commentair
   assert.equal(natureCorrection({ valeurExtraite: 'A', valeurCorrigee: '' }), 'lu, effacé');
   assert.equal(natureCorrection({ valeurExtraite: 'A', valeurCorrigee: 'B' }), 'lu, changé');
 });
+
+test('rapport technique : une clause citée ne laisse sortir ni prénom, ni domicile, ni adresse ou lieu-dit absents des fiches', () => {
+  const { construireRapport, anonymiserClause } = require('../src/rapportTechnique');
+  // Rapport du 09/10 : clauses d'actes dont les personnes et lieux n'étaient sur aucune fiche (noms inventés ici).
+  const r = construireRapport({
+    depuis: '2026-10-01T00:00:00Z', jusqua: '2026-10-02T10:00:00Z', evenements: [], dossiers: [], mots: new Set(),
+    retoursAudit: [
+      { id: 'r1', verdict: 'faux_positif', portee: 'dossier', date: '2026-10-01T13:00:00Z', mode: 'compromis',
+        commentaire: 'Ils sont concubins',
+        constat: { titre: 'Régime matrimonial des acquéreurs non précisé', categorie: 'parties', gravite: 'A_VERIFIER',
+          phrase: 'Madame Clémentine Roussel-Aubry, ostéopathe, demeurant à Chambord (41250) 13 rue Victor Hugo.' } },
+      { id: 'r2', verdict: 'faux_positif', portee: 'dossier', date: '2026-10-01T14:00:00Z', mode: 'compromis',
+        constat: { titre: 'Incohérence d’adresse', categorie: 'bien', gravite: 'A_VERIFIER',
+          phrase: 'Une maison sise à Chambord (Loir et Cher) "Les Hauts Prés", 5 allée des Glycines, de type V' } }
+    ]
+  });
+  for (const interdit of [/Chambord/, /Clémentine/, /Roussel/, /Aubry/, /Victor/, /Hugo/, /Hauts/, /Glycines/]) assert.doesNotMatch(r.corps, interdit, `fuite : ${interdit}`);
+  assert.match(r.corps, /Madame \[nom\], ostéopathe/);
+  assert.match(r.corps, /\[adresse\]/);
+  assert.equal(anonymiserClause('Monsieur Paul Martin et Madame Léa Durand-Petit s’obligent', new Set()), 'Monsieur [nom] et Madame [nom] s’obligent');
+  assert.equal(anonymiserClause('le diagnostic de performance énergétique est classé en C', new Set()), 'le diagnostic de performance énergétique est classé en C');
+});

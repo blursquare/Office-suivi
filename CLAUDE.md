@@ -114,7 +114,8 @@ dans `index.html`** (le test `structure-client` refuse tout décalage).
    **anonymisée par le serveur avant l'envoi** (`anonymiserTexte` : chemins, fichiers, emails, montants,
    téléphones, mots tirés des dossiers et des collaborateurs, mots en capitales hors sigles techniques ;
    jamais d'auteur de signalement, de capture, de nom de dossier ni de valeur de champ) — tout ajout
-   au rapport passe par `anonymiserTexte` et un test « aucun nom ne sort ».
+   au rapport passe par `anonymiserTexte` et un test « aucun nom ne sort » ; **tout texte d'acte cité passe par `anonymiserClause`**
+   (09/10 : nom après une civilité, adresse, commune, lieu-dit entre guillemets — un prénom et un domicile absents des fiches sortaient).
 2. **Accès sans mot de passe par défaut** (le réseau du bureau protège l'accès ;
    `"authActive": true` dans `config.json` le rétablit). Pas de compte par collaborateur : le
    collaborateur du poste est choisi une fois (`localStorage`), ses préférences vivent en base.

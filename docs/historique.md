@@ -18678,3 +18678,14 @@ verser / payer / régler » avec un montant tolérant (`montantOcrFinLigne`), ou
 passe avant tout dans `soldeAttenduDepuisDecompte` et dans la lecture stricte de `montantAttenduDepuisNas`. Test :
 `tests/fonds-recus.test.js` (structure de la convocation, montants inventés). Le PDF n'est pas commité. Non vérifié : le
 texte exact que rend tesseract.js dans le navigateur sur ce scan (ici, Tesseract en ligne de commande).
+
+### 09/10/2026 — Rapport technique : clauses d'actes mieux anonymisées (0.201.3)
+
+Relecture du rapport de 12 h (issue 21) : dans « Commentaires de relecture d'actes », les clauses citées laissaient sortir un
+prénom (« Madame <prénom> [nom]… »), un domicile (« <n> rue <nom> »), l'adresse et le lieu-dit du bien entre guillemets —
+`anonymiserTexte` ne masque que les mots des fiches et les mots en capitales ; ces personnes et lieux n'étaient sur aucune fiche.
+`anonymiserClause` (server/src/rapportTechnique.js), utilisée par `citer` de `sectionApprentissage` (clauses lues, clauses
+apprises, titres et commentaires de relecture) : en plus, nom après une civilité (`RE_NOM_APRES_CIVILITE`), adresse — voie et
+ce qui la suit jusqu'à la ponctuation (`RE_ADRESSE_CLAUSE`) —, commune après « demeurant / sis / situé / né à » ou devant un code
+postal (`RE_COMMUNE_CLAUSE`), texte entre guillemets (« [lieu] »). Test « aucun nom ne sort » avec des noms inventés
+(server/test/journal-corrections.test.js). L'issue publiée garde les fragments déjà sortis : à l'étude de décider de la modifier.
