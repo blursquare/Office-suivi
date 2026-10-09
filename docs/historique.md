@@ -18801,3 +18801,7 @@ cachet, pour rendre le PDF infalsifiable) proposée ensuite : l'étude a répond
 Capture de l'étude (« M. CHAHUNEAU Alain et Mme BARBIER Catherine — Vendeur », « Mme LEBERT Elodie — Acquéreur », « il y a et entre les époux », « Lebert achète seule »). La lecture standard (qualité sur sa propre ligne) donnait déjà deux vendeurs et une acquéreuse seule ; `comparantsAuthentic` accepte en plus la qualité en fin de ligne (cellule de tableau) et « et Mme … » coupé sur la ligne suivante. À vérifier au bureau sur la vraie page.
 Étude, même jour : « s'il y a marqué époux de, épouse de, divorcé de ou veuve de, la personne achète seule sauf s'il y a un autre vendeur ou acquéreur en dessous » → `RE_LIEN_CONJOINT_COMPARANT` coupe « … épouse de M. Z » avant la lecture des noms (test ajouté).
 
+### 09/10/2026 18 h 56 — 0.206.2 : « Autre intervenant » jamais dans la fiche
+
+Étude : « si une partie est notée en autre intervenant, ne pas la mettre dans la fiche CLAIRE ». `comparantsAuthentic` reconnaît la qualité « (Autre) intervenant » (seule sur sa ligne ou en fin de ligne) et écarte ses noms ; sans cela ils auraient été collés à la qualité suivante. Une personne ainsi écartée n'est pas comparante : la fiche client ne l'ajoute pas et `retirerPartiesHorsComparants` retire celle déjà reprise d'Authentic (quand les deux côtés sont lus). Autres qualités (mandataire, représentant…) non traitées : à demander sur une vraie page.
+

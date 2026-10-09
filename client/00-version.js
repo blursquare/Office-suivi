@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.206.1';
+  const VERSION_APP = '0.206.2';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.206.2', date: '2026-10-09 18:56', resume: "Authentic : une personne notée « Autre intervenant » dans les comparants n'est ni vendeur ni acquéreur — elle n'est jamais reprise dans la fiche (et un intervenant déjà repris d'Authentic en est retiré)." },
     { version: '0.206.1', date: '2026-10-09 18:46', resume: "Authentic : la rubrique « Comparants » se lit aussi quand la qualité (Vendeur / Acquéreur) est en fin de ligne ou que « et Mme … » passe à la ligne — un couple qui vend à deux garde ses deux personnes, l'acquéreur seul reste seul. « épouse de / époux de / veuve de / divorcé de » : la personne vend ou achète seule, son conjoint cité n'est comparant que s'il est listé lui-même plus bas." },
     { version: '0.206.0', date: '2026-10-09 18:36', resume: "Barre latérale : « Agenda » passe sous « Suivi des dossiers », « Demander à CLAIRE » au-dessus de « Réglages ». « Demander à CLAIRE » (page et widget du tableau de bord) et « Relecture d'actes » ne s'affichent que pour Bastien." },
     { version: '0.205.1', date: '2026-10-09 18:12', resume: "Courrier d'appel de fonds en PDF : niveau PDF/A-2U (au-dessus du 2B demandé par Authentic, qui reste valide) — tout le texte du PDF se recherche et se copie fidèlement ; contrôlé conforme par veraPDF." },

@@ -1516,3 +1516,9 @@ test('comparantsAuthentic : « épouse de / époux de / veuve de / divorcé de �
   // le conjoint listé lui-même en dessous est comparant
   assert.equal(lire('Comparants\nMme LEBERT Elodie épouse de M. DUPONT Paul\nAcquéreur\nM. DUPONT Paul\nAcquéreur\nImmeubles'), 'LEBERT Elodie:ACQUEREUR,DUPONT Paul:ACQUEREUR');
 });
+
+test('comparantsAuthentic : une personne notée « Autre intervenant » n’est ni vendeur ni acquéreur et ne fausse pas la qualité suivante', () => {
+  const lire = (texte) => app.comparantsAuthentic({ texte }).map(c => `${c.nom}:${c.role}`).join(',');
+  assert.equal(lire('Comparants\nM. LEBRUN Jean\nAutre intervenant\nMme MARCHAND Sylvie\nAcquéreur\nM. MARTEL Luc\nVendeur\nImmeubles'), 'MARCHAND Sylvie:ACQUEREUR,MARTEL Luc:VENDEUR');
+  assert.equal(lire('Comparants\nM. LEBRUN Jean Autre intervenant\nMme MARCHAND Sylvie Acquéreur\nImmeubles'), 'MARCHAND Sylvie:ACQUEREUR');
+});

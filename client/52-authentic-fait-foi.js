@@ -361,7 +361,7 @@
   // civil et qui est vendeur et acquéreur » — une vendeuse seule propriétaire avait reçu son mari, une acquéreuse seule son
   // partenaire pacsé, tous deux repris de leur fiche client par le conjoint). Rubrique « Comparants (N) » de la page du dossier :
   // une ligne de noms (« M. MARTEL Alexandre et Mme MARTEL Nadia »), puis la qualité (« Vendeur », « Acquéreur »). ----
-  var RE_QUALITE_COMPARANT = /^(vendeurs?|promettants?|c[ée]dants?|acqu[ée]reurs?|b[ée]n[ée]ficiaires?|cessionnaires?)$/i;
+  var RE_QUALITE_COMPARANT = /^(vendeurs?|promettants?|c[ée]dants?|acqu[ée]reurs?|b[ée]n[ée]ficiaires?|cessionnaires?|(?:autres?\s+)?intervenants?)$/i;
   var RE_FIN_COMPARANTS = /^(informations?\s+financi|parties?\s+prenantes?|immeubles?|documents?|pi[eè]ces|notes?|historique|formalit)/i;
 
   // « Mme X épouse de M. Y », « veuve de », « divorcé de », « époux de » : la personne vend ou achète SEULE — le conjoint cité après
@@ -381,10 +381,13 @@
       let l = l0;
       let q = RE_QUALITE_COMPARANT.exec(l);
       if (!q) {
-        const fin = /^(.*\S)\s+(vendeurs?|promettants?|c[ée]dants?|acqu[ée]reurs?|b[ée]n[ée]ficiaires?|cessionnaires?)$/i.exec(l);
+        const fin = /^(.*\S)\s+(vendeurs?|promettants?|c[ée]dants?|acqu[ée]reurs?|b[ée]n[ée]ficiaires?|cessionnaires?|(?:autres?\s+)?intervenants?)$/i.exec(l);
         if (fin) { l = fin[1]; q = [fin[2], fin[2]]; noms.push(l); }
       }
       if (!q) { noms.push(l); continue; }
+      // « Autre intervenant » : une personne qui n'est ni vendeur ni acquéreur (étude 09/10) — jamais reprise dans la fiche, et ses noms
+      // ne se collent pas à la qualité suivante.
+      if (/intervenant/i.test(q[1])) { noms = []; continue; }
       const role = /^(vend|prom|c[ée]d)/i.test(q[1]) ? 'VENDEUR' : 'ACQUEREUR';
       // « M. X et Mme Y » = deux personnes du même côté (un couple qui vend ou achète à deux) ; « et » en début ou fin de ligne ignoré.
       noms.join(' et ').split(/\s+et\s+/i).map(n => n.replace(RE_LIEN_CONJOINT_COMPARANT, '')).map(n => n.replace(/^(?:et\s+)?(?:M\.|Mme|Mlle|Monsieur|Madame|Mademoiselle|Mr)\s+/i, '').replace(/^et\s+/i, '').trim())
