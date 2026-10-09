@@ -143,11 +143,14 @@
     const presente = c => (c === 'renonciationPreemption'
       ? ((d && d.piecesRetirees) || []).indexOf(c) === -1
       : perso.some(p => p && p.cle === c));
-    return ajoutees.filter(c => c !== 'perso-safer' && presente(c) && !(d.pieces && d.pieces[c] === 'recue'));
+    const dpuSansObjet = C.droitNonApplicable(d, 'dpu');
+    return ajoutees.filter(c => c !== 'perso-safer' && !(dpuSansObjet && c === 'renonciationPreemption') && presente(c) && !(d.pieces && d.pieces[c] === 'recue'));
   }
   function preemptionLevee(d) {
     if (d.roleNotaire === 'participant' || C.estSuccession(d)) return true;
     if (piecesPreemptionEnAttente(d).length) return false;
+    // Seule une SAFER est à purger (DPU « non » : hors périmètre, mutation ou bien non soumis) : rien à attendre de la mairie.
+    if (C.droitNonApplicable(d, 'dpu')) return true;
     if (d.typeVente === 'copropriete') {
       return !(d.piecesPersonnalisees || []).some(p => p && RE_PIECE_PREEMPTION.test(p.label || '')
         && !(d.pieces && d.pieces[p.cle] === 'recue'));
@@ -181,11 +184,7 @@
   // Pure : l'analyse du contrôle de l'urbanisme gardée sur la fiche dit que la SAFER ne peut pas préempter (zone U ou AU, lot de
   // copropriété…, statut « non ») — étude 09/10 : « il n'y a rien à purger, on est en zone U » : une notification relevée dans
   // Authentic ne crée alors ni délai SAFER ni attente.
-  function saferNonApplicable(d) {
-    const droits = d && d.preemption && Array.isArray(d.preemption.droits) ? d.preemption.droits : [];
-    const safer = droits.find(x => x && x.cle === 'safer');
-    return !!safer && safer.statut === 'non';
-  }
+  function saferNonApplicable(d) { return C.droitNonApplicable(d, 'safer'); }
   function saferLevee(d) {
     if (!d || d.roleNotaire === 'participant' || saferNonApplicable(d)) return true;
     const sa = d.authentic && d.authentic.safer;

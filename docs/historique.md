@@ -18809,3 +18809,7 @@ Capture de l'étude (« M. CHAHUNEAU Alain et Mme BARBIER Catherine — Vendeur 
 
 Capture : « Délai SAFER — envoyée le 3 août, non-préemption (délai écoulé) le 3 octobre » sur un dossier en zone U. Étude : « il n'y a pas de SAFER à purger, on est en zone U ». `saferNonApplicable(d)` (commun/planning.js) : le droit `safer` de `d.preemption.droits` a le statut « non » → `saferLevee` vrai, `echeanceSaferDossier` vide, ligne « Délai SAFER » de la fiche non rendue. Non changé : la pièce « Réponse SAFER » que le relevé d'Authentic a pu ajouter à la checklist reste (à retirer à la main si inutile).
 
+### 09/10/2026 19 h 04 — 0.206.4 : pas d'attente de la mairie quand il n'y a qu'une SAFER à purger
+
+Étude : « idem, ne pas mettre droit de préemption s'il n'y a qu'une SAFER à purger. Revoir toutes les situations possibles pour parer aux bugs ». `droitNonApplicable(d, cle)` (commun/dossier.js) lit le statut gardé dans `d.preemption.droits` ; DPU « non » → pièce standard « Renonciation au droit de préemption » retirée de la checklist (jamais si déjà reçue), `preemptionLevee` vrai, `piecesPreemptionEnAttente` n'y compte plus la renonciation. « À vérifier » n'est jamais traité comme « non ». Matrice jouée par `tests/preemption-situations.test.js` : 3 statuts DPU × 3 statuts SAFER × maison/copropriété/terre × notification Authentic oui/non, plus participation, succession, renonciation déjà reçue, analyse abîmée. Limite connue : le serveur lit les `droits` gardés (comme le poste), qui peuvent être réunis par la fusion de deux enregistrements.
+

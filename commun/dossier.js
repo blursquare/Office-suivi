@@ -21,6 +21,14 @@
   // planning de vente (prêt, butoir, préemption, appel de fonds), ni checklist de vente, ni emails
   // de vente, tant que l'étude n'a pas défini ce qu'il faut suivre pour une succession.
   function estSuccession(d) { return !!d && d.typeAffaire === 'succession'; }
+  // Vrai quand l'analyse du contrôle de l'urbanisme gardée sur la fiche dit que le droit `cle` ne s'applique pas (statut « non ») :
+  // ni zone, ni mutation, ni bien soumis. « À vérifier » n'est jamais « non » (étude 09/10 : ne rien attendre quand il n'y a rien à purger).
+  /** @param {any} d @param {string} cle */
+  function droitNonApplicable(d, cle) {
+    const droits = d && d.preemption && Array.isArray(d.preemption.droits) ? d.preemption.droits : [];
+    const dr = droits.find(x => x && x.cle === cle);
+    return !!dr && dr.statut === 'non';
+  }
   var RE_NOM_DEJA_PREFIXE = /^(VTE|SUCC)\s*-\s/i;
   function prefixeTypeAffaire(d) {
     return PREFIXES_TYPE_AFFAIRE[d && d.typeAffaire] || PREFIXES_TYPE_AFFAIRE.vente;
@@ -31,7 +39,7 @@
     return prefixeTypeAffaire(d) + ' - ' + nom;
   }
 
-  const exportes = { PREFIXES_TYPE_AFFAIRE, estSuccession, RE_NOM_DEJA_PREFIXE, prefixeTypeAffaire, libelleDossierAffiche };
+  const exportes = { PREFIXES_TYPE_AFFAIRE, estSuccession, droitNonApplicable, RE_NOM_DEJA_PREFIXE, prefixeTypeAffaire, libelleDossierAffiche };
   // Node : module.exports ; navigateur : des globaux (noms nus, comme les fonctions de client/).
   if (typeof module !== 'undefined' && module.exports) module.exports = exportes; else Object.assign(globalThis, exportes);
 })(

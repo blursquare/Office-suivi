@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.206.3';
+  const VERSION_APP = '0.206.4';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.206.4', date: '2026-10-09 19:04', resume: "Droits de préemption : quand l'analyse de l'urbanisme dit que le droit de préemption urbain ne s'applique pas (seule une SAFER est à purger, par exemple), « Renonciation au droit de préemption » n'est plus attendue — ni dans les pièces, ni dans l'état du dossier, ni avant de fixer le rendez-vous. Revue de toutes les combinaisons DPU × SAFER × type de vente, avec tests." },
     { version: '0.206.3', date: '2026-10-09 18:58', resume: "SAFER : quand l'analyse du contrôle de l'urbanisme dit qu'il n'y a rien à purger (zone U, lot de copropriété…), la fiche n'affiche plus de « Délai SAFER » et la SAFER ne retient plus la signature, même si Authentic a une notification." },
     { version: '0.206.2', date: '2026-10-09 18:56', resume: "Authentic : une personne notée « Autre intervenant » dans les comparants n'est ni vendeur ni acquéreur — elle n'est jamais reprise dans la fiche (et un intervenant déjà repris d'Authentic en est retiré)." },
     { version: '0.206.1', date: '2026-10-09 18:46', resume: "Authentic : la rubrique « Comparants » se lit aussi quand la qualité (Vendeur / Acquéreur) est en fin de ligne ou que « et Mme … » passe à la ligne — un couple qui vend à deux garde ses deux personnes, l'acquéreur seul reste seul. « épouse de / époux de / veuve de / divorcé de » : la personne vend ou achète seule, son conjoint cité n'est comparant que s'il est listé lui-même plus bas." },

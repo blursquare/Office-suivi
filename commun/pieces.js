@@ -175,6 +175,9 @@
     if (!d) return base;
     if (C.estSuccession(d)) return (d.piecesPersonnalisees || []).map(p => ({ cle: p.cle, label: p.label, personnalisee: true }));
     const retirees = new Set(d.piecesRetirees || []);
+    // DPU « non » dans l'analyse de l'urbanisme (seule une SAFER est à purger, par exemple) : pas de « Renonciation au droit de préemption »
+    // dans la checklist — sauf si elle est déjà reçue. Revient seule si l'analyse change (étude 09/10).
+    if (C.droitNonApplicable(d, 'dpu') && !(d.pieces && d.pieces.renonciationPreemption === 'recue')) retirees.add('renonciationPreemption');
     const standard = base.filter(p => !retirees.has(p.cle));
     const detectees = new Set([...(d.piecesEngagementsDetectees || []), ...(clesEnPlus || [])]);
     // Une clé déjà présente dans la checklist standard (assainissement, diagnostics) ne doit pas
