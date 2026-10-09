@@ -18821,3 +18821,8 @@ Capture : « Délai SAFER — envoyée le 3 août, non-préemption (délai écou
 
 Capture : « Recherché dans le dossier NAS à l'ouverture » + Ouvrir / Changer / Compléter (« parfois j'ai ça »). Le libellé n'était qu'un repli : le fichier retrouvé n'était mémorisé qu'au clic sur « Ouvrir ». `retrouverCompromisSilencieux` (client/37, appelée à l'ouverture de la fiche, une fois par dossier et par session) fait le même choix que `ouvrirCompromisTrouve` (`choisirAvantContratNas`, mêmes exclusions), mémorise le fichier et redessine ; sans toast, sans ouverture, aucun avant-contrat trouvé = la ligne reste (« Changer »). Non vérifié ici : le NAS est injoignable depuis cet environnement.
 
+
+
+### 0.206.7 — 09/10 19:42 — nom de l'avant-contrat affiché après « Ouvrir »
+
+Étude : « il a trouvé le compromis mais n'affiche pas le nom ». `ouvrirCompromisTrouve` mémorisait le fichier et sauvegardait sans redessiner : la ligne gardait son libellé de repli. Ajout d'un `render()` après la sauvegarde. Hypothèse restante, non vérifiée ici : un nom exclu par `raisonExclusionAvantContrat` (« projet », autre dossier) rend `compromisMemoriseValide` vide.

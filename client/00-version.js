@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.206.6';
+  const VERSION_APP = '0.206.7';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.206.7', date: '2026-10-09 19:42', resume: "Fiche : après « Ouvrir » sur l'avant-contrat retrouvé, la ligne montre aussitôt le nom du fichier (elle gardait « Recherché dans le dossier NAS à l'ouverture » jusqu'à un rafraîchissement)." },
     { version: '0.206.6', date: '2026-10-09 19:38', resume: "Fiche : l'avant-contrat du dossier relié au NAS est retrouvé seul à l'ouverture de la fiche — la ligne en montre le nom au lieu de « Recherché dans le dossier NAS à l'ouverture » (qui n'était remplacé qu'après un clic sur « Ouvrir »)." },
     { version: '0.206.5', date: '2026-10-09 19:13', resume: "Droits de préemption : la formalité du droit de préemption urbain est raccourcie (« DIA à la mairie — réponse sous 2 mois, renonciation indispensable pour signer »)." },
     { version: '0.206.4', date: '2026-10-09 19:04', resume: "Droits de préemption : quand l'analyse de l'urbanisme dit que le droit de préemption urbain ne s'applique pas (seule une SAFER est à purger, par exemple), « Renonciation au droit de préemption » n'est plus attendue — ni dans les pièces, ni dans l'état du dossier, ni avant de fixer le rendez-vous. Revue de toutes les combinaisons DPU × SAFER × type de vente, avec tests." },

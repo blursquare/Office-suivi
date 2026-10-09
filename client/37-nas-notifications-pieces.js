@@ -1259,6 +1259,7 @@
       const chemin = cheminNasComplet(d, trouve.chemin);
       memoriserFichierTrouve(d, NAS_CLE_COMPROMIS, chemin);
       await sauvegarder(d);
+      render();   // la ligne « Avant-contrat » montre aussitôt le nom retrouvé (étude 09/10 : « il a trouvé le compromis mais n'affiche pas le nom »)
       // Un repli peut tr\u00e8s bien avoir ramen\u00e9 l'avant-contrat d'une vente pr\u00e9alable : le dire,
       // plut\u00f4t que de laisser croire que c'est forc\u00e9ment le document import\u00e9 \u00e0 la cr\u00e9ation.
       if (parRepli) {
