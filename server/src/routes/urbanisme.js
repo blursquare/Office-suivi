@@ -8,10 +8,20 @@ const { communesDuCodePostal, zonageParcelle } = require('../urbanisme');
 const { vueParcelles, photoAerienne, autorisationsSitadel } = require('../historiqueParcelle');
 const { noterVerification } = require('../verificationsTerrain');
 
+// Pure : la cause d'un échec, sans rien de personnel — « réponse 429 », « délai dépassé », « réseau (ENOTFOUND) ». Notée dans
+// les vérifications sur le terrain pour que le rapport technique dise pourquoi un service public n'a pas répondu au bureau
+// (rapport du 09/10 17 h : « Sitadel injoignable », sans la cause).
+function causeEchec(e) {
+  if (e && e.statut) return 'réponse ' + e.statut;
+  if (e && (e.name === 'TimeoutError' || e.name === 'AbortError')) return 'délai dépassé';
+  const code = e && e.cause && /^[A-Z_]{3,40}$/.test(String(e.cause.code || '')) ? String(e.cause.code) : '';
+  return code ? `réseau (${code})` : 'réseau';
+}
+
 function creerRouteurUrbanisme(parametresRepo, injections = {}) {
   const routeur = express.Router();
   const injoignable = (res, e) => res.status(502).json({
-    erreur: `Géoportail de l'urbanisme injoignable (${e && e.statut ? 'réponse ' + e.statut : e && e.name === 'TimeoutError' ? 'délai dépassé' : 'réseau'}) : répondre à la main.`
+    erreur: `Géoportail de l'urbanisme injoignable (${causeEchec(e)}) : répondre à la main.`
   });
 
   routeur.get('/urbanisme/communes', async (req, res) => {
@@ -26,7 +36,7 @@ function creerRouteurUrbanisme(parametresRepo, injections = {}) {
       noterVerification(parametresRepo, 'zonage-parcelle-gpu', { detail: z.zones.length ? `zone ${z.zones[0].typezone}` : 'aucune zone' });
       res.json(z);
     } catch (e) {
-      noterVerification(parametresRepo, 'zonage-parcelle-gpu', { ok: false, message: 'API Carto injoignable' });
+      noterVerification(parametresRepo, 'zonage-parcelle-gpu', { ok: false, message: `API Carto injoignable (${causeEchec(e)})` });
       injoignable(res, e);
     }
   });
@@ -49,7 +59,7 @@ function creerRouteurUrbanisme(parametresRepo, injections = {}) {
       if (p.vide) return res.status(204).end();
       res.set('Content-Type', p.type).set('Cache-Control', 'private, max-age=86400').send(Buffer.from(p.octets));
     } catch (e) {
-      noterVerification(parametresRepo, 'photos-aeriennes-ign', { ok: false, message: 'Géoplateforme injoignable' });
+      noterVerification(parametresRepo, 'photos-aeriennes-ign', { ok: false, message: `Géoplateforme injoignable (${causeEchec(e)})` });
       res.status(502).json({ erreur: 'Photos aériennes de l’IGN injoignables.' });
     }
   });
@@ -61,12 +71,12 @@ function creerRouteurUrbanisme(parametresRepo, injections = {}) {
       noterVerification(parametresRepo, 'sitadel-parcelle', { detail: `${s.autorisations.length} autorisation(s)` });
       res.json(s);
     } catch (e) {
-      noterVerification(parametresRepo, 'sitadel-parcelle', { ok: false, message: 'Sitadel injoignable' });
-      res.status(502).json({ erreur: 'Sitadel injoignable : chercher à la main sur le site du ministère.' });
+      noterVerification(parametresRepo, 'sitadel-parcelle', { ok: false, message: `Sitadel injoignable (${causeEchec(e)})` });
+      res.status(502).json({ erreur: `Sitadel injoignable (${causeEchec(e)}) : chercher à la main sur le site du ministère.` });
     }
   });
 
   return routeur;
 }
 
-module.exports = { creerRouteurUrbanisme };
+module.exports = { creerRouteurUrbanisme, causeEchec };

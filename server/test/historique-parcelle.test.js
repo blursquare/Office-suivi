@@ -71,3 +71,12 @@ test('autorisationsSitadel : lignes des parcelles cherchées seules, sans demand
   assert.ok(urls.every(u => !u.includes('DENOM_DEM')), 'colonne du demandeur jamais demandée');
   assert.ok(urls.some(u => u.includes('COMM=eq:41018') && u.includes('NUM_CADASTRE1=in:839%2C0839')));
 });
+
+test('cause d’un échec d’un service public : réponse, délai ou réseau, sans rien de personnel', () => {
+  const { causeEchec } = require('../src/routes/urbanisme');
+  assert.equal(causeEchec({ statut: 429 }), 'réponse 429');
+  assert.equal(causeEchec({ name: 'TimeoutError' }), 'délai dépassé');
+  assert.equal(causeEchec(Object.assign(new TypeError('fetch failed'), { cause: { code: 'ENOTFOUND' } })), 'réseau (ENOTFOUND)');
+  assert.equal(causeEchec(Object.assign(new TypeError('fetch failed'), { cause: { code: 'getaddrinfo data.exemple.fr' } })), 'réseau');
+  assert.equal(causeEchec(null), 'réseau');
+});

@@ -18755,3 +18755,11 @@ N et A, de toute façon on notifie toujours même s'ils n'ont pas le droit de pr
 du CRIDON (`droitSaferArbre`) : zone A ou N (hors lot de copropriété) → `oui`, sans question restante, formalité
 `FORMALITE_NOTIFICATION_SAFER_ZONE_AN`, motif qui garde ce que l'arbre disait (« pas de droit de préemption ») ; la pièce « Réponse
 SAFER » est ajoutée et n'est plus retirée quand une réponse ôte le droit. Hors zone A ou N : inchangé. Tests : tests/preemption.test.js.
+
+### 09/10/2026 — Cause d'un échec de Sitadel / IGN / Géoportail dite (0.204.1)
+
+Rapport de 17 h (issue 23) : « Sitadel injoignable » au bureau à 16 h 13, sans la cause (le même service répondait d'ici).
+`causeEchec` (server/src/routes/urbanisme.js) : « réponse N » (statut du service, 429 = trop de requêtes), « délai dépassé »
+(20 s), « réseau (CODE) » (code système de l'erreur réseau seulement, jamais une adresse) — ajoutée au message de la vérification
+sur le terrain (`sitadel-parcelle`, `photos-aeriennes-ign`, `zonage-parcelle-gpu`) et au message d'erreur affiché. Test :
+server/test/historique-parcelle.test.js. Rien d'autre ne change : le prochain rapport dira pourquoi Sitadel n'a pas répondu.
