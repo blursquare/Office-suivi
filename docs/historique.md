@@ -18813,3 +18813,7 @@ Capture : « Délai SAFER — envoyée le 3 août, non-préemption (délai écou
 
 Étude : « idem, ne pas mettre droit de préemption s'il n'y a qu'une SAFER à purger. Revoir toutes les situations possibles pour parer aux bugs ». `droitNonApplicable(d, cle)` (commun/dossier.js) lit le statut gardé dans `d.preemption.droits` ; DPU « non » → pièce standard « Renonciation au droit de préemption » retirée de la checklist (jamais si déjà reçue), `preemptionLevee` vrai, `piecesPreemptionEnAttente` n'y compte plus la renonciation. « À vérifier » n'est jamais traité comme « non ». Matrice jouée par `tests/preemption-situations.test.js` : 3 statuts DPU × 3 statuts SAFER × maison/copropriété/terre × notification Authentic oui/non, plus participation, succession, renonciation déjà reçue, analyse abîmée. Limite connue : le serveur lit les `droits` gardés (comme le poste), qui peuvent être réunis par la fusion de deux enregistrements.
 
+### 09/10/2026 19 h 13 — 0.206.5 : formalité du DPU raccourcie
+
+Étude : « DIA à adresser à la mairie de la commune (délégataire d'Agglopolys ; Agglopolys pour une zone d'activités économiques) — réponse dans les 2 mois ; le document de renonciation est indispensable pour signer : trop long ». Nouveau texte : « DIA à la mairie — réponse sous 2 mois, renonciation indispensable pour signer. » (« la mairie (Agglopolys en zone d'activités) » pour Agglopolys, le délégataire du DPU renforcé inchangé). Sur la fiche le texte est recalculé à l'affichage : les dossiers déjà analysés le montrent raccourci.
+

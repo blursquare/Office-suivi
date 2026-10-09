@@ -161,9 +161,9 @@
     if (bien.renforceSeul && dpur === 'inconnu') droit.manque.push('dpur');
     if (bien.renforceSeul) droit.titre = 'Droit de préemption urbain renforcé';
     const destinataire = dpur === 'oui' && r.dpurDelegataire ? r.dpurDelegataire
-      : r.agglopolys ? 'la mairie de la commune (délégataire d’Agglopolys ; Agglopolys pour une zone d’activités économiques)'
-        : 'la mairie de la commune';
-    droit.formalite = `DIA à adresser à ${destinataire} — réponse dans les 2 mois ; le document de renonciation est indispensable pour signer.`;
+      : r.agglopolys ? 'la mairie (Agglopolys en zone d’activités)'
+        : 'la mairie';
+    droit.formalite = `DIA à ${destinataire} — réponse sous 2 mois, renonciation indispensable pour signer.`;
     if (droit.manque.length) {
       droit.statut = 'verifier';
       droit.motif = 'à préciser : ' + droit.manque.map(m => LIBELLES_MANQUES_PREEMPTION[m] || m).join(', ');

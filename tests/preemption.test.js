@@ -14,7 +14,7 @@ test('zone du document d’urbanisme réduite à sa famille', () => {
 test('DPU : maison en zone U d’Agglopolys → à purger, DIA à la mairie', () => {
   const d = droit({ mutation: 'vente', bien: 'bati', achevementMoins4ans: false, zone: 'U', agglopolys: true }, 'dpu');
   assert.strictEqual(d.statut, 'oui');
-  assert.match(d.formalite, /^DIA à adresser à la mairie de la commune.*2 mois/);
+  assert.match(d.formalite, /^DIA à la mairie.*2 mois/);
 });
 
 test('DPU : zone A d’Agglopolys, hors DPUR → non applicable ; commune hors Agglopolys sans réponse → à vérifier', () => {
