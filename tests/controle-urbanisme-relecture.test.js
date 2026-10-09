@@ -159,3 +159,45 @@ test('priseDeVueAvantTravaux et contoursImage', () => {
   assert.equal(app.priseDeVueAvantTravaux(couches, []), '2000-2005');
   assert.equal(app.contoursImage([[[1, 2], [3, 4]]], [1, 2, 3, 4]).join('|'), '0.00,100.00 100.00,0.00');
 });
+
+test('travaux déclarés en liste : un par puce, type, année, auteur, autorisation et documents à obtenir', () => {
+  const app = chargerApplication();
+  // Structure d'une promesse réelle (09/10), texte pdf.js d'un seul tenant ; entreprises, années et lieux inventés.
+  const texte = 'AUTORISATIONS ADMINISTRATIVES – Travaux de moins de dix ans  Le PROMETTANT déclare avoir réalisé les travaux suivants : '
+    + '>   Rénovation   de   la   salle   d’eau   (remplacement   de   la   baignoire   par   une douche) réalisé par ses soins en 2022. '
+    + '> Rénovation de la cuisine aménagée par ses soins en 2020. > Remplacement de la chaudière réalisé par la société THERMOLUX en 2021. '
+    + 'Sont transmis au BENEFICIAIRE en même temps que la notification de son délai de rétractation sus-indiqué : -   Factures   d’achat   des   matériaux   concernant   les   travaux   de   salle d’eau et de cuisine, -   Devis de la société THERMOLUX. '
+    + 'Le PROMETTANT s’engage a faire ses meilleurs efforts afin de fournir la facture définitive de la pose de la chaudière. '
+    + 'Le BENEFICIAIRE déclare ne pas faire de cette pièce un élément essentiel de son engagement. Le PROMETTANT est avisé que, s’agissant des travaux qu’il a pu exécuter par lui-même, la jurisprudence tend à écarter toute efficacité de la clause.\n'
+    + 'AUTORISATIONS ADMINISTRATIVES – Travaux de plus de dix ans  Le PROMETTANT déclare avoir procédé aux travaux suvants :  > Création d’une véranda réalisé par ses soins dans les années 1996/1997.  '
+    + 'Il déclare avoir effectué une demande de permis de construire, formalité administrative nécessaire.  Seul   le   récépissé   de   dépôt   dudit   permis   de   construire   est   transmis   au BENEFICIAIRE. '
+    + 'Le   PROMETTANT   s’engage   a   faire   ses   meilleurs   efforts   afin   de   fournir l’arrêté d’autorisation du permis de construire.\n'
+    + '24  > Remplacement d’une porte fenêtre et des volets par la société FENEXA en juillet 2002.  > Remplacement de menuiseries par la société BOISPLUS en juin 2002.  '
+    + 'Les deux factures sont transmis au BENEFICIAIRE.  Le   PROMETTANT   ne   pas   avoir   obtenu   les   autorisations   d’urbanisme nécessaire.  '
+    + 'Le   BENEFICIAIRE   déclare   vouloir   en   faire   son   affaire   personnelle.  Il est toutefois ici observé que les sanctions sont à ce jour prescrites.  DIAGNOSTICS  DIAGNOSTICS TECHNIQUES  Conformément à l’article L.271-4.';
+  const liste = app.travauxDeclaresDuCompromis(texte, [], '2026-10-09').map(app.travailPourFiche);
+  assert.equal(liste.map(t => t.nature).join(' | '), 'Rénovation de la salle d’eau (remplacement de la baignoire par une douche) | Rénovation de la cuisine aménagée | Remplacement de la chaudière | Création d’une véranda | Remplacement d’une porte fenêtre et des volets | Remplacement de menuiseries');
+  const [sdb, , chaudiere, veranda, porte, menuiseries] = liste;
+  assert.equal(sdb.exterieur, false); assert.equal(sdb.faitParLeVendeur, true); assert.equal(sdb.annee, 2022);
+  assert.equal(chaudiere.entreprise, 'THERMOLUX');
+  assert.equal(chaudiere.documents.aObtenir.join(), 'Facture définitive de la pose de la chaudière');
+  assert.equal(chaudiere.documents.transmis.join(), 'Devis de la société THERMOLUX');
+  assert.equal(sdb.documents.aObtenir.length, 0);
+  assert.equal(veranda.exterieur, true); assert.equal(veranda.autorisation, 'demandee'); assert.equal(veranda.annee, 1996);
+  assert.equal(veranda.documents.aObtenir.join(), 'Arrêté d’autorisation du permis de construire');
+  assert.equal(porte.exterieur && menuiseries.exterieur, true);
+  assert.equal(porte.autorisation + menuiseries.autorisation, 'absenteabsente');
+  assert.equal(porte.affairePersonnelle && porte.prescriptionDite, true);
+  const a = app.analyseTravauxUrbanisme(liste, { lu: true, servitudes: [] }, '2026-10-09', null);
+  assert.equal(a.travaux.length, 6, 'intérieurs compris');
+  assert.equal(a.zone.statut, 'non');
+  assert.equal(a.aObtenir.map(x => x.doc).join(' ; '), 'Facture définitive de la pose de la chaudière ; Arrêté d’autorisation du permis de construire');
+  assert.equal(a.travaux[0].statut, 'interieur');
+  assert.match(a.travaux[3].points.map(p => p.court).join(' / '), /Demandée, accord non transmis.*À obtenir : arrêté/);
+  assert.match(a.travaux[4].points.map(p => p.court).join(' / '), /Sans autorisation.*Acquéreur en fait son affaire.*Prescription dite/);
+  const enZone = app.analyseTravauxUrbanisme(liste, { lu: true, servitudes: [{ type: 'ac1', nature: 'abords', nom: 'Église', rayon: 500 }] }, '2026-10-09', null);
+  assert.equal(enZone.travaux.filter(t => t.points.some(p => p.court === 'Accord ABF à réclamer')).length, 3, 'extérieurs seulement');
+  // Une « demande » ne se lit jamais comme « ne … demandé » (« une demande de permis »).
+  assert.equal(app.travauxDeclaresDuCompromis('Le VENDEUR déclare avoir réalisé les travaux suivants : > Extension réalisée en 2015. Il a déposé une demande de permis de construire.', [], '2026-10-09')[0].autorisation, 'demandee');
+  assert.equal(app.travauxDeclaresDuCompromis('Le VENDEUR déclare que des travaux de peinture ont été réalisés en 2015.', [], '2026-10-09').length, 0);
+});

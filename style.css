@@ -9201,6 +9201,14 @@ table.pr-zt td.pr-zt-retenue select { min-width: 120px; min-height: 32px; height
 .pr-vide { display: flex; align-items: center; gap: 6px; margin: 0; color: var(--success); font-size: var(--texte-m); }
 .pr-travaux { display: flex; flex-direction: column; gap: 8px; }
 .pr-travail { padding: 12px 14px; border-radius: var(--rayon-m); border: 1px solid var(--line); background: var(--paper-card); }
+.pr-zone-abf { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 12px; font-size: var(--texte-m); }
+.pr-zone-abf .pr-fiche-titre { font-weight: 500; }
+.pr-a-obtenir { margin-bottom: 12px; padding: 10px 14px; border-radius: var(--rayon-m); background: color-mix(in srgb, var(--pret) 8%, var(--paper-card)); border: 1px solid color-mix(in srgb, var(--pret) 35%, var(--line)); }
+.pr-a-obtenir .pr-eyebrow { margin: 0 0 6px; color: var(--pret); }
+.pr-a-obtenir ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.pr-a-obtenir li { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 8px; font-size: var(--texte-m); }
+.pr-a-obtenir li .hint { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 240px; }
+.pr-travail-interieur { background: var(--paper-sunk); }
 .pr-travail-reclamer { border-color: color-mix(in srgb, var(--pret) 45%, var(--line)); }
 .pr-travail-tete { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 10px; }
 .pr-travail-titre { font-weight: 500; font-size: var(--texte-base); }

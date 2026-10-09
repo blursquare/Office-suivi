@@ -97,8 +97,9 @@
     { motif: /d[ée]barras|encombrants/i, label: 'Débarras des encombrants', cat: 'travaux', cleChecklist: 'debarras' },
 
     // Justificatifs et attestations
+    { motif: /arr[êe]t[ée]\s+(?:d['’]\s*autorisation|de\s+(?:permis|non[-\s]?opposition))|(?:fournir|remettre|produire|transmettre)\s+(?:le\s+|la\s+|l['’]\s*)?(?:permis\s+de\s+construire|d[ée]claration\s+pr[ée]alable|autorisation\s+d['’]\s*urbanisme)/i, label: 'Autorisation d’urbanisme (arrêté du permis ou non-opposition)', cat: 'justificatif', cleChecklist: null },
     { motif: /certificat\s+de\s+conformit[ée]|attestation\s+de\s+conformit[ée]|consuel/i, label: 'Attestation de conformité', cat: 'justificatif', cleChecklist: 'attestationConformite' },
-    { motif: /garantie\s+d[ée]cennale/i, label: 'Justificatif de garantie décennale', cat: 'justificatif', cleChecklist: 'garantieDecennale' },
+    { motif: /garantie\s+d[ée]cennale|(?:assurance|attestation)\s+(?:d['’]\s*)?(?:assurance\s+)?d[ée]cennale/i, label: 'Justificatif de garantie décennale', cat: 'justificatif', cleChecklist: 'garantieDecennale' },
     { motif: /dommage[- ]ouvrage/i, label: 'Assurance dommage-ouvrage', cat: 'justificatif', cleChecklist: 'dommageOuvrage' },
     { motif: /factures?\s+(?:finales?\s+)?(?:des\s+|de\s+l['’]?\s*|de\s+|du\s+)?(?:travaux|constructeur|entreprises?|artisans?)|justificatifs?\s+(?:des\s+)?travaux/i, label: 'Factures des travaux réalisés', cat: 'justificatif', cleChecklist: 'facturesTravaux' },
     { motif: /assainissement\s+non\s+collectif|contr[ôo]le\s+d.assainissement|spanc\b/i, label: "Contrôle d'assainissement", cat: 'justificatif', cleChecklist: 'reponseAssainissement' },
@@ -213,7 +214,8 @@
   // Un engagement n'est retenu que s'il porte sur une PIÈCE à fournir ou des TRAVAUX à réaliser :
   // les clauses générales (maintenir le bien en l'état, s'interdire de consentir un bail…) sont
   // des obligations de comportement, sans document ni chantier à suivre — elles sont écartées.
-  const OBJET_DOCUMENT_RE = /certificat|attestation|justificatif|justifer|justifier|diagnostic|facture|devis|[ée]tat\s+parasitaire|police\s+d.assurance|contr[ôo]le|audit|document/i;
+  const RE_REMISE_AUTORISATION_URBANISME = /(?:fournir|remettre|produire|transmettre|communiquer|justifier\s+de)\s+(?:au\s+[A-ZÀ-Þ]+\s*,?\s*)?(?:le\s+|la\s+|les\s+|l['’]\s*)?(?:arr[êe]t[ée]|permis\s+de\s+construire|d[ée]claration\s+(?:pr[ée]alable|attestant)|autorisations?\s+d['’]\s*urbanisme|non[-\s]?opposition|r[ée]c[ée]piss[ée]|certificat\s+de\s+conformit[ée])[^.;]*/i;
+  const OBJET_DOCUMENT_RE = /certificat|attestation|justificatif|justifer|justifier|diagnostic|facture|devis|[ée]tat\s+parasitaire|police\s+d.assurance|contr[ôo]le|audit|document|arr[êe]t[ée]\s+(?:d['’]\s*autorisation|de\s+(?:permis|non[-\s]?opposition))|permis\s+de\s+construire|d[ée]claration\s+pr[ée]alable|autorisation\s+d['’]\s*urbanisme|r[ée]c[ée]piss[ée]/i;
   const OBJET_ENTRETIEN_RE = /entretien|ramon(?:age|er)|vidange|d[ée]broussaill|[ée]lagage|curage|nettoyage/i;
   const OBJET_TRAVAUX_RE = /travaux|\br[ée]par|remettre\s+en\s+[ée]tat|remise\s+en\s+[ée]tat|mise\s+en\s+conformit[ée]|r[ée]gularis|d[ée]barras|d[ée]gazage|d[ée]molition|raccordement|remplacement|d[ée]pollution|enl[èe]vement|lib[ée]rer\s+les\s+lieux|r[ée]silier/i;
 
@@ -354,7 +356,10 @@
       const phrase = nettoyerDebutClause(texte.slice(debut, fin));
       if (phrase.length <= 25) continue;
       const ecarter = (raison) => { noterDiagnosticOutil2('engagements', 'ecartee', raison, phrase, m.index); };
-      if (EXCLUSION_ENGAGEMENT_RE.test(phrase)) { ecarter('Clause de style (garantie, visite, origine de propriété…)'); continue; }
+      // Une autorisation d'urbanisme que le vendeur s'engage à FOURNIR est un document à obtenir (promesse réelle du 09/10 :
+      // « s’engage à faire ses meilleurs efforts afin de fournir l’arrêté d’autorisation du permis de construire ») ; seul ce
+      // passage est soustrait au filtre des clauses de style, qui garde le reste de la phrase.
+      if (EXCLUSION_ENGAGEMENT_RE.test(phrase.replace(RE_REMISE_AUTORISATION_URBANISME, ' document '))) { ecarter('Clause de style (garantie, visite, origine de propriété…)'); continue; }
       if (LISTE_EQUIPEMENTS_RE.test(phrase)) { ecarter('Énumération d’équipements vendus avec le bien'); continue; }
       if (CLAUSE_HYPOTHETIQUE_RE.test(phrase)) { ecarter('Engagement conditionnel (« si… »)'); continue; }
       if (OCCUPATION_JOUISSANCE_RE.test(phrase)) { ecarter('Occupation ou jouissance du bien'); continue; }
@@ -382,7 +387,9 @@
         else if (estTravaux) type = 'travaux';
       }
 
-      const cle = phrase.slice(0, 70);
+      // Clé = la phrase entière : deux engagements qui commencent pareil (« s’engage à faire ses meilleurs efforts afin de
+      // fournir … ») ne sont pas le même (promesse réelle du 09/10 : l’arrêté du permis disparaissait derrière la facture).
+      const cle = phrase.replace(/\s+/g, ' ').trim();
       if (!vus.has(cle)) {
         vus.add(cle);
         noterDiagnosticOutil2('engagements', 'retenue', 'Retenue : ' + (LIBELLES_TYPE_ENGAGEMENT_DIAGNOSTIC[type] || type), phrase, m.index);

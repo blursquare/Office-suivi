@@ -208,3 +208,19 @@ test('compléter les documents ajoute ceux des nouvelles obligations sans ressus
   app.completerDocumentsIdentifies(docs, [{ type: 'entretien', phrase: 'Le vendeur justifiera de l’entretien de la chaudière.' }]);
   assert.equal(docs.map(d => d.label).join('|'), "Vidange de fosse septique|Justificatif d'entretien de la chaudière");
 });
+
+test('engagements qui commencent pareil : tous gardés ; arrêté du permis et attestation décennale à fournir = documents à obtenir', () => {
+  const app = chargerApplication();
+  // Structure d'une promesse réelle (09/10), texte inventé.
+  const t = 'Le PROMETTANT s’engage a faire ses meilleurs efforts afin de fournir la facture définitive de la pose de la chaudière.\n'
+    + 'Seul le récépissé de dépôt dudit permis de construire est transmis au BENEFICIAIRE.\n'
+    + 'Le   PROMETTANT   s’engage   a   faire   ses   meilleurs   efforts   afin   de   fournir\nl’arrêté d’autorisation du permis de construire.\n'
+    + 'Le PROMETTANT s’engage à fournir au BENEFICIAIRE, au plus tard le jour prévu pour la réalisation des présentes, l’attestation d’assurance décennale pour l’année des travaux.\n'
+    + 'Le VENDEUR déclare que le bien a fait l’objet d’un permis de construire délivré le 3 mai 1990.';
+  const eng = app.extraireEngagementsVendeur(t);
+  assert.equal(eng.length, 3);
+  assert.equal(app.detecterDocumentsAFournir(eng).map(d => d.label).join(' ; '),
+    'Facture définitive de la pose de la chaudière ; Autorisation d’urbanisme (arrêté du permis ou non-opposition) ; Justificatif de garantie décennale');
+  // Une clause d'urbanisme sans document à fournir reste écartée (pas de bruit).
+  assert.equal(app.extraireEngagementsVendeur('Le VENDEUR s’engage à respecter les règles d’urbanisme et le permis de construire.').length, 0);
+});

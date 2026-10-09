@@ -681,7 +681,9 @@ dans `index.html`** (le test `structure-client` refuse tout décalage).
   (mêmes lecteurs que la relecture, annexes de diagnostic écartées) ; seuls les travaux extérieurs/gros œuvre sont détaillés
   (`analyseTravauxUrbanisme`, `bilanTravailUrbanisme`) : autorisation citée (sinon « réclamer DP ou permis », prescription L.421-9 à
   vérifier au-delà de dix ans), achèvement/conformité (`RE_ACHEVEMENT_TRAVAUX`), décennale (moins de dix ans, fait par le vendeur,
-  année non lue), architecte des bâtiments de France en zone protégée. « Demandée » = **citée dans le compromis** : aucun registre
+  année non lue), architecte des bâtiments de France en zone protégée. **Travaux déclarés en liste** (étude 09/10, `travauxDeclaresDuCompromis` : « déclare avoir réalisé les travaux
+  suivants : > … ») : un par puce — type, année, vendeur/entreprise, autorisation citée/demandée/absente, pièces transmises et **à obtenir**
+  (« s'engage à fournir ») ; intérieurs montrés aussi ; en tête **Zone ABF** (oui/non/à vérifier) et **Documents à obtenir**. « Demandée » = **citée dans le compromis** : aucun registre
   des permis n'est consulté. Gardé dans `d.preemption.travaux` `{ le, source, liste }` (« Enregistrer sur la fiche », conservé par la
   relecture automatique des droits), lignes sur la fiche (`renderTravauxFicheUrbanisme`) ; lu seul après l'analyse automatique
   d'un dossier relié au NAS (`lireTravauxDossierAuto`, une fois). Point terrain `travaux-compromis-nas`.

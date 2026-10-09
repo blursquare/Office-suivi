@@ -18689,3 +18689,28 @@ apprises, titres et commentaires de relecture) : en plus, nom après une civilit
 ce qui la suit jusqu'à la ponctuation (`RE_ADRESSE_CLAUSE`) —, commune après « demeurant / sis / situé / né à » ou devant un code
 postal (`RE_COMMUNE_CLAUSE`), texte entre guillemets (« [lieu] »). Test « aucun nom ne sort » avec des noms inventés
 (server/test/journal-corrections.test.js). L'issue publiée garde les fragments déjà sortis : à l'étude de décider de la modifier.
+
+### 09/10/2026 12 h 35 — Travaux déclarés détaillés, zone ABF, documents à obtenir (0.202.0)
+
+Étude, sur une promesse réelle (Me GOSSART en second) : « il faut préciser dans l'analyse le type de travaux », « et si en zone
+ABF ou non », « documents à obtenir non listés dans l'analyse ». Rejouée : la lecture clause par clause (`detecterTravauxRealises`)
+réunissait salle d'eau, cuisine et chaudière en une « Rénovation », ne gardait de la véranda qu'une fenêtre sans la demande de
+permis, et manquait la page suivante (porte-fenêtre et volets, menuiseries, 2001, « ne pas avoir obtenu les autorisations »,
+acquéreur qui en fait son affaire, sanctions prescrites).
+- `travauxDeclaresDuCompromis` (client/55) : après « déclare avoir réalisé / procédé aux travaux suivants : », un travail par puce
+  « > » — type (`nature`, jusqu'à « réalisé / par ses soins / par la société / en 2022 »), année, vendeur ou entreprise, intérieur
+  ou extérieur (menuiseries, fenêtres, volets ajoutés pour cette lecture seulement), autorisation `citee` / `demandee` (dépôt,
+  récépissé) / `absente` (« ne pas avoir obtenu »), affaire personnelle, prescription dite ; les phrases qui suivent une série de
+  puces valent pour la série, un document qui nomme un travail (chaudière, cuisine, entreprise) ne va qu'à lui — transmis
+  (« Sont transmis … : - … - … », « … est transmis ») et à obtenir (« s'engage à … fournir … »). Arrêt à la rubrique suivante.
+  Rien de lu ainsi → lecture d'avant. `travauxLusDuCompromis` pour l'outil et la lecture automatique.
+- Analyse : tous les travaux détaillés montrés, intérieurs compris (état « Intérieur »), puces « Sans autorisation »,
+  « Demandée, accord non transmis », « À obtenir : … », « Transmis : … », « Décennale <entreprise> à réclamer » ; en tête
+  « Zone ABF » (`renderZoneAbfTravaux` : oui / non / à vérifier / non lue) et « Documents à obtenir » (`renderDocumentsAObtenirTravaux`).
+- Analyse de l'avant-contrat (`extraireEngagementsVendeur`) : la clé de dédoublonnage était les 70 premiers caractères — « s'engage
+  à faire ses meilleurs efforts afin de fournir » deux fois, l'arrêté du permis disparaissait derrière la facture ; clé = phrase
+  entière. Une autorisation d'urbanisme que le vendeur s'engage à FOURNIR n'est plus écartée comme clause de style
+  (`RE_REMISE_AUTORISATION_URBANISME`, seul ce passage soustrait au filtre) → document « Autorisation d'urbanisme (arrêté du permis
+  ou non-opposition) » ; « attestation d'assurance décennale » reconnue (justificatif de garantie décennale).
+Tests : tests/controle-urbanisme-relecture.test.js, tests/engagements.test.js (structure réelle, entreprises et années inventées).
+Le PDF n'est pas commité.
