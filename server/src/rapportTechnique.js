@@ -122,6 +122,23 @@ function anonymiserTexte(texte, mots) {
   return s.replace(/\u0000(\d+)\u0000/g, (_, i) => gardes[Number(i)] || '');
 }
 
+// Texte d'un ACTE cité dans le rapport (clause lue, clause d'un commentaire de relecture) : en plus d'anonymiserTexte, ce qui
+// désigne une personne ou un lieu sans figurer sur une fiche (rapport du 09/10 : prénom de l'acquéreur, domicile, adresse et
+// lieu-dit du bien sortis en clair) — nom après une civilité, adresse (voie et ce qui la suit), mot entre guillemets.
+const MOT_NOM_CLAUSE = "(?:\\[nom\\]|[A-ZÀ-ÖØ-Þ][A-Za-zÀ-ÖØ-öø-ÿ'’-]*)";
+const RE_NOM_APRES_CIVILITE = new RegExp(`((?:^|[^A-Za-zÀ-ÿ])(?:Monsieur|Madame|Mademoiselle|Messieurs|Mesdames|Maître|Mme|Mlle|Me|M\\.)\\s+)${MOT_NOM_CLAUSE}(?:[\\s-]+(?:(?:de|du|des|d'|d’|le|la)\\s+)?${MOT_NOM_CLAUSE})*`, 'g');
+const RE_ADRESSE_CLAUSE = /(?:(?<![\w\u0000])\d{1,4}(?:\s*(?:bis|ter))?,?\s+)?(?<![A-Za-zÀ-ÿ])(?:rue|avenue|boulevard|bd|chemin|all[ée]e|impasse|place|route|quai|cours|square|passage|lieu-dit|lieudit|lotissement|r[ée]sidence|faubourg|sentier|venelle|ruelle|hameau|clos|mail|esplanade|promenade|rond-point)(?![A-Za-zÀ-ÿ])[^,;.()\n`"«»“”]*/gi;
+// Commune : après « demeurant / domicilié / sis / situé à », ou juste devant un code postal masqué « ([n]) ».
+const RE_COMMUNE_CLAUSE = new RegExp(`((?:demeurant|domicili[ée]e?s?|sise?s?|situ[ée]e?s?|n[ée]e?s?)\\s+(?:à|a|au)\\s+)${MOT_NOM_CLAUSE}(?:[\\s-]+(?:(?:de|du|des|d'|d’|le|la|sur|en|sous|lès|les)[\\s-]+)?${MOT_NOM_CLAUSE})*|()${MOT_NOM_CLAUSE}(?:[\\s-]+(?:(?:de|du|des|d'|d’|le|la|sur|en|sous|lès|les)[\\s-]+)?${MOT_NOM_CLAUSE})*(?=\\s*\\(\\[n\\]\\))`, 'g');
+function anonymiserClause(texte, mots) {
+  return anonymiserTexte(texte, mots)
+    .replace(RE_NOM_APRES_CIVILITE, '$1[nom]')
+    .replace(RE_ADRESSE_CLAUSE, '[adresse]')
+    .replace(RE_COMMUNE_CLAUSE, (m, avant) => `${avant || ''}[nom]`)
+    .replace(/(["«“])\s*[^"«»“”\n]{1,80}?\s*(["»”])/g, (m, a, b) => (/[A-Za-zÀ-ÿ]{2,}/.test(m.replace(/\[(?:nom|n|adresse)\]/g, '')) ? `${a}[lieu]${b}` : m))
+    .replace(/\[nom\](?:[ -]\[nom\])+/g, '[nom]');
+}
+
 // Pure : créneau dû maintenant (« 2026-09-30 17h »), ou null. Jours ouvrés, 12 h et 17 h ; un
 // serveur allumé après l'heure rattrape le créneau manqué tant que le suivant n'est pas arrivé.
 function creneauDu(maintenant, dernierCreneau, creneaux = CRENEAUX_RAPPORT) {
@@ -211,7 +228,7 @@ function sectionApprentissage(d, mots, dansLaPeriode) {
   const nbExclus = Object.values(exclusions).reduce((n, l) => n + (Array.isArray(l) ? l.length : 0), 0);
   const retours = (d.retoursAudit || []).filter((r) => dansLaPeriode(r.date));
   if (!entrees.length && !nouvelles.length && !retours.length && !apprises.length && !nbExclus) return L;
-  const citer = (t, n) => anonymiserTexte(String(t || '').replace(/\s+/g, ' ').slice(0, n), mots).replace(/`/g, 'ˋ');
+  const citer = (t, n) => anonymiserClause(String(t || '').replace(/\s+/g, ' ').slice(0, n), mots).replace(/`/g, 'ˋ');
   L.push('', '## Ce que CLAIRE a appris');
   const parCat = apprises.reduce((m, c) => { m[c.categorie || 'date'] = (m[c.categorie || 'date'] || 0) + 1; return m; }, {});
   L.push(`- État : ${apprises.length} classement(s) retenu(s) (dates : ${parCat.date || 0}, engagements : ${parCat.engagement || 0}), ${nbExclus} fichier(s) écarté(s) des pièces, ${(d.retoursAudit || []).length} commentaire(s) de relecture.`);
@@ -549,6 +566,6 @@ function demarrerRapportTechnique(options, intervalleMs = 60 * 1000) {
 module.exports = {
   erreursFrequentesJournal, SEUIL_ERREUR_FREQUENTE, natureCorrection, sectionApprentissage,
   DEPOT_GITHUB_RAPPORT, ETIQUETTE_RAPPORT, CRENEAUX_RAPPORT, SIGLES_TECHNIQUES,
-  motsSensibles, anonymiserTexte, origineExtractionAffichee, creneauDu, construireRapport, rassemblerDonnees,
+  motsSensibles, anonymiserTexte, anonymiserClause, origineExtractionAffichee, creneauDu, construireRapport, rassemblerDonnees,
   envoyerIssue, messageErreurGithubRapport, executerRapportTechnique, demarrerRapportTechnique
 };
