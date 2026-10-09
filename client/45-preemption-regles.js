@@ -180,7 +180,20 @@
   // mais seulement en zone A ou N (étude 07/10 : « pas de notification si hors zone A ou N ») ; zone non lue → « à vérifier ».
   var FORMALITE_INFORMATION_SAFER = 'Information obligatoire de la SAFER (notification Vigifoncier) — pas de droit de préemption.';
   var FORMALITE_INFORMATION_SAFER_A_VERIFIER = 'Information de la SAFER à vérifier : obligatoire si le bien est en zone A ou N (zone non lue).';
+  // Zone A ou N : la SAFER est notifiée dans tous les cas, même sans droit de préemption (étude 09/10 : « il faut mettre oui quand on
+  // est en zone N et A, de toute façon on notifie toujours même s'ils n'ont pas le droit de préempter ») — le droit est « À purger »,
+  // sans question restante. Hors zone A ou N, le droit lu par l'arbre (CRIDON) reste (« Non applicable » pour un bâtiment sans usage
+  // agricole). Un lot de copropriété n'est pas concerné.
   function droitSafer(r) {
+    const d = droitSaferArbre(r);
+    const enZoneAN = r.zone === 'A' || r.zone === 'N' || (r.zone == null && r.zoneAgricole === true);
+    if (!enZoneAN || r.bien === 'lot-copro' || d.statut === 'oui') return d;
+    return Object.assign(d, { statut: 'oui', manque: [], formalite: FORMALITE_NOTIFICATION_SAFER_ZONE_AN,
+      motif: d.statut === 'non' ? `zone ${r.zone || 'A ou N'} : notification dans tous les cas (${d.motif} — pas de droit de préemption)` : `zone ${r.zone || 'A ou N'} : notification dans tous les cas` });
+  }
+  var FORMALITE_NOTIFICATION_SAFER_ZONE_AN = 'Notification à la SAFER (Vigifoncier) avant la vente — toujours en zone A ou N, même sans droit de préemption.';
+
+  function droitSaferArbre(r) {
     const droit = { cle: 'safer', titre: 'SAFER', statut: 'verifier', motif: '', formalite: '', manque: [] };
     const notification = 'Notification à la SAFER (Vigifoncier) avant la vente — 2 mois pour préempter.';
     const enZoneAN = r.zone === 'A' || r.zone === 'N' ? true : r.zone === 'U' || r.zone === 'AU' ? false

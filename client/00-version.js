@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.203.0';
+  const VERSION_APP = '0.204.0';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.204.0', date: '2026-10-09 16:31', resume: "Authentic : les comparants du sous-dossier (vendeurs, acquéreurs) font foi — le conjoint d'une partie n'est plus ajouté depuis sa fiche client s'il n'est pas comparant, et une personne ajoutée ainsi est retirée avec la situation du couple. Contrôle de l'urbanisme : en zone A ou N, la SAFER est toujours « À purger » (notification même sans droit de préemption)." },
     { version: '0.203.0', date: '2026-10-09 12:44', resume: "Pièces : le Consuel devient une pièce à part ; « Attestation de conformité » ne désigne plus que les travaux de construction ; la mise en conformité est précisée par son objet (électricité, assainissement, gaz) et la régularisation des travaux d'urbanisme a sa propre pièce." },
     { version: '0.202.0', date: '2026-10-09 12:35', resume: "Contrôle de l'urbanisme : les travaux déclarés en liste dans le compromis sont détaillés un par un (type, année, fait par le vendeur ou par quelle entreprise, intérieur ou extérieur, autorisation obtenue, demandée ou absente, pièces transmises), avec en tête la zone ABF (oui, non, à vérifier) et les documents que le vendeur s'engage à fournir. Analyse de l'avant-contrat : deux engagements qui commencent pareil ne se confondent plus, l'arrêté du permis et l'attestation décennale à fournir sont listés." },
     { version: '0.201.3', date: '2026-10-09 12:08', resume: "Rapport technique : une clause d'acte citée (commentaire de relecture, erreur de lecture) ne laisse plus sortir un prénom, un domicile, une adresse, une commune ou un lieu-dit absents des fiches." },

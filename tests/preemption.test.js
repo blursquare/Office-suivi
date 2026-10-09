@@ -71,22 +71,29 @@ test('SAFER : information obligatoire seulement en zone A ou N (étude 07/10) �
   assert.match(droit({ bien: 'lot-copro', zone: 'N' }, 'safer').formalite, /Information obligatoire de la SAFER/);
 });
 
-test('SAFER, plusieurs parcelles (U et A) : l’information due pour la parcelle en zone A est gardée', () => {
+test('SAFER, plusieurs parcelles (U et A) : la parcelle en zone A fait notifier la SAFER (à purger)', () => {
   const lignes = [{ libelle: 'AB 1', statut: 'ok', famille: 'U' }, { libelle: 'ZC 2', statut: 'ok', famille: 'A' }];
   const s = app.analyserPreemptionParcelles({ bien: 'bati', usageAgricole: false, utilise5ans: false }, lignes).droits.find(d => d.cle === 'safer');
-  assert.strictEqual(s.statut, 'non');
-  assert.match(s.formalite, /Information obligatoire de la SAFER/);
+  assert.strictEqual(s.statut, 'oui');
+  assert.match(s.formalite, /toujours en zone A ou N/);
 });
 
-test('SAFER : bâtiment en zone A ou N (5 dernières années) ; terrain en zone agricole, bois, massif, installations', () => {
+test('SAFER : en zone A ou N toujours à purger (étude 09/10 : « on notifie toujours ») ; hors zone, l’arbre du CRIDON', () => {
   const bati = droit({ bien: 'bati', usageAgricole: false, zone: 'A', utilise5ans: false }, 'safer');
-  assert.strictEqual(bati.statut, 'non');
-  assert.match(bati.formalite, /Information obligatoire de la SAFER/);
+  assert.strictEqual(bati.statut, 'oui');
+  assert.match(bati.formalite, /même sans droit de préemption/);
+  assert.match(bati.motif, /pas de droit de préemption/);
+  // Plus aucune question en zone A ou N : la notification est due quoi qu'il arrive.
+  const sansReponse = droit({ bien: 'bati', zone: 'N' }, 'safer');
+  assert.strictEqual(sansReponse.statut, 'oui');
+  assert.strictEqual(sansReponse.manque.length, 0);
+  // Hors zone A ou N : bâtiment sans usage agricole = non applicable.
+  assert.strictEqual(droit({ bien: 'bati', usageAgricole: false, zone: 'U' }, 'safer').statut, 'non');
   assert.strictEqual(droit({ bien: 'bati', usageAgricole: false, zone: 'N', utilise5ans: true }, 'safer').statut, 'oui');
   assert.strictEqual(droit({ bien: 'bati', usageAgricole: true }, 'safer').statut, 'oui');
   assert.strictEqual(droit({ bien: 'terrain', zone: 'A', bois: false, installations: false }, 'safer').statut, 'oui');
-  assert.strictEqual(droit({ bien: 'terrain', zone: 'A', bois: false, installations: true }, 'safer').statut, 'non');
-  assert.strictEqual(droit({ bien: 'terrain', zone: 'N', bois: true, massif4ha: true }, 'safer').statut, 'non');
+  assert.strictEqual(droit({ bien: 'terrain', zone: 'A', bois: false, installations: true }, 'safer').statut, 'oui');
+  assert.strictEqual(droit({ bien: 'terrain', zone: 'N', bois: true, massif4ha: true }, 'safer').statut, 'oui');
   assert.strictEqual(droit({ bien: 'terrain', zone: 'N', bois: true, massif4ha: false }, 'safer').statut, 'oui');
   // Zone U : usage agricole puis seuil de la SAFER.
   assert.strictEqual(droit({ bien: 'terrain', zone: 'U', usageAgricole: false }, 'safer').statut, 'non');
@@ -225,7 +232,7 @@ test('maison en zone U d’Agglopolys : questions posées sur la fiche, rien d�
   assert.strictEqual(app.questionsPreemptionFiche(d.preemption).map(q => q.cle).join(','), 'usageAgricole');
 });
 
-test('terrain en zone A : « Réponse SAFER » à attendre, retirée si le droit tombe, jamais en double d’Authentic', () => {
+test('terrain en zone A : « Réponse SAFER » à attendre, gardée en zone A ou N, jamais en double d’Authentic', () => {
   const d = venteInventee({ typeVente: 'terrain', bien: { adresse: { codePostal: '41350' }, cadastre: { section: 'ZC', numero: '4' } } });
   d.preemption = ficheAuto(d, zoneA, { bois: false, installations: false });
   assert.strictEqual(d.preemption.droits.find(x => x.cle === 'safer').statut, 'oui');
@@ -236,10 +243,10 @@ test('terrain en zone A : « Réponse SAFER » à attendre, retirée si le droit
   assert.strictEqual(d.pieces['perso-safer'], 'manquante');
   assert.strictEqual(d.preemption.piecesAjoutees.join(','), 'perso-safer');
   assert.strictEqual(app.appliquerPreemptionSurPieces(d).length, 0, 'une seule fois');
-  // Le droit tombe (installations) : la pièce ajoutée par l'analyse, pas reçue, est retirée.
+  // Installations qui ôtent le droit : en zone A, la SAFER est notifiée quand même — la pièce reste.
   app.appliquerReponsePreemptionFiche(d, 'installations', true);
-  assert.strictEqual(d.piecesPersonnalisees.length, 0);
-  assert.strictEqual(d.pieces['perso-safer'], undefined);
+  assert.strictEqual(d.piecesPersonnalisees.length, 1);
+  assert.strictEqual(d.pieces['perso-safer'], 'manquante');
   // SAFER déjà posée par Authentic : pas de seconde pièce, et la sienne n'est jamais retirée.
   const a = venteInventee({ typeVente: 'terrain', piecesPersonnalisees: [{ cle: 'perso-safer', label: 'Réponse SAFER' }], pieces: { 'perso-safer': 'manquante' },
     authentic: { safer: { envoyeeLe: '2026-10-01' }, saferPieceAjoutee: true } });
@@ -264,7 +271,7 @@ test('lot de copropriété soumis au DPU : la DIA retient la signature ; bois : 
   b.preemption = ficheAuto(b, zoneA, { bois: true, massif4ha: true, superficieMoins4ha: true, foretDomaniale: false, communeBoiseeContigue: false, acquereurPrivilegie: false, partieBoiseeMoinsMoitie: false });
   assert.strictEqual(b.preemption.droits.find(x => x.cle === 'foret-preference').statut, 'oui');
   app.appliquerPreemptionSurPieces(b);
-  assert.strictEqual(b.piecesPersonnalisees.map(p => p.cle).join(','), 'perso-foret-preference');
+  assert.strictEqual(b.piecesPersonnalisees.map(p => p.cle).sort().join(','), 'perso-foret-preference,perso-safer');
   // Une pièce standard retirée à la main n'est remise que par l'outil (geste explicite).
   const m = venteInventee({ piecesRetirees: ['renonciationPreemption'] });
   m.preemption = ficheAuto(m, zoneU, { achevementMoins4ans: false, usageAgricole: false });

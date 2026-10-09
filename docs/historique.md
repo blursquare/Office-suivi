@@ -18729,3 +18729,29 @@ Régularisation / mise en conformité : préciser pour électricité, assainisse
 Noms de fichiers (`FORMES_NOM_PIECES`, `EXEMPLES_NOMS_PIECES`), termes élargis (client/35) et rubriques des pièces jointes
 (client/31) suivent. Un dossier qui avait « Attestation de conformité » venue d'une clause Consuel garde sa clé : son libellé devient
 « … des travaux de construction » — à décocher ou retirer à la main. Tests : tests/engagements.test.js.
+
+### 09/10/2026 16 h 31 — Comparants du sous-dossier ; SAFER en zone A ou N (0.204.0)
+
+**Comparants.** Étude, capture d'une fiche : vendeuse seule propriétaire à qui CLAIRE avait ajouté son mari (« Couple marié »),
+acquéreuse seule à qui elle avait ajouté son partenaire pacsé ; « il faut comparer avec la structure du sous-dossier où il est
+indiqué l'état civil et qui est vendeur et acquéreur ». Cause : une fiche client d'Authentic dont le nom n'est pas au dossier
+prenait le côté de son conjoint (`roleConjointAuthenticDansDossier`, voulu le 02/10 pour une épouse sous son propre nom), puis
+`alignerIdentitePartieAuthentic` l'ajoutait comme partie et `appliquerSituationsAuthentic` posait la situation du couple.
+- `comparantsAuthentic` (client/52) lit la rubrique « Comparants (N) » de la page du dossier : lignes de noms (« M. MARTEL
+  Alexandre et Mme MARTEL Nadia ») puis qualité (Vendeur/Promettant/Cédant → VENDEUR, Acquéreur/Bénéficiaire/Cessionnaire →
+  ACQUEREUR), jusqu'à « Informations financières », « Parties prenantes », « Immeubles »… ; gardé dans `d.authentic.comparants`
+  (`infosDossierAuthentic`, `authenticPersistable`).
+- Fiche client (`appliquerReleveSurDossier`, type `client`) : appliquée seulement si `personneComparantAuthentic` — comparant de
+  ce côté (nom de naissance ou d'usage, prénom quand le comparant en porte un) ; sans comparants relevés, par le NOM seul
+  (`roleClientAuthenticParNom`), jamais par le conjoint.
+- `retirerPartiesHorsComparants` : à chaque page du dossier relevée, une personne `origine: 'authentic'` absente des comparants de
+  son côté est retirée (historique « … n'est pas comparant du sous-dossier »), la situation du couple tombe si le côté n'a plus
+  qu'une personne, sa fiche quitte `d.authentic.personnes` ; rien si un seul côté a été lu.
+- Tests : tests/authentic-pages.test.js (anciens cas « épouse rattachée par son conjoint » repris avec les comparants).
+Pour le dossier de la capture : rouvrir la page du dossier dans Authentic après la mise à jour.
+
+**SAFER.** Étude : « Non applicable SAFER bâtiment sans usage agricole, hors zone A ou N. Il faut mettre oui quand on est en zone
+N et A, de toute façon on notifie toujours même s'ils n'ont pas le droit de préempter. » `droitSafer` (client/45) enveloppe l'arbre
+du CRIDON (`droitSaferArbre`) : zone A ou N (hors lot de copropriété) → `oui`, sans question restante, formalité
+`FORMALITE_NOTIFICATION_SAFER_ZONE_AN`, motif qui garde ce que l'arbre disait (« pas de droit de préemption ») ; la pièce « Réponse
+SAFER » est ajoutée et n'est plus retirée quand une réponse ôte le droit. Hors zone A ou N : inchangé. Tests : tests/preemption.test.js.

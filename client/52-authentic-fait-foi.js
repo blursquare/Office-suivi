@@ -357,6 +357,77 @@
     return textes;
   }
 
+  // ---- Comparants du sous-dossier (étude 09/10 : « il faut comparer avec la structure du sous-dossier où il est indiqué l'état
+  // civil et qui est vendeur et acquéreur » — une vendeuse seule propriétaire avait reçu son mari, une acquéreuse seule son
+  // partenaire pacsé, tous deux repris de leur fiche client par le conjoint). Rubrique « Comparants (N) » de la page du dossier :
+  // une ligne de noms (« M. MARTEL Alexandre et Mme MARTEL Nadia »), puis la qualité (« Vendeur », « Acquéreur »). ----
+  var RE_QUALITE_COMPARANT = /^(vendeurs?|promettants?|c[ée]dants?|acqu[ée]reurs?|b[ée]n[ée]ficiaires?|cessionnaires?)$/i;
+  var RE_FIN_COMPARANTS = /^(informations?\s+financi|parties?\s+prenantes?|immeubles?|documents?|pi[eè]ces|notes?|historique|formalit)/i;
+
+  // Pure : [{ nom, role }] des comparants vendeurs et acquéreurs, [] si la rubrique n'est pas sur la page.
+  function comparantsAuthentic(capture) {
+    const lignes = String((capture && capture.texte) || '').split(/\n+/).map(l => l.replace(/\s+/g, ' ').trim()).filter(Boolean);
+    const debut = lignes.findIndex(l => /^comparants?\b/i.test(l));
+    if (debut < 0) return [];
+    const r = [];
+    let noms = [];
+    for (const l of lignes.slice(debut + 1)) {
+      if (RE_FIN_COMPARANTS.test(l)) break;
+      const q = RE_QUALITE_COMPARANT.exec(l);
+      if (!q) { noms.push(l); continue; }
+      const role = /^(vend|prom|c[ée]d)/i.test(q[1]) ? 'VENDEUR' : 'ACQUEREUR';
+      noms.join(' et ').split(/\s+et\s+/i).map(n => n.replace(/^(?:M\.|Mme|Mlle|Monsieur|Madame|Mademoiselle|Mr)\s+/i, '').trim())
+        .filter(n => n.length > 1).forEach(nom => r.push({ nom: nom.slice(0, 120), role }));
+      noms = [];
+    }
+    return r.slice(0, 12);
+  }
+
+  // Pure : vrai si la personne d'une fiche client est un comparant de ce côté (nom de naissance ou d'usage, et prénom quand le
+  // comparant en porte un). Sans comparants relevés : vrai seulement si son NOM la place de ce côté (jamais par le conjoint).
+  function personneComparantAuthentic(d, personne, role) {
+    const comparants = (d && d.authentic && Array.isArray(d.authentic.comparants)) ? d.authentic.comparants : [];
+    const mots = (x) => ' ' + normaliserPourRecherche(x || '').replace(/[^a-z0-9]+/g, ' ').trim() + ' ';
+    const noms = [personne.nom, personne.nomUsage].filter(Boolean).map(n => mots(n).trim()).filter(Boolean);
+    if (!comparants.length) return noms.some(n => roleClientAuthenticParNom(d, n, personne.prenom) === role);
+    const prenom = mots(personne.prenom).trim().split(' ')[0] || '';
+    return comparants.some(c => c.role === role && noms.some(n => mots(c.nom).includes(' ' + n + ' '))
+      && (!prenom || !/[a-z]{2,}\s+[a-z]{2,}/.test(mots(c.nom).trim()) || mots(c.nom).includes(' ' + prenom + ' ')));
+  }
+
+  // Modifie d : une personne reprise d'une fiche client d'Authentic (`origine: 'authentic'`) qui n'est pas comparante de son côté
+  // dans le sous-dossier est retirée, et la situation du couple posée par Authentic tombe avec elle. Seulement quand les deux
+  // côtés ont été lus (une rubrique coupée ne retire personne). → vrai si quelque chose a changé.
+  function retirerPartiesHorsComparants(d, noter) {
+    const comparants = (d && d.authentic && Array.isArray(d.authentic.comparants)) ? d.authentic.comparants : [];
+    if (!comparants.some(c => c.role === 'VENDEUR') || !comparants.some(c => c.role === 'ACQUEREUR') || estSuccession(d)) return false;
+    const mots = (x) => ' ' + normaliserPourRecherche(x || '').replace(/[^a-z0-9]+/g, ' ').trim() + ' ';
+    // Nom de famille = les mots en capitales (« Cidem SARUHAN »), sinon tous les mots de trois lettres et plus.
+    const familles = (nom) => {
+      const maj = String(nom || '').split(/\s+/).filter(m => m.length >= 2 && m === m.toUpperCase() && /[A-ZÀ-Þ]/.test(m));
+      return (maj.length ? maj : String(nom || '').split(/\s+/).filter(m => m.length >= 3)).map(m => mots(m).trim()).filter(Boolean);
+    };
+    const estComparant = (p) => comparants.some(c => c.role === String(p.role || '').toUpperCase()
+      && familles(p.nom).some(m => mots(c.nom).includes(' ' + m + ' ')));
+    const retires = (d.parties || []).filter(p => p && p.origine === 'authentic' && p.qualitePersonne !== 'morale'
+      && (p.role === 'VENDEUR' || p.role === 'ACQUEREUR') && !estComparant(p));
+    if (!retires.length) return false;
+    d.parties = d.parties.filter(p => !retires.includes(p));
+    retires.forEach(p => noter(`${p.role === 'VENDEUR' ? 'Vendeur' : 'Acquéreur'} retiré : ${p.nom} n’est pas comparant du sous-dossier dans Authentic`));
+    const valeurs = (d.authentic && d.authentic.valeurs) || {};
+    [['VENDEUR', 'situationVendeur'], ['ACQUEREUR', 'situationAcquereur']].forEach(([role, champ]) => {
+      const reste = d.parties.filter(p => p && p.role === role && p.qualitePersonne !== 'morale').length;
+      if (reste < 2 && d[champ] && retires.some(p => p.role === role)) {
+        delete d[champ];
+        if (valeurs[champ] !== undefined) delete valeurs[champ];
+        noter(`${role === 'VENDEUR' ? 'Situation des vendeurs' : 'Situation des acquéreurs'} retirée (une seule personne comparante)`);
+      }
+    });
+    const cles = new Set(retires.map(p => mots(p.nom).trim()));
+    if (d.authentic && Array.isArray(d.authentic.personnes)) d.authentic.personnes = d.authentic.personnes.filter(f => !cles.has(mots(f.nom).trim()));
+    return true;
+  }
+
   // ---- À la création d'un dossier avec Authentic (étude 07/10 : « lors de l'ajout d'un nouveau dossier avec les informations
   // Authentic, récupérer dès ce moment civilité, email, téléphone, situation maritale ») ----
 

@@ -734,6 +734,7 @@
       avantContratLe: /^\d{4}-\d{2}-\d{2}$/.test(a.avantContratLe || '') ? a.avantContratLe : '',
       personnes: Array.isArray(a.personnes) ? a.personnes.filter(p => p && typeof p.nom === 'string').slice(0, 12)
         .map(p => ({ nom: texte(p.nom), role: p.role === 'ACQUEREUR' ? 'ACQUEREUR' : 'VENDEUR', situationMatrimoniale: situationMatrimonialePersistable(p.situationMatrimoniale) })) : [],
+      comparants: Array.isArray(a.comparants) ? a.comparants.filter(c => c && typeof c.nom === 'string' && (c.role === 'VENDEUR' || c.role === 'ACQUEREUR')).slice(0, 12).map(c => ({ nom: texte(c.nom), role: c.role })) : [],
       saferPieceAjoutee: a.saferPieceAjoutee === true, releveLe: texte(a.releveLe),
       clientsAPlacer: Array.isArray(a.clientsAPlacer) ? a.clientsAPlacer.filter(c => c && typeof c.nom === 'string').slice(0, 6).map(c => ({
         nom: texte(c.nom), prenom: texte(c.prenom), nomFamille: texte(c.nomFamille), nomUsage: texte(c.nomUsage),

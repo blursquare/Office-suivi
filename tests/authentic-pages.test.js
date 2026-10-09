@@ -329,9 +329,10 @@ test('appliquerReleveSurDossier : fiche client → téléphone, email, situation
   assert.equal(app.appliquerReleveSurDossier(autre, client).modifie, false);
 });
 
-test('fiche client : épouse sous son propre nom rattachée par son conjoint ; emails groupés « ; »', () => {
-  // « VTE MARCHAIS / LEBON » : M MARCHAIS et Mme BERTIN, mariés, vendent.
-  const d = { id: 'm', nom: 'MARCHAIS / LEBON', typeVente: 'maison', pieces: {}, historique: [] };
+test('fiche client : épouse sous son propre nom rattachée par les comparants du sous-dossier ; emails groupés « ; »', () => {
+  // « VTE MARCHAIS / LEBON » : M MARCHAIS et Mme BERTIN, mariés, vendent — les comparants du sous-dossier le disent (étude 09/10).
+  const comparants = [{ nom: 'MARCHAIS Paul', role: 'VENDEUR' }, { nom: 'BERTIN Odile', role: 'VENDEUR' }, { nom: 'LEBON Marc', role: 'ACQUEREUR' }];
+  const d = { id: 'm', nom: 'MARCHAIS / LEBON', typeVente: 'maison', pieces: {}, historique: [], authentic: { comparants } };
   const epouse = {
     titre: 'Authentic',
     champs: [
@@ -358,6 +359,15 @@ test('fiche client : épouse sous son propre nom rattachée par son conjoint ; e
   ], tableaux: [], texte: '' };
   app.appliquerReleveSurDossier(d, mari);
   assert.equal(d.emailVendeur, 'odile.bertin@exemple.fr; famille.marchais@exemple.fr; paul.marchais@exemple.fr');
+  // Conjoint qui n'est pas comparant (la vendeuse est seule propriétaire), ou comparants pas encore relevés : rien n'est ajouté.
+  const seule = { id: 's', nom: 'MARCHAIS / LEBON', typeVente: 'maison', pieces: {}, historique: [], parties: [{ nom: 'Paul MARCHAIS', role: 'VENDEUR' }],
+    authentic: { comparants: [{ nom: 'MARCHAIS Paul', role: 'VENDEUR' }, { nom: 'LEBON Marc', role: 'ACQUEREUR' }] } };
+  app.appliquerReleveSurDossier(seule, epouse);
+  assert.equal(seule.parties.map(p => p.nom).join(','), 'Paul MARCHAIS');
+  assert.ok(!seule.telephoneVendeur);
+  const sansComparants = { id: 't', nom: 'MARCHAIS / LEBON', typeVente: 'maison', pieces: {}, historique: [], parties: [{ nom: 'Paul MARCHAIS', role: 'VENDEUR' }] };
+  app.appliquerReleveSurDossier(sansComparants, epouse);
+  assert.equal(sansComparants.parties.length, 1);
   // Un conjoint présent des deux côtés, ou absent du dossier : rien n'est deviné.
   const ailleurs = { id: 'n', nom: 'DURAND / MOREAU', pieces: {}, historique: [] };
   app.appliquerReleveSurDossier(ailleurs, epouse);
@@ -902,7 +912,8 @@ test('vendeur déjà client (ancien dossier archivé cité sur sa fiche) et épo
   ], tableaux: conjoint ? [{ titre: '', entete: ['Situation', 'Date', 'Conjoint'], lignes: [['Marié(e)', '12/05/1990', conjoint]] }] : [], texte: texte || '' });
   // Dans CLAIRE : seul le mari est nommé vendeur ; son ancien achat est archivé.
   const ancien = { id: 'old', nom: 'ROUX / CHARVET', archive: true, acte: '2015-03-01', parties: [{ nom: 'Monsieur Gérard CHARVET', role: 'ACQUEREUR' }], historique: [] };
-  const vente = { id: 'v', nom: 'CHARVET / LENOIR', parties: [{ nom: 'Monsieur Gérard CHARVET', role: 'VENDEUR' }, { nom: 'Madame Inès LENOIR', role: 'ACQUEREUR' }], pieces: {}, historique: [] };
+  const vente = { id: 'v', nom: 'CHARVET / LENOIR', parties: [{ nom: 'Monsieur Gérard CHARVET', role: 'VENDEUR' }, { nom: 'Madame Inès LENOIR', role: 'ACQUEREUR' }], pieces: {}, historique: [],
+    authentic: { comparants: [{ nom: 'CHARVET Gérard', role: 'VENDEUR' }, { nom: 'BRUNEAU Lucie', role: 'VENDEUR' }, { nom: 'LENOIR Inès', role: 'ACQUEREUR' }] } };
   const liste = [ancien, vente];
   // Sa fiche cite l'ancien dossier seulement (la vente n'y est pas encore listée).
   const mari = fiche('Charvet', 'Gérard', 'gerard.charvet@exemple.fr', 'BRUNEAU Lucie', '1203 - Vente ROUX/CHARVET');
@@ -1466,4 +1477,25 @@ test('rédaction (étude 07/10) : « En cours » dans Authentic coche l’étape
   const p = { id: 'b', nom: 'MARTEL / FOURNIER', typeVente: 'maison', roleNotaire: 'participant', pieces: {}, historique: [] };
   app.appliquerReleveSurDossier(p, page('En cours'), '2026-10-07T10:00:00.000Z');
   assert.ok(!(p.echeancesValidees || {}).redaction);
+});
+
+test('comparants du sous-dossier : lus sur la page, une personne reprise d’une fiche client et absente des comparants est retirée', () => {
+  // Étude 09/10 : vendeuse seule propriétaire à qui son mari avait été ajouté, acquéreuse seule à qui son partenaire pacsé l'avait été.
+  const page = { champs: [], tableaux: [], texte: '3 - VTE LEBRUN / MARCHAND\nComparants (2)\nMme LEBRUN Agathe\nVendeur\nMme MARCHAND Sylvie\nAcquéreur\nInformations financières\nCapital\n180 000,00 €\nImmeubles (1)' };
+  assert.equal(app.comparantsAuthentic(page).map(c => c.nom + '=' + c.role).join(' ; '), 'LEBRUN Agathe=VENDEUR ; MARCHAND Sylvie=ACQUEREUR');
+  assert.equal(app.comparantsAuthentic({ texte: 'Comparants (3)\nM. MARTEL Alexandre et Mme MARTEL Nadia\nVendeur\nMme FOURNIER Camille\nAcquéreur\nImmeubles' }).map(c => c.nom).join(','), 'MARTEL Alexandre,MARTEL Nadia,FOURNIER Camille');
+  const d = { id: 'd1', nom: 'LEBRUN / MARCHAND', parties: [
+    { nom: 'Agathe LEBRUN', role: 'VENDEUR' }, { nom: 'Karim OUALI', role: 'VENDEUR', origine: 'authentic' },
+    { nom: 'MARCHAND', role: 'ACQUEREUR' }, { nom: 'Paul VIDAL', role: 'ACQUEREUR', origine: 'authentic' }],
+    situationVendeur: 'marie', situationAcquereur: 'pacse', historique: [], pieces: {},
+    authentic: { valeurs: { situationVendeur: 'marie', situationAcquereur: 'pacse' }, personnes: [{ nom: 'Karim OUALI', role: 'VENDEUR' }] } };
+  app.appliquerReleveSurDossier(d, page);
+  assert.equal(d.parties.map(p => p.nom).join(' | '), 'Agathe LEBRUN | MARCHAND');
+  assert.equal(d.situationVendeur, undefined);
+  assert.equal(d.situationAcquereur, undefined);
+  assert.equal(d.authentic.personnes.length, 0);
+  assert.equal(app.authenticPersistable(d.authentic).comparants.length, 2);
+  // Une page coupée (un seul côté lu) ne retire personne.
+  const e = { parties: [{ nom: 'Karim OUALI', role: 'VENDEUR', origine: 'authentic' }], authentic: { comparants: [{ nom: 'LEBRUN Agathe', role: 'VENDEUR' }] } };
+  assert.equal(app.retirerPartiesHorsComparants(e, () => {}), false);
 });

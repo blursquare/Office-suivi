@@ -1278,7 +1278,7 @@
       acte: etatActeAuthentic(capture), rhf: suiviRhfAuthentic(lignes), safer: suiviSaferAuthentic(lignes),
       prix: prixAuthentic(capture), collaborateur: collaborateurAuthentic(capture),
       etatsCivils: suiviEtatsCivilsAuthentic(lignes, typeAffaire), demandes: demandesUrbanismeAuthentic(lignes),
-      avantContratLe: dateAvantContratAuthentic(lignes)
+      avantContratLe: dateAvantContratAuthentic(lignes), comparants: comparantsAuthentic(capture)
     };
     Object.keys(r).forEach(k => { if (!r[k] || (typeof r[k] === 'object' && !Object.keys(r[k]).length)) delete r[k]; });
     return r;
@@ -1943,6 +1943,10 @@
         resultat.modifie = true;
         return resultat;
       }
+      // Le sous-dossier dit qui est vendeur et acquéreur (rubrique « Comparants », étude 09/10) : une fiche client d'une personne qui
+      // n'y figure pas — conjoint d'une partie, propriétaire seule ou acquéreur seul — n'ajoute ni personne ni coordonnées. Sans
+      // comparants relevés, le côté se lit par le nom seulement, jamais par le conjoint.
+      if (!personneComparantAuthentic(d, personne, role)) return resultat;
       return appliquerClientAuthentic(d, personne, role, noter, resultat, maintenant);
     }
     if (type === 'bien') return appliquerBienAuthentic(d, bienDepuisFicheAuthentic(capture), noter, resultat);
@@ -2046,6 +2050,7 @@
       d.authentic = apres;
       resultat.modifie = true;
     }
+    if (infos.comparants && retirerPartiesHorsComparants(d, noter)) resultat.modifie = true;
     // Prix « Capital » : Authentic d'abord, puis la fiche ne bouge plus (après d.authentic = apres : le registre des valeurs y vit).
     if (apres.prix) {
       const r = poserChampAuthentic(d, { cle: 'prixVente', champ: 'prixVente', libelle: 'Prix de vente', valeur: apres.prix, maintenant, egal: (a, b) => Number(a) === Number(b), formater: v => Number(v) > 0 ? formaterPrix(v) : '' });
