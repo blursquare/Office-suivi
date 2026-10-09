@@ -277,7 +277,7 @@ dans `index.html`** (le test `structure-client` refuse tout décalage).
   Un cas non départagé reste « à rattacher », jamais deviné.
   **Comparants du sous-dossier** (étude 09/10 : une vendeuse seule propriétaire avait reçu son mari, une acquéreuse seule son partenaire
   pacsé, repris de leur fiche client par le conjoint) : la rubrique « Comparants » de la page du dossier (`comparantsAuthentic` : noms puis
-  qualité Vendeur/Acquéreur, « M. X et Mme Y » = deux personnes ; `d.authentic.comparants`) dit qui est partie — une fiche client
+  qualité Vendeur/Acquéreur, « M. X et Mme Y » = deux personnes, qualité en fin de ligne acceptée ; **« épouse de / époux de / veuve de / divorcé de M. Z » : la personne est seule, Z n'est comparant que s'il est listé à part** — étude 09/10, `RE_LIEN_CONJOINT_COMPARANT` ; `d.authentic.comparants`) dit qui est partie — une fiche client
   d'une personne qui n'y figure pas n'ajoute rien (`personneComparantAuthentic` ; sans comparants relevés, le NOM seul place une
   personne, jamais son conjoint) ; une personne reprise d'Authentic absente des comparants est retirée avec la situation du couple
   posée par Authentic (`retirerPartiesHorsComparants`, seulement quand les deux côtés sont lus).

@@ -1499,3 +1499,20 @@ test('comparants du sous-dossier : lus sur la page, une personne reprise d’une
   const e = { parties: [{ nom: 'Karim OUALI', role: 'VENDEUR', origine: 'authentic' }], authentic: { comparants: [{ nom: 'LEBRUN Agathe', role: 'VENDEUR' }] } };
   assert.equal(app.retirerPartiesHorsComparants(e, () => {}), false);
 });
+
+test('comparantsAuthentic : un couple « M. X et Mme Y » vend à deux, l’acquéreur seul reste seul (qualité en fin de ligne ou « et » coupé)', () => {
+  const app = chargerApplication();
+  const attendu = 'CHAHUNEAU Alain:VENDEUR,BARBIER Catherine:VENDEUR,LEBERT Elodie:ACQUEREUR';
+  const lire = (texte) => app.comparantsAuthentic({ texte }).map(c => `${c.nom}:${c.role}`).join(',');
+  assert.equal(lire('Comparants\nM. CHAHUNEAU Alain et Mme BARBIER Catherine\nVendeur\nMme LEBERT Elodie\nAcquéreur\nImmeubles'), attendu);
+  assert.equal(lire('Comparants\nM. CHAHUNEAU Alain et Mme BARBIER Catherine Vendeur\nMme LEBERT Elodie Acquéreur\nImmeubles'), attendu);
+  assert.equal(lire('Comparants\nM. CHAHUNEAU Alain\net Mme BARBIER Catherine\nVendeur\nMme LEBERT Elodie\nAcquéreur\nImmeubles'), attendu);
+});
+
+test('comparantsAuthentic : « épouse de / époux de / veuve de / divorcé de » — la personne est seule, son conjoint cité n’est comparant que s’il est listé à part', () => {
+  const lire = (texte) => app.comparantsAuthentic({ texte }).map(c => `${c.nom}:${c.role}`).join(',');
+  assert.equal(lire('Comparants\nMme LEBERT Elodie épouse de M. DUPONT Paul\nAcquéreur\nM. MARTIN Luc veuf de Mme MARTIN Anne\nVendeur\nImmeubles'), 'LEBERT Elodie:ACQUEREUR,MARTIN Luc:VENDEUR');
+  assert.equal(lire('Comparants\nMme LEBRUN Agathe divorcée de M. LEBRUN Jean\nVendeur\nMme MARCHAND Sylvie veuve de M. MARCHAND Henri\nAcquéreur\nImmeubles'), 'LEBRUN Agathe:VENDEUR,MARCHAND Sylvie:ACQUEREUR');
+  // le conjoint listé lui-même en dessous est comparant
+  assert.equal(lire('Comparants\nMme LEBERT Elodie épouse de M. DUPONT Paul\nAcquéreur\nM. DUPONT Paul\nAcquéreur\nImmeubles'), 'LEBERT Elodie:ACQUEREUR,DUPONT Paul:ACQUEREUR');
+});

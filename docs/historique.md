@@ -18796,3 +18796,8 @@ cachet, pour rendre le PDF infalsifiable) proposée ensuite : l'étude a répond
 
 Étude : « place l'agenda sous le suivi des dossiers dans la sidebar et Demander à CLAIRE au-dessus des réglages. Affiche Relecture d'actes et Demander à CLAIRE que pour Bastien ». Agenda sous le Suivi, « Demander à CLAIRE » avant « Réglages » ; liens, écrans et widget « Demander à CLAIRE » (aussi retiré de la liste des widgets) cachés aux autres collaborateurs ou sans poste choisi ; un écran réservé resté ouvert au changement de poste repart au tableau de bord. Les rapports/outils côté serveur ne changent pas (réserve d'affichage, pas de sécurité).
 
+### 09/10/2026 18 h 46 — 0.206.1 : comparants en couple, lecture plus tolérante
+
+Capture de l'étude (« M. CHAHUNEAU Alain et Mme BARBIER Catherine — Vendeur », « Mme LEBERT Elodie — Acquéreur », « il y a et entre les époux », « Lebert achète seule »). La lecture standard (qualité sur sa propre ligne) donnait déjà deux vendeurs et une acquéreuse seule ; `comparantsAuthentic` accepte en plus la qualité en fin de ligne (cellule de tableau) et « et Mme … » coupé sur la ligne suivante. À vérifier au bureau sur la vraie page.
+Étude, même jour : « s'il y a marqué époux de, épouse de, divorcé de ou veuve de, la personne achète seule sauf s'il y a un autre vendeur ou acquéreur en dessous » → `RE_LIEN_CONJOINT_COMPARANT` coupe « … épouse de M. Z » avant la lecture des noms (test ajouté).
+

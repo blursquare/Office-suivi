@@ -364,6 +364,10 @@
   var RE_QUALITE_COMPARANT = /^(vendeurs?|promettants?|c[ée]dants?|acqu[ée]reurs?|b[ée]n[ée]ficiaires?|cessionnaires?)$/i;
   var RE_FIN_COMPARANTS = /^(informations?\s+financi|parties?\s+prenantes?|immeubles?|documents?|pi[eè]ces|notes?|historique|formalit)/i;
 
+  // « Mme X épouse de M. Y », « veuve de », « divorcé de », « époux de » : la personne vend ou achète SEULE — le conjoint cité après
+  // « de » n'est pas comparant par ce seul fait (étude 09/10) ; il l'est s'il figure lui-même plus bas comme vendeur ou acquéreur.
+  var RE_LIEN_CONJOINT_COMPARANT = /\s+(?:[ée]pouse|[ée]poux|veuve|veuf|divorc[ée]e?|s[ée]par[ée]e?)\s+(?:de\s|d['’]).*$/i;
+
   // Pure : [{ nom, role }] des comparants vendeurs et acquéreurs, [] si la rubrique n'est pas sur la page.
   function comparantsAuthentic(capture) {
     const lignes = String((capture && capture.texte) || '').split(/\n+/).map(l => l.replace(/\s+/g, ' ').trim()).filter(Boolean);
@@ -371,12 +375,19 @@
     if (debut < 0) return [];
     const r = [];
     let noms = [];
-    for (const l of lignes.slice(debut + 1)) {
-      if (RE_FIN_COMPARANTS.test(l)) break;
-      const q = RE_QUALITE_COMPARANT.exec(l);
+    for (const l0 of lignes.slice(debut + 1)) {
+      if (RE_FIN_COMPARANTS.test(l0)) break;
+      // La qualité est seule sur sa ligne, ou en fin de ligne (cellule suivante d'un tableau : « M. X et Mme Y   Vendeur »).
+      let l = l0;
+      let q = RE_QUALITE_COMPARANT.exec(l);
+      if (!q) {
+        const fin = /^(.*\S)\s+(vendeurs?|promettants?|c[ée]dants?|acqu[ée]reurs?|b[ée]n[ée]ficiaires?|cessionnaires?)$/i.exec(l);
+        if (fin) { l = fin[1]; q = [fin[2], fin[2]]; noms.push(l); }
+      }
       if (!q) { noms.push(l); continue; }
       const role = /^(vend|prom|c[ée]d)/i.test(q[1]) ? 'VENDEUR' : 'ACQUEREUR';
-      noms.join(' et ').split(/\s+et\s+/i).map(n => n.replace(/^(?:M\.|Mme|Mlle|Monsieur|Madame|Mademoiselle|Mr)\s+/i, '').trim())
+      // « M. X et Mme Y » = deux personnes du même côté (un couple qui vend ou achète à deux) ; « et » en début ou fin de ligne ignoré.
+      noms.join(' et ').split(/\s+et\s+/i).map(n => n.replace(RE_LIEN_CONJOINT_COMPARANT, '')).map(n => n.replace(/^(?:et\s+)?(?:M\.|Mme|Mlle|Monsieur|Madame|Mademoiselle|Mr)\s+/i, '').replace(/^et\s+/i, '').trim())
         .filter(n => n.length > 1).forEach(nom => r.push({ nom: nom.slice(0, 120), role }));
       noms = [];
     }
