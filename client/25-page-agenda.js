@@ -266,8 +266,8 @@
       const c = libreLe(iso, CRENEAUX_SIGNATURE, false);
       if (c) creneaux.push(c);
     }
-    // Exceptionnel, seulement à défaut : les jours encore sans proposition, toutes heures confondues.
-    for (const iso of joursPossibles) {
+    // Exceptionnel, seulement à défaut : les jours encore sans proposition, toutes heures confondues (jamais pour une carte fantôme).
+    for (const iso of (bornes && bornes.sansExceptionnel ? [] : joursPossibles)) {
       if (creneaux.length >= n) break;
       if (creneaux.some(c => c.date === iso)) continue;
       const c = libreLe(iso, CRENEAUX_SIGNATURE.concat(CRENEAUX_EXCEPTIONNELS), true);
@@ -373,7 +373,17 @@
     (liste || []).forEach(d => {
       const p = semaineProbableSignature(d, auj, absences, evenements);
       if (!p || p.aConfirmer || p.lundi !== lundi) return;
-      const creneau = creneauxProposesSignature(d, (evenements || []).concat(fantomes), absences, auj, 1, { depuis: p.date, limite: fin })[0] || null;
+      // Étude 09/10 (capture : cinq « Probable » le même jour, à midi et après 18 h, au milieu de quatre autres rendez-vous) :
+      // tous les rendez-vous du jour comptent, jamais plus de 6 par jour, jamais un créneau hors règles pour une carte fantôme —
+      // la semaine se remplit de la date probable au vendredi, puis des jours d'avant dans la même semaine ; sinon la carte reste
+      // « à placer cette semaine », sans heure.
+      const pris = (evenements || []).concat(fantomes);
+      const veille = addDays(p.date, -1);
+      const depuisTot = addDays(auj, 1) > lundi ? addDays(auj, 1) : lundi;
+      const creneau = creneauxProposesSignature(d, pris, absences, auj, 1, { depuis: p.date, limite: fin, sansExceptionnel: true })[0]
+        || (depuisTot <= veille ? creneauxProposesSignature(d, pris, absences, auj, 5, { depuis: depuisTot, limite: veille, sansExceptionnel: true })
+          .sort((x, y) => rendezVousHorairesJour(pris, x.date).length - rendezVousHorairesJour(pris, y.date).length || y.date.localeCompare(x.date))[0] : null)
+        || null;
       const debut = creneau ? minutesHeure(creneau.heure) : null;
       const heureFin = debut === null ? null
         : `${String(Math.floor((debut + DUREE_CRENEAU_SIGNATURE) / 60)).padStart(2, '0')}:${String((debut + DUREE_CRENEAU_SIGNATURE) % 60).padStart(2, '0')}`;

@@ -449,3 +449,26 @@ test('Nouveau rendez-vous : un titre « ? » / « ?? » n’est jamais une signa
   assert.equal(app.titreRendezVousProvisoire('VTE - CHEYMOL / QUEVA ROY'), false);
   assert.equal(app.titreRendezVousProvisoire('Visio https://ls.visio.adnov.fr/?id=12'), false, 'le « ? » d’une adresse web ne compte pas');
 });
+
+test('fantomesSemaineAgenda : jamais plus de 6 rendez-vous par jour, autres rendez-vous compris, ni créneau hors règles', () => {
+  // Capture de l'étude (09/10) : cinq « Probable » le même jour, à midi et après 18 h, avec quatre autres rendez-vous.
+  const auj = '2026-09-30';
+  const jours = app.joursSemaineAgenda('2026-10-12');
+  const evenements = [
+    { sujet: 'Réunion', date: '2026-10-16', heure: '09:00', heureFin: '10:00' },
+    { sujet: 'Club', date: '2026-10-16', heure: '10:00', heureFin: '11:00' },
+    { sujet: 'VTE - A / B', date: '2026-10-16', heure: '14:00', heureFin: '15:00' },
+    { sujet: 'PUV C', date: '2026-10-16', heure: '16:00', heureFin: '17:00' }
+  ];
+  // Tous probables le vendredi 16/10 (vente préalable ce jour-là) : avant, ils s'empilaient ce jour-là, à midi et après 18 h.
+  const dossiers = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'].map(x => ({ id: x, nom: `${x}UN / ${x}DEUX`, sansPret: true, ventebien: '2026-10-16', pieces: TOUS_RECUS, responsable: 'Julie VASSELIN' }));
+  const f = app.fantomesSemaineAgenda(dossiers, evenements, [], jours, auj);
+  const parJour = {};
+  f.filter(x => x.heure).forEach(x => { parJour[x.date] = (parJour[x.date] || 0) + 1; });
+  Object.entries(parJour).forEach(([jour, n]) => {
+    const autres = evenements.filter(e => e.date === jour).length;
+    assert.ok(n + autres <= 6, `${jour} : ${n + autres} rendez-vous`);
+  });
+  assert.ok(Object.keys(parJour).length >= 2, 'répartis dans la semaine');
+  f.filter(x => x.heure).forEach(x => assert.equal(app.motifCreneauExceptionnel(x.heure, 60, 0), '', `${x.date} ${x.heure} hors règles`));
+});
