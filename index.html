@@ -935,6 +935,7 @@
       <wa-button appearance="outlined" class="secondary" id="af-historique-btn" onclick="ouvrirHistoriqueAppelsFonds()">Courriers créés</wa-button>
       <wa-button appearance="outlined" class="secondary" onclick="reinitialiserAppelFonds()">Effacer</wa-button>
       <wa-button appearance="outlined" class="secondary" id="af-brouillon-outlook" style="display:none;" onclick="preparerEmailAppelFonds(this)" title="Prépare l’email au destinataire du dossier relié, le courrier déjà joint">Email (courrier joint)</wa-button>
+      <wa-button appearance="outlined" class="secondary" id="af-telecharger-pdfa" onclick="telechargerAppelFondsPdfA(this)" title="Le même courrier en PDF/A-2B (ISO 19005-2), à déposer dans Authentic">PDF/A pour Authentic</wa-button>
       <wa-button variant="brand" class="primary" id="af-telecharger" onclick="telechargerAppelFondsDocx(this)">Télécharger le courrier (.docx)</wa-button>
     </div>
   </div>
@@ -1190,6 +1191,10 @@
             <p>Dans l'attente du plaisir de notre rencontre, et avec mes remerciements anticipés, je vous prie d'agréer, <span class="af-champ" id="af-p-salut2">Madame, Monsieur,</span> mes salutations distinguées.</p>
 
             <div class="af-signature">M<sup>e</sup> <span class="af-champ" id="af-p-notaire">Sophie GOSSART</span></div>
+            <div class="af-tampon-signature" contenteditable="false" aria-hidden="true">
+              <img class="af-tampon" id="af-tampon" alt="">
+              <img class="af-signature-image" id="af-signature-image" alt="">
+            </div>
           </div>
         </div>
 
@@ -2650,5 +2655,6 @@
 <script src="client/53-agenda-copier-coller.js"></script>
 <script src="client/54-preemption-dossier.js"></script>
 <script src="client/55-controle-urbanisme-relecture.js"></script>
+<script src="client/56-courrier-pdfa.js"></script>
 </body>
 </html>

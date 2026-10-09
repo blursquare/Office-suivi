@@ -76,6 +76,12 @@ const ASSETS_STATIQUES = {
   // Police de l'interface (Geist, OFL — étude 04/10), embarquée : aucun appel extérieur. Binaire : lue sans encodage.
   '/vendor/polices/geist-latin-wght-normal.woff2': { fichier: 'vendor/polices/geist-latin-wght-normal.woff2', type: 'font/woff2', binaire: true },
   '/vendor/polices/geist-latin-ext-wght-normal.woff2': { fichier: 'vendor/polices/geist-latin-ext-wght-normal.woff2', type: 'font/woff2', binaire: true },
+  // Polices du courrier d'appel de fonds en PDF/A (client/56-courrier-pdfa.js), chargées à la demande.
+  '/vendor/polices/courrier/LiberationSerif-Regular.ttf': { fichier: 'vendor/polices/courrier/LiberationSerif-Regular.ttf', type: 'font/ttf', binaire: true },
+  '/vendor/polices/courrier/LiberationSerif-Bold.ttf': { fichier: 'vendor/polices/courrier/LiberationSerif-Bold.ttf', type: 'font/ttf', binaire: true },
+  '/vendor/polices/courrier/LiberationSerif-Italic.ttf': { fichier: 'vendor/polices/courrier/LiberationSerif-Italic.ttf', type: 'font/ttf', binaire: true },
+  '/vendor/polices/courrier/Carlito-Regular.ttf': { fichier: 'vendor/polices/courrier/Carlito-Regular.ttf', type: 'font/ttf', binaire: true },
+  '/vendor/polices/courrier/Carlito-Bold.ttf': { fichier: 'vendor/polices/courrier/Carlito-Bold.ttf', type: 'font/ttf', binaire: true },
   // Plans des périmètres de DPU renforcé de Blois (outil « Droits de préemption », délibération Agglopolys A_D2025_200).
   '/vendor/plans/dpur-blois-centre-ville.jpg': { fichier: 'vendor/plans/dpur-blois-centre-ville.jpg', type: 'image/jpeg', binaire: true },
   '/vendor/plans/dpur-blois-coty.jpg': { fichier: 'vendor/plans/dpur-blois-coty.jpg', type: 'image/jpeg', binaire: true },

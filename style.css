@@ -4999,6 +4999,11 @@ input[type="search"].af-historique-recherche { width: 100%; }
 .af-mention-envoi { font-style: italic; }
 @media (max-width: 700px) { .af-entete-droite { margin-left: 0; max-width: 100%; } }
 .af-signature { margin-top: 26px; text-align: right; }
+/* Tampon de l'office et signature par-dessus (étude 09/10), mêmes proportions que dans le .docx : 5 cm et 4,4 cm sur 15 cm de texte. */
+.af-tampon-signature { position: relative; width: 33.3%; aspect-ratio: 590 / 345; margin: 4px 2.8% 0 auto; }
+.af-tampon-signature img { position: absolute; display: block; }
+.af-tampon { inset: 0; width: 100%; height: 100%; }
+.af-signature-image { width: 88.9%; left: 5.55%; top: 6.6%; }
 
 .af-lettre-pied {
   margin-top: 30px; padding-top: 10px;

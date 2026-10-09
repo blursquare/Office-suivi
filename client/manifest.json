@@ -54,5 +54,6 @@
   "52-authentic-fait-foi.js",
   "53-agenda-copier-coller.js",
   "54-preemption-dossier.js",
-  "55-controle-urbanisme-relecture.js"
+  "55-controle-urbanisme-relecture.js",
+  "56-courrier-pdfa.js"
 ]

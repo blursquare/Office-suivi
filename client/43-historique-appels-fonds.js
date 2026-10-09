@@ -183,6 +183,7 @@
       ${a.solde ? `<span class="af-histo-solde">${escapeHtml(a.solde)}</span>` : ''}
       <div class="af-histo-actions">
         <wa-button appearance="outlined" size="s" pill class="action-rapide" onclick="telechargerAppelFondsHistorique('${id}', this)">Télécharger</wa-button>
+        <wa-button appearance="outlined" size="s" pill class="action-rapide" title="Le même courrier en PDF/A-2B, à déposer dans Authentic" onclick="telechargerAppelFondsHistorique('${id}', this, 'pdfa')">PDF/A</wa-button>
         ${a.rouvrable ? `<wa-button appearance="outlined" size="s" pill class="action-rapide" onclick="modifierAppelFondsHistorique('${id}')">Modifier</wa-button>` : ''}
         <wa-button appearance="plain" size="s" class="bouton-icone" title="Retirer de l'historique" onclick="supprimerAppelFondsHistorique('${id}')">${icone('x')}</wa-button>
       </div>
@@ -227,12 +228,13 @@
   }
 
   // --- gestes -----------------------------------------------------------------------------------------------------------
-  async function telechargerAppelFondsHistorique(id, btn) {
+  // `format` 'pdfa' : le même courrier en PDF/A-2B pour Authentic (genererPdfAAppelFonds, client/56) ; sinon le .docx.
+  async function telechargerAppelFondsHistorique(id, btn, format) {
     const libelleInitial = btn ? btn.textContent : '';
     if (btn) { btn.disabled = true; btn.textContent = 'Génération…'; }
     try {
       const a = await lireAppelFondsComplet(id);
-      const { blob, nom } = await genererBlobAppelFonds(a.donnees, a.nomFichier);
+      const { blob, nom } = format === 'pdfa' ? await genererPdfAAppelFonds(a.donnees, a.nomFichier) : await genererBlobAppelFonds(a.donnees, a.nomFichier);
       telechargerFichier(blob, nom);
     } catch (e) {
       console.error(e);

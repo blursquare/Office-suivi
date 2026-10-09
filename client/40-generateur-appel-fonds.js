@@ -2687,6 +2687,8 @@
     poser('af-icone-visio', a.iconVisio);
     poser('af-icone-facebook', a.iconFacebook);
     poser('af-icone-instagram', a.iconInstagram);
+    poser('af-tampon', a.tampon);
+    poser('af-signature-image', a.signature);
   }
 
   // Mention du mode d'envoi. Elle REMPLACE l'adresse postale du destinataire tant qu'aucune

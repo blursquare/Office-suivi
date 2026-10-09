@@ -18766,3 +18766,22 @@ une carte fantôme (`bornes.sansExceptionnel`) ; de la date probable au vendredi
 semaine (pas avant demain), le jour le moins chargé d'abord ; sinon la carte reste sans heure (« à placer cette semaine »). Les
 créneaux proposés pour placer un rendez-vous (avec leur exception signalée) ne changent pas. Test : tests/agenda-page.test.js
 (échouait sur l'ancien code : 10 rendez-vous le vendredi).
+
+### 09/10/2026 17 h 50 — 0.205.0 : tampon + signature sur le courrier d'appel de fonds, sortie PDF/A-2B pour Authentic
+
+Demande de l'étude (images du tampon et de la signature « p/o ») : « la signature doit aller devant le tampon, les deux doivent passer
+en transparent sans fond. Le certificat est celui-ci dans Authentic : Conformité Norme : PDF/A-2B, Nom ISO : ISO 19005-2 ». Réponses
+aux questions : « Tous les courriers d'appel de fonds », « Courrier en PDF/A-2B pour Authentic ».
+
+- Images rendues transparentes (fond retiré, encre renforcée), recadrées : `docs/assets/tampon-gossart.png` (590×345),
+  `docs/assets/signature-anglument-po.png` (317×189).
+- Modèle Word : deux images ancrées après « Me {notaire} » (tampon 5 cm, signature 4,4 cm centrée dessus, devant), dans un
+  paragraphe de hauteur exacte que `keepNext` garde avec « Me … ». Rendu contrôlé par LibreOffice (5 et 14 lignes de décompte) ;
+  dans Word : point terrain `courrier-tampon-signature`.
+- PDF/A-2B : `client/56-courrier-pdfa.js`, pdf-lib + fontkit. Mise en page relevée sur le rendu du modèle (positions de chaque
+  ligne par `pdftotext -bbox`, logos par leur boîte visible) : en-tête de la première page, destinataire et date à droite du bloc
+  « Nous contacter », tableau à filets doubles, coupure de page entre deux lignes, « Me … » + tampon jamais séparés, pied de la
+  première page. Deux pièges de pdf-lib : le découpage de Carlito perd des glyphes (en-tête illisible) → Carlito embarquée
+  entière ; la ligature « ti » est mal espacée (« desti né ») → ligatures coupées. veraPDF 1.30 (profil PDF/A-2B) : PASS sur deux
+  courriers (une et deux pages). Acceptation par Authentic : point terrain `courrier-pdfa-authentic`.
+
