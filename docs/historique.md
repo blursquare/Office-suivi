@@ -18792,3 +18792,7 @@ Unicode), A (U + balisage d'accessibilité, impossible avec pdf-lib). Le courrie
 `pdfaid:conformance` disait B → passée à U. veraPDF : PASS en 2U et en 2B (une et deux pages). Signature numérique PAdES (certificat de
 cachet, pour rendre le PDF infalsifiable) proposée ensuite : l'étude a répondu « reste comme ça, passe en 2U » — pas de signature numérique.
 
+### 09/10/2026 18 h 36 — 0.206.0 : barre latérale réordonnée, deux écrans réservés à Bastien
+
+Étude : « place l'agenda sous le suivi des dossiers dans la sidebar et Demander à CLAIRE au-dessus des réglages. Affiche Relecture d'actes et Demander à CLAIRE que pour Bastien ». Agenda sous le Suivi, « Demander à CLAIRE » avant « Réglages » ; liens, écrans et widget « Demander à CLAIRE » (aussi retiré de la liste des widgets) cachés aux autres collaborateurs ou sans poste choisi ; un écran réservé resté ouvert au changement de poste repart au tableau de bord. Les rapports/outils côté serveur ne changent pas (réserve d'affichage, pas de sécurité).
+

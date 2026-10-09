@@ -149,11 +149,20 @@ test('pointsATraiter : une ligne par dossier, le plus grave en titre, les autres
 test('lignesGalerieWidgets : tous les widgets, affichés d’abord puis retirés, chacun décrit', () => {
   const app = chargerApplication();
   const dispo = app.dispositionWidgetsDepuis([{ id: 'agenda', taille: 'moyen', hauteur: 1, masque: true }, { id: 'pieces', taille: 'petit', hauteur: 1, masque: true }]);
-  const lignes = app.lignesGalerieWidgets(dispo);
+  const lignes = app.lignesGalerieWidgets(dispo, 'Bastien ANGLUMENT');
   assert.equal(lignes.length, app.WIDGETS_DASHBOARD.length);
   assert.equal(lignes.map(l => `${l.def.id}:${l.affiche ? 'oui' : 'non'}`).join(','),
     'assistant:oui,aujourdhui:oui,portefeuille:oui,avancement:oui,activite:oui,statistiques:oui,agenda:non,pieces:non');
   assert.ok(lignes.every(l => l.def.description && l.def.icone));
+  assert.ok(!app.lignesGalerieWidgets(dispo, 'Julie VASSELIN').some(l => l.def.id === 'assistant'), 'Demander à CLAIRE : Bastien seulement');
+});
+
+test('ongletReserve : Relecture d’actes et Demander à CLAIRE réservés à l’administrateur', () => {
+  const app = chargerApplication();
+  assert.equal(app.ongletReserve('assistant', 'Julie VASSELIN'), true);
+  assert.equal(app.ongletReserve('analyse-ia', ''), true);
+  assert.equal(app.ongletReserve('analyse-ia', 'Bastien ANGLUMENT'), false);
+  assert.equal(app.ongletReserve('suivi', 'Julie VASSELIN'), false);
 });
 
 test('filtreSuiviParDefaut : le collaborateur du poste, tous les dossiers pour l’administrateur', () => {

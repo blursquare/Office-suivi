@@ -70,12 +70,6 @@
       <button type="button" id="tab-dashboard" class="sidebar-link actif" role="tab" aria-selected="true" onclick="definirOnglet('dashboard')">
         <span class="sidebar-link-icone" id="icon-nav-dashboard" aria-hidden="true"></span>Tableau de bord
       </button>
-      <!-- Agenda de l'office (page Agenda, 30/09), juste sous le tableau de bord (demandé le 30/09). -->
-      <button type="button" id="tab-agenda" class="sidebar-link" role="tab" aria-selected="false" onclick="definirOnglet('agenda')">
-        <span class="sidebar-link-icone" id="icon-nav-agenda" aria-hidden="true"></span>Agenda
-        <!-- Réponses aux dates proposées arrivées et pas encore vues (majBadgeAgendaDates). -->
-        <span class="sidebar-badge-notif" id="badge-notif-agenda" style="display:none;"></span>
-      </button>
 
       <button type="button" id="tab-suivi" class="sidebar-link" role="tab" aria-selected="false" onclick="definirOnglet('suivi')">
         <span class="sidebar-link-icone" id="icon-nav-suivi" aria-hidden="true"></span>Suivi des dossiers
@@ -83,10 +77,11 @@
              d.piecesNotifications dans script.js) : masqué tant qu'il n'y a rien à signaler. -->
         <span class="sidebar-badge-notif" id="badge-notif-suivi" style="display:none;"></span>
       </button>
-      <!-- « Demander à CLAIRE » (étude 06/10) : page de conversation — une phrase, CLAIRE répond ou fait le geste
-           (client/49-assistant.js, commun/assistant.js, IA locale côté serveur). -->
-      <button type="button" id="tab-assistant" class="sidebar-link" role="tab" aria-selected="false" onclick="definirOnglet('assistant')">
-        <span class="sidebar-link-icone" id="icon-nav-assistant" aria-hidden="true"></span>Demander à CLAIRE
+      <!-- Agenda de l'office (page Agenda, 30/09), sous le Suivi des dossiers (étude 09/10). -->
+      <button type="button" id="tab-agenda" class="sidebar-link" role="tab" aria-selected="false" onclick="definirOnglet('agenda')">
+        <span class="sidebar-link-icone" id="icon-nav-agenda" aria-hidden="true"></span>Agenda
+        <!-- Réponses aux dates proposées arrivées et pas encore vues (majBadgeAgendaDates). -->
+        <span class="sidebar-badge-notif" id="badge-notif-agenda" style="display:none;"></span>
       </button>
 
       <!-- Outils (étude, 01/10 puis 06/10) : plus de page des outils — « Outils » déplie ou replie le tiroir dans la barre
@@ -127,7 +122,7 @@
         </button>
         <!-- Outil 2, relecture d'un acte : rangée parmi les outils (étude 05/10 : « passe Relecture d'actes sous les outils »).
              Distinct du wizard « Nouveau dossier » — on dépose l'acte ET ses annexes pour une relecture croisée, sans créer de dossier. -->
-        <button type="button" id="tab-analyse-ia" class="sidebar-link sidebar-sousmenu-item" role="tab" aria-selected="false" onclick="definirOnglet('analyse-ia')">
+        <button type="button" id="tab-analyse-ia" class="sidebar-link sidebar-sousmenu-item" style="display:none;" role="tab" aria-selected="false" onclick="definirOnglet('analyse-ia')">
           <span class="sidebar-link-icone" id="icon-nav-analyse-ia" aria-hidden="true"></span>Relecture d'actes<span class="stade-badge stade-badge-nav" title="Alpha : outil encore en test, à utiliser avec le mode commentaires.">Alpha</span>
         </button>
         <!-- Répertoire : offices notariaux (carnet des confrères, server/src/carnetConfreres.js) et
@@ -140,6 +135,12 @@
         </button>
       </div>
       </div>
+
+      <!-- « Demander à CLAIRE » (étude 06/10, au-dessus des Réglages et réservé à Bastien depuis le 09/10, `majSidebarReservee`) : page de conversation — une phrase, CLAIRE répond ou fait le geste
+           (client/49-assistant.js, commun/assistant.js, IA locale côté serveur). -->
+      <button type="button" id="tab-assistant" class="sidebar-link" style="display:none;" role="tab" aria-selected="false" onclick="definirOnglet('assistant')">
+        <span class="sidebar-link-icone" id="icon-nav-assistant" aria-hidden="true"></span>Demander à CLAIRE
+      </button>
 
       <!-- Réglages de l'étude (URL du flux Power Automate + adresse email de chaque collaborateur) :
            une donnée métier que l'étude doit pouvoir modifier elle-même, sans passer par un fichier

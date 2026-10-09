@@ -835,6 +835,19 @@
 
   function estAdministrateur(nom) { return ADMINISTRATEURS.indexOf(nom) !== -1; }
 
+  // Écrans réservés à l'administrateur (étude 09/10 : « Relecture d'actes et Demander à CLAIRE que pour Bastien »).
+  var ONGLETS_ADMINISTRATEUR = ['assistant', 'analyse-ia'];
+  function ongletReserve(nom, utilisateur) { return ONGLETS_ADMINISTRATEUR.indexOf(nom) !== -1 && !estAdministrateur(utilisateur); }
+  // Liens de la barre latérale réservés, montrés ou cachés selon le collaborateur du poste ; un écran réservé resté ouvert repart au tableau de bord.
+  function majSidebarReservee() {
+    const admin = estAdministrateur(utilisateurPoste);
+    ONGLETS_ADMINISTRATEUR.forEach(nom => {
+      const lien = document.getElementById('tab-' + nom);
+      if (lien) lien.style.display = admin ? '' : 'none';
+    });
+    if (!admin && ongletReserve(ongletActuel, utilisateurPoste)) definirOnglet('dashboard');
+  }
+
   // « Julie VASSELIN » → « Julie ». Pure.
   function prenomCollaborateur(nom) {
     const mots = String(nom || '').trim().split(/\s+/).filter(Boolean);
@@ -979,6 +992,7 @@
     if (filtreSuivi) filtreSuivi.value = '';
     const ongletSuivi = document.getElementById('tab-suivi');
     if (ongletSuivi && ongletSuivi.classList.contains('actif')) appliquerFiltreSuiviCollaborateur();
+    majSidebarReservee();
     fermerChoixPoste();
     ajoutRappelOuvert = false;
     rappelsPerso = [];
@@ -991,6 +1005,7 @@
 
   function initUtilisateurPoste() {
     utilisateurPoste = lireUtilisateurPoste();
+    majSidebarReservee();
     enregistrerVisite(utilisateurPoste);
     const select = document.getElementById('reglages-utilisateur-poste');
     if (select) {
@@ -1283,9 +1298,11 @@
   // supprimer ») : tous les widgets, affichés ou retirés, avec Ajouter / Retirer. Retirer ne perd que
   // la place sur le tableau de bord : le widget revient à sa taille d'avant quand on le rajoute. ----
   // Pure : les lignes de la liste, dans l'ordre du catalogue — affichés d'abord, puis retirés.
-  function lignesGalerieWidgets(dispo) {
+  // « Demander à CLAIRE » n'est proposé qu'à l'administrateur (étude 09/10).
+  function lignesGalerieWidgets(dispo, utilisateur) {
     const parId = new Map((dispo || []).map(w => [w.id, w]));
-    const lignes = WIDGETS_DASHBOARD.map(def => ({ def, affiche: !(parId.get(def.id) || {}).masque }));
+    const lignes = WIDGETS_DASHBOARD.filter(def => !(def.id === 'assistant' && !estAdministrateur(utilisateur)))
+      .map(def => ({ def, affiche: !(parId.get(def.id) || {}).masque }));
     return lignes.filter(l => l.affiche).concat(lignes.filter(l => !l.affiche));
   }
 
@@ -1309,7 +1326,7 @@
     const overlay = document.getElementById('widgets-overlay');
     const liste = document.getElementById('widgets-galerie-liste');
     if (!overlay || !liste || overlay.style.display === 'none') return;
-    const lignes = lignesGalerieWidgets(dispositionWidgetsCourante());
+    const lignes = lignesGalerieWidgets(dispositionWidgetsCourante(), utilisateurPoste);
     const nbAffiches = lignes.filter(l => l.affiche).length;
     const titre = (texte, n) => `<div class="widgets-galerie-groupe">${texte} <span class="jour-onglet-nb">${n}</span></div>`;
     const ligne = ({ def, affiche }) => `
@@ -1497,7 +1514,8 @@
       // sauf en personnalisation où il reste visible pour être rangé.
       const interieur = el.querySelector('.dash-bloc');
       const vide = !!interieur && interieur.style.display === 'none';
-      el.style.display = w.masque || (vide && !modeEditionWidgets) ? 'none' : '';
+      const reserve = w.id === 'assistant' && !estAdministrateur(utilisateurPoste);   // « Demander à CLAIRE » : Bastien seulement
+      el.style.display = w.masque || reserve || (vide && !modeEditionWidgets) ? 'none' : '';
       el.classList.toggle('widget-vide', vide);
       el.querySelectorAll(':scope > .widget-barre, :scope > .widget-retirer, :scope > .widget-fleche').forEach(x => x.remove());
       if (modeEditionWidgets && !w.masque) {
