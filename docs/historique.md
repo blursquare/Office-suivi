@@ -18756,7 +18756,17 @@ du CRIDON (`droitSaferArbre`) : zone A ou N (hors lot de copropriété) → `oui
 `FORMALITE_NOTIFICATION_SAFER_ZONE_AN`, motif qui garde ce que l'arbre disait (« pas de droit de préemption ») ; la pièce « Réponse
 SAFER » est ajoutée et n'est plus retirée quand une réponse ôte le droit. Hors zone A ou N : inchangé. Tests : tests/preemption.test.js.
 
-### 09/10/2026 — Cause d'un échec de Sitadel / IGN / Géoportail dite (0.204.1)
+### 09/10/2026 — Cartes « Probable » réparties dans la semaine (0.204.1)
+
+Étude, capture de la vue Jour : cinq cartes « Probable » le même jour (12 h, 13 h, 15 h, 17 h, 18 h) au milieu de quatre autres
+rendez-vous — « prendre en compte aussi les autres rendez-vous, pas plus de 6 par jour, dispatcher dans la semaine ». Cause : tous
+probables le même jour (vente préalable ce jour-là) ; une fois la journée pleine, `creneauxProposesSignature` passait aux créneaux
+« exceptionnels » (midi, après 18 h, au-delà de 6 rendez-vous). `fantomesSemaineAgenda` (client/25) : jamais d'exceptionnel pour
+une carte fantôme (`bornes.sansExceptionnel`) ; de la date probable au vendredi d'abord, puis les jours d'avant de la même
+semaine (pas avant demain), le jour le moins chargé d'abord ; sinon la carte reste sans heure (« à placer cette semaine »). Les
+créneaux proposés pour placer un rendez-vous (avec leur exception signalée) ne changent pas. Test : tests/agenda-page.test.js
+(échouait sur l'ancien code : 10 rendez-vous le vendredi).
+### 09/10/2026 — Cause d'un échec de Sitadel / IGN / Géoportail dite (0.204.2)
 
 Rapport de 17 h (issue 23) : « Sitadel injoignable » au bureau à 16 h 13, sans la cause (le même service répondait d'ici).
 `causeEchec` (server/src/routes/urbanisme.js) : « réponse N » (statut du service, 429 = trop de requêtes), « délai dépassé »
