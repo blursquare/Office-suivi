@@ -36,7 +36,8 @@
   // RUBRIQUES_SCANS (server/src/scans.js), essayées dans l'ordre ; aucune trouvée = racine du dossier.
   var RUBRIQUES_PIECES_HORS_SCAN = {
     entretienClim: ['aae'], entretienAdoucisseur: ['aae'], debroussaillage: ['aae'], travauxRemiseEtat: ['travaux', 'aae'],
-    miseEnConformite: ['travaux', 'aae'], cuveCiterne: ['aae'], debarras: ['aae'], resiliationContrat: ['aae'],
+    miseEnConformite: ['travaux', 'aae'], miseEnConformiteElectricite: ['travaux', 'aae'], miseEnConformiteAssainissement: ['travaux', 'aae'],
+    miseEnConformiteGaz: ['travaux', 'aae'], regularisationUrbanisme: ['travaux', 'aae'], consuel: ['travaux', 'aae'], cuveCiterne: ['aae'], debarras: ['aae'], resiliationContrat: ['aae'],
     securitePiscine: ['aae'], attestationConformite: ['travaux', 'aae'], facturesTravaux: ['travaux', 'aae'],
     etatParasitaire: ['diagnostics', 'aae'], auditEnergetique: ['diagnostics', 'aae']
   };

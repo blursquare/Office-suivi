@@ -140,10 +140,18 @@
     { cle: 'entretienAdoucisseur', label: "Entretien de l'adoucisseur d'eau", motifNom: /adoucisseur/i },
     { cle: 'debroussaillage', label: 'Débroussaillage / élagage', motifNom: /d[ée]\s?broussaill|[ée]lagage/i },
     { cle: 'travauxRemiseEtat', label: 'Travaux de remise en état', motifNom: /remise\s*en\s*[ée]\s?tat|remise\s*en\s*etat/i },
-    { cle: 'miseEnConformite', label: 'Régularisation / mise en conformité', motifNom: /mise\s*en\s*conformit[ée]|r[ée]\s?gularisation/i },
+    // Mise en conformité précisée par son objet (étude 09/10 : « préciser pour électricité, assainissement… ») ; la pièce
+    // générique ne reste que pour un objet non lu.
+    { cle: 'miseEnConformiteElectricite', label: 'Mise en conformité de l’électricité', motifNom: /mise\s*en\s*conformit[ée].{0,30}[ée]lectri|[ée]lectri.{0,30}mise\s*en\s*conformit/i },
+    { cle: 'miseEnConformiteAssainissement', label: 'Mise en conformité de l’assainissement', motifNom: /mise\s*en\s*conformit[ée].{0,30}(?:assainis|fosse|spanc)|(?:assainis|fosse|spanc).{0,30}mise\s*en\s*conformit/i },
+    { cle: 'miseEnConformiteGaz', label: 'Mise en conformité du gaz', motifNom: /mise\s*en\s*conformit[ée].{0,30}gaz|gaz.{0,30}mise\s*en\s*conformit/i },
+    { cle: 'regularisationUrbanisme', label: 'Régularisation des travaux (urbanisme)', motifNom: /r[ée]\s?gularisation/i },
+    { cle: 'miseEnConformite', label: 'Mise en conformité (objet à préciser)', motifNom: /mise\s*en\s*conformit[ée](?!.*(?:[ée]lectri|assainis|fosse|spanc|gaz))/i },
     { cle: 'cuveCiterne', label: 'Enlèvement / neutralisation de cuve ou citerne', motifNom: /citerne|cuve\s*[àa]?\s*(?:fioul|mazout|gaz)?|d[ée]\s?gazage/i },
     { cle: 'debarras', label: 'Débarras des encombrants', motifNom: /d[ée]\s?barras|encombrants/i },
-    { cle: 'attestationConformite', label: 'Attestation de conformité', motifNom: /consuel|(?:attestation|certificat).{0,20}conformit[ée]/i },
+    // Attestation de conformité = travaux de construction seulement (étude 09/10) ; le Consuel est une pièce à part.
+    { cle: 'attestationConformite', label: 'Attestation de conformité des travaux de construction', motifNom: /(?:attestation|certificat).{0,20}conformit[ée](?!.{0,30}(?:[ée]lectri|gaz|assainis|spanc))|non[\s-]*contestation|daact/i },
+    { cle: 'consuel', label: 'Consuel (attestation de conformité électrique)', motifNom: /consuel/i },
     { cle: 'garantieDecennale', label: 'Garantie décennale', motifNom: /d[ée]\s?cennale/i },
     { cle: 'dommageOuvrage', label: 'Assurance dommage-ouvrage', motifNom: /dommages?[\s-]*ouvrage/i },
     { cle: 'facturesTravaux', label: 'Factures des travaux réalisés', motifNom: /factures?.{0,20}travaux|travaux.{0,20}factures?/i },

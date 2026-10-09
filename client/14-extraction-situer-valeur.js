@@ -92,13 +92,20 @@
 
     // Travaux à réaliser
     { motif: /remettre\s+en\s+[ée]tat|remise\s+en\s+[ée]tat|r[ée]paration/i, label: 'Travaux de remise en état', cat: 'travaux', cleChecklist: 'travauxRemiseEtat' },
-    { motif: /r[ée]gularisation.{0,60}travaux|travaux.{0,60}r[ée]gularis|mise\s+en\s+conformit[ée]/i, label: 'Régularisation / mise en conformité', cat: 'travaux', cleChecklist: 'miseEnConformite' },
+    // Mise en conformité précisée par son objet (étude 09/10) ; la générique seulement si aucun objet n'est lu (`siAucun`).
+    { motif: /mise\s+en\s+conformit[ée][^.]{0,80}(?:[ée]lectri|tableau\s+[ée]lectrique)|[ée]lectri[^.]{0,80}mise\s+en\s+conformit/i, label: 'Mise en conformité de l’électricité', cat: 'travaux', cleChecklist: 'miseEnConformiteElectricite', famille: 'conformite' },
+    { motif: /mise\s+en\s+conformit[ée][^.]{0,80}(?:assainissement|fosse|SPANC|raccordement|tout[-\s][àa][-\s]l['’]\s*[ée]gout)|(?:assainissement|fosse|SPANC)[^.]{0,80}mise\s+en\s+conformit/i, label: 'Mise en conformité de l’assainissement', cat: 'travaux', cleChecklist: 'miseEnConformiteAssainissement', famille: 'conformite' },
+    { motif: /mise\s+en\s+conformit[ée][^.]{0,80}\bgaz\b|\bgaz\b[^.]{0,80}mise\s+en\s+conformit/i, label: 'Mise en conformité du gaz', cat: 'travaux', cleChecklist: 'miseEnConformiteGaz', famille: 'conformite' },
+    { motif: /r[ée]gularisation.{0,60}(?:travaux|permis|d[ée]claration|autorisation)|travaux.{0,60}r[ée]gularis/i, label: 'Régularisation des travaux (urbanisme)', cat: 'travaux', cleChecklist: 'regularisationUrbanisme', famille: 'conformite' },
+    { motif: /mise\s+en\s+conformit[ée]/i, label: 'Mise en conformité (objet à préciser)', cat: 'travaux', cleChecklist: 'miseEnConformite', siAucun: 'conformite' },
     { motif: /cuve\s+[àa]\s+(?:fioul|mazout|gaz)|citerne|d[ée]gazage|enl[èe]vement.{0,40}citerne/i, label: 'Enlèvement / neutralisation de cuve ou citerne', cat: 'travaux', cleChecklist: 'cuveCiterne' },
     { motif: /d[ée]barras|encombrants/i, label: 'Débarras des encombrants', cat: 'travaux', cleChecklist: 'debarras' },
 
     // Justificatifs et attestations
     { motif: /arr[êe]t[ée]\s+(?:d['’]\s*autorisation|de\s+(?:permis|non[-\s]?opposition))|(?:fournir|remettre|produire|transmettre)\s+(?:le\s+|la\s+|l['’]\s*)?(?:permis\s+de\s+construire|d[ée]claration\s+pr[ée]alable|autorisation\s+d['’]\s*urbanisme)/i, label: 'Autorisation d’urbanisme (arrêté du permis ou non-opposition)', cat: 'justificatif', cleChecklist: null },
-    { motif: /certificat\s+de\s+conformit[ée]|attestation\s+de\s+conformit[ée]|consuel/i, label: 'Attestation de conformité', cat: 'justificatif', cleChecklist: 'attestationConformite' },
+    // Consuel à part ; « attestation de conformité » = travaux de construction seulement (étude 09/10).
+    { motif: /consuel|attestation\s+de\s+conformit[ée][^.]{0,40}[ée]lectri/i, label: 'Consuel (attestation de conformité électrique)', cat: 'justificatif', cleChecklist: 'consuel' },
+    { motif: /(?:certificat|attestation)\s+de\s+(?:non[-\s]?contestation\s+de\s+la\s+)?conformit[ée](?![^.]{0,60}(?:[ée]lectri|gaz|assainissement|SPANC|consuel|installation))|non[-\s]?contestation\s+de\s+la\s+conformit[ée]|d[ée]claration\s+attestant\s+l['’]\s*ach[èe]vement/i, label: 'Attestation de conformité des travaux de construction', cat: 'justificatif', cleChecklist: 'attestationConformite' },
     { motif: /garantie\s+d[ée]cennale|(?:assurance|attestation)\s+(?:d['’]\s*)?(?:assurance\s+)?d[ée]cennale/i, label: 'Justificatif de garantie décennale', cat: 'justificatif', cleChecklist: 'garantieDecennale' },
     { motif: /dommage[- ]ouvrage/i, label: 'Assurance dommage-ouvrage', cat: 'justificatif', cleChecklist: 'dommageOuvrage' },
     { motif: /factures?\s+(?:finales?\s+)?(?:des\s+|de\s+l['’]?\s*|de\s+|du\s+)?(?:travaux|constructeur|entreprises?|artisans?)|justificatifs?\s+(?:des\s+)?travaux/i, label: 'Factures des travaux réalisés', cat: 'justificatif', cleChecklist: 'facturesTravaux' },
@@ -158,7 +165,8 @@
     const type = typeof clause === 'string' ? null : (clause && clause.type) || null;
     const resultats = [];
     elementsEnumeresClause(phrase).forEach(({ texte, enumere }) => {
-      const connus = DOCUMENTS_VENDEUR_CONNUS.filter(doc => doc.motif.test(texte));
+      const trouves = DOCUMENTS_VENDEUR_CONNUS.filter(doc => doc.motif.test(texte));
+      const connus = trouves.filter(doc => !doc.siAucun || !trouves.some(x => x.famille === doc.siAucun));
       connus.forEach(doc => resultats.push({ label: doc.label, cat: doc.cat, cleChecklist: doc.cleChecklist || null }));
       if (connus.length || !TYPES_OBLIGATION_DOCUMENT.includes(type)) return;
       let fragment = texte;

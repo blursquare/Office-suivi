@@ -18714,3 +18714,18 @@ acquéreur qui en fait son affaire, sanctions prescrites).
   ou non-opposition) » ; « attestation d'assurance décennale » reconnue (justificatif de garantie décennale).
 Tests : tests/controle-urbanisme-relecture.test.js, tests/engagements.test.js (structure réelle, entreprises et années inventées).
 Le PDF n'est pas commité.
+
+### 09/10/2026 — Pièces de conformité précisées (0.203.0)
+
+Étude : « Attestation de conformité : préciser uniquement pour les travaux de construction. Si Consuel mettre Consuel.
+Régularisation / mise en conformité : préciser pour électricité, assainissement… ». Analyse de l'avant-contrat
+(`DOCUMENTS_VENDEUR_CONNUS`, client/14) et checklist (`PIECES_ENGAGEMENTS_AUTO`, commun/pieces.js) :
+- `consuel` (nouvelle) : « Consuel », ou « attestation de conformité … électrique » ;
+- `attestationConformite` = « Attestation de conformité des travaux de construction » : certificat / attestation de conformité
+  sans électricité, gaz, assainissement, SPANC ni installation derrière, non-contestation de la conformité, DAACT ;
+- mise en conformité par objet : `miseEnConformiteElectricite`, `miseEnConformiteAssainissement`, `miseEnConformiteGaz`,
+  `regularisationUrbanisme` (régularisation des travaux) ; `miseEnConformite` = « objet à préciser », seulement si aucun objet
+  n'est lu dans la clause (`siAucun` / `famille`, filtre de `documentsDepuisClause`).
+Noms de fichiers (`FORMES_NOM_PIECES`, `EXEMPLES_NOMS_PIECES`), termes élargis (client/35) et rubriques des pièces jointes
+(client/31) suivent. Un dossier qui avait « Attestation de conformité » venue d'une clause Consuel garde sa clé : son libellé devient
+« … des travaux de construction » — à décocher ou retirer à la main. Tests : tests/engagements.test.js.

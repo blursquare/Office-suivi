@@ -224,3 +224,19 @@ test('engagements qui commencent pareil : tous gardés ; arrêté du permis et a
   // Une clause d'urbanisme sans document à fournir reste écartée (pas de bruit).
   assert.equal(app.extraireEngagementsVendeur('Le VENDEUR s’engage à respecter les règles d’urbanisme et le permis de construire.').length, 0);
 });
+
+test('conformité : Consuel à part, attestation de conformité = construction, mise en conformité précisée par son objet', () => {
+  const app = chargerApplication();
+  const docs = (t) => app.detecterDocumentsAFournir(app.extraireEngagementsVendeur(t)).map(d => d.label + '=' + d.cleChecklist).join(' ; ');
+  assert.equal(docs('Le VENDEUR s’engage à remettre l’attestation Consuel de l’installation électrique.'), 'Consuel (attestation de conformité électrique)=consuel');
+  assert.equal(docs('Le VENDEUR s’engage à remettre l’attestation de conformité de l’installation électrique.'), 'Consuel (attestation de conformité électrique)=consuel');
+  assert.match(docs('Le VENDEUR s’engage à fournir le certificat de conformité de l’extension.'), /Attestation de conformité des travaux de construction=attestationConformite/);
+  assert.doesNotMatch(docs('Le VENDEUR s’engage à fournir l’attestation de conformité de l’installation d’assainissement délivrée par le SPANC.'), /construction/);
+  assert.match(docs('Le VENDEUR s’engage à faire procéder à la mise en conformité de l’installation électrique avant la vente.'), /Mise en conformité de l’électricité=miseEnConformiteElectricite/);
+  assert.match(docs('Le VENDEUR s’engage à faire réaliser les travaux de mise en conformité de l’assainissement individuel.'), /Mise en conformité de l’assainissement=miseEnConformiteAssainissement/);
+  assert.doesNotMatch(docs('Le VENDEUR s’engage à faire réaliser les travaux de mise en conformité de l’assainissement individuel.'), /objet à préciser/);
+  assert.match(docs('Le VENDEUR s’engage à faire réaliser la mise en conformité du garde-corps.'), /Mise en conformité \(objet à préciser\)=miseEnConformite/);
+  // Les noms de fichiers suivent : « Consuel » n'est plus une attestation de conformité de construction.
+  const pieces = app.checklistPieces('maison', { analyseJuridique: { documents: app.detecterDocumentsAFournir(app.extraireEngagementsVendeur('Le VENDEUR s’engage à remettre l’attestation Consuel.')) } });
+  assert.ok(pieces.some(p => p.cle === 'consuel'));
+});
