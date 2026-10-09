@@ -234,6 +234,34 @@
   // « Soit au total » des sommes à déduire, 1.385,00 €, était pris pour le montant attendu).
   var AF_SOLDE_FINAL_RE = /(?:^|\s)(?:solde\s+(?:[àa]\s+)?(?:verser|payer|r[ée]gler)|reste\s+(?:[àa]\s+)?(?:verser|payer|r[ée]gler)|versement\s+[àa]\s+la\s+signature|solde\s+prix\s+de\s+vente)(?![A-Za-zÀ-ÿ])/i;
 
+  // Le solde à recevoir d'un courrier de l'étude = la DERNIÈRE ligne « Solde à verser » du tableau (étude 09/10, convocation
+  // scannée : « le solde à recevoir est la dernière ligne du tableau Solde à verser »). Lu à part, et tolérant aux erreurs de
+  // l'OCR d'un scan (« 150.00 € », « 131 307,98 E », € perdu, montant renvoyé seul à la ligne suivante) : une seule ligne mal
+  // reconnue ne doit plus laisser gagner un « Soit au total » plus haut. null si aucune ligne ne le porte.
+  var AF_LIBELLE_SOLDE_A_VERSER_RE = /(?:^|[^A-Za-zÀ-ÿ])(?:solde|reste)\s+(?:[àaÀA]\s+)?(?:verser|payer|r[ée]gler)(?![A-Za-zÀ-ÿ])/i;
+  var AF_MONTANT_OCR_RE = /(\d{1,3}(?:[.\s\u00a0\u202f']\d{3})*|\d+)[,.](\d{2})(?!\d)/g;
+  function montantOcrFinLigne(texte) {
+    const ms = [...String(texte || '').matchAll(AF_MONTANT_OCR_RE)];
+    if (!ms.length) return null;
+    const m = ms[ms.length - 1];
+    const n = Number(m[1].replace(/[^\d]/g, '') + '.' + m[2]);
+    return n > 0 ? n : null;
+  }
+  function soldeAVerserDansTexte(texte) {
+    const lignes = String(texte || '').split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+    let solde = null;
+    lignes.forEach((ligne, i) => {
+      const m = AF_LIBELLE_SOLDE_A_VERSER_RE.exec(ligne);
+      if (!m) return;
+      const reste = ligne.slice(m[0].length);
+      let montant = montantOcrFinLigne(reste);
+      // Montant renvoyé seul sur la ligne suivante (colonne lue à part par l'OCR).
+      if (montant == null && !/[A-Za-zÀ-ÿ]{3,}/.test(reste) && lignes[i + 1] && !/[A-Za-zÀ-ÿ]{3,}/.test(lignes[i + 1])) montant = montantOcrFinLigne(lignes[i + 1]);
+      if (montant != null) solde = montant;
+    });
+    return solde;
+  }
+
   function parserDecompteConfrere(texte) {
     // « 199, 50 € » : pdf.js coupe parfois les centimes après la virgule (convocation de l'étude, 03/10).
     const lignes = String(texte || '').split(/\r?\n/).map(l => l.trim().replace(/(\d),\s+(\d{2})(\s*€)/g, '$1,$2$3')).filter(Boolean);

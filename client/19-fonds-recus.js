@@ -234,7 +234,7 @@
     const declare = Number(r.meta && r.meta.soldeDeclare);
     // Un total annoncé sans « Solde à verser » ne vaut solde que s'il n'y a rien à déduire après lui.
     const declareFiable = declare > 0 && (r.meta.soldeFinal || !somme(r.lignes.credit));
-    const solde = declareFiable ? declare : calcule;
+    const solde = soldeAVerserDansTexte(texte) || (declareFiable ? declare : calcule);
     return solde > 0 ? solde : null;
   }
 
@@ -325,7 +325,7 @@
       // Claire Scan. Jamais sur un document long (un scan de quatre pages au plus).
       if (texte.trim().length < 40 && pdf.numPages <= PAGES_MAX_OCR_DECOMPTE) texte = await texteOcrDecompte(pdf);
       if (strict) {
-        const declare = Number(parserDecompteConfrere(texte).meta.soldeDeclare);
+        const declare = soldeAVerserDansTexte(texte) || Number(parserDecompteConfrere(texte).meta.soldeDeclare);
         return declare > 0 ? { montant: declare, source: f.nom, chemin } : null;
       }
       const solde = soldeAttenduDepuisDecompte(texte);

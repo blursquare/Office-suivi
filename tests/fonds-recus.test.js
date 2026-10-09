@@ -339,3 +339,28 @@ test('convocation de l’étude : « Solde à verser » précédé du texte de l
   const sansSolde = texte.split('\n').filter(l => !/Solde/.test(l)).join('\n');
   assert.equal(app.soldeAttenduDepuisDecompte(sansSolde), 161610.4);
 });
+
+test('convocation scannée : le solde attendu est la dernière ligne « Solde à verser », même mal lue par l’OCR', () => {
+  // Structure de la convocation de l'étude scannée (09/10), montants inventés ; erreurs typiques de l'OCR d'un scan.
+  const lignes = [
+    'Prix d’acquisition',
+    '120.000,00 €',
+    'Montant des frais et droits de l’acte de vente 2.800,00 €',
+    'Charges du trimestre en cours 500,00 €',
+    'Quote-part de taxes foncières 300,00 €',
+    'Soit au total 123.600,00 €',
+    'A déduire',
+    'Acompte sur prix versé à l’étude 150.00 €',
+    'Soit au total 150,00 €',
+    'Solde à verser 123.450,00 E',
+    'de faire le point sur le déblocage de votre prêt (total ou partiel si vous financez des',
+    'travaux), ainsi que sur le virement du solde correspondant à votre apport personnel.'
+  ];
+  assert.equal(app.soldeAttenduDepuisDecompte(lignes.join('\n')), 123450);
+  assert.equal(app.soldeAVerserDansTexte(lignes.join('\n')), 123450);
+  // Montant lu seul sur la ligne suivante.
+  const renvoye = lignes.map(l => l.startsWith('Solde') ? 'Solde a verser\n123 450,00' : l).join('\n');
+  assert.equal(app.soldeAttenduDepuisDecompte(renvoye), 123450);
+  // Pas de ligne « Solde à verser » : rien de lu à part, le lecteur du décompte décide.
+  assert.equal(app.soldeAVerserDansTexte(lignes.filter(l => !l.startsWith('Solde')).join('\n')), null);
+});

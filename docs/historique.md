@@ -18665,3 +18665,16 @@ Awesome et UI/UX de CLAIRE. Que ça soit attractif et facile à lire du premier 
   compromis », « Déposer un PDF ») ;
 - fiche : pastilles des seuls points à réclamer, résumé Sitadel « PC 2021 · chantier commencé ».
 Vu dans Chromium (bureau et téléphone) avec une vraie parcelle de Blois.
+
+### 09/10/2026 11 h 15 — Montant attendu : la dernière ligne « Solde à verser » (0.201.2)
+
+Étude, sur une convocation au rendez-vous scannée par Claire Scan : « le solde à recevoir est la dernière ligne du tableau
+Solde à verser » (tableau : prix, frais, charges, taxe foncière, « Soit au total », « A déduire » acompte, « Soit au total »
+de la colonne des déductions, « Solde à verser »). Rejouée par un OCR propre (150 à 300 ppp), la lecture donnait déjà le bon
+solde ; mais l'OCR d'un scan déforme parfois un montant (« 150.00 € » avec un point à 150 ppp, € lu « E » ou perdu, montant
+renvoyé seul à la ligne) — la ligne « Solde à verser » n'était alors plus vue et un « Soit au total » plus haut, ou un calcul
+débit − crédit incomplet, gagnait. `soldeAVerserDansTexte` (client/40) lit à part la DERNIÈRE ligne « Solde / Reste à
+verser / payer / régler » avec un montant tolérant (`montantOcrFinLigne`), ou le montant seul de la ligne suivante ; elle
+passe avant tout dans `soldeAttenduDepuisDecompte` et dans la lecture stricte de `montantAttenduDepuisNas`. Test :
+`tests/fonds-recus.test.js` (structure de la convocation, montants inventés). Le PDF n'est pas commité. Non vérifié : le
+texte exact que rend tesseract.js dans le navigateur sur ce scan (ici, Tesseract en ligne de commande).

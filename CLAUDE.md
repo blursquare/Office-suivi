@@ -385,7 +385,7 @@ dans `index.html`** (le test `structure-client` refuse tout décalage).
   dossier écarte l'écriture. Reçus **gardés en mémoire** : les fichiers sont supprimés du commun une fois traités, un versement déjà
   retenu dont le fichier n'est plus relu reste compté (`fusionnerRecusMemorises`, `memorise`), retrait
   à la main seulement. Complet = montant attendu **à 2 € près** (étude 05/10, 50 € avant ; `MARGE_FONDS_RECUS`, `bilanFondsRecus`
-  dans `commun/montants.js`, le serveur l'importe sous le nom `bilanFonds`) ; au-delà, « excédent » à vérifier, jamais « complet ». Noms cherchés :
+  dans `commun/montants.js`, le serveur l'importe sous le nom `bilanFonds`) ; au-delà, « excédent » à vérifier, jamais « complet ». **Montant attendu = la dernière ligne « Solde à verser » du courrier** (étude 09/10, `soldeAVerserDansTexte`, tolérante à l'OCR d'un scan), jamais un « Soit au total » plus haut. Noms cherchés :
   parties acquéreurs (et leur `nomUsage`, lu dans l'état civil « Veuve/Épouse de Monsieur … NOM » par
   `nomsUsageDansBloc`) + nom du dossier + nom du courrier d'appel de fonds + `d.nomsRecus`.
 - **Compromis d'agence (étude 08/10, compromis réel scanné)** : source des honoraires cherchée À PARTIR de leur clause
