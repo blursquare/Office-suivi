@@ -1476,7 +1476,7 @@
     // n'est plus qu'indicative, et devient une précision sous le rendez-vous (voir plus bas).
     const butoirSousRdv = !!(d.rendezVousSignature && d.acte);
     const saferFiche = d.authentic && d.authentic.safer;
-    const echeanceSaferFiche = saferFiche && d.roleNotaire !== 'participant' ? echeanceSaferTacite(saferFiche) : '';
+    const echeanceSaferFiche = saferFiche && d.roleNotaire !== 'participant' && !saferNonApplicable(d) ? echeanceSaferTacite(saferFiche) : '';   // rien à purger (zone U…) : pas de ligne
     if (echeanceSaferFiche) {
       const levee = saferLevee(d);
       const avantRdv = !levee && d.rendezVousSignature && echeanceSaferFiche >= d.rendezVousSignature;

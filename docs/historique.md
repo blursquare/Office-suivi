@@ -18805,3 +18805,7 @@ Capture de l'étude (« M. CHAHUNEAU Alain et Mme BARBIER Catherine — Vendeur 
 
 Étude : « si une partie est notée en autre intervenant, ne pas la mettre dans la fiche CLAIRE ». `comparantsAuthentic` reconnaît la qualité « (Autre) intervenant » (seule sur sa ligne ou en fin de ligne) et écarte ses noms ; sans cela ils auraient été collés à la qualité suivante. Une personne ainsi écartée n'est pas comparante : la fiche client ne l'ajoute pas et `retirerPartiesHorsComparants` retire celle déjà reprise d'Authentic (quand les deux côtés sont lus). Autres qualités (mandataire, représentant…) non traitées : à demander sur une vraie page.
 
+### 09/10/2026 18 h 58 — 0.206.3 : pas de délai SAFER quand il n'y a rien à purger
+
+Capture : « Délai SAFER — envoyée le 3 août, non-préemption (délai écoulé) le 3 octobre » sur un dossier en zone U. Étude : « il n'y a pas de SAFER à purger, on est en zone U ». `saferNonApplicable(d)` (commun/planning.js) : le droit `safer` de `d.preemption.droits` a le statut « non » → `saferLevee` vrai, `echeanceSaferDossier` vide, ligne « Délai SAFER » de la fiche non rendue. Non changé : la pièce « Réponse SAFER » que le relevé d'Authentic a pu ajouter à la checklist reste (à retirer à la main si inutile).
+

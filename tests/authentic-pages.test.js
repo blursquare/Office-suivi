@@ -1522,3 +1522,15 @@ test('comparantsAuthentic : une personne notée « Autre intervenant » n’est 
   assert.equal(lire('Comparants\nM. LEBRUN Jean\nAutre intervenant\nMme MARCHAND Sylvie\nAcquéreur\nM. MARTEL Luc\nVendeur\nImmeubles'), 'MARCHAND Sylvie:ACQUEREUR,MARTEL Luc:VENDEUR');
   assert.equal(lire('Comparants\nM. LEBRUN Jean Autre intervenant\nMme MARCHAND Sylvie Acquéreur\nImmeubles'), 'MARCHAND Sylvie:ACQUEREUR');
 });
+
+test('SAFER : l’analyse dit « non » (zone U…) → ni délai SAFER ni attente, même si Authentic a une notification', () => {
+  const d = { id: 'u', nom: 'DUPONT / MARTIN', typeVente: 'maison', authentic: { safer: { envoyeeLe: '2026-08-03', priseEnCompteLe: '2026-08-03' } } };
+  assert.equal(app.saferLevee(d), false);
+  assert.equal(app.echeanceSaferDossier(d), '2026-10-03');
+  d.preemption = { droits: [{ cle: 'safer', titre: 'SAFER', statut: 'non', motif: 'zone U' }] };
+  assert.equal(app.saferNonApplicable(d), true);
+  assert.equal(app.saferLevee(d), true);
+  assert.equal(app.echeanceSaferDossier(d), '');
+  d.preemption.droits[0].statut = 'oui';
+  assert.equal(app.saferLevee(d), false);
+});

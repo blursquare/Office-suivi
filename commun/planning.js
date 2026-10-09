@@ -178,8 +178,16 @@
   // Pure : la SAFER ne retient plus la signature — non-préemption (reçue ou délai écoulé), pièce
   // « Réponse SAFER » reçue, participation, ou aucune SAFER dans le dossier. Comme la renonciation
   // de la mairie (preemptionLevee), elle conditionne « Fixer le rendez-vous » (étude, 02/10).
+  // Pure : l'analyse du contrôle de l'urbanisme gardée sur la fiche dit que la SAFER ne peut pas préempter (zone U ou AU, lot de
+  // copropriété…, statut « non ») — étude 09/10 : « il n'y a rien à purger, on est en zone U » : une notification relevée dans
+  // Authentic ne crée alors ni délai SAFER ni attente.
+  function saferNonApplicable(d) {
+    const droits = d && d.preemption && Array.isArray(d.preemption.droits) ? d.preemption.droits : [];
+    const safer = droits.find(x => x && x.cle === 'safer');
+    return !!safer && safer.statut === 'non';
+  }
   function saferLevee(d) {
-    if (!d || d.roleNotaire === 'participant') return true;
+    if (!d || d.roleNotaire === 'participant' || saferNonApplicable(d)) return true;
     const sa = d.authentic && d.authentic.safer;
     if (sa && sa.decision === 'non_preemption') return true;
     const piece = (d.piecesPersonnalisees || []).find(p => p && /safer/i.test(p.label || ''));
@@ -314,7 +322,7 @@
     return reels;
   }
 
-  const exportes = { JOURS_APPEL_FONDS_AVANT_RDV, JOURS_RELANCE_FONDS, echeanceAppelFonds, echeanceValidee, JOURS_REDACTION_AVANT_RDV, etatRedactionActe, repereSignatureRedaction, echeanceRedaction, attentesRedaction, redactionAProposer, pretLeve, piecesPreemptionEnAttente, preemptionLevee, MOIS_REPONSE_DIA, echeanceDiaDossier, DELAIS_SAFER, delaiSafer, echeanceSaferTacite, saferLevee, echeanceSaferDossier, echeancesPlanning };
+  const exportes = { JOURS_APPEL_FONDS_AVANT_RDV, JOURS_RELANCE_FONDS, echeanceAppelFonds, echeanceValidee, JOURS_REDACTION_AVANT_RDV, etatRedactionActe, repereSignatureRedaction, echeanceRedaction, attentesRedaction, redactionAProposer, pretLeve, piecesPreemptionEnAttente, preemptionLevee, MOIS_REPONSE_DIA, echeanceDiaDossier, DELAIS_SAFER, delaiSafer, echeanceSaferTacite, saferLevee, saferNonApplicable, echeanceSaferDossier, echeancesPlanning };
   // Node : module.exports ; navigateur : des globaux (noms nus, comme les fonctions de client/).
   if (typeof module !== 'undefined' && module.exports) module.exports = exportes; else Object.assign(globalThis, exportes);
 })(
