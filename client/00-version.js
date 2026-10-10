@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.207.1';
+  const VERSION_APP = '0.207.2';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.207.2', date: '2026-10-10 10:15', resume: "Fiche : chaque carte du tableau (pièces, engagements, tâches, échéances) porte de nouveau sa catégorie en pastille colorée, comme dans « À faire »." },
     { version: '0.207.1', date: '2026-10-10 10:04', resume: "Fiche : l'adresse, le prix, les initiales du responsable et « Ouvrir » sont sur la même ligne que le nom du dossier." },
     { version: '0.207.0', date: '2026-10-10 08:04', resume: "Nouvelle fiche dossier : un bandeau (pièces, signature, geste du moment), le suivi des étapes, et un Tableau en quatre colonnes (À obtenir, À faire, En attente, Fait) avec une case à cocher sur chaque carte. Onglets Tableau, Pièces et analyse, Dossier, Fonds, Échanges, Historique ; seules les initiales du responsable en en-tête ; la fiche s'ouvre toujours en grand." },
     { version: '0.206.7', date: '2026-10-09 19:42', resume: "Fiche : après « Ouvrir » sur l'avant-contrat retrouvé, la ligne montre aussitôt le nom du fichier (elle gardait « Recherché dans le dossier NAS à l'ouverture » jusqu'à un rafraîchissement)." },

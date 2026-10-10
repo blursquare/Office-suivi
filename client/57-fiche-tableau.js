@@ -18,6 +18,12 @@ var COLONNES_TABLEAU_FICHE = [
 var TYPES_ECHEANCE_COCHABLES_FICHE = ['ventebien', 'pret', 'appelFonds', 'projetEnvoye', 'rendezVousSignature', 'redaction'];
 // Étapes attendues d'un tiers (la banque, la mairie, la SAFER, le client) : colonne « En attente ».
 var TYPES_ECHEANCE_ATTENTE_FICHE = ['ventebien', 'pret', 'safer', 'dia', 'rendezVousSignature'];
+// La catégorie de chaque carte, en pastille colorée comme dans « À faire » (mêmes couleurs : dot-label dl-<catégorie>).
+var LIBELLES_CATEGORIE_FICHE = {
+  pret: 'Prêt', ventebien: 'Vente préalable', safer: 'SAFER', dia: 'Préemption', rendezVousSignature: 'Signature', signature: 'Signature',
+  fixerRdv: 'Signature', appelFonds: 'Appel de fonds', projetEnvoye: 'Projet d’acte', redaction: 'Rédaction', autre: 'Autre', piece: 'Pièce',
+  engagement: 'Engagement', acte: 'Signature'
+};
 var RE_PIECE_D_UN_TIERS = /pr[ée]emption|safer|\bdia\b|offre/i;
 
 // Pure : l'écart en jours (négatif = dépassé) d'une date ISO, null sans date.
@@ -187,7 +193,10 @@ function renderCarteTableauFiche(c) {
     ? `<wa-button appearance="outlined" size="s" type="button" class="tf-geste" onclick="${c.bouton.onclick}" title="${escapeAttr(c.bouton.titre)}">${c.bouton.icone}${escapeHtml(c.bouton.libelle)}</wa-button>`
     : '';
   const date = c.jours !== null && !c.fait ? `<span class="tf-date">${escapeHtml(formatDateFr(c.iso))}</span>` : '';
+  const libelleCategorie = LIBELLES_CATEGORIE_FICHE[c.categorie] || '';
+  const categorie = libelleCategorie ? `<span class="dot-label dl-${escapeAttr(c.fait ? 'success' : (c.categorie || 'neutre'))} tf-categorie"><span class="dot"></span>${escapeHtml(libelleCategorie)}</span>` : '';
   return `<article class="tf-carte${c.fait ? ' fait' : ''}${c.gravite ? ' ' + c.gravite : ''}" data-cle="${escapeAttr(c.cle)}">
+    ${categorie}
     <div class="tf-ligne">${rond}${titre}</div>
     ${delai || sous || date ? `<div class="tf-meta">${delai}${date}${sous}</div>` : ''}
     ${geste}
