@@ -18866,3 +18866,8 @@ Capture : « Recherché dans le dossier NAS à l'ouverture » + Ouvrir / Changer
 ### 0.208.3 — 2026-10-10 22:09 — barre latérale : trait à gauche
 
 Étude (10/10), choix 1 des maquettes `docs/maquettes-sidebar/`. `.sidebar-link.actif` : fond `color-mix(--blanc-fixe 6 %)`, trait 3 px `--accent-sombre` en `::after` (le `::before` des outils porte déjà leur branche), lien débordant du retrait de la barre (`margin-left: -16px`, -14 px repliée) ; dans le tiroir Outils pas de débordement ; ligne « Outils » marquée de même quand un outil est ouvert tiroir fermé. Remplace « contour fin + point » du 06/10.
+
+
+### 0.208.4 — 2026-10-10 22:13 — animations des anneaux et barres de progression
+
+Étude (10/10) : « animations quand les anneaux se complètent, pour rendre l'interface plus attractive ». `client/58-animations-progression.js` : un `MutationObserver` relit à chaque changement du DOM les barres (`SELECTEURS_BARRES_PROGRESSION`), l'anneau de la fiche (`.fb-val`), celui d'« Aujourd'hui » (`.jour-anneau-plein`) et les segments du suivi des étapes, et les anime (Web Animations, 0,8 à 1 s) de leur valeur au dernier dessin à la valeur actuelle — de 0 à la première apparition d'un écran (`contexteProgressions` : page + dossier ouverts). Valeur inchangée = aucune animation (la fiche se redessine souvent). Désactivé si `prefers-reduced-motion`. Aucun écran modifié ; un nouvel indicateur s'ajoute à la liste de sélecteurs. Non couverts : donut du portefeuille, arcs de la relecture d'actes.

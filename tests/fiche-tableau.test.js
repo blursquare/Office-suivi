@@ -157,3 +157,10 @@ test('cartes changées : première ouverture sans rien, puis seulement ce qui ar
   const changees = app.cartesChangeesFiche(parCle, apres);
   assert.ok(changees.has('pieces-recues'));
 });
+
+test('animations : une valeur inchangée ne s’anime pas, une première apparition part de 0', () => {
+  assert.deepEqual(JSON.parse(JSON.stringify(app.etapeProgression(undefined, 40))), { de: 0, a: 40, anime: true });
+  assert.deepEqual(JSON.parse(JSON.stringify(app.etapeProgression(40, 40))), { de: 40, a: 40, anime: false });
+  assert.deepEqual(JSON.parse(JSON.stringify(app.etapeProgression(40, 75))), { de: 40, a: 75, anime: true });
+  assert.deepEqual(JSON.parse(JSON.stringify(app.etapeProgression(undefined, 0))), { de: 0, a: 0, anime: false });
+});

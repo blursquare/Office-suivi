@@ -56,5 +56,6 @@
   "54-preemption-dossier.js",
   "55-controle-urbanisme-relecture.js",
   "56-courrier-pdfa.js",
-  "57-fiche-tableau.js"
+  "57-fiche-tableau.js",
+  "58-animations-progression.js"
 ]
