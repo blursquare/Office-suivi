@@ -1206,7 +1206,7 @@
     // sur les pièces trouvées depuis le dernier passage.
     const d = dossiers.find(x => x.id === id);
     const notifs = (d && d.piecesNotifications) || [];
-    ongletFiche = notifs.some(c => c !== CLE_NOTIF_OFFRE_PRET) && d.roleNotaire !== 'participant' ? 'pieces' : 'echeances';
+    ongletFiche = notifs.some(c => c !== CLE_NOTIF_OFFRE_PRET) && d.roleNotaire !== 'participant' ? 'pieces' : 'tableau';
     ajoutEcheanceOuvert = false;
     ajoutPieceOuvert = false;
     ajoutEngagementOuvert = false;
@@ -1281,7 +1281,7 @@
     const panneau = document.getElementById('dossier-drawer');
     const defilement = panneau && dossierRenduDansTiroir === d.id ? panneau.scrollTop : 0;
     dossierRenduDansTiroir = d.id;
-    if (panneau) panneau.classList.toggle('large', ficheLarge);
+    if (panneau) panneau.classList.add('large');
     contenu.innerHTML = renderCarteDossier(d);
     if (panneau) panneau.scrollTop = defilement;
     overlay.style.display = 'flex';
@@ -1988,7 +1988,7 @@
       const notifications = d.piecesNotifications || [];
       const notifPieces = notifications.some(c => c !== CLE_NOTIF_OFFRE_PRET);
       const nbEcheancesAVenir = echeancesPlanning(d).length;
-      const onglet = ongletFiche === 'analyse' ? 'pieces' : (ongletFiche === 'fonds' && estSuccession(d) ? 'echeances' : ongletFiche);
+      const onglet = (ongletFiche === 'analyse') ? 'pieces' : (ongletFiche === 'echeances' ? 'tableau' : (ongletFiche === 'fonds' && estSuccession(d) ? 'tableau' : ongletFiche));
       const cache = nom => onglet === nom ? '' : ' hidden';
 
       // Un onglet par geste, dans l'ordre où on les accomplit sur un dossier : ce qui arrive
@@ -1996,13 +1996,16 @@
       // passé. Le compteur dit ce qu'il y a dedans sans l'ouvrir ; la pastille rouge, qu'il y a du
       // nouveau (même signal « Nouveau » que partout ailleurs, voir d.piecesNotifications).
       const avAnalyse = avancementAnalyse(d);
+      // Tableau (le dossier en quatre colonnes) · Pièces et analyse · Dossier (parties, bien, notaires) · Fonds · Échanges · Historique.
+      const actionsDuDossier = actionsFicheDossier(d);
       const ongletsFiche = [
-        { cle: 'echeances', libelle: 'Échéances', compteur: nbEcheancesAVenir ? String(nbEcheancesAVenir) : '', titre: `${nbEcheancesAVenir} échéance(s) à venir`, nouveau: notifications.includes(CLE_NOTIF_OFFRE_PRET) },
+        { cle: 'tableau', libelle: 'Tableau', compteur: nbEcheancesAVenir ? String(nbEcheancesAVenir) : '', titre: `Le dossier en colonnes — ${nbEcheancesAVenir} échéance(s) à venir`, nouveau: notifications.includes(CLE_NOTIF_OFFRE_PRET) },
         // Pièces et analyse de l'avant-contrat dans le même onglet (étude 05/10) ; sans checklist (participation), l'analyse seule.
         { cle: 'pieces', libelle: avecPieces ? 'Pièces et analyse' : 'Analyse',
           compteur: avecPieces ? `${nbPiecesRecues}/${checklist.length}` : (avAnalyse.total ? `${avAnalyse.faits}/${avAnalyse.total}` : ''),
           titre: (avecPieces ? `${nbPiecesRecues} pièce(s) reçue(s) sur ${checklist.length}` : '') + (avAnalyse.total ? `${avecPieces ? ' · ' : ''}${avAnalyse.faits} engagement(s) ou document(s) de l’avant-contrat sur ${avAnalyse.total}` : ''),
           complet: avecPieces ? checklist.length > 0 && nbPiecesRecues === checklist.length : avAnalyse.total > 0 && avAnalyse.faits === avAnalyse.total, nouveau: avecPieces && notifPieces },
+        { cle: 'dossier', libelle: 'Dossier', compteur: '', titre: 'Parties, bien, financement, notaires, dossier du NAS' },
         // Fonds (étude 05/10) : provision, appel de fonds, fonds reçus et confirmation, relance, RIB — sortis d'Échanges.
         estSuccession(d) ? null : { cle: 'fonds', libelle: 'Fonds', compteur: '', titre: 'Provision, appel de fonds, fonds reçus, relance, RIB' },
         { cle: 'echanges', libelle: 'Échanges', compteur: '', titre: 'Emails, appels, sondages de dates, questionnaire' },
@@ -2021,7 +2024,6 @@
         <div class="fiche-barre">
           <div class="fiche-barre-groupe">
             <wa-button appearance="plain" type="button" class="bouton-icone fiche-btn" onclick="fermerDossierDrawer()" aria-label="Fermer la fiche" title="Fermer (Échap)">${icone('x')}</wa-button>
-            <wa-button appearance="plain" type="button" class="bouton-icone fiche-btn fiche-btn-agrandir" onclick="basculerFicheLarge()" aria-label="${ficheLarge ? 'Réduire la fiche' : 'Agrandir la fiche'}" title="${ficheLarge ? 'Réduire la fiche' : 'Agrandir la fiche'}">${icone(ficheLarge ? 'minimize' : 'maximize')}</wa-button>
           </div>
           <div class="fiche-barre-groupe">
             <wa-button appearance="plain" type="button" class="bouton-icone fiche-btn" onclick="telechargerICS('${d.id}')" aria-label="Télécharger les rappels (.ics)" title="Télécharger les rappels (.ics)">${icone('calendar')}</wa-button>
@@ -2046,19 +2048,29 @@
                   <wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-valider" onclick="validerEditionNom('${d.id}')" title="Valider" aria-label="Valider le nom">✓</wa-button>
                 </span>
               </div>
-              ${renderProgressionFiche(etapes, prochaineEtape, avancement)}
+              <div class="fiche-entete-infos">
+                ${d.responsable ? `<span class="fiche-resp" title="Responsable : ${escapeAttr(d.responsable)}">${pastilleCollaborateur(d.responsable)}</span>` : ''}
+                ${d.adresseBien ? `<span class="fiche-entete-texte">${escapeHtml(normaliserAdresse(d.adresseBien))}</span>` : ''}
+                ${d.prixVente ? `<strong class="fiche-entete-prix">${escapeHtml(formaterPrix(d.prixVente))}</strong>` : ''}
+                ${estSuccession(d) ? '' : boutonOuvrirCompromis}
+              </div>
             </header>
 
-            ${renderProprietesDossier(d, boutonOuvrirCompromis, boutonsDossierLocal)}
+            ${renderBandeauFiche(d, actionsDuDossier)}
+            ${renderSuiviEtapesFiche(etapes, prochaineEtape, avancement)}
 
             <div class="fiche-onglets" role="tablist" aria-label="Sections de la fiche">
               ${ongletsFiche.map(o => `<button type="button" role="tab" class="fiche-onglet${o.cle === onglet ? ' actif' : ''}" data-onglet="${o.cle}" aria-selected="${o.cle === onglet}" title="${escapeAttr(o.titre)}" onclick="definirOngletFiche('${o.cle}')">${o.libelle}${o.compteur ? `<span class="fiche-compteur${o.complet ? ' complet' : ''}">${o.compteur}</span>` : ''}${o.nouveau ? '<span class="fiche-onglet-nouveau" aria-label="Nouveau"></span>' : ''}</button>`).join('')}
             </div>
 
-            <section class="fiche-panneau" data-onglet="echeances" role="tabpanel"${cache('echeances')}>
-              ${renderProchaineEtapeFiche(d)}
-              ${echeancesOrdonneesFiche(d, confiance, offreBloc)}
-              ${renderAjoutEcheance(d)}
+            <section class="fiche-panneau" data-onglet="tableau" role="tabpanel"${cache('tableau')}>
+              ${renderTableauFiche(d, actionsDuDossier)}
+              <details class="tf-repliable"${echeancesDetailOuvert ? ' open' : ''} ontoggle="echeancesDetailOuvert = this.open">
+                <summary>Toutes les échéances, dates et rappels</summary>
+                ${renderProchaineEtapeFiche(d)}
+                ${echeancesOrdonneesFiche(d, confiance, offreBloc)}
+                ${renderAjoutEcheance(d)}
+              </details>
             </section>
 
             <section class="fiche-panneau" data-onglet="pieces" role="tabpanel"${cache('pieces')}>
@@ -2091,6 +2103,10 @@
               </div>
             </section>
 
+            <section class="fiche-panneau" data-onglet="dossier" role="tabpanel"${cache('dossier')}>
+              ${renderProprietesDossier(d, boutonOuvrirCompromis, boutonsDossierLocal)}
+            </section>
+
             ${estSuccession(d) ? '' : `<section class="fiche-panneau" data-onglet="fonds" role="tabpanel"${cache('fonds')}>
               ${renderFondsDossier(d)}
             </section>`}
@@ -2104,17 +2120,6 @@
             </section>
           </div>
 
-          <!-- Colonne de droite, en mode agrandi seulement : l'avancement pas à pas et les dernières
-               actions, toujours sous les yeux quel que soit l'onglet ouvert. -->
-          <aside class="fiche-laterale">
-            ${renderEtapesFiche(etapes, prochaineEtape, avancement)}
-            ${renderPiecesRecuesFiche(d, nbPiecesRecues, avecPieces ? checklist.length : 0)}
-            <div class="fiche-carte">
-              <div class="fiche-carte-titre"><span class="section-eyebrow">Activité récente</span>
-                ${historique.length > 5 ? `<button type="button" class="fiche-lien" onclick="definirOngletFiche('historique')">Tout voir</button>` : ''}</div>
-              ${renderActiviteFiche(historique.slice(-5))}
-            </div>
-          </aside>
         </div>
       </div>
     `;
@@ -2123,11 +2128,9 @@
   // Onglet actif de la fiche et mode agrandi. L'onglet repart sur « Échéances » à chaque ouverture
   // (ou « Pièces » s'il y a du nouveau, voir ouvrirDossierDrawer) mais survit aux render() qui
   // reconstruisent le tiroir à chaque action. Le mode agrandi, lui, est une préférence du poste.
-  var CLE_FICHE_LARGE = 'claire-fiche-large';
-  let ongletFiche = 'echeances';
-  let ficheLarge = (() => {
-    try { return localStorage.getItem(CLE_FICHE_LARGE) === '1'; } catch (e) { return false; }
-  })();
+  let ongletFiche = 'tableau';
+  // « Toutes les échéances » (repliées sous le tableau) : l'état survit aux render() qui reconstruisent le tiroir.
+  var echeancesDetailOuvert = false;
 
   // Bascule sans reconstruire le tiroir : les champs en cours de saisie et le défilement restent
   // en place.
@@ -2156,110 +2159,8 @@
     tiroir.querySelectorAll('.fiche-panneau').forEach(p => { p.hidden = p.getAttribute('data-onglet') !== nom; });
   }
 
-  function basculerFicheLarge() {
-    ficheLarge = !ficheLarge;
-    try { localStorage.setItem(CLE_FICHE_LARGE, ficheLarge ? '1' : '0'); } catch (e) { /* préférence facultative */ }
-    renderDrawer();
-  }
-
-  // Barre segmentée de l'en-tête : un segment par étape qui s'applique au dossier (plein = fait,
-  // souligné = la prochaine), le pourcentage global à droite — même calcul que le tableau de bord.
-  function renderProgressionFiche(etapes, prochaineEtape, avancement) {
-    if (!etapes.length) return '';
-    const detail = [`${avancement.etapesFaites}/${avancement.etapesTotal} étapes`];
-    if (avancement.piecesTotal) detail.push(`${avancement.piecesRecues}/${avancement.piecesTotal} pièces`);
-    // « prochaine : … » n'est plus écrit : le badge d'étape juste au-dessus le dit déjà.
-    return `
-      <div class="fiche-progression">
-        <div class="fiche-segments" role="img" aria-label="Avancement : ${escapeAttr(detail.join(', '))}">
-          ${etapes.map(e => `<span class="fiche-segment${e.fait ? ' fait' : (e === prochaineEtape ? ' encours' : '')}" title="${escapeAttr(e.label + (e.fait ? ' — fait' : ''))}"></span>`).join('')}
-        </div>
-        <span class="fiche-pct">${avancement.pct} %</span>
-      </div>
-      <div class="fiche-progression-detail">${escapeHtml(detail.join(' · '))}</div>`;
-  }
-
-  // Détail pas à pas, dans la colonne de droite du mode agrandi.
-  function renderEtapesFiche(etapes, prochaineEtape, avancement) {
-    if (!etapes.length) return '';
-    return `
-      <div class="fiche-carte">
-        <div class="fiche-carte-titre"><span class="section-eyebrow">Avancement</span><span class="fiche-pct">${avancement.pct} %</span></div>
-        <div class="fiche-barre-pct"><span style="width:${avancement.pct}%"></span></div>
-        <ol class="fiche-etapes">
-          ${etapes.map(e => {
-            const etat = e.fait ? 'fait' : (e === prochaineEtape ? 'encours' : 'afaire');
-            return `<li class="fiche-etape ${etat}">
-              <span class="fiche-etape-marque">${e.fait ? icone('check') : ''}</span>
-              <span class="fiche-etape-libelle">${escapeHtml(e.label)}</span>
-              <span class="fiche-etape-date">${e.iso ? formatDateFr(e.iso) : '—'}</span>
-            </li>`;
-          }).join('')}
-        </ol>
-        ${avancement.piecesTotal ? `<div class="fiche-etapes-pieces">Pièces reçues <strong>${avancement.piecesRecues}/${avancement.piecesTotal}</strong></div>` : ''}
-      </div>`;
-  }
-
   // Historique en fil d'activité, le plus récent en haut : le texte d'abord, la date et l'auteur
-  // dessous, en plus petit. Utilisé par l'onglet « Historique » (tout) et la colonne de droite
-  // du mode agrandi (les cinq dernières).
-  // ---- Fiche agrandie : « Dernières pièces reçues » dans la colonne de droite, au-dessus de
-  // l'activité récente (étude, 02/10). Pure : les pièces reçues du dossier, la plus récente d'abord —
-  // checklist (date de la trouvaille sur le NAS ou par Claire Scan, sinon de la validation à la main),
-  // offre de prêt, documents relevés dans l'avant-contrat cochés reçus. Une pièce sans date connue
-  // (reprise d'Authentic, dossier ancien) vient en dernier. { cle, label, le, nouvelle, main, type }.
-  function piecesRecuesDossier(d, max) {
-    if (!d) return [];
-    const pieces = d.pieces || {};
-    const trouveesLe = d.piecesTrouveesLe || {};
-    const nouvelles = new Set(d.piecesNotifications || []);
-    const manuelles = new Set(d.piecesValideesManuellement || []);
-    const dateHistorique = (label) => {
-      const h = (d.historique || []).filter(x => x && x.date && /valid/i.test(x.texte || '') && (x.texte || '').includes(`« ${label} »`))
-        .map(x => x.date).sort().pop();
-      return h || null;
-    };
-    const out = [];
-    checklistPieces(d.typeVente, d).forEach(p => {
-      if (pieces[p.cle] !== 'recue') return;
-      const main = manuelles.has(p.cle) || !!p.personnalisee;
-      out.push({ cle: p.cle, label: p.label, le: trouveesLe[p.cle] || dateHistorique(p.label), nouvelle: nouvelles.has(p.cle), main, type: 'piece' });
-    });
-    if (!d.sansPret && d.offrePretStatut === 'recue') {
-      const le = premiereDateHistorique(d, RE_HISTORIQUE_PRET_OBTENU);
-      out.push({ cle: CLE_NOTIF_OFFRE_PRET, label: 'Offre de prêt', le: le ? le + 'T12:00:00' : null, nouvelle: nouvelles.has(CLE_NOTIF_OFFRE_PRET), main: false, type: 'offre' });
-    }
-    ((d.analyseJuridique && d.analyseJuridique.documents) || []).forEach(doc => {
-      if (!doc || typeof doc !== 'object' || !doc.recu || cleChecklistDocumentAnalyse(d, doc)) return;
-      out.push({ cle: '', label: doc.label, le: doc.recuLe || null, nouvelle: false, main: true, type: 'analyse' });
-    });
-    out.sort((a, b) => (b.nouvelle - a.nouvelle) || String(b.le || '').localeCompare(String(a.le || '')));
-    return max ? out.slice(0, max) : out;
-  }
-
-  var MAX_PIECES_FICHE_LATERALE = 6;
-
-  function renderPiecesRecuesFiche(d, nbRecues, nbTotal) {
-    const liste = piecesRecuesDossier(d, MAX_PIECES_FICHE_LATERALE);
-    const ligne = (p) => {
-      const quand = p.le ? new Date(p.le).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : '';
-      const clic = p.type === 'offre' ? (fichierTrouve(d, NAS_CLE_OFFRE) ? `ouvrirOffreTrouvee('${escapeOnclickArg(d.id)}')` : "definirOngletFiche('echeances')")
-        : p.type === 'piece' && !p.main ? `ouvrirPieceTrouvee('${escapeOnclickArg(d.id)}', '${escapeOnclickArg(p.cle)}')`
-          : "definirOngletFiche('pieces')";
-      const titre = `${p.label}${p.main ? ' — validée à la main' : ' — ouvrir le fichier'}${p.nouvelle ? ' (nouveau)' : ''}`;
-      return `<li><button type="button" class="fiche-piece-recue${p.nouvelle ? ' nouvelle' : ''}" onclick="${clic}" title="${escapeAttr(titre)}">
-          <span class="fiche-piece-point" aria-hidden="true"></span>
-          <span class="fiche-piece-nom">${escapeHtml(p.label)}</span>
-          <span class="fiche-piece-meta">${p.main ? 'à la main' : ''}${p.main && quand ? ' · ' : ''}${escapeHtml(quand)}</span>
-        </button></li>`;
-    };
-    return `<div class="fiche-carte">
-        <div class="fiche-carte-titre"><span class="section-eyebrow">Dernières pièces reçues</span>
-          ${nbTotal ? `<button type="button" class="fiche-lien" onclick="definirOngletFiche('pieces')" title="Voir toutes les pièces">${nbRecues}/${nbTotal}</button>` : ''}</div>
-        ${liste.length ? `<ul class="fiche-pieces-recues">${liste.map(ligne).join('')}</ul>` : '<p class="fiche-vide">Aucune pièce reçue pour l’instant.</p>'}
-      </div>`;
-  }
-
+  // dessous, en plus petit. Utilisé par l'onglet « Historique ».
   function renderActiviteFiche(historique) {
     if (!historique.length) return '<p class="fiche-vide">Aucune activité enregistrée.</p>';
     return `<ol class="fiche-activite">${historique.slice().reverse().map(h => `

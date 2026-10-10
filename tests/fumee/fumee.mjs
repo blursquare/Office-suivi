@@ -26,7 +26,7 @@ const DOSSIERS = [
   { id: 'f4', nom: 'PETIT / ROUX', responsable: 'Jérémy SAUJOT', archive: true, archiveLe: dans(-20), rendezVousSignature: dans(-30), echeancesValidees: { acte: true, rendezVousSignature: true }, pieces: {}, parties: [], historique: hist('Dossier créé') }
 ];
 const ONGLETS = ['suivi', 'assistant', 'agenda', 'scans', 'nouveau', 'confreres', 'calculateur', 'appel-fonds', 'quotites', 'preemption', 'prorata', 'inventaire', 'analyse-ia', 'reglages', 'dashboard'];
-const ONGLETS_FICHE = ['echeances', 'pieces', 'fonds', 'echanges', 'historique'];
+const ONGLETS_FICHE = ['tableau', 'pieces', 'dossier', 'fonds', 'echanges', 'historique'];
 
 const db = ouvrirDb(':memory:');
 const { app, depot } = creerApp({ db, config: { racineRepo: racine, authActive: false, estSea: () => false } });

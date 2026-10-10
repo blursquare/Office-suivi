@@ -55,5 +55,6 @@
   "53-agenda-copier-coller.js",
   "54-preemption-dossier.js",
   "55-controle-urbanisme-relecture.js",
-  "56-courrier-pdfa.js"
+  "56-courrier-pdfa.js",
+  "57-fiche-tableau.js"
 ]

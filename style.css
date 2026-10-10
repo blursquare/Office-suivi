@@ -3668,8 +3668,6 @@
   wa-button.fiche-btn { color: var(--ink-soft); }
   wa-button.fiche-btn svg { width: 20px; height: 20px; }
   wa-button.fiche-btn-danger:hover { color: var(--urgent); }
-  /* Rien à agrandir quand l'écran n'en a pas la place. */
-  @media (max-width: 1100px) { .fiche-btn-agrandir { display: none; } }
 
   .fiche-entete { padding: 20px 0 6px; }
   .fiche-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; margin-bottom: 8px; }
@@ -3682,14 +3680,6 @@
     text-wrap: balance;
   }
 
-  /* Un segment par étape : plein une fois faite, teinté pour la prochaine. */
-  .fiche-progression { display: flex; align-items: center; gap: 12px; margin-top: 14px; }
-  .fiche-segments { flex: 1 1 auto; display: flex; gap: 4px; }
-  .fiche-segment { flex: 1 1 0; height: 6px; border-radius: var(--rayon-xs); background: var(--line-soft); }
-  .fiche-segment.fait { background: var(--success); }
-  .fiche-segment.encours { background: color-mix(in srgb, var(--focus) 40%, var(--line-soft)); }
-  .fiche-pct { font-size: var(--texte-m); font-weight: 600; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
-  .fiche-progression-detail { margin-top: 6px; font-size: var(--texte-s); color: var(--muted); font-variant-numeric: tabular-nums; }
 
   /* Propriétés : trois groupes séparés d'un filet (le dossier, le bien, les notaires). Deux cases
      par ligne, libellé court à gauche dans une colonne de largeur fixe — les libellés de toutes les
@@ -3893,70 +3883,94 @@
   .fiche-activite-texte { font-size: var(--texte-m); color: var(--ink); line-height: 1.45; overflow-wrap: anywhere; }
   .fiche-activite-meta { font-size: var(--texte-s); color: var(--muted); font-variant-numeric: tabular-nums; }
 
-  /* Colonne de droite : n'existe qu'en mode agrandi. */
-  .fiche-laterale { display: none; }
-  .fiche-carte { padding: 14px 16px; background: var(--paper-sunk); border-radius: var(--rayon-m); }
-  .fiche-carte-titre { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
-  .fiche-lien { font-family: inherit; font-size: var(--texte-s); color: var(--focus); background: none; border: none; padding: 0; cursor: pointer; }
-  .fiche-lien:hover { text-decoration: underline; text-underline-offset: 2px; }
-  /* Fiche agrandie : dernières pièces reçues (02/10), une ligne par pièce, la plus récente d'abord. */
-  .fiche-pieces-recues { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
-  .fiche-pieces-recues li + li { border-top: 1px solid var(--line-soft); }
-  button.fiche-piece-recue { display: grid; grid-template-columns: 7px minmax(0, 1fr) auto; align-items: center; gap: 8px; width: 100%; margin: 0; padding: 6px 2px; border: 0; background: none; font: inherit; text-align: left; color: var(--ink); cursor: pointer; box-shadow: none; border-radius: var(--rayon-s); }
-  button.fiche-piece-recue:hover .fiche-piece-nom { text-decoration: underline; text-underline-offset: 2px; }
-  button.fiche-piece-recue:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
-  .fiche-piece-point { width: 7px; height: 7px; border-radius: 50%; background: var(--success); }
-  .fiche-piece-recue.nouvelle .fiche-piece-point { background: var(--notif-nouveau); }
-  .fiche-piece-nom { font-size: var(--texte-m); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .fiche-piece-meta { font-size: var(--texte-s); color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
-  .fiche-barre-pct { height: 6px; border-radius: var(--rayon-xs); background: var(--line-soft); overflow: hidden; }
-  .fiche-barre-pct > span { display: block; height: 100%; background: var(--success); border-radius: var(--rayon-xs); }
-  .fiche-etapes { list-style: none; margin: 12px 0 0; padding: 0; }
-  .fiche-etape {
-    display: grid;
-    grid-template-columns: 18px minmax(0, 1fr) auto;
-    align-items: center;
-    gap: 10px;
-    padding: 6px 0;
-    font-size: var(--texte-m);
-  }
-  .fiche-etape-marque {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 16px;
-    height: 16px;
-    font-size: var(--texte-xxs);
-    border-radius: 50%;
-    border: 1.5px solid var(--line);
-    background: var(--paper-card);
-  }
-  .fiche-etape.fait .fiche-etape-marque { background: var(--success); border-color: var(--success); color: var(--on-accent); }
-  .fiche-etape.encours .fiche-etape-marque { border-color: var(--focus); box-shadow: inset 0 0 0 3px var(--paper-card); background: var(--focus); }
-  .fiche-etape.afaire .fiche-etape-libelle { color: var(--muted); }
-  .fiche-etape.encours .fiche-etape-libelle { font-weight: 600; }
-  .fiche-etape-date { font-size: var(--texte-s); color: var(--muted); font-variant-numeric: tabular-nums; }
-  .fiche-etapes-pieces { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); font-size: var(--texte-m); color: var(--ink-soft); }
-  .fiche-etapes-pieces strong { color: var(--ink); font-variant-numeric: tabular-nums; }
+  /* ---- Fiche : bandeau du haut, suivi des étapes, tableau en colonnes (10/10) ---- */
+  .fiche-entete-infos { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-top: 8px; }
+  .fiche-entete-texte { font-size: var(--texte-m); color: var(--ink-soft); overflow-wrap: anywhere; }
+  .fiche-entete-prix { font-size: var(--texte-m); font-weight: 600; font-variant-numeric: tabular-nums; }
+  .fiche-resp { display: inline-flex; }
+
+  .fb-bandeau { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr) minmax(0, 1.5fr); gap: 12px; margin: 16px 0 12px; }
+  .fb-carte { display: flex; flex-direction: column; justify-content: center; gap: 4px; min-width: 0; padding: 12px 16px; background: var(--paper-sunk); border-radius: var(--rayon-m); }
+  .fb-pieces { flex-direction: row; align-items: center; gap: 12px; }
+  .fb-texte { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .fb-anneau { position: relative; flex: 0 0 auto; width: 56px; height: 56px; }
+  .fb-anneau svg { display: block; width: 100%; height: 100%; transform: rotate(-90deg); }
+  .fb-anneau circle { fill: none; stroke-width: 12; }
+  .fb-fond { stroke: var(--line); }
+  .fb-val { stroke: var(--success); stroke-linecap: round; }
+  .fb-pct { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: var(--texte-s); font-weight: 600; font-variant-numeric: tabular-nums; }
+  .fb-grand { font-size: var(--texte-xl); font-weight: 500; letter-spacing: -0.02em; line-height: 1.2; font-variant-numeric: tabular-nums; }
+  .fb-grand.fb-ok { color: var(--success); }
+  .fb-grand.fb-retard { color: var(--urgent); }
+  .fb-petit { font-size: var(--texte-s); color: var(--muted); }
+  .fb-une-ligne { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .fb-sig-ligne { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 8px; }
+  .fb-jours { font-size: var(--texte-4xl); font-weight: 500; letter-spacing: -0.02em; line-height: 1; font-variant-numeric: tabular-nums; }
+  .fb-sig-ligne small { font-size: var(--texte-s); color: var(--muted); }
+  .fb-sig-date { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 8px; font-size: var(--texte-m); }
+  .fb-maintenant { background: color-mix(in srgb, var(--focus) 8%, var(--paper-card)); box-shadow: 0 0 0 1px var(--focus); }
+  .fb-ligne-titre { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px 12px; }
+  .fb-titre { font-size: var(--texte-base); font-weight: 500; min-width: 0; overflow-wrap: anywhere; }
+  .fb-gestes { display: inline-flex; flex-wrap: wrap; gap: 6px; }
+
+  .fb-etapes { margin: 0 0 16px; padding: 12px 16px; background: var(--paper-sunk); border-radius: var(--rayon-m); }
+  .fb-etapes-tete { display: flex; align-items: baseline; gap: 12px; margin-bottom: 10px; }
+  .fb-etapes-tete .fb-petit { flex: 1 1 auto; font-variant-numeric: tabular-nums; }
+  .fb-pct-etapes { font-size: var(--texte-m); font-weight: 600; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+  .fb-etapes-liste { list-style: none; margin: 0 0 10px; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px 16px; }
+  .fb-etape { display: grid; grid-template-columns: 16px minmax(0, 1fr); column-gap: 8px; align-items: center; font-size: var(--texte-m); }
+  .fb-etape-marque { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; font-size: var(--texte-xxs); border-radius: 50%; border: 1.5px solid var(--line); background: var(--paper-card); }
+  .fb-etape.fait .fb-etape-marque { background: var(--success); border-color: var(--success); color: var(--on-accent); }
+  .fb-etape.encours .fb-etape-marque { background: var(--focus); border-color: var(--focus); box-shadow: inset 0 0 0 3px var(--paper-card); }
+  .fb-etape.afaire .fb-etape-libelle { color: var(--muted); }
+  .fb-etape.encours .fb-etape-libelle { font-weight: 600; }
+  .fb-etape-date { grid-column: 2; font-size: var(--texte-s); color: var(--muted); font-variant-numeric: tabular-nums; }
+  .fb-segments { display: flex; gap: 4px; }
+  .fb-segments > span { flex: 1 1 0; height: 6px; border-radius: var(--rayon-xs); background: var(--line); }
+  .fb-segments > .fait { background: var(--success); }
+  .fb-segments > .encours { background: color-mix(in srgb, var(--focus) 40%, var(--line)); }
+
+  .tf-tableau { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; align-items: start; }
+  .tf-colonne { min-width: 0; padding: 10px; background: var(--paper-sunk); border-radius: var(--rayon-m); }
+  .tf-colonne-tete { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 2px 8px; }
+  .tf-colonne-tete h3 { margin: 0; font-size: var(--texte-xs); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+  .tf-nb { font-size: var(--texte-s); font-weight: 600; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+  .tf-cartes { display: flex; flex-direction: column; gap: 8px; }
+  .tf-vide { margin: 0; padding: 4px 2px; font-size: var(--texte-s); color: var(--muted); }
+  .tf-carte { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; background: var(--paper-card); border-radius: var(--rayon-m); box-shadow: 0 0 0 1px var(--line); }
+  .tf-carte.critique { box-shadow: 0 0 0 1px var(--urgent); }
+  .tf-carte.fait .tf-titre { color: var(--ink-soft); }
+  .tf-ligne { display: flex; align-items: flex-start; gap: 8px; }
+  button.tf-rond, .tf-rond-auto { flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; margin: 0; padding: 0; font-size: var(--texte-xxs); color: transparent; background: var(--paper-card); border: 1.5px solid var(--line); border-radius: 50%; box-shadow: none; cursor: pointer; }
+  button.tf-rond:hover { border-color: var(--success); }
+  button.tf-rond:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+  button.tf-rond.on, .tf-carte.fait .tf-rond-auto { color: var(--on-accent); background: var(--success); border-color: var(--success); }
+  .tf-rond-auto { cursor: default; color: var(--muted); }
+  .tf-titre { flex: 1 1 auto; min-width: 0; font-size: var(--texte-m); font-weight: 500; line-height: 1.35; overflow-wrap: anywhere; text-align: left; }
+  button.tf-lien { margin: 0; padding: 0; font-family: inherit; color: var(--ink); background: none; border: 0; box-shadow: none; cursor: pointer; }
+  button.tf-lien:hover { text-decoration: underline; text-underline-offset: 2px; }
+  button.tf-lien:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: var(--rayon-xs); }
+  .tf-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; padding-left: 28px; font-size: var(--texte-s); color: var(--muted); }
+  .tf-delai { display: inline-flex; align-items: center; gap: 4px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .tf-delai.retard { color: var(--urgent); }
+  .tf-delai.bientot { color: var(--ink); }
+  .tf-delai.fini { font-weight: 400; color: var(--muted); }
+  .tf-date { font-variant-numeric: tabular-nums; }
+  .tf-geste { align-self: flex-start; margin-left: 28px; }
+  .tf-repliable { margin-top: 16px; }
+  .tf-repliable > summary { cursor: pointer; padding: 6px 0; font-size: var(--texte-m); font-weight: 500; color: var(--ink-soft); }
+  .tf-repliable > summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: var(--rayon-xs); }
+  .tf-repliable[open] > summary { margin-bottom: 12px; }
 
   @media (min-width: 1101px) {
     .drawer-panneau.large { width: min(1120px, 100%); }
-    .drawer-panneau.large .fiche-colonnes {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) 300px;
-      gap: 28px;
-      align-items: start;
-    }
-    .drawer-panneau.large .fiche-laterale {
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-      position: sticky;
-      top: 72px;
-      padding-top: 20px;
-    }
-    .drawer-panneau.large .fiche-progression,
-    .drawer-panneau.large .fiche-progression-detail { display: none; }
+  }
+  @media (max-width: 1100px) {
+    .tf-tableau { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .fb-bandeau { grid-template-columns: minmax(0, 1fr); }
+  }
+  @media (max-width: 640px) {
+    .tf-tableau { grid-template-columns: minmax(0, 1fr); }
   }
 
   .classif-champ { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
@@ -4548,7 +4562,7 @@
       padding: 0;
       animation: none;
     }
-    .fiche-barre, .fiche-onglets, .fiche-laterale, .fiche-progression, .fiche-progression-detail { display: none !important; }
+    .fiche-barre, .fiche-onglets, .fb-bandeau, .fb-etapes { display: none !important; }
     .fiche-panneau[hidden] { display: block !important; }
     .fiche-proprietes input.prop-champ, .fiche-proprietes select.prop-champ { border: none; background: none; box-shadow: none; }
     .tabs { display: block; }
