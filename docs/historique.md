@@ -18856,3 +18856,8 @@ Capture : « Recherché dans le dossier NAS à l'ouverture » + Ouvrir / Changer
 ### 0.208.1 — 2026-10-10 11:03 — fiche : retouches après analyse des risques
 
 `renderMajAuthenticTableauFiche` (client/57) : « À mettre à jour » d'Authentic au-dessus du tableau (même `renderMajAuthentic`). Onglet Dossier : plus de second « Ouvrir » (celui de l'en-tête suffit). `renderDrawer` attend la fin d'un glisser (`carteGlisseeFiche`, `redessinerApresGlisserFiche`) puis redessine. Le sondage des dossiers tourne toutes les 7 s : une pièce cochée par le serveur ou un autre poste apparaît dans le tableau en 7 s au plus.
+
+
+### 0.208.2 — 2026-10-10 22:03 — fiche : carte arrivée mise en évidence
+
+`cartesChangeesFiche` (pure) compare les colonnes au dernier dessin de la fiche (`colonnesPrecedentesFiche`) ; la carte arrivée ou changée de colonne porte `.changee` (anneau de l'accent 2,4 s, fixe si mouvement réduit). Rien à la première ouverture d'un dossier. Maquettes de sélecteurs de la barre latérale : `docs/maquettes-sidebar/index.html` (5 propositions, pas encore appliquées).

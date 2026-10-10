@@ -179,7 +179,7 @@ function classeDelaiCarteFiche(c) {
   return c.jours < 0 ? 'retard' : (c.jours <= 3 ? 'bientot' : '');
 }
 
-function renderCarteTableauFiche(c) {
+function renderCarteTableauFiche(c, changee) {
   const rond = c.coche
     ? `<button type="button" class="tf-rond${c.fait ? ' on' : ''}" onclick="${c.coche.onclick}" aria-label="${escapeAttr(c.coche.libelle + ' : ' + c.titre)}" title="${escapeAttr(c.coche.libelle)}">${icone('check')}</button>`
     : `<span class="tf-rond tf-rond-auto" title="${escapeAttr(c.auto ? 'Lu automatiquement' : 'Se met à jour tout seul')}" aria-hidden="true">${icone(c.fait ? 'check' : 'clock')}</span>`;
@@ -195,7 +195,7 @@ function renderCarteTableauFiche(c) {
   const date = c.jours !== null && !c.fait ? `<span class="tf-date">${escapeHtml(formatDateFr(c.iso))}</span>` : '';
   const libelleCategorie = LIBELLES_CATEGORIE_FICHE[c.categorie] || '';
   const categorie = libelleCategorie ? `<span class="dot-label dl-${escapeAttr(c.fait ? 'success' : (c.categorie || 'neutre'))} tf-categorie"><span class="dot"></span>${escapeHtml(libelleCategorie)}</span>` : '';
-  return `<article class="tf-carte${c.coche ? ' deplacable' : ''}${c.fait ? ' fait' : ''}${c.gravite ? ' ' + c.gravite : ''}" data-cle="${escapeAttr(c.cle)}"${c.coche ? ' draggable="true"' : ''}>
+  return `<article class="tf-carte${changee ? ' changee' : ''}${c.coche ? ' deplacable' : ''}${c.fait ? ' fait' : ''}${c.gravite ? ' ' + c.gravite : ''}" data-cle="${escapeAttr(c.cle)}"${c.coche ? ' draggable="true"' : ''}>
     ${categorie}
     <div class="tf-ligne">${rond}${titre}</div>
     ${delai || sous || date ? `<div class="tf-meta">${delai}${date}${sous}</div>` : ''}
@@ -203,13 +203,32 @@ function renderCarteTableauFiche(c) {
   </article>`;
 }
 
+// Où était chaque carte au dernier dessin de la fiche (dossier → { clé de carte → colonne }) : une carte qui a changé de colonne
+// ou qui vient d'apparaître — pièce reçue toute seule, relevé d'Authentic, geste du serveur — est mise en évidence un instant.
+var colonnesPrecedentesFiche = { id: '', parCle: null };
+
+// Pure : les clés des cartes arrivées ou changées de colonne entre `avant` ({ clé → colonne } ou null) et `cartes`.
+function cartesChangeesFiche(avant, cartes) {
+  const changees = new Set();
+  if (!avant) return changees;
+  COLONNES_TABLEAU_FICHE.forEach(col => cartes[col.cle].forEach(c => {
+    if (avant[c.cle] !== col.cle) changees.add(c.cle);
+  }));
+  return changees;
+}
+
 function renderTableauFiche(d, actions) {
   const cartes = cartesTableauFiche(d, isoAujourdhuiLocal(), actions);
+  const avant = colonnesPrecedentesFiche.id === d.id ? colonnesPrecedentesFiche.parCle : null;
+  const changees = cartesChangeesFiche(avant, cartes);
+  const parCle = {};
+  COLONNES_TABLEAU_FICHE.forEach(col => cartes[col.cle].forEach(c => { parCle[c.cle] = col.cle; }));
+  colonnesPrecedentesFiche = { id: d.id, parCle };
   return `<div class="tf-tableau" role="list" aria-label="Le dossier en colonnes">${COLONNES_TABLEAU_FICHE.map(col => {
     const liste = cartes[col.cle];
     return `<section class="tf-colonne" role="listitem" data-colonne="${col.cle}" aria-label="${escapeAttr(col.nom)}">
       <header class="tf-colonne-tete"><h3>${escapeHtml(col.nom)}</h3><span class="tf-nb">${liste.length}</span></header>
-      <div class="tf-cartes">${liste.length ? liste.map(renderCarteTableauFiche).join('') : `<p class="tf-vide">${escapeHtml(col.vide)}</p>`}</div>
+      <div class="tf-cartes">${liste.length ? liste.map(c => renderCarteTableauFiche(c, changees.has(c.cle))).join('') : `<p class="tf-vide">${escapeHtml(col.vide)}</p>`}</div>
     </section>`;
   }).join('')}</div>`;
 }

@@ -143,3 +143,17 @@ test('mise à jour d’Authentic en attente : proposée dès l’onglet Tableau,
   const html = app.renderMajAuthenticTableauFiche(d);
   assert.match(html, /accepterMajAuthentic/); assert.match(html, /Mettre à jour/);
 });
+
+test('cartes changées : première ouverture sans rien, puis seulement ce qui arrive ou change de colonne', () => {
+  const d = dossier();
+  const avant = app.cartesTableauFiche(d, AUJ, []);
+  const parCle = {};
+  ['obtenir', 'faire', 'attente', 'fait'].forEach(col => avant[col].forEach(c => { parCle[c.cle] = col; }));
+  assert.equal(app.cartesChangeesFiche(null, avant).size, 0);
+  assert.equal(app.cartesChangeesFiche(parCle, avant).size, 0);
+  const liste = app.checklistPieces(d.typeVente, d);
+  d.pieces[liste[0].cle] = 'recue';
+  const apres = app.cartesTableauFiche(d, AUJ, []);
+  const changees = app.cartesChangeesFiche(parCle, apres);
+  assert.ok(changees.has('pieces-recues'));
+});

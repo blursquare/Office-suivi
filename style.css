@@ -3942,6 +3942,9 @@
   .tf-carte { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; background: var(--paper-card); border-radius: var(--rayon-m); box-shadow: 0 0 0 1px var(--line); }
   .tf-carte.critique { box-shadow: 0 0 0 1px var(--urgent); }
   .tf-carte.fait .tf-titre { color: var(--ink-soft); }
+  .tf-carte.changee { animation: tf-arrivee 2.4s ease-out; }
+  @keyframes tf-arrivee { 0% { box-shadow: 0 0 0 3px var(--focus); } 100% { box-shadow: 0 0 0 1px var(--line); } }
+  @media (prefers-reduced-motion: reduce) { .tf-carte.changee { animation: none; box-shadow: 0 0 0 2px var(--focus); } }
   .tf-carte.deplacable { cursor: grab; }
   .tf-carte.glissee { opacity: 0.5; }
   .tf-colonne.survol { box-shadow: 0 0 0 2px var(--focus); }
