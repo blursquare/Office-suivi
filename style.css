@@ -3958,7 +3958,7 @@
   .tf-delai.bientot { color: var(--ink); }
   .tf-delai.fini { font-weight: 400; color: var(--muted); }
   .tf-date { font-variant-numeric: tabular-nums; }
-  .tf-geste { align-self: flex-start; margin-left: 28px; }
+  .tf-geste { align-self: flex-end; }
   .tf-repliable { margin-top: 16px; }
   .tf-repliable > summary { cursor: pointer; padding: 6px 0; font-size: var(--texte-m); font-weight: 500; color: var(--ink-soft); }
   .tf-repliable > summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: var(--rayon-xs); }

@@ -18841,3 +18841,8 @@ Capture : « Recherché dans le dossier NAS à l'ouverture » + Ouvrir / Changer
 ### 0.207.2 — 2026-10-10 10:15 — fiche : catégorie sur chaque carte
 
 Étude (10/10) : « remets les catégories sur chaque carte ». `LIBELLES_CATEGORIE_FICHE` (client/57) : pastille `dot-label dl-<catégorie>` (mêmes couleurs que « À faire »), verte quand la carte est faite ; `dl-piece` et `dl-engagement` en bleu `--acte`.
+
+
+### 0.207.3 — 2026-10-10 10:52 — fiche : bouton de carte en bas à droite
+
+Étude (10/10). `.tf-geste { align-self: flex-end }`.
