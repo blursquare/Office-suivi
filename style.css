@@ -3931,6 +3931,7 @@
   .fb-segments > .fait { background: var(--success); }
   .fb-segments > .encours { background: color-mix(in srgb, var(--focus) 40%, var(--line)); }
 
+  .tf-alerte-authentic { margin: 0 0 12px; padding: 10px 16px; background: var(--paper-sunk); border-radius: var(--rayon-m); box-shadow: 0 0 0 1px var(--urgent); }
   .tf-tableau { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; align-items: start; }
   .tf-colonne { min-width: 0; padding: 10px; background: var(--paper-sunk); border-radius: var(--rayon-m); }
   .tf-colonne-tete { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 2px 8px; }

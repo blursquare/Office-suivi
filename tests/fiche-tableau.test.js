@@ -136,3 +136,10 @@ test('glisser-déposer : « Fait » valide, la sortie de « Fait » rouvre, le r
   assert.match(html, /draggable="true"/);
   assert.doesNotMatch(app.renderCarteTableauFiche(c.fait.find(x => x.cle === 'pieces-recues') || { titre: 'x', cle: 'k', auto: true, fait: true }), /draggable/);
 });
+
+test('mise à jour d’Authentic en attente : proposée dès l’onglet Tableau, rien sans mise à jour', () => {
+  assert.equal(app.renderMajAuthenticTableauFiche(dossier()), '');
+  const d = dossier({ authentic: { majEnAttente: { 'emails:ACQUEREUR': { type: 'champ', cle: 'emails:ACQUEREUR', libelle: 'Email acquéreur', avant: 'a@x.fr', apres: 'b@x.fr' } } } });
+  const html = app.renderMajAuthenticTableauFiche(d);
+  assert.match(html, /accepterMajAuthentic/); assert.match(html, /Mettre à jour/);
+});

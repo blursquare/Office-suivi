@@ -214,6 +214,14 @@ function renderTableauFiche(d, actions) {
   }).join('')}</div>`;
 }
 
+// Authentic a changé une valeur déjà reprise : la proposition « Mettre à jour la fiche ? » se voit dès l'onglet Tableau
+// (elle vit aussi dans l'onglet Dossier, avec les autres lignes de la fiche). Même fonction, même geste.
+function renderMajAuthenticTableauFiche(d) {
+  const ligne = (ic, libelle, valeur) => `<div class="prop-ligne prop-pleine"><dt><span>${icone(ic)}<span>${libelle}</span></span></dt><dd>${valeur}</dd></div>`;
+  const html = renderMajAuthentic(d, ligne);
+  return html ? `<dl class="fiche-proprietes tf-alerte-authentic">${html}</dl>` : '';
+}
+
 // Le bandeau du haut : les pièces, la signature, le geste du moment.
 function renderBandeauFiche(d, actions) {
   const auj = isoAujourdhuiLocal();
@@ -274,6 +282,7 @@ function actionDepotCarteFiche(fait, vers) {
 }
 
 var carteGlisseeFiche = null;
+var redessinerApresGlisserFiche = false;
 
 function initGlisserDeposerFiche() {
   const dansTiroir = (e) => (e.target && e.target.closest) ? e.target.closest('#dossier-drawer-contenu') : null;
@@ -287,6 +296,7 @@ function initGlisserDeposerFiche() {
   document.addEventListener('dragend', () => {
     if (carteGlisseeFiche) carteGlisseeFiche.classList.remove('glissee');
     carteGlisseeFiche = null;
+    if (redessinerApresGlisserFiche) { redessinerApresGlisserFiche = false; setTimeout(() => render(), 0); }
     document.querySelectorAll('.tf-colonne.survol').forEach(c => c.classList.remove('survol'));
   });
   document.addEventListener('dragover', (e) => {

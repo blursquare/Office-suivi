@@ -18851,3 +18851,8 @@ Capture : « Recherché dans le dossier NAS à l'ouverture » + Ouvrir / Changer
 ### 0.208.0 — 2026-10-10 10:55 — fiche : glisser-déposer des cartes
 
 Étude (10/10) : « glisser-déposer qui valide la carte ». `initGlisserDeposerFiche` (client/57) : une carte avec case ronde est `draggable` ; déposée dans « Fait » → clic de sa case (même geste, ex. confirmation de `validerPieceManuellement`) ; sortie de « Fait » → rouvre ; autres dépôts refusés (toast). Cartes sans case (lues seules) non déplaçables. Les colonnes restent calculées : rien n'est enregistré par le glisser lui-même. Rejoué dans Chromium (dépôt → confirmation → 8 → 7 cartes à obtenir).
+
+
+### 0.208.1 — 2026-10-10 11:03 — fiche : retouches après analyse des risques
+
+`renderMajAuthenticTableauFiche` (client/57) : « À mettre à jour » d'Authentic au-dessus du tableau (même `renderMajAuthentic`). Onglet Dossier : plus de second « Ouvrir » (celui de l'en-tête suffit). `renderDrawer` attend la fin d'un glisser (`carteGlisseeFiche`, `redessinerApresGlisserFiche`) puis redessine. Le sondage des dossiers tourne toutes les 7 s : une pièce cochée par le serveur ou un autre poste apparaît dans le tableau en 7 s au plus.

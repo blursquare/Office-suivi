@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.208.0';
+  const VERSION_APP = '0.208.1';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.208.1', date: '2026-10-10 11:03', resume: "Fiche : la mise à jour proposée par Authentic se voit dès l'onglet Tableau ; le bouton « Ouvrir » du compromis n'est plus en double ; la fiche ne se redessine plus pendant qu'on glisse une carte (elle le fait au dépôt)." },
     { version: '0.208.0', date: '2026-10-10 10:55', resume: "Fiche : on peut glisser une carte du tableau dans la colonne « Fait » pour la valider (même geste que la case ronde, avec sa confirmation éventuelle), et la sortir de « Fait » pour la rouvrir." },
     { version: '0.207.3', date: '2026-10-10 10:52', resume: "Fiche : le bouton d'une carte du tableau (Relancer, Préparer…) est en bas à droite de la carte." },
     { version: '0.207.2', date: '2026-10-10 10:15', resume: "Fiche : chaque carte du tableau (pièces, engagements, tâches, échéances) porte de nouveau sa catégorie en pastille colorée, comme dans « À faire »." },

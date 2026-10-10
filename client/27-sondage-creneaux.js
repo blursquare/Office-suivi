@@ -1266,6 +1266,8 @@
     const overlay = document.getElementById('dossier-drawer-overlay');
     const contenu = document.getElementById('dossier-drawer-contenu');
     if (!overlay || !contenu) return;
+    // Une carte du tableau est en train d'être glissée : redessiner la fiche l'annulerait. On le fait dès le dépôt (voir dragend).
+    if (typeof carteGlisseeFiche !== 'undefined' && carteGlisseeFiche) { redessinerApresGlisserFiche = true; return; }
 
     const d = dossierOuvert ? dossiers.find(x => x.id === dossierOuvert) : null;
     if (!d) {
@@ -2066,6 +2068,7 @@
             </div>
 
             <section class="fiche-panneau" data-onglet="tableau" role="tabpanel"${cache('tableau')}>
+              ${renderMajAuthenticTableauFiche(d)}
               ${renderTableauFiche(d, actionsDuDossier)}
               <details class="tf-repliable"${echeancesDetailOuvert ? ' open' : ''} ontoggle="echeancesDetailOuvert = this.open">
                 <summary>Toutes les échéances, dates et rappels</summary>
@@ -2106,7 +2109,7 @@
             </section>
 
             <section class="fiche-panneau" data-onglet="dossier" role="tabpanel"${cache('dossier')}>
-              ${renderProprietesDossier(d, boutonOuvrirCompromis, boutonsDossierLocal)}
+              ${renderProprietesDossier(d, '', boutonsDossierLocal)}
             </section>
 
             ${estSuccession(d) ? '' : `<section class="fiche-panneau" data-onglet="fonds" role="tabpanel"${cache('fonds')}>
