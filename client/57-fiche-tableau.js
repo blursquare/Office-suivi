@@ -195,7 +195,7 @@ function renderCarteTableauFiche(c) {
   const date = c.jours !== null && !c.fait ? `<span class="tf-date">${escapeHtml(formatDateFr(c.iso))}</span>` : '';
   const libelleCategorie = LIBELLES_CATEGORIE_FICHE[c.categorie] || '';
   const categorie = libelleCategorie ? `<span class="dot-label dl-${escapeAttr(c.fait ? 'success' : (c.categorie || 'neutre'))} tf-categorie"><span class="dot"></span>${escapeHtml(libelleCategorie)}</span>` : '';
-  return `<article class="tf-carte${c.fait ? ' fait' : ''}${c.gravite ? ' ' + c.gravite : ''}" data-cle="${escapeAttr(c.cle)}">
+  return `<article class="tf-carte${c.coche ? ' deplacable' : ''}${c.fait ? ' fait' : ''}${c.gravite ? ' ' + c.gravite : ''}" data-cle="${escapeAttr(c.cle)}"${c.coche ? ' draggable="true"' : ''}>
     ${categorie}
     <div class="tf-ligne">${rond}${titre}</div>
     ${delai || sous || date ? `<div class="tf-meta">${delai}${date}${sous}</div>` : ''}
@@ -261,3 +261,59 @@ function renderSuiviEtapesFiche(etapes, prochaineEtape, avancement) {
     <div class="fb-segments" role="img" aria-label="Avancement : ${escapeAttr(detail.join(', '))}">${etapes.map(e => `<span class="${e.fait ? 'fait' : (e === prochaineEtape ? 'encours' : '')}" title="${escapeAttr(e.label)}"></span>`).join('')}</div>
   </section>`;
 }
+
+// ---- Glisser-déposer : déposer une carte dans « Fait » la valide, la sortir de « Fait » la rouvre. ----
+// Rien de nouveau n'est enregistré : le dépôt clique la case ronde de la carte, donc le même geste que le clic (basculerEcheance,
+// validerPieceManuellement…). Une carte sans case (lue seule dans le NAS, Authentic ou l'agenda) ne se déplace pas.
+
+// Pure : ce que fait le dépôt d'une carte (`fait` : elle est dans « Fait ») sur la colonne `vers` — 'valider', 'rouvrir' ou ''.
+function actionDepotCarteFiche(fait, vers) {
+  if (vers === 'fait' && !fait) return 'valider';
+  if (vers !== 'fait' && fait) return 'rouvrir';
+  return '';
+}
+
+var carteGlisseeFiche = null;
+
+function initGlisserDeposerFiche() {
+  const dansTiroir = (e) => (e.target && e.target.closest) ? e.target.closest('#dossier-drawer-contenu') : null;
+  document.addEventListener('dragstart', (e) => {
+    const carte = e.target && e.target.closest ? e.target.closest('.tf-carte.deplacable') : null;
+    if (!carte || !dansTiroir(e)) return;
+    carteGlisseeFiche = carte;
+    carte.classList.add('glissee');
+    if (e.dataTransfer) { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', carte.dataset.cle || ''); }
+  });
+  document.addEventListener('dragend', () => {
+    if (carteGlisseeFiche) carteGlisseeFiche.classList.remove('glissee');
+    carteGlisseeFiche = null;
+    document.querySelectorAll('.tf-colonne.survol').forEach(c => c.classList.remove('survol'));
+  });
+  document.addEventListener('dragover', (e) => {
+    const col = e.target && e.target.closest ? e.target.closest('.tf-colonne') : null;
+    if (!col || !carteGlisseeFiche) return;
+    e.preventDefault();
+    const ok = !!actionDepotCarteFiche(carteGlisseeFiche.classList.contains('fait'), col.dataset.colonne);
+    col.classList.toggle('survol', ok);
+    if (e.dataTransfer) e.dataTransfer.dropEffect = ok ? 'move' : 'none';
+  });
+  document.addEventListener('dragleave', (e) => {
+    const col = e.target && e.target.closest ? e.target.closest('.tf-colonne') : null;
+    if (col && !col.contains(e.relatedTarget)) col.classList.remove('survol');
+  });
+  document.addEventListener('drop', (e) => {
+    const col = e.target && e.target.closest ? e.target.closest('.tf-colonne') : null;
+    const carte = carteGlisseeFiche;
+    if (!col || !carte) return;
+    e.preventDefault();
+    col.classList.remove('survol');
+    const action = actionDepotCarteFiche(carte.classList.contains('fait'), col.dataset.colonne);
+    if (!action) {
+      if (col.dataset.colonne !== 'fait' || !carte.classList.contains('fait')) afficherToast('Déposez une carte dans « Fait » pour la valider.');
+      return;
+    }
+    const rond = carte.querySelector('button.tf-rond');
+    if (rond) rond.click();
+  });
+}
+initGlisserDeposerFiche();

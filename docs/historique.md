@@ -18846,3 +18846,8 @@ Capture : « Recherché dans le dossier NAS à l'ouverture » + Ouvrir / Changer
 ### 0.207.3 — 2026-10-10 10:52 — fiche : bouton de carte en bas à droite
 
 Étude (10/10). `.tf-geste { align-self: flex-end }`.
+
+
+### 0.208.0 — 2026-10-10 10:55 — fiche : glisser-déposer des cartes
+
+Étude (10/10) : « glisser-déposer qui valide la carte ». `initGlisserDeposerFiche` (client/57) : une carte avec case ronde est `draggable` ; déposée dans « Fait » → clic de sa case (même geste, ex. confirmation de `validerPieceManuellement`) ; sortie de « Fait » → rouvre ; autres dépôts refusés (toast). Cartes sans case (lues seules) non déplaçables. Les colonnes restent calculées : rien n'est enregistré par le glisser lui-même. Rejoué dans Chromium (dépôt → confirmation → 8 → 7 cartes à obtenir).

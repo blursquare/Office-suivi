@@ -124,3 +124,15 @@ test('rendu : bandeau, étapes et tableau se dessinent pour chaque type, rien de
     assert.ok(!/<img src=x/.test(html), nom);
   });
 });
+
+test('glisser-déposer : « Fait » valide, la sortie de « Fait » rouvre, le reste ne fait rien', () => {
+  assert.equal(app.actionDepotCarteFiche(false, 'fait'), 'valider');
+  assert.equal(app.actionDepotCarteFiche(true, 'obtenir'), 'rouvrir');
+  assert.equal(app.actionDepotCarteFiche(true, 'attente'), 'rouvrir');
+  assert.equal(app.actionDepotCarteFiche(true, 'fait'), '');
+  assert.equal(app.actionDepotCarteFiche(false, 'faire'), '');
+  const c = app.cartesTableauFiche(VARIANTES.maison, AUJ, []);
+  const html = app.renderCarteTableauFiche(c.attente.find(x => x.cle === 'echeance:pret'));
+  assert.match(html, /draggable="true"/);
+  assert.doesNotMatch(app.renderCarteTableauFiche(c.fait.find(x => x.cle === 'pieces-recues') || { titre: 'x', cle: 'k', auto: true, fait: true }), /draggable/);
+});
