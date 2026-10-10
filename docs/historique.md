@@ -18861,3 +18861,8 @@ Capture : « Recherché dans le dossier NAS à l'ouverture » + Ouvrir / Changer
 ### 0.208.2 — 2026-10-10 22:03 — fiche : carte arrivée mise en évidence
 
 `cartesChangeesFiche` (pure) compare les colonnes au dernier dessin de la fiche (`colonnesPrecedentesFiche`) ; la carte arrivée ou changée de colonne porte `.changee` (anneau de l'accent 2,4 s, fixe si mouvement réduit). Rien à la première ouverture d'un dossier. Maquettes de sélecteurs de la barre latérale : `docs/maquettes-sidebar/index.html` (5 propositions, pas encore appliquées).
+
+
+### 0.208.3 — 2026-10-10 22:09 — barre latérale : trait à gauche
+
+Étude (10/10), choix 1 des maquettes `docs/maquettes-sidebar/`. `.sidebar-link.actif` : fond `color-mix(--blanc-fixe 6 %)`, trait 3 px `--accent-sombre` en `::after` (le `::before` des outils porte déjà leur branche), lien débordant du retrait de la barre (`margin-left: -16px`, -14 px repliée) ; dans le tiroir Outils pas de débordement ; ligne « Outils » marquée de même quand un outil est ouvert tiroir fermé. Remplace « contour fin + point » du 06/10.

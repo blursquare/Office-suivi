@@ -827,23 +827,25 @@
   }
   .sidebar-link:hover { background: var(--paper-sunk); color: var(--ink); transform: translateX(1px); }
 
-  /* Lien actif (étude 06/10, « contour plus point ») : un contour fin à l'accent et un petit point à droite, sans fond. */
+  /* Lien actif (étude 10/10, choix 1 « trait à gauche » ; avant : contour et point) : un trait de l'accent sur le bord de la barre,
+     fond très léger. Le lien déborde du retrait de la barre (marge négative) pour que le trait touche son bord. */
   .sidebar-link.actif {
     position: relative;
-    background: none;
+    background: color-mix(in srgb, var(--blanc-fixe) 6%, transparent);
     color: var(--ink);
-    box-shadow: inset 0 0 0 1.5px var(--focus);
+    border-radius: 0 var(--rayon-m) var(--rayon-m) 0;
+    margin-left: -16px;
+    width: calc(100% + 16px);
+    padding-left: 28px;
   }
   .sidebar-link.actif::after {
-    content: ''; position: absolute; right: 12px; top: 50%; width: 6px; height: 6px; transform: translateY(-50%);
-    border-radius: 50%; background: var(--focus); pointer-events: none;
+    content: ''; position: absolute; left: 0; top: 6px; bottom: 6px; width: 3px;
+    border-radius: 0 var(--rayon-xs) var(--rayon-xs) 0; background: var(--accent-sombre); pointer-events: none;
   }
-  /* Le point s'efface devant un compteur de notifications (Suivi, Agenda) ou le badge Alpha. */
-  .sidebar-link.actif:has(.sidebar-badge-notif:not([style*="none"]))::after, .sidebar-link.actif:has(.stade-badge-nav)::after { display: none; }
   .sidebar-link.actif .sidebar-link-icone { opacity: 1; }
-  /* Dans le tiroir, la place est comptée : le libellé laisse la sienne au point. */
-  .sidebar-sousmenu .sidebar-link.actif::after { right: 8px; }
-  .sidebar-sousmenu .sidebar-link.sidebar-sousmenu-item.actif { padding-right: 20px; }
+  /* Dans le tiroir Outils : pas de débordement, le trait reste au bord de la ligne. */
+  .sidebar-sousmenu .sidebar-link.actif { margin-left: 0; width: 100%; padding-left: 8px; border-radius: var(--rayon-m); }
+  .sidebar-sousmenu .sidebar-link.actif::after { border-radius: var(--rayon-xs); }
   /* « Arbitrage forfait mobilier » remplit déjà toute la ligne : pas de point, le contour suffit. */
   .sidebar-sousmenu #tab-inventaire.actif { padding-right: 4px; }
   .sidebar-sousmenu #tab-inventaire.actif::after { display: none; }
@@ -1066,6 +1068,8 @@
       padding-right: 0;
     }
     .sidebar.repliee .sidebar-link-icone { font-size: var(--texte-xl); }
+    .sidebar.repliee .sidebar-link.actif { margin-left: -14px; width: calc(100% + 14px); padding-left: 0; }
+    .sidebar.repliee .sidebar-sousmenu .sidebar-link.actif { margin-left: 0; width: 100%; }
     .sidebar.repliee .sidebar-sousmenu::before,
     .sidebar.repliee .sidebar-sousmenu-item::before {
       display: none;
@@ -8420,15 +8424,19 @@ wa-button.widgets-galerie-retirer svg { width: 14px; height: 14px; }
 .sidebar-outils-chevron { display: inline-flex; margin-left: auto; font-size: var(--texte-s); opacity: 0.7; }
 /* Un outil ouvert, tiroir fermé : le lien « Outils » le signale. */
 .sidebar-outils-ligne:has(+ .sidebar-sousmenu.ferme .actif) #tab-outils {
-  color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--focus);
+  position: relative; color: var(--ink); background: color-mix(in srgb, var(--blanc-fixe) 6%, transparent);
+}
+.sidebar-outils-ligne:has(+ .sidebar-sousmenu.ferme .actif) #tab-outils::after,
+.sidebar.repliee .sidebar-outils-ligne:has(+ .sidebar-sousmenu .actif) #tab-outils::after {
+  content: ''; position: absolute; left: 0; top: 6px; bottom: 6px; width: 3px;
+  border-radius: var(--rayon-xs); background: var(--accent-sombre); pointer-events: none;
 }
 /* Liseré gardé (étude, 01/10 : « remettre le liseré ») : le tronc part sous l'icône Outils, une branche
    par outil, et s'arrête sur l'arrondi du dernier ; chaque outil a son icône (étude 05/10 : « remets des icônes aux outils »). */
 @media (min-width: 901px) {
   /* Barre repliée : « Outils » est une icône, un clic déplie ou replie le tiroir dessous (pas de chevron). */
   .sidebar.repliee .sidebar-outils-chevron { display: none; }
-  .sidebar.repliee .sidebar-outils-ligne:has(+ .sidebar-sousmenu .actif) #tab-outils { color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--focus); }
-  .sidebar.repliee .sidebar-link.actif::after { display: none; }
+  .sidebar.repliee .sidebar-outils-ligne:has(+ .sidebar-sousmenu .actif) #tab-outils { position: relative; color: var(--ink); background: color-mix(in srgb, var(--blanc-fixe) 6%, transparent); }
 }
 
 
