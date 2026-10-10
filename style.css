@@ -3884,7 +3884,8 @@
   .fiche-activite-meta { font-size: var(--texte-s); color: var(--muted); font-variant-numeric: tabular-nums; }
 
   /* ---- Fiche : bandeau du haut, suivi des étapes, tableau en colonnes (10/10) ---- */
-  .fiche-entete-infos { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-top: 8px; }
+  .fiche-titre-ligne { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; }
+  .fiche-entete-infos { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; min-width: 0; }
   .fiche-entete-texte { font-size: var(--texte-m); color: var(--ink-soft); overflow-wrap: anywhere; }
   .fiche-entete-prix { font-size: var(--texte-m); font-weight: 600; font-variant-numeric: tabular-nums; }
   .fiche-resp { display: inline-flex; }

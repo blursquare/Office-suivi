@@ -2037,6 +2037,7 @@
           <div class="fiche-principale">
             <header class="fiche-entete">
               <div class="fiche-meta">${renderBadgeStatut(d)}</div>
+              <div class="fiche-titre-ligne">
               <div class="nom-dossier">
                 <span class="nom-affichage" id="nom-affichage-${d.id}">
                   <span class="nom-texte">${escapeHtml(libelleDossierAffiche(d))}</span>
@@ -2053,6 +2054,7 @@
                 ${d.adresseBien ? `<span class="fiche-entete-texte">${escapeHtml(normaliserAdresse(d.adresseBien))}</span>` : ''}
                 ${d.prixVente ? `<strong class="fiche-entete-prix">${escapeHtml(formaterPrix(d.prixVente))}</strong>` : ''}
                 ${estSuccession(d) ? '' : boutonOuvrirCompromis}
+              </div>
               </div>
             </header>
 
