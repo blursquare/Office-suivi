@@ -50,6 +50,8 @@ const VERIFICATIONS_TERRAIN = [
     comment: 'Coché au premier email parti avec l’identifiant du collaborateur (sans droit « Envoyer en tant que ») ; en échec si Exchange refuse ses identifiants (l’email part alors du compte relié).' },
   { id: 'email-proposition-ia', depuis: '0.140.0', source: 'serveur', titre: 'Premier jet de réponse proposé par l’IA locale',
     comment: 'Coché à la première proposition de réponse rendue par Ollama ; en échec si l’IA locale est indisponible.' },
+  { id: 'assistant-conversation', depuis: '0.209.0', source: 'serveur', titre: '« Demander à CLAIRE » : un échange libre rédigé par l’IA en ligne (noms masqués, aucune donnée de dossier)',
+    comment: 'Coché à la première réponse libre rédigée par Claude ou Mistral ; en échec si la clé est refusée, si l’IA ne répond pas à temps ou répond hors format (le poste répond alors lui-même).' },
   { id: 'assistant-claude', depuis: '0.196.0', source: 'serveur', titre: '« Demander à CLAIRE » : une phrase comprise par Claude (noms masqués)',
     comment: 'Coché à la première phrase comprise par l’API Claude ; en échec si la clé est refusée, si Claude ne répond pas en 20 s ou si le serveur ne joint pas internet.' },
   { id: 'assistant-mistral', depuis: '0.178.0', source: 'serveur', titre: '« Demander à CLAIRE » : une phrase comprise par Mistral (noms masqués)',

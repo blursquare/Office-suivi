@@ -9,6 +9,7 @@ const { creerClientOllama } = require('../llm');
 const { comprendreDemande, creerCacheDisponibilite } = require('../assistant');
 const { CLE_REGLAGES, MOTEURS, REVISION_REGLAGES_ASSISTANT, assainirReglagesAssistant, creerClientMistralAssistant, lireUsageAssistant, MODELE_ASSISTANT_MISTRAL, MODELES_CLAUDE_ASSISTANT } = require('../assistantMistral');
 const { creerClientClaudeAssistant } = require('../assistantClaude');
+const { converser } = require('../assistantConversation');
 const { noterVerification } = require('../verificationsTerrain');
 
 const chaine = (v, max) => (typeof v === 'string' ? v.slice(0, max) : '');
@@ -16,6 +17,20 @@ const listeChaines = (v, n, max) => (Array.isArray(v) ? v.filter((x) => typeof x
 
 function routeAsync(fn) {
   return (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
+}
+
+// Les dossiers reçus du poste, ramenés aux seuls champs qui servent à reconnaître un dossier cité (jamais une donnée de fiche utile
+// à l'IA) : sert à masquer les noms avant tout envoi en ligne.
+function dossiersDuCorps(corps) {
+    return Array.isArray(corps.dossiers) ? corps.dossiers.filter((d) => d && typeof d.id === 'string').map((d) => ({
+      id: d.id, nom: typeof d.nom === 'string' ? d.nom : '', archive: !!d.archive,
+      parties: Array.isArray(d.parties) ? d.parties.filter((p) => p && typeof p.nom === 'string').slice(0, 20).map((p) => ({
+        nom: p.nom.slice(0, 120), prenom: chaine(p.prenom, 80), nomUsage: chaine(p.nomUsage, 120), civilite: chaine(p.civilite, 12)
+      })) : [],
+      autres: listeChaines(d.autres, 10, 300),
+      reference: chaine(d.reference, 40),
+      contacts: listeChaines(d.contacts, 20, 200)
+    })) : [];
 }
 
 function creerRouteurAssistant(config, injections, parametresRepo) {
@@ -87,15 +102,7 @@ function creerRouteurAssistant(config, injections, parametresRepo) {
     const texte = typeof corps.texte === 'string' ? corps.texte.trim() : '';
     if (!texte) { res.status(400).json({ erreur: 'Aucune demande (champ "texte" requis).' }); return; }
     const contexte = corps.contexte && typeof corps.contexte === 'object' ? corps.contexte : {};
-    const dossiers = Array.isArray(corps.dossiers) ? corps.dossiers.filter((d) => d && typeof d.id === 'string').map((d) => ({
-      id: d.id, nom: typeof d.nom === 'string' ? d.nom : '', archive: !!d.archive,
-      parties: Array.isArray(d.parties) ? d.parties.filter((p) => p && typeof p.nom === 'string').slice(0, 20).map((p) => ({
-        nom: p.nom.slice(0, 120), prenom: chaine(p.prenom, 80), nomUsage: chaine(p.nomUsage, 120), civilite: chaine(p.civilite, 12)
-      })) : [],
-      autres: listeChaines(d.autres, 10, 300),
-      reference: chaine(d.reference, 40),
-      contacts: listeChaines(d.contacts, 20, 200)
-    })) : [];
+    const dossiers = dossiersDuCorps(corps);
     const m = moteurCourant();
     const resultat = await comprendreDemande({
       texte,
@@ -112,6 +119,26 @@ function creerRouteurAssistant(config, injections, parametresRepo) {
     if (resultat.source === 'ia') noterVerification(parametresRepo, point, { detail: `intention ${resultat.intention}` });
     else if (resultat.raisonIa) noterVerification(parametresRepo, point, { ok: false, message: resultat.raisonIa.slice(0, 120) });
     res.json(resultat);
+  }));
+
+  // Échange libre (étude 11/10) : l'IA en ligne répond à une phrase SANS donnée de dossier, noms masqués. Sans IA en ligne ou en cas
+  // d'erreur : { reponse: '' } et la raison — le poste répond alors lui-même.
+  routeur.post('/assistant/converser', routeAsync(async (req, res) => {
+    const corps = req.body && typeof req.body === 'object' ? req.body : {};
+    const texte = typeof corps.texte === 'string' ? corps.texte.trim() : '';
+    if (!texte) { res.status(400).json({ erreur: 'Aucune phrase (champ "texte" requis).' }); return; }
+    const m = moteurCourant();
+    if (m.moteur === 'locale') { res.json({ reponse: '', raison: 'Aucune IA en ligne configurée (Claude ou Mistral).' }); return; }
+    const contexte = corps.contexte && typeof corps.contexte === 'object' ? corps.contexte : {};
+    try {
+      const { reponse } = await converser({ texte, contexte: { aujourdhui: chaine(contexte.aujourdhui, 10), prenom: chaine(contexte.prenom, 20), historique: Array.isArray(contexte.historique) ? contexte.historique : [] }, dossiers: dossiersDuCorps(corps) }, m.client);
+      noterVerification(parametresRepo, 'assistant-conversation', { detail: m.moteur });
+      res.json({ reponse, moteur: m.moteur });
+    } catch (err) {
+      const raison = err && err.message ? String(err.message).slice(0, 160) : 'réponse illisible';
+      noterVerification(parametresRepo, 'assistant-conversation', { ok: false, message: raison.slice(0, 120) });
+      res.json({ reponse: '', raison });
+    }
   }));
 
   return routeur;

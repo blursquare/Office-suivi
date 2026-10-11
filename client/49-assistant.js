@@ -7,7 +7,7 @@
   // dossier désigné est connu, et chaque intention appelle la fonction qui existe déjà — rien n'est refait ni inventé. ----
 
   let assistantMessages = [];           // [{ role: 'moi' | 'claire', html, boutons: [{ libelle, action, principal }], quand }]
-  let assistantContexte = { dossierId: '', attente: null, historique: [] };
+  let assistantContexte = { dossierId: '', attente: null, historique: [], echanges: [] };
   let assistantEnCours = false;
   let assistantDisponibilite = { ia: null, raison: '', modele: '', quand: 0 };
   var assistantActions = {};            // clé du bouton → fonction (jamais de code dans l'attribut onclick)
@@ -59,7 +59,7 @@
     if (!assistantMessages.length) {
       zone.innerHTML = `<div class="asst-accueil">
           <div class="asst-accueil-logo" aria-hidden="true">${icone('sparkle')}</div>
-          <h2 class="asst-accueil-titre">Que puis-je faire pour vous ?</h2>
+          <h2 class="asst-accueil-titre">${escapeHtml(accueilAssistant(prenomPosteAssistant(), new Date()))}</h2>
           <p class="asst-accueil-texte">Un dossier, une tâche, un email, un rendez-vous, un calcul : dites-le en une phrase.</p>
           <div class="asst-suggestions">${suggestionsAssistant(dossiersPerimetreDashboard()).map(s =>
             `<button type="button" class="asst-suggestion" onclick="envoyerDemandeAssistant(this.textContent)">${escapeHtml(s)}</button>`).join('')}</div>
@@ -93,7 +93,7 @@
 
   function nouvelleConversationAssistant() {
     assistantMessages = [];
-    assistantContexte = { dossierId: dossierOuvert || '', attente: null, historique: [] };
+    assistantContexte = { dossierId: dossierOuvert || '', attente: null, historique: [], echanges: [] };
     renderAssistant();
     const champ = document.getElementById('assistant-saisie');
     if (champ) { champ.value = ''; champ.focus(); }
@@ -131,6 +131,7 @@
     if (champ && !texteForce) champ.value = '';
     if (champ) champ.style.height = '';
     poserMessageAssistant('moi', escapeHtml(texte));
+    noterEchangeAssistant('moi', texte);
     // On attendait le nom d'un dossier : la phrase est ce nom, on reprend la demande précédente.
     if (assistantContexte.attente && assistantContexte.attente.type === 'dossier') {
       const r = reconnaitreDossier(texte, dossiersPourAssistant(dossiers));
@@ -158,7 +159,7 @@
       await executerDemandeAssistant(corps);
     } catch (e) {
       assistantEnCours = false;
-      poserMessageAssistant('claire', `<p>Je n’ai pas pu traiter la demande : ${escapeHtml(e.message || e)}</p>`);
+      poserMessageAssistant('claire', `<p>Je n’y arrive pas pour le moment : ${escapeHtml(e.message || e)}. Vous pouvez réessayer dans un instant.</p>`);
     }
   }
 
@@ -169,7 +170,7 @@
 
   function proposerCandidatsAssistant(candidats, resultat) {
     assistantContexte.attente = { type: 'dossier', resultat };
-    poserMessageAssistant('claire', '<p>Plusieurs dossiers correspondent. Lequel ?</p>', candidats.map(c => ({
+    poserMessageAssistant('claire', '<p>J’en trouve plusieurs qui correspondent. Lequel voulez-vous ?</p>', candidats.map(c => ({
       libelle: libelleDossierParNom(c.nom, c.id),
       action: () => { assistantContexte.attente = null; executerDemandeAssistant({ ...resultat, dossier: c.id, candidats: [] }); }
     })));
@@ -185,7 +186,7 @@
       d = r.dossier ? dossiers.find(x => x.id === r.dossier) : null;
       if (!d) {
         assistantContexte.attente = { type: 'dossier', resultat: r };
-        poserMessageAssistant('claire', '<p>De quel dossier parlez-vous ? Donnez-moi le nom du dossier ou d’une partie.</p>');
+        poserMessageAssistant('claire', '<p>De quel dossier s’agit-il ? Le nom du dossier ou d’une des parties me suffit.</p>');
         return;
       }
       assistantContexte.dossierId = d.id;
@@ -221,14 +222,23 @@
       archiver: () => gesteArchiverAssistant(d),
       responsable: () => gesteResponsableAssistant(d, p),
       aide: () => reponseAideAssistant(),
+      salutation: () => reponseSalutationEcranAssistant(r),
+      conversation: () => reponseConversationAssistant(r),
       inconnu: () => reponseInconnuAssistant(r)
     };
     try {
       const reponse = await (executants[intention.cle] || executants.inconnu)();
-      if (reponse) poserMessageAssistant('claire', reponse.html + noteMoteurAssistant(r), reponse.boutons);
+      if (reponse) {
+        // Le ton (client/59) : une phrase d'introduction et, quand le dossier le justifie, une suite proposée — les faits restent ceux du code.
+        const intro = introLectureAssistant(intention.cle, prenomPosteAssistant(), assistantMessages.length);
+        const suite = suiteLectureAssistant(intention.cle, faitsAssistant(intention.cle, d));
+        const boutonsSuite = suite ? suite.boutons.map(b => ({ libelle: b.libelle, action: () => envoyerDemandeAssistant(b.phrase) })) : [];
+        poserMessageAssistant('claire', (intro ? `<p class="asst-intro">${escapeHtml(intro)}</p>` : '') + reponse.html + (suite && suite.texte ? `<p>${escapeHtml(suite.texte)}</p>` : '') + noteMoteurAssistant(r),
+          (reponse.boutons || []).concat(boutonsSuite));
+      }
     } catch (e) {
       console.error('Assistant : geste impossible', e);
-      poserMessageAssistant('claire', `<p>Le geste n’a pas abouti : ${escapeHtml(e.message || e)}</p>`);
+      poserMessageAssistant('claire', `<p>Je n’ai pas pu terminer : ${escapeHtml(e.message || e)}. Rien n’a été modifié sans vous le dire ; vous pouvez réessayer.</p>`);
     }
   }
 
@@ -239,6 +249,48 @@
     const moteur = r.moteur === 'claude' ? 'Claude' : r.moteur === 'mistral' ? 'Mistral' : 'l’IA locale';
     const autre = r.motsCles ? intentionAssistant(r.motsCles) : null;
     return `<p class="asst-note asst-moteur">Compris par ${moteur}${autre ? ` — les mots-clés auraient compris « ${escapeHtml(autre.libelle)} »` : ''}.</p>`;
+  }
+
+  // Mémoire courte de la conversation en texte brut (4 derniers échanges partent à l'IA pour l'échange libre, noms masqués par le serveur).
+  function noterEchangeAssistant(role, texte) {
+    assistantContexte.echanges = (assistantContexte.echanges || []).concat([{ role, texte: String(texte || '').slice(0, 400) }]).slice(-8);
+  }
+
+  // « Bonjour », « merci »… : répondu par le code, tout de suite. À la première salutation, le point de la journée.
+  function reponseSalutationEcranAssistant(r) {
+    const prenom = prenomPosteAssistant();
+    const phrase = reponseSalutationAssistant(r.texte, prenom, new Date(), assistantMessages.length);
+    const bonjour = /^(bonjour|bonsoir|salut|hello|coucou)/.test(normaliserDemande(r.texte));
+    const point = bonjour && assistantMessages.length <= 2 ? pointJourneeAssistant() : '';
+    noterEchangeAssistant('claire', phrase + (point ? ' ' + point : ''));
+    return { html: `<p>${escapeHtml(phrase)}</p>${point ? `<p>${escapeHtml(point)}</p>` : ''}`,
+      boutons: point ? [{ libelle: 'Voir mes tâches', action: () => envoyerDemandeAssistant('Qu’est-ce que j’ai à faire aujourd’hui ?') }] : [] };
+  }
+
+  // Échange libre : l'IA en ligne répond (noms masqués, aucune donnée de dossier). Sans IA en ligne ou en cas d'erreur : le code répond.
+  async function reponseConversationAssistant(r) {
+    assistantEnCours = true;
+    renderAssistant();
+    let corps = {};
+    try {
+      const rep = await fetchAvecAuth('/api/assistant/converser', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          texte: r.texte,
+          contexte: { aujourdhui: isoAujourdhuiLocal(), prenom: prenomPosteAssistant(), historique: (assistantContexte.echanges || []).slice(-5, -1) },
+          dossiers: dossiersPourAssistant(dossiers)
+        })
+      });
+      corps = await rep.json();
+    } catch (e) { corps = { reponse: '', raison: 'Serveur injoignable.' }; }
+    assistantEnCours = false;
+    if (corps && corps.reponse) {
+      noterEchangeAssistant('claire', corps.reponse);
+      return { html: htmlTexteLibreAssistant(corps.reponse) };
+    }
+    if (corps && corps.raison) console.warn('Assistant : conversation sans IA — ' + String(corps.raison).slice(0, 160));
+    return { html: '<p>Je ne peux pas en discuter librement pour le moment, il me manque la connexion à l’IA. En revanche, je peux chercher dans vos dossiers, préparer un email, retrouver une date ou poser un rappel.</p>',
+      boutons: [{ libelle: 'Que sais-tu faire ?', action: () => envoyerDemandeAssistant('Que sais-tu faire ?') }] };
   }
 
   // ---- Réponses en lecture ----
@@ -667,7 +719,7 @@
   }
 
   function reponseAideAssistant() {
-    const lignes = INTENTIONS_ASSISTANT.filter(i => i.cle !== 'inconnu' && i.cle !== 'aide').map(i => `<li><b>${escapeHtml(i.libelle)}</b>${i.exemples[0] ? ` — <i>${escapeHtml(i.exemples[0])}</i>` : ''}</li>`);
+    const lignes = INTENTIONS_ASSISTANT.filter(i => i.cle !== 'inconnu' && i.cle !== 'aide' && i.cle !== 'salutation').map(i => `<li><b>${escapeHtml(i.libelle)}</b>${i.exemples[0] ? ` — <i>${escapeHtml(i.exemples[0])}</i>` : ''}</li>`);
     return { html: `<p>Je comprends une phrase et je fais le geste avec les fonctions de CLAIRE. Les emails s’ouvrent dans la fenêtre d’envoi (rien ne part sans « Envoyer »), l’agenda demande une confirmation, le reste se fait tout de suite et s’annule d’un clic.</p><ul class="asst-liste asst-aide">${lignes.join('')}</ul>` };
   }
 
@@ -677,7 +729,7 @@
     // La raison dite à l'écran (07/10 : « pourquoi Mistral ne répond pas ») : clé refusée, délai, réponse illisible… — un fait
     // technique, jamais la phrase.
     const motif = r && r.raisonIa ? ` <span class="asst-note">(${escapeHtml(String(r.raisonIa).replace(/https?:\/\/\S+/g, '').slice(0, 160))} — je ne lis que les mots-clés)</span>` : '';
-    return { html: `<p>Je n’ai pas compris la demande.${motif} Essayez avec le nom d’un dossier et un verbe : « où en est… », « relance… », « rappelle-moi… », « place la signature… », ou demandez-moi « que sais-tu faire ? ».</p>`,
+    return { html: `<p>Je n’ai pas bien saisi.${motif} Pouvez-vous me le redire avec le nom d’un dossier et un verbe ? Par exemple « où en est… », « relance… », « rappelle-moi… » ou « place la signature… ».</p>`,
       boutons: [{ libelle: 'Que sais-tu faire ?', action: () => envoyerDemandeAssistant('Que sais-tu faire ?') }] };
   }
 

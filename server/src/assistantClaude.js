@@ -49,15 +49,16 @@ function messageErreurClaude(err) {
  * Paramètres de la requête pour un modèle (pure) : sans réflexion ; effort bas seulement si le modèle l'accepte (Haiku 4.5 : non).
  * @param {string} modele @param {string} prompt
  */
-function requeteAssistantClaude(modele, prompt) {
+function requeteAssistantClaude(modele, prompt, schema, maxJetons) {
   const fiche = MODELES_CLAUDE_ASSISTANT[modele];
+  const SCHEMA = schema || SCHEMA_ASSISTANT;
   return {
     model: modele,
-    max_tokens: MAX_JETONS_CLAUDE,
+    max_tokens: Math.max(MAX_JETONS_CLAUDE, maxJetons || 0),
     thinking: { type: 'disabled' },
     output_config: fiche && fiche.effort
-      ? { effort: 'low', format: { type: 'json_schema', schema: SCHEMA_ASSISTANT } }
-      : { format: { type: 'json_schema', schema: SCHEMA_ASSISTANT } },
+      ? { effort: 'low', format: { type: 'json_schema', schema: SCHEMA } }
+      : { format: { type: 'json_schema', schema: SCHEMA } },
     messages: [{ role: 'user', content: prompt }]
   };
 }
@@ -76,13 +77,13 @@ function creerClientClaudeAssistant({ cle, modele, parametresRepo, client }) {
     async verifierDisponibilite() {
       return cle ? { disponible: true, raison: '' } : { disponible: false, raison: 'Aucune clé Claude : à saisir dans Réglages › IA et relecture d’actes.' };
     },
-    /** @param {string} prompt @param {(o: any) => string|null} valider */
-    async genererJson(prompt, valider) {
+    /** @param {string} prompt @param {(o: any) => string|null} valider @param {{ schema?: any, longueurMax?: number }} [limites] `schema` : une autre sortie que le choix d'intention (la conversation). */
+    async genererJson(prompt, valider, limites) {
       if (!sdk) sdk = creerClientParDefaut(cle);
       let message;
       try {
         // Phrase courte, réponse attendue vite : sans réflexion, effort bas ; JSON garanti par le schéma.
-        message = await sdk.messages.create(requeteAssistantClaude(choisi, prompt));
+        message = await sdk.messages.create(requeteAssistantClaude(choisi, prompt, limites && limites.schema, limites && limites.longueurMax));
       } catch (err) {
         noter({ erreur: true });
         throw new Error(messageErreurClaude(err));

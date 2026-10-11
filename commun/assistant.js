@@ -79,7 +79,16 @@
     { cle: 'responsable', libelle: 'Changer le responsable', description: 'attribuer un dossier à un collaborateur (Bastien, Julie, Jérémy)',
       dossier: true, parametres: ['collaborateur'], ecrit: 'fiche', exemples: ['Attribue le dossier MARTIN à Julie', 'Donne le dossier LEROY à Jérémy'], motifs: [/\bresponsable\b/, /\battribu/, /\bconfie[rz]?\b/, /\b(donne[rz]?|passe[rz]?) (le |ce )?dossier a\b/], poids: 2 },
     { cle: 'aide', libelle: 'Aide', description: 'ce que l’assistant sait faire',
-      exemples: ['Que sais-tu faire ?'], motifs: [/\baide\b/, /\bhelp\b/, /\bque (sais|peux)[- ]tu\b/, /\bqu.?est.?ce que tu (sais|peux)\b/, /\bcomment (ca marche|tu marches|t.utiliser)\b/, /^(bonjour|salut|hello|merci)\b/], poids: 2 },
+      exemples: ['Que sais-tu faire ?'], motifs: [/\baide\b/, /\bhelp\b/, /\bque (sais|peux)[- ]tu\b/, /\bqu.?est.?ce que tu (sais|peux)\b/, /\bcomment (ca marche|tu marches|t.utiliser)\b/], poids: 2 },
+    // Étude 11/10 : « des réponses plus humaines, comme avec un assistant / collaborateur avec qui j'échange tous les jours ».
+    // `salutation` : bonjour, merci, au revoir… — répondu par le code, tout de suite, sans IA. `conversation` : un échange libre
+    // sans donnée de dossier (explication, conseil, question générale) — la seule réponse écrite par l'IA, voir /api/assistant/converser.
+    { cle: 'salutation', libelle: 'Bonjour, merci…', description: 'une formule de politesse : bonjour, merci, au revoir, comment ça va',
+      exemples: ['Bonjour', 'Merci beaucoup', 'Bonsoir CLAIRE', 'Ça va ?', 'À bientôt'],
+      motifs: [/^(bonjour|bonsoir|salut|hello|coucou)\b/, /^(merci|un grand merci|super merci|parfait merci|genial merci|bravo|top)\b/, /\bca va\b/, /\bcomment (vas|allez)[- ](tu|vous)\b/, /^(au revoir|a bientot|a demain|a plus tard|bonne (journee|soiree|continuation))\b/] },
+    { cle: 'conversation', libelle: 'Échanger librement', description: 'discuter sans donnée de dossier : expliquer une notion, donner un avis ou un conseil général, répondre à une question sur le métier ou sur CLAIRE',
+      exemples: ['Explique-moi la différence entre une promesse et un compromis', 'Que penses-tu de ma façon de classer les dossiers ?', 'J’ai besoin d’un conseil', 'Peux-tu m’expliquer comment tu fonctionnes ?'],
+      motifs: [/\bexplique[- ]moi\b/, /\bpeux[- ]tu m.expliquer\b/, /\bque penses[- ]tu\b/, /\bqu.?en penses[- ]tu\b/, /\bun conseil\b/, /\bton avis\b/, /\bj.ai besoin d.aide pour reflechir\b/, /\bparlons\b/] },
     { cle: 'inconnu', libelle: 'Je n’ai pas compris', description: 'demande hors de la liste, ou trop vague', exemples: [], motifs: [] }
   ];
 
@@ -481,6 +490,11 @@
       const n = i.motifs.filter(re => re.test(t)).length;
       if (n) touches.push({ cle: i.cle, score: n + (i.poids || 0) });
     });
+    // « Bonjour, où en est MARTIN ? » : la demande précise gagne sur la formule de politesse ou l'échange libre.
+    if (touches.length > 1) {
+      const precis = touches.filter(x => x.cle !== 'salutation' && x.cle !== 'conversation');
+      if (precis.length) touches.splice(0, touches.length, ...precis);
+    }
     const parametres = parametresDepuisTexte(t, texte, auj);
     // Des parts qui font 100 (« 60/40 ») sans autre mot : des quotités, pas une date.
     if (parametres.parts.length && !touches.some(x => x.cle === 'quotites')) touches.push({ cle: 'quotites', score: 1 });

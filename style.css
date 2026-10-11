@@ -9150,6 +9150,7 @@ table.pr-zt td.pr-zt-retenue select { min-width: 120px; min-height: 32px; height
 .asst-liste li { margin: 2px 0; }
 .asst-liste.asst-aide li { margin: 4px 0; }
 .asst-note { color: var(--muted); font-size: var(--texte-s); }
+.asst-intro { color: var(--ink-soft); }
 .asst-boutons { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
 .asst-attente { display: inline-flex; gap: 4px; align-items: center; padding: 14px 16px; }
 .asst-attente span { width: 6px; height: 6px; border-radius: 50%; background: var(--muted); animation: asst-pulse 1.2s infinite ease-in-out; }
