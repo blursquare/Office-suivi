@@ -7,21 +7,21 @@
 h1{font-size:24px;font-weight:500;letter-spacing:-.02em;margin:0 0 4px}.lead{color:var(--mut);margin:0 0 28px;max-width:70ch}
 .bloc{max-width:1240px;margin:0 auto 40px}.bloc h2{font-size:18px;font-weight:500;margin:0 0 4px}.bloc>p{color:var(--mut);margin:0 0 12px;font-size:13px;max-width:80ch}
 .fenetre{display:flex;height:640px;background:var(--bg);border-radius:16px;overflow:hidden;box-shadow:0 8px 30px #0003}
-.side{width:200px;flex:0 0 200px;background:var(--side);border:1px solid var(--sideb);padding:18px 12px;display:flex;flex-direction:column;gap:3px;color:#C3C7CD}
+.side{width:200px;flex:0 0 200px;background:var(--side);border:1px solid var(--sideb);border-left:0;border-radius:0 16px 16px 0;padding:18px 12px;display:flex;flex-direction:column;gap:3px;color:#C3C7CD}
 .logo{color:#F2F3F5;font-size:20px;font-weight:600;margin:0 0 12px 8px}
 .lien{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:var(--r);font-weight:500;font-size:13px;position:relative}
 .lien i{width:14px;height:14px;border:1.5px solid currentColor;border-radius:4px;opacity:.8}
 .lien.actif{color:#F2F3F5;background:#ffffff0f;border-radius:0 var(--r) var(--r) 0;margin-left:-12px;padding-left:22px}.lien.actif::after{content:"";position:absolute;left:0;top:6px;bottom:6px;width:3px;border-radius:0 4px 4px 0;background:var(--acc-s)}
-.zone{flex:1;min-width:0;display:flex;flex-direction:column}
+.zone{flex:1;min-width:0;display:flex;flex-direction:column;margin:10px 10px 10px 12px;border-radius:16px;overflow:hidden;background:var(--card);box-shadow:0 1px 3px #0001}
 /* onglets */
-.onglets{display:flex;align-items:flex-end;gap:2px;padding:8px 10px 0;background:#D5DBE5;border-bottom:1px solid var(--line);flex:0 0 auto;overflow:hidden}
-.onglet{display:flex;align-items:center;gap:7px;max-width:210px;padding:7px 10px 8px;border-radius:9px 9px 0 0;font-size:12.5px;color:var(--soft);white-space:nowrap;background:#ffffff80;position:relative}
+.onglets{display:flex;align-items:stretch;gap:0;padding:0;background:#E3E8EF;border-bottom:1px solid var(--line);flex:0 0 auto;overflow:hidden}
+.onglet{display:flex;align-items:center;gap:7px;max-width:210px;padding:9px 12px;border-radius:0;font-size:12.5px;color:var(--soft);white-space:nowrap;background:transparent;border-right:1px solid var(--line);position:relative}
 .onglet b{font-weight:500;overflow:hidden;text-overflow:ellipsis}.onglet .x{opacity:.5;font-size:15px;line-height:1;margin-left:2px}.onglet:hover .x{opacity:1}
-.onglet.actif{background:var(--card);color:var(--ink);box-shadow:inset 0 2px 0 var(--acc)}
+.onglet.actif{background:var(--card);color:var(--ink);box-shadow:inset 0 2px 0 var(--acc);margin-bottom:-1px}
 .onglet .pt{width:7px;height:7px;border-radius:50%;flex:0 0 auto}.pt.pret{background:var(--pret)}.pt.urg{background:var(--urg)}.pt.ok{background:var(--ok)}
 .onglet .ico{width:13px;height:13px;border:1.5px solid currentColor;border-radius:3px;opacity:.7}
 .onglet.moitie::after{content:"";width:12px;height:12px;border:1.5px solid var(--acc);border-radius:2px;border-right-width:5px;margin-left:2px}
-.plus{padding:6px 10px 8px;font-size:17px;color:var(--mut);line-height:1}
+.plus{padding:8px 12px;font-size:17px;color:var(--mut);line-height:1}
 .corps{flex:1;min-height:0;display:flex;background:var(--card)}
 /* fiche condensée */
 .fiche{padding:18px 22px;flex:1;min-width:0;overflow:hidden;background:var(--card)}
@@ -59,7 +59,7 @@ h1{font-size:24px;font-weight:500;letter-spacing:-.02em;margin:0 0 4px}.lead{col
 .sug{margin:0 20px 6px;display:flex;gap:6px;flex-wrap:wrap;font-size:12px}.sug span{padding:3px 10px;border-radius:99px;background:var(--sunk);box-shadow:0 0 0 1px var(--line);color:var(--soft)}
 </style></head><body>
 <h1>Espace de travail de CLAIRE</h1>
-<p class="lead">Trois maquettes : « Demander à CLAIRE » façon Slack, les onglets pour garder des fiches et des outils ouverts, et une fiche ancrée à droite d'un outil. Données inventées ; mêmes couleurs, polices et arrondis que CLAIRE.</p>
+<p class="lead">Version 2 : barre latérale collée en haut, en bas et à gauche, arrondie à droite ; onglets rectangulaires. Trois maquettes : « Demander à CLAIRE » façon Slack, les onglets pour garder des fiches et des outils ouverts, et une fiche ancrée à droite d'un outil. Données inventées ; mêmes couleurs, polices et arrondis que CLAIRE.</p>
 
 <section class="bloc"><h2>1. Demander à CLAIRE, façon Slack</h2>
 <p>Un fil continu au lieu de bulles : avatar carré, nom et heure, texte en pleine largeur, résultats dans des cartes à liseré, boutons de suite sous le message, barre d'outils dans la zone de saisie (mentionner un dossier avec @, joindre, envoyer). Séparateur de jour, actions au survol (copier, réagir, répondre en fil).</p>
