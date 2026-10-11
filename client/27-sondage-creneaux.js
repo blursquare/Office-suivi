@@ -1199,6 +1199,7 @@
   // le tiroir au passage.
   function ouvrirDossierDrawer(id) {
     dossierOuvert = id;
+    noterOngletDossier(id);   // un onglet par fiche ouverte (client/60-onglets-travail.js)
     noterDossierConsulte(id);
     // Dossiers d'Authentic relevés récemment, pour la ligne « Authentic › Compléter » de la fiche (étude 06/10).
     chargerGroupesAuthenticFiche();
@@ -1274,8 +1275,9 @@
       dossierOuvert = null;
       dossierRenduDansTiroir = null;
       overlay.style.display = 'none';
-      document.body.classList.remove('drawer-ouvert');
+      document.body.classList.remove('fiche-en-page');
       contenu.innerHTML = '';
+      renderOngletsTravail();
       return;
     }
     // Le défilement du tiroir est conservé : render() le reconstruit à chaque action menée dans
@@ -1287,9 +1289,10 @@
     contenu.innerHTML = renderCarteDossier(d);
     if (panneau) panneau.scrollTop = defilement;
     overlay.style.display = 'flex';
-    // Empêche la page derrière le tiroir de défiler en même temps que lui (sinon la molette
-    // emporte la liste dès que le contenu du tiroir arrive en bout de course).
-    document.body.classList.add('drawer-ouvert');
+    // La fiche s'affiche en page à la place de l'écran courant (étude 11/10, onglets) : plus de tiroir sur fond grisé.
+    if (!document.body.classList.contains('fiche-en-page')) window.scrollTo(0, 0);
+    document.body.classList.add('fiche-en-page');
+    renderOngletsTravail();
   }
 
   function libellePiece(statut) {

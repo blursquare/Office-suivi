@@ -18907,3 +18907,22 @@ de l'interface », « Lance la production ». Démarche convenue : maquette, pui
 - Barre latérale : collée en haut, en bas et à gauche, angles droits, filet à droite (plus de marge ni d'ombre).
 - Relecture indépendante : mention qui pouvait viser l'homonyme, champ du widget du tableau de bord qui perdait sa mise en
   forme (règle `.asst-saisie` devenue propre à la page), liste @ refermée par le blur du bouton, graisse du titre — corrigés.
+
+
+### 11/10/2026 — 0.211.0 Onglets des fiches et des outils, fiche en page
+
+Demande de l'étude : « Créer aussi un système d'onglet pour pourvoir naviguer dans les dossier et les outils » (choix : les
+onglets portent les fiches et les outils ; la barre latérale garde tableau de bord, Suivi, Agenda, « Demander à CLAIRE »,
+Réglages). Étape 2 sur 3 (`docs/maquettes-espace/`).
+
+- `client/60-onglets-travail.js` : `ongletsTravail` (`{ type: 'dossier', id }` / `{ type: 'outil', nom }`), noté par
+  `ouvrirDossierDrawer` (`noterOngletDossier`) et `definirOnglet` (`noterOngletEcran`, écrans de `OUTILS_ONGLETS_TRAVAIL` :
+  outils du tiroir et Claire Scan) ; onglet actif CALCULÉ (`cleOngletTravailActif` : fiche affichée, sinon outil courant) ;
+  × ou clic molette ferme (voisin activé, `voisinOngletTravail`), glisser réordonne (`deplacerOngletTravailListe`) ; 12 au plus
+  (`ajouterOngletTravailListe`) ; gardés par poste dans le navigateur (`claire-onglets-travail`, `ongletsTravailValides` au
+  chargement). Point de couleur = statut du dossier (`etatDossier`).
+- **La fiche s'affiche en page** : `#dossier-drawer-overlay` est dans `<main>`, `body.fiche-en-page` masque les écrans
+  `.app-main > [id^="onglet-"]` (le Suivi est `.wrap-suivi`, « Nouveau dossier » `.layout-cols` : un sélecteur sur
+  `.onglet-panel` les laissait visibles) ; plus de fond grisé ni de `body.drawer-ouvert` ; `definirOnglet` ferme la fiche
+  affichée (son onglet reste) — les chemins existants appellent tous `definirOnglet` AVANT `ouvrirDossierDrawer`.
+  Impression de la fiche : ancrée sur `body.fiche-en-page`.

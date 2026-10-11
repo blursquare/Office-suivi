@@ -3643,9 +3643,42 @@
     .drawer-panneau { animation: none; }
   }
 
-  /* Le tiroir gère son propre défilement : sans ça, arrivé en bout de course, la molette continue
-     sur la liste derrière et l'utilisateur perd la position qu'on cherchait justement à préserver. */
-  body.drawer-ouvert { overflow: hidden; }
+  /* ---- Fiche en page et onglets de travail (étude 11/10, client/60-onglets-travail.js) ----
+     La fiche ne s'ouvre plus en tiroir sur un fond grisé : elle prend la place de l'écran courant, sous la barre d'onglets. */
+  :root { --hauteur-onglets: 40px; }
+  body.fiche-en-page .app-main > [id^="onglet-"] { display: none !important; }
+  .app-main > .drawer-overlay { position: static; inset: auto; z-index: auto; background: none; justify-content: center; }
+  [data-theme="dark"] .app-main > .drawer-overlay { background: none; }
+  .app-main > .drawer-overlay .drawer-panneau { width: 100%; max-width: 1680px; height: auto; overflow: visible; border: 1px solid var(--bord-carte); border-radius: var(--rayon-carte); box-shadow: none; }
+  .app-main > .drawer-overlay .drawer-panneau.large { width: 100%; }
+  .app-main > .drawer-overlay .fiche-barre { border-radius: var(--rayon-carte) var(--rayon-carte) 0 0; }
+  body.avec-onglets-travail .fiche-barre { top: var(--hauteur-onglets); }
+  .onglets-travail { position: sticky; top: 0; z-index: 30; display: flex; align-items: stretch; height: var(--hauteur-onglets); margin: -32px -32px 32px; background: var(--paper-sunk); border-bottom: 1px solid var(--line); overflow-x: auto; overflow-y: hidden; scrollbar-width: thin; }
+  .ot-onglet { flex: 0 1 220px; min-width: 120px; display: flex; align-items: center; gap: 8px; padding: 0 6px 0 12px; border-right: 1px solid var(--line); color: var(--ink-soft); font-size: var(--texte-m); cursor: pointer; position: relative; user-select: none; }
+  .ot-onglet:hover { background: var(--paper); color: var(--ink); }
+  .ot-onglet.actif { background: var(--paper-card); color: var(--ink); font-weight: 500; box-shadow: inset 0 2px 0 var(--focus); margin-bottom: -1px; }
+  .ot-onglet:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+  .ot-onglet.glisse { opacity: 0.5; }
+  .ot-libelle { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ot-icone { display: inline-flex; color: var(--muted); }
+  .ot-icone .icone { width: 14px; height: 14px; }
+  .ot-point { flex: 0 0 auto; width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+  .ot-point.ot-etat-urgent { background: var(--urgent); }
+  .ot-point.ot-etat-attente { background: var(--pret); }
+  .ot-point.ot-etat-complet { background: var(--acte); }
+  .ot-point.ot-etat-pret { background: var(--success); }
+  .ot-fermer { flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border: 0; border-radius: var(--rayon-xs); background: transparent; color: var(--muted); cursor: pointer; padding: 0; opacity: 0; }
+  .ot-onglet:hover .ot-fermer, .ot-onglet.actif .ot-fermer, .ot-fermer:focus-visible { opacity: 1; }
+  .ot-fermer:hover { background: var(--paper-sunk); color: var(--ink); }
+  .ot-fermer .icone { width: 14px; height: 14px; }
+  body.avec-onglets-travail #onglet-assistant { margin-top: -32px; }
+  body.avec-onglets-travail .asst-page { height: calc(100vh - var(--hauteur-onglets)); }
+  @media (max-width: 900px) {
+    .onglets-travail { margin: -16px -16px 16px; }
+    body.avec-onglets-travail #onglet-assistant { margin-top: -16px; }
+    body.avec-onglets-travail .asst-page { height: calc(100vh - 72px - var(--hauteur-onglets)); }
+  }
+  @media (hover: none) { .ot-fermer { opacity: 1; } }
 
   /* Deux échéances par rangée dans la largeur du tiroir (la valeur par défaut, 150px, en tasserait
      trois et l'échéance "prêt" porte en plus le statut de l'offre et son bouton Revérifier). */
@@ -4556,13 +4589,10 @@
     .dossier:last-child { page-break-after: auto; }
     .dossier-nom-input { border: none; font-size: 18pt; padding: 0; }
     .nom-texte { font-size: 18pt; }
-    /* La fiche n'est plus dans le flux de la page mais dans un tiroir fixe : à l'impression on le
-       remet dans le flux, on masque tout le reste de l'application, et on imprime la seule fiche
-       ouverte. Le sélecteur est ancré sur body.drawer-ouvert pour que le tiroir fermé (masqué par
-       un style inline) reste masqué au lieu d'imprimer un panneau vide. */
-    body.drawer-ouvert { overflow: visible; }
-    body.drawer-ouvert .app-shell { display: none !important; }
-    body.drawer-ouvert .drawer-overlay {
+    /* Fiche affichée en page (body.fiche-en-page, 11/10) : on masque tout le reste de l'application et on imprime la seule
+       fiche ouverte. Ancré sur body.fiche-en-page pour que la fiche fermée (masquée par un style inline) le reste. */
+    body.fiche-en-page .sidebar, body.fiche-en-page .onglets-travail, body.fiche-en-page .app-main > [id^="onglet-"] { display: none !important; }
+    body.fiche-en-page .drawer-overlay {
       display: block !important;
       position: static;
       background: none;

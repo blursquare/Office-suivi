@@ -171,7 +171,11 @@
     if (nom === 'noms-nas') { definirOnglet('reglages'); definirSousOngletReglages('noms-nas'); return; }
     // Écrans réservés à l'administrateur (client/23-suivi.js) : tout autre collaborateur revient au tableau de bord.
     if (ongletReserve(nom, utilisateurPoste)) nom = 'dashboard';
+    // Une fiche affichée en page (client/60-onglets-travail.js) laisse la place à l'écran choisi ; son onglet reste.
+    if (dossierOuvert) fermerDossierDrawer();
     ongletActuel = nom;
+    noterOngletEcran(nom);
+    renderOngletsTravail();
     // Barre d'étapes d'un outil (client/44-presentation-outils.js) : à jour dès l'arrivée sur l'écran.
     if (typeof ETAPES_OUTILS !== 'undefined' && ETAPES_OUTILS[nom]) setTimeout(() => majSommaireOutil(nom), 0);
     // Sur mobile, choisir une section referme la sidebar repliable (voir toggleSidebarMobile).

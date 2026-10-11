@@ -7,7 +7,7 @@
     "lint": "eslint .",
     "verifier": "npm run lint && npm run types && npm test && npm --prefix server test && npm run fumee",
     "fumee": "node tests/fumee/fumee.mjs",
-    "scenarios": "node --test tests/fiche-tableau.test.js tests/etat-dossier.test.js tests/echeances-cocher-decocher.test.js tests/preemption-situations.test.js tests/archives-echeances.test.js tests/inventaire-succession.test.js tests/audit-coherence.test.js tests/assistant-ton.test.js tests/assistant-slack.test.js tests/assistant.test.js",
+    "scenarios": "node --test tests/fiche-tableau.test.js tests/etat-dossier.test.js tests/echeances-cocher-decocher.test.js tests/preemption-situations.test.js tests/archives-echeances.test.js tests/inventaire-succession.test.js tests/audit-coherence.test.js tests/assistant-ton.test.js tests/assistant-slack.test.js tests/onglets-travail.test.js tests/assistant.test.js",
     "types": "tsc -p tsconfig.json"
   },
   "devDependencies": {

@@ -165,6 +165,8 @@
   </aside>
 
   <main class="app-main">
+  <!-- Onglets de travail (étude 11/10) : fiches et outils ouverts — voir client/60-onglets-travail.js. -->
+  <div class="onglets-travail" id="onglets-travail" role="tablist" aria-label="Fiches et outils ouverts" style="display:none;"></div>
 
 <div class="onglet-panel" id="onglet-dashboard">
   <!-- Tableau de bord en WIDGETS (demandé par l'étude le 29/09, « comme les widgets iOS ») : chaque
@@ -2257,6 +2259,14 @@
   </div>
 </div>
 
+<!-- Fiche dossier : affichée en page à la place de l'écran courant depuis le 11/10 (onglets de travail,
+     client/60-onglets-travail.js) ; un seul dossier est ouvert à la fois (voir dossierOuvert). -->
+<div class="drawer-overlay" id="dossier-drawer-overlay" style="display:none;">
+  <aside class="drawer-panneau" id="dossier-drawer" role="region" aria-label="Fiche du dossier" onclick="event.stopPropagation()">
+    <div id="dossier-drawer-contenu"></div>
+  </aside>
+</div>
+
   </main>
 </div>
 
@@ -2574,15 +2584,7 @@
   <section class="ag-modale" role="dialog" aria-modal="true" aria-labelledby="agenda-modale-titre" id="agenda-modale-contenu"></section>
 </div>
 
-<!-- Fiche dossier en tiroir latéral plutôt qu'en dépliant la ligne du tableau : sur une
-     soixantaine de dossiers, déplier une ligne poussait toutes les suivantes plusieurs centaines
-     de pixels plus bas et faisait perdre sa place dans la liste. Le tableau reste immobile, un
-     seul dossier est ouvert à la fois (voir dossierOuvert dans script.js). -->
-<div class="drawer-overlay" id="dossier-drawer-overlay" style="display:none;" onclick="if (clicSurFond(event)) fermerDossierDrawer()">
-  <aside class="drawer-panneau" id="dossier-drawer" role="dialog" aria-modal="true" aria-label="Fiche du dossier" onclick="event.stopPropagation()">
-    <div id="dossier-drawer-contenu"></div>
-  </aside>
-</div>
+
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <!-- Tesseract.js : version flottante @5 (et non un numéro de patch figé comme pour pdf.js
@@ -2668,5 +2670,6 @@
 <script src="client/57-fiche-tableau.js"></script>
 <script src="client/58-animations-progression.js"></script>
 <script src="client/59-assistant-ton.js"></script>
+<script src="client/60-onglets-travail.js"></script>
 </body>
 </html>
