@@ -1253,6 +1253,7 @@
     // l'occasion de s'afficher, la pièce venant d'être marquée vue avant même le premier rendu.
     marquerNotificationsVuesDossier(dossierOuvert);
     dossierOuvert = null;
+    finFicheACote();
     ajoutEcheanceOuvert = false;
     ajoutPieceOuvert = false;
     ajoutEngagementOuvert = false;
@@ -1279,11 +1280,14 @@
 
     const d = dossierOuvert ? dossiers.find(x => x.id === dossierOuvert) : null;
     const etaitEnPage = document.body.classList.contains('fiche-en-page');
+    // Fiche « à côté » (étude 11/10, client/60-onglets-travail.js) : ancrée à droite de l'écran courant, qui reste visible.
+    const aCote = ficheACoteActive();
     if (!d) {
       dossierOuvert = null;
       dossierRenduDansTiroir = null;
       overlay.style.display = 'none';
-      document.body.classList.remove('fiche-en-page');
+      document.body.classList.remove('fiche-en-page', 'fiche-a-cote');
+      finFicheACote();
       contenu.innerHTML = '';
       majClassesImpressionEcran();
       renderOngletsTravail();
@@ -1293,16 +1297,23 @@
     }
     // La fiche s'affiche en page à la place de l'écran courant (étude 11/10, onglets) : plus de tiroir sur fond grisé.
     // Le défilement de la page est gardé quand render() reconstruit la même fiche ; une autre fiche s'ouvre en haut.
-    if (!etaitEnPage) defilementAvantFiche = window.scrollY || 0;
+    if (!etaitEnPage && !aCote) defilementAvantFiche = window.scrollY || 0;
     const autreFiche = dossierRenduDansTiroir !== d.id;
     dossierRenduDansTiroir = d.id;
     const panneau = document.getElementById('dossier-drawer');
+    // À côté, la fiche défile dans son volet : on garde sa position quand render() la reconstruit.
+    const defilementVolet = panneau && aCote && !autreFiche ? panneau.scrollTop : 0;
     if (panneau) panneau.classList.add('large');
     contenu.innerHTML = renderCarteDossier(d);
+    if (panneau) panneau.scrollTop = defilementVolet;
     overlay.style.display = 'flex';
-    document.body.classList.add('fiche-en-page');
+    document.body.classList.toggle('fiche-en-page', !aCote);
+    document.body.classList.toggle('fiche-a-cote', aCote);
     majClassesImpressionEcran();
-    if (!etaitEnPage || autreFiche) window.scrollTo(0, 0);
+    if (aCote) {
+      // On vient de la pleine page : l'écran d'en dessous revient à sa place.
+      if (etaitEnPage) { const y = defilementAvantFiche; requestAnimationFrame(() => window.scrollTo(0, y)); }
+    } else if (!etaitEnPage || autreFiche) window.scrollTo(0, 0);
     renderOngletsTravail();
   }
 
@@ -2040,6 +2051,7 @@
         <div class="fiche-barre">
           <div class="fiche-barre-groupe">
             <wa-button appearance="plain" type="button" class="bouton-icone fiche-btn" onclick="fermerDossierDrawer()" aria-label="Fermer la fiche" title="Fermer (Échap)">${icone('x')}</wa-button>
+            ${boutonsModeFiche()}
           </div>
           <div class="fiche-barre-groupe">
             <wa-button appearance="plain" type="button" class="bouton-icone fiche-btn" onclick="telechargerICS('${d.id}')" aria-label="Télécharger les rappels (.ics)" title="Télécharger les rappels (.ics)">${icone('calendar')}</wa-button>

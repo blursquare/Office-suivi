@@ -119,6 +119,16 @@ try {
       await pause(200);
       const ot3 = await page.evaluate(() => ({ ecran: ongletActuel, fiche: document.body.classList.contains('fiche-en-page'), n: ongletsTravail.length }));
       verifier(ot3.ecran !== 'quotites' && !ot3.fiche && ot3.n === 1, `onglets : l’outil fermé ne revient pas sous la fiche (${JSON.stringify(ot3)})`);
+      // Fiche à côté (11/10, étape 3) : ancrée à droite, elle reste quand on change d'outil ; « Plein écran » la rend à la page.
+      await geste(page, 'fiche à côté', () => { definirOnglet('suivi'); ouvrirDossierDrawer('f1'); ouvrirFicheACote(); definirOnglet('appel-fonds'); });
+      await pause(300);
+      const cote = await page.evaluate(() => ({ cls: document.body.className, ouvert: dossierOuvert, outilVisible: getComputedStyle(document.getElementById('onglet-appel-fonds')).display !== 'none', actif: cleOngletTravailActif() }));
+      verifier(/fiche-a-cote/.test(cote.cls) && cote.ouvert === 'f1' && cote.outilVisible && cote.actif === 'o:appel-fonds', `fiche à côté de l’outil (${JSON.stringify(cote)})`);
+      await geste(page, 'fiche à côté › plein écran', () => pleinEcranFiche());
+      await pause(200);
+      verifier(await page.evaluate(() => document.body.classList.contains('fiche-en-page') && !document.body.classList.contains('fiche-a-cote')), 'fiche à côté › plein écran');
+      await geste(page, 'fiche à côté › fermer', () => { ouvrirFicheACote(); fermerDossierDrawer(); });
+      verifier(await page.evaluate(() => !ficheACote && !document.body.classList.contains('fiche-a-cote')), 'fiche à côté › fermée, mode arrêté');
       await page.evaluate(() => { ongletsTravail = []; renderOngletsTravail(); definirOnglet('dashboard'); });
       // « À propos » : le numéro de version et chaque entrée de l'historique (numéro + jour) s'affichent.
       await geste(page, 'À propos', () => ouvrirAPropos());

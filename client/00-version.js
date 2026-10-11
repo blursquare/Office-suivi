@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.211.0';
+  const VERSION_APP = '0.212.0';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.212.0', date: '2026-10-11 23:09', resume: "Fiche à côté : depuis une fiche, le bouton « Ouvrir à côté » (en haut à gauche, à côté de la croix) l'ancre à droite de l'écran — on garde la fiche sous les yeux en remplissant l'appel de fonds, en parcourant le Suivi ou l'agenda. La séparation se tire pour régler les largeurs (gardées sur le poste) ; « Plein écran » rend la fiche à la page ; l'onglet du dossier porte un petit symbole de volet. Sur un écran de moins de 1 100 px, la fiche reste en page." },
     { version: '0.211.0', date: '2026-10-11 22:52', resume: "Onglets : chaque fiche de dossier et chaque outil ouvert (appel de fonds, quotités, prorata, provision, contrôle de l'urbanisme, répertoire, forfait mobilier, relecture d'actes) devient un onglet en haut de la page — on passe de l'un à l'autre d'un clic, on ferme d'un × (ou clic molette), on les réordonne en glissant ; un point de couleur reprend le statut du dossier. Les onglets sont gardés sur le poste. La fiche s'affiche maintenant en page, à la place de l'écran courant (plus de tiroir sur fond grisé) ; la fermer ramène à l'écran d'avant, à l'endroit où on l'avait laissé." },
     { version: '0.210.0', date: '2026-10-11 22:38', resume: "« Demander à CLAIRE » façon Slack : la page occupe tout l'écran, la conversation est un fil continu — avatar carré, nom et heure, messages d'un même auteur groupés, séparateur de jour, résultats dans des cartes bordées, « Copier » au survol d'un message. La saisie a sa barre d'outils : @ pour citer un dossier (liste des dossiers à la frappe, flèches et Entrée pour choisir), suites rapides au-dessus (Où en est…, Mes tâches du jour, Agenda de demain, Quoi de neuf depuis hier ?). La barre latérale est collée en haut, en bas et à gauche, à angles droits." },
     { version: '0.209.1', date: '2026-10-11 21:46', resume: "Demander à CLAIRE, corrections après relecture indépendante : « ça va aller pour la signature de MARTIN ? » n'est plus prise pour une salutation ; plus de suite proposée (relance du prêt, pièces à recevoir) sur un dossier signé, archivé, en participation ou dont l'offre est à confirmer ; les boutons de suite désignent le dossier entier ; les montants ne partent plus vers l'IA dans l'échange libre ; réponse trop longue coupée à une phrase entière." },

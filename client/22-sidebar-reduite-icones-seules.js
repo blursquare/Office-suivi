@@ -184,7 +184,8 @@
     // Écrans réservés à l'administrateur (client/23-suivi.js) : tout autre collaborateur revient au tableau de bord.
     if (ongletReserve(nom, utilisateurPoste)) nom = 'dashboard';
     // Une fiche affichée en page (client/60-onglets-travail.js) laisse la place à l'écran choisi ; son onglet reste.
-    if (dossierOuvert) fermerDossierDrawer();
+    // Une fiche ancrée à côté (étape 3) reste : c'est tout l'intérêt de l'ouvrir à côté d'un outil.
+    if (dossierOuvert && !ficheACoteActive()) fermerDossierDrawer();
     ongletActuel = nom;
     noterOngletEcran(nom);
     renderOngletsTravail();

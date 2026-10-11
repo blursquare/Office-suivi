@@ -43,3 +43,11 @@ test('au chargement : formes abîmées, dossiers disparus, écrans inconnus et d
   assert.equal(cles(app.ongletsTravailValides(lus, ['a', 'b'])), 'd:a,o:appel-fonds');
   assert.equal(app.ongletsTravailValides('pas une liste', ['a']).length, 0);
 });
+
+test('fiche à côté : largeur bornée — 480 px au moins, et 480 px laissés à l’écran d’à côté', () => {
+  assert.equal(app.largeurFicheCoteBornee(600, 1400), 600);
+  assert.equal(app.largeurFicheCoteBornee(200, 1400), 480);
+  assert.equal(app.largeurFicheCoteBornee(1300, 1400), 920);
+  assert.equal(app.largeurFicheCoteBornee(0, 1400), 644, 'sans largeur gardée : 46 % de la place');
+  assert.equal(app.largeurFicheCoteBornee('abc', 900), 480);
+});

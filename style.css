@@ -3672,6 +3672,35 @@
   .ot-onglet:hover .ot-fermer, .ot-onglet.actif .ot-fermer, .ot-fermer:focus-visible { opacity: 1; }
   .ot-fermer:hover { background: var(--paper-sunk); color: var(--ink); }
   .ot-fermer .icone { width: 14px; height: 14px; }
+  /* Fiche à côté (étape 3) : volet fixe à droite, l'écran courant se resserre à sa gauche ; la séparation se tire. */
+  :root { --largeur-fiche-cote: 46vw; }
+  .fiche-separateur { display: none; }
+  body.fiche-a-cote .app-main { padding-right: calc(var(--largeur-fiche-cote) + 32px); }
+  body.fiche-a-cote .app-main > .drawer-overlay { position: fixed; top: 0; right: 0; bottom: 0; width: var(--largeur-fiche-cote); z-index: 35; --decalage-onglets: 0px; }
+  body.fiche-a-cote .app-main > .drawer-overlay .drawer-panneau { height: 100%; max-width: none; overflow-y: auto; overscroll-behavior: contain; border: 0; border-left: 1px solid var(--line); border-radius: 0; animation: none; }
+  body.fiche-a-cote .app-main > .drawer-overlay .fiche-barre { border-radius: 0; }
+  body.fiche-a-cote .fiche-separateur { display: block; position: absolute; left: -4px; top: 0; bottom: 0; width: 8px; cursor: col-resize; z-index: 5; touch-action: none; }
+  body.fiche-a-cote .fiche-separateur::after { content: ""; position: absolute; left: 2px; top: 50%; width: 4px; height: 40px; margin-top: -20px; border-radius: var(--rayon-pilule); background: var(--line); }
+  body.fiche-a-cote .fiche-separateur:hover::after, body.fiche-a-cote .fiche-separateur:focus-visible::after, body.fiche-cote-redimension .fiche-separateur::after { background: var(--focus); }
+  .fiche-separateur:focus-visible { outline: none; }
+  body.fiche-cote-redimension { cursor: col-resize; user-select: none; }
+  .ot-cote { display: inline-flex; color: var(--focus); }
+  .ot-cote .icone { width: 14px; height: 14px; }
+  .ot-onglet.a-cote { color: var(--ink); }
+  @media (max-width: 1099px) { .fiche-btn-cote { display: none; } }
+  /* Le contenu de la fiche suit la largeur de SON volet (à côté, il est plus étroit que la fenêtre). */
+  .app-main > .drawer-overlay .drawer-panneau { container: fiche / inline-size; }
+  @container fiche (max-width: 1000px) {
+    .drawer-panneau .tf-tableau { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .drawer-panneau .fb-bandeau { grid-template-columns: minmax(0, 1fr); }
+  }
+  @container fiche (max-width: 560px) {
+    .drawer-panneau .tf-tableau { grid-template-columns: minmax(0, 1fr); }
+  }
+  /* L'écran resserré à gauche de la fiche passe ses grilles à deux colonnes en une seule. */
+  body.fiche-a-cote .af-grid, body.fiche-a-cote .dash-grid, body.fiche-a-cote .suivi-corps { grid-template-columns: minmax(0, 1fr); }
+  body.fiche-a-cote .layout-cols { flex-direction: column; }
+  body.fiche-a-cote .suivi-cote { position: static; order: 2; }
   body.avec-onglets-travail #onglet-assistant { margin-top: -32px; }
   body.avec-onglets-travail .asst-page { height: calc(100vh - var(--hauteur-onglets)); }
   @media (max-width: 900px) {

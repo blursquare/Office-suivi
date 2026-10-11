@@ -58,7 +58,7 @@
   }
 
   function cleOngletTravailActif() {
-    if (dossierOuvert) return 'd:' + dossierOuvert;
+    if (dossierOuvert && !ficheACoteActive()) return 'd:' + dossierOuvert;
     return OUTILS_ONGLETS_TRAVAIL.includes(ongletActuel) ? 'o:' + ongletActuel : '';
   }
 
@@ -93,6 +93,8 @@
     if (!o) return;
     // L'onglet déjà affiché : rien (rouvrir la fiche la remettrait sur « Tableau » et fermerait un formulaire en cours).
     if (cleOngletTravail(o) === cleOngletTravailActif()) return;
+    // L'onglet de la fiche ancrée à côté : elle repasse en pleine page.
+    if (o.type === 'dossier' && o.id === dossierOuvert && ficheACoteActive()) { pleinEcranFiche(); return; }
     if (o.type === 'dossier') { ouvrirDossierDrawer(o.id); return; }
     definirOnglet(o.nom);   // ferme la fiche affichée en page (voir definirOnglet)
   }
@@ -105,6 +107,8 @@
     const voisin = actif ? voisinOngletTravail(ongletsTravail, k) : null;
     ongletsTravail.splice(k, 1);
     enregistrerOngletsTravail();
+    // Fermer l'onglet de la fiche ancrée à côté ferme la fiche.
+    if (!actif && o.type === 'dossier' && o.id === dossierOuvert) { fermerDossierDrawer(); return; }
     if (actif) {
       // L'outil fermé ne doit pas rester l'écran caché sous la fiche voisine : le tableau de bord le remplace.
       if (voisin && voisin.type === 'dossier') { if (o.type === 'outil') definirOnglet('dashboard'); ouvrirDossierDrawer(voisin.id); return; }
@@ -133,6 +137,7 @@
     const barre = document.getElementById('onglets-travail');
     if (!barre) return;
     initOngletsTravail();
+    initSeparateurFicheCote();
     restaurerOngletsTravail();
     const avant = ongletsTravail.length;
     // Un dossier supprimé perd son onglet ; un outil réservé à l'administrateur n'apparaît pas pour un autre collaborateur.
@@ -145,14 +150,15 @@
     barre.innerHTML = ongletsTravail.map((o, k) => {
       const actif = cleOngletTravail(o) === cleActive;
       const d = o.type === 'dossier' ? dossiers.find(x => x.id === o.id) : null;
+      const aCote = !!d && d.id === dossierOuvert && ficheACoteActive();
       const repere = d
         ? `<span class="ot-point ${classeEtatOngletTravail(d)}" aria-hidden="true"></span>`
         : `<span class="ot-icone" aria-hidden="true">${typeof ICONES !== 'undefined' && ICONES[ICONES_ONGLETS_OUTILS[o.nom]] ? icone(ICONES_ONGLETS_OUTILS[o.nom]) : ''}</span>`;
       const libelle = libelleOngletTravail(o);
-      return `<div class="ot-onglet${actif ? ' actif' : ''}" role="tab" aria-selected="${actif}" tabindex="0" draggable="true" data-index="${k}" title="${escapeAttr(libelle)}"
+      return `<div class="ot-onglet${actif ? ' actif' : ''}${aCote ? ' a-cote' : ''}" role="tab" aria-selected="${actif}" tabindex="0" draggable="true" data-index="${k}" title="${escapeAttr(libelle)}"
           onclick="activerOngletTravail(${k})" onauxclick="if (event.button === 1) fermerOngletTravail(${k}, event)"
           onkeydown="if (event.target !== this) return; if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); activerOngletTravail(${k}); } else if (event.key === 'Delete') fermerOngletTravail(${k}, event)">
-          ${repere}<span class="ot-libelle">${escapeHtml(libelle)}</span>
+          ${repere}<span class="ot-libelle">${escapeHtml(libelle)}</span>${aCote ? `<span class="ot-cote" title="Ouverte à côté" aria-label="ouverte à côté">${icone('volet-droit')}</span>` : ''}
           <button type="button" class="ot-fermer" aria-label="Fermer l’onglet ${escapeAttr(libelle)}" title="Fermer" onclick="fermerOngletTravail(${k}, event)">${icone('x')}</button>
         </div>`;
     }).join('');
@@ -181,4 +187,100 @@
       renderOngletsTravail();
     });
     barre.addEventListener('dragend', () => { ongletTravailGlisse = -1; barre.querySelectorAll('.glisse').forEach(x => x.classList.remove('glisse')); });
+  }
+
+  // ---- Fiche à côté (étude 11/10, étape 3 de la maquette) : la fiche s'ancre à droite de l'écran courant — un outil, le Suivi,
+  // l'agenda — sans fond grisé ; la séparation se tire pour régler les largeurs ; « Plein écran » la rend à la pleine page.
+  // Seulement sur un écran assez large ; en dessous, la fiche reste en page. ----
+  var LARGEUR_MIN_FICHE_COTE = 1100;     // largeur de fenêtre en dessous de laquelle la fiche ne s'ancre pas
+  var CLE_LARGEUR_FICHE_COTE = 'claire-fiche-cote-largeur';
+  let ficheACote = false;
+
+  function ficheACoteActive() {
+    return ficheACote && typeof window !== 'undefined' && window.innerWidth >= LARGEUR_MIN_FICHE_COTE;
+  }
+
+  // Pure : largeur du volet bornée — au moins 480 px, et l'écran d'à côté garde au moins 480 px.
+  function largeurFicheCoteBornee(largeur, largeurDisponible) {
+    const max = Math.max(480, (largeurDisponible || 0) - 480);
+    const l = Number(largeur);
+    if (!Number.isFinite(l) || l <= 0) return Math.round(Math.min(max, Math.max(480, (largeurDisponible || 0) * 0.46)));
+    return Math.round(Math.min(max, Math.max(480, l)));
+  }
+
+  function largeurDisponibleFicheCote() {
+    const main = document.querySelector('.app-main');
+    const gauche = main ? main.getBoundingClientRect().left : 0;
+    return window.innerWidth - gauche;
+  }
+
+  function appliquerLargeurFicheCote(largeur) {
+    const l = largeurFicheCoteBornee(largeur, largeurDisponibleFicheCote());
+    document.documentElement.style.setProperty('--largeur-fiche-cote', l + 'px');
+    return l;
+  }
+
+  function boutonsModeFiche() {
+    if (ficheACoteActive()) {
+      return `<wa-button appearance="plain" type="button" class="bouton-icone fiche-btn" onclick="pleinEcranFiche()" aria-label="Plein écran" title="Plein écran">${icone('plein-ecran')}</wa-button>`;
+    }
+    return `<wa-button appearance="plain" type="button" class="bouton-icone fiche-btn fiche-btn-cote" onclick="ouvrirFicheACote()" aria-label="Ouvrir à côté" title="Ouvrir à côté : garder la fiche à droite d'un outil ou du Suivi">${icone('volet-droit')}</wa-button>`;
+  }
+
+  function ouvrirFicheACote() {
+    if (!dossierOuvert) return;
+    let lue = 0;
+    try { lue = Number(localStorage.getItem(CLE_LARGEUR_FICHE_COTE)) || 0; } catch (e) { lue = 0; }
+    appliquerLargeurFicheCote(lue);
+    ficheACote = true;
+    render();
+  }
+
+  function pleinEcranFiche() {
+    ficheACote = false;
+    render();
+  }
+
+  // À la fermeture de la fiche, le mode « à côté » s'arrête : la prochaine fiche s'ouvre en page.
+  function finFicheACote() { ficheACote = false; }
+
+  function initSeparateurFicheCote() {
+    const sep = document.getElementById('fiche-separateur');
+    if (!sep || sep.dataset.init) return;
+    sep.dataset.init = '1';
+    let depart = null;
+    const fin = () => {
+      if (!depart) return;
+      depart = null;
+      document.body.classList.remove('fiche-cote-redimension');
+      const l = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--largeur-fiche-cote')) || 0;
+      if (l) ecrireLocal(CLE_LARGEUR_FICHE_COTE, String(Math.round(l)));
+    };
+    sep.addEventListener('pointerdown', (e) => {
+      if (e.button !== 0) return;
+      e.preventDefault();
+      depart = true;
+      document.body.classList.add('fiche-cote-redimension');
+      try { sep.setPointerCapture(e.pointerId); } catch (err) { /* sans capture */ }
+    });
+    sep.addEventListener('pointermove', (e) => { if (depart) appliquerLargeurFicheCote(window.innerWidth - e.clientX); });
+    sep.addEventListener('pointerup', fin);
+    sep.addEventListener('pointercancel', fin);
+    // Au clavier : flèches gauche / droite, 32 px par appui.
+    sep.addEventListener('keydown', (e) => {
+      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+      e.preventDefault();
+      const l = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--largeur-fiche-cote')) || 0;
+      const n = appliquerLargeurFicheCote(l + (e.key === 'ArrowLeft' ? 32 : -32));
+      ecrireLocal(CLE_LARGEUR_FICHE_COTE, String(n));
+    });
+    // Fenêtre redimensionnée : la largeur est rebornée ; trop étroite, la fiche repasse en page (et revient à côté ensuite).
+    let large = window.innerWidth >= LARGEUR_MIN_FICHE_COTE;
+    window.addEventListener('resize', () => {
+      if (!ficheACote) return;
+      const l = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--largeur-fiche-cote')) || 0;
+      appliquerLargeurFicheCote(l);
+      const maintenant = window.innerWidth >= LARGEUR_MIN_FICHE_COTE;
+      if (maintenant !== large) { large = maintenant; if (dossierOuvert) render(); }
+    });
   }

@@ -171,6 +171,9 @@
     // Caméra (visio ADNOV).
     video: '<rect x="1.5" y="4" width="9.5" height="8" rx="1.6"/><path d="M11 7.2 14.5 5v6L11 8.8"/>',
     layout: '<rect x="1.5" y="2" width="13" height="12" rx="1.6"/><line x1="6" y1="2" x2="6" y2="14"/>',
+    // Fiche à côté (étude 11/10) : volet ancré à droite / revenir en pleine page.
+    'volet-droit': '<rect x="1.5" y="2" width="13" height="12" rx="1.6"/><line x1="9.5" y1="2" x2="9.5" y2="14"/>',
+    'plein-ecran': '<path d="M2 6V2.5h3.5M14 6V2.5h-3.5M2 10v3.5h3.5M14 10v3.5h-3.5"/>',
     // Tableau de bord (étude 05/10 : « change d'icône ») : des tuiles de tailles différentes, comme ses widgets.
     'tableau-bord': '<rect x="1.8" y="1.8" width="5.4" height="6.6" rx="1.3"/><rect x="8.8" y="1.8" width="5.4" height="3.8" rx="1.3"/><rect x="8.8" y="7.2" width="5.4" height="7" rx="1.3"/><rect x="1.8" y="10" width="5.4" height="4.2" rx="1.3"/>',
     // Trombone (joindre un fichier) et avion en papier (envoyer un email).
