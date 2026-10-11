@@ -109,6 +109,12 @@
     enregistrerOngletsTravail();
     // Fermer l'onglet de la fiche ancrée à côté ferme la fiche.
     if (!actif && o.type === 'dossier' && o.id === dossierOuvert) { fermerDossierDrawer(); return; }
+    // Fiche à côté et outil affiché fermé : la fiche reste dans son volet, l'écran passe à l'outil voisin ou au tableau de bord.
+    if (actif && o.type === 'outil' && ficheACoteActive()) {
+      const outil = voisin && voisin.type === 'outil' ? voisin : ongletsTravail.find(x => x.type === 'outil');
+      definirOnglet(outil ? outil.nom : 'dashboard');
+      return;
+    }
     if (actif) {
       // L'outil fermé ne doit pas rester l'écran caché sous la fiche voisine : le tableau de bord le remplace.
       if (voisin && voisin.type === 'dossier') { if (o.type === 'outil') definirOnglet('dashboard'); ouvrirDossierDrawer(voisin.id); return; }
@@ -197,7 +203,24 @@
   let ficheACote = false;
 
   function ficheACoteActive() {
-    return ficheACote && typeof window !== 'undefined' && window.innerWidth >= LARGEUR_MIN_FICHE_COTE;
+    return ficheACote && ficheACotePossible();
+  }
+
+  // Assez de place pour un volet de 480 px ET 480 px d'écran à côté (marges comprises), barre latérale dépliée ou non.
+  function ficheACotePossible() {
+    if (typeof window === 'undefined' || window.innerWidth < LARGEUR_MIN_FICHE_COTE) return false;
+    return largeurDisponibleFicheCote() >= 1024;
+  }
+
+  // Dernier appui dans la fiche à côté : les raccourcis de l'écran de gauche (Ctrl+V de l'agenda, Suppr, Ctrl+S) ne jouent pas.
+  let appuiDansFicheCote = false;
+  if (typeof document !== 'undefined' && document.addEventListener) {
+    document.addEventListener('pointerdown', (e) => { appuiDansFicheCote = !!(e.target && e.target.closest && e.target.closest('#dossier-drawer-overlay')); }, true);
+  }
+  function focusDansFicheCote() {
+    if (!ficheACoteActive()) return false;
+    const a = document.activeElement;
+    return appuiDansFicheCote || !!(a && a.closest && a.closest('#dossier-drawer-overlay'));
   }
 
   // Pure : largeur du volet bornée — au moins 480 px, et l'écran d'à côté garde au moins 480 px.
@@ -221,6 +244,7 @@
   }
 
   function boutonsModeFiche() {
+    if (!ficheACotePossible()) return '';
     if (ficheACoteActive()) {
       return `<wa-button appearance="plain" type="button" class="bouton-icone fiche-btn" onclick="pleinEcranFiche()" aria-label="Plein écran" title="Plein écran">${icone('plein-ecran')}</wa-button>`;
     }
@@ -275,12 +299,14 @@
       ecrireLocal(CLE_LARGEUR_FICHE_COTE, String(n));
     });
     // Fenêtre redimensionnée : la largeur est rebornée ; trop étroite, la fiche repasse en page (et revient à côté ensuite).
-    let large = window.innerWidth >= LARGEUR_MIN_FICHE_COTE;
+    let large = ficheACotePossible();
     window.addEventListener('resize', () => {
-      if (!ficheACote) return;
+      const maintenant = ficheACotePossible();
+      const change = maintenant !== large;
+      large = maintenant;
+      if (!ficheACote) { if (change && dossierOuvert) render(); return; }   // le bouton « Ouvrir à côté » apparaît ou disparaît
       const l = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--largeur-fiche-cote')) || 0;
       appliquerLargeurFicheCote(l);
-      const maintenant = window.innerWidth >= LARGEUR_MIN_FICHE_COTE;
-      if (maintenant !== large) { large = maintenant; if (dossierOuvert) render(); }
+      if (change && dossierOuvert) render();
     });
   }

@@ -18935,3 +18935,27 @@ Réglages). Étape 2 sur 3 (`docs/maquettes-espace/`).
   autre fiche ouverte en haut ; croix au clavier ; recliquer l'onglet actif ne remet plus la fiche à zéro ; outil réservé
   masqué pour un autre collaborateur ; bouton du menu logé dans la barre d'onglets sur téléphone (56 px) ; Claire Scan retiré
   des onglets (non demandé). Parcours des onglets ajouté à la fumée.
+
+
+### 11/10/2026 — 0.212.0 Fiche à côté d'un outil
+
+Demande de l'étude : « Permettre aussi d'avoir comme dans vs code la possibilité de pouvoir ouvrir un outils et une fiche dossier
+côté à côte » (choix : fiche ancrée à droite de la page courante, sans voile, séparation à tirer, Plein écran / Fermer). Étape 3
+sur 3 de `docs/maquettes-espace/`.
+
+- `client/60-onglets-travail.js` : `ficheACote`, `ficheACoteActive()` = demandé ET `ficheACotePossible()` (fenêtre ≥ 1 100 px et
+  1 024 px de place à droite de la barre latérale : volet de 480 px au moins + 480 px d'écran) ; bouton « Ouvrir à côté » /
+  « Plein écran » dans la barre de la fiche (`boutonsModeFiche`), icônes `volet-droit` et `plein-ecran` ; séparation
+  `#fiche-separateur` (pointeur, flèches ±32 px), largeur `--largeur-fiche-cote` bornée par `largeurFicheCoteBornee` et gardée
+  par poste (`claire-fiche-cote-largeur`) ; fermer la fiche arrête le mode (`finFicheACote`).
+- `body.fiche-a-cote` : volet fixe à droite, `.app-main` resserré (`padding-right`), grilles à deux colonnes des écrans en une
+  (af-grid, dash-grid, suivi-corps, layout-cols) ; le contenu de la fiche suit SON volet par requêtes de conteneur (Tableau à 2
+  puis 1 colonne) — seulement à côté, la pleine page garde ses seuils sur la fenêtre.
+- `definirOnglet` ne ferme pas une fiche à côté ; l'onglet actif est l'écran, l'onglet de la fiche porte le symbole du volet ;
+  clic dessus = plein écran ; fermer son onglet = fermer la fiche ; fermer l'outil affiché laisse la fiche dans son volet.
+- Raccourcis de l'écran de gauche et Échap : `focusDansFicheCote()` (dernier appui ou focus dans le volet) — Ctrl+V de l'agenda,
+  Suppr, Ctrl+S ne jouent pas après un geste dans la fiche ; Échap tapé à gauche ne ferme pas la fiche. Impression : l'écran de
+  gauche seul, pleine largeur.
+- Relecture indépendante : les 8 points relevés (onglet d'outil fermé qui remplaçait la fiche, Échap, impression, largeur
+  minimale non tenue entre 1 100 et 1 250 px, requêtes de conteneur en pleine page, indicateur de redimensionnement périmé,
+  raccourcis après un geste dans la fiche, position perdue en passant à côté) corrigés avant publication ; fumée complétée.

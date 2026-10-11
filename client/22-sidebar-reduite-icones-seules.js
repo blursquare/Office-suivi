@@ -164,14 +164,16 @@
 
   // L'écran `nom` est-il celui qu'on voit ? Faux quand une fiche s'affiche en page par-dessus (onglets, 11/10) : les raccourcis
   // clavier d'un écran (Ctrl+V de l'agenda, Suppr, Ctrl+S de « Nouveau dossier ») ne doivent pas agir derrière la fiche.
+  // Fiche à côté : l'écran est visible, mais un raccourci ne joue pas quand on vient d'agir dans la fiche (focusDansFicheCote).
   function ecranAffiche(nom) {
-    return ongletActuel === nom && !document.body.classList.contains('fiche-en-page');
+    return ongletActuel === nom && !document.body.classList.contains('fiche-en-page') && !focusDansFicheCote();
   }
 
   // Classes d'impression des écrans qui impriment une feuille (Ctrl+P) : jamais posées quand la fiche s'affiche par-dessus,
   // sinon Ctrl+P sortirait l'écran caché (ou une page blanche) au lieu de la fiche.
   function majClassesImpressionEcran() {
-    ['appel-fonds', 'inventaire', 'analyse-ia'].forEach(n => document.body.classList.toggle('onglet-' + n + '-actif', ecranAffiche(n)));
+    const pageFiche = document.body.classList.contains('fiche-en-page');
+    ['appel-fonds', 'inventaire', 'analyse-ia'].forEach(n => document.body.classList.toggle('onglet-' + n + '-actif', ongletActuel === n && !pageFiche));
   }
 
   function definirOnglet(nom) {

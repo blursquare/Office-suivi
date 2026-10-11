@@ -1302,7 +1302,7 @@
     dossierRenduDansTiroir = d.id;
     const panneau = document.getElementById('dossier-drawer');
     // À côté, la fiche défile dans son volet : on garde sa position quand render() la reconstruit.
-    const defilementVolet = panneau && aCote && !autreFiche ? panneau.scrollTop : 0;
+    const defilementVolet = panneau && aCote && !autreFiche ? (etaitEnPage ? window.scrollY : panneau.scrollTop) : 0;
     if (panneau) panneau.classList.add('large');
     contenu.innerHTML = renderCarteDossier(d);
     if (panneau) panneau.scrollTop = defilementVolet;

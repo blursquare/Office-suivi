@@ -3689,7 +3689,7 @@
   .ot-onglet.a-cote { color: var(--ink); }
   @media (max-width: 1099px) { .fiche-btn-cote { display: none; } }
   /* Le contenu de la fiche suit la largeur de SON volet (à côté, il est plus étroit que la fenêtre). */
-  .app-main > .drawer-overlay .drawer-panneau { container: fiche / inline-size; }
+  body.fiche-a-cote .app-main > .drawer-overlay .drawer-panneau { container: fiche / inline-size; }
   @container fiche (max-width: 1000px) {
     .drawer-panneau .tf-tableau { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .drawer-panneau .fb-bandeau { grid-template-columns: minmax(0, 1fr); }
@@ -4624,6 +4624,9 @@
     /* Fiche affichée en page (body.fiche-en-page, 11/10) : on masque tout le reste de l'application et on imprime la seule
        fiche ouverte. Ancré sur body.fiche-en-page pour que la fiche fermée (masquée par un style inline) le reste. */
     body.fiche-en-page .sidebar, body.fiche-en-page .onglets-travail, body.fiche-en-page .app-main > [id^="onglet-"] { display: none !important; }
+    /* Fiche à côté : on imprime l'écran de gauche seul, en pleine largeur. */
+    body.fiche-a-cote .app-main { padding-right: 0 !important; }
+    body.fiche-a-cote .drawer-overlay { display: none !important; }
     body.fiche-en-page .drawer-overlay {
       display: block !important;
       position: static;

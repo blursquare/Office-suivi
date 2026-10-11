@@ -124,6 +124,12 @@ try {
       await pause(300);
       const cote = await page.evaluate(() => ({ cls: document.body.className, ouvert: dossierOuvert, outilVisible: getComputedStyle(document.getElementById('onglet-appel-fonds')).display !== 'none', actif: cleOngletTravailActif() }));
       verifier(/fiche-a-cote/.test(cote.cls) && cote.ouvert === 'f1' && cote.outilVisible && cote.actif === 'o:appel-fonds', `fiche à côté de l’outil (${JSON.stringify(cote)})`);
+      await geste(page, 'fiche à côté › fermer l’outil affiché', () => { ongletsTravail = [{ type: 'outil', nom: 'appel-fonds' }, { type: 'dossier', id: 'f2' }, { type: 'dossier', id: 'f1' }]; fermerOngletTravail(0); });
+      await pause(200);
+      verifier(await page.evaluate(() => dossierOuvert === 'f1' && document.body.classList.contains('fiche-a-cote') && ongletActuel === 'dashboard'), 'fiche à côté › fermer l’outil laisse la fiche dans son volet');
+      await page.evaluate(() => { const c = document.querySelector('#onglet-dashboard input, #onglet-dashboard button'); if (c) c.focus(); appuiDansFicheCote = false; });
+      await page.keyboard.press('Escape');
+      verifier(await page.evaluate(() => dossierOuvert === 'f1'), 'fiche à côté › Échap dans l’écran de gauche ne la ferme pas');
       await geste(page, 'fiche à côté › plein écran', () => pleinEcranFiche());
       await pause(200);
       verifier(await page.evaluate(() => document.body.classList.contains('fiche-en-page') && !document.body.classList.contains('fiche-a-cote')), 'fiche à côté › plein écran');
