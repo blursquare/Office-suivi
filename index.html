@@ -2012,7 +2012,7 @@
         </div>
         <label class="reglages-option" for="reglages-assistant-agent">
           <span class="reglages-option-texte">
-            <span class="reglages-option-titre">CLAIRE lit les dossiers pour répondre <span class="info-i" tabindex="0" data-info="Avec Claude : CLAIRE cherche et lit les fiches (pièces, échéances, fonds, agenda, tâches), enchaîne les étapes et répond à toute question. Avant l’envoi, le serveur remplace noms, prénoms, adresses, agences, notaires, emails et téléphones par des codes ; montants, dates et pièces partent tels quels. Éteint : seule la phrase part, comme avant."></span></span>
+            <span class="reglages-option-titre">CLAIRE lit les dossiers pour répondre <span class="info-i" tabindex="0" data-info="Avec Claude ou Mistral : CLAIRE cherche et lit les fiches (pièces, échéances, fonds, agenda, tâches), enchaîne les étapes et répond à toute question. Avant l’envoi, le serveur remplace noms, prénoms, adresses, agences, notaires, emails et téléphones par des codes ; montants, dates et pièces partent tels quels. Éteint : seule la phrase part, comme avant."></span></span>
           </span>
           <wa-switch class="switch reglages-switch" id="reglages-assistant-agent"></wa-switch>
         </label>
@@ -2022,6 +2022,14 @@
             <option value="claude-opus-5-5">Claude Opus 5.5 — le plus intelligent</option>
             <option value="claude-sonnet-5-5">Claude Sonnet 5.5 — plus rapide</option>
             <option value="claude-haiku-5-5">Claude Haiku 5.5 — le moins cher</option>
+          </select>
+        </div>
+        <div class="reglages-champ" id="reglages-assistant-modele-agent-mistral-ligne">
+          <div class="reglages-champ-libelle"><label for="reglages-assistant-modele-agent-mistral">Modèle Mistral qui lit les dossiers</label><span class="info-i" tabindex="0" data-info="Large : le plus intelligent de Mistral (conseillé). Medium et Small : plus rapides, moins fins sur les questions complexes. Tarifs relevés le 11/10, à vérifier sur la console de Mistral."></span></div>
+          <select id="reglages-assistant-modele-agent-mistral">
+            <option value="mistral-large-latest">Mistral Large — conseillé</option>
+            <option value="mistral-medium-latest">Mistral Medium</option>
+            <option value="mistral-small-latest">Mistral Small — le plus rapide</option>
           </select>
         </div>
         <label class="reglages-option" for="reglages-assistant-toutes">

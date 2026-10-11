@@ -7,7 +7,7 @@
 
   let assistantAgentConversation = '';
   var assistantEtapeAgent = '';              // « Je lis la fiche… » sous l'indicateur d'écriture
-  var MAX_DOSSIERS_LISTE_AGENT = 300;
+  var MAX_DOSSIERS_LISTE_AGENT = 120;
 
   var LIBELLES_OUTILS_AGENT = {
     chercher_dossiers: 'Je cherche le dossier…', lister_dossiers: 'Je parcours les dossiers…', lire_dossier: 'Je lis la fiche…',
@@ -75,7 +75,7 @@
       coordonnees: { email_vendeur: d.emailVendeur || '', telephone_vendeur: d.telephoneVendeur || '', email_acquereur: d.emailAcquereur || '', telephone_acquereur: d.telephoneAcquereur || '' },
       bien: { adresse: d.adresseBien || '', prix: d.prixVente || null, prix_mobilier: d.prixMobilier || null, cadastre: sur(() => (d.bien && d.bien.cadastre) || [], []), lots: sur(() => (d.bien && d.bien.lots) || [], []) },
       notaire_vendeur: d.notaireVendeur || '', notaire_acquereur: d.notaireAcquereur || '', agence: d.nomAgence || '',
-      honoraires_agence: sur(() => d.honoraires || null, null),
+      honoraires_agence_ttc: sur(() => (d.honoraires && (d.honoraires.montantTTC || d.honoraires.montant)) || null, null),
       dates: { obtention_pret: d.pret || '', vente_prealable: d.ventebien || '', appel_de_fonds_envoye: d.appelFonds || '', projet_envoye: d.projetEnvoye || '', date_butoir: d.acte || '' },
       echeances: estSuccession(d) ? [] : sur(() => echeancesPlanning(d).map(it => ({ libelle: it.label, date: it.iso || '', jours: it.iso ? joursEntre(auj, it.iso) - 1 : null })), []),
       pieces_recues: checklist.filter(p => pieces[p.cle] === 'recue').map(p => p.label),
@@ -103,7 +103,9 @@
   function listerDossiersAgent(etat, responsable) {
     const nom = { Bastien: 'Bastien ANGLUMENT', Julie: 'Julie VASSELIN', 'Jérémy': 'Jérémy SAUJOT' }[responsable] || '';
     const liste = dossiers.filter(d => d && (etat === 'tous' || (etat === 'archives' ? d.archive : !d.archive)) && (!nom || d.responsable === nom));
-    return { nombre: liste.length, dossiers: liste.slice(0, MAX_DOSSIERS_LISTE_AGENT).map(resumeDossierAgent), ...(liste.length > MAX_DOSSIERS_LISTE_AGENT ? { coupe: true } : {}) };
+    // « coupe » AVANT la liste : si le texte est raccourci par le serveur, Claude le sait quand même.
+    return { nombre: liste.length, ...(liste.length > MAX_DOSSIERS_LISTE_AGENT ? { coupe: `seuls les ${MAX_DOSSIERS_LISTE_AGENT} premiers sont listés : filtre par responsable ou cherche par nom` } : {}),
+      dossiers: liste.slice(0, MAX_DOSSIERS_LISTE_AGENT).map(resumeDossierAgent) };
   }
 
   function tachesDuJourAgent() {
@@ -124,9 +126,35 @@
     if (joursEntre(debut, fin) > 32) return { erreur: '31 jours au plus' };
     const evenements = await evenementsAgendaAssistant(debut, fin);
     if (evenements === null) return { erreur: 'agenda de l’office illisible pour le moment' };
+    // Jamais le titre ni le lieu (relecture 0.213.0) : l'agenda porte aussi des rendez-vous hors CLAIRE (donations, clients
+    // inconnus des fiches) dont les noms ne seraient pas masqués. Seulement la nature, l'heure, la catégorie et le dossier reconnu.
     return { rendez_vous: evenements.filter(e => e && e.date >= debut && e.date <= fin)
       .sort((a, b) => (a.date + (a.heure || '')).localeCompare(b.date + (b.heure || '')))
-      .slice(0, 200).map(e => ({ date: e.date, heure: e.journeeEntiere ? '' : (e.heure || ''), fin: e.heureFin || '', titre: e.sujet || '', lieu: e.lieu || '', categories: e.categories || [] })) };
+      .slice(0, 200).map(e => {
+        const d = dossierDeRendezVousAgent(e);
+        return { date: e.date, heure: e.journeeEntiere ? '' : (e.heure || ''), fin: e.heureFin || '', journee_entiere: !!e.journeeEntiere,
+          nature: natureRendezVousAgent(e), categories: (e.categories || []).filter(c => /^[A-Za-zÀ-ÿ /-]{1,30}$/.test(String(c))),
+          dossier_id: d ? d.id : '', dossier: d ? libelleDossierAffiche(d) : '' };
+      }) };
+  }
+
+  // Pure : la nature d'un rendez-vous d'après le début de son titre, sans rien garder du titre.
+  function natureRendezVousAgent(e) {
+    const t = String((e && e.sujet) || '').trim();
+    if (/^(VTE|VENTE)\b/i.test(t)) return /\?/.test(t) ? 'signature de vente (option, à confirmer)' : 'signature de vente';
+    if (/^SUCC/i.test(t)) return 'succession';
+    if (/^DONATION/i.test(t)) return 'donation';
+    if (/^(BA|JV|JS)\b/.test(t)) return 'tâche d’un collaborateur';
+    if (typeof estDateButoirAgenda === 'function' && estDateButoirAgenda(e)) return 'date butoir';
+    if (/absen|cong|vacances|maladie/i.test(t)) return 'absence';
+    return 'autre rendez-vous';
+  }
+
+  // Le dossier de CLAIRE d'un rendez-vous : celui dont la signature est posée ce jour-là à cette heure (ou mémorisé par Outlook).
+  function dossierDeRendezVousAgent(e) {
+    if (!e || !e.date) return null;
+    return dossiers.find(d => d && d.rdvAgendaItem && e.itemId && d.rdvAgendaItem.itemId === e.itemId)
+      || dossiers.find(d => d && !d.archive && d.rendezVousSignature === e.date && (!e.heure || !d.rendezVousSignatureHeure || d.rendezVousSignatureHeure === e.heure)) || null;
   }
 
   function depuisHierAgent() {
@@ -181,11 +209,21 @@
     assistantEnCours = true;
     assistantEtapeAgent = '';
     renderAssistant();
+    // Dès que l'agent a commencé (un outil a tourné, un geste a pu être fait), on ne revient JAMAIS à la compréhension d'une phrase :
+    // elle referait le geste (relecture 0.213.0 : un rappel posé deux fois). L'erreur est dite à la place.
+    let engage = false;
+    const echec = (raison) => {
+      assistantEnCours = false; assistantEtapeAgent = ''; assistantAgentConversation = '';
+      poserMessageAssistant('claire', `<p>Je n’ai pas pu terminer : ${escapeHtml(raison || 'réponse impossible')}. Ce qui est déjà fait reste affiché au-dessus ; vous pouvez reposer la question.</p>`);
+      return true;
+    };
     try {
       let rep = await appelAgentAssistant({ conversation: assistantAgentConversation, texte, contexte: contexte(), dossiers: dossiersPourAssistant(dossiers) });
       if (rep.expiree) { assistantAgentConversation = ''; rep = await appelAgentAssistant({ texte, contexte: contexte(), dossiers: dossiersPourAssistant(dossiers) }); }
       if (rep.repli) { assistantEnCours = false; assistantEtapeAgent = ''; return false; }
+      if (rep.repris) poserMessageAssistant('claire', '<p class="asst-note">Notre échange précédent était trop ancien : je repars de zéro.</p>');
       while (rep && Array.isArray(rep.appels) && rep.appels.length) {
+        engage = true;
         assistantAgentConversation = rep.conversation || assistantAgentConversation;
         const resultats = [];
         for (const appel of rep.appels) {
@@ -198,18 +236,20 @@
         renderAssistant();
         rep = await appelAgentAssistant({ conversation: assistantAgentConversation, resultats });
       }
-      assistantEnCours = false;
-      assistantEtapeAgent = '';
       if (rep && rep.erreur) {
-        assistantAgentConversation = '';
-        // L'agent n'a pas pu (clé, débit, délai) : la compréhension d'une phrase prend le relais.
+        if (engage) return echec(rep.expiree ? 'notre échange a expiré pendant que la fenêtre était ouverte' : rep.erreur);
+        assistantEnCours = false; assistantEtapeAgent = ''; assistantAgentConversation = '';
+        // Rien n'a encore été fait : la compréhension d'une phrase prend le relais.
         return false;
       }
+      assistantEnCours = false;
+      assistantEtapeAgent = '';
       assistantAgentConversation = rep.conversation || '';
       poserMessageAssistant('claire', htmlReponseAgentAssistant(rep.reponse || ''));
       noterEchangeAssistant('claire', rep.reponse || '');
       return true;
     } catch (e) {
+      if (engage) return echec(e && e.message);
       assistantEnCours = false;
       assistantEtapeAgent = '';
       assistantAgentConversation = '';

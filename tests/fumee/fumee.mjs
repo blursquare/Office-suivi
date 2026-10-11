@@ -167,8 +167,26 @@ try {
       verifier(parId.o1 && parId.o1.contenu.dossiers.length >= 1, 'agent : la recherche trouve MOREAU');
       verifier(agentFin.rappel && parId.o8 && parId.o8.contenu.fait, 'agent : le rappel est posé par le geste habituel');
       verifier(/<b>MOREAU<\/b>/.test(agentFin.dernier) && /<li>/.test(agentFin.dernier), 'agent : la réponse s’affiche mise en forme');
+      verifier(parId.o5 && Array.isArray(parId.o5.contenu.rendez_vous) && !/"titre"|"lieu"|"sujet"/.test(JSON.stringify(parId.o5.contenu)), 'agent : l’agenda part sans titre ni lieu');
       await page.unroute('**/api/assistant/agent');
-      await page.evaluate(() => { rappelsPerso = rappelsPerso.filter(x => x.texte !== 'Relancer la banque'); assistantDisponibilite.agent = false; nouvelleConversationAssistant(); utilisateurPoste = 'Julie VASSELIN'; definirOnglet('dashboard'); });
+      // Une erreur APRÈS un geste : jamais de repli sur la compréhension d'une phrase (le geste serait refait).
+      let compris = 0;
+      await page.route('**/api/assistant/comprendre', async (r) => { compris += 1; await r.continue(); });
+      let tourErr = 0;
+      await page.route('**/api/assistant/agent', async (r) => {
+        tourErr += 1;
+        const corps = tourErr === 1 ? { conversation: 'c2', appels: [{ id: 'g1', nom: 'faire_geste', entree: { geste: 'rappel_ajouter', dossier_id: 'f1', parametres: { date: '', heure: '', texte: 'Rappel unique', modele: '', echeance: '', champ: '', partie: '', ecran: '', collaborateur: '', titre: '', montant: null } } }] }
+          : { erreur: 'limite de débit Claude atteinte' };
+        await r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(corps) });
+      });
+      await geste(page, 'agent : erreur après un geste', () => envoyerDemandeAssistant('rappelle-moi de faire le rappel unique pour MOREAU'));
+      await page.waitForFunction(() => !assistantEnCours, null, { timeout: 8000 }).catch(() => {});
+      const unique = await page.evaluate(() => ({ n: rappelsPerso.filter(x => /rappel unique/i.test(x.texte)).length, lien: (rappelsPerso.find(x => x.texte === 'Rappel unique') || {}).dossierId, dernier: (assistantMessages[assistantMessages.length - 1] || {}).html || '' }));
+      verifier(unique.n === 1 && compris === 0 && /pas pu terminer/.test(unique.dernier), `agent : erreur après un geste — un seul rappel, pas de repli (${JSON.stringify({ ...unique, compris })})`);
+      verifier(unique.lien === 'f1', 'agent : le rappel garde son dossier');
+      await page.unroute('**/api/assistant/agent');
+      await page.unroute('**/api/assistant/comprendre');
+      await page.evaluate(() => { rappelsPerso = rappelsPerso.filter(x => !/rappel unique/i.test(x.texte)); assistantDisponibilite.agent = false; nouvelleConversationAssistant(); utilisateurPoste = 'Julie VASSELIN'; definirOnglet('dashboard'); });
       // « À propos » : le numéro de version et chaque entrée de l'historique (numéro + jour) s'affichent.
       await geste(page, 'À propos', () => ouvrirAPropos());
       const propos = await page.evaluate(() => ({ numero: (document.getElementById('apropos-version-valeur') || {}).textContent, attendu: VERSION_APP, lignes: document.querySelectorAll('#apropos-historique-liste li').length, entrees: HISTORIQUE_VERSIONS.length, jour: (document.getElementById('apropos-version-date') || {}).textContent }));

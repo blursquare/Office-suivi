@@ -36,19 +36,37 @@ const MODELE_CLAUDE_ASSISTANT_DEFAUT = 'claude-sonnet-5';
 // dans les Réglages, Opus par défaut) — assistantAgent.js. Tarif en dollars par million de jetons (lecture du cache : 0,1 × l'entrée,
 // écriture : 1,25 ×). `secours` : le serveur d'Anthropic relance seul une demande refusée par ses filtres sur un autre modèle.
 const MODELES_AGENT = {
-  'claude-opus-5-5': { libelle: 'Claude Opus 5.5', entree: 4, sortie: 20, secours: true },
-  'claude-sonnet-5-5': { libelle: 'Claude Sonnet 5.5', entree: 2, sortie: 10, secours: true },
-  'claude-haiku-5-5': { libelle: 'Claude Haiku 5.5', entree: 0.1, sortie: 0.5, secours: false }
+  'claude-opus-5-5': { libelle: 'Claude Opus 5.5', entree: 4, sortie: 20, lectureCache: 0.2, secours: true },
+  'claude-sonnet-5-5': { libelle: 'Claude Sonnet 5.5', entree: 2, sortie: 10, lectureCache: 0.2, secours: true },
+  'claude-haiku-5-5': { libelle: 'Claude Haiku 5.5', entree: 0.1, sortie: 0.5, lectureCache: 0.01, secours: false }
 };
 const MODELE_AGENT_DEFAUT = 'claude-opus-5-5';
+// Agent par Mistral (étude 11/10 : « idem pour Mistral ») : mêmes outils, même masquage. Tarif indicatif relevé le 11/10 (dollars par
+// million de jetons) ; Large par défaut, le plus intelligent — et le moins cher des trois chez Mistral à cette date.
+const MODELES_AGENT_MISTRAL = {
+  'mistral-large-latest': { libelle: 'Mistral Large', entree: 0.5, sortie: 1.5 },
+  'mistral-medium-latest': { libelle: 'Mistral Medium', entree: 0.4, sortie: 2 },
+  'mistral-small-latest': { libelle: 'Mistral Small', entree: 0.15, sortie: 0.6 }
+};
+const MODELE_AGENT_MISTRAL_DEFAUT = 'mistral-large-latest';
 const BASES = { eu: 'https://api.eu.mistral.ai', global: 'https://api.mistral.ai' };
 
 // Sigles du métier gardés tels quels (ils disent l'intention, pas une personne).
+// Mots de CLAIRE écrits avec une majuscule au milieu d'une phrase, qui ne désignent personne.
+const MOTS_MAJUSCULE_GARDES = new Set(['Agenda', 'Suivi', 'Réglages', 'Outils', 'Claire', 'Scan', 'Répertoire', 'Authentic', 'Outlook',
+  'Teams', 'Exchange', 'Word', 'Excel', 'Mistral', 'Claude', 'Opus', 'Sonnet', 'Haiku', 'Large', 'Medium', 'Small', 'Ollama', 'Fichorga',
+  'Demander', 'Tableau', 'Fonds', 'Pièces', 'Dossier', 'Historique', 'Échanges', 'Vendeur', 'Vendeurs', 'Acquéreur', 'Acquéreurs',
+  'Notaire', 'Maître', 'Monsieur', 'Madame', 'Messieurs', 'Mesdames', 'Mademoiselle', 'Me', 'Mme', 'Mlle', 'Mr', 'Prêt', 'Signature',
+  'Projet', 'Appel', 'Copropriété', 'Maison', 'Terrain', 'Succession', 'Vente', 'Donation', 'Promesse', 'Compromis', 'Acte',
+  'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche', 'Aujourd', 'France', 'Internet', 'Visio', 'CDC',
+  'Fait', 'Faite', 'Réponse', 'Renonciation', 'Certificat', 'Diagnostics', 'Avis', 'Titre', 'Offre', 'Relevé', 'Courrier', 'État',
+  'Etat', 'Envoi', 'Rendez', 'Obtention', 'Date', 'Délai', 'Échéance', 'Urgent', 'Complet', 'Attente', 'Nouveau']);
 const SIGLES = new Set(['VTE', 'SUCC', 'RIB', 'SAFER', 'DPU', 'DIA', 'PDF', 'TVA', 'TTC', 'HT', 'AF', 'NAS', 'CLAIRE', 'IA', 'EUR',
   'OK', 'RDV', 'SCI', 'SARL', 'PLU', 'CU', 'DPE', 'RHF', 'AAE', 'ECV', 'APR', 'JV', 'BA', 'JS', 'PJ', 'CDC',
   // Mots des pièces et des écrans que l'agent lit (11/10) : ce sont des sigles du métier, jamais des noms.
   'ERP', 'SRU', 'ABF', 'TEOM', 'ALUR', 'PLUI', 'ZAE', 'SAS', 'SASU', 'EURL', 'SNC', 'GFA', 'DP', 'PC', 'PA', 'DAACT', 'NAF', 'URSSAF',
-  'MICEN', 'AR', 'LRAR', 'BAN', 'CNI', 'ICS', 'PDFA', 'ADNOV', 'TEAMS', 'EWS', 'SMS']);
+  'MICEN', 'AR', 'LRAR', 'BAN', 'CNI', 'ICS', 'PDFA', 'ADNOV', 'TEAMS', 'EWS', 'SMS', 'TF', 'PV', 'RC', 'SA', 'UE', 'OK', 'PJ',
+  'CU', 'IGN', 'INSEE', 'SIRET', 'SIREN', 'RCS', 'TTC', 'HT', 'N°', 'NB', 'CRIDON', 'SPF', 'SPFE', 'ID', 'AA', 'AAAA', 'MM', 'JJ', 'HH']);
 
 /**
  * Réglages de l'assistant : moteur 'mistral' (par défaut, choix de l'étude 07/10) ou 'locale' ; `toutesDemandes` : Mistral lit
@@ -61,7 +79,8 @@ function assainirReglagesAssistant(brut) {
   return { moteur: MOTEURS.includes(b.moteur) ? b.moteur : 'claude', toutesDemandes: b.toutesDemandes === true,
     modeleClaude: MODELES_CLAUDE_ASSISTANT[b.modeleClaude] ? b.modeleClaude : MODELE_CLAUDE_ASSISTANT_DEFAUT,
     // L'agent (11/10) : allumé par défaut avec Claude ; le coupe revient à la compréhension d'une phrase d'avant.
-    agent: b.agent !== false, modeleAgent: MODELES_AGENT[b.modeleAgent] ? b.modeleAgent : MODELE_AGENT_DEFAUT };
+    agent: b.agent !== false, modeleAgent: MODELES_AGENT[b.modeleAgent] ? b.modeleAgent : MODELE_AGENT_DEFAUT,
+    modeleAgentMistral: MODELES_AGENT_MISTRAL[b.modeleAgentMistral] ? b.modeleAgentMistral : MODELE_AGENT_MISTRAL_DEFAUT };
 }
 
 // Révision des réglages enregistrés. 2 : un « toutes les demandes » gardé avant le 07/10 au soir (alors coché d'office) ne compte
@@ -86,8 +105,11 @@ function masquer(texte, sensibles, table) {
   };
   let t = String(texte || '');
   t = t.replace(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g, (m) => jeton('EMAIL', m));
-  t = t.replace(/(?:\+33\s?|0)[1-9](?:[\s.-]?\d{2}){4}/g, (m) => jeton('TEL', m));
-  t = t.replace(/\b[A-Z]\s?\d{4}\s?\d{4,6}\b/g, (m) => jeton('REF', m));
+  // IBAN avant les téléphones (un IBAN contient des suites qui ressemblent à un numéro).
+  t = t.replace(/\b[A-Z]{2}\d{2}(?:[ ]?[A-Z0-9]{4}){3,7}(?:[ ]?[A-Z0-9]{1,4})?\b/g, (m) => jeton('NUM', m));
+  // Téléphones : 06 12 34 56 78, 06.12…, 06/12/…, +33 6…, +33 (0)6…, 0033 6…
+  t = t.replace(/(?:(?:\+|00)33[\s.]?(?:\(0\)[\s.]?)?|0)[1-9](?:[\s./-]?\d{2}){4}/g, (m) => jeton('TEL', m));
+  t = t.replace(/\b[A-Z]\s?\d{4}[\s-]?\d{4,6}\b/g, (m) => jeton('REF', m));
   t = t.replace(/\d{6,}/g, (m) => jeton('NUM', m));
   // Le mot qui suit une civilité est toujours un nom.
   // Les mots en majuscule qui suivent (prénom et nom, jusqu'à trois) aussi : « Monsieur Paul Martin ».
@@ -97,12 +119,23 @@ function masquer(texte, sensibles, table) {
       const reste = String(suite || '').replace(/[A-ZÀ-Ý][A-Za-zÀ-ÿ'-]+/g, (mot) => jeton('NOM', mot));
       return civ + esp + jeton('NOM', nom) + reste;
     });
-  t = t.replace(/\[(?:NOM|EMAIL|TEL|REF|NUM)\d+\]|[A-Za-zÀ-ÿ][A-Za-zÀ-ÿ'-]*/g, (mot) => {
+  // Un mot est masqué si l'un de ses morceaux (tirets, apostrophe : « Dupont-Martin », « l'Agenda ») est un mot des fiches, est
+  // écrit en capitales (deux lettres au moins, hors sigles du métier), ou commence par une majuscule AILLEURS qu'en tête de phrase
+  // (un nom propre : un tiers cité dans un engagement, un prénom dans la phrase, un lieu-dit) — sauf les mots de CLAIRE gardés.
+  t = t.replace(/\[(?:NOM|EMAIL|TEL|REF|NUM)\d+\]|[A-Za-zÀ-ÿ][A-Za-zÀ-ÿ'’-]*/g, (mot, position, tout) => {
     if (mot.startsWith('[')) return mot;
-    const n = A.normaliserDemande(mot).replace(/^[^a-z]+|[^a-z]+$/g, '');
-    const capitales = mot.length >= 3 && mot === mot.toUpperCase() && /[A-Z]/.test(mot) && !SIGLES.has(mot);
-    if (capitales || (n.length >= 3 && sensibles.has(n))) return jeton('NOM', mot);
-    return mot;
+    const avant = String(tout).slice(0, position).replace(/[\s\u00a0]+$/, '');
+    const enTete = !avant || /[.!?:;(«"\n•]$/.test(avant) || /\n\s*$/.test(String(tout).slice(0, position));
+    const morceaux = mot.split(/['’-]/).filter(Boolean);
+    const sensible = morceaux.some((m, i) => {
+      const n = A.normaliserDemande(m).replace(/^[^a-z]+|[^a-z]+$/g, '');
+      if (n.length >= 2 && sensibles.has(n)) return true;
+      if (SIGLES.has(m) || MOTS_MAJUSCULE_GARDES.has(m)) return false;
+      if (m.length >= 2 && m === m.toUpperCase() && /[A-ZÀ-Ý]/.test(m) && !/^(?:[LDJNSMTC]|QU)$/.test(m)) return true;
+      // Majuscule initiale : nom propre, sauf le premier mot d'une phrase (et son élision « L'Agenda » reste un mot courant).
+      return /^[A-ZÀ-Ý][a-zà-ÿ]/.test(m) && !(enTete && i === 0) && !(enTete && i === 1 && /^[LDlds]$/.test(morceaux[0]));
+    });
+    return sensible ? jeton('NOM', mot) : mot;
   });
   return t;
 }
@@ -134,6 +167,10 @@ function pseudonymiserDemande(texte, contexte, dossiers) {
  */
 function motsSensiblesDossiers(dossiers) {
   const sensibles = new Set();
+  // Noms de famille de deux lettres (LY, VO, LE…) : gardés, sauf les petits mots du français qui ne désignent personne.
+  const PETITS = new Set(['de', 'du', 'la', 'le', 'les', 'et', 'en', 'un', 'au', 'aux', 'a', 'd', 'l', 'y', 'o']);
+  const court = (s) => A.normaliserDemande(String(s || '')).split(/[^a-z]+/).forEach((m) => { if (m.length === 2 && !PETITS.has(m)) sensibles.add(m); });
+  for (const d of dossiers || []) for (const p of (d && Array.isArray(d.parties) ? d.parties : [])) { court(p && p.nom); court(p && p.nomUsage); }
   const ajouter = (s) => A.normaliserDemande(String(s || '')).split(/[^a-z0-9-]+/).forEach((m) => {
     m.split('-').concat(m).forEach((x) => { if (x.length >= 3 && !/^\d+$/.test(x)) sensibles.add(x); });
   });
@@ -187,12 +224,13 @@ function lireUsageAssistant(parametresRepo, maintenant, moteur) {
   const mois = (maintenant || new Date()).toISOString().slice(0, 7);
   const u = parametresRepo.lireJsonBrut((USAGES[moteur || 'mistral'] || USAGES.mistral).cle, {}) || {};
   const courant = u.mois === mois ? u : { mois, demandes: 0, entree: 0, sortie: 0, erreurs: 0 };
-  // Claude : le coût est cumulé à chaque demande (le modèle peut changer en cours de mois).
-  const cout = moteur === 'claude' ? Math.round((courant.coutUsd || 0) * 10000) / 10000 : coutAssistantUsd(courant.entree, courant.sortie);
+  // Claude : le coût est cumulé à chaque demande (le modèle peut changer en cours de mois). Mistral : aussi depuis l'agent (11/10,
+  // modèles à tarifs différents) ; un mois d'avant sans coût cumulé est estimé au tarif de Mistral Small.
+  const cout = moteur === 'claude' || courant.coutUsd ? Math.round((courant.coutUsd || 0) * 10000) / 10000 : coutAssistantUsd(courant.entree, courant.sortie);
   return { ...courant, coutUsd: cout, precedent: u.mois !== mois && u.mois ? u : (u.precedent || null) };
 }
 
-/** @param {any} parametresRepo @param {{ entree?: number, sortie?: number, erreur?: boolean, coutUsd?: number }} ajout @param {Date} [maintenant] @param {string} [moteur] */
+/** @param {any} parametresRepo @param {{ entree?: number, sortie?: number, erreur?: boolean, coutUsd?: number, tour?: boolean }} ajout @param {Date} [maintenant] @param {string} [moteur] */
 function noterUsageAssistant(parametresRepo, ajout, maintenant, moteur) {
   const mois = (maintenant || new Date()).toISOString().slice(0, 7);
   const CLE_USAGE = (USAGES[moteur || 'mistral'] || USAGES.mistral).cle;
@@ -201,7 +239,8 @@ function noterUsageAssistant(parametresRepo, ajout, maintenant, moteur) {
   const base = u.mois === mois ? u : { mois, demandes: 0, entree: 0, sortie: 0, erreurs: 0 };
   parametresRepo.ecrireJsonBrut(CLE_USAGE, {
     mois, precedent,
-    demandes: (base.demandes || 0) + (ajout.erreur ? 0 : 1),
+    // Un tour d'outils de l'agent n'est pas une demande de plus : seule sa réponse finale compte.
+    demandes: (base.demandes || 0) + (ajout.erreur || ajout.tour ? 0 : 1),
     erreurs: (base.erreurs || 0) + (ajout.erreur ? 1 : 0),
     entree: (base.entree || 0) + (ajout.entree || 0),
     sortie: (base.sortie || 0) + (ajout.sortie || 0),
@@ -247,7 +286,7 @@ function creerClientMistralAssistant({ cle, region, fetchFn, parametresRepo }) {
       }
       const corps = await r.json().catch(() => ({}));
       const usage = corps && corps.usage ? corps.usage : {};
-      if (parametresRepo) noterUsageAssistant(parametresRepo, { entree: usage.prompt_tokens || 0, sortie: usage.completion_tokens || 0 });
+      if (parametresRepo) noterUsageAssistant(parametresRepo, { entree: usage.prompt_tokens || 0, sortie: usage.completion_tokens || 0, coutUsd: ((usage.prompt_tokens || 0) * TARIF_ASSISTANT_MISTRAL.entree + (usage.completion_tokens || 0) * TARIF_ASSISTANT_MISTRAL.sortie) * MAJORATION_UE / 1e6 });
       const choix = corps && corps.choices && corps.choices[0];
       const contenu = choix && choix.message ? choix.message.content : '';
       // Un JSON entouré de ```json … ``` reste lisible ; une réponse coupée par la limite de jetons est dite comme telle.
@@ -264,7 +303,7 @@ function creerClientMistralAssistant({ cle, region, fetchFn, parametresRepo }) {
 }
 
 module.exports = {
-  MODELES_AGENT, MODELE_AGENT_DEFAUT, masquer, motsSensiblesDossiers,
+  MODELES_AGENT, MODELE_AGENT_DEFAUT, MODELES_AGENT_MISTRAL, MODELE_AGENT_MISTRAL_DEFAUT, BASES, masquer, motsSensiblesDossiers,
   REVISION_REGLAGES_ASSISTANT, MODELE_ASSISTANT_MISTRAL, MODELES_CLAUDE_ASSISTANT, MODELE_CLAUDE_ASSISTANT_DEFAUT, coutClaudeUsd, CLE_REGLAGES, MOTEURS, assainirReglagesAssistant, pseudonymiserDemande, retablirTexte, masquerMontants,
   coutAssistantUsd, lireUsageAssistant, noterUsageAssistant, creerClientMistralAssistant
 };

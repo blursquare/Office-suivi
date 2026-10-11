@@ -40,7 +40,8 @@
     const nom = d.moteur === 'claude' ? 'IA Claude' : d.moteur === 'mistral' ? 'IA Mistral' : 'IA locale';
     // Agent (11/10) : Claude lit les dossiers avec ses outils, noms masqués par le serveur.
     if (d.agent) {
-      const modele = { 'claude-opus-5-5': 'Claude Opus 5.5', 'claude-sonnet-5-5': 'Claude Sonnet 5.5', 'claude-haiku-5-5': 'Claude Haiku 5.5' }[d.modele] || 'Claude';
+      const modele = { 'claude-opus-5-5': 'Claude Opus 5.5', 'claude-sonnet-5-5': 'Claude Sonnet 5.5', 'claude-haiku-5-5': 'Claude Haiku 5.5',
+        'mistral-large-latest': 'Mistral Large', 'mistral-medium-latest': 'Mistral Medium', 'mistral-small-latest': 'Mistral Small' }[d.modele] || (d.moteur === 'mistral' ? 'Mistral' : 'Claude');
       el.innerHTML = `<span class="dot-label dl-success" title="CLAIRE lit les dossiers pour répondre ; noms, adresses, emails et téléphones sont remplacés par des codes avant de partir."><span class="dot"></span>${escapeHtml(modele)} — dossiers lus, noms masqués</span>`;
       return;
     }
@@ -384,6 +385,9 @@
         return;
       }
       assistantContexte.dossierId = d.id;
+    } else if (r.dossier) {
+      // Intention sans dossier obligatoire (un rappel) mais dossier donné : on le garde (relecture 0.213.0, rappel posé sans lien).
+      d = dossiers.find(x => x.id === r.dossier) || null;
     }
     const executants = {
       etat_dossier: () => reponseEtatDossierAssistant(d),
@@ -950,12 +954,15 @@
     const ligne = document.getElementById('reglages-assistant-modele-ligne');
     const choix = document.getElementById('reglages-assistant-moteur');
     if (ligne) ligne.style.display = !choix || choix.value === 'claude' ? '' : 'none';
-    // L'agent ne marche qu'avec Claude.
+    // L'agent marche avec Claude ou Mistral, pas avec l'IA locale.
     const claude = !choix || choix.value === 'claude';
+    const mistral = !!choix && choix.value === 'mistral';
     const agent = document.getElementById('reglages-assistant-agent');
-    if (agent && agent.closest('label')) agent.closest('label').style.display = claude ? '' : 'none';
+    if (agent && agent.closest('label')) agent.closest('label').style.display = claude || mistral ? '' : 'none';
     const modeleAgent = document.getElementById('reglages-assistant-modele-agent-ligne');
     if (modeleAgent) modeleAgent.style.display = claude ? '' : 'none';
+    const modeleAgentMistral = document.getElementById('reglages-assistant-modele-agent-mistral-ligne');
+    if (modeleAgentMistral) modeleAgentMistral.style.display = mistral ? '' : 'none';
   }
 
   async function chargerReglagesAssistant() {
@@ -975,6 +982,8 @@
       if (agent) agent.checked = data.agent !== false;
       const modeleAgent = document.getElementById('reglages-assistant-modele-agent');
       if (modeleAgent && data.modeleAgent) modeleAgent.value = data.modeleAgent;
+      const modeleAgentMistral = document.getElementById('reglages-assistant-modele-agent-mistral');
+      if (modeleAgentMistral && data.modeleAgentMistral) modeleAgentMistral.value = data.modeleAgentMistral;
       const usage = document.getElementById('reglages-assistant-usage');
       if (usage) usage.textContent = texteUsageAssistant(data.usage, data.moteur) + avertissementCleAssistant(data);
     } catch (e) { /* Réglages sans connexion : rien à afficher */ }
@@ -984,7 +993,7 @@
     const choix = document.getElementById('reglages-assistant-moteur');
     const sortie = document.getElementById('reglages-assistant-resultat');
     try {
-      const r = await fetchAvecAuth('/api/assistant/reglages', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ moteur: choix ? choix.value : 'claude', modeleClaude: (document.getElementById('reglages-assistant-modele-claude') || {}).value || '', toutesDemandes: !!(document.getElementById('reglages-assistant-toutes') || {}).checked, agent: !!(document.getElementById('reglages-assistant-agent') || {}).checked, modeleAgent: (document.getElementById('reglages-assistant-modele-agent') || {}).value || '' }) });
+      const r = await fetchAvecAuth('/api/assistant/reglages', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ moteur: choix ? choix.value : 'claude', modeleClaude: (document.getElementById('reglages-assistant-modele-claude') || {}).value || '', toutesDemandes: !!(document.getElementById('reglages-assistant-toutes') || {}).checked, agent: !!(document.getElementById('reglages-assistant-agent') || {}).checked, modeleAgent: (document.getElementById('reglages-assistant-modele-agent') || {}).value || '', modeleAgentMistral: (document.getElementById('reglages-assistant-modele-agent-mistral') || {}).value || '' }) });
       const data = await r.json();
       if (!r.ok) throw new Error(data.erreur || `Le serveur a répondu ${r.status}.`);
       assistantDisponibilite.quand = 0;

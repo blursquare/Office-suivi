@@ -136,7 +136,7 @@ test('masquerValeur, nettoyerReponseAgent, coût', () => {
   assert.equal(m.prix, 1000);
   assert.match(nettoyerReponseAgent(m.libelle, table), /FOURNIER/);
   assert.ok(Math.abs(coutAgentUsd({ input_tokens: 1e6, output_tokens: 0 }, 'claude-opus-5-5') - 4) < 1e-9);
-  assert.ok(Math.abs(coutAgentUsd({ cache_read_input_tokens: 1e6 }, 'claude-opus-5-5') - 0.4) < 1e-9);
+  assert.ok(Math.abs(coutAgentUsd({ cache_read_input_tokens: 1e6 }, 'claude-opus-5-5') - 0.2) < 1e-9, 'lecture du cache d’Opus 5.5 : 0,20 $ le million');
 });
 
 test('route /assistant/agent : sans clé Claude → repli ; avec clé → appels puis réponse', async () => {
@@ -170,4 +170,124 @@ test('route /assistant/agent : sans clé Claude → repli ; avec clé → appels
     if (avant === undefined) delete process.env.ANTHROPIC_API_KEY; else process.env.ANTHROPIC_API_KEY = avant;
     serveur.close();
   }
+});
+
+// ---- Mistral (étude 11/10 : « idem pour Mistral ») ----
+
+function fauxMistral(reponses) {
+  const corps = [];
+  const fetchMistral = async (url, o) => {
+    corps.push({ url, ...JSON.parse(o.body) });
+    const r = reponses.shift();
+    if (r instanceof Error) throw r;
+    if (typeof r === 'number') return { ok: false, status: r, json: async () => ({}) };
+    return { ok: true, json: async () => r };
+  };
+  return { corps, fetchMistral };
+}
+const choixMistral = (message, fin) => ({ usage: { prompt_tokens: 3000, completion_tokens: 300 }, choices: [{ message, finish_reason: fin }] });
+
+test('Mistral : mêmes outils en fonctions, prompt système en tête, rien de nominatif, appels parallèles, réponse rétablie', async () => {
+  const { corps, fetchMistral } = fauxMistral([
+    choixMistral({ role: 'assistant', content: '', tool_calls: [
+      { id: 'abc123def', type: 'function', function: { name: 'chercher_dossiers', arguments: JSON.stringify({ texte: '[NOM1]', inclure_archives: false }) } },
+      { id: 'xyz987uvw', type: 'function', function: { name: 'taches_du_jour', arguments: '{}' } }
+    ] }, 'tool_calls'),
+    choixMistral({ role: 'assistant', content: 'Le dossier **[NOM1]** attend l’offre de prêt.' }, 'stop')
+  ]);
+  const o = { cle: 'k', fournisseur: 'mistral', fetchMistral };
+  let r = await tourAgent({ texte: 'Où en est Fournier ?', dossiers: D, contexte: { aujourdhui: '2026-10-11', prenom: 'Julie' } }, o);
+  assert.equal(r.appels.length, 2);
+  assert.equal(r.appels[0].entree.texte, 'Fournier');
+  r = await tourAgent({ conversation: r.conversation, resultats: [
+    { id: 'abc123def', contenu: { dossiers: [{ id: 'd1', libelle: 'VTE - FOURNIER / GAUTHIER', adresse: 'BLOIS (41000), 2 rue des Tanneurs' }] } },
+    { id: 'xyz987uvw', contenu: { taches: [{ tache: 'Relancer Paul FOURNIER', email: 'paul.fournier@exemple.fr' }] } }
+  ] }, o);
+  assert.match(r.reponse, /Fournier/);
+  assert.equal(corps[0].url, 'https://api.eu.mistral.ai/v1/chat/completions', 'région UE par défaut');
+  assert.equal(corps[0].model, 'mistral-large-latest', 'Large par défaut');
+  assert.equal(corps[0].messages[0].role, 'system');
+  assert.equal(corps[0].tools[0].type, 'function');
+  assert.equal(corps[0].tool_choice, 'auto');
+  const outilGeste = corps[0].tools.find((t) => t.function.name === 'faire_geste').function.parameters;
+  assert.equal(outilGeste.properties.parametres.properties.montant.type, 'number', 'pas de type multiple chez Mistral');
+  assert.ok(corps[0].tools.every((t) => t.strict === undefined));
+  const second = corps[1].messages;
+  assert.equal(second[2].tool_calls.length, 2, 'les appels sont renvoyés tels quels');
+  assert.deepEqual(second.slice(3).map((m) => [m.role, m.tool_call_id, m.name]), [['tool', 'abc123def', 'chercher_dossiers'], ['tool', 'xyz987uvw', 'taches_du_jour']]);
+  for (const c of corps) assert.doesNotMatch(JSON.stringify(c.messages.slice(1)), SECRETS);
+});
+
+test('Mistral : erreurs dites sans contenu, conversation oubliée ; arguments illisibles signalés', async () => {
+  const { fetchMistral } = fauxMistral([429]);
+  const r = await tourAgent({ texte: 'Bonjour', dossiers: D }, { cle: 'k', fournisseur: 'mistral', fetchMistral });
+  assert.equal(r.erreur, 'limite de débit Mistral atteinte');
+  const f2 = fauxMistral([choixMistral({ role: 'assistant', content: '', tool_calls: [{ id: 'a1', type: 'function', function: { name: 'lire_dossier', arguments: '{pas du json' } }] }, 'tool_calls')]);
+  const r2 = await tourAgent({ texte: 'Lis', dossiers: D }, { cle: 'k', fournisseur: 'mistral', fetchMistral: f2.fetchMistral });
+  assert.equal(r2.appels[0].entree._illisible, true);
+});
+
+test('route /assistant/agent : Mistral choisi avec sa clé → agent Mistral', async () => {
+  const os = require('node:os');
+  const { creerApp } = require('../src/app');
+  const { ouvrirDb } = require('../src/db');
+  const { corps, fetchMistral } = fauxMistral([choixMistral({ role: 'assistant', content: 'Bonjour Julie.' }, 'stop')]);
+  const db = ouvrirDb(':memory:');
+  const { app } = creerApp({ db, config: { motDePasse: 'mdp-test', racineRepo: os.tmpdir(), port: 0, authActive: false }, assistant: { fetchMistral } });
+  const serveur = app.listen(0);
+  await new Promise((r) => serveur.once('listening', r));
+  const avant = { a: process.env.ANTHROPIC_API_KEY, m: process.env.MISTRAL_API_KEY };
+  try {
+    const base = `http://127.0.0.1:${serveur.address().port}`;
+    delete process.env.ANTHROPIC_API_KEY;
+    process.env.MISTRAL_API_KEY = 'cle-mistral';
+    await fetch(`${base}/api/assistant/reglages`, { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ moteur: 'mistral', modeleAgentMistral: 'mistral-medium-latest' }) });
+    const dispo = await (await fetch(`${base}/api/assistant/disponibilite`)).json();
+    assert.equal(dispo.agent, true);
+    assert.equal(dispo.modele, 'mistral-medium-latest');
+    const r = await (await fetch(`${base}/api/assistant/agent`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ texte: 'Bonjour', contexte: { prenom: 'Julie' } }) })).json();
+    assert.equal(r.reponse, 'Bonjour Julie.');
+    assert.equal(corps[0].model, 'mistral-medium-latest');
+  } finally {
+    if (avant.a === undefined) delete process.env.ANTHROPIC_API_KEY; else process.env.ANTHROPIC_API_KEY = avant.a;
+    if (avant.m === undefined) delete process.env.MISTRAL_API_KEY; else process.env.MISTRAL_API_KEY = avant.m;
+    serveur.close();
+  }
+});
+
+test('relecture 0.213.0 : les noms hors fiches ne sortent pas (tiers, prénoms, lieux-dits, tirets, deux lettres, téléphones, IBAN)', () => {
+  const { masquer } = require('../src/assistantMistral');
+  const fiches = [{ nom: 'DUPONT / MARTIN', parties: [{ nom: 'DUPONT', prenom: 'Paul' }, { nom: 'MARTIN', prenom: 'Léa' }, { nom: 'LY', prenom: 'Anh' }], autres: ['VINEUIL (41350), 4 rue des Lilas'] }];
+  const S = motsSensiblesDossiers(fiches);
+  const cas = {
+    'attestation du syndic Foncia, Madame veuve Gauthier née Colin, entreprise Bâtiments Rousseau': /Foncia|Gauthier|Colin|Rousseau/,
+    'email reçu de Jean-Michel Dubois (avant : Paul Dupond)': /Jean|Michel|Dubois|Dupond|Paul/,
+    'lieu-dit Les Grandes Ouches': /Grandes|Ouches/,
+    'Dupont-Martin et attestation-notaire-dupont.pdf': /Dupont|Martin|dupont/,
+    'LÉ Anh et Ly': /Anh|Ly\b/,
+    'rappelle-moi d’appeler Karim vendredi': /Karim/,
+    'VTE - Durand/Petit': /Durand|Petit/,
+    '06/12/34/56/78, +33 (0)6 12 34 56 78, 0033 6 12 34 56 78': /\d{2}[ /]\d{2}/,
+    'A2026-00247 et FR76 3000 6000 0112 3456 7890 143': /00247|3456/
+  };
+  for (const [texte, interdit] of Object.entries(cas)) assert.doesNotMatch(masquer(texte, S, new Map()), interdit, texte);
+  // Les mots du métier restent lisibles.
+  for (const t of ['Attente de pièces', 'Offre de prêt', 'ERP (état des risques et pollution)', 'Ouvre l’Agenda et le Suivi', 'Renonciation au droit de préemption', 'Fait par CLAIRE'])
+    assert.equal(masquer(t, S, new Map()), t);
+});
+
+test('relecture 0.213.0 : un tour d’outils ne compte pas comme une demande ; une conversation oubliée repart avec « repris »', async () => {
+  const lus = {};
+  const repo = { lireJsonBrut: (k, d) => lus[k] || d, ecrireJsonBrut: (k, v) => { lus[k] = v; } };
+  const client = fauxClient([
+    { stop_reason: 'tool_use', usage, content: [outil('u1', 'taches_du_jour', {})] },
+    { stop_reason: 'end_turn', usage, content: [texte('Fini.')] },
+    { stop_reason: 'end_turn', usage, content: [texte('Re.')] }
+  ]);
+  const o = { cle: 'k', client, parametresRepo: repo };
+  const r = await tourAgent({ texte: 'Mes tâches', dossiers: D }, o);
+  await tourAgent({ conversation: r.conversation, resultats: [{ id: 'u1', contenu: {} }] }, o);
+  assert.equal(lus['assistant-ia-usage-claude'].demandes, 1);
+  const r3 = await tourAgent({ conversation: 'perdue', texte: 'Bonjour', dossiers: D }, o);
+  assert.equal(r3.repris, true);
 });
