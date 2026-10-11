@@ -136,6 +136,39 @@ try {
       await geste(page, 'fiche à côté › fermer', () => { ouvrirFicheACote(); fermerDossierDrawer(); });
       verifier(await page.evaluate(() => !ficheACote && !document.body.classList.contains('fiche-a-cote')), 'fiche à côté › fermée, mode arrêté');
       await page.evaluate(() => { ongletsTravail = []; renderOngletsTravail(); definirOnglet('dashboard'); });
+      // Agent « Demander à CLAIRE » (11/10) : un faux serveur d'agent fait exécuter au poste chaque outil (fiche, liste, tâches,
+      // agenda, depuis hier, un rappel posé) puis rend la réponse ; le poste ne doit lever aucune erreur et tout renvoyer.
+      const resultatsAgent = [];
+      let tourFaux = 0;
+      await page.route('**/api/assistant/agent', async (r) => {
+        const corps = JSON.parse(r.request().postData() || '{}');
+        if (corps.resultats) resultatsAgent.push(...corps.resultats);
+        tourFaux += 1;
+        const appels = tourFaux === 1 ? [
+          { id: 'o1', nom: 'chercher_dossiers', entree: { texte: 'moreau', inclure_archives: false } },
+          { id: 'o2', nom: 'lire_dossier', entree: { dossier_id: 'f1' } },
+          { id: 'o3', nom: 'lister_dossiers', entree: { etat: 'tous', responsable: '' } },
+          { id: 'o4', nom: 'taches_du_jour', entree: {} },
+          { id: 'o5', nom: 'agenda', entree: { debut: '2026-10-01', fin: '2026-10-31' } },
+          { id: 'o6', nom: 'depuis_hier', entree: {} },
+          { id: 'o7', nom: 'lire_dossier', entree: { dossier_id: 'f3' } }
+        ] : tourFaux === 2 ? [{ id: 'o8', nom: 'faire_geste', entree: { geste: 'rappel_ajouter', dossier_id: 'f1', parametres: { date: '2026-10-20', heure: '', texte: 'Relancer la banque', modele: '', echeance: '', champ: '', partie: '', ecran: '', collaborateur: '', titre: '', montant: null } } }] : null;
+        await r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(appels ? { conversation: 'c1', appels } : { conversation: 'c1', reponse: 'Le dossier **MOREAU** attend :\n- l’offre de prêt' }) });
+      });
+      await page.evaluate(() => { utilisateurPoste = 'Bastien ANGLUMENT'; assistantDisponibilite.agent = true; assistantDisponibilite.quand = Date.now(); definirOnglet('assistant'); });
+      const avantAgent = erreurs.length;
+      await geste(page, 'agent : question', () => envoyerDemandeAssistant('Où en est MOREAU ?'));
+      await page.waitForFunction(() => !assistantEnCours, null, { timeout: 8000 }).catch(() => {});
+      const agentFin = await page.evaluate(() => ({ dernier: (assistantMessages[assistantMessages.length - 1] || {}).html || '', rappel: rappelsPerso.some(x => x.texte === 'Relancer la banque') }));
+      const parId = Object.fromEntries(resultatsAgent.map((x) => [x.id, x]));
+      verifier(erreurs.length === avantAgent, 'agent : aucun outil ne lève d’erreur dans la page');
+      verifier(['o1', 'o2', 'o3', 'o4', 'o5', 'o6', 'o7', 'o8'].every((id) => parId[id] && !parId[id].erreur), `agent : les 8 outils ont rendu un résultat (${Object.keys(parId).join(',')})`);
+      verifier(parId.o2 && /MOREAU/.test(JSON.stringify(parId.o2.contenu)) && Array.isArray(parId.o2.contenu.echeances), 'agent : la fiche lue porte le dossier et ses échéances');
+      verifier(parId.o1 && parId.o1.contenu.dossiers.length >= 1, 'agent : la recherche trouve MOREAU');
+      verifier(agentFin.rappel && parId.o8 && parId.o8.contenu.fait, 'agent : le rappel est posé par le geste habituel');
+      verifier(/<b>MOREAU<\/b>/.test(agentFin.dernier) && /<li>/.test(agentFin.dernier), 'agent : la réponse s’affiche mise en forme');
+      await page.unroute('**/api/assistant/agent');
+      await page.evaluate(() => { rappelsPerso = rappelsPerso.filter(x => x.texte !== 'Relancer la banque'); assistantDisponibilite.agent = false; nouvelleConversationAssistant(); utilisateurPoste = 'Julie VASSELIN'; definirOnglet('dashboard'); });
       // « À propos » : le numéro de version et chaque entrée de l'historique (numéro + jour) s'affichent.
       await geste(page, 'À propos', () => ouvrirAPropos());
       const propos = await page.evaluate(() => ({ numero: (document.getElementById('apropos-version-valeur') || {}).textContent, attendu: VERSION_APP, lignes: document.querySelectorAll('#apropos-historique-liste li').length, entrees: HISTORIQUE_VERSIONS.length, jour: (document.getElementById('apropos-version-date') || {}).textContent }));

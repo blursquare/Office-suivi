@@ -2010,6 +2010,20 @@
             <option value="claude-haiku-4-5">Claude Haiku 4.5 — le moins cher</option>
           </select>
         </div>
+        <label class="reglages-option" for="reglages-assistant-agent">
+          <span class="reglages-option-texte">
+            <span class="reglages-option-titre">CLAIRE lit les dossiers pour répondre <span class="info-i" tabindex="0" data-info="Avec Claude : CLAIRE cherche et lit les fiches (pièces, échéances, fonds, agenda, tâches), enchaîne les étapes et répond à toute question. Avant l’envoi, le serveur remplace noms, prénoms, adresses, agences, notaires, emails et téléphones par des codes ; montants, dates et pièces partent tels quels. Éteint : seule la phrase part, comme avant."></span></span>
+          </span>
+          <wa-switch class="switch reglages-switch" id="reglages-assistant-agent"></wa-switch>
+        </label>
+        <div class="reglages-champ" id="reglages-assistant-modele-agent-ligne">
+          <div class="reglages-champ-libelle"><label for="reglages-assistant-modele-agent">Modèle qui lit les dossiers</label><span class="info-i" tabindex="0" data-info="Opus : le plus intelligent, quelques centimes par question qui lit plusieurs dossiers. Sonnet : très bon, plus rapide, deux fois moins cher. Haiku : très rapide et presque gratuit, moins fin sur les questions complexes."></span></div>
+          <select id="reglages-assistant-modele-agent">
+            <option value="claude-opus-5-5">Claude Opus 5.5 — le plus intelligent</option>
+            <option value="claude-sonnet-5-5">Claude Sonnet 5.5 — plus rapide</option>
+            <option value="claude-haiku-5-5">Claude Haiku 5.5 — le moins cher</option>
+          </select>
+        </div>
         <label class="reglages-option" for="reglages-assistant-toutes">
           <span class="reglages-option-texte">
             <span class="reglages-option-titre">L’IA en ligne lit toutes les demandes <span class="info-i" tabindex="0" data-info="Chaque phrase part chez Claude ou Mistral (noms masqués), pas seulement celles que les mots-clés ne comprennent pas. Dates, heures, montants et dossier restent lus par CLAIRE. Éteint : l’IA seulement pour les phrases ambiguës. Sans effet avec l’IA locale."></span></span>
@@ -2672,5 +2686,6 @@
 <script src="client/58-animations-progression.js"></script>
 <script src="client/59-assistant-ton.js"></script>
 <script src="client/60-onglets-travail.js"></script>
+<script src="client/61-assistant-agent.js"></script>
 </body>
 </html>

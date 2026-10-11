@@ -7,7 +7,8 @@
 const express = require('express');
 const { creerClientOllama } = require('../llm');
 const { comprendreDemande, creerCacheDisponibilite } = require('../assistant');
-const { CLE_REGLAGES, MOTEURS, REVISION_REGLAGES_ASSISTANT, assainirReglagesAssistant, creerClientMistralAssistant, lireUsageAssistant, MODELE_ASSISTANT_MISTRAL, MODELES_CLAUDE_ASSISTANT } = require('../assistantMistral');
+const { CLE_REGLAGES, MOTEURS, REVISION_REGLAGES_ASSISTANT, assainirReglagesAssistant, creerClientMistralAssistant, lireUsageAssistant, MODELE_ASSISTANT_MISTRAL, MODELES_CLAUDE_ASSISTANT, MODELES_AGENT } = require('../assistantMistral');
+const { tourAgent } = require('../assistantAgent');
 const { creerClientClaudeAssistant } = require('../assistantClaude');
 const { converser } = require('../assistantConversation');
 const { noterVerification } = require('../verificationsTerrain');
@@ -79,6 +80,7 @@ function creerRouteurAssistant(config, injections, parametresRepo) {
     res.json({ ...reglages, moteurs: MOTEURS, cleMistralEnregistree: !!cleMistral().cle, cleClaudeEnregistree: !!cleClaude(),
       modeleMistral: MODELE_ASSISTANT_MISTRAL,
       modelesClaude: Object.entries(MODELES_CLAUDE_ASSISTANT).map(([id, m]) => ({ id, libelle: m.libelle, entree: m.entree, sortie: m.sortie })),
+      modelesAgent: Object.entries(MODELES_AGENT).map(([id, m]) => ({ id, libelle: m.libelle, entree: m.entree, sortie: m.sortie })),
       usage: lireUsageAssistant(parametresRepo, undefined, reglages.moteur === 'claude' ? 'claude' : 'mistral') });
   });
 
@@ -94,7 +96,10 @@ function creerRouteurAssistant(config, injections, parametresRepo) {
     try { statut = await m.disponibilite(); } catch (err) { statut = { disponible: false, raison: err.message }; }
     const raisonChoix = m.choisi === 'claude' && m.moteur !== 'claude' ? `Aucune clé Claude enregistrée : ${m.moteur === 'mistral' ? 'Mistral' : 'IA locale'} utilisé${m.moteur === 'mistral' ? '' : 'e'}. `
       : m.choisi === 'mistral' && m.moteur !== 'mistral' ? 'Aucune clé Mistral enregistrée : IA locale utilisée. ' : '';
-    res.json({ ia: !!statut.disponible, moteur: m.moteur, raison: raisonChoix + (statut.disponible ? '' : String(statut.raison || '')), modele: m.client.modele });
+    const reglages = lireReglages();
+    // L'agent (11/10) : Claude choisi, une clé, et l'agent allumé.
+    const agent = m.moteur === 'claude' && reglages.agent && !!statut.disponible;
+    res.json({ ia: !!statut.disponible, moteur: m.moteur, raison: raisonChoix + (statut.disponible ? '' : String(statut.raison || '')), modele: agent ? reglages.modeleAgent : m.client.modele, agent });
   }));
 
   routeur.post('/assistant/comprendre', routeAsync(async (req, res) => {
@@ -139,6 +144,28 @@ function creerRouteurAssistant(config, injections, parametresRepo) {
       noterVerification(parametresRepo, 'assistant-conversation', { ok: false, message: raison.slice(0, 120) });
       res.json({ reponse: '', raison });
     }
+  }));
+
+  // Agent (étude 11/10 : « aussi intelligent que toi ») : un tour de conversation — la question ou les résultats des outils que le
+  // poste vient d'exécuter. Données masquées par assistantAgent.js avant tout envoi. Sans agent possible : { repli: true }, le poste
+  // revient à la compréhension d'une phrase.
+  routeur.post('/assistant/agent', routeAsync(async (req, res) => {
+    const corps = req.body && typeof req.body === 'object' ? req.body : {};
+    const reglages = lireReglages();
+    const cle = cleClaude();
+    if (reglages.moteur !== 'claude' || !reglages.agent || !cle) { res.json({ repli: true, raison: !cle ? 'Aucune clé Claude enregistrée.' : 'Agent coupé dans les Réglages.' }); return; }
+    const resultats = Array.isArray(corps.resultats) ? corps.resultats.slice(0, 20).filter((r) => r && typeof r.id === 'string')
+      .map((r) => ({ id: r.id.slice(0, 120), contenu: r.contenu, erreur: r.erreur === true })) : undefined;
+    const sortie = await tourAgent({
+      conversation: chaine(corps.conversation, 80),
+      texte: chaine(corps.texte, 2000),
+      resultats,
+      dossiers: dossiersDuCorps(corps),
+      contexte: corps.contexte && typeof corps.contexte === 'object' ? corps.contexte : {}
+    }, { cle, modele: reglages.modeleAgent, client: injections && injections.clientAgent, parametresRepo });
+    if (sortie.erreur && !sortie.expiree && sortie.erreur !== 'aucun outil attendu') noterVerification(parametresRepo, 'assistant-agent', { ok: false, message: String(sortie.erreur).slice(0, 120) });
+    else if (sortie.reponse) noterVerification(parametresRepo, 'assistant-agent', { detail: String(sortie.modele || '') });
+    res.json(sortie);
   }));
 
   return routeur;

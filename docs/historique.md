@@ -18959,3 +18959,27 @@ sur 3 de `docs/maquettes-espace/`.
 - Relecture indépendante : les 8 points relevés (onglet d'outil fermé qui remplaçait la fiche, Échap, impression, largeur
   minimale non tenue entre 1 100 et 1 250 px, requêtes de conteneur en pleine page, indicateur de redimensionnement périmé,
   raccourcis après un geste dans la fiche, position perdue en passant à côté) corrigés avant publication ; fumée complétée.
+
+
+### 11/10/2026 — 0.213.0 « Demander à CLAIRE » en agent
+
+Demande de l'étude : « Il faut que demander à Claire soit aussi intelligent que toi ». Choix (questions posées) : les dossiers
+partent **masqués** (noms, prénoms, adresses, emails, téléphones, références remplacés par des codes par le serveur ; montants,
+dates, statuts et pièces gardés) ; les gestes se font **comme aujourd'hui** (tout de suite et annulables, sauf emails et agenda) ;
+modèle **au choix dans les Réglages**, Opus par défaut.
+
+- Serveur `server/src/assistantAgent.js` : boucle d'outils menée par le poste (`POST /api/assistant/agent` : question, puis
+  résultats des outils), conversation en mémoire 30 min (60 au plus), historique seulement allongé (blocs de réflexion renvoyés
+  tels quels), 10 tours d'outils au plus puis `tool_choice: none`, effort moyen, réflexion adaptative, cache du prompt système et de
+  l'historique, `fallbacks: "default"` sur Opus 5.5 / Sonnet 5.5 (beta `server-side-fallback-2026-07-01`). Modèles
+  `MODELES_AGENT` (Opus 5.5 4/20 $, Sonnet 5.5 2/10 $, Haiku 5.5 0,10/0,50 $ par million de jetons), coût compté avec le cache.
+- Outils : `chercher_dossiers`, `lister_dossiers`, `lire_dossier`, `taches_du_jour`, `agenda`, `depuis_hier`, `faire_geste`
+  (gestes = intentions existantes, paramètres contrôlés par `nettoyerParametresIa`). Exécutés par `client/61-assistant-agent.js`
+  avec les fonctions du poste (`etatDossier`, `piecesAttenduesDossier`, `echeancesPlanning`, `bilanFondsAssistant`,
+  `actionsDuJour`, `rappelsDuJour`, `documentsDepuis`, `executerDemandeAssistant`…).
+- Masquage renforcé pour tous les usages en ligne : jusqu'à trois mots en majuscule après une civilité (« Monsieur Paul
+  Martin ») ; l'adresse du bien (`d.adresseBien`) entre enfin dans les mots masqués (`dossiersPourAssistant` ne prenait que
+  `d.bien.adresse`, souvent vide) ; sigles du métier gardés (ERP, SRU, ABF, TEOM…).
+- Repli : sans clé Claude, agent coupé (Réglages › IA et relecture d'actes › « CLAIRE lit les dossiers pour répondre ») ou
+  erreur, la compréhension d'une phrase d'avant répond. Fumée : un faux serveur d'agent fait exécuter les 8 outils dans la page.
+- Non vérifié ici : une vraie clé (qualité des réponses, durée, coût réel par question), le secours `fallbacks`.

@@ -32,11 +32,23 @@ const MODELES_CLAUDE_ASSISTANT = {
   'claude-haiku-4-5': { libelle: 'Claude Haiku 4.5', entree: 1, sortie: 5, effort: false }
 };
 const MODELE_CLAUDE_ASSISTANT_DEFAUT = 'claude-sonnet-5';
+// Agent (étude 11/10 : « il faut que Demander à CLAIRE soit aussi intelligent que toi » ; choix : dossiers masqués, modèle au choix
+// dans les Réglages, Opus par défaut) — assistantAgent.js. Tarif en dollars par million de jetons (lecture du cache : 0,1 × l'entrée,
+// écriture : 1,25 ×). `secours` : le serveur d'Anthropic relance seul une demande refusée par ses filtres sur un autre modèle.
+const MODELES_AGENT = {
+  'claude-opus-5-5': { libelle: 'Claude Opus 5.5', entree: 4, sortie: 20, secours: true },
+  'claude-sonnet-5-5': { libelle: 'Claude Sonnet 5.5', entree: 2, sortie: 10, secours: true },
+  'claude-haiku-5-5': { libelle: 'Claude Haiku 5.5', entree: 0.1, sortie: 0.5, secours: false }
+};
+const MODELE_AGENT_DEFAUT = 'claude-opus-5-5';
 const BASES = { eu: 'https://api.eu.mistral.ai', global: 'https://api.mistral.ai' };
 
 // Sigles du métier gardés tels quels (ils disent l'intention, pas une personne).
 const SIGLES = new Set(['VTE', 'SUCC', 'RIB', 'SAFER', 'DPU', 'DIA', 'PDF', 'TVA', 'TTC', 'HT', 'AF', 'NAS', 'CLAIRE', 'IA', 'EUR',
-  'OK', 'RDV', 'SCI', 'SARL', 'PLU', 'CU', 'DPE', 'RHF', 'AAE', 'ECV', 'APR', 'JV', 'BA', 'JS', 'PJ', 'CDC']);
+  'OK', 'RDV', 'SCI', 'SARL', 'PLU', 'CU', 'DPE', 'RHF', 'AAE', 'ECV', 'APR', 'JV', 'BA', 'JS', 'PJ', 'CDC',
+  // Mots des pièces et des écrans que l'agent lit (11/10) : ce sont des sigles du métier, jamais des noms.
+  'ERP', 'SRU', 'ABF', 'TEOM', 'ALUR', 'PLUI', 'ZAE', 'SAS', 'SASU', 'EURL', 'SNC', 'GFA', 'DP', 'PC', 'PA', 'DAACT', 'NAF', 'URSSAF',
+  'MICEN', 'AR', 'LRAR', 'BAN', 'CNI', 'ICS', 'PDFA', 'ADNOV', 'TEAMS', 'EWS', 'SMS']);
 
 /**
  * Réglages de l'assistant : moteur 'mistral' (par défaut, choix de l'étude 07/10) ou 'locale' ; `toutesDemandes` : Mistral lit
@@ -47,7 +59,9 @@ const SIGLES = new Set(['VTE', 'SUCC', 'RIB', 'SAFER', 'DPU', 'DIA', 'PDF', 'TVA
 function assainirReglagesAssistant(brut) {
   const b = brut && typeof brut === 'object' ? brut : {};
   return { moteur: MOTEURS.includes(b.moteur) ? b.moteur : 'claude', toutesDemandes: b.toutesDemandes === true,
-    modeleClaude: MODELES_CLAUDE_ASSISTANT[b.modeleClaude] ? b.modeleClaude : MODELE_CLAUDE_ASSISTANT_DEFAUT };
+    modeleClaude: MODELES_CLAUDE_ASSISTANT[b.modeleClaude] ? b.modeleClaude : MODELE_CLAUDE_ASSISTANT_DEFAUT,
+    // L'agent (11/10) : allumé par défaut avec Claude ; le coupe revient à la compréhension d'une phrase d'avant.
+    agent: b.agent !== false, modeleAgent: MODELES_AGENT[b.modeleAgent] ? b.modeleAgent : MODELE_AGENT_DEFAUT };
 }
 
 // Révision des réglages enregistrés. 2 : un « toutes les demandes » gardé avant le 07/10 au soir (alors coché d'office) ne compte
@@ -76,8 +90,13 @@ function masquer(texte, sensibles, table) {
   t = t.replace(/\b[A-Z]\s?\d{4}\s?\d{4,6}\b/g, (m) => jeton('REF', m));
   t = t.replace(/\d{6,}/g, (m) => jeton('NUM', m));
   // Le mot qui suit une civilité est toujours un nom.
-  t = t.replace(/\b(Monsieur|Madame|Mademoiselle|Messieurs|Mesdames|Maître|Me|Mme|Mlle|Mr|M\.)(\s+)([A-Za-zÀ-ÿ'-]{2,})/g,
-    (m, civ, esp, nom) => /^\[/.test(nom) ? m : civ + esp + jeton('NOM', nom));
+  // Les mots en majuscule qui suivent (prénom et nom, jusqu'à trois) aussi : « Monsieur Paul Martin ».
+  t = t.replace(/\b(Monsieur|Madame|Mademoiselle|Messieurs|Mesdames|Maître|Me|Mme|Mlle|Mr|M\.)(\s+)([A-Za-zÀ-ÿ'-]{2,})((?:[ \t]+[A-ZÀ-Ý][A-Za-zÀ-ÿ'-]+){0,2})/g,
+    (m, civ, esp, nom, suite) => {
+      if (/^\[/.test(nom)) return m;
+      const reste = String(suite || '').replace(/[A-ZÀ-Ý][A-Za-zÀ-ÿ'-]+/g, (mot) => jeton('NOM', mot));
+      return civ + esp + jeton('NOM', nom) + reste;
+    });
   t = t.replace(/\[(?:NOM|EMAIL|TEL|REF|NUM)\d+\]|[A-Za-zÀ-ÿ][A-Za-zÀ-ÿ'-]*/g, (mot) => {
     if (mot.startsWith('[')) return mot;
     const n = A.normaliserDemande(mot).replace(/^[^a-z]+|[^a-z]+$/g, '');
@@ -95,6 +114,25 @@ function masquer(texte, sensibles, table) {
  * @param {Array<any>} dossiers
  */
 function pseudonymiserDemande(texte, contexte, dossiers) {
+  const sensibles = motsSensiblesDossiers(dossiers);
+  const table = new Map();
+  const c = contexte || {};
+  return {
+    texte: masquer(texte, sensibles, table),
+    contexte: {
+      ...c,
+      dossierLibelle: c.dossierLibelle ? masquer(c.dossierLibelle, sensibles, table) : '',
+      historique: (c.historique || []).map((h) => ({ ...h, texte: masquer((h && h.texte) || '', sensibles, table) }))
+    },
+    table
+  };
+}
+
+/**
+ * Les mots à masquer tirés des fiches reçues du poste (noms, prénoms, noms d'usage, mots de l'adresse, de l'agence, des notaires),
+ * moins les mots du métier. Pure. @param {Array<any>} dossiers @returns {Set<string>}
+ */
+function motsSensiblesDossiers(dossiers) {
   const sensibles = new Set();
   const ajouter = (s) => A.normaliserDemande(String(s || '')).split(/[^a-z0-9-]+/).forEach((m) => {
     m.split('-').concat(m).forEach((x) => { if (x.length >= 3 && !/^\d+$/.test(x)) sensibles.add(x); });
@@ -112,17 +150,7 @@ function pseudonymiserDemande(texte, contexte, dossiers) {
       .filter((x) => x.length >= 3).forEach((x) => sensibles.delete(x)))));
   ['pret', 'fonds', 'appel', 'projet', 'signature', 'rendez', 'vous', 'agenda', 'dossier', 'vendeur', 'acquereur', 'notaire',
     'demain', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'offre', 'piece', 'pieces', 'envoye', 'email', 'mail'].forEach((m) => sensibles.delete(m));
-  const table = new Map();
-  const c = contexte || {};
-  return {
-    texte: masquer(texte, sensibles, table),
-    contexte: {
-      ...c,
-      dossierLibelle: c.dossierLibelle ? masquer(c.dossierLibelle, sensibles, table) : '',
-      historique: (c.historique || []).map((h) => ({ ...h, texte: masquer((h && h.texte) || '', sensibles, table) }))
-    },
-    table
-  };
+  return sensibles;
 }
 
 /**
@@ -236,6 +264,7 @@ function creerClientMistralAssistant({ cle, region, fetchFn, parametresRepo }) {
 }
 
 module.exports = {
+  MODELES_AGENT, MODELE_AGENT_DEFAUT, masquer, motsSensiblesDossiers,
   REVISION_REGLAGES_ASSISTANT, MODELE_ASSISTANT_MISTRAL, MODELES_CLAUDE_ASSISTANT, MODELE_CLAUDE_ASSISTANT_DEFAUT, coutClaudeUsd, CLE_REGLAGES, MOTEURS, assainirReglagesAssistant, pseudonymiserDemande, retablirTexte, masquerMontants,
   coutAssistantUsd, lireUsageAssistant, noterUsageAssistant, creerClientMistralAssistant
 };

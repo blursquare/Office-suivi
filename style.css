@@ -9245,6 +9245,8 @@ table.pr-zt td.pr-zt-retenue select { min-width: 120px; min-height: 32px; height
 .asst-attente span { width: 6px; height: 6px; border-radius: 50%; background: var(--muted); animation: asst-pulse 1.2s infinite ease-in-out; }
 .asst-attente span:nth-child(2) { animation-delay: 0.2s; }
 .asst-attente span:nth-child(3) { animation-delay: 0.4s; }
+.asst-etape { margin-left: 8px; color: var(--muted); font-size: var(--texte-s); font-style: normal; }
+.asst-attente span.asst-etape, .asst-attente em.asst-etape { width: auto; height: auto; background: none; animation: none; }
 @keyframes asst-pulse { 0%, 80%, 100% { opacity: 0.3; } 40% { opacity: 1; } }
 .asst-bas { flex: 0 0 auto; padding: 0 24px 12px; }
 .asst-relances { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }

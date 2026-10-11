@@ -25,7 +25,7 @@
     try {
       const r = await fetchAvecAuth('/api/assistant/disponibilite');
       const corps = await r.json();
-      assistantDisponibilite = { ia: !!corps.ia, moteur: corps.moteur || 'locale', raison: corps.raison || '', modele: corps.modele || '', quand: Date.now() };
+      assistantDisponibilite = { ia: !!corps.ia, moteur: corps.moteur || 'locale', raison: corps.raison || '', modele: corps.modele || '', agent: !!corps.agent, quand: Date.now() };
     } catch (e) {
       assistantDisponibilite = { ia: false, raison: 'Serveur injoignable.', modele: '', quand: Date.now() };
     }
@@ -38,6 +38,12 @@
     const d = assistantDisponibilite;
     if (d.ia === null) { el.innerHTML = ''; return; }
     const nom = d.moteur === 'claude' ? 'IA Claude' : d.moteur === 'mistral' ? 'IA Mistral' : 'IA locale';
+    // Agent (11/10) : Claude lit les dossiers avec ses outils, noms masqués par le serveur.
+    if (d.agent) {
+      const modele = { 'claude-opus-5-5': 'Claude Opus 5.5', 'claude-sonnet-5-5': 'Claude Sonnet 5.5', 'claude-haiku-5-5': 'Claude Haiku 5.5' }[d.modele] || 'Claude';
+      el.innerHTML = `<span class="dot-label dl-success" title="CLAIRE lit les dossiers pour répondre ; noms, adresses, emails et téléphones sont remplacés par des codes avant de partir."><span class="dot"></span>${escapeHtml(modele)} — dossiers lus, noms masqués</span>`;
+      return;
+    }
     el.innerHTML = d.ia
       ? `<span class="dot-label dl-success"${d.raison ? ` title="${escapeAttr(d.raison)}"` : ''}><span class="dot"></span>${nom} prête${d.moteur === 'mistral' || d.moteur === 'claude' ? ' — noms masqués' : ''}</span>`
       : `<span class="dot-label dl-neutre" title="${escapeAttr(d.raison)}"><span class="dot"></span>Sans ${nom} : mots-clés seulement</span>`;
@@ -125,7 +131,7 @@
     }).join('') + (assistantEnCours ? `<div class="asst-message asst-claire asst-ecrit">
           <span class="asst-avatar asst-av-claire" aria-hidden="true">${icone('sparkle')}</span>
           <div class="asst-corps"><div class="asst-qui"><b>CLAIRE</b><span class="asst-etiquette">Assistante</span></div>
-          <div class="asst-attente" aria-label="CLAIRE écrit"><span></span><span></span><span></span></div></div></div>` : '');
+          <div class="asst-attente" aria-label="CLAIRE écrit"><span></span><span></span><span></span>${assistantEtapeAgent ? `<em class="asst-etape">${escapeHtml(assistantEtapeAgent)}</em>` : ''}</div></div></div>` : '');
     zone.scrollTop = zone.scrollHeight;
   }
 
@@ -261,6 +267,7 @@
 
   function nouvelleConversationAssistant() {
     assistantMessages = [];
+    oublierConversationAgent();
     mentionsChoisiesAssistant = [];
     assistantContexte = { dossierId: dossierOuvert || '', attente: null, historique: [], echanges: [] };
     renderAssistant();
@@ -295,7 +302,7 @@
         id: d.id, nom: String(d.nom || ''), archive: !!d.archive,
         parties: parties.map(p => ({ nom: String((p && p.nom) || ''), prenom: texte(p && p.prenom), nomUsage: texte(p && p.nomUsage),
           civilite: String((p && p.civilite) || '') })).filter(p => p.nom),
-        autres: [d.bien && d.bien.adresse, ...(Array.isArray(d.biens) ? d.biens.map(b => b && b.adresse) : []), d.nomAgence,
+        autres: [d.adresseBien, d.bien && d.bien.adresse, ...(Array.isArray(d.biens) ? d.biens.map(b => b && b.adresse) : []), d.nomAgence,
           d.notaireVendeur, d.notaireAcquereur].map(texte).filter(Boolean),
         reference: texte(d.referenceAuthentic),
         contacts: [d.emailVendeur, d.emailAcquereur, d.telephoneVendeur, d.telephoneAcquereur,
@@ -325,6 +332,8 @@
       assistantContexte.attente = null;
       // Sinon, c'est une nouvelle demande : on continue normalement.
     }
+    // L'agent (11/10) d'abord : Claude lit les dossiers et enchaîne les étapes ; sans lui, la compréhension d'une phrase.
+    if (assistantDisponibilite.agent && !assistantContexte.attente && await envoyerAgentAssistant(texte, impose)) return;
     assistantEnCours = true;
     renderAssistant();
     try {
@@ -941,6 +950,12 @@
     const ligne = document.getElementById('reglages-assistant-modele-ligne');
     const choix = document.getElementById('reglages-assistant-moteur');
     if (ligne) ligne.style.display = !choix || choix.value === 'claude' ? '' : 'none';
+    // L'agent ne marche qu'avec Claude.
+    const claude = !choix || choix.value === 'claude';
+    const agent = document.getElementById('reglages-assistant-agent');
+    if (agent && agent.closest('label')) agent.closest('label').style.display = claude ? '' : 'none';
+    const modeleAgent = document.getElementById('reglages-assistant-modele-agent-ligne');
+    if (modeleAgent) modeleAgent.style.display = claude ? '' : 'none';
   }
 
   async function chargerReglagesAssistant() {
@@ -956,6 +971,10 @@
       if (typeof afficherChampsFournisseurIa === 'function') afficherChampsFournisseurIa();
       const toutes = document.getElementById('reglages-assistant-toutes');
       if (toutes) toutes.checked = data.toutesDemandes === true;
+      const agent = document.getElementById('reglages-assistant-agent');
+      if (agent) agent.checked = data.agent !== false;
+      const modeleAgent = document.getElementById('reglages-assistant-modele-agent');
+      if (modeleAgent && data.modeleAgent) modeleAgent.value = data.modeleAgent;
       const usage = document.getElementById('reglages-assistant-usage');
       if (usage) usage.textContent = texteUsageAssistant(data.usage, data.moteur) + avertissementCleAssistant(data);
     } catch (e) { /* Réglages sans connexion : rien à afficher */ }
@@ -965,7 +984,7 @@
     const choix = document.getElementById('reglages-assistant-moteur');
     const sortie = document.getElementById('reglages-assistant-resultat');
     try {
-      const r = await fetchAvecAuth('/api/assistant/reglages', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ moteur: choix ? choix.value : 'claude', modeleClaude: (document.getElementById('reglages-assistant-modele-claude') || {}).value || '', toutesDemandes: !!(document.getElementById('reglages-assistant-toutes') || {}).checked }) });
+      const r = await fetchAvecAuth('/api/assistant/reglages', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ moteur: choix ? choix.value : 'claude', modeleClaude: (document.getElementById('reglages-assistant-modele-claude') || {}).value || '', toutesDemandes: !!(document.getElementById('reglages-assistant-toutes') || {}).checked, agent: !!(document.getElementById('reglages-assistant-agent') || {}).checked, modeleAgent: (document.getElementById('reglages-assistant-modele-agent') || {}).value || '' }) });
       const data = await r.json();
       if (!r.ok) throw new Error(data.erreur || `Le serveur a répondu ${r.status}.`);
       assistantDisponibilite.quand = 0;
