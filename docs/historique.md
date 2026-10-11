@@ -18926,3 +18926,12 @@ Réglages). Étape 2 sur 3 (`docs/maquettes-espace/`).
   `.onglet-panel` les laissait visibles) ; plus de fond grisé ni de `body.drawer-ouvert` ; `definirOnglet` ferme la fiche
   affichée (son onglet reste) — les chemins existants appellent tous `definirOnglet` AVANT `ouvrirDossierDrawer`.
   Impression de la fiche : ancrée sur `body.fiche-en-page`.
+- Relecture indépendante (corrigé avant publication) : raccourcis de l'agenda (Ctrl+V qui crée un rendez-vous, Suppr, Échap)
+  et Ctrl+S de « Nouveau dossier » actifs derrière une fiche → `ecranAffiche(nom)` (écran courant ET pas de fiche en page) ;
+  notifications d'une fiche quittée par un onglet jamais vidées → `marquerNotificationsVuesDossier` à chaque changement de
+  fiche ; barres collantes cachées sous les onglets → `top: calc(Npx + var(--decalage-onglets))` partout ; Ctrl+P d'une fiche
+  ouverte sur l'Appel de fonds ou la Relecture d'actes (page blanche / compte rendu) → `majClassesImpressionEcran` ; outil
+  fermé qui revenait sous la fiche voisine ; défilement du Suivi rendu à la fermeture de la fiche (`defilementAvantFiche`),
+  autre fiche ouverte en haut ; croix au clavier ; recliquer l'onglet actif ne remet plus la fiche à zéro ; outil réservé
+  masqué pour un autre collaborateur ; bouton du menu logé dans la barre d'onglets sur téléphone (56 px) ; Claire Scan retiré
+  des onglets (non demandé). Parcours des onglets ajouté à la fumée.

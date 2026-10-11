@@ -1198,6 +1198,8 @@
   // pour poser (ou retirer) le liseré .ligne-active sur la ligne concernée, et render() rafraîchit
   // le tiroir au passage.
   function ouvrirDossierDrawer(id) {
+    // Passer d'une fiche à une autre (onglets) vaut fermeture pour la première : ses notifications sont vues.
+    if (dossierOuvert && dossierOuvert !== id) marquerNotificationsVuesDossier(dossierOuvert);
     dossierOuvert = id;
     noterOngletDossier(id);   // un onglet par fiche ouverte (client/60-onglets-travail.js)
     noterDossierConsulte(id);
@@ -1236,16 +1238,20 @@
     return !!e && e.target === e.currentTarget && cibleAppuiFond === e.currentTarget;
   }
 
+  function marquerNotificationsVuesDossier(id) {
+    const d = dossiers.find(x => x.id === id);
+    if (d && (d.piecesNotifications || []).length) {
+      d.piecesNotifications = [];
+      sauvegarder(d);
+    }
+  }
+
   function fermerDossierDrawer() {
     if (!dossierOuvert) return;
     // "Une fois vu, désactiver la notification" (demandé par l'étude) : on la retire à la
     // FERMETURE, pas à l'ouverture — sinon le tag "Nouveau"/le tiroir n'auraient jamais eu
     // l'occasion de s'afficher, la pièce venant d'être marquée vue avant même le premier rendu.
-    const d = dossiers.find(x => x.id === dossierOuvert);
-    if (d && (d.piecesNotifications || []).length) {
-      d.piecesNotifications = [];
-      sauvegarder(d);
-    }
+    marquerNotificationsVuesDossier(dossierOuvert);
     dossierOuvert = null;
     ajoutEcheanceOuvert = false;
     ajoutPieceOuvert = false;
@@ -1263,6 +1269,7 @@
   // refermer le tiroir) autant que par l'ouverture/fermeture elles-mêmes. Un dossier supprimé ou
   // devenu invisible pendant qu'il était ouvert referme le tiroir plutôt que d'afficher un vide.
   let dossierRenduDansTiroir = null;
+  let defilementAvantFiche = 0;
   function renderDrawer() {
     const overlay = document.getElementById('dossier-drawer-overlay');
     const contenu = document.getElementById('dossier-drawer-contenu');
@@ -1271,27 +1278,31 @@
     if (typeof carteGlisseeFiche !== 'undefined' && carteGlisseeFiche) { redessinerApresGlisserFiche = true; return; }
 
     const d = dossierOuvert ? dossiers.find(x => x.id === dossierOuvert) : null;
+    const etaitEnPage = document.body.classList.contains('fiche-en-page');
     if (!d) {
       dossierOuvert = null;
       dossierRenduDansTiroir = null;
       overlay.style.display = 'none';
       document.body.classList.remove('fiche-en-page');
       contenu.innerHTML = '';
+      majClassesImpressionEcran();
       renderOngletsTravail();
+      // Retour à l'écran d'avant, à la place où on l'avait laissé (la ligne du Suivi qu'on venait d'ouvrir).
+      if (etaitEnPage) { const y = defilementAvantFiche; requestAnimationFrame(() => window.scrollTo(0, y)); }
       return;
     }
-    // Le défilement du tiroir est conservé : render() le reconstruit à chaque action menée dans
-    // la fiche, et remonter en haut à chaque clic ferait perdre la ligne qu'on venait de modifier.
-    const panneau = document.getElementById('dossier-drawer');
-    const defilement = panneau && dossierRenduDansTiroir === d.id ? panneau.scrollTop : 0;
+    // La fiche s'affiche en page à la place de l'écran courant (étude 11/10, onglets) : plus de tiroir sur fond grisé.
+    // Le défilement de la page est gardé quand render() reconstruit la même fiche ; une autre fiche s'ouvre en haut.
+    if (!etaitEnPage) defilementAvantFiche = window.scrollY || 0;
+    const autreFiche = dossierRenduDansTiroir !== d.id;
     dossierRenduDansTiroir = d.id;
+    const panneau = document.getElementById('dossier-drawer');
     if (panneau) panneau.classList.add('large');
     contenu.innerHTML = renderCarteDossier(d);
-    if (panneau) panneau.scrollTop = defilement;
     overlay.style.display = 'flex';
-    // La fiche s'affiche en page à la place de l'écran courant (étude 11/10, onglets) : plus de tiroir sur fond grisé.
-    if (!document.body.classList.contains('fiche-en-page')) window.scrollTo(0, 0);
     document.body.classList.add('fiche-en-page');
+    majClassesImpressionEcran();
+    if (!etaitEnPage || autreFiche) window.scrollTo(0, 0);
     renderOngletsTravail();
   }
 

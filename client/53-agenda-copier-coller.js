@@ -116,7 +116,7 @@
     if (!(ev.ctrlKey || ev.metaKey) || ev.altKey || ev.shiftKey || ev.defaultPrevented) return;
     const touche = String(ev.key || '').toLowerCase();
     if (touche !== 'c' && touche !== 'v') return;
-    if (ongletActuel !== 'agenda' || agendaModale || notesAgendaEdition) return;
+    if (!ecranAffiche('agenda') || agendaModale || notesAgendaEdition) return;
     const cible = ev.target;
     if (cible && (cible.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(cible.tagName || ''))) return;
     if (document.querySelector('#confirm-overlay[style*="flex"]')) return;

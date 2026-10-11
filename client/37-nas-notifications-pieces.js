@@ -1801,11 +1801,11 @@
       } else if (fenetreAujourdhuiOuverte) {
         e.preventDefault();
         fermerFenetreAujourdhui();
-      } else if (ongletActuel === 'agenda' && agendaCaseChoisie && !agendaModale && !agendaSelection) {
+      } else if (ecranAffiche('agenda') && agendaCaseChoisie && !agendaModale && !agendaSelection) {
         e.preventDefault();
         agendaCaseChoisie = null;
         renderPageAgenda();
-      } else if (ongletActuel === 'agenda' && (agendaModale || agendaSelection)) {
+      } else if (ecranAffiche('agenda') && (agendaModale || agendaSelection)) {
         e.preventDefault();
         fermerModaleAgenda();
       } else if (barreSelection && barreSelection.style.display !== 'none') {
@@ -1823,7 +1823,7 @@
     // Ctrl/Cmd + S enregistre le dossier en cours de saisie.
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
       const panneau = document.getElementById('panel');
-      if (panneau && panneau.open) {
+      if (panneau && panneau.open && ecranAffiche('nouveau')) {
         e.preventDefault();
         ajouterDossier();
       }

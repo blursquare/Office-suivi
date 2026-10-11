@@ -336,12 +336,12 @@
     flex: 1.15 1 620px;
     min-width: 0;
     position: sticky;
-    top: 24px;
+    top: calc(24px + var(--decalage-onglets));
     background: var(--paper-card);
     border: 1px solid var(--line);
     border-radius: var(--rayon-s);
     padding: 16px;
-    max-height: calc(100vh - 48px);
+    max-height: calc(100vh - 48px - var(--decalage-onglets));
     flex-direction: column;
     box-shadow: var(--shadow-card);
   }
@@ -3645,14 +3645,15 @@
 
   /* ---- Fiche en page et onglets de travail (étude 11/10, client/60-onglets-travail.js) ----
      La fiche ne s'ouvre plus en tiroir sur un fond grisé : elle prend la place de l'écran courant, sous la barre d'onglets. */
-  :root { --hauteur-onglets: 40px; }
+  :root { --hauteur-onglets: 40px; --decalage-onglets: 0px; }
+  /* Toute barre collante se pose sous la barre d'onglets quand elle est là : `top: calc(Npx + var(--decalage-onglets))`. */
+  body.avec-onglets-travail { --decalage-onglets: var(--hauteur-onglets); }
   body.fiche-en-page .app-main > [id^="onglet-"] { display: none !important; }
   .app-main > .drawer-overlay { position: static; inset: auto; z-index: auto; background: none; justify-content: center; }
   [data-theme="dark"] .app-main > .drawer-overlay { background: none; }
   .app-main > .drawer-overlay .drawer-panneau { width: 100%; max-width: 1680px; height: auto; overflow: visible; border: 1px solid var(--bord-carte); border-radius: var(--rayon-carte); box-shadow: none; }
   .app-main > .drawer-overlay .drawer-panneau.large { width: 100%; }
   .app-main > .drawer-overlay .fiche-barre { border-radius: var(--rayon-carte) var(--rayon-carte) 0 0; }
-  body.avec-onglets-travail .fiche-barre { top: var(--hauteur-onglets); }
   .onglets-travail { position: sticky; top: 0; z-index: 30; display: flex; align-items: stretch; height: var(--hauteur-onglets); margin: -32px -32px 32px; background: var(--paper-sunk); border-bottom: 1px solid var(--line); overflow-x: auto; overflow-y: hidden; scrollbar-width: thin; }
   .ot-onglet { flex: 0 1 220px; min-width: 120px; display: flex; align-items: center; gap: 8px; padding: 0 6px 0 12px; border-right: 1px solid var(--line); color: var(--ink-soft); font-size: var(--texte-m); cursor: pointer; position: relative; user-select: none; }
   .ot-onglet:hover { background: var(--paper); color: var(--ink); }
@@ -3674,7 +3675,9 @@
   body.avec-onglets-travail #onglet-assistant { margin-top: -32px; }
   body.avec-onglets-travail .asst-page { height: calc(100vh - var(--hauteur-onglets)); }
   @media (max-width: 900px) {
-    .onglets-travail { margin: -16px -16px 16px; }
+    /* Le bouton du menu (fixe, 14 px du haut, 40 px) se loge au début de la barre d'onglets, plus haute ici. */
+    :root { --hauteur-onglets: 56px; }
+    .onglets-travail { margin: -16px -16px 16px; padding-left: 64px; }
     body.avec-onglets-travail #onglet-assistant { margin-top: -16px; }
     body.avec-onglets-travail .asst-page { height: calc(100vh - 72px - var(--hauteur-onglets)); }
   }
@@ -3691,7 +3694,7 @@
      Mode agrandi : une colonne de droite porte l'avancement pas à pas et l'activité récente. */
   .fiche-barre {
     position: sticky;
-    top: 0;
+    top: var(--decalage-onglets);
     z-index: 3;
     display: flex;
     justify-content: space-between;
@@ -3823,7 +3826,7 @@
   /* Onglets en pilules, avec leur compteur. Collés sous la barre d'outils quand on défile. */
   .fiche-onglets {
     position: sticky;
-    top: 53px;
+    top: calc(53px + var(--decalage-onglets));
     z-index: 2;
     display: flex;
     gap: 2px;
@@ -4573,7 +4576,7 @@
     body { background: #fff; color: #000; font-size: 11pt; }
     .panel, .pdf-viewer, .list-toolbar, .relances-ciblees, .envoi-action,
     .confirm-overlay, .toast, footer.note,
-    .sidebar, .sidebar-burger, .sidebar-scrim, .dash-header, .widgets-conteneur,
+    .sidebar, .sidebar-burger, .sidebar-scrim, .onglets-travail, .dash-header, .widgets-conteneur,
     .dash-section-titre { display: none !important; }
     .app-main { padding: 0; }
     .layout-cols { display: block; }
@@ -4915,7 +4918,7 @@
    La barre suit le défilement (collée en haut), ses numéros sont ceux des titres de section : on sait où l'on est et ce
    qui reste à remplir, comme dans « Nouveau dossier ». Marqueurs en carré arrondi, comme ceux de l'assistant. */
 .outil-sommaire-place {
-  position: sticky; top: 8px; z-index: 6; margin-bottom: 20px; padding: 14px 20px;
+  position: sticky; top: calc(8px + var(--decalage-onglets)); z-index: 6; margin-bottom: 20px; padding: 14px 20px;
   background: var(--paper-card); border: 1px solid var(--bord-carte); border-radius: var(--rayon-carte); box-shadow: var(--shadow-card);
 }
 .outil-sommaire-place:empty { display: none; }
@@ -5183,7 +5186,7 @@ table.af-table tr:hover .af-ordre, table.af-table tr:focus-within .af-ordre { op
    cartes : leurs hauteurs inégales laissaient de grands trous. */
 .reglages-corps { display: grid; grid-template-columns: 220px minmax(0, 760px); gap: 40px; align-items: start; }
 .reglages-corps > * { min-width: 0; }
-.reglages-nav { display: flex; flex-direction: column; gap: 2px; position: sticky; top: 16px; }
+.reglages-nav { display: flex; flex-direction: column; gap: 2px; position: sticky; top: calc(16px + var(--decalage-onglets)); }
 .reglages-nav-groupe {
   margin: 14px 12px 4px; font-size: var(--texte-xs); font-weight: 600; letter-spacing: 0.06em;
   text-transform: uppercase; color: var(--ink);
@@ -5905,11 +5908,11 @@ wa-button.qt-suppr:hover { color: var(--urgent); }
 .relecture-visionneuse[hidden] { display: none; }
 .relecture-visionneuse {
   position: sticky;
-  top: 12px;
+  top: calc(12px + var(--decalage-onglets));
   /* Hauteur fixe (et pas seulement maximale) : c'est elle qui décide de la taille d'une page
      entière, y compris pour un document d'une seule page. */
-  height: calc(100vh - 24px);
-  max-height: calc(100vh - 24px);
+  height: calc(100vh - 24px - var(--decalage-onglets));
+  max-height: calc(100vh - 24px - var(--decalage-onglets));
   display: flex;
   flex-direction: column;
   background: var(--paper-card);
@@ -7488,7 +7491,7 @@ button.scan-nom:focus-visible { outline: 2px solid var(--focus); outline-offset:
 .suivi-corps { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 20px; align-items: start; }
 .suivi-corps > * { min-width: 0; }
 .suivi-corps:has(.suivi-stats:empty) { grid-template-columns: minmax(0, 1fr); }
-.suivi-cote { position: sticky; top: 16px; }
+.suivi-cote { position: sticky; top: calc(16px + var(--decalage-onglets)); }
 /* À droite de la colonne, la place se resserre : filtres sur deux lignes au besoin, colonnes fixes du
    tableau plus étroites pour laisser le nom du dossier sur une ligne. */
 .suivi-principal .suivi-barre-filtres { flex-wrap: wrap; }
@@ -7601,7 +7604,7 @@ button.scan-nom:focus-visible { outline: 2px solid var(--focus); outline-offset:
 .rep-corps { display: grid; grid-template-columns: 236px minmax(0, 1fr); gap: 24px; align-items: start; }
 .rep-corps > * { min-width: 0; }
 .rep-nav {
-  position: sticky; top: 16px; display: flex; flex-direction: column; gap: 1px;
+  position: sticky; top: calc(16px + var(--decalage-onglets)); display: flex; flex-direction: column; gap: 1px;
   padding: 8px; border: 1px solid var(--line); border-radius: var(--rayon-m); background: var(--paper-card);
 }
 button.rep-nav-lien {
@@ -7723,7 +7726,7 @@ button.annuaire-proche.actif { background: var(--focus); border-color: var(--foc
   /* Collée en haut au défilement (étude 06/10) ; seulement si l'écran est assez haut pour que la liste garde sa place. */
 }
 @media (min-height: 760px) and (min-width: 901px) {
-  .list-toolbar.suivi-barre { position: sticky; top: 12px; z-index: 5; }
+  .list-toolbar.suivi-barre { position: sticky; top: calc(12px + var(--decalage-onglets)); z-index: 5; }
   /* Bande du fond de page au-dessus de la carte : les lignes qui défilent ne se voient pas dans l'interstice. */
   .list-toolbar.suivi-barre::before { content: ''; position: absolute; left: 0; right: 0; top: -12px; height: 12px; background: var(--paper); }
 }

@@ -1135,7 +1135,7 @@
   // ouverte, une confirmation en cours, ou hors de la page Agenda.
   document.addEventListener('keydown', (ev) => {
     if (ev.key !== 'Delete' || ev.defaultPrevented || ev.ctrlKey || ev.metaKey || ev.altKey) return;
-    if (ongletActuel !== 'agenda' || !agendaSelection || agendaModale || notesAgendaEdition) return;
+    if (!ecranAffiche('agenda') || !agendaSelection || agendaModale || notesAgendaEdition) return;
     const cible = ev.target;
     if (cible && (cible.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(cible.tagName || ''))) return;
     if (document.querySelector('#confirm-overlay[style*="flex"]')) return;

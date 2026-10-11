@@ -1083,7 +1083,7 @@
     const filtres = barre ? barre.querySelector('.suivi-barre-filtres') : null;
     if (!barre || !sentinelle || !filtres || !barre.offsetParent) return;
     const colleePossible = getComputedStyle(barre).position === 'sticky';
-    const collee = colleePossible && sentinelle.getBoundingClientRect().top < 12;
+    const collee = colleePossible && sentinelle.getBoundingClientRect().top < (parseFloat(getComputedStyle(barre).top) || 12);
     if (collee === barre.classList.contains('collee')) return;
     if (collee) {
       const hauteur = filtres.offsetHeight;

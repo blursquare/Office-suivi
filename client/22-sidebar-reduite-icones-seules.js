@@ -162,6 +162,18 @@
     reglages: 'Réglages', assistant: 'Demander à CLAIRE'
   };
 
+  // L'écran `nom` est-il celui qu'on voit ? Faux quand une fiche s'affiche en page par-dessus (onglets, 11/10) : les raccourcis
+  // clavier d'un écran (Ctrl+V de l'agenda, Suppr, Ctrl+S de « Nouveau dossier ») ne doivent pas agir derrière la fiche.
+  function ecranAffiche(nom) {
+    return ongletActuel === nom && !document.body.classList.contains('fiche-en-page');
+  }
+
+  // Classes d'impression des écrans qui impriment une feuille (Ctrl+P) : jamais posées quand la fiche s'affiche par-dessus,
+  // sinon Ctrl+P sortirait l'écran caché (ou une page blanche) au lieu de la fiche.
+  function majClassesImpressionEcran() {
+    ['appel-fonds', 'inventaire', 'analyse-ia'].forEach(n => document.body.classList.toggle('onglet-' + n + '-actif', ecranAffiche(n)));
+  }
+
   function definirOnglet(nom) {
     // Plus de page « Outils » (étude, 06/10) : un ancien lien déplie le tiroir et mène au tableau de bord.
     if (nom === 'outils') { ouvrirTiroirOutils(); nom = 'dashboard'; }
@@ -224,12 +236,10 @@
     document.getElementById('tab-confreres').classList.toggle('actif', nom === 'confreres');
     // Ctrl+P depuis cet onglet doit sortir la FEUILLE, pas l'application autour (voir @media
     // print dans style.css) — un onglet n'ayant pas de classe sur <body>, on la pose ici.
-    document.body.classList.toggle('onglet-appel-fonds-actif', nom === 'appel-fonds');
+    majClassesImpressionEcran();
     // Même raison pour l'arbitrage du forfait mobilier : Ctrl+P doit sortir la note de calcul,
     // pas les cartes de saisie autour (voir @media print dans style.css).
-    document.body.classList.toggle('onglet-inventaire-actif', nom === 'inventaire');
     // Relecture d'actes : Ctrl+P sort le compte rendu A4 (#relecture-cr-print), pas l'écran (étude 06/10).
-    document.body.classList.toggle('onglet-analyse-ia-actif', nom === 'analyse-ia');
     document.getElementById('tab-analyse-ia').classList.toggle('actif', nom === 'analyse-ia');
     document.getElementById('tab-reglages').classList.toggle('actif', nom === 'reglages');
     if (nom === 'suivi') { appliquerFiltreSuiviCollaborateur(); initBarreSuiviCollee(); }

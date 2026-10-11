@@ -5,8 +5,8 @@
   // fond grisé) : `body.fiche-en-page` masque l'écran courant, qu'on retrouve en fermant la fiche. Onglets gardés par poste
   // dans le navigateur (simple commodité : perdus, rien ne casse). ----
 
-  // Écrans qui deviennent un onglet quand on les ouvre : les outils du tiroir et Claire Scan.
-  var OUTILS_ONGLETS_TRAVAIL = ['appel-fonds', 'inventaire', 'preemption', 'prorata', 'quotites', 'confreres', 'calculateur', 'analyse-ia', 'scans'];
+  // Écrans qui deviennent un onglet quand on les ouvre : les outils du tiroir.
+  var OUTILS_ONGLETS_TRAVAIL = ['appel-fonds', 'inventaire', 'preemption', 'prorata', 'quotites', 'confreres', 'calculateur', 'analyse-ia'];
   var MAX_ONGLETS_TRAVAIL = 12;
   var CLE_ONGLETS_TRAVAIL = 'claire-onglets-travail';
   let ongletsTravail = [];        // [{ type: 'dossier', id } | { type: 'outil', nom }], dans l'ordre affiché
@@ -91,6 +91,8 @@
   function activerOngletTravail(k) {
     const o = ongletsTravail[k];
     if (!o) return;
+    // L'onglet déjà affiché : rien (rouvrir la fiche la remettrait sur « Tableau » et fermerait un formulaire en cours).
+    if (cleOngletTravail(o) === cleOngletTravailActif()) return;
     if (o.type === 'dossier') { ouvrirDossierDrawer(o.id); return; }
     definirOnglet(o.nom);   // ferme la fiche affichée en page (voir definirOnglet)
   }
@@ -104,7 +106,8 @@
     ongletsTravail.splice(k, 1);
     enregistrerOngletsTravail();
     if (actif) {
-      if (voisin && voisin.type === 'dossier') { ouvrirDossierDrawer(voisin.id); return; }
+      // L'outil fermé ne doit pas rester l'écran caché sous la fiche voisine : le tableau de bord le remplace.
+      if (voisin && voisin.type === 'dossier') { if (o.type === 'outil') definirOnglet('dashboard'); ouvrirDossierDrawer(voisin.id); return; }
       if (voisin) { definirOnglet(voisin.nom); return; }
       if (o.type === 'dossier') fermerDossierDrawer();
       else definirOnglet('dashboard');
@@ -124,16 +127,16 @@
     try { return 'ot-etat-' + etatDossier(d, isoAujourdhuiLocal()).cle; } catch (e) { return ''; }
   }
 
-  var ICONES_ONGLETS_OUTILS = { 'appel-fonds': 'mail', inventaire: 'scale', preemption: 'shield', prorata: 'part-disque', quotites: 'users', confreres: 'book', calculateur: 'banknote', 'analyse-ia': 'eye', scans: 'bannette' };
+  var ICONES_ONGLETS_OUTILS = { 'appel-fonds': 'mail', inventaire: 'scale', preemption: 'shield', prorata: 'part-disque', quotites: 'users', confreres: 'book', calculateur: 'banknote', 'analyse-ia': 'eye' };
 
   function renderOngletsTravail() {
     const barre = document.getElementById('onglets-travail');
     if (!barre) return;
     initOngletsTravail();
     restaurerOngletsTravail();
-    // Un dossier supprimé ou devenu inconnu perd son onglet.
     const avant = ongletsTravail.length;
-    ongletsTravail = ongletsTravail.filter(o => o.type !== 'dossier' || dossiers.some(d => d.id === o.id));
+    // Un dossier supprimé perd son onglet ; un outil réservé à l'administrateur n'apparaît pas pour un autre collaborateur.
+    ongletsTravail = ongletsTravail.filter(o => o.type === 'dossier' ? dossiers.some(d => d.id === o.id) : !ongletReserve(o.nom, utilisateurPoste));
     if (ongletsTravail.length !== avant) enregistrerOngletsTravail();
     document.body.classList.toggle('avec-onglets-travail', ongletsTravail.length > 0);
     if (!ongletsTravail.length) { barre.innerHTML = ''; barre.style.display = 'none'; return; }
@@ -148,7 +151,7 @@
       const libelle = libelleOngletTravail(o);
       return `<div class="ot-onglet${actif ? ' actif' : ''}" role="tab" aria-selected="${actif}" tabindex="0" draggable="true" data-index="${k}" title="${escapeAttr(libelle)}"
           onclick="activerOngletTravail(${k})" onauxclick="if (event.button === 1) fermerOngletTravail(${k}, event)"
-          onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); activerOngletTravail(${k}); } else if (event.key === 'Delete') fermerOngletTravail(${k}, event)">
+          onkeydown="if (event.target !== this) return; if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); activerOngletTravail(${k}); } else if (event.key === 'Delete') fermerOngletTravail(${k}, event)">
           ${repere}<span class="ot-libelle">${escapeHtml(libelle)}</span>
           <button type="button" class="ot-fermer" aria-label="Fermer l’onglet ${escapeAttr(libelle)}" title="Fermer" onclick="fermerOngletTravail(${k}, event)">${icone('x')}</button>
         </div>`;

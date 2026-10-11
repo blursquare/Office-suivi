@@ -101,6 +101,25 @@ try {
         for (const o of ONGLETS_FICHE) { await geste(page, `fiche ${id} › ${o}`, (x) => definirOngletFiche(x), o); await pause(150); await boutonsIntacts(page, `fiche ${id} › ${o}`); }
         await page.evaluate(() => { try { fermerDossierDrawer(); } catch (e) { /* déjà fermée */ } });
       }
+      // Onglets de travail (11/10) : outil et fiches en onglets, la fiche en page masque l'écran, fermer rend l'écran d'avant,
+      // les raccourcis de l'agenda ne jouent pas derrière une fiche, passer d'une fiche à l'autre vide les notifications.
+      await page.evaluate(() => { try { localStorage.removeItem('claire-onglets-travail'); } catch (e) { /* sans stockage */ } ongletsTravail = []; });
+      await geste(page, 'onglets : outil', () => definirOnglet('quotites'));
+      await geste(page, 'onglets : fiches', () => { definirOnglet('agenda'); ouvrirDossierDrawer('f1'); ouvrirDossierDrawer('f2'); });
+      await pause(300);
+      const ot1 = await page.evaluate(() => ({ n: document.querySelectorAll('#onglets-travail .ot-onglet').length, actif: (document.querySelector('#onglets-travail .ot-onglet.actif .ot-libelle') || {}).textContent, agendaCache: getComputedStyle(document.getElementById('onglet-agenda')).display === 'none', raccourci: ecranAffiche('agenda') }));
+      verifier(ot1.n === 3 && /ABIME/.test(ot1.actif || '') && ot1.agendaCache && !ot1.raccourci, `onglets : 3 onglets, fiche ABIME active en page, agenda caché et sans raccourci (${JSON.stringify(ot1)})`);
+      await geste(page, 'onglets : notifications vues en changeant de fiche', () => { const d = dossiers.find(x => x.id === 'f1'); d.piecesNotifications = ['dpe']; ouvrirDossierDrawer('f1'); ouvrirDossierDrawer('f2'); });
+      verifier(await page.evaluate(() => !(dossiers.find(x => x.id === 'f1').piecesNotifications || []).length), 'onglets : notifications de la fiche quittée vidées');
+      await geste(page, 'onglets : fermer la fiche active', () => fermerOngletTravail(2));
+      await pause(200);
+      const ot2 = await page.evaluate(() => ({ ouvert: dossierOuvert, n: ongletsTravail.length }));
+      verifier(ot2.ouvert === 'f1' && ot2.n === 2, `onglets : la fiche voisine prend la place (${JSON.stringify(ot2)})`);
+      await geste(page, 'onglets : fermer l’outil puis la fiche', () => { fermerOngletTravail(0); fermerDossierDrawer(); });
+      await pause(200);
+      const ot3 = await page.evaluate(() => ({ ecran: ongletActuel, fiche: document.body.classList.contains('fiche-en-page'), n: ongletsTravail.length }));
+      verifier(ot3.ecran !== 'quotites' && !ot3.fiche && ot3.n === 1, `onglets : l’outil fermé ne revient pas sous la fiche (${JSON.stringify(ot3)})`);
+      await page.evaluate(() => { ongletsTravail = []; renderOngletsTravail(); definirOnglet('dashboard'); });
       // « À propos » : le numéro de version et chaque entrée de l'historique (numéro + jour) s'affichent.
       await geste(page, 'À propos', () => ouvrirAPropos());
       const propos = await page.evaluate(() => ({ numero: (document.getElementById('apropos-version-valeur') || {}).textContent, attendu: VERSION_APP, lignes: document.querySelectorAll('#apropos-historique-liste li').length, entrees: HISTORIQUE_VERSIONS.length, jour: (document.getElementById('apropos-version-date') || {}).textContent }));
