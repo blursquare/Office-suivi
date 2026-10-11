@@ -52,32 +52,200 @@
     return exemples.map(e => e.replace(/MARTIN|DUPONT|LEROY/g, (m) => noms[['MARTIN', 'DUPONT', 'LEROY'].indexOf(m) % Math.max(1, noms.length)] || m));
   }
 
+  // Pure (étude 11/10, présentation « à la Slack ») : pour chaque message, s'il ouvre un groupe (avatar, nom et heure) ou s'il
+  // suit le précédent du même auteur à moins de 5 minutes, et s'il faut un séparateur de jour devant lui.
+  function repereMessagesAssistant(messages) {
+    let prec = null;
+    return (messages || []).map(m => {
+      const jour = new Date(m.quand || 0).toDateString();
+      const nouveauJour = !prec || new Date(prec.quand || 0).toDateString() !== jour;
+      const debutGroupe = nouveauJour || !prec || prec.role !== m.role || (m.quand || 0) - (prec.quand || 0) > 5 * 60000;
+      prec = m;
+      return { nouveauJour, debutGroupe };
+    });
+  }
+
+  function libelleJourAssistant(quand, maintenant) {
+    const d = new Date(quand || 0); const auj = new Date(maintenant || Date.now());
+    if (d.toDateString() === auj.toDateString()) return 'Aujourd’hui';
+    const hier = new Date(auj); hier.setDate(hier.getDate() - 1);
+    if (d.toDateString() === hier.toDateString()) return 'Hier';
+    return d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+  }
+
+  function heureAssistant(quand) {
+    return new Date(quand || Date.now()).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  }
+
+  function auteurAssistant(role) {
+    if (role === 'claire') return { nom: 'CLAIRE', avatar: icone('sparkle'), classe: 'asst-av-claire' };
+    const nom = typeof utilisateurPoste === 'string' ? utilisateurPoste : '';
+    return { nom: prenomPosteAssistant() || 'Vous', avatar: escapeHtml(initialesCollaborateur(nom) || '?'), classe: 'asst-av-moi' };
+  }
+
   function renderAssistant() {
     const zone = document.getElementById('assistant-messages');
     if (!zone) return;
     assistantActions = {};
+    const relances = document.getElementById('assistant-relances');
+    if (relances) relances.innerHTML = assistantMessages.length ? relancesAssistant().map((s, k) =>
+      `<button type="button" class="asst-suggestion asst-relance" onmousedown="event.preventDefault()" onclick="relanceAssistant(${k})">${escapeHtml(s.libelle)}</button>`).join('') : '';
     if (!assistantMessages.length) {
       zone.innerHTML = `<div class="asst-accueil">
-          <div class="asst-accueil-logo" aria-hidden="true">${icone('sparkle')}</div>
+          <div class="asst-avatar asst-av-claire asst-accueil-logo" aria-hidden="true">${icone('sparkle')}</div>
           <h2 class="asst-accueil-titre">${escapeHtml(accueilAssistant(prenomPosteAssistant(), new Date()))}</h2>
-          <p class="asst-accueil-texte">Un dossier, une tâche, un email, un rendez-vous, un calcul : dites-le en une phrase.</p>
+          <p class="asst-accueil-texte">Un dossier, une tâche, un email, un rendez-vous, un calcul : dites-le en une phrase. Tapez @ pour citer un dossier.</p>
           <div class="asst-suggestions">${suggestionsAssistant(dossiersPerimetreDashboard()).map(s =>
             `<button type="button" class="asst-suggestion" onclick="envoyerDemandeAssistant(this.textContent)">${escapeHtml(s)}</button>`).join('')}</div>
         </div>`;
       return;
     }
+    const reperes = repereMessagesAssistant(assistantMessages);
+    const maintenant = Date.now();
     zone.innerHTML = assistantMessages.map((m, i) => {
       const boutons = (m.boutons || []).map((b, k) => {
         const cle = `${i}-${k}`;
         assistantActions[cle] = b.action;
         return `<wa-button ${b.principal ? 'variant="brand"' : 'appearance="outlined"'} size="s" type="button" onclick="actionAssistant('${cle}')">${escapeHtml(b.libelle)}</wa-button>`;
       }).join('');
-      return `<div class="asst-message asst-${m.role}">
-          ${m.role === 'claire' ? `<span class="asst-avatar" aria-hidden="true">${icone('sparkle')}</span>` : ''}
-          <div class="asst-bulle">${m.html}${boutons ? `<div class="asst-boutons">${boutons}</div>` : ''}</div>
+      const r = reperes[i];
+      const a = auteurAssistant(m.role);
+      const jour = r.nouveauJour ? `<div class="asst-jour" role="separator"><span>${escapeHtml(libelleJourAssistant(m.quand, maintenant))}</span></div>` : '';
+      const gouttiere = r.debutGroupe
+        ? `<span class="asst-avatar ${a.classe}" aria-hidden="true">${a.avatar}</span>`
+        : `<span class="asst-heure-survol" aria-hidden="true">${escapeHtml(heureAssistant(m.quand))}</span>`;
+      const tete = r.debutGroupe
+        ? `<div class="asst-qui"><b>${escapeHtml(a.nom)}</b>${m.role === 'claire' ? '<span class="asst-etiquette">Assistante</span>' : ''}<time>${escapeHtml(heureAssistant(m.quand))}</time></div>`
+        : '';
+      return `${jour}<div class="asst-message asst-${m.role}${r.debutGroupe ? '' : ' asst-suite'}" data-index="${i}">
+          ${gouttiere}
+          <div class="asst-corps">${tete}<div class="asst-texte">${m.html}</div>${boutons ? `<div class="asst-boutons">${boutons}</div>` : ''}</div>
+          <div class="asst-survol"><wa-button appearance="plain" size="s" class="bouton-discret" type="button" onclick="copierMessageAssistant(${i})" title="Copier le message">${icone('copier')} Copier</wa-button></div>
         </div>`;
-    }).join('') + (assistantEnCours ? `<div class="asst-message asst-claire"><span class="asst-avatar" aria-hidden="true">${icone('sparkle')}</span><div class="asst-bulle asst-attente"><span></span><span></span><span></span></div></div>` : '');
+    }).join('') + (assistantEnCours ? `<div class="asst-message asst-claire asst-ecrit">
+          <span class="asst-avatar asst-av-claire" aria-hidden="true">${icone('sparkle')}</span>
+          <div class="asst-corps"><div class="asst-qui"><b>CLAIRE</b><span class="asst-etiquette">Assistante</span></div>
+          <div class="asst-attente" aria-label="CLAIRE écrit"><span></span><span></span><span></span></div></div></div>` : '');
     zone.scrollTop = zone.scrollHeight;
+  }
+
+  // Suites rapides au-dessus de la saisie, une fois la conversation lancée. « Où en est… » complète la saisie au lieu d'envoyer.
+  function relancesAssistant() {
+    return [
+      { libelle: 'Où en est…', texte: 'Où en est le dossier @', completer: true },
+      { libelle: 'Mes tâches du jour', texte: 'Qu’est-ce que j’ai à faire aujourd’hui ?' },
+      { libelle: 'Agenda de demain', texte: 'Qu’est-ce qu’il y a à l’agenda demain ?' },
+      { libelle: 'Quoi de neuf depuis hier ?', texte: 'Quoi de neuf depuis hier ?' }
+    ];
+  }
+
+  function relanceAssistant(k) {
+    const r = relancesAssistant()[k];
+    if (!r) return;
+    const texte = r.texte;
+    const champ = document.getElementById('assistant-saisie');
+    if (!r.completer) { envoyerDemandeAssistant(texte); return; }
+    if (!champ) return;
+    champ.value = texte;
+    champ.focus();
+    champ.setSelectionRange(texte.length, texte.length);
+    majMentionAssistant();
+  }
+
+  function copierMessageAssistant(i) {
+    const m = assistantMessages[i];
+    if (!m) return;
+    const tmp = document.createElement('div');
+    tmp.innerHTML = m.html;
+    const texte = (tmp.innerText || tmp.textContent || '').trim();
+    const fini = () => afficherToast('Message copié.');
+    // L'API du presse-papiers n'existe qu'en HTTPS ou sur localhost ; les postes ouvrent CLAIRE par l'adresse IP du serveur.
+    if (navigator.clipboard && window.isSecureContext) { navigator.clipboard.writeText(texte).then(fini, () => copierParZoneAssistant(texte, fini)); return; }
+    copierParZoneAssistant(texte, fini);
+  }
+
+  function copierParZoneAssistant(texte, fini) {
+    const zone = document.createElement('textarea');
+    zone.value = texte; zone.setAttribute('readonly', ''); zone.style.position = 'fixed'; zone.style.opacity = '0';
+    document.body.appendChild(zone); zone.select();
+    try { document.execCommand('copy'); fini(); } catch (e) { afficherToast('Copie impossible sur ce poste.'); }
+    zone.remove();
+  }
+
+  // ---- Mention d'un dossier avec @ (étude 11/10) : « @mor » propose les dossiers dont le nom ou une partie commence par ces
+  // lettres ; le choix remplace « @mor » par le nom du dossier, que le serveur reconnaît comme s'il avait été tapé. ----
+  let mentionAssistant = { ouverte: false, debut: -1, liste: [], choix: 0 };
+  // Dossiers choisis dans la liste depuis le dernier envoi : à l'envoi, celui dont le nom est encore dans la phrase est imposé
+  // (deux « ROY », l'un archivé : c'est celui qu'on a choisi, jamais celui que la lecture du nom préférerait).
+  let mentionsChoisiesAssistant = [];
+
+  // Pure : l'id du dernier dossier choisi par @ dont le nom figure encore dans la phrase envoyée, sinon ''.
+  function dossierMentionneAssistant(texte, mentions) {
+    const t = String(texte || '');
+    for (let k = (mentions || []).length - 1; k >= 0; k--) {
+      const m = mentions[k];
+      if (m && m.nom && m.id && t.includes(m.nom)) return m.id;
+    }
+    return '';
+  }
+
+  // Pure : les dossiers proposés pour « @requete » — en cours d'abord, puis archivés ; 6 au plus.
+  function dossiersMentionAssistant(liste, requete) {
+    const norm = (t) => String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+    const q = norm(requete).trim();
+    const mots = (d) => norm([d.nom, ...(d.parties || []).map(p => p && p.nom)].join(' ')).split(/[^a-z0-9]+/).filter(Boolean);
+    const retenus = (liste || []).filter(d => d && d.nom && (!q || mots(d).some(m => m.startsWith(q)) || norm(d.nom).includes(q)));
+    retenus.sort((a, b) => (a.archive ? 1 : 0) - (b.archive ? 1 : 0) || String(a.nom).localeCompare(String(b.nom), 'fr'));
+    return retenus.slice(0, 6);
+  }
+
+  function majMentionAssistant() {
+    const champ = document.getElementById('assistant-saisie');
+    const menu = document.getElementById('assistant-mention');
+    if (!champ || !menu) return;
+    const avant = champ.value.slice(0, champ.selectionStart || 0);
+    const m = avant.match(/(^|\s)@([^\s@]{0,30})$/);
+    if (!m) { fermerMentionAssistant(); return; }
+    const liste = dossiersMentionAssistant(dossiers, m[2]);
+    if (!liste.length) { fermerMentionAssistant(); return; }
+    mentionAssistant = { ouverte: true, debut: avant.length - m[2].length - 1, liste, choix: Math.min(mentionAssistant.ouverte ? mentionAssistant.choix : 0, liste.length - 1) };
+    menu.innerHTML = `<div class="asst-mention-titre">Dossiers</div>` + liste.map((d, k) =>
+      `<button type="button" class="asst-mention-ligne${k === mentionAssistant.choix ? ' actif' : ''}" role="option" aria-selected="${k === mentionAssistant.choix}" onmousedown="event.preventDefault(); choisirMentionAssistant(${k})">
+        <span class="asst-mention-nom">${escapeHtml(libelleDossierAffiche(d))}</span>${d.archive ? '<span class="asst-mention-note">archivé</span>' : d.responsable ? `<span class="asst-mention-note">${escapeHtml(initialesCollaborateur(d.responsable))}</span>` : ''}
+      </button>`).join('');
+    menu.style.display = 'block';
+  }
+
+  function fermerMentionAssistant() {
+    mentionAssistant = { ouverte: false, debut: -1, liste: [], choix: 0 };
+    const menu = document.getElementById('assistant-mention');
+    if (menu) { menu.style.display = 'none'; menu.innerHTML = ''; }
+  }
+
+  function choisirMentionAssistant(k) {
+    const champ = document.getElementById('assistant-saisie');
+    const d = mentionAssistant.liste[k];
+    if (!champ || !d) return;
+    const fin = champ.selectionStart || 0;
+    const insere = d.nom + ' ';
+    champ.value = champ.value.slice(0, mentionAssistant.debut) + insere + champ.value.slice(fin);
+    const pos = mentionAssistant.debut + insere.length;
+    mentionsChoisiesAssistant.push({ nom: d.nom, id: d.id });
+    fermerMentionAssistant();
+    champ.focus();
+    champ.setSelectionRange(pos, pos);
+  }
+
+  function insererArobaseAssistant() {
+    const champ = document.getElementById('assistant-saisie');
+    if (!champ) return;
+    const pos = champ.selectionStart || champ.value.length;
+    const avant = champ.value.slice(0, pos);
+    const ajout = (avant && !/\s$/.test(avant) ? ' ' : '') + '@';
+    champ.value = avant + ajout + champ.value.slice(pos);
+    champ.focus();
+    champ.setSelectionRange(pos + ajout.length, pos + ajout.length);
+    majMentionAssistant();
   }
 
   function actionAssistant(cle) {
@@ -93,6 +261,7 @@
 
   function nouvelleConversationAssistant() {
     assistantMessages = [];
+    mentionsChoisiesAssistant = [];
     assistantContexte = { dossierId: dossierOuvert || '', attente: null, historique: [], echanges: [] };
     renderAssistant();
     const champ = document.getElementById('assistant-saisie');
@@ -100,6 +269,17 @@
   }
 
   function toucheSaisieAssistant(event) {
+    if (mentionAssistant.ouverte) {
+      const n = mentionAssistant.liste.length;
+      if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+        event.preventDefault();
+        mentionAssistant.choix = (mentionAssistant.choix + (event.key === 'ArrowDown' ? 1 : n - 1)) % n;
+        majMentionAssistant();
+        return;
+      }
+      if (event.key === 'Enter' || event.key === 'Tab') { event.preventDefault(); choisirMentionAssistant(mentionAssistant.choix); return; }
+      if (event.key === 'Escape') { event.preventDefault(); fermerMentionAssistant(); return; }
+    }
     if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); envoyerDemandeAssistant(); }
   }
 
@@ -130,11 +310,15 @@
     if (!texte || assistantEnCours) return;
     if (champ && !texteForce) champ.value = '';
     if (champ) champ.style.height = '';
+    fermerMentionAssistant();
+    const impose = dossierMentionneAssistant(texte, mentionsChoisiesAssistant);
+    mentionsChoisiesAssistant = [];
+    if (impose && dossiers.some(x => x.id === impose)) assistantContexte.dossierId = impose;
     poserMessageAssistant('moi', escapeHtml(texte));
     noterEchangeAssistant('moi', texte);
     // On attendait le nom d'un dossier : la phrase est ce nom, on reprend la demande précédente.
     if (assistantContexte.attente && assistantContexte.attente.type === 'dossier') {
-      const r = reconnaitreDossier(texte, dossiersPourAssistant(dossiers));
+      const r = impose ? { dossier: impose, candidats: [] } : reconnaitreDossier(texte, dossiersPourAssistant(dossiers));
       const attente = assistantContexte.attente;
       if (r.dossier) { assistantContexte.attente = null; await executerDemandeAssistant({ ...attente.resultat, dossier: r.dossier, candidats: [] }); return; }
       if (r.candidats.length) { proposerCandidatsAssistant(r.candidats, attente.resultat); return; }
@@ -156,7 +340,8 @@
       if (!r.ok) throw new Error(corps.erreur || `Le serveur a répondu ${r.status}.`);
       assistantContexte.historique.push({ texte, intention: corps.intention });
       assistantEnCours = false;
-      await executerDemandeAssistant(corps);
+      // Le dossier choisi par @ l'emporte sur la lecture du nom (homonymes, dossier archivé).
+      await executerDemandeAssistant(impose && dossiers.some(x => x.id === impose) ? { ...corps, dossier: impose, candidats: [] } : corps);
     } catch (e) {
       assistantEnCours = false;
       poserMessageAssistant('claire', `<p>Je n’y arrive pas pour le moment : ${escapeHtml(e.message || e)}. Vous pouvez réessayer dans un instant.</p>`);

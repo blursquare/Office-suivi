@@ -18886,3 +18886,24 @@ Capture : « Recherché dans le dossier NAS à l'ouverture » + Ouvrir / Changer
 ### 0.209.1 — 2026-10-11 21:46 — relecture indépendante de 0.209.0 et procédure de publication
 
 Étude (11/10) : un ami montre un flux de contrôle avant publication ; choix : contrôle renforcé avant chaque envoi sur `main`. **Procédure** : `.claude/skills/publier/SKILL.md` (`/publier` : cadrer, `npm run verifier`, `npm run scenarios`, regard dans Chromium, relecture indépendante, version et historique, envoi, contrôle de la construction, compte rendu dit ce qui n'a PAS été vérifié) et `.claude/skills/relire/SKILL.md` (`/relire` : un second agent en lecture seule, qui n'a pas écrit le code, cherche bugs, fuites, règles de CLAUDE.md enfreintes ; chaque défaut est revérifié avant correction). `npm run scenarios` rejoue les parcours types d'un dossier (fiche en colonnes, statut, cocher/décocher, préemption, succession, archivés, cohérence, assistant). **Première relecture réelle** (sur 0.209.0) : 4 défauts confirmés, corrigés ici — « ça va » non ancré (une vraie question prise pour une salutation, aussi par ressemblance à l'exemple « Ça va ? », désormais exclu de `exemplesProches`) ; suites proposées sur un dossier signé, archivé, en participation ou à offre « à confirmer » ; boutons de suite désignant seulement le premier nom ; montants (« 250 000 € ») partant vers l'IA dans l'échange libre (`masquerMontants`, rétablis au retour) ; plus la réponse trop longue coupée au milieu d'un mot et « Compris par… » sous une salutation. Limite connue : un prénom écrit seul sans fiche (« Paul a vendu ») n'est pas masqué dans l'échange libre.
+
+
+### 11/10/2026 — 0.210.0 « Demander à CLAIRE » façon Slack, barre latérale collée
+
+Demande de l'étude : « Pour demander à Claire j'aimerai une présentation plus à la slack », puis sur la maquette
+(`docs/maquettes-espace/`) « Retire l'arrondie de la sidebar et tu peux retirer l'effet carte pour ne pas avoir d'espace autour
+de l'interface », « Lance la production ». Démarche convenue : maquette, puis trois étapes publiées séparément (1. Slack,
+2. onglets des fiches et des outils, 3. fiche ancrée à droite d'un outil).
+
+- Page pleine hauteur sans marge (`#onglet-assistant` en marges négatives), en-tête « # Demander à CLAIRE ».
+- Fil continu : `repereMessagesAssistant` (pure) groupe les messages d'un même auteur à moins de 5 minutes et pose un
+  séparateur de jour (`libelleJourAssistant`) ; avatar carré (initiales du collaborateur du poste, étincelle pour CLAIRE),
+  nom et heure ; résultat (`.asst-liste`) dans une carte bordée ; « Copier » au survol (repli `execCommand` : le
+  presse-papiers moderne n'existe pas sur `http://<IP>`).
+- Saisie avec barre d'outils : « @ » cite un dossier (`dossiersMentionAssistant`, pure, en cours puis archivés, 6 au plus ;
+  flèches, Entrée/Tab, Échap). **Le dossier choisi est imposé à l'envoi tant que son nom reste dans la phrase**
+  (`dossierMentionneAssistant`) — relecture indépendante : deux « ROY », l'un archivé, la lecture du nom aurait pris l'autre.
+- Suites rapides au-dessus de la saisie (`relancesAssistant`, comprises sans IA, testé) ; « Où en est… » complète la saisie.
+- Barre latérale : collée en haut, en bas et à gauche, angles droits, filet à droite (plus de marge ni d'ombre).
+- Relecture indépendante : mention qui pouvait viser l'homonyme, champ du widget du tableau de bord qui perdait sa mise en
+  forme (règle `.asst-saisie` devenue propre à la page), liste @ refermée par le blur du bouton, graisse du titre — corrigés.

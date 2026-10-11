@@ -1522,20 +1522,28 @@
 <!-- « Demander à CLAIRE » (étude 06/10) : conversation façon Claude — messages au centre, champ en bas. Le rendu des
      messages est en JS (renderAssistant) ; le champ de saisie reste en HTML pour ne pas perdre la frappe au rendu. -->
 <div class="onglet-panel" id="onglet-assistant" style="display:none;">
+  <!-- Présentation « à la Slack » (étude 11/10) : fil continu, avatar carré, nom et heure ; @ pour citer un dossier. -->
   <div class="asst-page">
     <div class="asst-tete">
-      <div>
-        <h1 class="dash-titre">Demander à CLAIRE</h1>
-        <div class="asst-etat" id="assistant-etat"></div>
-      </div>
+      <h1 class="asst-titre"><span class="asst-diese" aria-hidden="true">#</span>Demander à CLAIRE</h1>
+      <div class="asst-etat" id="assistant-etat"></div>
+      <span class="asst-tete-espace"></span>
       <wa-button appearance="outlined" size="s" type="button" onclick="nouvelleConversationAssistant()">Nouvelle conversation</wa-button>
     </div>
     <div class="asst-messages" id="assistant-messages" aria-live="polite"></div>
-    <form class="asst-saisie" onsubmit="event.preventDefault(); envoyerDemandeAssistant();">
-      <textarea id="assistant-saisie" rows="1" placeholder="Posez une question ou demandez un geste…" aria-label="Votre demande à CLAIRE" onkeydown="toucheSaisieAssistant(event)" oninput="this.style.height = ''; this.style.height = Math.min(160, this.scrollHeight) + 'px';"></textarea>
-      <wa-button variant="brand" type="submit" class="asst-envoyer" aria-label="Envoyer"><span id="icon-assistant-envoyer" aria-hidden="true"></span></wa-button>
-    </form>
-    <p class="asst-pied">Les emails s’ouvrent dans la fenêtre d’envoi, l’agenda demande une confirmation ; le reste se fait tout de suite et s’annule d’un clic. Avec Mistral, seule la phrase part, les noms masqués.</p>
+    <div class="asst-bas">
+      <div class="asst-relances" id="assistant-relances"></div>
+      <form class="asst-saisie" onsubmit="event.preventDefault(); envoyerDemandeAssistant();">
+        <div class="asst-mention" id="assistant-mention" role="listbox" aria-label="Dossiers" style="display:none;"></div>
+        <textarea id="assistant-saisie" rows="1" placeholder="Message à CLAIRE… tapez @ pour citer un dossier" aria-label="Votre demande à CLAIRE" onkeydown="toucheSaisieAssistant(event)" onblur="setTimeout(fermerMentionAssistant, 150)" oninput="this.style.height = ''; this.style.height = Math.min(160, this.scrollHeight) + 'px'; majMentionAssistant();"></textarea>
+        <div class="asst-barre">
+          <wa-button appearance="plain" size="s" class="bouton-icone asst-arobase" type="button" onmousedown="event.preventDefault()" onclick="insererArobaseAssistant()" title="Citer un dossier" aria-label="Citer un dossier">@</wa-button>
+          <span class="asst-astuce">Entrée pour envoyer · Maj + Entrée pour aller à la ligne</span>
+          <wa-button variant="brand" size="s" type="submit" class="asst-envoyer">Envoyer <span id="icon-assistant-envoyer" aria-hidden="true"></span></wa-button>
+        </div>
+      </form>
+      <p class="asst-pied">Les emails s’ouvrent dans la fenêtre d’envoi, l’agenda demande une confirmation ; le reste se fait tout de suite et s’annule d’un clic. Avec une IA en ligne, seule la phrase part, les noms masqués.</p>
+    </div>
   </div>
 </div>
 

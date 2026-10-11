@@ -681,7 +681,7 @@
     min-height: 100vh;
   }
 
-  /* Sidebar toujours sombre, flottante, coins arrondis, quel que soit le thème du contenu (demandé
+  /* Sidebar toujours sombre, collée aux bords depuis le 11/10, quel que soit le thème du contenu (demandé
      par l'étude, pour le contraste). Tous les jetons dont dépend son contenu sont redéclarés ici aux
      valeurs de [data-theme="dark"] : une redéclaration locale de variables CSS l'emporte pour tout
      ce sous-arbre sans dupliquer une seule règle de rendu. Partagés avec le bouton burger (mobile),
@@ -709,13 +709,14 @@
     gap: 4px;
     padding: 24px 16px;
     background: var(--sidebar-bg);
-    border: 1px solid var(--sidebar-border);
-    border-radius: var(--rayon-carte);
-    box-shadow: var(--shadow-float);
+    /* Collée en haut, en bas et à gauche, angles droits (étude 11/10, maquette de l'espace de travail). */
+    border: 0;
+    border-right: 1px solid var(--sidebar-border);
+    border-radius: 0;
     position: sticky;
-    top: 16px;
-    margin: 16px 0 16px 16px;
-    height: calc(100vh - 32px);
+    top: 0;
+    margin: 0;
+    height: 100vh;
     overflow-y: auto;
     z-index: 2;
   }
@@ -9125,50 +9126,101 @@ table.pr-zt td.pr-zt-retenue select { min-width: 120px; min-height: 32px; height
 .pr-fiche-ligne .hint { margin: 0; }
 @media (max-width: 700px) { .pr-fiche-ligne { grid-template-columns: 1fr; gap: 2px; } .pr-question { flex-direction: column; align-items: flex-start; } }
 
-/* ==== « Demander à CLAIRE » (étude 06/10) : conversation façon Claude — colonne centrée, bulles, champ en bas ==== */
-.asst-page { display: flex; flex-direction: column; max-width: 860px; margin: 0 auto; height: calc(100vh - 72px); }
-.asst-tete { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 8px; }
-.asst-etat { margin-top: 4px; font-size: var(--texte-s); min-height: 20px; }
-.asst-messages { flex: 1 1 auto; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; padding: 8px 0 16px; min-height: 0; }
-.asst-accueil { margin: auto; text-align: center; max-width: 620px; padding: 24px 0; }
-.asst-accueil-logo { display: inline-flex; width: 48px; height: 48px; border-radius: 50%; align-items: center; justify-content: center; background: var(--focus); color: var(--on-accent); margin-bottom: 12px; }
+/* ==== « Demander à CLAIRE » (étude 11/10) : présentation « à la Slack » — page pleine hauteur sans marge, fil continu
+   (avatar carré, nom et heure, messages d'un même auteur groupés), cartes de résultat bordées, saisie avec sa barre d'outils ==== */
+#onglet-assistant { max-width: none; margin: -32px -32px -40px; }
+.asst-page { display: flex; flex-direction: column; height: 100vh; background: var(--paper-card); }
+.asst-tete { flex: 0 0 auto; display: flex; align-items: center; gap: 12px; padding: 12px 24px; border-bottom: 1px solid var(--line); min-height: 56px; }
+.asst-titre { margin: 0; font-size: var(--texte-l); font-weight: 500; letter-spacing: 0; white-space: nowrap; }
+.asst-diese { color: var(--muted); margin-right: 4px; font-weight: 500; }
+.asst-etat { font-size: var(--texte-s); min-width: 0; }
+.asst-tete-espace { flex: 1 1 auto; }
+.asst-messages { flex: 1 1 auto; overflow-y: auto; min-height: 0; padding: 8px 0 16px; }
+.asst-accueil { max-width: 720px; padding: 32px 24px 16px; }
+.asst-accueil-logo { width: 48px; height: 48px; margin-bottom: 12px; }
 .asst-accueil-logo .icone { width: 24px; height: 24px; }
 .asst-accueil-titre { font-size: var(--texte-3xl); font-weight: 500; letter-spacing: -0.02em; margin: 0 0 6px; }
 .asst-accueil-texte { color: var(--muted); margin: 0 0 20px; font-size: var(--texte-base); }
-.asst-suggestions { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
-.asst-suggestion { font: inherit; font-size: var(--texte-m); color: var(--ink); background: var(--paper-card); border: 1px solid var(--line); border-radius: var(--rayon-pilule); padding: 8px 14px; cursor: pointer; text-align: left; max-width: 100%; }
+.asst-suggestions { display: flex; flex-wrap: wrap; gap: 8px; }
+.asst-suggestion { font: inherit; font-size: var(--texte-m); color: var(--ink); background: var(--paper-card); border: 1px solid var(--line); border-radius: var(--rayon-pilule); padding: 6px 14px; cursor: pointer; text-align: left; max-width: 100%; }
 .asst-suggestion:hover { background: var(--paper-sunk); border-color: var(--muted); }
-.asst-message { display: flex; gap: 10px; align-items: flex-start; max-width: 100%; }
-.asst-moi { justify-content: flex-end; }
-.asst-avatar { flex: 0 0 auto; display: inline-flex; width: 28px; height: 28px; border-radius: 50%; align-items: center; justify-content: center; background: var(--focus); color: var(--on-accent); margin-top: 2px; }
-.asst-avatar .icone { width: 14px; height: 14px; }
-.asst-bulle { background: var(--paper-card); border: 1px solid var(--bord-carte); border-radius: var(--rayon-carte); padding: 12px 16px; font-size: var(--texte-base); line-height: 1.5; max-width: min(100%, 680px); box-shadow: var(--shadow-card); overflow-wrap: anywhere; }
-.asst-moi .asst-bulle { background: var(--focus); color: var(--on-accent); border-color: transparent; box-shadow: none; }
-.asst-bulle p { margin: 0 0 8px; }
-.asst-bulle p:last-child, .asst-bulle ul:last-child { margin-bottom: 0; }
+.asst-jour { display: flex; align-items: center; gap: 12px; margin: 12px 24px 4px; color: var(--muted); font-size: var(--texte-xs); font-weight: 600; }
+.asst-jour::before, .asst-jour::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+.asst-jour span { border: 1px solid var(--line); border-radius: var(--rayon-pilule); padding: 2px 12px; background: var(--paper-card); }
+.asst-message { position: relative; display: grid; grid-template-columns: 36px minmax(0, 1fr); gap: 12px; padding: 6px 24px; }
+.asst-message.asst-suite { padding-top: 1px; padding-bottom: 2px; }
+.asst-message:hover { background: var(--paper-sunk); }
+.asst-avatar { display: inline-flex; width: 36px; height: 36px; border-radius: var(--rayon-s); align-items: center; justify-content: center; font-size: var(--texte-s); font-weight: 600; margin-top: 2px; }
+.asst-av-claire { background: var(--focus); color: var(--on-accent); }
+.asst-av-claire .icone { width: 16px; height: 16px; }
+.asst-av-moi { background: var(--acte-bg); color: var(--acte); }
+.asst-heure-survol { visibility: hidden; color: var(--muted); font-size: var(--texte-xxs); text-align: right; padding-top: 4px; font-variant-numeric: tabular-nums; }
+.asst-message:hover .asst-heure-survol { visibility: visible; }
+.asst-corps { min-width: 0; }
+.asst-qui { display: flex; align-items: baseline; gap: 8px; margin-bottom: 1px; }
+.asst-qui b { font-weight: 600; font-size: var(--texte-base); }
+.asst-qui time { color: var(--muted); font-size: var(--texte-xs); font-variant-numeric: tabular-nums; }
+.asst-etiquette { font-size: var(--texte-xxs); font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); background: var(--paper-sunk); border: 1px solid var(--line); border-radius: var(--rayon-xs); padding: 0 4px; align-self: center; }
+.asst-texte { font-size: var(--texte-base); line-height: 1.5; overflow-wrap: anywhere; max-width: 820px; }
+.asst-texte p { margin: 0 0 6px; }
+.asst-texte b { font-weight: 600; }
+.asst-texte p:last-child, .asst-texte ul:last-child { margin-bottom: 0; }
 .asst-liste { margin: 0 0 8px; padding-left: 20px; }
 .asst-liste li { margin: 2px 0; }
+/* Un résultat (état d'un dossier, pièces, échéances…) : une carte bordée, comme une pièce jointe d'un message. */
+.asst-claire .asst-texte .asst-liste { list-style: disc; background: var(--paper-sunk); border: 1px solid var(--line); border-left: 4px solid var(--focus); border-radius: var(--rayon-s); padding: 10px 16px 10px 32px; margin: 6px 0 8px; max-width: 640px; }
 .asst-liste.asst-aide li { margin: 4px 0; }
 .asst-note { color: var(--muted); font-size: var(--texte-s); }
 .asst-intro { color: var(--ink-soft); }
-.asst-boutons { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
-.asst-attente { display: inline-flex; gap: 4px; align-items: center; padding: 14px 16px; }
+.asst-boutons { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.asst-survol { position: absolute; top: -12px; right: 24px; display: none; background: var(--paper-card); border: 1px solid var(--line); border-radius: var(--rayon-s); box-shadow: var(--shadow-card); padding: 2px; }
+.asst-message:hover .asst-survol, .asst-survol:focus-within { display: flex; }
+.asst-ecrit:hover { background: transparent; }
+.asst-attente { display: inline-flex; gap: 4px; align-items: center; padding: 8px 0; }
 .asst-attente span { width: 6px; height: 6px; border-radius: 50%; background: var(--muted); animation: asst-pulse 1.2s infinite ease-in-out; }
 .asst-attente span:nth-child(2) { animation-delay: 0.2s; }
 .asst-attente span:nth-child(3) { animation-delay: 0.4s; }
 @keyframes asst-pulse { 0%, 80%, 100% { opacity: 0.3; } 40% { opacity: 1; } }
-.asst-saisie { position: sticky; bottom: 0; display: flex; align-items: flex-end; gap: 8px; background: var(--paper-card); border: 1px solid var(--line); border-radius: var(--rayon-carte); padding: 8px 8px 8px 16px; box-shadow: var(--shadow-card); }
-.asst-saisie textarea#assistant-saisie { flex: 1 1 auto; min-height: 24px; max-height: 160px; border: 0; background: transparent; padding: 8px 0; resize: none; font-size: var(--texte-base); line-height: 1.4; box-shadow: none; }
-.asst-saisie textarea#assistant-saisie:focus { outline: none; box-shadow: none; }
+.asst-bas { flex: 0 0 auto; padding: 0 24px 12px; }
+.asst-relances { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.asst-relances:empty { display: none; }
+.asst-relance.asst-suggestion { font-size: var(--texte-s); padding: 4px 12px; }
+.asst-page .asst-saisie { position: relative; display: flex; flex-direction: column; background: var(--paper-card); border: 1px solid var(--line); border-radius: var(--rayon-m); }
+.asst-page .asst-saisie:focus-within { border-color: var(--muted); box-shadow: 0 0 0 1px var(--muted); }
+.asst-page .asst-saisie textarea#assistant-saisie { min-height: 44px; max-height: 160px; border: 0; background: transparent; padding: 12px 16px 6px; resize: none; font-size: var(--texte-base); line-height: 1.4; box-shadow: none; border-radius: var(--rayon-m) var(--rayon-m) 0 0; }
+.asst-page .asst-saisie textarea#assistant-saisie:focus { outline: none; box-shadow: none; }
+.asst-barre { display: flex; align-items: center; gap: 8px; padding: 4px 6px 6px 8px; }
+.asst-arobase { font-weight: 600; font-size: var(--texte-base); }
+.asst-astuce { flex: 1 1 auto; color: var(--muted); font-size: var(--texte-xs); text-align: right; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .asst-envoyer { flex: 0 0 auto; }
 .asst-envoyer .icone { width: 16px; height: 16px; }
-.asst-pied { color: var(--muted); font-size: var(--texte-s); text-align: center; margin: 8px 0 0; }
+.asst-page .asst-envoyer { margin-left: auto; }
+.asst-page .asst-envoyer .icone { width: 14px; height: 14px; }
+.asst-page .asst-envoyer::part(label) { display: inline-flex; align-items: center; gap: 6px; }
+.asst-mention { position: absolute; left: 8px; bottom: calc(100% + 6px); width: min(420px, calc(100% - 16px)); background: var(--paper-card); border: 1px solid var(--line); border-radius: var(--rayon-m); box-shadow: var(--shadow-float); padding: 6px; z-index: 5; }
+.asst-mention-titre { font-size: var(--texte-xs); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); padding: 4px 8px 6px; }
+.asst-mention-ligne { display: flex; width: 100%; align-items: center; gap: 8px; border: 0; background: transparent; font: inherit; color: var(--ink); text-align: left; padding: 6px 8px; border-radius: var(--rayon-s); cursor: pointer; }
+.asst-mention-ligne.actif, .asst-mention-ligne:hover { background: var(--paper-sunk); }
+.asst-mention-ligne.actif { box-shadow: inset 2px 0 0 var(--focus); }
+.asst-mention-nom { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--texte-m); }
+.asst-mention-note { color: var(--muted); font-size: var(--texte-xs); }
+.asst-pied { color: var(--muted); font-size: var(--texte-xs); text-align: center; margin: 6px 0 0; }
+/* Champ du widget du tableau de bord : même forme qu'avant la page façon Slack (une ligne, bouton à droite). */
+.w-asst-saisie { display: flex; align-items: center; gap: 8px; border: 1px solid var(--line); }
+@media (max-width: 900px) {
+  #onglet-assistant { margin: 0 -16px -32px; }
+  .asst-page { height: calc(100vh - 72px); }
+}
 @media (max-width: 700px) {
-  .asst-page { height: calc(100vh - 104px); }
-  .asst-tete { flex-direction: column; align-items: stretch; }
-  .asst-bulle { padding: 10px 12px; }
+  .asst-tete { flex-wrap: wrap; gap: 4px 12px; padding: 8px 16px; }
+  .asst-tete-espace { display: none; }
+  .asst-message { padding-left: 16px; padding-right: 16px; gap: 10px; grid-template-columns: 32px minmax(0, 1fr); }
+  .asst-avatar { width: 32px; height: 32px; }
+  .asst-bas { padding: 0 12px 8px; }
+  .asst-astuce, .asst-pied { display: none; }
   .asst-suggestion { font-size: var(--texte-s); padding: 6px 10px; }
 }
+@media (hover: none) { .asst-survol { display: none !important; } }
 @media (prefers-reduced-motion: reduce) { .asst-attente span { animation: none; opacity: 0.7; } }
 
 /* Compte rendu de relecture imprimé (étude 06/10 : « une page recto verso A4 au maximum, les éléments validés sur un
