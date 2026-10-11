@@ -18871,3 +18871,8 @@ Capture : « Recherché dans le dossier NAS à l'ouverture » + Ouvrir / Changer
 ### 0.208.4 — 2026-10-10 22:13 — animations des anneaux et barres de progression
 
 Étude (10/10) : « animations quand les anneaux se complètent, pour rendre l'interface plus attractive ». `client/58-animations-progression.js` : un `MutationObserver` relit à chaque changement du DOM les barres (`SELECTEURS_BARRES_PROGRESSION`), l'anneau de la fiche (`.fb-val`), celui d'« Aujourd'hui » (`.jour-anneau-plein`) et les segments du suivi des étapes, et les anime (Web Animations, 0,8 à 1 s) de leur valeur au dernier dessin à la valeur actuelle — de 0 à la première apparition d'un écran (`contexteProgressions` : page + dossier ouverts). Valeur inchangée = aucune animation (la fiche se redessine souvent). Désactivé si `prefers-reduced-motion`. Aucun écran modifié ; un nouvel indicateur s'ajoute à la liste de sélecteurs. Non couverts : donut du portefeuille, arcs de la relecture d'actes.
+
+
+### 0.208.5 — 2026-10-11 07:12 — animations : relecture et portefeuille
+
+`client/58` : arcs du `.sante-donut` (relecture d'actes) déroulés en cascade (150 ms d'écart) ; segments `.pf-seg` du portefeuille animés seulement quand leur longueur change après la première apparition (qui garde son animation `.portefeuille.anime`).

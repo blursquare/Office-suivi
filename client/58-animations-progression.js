@@ -50,6 +50,27 @@ function animerProgressions(racine) {
     if (e.anime) el.animate([{ strokeDashoffset: c * (1 - e.de) }, { strokeDashoffset: c * (1 - e.a) }], options({ duration: 1000 }));
   });
 
+  // Cercle de santé de la relecture d'actes : chaque arc (critique, à surveiller, validé) se déroule, l'un après l'autre.
+  racine.querySelectorAll('.sante-donut').forEach((svg, j) => {
+    svg.querySelectorAll('circle[stroke-dasharray]').forEach((el, i) => {
+      const [part, reste] = String(el.getAttribute('stroke-dasharray')).split(/\s+/).map(Number);
+      if (!(part >= 0) || !(reste >= 0)) return;
+      const e = suivre('sante' + j + '-' + i, part);
+      if (e.anime) el.animate([{ strokeDasharray: `${e.de} ${part + reste - e.de}` }, { strokeDasharray: `${part} ${reste}` }], options({ duration: 900, delay: i * 150, fill: 'backwards' }));
+    });
+  });
+
+  // Anneau « Portefeuille » du tableau de bord : sa première apparition a déjà son animation (.portefeuille.anime) ; ici, seulement
+  // quand un segment change de longueur ensuite (un dossier qui passe de « Attente de pièces » à « Complet »…).
+  racine.querySelectorAll('.pf-seg').forEach(el => {
+    const l = parseFloat(el.style.getPropertyValue('--l'));
+    if (!(l >= 0)) return;
+    const cle = 'pf-' + el.getAttribute('class');
+    const premier = !vus.has(cle);
+    const e = suivre(cle, l);
+    if (!premier && e.anime) el.animate([{ strokeDasharray: `${e.de} ${100 - e.de}` }, { strokeDasharray: `${l} ${100 - l}` }], options({ duration: 900 }));
+  });
+
   // Suivi des étapes de la fiche : chaque segment qui se remplit grandit de la gauche, en cascade à la première apparition.
   racine.querySelectorAll('.fb-segments > span').forEach((el, i) => {
     const e = suivre('segment' + i, el.classList.contains('fait') ? 1 : 0);

@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.208.4';
+  const VERSION_APP = '0.208.5';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.208.5', date: '2026-10-11 07:12', resume: "Animations : le cercle de santé de la relecture d'actes se déroule arc par arc, et l'anneau « Portefeuille » du tableau de bord glisse vers ses nouvelles parts quand un dossier change d'état." },
     { version: '0.208.4', date: '2026-10-10 22:13', resume: "Animations : les anneaux et les barres de progression (fiche, tableau de bord, fonds, pièces, « Aujourd'hui ») se remplissent en douceur quand leur valeur monte, et les segments du suivi des étapes se remplissent en cascade à l'ouverture d'une fiche." },
     { version: '0.208.3', date: '2026-10-10 22:09', resume: "Barre latérale : le lien actif est marqué par un trait de l'accent sur le bord, avec un fond très léger (plus de contour ni de point). Même chose dans le tiroir Outils et barre repliée." },
     { version: '0.208.2', date: '2026-10-10 22:03', resume: "Fiche : une carte du tableau qui arrive ou change de colonne toute seule (pièce reçue, relevé d'Authentic…) s'entoure un instant de l'accent." },
