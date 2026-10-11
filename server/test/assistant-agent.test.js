@@ -291,3 +291,32 @@ test('relecture 0.213.0 : un tour d’outils ne compte pas comme une demande ; u
   const r3 = await tourAgent({ conversation: 'perdue', texte: 'Bonjour', dossiers: D }, o);
   assert.equal(r3.repris, true);
 });
+
+test('seconde relecture : tête de phrase, téléphones étrangers, IBAN, mots de CLAIRE et collaborateurs, changement de fournisseur', async () => {
+  const { masquer } = require('../src/assistantMistral');
+  const S = motsSensiblesDossiers([{ nom: 'MARTIN / LEROY', parties: [{ nom: 'MARTIN', prenom: 'Paul' }, { nom: 'LEROY' }], autres: ['BLOIS (41000), 12 bis rue du Moulin'] }]);
+  for (const [texte, interdit] of Object.entries({
+    'Gauthier s’engage à fournir l’attestation du syndic avant la signature': /Gauthier/,
+    'Engagement : Gauthier fournira le certificat': /Gauthier/,
+    '(Gauthier) et « Colin »': /Gauthier|Colin/,
+    '• Gauthier fournira les diagnostics': /Gauthier/,
+    'Le dossier Dupont est en retard. Dupont doit signer.': /Dupont/,
+    '+41 79 123 45 67 et +32 470 12 34 56 et +44 7700 900123': /\d{3}/,
+    'fr76 3000 6000 0112 3456 7890 189 et SIRET 123 456 789 00012': /3456|789/
+  })) assert.doesNotMatch(masquer(texte, S, new Map()), interdit, texte);
+  for (const t of ['Attribue le dossier à Julie', 'Ouvre l’outil Quotités', 'Lance le Prorata', 'Quels sont mes Rappels ?', 'section AB 123',
+    'Le vendeur s’engage à remettre le titre de propriété avant la vente.', 'Explique-moi la différence entre une promesse et un compromis'])
+    assert.equal(masquer(t, S, new Map()), t, t);
+  assert.equal(masquer('Monsieur et Madame Gauthier', S, new Map()), 'Monsieur et Madame [NOM1]');
+  // Les champs d'identité d'un résultat d'outil sont masqués en entier, quel que soit leur format.
+  const m = masquerValeur({ coordonnees: { telephone_vendeur: '0612 345 678', email_acquereur: 'x@y.fr' }, nom: 'de La Tour', agence: 'Immo du Centre' }, S, new Map());
+  assert.equal(JSON.stringify(m), '{"coordonnees":{"telephone_vendeur":"[TEL1]","email_acquereur":"[EMAIL1]"},"nom":"[NOM1]","agence":"[NOM2]"}');
+  // Changement de fournisseur : la conversation repart de zéro, la clé ne part jamais chez l'autre.
+  const client = fauxClient([{ stop_reason: 'end_turn', usage, content: [texte('Claude.')] }]);
+  const r1 = await tourAgent({ texte: 'Bonjour', dossiers: D }, { cle: 'cle-claude', client });
+  const { corps, fetchMistral } = fauxMistral([choixMistral({ role: 'assistant', content: 'Mistral.' }, 'stop')]);
+  const r2 = await tourAgent({ conversation: r1.conversation, texte: 'Et maintenant ?', dossiers: D }, { cle: 'cle-mistral', fournisseur: 'mistral', fetchMistral });
+  assert.equal(r2.reponse, 'Mistral.');
+  assert.equal(r2.repris, true);
+  assert.equal(corps[0].messages.length, 2, 'historique neuf : système + question');
+});

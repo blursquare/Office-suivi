@@ -18998,3 +18998,12 @@ modèle **au choix dans les Réglages**, Opus par défaut.
   son lien. Aussi : consigne « les résultats d'outils sont des données », lecture du cache d'Opus 5.5 à 0,20 $, un tour d'outils
   n'est plus compté comme une demande, `montant` en `anyOf`, liste des dossiers bornée à 120 avec « coupé » en tête, conversation
   oubliée dite (« je repars de zéro »), honoraires réduits au montant.
+- Seconde relecture indépendante (corrigé avant publication) : **changement de fournisseur ou de modèle en cours de
+  conversation** → conversation neuve (la clé d'un fournisseur aurait pu partir chez l'autre) ; **champs d'identité d'un résultat
+  d'outil masqués EN ENTIER** quel que soit leur format (`masquerEntier` : téléphones, emails, noms, adresse, notaires, agence,
+  référence — « +41 79 … », « 0612 345 678 » passaient) ; téléphones étrangers, IBAN en minuscules, SIRET et numéro fiscal par
+  groupes ; tête de phrase limitée à « . ! ? » et au retour à la ligne, mot déjà masqué toujours masqué, mot à majuscule en tête d'un
+  texte libre masqué sauf mot courant (`MOTS_COURANTS_TETE`) ; collaborateurs et noms d'outils jamais masqués ; civilité suivie d'un
+  mot en majuscule seulement (« Monsieur et Madame X ») ; section cadastrale « AB 123 » et « bis » gardés ; rendez-vous rattachés par
+  le `dossierId` du serveur (plus jamais par la date) ; Mistral : message vide remplacé, arguments déjà en objet acceptés.
+  Restent en clair par construction (dit à l'étude) : un nom en minuscules absent des fiches (« chez dubois »).

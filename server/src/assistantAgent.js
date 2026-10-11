@@ -134,7 +134,15 @@ function purgerConversations(maintenant) {
  * @param {any} valeur @param {Set<string>} sensibles @param {Map<string, string>} table @param {string} [cle]
  */
 function masquerValeur(valeur, sensibles, table, cle) {
-  if (typeof valeur === 'string') return /^(id|dossier_id|dossierId)$/.test(cle || '') ? valeur : masquer(valeur, sensibles, table);
+  if (typeof valeur === 'string') {
+    if (/^(id|dossier_id|dossierId)$/.test(cle || '')) return valeur;
+    // Champs qui ne portent QUE de l'identifiant (téléphone, email, nom, adresse, notaire, agence, référence) : masqués en entier,
+    // quel que soit leur format (relecture : « +41 79 123 45 67 », « 0612 345 678 » passaient).
+    const entier = /^(telephone|tel|email)/.test(cle || '') ? (/^email/.test(cle || '') ? 'EMAIL' : 'TEL')
+      : /^(nom|prenom|nom_usage|nom_du_dossier|adresse|notaire_vendeur|notaire_acquereur|agence|reference)$/.test(cle || '') ? 'NOM' : '';
+    if (entier && valeur.trim()) return masquerEntier(valeur, entier, table);
+    return masquer(valeur, sensibles, table);
+  }
   if (Array.isArray(valeur)) return valeur.map((v) => masquerValeur(v, sensibles, table, cle));
   if (valeur && typeof valeur === 'object') {
     /** @type {Record<string, any>} */
@@ -143,6 +151,15 @@ function masquerValeur(valeur, sensibles, table, cle) {
     return o;
   }
   return valeur;
+}
+
+/** Remplace une valeur entière par un code (le même pour la même valeur). Pure (complète `table`). */
+function masquerEntier(valeur, prefixe, table) {
+  for (const [jeton, origine] of table) if (origine.toLowerCase() === valeur.toLowerCase()) return jeton;
+  const n = [...table.keys()].filter((k) => k.startsWith('[' + prefixe)).length + 1;
+  const jeton = `[${prefixe}${n}]`;
+  table.set(jeton, valeur);
+  return jeton;
 }
 
 /** Rétablit les codes dans toutes les chaînes d'une valeur (entrée d'un outil). Pure. @param {any} valeur @param {Map<string, string>} table */
@@ -218,6 +235,10 @@ async function tourAgent(entree, o) {
   purgerConversations(maintenant);
   const e = entree || {};
   let conv = e.conversation ? conversations.get(e.conversation) : null;
+  // Fournisseur ou modèle changé dans les Réglages pendant la conversation : on repart de zéro (relecture : la clé d'un fournisseur
+  // serait partie chez l'autre ; la réflexion d'un modèle ne vaut pas pour un autre).
+  const voulu = o.fournisseur === 'mistral' ? 'mistral' : 'claude';
+  if (conv && (conv.fournisseur !== voulu || (o.modele && conv.modele !== o.modele))) { conversations.delete(conv.id); conv = null; }
   const texte = typeof e.texte === 'string' ? e.texte.replace(/\s+/g, ' ').trim().slice(0, 2000) : '';
   // Une conversation connue du poste mais oubliée ici (30 min, redémarrage) : on repart de zéro et on le dit.
   const repris = !!e.conversation && !conv && !!texte;
@@ -371,10 +392,13 @@ async function tourMistral(conv, o) {
   const contenu = typeof msg.content === 'string' ? msg.content : Array.isArray(msg.content) ? msg.content.map((c) => (c && c.text) || '').join('') : '';
   const appelsBruts = Array.isArray(msg.tool_calls) ? msg.tool_calls : [];
   // Gardé tel quel (appels compris) : Mistral relie chaque résultat à son appel par l'identifiant.
-  conv.messages.push({ role: 'assistant', content: contenu, ...(appelsBruts.length ? { tool_calls: appelsBruts } : {}) });
+  // Un message vide sans appel serait refusé par Mistral au tour suivant (« content ou tool_calls ») : un point le remplace.
+  conv.messages.push({ role: 'assistant', content: contenu || (appelsBruts.length ? '' : '…'), ...(appelsBruts.length ? { tool_calls: appelsBruts } : {}) });
   const appels = appelsBruts.map((t) => {
     let entree = {};
-    try { entree = JSON.parse((t.function && t.function.arguments) || '{}'); } catch (_) { entree = { _illisible: true }; }
+    const args = t.function && t.function.arguments;
+    if (args && typeof args === 'object') entree = args;
+    else { try { entree = JSON.parse(args || '{}'); } catch (_) { entree = { _illisible: true }; } }
     return { id: String(t.id || ''), nom: String((t.function && t.function.name) || ''), entree };
   });
   conv.appelsMistral = appels;

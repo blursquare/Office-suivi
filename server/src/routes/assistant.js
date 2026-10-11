@@ -164,7 +164,7 @@ function creerRouteurAssistant(config, injections, parametresRepo) {
   routeur.post('/assistant/agent', routeAsync(async (req, res) => {
     const corps = req.body && typeof req.body === 'object' ? req.body : {};
     const a = agentCourant();
-    if (!a) { res.json({ repli: true, raison: lireReglages().agent ? 'Aucune clé Claude ni Mistral enregistrée.' : 'Agent coupé dans les Réglages.' }); return; }
+    if (!a) { const r = lireReglages(); res.json({ repli: true, raison: !r.agent ? 'Agent coupé dans les Réglages.' : r.moteur === 'locale' ? 'IA locale choisie : pas d’agent.' : 'Aucune clé Claude ni Mistral enregistrée.' }); return; }
     const resultats = Array.isArray(corps.resultats) ? corps.resultats.slice(0, 20).filter((r) => r && typeof r.id === 'string')
       .map((r) => ({ id: r.id.slice(0, 120), contenu: r.contenu, erreur: r.erreur === true })) : undefined;
     const sortie = await tourAgent({

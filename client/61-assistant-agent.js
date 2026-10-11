@@ -150,11 +150,12 @@
     return 'autre rendez-vous';
   }
 
-  // Le dossier de CLAIRE d'un rendez-vous : celui dont la signature est posée ce jour-là à cette heure (ou mémorisé par Outlook).
+  // Le dossier de CLAIRE d'un rendez-vous : celui que le serveur a reconnu (dossierPourReferenceAgenda, règles des homonymes), sinon
+  // celui qui a mémorisé cet élément d'Outlook. Jamais deviné par la date (relecture : une donation rattachée au dossier du jour).
   function dossierDeRendezVousAgent(e) {
-    if (!e || !e.date) return null;
-    return dossiers.find(d => d && d.rdvAgendaItem && e.itemId && d.rdvAgendaItem.itemId === e.itemId)
-      || dossiers.find(d => d && !d.archive && d.rendezVousSignature === e.date && (!e.heure || !d.rendezVousSignatureHeure || d.rendezVousSignatureHeure === e.heure)) || null;
+    if (!e) return null;
+    return (e.dossierId && dossiers.find(d => d && d.id === e.dossierId))
+      || dossiers.find(d => d && d.rdvAgendaItem && e.itemId && d.rdvAgendaItem.itemId === e.itemId) || null;
   }
 
   function depuisHierAgent() {

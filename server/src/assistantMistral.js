@@ -52,6 +52,22 @@ const MODELE_AGENT_MISTRAL_DEFAUT = 'mistral-large-latest';
 const BASES = { eu: 'https://api.eu.mistral.ai', global: 'https://api.mistral.ai' };
 
 // Sigles du métier gardés tels quels (ils disent l'intention, pas une personne).
+// Mots courants en tête de phrase d'un texte libre (le reste, à majuscule en tête d'un long texte, est pris pour un nom).
+const MOTS_COURANTS_TETE = new Set(['le', 'la', 'les', 'l', 'un', 'une', 'des', 'du', 'de', 'd', 'il', 'elle', 'ils', 'elles', 'ce', 'cet',
+  'cette', 'ces', 'si', 'en', 'dans', 'pour', 'par', 'au', 'aux', 'avant', 'apres', 'lors', 'sous', 'sur', 'toute', 'tout', 'tous',
+  'toutes', 'aucun', 'aucune', 'selon', 'le vendeur', 'vendeur', 'vendeurs', 'acquereur', 'acquereurs', 'promettant', 'beneficiaire',
+  'attestation', 'fournir', 'remise', 'remettre', 'copie', 'justificatif', 'justifier', 'realiser', 'faire', 'obtenir', 'produire',
+  'transmettre', 'communiquer', 'certificat', 'diagnostic', 'diagnostics', 'etat', 'releve', 'avis', 'titre', 'offre', 'piece', 'pieces',
+  'dossier', 'email', 'mail', 'courrier', 'appel', 'projet', 'signature', 'rendez', 'date', 'delai', 'echeance', 'reponse', 'demande',
+  'envoi', 'envoye', 'recu', 'recue', 'reception', 'fait', 'faite', 'pret', 'fonds', 'vente', 'acte', 'travaux', 'renonciation',
+  'notification', 'mairie', 'commune', 'syndic', 'banque', 'agence', 'notaire', 'office', 'etude', 'nous', 'vous', 'je', 'on', 'merci',
+  'bonjour', 'bonsoir', 'oui', 'non', 'ok', 'a', 'et', 'ou', 'mais', 'donc', 'car', 'puis', 'ensuite', 'enfin', 'deja', 'encore', 'jamais',
+  'aujourd', 'hier', 'demain', 'ici', 'voici', 'voila', 'rien', 'quelle', 'quel', 'quels', 'quelles', 'qui', 'que', 'quoi', 'comment',
+  'pourquoi', 'combien', 'est', 'sont', 'a-t-il', 'peux', 'pouvez', 'dois', 'devez', 'relancer', 'relance', 'rappeler', 'appeler',
+  'ajouter', 'cocher', 'ouvrir', 'ouvre', 'prepare', 'preparer', 'envoie', 'envoyer', 'archive', 'archiver', 'cherche', 'chercher', 'trouve',
+  'trouver', 'montre', 'liste', 'donne', 'dis', 'lance', 'place', 'placer', 'fixe', 'note', 'noter', 'mets', 'attribue', 'change',
+  'explique', 'aide', 'rappelle', 'resume', 'compare', 'verifie', 'engagement', 'engagements', 'condition', 'conditions', 'clause',
+  'observation', 'remarque', 'question', 'tache', 'taches', 'rappel', 'rappels', 'agenda', 'suivi', 'statut', 'probleme', 'attention']);
 // Mots de CLAIRE écrits avec une majuscule au milieu d'une phrase, qui ne désignent personne.
 const MOTS_MAJUSCULE_GARDES = new Set(['Agenda', 'Suivi', 'Réglages', 'Outils', 'Claire', 'Scan', 'Répertoire', 'Authentic', 'Outlook',
   'Teams', 'Exchange', 'Word', 'Excel', 'Mistral', 'Claude', 'Opus', 'Sonnet', 'Haiku', 'Large', 'Medium', 'Small', 'Ollama', 'Fichorga',
@@ -60,7 +76,11 @@ const MOTS_MAJUSCULE_GARDES = new Set(['Agenda', 'Suivi', 'Réglages', 'Outils',
   'Projet', 'Appel', 'Copropriété', 'Maison', 'Terrain', 'Succession', 'Vente', 'Donation', 'Promesse', 'Compromis', 'Acte',
   'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche', 'Aujourd', 'France', 'Internet', 'Visio', 'CDC',
   'Fait', 'Faite', 'Réponse', 'Renonciation', 'Certificat', 'Diagnostics', 'Avis', 'Titre', 'Offre', 'Relevé', 'Courrier', 'État',
-  'Etat', 'Envoi', 'Rendez', 'Obtention', 'Date', 'Délai', 'Échéance', 'Urgent', 'Complet', 'Attente', 'Nouveau']);
+  'Etat', 'Envoi', 'Rendez', 'Obtention', 'Date', 'Délai', 'Échéance', 'Urgent', 'Complet', 'Attente', 'Nouveau',
+  // Collaborateurs de l'étude (pas des clients ; le prompt les nomme déjà) et outils / écrans de CLAIRE.
+  'Bastien', 'Julie', 'Jérémy', 'Sophie', 'Quotités', 'Prorata', 'Provision', 'Décompte', 'Relecture', 'Contrôle', 'Urbanisme',
+  'Rappels', 'Rappel', 'Préemption', 'Inventaire', 'Forfait', 'Mobilier', 'Simulateur', 'Arbitrage', 'Courriers', 'Tâches', 'Notes',
+  'Modèles', 'Collaborateurs', 'Téléphonie', 'Sauvegarde', 'Mise', 'Général', 'Signalements', 'Activité', 'Statistiques', 'Avancement']);
 const SIGLES = new Set(['VTE', 'SUCC', 'RIB', 'SAFER', 'DPU', 'DIA', 'PDF', 'TVA', 'TTC', 'HT', 'AF', 'NAS', 'CLAIRE', 'IA', 'EUR',
   'OK', 'RDV', 'SCI', 'SARL', 'PLU', 'CU', 'DPE', 'RHF', 'AAE', 'ECV', 'APR', 'JV', 'BA', 'JS', 'PJ', 'CDC',
   // Mots des pièces et des écrans que l'agent lit (11/10) : ce sont des sigles du métier, jamais des noms.
@@ -106,14 +126,19 @@ function masquer(texte, sensibles, table) {
   let t = String(texte || '');
   t = t.replace(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g, (m) => jeton('EMAIL', m));
   // IBAN avant les téléphones (un IBAN contient des suites qui ressemblent à un numéro).
-  t = t.replace(/\b[A-Z]{2}\d{2}(?:[ ]?[A-Z0-9]{4}){3,7}(?:[ ]?[A-Z0-9]{1,4})?\b/g, (m) => jeton('NUM', m));
+  t = t.replace(/\b[A-Za-z]{2}\d{2}(?:[ ]?[A-Za-z0-9]{4}){3,7}(?:[ ]?[A-Za-z0-9]{1,4})?\b/g, (m) => jeton('NUM', m));
+  // SIRET / SIREN et numéro fiscal écrits par groupes.
+  t = t.replace(/\b\d{3}[ .]\d{3}[ .]\d{3}(?:[ .]\d{5})?\b/g, (m) => jeton('NUM', m));
+  t = t.replace(/\b\d{2}[ .]\d{2}[ .]\d{3}[ .]\d{3}[ .]\d{3}\b/g, (m) => jeton('NUM', m));
+  // Téléphones étrangers : +41 79 123 45 67, +32 470 12 34 56, +44 7700 900123…
+  t = t.replace(/(?:\+|00)(?!33)\d{2,3}[\s.]?(?:\(0\)[\s.]?)?\d{1,4}(?:[\s./-]?\d{2,4}){2,5}/g, (m) => jeton('TEL', m));
   // Téléphones : 06 12 34 56 78, 06.12…, 06/12/…, +33 6…, +33 (0)6…, 0033 6…
   t = t.replace(/(?:(?:\+|00)33[\s.]?(?:\(0\)[\s.]?)?|0)[1-9](?:[\s./-]?\d{2}){4}/g, (m) => jeton('TEL', m));
   t = t.replace(/\b[A-Z]\s?\d{4}[\s-]?\d{4,6}\b/g, (m) => jeton('REF', m));
   t = t.replace(/\d{6,}/g, (m) => jeton('NUM', m));
   // Le mot qui suit une civilité est toujours un nom.
   // Les mots en majuscule qui suivent (prénom et nom, jusqu'à trois) aussi : « Monsieur Paul Martin ».
-  t = t.replace(/\b(Monsieur|Madame|Mademoiselle|Messieurs|Mesdames|Maître|Me|Mme|Mlle|Mr|M\.)(\s+)([A-Za-zÀ-ÿ'-]{2,})((?:[ \t]+[A-ZÀ-Ý][A-Za-zÀ-ÿ'-]+){0,2})/g,
+  t = t.replace(/\b(Monsieur|Madame|Mademoiselle|Messieurs|Mesdames|Maître|Me|Mme|Mlle|Mr|M\.)(\s+)([A-ZÀ-Ý][A-Za-zÀ-ÿ'-]+)((?:[ \t]+[A-ZÀ-Ý][A-Za-zÀ-ÿ'-]+){0,2})/g,
     (m, civ, esp, nom, suite) => {
       if (/^\[/.test(nom)) return m;
       const reste = String(suite || '').replace(/[A-ZÀ-Ý][A-Za-zÀ-ÿ'-]+/g, (mot) => jeton('NOM', mot));
@@ -125,15 +150,23 @@ function masquer(texte, sensibles, table) {
   t = t.replace(/\[(?:NOM|EMAIL|TEL|REF|NUM)\d+\]|[A-Za-zÀ-ÿ][A-Za-zÀ-ÿ'’-]*/g, (mot, position, tout) => {
     if (mot.startsWith('[')) return mot;
     const avant = String(tout).slice(0, position).replace(/[\s\u00a0]+$/, '');
-    const enTete = !avant || /[.!?:;(«"\n•]$/.test(avant) || /\n\s*$/.test(String(tout).slice(0, position));
+    // Tête de phrase : début du texte, après « . ! ? » ou un retour à la ligne (pas après « : ( « • » — un nom y suit souvent).
+    const enTete = !avant || /[.!?]$/.test(avant) || /\n\s*$/.test(String(tout).slice(0, position));
+    // Dans un texte libre (engagement, historique), un mot à majuscule en tête de phrase n'est gardé que s'il est un mot courant.
+    const texteLibre = String(tout).length > 40;
+    const suite = String(tout).slice(position + mot.length);
     const morceaux = mot.split(/['’-]/).filter(Boolean);
     const sensible = morceaux.some((m, i) => {
       const n = A.normaliserDemande(m).replace(/^[^a-z]+|[^a-z]+$/g, '');
       if (n.length >= 2 && sensibles.has(n)) return true;
+      if (parOrigine.has(m.toLowerCase())) return true;          // déjà masqué ailleurs dans la conversation
       if (SIGLES.has(m) || MOTS_MAJUSCULE_GARDES.has(m)) return false;
-      if (m.length >= 2 && m === m.toUpperCase() && /[A-ZÀ-Ý]/.test(m) && !/^(?:[LDJNSMTC]|QU)$/.test(m)) return true;
-      // Majuscule initiale : nom propre, sauf le premier mot d'une phrase (et son élision « L'Agenda » reste un mot courant).
-      return /^[A-ZÀ-Ý][a-zà-ÿ]/.test(m) && !(enTete && i === 0) && !(enTete && i === 1 && /^[LDlds]$/.test(morceaux[0]));
+      // Capitales (deux lettres au moins) : un nom — sauf une section cadastrale (« AB 123 »).
+      if (m.length >= 2 && m === m.toUpperCase() && /[A-ZÀ-Ý]/.test(m) && !/^(?:[LDJNSMTC]|QU)$/.test(m)) return !(m.length === 2 && /^\s*\d/.test(suite));
+      if (!/^[A-ZÀ-Ý][a-zà-ÿ]/.test(m)) return false;
+      const tete = enTete && (i === 0 || (i === 1 && /^[LDlds]$/.test(morceaux[0])));
+      if (!tete) return true;
+      return texteLibre && !MOTS_COURANTS_TETE.has(n);
     });
     return sensible ? jeton('NOM', mot) : mot;
   });
@@ -186,7 +219,8 @@ function motsSensiblesDossiers(dossiers) {
     .filter((m) => m === m.toLowerCase()).forEach((m) => A.normaliserDemande(m).split(/[^a-z]+/)
       .filter((x) => x.length >= 3).forEach((x) => sensibles.delete(x)))));
   ['pret', 'fonds', 'appel', 'projet', 'signature', 'rendez', 'vous', 'agenda', 'dossier', 'vendeur', 'acquereur', 'notaire',
-    'demain', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'offre', 'piece', 'pieces', 'envoye', 'email', 'mail'].forEach((m) => sensibles.delete(m));
+    'demain', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'offre', 'piece', 'pieces', 'envoye', 'email', 'mail',
+    'bis', 'ter', 'quater'].forEach((m) => sensibles.delete(m));
   return sensibles;
 }
 
