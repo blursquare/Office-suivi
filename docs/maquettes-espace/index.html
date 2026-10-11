@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Espace de travail CLAIRE</title>
+<style>
+:root{--acc:#6D2332;--acc-s:#D08A98;--bg:#E9EDF3;--card:#fff;--ink:#1E2330;--soft:#57607A;--mut:#647089;--line:#E1E5EC;--sunk:#F7F9FB;--side:#1B1E23;--sideb:#2F343C;--ok:#2F8F5B;--urg:#C2410C;--pret:#B7791F;--acte:#1E3A63;--projet:#B83E78;--fonds:#7A55C7;--r:10px}
+*{box-sizing:border-box}body{margin:0;padding:24px 16px 48px;background:#DDE2EA;color:var(--ink);font:14px/1.45 Geist,"Segoe UI",system-ui,sans-serif}
+h1{font-size:24px;font-weight:500;letter-spacing:-.02em;margin:0 0 4px}.lead{color:var(--mut);margin:0 0 28px;max-width:70ch}
+.bloc{max-width:1240px;margin:0 auto 40px}.bloc h2{font-size:18px;font-weight:500;margin:0 0 4px}.bloc>p{color:var(--mut);margin:0 0 12px;font-size:13px;max-width:80ch}
+.fenetre{display:flex;height:640px;background:var(--bg);border-radius:16px;overflow:hidden;box-shadow:0 8px 30px #0003}
+.side{width:200px;flex:0 0 200px;background:var(--side);border:1px solid var(--sideb);padding:18px 12px;display:flex;flex-direction:column;gap:3px;color:#C3C7CD}
+.logo{color:#F2F3F5;font-size:20px;font-weight:600;margin:0 0 12px 8px}
+.lien{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:var(--r);font-weight:500;font-size:13px;position:relative}
+.lien i{width:14px;height:14px;border:1.5px solid currentColor;border-radius:4px;opacity:.8}
+.lien.actif{color:#F2F3F5;background:#ffffff0f;border-radius:0 var(--r) var(--r) 0;margin-left:-12px;padding-left:22px}.lien.actif::after{content:"";position:absolute;left:0;top:6px;bottom:6px;width:3px;border-radius:0 4px 4px 0;background:var(--acc-s)}
+.zone{flex:1;min-width:0;display:flex;flex-direction:column}
+/* onglets */
+.onglets{display:flex;align-items:flex-end;gap:2px;padding:8px 10px 0;background:#D5DBE5;border-bottom:1px solid var(--line);flex:0 0 auto;overflow:hidden}
+.onglet{display:flex;align-items:center;gap:7px;max-width:210px;padding:7px 10px 8px;border-radius:9px 9px 0 0;font-size:12.5px;color:var(--soft);white-space:nowrap;background:#ffffff80;position:relative}
+.onglet b{font-weight:500;overflow:hidden;text-overflow:ellipsis}.onglet .x{opacity:.5;font-size:15px;line-height:1;margin-left:2px}.onglet:hover .x{opacity:1}
+.onglet.actif{background:var(--card);color:var(--ink);box-shadow:inset 0 2px 0 var(--acc)}
+.onglet .pt{width:7px;height:7px;border-radius:50%;flex:0 0 auto}.pt.pret{background:var(--pret)}.pt.urg{background:var(--urg)}.pt.ok{background:var(--ok)}
+.onglet .ico{width:13px;height:13px;border:1.5px solid currentColor;border-radius:3px;opacity:.7}
+.onglet.moitie::after{content:"";width:12px;height:12px;border:1.5px solid var(--acc);border-radius:2px;border-right-width:5px;margin-left:2px}
+.plus{padding:6px 10px 8px;font-size:17px;color:var(--mut);line-height:1}
+.corps{flex:1;min-height:0;display:flex;background:var(--card)}
+/* fiche condensée */
+.fiche{padding:18px 22px;flex:1;min-width:0;overflow:hidden;background:var(--card)}
+.fiche .st{font-size:11px;font-weight:600;color:var(--pret)}.fiche h3{font-size:22px;font-weight:500;letter-spacing:-.02em;margin:2px 0 8px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.pastille{display:inline-flex;width:26px;height:26px;border-radius:50%;background:var(--sunk);border:1px solid var(--line);font-size:10px;font-weight:700;align-items:center;justify-content:center}
+.bandeau{display:grid;grid-template-columns:1fr 1.1fr 1.5fr;gap:10px;margin:10px 0}
+.b{background:var(--sunk);border-radius:var(--r);padding:10px 12px;font-size:12px;color:var(--mut)}.b strong{display:block;color:var(--ink);font-size:16px;font-weight:500}
+.b.m{background:#6D233210;box-shadow:0 0 0 1px var(--acc)}
+.col4{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.col{background:var(--sunk);border-radius:var(--r);padding:8px}.col h4{margin:0 0 6px;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--mut);display:flex;justify-content:space-between}
+.k{background:#fff;border-radius:8px;box-shadow:0 0 0 1px var(--line);padding:8px 9px;font-size:12px;margin-bottom:6px}.k small{display:block;font-size:10px;font-weight:600;color:var(--acte);margin-bottom:2px}
+.tabsfiche{display:flex;gap:4px;background:var(--sunk);border-radius:var(--r);padding:3px;font-size:12px;margin:8px 0}.tabsfiche span{padding:5px 10px;border-radius:8px;color:var(--soft)}.tabsfiche .a{background:#fff;box-shadow:0 0 0 1px var(--line);color:var(--ink)}
+/* outil condensé */
+.outil{padding:18px 22px;flex:1;min-width:0;overflow:hidden}.outil h3{font-size:20px;font-weight:500;letter-spacing:-.02em;margin:0 0 10px}
+.etapes{display:flex;gap:6px;margin-bottom:14px;font-size:12px}.etapes span{padding:4px 10px;border-radius:99px;background:var(--sunk);color:var(--soft)}.etapes .a{background:var(--acc);color:#fff}
+.champ{margin-bottom:10px}.champ label{display:block;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--mut);margin-bottom:3px}.champ div{border:1px solid var(--line);border-radius:var(--r);padding:8px 10px;background:#fff}
+.ligne2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.btn{display:inline-block;padding:7px 14px;border-radius:var(--r);background:var(--acc);color:#fff;font-weight:500;font-size:13px}.btn.o{background:#fff;color:var(--ink);box-shadow:0 0 0 1px var(--line)}
+/* séparateur + volet droit */
+.sep{width:7px;flex:0 0 7px;background:var(--line);position:relative;cursor:col-resize}.sep::after{content:"";position:absolute;left:2px;top:50%;width:3px;height:36px;margin-top:-18px;border-radius:2px;background:var(--mut);opacity:.6}
+.volet{flex:0 0 46%;min-width:0;display:flex;flex-direction:column;border-left:0}
+.volet-tete{display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--sunk);border-bottom:1px solid var(--line);font-size:12px;color:var(--mut)}.volet-tete b{color:var(--ink);font-weight:500}.volet-tete .sp{flex:1}.volet-tete u{text-decoration:none;padding:3px 8px;border-radius:7px;box-shadow:0 0 0 1px var(--line);background:#fff;color:var(--soft)}
+/* assistant façon Slack */
+.slack{display:flex;flex-direction:column;flex:1;min-width:0;background:#fff}
+.slack-tete{padding:12px 20px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:12px}.slack-tete h3{margin:0;font-size:17px;font-weight:600;letter-spacing:-.01em}.slack-tete span{color:var(--mut);font-size:12.5px}.slack-tete .sp{flex:1}
+.fil{flex:1;overflow:hidden;padding:6px 0;display:flex;flex-direction:column}
+.jour{display:flex;align-items:center;gap:12px;margin:12px 20px 6px;color:var(--mut);font-size:11.5px;font-weight:600}.jour::before,.jour::after{content:"";flex:1;height:1px;background:var(--line)}
+.msg{display:grid;grid-template-columns:36px 1fr;gap:10px;padding:6px 20px;position:relative}.msg:hover{background:var(--sunk)}
+.av{width:36px;height:36px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;color:#fff}.av.moi{background:#3F6AA8}.av.cl{background:var(--acc)}
+.qui{font-weight:700;font-size:14px}.qui small{font-weight:400;color:var(--mut);font-size:11.5px;margin-left:6px}.qui em{font-style:normal;font-size:10px;font-weight:700;background:var(--sunk);color:var(--mut);padding:1px 5px;border-radius:4px;margin-left:5px;box-shadow:0 0 0 1px var(--line)}
+.txt p{margin:2px 0}.carte-j{margin:6px 0 4px;border-left:4px solid var(--pret);background:var(--sunk);border-radius:0 var(--r) var(--r) 0;padding:9px 12px;max-width:540px}.carte-j b{font-weight:600}.carte-j ul{margin:5px 0 0;padding-left:18px;color:var(--soft);font-size:13px}
+.act{display:flex;gap:6px;margin:6px 0 2px;flex-wrap:wrap}.act span{padding:4px 10px;border-radius:99px;box-shadow:0 0 0 1px var(--line);background:#fff;font-size:12px;font-weight:500;color:var(--soft)}.act .p{background:var(--acc);color:#fff;box-shadow:none}
+.surv{position:absolute;right:20px;top:-12px;background:#fff;border-radius:8px;box-shadow:0 0 0 1px var(--line),0 2px 8px #0002;display:flex;font-size:12px;color:var(--soft)}.surv i{padding:4px 8px;font-style:normal}
+.compo{margin:6px 20px 16px;border-radius:12px;box-shadow:0 0 0 1px #B5BCC9;background:#fff}
+.compo .z{padding:12px 14px;color:var(--mut)}.compo .bar{display:flex;gap:4px;padding:6px 8px;border-top:1px solid var(--line);align-items:center;color:var(--mut);font-size:13px}.compo .bar i{font-style:normal;padding:3px 8px;border-radius:6px}.compo .bar .sp{flex:1}.compo .bar .env{background:var(--acc);color:#fff;border-radius:7px;padding:4px 12px;font-weight:600}
+.sug{margin:0 20px 6px;display:flex;gap:6px;flex-wrap:wrap;font-size:12px}.sug span{padding:3px 10px;border-radius:99px;background:var(--sunk);box-shadow:0 0 0 1px var(--line);color:var(--soft)}
+</style></head><body>
+<h1>Espace de travail de CLAIRE</h1>
+<p class="lead">Trois maquettes : « Demander à CLAIRE » façon Slack, les onglets pour garder des fiches et des outils ouverts, et une fiche ancrée à droite d'un outil. Données inventées ; mêmes couleurs, polices et arrondis que CLAIRE.</p>
+
+<section class="bloc"><h2>1. Demander à CLAIRE, façon Slack</h2>
+<p>Un fil continu au lieu de bulles : avatar carré, nom et heure, texte en pleine largeur, résultats dans des cartes à liseré, boutons de suite sous le message, barre d'outils dans la zone de saisie (mentionner un dossier avec @, joindre, envoyer). Séparateur de jour, actions au survol (copier, réagir, répondre en fil).</p>
+<div class="fenetre"><div class="side"><div class="logo">Claire</div><div class="lien"><i></i>Tableau de bord</div><div class="lien"><i></i>Suivi des dossiers</div><div class="lien"><i></i>Agenda</div><div class="lien"><i></i>Outils</div><div class="lien actif"><i></i>Demander à CLAIRE</div><div class="lien"><i></i>Réglages</div></div>
+<div class="zone"><div class="slack">
+<div class="slack-tete"><h3># Demander à CLAIRE</h3><span>Votre assistante · Claude, noms masqués</span><span class="sp"></span><span>Nouvelle conversation</span></div>
+<div class="fil">
+<div class="jour">Aujourd'hui</div>
+<div class="msg"><div class="av moi">BA</div><div class="txt"><div class="qui">Bastien <small>09:12</small></div><p>Bonjour</p></div></div>
+<div class="msg"><div class="av cl">C</div><div class="txt"><div class="qui">CLAIRE <em>ASSISTANTE</em><small>09:12</small></div><p>Bonjour Bastien ! Vous avez 2 choses à faire aujourd'hui, à commencer par « Relancer l'offre de prêt » (MOREAU / LAMBERT).</p><div class="act"><span class="p">Voir mes tâches</span></div></div></div>
+<div class="msg"><div class="av moi">BA</div><div class="txt"><div class="qui">Bastien <small>09:13</small></div><p>Où en est le dossier MOREAU ?</p></div></div>
+<div class="msg"><div class="surv"><i>⧉ Copier</i><i>☺</i><i>↩ Répondre</i></div><div class="av cl">C</div><div class="txt"><div class="qui">CLAIRE <em>ASSISTANTE</em><small>09:13</small></div><p>Voici où nous en sommes.</p>
+<div class="carte-j"><b>VTE - MOREAU / LAMBERT</b><ul><li>Statut : Attente de pièces</li><li>Signature : mardi 20 octobre à 10 h 30</li><li>Attendu : offre de prêt, certificat d'urbanisme et 8 de plus</li></ul></div>
+<p>L'offre de prêt n'est pas encore là. Souhaitez-vous que je m'en occupe ?</p><div class="act"><span class="p">Relancer pour l'offre de prêt</span><span>Quelles pièces manquent ?</span><span>Ouvrir la fiche</span></div></div></div>
+</div>
+<div class="sug"><span>Où en est…</span><span>Mes tâches du jour</span><span>Agenda de demain</span><span>Quoi de neuf depuis hier ?</span></div>
+<div class="compo"><div class="z">Message à CLAIRE… tapez @ pour citer un dossier</div><div class="bar"><i>＋</i><i>@</i><i>Aa</i><span class="sp"></span><span class="env">Envoyer ▸</span></div></div>
+</div></div></div></section>
+
+<section class="bloc"><h2>2. Onglets</h2>
+<p>Chaque fiche ouverte et chaque outil ouvert devient un onglet : on les garde, on passe de l'un à l'autre, on ferme avec ×, on les réordonne par glisser. Un point de couleur sur l'onglet d'un dossier reprend son statut. La barre latérale garde le tableau de bord, le Suivi, l'Agenda et « Demander à CLAIRE ».</p>
+<div class="fenetre"><div class="side"><div class="logo">Claire</div><div class="lien"><i></i>Tableau de bord</div><div class="lien actif"><i></i>Suivi des dossiers</div><div class="lien"><i></i>Agenda</div><div class="lien"><i></i>Outils</div><div class="lien"><i></i>Demander à CLAIRE</div><div class="lien"><i></i>Réglages</div></div>
+<div class="zone"><div class="onglets"><div class="onglet"><span class="ico"></span><b>Appel de fonds</b><span class="x">×</span></div><div class="onglet actif"><span class="pt pret"></span><b>VTE - MOREAU / LAMBERT</b><span class="x">×</span></div><div class="onglet"><span class="pt ok"></span><b>VTE - DUPONT</b><span class="x">×</span></div><div class="onglet"><span class="pt urg"></span><b>SUCC - LEROY</b><span class="x">×</span></div><div class="onglet"><span class="ico"></span><b>Quotités</b><span class="x">×</span></div><div class="plus">＋</div></div>
+<div class="corps"><div class="fiche"><div class="st">● Attente de pièces</div><h3>VTE - MOREAU / LAMBERT <span class="pastille">JV</span></h3>
+<div class="bandeau"><div class="b">PIÈCES<strong>0 sur 9</strong></div><div class="b">SIGNATURE<strong>9 jours</strong></div><div class="b m">À FAIRE MAINTENANT<strong>Relancer l'offre de prêt</strong></div></div>
+<div class="tabsfiche"><span class="a">Tableau</span><span>Pièces et analyse</span><span>Dossier</span><span>Fonds</span><span>Échanges</span><span>Historique</span></div>
+<div class="col4"><div class="col"><h4>À obtenir <span>8</span></h4><div class="k"><small>PIÈCE</small>Certificat d'urbanisme</div><div class="k"><small>PIÈCE</small>Certificat d'alignement</div></div><div class="col"><h4>À faire <span>2</span></h4><div class="k"><small style="color:var(--pret)">PRÊT</small>Relancer l'offre</div><div class="k"><small style="color:var(--fonds)">APPEL DE FONDS</small>Envoyer l'appel</div></div><div class="col"><h4>En attente <span>2</span></h4><div class="k"><small style="color:var(--pret)">PRÊT</small>Obtention du prêt</div></div><div class="col"><h4>Fait <span>1</span></h4><div class="k"><small style="color:var(--ok)">SIGNATURE</small>Rendez-vous placé</div></div></div>
+</div></div></div></div></section>
+
+<section class="bloc"><h2>3. Un outil et une fiche côte à côte</h2>
+<p>Depuis une fiche, « Ouvrir à côté » l'ancre à droite de la page courante, sans voile gris : on lit la fiche pendant qu'on remplit l'outil (ici, l'appel de fonds). La séparation se tire pour régler les largeurs ; « Plein écran » et « Fermer » dans l'en-tête du volet. L'onglet de la fiche porte un petit symbole de volet.</p>
+<div class="fenetre"><div class="side"><div class="logo">Claire</div><div class="lien"><i></i>Tableau de bord</div><div class="lien"><i></i>Suivi des dossiers</div><div class="lien"><i></i>Agenda</div><div class="lien actif"><i></i>Outils</div><div class="lien"><i></i>Demander à CLAIRE</div><div class="lien"><i></i>Réglages</div></div>
+<div class="zone"><div class="onglets"><div class="onglet actif"><span class="ico"></span><b>Appel de fonds</b><span class="x">×</span></div><div class="onglet moitie"><span class="pt pret"></span><b>VTE - MOREAU / LAMBERT</b><span class="x">×</span></div><div class="onglet"><span class="pt ok"></span><b>VTE - DUPONT</b><span class="x">×</span></div><div class="plus">＋</div></div>
+<div class="corps"><div class="outil"><h3>Appel de fonds</h3><div class="etapes"><span>1 Dossier</span><span class="a">2 Décompte</span><span>3 Courrier</span></div>
+<div class="ligne2"><div class="champ"><label>Prix de vente</label><div>245.000,00 €</div></div><div class="champ"><label>Signature</label><div>20/10/2026 · 10 h 30</div></div></div>
+<div class="champ"><label>Frais et droits de l'acte</label><div>19.600,00 € · estimés</div></div><div class="ligne2"><div class="champ"><label>Taxe foncière</label><div>1.180,00 €</div></div><div class="champ"><label>Charges de copropriété</label><div>312,40 €</div></div></div>
+<span class="btn">Créer le courrier</span> <span class="btn o">PDF/A pour Authentic</span></div>
+<div class="sep"></div>
+<div class="volet"><div class="volet-tete"><b>Fiche dossier</b><span>à côté</span><span class="sp"></span><u>Plein écran</u><u>Fermer ×</u></div>
+<div class="fiche"><div class="st">● Attente de pièces</div><h3>VTE - MOREAU / LAMBERT <span class="pastille">JV</span></h3>
+<div class="bandeau" style="grid-template-columns:1fr 1fr"><div class="b">PIÈCES<strong>0 sur 9</strong></div><div class="b">SIGNATURE<strong>9 jours</strong></div></div>
+<div class="tabsfiche"><span class="a">Tableau</span><span>Pièces</span><span>Dossier</span><span>Fonds</span></div>
+<div class="col4" style="grid-template-columns:1fr 1fr"><div class="col"><h4>À faire <span>2</span></h4><div class="k"><small style="color:var(--pret)">PRÊT</small>Relancer l'offre</div><div class="k"><small style="color:var(--fonds)">APPEL DE FONDS</small>Envoyer l'appel</div></div><div class="col"><h4>En attente <span>2</span></h4><div class="k"><small style="color:var(--pret)">PRÊT</small>Obtention du prêt</div></div></div></div></div></div></div></div></section>
+</body></html>
