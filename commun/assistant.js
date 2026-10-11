@@ -85,7 +85,7 @@
     // sans donnée de dossier (explication, conseil, question générale) — la seule réponse écrite par l'IA, voir /api/assistant/converser.
     { cle: 'salutation', libelle: 'Bonjour, merci…', description: 'une formule de politesse : bonjour, merci, au revoir, comment ça va',
       exemples: ['Bonjour', 'Merci beaucoup', 'Bonsoir CLAIRE', 'Ça va ?', 'À bientôt'],
-      motifs: [/^(bonjour|bonsoir|salut|hello|coucou)\b/, /^(merci|un grand merci|super merci|parfait merci|genial merci|bravo|top)\b/, /\bca va\b/, /\bcomment (vas|allez)[- ](tu|vous)\b/, /^(au revoir|a bientot|a demain|a plus tard|bonne (journee|soiree|continuation))\b/] },
+      motifs: [/^(bonjour|bonsoir|salut|hello|coucou)\b/, /^(merci|un grand merci|super merci|parfait merci|genial merci|bravo|top)\b/, /^(ca va|comment (vas|allez)[- ](tu|vous))( bien| aujourd.?hui)?\s*[?!.]*$/, /^(au revoir|a bientot|a demain|a plus tard|bonne (journee|soiree|continuation))\b/] },
     { cle: 'conversation', libelle: 'Échanger librement', description: 'discuter sans donnée de dossier : expliquer une notion, donner un avis ou un conseil général, répondre à une question sur le métier ou sur CLAIRE',
       exemples: ['Explique-moi la différence entre une promesse et un compromis', 'Que penses-tu de ma façon de classer les dossiers ?', 'J’ai besoin d’un conseil', 'Peux-tu m’expliquer comment tu fonctionnes ?'],
       motifs: [/\bexplique[- ]moi\b/, /\bpeux[- ]tu m.expliquer\b/, /\bque penses[- ]tu\b/, /\bqu.?en penses[- ]tu\b/, /\bun conseil\b/, /\bton avis\b/, /\bj.ai besoin d.aide pour reflechir\b/, /\bparlons\b/] },
@@ -453,7 +453,8 @@
     const phrase = empreinteDemande(texte, false);
     if (!phrase.size) return [];
     const liste = [];
-    INTENTIONS_ASSISTANT.forEach(i => (i.exemples || []).forEach(ex => {
+    // Une politesse ne se devine pas par ressemblance (« ça va aller pour la signature de MARTIN ? » n'est pas « Ça va ? ») : mots-clés seuls.
+    INTENTIONS_ASSISTANT.filter(i => i.cle !== 'salutation').forEach(i => (i.exemples || []).forEach(ex => {
       const e = empreinteDemande(ex, true);
       if (!e.size) return;
       let commun = 0;

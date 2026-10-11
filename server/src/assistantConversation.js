@@ -8,7 +8,7 @@
 // poste répond lui-même (client/59-assistant-ton.js).
 
 const A = require('../../commun/assistant');
-const { pseudonymiserDemande, retablirTexte } = require('./assistantMistral');
+const { pseudonymiserDemande, retablirTexte, masquerMontants } = require('./assistantMistral');
 
 const LONGUEUR_MAX_CONVERSATION = 700;
 const MAX_CARACTERES_REPONSE = 1500;
@@ -36,7 +36,7 @@ function promptConversation(texte, contexte) {
   return `Tu es CLAIRE, l'assistante de l'étude notariale de Maître Sophie GOSSART à Blois. Tu échanges chaque jour avec ${prenom || 'un collaborateur de l\'étude'}, comme une collègue attentionnée : vouvoiement, ton chaleureux et naturel, phrases courtes, pas de formules pompeuses ni de longues listes. Réponds en 2 à 5 phrases.
 Règles :
 - Tu ne connais ICI aucune donnée de dossier (noms, montants, dates, pièces, fonds) : n'en invente jamais. Si la question en demande une, dis que tu peux la chercher et invite à citer le dossier (« Où en est MARTIN ? »).
-- Les codes comme [NOM1] remplacent des noms : recopie-les tels quels si tu en as besoin.
+- Les codes comme [NOM1] ou [MONTANT1] remplacent des noms et des montants : recopie-les tels quels si tu en as besoin ; ne demande jamais d'informations personnelles.
 - Sur un point de droit, donne des repères généraux prudents et rappelle que Maître GOSSART (ou le notaire en charge) a le dernier mot.
 - Hors sujet, réponds brièvement avec bienveillance puis propose ton aide sur les dossiers.
 - Ce que tu sais faire dans CLAIRE : ${sait}.
@@ -59,7 +59,12 @@ function validerConversation(objet) {
  */
 function nettoyerReponseConversation(texte, table) {
   const rendu = table ? retablirTexte(texte, table) : String(texte || '');
-  return rendu.replace(/\[(?:NOM|EMAIL|TEL|REF|NUM)\d+\]/g, '…').replace(/\s+\n/g, '\n').trim().slice(0, MAX_CARACTERES_REPONSE);
+  const net = rendu.replace(/\[(?:NOM|EMAIL|TEL|REF|NUM|MONTANT)\d+\]/g, '…').replace(/\s+\n/g, '\n').trim();
+  if (net.length <= MAX_CARACTERES_REPONSE) return net;
+  // Trop long : coupé à la fin de la dernière phrase entière plutôt qu'au milieu d'un mot.
+  const coupe = net.slice(0, MAX_CARACTERES_REPONSE);
+  const fin = Math.max(coupe.lastIndexOf('. '), coupe.lastIndexOf('! '), coupe.lastIndexOf('? '), coupe.lastIndexOf('.\n'));
+  return fin > MAX_CARACTERES_REPONSE * 0.5 ? coupe.slice(0, fin + 1) : coupe.replace(/\s+\S*$/, '') + '…';
 }
 
 /**
@@ -78,7 +83,10 @@ async function converser(entree, client) {
       .filter((h) => h && typeof h.texte === 'string').map((h) => ({ role: h.role === 'claire' ? 'claire' : 'moi', texte: h.texte.slice(0, 400) }))
   };
   const ps = pseudonymiserDemande(texte, contexte, (entree && entree.dossiers) || []);
-  const objet = await client.genererJson(promptConversation(ps.texte, { ...contexte, historique: ps.contexte.historique }), validerConversation,
+  // Les montants aussi, dans la phrase et dans les échanges précédents (même table : rétablis au retour).
+  const texteMasque = masquerMontants(ps.texte, ps.table);
+  const historique = ps.contexte.historique.map((h) => ({ ...h, texte: masquerMontants(h.texte, ps.table) }));
+  const objet = await client.genererJson(promptConversation(texteMasque, { ...contexte, historique }), validerConversation,
     { longueurMax: LONGUEUR_MAX_CONVERSATION, delaiMs: 30 * 1000, sansRelance: true, schema: SCHEMA_CONVERSATION });
   return { reponse: nettoyerReponseConversation(objet.reponse, ps.table) };
 }

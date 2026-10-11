@@ -125,9 +125,22 @@ function pseudonymiserDemande(texte, contexte, dossiers) {
   };
 }
 
+/**
+ * Masque les montants (« 250 000 € », « 1.200,50 euros », « 12 000 ») d'un texte libre : un prix n'a pas à quitter le serveur. Utilisé par
+ * l'échange libre (assistantConversation.js), où la phrase n'est pas bornée à une demande de dossier. `table` est complétée. Pure.
+ * @param {string} texte @param {Map<string, string>} table
+ */
+function masquerMontants(texte, table) {
+  let n = [...table.keys()].filter((k) => k.startsWith('[MONTANT')).length;
+  const jeton = (origine) => { n += 1; const j = `[MONTANT${n}]`; table.set(j, origine); return j; };
+  return String(texte || '')
+    .replace(/\d[\d\s.,\u00a0\u202f]*\d?\s?(?:€|eur(?:os?)?)(?![A-Za-zÀ-ÿ])/gi, (m) => jeton(m))
+    .replace(/(?<![\d.,])\d{1,3}(?:[\u00a0\u202f .]\d{3})+(?:,\d{1,2})?(?![\d.])/g, (m) => jeton(m));
+}
+
 /** Rétablit les valeurs masquées dans un texte rendu par l'IA. Pure. @param {string} texte @param {Map<string, string>} table */
 function retablirTexte(texte, table) {
-  return String(texte || '').replace(/\[(?:NOM|EMAIL|TEL|REF|NUM)\d+\]/g, (j) => table.get(j) || j);
+  return String(texte || '').replace(/\[(?:NOM|EMAIL|TEL|REF|NUM|MONTANT)\d+\]/g, (j) => table.get(j) || j);
 }
 
 /** Coût en dollars d'un nombre de jetons d'un modèle Claude. Pure. @param {number} entree @param {number} sortie @param {string} modele */
@@ -223,6 +236,6 @@ function creerClientMistralAssistant({ cle, region, fetchFn, parametresRepo }) {
 }
 
 module.exports = {
-  REVISION_REGLAGES_ASSISTANT, MODELE_ASSISTANT_MISTRAL, MODELES_CLAUDE_ASSISTANT, MODELE_CLAUDE_ASSISTANT_DEFAUT, coutClaudeUsd, CLE_REGLAGES, MOTEURS, assainirReglagesAssistant, pseudonymiserDemande, retablirTexte,
+  REVISION_REGLAGES_ASSISTANT, MODELE_ASSISTANT_MISTRAL, MODELES_CLAUDE_ASSISTANT, MODELE_CLAUDE_ASSISTANT_DEFAUT, coutClaudeUsd, CLE_REGLAGES, MOTEURS, assainirReglagesAssistant, pseudonymiserDemande, retablirTexte, masquerMontants,
   coutAssistantUsd, lireUsageAssistant, noterUsageAssistant, creerClientMistralAssistant
 };

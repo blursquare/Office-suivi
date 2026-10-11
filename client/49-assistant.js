@@ -233,7 +233,7 @@
         const intro = introLectureAssistant(intention.cle, prenomPosteAssistant(), assistantMessages.length);
         const suite = suiteLectureAssistant(intention.cle, faitsAssistant(intention.cle, d));
         const boutonsSuite = suite ? suite.boutons.map(b => ({ libelle: b.libelle, action: () => envoyerDemandeAssistant(b.phrase) })) : [];
-        poserMessageAssistant('claire', (intro ? `<p class="asst-intro">${escapeHtml(intro)}</p>` : '') + reponse.html + (suite && suite.texte ? `<p>${escapeHtml(suite.texte)}</p>` : '') + noteMoteurAssistant(r),
+        poserMessageAssistant('claire', (intro ? `<p class="asst-intro">${escapeHtml(intro)}</p>` : '') + reponse.html + (suite && suite.texte ? `<p>${escapeHtml(suite.texte)}</p>` : '') + (intention.cle === 'salutation' || intention.cle === 'conversation' ? '' : noteMoteurAssistant(r)),
           (reponse.boutons || []).concat(boutonsSuite));
       }
     } catch (e) {

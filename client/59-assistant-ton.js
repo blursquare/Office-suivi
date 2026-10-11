@@ -97,17 +97,18 @@ function htmlTexteLibreAssistant(texte) {
   return String(texte || '').split(/\n{2,}|\n/).map(l => l.trim()).filter(Boolean).map(l => `<p>${escapeHtml(l)}</p>`).join('');
 }
 
-// Les faits d'un dossier utiles aux suites, calculés avec les fonctions de CLAIRE (jamais écrits ici). @param {any} d
+// Les faits d'un dossier utiles aux suites, calculés avec les fonctions de CLAIRE (jamais écrits ici). Aucune suite pour un dossier
+// archivé, déjà signé, en participation (l'étude n'y relance pas le prêt) ou une succession. `nom` : le nom complet du dossier (sans
+// « VTE - »), pour que la phrase d'un bouton désigne CE dossier même si un autre porte le même premier nom de famille. @param {any} d
 function faitsDossierAssistant(d) {
   if (!d) return {};
-  const nom = String(d.nom || '').split('/')[0].replace(/\b(VTE|SUCC|VENTE|SUCCESSION)\b/gi, '').replace(/^[\s–-]+|[\s–-]+$/g, '');
-  const succession = estSuccession(d);
-  const manque = succession ? 0 : piecesAttenduesDossier(d).length;
-  const prochaine = succession ? null : prochaineEcheanceDetail(d);
+  const nom = String(d.nom || '').replace(/\b(VTE|SUCC|VENTE|SUCCESSION)\b/gi, '').replace(/\s*\/\s*/g, ' / ').replace(/^[\s–-]+|[\s–-]+$/g, '');
+  if (d.archive || estSuccession(d) || d.roleNotaire === 'participant' || signatureFaiteSuivi(d)) return { nom: '' };
+  const prochaine = prochaineEcheanceDetail(d);
   const bilan = d.fondsRecus && typeof d.fondsRecus === 'object' ? bilanFondsDossier(d) : null;
   return {
-    nom, manque,
-    pretAttendu: !succession && !d.sansPret && d.offrePretStatut !== 'recue' && !echeanceValidee(d, 'pret'),
+    nom, manque: piecesAttenduesDossier(d).length,
+    pretAttendu: !d.sansPret && !echeanceValidee(d, 'pret') && d.offrePretStatut !== 'recue' && d.offrePretStatut !== 'aconfirmer',
     retard: prochaine && prochaine.jours < 0 ? { label: prochaine.label, jours: -prochaine.jours } : null,
     fondsReste: bilan && bilan.etat === 'partiel' ? bilan.reste : 0
   };

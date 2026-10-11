@@ -8,7 +8,7 @@ const assert = require('node:assert/strict');
 const os = require('node:os');
 
 const { promptConversation, validerConversation, nettoyerReponseConversation, converser } = require('../src/assistantConversation');
-const { creerClientMistralAssistant } = require('../src/assistantMistral');
+const { creerClientMistralAssistant, masquerMontants } = require('../src/assistantMistral');
 const { requeteAssistantClaude, SCHEMA_ASSISTANT } = require('../src/assistantClaude');
 const { creerApp } = require('../src/app');
 const { ouvrirDb } = require('../src/db');
@@ -80,4 +80,21 @@ test('route /assistant/converser : sans IA en ligne, réponse vide et raison ; a
     assert.match(sans.raison, /Aucune IA en ligne/);
     assert.equal((await fetch(`${base}/api/assistant/converser`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' })).status, 400);
   } finally { serveur.close(); }
+});
+
+test('relecture 0.209.0 : les montants ne partent pas, ils sont rétablis au retour ; une réponse trop longue est coupée à une phrase entière', async () => {
+  const t = new Map();
+  assert.equal(masquerMontants('le prix est 250 000 € et 1.200,50 euros, signé le 15 novembre 2026', t), 'le prix est [MONTANT1] et [MONTANT2], signé le 15 novembre 2026');
+  const envoyes = [];
+  const fetchFn = async (url, o) => {
+    envoyes.push(JSON.parse(o.body).messages[0].content);
+    return { ok: true, json: async () => ({ usage: {}, choices: [{ message: { content: JSON.stringify({ reponse: 'Pour [MONTANT1], comptez les frais habituels.' }) } }] }) };
+  };
+  const client = creerClientMistralAssistant({ cle: 'cle', fetchFn });
+  const r = await converser({ texte: 'Les frais sur 250 000 € ?', contexte: { historique: [{ role: 'moi', texte: 'Un bien à 180.000 euros' }] }, dossiers: [] }, client);
+  assert.doesNotMatch(envoyes[0], /250 000|180\.000/);
+  assert.match(r.reponse, /Pour 250 000 €/);
+  const long = 'Une phrase de test. '.repeat(120);
+  const net = nettoyerReponseConversation(long);
+  assert.ok(net.length <= 1500 && net.endsWith('.'), 'coupée à la fin d’une phrase');
 });

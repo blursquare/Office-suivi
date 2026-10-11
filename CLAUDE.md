@@ -935,6 +935,7 @@ garde tous les validés (`tousValides`) ; l'impression A4 garde `renderCompteRen
   par chiffre, `comparerVersions`). Le test `structure-client` vérifie numéros uniques, chacun successeur exact du précédent par
   date (CORRECTIF + 1, ou MINEUR + 1 et CORRECTIF 0). La mise à jour automatique n'en dépend pas (elle compare le numéro de
   build de la release GitHub).
+- **Publication** (étude 11/10) : avant tout envoi sur `main`, suivre `.claude/skills/publier/SKILL.md` (`/publier`) — `npm run verifier`, `npm run scenarios`, relecture indépendante par un second agent (`/relire`, tout ce qui touche un calcul, une règle métier, un email, l'agenda, le NAS, Authentic, les secrets ou le serveur), compte rendu qui dit ce qui n'a pas pu être vérifié.
 - **Poser les questions de cadrage** (`AskUserQuestion`) quand une demande admet plusieurs
   lectures, surtout en droit notarial ou quand l'action écrit dans un agenda/une boîte partagés.
 - **Garder l'interface cohérente** : jetons CSS existants (`--focus` = accent du thème choisi,

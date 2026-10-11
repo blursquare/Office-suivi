@@ -79,9 +79,34 @@ test('faits d’un dossier pour les suites : pièces attendues, prêt non reçu,
   const d = { id: 'd1', nom: 'VTE - MARTIN / DUPONT', typeVente: 'maison', roleNotaire: 'instrumentaire', pret: '2026-09-01', acte: '2026-12-15',
     pieces: {}, echeancesValidees: {}, historique: [], offrePretStatut: 'manquante', autres: [] };
   const f = app.faitsDossierAssistant(d);
-  assert.equal(f.nom, 'MARTIN');
+  assert.equal(f.nom, 'MARTIN / DUPONT', 'le nom complet : le bouton désigne CE dossier');
   assert.ok(f.manque > 0);
   assert.equal(f.pretAttendu, true);
   assert.equal(JSON.stringify(app.faitsDossierAssistant(null)), '{}');
-  assert.equal(app.faitsDossierAssistant({ ...d, typeAffaire: 'succession', sansPret: true }).manque, 0, 'succession : pas de pièces de vente');
+  assert.ok(!app.faitsDossierAssistant({ ...d, typeAffaire: 'succession', sansPret: true }).manque, 'succession : pas de suite');
+});
+
+test('relecture 0.209.0 : « ça va » dans une vraie question n’est pas une salutation', () => {
+  const lire = (t) => A.interpreterParMotsCles(t, { aujourdhui: '2026-10-11' });
+  assert.notEqual(lire('ça va aller pour la signature de MARTIN ?').intention, 'salutation');
+  assert.equal(lire('Ça va ?').intention, 'salutation');
+  assert.equal(lire('Comment allez-vous ?').intention, 'salutation');
+  assert.equal(lire('Ça va bien').intention, 'salutation');
+});
+
+test('relecture 0.209.0 : pas de suite pour un dossier archivé, signé, en participation, offre à confirmer ; les phrases des boutons désignent le dossier entier', () => {
+  const base = { id: 'd1', nom: 'VTE - MARTIN / DUPONT', typeVente: 'maison', roleNotaire: 'instrumentaire', pret: '2026-12-01', acte: '2026-12-15',
+    pieces: {}, echeancesValidees: {}, historique: [], offrePretStatut: 'manquante', autres: [] };
+  assert.equal(app.faitsDossierAssistant(base).pretAttendu, true);
+  assert.equal(app.faitsDossierAssistant({ ...base, offrePretStatut: 'aconfirmer' }).pretAttendu, false, 'offre trouvée à confirmer : elle est là');
+  assert.equal(app.faitsDossierAssistant({ ...base, sansPret: true }).pretAttendu, false);
+  ['archive', 'participation', 'signe'].forEach(cas => {
+    const d = cas === 'archive' ? { ...base, archive: true } : cas === 'participation' ? { ...base, roleNotaire: 'participant' }
+      : { ...base, rendezVousSignature: '2026-09-20', echeancesValidees: { rendezVousSignature: true } };
+    assert.equal(app.suiteLectureAssistant('etat_dossier', app.faitsDossierAssistant(d)), null, cas);
+  });
+  const s = app.suiteLectureAssistant('etat_dossier', app.faitsDossierAssistant(base));
+  assert.match(s.boutons[0].phrase, /MARTIN \/ DUPONT/);
+  assert.equal(A.interpreterParMotsCles(s.boutons[0].phrase, {}).intention, 'pieces_manquantes');
+  assert.equal(A.interpreterParMotsCles(s.boutons[1].phrase, {}).intention, 'email');
 });
