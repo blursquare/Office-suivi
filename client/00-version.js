@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.213.8';
+  const VERSION_APP = '0.214.0';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.214.0', date: '2026-10-12 10:14', resume: "Onglets : tous les écrans peuvent maintenant être des onglets — Suivi des dossiers, Agenda, Nouveau dossier, Claire Scan, Demander à CLAIRE et Réglages, en plus des outils et des fiches (seul le tableau de bord reste hors onglet)." },
     { version: '0.213.8', date: '2026-10-12 10:08', resume: "Provision sur frais : copropriété de 1 425 000 € à 2 000 000 € aux vrais montants du barème rapide 2025 (ils étaient estimés) ; au-delà de 2 000 000 €, le calcul continue au même rythme que le barème." },
     { version: '0.213.7', date: '2026-10-12 09:56', resume: "Agenda : en-tête sur une ligne — plus de « Semaine du … au … » ; « Agenda de l'office lu … » et la comparaison avec l'an dernier suivent les boutons ‹ Aujourd'hui › ; « Lun. » aligné sur la date." },
     { version: '0.213.6', date: '2026-10-12 08:22', resume: "Retouches après relecture : le rendez-vous d'un dossier homonyme (ROY) reste rattaché ; notre office n'apparaît plus deux fois dans l'annuaire ; Claire Scan reconnaît de nouveau les vrais certificats d'urbanisme, rapports du SPANC et renonciations ; « Ajouter une tâche » ne recopie plus le texte d'un autre rappel ; changer de calendrier ne coche plus les anciennes tâches ; Entrée referme de nouveau une modification sur la fiche ; un nom de notaire porté dans deux offices demande sa ville." },

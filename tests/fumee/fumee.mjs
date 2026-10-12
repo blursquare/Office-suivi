@@ -108,17 +108,17 @@ try {
       await geste(page, 'onglets : fiches', () => { definirOnglet('agenda'); ouvrirDossierDrawer('f1'); ouvrirDossierDrawer('f2'); });
       await pause(300);
       const ot1 = await page.evaluate(() => ({ n: document.querySelectorAll('#onglets-travail .ot-onglet').length, actif: (document.querySelector('#onglets-travail .ot-onglet.actif .ot-libelle') || {}).textContent, agendaCache: getComputedStyle(document.getElementById('onglet-agenda')).display === 'none', raccourci: ecranAffiche('agenda') }));
-      verifier(ot1.n === 3 && /ABIME/.test(ot1.actif || '') && ot1.agendaCache && !ot1.raccourci, `onglets : 3 onglets, fiche ABIME active en page, agenda caché et sans raccourci (${JSON.stringify(ot1)})`);
+      verifier(ot1.n === 4 && /ABIME/.test(ot1.actif || '') && ot1.agendaCache && !ot1.raccourci, `onglets : 4 onglets (outil, Agenda, deux fiches), fiche ABIME active en page, agenda caché et sans raccourci (${JSON.stringify(ot1)})`);
       await geste(page, 'onglets : notifications vues en changeant de fiche', () => { const d = dossiers.find(x => x.id === 'f1'); d.piecesNotifications = ['dpe']; ouvrirDossierDrawer('f1'); ouvrirDossierDrawer('f2'); });
       verifier(await page.evaluate(() => !(dossiers.find(x => x.id === 'f1').piecesNotifications || []).length), 'onglets : notifications de la fiche quittée vidées');
-      await geste(page, 'onglets : fermer la fiche active', () => fermerOngletTravail(2));
+      await geste(page, 'onglets : fermer la fiche active', () => fermerOngletTravail(3));
       await pause(200);
       const ot2 = await page.evaluate(() => ({ ouvert: dossierOuvert, n: ongletsTravail.length }));
-      verifier(ot2.ouvert === 'f1' && ot2.n === 2, `onglets : la fiche voisine prend la place (${JSON.stringify(ot2)})`);
+      verifier(ot2.ouvert === 'f1' && ot2.n === 3, `onglets : la fiche voisine prend la place (${JSON.stringify(ot2)})`);
       await geste(page, 'onglets : fermer l’outil puis la fiche', () => { fermerOngletTravail(0); fermerDossierDrawer(); });
       await pause(200);
       const ot3 = await page.evaluate(() => ({ ecran: ongletActuel, fiche: document.body.classList.contains('fiche-en-page'), n: ongletsTravail.length }));
-      verifier(ot3.ecran !== 'quotites' && !ot3.fiche && ot3.n === 1, `onglets : l’outil fermé ne revient pas sous la fiche (${JSON.stringify(ot3)})`);
+      verifier(ot3.ecran !== 'quotites' && !ot3.fiche && ot3.n === 2, `onglets : l’outil fermé ne revient pas sous la fiche (${JSON.stringify(ot3)})`);
       // Fiche à côté (11/10, étape 3) : ancrée à droite, elle reste quand on change d'outil ; « Plein écran » la rend à la page.
       await geste(page, 'fiche à côté', () => { definirOnglet('suivi'); ouvrirDossierDrawer('f1'); ouvrirFicheACote(); definirOnglet('appel-fonds'); });
       await pause(300);

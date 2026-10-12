@@ -6,7 +6,11 @@
   // dans le navigateur (simple commodité : perdus, rien ne casse). ----
 
   // Écrans qui deviennent un onglet quand on les ouvre : les outils du tiroir.
-  var OUTILS_ONGLETS_TRAVAIL = ['appel-fonds', 'inventaire', 'preemption', 'prorata', 'quotites', 'confreres', 'calculateur', 'analyse-ia'];
+  // Tout écran sauf le tableau de bord peut être un onglet (étude 12/10 : « laisser la possibilité de tout mettre en onglet :
+  // demander à CLAIRE, Claire Scan, réglages… ») : Suivi, Agenda, Nouveau dossier, Claire Scan, Demander à CLAIRE, Réglages et
+  // les outils.
+  var OUTILS_ONGLETS_TRAVAIL = ['suivi', 'agenda', 'nouveau', 'scans', 'assistant', 'reglages',
+    'appel-fonds', 'inventaire', 'preemption', 'prorata', 'quotites', 'confreres', 'calculateur', 'analyse-ia'];
   var MAX_ONGLETS_TRAVAIL = 12;
   var CLE_ONGLETS_TRAVAIL = 'claire-onglets-travail';
   let ongletsTravail = [];        // [{ type: 'dossier', id } | { type: 'outil', nom }], dans l'ordre affiché
@@ -137,7 +141,7 @@
     try { return 'ot-etat-' + etatDossier(d, isoAujourdhuiLocal()).cle; } catch (e) { return ''; }
   }
 
-  var ICONES_ONGLETS_OUTILS = { 'appel-fonds': 'mail', inventaire: 'scale', preemption: 'shield', prorata: 'part-disque', quotites: 'users', confreres: 'book', calculateur: 'banknote', 'analyse-ia': 'eye' };
+  var ICONES_ONGLETS_OUTILS = { suivi: 'list', agenda: 'calendar', nouveau: 'file-text', scans: 'bannette', assistant: 'sparkle', reglages: 'settings', 'appel-fonds': 'mail', inventaire: 'scale', preemption: 'shield', prorata: 'part-disque', quotites: 'users', confreres: 'book', calculateur: 'banknote', 'analyse-ia': 'eye' };
 
   function renderOngletsTravail() {
     const barre = document.getElementById('onglets-travail');

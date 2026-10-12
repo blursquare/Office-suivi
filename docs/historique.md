@@ -19178,3 +19178,10 @@ modèle **au choix dans les Réglages**, Opus par défaut.
   DMTO 5,80665 %) — remplace l'estimation « maison + supplément » de 0.213.6. Maison et terrain relus sur le même document :
   identiques à CLAIRE. Au-delà de 2 000 000 € (« ne pas s'arrêter, le prix peut être au-delà ») : prolongement par la pente
   du dernier tronçon, en place depuis 0.213.1.
+
+### 0.214.0 — 12/10/2026 — Tout écran en onglet
+
+- Étude 12/10 : « laisser la possibilité de tout mettre en onglet : demander à CLAIRE, Claire Scan, réglages… ».
+  `OUTILS_ONGLETS_TRAVAIL` (client/60) compte désormais Suivi, Agenda, Nouveau dossier, Claire Scan, Demander à CLAIRE et
+  Réglages en plus des outils (icônes dans `ICONES_ONGLETS_OUTILS`) ; seul le tableau de bord n'est jamais un onglet. Fumée :
+  scénario des onglets recompté (l'Agenda ouvert devient un onglet).

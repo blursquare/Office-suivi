@@ -38,7 +38,7 @@ test('réordonner : l’onglet glissé prend la place visée', () => {
 });
 
 test('au chargement : formes abîmées, dossiers disparus, écrans inconnus et doublons écartés', () => {
-  const lus = [{ type: 'dossier', id: 'a' }, { type: 'dossier', id: 'disparu' }, { type: 'outil', nom: 'reglages' },
+  const lus = [{ type: 'dossier', id: 'a' }, { type: 'dossier', id: 'disparu' }, { type: 'outil', nom: 'dashboard' },
     { type: 'outil', nom: 'appel-fonds' }, null, 'x', { type: 'dossier', id: 'a' }, { type: 'outil', nom: 'appel-fonds', extra: 1 }];
   assert.equal(cles(app.ongletsTravailValides(lus, ['a', 'b'])), 'd:a,o:appel-fonds');
   assert.equal(app.ongletsTravailValides('pas une liste', ['a']).length, 0);
@@ -50,4 +50,9 @@ test('fiche à côté : largeur bornée — 480 px au moins, et 480 px laissés 
   assert.equal(app.largeurFicheCoteBornee(1300, 1400), 920);
   assert.equal(app.largeurFicheCoteBornee(0, 1400), 644, 'sans largeur gardée : 46 % de la place');
   assert.equal(app.largeurFicheCoteBornee('abc', 900), 480);
+});
+
+test('tout écran sauf le tableau de bord peut être un onglet (étude 12/10)', () => {
+  const lus = ['suivi', 'agenda', 'nouveau', 'scans', 'assistant', 'reglages', 'dashboard'].map(nom => ({ type: 'outil', nom }));
+  assert.equal(cles(app.ongletsTravailValides(lus, [])), 'o:suivi,o:agenda,o:nouveau,o:scans,o:assistant,o:reglages');
 });
