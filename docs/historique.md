@@ -19138,5 +19138,5 @@ modèle **au choix dans les Réglages**, Opus par défaut.
   les éléments nuls des listes ; tri et vue Échéances tiennent malgré un dossier abîmé ; rappels Teams : un dossier illisible est
   passé, les autres partent.
 - Tableau de bord : email ou questionnaire noté « traité » seulement s'il est parti ou préparé (annuler la fenêtre ne coche
-  plus) ; saisie de « Ajouter une tâche » gardée au redessin ; « Envoyer le projet » à J-7 ou dès l'appel de fonds parti (même
-  moment qu'Échanges) ; « Plus tard » ne compte pas comme fait (fête).
+  plus) ; saisie de « Ajouter une tâche » gardée au redessin ; « Envoyer le projet » dès l'appel de fonds parti (même
+  moment qu'Échanges ; avant lui, la tâche de l'appel de fonds le rappelle) ; « Plus tard » ne compte pas comme fait (fête).

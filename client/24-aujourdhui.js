@@ -176,18 +176,19 @@
           ajouter({
             type: 'appelFonds', categorie: 'appelFonds', categorieLabel: 'Envoi appel de fonds',
             titre: 'Envoyer l’appel de fonds',
-            contexte: `${signature}. ${pr || jRdv <= JOURS_ACTIONS_RENDEZ_VOUS ? '' : 'Le projet d’acte reste aussi à envoyer.'}`.trim(),
+            contexte: `${signature}. ${pr ? '' : 'Le projet d’acte reste aussi à envoyer.'}`.trim(),
             jours: jRdv, gravite: jRdv <= 2 ? 'critique' : 'vigilance',
             geste: { type: 'appelFonds' }, bouton: 'Préparer l’appel de fonds',
             second: { type: 'marquer', champ: 'appelFonds', libelle: 'Déjà envoyé' }
           });
         }
-        // Même moment que l'onglet Échanges : à J-7, ou dès l'appel de fonds parti (audit 12/10 : les deux étaient exigés).
-        if (!pr && (jRdv <= JOURS_ACTIONS_RENDEZ_VOUS || af)) {
+        // Dès l'appel de fonds parti, comme l'onglet Échanges (audit 12/10 : J-7 était exigé en plus) ; avant lui, la tâche
+        // « Envoyer l'appel de fonds » dit que le projet reste aussi à envoyer (une seule tâche).
+        if (!pr && af) {
           ajouter({
             type: 'projetEnvoye', categorie: 'projetEnvoye', categorieLabel: 'Envoi projet',
             titre: 'Envoyer le projet d’acte',
-            contexte: `${signature}. ${af ? `Appel de fonds envoyé${d.appelFonds ? ' le ' + formatDateFr(d.appelFonds) : ''} ; le` : 'Le'} projet n’est pas encore noté comme envoyé.`,
+            contexte: `${signature}. Appel de fonds envoyé${d.appelFonds ? ' le ' + formatDateFr(d.appelFonds) : ''} ; le projet n’est pas encore noté comme envoyé.`,
             jours: jRdv, gravite: jRdv <= 2 ? 'critique' : 'vigilance',
             geste: dest ? { type: 'email', motif: 'projet' } : { type: 'marquer', champ: 'projetEnvoye' },
             bouton: dest ? 'Envoyer le projet d’acte' : 'Marquer envoyé',
