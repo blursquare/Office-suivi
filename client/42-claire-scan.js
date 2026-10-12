@@ -1059,12 +1059,19 @@
   // poste du bureau (voir server/src/auth.js, option `desactivee`). Sans jeton mémorisé, on le
   // demande donc tout seul ; l'écran de connexion ne s'affiche que si le serveur exige encore un
   // mot de passe ("authActive": true dans config.json).
+  // Lancé une fois TOUS les fichiers du poste exécutés (rapport du 12/10 : « renderWidgetAssistant / ficheACoteActive is not
+  // defined ») : ce fichier n'est pas le dernier, et la réponse du serveur pouvait arriver pendant que le navigateur attendait
+  // encore client/49, 52 ou 60 — le rendu appelait alors des fonctions pas encore définies.
   authToken = chargerJetonStocke();
-  if (authToken) {
-    demarrerApplication().catch((e) => console.error('Démarrage impossible', e));
-  } else {
-    connexionAutomatique();
+  function lancerApplication() {
+    if (authToken) {
+      demarrerApplication().catch((e) => console.error('Démarrage impossible', e));
+    } else {
+      connexionAutomatique();
+    }
   }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', lancerApplication);
+  else lancerApplication();
   renderChips();
   // L'analyse juridique est une étape du wizard toujours visible (voir definirEtapeWizard) : sans
   // cet appel initial, ses sections restaient affichées vides (ni contenu ni message d'état) tant

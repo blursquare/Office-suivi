@@ -64,6 +64,9 @@ try {
       if (/Failed to load resource|net::ERR_|ERR_FAILED/.test(t)) return; // CDN coupés : attendu
       erreurs.push(`[${ecran.nom}] console : ${t.slice(0, 200)}`);
     });
+    // Rapport du 12/10 : un fichier du poste lent à arriver (serveur qui redémarre) ne doit pas laisser le démarrage appeler ses
+    // fonctions avant lui (« renderWidgetAssistant / ficheACoteActive is not defined »).
+    await page.route(/client\/60-/, async (r) => { await new Promise(t => setTimeout(t, 800)); await r.continue(); });
     await page.goto(B + '/index.html', { waitUntil: 'domcontentloaded' });
     await page.waitForFunction((n) => typeof dossiers !== 'undefined' && dossiers.length >= n, DOSSIERS.length, { timeout: 20000 });
     await page.evaluate(() => { try { fermerFenetreAujourdhui(); } catch (e) { /* fenêtre absente */ } });

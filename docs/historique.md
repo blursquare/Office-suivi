@@ -19253,3 +19253,13 @@ modèle **au choix dans les Réglages**, Opus par défaut.
   phrase réduite à la formule, puce, gras, espaces doubles ; texte sans la formule laissé intact, « Bonjour ! » compris) ; test
   élargi à client, commun, server/src et page-sondage. Une version de « Relance pour les fonds » déjà modifiée par l'étude
   dans les Réglages garde son texte.
+
+### 0.217.1 — 12/10/2026 — Démarrage après le chargement de tous les fichiers du poste (rapport du 12/10, 12 h)
+
+- Rapport technique du 12/10 12 h : 6 erreurs dans les navigateurs à 10 h 36 et 11 h 22, juste après les mises à jour
+  (« renderWidgetAssistant / majsEnAttenteAuthentic / ficheACoteActive / noterOngletEcran is not defined »). Cause :
+  `demarrerApplication()` était lancé depuis `client/42-claire-scan.js`, alors que 43 à 63 n'étaient pas encore exécutés ; pendant
+  que le navigateur attendait un fichier suivant (serveur qui redémarre, lent), la réponse du serveur arrivait et le rendu
+  appelait des fonctions pas encore définies. Reproduit en retardant `client/49`, `52` et `60` dans la fumée (8 erreurs), corrigé
+  en lançant le démarrage à `DOMContentLoaded` (`lancerApplication`), après le dernier fichier : plus aucune erreur. La fumée
+  retarde désormais `client/60` de 800 ms à chaque passage.
