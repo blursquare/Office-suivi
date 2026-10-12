@@ -19220,3 +19220,10 @@ modèle **au choix dans les Réglages**, Opus par défaut.
   ne serait pas masqué) : seulement la pièce qu'il désigne si CLAIRE la reconnaît par son nom (`pieceDePieceJointe`), sinon
   « Document non reconnu », et son sous-dossier ; les scans partent par leur type lu, jamais par leur nom. Test « rien de
   nominatif ne part » ajouté.
+- Relecture indépendante avant publication, corrigée dans la même version : sous-dossier d'un fichier du NAS et rubrique d'un
+  scan rangé ramenés à une rubrique connue (`rubriqueConnueAssistant`, sinon « autre sous-dossier » — « 3 - Dubreuil » partait
+  en clair, `masquer` garde un mot à majuscule en tête de chaîne) ; libellé d'une pièce ajoutée à la main précédé de « Pièce
+  ajoutée : » ; motifs resserrés (« dernières pièces manquantes / à fournir » restent des pièces attendues, « depuis hier » reste
+  `depuis_hier`, « dossier du NAS » retiré) ; dossier ambigu → « Lequel ? », « ce dossier » prend celui en consultation ; un
+  dossier nommé garde aussi les scans pas encore lus sur ce poste ; pièces triées par date AVANT d'être coupées ;
+  `?recents` refusé sans dossier client.

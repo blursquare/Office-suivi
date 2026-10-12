@@ -35,7 +35,7 @@
     // Dossier facultatif : nommé, la liste s'y limite (et montre aussi les derniers fichiers de son dossier du NAS) ; sinon tout.
     { cle: 'derniers_documents', libelle: 'Derniers documents reçus', description: 'les dernières pièces arrivées (NAS, rangées) et les derniers scans du copieur (à ranger ou rangés), d’un dossier ou de tous, avec un bouton pour les ouvrir',
       dossierFacultatif: true, exemples: ['Quels sont les derniers scans reçus ?', 'Montre-moi les dernières pièces de MARTIN', 'Quelles pièces sont arrivées pour DUPONT ?', 'Ouvre le dernier scan'],
-      motifs: [/\bderni(er|ere)s? (pieces?|scans?|documents?|fichiers?)\b/, /\bscans? (recus?|arrives?|a ranger|ranges?|du copieur)\b/, /\b(pieces?|documents?|fichiers?) (sont |est )?(recue?s?|arrivee?s?)\b/, /\bqu.?est.?ce qu.?on a recu\b/, /\bdossier (local|du nas)\b/], poids: 3 },
+      motifs: [/\bderni(er|ere)s? (pieces?|scans?|documents?|fichiers?)\b(?! (manqu|a fournir|attendu|a recevoir|a demander))/, /\bscans? (recus?|arrives?|a ranger|ranges?|du copieur)\b/, /\b(pieces?|documents?|fichiers?) (sont |est )?(recue?s?|arrivee?s?)\b/, /\bqu.?est.?ce qu.?on a recu\b/], poids: 3 },
     { cle: 'rappel_ajouter', libelle: 'Ajouter un rappel', description: 'poser un rappel personnel (texte, date facultative, dossier facultatif) — fait aussitôt, annulable',
       parametres: ['texte', 'date'], ecrit: 'rappel', exemples: ['Rappelle-moi vendredi d’appeler le syndic pour DUPONT', 'Pense-bête : appeler le notaire demain', 'Fais-moi penser à relancer LEROY lundi'], motifs: [/\brappelle[- ]moi\b/, /\brappel\b/, /\bpense[- ]bete\b/, /\bnote (que|de)\b/, /\bn.oublie pas\b/, /\bfais[- ]moi penser\b/], poids: 2 },
     { cle: 'rappel_lister', libelle: 'Mes rappels', description: 'la liste des rappels personnels en cours',
@@ -518,6 +518,10 @@
     if (touches.some(x => x.cle === 'fonds_dossier') && /\bfonds\b/.test(t) && !/\b(appel de fonds|relanc|envoi|mail|confirm)/.test(t)) cle = 'fonds_dossier';
     if (touches.some(x => x.cle === 'appel_fonds') && /\bappel de fonds\b/.test(t) && !/\b(marque|coche|envoye|decoche|date|relanc|mail|email)\b/.test(t)) cle = 'appel_fonds';
     if (touches.some(x => x.cle === 'ouvrir_ecran') && parametres.ecran && !parametres.dossierTexte) cle = 'ouvrir_ecran';
+    // « Quels documents sont arrivés depuis hier ? » : la vue « Depuis hier 18 h » (emails et demandes compris) ; une pièce
+    // « manquante » ou « à fournir » reste une pièce attendue (relecture 0.216.0).
+    if (cle === 'derniers_documents' && touches.some(x => x.cle === 'depuis_hier') && /\bdepuis hier\b/.test(t)) cle = 'depuis_hier';
+    if (cle === 'derniers_documents' && touches.some(x => x.cle === 'pieces_manquantes') && /\b(manqu|a fournir|attendu)/.test(t)) cle = 'pieces_manquantes';
     // « Appel de fonds envoyé pour MARTIN », « Note dans l'agenda le projet envoyé » (étude 07/10) : un envoi FAIT, à cocher — la
     // coche note aussi « Appel de fonds envoyé » dans le lieu du rendez-vous Outlook. Jamais quand la phrase demande de le faire.
     if (parametres.echeance && /^(appelFonds|projetEnvoye)$/.test(parametres.echeance) && /\b(envoyee?s?|partie?s?)\b/.test(t)

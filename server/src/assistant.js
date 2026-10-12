@@ -151,7 +151,8 @@ async function comprendreDemande(entree, ollama, options) {
     if (!r.dossier && !r.candidats.length) r = A.reconnaitreDossier(texte, dossiers);
     dossier = r.dossier;
     candidats = r.candidats;
-    if (definition.dossier && !dossier && !candidats.length && contexte.dossierId && dossiers.some((d) => d && d.id === contexte.dossierId)) {
+    // Dossier facultatif (derniers documents) : celui en consultation seulement si la phrase le désigne (« ce dossier »).
+    if ((definition.dossier || /\b(ce|du|le) (dossier|client)( en cours)?\b|\bcette fiche\b/i.test(texte)) && !dossier && !candidats.length && contexte.dossierId && dossiers.some((d) => d && d.id === contexte.dossierId)) {
       dossier = contexte.dossierId;
       parametres.dossierParContexte = true;
     }

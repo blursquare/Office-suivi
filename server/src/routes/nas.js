@@ -100,6 +100,8 @@ function creerRouteurNas(config) {
     const fichiers = await listerPdfRecursif(cible);
     // `recents=N` : seulement les N plus récemment modifiés, avec leur date (« Demander à CLAIRE », étude 12/10).
     const recents = Math.min(50, Math.max(0, parseInt(String(req.query.recents || ''), 10) || 0));
+    // Jamais sur tout le NAS (un `stat` par fichier) : un dossier client est exigé.
+    if (recents && !String(req.query.dossier || '').trim()) { res.status(400).json({ erreur: 'Dossier client manquant.' }); return; }
     if (recents) { res.json({ base: path.relative(path.resolve(racine), cible), fichiers: await fichiersLesPlusRecents(cible, fichiers, recents) }); return; }
     res.json({ base: path.relative(path.resolve(racine), cible), fichiers });
   }));

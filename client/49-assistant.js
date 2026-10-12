@@ -385,6 +385,9 @@
         return;
       }
       assistantContexte.dossierId = d.id;
+    } else if (intention.dossierFacultatif && !r.dossier && r.candidats && r.candidats.length) {
+      // Dossier facultatif mais nommé de façon ambiguë (deux dossiers MARTIN) : « Lequel ? », jamais tous en silence.
+      proposerCandidatsAssistant(r.candidats, r); return;
     } else if (r.dossier) {
       // Intention sans dossier obligatoire (un rappel) mais dossier donné : on le garde (relecture 0.213.0, rappel posé sans lien).
       d = dossiers.find(x => x.id === r.dossier) || null;
