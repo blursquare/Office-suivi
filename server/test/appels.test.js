@@ -162,59 +162,89 @@ test('route : téléphonie coupée pour un collaborateur — ses appels ne sont 
   assert.equal((await (await fetch(`${baseUrl}/api/appels/reglages`, { headers: auth })).json()).postesCoupes.length, 0);
 });
 
-test('pageSonnerie avec relais (étude 07/10) : lance claire-appel:<id> puis se ferme, jamais CLAIRE dans l’onglet', () => {
+test('pageSonnerie avec le lien claire-devant (étude 12/10) : lance le lien, attend son signal, sinon CLAIRE dans l’onglet', () => {
   const p = pageSonnerie({ id: 'ap-1', fenetreVisible: false, relais: true });
-  assert.match(p, /claire-appel:ap-1/);
-  assert.match(p, /window\.close\(\)/);
-  assert.doesNotMatch(p, /index\.html#appel=/);
-  // Titre sans « CLAIRE » en tête : le relais cherche la fenêtre CLAIRE par son titre.
+  assert.match(p, /claire-devant:ap-1/);
+  assert.match(p, /\/appel\/etat\?id=ap-1/);
+  // Signal reçu → l'onglet se ferme ; aucun signal → CLAIRE dans l'onglet (jamais un onglet fermé sur rien).
+  assert.match(p, /j\.vu[^;]*;[^;]*;[^;]*window\.close\(\)/);
+  assert.match(p, /location\.replace\("\/index\.html#appel=ap-1"\)/);
+  assert.doesNotMatch(p, /claire-appel:/);
   assert.match(p, /<title>Appel 3CX<\/title>/);
-  // Identifiant nettoyé ; fenêtre visible ou appelant inconnu : fermeture seule, comme avant.
+  // Fenêtre CLAIRE visible : le repli est la fermeture (bandeau dans la fenêtre), le lien est quand même lancé.
+  const visible = pageSonnerie({ id: 'ap-1', fenetreVisible: true, relais: true });
+  assert.match(visible, /claire-devant:ap-1/);
+  assert.doesNotMatch(visible, /index\.html#appel=/);
+  // Identifiant nettoyé ; appelant inconnu : fermeture seule.
   assert.doesNotMatch(pageSonnerie({ id: 'ap-1"<x>', fenetreVisible: false, relais: true }), /<x>/);
-  assert.doesNotMatch(pageSonnerie({ id: 'ap-1', fenetreVisible: true, relais: true }), /claire-appel/);
-  assert.doesNotMatch(pageSonnerie({ id: 'ap-1', fenetreVisible: false, inconnu: true, relais: true }), /claire-appel/);
+  assert.doesNotMatch(pageSonnerie({ id: 'ap-1', fenetreVisible: false, inconnu: true, relais: true }), /claire-devant/);
+  // Sans lien : comme avant.
+  assert.doesNotMatch(pageSonnerie({ id: 'ap-1', fenetreVisible: false }), /claire-devant/);
 });
 
-test('relais claire-appel : installateur (protocole HKCU, fenêtre CLAIRE au premier plan, sinon ouverte sur l’appel)', () => {
-  const { scriptInstallationRelaisAppel } = require('../src/relaisAppel3cx');
-  const v = scriptInstallationRelaisAppel({ url: 'http://192.168.60.10:3000/', profil: 'Claire' });
-  assert.match(v, /HKCU\\Software\\Classes\\claire-appel\\shell\\open\\command/);
-  assert.match(v, /appel-claire\.ps1/);
-  assert.match(v, /SetForegroundWindow/);
-  assert.match(v, /CLAIRE \\u2014/);
-  assert.match(v, /'http:\/\/192\.168\.60\.10:3000\/'/);
-  assert.match(v, /'Claire'/);
-  // Seul un identifiant d'appel est repris du lien ; aucun accent dans le .vbs (lu en ANSI).
-  assert.match(v, /\[\^A-Za-z0-9_-\]/);
-  assert.doesNotMatch(v, /[^\x00-\x7f]/);
-  // `$cible` posé juste après param(...).
-  const i = v.indexOf('param([string]$lien');
-  assert.ok(i > 0 && v.indexOf('$cible = \'', i) > i && v.indexOf('$cible = \'', i) < v.indexOf('$url =', i));
+test('fichier .reg du lien claire-devant : PowerShell sans fichier, lien jamais lu comme du code, titre exact de la fenêtre', () => {
+  const { fichierRegRelaisAppel, scriptRelaisReg, commandeRelaisReg, octetsRegRelaisAppel } = require('../src/relaisAppelReg');
+  const o = { url: 'http://192.168.60.10:3000/', profil: 'Claire' };
+  const reg = fichierRegRelaisAppel(o);
+  assert.match(reg, /^Windows Registry Editor Version 5\.00\r\n/);
+  assert.match(reg, /\[HKEY_CURRENT_USER\\Software\\Classes\\claire-devant\\shell\\open\\command\]/);
+  assert.match(reg, /"URL Protocol"=""/);
+  const script = scriptRelaisReg(o);
+  // Aucun guillemet dans le script (il est entre guillemets dans la commande), aucun fichier ni code compilé.
+  assert.doesNotMatch(script, /"/);
+  assert.doesNotMatch(script, /-TypeDefinition|\.ps1|\.vbs|ExecutionPolicy|EncodedCommand/);
+  assert.match(script, /GetCommandLineArgs\(\)\[-1\]/);
+  assert.match(script, /-replace '\[\^A-Za-z0-9_-\]',''/);
+  assert.match(script, /appel\/vu\?id=/);
+  assert.match(script, /'http:\/\/192\.168\.60\.10:3000\/'/);
+  assert.match(script, /'--profile-directory=Claire'/);
+  assert.match(script, /\[char\]0x2014/);
+  // Le lien de Chrome (%1) tombe dans le commentaire final : jamais exécuté.
+  assert.match(commandeRelaisReg(o), / #" "%1"$/);
+  // Dans le .reg : guillemets et barres échappés, ASCII hors commentaires ; UTF-16 avec BOM.
+  const ligne = reg.split('\r\n').find(l => l.startsWith('@="powershell'));
+  assert.ok(ligne && ligne.endsWith('#\\" \\"%1\\""'));
+  assert.doesNotMatch(ligne, /[^\x00-\x7f]/);
+  const b = octetsRegRelaisAppel(o);
+  assert.equal(b[0], 0xff); assert.equal(b[1], 0xfe);
+  // Une apostrophe dans l'adresse ne casse pas la chaîne PowerShell.
+  assert.match(scriptRelaisReg({ url: "http://x/'a", profil: 'Claire' }), /'http:\/\/x\/''a\/'/);
 });
 
-test('route : relais claire-appel — installateur téléchargé = poste retenu ; appel suivant par le relais ; retiré à la demande', async () => {
+test('route : lien claire-devant — .reg téléchargé = poste retenu ; signal de PowerShell attendu par l’onglet ; retiré à la demande', async () => {
   const auth = { authorization: `Bearer ${jeton}` };
   const json = { ...auth, 'Content-Type': 'application/json' };
   depot.creer({ id: 'd10', nom: 'RELAIS / ESSAI', telephoneAcquereur: '06 55 44 33 22', historique: [] });
   assert.equal((await fetch(`${baseUrl}/api/appels/relais/installateur`, { headers: auth })).status, 400);
   const inst = await fetch(`${baseUrl}/api/appels/relais/installateur?poste=Jeremy`, { headers: auth });
   assert.equal(inst.status, 200);
-  assert.match(inst.headers.get('content-disposition'), /Installer-appels-3CX-dans-CLAIRE\.vbs/);
+  assert.match(inst.headers.get('content-disposition'), /CLAIRE-appels-3CX\.reg/);
   // Téléchargé depuis le serveur lui-même (127.0.0.1) : profil de la fenêtre du serveur.
-  assert.match(await inst.text(), /'ClaireServeur'/);
+  const texte = Buffer.from(await inst.arrayBuffer()).toString('utf16le');
+  assert.match(texte, /--profile-directory=ClaireServeur/);
   const reglages = await (await fetch(`${baseUrl}/api/appels/reglages`, { headers: auth })).json();
   assert.equal(reglages.postesRelais.join(','), 'jeremy');
-  // Couper puis rétablir 3CX ne touche pas au relais.
+  // Couper puis rétablir 3CX ne touche pas au lien.
   await fetch(`${baseUrl}/api/appels/reglages`, { method: 'PUT', headers: json, body: JSON.stringify({ poste: 'jeremy', actif: false }) });
   const coupe = await (await fetch(`${baseUrl}/api/appels/reglages`, { method: 'PUT', headers: json, body: JSON.stringify({ poste: 'jeremy', actif: true }) })).json();
   assert.equal(coupe.postesRelais.join(','), 'jeremy');
   const page = await (await fetch(`${baseUrl}/appel?numero=0655443322&poste=jeremy`)).text();
-  // Depuis le 12/10, l'ancien relais n'est plus lancé (bloqué par l'antivirus) : CLAIRE s'ouvre dans l'onglet.
-  assert.doesNotMatch(page, /claire-appel/);
-  assert.match(page, /index\.html#appel=/);
+  const id = (page.match(/claire-devant:(ap-[A-Za-z0-9_-]+)/) || [])[1];
+  assert.ok(id, 'le lien est lancé');
+  // Signal hors session : pas encore vu, puis vu ; un identifiant invalide n'est jamais retenu.
+  assert.equal((await (await fetch(`${baseUrl}/appel/etat?id=${id}`)).json()).vu, false);
+  assert.equal((await fetch(`${baseUrl}/appel/vu?id=${id}`)).status, 200);
+  assert.equal((await (await fetch(`${baseUrl}/appel/etat?id=${id}`)).json()).vu, true);
+  // Un identifiant qui n'est pas celui d'une sonnerie récente n'est jamais retenu.
+  await fetch(`${baseUrl}/appel/vu?id=ap-invente`);
+  assert.equal((await (await fetch(`${baseUrl}/appel/etat?id=ap-invente`)).json()).vu, false);
+  await fetch(`${baseUrl}/appel/vu?id=${encodeURIComponent('<x>')}`);
+  assert.equal((await (await fetch(`${baseUrl}/appel/etat?id=${encodeURIComponent('<x>')}`)).json()).vu, false);
   const retire = await (await fetch(`${baseUrl}/api/appels/reglages`, { method: 'PUT', headers: json, body: JSON.stringify({ poste: 'jeremy', relais: false }) })).json();
   assert.equal(retire.postesRelais.length, 0);
-  assert.match(await (await fetch(`${baseUrl}/appel?numero=0655443322&poste=jeremy`)).text(), /index\.html#appel=/);
+  const sans = await (await fetch(`${baseUrl}/appel?numero=0655443322&poste=jeremy`)).text();
+  assert.match(sans, /index\.html#appel=/);
+  assert.doesNotMatch(sans, /claire-devant/);
 });
 
 test('reconnaitreAppelant : partie d’une succession reconnue par ses téléphones repris d’Authentic', () => {

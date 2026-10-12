@@ -618,13 +618,26 @@
     return !!standalone || toolbarVisible === false;
   }
 
-  // Appels 3CX dans la fenêtre CLAIRE (étude 07/10 : « 3CX ouvre l'appel dans un onglet Chrome et pas dans mon app séparée ») :
-  // l'installateur du relais « claire-appel: » (server/src/relaisAppel3cx.js) pour le collaborateur de ce poste.
+  // Appels 3CX : fenêtre CLAIRE au premier plan (étude 12/10 : « trouve un autre moyen pour ce relais » — Panda bloque le .vbs
+  // du 07/10 et CLAIRE-relais.exe ; choix : un fichier .reg). Le fichier déclare le lien « claire-devant: », ouvert par
+  // PowerShell de Windows, sans programme ni script sur le disque (server/src/relaisAppelReg.js).
   async function telechargerRelaisAppel3cx() {
-    // Depuis le 12/10 : le relais CLAIRE du poste (server/src/relaisWord.js, client/64), qui tourne en permanence — plus de lien
-    // « claire-appel: » à autoriser ni de démarrage à chaque sonnerie (étude : « Chrome s'ouvre au premier plan à chaque appel,
-    // c'est pénible ; CLAIRE ne s'affiche pas au premier plan lorsqu'un dossier est trouvé »).
-    await installerRelaisClaire('À chaque sonnerie, l’onglet de 3CX se ferme : si l’appelant a un dossier, la fenêtre CLAIRE passe au premier plan sur l’appel (elle s’ouvre si elle était fermée) ; sinon, la fenêtre où vous étiez revient au premier plan. Le même relais sert à l’Aide à la rédaction (Word).');
+    if (!utilisateurPoste) { afficherToast('Choisissez d’abord le collaborateur de ce poste.', 'OK', null); return; }
+    try {
+      const r = await fetchAvecAuth('/api/appels/relais/installateur?poste=' + encodeURIComponent(clePosteAppels(utilisateurPoste)));
+      if (!r.ok) throw new Error('statut ' + r.status);
+      const blob = await r.blob();
+      const lien = document.createElement('a');
+      lien.href = URL.createObjectURL(blob);
+      lien.download = 'CLAIRE-appels-3CX.reg';
+      document.body.appendChild(lien);
+      lien.click();
+      document.body.removeChild(lien);
+      setTimeout(() => URL.revokeObjectURL(lien.href), 60000);
+      afficherInfoAction('Fichier téléchargé', 'Ouvrez CLAIRE-appels-3CX.reg (double-clic), puis « Oui » à l’Éditeur du Registre : aucun programme n’est installé. Au premier appel, le navigateur de 3CX demande s’il peut ouvrir le lien « claire-devant » : cochez « Toujours autoriser » s’il est proposé, puis « Ouvrir » (sans la case, la question revient à chaque appel : le dire, une stratégie de Chrome posée par Fichorga la supprime). Ensuite, à chaque sonnerie, l’onglet de 3CX se ferme et la fenêtre CLAIRE passe au premier plan sur l’appel (elle s’ouvre si elle était fermée). Si Windows ou l’antivirus bloque le lien, la fiche s’ouvre dans l’onglet de 3CX, comme avant.');
+    } catch (e) {
+      afficherToast('Téléchargement impossible : ' + e.message, 'OK', null);
+    }
     renderReglages3cx();
   }
 
@@ -662,10 +675,11 @@
           if (r.ok) etatRelais = await r.json();
         } catch (e) { /* état inconnu */ }
       }
+      const nom = utilisateurPoste ? prenomCollaborateur(utilisateurPoste) : '';
       relaisPoste.textContent = !utilisateurPoste ? 'Choisissez d’abord le collaborateur de ce poste.'
-        : etatRelais && etatRelais.actif ? `Relais en marche pour ${prenomCollaborateur(utilisateurPoste)} : à chaque appel, CLAIRE au premier plan si l’appelant a un dossier, sinon la fenêtre d’avant.`
-          : etatRelais && etatRelais.installe ? `Relais installé pour ${prenomCollaborateur(utilisateurPoste)} mais il ne répond pas : réinstallez-le pour le relancer.`
-            : `Pas encore installé pour ${prenomCollaborateur(utilisateurPoste)} : à chaque appel, l’onglet de 3CX passe au premier plan.`;
+        : etatRelais && etatRelais.actif ? `Relais CLAIRE en marche pour ${nom} : à chaque appel, CLAIRE au premier plan si l’appelant a un dossier, sinon la fenêtre d’avant.`
+          : postes3cxRelais.includes(clePosteAppels(utilisateurPoste)) ? `Fichier téléchargé pour ${nom} : une fois ouvert sur ce poste, chaque appel fait passer CLAIRE au premier plan (sinon la fiche s’ouvre dans l’onglet de 3CX).`
+            : `Pas encore installé pour ${nom} : à chaque appel, l’onglet de 3CX passe au premier plan.`;
     }
     if (!origine3cx) {
       let adresses = [];

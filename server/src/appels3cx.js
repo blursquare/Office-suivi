@@ -155,16 +155,25 @@ function creerEntreeAppel({ numero, nom, poste }, sources, maintenant = new Date
 // ouvre CLAIRE sur l'appel. Un appelant que CLAIRE ne connaît pas (aucun dossier, ni confrère, ni
 // répertoire) n'ouvre rien : l'onglet se ferme (étude 05/10) — l'appel reste noté et montré dans le
 // bandeau de la fenêtre CLAIRE. Aucune donnée dans la page.
-// `relais` (étude 07/10 : « 3CX ouvre l'appel dans un onglet Chrome et pas dans mon app séparée ») : le poste a le relais
-// `claire-appel:` (relaisAppel3cx.js) — l'onglet le lance (fenêtre CLAIRE ramenée au premier plan, ou ouverte sur l'appel)
-// puis se ferme, au lieu d'afficher CLAIRE lui-même. Titre sans « CLAIRE » en tête : le relais cherche la fenêtre par son titre.
+// `relais` (étude 12/10, choix « fichier .reg » : Panda bloque le .vbs du 07/10 et CLAIRE-relais.exe) : le poste a importé le
+// lien `claire-devant:` (relaisAppelReg.js) — l'onglet le lance, puis attend que PowerShell le signale au serveur
+// (`/appel/etat`) : signal reçu → l'onglet se ferme, PowerShell fait passer la fenêtre CLAIRE devant ; aucun signal en 8 s (lien
+// pas encore importé, PowerShell bloqué, « Ouvrir ? » de Chrome laissé sans réponse) → comme sans relais : fermeture si la
+// fenêtre CLAIRE est visible, sinon CLAIRE dans l'onglet. Jamais un onglet fermé sur rien. Titre sans « CLAIRE » en tête.
 function pageSonnerie({ id, fenetreVisible, inconnu, relais }) {
   const cible = '/index.html#appel=' + encodeURIComponent(id);
-  const script = fenetreVisible || inconnu
+  const repli = fenetreVisible ? 'window.close();' : 'location.replace(' + JSON.stringify(cible) + ');';
+  const idPropre = String(id || '').replace(/[^A-Za-z0-9_-]/g, '');
+  const script = inconnu
     ? 'window.close();'
-    : relais
-      ? 'location.href = ' + JSON.stringify('claire-appel:' + String(id || '').replace(/[^A-Za-z0-9_-]/g, '')) + '; setTimeout(function () { window.close(); }, 1500);'
-      : 'location.replace(' + JSON.stringify(cible) + ');';
+    : relais && idPropre
+      ? 'location.href = ' + JSON.stringify('claire-devant:' + idPropre) + ';'
+        + ' var n = 0, fini = false; var t = setInterval(function () {'
+        + ' if (fini) return; n++;'
+        + ' fetch(' + JSON.stringify('/appel/etat?id=' + idPropre) + ', { cache: "no-store" }).then(function (r) { return r.json(); })'
+        + '.then(function (j) { if (j && j.vu && !fini) { fini = true; clearInterval(t); window.close(); } }).catch(function () {});'
+        + ' if (n >= 27 && !fini) { fini = true; clearInterval(t); ' + repli + ' } }, 300);'
+      : repli;
   return '<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>Appel 3CX</title>'
     + '<meta name="viewport" content="width=device-width, initial-scale=1">'
     + '<style>body{font:15px system-ui,sans-serif;background:#f4f5f7;color:#1d2433;display:grid;place-items:center;min-height:100vh;margin:0}</style></head>'

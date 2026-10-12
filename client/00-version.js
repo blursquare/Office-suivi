@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.223.2';
+  const VERSION_APP = '0.224.0';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.224.0', date: '2026-10-12 17:11', resume: "Appels 3CX : CLAIRE au premier plan sans programme — un fichier .reg à ouvrir une fois par poste (Réglages › Téléphonie 3CX) déclare un lien ouvert par PowerShell de Windows ; si le lien ne répond pas, la fiche s'ouvre dans l'onglet de 3CX." },
     { version: '0.223.2', date: '2026-10-12 16:47', resume: "Appel 3CX : l'ancien relais du poste (.vbs, bloqué par l'antivirus) n'est plus lancé — la fiche de l'appelant s'ouvre de nouveau dans l'onglet de 3CX au lieu d'un onglet fermé sur rien." },
     { version: '0.223.1', date: '2026-10-12 16:24', resume: "Macro Word dans un modèle à part, CLAIRE.dotm du dossier de démarrage de Word, plus dans Normal : les macros de Fichorga ne sont jamais touchées (aucun nom en double), retirée en supprimant le fichier." },
     { version: '0.223.0', date: '2026-10-12 16:03', resume: "Aide à la rédaction : « Relier Word » sans aucun programme — une macro à coller une fois dans Word (Alt+F11, modèle Normal) envoie à CLAIRE le paragraphe où se trouve le curseur et insère les valeurs choisies ; l’antivirus n’a plus rien à bloquer." },
