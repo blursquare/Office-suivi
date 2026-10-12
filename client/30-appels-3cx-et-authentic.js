@@ -2609,7 +2609,9 @@
       const importer = retirerImporterAuthentic(d);
       const dia = migrerPieceDiaCopropriete(d);
       const doublons = dedoublonnerPartiesDossier(d);
-      if (date || numero || notaires || importer || dia || doublons) await sauvegarder(d);
+      const droits = realignerDroitsPreemption(d);
+      droits.forEach(t => ajouterHistorique(d, t));
+      if (date || numero || notaires || importer || dia || doublons || droits.length) await sauvegarder(d);
     }
   }
 

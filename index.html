@@ -1025,7 +1025,7 @@
         </div>
         <div class="calc-champ">
           <label for="af-date-lettre">Date de la lettre</label>
-          <input type="date" id="af-date-lettre" onchange="majApercuAppelFonds()">
+          <input type="date" id="af-date-lettre" onchange="choisirDateLettreAppelFonds()">
         </div>
         <div class="calc-champ calc-champ-paire">
           <div>
@@ -1086,7 +1086,7 @@
       <h2 class="outil-section-tete" data-etape="financement">Financement</h2>
       <div class="calc-champs">
         <label class="af-checkline"><input type="checkbox" id="af-sans-pret" onchange="majApercuAppelFonds()"> Achat sans prêt (apport personnel seul)</label>
-        <label class="af-checkline"><input type="checkbox" id="af-pret-hypothecaire" onchange="majApercuAppelFonds()"> Prêt garanti par une hypothèque (acte de prêt à recevoir) <span class="info-i" tabindex="0" data-info="Un prêt cautionné (Crédit Logement…) ne donne lieu à aucun acte notarié, donc à aucun frais d&#x27;acte de prêt à appeler. CLAIRE coche cette case toute seule quand elle a lu une garantie hypothécaire dans l&#x27;offre de prêt du dossier."></span></label>
+        <label class="af-checkline"><input type="checkbox" id="af-pret-hypothecaire" onchange="basculerPretHypothecaireAppelFonds(this.checked)"> Prêt garanti par une hypothèque (acte de prêt à recevoir) <span class="info-i" tabindex="0" data-info="Un prêt cautionné (Crédit Logement…) ne donne lieu à aucun acte notarié, donc à aucun frais d&#x27;acte de prêt à appeler. CLAIRE coche cette case toute seule quand elle a lu une garantie hypothécaire dans l&#x27;offre de prêt du dossier."></span></label>
       </div>
 
     </div>

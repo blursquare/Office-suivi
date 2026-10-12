@@ -27,6 +27,18 @@
     return Number.isFinite(n) ? n : null;
   }
 
+  // Pure : un montant TAPÉ dans le tableau. Sans virgule, un point suivi d'un ou deux chiffres en fin est la décimale
+  // (« 1500.50 » = 1 500,50 €, audit 12/10 : 150 050 € avant) ; sinon comme montantDepuisTexteFr.
+  function montantSaisiAppelFonds(texte) {
+    const brut = String(texte == null ? '' : texte).replace(/[€\s ]/g, '');
+    if (!brut.includes(',') && /^\d+(?:\.\d{3})*\.\d{1,2}$/.test(brut) || /^\d+\.\d{1,2}$/.test(brut)) {
+      const i = brut.lastIndexOf('.');
+      const n = parseFloat(brut.slice(0, i).replace(/\./g, '') + '.' + brut.slice(i + 1));
+      return Number.isFinite(n) ? n : null;
+    }
+    return montantDepuisTexteFr(texte);
+  }
+
   function montantVersTexteFr(n) {
     if (n == null || !Number.isFinite(n)) return '';
     return formaterPrixCentimes(n);
@@ -127,9 +139,11 @@
     // À écarter d'abord : ces lignes ressemblent aux suivantes sans être elles.
     { garde: true, motif: /\bfrais\s+d?['’]?\s*acte\s+de\s+pr[êe]t\b|\bacte\s+de\s+pr[êe]t\b|\bfrais\s+de\s+pr[êe]ts?\b|\bfrais\s+de\s+(?:promesse|mainlev[ée]e|n[ée]gociation)\b/i },
 
-    { libelle: 'Acompte sur frais versé à l’étude',
+    // `credit` : seulement pour une somme déduite — une « Provision sur frais » à verser (au débit) n'est pas un acompte
+    // déjà versé (audit 12/10).
+    { libelle: 'Acompte sur frais versé à l’étude', credit: true,
       motif: /\b(?:provision|acompte)\s+sur\s+(?:les\s+)?frais\b|\bprovision\s+(?:d[ée]jà\s+)?vers[ée]e\b/i },
-    { libelle: 'Acompte sur prix versé à l’étude',
+    { libelle: 'Acompte sur prix versé à l’étude', credit: true,
       motif: /\b(?:acompte|arrhes|s[ée]questre)\b|\bd[ée]p[ôo]t\s+de\s+garantie\b/i },
     { libelle: 'Montant des frais et droits de l’acte de vente',
       motif: /\bfrais\s+et\s+droits\b|\bfrais\s+d?['’]?\s*(?:acte|achat|acquisition)\b|\bfrais\s+de\s+notaire\b|\bfrais\s+notari[ée]s|[ée]moluments\s+et\s+droits\b/i },
@@ -139,11 +153,12 @@
       motif: /\bprix\s+(?:de\s+vente|d?['’]?\s*acquisition|de\s+cession|principal)\b|^prix\b/i }
   ];
 
-  function normaliserLibelleDecompte(libelle) {
+  function normaliserLibelleDecompte(libelle, auDebit) {
     const brut = String(libelle || '').trim();
     if (!brut) return brut;
     for (const r of LIBELLES_NORMALISES_DECOMPTE) {
       if (!r.motif.test(brut)) continue;
+      if (r.credit && auDebit) return brut;
       return r.garde ? brut : r.libelle;
     }
     return brut;
@@ -367,7 +382,7 @@
     const lignesFinales = { debit: [], credit: [] };
     for (const it of brut) {
       (it.signe >= 0 ? lignesFinales.debit : lignesFinales.credit).push({
-        libelle: normaliserLibelleDecompte(afMajusculeInitiale(it.libelle)), montant: it.montant,
+        libelle: normaliserLibelleDecompte(afMajusculeInitiale(it.libelle), it.signe >= 0), montant: it.montant,
         formule: it.formule, id: it.id, memoire: !!it.memoire
       });
     }
@@ -972,7 +987,7 @@
       { libelle: "Montant des frais et droits de l'acte de vente", montant: (p && p.fraisActe) || 0, formule: null, id: afIdLigne() }
     ];
     if (p && p.pretHypothecaire) {
-      debit.push({ libelle: "Frais d'acte de prêt (garantie hypothécaire)", montant: 0, formule: null, id: afIdLigne() });
+      debit.push({ libelle: LIBELLE_FRAIS_PRET_HYPOTHECAIRE, montant: 0, formule: null, id: afIdLigne() });
     }
     if (p && p.honoraires) {
       const qui = p.honoraires.nom ? ` (${p.honoraires.nom})` : '';
@@ -994,10 +1009,35 @@
     // déduction ; les frais de l'acte de prêt (garantie) sont appelés au débit (règle confirmée par
     // l'étude le 29/09).
     if (p && p.pretHypothecaire) {
-      credit.push({ libelle: 'Montant du prêt (versé par la banque)', montant: p.montantPret || 0, formule: null, id: afIdLigne() });
+      credit.push({ libelle: LIBELLE_MONTANT_PRET_HYPOTHECAIRE, montant: p.montantPret || 0, formule: null, id: afIdLigne() });
     }
     credit.push({ libelle: "Acompte sur frais versé à l'étude", montant: 0, formule: null, id: afIdLigne() });
     return { debit, credit };
+  }
+
+  // Pure : ajoute ou retire les deux lignes du prêt hypothécaire (frais de l'acte de prêt au débit, montant du prêt au
+  // crédit) quand la case change (audit 12/10 : cocher ne changeait rien au décompte, solde trop élevé). Une ligne déjà
+  // présente est gardée telle quelle (montant saisi compris).
+  var LIBELLE_FRAIS_PRET_HYPOTHECAIRE = "Frais d'acte de prêt (garantie hypothécaire)";
+  var LIBELLE_MONTANT_PRET_HYPOTHECAIRE = 'Montant du prêt (versé par la banque)';
+  function lignesSelonPretHypothecaire(lignes, avec, montantPret) {
+    const debit = (lignes.debit || []).filter(l => avec || l.libelle !== LIBELLE_FRAIS_PRET_HYPOTHECAIRE);
+    const credit = (lignes.credit || []).filter(l => avec || l.libelle !== LIBELLE_MONTANT_PRET_HYPOTHECAIRE);
+    if (avec && !debit.some(l => l.libelle === LIBELLE_FRAIS_PRET_HYPOTHECAIRE)) {
+      debit.splice(Math.min(2, debit.length), 0, { libelle: LIBELLE_FRAIS_PRET_HYPOTHECAIRE, montant: 0, formule: null, id: afIdLigne() });
+    }
+    if (avec && !credit.some(l => l.libelle === LIBELLE_MONTANT_PRET_HYPOTHECAIRE)) {
+      const avantFrais = credit.findIndex(l => /acompte sur frais/i.test(l.libelle || ''));
+      credit.splice(avantFrais < 0 ? credit.length : avantFrais, 0, { libelle: LIBELLE_MONTANT_PRET_HYPOTHECAIRE, montant: montantPret > 0 ? montantPret : 0, formule: null, id: afIdLigne() });
+    }
+    return { debit, credit };
+  }
+
+  function basculerPretHypothecaireAppelFonds(avec) {
+    const d = afDossierLie ? dossiers.find(x => x.id === afDossierLie) : null;
+    afLignes = lignesSelonPretHypothecaire(afLignes, !!avec, d && Number(d.montantPret) > 0 ? Number(d.montantPret) : 0);
+    renderTableAppelFonds();
+    majApercuAppelFonds();
   }
 
   // Pure : l'office établit le décompte, sauf quand l'étude est en participation (le décompte vient
@@ -1408,7 +1448,10 @@
     appliquerPrefillAppelFonds(d);
   }
 
+  // Dossier détaché sans effacer : ses pièces et ses champs ne doivent pas suivre le dossier choisi ensuite (audit 12/10).
+  var afDossierDetache = null;
   function retirerDossierAppelFonds() {
+    if (afDossierLie) afDossierDetache = afDossierLie;
     afDossierLie = null;
     renderPillDossierAppelFonds();
     const recap = afEl('af-recap-prefill');
@@ -1539,7 +1582,9 @@
     if (!p) return;
     // Les pièces lues pour un AUTRE dossier (avis de taxe foncière, état daté…) ne le suivent pas ; celles déposées avant
     // tout choix de dossier restent.
-    const autreDossier = !!afDossierLie && afDossierLie !== p.dossierId;
+    const precedent = afDossierLie || afDossierDetache;
+    afDossierDetache = null;
+    const autreDossier = !!precedent && precedent !== p.dossierId;
     if (autreDossier) {
       tfAvis.af = null;
       renderBlocTaxeFonciere('af');
@@ -1739,7 +1784,7 @@
     if (!ligne) return;
     const texte = span.textContent || '';
     if (AF_MEMOIRE_RE.test(texte)) { ligne.memoire = true; ligne.montant = 0; }
-    else { ligne.memoire = false; ligne.montant = montantDepuisTexteFr(texte) || 0; }
+    else { ligne.memoire = false; ligne.montant = montantSaisiAppelFonds(texte) || 0; }
     recalculerTotauxAppelFonds();
   }
 
@@ -2036,7 +2081,8 @@
       const montant = document.getElementById('prorata-montant');
       const periode = document.getElementById('prorata-periode');
       if (montant) montant.value = String(t.retenu);
-      if (periode && periode.value !== 'annee') { periode.value = 'annee'; majPeriodeProrata(); }
+      // La taxe foncière porte toujours sur l'année civile : bornes recalées même saisies à la main.
+      if (periode) { periode.value = 'annee'; majPeriodeProrata(true); }
       calculerProrataAffichage();
       return;
     }
@@ -2139,7 +2185,9 @@
   // Toutes les lignes qui dépendent de la date du rendez-vous (prorata de taxe foncière et de
   // charges) : appelé quand la date change, et après le préremplissage depuis un dossier.
   function majLignesProrataAppelFonds() {
-    majLigneTfAppelFonds();
+    // Sans avis lu (courrier repris par « Modifier », avis non relu), la ligne de taxe foncière gardée n'est pas retirée
+    // au changement de date (audit 12/10) ; elle reste à corriger à la main.
+    if (tfAvis.af) majLigneTfAppelFonds();
     if (afPieces.charges) appliquerPieceAppelFonds('charges');
   }
 
@@ -2373,6 +2421,7 @@
 
   function effacerChargesProrata() {
     prorataCharges = null;
+    bornesProrataManuelles = false;
     renderBlocChargesProrata();
   }
 
@@ -2613,8 +2662,17 @@
       return;
     }
     afLignes = res.lignes;
+    // Le décompte du confrère porte déjà taxe foncière, charges et acomptes : les pièces lues avant ne remettent plus leurs
+    // lignes au changement de date (audit 12/10 : taxe foncière comptée deux fois).
+    const piecesRetirees = !!tfAvis.af || ['charges', 'etatDate', 'releve'].some(type => afPieces[type]);
+    if (piecesRetirees) {
+      tfAvis.af = null;
+      renderBlocTaxeFonciere('af');
+      ['charges', 'etatDate', 'releve'].forEach(type => { afPieces[type] = null; renderBlocPieceAppelFonds(type); });
+    }
     renderTableAppelFonds();
     const notes = res.meta.avertissements.concat(notesRdv);
+    if (piecesRetirees) notes.push('Les pièces lues avant (avis de taxe foncière, appel de charges…) sont retirées : le décompte du confrère les remplace.');
     if (res.meta.refTrouvee) {
       const champ = afEl('af-ref');
       if (champ && !champ.value) { champ.value = res.meta.refTrouvee; majApercuAppelFonds(); }
@@ -2726,6 +2784,13 @@
   // Relit le courrier TEL QU'IL EST AFFICHÉ (et non le modèle interne) : une correction faite
   // directement dans l'aperçu doit se retrouver dans le .docx.
 
+  // Le texte d'un morceau de HTML, entités décodées (« SCI A &amp; B » devenait « &amp; » dans le courrier — audit 12/10).
+  function texteDepuisHtmlAppelFonds(html) {
+    const tmp = document.createElement('div');
+    tmp.innerHTML = String(html || '');
+    return tmp.textContent || '';
+  }
+
   function donneesCourrierAppelFonds() {
     const lire = (id) => { const e = afEl(id); return e ? e.textContent.trim() : ''; };
     const mentionAffichee = () => { const e = afEl('af-p-mention-ligne'); return !!e && e.style.display !== 'none'; };
@@ -2749,7 +2814,7 @@
     const blocAdresse = afEl('af-p-adresse');
     return {
       ref: afValeur('af-ref'),
-      addrLines: composerAdresseCourrier(blocAdresse ? blocAdresse.innerHTML.split('<br>').map(s => s.replace(/<[^>]+>/g, '').trim()).filter(Boolean).join('\n') : ''),
+      addrLines: composerAdresseCourrier(blocAdresse ? blocAdresse.innerHTML.split('<br>').map(s => texteDepuisHtmlAppelFonds(s).trim()).filter(Boolean).join('\n') : ''),
       mention: mentionAffichee() ? lire('af-p-mention') : '',
       ville: lire('af-p-ville'),
       dateLettre: lire('af-p-datelettre'),
@@ -2852,7 +2917,17 @@
     }
   }
 
+  var afDateLettreChoisie = false;
+  function choisirDateLettreAppelFonds() {
+    afDateLettreChoisie = true;
+    majApercuAppelFonds();
+  }
+
   function reinitialiserAppelFonds() {
+    afDossierDetache = null;
+    afDateLettreChoisie = false;
+    const champDateLettre = afEl('af-date-lettre');
+    if (champDateLettre) champDateLettre.value = isoAujourdHui();
     afDossierLie = null;
     afHistoriqueId = null;
     afHistoriqueNom = '';
@@ -2900,10 +2975,15 @@
     // images, et le message d'erreur a sa place au moment où on demande vraiment le fichier.
     chargerModeleAppelFonds().catch(() => {});
     chargerAppelsFondsHistorique(true);
+    // Date du courrier = aujourd'hui à l'heure de Paris (toISOString donnait la veille après minuit en été), remise à jour
+    // à chaque ouverture tant qu'elle n'a pas été choisie à la main ni reprise d'un courrier gardé (audit 12/10).
+    const dateLettre = afEl('af-date-lettre');
+    if (dateLettre && (!dateLettre.value || (!afDateLettreChoisie && !afHistoriqueId && dateLettre.value !== isoAujourdHui()))) {
+      dateLettre.value = isoAujourdHui();
+      if (appelFondsInitialise) majApercuAppelFonds();
+    }
     if (appelFondsInitialise) return;
     appelFondsInitialise = true;
-    const dateLettre = afEl('af-date-lettre');
-    if (dateLettre && !dateLettre.value) dateLettre.value = new Date().toISOString().slice(0, 10);
     afLignes = lignesDecompteDepuisPrefill(null);
     renderClientsAppelFonds();
     renderTableAppelFonds();

@@ -19022,3 +19022,28 @@ modèle **au choix dans les Réglages**, Opus par défaut.
 - Annexe des quotités : « SCI SCI DU MOULIN » (civilité SCI + nom qui porte déjà sa forme, `nomDitSociete`) ; téléchargement
   confirmé si le financement ne couvre pas l'opération ou qu'un acquéreur ne finance rien.
 - Inventaire de succession : droits simulés négatifs ramenés à zéro.
+
+### 0.213.2 — 12/10/2026 — Appel de fonds et contrôle de l'urbanisme corrigés (relecture indépendante, lot 2)
+
+- Retouches du lot 1 après sa relecture : l'avis de taxe foncière déposé dans l'outil Prorata recale toujours les bornes sur
+  l'année civile (`majPeriodeProrata(true)` — sinon une période trimestrielle d'un appel de charges restait) ; retirer l'appel
+  du syndic remet les bornes en automatique ; copropriété au-delà de 1,35 M€ = maison + le supplément habituel (+120 €
+  d'émoluments, +30 € de trésor), pas la maison seule.
+- Appel de fonds : case « prêt garanti par une hypothèque » (`basculerPretHypothecaireAppelFonds`, `lignesSelonPretHypothecaire`)
+  ajoute/retire les frais de l'acte de prêt et le montant du prêt ; `mention` gardée par le serveur (`CHAMPS_TEXTE_COURRIER`) et
+  reprise de l'état de l'outil pour un courrier gardé avant (`donneesAvecMentionGardee`, sans adresse postale) ; PDF/A : libellé
+  du tableau sur autant de lignes qu'il faut (seule la première était écrite) ; « Détacher » retient le dossier
+  (`afDossierDetache`) pour que le suivant ne reprenne ni ses pièces ni ses champs ; une « Provision sur frais » au débit n'est
+  plus renommée « Acompte sur frais versé » (`normaliserLibelleDecompte(libelle, auDebit)`) ; « Modifier » puis changement de
+  date ne retire plus la ligne de taxe foncière (sans avis relu) ; décompte du confrère appliqué → pièces lues avant retirées
+  (taxe foncière/charges comptées deux fois), dit dans le rapport ; date du courrier à l'heure de Paris (`isoAujourdHui`),
+  remise à jour à l'ouverture tant qu'elle n'est pas choisie à la main ; montant tapé « 1500.50 » (`montantSaisiAppelFonds`) ;
+  « & » d'un destinataire n'est plus « &amp; ».
+- Urbanisme : `realignerDroitsPreemption` (au démarrage, avec les autres remises en ordre) réécrit `d.preemption.droits` d'après
+  l'analyse refaite depuis `lignes` et met les pièces à jour — planning, checklist et serveur lisent `droits`, la fiche
+  l'analyse refaite (dossiers analysés du 06 au 08/10 en zone A : SAFER « non ») ; parcelle à cheval sur plusieurs zones :
+  `autresFamilles` de la ligne comptées par `analyserPreemptionParcelles` (sauf zone choisie à la main) ; commune d'après
+  l'adresse en mot entier, commune en tête puis après le code postal, jamais un nom précédé de « de/du/d' » (« route de
+  Blois ») ; DPU renforcé plus posé « non » hors de Blois (aucun périmètre connu : la question reste posée quand elle compte) ;
+  « AB 12 et 13 » → AB 12 et AB 13 (poste) / plus de section « ET » (serveur) ; contrôle de la relecture : les droits
+  `foret-*` cherchent la mention des bois et forêts.

@@ -319,7 +319,11 @@
       const zone = r && r.zones && r.zones[0] ? r.zones[0] : null;
       const cle = cleParcelle(z.section, z.numero);
       const lue = zone ? familleZonePreemption(zone.typezone) : '';
+      // Parcelle à cheval sur plusieurs zones (ou touchant la voisine) : les autres familles comptent aussi (audit 12/10 :
+      // seule la première zone rendue était lue).
+      const autresFamilles = [...new Set(((r && r.zones) || []).slice(1).map(x => familleZonePreemption(x && x.typezone)).filter(f => f && f !== lue))];
       return {
+        autresFamilles,
         cle, libelle: `${z.section} ${Number(z.numero) || z.numero}`, statut: z.statut, erreur: z.erreur || '',
         zone: zone ? zone.libelle : '', typezone: zone ? zone.typezone : '', libelong: zone ? zone.libelong || '' : '',
         lue, famille: choix[cle] || lue, choisie: !!choix[cle],
@@ -339,9 +343,11 @@
     if (!lues.length) return analyserPreemption(rep);
     const groupes = new Map();
     lues.forEach(l => {
-      const f = l.famille || '';
-      if (!groupes.has(f)) groupes.set(f, []);
-      groupes.get(f).push(l.libelle);
+      const familles = [l.famille || ''].concat(l.choisie ? [] : (Array.isArray(l.autresFamilles) ? l.autresFamilles : []));
+      [...new Set(familles)].forEach(f => {
+        if (!groupes.has(f)) groupes.set(f, []);
+        groupes.get(f).push(l.libelle);
+      });
     });
     if (groupes.size === 1) {
       const f = [...groupes.keys()][0];

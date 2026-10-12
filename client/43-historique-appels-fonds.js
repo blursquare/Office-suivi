@@ -227,6 +227,18 @@
     return `<div data-appels-fonds-dossier="${escapeAttr(d.id)}">${contenuAppelsFondsDossier(d.id)}</div>`;
   }
 
+  // Pure : un courrier gardé avant le 12/10 a perdu sa mention « Envoi par e-mail uniquement » (le serveur ne gardait pas ce
+  // champ) ; elle est reprise de l'état de l'outil gardé avec lui.
+  function donneesAvecMentionGardee(a) {
+    const donnees = Object.assign({}, (a && a.donnees) || {});
+    const adressePostale = a && a.etat && a.etat.champs && String(a.etat.champs['af-adresse-clients'] || '').trim();
+    // Mention seulement sans adresse postale (même règle que l'aperçu).
+    if (donnees.mention === undefined && !adressePostale && a && a.etat && typeof a.etat.mention === 'string' && a.etat.mention.trim()) {
+      donnees.mention = a.etat.mention.trim();
+    }
+    return donnees;
+  }
+
   // --- gestes -----------------------------------------------------------------------------------------------------------
   // `format` 'pdfa' : le même courrier en PDF/A-2U pour Authentic (genererPdfAAppelFonds, client/56) ; sinon le .docx.
   async function telechargerAppelFondsHistorique(id, btn, format) {
@@ -234,7 +246,8 @@
     if (btn) { btn.disabled = true; btn.textContent = 'Génération…'; }
     try {
       const a = await lireAppelFondsComplet(id);
-      const { blob, nom } = format === 'pdfa' ? await genererPdfAAppelFonds(a.donnees, a.nomFichier) : await genererBlobAppelFonds(a.donnees, a.nomFichier);
+      const donnees = donneesAvecMentionGardee(a);
+      const { blob, nom } = format === 'pdfa' ? await genererPdfAAppelFonds(donnees, a.nomFichier) : await genererBlobAppelFonds(donnees, a.nomFichier);
       telechargerFichier(blob, nom);
     } catch (e) {
       console.error(e);

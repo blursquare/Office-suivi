@@ -336,25 +336,31 @@
         y += 2.2;
         b.rangees.forEach((r, i) => {
           const formule = r.formule ? '  ' + r.formule : '';
-          const hauteur = T.ligne + (formule ? 10.35 : 0);
+          const style = r.gras ? { b: true } : {};
+          // Libellé sur autant de lignes qu'il en faut (audit 12/10 : un libellé long était coupé à sa première ligne —
+          // les dates d'un prorata disparaissaient).
+          const lignesLibelle = r.cellules[0]
+            ? lignesSegmentsPdfA([Object.assign({ t: r.cellules[0] }, style)], bords[1] - bords[0] - 2 * T.marge, (tx, st) => mesurer(tx, st))
+            : [];
+          const enPlus = Math.max(0, lignesLibelle.length - 1) * CORPS_PDFA.interligne;
+          const hauteur = T.ligne + enPlus + (formule ? 10.35 : 0);
           if (y + hauteur > bas()) {
             filetsVerticaux(hautTableau, y); filetDouble(y, true);
             nouvellePage(); hautTableau = y; filetDouble(y, false); y += 2.2;
           }
           if (i > 0 && y > hautTableau + 3) trait(T.gauche, y - 0.6, bords[3], y - 0.6, 0.5);
-          const style = r.gras ? { b: true } : {};
           r.cellules.forEach((texte, c) => {
             if (!texte) return;
-            const largeurCellule = bords[c + 1] - bords[c] - 2 * T.marge;
             if (c === 0) {
-              const lignes = lignesSegmentsPdfA([Object.assign({ t: texte }, style)], largeurCellule, (tx, st) => mesurer(tx, st));
-              ecrire(lignes[0].jetons.map(j => j.t).join(''), bords[0] + T.marge, y, serif(style), CORPS_PDFA.taille, noir, CORPS_PDFA.montee);
+              lignesLibelle.forEach((ligne, k) => {
+                ecrire(ligne.jetons.map(j => j.t).join(''), bords[0] + T.marge, y + k * CORPS_PDFA.interligne, serif(style), CORPS_PDFA.taille, noir, CORPS_PDFA.montee);
+              });
             } else {
               const l = mesurer(texte, style);
               ecrire(texte, bords[c + 1] - T.marge - l, y, serif(style), CORPS_PDFA.taille, noir, CORPS_PDFA.montee);
             }
           });
-          if (formule) ecrire(formule, bords[0] + T.marge, y + CORPS_PDFA.interligne, 'serifItalique', 9, hex('6b6250'), 8);
+          if (formule) ecrire(formule, bords[0] + T.marge, y + enPlus + CORPS_PDFA.interligne, 'serifItalique', 9, hex('6b6250'), 8);
           y += hauteur;
         });
         filetsVerticaux(hautTableau, y + 0.5);

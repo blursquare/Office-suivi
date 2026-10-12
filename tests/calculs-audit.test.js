@@ -27,11 +27,12 @@ test('provision : au-delà de 2 M€ le barème se prolonge', () => {
   assert.equal(Math.round(trois.emoluments), 17320 + 8000);
 });
 
-test('copropriété au-delà de 1,35 M€ : mêmes montants que la maison', () => {
-  for (const prix of [1425000, 1600000, 2000000, 2500000]) {
+test('copropriété au-delà de 1,35 M€ : la maison et son supplément habituel', () => {
+  for (const prix of [1350000, 1425000, 1600000, 2000000, 2500000]) {
     const m = app.estimerFraisActe(prix, '41', 'house', false);
     const c = app.estimerFraisActe(prix, '41', 'condo', false);
-    assert.equal(Math.round(c.total), Math.round(m.total), String(prix));
+    const ecart = c.total - m.total;
+    assert.ok(ecart > 100 && ecart < 200, `${prix} : ${ecart}`);
   }
 });
 

@@ -24,7 +24,8 @@
     const constats = [];
     const droits = droitsPreemptionFiche(p).filter(dr => dr && (dr.statut === 'oui' || dr.statut === 'probable'));
     for (const dr of droits) {
-      const re = MENTIONS_DROITS_URBANISME[dr.cle];
+      // « foret-etat », « foret-commune », « foret-preference » : la mention des bois et forêts (audit 12/10 : jamais contrôlés).
+      const re = MENTIONS_DROITS_URBANISME[dr.cle] || MENTIONS_DROITS_URBANISME[String(dr.cle || '').split('-')[0]];
       if (!re || re.test(texte)) continue;
       constats.push({
         categorie: 'CONTROLE_URBANISME',

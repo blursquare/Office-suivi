@@ -89,13 +89,13 @@
     const e = etat || etatPreemptionVierge();
     const r = Object.assign({}, e.reponses);
     const lus = zonagesLusPreemption(e);
-    const zonage = lus[0] || null;
     if (lus.some(z => z.epciSiren === SIREN_AGGLOPOLYS)) r.agglopolys = true;
     if (!r.dpur) {
       const blois = dpurBlois(e.insee, parcellesDepuisTexte(e.parcelles), e.adresse);
       if (blois.statut === 'oui') r.dpur = 'oui';
       else if (blois.statut === 'non' && e.insee === DPUR_BLOIS.insee) r.dpur = 'non';
-      else if (e.insee && e.insee !== DPUR_BLOIS.insee && zonage) r.dpur = 'non';
+      // Ailleurs qu'à Blois, aucun périmètre de DPU renforcé n'est connu : la question reste posée quand elle compte (audit
+      // 12/10 : « non » posé sans source rendait le DPU non applicable à un bien soumis au seul DPU renforcé).
     }
     if (r.dpur === 'oui' && e.insee === DPUR_BLOIS.insee) r.dpurDelegataire = DPUR_BLOIS.delegataire;
     return r;
@@ -103,10 +103,17 @@
 
   // Pure : « AL 839, AL 840 » / « AL0839 » → [{ section, numero }].
   function parcellesDepuisTexte(texte) {
+    // « et », « n », « de »… ne sont pas des sections (audit 12/10 : « AB 12 et 13 » donnait « ET 13 ») ; un numéro seul qui
+    // suit (« et 13 », « , 14 ») garde la section précédente.
     const out = [];
-    const re = /(?:^|[^A-Z0-9])([0-9]?[A-Z]{1,2})\s*(?:N°|n°|no|n)?\s*(\d{1,4})(?![0-9])/gi;
+    const re = /(?:^|[^A-Za-z0-9])([0-9]?[A-Z]{1,2})\s*(?:N°|n°|no|n)?\s*(\d{1,4})(?![0-9])((?:\s*(?:,|et|&)\s*(?:n°\s*)?\d{1,4}(?![0-9]))*)/gi;
     let m;
-    while ((m = re.exec(String(texte || ''))) && out.length < 20) out.push({ section: m[1].toUpperCase(), numero: String(Number(m[2])) });
+    while ((m = re.exec(String(texte || ''))) && out.length < 20) {
+      const section = m[1].toUpperCase();
+      if (/^(ET|OU|NO|N|DE|DU|LA|LE|AU|EN)$/.test(section)) continue;
+      out.push({ section, numero: String(Number(m[2])) });
+      (m[3].match(/\d{1,4}/g) || []).forEach(n => { if (out.length < 20) out.push({ section, numero: String(Number(n)) }); });
+    }
     return out;
   }
 
@@ -182,10 +189,29 @@
 
   // Pure : la commune retenue parmi celles du code postal — celle citée dans l'adresse, sinon la seule ; '' si rien ne départage.
   function communeDuCodePostalPreemption(communes, adresse) {
+    // Mot entier seulement et commune en tête d'abord (« BLOIS (41000), 2 rue Mermoz » ; audit 12/10 : « Mermoz » donnait
+    // Mer, « route de Blois » donnait Blois) ; puis la commune juste après le code postal ; puis la plus longue citée.
     const liste = communes || [];
-    const texte = normaliserPourRecherche(adresse || '');
-    const citee = liste.find(c => texte.includes(normaliserPourRecherche(c.nom)));
-    return (citee || (liste.length === 1 ? liste[0] : {})).insee || '';
+    const mots = (x) => ' ' + normaliserPourRecherche(x || '').replace(/[^a-z0-9]+/g, ' ').trim() + ' ';
+    const brut = String(adresse || '');
+    const tete = mots(brut.split(/[(,]/)[0]);
+    const apresCp = mots((/\b\d{5}\b\s*([^,\d]+)/.exec(brut) || [])[1] || '');
+    const texte = mots(brut);
+    const nom = c => mots(c.nom);
+    const egal = (zone) => liste.find(c => nom(c).trim() && zone.trim() === nom(c).trim());
+    // Un nom précédé de « de / du / d' » est celui d'une voie (« route de Blois »), pas la commune.
+    const citeeHorsVoie = (c) => {
+      const n = nom(c);
+      let i = texte.indexOf(n);
+      while (i !== -1) {
+        if (!/ (de|du|d)$/.test(texte.slice(0, i))) return true;
+        i = texte.indexOf(n, i + 1);
+      }
+      return false;
+    };
+    const citees = liste.filter(c => nom(c).trim() && citeeHorsVoie(c)).sort((a, b) => nom(b).length - nom(a).length);
+    const choisie = egal(tete) || egal(apresCp) || (citees.length === 1 ? citees[0] : null) || (liste.length === 1 ? liste[0] : null);
+    return (choisie || {}).insee || '';
   }
 
   // Les communes du code postal de l'état (outil ou analyse d'un dossier) et la commune retenue. Rend '' ou l'erreur.
@@ -450,7 +476,7 @@
       // Ce que le zonage a fait déduire (Agglopolys, DPU renforcé de Blois) et la zone de chaque parcelle : de quoi refaire
       // l'analyse sur la fiche quand une question y reçoit sa réponse, sans relire le Géoportail.
       deduites: deduitesPreemption(etat.reponses, rep),
-      lignes: lignes.map(l => ({ cle: l.cle, libelle: l.libelle, statut: l.statut, zone: l.zone, typezone: l.typezone, lue: l.lue, famille: l.famille, choisie: l.choisie, contenance: l.contenance })),
+      lignes: lignes.map(l => ({ cle: l.cle, libelle: l.libelle, statut: l.statut, zone: l.zone, typezone: l.typezone, lue: l.lue, famille: l.famille, autresFamilles: l.autresFamilles || [], choisie: l.choisie, contenance: l.contenance })),
       droits: analyse.droits.map(dr => ({ cle: dr.cle, titre: dr.titre, statut: dr.statut, motif: dr.motif, formalite: dr.formalite })),
       // Toujours un objet : « non lu » est une réponse (sinon la relecture automatique repartirait à chaque ouverture de la fiche).
       patrimoine: patrimoinePreemption(etat) || { lu: false, servitudes: [] },

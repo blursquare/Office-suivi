@@ -153,6 +153,20 @@
     return analysePreemptionFiche(p).droits.map(dr => ({ cle: dr.cle, titre: dr.titre, statut: dr.statut, motif: dr.motif, formalite: dr.formalite }));
   }
 
+  // Pure (modifie le dossier) : la liste `droits` gardée remise d'accord avec l'analyse refaite depuis `lignes` — planning,
+  // checklist et serveur lisent `droits`, la fiche l'analyse refaite (audit 12/10 : dossiers analysés du 06 au 08/10 en zone
+  // A gardaient SAFER « non » → pas de pièce, signature possible ; une fusion pouvait garder un ancien DPU « non »). Rend
+  // les textes d'historique, [] si rien n'a changé.
+  function realignerDroitsPreemption(d) {
+    const p = d && d.preemption;
+    if (!p || d.archive || !Array.isArray(p.droits) || !Array.isArray(p.lignes) || !p.lignes.length) return [];
+    const calcules = droitsPreemptionFiche(p);
+    const cle = liste => liste.filter(Boolean).map(x => `${x.cle}:${x.statut}`).sort().join('|');
+    if (!calcules.length || cle(calcules) === cle(p.droits)) return [];
+    p.droits = calcules;
+    return ['Droits de préemption remis à jour d’après l’analyse'].concat(appliquerPreemptionSurPieces(d));
+  }
+
   // Les questions qui se répondent sur la fiche (oui / non) ; les autres manques (zone, nature de la mutation ou du bien) se
   // précisent dans l'outil.
   var QUESTIONS_FICHE_PREEMPTION_EN_PLUS = [
