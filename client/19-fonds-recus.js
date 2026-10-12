@@ -390,7 +390,7 @@
       };
       sauvegarder(d);
       render();
-      const b = bilanFondsRecus(d.fondsRecus.total, d.fondsRecus.attendu);
+      const b = bilanFondsDossier(d);
       signaler(b.etat === 'complet' ? 'Tous les fonds attendus sont reçus : la confirmation au client est prête.'
         : b.etat === 'excedent' ? 'Les reçus retenus dépassent le montant attendu : vérifiez qu’ils concernent bien ce dossier.'
         : !lus ? `Aucun fichier de reçus depuis le ${formatDateFr(depuis)} dans les dossiers lus (racine du NAS configurée et dossiers « DOSSIER »).`

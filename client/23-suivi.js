@@ -55,9 +55,17 @@
       // n'est jamais omis (étude, 02/10 : « il faut afficher tous les dossiers ») : section « Sans
       // échéance datée » en dernier.
       // Acte signé (étude, 02/10) : section « Signés », la date affichée est celle de la signature.
-      const signe = signatureFaiteSuivi(d);
+      let signe = null;
+      let echeances = [];
+      try {
+        signe = signatureFaiteSuivi(d);
+        if (!signe) echeances = toutesEcheances(d).filter(x => x && typeof x.iso === 'string' && x.iso).sort((x, y) => x.iso.localeCompare(y.iso));
+      } catch (e) {
+        // Dossier abîmé : montré « sans échéance » plutôt que de faire tomber toute la vue (audit 12/10).
+        ajouter('sans-date', 4, 'Sans échéance datée', { dossier: d, echeance: null });
+        continue;
+      }
       if (signe) { ajouter('signes', 3, 'Signés', { dossier: d, echeance: null, signe }); continue; }
-      const echeances = toutesEcheances(d).filter(x => x && x.iso).sort((x, y) => x.iso.localeCompare(y.iso));
       const e = echeances[0];
       const semaine = e ? debutSemaine(e.iso) : null;
       if (!e || !semaine) { ajouter('sans-date', 4, 'Sans échéance datée', { dossier: d, echeance: null }); continue; }
@@ -91,13 +99,14 @@
     return 'Semaine du ' + debut.toLocaleDateString('fr-FR', options);
   }
 
+  // La même échéance que la vue Échéances (grouperEcheancesParSemaine) : la plus ancienne datée, dépassée comprise (audit
+  // 12/10 : la vue Tableau masquait une échéance dépassée derrière la suivante) ; à défaut de date, la première du planning.
   function prochaineEcheanceDetail(d) {
     const items = echeancesPlanning(d);
     if (!items.length) return null;
-    const avecJours = items.map(it => ({ ...it, jours: joursRestants(it.iso) }));
-    const upcoming = avecJours.filter(it => it.jours >= 0);
-    const pool = upcoming.length ? upcoming : avecJours;
-    return pool.reduce((a, b) => (a.jours <= b.jours ? a : b));
+    const datees = items.filter(it => it && /^\d{4}-\d{2}-\d{2}$/.test(String(it.iso || ''))).sort((a, b) => a.iso.localeCompare(b.iso));
+    const it = datees[0] || items[0];
+    return { ...it, jours: it.iso ? joursRestants(it.iso) : null };
   }
 
   // Score de priorité (plus haut = plus urgent à traiter), combinant trois signaux qu'une simple
@@ -196,9 +205,13 @@
   function datesButoirDepassees(d, aujourdhuiIso) {
     const auj = aujourdhuiIso || isoAujourdhuiLocal();
     const depassees = [];
-    if (d.ventebien && d.ventebien < auj && !echeanceValidee(d, 'ventebien')) depassees.push({ type: 'ventebien', libelle: 'Vente préalable', iso: d.ventebien });
-    if (!d.sansPret && d.pret && d.pret < auj && !echeanceValidee(d, 'pret')) depassees.push({ type: 'pret', libelle: 'Obtention du prêt', iso: d.pret });
-    if (d.acte && d.acte < auj && !echeanceValidee(d, 'acte')) depassees.push({ type: 'acte', libelle: 'Date butoir', iso: d.acte });
+    // Acte signé (Authentic ou coché) : plus rien d'urgent (audit 12/10 : un prêt jamais noté laissait « Urgent ») ; une date
+    // mal formée ne compte pas (« Invalid Date »).
+    if (signatureFaiteSuivi(d)) return depassees;
+    const iso = (v) => /^\d{4}-\d{2}-\d{2}$/.test(String(v || ''));
+    if (iso(d.ventebien) && d.ventebien < auj && !echeanceValidee(d, 'ventebien')) depassees.push({ type: 'ventebien', libelle: 'Vente préalable', iso: d.ventebien });
+    if (!d.sansPret && iso(d.pret) && d.pret < auj && !echeanceValidee(d, 'pret')) depassees.push({ type: 'pret', libelle: 'Obtention du prêt', iso: d.pret });
+    if (iso(d.acte) && d.acte < auj && !d.rendezVousSignature && !echeanceValidee(d, 'acte')) depassees.push({ type: 'acte', libelle: 'Date butoir', iso: d.acte });
     return depassees;
   }
 

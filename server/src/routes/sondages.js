@@ -160,10 +160,11 @@ function creerRouteurSondages(parametresRepo, injections = {}) {
     const n = Number.parseInt((req.body || {}).n, 10);
     if (statut === 'place' && !t.s.creneaux.some((c) => c.n === n)) return res.status(400).json({ ok: false, message: 'Créneau inconnu.' });
     const reglages = parametresRepo.lireReglagesExchange ? parametresRepo.lireReglagesExchange() : {};
+    const reponsesAvant = JSON.stringify(t.s.reponses || []);
     await clore(t.s, statut, reglages, parametresRepo, injections, statut === 'place' ? n : null);
-    // Réponses arrivées pendant la clôture : gardées sur le sondage clos.
+    // Réponses arrivées ou modifiées pendant la clôture : gardées sur le sondage clos.
     const relu = parametresRepo.lireSondagesCreneaux().find((x) => x.id === t.s.id);
-    if (relu && Array.isArray(relu.reponses) && relu.reponses.length > (t.s.reponses || []).length) t.s.reponses = relu.reponses;
+    if (relu && Array.isArray(relu.reponses) && JSON.stringify(relu.reponses) !== reponsesAvant) t.s.reponses = relu.reponses;
     enregistrerSondage(t.s);
     const restantes = (t.s.optionsARetirer || []).length;
     res.json({

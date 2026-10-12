@@ -819,7 +819,8 @@
         if ((d.offrePretStatut || 'inconnu') !== filtreOffre) return false;
       }
       if (filtreType) {
-        const prochaine = prochaineEcheanceDetail(d);
+        let prochaine = null;
+        try { prochaine = prochaineEcheanceDetail(d); } catch (e) { prochaine = null; }
         if (!prochaine || prochaine.type !== filtreType) return false;
       }
       if (filtreRole && (d.roleNotaire || 'instrumentaire') !== filtreRole) return false;
@@ -839,19 +840,23 @@
       return;
     }
 
+    // Une clé de tri qui lève une erreur (donnée abîmée) met le dossier en fin de liste au lieu de vider toute la liste (audit 12/10).
+    const sur = (f, d, defaut) => { try { return f(d); } catch (e) { return defaut; } };
+    const echeanceTri = (d) => sur(calculerProchaineEcheance, d, 999999);
     const tries = dossiersAffiches.slice().sort((a, b) => {
-      if (tri === 'nom') return a.nom.localeCompare(b.nom, 'fr');
+      if (tri === 'nom') return String(a.nom || '').localeCompare(String(b.nom || ''), 'fr');
       if (tri === 'responsable') return (a.responsable || '').localeCompare(b.responsable || '', 'fr');
-      if (tri === 'priorite') return calculerPriorite(b) - calculerPriorite(a);
+      if (tri === 'priorite') return sur(calculerPriorite, b, 0) - sur(calculerPriorite, a, 0);
       // Par gravité du statut (ce qui bloque d'abord, ce qui est terminé en dernier), puis par
       // échéance à l'intérieur d'un même statut — sans quoi l'ordre serait arbitraire entre deux
       // dossiers également bloqués.
       if (tri === 'statut') {
-        const ecart = ORDRE_ETAT_DOSSIER.indexOf(etatDossier(a).cle) - ORDRE_ETAT_DOSSIER.indexOf(etatDossier(b).cle);
+        const rang = (d) => ORDRE_ETAT_DOSSIER.indexOf(sur(x => etatDossier(x).cle, d, 'archive'));
+        const ecart = rang(a) - rang(b);
         if (ecart !== 0) return ecart;
-        return calculerProchaineEcheance(a) - calculerProchaineEcheance(b);
+        return echeanceTri(a) - echeanceTri(b);
       }
-      return calculerProchaineEcheance(a) - calculerProchaineEcheance(b);
+      return echeanceTri(a) - echeanceTri(b);
     });
 
     // Vue "Cartes" retirée sur demande de l'étude (préférence pour la vue tableau, plus dense sur
@@ -1299,6 +1304,16 @@
     // Le défilement de la page est gardé quand render() reconstruit la même fiche ; une autre fiche s'ouvre en haut.
     if (!etaitEnPage && !aCote) defilementAvantFiche = window.scrollY || 0;
     const autreFiche = dossierRenduDansTiroir !== d.id;
+    // Saisie en cours dans la fiche : elle n'est pas reconstruite sous les doigts (audit 12/10 : frappe perdue, « + Personne »
+    // perdu, écriture sur la mauvaise personne) — redessinée un peu après la sortie du champ, le temps qu'un clic aboutisse.
+    const actif = document.activeElement;
+    if (!autreFiche && actif && contenu.contains(actif) && actif.matches && actif.matches('textarea, [contenteditable="true"], input:not([type="checkbox"]):not([type="radio"]):not([type="button"]):not([type="submit"])')) {
+      if (!renduFicheDiffere) {
+        renduFicheDiffere = true;
+        actif.addEventListener('blur', () => setTimeout(() => { renduFicheDiffere = false; render(); }, 250), { once: true });
+      }
+      return;
+    }
     dossierRenduDansTiroir = d.id;
     const panneau = document.getElementById('dossier-drawer');
     // À côté, la fiche défile dans son volet : on garde sa position quand render() la reconstruit.
@@ -1316,6 +1331,8 @@
     } else if (!etaitEnPage || autreFiche) window.scrollTo(0, 0);
     renderOngletsTravail();
   }
+
+  var renduFicheDiffere = false;
 
   function libellePiece(statut) {
     if (statut === 'recue') return { texte: '✓', cls: 'recue', titre: 'Pièce reçue' };

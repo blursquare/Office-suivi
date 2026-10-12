@@ -96,7 +96,7 @@ test('tour de lecture : un rendez-vous rouge « JV - … » devient une tâche d
   db.close();
 });
 
-test('synchroniserTachesAgenda : garde-fous — après le dernier jour lu, lecture tronquée, aucune tâche retrouvée (audit 12/10)', () => {
+test('synchroniserTachesAgenda : garde-fous — après le dernier jour lu, lecture tronquée, calendrier changé (audit 12/10)', () => {
   const debut = '2026-09-28';
   const t = (id, date) => ({ id: 'ag-' + id, auteur: 'Julie VASSELIN', texte: 'Tâche', echeance: date, fait: false, agendaItemId: id });
   const autre = (date) => ({ itemId: 'X' + date, sujet: 'Rendez-vous', date, categories: [] });
@@ -105,9 +105,11 @@ test('synchroniserTachesAgenda : garde-fous — après le dernier jour lu, lectu
   // Lecture tronquée (3 000) : rien de coché.
   const beaucoup = Array.from({ length: 3000 }, (_, i) => ({ itemId: 'E' + i, sujet: 'x', date: '2026-11-01', categories: [] }));
   assert.equal(synchroniserTachesAgenda([t('A', '2026-10-10')], beaucoup, debut)[0].fait, false);
-  // Deux tâches non cochées, aucune retrouvée (calendrier changé) : rien de coché.
-  const r = synchroniserTachesAgenda([t('A', '2026-10-10'), t('B', '2026-10-12')], [autre('2027-01-01')], debut);
+  // Calendrier changé dans les Réglages : rien de coché.
+  const r = synchroniserTachesAgenda([t('A', '2026-10-10'), t('B', '2026-10-12')], [autre('2027-01-01')], debut, undefined, { calendrierChange: true });
   assert.equal(r.filter(x => x.fait).length, 0);
+  // Même calendrier, toutes supprimées d'un coup dans Outlook : toutes cochées (étude 04/10).
+  assert.equal(synchroniserTachesAgenda([t('A', '2026-10-10'), t('B', '2026-10-12')], [autre('2027-01-01')], debut).filter(x => x.fait).length, 2);
   // Une retrouvée, l'autre disparue : celle-ci cochée.
   const r2 = synchroniserTachesAgenda([t('A', '2026-10-10'), t('B', '2026-10-12')], [autre('2027-01-01'), { itemId: 'A', sujet: 'Autre', date: '2026-10-10', categories: [] }], debut);
   assert.equal(r2.find(x => x.agendaItemId === 'B').fait, true);

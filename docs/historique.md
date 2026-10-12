@@ -19105,3 +19105,38 @@ modèle **au choix dans les Réglages**, Opus par défaut.
   erreur = formulaire non rempli et « Enregistrer » refusé (`reglagesFormulaireCharges` — le compte SMTP et son mot de passe
   étaient effacés), PUT Exchange en erreur dit l'erreur ; sauvegarde : une seconde le même jour prend l'heure dans son nom
   (`claire-AAAA-MM-JJ-HHMMSS.db`, `comparerNomsSauvegarde`) au lieu d'écraser celle du matin.
+
+### 0.213.5 — 12/10/2026 — Fiche, Claire Scan, répertoire, Suivi et tableau de bord (relecture indépendante, lots 5 et 6)
+
+- Retouches du lot 4 après sa relecture : une date de la fiche confirmée par l'agenda reprend le repère « relevée dans
+  l'agenda » (`detectionsAgenda.rendezVousSignature` : pas de seconde proposition de création, déplacements dans Outlook suivis)
+  avec `confirmeManuel` que `corrigerRendezVousEcritsParAgenda` respecte (cas ROY) ; `fusionnerTourSondages` fusionne champ par
+  champ (statut placé par le tour gardé malgré un « Relancer ») et les réponses par email (plus de doublon) ; clôture : réponses
+  modifiées pendant la clôture gardées ; tâches de l'agenda : plus de garde « aucune retrouvée » (des tâches toutes supprimées
+  dans Outlook sont cochées, règle du 04/10) mais calendrier changé dans les Réglages (`agendaOffice.calendrier`) → rien de
+  coché ; consignes : « article / lot / secteur » ne protègent plus le mot suivant ; liste « Restaurer » : heure des secondes
+  sauvegardes ; rétention = 14 JOURS (sauvegarde du jour + deux copies au plus par jour) ; disjoncteur : chemins sans casse.
+- Fiche : « Compléter » depuis Authentic choisit le dossier par sa clé (référence, sinon intitulé), jamais par sa position ;
+  `retirerPartiesHorsComparants` compte le nom d'usage ; « Rouvrir » retiré du prêt levé par l'offre reçue ; rédaction non
+  montrée en participation ; bilans des fonds par `bilanFondsDossier` (montant attendu saisi compris) ; carte Signature « Date
+  passée » → bouton « Marquer signée » ; la fiche n'est plus reconstruite pendant une saisie (redessinée 250 ms après la sortie
+  du champ) ; pastille « Préemption » et carte en attente ; plus de « null jour ».
+- Claire Scan : parcelle d'une lettre seulement derrière « section / cadastré / parcelle », jamais trois mots entre section et
+  numéro ; scan rangé dont l'original n'a pas pu quitter Scan noté (`dateSource`) et plus reproposé ni recopié ; DIA,
+  notification SAFER, demande de CU ou au SPANC (`refuse`, `exige`) jamais cochées comme réponses (types sans pièce
+  `demandePreemption`, `demandeAssainissement`) ; lettre d'envoi du compromis jamais « Compromis signé » ; voie sans numéro trop
+  courte ne compte pas.
+- Répertoire : `notaireAnnuaireLePlusProche` essaie tous les mots du nom (nom entier +10, prénom retrouvé, dernier mot +1 —
+  « Maître THOMAS LEMOINE » donnait Séverine THOMAS) ; `fusionnerCarnetEtAnnuaire` ne rapproche par email/téléphone qu'un office
+  SAISI et qu'un office de l'annuaire unique à ce contact (un office corrigé en faisait disparaître un autre) ;
+  `notaireDuRepertoire` exige que prénom et ville écrits soient ceux d'un notaire de ce nom et accepte un notaire de deux
+  offices par sa ville.
+- Suivi : filtre « Échéance » aux types réels du planning (« Signature de l'acte » = `rendezVousSignature`, l'ancien `acte` ne
+  trouvait rien) ; `prochaineEcheanceDetail` = l'échéance de la vue Échéances (la plus ancienne datée, dépassée comprise) et
+  `calculerProchaineEcheance` (tri) en dérive ; `datesButoirDepassees` : rien pour un acte signé, dates mal formées ignorées,
+  date butoir seulement sans rendez-vous ; `assainirStructureDossier` couvre `piecesPersonnalisees`, `piecesRetirees` et retire
+  les éléments nuls des listes ; tri et vue Échéances tiennent malgré un dossier abîmé ; rappels Teams : un dossier illisible est
+  passé, les autres partent.
+- Tableau de bord : email ou questionnaire noté « traité » seulement s'il est parti ou préparé (annuler la fenêtre ne coche
+  plus) ; saisie de « Ajouter une tâche » gardée au redessin ; « Envoyer le projet » à J-7 ou dès l'appel de fonds parti (même
+  moment qu'Échanges) ; « Plus tard » ne compte pas comme fait (fête).

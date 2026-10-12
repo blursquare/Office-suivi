@@ -711,7 +711,8 @@ function assainirEvenementAgenda(e) {
 function assainirAgendaOffice(brut) {
   const b = (brut && typeof brut === 'object') ? brut : {};
   const evenements = Array.isArray(b.evenements) ? b.evenements.map(assainirEvenementAgenda).filter(Boolean).slice(0, MAX_AGENDA_OFFICE) : [];
-  return { debut: /^\d{4}-\d{2}-\d{2}$/.test(String(b.debut || '')) ? b.debut : '', lu: texteBorne(b.lu, 40), evenements };
+  // `calendrier` : la boîte lue (calendrier partagé des Réglages) — un changement de calendrier ne coche aucune tâche.
+  return { debut: /^\d{4}-\d{2}-\d{2}$/.test(String(b.debut || '')) ? b.debut : '', lu: texteBorne(b.lu, 40), calendrier: texteBorne(b.calendrier, 200), evenements };
 }
 
 function assainirAbsenceAgenda(brut) {
@@ -802,7 +803,9 @@ function assainirEntreeJournalScans(e) {
     date: txt(e.date, 40), nom: txt(e.nom, 255), chemin: txt(e.chemin, 600), dossierId: txt(e.dossierId, 80),
     dossier: txt(e.dossier, 200), type: txt(e.type, 80), rubrique: txt(e.rubrique, 200), original: txt(e.original, 400),
     auteur: txt(e.auteur, 80), auto: e.auto === true,
-    score: Number.isFinite(e.score) && e.score >= 0 ? Math.min(99, Math.round(e.score)) : null
+    score: Number.isFinite(e.score) && e.score >= 0 ? Math.min(99, Math.round(e.score)) : null,
+    // Date du fichier rangé quand l'original n'a pas pu quitter Scan : ce même fichier n'est plus proposé (audit 12/10).
+    dateSource: txt(e.dateSource, 40)
   };
 }
 function assainirJournalScans(brut) {

@@ -61,7 +61,9 @@ function creerRouteurScans(config, parametresRepo, horloge = () => Date.now()) {
     }
     const ecartes = new Set(parametresRepo.lireScansEcartes().map((e) => e.nom));
     const depuisMs = depuisMsScans(reglages.depuis);
-    const tous = reglages.actif ? await listerScans(dossier, depuisMs) : [];
+    // Déjà rangé mais resté dans Scan (déplacement refusé) : plus jamais reproposé ni recopié (audit 12/10).
+    const ranges = new Set(parametresRepo.lireJournalScans().filter((e) => !e.original && e.dateSource).map((e) => e.nom + '|' + e.dateSource));
+    const tous = (reglages.actif ? await listerScans(dossier, depuisMs) : []).filter((s) => !ranges.has(s.nom + '|' + s.date));
     res.json({
       configure: true, dossier, reglages, journal,
       scans: tous.filter((s) => !ecartes.has(s.nom)),
@@ -105,6 +107,11 @@ function creerRouteurScans(config, parametresRepo, horloge = () => Date.now()) {
     const dossierScans = await trouverDossierScans(config);
     if (!dossierScans) { res.status(503).json({ erreur: 'Dossier Scan introuvable.' }); return; }
     if (enCours.has(nom)) { res.status(409).json({ erreur: 'Ce scan est déjà en cours de rangement.' }); return; }
+    const resteRange = parametresRepo.lireJournalScans().find((e) => e.nom === nom && !e.original && e.dateSource);
+    if (resteRange) {
+      const st = await fs.promises.stat(path.join(dossierScans, nom)).catch(() => null);
+      if (st && new Date(st.mtimeMs).toISOString() === resteRange.dateSource) { res.status(409).json({ erreur: 'Ce scan est déjà rangé (l’original n’a pas pu quitter le dossier Scan).' }); return; }
+    }
     enCours.add(nom);
     try {
       const r = await rangerScan({
@@ -118,7 +125,8 @@ function creerRouteurScans(config, parametresRepo, horloge = () => Date.now()) {
         date: new Date().toISOString(), nom, chemin: r.chemin, rubrique: r.rubrique, original: r.original || '',
         dossierId: typeof b.dossierId === 'string' ? b.dossierId : '', dossier: typeof b.dossier === 'string' ? b.dossier : '',
         type: typeof b.type === 'string' ? b.type : '', auteur: typeof b.auteur === 'string' ? b.auteur : '', auto: b.auto === true,
-        score: Number.isFinite(b.score) ? b.score : null
+        score: Number.isFinite(b.score) ? b.score : null,
+        dateSource: r.original ? '' : (r.dateSource || '')
       };
       parametresRepo.ecrireJournalScans(ajouterAuJournal(parametresRepo.lireJournalScans(), entree));
       res.json(Object.assign({ ok: true }, r));

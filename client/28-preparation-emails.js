@@ -1843,7 +1843,7 @@
     const { sujet, corps } = modele.construire(d);
     const r = await livrerEmailDossier({ destinataire, sujet, corps, confrere: auConfrere, responsableSignature: d.responsable, dossierId: d.id, geste: type });
     // Préparation impossible : ne rien marquer sur le dossier, l'email n'est pas parti.
-    if (!r.ok) { if (!r.annule) afficherToast(r.message || "L'email n'a pas pu être préparé.", 'OK', null); return; }
+    if (!r.ok) { if (!r.annule) afficherToast(r.message || "L'email n'a pas pu être préparé.", 'OK', null); return false; }
     ajouterHistorique(d, modele.historique);
     notifierTacheFaite(d, (ACTIONS_EMAIL_DOSSIER[type] && ACTIONS_EMAIL_DOSSIER[type].titre) || modele.libelle, `${libelleEmailFait(r).toLowerCase()} ${auConfrere ? 'au confrère' : 'au client'}`);
     const aujourdhui = isoAujourdhuiLocal();
@@ -1862,6 +1862,7 @@
     annoncerEmailPret(r, discret);
     // Projet envoyé : noté aussi dans le rendez-vous de l'agenda (voir noterEnvoiDansAgenda).
     if (type === 'projet') noterEnvoiDansAgenda(id, true);
+    return true;
   }
 
   function changerEmailVendeur(id, valeur) {
@@ -2063,7 +2064,7 @@
     const pdfDispo = typeof QUESTIONNAIRE_SATISFACTION_PDF_BASE64 === 'string' && QUESTIONNAIRE_SATISFACTION_PDF_BASE64;
     const pieces = pdfDispo ? [{ nom: 'Enquete_satisfaction.pdf', type: 'application/pdf', contenuBase64: QUESTIONNAIRE_SATISFACTION_PDF_BASE64 }] : [];
     const r = await livrerEmailDossier({ destinataire, sujet, corps, pieces, responsableSignature: d.responsable, dossierId: d.id, geste: 'questionnaire' });
-    if (!r.ok) { if (!r.annule) afficherToast(r.message || "L'email n'a pas pu être préparé.", 'OK', null); return; }
+    if (!r.ok) { if (!r.annule) afficherToast(r.message || "L'email n'a pas pu être préparé.", 'OK', null); return false; }
     // Le fichier .eml porte le PDF ; en mode mailto (texte seul), il est téléchargé à côté, à joindre.
     const pdfTelecharge = r.mode === 'mailto' ? telechargerPdfQuestionnaire() : false;
     // Archivé quand le dernier côté attendu l'a reçu (étude 07/10) ; avant, le premier envoi archivait.
@@ -2088,6 +2089,7 @@
     if (r.mode === 'eml' && !pdfDispo) detail += ' Le PDF du questionnaire n’a pas pu être joint.';
     if (r.mode === 'mailto') detail += pdfTelecharge ? ' Joignez le PDF du questionnaire, qui vient d’être téléchargé.' : ' Le PDF du questionnaire n’a pas pu être téléchargé.';
     annoncerEmailPret(r, discret, detail.trim());
+    return true;
   }
 
   // Affichée juste après "Écrire par email" : absente pour un dossier déjà archivé (l'action n'a

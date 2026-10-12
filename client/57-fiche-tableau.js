@@ -17,10 +17,10 @@ var COLONNES_TABLEAU_FICHE = [
 // Échéances qu'on peut cocher et décocher d'un geste (même liste que la fiche, voir basculerEcheance).
 var TYPES_ECHEANCE_COCHABLES_FICHE = ['ventebien', 'pret', 'appelFonds', 'projetEnvoye', 'rendezVousSignature', 'redaction'];
 // Étapes attendues d'un tiers (la banque, la mairie, la SAFER, le client) : colonne « En attente ».
-var TYPES_ECHEANCE_ATTENTE_FICHE = ['ventebien', 'pret', 'safer', 'dia', 'rendezVousSignature'];
+var TYPES_ECHEANCE_ATTENTE_FICHE = ['ventebien', 'pret', 'preemption', 'safer', 'dia', 'rendezVousSignature'];
 // La catégorie de chaque carte, en pastille colorée comme dans « À faire » (mêmes couleurs : dot-label dl-<catégorie>).
 var LIBELLES_CATEGORIE_FICHE = {
-  pret: 'Prêt', ventebien: 'Vente préalable', safer: 'SAFER', dia: 'Préemption', rendezVousSignature: 'Signature', signature: 'Signature',
+  pret: 'Prêt', ventebien: 'Vente préalable', safer: 'SAFER', dia: 'Préemption', preemption: 'Préemption', rendezVousSignature: 'Signature', signature: 'Signature',
   fixerRdv: 'Signature', appelFonds: 'Appel de fonds', projetEnvoye: 'Projet d’acte', redaction: 'Rédaction', autre: 'Autre', piece: 'Pièce',
   engagement: 'Engagement', acte: 'Signature'
 };
@@ -114,14 +114,16 @@ function cartesTableauFiche(d, aujourdhuiIso, actions) {
 
   // --- Fait : les étapes déjà passées (on peut décocher celles qui se cochent), puis les échéances ajoutées à la main et cochées.
   etapes.filter(e => e.fait).forEach(e => {
-    const cochable = ['ventebien', 'pret', 'appelFonds', 'projetEnvoye'].includes(e.type);
+    // Prêt levé par l'offre reçue : « Rouvrir » ne changerait rien (audit 12/10) — étape faite d'elle-même.
+    const cochable = ['ventebien', 'pret', 'appelFonds', 'projetEnvoye'].includes(e.type) && !(e.type === 'pret' && d.offrePretStatut === 'recue');
     ajouter('fait', {
       cle: 'etape:' + e.type, titre: e.type === 'fixerRdv' ? 'Rendez-vous de signature placé' : (e.type === 'signature' ? 'Acte signé' : e.label),
       iso: e.iso || '', sous: e.iso ? formatDateFr(e.iso) : '', categorie: e.type, fait: true, auto: !cochable,
       coche: cochable ? { onclick: `basculerEcheance('${id}', '${escapeOnclickArg(e.type)}')`, libelle: 'Rouvrir' } : null
     });
   });
-  if (!succession && echeanceValidee(d, 'redaction')) {
+  // En participation, la rédaction n'est pas suivie (audit 12/10).
+  if (!succession && d.roleNotaire !== 'participant' && echeanceValidee(d, 'redaction')) {
     ajouter('fait', { cle: 'etape:redaction', titre: 'Rédaction de l’acte', categorie: 'redaction', fait: true, coche: { onclick: `basculerEcheance('${id}', 'redaction')`, libelle: 'Rouvrir' } });
   }
   (d.autres || []).forEach((a, i) => {
@@ -253,8 +255,13 @@ function renderBandeauFiche(d, actions) {
   let sigCorps;
   if (s.etat === 'signe') sigCorps = `<strong class="fb-grand fb-ok">${escapeHtml(s.texte)}</strong>`;
   else if (s.etat === 'placee') {
-    sigCorps = `<div class="fb-sig-ligne"><span class="fb-jours">${s.jours === 0 ? 'Auj.' : s.jours}</span>${s.jours === 0 ? '' : `<small>jour${s.jours > 1 ? 's' : ''}</small>`}<span class="fb-sig-date"><strong>${escapeHtml(formatDateFr(s.iso))}${s.heure ? ', ' + escapeHtml(String(s.heure).replace(':', ' h ').replace(/ h 00$/, ' h')) : ''}</strong>${renderPastilleProbabilite(s.proba)}</span></div>`;
-  } else if (s.etat === 'passee') sigCorps = `<strong class="fb-grand fb-retard">Date passée</strong><span class="fb-petit">${escapeHtml(formatDateFr(s.iso))} · à marquer signée ou à déplacer</span>`;
+    // Date illisible (jours inconnus) : pas de « null jour » (audit 12/10).
+    sigCorps = `<div class="fb-sig-ligne">${s.jours == null ? '' : `<span class="fb-jours">${s.jours === 0 ? 'Auj.' : s.jours}</span>${s.jours === 0 ? '' : `<small>jour${s.jours > 1 ? 's' : ''}</small>`}`}<span class="fb-sig-date"><strong>${escapeHtml(formatDateFr(s.iso))}${s.heure ? ', ' + escapeHtml(String(s.heure).replace(':', ' h ').replace(/ h 00$/, ' h')) : ''}</strong>${renderPastilleProbabilite(s.proba)}</span></div>`;
+  } else if (s.etat === 'passee') {
+    // Le geste est là où la question se pose (audit 12/10 : aucune carte ne permettait de marquer l'acte signé).
+    sigCorps = `<strong class="fb-grand fb-retard">Date passée</strong><span class="fb-petit">${escapeHtml(formatDateFr(s.iso))} · à marquer signée ou à déplacer</span>
+      <wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="basculerEcheance('${escapeOnclickArg(d.id)}', 'rendezVousSignature')">${icone('check')} Marquer signée</wa-button>`;
+  }
   else sigCorps = `<strong class="fb-grand">À placer</strong><span class="fb-petit">${s.iso ? 'Au plus tôt le ' + escapeHtml(formatDateFr(s.iso)) : 'Pas encore de date'}</span>`;
   const carteSignature = `<div class="fb-carte fb-signature"><span class="section-eyebrow">Signature</span>${sigCorps}</div>`;
   const m = b.maintenant;

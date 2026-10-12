@@ -42,14 +42,18 @@
     { cle: 'article20', label: 'Article 20-II', piece: 'article20', motif: /certificat (de l'|prevu (a|par) l')?article 20|article 20[ -]*(ii|2) /, rubriques: ['etatDate', 'copro'] },
     // Nommé « Compromis signé » : c'est le mot que choisirAvantContratNas cherche dans le nom d'un
     // fichier du dossier quand l'avant-contrat n'a pas été importé par CLAIRE (« promesse » aussi).
-    { cle: 'promesse', label: 'Promesse de vente signée', motif: /promesse (unilaterale |synallagmatique )?de vente|promesse d'achat/, rubriques: ['sru'] },
-    { cle: 'avantContrat', label: 'Compromis signé', motif: /compromis de vente|vente .{0,80}sous conditions? suspensives?|entre les soussignes|information prealable .{0,200}avant[- ]contrat/, rubriques: ['sru'] },
-    { cle: 'certificatUrbanisme', label: "Certificat d'urbanisme", piece: 'certificatUrbanisme', motif: /certificat d'urbanisme|note de renseignements d'urbanisme/, rubriques: ['aae'] },
+    { cle: 'promesse', label: 'Promesse de vente signée', motif: /promesse (unilaterale |synallagmatique )?de vente|promesse d'achat/, refuse: /veuillez trouver ci[- ]joint|vous trouverez ci[- ]joint|je vous prie|nous vous prions|cher maitre|chere maitre|madame, monsieur|ci[- ]joint (le|la|l')/, rubriques: ['sru'] },
+    { cle: 'avantContrat', label: 'Compromis signé', motif: /compromis de vente|vente .{0,80}sous conditions? suspensives?|entre les soussignes|information prealable .{0,200}avant[- ]contrat/, refuse: /veuillez trouver ci[- ]joint|vous trouverez ci[- ]joint|je vous prie|nous vous prions|cher maitre|chere maitre|madame, monsieur|ci[- ]joint (le|la|l')/, rubriques: ['sru'] },
+    { cle: 'certificatUrbanisme', label: "Certificat d'urbanisme", piece: 'certificatUrbanisme', motif: /certificat d'urbanisme|note de renseignements d'urbanisme/, refuse: /demande (de|d')|veuillez (nous|me) (adresser|transmettre|faire parvenir)|nous vous (serions|saurions) gre|nous vous prions de bien vouloir/, rubriques: ['aae'] },
     { cle: 'alignementNumerotage', label: "Certificat d'alignement et de numérotage", piece: 'certificatAlignement', piecesAussi: ['certificatNumerotage'], motif: /alignement.{0,80}numerotage|numerotage.{0,80}alignement/, rubriques: ['aae'] },
     { cle: 'certificatAlignement', label: "Certificat d'alignement", piece: 'certificatAlignement', motif: /alignement/, rubriques: ['aae'] },
     { cle: 'certificatNumerotage', label: 'Certificat de numérotage', piece: 'certificatNumerotage', motif: /numerotage/, rubriques: ['aae'] },
-    { cle: 'renonciationPreemption', label: 'Renonciation au droit de préemption', piece: 'renonciationPreemption', motif: /preemption|intention d'aliener/, rubriques: ['aae'] },
-    { cle: 'reponseAssainissement', label: 'Courrier réponse assainissement', piece: 'reponseAssainissement', motif: /assainissement|spanc/, rubriques: ['aae'] },
+    // Une DIA envoyée, une notification à la SAFER ou une demande au SPANC ne sont pas des réponses (audit 12/10 : cochées
+    // comme reçues) : la pièce n'est cochée que sur une réponse (renonciation, décision) ; sinon le type sans pièce qui suit.
+    { cle: 'renonciationPreemption', label: 'Renonciation au droit de préemption', piece: 'renonciationPreemption', motif: /preemption|intention d'aliener/, exige: /renonc|ne pas (exercer|preempter|faire usage)|non[- ]?exercice|n'entend pas|ne preemptera|decide de ne pas|pas usage/, refuse: /demande (de|d')|veuillez (nous|me) (adresser|transmettre|faire parvenir)|nous vous (serions|saurions) gre|nous vous prions de bien vouloir/, rubriques: ['aae'] },
+    { cle: 'demandePreemption', label: "Déclaration d'intention d'aliéner (DIA) ou notification", motif: /preemption|intention d'aliener|safer/, rubriques: ['aae'] },
+    { cle: 'reponseAssainissement', label: 'Courrier réponse assainissement', piece: 'reponseAssainissement', motif: /assainissement|spanc/, refuse: /demande (de|d')|veuillez (nous|me) (adresser|transmettre|faire parvenir)|nous vous (serions|saurions) gre|nous vous prions de bien vouloir/, rubriques: ['aae'] },
+    { cle: 'demandeAssainissement', label: 'Demande au service assainissement', motif: /assainissement|spanc/, rubriques: ['aae'] },
     { cle: 'erp', label: 'ERP (état des risques et pollution)', piece: 'erp', motif: /etat des risques/, rubriques: ['environnement', 'diagnostics', 'aae'] },
     { cle: 'diagnosticsTechniques', label: 'Diagnostics techniques', piece: 'diagnosticsTechniques', motif: /dossier de diagnostics? techniques?|diagnostic de performance energetique|constat de risque d'exposition au plomb|etat de l'installation interieure|presence de termites|reperage (des materiaux .{0,60})?amiante|rapport de (mission de )?(diagnostic|reperage)|attestation de (superficie|surface)|loi carrez/, rubriques: ['diagnostics', 'aae'] },
     { cle: 'etudeSol', label: 'Étude de sol', piece: 'etudeSol', motif: /etude (geotechnique|de sol)/, rubriques: ['construction', 'environnement', 'aae'] },
@@ -96,7 +100,7 @@
     const t = String(enTete || '');
     if (!t) return null;
     if (RE_OUVERTURE_ACTE_SCAN.test(t)) {
-      const avant = TYPES_SCAN.find(ty => (ty.cle === 'promesse' || ty.cle === 'avantContrat') && ty.motif.test(t));
+      const avant = TYPES_SCAN.find(ty => (ty.cle === 'promesse' || ty.cle === 'avantContrat') && ty.motif.test(t) && !(ty.refuse && ty.refuse.test(t)));
       if (avant) return avant;
       return RE_ACTE_DE_VENTE_SCAN.test(t) ? TYPES_SCAN.find(ty => ty.cle === 'titrePropriete') : null;
     }
@@ -104,7 +108,7 @@
     let position = Infinity;
     for (const faible of [false, true]) {
       for (const ty of TYPES_SCAN) {
-        if (!!ty.faible !== faible || (ty.exige && !ty.exige.test(t))) continue;
+        if (!!ty.faible !== faible || (ty.exige && !ty.exige.test(t)) || (ty.refuse && ty.refuse.test(t))) continue;
         const m = ty.motif.exec(t);
         if (m && m.index < position) { meilleur = ty; position = m.index; }
       }
@@ -129,6 +133,8 @@
     if (!a.trim()) return '';
     let voie = /\(\d{5}\)\s*,\s*(.+)$/.exec(a) ? /\(\d{5}\)\s*,\s*(.+)$/.exec(a)[1] : a.split(/\b\d{5}\b/)[0];
     voie = texteMotsScan(voie).trim();
+    // Sans numéro, une voie courte (« rue de la gare ») se retrouve dans trop de courriers : elle ne compte pas (audit 12/10).
+    if (!/\d/.test(voie) && voie.length < 16) return '';
     return voie.length >= 8 && /[a-z]{3}/.test(voie) ? voie : '';
   }
 
@@ -192,9 +198,17 @@
     }
     const voie = voieAdresseScan(d && d.adresseBien);
     if (voie && mots.includes(' ' + voie + ' ')) { score += b.adresse; raisons.push(`adresse du bien +${b.adresse}`); }
+    // Section suivie du numéro (au plus « n° » entre les deux) ; une section d'une lettre (« a 12 » est partout) seulement
+    // juste après « section », « cadastré » ou « parcelle » (audit 12/10 : un scan était rangé seul dans le mauvais dossier).
     for (const p of parcellesScan(d)) {
-      const re = new RegExp(`\\s${p.section}\\s(?:\\S+\\s){0,3}?0*${p.numero}\\s`);
-      if (re.test(mots)) { score += b.parcelle; raisons.push(`parcelle ${p.section.toUpperCase()} ${p.numero} +${b.parcelle}`); break; }
+      const re = new RegExp(`\\s${p.section}\\s(?:n\\s|no\\s|numero\\s)?0*${p.numero}\\s`, 'g');
+      let m;
+      let trouve = false;
+      while (!trouve && (m = re.exec(mots))) {
+        trouve = p.section.replace(/^0/, '').length > 1 || /(?:section|cadastr\S*|parcelles?)\s(?:\S+\s){0,2}$/.test(mots.slice(Math.max(0, m.index - 60), m.index + 1));
+        re.lastIndex = m.index + 1;
+      }
+      if (trouve) { score += b.parcelle; raisons.push(`parcelle ${p.section.toUpperCase()} ${p.numero} +${b.parcelle}`); break; }
     }
     // Une personne connue par son seul nom, porté aussi par une partie de l'autre côté (vendeur et acquéreur du même nom), ne dit
     // pas le côté de la pièce : il faut le nom ET le prénom (étude 07/10).

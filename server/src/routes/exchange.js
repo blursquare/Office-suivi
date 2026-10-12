@@ -110,7 +110,8 @@ function creerRouteurExchange(parametresRepo, injections = {}) {
   // l'agenda n'est tentée depuis un poste (un essai de plus peut verrouiller le compte) ; un refus d'Exchange relevé ici
   // l'ouvre pour tous — lecture automatique, sondages, autres postes. Réglages et « Tester » restent permis.
   routeur.use('/exchange', (req, res, next) => {
-    if (req.path === '/reglages' || req.path === '/test') return next();
+    const chemin = String(req.path || '').toLowerCase().replace(/\/+$/, '');
+    if (chemin === '/reglages' || chemin === '/test') return next();
     const agendaWatch = require('../agendaWatch');
     const reglages = parametresRepo.lireReglagesExchange();
     if (agendaWatch.lectureAgendaSuspendue(reglages)) {

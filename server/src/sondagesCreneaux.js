@@ -461,16 +461,31 @@ async function clore(s, statut, reglages, parametresRepo, injections, choisi) {
 // changé n'est pas réécrit ; changé par le tour seul → la version du tour ; changé des deux côtés → la version actuelle, avec
 // les réponses que le tour a ajoutées.
 function fusionnerTourSondages(actuels, duTour, avant) {
+  const j = (v) => JSON.stringify(v === undefined ? null : v);
+  const cleReponse = (r) => String((r && (r.email || r.cle)) || j(r));
   const liste = actuels.slice();
   for (const s of duTour) {
     const origine = avant.get(s.id);
-    if (origine === undefined || JSON.stringify(s) === origine) continue;
+    if (origine === undefined || j(s) === origine) continue;
     const i = liste.findIndex((x) => x.id === s.id);
     if (i < 0) continue;
-    if (JSON.stringify(liste[i]) === origine) { liste[i] = s; continue; }
-    const deja = new Set((liste[i].reponses || []).map((r) => JSON.stringify(r)));
-    const ajout = (s.reponses || []).filter((r) => !deja.has(JSON.stringify(r)));
-    if (ajout.length) liste[i] = { ...liste[i], reponses: [...(liste[i].reponses || []), ...ajout] };
+    if (j(liste[i]) === origine) { liste[i] = s; continue; }
+    // Changé des deux côtés : champ par champ, ce que le tour a changé et que la personne n'a pas touché passe (statut placé
+    // par le tour pendant un « Relancer », options à retirer…) ; les réponses se fusionnent par participant (relecture 12/10).
+    const o = JSON.parse(origine);
+    const fusion = { ...liste[i] };
+    for (const k of Object.keys(s)) {
+      if (k === 'reponses') continue;
+      if (j(s[k]) !== j(o[k]) && j(liste[i][k]) === j(o[k])) fusion[k] = s[k];
+    }
+    const origineReponses = new Map((o.reponses || []).map((r) => [cleReponse(r), j(r)]));
+    const parCle = new Map((liste[i].reponses || []).map((r) => [cleReponse(r), r]));
+    for (const r of s.reponses || []) {
+      const k = cleReponse(r);
+      if (origineReponses.get(k) !== j(r)) parCle.set(k, r);
+    }
+    fusion.reponses = [...parCle.values()];
+    liste[i] = fusion;
   }
   return liste;
 }

@@ -421,8 +421,10 @@
       const maj = String(nom || '').split(/\s+/).filter(m => m.length >= 2 && m === m.toUpperCase() && /[A-ZÀ-Þ]/.test(m));
       return (maj.length ? maj : String(nom || '').split(/\s+/).filter(m => m.length >= 3)).map(m => mots(m).trim()).filter(Boolean);
     };
+    // Le nom d'usage compte aussi (audit 12/10 : une comparante citée « Mme Léa DURAND » sous son nom d'usage était retirée,
+    // puis remise par la fiche client suivante, en boucle).
     const estComparant = (p) => comparants.some(c => c.role === String(p.role || '').toUpperCase()
-      && familles(p.nom).some(m => mots(c.nom).includes(' ' + m + ' ')));
+      && familles(p.nom).concat(familles(p.nomUsage)).some(m => mots(c.nom).includes(' ' + m + ' ')));
     const retires = (d.parties || []).filter(p => p && p.origine === 'authentic' && p.qualitePersonne !== 'morale'
       && (p.role === 'VENDEUR' || p.role === 'ACQUEREUR') && !estComparant(p));
     if (!retires.length) return false;

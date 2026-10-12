@@ -332,7 +332,7 @@
     'cgi', 'notaire', 'notaires', 'vendeur', 'vendeurs', 'acquereur', 'acquereurs', 'promettant', 'beneficiaire', 'safer', 'mairie', 'commune',
     'syndic', 'copropriete', 'etat', 'date', 'prix', 'condition', 'conditions', 'suspensive', 'suspensives', 'diagnostic', 'diagnostics', 'amiante',
     'plomb', 'termites', 'gaz', 'electricite', 'assainissement', 'garantie', 'decennale', 'dommages', 'ouvrage', 'taxe', 'fonciere', 'office', 'notarial']);
-  var MOTS_AVANT_REFERENCE_CONSIGNE_OUTIL2 = /(?:loi|zone|zones|article|articles|code|plan|d[ée]cret|arr[êe]t[ée]|secteur|lot|lots)\s*$/i;
+  var MOTS_AVANT_REFERENCE_CONSIGNE_OUTIL2 = /(?:loi|zone|zones|code|plan|d[ée]cret|arr[êe]t[ée])\s*$/i;
   function masquerNomsConsigneOutil2(texte) {
     const lettre = '[A-Za-zÀ-ÖØ-öø-ÿ]';
     return String(texte || '').split(/(⟦[A-Z_]+_\d+⟧)/).map((morceau, i) => {

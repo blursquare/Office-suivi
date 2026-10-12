@@ -216,10 +216,15 @@ function appliquerRendezVousAgenda(depot, detections, resultat, categoriesRdv) {
       const changeHoraire = poserHoraireRendezVous(d, det);
       const revenu = Boolean(d.detectionsAgenda.rendezVousDisparu);
       if (revenu) delete d.detectionsAgenda.rendezVousDisparu;
-      // Une date posée à la main (ou par CLAIRE) que l'agenda confirme reste « posée à la main » : la marquer écrite par
-      // l'agenda la rendait retirable par corrigerRendezVousEcritsParAgenda (audit 12/10, dossiers ROY homonymes : la date
-      // manuelle était retirée au tour suivant, puis proposée en doublon).
-      if (changeHoraire || revenu) depot.remplacer(d.id, d);
+      // Relevée dans l'agenda (repère lu par le poste : pas de seconde proposition de création, déplacements suivis), mais une
+      // date posée à la main ou par CLAIRE que l'agenda CONFIRME garde `confirmeManuel` : corrigerRendezVousEcritsParAgenda ne
+      // la retire jamais (audit 12/10, dossiers ROY homonymes : retirée au tour suivant puis proposée en doublon).
+      const confirme = ecritParAgenda !== det.dateIso;
+      if (confirme) d.detectionsAgenda.confirmeManuel = det.dateIso;
+      if (ecritParAgenda !== det.dateIso || changeHoraire || revenu) {
+        d.detectionsAgenda.rendezVousSignature = det.dateIso;
+        depot.remplacer(d.id, d);
+      }
       continue;
     }
     if (actuel && actuel !== ecritParAgenda) {
@@ -230,6 +235,7 @@ function appliquerRendezVousAgenda(depot, detections, resultat, categoriesRdv) {
     }
     d.rendezVousSignature = det.dateIso;
     d.detectionsAgenda.rendezVousSignature = det.dateIso;
+    delete d.detectionsAgenda.confirmeManuel;
     delete d.detectionsAgenda.rendezVousDisparu;
     delete d.detectionsAgenda.rendezVousRetire;
     delete d.rendezVousARemplacer;
@@ -267,6 +273,7 @@ function corrigerRendezVousEcritsParAgenda(depot, evenements, jour) {
     if (!d || d.archive || !d.rendezVousSignature) continue;
     const date = d.rendezVousSignature;
     if (!d.detectionsAgenda || d.detectionsAgenda.rendezVousSignature !== date) continue;
+    if (d.detectionsAgenda.confirmeManuel === date) continue; // posée à la main, seulement confirmée par l'agenda
     if (signatures.some((e) => e.dossierId === d.id && e.date === date)) continue;
     const autre = signatures.find((e) => e.date === date && e.dossierId !== d.id
       && String(e.heure || '') === String(d.rendezVousSignatureHeure || e.heure || ''));
@@ -387,6 +394,9 @@ async function executerEtEnregistrerTourAgenda(depot, parametresRepo, injections
   // Heure du DÉBUT de la lecture : un rendez-vous créé pendant qu'elle tourne peut manquer à la liste ; « lu » ne doit donc pas
   // dater d'après (audit 12/10 : options d'un sondage créées pendant la lecture → la dernière « restée seule » était placée).
   const debutLecture = new Date().toISOString();
+  // Calendrier lu au tour précédent (null : inconnu, lecture d'avant le 12/10) — voir synchroniserTachesAgenda.
+  const precedent = typeof parametresRepo.lireAgendaOffice === 'function' ? parametresRepo.lireAgendaOffice() : null;
+  const calendrierAvant = precedent && precedent.calendrier ? precedent.calendrier : null;
   const resultat = await executerTourSurveillanceAgenda(depot, reglages, injections);
   if (resultat.identifiantsRefuses) empreinteRefusee = empreinteIdentifiants(reglages);
   else if (resultat.ok) empreinteRefusee = null;
@@ -401,13 +411,14 @@ async function executerEtEnregistrerTourAgenda(depot, parametresRepo, injections
     parametresRepo.ecrireAgendaDuJour({ ...resultat.agendaDuJour, lu: new Date().toISOString() });
   }
   if (resultat.ok && resultat.agendaOffice && typeof parametresRepo.ecrireAgendaOffice === 'function') {
-    parametresRepo.ecrireAgendaOffice({ ...resultat.agendaOffice, lu: debutLecture });
+    parametresRepo.ecrireAgendaOffice({ ...resultat.agendaOffice, lu: debutLecture, calendrier: String(reglages.calendrierPartage || reglages.email || '') });
   }
   // Rendez-vous rouges « JV - … » : tâches du collaborateur dans « Mes rappels » (voir tachesAgenda.js).
   if (resultat.ok && resultat.agendaOffice && typeof parametresRepo.lireRappelsPerso === 'function') {
     try {
       const avant = parametresRepo.lireRappelsPerso();
-      const apres = synchroniserTachesAgenda(avant, resultat.agendaOffice.evenements, resultat.agendaOffice.debut);
+      const apres = synchroniserTachesAgenda(avant, resultat.agendaOffice.evenements, resultat.agendaOffice.debut, undefined,
+        { calendrierChange: calendrierAvant !== null && calendrierAvant !== String(reglages.calendrierPartage || reglages.email || '') });
       if (JSON.stringify(apres) !== JSON.stringify(avant)) parametresRepo.ecrireRappelsPerso(apres);
       const dejaFaites = new Set(avant.filter((r) => r && r.fait).map((r) => r.id));
       const cochees = apres.filter((r) => r && r.agendaItemId && r.fait && r.agendaSupprimeLe && !dejaFaites.has(r.id)).length;

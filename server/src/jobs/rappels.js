@@ -85,10 +85,19 @@ function calculerRappelsDus(dossiers, aujourdHui, dejaEnvoyes) {
   const dus = [];
   for (const d of dossiers || []) {
     if (!d || d.archive || !d.responsable) continue;
-    // Calculé une fois par dossier (pas par échéance/seuil) : ce sont les mêmes pièces quelle que
-    // soit l'échéance qui déclenche le rappel.
-    const pieces = piecesRecuesEtManquantes(d);
-    for (const e of toutesEcheances(d)) {
+    // Un dossier abîmé ne bloque jamais les rappels des autres (audit 12/10 : une donnée inattendue arrêtait tout le tour).
+    let pieces;
+    let echeances;
+    try {
+      // Calculé une fois par dossier (pas par échéance/seuil) : ce sont les mêmes pièces quelle que
+      // soit l'échéance qui déclenche le rappel.
+      pieces = piecesRecuesEtManquantes(d);
+      echeances = toutesEcheances(d);
+    } catch (e) {
+      console.warn('[CLAIRE] Rappels : dossier illisible ignoré', d.id, e && e.message);
+      continue;
+    }
+    for (const e of echeances) {
       const j = joursRestants(e.iso, aujourdHui);
       for (const seuil of seuilsPourType(e.type)) {
         if (j !== seuil) continue;

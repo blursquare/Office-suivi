@@ -176,17 +176,18 @@
           ajouter({
             type: 'appelFonds', categorie: 'appelFonds', categorieLabel: 'Envoi appel de fonds',
             titre: 'Envoyer l’appel de fonds',
-            contexte: `${signature}. ${pr ? '' : 'Le projet d’acte reste aussi à envoyer.'}`.trim(),
+            contexte: `${signature}. ${pr || jRdv <= JOURS_ACTIONS_RENDEZ_VOUS ? '' : 'Le projet d’acte reste aussi à envoyer.'}`.trim(),
             jours: jRdv, gravite: jRdv <= 2 ? 'critique' : 'vigilance',
             geste: { type: 'appelFonds' }, bouton: 'Préparer l’appel de fonds',
             second: { type: 'marquer', champ: 'appelFonds', libelle: 'Déjà envoyé' }
           });
         }
-        if (jRdv <= JOURS_ACTIONS_RENDEZ_VOUS && af && !pr) {
+        // Même moment que l'onglet Échanges : à J-7, ou dès l'appel de fonds parti (audit 12/10 : les deux étaient exigés).
+        if (!pr && (jRdv <= JOURS_ACTIONS_RENDEZ_VOUS || af)) {
           ajouter({
             type: 'projetEnvoye', categorie: 'projetEnvoye', categorieLabel: 'Envoi projet',
             titre: 'Envoyer le projet d’acte',
-            contexte: `${signature}. Appel de fonds envoyé${d.appelFonds ? ' le ' + formatDateFr(d.appelFonds) : ''} ; le projet n’est pas encore noté comme envoyé.`,
+            contexte: `${signature}. ${af ? `Appel de fonds envoyé${d.appelFonds ? ' le ' + formatDateFr(d.appelFonds) : ''} ; le` : 'Le'} projet n’est pas encore noté comme envoyé.`,
             jours: jRdv, gravite: jRdv <= 2 ? 'critique' : 'vigilance',
             geste: dest ? { type: 'email', motif: 'projet' } : { type: 'marquer', champ: 'projetEnvoye' },
             bouton: dest ? 'Envoyer le projet d’acte' : 'Marquer envoyé',
@@ -641,12 +642,11 @@
     const geste = secondaire ? a.second : a.geste;
     if (!geste) return;
     const id = a.dossier.id;
+    // Noté traité seulement si l'email est parti ou préparé : fermer la fenêtre sans envoyer ne coche rien (audit 12/10).
     if (geste.type === 'email') {
-      noterTraite(a, 'Brouillon ouvert');
-      envoyerRelanceCiblee(id, geste.motif, true);
+      Promise.resolve(envoyerRelanceCiblee(id, geste.motif, true)).then(ok => { if (ok) { noterTraite(a, 'Brouillon ouvert'); render(); } });
     } else if (geste.type === 'questionnaire') {
-      noterTraite(a, 'Questionnaire ouvert');
-      envoyerQuestionnaireSatisfaction(id, true, geste.partie);
+      Promise.resolve(envoyerQuestionnaireSatisfaction(id, true, geste.partie)).then(ok => { if (ok) { noterTraite(a, 'Questionnaire ouvert'); render(); } });
     } else if (geste.type === 'marquer' && geste.champ !== 'appelFonds' && geste.champ !== 'projetEnvoye') {
       // « Déjà relancé » / « Déjà reçu » : la trace du dossier est posée par « Déjà fait » (CHAMP_FAIT_MAIN_PAR_TYPE, date du
       // rendez-vous retenue) — ce chemin posait une date d'appel de fonds à tort et la tâche revenait le lendemain.
@@ -1265,7 +1265,8 @@
       const rappelsJour = utilisateurPoste ? renderRappelsJour(aujourdhui, true, 'aFaire') : '';
       const rappelsCoches = utilisateurPoste ? renderRappelsJour(aujourdhui, true, 'faits') : '';
       const mesRappels = utilisateurPoste ? rappelsDuJour(rappelsPerso, aujourdhui) : { aFaire: [], faits: [] };
-      const faitsDuJour = traites.length + mesRappels.faits.length;
+      // « Plus tard » (reporté à demain) n'est pas une tâche faite (audit 12/10 : il déclenchait la fête).
+      const faitsDuJour = traites.filter(t => t.etat !== 'Reporté à demain').length + mesRappels.faits.length;
       if (journeeBouclee(actions.length, mesRappels.aFaire.length, faitsDuJour)) feteHtml = renderFeteJour(feteJourAAnimer(aujourdhui), faitsDuJour);
       const liste = actions.length || traites.length || rappelsJour || rappelsCoches
         ? `<ul class="ja-liste ja-taches" data-ajuster="1" data-min="1">${rappelsJour}${renderActionsJour(actions, global, traites, true)}${rappelsCoches}${renderLignesTraitees(grouperActionsParDossier(actions, traites).traites)}${plusWidget(versPage)}</ul>`
@@ -1275,6 +1276,10 @@
           <div class="rappels-perso" data-ajuster="0" data-garder>${renderMesRappels(perimetreActifs, 'ajout')}</div>
         </div>`;
     }
+    // Une tâche en cours de saisie survit au redessin (audit 12/10 : effacée au premier rafraîchissement).
+    const actifAvant = document.activeElement;
+    const saisies = [...bloc.querySelectorAll('input[id]:not([type="checkbox"]):not([type="radio"]), textarea[id]')]
+      .filter(e => e.value).map(e => ({ id: e.id, valeur: e.value, focus: e === actifAvant, debut: e.selectionStart, fin: e.selectionEnd }));
     bloc.innerHTML = carteWidget({
       presentation,
       titre: 'Aujourd’hui',
@@ -1282,6 +1287,12 @@
       sous: presentation === 'petit' || feteHtml ? '' : escapeHtml(messageProgressionJour(actions.length, traites.length)),
       droite: anneau,
       corps
+    });
+    saisies.forEach(g => {
+      const e = document.getElementById(g.id);
+      if (!e || !bloc.contains(e)) return;
+      e.value = g.valeur;
+      if (g.focus) { e.focus({ preventScroll: true }); try { e.setSelectionRange(g.debut, g.fin); } catch (err) { /* type sans sélection */ } }
     });
     renderFenetreAujourdhui();
     planifierAjustementWidgets();

@@ -77,7 +77,7 @@ test('sauvegarde réelle : copie relisible, contenu complet, fichier temporaire 
   fs.rmSync(racine, { recursive: true, force: true });
 });
 
-test('même jour relancé : le fichier du jour est remplacé ; au-delà de 14, les plus anciennes partent', async () => {
+test('même jour relancé : la sauvegarde du matin est gardée, la seconde prend l’heure ; 14 jours conservés', async () => {
   const racine = dossierTemp('claire-sauv-');
   const cheminDb = path.join(racine, 'claire.db');
   const db = baseAvecDossiers(cheminDb, 1);
@@ -89,8 +89,12 @@ test('même jour relancé : le fichier du jour est remplacé ; au-delà de 14, l
   const r2 = await executerSauvegarde(db, cheminDb, { dossierChoisi: destination, maintenant: new Date(2026, 8, 24, 18) });
   assert.equal(r1.ok && r2.ok, true);
   const restants = fs.readdirSync(destination).sort();
-  assert.equal(restants.filter((n) => n.endsWith('.db')).length, 14);
+  // 14 jours : le 24/09 (deux fichiers) et les 13 derniers jours d'août.
+  assert.equal(restants.filter((n) => n.endsWith('.db')).length, 15);
   assert.ok(restants.includes('claire-2026-09-24.db'));
+  assert.ok(restants.includes('claire-2026-09-24-180000.db'));
+  assert.equal(r2.fichier, 'claire-2026-09-24-180000.db');
+  assert.equal(restants.includes('claire-2026-08-02.db'), false);
   assert.ok(restants.includes('lisez-moi.txt'));
   assert.equal(restants.includes('claire-2026-08-01.db'), false);
   db.close();

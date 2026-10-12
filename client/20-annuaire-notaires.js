@@ -131,11 +131,15 @@
     // Familles essayées : le nom tel quel, puis chaque mot (le reste devient le prénom).
     const essais = [{ famille: c.famille, prenom: c.prenom }].concat(motsFamille.length > 1
       ? motsFamille.map(m => ({ famille: m, prenom: [c.prenom].concat(motsFamille.filter(x => x !== m)).filter(Boolean).join(' ') })) : []);
+    // Tous les essais comptent, pas seulement le premier trouvé (audit 12/10 : « Maître THOMAS LEMOINE » donnait Séverine
+    // THOMAS de Bourges au lieu de Thomas LEMOINE) : le nom entier l'emporte, puis le prénom retrouvé départage ; à défaut,
+    // le DERNIER mot est plus souvent le nom de famille (« PRÉNOM NOM »).
+    const derniereFamille = motsFamille[motsFamille.length - 1];
     let candidats = [];
-    for (const e of essais) {
-      candidats = (index.get(e.famille) || []).map(x => Object.assign({ prenomLu: e.prenom }, x));
-      if (candidats.length) break;
-    }
+    essais.forEach((e, i) => {
+      const bonus = i === 0 ? 10 : (e.famille === derniereFamille ? 1 : 0);
+      (index.get(e.famille) || []).forEach(x => candidats.push(Object.assign({ prenomLu: e.prenom, bonus }, x)));
+    });
     const proche = (x) => x.office.etude || !x.office.departement || DEPARTEMENTS_PROCHES_ANNUAIRE.indexOf(x.office.departement) !== -1;
     if (!candidats.length && c.famille.length >= 5) {
       for (const [famille, liste] of index) {
@@ -147,7 +151,7 @@
     if (!candidats.length) return null;
     const norm = (v) => normaliserPourRecherche(v || '').replace(/[^a-z0-9]+/g, ' ').trim();
     const score = (x) => {
-      let s = 0;
+      let s = x.bonus || 0;
       if (x.prenomLu && x.c.prenom) s += x.c.prenom === x.prenomLu ? 8 : (x.c.prenom.split(' ')[0] === x.prenomLu.split(' ')[0] ? 6 : 0);
       if (c.ville && [x.office.ville].concat(x.office.bureaux || []).map(norm).some(l => l && (' ' + l + ' ').indexOf(' ' + c.ville + ' ') !== -1)) s += 6;
       if (x.office.etude || x.office.departement === '41') s += 3;
@@ -2108,7 +2112,17 @@
     if (!v) return false;
     if (v === NOTAIRE_ETUDE_LIBELLE || canoniserNotaireEtude(v) === NOTAIRE_ETUDE_LIBELLE) return true;
     if (!Array.isArray(carnet) || !carnet.length) return true;
-    return !!trouverOfficeConfrere(v, carnet);
+    // Le prénom et la ville écrits doivent être ceux d'un notaire de ce nom (audit 12/10 : un faux prénom ou une fausse ville
+    // passaient) ; un notaire présent dans deux offices est accepté quand la ville désigne l'un d'eux (les options de la liste
+    // étaient refusées) ; sans prénom ni ville, le nom doit désigner un seul notaire.
+    const c = decomposerNomNotaire(v);
+    if (!c.famille) return false;
+    const norm = (t) => normaliserPourRecherche(t || '').replace(/[^a-z0-9]+/g, ' ').trim();
+    const candidats = (indexNotairesParFamille(carnet).get(c.famille) || []).filter(x =>
+      (!c.prenom || x.c.prenom === c.prenom || x.c.prenom.split(' ')[0] === c.prenom.split(' ')[0])
+      && (!c.ville || [x.office.ville].concat(x.office.bureaux || []).map(norm).some(l => l && (' ' + l + ' ').indexOf(' ' + c.ville + ' ') !== -1)));
+    if (!candidats.length) return false;
+    return !!(c.prenom || c.ville) || new Set(candidats.map(x => norm(x.notaire))).size === 1;
   }
 
   function affecterNotaire(id, cote, valeur) {
@@ -2221,23 +2235,11 @@
     render();
   }
 
+  // Jours jusqu'à l'échéance AFFICHÉE (prochaineEcheanceDetail, celle des deux vues du Suivi) — le tri par date suivait une
+  // ancienne liste de champs (audit 12/10). Sans échéance datée : en fin de liste.
   function calculerProchaineEcheance(d) {
-    const autresDates = (d.autres || []).map(a => a.date);
-    // Une fois l'offre de prêt reçue, cette échéance est résolue : elle ne doit plus faire
-    // considérer le dossier comme "urgent" ni ressortir en tête de tri à sa place (voir aussi
-    // prochaineEcheanceDetail, même exclusion pour l'affichage).
-    const datePret = echeanceValidee(d, 'pret') ? null : d.pret;
-    const dates = [
-      datePret,
-      echeanceValidee(d, 'appelFonds') ? null : d.appelFonds,
-      echeanceValidee(d, 'projetEnvoye') ? null : d.projetEnvoye,
-      echeanceValidee(d, 'acte') ? null : d.acte,
-      echeanceValidee(d, 'rendezVousSignature') ? null : d.rendezVousSignature,
-      echeanceValidee(d, 'ventebien') ? null : d.ventebien,
-      ...autresDates
-    ].filter(Boolean).map(joursRestants);
-    const upcoming = dates.filter(j => j >= 0);
-    return upcoming.length ? Math.min(...upcoming) : (dates.length ? Math.min(...dates) : 999999);
+    const p = prochaineEcheanceDetail(d);
+    return p && Number.isFinite(p.jours) ? p.jours : 999999;
   }
 
   function archiverDossier(id, archive) {

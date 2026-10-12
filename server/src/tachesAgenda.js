@@ -49,7 +49,7 @@ function idTacheAgenda(itemId) {
 // - rendez-vous encore là mais qui n'est plus une tâche (plus rouge, initiales retirées) → retirée ;
 // - déjà retirée de l'agenda par CLAIRE puis décochée (`agendaSupprimeLe`) → reste, comme un rappel ordinaire.
 // La lecture n'arrive ici que complète (une tranche en échec = tour sans effet, lireCalendrierExchange).
-function synchroniserTachesAgenda(rappels, evenements, debut, maintenantIso) {
+function synchroniserTachesAgenda(rappels, evenements, debut, maintenantIso, options) {
   const maintenant = maintenantIso || new Date().toISOString();
   const taches = new Map();
   const presents = new Set();
@@ -59,14 +59,13 @@ function synchroniserTachesAgenda(rappels, evenements, debut, maintenantIso) {
     if (t) taches.set(t.itemId, t);
   }
   // Garde-fous (audit 12/10) : une tâche après le dernier jour lu n'est pas jugée ; une lecture tronquée (3 000 rendez-vous)
-  // ne coche rien ; si AUCUNE des tâches non cochées n'est retrouvée alors qu'il y en a plusieurs (calendrier changé dans les
-  // Réglages, lecture vide), rien n'est coché d'office.
+  // ou vide, ou d'un AUTRE calendrier que le tour précédent (Réglages changés), ne coche rien. Des tâches toutes supprimées
+  // d'un coup dans Outlook sont bien cochées (règle de l'étude du 04/10).
   const liste = evenements || [];
   const dates = liste.map((e) => e && String(e.date || '')).filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d)).sort();
   const finLue = dates.length ? dates[dates.length - 1] : '';
   const tronquee = liste.length >= 3000;
-  const enAttente = (rappels || []).filter((r) => r && r.agendaItemId && !r.fait && !r.agendaSupprimeLe && !(debut && r.echeance && r.echeance < debut));
-  const aucuneRetrouvee = enAttente.length >= 2 && !enAttente.some((r) => presents.has(r.agendaItemId));
+  const aucuneRetrouvee = !!(options && options.calendrierChange);
   const resultat = [];
   const vus = new Set();
   for (const r of rappels || []) {

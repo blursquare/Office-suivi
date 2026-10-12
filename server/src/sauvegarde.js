@@ -48,9 +48,24 @@ function nomFichierSauvegarde(date) {
 
 // Pure : parmi les noms d'un dossier, ceux à supprimer pour n'en garder que `nb`. Le nom porte la
 // date au format AAAA-MM-JJ, donc l'ordre alphabétique est l'ordre chronologique.
+// Les `nb` derniers JOURS sont gardés (relecture 12/10 : des copies prises dans la journée chassaient les bonnes sauvegardes
+// des jours précédents) ; dans un jour, la sauvegarde du jour et les deux dernières copies prises ensuite.
 function sauvegardesARetirer(noms, nb = NB_SAUVEGARDES_CONSERVEES) {
   const valides = (noms || []).filter((n) => RE_NOM_SAUVEGARDE.test(n)).sort(comparerNomsSauvegarde).reverse();
-  return valides.slice(nb);
+  const jour = (n) => n.slice(7, 17);
+  const jours = [...new Set(valides.map(jour))];
+  const gardes = new Set(jours.slice(0, nb));
+  const parJour = new Map();
+  const retirer = [];
+  for (const n of valides) {
+    const j = jour(n);
+    if (!gardes.has(j)) { retirer.push(n); continue; }
+    if (/^claire-\d{4}-\d{2}-\d{2}\.db$/.test(n)) continue;
+    const k = (parJour.get(j) || 0) + 1;
+    parJour.set(j, k);
+    if (k > 2) retirer.push(n);
+  }
+  return retirer;
 }
 
 // Ordre chronologique des noms : la sauvegarde du jour (sans heure) avant celles prises ensuite le même jour.

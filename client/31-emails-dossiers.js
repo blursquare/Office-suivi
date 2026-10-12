@@ -948,7 +948,9 @@
   // ancienne version, une réparation à la main dans la base) ne doit pas faire planter un rendu — il est ramené à un
   // conteneur vide. Les valeurs correctes passent telles quelles ; rien d'autre n'est touché.
   var CHAMPS_LISTE_DOSSIER = ['historique', 'parties', 'biens', 'autres', 'piecesNotifications', 'garantiesPret', 'notairesDetectes',
-    'piecesEngagementsDetectees', 'personnesConnuesEcartees', 'piecesValideesManuellement'];
+    'piecesEngagementsDetectees', 'personnesConnuesEcartees', 'piecesValideesManuellement', 'piecesPersonnalisees', 'piecesRetirees'];
+  // Listes d'objets : un élément null ou d'un autre type est retiré (audit 12/10 : `autres: [null]` vidait toute la liste du Suivi).
+  var LISTES_OBJETS_DOSSIER = ['parties', 'biens', 'autres', 'piecesPersonnalisees', 'historique'];
   var CHAMPS_OBJET_DOSSIER = ['pieces', 'fichiersTrouves', 'echeancesValidees'];
   // Dates du planning : une chaîne AAAA-MM-JJ ou vide, jamais un nombre ou un objet (tris et comparaisons de texte).
   var CHAMPS_DATE_DOSSIER = ['pret', 'acte', 'ventebien', 'appelFonds', 'projetEnvoye', 'rendezVousSignature', 'dateAvantContrat'];
@@ -957,6 +959,7 @@
     for (const k of CHAMPS_DATE_DOSSIER) if (k in d && d[k] != null && typeof d[k] !== 'string') d[k] = '';
     for (const k of CHAMPS_LISTE_DOSSIER) if (k in d && d[k] != null && !Array.isArray(d[k])) d[k] = [];
     for (const k of CHAMPS_OBJET_DOSSIER) if (k in d && d[k] != null && (typeof d[k] !== 'object' || Array.isArray(d[k]))) d[k] = {};
+    for (const k of LISTES_OBJETS_DOSSIER) if (Array.isArray(d[k]) && d[k].some(x => !x || typeof x !== 'object')) d[k] = d[k].filter(x => x && typeof x === 'object');
     if (typeof d.nom !== 'string') d.nom = d.nom == null ? '' : String(d.nom);
     return d;
   }

@@ -1048,7 +1048,8 @@
     if (d.fondsValidesLe) {
       etat[7] = { fait: true, date: iso(d.fondsValidesLe), note: 'Fonds validés à la main (arrivés sur le compte de l’étude).' };
     } else if (f.verifieLe) {
-      const b = bilanFondsRecus(f.total, f.attendu);
+      // Même bilan que partout (montant attendu saisi à la main compris) — audit 12/10.
+      const b = bilanFondsDossier(d);
       const derniere = (f.recus || []).map(r => iso(r.date)).filter(Boolean).sort().pop() || '';
       if (b.etat === 'complet') etat[7] = { fait: true, date: derniere, note: 'Fonds complets : ' + euros(b.total) + ' reçus.' };
       else if (b.etat === 'excedent') etat[7].note = 'Reçu ' + euros(b.total) + ' pour ' + euros(b.attendu) + ' attendus — écart à vérifier.';

@@ -151,7 +151,14 @@ function fusionnerCarnetEtAnnuaire(carnet, annuaire) {
   const parId = new Map(corrections.map((o) => [o.id, o]));
   const parEmail = new Map();
   const parTel = new Map();
+  // Rapprochement par email ou téléphone : seulement pour un office SAISI (pas un office de l'annuaire corrigé, qui a son id),
+  // et seulement quand un seul office de l'annuaire porte cet email ou ce téléphone (audit 12/10 : corriger un office faisait
+  // disparaître un autre office au même standard ou à la même adresse générique).
+  const compte = (cle) => { const m = new Map(); for (const a of annuaire || []) { const k = a && cle(a); if (k) m.set(k, (m.get(k) || 0) + 1); } return m; };
+  const emailsAnnuaire = compte((a) => String(a.email || '').trim().toLowerCase());
+  const telsAnnuaire = compte((a) => (chiffres(a.telephone).length === 9 ? chiffres(a.telephone) : ''));
   for (const o of corrections) {
+    if (idsAnnuaire.has(o.id)) continue;
     const e = String(o.email || '').trim().toLowerCase();
     if (e && !parEmail.has(e)) parEmail.set(e, o);
     const t = chiffres(o.telephone);
@@ -168,9 +175,17 @@ function fusionnerCarnetEtAnnuaire(carnet, annuaire) {
   if (etude) { res.push(marquer(etude, null)); places.add(etude.id); }
   for (const a of annuaire || []) {
     if (!a) continue;
-    const c = parId.get(a.id) || parEmail.get(String(a.email || '').trim().toLowerCase()) || parTel.get(chiffres(a.telephone).length === 9 ? chiffres(a.telephone) : '#');
+    const email = String(a.email || '').trim().toLowerCase();
+    const tel = chiffres(a.telephone).length === 9 ? chiffres(a.telephone) : '';
+    const c = parId.get(a.id) || (email && emailsAnnuaire.get(email) === 1 ? parEmail.get(email) : null)
+      || (tel && telsAnnuaire.get(tel) === 1 ? parTel.get(tel) : null);
+    if (c && places.has(c.id)) {
+      // Déjà placée ailleurs (rapprochée par email ou téléphone) : cet office de l'annuaire reste tel que relevé ; le même
+      // office (même id, notre office placé en tête) n'est pas doublé.
+      if (c.id !== a.id) res.push(Object.assign({}, a, { modifie: false, annuaire: true }));
+      continue;
+    }
     if (c) {
-      if (places.has(c.id)) continue;
       places.add(c.id);
       res.push(marquer(c, a));
     } else {

@@ -58,3 +58,15 @@ test('sauvegardes : une seconde le même jour a son heure, l’ordre reste chron
   const noms = ['claire-2026-10-12-143000.db', 'claire-2026-10-13.db', 'claire-2026-10-12.db'].sort(comparerNomsSauvegarde);
   assert.equal(noms.join(','), 'claire-2026-10-12.db,claire-2026-10-12-143000.db,claire-2026-10-13.db');
 });
+
+test('tour des sondages : statut placé par le tour gardé malgré un « Relancer », réponse modifiée sans doublon', () => {
+  const s = { id: 'S1', statut: 'ouvert', reponses: [{ email: 'x@y.fr', choix: [1] }], relances: [] };
+  const avant = new Map([['S1', JSON.stringify(s)]]);
+  const duTour = [{ ...s, statut: 'place', reponses: [{ email: 'x@y.fr', choix: [2] }] }];
+  const actuels = [{ ...s, relances: ['2026-10-12T08:00:00Z'] }];
+  const r = fusionnerTourSondages(actuels, duTour, avant)[0];
+  assert.equal(r.statut, 'place');
+  assert.equal(r.relances.length, 1);
+  assert.equal(r.reponses.length, 1);
+  assert.equal(r.reponses[0].choix.join(','), '2');
+});

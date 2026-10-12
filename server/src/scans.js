@@ -259,10 +259,12 @@ async function rangerScan({ dossierScans, nasRacine, nom, dossierNas, rubriques,
   const rubrique = await resoudreRubrique(dossierClient, rubriques, (d) => listerSousDossiers(d, fsImpl));
   const dossierCible = path.join(dossierClient, rubrique);
   const cible = await cheminLibre(dossierCible, nomFichierSur(nomCible), fsImpl);
+  let dateSource = '';
   try {
     await fsImpl.copyFile(source, cible, fsc.constants.COPYFILE_EXCL);
     const [a, b] = await Promise.all([fsImpl.stat(source), fsImpl.stat(cible)]);
     if (a.size !== b.size) throw new Error('Copie incomplète.');
+    dateSource = Number.isFinite(a.mtimeMs) ? new Date(a.mtimeMs).toISOString() : '';
   } catch (e) {
     // EEXIST : le fichier existait déjà (apparu entre le choix du nom et la copie), rien n'a été écrit et il n'est pas
     // à nous — jamais retiré. Seule une copie partielle est nettoyée (audit 04/10).
@@ -290,7 +292,8 @@ async function rangerScan({ dossierScans, nasRacine, nom, dossierNas, rubriques,
   return {
     chemin: path.relative(path.resolve(nasRacine), cible),
     rubrique,
-    original: original ? path.relative(dossierScans, original) : null
+    original: original ? path.relative(dossierScans, original) : null,
+    dateSource
   };
 }
 

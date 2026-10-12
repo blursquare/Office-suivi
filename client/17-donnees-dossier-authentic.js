@@ -650,16 +650,22 @@
     if (!groupes.length) return '';
     const choisi = indexGroupeAuthenticPourDossier(d, groupes);
     const id = escapeOnclickArg(d.id);
-    const options = groupes.map((g, i) => `<option value="${i}"${i === choisi ? ' selected' : ''}>${escapeHtml(g.intitule)}${g.reference ? ` (${escapeHtml(g.reference)})` : ''} — ${escapeHtml(resumeGroupeAuthentic(g))}</option>`).join('');
+    // Valeur = la clé du dossier d'Authentic (référence, sinon intitulé), jamais sa position : la liste est relue toutes les
+    // minutes et peut changer d'ordre entre l'affichage et le clic (audit 12/10 : le dossier d'un autre client était repris).
+    const options = groupes.map((g, i) => `<option value="${escapeAttr(cleGroupeAuthenticFiche(g))}"${i === choisi ? ' selected' : ''}>${escapeHtml(g.intitule)}${g.reference ? ` (${escapeHtml(g.reference)})` : ''} — ${escapeHtml(resumeGroupeAuthentic(g))}</option>`).join('');
     const html = `<span class="auth-completer"><select id="auth-comp-${escapeAttr(d.id)}" class="prop-champ auth-completer-choix" aria-label="Dossier d’Authentic à reprendre">${choisi < 0 ? '<option value="" selected>Choisir le dossier d’Authentic…</option>' : ''}${options}</select>
       <wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="completerDossierDepuisAuthentic('${id}')" title="Reprendre d’Authentic personnes, emails, téléphones, bien et prix : Authentic fait foi, l’ancienne valeur reste dans l’historique">${icone('download')} Compléter</wa-button></span>`;
     return ligne('download', 'Authentic', html, `auth-comp-${d.id}`, 'prop-pleine');
   }
 
+  function cleGroupeAuthenticFiche(g) {
+    return g && g.reference ? 'ref:' + g.reference : 'int:' + String((g && g.intitule) || '');
+  }
+
   function completerDossierDepuisAuthentic(id) {
     const d = dossiers.find(x => x.id === id);
     const select = document.getElementById('auth-comp-' + id);
-    const g = d && select && select.value !== '' ? groupesAuthenticFiche.liste[Number(select.value)] : null;
+    const g = d && select && select.value !== '' ? groupesAuthenticFiche.liste.find(x => cleGroupeAuthenticFiche(x) === select.value) || null : null;
     if (!d || !g) { afficherToast('Choisissez le dossier d’Authentic à reprendre.', 'OK', null); return; }
     const textes = complementDossierDepuisAuthentic(d, g.export, dossiers, { forcer: true });
     if (!textes.length) { afficherToast(`Rien à compléter : la fiche a déjà ce qu’Authentic montre pour « ${g.intitule} ».`, 'OK', null); return; }

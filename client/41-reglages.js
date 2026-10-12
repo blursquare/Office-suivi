@@ -947,10 +947,12 @@
 
   // Pure : « claire-2026-10-05.db » → « lundi 5 octobre 2026 ».
   function libelleSauvegarde(nom) {
-    const m = /^claire-(\d{4})-(\d{2})-(\d{2})\.db$/.exec(String(nom || ''));
+    // « claire-2026-10-05-143000.db » : seconde sauvegarde du jour, l'heure dite.
+    const m = /^claire-(\d{4})-(\d{2})-(\d{2})(?:-(\d{2})(\d{2})\d{2})?\.db$/.exec(String(nom || ''));
     if (!m) return String(nom || '');
     const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
-    return d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+    const jour = d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+    return m[4] ? `${jour}, ${Number(m[4])} h ${m[5]}` : jour;
   }
 
   async function chargerSauvegardesRestaurables() {
