@@ -51,8 +51,11 @@
   // telles que les rend un <input>, vides comprises.
   function calculerArbitrageInventaire(saisie) {
     const s = saisie || {};
-    const droitsSans = nombreSaisiInventaire(s.droitsSans);
-    const droitsAvec = nombreSaisiInventaire(s.droitsAvec);
+    // Des droits négatifs n'existent pas : ramenés à zéro, comme les coûts (audit 12/10 — un signe moins tapé
+    // faisait une économie fausse).
+    const positif = (v) => { const n = nombreSaisiInventaire(v); return n === null ? null : Math.max(0, n); };
+    const droitsSans = positif(s.droitsSans);
+    const droitsAvec = positif(s.droitsAvec);
     // Les deux simulations sont indispensables : sans elles il n'y a pas d'économie à comparer au
     // coût, et un verdict rendu sur des champs vides afficherait « non recommandé » sur un écran
     // où personne n'a encore rien saisi.
@@ -347,7 +350,10 @@
   }
 
   function nomAcquereurQuotite(a) {
-    return `${civiliteAbregee(a.civilite)} ${String(a.nom || '').trim() || '……………'}`.trim();
+    const nom = String(a.nom || '').trim();
+    // Une société dont le nom porte déjà sa forme (« SCI DU MOULIN ») n'est pas « SCI SCI DU MOULIN » (audit 12/10).
+    if (a.civilite === 'SCI' && nom && nomDitSociete(nom)) return nom;
+    return `${civiliteAbregee(a.civilite)} ${nom || '……………'}`.trim();
   }
 
   function formaterPourcentageQuotite(p) {
@@ -770,11 +776,17 @@
   // cdn.jsdelivr.net comme pizzip/docxtemplater pour l'appel de fonds : rien n'est chargé tant que
   // personne ne télécharge d'annexe. Mise en page de l'artefact conservée à l'identique (Times New
   // Roman 11, marges 2,5 cm, points de conduite vers le montant).
-  async function telechargerQuotitesDocx(btn) {
+  async function telechargerQuotitesDocx(btn, confirme) {
     if (!qtEtat) return;
     const r = calculerQuotites(qtEtat);
     if (!r.totalFinancement) {
       afficherToast('Saisissez l’origine du financement avant de télécharger l’annexe.', 'OK', null);
+      return;
+    }
+    // Financement qui ne couvre pas l'opération ou acquéreur sans part : l'annexe serait fausse, on le dit avant (audit 12/10).
+    if (!confirme && (!r.couvert || r.sansFinancement.length)) {
+      demanderConfirmation('Télécharger quand même l’annexe ? Le financement saisi ne correspond pas au coût de l’opération ou un acquéreur ne finance rien.',
+        () => telechargerQuotitesDocx(btn, true));
       return;
     }
     const libelle = btn ? btn.textContent : '';

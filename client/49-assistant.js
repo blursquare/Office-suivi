@@ -835,7 +835,7 @@
     }
     renderQuotites();
     const calc = calculerQuotites(qtEtat);
-    const noms = qtEtat.acquereurs.map((a, i) => `${a.nom || `Acquéreur ${i + 1}`} : ${calc.pourcentages && calc.pourcentages[i] !== undefined ? calc.pourcentages[i] : 0} %`);
+    const noms = qtEtat.acquereurs.map((a, i) => `${a.nom || `Acquéreur ${i + 1}`} : ${formaterPourcentageQuotite(calc.parAcquereur[i] ? calc.parAcquereur[i].pourcentage : 0)}`);
     return { html: `<p>Outil Quotités ouvert${d ? ` sur ${escapeHtml(libelleDossierAffiche(d))}` : ''}${prix ? `, prix ${escapeHtml(formaterMontantEuros(prix))}` : ''}.</p>${calc.totalFinancement ? `<ul class="asst-liste">${noms.map(n => `<li>${escapeHtml(n)}</li>`).join('')}</ul>` : '<p class="asst-note">Complétez les apports et prêts de chaque acquéreur pour obtenir les quotités.</p>'}` };
   }
 
@@ -882,7 +882,10 @@
       if (champ('prorata-fin')) champ('prorata-fin').value = fin;
       if (champ('prorata-date')) champ('prorata-date').value = dateActe;
       // Période de la liste accordée aux bornes (une période trimestrielle choisie avant restait affichée sur une année).
-      if (champ('prorata-periode') && debut === `${dateActe.slice(0, 4)}-01-01` && fin === `${dateActe.slice(0, 4)}-12-31`) champ('prorata-periode').value = 'annee';
+      const anneeCivile = debut === `${dateActe.slice(0, 4)}-01-01` && fin === `${dateActe.slice(0, 4)}-12-31`;
+      if (champ('prorata-periode') && anneeCivile) champ('prorata-periode').value = 'annee';
+      // Une période dite dans la phrase est gardée si la date de l'acte change ensuite dans l'outil.
+      bornesProrataManuelles = !anneeCivile;
       if (typeof calculerProrataAffichage === 'function') calculerProrataAffichage();
     };
     return { html: `<p>Prorata de ${escapeHtml(formaterMontantEuros(montant))} sur la période du ${escapeHtml(formatDateFr(debut))} au ${escapeHtml(formatDateFr(fin))}, acte le ${escapeHtml(formatDateFr(dateActe))} :</p><ul class="asst-liste"><li>Part du vendeur : <b>${escapeHtml(formaterMontantEuros(r.partVendeur))}</b> (${r.joursVendeur} j)</li><li>Part de l’acquéreur : <b>${escapeHtml(formaterMontantEuros(r.partAcquereur))}</b> (${r.joursAcquereur} j, jour de l’acte compris)</li></ul>`,

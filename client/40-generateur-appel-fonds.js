@@ -2410,6 +2410,8 @@
     if (periode && ['annee', 'trimestre', 'mois'].includes(a.typePeriode)) periode.value = a.typePeriode;
     if (debut) debut.value = a.periode.debut;
     if (fin) fin.value = a.periode.fin;
+    // Période lue sur l'appel du syndic : gardée si la date de l'acte change ensuite.
+    bornesProrataManuelles = true;
     renderBlocChargesProrata();
     calculerProrataAffichage();
   }

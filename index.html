@@ -862,7 +862,7 @@
       <div class="calc-champs">
         <div class="calc-champ">
           <label for="prorata-periode">Période</label>
-          <select id="prorata-periode" onchange="majPeriodeProrata()">
+          <select id="prorata-periode" onchange="majPeriodeProrata(true)">
             <option value="annee">Année civile — taxe foncière</option>
             <option value="trimestre">Trimestre civil — charges de copropriété</option>
             <option value="mois">Mois civil — charges mensuelles ou loyer</option>
@@ -871,11 +871,11 @@
         <div class="calc-champ calc-champ-paire">
           <div>
             <label for="prorata-debut">Début de période <span class="info-i" tabindex="0" data-info="Les bornes se calent automatiquement sur la période choisie autour de la date de l&#x27;acte ; ajustez-les si l&#x27;appel de fonds couvre une période différente."></span></label>
-            <input type="date" id="prorata-debut" onchange="calculerProrataAffichage()">
+            <input type="date" id="prorata-debut" onchange="noterBornesProrataManuelles()">
           </div>
           <div>
             <label for="prorata-fin">Fin de période</label>
-            <input type="date" id="prorata-fin" onchange="calculerProrataAffichage()">
+            <input type="date" id="prorata-fin" onchange="noterBornesProrataManuelles()">
           </div>
         </div>
       </div>

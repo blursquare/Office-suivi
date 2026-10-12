@@ -19007,3 +19007,18 @@ modèle **au choix dans les Réglages**, Opus par défaut.
   mot en majuscule seulement (« Monsieur et Madame X ») ; section cadastrale « AB 123 » et « bis » gardés ; rendez-vous rattachés par
   le `dossierId` du serveur (plus jamais par la date) ; Mistral : message vide remplacé, arguments déjà en objet acceptés.
   Restent en clair par construction (dit à l'étude) : un nom en minuscules absent des fiches (« chez dubois »).
+
+### 0.213.1 — 12/10/2026 — Calculs corrigés (relecture indépendante, lot 1)
+
+- Prorata : `majPeriodeProrata` réécrivait la période en année civile à chaque changement de date de l'acte (appel du 01/07 au
+  30/06, acte le 15/11 : 128,77 € au lieu de 624,66 €). Bornes saisies à la main, lues sur l'appel du syndic ou données par
+  « Demander à CLAIRE » gardées tant qu'elles contiennent la date (`bornesProrataApresChangement`, `bornesProrataManuelles`) ;
+  changer la période (liste) recale comme avant.
+- Provision : au-delà du dernier palier (2 M€) `interpolerBaremeFraisActe` rendait le montant de 2 M€ (3 M€ → 154 676 € au lieu
+  d'environ 225 000 €) ; la pente du dernier tronçon est prolongée. Remplit aussi la ligne de frais du décompte et les quotités.
+- Barème copropriété : paliers 1 425 000 € à 2 000 000 € alignés sur la maison (choix de l'étude 12/10, « à confirmer » — la colonne
+  relevée reprenait celle du terrain).
+- « Demander à CLAIRE » › quotités : lisait `calc.pourcentages` (inexistant) → 0 % ; lit `parAcquereur[i].pourcentage`.
+- Annexe des quotités : « SCI SCI DU MOULIN » (civilité SCI + nom qui porte déjà sa forme, `nomDitSociete`) ; téléchargement
+  confirmé si le financement ne couvre pas l'opération ou qu'un acquéreur ne finance rien.
+- Inventaire de succession : droits simulés négatifs ramenés à zéro.
