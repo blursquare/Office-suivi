@@ -50,6 +50,8 @@ const VERIFICATIONS_TERRAIN = [
     comment: 'Coché au premier email parti avec l’identifiant du collaborateur (sans droit « Envoyer en tant que ») ; en échec si Exchange refuse ses identifiants (l’email part alors du compte relié).' },
   { id: 'email-proposition-ia', depuis: '0.140.0', source: 'serveur', titre: 'Premier jet de réponse proposé par l’IA locale',
     comment: 'Coché à la première proposition de réponse rendue par Ollama ; en échec si l’IA locale est indisponible.' },
+  { id: 'relais-word-macro', depuis: '0.223.0', source: 'serveur', titre: 'Macro Word : le paragraphe où se trouve le curseur arrive à CLAIRE sans programme installé',
+    comment: 'Coché au premier paragraphe reçu de la macro (Aide à la rédaction › « Relier Word », code collé dans le modèle Normal, Word rouvert). Rien reçu : macros du modèle Normal bloquées par une stratégie, ou Word pas rouvert.' },
   { id: 'relais-word-suivi', depuis: '0.219.0', source: 'serveur', titre: 'Relais Word : l’Aide à la rédaction suit le paragraphe où se trouve le curseur de Word',
     comment: 'Coché au premier paragraphe reçu du relais d’un poste (installé depuis l’Aide à la rédaction). Rien reçu : relais non lancé, PowerShell bloqué par une stratégie, ou Word pas encore inscrit (il le fait quand on change de fenêtre une première fois). Depuis 0.221.1, le relais est un programme (CLAIRE-relais.exe, %LOCALAPPDATA%\\CLAIRE) : SmartScreen (« Exécuter quand même ») ou l’antivirus peuvent le retenir — à faire autoriser ; document en mode protégé : pas de sélection.' },
   { id: 'relais-word-insertion', depuis: '0.219.0', source: 'serveur', titre: 'Relais Word : « Insérer dans Word » remplace le « --- » par la valeur, à sa place',

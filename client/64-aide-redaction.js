@@ -435,20 +435,47 @@
     }
   }
 
-  function telechargerRelaisWordAideActe() {
-    return installerRelaisClaire('Cliquez une fois dans Word, puis revenez ici : le paragraphe où se trouve le curseur s’affiche seul.');
+  // Word relié par une MACRO (étude 12/10 : « trouve un autre moyen pour le relais Word » — Panda met le programme en
+  // quarantaine) : le module VBA de ce poste (server/src/macroWordRelais.js), à coller une fois dans le modèle Normal.
+  async function relierWordAideActe() {
+    const poste = posteRelaisWordAideActe();
+    if (!poste) { afficherToast('Choisissez d’abord le collaborateur de ce poste.', 'OK', null); return; }
+    try {
+      const r = await fetchAvecAuth('/api/relais-word/macro', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ poste }) });
+      const corps = await r.json().catch(() => ({}));
+      if (!r.ok || !corps.macro) throw new Error(corps.erreur || 'statut ' + r.status);
+      const zone = document.getElementById('red-macro-code');
+      if (zone) zone.value = corps.macro;
+      document.getElementById('red-macro-overlay').style.display = 'flex';
+      if (copierTexteSilencieux(corps.macro)) afficherToast('Code de la macro copié : collez-le dans Word (étapes dans la fenêtre).', 'OK', null);
+    } catch (e) {
+      afficherToast('Macro Word indisponible : ' + (e.message || 'erreur') + '.', 'OK', null);
+    }
+  }
+
+  function copierMacroAideActe() {
+    const zone = document.getElementById('red-macro-code');
+    if (!zone || !zone.value) return;
+    zone.focus();
+    zone.select();
+    afficherToast(copierTexteSilencieux(zone.value) ? 'Code copié : collez-le dans Word.' : 'Copie impossible : sélectionnez le code (Ctrl+A) puis Ctrl+C.', 'OK', null);
+  }
+
+  function fermerMacroAideActe() {
+    const o = document.getElementById('red-macro-overlay');
+    if (o) o.style.display = 'none';
   }
 
   function renderWordAideActe() {
     const zone = document.getElementById('red-word');
     if (!zone) return;
     const e = aideActe.word.etat;
-    const installer = (texte) => `<wa-button appearance="plain" size="s" class="bouton-discret" type="button" onclick="telechargerRelaisWordAideActe()">${texte}</wa-button>`;
+    const relier = (texte) => `<wa-button appearance="plain" size="s" class="bouton-discret" type="button" onclick="relierWordAideActe()">${texte}</wa-button>`;
     let html;
     if (!posteRelaisWordAideActe()) html = '<span class="red-note">Relais Word : choisissez le collaborateur de ce poste.</span>';
     else if (!e) html = '<span class="red-note">Relais Word…</span>';
-    else if (!e.installe) html = `<span class="dot-label dl-neutre"><span class="dot"></span>Word non suivi</span> ${installer('Installer le relais CLAIRE sur ce poste')}`;
-    else if (!e.actif) html = `<span class="dot-label dl-urgent"><span class="dot"></span>Le relais Word ne répond pas</span> ${installer('Réinstaller')}${infoBulle('Le relais démarre à l’ouverture de session Windows. Réinstallez-le pour le relancer.')}`;
+    else if (!e.installe) html = `<span class="dot-label dl-neutre"><span class="dot"></span>Word non suivi</span> ${relier('Relier Word')}`;
+    else if (!e.actif) html = `<span class="dot-label dl-urgent"><span class="dot"></span>Word ne répond pas</span> ${relier('Relier Word de nouveau')}${infoBulle('La macro démarre à l’ouverture de Word : fermez Word et rouvrez-le. Si rien ne change, reliez Word de nouveau (le code change à chaque fois).')}`;
     else if (!e.word) html = '<span class="dot-label dl-pret"><span class="dot"></span>Word n’est pas ouvert (ou aucun document)</span>';
     else html = '<span class="dot-label dl-success"><span class="dot"></span>Suit le curseur de Word</span>' + infoBulle('Le paragraphe où se trouve le curseur de Word s’affiche seul, avec son intitulé. Cliquez dans un autre paragraphe de Word : CLAIRE suit.');
     if (zone.innerHTML !== html) zone.innerHTML = html;

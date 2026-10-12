@@ -19419,3 +19419,14 @@ modèle **au choix dans les Réglages**, Opus par défaut.
   de la ligne n'existe que si une date est saisie, et n'apparaît qu'au survol) : lien toujours visible sous la ligne du prêt,
   jamais une fois l'offre reçue ni en financement comptant ; `marquerSansPret` (client/27, confirmation, historique, date butoir
   retirée de l'agenda si une date existait). `tests/sans-pret.test.js`.
+
+- **12/10/2026 16 h 03 — 0.223.0 Word relié par une macro** (étude : « trouve un autre moyen pour le relais Word » — Panda met
+  `CLAIRE-relais.exe` en quarantaine, l'étude n'a pas accès à sa console) : `server/src/macroWordRelais.js` (`moduleVbaRelais` :
+  module VBA ASCII du poste, URL/poste/jeton en constantes ; `AutoExec` → `CLAIRE_Demarrer` → `Application.OnTime` chaque
+  seconde ; paragraphe du curseur + intitulé (15 paragraphes au-dessus) envoyés quand ils changent, battement 2 s, MSXML2.ServerXMLHTTP.6.0
+  avec délais courts (Word ne se fige pas si le serveur ne répond pas) ; JSON écrit à la main (`J`), réponse en lignes
+  `id\trang\tvaleur\tattendu` (`reponseTexteRelais`, relevé `format: "texte"`) ; insertion : paragraphe comparé (espaces et
+  contrôles réduits), « --- » repérés sur le texte par InStr, plage contrôlée (`String(longueur, "-")`), puis écrite ; jeton
+  refusé → arrêt jusqu'au prochain démarrage de Word) ; `POST /api/relais-word/macro` (jeton en attente comme le code) ; écran :
+  « Relier Word » → fenêtre `#red-macro-overlay` (quatre étapes, code, « Copier le code »). Le programme reste pour les appels
+  3CX. Non vérifiable ici : VBA (aucun interpréteur), stratégie des macros du bureau, encodage d'envoi de MSXML.

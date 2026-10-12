@@ -9,11 +9,13 @@
 //  - GET /api/relais-word/programme : CLAIRE-relais.exe, le même pour tous les postes ;
 //  - POST /api/relais-word/code { poste } : le code d'installation de ce poste (nouveau jeton à chaque demande, seule son
 //    empreinte est gardée — clé `relais-word`). Le code est la seule réponse qui porte un jeton : il ne repasse jamais par une route.
+//  - POST /api/relais-word/macro { poste } : la macro Word de ce poste (macroWordRelais.js), même jeton en attente que le code.
 
 const express = require('express');
 const { clePoste } = require('../appels3cx');
 const { adresseClairePoste } = require('../installationPoste');
 const { noterVerification } = require('../verificationsTerrain');
+const { moduleVbaRelais, reponseTexteRelais } = require('../macroWordRelais');
 const {
   codeInstallationRelais, lireExecutableRelais, empreinteJeton, nouveauJeton, jetonValide,
   appliquerReleveWord, demanderInsertionWord, etatPosteWord
@@ -63,9 +65,12 @@ function creerRouteurRelaisWordPoste(parametresRepo, etat) {
     const { commandes, appels, renvoyer } = appliquerReleveWord(etat, poste, corps);
     const p = etat.postes.get(poste);
     if (p.n !== avant && p.paragraphe) noterVerification(parametresRepo, 'relais-word-suivi');
+    if (p.n !== avant && p.paragraphe && corps.format === 'texte') noterVerification(parametresRepo, 'relais-word-macro');
     for (const r of Array.isArray(corps.resultats) ? corps.resultats : []) {
       if (r && typeof r.id === 'string') noterVerification(parametresRepo, 'relais-word-insertion', r.ok === true ? { ok: true } : { ok: false, message: String(r.message || 'refus').slice(0, 80) });
     }
+    // La macro Word (macroWordRelais.js) lit une réponse en lignes, sans analyseur JSON.
+    if (corps.format === 'texte') { res.type('text/plain; charset=utf-8').send(reponseTexteRelais(commandes, renvoyer)); return; }
     const rep = { commandes };
     if (appels.length) rep.appels = appels;
     if (renvoyer) rep.renvoyer = true;
@@ -100,20 +105,30 @@ function creerRouteurRelaisWord(parametresRepo, etat, options = {}) {
   };
   routeur.get('/relais-word/programme', programme);
   routeur.get('/relais-word/installateur', programme);
-  // Le code d'installation du collaborateur de ce poste : nouveau jeton à chaque demande (seule son empreinte est gardée).
-  routeur.post('/relais-word/code', (req, res) => {
+  // Un nouveau jeton EN ATTENTE pour ce poste : celui du relais en marche reste valable jusqu'à la première présentation du
+  // nouveau. Rend { url, jeton, profil } ou une erreur déjà répondue (null).
+  const nouveauJetonPoste = (req, res) => {
     const poste = clePoste((req.body || {}).poste);
-    if (!poste) { res.status(400).json({ erreur: 'Collaborateur attendu.' }); return; }
+    if (!poste) { res.status(400).json({ erreur: 'Collaborateur attendu.' }); return null; }
     const url = adresseClairePoste(req.protocol, req.get('host'));
-    if (!url) { res.status(400).json({ erreur: 'Adresse du serveur illisible.' }); return; }
+    if (!url) { res.status(400).json({ erreur: 'Adresse du serveur illisible.' }); return null; }
     const jeton = nouveauJeton();
     // Fenêtre CLAIRE du serveur lui-même : profil « ClaireServeur » (comme le relais d'appel 3CX).
     const local = /^https?:\/\/(localhost|127(\.\d+){3}|\[::1\])(:\d+)?\/$/i.test(url);
-    // Jeton EN ATTENTE : celui du relais en marche reste valable jusqu'à l'installation de ce code.
     const reg = lireRegistre(parametresRepo);
     parametresRepo.ecrireJsonBrut(CLE_RELAIS_WORD, { jetons: reg.jetons, attente: Object.assign({}, reg.attente, { [poste]: empreinteJeton(jeton) }) });
     res.setHeader('Cache-Control', 'no-store');
-    res.json({ code: codeInstallationRelais({ url, poste, jeton, profil: local ? 'ClaireServeur' : 'Claire' }) });
+    return { poste, url, jeton, profil: local ? 'ClaireServeur' : 'Claire' };
+  };
+  // Le code d'installation du programme pour le collaborateur de ce poste.
+  routeur.post('/relais-word/code', (req, res) => {
+    const cfg = nouveauJetonPoste(req, res);
+    if (cfg) res.json({ code: codeInstallationRelais(cfg) });
+  });
+  // La macro Word du collaborateur de ce poste (étude 12/10 : le programme est mis en quarantaine par l'antivirus).
+  routeur.post('/relais-word/macro', (req, res) => {
+    const cfg = nouveauJetonPoste(req, res);
+    if (cfg) res.json({ macro: moduleVbaRelais(cfg) });
   });
   return routeur;
 }

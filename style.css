@@ -9436,6 +9436,9 @@ table.pr-zt td.pr-zt-retenue select { min-width: 120px; min-height: 32px; height
 .red-resultat, #red-donnees { display: flex; flex-direction: column; gap: 8px; }
 .red-clause { display: flex; align-items: baseline; flex-wrap: wrap; gap: 8px; font-size: var(--texte-base); }
 .red-note { color: var(--muted); font-size: var(--texte-s); }
+.red-macro-box { max-width: 560px; }
+.red-macro-etapes { margin: 0 0 12px; padding-left: 20px; display: flex; flex-direction: column; gap: 4px; font-size: var(--texte-m); }
+textarea.red-macro-code { width: 100%; font-family: ui-monospace, monospace; font-size: var(--texte-xs); resize: vertical; }
 .red-word { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-height: 24px; margin-bottom: 8px; }
 .red-groupe { display: flex; flex-direction: column; gap: 4px; padding-top: 8px; border-top: 1px solid var(--line); }
 .red-compte { color: var(--muted); font-weight: 400; letter-spacing: 0; }

@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.222.0';
+  const VERSION_APP = '0.223.0';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.223.0', date: '2026-10-12 16:03', resume: "Aide à la rédaction : « Relier Word » sans aucun programme — une macro à coller une fois dans Word (Alt+F11, modèle Normal) envoie à CLAIRE le paragraphe où se trouve le curseur et insère les valeurs choisies ; l’antivirus n’a plus rien à bloquer." },
     { version: '0.222.0', date: '2026-10-12 15:55', resume: "Fiche : « Pas de prêt dans ce dossier » sur la ligne du prêt, toujours visible (même sans date) — retire la condition d’obtention du prêt posée par erreur à la création : l’offre n’est plus attendue ni relancée." },
     { version: '0.221.2', date: '2026-10-12 15:49', resume: "Relais CLAIRE du poste : le même programme pour tous les postes (l’antivirus Panda le mettait en quarantaine ; une seule exclusion par empreinte, à demander à Fichorga, couvre désormais tout le bureau). La configuration du poste passe par un code que CLAIRE copie au téléchargement. À réinstaller une fois sur chaque poste, après l’exclusion par Fichorga." },
     { version: '0.221.1', date: '2026-10-12 15:21', resume: "Relais CLAIRE du poste (Word et appels 3CX) : l’antivirus bloquait le script .vbs — c’est désormais un vrai petit programme, « CLAIRE-relais.exe », téléchargé depuis CLAIRE ; il s’installe seul dans le dossier de l’utilisateur, démarre avec la session et remplace l’ancien relais. À réinstaller une fois sur chaque poste." },

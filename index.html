@@ -2599,6 +2599,25 @@
   </div>
 </div>
 
+<!-- Relier Word à CLAIRE par une macro (Aide à la rédaction, étude 12/10 : le programme du relais est mis en quarantaine par
+     l'antivirus) : le module VBA du poste, à coller une fois dans le modèle Normal de Word. Voir client/64-aide-redaction.js. -->
+<div class="confirm-overlay" id="red-macro-overlay" style="display:none;" onclick="if (clicSurFond(event)) fermerMacroAideActe()">
+  <div class="confirm-box red-macro-box" role="dialog" aria-labelledby="red-macro-titre" onclick="event.stopPropagation()">
+    <p><strong id="red-macro-titre">Relier Word à CLAIRE</strong></p>
+    <ol class="red-macro-etapes">
+      <li>Dans Word, appuyez sur <b>Alt+F11</b> (éditeur Visual Basic).</li>
+      <li>À gauche, clic droit sur <b>Normal</b> › Insertion › <b>Module</b>.</li>
+      <li>Collez le code (<b>Ctrl+V</b>), enregistrez (<b>Ctrl+S</b>) et fermez l’éditeur.</li>
+      <li>Fermez Word et rouvrez-le : CLAIRE suit alors le curseur.</li>
+    </ol>
+    <textarea id="red-macro-code" class="red-macro-code" rows="7" readonly aria-label="Code de la macro Word"></textarea>
+    <div class="confirm-actions">
+      <wa-button appearance="outlined" onclick="fermerMacroAideActe()">Fermer</wa-button>
+      <wa-button variant="brand" onclick="copierMacroAideActe()">Copier le code</wa-button>
+    </div>
+  </div>
+</div>
+
 <!-- Signaler un problème (voir ouvrirSignalement dans script.js). Le contexte technique est joint
      sans rien demander ; le collaborateur ne décrit que ce qu'il faisait et ce qu'il a vu. -->
 <div class="confirm-overlay" id="signalement-overlay" style="display:none;" onclick="if (clicSurFond(event)) fermerSignalement()">

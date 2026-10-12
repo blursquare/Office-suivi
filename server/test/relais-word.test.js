@@ -177,7 +177,6 @@ test('appels 3CX : sonnerie rendue au relais actif du poste, une fois, jamais vi
 });
 
 test('route : sonnerie d’un poste au relais actif → l’onglet de 3CX se ferme aussitôt, le relais reçoit l’appel', async () => {
-  const auth = { authorization: `Bearer ${session}` };
   const json = { 'Content-Type': 'application/json' };
   const jeton = configDuCode(await codePour('jeremy')).jeton;
   const releve = (corps) => fetch(`${baseUrl}/api/relais-word/releve`, { method: 'POST', headers: json, body: JSON.stringify(corps) }).then(r => r.json());
@@ -188,4 +187,33 @@ test('route : sonnerie d’un poste au relais actif → l’onglet de 3CX se fer
   const r = await releve({ poste: 'jeremy', jeton, word: false, inchange: true, appels: 1 });
   assert.equal(r.appels.length, 1);
   assert.equal(r.appels[0].dossier, false);
+});
+
+test('macro Word : module VBA ASCII du poste, démarrage avec Word, réponse en lignes, insertion contrôlée', () => {
+  const { moduleVbaRelais, reponseTexteRelais } = require('../src/macroWordRelais');
+  const m = moduleVbaRelais({ url: 'http://192.168.60.10:3000/', poste: 'julie', jeton: 'ab"c' });
+  assert.doesNotMatch(m, /[^\x00-\x7f]/);
+  assert.match(m, /Private Const CLAIRE_URL As String = "http:\/\/192\.168\.60\.10:3000\/"/);
+  assert.match(m, /Private Const CLAIRE_JETON As String = "ab""c"/);
+  assert.match(m, /Public Sub AutoExec\(\)/);
+  assert.match(m, /Application\.OnTime When:=Now \+ TimeSerial\(0, 0, 1\), Name:="CLAIRE_Tour"/);
+  assert.match(m, /""format"":""texte""/);
+  assert.match(m, /If r\.Text <> String\(longueur, "-"\) Then/);
+  // Échappement JSON écrit en VBA : \" , \\ et \u00XX.
+  assert.match(m, /sortie = sortie & "\\"""/);
+  assert.match(m, /sortie = sortie & "\\\\"/);
+  assert.equal(reponseTexteRelais([{ id: 'a1', occurrence: 2, valeur: 'le 7\toctobre', attendu: 'Établi le ---\r' }], true),
+    'ok\na1\t2\tle 7 octobre\tÉtabli le --- \nrenvoyer');
+  assert.equal(reponseTexteRelais([], false), 'ok');
+});
+
+test('route : macro du poste (jeton en attente) et relevé au format texte', async () => {
+  const r = await fetch(`${baseUrl}/api/relais-word/macro`, { method: 'POST', headers: { authorization: `Bearer ${session}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ poste: 'paul' }) });
+  const { macro } = await r.json();
+  const jeton = /CLAIRE_JETON As String = "([0-9a-f]+)"/.exec(macro)[1];
+  const rep = await fetch(`${baseUrl}/api/relais-word/releve`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ format: 'texte', poste: 'paul', jeton, word: true, inchange: false, titre: 'DPE', paragraphe: 'Établi le ---\r', resultats: [] }) });
+  assert.equal(rep.status, 200);
+  assert.match(rep.headers.get('content-type'), /text\/plain/);
+  assert.equal(await rep.text(), 'ok');
 });
