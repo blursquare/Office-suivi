@@ -98,6 +98,8 @@ const VERIFICATIONS_TERRAIN = [
     comment: 'À confirmer en comparant un mois avec l’agenda d’Outlook (titres VTE, SUCC, DONATION).' },
   { id: 'fenetres-rechargees', depuis: '0.135.0', source: 'poste', titre: 'Après une mise à jour automatique, une fenêtre CLAIRE déjà ouverte s’est rechargée seule sur la nouvelle version',
     comment: 'Coché la première fois qu’une fenêtre voit le serveur redémarrer sur une autre version et se recharge.' },
+  { id: '3cx-relais-premier-plan', depuis: '0.220.1', source: 'manuel', titre: 'Appel 3CX avec le relais CLAIRE du poste : appelant d’un dossier → fenêtre CLAIRE au premier plan ; appelant inconnu → la fenêtre d’avant revient (Chrome ne reste plus devant)',
+    comment: 'Réglages › Téléphonie 3CX › « Installer le relais sur ce poste » (ou Aide à la rédaction), sur le poste du collaborateur ; plus de lien claire-appel à autoriser. Essayer un appel d’un client d’un dossier et un appel d’un numéro inconnu.' },
   { id: '3cx-appel-fenetre-claire', depuis: '0.189.0', source: 'manuel', titre: 'Appel 3CX : l’onglet de 3CX se ferme et la fenêtre CLAIRE passe au premier plan sur l’appel (rouverte si réduite, ouverte si fermée)',
     comment: 'Réglages › Téléphonie 3CX › « Installer sur ce poste », sur le poste du collaborateur ; au premier appel, « Toujours autoriser » le lien claire-appel dans le navigateur de 3CX.' },
   { id: 'telephone-3cx-fenetre-app', depuis: '0.164.1', source: 'manuel', titre: 'Dans la fenêtre CLAIRE (raccourci du bureau), après l’ajout de l’extension 3CX à son profil, un numéro écrit est cliquable',

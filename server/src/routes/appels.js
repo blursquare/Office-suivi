@@ -76,7 +76,11 @@ function creerRouteurSonnerie(parametresRepo, depot, etat) {
     res.setHeader('Cache-Control', 'no-store');
     const inconnu = !((entree.dossiers && entree.dossiers.length) || entree.contact);
     const relais = !!entree.poste && parametresRepo.lireReglagesTelephonie().postesRelais.includes(clePoste(entree.poste));
-    res.type('html').send(pageSonnerie({ id: entree.id, fenetreVisible, inconnu, relais }));
+    // Relais CLAIRE du poste en marche (relaisWord.js, étude 12/10) : l'onglet se ferme aussitôt, le relais montre la fenêtre CLAIRE
+    // (appelant d'un dossier) ou rend le premier plan à la fenêtre d'avant la sonnerie.
+    const relaisPoste = !!entree.poste && typeof etat.noterAppelRelais === 'function'
+      && etat.noterAppelRelais(clePoste(entree.poste), { id: entree.id, dossier: !!(entree.dossiers && entree.dossiers.length) });
+    res.type('html').send(pageSonnerie({ id: entree.id, fenetreVisible: fenetreVisible || relaisPoste, inconnu, relais }));
   });
   return routeur;
 }

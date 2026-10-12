@@ -623,17 +623,20 @@
   async function telechargerRelaisAppel3cx() {
     if (!utilisateurPoste) { afficherToast('Choisissez d’abord le collaborateur de ce poste.', 'OK', null); return; }
     try {
-      const r = await fetchAvecAuth('/api/appels/relais/installateur?poste=' + encodeURIComponent(clePosteAppels(utilisateurPoste)));
+      // Depuis le 12/10 : le relais CLAIRE du poste (server/src/relaisWord.js), qui tourne en permanence — plus de lien
+      // « claire-appel: » à autoriser ni de démarrage à chaque sonnerie (étude : « Chrome s'ouvre au premier plan à chaque appel,
+      // c'est pénible ; CLAIRE ne s'affiche pas au premier plan lorsqu'un dossier est trouvé »).
+      const r = await fetchAvecAuth('/api/relais-word/installateur?poste=' + encodeURIComponent(clePosteAppels(utilisateurPoste)));
       if (!r.ok) throw new Error('statut ' + r.status);
       const blob = await r.blob();
       const lien = document.createElement('a');
       lien.href = URL.createObjectURL(blob);
-      lien.download = 'Installer-appels-3CX-dans-CLAIRE.vbs';
+      lien.download = 'Installer-relais-CLAIRE.vbs';
       document.body.appendChild(lien);
       lien.click();
       document.body.removeChild(lien);
       setTimeout(() => URL.revokeObjectURL(lien.href), 60000);
-      afficherInfoAction('Installateur téléchargé', 'Ouvrez le fichier téléchargé (le navigateur peut demander de le conserver) : un message confirme l’installation. Au premier appel, le navigateur de 3CX demande s’il peut ouvrir le lien « claire-appel » : cochez « Toujours autoriser », puis « Ouvrir ». Ensuite, à chaque sonnerie, l’onglet de 3CX se ferme et la fenêtre CLAIRE passe au premier plan sur l’appel (elle s’ouvre si elle était fermée).');
+      afficherInfoAction('Installateur téléchargé', 'Ouvrez le fichier téléchargé (le navigateur peut demander de le conserver) : un message confirme l’installation, le relais démarre aussitôt puis à chaque ouverture de session. À chaque sonnerie, l’onglet de 3CX se ferme : si l’appelant a un dossier, la fenêtre CLAIRE passe au premier plan sur l’appel (elle s’ouvre si elle était fermée) ; sinon, la fenêtre où vous étiez revient au premier plan. Le même relais sert à l’Aide à la rédaction (Word).');
     } catch (e) {
       afficherToast('Téléchargement de l’installateur impossible : ' + e.message, 'OK', null);
     }
@@ -667,10 +670,17 @@
     } catch (e) { /* dernier état connu */ }
     const relaisPoste = document.getElementById('reglages-3cx-relais');
     if (relaisPoste) {
+      let etatRelais = null;
+      if (utilisateurPoste) {
+        try {
+          const r = await fetchAvecAuth('/api/relais-word/etat?poste=' + encodeURIComponent(clePosteAppels(utilisateurPoste)));
+          if (r.ok) etatRelais = await r.json();
+        } catch (e) { /* état inconnu */ }
+      }
       relaisPoste.textContent = !utilisateurPoste ? 'Choisissez d’abord le collaborateur de ce poste.'
-        : postes3cxRelais.includes(clePosteAppels(utilisateurPoste))
-          ? `Installé pour ${prenomCollaborateur(utilisateurPoste)} : ses appels s’ouvrent dans la fenêtre CLAIRE.`
-          : `Pas encore installé pour ${prenomCollaborateur(utilisateurPoste)} : ses appels s’ouvrent dans un onglet quand la fenêtre CLAIRE est cachée.`;
+        : etatRelais && etatRelais.actif ? `Relais en marche pour ${prenomCollaborateur(utilisateurPoste)} : à chaque appel, CLAIRE au premier plan si l’appelant a un dossier, sinon la fenêtre d’avant.`
+          : etatRelais && etatRelais.installe ? `Relais installé pour ${prenomCollaborateur(utilisateurPoste)} mais il ne répond pas : réinstallez-le pour le relancer.`
+            : `Pas encore installé pour ${prenomCollaborateur(utilisateurPoste)} : à chaque appel, l’onglet de 3CX passe au premier plan.`;
     }
     if (!origine3cx) {
       let adresses = [];

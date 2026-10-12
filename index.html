@@ -1876,10 +1876,10 @@
     <!-- Appels dans la fenêtre CLAIRE (étude 07/10 : « 3CX ouvre l'appel dans un onglet Chrome et pas dans mon app séparée ») :
          relais Windows « claire-appel: » installé une fois par poste (server/src/relaisAppel3cx.js). -->
     <div class="reglages-section">
-      <h3 class="reglages-section-titre">Appels dans la fenêtre CLAIRE <span class="info-i" tabindex="0" data-info="3CX ouvre l'appel dans un onglet du navigateur où tourne son client web : une page ne peut pas faire passer la fenêtre CLAIRE (raccourci « CLAIRE » du bureau) au premier plan. Le petit relais Windows installé par ce bouton, une fois par poste et sans droit d'administrateur, s'en charge : à chaque sonnerie, l'onglet de 3CX se ferme, la fenêtre CLAIRE est ramenée au premier plan (rouverte si elle était réduite) et montre l'appel ; si elle était fermée, elle s'ouvre sur l'appel. Au premier appel, le navigateur de 3CX demande s'il peut ouvrir le lien « claire-appel » : cocher « Toujours autoriser ». À installer sur le poste du collaborateur, depuis sa session Windows."></span></h3>
+      <h3 class="reglages-section-titre">Appels dans la fenêtre CLAIRE <span class="info-i" tabindex="0" data-info="3CX ouvre l'appel dans un onglet du navigateur où tourne son client web, qui passe alors au premier plan : une page ne peut pas l'en empêcher ni faire passer la fenêtre CLAIRE devant. Le relais CLAIRE de ce poste (installé par ce bouton, une fois par poste et sans droit d'administrateur, il démarre à chaque ouverture de session) s'en charge : à chaque sonnerie, l'onglet de 3CX se ferme ; si l'appelant a un dossier, la fenêtre CLAIRE passe au premier plan et ouvre sa fiche (elle s'ouvre si elle était fermée) ; sinon, la fenêtre où vous étiez revient au premier plan. Le même relais suit Word pour l'Aide à la rédaction. À installer sur le poste du collaborateur, depuis sa session Windows."></span></h3>
       <p class="hint" id="reglages-3cx-relais"></p>
       <div class="reglages-actions">
-        <wa-button appearance="outlined" class="secondary" onclick="telechargerRelaisAppel3cx()">Installer sur ce poste</wa-button>
+        <wa-button appearance="outlined" class="secondary" onclick="telechargerRelaisAppel3cx()">Installer le relais sur ce poste</wa-button>
       </div>
     </div>
     <!-- Numéros cliquables dans la fenêtre CLAIRE (étude 06/10 : « fonctionne en onglet Chrome mais pas dans l'app séparée ») :

@@ -410,7 +410,7 @@
       const blob = await r.blob();
       const lien = document.createElement('a');
       lien.href = URL.createObjectURL(blob);
-      lien.download = 'Installer-relais-Word-CLAIRE.vbs';
+      lien.download = 'Installer-relais-CLAIRE.vbs';
       document.body.appendChild(lien);
       lien.click();
       document.body.removeChild(lien);
@@ -429,7 +429,7 @@
     let html;
     if (!posteRelaisWordAideActe()) html = '<span class="red-note">Relais Word : choisissez le collaborateur de ce poste.</span>';
     else if (!e) html = '<span class="red-note">Relais Word…</span>';
-    else if (!e.installe) html = `<span class="dot-label dl-neutre"><span class="dot"></span>Word non suivi</span> ${installer('Installer le relais Word sur ce poste')}`;
+    else if (!e.installe) html = `<span class="dot-label dl-neutre"><span class="dot"></span>Word non suivi</span> ${installer('Installer le relais CLAIRE sur ce poste')}`;
     else if (!e.actif) html = `<span class="dot-label dl-urgent"><span class="dot"></span>Le relais Word ne répond pas</span> ${installer('Réinstaller')}${infoBulle('Le relais démarre à l’ouverture de session Windows. Réinstallez-le pour le relancer.')}`;
     else if (!e.word) html = '<span class="dot-label dl-pret"><span class="dot"></span>Word n’est pas ouvert (ou aucun document)</span>';
     else html = '<span class="dot-label dl-success"><span class="dot"></span>Suit le curseur de Word</span>' + infoBulle('Le paragraphe où se trouve le curseur de Word s’affiche seul, avec son intitulé. Cliquez dans un autre paragraphe de Word : CLAIRE suit.');

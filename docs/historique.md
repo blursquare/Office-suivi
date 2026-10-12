@@ -19342,3 +19342,13 @@ modèle **au choix dans les Réglages**, Opus par défaut.
   de chaque office (au nom du premier notaire ; plusieurs notaires → chaque nom est un lien qui copie à son nom) et de chaque
   organisme qui a une adresse (organisme, service, adresse) — `nomCourrierNotaire`, `adresseCourrierOffice`,
   `adresseCourrierContact` (client/20, adresse découpée par `adressePostaleCourrier`), `tests/repertoire-adresse-courrier.test.js`.
+
+- **12/10/2026 14 h 51 — 0.220.1 Appels 3CX par le relais CLAIRE du poste** (étude : « 3CX lors d'un appel : Chrome s'ouvre au
+  premier plan lors de chaque appel, c'est pénible. CLAIRE ne s'affiche pas au premier plan lorsqu'un dossier est trouvé » ; le
+  point `3cx-appel-fenetre-claire` était signalé en échec depuis le 08/10). Le relais `claire-appel:` démarrait à chaque sonnerie
+  (protocole à autoriser par Chrome, PowerShell + Add-Type ≈ 2 s) : trop tard, Chrome gardait la main. Désormais le relais
+  permanent du poste (`relaisWord.js`, installé pour Word) reçoit la sonnerie dans la réponse de son relevé (battement chaque
+  seconde) ; la page de sonnerie se ferme aussitôt ; appelant d'un dossier → `FenetreClaire.Montrer` (ou `--app=…#appel=`),
+  sinon la dernière fenêtre au premier plan relevée avant la sonnerie (historique de 20 s, échantillon toutes les 0,5 s). Bouton de
+  Réglages › Téléphonie 3CX → ce relais. Non vérifiable ici : premier plan sous Windows (verrou de premier plan), fermeture de
+  l'onglet ouvert par 3CX.

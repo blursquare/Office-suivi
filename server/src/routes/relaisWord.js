@@ -38,13 +38,16 @@ function creerRouteurRelaisWordPoste(parametresRepo, etat) {
     const poste = clePoste(corps.poste);
     if (!poste || !jetonValide(empreintePoste(parametresRepo, poste), corps.jeton)) { res.status(403).json({ erreur: 'Relais inconnu.' }); return; }
     const avant = (etat.postes.get(poste) || {}).n || 0;
-    const { commandes, renvoyer } = appliquerReleveWord(etat, poste, corps);
+    const { commandes, appels, renvoyer } = appliquerReleveWord(etat, poste, corps);
     const p = etat.postes.get(poste);
     if (p.n !== avant && p.paragraphe) noterVerification(parametresRepo, 'relais-word-suivi');
     for (const r of Array.isArray(corps.resultats) ? corps.resultats : []) {
       if (r && typeof r.id === 'string') noterVerification(parametresRepo, 'relais-word-insertion', r.ok === true ? { ok: true } : { ok: false, message: String(r.message || 'refus').slice(0, 80) });
     }
-    res.json(renvoyer ? { commandes, renvoyer } : { commandes });
+    const rep = { commandes };
+    if (appels.length) rep.appels = appels;
+    if (renvoyer) rep.renvoyer = true;
+    res.json(rep);
   });
   return routeur;
 }
@@ -70,12 +73,14 @@ function creerRouteurRelaisWord(parametresRepo, etat) {
     const url = adresseClairePoste(req.protocol, req.get('host'));
     if (!url) { res.status(400).json({ erreur: 'Adresse du serveur illisible.' }); return; }
     const jeton = nouveauJeton();
+    // Fenêtre CLAIRE du serveur lui-même : profil « ClaireServeur » (comme le relais d'appel 3CX).
+    const local = /^https?:\/\/(localhost|127(\.\d+){3}|\[::1\])(:\d+)?\/$/i.test(url);
     const jetons = Object.assign({}, lireJetons(parametresRepo), { [poste]: empreinteJeton(jeton) });
     parametresRepo.ecrireJsonBrut(CLE_RELAIS_WORD, { jetons });
     res.setHeader('Content-Type', 'text/vbscript; charset=windows-1252');
-    res.setHeader('Content-Disposition', 'attachment; filename="Installer-relais-Word-CLAIRE.vbs"');
+    res.setHeader('Content-Disposition', 'attachment; filename="Installer-relais-CLAIRE.vbs"');
     res.setHeader('Cache-Control', 'no-store');
-    res.send(Buffer.from(scriptInstallationRelaisWord({ url, poste, jeton }), 'latin1'));
+    res.send(Buffer.from(scriptInstallationRelaisWord({ url, poste, jeton, profil: local ? 'ClaireServeur' : 'Claire' }), 'latin1'));
   });
   return routeur;
 }

@@ -46,7 +46,7 @@ const { creerRouteurSonnerie, creerRouteurAppels, creerEtatAppels } = require('.
 const { creerRouteurAuthentic } = require('./routes/authentic');
 const { creerRouteurAssistant } = require('./routes/assistant');
 const { creerRouteurRelaisWordPoste, creerRouteurRelaisWord } = require('./routes/relaisWord');
-const { creerEtatRelaisWord } = require('./relaisWord');
+const { creerEtatRelaisWord, noterAppelPourRelais } = require('./relaisWord');
 const { creerJournalTechnique } = require('./journalTechnique');
 const { COLLABORATEURS_ABSENCE } = require('./agendaOffice');
 const { lireBuildInstalle } = require('./miseAJour');
@@ -179,12 +179,14 @@ function creerApp({ db, config, envoyerEmailFn, creerClientClaude, appelerMistra
   // Sonnerie 3CX (« Intégration CRM » du client web) : hors session, elle ne fait que noter l'appel
   // et ne renvoie aucune donnée — voir routes/appels.js.
   const etatAppels = creerEtatAppels();
+  // Relais CLAIRE du poste (relaisWord.js) : Word, et le premier plan à chaque sonnerie 3CX.
+  const etatRelaisWord = creerEtatRelaisWord();
+  etatAppels.noterAppelRelais = (poste, appel) => noterAppelPourRelais(etatRelaisWord, poste, appel);
   app.use(creerRouteurSonnerie(parametresRepo, depot, etatAppels));
   // Icône de CLAIRE pour l'installateur d'un poste (installationPoste.js), lue sans session.
   app.use('/api', creerRouteurIconePoste({ parametresRepo }));
   // Relais Word de l'Aide à la rédaction (relaisWord.js) : le relais du poste parle hors session, avec le jeton de son
   // installateur ; la fenêtre CLAIRE, elle, passe par la session.
-  const etatRelaisWord = creerEtatRelaisWord();
   app.use('/api', creerRouteurRelaisWordPoste(parametresRepo, etatRelaisWord));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurRelaisWord(parametresRepo, etatRelaisWord));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurAppels(parametresRepo, etatAppels));

@@ -29,19 +29,78 @@ function litteralPs(texte) {
 }
 
 // Le script PowerShell du relais.
-/** @param {{ url: string, poste: string, jeton: string }} o @returns {string[]} */
-function lignesRelaisWordPs({ url, poste, jeton }) {
+/** @param {{ url: string, poste: string, jeton: string, profil?: string }} o @returns {string[]} */
+function lignesRelaisWordPs({ url, poste, jeton, profil }) {
   return [
     '# Relais CLAIRE : paragraphe de Word ou se trouve le curseur -> Aide a la redaction (voir CLAIRE, Aide a la redaction).',
     "$ErrorActionPreference = 'SilentlyContinue'",
     `$url = ${litteralPs(url)}`,
     `$poste = ${litteralPs(poste)}`,
     `$jeton = ${litteralPs(jeton)}`,
+    `$profil = ${litteralPs(profil || 'Claire')}`,
+    "if (-not $cible) { $cible = '' }",
     "$mutex = New-Object System.Threading.Mutex($false, 'Local\\CLAIRE-relais-Word')",
     // Mutex d'un relais arrêté par l'installateur : « abandonné », il est à nous.
     '$libre = $false',
     'try { $libre = $mutex.WaitOne(0) } catch [System.Threading.AbandonedMutexException] { $libre = $true }',
     'if (-not $libre) { exit 0 }',
+    // Fenêtres Windows : la fenêtre CLAIRE (titre « CLAIRE — … » sans nom de navigateur, comme relaisAppel3cx.js), la fenêtre au
+    // premier plan, et le passage au premier plan (touche Alt : Windows laisse alors ce processus le faire).
+    "$code = @'",
+    'using System;',
+    'using System.Runtime.InteropServices;',
+    'using System.Text;',
+    'public static class FenetreClaire {',
+    '  delegate bool Rappel(IntPtr h, IntPtr p);',
+    '  [DllImport("user32.dll")] static extern bool EnumWindows(Rappel r, IntPtr p);',
+    '  [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern int GetWindowText(IntPtr h, StringBuilder s, int n);',
+    '  [DllImport("user32.dll")] static extern bool IsWindowVisible(IntPtr h);',
+    '  [DllImport("user32.dll")] static extern bool IsIconic(IntPtr h);',
+    '  [DllImport("user32.dll")] static extern bool ShowWindow(IntPtr h, int c);',
+    '  [DllImport("user32.dll")] static extern bool SetForegroundWindow(IntPtr h);',
+    '  [DllImport("user32.dll")] static extern void keybd_event(byte k, byte s, uint f, UIntPtr e);',
+    '  [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();',
+    '  [DllImport("user32.dll")] public static extern bool IsWindow(IntPtr h);',
+    '  public static IntPtr Trouver() {',
+    '    IntPtr trouve = IntPtr.Zero;',
+    '    EnumWindows(delegate (IntPtr h, IntPtr p) {',
+    '      if (!IsWindowVisible(h)) return true;',
+    '      StringBuilder sb = new StringBuilder(512);',
+    '      GetWindowText(h, sb, 512);',
+    '      string t = sb.ToString();',
+    '      if (t.StartsWith("CLAIRE \\u2014") && t.IndexOf("Google Chrome") < 0 && t.IndexOf("Microsoft") < 0 && t.IndexOf("Firefox") < 0) { trouve = h; return false; }',
+    '      return true;',
+    '    }, IntPtr.Zero);',
+    '    return trouve;',
+    '  }',
+    '  public static bool Montrer(IntPtr h) {',
+    '    if (IsIconic(h)) ShowWindow(h, 9);',
+    '    keybd_event(0x12, 0, 0, UIntPtr.Zero);',
+    '    keybd_event(0x12, 0, 2, UIntPtr.Zero);',
+    '    return SetForegroundWindow(h);',
+    '  }',
+    '}',
+    "'@",
+    'Add-Type -TypeDefinition $code',
+    '$historique = New-Object System.Collections.ArrayList',
+    // Appel 3CX (étude 12/10 : « Chrome s'ouvre au premier plan à chaque appel, c'est pénible ; CLAIRE ne s'affiche pas au
+    // premier plan lorsqu'un dossier est trouvé ») : l'onglet de 3CX se ferme seul ; appelant d'un dossier → fenêtre CLAIRE au
+    // premier plan (ouverte sur l'appel si elle était fermée) ; sinon la fenêtre d'avant la sonnerie reprend le premier plan.
+    'function Appel($a) {',
+    '  $ilYa = [double]$a.ilYaMs',
+    '  $quand = (Get-Date).AddMilliseconds(-$ilYa - 300)',
+    '  if ($ilYa -lt 1200) { Start-Sleep -Milliseconds ([int](1200 - $ilYa)) }',
+    '  if ($a.dossier) {',
+    '    $h = [FenetreClaire]::Trouver()',
+    '    if ($h -ne [IntPtr]::Zero) { [void][FenetreClaire]::Montrer($h); Start-Sleep -Milliseconds 600; [void][FenetreClaire]::Montrer($h); return }',
+    "    $id = ([string]$a.id) -replace '[^A-Za-z0-9_-]', ''",
+    "    if ($cible) { Start-Process -FilePath $cible -ArgumentList ('--profile-directory=\"' + $profil + '\" --app=\"' + $url + '#appel=' + $id + '\"') }",
+    '    return',
+    '  }',
+    '  $avant = [IntPtr]::Zero',
+    '  foreach ($e in $historique) { if ($e.t -lt $quand) { $avant = $e.h } }',
+    '  if ($avant -ne [IntPtr]::Zero -and [FenetreClaire]::IsWindow($avant)) { [void][FenetreClaire]::Montrer($avant) }',
+    '}',
     "function Normaliser([string]$s) { return (($s -replace '[\\s\\x00-\\x1f]+', ' ').Trim()) }",
     'function Inserer($word, $c) {',
     '  try {',
@@ -72,6 +131,9 @@ function lignesRelaisWordPs({ url, poste, jeton }) {
     '  $avecDoc = $false',
     "  $titre = ''",
     "  $para = ''",
+    // La fenêtre au premier plan, retenue 20 s : celle d'avant la sonnerie d'un appel.
+    '  [void]$historique.Add(@{ t = (Get-Date); h = [FenetreClaire]::GetForegroundWindow() })',
+    '  while ($historique.Count -gt 40) { $historique.RemoveAt(0) }',
     "  try { $word = [Runtime.InteropServices.Marshal]::GetActiveObject('Word.Application') } catch { $word = $null }",
     '  if ($word -ne $null) {',
     '    try {',
@@ -92,7 +154,8 @@ function lignesRelaisWordPs({ url, poste, jeton }) {
     "  $cle = $titre + '|' + $para",
     '  $inchange = ($cle -eq $dernier)',
     '  $maintenant = Get-Date',
-    '  $attente = if ($word -ne $null) { 1 } else { 5 }',
+    // Battement chaque seconde, Word ouvert ou non : les sonneries 3CX arrivent dans sa réponse.
+    '  $attente = 1',
     '  if (-not $inchange -or $resultats.Count -gt 0 -or ($maintenant - $envoi).TotalSeconds -ge $attente) {',
     '    $corps = @{ poste = $poste; jeton = $jeton; word = $avecDoc; inchange = $inchange; resultats = @($resultats) }',
     '    if (-not $inchange) { $corps.titre = $titre; $corps.paragraphe = $para }',
@@ -106,6 +169,7 @@ function lignesRelaisWordPs({ url, poste, jeton }) {
     '      foreach ($c in @($rep.commandes)) { if ($c) { $resultats += (Inserer $word $c) } }',
     // Serveur redémarré (état en mémoire perdu) : le paragraphe est renvoyé au tour suivant.
     '      if ($rep.renvoyer) { $dernier = $null }',
+    '      foreach ($a in @($rep.appels)) { if ($a) { Appel $a } }',
     '    } catch {',
     // Jeton refusé (relais réinstallé ailleurs ou retiré) : on ralentit, puis on s'arrête — jamais une boucle de refus.
     '      $code = 0',
@@ -115,7 +179,7 @@ function lignesRelaisWordPs({ url, poste, jeton }) {
     '  }',
     // Les objets COM du tour (sélection, paragraphes, plages) libérés aussi : jamais un Word fantôme après sa fermeture.
     '  if ($word -ne $null) { [void][Runtime.InteropServices.Marshal]::ReleaseComObject($word); $word = $null; [GC]::Collect(); [GC]::WaitForPendingFinalizers() }',
-    '  Start-Sleep -Milliseconds 700',
+    '  Start-Sleep -Milliseconds 500',
     '}'
   ];
 }
@@ -130,22 +194,29 @@ var LIGNES_LANCEUR_RELAIS_WORD = [
 ];
 
 // Pure : l'installateur .vbs du relais Word pour le collaborateur `poste`, qui parle au serveur `url` avec `jeton`.
-/** @param {{ url: string, poste: string, jeton: string }} o @returns {string} */
-function scriptInstallationRelaisWord({ url, poste, jeton }) {
+/** @param {{ url: string, poste: string, jeton: string, profil?: string }} o @returns {string} */
+function scriptInstallationRelaisWord({ url, poste, jeton, profil }) {
   const lignes = [
     "' Installe sur ce poste le relais Word de CLAIRE (Aide a la redaction : le paragraphe ou se trouve le curseur de Word),",
     "' pour la session Windows en cours, sans droit d'administrateur. Pour le retirer : supprimer la valeur CLAIRE-Word de",
     "' HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run et les fichiers word-claire.* de %APPDATA%\\CLAIRE.",
     'Option Explicit',
-    'Dim sh, fso, dossier, f, l',
+    'Dim sh, fso, env, dossier, f, l, cible, candidat',
     'Set sh = CreateObject("WScript.Shell")',
     'Set fso = CreateObject("Scripting.FileSystemObject")',
+    'Set env = sh.Environment("PROCESS")',
+    // Le navigateur qui ouvre la fenêtre CLAIRE sur un appel quand elle est fermée (vide : rien n'est ouvert).
+    'cible = ""',
+    'For Each candidat In Array(env("ProgramFiles") & "\\Google\\Chrome\\Application\\chrome.exe", env("ProgramFiles(x86)") & "\\Google\\Chrome\\Application\\chrome.exe", env("LOCALAPPDATA") & "\\Google\\Chrome\\Application\\chrome.exe", env("ProgramFiles") & "\\Microsoft\\Edge\\Application\\msedge.exe", env("ProgramFiles(x86)") & "\\Microsoft\\Edge\\Application\\msedge.exe")',
+    '  If cible = "" And fso.FileExists(candidat) Then cible = candidat',
+    'Next',
     'dossier = sh.ExpandEnvironmentStrings("%APPDATA%") & "\\CLAIRE"',
     'If Not fso.FolderExists(dossier) Then fso.CreateFolder dossier',
     // Le script PowerShell en Unicode : la valeur insérée et le texte de Word gardent leurs accents.
     'Set f = fso.CreateTextFile(dossier & "\\word-claire.ps1", True, True)'
   ];
-  for (const l of lignesRelaisWordPs({ url, poste, jeton })) lignes.push('f.WriteLine ' + litteralVbs(l));
+  lignes.push('f.WriteLine "$cible = \'" & Replace(cible, "\'", "\'\'") & "\'"');
+  for (const l of lignesRelaisWordPs({ url, poste, jeton, profil })) lignes.push('f.WriteLine ' + litteralVbs(l));
   lignes.push('f.Close', 'Set f = fso.CreateTextFile(dossier & "\\word-claire.vbs", True)');
   for (const l of LIGNES_LANCEUR_RELAIS_WORD) lignes.push('f.WriteLine ' + litteralVbs(l));
   lignes.push(
@@ -159,7 +230,7 @@ function scriptInstallationRelaisWord({ url, poste, jeton }) {
     'Next',
     'WScript.Sleep 500',
     'sh.Run "wscript.exe """ & l & """", 0, False',
-    'MsgBox "Le relais Word de CLAIRE est installe : l Aide a la redaction suit le paragraphe ou se trouve le curseur de Word." & vbCrLf & vbCrLf & "Il demarre seul a chaque ouverture de session.", 64, "CLAIRE"'
+    'MsgBox "Le relais CLAIRE de ce poste est installe :" & vbCrLf & "- l Aide a la redaction suit le paragraphe ou se trouve le curseur de Word ;" & vbCrLf & "- a chaque appel 3CX, la fenetre CLAIRE passe au premier plan si l appelant a un dossier, sinon la fenetre d avant revient." & vbCrLf & vbCrLf & "Il demarre seul a chaque ouverture de session.", 64, "CLAIRE"'
   );
   return lignes.join('\r\n') + '\r\n';
 }
@@ -194,7 +265,7 @@ var COMMANDE_EXPIRE_MS = 20000;
 var RELAIS_VU_MS = 12000;
 
 /** @typedef {{ id: string, valeur: string, occurrence: number, attendu: string, t: number }} CommandeWord */
-/** @typedef {{ vu: number, word: boolean, titre: string, paragraphe: string, n: number, commandes: CommandeWord[], resultats: { id: string, ok: boolean, message: string, t: number }[] }} PosteWord */
+/** @typedef {{ vu: number, word: boolean, titre: string, paragraphe: string, n: number, commandes: CommandeWord[], resultats: { id: string, ok: boolean, message: string, t: number }[], appels: { id: string, dossier: boolean, t: number }[] }} PosteWord */
 
 function creerEtatRelaisWord() {
   return { postes: /** @type {Map<string, PosteWord>} */ (new Map()), demarrage: crypto.randomBytes(3).toString('hex') };
@@ -203,7 +274,7 @@ function creerEtatRelaisWord() {
 /** @param {ReturnType<typeof creerEtatRelaisWord>} etat @param {string} poste @returns {PosteWord} */
 function postePourWord(etat, poste) {
   let p = etat.postes.get(poste);
-  if (!p) { p = { vu: 0, word: false, titre: '', paragraphe: '', n: 0, commandes: [], resultats: [] }; etat.postes.set(poste, p); }
+  if (!p) { p = { vu: 0, word: false, titre: '', paragraphe: '', n: 0, commandes: [], resultats: [], appels: [] }; etat.postes.set(poste, p); }
   return p;
 }
 
@@ -228,7 +299,27 @@ function appliquerReleveWord(etat, poste, corps, maintenant = Date.now()) {
   p.resultats = p.resultats.filter(r => maintenant - r.t < 60000).slice(-10);
   const commandes = p.commandes.filter(c => maintenant - c.t < COMMANDE_EXPIRE_MS);
   p.commandes = [];
-  return { commandes: commandes.map(c => ({ id: c.id, valeur: c.valeur, occurrence: c.occurrence, attendu: c.attendu })), renvoyer: neuf && !!corps.inchange };
+  // Sonneries de moins de 8 s (plus vieilles : l'onglet de 3CX est déjà loin, rien à rendre).
+  const appels = (p.appels || []).filter(a => maintenant - a.t < 8000).map(a => ({ id: a.id, dossier: a.dossier, ilYaMs: Math.max(0, maintenant - a.t) }));
+  p.appels = [];
+  return { commandes: commandes.map(c => ({ id: c.id, valeur: c.valeur, occurrence: c.occurrence, attendu: c.attendu })), appels, renvoyer: neuf && !!corps.inchange };
+}
+
+// Le relais du poste tourne-t-il (vu il y a moins de RELAIS_VU_MS) ?
+/** @param {ReturnType<typeof creerEtatRelaisWord>} etat @param {string} poste @param {number} [maintenant] */
+function relaisPosteActif(etat, poste, maintenant = Date.now()) {
+  const p = poste ? etat.postes.get(poste) : null;
+  return !!p && maintenant - p.vu < RELAIS_VU_MS;
+}
+
+// Une sonnerie 3CX pour ce poste : rendue au relais à son prochain relevé (une seconde au plus). `dossier` : l'appelant a un
+// dossier (la fenêtre CLAIRE passe au premier plan) ; sinon la fenêtre d'avant la sonnerie revient.
+/** @param {ReturnType<typeof creerEtatRelaisWord>} etat @param {string} poste @param {{ id: string, dossier: boolean }} appel @param {number} [maintenant] */
+function noterAppelPourRelais(etat, poste, appel, maintenant = Date.now()) {
+  if (!relaisPosteActif(etat, poste, maintenant)) return false;
+  const p = postePourWord(etat, poste);
+  p.appels = (p.appels || []).concat([{ id: String(appel.id || '').slice(0, 64), dossier: !!appel.dossier, t: maintenant }]).slice(-5);
+  return true;
 }
 
 // Pure (sur l'état) : une insertion demandée depuis la fenêtre CLAIRE du poste. Rend l'identifiant, ou une erreur.
@@ -265,5 +356,5 @@ function etatPosteWord(etat, poste, installe, maintenant = Date.now()) {
 module.exports = {
   scriptInstallationRelaisWord, lignesRelaisWordPs, LIGNES_LANCEUR_RELAIS_WORD,
   empreinteJeton, nouveauJeton, jetonValide, texteWord,
-  creerEtatRelaisWord, appliquerReleveWord, demanderInsertionWord, etatPosteWord, RELAIS_VU_MS
+  creerEtatRelaisWord, appliquerReleveWord, demanderInsertionWord, etatPosteWord, relaisPosteActif, noterAppelPourRelais, RELAIS_VU_MS
 };
