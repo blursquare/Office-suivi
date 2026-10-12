@@ -25,3 +25,11 @@ test('morceaux dans le désordre : introuvable ; trop court : introuvable', () =
   assert.equal(localiserExtrait(acte, 'Il s’engage à fournir … Le vendeur déclare'), -1);
   assert.equal(localiserExtrait(acte, 'le 15'), -1);
 });
+
+test('guillemets, « œ » et marqueur de page recopiés : retrouvée (relecture 12/10)', () => {
+  const t = 'Le bien est situé en zone « à risque » selon le plan. Le vendeur a fait réaliser le cœur des travaux. Fin de page. Suite de la clause sur la page suivante.';
+  assert.ok(localiserExtrait(t, 'situé en zone "à risque" selon le plan') > 0);
+  assert.ok(localiserExtrait(t, 'situé en zone à risque selon le plan') > 0);
+  assert.ok(localiserExtrait(t, 'réaliser le coeur des travaux') > 0);
+  assert.ok(localiserExtrait(t, 'Fin de page. [[page 4]] Suite de la clause') > 0);
+});

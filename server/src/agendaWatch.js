@@ -216,10 +216,10 @@ function appliquerRendezVousAgenda(depot, detections, resultat, categoriesRdv) {
       const changeHoraire = poserHoraireRendezVous(d, det);
       const revenu = Boolean(d.detectionsAgenda.rendezVousDisparu);
       if (revenu) delete d.detectionsAgenda.rendezVousDisparu;
-      if (ecritParAgenda !== det.dateIso || changeHoraire || revenu) {
-        d.detectionsAgenda.rendezVousSignature = det.dateIso;
-        depot.remplacer(d.id, d);
-      }
+      // Une date posée à la main (ou par CLAIRE) que l'agenda confirme reste « posée à la main » : la marquer écrite par
+      // l'agenda la rendait retirable par corrigerRendezVousEcritsParAgenda (audit 12/10, dossiers ROY homonymes : la date
+      // manuelle était retirée au tour suivant, puis proposée en doublon).
+      if (changeHoraire || revenu) depot.remplacer(d.id, d);
       continue;
     }
     if (actuel && actuel !== ecritParAgenda) {
@@ -384,6 +384,9 @@ async function executerEtEnregistrerTourAgenda(depot, parametresRepo, injections
   const reglages = parametresRepo.lireReglagesExchange();
   const manuel = declenche === 'manuel';
   if (!manuel && lectureAgendaSuspendue(reglages)) return { ok: false, suspendu: true };
+  // Heure du DÉBUT de la lecture : un rendez-vous créé pendant qu'elle tourne peut manquer à la liste ; « lu » ne doit donc pas
+  // dater d'après (audit 12/10 : options d'un sondage créées pendant la lecture → la dernière « restée seule » était placée).
+  const debutLecture = new Date().toISOString();
   const resultat = await executerTourSurveillanceAgenda(depot, reglages, injections);
   if (resultat.identifiantsRefuses) empreinteRefusee = empreinteIdentifiants(reglages);
   else if (resultat.ok) empreinteRefusee = null;
@@ -398,7 +401,7 @@ async function executerEtEnregistrerTourAgenda(depot, parametresRepo, injections
     parametresRepo.ecrireAgendaDuJour({ ...resultat.agendaDuJour, lu: new Date().toISOString() });
   }
   if (resultat.ok && resultat.agendaOffice && typeof parametresRepo.ecrireAgendaOffice === 'function') {
-    parametresRepo.ecrireAgendaOffice({ ...resultat.agendaOffice, lu: new Date().toISOString() });
+    parametresRepo.ecrireAgendaOffice({ ...resultat.agendaOffice, lu: debutLecture });
   }
   // Rendez-vous rouges « JV - … » : tâches du collaborateur dans « Mes rappels » (voir tachesAgenda.js).
   if (resultat.ok && resultat.agendaOffice && typeof parametresRepo.lireRappelsPerso === 'function') {

@@ -9,7 +9,7 @@ const path = require('node:path');
 const { cheminRestauration, controlerBase } = require('../restauration');
 const {
   validerDossierSauvegarde, destinationSauvegarde, sauvegarderEtEnregistrer,
-  joursDepuisDerniereSauvegarde, NB_SAUVEGARDES_CONSERVEES, JOURS_AVANT_ALERTE, RE_NOM_SAUVEGARDE
+  joursDepuisDerniereSauvegarde, NB_SAUVEGARDES_CONSERVEES, JOURS_AVANT_ALERTE, RE_NOM_SAUVEGARDE, comparerNomsSauvegarde
 } = require('../sauvegarde');
 
 function creerRouteurSauvegarde(parametresRepo, db, config, miseAJour = {}) {
@@ -57,7 +57,7 @@ function creerRouteurSauvegarde(parametresRepo, db, config, miseAJour = {}) {
     if (!cheminDb || cheminDb === ':memory:') return res.json({ sauvegardes: [], dossier: null });
     const { dossier } = destinationSauvegarde(parametresRepo.lireReglageSauvegarde().dossier, cheminDb);
     try {
-      const noms = (await fsp.readdir(dossier)).filter((n) => RE_NOM_SAUVEGARDE.test(n)).sort().reverse();
+      const noms = (await fsp.readdir(dossier)).filter((n) => RE_NOM_SAUVEGARDE.test(n)).sort(comparerNomsSauvegarde).reverse();
       const sauvegardes = [];
       for (const nom of noms) {
         try { const st = await fsp.stat(path.join(dossier, nom)); sauvegardes.push({ nom, taille: st.size, modifieLe: st.mtime.toISOString() }); } catch (_) { /* disparue entre-temps */ }

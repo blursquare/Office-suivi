@@ -40,7 +40,9 @@ test('synchroniserTachesAgenda : création, mise à jour, retrait, cochée gard�
   assert.equal(r.find(x => x.agendaItemId).echeance, '2026-10-08');
   // Rendez-vous supprimé de l'agenda, tâche non cochée : cochée (faite à l'heure du tour), jamais retirée de l'agenda
   // par le poste ensuite. Les rappels ordinaires restent tels quels.
-  const supprime = synchroniserTachesAgenda(r, [], debut, '2026-10-04T10:00:00Z');
+  // (une lecture réelle porte d'autres rendez-vous : la tâche n'est jugée que jusqu'au dernier jour lu)
+  const autre = { itemId: 'AUTRE', sujet: 'Rendez-vous', date: '2027-03-01', categories: [] };
+  const supprime = synchroniserTachesAgenda(r, [autre], debut, '2026-10-04T10:00:00Z');
   assert.equal(supprime.length, 2);
   const faite = supprime.find(x => x.agendaItemId);
   assert.equal(faite.fait, true);
@@ -48,7 +50,7 @@ test('synchroniserTachesAgenda : création, mise à jour, retrait, cochée gard�
   assert.equal(faite.agendaSupprimeLe, '2026-10-04T10:00:00Z');
   assert.equal(assainirRappelPerso(faite).fait, true, 'passe le contrôle du serveur');
   assert.equal(supprime.find(x => x.id === 'rp-1').fait, false);
-  assert.equal(synchroniserTachesAgenda(supprime, [], debut).find(x => x.agendaItemId).faitLe, '2026-10-04T10:00:00Z', 'plus touchée ensuite');
+  assert.equal(synchroniserTachesAgenda(supprime, [autre], debut).find(x => x.agendaItemId).faitLe, '2026-10-04T10:00:00Z', 'plus touchée ensuite');
   // Rendez-vous encore là mais plus une tâche (plus rouge) : retirée.
   assert.equal(synchroniserTachesAgenda(r, [{ ...e1, categories: ['Bleu'] }], debut).map(x => x.id).join(','), 'rp-1');
   assert.equal(synchroniserTachesAgenda(r, [{ ...e1, sujet: 'Relancer le syndic' }], debut).map(x => x.id).join(','), 'rp-1');
@@ -92,4 +94,21 @@ test('tour de lecture : un rendez-vous rouge « JV - … » devient une tâche d
   assert.equal(t.echeance, demain);
   reinitialiserDisjoncteurAgenda();
   db.close();
+});
+
+test('synchroniserTachesAgenda : garde-fous — après le dernier jour lu, lecture tronquée, aucune tâche retrouvée (audit 12/10)', () => {
+  const debut = '2026-09-28';
+  const t = (id, date) => ({ id: 'ag-' + id, auteur: 'Julie VASSELIN', texte: 'Tâche', echeance: date, fait: false, agendaItemId: id });
+  const autre = (date) => ({ itemId: 'X' + date, sujet: 'Rendez-vous', date, categories: [] });
+  // Après le dernier jour lu : pas cochée.
+  assert.equal(synchroniserTachesAgenda([t('A', '2027-06-01')], [autre('2027-01-01')], debut)[0].fait, false);
+  // Lecture tronquée (3 000) : rien de coché.
+  const beaucoup = Array.from({ length: 3000 }, (_, i) => ({ itemId: 'E' + i, sujet: 'x', date: '2026-11-01', categories: [] }));
+  assert.equal(synchroniserTachesAgenda([t('A', '2026-10-10')], beaucoup, debut)[0].fait, false);
+  // Deux tâches non cochées, aucune retrouvée (calendrier changé) : rien de coché.
+  const r = synchroniserTachesAgenda([t('A', '2026-10-10'), t('B', '2026-10-12')], [autre('2027-01-01')], debut);
+  assert.equal(r.filter(x => x.fait).length, 0);
+  // Une retrouvée, l'autre disparue : celle-ci cochée.
+  const r2 = synchroniserTachesAgenda([t('A', '2026-10-10'), t('B', '2026-10-12')], [autre('2027-01-01'), { itemId: 'A', sujet: 'Autre', date: '2026-10-10', categories: [] }], debut);
+  assert.equal(r2.find(x => x.agendaItemId === 'B').fait, true);
 });

@@ -118,8 +118,15 @@ function creerRouteurSondages(parametresRepo, injections = {}) {
     if (optionsSeules && !brouillon.creneaux.some((c) => c.option)) {
       return res.json({ ok: false, message: avertissement || 'Aucune option n’a pu être posée dans l’agenda.' });
     }
-    sondages.push(brouillon);
-    parametresRepo.ecrireSondagesCreneaux(sondages);
+    // Créé APRÈS la pose des options (une relecture de l'agenda commencée avant ne les voit pas : optionRestanteSeule compare
+    // à cette heure) ; liste relue après les appels à Exchange pour ne rien écraser d'un autre enregistrement (audit 12/10).
+    brouillon.creeLe = new Date().toISOString();
+    const actuels = parametresRepo.lireSondagesCreneaux();
+    if (dossierId && actuels.some((s) => s.dossierId === dossierId && s.statut === 'ouvert')) {
+      return res.status(409).json({ ok: false, message: 'Un sondage a été ouvert pour ce dossier entre-temps : placez-le ou annulez-le d’abord.' + (brouillon.creneaux.some((c) => c.option) ? ' Les options déjà posées restent dans l’agenda.' : '') });
+    }
+    actuels.push(brouillon);
+    parametresRepo.ecrireSondagesCreneaux(actuels);
     res.json({ ok: true, sondage: avecSynthese(brouillon), avertissement });
   });
 
@@ -128,6 +135,15 @@ function creerRouteurSondages(parametresRepo, injections = {}) {
     const s = sondages.find((x) => x.id === req.params.id);
     if (!s) { res.status(404).json({ ok: false, message: 'Sondage introuvable.' }); return null; }
     return { sondages, s };
+  };
+
+  // Écrit CE sondage dans la liste relue au moment d'écrire : entre la lecture et l'écriture, un appel à Exchange peut laisser
+  // un tour des sondages enregistrer d'autres réponses, qu'une liste lue avant écraserait (audit 12/10).
+  const enregistrerSondage = (s) => {
+    const liste = parametresRepo.lireSondagesCreneaux();
+    const i = liste.findIndex((x) => x.id === s.id);
+    if (i >= 0) liste[i] = s; else liste.push(s);
+    parametresRepo.ecrireSondagesCreneaux(liste);
   };
 
   routeur.post('/sondages/:id/relire', async (req, res) => {
@@ -145,7 +161,10 @@ function creerRouteurSondages(parametresRepo, injections = {}) {
     if (statut === 'place' && !t.s.creneaux.some((c) => c.n === n)) return res.status(400).json({ ok: false, message: 'Créneau inconnu.' });
     const reglages = parametresRepo.lireReglagesExchange ? parametresRepo.lireReglagesExchange() : {};
     await clore(t.s, statut, reglages, parametresRepo, injections, statut === 'place' ? n : null);
-    parametresRepo.ecrireSondagesCreneaux(t.sondages);
+    // Réponses arrivées pendant la clôture : gardées sur le sondage clos.
+    const relu = parametresRepo.lireSondagesCreneaux().find((x) => x.id === t.s.id);
+    if (relu && Array.isArray(relu.reponses) && relu.reponses.length > (t.s.reponses || []).length) t.s.reponses = relu.reponses;
+    enregistrerSondage(t.s);
     const restantes = (t.s.optionsARetirer || []).length;
     res.json({
       ok: true, sondage: avecSynthese(t.s),
@@ -159,7 +178,7 @@ function creerRouteurSondages(parametresRepo, injections = {}) {
     const t = trouver(req, res);
     if (!t) return;
     t.s.relances = [...(t.s.relances || []), new Date().toISOString()].slice(-10);
-    parametresRepo.ecrireSondagesCreneaux(t.sondages);
+    enregistrerSondage(t.s);
     res.json({ ok: true, sondage: avecSynthese(t.s) });
   });
 

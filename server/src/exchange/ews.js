@@ -678,10 +678,12 @@ function horaireModifie({ date, heure, heureFin, dateFin, journeeEntiere }) {
     if (dernier < date) return null;
     return { debut: bornesJourneeEntiere(date).debut, fin: bornesJourneeEntiere(dernier).fin };
   }
-  if (!heureOk(heure) || !heureOk(heureFin) || heureFin <= heure) return null;
+  // Rendez-vous horaire sur plusieurs jours : la fin garde son jour (audit 12/10 — elle était ramenée au premier jour).
+  const jourFin = jourOk(dateFin) && dateFin > date ? dateFin : date;
+  if (!heureOk(heure) || !heureOk(heureFin) || (jourFin === date && heureFin <= heure)) return null;
   return {
     debut: formatEwsUtc(instantUtcDepuisParis(date, heure)),
-    fin: formatEwsUtc(instantUtcDepuisParis(date, heureFin))
+    fin: formatEwsUtc(instantUtcDepuisParis(jourFin, heureFin))
   };
 }
 

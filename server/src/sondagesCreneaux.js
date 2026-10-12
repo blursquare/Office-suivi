@@ -456,6 +456,25 @@ async function clore(s, statut, reglages, parametresRepo, injections, choisi) {
   return { refus };
 }
 
+// Pure : la liste à écrire à la fin d'un tour. Le tour a lu la liste au départ puis attendu Exchange ; entre-temps une personne
+// a pu créer, placer ou annuler un sondage (audit 12/10 : le tour écrasait ces changements). Un sondage que le tour n'a pas
+// changé n'est pas réécrit ; changé par le tour seul → la version du tour ; changé des deux côtés → la version actuelle, avec
+// les réponses que le tour a ajoutées.
+function fusionnerTourSondages(actuels, duTour, avant) {
+  const liste = actuels.slice();
+  for (const s of duTour) {
+    const origine = avant.get(s.id);
+    if (origine === undefined || JSON.stringify(s) === origine) continue;
+    const i = liste.findIndex((x) => x.id === s.id);
+    if (i < 0) continue;
+    if (JSON.stringify(liste[i]) === origine) { liste[i] = s; continue; }
+    const deja = new Set((liste[i].reponses || []).map((r) => JSON.stringify(r)));
+    const ajout = (s.reponses || []).filter((r) => !deja.has(JSON.stringify(r)));
+    if (ajout.length) liste[i] = { ...liste[i], reponses: [...(liste[i].reponses || []), ...ajout] };
+  }
+  return liste;
+}
+
 // Un tour : relit la boîte (s'il y a des sondages ouverts), puis retente le retrait des options
 // d'un sondage clos restées en place. `manuel` : demandé par une personne (le disjoncteur ne
 // l'empêche pas, comme « Tester maintenant »).
@@ -464,6 +483,7 @@ async function executerTourSondages(parametresRepo, injections = {}, manuel = fa
   const { posterEws } = require('./exchange/ews');
   const reglages = parametresRepo.lireReglagesExchange ? parametresRepo.lireReglagesExchange() : {};
   const sondages = parametresRepo.lireSondagesCreneaux();
+  const avant = new Map(sondages.map((s) => [s.id, JSON.stringify(s)]));
   const resultat = { ok: false, lus: 0, nouvelles: [], placesSeuls: [], erreur: null };
   const ouverts = sondages.filter((s) => s.statut === 'ouvert');
   const aRetirer = sondages.filter((s) => (s.optionsARetirer || []).length);
@@ -521,7 +541,7 @@ async function executerTourSondages(parametresRepo, injections = {}, manuel = fa
     s.optionsARetirer = restantes;
     if (refus) { agendaWatch.signalerIdentifiantsRefuses(reglages); break; }
   }
-  parametresRepo.ecrireSondagesCreneaux(sondages);
+  parametresRepo.ecrireSondagesCreneaux(fusionnerTourSondages(parametresRepo.lireSondagesCreneaux(), sondages, avant));
   resultat.ok = true;
   return resultat;
 }
@@ -552,5 +572,5 @@ module.exports = {
   choixDepuisTexteListe, parseFindReponses, corpsLireTextesReponses, parseTextesReponses, reponsesListeALire,
   assainirSondage, assainirSondages, appliquerReponses, syntheseSondage, optionRestanteSeule, sujetPlacementOption,
   corpsFindReponsesSondages, executerTourSondages, demarrerSurveillanceSondages, clore, retirerOptions,
-  dateDuJourParis, connexionPrete
+  dateDuJourParis, connexionPrete, fusionnerTourSondages
 };

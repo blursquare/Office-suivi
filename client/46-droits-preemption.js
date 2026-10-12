@@ -106,7 +106,7 @@
     // « et », « n », « de »… ne sont pas des sections (audit 12/10 : « AB 12 et 13 » donnait « ET 13 ») ; un numéro seul qui
     // suit (« et 13 », « , 14 ») garde la section précédente.
     const out = [];
-    const re = /(?:^|[^A-Za-z0-9])([0-9]?[A-Z]{1,2})\s*(?:N°|n°|no|n)?\s*(\d{1,4})(?![0-9])((?:\s*(?:,|et|&)\s*(?:n°\s*)?\d{1,4}(?![0-9])(?!\s*(?:m2|m²|m|ha|a|ca)(?![A-Za-z])))*)/gi;
+    const re = /(?:^|[^A-Za-z0-9])([0-9]?[A-Z]{1,2})\s*(?:N°|n°|no|n)?\s*(\d{1,4})(?![0-9])((?:\s*(?:,|et|&)\s*(?:n°\s*)?\d{1,4}(?![0-9])(?!\s*(?:m2|m²|m|ha|ca)(?![A-Za-z])|\s*a\s+\d))*)/gi;
     let m;
     while ((m = re.exec(String(texte || ''))) && out.length < 20) {
       const section = m[1].toUpperCase();

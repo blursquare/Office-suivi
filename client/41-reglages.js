@@ -73,7 +73,11 @@
     appliquerAccent(document.documentElement.getAttribute('data-accent') || 'bordeaux', false);
     try {
       const reponse = await fetchAvecAuth('/api/reglages');
+      // Une réponse en erreur ne remplit pas le formulaire : vide, il effacerait le compte SMTP et son mot de passe au
+      // prochain « Enregistrer » (audit 12/10).
+      if (!reponse.ok) throw new Error('statut ' + reponse.status);
       const reglages = await reponse.json();
+      reglagesFormulaireCharges = true;
       document.getElementById('reglages-envoi-actif').checked = !!reglages.emailActif;
       document.getElementById('reglages-passerelle').value = reglages.emailPasserelle || '';
       document.getElementById('reglages-smtp-utilisateur').value = reglages.smtpUtilisateur || '';
@@ -376,14 +380,22 @@
     return objet;
   }
 
+  var reglagesFormulaireCharges = false;
   async function enregistrerReglages() {
     const zone = document.getElementById('reglages-etat');
+    if (!reglagesFormulaireCharges) {
+      zone.style.display = 'flex';
+      zone.className = 'analyse-ia-dispo dispo-off';
+      zone.innerHTML = `${icone('alert-triangle')}Réglages pas encore relus depuis le serveur : rouvrez la page avant d’enregistrer.`;
+      return;
+    }
     try {
       const reponse = await fetchAvecAuth('/api/reglages', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(reglagesFormulaireVersObjet())
       });
+      if (!reponse.ok) throw new Error('statut ' + reponse.status);
       const reglages = await reponse.json();
       memoriserReglagesEnregistres(reglages);
       renderReglagesEmails(reglages.emailsResponsables || {}, reglages.fonctionsResponsables || {});
@@ -770,7 +782,11 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(corpsEnvoye)
       });
-      const corps = await reponse.json();
+      const corps = await reponse.json().catch(() => ({}));
+      if (!reponse.ok) {
+        if (resultat) { resultat.textContent = corps.message || corps.erreur || 'Enregistrement refusé par le serveur.'; resultat.className = 'hint reglages-email-resultat reglages-email-echec'; }
+        return;
+      }
       exchangeReglages = corps || exchangeReglages;
       if (resultat) { resultat.textContent = 'Enregistré.'; resultat.className = 'hint'; }
       // Vider le champ mot de passe et rafraîchir la note « déjà enregistré ».

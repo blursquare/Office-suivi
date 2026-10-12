@@ -53,7 +53,11 @@ function fetchDe(injections) { return (injections && injections.fetch) || fetch;
 function parcellesDepuisListe(texte) {
   const out = [];
   const vus = new Set();
-  for (const m of String(texte || '').toUpperCase().matchAll(/\b([0-9]?[A-Z]{1,2})\s*0*(\d{1,4})\b/g)) {
+  const brut = String(texte || '');
+  for (const m of brut.toUpperCase().matchAll(/\b([0-9]?[A-Z]{1,2})\s*0*(\d{1,4})\b/g)) {
+    // Saisie brute de l'outil : « et », « n » écrits en minuscules ne sont pas des sections (en capitales, N, ET… en sont).
+    const ecrit = brut.slice(m.index, m.index + m[1].length);
+    if (ecrit !== m[1] && /^(ET|OU|NO|N|DE|DU|LA|LE|AU|EN)$/.test(m[1])) continue;
     const p = normaliserParcelle(m[1], m[2]);
     if (!p || vus.has(p.section + p.numero)) continue;
     vus.add(p.section + p.numero);

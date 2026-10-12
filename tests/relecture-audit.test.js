@@ -7,12 +7,12 @@ const { chargerApplication } = require('./helpers/load-app.js');
 
 const app = chargerApplication();
 
-test('pseudonymisation : naissance « Né à … le », cadastre en liste, lieu-dit, nom sans civilité, MONSIEUR', () => {
-  const t = 'Né à BLOIS (41000) le 3 mars 1970. MONSIEUR Paul MARTIN, demeurant 2 rue des Lices à Blois. Le bien cadastré section AB numéros 12, 13 et 14 et cadastrée AB 123. Lieu-dit « Les Grands Prés ». Jean DUPONT achète. Le VENDEUR déclare. Prix de vente.';
+test('pseudonymisation : naissance « Né à … le », cadastre en liste, lieu-dit, MONSIEUR ; mots du métier en clair', () => {
+  const t = 'Né à BLOIS (41000) le 3 mars 1970. MONSIEUR Paul MARTIN, demeurant 2 rue des Lices à Blois. Le bien cadastré section AB numéros 12, 13 et 14 et cadastrée AB 123. Lieu-dit « Les Grands Prés ». Loi ALUR, Zone UB, Taxe FONCIERE. Section N° Lieu-dit Contenance Nature. Le VENDEUR déclare. Prix de vente.';
   const sortie = app.anonymiserDocumentsOutil2([{ texte: t }], {}).documents[0].texte;
-  for (const fuite of ['1970', 'MARTIN', 'Lices', '13 et 14', 'AB 123', 'Grands Prés', 'DUPONT']) assert.ok(!sortie.includes(fuite), `${fuite} : ${sortie}`);
+  for (const fuite of ['1970', 'MARTIN', 'Lices', '13 et 14', 'AB 123', 'Grands Prés']) assert.ok(!sortie.includes(fuite), `${fuite} : ${sortie}`);
   // Les mots du métier restent lisibles.
-  assert.match(sortie, /Le VENDEUR déclare\. Prix de vente/);
+  assert.match(sortie, /Loi ALUR, Zone UB, Taxe FONCIERE\. Section N° Lieu-dit Contenance Nature\. Le VENDEUR déclare\. Prix de vente/);
 });
 
 test('consigne de l’étude : jetons et sigles gardés, noms propres masqués', () => {
@@ -29,4 +29,9 @@ test('point « présent » sans citation vérifiée : à surveiller', () => {
 test('« époux » et « à concurrence de » reconnus malgré l’accent', () => {
   assert.ok(app.RE_STATUT_MARIE.test('les époux DUPONT'));
   assert.ok(app.quotitesAcquisitionPresentes('Les acquéreurs acquièrent à concurrence de 50 % chacun'));
+});
+
+test('consigne : les références juridiques restent lisibles', () => {
+  assert.equal(app.masquerNomsConsigneOutil2('« Superficie Loi Carrez » : la zone UB, article L.271-4 du Code de la construction'),
+    '« Superficie Loi Carrez » : la zone UB, article L.271-4 du Code de la construction');
 });

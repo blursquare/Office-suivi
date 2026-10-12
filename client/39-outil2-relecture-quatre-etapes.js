@@ -59,6 +59,11 @@
       afficherToast('Ajoutez d’abord le document à relire (type « Document à relire »), et attendez sa lecture.', 'OK', null);
       return;
     }
+    // Une pièce encore en lecture changerait ce qui part (relecture 12/10 : sa fin de lecture effaçait une analyse payée).
+    if (cible >= 2 && !relectureArchiveeOuverte && fichiersAnalyseIa.some(f => f.statut === 'lecture')) {
+      afficherToast('Attendez la fin de la lecture des pièces.', 'OK', null);
+      return;
+    }
     if (cible >= 3 && !relectureArchiveeOuverte && !envoiRelectureVu()) {
       afficherToast('Vérifiez d’abord ce qui partira, à l’étape 2.', 'OK', null);
       if (etapeRelecture !== 2) definirEtapeRelecture(2);
@@ -116,6 +121,7 @@
 
   function invaliderSuiteRelecture() {
     signatureAnonymisationVue = '';
+    dernierAuditContexte = null;
     anonymisationRelecture = null;
     estimationRelecture = null;
     analyseClaudeRelecture = null;

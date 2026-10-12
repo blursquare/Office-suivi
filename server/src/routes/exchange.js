@@ -35,7 +35,10 @@ function evenementDuDossier(evt, reference, contexte) {
   const ref = extraireReferenceVte(evt && evt.subject);
   if (!ref) return false;
   const actifs = contexte && Array.isArray(contexte.actifs) ? contexte.actifs : [];
-  const d = contexte && contexte.dossierId ? actifs.find((x) => x && x.id === contexte.dossierId) : null;
+  // Sans identifiant de dossier, le dossier est cherché par son nom parmi les dossiers en cours : un nom de famille porté
+  // par un autre dossier ne suffit plus à désigner l'événement (audit 12/10).
+  const d = contexte && contexte.dossierId ? actifs.find((x) => x && x.id === contexte.dossierId)
+    : actifs.find((x) => x && x.nom === reference) || null;
   if (!d) return !!dossierPourReferenceAgenda(ref, [{ id: 'x', nom: reference }]);
   const date = contexte.date || d.rendezVousSignature || '';
   const liste = actifs.map((x) => (x === d ? { ...x, rendezVousSignature: date, detectionsAgenda: null } : x));
@@ -53,7 +56,15 @@ function choisirRendezVousDossier(evenements, reference, itemId, contexte) {
     const exact = liste.find((e) => e.itemId === itemId);
     if (exact) return { evt: exact };
   }
-  const candidats = liste.filter((evt) => evenementDuDossier(evt, reference, contexte));
+  // Jamais une option (« ? — option CLAIRE »), un rendez-vous provisoire « ?? » ni une journée entière (date butoir, absence) :
+  // la note, le déplacement ou le retrait visent le rendez-vous de signature (audit 12/10).
+  const signature = (evt) => {
+    const sujet = String((evt && evt.subject) || '');
+    if (/\?|option\s+CLAIRE/i.test(sujet)) return false;
+    const duree = Date.parse(evt && evt.end) - Date.parse(evt && evt.start);
+    return !(Number.isFinite(duree) && duree >= 23 * 3600000);
+  };
+  const candidats = liste.filter((evt) => signature(evt) && evenementDuDossier(evt, reference, contexte));
   if (candidats.length === 1) return { evt: candidats[0] };
   return candidats.length ? { plusieurs: true } : { aucun: true };
 }
@@ -94,6 +105,24 @@ async function supprimerAvecSuiviRepli(parametresRepo, args) {
 
 function creerRouteurExchange(parametresRepo, injections = {}) {
   const routeur = express.Router();
+
+  // Disjoncteur commun (audit 12/10) : tant que les identifiants refusés restent enregistrés, aucune écriture ni lecture de
+  // l'agenda n'est tentée depuis un poste (un essai de plus peut verrouiller le compte) ; un refus d'Exchange relevé ici
+  // l'ouvre pour tous — lecture automatique, sondages, autres postes. Réglages et « Tester » restent permis.
+  routeur.use('/exchange', (req, res, next) => {
+    if (req.path === '/reglages' || req.path === '/test') return next();
+    const agendaWatch = require('../agendaWatch');
+    const reglages = parametresRepo.lireReglagesExchange();
+    if (agendaWatch.lectureAgendaSuspendue(reglages)) {
+      return res.status(423).json({ ok: false, raison: 'auth', message: 'Identifiants de messagerie refusés : corrigez-les dans les Réglages (rien n’a été envoyé à Exchange).' });
+    }
+    const json = res.json.bind(res);
+    res.json = (corps) => {
+      if (corps && corps.raison === 'auth') agendaWatch.signalerIdentifiantsRefuses(reglages);
+      return json(corps);
+    };
+    return next();
+  });
 
   routeur.get('/exchange/reglages', (req, res) => {
     res.json(reglagesExchangePublics(parametresRepo.lireReglagesExchange()));
@@ -328,7 +357,7 @@ function creerRouteurExchange(parametresRepo, injections = {}) {
         parametresRepo.ajouterEvenementAgendaOffice({
           ...stocke, itemId: r.itemId || stocke.itemId, changeKey: r.changeKey || '',
           sujet: sujet !== undefined ? sujet : stocke.sujet,
-          date: b.date, dateFin: journeeEntiere ? (b.dateFin || b.date) : b.date,
+          date: b.date, dateFin: journeeEntiere ? (b.dateFin || b.date) : (/^\d{4}-\d{2}-\d{2}$/.test(String(b.dateFin || '')) && b.dateFin > b.date ? b.dateFin : b.date),
           heure: journeeEntiere ? null : b.heure, heureFin: journeeEntiere ? null : b.heureFin, journeeEntiere,
           ...(categories ? { categories } : {})
         });
@@ -429,7 +458,7 @@ function creerRouteurExchange(parametresRepo, injections = {}) {
       debutUtc, finUtc, mailbox: reglages.calendrierPartage
     }, injections);
     if (!trouve.ok) {
-      return res.json({ ok: false, message: trouve.message });
+      return res.json({ ok: false, message: trouve.message, raison: trouve.raison || '' });
     }
     // L'identifiant mémorisé quand CLAIRE a créé le rendez-vous, sinon la référence « VTE - … » qui
     // doit désigner CE dossier parmi tous (evenementDuDossier : jamais l'un de deux homonymes).

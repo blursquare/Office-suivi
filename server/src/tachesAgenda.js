@@ -58,6 +58,15 @@ function synchroniserTachesAgenda(rappels, evenements, debut, maintenantIso) {
     const t = tacheDepuisEvenement(evt);
     if (t) taches.set(t.itemId, t);
   }
+  // Garde-fous (audit 12/10) : une tâche après le dernier jour lu n'est pas jugée ; une lecture tronquée (3 000 rendez-vous)
+  // ne coche rien ; si AUCUNE des tâches non cochées n'est retrouvée alors qu'il y en a plusieurs (calendrier changé dans les
+  // Réglages, lecture vide), rien n'est coché d'office.
+  const liste = evenements || [];
+  const dates = liste.map((e) => e && String(e.date || '')).filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d)).sort();
+  const finLue = dates.length ? dates[dates.length - 1] : '';
+  const tronquee = liste.length >= 3000;
+  const enAttente = (rappels || []).filter((r) => r && r.agendaItemId && !r.fait && !r.agendaSupprimeLe && !(debut && r.echeance && r.echeance < debut));
+  const aucuneRetrouvee = enAttente.length >= 2 && !enAttente.some((r) => presents.has(r.agendaItemId));
   const resultat = [];
   const vus = new Set();
   for (const r of rappels || []) {
@@ -68,9 +77,11 @@ function synchroniserTachesAgenda(rappels, evenements, debut, maintenantIso) {
       resultat.push(r.fait ? r : { ...r, auteur: t.collaborateur, texte: t.texte, echeance: t.date, agendaChangeKey: t.changeKey });
       continue;
     }
-    const horsFenetre = debut && r.echeance && r.echeance < debut;
-    if (r.fait || r.agendaSupprimeLe || horsFenetre) resultat.push(r);
-    else if (!presents.has(r.agendaItemId)) resultat.push({ ...r, fait: true, faitLe: maintenant, agendaSupprimeLe: maintenant });
+    const horsFenetre = (debut && r.echeance && r.echeance < debut) || (finLue && r.echeance && r.echeance > finLue) || !finLue || tronquee || aucuneRetrouvee;
+    if (r.fait || r.agendaSupprimeLe) resultat.push(r);
+    else if (presents.has(r.agendaItemId)) continue; // relue, mais plus une tâche : retirée
+    else if (horsFenetre) resultat.push(r);
+    else resultat.push({ ...r, fait: true, faitLe: maintenant, agendaSupprimeLe: maintenant });
   }
   for (const t of taches.values()) {
     if (vus.has(t.itemId)) continue;

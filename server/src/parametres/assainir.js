@@ -561,7 +561,8 @@ function assainirReglagesExchange(brut, precedent) {
   const url = texteNettoye(b.url) || texteNettoye(p.url) || URL_EWS_DEFAUT;
   const motDePasse = (typeof b.motDePasse === 'string') ? b.motDePasse : texteNettoye(p.motDePasse);
   return {
-    actif: b.actif === true,
+    // Absent du formulaire (section voisine enregistrée seule) = inchangé (audit 12/10 : la connexion se coupait).
+    actif: typeof b.actif === 'boolean' ? b.actif : p.actif === true,
     // Toujours en https (NTLM sur du texte clair exposerait les identifiants) — un collage raté
     // retombe sur l'URL par défaut de Fichorga plutôt que d'enregistrer une adresse inutilisable.
     url: /^https:\/\//i.test(url) ? url : URL_EWS_DEFAUT,
@@ -571,7 +572,8 @@ function assainirReglagesExchange(brut, precedent) {
     // vide si c'est le calendrier du compte de connexion lui-même. Quand elle est renseignée, les
     // opérations EWS ciblent le calendrier de cette boîte (voir ews.js, folderCalendrierXml) : le
     // compte de connexion doit alors avoir un accès délégué en écriture sur ce calendrier.
-    calendrierPartage: texteNettoye(b.calendrierPartage) || texteNettoye(p.calendrierPartage),
+    // Chaîne vide explicite : le calendrier du compte de connexion (audit 12/10 : le champ ne pouvait plus être vidé).
+    calendrierPartage: typeof b.calendrierPartage === 'string' ? texteNettoye(b.calendrierPartage) : texteNettoye(p.calendrierPartage),
     categoriesRdv: assainirCategoriesRdv(b.categoriesRdv, p.categoriesRdv),
     // Adresse de la page de réponse aux sondages de créneaux (page-sondage/index.html publiée sur
     // GitHub Pages) — vide : les emails gardent un bouton par créneau. https seulement ; une chaîne

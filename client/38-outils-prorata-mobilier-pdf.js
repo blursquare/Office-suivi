@@ -1153,7 +1153,8 @@
       console.error('Analyse IA : échec de lecture de', entree.nom, e);
     }
     // Pièce lue après la pseudonymisation : les documents envoyés seraient décalés d'un rang (audit 12/10) — tout est à refaire.
-    if (anonymisationRelecture && entree.statut === 'ok') invaliderSuiteRelecture();
+    // Jamais pendant une analyse ni sur un bilan : la pièce n'en fait simplement pas partie (relecture 12/10).
+    if (anonymisationRelecture && entree.statut === 'ok' && !analyseEnCoursRelecture && !dernierRapportAudit) invaliderSuiteRelecture();
     renderListeFichiersAnalyseIa();
     if (entree.type === 'principal') calculerPropositionsDossierAudit();
   }

@@ -138,7 +138,9 @@ function creerRouteurAgenda(parametresRepo, options) {
     }
     const samedi = decalerJours(lundi, 5);
     const agenda = typeof parametresRepo.lireAgendaOffice === 'function' ? parametresRepo.lireAgendaOffice() : null;
-    const couvert = agenda && agenda.debut && agenda.debut <= lundi;
+    // La semaine doit être DANS la fenêtre lue (186 jours depuis son début) : au-delà, 0 rendez-vous donnait « −100 % »
+    // (audit 12/10).
+    const couvert = agenda && agenda.debut && agenda.debut <= lundi && samedi < decalerJours(agenda.debut, 186);
     const actuel = couvert ? compterRendezVousPeriode(agenda.evenements, lundi, samedi) : null;
     const lundiAnPasse = lundiAnneePrecedente(lundi);
     const samediAnPasse = decalerJours(lundiAnPasse, 5);

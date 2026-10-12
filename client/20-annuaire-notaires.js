@@ -1095,6 +1095,9 @@
           dureeMinutes,
           lieu,
           categorie,
+          // Rattaché au dossier dans le stock de l'agenda dès la création (audit 12/10 : sans eux, l'agenda des postes ne le
+          // reconnaissait comme signature qu'au tour de lecture suivant).
+          signature: true, dossierId: d.id, dossierNom: d.nom,
           corps: 'Rendez-vous de signature créé depuis CLAIRE.'
         })
       });
@@ -1229,6 +1232,7 @@
         afficherToast(corps.message || 'Agenda mis à jour.', 'OK', null);
       } else {
         signalerEchecNoteAgenda(d, corps.message || "La mise à jour de l'agenda a échoué.", silencieux);
+        if (corps.raison === 'auth') return 'auth';
       }
     } catch (e) {
       signalerEchecNoteAgenda(d, 'Serveur injoignable — agenda non mis à jour.', silencieux);
@@ -1279,7 +1283,8 @@
     for (const d of (dossiers || []).slice()) {
       if (notesAgendaTentees.has(d.id) || !envoiAgendaARattraper(d, aujourdhui)) continue;
       notesAgendaTentees.add(d.id);
-      await noterEnvoiDansAgenda(d.id, true, true);
+      // Identifiants refusés : arrêt au premier refus (audit 12/10 — chaque dossier retentait, au risque de verrouiller le compte).
+      if (await noterEnvoiDansAgenda(d.id, true, true) === 'auth') break;
       await new Promise(ok => setTimeout(ok, 3000));
     }
   }

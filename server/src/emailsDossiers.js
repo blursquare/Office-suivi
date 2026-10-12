@@ -118,6 +118,15 @@ function assainirEmailsDossiers(brut) {
 
 function lireEtat(parametresRepo) { return assainirEmailsDossiers(parametresRepo.lireJsonBrut(CLE_EMAILS_DOSSIERS, {})); }
 function ecrireEtat(parametresRepo, e) { return parametresRepo.ecrireJsonBrut(CLE_EMAILS_DOSSIERS, assainirEmailsDossiers(e)); }
+// Écriture par le TOUR (qui a lu l'état au départ puis attendu Exchange et l'IA) : les réglages et les emails préparés
+// enregistrés entre-temps par une personne sont repris de l'état actuel (audit 12/10 : un interrupteur basculé pendant un
+// tour revenait, un email préparé disparaissait).
+function ecrireEtatTour(parametresRepo, e) {
+  const actuel = lireEtat(parametresRepo);
+  const ids = new Set((e.prepares || []).map((p) => p && p.id));
+  const nouveaux = (actuel.prepares || []).filter((p) => p && !ids.has(p.id));
+  return ecrireEtat(parametresRepo, { ...e, reglages: actuel.reglages, prepares: [...(e.prepares || []), ...nouveaux] });
+}
 
 // ---- Pur ----
 const idCourt = (itemId) => crypto.createHash('sha1').update(String(itemId)).digest('hex').slice(0, 20);
@@ -311,7 +320,7 @@ async function resumerEnArrierePlan(parametresRepo, aResumer, ollama) {
     x.corps = null; // le texte n'est jamais gardé
     const etat = lireEtat(parametresRepo);
     const cible = etat.emails.find((m) => m.id === x.email.id);
-    if (cible) { cible.resume = resume; cible.resumeErreur = erreur; ecrireEtat(parametresRepo, etat); }
+    if (cible) { cible.resume = resume; cible.resumeErreur = erreur; ecrireEtatTour(parametresRepo, etat); }
     noterVerification(parametresRepo, 'email-resume-ia', resume ? {} : { ok: false, message: erreur });
   }
 }
@@ -361,7 +370,7 @@ async function tourEmailsDossiers(depot, parametresRepo, injections = {}, manuel
 
   // 1. Boîte de réception du compte relié.
   const r = await poster(corpsFind('inbox', null, etat.etat.recus.dernier || depuisDefaut, 'item:DateTimeReceived'));
-  if (refus(r)) { agendaWatch.signalerIdentifiantsRefuses(reglages); resultat.erreur = 'Identifiants de messagerie refusés : vérifiez les Réglages.'; etat.etat.erreur = resultat.erreur; ecrireEtat(parametresRepo, etat); return resultat; }
+  if (refus(r)) { agendaWatch.signalerIdentifiantsRefuses(reglages); resultat.erreur = 'Identifiants de messagerie refusés : vérifiez les Réglages.'; etat.etat.erreur = resultat.erreur; ecrireEtatTour(parametresRepo, etat); return resultat; }
   if (r.echec || !succes(r.corps)) {
     etat.etat.recus = { ...etat.etat.recus, statut: 'erreur', message: r.echec ? r.echec.message : `Lecture impossible (${codeReponse(r.corps) || r.statut}).`, luLe: maintenant.toISOString() };
     noterVerification(parametresRepo, 'emails-dossiers-reception', { ok: false, message: etat.etat.recus.message });
@@ -375,7 +384,7 @@ async function tourEmailsDossiers(depot, parametresRepo, injections = {}, manuel
     }
     const lot = aLire.slice(0, MAX_LECTURES_TOUR);
     const details = lot.length ? await poster(corpsGetItems(lot.map((x) => x.e.itemId), true)) : null;
-    if (details && refus(details)) { agendaWatch.signalerIdentifiantsRefuses(reglages); resultat.erreur = 'Identifiants de messagerie refusés : vérifiez les Réglages.'; ecrireEtat(parametresRepo, etat); return resultat; }
+    if (details && refus(details)) { agendaWatch.signalerIdentifiantsRefuses(reglages); resultat.erreur = 'Identifiants de messagerie refusés : vérifiez les Réglages.'; ecrireEtatTour(parametresRepo, etat); return resultat; }
     const parId = details && !details.echec ? parseGetItems(details.corps) : new Map();
     for (const { e, d } of lot) {
       const det = parId.get(e.itemId) || { a: [], corps: '', pjs: [] };
@@ -410,7 +419,7 @@ async function tourEmailsDossiers(depot, parametresRepo, injections = {}, manuel
       if (nouvelles.size || nouveauxDossiers.size) {
         const depuis30 = new Date(maintenant.getTime() - JOURS_RATTRAPAGE_ADRESSE * 86400000).toISOString();
         const rr = await poster(corpsFind('inbox', null, depuis30, 'item:DateTimeReceived', { ordre: 'Descending', max: 1000 }));
-        if (refus(rr)) { agendaWatch.signalerIdentifiantsRefuses(reglages); resultat.erreur = 'Identifiants de messagerie refusés : vérifiez les Réglages.'; ecrireEtat(parametresRepo, etat); return resultat; }
+        if (refus(rr)) { agendaWatch.signalerIdentifiantsRefuses(reglages); resultat.erreur = 'Identifiants de messagerie refusés : vérifiez les Réglages.'; ecrireEtatTour(parametresRepo, etat); return resultat; }
         if (!rr.echec && succes(rr.corps)) {
           const aRattraper = parseFind(rr.corps).filter((e) => !connus.has(idCourt(e.itemId)) && !ctx.ignorees.has(e.deAdresse) && !/\[CLAIRE-/i.test(e.objet))
             .map((e) => {
@@ -529,7 +538,7 @@ async function tourEmailsDossiers(depot, parametresRepo, injections = {}, manuel
   for (const k of Object.keys(etat.etat.envoyes)) if (!actuelles.has(k)) delete etat.etat.envoyes[k];
   etat.etat.dernierTour = maintenant.toISOString();
   etat.etat.erreur = resultat.erreur;
-  ecrireEtat(parametresRepo, etat);
+  ecrireEtatTour(parametresRepo, etat);
   resultat.ok = !resultat.erreur;
 
   const ollama = injections.ollama || (injections.config ? require('./llm').creerClientOllama(injections.config) : null);

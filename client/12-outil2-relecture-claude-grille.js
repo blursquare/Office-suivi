@@ -228,11 +228,10 @@
     // Numéros en liste (« numéros 12, 13 et 14 ») et référence après « cadastré(e) » (« cadastrée AB 123 ») — audit 12/10.
     { categorie: 'CADASTRE', re: /section\s+[A-Z]{1,2}\s*,?\s*(?:num[ée]ros?|n[°o]s?)\s*\d+(?:\s*(?:,|et|&)\s*\d+)*/gi },
     { categorie: 'CADASTRE', re: /cadastr[ée]e?s?\s+(?:sous\s+les?\s+r[ée]f[ée]rences?\s+)?(?:section\s+)?[A-Z]{1,2}\s*(?:n[°o]s?\s*)?\d{1,4}(?:\s*(?:,|et|&)\s*(?:[A-Z]{1,2}\s*)?\d{1,4})*/g },
-    { categorie: 'ADRESSE', re: /(?:[Ll]ieu[- ]dit|LIEU[- ]DIT)\s*:?\s*[«"]?\s*[A-ZÀ-Ý][^\n,;.»"⟦]{1,50}/g },
+    // Le nom du lieu-dit seul : entre guillemets, ou quatre mots à majuscule au plus (jamais l'en-tête d'un tableau cadastral).
+    { categorie: 'ADRESSE', re: /(?:[Ll]ieu[- ]dit|LIEU[- ]DIT)\s*:?\s*(?:«\s*[^»\n⟦]{1,40}»|"[^"\n⟦]{1,40}"|(?!(?:Contenance|CONTENANCE|Nature|NATURE|Section|SECTION|Surface|SURFACE)(?![A-Za-zÀ-ÿ]))[A-ZÀ-Ý][A-Za-zÀ-ÿ'’-]*(?:\s+(?:de|du|des|la|le|les|d['’])?\s*[A-ZÀ-Ý][A-Za-zÀ-ÿ'’-]*){0,3}(?![A-Za-zÀ-ÿ]))/g },
     { categorie: 'PERSONNE_MORALE', re: /\b(?:SCI|SARL|SASU?|EURL|SNC|SCP|SCM|GFA|EARL|GAEC|SCCV)\s+(?:[A-Z0-9À-Ý][\wÀ-ÿ0-9'’-]*|de|du|des|la|le|les|et|d['’])(?:\s+(?:[A-Z0-9À-Ý][\wÀ-ÿ0-9'’-]*|de|du|des|la|le|les|et|d['’])){0,5}/g },
-    { categorie: 'PERSONNE', re: /\b(?:Monsieur|Madame|Mademoiselle|MONSIEUR|MADAME|MADEMOISELLE|M\.|Mme|Mlle|Me|Ma[îi]tre|MA[ÎI]TRE)\s+[A-ZÀ-Ý][\wÀ-ÿ'’-]+(?:\s+[A-ZÀ-Ý][\wÀ-ÿ'’-]*){0,5}/g },
-    // Prénom suivi d'un nom en capitales, sans civilité (« Jean DUPONT ») — jamais un mot du métier en capitales (audit 12/10).
-    { categorie: 'PERSONNE', re: /(?<![A-Za-zÀ-ÿ])(?!(?:Le|La|Les|Du|De|Des|Un|Une|Au|Aux|Et|Ou|Par|Pour|Article|Art|Lot|Lots|Section|Prix|Acte|Page|Annexe|Titre|Chapitre)\s)[A-ZÀ-Ý][a-zà-ÿ]+(?:-[A-ZÀ-Ý][a-zà-ÿ]+)?\s+(?!(?:VENDEURS?|ACQU[EÉ]REURS?|PROMETTANTS?|B[EÉ]N[EÉ]FICIAIRES?|NOTAIRES?|BIENS?|PRIX|ACTE|IMMEUBLE|SOCI[EÉ]T[EÉ]|PARTIES?|CONDITIONS?|CHARGES?|DROITS?|ARTICLE|TVA|DPE|ERP|SAFER|DPU|DIA|SCI|SARL|SAS|TTC|HT|EUR|EUROS)(?![A-ZÀ-Ý]))[A-ZÀ-Ý]{2,}(?:[\s-][A-ZÀ-Ý]{2,})*(?![A-Za-zÀ-ÿ])/g }
+    { categorie: 'PERSONNE', re: /\b(?:Monsieur|Madame|Mademoiselle|MONSIEUR|MADAME|MADEMOISELLE|M\.|Mme|Mlle|Me|Ma[îi]tre|MA[ÎI]TRE)\s+[A-ZÀ-Ý][\wÀ-ÿ'’-]+(?:\s+[A-ZÀ-Ý][\wÀ-ÿ'’-]*){0,5}/g }
   ];
 
   function echapperRegex(s) {
@@ -327,6 +326,13 @@
   var SIGLES_CONSIGNES_OUTIL2 = new Set(['DPE', 'ERP', 'SRU', 'ALUR', 'DPU', 'DIA', 'SAFER', 'ABF', 'PLU', 'PLUI', 'CU', 'TVA', 'TTC', 'HT',
     'SCI', 'SARL', 'SAS', 'EURL', 'PACS', 'CREP', 'AAE', 'VTE', 'SPANC', 'ASL', 'AFUL', 'EUR', 'ICPE', 'PPRN', 'PPRT', 'IRIS', 'TEOM',
     'RHF', 'CNIL', 'II', 'III', 'IV', 'VI', 'VII', 'VIII', 'IX', 'XI', 'XII', 'RDC', 'OK']);
+  // Mots du métier à majuscule gardés dans une consigne, et le mot qui suit « loi », « zone », « article », « code »…
+  var MOTS_JURIDIQUES_CONSIGNE_OUTIL2 = new Set(['code', 'loi', 'zone', 'article', 'plan', 'decret', 'arrete', 'superficie', 'carrez', 'alur', 'hoguet',
+    'pinel', 'boutin', 'elan', 'climat', 'civil', 'construction', 'urbanisme', 'environnement', 'sante', 'publique', 'commerce', 'general', 'impots',
+    'cgi', 'notaire', 'notaires', 'vendeur', 'vendeurs', 'acquereur', 'acquereurs', 'promettant', 'beneficiaire', 'safer', 'mairie', 'commune',
+    'syndic', 'copropriete', 'etat', 'date', 'prix', 'condition', 'conditions', 'suspensive', 'suspensives', 'diagnostic', 'diagnostics', 'amiante',
+    'plomb', 'termites', 'gaz', 'electricite', 'assainissement', 'garantie', 'decennale', 'dommages', 'ouvrage', 'taxe', 'fonciere', 'office', 'notarial']);
+  var MOTS_AVANT_REFERENCE_CONSIGNE_OUTIL2 = /(?:loi|zone|zones|article|articles|code|plan|d[ée]cret|arr[êe]t[ée]|secteur|lot|lots)\s*$/i;
   function masquerNomsConsigneOutil2(texte) {
     const lettre = '[A-Za-zÀ-ÖØ-öø-ÿ]';
     return String(texte || '').split(/(⟦[A-Z_]+_\d+⟧)/).map((morceau, i) => {
@@ -334,6 +340,9 @@
       return morceau.replace(new RegExp(`(^|[.!?:«»"(\\n]\\s*|[^A-Za-zÀ-ÖØ-öø-ÿ0-9'’-])(${lettre}[A-Za-zÀ-ÖØ-öø-ÿ'’-]*)`, 'g'), (m, avant, mot) => {
         const tete = /^$|[.!?:«»"(\n]\s*$/.test(avant);
         const capitales = mot.length >= 2 && mot === mot.toUpperCase() && /[A-ZÀ-Ý]{2}/.test(mot);
+        if (mot.length < 2) return m; // « L.271-4 »
+        if (MOTS_JURIDIQUES_CONSIGNE_OUTIL2.has(normaliserPourRecherche(mot))) return m;
+        if (MOTS_AVANT_REFERENCE_CONSIGNE_OUTIL2.test(morceau.slice(0, morceau.indexOf(m) + avant.length))) return m;
         if (capitales) return SIGLES_CONSIGNES_OUTIL2.has(mot.replace(/['’-]/g, '')) ? m : avant + '[nom]';
         if (!tete && /^[A-ZÀ-Ý]/.test(mot)) return avant + '[nom]';
         return m;

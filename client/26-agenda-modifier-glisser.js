@@ -117,7 +117,7 @@
     if (!sujet) { afficherToast('Le titre ne peut pas être vide.', 'OK', null); return; }
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) { afficherToast('Date invalide.', 'OK', null); return; }
     if (journee && nouveau.dateFin < date) { afficherToast('Le dernier jour doit suivre le premier.', 'OK', null); return; }
-    if (!journee && (!/^\d{2}:\d{2}$/.test(nouveau.heure) || !/^\d{2}:\d{2}$/.test(nouveau.heureFin) || nouveau.heureFin <= nouveau.heure)) {
+    if (!journee && (!/^\d{2}:\d{2}$/.test(nouveau.heure) || !/^\d{2}:\d{2}$/.test(nouveau.heureFin) || (nouveau.heureFin <= nouveau.heure && !(e.dateFin && e.dateFin > e.date)))) {
       afficherToast('L’heure de fin doit suivre l’heure de début.', 'OK', null); return;
     }
     const choixType = document.querySelector('input[name="agenda-modif-type"]:checked');
@@ -151,7 +151,19 @@
   // Écrit la modification dans l'agenda de l'office (un seul essai), met la page et, pour la
   // signature d'un dossier, la fiche à jour. `nouveau` : { sujet?, date, heure, heureFin } ou
   // { sujet?, date, dateFin, journeeEntiere: true }.
+  // Pure : le dernier jour d'un rendez-vous horaire sur plusieurs jours, décalé comme le premier (audit 12/10 : la fin était
+  // ramenée au premier jour). '' pour un rendez-vous d'un jour.
+  function dateFinDecaleeAgenda(e, nouvelleDate) {
+    if (!e || e.journeeEntiere || !e.dateFin || !(e.dateFin > e.date) || !/^\d{4}-\d{2}-\d{2}$/.test(String(nouvelleDate || ''))) return '';
+    const jours = Math.round((Date.parse(e.dateFin + 'T12:00:00Z') - Date.parse(e.date + 'T12:00:00Z')) / 86400000);
+    return new Date(Date.parse(nouvelleDate + 'T12:00:00Z') + jours * 86400000).toISOString().slice(0, 10);
+  }
+
   async function modifierEvenementAgenda(e, nouveau) {
+    if (!nouveau.journeeEntiere && !nouveau.dateFin) {
+      const fin = dateFinDecaleeAgenda(e, nouveau.date);
+      if (fin) nouveau = Object.assign({}, nouveau, { dateFin: fin });
+    }
     const avant = { sujet: e.sujet, date: e.date, heure: e.heure, heureFin: e.heureFin };
     const d = dossierDeEvenement(e);
     const suit = signatureSuitAgenda(d, e);
@@ -171,7 +183,7 @@
       if (nouveau.sujet !== undefined) e.sujet = nouveau.sujet;
       e.date = nouveau.date;
       if (nouveau.journeeEntiere) e.dateFin = nouveau.dateFin || nouveau.date;
-      else { e.dateFin = nouveau.date; e.heure = nouveau.heure; e.heureFin = nouveau.heureFin; }
+      else { e.dateFin = nouveau.dateFin || nouveau.date; e.heure = nouveau.heure; e.heureFin = nouveau.heureFin; }
       if (Array.isArray(nouveau.categories)) e.categories = nouveau.categories.slice();
       if (corps.itemId) e.itemId = corps.itemId;
       if (corps.changeKey) e.changeKey = corps.changeKey;

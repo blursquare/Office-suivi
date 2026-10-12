@@ -31,6 +31,8 @@ function normaliserAvecIndex(s) {
     let normalise = c.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
     if (/['’‘´`]/.test(normalise)) normalise = "'";
     if (/[-–—]/.test(normalise)) normalise = '-';
+    if (normalise === 'œ') normalise = 'oe';
+    if (normalise === 'æ') normalise = 'ae';
     for (const ch of normalise) { res += ch; idx.push(i); }
     if (normalise.length > 0) dernierEspace = false;
   }
@@ -44,7 +46,8 @@ function compacter(normalise) {
   const index = [];
   for (let i = 0; i < normalise.texte.length; i++) {
     const c = normalise.texte[i];
-    if (c === ' ' || c === '-') continue;
+    // Espaces, tirets et guillemets (« » “ ” " ‹ ›) : le modèle les recopie à sa façon (relecture 12/10).
+    if (c === ' ' || c === '-' || '«»“”„"‹›'.includes(c)) continue;
     texte += c;
     index.push(normalise.index[i]);
   }
@@ -53,10 +56,16 @@ function compacter(normalise) {
 
 // Le dernier document normalisé est gardé : toutes les citations d'une analyse sont cherchées dans les mêmes textes
 // (audit 12/10 : 90 citations sur un acte de 300 000 caractères figeaient le serveur plusieurs secondes).
-let derniereSource = { brut: null, compact: null };
+// Quelques documents gardés (une analyse en compte plusieurs, et chaque citation peut être cherchée dans tous).
+const sourcesCompactes = new Map();
 function sourceCompacte(texte) {
-  if (derniereSource.brut !== texte) derniereSource = { brut: texte, compact: compacter(normaliserAvecIndex(texte)) };
-  return derniereSource.compact;
+  let c = sourcesCompactes.get(texte);
+  if (!c) {
+    c = compacter(normaliserAvecIndex(texte));
+    if (sourcesCompactes.size >= 8) sourcesCompactes.delete(sourcesCompactes.keys().next().value);
+    sourcesCompactes.set(texte, c);
+  }
+  return c;
 }
 
 // Position de l'extrait dans le texte d'origine, ou -1. La citation ENTIÈRE doit s'y trouver (audit 12/10 : seuls ses 20
@@ -65,7 +74,8 @@ function sourceCompacte(texte) {
 // tous se retrouver, dans l'ordre.
 function localiserExtrait(texte, extrait) {
   if (!texte || !extrait) return -1;
-  const morceaux = String(extrait).split(/\s*(?:\[\s*(?:\.\.\.|…)\s*\]|\(\s*(?:\.\.\.|…)\s*\)|\.\.\.|…)\s*/)
+  // Un marqueur de page recopié (« [[page 4]] », relecture/claude.js) coupe aussi la citation.
+  const morceaux = String(extrait).split(/\s*(?:\[\s*(?:\.\.\.|…)\s*\]|\(\s*(?:\.\.\.|…)\s*\)|\.\.\.|…|\[\[\s*page\s*\d+\s*\]\])\s*/i)
     .map(m => compacter(normaliserAvecIndex(m)).texte)
     .filter(Boolean);
   const total = morceaux.reduce((n, m) => n + m.length, 0);

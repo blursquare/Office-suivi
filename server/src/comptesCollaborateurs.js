@@ -54,7 +54,7 @@ function comptesPublics(comptes) {
 }
 
 // Écriture d'un compte : `identifiant` toujours pris tel qu'envoyé ; `motDePasse` absent (undefined) = on garde celui en base, chaîne
-// vide = on l'efface, sinon on le remplace. Tout changement lève le disjoncteur. Rend le compte public, ou null s'il n'y a plus rien.
+// vide = on l'efface, sinon on le remplace. Seul un changement d'identifiant ou de mot de passe lève le disjoncteur. Rend le compte public, ou null s'il n'y a plus rien.
 function ecrireCompte(parametresRepo, nom, corps) {
   if (!NOMS_COLLABORATEURS.includes(nom)) return { erreur: 'Collaborateur inconnu.' };
   const b = corps && typeof corps === 'object' ? corps : {};
@@ -63,7 +63,12 @@ function ecrireCompte(parametresRepo, nom, corps) {
   const identifiant = texte(b.identifiant, 200);
   const motDePasse = typeof b.motDePasse === 'string' ? b.motDePasse.slice(0, 500) : avant.motDePasse;
   if (!identifiant && !motDePasse) delete comptes[nom];
-  else comptes[nom] = { identifiant, motDePasse };
+  else {
+    // Le refus ne tombe que si les identifiants CHANGENT (audit 12/10 : réenregistrer la page sans rien toucher relevait le
+    // disjoncteur et un nouvel essai partait avec le mot de passe refusé).
+    const inchange = identifiant === avant.identifiant && motDePasse === avant.motDePasse;
+    comptes[nom] = inchange && avant.refuseLe ? { identifiant, motDePasse, refuseLe: avant.refuseLe } : { identifiant, motDePasse };
+  }
   ecrireComptes(parametresRepo, comptes);
   return { compte: comptesPublics(comptes)[nom] || null };
 }

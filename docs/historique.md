@@ -19074,3 +19074,34 @@ modèle **au choix dans les Réglages**, Opus par défaut.
 - « Doc ? · p.7 » des contrôles CLAIRE → nom du document principal ; `\b` devant « é »/« à » (époux, à concurrence de, énonce)
   remplacé par un lookbehind (faux « quotités » IMPORTANT) ; corps d'erreur de Mistral plus repris dans le message (type et code
   seuls).
+
+### 0.213.4 — 12/10/2026 — Agenda, Exchange et réglages (relecture indépendante, lot 4)
+
+- Retouches du lot 3 après sa relecture : règle « Prénom NOM » sans civilité RETIRÉE (elle masquait « Loi ALUR », « Zone UB »,
+  « Taxe FONCIERE », « Code CIVIL »… — bruit et analyse dégradée ; un nom sans civilité absent des parties lues reste en clair,
+  comme avant) ; lieu-dit : le nom seul (guillemets ou quatre mots à majuscule), jamais « Lieu-dit Contenance Nature » d'un
+  tableau cadastral ; consignes : mots juridiques (`MOTS_JURIDIQUES_CONSIGNE_OUTIL2`) et mot qui suit « loi / zone / article /
+  code… » gardés, lettre seule gardée (« L.271-4 ») ; étapes 2-3 refusées tant qu'une pièce est en lecture et plus
+  d'invalidation pendant une analyse ou sur un bilan (une analyse payée était perdue) ; `dernierAuditContexte` remis à zéro avec
+  la suite ; citations : guillemets « » “ ” " ignorés, œ/æ = oe/ae, « [[page N]] » recopié = coupure ; cache de 8 documents ;
+  serveur : « et », « n » en minuscules ne sont pas des sections (saisie brute de l'outil), N, AU en capitales le restent ;
+  « 13 a 22 ca » n'ajoute plus de parcelle.
+- Agenda : `agendaWatch` ne marque plus « écrite par l'agenda » une date posée à la main que l'agenda confirme (ROY homonymes :
+  retirée au tour suivant puis proposée en doublon) ; `lu` de l'agenda = heure du DÉBUT de la lecture, sondage `creeLe` = après
+  la pose des options (la dernière option « restée seule » était placée à tort quand la lecture avait commencé avant) ;
+  sondages : création, clôture et relance écrivent le sondage dans la liste relue (`enregistrerSondage`), le tour fusionne
+  (`fusionnerTourSondages` : changé par le tour seul → tour ; des deux côtés → actuel + réponses du tour) ; routes `/exchange/*`
+  derrière le disjoncteur commun (423 tant que les identifiants refusés restent, refus relevé ouvre le disjoncteur pour tous ;
+  Réglages et Tester exceptés), `/rendez-vous/lieu` rend `raison`, `rattraperNotesAgenda` s'arrête au premier refus ;
+  rendez-vous horaire sur plusieurs jours : fin gardée (`horaireModifie` avec `dateFin`, `dateFinDecaleeAgenda` au
+  glisser/modifier) ; recherche du rendez-vous d'un dossier : jamais une option, un « ? » ni une journée entière, et par le nom
+  parmi les dossiers en cours ; rendez-vous de signature créé depuis la fiche porte `signature`/`dossierId` ; comparaison :
+  semaine hors de la fenêtre lue (186 jours) → pas de « −100 % ».
+- Tâches de l'agenda (`synchroniserTachesAgenda`) : jamais cochées après le dernier jour lu, sur une lecture tronquée (3 000) ni
+  quand aucune des tâches en attente n'est retrouvée (calendrier changé) ; relue mais plus rouge → retirée comme avant.
+- Réglages : `ecrireCompte` garde `refuseLe` tant qu'identifiant et mot de passe ne changent pas ; `assainirReglagesExchange` —
+  `actif` absent = inchangé (une section voisine coupait la connexion), `calendrierPartage` vidable ; emails des dossiers : le
+  tour garde réglages et emails préparés enregistrés pendant qu'il tournait (`ecrireEtatTour`) ; page Réglages : réponse en
+  erreur = formulaire non rempli et « Enregistrer » refusé (`reglagesFormulaireCharges` — le compte SMTP et son mot de passe
+  étaient effacés), PUT Exchange en erreur dit l'erreur ; sauvegarde : une seconde le même jour prend l'heure dans son nom
+  (`claire-AAAA-MM-JJ-HHMMSS.db`, `comparerNomsSauvegarde`) au lieu d'écraser celle du matin.

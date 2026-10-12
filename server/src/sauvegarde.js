@@ -31,7 +31,8 @@ const NB_SAUVEGARDES_CONSERVEES = 14;
 // tard, ou redémarré, la rattrape sans attendre le lendemain.
 const INTERVALLE_VERIFICATION_MS = 60 * 60 * 1000;
 const DELAI_PREMIERE_VERIFICATION_MS = 2 * 60 * 1000;
-const RE_NOM_SAUVEGARDE = /^claire-\d{4}-\d{2}-\d{2}\.db$/;
+// « claire-AAAA-MM-JJ.db » (la sauvegarde du jour), ou « claire-AAAA-MM-JJ-HHMMSS.db » pour une seconde le même jour.
+const RE_NOM_SAUVEGARDE = /^claire-\d{4}-\d{2}-\d{2}(?:-\d{6})?\.db$/;
 // Au-delà, l'écran signale une sauvegarde en retard (voir script.js) : une journée peut manquer
 // sans alarme (poste éteint le week-end), pas davantage.
 const JOURS_AVANT_ALERTE = 3;
@@ -48,8 +49,14 @@ function nomFichierSauvegarde(date) {
 // Pure : parmi les noms d'un dossier, ceux à supprimer pour n'en garder que `nb`. Le nom porte la
 // date au format AAAA-MM-JJ, donc l'ordre alphabétique est l'ordre chronologique.
 function sauvegardesARetirer(noms, nb = NB_SAUVEGARDES_CONSERVEES) {
-  const valides = (noms || []).filter((n) => RE_NOM_SAUVEGARDE.test(n)).sort().reverse();
+  const valides = (noms || []).filter((n) => RE_NOM_SAUVEGARDE.test(n)).sort(comparerNomsSauvegarde).reverse();
   return valides.slice(nb);
+}
+
+// Ordre chronologique des noms : la sauvegarde du jour (sans heure) avant celles prises ensuite le même jour.
+function comparerNomsSauvegarde(a, b) {
+  const cle = (n) => n.replace(/\.db$/, '').replace(/^(claire-\d{4}-\d{2}-\d{2})$/, '$1-000000');
+  return cle(a) < cle(b) ? -1 : cle(a) > cle(b) ? 1 : 0;
 }
 
 // Où partent les sauvegardes : le dossier choisi dans les Réglages, sinon un dossier `sauvegardes`
@@ -106,7 +113,14 @@ async function executerSauvegarde(db, cheminDb, options = {}) {
     resultat.taille = (await fsp.stat(temporaire)).size;
 
     await fsp.mkdir(dossier, { recursive: true });
-    const cible = path.join(dossier, nom);
+    // Une seconde sauvegarde le même jour (bouton des Réglages) ne remplace jamais celle du matin (audit 12/10 : une base
+    // abîmée dans la journée écrasait la dernière bonne copie) : elle prend l'heure dans son nom.
+    let cible = path.join(dossier, nom);
+    if (await fsp.stat(cible).then(() => true, () => false)) {
+      const hms = [maintenant.getHours(), maintenant.getMinutes(), maintenant.getSeconds()].map((x) => String(x).padStart(2, '0')).join('');
+      resultat.fichier = nom.replace(/\.db$/, `-${hms}.db`);
+      cible = path.join(dossier, resultat.fichier);
+    }
     const provisoire = `${cible}.partiel`;
     await fsp.copyFile(temporaire, provisoire);
     await fsp.rename(provisoire, cible);
@@ -187,7 +201,7 @@ function demarrerSauvegardeAutomatique(db, config, parametresRepo) {
 }
 
 module.exports = {
-  NB_SAUVEGARDES_CONSERVEES, JOURS_AVANT_ALERTE, RE_NOM_SAUVEGARDE,
+  NB_SAUVEGARDES_CONSERVEES, JOURS_AVANT_ALERTE, RE_NOM_SAUVEGARDE, comparerNomsSauvegarde,
   jourLocal, nomFichierSauvegarde, sauvegardesARetirer, destinationSauvegarde, validerDossierSauvegarde,
   executerSauvegarde, sauvegardeDuJourFaite, etatApresTentative, joursDepuisDerniereSauvegarde,
   sauvegarderEtEnregistrer, demarrerSauvegardeAutomatique
