@@ -19195,3 +19195,10 @@ modèle **au choix dans les Réglages**, Opus par défaut.
   18 h et agenda ». `ouvrirFenetreAujourdhui(avecPoint)` : sans argument (la carte), la fenêtre ne montre que « À faire » sur
   toute sa largeur (`.taches-seules`, 680 px), la liste défile ; « Depuis hier 18 h » et « Agenda du jour » restent seulement quand
   « Demander à CLAIRE » ouvre « Depuis hier 18 h ». Texte « S'ouvre à votre première connexion » (faux depuis le 07/10) retiré.
+
+### 0.215.0 — 12/10/2026 — Pastille « Fonds reçus »
+
+- Étude 12/10 : « mettre une pastille de notification quand tous les fonds sont reçus ». `tagNotificationsDossier` ajoute
+  « Fonds reçus » (rouge, comme « nouvelle pièce ») quand `fondsCompletsAConfirmer(d)` ; l'onglet Fonds de la fiche porte le
+  point « nouveau » (`nouveau` de l'onglet) et le dit au survol. Les deux tombent à la confirmation de réception au client, comme
+  le compteur de « Suivi des dossiers » (déjà en place depuis le 05/10).

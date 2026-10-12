@@ -932,7 +932,10 @@
   function tagNotificationsDossier(d) {
     const n = (d.piecesNotifications || []).length;
     const pieces = n ? `<span class="dot-label dl-urgent notif-nouveau-tag" title="${n} document${n > 1 ? 's' : ''} nouvellement trouvé${n > 1 ? 's' : ''} — ouvrez la fiche pour les voir"><span class="dot"></span>${n} nouvelle${n > 1 ? 's' : ''} pièce${n > 1 ? 's' : ''}</span>` : '';
-    return pieces + tagMajAuthentic(d);
+    // Tous les fonds reçus, confirmation au client pas encore envoyée (étude 12/10 : « mettre une pastille de notification quand
+    // tous les fonds sont reçus ») — jusqu'à la confirmation, comme le compteur de « Suivi des dossiers ».
+    const fonds = fondsCompletsAConfirmer(d) ? '<span class="dot-label dl-urgent notif-nouveau-tag notif-fonds-recus" title="Tous les fonds sont reçus — ouvrez la fiche (onglet Fonds) pour confirmer la réception au client"><span class="dot"></span>Fonds reçus</span>' : '';
+    return pieces + fonds + tagMajAuthentic(d);
   }
 
   // Pastille « Mise à jour » (étude 06/10 au soir : « une pastille de notification quand un dossier demande une mise à jour ») :
@@ -2057,7 +2060,7 @@
           complet: avecPieces ? checklist.length > 0 && nbPiecesRecues === checklist.length : avAnalyse.total > 0 && avAnalyse.faits === avAnalyse.total, nouveau: avecPieces && notifPieces },
         { cle: 'dossier', libelle: 'Dossier', compteur: '', titre: 'Parties, bien, financement, notaires, dossier du NAS' },
         // Fonds (étude 05/10) : provision, appel de fonds, fonds reçus et confirmation, relance, RIB — sortis d'Échanges.
-        estSuccession(d) ? null : { cle: 'fonds', libelle: 'Fonds', compteur: '', titre: 'Provision, appel de fonds, fonds reçus, relance, RIB' },
+        estSuccession(d) ? null : { cle: 'fonds', libelle: 'Fonds', compteur: '', titre: fondsCompletsAConfirmer(d) ? 'Tous les fonds sont reçus : confirmation au client à envoyer' : 'Provision, appel de fonds, fonds reçus, relance, RIB', nouveau: fondsCompletsAConfirmer(d) },
         { cle: 'echanges', libelle: 'Échanges', compteur: '', titre: 'Emails, appels, sondages de dates, questionnaire' },
         { cle: 'historique', libelle: 'Historique', compteur: historique.length ? String(historique.length) : '', titre: `${historique.length} entrée(s)` }
       ].filter(Boolean);

@@ -21,3 +21,10 @@ test('acte signé : plus de date butoir dépassée (plus « Urgent »)', () => {
   assert.equal(app.datesButoirDepassees(pasSigne, '2026-10-12').length, 1);
   assert.equal(app.datesButoirDepassees({ id: 'z', nom: 'A', pret: 'n’importe quoi', historique: [] }, '2026-10-12').length, 0);
 });
+
+test('pastille « Fonds reçus » sur la ligne du dossier tant que la réception n’est pas confirmée (étude 12/10)', () => {
+  const d = { id: 'x', nom: 'A / B', fondsValidesLe: '2026-10-12', historique: [] };
+  assert.match(app.tagNotificationsDossier(d), /Fonds reçus/);
+  assert.doesNotMatch(app.tagNotificationsDossier({ ...d, receptionFondsConfirmeeLe: '2026-10-12' }), /Fonds reçus/);
+  assert.doesNotMatch(app.tagNotificationsDossier({ id: 'y', nom: 'C', historique: [] }), /Fonds reçus/);
+});
