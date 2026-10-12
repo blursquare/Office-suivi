@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.217.2';
+  const VERSION_APP = '0.218.0';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.218.0', date: '2026-10-12 13:51', resume: "Nouvel outil « Aide à la rédaction » : collez le passage de l'acte où vous êtes, CLAIRE reconnaît la clause de la trame et propose pour chaque « --- » la valeur du dossier (fiche, rapport de diagnostic lu sur le NAS : société, diagnostiqueur, dates, conclusions, numéro et classes du DPE ; prix et dates en lettres), à copier d'un clic. Trame inconnue : l'IA désigne le champ de chaque blanc, sans jamais recevoir une valeur du dossier." },
     { version: '0.217.2', date: '2026-10-12 12:12', resume: "Onglet de l'agenda titré « Agenda » (il affichait « agenda »)." },
     { version: '0.217.1', date: '2026-10-12 12:07', resume: "Démarrage du poste lancé une fois tous ses fichiers chargés : juste après une mise à jour (serveur lent), le tableau de bord pouvait se dessiner avant certains fichiers et signaler « … is not defined » (rapport du 12/10)." },
     { version: '0.217.0', date: '2026-10-12 11:53', resume: "« Demander à CLAIRE » : colonne « Conversations » à gauche pour suivre plusieurs conversations (Aujourd'hui, Hier, 7 derniers jours, Plus anciennes ; reprendre, supprimer, nouvelle), gardées sur ce poste seulement (30 jours, 20 au plus) ; tiroir sur téléphone. Plus jamais « Sauf erreur de ma/notre part » : retiré de la relance des fonds, interdit à l'IA et filtré de ses réponses et de ses premiers jets d'email." },

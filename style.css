@@ -9425,3 +9425,24 @@ table.pr-zt td.pr-zt-retenue select { min-width: 120px; min-height: 32px; height
 .pr-photo-cadre polygon { fill: none; stroke: var(--cat-orange); vector-effect: non-scaling-stroke; stroke-width: 2; }
 .pr-photo-vide { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; text-align: center; padding: 16px; color: var(--muted); font-size: var(--texte-s); }
 @media (max-width: 700px) { .pr-photos { grid-template-columns: 1fr; } }
+
+/* ---- Aide à la rédaction de l'acte (étude 12/10, client/64-aide-redaction.js) ---- */
+.red-grille { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+.red-grille > * { min-width: 0; }
+@media (max-width: 1100px) { .red-grille { grid-template-columns: minmax(0, 1fr); } }
+.dash-header-actions select.red-dossier { min-width: 260px; max-width: 100%; }
+.red-carte { display: flex; flex-direction: column; gap: 12px; }
+.red-carte textarea.red-passage { width: 100%; min-height: 140px; resize: vertical; font-size: var(--texte-m); line-height: 1.45; }
+.red-resultat, #red-donnees { display: flex; flex-direction: column; gap: 8px; }
+.red-clause { display: flex; align-items: baseline; flex-wrap: wrap; gap: 8px; font-size: var(--texte-base); }
+.red-note { color: var(--muted); font-size: var(--texte-s); }
+.red-groupe { display: flex; flex-direction: column; gap: 4px; padding-top: 8px; border-top: 1px solid var(--line); }
+.red-compte { color: var(--muted); font-weight: 400; letter-spacing: 0; }
+.red-ligne { display: flex; flex-direction: column; gap: 2px; padding: 6px 0; }
+.red-ligne-tete { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; font-size: var(--texte-s); }
+.red-libelle { color: var(--muted); font-weight: 500; }
+.red-source { color: var(--muted); }
+.red-ligne-valeur { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.red-valeur { font-size: var(--texte-base); color: var(--ink); overflow-wrap: anywhere; }
+.red-vide { color: var(--muted); font-size: var(--texte-s); margin: 0; }
+.red-etat { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--muted); font-size: var(--texte-s); }

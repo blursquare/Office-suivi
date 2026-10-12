@@ -25,7 +25,7 @@ const DOSSIERS = [
   { id: 'f3', nom: 'DURAND', responsable: 'Julie VASSELIN', typeAffaire: 'succession', sansPret: true, parties: [{ role: 'PARTIE', nom: 'DURAND', prenom: 'Marie' }], biens: [], pieces: {}, historique: hist('Dossier créé') },
   { id: 'f4', nom: 'PETIT / ROUX', responsable: 'Jérémy SAUJOT', archive: true, archiveLe: dans(-20), rendezVousSignature: dans(-30), echeancesValidees: { acte: true, rendezVousSignature: true }, pieces: {}, parties: [], historique: hist('Dossier créé') }
 ];
-const ONGLETS = ['suivi', 'assistant', 'agenda', 'scans', 'nouveau', 'confreres', 'calculateur', 'appel-fonds', 'quotites', 'preemption', 'prorata', 'inventaire', 'analyse-ia', 'reglages', 'dashboard'];
+const ONGLETS = ['suivi', 'assistant', 'agenda', 'scans', 'nouveau', 'confreres', 'calculateur', 'appel-fonds', 'quotites', 'redaction', 'preemption', 'prorata', 'inventaire', 'analyse-ia', 'reglages', 'dashboard'];
 const ONGLETS_FICHE = ['tableau', 'pieces', 'dossier', 'fonds', 'echanges', 'historique'];
 
 const db = ouvrirDb(':memory:');

@@ -19269,3 +19269,28 @@ modèle **au choix dans les Réglages**, Opus par défaut.
 - Étude 12/10 : « pour l'onglet agenda, il manque un A majuscule au titre ». `LIBELLES_ONGLETS` (client/22) n'avait pas d'entrée
   `agenda` : l'onglet de travail (et le rapport technique) affichait la clé brute. Ajoutée ; test : chaque écran de
   `OUTILS_ONGLETS_TRAVAIL` a un titre qui commence par une majuscule.
+
+### 0.218.0 — 12/10/2026 — Aide à la rédaction de l'acte
+
+- Étude 12/10 : « un outil d'aide à la rédaction avec Authentic : une fenêtre qui détecterait dans notre document Word à quelle
+  clause nous sommes et nous proposerait, en fonction du dossier, la bonne donnée à remplir (date des diagnostics, nom du
+  diagnostiqueur, date du certificat d'urbanisme, date de l'avant-contrat…) à partir des pièces du commun » ; réponses : Authentic
+  ouvre un .docx dans Word ; la trame marque les blancs par « --- » ; « toutes les données de l'acte » ; « parfois la trame change un
+  peu, mets un agent IA pour suivre cela ». Modèle d'acte (vente CHAHUNEAU/LEBERT) et rapport de diagnostic LICIEL réels fournis :
+  lus pour la structure, jamais commités.
+- `commun/redaction.js` : `CHAMPS_ACTE` (liste fermée, 52 champs par groupe), `CLAUSES_ACTE` (intitulés et mots de la trame, champ de
+  chaque « --- » dans l'ordre), `trousDuPassage` (jamais une ligne « --- OPTION / A SUPPRIMER / CHOISIR… »), `clauseDuPassage`,
+  `champsDuPassage` (clause des emails : le côté de la personne nommée sur la ligne), `nombreEnLettres` / `montantEnLettresActe`
+  (« CENT SOIXANTE-QUINZE MILLE EUROS (175.000,00 €) »), `dateActe` (« 07 septembre 2026 »), `jourMoisEnLettres` (« DIX-HUIT MAI »),
+  `lireDossierDiagnostic` (rapport réel : société, diagnostiqueur, certification, date de chaque diagnostic par sa page de titre,
+  conclusions de la synthèse, numéro ADEME, classes énergie et GES CALCULÉES depuis les consommations — l'étiquette est une image —
+  à vérifier sur le DPE ; rejoué sur le rapport réel : D et B, comme l'acte).
+- `client/64-aide-redaction.js` : outil « Aide à la rédaction » (tiroir Outils, onglet de travail) — dossier, passage collé depuis
+  Word, clause reconnue et valeur de chaque blanc (Copier ; source et page du rapport à un clic), toutes les données de l'acte par
+  groupe (`valeursActeDossier` : fiche, Authentic, rapport de diagnostic du NAS lu à l'ouverture). Une valeur inconnue est dite
+  « à compléter », jamais devinée. Rien n'est écrit dans la fiche ni dans Word.
+- IA (`server/src/aideRedaction.js`, `POST /api/assistant/correspondance-acte`) : pour un blanc que le catalogue ne désigne pas, l'IA du
+  moteur en service choisit le CHAMP de chaque « [blanc n] » dans `CHAMPS_ACTE` ; passage masqué (noms, montants), réponse limitée
+  aux clés de la liste ; jamais une valeur du dossier. Points terrain `aide-redaction-ddt`, `aide-redaction-ia`.
+- À venir : relais Word (curseur suivi, valeur insérée à la place du « --- »), certificat d'urbanisme et autres pièces (exemples
+  réels attendus).

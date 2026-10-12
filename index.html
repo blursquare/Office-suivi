@@ -97,6 +97,10 @@
         <!-- Générateur d'appel de fonds : la convocation au rendez-vous de signature, avec le
              décompte des sommes à virer. Relié à Outil 1 — « Préparer l'appel de fonds » sur une
              fiche dossier ouvre cet onglet déjà prérempli (voir prefillAppelFonds). -->
+        <!-- Aide à la rédaction (étude 12/10) : la clause de l'acte où l'on est et la valeur de chaque « --- », tirée du dossier. -->
+        <button type="button" id="tab-redaction" class="sidebar-link sidebar-sousmenu-item" role="tab" aria-selected="false" onclick="definirOnglet('redaction')">
+          <span class="sidebar-link-icone" id="icon-nav-redaction" aria-hidden="true"></span>Aide à la rédaction
+        </button>
         <button type="button" id="tab-appel-fonds" class="sidebar-link sidebar-sousmenu-item" role="tab" aria-selected="false" onclick="definirOnglet('appel-fonds')">
           <span class="sidebar-link-icone" id="icon-nav-appel-fonds" aria-hidden="true"></span>Appel de fonds
         </button>
@@ -1346,6 +1350,30 @@
      l'artefact abandonnées au profit des jetons de CLAIRE. L'aperçu de droite reste une FEUILLE
      (fond blanc, Times New Roman comme le .docx produit) dans les deux thèmes : c'est le
      fac-similé du document, même principe que le courrier d'appel de fonds. -->
+<!-- Aide à la rédaction de l'acte (étude 12/10, client/64-aide-redaction.js, commun/redaction.js). -->
+<div class="onglet-panel" id="onglet-redaction" style="display:none;">
+  <div class="dash-header">
+    <div>
+      <div class="dash-eyebrow">Rédaction de l'acte</div>
+      <div class="dash-titre-ligne"><h1 class="dash-titre">Aide à la rédaction</h1></div>
+    </div>
+    <div class="dash-header-actions">
+      <select id="red-dossier" class="red-dossier" aria-label="Dossier de l'acte" onchange="choisirDossierAideActe(this.value)"></select>
+    </div>
+  </div>
+  <div class="red-grille">
+    <div class="calc-card red-carte">
+      <h2 class="outil-section-tete">Passage de l'acte</h2>
+      <textarea id="red-passage" class="red-passage" rows="7" placeholder="Copiez dans Word le paragraphe où vous êtes (Ctrl+C), collez-le ici (Ctrl+V)." oninput="passageAideActe(this.value)"></textarea>
+      <div id="red-resultat" class="red-resultat"></div>
+    </div>
+    <div class="calc-card red-carte">
+      <h2 class="outil-section-tete">Données de l'acte</h2>
+      <div id="red-donnees"></div>
+    </div>
+  </div>
+</div>
+
 <div class="onglet-panel" id="onglet-quotites" style="display:none;">
   <div class="dash-header">
     <div>
@@ -2649,6 +2677,7 @@
 <script src="commun/pieces.js"></script>
 <script src="commun/planning.js"></script>
 <script src="commun/assistant.js"></script>
+<script src="commun/redaction.js"></script>
 <script src="client/00-version.js"></script>
 <script src="client/01-socle.js"></script>
 <script src="client/02-extraction-type-acte-qualites.js"></script>
@@ -2713,5 +2742,6 @@
 <script src="client/61-assistant-agent.js"></script>
 <script src="client/62-assistant-documents.js"></script>
 <script src="client/63-assistant-conversations.js"></script>
+<script src="client/64-aide-redaction.js"></script>
 </body>
 </html>

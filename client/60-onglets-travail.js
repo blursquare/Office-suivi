@@ -9,7 +9,7 @@
   // Tout écran sauf le tableau de bord peut être un onglet (étude 12/10 : « laisser la possibilité de tout mettre en onglet :
   // demander à CLAIRE, Claire Scan, réglages… ») : Suivi, Agenda, Nouveau dossier, Claire Scan, Demander à CLAIRE, Réglages et
   // les outils.
-  var OUTILS_ONGLETS_TRAVAIL = ['suivi', 'agenda', 'nouveau', 'scans', 'assistant', 'reglages',
+  var OUTILS_ONGLETS_TRAVAIL = ['suivi', 'agenda', 'nouveau', 'scans', 'assistant', 'reglages', 'redaction',
     'appel-fonds', 'inventaire', 'preemption', 'prorata', 'quotites', 'confreres', 'calculateur', 'analyse-ia'];
   var MAX_ONGLETS_TRAVAIL = 12;
   var CLE_ONGLETS_TRAVAIL = 'claire-onglets-travail';
@@ -141,7 +141,7 @@
     try { return 'ot-etat-' + etatDossier(d, isoAujourdhuiLocal()).cle; } catch (e) { return ''; }
   }
 
-  var ICONES_ONGLETS_OUTILS = { suivi: 'list', agenda: 'calendar', nouveau: 'file-text', scans: 'bannette', assistant: 'sparkle', reglages: 'settings', 'appel-fonds': 'mail', inventaire: 'scale', preemption: 'shield', prorata: 'part-disque', quotites: 'users', confreres: 'book', calculateur: 'banknote', 'analyse-ia': 'eye' };
+  var ICONES_ONGLETS_OUTILS = { suivi: 'list', agenda: 'calendar', nouveau: 'file-text', scans: 'bannette', assistant: 'sparkle', reglages: 'settings', redaction: 'pencil', 'appel-fonds': 'mail', inventaire: 'scale', preemption: 'shield', prorata: 'part-disque', quotites: 'users', confreres: 'book', calculateur: 'banknote', 'analyse-ia': 'eye' };
 
   function renderOngletsTravail() {
     const barre = document.getElementById('onglets-travail');
