@@ -19185,3 +19185,13 @@ modèle **au choix dans les Réglages**, Opus par défaut.
   `OUTILS_ONGLETS_TRAVAIL` (client/60) compte désormais Suivi, Agenda, Nouveau dossier, Claire Scan, Demander à CLAIRE et
   Réglages en plus des outils (icônes dans `ICONES_ONGLETS_OUTILS`) ; seul le tableau de bord n'est jamais un onglet. Fumée :
   scénario des onglets recompté (l'Agenda ouvert devient un onglet).
+
+### 0.214.1 — 12/10/2026 — Tâches « JS : … » et « Voir plus » de la carte Aujourd'hui
+
+- Étude 12/10 : « pour les tâches repérées dans l'agenda elles ont parfois la forme "JS : tâche", le prendre en compte ».
+  `tacheDepuisEvenement` (server/src/tachesAgenda.js) : espaces ordinaires ou insécables puis plusieurs séparateurs (« - : »,
+  « ; », « , », « > »), initiales entre parenthèses, initiales en minuscules seulement suivies d'un séparateur.
+- Étude 12/10 : « pour le voir plus dans le widget tâches, juste mettre les tâches à faire en liste déroulante, pas de depuis
+  18 h et agenda ». `ouvrirFenetreAujourdhui(avecPoint)` : sans argument (la carte), la fenêtre ne montre que « À faire » sur
+  toute sa largeur (`.taches-seules`, 680 px), la liste défile ; « Depuis hier 18 h » et « Agenda du jour » restent seulement quand
+  « Demander à CLAIRE » ouvre « Depuis hier 18 h ». Texte « S'ouvre à votre première connexion » (faux depuis le 07/10) retiré.

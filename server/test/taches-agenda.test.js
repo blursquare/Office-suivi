@@ -116,3 +116,14 @@ test('synchroniserTachesAgenda : garde-fous — après le dernier jour lu, lectu
   const r2 = synchroniserTachesAgenda([t('A', '2026-10-10'), t('B', '2026-10-12')], [autre('2027-01-01'), { itemId: 'A', sujet: 'Autre', date: '2026-10-10', categories: [] }], debut);
   assert.equal(r2.find(x => x.agendaItemId === 'B').fait, true);
 });
+
+test('tacheDepuisEvenement : « JS : tâche » et variantes (étude 12/10)', () => {
+  const t = (sujet) => { const r = tacheDepuisEvenement({ itemId: '1', date: '2026-10-12', categories: ['Catégorie rouge'], sujet }); return r ? r.texte + '|' + r.collaborateur : null; };
+  assert.equal(t('JS : Relancer le syndic'), 'Relancer le syndic|Jérémy SAUJOT');
+  assert.equal(t('JS\u00a0: Relancer'), 'Relancer|Jérémy SAUJOT');
+  assert.equal(t('JS - : Relancer'), 'Relancer|Jérémy SAUJOT');
+  assert.equal(t('(JV) Relancer'), 'Relancer|Julie VASSELIN');
+  assert.equal(t('Js : Relancer'), 'Relancer|Jérémy SAUJOT');
+  assert.equal(t('js relancer'), null);
+  assert.equal(t('JSA relancer'), null);
+});

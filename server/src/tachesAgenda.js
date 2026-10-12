@@ -18,15 +18,18 @@ function estCategorieRouge(nom) {
   return /(^|[^a-z])(rouge|red)([^a-z]|$)/.test(sansAccents(nom));
 }
 
-// Initiales en capitales, en tête du titre, suivies d'un séparateur ou d'une espace : « JV - … », « JV: … »,
-// « JV … ». « JVA… » ou « jv … » ne comptent pas.
+// Initiales en capitales, en tête du titre, suivies d'un séparateur ou d'une espace : « JV - … », « JV: … », « JS : … »,
+// « JV … », « (JV) … » ; en minuscules seulement avec un séparateur (« js : … »). « JVA… » ou « jv … » ne comptent pas.
 function tacheDepuisEvenement(evt) {
   if (!evt || !evt.itemId || !evt.date) return null;
   if (!(evt.categories || []).some(estCategorieRouge)) return null;
   const titre = String(evt.sujet || '').trim();
-  const m = titre.match(/^([A-Z]{2})(?![A-Za-z0-9À-ÿ])\s*[-–—:./]?\s*(.*)$/);
+  // Étude 12/10 : « JS : tâche » aussi — séparateurs tolérés (espace insécable, « : », « - », « ; », « , », « > », plusieurs à la
+  // suite), initiales entre parenthèses ; en minuscules (« js : ») seulement suivies d'un séparateur.
+  const m = titre.match(/^\(?([A-Z]{2})\)?(?![A-Za-z0-9À-ÿ])(?:[\s\u00a0\u202f]*[-–—:./;,>])*[\s\u00a0\u202f]*(.*)$/)
+    || titre.match(/^\(?([A-Za-z]{2})\)?[\s\u00a0\u202f]*[-–—:;>]+[\s\u00a0\u202f]*(.*)$/);
   if (!m) return null;
-  const collab = COLLABORATEURS_ABSENCE.find((c) => c.initiales === m[1]);
+  const collab = COLLABORATEURS_ABSENCE.find((c) => c.initiales === m[1].toUpperCase());
   if (!collab) return null;
   return {
     itemId: String(evt.itemId),

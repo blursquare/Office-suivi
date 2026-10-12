@@ -603,7 +603,7 @@
     const docs = documentsDepuis(dossiersPerimetreDashboard(), debut);
     const lignes = docs.slice(0, 12).map(x => `<li>${escapeHtml(x.libelle)} — <b>${escapeHtml(libelleDossierAffiche(x.dossier))}</b></li>`);
     return { html: lignes.length ? `<p>Depuis hier 18 h, ${docs.length} document${docs.length > 1 ? 's' : ''} reçu${docs.length > 1 ? 's' : ''} :</p><ul class="asst-liste">${lignes.join('')}</ul>` : '<p>Aucun document reçu depuis hier 18 h sur vos dossiers.</p>',
-      boutons: [{ libelle: 'Voir « Depuis hier 18 h »', action: () => { definirOnglet('dashboard'); choisirOngletFenetreJour('depuis'); ouvrirFenetreAujourdhui(); } }] };
+      boutons: [{ libelle: 'Voir « Depuis hier 18 h »', action: () => { definirOnglet('dashboard'); choisirOngletFenetreJour('depuis'); ouvrirFenetreAujourdhui(true); } }] };
   }
 
   function reponseRappelsAssistant() {

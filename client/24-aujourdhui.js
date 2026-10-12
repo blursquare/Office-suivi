@@ -1312,7 +1312,11 @@
   // l'ouverture ») ; elle s'ouvre par « Voir N de plus » de la carte « Aujourd'hui ».
   let fenetreAujourdhuiOuverte = false;
 
-  function ouvrirFenetreAujourdhui() {
+  // `avecPoint` : « Depuis hier 18 h » et « Agenda du jour » à côté des tâches (demandé par « Demander à CLAIRE ») ; sinon — le
+  // « Voir N de plus » de la carte — les tâches à faire seules, en une liste qui défile (étude 12/10).
+  var fenetreJourAvecPoint = false;
+  function ouvrirFenetreAujourdhui(avecPoint) {
+    fenetreJourAvecPoint = avecPoint === true;
     fenetreAujourdhuiOuverte = true;
     renderFenetreAujourdhui();
     // wa-button : le focus attend son premier rendu (sinon la partie interne n'existe pas encore).
@@ -1690,6 +1694,7 @@
     const perimetre = dossiersPerimetreJour();
     const global = vueGlobaleDashboard();
     const { actions, traites } = etatAujourdhui();
+    const avecPoint = fenetreJourAvecPoint;
     const nbAgenda = (evenementsAgendaDuJour(agendaDuJourOffice, isoAujourdhuiLocal()) || []).length;
     const nbDocs = documentsDepuis(perimetre, debutDepuisHier18h()).length;
     const nbDemandes = recoitEmailsMatin(utilisateurPoste) && resumeEmails && resumeEmails.date === isoAujourdhuiLocal() && resumeEmails.ia && resumeEmails.ia.points
@@ -1699,7 +1704,7 @@
       { cle: 'agenda', libelle: 'Agenda du jour', nb: nbAgenda }
     ];
     if (!onglets.some(o => o.cle === ongletFenetreJour)) ongletFenetreJour = 'depuis';
-    const panneau = ongletFenetreJour === 'depuis' ? renderDepuisHier18h(perimetre) : renderAgendaDuJour();
+    const panneau = !avecPoint ? '' : ongletFenetreJour === 'depuis' ? renderDepuisHier18h(perimetre) : renderAgendaDuJour();
     const maintenant = new Date();
     const contenu = document.getElementById('aujourdhui-fenetre-contenu');
     const defilement = contenu.querySelector('.jour-panneau');
@@ -1713,25 +1718,25 @@
         ${renderProgressionJour(actions.length, traites.length)}
         <wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-btn jour-fenetre-x" id="jour-fenetre-fermer" onclick="fermerFenetreAujourdhui()" aria-label="Fermer">${icone('x')}</wa-button>
       </header>
-      <div class="jour-fenetre-corps">
+      <div class="jour-fenetre-corps${avecPoint ? '' : ' taches-seules'}">
         <div class="jour-col-faire">
           <h3 class="jour-section-titre">À faire <span class="jour-onglet-nb">${actions.length + rappelsDuJour(rappelsPerso, isoAujourdhuiLocal()).aFaire.length}</span></h3>
           ${renderListeJour(actions, traites, global)}
         </div>
-        <div class="jour-fenetre-rail">
+        ${avecPoint ? `<div class="jour-fenetre-rail">
           <div class="jour-onglets" role="tablist" aria-label="Le point du jour">
             ${onglets.map(o => `<button type="button" role="tab" class="jour-onglet${o.cle === ongletFenetreJour ? ' actif' : ''}" aria-selected="${o.cle === ongletFenetreJour}"
               onclick="choisirOngletFenetreJour('${o.cle}')">${escapeHtml(o.libelle)}${o.nb ? ` <span class="jour-onglet-nb">${o.nb}</span>` : ''}</button>`).join('')}
           </div>
           <div class="jour-panneau" role="tabpanel">${panneau}</div>
-        </div>
+        </div>` : ''}
       </div>
       <footer class="jour-fenetre-pied">
-        <span>S’ouvre à votre première connexion de la journée.</span>
         <span class="jour-espace"></span>
         <wa-button variant="brand" class="primary" onclick="fermerFenetreAujourdhui()">C’est noté</wa-button>
       </footer>`;
     const nouveau = contenu.querySelector('.jour-panneau');
     if (nouveau && hautPanneau) nouveau.scrollTop = hautPanneau;
+    contenu.classList.toggle('taches-seules', !avecPoint);
     overlay.style.display = 'flex';
   }
