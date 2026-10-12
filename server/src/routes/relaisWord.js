@@ -25,20 +25,26 @@ function lireJetons(parametresRepo) {
   return v && typeof v.jetons === 'object' && v.jetons ? v.jetons : {};
 }
 
+// L'empreinte retenue pour un poste (« constructor » ou « toString » ne désignent jamais un poste).
+function empreintePoste(parametresRepo, poste) {
+  const jetons = lireJetons(parametresRepo);
+  return Object.prototype.hasOwnProperty.call(jetons, poste) && typeof jetons[poste] === 'string' ? jetons[poste] : '';
+}
+
 function creerRouteurRelaisWordPoste(parametresRepo, etat) {
   const routeur = express.Router();
   routeur.post('/relais-word/releve', (req, res) => {
     const corps = req.body || {};
     const poste = clePoste(corps.poste);
-    if (!poste || !jetonValide(lireJetons(parametresRepo)[poste], corps.jeton)) { res.status(403).json({ erreur: 'Relais inconnu.' }); return; }
+    if (!poste || !jetonValide(empreintePoste(parametresRepo, poste), corps.jeton)) { res.status(403).json({ erreur: 'Relais inconnu.' }); return; }
     const avant = (etat.postes.get(poste) || {}).n || 0;
-    const commandes = appliquerReleveWord(etat, poste, corps);
+    const { commandes, renvoyer } = appliquerReleveWord(etat, poste, corps);
     const p = etat.postes.get(poste);
     if (p.n !== avant && p.paragraphe) noterVerification(parametresRepo, 'relais-word-suivi');
     for (const r of Array.isArray(corps.resultats) ? corps.resultats : []) {
       if (r && typeof r.id === 'string') noterVerification(parametresRepo, 'relais-word-insertion', r.ok === true ? { ok: true } : { ok: false, message: String(r.message || 'refus').slice(0, 80) });
     }
-    res.json({ commandes });
+    res.json(renvoyer ? { commandes, renvoyer } : { commandes });
   });
   return routeur;
 }
@@ -48,7 +54,7 @@ function creerRouteurRelaisWord(parametresRepo, etat) {
   routeur.get('/relais-word/etat', (req, res) => {
     const poste = clePoste(req.query.poste);
     if (!poste) { res.status(400).json({ erreur: 'Collaborateur attendu.' }); return; }
-    res.json(etatPosteWord(etat, poste, !!lireJetons(parametresRepo)[poste]));
+    res.json(etatPosteWord(etat, poste, !!empreintePoste(parametresRepo, poste)));
   });
   routeur.post('/relais-word/inserer', (req, res) => {
     const corps = req.body || {};

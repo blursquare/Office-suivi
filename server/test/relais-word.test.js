@@ -25,6 +25,12 @@ test('installateur : script ASCII, clé Run de HKCU, relais lancé, COM de Word,
   // Le paragraphe est revérifié avant d'écrire ; seul le « --- » trouvé est remplacé.
   assert.match(v, /Le curseur n est plus dans ce paragraphe/);
   assert.match(v, /\$r\.Text = \[string\]\$c\.valeur/);
+  // Blancs repérés sur le texte (jamais la recherche de Word et ses options gardées), plage contrôlée avant d'écrire.
+  assert.match(v, /\[regex\]::Matches\(\$txt, '-\{3,\}'\)/);
+  assert.doesNotMatch(v, /\.Find\b/);
+  // Réinstaller arrête l'ancien relais ; un jeton refusé finit par l'arrêter.
+  assert.match(v, /CommandLine like '%word-claire\.ps1%'/);
+  assert.match(v, /\$refus -ge 10/);
 });
 
 test('jeton : empreinte seule gardée, comparaison exacte', () => {
@@ -33,6 +39,7 @@ test('jeton : empreinte seule gardée, comparaison exacte', () => {
   assert.ok(!jetonValide(e, 'autre'));
   assert.ok(!jetonValide('', 'secret'));
   assert.ok(!jetonValide(e, undefined));
+  assert.ok(!jetonValide(Object, 'x'));
 });
 
 test('texteWord : fins de paragraphe et de cellule de Word, contrôles en espace', () => {
@@ -43,21 +50,21 @@ test('texteWord : fins de paragraphe et de cellule de Word, contrôles en espace
 test('état : relevé, insertion demandée puis rendue au relais une fois, résultats, relais muet', () => {
   const etat = creerEtatRelaisWord();
   assert.equal(etatPosteWord(etat, 'julie', false).installe, false);
-  assert.deepEqual(appliquerReleveWord(etat, 'julie', { word: true, titre: 'GAZ', paragraphe: 'Etabli le ---\r' }, 1000), []);
+  assert.equal(appliquerReleveWord(etat, 'julie', { word: true, titre: 'GAZ', paragraphe: 'Etabli le ---\r' }, 1000).commandes.length, 0);
   let e = etatPosteWord(etat, 'julie', true, 2000);
   assert.ok(e.actif && e.word);
   assert.equal(e.paragraphe, 'Etabli le ---');
-  assert.equal(e.n, 1);
+  assert.equal(e.n, etat.demarrage + ':1');
   appliquerReleveWord(etat, 'julie', { word: true, inchange: true }, 1500);
-  assert.equal(etatPosteWord(etat, 'julie', true, 2000).n, 1);
+  assert.equal(etatPosteWord(etat, 'julie', true, 2000).n, etat.demarrage + ':1');
   assert.ok(demanderInsertionWord(etat, 'julie', { valeur: '', occurrence: 0, attendu: 'x' }, 2000).erreur);
   assert.ok(demanderInsertionWord(etat, 'julie', { valeur: 'v', occurrence: -1, attendu: 'x' }, 2000).erreur);
   const { id } = demanderInsertionWord(etat, 'julie', { valeur: '07 septembre 2026', occurrence: 0, attendu: 'Etabli le ---' }, 2000);
   assert.ok(id);
-  const cmd = appliquerReleveWord(etat, 'julie', { word: true, inchange: true }, 2500);
+  const cmd = appliquerReleveWord(etat, 'julie', { word: true, inchange: true }, 2500).commandes;
   assert.equal(cmd.length, 1);
   assert.equal(cmd[0].valeur, '07 septembre 2026');
-  assert.equal(appliquerReleveWord(etat, 'julie', { word: true, inchange: true, resultats: [{ id, ok: true }] }, 3000).length, 0);
+  assert.equal(appliquerReleveWord(etat, 'julie', { word: true, inchange: true, resultats: [{ id, ok: true }] }, 3000).commandes.length, 0);
   assert.equal(etatPosteWord(etat, 'julie', true, 3000).resultats[0].ok, true);
   // Un résultat seul (PowerShell 5.1 aplatit un tableau d'un élément) est lu aussi.
   appliquerReleveWord(etat, 'julie', { word: true, inchange: true, resultats: { id: 'z', ok: false, message: 'refus' } }, 3100);
@@ -69,7 +76,10 @@ test('état : relevé, insertion demandée puis rendue au relais une fois, résu
   // Une insertion trop ancienne n'est jamais rendue.
   appliquerReleveWord(etat, 'paul', { word: true }, 100000);
   demanderInsertionWord(etat, 'paul', { valeur: 'v', occurrence: 0, attendu: 'x' }, 100000);
-  assert.equal(appliquerReleveWord(etat, 'paul', { word: true }, 130000).length, 0);
+  assert.equal(appliquerReleveWord(etat, 'paul', { word: true }, 130000).commandes.length, 0);
+  // Serveur redémarré : un relais qui n'envoie que « inchangé » est prié de renvoyer son paragraphe.
+  assert.equal(appliquerReleveWord(creerEtatRelaisWord(), 'julie', { word: true, inchange: true }).renvoyer, true);
+  assert.equal(appliquerReleveWord(etat, 'julie', { word: true, inchange: true }).renvoyer, false);
 });
 
 let db; let serveurApp; let baseUrl; let session;
@@ -96,6 +106,8 @@ test('routes : installateur = jeton du poste ; relevé hors session avec ce jeto
   const releve = (corps) => fetch(`${baseUrl}/api/relais-word/releve`, { method: 'POST', headers: json, body: JSON.stringify(corps) });
   assert.equal((await releve({ poste: 'julie', jeton: 'faux', word: true })).status, 403);
   assert.equal((await releve({ poste: 'paul', jeton, word: true })).status, 403);
+  assert.equal((await releve({ poste: 'constructor', jeton, word: true })).status, 403);
+  assert.equal((await fetch(`${baseUrl}/api/relais-word/etat?poste=constructor`, { headers: auth }).then(x => x.json())).installe, false);
   const r = await releve({ poste: 'julie', jeton, word: true, titre: 'DPE', paragraphe: 'Numéro --- établi le ---\r' });
   assert.deepEqual(await r.json(), { commandes: [] });
   const e = await fetch(`${baseUrl}/api/relais-word/etat?poste=julie`, { headers: auth }).then(x => x.json());

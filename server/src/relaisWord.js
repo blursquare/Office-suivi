@@ -38,44 +38,45 @@ function lignesRelaisWordPs({ url, poste, jeton }) {
     `$poste = ${litteralPs(poste)}`,
     `$jeton = ${litteralPs(jeton)}`,
     "$mutex = New-Object System.Threading.Mutex($false, 'Local\\CLAIRE-relais-Word')",
-    'if (-not $mutex.WaitOne(0)) { exit 0 }',
+    // Mutex d'un relais arrêté par l'installateur : « abandonné », il est à nous.
+    '$libre = $false',
+    'try { $libre = $mutex.WaitOne(0) } catch [System.Threading.AbandonedMutexException] { $libre = $true }',
+    'if (-not $libre) { exit 0 }',
     "function Normaliser([string]$s) { return (($s -replace '[\\s\\x00-\\x1f]+', ' ').Trim()) }",
     'function Inserer($word, $c) {',
     '  try {',
     "    if ($word -eq $null -or $word.Documents.Count -eq 0) { return @{ id = $c.id; ok = $false; message = 'Word n est pas ouvert.' } }",
     '    $pr = $word.Selection.Paragraphs.Item(1).Range',
     "    if ((Normaliser $pr.Text) -ne (Normaliser ([string]$c.attendu))) { return @{ id = $c.id; ok = $false; message = 'Le curseur n est plus dans ce paragraphe.' } }",
-    '    $doc = $pr.Document',
-    '    $debut = $pr.Start',
-    '    $fin = $pr.End',
-    '    $n = 0',
-    '    while ($true) {',
-    '      $r = $doc.Range($debut, $fin)',
-    '      $f = $r.Find',
-    '      $f.ClearFormatting()',
-    "      $f.Text = '---'",
-    '      $f.Forward = $true',
-    '      $f.Wrap = 0',
-    '      $f.MatchWildcards = $false',
-    "      if (-not $f.Execute()) { return @{ id = $c.id; ok = $false; message = 'Blanc introuvable dans le paragraphe.' } }",
-    "      while ($r.End -lt $fin -and $doc.Range($r.End, $r.End + 1).Text -eq '-') { $r.End = $r.End + 1 }",
-    '      if ($n -eq [int]$c.occurrence) { $r.Text = [string]$c.valeur; return @{ id = $c.id; ok = $true } }',
-    '      $n++',
-    '      $debut = $r.End',
-    '    }',
+    '    $txt = [string]$pr.Text',
+    "    if ($txt.Length -gt 4000) { return @{ id = $c.id; ok = $false; message = 'Paragraphe trop long : copiez la valeur.' } }",
+    // Les « --- » repérés sur le TEXTE du paragraphe (même compte que le poste : /-{3,}/), jamais par la recherche de Word (elle
+    // garde les options de la dernière recherche de l'utilisateur : mot entier, ponctuation ignorée…) ; la plage visée est
+    // contrôlée avant d'écrire (un champ ou un texte masqué décale les positions : rien n'est écrit).
+    "    $ms = [regex]::Matches($txt, '-{3,}')",
+    '    $k = [int]$c.occurrence',
+    "    if ($k -lt 0 -or $k -ge $ms.Count) { return @{ id = $c.id; ok = $false; message = 'Blanc introuvable dans le paragraphe.' } }",
+    '    $m = $ms[$k]',
+    '    $r = $pr.Document.Range($pr.Start + $m.Index, $pr.Start + $m.Index + $m.Length)',
+    "    if ([string]$r.Text -ne $m.Value) { return @{ id = $c.id; ok = $false; message = 'Blanc introuvable a sa place (champ ou texte masque dans le paragraphe) : copiez la valeur.' } }",
+    '    $r.Text = [string]$c.valeur',
+    '    return @{ id = $c.id; ok = $true }',
     "  } catch { return @{ id = $c.id; ok = $false; message = 'Word a refuse l insertion.' } }",
     '}',
     '$dernier = $null',
+    '$refus = 0',
     '$resultats = @()',
     '$envoi = [DateTime]::MinValue',
     'while ($true) {',
     '  $word = $null',
+    '  $avecDoc = $false',
     "  $titre = ''",
     "  $para = ''",
     "  try { $word = [Runtime.InteropServices.Marshal]::GetActiveObject('Word.Application') } catch { $word = $null }",
     '  if ($word -ne $null) {',
     '    try {',
     '      if ($word.Documents.Count -gt 0) {',
+    '        $avecDoc = $true',
     '        $p = $word.Selection.Paragraphs.Item(1)',
     '        $para = [string]$p.Range.Text',
     '        for ($i = 0; $i -lt 15; $i++) {',
@@ -93,18 +94,27 @@ function lignesRelaisWordPs({ url, poste, jeton }) {
     '  $maintenant = Get-Date',
     '  $attente = if ($word -ne $null) { 1 } else { 5 }',
     '  if (-not $inchange -or $resultats.Count -gt 0 -or ($maintenant - $envoi).TotalSeconds -ge $attente) {',
-    '    $corps = @{ poste = $poste; jeton = $jeton; word = ($word -ne $null); inchange = $inchange; resultats = @($resultats) }',
+    '    $corps = @{ poste = $poste; jeton = $jeton; word = $avecDoc; inchange = $inchange; resultats = @($resultats) }',
     '    if (-not $inchange) { $corps.titre = $titre; $corps.paragraphe = $para }',
     '    try {',
     '      $json = $corps | ConvertTo-Json -Depth 4 -Compress',
     "      $rep = Invoke-RestMethod -Uri ($url + 'api/relais-word/releve') -Method Post -Body ([Text.Encoding]::UTF8.GetBytes($json)) -ContentType 'application/json; charset=utf-8' -TimeoutSec 5",
     '      $dernier = $cle',
+    '      $refus = 0',
     '      $resultats = @()',
     '      $envoi = $maintenant',
     '      foreach ($c in @($rep.commandes)) { if ($c) { $resultats += (Inserer $word $c) } }',
-    '    } catch { }',
+    // Serveur redémarré (état en mémoire perdu) : le paragraphe est renvoyé au tour suivant.
+    '      if ($rep.renvoyer) { $dernier = $null }',
+    '    } catch {',
+    // Jeton refusé (relais réinstallé ailleurs ou retiré) : on ralentit, puis on s'arrête — jamais une boucle de refus.
+    '      $code = 0',
+    '      try { $code = [int]$_.Exception.Response.StatusCode } catch { }',
+    '      if ($code -eq 403) { $refus++; if ($refus -ge 10) { exit 0 }; Start-Sleep -Seconds 30 }',
+    '    }',
     '  }',
-    '  if ($word -ne $null) { [void][Runtime.InteropServices.Marshal]::ReleaseComObject($word) }',
+    // Les objets COM du tour (sélection, paragraphes, plages) libérés aussi : jamais un Word fantôme après sa fermeture.
+    '  if ($word -ne $null) { [void][Runtime.InteropServices.Marshal]::ReleaseComObject($word); $word = $null; [GC]::Collect(); [GC]::WaitForPendingFinalizers() }',
     '  Start-Sleep -Milliseconds 700',
     '}'
   ];
@@ -142,6 +152,12 @@ function scriptInstallationRelaisWord({ url, poste, jeton }) {
     'f.Close',
     'l = dossier & "\\word-claire.vbs"',
     'sh.RegWrite "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run\\CLAIRE-Word", "wscript.exe """ & l & """", "REG_SZ"',
+    // Un relais déjà lancé (ancien jeton) est arrêté : sinon il garde le mutex et le nouveau sort aussitôt.
+    'Dim p',
+    'For Each p In GetObject("winmgmts:").ExecQuery("select * from Win32_Process where Name=\'powershell.exe\' and CommandLine like \'%word-claire.ps1%\'")',
+    '  p.Terminate',
+    'Next',
+    'WScript.Sleep 500',
     'sh.Run "wscript.exe """ & l & """", 0, False',
     'MsgBox "Le relais Word de CLAIRE est installe : l Aide a la redaction suit le paragraphe ou se trouve le curseur de Word." & vbCrLf & vbCrLf & "Il demarre seul a chaque ouverture de session.", 64, "CLAIRE"'
   );
@@ -160,7 +176,7 @@ function nouveauJeton() {
 // Pure : le jeton présenté correspond-il à l'empreinte retenue pour ce poste ?
 /** @param {string} empreinte @param {string} jeton */
 function jetonValide(empreinte, jeton) {
-  if (!empreinte || !jeton || typeof jeton !== 'string') return false;
+  if (typeof empreinte !== 'string' || !/^[0-9a-f]{64}$/.test(empreinte) || !jeton || typeof jeton !== 'string') return false;
   const a = Buffer.from(empreinte, 'hex');
   const b = Buffer.from(empreinteJeton(jeton), 'hex');
   return a.length === b.length && crypto.timingSafeEqual(a, b);
@@ -181,7 +197,7 @@ var RELAIS_VU_MS = 12000;
 /** @typedef {{ vu: number, word: boolean, titre: string, paragraphe: string, n: number, commandes: CommandeWord[], resultats: { id: string, ok: boolean, message: string, t: number }[] }} PosteWord */
 
 function creerEtatRelaisWord() {
-  return { postes: /** @type {Map<string, PosteWord>} */ (new Map()) };
+  return { postes: /** @type {Map<string, PosteWord>} */ (new Map()), demarrage: crypto.randomBytes(3).toString('hex') };
 }
 
 /** @param {ReturnType<typeof creerEtatRelaisWord>} etat @param {string} poste @returns {PosteWord} */
@@ -191,9 +207,11 @@ function postePourWord(etat, poste) {
   return p;
 }
 
-// Pure (sur l'état) : un relevé du relais. Rend les commandes à exécuter (retirées de la file).
+// Pure (sur l'état) : un relevé du relais. Rend les commandes à exécuter (retirées de la file) et `renvoyer` quand le serveur
+// ne connaît pas encore ce poste (redémarré) alors que le relais n'envoie que « inchangé ».
 /** @param {ReturnType<typeof creerEtatRelaisWord>} etat @param {string} poste @param {any} corps @param {number} [maintenant] */
 function appliquerReleveWord(etat, poste, corps, maintenant = Date.now()) {
+  const neuf = !etat.postes.has(poste);
   const p = postePourWord(etat, poste);
   p.vu = maintenant;
   p.word = !!corps.word;
@@ -210,7 +228,7 @@ function appliquerReleveWord(etat, poste, corps, maintenant = Date.now()) {
   p.resultats = p.resultats.filter(r => maintenant - r.t < 60000).slice(-10);
   const commandes = p.commandes.filter(c => maintenant - c.t < COMMANDE_EXPIRE_MS);
   p.commandes = [];
-  return commandes.map(c => ({ id: c.id, valeur: c.valeur, occurrence: c.occurrence, attendu: c.attendu }));
+  return { commandes: commandes.map(c => ({ id: c.id, valeur: c.valeur, occurrence: c.occurrence, attendu: c.attendu })), renvoyer: neuf && !!corps.inchange };
 }
 
 // Pure (sur l'état) : une insertion demandée depuis la fenêtre CLAIRE du poste. Rend l'identifiant, ou une erreur.
@@ -239,7 +257,7 @@ function etatPosteWord(etat, poste, installe, maintenant = Date.now()) {
     word: actif && !!p && p.word,
     titre: actif && p ? p.titre : '',
     paragraphe: actif && p ? p.paragraphe : '',
-    n: p ? p.n : 0,
+    n: etat.demarrage + ':' + (p ? p.n : 0),
     resultats: p ? p.resultats.map(r => ({ id: r.id, ok: r.ok, message: r.message })) : []
   };
 }

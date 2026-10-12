@@ -19327,8 +19327,14 @@ modèle **au choix dans les Réglages**, Opus par défaut.
   compte que `/-{3,}/g` côté poste (`occurrenceBlancWord`, consignes « --- OPTION » comprises). Écran : ligne d'état au-dessus du
   passage (installer / ne répond pas / Word fermé / suit le curseur), relue chaque seconde tant que l'écran est affiché, une saisie
   dans la zone du passage jamais écrasée ; bouton « Insérer dans Word » seulement quand le passage vient de Word tel quel.
-  Non vérifiable ici : COM de Word (inscription au ROT après un premier changement de fenêtre), stratégie PowerShell des postes,
-  `Find.Execute` sans arguments depuis PowerShell 5.1.
+  Relecture indépendante, corrigé avant publication : « Réinstaller » arrête l'ancien relais (WMI, sinon il gardait le mutex avec
+  l'ancien jeton) et un relais refusé (403) ralentit puis s'arrête après 10 refus ; blancs repérés sur le TEXTE du paragraphe
+  (`[regex]::Matches`, plage contrôlée avant d'écrire) et non plus par `Find` (qui garde les options de recherche de l'utilisateur :
+  mot entier, ponctuation ignorée → mauvais blanc) ; l'IA n'est plus appelée seule pour chaque paragraphe visité (bouton « Demander
+  à l'IA ») ; une seule relève à la fois côté écran ; une insertion à la fois ; paragraphe ≥ 4 000 caractères : copier ; objets COM
+  libérés (GC) ; serveur redémarré → `renvoyer` et numéro de relevé préfixé du démarrage ; clé « constructor » refusée ; « Word »
+  seulement avec un document ouvert. Non vérifiable ici : COM de Word (inscription au ROT après un premier changement de fenêtre),
+  stratégies PowerShell des postes (AllSigned, mode restreint), antivirus.
 
 - **12/10/2026 — 0.220.0 Répertoire : adresse à copier pour un courrier** (étude : « permettre de copier-coller facilement les
   adresses et suivre ce format (idem pour les organismes) : Maître Jessica LE DIMET / 908 route d'Orléans / 45160

@@ -7,7 +7,7 @@
   // Word » (relais du poste, 0.219.0), sinon chaque valeur se copie d'un clic.
 
   var aideActe = { dossierId: '', passage: '', ia: null, iaEnCours: false, iaErreur: '', lecture: {}, minuterie: null,
-    word: { etat: null, n: -1, passage: '', paragraphe: '', minuterie: null, vus: {}, attente: {} } };
+    word: { etat: null, n: -1, passage: '', paragraphe: '', minuterie: null, vus: {}, attente: {}, gen: 0, enCours: '' } };
 
   function initAideActe() {
     if (!aideActe.dossierId && dossierOuvert) aideActe.dossierId = dossierOuvert;
@@ -172,13 +172,15 @@
     if (dossierAideActe() && dossierAideActe().id === d.id) renderAideActe();
   }
 
-  function passageAideActe(texte) {
+  // `depuisWord` : passage relevé par le relais — l'IA n'est jamais appelée seule pour chaque paragraphe où passe le curseur
+  // (relecture 0.219.0 : coût, débit de la clé), seulement par le bouton « Demander à l'IA ».
+  function passageAideActe(texte, depuisWord) {
     aideActe.passage = String(texte || '');
     aideActe.ia = null;
     aideActe.iaErreur = '';
     renderResultatAideActe();
     clearTimeout(aideActe.minuterie);
-    aideActe.minuterie = setTimeout(demanderIaAideActe, 900);
+    if (!depuisWord) aideActe.minuterie = setTimeout(demanderIaAideActe, 900);
   }
 
   function nomsPartiesAideActe(d) {
@@ -257,8 +259,10 @@
     if (!aideActe.passage.trim()) { zone.innerHTML = '<p class="red-vide">Placez le curseur de Word dans le passage de l’acte (relais Word) ou collez-le ici : CLAIRE reconnaît la clause et propose la valeur de chaque « --- ».</p>'; return; }
     const r = blancsAideActe();
     const valeurs = valeursActeDossier(d, d && aideActe.lecture[d.id]);
+    const demanderIa = !aideActe.iaEnCours && !aideActe.ia && r.trous.some(t => !t.champ)
+      ? '<wa-button appearance="outlined" size="s" type="button" onclick="demanderIaAideActe()">Demander à l’IA</wa-button>' : '';
     const tete = `<div class="red-clause"><span class="section-eyebrow">Clause</span> <b>${escapeHtml(r.libelle || 'Non reconnue')}</b>
-      ${aideActe.iaEnCours ? '<span class="red-note">L’IA cherche les champs…</span>' : aideActe.iaErreur ? `<span class="red-note">${escapeHtml(aideActe.iaErreur)}</span>` : ''}</div>`;
+      ${aideActe.iaEnCours ? '<span class="red-note">L’IA cherche les champs…</span>' : aideActe.iaErreur ? `<span class="red-note">${escapeHtml(aideActe.iaErreur)}</span>` : ''}${demanderIa}</div>`;
     if (!r.trous.length) { zone.innerHTML = tete + '<p class="red-vide">Aucun blanc « --- » dans ce passage.</p>'; return; }
     zone.innerHTML = tete + r.trous.map((t, i) => {
       const titre = `Blanc ${i + 1}${t.champ ? ' · ' + libelleChampActe(t.champ) : ''}${t.parIa ? ' (désigné par l’IA)' : ''}`;
@@ -324,21 +328,27 @@
     return -1;
   }
 
+  // Une insertion à la fois (la suivante attend le paragraphe relu : le premier « --- » remplacé change le paragraphe) ; un
+  // paragraphe de 4 000 caractères ou plus est tronqué par le relais : copier la valeur.
   function wordInsertionPossibleAideActe() {
     const w = aideActe.word;
-    return !!(w.etat && w.etat.actif && w.etat.word && w.paragraphe && aideActe.passage === w.passage);
+    return !!(w.etat && w.etat.actif && w.etat.word && w.paragraphe && w.paragraphe.length < 3990 && !w.enCours && aideActe.passage === w.passage);
   }
 
   async function suivreWordAideActe() {
     const w = aideActe.word;
     clearTimeout(w.minuterie);
+    // Une seule relève à la fois : un retour sur l'écran pendant une requête n'en lance pas une seconde (relecture 0.219.0).
+    const gen = ++w.gen;
     if (ongletActuel !== 'redaction') return;
     const poste = posteRelaisWordAideActe();
     if (poste) {
       try {
         const r = await fetchAvecAuth('/api/relais-word/etat?poste=' + encodeURIComponent(poste));
+        if (gen !== w.gen) return;
         if (r.ok) appliquerEtatWordAideActe(await r.json());
       } catch (e) { /* serveur injoignable : relu à la seconde suivante */ }
+      if (gen !== w.gen) return;
     } else if (w.etat !== null) { w.etat = null; renderWordAideActe(); }
     if (ongletActuel === 'redaction') w.minuterie = setTimeout(suivreWordAideActe, document.hidden ? 5000 : 1000);
   }
@@ -348,22 +358,21 @@
     const avant = JSON.stringify(w.etat && { a: w.etat.actif, w: w.etat.word, i: w.etat.installe });
     w.etat = etat;
     let redessiner = avant !== JSON.stringify({ a: etat.actif, w: etat.word, i: etat.installe });
-    if (etat.actif && etat.paragraphe && etat.n !== w.n) {
+    const champ = document.getElementById('red-passage');
+    // Une saisie en cours dans la zone du passage n'est jamais écrasée ; le paragraphe de Word est pris dès qu'elle cesse.
+    if (etat.actif && etat.paragraphe && etat.n !== w.n && !(champ && document.activeElement === champ)) {
       w.n = etat.n;
-      const champ = document.getElementById('red-passage');
-      // Une saisie en cours dans la zone du passage n'est jamais écrasée.
-      if (!(champ && document.activeElement === champ)) {
-        w.paragraphe = etat.paragraphe;
-        w.passage = passageDepuisWord(etat.titre, etat.paragraphe);
-        if (champ) champ.value = w.passage;
-        passageAideActe(w.passage);
-        redessiner = false;
-      }
+      w.paragraphe = etat.paragraphe;
+      w.passage = passageDepuisWord(etat.titre, etat.paragraphe);
+      if (champ) champ.value = w.passage;
+      passageAideActe(w.passage, true);
+      redessiner = false;
     }
     for (const r of etat.resultats || []) {
       if (w.vus[r.id] || !w.attente[r.id]) continue;
       w.vus[r.id] = true;
       delete w.attente[r.id];
+      if (w.enCours === r.id) { w.enCours = ''; redessiner = true; }
       afficherToast(r.ok ? 'Inséré dans Word (Ctrl+Z dans Word pour l’annuler).' : 'Word : ' + (r.message || 'insertion refusée.'), 'OK', null);
     }
     if (redessiner) renderResultatAideActe();
@@ -383,6 +392,10 @@
       const corps = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(corps.erreur || 'statut ' + r.status);
       w.attente[corps.id] = true;
+      w.enCours = corps.id;
+      renderResultatAideActe();
+      // Sans réponse du relais (Word occupé, relais arrêté), le bouton revient au bout de 20 s.
+      setTimeout(() => { if (w.enCours === corps.id) { w.enCours = ''; renderResultatAideActe(); } }, 20000);
     } catch (e) {
       afficherToast('Insertion impossible : ' + (e.message || 'serveur injoignable') + '.', 'OK', null);
     }
