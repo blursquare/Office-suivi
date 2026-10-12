@@ -209,8 +209,9 @@ test('route : relais claire-appel — installateur téléchargé = poste retenu 
   const coupe = await (await fetch(`${baseUrl}/api/appels/reglages`, { method: 'PUT', headers: json, body: JSON.stringify({ poste: 'jeremy', actif: true }) })).json();
   assert.equal(coupe.postesRelais.join(','), 'jeremy');
   const page = await (await fetch(`${baseUrl}/appel?numero=0655443322&poste=jeremy`)).text();
-  assert.match(page, /claire-appel:ap-/);
-  assert.doesNotMatch(page, /index\.html#appel=/);
+  // Depuis le 12/10, l'ancien relais n'est plus lancé (bloqué par l'antivirus) : CLAIRE s'ouvre dans l'onglet.
+  assert.doesNotMatch(page, /claire-appel/);
+  assert.match(page, /index\.html#appel=/);
   const retire = await (await fetch(`${baseUrl}/api/appels/reglages`, { method: 'PUT', headers: json, body: JSON.stringify({ poste: 'jeremy', relais: false }) })).json();
   assert.equal(retire.postesRelais.length, 0);
   assert.match(await (await fetch(`${baseUrl}/appel?numero=0655443322&poste=jeremy`)).text(), /index\.html#appel=/);

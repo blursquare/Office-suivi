@@ -75,7 +75,9 @@ function creerRouteurSonnerie(parametresRepo, depot, etat) {
     const fenetreVisible = !!(entree.poste && vue && vue.visible && maintenant - vue.t < FENETRE_VUE_MS);
     res.setHeader('Cache-Control', 'no-store');
     const inconnu = !((entree.dossiers && entree.dossiers.length) || entree.contact);
-    const relais = !!entree.poste && parametresRepo.lireReglagesTelephonie().postesRelais.includes(clePoste(entree.poste));
+    // Ancien relais « claire-appel: » (un .vbs, 07/10) plus lancé depuis le 12/10 : l'antivirus du bureau (Panda) le bloque, l'onglet
+    // se fermait sur rien. Sans le relais CLAIRE du poste (ci-dessous), CLAIRE s'ouvre dans l'onglet sur l'appel.
+    const relais = false;
     // Relais CLAIRE du poste en marche (relaisWord.js, étude 12/10) : l'onglet se ferme aussitôt, le relais montre la fenêtre CLAIRE
     // (appelant d'un dossier) ou rend le premier plan à la fenêtre d'avant la sonnerie.
     const relaisPoste = !!entree.poste && typeof etat.noterAppelRelais === 'function'
