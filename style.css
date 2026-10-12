@@ -7852,15 +7852,19 @@ button.annuaire-proche.actif { background: var(--focus); border-color: var(--foc
 .ag-titre { margin: 0; font-size: var(--texte-2xl); font-weight: 500; letter-spacing: -0.02em; color: var(--ink); }
 /* La date, puis « ‹ Aujourd'hui › » à côté (étude, 02/10) ; largeur fixe de la date pour que les boutons
    restent sous la souris d'une semaine à l'autre. */
-.ag-titre-ligne { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
+/* Le mot du jour (« Lun ») sur la même ligne de base que la date (étude 12/10 : « aligner lun avec le jour »). */
+.ag-titre-ligne { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 14px; }
+.ag-titre-ligne .ag-nav { align-self: center; }
 .ag-titre-ligne .ag-titre { min-width: 9.6em; font-variant-numeric: tabular-nums; }
 /* Téléphone : le bloc de la date reste à côté du mot du jour (il ne passe plus dessous certains jours) ;
    les boutons vont sous la date. */
 @media (max-width: 640px) {
   .ag-titre-bloc { flex: 1 1 0; }
-  .ag-titre-ligne .ag-titre { min-width: 0; flex-basis: 100%; }
+  .ag-titre-ligne .ag-titre { min-width: 0; }
+  .ag-titre-ligne .ag-nav { flex-basis: 100%; }
 }
-.ag-sous { display: block; margin-top: 2px; font-size: var(--texte-m); color: var(--muted); }
+/* L'état de lecture (agenda lu, comparaison avec l'an dernier) sur la ligne de la date et des boutons (étude 12/10). */
+.ag-sous { flex: 1 1 220px; min-width: 0; font-size: var(--texte-m); color: var(--muted); }
 /* « Actualiser » en icône à côté de « Agenda de l'office lu … » (étude, 01/10). */
 button.ag-actualiser {
   display: inline-flex; align-items: center; justify-content: center; vertical-align: middle; width: 22px; height: 22px; padding: 0; margin-left: 2px;

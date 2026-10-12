@@ -19162,3 +19162,11 @@ modèle **au choix dans les Réglages**, Opus par défaut.
 - Fiche : Entrée/Échap redessinent tout de suite (le rendu différé pendant une saisie laissait l'éditeur ouvert sur l'ancienne
   valeur), sauf dans une zone de texte.
 - `notaireDuRepertoire` : sans ville, un seul office possible (deux « Paul DURAND » passaient).
+
+### 0.213.7 — 12/10/2026 — En-tête de l'agenda sur une ligne
+
+- Étude 12/10 : « supprimer semaine du tant au tant ; mettre le reste sur la même ligne que Aujourd'hui et les boutons droite
+  gauche ; aligner lun avec le jour ». `renderPageAgenda` : plus de « Semaine du … au … » (vue Semaine) ; l'état de lecture
+  (`.ag-sous` : agenda lu, comparaison avec l'an dernier, actualiser, filtre) est dans `.ag-titre-ligne`, après les boutons ;
+  le mot du jour (`.ag-pastille-jour`) est dans la même ligne, alignée sur la ligne de base de la date. Téléphone : boutons sous
+  la date.

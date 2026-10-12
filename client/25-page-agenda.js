@@ -1415,7 +1415,6 @@
     const zone = document.getElementById('agenda-contenu');
     if (!zone) return;
     if (!agendaJour) positionnerAgenda(isoAujourdhuiLocal());
-    const samedi = addDays(agendaLundi, 5);
     const lu = agendaLu ? new Date(agendaLu).toLocaleString('fr-FR', { weekday: 'short', hour: '2-digit', minute: '2-digit' }).replace(':', '\u00a0h\u00a0').replace(/ (\d)/, '\u00a0$1') : '';
     const source = agendaErreur ? `<span class="dot-label dl-alerte"><span class="dot"></span>${escapeHtml(agendaErreur)}</span>`
       : !agendaCharge ? 'Lecture de l’agenda…'
@@ -1440,19 +1439,17 @@
         return ` · <span class="ag-filtre">${n} rendez-vous pour « ${escapeHtml(agendaRecherche.trim())} » <button type="button" class="lien-bouton" onclick="effacerRechercheAgenda()">Tout afficher</button></span>`;
       })() : '';
     const etat = `${source} ${actualiser}${filtre}`;
-    const sous = agendaVue === 'mois' ? etat
-      : agendaVue === 'semaine'
-        ? `Semaine du ${new Date(agendaLundi + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })} au ${new Date(samedi + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })} · ${etat}`
-        : etat; // Vue Jour : le jour est déjà écrit en grand à gauche (motPastilleAgenda).
+    // L'état de lecture suit les boutons, sur la même ligne (étude 12/10 : « supprimer semaine du … au … »).
+    const sous = etat;
     // Une note en cours d'écriture garde le focus et le curseur à travers les rafraîchissements
     // automatiques (agenda relu toutes les 2 minutes, dossiers mis à jour par un autre poste).
     const champNotes = document.activeElement && document.activeElement.id === 'agenda-notes-texte' ? document.activeElement : null;
     const curseurNotes = champNotes ? [champNotes.selectionStart, champNotes.selectionEnd, champNotes.scrollTop] : null;
     zone.innerHTML = `<div class="ag-page">
         <div class="ag-tete-page">
-          <div class="ag-pastille-jour" aria-hidden="true">${escapeHtml(motPastilleAgenda(dRef, agendaVue))}<i></i></div>
           <div class="ag-titre-bloc">
             <div class="ag-titre-ligne">
+              <div class="ag-pastille-jour" aria-hidden="true">${escapeHtml(motPastilleAgenda(dRef, agendaVue))}<i></i></div>
               <h2 class="ag-titre">${escapeHtml(titre.charAt(0).toUpperCase() + titre.slice(1))}</h2>
               <wa-button-group class="ag-nav" label="Se déplacer dans l’agenda">
                 <wa-button appearance="outlined" size="s" type="button" class="ag-nav-btn" onclick="naviguerAgenda(-1)" aria-label="Précédent">${icone('chevron-left')}</wa-button>
@@ -1463,8 +1460,8 @@
                   <input type="date" class="ag-aller" id="agenda-aller" value="${escapeAttr(agendaJour || '')}" min="2000-01-01" onchange="if (this.value) allerAuJourAgenda(this.value)" tabindex="-1" aria-hidden="true">
                 </span>
               </wa-button-group>
+              <span class="ag-sous">${sous}</span>
             </div>
-            <span class="ag-sous">${sous}</span>
           </div>
           <label class="ag-vue-choix">
             <select id="agenda-vue" aria-label="Vue de l’agenda" onchange="choisirVueAgenda(this.value)">
