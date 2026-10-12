@@ -12,7 +12,7 @@
    * Une intention : `cle` (JSON de l'IA), `libelle`, `description` (dite à l'IA et dans l'aide), `dossier` (la demande porte sur un
    * dossier), `parametres` (ceux que l'IA doit recopier), `exemples` (chips de la page, prompt), `motifs` (mots-clés du repli,
    * sur le texte sans accents en minuscules), `ecrit` (le geste écrit quelque chose : 'fiche', 'rappel', 'email', 'agenda').
-   * @typedef {{ cle: string, libelle: string, description: string, dossier?: boolean, parametres?: string[], exemples: string[],
+   * @typedef {{ cle: string, libelle: string, description: string, dossier?: boolean, dossierFacultatif?: boolean, parametres?: string[], exemples: string[],
    *   motifs: RegExp[], ecrit?: string, poids?: number }} IntentionAssistant
    */
   /** @type {IntentionAssistant[]} */
@@ -31,6 +31,11 @@
       exemples: ['Qu’est-ce que j’ai à faire aujourd’hui ?', 'Quelles sont mes tâches du jour ?', 'Mon programme aujourd’hui'], motifs: [/\ba faire\b/, /\bdois[- ]je faire\b/, /\bje dois faire\b/, /\bj.ai (a|quoi) faire\b/, /\bqu.?est.?ce (que )?(je|j.ai)\b.{0,20}\bfaire\b/, /\bquoi de prevu\b/, /\bma journee\b/, /\bmes taches\b/, /\btaches? (du jour|d.aujourd)/, /\bquoi faire\b/, /\bprogramme\b/] },
     { cle: 'depuis_hier', libelle: 'Depuis hier', description: 'ce qui a changé depuis hier 18 h : documents reçus, emails, demandes des clients',
       exemples: ['Qu’est-ce qui a changé depuis hier ?', 'Quoi de neuf depuis hier ?', 'Y a-t-il du nouveau depuis hier 18 h ?'], motifs: [/\bdepuis hier\b/, /\bquoi de neuf\b/, /\bnouveaut/, /\bqu.?est.?ce qui (a|s.est) (change|passe)\b/, /\bdu nouveau\b/] },
+    // Étude 12/10 : « accéder au dossier local et aux scans pour vérifier les dernières pièces ou scans reçus et les ouvrir ».
+    // Dossier facultatif : nommé, la liste s'y limite (et montre aussi les derniers fichiers de son dossier du NAS) ; sinon tout.
+    { cle: 'derniers_documents', libelle: 'Derniers documents reçus', description: 'les dernières pièces arrivées (NAS, rangées) et les derniers scans du copieur (à ranger ou rangés), d’un dossier ou de tous, avec un bouton pour les ouvrir',
+      dossierFacultatif: true, exemples: ['Quels sont les derniers scans reçus ?', 'Montre-moi les dernières pièces de MARTIN', 'Quelles pièces sont arrivées pour DUPONT ?', 'Ouvre le dernier scan'],
+      motifs: [/\bderni(er|ere)s? (pieces?|scans?|documents?|fichiers?)\b/, /\bscans? (recus?|arrives?|a ranger|ranges?|du copieur)\b/, /\b(pieces?|documents?|fichiers?) (sont |est )?(recue?s?|arrivee?s?)\b/, /\bqu.?est.?ce qu.?on a recu\b/, /\bdossier (local|du nas)\b/], poids: 3 },
     { cle: 'rappel_ajouter', libelle: 'Ajouter un rappel', description: 'poser un rappel personnel (texte, date facultative, dossier facultatif) — fait aussitôt, annulable',
       parametres: ['texte', 'date'], ecrit: 'rappel', exemples: ['Rappelle-moi vendredi d’appeler le syndic pour DUPONT', 'Pense-bête : appeler le notaire demain', 'Fais-moi penser à relancer LEROY lundi'], motifs: [/\brappelle[- ]moi\b/, /\brappel\b/, /\bpense[- ]bete\b/, /\bnote (que|de)\b/, /\bn.oublie pas\b/, /\bfais[- ]moi penser\b/], poids: 2 },
     { cle: 'rappel_lister', libelle: 'Mes rappels', description: 'la liste des rappels personnels en cours',

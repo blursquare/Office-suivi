@@ -311,3 +311,12 @@ test('reçus hors racine : servis par /api/nas/fichier, rien d’autre dans ces 
     dbx.close();
   }
 });
+
+test('fichiersLesPlusRecents (étude 12/10) : les N plus récemment modifiés, un fichier illisible ignoré', async () => {
+  const { fichiersLesPlusRecents } = require('../src/nas');
+  const dates = { 'a.pdf': 1000, 'b/c.pdf': 3000, 'd.pdf': 2000 };
+  const faux = { stat: async (p) => { const k = Object.keys(dates).find((x) => p.replace(/\\/g, '/').endsWith(x)); if (!k) throw new Error('ENOENT'); return { mtimeMs: dates[k] }; } };
+  const r = await fichiersLesPlusRecents('/racine', [{ nom: 'a.pdf', chemin: 'a.pdf' }, { nom: 'c.pdf', chemin: 'b/c.pdf' }, { nom: 'd.pdf', chemin: 'd.pdf' }, { nom: 'x.pdf', chemin: 'x.pdf' }], 2, faux);
+  assert.equal(r.map((f) => f.nom).join(','), 'c.pdf,d.pdf');
+  assert.equal(r[0].modifieLe, new Date(3000).toISOString());
+});

@@ -320,3 +320,27 @@ test('seconde relecture : tête de phrase, téléphones étrangers, IBAN, mots d
   assert.equal(r2.repris, true);
   assert.equal(corps[0].messages.length, 2, 'historique neuf : système + question');
 });
+
+test('documents_recents (étude 12/10) : rien de nominatif ne part, les document_id restent lisibles, ouvrir_documents les reçoit tels quels', async () => {
+  const client = fauxClient([
+    { stop_reason: 'tool_use', usage, content: [outil('t1', 'documents_recents', { dossier_id: 'd1' })] },
+    { stop_reason: 'tool_use', usage, content: [outil('t2', 'ouvrir_documents', { documents: ['doc2', 'doc3'] })] },
+    { stop_reason: 'end_turn', usage, content: [texte('Voici le dernier scan.')] }
+  ]);
+  const o = { cle: 'k', client, modele: 'claude-opus-5-5' };
+  let r = await tourAgent({ texte: 'Les derniers documents de Fournier', dossiers: D, contexte: { aujourdhui: '2026-10-12' } }, o);
+  r = await tourAgent({ conversation: r.conversation, resultats: [{ id: 't1', contenu: {
+    pieces_recues: [{ document_id: 'doc1', document: 'Pièce d’identité Paul FOURNIER', recu_le: '2026-10-11T08:00:00Z', dossier_id: 'd1', dossier: 'VTE - FOURNIER / GAUTHIER', ouvrable: true }],
+    scans_a_ranger: [{ document_id: 'doc2', document: 'État daté', recu_le: '2026-10-12T07:31:00Z', dossier_id: 'd1', dossier: 'VTE - FOURNIER / GAUTHIER', ouvrable: true }],
+    scans_ranges: [{ document_id: 'doc3', document: 'Titre de propriété', rubrique: 'Vendeur Gauthier', ouvrable: true }],
+    fichiers_recents_du_dossier_nas: [{ document_id: 'doc4', document: 'Document non reconnu', sous_dossier: 'Courriers Dubreuil', ouvrable: true }]
+  } }] }, o);
+  assert.equal(r.appels[0].nom, 'ouvrir_documents');
+  assert.deepEqual(r.appels[0].entree.documents, ['doc2', 'doc3']);
+  const envoye = JSON.stringify(client.requetes[1].messages);
+  assert.doesNotMatch(envoye, SECRETS, 'aucune donnée nominative dans : ' + envoye.slice(0, 600));
+  assert.match(envoye, /document_id\\":\\"doc2/, 'les identifiants de document restent lisibles');
+  assert.match(envoye, /État daté/);
+  assert.match(envoye, /Document non reconnu/);
+  assert.ok(OUTILS_AGENT.some((t) => t.name === 'documents_recents') && OUTILS_AGENT.some((t) => t.name === 'ouvrir_documents'));
+});

@@ -146,12 +146,12 @@ async function comprendreDemande(entree, ollama, options) {
   let dossier = '';
   /** @type {Array<{id: string, nom: string}>} */
   let candidats = [];
-  if (definition && definition.dossier) {
+  if (definition && (definition.dossier || definition.dossierFacultatif)) {
     let r = parametres.dossierTexte ? A.reconnaitreDossier(parametres.dossierTexte, dossiers) : { dossier: '', candidats: [] };
     if (!r.dossier && !r.candidats.length) r = A.reconnaitreDossier(texte, dossiers);
     dossier = r.dossier;
     candidats = r.candidats;
-    if (!dossier && !candidats.length && contexte.dossierId && dossiers.some((d) => d && d.id === contexte.dossierId)) {
+    if (definition.dossier && !dossier && !candidats.length && contexte.dossierId && dossiers.some((d) => d && d.id === contexte.dossierId)) {
       dossier = contexte.dossierId;
       parametres.dossierParContexte = true;
     }

@@ -290,7 +290,24 @@ async function resoudreCheminNas(racine, cheminRelatif, fsImpl = fsp) {
   }
 }
 
+// Les `n` PDF les plus récemment modifiés d'une liste (étude 12/10 : « Demander à CLAIRE » regarde les dernières pièces arrivées
+// dans le dossier local). Lu à la demande seulement : un `stat` par fichier, par paquets, jamais en synchrone. Un fichier illisible
+// est ignoré. Rend { nom, chemin, modifieLe } du plus récent au plus ancien.
+async function fichiersLesPlusRecents(racineAbsolue, fichiers, n, fsImpl = fsp) {
+  const avecDate = [];
+  const liste = Array.isArray(fichiers) ? fichiers : [];
+  for (let i = 0; i < liste.length; i += 32) {
+    const paquet = await Promise.all(liste.slice(i, i + 32).map(async (f) => {
+      try { const st = await fsImpl.stat(path.join(racineAbsolue, f.chemin)); return { ...f, ms: st.mtimeMs }; } catch (_) { return null; }
+    }));
+    paquet.forEach((f) => { if (f && Number.isFinite(f.ms)) avecDate.push(f); });
+  }
+  return avecDate.sort((a, b) => b.ms - a.ms).slice(0, Math.max(1, n))
+    .map((f) => ({ nom: f.nom, chemin: f.chemin, modifieLe: new Date(f.ms).toISOString() }));
+}
+
 module.exports = {
+  fichiersLesPlusRecents,
   listerPdfRecursif,
   listerSousDossiers,
   listerRecusRacine,

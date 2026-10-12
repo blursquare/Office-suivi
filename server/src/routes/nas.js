@@ -17,7 +17,7 @@
 const express = require('express');
 const fs = require('node:fs');
 const path = require('node:path');
-const { listerPdfRecursif, listerSousDossiers, listerRecusNas, resoudreCheminRecu, resoudreCheminNas, rapprocherParNom, rapprochementParfait } = require('../nas');
+const { fichiersLesPlusRecents, listerPdfRecursif, listerSousDossiers, listerRecusNas, resoudreCheminRecu, resoudreCheminNas, rapprocherParNom, rapprochementParfait } = require('../nas');
 const fsp = require('node:fs/promises');
 const { faussesMinutes, trouverDossierFaussesMinutes, resoudreFichierFaussesMinutes } = require('../faussesMinutes');
 
@@ -98,6 +98,9 @@ function creerRouteurNas(config) {
     // Les chemins renvoyés sont relatifs au SOUS-DOSSIER demandé ; le client les repréfixe pour
     // appeler /nas/fichier. Garder cette base explicite évite toute ambiguïté des deux côtés.
     const fichiers = await listerPdfRecursif(cible);
+    // `recents=N` : seulement les N plus récemment modifiés, avec leur date (« Demander à CLAIRE », étude 12/10).
+    const recents = Math.min(50, Math.max(0, parseInt(String(req.query.recents || ''), 10) || 0));
+    if (recents) { res.json({ base: path.relative(path.resolve(racine), cible), fichiers: await fichiersLesPlusRecents(cible, fichiers, recents) }); return; }
     res.json({ base: path.relative(path.resolve(racine), cible), fichiers });
   }));
 

@@ -19202,3 +19202,21 @@ modèle **au choix dans les Réglages**, Opus par défaut.
   « Fonds reçus » (rouge, comme « nouvelle pièce ») quand `fondsCompletsAConfirmer(d)` ; l'onglet Fonds de la fiche porte le
   point « nouveau » (`nouveau` de l'onglet) et le dit au survol. Les deux tombent à la confirmation de réception au client, comme
   le compteur de « Suivi des dossiers » (déjà en place depuis le 05/10).
+
+### 0.216.0 — 12/10/2026 — « Demander à CLAIRE » : derniers documents reçus
+
+- Étude 12/10 : « permettre à Demander à CLAIRE d'accéder au dossier local et scan pour vérifier les dernières pièces ou scans
+  reçus et les ouvrir ». `client/62-assistant-documents.js` : `documentsRecentsAssistant` (pure) réunit les pièces reconnues ou
+  rangées des 14 derniers jours (`dernieresPiecesTrouvees`, fichier retenu `fichiersTrouves`), les scans à ranger de Claire Scan
+  (dossier proposé par la lecture) et les scans rangés (journal du serveur, `chemin` relatif au NAS) ; un dossier nommé limite la
+  liste et ajoute les 10 fichiers PDF les plus récemment modifiés de son dossier du NAS (`GET /api/nas/fichiers?recents=N`,
+  `fichiersLesPlusRecents` de `server/src/nas.js` : un `stat` par fichier, par paquets de 32, à la demande seulement).
+- Ouvrir = un bouton dans la conversation (le navigateur n'ouvre un onglet que sur un clic) : scan à ranger → aperçu de Claire
+  Scan (`ouvrirApercuScan`), pièce ou fichier du NAS → onglet (`ouvrirFichierNas`). Lecture seule.
+- Sans IA : intention `derniers_documents` (`dossierFacultatif` : nouveau drapeau — le dossier est reconnu s'il est nommé, jamais
+  pris du contexte ; `server/src/assistant.js`). Agent : outils `documents_recents` (rend un `document_id` par document, gardé
+  par le poste dans `documentsAgentConnus`, oublié à la nouvelle conversation) et `ouvrir_documents` (boutons, 6 au plus) ;
+  `document_id` n'est pas masqué (`masquerValeur`). **Le nom d'un fichier du NAS ne part jamais en ligne** (un tiers en minuscules
+  ne serait pas masqué) : seulement la pièce qu'il désigne si CLAIRE la reconnaît par son nom (`pieceDePieceJointe`), sinon
+  « Document non reconnu », et son sous-dossier ; les scans partent par leur type lu, jamais par leur nom. Test « rien de
+  nominatif ne part » ajouté.

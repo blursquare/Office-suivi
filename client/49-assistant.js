@@ -397,6 +397,7 @@
       fonds_dossier: () => reponseFondsAssistant(d),
       taches_jour: () => reponseTachesAssistant(),
       depuis_hier: () => reponseDepuisHierAssistant(),
+      derniers_documents: () => reponseDerniersDocumentsAssistant(d),
       rappel_ajouter: () => gesteRappelAssistant(p, r.dossier ? d : null, r.texte),
       rappel_lister: () => reponseRappelsAssistant(),
       email: () => gesteEmailAssistant(d, p),

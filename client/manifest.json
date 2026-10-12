@@ -60,5 +60,6 @@
   "58-animations-progression.js",
   "59-assistant-ton.js",
   "60-onglets-travail.js",
-  "61-assistant-agent.js"
+  "61-assistant-agent.js",
+  "62-assistant-documents.js"
 ]

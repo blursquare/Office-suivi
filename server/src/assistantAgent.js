@@ -75,6 +75,18 @@ const OUTILS_AGENT = [
     input_schema: { type: 'object', additionalProperties: false, required: [], properties: {} }
   },
   {
+    name: 'documents_recents',
+    description: 'Les derniers documents arrivés : pièces reconnues sur le NAS ou rangées (14 derniers jours), scans du copieur à ranger dans Claire Scan et scans rangés récemment, et — pour un dossier relié au NAS — les fichiers les plus récents de son dossier local, reconnus ou non. Chaque document porte un document_id à passer à ouvrir_documents.',
+    input_schema: { type: 'object', additionalProperties: false, required: ['dossier_id'],
+      properties: { dossier_id: chaine('"" = tous les dossiers du collaborateur et tous les scans ; sinon l’id d’un dossier') } }
+  },
+  {
+    name: 'ouvrir_documents',
+    description: 'Propose à l’utilisateur d’ouvrir des documents rendus par documents_recents : un bouton « Ouvrir » par document s’affiche dans la conversation (le navigateur n’ouvre un document que sur un clic). 6 documents au plus.',
+    input_schema: { type: 'object', additionalProperties: false, required: ['documents'],
+      properties: { documents: { type: 'array', items: { type: 'string' }, description: 'les document_id à proposer' } } }
+  },
+  {
     name: 'faire_geste',
     description: 'Fait un geste dans CLAIRE avec la fonction habituelle. Rappel, coche/décoche d’une échéance, date sur la fiche, archivage, changement de responsable : fait tout de suite, l’utilisateur a un bouton « Annuler ». Email : ouvre la fenêtre d’email pré-remplie, RIEN ne part sans son clic sur « Envoyer ». Placer la signature, nouveau rendez-vous, sondage : l’utilisateur confirme. Le geste affiche lui-même son message à l’utilisateur ; le résultat te dit ce qui s’est passé. Ne fais un geste que s’il est demandé ou clairement souhaité ; pour un geste qui modifie un dossier, sois sûr du dossier.',
     input_schema: { type: 'object', additionalProperties: false, required: ['geste', 'dossier_id', 'parametres'],
@@ -101,7 +113,7 @@ const OUTILS_AGENT = [
 const SYSTEME_AGENT = `Tu es CLAIRE, l'assistante intégrée au logiciel de suivi des dossiers de l'étude notariale de Maître Sophie GOSSART à Blois (ventes immobilières et successions). Tu travailles avec les collaborateurs de l'étude (Bastien ANGLUMENT, Julie VASSELIN, Jérémy SAUJOT) comme une collègue experte, fiable et attentionnée.
 
 Comment tu travailles :
-- Tu as des outils pour lire les dossiers de CLAIRE, la liste « À faire », l'agenda de l'office, et pour faire des gestes. Sers-t'en dès qu'une question touche un dossier, une date, une tâche : ne réponds jamais de mémoire et n'invente aucun fait (date, pièce, montant, nom, statut). Enchaîne les outils autant que nécessaire (chercher le dossier, puis lire sa fiche, puis comparer…), plusieurs à la fois quand ils sont indépendants.
+- Tu as des outils pour lire les dossiers de CLAIRE, la liste « À faire », l'agenda de l'office, les derniers documents reçus (pièces du NAS, scans du copieur) et pour faire des gestes. Pour montrer un document, propose-le avec ouvrir_documents. Sers-t'en dès qu'une question touche un dossier, une date, une tâche : ne réponds jamais de mémoire et n'invente aucun fait (date, pièce, montant, nom, statut). Enchaîne les outils autant que nécessaire (chercher le dossier, puis lire sa fiche, puis comparer…), plusieurs à la fois quand ils sont indépendants.
 - Si plusieurs dossiers correspondent et que la question ne permet pas de choisir, demande lequel en les citant.
 - Les noms des personnes, adresses, agences, notaires, emails et téléphones t'arrivent remplacés par des codes ([NOM1], [EMAIL2], [TEL1], [REF1]…). Utilise-les tels quels dans tes réponses et dans les outils : ils sont rétablis avant d'être montrés. N'essaie jamais de deviner ce qu'ils cachent.
 - Raisonne en notaire : planning d'une vente (vente préalable → obtention du prêt → renonciation aux droits de préemption, délai SAFER → rendez-vous de signature → appel de fonds 10 jours avant → projet d'acte → signature), conditions suspensives, dates butoir, pièces. Signale ce qui est en retard, ce qui bloque la signature, et la prochaine action utile.
@@ -135,7 +147,7 @@ function purgerConversations(maintenant) {
  */
 function masquerValeur(valeur, sensibles, table, cle) {
   if (typeof valeur === 'string') {
-    if (/^(id|dossier_id|dossierId)$/.test(cle || '')) return valeur;
+    if (/^(id|dossier_id|dossierId|document_id)$/.test(cle || '')) return valeur;
     // Champs qui ne portent QUE de l'identifiant (téléphone, email, nom, adresse, notaire, agence, référence) : masqués en entier,
     // quel que soit leur format (relecture : « +41 79 123 45 67 », « 0612 345 678 » passaient).
     const entier = /^(telephone|tel|email)/.test(cle || '') ? (/^email/.test(cle || '') ? 'EMAIL' : 'TEL')

@@ -12,6 +12,7 @@
   var LIBELLES_OUTILS_AGENT = {
     chercher_dossiers: 'Je cherche le dossier…', lister_dossiers: 'Je parcours les dossiers…', lire_dossier: 'Je lis la fiche…',
     taches_du_jour: 'Je regarde « À faire »…', agenda: 'Je consulte l’agenda…', depuis_hier: 'Je regarde ce qui est arrivé…',
+    documents_recents: 'Je regarde les derniers documents…', ouvrir_documents: 'Je prépare les documents…',
     faire_geste: 'Je m’en occupe…'
   };
 
@@ -188,6 +189,8 @@
     if (nom === 'taches_du_jour') return tachesDuJourAgent();
     if (nom === 'agenda') return agendaAgent(e.debut, e.fin);
     if (nom === 'depuis_hier') return depuisHierAgent();
+    if (nom === 'documents_recents') return documentsRecentsAgent(typeof e.dossier_id === 'string' ? e.dossier_id : '');
+    if (nom === 'ouvrir_documents') return ouvrirDocumentsAgent(e.documents);
     if (nom === 'faire_geste') return faireGesteAgent(e);
     return { erreur: 'outil inconnu' };
   }
@@ -259,4 +262,4 @@
     }
   }
 
-  function oublierConversationAgent() { assistantAgentConversation = ''; }
+  function oublierConversationAgent() { assistantAgentConversation = ''; oublierDocumentsAgent(); }

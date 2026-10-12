@@ -151,8 +151,10 @@ try {
           { id: 'o4', nom: 'taches_du_jour', entree: {} },
           { id: 'o5', nom: 'agenda', entree: { debut: '2026-10-01', fin: '2026-10-31' } },
           { id: 'o6', nom: 'depuis_hier', entree: {} },
-          { id: 'o7', nom: 'lire_dossier', entree: { dossier_id: 'f3' } }
-        ] : tourFaux === 2 ? [{ id: 'o8', nom: 'faire_geste', entree: { geste: 'rappel_ajouter', dossier_id: 'f1', parametres: { date: '2026-10-20', heure: '', texte: 'Relancer la banque', modele: '', echeance: '', champ: '', partie: '', ecran: '', collaborateur: '', titre: '', montant: null } } }] : null;
+          { id: 'o7', nom: 'lire_dossier', entree: { dossier_id: 'f3' } },
+          { id: 'o9', nom: 'documents_recents', entree: { dossier_id: 'f1' } },
+          { id: 'o10', nom: 'documents_recents', entree: { dossier_id: '' } }
+        ] : tourFaux === 2 ? [{ id: 'o11', nom: 'ouvrir_documents', entree: { documents: ['doc999'] } }, { id: 'o8', nom: 'faire_geste', entree: { geste: 'rappel_ajouter', dossier_id: 'f1', parametres: { date: '2026-10-20', heure: '', texte: 'Relancer la banque', modele: '', echeance: '', champ: '', partie: '', ecran: '', collaborateur: '', titre: '', montant: null } } }] : null;
         await r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(appels ? { conversation: 'c1', appels } : { conversation: 'c1', reponse: 'Le dossier **MOREAU** attend :\n- l’offre de prêt' }) });
       });
       await page.evaluate(() => { utilisateurPoste = 'Bastien ANGLUMENT'; assistantDisponibilite.agent = true; assistantDisponibilite.quand = Date.now(); definirOnglet('assistant'); });
@@ -167,8 +169,16 @@ try {
       verifier(parId.o1 && parId.o1.contenu.dossiers.length >= 1, 'agent : la recherche trouve MOREAU');
       verifier(agentFin.rappel && parId.o8 && parId.o8.contenu.fait, 'agent : le rappel est posé par le geste habituel');
       verifier(/<b>MOREAU<\/b>/.test(agentFin.dernier) && /<li>/.test(agentFin.dernier), 'agent : la réponse s’affiche mise en forme');
+      verifier(parId.o9 && Array.isArray(parId.o9.contenu.pieces_recues) && parId.o9.contenu.fichiers_recents_du_dossier_nas !== undefined
+        && parId.o10 && Array.isArray(parId.o10.contenu.scans_a_ranger), 'agent : les derniers documents se lisent (dossier et tous)');
+      verifier(parId.o11 && parId.o11.contenu.erreur, 'agent : un document inconnu n’est pas ouvert');
       verifier(parId.o5 && Array.isArray(parId.o5.contenu.rendez_vous) && !/"titre"|"lieu"|"sujet"/.test(JSON.stringify(parId.o5.contenu)), 'agent : l’agenda part sans titre ni lieu');
       await page.unroute('**/api/assistant/agent');
+      // Sans IA : « les dernières pièces de MOREAU » (étude 12/10) — la réponse s'affiche avec le bouton de Claire Scan.
+      const avantDocs = erreurs.length;
+      await geste(page, 'derniers documents sans IA', () => executerDemandeAssistant({ intention: 'derniers_documents', dossier: 'f1', parametres: {}, candidats: [] }));
+      await page.waitForFunction(() => /Claire Scan/.test(JSON.stringify((assistantMessages[assistantMessages.length - 1] || {}).boutons || [])), null, { timeout: 5000 }).catch(() => {});
+      verifier(erreurs.length === avantDocs && await page.evaluate(() => (assistantMessages[assistantMessages.length - 1].boutons || []).some(b => b.libelle === 'Claire Scan')), 'derniers documents : réponse sans erreur, bouton Claire Scan');
       // Une erreur APRÈS un geste : jamais de repli sur la compréhension d'une phrase (le geste serait refait).
       let compris = 0;
       await page.route('**/api/assistant/comprendre', async (r) => { compris += 1; await r.continue(); });
