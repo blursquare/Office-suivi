@@ -1,25 +1,30 @@
 'use strict';
 
-// Relais Word de l'Aide à la rédaction (0.219.0) : installateur, jeton du poste, relevé du paragraphe, insertion.
+// Relais CLAIRE du poste (0.219.0 →) : programme identique pour tous, code d'installation (jeton), relevé du paragraphe, insertion, sonneries.
 
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 const os = require('node:os');
 const {
-  executableRelaisAvecConfig, MARQUE_CONFIG_RELAIS, jetonValide, empreinteJeton, texteWord,
+  codeInstallationRelais, PREFIXE_CODE_RELAIS, jetonValide, empreinteJeton, texteWord,
   creerEtatRelaisWord, appliquerReleveWord, demanderInsertionWord, etatPosteWord, noterAppelPourRelais, relaisPosteActif
 } = require('../src/relaisWord');
 const { creerApp } = require('../src/app');
 const { ouvrirDb } = require('../src/db');
 
-test('programme du relais : configuration du poste ajoutée à la fin (base64 entre deux marques), lisible par le .cs', () => {
-  const exe = Buffer.from('MZ-programme');
-  const v = executableRelaisAvecConfig(exe, { url: 'http://192.168.60.10:3000/', poste: 'julie', jeton: 'abc123', profil: 'Claire' });
-  assert.ok(v.subarray(0, exe.length).equals(exe));
-  const fin = v.subarray(exe.length).toString('ascii');
-  const m = new RegExp(MARQUE_CONFIG_RELAIS + '([A-Za-z0-9+/=]+)#FIN#$').exec(fin);
-  assert.ok(m);
-  assert.deepEqual(JSON.parse(Buffer.from(m[1], 'base64').toString('utf8')), { url: 'http://192.168.60.10:3000/', poste: 'julie', jeton: 'abc123', profil: 'Claire' });
+test('code d’installation : préfixe puis base64 du JSON de configuration (lu par le .cs)', () => {
+  const code = codeInstallationRelais({ url: 'http://192.168.60.10:3000/', poste: 'julie', jeton: 'abc123', profil: 'Claire' });
+  assert.ok(code.startsWith(PREFIXE_CODE_RELAIS));
+  assert.deepEqual(JSON.parse(Buffer.from(code.slice(PREFIXE_CODE_RELAIS.length), 'base64').toString('utf8')),
+    { url: 'http://192.168.60.10:3000/', poste: 'julie', jeton: 'abc123', profil: 'Claire' });
+});
+
+test('programme gardé dans le dépôt : compilé depuis le .cs actuel (sinon npm run relais), même fichier pour tous', () => {
+  const fs = require('node:fs'); const path = require('node:path'); const crypto = require('node:crypto');
+  const dossier = path.join(__dirname, '..', 'relais');
+  const source = crypto.createHash('sha256').update(fs.readFileSync(path.join(dossier, 'CLAIRE-relais.cs'))).digest('hex');
+  assert.equal(fs.readFileSync(path.join(dossier, 'CLAIRE-relais.source.sha256'), 'utf8').trim(), source, 'CLAIRE-relais.cs modifié : relancer « npm run relais » (serveur) et redonner l’empreinte du .exe pour l’antivirus');
+  assert.equal(fs.readFileSync(path.join(dossier, 'CLAIRE-relais.exe')).subarray(0, 2).toString('latin1'), 'MZ');
 });
 
 test('programme du relais (C#) : pas de frappe simulée, blancs repérés sur le texte, ancien relais PowerShell retiré', () => {
@@ -32,6 +37,10 @@ test('programme du relais (C#) : pas de frappe simulée, blancs repérés sur le
   assert.match(cs, /corps\["appels"\] = 1/);
   assert.match(cs, /e\.h != IntPtr\.Zero && e\.h != devant/);
   assert.match(cs, /if \(devant == h\) return;/);
+  // Configuration par le code copié par CLAIRE (jamais dans le fichier) ; vérifiée auprès du serveur avant l'installation.
+  assert.match(cs, /PREFIXE_CODE = "CLAIRE-RELAIS:"/);
+  assert.match(cs, /relais\.json/);
+  assert.match(cs, /try \{ Verifier\(\); \}/);
 });
 
 test('jeton : empreinte seule gardée, comparaison exacte', () => {
@@ -83,10 +92,9 @@ test('état : relevé, insertion demandée puis rendue au relais une fois, résu
   assert.equal(appliquerReleveWord(etat, 'julie', { word: true, inchange: true }).renvoyer, false);
 });
 
-// La configuration ajoutée à la fin du programme téléchargé.
-function configDuProgramme(octets) {
-  const m = /#CLAIRE-RELAIS#([A-Za-z0-9+/=]+)#FIN#$/.exec(octets.toString('latin1'));
-  return JSON.parse(Buffer.from(m[1], 'base64').toString('utf8'));
+// La configuration portée par un code d'installation.
+function configDuCode(code) {
+  return JSON.parse(Buffer.from(String(code).replace(/^CLAIRE-RELAIS:/, ''), 'base64').toString('utf8'));
 }
 
 let db; let serveurApp; let baseUrl; let session;
@@ -100,17 +108,25 @@ before(async () => {
 });
 after(() => { serveurApp.close(); db.close(); });
 
-test('routes : installateur = jeton du poste ; relevé hors session avec ce jeton seulement ; insertion jusqu’au relais', async () => {
+// Le code d'installation d'un poste (nouveau jeton).
+async function codePour(poste) {
+  const r = await fetch(`${baseUrl}/api/relais-word/code`, { method: 'POST', headers: { authorization: `Bearer ${session}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ poste }) });
+  return (await r.json()).code;
+}
+
+test('routes : programme identique pour tous ; code = jeton du poste ; relevé hors session avec ce jeton seulement ; insertion', async () => {
   const auth = { authorization: `Bearer ${session}` };
   const json = { 'Content-Type': 'application/json' };
-  assert.equal((await fetch(`${baseUrl}/api/relais-word/installateur?poste=Julie`)).status, 401);
+  assert.equal((await fetch(`${baseUrl}/api/relais-word/programme`)).status, 401);
+  assert.equal((await fetch(`${baseUrl}/api/relais-word/code`, { method: 'POST', headers: json, body: '{"poste":"julie"}' })).status, 401);
   assert.equal((await fetch(`${baseUrl}/api/relais-word/etat?poste=julie`, { headers: auth }).then(r => r.json())).installe, false);
-  const inst = await fetch(`${baseUrl}/api/relais-word/installateur?poste=Julie`, { headers: auth });
-  assert.equal(inst.status, 200);
-  const cfg = configDuProgramme(Buffer.from(await inst.arrayBuffer()));
+  const prog = await fetch(`${baseUrl}/api/relais-word/programme`, { headers: auth });
+  assert.equal(prog.status, 200);
+  assert.equal(Buffer.from(await prog.arrayBuffer()).toString(), 'MZ-programme');
+  assert.match(prog.headers.get('content-disposition'), /CLAIRE-relais\.exe/);
+  const cfg = configDuCode(await codePour('Julie'));
   const jeton = cfg.jeton;
   assert.equal(cfg.poste, 'julie');
-  assert.match(inst.headers.get('content-disposition'), /CLAIRE-relais\.exe/);
   const releve = (corps) => fetch(`${baseUrl}/api/relais-word/releve`, { method: 'POST', headers: json, body: JSON.stringify(corps) });
   assert.equal((await releve({ poste: 'julie', jeton: 'faux', word: true })).status, 403);
   assert.equal((await releve({ poste: 'paul', jeton, word: true })).status, 403);
@@ -127,8 +143,8 @@ test('routes : installateur = jeton du poste ; relevé hors session avec ce jeto
   assert.equal(ins.status, 200);
   const cmd = await (await releve({ poste: 'julie', jeton, word: true, inchange: true })).json();
   assert.equal(cmd.commandes[0].valeur, '2641E0000000X');
-  // Un nouvel installateur remplace le jeton : l'ancien relais est refusé.
-  await fetch(`${baseUrl}/api/relais-word/installateur?poste=julie`, { headers: auth });
+  // Un nouveau code remplace le jeton : l'ancien relais est refusé.
+  await codePour('julie');
   assert.equal((await releve({ poste: 'julie', jeton, word: true })).status, 403);
 });
 
@@ -156,7 +172,7 @@ test('appels 3CX : sonnerie rendue au relais actif du poste, une fois, jamais vi
 test('route : sonnerie d’un poste au relais actif → l’onglet de 3CX se ferme aussitôt, le relais reçoit l’appel', async () => {
   const auth = { authorization: `Bearer ${session}` };
   const json = { 'Content-Type': 'application/json' };
-  const jeton = configDuProgramme(Buffer.from(await fetch(`${baseUrl}/api/relais-word/installateur?poste=jeremy`, { headers: auth }).then(r => r.arrayBuffer()))).jeton;
+  const jeton = configDuCode(await codePour('jeremy')).jeton;
   const releve = (corps) => fetch(`${baseUrl}/api/relais-word/releve`, { method: 'POST', headers: json, body: JSON.stringify(corps) }).then(r => r.json());
   await releve({ poste: 'jeremy', jeton, word: false, appels: 1 });
   const page = await fetch(`${baseUrl}/appel?numero=0600000001&nom=&poste=Jeremy`).then(r => r.text());

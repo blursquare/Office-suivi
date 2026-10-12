@@ -5,10 +5,10 @@
 // à faire de copier-coller ») et, depuis 0.220.1, chaque sonnerie 3CX met au premier plan la fenêtre CLAIRE (appelant d'un dossier)
 // ou la fenêtre d'avant la sonnerie.
 //
-// Le relais est un petit programme Windows, server/relais/CLAIRE-relais.cs, compilé avec CLAIRE (build-windows-exe.mjs) — depuis
+// Le relais est un petit programme Windows, server/relais/CLAIRE-relais.cs, compilé une fois (npm run relais) — depuis
 // 0.221.1 (étude : « l'antivirus bloque le relais Word », à l'ouverture du .vbs qui écrivait un script PowerShell). Le serveur
-// le sert avec la configuration du poste AJOUTÉE À LA FIN du fichier (adresse du serveur, collaborateur, jeton, profil du
-// navigateur, en base64 entre deux marques) ; lancé, il s'installe seul (voir le .cs). Il envoie au serveur le paragraphe de Word
+// sert tel quel (même fichier pour tous les postes) ; la configuration du poste passe par un code copié par CLAIRE
+// (codeInstallationRelais) ; lancé, il s'installe seul (voir le .cs). Il envoie au serveur le paragraphe de Word
 // où se trouve le curseur (POST /api/relais-word/releve, avec le jeton) ; le serveur le garde EN MÉMOIRE seulement (jamais en
 // base, jamais journalisé) pour la fenêtre CLAIRE du poste ; la réponse porte les insertions demandées depuis CLAIRE et les
 // sonneries 3CX.
@@ -17,25 +17,25 @@ const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
 
-var MARQUE_CONFIG_RELAIS = '#CLAIRE-RELAIS#';
-var FIN_CONFIG_RELAIS = '#FIN#';
+var PREFIXE_CODE_RELAIS = 'CLAIRE-RELAIS:';
 
-// Pure : le programme du relais avec la configuration de ce poste à la fin (lue par LireConfig dans le .cs).
-/** @param {Buffer} exe @param {{ url: string, poste: string, jeton: string, profil?: string }} cfg @returns {Buffer} */
-function executableRelaisAvecConfig(exe, { url, poste, jeton, profil }) {
-  const json = JSON.stringify({ url, poste, jeton, profil: profil || 'Claire' });
-  return Buffer.concat([exe, Buffer.from('\r\n' + MARQUE_CONFIG_RELAIS + Buffer.from(json, 'utf8').toString('base64') + FIN_CONFIG_RELAIS, 'ascii')]);
+// Pure : le code d'installation du relais pour ce poste — copié par CLAIRE, lu par le programme (JsonDuCode dans le .cs).
+// Depuis le 12/10 au soir (Panda Endpoint Protection mettait le programme en quarantaine) le programme est le MÊME pour tous les
+// postes : une exclusion par empreinte vaut pour tous ; la configuration ne fait plus partie du fichier.
+/** @param {{ url: string, poste: string, jeton: string, profil?: string }} cfg @returns {string} */
+function codeInstallationRelais({ url, poste, jeton, profil }) {
+  return PREFIXE_CODE_RELAIS + Buffer.from(JSON.stringify({ url, poste, jeton, profil: profil || 'Claire' }), 'utf8').toString('base64');
 }
 
-// Le programme du relais : embarqué dans CLAIRE-serveur.exe, sinon construit à côté (server/build, construction locale). null s'il
-// n'a pas été construit (environnement sans compilateur C#).
+// Le programme du relais (compilé une fois, gardé dans server/relais/) : embarqué dans CLAIRE-serveur.exe, sinon lu à côté.
+// null s'il manque.
 /** @returns {Buffer | null} */
 function lireExecutableRelais() {
   try {
     const sea = require('node:sea');
     if (sea.isSea()) return Buffer.from(sea.getAsset('CLAIRE-relais.exe'));
-  } catch (_) { /* pas dans l'exécutable : fichier construit à côté */ }
-  try { return fs.readFileSync(path.join(__dirname, '..', 'build', 'CLAIRE-relais.exe')); } catch (_) { return null; }
+  } catch (_) { /* pas dans l'exécutable : fichier du dépôt */ }
+  try { return fs.readFileSync(path.join(__dirname, '..', 'relais', 'CLAIRE-relais.exe')); } catch (_) { return null; }
 }
 
 /** @param {string} jeton */
@@ -161,7 +161,7 @@ function etatPosteWord(etat, poste, installe, maintenant = Date.now()) {
 }
 
 module.exports = {
-  executableRelaisAvecConfig, lireExecutableRelais, MARQUE_CONFIG_RELAIS,
+  codeInstallationRelais, lireExecutableRelais, PREFIXE_CODE_RELAIS,
   empreinteJeton, nouveauJeton, jetonValide, texteWord,
   creerEtatRelaisWord, appliquerReleveWord, demanderInsertionWord, etatPosteWord, relaisPosteActif, noterAppelPourRelais, RELAIS_VU_MS
 };

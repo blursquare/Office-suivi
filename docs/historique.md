@@ -19395,3 +19395,16 @@ modèle **au choix dans les Réglages**, Opus par défaut.
   copie réessayée (fichier encore verrouillé), dossier de travail = dossier d'installation, `--retirer` ; `Expect: 100-continue`
   coupé. Restent possibles : SmartScreen (exe non signé, empreinte différente à chaque téléchargement à cause du jeton), premier
   plan refusé par Windows (la fenêtre clignote) — à observer au bureau.
+
+- **12/10/2026 15 h 49 — 0.221.2 Relais CLAIRE identique pour tous les postes** (étude : captures de Panda Endpoint Protection
+  Plus — « Virus détecté, nom inconnu » sur `CLAIRE-relais.exe` comme sur les `.vbs` d'avant, fichier mis en quarantaine ;
+  « je peux le faire moi-même » puis « j'ai pas accès en fait » : l'exclusion passe par Fichorga). Un programme non signé et
+  jamais vu est toujours bloqué : une exclusion par empreinte est la voie, et elle n'a de sens que si le fichier est le même
+  partout. Fin de la configuration ajoutée au fichier : programme compilé une fois et gardé dans le dépôt
+  (`server/scripts/compiler-relais.mjs`, `npm run relais` — mcs n'est pas déterministe, une compilation par construction aurait
+  changé l'empreinte à chaque version ; Mono n'est plus installé sur la machine de GitHub), `CLAIRE-relais.source.sha256` vérifié
+  par le test ; configuration par code d'installation (`POST /api/relais-word/code`), copié par CLAIRE, lu dans le presse-papiers
+  par le programme (sinon demandé, `InputBox`), vérifié auprès du serveur avant d'installer, gardé dans `relais.json` ;
+  `server/relais/LISEZMOI.md` = fiche pour Fichorga (empreinte, emplacements, ce que fait le programme). Essayé sous Mono :
+  programme servi tel quel, code demandé à un vrai serveur, `--verifier` accepté. Non vérifiable ici : presse-papiers et
+  InputBox sous Windows, Panda.

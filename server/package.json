@@ -7,7 +7,8 @@
   "scripts": {
     "start": "node --env-file-if-exists=.env src/index.js",
     "test": "node --test",
-    "build:exe": "node scripts/build-windows-exe.mjs"
+    "build:exe": "node scripts/build-windows-exe.mjs",
+    "relais": "node scripts/compiler-relais.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.128.0",

@@ -1,10 +1,12 @@
 // Relais CLAIRE d'un poste (étude 12/10 : « l'antivirus bloque le relais Word » — l'ouverture du .vbs était bloquée).
 //
 // Remplace l'installateur .vbs qui écrivait un script PowerShell (server/src/relaisWord.js avant 0.221.1) : un vrai programme,
-// compilé avec CLAIRE (server/scripts/build-windows-exe.mjs, mcs), téléchargé depuis CLAIRE avec la configuration du poste
-// ajoutée à la fin du fichier (adresse du serveur, collaborateur, jeton, profil du navigateur — voir executableRelaisAvecConfig).
+// compilé une fois et gardé dans le dépôt (server/relais/CLAIRE-relais.exe, même fichier pour tous les postes : une exclusion de
+// l'antivirus par empreinte vaut pour tous — voir server/relais/LISEZMOI.md), téléchargé depuis CLAIRE ; la configuration du
+// poste arrive par un code copié par CLAIRE (voir « Configuration du poste »).
 //
-//  - Lancé sans argument (depuis Téléchargements) : il s'installe — copie dans %LOCALAPPDATA%\CLAIRE\CLAIRE-relais.exe, arrêt
+//  - Lancé sans argument (depuis Téléchargements) : il lit le code (presse-papiers, sinon demandé), le vérifie auprès du serveur,
+//    puis s'installe — configuration dans relais.json, copie dans %LOCALAPPDATA%\CLAIRE\CLAIRE-relais.exe, arrêt
 //    d'un relais déjà lancé (et de l'ancien relais PowerShell), démarrage à l'ouverture de session (clé Run de HKCU), lancement
 //    en arrière-plan, message de confirmation. Aucun droit d'administrateur.
 //  - Lancé avec --fond : une seule copie à la fois (mutex) ; toutes les 0,5 s, le paragraphe de Word où se trouve le curseur
@@ -36,8 +38,6 @@ using Microsoft.Win32;
 
 static class RelaisClaire
 {
-    const string MARQUE = "#CLAIRE-RELAIS#";
-    const string FIN = "#FIN#";
     const string TITRE = "CLAIRE";
 
     static string url = "", poste = "", jeton = "", profil = "Claire";
@@ -64,32 +64,19 @@ static class RelaisClaire
         ServicePointManager.Expect100Continue = false;
         string soi = System.Reflection.Assembly.GetEntryAssembly().Location;
         if (Array.IndexOf(args, "--retirer") >= 0) return Retirer();
-        bool lisible = LireConfig(soi);
+        bool lisible = LireConfigFichier();
         // --verifier : configuration lue et un relevé envoyé au serveur, résultat écrit sur la sortie (contrôle de la
         // construction et de l'installation ; jamais le jeton).
         if (Array.IndexOf(args, "--verifier") >= 0)
         {
             if (!lisible) { Console.WriteLine("configuration illisible"); return 2; }
-            try
-            {
-                // « inchangé » et sans la capacité « appels » : le relais en marche sur ce poste garde son paragraphe, ses
-                // insertions et ses sonneries.
-                Dictionary<string, object> corps = new Dictionary<string, object>();
-                corps["poste"] = poste; corps["jeton"] = jeton; corps["word"] = false; corps["inchange"] = true;
-                corps["resultats"] = new object[0];
-                Console.WriteLine("ok " + url + " " + poste + " " + Poster(url + "api/relais-word/releve", new JavaScriptSerializer().Serialize(corps)));
-                return 0;
-            }
+            try { Console.WriteLine("ok " + url + " " + poste + " " + Verifier()); return 0; }
             catch (Exception e) { Console.WriteLine("serveur : " + e.Message); return 3; }
-        }
-        if (!lisible)
-        {
-            MessageBoxW(IntPtr.Zero, "Ce programme se telecharge depuis CLAIRE (Reglages, Telephonie 3CX, ou Aide a la redaction) : il porte la configuration de votre poste.", TITRE, 0x30);
-            return 1;
         }
         bool fond = false;
         foreach (string a in args) if (a == "--fond") fond = true;
         if (!fond) return Installer(soi);
+        if (!lisible) return 1;
         bool cree;
         using (Mutex mutex = new Mutex(true, "Local\\CLAIRE-relais", out cree))
         {
@@ -99,25 +86,64 @@ static class RelaisClaire
         return 0;
     }
 
-    // ---- Configuration ajoutée à la fin du programme par le serveur ----
-    static bool LireConfig(string chemin)
+    // ---- Configuration du poste ----
+    // Le programme est le MÊME pour tous les postes (étude 12/10 : Panda Endpoint Protection le mettait en quarantaine ; une
+    // exclusion par empreinte ne vaut que pour un fichier identique). La configuration (adresse du serveur, collaborateur, jeton)
+    // arrive par un CODE que CLAIRE copie dans le presse-papiers au téléchargement (« CLAIRE-RELAIS: » + base64 du JSON), lu à
+    // l'installation, puis gardée dans %LOCALAPPDATA%\CLAIRE\relais.json.
+    const string PREFIXE_CODE = "CLAIRE-RELAIS:";
+
+    static string DossierClaire()
+    {
+        return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "CLAIRE");
+    }
+
+    static string FichierConfig() { return Path.Combine(DossierClaire(), "relais.json"); }
+
+    static bool LireConfigFichier()
+    {
+        try { return LireConfigJson(File.ReadAllText(FichierConfig(), Encoding.UTF8)); } catch { return false; }
+    }
+
+    static bool LireConfigJson(string json)
     {
         try
         {
-            byte[] octets = File.ReadAllBytes(chemin);
-            int lire = Math.Min(octets.Length, 8192);
-            string fin = Encoding.ASCII.GetString(octets, octets.Length - lire, lire);
-            int i = fin.LastIndexOf(MARQUE);
-            int j = fin.LastIndexOf(FIN);
-            if (i < 0 || j < i) return false;
-            string b64 = fin.Substring(i + MARQUE.Length, j - i - MARQUE.Length);
-            string json = Encoding.UTF8.GetString(Convert.FromBase64String(b64));
             Dictionary<string, object> cfg = new JavaScriptSerializer().Deserialize<Dictionary<string, object>>(json);
             url = Texte(cfg, "url"); poste = Texte(cfg, "poste"); jeton = Texte(cfg, "jeton");
-            string p = Texte(cfg, "profil"); if (p != "") profil = p;
-            return url.StartsWith("http") && poste != "" && jeton != "";
+            string p = Texte(cfg, "profil"); profil = p != "" ? p : "Claire";
+            return url.StartsWith("http") && url.EndsWith("/") && poste != "" && jeton != "";
         }
         catch { return false; }
+    }
+
+    // Le JSON d'un code d'installation, ou null.
+    static string JsonDuCode(string code)
+    {
+        try
+        {
+            string c = (code ?? "").Trim();
+            int i = c.IndexOf(PREFIXE_CODE);
+            if (i < 0) return null;
+            string b64 = Regex.Match(c.Substring(i + PREFIXE_CODE.Length), "^[A-Za-z0-9+/=]+").Value;
+            return Encoding.UTF8.GetString(Convert.FromBase64String(b64));
+        }
+        catch { return null; }
+    }
+
+    static string LirePressePapiers()
+    {
+        try { return System.Windows.Forms.Clipboard.ContainsText() ? System.Windows.Forms.Clipboard.GetText() : ""; } catch { return ""; }
+    }
+
+    // Un relevé « inchangé », sans la capacité « appels » : le relais en marche sur ce poste garde son paragraphe, ses
+    // insertions et ses sonneries. Rend la réponse du serveur (une exception si refusé ou injoignable).
+    static string Verifier()
+    {
+        Dictionary<string, object> corps = new Dictionary<string, object>();
+        corps["poste"] = poste; corps["jeton"] = jeton; corps["word"] = false; corps["inchange"] = true;
+        corps["resultats"] = new object[0];
+        return Poster(url + "api/relais-word/releve", new JavaScriptSerializer().Serialize(corps));
     }
 
     static string Texte(IDictionary d, string cle)
@@ -128,10 +154,34 @@ static class RelaisClaire
     // ---- Installation ----
     static int Installer(string soi)
     {
+        // Le code copié par CLAIRE au téléchargement ; sinon demandé (à coller depuis CLAIRE).
+        string json = JsonDuCode(LirePressePapiers());
+        if (json == null)
+        {
+            string saisi = Microsoft.VisualBasic.Interaction.InputBox("Collez le code d'installation affiche par CLAIRE (Reglages, Telephonie 3CX, ou Aide a la redaction, bouton d'installation du relais) :", TITRE, "");
+            if (String.IsNullOrEmpty(saisi)) return 1;
+            json = JsonDuCode(saisi);
+        }
+        if (json == null || !LireConfigJson(json))
+        {
+            MessageBoxW(IntPtr.Zero, "Ce code n'est pas un code d'installation de CLAIRE. Recommencez depuis CLAIRE : le bouton d'installation du relais copie le code.", TITRE, 0x30);
+            return 1;
+        }
+        try { Verifier(); }
+        catch (WebException e)
+        {
+            HttpWebResponse r = e.Response as HttpWebResponse;
+            MessageBoxW(IntPtr.Zero, r != null && r.StatusCode == HttpStatusCode.Forbidden
+                ? "CLAIRE ne reconnait pas ce code (un code plus recent a ete demande depuis). Recommencez depuis CLAIRE."
+                : "Le serveur CLAIRE ne repond pas a l'adresse " + url + " : installation abandonnee.", TITRE, 0x30);
+            return 1;
+        }
+        catch { }
         try
         {
-            string dossier = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "CLAIRE");
+            string dossier = DossierClaire();
             Directory.CreateDirectory(dossier);
+            File.WriteAllText(FichierConfig(), json, new UTF8Encoding(false));
             string cible = Path.Combine(dossier, "CLAIRE-relais.exe");
             int moi = Process.GetCurrentProcess().Id;
             foreach (Process p in Process.GetProcessesByName("CLAIRE-relais"))
@@ -192,8 +242,9 @@ static class RelaisClaire
         }
         catch { }
         RetirerAncienRelaisPowerShell();
-        string cible = Path.Combine(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "CLAIRE"), "CLAIRE-relais.exe");
+        string cible = Path.Combine(DossierClaire(), "CLAIRE-relais.exe");
         try { File.Delete(cible); } catch { }
+        try { File.Delete(FichierConfig()); } catch { }
         MessageBoxW(IntPtr.Zero, "Le relais CLAIRE de ce poste est retire.", TITRE, 0x40);
         return 0;
     }

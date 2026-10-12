@@ -22,7 +22,7 @@
 // plus propre.
 'use strict';
 
-import { execSync, execFileSync } from 'node:child_process';
+import { execSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import https from 'node:https';
@@ -178,25 +178,10 @@ async function main() {
   } catch (err) {
     console.warn(`Icône Windows non construite (${err.message.split('\n')[0]}).`);
   }
-  // Relais CLAIRE des postes (server/relais/CLAIRE-relais.cs, étude 12/10 : « l'antivirus bloque le relais Word ») : compilé
-  // ici par mcs (Mono, installé par le workflow), embarqué, servi avec la configuration du poste (src/relaisWord.js). Sans
-  // compilateur en construction locale : CLAIRE sans relais ; dans le workflow (CLAIRE_BUILD), la construction s'arrête.
-  let relais = false;
-  // Machine de GitHub sans Mono : installé ici (le workflow ne se modifie qu'avec un accès que la session n'a pas).
-  if (process.env.GITHUB_ACTIONS) {
-    try { execFileSync('mcs', ['--version'], { stdio: 'ignore' }); } catch (_) {
-      execSync('sudo apt-get install -y -qq mono-devel', { stdio: 'inherit' });
-    }
-  }
-  try {
-    execFileSync('mcs', ['-target:winexe', '-sdk:4.5', '-optimize+', '-nologo', '-out:build/CLAIRE-relais.exe',
-      '-r:Microsoft.CSharp.dll', '-r:System.Web.Extensions.dll', '-r:System.Core.dll',
-      ...(ico ? ['-win32icon:build/icone.ico'] : []), 'relais/CLAIRE-relais.cs'], { cwd: SERVER_DIR, stdio: 'inherit' });
-    relais = true;
-  } catch (err) {
-    if (process.env.CLAIRE_BUILD) throw new Error(`Relais CLAIRE non compilé : ${err.message.split('\n')[0]}`);
-    console.warn(`Relais CLAIRE non compilé (${err.message.split('\n')[0]}) : CLAIRE sans relais de poste.`);
-  }
+  // Relais CLAIRE des postes : compilé une fois et gardé dans le dépôt (server/relais/CLAIRE-relais.exe, `npm run relais`) pour
+  // que le fichier — donc son empreinte, exclue de l'antivirus de l'étude — reste le même d'une version à l'autre.
+  const relais = fs.existsSync(path.join(SERVER_DIR, 'relais', 'CLAIRE-relais.exe'));
+  if (!relais) throw new Error('server/relais/CLAIRE-relais.exe manquant (npm run relais).');
   const seaConfig = {
     main: 'build/claire-server.cjs',
     output: 'build/sea-prep.blob',
@@ -226,7 +211,7 @@ async function main() {
       'icone.svg': '../icone.svg',
       'build-info.json': 'build/build-info.json',
       ...(ico ? { 'icone.ico': 'build/icone.ico' } : {}),
-      ...(relais ? { 'CLAIRE-relais.exe': 'build/CLAIRE-relais.exe' } : {})
+      ...(relais ? { 'CLAIRE-relais.exe': 'relais/CLAIRE-relais.exe' } : {})
     }
   };
   const seaConfigPath = path.join(SERVER_DIR, 'sea-config.json');

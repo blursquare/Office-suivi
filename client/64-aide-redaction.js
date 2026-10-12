@@ -307,7 +307,7 @@
   // le n-ième « --- » de ce paragraphe (Ctrl+Z dans Word l'annule).
 
   // Depuis 0.221.1 (étude : « l'antivirus bloque le relais Word ») : un programme, CLAIRE-relais.exe, plus de script .vbs.
-  var TEXTE_INSTALLATION_RELAIS = 'Ouvrez « CLAIRE-relais.exe » (le navigateur peut demander de le conserver). Windows peut afficher « Windows a protégé votre ordinateur » : « Informations complémentaires », puis « Exécuter quand même ». Un message confirme l’installation ; le relais démarre aussitôt, puis à chaque ouverture de session. Si l’antivirus le bloque encore, faire autoriser « %LOCALAPPDATA%\\CLAIRE\\CLAIRE-relais.exe ».';
+  var TEXTE_INSTALLATION_RELAIS = 'Ouvrez « CLAIRE-relais.exe » (le navigateur peut demander de le conserver). Windows peut afficher « Windows a protégé votre ordinateur » : « Informations complémentaires », puis « Exécuter quand même ». Un message confirme l’installation ; le relais démarre aussitôt, puis à chaque ouverture de session. L’antivirus doit l’autoriser (exclusion demandée à Fichorga).';
 
   function posteRelaisWordAideActe() {
     return utilisateurPoste ? clePosteAppels(utilisateurPoste) : '';
@@ -404,11 +404,18 @@
     }
   }
 
-  async function telechargerRelaisWordAideActe() {
-    const poste = posteRelaisWordAideActe();
+  // Relais CLAIRE du poste (Word et appels 3CX) : le code d'installation de ce collaborateur (copié dans le presse-papiers, le
+  // programme le lit à l'ouverture) puis le programme, le même pour tous les postes (12/10 au soir : exclusion de l'antivirus par
+  // empreinte). `suite` = ce que le relais apporte, dit après l'installation.
+  async function installerRelaisClaire(suite) {
+    const poste = utilisateurPoste ? clePosteAppels(utilisateurPoste) : '';
     if (!poste) { afficherToast('Choisissez d’abord le collaborateur de ce poste.', 'OK', null); return; }
     try {
-      const r = await fetchAvecAuth('/api/relais-word/installateur?poste=' + encodeURIComponent(poste));
+      const rc = await fetchAvecAuth('/api/relais-word/code', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ poste }) });
+      const corps = await rc.json().catch(() => ({}));
+      if (!rc.ok || !corps.code) throw new Error(corps.erreur || 'statut ' + rc.status);
+      const copie = copierTexteSilencieux(corps.code);
+      const r = await fetchAvecAuth('/api/relais-word/programme');
       if (!r.ok) throw new Error(((await r.json().catch(() => ({}))).erreur) || 'statut ' + r.status);
       const blob = await r.blob();
       const lien = document.createElement('a');
@@ -418,10 +425,16 @@
       lien.click();
       document.body.removeChild(lien);
       setTimeout(() => URL.revokeObjectURL(lien.href), 60000);
-      afficherInfoAction('Relais téléchargé', TEXTE_INSTALLATION_RELAIS + ' Cliquez une fois dans Word, puis revenez ici : le paragraphe où se trouve le curseur s’affiche seul.');
+      afficherInfoAction('Relais téléchargé', TEXTE_INSTALLATION_RELAIS
+        + (copie ? ' Le code d’installation de ce poste est copié : ouvrez le programme tout de suite, il le lit seul.' : ' Le programme demandera le code d’installation de ce poste : ' + corps.code)
+        + (suite ? ' ' + suite : ''));
     } catch (e) {
-      afficherToast('Téléchargement impossible : ' + (e.message || 'erreur') + '.', 'OK', null);
+      afficherToast('Téléchargement du relais impossible : ' + (e.message || 'erreur') + '.', 'OK', null);
     }
+  }
+
+  function telechargerRelaisWordAideActe() {
+    return installerRelaisClaire('Cliquez une fois dans Word, puis revenez ici : le paragraphe où se trouve le curseur s’affiche seul.');
   }
 
   function renderWordAideActe() {

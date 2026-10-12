@@ -621,25 +621,10 @@
   // Appels 3CX dans la fenêtre CLAIRE (étude 07/10 : « 3CX ouvre l'appel dans un onglet Chrome et pas dans mon app séparée ») :
   // l'installateur du relais « claire-appel: » (server/src/relaisAppel3cx.js) pour le collaborateur de ce poste.
   async function telechargerRelaisAppel3cx() {
-    if (!utilisateurPoste) { afficherToast('Choisissez d’abord le collaborateur de ce poste.', 'OK', null); return; }
-    try {
-      // Depuis le 12/10 : le relais CLAIRE du poste (server/src/relaisWord.js), qui tourne en permanence — plus de lien
-      // « claire-appel: » à autoriser ni de démarrage à chaque sonnerie (étude : « Chrome s'ouvre au premier plan à chaque appel,
-      // c'est pénible ; CLAIRE ne s'affiche pas au premier plan lorsqu'un dossier est trouvé »).
-      const r = await fetchAvecAuth('/api/relais-word/installateur?poste=' + encodeURIComponent(clePosteAppels(utilisateurPoste)));
-      if (!r.ok) throw new Error(((await r.json().catch(() => ({}))).erreur) || 'statut ' + r.status);
-      const blob = await r.blob();
-      const lien = document.createElement('a');
-      lien.href = URL.createObjectURL(blob);
-      lien.download = 'CLAIRE-relais.exe';
-      document.body.appendChild(lien);
-      lien.click();
-      document.body.removeChild(lien);
-      setTimeout(() => URL.revokeObjectURL(lien.href), 60000);
-      afficherInfoAction('Relais téléchargé', TEXTE_INSTALLATION_RELAIS + ' À chaque sonnerie, l’onglet de 3CX se ferme : si l’appelant a un dossier, la fenêtre CLAIRE passe au premier plan sur l’appel (elle s’ouvre si elle était fermée) ; sinon, la fenêtre où vous étiez revient au premier plan. Le même relais sert à l’Aide à la rédaction (Word).');
-    } catch (e) {
-      afficherToast('Téléchargement de l’installateur impossible : ' + e.message, 'OK', null);
-    }
+    // Depuis le 12/10 : le relais CLAIRE du poste (server/src/relaisWord.js, client/64), qui tourne en permanence — plus de lien
+    // « claire-appel: » à autoriser ni de démarrage à chaque sonnerie (étude : « Chrome s'ouvre au premier plan à chaque appel,
+    // c'est pénible ; CLAIRE ne s'affiche pas au premier plan lorsqu'un dossier est trouvé »).
+    await installerRelaisClaire('À chaque sonnerie, l’onglet de 3CX se ferme : si l’appelant a un dossier, la fenêtre CLAIRE passe au premier plan sur l’appel (elle s’ouvre si elle était fermée) ; sinon, la fenêtre où vous étiez revient au premier plan. Le même relais sert à l’Aide à la rédaction (Word).');
     renderReglages3cx();
   }
 
