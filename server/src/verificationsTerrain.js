@@ -52,6 +52,8 @@ const VERIFICATIONS_TERRAIN = [
     comment: 'Coché à la première proposition de réponse rendue par Ollama ; en échec si l’IA locale est indisponible.' },
   { id: 'aide-redaction-ddt', depuis: '0.218.0', source: 'poste', titre: 'Aide à la rédaction : rapport de diagnostic du NAS lu (société, dates, conclusions, DPE)',
     comment: 'Coché à la première lecture réussie d’un rapport de diagnostic depuis l’outil « Aide à la rédaction » ; en échec si le PDF ne s’ouvre pas. Les valeurs lues sont à comparer au rapport la première fois.' },
+  { id: 'aide-redaction-pieces', depuis: '0.218.0', source: 'poste', titre: 'Aide à la rédaction : certificat d’urbanisme, renonciation, état des risques, assainissement, non-péril lus sur le NAS (OCR des scans)',
+    comment: 'Coché à la première pièce lue ; en échec si la pièce ne s’ouvre pas. Les valeurs lues par l’OCR sont à comparer à la pièce les premières fois.' },
   { id: 'aide-redaction-ia', depuis: '0.218.0', source: 'serveur', titre: 'Aide à la rédaction : l’IA désigne le champ des blancs « --- » d’une trame inconnue',
     comment: 'Coché à la première réponse de l’IA ; en échec si l’IA ne répond pas ou hors format. Seuls le passage (noms masqués) et la liste des champs partent.' },
   { id: 'assistant-agent', depuis: '0.213.0', source: 'serveur', titre: '« Demander à CLAIRE » en agent : Claude lit les dossiers (masqués) avec ses outils et répond',

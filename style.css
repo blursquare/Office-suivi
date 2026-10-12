@@ -9445,4 +9445,5 @@ table.pr-zt td.pr-zt-retenue select { min-width: 120px; min-height: 32px; height
 .red-ligne-valeur { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .red-valeur { font-size: var(--texte-base); color: var(--ink); overflow-wrap: anywhere; }
 .red-vide { color: var(--muted); font-size: var(--texte-s); margin: 0; }
+.red-alerte { margin: 4px 0 0; color: var(--urgent); font-size: var(--texte-s); font-weight: 600; }
 .red-etat { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--muted); font-size: var(--texte-s); }

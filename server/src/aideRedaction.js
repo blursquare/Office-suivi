@@ -38,7 +38,8 @@ Réponds en JSON seul : {"blancs": ["<clé ou vide>", …]} avec exactement ${no
 /** Schéma de sortie (Claude). Pure. @param {number} nombre */
 function schemaCorrespondanceActe(nombre) {
   return { type: 'object', additionalProperties: false, required: ['blancs'],
-    properties: { blancs: { type: 'array', minItems: nombre, maxItems: nombre, items: { type: 'string', enum: ['', ...R.CHAMPS_ACTE.map((c) => c.cle)] } } } };
+    // Sans minItems/maxItems : les sorties structurées n'acceptent pas toute borne ; la longueur est contrôlée par le validateur.
+    properties: { blancs: { type: 'array', items: { type: 'string', enum: ['', ...R.CHAMPS_ACTE.map((c) => c.cle)] } } } };
 }
 
 /** Contrôle de la réponse : des clés de la liste, autant que de blancs. Pure. @param {number} nombre */

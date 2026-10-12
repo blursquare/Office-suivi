@@ -62,9 +62,11 @@
     poser('agence_nom', d.nomAgence, 'Fiche · agence');
     poser('email_vendeur', d.emailVendeur, 'Fiche · email du vendeur');
     poser('email_acquereur', d.emailAcquereur, 'Fiche · email de l’acquéreur');
-    const l = lecture && lecture.ddt;
+    const pieces = (lecture && lecture.pieces) || {};
+    const l = pieces.ddt && !pieces.ddt.erreur ? pieces.ddt : (lecture && lecture.ddt) || null;
+    const cheminDdt = (pieces.ddt && pieces.ddt.chemin) || (lecture && lecture.chemin);
     if (l) {
-      const src = (page) => ({ chemin: lecture.chemin, page });
+      const src = (page) => ({ chemin: cheminDdt, page });
       const nom = 'Rapport de diagnostic';
       poser('diag_societe', l.societe, nom, src(1));
       poser('diag_operateur', l.operateur, nom, src(1));
@@ -83,27 +85,87 @@
         poser('dpe_classe_ges', l.dpe.classeGes, `Calculée : ${l.dpe.ges} kg CO₂/m²/an — à vérifier sur le DPE`, src(g.dpe ? g.dpe.page : 1));
       }
     }
+    // Les autres pièces lues : chacune ouvre sa source d'un clic ; une pièce à part (état des risques) passe avant le rapport.
+    const lu = (cle) => (pieces[cle] && !pieces[cle].erreur ? pieces[cle] : null);
+    const depuis = (p) => ({ chemin: p.chemin, page: 1 });
+    const cu = lu('cu');
+    if (cu) { poser('cu_numero', cu.numero, cu.libelle, depuis(cu)); poser('cu_date', dateActe(cu.date), cu.libelle, depuis(cu)); poser('cu_zone', cu.zone, cu.libelle, depuis(cu)); }
+    const ren = lu('renonciation');
+    if (ren) {
+      poser('dia_numero', ren.numero, ren.libelle, depuis(ren));
+      poser('dia_envoi_date', dateActe(ren.dateDia), ren.libelle, depuis(ren));
+      poser('dia_presentation_date', dateActe(ren.receptionMairie), ren.libelle + ' · reçue en mairie', depuis(ren));
+      poser('dia_renonciation_date', dateActe(ren.dateRenonciation), ren.libelle, depuis(ren));
+    }
+    const erp = lu('erp');
+    if (erp) { poser('erp_date', dateActe(erp.date), erp.libelle, depuis(erp)); poser('erp_risques', erp.risques, erp.libelle, depuis(erp)); }
+    const ass = lu('assainissement');
+    if (ass) { poser('assainissement_date', dateActe(ass.date), ass.libelle, depuis(ass)); poser('assainissement_conclusion', ass.conclusion, ass.libelle, depuis(ass)); }
+    const per = lu('peril');
+    if (per) { poser('peril_date', dateActe(per.date), per.libelle, depuis(per)); poser('peril_conclusion', per.conclusion, per.libelle, depuis(per)); }
     return v;
   }
 
-  // Le rapport de diagnostic du dossier, lu sur le NAS (fichier retenu pour la pièce « Diagnostics techniques »).
+  // Pièces lues pour l'acte (étude 12/10 : « tu as tout sur le commun ») : clé de la checklist (ou motif du nom pour une pièce
+  // hors checklist) → lecteur de commun/redaction.js. Scans sans texte : OCR des premières pages, comme Claire Scan.
+  var PIECES_AIDE_ACTE = [
+    { cle: 'ddt', piece: 'diagnosticsTechniques', libelle: 'Rapport de diagnostic', pages: 120, lire: (pages) => lireDossierDiagnostic(pages) },
+    { cle: 'erp', piece: 'erp', libelle: 'État des risques', pages: 3, lire: (pages) => lireEtatRisques(pages.join(' ')) },
+    { cle: 'cu', piece: 'certificatUrbanisme', libelle: 'Certificat d’urbanisme', pages: 3, lire: (pages) => lireCertificatUrbanisme(pages.join(' ')) },
+    { cle: 'renonciation', piece: 'renonciationPreemption', libelle: 'Renonciation au droit de préemption', pages: 3, lire: (pages) => lireRenonciationPreemption(pages.join(' ')) },
+    { cle: 'assainissement', piece: 'reponseAssainissement', libelle: 'Courrier d’assainissement', pages: 2, lire: (pages) => lireCourrierAssainissement(pages.join(' ')) },
+    { cle: 'peril', nom: /p[ée]ril|insalubrit/i, libelle: 'Certificat de non-péril', pages: 2, lire: (pages) => lireCertificatPeril(pages.join(' ')) }
+  ];
+
+  // Le texte des premières pages d'un PDF du NAS ; une page sans texte (scan) passe par l'OCR.
+  async function texteParPageAideActe(chemin, maxPages) {
+    const pdf = await ouvrirPdfNas(chemin);
+    const pages = [];
+    let worker = null;
+    try {
+      for (let p = 1; p <= Math.min(pdf.numPages, maxPages); p++) {
+        let t = (await (await pdf.getPage(p)).getTextContent()).items.map(it => it.str).join(' ');
+        if (t.trim().length < 40 && p <= 3) {
+          if (worker === null) worker = (await creerWorkerOcr()) || false;
+          if (worker) t = (await ocrPage(pdf, p, worker)) || t;
+        }
+        pages.push(t);
+      }
+    } finally {
+      if (worker) { try { await worker.terminate(); } catch (e) { /* déjà arrêté */ } }
+    }
+    return pages;
+  }
+
   async function lirePiecesAideActe() {
     const d = dossierAideActe();
     if (!d) return;
-    const chemin = cheminFichierPieceAssistant(d, 'diagnosticsTechniques');
-    if (!chemin) { aideActe.lecture[d.id] = { etat: d.nasDossier ? 'Aucun rapport de diagnostic retrouvé sur le NAS.' : 'Dossier non relié au NAS.' }; renderAideActe(); return; }
-    aideActe.lecture[d.id] = { etat: 'Lecture du rapport de diagnostic…' };
+    if (!d.nasDossier) { aideActe.lecture[d.id] = { etat: 'Dossier non relié au NAS : seules les données de la fiche sont proposées.', pieces: {} }; renderAideActe(); return; }
+    const lecture = { etat: 'Lecture des pièces du NAS…', pieces: {} };
+    aideActe.lecture[d.id] = lecture;
     renderAideActe();
-    try {
-      const pdf = await ouvrirPdfNas(chemin);
-      const pages = [];
-      for (let p = 1; p <= Math.min(pdf.numPages, 80); p++) pages.push((await (await pdf.getPage(p)).getTextContent()).items.map(it => it.str).join(' '));
-      aideActe.lecture[d.id] = { chemin, ddt: lireDossierDiagnostic(pages), etat: '' };
-      noterVerificationPoste('aide-redaction-ddt', { ok: true });
-    } catch (e) {
-      aideActe.lecture[d.id] = { etat: 'Rapport de diagnostic illisible : ' + (e.message || 'erreur') };
-      noterVerificationPoste('aide-redaction-ddt', { ok: false, message: 'rapport illisible' });
+    let fichiersNas = null;
+    for (const def of PIECES_AIDE_ACTE) {
+      let chemin = def.piece ? cheminFichierPieceAssistant(d, def.piece) : '';
+      if (!chemin && def.nom) {
+        try { if (fichiersNas === null) fichiersNas = await listerFichiersNas(d); } catch (e) { fichiersNas = []; }
+        const f = fichiersNas.find(x => def.nom.test(x.nom || ''));
+        if (f) chemin = cheminNasComplet(d, f.chemin);
+      }
+      if (!chemin) continue;
+      try {
+        lecture.pieces[def.cle] = { chemin, libelle: def.libelle, ...def.lire(await texteParPageAideActe(chemin, def.pages)) };
+      } catch (e) {
+        lecture.pieces[def.cle] = { chemin, libelle: def.libelle, erreur: true };
+      }
     }
+    const lues = Object.values(lecture.pieces).filter(x => !x.erreur).map(x => x.libelle);
+    const ratees = Object.values(lecture.pieces).filter(x => x.erreur).map(x => x.libelle);
+    lecture.etat = (lues.length ? 'Lu sur le NAS : ' + lues.join(', ') + '.' : 'Aucune pièce lisible retrouvée sur le NAS.') + (ratees.length ? ' Illisible : ' + ratees.join(', ') + '.' : '');
+    if (lecture.pieces.ddt && !lecture.pieces.ddt.erreur) noterVerificationPoste('aide-redaction-ddt', { ok: true });
+    else if (lecture.pieces.ddt) noterVerificationPoste('aide-redaction-ddt', { ok: false, message: 'rapport illisible' });
+    const autre = Object.keys(lecture.pieces).find(k => k !== 'ddt');
+    if (autre) noterVerificationPoste('aide-redaction-pieces', lecture.pieces[autre].erreur ? { ok: false, message: 'pièce illisible' } : { ok: true });
     if (dossierAideActe() && dossierAideActe().id === d.id) renderAideActe();
   }
 
@@ -151,6 +213,8 @@
     }
     aideActe.iaEnCours = false;
     renderResultatAideActe();
+    // Un autre passage collé pendant l'appel : sa demande à l'IA est faite maintenant (relecture 0.218.0).
+    if (passage !== aideActe.passage) demanderIaAideActe();
   }
 
   function copierValeurAideActe(cle) {
@@ -193,6 +257,8 @@
     if (!r.trous.length) { zone.innerHTML = tete + '<p class="red-vide">Aucun blanc « --- » dans ce passage.</p>'; return; }
     zone.innerHTML = tete + r.trous.map((t, i) => {
       const titre = `Blanc ${i + 1}${t.champ ? ' · ' + libelleChampActe(t.champ) : ''}${t.parIa ? ' (désigné par l’IA)' : ''}`;
+      // Champ choisi par l'IA : averti en clair, la valeur se vérifie avant d'être copiée (relecture 0.218.0).
+      if (t.champ && t.parIa) return `<p class="red-alerte">Blanc ${i + 1} : champ choisi par l’IA, à vérifier.</p>` + ligneValeurAideActe(t.champ, valeurs[t.champ], titre);
       return t.champ ? ligneValeurAideActe(t.champ, valeurs[t.champ], titre)
         : `<div class="red-ligne"><div class="red-ligne-tete"><span class="red-libelle">${escapeHtml(titre)}</span></div><div class="red-ligne-valeur"><span class="red-vide">Champ non reconnu</span></div></div>`;
     }).join('');
@@ -216,7 +282,7 @@
     const lecture = aideActe.lecture[d.id] || {};
     const valeurs = valeursActeDossier(d, lecture);
     const groupes = [...new Set(CHAMPS_ACTE.map(c => c.groupe))];
-    zone.innerHTML = `<div class="red-etat">${lecture.etat ? escapeHtml(lecture.etat) : lecture.ddt ? 'Rapport de diagnostic lu.' : ''}
+    zone.innerHTML = `<div class="red-etat">${lecture.etat ? escapeHtml(lecture.etat) : ''}
         <wa-button appearance="plain" size="s" class="bouton-discret" type="button" onclick="lirePiecesAideActe()">${icone('rotate-ccw')} Relire les pièces</wa-button></div>`
       + groupes.map(g => {
         const champs = CHAMPS_ACTE.filter(c => c.groupe === g);

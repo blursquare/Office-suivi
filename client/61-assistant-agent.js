@@ -175,7 +175,9 @@
     const ajout = assistantMessages.slice(assistantMessages.indexOf(dernier) + 1).filter(m => m.role === 'claire').map(m => {
       const tmp = document.createElement('div'); tmp.innerHTML = m.html; return (tmp.textContent || '').replace(/\s+/g, ' ').trim();
     }).join(' ');
-    return { fait: true, affiche_a_l_utilisateur: ajout.slice(0, 1500) };
+    // Le jour de la date du geste, pour que l'agent voie un « vendredi 5 novembre » qui est un jeudi (12/10).
+    const date = entree.parametres && /^\d{4}-\d{2}-\d{2}$/.test(entree.parametres.date || '') ? entree.parametres.date : '';
+    return { fait: true, affiche_a_l_utilisateur: ajout.slice(0, 1500), ...(date ? { date_du_geste: new Date(date + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) } : {}) };
   }
 
   async function executerOutilAgent(nom, entree) {

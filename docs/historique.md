@@ -19294,3 +19294,25 @@ modèle **au choix dans les Réglages**, Opus par défaut.
   aux clés de la liste ; jamais une valeur du dossier. Points terrain `aide-redaction-ddt`, `aide-redaction-ia`.
 - À venir : relais Word (curseur suivi, valeur insérée à la place du « --- »), certificat d'urbanisme et autres pièces (exemples
   réels attendus).
+- Même version, pièces envoyées par l'étude le 12/10 (« tu as tout sur le commun » — le commun n'est pas joignable d'ici ;
+  exemples réels déposés : état des risques PRAETOR, renonciation au DPU, certificat de non-péril, certificat d'urbanisme, courrier
+  d'assainissement d'Agglopolys, tous scannés sauf l'ERP) : lecteurs `lireCertificatUrbanisme` (numéro « CU a … », « Fait le … »,
+  zone), `lireRenonciationPreemption` (n° de DIA, DIA « en date du », « reçue en mairie le », « date renonciation »),
+  `lireCertificatPeril`, `lireCourrierAssainissement` (collectif / non collectif, réseau séparatif), `lireEtatRisques` (date
+  d'édition, risques sur la parcelle), `dateFrVersIso`, `dateCourrier` ; poste : `PIECES_AIDE_ACTE`, OCR des pages sans texte
+  (`texteParPageAideActe`, même OCR que Claire Scan), certificat de non-péril retrouvé par son nom sur le NAS. Point terrain
+  `aide-redaction-pieces`.
+- Relecture indépendante corrigée : catalogue appliqué seulement quand le passage a autant de blancs que la clause (sinon l'IA) ;
+  intitulé de clause en tête pesé (4 points au début, 2 dans les 300 premiers caractères, 1 ailleurs), 2 points au moins, égalité =
+  non reconnue ; clauses plomb et termites ; emails et taxe foncière resserrés ; consignes « --- Option / Nota / le cas échéant /
+  voir » insensibles à la casse ; « UN MILLION D'EUROS », « DEUX CENTS MILLIONS », au-delà d'un milliard rien ; dates impossibles
+  refusées ; étiquette énergie du DPE = la pire des lettres consommation / émissions (double seuil 2021) ; page de sommaire du
+  rapport de diagnostic écartée, date d'établissement avant la date de visite, 120 pages lues ; IA relancée quand un autre passage
+  est collé pendant l'appel ; schéma Claude sans bornes de longueur ; champ choisi par l'IA averti en rouge ; contrainte 1 de
+  CLAUDE.md complétée.
+- « Demander à CLAIRE » (étude 12/10 : « Prépare un email aux vendeurs … le rendez-vous de signature est le vendredi 5 novembre à
+  17 h » → l'email partait à l'acquéreur, sans la date ; et le 5 novembre 2026 est un jeudi) : `destinataireEmailAssistant` (partie
+  demandée ; vendeur accompagné de son notaire → ce confrère), `envoyerRelanceCiblee(…, options)` (`destinataire`, `confrere`,
+  `rendezVous` écrit sur une COPIE du dossier — la fiche ne change pas ; bouton « Placer la signature à cette date »),
+  `construireEmailConfirmationRdv(d, contexte)`, `jourSemaineContredit` (commun/assistant.js) : « Attention : le … est un jeudi »
+  en tête de la réponse ; agent : `date_du_geste` dans le résultat d'un geste, consigne de vérifier le jour et de toujours vouvoyer.

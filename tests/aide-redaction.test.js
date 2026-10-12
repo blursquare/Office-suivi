@@ -72,3 +72,56 @@ test('valeurs de l’acte d’un dossier : fiche et rapport lu, inconnues absent
   assert.equal(v.honoraires_debiteur.valeur, 'l’acquéreur');
   assert.equal(v.cu_date, undefined);
 });
+
+test('pièces de la mairie et d’Agglopolys (structure de vrais scans, texte d’OCR, noms inventés)', () => {
+  const cu = R.lireCertificatUrbanisme('RÉPUBLIQUE FRANCAISE Dossier n° CU a 041 999 26 00012 Date de dépôt : 18 Septembre 2026 Demandeur : Maître X … Zone(s) et coefficient(s) d’occupation des sols : – Zone Ub2 … Fait le 22 Septembre 2026 Le Maire');
+  assert.equal(cu.numero, 'CU a 041 999 26 00012');
+  assert.equal(cu.date, '2026-09-22');
+  assert.equal(cu.zone, 'Ub2');
+  const ren = R.lireRenonciationPreemption('Le 22 septembre 2026 Mairie de Nulleville à Maître X OBJET : Droit de Préemption Urbain - DIA 41999 26 00032 Renonciation … au même prix que celui fixé dans la DIA jointe (en date du 15 Septembre 2026) … Considérant la déclaration d’intention d’aliéner présentée par Maître X, Notaire à BLOIS le 15/09/2026, reçue en mairie le 18/09/2026 DÉCIDE … date renonciation : 22//09/2026');
+  assert.equal(ren.numero, '41999 26 00032');
+  assert.equal(ren.dateDia, '2026-09-15');
+  assert.equal(ren.receptionMairie, '2026-09-18');
+  assert.equal(ren.dateRenonciation, '2026-09-22');
+  const per = R.lireCertificatPeril('RÉPUBLIQUE FRANÇAISE Le 23 septembre 2026 Monsieur le Maire à Maître X … Je vous informe qu’aucun arrêté n’a été pris pour les situations évoquées ci-dessus.');
+  assert.equal(per.date, '2026-09-23');
+  assert.match(per.conclusion, /Aucun arrêté/);
+  const ass = R.lireCourrierAssainissement('Étude de Maître X Blois, le 23 septembre 2026 Maître, L’immeuble sis 1 rue Y est situé en zone d’assainissement collectif. La rue est desservie par un réseau de type séparatif');
+  assert.equal(ass.date, '2026-09-23');
+  assert.equal(ass.conclusion, 'Zone d’assainissement collectif, réseau séparatif');
+  const erp = R.lireEtatRisques('État des Risques et Pollutions (ERP) INFORMATIONS GÉNÉRALES : Date d\'édition : 07/09/2026 Valide jusqu\'au : 07/03/2027 … Risques sur parcelle(s) : Argiles Sismicité max : Zone 1 Radon max : Niveau 1');
+  assert.equal(erp.date, '2026-09-07');
+  assert.equal(erp.risques, 'Argiles, sismicité zone 1, radon niveau 1');
+  assert.equal(R.dateFrVersIso('1er octobre 2026'), '2026-10-01');
+});
+
+test('valeurs de l’acte depuis les pièces lues (DPU : DIA, réception, renonciation)', () => {
+  const d = { id: 'r2', nom: 'X', typeVente: 'maison' };
+  const v = app.valeursActeDossier(d, { pieces: {
+    renonciation: { chemin: 'a.pdf', libelle: 'Renonciation', numero: '41999 26 00032', dateDia: '2026-09-15', receptionMairie: '2026-09-18', dateRenonciation: '2026-09-22' },
+    cu: { chemin: 'b.pdf', libelle: 'CU', numero: 'CU a 041 999 26 00012', date: '2026-09-22', zone: 'Ub2' },
+    erp: { chemin: 'c.pdf', libelle: 'ERP', erreur: true } } });
+  assert.equal(v.dia_envoi_date.valeur, '15 septembre 2026');
+  assert.equal(v.dia_presentation_date.valeur, '18 septembre 2026');
+  assert.equal(v.dia_renonciation_date.valeur, '22 septembre 2026');
+  assert.equal(v.cu_numero.valeur, 'CU a 041 999 26 00012');
+  assert.equal(v.cu_date.chemin, 'b.pdf');
+  assert.equal(v.erp_date, undefined, 'une pièce illisible ne donne rien');
+});
+
+test('relecture 0.218.0 : jamais un champ par position quand la trame a changé, jamais une clause sur un seul mot', () => {
+  assert.equal(champs('HONORAIRES D\'AGENCE\nnégociée par l\'agence ---, carte professionnelle n°---, honoraires de --- à la charge de ---'), ',,,', 'quatre blancs, trois champs attendus : l’IA décide');
+  assert.equal(R.clauseDuPassage('PLOMB - Le constat a été établi le --- par la société ---, en même temps que le repérage amiante').cle, 'plomb');
+  assert.equal(R.clauseDuPassage('Termites - L’état a été établi le --- par ---, comme le repérage amiante').cle, 'termites');
+  assert.equal(R.clauseDuPassage('Etat de l\'installation intérieure d\'électricité et de l\'installation intérieure de gaz ---').cle, 'electricite', 'l’intitulé en tête l’emporte');
+  assert.equal(R.clauseDuPassage('Il est ici rappelé aux parties que le diagnostiqueur a examiné l’installation intérieure de gaz et l’installation intérieure d’électricité de l’immeuble ---'), null, 'deux clauses citées au même rang : rien');
+  assert.equal(R.trousDuPassage('--- Option 2\n--- le cas échéant\nLe ---').length, 1);
+});
+
+test('relecture 0.218.0 : étiquette énergie du DPE = la pire des deux lettres', () => {
+  const l = R.lireDossierDiagnostic(['Diagnostic de performance énergétique (logement) Etabli le : 05/04/2026 Surface de référence : 100,00 m² énergie totale pour les usages recensés : 20 000 kWh Ce logement émet 6 000 kg de CO ₂ par an']);
+  assert.equal(l.dpe.classeGes, 'E');
+  assert.equal(l.dpe.classeEnergie, 'E', '200 kWh/m² (D) et 60 kg/m² (E) : étiquette E');
+  const sommaire = R.lireDossierDiagnostic(['Sommaire Constat de repérage amiante État de l’installation intérieure d’électricité Diagnostic de performance énergétique Date de visite : 01/01/2026']);
+  assert.equal(Object.keys(sommaire.diagnostics).length, 0, 'une page de sommaire ne désigne aucun diagnostic');
+});

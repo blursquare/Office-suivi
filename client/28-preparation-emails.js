@@ -1166,24 +1166,24 @@
   // le rend pertinent pour CE dossier (pas de relance "prêt" sur un achat comptant, pas de relance
   // "pièces" si tout est déjà reçu) — évaluée à l'affichage par echangesSelonStade().
   var MODELES_EMAIL_RELANCE = {
-    provision: { cle: 'provision', libelle: 'Provision + pièce d’identité', construire: d => emailDepuisModele('provision', d), historique: 'Relance manuelle envoyée — provision sur frais et pièce d’identité', date: 'provisionDemandeeLe' },
-    pret: { cle: 'pret', libelle: 'Prêt manquant', construire: d => emailDepuisModele('pret', d), historique: 'Relance manuelle envoyée — offre de prêt' },
-    rib: { cle: 'rib', libelle: 'RIB', construire: d => emailDepuisModele('rib', d), historique: 'Relance manuelle envoyée — RIB', date: 'ribDemandeLe' },
-    ventePrealable: { cle: 'ventePrealable', libelle: 'Vente préalable', construire: d => emailDepuisModele('ventePrealable', d), historique: 'Relance envoyée — vente préalable', date: 'relanceVentePrealableLe' },
+    provision: { cle: 'provision', libelle: 'Provision + pièce d’identité', construire: (d, c) => emailDepuisModele('provision', d, undefined, c), historique: 'Relance manuelle envoyée — provision sur frais et pièce d’identité', date: 'provisionDemandeeLe' },
+    pret: { cle: 'pret', libelle: 'Prêt manquant', construire: (d, c) => emailDepuisModele('pret', d, undefined, c), historique: 'Relance manuelle envoyée — offre de prêt' },
+    rib: { cle: 'rib', libelle: 'RIB', construire: (d, c) => emailDepuisModele('rib', d, undefined, c), historique: 'Relance manuelle envoyée — RIB', date: 'ribDemandeLe' },
+    ventePrealable: { cle: 'ventePrealable', libelle: 'Vente préalable', construire: (d, c) => emailDepuisModele('ventePrealable', d, undefined, c), historique: 'Relance envoyée — vente préalable', date: 'relanceVentePrealableLe' },
     // `date` : champ du dossier qui mémorise l'envoi, pour que la carte dise ensuite « confirmée le … ».
-    fonds: { cle: 'fonds', libelle: 'Confirmer la réception des fonds', construire: d => emailDepuisModele('fonds', d), historique: 'Email envoyé — confirmation de réception des fonds en comptabilité', date: 'receptionFondsConfirmeeLe' },
+    fonds: { cle: 'fonds', libelle: 'Confirmer la réception des fonds', construire: (d, c) => emailDepuisModele('fonds', d, undefined, c), historique: 'Email envoyé — confirmation de réception des fonds en comptabilité', date: 'receptionFondsConfirmeeLe' },
     // L'envoi du projet EST l'étape « Envoi projet » du dossier : sa date est d.projetEnvoye (même
     // effet que la date saisie sur la fiche ou « Marquer envoyé », agenda compris).
-    projet: { cle: 'projet', libelle: 'Projet d’acte', construire: d => emailDepuisModele('projet', d), historique: 'Email envoyé — projet d’acte', date: 'projetEnvoye' },
+    projet: { cle: 'projet', libelle: 'Projet d’acte', construire: (d, c) => emailDepuisModele('projet', d, undefined, c), historique: 'Email envoyé — projet d’acte', date: 'projetEnvoye' },
     // Relation client (page Agenda, 30/09) : confirmation du rendez-vous — mémorisée pour CETTE date
     // (confirmationRdvPour), un rendez-vous déplacé la repropose. « Un an après la signature » retiré le 07/10 (étude).
     // Le rappel du rendez-vous à part a été retiré le 03/10 (étude).
-    confirmationRdv: { cle: 'confirmationRdv', libelle: 'Confirmer le rendez-vous de signature', construire: d => emailDepuisModele('confirmationRdv', d), historique: 'Email envoyé — confirmation du rendez-vous de signature', date: 'confirmationRdvLe' },
+    confirmationRdv: { cle: 'confirmationRdv', libelle: 'Confirmer le rendez-vous de signature', construire: (d, c) => emailDepuisModele('confirmationRdv', d, undefined, c), historique: 'Email envoyé — confirmation du rendez-vous de signature', date: 'confirmationRdvLe' },
     // Fonds pas encore reçus à J-3 du rendez-vous (étude, 03/10) — premier jet de CLAIRE, à remplacer par le texte de l'étude.
-    relanceFonds: { cle: 'relanceFonds', libelle: 'Relancer pour les fonds', construire: d => emailDepuisModele('relanceFonds', d), historique: 'Email envoyé — relance : fonds pas encore reçus', date: 'relanceFondsLe' },
+    relanceFonds: { cle: 'relanceFonds', libelle: 'Relancer pour les fonds', construire: (d, c) => emailDepuisModele('relanceFonds', d, undefined, c), historique: 'Email envoyé — relance : fonds pas encore reçus', date: 'relanceFondsLe' },
     // Décompte du confrère qui représente le vendeur, demandé 10 jours avant le rendez-vous (étude 06/10, J-10 depuis le 07/10) : au confrère, jamais
     // au client — `destinataire` et `confrere` remplacent la règle par défaut (emailDestinataireRelance, côté acquéreur).
-    relanceDecompteConfrere: { cle: 'relanceDecompteConfrere', libelle: 'Demander son décompte au confrère', construire: d => emailDepuisModele('relanceDecompteConfrere', d), historique: 'Email envoyé — décompte demandé au confrère du vendeur', date: 'relanceDecompteConfrereLe', destinataire: d => emailConfrereVendeurDossier(d), confrere: true }
+    relanceDecompteConfrere: { cle: 'relanceDecompteConfrere', libelle: 'Demander son décompte au confrère', construire: (d, c) => emailDepuisModele('relanceDecompteConfrere', d, undefined, c), historique: 'Email envoyé — décompte demandé au confrère du vendeur', date: 'relanceDecompteConfrereLe', destinataire: d => emailConfrereVendeurDossier(d), confrere: true }
   };
 
   // Premiers jets de CLAIRE (comme l'email du projet d'acte) : à remplacer par les textes de l'étude
@@ -1197,8 +1197,9 @@
   function quandRdvEmail(d) {
     return `${MARQUE_FORT_DEBUT}le ${dateAvecJourFr(d.rendezVousSignature)}${d.rendezVousSignatureHeure ? ' à ' + heureEmail(d.rendezVousSignatureHeure) : ''}${MARQUE_FORT_FIN}`;
   }
-  function construireEmailConfirmationRdv(d) {
-    const confrere = notaireParticipantRepresenteAcquereur(d);
+  // `contexte.confrere` : imposé quand l'email va à une autre partie que l'acquéreur (« aux vendeurs », Demander à CLAIRE 12/10).
+  function construireEmailConfirmationRdv(d, contexte) {
+    const confrere = contexte && typeof contexte.confrere === 'boolean' ? contexte.confrere : notaireParticipantRepresenteAcquereur(d);
     const sujet = `Confirmation du rendez-vous de signature — ${libelleDossierAffiche(d)}`;
     if (confrere) {
       return { sujet, corps: ['Bonjour,',
@@ -1825,12 +1826,15 @@
 
   // discret : appelée depuis « Aujourd'hui », où la ligne se coche d'elle-même — une notification
   // suffit, pas de fenêtre à fermer entre deux actions.
-  async function envoyerRelanceCiblee(id, type, discret) {
+  // `options` (« Demander à CLAIRE », 12/10) : `destinataire` + `confrere` (une autre partie que celle du modèle : « aux vendeurs »),
+  // `rendezVous` { date, heure } (le rendez-vous dit dans la phrase, pas encore sur la fiche : repris dans le texte seulement).
+  async function envoyerRelanceCiblee(id, type, discret, options) {
+    const o = options || {};
     const d = dossiers.find(x => x.id === id);
     const modele = MODELES_EMAIL_RELANCE[type];
     if (!d || !modele) return;
-    const destinataire = modele.destinataire ? modele.destinataire(d) : emailDestinataireRelance(d);
-    const auConfrere = modele.confrere === true || notaireParticipantRepresenteAcquereur(d);
+    const destinataire = o.destinataire || (modele.destinataire ? modele.destinataire(d) : emailDestinataireRelance(d));
+    const auConfrere = o.destinataire ? !!o.confrere : (modele.confrere === true || notaireParticipantRepresenteAcquereur(d));
     if (!destinataire) {
       const message = modele.confrere === true
         ? "Aucun email renseigné pour le notaire du vendeur — impossible de préparer cette demande."
@@ -1840,7 +1844,9 @@
       afficherToast(message, 'OK', null);
       return;
     }
-    const { sujet, corps } = modele.construire(d);
+    // Rendez-vous de la phrase : le texte est écrit sur une copie du dossier, la fiche ne change pas.
+    const pourTexte = o.rendezVous && o.rendezVous.date ? Object.assign({}, d, { rendezVousSignature: o.rendezVous.date, rendezVousSignatureHeure: o.rendezVous.heure || d.rendezVousSignatureHeure || '' }) : d;
+    const { sujet, corps } = modele.construire(pourTexte, o.destinataire ? { confrere: auConfrere } : undefined);
     const r = await livrerEmailDossier({ destinataire, sujet, corps, confrere: auConfrere, responsableSignature: d.responsable, dossierId: d.id, geste: type });
     // Préparation impossible : ne rien marquer sur le dossier, l'email n'est pas parti.
     if (!r.ok) { if (!r.annule) afficherToast(r.message || "L'email n'a pas pu être préparé.", 'OK', null); return false; }
@@ -1849,7 +1855,7 @@
     const aujourdhui = isoAujourdhuiLocal();
     if (modele.date) d[modele.date] = aujourdhui;
     if (type === 'projet') marquerProjetEnvoyeSelonDate(d, aujourdhui);
-    if (type === 'confirmationRdv') d.confirmationRdvPour = d.rendezVousSignature || '';
+    if (type === 'confirmationRdv') d.confirmationRdvPour = (o.rendezVous && o.rendezVous.date) || d.rendezVousSignature || '';
     // La confirmation de réception des fonds rappelle le rendez-vous : elle vaut confirmation (rdvConfirmeParFonds).
     if (type === 'fonds') d.receptionFondsPourRdv = d.rendezVousSignature || '';
     if (type === 'relanceFonds') d.relanceFondsPour = d.rendezVousSignature || '';

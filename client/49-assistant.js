@@ -443,6 +443,9 @@
     };
     try {
       const reponse = await (executants[intention.cle] || executants.inconnu)();
+      // « vendredi 5 novembre » alors que le 5 novembre est un jeudi (12/10) : dit, jamais corrigé seul.
+      const vraiJour = reponse && p.date && r.texte ? jourSemaineContredit(r.texte, p.date) : '';
+      if (vraiJour) reponse.html = `<p class="asst-note"><b>Attention :</b> le ${escapeHtml(formatDateFr(p.date))} est un ${escapeHtml(vraiJour)}. Vérifiez la date avant d’envoyer.</p>` + reponse.html;
       if (reponse) {
         // Le ton (client/59) : une phrase d'introduction et, quand le dossier le justifie, une suite proposée — les faits restent ceux du code.
         const intro = introLectureAssistant(intention.cle, prenomPosteAssistant(), assistantMessages.length);
@@ -649,15 +652,47 @@
     return { html: `<p>Rappel posé : « ${escapeHtml(rappel.texte)} »${rappel.echeance ? ` pour le ${escapeHtml(formatDateFr(rappel.echeance))}` : ''}${d ? ` — ${escapeHtml(libelleDossierAffiche(d))}` : ''}.</p>`, boutons: [{ libelle: 'Annuler', action: annuler }] };
   }
 
+  // Modèles dont le texte cite le rendez-vous de signature.
+  var MODELES_RDV_ASSISTANT = ['confirmationRdv', 'projet', 'fonds', 'relanceFonds', 'rib'];
+
+  // Le destinataire d'un email selon la partie demandée : { email, confrere, libelle } ; {} = règle du modèle ; { erreur } si
+  // l'email de cette partie manque. Le vendeur accompagné de son notaire : l'email part à ce confrère.
+  function destinataireEmailAssistant(d, partie) {
+    if (partie === 'vendeur') {
+      if (confrereRepresenteVendeur(d)) {
+        const e = emailConfrereVendeurDossier(d);
+        return e ? { email: e, confrere: true, libelle: 'confrère du vendeur' } : { erreur: 'Le vendeur a son notaire, dont l’email n’est pas connu : renseignez-le sur la fiche.' };
+      }
+      return d.emailVendeur ? { email: d.emailVendeur, confrere: false, libelle: 'vendeur' } : { erreur: `Aucun email du vendeur sur ${libelleDossierAffiche(d)} : renseignez-le sur la fiche.` };
+    }
+    if (partie === 'acquereur') return { libelle: notaireParticipantRepresenteAcquereur(d) ? 'confrère de l’acquéreur' : 'acquéreur' };
+    if (partie === 'confrere') {
+      if (notaireParticipantRepresenteAcquereur(d)) return { libelle: 'confrère de l’acquéreur' };
+      const e = emailConfrereVendeurDossier(d);
+      return e ? { email: e, confrere: true, libelle: 'confrère du vendeur' } : { erreur: 'Aucun confrère avec un email connu sur ce dossier.' };
+    }
+    return {};
+  }
+
   async function gesteEmailAssistant(d, p) {
     if (estSuccession(d)) return { html: '<p>Les emails de vente ne s’appliquent pas à une succession. Ouvrez la fiche pour écrire un email libre.</p>', boutons: [boutonFicheAssistant(d)] };
     const modele = p.modele || '';
     if (modele === 'questionnaire') { envoyerQuestionnaireSatisfaction(d.id, true); return { html: '<p>Fenêtre d’email ouverte avec le questionnaire de satisfaction. Rien ne part sans « Envoyer ».</p>' }; }
     if (modele === 'copieActe') { ouvrirEnvoiCopieActe(d.id); return { html: '<p>Envoi de la copie de l’acte ouvert.</p>' }; }
     if (modele && MODELES_EMAIL_RELANCE[modele]) {
-      if (!emailDestinataireRelance(d)) return { html: `<p>Aucun email de destinataire sur ${escapeHtml(libelleDossierAffiche(d))} : renseignez-le sur la fiche, puis redemandez-moi.</p>`, boutons: [boutonFicheAssistant(d)] };
-      envoyerRelanceCiblee(d.id, modele, true);
-      return { html: `<p>Fenêtre d’email ouverte — modèle « ${escapeHtml(MODELES_EMAIL_RELANCE[modele].libelle)} », ${escapeHtml(libelleDossierAffiche(d))}. Rien ne part sans « Envoyer ».</p>` };
+      // La partie demandée (« aux vendeurs », 12/10 : l'email partait à l'acquéreur) ; sinon la règle du modèle.
+      const dest = destinataireEmailAssistant(d, p.partie);
+      if (dest.erreur) return { html: `<p>${escapeHtml(dest.erreur)}</p>`, boutons: [boutonFicheAssistant(d)] };
+      if (!dest.email && !MODELES_EMAIL_RELANCE[modele].destinataire && !emailDestinataireRelance(d)) return { html: `<p>Aucun email de destinataire sur ${escapeHtml(libelleDossierAffiche(d))} : renseignez-le sur la fiche, puis redemandez-moi.</p>`, boutons: [boutonFicheAssistant(d)] };
+      // Le rendez-vous dit dans la phrase (12/10 : « le vendredi 5 novembre à 17 h » n'était pas repris) : écrit dans l'email s'il n'est
+      // pas celui de la fiche ; la fiche, elle, ne change pas (placer la signature reste un geste confirmé).
+      const rdvPhrase = p.date && MODELES_RDV_ASSISTANT.includes(modele) && (p.date !== String(d.rendezVousSignature || '').slice(0, 10) || (p.heure && p.heure !== d.rendezVousSignatureHeure))
+        ? { date: p.date, heure: p.heure || '' } : null;
+      envoyerRelanceCiblee(d.id, modele, true, { ...(dest.email ? { destinataire: dest.email, confrere: dest.confrere } : {}), ...(rdvPhrase ? { rendezVous: rdvPhrase } : {}) });
+      const qui = dest.libelle ? ` à ${escapeHtml(dest.libelle)}` : '';
+      const quand = rdvPhrase ? `<p>Rendez-vous écrit dans l’email : <b>${escapeHtml(formatDateFr(rdvPhrase.date))}${rdvPhrase.heure ? ' à ' + escapeHtml(rdvPhrase.heure.replace(':', ' h ')) : ''}</b> — pas encore sur la fiche ni dans l’agenda.</p>` : '';
+      return { html: `<p>Fenêtre d’email ouverte${qui} — modèle « ${escapeHtml(MODELES_EMAIL_RELANCE[modele].libelle)} », ${escapeHtml(libelleDossierAffiche(d))}. Rien ne part sans « Envoyer ».</p>${quand}`,
+        boutons: rdvPhrase ? [{ libelle: 'Placer la signature à cette date', action: () => executerDemandeAssistant({ intention: 'rendez_vous_placer', parametres: p, dossier: d.id, candidats: [], texte: '' }) }] : [] };
     }
     // Pas de modèle reconnu : email libre au client, texte de la phrase en premier jet si elle en porte un.
     const destinataire = emailDestinataireRelance(d) || d.emailVendeur || '';

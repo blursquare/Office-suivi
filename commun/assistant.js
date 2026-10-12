@@ -599,6 +599,21 @@
       .replace(/[ \t]+([.,])/g, '$1').replace(/ {2,}/g, ' ').trim();
   }
 
+  var JOURS_SEMAINE_ASSISTANT = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
+  // Pure : la phrase nomme un jour de la semaine qui n'est pas celui de la date lue (« vendredi 5 novembre » quand le 5 novembre
+  // 2026 est un jeudi, 12/10) → le vrai jour, sinon ''. Rien n'est corrigé : l'utilisateur tranche.
+  /** @param {string} texte @param {string} iso */
+  function jourSemaineContredit(texte, iso) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(iso || ''));
+    if (!m) return '';
+    const vrai = JOURS_SEMAINE_ASSISTANT[new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]))).getUTCDay()];
+    const t = normaliserDemande(texte);
+    const re = /\b(dimanche|lundi|mardi|mercredi|jeudi|vendredi|samedi)\s+(?:le\s+)?(\d{1,2})(?:er)?\b/g;
+    let x;
+    while ((x = re.exec(t))) if (Number(x[2]) === Number(m[3]) && x[1] !== vrai) return vrai;
+    return '';
+  }
+
   /** L'intention par sa clé. */
   function intentionAssistant(cle) {
     return INTENTIONS_ASSISTANT.find(i => i.cle === cle) || null;
@@ -607,7 +622,7 @@
   const exportes = {
     INTENTIONS_ASSISTANT, MODELES_EMAIL_ASSISTANT, ECHEANCES_ASSISTANT, CHAMPS_DATE_ASSISTANT, ECRANS_ASSISTANT, MOIS_ASSISTANT, JOURS_ASSISTANT,
     normaliserDemande, dateDepuisTexte, heureDepuisTexte, creneauxDepuisTexte, montantsDepuisTexte, partsDepuisTexte, reconnaitreDossier, motsUtilesAssistant,
-    interpreterParMotsCles, civilitesDansPhrase, exemplesProches, intentionParExemples, parametresDepuisTexte, texteRappelDepuisPhrase, validerReponseAssistant, intentionAssistant, sansSaufErreur
+    interpreterParMotsCles, civilitesDansPhrase, exemplesProches, intentionParExemples, parametresDepuisTexte, texteRappelDepuisPhrase, validerReponseAssistant, intentionAssistant, sansSaufErreur, jourSemaineContredit
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = exportes; else Object.assign(globalThis, exportes);
 })(
