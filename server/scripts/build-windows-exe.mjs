@@ -182,6 +182,12 @@ async function main() {
   // ici par mcs (Mono, installé par le workflow), embarqué, servi avec la configuration du poste (src/relaisWord.js). Sans
   // compilateur en construction locale : CLAIRE sans relais ; dans le workflow (CLAIRE_BUILD), la construction s'arrête.
   let relais = false;
+  // Machine de GitHub sans Mono : installé ici (le workflow ne se modifie qu'avec un accès que la session n'a pas).
+  if (process.env.GITHUB_ACTIONS) {
+    try { execFileSync('mcs', ['--version'], { stdio: 'ignore' }); } catch (_) {
+      execSync('sudo apt-get install -y -qq mono-devel', { stdio: 'inherit' });
+    }
+  }
   try {
     execFileSync('mcs', ['-target:winexe', '-sdk:4.5', '-optimize+', '-nologo', '-out:build/CLAIRE-relais.exe',
       '-r:Microsoft.CSharp.dll', '-r:System.Web.Extensions.dll', '-r:System.Core.dll',

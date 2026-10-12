@@ -19384,7 +19384,7 @@ modèle **au choix dans les Réglages**, Opus par défaut.
   Word, `JavaScriptSerializer`, `HttpWebRequest` sans proxy, WMI pour arrêter l'ancien relais PowerShell) reprend à l'identique la
   boucle du script (relevé 0,5 s, battement 1 s, `appels: 1`, insertions sur le texte du paragraphe, sonneries 3CX avec
   historique du premier plan, arrêt après 10 refus du jeton), sans touche Alt simulée (AttachThreadInput + BringWindowToTop).
-  Compilé par `mcs` dans `build-windows-exe.mjs` (icône de CLAIRE ; obligatoire dans le workflow, qui installe `mono-devel`),
+  Compilé par `mcs` dans `build-windows-exe.mjs` (icône de CLAIRE ; obligatoire dans le workflow ; `mono-devel` installé par le script de construction sur la machine de GitHub — le workflow ne se modifie pas depuis la session),
   embarqué, servi par `GET /api/relais-word/installateur` avec la configuration du poste en fin de fichier (`executableRelaisAvecConfig`,
   `lireExecutableRelais`, 503 si absent). Installation : copie dans `%LOCALAPPDATA%\CLAIRE`, clé Run `CLAIRE-relais` (et retrait de
   `CLAIRE-Word`), lancement `--fond`. Essayé ici sous Mono : téléchargement depuis un vrai serveur, `--verifier` (configuration lue,
