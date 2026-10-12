@@ -56,3 +56,12 @@ test('tout écran sauf le tableau de bord peut être un onglet (étude 12/10)', 
   const lus = ['suivi', 'agenda', 'nouveau', 'scans', 'assistant', 'reglages', 'dashboard'].map(nom => ({ type: 'outil', nom }));
   assert.equal(cles(app.ongletsTravailValides(lus, [])), 'o:suivi,o:agenda,o:nouveau,o:scans,o:assistant,o:reglages');
 });
+
+test('chaque écran qui peut devenir un onglet a son titre (étude 12/10 : « agenda » sans majuscule)', () => {
+  for (const nom of app.OUTILS_ONGLETS_TRAVAIL) {
+    const titre = app.libelleOngletTravail({ type: 'outil', nom });
+    assert.notEqual(titre, nom, nom);
+    assert.match(titre, /^[A-ZÉ]/, nom);
+  }
+  assert.equal(app.libelleOngletTravail({ type: 'outil', nom: 'agenda' }), 'Agenda');
+});

@@ -19263,3 +19263,9 @@ modèle **au choix dans les Réglages**, Opus par défaut.
   appelait des fonctions pas encore définies. Reproduit en retardant `client/49`, `52` et `60` dans la fumée (8 erreurs), corrigé
   en lançant le démarrage à `DOMContentLoaded` (`lancerApplication`), après le dernier fichier : plus aucune erreur. La fumée
   retarde désormais `client/60` de 800 ms à chaque passage.
+
+### 0.217.2 — 12/10/2026 — Onglet « Agenda »
+
+- Étude 12/10 : « pour l'onglet agenda, il manque un A majuscule au titre ». `LIBELLES_ONGLETS` (client/22) n'avait pas d'entrée
+  `agenda` : l'onglet de travail (et le rapport technique) affichait la clé brute. Ajoutée ; test : chaque écran de
+  `OUTILS_ONGLETS_TRAVAIL` a un titre qui commence par une majuscule.

@@ -159,7 +159,7 @@
     dashboard: 'Tableau de bord', nouveau: 'Nouveau dossier', suivi: 'Suivi des dossiers',
     calculateur: 'Simulateur de provision', prorata: 'Prorata & répartitions', 'appel-fonds': 'Appel de fonds',
     scans: 'Claire Scan', inventaire: 'Arbitrage forfait mobilier', quotites: "Quotités d'acquisition", preemption: 'Contrôle de l’urbanisme', confreres: 'Répertoire', 'analyse-ia': "Relecture d'actes",
-    reglages: 'Réglages', assistant: 'Demander à CLAIRE'
+    reglages: 'Réglages', assistant: 'Demander à CLAIRE', agenda: 'Agenda'
   };
 
   // L'écran `nom` est-il celui qu'on voit ? Faux quand une fiche s'affiche en page par-dessus (onglets, 11/10) : les raccourcis
