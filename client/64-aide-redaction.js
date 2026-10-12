@@ -466,6 +466,11 @@
     if (o) o.style.display = 'none';
   }
 
+  document.addEventListener('keydown', (e) => {
+    const o = document.getElementById('red-macro-overlay');
+    if (e.key === 'Escape' && o && o.style.display !== 'none') fermerMacroAideActe();
+  });
+
   function renderWordAideActe() {
     const zone = document.getElementById('red-word');
     if (!zone) return;
@@ -475,7 +480,7 @@
     if (!posteRelaisWordAideActe()) html = '<span class="red-note">Relais Word : choisissez le collaborateur de ce poste.</span>';
     else if (!e) html = '<span class="red-note">Relais Word…</span>';
     else if (!e.installe) html = `<span class="dot-label dl-neutre"><span class="dot"></span>Word non suivi</span> ${relier('Relier Word')}`;
-    else if (!e.actif) html = `<span class="dot-label dl-urgent"><span class="dot"></span>Word ne répond pas</span> ${relier('Relier Word de nouveau')}${infoBulle('La macro démarre à l’ouverture de Word : fermez Word et rouvrez-le. Si rien ne change, reliez Word de nouveau (le code change à chaque fois).')}`;
+    else if (!e.actif) html = `<span class="dot-label dl-urgent"><span class="dot"></span>Word ne répond pas</span> ${relier('Relier Word de nouveau')}${infoBulle('La macro démarre à l’ouverture de Word : fermez Word et rouvrez-le. Si rien ne change, reliez Word de nouveau et remplacez le code du module CLAIRE (Ctrl+A puis Ctrl+V) — le code change à chaque fois.')}`;
     else if (!e.word) html = '<span class="dot-label dl-pret"><span class="dot"></span>Word n’est pas ouvert (ou aucun document)</span>';
     else html = '<span class="dot-label dl-success"><span class="dot"></span>Suit le curseur de Word</span>' + infoBulle('Le paragraphe où se trouve le curseur de Word s’affiche seul, avec son intitulé. Cliquez dans un autre paragraphe de Word : CLAIRE suit.');
     if (zone.innerHTML !== html) zone.innerHTML = html;

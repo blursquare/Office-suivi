@@ -19430,3 +19430,9 @@ modèle **au choix dans les Réglages**, Opus par défaut.
   refusé → arrêt jusqu'au prochain démarrage de Word) ; `POST /api/relais-word/macro` (jeton en attente comme le code) ; écran :
   « Relier Word » → fenêtre `#red-macro-overlay` (quatre étapes, code, « Copier le code »). Le programme reste pour les appels
   3CX. Non vérifiable ici : VBA (aucun interpréteur), stratégie des macros du bureau, encodage d'envoi de MSXML.
+  Relecture indépendante, corrigé avant publication : étapes de la fenêtre (module nommé CLAIRE, Ctrl+A puis Ctrl+V pour le
+  remplacer — un second module donnait « Nom ambigu » et cassait les macros de Normal) ; serveur injoignable → essais espacés
+  (5 s × échecs, 60 s au plus) et délais 500 ms : Word ne saccade plus ; plage d'insertion par `Duplicate`/`SetRange` (en-tête,
+  note, zone de texte) ; insertion refusée sous suivi des modifications ; `AutoOpen` démarre aussi la boucle, une seule à la fois ;
+  intitulé cherché seulement dans les paragraphes de 200 caractères au plus ; jeton propre à la macro (`poste:macro`) — relier
+  Word ne coupe plus le programme des appels 3CX ; « installé » = un jeton en service seulement ; Échap ferme la fenêtre.
