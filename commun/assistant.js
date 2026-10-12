@@ -579,9 +579,24 @@
 
   // Étude 12/10 : « dans Demander à CLAIRE et dans les emails en général, ne pas mettre la forme “Sauf erreur de ma part” ».
   // Pure : retire la formule (ma / notre part, « ou omission » compris) d'un texte écrit par une IA, majuscule rétablie.
-  var RE_SAUF_ERREUR = /(^|[.!?]\s+|\n\s*)sauf erreur(?: ou omission)? de (?:ma|notre) part\s*[,:]?\s*(\S?)|,?[ \t]*sauf erreur(?: ou omission)? de (?:ma|notre) part\b,?/gi;
+  var MOTS_SAUF_ERREUR = 'sauf\\s+erreur(?:\\s+ou\\s+omission)?\\s*,?\\s+de\\s+(?:ma|notre)\\s+part';
   function sansSaufErreur(texte) {
-    return String(texte || '').replace(RE_SAUF_ERREUR, (m, debut, lettre) => debut !== undefined ? debut + (lettre || '').toUpperCase() : '');
+    const M = MOTS_SAUF_ERREUR;
+    const t = String(texte || '');
+    // Rien à retirer : le texte reste tel quel (espaces et typographie française — « Bonjour ! » — intacts).
+    if (!new RegExp(M, 'i').test(t)) return t;
+    return t
+      // « (sauf erreur de ma part) », « — sauf erreur de ma part »
+      .replace(new RegExp('[ \\t]*\\(\\s*' + M + '\\s*\\)', 'gi'), '')
+      .replace(new RegExp('[ \\t]*[—–][ \\t]*' + M + '\\b', 'gi'), '')
+      // Phrase réduite à la formule : « Sauf erreur de notre part. »
+      .replace(new RegExp('(^|[.!?][ \\t]+|\\n[ \\t]*)' + M + '[ \\t]*[.!][ \\t]*', 'gi'), (m, debut) => /^[.!?]/.test(debut) ? debut.trimEnd() + ' ' : debut)
+      // En tête de phrase ou de puce : la lettre suivante reprend la majuscule (après **, « ou guillemets).
+      .replace(new RegExp('(^[ \\t]*(?:[-•*][ \\t]+)?|[.!?][ \\t]+|\\n[ \\t]*(?:[-•*][ \\t]+)?)' + M + '[ \\t]*[,:]?[ \\t]*([*«"“ ]*)(\\p{L})?', 'giu'),
+        (m, debut, avant, lettre) => debut + (avant || '') + (lettre || '').toUpperCase())
+      // Au milieu ou en fin de phrase : « …, sauf erreur de ma part, … »
+      .replace(new RegExp(',?[ \\t]*' + M + '\\b,?', 'gi'), '')
+      .replace(/[ \t]+([.,])/g, '$1').replace(/ {2,}/g, ' ').trim();
   }
 
   /** L'intention par sa clé. */

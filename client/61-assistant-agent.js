@@ -170,9 +170,9 @@
     if (!geste) return { erreur: 'geste inconnu' };
     const d = entree.dossier_id ? dossiers.find(x => x.id === entree.dossier_id) : null;
     if (geste.dossier && !d) return { erreur: 'dossier introuvable : cherche-le d’abord (chercher_dossiers) et passe son id' };
-    const avant = assistantMessages.length;
+    const dernier = assistantMessages[assistantMessages.length - 1];
     await executerDemandeAssistant({ intention: geste.cle, parametres: entree.parametres || {}, dossier: d ? d.id : '', candidats: [], texte: (entree.parametres && entree.parametres.texte) || '', source: 'agent' });
-    const ajout = assistantMessages.slice(avant).filter(m => m.role === 'claire').map(m => {
+    const ajout = assistantMessages.slice(assistantMessages.indexOf(dernier) + 1).filter(m => m.role === 'claire').map(m => {
       const tmp = document.createElement('div'); tmp.innerHTML = m.html; return (tmp.textContent || '').replace(/\s+/g, ' ').trim();
     }).join(' ');
     return { fait: true, affiche_a_l_utilisateur: ajout.slice(0, 1500) };

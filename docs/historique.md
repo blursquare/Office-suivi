@@ -19244,3 +19244,12 @@ modèle **au choix dans les Réglages**, Opus par défaut.
   prompts de l'agent, de l'échange libre et du premier jet d'email ; filtre `sansSaufErreur` (commun/assistant.js) sur les
   réponses de l'agent, de l'échange libre et la proposition d'email. Un modèle modifié par l'étude dans les Réglages reste le
   sien.
+- Relecture indépendante avant publication, corrigée dans la même version : CLAIRE reste « occupée » jusqu'à la fin du geste
+  (`assistantTraitementEnCours` : lecture du NAS, agenda, email) — une réponse ne tombe plus dans une autre conversation ;
+  `document_id` de l'agent oubliés au changement de conversation, à la suppression et au changement de collaborateur ;
+  parcourir la liste ne remonte plus une conversation (`majLe` posé seulement par un nouveau message) ; stockage plein → les
+  plus anciennes retirées, dit une fois ; écriture immédiate à `pagehide` ; suppression annulable (« Annuler ») ; Échap ferme
+  le tiroir ; résumé d'un geste de l'agent juste malgré la limite de 60 messages ; `sansSaufErreur` revu (parenthèses, tiret,
+  phrase réduite à la formule, puce, gras, espaces doubles ; texte sans la formule laissé intact, « Bonjour ! » compris) ; test
+  élargi à client, commun, server/src et page-sondage. Une version de « Relance pour les fonds » déjà modifiée par l'étude
+  dans les Réglages garde son texte.

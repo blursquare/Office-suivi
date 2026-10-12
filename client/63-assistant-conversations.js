@@ -72,7 +72,11 @@
     const cle = cleStockageConversationsAssistant();
     if (cleConversationsChargees === cle) return;
     // Changement de collaborateur sur le poste : la conversation affichée n'est pas la sienne.
-    if (cleConversationsChargees !== null) { assistantMessages = []; assistantContexte = { dossierId: '', attente: null, historique: [], echanges: [] }; assistantAgentConversation = ''; }
+    if (cleConversationsChargees !== null) {
+      ecrireConversationsAssistant();
+      assistantMessages = []; assistantContexte = { dossierId: '', attente: null, historique: [], echanges: [] }; assistantAgentConversation = '';
+      mentionsChoisiesAssistant = []; oublierDocumentsAgent();
+    }
     cleConversationsChargees = cle;
     let texte = '';
     try { texte = localStorage.getItem(cle) || ''; } catch (e) { texte = ''; }
@@ -81,28 +85,44 @@
   }
 
   // La conversation affichée (globaux de client/49 et 61) recopiée dans la liste, puis écrite (au plus une fois par seconde).
-  function memoriserConversationAssistant() {
+  // `nouveauMessage` : seule une conversation qui reçoit un message remonte en tête (relecture : la parcourir ne la date pas).
+  function memoriserConversationAssistant(nouveauMessage) {
     if (!assistantMessages.length) return;
     if (!assistantConversationId) assistantConversationId = 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
     let c = assistantConversations.find(x => x.id === assistantConversationId);
-    if (!c) { c = { id: assistantConversationId, creeLe: Date.now() }; assistantConversations.unshift(c); }
+    if (!c) { c = { id: assistantConversationId, creeLe: Date.now(), majLe: Date.now() }; assistantConversations.unshift(c); }
     c.messages = assistantMessages;
     c.contexte = assistantContexte;
     c.agent = typeof assistantAgentConversation === 'string' ? assistantAgentConversation : '';
-    c.majLe = Date.now();
+    if (nouveauMessage) c.majLe = Date.now();
     c.titre = titreConversationAssistant(c.messages);
     clearTimeout(minuterieConversationsAssistant);
     minuterieConversationsAssistant = setTimeout(ecrireConversationsAssistant, 1000);
   }
 
+  var stockagePleinSignale = false;
   function ecrireConversationsAssistant() {
+    clearTimeout(minuterieConversationsAssistant);
+    minuterieConversationsAssistant = null;
     if (cleConversationsChargees === null) return;
     assistantConversations = conversationsAGarderAssistant(assistantConversations, Date.now());
-    ecrireLocal(cleConversationsChargees, serialiserConversationsAssistant(assistantConversations, Date.now()));
+    // Stockage du navigateur plein : on retire les plus anciennes (jamais celle affichée) jusqu'à ce que ça tienne, et on le dit une fois.
+    let liste = assistantConversations;
+    while (!ecrireLocal(cleConversationsChargees, serialiserConversationsAssistant(liste, Date.now()))) {
+      const ancienne = liste.slice().reverse().find(c => c.id !== assistantConversationId);
+      if (!ancienne) return;
+      liste = liste.filter(c => c !== ancienne);
+      if (!stockagePleinSignale) { stockagePleinSignale = true; afficherToast('Stockage du navigateur plein : les plus anciennes conversations ne sont plus gardées.', 'OK', null); }
+    }
+    assistantConversations = liste;
+  }
+  // Une réponse reçue juste avant un rechargement (F5, mise à jour automatique) est écrite tout de suite.
+  if (typeof window !== 'undefined' && window.addEventListener) {
+    window.addEventListener('pagehide', () => { if (minuterieConversationsAssistant) ecrireConversationsAssistant(); });
   }
 
   function occupeAssistant() {
-    if (!assistantEnCours) return false;
+    if (!assistantEnCours && !assistantTraitementEnCours) return false;
     afficherToast('CLAIRE répond encore : attendez la fin de sa réponse.', 'OK', null);
     return true;
   }
@@ -117,6 +137,8 @@
     assistantContexte = { dossierId: '', historique: [], echanges: [], ...c.contexte, attente: null };
     assistantAgentConversation = c.agent || '';
     mentionsChoisiesAssistant = [];
+    // Les document_id de l'agent ne valent que pour la conversation qui les a reçus.
+    oublierDocumentsAgent();
     fermerFilsMobileAssistant();
     renderAssistant();
   }
@@ -132,20 +154,33 @@
 
   function supprimerConversationAssistant(id) {
     if (id === assistantConversationId && occupeAssistant()) return;
-    assistantConversations = assistantConversations.filter(x => x.id !== id);
+    memoriserConversationAssistant();
+    const supprimee = assistantConversations.find(x => x.id === id);
+    if (!supprimee) return;
+    assistantConversations = assistantConversations.filter(x => x !== supprimee);
     if (id === assistantConversationId) {
       assistantConversationId = '';
       assistantMessages = [];
       assistantContexte = { dossierId: dossierOuvert || '', attente: null, historique: [], echanges: [] };
       assistantAgentConversation = '';
+      oublierDocumentsAgent();
     }
     ecrireConversationsAssistant();
     renderAssistant();
+    // Un toucher de travers sur téléphone (la croix y est toujours visible) se rattrape.
+    afficherToast('Conversation supprimée.', 'Annuler', () => {
+      assistantConversations = conversationsAGarderAssistant([supprimee, ...assistantConversations.filter(x => x.id !== supprimee.id)], Date.now());
+      ecrireConversationsAssistant();
+      renderAssistant();
+    });
   }
 
   function basculerFilsMobileAssistant() {
     const page = document.querySelector('.asst-page');
     if (page) page.classList.toggle('fils-ouverts');
+  }
+  if (typeof document !== 'undefined' && document.addEventListener) {
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') fermerFilsMobileAssistant(); });
   }
   function fermerFilsMobileAssistant() {
     const page = document.querySelector('.asst-page');

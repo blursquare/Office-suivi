@@ -50,8 +50,21 @@ test('étude 12/10 : jamais « Sauf erreur de ma part » — filtre des réponse
   assert.equal(A.sansSaufErreur('Bonjour,\n\nSauf erreur de notre part, il manque le RIB.'), 'Bonjour,\n\nIl manque le RIB.');
   assert.equal(A.sansSaufErreur('Le RIB, sauf erreur de ma part, manque.'), 'Le RIB manque.');
   assert.equal(A.sansSaufErreur('Le prêt est accordé, sauf erreur ou omission de notre part.'), 'Le prêt est accordé.');
+  assert.equal(A.sansSaufErreur('Il manque (sauf erreur de ma part) le RIB.'), 'Il manque le RIB.');
+  assert.equal(A.sansSaufErreur('Le RIB manque. Sauf erreur de notre part. Merci.'), 'Le RIB manque. Merci.');
+  assert.equal(A.sansSaufErreur('Le RIB manque — sauf erreur de ma part.'), 'Le RIB manque.');
+  assert.equal(A.sansSaufErreur('- Sauf erreur de ma part, le RIB manque'), '- Le RIB manque');
+  assert.equal(A.sansSaufErreur('Sauf erreur de ma part, **le prêt** est accordé.'), '**Le prêt** est accordé.');
+  assert.equal(A.sansSaufErreur('Sauf  erreur, de ma part, il manque.'), 'Il manque.');
+  assert.equal(A.sansSaufErreur('Bonjour !  Ça va ?'), 'Bonjour !  Ça va ?', 'un texte sans la formule reste tel quel');
+  // Aucun texte de CLAIRE ne la contient (seules les consignes « jamais … » la citent).
   const fs = require('node:fs');
   const path = require('node:path');
-  const dossier = path.join(__dirname, '..', 'client');
-  for (const f of fs.readdirSync(dossier).filter(x => x.endsWith('.js'))) assert.doesNotMatch(fs.readFileSync(path.join(dossier, f), 'utf8'), /'[^'\n]*Sauf erreur de (ma|notre) part/, f);
+  const racine = path.join(__dirname, '..');
+  const lister = (d) => fs.readdirSync(d, { withFileTypes: true }).flatMap(e => e.isDirectory() ? lister(path.join(d, e.name)) : /\.(js|html|gs)$/.test(e.name) ? [path.join(d, e.name)] : []);
+  for (const f of ['client', 'commun', 'server/src', 'page-sondage'].flatMap(d => fs.existsSync(path.join(racine, d)) ? lister(path.join(racine, d)) : [])) {
+    fs.readFileSync(f, 'utf8').split('\n').forEach((l, i) => {
+      if (/sauf\s+erreur(\s+ou\s+omission)?\s+de\s+(ma|notre)\s+part/i.test(l) && !/jamais|ne pas mettre|sansSaufErreur|MOTS_SAUF_ERREUR|«\s*\(?sauf erreur|Sauf erreur ou omission de notre part le RIB|\/\/|^\s*\*/i.test(l)) assert.fail(`${path.relative(racine, f)}:${i + 1} contient la formule`);
+    });
+  }
 });

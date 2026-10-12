@@ -265,7 +265,7 @@
   function poserMessageAssistant(role, html, boutons) {
     assistantMessages.push({ role, html, boutons: boutons || [], quand: Date.now() });
     if (assistantMessages.length > 60) assistantMessages = assistantMessages.slice(-60);
-    memoriserConversationAssistant();
+    memoriserConversationAssistant(true);
     renderAssistant();
   }
 
@@ -316,7 +316,16 @@
     });
   }
 
+  // Vrai du clic sur « Envoyer » jusqu'à la toute fin du geste (lectures du NAS, agenda, email…) : on ne change pas de
+  // conversation pendant ce temps, la réponse irait dans une autre (relecture 0.217.0).
+  var assistantTraitementEnCours = false;
   async function envoyerDemandeAssistant(texteForce) {
+    if (assistantTraitementEnCours) return;
+    assistantTraitementEnCours = true;
+    try { await envoyerDemandeAssistantSuite(texteForce); } finally { assistantTraitementEnCours = false; }
+  }
+
+  async function envoyerDemandeAssistantSuite(texteForce) {
     const champ = document.getElementById('assistant-saisie');
     const texte = String(texteForce || (champ ? champ.value : '') || '').trim();
     if (!texte || assistantEnCours) return;
