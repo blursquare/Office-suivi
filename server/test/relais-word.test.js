@@ -127,15 +127,20 @@ test('routes : installateur = jeton du poste ; relevé hors session avec ce jeto
 test('appels 3CX : sonnerie rendue au relais actif du poste, une fois, jamais vieille ; relais muet → rien', () => {
   const etat = creerEtatRelaisWord();
   assert.equal(noterAppelPourRelais(etat, 'julie', { id: 'ap-1', dossier: true }, 1000), false);
+  // Relais 0.219.0 (sans la capacité « appels ») : jamais de sonnerie, l'onglet de 3CX garde son comportement d'avant.
   appliquerReleveWord(etat, 'julie', { word: false }, 1000);
+  assert.equal(noterAppelPourRelais(etat, 'julie', { id: 'ap-0', dossier: true }, 1200), false);
+  appliquerReleveWord(etat, 'julie', { word: false, appels: 1 }, 1000);
   assert.ok(relaisPosteActif(etat, 'julie', 1500));
+  // Battement de plus de 3 s : la sonnerie n'est pas prise.
+  assert.equal(noterAppelPourRelais(etat, 'julie', { id: 'ap-v', dossier: true }, 4500), false);
   assert.equal(noterAppelPourRelais(etat, 'julie', { id: 'ap-1', dossier: true }, 1500), true);
-  const r = appliquerReleveWord(etat, 'julie', { word: false, inchange: true }, 2200);
+  const r = appliquerReleveWord(etat, 'julie', { word: false, inchange: true, appels: 1 }, 2200);
   assert.equal(r.appels.length, 1);
   assert.equal(r.appels[0].dossier, true);
   assert.equal(r.appels[0].ilYaMs, 700);
-  assert.equal(appliquerReleveWord(etat, 'julie', { word: false, inchange: true }, 2500).appels.length, 0);
-  noterAppelPourRelais(etat, 'julie', { id: 'ap-2', dossier: false }, 3000);
+  assert.equal(appliquerReleveWord(etat, 'julie', { word: false, inchange: true, appels: 1 }, 2500).appels.length, 0);
+  assert.equal(noterAppelPourRelais(etat, 'julie', { id: 'ap-2', dossier: false }, 3000), true);
   assert.equal(appliquerReleveWord(etat, 'julie', { word: false, inchange: true }, 12000).appels.length, 0);
   assert.ok(!relaisPosteActif(etat, 'julie', 40000));
 });
@@ -143,6 +148,11 @@ test('appels 3CX : sonnerie rendue au relais actif du poste, une fois, jamais vi
 test('installateur : sonnerie → fenêtre CLAIRE (dossier) ou fenêtre d’avant (inconnu), navigateur trouvé pour ouvrir CLAIRE', () => {
   const v = scriptInstallationRelaisWord({ url: 'http://192.168.60.10:3000/', poste: 'julie', jeton: 'abc', profil: 'Claire' });
   assert.match(v, /GetForegroundWindow/);
+  // Jamais Alt envoyé à une fenêtre déjà devant ; jamais un échantillon vide ni la fenêtre d'à présent ; navigateur par défaut à défaut.
+  assert.match(v, /if \(GetForegroundWindow\(\) == h\) return true;/);
+  assert.match(v, /\$e\.h -ne \[IntPtr\]::Zero -and \$e\.h -ne \$devant/);
+  assert.match(v, /else \{ Start-Process \(\$url \+ '#appel=' \+ \$id\) \}/);
+  assert.match(v, /appels = 1 \}/);
   assert.match(v, /CLAIRE \\u2014/);
   assert.match(v, /foreach \(\$a in @\(\$rep\.appels\)\)/);
   assert.match(v, /#appel=/);
@@ -157,11 +167,11 @@ test('route : sonnerie d’un poste au relais actif → l’onglet de 3CX se fer
   const vbs = await fetch(`${baseUrl}/api/relais-word/installateur?poste=jeremy`, { headers: auth }).then(r => r.text());
   const jeton = /\$jeton = '([0-9a-f]+)'/.exec(vbs)[1];
   const releve = (corps) => fetch(`${baseUrl}/api/relais-word/releve`, { method: 'POST', headers: json, body: JSON.stringify(corps) }).then(r => r.json());
-  await releve({ poste: 'jeremy', jeton, word: false });
+  await releve({ poste: 'jeremy', jeton, word: false, appels: 1 });
   const page = await fetch(`${baseUrl}/appel?numero=0600000001&nom=&poste=Jeremy`).then(r => r.text());
   assert.match(page, /window\.close\(\);/);
   assert.doesNotMatch(page, /claire-appel|#appel=/);
-  const r = await releve({ poste: 'jeremy', jeton, word: false, inchange: true });
+  const r = await releve({ poste: 'jeremy', jeton, word: false, inchange: true, appels: 1 });
   assert.equal(r.appels.length, 1);
   assert.equal(r.appels[0].dossier, false);
 });

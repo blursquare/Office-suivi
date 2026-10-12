@@ -46,7 +46,7 @@ function lignesRelaisWordPs({ url, poste, jeton, profil }) {
     'if (-not $libre) { exit 0 }',
     // Fenêtres Windows : la fenêtre CLAIRE (titre « CLAIRE — … » sans nom de navigateur, comme relaisAppel3cx.js), la fenêtre au
     // premier plan, et le passage au premier plan (touche Alt : Windows laisse alors ce processus le faire).
-    "$code = @'",
+    "$sourceFenetres = @'",
     'using System;',
     'using System.Runtime.InteropServices;',
     'using System.Text;',
@@ -74,6 +74,8 @@ function lignesRelaisWordPs({ url, poste, jeton, profil }) {
     '    return trouve;',
     '  }',
     '  public static bool Montrer(IntPtr h) {',
+    // Déjà au premier plan : rien (la touche Alt ferait afficher les raccourcis du ruban de Word).
+    '    if (GetForegroundWindow() == h) return true;',
     '    if (IsIconic(h)) ShowWindow(h, 9);',
     '    keybd_event(0x12, 0, 0, UIntPtr.Zero);',
     '    keybd_event(0x12, 0, 2, UIntPtr.Zero);',
@@ -81,25 +83,30 @@ function lignesRelaisWordPs({ url, poste, jeton, profil }) {
     '  }',
     '}',
     "'@",
-    'Add-Type -TypeDefinition $code',
+    'Add-Type -TypeDefinition $sourceFenetres',
     '$historique = New-Object System.Collections.ArrayList',
     // Appel 3CX (étude 12/10 : « Chrome s'ouvre au premier plan à chaque appel, c'est pénible ; CLAIRE ne s'affiche pas au
     // premier plan lorsqu'un dossier est trouvé ») : l'onglet de 3CX se ferme seul ; appelant d'un dossier → fenêtre CLAIRE au
     // premier plan (ouverte sur l'appel si elle était fermée) ; sinon la fenêtre d'avant la sonnerie reprend le premier plan.
     'function Appel($a) {',
     '  $ilYa = [double]$a.ilYaMs',
-    '  $quand = (Get-Date).AddMilliseconds(-$ilYa - 300)',
+    // L'onglet de 3CX passe devant AVANT que sa requête n'atteigne le serveur : marge de 1,5 s.
+    '  $quand = (Get-Date).AddMilliseconds(-$ilYa - 1500)',
     '  if ($ilYa -lt 1200) { Start-Sleep -Milliseconds ([int](1200 - $ilYa)) }',
     '  if ($a.dossier) {',
     '    $h = [FenetreClaire]::Trouver()',
     '    if ($h -ne [IntPtr]::Zero) { [void][FenetreClaire]::Montrer($h); Start-Sleep -Milliseconds 600; [void][FenetreClaire]::Montrer($h); return }',
     "    $id = ([string]$a.id) -replace '[^A-Za-z0-9_-]', ''",
-    "    if ($cible) { Start-Process -FilePath $cible -ArgumentList ('--profile-directory=\"' + $profil + '\" --app=\"' + $url + '#appel=' + $id + '\"') }",
+    "    if ($cible) { Start-Process -FilePath $cible -ArgumentList ('--profile-directory=\"' + $profil + '\" --app=\"' + $url + '#appel=' + $id + '\"') } else { Start-Process ($url + '#appel=' + $id) }",
+    // La nouvelle fenêtre, créée par le navigateur déjà lancé, est ramenée devant dès qu'elle paraît (3 s au plus).
+    '    for ($i = 0; $i -lt 15; $i++) { Start-Sleep -Milliseconds 200; $h = [FenetreClaire]::Trouver(); if ($h -ne [IntPtr]::Zero) { [void][FenetreClaire]::Montrer($h); break } }',
     '    return',
     '  }',
+    // La dernière fenêtre au premier plan avant la sonnerie : jamais un instant sans fenêtre (0), jamais celle d'à présent (Chrome).
+    '  $devant = [FenetreClaire]::GetForegroundWindow()',
     '  $avant = [IntPtr]::Zero',
-    '  foreach ($e in $historique) { if ($e.t -lt $quand) { $avant = $e.h } }',
-    '  if ($avant -ne [IntPtr]::Zero -and [FenetreClaire]::IsWindow($avant)) { [void][FenetreClaire]::Montrer($avant) }',
+    '  for ($i = $historique.Count - 1; $i -ge 0; $i--) { $e = $historique[$i]; if ($e.t -lt $quand -and $e.h -ne [IntPtr]::Zero -and $e.h -ne $devant) { $avant = $e.h; break } }',
+    '  if ($avant -ne [IntPtr]::Zero -and [FenetreClaire]::IsWindow($avant)) { [void][FenetreClaire]::Montrer($avant); Start-Sleep -Milliseconds 600; [void][FenetreClaire]::Montrer($avant) }',
     '}',
     "function Normaliser([string]$s) { return (($s -replace '[\\s\\x00-\\x1f]+', ' ').Trim()) }",
     'function Inserer($word, $c) {',
@@ -157,7 +164,8 @@ function lignesRelaisWordPs({ url, poste, jeton, profil }) {
     // Battement chaque seconde, Word ouvert ou non : les sonneries 3CX arrivent dans sa réponse.
     '  $attente = 1',
     '  if (-not $inchange -or $resultats.Count -gt 0 -or ($maintenant - $envoi).TotalSeconds -ge $attente) {',
-    '    $corps = @{ poste = $poste; jeton = $jeton; word = $avecDoc; inchange = $inchange; resultats = @($resultats) }',
+    // `appels` : ce relais sait recevoir les sonneries 3CX (un relais 0.219.0 ne le dit pas : le serveur ne lui en passe pas).
+    '    $corps = @{ poste = $poste; jeton = $jeton; word = $avecDoc; inchange = $inchange; resultats = @($resultats); appels = 1 }',
     '    if (-not $inchange) { $corps.titre = $titre; $corps.paragraphe = $para }',
     '    try {',
     '      $json = $corps | ConvertTo-Json -Depth 4 -Compress',
@@ -263,9 +271,10 @@ function texteWord(texte, max) {
 var COMMANDES_MAX = 5;
 var COMMANDE_EXPIRE_MS = 20000;
 var RELAIS_VU_MS = 12000;
+var APPEL_RELAIS_VU_MS = 3000;
 
 /** @typedef {{ id: string, valeur: string, occurrence: number, attendu: string, t: number }} CommandeWord */
-/** @typedef {{ vu: number, word: boolean, titre: string, paragraphe: string, n: number, commandes: CommandeWord[], resultats: { id: string, ok: boolean, message: string, t: number }[], appels: { id: string, dossier: boolean, t: number }[] }} PosteWord */
+/** @typedef {{ vu: number, word: boolean, appels3cx?: boolean, titre: string, paragraphe: string, n: number, commandes: CommandeWord[], resultats: { id: string, ok: boolean, message: string, t: number }[], appels: { id: string, dossier: boolean, t: number }[] }} PosteWord */
 
 function creerEtatRelaisWord() {
   return { postes: /** @type {Map<string, PosteWord>} */ (new Map()), demarrage: crypto.randomBytes(3).toString('hex') };
@@ -286,6 +295,7 @@ function appliquerReleveWord(etat, poste, corps, maintenant = Date.now()) {
   const p = postePourWord(etat, poste);
   p.vu = maintenant;
   p.word = !!corps.word;
+  p.appels3cx = corps.appels === 1;
   if (!corps.inchange) {
     const titre = texteWord(corps.titre, 200);
     const paragraphe = texteWord(corps.paragraphe, 4000);
@@ -316,8 +326,10 @@ function relaisPosteActif(etat, poste, maintenant = Date.now()) {
 // dossier (la fenêtre CLAIRE passe au premier plan) ; sinon la fenêtre d'avant la sonnerie revient.
 /** @param {ReturnType<typeof creerEtatRelaisWord>} etat @param {string} poste @param {{ id: string, dossier: boolean }} appel @param {number} [maintenant] */
 function noterAppelPourRelais(etat, poste, appel, maintenant = Date.now()) {
-  if (!relaisPosteActif(etat, poste, maintenant)) return false;
-  const p = postePourWord(etat, poste);
+  const p = poste ? etat.postes.get(poste) : null;
+  // Seulement un relais qui sait recevoir les sonneries et qui a battu il y a moins de 3 s (il bat chaque seconde) : sinon
+  // l'onglet de 3CX garde son comportement d'avant (jamais un appel perdu).
+  if (!p || !p.appels3cx || maintenant - p.vu > APPEL_RELAIS_VU_MS) return false;
   p.appels = (p.appels || []).concat([{ id: String(appel.id || '').slice(0, 64), dossier: !!appel.dossier, t: maintenant }]).slice(-5);
   return true;
 }

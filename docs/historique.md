@@ -19352,3 +19352,9 @@ modèle **au choix dans les Réglages**, Opus par défaut.
   sinon la dernière fenêtre au premier plan relevée avant la sonnerie (historique de 20 s, échantillon toutes les 0,5 s). Bouton de
   Réglages › Téléphonie 3CX → ce relais. Non vérifiable ici : premier plan sous Windows (verrou de premier plan), fermeture de
   l'onglet ouvert par 3CX.
+  Relecture indépendante, corrigé avant publication : le relais déclare savoir recevoir les sonneries (`appels: 1` dans son
+  relevé) et doit avoir battu il y a moins de 3 s — un relais Word 0.219.0 ou un relais calé ne fait plus fermer l'onglet (sinon
+  l'appel était perdu) ; `Montrer` ne fait rien sur une fenêtre déjà devant (la touche Alt affichait les raccourcis du ruban de
+  Word) ; fenêtre d'avant = dernier échantillon non nul, différent de la fenêtre de devant, 1,5 s avant la sonnerie ; sans Chrome ni
+  Edge, navigateur par défaut ; la fenêtre CLAIRE ouverte par le relais est ramenée devant dès qu'elle paraît. Un relais installé
+  avant 0.220.1 est à réinstaller pour les appels.
