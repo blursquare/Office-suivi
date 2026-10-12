@@ -12,8 +12,10 @@
   // Pure : ce qui fait relancer l'analyse automatique — code postal, parcelles, nature du bien d'après la fiche.
   function signaturePreemptionDossier(d) {
     const e = prefillPreemption(Object.assign({}, d, { preemption: null }));
-    // La nature « bois » ne s'ajoute à la signature que lorsqu'elle est connue : les analyses d'avant ne sont pas toutes refaites.
-    return [e.cp, e.parcelles, e.reponses.bien || ''].join('|') + (typeof e.reponses.bois === 'boolean' && !(d.preemption && d.preemption.reponses && 'bois' in d.preemption.reponses) ? '|bois:' + e.reponses.bois : '');
+    // La nature « bois » de la fiche ne s'ajoute à la signature que lorsqu'elle est connue : les analyses d'avant ne sont pas
+    // toutes refaites.
+    const bois = boisDepuisFicheDossier(d);
+    return [e.cp, e.parcelles, e.reponses.bien || ''].join('|') + (bois !== null ? '|bois:' + bois : '');
   }
 
   // Pure : l'analyse automatique est-elle à faire (ou à refaire) pour ce dossier ? Seulement les dossiers de vente ajoutés
@@ -198,6 +200,8 @@
     p.reponses = Object.assign({}, p.reponses);
     if (valeur == null || p.reponses[cle] === valeur) delete p.reponses[cle];
     else p.reponses[cle] = valeur;
+    // Réponse de l'étude : le « bois » n'est plus une déduction d'Authentic.
+    if (cle === 'bois') delete p.boisDeduit;
     p.droits = analysePreemptionFiche(p).droits.map(dr => ({ cle: dr.cle, titre: dr.titre, statut: dr.statut, motif: dr.motif, formalite: dr.formalite }));
     const changes = p.droits.filter(dr => avant.get(dr.cle) !== dr.statut).map(dr => `${dr.titre} : ${LIBELLES_STATUT_PREEMPTION[dr.statut] || dr.statut}`);
     return { changes, pieces: appliquerPreemptionSurPieces(d) };
@@ -242,6 +246,7 @@
       if (!preemptionAutoAFaire(d)) return;
       const avant = d.preemption && Array.isArray(d.preemption.droits) ? d.preemption : null;
       d.preemption = Object.assign(preemptionPourFiche(etat), { auto: true, signature: signaturePreemptionDossier(d) },
+        etat.boisDeduit ? { boisDeduit: true } : {},
         incomplet ? { incomplet: true } : {}, avant && avant.piecesAjoutees ? { piecesAjoutees: avant.piecesAjoutees } : {},
         avant && avant.travaux ? { travaux: avant.travaux } : {}, avant && avant.sitadel ? { sitadel: avant.sitadel } : {});
       const pieces = appliquerPreemptionSurPieces(d);

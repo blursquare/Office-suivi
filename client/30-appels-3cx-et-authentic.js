@@ -1367,25 +1367,61 @@
   // lieu-dit, et le tableau du cadastre — Nature (souvent vide), Zone urbanisme, SPF, surface (h / a / ca). Natures du cadastre :
   // T terres, P prés, PA pâtures, PP prés plantés, B bois, BT taillis, BF/BR/BM futaies, BP peupleraies, L landes, LB landes
   // boisées, VI vignes, VE vergers, CH chemins, E eaux, J jardins — S (sol) et AB (à bâtir) ne sont pas ruraux.
-  var RE_NATURE_BOIS = /^(b|bt|bf|br|bm|bp|bs|lb)$|bois|foret|taillis|futaie|peupleraie/;
-  var RE_NATURE_RURALE = /^(t|p|pa|pp|pe|b|bt|bf|br|bm|bp|bs|l|lb|vi|ve|vt|e|ch)$|bois|foret|taillis|futaie|peupleraie|terres?\b|\bpres?\b|prairie|pature|lande|friche|vigne|verger|agricole|rural|etang/;
+  // Relecture 0.221.0 : jamais un mot pris au hasard dans une désignation (« près du bourg », « parterre », « parquet en bois »,
+  // « rue des Prés », « chemin des Bois », « hangar agricole ») — des mots entiers et des tournures explicites seulement.
+  var CODES_NATURE_BOIS = /^(b|bt|bf|br|bm|bp|bs|lb)$/;
+  var CODES_NATURE_RURALE = /^(t|p|pa|pp|pe|b|bt|bf|br|bm|bp|bs|l|lb|vi|ve|vt)$/;
+  var RE_MOT_BOIS = /(?<![a-z])(bois|forets?|taillis|futaies?|peupleraies?)(?![a-z])/;
+  var RE_MOT_RURAL = /(?<![a-z])(bois|forets?|taillis|futaies?|peupleraies?|terres?|pres?|prairies?|patures?|landes?|vignes?|vergers?|friches?)(?![a-z])/;
+  var RE_TYPE_BATI = /maison|pavillon|villa|immeuble|batiment|local|hangar|grange|garage|appartement|commerce|bureau|chalet|longere|ferme/;
+  var MOTS_RURAUX = 'bois|forets?|taillis|futaies?|peupleraies?|terres?|pres?|prairies?|patures?|landes?|vignes?|vergers?|friches?';
+  // « parcelle(s) de bois », « terrain en nature de pré », « terres agricoles », « bois et forêts », ou la désignation qui COMMENCE
+  // par le mot (« Bois taillis », « Une terre », « Des prés »).
+  var RE_DESIGNATION_RURALE = new RegExp('(?<![a-z])(?:(?:parcelles?|terrains?|ensemble)\\s+(?:de|en|a usage de)\\s+(?:nature\\s+de\\s+)?(?:' + MOTS_RURAUX + ')|terres?\\s+(?:agricoles?|labourables?|de culture)|bois\\s+(?:et\\s+forets?|taillis))(?![a-z])|^(?:(?:un|une|des|les|la|le)\\s+)?(?:' + MOTS_RURAUX + ')(?![a-z])');
+  var RE_DESIGNATION_BOIS = /(?<![a-z])(?:(?:parcelles?|terrains?|ensemble)\s+(?:de|en)\s+(?:nature\s+de\s+)?(?:bois|forets?|taillis|futaies?)|bois\s+(?:et\s+forets?|taillis))(?![a-z])|^(?:(?:un|une|des|les|la|le)\s+)?(?:bois|forets?|taillis|futaies?)(?![a-z])/;
 
-  // Pure : la nature d'une parcelle (code du cadastre ou mot) dit-elle un bois ? un bien rural (terre, pré, bois…) ?
+  // Pure : la nature d'une parcelle (code du cadastre ou mot entier) dit-elle un bois ? un bien rural (terre, pré, bois…) ?
   function natureParcelleBois(nature) {
-    return RE_NATURE_BOIS.test(normaliserPourRecherche(String(nature || '')).trim());
+    const n = normaliserPourRecherche(String(nature || '')).trim();
+    return CODES_NATURE_BOIS.test(n) || RE_MOT_BOIS.test(n);
   }
   function natureParcelleRurale(nature) {
-    return RE_NATURE_RURALE.test(normaliserPourRecherche(String(nature || '')).trim());
+    const n = normaliserPourRecherche(String(nature || '')).trim();
+    return CODES_NATURE_RURALE.test(n) || RE_MOT_RURAL.test(n);
   }
 
-  // Pure : le type de vente d'une fiche bien. `typeBrut` et `designation` normalisés ; `natures` des parcelles (non vides).
-  function typeVenteFicheBienAuthentic(typeBrut, designation, natures, avecLots) {
+  // Pure : les parcelles sont-elles TOUTES en nature de bois (question de l'analyse de préemption) ? true quand chacune a sa
+  // nature et que toutes sont des bois ; false dès qu'une nature connue n'en est pas un ; null sinon.
+  function boisDesParcelles(parcelles) {
+    const liste = (parcelles || []).filter(Boolean);
+    const natures = liste.map(p => p.nature).filter(Boolean);
+    if (natures.some(n => !natureParcelleBois(n))) return false;
+    return liste.length && natures.length === liste.length ? true : null;
+  }
+
+  // Pure : le type de vente d'une fiche bien. `typeBrut` et `designation` normalisés ; `parcelles` avec leur nature.
+  // La désignation ne compte que si le type est vide ou « terrain » ; la nature du cadastre seule, que si le type est vide (un
+  // terrain à bâtir reste souvent cadastré en terre tant qu'il n'est pas construit).
+  function typeVenteFicheBienAuthentic(typeBrut, designation, parcelles, avecLots) {
     if (/maison|pavillon|villa/.test(typeBrut)) return 'maison';
-    if (/appartement|copropri|\blot\b/.test(typeBrut) || avecLots) return 'copropriete';
-    const texte = typeBrut + ' ' + designation;
-    const aBatir = /a batir|constructible|lotissement|viabilis/.test(texte);
-    if (!aBatir && (RE_NATURE_RURALE.test(typeBrut) || RE_NATURE_RURALE.test(designation) || (natures.length && natures.every(natureParcelleRurale)))) return 'terre';
-    if (/terrain/.test(typeBrut)) return 'terrain';
+    if (/appartement|copropri|(?<![a-z])lot(?![a-z])/.test(typeBrut) || avecLots) return 'copropriete';
+    if (RE_TYPE_BATI.test(typeBrut)) return null;
+    const terrain = /terrain/.test(typeBrut);
+    if (/a batir|constructible|lotissement|viabilis/.test(typeBrut + ' ' + designation)) return terrain ? 'terrain' : null;
+    if (!terrain && RE_MOT_RURAL.test(typeBrut)) return 'terre';
+    if ((!typeBrut || terrain) && RE_DESIGNATION_RURALE.test(designation)) return 'terre';
+    const liste = (parcelles || []).filter(Boolean);
+    if (!typeBrut && liste.length && liste.every(p => p.nature && CODES_NATURE_RURALE.test(normaliserPourRecherche(p.nature).trim()))) return 'terre';
+    return terrain ? 'terrain' : null;
+  }
+
+  // Pure : « parcelles en bois » d'une fiche bien de terre : les natures d'abord (toutes en bois / une qui n'en est pas) ; à
+  // défaut, le type (« Bois ») ou la désignation (« parcelle de bois ») pour un bien d'une seule parcelle. Jamais hors « terre ».
+  function boisFicheBienAuthentic(type, typeBrut, designation, parcelles) {
+    if (type !== 'terre') return null;
+    const parNature = boisDesParcelles(parcelles);
+    if (parNature !== null) return parNature;
+    if ((parcelles || []).length <= 1 && (RE_MOT_BOIS.test(typeBrut) || RE_DESIGNATION_BOIS.test(designation))) return true;
     return null;
   }
 
@@ -1421,13 +1457,10 @@
         parcelles.push(p);
       });
     });
-    const natures = parcelles.map(p => p.nature).filter(Boolean);
-    const designationNorm = normaliserPourRecherche(designation || '');
-    const type = typeVenteFicheBienAuthentic(typeBrut, designationNorm, natures, lots.length > 0);
-    // En bois (préemption des bois et forêts, SAFER) : dit par le type, la désignation ou la nature d'une parcelle ; « non »
-    // seulement quand chaque parcelle a sa nature et qu'aucune n'est un bois ; sinon inconnu (la question reste posée).
-    const bois = RE_NATURE_BOIS.test(typeBrut) || RE_NATURE_BOIS.test(designationNorm) || natures.some(natureParcelleBois) ? true
-      : parcelles.length && natures.length === parcelles.length ? false : null;
+    const designationNorm = normaliserPourRecherche(designation || '').replace(/\s+/g, ' ').trim();
+    const type = typeVenteFicheBienAuthentic(typeBrut, designationNorm, parcelles, lots.length > 0);
+    // Parcelles en bois (préemption des bois et forêts, SAFER) : seulement pour une terre ; sinon inconnu.
+    const bois = boisFicheBienAuthentic(type, typeBrut, designationNorm, parcelles);
     if (!adresse && !parcelles.length && !lots.length) return null;
     return {
       id: 'authentic-bien-' + normaliserPourRecherche((adresse && adresse.texte) || parcelles.map(p => p.section + p.numero).join('') || 'lots' + lots.map(l => l.numero).join('-')).replace(/[^a-z0-9]+/g, '').slice(0, 40),
@@ -1914,13 +1947,7 @@
       // Terre ou bois (12/10) : la pièce « Réponse SAFER » d'office, comme au passage à ce type sur la fiche.
       if (texteType && d.typeVente === 'terre' && ajouterPieceSaferTerre(d)) noter('« Réponse SAFER » ajoutée aux pièces (terre agricole / terrain non bâti)');
     }
-    // Parcelles en bois (ou non) d'après Authentic : réponse de l'analyse des droits de préemption, jamais par-dessus une
-    // réponse donnée sur la fiche ou dans l'outil.
-    if (typeof bien.bois === 'boolean' && (!d.bien || d.bien.natureBois !== bien.bois)) {
-      d.bien = Object.assign({}, d.bien || {}, { natureBois: bien.bois });
-      noter(bien.bois ? 'Parcelles en nature de bois d’après Authentic' : 'Aucune parcelle en nature de bois d’après Authentic');
-      resultat.modifie = true;
-    }
+    appliquerBoisAuthentic(d, bien, noter, resultat);
     const cad = (d.bien && d.bien.cadastre) || null;
     const deja = cad ? (Array.isArray(cad.parcelles) && cad.parcelles.length ? cad.parcelles : (cad.section ? [{ section: cad.section, numero: cad.numero }] : [])) : [];
     const cles = new Set(deja.map(p => cleParcelle(p.section, p.numero)).filter(Boolean));
@@ -1930,19 +1957,36 @@
     const parBien = new Map(bien.parcelles.map(p => [cleParcelle(p.section, p.numero), p]));
     let complete = false;
     const anciennes = deja.map(p => {
-      const sienne = Object.assign({ section: p.section, numero: p.numero }, details(p));
+      // Tout ce que la parcelle portait est gardé (lieu-dit et contenance lus dans le compromis compris).
+      const sienne = Object.assign({}, p);
       const a = parBien.get(cleParcelle(p.section, p.numero));
       Object.entries(details(a)).forEach(([k, v]) => { if (!sienne[k]) { sienne[k] = v; complete = true; } });
       return sienne;
     });
-    if (!nouvelles.length && !complete) return resultat;
+    if (!nouvelles.length && !complete) { appliquerBoisAuthentic(d, bien, noter, resultat); return resultat; }
     const parcelles = anciennes.concat(nouvelles.map(p => Object.assign({ section: p.section, numero: p.numero }, details(p)))).slice(0, 40);
     d.bien = Object.assign({}, d.bien || {});
     d.bien.cadastre = Object.assign({}, cad || {}, { section: parcelles[0].section, numero: parcelles[0].numero, parcelles });
     if (nouvelles.length) noter(`Parcelle${nouvelles.length > 1 ? 's' : ''} relevée${nouvelles.length > 1 ? 's' : ''} dans Authentic ajoutée${nouvelles.length > 1 ? 's' : ''} : ${nouvelles.map(p => `${p.section} ${p.numero}`).join(', ')}`);
     else noter('Nature, surface ou lieu-dit des parcelles complétés depuis Authentic');
+    appliquerBoisAuthentic(d, bien, noter, resultat);
     resultat.modifie = true;
     return resultat;
+  }
+
+  // Parcelles en bois d'après Authentic (réponse de départ de l'analyse des droits de préemption ; une réponse de l'étude
+  // l'emporte, voir prefillPreemption) : sur TOUTES les parcelles de la fiche, puis la fiche bien d'un dossier d'une seule
+  // parcelle ; seulement pour une terre ; rien d'écrit si rien ne change (un dossier à plusieurs biens n'oscille plus).
+  function appliquerBoisAuthentic(d, bien, noter, resultat) {
+    if (!d || d.typeVente !== 'terre') return;
+    const cad = d.bien && d.bien.cadastre;
+    const parcelles = cad && Array.isArray(cad.parcelles) ? cad.parcelles : [];
+    let bois = boisDesParcelles(parcelles);
+    if (bois === null && parcelles.length <= 1 && bien && typeof bien.bois === 'boolean') bois = bien.bois;
+    if (bois === null || (d.bien && d.bien.natureBois === bois)) return;
+    d.bien = Object.assign({}, d.bien || {}, { natureBois: bois });
+    noter(bois ? 'Parcelles en nature de bois d’après Authentic' : 'Parcelles hors nature de bois d’après Authentic');
+    resultat.modifie = true;
   }
 
   // Lots d'une copropriété relevés dans Authentic (06/10) : ajoutés ou complétés sur la fiche (jamais retirés) ; un dossier

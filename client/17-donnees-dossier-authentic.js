@@ -552,7 +552,7 @@
     if (parcelles.length || lots.lots.length) {
       const resultat = { modifie: false };
       const noter = () => {};
-      appliquerBienAuthentic(d, { adresse: bien && bien.adresse ? bien.adresse : null, parcelles, lots: lots.lots, tantiemesTotal: lots.tantiemesTotal, bois: bien ? bien.bois : null }, noter, resultat, { maintenant, forcer: o.forcer });
+      appliquerBienAuthentic(d, { adresse: bien && bien.adresse ? bien.adresse : null, parcelles, lots: lots.lots, tantiemesTotal: lots.tantiemesTotal, bois: bien && (donnees.immeubles || []).length <= 1 ? bien.bois : null }, noter, resultat, { maintenant, forcer: o.forcer });
       if (resultat.modifie) textes.push(lots.lots.length ? 'parcelles et lots' : 'parcelles');
     }
     const prix = donnees.infosAuthentic && Number(donnees.infosAuthentic.prix);

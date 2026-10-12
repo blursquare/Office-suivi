@@ -19368,3 +19368,13 @@ modèle **au choix dans les Réglages**, Opus par défaut.
   `prefillPreemption` (`boisDepuisFicheDossier`) ; la signature de l'analyse automatique ne change que lorsque le bois est connu
   et pas déjà répondu (pas de relecture de toutes les analyses). Surface gardée telle qu'Authentic l'écrit (unité non vue : pas
   utilisée pour le seuil de 4 ha). `tests/authentic-bien-terre.test.js`.
+  Relecture indépendante, corrigé avant publication : plus aucun mot pris au hasard (« près du bourg », « parterre », « zone
+  rurale », « rue de l'Étang », « chemin des Bois », « hangar agricole », « parquet en bois » donnaient « terre ») — mots entiers et
+  tournures explicites (`RE_DESIGNATION_RURALE` : « parcelle de bois », « terrain en nature de pré », « terres agricoles », ou la
+  désignation qui commence par le mot) ; désignation lue seulement si le type est vide ou « terrain », nature du cadastre seule
+  seulement si le type est vide (terrain à bâtir cadastré T) ; un type bâti (immeuble, local, hangar…) n'est jamais une terre ;
+  « bois » seulement pour une terre et au sens de la question (« toutes les parcelles », `boisDesParcelles`), le mot de la
+  désignation seulement pour un bien d'une parcelle ; `boisDeduit` sur l'analyse automatique (le bois d'Authentic suit la fiche,
+  une réponse de l'étude l'emporte, plus de relecture en trop) ; bois gardé dès la création (`fichesAuthenticACreation`) ;
+  « Mettre à jour » vers terre ajoute « Réponse SAFER » ; parcelles enrichies sans perdre lieu-dit et contenance du compromis ;
+  `natureBois` calculé sur toutes les parcelles (un dossier à plusieurs biens n'oscille plus).

@@ -459,6 +459,9 @@
     const parties = partiesExportAuthentic(donnees);
     // Succession : la civilité est déjà sur chaque partie (partiesSuccessionDepuisAuthentic) ; ni côté ni couple.
     if (estSuccession(d)) return textes;
+    // Parcelles en bois lues dans la fiche bien (désignation « parcelle de bois », nature vide) : gardées dès la création.
+    const im = bienExportAuthentic(donnees);
+    if (d.typeVente === 'terre' && im && typeof im.bois === 'boolean' && (donnees.immeubles || []).length <= 1) d.bien = Object.assign({}, d.bien || {}, { natureBois: im.bois });
     d.parties = Array.isArray(d.parties) ? d.parties : [];
     const surLaFiche = (v) => d.parties.find(p => p && String(p.role || '').toUpperCase() === v.role && memePartieComplement(p, v)) || null;
     const venues = parties.filter(v => (v.role === 'VENDEUR' || v.role === 'ACQUEREUR') && v.qualitePersonne !== 'morale' && String(v.nom || '').trim());
@@ -525,6 +528,8 @@
       d[m.champ] = m.valeur;
       memoriserValeurAuthentic(d, cle, m.valeur);
       texte = `${m.libelle} mis à jour d’après Authentic : ${m.apres}${m.avant ? ` (avant : ${m.avant})` : ''}`;
+      // Passage en terre agricole / terrain non bâti : la pièce « Réponse SAFER », comme par les autres voies.
+      if (m.champ === 'typeVente' && m.valeur === 'terre' && ajouterPieceSaferTerre(d)) texte += ' ; « Réponse SAFER » ajoutée aux pièces';
     } else if (m.type === 'contact') {
       d[m.champ] = remplacerContactAuthentic(m.nature, d[m.champ], m.anciens, m.nouveaux);
       majFicheAuthentic(d, m.fiche, m.role, m.nom, { [m.nature]: m.nouveaux });

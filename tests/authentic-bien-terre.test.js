@@ -41,7 +41,31 @@ test('terre agricole : type « terre » ; bois inconnu sans nature, « non » qu
   const p = app.bienDepuisFicheAuthentic(fiche({ type: '', designation: 'Une parcelle', nature: 'T' }));
   assert.equal(p.type, 'terre');
   assert.equal(p.bois, false);
+  // « Toutes en bois » : trois terres et un taillis → non.
+  const melange = app.bienDepuisFicheAuthentic(fiche({ type: 'Terre', designation: 'Des parcelles', lignes: [
+    ['C', '', 'ZB', '1', '', 'T', '', '', '1', ''], ['C', '', 'ZB', '2', '', 'BT', '', '', '1', '']] }));
+  assert.equal(melange.bois, false);
   assert.equal(app.bienDepuisFicheAuthentic(fiche({ type: '', designation: 'Une parcelle', nature: 'BT' })).bois, true);
+});
+
+test('relecture 0.221.0 : jamais « terre » ni « bois » sur un mot pris au hasard', () => {
+  const type = (t, des, nature) => app.bienDepuisFicheAuthentic(fiche({ type: t, designation: des, nature })).type;
+  assert.equal(type('Terrain', 'Un terrain situé près du bourg'), 'terrain');
+  assert.equal(type('Terrain', 'Un terrain avec parterre de fleurs'), 'terrain');
+  assert.equal(type('Terrain', 'Terrain en zone rurale'), 'terrain');
+  assert.equal(type('Terrain', 'Terrain rue de l’Étang'), 'terrain');
+  assert.equal(type('Terrain', 'Terrain chemin des Bois'), 'terrain');
+  assert.equal(type('Immeuble', 'Immeuble près de la gare'), null);
+  assert.equal(type('Local commercial', 'Local rue des Prés'), null);
+  assert.equal(type('Hangar', 'Hangar agricole'), null);
+  assert.equal(type('', 'Une maison, parquet en bois'), null);
+  // Terrain à bâtir cadastré en terre : reste un terrain.
+  assert.equal(type('Terrain', 'Une parcelle de terrain', 'T'), 'terrain');
+  const maison = app.bienDepuisFicheAuthentic(fiche({ type: 'Maison', designation: 'Maison, charpente bois' }));
+  assert.equal(maison.bois, null);
+  assert.equal(type('Terrain', 'Une parcelle de terre agricole'), 'terre');
+  assert.equal(type('Terrain', 'Terrain en nature de pré'), 'terre');
+  assert.equal(type('', 'Bois taillis'), 'terre');
 });
 
 test('terrain à bâtir et maison : jamais « terre »', () => {
@@ -52,11 +76,14 @@ test('terrain à bâtir et maison : jamais « terre »', () => {
 
 test('analyse de préemption : parcelles en bois d’après Authentic, réponse de la fiche prioritaire', () => {
   assert.equal(app.boisDepuisFicheDossier({ bien: { natureBois: true } }), true);
-  assert.equal(app.boisDepuisFicheDossier({ bien: { cadastre: { parcelles: [{ section: 'A', numero: '1', nature: 'BF' }, { section: 'A', numero: '2' }] } } }), true);
+  assert.equal(app.boisDepuisFicheDossier({ bien: { cadastre: { parcelles: [{ section: 'A', numero: '1', nature: 'BF' }, { section: 'A', numero: '2' }] } } }), null);
+  assert.equal(app.boisDepuisFicheDossier({ bien: { cadastre: { parcelles: [{ section: 'A', numero: '1', nature: 'BF' }, { section: 'A', numero: '2', nature: 'BT' }] } } }), true);
   assert.equal(app.boisDepuisFicheDossier({ bien: { cadastre: { parcelles: [{ section: 'A', numero: '1', nature: 'T' }] } } }), false);
   assert.equal(app.boisDepuisFicheDossier({ bien: { cadastre: { parcelles: [{ section: 'A', numero: '1' }] } } }), null);
   const e = app.prefillPreemption({ id: 'x', typeVente: 'terre', bien: { natureBois: true }, preemption: { reponses: { bois: false } } });
   assert.equal(e.reponses.bois, false);
+  // Un « bois » gardé par l'analyse automatique (déduit) suit la fiche.
+  assert.equal(app.prefillPreemption({ id: 'x', typeVente: 'terre', bien: { natureBois: true }, preemption: { reponses: { bois: false }, boisDeduit: true } }).reponses.bois, true);
   assert.equal(app.prefillPreemption({ id: 'x', typeVente: 'terre', bien: { natureBois: true } }).reponses.bois, true);
 });
 

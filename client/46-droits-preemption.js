@@ -120,14 +120,12 @@
   }
 
   // Pure : ce que la fiche apporte à l'outil (commune, parcelles, adresse, nature du bien).
-  // Pure : les parcelles du dossier sont-elles en nature de bois ? true / false / null (inconnu).
+  // Pure : les parcelles du dossier sont-elles TOUTES en nature de bois ? true / false / null (inconnu) — d'après Authentic
+  // (`d.bien.natureBois`, posé seulement pour une terre) ou la nature de chaque parcelle.
   function boisDepuisFicheDossier(d) {
     if (d && d.bien && typeof d.bien.natureBois === 'boolean') return d.bien.natureBois;
     const cad = d && d.bien && d.bien.cadastre;
-    const parcelles = cad && Array.isArray(cad.parcelles) ? cad.parcelles : [];
-    const natures = parcelles.map(p => p && p.nature).filter(Boolean);
-    if (natures.some(natureParcelleBois)) return true;
-    return parcelles.length && natures.length === parcelles.length ? false : null;
+    return boisDesParcelles(cad && Array.isArray(cad.parcelles) ? cad.parcelles : []);
   }
 
   function prefillPreemption(d) {
@@ -148,8 +146,14 @@
     // Parcelles en bois d'après Authentic (fiche bien, 12/10) ou la nature des parcelles : réponse de départ, une réponse donnée
     // sur la fiche ou dans l'outil l'emporte (ci-dessous).
     const bois = boisDepuisFicheDossier(d);
-    if (bois !== null) e.reponses.bois = bois;
-    if (d.preemption && d.preemption.reponses) e.reponses = Object.assign({}, e.reponses, d.preemption.reponses);
+    if (bois !== null) { e.reponses.bois = bois; e.boisDeduit = true; }
+    if (d.preemption && d.preemption.reponses) {
+      const gardees = Object.assign({}, d.preemption.reponses);
+      // Un « bois » gardé par une analyse automatique (déduit d'Authentic) suit la fiche ; une réponse de l'étude l'emporte.
+      if (d.preemption.boisDeduit && bois !== null) delete gardees.bois;
+      else if ('bois' in gardees) e.boisDeduit = !!d.preemption.boisDeduit;
+      e.reponses = Object.assign({}, e.reponses, gardees);
+    }
     if (d.preemption && d.preemption.insee) e.insee = d.preemption.insee;
     if (d.preemption && d.preemption.travaux && Array.isArray(d.preemption.travaux.liste)) e.travaux = { source: d.preemption.travaux.source || '', liste: d.preemption.travaux.liste };
     return e;
