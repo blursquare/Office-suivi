@@ -45,6 +45,8 @@ const { creerRouteurRapportTechnique } = require('./routes/rapportTechnique');
 const { creerRouteurSonnerie, creerRouteurAppels, creerEtatAppels } = require('./routes/appels');
 const { creerRouteurAuthentic } = require('./routes/authentic');
 const { creerRouteurAssistant } = require('./routes/assistant');
+const { creerRouteurRelaisWordPoste, creerRouteurRelaisWord } = require('./routes/relaisWord');
+const { creerEtatRelaisWord } = require('./relaisWord');
 const { creerJournalTechnique } = require('./journalTechnique');
 const { COLLABORATEURS_ABSENCE } = require('./agendaOffice');
 const { lireBuildInstalle } = require('./miseAJour');
@@ -180,6 +182,11 @@ function creerApp({ db, config, envoyerEmailFn, creerClientClaude, appelerMistra
   app.use(creerRouteurSonnerie(parametresRepo, depot, etatAppels));
   // Icône de CLAIRE pour l'installateur d'un poste (installationPoste.js), lue sans session.
   app.use('/api', creerRouteurIconePoste({ parametresRepo }));
+  // Relais Word de l'Aide à la rédaction (relaisWord.js) : le relais du poste parle hors session, avec le jeton de son
+  // installateur ; la fenêtre CLAIRE, elle, passe par la session.
+  const etatRelaisWord = creerEtatRelaisWord();
+  app.use('/api', creerRouteurRelaisWordPoste(parametresRepo, etatRelaisWord));
+  app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurRelaisWord(parametresRepo, etatRelaisWord));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurAppels(parametresRepo, etatAppels));
   // Pages d'Authentic envoyées par l'extension Firefox (extension-firefox/), gardées en mémoire 30 min.
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurAuthentic());

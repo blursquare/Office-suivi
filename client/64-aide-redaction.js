@@ -3,13 +3,16 @@
   // Word), la clause reconnue et, pour chaque blanc « --- » de la trame d'Authentic, la valeur du dossier à y mettre — tirée de la
   // fiche et des pièces du commun (rapport de diagnostic lu sur le NAS). Catalogue, lecteurs et lettres : commun/redaction.js.
   // Trame inconnue : l'IA désigne le champ de chaque blanc parmi la liste fermée (POST /api/assistant/correspondance-acte), sans
-  // jamais recevoir une valeur du dossier. Rien n'est écrit ni dans la fiche ni dans Word : chaque valeur se copie d'un clic.
+  // jamais recevoir une valeur du dossier. Rien n'est écrit dans la fiche ; dans Word, seulement le « --- » choisi, par « Insérer dans
+  // Word » (relais du poste, 0.219.0), sinon chaque valeur se copie d'un clic.
 
-  var aideActe = { dossierId: '', passage: '', ia: null, iaEnCours: false, iaErreur: '', lecture: {}, minuterie: null };
+  var aideActe = { dossierId: '', passage: '', ia: null, iaEnCours: false, iaErreur: '', lecture: {}, minuterie: null,
+    word: { etat: null, n: -1, passage: '', paragraphe: '', minuterie: null, vus: {}, attente: {} } };
 
   function initAideActe() {
     if (!aideActe.dossierId && dossierOuvert) aideActe.dossierId = dossierOuvert;
     renderAideActe();
+    suivreWordAideActe();
     const d = dossierAideActe();
     if (d && !aideActe.lecture[d.id]) lirePiecesAideActe();
   }
@@ -235,12 +238,14 @@
     return c ? c.libelle : '';
   }
 
-  function ligneValeurAideActe(cle, v, titre) {
+  function ligneValeurAideActe(cle, v, titre, indexBlanc) {
+    const inserer = v && indexBlanc !== undefined && wordInsertionPossibleAideActe()
+      ? `<wa-button variant="brand" size="s" type="button" onclick="insererWordAideActe(${Number(indexBlanc)})">Insérer dans Word</wa-button>` : '';
     return `<div class="red-ligne">
         <div class="red-ligne-tete"><span class="red-libelle">${escapeHtml(titre || libelleChampActe(cle))}</span>
           ${v ? `<span class="red-source">${escapeHtml(v.source)}${v.chemin ? ` · <button type="button" class="lien-action" onclick="ouvrirSourceAideActe('${escapeOnclickArg(cle)}')">voir${v.page ? ' p. ' + v.page : ''}</button>` : ''}</span>` : ''}</div>
         <div class="red-ligne-valeur">${v ? `<span class="red-valeur">${escapeHtml(v.valeur)}</span>
-          <wa-button appearance="outlined" size="s" type="button" onclick="copierValeurAideActe('${escapeOnclickArg(cle)}')">${icone('copier')} Copier</wa-button>`
+          ${inserer}<wa-button appearance="outlined" size="s" type="button" onclick="copierValeurAideActe('${escapeOnclickArg(cle)}')">${icone('copier')} Copier</wa-button>`
           : '<span class="red-vide">Pas trouvé : à compléter</span>'}</div>
       </div>`;
   }
@@ -249,7 +254,7 @@
     const zone = document.getElementById('red-resultat');
     if (!zone) return;
     const d = dossierAideActe();
-    if (!aideActe.passage.trim()) { zone.innerHTML = '<p class="red-vide">Collez le passage de l’acte où vous êtes : CLAIRE reconnaît la clause et propose la valeur de chaque « --- ».</p>'; return; }
+    if (!aideActe.passage.trim()) { zone.innerHTML = '<p class="red-vide">Placez le curseur de Word dans le passage de l’acte (relais Word) ou collez-le ici : CLAIRE reconnaît la clause et propose la valeur de chaque « --- ».</p>'; return; }
     const r = blancsAideActe();
     const valeurs = valeursActeDossier(d, d && aideActe.lecture[d.id]);
     const tete = `<div class="red-clause"><span class="section-eyebrow">Clause</span> <b>${escapeHtml(r.libelle || 'Non reconnue')}</b>
@@ -258,8 +263,8 @@
     zone.innerHTML = tete + r.trous.map((t, i) => {
       const titre = `Blanc ${i + 1}${t.champ ? ' · ' + libelleChampActe(t.champ) : ''}${t.parIa ? ' (désigné par l’IA)' : ''}`;
       // Champ choisi par l'IA : averti en clair, la valeur se vérifie avant d'être copiée (relecture 0.218.0).
-      if (t.champ && t.parIa) return `<p class="red-alerte">Blanc ${i + 1} : champ choisi par l’IA, à vérifier.</p>` + ligneValeurAideActe(t.champ, valeurs[t.champ], titre);
-      return t.champ ? ligneValeurAideActe(t.champ, valeurs[t.champ], titre)
+      if (t.champ && t.parIa) return `<p class="red-alerte">Blanc ${i + 1} : champ choisi par l’IA, à vérifier.</p>` + ligneValeurAideActe(t.champ, valeurs[t.champ], titre, i);
+      return t.champ ? ligneValeurAideActe(t.champ, valeurs[t.champ], titre, i)
         : `<div class="red-ligne"><div class="red-ligne-tete"><span class="red-libelle">${escapeHtml(titre)}</span></div><div class="red-ligne-valeur"><span class="red-vide">Champ non reconnu</span></div></div>`;
     }).join('');
   }
@@ -290,4 +295,130 @@
         return `<section class="red-groupe"><h3 class="section-eyebrow">${escapeHtml(g)} <span class="red-compte">${connus.length}/${champs.length}</span></h3>
           ${champs.map(c => ligneValeurAideActe(c.cle, valeurs[c.cle])).join('')}</section>`;
       }).join('');
+  }
+
+  // ---- Relais Word (0.219.0, étude 12/10 : « il faut aussi que CLAIRE sache où je suis sans avoir à faire de copier-coller ») ----
+  // Le relais du poste (server/src/relaisWord.js) envoie au serveur le paragraphe où se trouve le curseur de Word ; l'écran le
+  // relit chaque seconde tant qu'il est affiché et le prend comme passage. « Insérer dans Word » demande au relais de remplacer
+  // le n-ième « --- » de ce paragraphe (Ctrl+Z dans Word l'annule).
+
+  function posteRelaisWordAideActe() {
+    return utilisateurPoste ? clePosteAppels(utilisateurPoste) : '';
+  }
+
+  // Pure : le passage affiché pour un relevé du relais (intitulé au-dessus, puis le paragraphe).
+  function passageDepuisWord(titre, paragraphe) {
+    return (titre ? titre + '\n\n' : '') + String(paragraphe || '');
+  }
+
+  // Pure : le rang du blanc parmi tous les « --- » (trois tirets ou plus, ignorés compris) du paragraphe — ce que compte le relais.
+  function occurrenceBlancWord(passage, paragraphe, indexBlanc) {
+    const decalage = String(passage).length - String(paragraphe).length;
+    if (decalage < 0 || String(passage).slice(decalage) !== String(paragraphe)) return -1;
+    const re = /-{3,}/g;
+    let m; let n = 0;
+    while ((m = re.exec(paragraphe))) {
+      if (m.index + decalage === indexBlanc) return n;
+      n++;
+    }
+    return -1;
+  }
+
+  function wordInsertionPossibleAideActe() {
+    const w = aideActe.word;
+    return !!(w.etat && w.etat.actif && w.etat.word && w.paragraphe && aideActe.passage === w.passage);
+  }
+
+  async function suivreWordAideActe() {
+    const w = aideActe.word;
+    clearTimeout(w.minuterie);
+    if (ongletActuel !== 'redaction') return;
+    const poste = posteRelaisWordAideActe();
+    if (poste) {
+      try {
+        const r = await fetchAvecAuth('/api/relais-word/etat?poste=' + encodeURIComponent(poste));
+        if (r.ok) appliquerEtatWordAideActe(await r.json());
+      } catch (e) { /* serveur injoignable : relu à la seconde suivante */ }
+    } else if (w.etat !== null) { w.etat = null; renderWordAideActe(); }
+    if (ongletActuel === 'redaction') w.minuterie = setTimeout(suivreWordAideActe, document.hidden ? 5000 : 1000);
+  }
+
+  function appliquerEtatWordAideActe(etat) {
+    const w = aideActe.word;
+    const avant = JSON.stringify(w.etat && { a: w.etat.actif, w: w.etat.word, i: w.etat.installe });
+    w.etat = etat;
+    let redessiner = avant !== JSON.stringify({ a: etat.actif, w: etat.word, i: etat.installe });
+    if (etat.actif && etat.paragraphe && etat.n !== w.n) {
+      w.n = etat.n;
+      const champ = document.getElementById('red-passage');
+      // Une saisie en cours dans la zone du passage n'est jamais écrasée.
+      if (!(champ && document.activeElement === champ)) {
+        w.paragraphe = etat.paragraphe;
+        w.passage = passageDepuisWord(etat.titre, etat.paragraphe);
+        if (champ) champ.value = w.passage;
+        passageAideActe(w.passage);
+        redessiner = false;
+      }
+    }
+    for (const r of etat.resultats || []) {
+      if (w.vus[r.id] || !w.attente[r.id]) continue;
+      w.vus[r.id] = true;
+      delete w.attente[r.id];
+      afficherToast(r.ok ? 'Inséré dans Word (Ctrl+Z dans Word pour l’annuler).' : 'Word : ' + (r.message || 'insertion refusée.'), 'OK', null);
+    }
+    if (redessiner) renderResultatAideActe();
+    renderWordAideActe();
+  }
+
+  async function insererWordAideActe(indexBlanc) {
+    const w = aideActe.word;
+    const d = dossierAideActe();
+    const trou = blancsAideActe().trous[indexBlanc];
+    const v = trou && trou.champ && valeursActeDossier(d, d && aideActe.lecture[d.id])[trou.champ];
+    const occurrence = trou ? occurrenceBlancWord(aideActe.passage, w.paragraphe, trou.index) : -1;
+    if (!v || occurrence < 0 || !wordInsertionPossibleAideActe()) { afficherToast('Insertion impossible : le passage ne vient plus de Word.', 'OK', null); return; }
+    try {
+      const r = await fetchAvecAuth('/api/relais-word/inserer', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ poste: posteRelaisWordAideActe(), valeur: v.valeur, occurrence, attendu: w.paragraphe }) });
+      const corps = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(corps.erreur || 'statut ' + r.status);
+      w.attente[corps.id] = true;
+    } catch (e) {
+      afficherToast('Insertion impossible : ' + (e.message || 'serveur injoignable') + '.', 'OK', null);
+    }
+  }
+
+  async function telechargerRelaisWordAideActe() {
+    const poste = posteRelaisWordAideActe();
+    if (!poste) { afficherToast('Choisissez d’abord le collaborateur de ce poste.', 'OK', null); return; }
+    try {
+      const r = await fetchAvecAuth('/api/relais-word/installateur?poste=' + encodeURIComponent(poste));
+      if (!r.ok) throw new Error('statut ' + r.status);
+      const blob = await r.blob();
+      const lien = document.createElement('a');
+      lien.href = URL.createObjectURL(blob);
+      lien.download = 'Installer-relais-Word-CLAIRE.vbs';
+      document.body.appendChild(lien);
+      lien.click();
+      document.body.removeChild(lien);
+      setTimeout(() => URL.revokeObjectURL(lien.href), 60000);
+      afficherInfoAction('Installateur téléchargé', 'Ouvrez le fichier téléchargé (le navigateur peut demander de le conserver) : un message confirme l’installation. Le relais démarre aussitôt, puis à chaque ouverture de session. Cliquez une fois dans Word, puis revenez ici : le paragraphe où se trouve le curseur s’affiche seul.');
+    } catch (e) {
+      afficherToast('Téléchargement impossible : ' + (e.message || 'erreur') + '.', 'OK', null);
+    }
+  }
+
+  function renderWordAideActe() {
+    const zone = document.getElementById('red-word');
+    if (!zone) return;
+    const e = aideActe.word.etat;
+    const installer = (texte) => `<wa-button appearance="plain" size="s" class="bouton-discret" type="button" onclick="telechargerRelaisWordAideActe()">${texte}</wa-button>`;
+    let html;
+    if (!posteRelaisWordAideActe()) html = '<span class="red-note">Relais Word : choisissez le collaborateur de ce poste.</span>';
+    else if (!e) html = '<span class="red-note">Relais Word…</span>';
+    else if (!e.installe) html = `<span class="dot-label dl-neutre"><span class="dot"></span>Word non suivi</span> ${installer('Installer le relais Word sur ce poste')}`;
+    else if (!e.actif) html = `<span class="dot-label dl-urgent"><span class="dot"></span>Le relais Word ne répond pas</span> ${installer('Réinstaller')}${infoBulle('Le relais démarre à l’ouverture de session Windows. Réinstallez-le pour le relancer.')}`;
+    else if (!e.word) html = '<span class="dot-label dl-pret"><span class="dot"></span>Word n’est pas ouvert (ou aucun document)</span>';
+    else html = '<span class="dot-label dl-success"><span class="dot"></span>Suit le curseur de Word</span>' + infoBulle('Le paragraphe où se trouve le curseur de Word s’affiche seul, avec son intitulé. Cliquez dans un autre paragraphe de Word : CLAIRE suit.');
+    if (zone.innerHTML !== html) zone.innerHTML = html;
   }

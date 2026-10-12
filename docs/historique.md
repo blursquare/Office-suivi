@@ -19316,3 +19316,16 @@ modèle **au choix dans les Réglages**, Opus par défaut.
   `rendezVous` écrit sur une COPIE du dossier — la fiche ne change pas ; bouton « Placer la signature à cette date »),
   `construireEmailConfirmationRdv(d, contexte)`, `jourSemaineContredit` (commun/assistant.js) : « Attention : le … est un jeudi »
   en tête de la réponse ; agent : `date_du_geste` dans le résultat d'un geste, consigne de vérifier le jour et de toujours vouvoyer.
+
+- **12/10/2026 14 h 39 — 0.219.0 Relais Word de l'Aide à la rédaction** (étude : « il faut aussi que CLAIRE sache où je suis
+  sans avoir à faire de copier-coller ») : `server/src/relaisWord.js` (installateur .vbs ASCII → `%APPDATA%\CLAIRE\word-claire.ps1`
+  en Unicode + lanceur `.vbs`, clé Run de HKCU `CLAIRE-Word`, mutex `Local\CLAIRE-relais-Word` ; boucle 0,7 s : `GetActiveObject`
+  de Word, paragraphe du curseur + intitulé court au-dessus sans « --- », envoyé quand il change, battement toutes les 1 s — 5 s
+  sans Word), `routes/relaisWord.js` (relevé HORS session avec jeton, monté avant tout `middlewareAuth` de `/api` ; état, insertion,
+  installateur — nouveau jeton à chaque téléchargement, empreinte SHA-256 seule gardée). Insertion : le relais compare le paragraphe
+  (espaces et contrôles réduits), cherche les « --- » par Find (non joker), étend aux tirets suivants, remplace le n-ième — même
+  compte que `/-{3,}/g` côté poste (`occurrenceBlancWord`, consignes « --- OPTION » comprises). Écran : ligne d'état au-dessus du
+  passage (installer / ne répond pas / Word fermé / suit le curseur), relue chaque seconde tant que l'écran est affiché, une saisie
+  dans la zone du passage jamais écrasée ; bouton « Insérer dans Word » seulement quand le passage vient de Word tel quel.
+  Non vérifiable ici : COM de Word (inscription au ROT après un premier changement de fenêtre), stratégie PowerShell des postes,
+  `Find.Execute` sans arguments depuis PowerShell 5.1.

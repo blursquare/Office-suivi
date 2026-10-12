@@ -125,3 +125,17 @@ test('relecture 0.218.0 : étiquette énergie du DPE = la pire des deux lettres'
   const sommaire = R.lireDossierDiagnostic(['Sommaire Constat de repérage amiante État de l’installation intérieure d’électricité Diagnostic de performance énergétique Date de visite : 01/01/2026']);
   assert.equal(Object.keys(sommaire.diagnostics).length, 0, 'une page de sommaire ne désigne aucun diagnostic');
 });
+
+test('relais Word : passage = intitulé puis paragraphe ; rang du blanc parmi tous les « --- » du paragraphe', () => {
+  const para = 'Le diagnostic --- OPTION A SUPPRIMER a été établi le ----- par la société ---.';
+  const passage = app.passageDepuisWord('DIAGNOSTICS TECHNIQUES', para);
+  assert.equal(passage, 'DIAGNOSTICS TECHNIQUES\n\n' + para);
+  const trous = R.trousDuPassage(passage);
+  // La consigne « --- OPTION » n'est pas un blanc, mais le relais la compte parmi les « --- » de Word.
+  assert.equal(trous.length, 2);
+  assert.equal(app.occurrenceBlancWord(passage, para, trous[0].index), 1);
+  assert.equal(app.occurrenceBlancWord(passage, para, trous[1].index), 2);
+  // Passage modifié à la main : plus d'insertion possible.
+  assert.equal(app.occurrenceBlancWord(passage + ' x', para, trous[0].index), -1);
+  assert.equal(app.passageDepuisWord('', 'Seul ---'), 'Seul ---');
+});

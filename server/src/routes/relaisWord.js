@@ -1,0 +1,77 @@
+'use strict';
+
+// Relais Word de l'« Aide à la rédaction » (étude 12/10, voir ../relaisWord.js).
+//  - POST /api/relais-word/releve (HORS session, le jeton du poste en tient lieu) : le relais du poste envoie le paragraphe
+//    de Word où se trouve le curseur et les résultats de ses insertions ; il reçoit les insertions demandées. Le texte reste
+//    en mémoire du serveur (jamais en base, jamais journalisé).
+//  - GET /api/relais-word/etat?poste= : relais actif, Word ouvert, paragraphe courant, résultats des insertions.
+//  - POST /api/relais-word/inserer { poste, valeur, occurrence, attendu } : remplacer le n-ième « --- » du paragraphe.
+//  - GET /api/relais-word/installateur?poste= : l'installateur du relais de ce poste (nouveau jeton à chaque téléchargement,
+//    seule son empreinte est gardée — clé `relais-word`).
+
+const express = require('express');
+const { clePoste } = require('../appels3cx');
+const { adresseClairePoste } = require('../installationPoste');
+const { noterVerification } = require('../verificationsTerrain');
+const {
+  scriptInstallationRelaisWord, empreinteJeton, nouveauJeton, jetonValide,
+  appliquerReleveWord, demanderInsertionWord, etatPosteWord
+} = require('../relaisWord');
+
+var CLE_RELAIS_WORD = 'relais-word';
+
+function lireJetons(parametresRepo) {
+  const v = parametresRepo.lireJsonBrut(CLE_RELAIS_WORD, {});
+  return v && typeof v.jetons === 'object' && v.jetons ? v.jetons : {};
+}
+
+function creerRouteurRelaisWordPoste(parametresRepo, etat) {
+  const routeur = express.Router();
+  routeur.post('/relais-word/releve', (req, res) => {
+    const corps = req.body || {};
+    const poste = clePoste(corps.poste);
+    if (!poste || !jetonValide(lireJetons(parametresRepo)[poste], corps.jeton)) { res.status(403).json({ erreur: 'Relais inconnu.' }); return; }
+    const avant = (etat.postes.get(poste) || {}).n || 0;
+    const commandes = appliquerReleveWord(etat, poste, corps);
+    const p = etat.postes.get(poste);
+    if (p.n !== avant && p.paragraphe) noterVerification(parametresRepo, 'relais-word-suivi');
+    for (const r of Array.isArray(corps.resultats) ? corps.resultats : []) {
+      if (r && typeof r.id === 'string') noterVerification(parametresRepo, 'relais-word-insertion', r.ok === true ? { ok: true } : { ok: false, message: String(r.message || 'refus').slice(0, 80) });
+    }
+    res.json({ commandes });
+  });
+  return routeur;
+}
+
+function creerRouteurRelaisWord(parametresRepo, etat) {
+  const routeur = express.Router();
+  routeur.get('/relais-word/etat', (req, res) => {
+    const poste = clePoste(req.query.poste);
+    if (!poste) { res.status(400).json({ erreur: 'Collaborateur attendu.' }); return; }
+    res.json(etatPosteWord(etat, poste, !!lireJetons(parametresRepo)[poste]));
+  });
+  routeur.post('/relais-word/inserer', (req, res) => {
+    const corps = req.body || {};
+    const poste = clePoste(corps.poste);
+    if (!poste) { res.status(400).json({ erreur: 'Collaborateur attendu.' }); return; }
+    const r = demanderInsertionWord(etat, poste, corps);
+    if (r.erreur) { res.status(409).json({ erreur: r.erreur }); return; }
+    res.json(r);
+  });
+  routeur.get('/relais-word/installateur', (req, res) => {
+    const poste = clePoste(req.query.poste);
+    if (!poste) { res.status(400).json({ erreur: 'Collaborateur attendu.' }); return; }
+    const url = adresseClairePoste(req.protocol, req.get('host'));
+    if (!url) { res.status(400).json({ erreur: 'Adresse du serveur illisible.' }); return; }
+    const jeton = nouveauJeton();
+    const jetons = Object.assign({}, lireJetons(parametresRepo), { [poste]: empreinteJeton(jeton) });
+    parametresRepo.ecrireJsonBrut(CLE_RELAIS_WORD, { jetons });
+    res.setHeader('Content-Type', 'text/vbscript; charset=windows-1252');
+    res.setHeader('Content-Disposition', 'attachment; filename="Installer-relais-Word-CLAIRE.vbs"');
+    res.setHeader('Cache-Control', 'no-store');
+    res.send(Buffer.from(scriptInstallationRelaisWord({ url, poste, jeton }), 'latin1'));
+  });
+  return routeur;
+}
+
+module.exports = { creerRouteurRelaisWordPoste, creerRouteurRelaisWord, CLE_RELAIS_WORD };

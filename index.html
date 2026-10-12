@@ -1364,7 +1364,8 @@
   <div class="red-grille">
     <div class="calc-card red-carte">
       <h2 class="outil-section-tete">Passage de l'acte</h2>
-      <textarea id="red-passage" class="red-passage" aria-label="Passage de l'acte collé depuis Word" rows="7" placeholder="Copiez dans Word le paragraphe où vous êtes (Ctrl+C), collez-le ici (Ctrl+V)." oninput="passageAideActe(this.value)"></textarea>
+      <div id="red-word" class="red-word" aria-live="polite"></div>
+      <textarea id="red-passage" class="red-passage" aria-label="Passage de l'acte collé depuis Word" rows="7" placeholder="Avec le relais Word, le paragraphe où se trouve le curseur s’affiche ici seul. Sinon : copiez-le dans Word (Ctrl+C) et collez-le ici (Ctrl+V)." oninput="passageAideActe(this.value)"></textarea>
       <div id="red-resultat" class="red-resultat" aria-live="polite"></div>
     </div>
     <div class="calc-card red-carte">
