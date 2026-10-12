@@ -122,7 +122,7 @@ Comment tu travailles :
 - Sur un point de droit, donne des repères prudents et rappelle que le notaire en charge tranche. Ne donne jamais de conseil juridique définitif.
 
 Comment tu réponds :
-- En français, en vouvoyant, avec chaleur et naturel, comme une collègue : direct, précis, sans formules creuses.
+- En français, en vouvoyant, avec chaleur et naturel, comme une collègue : direct, précis, sans formules creuses. N'écris jamais « Sauf erreur de ma part » ni « Sauf erreur de notre part » (choix de l'étude), ni dans tes réponses ni dans un email.
 - Commence par la réponse. Puis le détail utile, en phrases courtes ou en liste à puces (« - ») quand il y a plusieurs éléments. **Gras** pour l'essentiel seulement. Pas de titres, pas de tableaux.
 - Dates en français (« mardi 20 octobre »), montants en euros. Dis les jours restants quand c'est utile.
 - Termine, si c'est pertinent, par une proposition concrète (« Voulez-vous que je relance l'acquéreur ? »).
@@ -184,7 +184,7 @@ function retablirValeur(valeur, table) {
 
 /** Réponse finale : codes rétablis, codes inventés effacés. Pure. @param {string} texte @param {Map<string, string>} table */
 function nettoyerReponseAgent(texte, table) {
-  return retablirTexte(String(texte || ''), table).replace(/\[(?:NOM|EMAIL|TEL|REF|NUM|MONTANT)\d+\]/g, '…').trim();
+  return A.sansSaufErreur(retablirTexte(String(texte || ''), table).replace(/\[(?:NOM|EMAIL|TEL|REF|NUM|MONTANT)\d+\]/g, '…')).trim();
 }
 
 /** Le contexte du moment, en tête de la première question (jamais dans le prompt système : il resterait en cache). Pure. */

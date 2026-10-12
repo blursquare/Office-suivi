@@ -19227,3 +19227,20 @@ modèle **au choix dans les Réglages**, Opus par défaut.
   `depuis_hier`, « dossier du NAS » retiré) ; dossier ambigu → « Lequel ? », « ce dossier » prend celui en consultation ; un
   dossier nommé garde aussi les scans pas encore lus sur ce poste ; pièces triées par date AVANT d'être coupées ;
   `?recents` refusé sans dossier client.
+
+### 0.217.0 — 12/10/2026 — Plusieurs conversations dans « Demander à CLAIRE » ; jamais « Sauf erreur de ma part »
+
+- Étude 12/10 : « mettre une sidebar dans Demander à CLAIRE pour suivre plusieurs conversations » ; choix de l'étude : gardées
+  sur le poste. `client/63-assistant-conversations.js` : colonne `.asst-cote` (248 px, tiroir sous 900 px ouvert par le bouton
+  « Conversations » de l'en-tête), groupes `groupesConversationsAssistant` (Aujourd'hui, Hier, 7 derniers jours, Plus
+  anciennes), titre = première demande (`titreConversationAssistant`). La conversation affichée (globaux `assistantMessages`,
+  `assistantContexte`, `assistantAgentConversation`) est recopiée à chaque message (`memoriserConversationAssistant`) et
+  écrite une fois par seconde dans `localStorage` (`claire-assistant-conversations:<collaborateur>`, `ecrireLocal`) — jamais sur
+  le serveur ni en ligne ; 30 jours, 20 au plus, 60 messages ; boutons (fonctions) et attente d'un nom de dossier jamais
+  écrits ; lecture tolérante (`lireConversationsAssistant`). Pas de changement de conversation pendant une réponse. L'agent
+  reprend sa conversation du serveur si elle vit encore (30 min), sinon repart de zéro et le dit.
+- Étude 12/10 : « dans Demander à CLAIRE et dans les emails en général, ne pas mettre la forme “Sauf erreur de ma part” ».
+  Retiré de la relance des fonds (`construireEmailRelanceFonds` et son modèle intégré, mot pour mot ensemble) ; consigne dans les
+  prompts de l'agent, de l'échange libre et du premier jet d'email ; filtre `sansSaufErreur` (commun/assistant.js) sur les
+  réponses de l'agent, de l'échange libre et la proposition d'email. Un modèle modifié par l'étude dans les Réglages reste le
+  sien.

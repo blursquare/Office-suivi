@@ -998,6 +998,7 @@
       'icon-nav-suivi': 'list',
       'icon-nav-assistant': 'sparkle',
       'icon-assistant-envoyer': 'send',
+      'icon-assistant-fils': 'list',
       'icon-recherche-suivi': 'search',
       'icon-nav-scans': 'bannette',
       'icon-nav-agenda': 'calendar',

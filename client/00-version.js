@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.216.0';
+  const VERSION_APP = '0.217.0';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.217.0', date: '2026-10-12 11:53', resume: "« Demander à CLAIRE » : colonne « Conversations » à gauche pour suivre plusieurs conversations (Aujourd'hui, Hier, 7 derniers jours, Plus anciennes ; reprendre, supprimer, nouvelle), gardées sur ce poste seulement (30 jours, 20 au plus) ; tiroir sur téléphone. Plus jamais « Sauf erreur de ma/notre part » : retiré de la relance des fonds, interdit à l'IA et filtré de ses réponses et de ses premiers jets d'email." },
     { version: '0.216.0', date: '2026-10-12 10:53', resume: "« Demander à CLAIRE » regarde les derniers documents reçus et les ouvre : pièces reconnues ou rangées (14 jours), scans du copieur à ranger et rangés, et pour un dossier nommé les fichiers les plus récents de son dossier du NAS ; un bouton « Ouvrir » par document (aperçu de Claire Scan ou onglet). Compris sans IA (« les derniers scans reçus », « les dernières pièces de MARTIN ») et par l'agent (outils documents_recents et ouvrir_documents ; le nom d'un fichier du NAS ne part jamais en ligne)." },
     { version: '0.215.0', date: '2026-10-12 10:23', resume: "Fonds : pastille « Fonds reçus » sur la ligne du dossier dans le Suivi et point de notification sur l'onglet Fonds de la fiche dès que tous les fonds sont reçus, jusqu'à la confirmation au client." },
     { version: '0.214.1', date: '2026-10-12 10:18', resume: "Tâches posées dans l'agenda : « JS : tâche » (espace avant les deux-points, parenthèses, plusieurs séparateurs) est reconnu. « Voir N de plus » de la carte Aujourd'hui : uniquement les tâches à faire, en une liste qui défile — plus de « Depuis hier 18 h » ni d'« Agenda du jour »." },

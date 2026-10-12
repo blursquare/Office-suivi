@@ -179,6 +179,21 @@ try {
       await geste(page, 'derniers documents sans IA', () => executerDemandeAssistant({ intention: 'derniers_documents', dossier: 'f1', parametres: {}, candidats: [] }));
       await page.waitForFunction(() => /Claire Scan/.test(JSON.stringify((assistantMessages[assistantMessages.length - 1] || {}).boutons || [])), null, { timeout: 5000 }).catch(() => {});
       verifier(erreurs.length === avantDocs && await page.evaluate(() => (assistantMessages[assistantMessages.length - 1].boutons || []).some(b => b.libelle === 'Claire Scan')), 'derniers documents : réponse sans erreur, bouton Claire Scan');
+      // Plusieurs conversations (étude 12/10) : la conversation en cours est listée, une nouvelle s'ouvre, on revient à la première.
+      const avantFils = erreurs.length;
+      await page.waitForFunction(() => !assistantEnCours, null, { timeout: 5000 }).catch(() => {});
+      const fils = await page.evaluate(() => {
+        const avant = assistantMessages.length;
+        const premiere = assistantConversationId;
+        nouvelleConversationAssistant();
+        poserMessageAssistant('moi', 'Deuxième conversation');
+        const deux = assistantConversations.length;
+        ouvrirConversationAssistant(premiere);
+        ecrireConversationsAssistant();
+        const garde = lireConversationsAssistant(localStorage.getItem(cleStockageConversationsAssistant()) || '', Date.now()).length;
+        return { avant, deux, revenu: assistantMessages.length === avant, lignes: document.querySelectorAll('#assistant-fils .asst-fil').length, garde };
+      });
+      verifier(erreurs.length === avantFils && fils.deux >= 2 && fils.revenu && fils.lignes >= 2 && fils.garde >= 2, `conversations : listées, reprises et gardées sur le poste (${JSON.stringify(fils)})`);
       // Une erreur APRÈS un geste : jamais de repli sur la compréhension d'une phrase (le geste serait refait).
       let compris = 0;
       await page.route('**/api/assistant/comprendre', async (r) => { compris += 1; await r.continue(); });

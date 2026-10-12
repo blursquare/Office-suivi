@@ -577,6 +577,13 @@
     return null;
   }
 
+  // Étude 12/10 : « dans Demander à CLAIRE et dans les emails en général, ne pas mettre la forme “Sauf erreur de ma part” ».
+  // Pure : retire la formule (ma / notre part, « ou omission » compris) d'un texte écrit par une IA, majuscule rétablie.
+  var RE_SAUF_ERREUR = /(^|[.!?]\s+|\n\s*)sauf erreur(?: ou omission)? de (?:ma|notre) part\s*[,:]?\s*(\S?)|,?[ \t]*sauf erreur(?: ou omission)? de (?:ma|notre) part\b,?/gi;
+  function sansSaufErreur(texte) {
+    return String(texte || '').replace(RE_SAUF_ERREUR, (m, debut, lettre) => debut !== undefined ? debut + (lettre || '').toUpperCase() : '');
+  }
+
   /** L'intention par sa clé. */
   function intentionAssistant(cle) {
     return INTENTIONS_ASSISTANT.find(i => i.cle === cle) || null;
@@ -585,7 +592,7 @@
   const exportes = {
     INTENTIONS_ASSISTANT, MODELES_EMAIL_ASSISTANT, ECHEANCES_ASSISTANT, CHAMPS_DATE_ASSISTANT, ECRANS_ASSISTANT, MOIS_ASSISTANT, JOURS_ASSISTANT,
     normaliserDemande, dateDepuisTexte, heureDepuisTexte, creneauxDepuisTexte, montantsDepuisTexte, partsDepuisTexte, reconnaitreDossier, motsUtilesAssistant,
-    interpreterParMotsCles, civilitesDansPhrase, exemplesProches, intentionParExemples, parametresDepuisTexte, texteRappelDepuisPhrase, validerReponseAssistant, intentionAssistant
+    interpreterParMotsCles, civilitesDansPhrase, exemplesProches, intentionParExemples, parametresDepuisTexte, texteRappelDepuisPhrase, validerReponseAssistant, intentionAssistant, sansSaufErreur
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = exportes; else Object.assign(globalThis, exportes);
 })(

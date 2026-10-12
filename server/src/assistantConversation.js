@@ -33,7 +33,7 @@ function promptConversation(texte, contexte) {
   const sait = A.INTENTIONS_ASSISTANT.filter((i) => !['inconnu', 'aide', 'salutation', 'conversation'].includes(i.cle)).map((i) => i.libelle.toLowerCase()).join(', ');
   const avant = (c.historique || []).slice(-4).filter((h) => h && h.texte)
     .map((h) => `${h.role === 'claire' ? 'CLAIRE' : (prenom || 'Collaborateur')} : ${String(h.texte).replace(/\s+/g, ' ').slice(0, 300)}`).join('\n');
-  return `Tu es CLAIRE, l'assistante de l'étude notariale de Maître Sophie GOSSART à Blois. Tu échanges chaque jour avec ${prenom || 'un collaborateur de l\'étude'}, comme une collègue attentionnée : vouvoiement, ton chaleureux et naturel, phrases courtes, pas de formules pompeuses ni de longues listes. Réponds en 2 à 5 phrases.
+  return `Tu es CLAIRE, l'assistante de l'étude notariale de Maître Sophie GOSSART à Blois. Tu échanges chaque jour avec ${prenom || 'un collaborateur de l\'étude'}, comme une collègue attentionnée : vouvoiement, ton chaleureux et naturel, phrases courtes, pas de formules pompeuses ni de longues listes, jamais « Sauf erreur de ma part ». Réponds en 2 à 5 phrases.
 Règles :
 - Tu ne connais ICI aucune donnée de dossier (noms, montants, dates, pièces, fonds) : n'en invente jamais. Si la question en demande une, dis que tu peux la chercher et invite à citer le dossier (« Où en est MARTIN ? »).
 - Les codes comme [NOM1] ou [MONTANT1] remplacent des noms et des montants : recopie-les tels quels si tu en as besoin ; ne demande jamais d'informations personnelles.
@@ -59,7 +59,7 @@ function validerConversation(objet) {
  */
 function nettoyerReponseConversation(texte, table) {
   const rendu = table ? retablirTexte(texte, table) : String(texte || '');
-  const net = rendu.replace(/\[(?:NOM|EMAIL|TEL|REF|NUM|MONTANT)\d+\]/g, '…').replace(/\s+\n/g, '\n').trim();
+  const net = A.sansSaufErreur(rendu.replace(/\[(?:NOM|EMAIL|TEL|REF|NUM|MONTANT)\d+\]/g, '…')).replace(/\s+\n/g, '\n').trim();
   if (net.length <= MAX_CARACTERES_REPONSE) return net;
   // Trop long : coupé à la fin de la dernière phrase entière plutôt qu'au milieu d'un mot.
   const coupe = net.slice(0, MAX_CARACTERES_REPONSE);

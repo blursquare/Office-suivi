@@ -1534,11 +1534,18 @@
 <div class="onglet-panel" id="onglet-assistant" style="display:none;">
   <!-- Présentation « à la Slack » (étude 11/10) : fil continu, avatar carré, nom et heure ; @ pour citer un dossier. -->
   <div class="asst-page">
+    <!-- Conversations (étude 12/10 : « suivre plusieurs conversations ») — gardées sur ce poste seulement. -->
+    <aside class="asst-cote" aria-label="Conversations">
+      <wa-button appearance="outlined" size="s" type="button" class="asst-nouvelle" onclick="nouvelleConversationAssistant()"><span slot="start" class="bouton-ajout-plus">+</span>Nouvelle conversation</wa-button>
+      <div class="asst-fils" id="assistant-fils"></div>
+    </aside>
+    <div class="asst-principal">
     <div class="asst-tete">
+      <wa-button appearance="plain" size="s" class="bouton-icone asst-fils-bouton" type="button" onclick="basculerFilsMobileAssistant()" title="Conversations" aria-label="Conversations"><span id="icon-assistant-fils" aria-hidden="true"></span></wa-button>
       <h1 class="asst-titre"><span class="asst-diese" aria-hidden="true">#</span>Demander à CLAIRE</h1>
       <div class="asst-etat" id="assistant-etat"></div>
       <span class="asst-tete-espace"></span>
-      <wa-button appearance="outlined" size="s" type="button" onclick="nouvelleConversationAssistant()">Nouvelle conversation</wa-button>
+      <wa-button appearance="outlined" size="s" type="button" class="asst-nouvelle-tete" onclick="nouvelleConversationAssistant()">Nouvelle conversation</wa-button>
     </div>
     <div class="asst-messages" id="assistant-messages" aria-live="polite"></div>
     <div class="asst-bas">
@@ -1553,6 +1560,7 @@
         </div>
       </form>
       <p class="asst-pied">Les emails s’ouvrent dans la fenêtre d’envoi, l’agenda demande une confirmation ; le reste se fait tout de suite et s’annule d’un clic. Avec une IA en ligne, seule la phrase part, les noms masqués.</p>
+    </div>
     </div>
   </div>
 </div>
@@ -2704,5 +2712,6 @@
 <script src="client/60-onglets-travail.js"></script>
 <script src="client/61-assistant-agent.js"></script>
 <script src="client/62-assistant-documents.js"></script>
+<script src="client/63-assistant-conversations.js"></script>
 </body>
 </html>

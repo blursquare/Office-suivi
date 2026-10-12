@@ -13,6 +13,7 @@
   var assistantActions = {};            // clé du bouton → fonction (jamais de code dans l'attribut onclick)
 
   function initAssistant() {
+    chargerConversationsAssistant();
     if (dossierOuvert) assistantContexte.dossierId = dossierOuvert;
     renderAssistant();
     chargerDisponibiliteAssistant();
@@ -93,6 +94,7 @@
   function renderAssistant() {
     const zone = document.getElementById('assistant-messages');
     if (!zone) return;
+    renderFilsAssistant();
     assistantActions = {};
     const relances = document.getElementById('assistant-relances');
     if (relances) relances.innerHTML = assistantMessages.length ? relancesAssistant().map((s, k) =>
@@ -263,10 +265,12 @@
   function poserMessageAssistant(role, html, boutons) {
     assistantMessages.push({ role, html, boutons: boutons || [], quand: Date.now() });
     if (assistantMessages.length > 60) assistantMessages = assistantMessages.slice(-60);
+    memoriserConversationAssistant();
     renderAssistant();
   }
 
   function nouvelleConversationAssistant() {
+    if (!commencerConversationAssistant()) return;
     assistantMessages = [];
     oublierConversationAgent();
     mentionsChoisiesAssistant = [];

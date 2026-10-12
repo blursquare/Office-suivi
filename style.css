@@ -9201,7 +9201,30 @@ table.pr-zt td.pr-zt-retenue select { min-width: 120px; min-height: 32px; height
 /* ==== « Demander à CLAIRE » (étude 11/10) : présentation « à la Slack » — page pleine hauteur sans marge, fil continu
    (avatar carré, nom et heure, messages d'un même auteur groupés), cartes de résultat bordées, saisie avec sa barre d'outils ==== */
 #onglet-assistant { max-width: none; margin: -32px -32px -40px; }
-.asst-page { display: flex; flex-direction: column; height: 100vh; background: var(--paper-card); }
+.asst-page { display: grid; grid-template-columns: 248px minmax(0, 1fr); height: 100vh; background: var(--paper-card); position: relative; }
+.asst-principal { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
+/* Conversations (étude 12/10) : colonne à gauche, comme Claude ou Slack ; un tiroir sous 900 px. */
+.asst-cote { display: flex; flex-direction: column; gap: 12px; min-height: 0; padding: 12px 8px; border-right: 1px solid var(--line); background: var(--paper-sunk); }
+.asst-cote .asst-nouvelle { width: 100%; }
+.asst-fils { flex: 1 1 auto; overflow-y: auto; min-height: 0; display: flex; flex-direction: column; gap: 12px; }
+.asst-fils-titre { font-size: var(--texte-xs); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); padding: 0 8px 4px; }
+.asst-fils-liste { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.asst-fil { display: flex; align-items: center; border-radius: var(--rayon-s); }
+.asst-fil:hover, .asst-fil.actif { background: var(--paper-card); }
+.asst-fil.actif { box-shadow: inset 2px 0 0 var(--focus); }
+.asst-fil-ouvrir { flex: 1 1 auto; min-width: 0; text-align: left; background: none; border: 0; padding: 6px 8px; font: inherit; font-size: var(--texte-m); color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
+.asst-fil.actif .asst-fil-ouvrir { font-weight: 500; }
+.asst-fil-suppr { opacity: 0; }
+.asst-fil:hover .asst-fil-suppr, .asst-fil:focus-within .asst-fil-suppr { opacity: 1; }
+.asst-fils-vide { color: var(--muted); font-size: var(--texte-s); padding: 0 8px; margin: 0; }
+.asst-fils-bouton, .asst-nouvelle-tete { display: none; }
+@media (max-width: 900px) {
+  .asst-page { grid-template-columns: minmax(0, 1fr); }
+  .asst-cote { display: none; position: absolute; z-index: 5; top: 0; bottom: 0; left: 0; width: min(280px, 85%); box-shadow: var(--shadow-float); }
+  .asst-page.fils-ouverts .asst-cote { display: flex; }
+  .asst-fils-bouton, .asst-nouvelle-tete { display: inline-flex; }
+}
+@media (hover: none) { .asst-fil-suppr { opacity: 1; } }
 .asst-tete { flex: 0 0 auto; display: flex; align-items: center; gap: 12px; padding: 12px 24px; border-bottom: 1px solid var(--line); min-height: 56px; }
 .asst-titre { margin: 0; font-size: var(--texte-l); font-weight: 500; letter-spacing: 0; white-space: nowrap; }
 .asst-diese { color: var(--muted); margin-right: 4px; font-weight: 500; }

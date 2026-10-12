@@ -348,6 +348,7 @@ function promptPropositionReponse({ objet, deNom, texte, dossier, confrere, pj }
     '- Réponds seulement à ce qui est demandé ; si des documents sont joints, une phrase suffit pour en accuser réception.',
     '- N’invente aucune date, aucun montant, aucun délai, aucune pièce, aucun engagement : écris « [à compléter] » là où une information manque.',
     '- Ne donne aucun avis juridique et ne promets rien au nom du notaire.',
+    '- N’écris jamais « Sauf erreur de ma part » ni « Sauf erreur de notre part ».',
     '- Pas de signature (elle est ajoutée ensuite), pas d’objet.',
     'Réponds avec un objet JSON exactement de cette forme : {"reponse": "…"}'
   ].join('\n');

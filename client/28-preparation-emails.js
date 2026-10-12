@@ -1216,7 +1216,7 @@
   // confrère représente l'acquéreur, c'est son office qui s'occupe de ses fonds. Premier jet de CLAIRE.
   function construireEmailRelanceFonds(d) {
     return { sujet: `Fonds à nous faire parvenir — ${libelleDossierAffiche(d)}`, corps: ['Bonjour,',
-      'Sauf erreur de notre part, les fonds destinés à votre acquisition ne nous sont pas encore parvenus en comptabilité.',
+      'Les fonds destinés à votre acquisition ne nous sont pas encore parvenus en comptabilité.',
       `Le rendez-vous de signature de l’acte authentique est fixé ${quandRdvEmail(d)}, ${lieuRdvEmail(d, false)}. Pour qu’il puisse se tenir, nous vous remercions de bien vouloir effectuer le virement dès que possible, selon les indications de notre appel de fonds.`,
       'Si le virement a déjà été effectué, merci de nous en adresser le justificatif en réponse à cet email.',
       'Nous restons à votre disposition pour toute question.',
@@ -1378,7 +1378,7 @@
           'Je vous remercie de bien vouloir me faire parvenir, le cas échéant, vos observations sur le projet d’acte.', 'Bien cordialement,'].join('\n\n') },
       { cle: 'relanceFonds', nom: 'Relance pour les fonds', construire: construireEmailRelanceFonds,
         sujet: 'Fonds à nous faire parvenir — {dossier}',
-        corps: ['Bonjour,', 'Sauf erreur de notre part, les fonds destinés à votre acquisition ne nous sont pas encore parvenus en comptabilité.',
+        corps: ['Bonjour,', 'Les fonds destinés à votre acquisition ne nous sont pas encore parvenus en comptabilité.',
           'Le rendez-vous de signature de l’acte authentique est fixé le {date et heure du rendez-vous}, {lieu du rendez-vous}. Pour qu’il puisse se tenir, nous vous remercions de bien vouloir effectuer le virement dès que possible, selon les indications de notre appel de fonds.',
           'Si le virement a déjà été effectué, merci de nous en adresser le justificatif en réponse à cet email.', 'Nous restons à votre disposition pour toute question.', 'Bien cordialement,'].join('\n\n') },
       { cle: 'relanceDecompteConfrere', nom: 'Demande du décompte (au confrère du vendeur)', construire: construireEmailRelanceDecompteConfrere,

@@ -11,6 +11,7 @@ const {
 } = require('../emailsDossiers');
 const { copierDansDossierClient, extensionPieceJointe } = require('../scans');
 const { envoyerEmailExchange, promptPropositionReponse, validerProposition, LONGUEUR_MAX_PROPOSITION } = require('../envoiEmailsExchange');
+const { sansSaufErreur } = require('../../../commun/assistant');
 
 function routeAsync(fn) {
   return (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
@@ -206,7 +207,7 @@ function creerRouteurEmailsDossiers(parametresRepo, depot, options = {}) {
       }), validerProposition, { longueurMax: LONGUEUR_MAX_PROPOSITION });
       noterVerification(parametresRepo, 'email-proposition-ia', {});
       res.setHeader('Cache-Control', 'no-store');
-      res.json({ reponse: String(o.reponse).trim().slice(0, 4000) });
+      res.json({ reponse: sansSaufErreur(String(o.reponse)).trim().slice(0, 4000) });
     } catch (_) {
       noterVerification(parametresRepo, 'email-proposition-ia', { ok: false, message: 'réponse de l’IA illisible' });
       res.status(502).json({ erreur: 'L’IA locale n’a pas pu proposer de réponse.' });
