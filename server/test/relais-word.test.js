@@ -143,8 +143,15 @@ test('routes : programme identique pour tous ; code = jeton du poste ; relevé h
   assert.equal(ins.status, 200);
   const cmd = await (await releve({ poste: 'julie', jeton, word: true, inchange: true })).json();
   assert.equal(cmd.commandes[0].valeur, '2641E0000000X');
-  // Un nouveau code remplace le jeton : l'ancien relais est refusé.
-  await codePour('julie');
+  // Un nouveau code demandé : le relais en marche garde son jeton tant que le nouveau n'est pas présenté (relecture 0.221.2).
+  const nouveau = configDuCode(await codePour('julie')).jeton;
+  assert.equal((await releve({ poste: 'julie', jeton, word: true, inchange: true })).status, 200);
+  // Contrôle de l'installation : le jeton seul, rien de ce qui attend le relais n'est pris.
+  await fetch(`${baseUrl}/api/relais-word/inserer`, { method: 'POST', headers: { ...auth, ...json }, body: JSON.stringify({ poste: 'julie', valeur: 'X', occurrence: 0, attendu: 'p' }) });
+  const verif = await releve({ poste: 'julie', jeton: nouveau, verifier: true });
+  assert.deepEqual(await verif.json(), { ok: true });
+  assert.equal((await (await releve({ poste: 'julie', jeton: nouveau, word: true, inchange: true })).json()).commandes.length, 1);
+  // Le nouveau jeton présenté devient celui du poste : l'ancien est refusé.
   assert.equal((await releve({ poste: 'julie', jeton, word: true })).status, 403);
 });
 

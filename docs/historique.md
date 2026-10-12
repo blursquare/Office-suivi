@@ -19408,3 +19408,14 @@ modèle **au choix dans les Réglages**, Opus par défaut.
   `server/relais/LISEZMOI.md` = fiche pour Fichorga (empreinte, emplacements, ce que fait le programme). Essayé sous Mono :
   programme servi tel quel, code demandé à un vrai serveur, `--verifier` accepté. Non vérifiable ici : presse-papiers et
   InputBox sous Windows, Panda.
+  Relecture indépendante de 0.221.2, corrigé avant publication : jeton du code **en attente** jusqu'à sa première présentation
+  (une demande de code abandonnée coupait le relais en marche) ; presse-papiers vidé après lecture du code ; code toujours
+  affiché dans le message de CLAIRE ; contrôle de l'installation par `verifier: true` (le serveur ne prend ni insertion ni
+  sonnerie) ; toute erreur de vérification abandonne l'installation ; `relais.json` écrit après la copie ; MD5 ajouté à la fiche
+  pour Fichorga. Nouvelle empreinte du programme (voir `server/relais/LISEZMOI.md`).
+
+- **12/10/2026 15 h 55 — 0.222.0 « Pas de prêt dans ce dossier »** (étude : « comment retirer la condition d'obtention du prêt si
+  lors de la création je me suis trompé et qu'il n'y a pas de prêt ? » ; « il n'y a pas la croix », « que un crayon » — la croix
+  de la ligne n'existe que si une date est saisie, et n'apparaît qu'au survol) : lien toujours visible sous la ligne du prêt,
+  jamais une fois l'offre reçue ni en financement comptant ; `marquerSansPret` (client/27, confirmation, historique, date butoir
+  retirée de l'agenda si une date existait). `tests/sans-pret.test.js`.

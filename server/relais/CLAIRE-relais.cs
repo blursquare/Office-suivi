@@ -136,13 +136,12 @@ static class RelaisClaire
         try { return System.Windows.Forms.Clipboard.ContainsText() ? System.Windows.Forms.Clipboard.GetText() : ""; } catch { return ""; }
     }
 
-    // Un relevé « inchangé », sans la capacité « appels » : le relais en marche sur ce poste garde son paragraphe, ses
-    // insertions et ses sonneries. Rend la réponse du serveur (une exception si refusé ou injoignable).
+    // Contrôle du jeton seulement (« verifier ») : le serveur ne touche à rien de ce qui attend le relais en marche sur ce
+    // poste. Rend la réponse du serveur (une exception si refusé ou injoignable).
     static string Verifier()
     {
         Dictionary<string, object> corps = new Dictionary<string, object>();
-        corps["poste"] = poste; corps["jeton"] = jeton; corps["word"] = false; corps["inchange"] = true;
-        corps["resultats"] = new object[0];
+        corps["poste"] = poste; corps["jeton"] = jeton; corps["verifier"] = true;
         return Poster(url + "api/relais-word/releve", new JavaScriptSerializer().Serialize(corps));
     }
 
@@ -156,6 +155,8 @@ static class RelaisClaire
     {
         // Le code copié par CLAIRE au téléchargement ; sinon demandé (à coller depuis CLAIRE).
         string json = JsonDuCode(LirePressePapiers());
+        // Le code porte le jeton du poste : il ne reste pas dans le presse-papiers (ni dans son historique).
+        if (json != null) try { System.Windows.Forms.Clipboard.Clear(); } catch { }
         if (json == null)
         {
             string saisi = Microsoft.VisualBasic.Interaction.InputBox("Collez le code d'installation affiche par CLAIRE (Reglages, Telephonie 3CX, ou Aide a la redaction, bouton d'installation du relais) :", TITRE, "");
@@ -173,15 +174,18 @@ static class RelaisClaire
             HttpWebResponse r = e.Response as HttpWebResponse;
             MessageBoxW(IntPtr.Zero, r != null && r.StatusCode == HttpStatusCode.Forbidden
                 ? "CLAIRE ne reconnait pas ce code (un code plus recent a ete demande depuis). Recommencez depuis CLAIRE."
-                : "Le serveur CLAIRE ne repond pas a l'adresse " + url + " : installation abandonnee.", TITRE, 0x30);
+                : "Le serveur CLAIRE n'a pas accepte le code (adresse " + url + ") : installation abandonnee.", TITRE, 0x30);
             return 1;
         }
-        catch { }
+        catch (Exception e)
+        {
+            MessageBoxW(IntPtr.Zero, "Verification aupres du serveur CLAIRE impossible (" + e.Message + ") : installation abandonnee.", TITRE, 0x30);
+            return 1;
+        }
         try
         {
             string dossier = DossierClaire();
             Directory.CreateDirectory(dossier);
-            File.WriteAllText(FichierConfig(), json, new UTF8Encoding(false));
             string cible = Path.Combine(dossier, "CLAIRE-relais.exe");
             int moi = Process.GetCurrentProcess().Id;
             foreach (Process p in Process.GetProcessesByName("CLAIRE-relais"))
@@ -201,6 +205,8 @@ static class RelaisClaire
                 // La marque « téléchargé d'Internet » suit la copie : retirée (pas d'avertissement à l'ouverture de session).
                 DeleteFileW(cible + ":Zone.Identifier");
             }
+            // La configuration après la copie : un échec de copie laisse l'ancienne en place.
+            File.WriteAllText(FichierConfig(), json, new UTF8Encoding(false));
             using (RegistryKey run = Registry.CurrentUser.CreateSubKey(@"Software\Microsoft\Windows\CurrentVersion\Run"))
             {
                 run.SetValue("CLAIRE-relais", "\"" + cible + "\" --fond");

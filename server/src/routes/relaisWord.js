@@ -21,15 +21,34 @@ const {
 
 var CLE_RELAIS_WORD = 'relais-word';
 
-function lireJetons(parametresRepo) {
-  const v = parametresRepo.lireJsonBrut(CLE_RELAIS_WORD, {});
-  return v && typeof v.jetons === 'object' && v.jetons ? v.jetons : {};
+// { jetons, attente } : l'empreinte du jeton en service de chaque poste, et celle d'un code demandé pas encore installé.
+function lireRegistre(parametresRepo) {
+  const v = parametresRepo.lireJsonBrut(CLE_RELAIS_WORD, {}) || {};
+  const objet = (x) => (x && typeof x === 'object' ? x : {});
+  return { jetons: objet(v.jetons), attente: objet(v.attente) };
 }
 
-// L'empreinte retenue pour un poste (« constructor » ou « toString » ne désignent jamais un poste).
+function lireJetons(parametresRepo) { return lireRegistre(parametresRepo).jetons; }
+
+// Pure : l'empreinte d'un poste dans une table (« constructor » ou « toString » ne désignent jamais un poste).
+function empreinteDans(table, poste) {
+  return Object.prototype.hasOwnProperty.call(table, poste) && typeof table[poste] === 'string' ? table[poste] : '';
+}
+
 function empreintePoste(parametresRepo, poste) {
-  const jetons = lireJetons(parametresRepo);
-  return Object.prototype.hasOwnProperty.call(jetons, poste) && typeof jetons[poste] === 'string' ? jetons[poste] : '';
+  return empreinteDans(lireJetons(parametresRepo), poste);
+}
+
+// Le jeton présenté est-il celui du poste ? Un code demandé (jeton « en attente ») devient le jeton du poste à sa première
+// présentation — jusque-là le relais en marche garde le sien (relecture 0.221.2 : une demande de code abandonnée le coupait).
+function jetonAccepte(parametresRepo, poste, jeton) {
+  const reg = lireRegistre(parametresRepo);
+  if (jetonValide(empreinteDans(reg.jetons, poste), jeton)) return true;
+  if (!jetonValide(empreinteDans(reg.attente, poste), jeton)) return false;
+  const attente = Object.assign({}, reg.attente);
+  delete attente[poste];
+  parametresRepo.ecrireJsonBrut(CLE_RELAIS_WORD, { jetons: Object.assign({}, reg.jetons, { [poste]: reg.attente[poste] }), attente });
+  return true;
 }
 
 function creerRouteurRelaisWordPoste(parametresRepo, etat) {
@@ -37,7 +56,9 @@ function creerRouteurRelaisWordPoste(parametresRepo, etat) {
   routeur.post('/relais-word/releve', (req, res) => {
     const corps = req.body || {};
     const poste = clePoste(corps.poste);
-    if (!poste || !jetonValide(empreintePoste(parametresRepo, poste), corps.jeton)) { res.status(403).json({ erreur: 'Relais inconnu.' }); return; }
+    if (!poste || !jetonAccepte(parametresRepo, poste, corps.jeton)) { res.status(403).json({ erreur: 'Relais inconnu.' }); return; }
+    // Contrôle de l'installation (ou --verifier) : le jeton seul, rien de ce qui attend le relais en marche n'est touché.
+    if (corps.verifier === true) { res.json({ ok: true }); return; }
     const avant = (etat.postes.get(poste) || {}).n || 0;
     const { commandes, appels, renvoyer } = appliquerReleveWord(etat, poste, corps);
     const p = etat.postes.get(poste);
@@ -58,7 +79,7 @@ function creerRouteurRelaisWord(parametresRepo, etat, options = {}) {
   routeur.get('/relais-word/etat', (req, res) => {
     const poste = clePoste(req.query.poste);
     if (!poste) { res.status(400).json({ erreur: 'Collaborateur attendu.' }); return; }
-    res.json(etatPosteWord(etat, poste, !!empreintePoste(parametresRepo, poste)));
+    res.json(etatPosteWord(etat, poste, !!empreintePoste(parametresRepo, poste) || !!empreinteDans(lireRegistre(parametresRepo).attente, poste)));
   });
   routeur.post('/relais-word/inserer', (req, res) => {
     const corps = req.body || {};
@@ -88,8 +109,9 @@ function creerRouteurRelaisWord(parametresRepo, etat, options = {}) {
     const jeton = nouveauJeton();
     // Fenêtre CLAIRE du serveur lui-même : profil « ClaireServeur » (comme le relais d'appel 3CX).
     const local = /^https?:\/\/(localhost|127(\.\d+){3}|\[::1\])(:\d+)?\/$/i.test(url);
-    const jetons = Object.assign({}, lireJetons(parametresRepo), { [poste]: empreinteJeton(jeton) });
-    parametresRepo.ecrireJsonBrut(CLE_RELAIS_WORD, { jetons });
+    // Jeton EN ATTENTE : celui du relais en marche reste valable jusqu'à l'installation de ce code.
+    const reg = lireRegistre(parametresRepo);
+    parametresRepo.ecrireJsonBrut(CLE_RELAIS_WORD, { jetons: reg.jetons, attente: Object.assign({}, reg.attente, { [poste]: empreinteJeton(jeton) }) });
     res.setHeader('Cache-Control', 'no-store');
     res.json({ code: codeInstallationRelais({ url, poste, jeton, profil: local ? 'ClaireServeur' : 'Claire' }) });
   });

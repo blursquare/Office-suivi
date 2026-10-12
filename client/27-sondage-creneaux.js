@@ -2516,6 +2516,25 @@
     });
   }
 
+  // Le dossier n'a pas de prêt (étude 12/10 : erreur à la création) : condition retirée, date effacée, plus d'offre attendue ni
+  // de relance, date butoir retirée de l'agenda — comme supprimer la date du prêt, mais aussi quand aucune date n'était saisie.
+  // Saisir plus tard une date d'obtention la rétablit (validerEditionDate).
+  function marquerSansPret(dossierId) {
+    const d = dossiers.find(x => x.id === dossierId);
+    if (!d || d.sansPret) return;
+    demanderConfirmation('Retirer la condition d’obtention du prêt ? L’offre de prêt ne sera plus attendue ni relancée.', () => {
+      const avaitDate = !!d.pret;
+      d.pret = '';
+      d.sansPret = true;
+      d.confiance = d.confiance || {};
+      d.confiance.pret = null;
+      ajouterHistorique(d, 'Condition d’obtention du prêt retirée (pas de prêt)');
+      sauvegarder(d);
+      render();
+      if (avaitDate) synchroniserEcheanceAgenda(d, 'pret', false);
+    });
+  }
+
   function renderAjoutEcheance(d) {
     if (!ajoutEcheanceOuvert) {
       return `<wa-button appearance="outlined" type="button" class="bouton-ajout ajout-echeance-btn" onclick="afficherFormAjoutEcheance()"><span slot="start" class="bouton-ajout-plus" aria-hidden="true">+</span>Ajouter une échéance</wa-button>`;

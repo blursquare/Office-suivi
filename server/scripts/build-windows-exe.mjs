@@ -180,8 +180,7 @@ async function main() {
   }
   // Relais CLAIRE des postes : compilé une fois et gardé dans le dépôt (server/relais/CLAIRE-relais.exe, `npm run relais`) pour
   // que le fichier — donc son empreinte, exclue de l'antivirus de l'étude — reste le même d'une version à l'autre.
-  const relais = fs.existsSync(path.join(SERVER_DIR, 'relais', 'CLAIRE-relais.exe'));
-  if (!relais) throw new Error('server/relais/CLAIRE-relais.exe manquant (npm run relais).');
+  if (!fs.existsSync(path.join(SERVER_DIR, 'relais', 'CLAIRE-relais.exe'))) throw new Error('server/relais/CLAIRE-relais.exe manquant (npm run relais).');
   const seaConfig = {
     main: 'build/claire-server.cjs',
     output: 'build/sea-prep.blob',
@@ -211,7 +210,7 @@ async function main() {
       'icone.svg': '../icone.svg',
       'build-info.json': 'build/build-info.json',
       ...(ico ? { 'icone.ico': 'build/icone.ico' } : {}),
-      ...(relais ? { 'CLAIRE-relais.exe': 'relais/CLAIRE-relais.exe' } : {})
+      'CLAIRE-relais.exe': 'relais/CLAIRE-relais.exe'
     }
   };
   const seaConfigPath = path.join(SERVER_DIR, 'sea-config.json');

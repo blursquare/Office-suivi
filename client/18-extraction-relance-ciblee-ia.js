@@ -1263,6 +1263,10 @@
       : (dossierId && iso && ['pret', 'acte', 'ventebien', 'appelFonds', 'projetEnvoye', 'rendezVousSignature'].includes(type))
         ? `<wa-button appearance="plain" size="s" type="button" class="bouton-icone ech-ico ech-ico-suppr" onclick="supprimerDateEcheance('${dossierId}', '${type}')" title="Supprimer cette date" aria-label="Supprimer cette date">${icone('x')}</wa-button>`
         : '';
+    // « Sans prêt » toujours visible sur la ligne du prêt (étude 12/10 : « comment retirer la condition d'obtention du prêt si à la
+    // création je me suis trompé » — sans date, la ligne n'avait que le crayon), tant que le prêt n'est pas reçu.
+    const sansPretBouton = type === 'pret' && dossierId && !o.comptant && !sansPret && !offrePretRecue
+      ? `<div class="ech-sous"><button type="button" class="lien-action" onclick="marquerSansPret('${escapeOnclickArg(dossierId)}')">Pas de prêt dans ce dossier</button></div>` : '';
     // La case ronde (même geste que la tâche d'« Aujourd'hui », étude 05/10 : « un bouton pour cocher et décocher comme une tâche »)
     // remplace les icônes ✓ / ↺ : un clic coche, un clic décoche, partout. Sur une échéance datée, ou sur une étape d'envoi (appel de
     // fonds, projet) même sans date — cocher note l'envoi à la date du jour. Offre de prêt reçue par le NAS : cochée d'office, non cliquable.
@@ -1307,6 +1311,7 @@
       <span class="ech-etat ${etat.cls}">${etat.texte}</span>
       <span class="ech-actions">${crayon}${suppression}</span>
       ${sous ? `<div class="ech-sous">${sous}</div>` : ''}
+      ${sansPretBouton}
     </li>`;
   }
 

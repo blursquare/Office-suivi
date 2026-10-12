@@ -425,9 +425,11 @@
       lien.click();
       document.body.removeChild(lien);
       setTimeout(() => URL.revokeObjectURL(lien.href), 60000);
+      // Le code toujours affiché (relecture 0.221.2) : si le presse-papiers a changé avant l'ouverture du programme, il le demande.
       afficherInfoAction('Relais téléchargé', TEXTE_INSTALLATION_RELAIS
-        + (copie ? ' Le code d’installation de ce poste est copié : ouvrez le programme tout de suite, il le lit seul.' : ' Le programme demandera le code d’installation de ce poste : ' + corps.code)
-        + (suite ? ' ' + suite : ''));
+        + (copie ? ' Le code d’installation de ce poste est copié : ouvrez le programme tout de suite, il le lit seul.' : '')
+        + ' Si le programme demande le code, collez : ' + corps.code
+        + (suite ? ' — ' + suite : ''));
     } catch (e) {
       afficherToast('Téléchargement du relais impossible : ' + (e.message || 'erreur') + '.', 'OK', null);
     }
