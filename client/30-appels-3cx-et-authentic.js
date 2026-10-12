@@ -1380,14 +1380,10 @@
   var RE_DESIGNATION_RURALE = new RegExp('(?<![a-z])(?:(?:parcelles?|terrains?|ensemble)\\s+(?:de|en|a usage de)\\s+(?:nature\\s+de\\s+)?(?:' + MOTS_RURAUX + ')|terres?\\s+(?:agricoles?|labourables?|de culture)|bois\\s+(?:et\\s+forets?|taillis))(?![a-z])|^(?:(?:un|une|des|les|la|le)\\s+)?(?:' + MOTS_RURAUX + ')(?![a-z])');
   var RE_DESIGNATION_BOIS = /(?<![a-z])(?:(?:parcelles?|terrains?|ensemble)\s+(?:de|en)\s+(?:nature\s+de\s+)?(?:bois|forets?|taillis|futaies?)|bois\s+(?:et\s+forets?|taillis))(?![a-z])|^(?:(?:un|une|des|les|la|le)\s+)?(?:bois|forets?|taillis|futaies?)(?![a-z])/;
 
-  // Pure : la nature d'une parcelle (code du cadastre ou mot entier) dit-elle un bois ? un bien rural (terre, pré, bois…) ?
+  // Pure : la nature d'une parcelle (code du cadastre ou mot entier) dit-elle un bois ?
   function natureParcelleBois(nature) {
     const n = normaliserPourRecherche(String(nature || '')).trim();
     return CODES_NATURE_BOIS.test(n) || RE_MOT_BOIS.test(n);
-  }
-  function natureParcelleRurale(nature) {
-    const n = normaliserPourRecherche(String(nature || '')).trim();
-    return CODES_NATURE_RURALE.test(n) || RE_MOT_RURAL.test(n);
   }
 
   // Pure : les parcelles sont-elles TOUTES en nature de bois (question de l'analyse de préemption) ? true quand chacune a sa
