@@ -42,8 +42,9 @@ jobs:
         with:
           node-version: '22.22.2'
 
-      - name: Installer osslsigncode (retrait propre de la signature Authenticode)
-        run: sudo apt-get update && sudo apt-get install -y osslsigncode
+      # mono-devel : le compilateur C# (mcs) du relais CLAIRE des postes (server/relais/CLAIRE-relais.cs).
+      - name: Installer osslsigncode (retrait propre de la signature Authenticode) et Mono (relais des postes)
+        run: sudo apt-get update && sudo apt-get install -y osslsigncode mono-devel
 
       - name: Installer l'outillage racine (linter)
         run: npm ci

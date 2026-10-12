@@ -122,7 +122,7 @@ function seaOuNull() {
   try { return require('node:sea'); } catch (_) { return null; }
 }
 
-function creerApp({ db, config, envoyerEmailFn, creerClientClaude, appelerMistral, testerMistral, miseAJour, agenda, emailsMatin, rapportTechnique, sondages, exchange, emailsDossiers, urbanisme, assistant }) {
+function creerApp({ db, config, envoyerEmailFn, creerClientClaude, appelerMistral, testerMistral, miseAJour, agenda, emailsMatin, rapportTechnique, sondages, exchange, emailsDossiers, urbanisme, assistant, relaisWord }) {
   const app = express();
   const depot = creerDepot(db);
   const parametresRepo = creerRepoParametres(db);
@@ -188,7 +188,7 @@ function creerApp({ db, config, envoyerEmailFn, creerClientClaude, appelerMistra
   // Relais Word de l'Aide à la rédaction (relaisWord.js) : le relais du poste parle hors session, avec le jeton de son
   // installateur ; la fenêtre CLAIRE, elle, passe par la session.
   app.use('/api', creerRouteurRelaisWordPoste(parametresRepo, etatRelaisWord));
-  app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurRelaisWord(parametresRepo, etatRelaisWord));
+  app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurRelaisWord(parametresRepo, etatRelaisWord, relaisWord || {}));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurAppels(parametresRepo, etatAppels));
   // Pages d'Authentic envoyées par l'extension Firefox (extension-firefox/), gardées en mémoire 30 min.
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurAuthentic());

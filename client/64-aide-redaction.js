@@ -306,6 +306,9 @@
   // relit chaque seconde tant qu'il est affiché et le prend comme passage. « Insérer dans Word » demande au relais de remplacer
   // le n-ième « --- » de ce paragraphe (Ctrl+Z dans Word l'annule).
 
+  // Depuis 0.221.1 (étude : « l'antivirus bloque le relais Word ») : un programme, CLAIRE-relais.exe, plus de script .vbs.
+  var TEXTE_INSTALLATION_RELAIS = 'Ouvrez « CLAIRE-relais.exe » (le navigateur peut demander de le conserver). Windows peut afficher « Windows a protégé votre ordinateur » : « Informations complémentaires », puis « Exécuter quand même ». Un message confirme l’installation ; le relais démarre aussitôt, puis à chaque ouverture de session. Si l’antivirus le bloque encore, faire autoriser « %LOCALAPPDATA%\\CLAIRE\\CLAIRE-relais.exe ».';
+
   function posteRelaisWordAideActe() {
     return utilisateurPoste ? clePosteAppels(utilisateurPoste) : '';
   }
@@ -406,16 +409,16 @@
     if (!poste) { afficherToast('Choisissez d’abord le collaborateur de ce poste.', 'OK', null); return; }
     try {
       const r = await fetchAvecAuth('/api/relais-word/installateur?poste=' + encodeURIComponent(poste));
-      if (!r.ok) throw new Error('statut ' + r.status);
+      if (!r.ok) throw new Error(((await r.json().catch(() => ({}))).erreur) || 'statut ' + r.status);
       const blob = await r.blob();
       const lien = document.createElement('a');
       lien.href = URL.createObjectURL(blob);
-      lien.download = 'Installer-relais-CLAIRE.vbs';
+      lien.download = 'CLAIRE-relais.exe';
       document.body.appendChild(lien);
       lien.click();
       document.body.removeChild(lien);
       setTimeout(() => URL.revokeObjectURL(lien.href), 60000);
-      afficherInfoAction('Installateur téléchargé', 'Ouvrez le fichier téléchargé (le navigateur peut demander de le conserver) : un message confirme l’installation. Le relais démarre aussitôt, puis à chaque ouverture de session. Cliquez une fois dans Word, puis revenez ici : le paragraphe où se trouve le curseur s’affiche seul.');
+      afficherInfoAction('Relais téléchargé', TEXTE_INSTALLATION_RELAIS + ' Cliquez une fois dans Word, puis revenez ici : le paragraphe où se trouve le curseur s’affiche seul.');
     } catch (e) {
       afficherToast('Téléchargement impossible : ' + (e.message || 'erreur') + '.', 'OK', null);
     }

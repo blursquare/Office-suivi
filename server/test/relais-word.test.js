@@ -6,31 +6,32 @@ const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 const os = require('node:os');
 const {
-  scriptInstallationRelaisWord, jetonValide, empreinteJeton, texteWord,
+  executableRelaisAvecConfig, MARQUE_CONFIG_RELAIS, jetonValide, empreinteJeton, texteWord,
   creerEtatRelaisWord, appliquerReleveWord, demanderInsertionWord, etatPosteWord, noterAppelPourRelais, relaisPosteActif
 } = require('../src/relaisWord');
 const { creerApp } = require('../src/app');
 const { ouvrirDb } = require('../src/db');
 
-test('installateur : script ASCII, clé Run de HKCU, relais lancé, COM de Word, une seule copie', () => {
-  const v = scriptInstallationRelaisWord({ url: 'http://192.168.60.10:3000/', poste: 'julie', jeton: 'abc123' });
-  assert.doesNotMatch(v, /[^\x00-\x7f]/);
-  assert.match(v, /HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run\\CLAIRE-Word/);
-  assert.match(v, /word-claire\.ps1/);
-  assert.match(v, /GetActiveObject\('Word\.Application'\)/);
-  assert.match(v, /CLAIRE-relais-Word/);
-  assert.match(v, /api\/relais-word\/releve/);
-  assert.match(v, /''http:\/\/192\.168\.60\.10:3000\/''|'http:\/\/192\.168\.60\.10:3000\/'/);
-  assert.match(v, /abc123/);
-  // Le paragraphe est revérifié avant d'écrire ; seul le « --- » trouvé est remplacé.
-  assert.match(v, /Le curseur n est plus dans ce paragraphe/);
-  assert.match(v, /\$r\.Text = \[string\]\$c\.valeur/);
-  // Blancs repérés sur le texte (jamais la recherche de Word et ses options gardées), plage contrôlée avant d'écrire.
-  assert.match(v, /\[regex\]::Matches\(\$txt, '-\{3,\}'\)/);
-  assert.doesNotMatch(v, /\.Find\b/);
-  // Réinstaller arrête l'ancien relais ; un jeton refusé finit par l'arrêter.
-  assert.match(v, /CommandLine like '%word-claire\.ps1%'/);
-  assert.match(v, /\$refus -ge 10/);
+test('programme du relais : configuration du poste ajoutée à la fin (base64 entre deux marques), lisible par le .cs', () => {
+  const exe = Buffer.from('MZ-programme');
+  const v = executableRelaisAvecConfig(exe, { url: 'http://192.168.60.10:3000/', poste: 'julie', jeton: 'abc123', profil: 'Claire' });
+  assert.ok(v.subarray(0, exe.length).equals(exe));
+  const fin = v.subarray(exe.length).toString('ascii');
+  const m = new RegExp(MARQUE_CONFIG_RELAIS + '([A-Za-z0-9+/=]+)#FIN#$').exec(fin);
+  assert.ok(m);
+  assert.deepEqual(JSON.parse(Buffer.from(m[1], 'base64').toString('utf8')), { url: 'http://192.168.60.10:3000/', poste: 'julie', jeton: 'abc123', profil: 'Claire' });
+});
+
+test('programme du relais (C#) : pas de frappe simulée, blancs repérés sur le texte, ancien relais PowerShell retiré', () => {
+  const cs = require('node:fs').readFileSync(require('node:path').join(__dirname, '..', 'relais', 'CLAIRE-relais.cs'), 'utf8');
+  assert.doesNotMatch(cs, /keybd_event|SendInput|SendKeys/);
+  assert.match(cs, /AttachThreadInput/);
+  assert.match(cs, /Regex\.Matches\(txt, "-\{3,\}"\)/);
+  assert.match(cs, /Le curseur n est plus dans ce paragraphe/);
+  assert.match(cs, /word-claire\.ps1/);
+  assert.match(cs, /corps\["appels"\] = 1/);
+  assert.match(cs, /e\.h != IntPtr\.Zero && e\.h != devant/);
+  assert.match(cs, /if \(devant == h\) return;/);
 });
 
 test('jeton : empreinte seule gardée, comparaison exacte', () => {
@@ -82,10 +83,16 @@ test('état : relevé, insertion demandée puis rendue au relais une fois, résu
   assert.equal(appliquerReleveWord(etat, 'julie', { word: true, inchange: true }).renvoyer, false);
 });
 
+// La configuration ajoutée à la fin du programme téléchargé.
+function configDuProgramme(octets) {
+  const m = /#CLAIRE-RELAIS#([A-Za-z0-9+/=]+)#FIN#$/.exec(octets.toString('latin1'));
+  return JSON.parse(Buffer.from(m[1], 'base64').toString('utf8'));
+}
+
 let db; let serveurApp; let baseUrl; let session;
 before(async () => {
   db = ouvrirDb(':memory:');
-  const { app, gestionnaireAuth } = creerApp({ db, config: { motDePasse: 'mdp-test', racineRepo: os.tmpdir(), port: 0 } });
+  const { app, gestionnaireAuth } = creerApp({ db, config: { motDePasse: 'mdp-test', racineRepo: os.tmpdir(), port: 0 }, relaisWord: { lireExe: () => Buffer.from('MZ-programme') } });
   session = gestionnaireAuth.creerSession();
   serveurApp = app.listen(0);
   await new Promise((resolve) => serveurApp.once('listening', resolve));
@@ -100,9 +107,10 @@ test('routes : installateur = jeton du poste ; relevé hors session avec ce jeto
   assert.equal((await fetch(`${baseUrl}/api/relais-word/etat?poste=julie`, { headers: auth }).then(r => r.json())).installe, false);
   const inst = await fetch(`${baseUrl}/api/relais-word/installateur?poste=Julie`, { headers: auth });
   assert.equal(inst.status, 200);
-  const vbs = await inst.text();
-  const jeton = /\$jeton = '([0-9a-f]+)'/.exec(vbs)[1];
-  assert.match(vbs, /\$poste = 'julie'/);
+  const cfg = configDuProgramme(Buffer.from(await inst.arrayBuffer()));
+  const jeton = cfg.jeton;
+  assert.equal(cfg.poste, 'julie');
+  assert.match(inst.headers.get('content-disposition'), /CLAIRE-relais\.exe/);
   const releve = (corps) => fetch(`${baseUrl}/api/relais-word/releve`, { method: 'POST', headers: json, body: JSON.stringify(corps) });
   assert.equal((await releve({ poste: 'julie', jeton: 'faux', word: true })).status, 403);
   assert.equal((await releve({ poste: 'paul', jeton, word: true })).status, 403);
@@ -145,27 +153,10 @@ test('appels 3CX : sonnerie rendue au relais actif du poste, une fois, jamais vi
   assert.ok(!relaisPosteActif(etat, 'julie', 40000));
 });
 
-test('installateur : sonnerie → fenêtre CLAIRE (dossier) ou fenêtre d’avant (inconnu), navigateur trouvé pour ouvrir CLAIRE', () => {
-  const v = scriptInstallationRelaisWord({ url: 'http://192.168.60.10:3000/', poste: 'julie', jeton: 'abc', profil: 'Claire' });
-  assert.match(v, /GetForegroundWindow/);
-  // Jamais Alt envoyé à une fenêtre déjà devant ; jamais un échantillon vide ni la fenêtre d'à présent ; navigateur par défaut à défaut.
-  assert.match(v, /if \(GetForegroundWindow\(\) == h\) return true;/);
-  assert.match(v, /\$e\.h -ne \[IntPtr\]::Zero -and \$e\.h -ne \$devant/);
-  assert.match(v, /else \{ Start-Process \(\$url \+ '#appel=' \+ \$id\) \}/);
-  assert.match(v, /appels = 1 \}/);
-  assert.match(v, /CLAIRE \\u2014/);
-  assert.match(v, /foreach \(\$a in @\(\$rep\.appels\)\)/);
-  assert.match(v, /#appel=/);
-  assert.match(v, /chrome\.exe/);
-  assert.match(v, /\$profil = 'Claire'/);
-  assert.doesNotMatch(v, /[^\x00-\x7f]/);
-});
-
 test('route : sonnerie d’un poste au relais actif → l’onglet de 3CX se ferme aussitôt, le relais reçoit l’appel', async () => {
   const auth = { authorization: `Bearer ${session}` };
   const json = { 'Content-Type': 'application/json' };
-  const vbs = await fetch(`${baseUrl}/api/relais-word/installateur?poste=jeremy`, { headers: auth }).then(r => r.text());
-  const jeton = /\$jeton = '([0-9a-f]+)'/.exec(vbs)[1];
+  const jeton = configDuProgramme(Buffer.from(await fetch(`${baseUrl}/api/relais-word/installateur?poste=jeremy`, { headers: auth }).then(r => r.arrayBuffer()))).jeton;
   const releve = (corps) => fetch(`${baseUrl}/api/relais-word/releve`, { method: 'POST', headers: json, body: JSON.stringify(corps) }).then(r => r.json());
   await releve({ poste: 'jeremy', jeton, word: false, appels: 1 });
   const page = await fetch(`${baseUrl}/appel?numero=0600000001&nom=&poste=Jeremy`).then(r => r.text());

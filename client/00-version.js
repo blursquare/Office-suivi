@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.221.0';
+  const VERSION_APP = '0.221.1';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.221.1', date: '2026-10-12 15:21', resume: "Relais CLAIRE du poste (Word et appels 3CX) : l’antivirus bloquait le script .vbs — c’est désormais un vrai petit programme, « CLAIRE-relais.exe », téléchargé depuis CLAIRE ; il s’installe seul dans le dossier de l’utilisateur, démarre avec la session et remplace l’ancien relais. À réinstaller une fois sur chaque poste." },
     { version: '0.221.0', date: '2026-10-12 15:06', resume: "Authentic : la fiche bien d’une parcelle de terre ou de bois est lue — type de vente « Terre agricole / terrain non bâti » (avec la pièce « Réponse SAFER »), nature, surface et lieu-dit de chaque parcelle, et « parcelles en bois » répondu seul dans l’analyse des droits de préemption." },
     { version: '0.220.1', date: '2026-10-12 14:51', resume: "Appels 3CX : avec le relais CLAIRE du poste (Réglages › Téléphonie 3CX › « Installer le relais sur ce poste »), l’onglet de 3CX se ferme aussitôt ; si l’appelant a un dossier, la fenêtre CLAIRE passe au premier plan sur sa fiche, sinon la fenêtre où vous étiez revient devant Chrome. Plus de lien « claire-appel » à autoriser." },
     { version: '0.220.0', date: '2026-10-12 14:43', resume: "Répertoire : « Copier l’adresse » sur chaque office et chaque organisme, au format de l’en-tête d’un courrier (« Maître Prénom NOM », voie, « CP VILLE ») ; dans un office à plusieurs notaires, cliquer le nom d’un notaire copie l’adresse à son nom." },

@@ -22,7 +22,7 @@
 // plus propre.
 'use strict';
 
-import { execSync } from 'node:child_process';
+import { execSync, execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import https from 'node:https';
@@ -178,6 +178,19 @@ async function main() {
   } catch (err) {
     console.warn(`Icône Windows non construite (${err.message.split('\n')[0]}).`);
   }
+  // Relais CLAIRE des postes (server/relais/CLAIRE-relais.cs, étude 12/10 : « l'antivirus bloque le relais Word ») : compilé
+  // ici par mcs (Mono, installé par le workflow), embarqué, servi avec la configuration du poste (src/relaisWord.js). Sans
+  // compilateur en construction locale : CLAIRE sans relais ; dans le workflow (CLAIRE_BUILD), la construction s'arrête.
+  let relais = false;
+  try {
+    execFileSync('mcs', ['-target:winexe', '-sdk:4.5', '-optimize+', '-nologo', '-out:build/CLAIRE-relais.exe',
+      '-r:Microsoft.CSharp.dll', '-r:System.Web.Extensions.dll', '-r:System.Management.dll', '-r:System.Core.dll',
+      ...(ico ? ['-win32icon:build/icone.ico'] : []), 'relais/CLAIRE-relais.cs'], { cwd: SERVER_DIR, stdio: 'inherit' });
+    relais = true;
+  } catch (err) {
+    if (process.env.CLAIRE_BUILD) throw new Error(`Relais CLAIRE non compilé : ${err.message.split('\n')[0]}`);
+    console.warn(`Relais CLAIRE non compilé (${err.message.split('\n')[0]}) : CLAIRE sans relais de poste.`);
+  }
   const seaConfig = {
     main: 'build/claire-server.cjs',
     output: 'build/sea-prep.blob',
@@ -206,7 +219,8 @@ async function main() {
       'sw.js': '../sw.js',
       'icone.svg': '../icone.svg',
       'build-info.json': 'build/build-info.json',
-      ...(ico ? { 'icone.ico': 'build/icone.ico' } : {})
+      ...(ico ? { 'icone.ico': 'build/icone.ico' } : {}),
+      ...(relais ? { 'CLAIRE-relais.exe': 'build/CLAIRE-relais.exe' } : {})
     }
   };
   const seaConfigPath = path.join(SERVER_DIR, 'sea-config.json');

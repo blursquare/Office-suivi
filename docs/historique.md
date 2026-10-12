@@ -19378,3 +19378,14 @@ modèle **au choix dans les Réglages**, Opus par défaut.
   une réponse de l'étude l'emporte, plus de relecture en trop) ; bois gardé dès la création (`fichesAuthenticACreation`) ;
   « Mettre à jour » vers terre ajoute « Réponse SAFER » ; parcelles enrichies sans perdre lieu-dit et contenance du compromis ;
   `natureBois` calculé sur toutes les parcelles (un dossier à plusieurs biens n'oscille plus).
+
+- **12/10/2026 — 0.221.1 Relais CLAIRE en programme** (étude : « l'antivirus bloque le relais Word » — l'ouverture du .vbs ;
+  choix : « un vrai petit programme ») : `server/relais/CLAIRE-relais.cs` (C# 5, .NET Framework 4.5, `dynamic` pour le COM de
+  Word, `JavaScriptSerializer`, `HttpWebRequest` sans proxy, WMI pour arrêter l'ancien relais PowerShell) reprend à l'identique la
+  boucle du script (relevé 0,5 s, battement 1 s, `appels: 1`, insertions sur le texte du paragraphe, sonneries 3CX avec
+  historique du premier plan, arrêt après 10 refus du jeton), sans touche Alt simulée (AttachThreadInput + BringWindowToTop).
+  Compilé par `mcs` dans `build-windows-exe.mjs` (icône de CLAIRE ; obligatoire dans le workflow, qui installe `mono-devel`),
+  embarqué, servi par `GET /api/relais-word/installateur` avec la configuration du poste en fin de fichier (`executableRelaisAvecConfig`,
+  `lireExecutableRelais`, 503 si absent). Installation : copie dans `%LOCALAPPDATA%\CLAIRE`, clé Run `CLAIRE-relais` (et retrait de
+  `CLAIRE-Word`), lancement `--fond`. Essayé ici sous Mono : téléchargement depuis un vrai serveur, `--verifier` (configuration lue,
+  relevé accepté avec le jeton, relais vu actif par l'écran). Non vérifiable ici : COM de Word, premier plan, SmartScreen, antivirus.
