@@ -1152,6 +1152,8 @@
       entree.erreurTexte = 'Lecture du PDF impossible.';
       console.error('Analyse IA : échec de lecture de', entree.nom, e);
     }
+    // Pièce lue après la pseudonymisation : les documents envoyés seraient décalés d'un rang (audit 12/10) — tout est à refaire.
+    if (anonymisationRelecture && entree.statut === 'ok') invaliderSuiteRelecture();
     renderListeFichiersAnalyseIa();
     if (entree.type === 'principal') calculerPropositionsDossierAudit();
   }

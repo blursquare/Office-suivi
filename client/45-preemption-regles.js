@@ -342,18 +342,34 @@
     const lues = (lignes || []).filter(l => l.statut !== 'lecture');
     if (!lues.length) return analyserPreemption(rep);
     const groupes = new Map();
+    // Zone voisine que la parcelle touche aussi (`autresFamilles`, hors zone choisie à la main) : le Géoportail rend toutes les
+    // zones qui intersectent la parcelle, même d'un filet dû au décalage cadastre/PLU. Elle ne rend jamais un droit « à purger »
+    // d'office : « à vérifier », l'étude tranche en choisissant la zone de la parcelle (relecture 12/10).
+    const voisines = new Map();
     lues.forEach(l => {
-      const familles = [l.famille || ''].concat(l.choisie ? [] : (Array.isArray(l.autresFamilles) ? l.autresFamilles : []));
-      [...new Set(familles)].forEach(f => {
-        if (!groupes.has(f)) groupes.set(f, []);
-        groupes.get(f).push(l.libelle);
+      const f = l.famille || '';
+      if (!groupes.has(f)) groupes.set(f, []);
+      groupes.get(f).push(l.libelle);
+      (l.choisie || !Array.isArray(l.autresFamilles) ? [] : l.autresFamilles).forEach(v => {
+        if (!v || v === f) return;
+        if (!voisines.has(v)) voisines.set(v, []);
+        voisines.get(v).push(l.libelle);
       });
     });
-    if (groupes.size === 1) {
+    [...voisines.keys()].forEach(v => { if (groupes.has(v)) voisines.delete(v); });
+    if (groupes.size === 1 && !voisines.size) {
       const f = [...groupes.keys()][0];
       return analyserPreemption(Object.assign({}, rep, { zone: f || rep.zone || undefined }));
     }
-    const analyses = [...groupes.entries()].map(([f, parcelles]) => ({ f, parcelles, a: analyserPreemption(Object.assign({}, rep, { zone: f || undefined })) }));
+    const analyses = [...groupes.entries()].map(([f, parcelles]) => ({ f, parcelles, a: analyserPreemption(Object.assign({}, rep, { zone: f || undefined })) }))
+      .concat([...voisines.entries()].map(([f, parcelles]) => {
+        const a = analyserPreemption(Object.assign({}, rep, { zone: f }));
+        const zone = LIBELLES_FAMILLE_ZONE[f] || 'zone ' + f;
+        a.droits = a.droits.map(dr => dr.statut === 'oui'
+          ? Object.assign({}, dr, { statut: 'verifier', formalite: '', motif: `la parcelle touche aussi une ${zone} — choisir la zone retenue dans le contrôle de l’urbanisme (${dr.motif || ''})` })
+          : dr);
+        return { f, parcelles, a };
+      }));
     const ordre = [];
     const parCle = new Map();
     analyses.forEach(({ f, parcelles, a }) => a.droits.forEach(dr => {

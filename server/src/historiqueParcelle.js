@@ -54,8 +54,6 @@ function parcellesDepuisListe(texte) {
   const out = [];
   const vus = new Set();
   for (const m of String(texte || '').toUpperCase().matchAll(/\b([0-9]?[A-Z]{1,2})\s*0*(\d{1,4})\b/g)) {
-    // « AB 12 ET 13 » : « ET » n'est pas une section (audit 12/10).
-    if (/^(ET|OU|NO|N|DE|DU|LA|LE|AU|EN)$/.test(m[1])) continue;
     const p = normaliserParcelle(m[1], m[2]);
     if (!p || vus.has(p.section + p.numero)) continue;
     vus.add(p.section + p.numero);

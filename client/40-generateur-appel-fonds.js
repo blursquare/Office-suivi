@@ -1965,6 +1965,8 @@
 
   async function importerAvisTaxeFonciere(cible, fichier) {
     if (!fichier) return;
+    // Une pièce déposée sans dossier rattaché appartient au courrier en cours : elle reste au choix d'un dossier.
+    if (cible === 'af' && !afDossierLie) afDossierDetache = null;
     if (typeof pdfjsLib === 'undefined') { afficherToast('Le lecteur PDF n\'est pas disponible.', 'OK', null); return; }
     try {
       const lu = await lireAvisTaxeFonciere(fichier);
@@ -2136,6 +2138,7 @@
 
   async function importerPieceAppelFonds(type, fichier) {
     if (!fichier || !Object.prototype.hasOwnProperty.call(afPieces, type)) return;
+    if (!afDossierLie) afDossierDetache = null;
     if (typeof pdfjsLib === 'undefined') { afficherToast('Le lecteur PDF n\'est pas disponible.', 'OK', null); return; }
     effacerPieceAppelFonds(type, true);
     try {
@@ -2786,9 +2789,11 @@
 
   // Le texte d'un morceau de HTML, entités décodées (« SCI A &amp; B » devenait « &amp; » dans le courrier — audit 12/10).
   function texteDepuisHtmlAppelFonds(html) {
-    const tmp = document.createElement('div');
-    tmp.innerHTML = String(html || '');
-    return tmp.textContent || '';
+    const entites = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ' };
+    return String(html || '').replace(/<[^>]+>/g, '')
+      .replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (m, e) => e[0] === '#'
+        ? String.fromCodePoint(e[1] === 'x' || e[1] === 'X' ? parseInt(e.slice(2), 16) : parseInt(e.slice(1), 10))
+        : (entites[e.toLowerCase()] !== undefined ? entites[e.toLowerCase()] : m));
   }
 
   function donneesCourrierAppelFonds() {

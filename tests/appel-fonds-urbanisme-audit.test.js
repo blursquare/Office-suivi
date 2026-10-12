@@ -55,12 +55,20 @@ test('parcelles : « AB 12 et 13 » = AB 12 et AB 13', () => {
   assert.equal(app.parcellesDepuisTexte('al 839').map(p => p.section + p.numero).join(','), 'AL839');
 });
 
-test('parcelle à cheval sur deux zones : la zone A compte aussi pour la SAFER', () => {
-  const lignes = app.lignesZonageParcelles([{ section: 'AB', numero: '12', statut: 'ok', resultat: { zones: [{ libelle: 'Ub', typezone: 'U' }, { libelle: 'A', typezone: 'A' }] } }], {});
+test('parcelle qui touche aussi une zone A : SAFER à vérifier (jamais à purger d’office), tranché par la zone choisie', () => {
+  const zonages = [{ section: 'AB', numero: '12', statut: 'ok', resultat: { zones: [{ libelle: 'Ub', typezone: 'U' }, { libelle: 'A', typezone: 'A' }] } }];
+  const lignes = app.lignesZonageParcelles(zonages, {});
   assert.equal(lignes[0].autresFamilles.join(','), 'A');
-  const a = app.analyserPreemptionParcelles({}, lignes);
-  const safer = a.droits.find(d => d.cle === 'safer');
-  assert.equal(safer.statut, 'oui');
+  const safer = app.analyserPreemptionParcelles({}, lignes).droits.find(d => d.cle === 'safer');
+  assert.equal(safer.statut, 'verifier');
+  assert.match(safer.motif, /touche aussi une zone A/);
+  const choisieA = app.analyserPreemptionParcelles({}, app.lignesZonageParcelles(zonages, { AB0012: 'A' })).droits.find(d => d.cle === 'safer');
+  assert.equal(choisieA.statut, 'oui');
+});
+
+test('parcelles : N, AU en capitales sont des sections ; « 1250 m2 » n’est pas une parcelle', () => {
+  assert.equal(app.parcellesDepuisTexte('N 123, AU 45').map(p => p.section + p.numero).join(','), 'N123,AU45');
+  assert.equal(app.parcellesDepuisTexte('ZE 5 et 1250 m2').map(p => p.section + p.numero).join(','), 'ZE5');
 });
 
 test('droits gardés remis d’accord avec l’analyse refaite (SAFER « non » d’avant le 09/10 en zone A)', () => {
@@ -72,4 +80,11 @@ test('droits gardés remis d’accord avec l’analyse refaite (SAFER « non » 
   assert.ok(d.piecesPersonnalisees.some(p => /SAFER/.test(p.label)));
   // Une seconde fois : rien.
   assert.equal(app.realignerDroitsPreemption(d).length, 0);
+});
+
+test('historique : mention encore dans l’adresse (courrier d’avant le 06/10) → une seule fois', () => {
+  const a = { donnees: { addrLines: 'M. X\n12 rue A\nEnvoi par e-mail uniquement' }, etat: { mention: 'Envoi par e-mail uniquement', champs: {} } };
+  const d = app.donneesAvecMentionGardee(a);
+  assert.equal(d.mention, 'Envoi par e-mail uniquement');
+  assert.doesNotMatch(d.addrLines, /Envoi par e-mail/);
 });

@@ -221,11 +221,18 @@
     // Sans le drapeau « i » : il rendait insensible à la casse le motif de la commune, qui avalait
     // alors toute la suite de la phrase (« à BLOIS demeurant à… »). Même piège pour l'adresse.
     { categorie: 'NAISSANCE', re: /[Nn][ée]e?s?\s+le\s+(?:\d{1,2}\/\d{1,2}\/\d{2,4}|\d{1,2}(?:er)?\s+[a-zéûA-ZÉÛ]+\s+\d{4})(?:\s+[àa]\s+[A-ZÀ-Ý][\wÀ-ÿ'’-]*(?:[\s-][A-ZÀ-Ý][\wÀ-ÿ'’-]*)*)?/g },
-    { categorie: 'ADRESSE', re: /\b\d{1,4}(?:\s?(?:bis|ter|quater|BIS|TER))?,?\s+(?:[Rr]ue|RUE|[Aa]venue|AVENUE|[Bb]oulevard|BOULEVARD|[Ii]mpasse|IMPASSE|[Cc]hemin|CHEMIN|[Aa]ll[ée]e|ALL[ÉE]E|[Pp]lace|PLACE|[Rr]oute|ROUTE|[Qq]uai|QUAI|[Ll]ieu-dit|LIEU-DIT|[Ll]otissement|[Ss]quare|[Cc]ours|[Ff]aubourg|[Rr][ée]sidence)\s+[^\n,;.⟦]{2,60}?(?=\s*(?:,|;|\.|\n|⟦|\d{5}\b|$))(?:,?\s*\d{5}\s+[A-ZÀ-Ý][\wÀ-ÿ'’-]*(?:[\s-][A-ZÀ-Ý][\wÀ-ÿ'’-]*)*)?/g },
+    // « Né à BLOIS (41000) le 3 mars 1970 » : la commune avant la date (audit 12/10).
+    { categorie: 'NAISSANCE', re: /[Nn][ée]e?s?\s+[àa]\s+[A-ZÀ-Ý][\wÀ-ÿ'’-]*(?:[\s-][A-ZÀ-Ý][\wÀ-ÿ'’-]*)*(?:\s*\(\s*\d{2,5}\s*\))?\s*,?\s+le\s+(?:\d{1,2}\/\d{1,2}\/\d{2,4}|\d{1,2}(?:er)?\s+[a-zéûA-ZÉÛ]+\s+\d{4})/g },
+    { categorie: 'ADRESSE', re: /\b\d{1,4}(?:\s?(?:bis|ter|quater|BIS|TER))?,?\s+(?:[Rr]ue|RUE|[Aa]venue|AVENUE|[Bb]oulevard|BOULEVARD|[Ii]mpasse|IMPASSE|[Cc]hemin|CHEMIN|[Aa]ll[ée]e|ALL[ÉE]E|[Pp]lace|PLACE|[Rr]oute|ROUTE|[Qq]uai|QUAI|[Ll]ieu-dit|LIEU-DIT|[Ll]otissement|[Ss]quare|[Cc]ours|[Ff]aubourg|[Rr][ée]sidence)\s+[^\n,;.⟦]{2,60}?(?=\s*(?:,|;|\.|\n|⟦|\d{5}\b|$)|\s+(?:[àa]|et|demeurant|domicili[ée]e?s?|cadastr[ée]e?s?|ci-apr[èe]s|lieu-dit)\s)(?:,?\s*\d{5}\s+[A-ZÀ-Ý][\wÀ-ÿ'’-]*(?:[\s-][A-ZÀ-Ý][\wÀ-ÿ'’-]*)*)?/g },
     { categorie: 'ADRESSE', re: /\b\d{5}\s+(?!EUR|Euros?\b|EUROS\b|€|Francs?\b)[A-ZÀ-Ý][\wÀ-ÿ'’-]*(?:[\s-][A-ZÀ-Ý][\wÀ-ÿ'’-]*)*/g },
-    { categorie: 'CADASTRE', re: /section\s+[A-Z]{1,2}\s*,?\s*(?:num[ée]ro|n[°o])\s*\d+/gi },
+    // Numéros en liste (« numéros 12, 13 et 14 ») et référence après « cadastré(e) » (« cadastrée AB 123 ») — audit 12/10.
+    { categorie: 'CADASTRE', re: /section\s+[A-Z]{1,2}\s*,?\s*(?:num[ée]ros?|n[°o]s?)\s*\d+(?:\s*(?:,|et|&)\s*\d+)*/gi },
+    { categorie: 'CADASTRE', re: /cadastr[ée]e?s?\s+(?:sous\s+les?\s+r[ée]f[ée]rences?\s+)?(?:section\s+)?[A-Z]{1,2}\s*(?:n[°o]s?\s*)?\d{1,4}(?:\s*(?:,|et|&)\s*(?:[A-Z]{1,2}\s*)?\d{1,4})*/g },
+    { categorie: 'ADRESSE', re: /(?:[Ll]ieu[- ]dit|LIEU[- ]DIT)\s*:?\s*[«"]?\s*[A-ZÀ-Ý][^\n,;.»"⟦]{1,50}/g },
     { categorie: 'PERSONNE_MORALE', re: /\b(?:SCI|SARL|SASU?|EURL|SNC|SCP|SCM|GFA|EARL|GAEC|SCCV)\s+(?:[A-Z0-9À-Ý][\wÀ-ÿ0-9'’-]*|de|du|des|la|le|les|et|d['’])(?:\s+(?:[A-Z0-9À-Ý][\wÀ-ÿ0-9'’-]*|de|du|des|la|le|les|et|d['’])){0,5}/g },
-    { categorie: 'PERSONNE', re: /\b(?:Monsieur|Madame|Mademoiselle|M\.|Mme|Mlle|Me|Ma[îi]tre)\s+[A-ZÀ-Ý][\wÀ-ÿ'’-]+(?:\s+[A-ZÀ-Ý][\wÀ-ÿ'’-]*){0,5}/g }
+    { categorie: 'PERSONNE', re: /\b(?:Monsieur|Madame|Mademoiselle|MONSIEUR|MADAME|MADEMOISELLE|M\.|Mme|Mlle|Me|Ma[îi]tre|MA[ÎI]TRE)\s+[A-ZÀ-Ý][\wÀ-ÿ'’-]+(?:\s+[A-ZÀ-Ý][\wÀ-ÿ'’-]*){0,5}/g },
+    // Prénom suivi d'un nom en capitales, sans civilité (« Jean DUPONT ») — jamais un mot du métier en capitales (audit 12/10).
+    { categorie: 'PERSONNE', re: /(?<![A-Za-zÀ-ÿ])(?!(?:Le|La|Les|Du|De|Des|Un|Une|Au|Aux|Et|Ou|Par|Pour|Article|Art|Lot|Lots|Section|Prix|Acte|Page|Annexe|Titre|Chapitre)\s)[A-ZÀ-Ý][a-zà-ÿ]+(?:-[A-ZÀ-Ý][a-zà-ÿ]+)?\s+(?!(?:VENDEURS?|ACQU[EÉ]REURS?|PROMETTANTS?|B[EÉ]N[EÉ]FICIAIRES?|NOTAIRES?|BIENS?|PRIX|ACTE|IMMEUBLE|SOCI[EÉ]T[EÉ]|PARTIES?|CONDITIONS?|CHARGES?|DROITS?|ARTICLE|TVA|DPE|ERP|SAFER|DPU|DIA|SCI|SARL|SAS|TTC|HT|EUR|EUROS)(?![A-ZÀ-Ý]))[A-ZÀ-Ý]{2,}(?:[\s-][A-ZÀ-Ý]{2,})*(?![A-Za-zÀ-ÿ])/g }
   ];
 
   function echapperRegex(s) {
@@ -314,6 +321,26 @@
 
   var JETON_ANONYMISATION_RE = /⟦[A-Z_]+_\d+⟧/g;
 
+  // Pure : une consigne de l'étude, jetons gardés, tout nom propre restant masqué — mot en capitales hors sigles du métier,
+  // mot à majuscule initiale hors tête de phrase (audit 12/10 : une consigne « pour tous les dossiers » écrite sur un autre
+  // dossier citait ses clients, absents de la table de ce document).
+  var SIGLES_CONSIGNES_OUTIL2 = new Set(['DPE', 'ERP', 'SRU', 'ALUR', 'DPU', 'DIA', 'SAFER', 'ABF', 'PLU', 'PLUI', 'CU', 'TVA', 'TTC', 'HT',
+    'SCI', 'SARL', 'SAS', 'EURL', 'PACS', 'CREP', 'AAE', 'VTE', 'SPANC', 'ASL', 'AFUL', 'EUR', 'ICPE', 'PPRN', 'PPRT', 'IRIS', 'TEOM',
+    'RHF', 'CNIL', 'II', 'III', 'IV', 'VI', 'VII', 'VIII', 'IX', 'XI', 'XII', 'RDC', 'OK']);
+  function masquerNomsConsigneOutil2(texte) {
+    const lettre = '[A-Za-zÀ-ÖØ-öø-ÿ]';
+    return String(texte || '').split(/(⟦[A-Z_]+_\d+⟧)/).map((morceau, i) => {
+      if (i % 2) return morceau;
+      return morceau.replace(new RegExp(`(^|[.!?:«»"(\\n]\\s*|[^A-Za-zÀ-ÖØ-öø-ÿ0-9'’-])(${lettre}[A-Za-zÀ-ÖØ-öø-ÿ'’-]*)`, 'g'), (m, avant, mot) => {
+        const tete = /^$|[.!?:«»"(\n]\s*$/.test(avant);
+        const capitales = mot.length >= 2 && mot === mot.toUpperCase() && /[A-ZÀ-Ý]{2}/.test(mot);
+        if (capitales) return SIGLES_CONSIGNES_OUTIL2.has(mot.replace(/['’-]/g, '')) ? m : avant + '[nom]';
+        if (!tete && /^[A-ZÀ-Ý]/.test(mot)) return avant + '[nom]';
+        return m;
+      });
+    }).join('');
+  }
+
   // Ré-identification, en profondeur, de ce que Claude renvoie (commentaires, extraits cités).
   function desanonymiserOutil2(valeur, table) {
     const parJeton = new Map((table || []).map(e => [e.jeton, e.valeur]));
@@ -356,7 +383,10 @@
     na: { texte: 'Sans objet', dl: 'dl-neutre', icone: 'x', rang: 3 }
   };
 
-  function niveauPointGrilleOutil2(statut) {
+  // Un point « présent » sans aucune citation retrouvée mot pour mot n'est pas prouvé : à surveiller, jamais validé (audit
+  // 12/10). `citations` absent (appel d'avant) : le statut seul.
+  function niveauPointGrilleOutil2(statut, citations) {
+    if (statut === 'present' && Array.isArray(citations) && !citations.some(c => c && c.verifie)) return 'surveiller';
     return { present: 'valide', a_verifier: 'surveiller', absent: 'critique', non_applicable: 'na' }[statut] || 'surveiller';
   }
 
@@ -371,7 +401,7 @@
       if (!points.length) continue;
       const lignes = points.map(g => {
         const r = parId.get(g.id) || { statut: 'a_verifier', commentaire: 'Point non traité.', citations: [] };
-        return { id: g.id, intitule: g.intitule, base_legale: g.base_legale || '', statut: r.statut, niveau: niveauPointGrilleOutil2(r.statut), commentaire: r.commentaire || '', citations: r.citations || [], omis: !!r.omis };
+        return { id: g.id, intitule: g.intitule, base_legale: g.base_legale || '', statut: r.statut, niveau: niveauPointGrilleOutil2(r.statut, r.citations || []), commentaire: r.commentaire || '', citations: r.citations || [], omis: !!r.omis };
       });
       const actives = lignes.filter(l => l.niveau !== 'na');
       const pire = actives.length ? actives.reduce((m, l) => NIVEAUX_RELECTURE_OUTIL2[l.niveau].rang < NIVEAUX_RELECTURE_OUTIL2[m].rang ? l.niveau : m, 'valide') : 'na';

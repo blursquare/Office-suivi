@@ -19047,3 +19047,30 @@ modèle **au choix dans les Réglages**, Opus par défaut.
   Blois ») ; DPU renforcé plus posé « non » hors de Blois (aucun périmètre connu : la question reste posée quand elle compte) ;
   « AB 12 et 13 » → AB 12 et AB 13 (poste) / plus de section « ET » (serveur) ; contrôle de la relecture : les droits
   `foret-*` cherchent la mention des bois et forêts.
+
+### 0.213.3 — 12/10/2026 — Relecture d'actes : confidentialité et validation (relecture indépendante, lot 3)
+
+- Retouches du lot 2 après sa relecture : zone voisine (`autresFamilles`) → un droit « à purger » qu'elle ferait naître devient
+  « à vérifier » avec « la parcelle touche aussi une zone … — choisir la zone retenue » (le Géoportail rend toute zone qui
+  intersecte, même d'un filet) ; sections en capitales N, AU, LA… de nouveau reconnues (seuls « et », « n », « m2 » écrits en
+  minuscules sont écartés ; filtre serveur retiré, le poste envoie des capitales) ; « 1250 m2 » n'est plus une parcelle ; une
+  pièce déposée sans dossier après « Détacher » n'est plus effacée au choix d'un dossier ; courrier d'avant le 06/10 : mention
+  sortie de l'adresse avant toute reprise (plus imprimée deux fois).
+- Citations : `localiserExtrait` (serveur) exige la citation ENTIÈRE (espaces et tirets ignorés, césure comprise ; « … » /
+  « [...] » = morceaux à retrouver dans l'ordre) — seuls ses 20 premiers caractères l'étaient ; texte normalisé gardé d'une
+  citation à l'autre (90 citations figeaient le serveur).
+- Niveaux : `niveauPointGrilleOutil2(statut, citations)` — « présent » sans citation vérifiée → à surveiller ; contradiction
+  dont les deux clauses ne sont pas retrouvées → jamais critique.
+- Envoi : `signatureEnvoiRelecture` / `envoiRelectureVu` — estimation (countTokens) et analyse refusées tant que documents,
+  table et consignes ne sont pas ceux montrés à l'étape 2 (passer de 1 à 3 envoyait le texte sans aperçu) ; pièce lue après la
+  pseudonymisation → suite invalidée (documents décalés d'un rang).
+- Consignes de l'étude : montrées à l'étape 2 (`renderConsignesEnvoyeesRelecture`) et passées par `masquerNomsConsigneOutil2`
+  (mots en capitales hors sigles, majuscule hors tête de phrase → « [nom] ») — une consigne « pour tous les dossiers » citait
+  les clients d'un autre dossier, absents de la table.
+- Pseudonymisation (`REGLES_ANONYMISATION_OUTIL2`) : « Né à X (CP) le … », « section AB numéros 12, 13 et 14 », « cadastrée AB
+  123 », lieu-dit, adresse sans ponctuation (arrêt sur « à », « demeurant »…), MONSIEUR/MADAME en capitales, « Prénom NOM » sans
+  civilité (mots du métier exclus). Une commune seule (« à Blois ») reste en clair, comme avant.
+- PDF mixte : `lireTextePdfParPage` passe à l'OCR chaque page sans texte (annexes scannées envoyées vides avant).
+- « Doc ? · p.7 » des contrôles CLAIRE → nom du document principal ; `\b` devant « é »/« à » (époux, à concurrence de, énonce)
+  remplacé par un lookbehind (faux « quotités » IMPORTANT) ; corps d'erreur de Mistral plus repris dans le message (type et code
+  seuls).

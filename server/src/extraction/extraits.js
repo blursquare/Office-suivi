@@ -37,23 +37,49 @@ function normaliserAvecIndex(s) {
   return { texte: res, index: idx };
 }
 
-// Position de l'extrait dans le texte d'origine, ou -1. Le préfixe testé est réduit par paliers :
-// un extrait peut différer de la mise en page réelle (césure en fin de ligne, espace insécable)
-// sans pour autant être inventé — exiger l'égalité parfaite produirait un flot de faux
-// « à vérifier » qui ferait perdre toute valeur au signal.
+// Forme compacte (sans espaces ni tirets) d'un texte normalisé, avec l'index d'origine de chaque caractère gardé : une césure
+// en fin de ligne (« cé- sure »), une espace insécable ou une espace en trop ne font pas échouer une citation exacte.
+function compacter(normalise) {
+  let texte = '';
+  const index = [];
+  for (let i = 0; i < normalise.texte.length; i++) {
+    const c = normalise.texte[i];
+    if (c === ' ' || c === '-') continue;
+    texte += c;
+    index.push(normalise.index[i]);
+  }
+  return { texte, index };
+}
+
+// Le dernier document normalisé est gardé : toutes les citations d'une analyse sont cherchées dans les mêmes textes
+// (audit 12/10 : 90 citations sur un acte de 300 000 caractères figeaient le serveur plusieurs secondes).
+let derniereSource = { brut: null, compact: null };
+function sourceCompacte(texte) {
+  if (derniereSource.brut !== texte) derniereSource = { brut: texte, compact: compacter(normaliserAvecIndex(texte)) };
+  return derniereSource.compact;
+}
+
+// Position de l'extrait dans le texte d'origine, ou -1. La citation ENTIÈRE doit s'y trouver (audit 12/10 : seuls ses 20
+// premiers caractères étaient vérifiés — une négation retirée ou une fin inventée passaient pour vérifiées) ; seuls les
+// espaces et les tirets sont ignorés. Une coupure marquée par le modèle (« … », « [...] ») sépare des morceaux qui doivent
+// tous se retrouver, dans l'ordre.
 function localiserExtrait(texte, extrait) {
   if (!texte || !extrait) return -1;
-  const source = normaliserAvecIndex(texte);
-  const cible = normaliserAvecIndex(extrait).texte.trim();
-  if (cible.length < 12) return -1; // « le 15 » se retrouverait n'importe où : ce n'est pas une preuve
-  let longueur = Math.min(80, cible.length);
-  const longueurMin = Math.max(12, Math.min(20, cible.length));
-  let pos = -1;
-  while (pos === -1 && longueur >= longueurMin) {
-    pos = source.texte.indexOf(cible.slice(0, longueur));
-    if (pos === -1) longueur -= 10;
+  const morceaux = String(extrait).split(/\s*(?:\[\s*(?:\.\.\.|…)\s*\]|\(\s*(?:\.\.\.|…)\s*\)|\.\.\.|…)\s*/)
+    .map(m => compacter(normaliserAvecIndex(m)).texte)
+    .filter(Boolean);
+  const total = morceaux.reduce((n, m) => n + m.length, 0);
+  if (total < 10) return -1; // « le 15 » se retrouverait n'importe où : ce n'est pas une preuve
+  const source = sourceCompacte(texte);
+  let depart = 0;
+  let premier = -1;
+  for (const m of morceaux) {
+    const pos = source.texte.indexOf(m, depart);
+    if (pos === -1) return -1;
+    if (premier === -1) premier = pos;
+    depart = pos + m.length;
   }
-  return pos === -1 ? -1 : source.index[pos];
+  return source.index[premier];
 }
 
 // Découpe le texte en fenêtres autour des occurrences d'un motif, fusionnées quand elles se

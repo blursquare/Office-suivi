@@ -59,7 +59,11 @@
       afficherToast('Ajoutez d’abord le document à relire (type « Document à relire »), et attendez sa lecture.', 'OK', null);
       return;
     }
-    if (cible >= 3 && !anonymisationRelecture && !relectureArchiveeOuverte) preparerAnonymisationRelecture();
+    if (cible >= 3 && !relectureArchiveeOuverte && !envoiRelectureVu()) {
+      afficherToast('Vérifiez d’abord ce qui partira, à l’étape 2.', 'OK', null);
+      if (etapeRelecture !== 2) definirEtapeRelecture(2);
+      return;
+    }
     if (cible === 4 && !dernierRapportAudit && !relectureArchiveeOuverte) {
       afficherToast("Lancez d'abord l'analyse.", 'OK', null);
       return;
@@ -70,7 +74,12 @@
       if (panneau) panneau.style.display = i === cible ? '' : 'none';
     }
     renderStepperRelecture();
-    if (cible === 2) { preparerAnonymisationRelecture(); renderAnonymisationRelecture(); }
+    if (cible === 2) {
+      preparerAnonymisationRelecture();
+      renderAnonymisationRelecture();
+      // Les consignes de l'étude font partie de ce qui part : relues pour être montrées telles quelles.
+      chargerRetoursAudit().then(() => { if (etapeRelecture === 2 && anonymisationRelecture) renderAnonymisationRelecture(); });
+    }
     if (cible === 3) renderEtapeAnalyseRelecture();
     if (cible === 4) renderTableauDeBordRelecture();
     const tete = document.getElementById('relecture-stepper');
@@ -93,7 +102,20 @@
   // Un changement de documents (ajout, retrait, type) invalide tout ce qui suit : la table de
   // pseudonymisation et, a fortiori, l'analyse. On ne garde jamais un bilan qui ne correspond plus
   // aux pièces affichées.
+  // Ce que l'étude a vu à l'étape 2 (documents, valeurs masquées, consignes) : rien ne part — ni estimation ni analyse — tant
+  // que ce qui partirait n'est pas ce qui a été montré (audit 12/10 : passer de l'étape 1 à 3 envoyait le texte sans aperçu).
+  var signatureAnonymisationVue = '';
+  function signatureEnvoiRelecture() {
+    const a = anonymisationRelecture;
+    if (!a) return '';
+    return JSON.stringify([a.documents.map(d => d.texte.length), a.table.map(e => e.jeton + '=' + e.valeur), consignesEnvoyeesRelecture()]);
+  }
+  function envoiRelectureVu() {
+    return !!anonymisationRelecture && signatureEnvoiRelecture() === signatureAnonymisationVue;
+  }
+
   function invaliderSuiteRelecture() {
+    signatureAnonymisationVue = '';
     anonymisationRelecture = null;
     estimationRelecture = null;
     analyseClaudeRelecture = null;
@@ -389,8 +411,10 @@
         <wa-button appearance="outlined" class="secondary" onclick="ajouterTermeAnonymisationRelecture()">Ajouter</wa-button>
       </div>
       ${enClair}
-      <div class="anon-grille">${blocs || '<p class="hint">Aucune donnée identifiante repérée — vérifiez l’aperçu.</p>'}</div>`;
+      <div class="anon-grille">${blocs || '<p class="hint">Aucune donnée identifiante repérée — vérifiez l’aperçu.</p>'}</div>
+      ${renderConsignesEnvoyeesRelecture()}`;
     renderApercuAnonymisationRelecture();
+    signatureAnonymisationVue = signatureEnvoiRelecture();
   }
 
   function ajouterTermeAnonymisationRelecture() {
@@ -446,6 +470,21 @@
 
   // ---- Étape 3 : analyse ----------------------------------------------------------------------
 
+  // Les consignes telles qu'elles partent : pseudonymisées par la table de ce document, puis tout nom propre restant masqué —
+  // une consigne « pour tous les dossiers » écrite sur un autre dossier peut citer ses clients, absents de la table (audit 12/10).
+  function consignesEnvoyeesRelecture() {
+    const a = anonymisationRelecture;
+    if (!a) return [];
+    return consignesEtudeRelecture().map(c => masquerNomsConsigneOutil2(pseudonymiserTexteLibreOutil2(c, a.table)));
+  }
+
+  function renderConsignesEnvoyeesRelecture() {
+    const liste = consignesEnvoyeesRelecture();
+    if (!liste.length) return '';
+    return `<div class="anon-bloc"><span class="relecture-nature-titre">Consignes de l’étude envoyées<span class="audit-section-compte">${liste.length}</span></span>
+      <ul class="anon-liste">${liste.map(c => `<li><span class="anon-valeur">${escapeHtml(c)}</span></li>`).join('')}</ul></div>`;
+  }
+
   function consignesEtudeRelecture() {
     const cle = dernierAuditContexte ? dernierAuditContexte.dossierCle : cleDossierAudit(auditDossierLie, (documentsOrdonnesRelecture()[0] || {}).nom);
     return consignesDepuisRetours(retoursAudit, cle);
@@ -484,7 +523,7 @@
       mode: auditMode,
       typeBien,
       grille: grillePourModeOutil2(auditMode, typeBien),
-      consignes: consignesEtudeRelecture().map(c => pseudonymiserTexteLibreOutil2(c, a.table)),
+      consignes: consignesEnvoyeesRelecture(),
       // Le nom de fichier porte souvent le nom des clients (« VENTE DUPONT MARTIN.pdf ») : il ne
       // part jamais, remplacé par un intitulé neutre.
       libelle: `${auditMode === 'acte' ? "Projet d'acte de vente" : "Projet d'avant-contrat"} — ${docs.length} document(s)`,
@@ -570,6 +609,7 @@
   }
 
   async function estimerCoutRelecture() {
+    if (!envoiRelectureVu()) { estimationRelecture = { erreur: 'Vérifiez d’abord ce qui partira, à l’étape 2.' }; return; }
     try {
       const r = await fetchAvecAuth('/api/relecture-claude/estimer', {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corpsRequeteRelecture())
@@ -667,7 +707,10 @@
       await preparerControlesClaireRelecture();
       typeBienEnvoyeRelecture = typeBienRelectureCourante();
       idRelectureEnregistree = null;
-      if (avecClaude) {
+      if (avecClaude && !envoiRelectureVu()) {
+        // Documents, valeurs masquées ou consignes changés depuis l'aperçu : rien ne part sans l'avoir revu.
+        erreurClaudeRelecture = 'Ce qui partirait a changé depuis l’aperçu : vérifiez-le à l’étape 2 avant de lancer l’analyse.';
+      } else if (avecClaude) {
         const corps = corpsRequeteRelecture();
         const r = await fetchAvecAuth('/api/relecture-claude/analyser', {
           method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corps)
@@ -918,7 +961,9 @@
     // s'applique jamais à une anomalie (et inversement).
     (a.contradictions || []).forEach((x, i) => {
       const cit = [x.clause_a, x.clause_b].find(c => c && c.verifie) || x.clause_a;
-      constatsClaudeRelecture.push({ uid: 'x-' + i, categorie: 'CONTRADICTION_CLAUDE', gravite: x.gravite === 'elevee' ? 'CRITIQUE' : 'A_VERIFIER',
+      // Une contradiction dont aucune des deux clauses ne se retrouve mot pour mot n'est jamais critique (audit 12/10).
+      const prouvee = [x.clause_a, x.clause_b].every(c => c && c.verifie);
+      constatsClaudeRelecture.push({ uid: 'x-' + i, categorie: 'CONTRADICTION_CLAUDE', gravite: x.gravite === 'elevee' && prouvee ? 'CRITIQUE' : 'A_VERIFIER',
         titre: x.sujet, description: x.explication, phrase: cit ? cit.extrait : '', page: cit ? cit.page : null, contradiction: x });
     });
     (a.anomalies || []).forEach((x, i) => {

@@ -161,9 +161,14 @@ async function appelerMistral({ cle, modele, region, system, contenu, schema, fe
       signal: AbortSignal.timeout(delaiMs || 15 * 60 * 1000)
     });
     if (!r.ok) {
+      // Seuls le type et le code d'erreur de Mistral sont gardés : un corps d'erreur peut reprendre un morceau de la requête
+      // (texte pseudonymisé de l'acte), qui finirait au journal (relecture 12/10).
       let detail = '';
-      try { detail = (await r.text()).slice(0, 300); } catch (_) { /* rien */ }
-      throw erreurHttp(r.status, detail);
+      try {
+        const j = JSON.parse(await r.text());
+        detail = [j && j.type, j && j.code].filter(x => typeof x === 'string' || typeof x === 'number').map(String).join(' ').slice(0, 80);
+      } catch (_) { /* rien */ }
+      throw erreurHttp(r.status, detail ? `HTTP ${r.status} (${detail})` : '');
     }
     return lireFluxMistral(r.body);
   };

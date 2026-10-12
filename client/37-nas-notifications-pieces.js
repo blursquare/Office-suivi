@@ -638,36 +638,37 @@
   // lireTextePdfVerification() n'est pas touchée : la vérification d'un dossier du NAS garde ses
   // plafonds et son temps de traitement.
   async function lireTextePdfParPage(pdf) {
-    let texte = '';
-    let pages = [];
     const pagesTotal = pdf.numPages;
+    const textes = [];
     for (let p = 1; p <= pagesTotal; p++) {
       const page = await pdf.getPage(p);
       const content = await page.getTextContent();
-      const debut = texte.length;
-      texte += content.items.map(it => it.str).join(' ') + '\n';
-      pages.push({ numero: p, debut, fin: texte.length });
+      textes.push(content.items.map(it => it.str).join(' '));
     }
+    // OCR page par page, seulement pour les pages sans texte : un PDF mixte (acte tapé, annexes scannées) envoyait ses
+    // annexes vides (audit 12/10).
     let viaOcr = false;
-    if (texte.trim().length < 40) {
+    const vides = textes.map((t, i) => (t.trim().length < 40 ? i : -1)).filter(i => i >= 0);
+    if (vides.length) {
       const workerVerif = await creerWorkerOcr();
       if (workerVerif) {
         try {
-          let texteOcr = '';
-          const pagesOcr = [];
-          for (let p = 1; p <= pagesTotal; p++) {
-            const debut = texteOcr.length;
-            texteOcr += (await ocrPage(pdf, p, workerVerif)) + '\n';
-            pagesOcr.push({ numero: p, debut, fin: texteOcr.length });
+          for (const i of vides) {
+            const lu = await ocrPage(pdf, i + 1, workerVerif);
+            if (String(lu || '').trim().length > textes[i].trim().length) { textes[i] = lu; viaOcr = true; }
           }
-          texte = texteOcr;
-          pages = pagesOcr;
-          viaOcr = true;
         } finally {
           await workerVerif.terminate();
         }
       }
     }
+    let texte = '';
+    const pages = [];
+    textes.forEach((t, i) => {
+      const debut = texte.length;
+      texte += t + '\n';
+      pages.push({ numero: i + 1, debut, fin: texte.length });
+    });
     const pagesLues = pages.length;
     return { texte, pages, pagesLues, pagesTotal, viaOcr, tronque: pagesLues < pagesTotal };
   }

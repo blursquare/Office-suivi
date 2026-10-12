@@ -106,11 +106,13 @@
     // « et », « n », « de »… ne sont pas des sections (audit 12/10 : « AB 12 et 13 » donnait « ET 13 ») ; un numéro seul qui
     // suit (« et 13 », « , 14 ») garde la section précédente.
     const out = [];
-    const re = /(?:^|[^A-Za-z0-9])([0-9]?[A-Z]{1,2})\s*(?:N°|n°|no|n)?\s*(\d{1,4})(?![0-9])((?:\s*(?:,|et|&)\s*(?:n°\s*)?\d{1,4}(?![0-9]))*)/gi;
+    const re = /(?:^|[^A-Za-z0-9])([0-9]?[A-Z]{1,2})\s*(?:N°|n°|no|n)?\s*(\d{1,4})(?![0-9])((?:\s*(?:,|et|&)\s*(?:n°\s*)?\d{1,4}(?![0-9])(?!\s*(?:m2|m²|m|ha|a|ca)(?![A-Za-z])))*)/gi;
     let m;
     while ((m = re.exec(String(texte || ''))) && out.length < 20) {
       const section = m[1].toUpperCase();
-      if (/^(ET|OU|NO|N|DE|DU|LA|LE|AU|EN)$/.test(section)) continue;
+      // Écrite en minuscules, une section d'une lettre ou un petit mot (« et », « n », « m2 ») n'en est pas une ; en capitales,
+      // N, AU, LA… sont de vraies sections.
+      if (m[1] !== section && (section.replace(/^[0-9]/, '').length < 2 || /^(ET|OU|NO|DE|DU|LA|LE|AU|EN)$/.test(section))) continue;
       out.push({ section, numero: String(Number(m[2])) });
       (m[3].match(/\d{1,4}/g) || []).forEach(n => { if (out.length < 20) out.push({ section, numero: String(Number(n)) }); });
     }

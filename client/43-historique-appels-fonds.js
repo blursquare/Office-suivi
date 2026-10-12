@@ -230,7 +230,13 @@
   // Pure : un courrier gardé avant le 12/10 a perdu sa mention « Envoi par e-mail uniquement » (le serveur ne gardait pas ce
   // champ) ; elle est reprise de l'état de l'outil gardé avec lui.
   function donneesAvecMentionGardee(a) {
-    const donnees = Object.assign({}, (a && a.donnees) || {});
+    const brutes = (a && a.donnees) || {};
+    // Courrier d'avant le 06/10 : la mention est encore dans l'adresse — normaliserDonneesCourrierAppelFonds l'en sort.
+    if (brutes.mention === undefined) {
+      const normalisees = normaliserDonneesCourrierAppelFonds(brutes);
+      if (normalisees.mention) return normalisees;
+    }
+    const donnees = Object.assign({}, brutes);
     const adressePostale = a && a.etat && a.etat.champs && String(a.etat.champs['af-adresse-clients'] || '').trim();
     // Mention seulement sans adresse postale (même règle que l'aperçu).
     if (donnees.mention === undefined && !adressePostale && a && a.etat && typeof a.etat.mention === 'string' && a.etat.mention.trim()) {

@@ -302,7 +302,7 @@
   // (« 1° … 2° … ») — évite d'écarter une vraie déclaration qui se contenterait de viser un
   // article (« travaux soumis à déclaration préalable au sens de l'article R.421-17 »).
   var RE_REFERENCE_TEXTE_LEGAL = /\b(?:article\s+[LRD]?\.?\s*\d|du\s+(?:m[êe]me\s+)?[Cc]ode\b|loi\s+(?:n[°ºo]|du\s+\d)|d[ée]cret\s+n[°ºo])/;
-  var RE_ENONCIATION_LEGALE = /\b(?:dispose|pr[ée]voit|[ée]nonce|stipule)\s+que\b|\baux\s+termes\s+de\s+l['’]article\b|\best\s+ainsi\s+r[ée]dig[ée]\b|\b\d{1,2}°\s/;
+  var RE_ENONCIATION_LEGALE = /(?<![A-Za-z0-9_À-ɏ])(?:dispose|pr[ée]voit|[ée]nonce|stipule)\s+que\b|\baux\s+termes\s+de\s+l['’]article\b|\best\s+ainsi\s+r[ée]dig[ée]\b|\b\d{1,2}°\s/;
 
   // Le compromis porte souvent ses annexes : le DPE (tableaux « donnée d'entrée / origine de la
   // donnée / valeur renseignée », « observée ou mesurée »…) et le constat plomb (CREP) parlent de
@@ -456,7 +456,7 @@
   // par une lettre accentuée (« marié ») n'a PAS de frontière `\b` derrière lui (é n'est pas dans \w),
   // donc `\bmari[ée]e?s?\b` ne matchait jamais le masculin singulier « marié ». Piège récurrent
   // documenté dans ce fichier. Le lookahead couvre aussi les majuscules via le flag i.
-  var RE_STATUT_MARIE = /\bmari[ée]e?s?(?![a-zà-ÿ])|\b[ée]pou(?:x|se|ses)\b|\bconjoints?\b|\bcontrat\s+de\s+mariage\b/i;
+  var RE_STATUT_MARIE = /\bmari[ée]e?s?(?![a-zà-ÿ])|(?<![A-Za-z0-9_À-ɏ])[ée]pou(?:x|se|ses)\b|\bconjoints?\b|\bcontrat\s+de\s+mariage\b/i;
   var RE_STATUT_PACSE = /pacte\s+civil\s+de\s+solidarit[ée]|\bpacs[ée]e?s?\b|\bPACS\b/i;
   var RE_STATUT_CONCUBINS = /\bconcubin(?:s|e|es|age)?\b|vivant\s+maritalement|union\s+libre/i;
   // « divorcé DE Madame X » est un lien familial cité dans l'état civil, pas le statut actuel :
@@ -475,7 +475,7 @@
   // Quotités d'acquisition. « Quotités VENDUES » emploie exactement les mêmes tournures : on exige
   // donc un mot d'acquisition à proximité et l'absence de vocabulaire de cession. Premier jet, au
   // même titre que PIECES_* en leur temps — à resserrer sur un acte réel qui le mettrait en défaut.
-  var RE_QUOTITE_ACQUISITION = /\bchacun(?:e)?\s+(?:pour|[àa]\s+concurrence\s+de)\s+(?:une\s+)?(?:moiti[ée]|\d)|\bpar\s+(?:parts?|moiti[ée]s?)\s+[ée]gales?|\b[àa]\s+concurrence\s+de\s+\d{1,3}\s*(?:%|centi[èe]mes?|\/\s*\d+)|\bpour\s+(?:une\s+)?moiti[ée]\s+indivise\b|\bproportions?\s+suivantes?\b/i;
+  var RE_QUOTITE_ACQUISITION = /\bchacun(?:e)?\s+(?:pour|[àa]\s+concurrence\s+de)\s+(?:une\s+)?(?:moiti[ée]|\d)|\bpar\s+(?:parts?|moiti[ée]s?)\s+[ée]gales?|(?<![A-Za-z0-9_À-ɏ])[àa]\s+concurrence\s+de\s+\d{1,3}\s*(?:%|centi[èe]mes?|\/\s*\d+)|\bpour\s+(?:une\s+)?moiti[ée]\s+indivise\b|\bproportions?\s+suivantes?\b/i;
   var RE_ANCRE_ACQUISITION = /\bacqu[ièé]r|\bacquisition\b|\bacqu[ée]reurs?\b|\bb[ée]n[ée]ficiaires?\b|\bindivision\b/i;
   var RE_ANCRE_CESSION = /\bvend(?:ent|eurs?|u|ue)\b|\bc[ée]d(?:ent|ants?)\b|quotit[ée]s?\s+vendues?/i;
   var PORTEE_ANCRE_QUOTITE = 300;

@@ -117,7 +117,9 @@
   // Libellé court d'une citation (« Projet · p.12 ») : le même pour une pastille cliquable et pour le papier.
   function libelleCitationRelecture(c) {
     const doc = documentsEnvoyesRelecture.find(d => d.numero === c.document);
-    const f = doc ? (fichiersAnalyseIa.find(x => x.id === doc.fichierId) || (doc.nom ? doc : null)) : null;
+    // Contrôle de CLAIRE (sans numéro de document) : la page est celle du document principal (audit 12/10 : « Doc ? · p.7 »).
+    const f = doc ? (fichiersAnalyseIa.find(x => x.id === doc.fichierId) || (doc.nom ? doc : null))
+      : (c.document == null ? (fichiersAnalyseIa || []).find(x => x.type === 'principal') || null : null);
     const court = f ? (f.type === 'principal' ? 'Projet' : f.type === 'reference_compromis' ? 'Avant-contrat' : libelleNaturePieceOutil2(f.nature)) : `Doc ${c.document || '?'}`;
     return { court, nomDoc: f ? f.nom : 'Document', texte: `${court}${c.page ? ` · p.${c.page}` : ''}` };
   }

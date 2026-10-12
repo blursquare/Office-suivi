@@ -112,7 +112,8 @@ test('plusieurs copropriétés : deux syndicats distincts, un syndicat cité deu
 
 test('tableau de bord : niveaux, pire niveau de section, point omis = à surveiller', () => {
   const analyse = { points: [
-    { id: 'dpe', statut: 'present', commentaire: 'DPE annexé', citations: [] },
+    { id: 'dpe', statut: 'present', commentaire: 'DPE annexé', citations: [{ document: 1, page: 3, extrait: 'diagnostic de performance énergétique', verifie: true }] },
+    { id: 'erp', statut: 'present', commentaire: 'ERP annexé', citations: [{ document: 1, page: 4, extrait: 'inventé', verifie: false }] },
     { id: 'amiante', statut: 'absent', commentaire: 'Construction de 1960, pas de repérage', citations: [] },
     { id: 'plomb', statut: 'non_applicable', commentaire: '', citations: [] }
   ] };
@@ -123,7 +124,8 @@ test('tableau de bord : niveaux, pire niveau de section, point omis = à surveil
   assert.equal(niveau('dpe'), 'valide');
   assert.equal(niveau('amiante'), 'critique');
   assert.equal(niveau('plomb'), 'na');
-  assert.equal(niveau('erp'), 'surveiller'); // non traité par l'analyse : jamais « validé » par défaut
+  // « Présent » sans citation retrouvée mot pour mot : jamais validé (audit 12/10).
+  assert.equal(niveau('erp'), 'surveiller');
   // Le projet de vente a sa section « concordance », pas l'avant-contrat.
   assert.ok(!sections.some(s => s.cle === 'avant_contrat'));
   assert.ok(app.sectionsTableauDeBordOutil2(analyse, 'acte').some(s => s.cle === 'avant_contrat'));
