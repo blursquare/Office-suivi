@@ -19170,3 +19170,11 @@ modèle **au choix dans les Réglages**, Opus par défaut.
   (`.ag-sous` : agenda lu, comparaison avec l'an dernier, actualiser, filtre) est dans `.ag-titre-ligne`, après les boutons ;
   le mot du jour (`.ag-pastille-jour`) est dans la même ligne, alignée sur la ligne de base de la date. Téléphone : boutons sous
   la date.
+
+### 0.213.8 — 12/10/2026 — Barème de copropriété au-delà de 1,35 M€
+
+- Étude 12/10, « Barème rapide A1 » 2025 scanné (fin du tableau) : `BAREME_FRAIS_ACTE.condo` 1 425 000 → [12 850, 86 740],
+  1 500 000 → [13 450, 91 290], 1 750 000 → [15 450, 106 460], 2 000 000 → [17 450, 121 630] (émoluments, trésor colonne
+  DMTO 5,80665 %) — remplace l'estimation « maison + supplément » de 0.213.6. Maison et terrain relus sur le même document :
+  identiques à CLAIRE. Au-delà de 2 000 000 € (« ne pas s'arrêter, le prix peut être au-delà ») : prolongement par la pente
+  du dernier tronçon, en place depuis 0.213.1.

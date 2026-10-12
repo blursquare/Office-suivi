@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.213.7';
+  const VERSION_APP = '0.213.8';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.213.8', date: '2026-10-12 10:08', resume: "Provision sur frais : copropriété de 1 425 000 € à 2 000 000 € aux vrais montants du barème rapide 2025 (ils étaient estimés) ; au-delà de 2 000 000 €, le calcul continue au même rythme que le barème." },
     { version: '0.213.7', date: '2026-10-12 09:56', resume: "Agenda : en-tête sur une ligne — plus de « Semaine du … au … » ; « Agenda de l'office lu … » et la comparaison avec l'an dernier suivent les boutons ‹ Aujourd'hui › ; « Lun. » aligné sur la date." },
     { version: '0.213.6', date: '2026-10-12 08:22', resume: "Retouches après relecture : le rendez-vous d'un dossier homonyme (ROY) reste rattaché ; notre office n'apparaît plus deux fois dans l'annuaire ; Claire Scan reconnaît de nouveau les vrais certificats d'urbanisme, rapports du SPANC et renonciations ; « Ajouter une tâche » ne recopie plus le texte d'un autre rappel ; changer de calendrier ne coche plus les anciennes tâches ; Entrée referme de nouveau une modification sur la fiche ; un nom de notaire porté dans deux offices demande sa ville." },
     { version: '0.213.5', date: '2026-10-12 08:09', resume: "Fiche, Claire Scan, répertoire, Suivi et tableau de bord corrigés après relecture : « Compléter » depuis Authentic reprend bien le dossier choisi ; une comparante citée sous son nom d'usage n'est plus retirée en boucle ; « Marquer signée » quand la date de signature est passée ; la fiche ne se redessine plus pendant une saisie. Claire Scan : plus de rangement dans le mauvais dossier sur une parcelle d'une lettre, plus de recopie à chaque tour, une DIA ou une demande au SPANC n'est plus cochée comme réponse. Notaires : « Maître THOMAS LEMOINE » retrouvé correctement, un office corrigé ne fait plus disparaître un autre office. Suivi : filtre « Échéance » complet, même échéance dans les deux vues, un dossier signé n'est plus « Urgent », une donnée abîmée ne vide plus la liste ni les rappels. Tableau de bord : fermer l'email sans l'envoyer ne coche plus la tâche, la tâche en cours de saisie n'est plus effacée, « Plus tard » ne compte plus comme fait. Agenda : retouches après relecture (rendez-vous relevé dans l'agenda, sondages, tâches supprimées dans Outlook, sauvegardes)." },

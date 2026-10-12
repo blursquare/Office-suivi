@@ -47,3 +47,13 @@ test('forfait mobilier / inventaire : des droits négatifs sont ramenés à zér
   assert.equal(r.droitsSans, 0);
   assert.ok(r.brutes <= 0);
 });
+
+test('copropriété : dernières lignes du Barème rapide A1 2025 (étude 12/10), prolongé au-delà de 2 M€', () => {
+  // Département 41 hors primo-accédant = colonne DMTO 6,3185 % ; à 4,5 % (primo) = colonne 5,80665 %.
+  const primo = app.estimerFraisActe(2000000, '41', 'condo', true);
+  assert.equal(Math.round(primo.emoluments), 17450);
+  assert.equal(Math.round(primo.tresor), 121630);
+  assert.equal(Math.round(app.estimerFraisActe(1425000, '41', 'condo', true).tresor), 86740);
+  const trois = app.estimerFraisActe(3000000, '41', 'condo', true);
+  assert.equal(Math.round(trois.emoluments), 17450 + 4 * 2000);
+});
