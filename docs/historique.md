@@ -19436,3 +19436,7 @@ modèle **au choix dans les Réglages**, Opus par défaut.
   note, zone de texte) ; insertion refusée sous suivi des modifications ; `AutoOpen` démarre aussi la boucle, une seule à la fois ;
   intitulé cherché seulement dans les paragraphes de 200 caractères au plus ; jeton propre à la macro (`poste:macro`) — relier
   Word ne coupe plus le programme des appels 3CX ; « installé » = un jeton en service seulement ; Échap ferme la fenêtre.
+
+### 12/10/2026 16 h 24 — 0.223.1 Macro Word hors de Normal
+
+Étude : « il y a déjà plein de macros Fichorga, j'ai peur que ça mette le bazar ». Une macro `AutoExec`/`AutoOpen` déjà présente dans Normal aurait fait un nom en double (« Nom ambigu ») et bloqué TOUTES les macros de Normal, celles de Fichorga comprises. La macro se colle désormais dans un modèle à part, `CLAIRE.dotm`, enregistré dans `%APPDATA%\Microsoft\Word\STARTUP` (complément global chargé à l'ouverture de Word, son `AutoExec` y tourne) : projet VBA séparé, aucun nom partagé avec Normal, retiré en supprimant le fichier. `AutoOpen` retiré (inutile dans un complément global). Étapes de la fenêtre « Relier Word » réécrites. Non vérifié dans un vrai Word.

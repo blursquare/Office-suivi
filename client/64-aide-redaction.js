@@ -436,7 +436,7 @@
   }
 
   // Word relié par une MACRO (étude 12/10 : « trouve un autre moyen pour le relais Word » — Panda met le programme en
-  // quarantaine) : le module VBA de ce poste (server/src/macroWordRelais.js), à coller une fois dans le modèle Normal.
+  // quarantaine) : le module VBA de ce poste (server/src/macroWordRelais.js), à coller une fois dans un modèle à part, CLAIRE.dotm (dossier STARTUP de Word), jamais dans Normal.
   async function relierWordAideActe() {
     const poste = posteRelaisWordAideActe();
     if (!poste) { afficherToast('Choisissez d’abord le collaborateur de ce poste.', 'OK', null); return; }

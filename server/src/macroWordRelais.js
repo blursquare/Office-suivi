@@ -2,12 +2,14 @@
 'use strict';
 
 // Relais Word en MACRO (étude 12/10 : Panda Endpoint Protection met CLAIRE-relais.exe en quarantaine — « trouve un autre moyen
-// pour le relais Word »). Aucun programme sur le poste : un module VBA que le collaborateur colle une fois dans Word (Alt+F11,
-// modèle Normal). Il tourne DANS Word : toutes les secondes (Application.OnTime), le paragraphe où se trouve le curseur et son
+// pour le relais Word »). Aucun programme sur le poste : un module VBA que le collaborateur colle une fois dans un modèle À PART,
+// CLAIRE.dotm, enregistré dans le dossier de démarrage de Word (%APPDATA%\Microsoft\Word\STARTUP) — jamais dans Normal, où l'office
+// a déjà les macros de Fichorga (étude 12/10 : « j'ai peur que ça mette le bazar ») : projet séparé, aucun nom partagé, retiré en
+// supprimant le fichier. Il tourne DANS Word : toutes les secondes (Application.OnTime), le paragraphe où se trouve le curseur et son
 // intitulé partent au serveur quand ils changent (POST /api/relais-word/releve, même jeton que le programme, `format: "texte"`),
 // battement toutes les 2 s ; la réponse, en lignes (id, rang du '---', valeur, paragraphe attendu, séparés par des
 // tabulations), porte les insertions demandées depuis CLAIRE, faites comme par le programme : '---' repérés sur le TEXTE du
-// paragraphe, plage contrôlée avant d'écrire, Ctrl+Z l'annule. Démarre à l'ouverture de Word (AutoExec) ; un jeton refusé
+// paragraphe, plage contrôlée avant d'écrire, Ctrl+Z l'annule. Démarre au chargement du modèle, à l'ouverture de Word (AutoExec du modèle global) ; un jeton refusé
 // l'arrête jusqu'au prochain démarrage. Les appels 3CX ne passent pas par la macro (pas de fenêtre à gérer hors de Word).
 // Écrit en ASCII (l'éditeur VBA lit le texte collé tel quel, mais un module importé est lu en ANSI).
 
@@ -21,9 +23,9 @@ function litteralVba(texte) {
 function moduleVbaRelais({ url, poste, jeton }) {
   return [
     "' Relais CLAIRE pour Word (Aide a la redaction) : envoie a CLAIRE le paragraphe ou se trouve le curseur et y insere les",
-    "' valeurs choisies dans CLAIRE (a la place des '---'). Colle dans le modele Normal ; demarre a l'ouverture de Word.",
-    "' Pour le remplacer : ouvrir ce module, Ctrl+A puis Ctrl+V (jamais un second module). Pour le retirer : clic droit sur le",
-    "' module dans Normal, Supprimer.",
+    "' valeurs choisies dans CLAIRE (a la place des '---'). Modele a part CLAIRE.dotm, dans le dossier STARTUP de Word",
+    "' (%APPDATA%\\Microsoft\\Word\\STARTUP) : jamais dans Normal. Demarre a l'ouverture de Word. Pour le retirer : supprimer",
+    "' CLAIRE.dotm (Word ferme). Pour le remplacer : ouvrir CLAIRE.dotm, ce module, Ctrl+A puis Ctrl+V, enregistrer.",
     'Option Explicit',
     '',
     `Private Const CLAIRE_URL As String = ${litteralVba(url)}`,
@@ -38,11 +40,6 @@ function moduleVbaRelais({ url, poste, jeton }) {
     'Private dernierTour As Date',
     '',
     'Public Sub AutoExec()',
-    '    CLAIRE_Demarrer',
-    'End Sub',
-    '',
-    "' Aussi a l'ouverture d'un document (Word lance autrement qu'a la main, ou macro collee Word deja ouvert).",
-    'Public Sub AutoOpen()',
     '    CLAIRE_Demarrer',
     'End Sub',
     '',

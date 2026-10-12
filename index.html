@@ -2605,10 +2605,10 @@
   <div class="confirm-box red-macro-box" role="dialog" aria-labelledby="red-macro-titre" onclick="event.stopPropagation()">
     <p><strong id="red-macro-titre">Relier Word à CLAIRE</strong></p>
     <ol class="red-macro-etapes">
-      <li>Dans Word, appuyez sur <b>Alt+F11</b> (éditeur Visual Basic).</li>
-      <li><b>Première fois :</b> à gauche, clic droit sur <b>Normal</b> › Insertion › <b>Module</b>, puis <b>F4</b> et (Name) = <b>CLAIRE</b>. <b>Déjà fait :</b> ouvrez le module CLAIRE de Normal (jamais un second module).</li>
-      <li>Dans le module : <b>Ctrl+A</b> puis <b>Ctrl+V</b>, enregistrez (<b>Ctrl+S</b>) et fermez l’éditeur.</li>
-      <li>Fermez Word et rouvrez-le : CLAIRE suit alors le curseur (une trame en « Mode protégé » : cliquez « Activer la modification »).</li>
+      <li>Dans Word, ouvrez un <b>document vierge</b>, puis <b>Alt+F11</b>. À gauche, clic droit sur <b>Project (Document1)</b> › Insertion › <b>Module</b> — jamais dans <b>Normal</b>, où sont les macros de Fichorga.</li>
+      <li>Dans le module : <b>Ctrl+A</b> puis <b>Ctrl+V</b>, puis fermez l’éditeur.</li>
+      <li><b>F12</b> (Enregistrer sous), type <b>Modèle Word prenant en charge les macros (*.dotm)</b>, nom de fichier : <b>%APPDATA%\Microsoft\Word\STARTUP\CLAIRE.dotm</b>, Enregistrer. Si Fichier › Options › Options avancées › Emplacements des fichiers › <b>Démarrage</b> indique un autre dossier, enregistrez-le dans celui-là.</li>
+      <li>Fermez Word et rouvrez-le : CLAIRE suit alors le curseur (une trame en « Mode protégé » : cliquez « Activer la modification »). Pour le retirer : supprimer CLAIRE.dotm, Word fermé.</li>
     </ol>
     <textarea id="red-macro-code" class="red-macro-code" rows="7" readonly aria-label="Code de la macro Word"></textarea>
     <div class="confirm-actions">
