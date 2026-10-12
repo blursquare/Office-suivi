@@ -73,11 +73,18 @@ function synchroniserTachesAgenda(rappels, evenements, debut, maintenantIso, opt
     const t = taches.get(r.agendaItemId);
     vus.add(r.agendaItemId);
     if (t) {
-      resultat.push(r.fait ? r : { ...r, auteur: t.collaborateur, texte: t.texte, echeance: t.date, agendaChangeKey: t.changeKey });
+      // Relue dans l'agenda et pas faite : tâche vivante (un `agendaSupprimeLe` posé par un changement de calendrier tombe).
+      if (r.fait) { resultat.push(r); continue; }
+      const vivante = { ...r, auteur: t.collaborateur, texte: t.texte, echeance: t.date, agendaChangeKey: t.changeKey };
+      delete vivante.agendaSupprimeLe;
+      resultat.push(vivante);
       continue;
     }
     const horsFenetre = (debut && r.echeance && r.echeance < debut) || (finLue && r.echeance && r.echeance > finLue) || !finLue || tronquee || aucuneRetrouvee;
     if (r.fait || r.agendaSupprimeLe) resultat.push(r);
+    // Calendrier changé : la tâche de l'ancien calendrier devient un rappel ordinaire, à cocher à la main — durablement, pas
+    // seulement au premier tour (relecture 12/10).
+    else if (aucuneRetrouvee && !presents.has(r.agendaItemId)) resultat.push({ ...r, agendaSupprimeLe: maintenant });
     else if (presents.has(r.agendaItemId)) continue; // relue, mais plus une tâche : retirée
     else if (horsFenetre) resultat.push(r);
     else resultat.push({ ...r, fait: true, faitLe: maintenant, agendaSupprimeLe: maintenant });

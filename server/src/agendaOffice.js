@@ -294,7 +294,9 @@ function datesSignatureSuresDossier(d) {
   if (acte && acte.etat === 'signe' && /^\d{4}-\d{2}-\d{2}$/.test(String(acte.date || ''))) dates.push(acte.date);
   if (d && d.rendezVousSignature) {
     const ecritParAgenda = d.detectionsAgenda && d.detectionsAgenda.rendezVousSignature;
-    if (ecritParAgenda !== d.rendezVousSignature) dates.push(d.rendezVousSignature);
+    // Posée à la main puis seulement CONFIRMÉE par l'agenda (`confirmeManuel`, agendaWatch) : toujours sûre (cas ROY, 12/10).
+    const confirmee = d.detectionsAgenda && d.detectionsAgenda.confirmeManuel === d.rendezVousSignature;
+    if (ecritParAgenda !== d.rendezVousSignature || confirmee) dates.push(d.rendezVousSignature);
   }
   return dates;
 }

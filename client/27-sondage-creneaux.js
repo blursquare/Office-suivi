@@ -1307,7 +1307,9 @@
     // Saisie en cours dans la fiche : elle n'est pas reconstruite sous les doigts (audit 12/10 : frappe perdue, « + Personne »
     // perdu, écriture sur la mauvaise personne) — redessinée un peu après la sortie du champ, le temps qu'un clic aboutisse.
     const actif = document.activeElement;
-    if (!autreFiche && actif && contenu.contains(actif) && actif.matches && actif.matches('textarea, [contenteditable="true"], input:not([type="checkbox"]):not([type="radio"]):not([type="button"]):not([type="submit"])')) {
+    // Entrée ou Échap vient de valider ou d'annuler le champ : la fiche se redessine tout de suite (relecture 12/10 : l'éditeur
+    // restait ouvert sur l'ancienne valeur).
+    if (!autreFiche && actif && (Date.now() - toucheValidationFicheLe > 400 || actif.tagName === 'TEXTAREA' || actif.isContentEditable) && contenu.contains(actif) && actif.matches && actif.matches('textarea, [contenteditable="true"], input:not([type="checkbox"]):not([type="radio"]):not([type="button"]):not([type="submit"])')) {
       if (!renduFicheDiffere) {
         renduFicheDiffere = true;
         actif.addEventListener('blur', () => setTimeout(() => { renduFicheDiffere = false; render(); }, 250), { once: true });
@@ -1333,6 +1335,10 @@
   }
 
   var renduFicheDiffere = false;
+  var toucheValidationFicheLe = 0;
+  if (typeof document !== 'undefined' && document.addEventListener) {
+    document.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === 'Escape') toucheValidationFicheLe = Date.now(); }, true);
+  }
 
   function libellePiece(statut) {
     if (statut === 'recue') return { texte: '✓', cls: 'recue', titre: 'Pièce reçue' };

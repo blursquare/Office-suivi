@@ -44,15 +44,15 @@
     // fichier du dossier quand l'avant-contrat n'a pas été importé par CLAIRE (« promesse » aussi).
     { cle: 'promesse', label: 'Promesse de vente signée', motif: /promesse (unilaterale |synallagmatique )?de vente|promesse d'achat/, refuse: /veuillez trouver ci[- ]joint|vous trouverez ci[- ]joint|je vous prie|nous vous prions|cher maitre|chere maitre|madame, monsieur|ci[- ]joint (le|la|l')/, rubriques: ['sru'] },
     { cle: 'avantContrat', label: 'Compromis signé', motif: /compromis de vente|vente .{0,80}sous conditions? suspensives?|entre les soussignes|information prealable .{0,200}avant[- ]contrat/, refuse: /veuillez trouver ci[- ]joint|vous trouverez ci[- ]joint|je vous prie|nous vous prions|cher maitre|chere maitre|madame, monsieur|ci[- ]joint (le|la|l')/, rubriques: ['sru'] },
-    { cle: 'certificatUrbanisme', label: "Certificat d'urbanisme", piece: 'certificatUrbanisme', motif: /certificat d'urbanisme|note de renseignements d'urbanisme/, refuse: /demande (de|d')|veuillez (nous|me) (adresser|transmettre|faire parvenir)|nous vous (serions|saurions) gre|nous vous prions de bien vouloir/, rubriques: ['aae'] },
+    { cle: 'certificatUrbanisme', label: "Certificat d'urbanisme", piece: 'certificatUrbanisme', motif: /certificat d'urbanisme|note de renseignements d'urbanisme/, refuse: /veuillez (nous|me) (adresser|transmettre|faire parvenir)|nous vous (serions|saurions) gre|nous vous prions de bien vouloir|je vous prie de bien vouloir (me|nous) (adresser|transmettre|faire parvenir)|cerfa|(?<!votre )(?<!vu la )demande de (certificat|controle|raccordement)/, rubriques: ['aae'] },
     { cle: 'alignementNumerotage', label: "Certificat d'alignement et de numérotage", piece: 'certificatAlignement', piecesAussi: ['certificatNumerotage'], motif: /alignement.{0,80}numerotage|numerotage.{0,80}alignement/, rubriques: ['aae'] },
     { cle: 'certificatAlignement', label: "Certificat d'alignement", piece: 'certificatAlignement', motif: /alignement/, rubriques: ['aae'] },
     { cle: 'certificatNumerotage', label: 'Certificat de numérotage', piece: 'certificatNumerotage', motif: /numerotage/, rubriques: ['aae'] },
     // Une DIA envoyée, une notification à la SAFER ou une demande au SPANC ne sont pas des réponses (audit 12/10 : cochées
     // comme reçues) : la pièce n'est cochée que sur une réponse (renonciation, décision) ; sinon le type sans pièce qui suit.
-    { cle: 'renonciationPreemption', label: 'Renonciation au droit de préemption', piece: 'renonciationPreemption', motif: /preemption|intention d'aliener/, exige: /renonc|ne pas (exercer|preempter|faire usage)|non[- ]?exercice|n'entend pas|ne preemptera|decide de ne pas|pas usage/, refuse: /demande (de|d')|veuillez (nous|me) (adresser|transmettre|faire parvenir)|nous vous (serions|saurions) gre|nous vous prions de bien vouloir/, rubriques: ['aae'] },
+    { cle: 'renonciationPreemption', label: 'Renonciation au droit de préemption', piece: 'renonciationPreemption', motif: /preemption|intention d'aliener/, exige: /renonc|ne pas (exercer|preempter|faire usage)|non[- ]?exercice|n'entend pas|ne preemptera|decide de ne pas|pas usage/, refuse: /veuillez (nous|me) (adresser|transmettre|faire parvenir)|nous vous (serions|saurions) gre|nous vous prions de bien vouloir|je vous prie de bien vouloir (me|nous) (adresser|transmettre|faire parvenir)|cerfa|(?<!votre )(?<!vu la )demande de (certificat|controle|raccordement)/, rubriques: ['aae'] },
     { cle: 'demandePreemption', label: "Déclaration d'intention d'aliéner (DIA) ou notification", motif: /preemption|intention d'aliener|safer/, rubriques: ['aae'] },
-    { cle: 'reponseAssainissement', label: 'Courrier réponse assainissement', piece: 'reponseAssainissement', motif: /assainissement|spanc/, refuse: /demande (de|d')|veuillez (nous|me) (adresser|transmettre|faire parvenir)|nous vous (serions|saurions) gre|nous vous prions de bien vouloir/, rubriques: ['aae'] },
+    { cle: 'reponseAssainissement', label: 'Courrier réponse assainissement', piece: 'reponseAssainissement', motif: /assainissement|spanc/, refuse: /veuillez (nous|me) (adresser|transmettre|faire parvenir)|nous vous (serions|saurions) gre|nous vous prions de bien vouloir|je vous prie de bien vouloir (me|nous) (adresser|transmettre|faire parvenir)|cerfa|(?<!votre )(?<!vu la )demande de (certificat|controle|raccordement)/, rubriques: ['aae'] },
     { cle: 'demandeAssainissement', label: 'Demande au service assainissement', motif: /assainissement|spanc/, rubriques: ['aae'] },
     { cle: 'erp', label: 'ERP (état des risques et pollution)', piece: 'erp', motif: /etat des risques/, rubriques: ['environnement', 'diagnostics', 'aae'] },
     { cle: 'diagnosticsTechniques', label: 'Diagnostics techniques', piece: 'diagnosticsTechniques', motif: /dossier de diagnostics? techniques?|diagnostic de performance energetique|constat de risque d'exposition au plomb|etat de l'installation interieure|presence de termites|reperage (des materiaux .{0,60})?amiante|rapport de (mission de )?(diagnostic|reperage)|attestation de (superficie|surface)|loi carrez/, rubriques: ['diagnostics', 'aae'] },
@@ -100,7 +100,8 @@
     const t = String(enTete || '');
     if (!t) return null;
     if (RE_OUVERTURE_ACTE_SCAN.test(t)) {
-      const avant = TYPES_SCAN.find(ty => (ty.cle === 'promesse' || ty.cle === 'avantContrat') && ty.motif.test(t) && !(ty.refuse && ty.refuse.test(t)));
+      // Un acte notarié n'est jamais une lettre d'envoi : pas de `refuse` ici.
+      const avant = TYPES_SCAN.find(ty => (ty.cle === 'promesse' || ty.cle === 'avantContrat') && ty.motif.test(t));
       if (avant) return avant;
       return RE_ACTE_DE_VENTE_SCAN.test(t) ? TYPES_SCAN.find(ty => ty.cle === 'titrePropriete') : null;
     }

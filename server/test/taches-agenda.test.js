@@ -108,6 +108,8 @@ test('synchroniserTachesAgenda : garde-fous — après le dernier jour lu, lectu
   // Calendrier changé dans les Réglages : rien de coché.
   const r = synchroniserTachesAgenda([t('A', '2026-10-10'), t('B', '2026-10-12')], [autre('2027-01-01')], debut, undefined, { calendrierChange: true });
   assert.equal(r.filter(x => x.fait).length, 0);
+  // … et au tour suivant non plus : elles sont devenues des rappels ordinaires.
+  assert.equal(synchroniserTachesAgenda(r, [autre('2027-01-01')], debut).filter(x => x.fait).length, 0);
   // Même calendrier, toutes supprimées d'un coup dans Outlook : toutes cochées (étude 04/10).
   assert.equal(synchroniserTachesAgenda([t('A', '2026-10-10'), t('B', '2026-10-12')], [autre('2027-01-01')], debut).filter(x => x.fait).length, 2);
   // Une retrouvée, l'autre disparue : celle-ci cochée.

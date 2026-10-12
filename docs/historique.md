@@ -19140,3 +19140,25 @@ modèle **au choix dans les Réglages**, Opus par défaut.
 - Tableau de bord : email ou questionnaire noté « traité » seulement s'il est parti ou préparé (annuler la fenêtre ne coche
   plus) ; saisie de « Ajouter une tâche » gardée au redessin ; « Envoyer le projet » dès l'appel de fonds parti (même
   moment qu'Échanges ; avant lui, la tâche de l'appel de fonds le rappelle) ; « Plus tard » ne compte pas comme fait (fête).
+
+### 0.213.6 — 12/10/2026 — Retouches après la relecture des lots 5 et 6
+
+- Agenda : `datesSignatureSuresDossier` compte une date `confirmeManuel` (posée à la main, confirmée par l'agenda) — sans elle le
+  rendez-vous « VTE - ROY » ne désignait plus aucun dossier au tour suivant (« retiré de l'agenda » écrit à tort, déplacement
+  non suivi).
+- Annuaire : le double de notre office relevé dans l'annuaire n'est jamais réinséré, et notre office s'en rapproche même par un
+  contact partagé (comme avant).
+- Claire Scan : `refuse` réduit aux tournures d'une demande sortante (« veuillez nous adresser », « nous vous prions de bien
+  vouloir »…) — « Demande déposée le », « vu la demande », « suite à votre demande », « ou demande d'acquisition » (Cerfa) ne
+  faisaient plus reconnaître CU, rapport du SPANC ni renonciation ; un acte notarié (« L'AN DEUX MILLE ») n'est jamais écarté
+  comme lettre.
+- Tableau de bord : saisies remises au redessin seulement si le formulaire affiché est le même qu'au rendu précédent
+  (`contexteSaisieJourPrecedent` ; ajout et édition d'un rappel partagent leurs ids : le texte d'un rappel passait dans un autre).
+- Claire Scan : un Cerfa ou « demande de certificat / de contrôle / de raccordement » (hors « votre demande », « vu la demande »)
+  ne coche ni le CU ni la réponse du SPANC.
+- Tâches de l'agenda : une tâche relue dans l'agenda et pas faite perd l'`agendaSupprimeLe` posé par un changement de calendrier.
+- Tâches de l'agenda : calendrier changé → les tâches de l'ancien calendrier deviennent des rappels ordinaires (`agendaSupprimeLe`),
+  jamais cochées au tour suivant.
+- Fiche : Entrée/Échap redessinent tout de suite (le rendu différé pendant une saisie laissait l'éditeur ouvert sur l'ancienne
+  valeur), sauf dans une zone de texte.
+- `notaireDuRepertoire` : sans ville, un seul office possible (deux « Paul DURAND » passaient).

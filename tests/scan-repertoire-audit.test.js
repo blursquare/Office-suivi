@@ -42,5 +42,22 @@ test('champ notaire : faux prénom ou fausse ville refusés, notaire de deux off
   assert.equal(app.notaireDuRepertoire('Maître Eve CHAMPION (TOURS)', carnet), false);
   assert.equal(app.notaireDuRepertoire('Maître MARTIN', carnet), false);
   assert.equal(app.notaireDuRepertoire('Maître Paul MARTIN', carnet), true);
+  // Même notaire dans deux offices, sans ville : ambigu.
+  assert.equal(app.notaireDuRepertoire('Maître Eve CHAMPION', carnet), false);
 });
 
+
+test('Claire Scan : un vrai CU, un rapport du SPANC et une renonciation sur Cerfa restent reconnus ; une demande non', () => {
+  const type = (t) => { const r = app.typePieceScan(t); return r ? r.cle : null; };
+  assert.equal(type('commune de blois certificat d urbanisme demande deposee le 3 mars 2026 vu la demande d un certificat d urbanisme'.replace(/d urbanisme/g, "d'urbanisme")), 'certificatUrbanisme');
+  assert.equal(type('spanc rapport de controle suite a votre demande de controle de l assainissement non collectif'), 'reponseAssainissement');
+  assert.equal(type("declaration d'intention d'aliener ou demande d'acquisition le titulaire du droit de preemption renonce a exercer"), 'renonciationPreemption');
+  assert.equal(type("declaration d'intention d'aliener un bien soumis au droit de preemption"), 'demandePreemption');
+  assert.equal(type('spanc nous vous prions de bien vouloir proceder au controle de l assainissement'), 'demandeAssainissement');
+});
+
+test('Claire Scan : un Cerfa de demande de CU et une demande de contrôle au SPANC ne cochent rien', () => {
+  const type = (t) => { const r = app.typePieceScan(t); return r ? r.cle : null; };
+  assert.notEqual(type("cerfa 13410 demande de certificat d'urbanisme"), 'certificatUrbanisme');
+  assert.equal(type("demande de controle de l'installation d'assainissement non collectif"), 'demandeAssainissement');
+});

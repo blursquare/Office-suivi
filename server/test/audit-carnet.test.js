@@ -23,3 +23,9 @@ test('corriger un office ne fait plus disparaître un autre office au même emai
   const saisi2 = [{ id: 's2', nom: 'Saisi 2', email: 'accueil@notaires.fr', annuaire: false }];
   assert.equal(fusionnerCarnetEtAnnuaire(saisi2, annuaire).length, 4);
 });
+
+test('notre office n’apparaît pas deux fois (son double de l’annuaire reste caché)', () => {
+  const annuaire = [{ id: 'annuaire-1', nom: 'Me Sophie GOSSART', email: 'gossart@notaires.fr', telephone: '02 54 22 22 22' }, { id: 'a2', nom: 'B', email: 'b@n.fr' }];
+  const carnet = [{ id: 'etude-gossart', etude: true, nom: 'Office GOSSART', email: 'gossart@notaires.fr', telephone: '02 54 22 22 22' }];
+  assert.equal(fusionnerCarnetEtAnnuaire(carnet, annuaire).map(o => o.id).join(','), 'etude-gossart,a2');
+});

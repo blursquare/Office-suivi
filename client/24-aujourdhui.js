@@ -1279,6 +1279,11 @@
     }
     // Une tâche en cours de saisie survit au redessin (audit 12/10 : effacée au premier rafraîchissement).
     const actifAvant = document.activeElement;
+    // Le formulaire d'ajout et celui d'édition d'un rappel partagent leurs ids : rien n'est remis quand on passe de l'un à
+    // l'autre (relecture 12/10 : le texte d'un rappel était recopié dans un autre).
+    const contexteSaisie = `${typeof rappelEnEdition === 'undefined' ? '' : rappelEnEdition}|${typeof ajoutRappelOuvert === 'undefined' ? '' : ajoutRappelOuvert}`;
+    const memeContexte = contexteSaisie === contexteSaisieJourPrecedent;
+    contexteSaisieJourPrecedent = contexteSaisie;
     const saisies = [...bloc.querySelectorAll('input[id]:not([type="checkbox"]):not([type="radio"]), textarea[id]')]
       .filter(e => e.value).map(e => ({ id: e.id, valeur: e.value, focus: e === actifAvant, debut: e.selectionStart, fin: e.selectionEnd }));
     bloc.innerHTML = carteWidget({
@@ -1289,7 +1294,7 @@
       droite: anneau,
       corps
     });
-    saisies.forEach(g => {
+    if (memeContexte) saisies.forEach(g => {
       const e = document.getElementById(g.id);
       if (!e || !bloc.contains(e)) return;
       e.value = g.valeur;
@@ -1298,6 +1303,9 @@
     renderFenetreAujourdhui();
     planifierAjustementWidgets();
   }
+
+  // Formulaire de rappel affiché au rendu précédent (édition de tel rappel, ou ajout) : voir renderAujourdhui.
+  var contexteSaisieJourPrecedent = '';
 
   // ---- Fenêtre du matin ----
   // Plus ouverte d'elle-même à la première connexion de la journée (étude 07/10 : « supprime le pop-up Aujourd'hui à

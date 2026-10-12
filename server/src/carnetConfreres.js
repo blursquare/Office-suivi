@@ -177,12 +177,14 @@ function fusionnerCarnetEtAnnuaire(carnet, annuaire) {
     if (!a) continue;
     const email = String(a.email || '').trim().toLowerCase();
     const tel = chiffres(a.telephone).length === 9 ? chiffres(a.telephone) : '';
-    const c = parId.get(a.id) || (email && emailsAnnuaire.get(email) === 1 ? parEmail.get(email) : null)
-      || (tel && telsAnnuaire.get(tel) === 1 ? parTel.get(tel) : null);
+    // Notre office se rapproche de son double de l'annuaire même par un contact partagé (comme avant).
+    const parContact = (m, k, n) => { const o = k ? m.get(k) : null; return o && (n === 1 || o.etude) ? o : null; };
+    const c = parId.get(a.id) || parContact(parEmail, email, emailsAnnuaire.get(email)) || parContact(parTel, tel, telsAnnuaire.get(tel));
     if (c && places.has(c.id)) {
       // Déjà placée ailleurs (rapprochée par email ou téléphone) : cet office de l'annuaire reste tel que relevé ; le même
       // office (même id, notre office placé en tête) n'est pas doublé.
-      if (c.id !== a.id) res.push(Object.assign({}, a, { modifie: false, annuaire: true }));
+      // Jamais pour notre office : son double relevé dans l'annuaire reste caché (relecture 12/10).
+      if (c.id !== a.id && !c.etude) res.push(Object.assign({}, a, { modifie: false, annuaire: true }));
       continue;
     }
     if (c) {

@@ -2122,7 +2122,10 @@
       (!c.prenom || x.c.prenom === c.prenom || x.c.prenom.split(' ')[0] === c.prenom.split(' ')[0])
       && (!c.ville || [x.office.ville].concat(x.office.bureaux || []).map(norm).some(l => l && (' ' + l + ' ').indexOf(' ' + c.ville + ' ') !== -1)));
     if (!candidats.length) return false;
-    return !!(c.prenom || c.ville) || new Set(candidats.map(x => norm(x.notaire))).size === 1;
+    // Avec la ville : un notaire de ce nom dans cette ville suffit. Sans elle : un seul office possible (relecture 12/10 : deux
+    // « Paul DURAND » à Tours et Orléans passaient).
+    if (c.ville) return true;
+    return new Set(candidats.map(x => x.office)).size === 1 && (!!c.prenom || new Set(candidats.map(x => norm(x.notaire))).size === 1);
   }
 
   function affecterNotaire(id, cote, valeur) {
