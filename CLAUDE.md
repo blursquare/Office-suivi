@@ -758,7 +758,7 @@ dans `index.html`** (le test `structure-client` refuse tout décalage).
   calculé ne serait pas embarqué dans le .exe, un fichier absent casse la construction) ; autres thèmes = `repertoire.js` (clé `repertoire-contacts`, relevé du répertoire Word
   de l'étude du 02/09/2026, coordonnées d'organismes, jamais de client) ; **lots ajoutés après coup** (`repertoireAjouts.js`, repère `repertoire-lots`, 05/10 : agences immobilières et syndics de copropriété repris de deux recherches de contacts d'Authentic — nom et ville seulement, rubrique « Syndics de copropriété »), appliqués une fois, jamais en écrasement ni en résurrection d'un contact retiré — `THEMES_REPERTOIRE` côté
   serveur, repli identique dans `repertoireThemes` côté client. Rien n'y est deviné : une adresse
-  douteuse du document est signalée en note, pas corrigée.
+  douteuse du document est signalée en note, pas corrigée. **« Copier l'adresse »** (étude 12/10) sur chaque office et organisme : format d'en-tête de courrier (« Maître Prénom NOM » / voie / « CP VILLE »), `adresseCourrierOffice` / `adresseCourrierContact`.
 - **Tâches posées dans l'agenda** (étude 04/10, `server/src/tachesAgenda.js`) : rendez-vous de **catégorie rouge** dont le
   titre **commence** par les initiales en capitales d'un collaborateur (`COLLABORATEURS_ABSENCE` : BA, JV, JS ; « JV - … »,
   « JV: … », « JV … ») = tâche de ce collaborateur — recopiée à chaque tour de lecture de l'agenda dans ses rappels

@@ -19329,3 +19329,10 @@ modèle **au choix dans les Réglages**, Opus par défaut.
   dans la zone du passage jamais écrasée ; bouton « Insérer dans Word » seulement quand le passage vient de Word tel quel.
   Non vérifiable ici : COM de Word (inscription au ROT après un premier changement de fenêtre), stratégie PowerShell des postes,
   `Find.Execute` sans arguments depuis PowerShell 5.1.
+
+- **12/10/2026 — 0.220.0 Répertoire : adresse à copier pour un courrier** (étude : « permettre de copier-coller facilement les
+  adresses et suivre ce format (idem pour les organismes) : Maître Jessica LE DIMET / 908 route d'Orléans / 45160
+  SAINT-HILAIRE-SAINT-MESMIN — ça permet de le mettre facilement dans les courriers à en-tête ») : icône « copier » sur la ligne
+  de chaque office (au nom du premier notaire ; plusieurs notaires → chaque nom est un lien qui copie à son nom) et de chaque
+  organisme qui a une adresse (organisme, service, adresse) — `nomCourrierNotaire`, `adresseCourrierOffice`,
+  `adresseCourrierContact` (client/20, adresse découpée par `adressePostaleCourrier`), `tests/repertoire-adresse-courrier.test.js`.

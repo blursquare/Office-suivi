@@ -477,14 +477,17 @@
   // Une ligne du carnet : office, notaires, adresse et bureaux, notes, dossiers en cours ; téléphone et
   // email ; crayon et ×. Même forme que les lignes de l'annuaire.
   function renderLigneOfficeCarnet(o, dossiersOffice, avecMarque) {
-    const notaires = memeNomOfficeNotaire(o) ? '' : (o.notaires || []).map(n => 'Me ' + n).join(', ');
+    const plusieurs = (o.notaires || []).length > 1;
+    const notaires = memeNomOfficeNotaire(o) ? '' : (o.notaires || []).map((n, i) => plusieurs && aAdresseCourrierOffice(o)
+      ? `<button type="button" class="lien-action rep-copier-notaire" onclick="copierAdresseOffice('${escapeOnclickArg(o.id)}', ${i})" title="Copier l’adresse au nom de Maître ${escapeAttr(n)}">Me ${escapeHtml(n)}</button>`
+      : 'Me ' + escapeHtml(n)).join(', ');
     const lieu = normaliserAdresse([o.adresse, [o.codePostal, o.ville].filter(Boolean).join(' ')].filter(Boolean).join(', '));
     const enCours = dossiersOffice.length
       ? `<div class="rep-ligne-dossiers">${dossiersOffice.slice(0, 4).map(d => `<button type="button" class="carnet-dossier" onclick="ouvrirDossierDepuisDashboard('${escapeOnclickArg(d.id)}')">${escapeHtml(libelleDossierAffiche(d))}</button>`).join('')}${dossiersOffice.length > 4 ? `<span>+${dossiersOffice.length - 4}</span>` : ''}</div>` : '';
     return `<div class="annuaire-ligne rep-ligne${o.etude ? ' rep-ligne-etude' : ''}">
         <div class="annuaire-ligne-qui">
           <div class="annuaire-ligne-nom">${escapeHtml(o.office || (o.notaires || [])[0] || '')}${o.etude ? ' <span class="dot-label dl-success"><span class="dot"></span>Notre office</span>' : avecMarque && o.modifie ? ' <span class="dot-label dl-neutre" title="Corrigé par l’étude"><span class="dot"></span>Modifié</span>' : avecMarque && o.annuaire === false ? ' <span class="dot-label dl-neutre" title="Saisi par l’étude"><span class="dot"></span>Ajouté</span>' : ''}</div>
-          ${notaires ? `<div class="annuaire-ligne-notaires">${escapeHtml(notaires)}</div>` : ''}
+          ${notaires ? `<div class="annuaire-ligne-notaires">${notaires}</div>` : ''}
           ${lieu || (o.bureaux || []).length ? `<div class="annuaire-ligne-lieu">${escapeHtml(lieu)}${(o.bureaux || []).length ? `${lieu ? ' · ' : ''}bureaux : ${escapeHtml(o.bureaux.join(' ; '))}` : ''}</div>` : ''}
           ${o.notes ? `<div class="annuaire-ligne-lieu rep-ligne-notes">${escapeHtml(o.notes)}</div>` : ''}
           ${enCours}
@@ -494,6 +497,7 @@
           ${o.email ? `<a href="mailto:${escapeAttr(o.email)}" title="${escapeAttr(o.email)}">${icone('mail')}<span>${escapeHtml(o.email)}</span></a>` : '<span class="carnet-manque">Email non renseigné</span>'}
         </div>
         <div class="annuaire-ligne-action rep-ligne-icones">
+          ${aAdresseCourrierOffice(o) ? `<wa-button appearance="plain" size="s" type="button" class="bouton-icone ech-ico" onclick="copierAdresseOffice('${escapeOnclickArg(o.id)}', 0)" title="Copier l’adresse pour un courrier${plusieurs ? ' (au nom de Maître ' + escapeAttr(o.notaires[0]) + ' ; cliquez un autre notaire pour le sien)' : ''}" aria-label="Copier l’adresse pour un courrier">${icone('copier')}</wa-button>` : ''}
           <wa-button appearance="plain" size="s" type="button" class="bouton-icone ech-ico" onclick="modifierOfficeCarnet('${escapeOnclickArg(o.id)}')" title="Modifier" aria-label="Modifier cet office">${icone('pencil')}</wa-button>
           ${o.etude || (o.annuaire !== false && !o.modifie) ? '' : `<wa-button appearance="plain" size="s" type="button" class="bouton-icone ech-ico ech-ico-suppr" onclick="retirerOfficeCarnet('${escapeOnclickArg(o.id)}')" title="${o.annuaire !== false ? 'Remettre tel que relevé dans l’annuaire' : 'Retirer de l’annuaire'}" aria-label="${o.annuaire !== false ? 'Annuler la correction de cet office' : 'Retirer cet office'}">${icone('x')}</wa-button>`}
         </div>
@@ -517,10 +521,54 @@
         </div>
         <div class="annuaire-ligne-contact">${tels.concat(mails, liens).join('') || '<span class="carnet-manque">Aucune coordonnée</span>'}</div>
         <div class="annuaire-ligne-action rep-ligne-icones">
+          ${c.adresse ? `<wa-button appearance="plain" size="s" type="button" class="bouton-icone ech-ico" onclick="copierAdresseContact('${escapeOnclickArg(c.id)}')" title="Copier l’adresse pour un courrier" aria-label="Copier l’adresse pour un courrier">${icone('copier')}</wa-button>` : ''}
           <wa-button appearance="plain" size="s" type="button" class="bouton-icone ech-ico" onclick="modifierContactRepertoire('${escapeOnclickArg(c.id)}')" title="Modifier" aria-label="Modifier ce contact">${icone('pencil')}</wa-button>
           <wa-button appearance="plain" size="s" type="button" class="bouton-icone ech-ico ech-ico-suppr" onclick="retirerContactRepertoire('${escapeOnclickArg(c.id)}')" title="Retirer du répertoire" aria-label="Retirer ce contact du répertoire">${icone('x')}</wa-button>
         </div>
       </div>`;
+  }
+
+  // Adresse pour l'en-tête d'un courrier (étude 12/10 : « copier-coller facilement les adresses, au format » —
+  // « Maître Jessica LE DIMET / 908 route d'Orléans / 45160 SAINT-HILAIRE-SAINT-MESMIN » ; idem pour les organismes).
+  // Pure : « Maître Prénom NOM » ; un nom sans aucun mot en capitales prend son dernier mot en capitales.
+  function nomCourrierNotaire(nom) {
+    const mots = String(nom || '').replace(/^\s*(?:Ma[iî]tre|Me)\s+/i, '').replace(/\s+/g, ' ').trim().split(' ').filter(Boolean);
+    if (!mots.length) return '';
+    if (!mots.some(m => m.length > 1 && m === m.toLocaleUpperCase('fr-FR') && /[A-ZÀ-Ý]/.test(m))) mots[mots.length - 1] = mots[mots.length - 1].toLocaleUpperCase('fr-FR');
+    return 'Maître ' + mots.join(' ');
+  }
+
+  function aAdresseCourrierOffice(o) {
+    return !!(o && (o.adresse || o.codePostal || o.ville));
+  }
+
+  // Pure : les lignes de l'adresse d'un office, au nom de l'un de ses notaires (le premier par défaut).
+  function adresseCourrierOffice(o, indexNotaire) {
+    if (!o) return [];
+    const notaire = (o.notaires || [])[indexNotaire || 0];
+    const tete = notaire ? nomCourrierNotaire(notaire) : String(o.office || '').trim();
+    const cpVille = [o.codePostal, o.ville].filter(Boolean).join(' ');
+    return [tete].concat(adressePostaleCourrier([o.adresse, cpVille].filter(Boolean).join('\n'))).filter(Boolean);
+  }
+
+  // Pure : les lignes de l'adresse d'un organisme du répertoire (organisme, service, adresse).
+  function adresseCourrierContact(c) {
+    if (!c) return [];
+    return [String(c.organisme || (c.personnes || [])[0] || '').trim(), String(c.service || '').trim()]
+      .concat(adressePostaleCourrier(c.adresse)).filter(Boolean);
+  }
+
+  function copierAdresseCourrier(lignes) {
+    if (!lignes.length) return;
+    afficherToast(copierTexteSilencieux(lignes.join('\n')) ? 'Adresse copiée : collez-la dans le courrier (Ctrl+V).' : 'Copie impossible : sélectionnez l’adresse à la main.', 'OK', null);
+  }
+
+  function copierAdresseOffice(id, indexNotaire) {
+    copierAdresseCourrier(adresseCourrierOffice((carnetConfreres || []).find(o => o && o.id === id), indexNotaire));
+  }
+
+  function copierAdresseContact(id) {
+    copierAdresseCourrier(adresseCourrierContact(repertoireContacts.find(c => c && c.id === id)));
   }
 
   // ---- Répertoire hors offices notariaux (server/src/repertoire.js) ----

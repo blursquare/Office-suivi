@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.219.0';
+  const VERSION_APP = '0.220.0';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.220.0', date: '2026-10-12 14:43', resume: "Répertoire : « Copier l’adresse » sur chaque office et chaque organisme, au format de l’en-tête d’un courrier (« Maître Prénom NOM », voie, « CP VILLE ») ; dans un office à plusieurs notaires, cliquer le nom d’un notaire copie l’adresse à son nom." },
     { version: '0.219.0', date: '2026-10-12 14:39', resume: "Aide à la rédaction : CLAIRE sait où vous êtes dans Word, sans copier-coller — un relais à installer une fois par poste (bouton sur l'écran) envoie le paragraphe où se trouve le curseur ; « Insérer dans Word » remplace le « --- » par la valeur, à sa place (Ctrl+Z dans Word l'annule)." },
     { version: '0.218.0', date: '2026-10-12 13:51', resume: "Nouvel outil « Aide à la rédaction » : collez le passage de l'acte où vous êtes, CLAIRE reconnaît la clause de la trame et propose pour chaque « --- » la valeur du dossier, à copier d'un clic — fiche (prix et dates en lettres, avant-contrat, honoraires…) et pièces lues sur le NAS : rapport de diagnostic (société, diagnostiqueur, dates, conclusions, DPE), certificat d'urbanisme, renonciation au droit de préemption (DIA), état des risques, courrier d'assainissement, certificat de non-péril (scans lus par OCR). Trame inconnue : l'IA désigne le champ de chaque blanc, sans jamais recevoir une valeur du dossier. « Demander à CLAIRE » : un email aux vendeurs part aux vendeurs, la date du rendez-vous dite dans la phrase est reprise, un jour de semaine qui ne correspond pas à la date est signalé." },
     { version: '0.217.2', date: '2026-10-12 12:12', resume: "Onglet de l'agenda titré « Agenda » (il affichait « agenda »)." },
