@@ -18,7 +18,6 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Management;
 using System.Net;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -26,6 +25,14 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Web.Script.Serialization;
 using Microsoft.Win32;
+
+// Propriétés du fichier (Windows › Propriétés › Détails) : un programme qui dit ce qu'il est.
+[assembly: System.Reflection.AssemblyTitle("Relais CLAIRE du poste")]
+[assembly: System.Reflection.AssemblyDescription("Relais CLAIRE du poste : Aide a la redaction (Word) et appels 3CX")]
+[assembly: System.Reflection.AssemblyCompany("Etude de Maitre Sophie GOSSART")]
+[assembly: System.Reflection.AssemblyProduct("CLAIRE")]
+[assembly: System.Reflection.AssemblyVersion("1.0.0.0")]
+[assembly: System.Reflection.AssemblyFileVersion("1.0.0.0")]
 
 static class RelaisClaire
 {
@@ -49,11 +56,14 @@ static class RelaisClaire
     [DllImport("user32.dll")] static extern uint GetWindowThreadProcessId(IntPtr h, IntPtr pid);
     [DllImport("user32.dll")] static extern bool AttachThreadInput(uint a, uint b, bool attacher);
     [DllImport("kernel32.dll")] static extern uint GetCurrentThreadId();
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode)] static extern bool DeleteFileW(string chemin);
 
     [STAThread]
     static int Main(string[] args)
     {
+        ServicePointManager.Expect100Continue = false;
         string soi = System.Reflection.Assembly.GetEntryAssembly().Location;
+        if (Array.IndexOf(args, "--retirer") >= 0) return Retirer();
         bool lisible = LireConfig(soi);
         // --verifier : configuration lue et un relevé envoyé au serveur, résultat écrit sur la sortie (contrôle de la
         // construction et de l'installation ; jamais le jeton).
@@ -62,9 +72,11 @@ static class RelaisClaire
             if (!lisible) { Console.WriteLine("configuration illisible"); return 2; }
             try
             {
+                // « inchangé » et sans la capacité « appels » : le relais en marche sur ce poste garde son paragraphe, ses
+                // insertions et ses sonneries.
                 Dictionary<string, object> corps = new Dictionary<string, object>();
-                corps["poste"] = poste; corps["jeton"] = jeton; corps["word"] = false; corps["inchange"] = false;
-                corps["titre"] = ""; corps["paragraphe"] = ""; corps["resultats"] = new object[0]; corps["appels"] = 1;
+                corps["poste"] = poste; corps["jeton"] = jeton; corps["word"] = false; corps["inchange"] = true;
+                corps["resultats"] = new object[0];
                 Console.WriteLine("ok " + url + " " + poste + " " + Poster(url + "api/relais-word/releve", new JavaScriptSerializer().Serialize(corps)));
                 return 0;
             }
@@ -127,19 +139,28 @@ static class RelaisClaire
                 if (p.Id == moi) continue;
                 try { p.Kill(); p.WaitForExit(3000); } catch { }
             }
-            ArreterAncienRelaisPowerShell();
+            RetirerAncienRelaisPowerShell();
             if (!String.Equals(Path.GetFullPath(soi), Path.GetFullPath(cible), StringComparison.OrdinalIgnoreCase))
-                File.Copy(soi, cible, true);
+            {
+                // L'ancien relais vient d'être arrêté : son fichier peut rester verrouillé un instant.
+                for (int essai = 0; ; essai++)
+                {
+                    try { File.Copy(soi, cible, true); break; }
+                    catch (IOException) { if (essai >= 5) throw; Thread.Sleep(500); }
+                }
+                // La marque « téléchargé d'Internet » suit la copie : retirée (pas d'avertissement à l'ouverture de session).
+                DeleteFileW(cible + ":Zone.Identifier");
+            }
             using (RegistryKey run = Registry.CurrentUser.CreateSubKey(@"Software\Microsoft\Windows\CurrentVersion\Run"))
             {
                 run.SetValue("CLAIRE-relais", "\"" + cible + "\" --fond");
                 try { run.DeleteValue("CLAIRE-Word", false); } catch { }
             }
-            Process.Start(new ProcessStartInfo(cible, "--fond") { UseShellExecute = false, CreateNoWindow = true });
+            Process.Start(new ProcessStartInfo(cible, "--fond") { UseShellExecute = false, CreateNoWindow = true, WorkingDirectory = dossier });
             MessageBoxW(IntPtr.Zero, "Le relais CLAIRE de ce poste est installe :\n"
                 + "- l'Aide a la redaction suit le paragraphe ou se trouve le curseur de Word ;\n"
                 + "- a chaque appel 3CX, la fenetre CLAIRE passe au premier plan si l'appelant a un dossier, sinon la fenetre d'avant revient.\n\n"
-                + "Il demarre seul a chaque ouverture de session.", TITRE, 0x40);
+                + "Il demarre seul a chaque ouverture de session. Pour le retirer : CLAIRE-relais.exe --retirer.", TITRE, 0x40);
             return 0;
         }
         catch (Exception e)
@@ -149,19 +170,32 @@ static class RelaisClaire
         }
     }
 
-    // Relais d'avant (script PowerShell lancé par un .vbs, 0.219.0 – 0.221.0) : arrêté et retiré.
-    static void ArreterAncienRelaisPowerShell()
+    // Relais d'avant (script PowerShell lancé par un .vbs, 0.219.0 – 0.221.0) : ses fichiers et son démarrage retirés. Le
+    // processus encore en marche s'arrête seul : le nouveau téléchargement a changé le jeton, le serveur le refuse.
+    static void RetirerAncienRelaisPowerShell()
     {
-        try
-        {
-            using (ManagementObjectSearcher s = new ManagementObjectSearcher("select ProcessId from Win32_Process where Name='powershell.exe' and CommandLine like '%word-claire.ps1%'"))
-                foreach (ManagementObject o in s.Get())
-                    try { Process.GetProcessById(Convert.ToInt32(o["ProcessId"])).Kill(); } catch { }
-        }
-        catch { }
         string ancien = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "CLAIRE");
         foreach (string f in new[] { "word-claire.ps1", "word-claire.vbs" })
             try { File.Delete(Path.Combine(ancien, f)); } catch { }
+    }
+
+    // --retirer : relais arrêté, démarrage retiré, fichier effacé (au mieux : le programme en cours ne peut pas s'effacer).
+    static int Retirer()
+    {
+        int moi = Process.GetCurrentProcess().Id;
+        foreach (Process p in Process.GetProcessesByName("CLAIRE-relais"))
+            if (p.Id != moi) try { p.Kill(); p.WaitForExit(3000); } catch { }
+        try
+        {
+            using (RegistryKey run = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Run", true))
+                if (run != null) { run.DeleteValue("CLAIRE-relais", false); run.DeleteValue("CLAIRE-Word", false); }
+        }
+        catch { }
+        RetirerAncienRelaisPowerShell();
+        string cible = Path.Combine(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "CLAIRE"), "CLAIRE-relais.exe");
+        try { File.Delete(cible); } catch { }
+        MessageBoxW(IntPtr.Zero, "Le relais CLAIRE de ce poste est retire.", TITRE, 0x40);
+        return 0;
     }
 
     // ---- Fenêtres ----

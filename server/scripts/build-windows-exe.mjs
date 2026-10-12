@@ -184,7 +184,7 @@ async function main() {
   let relais = false;
   try {
     execFileSync('mcs', ['-target:winexe', '-sdk:4.5', '-optimize+', '-nologo', '-out:build/CLAIRE-relais.exe',
-      '-r:Microsoft.CSharp.dll', '-r:System.Web.Extensions.dll', '-r:System.Management.dll', '-r:System.Core.dll',
+      '-r:Microsoft.CSharp.dll', '-r:System.Web.Extensions.dll', '-r:System.Core.dll',
       ...(ico ? ['-win32icon:build/icone.ico'] : []), 'relais/CLAIRE-relais.cs'], { cwd: SERVER_DIR, stdio: 'inherit' });
     relais = true;
   } catch (err) {

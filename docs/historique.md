@@ -19389,3 +19389,9 @@ modèle **au choix dans les Réglages**, Opus par défaut.
   `lireExecutableRelais`, 503 si absent). Installation : copie dans `%LOCALAPPDATA%\CLAIRE`, clé Run `CLAIRE-relais` (et retrait de
   `CLAIRE-Word`), lancement `--fond`. Essayé ici sous Mono : téléchargement depuis un vrai serveur, `--verifier` (configuration lue,
   relevé accepté avec le jeton, relais vu actif par l'écran). Non vérifiable ici : COM de Word, premier plan, SmartScreen, antivirus.
+  Relecture indépendante, corrigé avant publication : `--verifier` envoie « inchangé » sans la capacité « appels » (il vidait le
+  paragraphe et jetait les sonneries du relais en marche) ; plus de WMI ni d'arrêt de powershell.exe (l'ancien relais s'arrête
+  seul : jeton refusé 10 fois) ; informations de version du fichier ; marque `:Zone.Identifier` retirée de la copie installée ;
+  copie réessayée (fichier encore verrouillé), dossier de travail = dossier d'installation, `--retirer` ; `Expect: 100-continue`
+  coupé. Restent possibles : SmartScreen (exe non signé, empreinte différente à chaque téléchargement à cause du jeton), premier
+  plan refusé par Windows (la fenêtre clignote) — à observer au bureau.
