@@ -133,7 +133,8 @@
       const cle = cleParcelle(p.section, p.numero);
       if (!cle || vues.has(cle)) return;
       vues.add(cle);
-      out.push({ section: String(p.section).toUpperCase(), numero: String(p.numero) });
+      out.push(Object.assign({ section: String(p.section).toUpperCase(), numero: String(p.numero) },
+        Object.fromEntries(['nature', 'surface', 'lieuDit'].filter(k => p[k]).map(k => [k, String(p[k]).slice(0, 60)]))));
     }));
     return out.slice(0, 40);
   }
@@ -544,13 +545,14 @@
       const avantType = d.typeVente;
       const texteType = appliquerTypeBienAuthentic(d, bien.type, { maintenant, forcer: o.forcer });
       if (texteType) textes.push(avantType ? `type de vente (avant : ${LIBELLES_TYPE_VENTE_AUTHENTIC[avantType] || avantType})` : 'type de vente');
+      if (texteType && d.typeVente === 'terre' && ajouterPieceSaferTerre(d)) textes.push('pièce « Réponse SAFER »');
     }
     const parcelles = parcellesExportAuthentic(donnees);
     const lots = lotsExportAuthentic(donnees);
     if (parcelles.length || lots.lots.length) {
       const resultat = { modifie: false };
       const noter = () => {};
-      appliquerBienAuthentic(d, { adresse: bien && bien.adresse ? bien.adresse : null, parcelles, lots: lots.lots, tantiemesTotal: lots.tantiemesTotal }, noter, resultat, { maintenant, forcer: o.forcer });
+      appliquerBienAuthentic(d, { adresse: bien && bien.adresse ? bien.adresse : null, parcelles, lots: lots.lots, tantiemesTotal: lots.tantiemesTotal, bois: bien ? bien.bois : null }, noter, resultat, { maintenant, forcer: o.forcer });
       if (resultat.modifie) textes.push(lots.lots.length ? 'parcelles et lots' : 'parcelles');
     }
     const prix = donnees.infosAuthentic && Number(donnees.infosAuthentic.prix);

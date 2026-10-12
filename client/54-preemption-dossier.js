@@ -12,7 +12,8 @@
   // Pure : ce qui fait relancer l'analyse automatique — code postal, parcelles, nature du bien d'après la fiche.
   function signaturePreemptionDossier(d) {
     const e = prefillPreemption(Object.assign({}, d, { preemption: null }));
-    return [e.cp, e.parcelles, e.reponses.bien || ''].join('|');
+    // La nature « bois » ne s'ajoute à la signature que lorsqu'elle est connue : les analyses d'avant ne sont pas toutes refaites.
+    return [e.cp, e.parcelles, e.reponses.bien || ''].join('|') + (typeof e.reponses.bois === 'boolean' && !(d.preemption && d.preemption.reponses && 'bois' in d.preemption.reponses) ? '|bois:' + e.reponses.bois : '');
   }
 
   // Pure : l'analyse automatique est-elle à faire (ou à refaire) pour ce dossier ? Seulement les dossiers de vente ajoutés

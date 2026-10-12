@@ -120,6 +120,16 @@
   }
 
   // Pure : ce que la fiche apporte à l'outil (commune, parcelles, adresse, nature du bien).
+  // Pure : les parcelles du dossier sont-elles en nature de bois ? true / false / null (inconnu).
+  function boisDepuisFicheDossier(d) {
+    if (d && d.bien && typeof d.bien.natureBois === 'boolean') return d.bien.natureBois;
+    const cad = d && d.bien && d.bien.cadastre;
+    const parcelles = cad && Array.isArray(cad.parcelles) ? cad.parcelles : [];
+    const natures = parcelles.map(p => p && p.nature).filter(Boolean);
+    if (natures.some(natureParcelleBois)) return true;
+    return parcelles.length && natures.length === parcelles.length ? false : null;
+  }
+
   function prefillPreemption(d) {
     const e = etatPreemptionVierge();
     if (!d) return e;
@@ -135,6 +145,10 @@
     if (/copro/.test(type)) e.reponses.bien = 'lot-copro';
     else if (/terrain|terre/.test(type)) e.reponses.bien = 'terrain';
     else if (type) e.reponses.bien = 'bati';
+    // Parcelles en bois d'après Authentic (fiche bien, 12/10) ou la nature des parcelles : réponse de départ, une réponse donnée
+    // sur la fiche ou dans l'outil l'emporte (ci-dessous).
+    const bois = boisDepuisFicheDossier(d);
+    if (bois !== null) e.reponses.bois = bois;
     if (d.preemption && d.preemption.reponses) e.reponses = Object.assign({}, e.reponses, d.preemption.reponses);
     if (d.preemption && d.preemption.insee) e.insee = d.preemption.insee;
     if (d.preemption && d.preemption.travaux && Array.isArray(d.preemption.travaux.liste)) e.travaux = { source: d.preemption.travaux.source || '', liste: d.preemption.travaux.liste };

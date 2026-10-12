@@ -19358,3 +19358,13 @@ modèle **au choix dans les Réglages**, Opus par défaut.
   Word) ; fenêtre d'avant = dernier échantillon non nul, différent de la fenêtre de devant, 1,5 s avant la sonnerie ; sans Chrome ni
   Edge, navigateur par défaut ; la fenêtre CLAIRE ouverte par le relais est ramenée devant dès qu'elle paraît. Un relais installé
   avant 0.220.1 est à réinstaller pour les appels.
+
+- **12/10/2026 — 0.221.0 Fiche bien d'Authentic d'une parcelle de terre ou de bois** (structure reçue le 12/10 : « Type de bien »
+  en un mot, « Désignation » en quatre, lieu-dit, cadastre « Parcelle Assise volumétrique » avec Nature et Zone urbanisme vides,
+  surface en h/a/ca) : `typeVenteFicheBienAuthentic` (type ou désignation rural — bois, terre, pré, lande, vigne… — ou toutes les
+  natures rurales → `terre`, sauf « à bâtir / constructible / lotissement / viabilisé » ; « Terrain » seul reste `terrain`),
+  « Réponse SAFER » ajoutée quand Authentic fait passer le dossier en terre (relevé et « Compléter »), parcelles avec `nature`,
+  `surface`, `lieuDit` (complétés sur celles déjà sur la fiche), `bien.bois` → `d.bien.natureBois` → réponse « bois » de
+  `prefillPreemption` (`boisDepuisFicheDossier`) ; la signature de l'analyse automatique ne change que lorsque le bois est connu
+  et pas déjà répondu (pas de relecture de toutes les analyses). Surface gardée telle qu'Authentic l'écrit (unité non vue : pas
+  utilisée pour le seuil de 4 ha). `tests/authentic-bien-terre.test.js`.

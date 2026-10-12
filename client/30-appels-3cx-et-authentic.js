@@ -1363,6 +1363,32 @@
     return { lots, tantiemesTotal };
   }
 
+  // Parcelle de terre ou de bois (structure reçue le 12/10) : « Type de bien » (un mot), « Désignation » (« … parcelle de bois »),
+  // lieu-dit, et le tableau du cadastre — Nature (souvent vide), Zone urbanisme, SPF, surface (h / a / ca). Natures du cadastre :
+  // T terres, P prés, PA pâtures, PP prés plantés, B bois, BT taillis, BF/BR/BM futaies, BP peupleraies, L landes, LB landes
+  // boisées, VI vignes, VE vergers, CH chemins, E eaux, J jardins — S (sol) et AB (à bâtir) ne sont pas ruraux.
+  var RE_NATURE_BOIS = /^(b|bt|bf|br|bm|bp|bs|lb)$|bois|foret|taillis|futaie|peupleraie/;
+  var RE_NATURE_RURALE = /^(t|p|pa|pp|pe|b|bt|bf|br|bm|bp|bs|l|lb|vi|ve|vt|e|ch)$|bois|foret|taillis|futaie|peupleraie|terres?\b|\bpres?\b|prairie|pature|lande|friche|vigne|verger|agricole|rural|etang/;
+
+  // Pure : la nature d'une parcelle (code du cadastre ou mot) dit-elle un bois ? un bien rural (terre, pré, bois…) ?
+  function natureParcelleBois(nature) {
+    return RE_NATURE_BOIS.test(normaliserPourRecherche(String(nature || '')).trim());
+  }
+  function natureParcelleRurale(nature) {
+    return RE_NATURE_RURALE.test(normaliserPourRecherche(String(nature || '')).trim());
+  }
+
+  // Pure : le type de vente d'une fiche bien. `typeBrut` et `designation` normalisés ; `natures` des parcelles (non vides).
+  function typeVenteFicheBienAuthentic(typeBrut, designation, natures, avecLots) {
+    if (/maison|pavillon|villa/.test(typeBrut)) return 'maison';
+    if (/appartement|copropri|\blot\b/.test(typeBrut) || avecLots) return 'copropriete';
+    const texte = typeBrut + ' ' + designation;
+    const aBatir = /a batir|constructible|lotissement|viabilis/.test(texte);
+    if (!aBatir && (RE_NATURE_RURALE.test(typeBrut) || RE_NATURE_RURALE.test(designation) || (natures.length && natures.every(natureParcelleRurale)))) return 'terre';
+    if (/terrain/.test(typeBrut)) return 'terrain';
+    return null;
+  }
+
   // Pure : la fiche bien → immeuble au format de l'export ZIP (type, adresse, parcelles du cadastre, lots d'une copropriété).
   // Copropriété (structure reçue le 06/10) : l'onglet « Informations du bien » porte le cadastre sous « Parcelle Assise
   // volumétrique » (mêmes colonnes Section / Numéro) ; l'onglet « Lots » n'a ni adresse ni cadastre, seulement les lots.
@@ -1373,25 +1399,39 @@
     const adresse = adresseFicheAuthentic(champsBien.length ? champsBien : champs);
     const typeBrut = normaliserPourRecherche(valeurChampAuthentic(champs, (n, b) => /typeWithDialog/i.test(b)));
     const { lots, tantiemesTotal } = lotsFicheAuthentic(c);
-    const type = /maison|pavillon|villa/.test(typeBrut) ? 'maison'
-      : /appartement|copropri|\blot\b/.test(typeBrut) || lots.length ? 'copropriete'
-        : /terrain/.test(typeBrut) ? 'terrain' : null;
+    const designation = valeurChampAuthentic(champs, n => n === 'designation');
     const parcelles = [];
     (c.tableaux || []).forEach(t => {
       const entete = (t.entete || []).map(libelleNetAuthentic);
       const iSection = entete.indexOf('section');
       const iNumero = entete.findIndex(e => /^num/.test(e));
       if (iSection < 0 || iNumero < 0) return;
+      const iNature = entete.indexOf('nature');
+      const iSurface = entete.findIndex(e => /^(surface|contenance)/.test(e));
+      const iLieu = entete.findIndex(e => /lieu-dit|lieu dit/.test(e));
+      const cellule = (l, i) => (i >= 0 ? String(l[i] == null ? '' : l[i]).replace(/\s+/g, ' ').trim() : '');
       (t.lignes || []).forEach(l => {
         const section = String(l[iSection] || '').trim().toUpperCase();
         const numero = String(l[iNumero] || '').trim().replace(/^0+(?=\d)/, '');
-        if (section && numero && !parcelles.some(p => p.section === section && p.numero === numero)) parcelles.push({ section, numero });
+        if (!section || !numero || parcelles.some(p => p.section === section && p.numero === numero)) return;
+        const p = { section, numero };
+        if (cellule(l, iNature)) p.nature = cellule(l, iNature);
+        if (cellule(l, iSurface)) p.surface = cellule(l, iSurface);
+        if (cellule(l, iLieu)) p.lieuDit = cellule(l, iLieu);
+        parcelles.push(p);
       });
     });
+    const natures = parcelles.map(p => p.nature).filter(Boolean);
+    const designationNorm = normaliserPourRecherche(designation || '');
+    const type = typeVenteFicheBienAuthentic(typeBrut, designationNorm, natures, lots.length > 0);
+    // En bois (préemption des bois et forêts, SAFER) : dit par le type, la désignation ou la nature d'une parcelle ; « non »
+    // seulement quand chaque parcelle a sa nature et qu'aucune n'est un bois ; sinon inconnu (la question reste posée).
+    const bois = RE_NATURE_BOIS.test(typeBrut) || RE_NATURE_BOIS.test(designationNorm) || natures.some(natureParcelleBois) ? true
+      : parcelles.length && natures.length === parcelles.length ? false : null;
     if (!adresse && !parcelles.length && !lots.length) return null;
     return {
       id: 'authentic-bien-' + normaliserPourRecherche((adresse && adresse.texte) || parcelles.map(p => p.section + p.numero).join('') || 'lots' + lots.map(l => l.numero).join('-')).replace(/[^a-z0-9]+/g, '').slice(0, 40),
-      adresse, type, parcelles, lots, tantiemesTotal, surface: null, description: valeurChampAuthentic(champs, n => n === 'designation')
+      adresse, type, parcelles, lots, tantiemesTotal, surface: null, description: designation, bois
     };
   }
 
@@ -1871,16 +1911,36 @@
     else {
       const texteType = appliquerTypeBienAuthentic(d, bien.type, o);
       if (texteType) { noter(texteType); resultat.modifie = true; }
+      // Terre ou bois (12/10) : la pièce « Réponse SAFER » d'office, comme au passage à ce type sur la fiche.
+      if (texteType && d.typeVente === 'terre' && ajouterPieceSaferTerre(d)) noter('« Réponse SAFER » ajoutée aux pièces (terre agricole / terrain non bâti)');
+    }
+    // Parcelles en bois (ou non) d'après Authentic : réponse de l'analyse des droits de préemption, jamais par-dessus une
+    // réponse donnée sur la fiche ou dans l'outil.
+    if (typeof bien.bois === 'boolean' && (!d.bien || d.bien.natureBois !== bien.bois)) {
+      d.bien = Object.assign({}, d.bien || {}, { natureBois: bien.bois });
+      noter(bien.bois ? 'Parcelles en nature de bois d’après Authentic' : 'Aucune parcelle en nature de bois d’après Authentic');
+      resultat.modifie = true;
     }
     const cad = (d.bien && d.bien.cadastre) || null;
     const deja = cad ? (Array.isArray(cad.parcelles) && cad.parcelles.length ? cad.parcelles : (cad.section ? [{ section: cad.section, numero: cad.numero }] : [])) : [];
     const cles = new Set(deja.map(p => cleParcelle(p.section, p.numero)).filter(Boolean));
     const nouvelles = bien.parcelles.filter(p => { const c = cleParcelle(p.section, p.numero); if (!c || cles.has(c)) return false; cles.add(c); return true; });
-    if (!nouvelles.length) return resultat;
-    const parcelles = deja.map(p => ({ section: p.section, numero: p.numero })).concat(nouvelles.map(p => ({ section: p.section, numero: p.numero }))).slice(0, 40);
+    // Nature, surface et lieu-dit d'Authentic gardés sur la parcelle ; une parcelle déjà sur la fiche en reçoit ce qui lui manque.
+    const details = (p) => Object.fromEntries(['nature', 'surface', 'lieuDit'].filter(k => p && p[k]).map(k => [k, String(p[k]).slice(0, 60)]));
+    const parBien = new Map(bien.parcelles.map(p => [cleParcelle(p.section, p.numero), p]));
+    let complete = false;
+    const anciennes = deja.map(p => {
+      const sienne = Object.assign({ section: p.section, numero: p.numero }, details(p));
+      const a = parBien.get(cleParcelle(p.section, p.numero));
+      Object.entries(details(a)).forEach(([k, v]) => { if (!sienne[k]) { sienne[k] = v; complete = true; } });
+      return sienne;
+    });
+    if (!nouvelles.length && !complete) return resultat;
+    const parcelles = anciennes.concat(nouvelles.map(p => Object.assign({ section: p.section, numero: p.numero }, details(p)))).slice(0, 40);
     d.bien = Object.assign({}, d.bien || {});
     d.bien.cadastre = Object.assign({}, cad || {}, { section: parcelles[0].section, numero: parcelles[0].numero, parcelles });
-    noter(`Parcelle${nouvelles.length > 1 ? 's' : ''} relevée${nouvelles.length > 1 ? 's' : ''} dans Authentic ajoutée${nouvelles.length > 1 ? 's' : ''} : ${nouvelles.map(p => `${p.section} ${p.numero}`).join(', ')}`);
+    if (nouvelles.length) noter(`Parcelle${nouvelles.length > 1 ? 's' : ''} relevée${nouvelles.length > 1 ? 's' : ''} dans Authentic ajoutée${nouvelles.length > 1 ? 's' : ''} : ${nouvelles.map(p => `${p.section} ${p.numero}`).join(', ')}`);
+    else noter('Nature, surface ou lieu-dit des parcelles complétés depuis Authentic');
     resultat.modifie = true;
     return resultat;
   }
