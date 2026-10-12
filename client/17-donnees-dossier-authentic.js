@@ -616,8 +616,8 @@
       const textes = complementDossierDepuisAuthentic(d, g.export, dossiers);
       const nouvelles = nouvellesMajsAuthentic(majAvant, d);
       if (!textes.length && !nouvelles.length && empreinteRegistreAuthentic(d) === empreinteAvant) return false;
-      if (textes.length) ajouterHistorique(d, `Complété depuis Authentic (« ${g.intitule} ») : ${textes.join(', ')}`);
-      nouvelles.forEach(m => ajouterHistorique(d, `Authentic a changé — ${m.libelle} : ${m.avant ? `${m.avant} → ` : ''}${m.apres} (mise à jour proposée)`));
+      if (textes.length) ajouterHistorique(d, `Complété depuis Authentic (« ${g.intitule} ») : ${textes.join(', ')}`, { auto: true });
+      nouvelles.forEach(m => ajouterHistorique(d, `Authentic a changé — ${m.libelle} : ${m.avant ? `${m.avant} → ` : ''}${m.apres} (mise à jour proposée)`, { auto: true }));
       await sauvegarder(d);
       render();
       notifierMajAuthentic(d, nouvelles);

@@ -1070,7 +1070,7 @@
       }
     }
     if (desynchronisees.length) {
-      ajouterHistorique(d, `Pièce(s) devenue(s) introuvable(s) sur le NAS : ${desynchronisees.join(', ')}`);
+      ajouterHistorique(d, `Pièce(s) devenue(s) introuvable(s) sur le NAS : ${desynchronisees.join(', ')}`, { auto: true });
     }
 
     // Résultat complet du parcours, pour le panneau de diagnostic (voir renderDiagnosticParcours) —
@@ -1143,7 +1143,7 @@
     }
     if (piecesMisesAJour.length) {
       ajouterHistorique(d, 'Pièce(s) mise(s) à jour sur le NAS : ' +
-        piecesMisesAJour.map(m => `${m.label} (${m.avant} → ${m.apres})`).join(', '));
+        piecesMisesAJour.map(m => `${m.label} (${m.avant} → ${m.apres})`).join(', '), { auto: true });
     }
     if (chercherOffre && offreTrouvee && !offreAConfirmer && !offreEtaitRecue) {
       nouvellesPieces.push(CLE_NOTIF_OFFRE_PRET);
@@ -1174,7 +1174,7 @@
     synchroniserEcheanceAgenda(d, 'pret', false);
 
     if (chercherOffre && offreTrouvee && offreEtaitManquante) {
-      ajouterHistorique(d, 'Offre de prêt retrouvée dans le dossier NAS');
+      ajouterHistorique(d, 'Offre de prêt retrouvée dans le dossier NAS', { auto: true });
       await sauvegarder(d);
     }
 
@@ -1430,7 +1430,7 @@
     if (!relanceOffreDue(d.derniereRelanceAuto, aujourdhui)) return;
 
     d.derniereRelanceAuto = aujourdhui;
-    ajouterHistorique(d, `Relance automatique ouverte (offre de prêt introuvable, ${libelleEcheanceRelance(jours)})`);
+    ajouterHistorique(d, `Relance automatique ouverte (offre de prêt introuvable, ${libelleEcheanceRelance(jours)})`, { auto: true });
     sauvegarder(d);
 
     const { sujet: subject, corps: body } = emailDepuisModele('pret', d);
@@ -1535,7 +1535,7 @@
     }
     if (!doitNotifierDossierComplet(d)) return;
     d.completNotifieLe = new Date().toISOString();
-    ajouterHistorique(d, 'Dossier complet (offre de prêt et pièces reçues) : responsable prévenu');
+    ajouterHistorique(d, 'Dossier complet (offre de prêt et pièces reçues) : responsable prévenu', { auto: true });
     // Fire-and-forget, comme la notification de pièces : un envoi impossible ne doit jamais faire
     // échouer ce qui vient d'être fait sur le dossier.
     fetchAvecAuth('/api/notifications/dossier-complet', {

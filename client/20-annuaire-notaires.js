@@ -1259,7 +1259,7 @@
   // « Noté le… » et la présence du bouton signalent qu'il reste à faire, et le bouton permet de
   // réessayer avec un retour complet. Sur SUCCÈS, un toast bref confirme quand même : écrire dans un
   // agenda partagé que des collègues lisent doit rester un geste visible.
-  async function noterEnvoiDansAgenda(id, auto, silencieux) {
+  async function noterEnvoiDansAgenda(id, auto, silencieux, parClaire) {
     const d = dossiers.find(x => x.id === id);
     if (!d || !d.rendezVousSignature) return;
     const af = echeanceValidee(d, 'appelFonds');
@@ -1278,10 +1278,13 @@
         d.agendaLieuNoteEnvois = { appelFonds: af, projet: pj };
         d.agendaLieuEchec = null;
         const libelle = (af && pj) ? 'appel de fonds et projet envoyé' : af ? 'appel de fonds envoyé' : 'projet envoyé';
-        ajouterHistorique(d, `Mention « ${libelle} » notée dans l'agenda Outlook${auto ? ' (automatique)' : ''}.`);
+        // Mention déjà dans l'agenda (une autre fenêtre l'a notée) : rien de nouveau à dire. `parClaire` (rattrapage, sans geste de
+        // personne) : jamais signée du collaborateur dont la fenêtre l'a posée (étude 12/10 : « Jérémy a fait l'envoi, noté comme
+        // Julie ») ; `auto` seul = suite d'un geste du collaborateur (date saisie, case cochée), signée comme avant.
+        if (!(auto && corps.deja)) ajouterHistorique(d, `Mention « ${libelle} » notée dans l'agenda Outlook${auto ? ' (automatique)' : ''}.`, { auto: !!parClaire });
         sauvegarder(d);
         render();
-        afficherToast(corps.message || 'Agenda mis à jour.', 'OK', null);
+        if (!(auto && corps.deja)) afficherToast(corps.message || 'Agenda mis à jour.', 'OK', null);
       } else {
         signalerEchecNoteAgenda(d, corps.message || "La mise à jour de l'agenda a échoué.", silencieux);
         if (corps.raison === 'auth') return 'auth';
@@ -1336,7 +1339,7 @@
       if (notesAgendaTentees.has(d.id) || !envoiAgendaARattraper(d, aujourdhui)) continue;
       notesAgendaTentees.add(d.id);
       // Identifiants refusés : arrêt au premier refus (audit 12/10 — chaque dossier retentait, au risque de verrouiller le compte).
-      if (await noterEnvoiDansAgenda(d.id, true, true) === 'auth') break;
+      if (await noterEnvoiDansAgenda(d.id, true, true, true) === 'auth') break;
       await new Promise(ok => setTimeout(ok, 3000));
     }
   }
@@ -1925,11 +1928,12 @@
     return type;
   }
 
-  function ajouterHistorique(d, texte) {
+  // `options.auto` : geste fait seul par CLAIRE (rattrapage, détection) — jamais signé du collaborateur de la fenêtre qui l'a fait.
+  function ajouterHistorique(d, texte, options) {
     d.historique = d.historique || [];
     const entree = { date: new Date().toISOString(), texte };
     // Qui a fait quoi : le collaborateur du poste, quand il est connu.
-    if (typeof utilisateurPoste !== 'undefined' && utilisateurPoste) entree.auteur = utilisateurPoste;
+    if (!(options && options.auto) && typeof utilisateurPoste !== 'undefined' && utilisateurPoste) entree.auteur = utilisateurPoste;
     d.historique.push(entree);
   }
 

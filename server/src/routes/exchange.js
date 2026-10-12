@@ -477,7 +477,9 @@ function creerRouteurExchange(parametresRepo, injections = {}) {
     const evt = candidats[0];
     const nouveauLieu = composerLieuAgenda(evt.location, etat);
     if (nouveauLieu === (evt.location || '')) {
-      return res.json({ ok: true, message: retrait ? 'Aucune mention d\'envoi à retirer dans l\'agenda.' : 'Le rendez-vous portait déjà cette mention dans l\'agenda.' });
+      // `deja` : rien écrit — le poste n'ajoute pas une seconde ligne d'historique (étude 12/10 : mention notée deux fois,
+      // par deux fenêtres ouvertes).
+      return res.json({ ok: true, deja: true, message: retrait ? 'Aucune mention d\'envoi à retirer dans l\'agenda.' : 'Le rendez-vous portait déjà cette mention dans l\'agenda.' });
     }
     const maj = await mettreAJourLieuExchange({
       url: reglages.url, email: reglages.email, motDePasse: reglages.motDePasse,

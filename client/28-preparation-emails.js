@@ -2040,7 +2040,7 @@
     for (const d of dossiers || []) {
       if (!archivageSansQuestionnaireDu(d, aujourdhui)) continue;
       d.archive = true;
-      ajouterHistorique(d, `Dossier archivé automatiquement (30 jours après la signature, questionnaire de satisfaction non envoyé ${questionnairesRestants(d).map(p => p === 'vendeur' ? 'au vendeur' : 'à l’acquéreur').join(' ni ')})`);
+      ajouterHistorique(d, `Dossier archivé automatiquement (30 jours après la signature, questionnaire de satisfaction non envoyé ${questionnairesRestants(d).map(p => p === 'vendeur' ? 'au vendeur' : 'à l’acquéreur').join(' ni ')})`, { auto: true });
       await sauvegarder(d);
       synchroniserEcheanceAgenda(d, 'pret', false);
       synchroniserEcheanceAgenda(d, 'ventebien', false);

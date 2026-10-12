@@ -407,7 +407,7 @@
     else d.piecesValideesManuellement = Array.from(new Set([...(d.piecesValideesManuellement || []), piece.cle]));
     d.piecesTrouveesLe = Object.assign({}, d.piecesTrouveesLe, { [piece.cle]: new Date().toISOString() });
     d.piecesNotifications = Array.from(new Set([...(d.piecesNotifications || []), piece.cle]));
-    ajouterHistorique(d, `Pièce reçue par email : « ${piece.label} »${chemin ? (auto ? ', rangée automatiquement sur le NAS' : ', rangée sur le NAS') : ''}`);
+    ajouterHistorique(d, `Pièce reçue par email : « ${piece.label} »${chemin ? (auto ? ', rangée automatiquement sur le NAS' : ', rangée sur le NAS') : ''}`, { auto });
     await sauvegarder(d);
     render();
     notifierNouvellesPiecesTrouvees(d, [piece.cle]);
@@ -451,7 +451,7 @@
       if (!r.ok) throw new Error(corps.erreur || 'statut ' + r.status);
       if (!corps.deja && piece) await enregistrerPieceDepuisEmail(d, piece, corps.chemin, auto);
       else if (!corps.deja) {
-        ajouterHistorique(d, `Pièce jointe « ${pj ? pj.nom : ''} » rangée sur le NAS (${emplacementPieceRangee(d, corps.chemin)})${auto ? ', automatiquement' : ''}`);
+        ajouterHistorique(d, `Pièce jointe « ${pj ? pj.nom : ''} » rangée sur le NAS (${emplacementPieceRangee(d, corps.chemin)})${auto ? ', automatiquement' : ''}`, { auto });
         await sauvegarder(d);
       }
       if (!auto) afficherToast(`Pièce jointe rangée : ${emplacementPieceRangee(d, corps.chemin)}`, 'OK', null);

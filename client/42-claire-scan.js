@@ -649,7 +649,7 @@
     }
     d.piecesTrouveesLe = Object.assign({}, d.piecesTrouveesLe, { [piece.cle]: maintenant });
     d.piecesNotifications = Array.from(new Set([...(d.piecesNotifications || []), piece.cle]));
-    ajouterHistorique(d, `Scan rangé ${auto ? 'automatiquement' : 'à la main'} : « ${piece.label} »${piece.nouvelle ? ' ajoutée à la liste des pièces' : ''}, reçue`);
+    ajouterHistorique(d, `Scan rangé ${auto ? 'automatiquement' : 'à la main'} : « ${piece.label} »${piece.nouvelle ? ' ajoutée à la liste des pièces' : ''}, reçue`, { auto });
     await sauvegarder(d);
     render();
     notifierNouvellesPiecesTrouvees(d, [piece.cle]);
