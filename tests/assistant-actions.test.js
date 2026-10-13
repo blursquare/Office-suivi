@@ -94,3 +94,14 @@ test('outils de CLAIRE : répertoire cherché sur tous les mots, lecture d’un 
   assert.ok(Array.isArray(app.lectureOutilClaireAgent('aide_redaction', dossier({ rendezVousSignature: '2026-12-10' }), '').champs_de_l_acte));
   assert.ok(app.lectureOutilClaireAgent('forfait_mobilier', dossier(), '').erreur, 'se lit pas : à ouvrir');
 });
+
+test('outils de CLAIRE : jamais un travail en cours sur un autre dossier écrasé sans le demander', () => {
+  const d = { id: 'd1' };
+  assert.equal(app.travailEnCoursOutilAgent('quotites', d, { quotites: 'd2' }), true);
+  assert.equal(app.travailEnCoursOutilAgent('quotites', d, { quotites: 'd1' }), false);
+  assert.equal(app.travailEnCoursOutilAgent('quotites', d, { quotites: '' }), false);
+  assert.equal(app.travailEnCoursOutilAgent('relecture_actes', d, { relecture: '', relectureLancee: true }), true, 'une relecture sans dossier déjà lancée');
+  assert.equal(app.travailEnCoursOutilAgent('appel_fonds', d, { appelFonds: 'd3' }), true);
+  assert.equal(app.dossierDejaDansOutilAgent('appel_fonds', d, { appelFonds: 'd1' }), true);
+  assert.equal(app.travailEnCoursOutilAgent('repertoire', d, {}), false);
+});

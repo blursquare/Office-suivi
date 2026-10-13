@@ -407,3 +407,21 @@ test('relecture 13/10 : la lecture de documents est plafonnée par conversation 
   const e = entreeOutilPourPoste('rediger_document', { dossier_id: '', forme: 'courrier', titre: 'Lettre', contenu: 'Monsieur [NOM9],' });
   assert.equal(e.contenu, 'Monsieur [à compléter],');
 });
+
+test('outil_claire (13/10) : rien de nominatif ne part — répertoire, valeurs de l’acte, urbanisme', async () => {
+  const client = fauxClient([
+    { stop_reason: 'tool_use', usage, content: [outil('t1', 'outil_claire', { outil: 'repertoire', mode: 'lire', dossier_id: '', texte: 'géomètre' })] },
+    { stop_reason: 'end_turn', usage, content: [texte('Voilà.')] }
+  ]);
+  const o = { cle: 'k', client };
+  let r = await tourAgent({ texte: 'Le géomètre de Vineuil', dossiers: D, contexte: {} }, o);
+  r = await tourAgent({ conversation: r.conversation, resultats: [{ id: 't1', contenu: {
+    resultats: [{ sorte: 'contact', organisme: 'Cabinet lucie bernard géomètre', personnes: ['lucie bernard'], telephones: ['02 54 11 22 33'], emails: ['l.bernard@cabinet-exemple.fr'], adresse: '3 rue des grouets vineuil' },
+      { sorte: 'notaire', office: 'Office notarial dubreuil', notaires: ['marc dubreuil'], telephone: '02 54 99 88 77', email: 'office@dubreuil-exemple.fr' }],
+    champs_de_l_acte: [{ champ: 'Banque du prêt', nom: 'crédit agricole val de loire' }, { champ: 'Prix en chiffres', valeur: '245 000,00 EUR' }]
+  } }] }, o);
+  const envoye = JSON.stringify(client.requetes[1].messages);
+  assert.doesNotMatch(envoye, /lucie|bernard|grouets|02 54 11 22 33|02 54 99 88 77|dubreuil|marc|crédit agricole/i, 'aucun nom : ' + envoye.slice(-700));
+  assert.match(envoye, /245 000,00 EUR/, 'les montants partent');
+  assert.equal(r.reponse, 'Voilà.');
+});

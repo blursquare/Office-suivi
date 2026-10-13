@@ -19591,3 +19591,7 @@ Sitadel enregistrés sur la fiche), quotites (`prefillQuotites`), repertoire (`c
 tous les mots) ; « ouvrir » : un bouton dans la conversation qui ouvre l'outil pré-rempli (Aide à la rédaction, Contrôle de l'urbanisme,
 Quotités, Appel de fonds, Provision, Prorata, Forfait mobilier, Relecture d'actes, Répertoire, Claire Scan, Nouveau dossier) — jamais
 d'écran changé sans clic. Essai Chromium : lecture de l'aide à la rédaction et des quotités, « Ouvrir Quotités » pré-rempli.
+Seconde relecture (0.228.0, avant l'envoi) : « Ouvrir Quotités / Relecture d'actes / Appel de fonds » ne remet plus à zéro un travail en
+cours sur un autre dossier sans le demander (`travailEnCoursOutilAgent`), et montre l'outil tel quel s'il porte déjà ce dossier ;
+masquage en entier des clés `personnes`, `notaires`, `organisme`, `office`, et des valeurs nominatives de l'aide à la rédaction
+(`RE_CHAMP_ACTE_NOMINATIF` → clé `nom`) ; test « rien de nominatif ne part » pour outil_claire.

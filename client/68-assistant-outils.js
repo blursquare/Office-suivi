@@ -21,11 +21,36 @@
     nouveau_dossier: { libelle: 'Nouveau dossier', onglet: 'nouveau' }
   };
   var MAX_RESULTATS_REPERTOIRE_AGENT = 15;
+  var RE_CHAMP_ACTE_NOMINATIF = /(notaire|banque|operateur|nom|prenom|vendeur|acquereur|adresse|ville|agence|syndic|geometre|commune|lieu|partie|personne|societe|representant)/;
+
+  // Pure : l'outil porte-t-il déjà un travail sur un AUTRE dossier (quotités saisies, relecture lancée, appel de fonds) ? Le
+  // pré-remplir le perdrait (relecture 13/10) : on le demande d'abord. Même dossier : l'outil est seulement affiché, tel quel.
+  function travailEnCoursOutilAgent(outil, d, etat) {
+    const e = etat || {};
+    const autre = (id) => !!id && (!d || id !== d.id);
+    if (outil === 'quotites') return autre(e.quotites);
+    if (outil === 'relecture_actes') return autre(e.relecture) || (!!e.relectureLancee && !(d && e.relecture === d.id));
+    if (outil === 'appel_fonds') return autre(e.appelFonds);
+    return false;
+  }
+
+  function dossierDejaDansOutilAgent(outil, d, etat) {
+    const e = etat || {};
+    const id = outil === 'quotites' ? e.quotites : outil === 'relecture_actes' ? e.relecture : outil === 'appel_fonds' ? e.appelFonds : '';
+    return !!(d && id && id === d.id);
+  }
 
   // Ouvre l'outil, pré-rempli du dossier quand l'outil le permet (dans le geste de l'utilisateur : clic sur le bouton).
-  function ouvrirOutilClaireAgent(outil, d) {
+  function ouvrirOutilClaireAgent(outil, d, confirme) {
     const o = OUTILS_CLAIRE_AGENT[outil];
     if (!o) return;
+    const etat = { quotites: qtDossierLie || '', relecture: auditDossierLie ? auditDossierLie.id : '', relectureLancee: !!analyseClaudeRelecture, appelFonds: afDossierLie || '' };
+    if (!confirme && travailEnCoursOutilAgent(outil, d, etat)) {
+      demanderConfirmation(`Remplacer le travail en cours dans l’outil ${o.libelle} ? Il porte sur un autre dossier et sera perdu.`, () => ouvrirOutilClaireAgent(outil, d, true));
+      return;
+    }
+    // Déjà sur ce dossier : on montre l'outil sans le remettre à zéro.
+    if (dossierDejaDansOutilAgent(outil, d, etat)) { definirOnglet(o.onglet); return; }
     if (outil === 'appel_fonds' && d) { preparerAppelFondsDepuisDossier(d.id); return; }
     if (outil === 'controle_urbanisme' && d) { ouvrirPreemptionDepuisFiche(d.id); return; }
     definirOnglet(o.onglet);
@@ -41,7 +66,10 @@
     if (!d) return { erreur: 'dossier_id attendu pour lire cet outil' };
     if (outil === 'aide_redaction') {
       const v = valeursActeDossier(d);
-      return { champs_de_l_acte: Object.entries(v).map(([cle, x]) => ({ champ: (CHAMPS_ACTE.find(c => c.cle === cle) || {}).libelle || cle, valeur: x.valeur, source: x.source || '' })),
+      // Un champ qui porte un nom (banque, notaire, opérateur de diagnostic, partie, adresse) part sous la clé « nom » : masqué en
+      // ENTIER par le serveur (relecture 13/10 : un nom propre hors des fiches passait).
+      return { champs_de_l_acte: Object.entries(v).map(([cle, x]) => ({ champ: (CHAMPS_ACTE.find(c => c.cle === cle) || {}).libelle || cle,
+        ...(RE_CHAMP_ACTE_NOMINATIF.test(cle) ? { nom: x.valeur } : { valeur: x.valeur }), source: x.source || '' })),
         note: 'valeurs reprises de la fiche et des pièces lues ; ce qui manque est à compléter dans l’outil' };
     }
     if (outil === 'controle_urbanisme') {

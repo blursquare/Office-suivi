@@ -207,7 +207,7 @@ function masquerValeur(valeur, sensibles, table, cle) {
     // Champs qui ne portent QUE de l'identifiant (téléphone, email, nom, adresse, notaire, agence, référence) : masqués en entier,
     // quel que soit leur format (relecture : « +41 79 123 45 67 », « 0612 345 678 » passaient).
     const entier = /^(telephone|tel|email)/.test(cle || '') ? (/^email/.test(cle || '') ? 'EMAIL' : 'TEL')
-      : /^(nom|prenom|nom_usage|nom_du_dossier|adresse|notaire_vendeur|notaire_acquereur|agence|reference)$/.test(cle || '') ? 'NOM' : '';
+      : /^(nom|prenom|nom_usage|nom_du_dossier|adresse|notaire_vendeur|notaire_acquereur|agence|reference|personnes|notaires|organisme|office)$/.test(cle || '') ? 'NOM' : '';
     if (entier && valeur.trim()) return masquerEntier(valeur, entier, table);
     return masquer(valeur, sensibles, table);
   }
