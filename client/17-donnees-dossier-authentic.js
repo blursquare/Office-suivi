@@ -414,10 +414,12 @@
         const workerOcr = await creerWorkerOcr();
         try {
           for (const numeroPage of pagesACiber) {
+            if (monImport !== generationImportActuel) break;
             status.className = 'pdf-status loading';
             status.textContent = `Date de signature non trouvée dans le texte — lecture de l'image page ${numeroPage} (15 à 30 s)…`;
             majProgression(null);
             const texteOcr = await ocrPage(pdf, numeroPage, workerOcr);
+            if (monImport !== generationImportActuel) break;
             const isoOcr = detecterDateCompromis(texteOcr);
             if (isoOcr) {
               dateCompromisDetectee = isoOcr;
@@ -435,6 +437,7 @@
 
         // Dernier recours : la date d'enregistrement du fichier (souvent mise à jour au moment de
         // la signature électronique) donne une estimation raisonnable, à vérifier par l'agence.
+        if (monImport !== generationImportActuel) return;
         if (!dateCompromisDetectee) {
           const isoMeta = await dateDepuisMetadonnees(pdf);
           if (isoMeta) {
@@ -460,11 +463,13 @@
       status.textContent = `✓ ${dernierePageUtile} page${dernierePageUtile > 1 ? 's' : ''} lue${dernierePageUtile > 1 ? 's' : ''} (annexes ignorées) — ${nbFinal} échéance${nbFinal > 1 ? 's' : ''} détectée${nbFinal > 1 ? 's' : ''}${suffixe}.`;
     } catch (e) {
       console.error(e);
+      if (monImport !== generationImportActuel) return;
       status.className = 'pdf-status err';
       status.textContent = `Impossible de lire « ${file.name} » (fichier scanné ou protégé).`;
     } finally {
-      // Garantit l'arrêt de l'indicateur quel que soit le chemin emprunté (succès, erreur, abandon).
-      majProgression(-1);
+      // Garantit l'arrêt de l'indicateur quel que soit le chemin emprunté (succès, erreur, abandon) — sauf si une autre lecture a
+      // commencé entre-temps : son indicateur reste.
+      if (monImport === generationImportActuel) majProgression(-1);
     }
   }
 
