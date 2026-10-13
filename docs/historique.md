@@ -19485,3 +19485,8 @@ sans date : une tâche datée plus tard n'apparaissait plus nulle part (ni sur l
 porte désormais, au-dessus de « Ajouter une tâche », le lien « N tâches à venir — voir toutes les tâches » (`libelleLienTachesAVenir`),
 qui ouvre la fenêtre des tâches ; celle-ci liste sous « À faire » une section « À venir » (`renderTachesAVenirJour`, date de chaque
 tâche). Fenêtre des tâches seules : 1 040 px de large, hauteur de l'écran moins 48 px (plein écran sur téléphone).
+
+0.225.2 (relecture indépendante de la 0.225.1, qui n'avait pas été faite avant l'envoi) : dans la fenêtre de toutes les tâches, crayon
+(ferme la fenêtre, ouvre la modification sur la carte — texte, date, dossier) et croix (`supprimerRappelPerso`) sur chaque tâche hors
+agenda ; lien « N tâches à venir » aussi sur la petite tuile ; hauteur de la fenêtre = au moins 640 px, au plus l'écran. Diagnostic
+confirmé par la relecture (seule autre cause possible : une tâche notée sous un autre collaborateur du poste).

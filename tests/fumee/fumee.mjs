@@ -114,13 +114,13 @@ try {
         if (!lien) return 'pas de lien';
         lien.click();
         const f = document.getElementById('aujourdhui-fenetre-contenu');
-        const r = { liste: /Relancer le syndic/.test(f.textContent), haut: Math.round(f.getBoundingClientRect().height), large: Math.round(f.getBoundingClientRect().width) };
+        const r = { croix: !!f.querySelector('[onclick^="supprimerRappelPerso"]'), liste: /Relancer le syndic/.test(f.textContent), haut: Math.round(f.getBoundingClientRect().height), large: Math.round(f.getBoundingClientRect().width) };
         fermerFenetreAujourdhui();
         rappelsPerso = [];
         renderAlertesDashboard(dossiersPerimetreDashboard());
         return r;
       });
-      verifier(avenir && avenir.liste && avenir.haut >= 800 && avenir.large >= 1000, `tâches à venir : lien, liste et grande fenêtre (${JSON.stringify(avenir)})`);
+      verifier(avenir && avenir.liste && avenir.haut >= 640 && avenir.large >= 1000 && avenir.croix, `tâches à venir : lien, liste et grande fenêtre (${JSON.stringify(avenir)})`);
       // Dates sur les cartes du Tableau (13/10) : crayon → champ date → ✓ écrit la date sur la fiche, par le vrai clic.
       await geste(page, 'carte : ouvrir la fiche', () => { ouvrirDossierDepuisDashboard('f1'); definirOngletFiche('tableau'); });
       await pause(300);

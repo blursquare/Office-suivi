@@ -1132,7 +1132,12 @@
         bouton: rappelParleEmail(r.texte) ? { libelle: 'Email', icone: icone('mail'), onclick: `ouvrirEmailRappelPerso('${escapeOnclickArg(r.id)}')`, titre: "Préparer un email vierge avec la signature de l'office" } : null,
         classe: fixe ? 'ja-rappel w-fixe' : 'ja-rappel',
         // Sur la carte, le crayon ouvre la modification sous « Mes rappels » (même formulaire).
-        secondaires: fixe && !r.agendaItemId ? `<wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-btn" onclick="ouvrirEditionRappel('${escapeOnclickArg(r.id)}')" title="Modifier le rappel" aria-label="Modifier le rappel">${icone('pencil')}</wa-button>` : ''
+        // Dans la fenêtre de toutes les tâches (relecture 13/10) : le crayon ferme la fenêtre et ouvre la modification sur la carte
+        // (date comprise), la croix supprime la tâche.
+        secondaires: r.agendaItemId ? '' : fixe
+          ? `<wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-btn" onclick="ouvrirEditionRappel('${escapeOnclickArg(r.id)}')" title="Modifier le rappel" aria-label="Modifier le rappel">${icone('pencil')}</wa-button>`
+          : `<wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-btn" onclick="fermerFenetreAujourdhui(); ouvrirEditionRappel('${escapeOnclickArg(r.id)}')" title="Modifier la tâche (texte, date, dossier)" aria-label="Modifier la tâche">${icone('pencil')}</wa-button>
+            <wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-btn" onclick="supprimerRappelPerso('${escapeOnclickArg(r.id)}')" title="Supprimer la tâche" aria-label="Supprimer la tâche">${icone('x')}</wa-button>`
       });
     }).join('');
     const coches = faits.map(r => {
@@ -1277,7 +1282,8 @@
         ${premiere ? `<div class="w-bas" data-ajuster="2"><button type="button" class="w-prochaine g-${premiere.gravite}" onclick="${versPage}">
             <span class="w-prochaine-titre">${escapeHtml(premiere.titre)}</span>
             <span class="w-prochaine-sous">${escapeHtml(libelleDossierAffiche(premiere.dossier))}</span>
-          </button></div>` : `<p class="w-message">${escapeHtml(messageProgressionJour(actions.length, traites.length))}</p>`}`;
+          </button></div>` : `<p class="w-message">${escapeHtml(messageProgressionJour(actions.length, traites.length))}</p>`}
+        ${(n => n ? `<button type="button" class="lien-discret w-fixe jour-lien-avenir" onclick="${versPage}">${escapeHtml(libelleLienTachesAVenir(n))}</button>` : '')(utilisateurPoste ? rappelsDuJour(rappelsPerso, aujourdhui).aVenir.length : 0)}`;
     } else {
       // Mes tâches non cochées (échues, du jour ou sans date) en tête, jamais masquées (w-fixe), puis celles des dossiers ; les
       // tâches faites aujourd'hui (mes rappels cochés, tâches des dossiers traitées) barrées à la suite.

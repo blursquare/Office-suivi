@@ -6762,7 +6762,7 @@ wa-button.rappel-perso-modif:hover { color: var(--focus); }
 .jour-fenetre-corps > * { min-width: 0; min-height: 0; }
 /* « Voir N de plus » de la carte Aujourd'hui : les tâches à faire seules, en une liste qui défile (étude 12/10). */
 /* Toutes les tâches (étude 13/10 : « mettre une fenêtre plus grande ») : large et presque toute la hauteur de l'écran. */
-.jour-fenetre.taches-seules { width: min(1040px, 100%); max-height: calc(100vh - 48px); height: calc(100vh - 48px); }
+.jour-fenetre.taches-seules { width: min(1040px, 100%); max-height: calc(100vh - 48px); min-height: min(640px, calc(100vh - 48px)); }
 .jour-section-avenir { margin-top: 16px; }
 .jour-lien-avenir { display: block; margin: 0 0 8px; font-size: var(--texte-s); }
 .jour-fenetre-corps.taches-seules { grid-template-columns: minmax(0, 1fr); }
@@ -6789,7 +6789,7 @@ wa-button.rappel-perso-modif:hover { color: var(--focus); }
 @media (max-width: 600px) {
   .jour-overlay { padding: 0; align-items: stretch; }
   .jour-fenetre { max-height: none; height: 100%; border-radius: 0; border: none; }
-  .jour-fenetre.taches-seules { max-height: none; height: 100%; }
+  .jour-fenetre.taches-seules { max-height: none; min-height: 0; height: 100%; }
   .jour-fenetre-tete { padding-left: 16px; }
   .jour-col-faire { padding-left: 10px; padding-right: 10px; }
   .jour-panneau { padding-left: 14px; padding-right: 14px; }
