@@ -340,3 +340,15 @@ test('choisirRendezVousDossier : avec les dossiers en cours, le rendez-vous de l
   assert.ok(choisirRendezVousDossier(ambigu, 'ROY / LAMBERT', '', { actifs: lesDeuxCeJour, dossierId: 'r1', date: '2026-10-14' }).aucun,
     'les deux dossiers ROY signent ce jour-là : jamais deviner');
 });
+
+test('test de connexion : le mot de passe enregistré ne part jamais vers une autre adresse ni un autre compte (audit 13/10)', async () => {
+  await appeler('/api/exchange/reglages', { method: 'PUT', body: JSON.stringify({ email: 'agenda@etude.fr', motDePasse: 'secret-enregistre' }) });
+  for (const corps of [{ url: 'https://machine-piege.local/EWS/Exchange.asmx' }, { email: 'autre@ailleurs.fr' }]) {
+    const r = await appeler('/api/exchange/test', { method: 'POST', body: JSON.stringify(corps) });
+    assert.equal(r.status, 400, JSON.stringify(corps));
+    assert.match((await r.json()).message, /mot de passe requis/);
+  }
+  // Une autre adresse enregistrée sans nouveau mot de passe : l'ancien est oublié.
+  const ecrit = await (await appeler('/api/exchange/reglages', { method: 'PUT', body: JSON.stringify({ url: 'https://machine-piege.local/EWS/Exchange.asmx' }) })).json();
+  assert.equal(ecrit.motDePasseEnregistre, false);
+});

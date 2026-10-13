@@ -32,8 +32,8 @@ test('fonds reçus : le nom partagé avec le vendeur est cherché avec le préno
   assert.equal(mots.join(','), 'martin lea');
   assert.ok(app.ligneNommeLePayeur('MARTIN Léa VIR RECU', mots));
   assert.ok(!app.ligneNommeLePayeur('MARTIN Paul VIR RECU', mots), 'le vendeur du même nom n’est pas l’acquéreur');
-  // Noms différents : inchangé.
-  assert.equal(app.motsPayeurDossier({ nom: 'DUPONT / MARTIN', parties: [{ role: 'VENDEUR', nom: 'Paul DUPONT' }, { role: 'ACQUEREUR', nom: 'Léa MARTIN' }] }).join(','), 'lea,martin');
+  // Noms différents : le nom de famille seul — jamais le prénom seul (audit 13/10).
+  assert.equal(app.motsPayeurDossier({ nom: 'DUPONT / MARTIN', parties: [{ role: 'VENDEUR', nom: 'Paul DUPONT' }, { role: 'ACQUEREUR', nom: 'Léa MARTIN' }] }).join(','), 'martin');
 });
 
 test('Claire Scan : une partie connue par son seul nom, porté des deux côtés, ne dit pas le côté de la pièce', () => {
@@ -83,9 +83,9 @@ test('fonds reçus : un nom de famille porté par un autre dossier en cours est 
   const b = { id: 'b', nom: 'GARNIER / ROY', parties: [{ role: 'VENDEUR', nom: 'Luc GARNIER' }, { role: 'ACQUEREUR', nom: 'Sylvie ROY' }] };
   assert.equal(app.motsPayeurDossier(a, [a, b]).join(','), 'roy paul');
   assert.equal(app.motsPayeurDossier(b, [a, b]).join(','), 'roy sylvie');
-  // Seul dossier ROY : le nom suffit, comme avant.
-  assert.equal(app.motsPayeurDossier(a, [a]).join(','), 'paul,roy');
+  // Seul dossier ROY : le nom suffit (le prénom n'est jamais cherché seul, audit 13/10).
+  assert.equal(app.motsPayeurDossier(a, [a]).join(','), 'roy');
   // Un prénom porté ailleurs n'empêche rien.
   const c = { id: 'c', nom: 'DURAND / LEROY', parties: [{ role: 'VENDEUR', nom: 'Paul DURAND' }] };
-  assert.equal(app.motsPayeurDossier(a, [a, c]).join(','), 'paul,roy');
+  assert.equal(app.motsPayeurDossier(a, [a, c]).join(','), 'roy');
 });

@@ -166,14 +166,37 @@
     return { documents: docs.slice(0, 40).map(x => ({ document: x.libelle, dossier_id: x.dossier ? x.dossier.id : '', dossier: x.dossier ? libelleDossierAffiche(x.dossier) : '' })) };
   }
 
+  // Pure : une date ISO qui existe au calendrier.
+  function dateIsoAgentValide(iso) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(iso || ''))) return false;
+    const x = new Date(iso + 'T12:00:00Z');
+    return !Number.isNaN(x.getTime()) && x.toISOString().slice(0, 10) === iso;
+  }
+
+  // Le geste demande-t-il la carte d'autorisation ? Ceux de la liste ; la signature placée SANS agenda relié (elle s'écrit alors
+  // sur la fiche sans autre confirmation) ; les Quotités et l'Appel de fonds quand l'outil porte un travail sur un autre dossier
+  // (audit 13/10 : il était effacé sans un mot).
+  function gesteAgentDemandeAutorisation(entree, d) {
+    const g = entree && entree.geste;
+    if (GESTES_AVEC_AUTORISATION_AGENT.includes(g)) return true;
+    if (g === 'rendez_vous_placer') return !!(entree.parametres && entree.parametres.date) && !exchangeAgendaPret();
+    if (g === 'quotites' || g === 'appel_fonds') {
+      return travailEnCoursOutilAgent(g, d, { quotites: qtDossierLie || '', appelFonds: afDossierLie || '' });
+    }
+    return false;
+  }
+
   // Le geste par l'exécutant habituel de « Demander à CLAIRE » ; son message (et ses boutons) s'affiche dans la conversation.
   async function faireGesteAgent(entree) {
     const geste = intentionAssistant(entree && entree.geste);
     if (!geste) return { erreur: 'geste inconnu' };
     const d = entree.dossier_id ? dossiers.find(x => x.id === entree.dossier_id) : null;
     if (geste.dossier && !d) return { erreur: 'dossier introuvable : cherche-le d’abord (chercher_dossiers) et passe son id' };
+    // Une date de l'agent est contrôlée AVANT tout (audit 13/10 : « 2026-99-99 » était enregistrée).
+    const dateDemandee = entree.parametres && entree.parametres.date;
+    if (dateDemandee && !dateIsoAgentValide(dateDemandee)) return { erreur: 'date invalide : écris-la AAAA-MM-JJ (une vraie date du calendrier)' };
     // Autorisation avant exécution (étude 13/10) pour tout geste qui modifie tout de suite (client/67).
-    if (GESTES_AVEC_AUTORISATION_AGENT.includes(entree.geste) && !(await demanderAutorisationAgent(descriptionGesteAgent(entree, d)))) {
+    if (gesteAgentDemandeAutorisation(entree, d) && !(await demanderAutorisationAgent(descriptionGesteAgent(entree, d)))) {
       return { refuse: true, message: 'l’utilisateur a refusé : ne le refais pas sans nouvelle demande' };
     }
     const dernier = assistantMessages[assistantMessages.length - 1];

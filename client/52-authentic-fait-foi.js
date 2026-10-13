@@ -609,6 +609,6 @@
     if (!liste.length) return '';
     const id = escapeOnclickArg(d.id);
     return ligne('alert-triangle', 'À mettre à jour', `<span class="notaires-a-placer">${liste.map(m => `<span class="notaires-a-placer-ligne"><span class="prop-texte texte-retour"><b>${escapeHtml(m.libelle)}</b> : ${m.avant ? `${escapeHtml(m.avant)} → ` : ''}${escapeHtml(m.apres)} <span class="hint">· changé dans Authentic</span></span>
-          <button type="button" class="lien-action" onclick="accepterMajAuthentic('${id}', '${escapeOnclickArg(m.cle)}')" title="Écrire la valeur d’Authentic sur la fiche">Mettre à jour</button>
-          <button type="button" class="lien-action" onclick="ignorerMajAuthenticFiche('${id}', '${escapeOnclickArg(m.cle)}')" title="Garder la fiche telle quelle : Authentic ne le proposera plus tant qu’il ne change pas encore">Ignorer</button></span>`).join('')}</span>`, null, 'prop-pleine');
+          <button type="button" class="lien-action" onclick="accepterMajAuthentic('${escapeOnclickArg(id)}', '${escapeOnclickArg(m.cle)}')" title="Écrire la valeur d’Authentic sur la fiche">Mettre à jour</button>
+          <button type="button" class="lien-action" onclick="ignorerMajAuthenticFiche('${escapeOnclickArg(id)}', '${escapeOnclickArg(m.cle)}')" title="Garder la fiche telle quelle : Authentic ne le proposera plus tant qu’il ne change pas encore">Ignorer</button></span>`).join('')}</span>`, null, 'prop-pleine');
   }

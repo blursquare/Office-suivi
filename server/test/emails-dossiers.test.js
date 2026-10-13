@@ -352,6 +352,31 @@ test('projet d\'acte envoyé : détecté dans les envoyés, échéance cochée u
   } finally { db.close(); }
 });
 
+test('projet envoyé : coché sur la copie du dossier relue au moment d’écrire, jamais sur celle du début du tour (audit 13/10)', async () => {
+  const db = ouvrirDb(':memory:');
+  const repo = creerRepoParametres(db);
+  repo.ecrireReglagesExchange({ actif: true, url: 'https://ex/ews', email: 'bastien@office.fr', motDePasse: 'secret' });
+  const debutTour = { id: 'd5', nom: 'LEGRAND / ROUX', emailAcquereur: 'roux@exemple.fr', historique: [] };
+  // Un poste a posé la date de signature pendant les lectures Exchange.
+  const actuel = { ...debutTour, rendezVousSignature: '2099-03-04', historique: [] };
+  const remplaces = [];
+  const depot = { tousActifs: () => [debutTour], trouverParId: () => actuel, remplacer: (id, x) => remplaces.push([id, x]) };
+  const poster = (o, cb) => {
+    const b = o.body;
+    if (/FindItem/.test(b) && /Id="sentitems"/.test(b)) return cb(null, { statusCode: 200, body: find([msgFind('S9', 'Projet d’acte de vente — VTE - LEGRAND / ROUX', '2026-10-05T09:00:00Z', 'Bastien', 'bastien@office.fr', true)]) });
+    if (/GetItem/.test(b) && /S9/.test(b)) return cb(null, { statusCode: 200, body: getItems([{ id: 'S9', a: ['roux@exemple.fr'] }]) });
+    if (/FindItem/.test(b)) return cb(null, { statusCode: 200, body: find([]) });
+    cb(null, { statusCode: 500, body: '' });
+  };
+  try {
+    const r = await E.executerTourEmailsDossiers(depot, repo, { poster, maintenant: '2026-10-06T08:00:00Z' }, true);
+    assert.equal(r.projetsCoches, 1);
+    assert.equal(remplaces.length, 1);
+    assert.equal(remplaces[0][1].rendezVousSignature, '2099-03-04');
+    assert.equal(remplaces[0][1].projetEnvoye, '2026-10-05');
+  } finally { db.close(); }
+});
+
 test('projet d\'acte de vente dans le TEXTE d\'un email envoyé avec pièce jointe : coché, texte jamais gardé ; annoncé ou cité : rien', async () => {
   const P = require('../src/projetEnvoyeEmail');
   assert.equal(P.corpsDitProjetActe('Bonjour,\nVeuillez trouver ci-joint le projet d’acte de vente.\nBien cordialement'), true);

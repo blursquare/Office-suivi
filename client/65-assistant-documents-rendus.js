@@ -60,7 +60,7 @@ var MAX_RENDUS_AGENT = 12;                  // documents produits gardés dans l
     let pdf;
     try {
       pdf = doc.sorte === 'joint'
-        ? await pdfjsLib.getDocument({ data: await doc.fichier.arrayBuffer(), verbosity: (pdfjsLib.VerbosityLevel ? pdfjsLib.VerbosityLevel.ERRORS : 0) }).promise
+        ? await pdfjsLib.getDocument({ isEvalSupported: false, data: await doc.fichier.arrayBuffer(), verbosity: (pdfjsLib.VerbosityLevel ? pdfjsLib.VerbosityLevel.ERRORS : 0) }).promise
         : await ouvrirPdfNas(doc.chemin);
     } catch (e) {
       noterVerificationPoste('agent-lecture-document', { ok: false, message: 'PDF illisible' });

@@ -1125,7 +1125,7 @@
     const sa = d && d.authentic && d.authentic.safer;
     if (!sa || sa.decision === 'preemption' || (sa.decision === 'non_preemption' && !sa.tacite)) return '';
     const actuel = delaiSafer(sa);
-    const caseDelai = (cle, libelle) => `<label class="safer-delai-case"><input type="checkbox" id="safer-${cle}-${d.id}" ${actuel === cle ? 'checked' : ''} onchange="changerDelaiSafer('${d.id}', '${cle}', this.checked)"> ${libelle}</label>`;
+    const caseDelai = (cle, libelle) => `<label class="safer-delai-case"><input type="checkbox" id="safer-${cle}-${d.id}" ${actuel === cle ? 'checked' : ''} onchange="changerDelaiSafer('${escapeOnclickArg(d.id)}', '${cle}', this.checked)"> ${libelle}</label>`;
     return `<span class="safer-delai">${caseDelai('rapide', 'Réponse rapide (1 mois)')}${caseDelai('tres_rapide', 'Très rapide (8 jours)')}</span>`;
   }
 
@@ -1703,9 +1703,9 @@
     const liste = (d && d.authentic && d.authentic.clientsAPlacer) || [];
     if (!liste.length) return '';
     return ligne('alert-triangle', 'À rattacher', `<span class="notaires-a-placer">${liste.map((c, i) => `<span class="notaires-a-placer-ligne"><span class="prop-texte texte-retour">${escapeHtml(c.nom)}${c.nomUsage ? ` <span class="hint">(${escapeHtml(c.nomUsage)})</span>` : ''}${[...(c.telephones || []), ...(c.emails || [])].length ? ` <span class="hint">· ${[...(c.telephones || []), ...(c.emails || [])].map(escapeHtml).join(' · ')}</span>` : ''}</span>
-          <button type="button" class="lien-action" onclick="placerClientAuthentic('${d.id}', ${i}, 'VENDEUR')">Vendeur</button>
-          <button type="button" class="lien-action" onclick="placerClientAuthentic('${d.id}', ${i}, 'ACQUEREUR')">Acquéreur</button>
-          <wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-btn" onclick="ecarterClientAuthentic('${d.id}', ${i})" title="Écarter : cette personne n’est pas partie au dossier" aria-label="Écarter ${escapeAttr(c.nom)}">${icone('x')}</wa-button></span>`).join('')}</span>`, null, 'prop-pleine');
+          <button type="button" class="lien-action" onclick="placerClientAuthentic('${escapeOnclickArg(d.id)}', ${i}, 'VENDEUR')">Vendeur</button>
+          <button type="button" class="lien-action" onclick="placerClientAuthentic('${escapeOnclickArg(d.id)}', ${i}, 'ACQUEREUR')">Acquéreur</button>
+          <wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-btn" onclick="ecarterClientAuthentic('${escapeOnclickArg(d.id)}', ${i})" title="Écarter : cette personne n’est pas partie au dossier" aria-label="Écarter ${escapeAttr(c.nom)}">${icone('x')}</wa-button></span>`).join('')}</span>`, null, 'prop-pleine');
   }
 
   // ---- Personnes déjà connues (étude, 02/10 : « détecter si le vendeur est déjà connu, reprendre sa
@@ -1833,8 +1833,8 @@
       const quand = o && o.acte ? ` · signé le ${formatDateFr(o.acte)}` : '';
       const apport = [...c.apport.telephones, ...c.apport.emails, c.apport.situationMatrimoniale ? libelleSituationMatrimoniale(c.apport.situationMatrimoniale) : ''].filter(Boolean);
       return `<span class="notaires-a-placer-ligne"><span class="prop-texte texte-retour">${escapeHtml(c.personne)} <span class="hint">— ${LIBELLES_ROLE_CONNU[c.ancienRole] || 'partie'} dans <button type="button" class="lien-action" onclick="ouvrirDossierDrawer('${escapeOnclickArg(c.ancienDossier)}')">${escapeHtml(o ? libelleDossierAffiche(o) : 'un ancien dossier')}</button>${quand} · ${apport.map(escapeHtml).join(' · ')}</span></span>
-          <button type="button" class="lien-action" onclick="reprendrePersonneConnue('${d.id}', '${escapeOnclickArg(c.cle)}')">Reprendre</button>
-          <wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-btn" onclick="ecarterPersonneConnue('${d.id}', '${escapeOnclickArg(c.cle)}')" title="Écarter : ce n’est pas la même personne" aria-label="Écarter ${escapeAttr(c.personne)}">${icone('x')}</wa-button></span>`;
+          <button type="button" class="lien-action" onclick="reprendrePersonneConnue('${escapeOnclickArg(d.id)}', '${escapeOnclickArg(c.cle)}')">Reprendre</button>
+          <wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-btn" onclick="ecarterPersonneConnue('${escapeOnclickArg(d.id)}', '${escapeOnclickArg(c.cle)}')" title="Écarter : ce n’est pas la même personne" aria-label="Écarter ${escapeAttr(c.personne)}">${icone('x')}</wa-button></span>`;
     }).join('')}</span>`, null, 'prop-pleine');
   }
 

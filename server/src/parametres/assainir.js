@@ -561,7 +561,11 @@ function assainirReglagesExchange(brut, precedent) {
   const b = (brut && typeof brut === 'object') ? brut : {};
   const p = (precedent && typeof precedent === 'object') ? precedent : {};
   const url = texteNettoye(b.url) || texteNettoye(p.url) || URL_EWS_DEFAUT;
-  const motDePasse = (typeof b.motDePasse === 'string') ? b.motDePasse : texteNettoye(p.motDePasse);
+  // Audit 13/10 (Haut) : une autre adresse de serveur ou un autre compte sans nouveau mot de passe → le mot de passe enregistré est
+  // OUBLIÉ (jamais envoyé à la nouvelle adresse par les tours automatiques) ; il faut le ressaisir.
+  const urlChangee = url.toLowerCase() !== String(texteNettoye(p.url) || URL_EWS_DEFAUT).toLowerCase();
+  const emailChange = !!texteNettoye(b.email) && !!texteNettoye(p.email) && texteNettoye(b.email).toLowerCase() !== texteNettoye(p.email).toLowerCase();
+  const motDePasse = (typeof b.motDePasse === 'string') ? b.motDePasse : ((urlChangee || emailChange) ? '' : texteNettoye(p.motDePasse));
   return {
     // Absent du formulaire (section voisine enregistrée seule) = inchangé (audit 12/10 : la connexion se coupait).
     actif: typeof b.actif === 'boolean' ? b.actif : p.actif === true,

@@ -364,3 +364,18 @@ test('convocation scannée : le solde attendu est la dernière ligne « Solde à
   // Pas de ligne « Solde à verser » : rien de lu à part, le lecteur du décompte décide.
   assert.equal(app.soldeAVerserDansTexte(lignes.filter(l => !l.startsWith('Solde')).join('\n')), null);
 });
+
+test('fonds reçus : le prénom de l’acquéreur n’est jamais cherché seul (audit 13/10)', () => {
+  const d = { id: 'd1', nom: 'DUPONT / MARTIN', parties: [{ nom: 'DUPONT', role: 'VENDEUR' }, { nom: 'Jean MARTIN', role: 'ACQUEREUR' }] };
+  assert.equal(app.motsPayeurDossier(d, []).join(','), 'martin');
+  assert.equal(app.ligneNommeLePayeur('DURAND Jean VIR RECU DE SOLDE', app.motsPayeurDossier(d, [])), false);
+  assert.equal(app.ligneNommeLePayeur('MARTIN Jean VIR RECU DE SOLDE', app.motsPayeurDossier(d, [])), true);
+  const d2 = { id: 'd2', nom: 'X / Y', parties: [{ nom: 'Martin', prenom: 'Jean', role: 'ACQUEREUR' }] };
+  assert.ok(!app.motsPayeurDossier(d2, []).includes('jean'));
+});
+
+test('fonds reçus : rien reçu n’est jamais « complet », même pour un attendu minuscule (audit 13/10)', () => {
+  assert.equal(app.bilanFondsRecus(0, 1.5).etat, 'aucun');
+  assert.equal(app.bilanFondsRecus(1.5, 1.5).etat, 'complet');
+  assert.equal(app.bilanFondsRecus(120000, 120001.5).etat, 'complet');
+});

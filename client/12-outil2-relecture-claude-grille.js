@@ -220,18 +220,26 @@
     { categorie: 'NIR', re: /\b[12]\s?\d{2}\s?(?:0[1-9]|1[0-2])\s?(?:\d{2}|2[AB])\s?\d{3}\s?\d{3}(?:\s?\d{2})?\b/g },
     // Sans le drapeau « i » : il rendait insensible à la casse le motif de la commune, qui avalait
     // alors toute la suite de la phrase (« à BLOIS demeurant à… »). Même piège pour l'adresse.
-    { categorie: 'NAISSANCE', re: /[Nn][ée]e?s?\s+le\s+(?:\d{1,2}\/\d{1,2}\/\d{2,4}|\d{1,2}(?:er)?\s+[a-zéûA-ZÉÛ]+\s+\d{4})(?:\s+[àa]\s+[A-ZÀ-Ý][\wÀ-ÿ'’-]*(?:[\s-][A-ZÀ-Ý][\wÀ-ÿ'’-]*)*)?/g },
+    { categorie: 'NAISSANCE', re: /[Nn][ée]e?s?\s+le\s+(?:\d{1,2}\/\d{1,2}\/\d{2,4}|\d{1,2}(?:er)?\s+[a-zéûA-ZÉÛ]+\s+\d{4})(?:\s+[àa]\s+[A-ZÀ-Ý][\wÀ-ÿ'’]*(?:[\s-][A-ZÀ-Ý][\wÀ-ÿ'’]*)*)?/g },
     // « Né à BLOIS (41000) le 3 mars 1970 » : la commune avant la date (audit 12/10).
-    { categorie: 'NAISSANCE', re: /[Nn][ée]e?s?\s+[àa]\s+[A-ZÀ-Ý][\wÀ-ÿ'’-]*(?:[\s-][A-ZÀ-Ý][\wÀ-ÿ'’-]*)*(?:\s*\(\s*\d{2,5}\s*\))?\s*,?\s+le\s+(?:\d{1,2}\/\d{1,2}\/\d{2,4}|\d{1,2}(?:er)?\s+[a-zéûA-ZÉÛ]+\s+\d{4})/g },
-    { categorie: 'ADRESSE', re: /\b\d{1,4}(?:\s?(?:bis|ter|quater|BIS|TER))?,?\s+(?:[Rr]ue|RUE|[Aa]venue|AVENUE|[Bb]oulevard|BOULEVARD|[Ii]mpasse|IMPASSE|[Cc]hemin|CHEMIN|[Aa]ll[ée]e|ALL[ÉE]E|[Pp]lace|PLACE|[Rr]oute|ROUTE|[Qq]uai|QUAI|[Ll]ieu-dit|LIEU-DIT|[Ll]otissement|[Ss]quare|[Cc]ours|[Ff]aubourg|[Rr][ée]sidence)\s+[^\n,;.⟦]{2,60}?(?=\s*(?:,|;|\.|\n|⟦|\d{5}\b|$)|\s+(?:[àa]|et|demeurant|domicili[ée]e?s?|cadastr[ée]e?s?|ci-apr[èe]s|lieu-dit)\s)(?:,?\s*\d{5}\s+[A-ZÀ-Ý][\wÀ-ÿ'’-]*(?:[\s-][A-ZÀ-Ý][\wÀ-ÿ'’-]*)*)?/g },
-    { categorie: 'ADRESSE', re: /\b\d{5}\s+(?!EUR|Euros?\b|EUROS\b|€|Francs?\b)[A-ZÀ-Ý][\wÀ-ÿ'’-]*(?:[\s-][A-ZÀ-Ý][\wÀ-ÿ'’-]*)*/g },
+    { categorie: 'NAISSANCE', re: /[Nn][ée]e?s?\s+[àa]\s+[A-ZÀ-Ý][\wÀ-ÿ'’]*(?:[\s-][A-ZÀ-Ý][\wÀ-ÿ'’]*)*(?:\s*\(\s*\d{2,5}\s*\))?\s*,?\s+le\s+(?:\d{1,2}\/\d{1,2}\/\d{2,4}|\d{1,2}(?:er)?\s+[a-zéûA-ZÉÛ]+\s+\d{4})/g },
+    { categorie: 'ADRESSE', re: /\b\d{1,4}(?:\s?(?:bis|ter|quater|BIS|TER))?,?\s+(?:[Rr]ue|RUE|[Aa]venue|AVENUE|[Bb]oulevard|BOULEVARD|[Ii]mpasse|IMPASSE|[Cc]hemin|CHEMIN|[Aa]ll[ée]e|ALL[ÉE]E|[Pp]lace|PLACE|[Rr]oute|ROUTE|[Qq]uai|QUAI|[Ll]ieu-dit|LIEU-DIT|[Ll]otissement|[Ss]quare|[Cc]ours|[Ff]aubourg|[Rr][ée]sidence)\s+[^\n,;.⟦]{2,60}?(?=\s*(?:,|;|\.|\n|⟦|\d{5}\b|$)|\s+(?:[àa]|et|demeurant|domicili[ée]e?s?|cadastr[ée]e?s?|ci-apr[èe]s|lieu-dit)\s)(?:,?\s*\d{5}\s+[A-ZÀ-Ý][\wÀ-ÿ'’]*(?:[\s-][A-ZÀ-Ý][\wÀ-ÿ'’]*)*)?/g },
+    { categorie: 'ADRESSE', re: /\b\d{5}\s+(?!EUR|Euros?\b|EUROS\b|€|Francs?\b)[A-ZÀ-Ý][\wÀ-ÿ'’]*(?:[\s-][A-ZÀ-Ý][\wÀ-ÿ'’]*)*/g },
     // Numéros en liste (« numéros 12, 13 et 14 ») et référence après « cadastré(e) » (« cadastrée AB 123 ») — audit 12/10.
     { categorie: 'CADASTRE', re: /section\s+[A-Z]{1,2}\s*,?\s*(?:num[ée]ros?|n[°o]s?)\s*\d+(?:\s*(?:,|et|&)\s*\d+)*/gi },
     { categorie: 'CADASTRE', re: /cadastr[ée]e?s?\s+(?:sous\s+les?\s+r[ée]f[ée]rences?\s+)?(?:section\s+)?[A-Z]{1,2}\s*(?:n[°o]s?\s*)?\d{1,4}(?:\s*(?:,|et|&)\s*(?:[A-Z]{1,2}\s*)?\d{1,4})*/g },
     // Le nom du lieu-dit seul : entre guillemets, ou quatre mots à majuscule au plus (jamais l'en-tête d'un tableau cadastral).
     { categorie: 'ADRESSE', re: /(?:[Ll]ieu[- ]dit|LIEU[- ]DIT)\s*:?\s*(?:«\s*[^»\n⟦]{1,40}»|"[^"\n⟦]{1,40}"|(?!(?:Contenance|CONTENANCE|Nature|NATURE|Section|SECTION|Surface|SURFACE)(?![A-Za-zÀ-ÿ]))[A-ZÀ-Ý][A-Za-zÀ-ÿ'’-]*(?:\s+(?:de|du|des|la|le|les|d['’])?\s*[A-ZÀ-Ý][A-Za-zÀ-ÿ'’-]*){0,3}(?![A-Za-zÀ-ÿ]))/g },
     { categorie: 'PERSONNE_MORALE', re: /\b(?:SCI|SARL|SASU?|EURL|SNC|SCP|SCM|GFA|EARL|GAEC|SCCV)\s+(?:[A-Z0-9À-Ý][\wÀ-ÿ0-9'’-]*|de|du|des|la|le|les|et|d['’])(?:\s+(?:[A-Z0-9À-Ý][\wÀ-ÿ0-9'’-]*|de|du|des|la|le|les|et|d['’])){0,5}/g },
-    { categorie: 'PERSONNE', re: /\b(?:Monsieur|Madame|Mademoiselle|MONSIEUR|MADAME|MADEMOISELLE|M\.|Mme|Mlle|Me|Ma[îi]tre|MA[ÎI]TRE)\s+[A-ZÀ-Ý][\wÀ-ÿ'’-]+(?:\s+[A-ZÀ-Ý][\wÀ-ÿ'’-]*){0,5}/g }
+    // Civilités et désignations d'un compromis d'agence (audit 13/10 : « Mr », « M » sans point, « MM. », « Messieurs », « les
+    // époux X », « consorts X », « veuve X » partaient en clair).
+    { categorie: 'PERSONNE', re: /(?<![A-Za-zÀ-ÿ0-9])(?:Monsieur|Madame|Mademoiselle|Messieurs|Mesdames|MONSIEUR|MADAME|MADEMOISELLE|MESSIEURS|MESDAMES|M\.|MM\.?|Mr|MR|M(?=\s+[A-ZÀ-Ý]{2})|Mme|Mlle|Me|Ma[îi]tre|MA[ÎI]TRE|[ée]poux|[ÉE]POUX|consorts|CONSORTS|veuve|VEUVE|veuf|VEUF)\s+(?!de\s|d['’])[A-ZÀ-Ý][\wÀ-ÿ'’-]+(?:\s+[A-ZÀ-Ý][\wÀ-ÿ'’-]*){0,5}/g },
+    // « Prénom NOM » sans civilité (gérant, signataire, agent) : un mot à majuscule initiale suivi d'un nom en capitales — jamais
+    // un article, un mot du métier ni un rôle de l'acte.
+    { categorie: 'PERSONNE', re: /(?<![A-Za-zÀ-ÿ0-9⟧])(?!(?:Le|La|Les|Du|De|Des|Au|Aux|Un|Une|Ce|Cet|Cette|Ces|En|Par|Pour|Sur|Dans|Entre|Avec|Sans|Article|Articles|Section|Lot|Lots|Zone|Commune|Ville|Etat|État|Acte|Loi|Code|Office|Etude|Étude|Maître|Monsieur|Madame|Société|Banque|Caisse|Crédit|Mairie|Préfecture|Direction|Service|Taxe|Taxes|Impôt|Impôts|Droit|Droits|Frais|Prêt|Offre|Condition|Clause|Délai|Date|Prix|Montant|Surface|Superficie|Diagnostic|Diagnostics|Dossier|Plan|Permis|Certificat|Règlement|Assemblée|Syndicat|Assurance|Garantie|Agence|Cabinet|Notaire|Mandat|Contrat|Compte|Taux|Indice|Annexe|Annexes|Page|Pièce|Pièces|Voir|Total|Solde|Fonds|Charges|Travaux|Bâtiment|Immeuble|Parcelle|Cadastre|Lieu|Réf|Référence|Numéro|Objet|Rubrique|Chapitre|Titre|Paragraphe|Alinéa|Annexé|Signé|Fait|Selon|Suivant|Conformément)\s)[A-ZÀ-Ý][a-zà-ÿ]+(?:-[A-ZÀ-Ý][a-zà-ÿ]+)?\s+(?!(?:VENDEURS?|ACQUEREURS?|ACQUÉREURS?|PROMETTANTS?|BENEFICIAIRES?|BÉNÉFICIAIRES?|PRIX|NOTAIRES?|BIEN|BIENS|SAFER|EUROS?|PARTIES|CONDITIONS?|ARTICLE|CHAPITRE|TITRE|DESIGNATION|DÉSIGNATION|ORIGINE|PROPRIETE|PROPRIÉTÉ|CHARGES?|SYNDIC|COPROPRIETE|COPROPRIÉTÉ)(?![A-Za-zÀ-ÿ]))[A-ZÀ-Ý]{2}[A-ZÀ-Ý'’-]+(?![A-Za-zÀ-ÿ])/g },
+    // Le prénom resté à côté d'un nom déjà masqué (« Mr ⟦PERSONNE_1⟧ Jean », « Jean ⟦PERSONNE_1⟧ ») — audit 13/10.
+    { categorie: 'PERSONNE', re: /(?<=⟦PERSONNE_\d+⟧\s{1,3})[A-ZÀ-Ý][a-zà-ÿ'’]+(?:-[A-ZÀ-Ý][a-zà-ÿ'’]+)?(?![A-Za-zÀ-ÿ])/g },
+    { categorie: 'PERSONNE', re: /(?<![A-Za-zÀ-ÿ])(?!(?:Monsieur|Madame|Mademoiselle|Messieurs|Mesdames|Maître|Mme|Mlle|Mr|Me|Les|Le|La|Des|Aux|Et|Ou|Par|Pour|Entre|Avec|De|Du|Époux|Epoux|Consorts|Veuve|Veuf)\s)[A-ZÀ-Ý][a-zà-ÿ'’]+(?:-[A-ZÀ-Ý][a-zà-ÿ'’]+)?(?=\s{1,3}⟦PERSONNE_\d+⟧)/g }
   ];
 
   function echapperRegex(s) {
@@ -259,7 +267,11 @@
         if (!termes.some(x => normaliserPourRecherche(x.terme) === normaliserPourRecherche(t))) termes.push({ terme: t, categorie, source });
       }
     };
-    for (const p of (parties || [])) ajouter(p && p.nom, p && p.qualitePersonne === 'morale' ? 'PERSONNE_MORALE' : 'PERSONNE', 'partie');
+    for (const p of (parties || [])) {
+      ajouter(p && p.nom, p && p.qualitePersonne === 'morale' ? 'PERSONNE_MORALE' : 'PERSONNE', 'partie');
+      // Prénom et nom d'usage (audit 13/10 : le prénom restait en clair à côté du nom masqué).
+      if (p && p.qualitePersonne !== 'morale') { ajouter(p.prenom, 'PERSONNE', 'partie'); ajouter(p.nomUsage, 'PERSONNE', 'partie'); }
+    }
     for (const n of (notaires || [])) ajouter(n && n.nom, 'PERSONNE', 'notaire');
     return termes;
   }

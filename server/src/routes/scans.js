@@ -14,6 +14,7 @@ const express = require('express');
 const fs = require('node:fs');
 const path = require('node:path');
 const { trouverDossierScans, listerScans, nomScanValide, rangerScan, ajouterAuJournal, depuisMsScans } = require('../scans');
+const { envoyerFlux } = require('./nas');
 
 const routeAsync = (fn) => (req, res) => {
   Promise.resolve(fn(req, res)).catch((err) => {
@@ -80,7 +81,7 @@ function creerRouteurScans(config, parametresRepo, horloge = () => Date.now()) {
     try { await fs.promises.access(cible); } catch (_) { res.status(404).json({ erreur: 'Scan introuvable (déjà rangé ?).' }); return; }
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(nom)}"`);
-    fs.createReadStream(cible).pipe(res);
+    envoyerFlux(res, cible);
   }));
 
   routeur.put('/scans/reglages', routeAsync(async (req, res) => {

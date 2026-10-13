@@ -372,6 +372,10 @@
       parties.push(...detecterParties(f.texte, valeurType));
       notaires.push(...detecterNotaires(f.texte, valeurType));
     }
+    // Les parties du dossier lié (audit 13/10) : noms, prénoms et noms d'usage exacts de la fiche, que la lecture de l'acte
+    // ne retrouve pas toujours (compromis d'agence, « Mr NOM Prénom »).
+    const d = auditDossierLie;
+    if (d) parties.push(...(d.parties || []).filter(Boolean), { nom: String(d.nom || '') });
     const termes = termesConnusAnonymisation(parties, notaires).concat(termesManuelsRelecture.map(t => ({ ...t, source: 'manuel' })));
     const r = anonymiserDocumentsOutil2(docs.map(f => ({ id: f.id, texte: f.texte, pages: f.pages })), { termes, exclus: valeursEnClairRelecture });
     anonymisationRelecture = { documents: r.documents, table: r.table, nbTermesConnus: termes.length };
@@ -1283,7 +1287,7 @@
       pdf = await ouvrirPdfNas(f.cheminNas);
     } else {
       const buffer = await f.file.arrayBuffer();
-      pdf = await pdfjsLib.getDocument({ data: buffer, verbosity: (pdfjsLib.VerbosityLevel ? pdfjsLib.VerbosityLevel.ERRORS : 0) }).promise;
+      pdf = await pdfjsLib.getDocument({ isEvalSupported: false, data: buffer, verbosity: (pdfjsLib.VerbosityLevel ? pdfjsLib.VerbosityLevel.ERRORS : 0) }).promise;
     }
     cachePdfRelecture.set(f.id, pdf);
     return pdf;

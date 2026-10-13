@@ -129,7 +129,9 @@
     certificatAlignement: ['certificat alignement', 'arrete alignement', 'courriel alignement', 'alignement numerotage', 'numerotage alignement'],
     certificatNumerotage: ['numerotage'],
     reponseAssainissement: ['assainissement', 'spanc'],
-    renonciationPreemption: ['preemption', 'dpu', 'dia', 'declaration intention aliener'],
+    // Jamais « DIA » seul ni « déclaration d'intention d'aliéner » : c'est la DEMANDE envoyée à la mairie, pas sa réponse (audit
+    // 13/10 ; règle de l'étude du 07/10 : on doit avoir le document de renonciation pour signer).
+    renonciationPreemption: ['preemption', 'dpu', 'renonciation dia', 'reponse dia', 'retour dia'],
     diagnosticsTechniques: ['diagnostic', 'diagnostique', 'ddt'],
     erp: ['erp', 'etat risques'],
     avisTaxeFonciere: ['tf', 'taxe fonciere'],
@@ -173,7 +175,7 @@
     { cle: 'certificatAlignement', noms: ["Certificat d'alignement", 'Arrêté d’alignement', 'Courriel alignement', 'Alignement et numérotage', 'Numérotage alignement'] },
     { cle: 'certificatNumerotage', noms: ['Certificat de numérotage', 'Numérotage', 'Numerotage'] },
     { cle: 'reponseAssainissement', noms: ['Assainissement', 'Réponse assainissement', 'Asainissement', 'SPANC', 'Contrôle SPANC'] },
-    { cle: 'renonciationPreemption', noms: ['Renonciation préemption', 'Préemption', 'DPU', 'DIA', "Déclaration d'intention d'aliéner"] },
+    { cle: 'renonciationPreemption', noms: ['Renonciation préemption', 'Préemption', 'DPU', 'Renonciation DIA', 'Réponse DIA'] },
     { cle: 'diagnosticsTechniques', noms: ['Diagnostics', 'Diagnostic', 'Diagnostique', 'DDT', 'Dossier de diagnostics techniques'] },
     { cle: 'erp', noms: ['ERP', 'État des risques', 'Etat des risques et pollutions'] },
     { cle: 'avisTaxeFonciere', noms: ['Taxe foncière', 'Taxes foncières 2025', 'TF', 'Avis TF'] },

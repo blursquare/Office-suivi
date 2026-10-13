@@ -197,8 +197,8 @@
     if (pj.ignoree || e.sens !== 'recu') return `<span class="email-pj${pj.ignoree ? ' email-pj-ecartee' : ''}">${ouvrir}</span>`;
     const piece = pieceDePieceJointe(pj.nom, checklist, (cle, nn) => estNomExcluPourPiece(cle, nn));
     const geste = !d.nasDossier
-      ? (piece && !piece.offre ? `<button type="button" class="lien-action" onclick="cocherPieceDepuisEmail('${d.id}', '${escapeOnclickArg(piece.cle)}', '${escapeOnclickArg(pj.nom)}')">Cocher « ${escapeHtml(piece.label)} » reçue</button>` : '')
-      : `<select class="email-pj-ranger" aria-label="Ranger la pièce jointe dans le dossier" onchange="rangerPieceJointeEmail('${d.id}', '${escapeOnclickArg(e.id)}', '${escapeOnclickArg(pj.id)}', this.value, false)">
+      ? (piece && !piece.offre ? `<button type="button" class="lien-action" onclick="cocherPieceDepuisEmail('${escapeOnclickArg(d.id)}', '${escapeOnclickArg(piece.cle)}', '${escapeOnclickArg(pj.nom)}')">Cocher « ${escapeHtml(piece.label)} » reçue</button>` : '')
+      : `<select class="email-pj-ranger" aria-label="Ranger la pièce jointe dans le dossier" onchange="rangerPieceJointeEmail('${escapeOnclickArg(d.id)}', '${escapeOnclickArg(e.id)}', '${escapeOnclickArg(pj.id)}', this.value, false)">
           <option value="">${pj.echec ? 'Échec — ranger…' : 'Ranger…'}</option>
           ${piece ? `<option value="${escapeAttr(piece.cle)}">Comme « ${escapeHtml(piece.label)} »</option>` : ''}
           ${checklist.filter(p => !piece || p.cle !== piece.cle).map(p => `<option value="${escapeAttr(p.cle)}">${escapeHtml(p.label)}</option>`).join('')}
@@ -255,7 +255,7 @@
       const pjs = e.pj.filter(p => !p.ignoree).length;
       const texte = normaliserPourRecherche([qui, e.objet, e.resume, e.de.adresse, ...e.pj.map(p => p.nom)].filter(Boolean).join(' '));
       return `<li class="email-rang" data-texte="${escapeAttr(texte)}" data-page="${i < f.n ? '1' : '0'}"${i < f.n ? '' : ' hidden'}>
-          <button type="button" class="email-rang-btn email-${e.sens}" onclick="ouvrirEmailComplet('${d.id}', '${escapeOnclickArg(e.id)}')" title="Lire l’email en entier">
+          <button type="button" class="email-rang-btn email-${e.sens}" onclick="ouvrirEmailComplet('${escapeOnclickArg(d.id)}', '${escapeOnclickArg(e.id)}')" title="Lire l’email en entier">
             <span class="email-rang-sens" aria-label="Envoyé">${icone('upload')}</span>
             <span class="email-rang-qui">${escapeHtml(qui)}</span>
             <span class="email-rang-corps"><span class="email-rang-objet">${escapeHtml(e.objet || '(sans objet)')}</span>${e.resume ? `<span class="email-rang-resume">${escapeHtml(e.resume)}</span>` : ''}</span>
@@ -265,7 +265,7 @@
     };
     const attente = enAttente.length ? `<details class="appels-plus emails-attente"><summary>${enAttente.length} email${enAttente.length > 1 ? 's' : ''} préparé${enAttente.length > 1 ? 's' : ''}, pas encore retrouvé${enAttente.length > 1 ? 's' : ''} dans les envois</summary><ul class="appels-liste">${enAttente.map(p => {
       const st = etatEmailPrepare(p, etat && etat.envoyes);
-      const retirer = p.envoyeLe ? '' : `<wa-button appearance="plain" size="s" type="button" class="bouton-icone" onclick="retirerEmailPrepare('${d.id}', '${escapeOnclickArg(p.id)}')" title="Retirer : cet email n’a pas été envoyé (brouillon Outlook fermé sans enregistrer)" aria-label="Retirer cet email préparé">${icone('x')}</wa-button>`;
+      const retirer = p.envoyeLe ? '' : `<wa-button appearance="plain" size="s" type="button" class="bouton-icone" onclick="retirerEmailPrepare('${escapeOnclickArg(d.id)}', '${escapeOnclickArg(p.id)}')" title="Retirer : cet email n’a pas été envoyé (brouillon Outlook fermé sans enregistrer)" aria-label="Retirer cet email préparé">${icone('x')}</wa-button>`;
       return `<li><span class="appels-quand">${escapeHtml(dateCourteEmail(p.prepareLe))}</span><span>${escapeHtml(p.objet)}</span><span class="dot-label ${st.classe}"><span class="dot"></span>${escapeHtml(st.texte)}</span>${retirer}</li>`;
     }).join('')}</ul></details>` : '';
     const reste = liste.length - Math.min(f.n, liste.length);
@@ -276,7 +276,7 @@
         </div>
         <ul class="emails-liste">${liste.map(ligne).join('')}</ul>
         <p class="hint emails-aucun" hidden>Aucun email ne correspond.</p>
-        ${reste > 0 ? `<button type="button" class="lien-discret emails-plus" onclick="voirPlusEmails('${d.id}')">Voir ${Math.min(reste, 20)} de plus${reste > 20 ? ` (${reste} en tout)` : ''}</button>` : ''}
+        ${reste > 0 ? `<button type="button" class="lien-discret emails-plus" onclick="voirPlusEmails('${escapeOnclickArg(d.id)}')">Voir ${Math.min(reste, 20)} de plus${reste > 20 ? ` (${reste} en tout)` : ''}</button>` : ''}
         ${attente}
       </div>`;
   }
@@ -324,7 +324,7 @@
     const pastille = prep ? `<span class="email-etat email-etat-fait">Réception confirmée</span>`
       : aRepondre ? `<span class="email-etat">À répondre</span>` : '';
     const accuse = d && recu && documentsEmailRecu(email).length
-      ? `<wa-button appearance="plain" size="s" type="button" class="bouton-discret icon-btn email-barre-action" onclick="fermerEmailComplet(); confirmerReceptionEmail('${d.id}', '${escapeOnclickArg(email.id)}')" title="${prep ? 'Renvoyer la confirmation de réception' : 'Confirmer la réception des documents'}">${icone('check')}<span>${prep ? 'Reconfirmer' : 'Confirmer la réception'}</span></wa-button>` : '';
+      ? `<wa-button appearance="plain" size="s" type="button" class="bouton-discret icon-btn email-barre-action" onclick="fermerEmailComplet(); confirmerReceptionEmail('${escapeOnclickArg(d.id)}', '${escapeOnclickArg(email.id)}')" title="${prep ? 'Renvoyer la confirmation de réception' : 'Confirmer la réception des documents'}">${icone('check')}<span>${prep ? 'Reconfirmer' : 'Confirmer la réception'}</span></wa-button>` : '';
     const message = (texte, a) => `
       <div class="email-message">
         <span class="email-avatar${recu ? '' : ' email-avatar-office'}" aria-hidden="true">${escapeHtml(initialesPersonne(nom))}</span>
@@ -390,8 +390,22 @@
     try {
       const r = await fetchAvecAuth(`/api/emails-dossiers/pj?emailId=${encodeURIComponent(emailId)}&pjId=${encodeURIComponent(pjId)}`);
       if (!r.ok) throw new Error((await r.json().catch(() => ({}))).erreur || 'statut ' + r.status);
-      const url = URL.createObjectURL(await r.blob());
+      // Audit 13/10 (Haut) : seuls PDF, images et texte brut s'ouvrent dans un onglet (type décidé par le serveur) ; le reste — une
+      // page HTML, un SVG — se télécharge, jamais interprété avec l'origine de CLAIRE.
+      const type = String(r.headers.get('Content-Type') || '').split(';')[0].trim().toLowerCase();
+      const ouvrable = type === 'application/pdf' || /^image\/(png|jpeg|gif|webp|bmp|tiff)$/.test(type) || type === 'text/plain';
+      const blob = new Blob([await r.blob()], { type: ouvrable ? type : 'application/octet-stream' });
+      const url = URL.createObjectURL(blob);
+      if (!ouvrable) {
+        if (fenetre) fenetre.close();
+        const nom = decodeURIComponent((/filename\*=UTF-8''([^;]+)/.exec(r.headers.get('Content-Disposition') || '') || [])[1] || 'piece-jointe');
+        const lien = document.createElement('a');
+        lien.href = url; lien.download = nom; document.body.appendChild(lien); lien.click(); lien.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 60000);
+        return;
+      }
       if (fenetre) fenetre.location.href = url; else window.open(url, '_blank');
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
     } catch (e) {
       if (fenetre) fenetre.close();
       afficherToast('Pièce jointe impossible à ouvrir : ' + e.message, 'OK', null);

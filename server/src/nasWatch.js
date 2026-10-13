@@ -131,9 +131,9 @@ async function executerTourSurveillanceNas(depot, racineNas, aujourdHui) {
   const resultat = { dossiersVerifies: 0, dossiersNotifies: 0, appelsFondsNotes: 0 };
   if (!racineNas) return resultat;
   const jour = aujourdHui || dateDuJourParis();
-  for (const d of depot.tousActifs()) {
-    if (d.archive || !d.nasDossier) continue;
-    const chemin = await resoudreCheminNas(racineNas, d.nasDossier);
+  for (const lu of depot.tousActifs()) {
+    if (lu.archive || !lu.nasDossier) continue;
+    const chemin = await resoudreCheminNas(racineNas, lu.nasDossier);
     if (!chemin) continue;
     resultat.dossiersVerifies++;
     await respirer();
@@ -143,6 +143,10 @@ async function executerTourSurveillanceNas(depot, racineNas, aujourdHui) {
     } catch (e) {
       continue; // dossier illisible entretemps (déplacé, permissions) : jamais fatal pour les autres
     }
+    // Relu APRÈS la lecture du NAS (audit 13/10) : un poste a pu enregistrer le dossier pendant l'attente — écrire la copie
+    // d'avant effaçait son changement (une date de rendez-vous, une pièce cochée). Tout ce qui suit est synchrone.
+    const d = depot.trouverParId(lu.id);
+    if (!d || d.deleted || d.archive || d.nasDossier !== lu.nasDossier) continue;
     const nouveaux = detecterNouveauxFichiers(d.nasInventaire, fichiers);
     const avecAppelFonds = noterAppelFondsDetecte(d, fichiers, jour);
     let base = avecAppelFonds || d;

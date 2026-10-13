@@ -291,3 +291,14 @@ test('messageErreurGithubRapport : 403 et 404 distingués, phrase de GitHub repr
   const fetchFn = async () => ({ ok: false, status: 403, json: async () => ({ message: 'Resource not accessible by personal access token' }) });
   await assert.rejects(envoyerIssue({ jeton: 'x', titre: 't', corps: 'c', fetchFn }), /Resource not accessible by personal access token/);
 });
+
+test('rapport : téléphones +33 ou à tirets, nom de deux lettres, lettres hors français et texte libre — aucun nom ne sort (audit 13/10)', () => {
+  const R = require('../src/rapportTechnique');
+  const mots = R.motsSensibles([{ nom: 'DURAND / LY', parties: [{ nom: 'DURAND' }, { nom: 'LY', prenom: 'Anh' }, { nom: 'ŞAHİN' }] }]);
+  const t = R.anonymiserTexte('Mme Lefèvre au +33 6 12 34 56 78 ou 06-12-34-56-78, M. LY, Anh LY et ŞAHİN. Erreur ECONNRESET à app.js:12', mots);
+  for (const x of ['Lefèvre', '12 34', '06-12', 'LY', 'Anh', 'ŞAHİN', 'Ş']) assert.ok(!t.includes(x), x + ' : ' + t);
+  assert.match(t, /ECONNRESET à app\.js:12/);
+  const l = R.anonymiserLibre('Sur la fiche, Jean-Marc Dubois et Şahin Öztürk ne voient rien. Le bouton reste gris. Erreur EWS.', mots);
+  for (const x of ['Jean', 'Marc', 'Dubois', 'Şahin', 'Öztürk']) assert.ok(!l.includes(x), x + ' : ' + l);
+  assert.match(l, /^Sur la fiche, \[nom\] et \[nom\] ne voient rien\. Le bouton reste gris\. Erreur EWS\.$/);
+});

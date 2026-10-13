@@ -443,7 +443,7 @@
       const g = groupeJourActivite(e.date, maintenant);
       const tete = g !== groupe ? `<li class="act-groupe">${escapeHtml(g)}</li>` : '';
       groupe = g;
-      return `${tete}<li class="act-item" data-cat="${cat.cle}"><button type="button" class="activite-ligne${recent ? ' recente' : ''}" onclick="ouvrirDossierDepuisDashboard('${e.dossierId}')" title="${escapeAttr(qui + ' — ' + e.texte + ' — ' + e.dossierNom)}">
+      return `${tete}<li class="act-item" data-cat="${cat.cle}"><button type="button" class="activite-ligne${recent ? ' recente' : ''}" onclick="ouvrirDossierDepuisDashboard('${escapeOnclickArg(e.dossierId)}')" title="${escapeAttr(qui + ' — ' + e.texte + ' — ' + e.dossierNom)}">
         <span class="act-pastille act-cat-${cat.cle}" aria-hidden="true">${icone(cat.icone)}</span>
         <span class="activite-texte"><b>${escapeHtml(qui)}</b> ${escapeHtml(e.texte)}<span class="activite-dossier"> · ${escapeHtml(e.dossierNom)}</span></span>
         <span class="activite-quand">${escapeHtml(ilYaActivite(e.date, maintenant))}</span>
@@ -550,7 +550,7 @@
     const ligne = (e) => {
       const quand = e.le ? new Date(e.le).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : '';
       return `
-        <button type="button" class="action-urgente-ligne derniere-piece${e.nouvelle ? ' nouvelle' : ''}" onclick="ouvrirDossierDepuisDashboard('${e.dossier.id}')"
+        <button type="button" class="action-urgente-ligne derniere-piece${e.nouvelle ? ' nouvelle' : ''}" onclick="ouvrirDossierDepuisDashboard('${escapeOnclickArg(e.dossier.id)}')"
           title="${escapeAttr(libelleNotificationPiece(e.dossier, e.cle) + ' — ' + libelleDossierAffiche(e.dossier) + (e.nouvelle ? ' (nouveau)' : ''))}">
           <span class="derniere-piece-point" aria-hidden="true"></span>
           <span class="derniere-piece-texte"><b>${escapeHtml(libelleNotificationPiece(e.dossier, e.cle))}</b><span class="derniere-piece-dossier"> · ${escapeHtml(libelleDossierAffiche(e.dossier))}</span></span>
@@ -597,7 +597,7 @@
     if (presentation === 'petit') {
       corps = `<div class="w-chiffre-bloc"><span class="w-chiffre">${entrees.length}</span><span class="w-chiffre-lib">pièce${entrees.length > 1 ? 's' : ''} en ${JOURS_DERNIERES_PIECES} jours</span></div>
         ${nouvelles ? `<span class="dot-label dl-urgent notif-nouveau-tag w-fixe"><span class="dot"></span>${nouvelles} nouvelle${nouvelles > 1 ? 's' : ''}</span>` : ''}
-        ${entrees[0] ? `<div class="w-bas" data-ajuster="2"><button type="button" class="w-prochaine" onclick="ouvrirDossierDepuisDashboard('${entrees[0].dossier.id}')">
+        ${entrees[0] ? `<div class="w-bas" data-ajuster="2"><button type="button" class="w-prochaine" onclick="ouvrirDossierDepuisDashboard('${escapeOnclickArg(entrees[0].dossier.id)}')">
           <span class="w-prochaine-titre">${escapeHtml(libelleNotificationPiece(entrees[0].dossier, entrees[0].cle))}</span>
           <span class="w-prochaine-sous">${escapeHtml(libelleDossierAffiche(entrees[0].dossier))}</span></button></div>`
           : attendues[0] ? `<div class="w-bas" data-ajuster="2"><div class="w-prochaine w-prochaine-info">
@@ -735,7 +735,7 @@
       corps = `<ul class="w-lignes w-avancement" data-ajuster="1" data-min="1">${toutes.map(l => {
         const e = etatDossier(l.dossier);
         const nom = libelleDossierAffiche(l.dossier);
-        return `<li><button type="button" class="w-ligne w-ligne-avancement statut-${l.statut}" onclick="ouvrirDossierDepuisDashboard('${l.dossier.id}')" title="${escapeAttr(nom + ' — ' + e.detail)}">
+        return `<li><button type="button" class="w-ligne w-ligne-avancement statut-${l.statut}" onclick="ouvrirDossierDepuisDashboard('${escapeOnclickArg(l.dossier.id)}')" title="${escapeAttr(nom + ' — ' + e.detail)}">
           <span class="w-ligne-texte">${escapeHtml(nom)}</span>
           <span class="avancement-barre" aria-hidden="true"><span style="width:${l.pct}%"></span></span>
           <span class="w-ligne-pct">${l.pct}%</span>
@@ -751,7 +751,7 @@
         if (l.dossier.prixVente) detail.push(formaterPrix(l.dossier.prixVente));
         if (l.prochaine) detail.push(l.prochaine);
         const nom = libelleDossierAffiche(l.dossier);
-        return `<li><button type="button" class="w-avancement-ligne statut-${l.statut}" onclick="ouvrirDossierDepuisDashboard('${l.dossier.id}')" title="${escapeAttr(nom + ' — ' + e.detail)}">
+        return `<li><button type="button" class="w-avancement-ligne statut-${l.statut}" onclick="ouvrirDossierDepuisDashboard('${escapeOnclickArg(l.dossier.id)}')" title="${escapeAttr(nom + ' — ' + e.detail)}">
           <span class="w-av-nom">${escapeHtml(nom)}</span>
           <span class="avancement-pilule ${e.dl}">${escapeHtml(e.texte)}</span>
           <span class="w-av-detail">${escapeHtml(detail.join(' · '))}</span>
@@ -795,7 +795,7 @@
     bloc.innerHTML = resultats.length === 0
       ? '<div class="dash-recherche-vide">Aucun dossier ne correspond.</div>'
       : resultats.map(d => `
-        <button type="button" class="dash-recherche-ligne" onclick="ouvrirDossierDepuisDashboardRecherche('${d.id}')">
+        <button type="button" class="dash-recherche-ligne" onclick="ouvrirDossierDepuisDashboardRecherche('${escapeOnclickArg(d.id)}')">
           ${renderBadgeStatut(d)}
           <span class="dash-recherche-nom">${escapeHtml(libelleDossierAffiche(d))}</span>
           <span class="dash-recherche-resp">${escapeHtml(d.responsable || '')}</span>

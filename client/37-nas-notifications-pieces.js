@@ -389,7 +389,7 @@
     const reponse = await fetchAvecAuth('/api/nas/fichier?chemin=' + encodeURIComponent(cheminComplet));
     if (!reponse.ok) throw new Error(`Lecture impossible (${reponse.status})`);
     const buffer = await reponse.arrayBuffer();
-    return pdfjsLib.getDocument({ data: buffer, verbosity: (pdfjsLib.VerbosityLevel ? pdfjsLib.VerbosityLevel.ERRORS : 0) }).promise;
+    return pdfjsLib.getDocument({ isEvalSupported: false, data: buffer, verbosity: (pdfjsLib.VerbosityLevel ? pdfjsLib.VerbosityLevel.ERRORS : 0) }).promise;
   }
 
   // Relie un dossier CLAIRE à un sous-dossier du NAS. Le serveur propose un rapprochement par NOM

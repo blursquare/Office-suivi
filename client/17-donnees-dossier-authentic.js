@@ -342,7 +342,7 @@
 
     try {
       const buffer = await file.arrayBuffer();
-      const pdf = await pdfjsLib.getDocument({
+      const pdf = await pdfjsLib.getDocument({ isEvalSupported: false,
         data: buffer,
         verbosity: (pdfjsLib.VerbosityLevel ? pdfjsLib.VerbosityLevel.ERRORS : 0)
       }).promise;
@@ -688,7 +688,7 @@
     // minutes et peut changer d'ordre entre l'affichage et le clic (audit 12/10 : le dossier d'un autre client était repris).
     const options = groupes.map((g, i) => `<option value="${escapeAttr(cleGroupeAuthenticFiche(g))}"${i === choisi ? ' selected' : ''}>${escapeHtml(g.intitule)}${g.reference ? ` (${escapeHtml(g.reference)})` : ''} — ${escapeHtml(resumeGroupeAuthentic(g))}</option>`).join('');
     const html = `<span class="auth-completer"><select id="auth-comp-${escapeAttr(d.id)}" class="prop-champ auth-completer-choix" aria-label="Dossier d’Authentic à reprendre">${choisi < 0 ? '<option value="" selected>Choisir le dossier d’Authentic…</option>' : ''}${options}</select>
-      <wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="completerDossierDepuisAuthentic('${id}')" title="Reprendre d’Authentic personnes, emails, téléphones, bien et prix : Authentic fait foi, l’ancienne valeur reste dans l’historique">${icone('download')} Compléter</wa-button></span>`;
+      <wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="completerDossierDepuisAuthentic('${escapeOnclickArg(id)}')" title="Reprendre d’Authentic personnes, emails, téléphones, bien et prix : Authentic fait foi, l’ancienne valeur reste dans l’historique">${icone('download')} Compléter</wa-button></span>`;
     return ligne('download', 'Authentic', html, `auth-comp-${d.id}`, 'prop-pleine');
   }
 

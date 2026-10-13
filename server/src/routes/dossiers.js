@@ -4,6 +4,11 @@
 
 const express = require('express');
 
+// Forme d'un identifiant de NOUVEAU dossier (audit 13/10) : lettres, chiffres, tiret, soulignement, point — ce que produit le poste
+// (UUID, « d-… »). L'identifiant est écrit dans les gestionnaires onclick de chaque écran : une apostrophe y exécutait du code
+// sur tous les postes qui affichaient le dossier.
+const RE_ID_DOSSIER = /^[A-Za-z0-9][A-Za-z0-9_.-]{0,119}$/;
+
 function dossierValide(d) {
   return d && typeof d === 'object' && typeof d.id === 'string' && d.id.length > 0 && d.id.length <= 120 && !Array.isArray(d);
 }
@@ -31,8 +36,8 @@ function creerRouteurDossiers(depot) {
 
   routeur.post('/dossiers', (req, res) => {
     const d = req.body;
-    if (!dossierValide(d)) {
-      res.status(400).json({ erreur: 'Dossier invalide : un champ "id" (texte non vide) est requis.' });
+    if (!dossierValide(d) || !RE_ID_DOSSIER.test(d.id)) {
+      res.status(400).json({ erreur: 'Dossier invalide : un champ "id" (lettres, chiffres, tirets) est requis.' });
       return;
     }
     if (depot.trouverParId(d.id)) {
@@ -79,4 +84,4 @@ function creerRouteurDossiers(depot) {
   return routeur;
 }
 
-module.exports = { creerRouteurDossiers, dossierValide };
+module.exports = { creerRouteurDossiers, dossierValide, RE_ID_DOSSIER };

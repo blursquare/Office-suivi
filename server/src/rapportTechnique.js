@@ -47,6 +47,9 @@ function sansAccents(s) {
   return String(s).normalize('NFD').replace(/[̀-ͯ]/g, '');
 }
 
+// Mots de deux lettres d'un nom composé ou d'une adresse, jamais un nom à eux seuls.
+const MOTS_DEUX_LETTRES = new Set('de du la le en et au un ou sa se ne ni st ste me mr cp bp ii iv vi xx'.split(' '));
+
 // Clés des dossiers dont les valeurs sont nominatives (nom, adresse, banque…).
 const RE_CLE_SENSIBLE = /nom|prenom|usage|adresse|commune|ville|voie|lieu|email|mail|tel|raison|denomination|representant|conjoint|naissance|profession|banque|etablissement|agence|notaire|confrere|office|cadastre|parcelle|syndic|chemin|fichier|dossier|reference|acquereur|vendeur|titulaire|client|beneficiaire|promettant|interlocuteur|contact/i;
 
@@ -54,8 +57,10 @@ const RE_CLE_SENSIBLE = /nom|prenom|usage|adresse|commune|ville|voie|lieu|email|
 function motsSensibles(dossiers, extras = []) {
   const mots = new Set();
   const ajouterTexte = (t) => {
-    for (const m of sansAccents(t).split(/[^A-Za-z0-9]+/)) {
+    for (const m of sansAccents(t).split(/[^\p{L}0-9]+/u)) {
       if (m.length >= 3 && !/^\d+$/.test(m) && !MOTS_COURANTS.has(m.toLowerCase())) mots.add(m.toLowerCase());
+      // Un nom de deux lettres (« LY », « NG ») écrit en capitales sur une fiche (audit 13/10 : il sortait en clair).
+      else if (m.length === 2 && /^\p{Lu}{2}$/u.test(m) && !MOTS_DEUX_LETTRES.has(m.toLowerCase())) mots.add(m.toLowerCase());
     }
   };
   const parcourir = (v, cleSensible, profondeur) => {
@@ -109,15 +114,19 @@ function anonymiserTexte(texte, mots) {
   });
   s = s.replace(/[^\s'"«»/\\:]+\.(?:pdf|docx?|xlsx?|zip|eml|xml|jpe?g|png|tiff?|txt|odt)\b/gi, '[fichier]');
   s = s.replace(/\b[A-Z]{2}\d{2}(?:\s?[A-Z0-9]{4}){3,7}(?:\s?[A-Z0-9]{1,3})?\b/g, '[iban]');
-  s = s.replace(/(?<!\d)0\d(?:[ .]?\d{2}){4}(?!\d)/g, '[tel]');
+  // Téléphones : 06 12 34 56 78, 06-12-…, 06/12…, +33 6 12…, +33 (0)6…, 0033…, et les numéros étrangers (+41 79 123 45 67).
+  s = s.replace(/(?:(?:\+|00)\d{2,3}[\s.-]?(?:\(0\)[\s.-]?)?[1-9]|(?<!\d)0[1-9])(?:[\s./-]?\d){7,9}(?!\d)/g, '[tel]');
   s = s.replace(/(?<![\w\u0000])\d{1,3}(?:[ .  ]\d{3})+(?:,\d{1,2})?(?![\w\u0000])|(?<![\w\u0000])\d{4,}(?:,\d{1,2})?(?![\w\u0000])/g, '[n]');
-  s = s.replace(/[A-Za-zÀ-ÖØ-öø-ÿ0-9]+/g, (mot) => {
+  // Toute lettre (audit 13/10 : « Şahin », « Öztürk » étaient coupés et sortaient en clair).
+  s = s.replace(/[\p{L}\p{M}0-9]+/gu, (mot) => {
     const cle = sansAccents(mot).toLowerCase();
     if (mots && mots.has(cle)) return '[nom]';
-    if (/^[A-ZÀ-ÖØ-Þ]{3,}$/.test(mot) && !SIGLES_TECHNIQUES.has(sansAccents(mot))) return '[nom]';
+    if (/^\p{Lu}{3,}$/u.test(mot) && !SIGLES_TECHNIQUES.has(sansAccents(mot))) return '[nom]';
     return mot;
   });
   // Masques voisins fusionnés (« [nom] [nom] / [nom] » → « [nom] / [nom] » reste lisible).
+  // Le mot qui suit une civilité est un nom, même absent des fiches (audit 13/10 : « Mme Lefèvre »).
+  s = s.replace(RE_NOM_APRES_CIVILITE, '$1[nom]');
   s = s.replace(/\[nom\](?:[ -]\[nom\])+/g, '[nom]');
   return s.replace(/\u0000(\d+)\u0000/g, (_, i) => gardes[Number(i)] || '');
 }
@@ -130,6 +139,20 @@ const RE_NOM_APRES_CIVILITE = new RegExp(`((?:^|[^A-Za-zÀ-ÿ])(?:Monsieur|Madam
 const RE_ADRESSE_CLAUSE = /(?:(?<![\w\u0000])\d{1,4}(?:\s*(?:bis|ter))?,?\s+)?(?<![A-Za-zÀ-ÿ])(?:rue|avenue|boulevard|bd|chemin|all[ée]e|impasse|place|route|quai|cours|square|passage|lieu-dit|lieudit|lotissement|r[ée]sidence|faubourg|sentier|venelle|ruelle|hameau|clos|mail|esplanade|promenade|rond-point)(?![A-Za-zÀ-ÿ])[^,;.()\n`"«»“”]*/gi;
 // Commune : après « demeurant / domicilié / sis / situé à », ou juste devant un code postal masqué « ([n]) ».
 const RE_COMMUNE_CLAUSE = new RegExp(`((?:demeurant|domicili[ée]e?s?|sise?s?|situ[ée]e?s?|n[ée]e?s?)\\s+(?:à|a|au)\\s+)${MOT_NOM_CLAUSE}(?:[\\s-]+(?:(?:de|du|des|d'|d’|le|la|sur|en|sous|lès|les)[\\s-]+)?${MOT_NOM_CLAUSE})*|()${MOT_NOM_CLAUSE}(?:[\\s-]+(?:(?:de|du|des|d'|d’|le|la|sur|en|sous|lès|les)[\\s-]+)?${MOT_NOM_CLAUSE})*(?=\\s*\\(\\[n\\]\\))`, 'g');
+// Texte LIBRE écrit par l'étude (signalement : ce qui était fait, constat) — audit 13/10 : « Mme Lefèvre », « Jean-Marc Dubois »,
+// un prénom absent des fiches sortaient en clair. En plus d'anonymiserClause, tout mot à majuscule initiale qui n'ouvre pas une
+// phrase est masqué (un nom propre : un client, un lieu) — trop masquer vaut mieux qu'un nom sur GitHub.
+function anonymiserLibre(texte, mots) {
+  return anonymiserClause(texte, mots).replace(/\p{Lu}[\p{L}\p{M}'’-]*/gu, (mot, pos, tout) => {
+    const avant = String(tout).slice(0, pos);
+    if (/[\p{L}\p{M}0-9]$/u.test(avant)) return mot;                       // milieu d'un mot (« l'État » reste traité comme un mot)
+    const tete = !avant.trim() || /[.!?…]\s*$/.test(avant) || /\n\s*$/.test(avant);
+    if (tete) return mot;
+    if (/^\p{Lu}+$/u.test(mot) && SIGLES_TECHNIQUES.has(sansAccents(mot))) return mot;
+    return '[nom]';
+  }).replace(/\[nom\](?:[ -]\[nom\])+/g, '[nom]');
+}
+
 function anonymiserClause(texte, mots) {
   return anonymiserTexte(texte, mots)
     .replace(RE_NOM_APRES_CIVILITE, '$1[nom]')
@@ -359,8 +382,8 @@ function construireRapport(d) {
       try { ctx = s.contexte ? JSON.parse(s.contexte) : {}; } catch (_) { ctx = {}; }
       const meta = [s.gravite, s.statut, ctx.onglet && `écran ${anonymiserTexte(String(ctx.onglet).slice(0, 60), mots)}`, ctx.version && `version ${String(ctx.version).slice(0, 40)}`, dateHeureParis(s.created_at)].filter(Boolean).join(' · ');
       L.push(`- **${meta}**`);
-      if (s.action) L.push(`  - Ce qui était fait : ${anonymiserTexte(String(s.action).slice(0, 800), mots)}`);
-      if (s.constat) L.push(`  - Constat : ${anonymiserTexte(String(s.constat).slice(0, 1500), mots)}`);
+      if (s.action) L.push(`  - Ce qui était fait : ${anonymiserLibre(String(s.action).slice(0, 800), mots)}`);
+      if (s.constat) L.push(`  - Constat : ${anonymiserLibre(String(s.constat).slice(0, 1500), mots)}`);
       const errs = Array.isArray(ctx.erreurs) ? ctx.erreurs.slice(-5) : [];
       for (const e of errs) if (e && e.message) L.push(`  - Erreur récente du poste : \`${anonymiserTexte(String(e.message).slice(0, 300), mots).replace(/`/g, 'ˋ')}\`${e.source ? ` (${anonymiserTexte(String(e.source), mots)})` : ''}`);
     }
@@ -566,6 +589,6 @@ function demarrerRapportTechnique(options, intervalleMs = 60 * 1000) {
 module.exports = {
   erreursFrequentesJournal, SEUIL_ERREUR_FREQUENTE, natureCorrection, sectionApprentissage,
   DEPOT_GITHUB_RAPPORT, ETIQUETTE_RAPPORT, CRENEAUX_RAPPORT, SIGLES_TECHNIQUES,
-  motsSensibles, anonymiserTexte, anonymiserClause, origineExtractionAffichee, creneauDu, construireRapport, rassemblerDonnees,
+  motsSensibles, anonymiserTexte, anonymiserClause, anonymiserLibre, origineExtractionAffichee, creneauDu, construireRapport, rassemblerDonnees,
   envoyerIssue, messageErreurGithubRapport, executerRapportTechnique, demarrerRapportTechnique
 };

@@ -108,6 +108,16 @@ function creerMiddlewareAssetsSea(sea) {
   };
 }
 
+// Pure (racine injectée) : sert depuis le disque la seule liste ASSETS_STATIQUES. Testé par server/test/app-assets.test.js.
+function creerMiddlewareAssetsDisque(racine) {
+  return (req, res, next) => {
+    if (req.method !== 'GET' && req.method !== 'HEAD') return next();
+    const entree = ASSETS_STATIQUES[req.path];
+    if (!entree) return next();
+    res.type(entree.type).sendFile(path.join(racine, entree.fichier), (err) => { if (err && !res.headersSent) next(err); });
+  };
+}
+
 function estSea() {
   try {
     return require('node:sea').isSea();
@@ -167,7 +177,9 @@ function creerApp({ db, config, envoyerEmailFn, creerClientClaude, appelerMistra
   if (estSea()) {
     app.use(creerMiddlewareAssetsSea(require('node:sea')));
   } else {
-    app.use(express.static(config.racineRepo));
+    // Hors .exe (`npm start`) : les MÊMES fichiers que l'exécutable, lus sur le disque — jamais tout le dépôt (audit 13/10 :
+    // `express.static(racineRepo)` servait sans session la base `server/data/claire.db`, sa journalisation et les sources).
+    app.use(creerMiddlewareAssetsDisque(config.racineRepo));
   }
 
   app.get('/api/health', (req, res) => res.json({ ok: true }));
@@ -266,4 +278,4 @@ function creerApp({ db, config, envoyerEmailFn, creerClientClaude, appelerMistra
 
 // creerMiddlewareAssetsSea/ASSETS_STATIQUES exposées pour les tests uniquement (voir
 // server/test/app-assets.test.js) — creerApp() reste le seul point d'entrée réel.
-module.exports = { creerApp, creerMiddlewareAssetsSea, ASSETS_STATIQUES };
+module.exports = { creerApp, creerMiddlewareAssetsSea, creerMiddlewareAssetsDisque, ASSETS_STATIQUES };

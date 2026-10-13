@@ -138,16 +138,17 @@ function masquer(texte, sensibles, table) {
   t = t.replace(/\d{6,}/g, (m) => jeton('NUM', m));
   // Le mot qui suit une civilité est toujours un nom.
   // Les mots en majuscule qui suivent (prénom et nom, jusqu'à trois) aussi : « Monsieur Paul Martin ».
-  t = t.replace(/\b(Monsieur|Madame|Mademoiselle|Messieurs|Mesdames|Maître|Me|Mme|Mlle|Mr|M\.)(\s+)([A-ZÀ-Ý][A-Za-zÀ-ÿ'-]+)((?:[ \t]+[A-ZÀ-Ý][A-Za-zÀ-ÿ'-]+){0,2})/g,
+  t = t.replace(/\b(Monsieur|Madame|Mademoiselle|Messieurs|Mesdames|Maître|Me|Mme|Mlle|Mr|M\.)(\s+)(\p{Lu}[\p{L}'-]+)((?:[ \t]+\p{Lu}[\p{L}'-]+){0,2})/gu,
     (m, civ, esp, nom, suite) => {
       if (/^\[/.test(nom)) return m;
-      const reste = String(suite || '').replace(/[A-ZÀ-Ý][A-Za-zÀ-ÿ'-]+/g, (mot) => jeton('NOM', mot));
+      const reste = String(suite || '').replace(/\p{Lu}[\p{L}'-]+/gu, (mot) => jeton('NOM', mot));
       return civ + esp + jeton('NOM', nom) + reste;
     });
   // Un mot est masqué si l'un de ses morceaux (tirets, apostrophe : « Dupont-Martin », « l'Agenda ») est un mot des fiches, est
   // écrit en capitales (deux lettres au moins, hors sigles du métier), ou commence par une majuscule AILLEURS qu'en tête de phrase
   // (un nom propre : un tiers cité dans un engagement, un prénom dans la phrase, un lieu-dit) — sauf les mots de CLAIRE gardés.
-  t = t.replace(/\[(?:NOM|EMAIL|TEL|REF|NUM)\d+\]|[A-Za-zÀ-ÿ][A-Za-zÀ-ÿ'’-]*/g, (mot, position, tout) => {
+  // Toute lettre (audit 13/10 : « Ł », « Ş », « İ », « ễ » coupaient le mot et laissaient passer « Şahin », « Hương »).
+  t = t.replace(/\[(?:NOM|EMAIL|TEL|REF|NUM)\d+\]|\p{L}[\p{L}\p{M}'’-]*/gu, (mot, position, tout) => {
     if (mot.startsWith('[')) return mot;
     const avant = String(tout).slice(0, position).replace(/[\s\u00a0]+$/, '');
     // Tête de phrase : début du texte, après « . ! ? » ou un retour à la ligne (pas après « : ( « • » — un nom y suit souvent).
@@ -162,8 +163,8 @@ function masquer(texte, sensibles, table) {
       if (parOrigine.has(m.toLowerCase())) return true;          // déjà masqué ailleurs dans la conversation
       if (SIGLES.has(m) || MOTS_MAJUSCULE_GARDES.has(m)) return false;
       // Capitales (deux lettres au moins) : un nom — sauf une section cadastrale (« AB 123 »).
-      if (m.length >= 2 && m === m.toUpperCase() && /[A-ZÀ-Ý]/.test(m) && !/^(?:[LDJNSMTC]|QU)$/.test(m)) return !(m.length === 2 && /^\s*\d/.test(suite));
-      if (!/^[A-ZÀ-Ý][a-zà-ÿ]/.test(m)) return false;
+      if (m.length >= 2 && m === m.toUpperCase() && /\p{Lu}/u.test(m) && !/^(?:[LDJNSMTC]|QU)$/.test(m)) return !(m.length === 2 && /^\s*\d/.test(suite));
+      if (!/^\p{Lu}\p{Ll}/u.test(m)) return false;
       const tete = enTete && (i === 0 || (i === 1 && /^[LDlds]$/.test(morceaux[0])));
       if (!tete) return true;
       return texteLibre && !MOTS_COURANTS_TETE.has(n);

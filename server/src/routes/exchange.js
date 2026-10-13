@@ -140,8 +140,11 @@ function creerRouteurExchange(parametresRepo, injections = {}) {
     const corps = req.body || {};
     const stockes = parametresRepo.lireReglagesExchange();
     const email = String(corps.email || '').trim() || stockes.email;
-    const motDePasse = corps.motDePasse ? String(corps.motDePasse) : stockes.motDePasse;
     const url = String(corps.url || '').trim() || stockes.url || URL_EWS_DEFAUT;
+    // Audit 13/10 (Haut) : le mot de passe ENREGISTRÉ ne part jamais vers une autre adresse ni pour un autre compte que ceux
+    // enregistrés — sinon n'importe quel poste pouvait faire envoyer au serveur une réponse NTLM vers une machine de son choix.
+    const memeCible = url.toLowerCase() === String(stockes.url || URL_EWS_DEFAUT).toLowerCase() && email.toLowerCase() === String(stockes.email || '').toLowerCase();
+    const motDePasse = corps.motDePasse ? String(corps.motDePasse) : (memeCible ? stockes.motDePasse : '');
     if (!/^https:\/\//i.test(url)) {
       return res.status(400).json({ ok: false, message: "L'adresse du serveur doit commencer par https://." });
     }

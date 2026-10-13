@@ -419,7 +419,7 @@
     const label = (typeof doc === 'string') ? doc : doc.label;
     const cat = (typeof doc === 'string') ? '' : (doc.cat || '');
     const appelSuppr = dossierId
-      ? `supprimerDocumentDossier('${dossierId}', ${index})`
+      ? `supprimerDocumentDossier('${escapeOnclickArg(dossierId)}', ${index})`
       : `supprimerDocumentManuel(${index})`;
     const boutonSuppr = `<wa-button appearance="plain" size="s" type="button" class="bouton-icone analyse-doc-suppr" onclick="${appelSuppr}" title="Retirer ce document de la liste" aria-label="Retirer ce document">${icone('x')}</wa-button>`;
     return `<span class="analyse-doc-badge${cat ? ' cat-' + cat : ''}">${escapeHtml(label)}${boutonSuppr}</span>`;
@@ -450,8 +450,8 @@
       && engagementEnEdition.dossierId === (dossierId || null)
       && engagementEnEdition.index === index;
     if (enEdition) {
-      const appelValider = dossierId ? `validerEditionEngagement('${dossierId}', ${index})` : `validerEditionEngagement(null, ${index})`;
-      const appelAnnuler = dossierId ? `annulerEditionEngagement('${dossierId}')` : `annulerEditionEngagement(null)`;
+      const appelValider = dossierId ? `validerEditionEngagement('${escapeOnclickArg(dossierId)}', ${index})` : `validerEditionEngagement(null, ${index})`;
+      const appelAnnuler = dossierId ? `annulerEditionEngagement('${escapeOnclickArg(dossierId)}')` : `annulerEditionEngagement(null)`;
       const typeActuel = type || 'document';
       return `<div class="analyse-engagement-ligne analyse-engagement-edition">
         <select id="engagement-edition-type">
@@ -486,10 +486,10 @@
       ? '<span class="engagement-manuel">Ajouté manuellement</span>'
       : (suggereParIa ? '<span class="engagement-manuel" title="Extrait par le modèle IA local — à vérifier comme toute suggestion automatique">Suggéré par l\'IA</span>' : '');
     const appelSuppr = dossierId
-      ? `supprimerEngagementDossier('${dossierId}', ${index})`
+      ? `supprimerEngagementDossier('${escapeOnclickArg(dossierId)}', ${index})`
       : `supprimerEngagementManuel(${index})`;
     const boutonSupprimer = `<button type="button" class="engagement-suppr" onclick="${appelSuppr}" title="Retirer cet engagement" aria-label="Retirer cet engagement">${icone('x')}</button>`;
-    const appelEditer = dossierId ? `activerEditionEngagement('${dossierId}', ${index})` : `activerEditionEngagement(null, ${index})`;
+    const appelEditer = dossierId ? `activerEditionEngagement('${escapeOnclickArg(dossierId)}', ${index})` : `activerEditionEngagement(null, ${index})`;
     const boutonEditer = `<wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-crayon" onclick="${appelEditer}" title="Modifier cet engagement" aria-label="Modifier cet engagement">${icone('pencil')}</wa-button>`;
     // Fiche enregistrée : une case « réalisé » (étude, 02/10), comptée dans le statut du dossier.
     const d = dossierId ? dossiers.find(x => x.id === dossierId) : null;
@@ -498,7 +498,7 @@
       const intitule = `Engagement du vendeur : ${libelleCourtEngagement(e)}`;
       const caseHtml = et.auto
         ? `<span class="piece-case analyse-case" role="checkbox" aria-checked="true" aria-disabled="true" aria-label="${escapeAttr(intitule)}" title="${escapeAttr(et.motif)}">${icone('check')}</span>`
-        : `<button type="button" class="piece-case analyse-case" role="checkbox" aria-checked="${et.fait}" aria-label="${escapeAttr(intitule)}" title="${escapeAttr(et.fait ? `${et.motif} — cliquer pour le remettre à faire` : 'Cocher une fois réalisé (justificatif reçu, travaux faits)')}" onclick="basculerEngagementFait('${dossierId}', ${index})">${et.fait ? icone('check') : ''}</button>`;
+        : `<button type="button" class="piece-case analyse-case" role="checkbox" aria-checked="${et.fait}" aria-label="${escapeAttr(intitule)}" title="${escapeAttr(et.fait ? `${et.motif} — cliquer pour le remettre à faire` : 'Cocher une fois réalisé (justificatif reçu, travaux faits)')}" onclick="basculerEngagementFait('${escapeOnclickArg(dossierId)}', ${index})">${et.fait ? icone('check') : ''}</button>`;
       const tag = et.auto ? '<span class="piece-tag">pièce reçue</span>' : '';
       return `<div class="analyse-engagement-ligne avec-case${et.fait ? ' fait' : ''}">${caseHtml}${etiquette}<span class="analyse-engagement-texte">${escapeHtml(phrase)}</span>${tag}${marqueurManuel}${boutonVoir}${boutonEditer}${boutonSupprimer}</div>`;
     }
@@ -516,8 +516,8 @@
     const titre = trouveeNas ? 'Reçue — trouvée dans le dossier du NAS — cliquer pour la décocher (réinitialiser)'
       : recu ? `Reçu${doc && doc.recuLe ? ` (coché le ${formatDateFr(String(doc.recuLe).slice(0, 10))})` : ' (validé à la main)'} — cliquer pour le remettre à recevoir`
         : 'Cocher une fois reçu';
-    const caseHtml = `<button type="button" class="piece-case analyse-case" role="checkbox" aria-checked="${recu}" aria-label="${escapeAttr(label)}" title="${escapeAttr(titre)}" onclick="basculerDocumentAnalyseRecu('${d.id}', ${index})">${recu ? icone('check') : ''}</button>`;
-    return `<div class="analyse-doc-ligne${recu ? ' recu' : ''}">${caseHtml}<span class="analyse-doc-nom">${escapeHtml(label)}</span>${cle ? '<span class="piece-tag" title="Même pièce que dans la checklist">checklist</span>' : ''}<wa-button appearance="plain" size="s" type="button" class="bouton-icone analyse-doc-suppr" onclick="supprimerDocumentDossier('${d.id}', ${index})" title="Retirer ce document de la liste" aria-label="Retirer ce document">${icone('x')}</wa-button></div>`;
+    const caseHtml = `<button type="button" class="piece-case analyse-case" role="checkbox" aria-checked="${recu}" aria-label="${escapeAttr(label)}" title="${escapeAttr(titre)}" onclick="basculerDocumentAnalyseRecu('${escapeOnclickArg(d.id)}', ${index})">${recu ? icone('check') : ''}</button>`;
+    return `<div class="analyse-doc-ligne${recu ? ' recu' : ''}">${caseHtml}<span class="analyse-doc-nom">${escapeHtml(label)}</span>${cle ? '<span class="piece-tag" title="Même pièce que dans la checklist">checklist</span>' : ''}<wa-button appearance="plain" size="s" type="button" class="bouton-icone analyse-doc-suppr" onclick="supprimerDocumentDossier('${escapeOnclickArg(d.id)}', ${index})" title="Retirer ce document de la liste" aria-label="Retirer ce document">${icone('x')}</wa-button></div>`;
   }
 
   function basculerEngagementFait(dossierId, index) {

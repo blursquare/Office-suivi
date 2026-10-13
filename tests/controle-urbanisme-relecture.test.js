@@ -201,3 +201,13 @@ test('travaux déclarés en liste : un par puce, type, année, auteur, autorisat
   assert.equal(app.travauxDeclaresDuCompromis('Le VENDEUR déclare avoir réalisé les travaux suivants : > Extension réalisée en 2015. Il a déposé une demande de permis de construire.', [], '2026-10-09')[0].autorisation, 'demandee');
   assert.equal(app.travauxDeclaresDuCompromis('Le VENDEUR déclare que des travaux de peinture ont été réalisés en 2015.', [], '2026-10-09').length, 0);
 });
+
+test('travaux déclarés : une longue phrase en capitales ne fige plus l’onglet (ReDoS, audit 13/10)', () => {
+  const app = chargerApplication();
+  const texte = ' ' + 'SAINT AIGNAN '.repeat(20) + '1234567890 1234567890 1234567890 12345678901';
+  const debut = Date.now();
+  new RegExp(app.RE_FIN_TRAVAUX_DECLARES.source).exec(texte);
+  assert.ok(Date.now() - debut < 300, `${Date.now() - debut} ms`);
+  // Un intitulé de rubrique reste reconnu.
+  assert.ok(new RegExp(app.RE_FIN_TRAVAUX_DECLARES.source).test(' ORIGINE DE PROPRIETE Le bien appartient'));
+});

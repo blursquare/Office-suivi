@@ -425,7 +425,7 @@
     if (typeof pdfjsLib === 'undefined') throw new Error('Lecteur PDF indisponible');
     const r = await fetchAvecAuth('/api/scans/fichier?nom=' + encodeURIComponent(scan.nom));
     if (!r.ok) throw new Error('Scan introuvable');
-    const pdf = await pdfjsLib.getDocument({ data: await r.arrayBuffer() }).promise;
+    const pdf = await pdfjsLib.getDocument({ isEvalSupported: false, data: await r.arrayBuffer() }).promise;
     if (surApercu) {
       try { surApercu(await imagePagePdf(pdf, 1, LARGEUR_VIGNETTE_SCAN, 0.72)); } catch (e) { surApercu(''); }
     }
@@ -878,7 +878,7 @@
       if (typeof pdfjsLib === 'undefined') throw new Error('Lecteur PDF indisponible : ouvrez le scan dans un onglet.');
       const r = await fetchAvecAuth('/api/scans/fichier?nom=' + encodeURIComponent(nom));
       if (!r.ok) throw new Error('Ce scan n’est plus dans le dossier Scan.');
-      const pdf = await pdfjsLib.getDocument({ data: await r.arrayBuffer() }).promise;
+      const pdf = await pdfjsLib.getDocument({ isEvalSupported: false, data: await r.arrayBuffer() }).promise;
       if (!actif()) return;
       const total = pdf.numPages;
       const pagesMeta = document.getElementById('scan-apercu-pages');

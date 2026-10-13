@@ -97,6 +97,9 @@
       case 'date_fiche': return `Écrire la date « ${champ} »${p.date ? ' : ' + formatDateFr(p.date) : ''}${dossier}.`;
       case 'archiver': return `Archiver le dossier${dossier}.`;
       case 'responsable': return `Confier le dossier${dossier} à ${COLLABORATEURS_AGENT[p.collaborateur] || p.collaborateur}.`;
+      case 'rendez_vous_placer': return `Noter la signature${dossier} le ${p.date ? formatDateFr(p.date) : '?'} sur la fiche (agenda Outlook non relié).`;
+      case 'quotites': return `Ouvrir les Quotités${dossier} : le calcul en cours sur un autre dossier sera remplacé.`;
+      case 'appel_fonds': return `Ouvrir l’Appel de fonds${dossier} : le décompte en cours sur un autre dossier sera remplacé.`;
       default: return `Faire « ${entree && entree.geste} »${dossier}.`;
     }
   }

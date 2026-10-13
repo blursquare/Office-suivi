@@ -160,3 +160,22 @@ test('Web Awesome : boutons d’action, boutons à icône, « Ajouter », pastil
   }
   assert.equal(fautes.length, 0, fautes.join('\n'));
 });
+
+test('gestionnaires onclick : un identifiant de dossier ou une clé de pièce passe par escapeOnclickArg (audit 13/10)', () => {
+  const RE = /on(?:click|change|keydown|input|dblclick)="[^"]*'\$\{(?:d\.id|p\.cle|id|dossierId|e\.dossierId|[a-z]+\.dossier\.id|[a-z]\.d\.id)\}'/g;
+  const fautes = [];
+  for (const f of manifeste) {
+    const src = fs.readFileSync(path.join(racine, 'client', f), 'utf8');
+    for (const m of src.matchAll(RE)) fautes.push(`${f} : ${m[0].slice(-60)}`);
+  }
+  assert.deepEqual(fautes, []);
+});
+
+test('pdf.js : chaque ouverture de PDF coupe l’évaluation des polices (CVE-2024-4367, audit 13/10)', () => {
+  const fautes = [];
+  for (const f of manifeste) {
+    const src = fs.readFileSync(path.join(racine, 'client', f), 'utf8');
+    for (const m of src.matchAll(/pdfjsLib\.getDocument\(([^)]{0,40})/g)) if (!/isEvalSupported: false/.test(m[1])) fautes.push(`${f} : ${m[0]}`);
+  }
+  assert.deepEqual(fautes, []);
+});

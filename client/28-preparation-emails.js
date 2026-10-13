@@ -1957,7 +1957,7 @@
     const faite = !!envoye && (motif !== 'pret' || !relanceOffreDue(envoye, isoAujourdhuiLocal()));
     return renderLigneAction({
       categorie: a.categorie, categorieLabel: a.categorieLabel, titre: a.titre, sous, faite,
-      bouton: { libelle: faite ? 'Renvoyer' : a.verbe, icone: icone('mail'), onclick: `envoyerRelanceCiblee('${d.id}', '${motif}')`, titre: MODELES_EMAIL_RELANCE[motif].libelle },
+      bouton: { libelle: faite ? 'Renvoyer' : a.verbe, icone: icone('mail'), onclick: `envoyerRelanceCiblee('${escapeOnclickArg(d.id)}', '${motif}')`, titre: MODELES_EMAIL_RELANCE[motif].libelle },
       apercu: cle,
       detail: brouillon ? renderBrouillonEmail(brouillon) : ''
     });

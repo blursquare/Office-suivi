@@ -939,7 +939,7 @@
   // même patron que renderRechercheDashboard() (Tableau de bord), un menu de résultats sous le
   // champ plutôt qu'un filtre sur une liste déjà affichée, qui n'existe pas ici.
   function ligneResultatDossierAudit(d) {
-    return `<button type="button" class="dash-recherche-ligne" onclick="choisirDossierAudit('${d.id}')">
+    return `<button type="button" class="dash-recherche-ligne" onclick="choisirDossierAudit('${escapeOnclickArg(d.id)}')">
           ${renderBadgeStatut(d)}
           <span class="dash-recherche-nom">${escapeHtml(libelleDossierAffiche(d))}</span>
           <span class="dash-recherche-resp">${escapeHtml(d.responsable || '')}</span>
@@ -1128,7 +1128,7 @@
         pdf = await ouvrirPdfNas(entree.cheminNas);
       } else {
         const buffer = await entree.file.arrayBuffer();
-        pdf = await pdfjsLib.getDocument({ data: buffer, verbosity: (pdfjsLib.VerbosityLevel ? pdfjsLib.VerbosityLevel.ERRORS : 0) }).promise;
+        pdf = await pdfjsLib.getDocument({ isEvalSupported: false, data: buffer, verbosity: (pdfjsLib.VerbosityLevel ? pdfjsLib.VerbosityLevel.ERRORS : 0) }).promise;
       }
       const { texte, pages, pagesLues, pagesTotal, viaOcr, tronque } = await lireTextePdfParPage(pdf);
       if (texte.trim().length < 20) {
@@ -1255,12 +1255,12 @@
       const texte = m.decision === 'ecarte' ? `Déjà écarté précédemment${nb}` : `Confirmé lors d'un audit précédent${nb}`;
       return `<div class="analyse-ia-constat-actions">
         <span class="dot-label ${m.decision === 'ecarte' ? 'dl-neutre' : 'dl-success'}">${icone(m.decision === 'ecarte' ? 'x' : 'check')}${texte}</span>
-        <wa-button appearance="plain" size="s" type="button" class="bouton-discret icon-btn" onclick="annulerDecisionConstatAudit('${c.uid}')" title="Oublier cette décision">${icone('rotate-ccw')} Annuler</wa-button>
+        <wa-button appearance="plain" size="s" type="button" class="bouton-discret icon-btn" onclick="annulerDecisionConstatAudit('${escapeOnclickArg(c.uid)}')" title="Oublier cette décision">${icone('rotate-ccw')} Annuler</wa-button>
       </div>`;
     }
     return `<div class="analyse-ia-constat-actions">
-      <wa-button appearance="plain" size="s" type="button" class="bouton-discret icon-btn" onclick="decisionConstatAudit('${c.uid}', 'ecarte')" title="Ne plus signaler ce constat sur les prochains audits (il restera visible, replié)">${icone('x')} Écarter</wa-button>
-      <wa-button appearance="plain" size="s" type="button" class="bouton-discret icon-btn" onclick="decisionConstatAudit('${c.uid}', 'confirme')" title="Marquer ce constat comme pertinent : il remontera en tête sur les prochains audits">${icone('check')} Confirmer</wa-button>
+      <wa-button appearance="plain" size="s" type="button" class="bouton-discret icon-btn" onclick="decisionConstatAudit('${escapeOnclickArg(c.uid)}', 'ecarte')" title="Ne plus signaler ce constat sur les prochains audits (il restera visible, replié)">${icone('x')} Écarter</wa-button>
+      <wa-button appearance="plain" size="s" type="button" class="bouton-discret icon-btn" onclick="decisionConstatAudit('${escapeOnclickArg(c.uid)}', 'confirme')" title="Marquer ce constat comme pertinent : il remontera en tête sur les prochains audits">${icone('check')} Confirmer</wa-button>
     </div>`;
   }
 
@@ -1317,14 +1317,14 @@
       return `<div class="audit-commentaire">
         ${renderRetourResumeAudit(c)}
         <div class="audit-commentaire-actions">
-          <wa-button appearance="plain" size="s" type="button" class="bouton-discret icon-btn" onclick="modifierCommentaireAudit('${c.uid}')">${icone('pencil')} Modifier</wa-button>
-          <wa-button appearance="plain" size="s" type="button" class="bouton-discret icon-btn" onclick="supprimerCommentaireAudit('${c.uid}')">${icone('x')} Supprimer</wa-button>
+          <wa-button appearance="plain" size="s" type="button" class="bouton-discret icon-btn" onclick="modifierCommentaireAudit('${escapeOnclickArg(c.uid)}')">${icone('pencil')} Modifier</wa-button>
+          <wa-button appearance="plain" size="s" type="button" class="bouton-discret icon-btn" onclick="supprimerCommentaireAudit('${escapeOnclickArg(c.uid)}')">${icone('x')} Supprimer</wa-button>
         </div>
       </div>`;
     }
     const bouton = (verdict) => {
       const v = VERDICTS_RETOUR_OUTIL2[verdict];
-      return `<button type="button" class="audit-verdict-btn" onclick="ouvrirCommentaireAudit('${c.uid}', '${verdict}')">${icone(v.icone)}${v.texte}</button>`;
+      return `<button type="button" class="audit-verdict-btn" onclick="ouvrirCommentaireAudit('${escapeOnclickArg(c.uid)}', '${verdict}')">${icone(v.icone)}${v.texte}</button>`;
     };
     return `<div class="audit-commentaire audit-commentaire-choix">
       <span class="audit-commentaire-question">Votre avis :</span>

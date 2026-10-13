@@ -606,13 +606,13 @@
     const lignes = indices.map(i => {
       const p = parties[i];
       const nomComplet = [p.prenom, p.nom].map(x => String(x || '').trim()).filter(Boolean).join(' ');
-      const champNom = `<input type="text" id="pers-${escapeAttr(d.id)}-${i}" class="prop-champ personne-nom" value="${escapeAttr(nomComplet)}" placeholder="Prénom NOM" aria-label="Prénom et nom ${qui}" onblur="changerPersonneDossier('${id}', ${i}, 'nom', this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">`;
+      const champNom = `<input type="text" id="pers-${escapeAttr(d.id)}-${i}" class="prop-champ personne-nom" value="${escapeAttr(nomComplet)}" placeholder="Prénom NOM" aria-label="Prénom et nom ${qui}" onblur="changerPersonneDossier('${escapeOnclickArg(id)}', ${i}, 'nom', this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">`;
       // Société (étude 08/10 : « prévoir la situation quand il s'agit d'une société, vendeur ou acquéreur ») : choisie dans la même
       // liste que la civilité ; ni civilité ni situation de couple.
       const morale = p.qualitePersonne === 'morale';
       const civ = morale ? 'societe' : civiliteDepuisTexte(p.civilite);
       const champSociete = morale ? champNom.replace('placeholder="Prénom NOM"', 'placeholder="Raison sociale"').replace(`aria-label="Prénom et nom ${qui}"`, `aria-label="Raison sociale ${qui}"`) : champNom;
-      return `<span class="personne-ligne"><select class="prop-champ personne-civ" aria-label="Civilité ${qui}" onchange="changerPersonneDossier('${id}', ${i}, 'civilite', this.value)">`
+      return `<span class="personne-ligne"><select class="prop-champ personne-civ" aria-label="Civilité ${qui}" onchange="changerPersonneDossier('${escapeOnclickArg(id)}', ${i}, 'civilite', this.value)">`
         + `<option value=""${civ ? '' : ' selected'}>Civilité</option><option value="M"${civ === 'M' ? ' selected' : ''}>Monsieur</option><option value="Mme"${civ === 'Mme' ? ' selected' : ''}>Madame</option><option value="societe"${morale ? ' selected' : ''}>Société</option></select>${champSociete}</span>`;
     });
     let situation = '';
@@ -620,13 +620,13 @@
       const saisie = d[cote === 'vendeur' ? 'situationVendeur' : 'situationAcquereur'] || '';
       const valide = SITUATIONS_CLIENT.some(x => x.cle === saisie) ? saisie : '';
       const deduite = valide ? '' : situationClientDeduite(d, cote);
-      situation = `<select id="sit-${cote}-${escapeAttr(d.id)}" class="prop-champ personne-situation" aria-label="Situation matrimoniale ${qui}" onchange="changerSituationClient('${id}', '${cote}', this.value)">`
+      situation = `<select id="sit-${cote}-${escapeAttr(d.id)}" class="prop-champ personne-situation" aria-label="Situation matrimoniale ${qui}" onchange="changerSituationClient('${escapeOnclickArg(id)}', '${cote}', this.value)">`
         + `<option value="">${escapeHtml(deduite ? libelleSituationClient(deduite) + ' (Authentic)' : 'Situation à préciser')}</option>`
         + SITUATIONS_CLIENT.map(x => `<option value="${x.cle}"${valide === x.cle ? ' selected' : ''}>${escapeHtml(x.libelle)}</option>`).join('')
         + '</select>';
     }
-    const ajout = `<button type="button" class="lien-action personne-ajout" onclick="ajouterPersonneDossier('${id}', '${cote}')">+ Personne</button>`
-      + `<button type="button" class="lien-action personne-ajout" onclick="ajouterPersonneDossier('${id}', '${cote}', true)">+ Société</button>`;
+    const ajout = `<button type="button" class="lien-action personne-ajout" onclick="ajouterPersonneDossier('${escapeOnclickArg(id)}', '${cote}')">+ Personne</button>`
+      + `<button type="button" class="lien-action personne-ajout" onclick="ajouterPersonneDossier('${escapeOnclickArg(id)}', '${cote}', true)">+ Société</button>`;
     return `<span class="personnes-cote">${lignes.join('')}${lignes.length ? '' : '<span class="prop-texte vide">Aucune personne relevée</span>'}<span class="personne-pied">${situation}${ajout}</span></span>`;
   }
 
@@ -1952,7 +1952,7 @@
   // dit à l'écran plutôt que tranché en silence.
   async function lireAvisTaxeFonciere(fichier) {
     const buffer = await fichier.arrayBuffer();
-    const pdf = await pdfjsLib.getDocument({ data: buffer }).promise;
+    const pdf = await pdfjsLib.getDocument({ isEvalSupported: false, data: buffer }).promise;
     const page1 = await pdf.getPage(1);
     const enTete = montantAvisTaxeFonciereEnTete(lignesDepuisItemsPdf((await page1.getTextContent()).items));
     const page = await pdf.getPage(Math.min(2, pdf.numPages));
@@ -2123,7 +2123,7 @@
   // scanné sans texte → repli OCR, en lignes mais sans positions.
   async function lireTexteEtItemsPdf(fichier) {
     const buffer = await fichier.arrayBuffer();
-    const pdf = await pdfjsLib.getDocument({ data: buffer }).promise;
+    const pdf = await pdfjsLib.getDocument({ isEvalSupported: false, data: buffer }).promise;
     const lignesPositions = [];
     for (let p = 1; p <= Math.min(pdf.numPages, PLAFOND_PAGES_VERIFICATION); p++) {
       const page = await pdf.getPage(p);
@@ -2352,7 +2352,7 @@
 
   // Haut de la page 1 d'un PDF déposé (OCR de la seule page 1 s'il n'a pas de texte).
   async function textePage1Depose(fichier) {
-    const pdf = await pdfjsLib.getDocument({ data: await fichier.arrayBuffer() }).promise;
+    const pdf = await pdfjsLib.getDocument({ isEvalSupported: false, data: await fichier.arrayBuffer() }).promise;
     const page = await pdf.getPage(1);
     let texte = lignesDepuisItemsPdf((await page.getTextContent()).items).join('\n');
     if (texte.trim().length < 40) {
@@ -2474,7 +2474,7 @@
     afficherRapportAppelFonds('Lecture du PDF…', [], false);
     try {
       const buffer = await fichier.arrayBuffer();
-      const pdf = await pdfjsLib.getDocument({ data: buffer }).promise;
+      const pdf = await pdfjsLib.getDocument({ isEvalSupported: false, data: buffer }).promise;
       // Deux bugs se cumulaient ici. D'abord `lu.texte` : lireTextePdfVerification renvoie une
       // CHAÎNE, pas un objet — la propriété valait donc undefined et le parseur recevait une
       // chaîne vide, quel que soit le PDF. Ensuite, même corrigé, ce lecteur aplatit chaque page
@@ -2730,8 +2730,8 @@
       // viennent d'un CDN, et un poste sans accès internet afficherait sinon un aperçu sans
       // en-tête alors que les images, elles, sont servies par le serveur de l'étude.
       appliquerImagesAppelFonds();
-      if (!window.PizZip) await afChargerScript('https://cdn.jsdelivr.net/npm/pizzip@3/dist/pizzip.js');
-      if (!window.docxtemplater) await afChargerScript('https://cdn.jsdelivr.net/npm/docxtemplater@3/build/docxtemplater.js');
+      if (!window.PizZip) await afChargerScript('https://cdn.jsdelivr.net/npm/pizzip@3.3.0/dist/pizzip.js');
+      if (!window.docxtemplater) await afChargerScript('https://cdn.jsdelivr.net/npm/docxtemplater@3.71.0/build/docxtemplater.js');
       afModeleCharge = true;
     })();
     afModeleEnCours.catch(() => { afModeleEnCours = null; });

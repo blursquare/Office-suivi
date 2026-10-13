@@ -41,7 +41,8 @@
     const t = Math.round((Number(total) || 0) * 100) / 100;
     if (!(attendu > 0)) return { etat: t > 0 ? 'inconnu' : 'aucun', total: t, attendu: null, reste: null, ecart: null };
     const ecart = Math.round((t - attendu) * 100) / 100;
-    const etat = Math.abs(ecart) <= MARGE_FONDS_RECUS ? 'complet'
+    // Rien reçu n'est jamais « complet », même pour un attendu de 2 € ou moins (audit 13/10).
+    const etat = Math.abs(ecart) <= MARGE_FONDS_RECUS && t > 0 ? 'complet'
       : ecart > 0 ? 'excedent'
       : (t > 0 ? 'partiel' : 'aucun');
     return { etat, total: t, attendu, reste: Math.max(0, -ecart), ecart };

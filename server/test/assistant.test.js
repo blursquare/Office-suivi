@@ -368,3 +368,13 @@ test('modèle Claude au choix (étude 08/10) : Sonnet par défaut, Opus, Haiku s
   assert.equal(`${r.moteur} ${r.modeleClaude} ${r.toutesDemandes}`, 'claude claude-haiku-4-5 true');
   assert.equal(r.modelesClaude.map((m) => m.id).join(','), 'claude-sonnet-5,claude-opus-5,claude-haiku-4-5');
 });
+
+test('masquage : les lettres hors français ne coupent plus un nom (audit 13/10)', () => {
+  const { pseudonymiserDemande } = require('../src/assistantMistral');
+  const D = [{ id: 'd1', nom: 'WÓJCIK / ŞAHİN', parties: [{ nom: 'WÓJCIK', prenom: 'Łukasz' }, { nom: 'ŞAHİN' }] }];
+  const r = pseudonymiserDemande('relance łukasz et şahin pour le prêt, puis appelle Šárka et Hương', { dossierLibelle: 'VTE - WÓJCIK/ŞAHİN' }, D);
+  for (const nom of ['łukasz', 'şahin', 'Šárka', 'Hương', 'WÓJCIK', 'ŞAHİN', 'Ş', 'İN']) {
+    assert.ok(!r.texte.includes(nom) && !r.contexte.dossierLibelle.includes(nom), nom + ' sort en clair : ' + r.texte + ' | ' + r.contexte.dossierLibelle);
+  }
+  assert.match(r.texte, /^relance \[NOM\d+\] et \[NOM\d+\] pour le prêt, puis appelle \[NOM\d+\] et \[NOM\d+\]$/);
+});

@@ -1256,7 +1256,7 @@
     const recategorisable = !o.comptant && dossierId && autreIndex == null && (type === 'pret' || type === 'acte' || type === 'ventebien');
     const choixCategorie = recategorisable
       ? `<span class="tab-select-icone-wrap" title="Changer la catégorie de cette échéance">
-          <select class="tab-select-icone" onchange="changerCategorie('${dossierId}','${type}', this.value)" aria-label="Changer la catégorie de cette échéance">${optionsCategorie(type)}</select>
+          <select class="tab-select-icone" onchange="changerCategorie('${escapeOnclickArg(dossierId)}','${type}', this.value)" aria-label="Changer la catégorie de cette échéance">${optionsCategorie(type)}</select>
           <span class="tab-select-icone-chevron">${icone('chevron-down')}</span>
         </span>` : '';
     // `sansCrayon` : étape sans date propre à saisir (rédaction de l'acte — sa date vient du rendez-vous).
@@ -1265,9 +1265,9 @@
     const idBase = `tabdate-${dossierId}-${cleEdition}`;
 
     const suppression = (dossierId && autreIndex != null)
-      ? `<wa-button appearance="plain" size="s" type="button" class="bouton-icone ech-ico ech-ico-suppr" onclick="supprimerEcheanceAutre('${dossierId}', ${autreIndex})" title="Supprimer cette échéance" aria-label="Supprimer cette échéance">${icone('x')}</wa-button>`
+      ? `<wa-button appearance="plain" size="s" type="button" class="bouton-icone ech-ico ech-ico-suppr" onclick="supprimerEcheanceAutre('${escapeOnclickArg(dossierId)}', ${autreIndex})" title="Supprimer cette échéance" aria-label="Supprimer cette échéance">${icone('x')}</wa-button>`
       : (dossierId && iso && ['pret', 'acte', 'ventebien', 'appelFonds', 'projetEnvoye', 'rendezVousSignature'].includes(type))
-        ? `<wa-button appearance="plain" size="s" type="button" class="bouton-icone ech-ico ech-ico-suppr" onclick="supprimerDateEcheance('${dossierId}', '${type}')" title="Supprimer cette date" aria-label="Supprimer cette date">${icone('x')}</wa-button>`
+        ? `<wa-button appearance="plain" size="s" type="button" class="bouton-icone ech-ico ech-ico-suppr" onclick="supprimerDateEcheance('${escapeOnclickArg(dossierId)}', '${type}')" title="Supprimer cette date" aria-label="Supprimer cette date">${icone('x')}</wa-button>`
         : '';
     // « Sans prêt » toujours visible sur la ligne du prêt (étude 12/10 : « comment retirer la condition d'obtention du prêt si à la
     // création je me suis trompé » — sans date, la ligne n'avait que le crayon), tant que le prêt n'est pas reçu.
@@ -1282,10 +1282,10 @@
     const libelleCase = verrouillee ? 'Offre reçue — se décoche en retirant l’offre du dossier'
       : dejaFaite ? 'Fait — cliquer pour décocher (le délai et les rappels reviennent)' : (o.envoi ? 'Noter envoyé aujourd’hui' : 'Marquer réalisée');
     const caseHtml = caseCochable
-      ? `<span class="dot-label dl-${type} ech-pastille ech-pastille-case"><button type="button" class="ech-case${dejaFaite ? ' cochee' : ''}" role="checkbox" aria-checked="${dejaFaite}" ${verrouillee ? 'disabled' : `onclick="basculerEcheance('${dossierId}','${cleEdition}')"`} title="${escapeAttr(libelleCase)}" aria-label="${escapeAttr(libelleCase + ' : ' + String(label).replace(/<[^>]+>/g, ''))}">${icone('check')}</button></span>`
+      ? `<span class="dot-label dl-${type} ech-pastille ech-pastille-case"><button type="button" class="ech-case${dejaFaite ? ' cochee' : ''}" role="checkbox" aria-checked="${dejaFaite}" ${verrouillee ? 'disabled' : `onclick="basculerEcheance('${escapeOnclickArg(dossierId)}','${cleEdition}')"`} title="${escapeAttr(libelleCase)}" aria-label="${escapeAttr(libelleCase + ' : ' + String(label).replace(/<[^>]+>/g, ''))}">${icone('check')}</button></span>`
       : `<span class="dot-label dl-${type} ech-pastille" aria-hidden="true"><span class="dot"></span></span>`;
     const crayon = editable
-      ? `<wa-button appearance="plain" size="s" type="button" class="bouton-icone ech-ico" onclick="activerEditionDate('${dossierId}','${cleEdition}')" title="${o.comptant ? 'Un prêt finalement ? Saisir sa date d’obtention' : (iso ? 'Corriger la date' : 'Saisir la date')}" aria-label="${o.comptant ? 'Saisir une date d’obtention du prêt' : (iso ? 'Corriger la date' : 'Saisir la date')}">${icone('pencil')}</wa-button>`
+      ? `<wa-button appearance="plain" size="s" type="button" class="bouton-icone ech-ico" onclick="activerEditionDate('${escapeOnclickArg(dossierId)}','${cleEdition}')" title="${o.comptant ? 'Un prêt finalement ? Saisir sa date d’obtention' : (iso ? 'Corriger la date' : 'Saisir la date')}" aria-label="${o.comptant ? 'Saisir une date d’obtention du prêt' : (iso ? 'Corriger la date' : 'Saisir la date')}">${icone('pencil')}</wa-button>`
       : '';
 
     const infoConfiance = confiance && LIBELLES_CONFIANCE_ECHEANCE[confiance];
@@ -1310,8 +1310,8 @@
       <span class="ech-date-cell">
         <span class="ech-date${!iso && isoEtat ? ' ech-date-ancre' : ''}" id="${idBase}-aff" title="${iso ? escapeAttr(formatDateFr(iso)) : (isoEtat ? escapeAttr('Avant le rendez-vous de signature du ' + formatDateFr(isoEtat)) : '')}">${o.comptant ? '' : dateCourteEcheance(iso || isoEtat)}${iso && o.heure ? `<span class="ech-heure"> · ${escapeHtml(o.heure)}</span>` : ''}</span>
         ${editable ? `<span class="tab-date-edition" id="${idBase}-edit" hidden>
-          <input type="date" class="tab-date-input" id="${idBase}-input" value="${iso || ''}" onkeydown="if(event.key==='Enter'){event.preventDefault();validerEditionDate('${dossierId}','${cleEdition}');}">
-          <wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-valider" onclick="validerEditionDate('${dossierId}','${cleEdition}')" title="Valider" aria-label="Valider la date">✓</wa-button>
+          <input type="date" class="tab-date-input" id="${idBase}-input" value="${iso || ''}" onkeydown="if(event.key==='Enter'){event.preventDefault();validerEditionDate('${escapeOnclickArg(dossierId)}','${cleEdition}');}">
+          <wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-valider" onclick="validerEditionDate('${escapeOnclickArg(dossierId)}','${cleEdition}')" title="Valider" aria-label="Valider la date">✓</wa-button>
         </span>` : ''}
       </span>
       <span class="ech-etat ${etat.cls}">${etat.texte}</span>

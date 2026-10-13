@@ -25,6 +25,16 @@ const crypto = require('node:crypto');
 const { noterVerification } = require('./verificationsTerrain');
 const { accesCollaborateur, marquerRefus, leverRefus } = require('./comptesCollaborateurs');
 const { cocherProjetEnvoye, corpsALirePourProjet } = require('./projetEnvoyeEmail');
+
+// Coche le projet sur la copie du dossier relue À L'INSTANT (audit 13/10) : la liste du début du tour est périmée après les
+// lectures Exchange — l'écrire effaçait ce qu'un poste avait enregistré entre-temps. Synchrone entre la relecture et l'écriture.
+function cocherProjetSurCopieFraiche(depot, d, envoye) {
+  const frais = typeof depot.trouverParId === 'function' ? depot.trouverParId(d.id) : d;
+  if (!frais || frais.deleted) return false;
+  if (!cocherProjetEnvoye(frais, envoye)) return false;
+  depot.remplacer(frais.id, frais);
+  return true;
+}
 const { lireXml, tous, premier, texte: texteXml, texteDe, attribut, identifiantElement, codeReponse: codeReponseXml, succesSansErreur } = require('./exchange/xml');
 const {
   contexteClassement, dossierDeEmailParAdresse, emailLieAuxAdressesDuDossier, parmiDossiersAdresse, normaliserObjet, normaliser, SUJETS_EMAIL, echapperXml, ENVELOPPE_DEBUT, ENVELOPPE_FIN
@@ -506,8 +516,7 @@ async function tourEmailsDossiers(depot, parametresRepo, injections = {}, manuel
       // Projet d'acte envoyé (étude 06/10) : l'échéance du dossier est cochée ; la mention de l'agenda suit côté poste. Objet muet
       // mais pièce jointe : le texte est relu après la boucle (étude 07/10).
       if (d && typeof depot.remplacer === 'function') {
-        if (cocherProjetEnvoye(d, envoye)) {
-          depot.remplacer(d.id, d);
+        if (cocherProjetSurCopieFraiche(depot, d, envoye)) {
           resultat.projetsCoches = (resultat.projetsCoches || 0) + 1;
           noterVerification(parametresRepo, 'email-projet-detecte');
         } else if (corpsALirePourProjet(d, envoye) && corpsALire.length < MAX_CORPS_PROJET_TOUR) corpsALire.push({ itemId: e.itemId, envoye, d });
@@ -520,8 +529,7 @@ async function tourEmailsDossiers(depot, parametresRepo, injections = {}, manuel
       const textes = lu && !lu.echec ? parseGetItems(lu.corps) : new Map();
       for (const x of corpsALire) {
         const corps = texteSansCitation((textes.get(x.itemId) || {}).corps || '');
-        if (cocherProjetEnvoye(x.d, { ...x.envoye, corps })) {
-          depot.remplacer(x.d.id, x.d);
+        if (cocherProjetSurCopieFraiche(depot, x.d, { ...x.envoye, corps })) {
           resultat.projetsCoches = (resultat.projetsCoches || 0) + 1;
           noterVerification(parametresRepo, 'email-projet-detecte');
         }

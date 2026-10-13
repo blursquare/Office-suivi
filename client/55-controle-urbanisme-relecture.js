@@ -71,7 +71,9 @@
   // travail (chaudière, cuisine, entreprise) ne va qu'à lui.
   var RE_INTRO_TRAVAUX_DECLARES = /(?:d[ée]clare|indique|pr[ée]cise)\s+avoir\s+(?:r[ée]alis[ée]e?s?|proc[ée]d[ée]\s+(?:aux|à\s+des)|effectu[ée]e?s?|fait\s+r[ée]aliser|fait\s+effectuer)\s+(?:les\s+|des\s+)?travaux\s+su[i]?vants\s*:?/gi;
   // Fin de la déclaration : un intitulé de rubrique (mots en capitales), un rappel du notaire, ou 3 000 caractères.
-  var RE_FIN_TRAVAUX_DECLARES = /(?:\s|^)(?:[A-ZÀ-Þ][A-ZÀ-Þ'’ ]{2,}\s+){1,}(?:DES|DE|DU|SUR|ET)?\s*[A-ZÀ-Þ]{4,}(?:\s|$)(?=[\s\S]{0,40}[a-zà-ÿ])|Le\s+(?:PROMETTANT|VENDEUR)\s+est\s+avis[ée]|AUTORISATIONS\s+ADMINISTRATIVES|DIAGNOSTICS/;
+  // Mots séparés, douze au plus (audit 13/10 : l'espace dans la classe ET entre les mots, sans borne, figeait l'onglet sur une phrase
+  // en capitales — 6 s pour 20 « SAINT AIGNAN »).
+  var RE_FIN_TRAVAUX_DECLARES = /(?:\s|^)(?:[A-ZÀ-Þ][A-ZÀ-Þ'’]+\s+){1,12}(?:(?:DES|DE|DU|SUR|ET)\s+)?[A-ZÀ-Þ]{4,}(?:\s|$)(?=[\s\S]{0,40}[a-zà-ÿ])|Le\s+(?:PROMETTANT|VENDEUR)\s+est\s+avis[ée]|AUTORISATIONS\s+ADMINISTRATIVES|DIAGNOSTICS/;
   var RE_PUCE_TRAVAUX = /(?:^|\s)[>•➢▪►]\s+/g;
   var RE_FIN_NATURE_TRAVAIL = /\s+(?:r[ée]alis[ée]e?s?(?![\p{L}])|effectu[ée]e?s?(?![\p{L}])|par\s+(?:ses\s+soins|la\s+soci[ée]t[ée]|l['’]entreprise|les\s+[ée]tablissements|lui|elle|un\s+artisan)|en\s+(?:\p{L}+\s+)?(?:19|20)\d{2}|courant\s+(?:19|20)\d{2}|dans\s+les\s+ann[ée]es|au\s+cours\s+de)/iu;
   var RE_EXTERIEUR_DETAIL = /menuiseries?|fen[êe]tres?|porte[-\s]fen[êe]tre|volets?|baies?\s+vitr|velux|ch[âa]ssis|porte\s+d['’]entr[ée]e|porte\s+de\s+garage/i;
@@ -378,7 +380,7 @@
     prEtat.travaux = Object.assign({}, prEtat.travaux, { lecture: true, erreur: '' });
     renderTravauxPreemption();
     try {
-      const pdf = await pdfjsLib.getDocument({ data: await f.arrayBuffer(), verbosity: (pdfjsLib.VerbosityLevel ? pdfjsLib.VerbosityLevel.ERRORS : 0) }).promise;
+      const pdf = await pdfjsLib.getDocument({ isEvalSupported: false, data: await f.arrayBuffer(), verbosity: (pdfjsLib.VerbosityLevel ? pdfjsLib.VerbosityLevel.ERRORS : 0) }).promise;
       const lu = await lireTextePdfParPage(pdf);
       if (String(lu.texte || '').trim().length < 20) throw new Error('texte vide');
       appliquerTexteTravauxPreemption(lu, f.name);

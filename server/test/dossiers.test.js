@@ -171,3 +171,12 @@ test('POST /api/dossiers rejette un corps sans id', async () => {
   });
   assert.equal(reponse.statut, 400);
 });
+
+test('un identifiant de dossier qui pourrait sortir d’un onclick est refusé (audit 13/10)', async () => {
+  for (const id of ["x');alert(1);//", 'a b', '<img>', '"x"', '-x']) {
+    const r = await appelApi('/api/dossiers', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id, nom: 'TEST' }) });
+    assert.equal(r.statut, 400, id);
+  }
+  const ok = await appelApi('/api/dossiers', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id: '0f8e2c1a-1b2c-4d5e-8f90-123456789abc', nom: 'TEST' }) });
+  assert.equal(ok.statut, 201);
+});

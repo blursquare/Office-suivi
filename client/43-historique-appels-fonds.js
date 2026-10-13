@@ -182,10 +182,10 @@
       </div>
       ${a.solde ? `<span class="af-histo-solde">${escapeHtml(a.solde)}</span>` : ''}
       <div class="af-histo-actions">
-        <wa-button appearance="outlined" size="s" pill class="action-rapide" onclick="telechargerAppelFondsHistorique('${id}', this)">Télécharger</wa-button>
-        <wa-button appearance="outlined" size="s" pill class="action-rapide" title="Le même courrier en PDF/A-2U, à déposer dans Authentic" onclick="telechargerAppelFondsHistorique('${id}', this, 'pdfa')">PDF/A</wa-button>
-        ${a.rouvrable ? `<wa-button appearance="outlined" size="s" pill class="action-rapide" onclick="modifierAppelFondsHistorique('${id}')">Modifier</wa-button>` : ''}
-        <wa-button appearance="plain" size="s" class="bouton-icone" title="Retirer de l'historique" onclick="supprimerAppelFondsHistorique('${id}')">${icone('x')}</wa-button>
+        <wa-button appearance="outlined" size="s" pill class="action-rapide" onclick="telechargerAppelFondsHistorique('${escapeOnclickArg(id)}', this)">Télécharger</wa-button>
+        <wa-button appearance="outlined" size="s" pill class="action-rapide" title="Le même courrier en PDF/A-2U, à déposer dans Authentic" onclick="telechargerAppelFondsHistorique('${escapeOnclickArg(id)}', this, 'pdfa')">PDF/A</wa-button>
+        ${a.rouvrable ? `<wa-button appearance="outlined" size="s" pill class="action-rapide" onclick="modifierAppelFondsHistorique('${escapeOnclickArg(id)}')">Modifier</wa-button>` : ''}
+        <wa-button appearance="plain" size="s" class="bouton-icone" title="Retirer de l'historique" onclick="supprimerAppelFondsHistorique('${escapeOnclickArg(id)}')">${icone('x')}</wa-button>
       </div>
     </li>`;
   }

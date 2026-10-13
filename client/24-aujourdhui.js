@@ -865,14 +865,14 @@
       + actions.map(a => `<span class="dot-label dl-${a.categorie || 'neutre'}" title="${escapeAttr(a.titre)}"><span class="dot"></span></span>`).join('');
     return `
       <li class="ja ja-avec-case ja-groupe g-${premiere.gravite || 'normal'}${ouvert ? ' ouvert' : ''}" data-groupe="${escapeAttr(d.id)}">
-        <span class="dot-label dl-${premiere.categorie || 'neutre'} ja-case-cadre"><button type="button" class="ja-case-ronde" role="checkbox" aria-checked="false" onclick="marquerFaitGroupeJour('${id}')" title="${n > 1 ? `Tout est fait — valider les ${n} tâches` : 'Valider la dernière tâche'}" aria-label="${escapeAttr(n > 1 ? `Valider les ${n} tâches de ${libelleDossierAffiche(d)}` : `Valider la dernière tâche de ${libelleDossierAffiche(d)}`)}">${icone('check')}</button></span>
-        <button type="button" class="ja-texte" aria-expanded="${ouvert}" onclick="basculerGroupeJour('${id}')" title="Voir les tâches une par une">
+        <span class="dot-label dl-${premiere.categorie || 'neutre'} ja-case-cadre"><button type="button" class="ja-case-ronde" role="checkbox" aria-checked="false" onclick="marquerFaitGroupeJour('${escapeOnclickArg(id)}')" title="${n > 1 ? `Tout est fait — valider les ${n} tâches` : 'Valider la dernière tâche'}" aria-label="${escapeAttr(n > 1 ? `Valider les ${n} tâches de ${libelleDossierAffiche(d)}` : `Valider la dernière tâche de ${libelleDossierAffiche(d)}`)}">${icone('check')}</button></span>
+        <button type="button" class="ja-texte" aria-expanded="${ouvert}" onclick="basculerGroupeJour('${escapeOnclickArg(id)}')" title="Voir les tâches une par une">
           <span class="ja-surtitre">${lienDossierTache(d)}</span>
           <span class="ja-titre">${escapeHtml(taches)} <span class="ja-groupe-compte${faites.length ? ' entame' : ''}">${compte}</span></span>
         </button>
         <span class="ja-delai${premiere.gravite === 'critique' ? ' proche' : ''}">${d.responsable ? pastilleResponsableTache(d.responsable) : ''}${escapeHtml(delaiAction(premiere))}</span>
         <span class="ja-groupe-puces" aria-hidden="true">${puces}</span>
-        <span class="ja-actions-sec"><wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-btn ja-ouvrir-fiche" data-ouvrir-dossier="${escapeAttr(d.id)}" title="Ouvrir la fiche du dossier" aria-label="Ouvrir la fiche de ${escapeAttr(libelleDossierAffiche(d))}">${icone('file-text')}</wa-button><wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-btn ja-groupe-ouvrir" aria-expanded="${ouvert}" onclick="basculerGroupeJour('${id}')" title="Dérouler les tâches" aria-label="Dérouler les tâches">${icone('chevron-down')}</wa-button></span>
+        <span class="ja-actions-sec"><wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-btn ja-ouvrir-fiche" data-ouvrir-dossier="${escapeAttr(d.id)}" title="Ouvrir la fiche du dossier" aria-label="Ouvrir la fiche de ${escapeAttr(libelleDossierAffiche(d))}">${icone('file-text')}</wa-button><wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-btn ja-groupe-ouvrir" aria-expanded="${ouvert}" onclick="basculerGroupeJour('${escapeOnclickArg(id)}')" title="Dérouler les tâches" aria-label="Dérouler les tâches">${icone('chevron-down')}</wa-button></span>
         <div class="ja-groupe-tiroir"><div class="ja-groupe-tiroir-int">
           <ul class="ja-liste ja-taches ja-sous-liste">${actions.map(a => renderLigneActionJour(a, false, false, true)).join('')}${renderLignesTraitees(faites, true)}</ul>
         </div></div>
@@ -1213,7 +1213,7 @@
     if (!groupes.length) return '<p class="jour-vide">Rien de nouveau sur vos dossiers.</p>';
     return `<ul class="jour-fil">${groupes.slice(0, 12).map(g => `
       <li class="jour-fil-groupe">
-        <button type="button" class="jour-fil-dossier" onclick="executerFicheDossierJour('${g.dossier.id}')">${escapeHtml(libelleDossierAffiche(g.dossier))}</button>
+        <button type="button" class="jour-fil-dossier" onclick="executerFicheDossierJour('${escapeOnclickArg(g.dossier.id)}')">${escapeHtml(libelleDossierAffiche(g.dossier))}</button>
         <ul>${g.lignes.slice(0, 4).map(l => `<li class="jour-fil-ligne ${l.type}">
           <span class="jour-fil-qui">${l.type === 'pieces' ? '<span class="jour-nouveau">Nouveau</span>' : escapeHtml(l.auteur ? prenomCollaborateur(l.auteur) : 'CLAIRE')}</span>
           <span>${escapeHtml(l.texte)}</span></li>`).join('')}

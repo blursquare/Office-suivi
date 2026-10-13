@@ -130,7 +130,7 @@ dans `index.html`** (le test `structure-client` refuse tout décalage).
    dossier client confiné par `resoudreCheminNas`. Tout accès disque
    est **asynchrone** : un appel `*Sync` dans un chemin de requête fige tout le serveur (Node est
    mono-thread — la cause des « coupures » passées). Une route `async` doit rattraper ses erreurs
-   (`routeAsync()` dans `routes/nas.js`) : Express 4 ne rattrape pas une promesse rejetée, la
+   (`routeAsync()` dans `routes/nas.js`) : Express 5 (le serveur y est, pas en 4) rattrape une promesse rejetée, mais `routeAsync` reste la règle (erreur journalisée de la même façon) ; une lecture en flux passe par `envoyerFlux` (sinon une erreur de lecture laisse la
    requête resterait suspendue.
 4. **Aucun email au client ne part sans un clic sur « Envoyer ».** Depuis le 03/10 (étude : « répondre aux emails
    directement depuis CLAIRE », « voir cette interface pour l'envoi des rappels au lieu de les télécharger » ; choix :
@@ -892,6 +892,13 @@ garde tous les validés (`tousValides`) ; l'impression A4 garde `renderCompteRen
 - **`onclick="f('…')"`** : l'attribut est décodé en HTML avant d'être exécuté en JS — `&#39;`
   redevient une apostrophe brute. Utiliser `escapeOnclickArg()` pour un argument JS, `escapeAttr()`
   pour un vrai attribut.
+  **Tout identifiant (dossier, pièce, tâche) passé dans un `onclick` aussi** (audit 13/10 : un identifiant de dossier piégé
+  s'exécutait sur tous les postes) — `'${escapeOnclickArg(d.id)}'`, refusé sinon par `structure-client` ; un nouvel identifiant de
+  dossier n'est accepté par `POST /api/dossiers` que s'il suit `RE_ID_DOSSIER`.
+- **pdf.js** : tout `pdfjsLib.getDocument({ … })` porte `isEvalSupported: false` (CVE-2024-4367 : un PDF piégé exécutait du code ;
+  testé par `structure-client`) ; un script de CDN chargé par `index.html` porte son `integrity` (SRI) et une version exacte.
+- **Écriture après une attente** (audit 13/10) : un tour de fond (NAS, Exchange) qui modifie un dossier le RELIT par
+  `depot.trouverParId` juste avant d'écrire, jamais la copie lue avant ses `await` (elle effaçait la saisie d'un poste).
 - **Spécificité CSS** : `input[type="text"]` bat un simple `input.ma-classe` à égalité par l'ordre
   du fichier — utiliser un sélecteur composé (déjà rencontré sept fois). Une piste de grille `1fr`
   ne descend pas sous son contenu : `> * { min-width: 0 }` contre le débordement horizontal.

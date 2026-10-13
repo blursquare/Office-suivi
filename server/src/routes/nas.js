@@ -19,6 +19,16 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { fichiersLesPlusRecents, listerPdfRecursif, listerSousDossiers, listerRecusNas, resoudreCheminRecu, resoudreCheminNas, rapprocherParNom, rapprochementParfait } = require('../nas');
 const fsp = require('node:fs/promises');
+
+// Envoie un fichier lu en flux ; une erreur de lecture (fichier verrouillé, dossier nommé « x.pdf », coupure SMB) répond 404 ou
+// coupe la réponse — jamais une requête suspendue ni une exception non rattrapée (audit 13/10).
+function envoyerFlux(res, cible) {
+  const flux = fs.createReadStream(cible);
+  flux.on('error', () => {
+    if (!res.headersSent) { res.removeHeader('Content-Disposition'); res.status(404).json({ erreur: 'Fichier illisible sur le NAS.' }); } else res.destroy();
+  });
+  flux.pipe(res);
+}
 const { faussesMinutes, trouverDossierFaussesMinutes, resoudreFichierFaussesMinutes } = require('../faussesMinutes');
 const { copierDansDossierClient } = require('../scans');
 
@@ -172,7 +182,7 @@ function creerRouteurNas(config, depot) {
     // CLAUDE.md) — le serveur ne laisse pas ce doute s'installer.
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(path.basename(cible))}"`);
-    fs.createReadStream(cible).pipe(res);
+    envoyerFlux(res, cible);
   }));
 
   // Dossier « Fausses minutes » (étude, 03/10) : copies d'actes et attestations de vente à transmettre au client
@@ -188,7 +198,7 @@ function creerRouteurNas(config, depot) {
     if (!(await existe(cible))) { res.status(404).json({ erreur: 'Fichier introuvable dans les fausses minutes.' }); return; }
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(path.basename(cible))}"`);
-    fs.createReadStream(cible).pipe(res);
+    envoyerFlux(res, cible);
   }));
 
   return routeur;
@@ -217,9 +227,9 @@ function creerRouteurLienPiece(config, parametresRepo) {
     }
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(path.basename(cible))}"`);
-    fs.createReadStream(cible).pipe(res);
+    envoyerFlux(res, cible);
   }));
   return routeur;
 }
 
-module.exports = { creerRouteurNas, creerRouteurLienPiece };
+module.exports = { envoyerFlux, creerRouteurNas, creerRouteurLienPiece };

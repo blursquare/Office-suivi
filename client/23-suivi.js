@@ -648,14 +648,14 @@
         <dt>${pourId ? `<label for="${pourId}">` : '<span>'}${icone(ic)}<span>${libelle}</span>${pourId ? '</label>' : '</span>'}</dt>
         <dd>${valeur}</dd>
       </div>`;
-    const saisie = (id, valeur, fonction, extra, placeholder) => `<input type="text" id="${id}-${d.id}" class="prop-champ" value="${escapeAttr(valeur || '')}" placeholder="${placeholder || 'Non détecté'}" onblur="${fonction}('${d.id}', this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}"${extra || ''}>`;
+    const saisie = (id, valeur, fonction, extra, placeholder) => `<input type="text" id="${id}-${d.id}" class="prop-champ" value="${escapeAttr(valeur || '')}" placeholder="${placeholder || 'Non détecté'}" onblur="${fonction}('${escapeOnclickArg(d.id)}', this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}"${extra || ''}>`;
 
     // Groupe 1 — le dossier.
-    const responsable = `<select id="resp-${d.id}" class="prop-champ" onchange="changerResponsable('${d.id}', this.value)">
+    const responsable = `<select id="resp-${d.id}" class="prop-champ" onchange="changerResponsable('${escapeOnclickArg(d.id)}', this.value)">
         <option value="" ${d.responsable ? '' : 'selected'}>À définir</option>
         ${RESPONSABLES.map(r => `<option ${d.responsable === r ? 'selected' : ''}>${escapeHtml(r)}</option>`).join('')}
       </select>`;
-    const typeVente = `<select id="tv-${d.id}" class="prop-champ" onchange="changerTypeVente('${d.id}', this.value)">
+    const typeVente = `<select id="tv-${d.id}" class="prop-champ" onchange="changerTypeVente('${escapeOnclickArg(d.id)}', this.value)">
         <option value="maison" ${d.typeVente === 'maison' || !d.typeVente ? 'selected' : ''}>Maison</option>
         <option value="copropriete" ${d.typeVente === 'copropriete' ? 'selected' : ''}>Copropriété</option>
         <option value="terrain" ${d.typeVente === 'terrain' ? 'selected' : ''}>Terrain à bâtir</option>
@@ -666,7 +666,7 @@
     const boutonLireMobilier = (!d.prixMobilier && d.dossierLie && d.nasDossier)
       ? (lecturesMobilierEnCours.has(d.id)
         ? `<wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" disabled>${icone('spinner', null, true)} Lecture…</wa-button>`
-        : `<wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="lireMobilierDepuisAvantContrat('${d.id}', true)" title="${d.mobilierLuLe ? 'Relire' : 'Chercher'} le mobilier dans l’avant-contrat du dossier du NAS">${icone('file-text')} Lire</wa-button>`)
+        : `<wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="lireMobilierDepuisAvantContrat('${escapeOnclickArg(d.id)}', true)" title="${d.mobilierLuLe ? 'Relire' : 'Chercher'} le mobilier dans l’avant-contrat du dossier du NAS">${icone('file-text')} Lire</wa-button>`)
       : '';
     // Ce que « Ouvrir le compromis » ouvrira, dans l'ordre où ouvrirCompromisTrouve() le résout :
     // le fichier DÉJÀ retrouvé (mémorisé dans d.fichiersTrouves après une première ouverture), sinon
@@ -686,10 +686,10 @@
     // Compromis jamais lu par CLAIRE (dossier créé depuis Authentic ou à la main) : « Compléter » relit le
     // compromis — déposé, ou trouvé sur le NAS — pour les échéances, engagements, prix… (étude, 03/10).
     const boutonCompleter = !d.compromisNomFichier && !d.archive && !estSuccession(d)
-      ? `<wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="demarrerComplementCompromis('${d.id}')" title="Lire le compromis pour compléter la fiche : échéances, engagements du vendeur, prix, notaires…">${icone('file-text')} Compléter</wa-button>` : '';
+      ? `<wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="demarrerComplementCompromis('${escapeOnclickArg(d.id)}')" title="Lire le compromis pour compléter la fiche : échéances, engagements du vendeur, prix, notaires…">${icone('file-text')} Compléter</wa-button>` : '';
     // « Changer » : choisir à la main le bon PDF du NAS quand l'avant-contrat retrouvé n'est pas le bon (étude 05/10).
     const boutonChangerCompromis = d.dossierLie && d.nasDossier && !d.archive && !estSuccession(d)
-      ? `<wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="ouvrirChoixCompromis('${d.id}')" title="Choisir un autre fichier du dossier du NAS comme avant-contrat">Changer</wa-button>` : '';
+      ? `<wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="ouvrirChoixCompromis('${escapeOnclickArg(d.id)}')" title="Choisir un autre fichier du dossier du NAS comme avant-contrat">Changer</wa-button>` : '';
     const avantContrat = `<span class="prop-texte${compromisConnu ? '' : ' vide'}" title="${escapeAttr(cheminCompromisTrouve || nomAttendu || '')}">${escapeHtml(libelleCompromis)}</span>${boutonOuvrirCompromis}${boutonChangerCompromis}${boutonCompleter}`;
 
     // Groupe 2 — le bien et son financement.
@@ -713,10 +713,10 @@
     const optionsNotaires = nomsDetectes.concat(optionsNotairesCarnet(carnetConfreres).filter(n => nomsDetectes.indexOf(n) === -1));
     const notaire = (cote, valeur) => {
       const actif = d.coteInstrumentaire === cote;
-      return `<input type="text" id="not-${cote}-${d.id}" class="prop-champ" list="${listeId}" autocomplete="off" value="${escapeAttr(valeur || '')}" placeholder="Non détecté" oninput="proposerNotairesAnnuaire(this)" onblur="affecterNotaire('${d.id}', '${cote}', this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">
-        ${valeur ? '' : `<button type="button" class="lien-action" onclick="affecterNotaire('${d.id}', '${cote}', NOTAIRE_ETUDE_LIBELLE)" title="Mettre ${escapeAttr(NOTAIRE_ETUDE_LIBELLE)}">Notre office</button>`}
+      return `<input type="text" id="not-${cote}-${d.id}" class="prop-champ" list="${listeId}" autocomplete="off" value="${escapeAttr(valeur || '')}" placeholder="Non détecté" oninput="proposerNotairesAnnuaire(this)" onblur="affecterNotaire('${escapeOnclickArg(d.id)}', '${cote}', this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">
+        ${valeur ? '' : `<button type="button" class="lien-action" onclick="affecterNotaire('${escapeOnclickArg(d.id)}', '${cote}', NOTAIRE_ETUDE_LIBELLE)" title="Mettre ${escapeAttr(NOTAIRE_ETUDE_LIBELLE)}">Notre office</button>`}
         <button type="button" class="dot-label ${actif ? 'dl-success' : 'dl-neutre'} notaire-redacteur${actif ? ' actif' : ''}"
-          onclick="basculerCoteInstrumentaire('${d.id}', '${cote}')"
+          onclick="basculerCoteInstrumentaire('${escapeOnclickArg(d.id)}', '${cote}')"
           title="${actif ? 'Ce notaire reçoit l’acte. Cliquez pour retirer.' : 'Désigner ce notaire comme celui qui reçoit l’acte.'}">${actif ? icone('check') : '<span class="dot"></span>'}Reçoit l’acte</button>
         ${renderConfrereCarnetFiche(d, cote)}`;
     };
@@ -727,17 +727,17 @@
     const deduit = !!(coteEtudeDossier(d) && d.coteInstrumentaire);
     const ligneRole = deduit
       ? `<span class="notaire-role" title="Déduit du côté qui reçoit l’acte."><strong>${role}</strong> <span class="notaire-role-source">déduit</span></span>`
-      : `<button type="button" class="notaire-role notaire-role-bouton" onclick="basculerRoleEtude('${d.id}')"
+      : `<button type="button" class="notaire-role notaire-role-bouton" onclick="basculerRoleEtude('${escapeOnclickArg(d.id)}')"
            title="L’étude n’est reconnue dans aucun des deux notaires : cliquez pour changer son rôle."><strong>${role}</strong> ${icone('pencil')}</button>`;
     // L'acquéreur représenté par un office distinct : la déontologie interdit de le contacter
     // directement, les relances vont à son notaire (voir emailDestinataireRelance).
     // Étude, 03/10 : « si le confrère est du côté du vendeur, il n'y a nulle part où saisir son adresse ».
     const deuxConfreres = confrereRepresenteVendeur(d) && notaireParticipantRepresenteAcquereur(d);
     const emailConfrereVendeur = confrereRepresenteVendeur(d)
-      ? ligne('mail', deuxConfreres ? 'Confrère du vendeur' : 'Confrère', `<input type="email" id="not-email-confrere-vendeur-${d.id}" class="prop-champ" value="${escapeAttr(d.emailConfrereVendeur || '')}" placeholder="${escapeAttr(emailOfficeConfrereVendeur(d) ? emailOfficeConfrereVendeur(d) + ' (annuaire)' : 'Non renseigné')}" title="Adresse du notaire du vendeur : ses emails sont rattachés au dossier, il est proposé pour les dates de signature. Vide : l'email de l'office tiré de l'annuaire." onblur="changerEmailConfrereVendeur('${d.id}', this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">`, `not-email-confrere-vendeur-${d.id}`, 'prop-pleine')
+      ? ligne('mail', deuxConfreres ? 'Confrère du vendeur' : 'Confrère', `<input type="email" id="not-email-confrere-vendeur-${d.id}" class="prop-champ" value="${escapeAttr(d.emailConfrereVendeur || '')}" placeholder="${escapeAttr(emailOfficeConfrereVendeur(d) ? emailOfficeConfrereVendeur(d) + ' (annuaire)' : 'Non renseigné')}" title="Adresse du notaire du vendeur : ses emails sont rattachés au dossier, il est proposé pour les dates de signature. Vide : l'email de l'office tiré de l'annuaire." onblur="changerEmailConfrereVendeur('${escapeOnclickArg(d.id)}', this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">`, `not-email-confrere-vendeur-${d.id}`, 'prop-pleine')
       : '';
     const emailParticipant = notaireParticipantRepresenteAcquereur(d)
-      ? ligne('mail', deuxConfreres ? 'Confrère de l’acquéreur' : 'Confrère', `<input type="email" id="not-email-participant-${d.id}" class="prop-champ" value="${escapeAttr(d.emailNotaireParticipant || '')}" placeholder="${escapeAttr(emailOfficeConfrereAcquereur(d) ? emailOfficeConfrereAcquereur(d) + ' (carnet)' : 'Non renseigné')}" title="Les relances (prêt, RIB) seront adressées à cette adresse plutôt qu'à l'acquéreur lui-même. Vide : l'email de l'office tiré du carnet des confrères." onblur="changerEmailNotaireParticipant('${d.id}', this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">`, `not-email-participant-${d.id}`, 'prop-pleine')
+      ? ligne('mail', deuxConfreres ? 'Confrère de l’acquéreur' : 'Confrère', `<input type="email" id="not-email-participant-${d.id}" class="prop-champ" value="${escapeAttr(d.emailNotaireParticipant || '')}" placeholder="${escapeAttr(emailOfficeConfrereAcquereur(d) ? emailOfficeConfrereAcquereur(d) + ' (carnet)' : 'Non renseigné')}" title="Les relances (prêt, RIB) seront adressées à cette adresse plutôt qu'à l'acquéreur lui-même. Vide : l'email de l'office tiré du carnet des confrères." onblur="changerEmailNotaireParticipant('${escapeOnclickArg(d.id)}', this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">`, `not-email-participant-${d.id}`, 'prop-pleine')
       : '';
 
     // Téléphone du confrère, sous son email : saisi sur le dossier, sinon celui de l'annuaire ; le numéro est écrit en texte
@@ -745,7 +745,7 @@
     const telConfrere = (cote, libelle) => {
       const t = telephoneConfrereDossier(d, cote);
       const texte = t.effectif ? `<span class="coord-tel-texte">${liensAppelTelephone(t.effectif)}<span>${texteAppel3cx(t.effectif)}${t.saisi ? '' : ' <span class="hint">(annuaire)</span>'}</span></span>` : '';
-      const champ = `<input type="tel" id="not-tel-${cote}-${d.id}" class="prop-champ coord-tel" value="${escapeAttr(t.saisi)}" placeholder="${t.effectif ? 'Corriger ou ajouter un numéro' : 'Téléphone'}" autocomplete="off" aria-label="Téléphone du ${escapeAttr(libelle.toLowerCase())}" title="Plusieurs numéros : séparés par « / ». Vide : le numéro de l'office tiré de l'annuaire. Un numéro saisi complète l'annuaire." onblur="changerTelephoneConfrere('${d.id}', '${cote}', this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">`;
+      const champ = `<input type="tel" id="not-tel-${cote}-${d.id}" class="prop-champ coord-tel" value="${escapeAttr(t.saisi)}" placeholder="${t.effectif ? 'Corriger ou ajouter un numéro' : 'Téléphone'}" autocomplete="off" aria-label="Téléphone du ${escapeAttr(libelle.toLowerCase())}" title="Plusieurs numéros : séparés par « / ». Vide : le numéro de l'office tiré de l'annuaire. Un numéro saisi complète l'annuaire." onblur="changerTelephoneConfrere('${escapeOnclickArg(d.id)}', '${cote}', this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">`;
       return ligne('phone', 'Tél. ' + libelle.charAt(0).toLowerCase() + libelle.slice(1), `<span class="coord-tel-ligne">${texte}${champ}</span>`, `not-tel-${cote}-${d.id}`, 'prop-pleine');
     };
     const telConfrereVendeur = confrereRepresenteVendeur(d) ? telConfrere('vendeur', deuxConfreres ? 'Confrère du vendeur' : 'Confrère') : '';
@@ -777,7 +777,7 @@
         ${ligne('home', 'Type de vente', typeVente, `tv-${d.id}`)}
         ${ligne('folder', 'Dossier NAS', nas, null, 'prop-pleine')}
         ${ligne('file-text', 'Avant-contrat', avantContrat, null, 'prop-pleine')}
-        ${estSuccession(d) ? '' : ligne('calendar', 'Signé le', `<input type="date" id="date-ac-${d.id}" class="prop-champ" value="${escapeAttr(d.dateAvantContrat || '')}" onchange="changerDateAvantContrat('${d.id}', this.value)">`, `date-ac-${d.id}`, siVide(!d.dateAvantContrat).trim())}
+        ${estSuccession(d) ? '' : ligne('calendar', 'Signé le', `<input type="date" id="date-ac-${d.id}" class="prop-champ" value="${escapeAttr(d.dateAvantContrat || '')}" onchange="changerDateAvantContrat('${escapeOnclickArg(d.id)}', this.value)">`, `date-ac-${d.id}`, siVide(!d.dateAvantContrat).trim())}
       </dl>
       <dl class="fiche-proprietes fiche-coordonnees">
         ${ligne('user', 'Vendeurs', renderPersonnesCoteFiche(d, 'vendeur'), null, 'prop-pleine')}
@@ -801,9 +801,9 @@
         ${ligne('scale', 'Notaire vendeur', notaire('vendeur', d.notaireVendeur), `not-vendeur-${d.id}`, 'prop-pleine' + siVide(!d.notaireVendeur && d.coteInstrumentaire !== 'vendeur' && !nonPlaces.length))}
         ${ligne('scale', 'Notaire acquéreur', notaire('acquereur', d.notaireAcquereur), `not-acquereur-${d.id}`, 'prop-pleine' + siVide(!d.notaireAcquereur && d.coteInstrumentaire !== 'acquereur' && !nonPlaces.length))}
         ${nonPlaces.length ? ligne('scale', 'Lus, à placer', `<span class="notaires-a-placer">${nonPlaces.map(n => `<span class="notaires-a-placer-ligne"><span class="prop-texte">${escapeHtml(n.nom)}${n.role === 'instrumentaire' ? ' <span class="hint">· reçoit l’acte</span>' : n.role === 'participant' ? ' <span class="hint">· participe</span>' : ''}</span>
-          <button type="button" class="lien-action" onclick="placerNotaireFiche('${d.id}', ${detectes.findIndex(x => x.nom === n.nom)}, 'vendeur')">Vendeur</button>
-          <button type="button" class="lien-action" onclick="placerNotaireFiche('${d.id}', ${detectes.findIndex(x => x.nom === n.nom)}, 'acquereur')">Acquéreur</button>
-          <button type="button" class="lien-action" onclick="placerNotaireFiche('${d.id}', ${detectes.findIndex(x => x.nom === n.nom)}, 'deux')">Les deux</button></span>`).join('')}</span>`, null, 'prop-pleine') : ''}
+          <button type="button" class="lien-action" onclick="placerNotaireFiche('${escapeOnclickArg(d.id)}', ${detectes.findIndex(x => x.nom === n.nom)}, 'vendeur')">Vendeur</button>
+          <button type="button" class="lien-action" onclick="placerNotaireFiche('${escapeOnclickArg(d.id)}', ${detectes.findIndex(x => x.nom === n.nom)}, 'acquereur')">Acquéreur</button>
+          <button type="button" class="lien-action" onclick="placerNotaireFiche('${escapeOnclickArg(d.id)}', ${detectes.findIndex(x => x.nom === n.nom)}, 'deux')">Les deux</button></span>`).join('')}</span>`, null, 'prop-pleine') : ''}
         ${emailConfrereVendeur}
         ${telConfrereVendeur}
         ${emailParticipant}
@@ -813,7 +813,7 @@
       <datalist id="${listeId}" data-base="${escapeAttr(JSON.stringify(nomsDetectes))}">${optionsNotaires.map(n => `<option value="${escapeAttr(n)}"></option>`).join('')}</datalist>`;
     const ouvert = fichesChampsVidesOuverts.has(d.id);
     const bascule = nbVides
-      ? `<wa-button appearance="outlined" type="button" class="bouton-ajout bouton-ajout-court fiche-completer${ouvert ? ' ouvert' : ''}" onclick="basculerChampsVidesFiche('${d.id}')" aria-expanded="${ouvert}"><span slot="start" class="bouton-ajout-plus" aria-hidden="true">+</span>${ouvert ? 'Masquer les champs vides' : `Compléter la fiche (${nbVides})`}</wa-button>`
+      ? `<wa-button appearance="outlined" type="button" class="bouton-ajout bouton-ajout-court fiche-completer${ouvert ? ' ouvert' : ''}" onclick="basculerChampsVidesFiche('${escapeOnclickArg(d.id)}')" aria-expanded="${ouvert}"><span slot="start" class="bouton-ajout-plus" aria-hidden="true">+</span>${ouvert ? 'Masquer les champs vides' : `Compléter la fiche (${nbVides})`}</wa-button>`
       : '';
     // Ligne « Authentic » (étude 06/10 au soir : « sous Compléter la fiche ») : le dossier d'Authentic à reprendre, juste sous le bouton.
     // La ligne « À mettre à jour » (changements proposés par Authentic) y est aussi, au-dessus (étude 06/10 au soir : « oui aussi »).
@@ -1347,8 +1347,8 @@
         <span class="widgets-galerie-icone" aria-hidden="true">${icone(def.icone || 'layout')}</span>
         <span class="widgets-galerie-texte"><b>${escapeHtml(def.titre)}</b><span>${escapeHtml(def.description || '')}</span></span>
         ${affiche
-          ? `<wa-button appearance="outlined" class="secondary widgets-galerie-retirer" onclick="masquerWidget('${def.id}', true)" aria-label="Retirer ${escapeAttr(def.titre)} du tableau de bord">${icone('x')}Retirer</wa-button>`
-          : `<wa-button appearance="outlined" type="button" class="bouton-ajout bouton-ajout-court" onclick="masquerWidget('${def.id}', false)" aria-label="Ajouter ${escapeAttr(def.titre)} au tableau de bord"><span slot="start" class="bouton-ajout-plus" aria-hidden="true">+</span>Ajouter</wa-button>`}
+          ? `<wa-button appearance="outlined" class="secondary widgets-galerie-retirer" onclick="masquerWidget('${escapeOnclickArg(def.id)}', true)" aria-label="Retirer ${escapeAttr(def.titre)} du tableau de bord">${icone('x')}Retirer</wa-button>`
+          : `<wa-button appearance="outlined" type="button" class="bouton-ajout bouton-ajout-court" onclick="masquerWidget('${escapeOnclickArg(def.id)}', false)" aria-label="Ajouter ${escapeAttr(def.titre)} au tableau de bord"><span slot="start" class="bouton-ajout-plus" aria-hidden="true">+</span>Ajouter</wa-button>`}
       </li>`;
     const affiches = lignes.filter(l => l.affiche), retires = lignes.filter(l => !l.affiche);
     liste.innerHTML = `${titre('Sur le tableau de bord', nbAffiches)}
@@ -1497,11 +1497,11 @@
   var CASES_TAILLE_WIDGET = { petit: 1, moyen: 2, grand: 4 };
   function barreEditionWidget(def, w, rang, total) {
     const cases = (n, sur, sens) => `<span class="widget-glyphe widget-glyphe-${sens}" aria-hidden="true">${Array.from({ length: sur }, (_, i) => `<i${i < n ? ' class="plein"' : ''}></i>`).join('')}</span>`;
-    const largeurs = def.tailles.map(t => `<button type="button" class="widget-taille${w.taille === t ? ' actif' : ''}" aria-pressed="${w.taille === t}" onclick="changerTailleWidget('${def.id}', '${t}')" title="Largeur : ${NOMS_TAILLE_WIDGET[t]}" aria-label="Largeur ${NOMS_TAILLE_WIDGET[t]}">${cases(CASES_TAILLE_WIDGET[t], 4, 'l')}</button>`).join('');
-    const hauteurs = HAUTEURS_WIDGET.map(h => `<button type="button" class="widget-taille${w.hauteur === h ? ' actif' : ''}" aria-pressed="${w.hauteur === h}" onclick="changerHauteurWidget('${def.id}', ${h})" title="Hauteur : ${NOMS_HAUTEUR_WIDGET[h]}" aria-label="Hauteur ${NOMS_HAUTEUR_WIDGET[h]}">${cases(h, 3, 'h')}</button>`).join('');
-    return `<button type="button" class="widget-retirer" onclick="masquerWidget('${def.id}', true)" title="Retirer du tableau de bord" aria-label="Retirer ${escapeAttr(def.titre)} du tableau de bord">${icone('x')}</button>
-      <wa-button appearance="plain" size="s" type="button" class="bouton-icone widget-outil widget-fleche widget-fleche-avant" onclick="decalerWidget('${def.id}', -1)" ${rang === 0 ? 'disabled' : ''} title="Avancer" aria-label="Avancer ${escapeAttr(def.titre)}">${icone('chevron-left')}</wa-button>
-      <wa-button appearance="plain" size="s" type="button" class="bouton-icone widget-outil widget-fleche widget-fleche-apres" onclick="decalerWidget('${def.id}', 1)" ${rang === total - 1 ? 'disabled' : ''} title="Reculer" aria-label="Reculer ${escapeAttr(def.titre)}">${icone('chevron-right')}</wa-button>
+    const largeurs = def.tailles.map(t => `<button type="button" class="widget-taille${w.taille === t ? ' actif' : ''}" aria-pressed="${w.taille === t}" onclick="changerTailleWidget('${escapeOnclickArg(def.id)}', '${t}')" title="Largeur : ${NOMS_TAILLE_WIDGET[t]}" aria-label="Largeur ${NOMS_TAILLE_WIDGET[t]}">${cases(CASES_TAILLE_WIDGET[t], 4, 'l')}</button>`).join('');
+    const hauteurs = HAUTEURS_WIDGET.map(h => `<button type="button" class="widget-taille${w.hauteur === h ? ' actif' : ''}" aria-pressed="${w.hauteur === h}" onclick="changerHauteurWidget('${escapeOnclickArg(def.id)}', ${h})" title="Hauteur : ${NOMS_HAUTEUR_WIDGET[h]}" aria-label="Hauteur ${NOMS_HAUTEUR_WIDGET[h]}">${cases(h, 3, 'h')}</button>`).join('');
+    return `<button type="button" class="widget-retirer" onclick="masquerWidget('${escapeOnclickArg(def.id)}', true)" title="Retirer du tableau de bord" aria-label="Retirer ${escapeAttr(def.titre)} du tableau de bord">${icone('x')}</button>
+      <wa-button appearance="plain" size="s" type="button" class="bouton-icone widget-outil widget-fleche widget-fleche-avant" onclick="decalerWidget('${escapeOnclickArg(def.id)}', -1)" ${rang === 0 ? 'disabled' : ''} title="Avancer" aria-label="Avancer ${escapeAttr(def.titre)}">${icone('chevron-left')}</wa-button>
+      <wa-button appearance="plain" size="s" type="button" class="bouton-icone widget-outil widget-fleche widget-fleche-apres" onclick="decalerWidget('${escapeOnclickArg(def.id)}', 1)" ${rang === total - 1 ? 'disabled' : ''} title="Reculer" aria-label="Reculer ${escapeAttr(def.titre)}">${icone('chevron-right')}</wa-button>
       <div class="widget-barre">
         <div class="widget-reglage" role="group" aria-label="Largeur du widget ${escapeAttr(def.titre)}"><span class="widget-reglage-lib">Largeur</span>${largeurs}</div>
         <div class="widget-reglage" role="group" aria-label="Hauteur du widget ${escapeAttr(def.titre)}"><span class="widget-reglage-lib">Hauteur</span>${hauteurs}</div>
@@ -1775,7 +1775,7 @@
     return liste.map(e => {
       const j = ecartJours(aujourdhui, e.iso);
       const quand = j === 0 ? "Aujourd'hui" : j === 1 ? 'Demain' : new Date(e.iso + 'T00:00:00').toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' });
-      return `<li><button type="button" class="w-ligne" onclick="ouvrirDossierDepuisDashboard('${e.dossier.id}')" title="${escapeAttr(e.label + ' — ' + libelleDossierAffiche(e.dossier))}">
+      return `<li><button type="button" class="w-ligne" onclick="ouvrirDossierDepuisDashboard('${escapeOnclickArg(e.dossier.id)}')" title="${escapeAttr(e.label + ' — ' + libelleDossierAffiche(e.dossier))}">
         <span class="w-ligne-date">${escapeHtml(quand)}</span>
         <span class="dot-label dl-${e.type}"><span class="dot"></span></span>
         <span class="w-ligne-texte"><b>${escapeHtml(e.label)}</b> · ${escapeHtml(libelleDossierAffiche(e.dossier))}</span></button></li>`;
@@ -2288,7 +2288,7 @@
           <button type="button" class="rappel-perso-case" role="checkbox" aria-checked="${r.fait}" onclick="basculerRappelPerso('${escapeOnclickArg(r.id)}')" aria-label="${r.fait ? 'Marquer à faire' : 'Marquer fait'} : ${escapeAttr(r.texte)}">${r.fait ? icone('check') : ''}</button>
           <div class="rappel-perso-texte">
             <span class="rappel-perso-titre">${escapeHtml(r.texte)}</span>
-            ${sous.length ? `<span class="rappel-perso-sous${enRetard ? ' retard' : ''}">${sous.map((s, i) => i === 1 && d ? `<button type="button" class="lien-discret" onclick="ouvrirDossierDepuisDashboard('${d.id}')">${escapeHtml(s)}</button>` : escapeHtml(s)).join(' · ')}</span>` : ''}
+            ${sous.length ? `<span class="rappel-perso-sous${enRetard ? ' retard' : ''}">${sous.map((s, i) => i === 1 && d ? `<button type="button" class="lien-discret" onclick="ouvrirDossierDepuisDashboard('${escapeOnclickArg(d.id)}')">${escapeHtml(s)}</button>` : escapeHtml(s)).join(' · ')}</span>` : ''}
           </div>
           ${!r.fait && rappelParleEmail(r.texte) ? `<wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-btn rappel-perso-email" onclick="ouvrirEmailRappelPerso('${escapeOnclickArg(r.id)}')" title="Préparer un email vierge avec la signature de l'office" aria-label="Préparer un email">${icone('mail')}</wa-button>` : ''}
           ${r.agendaItemId ? '' : `<wa-button appearance="plain" size="s" type="button" class="bouton-icone rappel-perso-suppr rappel-perso-modif" onclick="ouvrirEditionRappel('${escapeOnclickArg(r.id)}')" aria-label="Modifier le rappel" title="Modifier">${icone('pencil')}</wa-button>

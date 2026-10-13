@@ -30,7 +30,10 @@ test('les sigles CU, « CU a » et DIA sont reconnus, même sans parenthèse et 
   assert.equal(pieces('CU a 2026.pdf'), 'certificatUrbanisme');
   assert.equal(pieces('cu.pdf'), 'certificatUrbanisme');
   assert.equal(pieces('Renonciation DIA commune de Blois.pdf'), 'renonciationPreemption');
-  assert.equal(pieces('2024-118 DUPONT - DIA.pdf'), 'renonciationPreemption');
+  // « DIA » seul = la demande envoyée à la mairie, jamais sa renonciation (audit 13/10, règle de l'étude du 07/10).
+  assert.equal(pieces('2024-118 DUPONT - DIA.pdf'), '');
+  assert.equal(pieces("Déclaration d'intention d'aliéner (DIA) ou notification - Claire Scan.pdf"), '');
+  assert.equal(pieces('Réponse DIA mairie.pdf'), 'renonciationPreemption');
 });
 
 test('un sigle doit être un mot entier et sans faute : aucune tolérance sur les mots courts', () => {

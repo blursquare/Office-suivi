@@ -268,7 +268,7 @@
     if (d.questionnaireVendeurEnvoyeLe) {
       return renderLigneAction(Object.assign(base, {
         sous: `Envoyé le ${formatDateFr(d.questionnaireVendeurEnvoyeLe)}${d.archive ? ' — dossier archivé' : ''}`, faite: true,
-        bouton: d.emailVendeur ? { libelle: 'Renvoyer', icone: icone('mail'), onclick: `envoyerQuestionnaireSatisfaction('${d.id}', false, 'vendeur')` } : null
+        bouton: d.emailVendeur ? { libelle: 'Renvoyer', icone: icone('mail'), onclick: `envoyerQuestionnaireSatisfaction('${escapeOnclickArg(d.id)}', false, 'vendeur')` } : null
       }));
     }
     if (d.archive && !d.questionnaireEnvoyeLe) return '';
@@ -276,7 +276,7 @@
     if (!d.emailVendeur) return renderLigneAction(Object.assign(base, { sous: 'Renseignez l’email du vendeur.' }));
     return renderLigneAction(Object.assign(base, {
       sous: `Le PDF est joint${d.archive ? '' : ' ; ' + texteArchivageQuestionnaire(d, 'vendeur')}`,
-      bouton: { libelle: 'Envoyer', icone: icone('mail'), onclick: `envoyerQuestionnaireSatisfaction('${d.id}', false, 'vendeur')`, titre: modeEmailPoste() === 'mailto' ? 'Ouvre le brouillon et télécharge le PDF à joindre' : 'Prépare l’email avec le questionnaire joint' }
+      bouton: { libelle: 'Envoyer', icone: icone('mail'), onclick: `envoyerQuestionnaireSatisfaction('${escapeOnclickArg(d.id)}', false, 'vendeur')`, titre: modeEmailPoste() === 'mailto' ? 'Ouvre le brouillon et télécharge le PDF à joindre' : 'Prépare l’email avec le questionnaire joint' }
     }));
   }
 
@@ -289,7 +289,7 @@
     if (d.questionnaireEnvoyeLe) {
       return renderLigneAction(Object.assign(base, {
         sous: `Envoyé le ${formatDateFr(d.questionnaireEnvoyeLe)}${d.archive ? ' — dossier archivé' : ''}`, faite: true,
-        bouton: d.emailAcquereur ? { libelle: 'Renvoyer', icone: icone('mail'), onclick: `envoyerQuestionnaireSatisfaction('${d.id}')` } : null
+        bouton: d.emailAcquereur ? { libelle: 'Renvoyer', icone: icone('mail'), onclick: `envoyerQuestionnaireSatisfaction('${escapeOnclickArg(d.id)}')` } : null
       }));
     }
     if (d.archive && !d.questionnaireVendeurEnvoyeLe) return '';
@@ -305,7 +305,7 @@
     const brouillon = apercusJour.has(cle) ? brouillonAction({ dossier: d, geste: { type: 'questionnaire' } }) : null;
     return renderLigneAction(Object.assign(base, {
       sous: `Le PDF est joint${d.archive ? '' : ' ; ' + texteArchivageQuestionnaire(d, 'acquereur')}`,
-      bouton: { libelle: 'Envoyer', icone: icone('mail'), onclick: `envoyerQuestionnaireSatisfaction('${d.id}')`, titre },
+      bouton: { libelle: 'Envoyer', icone: icone('mail'), onclick: `envoyerQuestionnaireSatisfaction('${escapeOnclickArg(d.id)}')`, titre },
       apercu: cle, detail: brouillon ? renderBrouillonEmail(brouillon) : ''
     }));
   }
@@ -327,7 +327,7 @@
     return renderLigneAction({
       categorie: 'appelFonds', categorieLabel: 'Envoi appel de fonds', titre: 'Préparer l’appel de fonds',
       sous: manques.length ? `À saisir ensuite : ${manques.join(', ')}` : 'Convocation et décompte des sommes à virer',
-      bouton: { libelle: 'Préparer', icone: icone('file-text'), onclick: `preparerAppelFondsDepuisDossier('${d.id}')`, titre: 'Convocation et décompte des sommes à virer' }
+      bouton: { libelle: 'Préparer', icone: icone('file-text'), onclick: `preparerAppelFondsDepuisDossier('${escapeOnclickArg(d.id)}')`, titre: 'Convocation et décompte des sommes à virer' }
     });
   }
 
@@ -506,8 +506,8 @@
       ? `<span class="${r.garanties.identifiee ? '' : 'garantie-inconnue'}">${escapeHtml(r.garanties.texte)}</span>`
       : '<span class="fonds-offre-muet">Lues à la réception de l’offre</span>';
     const actions = r.ouvrable
-      ? `<button type="button" class="lien-action" onclick="ouvrirOffreTrouvee('${d.id}')">Ouvrir l’offre</button>`
-      : (d.dossierLie ? `<button type="button" class="lien-action" onclick="verifierDossierLocalDepuisBouton('${d.id}', this)">Revérifier</button>` : '');
+      ? `<button type="button" class="lien-action" onclick="ouvrirOffreTrouvee('${escapeOnclickArg(d.id)}')">Ouvrir l’offre</button>`
+      : (d.dossierLie ? `<button type="button" class="lien-action" onclick="verifierDossierLocalDepuisBouton('${escapeOnclickArg(d.id)}', this)">Revérifier</button>` : '');
     return `<div class="echanges-groupe fonds-offre">
         <div class="echanges-tete">
           <span class="section-eyebrow">Offre de prêt</span>

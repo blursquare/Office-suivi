@@ -300,7 +300,7 @@
       </div>
       <p class="appel-entrant-numero">${escapeHtml(a.numero || 'Numéro masqué')}${a.nom ? ` · ${escapeHtml(a.nom)}` : ''}${liensAppelTelephone(a.numero, 'coord-appel coord-appel-inline')}</p>
       ${contact}
-      ${ds.length ? `<div class="appel-entrant-dossiers">${ds.slice(0, 4).map(y => `<wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="ouvrirFicheAppel('${y.d.id}'); fermerAppelEntrant()">${y.partie ? `<span class="appel-entrant-partie">${escapeHtml(y.partie)}</span>` : ''}${escapeHtml(libelleDossierAffiche(y.d))}${y.d.archive ? ' · archivé' : ''}</wa-button>`).join('')}</div>`
+      ${ds.length ? `<div class="appel-entrant-dossiers">${ds.slice(0, 4).map(y => `<wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="ouvrirFicheAppel('${escapeOnclickArg(y.d.id)}'); fermerAppelEntrant()">${y.partie ? `<span class="appel-entrant-partie">${escapeHtml(y.partie)}</span>` : ''}${escapeHtml(libelleDossierAffiche(y.d))}${y.d.archive ? ' · archivé' : ''}</wa-button>`).join('')}</div>`
         : (contact ? '' : `<p class="hint">Numéro inconnu de CLAIRE ${infoBulle('Saisissez-le sur la fiche du dossier (coordonnées du vendeur ou de l’acquéreur, en tête de fiche) : le prochain appel ouvrira la fiche.')}</p>`)}`;
   }
 
@@ -325,8 +325,8 @@
     const entree = `onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}"`;
     const email = c.parNotaire
       ? `<span class="prop-texte vide" title="Un autre office représente cette partie : on écrit à son notaire.">Par son notaire</span>`
-      : `<input type="email" id="${prefixe}-email-${c.partie}-${d.id}" class="prop-champ coord-email" value="${escapeAttr(c.email)}" placeholder="Email" aria-label="Email ${c.libelle === 'Vendeur' ? 'du vendeur' : 'de l’acquéreur'}" onblur="${c.changerEmail}('${d.id}', this.value)" ${entree}>`;
-    const tel = `<input type="tel" id="${prefixe}-tel-${c.partie}-${d.id}" class="prop-champ coord-tel" value="${escapeAttr(c.tel)}" placeholder="Téléphone" autocomplete="off" aria-label="Téléphone ${c.libelle === 'Vendeur' ? 'du vendeur' : 'de l’acquéreur'}" title="Reconnu quand il appelle (3CX). Plusieurs numéros : séparés par « / »." onblur="changerTelephoneDossier('${d.id}', '${c.partie}', this.value)" ${entree}>`;
+      : `<input type="email" id="${prefixe}-email-${c.partie}-${d.id}" class="prop-champ coord-email" value="${escapeAttr(c.email)}" placeholder="Email" aria-label="Email ${c.libelle === 'Vendeur' ? 'du vendeur' : 'de l’acquéreur'}" onblur="${c.changerEmail}('${escapeOnclickArg(d.id)}', this.value)" ${entree}>`;
+    const tel = `<input type="tel" id="${prefixe}-tel-${c.partie}-${d.id}" class="prop-champ coord-tel" value="${escapeAttr(c.tel)}" placeholder="Téléphone" autocomplete="off" aria-label="Téléphone ${c.libelle === 'Vendeur' ? 'du vendeur' : 'de l’acquéreur'}" title="Reconnu quand il appelle (3CX). Plusieurs numéros : séparés par « / »." onblur="changerTelephoneDossier('${escapeOnclickArg(d.id)}', '${c.partie}', this.value)" ${entree}>`;
     // Représentée par un autre office (étude 05/10) : pas de champ téléphone — c'est celui du confrère, sur sa ligne « Tél. confrère » ;
     // un numéro déjà saisi reste visible (rien n'est caché).
     if (c.represente && !c.tel) return `<span class="coord-paire">${email}</span>`;

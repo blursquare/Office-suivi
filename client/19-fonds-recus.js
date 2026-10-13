@@ -61,6 +61,17 @@
     });
     // Le prénom d'une paire n'est plus cherché seul (« Léa » d'un autre client).
     const prenomsDePaire = new Set([...paires.values()].flat());
+    // Ni AUCUN prénom d'un acquéreur (audit 13/10 : « Jean » de « Jean MARTIN » comptait les 150 000 € de « DURAND Jean ») : un
+    // prénom ne désigne personne seul. Famille = mots en capitales du nom (sinon son dernier mot) ; le reste et `prenom` = prénoms.
+    const familles = new Set();
+    parties.filter(p => p && String(p.role || '').toUpperCase() === 'ACQUEREUR').forEach(p => {
+      const mots = String(p.nom || '').split(/\s+/).filter(Boolean);
+      const caps = mots.filter(w => w.length > 1 && w === w.toUpperCase() && /\p{Lu}/u.test(w));
+      (caps.length ? caps : mots.slice(-1)).concat([p.nomUsage || '']).flatMap(motsDe).forEach(m => familles.add(m));
+      mots.filter(w => !caps.includes(w)).slice(0, caps.length ? undefined : -1).concat([p.prenom || '']).flatMap(motsDe)
+        .forEach(m => prenomsDePaire.add(m));
+    });
+    familles.forEach(m => prenomsDePaire.delete(m));
     return [...new Set(mots.filter(m => !prenomsDePaire.has(m)).flatMap(m => paires.has(m) ? paires.get(m).map(w => m + ' ' + w) : [m]))];
   }
 
@@ -443,7 +454,9 @@
   function changerFondsAttendus(id, valeur) {
     const d = dossiers.find(x => x.id === id);
     if (!d) return;
-    const n = Number(String(valeur || '').replace(/[\s  €]/g, '').replace(',', '.'));
+    // « 120.000,00 € » (forme affichée par CLAIRE), « 120 000 », « 1500.50 » : la même lecture que le décompte (audit 13/10 :
+    // « 120.000 » valait 120 €, « 1.500 » 1,50 € — fonds déclarés complets avec 0 € reçu).
+    const n = montantSaisiAppelFonds(valeur);
     const avant = d.fondsAttendusManuel || null;
     d.fondsAttendusManuel = n > 0 ? Math.round(n * 100) / 100 : null;
     if (avant === d.fondsAttendusManuel) return;
@@ -525,11 +538,11 @@
     if (fondsEdition[d.id + ':' + champ]) {
       return `<span class="fonds-edition">
         <input type="text" id="fonds-${champ}-${d.id}" value="${escapeAttr(valeur)}" placeholder="${escapeAttr(placeholder)}" ${attrs || ''}
-          onkeydown="if(event.key==='Enter')validerChampFonds('${d.id}','${champ}');if(event.key==='Escape')annulerChampFonds('${d.id}','${champ}')">
-        <wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-btn" onclick="validerChampFonds('${d.id}','${champ}')" title="Valider" aria-label="Valider">${icone('check')}</wa-button>
-        <wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-btn" onclick="annulerChampFonds('${d.id}','${champ}')" title="Annuler" aria-label="Annuler">${icone('x')}</wa-button></span>`;
+          onkeydown="if(event.key==='Enter')validerChampFonds('${escapeOnclickArg(d.id)}','${champ}');if(event.key==='Escape')annulerChampFonds('${escapeOnclickArg(d.id)}','${champ}')">
+        <wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-btn" onclick="validerChampFonds('${escapeOnclickArg(d.id)}','${champ}')" title="Valider" aria-label="Valider">${icone('check')}</wa-button>
+        <wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-btn" onclick="annulerChampFonds('${escapeOnclickArg(d.id)}','${champ}')" title="Annuler" aria-label="Annuler">${icone('x')}</wa-button></span>`;
     }
-    return `${affichage}<wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-btn fonds-crayon" onclick="editerChampFonds('${d.id}','${champ}')" title="Modifier" aria-label="Modifier">${icone('pencil')}</wa-button>`;
+    return `${affichage}<wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-btn fonds-crayon" onclick="editerChampFonds('${escapeOnclickArg(d.id)}','${champ}')" title="Modifier" aria-label="Modifier">${icone('pencil')}</wa-button>`;
   }
 
   // Réception des fonds, en visuel (demandé par l'étude le 29/09 : « plus clair, moins de texte ») :
@@ -582,7 +595,7 @@
           <strong class="fonds-v-montant">${formaterPrixCentimes(r.montant)}</strong>
           ${r.confirme ? `<span class="fonds-v-ref" title="La référence de la vente est retrouvée dans le libellé">${icone('check')}</span>` : '<span class="fonds-v-ref"></span>'}
           ${r.memorise
-            ? `<span class="fonds-v-actions"><span class="fonds-v-memorise" title="${escapeAttr(`${r.fichier || 'Reçu'}${r.page > 1 ? ' p.' + r.page : ''} — fichier retiré du commun, montant conservé${r.extrait ? '\n' + r.extrait : ''}`)}">${icone('archive')}</span><wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-btn" onclick="retirerRecuMemorise('${d.id}', '${escapeOnclickArg(cleRecu(r))}')" title="Retirer ce versement" aria-label="Retirer ce versement">${icone('x')}</wa-button></span>`
+            ? `<span class="fonds-v-actions"><span class="fonds-v-memorise" title="${escapeAttr(`${r.fichier || 'Reçu'}${r.page > 1 ? ' p.' + r.page : ''} — fichier retiré du commun, montant conservé${r.extrait ? '\n' + r.extrait : ''}`)}">${icone('archive')}</span><wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-btn" onclick="retirerRecuMemorise('${escapeOnclickArg(d.id)}', '${escapeOnclickArg(cleRecu(r))}')" title="Retirer ce versement" aria-label="Retirer ce versement">${icone('x')}</wa-button></span>`
             : `<wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-btn" onclick="ouvrirFichierNas('${escapeOnclickArg(r.chemin)}')" title="${escapeAttr(`${r.fichier}${r.page > 1 ? ' p.' + r.page : ''}${r.compte ? ' · compte ' + r.compte : ''}${r.extrait ? '\n' + r.extrait : ''}`)}" aria-label="Ouvrir le reçu">${icone('file-text')}</wa-button>`}
         </li>`).join('')}</ul>` : '';
 
@@ -593,13 +606,13 @@
       (f.recus || []).some(r => r.memorise) ? 'Icône boîte : fichier de reçus supprimé du commun, montant conservé par CLAIRE.' : ''].filter(Boolean).join(' '))}` : '';
     const peutConfirmer = echeanceValidee(d, 'appelFonds') && !!emailDestinataireRelance(d);
     const complet = b.manuel || (!!f && b.etat === 'complet');
-    const confirmer = `envoyerRelanceCiblee('${d.id}', 'fonds')`;
+    const confirmer = `envoyerRelanceCiblee('${escapeOnclickArg(d.id)}', 'fonds')`;
     // Validation à la main (étude 06/10) : fonds vus sur le compte de l'étude à la Caisse des Dépôts sans reçu lu — vaut
     // réception complète (confirmation au client, Teams, probabilité de signature) ; annulable tant que rien n'est confirmé.
     const validation = b.manuel
-      ? (confirmee ? '' : `<button type="button" class="lien-action" onclick="annulerValidationFonds('${d.id}')">Annuler la validation</button>`)
+      ? (confirmee ? '' : `<button type="button" class="lien-action" onclick="annulerValidationFonds('${escapeOnclickArg(d.id)}')">Annuler la validation</button>`)
       : (b.etat === 'complet' ? ''
-        : `<wa-button appearance="outlined" size="s" type="button" class="fonds-valider" onclick="validerFondsArrives('${d.id}')" title="Les fonds sont arrivés sur le compte de l’étude sans reçu lu">${icone('check')} Valider les fonds reçus</wa-button>${infoBulle('Fonds vus sur le compte CDC de l’étude mais absents des reçus lus : la validation vaut réception complète (confirmation au client, alerte Teams, probabilité de signature). Annulable.')}`);
+        : `<wa-button appearance="outlined" size="s" type="button" class="fonds-valider" onclick="validerFondsArrives('${escapeOnclickArg(d.id)}')" title="Les fonds sont arrivés sur le compte de l’étude sans reçu lu">${icone('check')} Valider les fonds reçus</wa-button>${infoBulle('Fonds vus sur le compte CDC de l’étude mais absents des reçus lus : la validation vaut réception complète (confirmation au client, alerte Teams, probabilité de signature). Annulable.')}`);
     const pied = `<div class="fonds-pied">
         <span class="fonds-noms">${icone('user')} ${noms}</span>
         ${lecture ? `<span class="fonds-lecture">${lecture}</span>` : ''}
@@ -607,11 +620,11 @@
       </div>`;
     const detail = `<div class="fonds-recus">${jauge}${versements}${pied}</div>`;
 
-    const verifier = { libelle: f ? 'Revérifier' : 'Vérifier', icone: icone('rotate-ccw'), onclick: `verifierFondsRecus('${d.id}', this)`, titre: 'Lire les reçus comptables déposés sur le NAS' };
+    const verifier = { libelle: f ? 'Revérifier' : 'Vérifier', icone: icone('rotate-ccw'), onclick: `verifierFondsRecus('${escapeOnclickArg(d.id)}', this)`, titre: 'Lire les reçus comptables déposés sur le NAS' };
     let bouton = verifier;
     if (peutConfirmer && confirmee) bouton = { libelle: 'Renvoyer', icone: icone('mail'), onclick: confirmer, titre: 'Renvoyer la confirmation de réception des fonds' };
     else if (peutConfirmer && complet) bouton = { libelle: 'Confirmer', icone: icone('mail'), onclick: confirmer, titre: 'Confirmer la réception des fonds au client' };
-    const reverifierIcone = bouton === verifier ? '' : `<wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-btn ja-plus-tard" onclick="verifierFondsRecus('${d.id}', this)" title="${f ? 'Revérifier les reçus' : 'Vérifier les reçus'}" aria-label="${f ? 'Revérifier les reçus' : 'Vérifier les reçus'}">${icone('rotate-ccw')}</wa-button>`;
+    const reverifierIcone = bouton === verifier ? '' : `<wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-btn ja-plus-tard" onclick="verifierFondsRecus('${escapeOnclickArg(d.id)}', this)" title="${f ? 'Revérifier les reçus' : 'Vérifier les reçus'}" aria-label="${f ? 'Revérifier les reçus' : 'Vérifier les reçus'}">${icone('rotate-ccw')}</wa-button>`;
     return renderLigneAction({
       categorie: 'appelFonds', categorieLabel: 'Fonds reçus', titre: 'Fonds reçus en comptabilité',
       sousHtml, faite: !!confirmee, bouton, secondaires: reverifierIcone,

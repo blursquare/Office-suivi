@@ -666,7 +666,7 @@
     return `<ul class="ja-liste">${renderLigneAction({
       categorie: 'acte', titre: 'Proposer des créneaux de signature',
       sous: 'Les parties choisissent par email, comme un sondage',
-      bouton: { libelle: 'Proposer', icone: icone('calendar'), onclick: `ouvrirSondageCreneaux('${d.id}')`, titre: 'Choisir les créneaux et préparer les emails' }
+      bouton: { libelle: 'Proposer', icone: icone('calendar'), onclick: `ouvrirSondageCreneaux('${escapeOnclickArg(d.id)}')`, titre: 'Choisir les créneaux et préparer les emails' }
     })}</ul>`;
   }
 
@@ -1075,7 +1075,7 @@
 
   function renderLigneTableau(d) {
     return `
-      <tr class="ligne-resume${d.archive ? ' est-archive' : ''}${dossierOuvert === d.id ? ' ligne-active' : ''}" onclick="ouvrirDossierDrawer('${d.id}')">
+      <tr class="ligne-resume${d.archive ? ' est-archive' : ''}${dossierOuvert === d.id ? ' ligne-active' : ''}" onclick="ouvrirDossierDrawer('${escapeOnclickArg(d.id)}')">
         ${celluleDateProchaineEcheance(d)}
         <td><div class="dossier-nom-tableau">${escapeHtml(libelleDossierAffiche(d))}${tagNotificationsDossier(d)}</div></td>
         ${celluleTypeProchaineEcheance(d)}
@@ -1117,7 +1117,7 @@
     const items = archivesPourEcheances(liste);
     if (!items.length) return '';
     const lignes = items.map(({ dossier: d, repere: r }) => `
-          <tr class="ligne-resume est-archive${dossierOuvert === d.id ? ' ligne-active' : ''}" onclick="ouvrirDossierDrawer('${d.id}')">
+          <tr class="ligne-resume est-archive${dossierOuvert === d.id ? ' ligne-active' : ''}" onclick="ouvrirDossierDrawer('${escapeOnclickArg(d.id)}')">
             <td>${r.signe ? `<span class="echeance-jours signature-ok">${escapeHtml(texteSigneSuivi(r.signe))}</span>` : `<span class="echeance-jours calme">${r.iso ? formatDateFr(r.iso) : '—'}</span>`}</td>
             <td><div class="dossier-nom-tableau">${escapeHtml(libelleDossierAffiche(d))}</div></td>
             <td>${r.type === 'archive' ? `<span class="dot-label dl-neutre">${icone('lock')}${escapeHtml(r.label)}</span>` : `<span class="dot-label dl-${r.type}"><span class="dot"></span>${escapeHtml(r.label)}</span>`}</td>
@@ -1156,7 +1156,7 @@
         if (!e) return renderLigneTableau(d);
         const jours = joursRestants(e.iso);
         return `
-          <tr class="ligne-resume${d.archive ? ' est-archive' : ''}${dossierOuvert === d.id ? ' ligne-active' : ''}" onclick="ouvrirDossierDrawer('${d.id}')">
+          <tr class="ligne-resume${d.archive ? ' est-archive' : ''}${dossierOuvert === d.id ? ' ligne-active' : ''}" onclick="ouvrirDossierDrawer('${escapeOnclickArg(d.id)}')">
             <td><span class="echeance-jours ${classeDateEcheanceSuivi(d, e, jours)}">${formatDateFr(e.iso)}</span></td>
             <td><div class="dossier-nom-tableau">${escapeHtml(libelleDossierAffiche(d))}${tagNotificationsDossier(d)}</div></td>
             <td><span class="dot-label dl-${e.type}"><span class="dot"></span>${escapeHtml(e.label)}</span></td>
@@ -1430,18 +1430,18 @@
       let caseAction;
       let caseTitre = s.titre;
       if (p.personnalisee) {
-        caseAction = `basculerStatutPiecePersonnalisee('${d.id}', '${p.cle}')`;
+        caseAction = `basculerStatutPiecePersonnalisee('${escapeOnclickArg(d.id)}', '${escapeOnclickArg(p.cle)}')`;
         caseTitre = `${s.titre} — cliquer pour changer le statut`;
       } else if (valideeMain) {
-        caseAction = `retirerValidationManuellePiece('${d.id}', '${p.cle}', '${arg}')`;
+        caseAction = `retirerValidationManuellePiece('${escapeOnclickArg(d.id)}', '${escapeOnclickArg(p.cle)}', '${arg}')`;
         caseTitre = 'Reçue (validée à la main) — cliquer pour retirer la validation';
       } else if (!recue) {
-        caseAction = `validerPieceManuellement('${d.id}', '${p.cle}', '${arg}')`;
+        caseAction = `validerPieceManuellement('${escapeOnclickArg(d.id)}', '${escapeOnclickArg(p.cle)}', '${arg}')`;
         caseTitre = `${statut === 'manquante' ? 'Introuvable dans le dossier du NAS' : s.titre} — cliquer pour la marquer reçue (document détenu hors du NAS)`;
       } else {
         // Trouvée sur le NAS : décocher = réinitialiser (bonne pièce mal reconnue, fichier renommé) ;
         // elle repart « manquante » et se recoche alors à la main si besoin (étude 05/10 : « cochables et décochables »).
-        caseAction = `reinitialiserStatutPieceStandard('${d.id}', '${p.cle}', '${arg}')`;
+        caseAction = `reinitialiserStatutPieceStandard('${escapeOnclickArg(d.id)}', '${escapeOnclickArg(p.cle)}', '${arg}')`;
         caseTitre = 'Reçue — trouvée dans le dossier du NAS — cliquer pour la décocher (réinitialiser)';
       }
       const coche = recue ? icone('check') : (statut === 'manquante' && p.personnalisee ? icone('x') : '');
@@ -1449,16 +1449,16 @@
       const ouvrable = recue && !valideeMain;
       const titreNom = p.autoEngagement && !recue ? ' title="Relevée dans les engagements du vendeur de l’avant-contrat."' : '';
       const nom = ouvrable
-        ? `<button type="button" class="piece-nom piece-nom-lien" title="Ouvrir le fichier trouvé" onclick="ouvrirPieceTrouvee('${d.id}', '${p.cle}')">${escapeHtml(p.label)}</button>`
+        ? `<button type="button" class="piece-nom piece-nom-lien" title="Ouvrir le fichier trouvé" onclick="ouvrirPieceTrouvee('${escapeOnclickArg(d.id)}', '${escapeOnclickArg(p.cle)}')">${escapeHtml(p.label)}</button>`
         : `<span class="piece-nom"${titreNom}>${escapeHtml(p.label)}</span>`;
       const tags = (notifs.includes(p.cle) ? '<span class="dot-label dl-urgent notif-nouveau-tag">Nouveau</span>' : '')
         + (valideeMain ? `<span class="piece-tag">${(d.piecesAuthentic || []).includes(p.cle) ? 'dans Authentic' : 'à la main'}</span>` : '')
         + (() => { const e = etatAuthenticPiece(d, p); return e && e.texte ? `<span class="piece-tag piece-tag-long${e.classe ? ' ' + e.classe : ''}">${escapeHtml(e.texte)}</span>` : ''; })()
         + (/safer/i.test(p.label) ? renderDelaiSafer(d) : '');
       const reinit = (!p.personnalisee && !valideeMain && recue)
-        ? `<button type="button" class="piece-action" onclick="reinitialiserStatutPieceStandard('${d.id}', '${p.cle}', '${arg}')" title="Réinitialiser (mauvaise correspondance ou fichier renommé)" aria-label="Réinitialiser le statut de cette pièce">${icone('rotate-ccw')}</button>`
+        ? `<button type="button" class="piece-action" onclick="reinitialiserStatutPieceStandard('${escapeOnclickArg(d.id)}', '${escapeOnclickArg(p.cle)}', '${arg}')" title="Réinitialiser (mauvaise correspondance ou fichier renommé)" aria-label="Réinitialiser le statut de cette pièce">${icone('rotate-ccw')}</button>`
         : '';
-      const suppr = `<button type="button" class="piece-action piece-action-suppr" onclick="${p.personnalisee ? `supprimerPiecePersonnalisee('${d.id}', '${p.cle}')` : `retirerPieceStandard('${d.id}', '${p.cle}', '${arg}')`}" title="Retirer cette pièce de la checklist de ce dossier" aria-label="Retirer cette pièce">${icone('x')}</button>`;
+      const suppr = `<button type="button" class="piece-action piece-action-suppr" onclick="${p.personnalisee ? `supprimerPiecePersonnalisee('${escapeOnclickArg(d.id)}', '${escapeOnclickArg(p.cle)}')` : `retirerPieceStandard('${escapeOnclickArg(d.id)}', '${escapeOnclickArg(p.cle)}', '${arg}')`}" title="Retirer cette pièce de la checklist de ce dossier" aria-label="Retirer cette pièce">${icone('x')}</button>`;
       return `<li class="piece-ligne ${s.cls}${valideeMain ? ' validee-main' : ''}">${caseHtml}<span class="piece-libelle">${nom}${tags}</span><span class="piece-actions">${reinit}${suppr}</span></li>`;
     };
 
@@ -1467,7 +1467,7 @@
         <div class="pieces-entete">
           <div class="pieces-entete-ligne">
             <span class="pieces-titre">${icone('list-check')}<span class="pieces-titre-texte">Pièces du dossier</span><span class="pieces-type">· ${libelleType}</span></span>
-            ${d.dossierLie && !d.archive ? `<wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="verifierDossierLocalDepuisBouton('${d.id}', this)" title="Relire le dossier du NAS">${icone('rotate-ccw')} Revérifier</wa-button>` : ''}
+            ${d.dossierLie && !d.archive ? `<wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="verifierDossierLocalDepuisBouton('${escapeOnclickArg(d.id)}', this)" title="Relire le dossier du NAS">${icone('rotate-ccw')} Revérifier</wa-button>` : ''}
             <span class="pieces-compteur${complet ? ' complet' : ''}">${nbRecues}/${total}</span>
           </div>
           <div class="pieces-barre${complet ? ' complet' : ''}" role="progressbar" aria-valuemin="0" aria-valuemax="${total}" aria-valuenow="${nbRecues}" aria-label="Pièces reçues"><span style="width:${pct}%"></span></div>
@@ -1590,7 +1590,7 @@
     return `
       <div class="ajout-piece-form">
         <input type="text" id="nouvelle-piece-label" placeholder="Nom de la pièce (ex. Attestation de surface loi Carrez)">
-        <wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-valider" onclick="ajouterPiecePersonnalisee('${d.id}')" title="Ajouter" aria-label="Ajouter la pièce">✓</wa-button>
+        <wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-valider" onclick="ajouterPiecePersonnalisee('${escapeOnclickArg(d.id)}')" title="Ajouter" aria-label="Ajouter la pièce">✓</wa-button>
         <button type="button" class="icon-btn" onclick="masquerFormAjoutPiece()">Annuler</button>
       </div>
     `;
@@ -1990,14 +1990,14 @@
       const titreOuvrirCompromis = d.compromisNomFichier
         ? `Ouvrir « ${d.compromisNomFichier} », le fichier importé à la création du dossier`
         : "Rechercher et ouvrir l'avant-contrat dans le dossier NAS relié (aucun nom de fichier mémorisé pour ce dossier)";
-      const boutonOuvrirCompromis = `<wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="ouvrirCompromisTrouve('${d.id}', this)" title="${escapeAttr(titreOuvrirCompromis)}">${icone('file-text')} Ouvrir</wa-button>`;
+      const boutonOuvrirCompromis = `<wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="ouvrirCompromisTrouve('${escapeOnclickArg(d.id)}', this)" title="${escapeAttr(titreOuvrirCompromis)}">${icone('file-text')} Ouvrir</wa-button>`;
       // Le nom du dossier NAS relié est affiché dans l'infobulle : le vérifier ne doit pas demander
       // d'ouvrir la fenêtre de choix.
       const boutonsDossierLocal = d.dossierLie
-          ? `<wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="changerDossierLocal('${d.id}')" title="${escapeAttr('Dossier NAS relié : ' + (d.nasDossier || '—') + ' — cliquez pour en choisir un autre')}">Changer</wa-button>`
+          ? `<wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="changerDossierLocal('${escapeOnclickArg(d.id)}')" title="${escapeAttr('Dossier NAS relié : ' + (d.nasDossier || '—') + ' — cliquez pour en choisir un autre')}">Changer</wa-button>`
           // Même sans prêt (achat comptant), le dossier NAS reste nécessaire pour suivre
           // la checklist de pièces (urbanisme...) — voir renderPiecesDossier ci-dessous.
-          : `<wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="lierDossierLocal('${d.id}')" title="Relier ce dossier à son dossier du NAS">${icone('link')} Relier</wa-button>`;
+          : `<wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="lierDossierLocal('${escapeOnclickArg(d.id)}')" title="Relier ce dossier à son dossier du NAS">${icone('link')} Relier</wa-button>`;
       // Statut de l'offre sous la date de la carte "Obtention du prêt" (voir renderLigneEcheance, paramètre
       // offreBloc). Une puce de couleur plutôt qu'une phrase : le décompte juste au-dessus dit déjà
       // "✓ Offre reçue" en toutes lettres, la puce ne fait que confirmer d'un coup d'œil sans
@@ -2024,12 +2024,12 @@
       const offreBloc = !d.sansPret ? `
         <span class="tab-offre-pret">
           ${offreOuvrable
-              ? `<button type="button" class="dot-label ${offreStatut.dl}" title="${d.offrePretStatut === 'recue' ? 'Offre de prêt reçue — cliquer pour ouvrir le fichier trouvé' : 'Document trouvé mais non confirmé — cliquer pour l’ouvrir et vérifier'}" onclick="ouvrirOffreTrouvee('${d.id}')"><span class="dot"></span>${d.offrePretStatut === 'recue' ? 'Ouvrir le fichier' : 'À confirmer — ouvrir'}</button>`
+              ? `<button type="button" class="dot-label ${offreStatut.dl}" title="${d.offrePretStatut === 'recue' ? 'Offre de prêt reçue — cliquer pour ouvrir le fichier trouvé' : 'Document trouvé mais non confirmé — cliquer pour l’ouvrir et vérifier'}" onclick="ouvrirOffreTrouvee('${escapeOnclickArg(d.id)}')"><span class="dot"></span>${d.offrePretStatut === 'recue' ? 'Ouvrir le fichier' : 'À confirmer — ouvrir'}</button>`
               : `<span class="dot-label ${offreStatut.dl}" title="${d.dossierLie ? escapeAttr(offreStatut.texte) : 'Aucun dossier du NAS relié : l’offre n’a pas encore pu être cherchée'}"><span class="dot"></span>${offreStatut.texte}</span>`}
           ${offreEstNouvelle ? '<span class="dot-label dl-urgent notif-nouveau-tag">Nouveau</span>' : ''}
           ${d.dossierLie
-              ? `<button type="button" class="lien-action" onclick="verifierDossierLocalDepuisBouton('${d.id}', this)">Revérifier</button>`
-              : `<button type="button" class="lien-action" onclick="lierDossierLocal('${d.id}')">${icone('link')} Relier un dossier du NAS</button>`}
+              ? `<button type="button" class="lien-action" onclick="verifierDossierLocalDepuisBouton('${escapeOnclickArg(d.id)}', this)">Revérifier</button>`
+              : `<button type="button" class="lien-action" onclick="lierDossierLocal('${escapeOnclickArg(d.id)}')">${icone('link')} Relier un dossier du NAS</button>`}
         </span>${garantiesBloc}` : '';
       const aujourdhui = isoAujourdHui();
       const avancement = avancementDossier(d, aujourdhui);
@@ -2080,10 +2080,10 @@
             ${boutonsModeFiche()}
           </div>
           <div class="fiche-barre-groupe">
-            <wa-button appearance="plain" type="button" class="bouton-icone fiche-btn" onclick="telechargerICS('${d.id}')" aria-label="Télécharger les rappels (.ics)" title="Télécharger les rappels (.ics)">${icone('calendar')}</wa-button>
-            <wa-button appearance="plain" type="button" class="bouton-icone fiche-btn" onclick="imprimerFiche('${d.id}')" aria-label="Imprimer la fiche" title="Imprimer la fiche">${icone('printer')}</wa-button>
-            <wa-button appearance="plain" type="button" class="bouton-icone fiche-btn" onclick="archiverDossier('${d.id}', ${!d.archive})" aria-label="${d.archive ? 'Désarchiver' : 'Archiver'}" title="${d.archive ? 'Désarchiver le dossier' : 'Archiver le dossier'}">${icone('archive')}</wa-button>
-            <wa-button appearance="plain" type="button" class="bouton-icone fiche-btn fiche-btn-danger" onclick="supprimerDossier('${d.id}')" aria-label="Supprimer le dossier" title="Supprimer le dossier">${icone('trash')}</wa-button>
+            <wa-button appearance="plain" type="button" class="bouton-icone fiche-btn" onclick="telechargerICS('${escapeOnclickArg(d.id)}')" aria-label="Télécharger les rappels (.ics)" title="Télécharger les rappels (.ics)">${icone('calendar')}</wa-button>
+            <wa-button appearance="plain" type="button" class="bouton-icone fiche-btn" onclick="imprimerFiche('${escapeOnclickArg(d.id)}')" aria-label="Imprimer la fiche" title="Imprimer la fiche">${icone('printer')}</wa-button>
+            <wa-button appearance="plain" type="button" class="bouton-icone fiche-btn" onclick="archiverDossier('${escapeOnclickArg(d.id)}', ${!d.archive})" aria-label="${d.archive ? 'Désarchiver' : 'Archiver'}" title="${d.archive ? 'Désarchiver le dossier' : 'Archiver le dossier'}">${icone('archive')}</wa-button>
+            <wa-button appearance="plain" type="button" class="bouton-icone fiche-btn fiche-btn-danger" onclick="supprimerDossier('${escapeOnclickArg(d.id)}')" aria-label="Supprimer le dossier" title="Supprimer le dossier">${icone('trash')}</wa-button>
           </div>
         </div>
 
@@ -2095,12 +2095,12 @@
               <div class="nom-dossier">
                 <span class="nom-affichage" id="nom-affichage-${d.id}">
                   <span class="nom-texte">${escapeHtml(libelleDossierAffiche(d))}</span>
-                  <wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-crayon" onclick="activerEditionNom('${d.id}')" title="Modifier le nom" aria-label="Modifier le nom">${icone('pencil')}</wa-button>
+                  <wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-crayon" onclick="activerEditionNom('${escapeOnclickArg(d.id)}')" title="Modifier le nom" aria-label="Modifier le nom">${icone('pencil')}</wa-button>
                   ${texteRattachementAuthentic(d) ? infoBulle(texteRattachementAuthentic(d)) : ''}
                 </span>
                 <span class="nom-edition" id="nom-edition-${d.id}" hidden>
-                  <input type="text" class="dossier-nom-input" id="nom-input-${d.id}" value="${escapeAttr(d.nom)}" aria-label="Nom du dossier" onkeydown="if(event.key==='Enter'){event.preventDefault();validerEditionNom('${d.id}');}else if(event.key==='Escape'){annulerEditionNom('${d.id}');}">
-                  <wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-valider" onclick="validerEditionNom('${d.id}')" title="Valider" aria-label="Valider le nom">✓</wa-button>
+                  <input type="text" class="dossier-nom-input" id="nom-input-${d.id}" value="${escapeAttr(d.nom)}" aria-label="Nom du dossier" onkeydown="if(event.key==='Enter'){event.preventDefault();validerEditionNom('${escapeOnclickArg(d.id)}');}else if(event.key==='Escape'){annulerEditionNom('${escapeOnclickArg(d.id)}');}">
+                  <wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-valider" onclick="validerEditionNom('${escapeOnclickArg(d.id)}')" title="Valider" aria-label="Valider le nom">✓</wa-button>
                 </span>
               </div>
               <div class="fiche-entete-infos">
@@ -2555,7 +2555,7 @@
         <div class="autre-row">
           <input type="text" id="nouvelle-echeance-label" placeholder="Nom de l'échéance (ex. Levée de la condition suspensive travaux)">
           <input type="date" id="nouvelle-echeance-date">
-          <wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-valider" onclick="ajouterEcheanceApresCoup('${d.id}')" title="Ajouter" aria-label="Ajouter l'échéance">✓</wa-button>
+          <wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-valider" onclick="ajouterEcheanceApresCoup('${escapeOnclickArg(d.id)}')" title="Ajouter" aria-label="Ajouter l'échéance">✓</wa-button>
           <button type="button" class="icon-btn" onclick="masquerFormAjoutEcheance()">Annuler</button>
         </div>
       </div>
@@ -2622,7 +2622,7 @@
             <option value="autre">Autres</option>
           </select>
           <textarea id="nouvelle-obligation-dossier-texte" rows="2" placeholder="Clause exacte, ou description de l'obligation"></textarea>
-          <wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-valider" onclick="ajouterEngagementDossierApresCoup('${d.id}')" title="Ajouter" aria-label="Ajouter l'obligation">✓</wa-button>
+          <wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-valider" onclick="ajouterEngagementDossierApresCoup('${escapeOnclickArg(d.id)}')" title="Ajouter" aria-label="Ajouter l'obligation">✓</wa-button>
           <button type="button" class="icon-btn" onclick="masquerFormAjoutEngagementDossier()">Annuler</button>
         </div>
       </div>

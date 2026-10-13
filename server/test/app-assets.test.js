@@ -98,3 +98,28 @@ test('un chemin non mappé (ex. une route API) passe au middleware suivant', asy
   assert.equal(reponse.status, 404);
   assert.equal(await reponse.text(), 'non trouvé par le middleware');
 });
+
+test('hors .exe : seuls les fichiers de la liste sont servis, jamais la base ni les sources (audit 13/10)', async () => {
+  const fs = require('node:fs');
+  const os = require('node:os');
+  const path = require('node:path');
+  const { creerMiddlewareAssetsDisque } = require('../src/app');
+  const racine = fs.mkdtempSync(path.join(os.tmpdir(), 'claire-assets-'));
+  fs.writeFileSync(path.join(racine, 'style.css'), 'body{}');
+  fs.mkdirSync(path.join(racine, 'server', 'data'), { recursive: true });
+  fs.writeFileSync(path.join(racine, 'server', 'data', 'claire.db'), 'SQLite format 3');
+  fs.writeFileSync(path.join(racine, 'package.json'), '{}');
+  const app = express();
+  app.use(creerMiddlewareAssetsDisque(racine));
+  app.use((req, res) => res.status(404).send('non'));
+  const srv = app.listen(0);
+  try {
+    const base = `http://127.0.0.1:${srv.address().port}`;
+    const css = await fetch(base + '/style.css');
+    assert.equal(css.status, 200);
+    assert.match(css.headers.get('content-type'), /text\/css/);
+    for (const chemin of ['/server/data/claire.db', '/package.json', '/server/src/app.js', '/../package.json']) {
+      assert.equal((await fetch(base + chemin)).status, 404, chemin);
+    }
+  } finally { srv.close(); fs.rmSync(racine, { recursive: true, force: true }); }
+});

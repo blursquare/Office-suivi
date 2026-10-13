@@ -1003,15 +1003,15 @@
           const creneaux = avecCreneaux(d, i) && prets.indexOf(d.id) !== -1 && !p.aConfirmer ? creneauxProposesSignature(d, agendaEvenements, absencesOffice, auj, 3) : [];
           const semaine = new Date(p.lundi + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
           return `<li class="ag-placer">
-              <button type="button" class="ag-ligne${agendaSelection === 'probable:' + d.id ? ' selection' : ''}" onclick="allerSemaineProbableAgenda('${d.id}')" title="${escapeAttr(libelleDossierAffiche(d) + ' — ' + (p.aConfirmer ? `Rendez-vous en attente de confirmation (« ? » dans l’agenda) le ${formatDateFr(p.date)}. L’afficher.` : `Au plus tôt le ${formatDateFr(p.date)} : ${p.raison}. Afficher cette semaine.`))}">
+              <button type="button" class="ag-ligne${agendaSelection === 'probable:' + d.id ? ' selection' : ''}" onclick="allerSemaineProbableAgenda('${escapeOnclickArg(d.id)}')" title="${escapeAttr(libelleDossierAffiche(d) + ' — ' + (p.aConfirmer ? `Rendez-vous en attente de confirmation (« ? » dans l’agenda) le ${formatDateFr(p.date)}. L’afficher.` : `Au plus tôt le ${formatDateFr(p.date)} : ${p.raison}. Afficher cette semaine.`))}">
                 <span class="ag-ligne-texte"><b>${escapeHtml(libelleDossierAffiche(d))}</b>
                 <span class="ag-placer-meta">${renderPastilleProbabilite(p)}<span>${p.aConfirmer ? `À confirmer : ${escapeHtml(new Date(p.date + 'T00:00:00').toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' }).replace('.', ''))} ${escapeHtml(String(p.heure).replace(':', ' h '))}` : `Semaine du ${escapeHtml(semaine)}`}${p.depasseButoir ? ' · après la date butoir' : ''}${d.responsable ? ' · ' + escapeHtml(prenomCollaborateur(d.responsable)) : ''}</span></span></span>
               </button>
               ${creneaux.length ? `<span class="ag-creneaux">${creneaux.map(c => `<wa-button appearance="outlined" size="s" pill type="button" class="action-rapide ag-creneau${c.apresButoir ? ' apres-butoir' : ''}${c.exceptionnel ? ' exceptionnel' : ''}"
-                  onclick="placerCreneauSignature('${d.id}', '${c.date}', '${c.heure}')" ${ecrire ? '' : 'disabled'}
+                  onclick="placerCreneauSignature('${escapeOnclickArg(d.id)}', '${c.date}', '${c.heure}')" ${ecrire ? '' : 'disabled'}
                   title="${escapeAttr([c.exceptionnel ? 'Créneau exceptionnel : ' + c.exceptionnel : '', c.apresButoir ? 'Après la date butoir' : ''].filter(Boolean).join(' · ') || 'Placer le rendez-vous de signature à ce créneau')}">${c.exceptionnel ? icone('alert-triangle') : ''}${escapeHtml(new Date(c.date + 'T00:00:00').toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric' }).replace('.', ''))} · ${escapeHtml(c.heure.replace(/^0/, '').replace(':', ' h '))}</wa-button>`).join('')}${sondageOuvertDossier(d.id)
                   ? `<span class="ag-sondage-en-cours" title="Sondage de créneaux en cours">${icone('users')} sondage</span>`
-                  : `<wa-button appearance="outlined" size="s" pill type="button" class="action-rapide ag-creneau ag-sonder" onclick="ouvrirSondageCreneaux('${d.id}')" title="Proposer plusieurs créneaux aux parties, qui choisissent par email">${icone('users')} Proposer</wa-button>`}</span>` : ''}
+                  : `<wa-button appearance="outlined" size="s" pill type="button" class="action-rapide ag-creneau ag-sonder" onclick="ouvrirSondageCreneaux('${escapeOnclickArg(d.id)}')" title="Proposer plusieurs créneaux aux parties, qui choisissent par email">${icone('users')} Proposer</wa-button>`}</span>` : ''}
             </li>`;
         }).join('')}</ul>${probables.length > NB_RDV_A_PLACER_AFFICHES ? `<button type="button" class="lien-discret ag-placer-plus" onclick="basculerRendezVousAPlacerTous()">${agendaPlacerTous ? 'Voir moins' : `Voir ${probables.length - aPlacer.length} de plus`}</button>` : ''}` : '<p class="jour-vide">Tous les dossiers ont un rendez-vous de signature.</p>'}
       </section>`;
@@ -1172,7 +1172,7 @@
     const titre = (x) => {
       const d = x.dossierId ? dossiers.find(y => y.id === x.dossierId) : null;
       return d
-        ? `<button type="button" class="lien-bouton dp-titre" onclick="ouvrirFicheDepuisDatesProposees('${d.id}')" title="Ouvrir la fiche du dossier">${escapeHtml(libelleSondageSuivi(x))} ${icone('file-text')}</button>`
+        ? `<button type="button" class="lien-bouton dp-titre" onclick="ouvrirFicheDepuisDatesProposees('${escapeOnclickArg(d.id)}')" title="Ouvrir la fiche du dossier">${escapeHtml(libelleSondageSuivi(x))} ${icone('file-text')}</button>`
         : `<b class="dp-titre">${escapeHtml(libelleSondageSuivi(x))}</b>`;
     };
     const groupe = (texte, n, aide) => `<div class="widgets-galerie-groupe">${texte} <span class="jour-onglet-nb">${n}</span>${aide ? ' ' + infoBulle(aide) : ''}</div>`;
@@ -1605,7 +1605,7 @@
         ${infos && !e.option ? `<div class="ag-detail-etats">${renderEtatsRendezVous(infos)}</div>` : ''}
         ${e.option ? renderOptionSondageAgenda(e) : ''}
         ${peutSupprimer && !e.option ? renderVisioRendezVous(e) : ''}
-        ${d ? `<wa-button ${e.option ? 'appearance="plain"' : 'variant="brand"'} class="${e.option ? 'lien-bouton' : 'primary'} ag-ouvrir-fiche" onclick="ouvrirDossierDepuisDashboard('${d.id}')">${icone('folder')} Ouvrir la fiche</wa-button>` : ''}
+        ${d ? `<wa-button ${e.option ? 'appearance="plain"' : 'variant="brand"'} class="${e.option ? 'lien-bouton' : 'primary'} ag-ouvrir-fiche" onclick="ouvrirDossierDepuisDashboard('${escapeOnclickArg(d.id)}')">${icone('folder')} Ouvrir la fiche</wa-button>` : ''}
         ${(peutSupprimer || notesLisibles) && !e.option ? renderNotesRendezVous(e, !peutSupprimer) : ''}
         ${blocProba}
         ${relation}
@@ -1659,13 +1659,13 @@
         </div>
         ${infos && infos.responsable ? ligne('user', `Responsable : <b>${escapeHtml(infos.responsable)}</b>`) : ''}
         ${infos && infos.confrere ? ligne('users', `Confrère : <b>${escapeHtml(infos.confrere)}</b>`) : ''}
-        ${e.creneau ? `<wa-button variant="brand" class="primary ag-ouvrir-fiche" onclick="placerCreneauSignature('${d.id}', '${e.creneau.date}', '${e.creneau.heure}')" ${ecrire ? '' : 'disabled title="Connexion à l’agenda Outlook à activer dans les Réglages"'}>${icone('calendar')} Placer le ${escapeHtml(libelleCreneau(e.creneau))}</wa-button>`
+        ${e.creneau ? `<wa-button variant="brand" class="primary ag-ouvrir-fiche" onclick="placerCreneauSignature('${escapeOnclickArg(d.id)}', '${e.creneau.date}', '${e.creneau.heure}')" ${ecrire ? '' : 'disabled title="Connexion à l’agenda Outlook à activer dans les Réglages"'}>${icone('calendar')} Placer le ${escapeHtml(libelleCreneau(e.creneau))}</wa-button>`
           : '<p class="jour-vide">Aucun créneau libre cette semaine dans les règles de l’office.</p>'}
-        ${autres.length ? `<div class="ag-creneaux">${autres.map(c => `<wa-button appearance="outlined" size="s" pill type="button" class="action-rapide ag-creneau${c.exceptionnel ? ' exceptionnel' : ''}${d.acte && c.date > d.acte ? ' apres-butoir' : ''}" onclick="placerCreneauSignature('${d.id}', '${c.date}', '${c.heure}')" ${ecrire ? '' : 'disabled'}
+        ${autres.length ? `<div class="ag-creneaux">${autres.map(c => `<wa-button appearance="outlined" size="s" pill type="button" class="action-rapide ag-creneau${c.exceptionnel ? ' exceptionnel' : ''}${d.acte && c.date > d.acte ? ' apres-butoir' : ''}" onclick="placerCreneauSignature('${escapeOnclickArg(d.id)}', '${c.date}', '${c.heure}')" ${ecrire ? '' : 'disabled'}
             title="${escapeAttr([c.exceptionnel ? 'Créneau exceptionnel : ' + c.exceptionnel : '', d.acte && c.date > d.acte ? `Après la date butoir du ${formatDateFr(d.acte)}` : ''].filter(Boolean).join(' · ') || 'Placer le rendez-vous de signature à ce créneau')}">${c.exceptionnel ? icone('alert-triangle') : ''}${escapeHtml(libelleCreneau(c))}</wa-button>`).join('')}</div>` : ''}
         ${sondageOuvertDossier(d.id) ? '<p class="jour-vide">Sondage de créneaux en cours : réponses sur la fiche.</p>'
-          : `<button type="button" class="lien-bouton" onclick="ouvrirSondageCreneaux('${d.id}', ${escapeAttr(JSON.stringify((e.creneau ? [e.creneau] : []).concat(autres).map(c => ({ date: c.date, heure: c.heure, exceptionnel: c.exceptionnel || '' }))))})">${icone('users')} Proposer ces créneaux aux parties</button>`}
-        <button type="button" class="lien-bouton" onclick="ouvrirDossierDepuisDashboard('${d.id}')">${icone('folder')} Ouvrir la fiche</button>
+          : `<button type="button" class="lien-bouton" onclick="ouvrirSondageCreneaux('${escapeOnclickArg(d.id)}', ${escapeAttr(JSON.stringify((e.creneau ? [e.creneau] : []).concat(autres).map(c => ({ date: c.date, heure: c.heure, exceptionnel: c.exceptionnel || '' }))))})">${icone('users')} Proposer ces créneaux aux parties</button>`}
+        <button type="button" class="lien-bouton" onclick="ouvrirDossierDepuisDashboard('${escapeOnclickArg(d.id)}')">${icone('folder')} Ouvrir la fiche</button>
       </section>`;
   }
 

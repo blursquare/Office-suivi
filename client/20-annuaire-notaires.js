@@ -1053,7 +1053,7 @@
     return renderLigneAction({
       categorie: 'rendezVousSignature', categorieLabel: 'Agenda de l’office',
       titre: `Noter dans l’agenda : ${mention}`, sousHtml, faite, gravite: echec ? 'critique' : '',
-      bouton: { libelle: faite ? 'Renoter' : (echec ? 'Réessayer' : 'Noter'), icone: icone('calendar'), onclick: `noterEnvoiDansAgenda('${d.id}')`, titre: `Écrire « ${mention} » dans le lieu du rendez-vous de signature, après les initiales, dans l'agenda Outlook de l'office` }
+      bouton: { libelle: faite ? 'Renoter' : (echec ? 'Réessayer' : 'Noter'), icone: icone('calendar'), onclick: `noterEnvoiDansAgenda('${escapeOnclickArg(d.id)}')`, titre: `Écrire « ${mention} » dans le lieu du rendez-vous de signature, après les initiales, dans l'agenda Outlook de l'office` }
     });
   }
 
@@ -1085,8 +1085,8 @@
       </div>
       <p class="hint" style="margin:4px 0 6px;">Écrit « ${escapeHtml(libelleDossierAffiche(d))} » le ${formatDateFr(d.rendezVousSignature)} dans l'agenda partagé de l'office${lieuRdvAgenda(d) ? `, lieu « ${escapeHtml(lieuRdvAgenda(d))} »` : ''}.</p>
       <div class="rdv-agenda-actions">
-        <wa-button variant="brand" class="primary" onclick="creerRdvDansAgenda('${d.id}')">${icone('calendar')} Créer le rendez-vous</wa-button>
-        <button type="button" class="lien-bouton" onclick="basculerRdvAgenda('${d.id}')">Annuler</button>
+        <wa-button variant="brand" class="primary" onclick="creerRdvDansAgenda('${escapeOnclickArg(d.id)}')">${icone('calendar')} Créer le rendez-vous</wa-button>
+        <button type="button" class="lien-bouton" onclick="basculerRdvAgenda('${escapeOnclickArg(d.id)}')">Annuler</button>
       </div>
     </div>`;
   }
@@ -1113,7 +1113,7 @@
       categorie: 'rendezVousSignature', categorieLabel: 'Agenda de l’office',
       titre: 'Créer le rendez-vous dans l’agenda Outlook',
       sous: `Signature le ${formatDateFr(d.rendezVousSignature)} · calendrier partagé de l’office`,
-      bouton: ouvert ? null : { libelle: 'Créer', icone: icone('calendar'), onclick: `basculerRdvAgenda('${d.id}')`, titre: 'Choisir l’heure et le lieu, puis créer le rendez-vous' },
+      bouton: ouvert ? null : { libelle: 'Créer', icone: icone('calendar'), onclick: `basculerRdvAgenda('${escapeOnclickArg(d.id)}')`, titre: 'Choisir l’heure et le lieu, puis créer le rendez-vous' },
       detail: ouvert ? renderFormRdvAgenda(d) : '', detailOuvert: ouvert
     });
   }
@@ -1658,10 +1658,10 @@
     const courrier = courrierAppelFondsDossier(d);
     if (courrier) {
       const nom = courrier.split(/[\\/]/).pop().replace(/\.pdf$/i, '');
-      return `<button type="button" class="lien-action" onclick="ouvrirCourrierAppelFonds('${d.id}')" title="Ouvrir le courrier d’appel de fonds rangé sur le NAS">${icone('file-text')} ${escapeHtml(nom)}</button>`;
+      return `<button type="button" class="lien-action" onclick="ouvrirCourrierAppelFonds('${escapeOnclickArg(d.id)}')" title="Ouvrir le courrier d’appel de fonds rangé sur le NAS">${icone('file-text')} ${escapeHtml(nom)}</button>`;
     }
     if (!d.nasDossier || !(d.appelFonds || echeanceValidee(d, 'appelFonds'))) return '';
-    return `<button type="button" class="lien-action" onclick="ouvrirCourrierAppelFonds('${d.id}')" title="Chercher la convocation ou le décompte à la racine du dossier du NAS">${icone('file-text')} Retrouver le courrier</button>`;
+    return `<button type="button" class="lien-action" onclick="ouvrirCourrierAppelFonds('${escapeOnclickArg(d.id)}')" title="Chercher la convocation ou le décompte à la racine du dossier du NAS">${icone('file-text')} Retrouver le courrier</button>`;
   }
 
   async function ouvrirCourrierAppelFonds(id) {
@@ -1696,10 +1696,10 @@
       const e = ecartButoirRendezVous(d.acte, d.rendezVousSignature);
       const idBase = `tabdate-${d.id}-acte`;
       parts.push(`<span class="ech-butoir${e && e.alerte ? ' alerte' : ''}">
-        <span class="ech-butoir-aff" id="${idBase}-aff">${e ? escapeHtml(e.texte) : 'Date butoir'} (${dateCourteEcheance(d.acte)})<wa-button appearance="plain" size="s" type="button" class="bouton-icone ech-ico" onclick="activerEditionDate('${d.id}','acte')" title="Corriger la date butoir" aria-label="Corriger la date butoir">${icone('pencil')}</wa-button></span>
+        <span class="ech-butoir-aff" id="${idBase}-aff">${e ? escapeHtml(e.texte) : 'Date butoir'} (${dateCourteEcheance(d.acte)})<wa-button appearance="plain" size="s" type="button" class="bouton-icone ech-ico" onclick="activerEditionDate('${escapeOnclickArg(d.id)}','acte')" title="Corriger la date butoir" aria-label="Corriger la date butoir">${icone('pencil')}</wa-button></span>
         <span class="tab-date-edition" id="${idBase}-edit" hidden>Date butoir
-          <input type="date" class="tab-date-input" id="${idBase}-input" value="${d.acte}" onkeydown="if(event.key==='Enter'){event.preventDefault();validerEditionDate('${d.id}','acte');}">
-          <wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-valider" onclick="validerEditionDate('${d.id}','acte')" title="Valider" aria-label="Valider la date">✓</wa-button>
+          <input type="date" class="tab-date-input" id="${idBase}-input" value="${d.acte}" onkeydown="if(event.key==='Enter'){event.preventDefault();validerEditionDate('${escapeOnclickArg(d.id)}','acte');}">
+          <wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-valider" onclick="validerEditionDate('${escapeOnclickArg(d.id)}','acte')" title="Valider" aria-label="Valider la date">✓</wa-button>
         </span>
       </span>`);
     }
@@ -1716,7 +1716,7 @@
     if (d.rendezVousSignature && d.rdvAgendaCreeLe && exchangeAgendaPret()) {
       parts.push(rdvAgendaOuvert && dossierOuvert === d.id
         ? `<div class="ech-sous-bloc">${renderFormRdvAgenda(d)}</div>`
-        : `<button type="button" class="lien-action" onclick="basculerRdvAgenda('${d.id}')">Recréer dans l’agenda</button>`);
+        : `<button type="button" class="lien-action" onclick="basculerRdvAgenda('${escapeOnclickArg(d.id)}')">Recréer dans l’agenda</button>`);
     }
     return parts.join('');
   }
@@ -2535,7 +2535,7 @@
         <div class="pf-phrase w-fixe">${escapeHtml(phrasePortefeuille(st))}</div>
         ${aRegarder.length ? `<div class="w-section">
           <h3 class="jour-carte-sous-titre">À regarder</h3>
-          <ul class="w-lignes" data-ajuster="2">${aRegarder.map(x => `<li><button type="button" class="w-ligne" onclick="ouvrirDossierDepuisDashboard('${x.d.id}')" title="${escapeAttr(x.e.detail)}">
+          <ul class="w-lignes" data-ajuster="2">${aRegarder.map(x => `<li><button type="button" class="w-ligne" onclick="ouvrirDossierDepuisDashboard('${escapeOnclickArg(x.d.id)}')" title="${escapeAttr(x.e.detail)}">
             <span class="dot-label ${x.e.dl}"><span class="dot"></span>${escapeHtml(x.e.texte)}</span>
             <span class="w-ligne-texte">${escapeHtml(libelleDossierAffiche(x.d))}</span>
             <span class="w-ligne-meta">${escapeHtml(x.e.detail)}</span></button></li>`).join('')}${plusWidget("definirOnglet('suivi')")}</ul>

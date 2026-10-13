@@ -17,6 +17,16 @@ function routeAsync(fn) {
   return (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
 }
 
+// Pure : le type sous lequel une pièce jointe peut s'afficher sans risque, '' sinon (à télécharger).
+function typePieceJointeAffichable(type, nom) {
+  const t = String(type || '').toLowerCase().split(';')[0].trim();
+  const n = String(nom || '').toLowerCase();
+  if (t === 'application/pdf' || (!t || t === 'application/octet-stream') && /\.pdf$/.test(n)) return 'application/pdf';
+  if (/^image\/(png|jpe?g|gif|webp|bmp|tiff)$/.test(t)) return t === 'image/jpg' ? 'image/jpeg' : t;
+  if (t === 'text/plain') return 'text/plain; charset=utf-8';
+  return '';
+}
+
 function creerRouteurEmailsDossiers(parametresRepo, depot, options = {}) {
   const routeur = express.Router();
   const config = options.config || {};
@@ -107,8 +117,13 @@ function creerRouteurEmailsDossiers(parametresRepo, depot, options = {}) {
   routeur.get('/emails-dossiers/pj', routeAsync(async (req, res) => {
     const r = await lirePieceJointe(parametresRepo, String(req.query.emailId || ''), String(req.query.pjId || ''), injections);
     if (r.erreur) { res.status(r.statut || 400).json({ erreur: r.erreur }); return; }
-    res.setHeader('Content-Type', r.type || 'application/octet-stream');
-    res.setHeader('Content-Disposition', `inline; filename*=UTF-8''${encodeURIComponent(r.nom)}`);
+    // Audit 13/10 (Haut) : le type vient de l'EXPÉDITEUR — une pièce HTML ou SVG ouverte dans CLAIRE y exécutait son script. Seuls
+    // PDF, images matricielles et texte brut s'affichent ; tout le reste est servi en octets à télécharger, sans interprétation.
+    const type = typePieceJointeAffichable(r.type, r.nom);
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Content-Security-Policy', "sandbox; default-src 'none'; img-src 'self' data: blob:; style-src 'unsafe-inline'; plugin-types application/pdf");
+    res.setHeader('Content-Type', type || 'application/octet-stream');
+    res.setHeader('Content-Disposition', `${type ? 'inline' : 'attachment'}; filename*=UTF-8''${encodeURIComponent(r.nom)}`);
     res.send(r.contenu);
   }));
 
@@ -218,4 +233,4 @@ function creerRouteurEmailsDossiers(parametresRepo, depot, options = {}) {
   return routeur;
 }
 
-module.exports = { creerRouteurEmailsDossiers };
+module.exports = { creerRouteurEmailsDossiers, typePieceJointeAffichable };

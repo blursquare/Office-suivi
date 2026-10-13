@@ -35,3 +35,19 @@ test('consigne : les références juridiques restent lisibles', () => {
   assert.equal(app.masquerNomsConsigneOutil2('« Superficie Loi Carrez » : la zone UB, article L.271-4 du Code de la construction'),
     '« Superficie Loi Carrez » : la zone UB, article L.271-4 du Code de la construction');
 });
+
+test('relecture : compromis d’agence — aucun nom ni prénom ne part en clair (audit 13/10)', () => {
+  const c = `ENTRE LES SOUSSIGNES : Mr DURANDEAU Jean, retraité, et Mme DURANDEAU Lucie, son épouse. ET : Mr LEGRANDIN Paul. ORIGINE DE PROPRIETE : acquis des consorts BERNARDIN. Les époux DURANDEAU déclarent. M HERBELOT et MM. TOURNIER interviennent. Le gérant de l'agence, Pierre FONTAINE, est mandataire. Le VENDEUR et les ACQUEREURS déclarent.`;
+  const vt = (app.detecterTypeActe(c) || {}).valeur;
+  const termes = app.termesConnusAnonymisation(app.detecterParties(c, vt).concat([{ nom: 'LEGRANDIN', prenom: 'Paul' }]), app.detecterNotaires(c, vt));
+  const t = app.anonymiserDocumentsOutil2([{ id: 1, texte: c }], { termes, exclus: [] }).documents[0].texte;
+  for (const nom of ['DURANDEAU', 'Jean', 'Lucie', 'LEGRANDIN', 'Paul', 'BERNARDIN', 'HERBELOT', 'TOURNIER', 'Pierre', 'FONTAINE']) assert.ok(!t.includes(nom), nom + ' : ' + t);
+  assert.match(t, /Le VENDEUR et les ACQUEREURS déclarent\./);
+});
+
+test('relecture : un lieu de naissance à tirets répétés ne fige plus l’onglet (ReDoS, audit 13/10)', () => {
+  const texte = 'Née à SAINT-' + 'A-'.repeat(40) + 'X, demeurant';
+  const debut = Date.now();
+  app.anonymiserDocumentsOutil2([{ id: 1, texte }], { termes: [], exclus: [] });
+  assert.ok(Date.now() - debut < 200, `${Date.now() - debut} ms`);
+});

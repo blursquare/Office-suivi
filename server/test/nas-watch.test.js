@@ -116,6 +116,22 @@ test('un fichier renommé (retiré + ajouté) redéclenche bien une notification
   assert.deepEqual(d1.nasNouveaute.fichiers, ['Offre de pret signee.pdf']);
 });
 
+test('un poste qui enregistre pendant la lecture du NAS ne perd pas son changement (audit 13/10)', async () => {
+  fs.writeFileSync(path.join(racine, '2024-118 DUPONT MARTIN', 'Etat date.pdf'), '%PDF-1.4');
+  // Faux dépôt : la liste est lue, puis un poste enregistre une date de rendez-vous avant l'écriture du tour.
+  const vrai = depot;
+  const espion = { ...vrai, tousActifs: () => {
+    const liste = vrai.tousActifs();
+    setImmediate(() => vrai.remplacer('d1', { ...vrai.trouverParId('d1'), rendezVousSignature: '2099-03-04' }));
+    return liste;
+  } };
+  const r = await executerTourSurveillanceNas(espion, racine);
+  assert.equal(r.dossiersNotifies, 1);
+  const d1 = vrai.trouverParId('d1');
+  assert.equal(d1.rendezVousSignature, '2099-03-04');
+  assert.ok(d1.nasInventaire.includes('Etat date.pdf'));
+});
+
 // --- Appel de fonds noté automatiquement depuis le NAS (29/09) --------------------------------
 const { fichierAppelFondsRacine, appelFondsANoter, noterAppelFondsDetecte } = require('../src/nasWatch');
 
@@ -160,7 +176,7 @@ test('tour de surveillance : l’appel de fonds trouvé est enregistré sur le d
     fs.mkdirSync(path.join(racine, 'DUPONT'));
     fs.writeFileSync(path.join(racine, 'DUPONT', 'Convocation au rendez-vous contenant l’appel de fonds.pdf'), '%PDF-1.4');
     let d = { id: 'd1', nom: 'DUPONT / MARTIN', nasDossier: 'DUPONT', rendezVousSignature: '2099-01-10', historique: [] };
-    const depot = { tousActifs: () => [d], remplacer: (id, nouveau) => { d = nouveau; } };
+    const depot = { tousActifs: () => [d], trouverParId: () => d, remplacer: (id, nouveau) => { d = nouveau; } };
     const r = await executerTourSurveillanceNas(depot, racine, '2026-10-05');
     assert.equal(r.appelsFondsNotes, 1);
     assert.equal(d.appelFonds, '2026-10-05');

@@ -86,7 +86,7 @@ function cartesTableauFiche(d, aujourdhuiIso, actions) {
       ajouter(RE_PIECE_D_UN_TIERS.test(p.label || '') ? 'attente' : 'obtenir', {
         cle: 'piece:' + p.cle, titre: p.label, categorie: 'piece', onglet: 'pieces',
         sous: manquante ? 'Pas trouvée sur le NAS' : 'Pas encore vérifiée',
-        coche: { onclick: `validerPieceManuellement('${id}', '${escapeOnclickArg(p.cle)}', '${escapeOnclickArg(p.label)}')`, libelle: 'Marquer reçue' }
+        coche: { onclick: `validerPieceManuellement('${escapeOnclickArg(id)}', '${escapeOnclickArg(p.cle)}', '${escapeOnclickArg(p.label)}')`, libelle: 'Marquer reçue' }
       });
     });
     // --- Analyse de l'avant-contrat : engagements du vendeur et documents hors checklist.
@@ -96,14 +96,14 @@ function cartesTableauFiche(d, aujourdhuiIso, actions) {
       if (etatEngagementAnalyse(d, e).fait) { engagementsFaits++; return; }
       ajouter('obtenir', {
         cle: 'engagement:' + i, titre: 'Engagement : ' + libelleCourtEngagement(e), categorie: 'engagement', onglet: 'pieces',
-        coche: { onclick: `basculerEngagementFait('${id}', ${i})`, libelle: 'Marquer réalisé' }
+        coche: { onclick: `basculerEngagementFait('${escapeOnclickArg(id)}', ${i})`, libelle: 'Marquer réalisé' }
       });
     });
     (analyse.documents || []).forEach((doc, i) => {
       if (cleChecklistDocumentAnalyse(d, doc) || documentAnalyseRecu(d, doc)) return;
       ajouter('obtenir', {
         cle: 'document:' + i, titre: typeof doc === 'string' ? doc : doc.label, categorie: 'piece', onglet: 'pieces',
-        coche: { onclick: `basculerDocumentAnalyseRecu('${id}', ${i})`, libelle: 'Marquer reçu' }
+        coche: { onclick: `basculerDocumentAnalyseRecu('${escapeOnclickArg(id)}', ${i})`, libelle: 'Marquer reçu' }
       });
     });
     if (piecesRecues) ajouter('fait', { cle: 'pieces-recues', titre: piecesRecues === 1 ? '1 pièce reçue' : `${piecesRecues} pièces reçues`, sous: `sur ${piecesTotal}`, categorie: 'piece', fait: true, auto: true, onglet: 'pieces' });
@@ -131,7 +131,7 @@ function cartesTableauFiche(d, aujourdhuiIso, actions) {
       cle: 'echeance:' + cle, titre: it.label, iso: it.iso || '', categorie: it.type === 'autre' ? 'autre' : it.type,
       sous: it.iso ? formatDateFr(it.iso) : '', onglet: it.type === 'safer' || it.type === 'dia' ? 'pieces' : '',
       date: dateModifiableCarteFiche(d, it.type, it.index, false),
-      coche: it.type === 'autre' || TYPES_ECHEANCE_COCHABLES_FICHE.includes(it.type) ? { onclick: `basculerEcheance('${id}', '${escapeOnclickArg(cle)}')`, libelle: 'Marquer fait' } : null
+      coche: it.type === 'autre' || TYPES_ECHEANCE_COCHABLES_FICHE.includes(it.type) ? { onclick: `basculerEcheance('${escapeOnclickArg(id)}', '${escapeOnclickArg(cle)}')`, libelle: 'Marquer fait' } : null
     });
   });
 
@@ -143,16 +143,16 @@ function cartesTableauFiche(d, aujourdhuiIso, actions) {
       cle: 'etape:' + e.type, titre: e.type === 'fixerRdv' ? 'Rendez-vous de signature placé' : (e.type === 'signature' ? 'Acte signé' : e.label),
       iso: e.iso || '', sous: e.iso ? formatDateFr(e.iso) : '', categorie: e.type, fait: true, auto: !cochable,
       date: dateModifiableCarteFiche(d, e.type, null, true),
-      coche: cochable ? { onclick: `basculerEcheance('${id}', '${escapeOnclickArg(e.type)}')`, libelle: 'Rouvrir' } : null
+      coche: cochable ? { onclick: `basculerEcheance('${escapeOnclickArg(id)}', '${escapeOnclickArg(e.type)}')`, libelle: 'Rouvrir' } : null
     });
   });
   // En participation, la rédaction n'est pas suivie (audit 12/10).
   if (!succession && d.roleNotaire !== 'participant' && echeanceValidee(d, 'redaction')) {
-    ajouter('fait', { cle: 'etape:redaction', titre: 'Rédaction de l’acte', categorie: 'redaction', fait: true, coche: { onclick: `basculerEcheance('${id}', 'redaction')`, libelle: 'Rouvrir' } });
+    ajouter('fait', { cle: 'etape:redaction', titre: 'Rédaction de l’acte', categorie: 'redaction', fait: true, coche: { onclick: `basculerEcheance('${escapeOnclickArg(id)}', 'redaction')`, libelle: 'Rouvrir' } });
   }
   (d.autres || []).forEach((a, i) => {
     if (!echeanceValidee(d, 'autre-' + i)) return;
-    ajouter('fait', { cle: 'echeance:autre-' + i, titre: a.label, iso: a.date || '', sous: a.date ? formatDateFr(a.date) : '', categorie: 'autre', fait: true, date: dateModifiableCarteFiche(d, 'autre', i, true), coche: { onclick: `basculerEcheance('${id}', 'autre-${i}')`, libelle: 'Rouvrir' } });
+    ajouter('fait', { cle: 'echeance:autre-' + i, titre: a.label, iso: a.date || '', sous: a.date ? formatDateFr(a.date) : '', categorie: 'autre', fait: true, date: dateModifiableCarteFiche(d, 'autre', i, true), coche: { onclick: `basculerEcheance('${escapeOnclickArg(id)}', 'autre-${i}')`, libelle: 'Rouvrir' } });
   });
 
   // Ordre : à faire — les gestes du jour d'abord (déjà triés par urgence), puis les échéances par date ; les autres colonnes par date,
@@ -221,17 +221,17 @@ function renderDateCarteFiche(c, dossierId) {
     return {
       edition: `<div class="tf-date-edition">
         <input type="date" id="tf-date-saisie" data-carte="${escapeAttr(c.cle)}" value="${escapeAttr(valeur)}" aria-label="${escapeAttr((dt.envoi ? 'Date d’envoi : ' : 'Date : ') + c.titre)}"
-          onkeydown="if (event.key === 'Enter') { event.preventDefault(); validerDateCarteFiche('${id}', '${escapeOnclickArg(dt.cle)}'); } else if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); annulerDateCarteFiche(); }">
-        <wa-button appearance="plain" size="s" type="button" class="bouton-icone" onclick="validerDateCarteFiche('${id}', '${escapeOnclickArg(dt.cle)}')" title="Enregistrer la date" aria-label="Enregistrer la date">${icone('check')}</wa-button>
+          onkeydown="if (event.key === 'Enter') { event.preventDefault(); validerDateCarteFiche('${escapeOnclickArg(id)}', '${escapeOnclickArg(dt.cle)}'); } else if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); annulerDateCarteFiche(); }">
+        <wa-button appearance="plain" size="s" type="button" class="bouton-icone" onclick="validerDateCarteFiche('${escapeOnclickArg(id)}', '${escapeOnclickArg(dt.cle)}')" title="Enregistrer la date" aria-label="Enregistrer la date">${icone('check')}</wa-button>
         <wa-button appearance="plain" size="s" type="button" class="bouton-icone" onclick="annulerDateCarteFiche()" title="Annuler" aria-label="Annuler">${icone('x')}</wa-button>
       </div>`,
       icones: ''
     };
   }
   const libelleCrayon = dt.iso ? (dt.envoi ? 'Corriger la date d’envoi' : 'Modifier la date') : (dt.envoi ? 'Saisir la date d’envoi' : 'Saisir la date');
-  const crayon = `<wa-button appearance="plain" size="s" type="button" class="bouton-icone tf-ico" onclick="modifierDateCarteFiche('${id}', '${cleCarte}')" title="${escapeAttr(libelleCrayon)}" aria-label="${escapeAttr(libelleCrayon + ' : ' + c.titre)}">${icone('pencil')}</wa-button>`;
+  const crayon = `<wa-button appearance="plain" size="s" type="button" class="bouton-icone tf-ico" onclick="modifierDateCarteFiche('${escapeOnclickArg(id)}', '${cleCarte}')" title="${escapeAttr(libelleCrayon)}" aria-label="${escapeAttr(libelleCrayon + ' : ' + c.titre)}">${icone('pencil')}</wa-button>`;
   const suppr = dt.supprimable
-    ? `<wa-button appearance="plain" size="s" type="button" class="bouton-icone tf-ico tf-ico-suppr" onclick="supprimerDateCarteFiche('${id}', '${escapeOnclickArg(dt.cle)}')" title="${dt.cle.indexOf('autre-') === 0 ? 'Supprimer cette échéance' : 'Supprimer cette date'}" aria-label="${escapeAttr((dt.cle.indexOf('autre-') === 0 ? 'Supprimer l’échéance : ' : 'Supprimer la date : ') + c.titre)}">${icone('x')}</wa-button>`
+    ? `<wa-button appearance="plain" size="s" type="button" class="bouton-icone tf-ico tf-ico-suppr" onclick="supprimerDateCarteFiche('${escapeOnclickArg(id)}', '${escapeOnclickArg(dt.cle)}')" title="${dt.cle.indexOf('autre-') === 0 ? 'Supprimer cette échéance' : 'Supprimer cette date'}" aria-label="${escapeAttr((dt.cle.indexOf('autre-') === 0 ? 'Supprimer l’échéance : ' : 'Supprimer la date : ') + c.titre)}">${icone('x')}</wa-button>`
     : '';
   return { edition: '', icones: `<span class="tf-ico-groupe">${crayon}${suppr}</span>` };
 }

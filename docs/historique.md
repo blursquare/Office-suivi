@@ -19607,3 +19607,18 @@ du matin » (Agenda et Outlook › Emails des dossiers ; résumé retiré le 07/
 l'autorise) et « Ranger seul les pièces jointes sur le NAS » (coupé depuis le 03/10 ; le serveur le garde désormais toujours éteint,
 `emailsDossiers.js`, même s'il était allumé). Gardé à la demande : « L'IA en ligne lit toutes les demandes ». Le test de fumée clique
 désormais « Autoriser » dans les scénarios de l'agent (il attendait sans fin depuis la 0.228.0 — vu avant tout envoi).
+
+### 13/10/2026 au soir — Audit complet du code (0.228.2)
+
+Demande de l'étude : « Lance le test complet ». Dix lots audités en lecture seule au cadre de l'étude, chaque point prouvé par un script
+ou dans Chromium ; rapport consolidé `docs/audits/2026-10-13-audit-complet.md`. Treize points Haut corrigés avec leur test : fichiers
+du dépôt servis hors `.exe` (seuls ceux d'`ASSETS_STATIQUES` désormais), dossier de sauvegarde confiné au serveur et au NAS et base à
+restaurer contrôlée, tour du NAS et emails des dossiers qui écrivent une copie relue à l'instant (plus de saisie effacée), mot de passe
+Exchange jamais envoyé à une autre adresse, pièces jointes HTML/SVG téléchargées au lieu d'être affichées, masquage Unicode avant l'IA,
+rapport technique sans téléphone +33 ni nom de deux lettres (texte des signalements par `anonymiserLibre`), montant attendu des fonds
+lu comme le décompte, prénom de l'acquéreur jamais cherché seul dans les reçus, « DIA » seul jamais pris pour la renonciation,
+identifiant de dossier contrôlé et échappé dans tous les `onclick`, pseudonymisation de la relecture élargie (Mr, M, MM., époux,
+consorts, « Prénom NOM », prénoms, parties du dossier lié), pdf.js sans évaluation de police (CVE-2024-4367). Aussi : carte
+d'autorisation de l'agent pour la signature sans agenda et pour Quotités / Appel de fonds sur un autre dossier, dates de l'agent
+contrôlées, deux expressions régulières à retour arrière exponentiel bornées, `pizzip`/`docxtemplater` figés, SRI sur pdf.js et
+tesseract. Les points Moyen restants et leur plan sont dans le rapport.
