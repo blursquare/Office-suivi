@@ -268,7 +268,7 @@
 
   function ouvrirFicheAppel(id) {
     ouvrirDossierDepuisDashboard(id);
-    try { definirOngletFiche('tableau'); } catch (e) { /* onglet par défaut */ }
+    try { definirOngletFiche('echanges'); } catch (e) { /* onglet par défaut */ }
   }
 
   function fermerAppelEntrant() {

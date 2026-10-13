@@ -3692,7 +3692,7 @@
   body.fiche-a-cote .app-main > .drawer-overlay .drawer-panneau { container: fiche / inline-size; }
   @container fiche (max-width: 1400px) {
     .drawer-panneau .tf-disposition { grid-template-columns: minmax(0, 1fr); }
-    .drawer-panneau .tf-echanges { position: static; max-height: none; overflow: visible; }
+    .drawer-panneau .tf-echeances { position: static; max-height: none; overflow: visible; }
   }
   @container fiche (max-width: 1000px) {
     .drawer-panneau .tf-tableau { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -4041,13 +4041,21 @@
   .tf-date { font-variant-numeric: tabular-nums; }
   .tf-geste { align-self: flex-end; }
   .tf-repliable { margin-top: 16px; }
-  /* Échanges à droite du tableau (étude 13/10) ; dessous quand la place manque. */
+  /* Échéances et dates à droite du tableau (étude 13/10) ; dessous quand la place manque. */
   .tf-disposition { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; align-items: start; }
-  .tf-principal, .tf-echanges { min-width: 0; }
-  .tf-echanges { padding: 12px; background: var(--paper-sunk); border-radius: var(--rayon-m); }
+  .tf-principal, .tf-echeances { min-width: 0; }
+  .tf-echeances { padding: 12px; background: var(--paper-sunk); border-radius: var(--rayon-m); }
+  .tf-echeances-titre { margin: 0 0 8px; }
+  /* Colonne étroite : le nom de l'échéance sur toute la ligne, la date, l'état et les crayons dessous. */
+  .tf-echeances .ech { grid-template-columns: 20px auto minmax(0, 1fr) auto; }
+  .tf-echeances .ech-nom-cell { grid-column: 2 / -1; }
+  .tf-echeances .ech-nom { white-space: normal; overflow-wrap: anywhere; }
+  .tf-echeances .ech-date-cell { grid-column: 2; justify-content: flex-start; }
+  .tf-echeances .ech-etat { text-align: left; }
+  .tf-echeances .prochaine-etape { margin-top: 16px; }
   @media (min-width: 1500px) {
-    .tf-disposition { grid-template-columns: minmax(0, 1fr) 360px; }
-    .tf-echanges { position: sticky; top: calc(16px + var(--decalage-onglets)); max-height: calc(100vh - 32px - var(--decalage-onglets)); overflow-y: auto; }
+    .tf-disposition { grid-template-columns: minmax(0, 1fr) 400px; }
+    .tf-echeances { position: sticky; top: calc(16px + var(--decalage-onglets)); max-height: calc(100vh - 32px - var(--decalage-onglets)); overflow-y: auto; }
   }
   .tf-repliable > summary { cursor: pointer; padding: 6px 0; font-size: var(--texte-m); font-weight: 500; color: var(--ink-soft); }
   .tf-repliable > summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: var(--rayon-xs); }

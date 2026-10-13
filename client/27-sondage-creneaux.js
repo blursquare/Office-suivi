@@ -2041,7 +2041,7 @@
       const notifications = d.piecesNotifications || [];
       const notifPieces = notifications.some(c => c !== CLE_NOTIF_OFFRE_PRET);
       const nbEcheancesAVenir = echeancesPlanning(d).length;
-      const onglet = (ongletFiche === 'analyse') ? 'pieces' : (ongletFiche === 'echeances' || ongletFiche === 'echanges' ? 'tableau' : (ongletFiche === 'fonds' && estSuccession(d) ? 'tableau' : ongletFiche));
+      const onglet = (ongletFiche === 'analyse') ? 'pieces' : (ongletFiche === 'echeances' ? 'tableau' : (ongletFiche === 'fonds' && estSuccession(d) ? 'tableau' : ongletFiche));
       const cache = nom => onglet === nom ? '' : ' hidden';
 
       // Un onglet par geste, dans l'ordre où on les accomplit sur un dossier : ce qui arrive
@@ -2049,7 +2049,7 @@
       // passé. Le compteur dit ce qu'il y a dedans sans l'ouvrir ; la pastille rouge, qu'il y a du
       // nouveau (même signal « Nouveau » que partout ailleurs, voir d.piecesNotifications).
       const avAnalyse = avancementAnalyse(d);
-      // Tableau (le dossier en quatre colonnes, les échanges à droite — étude 13/10) · Pièces et analyse · Dossier · Fonds · Historique.
+      // Tableau (le dossier en quatre colonnes, les échéances et leurs dates à droite — étude 13/10) · Pièces et analyse · Dossier · Fonds · Échanges · Historique.
       const actionsDuDossier = actionsFicheDossier(d);
       const ongletsFiche = [
         { cle: 'tableau', libelle: 'Tableau', compteur: nbEcheancesAVenir ? String(nbEcheancesAVenir) : '', titre: `Le dossier en colonnes — ${nbEcheancesAVenir} échéance(s) à venir`, nouveau: notifications.includes(CLE_NOTIF_OFFRE_PRET) },
@@ -2061,6 +2061,7 @@
         { cle: 'dossier', libelle: 'Dossier', compteur: '', titre: 'Parties, bien, financement, notaires, dossier du NAS' },
         // Fonds (étude 05/10) : provision, appel de fonds, fonds reçus et confirmation, relance, RIB — sortis d'Échanges.
         estSuccession(d) ? null : { cle: 'fonds', libelle: 'Fonds', compteur: '', titre: fondsCompletsAConfirmer(d) ? 'Tous les fonds sont reçus : confirmation au client à envoyer' : 'Provision, appel de fonds, fonds reçus, relance, RIB', nouveau: fondsCompletsAConfirmer(d) },
+        { cle: 'echanges', libelle: 'Échanges', compteur: '', titre: 'Emails, appels, sondages de dates, questionnaire' },
         { cle: 'historique', libelle: 'Historique', compteur: historique.length ? String(historique.length) : '', titre: `${historique.length} entrée(s)` }
       ].filter(Boolean);
 
@@ -2120,19 +2121,16 @@
 
             <section class="fiche-panneau" data-onglet="tableau" role="tabpanel"${cache('tableau')}>
               ${renderMajAuthenticTableauFiche(d)}
-              <!-- Les échanges (emails, appels, sondage, gestes du moment) à droite du tableau (étude 13/10) : plus d'onglet à part. -->
+              <!-- Les échéances et leurs dates à droite du tableau (étude 13/10 : « plutôt les dates d'échéance »), toujours dépliées. -->
               <div class="tf-disposition">
                 <div class="tf-principal">
                   ${renderTableauFiche(d, actionsDuDossier)}
-                  <details class="tf-repliable"${echeancesDetailOuvert ? ' open' : ''} ontoggle="echeancesDetailOuvert = this.open">
-                    <summary>Toutes les échéances, dates et rappels</summary>
-                    ${renderProchaineEtapeFiche(d)}
-                    ${echeancesOrdonneesFiche(d, confiance, offreBloc)}
-                    ${renderAjoutEcheance(d)}
-                  </details>
                 </div>
-                <aside class="tf-echanges" aria-label="Échanges">
-                  ${renderEchangesDossier(d)}
+                <aside class="tf-echeances" aria-label="Échéances, dates et rappels">
+                  <div class="section-eyebrow tf-echeances-titre">Échéances</div>
+                  ${echeancesOrdonneesFiche(d, confiance, offreBloc)}
+                  ${renderAjoutEcheance(d)}
+                  ${renderProchaineEtapeFiche(d)}
                 </aside>
               </div>
             </section>
@@ -2175,6 +2173,10 @@
               ${renderFondsDossier(d)}
             </section>`}
 
+            <section class="fiche-panneau" data-onglet="echanges" role="tabpanel"${cache('echanges')}>
+              ${renderEchangesDossier(d)}
+            </section>
+
             <section class="fiche-panneau" data-onglet="historique" role="tabpanel"${cache('historique')}>
               ${renderActiviteFiche(historique)}
             </section>
@@ -2189,8 +2191,6 @@
   // (ou « Pièces » s'il y a du nouveau, voir ouvrirDossierDrawer) mais survit aux render() qui
   // reconstruisent le tiroir à chaque action. Le mode agrandi, lui, est une préférence du poste.
   let ongletFiche = 'tableau';
-  // « Toutes les échéances » (repliées sous le tableau) : l'état survit aux render() qui reconstruisent le tiroir.
-  var echeancesDetailOuvert = false;
 
   // Bascule sans reconstruire le tiroir : les champs en cours de saisie et le défilement restent
   // en place.
@@ -2208,8 +2208,6 @@
   function definirOngletFiche(nom) {
     // « analyse » : ancien onglet, fondu dans « Pièces et analyse » (étude 05/10).
     if (nom === 'analyse') nom = 'pieces';
-    // « echanges » : ancien onglet, à droite du Tableau depuis le 13/10 (étude).
-    if (nom === 'echanges') nom = 'tableau';
     ongletFiche = nom;
     const tiroir = document.getElementById('dossier-drawer');
     if (!tiroir) return;
