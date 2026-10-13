@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.224.3';
+  const VERSION_APP = '0.224.4';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.224.4', date: '2026-10-13 20:49', resume: "Fiche du dossier : à droite du Tableau, seulement le droit de préemption urbain (réponse à la DIA) et la SAFER (délai), avec leur date — ou leur état en un mot quand il n'y en a pas ; toutes les échéances reviennent repliées sous le tableau." },
     { version: '0.224.3', date: '2026-10-13 20:40', resume: "Fiche du dossier : à droite du Tableau, les échéances et leurs dates (toujours dépliées, nom en entier, date et délai dessous) au lieu des échanges ; l'onglet Échanges revient." },
     { version: '0.224.2', date: '2026-10-13 20:30', resume: "Fiche du dossier : les échanges (emails, appels, sondage de dates, envois du moment) s'affichent à droite du Tableau ; l'onglet Échanges disparaît. Sur un écran plus étroit, ils passent sous le tableau." },
     { version: '0.224.1', date: '2026-10-12 17:37', resume: "Historique d'un dossier : ce que CLAIRE fait seule (mention d'envoi dans l'agenda, pièces retrouvées sur le NAS, complément depuis Authentic, archivage automatique…) n'est plus signé du collaborateur dont la fenêtre était ouverte, et une mention déjà dans l'agenda n'est plus notée deux fois." },

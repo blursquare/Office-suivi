@@ -1519,22 +1519,10 @@
   // elles vivent dans l'onglet Échanges, en lignes d'action.
   // Trois raisons d'afficher ces deux lignes (il faut les trois, voir l'historique) : une date déjà
   // saisie ne disparaît jamais ; un rendez-vous de signature fixé les rend dues ; le dossier complet.
-  function echeancesOrdonneesFiche(d, confiance, offreBloc) {
+  // Lignes « Délai SAFER » et « Réponse à la DIA » de la fiche ({ iso, html }) : dans la liste des échéances et dans la colonne
+  // « Préemption » à droite du Tableau (étude 13/10 : « uniquement les dates d'échéance du droit de préemption urbain et de la SAFER »).
+  function lignesPreemptionFiche(d) {
     const lignes = [];
-    if (estSuccession(d)) {
-      lignes.push({ iso: d.rendezVousSignature, html: renderLigneEcheance('rendezVousSignature', 'Signature', d.rendezVousSignature, d.id, null, null, null, false, '', false, echeanceValidee(d, 'rendezVousSignature'), { fort: true, heure: plageHoraireRendezVous(d.rendezVousSignatureHeure, d.rendezVousSignatureHeureFin) }) });
-      (d.autres || []).forEach((a, i) => lignes.push({ autre: true, iso: a.date, html: renderLigneEcheance('autre', escapeHtml(a.label), a.date, d.id, a.page, null, i, false, '', false, echeanceValidee(d, 'autre-' + i)) }));
-      return `<ul class="ech-liste">${ordonnerEcheancesFiche(lignes).map(l => l.html).join('')}</ul>`;
-    }
-    // Ordre d'INSERTION = l'ordre du dossier (vente préalable → prêt → date butoir → appel de
-    // fonds → projet → rendez-vous de signature) : c'est l'ordre affiché (ordonnerEcheancesFiche).
-    if (d.ventebien) lignes.push({ iso: d.ventebien, html: renderLigneEcheance('ventebien', 'Vente préalable', d.ventebien, d.id, d.ventebienPage, confiance.ventebien, null, false, '', false, echeanceValidee(d, 'ventebien')) });
-    lignes.push({ iso: d.pret, html: d.sansPret && !d.pret
-      ? renderLigneEcheance('pret', 'Financement comptant', '', d.id, null, null, null, false, '', true, false, { comptant: true })
-      : renderLigneEcheance('pret', 'Obtention du prêt', d.pret, d.id, d.pretPage, confiance.pret, null, d.offrePretStatut === 'recue', offreBloc, d.sansPret, echeanceValidee(d, 'pret')) });
-    // La date butoir n'a sa propre ligne que tant qu'aucun rendez-vous n'est fixé : ensuite elle
-    // n'est plus qu'indicative, et devient une précision sous le rendez-vous (voir plus bas).
-    const butoirSousRdv = !!(d.rendezVousSignature && d.acte);
     const saferFiche = d.authentic && d.authentic.safer;
     const echeanceSaferFiche = saferFiche && d.roleNotaire !== 'participant' && !saferNonApplicable(d) ? echeanceSaferTacite(saferFiche) : '';   // rien à purger (zone U…) : pas de ligne
     if (echeanceSaferFiche) {
@@ -1554,6 +1542,46 @@
           : 'DIA envoyée : réponse de la commune attendue au plus tard à cette date — le document de renonciation est indispensable pour signer';
       lignes.push({ iso: echeanceDiaFiche, html: renderLigneEcheance('dia', 'Réponse à la DIA', echeanceDiaFiche, null, null, null, null, false, `<span class="ech-note${apresRdv || passe ? ' ech-alerte' : ''}">${escapeHtml(texte)}</span>`, false, false) });
     }
+    return lignes;
+  }
+
+  // Colonne de droite du Tableau (étude 13/10) : le droit de préemption urbain et la SAFER, avec leur date quand elle est connue,
+  // sinon leur état en un mot. Rien en participation ni en succession (le confrère purge, rien à purger).
+  function renderPreemptionTableauFiche(d) {
+    if (!d || d.roleNotaire === 'participant' || estSuccession(d)) return '';
+    const lignes = lignesPreemptionFiche(d);
+    const ligneDe = (type) => (lignes.find(l => l.html.indexOf(`ech-${type}`) !== -1) || {}).html || '';
+    const etat = (libelle, texte, cls) => `<li class="ech tf-preemption-etat"><span class="ech-nom-cell"><span class="ech-nom">${escapeHtml(libelle)}</span></span><span class="ech-etat ${cls || 'neutre'}">${escapeHtml(texte)}</span></li>`;
+    const sa = d.authentic && d.authentic.safer;
+    const dpu = ligneDe('dia') || (droitNonApplicable(d, 'dpu') ? etat('Droit de préemption urbain', 'Non applicable')
+      : preemptionLevee(d) ? etat('Droit de préemption urbain', '✓ Renonciation reçue', 'ok')
+        : etat('Droit de préemption urbain', 'DIA pas encore envoyée'));
+    const safer = ligneDe('safer') || (saferNonApplicable(d) ? etat('SAFER', 'Non applicable')
+      : saferLevee(d) ? etat('SAFER', sa || (d.piecesPersonnalisees || []).some(p => p && /safer/i.test(p.label || '')) ? '✓ Non-préemption' : 'Pas de notification', sa ? 'ok' : 'neutre')
+        : etat('SAFER', 'Notifiée, date d’envoi non relevée'));
+    return `<aside class="tf-preemption" aria-label="Droits de préemption">
+      <div class="section-eyebrow tf-preemption-titre">Préemption</div>
+      <ul class="ech-liste">${dpu}${safer}</ul>
+    </aside>`;
+  }
+
+  function echeancesOrdonneesFiche(d, confiance, offreBloc) {
+    const lignes = [];
+    if (estSuccession(d)) {
+      lignes.push({ iso: d.rendezVousSignature, html: renderLigneEcheance('rendezVousSignature', 'Signature', d.rendezVousSignature, d.id, null, null, null, false, '', false, echeanceValidee(d, 'rendezVousSignature'), { fort: true, heure: plageHoraireRendezVous(d.rendezVousSignatureHeure, d.rendezVousSignatureHeureFin) }) });
+      (d.autres || []).forEach((a, i) => lignes.push({ autre: true, iso: a.date, html: renderLigneEcheance('autre', escapeHtml(a.label), a.date, d.id, a.page, null, i, false, '', false, echeanceValidee(d, 'autre-' + i)) }));
+      return `<ul class="ech-liste">${ordonnerEcheancesFiche(lignes).map(l => l.html).join('')}</ul>`;
+    }
+    // Ordre d'INSERTION = l'ordre du dossier (vente préalable → prêt → date butoir → appel de
+    // fonds → projet → rendez-vous de signature) : c'est l'ordre affiché (ordonnerEcheancesFiche).
+    if (d.ventebien) lignes.push({ iso: d.ventebien, html: renderLigneEcheance('ventebien', 'Vente préalable', d.ventebien, d.id, d.ventebienPage, confiance.ventebien, null, false, '', false, echeanceValidee(d, 'ventebien')) });
+    lignes.push({ iso: d.pret, html: d.sansPret && !d.pret
+      ? renderLigneEcheance('pret', 'Financement comptant', '', d.id, null, null, null, false, '', true, false, { comptant: true })
+      : renderLigneEcheance('pret', 'Obtention du prêt', d.pret, d.id, d.pretPage, confiance.pret, null, d.offrePretStatut === 'recue', offreBloc, d.sansPret, echeanceValidee(d, 'pret')) });
+    // La date butoir n'a sa propre ligne que tant qu'aucun rendez-vous n'est fixé : ensuite elle
+    // n'est plus qu'indicative, et devient une précision sous le rendez-vous (voir plus bas).
+    const butoirSousRdv = !!(d.rendezVousSignature && d.acte);
+    lignesPreemptionFiche(d).forEach(l => lignes.push(l));
     if (!butoirSousRdv) lignes.push({ iso: d.acte, html: renderLigneEcheance('acte', 'Date butoir', d.acte, d.id, d.actePage, confiance.acte, null, false, '', false, echeanceValidee(d, 'acte')) });
     // Rédaction de l'acte (étude 07/10) : dès qu'Authentic en donne l'état (« Non rédigé », « En cours », signé) ou qu'elle est
     // cochée à la main ; jamais en participation (le confrère rédige). Ce qui la retient encore est dit sous la ligne.

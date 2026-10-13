@@ -2049,7 +2049,7 @@
       // passé. Le compteur dit ce qu'il y a dedans sans l'ouvrir ; la pastille rouge, qu'il y a du
       // nouveau (même signal « Nouveau » que partout ailleurs, voir d.piecesNotifications).
       const avAnalyse = avancementAnalyse(d);
-      // Tableau (le dossier en quatre colonnes, les échéances et leurs dates à droite — étude 13/10) · Pièces et analyse · Dossier · Fonds · Échanges · Historique.
+      // Tableau (le dossier en quatre colonnes, la préemption — DPU et SAFER — à droite, étude 13/10) · Pièces et analyse · Dossier · Fonds · Échanges · Historique.
       const actionsDuDossier = actionsFicheDossier(d);
       const ongletsFiche = [
         { cle: 'tableau', libelle: 'Tableau', compteur: nbEcheancesAVenir ? String(nbEcheancesAVenir) : '', titre: `Le dossier en colonnes — ${nbEcheancesAVenir} échéance(s) à venir`, nouveau: notifications.includes(CLE_NOTIF_OFFRE_PRET) },
@@ -2121,17 +2121,18 @@
 
             <section class="fiche-panneau" data-onglet="tableau" role="tabpanel"${cache('tableau')}>
               ${renderMajAuthenticTableauFiche(d)}
-              <!-- Les échéances et leurs dates à droite du tableau (étude 13/10 : « plutôt les dates d'échéance »), toujours dépliées. -->
-              <div class="tf-disposition">
+              <!-- À droite du tableau : les seules dates du droit de préemption urbain et de la SAFER (étude 13/10). -->
+              <div class="tf-disposition${d.roleNotaire === 'participant' || estSuccession(d) ? ' sans-cote' : ''}">
                 <div class="tf-principal">
                   ${renderTableauFiche(d, actionsDuDossier)}
+                  <details class="tf-repliable"${echeancesDetailOuvert ? ' open' : ''} ontoggle="echeancesDetailOuvert = this.open">
+                    <summary>Toutes les échéances, dates et rappels</summary>
+                    ${renderProchaineEtapeFiche(d)}
+                    ${echeancesOrdonneesFiche(d, confiance, offreBloc)}
+                    ${renderAjoutEcheance(d)}
+                  </details>
                 </div>
-                <aside class="tf-echeances" aria-label="Échéances, dates et rappels">
-                  <div class="section-eyebrow tf-echeances-titre">Échéances</div>
-                  ${echeancesOrdonneesFiche(d, confiance, offreBloc)}
-                  ${renderAjoutEcheance(d)}
-                  ${renderProchaineEtapeFiche(d)}
-                </aside>
+                ${renderPreemptionTableauFiche(d)}
               </div>
             </section>
 
@@ -2191,6 +2192,8 @@
   // (ou « Pièces » s'il y a du nouveau, voir ouvrirDossierDrawer) mais survit aux render() qui
   // reconstruisent le tiroir à chaque action. Le mode agrandi, lui, est une préférence du poste.
   let ongletFiche = 'tableau';
+  // « Toutes les échéances » (repliées sous le tableau) : l'état survit aux render() qui reconstruisent le tiroir.
+  var echeancesDetailOuvert = false;
 
   // Bascule sans reconstruire le tiroir : les champs en cours de saisie et le défilement restent
   // en place.
