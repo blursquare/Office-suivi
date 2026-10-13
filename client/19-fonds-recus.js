@@ -62,16 +62,16 @@
     // Le prénom d'une paire n'est plus cherché seul (« Léa » d'un autre client).
     const prenomsDePaire = new Set([...paires.values()].flat());
     // Ni AUCUN prénom d'un acquéreur (audit 13/10 : « Jean » de « Jean MARTIN » comptait les 150 000 € de « DURAND Jean ») : un
-    // prénom ne désigne personne seul. Famille = mots en capitales du nom (sinon son dernier mot) ; le reste et `prenom` = prénoms.
-    const familles = new Set();
-    parties.filter(p => p && String(p.role || '').toUpperCase() === 'ACQUEREUR').forEach(p => {
+    // prénom ne désigne personne seul. Prénom = `prenom`, ou les mots hors capitales d'un nom qui en porte (« Jean MARTIN »). Une
+    // société, un nom sans capitale (« Martin Léa »), le côté acquéreur du nom du dossier et `nomsRecus` ne perdent rien.
+    const gardes = new Set(motsDe([nom.includes('/') ? extraireNomAcquereur(nom) : '', String(d && d.nomsRecus || '')].join(' ')));
+    parties.filter(p => p && String(p.role || '').toUpperCase() === 'ACQUEREUR' && p.qualitePersonne !== 'morale').forEach(p => {
       const mots = String(p.nom || '').split(/\s+/).filter(Boolean);
       const caps = mots.filter(w => w.length > 1 && w === w.toUpperCase() && /\p{Lu}/u.test(w));
-      (caps.length ? caps : mots.slice(-1)).concat([p.nomUsage || '']).flatMap(motsDe).forEach(m => familles.add(m));
-      mots.filter(w => !caps.includes(w)).slice(0, caps.length ? undefined : -1).concat([p.prenom || '']).flatMap(motsDe)
-        .forEach(m => prenomsDePaire.add(m));
+      const prenoms = (caps.length ? mots.filter(w => !caps.includes(w)) : []).concat([p.prenom || '']).flatMap(motsDe);
+      const familles = new Set(caps.concat([p.nomUsage || '']).flatMap(motsDe));
+      prenoms.filter(m => !familles.has(m) && !gardes.has(m)).forEach(m => prenomsDePaire.add(m));
     });
-    familles.forEach(m => prenomsDePaire.delete(m));
     return [...new Set(mots.filter(m => !prenomsDePaire.has(m)).flatMap(m => paires.has(m) ? paires.get(m).map(w => m + ' ' + w) : [m]))];
   }
 

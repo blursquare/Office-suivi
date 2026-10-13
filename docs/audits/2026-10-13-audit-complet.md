@@ -34,7 +34,7 @@ dans le dépôt (les 9 images sont le tampon, les signatures et des maquettes).
 | 7 | IA | `server/src/rapportTechnique.js` | Rapport GitHub : téléphones +33 ou à tirets, noms de deux lettres, noms en casse mixte (« Mme Lefèvre », « Jean-Marc Dubois ») sortaient | Téléphones élargis, noms de 2 lettres des fiches, Unicode, nom après civilité, `anonymiserLibre` pour le texte des signalements | `rapport-technique.test.js` |
 | 8 | Fiche | `client/19-fonds-recus.js` | Montant attendu saisi « 120.000 » lu 120 € : fonds « complets » avec 0 € reçu | Même lecture que le décompte (`montantSaisiAppelFonds`) ; rien reçu n'est jamais « complet » | `fonds-recus.test.js` |
 | 9 | Fiche | `client/19-fonds-recus.js` | Prénom de l'acquéreur cherché seul : 150 000 € de « DURAND Jean » comptés au dossier de « Jean MARTIN » | Prénom jamais cherché seul | `fonds-recus.test.js`, `homonymes-parties.test.js` |
-| 10 | Fiche | `client/34-noms-fichiers-tolerants.js` | Un fichier « DIA » (la demande) cochait « Renonciation au droit de préemption » → rendez-vous proposé sans renonciation | « DIA » seul et « déclaration d'intention d'aliéner » retirés ; « Réponse/Retour/Renonciation DIA » gardés | `noms-approchants.test.js` |
+| 10 | Fiche | `client/34-noms-fichiers-tolerants.js` | Un fichier « DIA » (la demande) cochait « Renonciation au droit de préemption » → rendez-vous proposé sans renonciation | Un nom qui dit la demande (déclaration, intention, demande, envoi, notification) sans dire la réponse est écarté ; « DIA » seul et « Renonciation DIA » restent reconnus (relecture : sinon des renonciations déjà cochées repassaient manquantes) | `noms-approchants.test.js` |
 | 11 | Affichage | `routes/dossiers.js`, ≈ 150 `onclick` du poste | Identifiant de dossier piégé (`x');alert(…)`) accepté par l'API et exécuté au clic sur tous les postes | Forme d'identifiant contrôlée à la création ; `escapeOnclickArg` partout ; garde dans `structure-client` | `dossiers.test.js`, `structure-client.test.js` |
 | 12 | Extraction | `client/12`, `client/39` | Relecture d'actes : « Mr NOM Prénom », « M », « MM. », « les époux X », « consorts X », « Prénom NOM » sans civilité et le prénom à côté d'un nom masqué partaient en clair | Civilités élargies, « Prénom NOM », prénom collé à un jeton, prénoms et noms d'usage des parties et parties du dossier lié dans les termes | `relecture-audit.test.js` |
 | 13 | Extraction | 12 appels `getDocument` | pdf.js 3.11.174 (CVE-2024-4367) : un PDF piégé exécutait du JavaScript au rendu | `isEvalSupported: false` partout ; garde dans `structure-client` ; SRI sur pdf.js et tesseract | `structure-client.test.js` |
@@ -76,3 +76,11 @@ Points Bas (32) : détaillés dans les rapports des lots ; aucun n'a de scénari
 Exchange, Teams, le NAS, une vraie IA, un vrai poste Windows et Authentic sont hors d'atteinte ici. L'exploitation réelle de la faille
 pdf.js n'a pas été rejouée (la version et la configuration vulnérables sont prouvées, le correctif est celui de l'éditeur). Les
 empreintes SRI ont été vérifiées dans Chromium contre le CDN (pdf.js : empreinte officielle de cdnjs).
+
+## Relecture indépendante des correctifs
+
+Trois régressions relevées et corrigées avant l'envoi, chacune avec son test : une société ou un nom sans capitales perdait tous ses
+mots dans la recherche des fonds (`nomsRecus` aussi) ; la relecture d'actes masquait « Vendeur », « Acquéreur », « Conditions
+GENERALES », « Honoraires TTC »… (le bruit dont l'étude se plaint) ; retirer « DIA » seul aurait fait repasser « manquante » une
+renonciation déjà cochée par un fichier ainsi nommé. Hypothèses laissées (Bas) : un NAS noté par son IP et une sauvegarde par son nom
+de machine sont vus comme deux machines ; une adresse Exchange retapée autrement oublie le mot de passe enregistré.

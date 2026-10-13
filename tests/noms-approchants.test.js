@@ -30,9 +30,12 @@ test('les sigles CU, « CU a » et DIA sont reconnus, même sans parenthèse et 
   assert.equal(pieces('CU a 2026.pdf'), 'certificatUrbanisme');
   assert.equal(pieces('cu.pdf'), 'certificatUrbanisme');
   assert.equal(pieces('Renonciation DIA commune de Blois.pdf'), 'renonciationPreemption');
-  // « DIA » seul = la demande envoyée à la mairie, jamais sa renonciation (audit 13/10, règle de l'étude du 07/10).
-  assert.equal(pieces('2024-118 DUPONT - DIA.pdf'), '');
+  assert.equal(pieces('2024-118 DUPONT - DIA.pdf'), 'renonciationPreemption');
+  // Un nom qui dit la DEMANDE (déclaration, notification, envoi) n'est jamais la renonciation (audit 13/10).
   assert.equal(pieces("Déclaration d'intention d'aliéner (DIA) ou notification - Claire Scan.pdf"), '');
+  assert.equal(pieces('DIA envoyée mairie.pdf'), '');
+  assert.equal(pieces('Demande DPU commune.pdf'), '');
+  assert.equal(pieces('Renonciation préemption suite DIA envoyée.pdf'), 'renonciationPreemption');
   assert.equal(pieces('Réponse DIA mairie.pdf'), 'renonciationPreemption');
 });
 

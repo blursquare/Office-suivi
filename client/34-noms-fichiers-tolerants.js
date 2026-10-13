@@ -102,6 +102,9 @@
     return r;
   }
 
+  var RE_DEMANDE_DIA_NOM = /d[ée]claration|intention|demande|envoi|envoy[ée]|notification|notifi[ée]/i;
+  var RE_REPONSE_DIA_NOM = /renon|r[ée]ponse|retour|non[\s-]?pr[ée]emption|d[ée]cision|arr[êe]t[ée]/i;
+
   function correspondancePieceNomMotifs(piece, nomNormalise) {
     if (!piece) return null;
     if (piece.personnalisee) {
@@ -111,6 +114,9 @@
     // « Titre de séjour » (pièce d'identité) n'est pas un titre de propriété (étude 02/10, pièces jointes
     // rangées seules).
     if (piece.cle === 'titrePropriete' && /titre\s*(?:de\s*)?s[ée]jour/i.test(nomNormalise)) return null;
+    // Une DIA ENVOYÉE (déclaration, demande, notification, copie Claire Scan de la DIA) n'est pas la renonciation de la mairie
+    // (audit 13/10 ; étude 07/10 : « on doit avoir le document de renonciation pour signer ») — sauf si le nom dit la réponse.
+    if (piece.cle === 'renonciationPreemption' && RE_DEMANDE_DIA_NOM.test(nomNormalise) && !RE_REPONSE_DIA_NOM.test(nomNormalise)) return null;
     if (piece.motifNom && piece.motifNom.test(nomNormalise)) return 'exact';
     // « Pré-état daté » contient les mots « état daté » : la forme tolérante le prendrait.
     if (piece.cle === 'etatDate' && RE_PRE_ETAT_DATE.test(nomNormalise)) return null;
@@ -129,9 +135,9 @@
     certificatAlignement: ['certificat alignement', 'arrete alignement', 'courriel alignement', 'alignement numerotage', 'numerotage alignement'],
     certificatNumerotage: ['numerotage'],
     reponseAssainissement: ['assainissement', 'spanc'],
-    // Jamais « DIA » seul ni « déclaration d'intention d'aliéner » : c'est la DEMANDE envoyée à la mairie, pas sa réponse (audit
-    // 13/10 ; règle de l'étude du 07/10 : on doit avoir le document de renonciation pour signer).
-    renonciationPreemption: ['preemption', 'dpu', 'renonciation dia', 'reponse dia', 'retour dia'],
+    // « DIA » garde sa place (l'étude écrit « renonciation DIA », « DIA » seul existe sur le NAS) ; un nom qui dit la DEMANDE
+    // est écarté plus haut (RE_DEMANDE_DIA_NOM, audit 13/10).
+    renonciationPreemption: ['preemption', 'dpu', 'dia', 'renonciation dia', 'reponse dia', 'retour dia'],
     diagnosticsTechniques: ['diagnostic', 'diagnostique', 'ddt'],
     erp: ['erp', 'etat risques'],
     avisTaxeFonciere: ['tf', 'taxe fonciere'],
@@ -175,7 +181,7 @@
     { cle: 'certificatAlignement', noms: ["Certificat d'alignement", 'Arrêté d’alignement', 'Courriel alignement', 'Alignement et numérotage', 'Numérotage alignement'] },
     { cle: 'certificatNumerotage', noms: ['Certificat de numérotage', 'Numérotage', 'Numerotage'] },
     { cle: 'reponseAssainissement', noms: ['Assainissement', 'Réponse assainissement', 'Asainissement', 'SPANC', 'Contrôle SPANC'] },
-    { cle: 'renonciationPreemption', noms: ['Renonciation préemption', 'Préemption', 'DPU', 'Renonciation DIA', 'Réponse DIA'] },
+    { cle: 'renonciationPreemption', noms: ['Renonciation préemption', 'Préemption', 'DPU', 'DIA', 'Renonciation DIA', 'Réponse DIA'] },
     { cle: 'diagnosticsTechniques', noms: ['Diagnostics', 'Diagnostic', 'Diagnostique', 'DDT', 'Dossier de diagnostics techniques'] },
     { cle: 'erp', noms: ['ERP', 'État des risques', 'Etat des risques et pollutions'] },
     { cle: 'avisTaxeFonciere', noms: ['Taxe foncière', 'Taxes foncières 2025', 'TF', 'Avis TF'] },

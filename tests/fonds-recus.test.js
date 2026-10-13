@@ -379,3 +379,12 @@ test('fonds reçus : rien reçu n’est jamais « complet », même pour un atte
   assert.equal(app.bilanFondsRecus(1.5, 1.5).etat, 'complet');
   assert.equal(app.bilanFondsRecus(120000, 120001.5).etat, 'complet');
 });
+
+test('fonds reçus : une société, un nom sans capitales et les noms saisis gardent leurs mots (relecture 13/10)', () => {
+  const sci = { id: 's', nom: 'DUPONT / SCI LES TILLEULS', parties: [{ nom: 'SCI Les Tilleuls', role: 'ACQUEREUR', qualitePersonne: 'morale' }] };
+  assert.ok(app.motsPayeurDossier(sci, []).includes('tilleuls'));
+  const mixte = { id: 'm', nom: 'DUPONT / MARTIN', parties: [{ nom: 'Martin Léa', role: 'ACQUEREUR' }] };
+  assert.ok(app.motsPayeurDossier(mixte, []).includes('martin'));
+  const saisi = { id: 'n', nom: 'X / Y', nomsRecus: 'Jean', parties: [{ nom: 'Jean MARTIN', role: 'ACQUEREUR' }] };
+  assert.ok(app.motsPayeurDossier(saisi, []).includes('jean'));
+});

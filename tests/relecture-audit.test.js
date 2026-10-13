@@ -51,3 +51,10 @@ test('relecture : un lieu de naissance à tirets répétés ne fige plus l’ong
   app.anonymiserDocumentsOutil2([{ id: 1, texte }], { termes: [], exclus: [] });
   assert.ok(Date.now() - debut < 200, `${Date.now() - debut} ms`);
 });
+
+test('relecture : les rôles et intitulés de l’acte restent lisibles (relecture 13/10)', () => {
+  const c = `Le Vendeur Monsieur Jean DUPONT et l'Acquéreur Madame Léa MARTIN. Conditions GENERALES. Conditions PARTICULIERES. Honoraires TTC. Classe DPE. Effet RELATIF. Hors TAXES. Credit AGRICOLE. ROY Prénom : Jean.`;
+  const t = app.anonymiserDocumentsOutil2([{ id: 1, texte: c }], { termes: [], exclus: [] }).documents[0].texte;
+  for (const mot of ['Vendeur', 'Acquéreur', 'Conditions GENERALES', 'Conditions PARTICULIERES', 'Honoraires TTC', 'Classe DPE', 'Effet RELATIF', 'Hors TAXES', 'Credit AGRICOLE', 'Prénom']) assert.ok(t.includes(mot), mot + ' : ' + t);
+  for (const nom of ['DUPONT', 'MARTIN', 'Léa']) assert.ok(!t.includes(nom), nom + ' : ' + t);
+});

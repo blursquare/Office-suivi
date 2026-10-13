@@ -19616,9 +19616,11 @@ du dépôt servis hors `.exe` (seuls ceux d'`ASSETS_STATIQUES` désormais), doss
 restaurer contrôlée, tour du NAS et emails des dossiers qui écrivent une copie relue à l'instant (plus de saisie effacée), mot de passe
 Exchange jamais envoyé à une autre adresse, pièces jointes HTML/SVG téléchargées au lieu d'être affichées, masquage Unicode avant l'IA,
 rapport technique sans téléphone +33 ni nom de deux lettres (texte des signalements par `anonymiserLibre`), montant attendu des fonds
-lu comme le décompte, prénom de l'acquéreur jamais cherché seul dans les reçus, « DIA » seul jamais pris pour la renonciation,
+lu comme le décompte, prénom de l'acquéreur jamais cherché seul dans les reçus, une DIA envoyée (nom qui dit déclaration, demande, notification) jamais prise pour la renonciation,
 identifiant de dossier contrôlé et échappé dans tous les `onclick`, pseudonymisation de la relecture élargie (Mr, M, MM., époux,
 consorts, « Prénom NOM », prénoms, parties du dossier lié), pdf.js sans évaluation de police (CVE-2024-4367). Aussi : carte
 d'autorisation de l'agent pour la signature sans agenda et pour Quotités / Appel de fonds sur un autre dossier, dates de l'agent
 contrôlées, deux expressions régulières à retour arrière exponentiel bornées, `pizzip`/`docxtemplater` figés, SRI sur pdf.js et
 tesseract. Les points Moyen restants et leur plan sont dans le rapport.
+Relecture indépendante des correctifs : trois régressions corrigées avant l'envoi (fonds d'une société ou d'un nom sans capitales,
+rôles de l'acte masqués dans la relecture, « DIA » seul gardé pour ne pas décocher des renonciations reçues).
