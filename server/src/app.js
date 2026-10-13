@@ -196,7 +196,7 @@ function creerApp({ db, config, envoyerEmailFn, creerClientClaude, appelerMistra
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurOffrePret(config));
   // Assistant « Demander à CLAIRE » (étude 06/10) : compréhension d'une phrase, IA locale à défaut des mots-clés.
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurAssistant(config, assistant || {}, parametresRepo));
-  app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurNas(config));
+  app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurNas(config, depot));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurNomsFichiersNas(config, parametresRepo));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurScans(config, parametresRepo));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurReglages(parametresRepo, envoyerEmailFn, { depot, db }));

@@ -19511,3 +19511,15 @@ sur le NAS**. Trois outils de plus pour l'agent (Claude et Mistral, `server/src/
 Limites relevées : 25 tours d'outils (10), 16 000 jetons de réponse pour Mistral (4 000), 180 s par appel (90). Points terrain
 `agent-lecture-document`, `agent-document-nas`. Essai de bout en bout dans Chromium (vrai serveur, faux NAS, PDF inventé) : liste,
 lecture, Word valide rangé. Non vérifié ici : Mistral réel sur un vrai acte (qualité, coût, débit de la clé), OCR des scans du copieur.
+
+Même version, avant l'envoi : **courriers sur le papier de l'office** (étude 13/10 : « pour les courriers reprendre de base l'entête
+de l'office des appels de fonds ») — `rediger_document` porte `forme` (`courrier` / `document`) ; un courrier part du modèle Word de
+l'appel de fonds (`courrierRenduAgent` : PizZip, `documentXmlCourrierAgent` remplace le corps et garde la dernière section — en-têtes
+première page et suivantes, pieds de page, marges, colonne de gauche ; « Nos Réf : {ref} » = nom du dossier), corps en XML Word
+(`xmlCorpsCourrierAgent` : adresse + cinq retours comme le modèle, « Blois, le … » espacé, signature « Me … » à droite) ; rendu
+contrôlé sous LibreOffice. Relecture indépendante (aucune fuite trouvée) et ses correctifs : texte de documents plafonné à
+180 000 caractères par conversation (au-delà de 128 000 jetons Mistral échouait et perdait la conversation) ; PDF libéré après
+lecture (`pdf.destroy`), 12 rendus gardés au plus ; 6 pages d'OCR par appel, page en cours affichée ; rangement : le serveur prend
+le dossier du NAS relié à la fiche (`dossierId`, `depot.trouverParId`), jamais un chemin du poste, et écarte les noms réservés de
+Windows ; code inventé par l'IA → « [à compléter] » dans le Word. **Mistral OCR** (question de l'étude) : non branché — il exige
+d'envoyer le scan lui-même, en clair ; proposé comme réglage à activer, en attente de la décision de l'étude.

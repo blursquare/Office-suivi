@@ -8,12 +8,15 @@
   //     plus par appel ; le serveur le masque (noms, adresses, emails, téléphones → codes) avant l'IA, comme tout résultat d'outil.
   //   - rediger_document : l'IA écrit le contenu (codes rétablis par le serveur) ; le .docx est fabriqué ici (docx 9.7.1, comme
   //     l'annexe des quotités) et s'affiche avec « Télécharger » et « Ranger dans le dossier » — rien n'est écrit sur le NAS sans ce
-  //     clic (POST /api/nas/deposer-document : racine du dossier client, copie sans jamais écraser).
+  //     clic (POST /api/nas/deposer-document : racine du dossier relié à la fiche, lu par le serveur ; copie sans jamais écraser).
 
   var MAX_FICHIERS_DOSSIER_AGENT = 300;
   var MAX_PAGES_LECTURE_AGENT = 30;
   var MAX_CARACTERES_LECTURE_AGENT = 45000;   // le serveur coupe un résultat à 60 000 caractères (JSON compris)
   var CARACTERES_MIN_PAGE_TEXTE = 30;         // en dessous, la page est un scan : OCR
+// Pages passées à l'OCR par appel : jusqu'à 30 s chacune (relecture 13/10 : 30 pages de scan = un quart d'heure sans réponse).
+var MAX_PAGES_OCR_AGENT = 6;
+var MAX_RENDUS_AGENT = 12;                  // documents produits gardés dans la fenêtre (les plus anciens sont oubliés)
   // Documents produits dans cette fenêtre : id → { blob, nom, titre, dossierId, range }.
   var rendusAgent = {};
 
@@ -58,6 +61,7 @@
       return { erreur: 'PDF illisible : ' + String(e && e.message || e).slice(0, 120) };
     }
     const plage = pagesLectureAgent(pdf.numPages, debut, fin);
+    const horsDocument = (parseInt(debut, 10) || 1) > pdf.numPages;
     const pages = [];
     let total = 0;
     let worker = null;
@@ -65,10 +69,16 @@
     let suite = '';
     try {
       for (let p = plage.debut; p <= plage.fin; p++) {
+        assistantEtapeAgent = `Je lis le document… page ${p} sur ${pdf.numPages}`;
+        renderAssistant();
         const page = await pdf.getPage(p);
         let texte = lignesDepuisItemsPdf((await page.getTextContent()).items).join('\n').trim();
+        page.cleanup();
         let parOcr = false;
         if (texte.replace(/\s+/g, '').length < CARACTERES_MIN_PAGE_TEXTE) {
+          if (ocr >= MAX_PAGES_OCR_AGENT && pages.length) { suite = `pages scannées, lues par reconnaissance de caractères (lent) : relis à partir de la page ${p}`; break; }
+          assistantEtapeAgent = `Je lis le document… page ${p} sur ${pdf.numPages} (scan, lecture plus lente)`;
+          renderAssistant();
           if (worker === null) worker = (await creerWorkerOcr()) || false;
           if (worker) { texte = String(await ocrPage(pdf, p, worker) || '').trim(); parOcr = true; ocr++; }
         }
@@ -78,9 +88,11 @@
       }
     } finally {
       if (worker) { try { await worker.terminate(); } catch (e) { /* déjà arrêté */ } }
+      // Le PDF n'est gardé ni par pdf.js ni par la fenêtre (l'agent peut en lire plusieurs dizaines dans une conversation).
+      try { pdf.destroy(); } catch (e) { /* déjà libéré */ }
     }
     noterVerificationPoste('agent-lecture-document', { detail: ocr ? 'avec OCR' : 'texte du PDF' });
-    return { pages_total: pdf.numPages,
+    return { pages_total: pdf.numPages, ...(horsDocument ? { attention: `le document n’a que ${pdf.numPages} page(s)` } : {}),
       pages_lues: pages.length ? `${pages[0].page}-${pages[pages.length - 1].page}` : '', ...(suite ? { suite } : {}),
       ...(!suite && pages.length && pages[pages.length - 1].page < pdf.numPages ? { suite: `pages ${pages[pages.length - 1].page + 1} à ${pdf.numPages} non lues` } : {}), pages };
   }
@@ -99,11 +111,12 @@
   }
 
   // Pure : le contenu écrit par l'IA en blocs — titre1, titre2, para, puce, numero, tableau ({ lignes: [[cellules]] }).
-  function blocsDocumentAgent(contenu) {
+  // `garderLignes` (courrier) : les lignes d'un paragraphe restent des lignes (bloc d'adresse, signature).
+  function blocsDocumentAgent(contenu, garderLignes) {
     const blocs = [];
     let para = [];
     let tableau = null;
-    const finPara = () => { if (para.length) { blocs.push({ type: 'para', texte: para.join(' ') }); para = []; } };
+    const finPara = () => { if (para.length) { blocs.push({ type: 'para', texte: para.join(garderLignes ? '\n' : ' ') }); para = []; } };
     const finTableau = () => { if (tableau) { if (tableau.lignes.length) blocs.push(tableau); tableau = null; } };
     String(contenu || '').replace(/\r/g, '').split('\n').forEach(brute => {
       const l = brute.trim();
@@ -132,6 +145,76 @@
   function nomFichierRenduAgent(titre) {
     const n = String(titre || '').normalize('NFC').replace(/[\u0000-\u001f<>:"/\\|?*]+/g, ' ').replace(/\s+/g, ' ').replace(/^[\s.]+|[\s.]+$/g, '').slice(0, 100).trim();
     return n || 'Document CLAIRE';
+  }
+
+  // Pure : un texte pour du XML Word.
+  function xmlTexteWord(t) {
+    return String(t || '').replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  // Pure : les « runs » Word d'une ligne (gras d'après **…**, retours à la ligne gardés).
+  function xmlRunsCourrierAgent(texte, gras) {
+    return String(texte || '').split('\n').map((ligne, i) => (i ? '<w:r><w:br/></w:r>' : '') + morceauxGrasAgent(ligne).map(m =>
+      `<w:r>${m.gras || gras ? '<w:rPr><w:b/><w:bCs/></w:rPr>' : ''}<w:t xml:space="preserve">${xmlTexteWord(m.texte)}</w:t></w:r>`).join('')).join('');
+  }
+
+  // Pure : le corps d'un courrier en XML Word, aux réglages du modèle de l'appel de fonds (paragraphes justifiés, 10 pt après ;
+  // tableau à filets). Le style Normal du modèle donne la police et la taille de l'étude.
+  // Comme le modèle (relecture du rendu, 13/10) : le bloc d'adresse en tête, aligné à gauche, suivi de cinq retours (il remplit la
+  // fenêtre d'enveloppe dessinée par l'en-tête) ; « Blois, le … » espacé avant et après ; un paragraphe à plusieurs lignes à gauche.
+  var RE_LIEU_DATE_COURRIER = /^[A-ZÀ-Ü][A-Za-zÀ-ÿ' -]{1,40}, le \S/;
+  function xmlCorpsCourrierAgent(blocs) {
+    const para = (contenu, ppr) => `<w:p><w:pPr>${ppr || '<w:spacing w:after="200"/><w:jc w:val="both"/>'}</w:pPr>${contenu}</w:p>`;
+    const morceaux = ['<w:p><w:pPr><w:spacing w:before="0" w:after="0"/></w:pPr></w:p>'];
+    (blocs || []).forEach((b, i) => {
+      if (b.type === 'para' && i === 0 && /\n/.test(b.texte)) { morceaux.push(para(xmlRunsCourrierAgent(b.texte) + '<w:r>' + '<w:br/>'.repeat(5) + '</w:r>', '<w:spacing w:before="200" w:after="80"/>')); return; }
+      if (b.type === 'para' && RE_LIEU_DATE_COURRIER.test(b.texte) && b.texte.length < 80) { morceaux.push(para(xmlRunsCourrierAgent(b.texte) + '<w:r><w:br/><w:br/></w:r>', '<w:spacing w:before="300" w:after="300"/>')); return; }
+      // La signature « Me … » à droite, gardée avec la ligne d'avant, comme « Me {notaire} » du modèle.
+      if (b.type === 'para' && /^Me\s/.test(b.texte) && i === blocs.length - 1) { morceaux.push(para(xmlRunsCourrierAgent(b.texte), '<w:keepNext/><w:spacing w:before="400"/><w:jc w:val="right"/>')); return; }
+      if (b.type === 'para' && /\n/.test(b.texte)) { morceaux.push(para(xmlRunsCourrierAgent(b.texte), '<w:spacing w:after="200"/>')); return; }
+      // Le dernier point d'une liste garde l'espace d'un paragraphe avant le texte qui suit.
+      const finListe = (b.type === 'puce' || b.type === 'numero') && !(blocs[i + 1] && blocs[i + 1].type === b.type) ? '200' : '60';
+      if (b.type === 'titre1' || b.type === 'titre2') morceaux.push(para(xmlRunsCourrierAgent(b.texte, true), '<w:keepNext/><w:spacing w:before="200" w:after="120"/>'));
+      else if (b.type === 'puce') morceaux.push(para(xmlRunsCourrierAgent('- ' + b.texte), `<w:spacing w:after="${finListe}"/><w:ind w:left="284"/><w:jc w:val="both"/>`));
+      else if (b.type === 'numero') morceaux.push(para(xmlRunsCourrierAgent(b.numero + '. ' + b.texte), `<w:spacing w:after="${finListe}"/><w:ind w:left="284"/><w:jc w:val="both"/>`));
+      else if (b.type === 'tableau') {
+        const largeur = Math.max(...b.lignes.map(l => l.length));
+        const pct = Math.floor(5000 / largeur);
+        const bord = (n) => `<w:${n} w:val="single" w:color="auto" w:sz="4"/>`;
+        morceaux.push(`<w:tbl><w:tblPr><w:tblW w:type="pct" w:w="5000"/><w:tblBorders>${['top', 'left', 'bottom', 'right', 'insideH', 'insideV'].map(bord).join('')}</w:tblBorders><w:tblCellMar><w:left w:w="108" w:type="dxa"/><w:right w:w="108" w:type="dxa"/></w:tblCellMar></w:tblPr><w:tblGrid>${'<w:gridCol/>'.repeat(largeur)}</w:tblGrid>`
+          + b.lignes.map((l, i) => `<w:tr>${Array.from({ length: largeur }, (_, k) => `<w:tc><w:tcPr><w:tcW w:type="pct" w:w="${pct}"/></w:tcPr><w:p><w:pPr><w:spacing w:after="0"/></w:pPr>${xmlRunsCourrierAgent(l[k] || '', i === 0)}</w:p></w:tc>`).join('')}</w:tr>`).join('')
+          + '</w:tbl>');
+        morceaux.push('<w:p><w:pPr><w:spacing w:after="120"/></w:pPr></w:p>');
+      } else morceaux.push(para(xmlRunsCourrierAgent(b.texte)));
+    });
+    return morceaux.join('');
+  }
+
+  // Pure : le document.xml du modèle avec un autre corps — en-têtes, pieds de page, marges et colonne de gauche de l'office gardés
+  // (la dernière section du modèle, qui les désigne).
+  function documentXmlCourrierAgent(modeleXml, corps) {
+    const x = String(modeleXml || '');
+    const debut = x.indexOf('<w:body>');
+    const sect = x.lastIndexOf('<w:sectPr');
+    const fin = x.lastIndexOf('</w:body>');
+    if (debut < 0 || sect < debut || fin < sect) return '';
+    return x.slice(0, debut) + '<w:body>' + corps + x.slice(sect, fin) + '</w:body></w:document>';
+  }
+
+  // Courrier sur le papier à en-tête de l'office (étude 13/10 : « pour les courriers reprendre de base l'entête de l'office des
+  // appels de fonds ») : le modèle Word de l'appel de fonds, corps remplacé.
+  async function courrierRenduAgent(contenu, d) {
+    await chargerModeleAppelFonds();
+    const zip = new window.PizZip(afBase64VersOctets(window.APPEL_FONDS_MODELE.docxB64));
+    // « Nos Réf : {ref} » de l'en-tête : la référence du dossier, comme l'appel de fonds (son nom), sinon rien.
+    Object.keys(zip.files).filter(n => /^word\/(header|footer)\d*\.xml$/.test(n)).forEach(n => {
+      const x = zip.file(n).asText();
+      if (x.includes('{ref}')) zip.file(n, x.split('{ref}').join(xmlTexteWord(d ? d.nom : '')));
+    });
+    const xml = documentXmlCourrierAgent(zip.file('word/document.xml').asText(), xmlCorpsCourrierAgent(blocsDocumentAgent(contenu, true)));
+    if (!xml) throw new Error('modèle de l’office illisible');
+    zip.file('word/document.xml', xml);
+    return zip.generate({ type: 'blob', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
   }
 
   async function docxRenduAgent(titre, contenu) {
@@ -166,7 +249,7 @@
 
   function telechargerRenduAgent(id) {
     const r = rendusAgent[id];
-    if (!r) return;
+    if (!r) { afficherToast('Ce document n’est plus gardé par la fenêtre : redemandez-le à CLAIRE.', 'OK', null); return; }
     const lien = document.createElement('a');
     lien.href = URL.createObjectURL(r.blob);
     lien.download = r.nom + '.docx';
@@ -188,13 +271,14 @@
   async function rangerRenduAgent(id) {
     const r = rendusAgent[id];
     const d = r && dossiers.find(x => x.id === r.dossierId);
-    if (!r || !d || !d.nasDossier) { afficherToast('Ce dossier n’est pas relié au NAS.', 'OK', null); return; }
+    if (!r) { afficherToast('Ce document n’est plus gardé par la fenêtre : redemandez-le à CLAIRE.', 'OK', null); return; }
+    if (!d || !d.nasDossier) { afficherToast('Ce dossier n’est pas relié au NAS.', 'OK', null); return; }
     if (r.range) { afficherToast(`Déjà rangé : ${r.range}`, 'OK', null); return; }
     if (r.enCours) return;
     r.enCours = true;
     try {
       const reponse = await fetchAvecAuth('/api/nas/deposer-document', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ dossierNas: d.nasDossier, nom: r.nom, contenu: await base64DepuisBlob(r.blob) }) });
+        body: JSON.stringify({ dossierId: d.id, nom: r.nom, contenu: await base64DepuisBlob(r.blob) }) });
       const json = await reponse.json().catch(() => ({}));
       if (!reponse.ok) throw new Error(json.erreur || `le serveur a répondu ${reponse.status}`);
       r.range = String(json.chemin || '').split(/[\\/]/).pop() || r.nom + '.docx';
@@ -215,12 +299,16 @@
     if (!contenu.trim()) return { erreur: 'contenu vide' };
     const d = e.dossier_id ? dossiers.find(x => x.id === e.dossier_id) : null;
     if (e.dossier_id && !d) return { erreur: 'dossier introuvable : cherche-le d’abord (chercher_dossiers)' };
+    const courrier = e.forme === 'courrier';
     let blob;
-    try { blob = await docxRenduAgent(titre, contenu); } catch (err) { return { erreur: 'document Word impossible à fabriquer sur ce poste (bibliothèque en ligne injoignable ?)' }; }
+    try { blob = courrier ? await courrierRenduAgent(contenu, d) : await docxRenduAgent(titre, contenu); }
+    catch (err) { return { erreur: 'document Word impossible à fabriquer sur ce poste (bibliothèque en ligne injoignable ?)' }; }
     const id = 'rendu' + (Object.keys(rendusAgent).length + 1) + '-' + Date.now().toString(36);
     rendusAgent[id] = { blob, nom: nomFichierRenduAgent(titre), titre, dossierId: d ? d.id : '', range: '' };
+    const ids = Object.keys(rendusAgent);
+    ids.slice(0, Math.max(0, ids.length - MAX_RENDUS_AGENT)).forEach(k => { delete rendusAgent[k]; });
     const boutons = [{ libelle: 'Télécharger (Word)', action: () => telechargerRenduAgent(id) }];
     if (d && d.nasDossier) boutons.push({ libelle: 'Ranger dans le dossier du NAS', action: () => rangerRenduAgent(id) });
-    poserMessageAssistant('claire', `<p>Document prêt : <b>${escapeHtml(titre)}</b>${d ? ` — ${escapeHtml(libelleDossierAffiche(d))}` : ''}.</p>`, boutons);
+    poserMessageAssistant('claire', `<p>${courrier ? 'Courrier prêt, sur le papier de l’office' : 'Document prêt'} : <b>${escapeHtml(titre)}</b>${d ? ` — ${escapeHtml(libelleDossierAffiche(d))}` : ''}.</p>`, boutons);
     return { fait: true, affiche_a_l_utilisateur: `document « ${titre} » prêt, avec « Télécharger »${d && d.nasDossier ? ' et « Ranger dans le dossier du NAS »' : ''}` };
   }

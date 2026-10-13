@@ -85,7 +85,9 @@ before(async () => {
     motDePasse: 'mdp-test', racineRepo: os.tmpdir(), port: 0, jetonCalendrier: '',
     nasRacine: racine, ollama: { url: 'http://127.0.0.1:1', modele: 'llama3.1:8b' }
   };
-  const { app, gestionnaireAuth } = creerApp({ db, config });
+  const { app, gestionnaireAuth, depot } = creerApp({ db, config });
+  depot.creer({ id: 'n1', nom: 'DUPONT / MARTIN', nasDossier: '2024-118 DUPONT MARTIN' });
+  depot.creer({ id: 'n2', nom: 'SANS NAS' });
   jeton = gestionnaireAuth.creerSession();
   serveurApp = app.listen(0);
   await new Promise((resolve) => serveurApp.once('listening', resolve));
@@ -326,16 +328,18 @@ test('fichiersLesPlusRecents (étude 12/10) : les N plus récemment modifiés, u
 test('deposer-document : .docx à la racine du dossier client, copie « (2) », refus hors NAS et hors Word', async () => {
   const poster = (corps) => fetch(`${baseUrl}/api/nas/deposer-document`, { method: 'POST', headers: { Authorization: `Bearer ${jeton}`, 'Content-Type': 'application/json' }, body: JSON.stringify(corps) });
   const docx = Buffer.concat([Buffer.from('PK\u0003\u0004'), Buffer.from('contenu inventé')]).toString('base64');
-  let r = await poster({ dossierNas: '2024-118 DUPONT MARTIN', nom: 'Synthèse du compromis', contenu: docx });
+  let r = await poster({ dossierId: 'n1', nom: 'Synthèse du compromis', contenu: docx });
   assert.equal(r.status, 200);
   assert.equal(path.basename((await r.json()).chemin), 'Synthèse du compromis.docx');
   assert.ok(fs.existsSync(path.join(racine, '2024-118 DUPONT MARTIN', 'Synthèse du compromis.docx')));
-  r = await poster({ dossierNas: '2024-118 DUPONT MARTIN', nom: 'Synthèse du compromis', contenu: docx });
+  r = await poster({ dossierId: 'n1', nom: 'Synthèse du compromis', contenu: docx });
   assert.equal(path.basename((await r.json()).chemin), 'Synthèse du compromis (2).docx', 'jamais d’écrasement');
-  assert.equal((await poster({ dossierNas: '../', nom: 'x', contenu: docx })).status, 400, 'hors du NAS');
-  assert.equal((await poster({ dossierNas: '', nom: 'x', contenu: docx })).status, 400, 'racine du NAS refusée');
-  assert.equal((await poster({ dossierNas: '2024-118 DUPONT MARTIN', nom: 'x', contenu: Buffer.from('%PDF-1.4').toString('base64') })).status, 400, 'pas un Word');
-  r = await poster({ dossierNas: '2024-118 DUPONT MARTIN', nom: '../../évasion', contenu: docx });
+  assert.equal((await poster({ dossierId: 'inconnu', dossierNas: '2024-118 DUPONT MARTIN', nom: 'x', contenu: docx })).status, 400, 'un chemin fourni par le poste ne suffit pas');
+  assert.equal((await poster({ dossierId: 'n2', nom: 'x', contenu: docx })).status, 400, 'dossier non relié');
+  assert.equal((await poster({ dossierId: 'n1', nom: 'x', contenu: Buffer.from('%PDF-1.4').toString('base64') })).status, 400, 'pas un Word');
+  r = await poster({ dossierId: 'n1', nom: 'CON', contenu: docx });
+  assert.equal(path.basename((await r.json()).chemin), 'Document CON.docx', 'nom réservé de Windows');
+  r = await poster({ dossierId: 'n1', nom: '../../évasion', contenu: docx });
   assert.equal(r.status, 200);
   assert.equal(path.dirname(path.join(racine, (await r.json()).chemin)), path.join(racine, '2024-118 DUPONT MARTIN'), 'le nom ne sort pas du dossier');
 });

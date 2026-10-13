@@ -27,6 +27,9 @@ const MAX_TOURS_OUTILS = 25;              // appels d'outils enchaînés pour UN
 const DUREE_CONVERSATION_MS = 30 * 60 * 1000;
 const MAX_CONVERSATIONS = 60;
 const MAX_CARACTERES_RESULTAT = 60000;    // un résultat d'outil plus long est coupé (une liste de 400 dossiers)
+// Texte de documents lu dans UNE conversation (relecture 13/10) : tout l'historique repart à chaque tour — au-delà, le contexte de
+// Mistral (128 000 jetons) déborde, l'appel échoue et la conversation est perdue. ≈ 50 000 jetons de documents au plus.
+const MAX_CARACTERES_DOCUMENTS_CONVERSATION = 180000;
 const PRENOMS_COLLABORATEURS = ['Bastien', 'Julie', 'Jérémy'];
 
 // Gestes que l'agent peut demander : les intentions de « Demander à CLAIRE » qui écrivent ou ouvrent quelque chose, faites par le
@@ -101,8 +104,10 @@ const OUTILS_AGENT = [
   {
     name: 'rediger_document',
     description: 'Produit un document Word (.docx) à partir de ton texte : note, synthèse, tableau comparatif, courrier, liste de pièces… Il s’affiche dans la conversation avec « Télécharger » et, pour un dossier relié au NAS, « Ranger dans le dossier » (l’utilisateur décide : rien n’est rangé sans son clic). Format du contenu : lignes « # Titre », « ## Sous-titre », « - puce », « 1. point », **gras**, tableaux en lignes « | a | b | » (la première ligne est l’en-tête), paragraphes séparés par une ligne vide. Écris le document complet, sans « [à compléter] » sauf si l’information manque vraiment.',
-    input_schema: { type: 'object', additionalProperties: false, required: ['dossier_id', 'titre', 'contenu'],
-      properties: { dossier_id: chaine('"" si le document ne porte sur aucun dossier'), titre: chaine('titre court, sert aussi de nom de fichier'), contenu: chaine('le document entier, au format décrit') } }
+    input_schema: { type: 'object', additionalProperties: false, required: ['dossier_id', 'forme', 'titre', 'contenu'],
+      properties: { dossier_id: chaine('"" si le document ne porte sur aucun dossier'),
+        forme: { type: 'string', enum: ['document', 'courrier'], description: 'courrier = lettre sur le papier à en-tête de l’office (logo, coordonnées, colonne de gauche, comme l’appel de fonds) : le contenu commence par le destinataire (une ligne par ligne d’adresse), puis « Blois, le … », l’objet, la formule d’appel, le corps, la formule de politesse et « Me Sophie GOSSART » ; sans titre (# …) ; document = note, synthèse, tableau, avec son titre' },
+        titre: chaine('titre court, sert aussi de nom de fichier'), contenu: chaine('le document entier, au format décrit') } }
   },
   {
     name: 'faire_geste',
@@ -132,7 +137,7 @@ const SYSTEME_AGENT = `Tu es CLAIRE, l'assistante intégrée au logiciel de suiv
 
 Comment tu travailles :
 - Tu as des outils pour lire les dossiers de CLAIRE, la liste « À faire », l'agenda de l'office, les derniers documents reçus (pièces du NAS, scans du copieur), TOUS les PDF du dossier client sur le NAS (documents_du_dossier) et leur texte (lire_document), pour produire un document Word (rediger_document) et pour faire des gestes. Pour montrer un document, propose-le avec ouvrir_documents.
-- Documents : pour analyser un compromis, une offre de prêt, un état daté, un diagnostic… liste les documents du dossier, LIS ceux qui comptent (par tranches de 30 pages pour un long acte) et appuie chaque constat sur la page. Pour une synthèse, un tableau, une note ou un courrier demandé, produis-le avec rediger_document plutôt que de le recopier dans ta réponse ; ta réponse dit alors en une ou deux phrases ce que contient le document. Sers-t'en dès qu'une question touche un dossier, une date, une tâche : ne réponds jamais de mémoire et n'invente aucun fait (date, pièce, montant, nom, statut). Enchaîne les outils autant que nécessaire (chercher le dossier, puis lire sa fiche, puis comparer…), plusieurs à la fois quand ils sont indépendants.
+- Documents : pour analyser un compromis, une offre de prêt, un état daté, un diagnostic… liste les documents du dossier, LIS ceux qui comptent (par tranches de 30 pages pour un long acte) et appuie chaque constat sur la page. Pour une synthèse, un tableau, une note ou un courrier demandé, produis-le avec rediger_document (forme « courrier » pour toute lettre : elle sort sur le papier à en-tête de l'office) plutôt que de le recopier dans ta réponse ; ta réponse dit alors en une ou deux phrases ce que contient le document. Sers-t'en dès qu'une question touche un dossier, une date, une tâche : ne réponds jamais de mémoire et n'invente aucun fait (date, pièce, montant, nom, statut). Enchaîne les outils autant que nécessaire (chercher le dossier, puis lire sa fiche, puis comparer…), plusieurs à la fois quand ils sont indépendants.
 - Si plusieurs dossiers correspondent et que la question ne permet pas de choisir, demande lequel en les citant.
 - Les noms des personnes, adresses, agences, notaires, emails et téléphones t'arrivent remplacés par des codes ([NOM1], [EMAIL2], [TEL1], [REF1]…). Utilise-les tels quels dans tes réponses et dans les outils : ils sont rétablis avant d'être montrés. N'essaie jamais de deviner ce qu'ils cachent.
 - Raisonne en notaire : planning d'une vente (vente préalable → obtention du prêt → renonciation aux droits de préemption, délai SAFER → rendez-vous de signature → appel de fonds 10 jours avant → projet d'acte → signature), conditions suspensives, dates butoir, pièces. Signale ce qui est en retard, ce qui bloque la signature, et la prochaine action utile.
@@ -313,6 +318,12 @@ async function tourAgent(entree, o) {
       const r = parId.get(id);
       if (!r) return { id, contenu: 'Aucun résultat reçu du poste.', erreur: true };
       let contenu = JSON.stringify(masquerValeur(r.contenu === undefined ? null : r.contenu, conv.sensibles, conv.table));
+      if ((conv.nomsAppels || {})[id] === 'lire_document' && !r.erreur) {
+        if ((conv.caracteresLus || 0) + contenu.length > MAX_CARACTERES_DOCUMENTS_CONVERSATION) {
+          return { id, contenu: 'Limite de lecture de cette conversation atteinte : conclus avec ce que tu as déjà lu, ou propose à l’utilisateur une nouvelle conversation pour la suite.', erreur: true };
+        }
+        conv.caracteresLus = (conv.caracteresLus || 0) + contenu.length;
+      }
       if (contenu.length > MAX_CARACTERES_RESULTAT) contenu = contenu.slice(0, MAX_CARACTERES_RESULTAT) + ' … (coupé : trop long, affine la demande)';
       return { id, contenu, erreur: !!r.erreur };
     });
@@ -340,6 +351,7 @@ async function tourAgent(entree, o) {
   if (tour.fin === 'outils' && tour.appels.length) {
     conv.tours += 1;
     conv.attendus = tour.appels.map((b) => b.id);
+    conv.nomsAppels = Object.fromEntries(tour.appels.map((b) => [b.id, b.nom]));
     return {
       ...plus,
       conversation: conv.id,
@@ -443,6 +455,9 @@ async function tourMistral(conv, o) {
 
 /** Entrée d'un outil prête pour le poste : les paramètres d'un geste passent par le même contrôle que ceux de l'IA. Pure. */
 function entreeOutilPourPoste(nom, entree) {
+  // Un code que l'IA a inventé (« [NOM9] » inconnu) ne finit pas dans le document Word.
+  if (nom === 'rediger_document') return Object.fromEntries(Object.entries(entree || {})
+    .map(([k, v]) => [k, typeof v === 'string' ? v.replace(/\[(?:NOM|EMAIL|TEL|REF|NUM|MONTANT)\d+\]/g, '[à compléter]') : v]));
   if (nom !== 'faire_geste') return entree;
   const p = entree && entree.parametres ? entree.parametres : {};
   return { geste: GESTES_AGENT.includes(entree.geste) ? entree.geste : '', dossier_id: typeof entree.dossier_id === 'string' ? entree.dossier_id : '',

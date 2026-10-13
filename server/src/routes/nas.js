@@ -46,7 +46,7 @@ async function existe(chemin) {
   }
 }
 
-function creerRouteurNas(config) {
+function creerRouteurNas(config, depot) {
   const routeur = express.Router();
 
   // Interrogée par l'interface pour savoir si la fonctionnalité est utilisable du tout, et afficher
@@ -93,8 +93,14 @@ function creerRouteurNas(config) {
     const contenu = Buffer.from(base64, 'base64');
     // Un .docx est une archive ZIP : « PK » en tête, sinon ce n'est pas le document produit par CLAIRE.
     if (contenu.length < 4 || contenu[0] !== 0x50 || contenu[1] !== 0x4b) { res.status(400).json({ erreur: 'Ce n’est pas un document Word.' }); return; }
-    const r = await copierDansDossierClient({ nasRacine: config.nasRacine, dossierNas: typeof b.dossierNas === 'string' ? b.dossierNas : '',
-      rubriques: [], nomCible: typeof b.nom === 'string' ? b.nom.slice(0, 120) : 'Document CLAIRE', extension: 'docx', contenu });
+    // Le dossier du NAS est celui que la fiche de CLAIRE a relié, lu ici — jamais un chemin fourni par le poste (relecture 13/10).
+    const d = depot && typeof b.dossierId === 'string' ? depot.trouverParId(b.dossierId) : null;
+    if (!d || !d.nasDossier) { res.status(400).json({ erreur: 'Dossier inconnu ou non relié au NAS.' }); return; }
+    // Noms réservés de Windows (« CON », « NUL »…) : jamais un nom de fichier tel quel.
+    let nom = typeof b.nom === 'string' ? b.nom.slice(0, 120) : '';
+    if (/^\s*(con|prn|aux|nul|com\d|lpt\d)\s*$/i.test(nom)) nom = 'Document ' + nom.trim();
+    const r = await copierDansDossierClient({ nasRacine: config.nasRacine, dossierNas: String(d.nasDossier),
+      rubriques: [], nomCible: nom || 'Document CLAIRE', extension: 'docx', contenu });
     if (r.erreur) { res.status(r.statut || 400).json({ erreur: r.erreur }); return; }
     res.json({ ok: true, chemin: r.chemin });
   }));

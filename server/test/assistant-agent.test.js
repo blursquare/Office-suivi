@@ -365,7 +365,7 @@ test('documents du dossier (étude 13/10) : le texte d’un PDF lu part masqué,
   const client = fauxClient([
     { stop_reason: 'tool_use', usage, content: [outil('t1', 'documents_du_dossier', { dossier_id: 'd1' })] },
     { stop_reason: 'tool_use', usage, content: [outil('t2', 'lire_document', { document_id: 'doc1', page_debut: 1, page_fin: 0 })] },
-    { stop_reason: 'tool_use', usage, content: [outil('t3', 'rediger_document', { dossier_id: 'd1', titre: 'Synthèse du compromis [NOM1]', contenu: '# Parties\n- Vendeur : [NOM2] [NOM1]\n| Condition | Date |\n|---|---|\n| Prêt | 20/11/2026 |' })] },
+    { stop_reason: 'tool_use', usage, content: [outil('t3', 'rediger_document', { dossier_id: 'd1', forme: 'document', titre: 'Synthèse du compromis [NOM1]', contenu: '# Parties\n- Vendeur : [NOM2] [NOM1]\n| Condition | Date |\n|---|---|\n| Prêt | 20/11/2026 |' })] },
     { stop_reason: 'end_turn', usage, content: [texte('La synthèse est prête.')] }
   ]);
   const o = { cle: 'k', client, modele: 'claude-opus-5-5' };
@@ -390,4 +390,20 @@ test('documents du dossier (étude 13/10) : le texte d’un PDF lu part masqué,
   r = await tourAgent({ conversation: r.conversation, resultats: [{ id: 't3', contenu: { fait: true } }] }, o);
   assert.equal(r.reponse, 'La synthèse est prête.');
   ['documents_du_dossier', 'lire_document', 'rediger_document'].forEach((n) => assert.ok(OUTILS_AGENT.some((t) => t.name === n), n));
+});
+
+test('relecture 13/10 : la lecture de documents est plafonnée par conversation ; un code inventé ne finit pas dans le Word', async () => {
+  const reponses = [];
+  for (let i = 0; i < 6; i++) reponses.push({ stop_reason: 'tool_use', usage, content: [outil('l' + i, 'lire_document', { document_id: 'doc1', page_debut: 1 + 30 * i, page_fin: 0 })] });
+  reponses.push({ stop_reason: 'end_turn', usage, content: [texte('Fini.')] });
+  const client = fauxClient(reponses);
+  const o = { cle: 'k', client };
+  let r = await tourAgent({ texte: 'Lis tout le compromis', dossiers: D, contexte: {} }, o);
+  const page = 'Clause '.repeat(6000);
+  while (r.appels) r = await tourAgent({ conversation: r.conversation, resultats: r.appels.map((a) => ({ id: a.id, contenu: { pages: [{ page: 1, texte: page }] } })) }, o);
+  const dernier = JSON.stringify(client.requetes[client.requetes.length - 1].messages);
+  assert.match(dernier, /Limite de lecture de cette conversation atteinte/);
+  assert.ok(dernier.length < 260000, 'l’historique reste borné : ' + dernier.length);
+  const e = entreeOutilPourPoste('rediger_document', { dossier_id: '', forme: 'courrier', titre: 'Lettre', contenu: 'Monsieur [NOM9],' });
+  assert.equal(e.contenu, 'Monsieur [à compléter],');
 });
