@@ -19598,3 +19598,12 @@ masquage en entier des clés `personnes`, `notaires`, `organisme`, `office`, et 
 **Audit de version** (première application de la procédure de l'étude du 13/10, rapport `docs/audits/2026-10-13-0.228.0.md`) : verdict
 « correct avec réserves » ; Haut H1 (notaire écrit en booléen `true`, emails partis au confrère) et Moyens M1–M3 corrigés avant l'envoi,
 Bas B1–B4, B6, B7 aussi ; B5 laissé (dit dans le rapport).
+
+### 13/10/2026 (soir) — 0.228.1 : tri des Réglages
+
+Étude : « Fais un tri dans les réglages pour ce qui ne sert plus. » Inventaire proposé, choix de l'étude : retirés « Écartés du résumé
+du matin » (Agenda et Outlook › Emails des dossiers ; résumé retiré le 07/10 — route et code serveur gardés pour le rétablir),
+« Programme relais (si autorisé par Fichorga) » (Téléphonie 3CX ; le fichier .reg le remplace, le programme reste pour Word si Fichorga
+l'autorise) et « Ranger seul les pièces jointes sur le NAS » (coupé depuis le 03/10 ; le serveur le garde désormais toujours éteint,
+`emailsDossiers.js`, même s'il était allumé). Gardé à la demande : « L'IA en ligne lit toutes les demandes ». Le test de fumée clique
+désormais « Autoriser » dans les scénarios de l'agent (il attendait sans fin depuis la 0.228.0 — vu avant tout envoi).
