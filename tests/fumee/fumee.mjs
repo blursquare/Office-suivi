@@ -242,7 +242,9 @@ try {
           : { erreur: 'limite de débit Claude atteinte' };
         await r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(corps) });
       });
-      await geste(page, 'agent : erreur après un geste', () => envoyerDemandeAssistant('rappelle-moi de faire le rappel unique pour MOREAU'));
+      await geste(page, 'agent : erreur après un geste', () => { window.__questionAgent = envoyerDemandeAssistant('rappelle-moi de faire le rappel unique pour MOREAU'); return true; });
+      const carteRappel = page.locator('#assistant-messages wa-button:has-text("Autoriser")').last();
+      await carteRappel.waitFor({ timeout: 8000 }).then(() => carteRappel.click()).catch(() => erreurs.push('agent : carte « Autoriser » absente (erreur après un geste)'));
       await page.waitForFunction(() => !assistantEnCours, null, { timeout: 8000 }).catch(() => {});
       const unique = await page.evaluate(() => ({ n: rappelsPerso.filter(x => /rappel unique/i.test(x.texte)).length, lien: (rappelsPerso.find(x => x.texte === 'Rappel unique') || {}).dossierId, dernier: (assistantMessages[assistantMessages.length - 1] || {}).html || '' }));
       verifier(unique.n === 1 && compris === 0 && /pas pu terminer/.test(unique.dernier), `agent : erreur après un geste — un seul rappel, pas de repli (${JSON.stringify({ ...unique, compris })})`);
