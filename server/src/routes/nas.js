@@ -20,6 +20,7 @@ const path = require('node:path');
 const { fichiersLesPlusRecents, listerPdfRecursif, listerSousDossiers, listerRecusNas, resoudreCheminRecu, resoudreCheminNas, rapprocherParNom, rapprochementParfait } = require('../nas');
 const fsp = require('node:fs/promises');
 const { faussesMinutes, trouverDossierFaussesMinutes, resoudreFichierFaussesMinutes } = require('../faussesMinutes');
+const { copierDansDossierClient } = require('../scans');
 
 // Toute lecture du NAS est asynchrone depuis qu'un balayage synchrone a été identifié comme la
 // cause des gels du serveur (voir nas.js et CLAUDE.md) : pendant qu'une route attend le NAS, le
@@ -80,6 +81,24 @@ function creerRouteurNas(config) {
     res.json({ dossiers, propose, parfait });
   }));
 
+  // Document produit par « Demander à CLAIRE » (étude 13/10 : « lire les documents, les analyser et sortir des rendus… rangés sur
+  // le NAS ») : un .docx rangé à la RACINE du dossier client sur un clic de l'utilisateur. Mêmes règles que les scans et les pièces
+  // jointes (accord de l'étude du 30/09 et du 02/10) : dossier client confiné à la racine du NAS, COPIE sans jamais écraser
+  // (« Nom (2).docx »), un seul type de fichier, taille bornée.
+  routeur.post('/nas/deposer-document', routeAsync(async (req, res) => {
+    const b = req.body || {};
+    if (!config.nasRacine) { res.status(503).json({ erreur: 'Aucun dossier NAS configuré.' }); return; }
+    const base64 = typeof b.contenu === 'string' ? b.contenu : '';
+    if (!base64 || base64.length > 4 * 1024 * 1024 || !/^[A-Za-z0-9+/=\s]+$/.test(base64)) { res.status(400).json({ erreur: 'Document vide ou trop lourd.' }); return; }
+    const contenu = Buffer.from(base64, 'base64');
+    // Un .docx est une archive ZIP : « PK » en tête, sinon ce n'est pas le document produit par CLAIRE.
+    if (contenu.length < 4 || contenu[0] !== 0x50 || contenu[1] !== 0x4b) { res.status(400).json({ erreur: 'Ce n’est pas un document Word.' }); return; }
+    const r = await copierDansDossierClient({ nasRacine: config.nasRacine, dossierNas: typeof b.dossierNas === 'string' ? b.dossierNas : '',
+      rubriques: [], nomCible: typeof b.nom === 'string' ? b.nom.slice(0, 120) : 'Document CLAIRE', extension: 'docx', contenu });
+    if (r.erreur) { res.status(r.statut || 400).json({ erreur: r.erreur }); return; }
+    res.json({ ok: true, chemin: r.chemin });
+  }));
+
   routeur.get('/nas/fichiers', routeAsync(async (req, res) => {
     const racine = config.nasRacine;
     if (!racine) {
@@ -99,7 +118,8 @@ function creerRouteurNas(config) {
     // appeler /nas/fichier. Garder cette base explicite évite toute ambiguïté des deux côtés.
     const fichiers = await listerPdfRecursif(cible);
     // `recents=N` : seulement les N plus récemment modifiés, avec leur date (« Demander à CLAIRE », étude 12/10).
-    const recents = Math.min(50, Math.max(0, parseInt(String(req.query.recents || ''), 10) || 0));
+    // 300 au plus : « Demander à CLAIRE » liste tout le dossier client (étude 13/10).
+    const recents = Math.min(300, Math.max(0, parseInt(String(req.query.recents || ''), 10) || 0));
     // Jamais sur tout le NAS (un `stat` par fichier) : un dossier client est exigé.
     if (recents && !String(req.query.dossier || '').trim()) { res.status(400).json({ erreur: 'Dossier client manquant.' }); return; }
     if (recents) { res.json({ base: path.relative(path.resolve(racine), cible), fichiers: await fichiersLesPlusRecents(cible, fichiers, recents) }); return; }

@@ -19,10 +19,11 @@ const A = require('../../commun/assistant');
 const { MODELES_AGENT, MODELE_AGENT_DEFAUT, MODELES_AGENT_MISTRAL, MODELE_AGENT_MISTRAL_DEFAUT, BASES, masquer, motsSensiblesDossiers, retablirTexte, noterUsageAssistant } = require('./assistantMistral');
 const { nettoyerParametresIa, dateEnFrancais } = require('./assistant');
 
-const DELAI_AGENT_MS = 90 * 1000;
-const MAX_JETONS_AGENT_MISTRAL = 4000;
+// Étude 13/10 (« tout son potentiel… sans limite ») : lire des documents entiers et rédiger un rendu demande plus de place et de temps.
+const DELAI_AGENT_MS = 180 * 1000;
+const MAX_JETONS_AGENT_MISTRAL = 16000;
 const MAX_JETONS_AGENT = 16000;
-const MAX_TOURS_OUTILS = 10;              // appels d'outils enchaînés pour UNE question, au-delà Claude doit conclure
+const MAX_TOURS_OUTILS = 25;              // appels d'outils enchaînés pour UNE question, au-delà l'IA doit conclure
 const DUREE_CONVERSATION_MS = 30 * 60 * 1000;
 const MAX_CONVERSATIONS = 60;
 const MAX_CARACTERES_RESULTAT = 60000;    // un résultat d'outil plus long est coupé (une liste de 400 dossiers)
@@ -87,6 +88,23 @@ const OUTILS_AGENT = [
       properties: { documents: { type: 'array', items: { type: 'string' }, description: 'les document_id à proposer' } } }
   },
   {
+    name: 'documents_du_dossier',
+    description: 'Tous les PDF du dossier client sur le NAS (dossier relié), du plus récent au plus ancien : document_id, pièce reconnue d’après le nom du fichier (ou « Document non reconnu » — lis-le pour savoir ce que c’est), sous-dossier, date de modification. Le nom du fichier ne t’est jamais donné. Les document_id servent à lire_document et ouvrir_documents.',
+    input_schema: { type: 'object', additionalProperties: false, required: ['dossier_id'], properties: { dossier_id: chaine('id du dossier') } }
+  },
+  {
+    name: 'lire_document',
+    description: 'Le texte d’un PDF du NAS (document_id rendu par documents_du_dossier ou documents_recents), page par page, noms masqués comme le reste. Un scan sans texte est lu par reconnaissance de caractères (plus lent, qualité variable : dis-le si le texte paraît abîmé). 30 pages au plus par appel : pour un long acte, lis-le par tranches (page_debut, page_fin). Lis le document avant d’en parler ; cite la page.',
+    input_schema: { type: 'object', additionalProperties: false, required: ['document_id', 'page_debut', 'page_fin'],
+      properties: { document_id: chaine('document_id'), page_debut: { type: 'integer', description: '1 pour la première page' }, page_fin: { type: 'integer', description: 'dernière page voulue (0 = jusqu’à 30 pages après le début)' } } }
+  },
+  {
+    name: 'rediger_document',
+    description: 'Produit un document Word (.docx) à partir de ton texte : note, synthèse, tableau comparatif, courrier, liste de pièces… Il s’affiche dans la conversation avec « Télécharger » et, pour un dossier relié au NAS, « Ranger dans le dossier » (l’utilisateur décide : rien n’est rangé sans son clic). Format du contenu : lignes « # Titre », « ## Sous-titre », « - puce », « 1. point », **gras**, tableaux en lignes « | a | b | » (la première ligne est l’en-tête), paragraphes séparés par une ligne vide. Écris le document complet, sans « [à compléter] » sauf si l’information manque vraiment.',
+    input_schema: { type: 'object', additionalProperties: false, required: ['dossier_id', 'titre', 'contenu'],
+      properties: { dossier_id: chaine('"" si le document ne porte sur aucun dossier'), titre: chaine('titre court, sert aussi de nom de fichier'), contenu: chaine('le document entier, au format décrit') } }
+  },
+  {
     name: 'faire_geste',
     description: 'Fait un geste dans CLAIRE avec la fonction habituelle. Rappel, coche/décoche d’une échéance, date sur la fiche, archivage, changement de responsable : fait tout de suite, l’utilisateur a un bouton « Annuler ». Email : ouvre la fenêtre d’email pré-remplie, RIEN ne part sans son clic sur « Envoyer ». Placer la signature, nouveau rendez-vous, sondage : l’utilisateur confirme. Le geste affiche lui-même son message à l’utilisateur ; le résultat te dit ce qui s’est passé. Ne fais un geste que s’il est demandé ou clairement souhaité ; pour un geste qui modifie un dossier, sois sûr du dossier.',
     input_schema: { type: 'object', additionalProperties: false, required: ['geste', 'dossier_id', 'parametres'],
@@ -113,7 +131,8 @@ const OUTILS_AGENT = [
 const SYSTEME_AGENT = `Tu es CLAIRE, l'assistante intégrée au logiciel de suivi des dossiers de l'étude notariale de Maître Sophie GOSSART à Blois (ventes immobilières et successions). Tu travailles avec les collaborateurs de l'étude (Bastien ANGLUMENT, Julie VASSELIN, Jérémy SAUJOT) comme une collègue experte, fiable et attentionnée.
 
 Comment tu travailles :
-- Tu as des outils pour lire les dossiers de CLAIRE, la liste « À faire », l'agenda de l'office, les derniers documents reçus (pièces du NAS, scans du copieur) et pour faire des gestes. Pour montrer un document, propose-le avec ouvrir_documents. Sers-t'en dès qu'une question touche un dossier, une date, une tâche : ne réponds jamais de mémoire et n'invente aucun fait (date, pièce, montant, nom, statut). Enchaîne les outils autant que nécessaire (chercher le dossier, puis lire sa fiche, puis comparer…), plusieurs à la fois quand ils sont indépendants.
+- Tu as des outils pour lire les dossiers de CLAIRE, la liste « À faire », l'agenda de l'office, les derniers documents reçus (pièces du NAS, scans du copieur), TOUS les PDF du dossier client sur le NAS (documents_du_dossier) et leur texte (lire_document), pour produire un document Word (rediger_document) et pour faire des gestes. Pour montrer un document, propose-le avec ouvrir_documents.
+- Documents : pour analyser un compromis, une offre de prêt, un état daté, un diagnostic… liste les documents du dossier, LIS ceux qui comptent (par tranches de 30 pages pour un long acte) et appuie chaque constat sur la page. Pour une synthèse, un tableau, une note ou un courrier demandé, produis-le avec rediger_document plutôt que de le recopier dans ta réponse ; ta réponse dit alors en une ou deux phrases ce que contient le document. Sers-t'en dès qu'une question touche un dossier, une date, une tâche : ne réponds jamais de mémoire et n'invente aucun fait (date, pièce, montant, nom, statut). Enchaîne les outils autant que nécessaire (chercher le dossier, puis lire sa fiche, puis comparer…), plusieurs à la fois quand ils sont indépendants.
 - Si plusieurs dossiers correspondent et que la question ne permet pas de choisir, demande lequel en les citant.
 - Les noms des personnes, adresses, agences, notaires, emails et téléphones t'arrivent remplacés par des codes ([NOM1], [EMAIL2], [TEL1], [REF1]…). Utilise-les tels quels dans tes réponses et dans les outils : ils sont rétablis avant d'être montrés. N'essaie jamais de deviner ce qu'ils cachent.
 - Raisonne en notaire : planning d'une vente (vente préalable → obtention du prêt → renonciation aux droits de préemption, délai SAFER → rendez-vous de signature → appel de fonds 10 jours avant → projet d'acte → signature), conditions suspensives, dates butoir, pièces. Signale ce qui est en retard, ce qui bloque la signature, et la prochaine action utile.
@@ -124,7 +143,7 @@ Comment tu travailles :
 
 Comment tu réponds :
 - En français, en vouvoyant toujours (jamais « tu »), avec chaleur et naturel, comme une collègue : direct, précis, sans formules creuses. N'écris jamais « Sauf erreur de ma part » ni « Sauf erreur de notre part » (choix de l'étude), ni dans tes réponses ni dans un email.
-- Commence par la réponse. Puis le détail utile, en phrases courtes ou en liste à puces (« - ») quand il y a plusieurs éléments. **Gras** pour l'essentiel seulement. Pas de titres, pas de tableaux.
+- Commence par la réponse. Puis le détail utile, en phrases courtes ou en liste à puces (« - ») quand il y a plusieurs éléments. **Gras** pour l'essentiel seulement. Pas de titres ni de tableaux dans la conversation : un contenu long ou un tableau va dans rediger_document.
 - Dates en français (« mardi 20 octobre »), montants en euros. Dis les jours restants quand c'est utile.
 - Termine, si c'est pertinent, par une proposition concrète (« Voulez-vous que je relance l'acquéreur ? »).
 - Si un outil échoue ou qu'une donnée manque, dis-le simplement.`;

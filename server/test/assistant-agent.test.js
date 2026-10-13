@@ -80,7 +80,7 @@ test('la requête : Opus 5.5 par défaut, effort moyen, système et historique e
   assert.deepEqual(requeteAgent('claude-opus-5-5', [], { conclure: true }).tool_choice, { type: 'none' });
 });
 
-test('au-delà de 10 tours d’outils, Claude doit conclure', async () => {
+test('au-delà de MAX_TOURS_OUTILS tours d’outils, l’IA doit conclure', async () => {
   const reponses = [];
   for (let i = 0; i <= MAX_TOURS_OUTILS; i++) reponses.push({ stop_reason: 'tool_use', usage, content: [outil('t' + i, 'taches_du_jour', {})] });
   reponses.push({ stop_reason: 'end_turn', usage, content: [texte('Voilà.')] });
@@ -88,7 +88,7 @@ test('au-delà de 10 tours d’outils, Claude doit conclure', async () => {
   const o = { cle: 'k', client };
   let r = await tourAgent({ texte: 'Analyse tout', dossiers: D, contexte: {} }, o);
   let n = 0;
-  while (r.appels && n < 20) { r = await tourAgent({ conversation: r.conversation, resultats: r.appels.map((a) => ({ id: a.id, contenu: {} })) }, o); n += 1; }
+  while (r.appels && n < MAX_TOURS_OUTILS + 5) { r = await tourAgent({ conversation: r.conversation, resultats: r.appels.map((a) => ({ id: a.id, contenu: {} })) }, o); n += 1; }
   const avecNone = client.requetes.filter((q) => q.tool_choice && q.tool_choice.type === 'none');
   assert.ok(avecNone.length >= 1, 'une requête finale sans outil');
   assert.equal(r.reponse, 'Voilà.');
@@ -359,4 +359,35 @@ test('aide à la rédaction (étude 12/10) : passage numéroté, rien de nominat
   assert.equal(valider({ blancs: ['gaz_date', 'diag_societe'] }), null);
   assert.ok(valider({ blancs: ['gaz_date'] }));
   assert.ok(valider({ blancs: ['gaz_date', '18 mai 2026'] }), 'une valeur au lieu d’une clé est refusée');
+});
+
+test('documents du dossier (étude 13/10) : le texte d’un PDF lu part masqué, tiers compris ; le rendu revient avec les vrais noms', async () => {
+  const client = fauxClient([
+    { stop_reason: 'tool_use', usage, content: [outil('t1', 'documents_du_dossier', { dossier_id: 'd1' })] },
+    { stop_reason: 'tool_use', usage, content: [outil('t2', 'lire_document', { document_id: 'doc1', page_debut: 1, page_fin: 0 })] },
+    { stop_reason: 'tool_use', usage, content: [outil('t3', 'rediger_document', { dossier_id: 'd1', titre: 'Synthèse du compromis [NOM1]', contenu: '# Parties\n- Vendeur : [NOM2] [NOM1]\n| Condition | Date |\n|---|---|\n| Prêt | 20/11/2026 |' })] },
+    { stop_reason: 'end_turn', usage, content: [texte('La synthèse est prête.')] }
+  ]);
+  const o = { cle: 'k', client, modele: 'claude-opus-5-5' };
+  let r = await tourAgent({ texte: 'Fais une synthèse du compromis Fournier', dossiers: D, contexte: { aujourdhui: '2026-10-13' } }, o);
+  r = await tourAgent({ conversation: r.conversation, resultats: [{ id: 't1', contenu: { nombre: 1, documents: [{ document_id: 'doc1', document: 'Compromis de vente', sous_dossier: 'racine', modifie_le: '2026-09-02' }] } }] }, o);
+  assert.equal(r.appels[0].nom, 'lire_document');
+  const page = 'COMPROMIS DE VENTE\nMonsieur Paul FOURNIER, né à Blois, demeurant 2 rue des Tanneurs 41000 BLOIS\nVend à Madame Léa GAUTHIER,\n'
+    + 'en présence de Monsieur Gérard LEMAIRE, géomètre-expert à Vineuil, joignable au 02 54 12 34 56 ou g.lemaire@cabinet-exemple.fr,\n'
+    + 'la parcelle cadastrée section DZ n° 187 au lieu-dit « Les Grouets », moyennant le prix de 245 000 euros.\n'
+    + 'Condition suspensive d’obtention d’un prêt de 180 000 euros au plus tard le 20 novembre 2026.';
+  r = await tourAgent({ conversation: r.conversation, resultats: [{ id: 't2', contenu: { pages_total: 12, pages_lues: '1-1', pages: [{ page: 1, texte: page }] } }] }, o);
+  const envoye = JSON.stringify(client.requetes[2].messages);
+  assert.doesNotMatch(envoye, SECRETS, 'aucune donnée des fiches : ' + envoye.slice(-900));
+  assert.doesNotMatch(envoye, /LEMAIRE|Gérard|g\.lemaire|02 54 12 34 56|Grouets/, 'un tiers du document ne part pas : ' + envoye.slice(-900));
+  assert.match(envoye, /245 000 euros/, 'les montants partent tels quels');
+  assert.match(envoye, /20 novembre 2026/, 'les dates partent telles quelles');
+  assert.match(envoye, /Condition suspensive/);
+  // Le rendu : codes rétablis pour le poste, qui fabrique le Word avec les vrais noms.
+  assert.equal(r.appels[0].nom, 'rediger_document');
+  assert.match(r.appels[0].entree.contenu, /FOURNIER|Fournier/);
+  assert.doesNotMatch(r.appels[0].entree.contenu + r.appels[0].entree.titre, /\[NOM\d+\]/);
+  r = await tourAgent({ conversation: r.conversation, resultats: [{ id: 't3', contenu: { fait: true } }] }, o);
+  assert.equal(r.reponse, 'La synthèse est prête.');
+  ['documents_du_dossier', 'lire_document', 'rediger_document'].forEach((n) => assert.ok(OUTILS_AGENT.some((t) => t.name === n), n));
 });

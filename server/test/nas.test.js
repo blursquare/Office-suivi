@@ -320,3 +320,22 @@ test('fichiersLesPlusRecents (étude 12/10) : les N plus récemment modifiés, u
   assert.equal(r.map((f) => f.nom).join(','), 'c.pdf,d.pdf');
   assert.equal(r[0].modifieLe, new Date(3000).toISOString());
 });
+
+// « Demander à CLAIRE » (étude 13/10) : un document Word produit par l'agent rangé à la racine du dossier client, jamais écrasé,
+// jamais hors du NAS, jamais autre chose qu'un .docx.
+test('deposer-document : .docx à la racine du dossier client, copie « (2) », refus hors NAS et hors Word', async () => {
+  const poster = (corps) => fetch(`${baseUrl}/api/nas/deposer-document`, { method: 'POST', headers: { Authorization: `Bearer ${jeton}`, 'Content-Type': 'application/json' }, body: JSON.stringify(corps) });
+  const docx = Buffer.concat([Buffer.from('PK\u0003\u0004'), Buffer.from('contenu inventé')]).toString('base64');
+  let r = await poster({ dossierNas: '2024-118 DUPONT MARTIN', nom: 'Synthèse du compromis', contenu: docx });
+  assert.equal(r.status, 200);
+  assert.equal(path.basename((await r.json()).chemin), 'Synthèse du compromis.docx');
+  assert.ok(fs.existsSync(path.join(racine, '2024-118 DUPONT MARTIN', 'Synthèse du compromis.docx')));
+  r = await poster({ dossierNas: '2024-118 DUPONT MARTIN', nom: 'Synthèse du compromis', contenu: docx });
+  assert.equal(path.basename((await r.json()).chemin), 'Synthèse du compromis (2).docx', 'jamais d’écrasement');
+  assert.equal((await poster({ dossierNas: '../', nom: 'x', contenu: docx })).status, 400, 'hors du NAS');
+  assert.equal((await poster({ dossierNas: '', nom: 'x', contenu: docx })).status, 400, 'racine du NAS refusée');
+  assert.equal((await poster({ dossierNas: '2024-118 DUPONT MARTIN', nom: 'x', contenu: Buffer.from('%PDF-1.4').toString('base64') })).status, 400, 'pas un Word');
+  r = await poster({ dossierNas: '2024-118 DUPONT MARTIN', nom: '../../évasion', contenu: docx });
+  assert.equal(r.status, 200);
+  assert.equal(path.dirname(path.join(racine, (await r.json()).chemin)), path.join(racine, '2024-118 DUPONT MARTIN'), 'le nom ne sort pas du dossier');
+});

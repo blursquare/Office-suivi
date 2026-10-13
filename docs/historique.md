@@ -19490,3 +19490,24 @@ tâche). Fenêtre des tâches seules : 1 040 px de large, hauteur de l'écran mo
 (ferme la fenêtre, ouvre la modification sur la carte — texte, date, dossier) et croix (`supprimerRappelPerso`) sur chaque tâche hors
 agenda ; lien « N tâches à venir » aussi sur la petite tuile ; hauteur de la fenêtre = au moins 640 px, au plus l'écran. Diagnostic
 confirmé par la relecture (seule autre cause possible : une tâche notée sous un autre collaborateur du poste).
+
+### 13/10/2026 (soir) — 0.226.0 : l'agent « Demander à CLAIRE » lit les documents du dossier et produit des rendus Word
+
+Étude : « J'ai connecté Mistral pour Demander à CLAIRE, ça fonctionne. Comment lui permettre d'utiliser tout son potentiel ? Pas que
+lire CLAIRE mais pouvoir lire les documents et les analyser et lui faire sortir des rendus, doc… comme ici ? Sans limite. » Choix de
+l'étude (questions posées) : **texte masqué** (jamais un PDF en clair chez l'IA), **tout le dossier du NAS** lisible, rendus **rangés
+sur le NAS**. Trois outils de plus pour l'agent (Claude et Mistral, `server/src/assistantAgent.js`, exécutés par le poste dans
+`client/65-assistant-documents-rendus.js`) :
+- `documents_du_dossier` : tous les PDF du dossier client (`GET /api/nas/fichiers?recents=300`, plafond relevé de 50 à 300) —
+  document_id, pièce reconnue d'après le nom (avant-contrat et projet d'acte reconnus en plus des pièces de la checklist,
+  `pieceFichierNasAssistant`), sous-dossier, date ; le nom du fichier ne part jamais (règle du 12/10) ;
+- `lire_document` : texte lu par pdf.js sur le poste (lignes reconstruites, OCR tesseract d'une page sans texte), 30 pages et
+  45 000 caractères au plus par appel (`pagesLectureAgent`), masqué par le serveur comme tout résultat (`masquerValeur`) — testé
+  avec un tiers du document (géomètre, téléphone, email, lieu-dit) qui ne sort pas ;
+- `rediger_document` : contenu écrit par l'IA (codes rétablis), .docx fabriqué sur le poste (docx 9.7.1, `blocsDocumentAgent` :
+  titres, puces, numéros, **gras**, tableaux), « Télécharger » et « Ranger dans le dossier du NAS » → `POST /api/nas/deposer-document`
+  (`copierDansDossierClient` : racine du dossier client, « Nom (2).docx » plutôt qu'écraser, .docx seulement — en-tête ZIP vérifié —,
+  4 Mo au plus), historique du dossier.
+Limites relevées : 25 tours d'outils (10), 16 000 jetons de réponse pour Mistral (4 000), 180 s par appel (90). Points terrain
+`agent-lecture-document`, `agent-document-nas`. Essai de bout en bout dans Chromium (vrai serveur, faux NAS, PDF inventé) : liste,
+lecture, Word valide rangé. Non vérifié ici : Mistral réel sur un vrai acte (qualité, coût, débit de la clé), OCR des scans du copieur.

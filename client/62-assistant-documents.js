@@ -150,7 +150,12 @@
   function pieceFichierNasAssistant(d, nom) {
     try {
       const p = pieceDePieceJointe(nom, estSuccession(d) ? [] : checklistPieces(d.typeVente, d));
-      return p ? p.label : 'Document non reconnu';
+      if (p) return p.label;
+      // L'avant-contrat n'est pas une pièce de la checklist (étude 13/10 : l'agent doit le trouver pour l'analyser).
+      const n = normaliserNomPourMotif(nom);
+      if (/\b(compromis|promesse)\b/i.test(n)) return /\b(projet|relecture)\b/i.test(n) ? 'Projet d’avant-contrat' : 'Avant-contrat (compromis ou promesse)';
+      if (/\b(projet d acte|projet de vente|projet vente)\b/i.test(n)) return 'Projet d’acte';
+      return 'Document non reconnu';
     } catch (e) { return 'Document non reconnu'; }
   }
 
