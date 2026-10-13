@@ -118,14 +118,17 @@
       case 'engagement_fait': {
         const n = parseInt(e.numero, 10);
         const eng = d && d.analyseJuridique && (d.analyseJuridique.engagements || [])[n - 1];
-        return eng ? { description: `Marquer réalisé l’engagement « ${libelleCourtEngagement(eng)} »${dossier}.`, index: n - 1 } : { erreur: 'engagement introuvable : numero = sa position dans engagements_du_vendeur, à partir de 1' };
+        if (!eng) return { erreur: 'engagement introuvable : numero = sa position dans engagements_du_vendeur, à partir de 1' };
+        // Le geste de l'écran BASCULE : un engagement déjà réalisé (à la main ou par ses pièces reçues) n'est jamais repris (relecture 13/10).
+        if (etatEngagementAnalyse(d, eng).fait) return { erreur: 'cet engagement est déjà réalisé' };
+        return { description: `Marquer réalisé l’engagement « ${libelleCourtEngagement(eng)} »${dossier}.`, engagement: eng };
       }
       case 'echeance_ajouter':
         if (!/^\d{4}-\d{2}-\d{2}$/.test(e.date || '') || !String(e.libelle || '').trim()) return { erreur: 'libelle et date (AAAA-MM-JJ) attendus' };
         return { description: `Ajouter l’échéance « ${e.libelle} » au ${formatDateFr(e.date)}${dossier}.` };
       case 'echeance_supprimer': {
         const i = (d.autres || []).findIndex(a => normaliserPourRecherche(a.label || '') === normaliserPourRecherche(e.libelle || ''));
-        return i >= 0 ? { description: `Supprimer l’échéance « ${d.autres[i].label} »${dossier}.`, index: i } : { erreur: 'échéance ajoutée introuvable : reprends son libellé exact' };
+        return i >= 0 ? { description: `Supprimer l’échéance « ${d.autres[i].label} »${dossier}.`, libelle: d.autres[i].label } : { erreur: 'échéance ajoutée introuvable : reprends son libellé exact' };
       }
       case 'date_effacer':
         if (!LIBELLES_DATES_AGENT[e.champ]) return { erreur: 'champ : pret, ventebien, acte, appelFonds, projetEnvoye ou rendezVousSignature' };
@@ -142,6 +145,7 @@
         return { description: `Modifier « ${LIBELLES_CHAMPS_FICHE_AGENT[e.champ]} » : ${avant} → ${v.affiche || 'vide'}${dossier}.`, cle, valeur: v.valeur, avant, affiche: v.affiche || 'vide' };
       }
       case 'note_historique':
+        if (/\[à compléter\]/.test(String(e.valeur || ''))) return { erreur: 'note avec un nom inconnu : reformule-la' };
         return String(e.valeur || '').trim() ? { description: `Noter dans l’historique : « ${String(e.valeur).trim().slice(0, 300)} »${dossier}.` } : { erreur: 'valeur = le texte de la note' };
       case 'fonds_valides':
         return d.fondsValidesLe ? { erreur: 'fonds déjà validés' } : { description: `Noter les fonds reçus (arrivés sur le compte de l’étude, sans reçu comptable)${dossier}.` };
@@ -149,7 +153,7 @@
       case 'tache_executer': {
         const a = trouverActionJour(e.tache_id);
         if (!a) return { erreur: 'tâche introuvable : prends son tache_id dans taches_du_jour' };
-        return { description: `${e.action === 'tache_faite' ? 'Marquer faite' : 'Faire'} la tâche « ${a.titre} » — ${libelleDossierAffiche(a.dossier)}.` };
+        return { description: descriptionTacheAgent(e.action, a) };
       }
       case 'nas_reverifier':
         return d.nasDossier ? { description: `Revérifier le dossier du NAS (pièces, offre de prêt)${dossier}.` } : { erreur: 'dossier non relié au NAS' };
@@ -157,6 +161,20 @@
         return d.archive ? { description: `Désarchiver le dossier${dossier}.` } : { erreur: 'le dossier n’est pas archivé' };
       default: return { erreur: 'action inconnue' };
     }
+  }
+
+  // Pure : la carte d'une tâche du jour — l'effet RÉEL (relecture 13/10 : « Faire la tâche Envoyer le projet » notait seulement le projet
+  // envoyé, sans rien envoyer).
+  function descriptionTacheAgent(action, a) {
+    const dossier = a.dossier ? ` — ${libelleDossierAffiche(a.dossier)}` : '';
+    const champ = CHAMP_FAIT_MAIN_PAR_TYPE[a.type];
+    const envoi = champ === 'appelFonds' || champ === 'projetEnvoye';
+    if (action === 'tache_faite') return `Marquer faite la tâche « ${a.titre} »${envoi ? ' : la date d’envoi du jour est notée, rien n’est envoyé' : ''}${dossier}.`;
+    const g = a.geste || {};
+    if (g.type === 'marquer') return `Noter « ${a.titre} » comme fait aujourd’hui (rien n’est envoyé)${dossier}.`;
+    if (g.type === 'email') return `Ouvrir l’email de la tâche « ${a.titre} » (rien ne part sans votre clic sur « Envoyer »)${dossier}.`;
+    if (g.type === 'fiche') return `Ouvrir la fiche pour la tâche « ${a.titre} »${dossier}.`;
+    return `Faire la tâche « ${a.titre} »${dossier}.`;
   }
 
   // Pure : la valeur d'un champ de fiche, contrôlée comme une saisie — { valeur, affiche } ou { erreur }.
@@ -172,6 +190,8 @@
       const n = typeof notaireDuRepertoire === 'function' ? notaireDuRepertoire(v) : '';
       return n ? { valeur: n, affiche: n } : { erreur: 'ce nom ne désigne pas un seul notaire du répertoire' };
     }
+    if (/\[à compléter\]/.test(v)) return { erreur: 'valeur inconnue : demande-la à l’utilisateur' };
+    if (/^telephone/.test(champ) && v && v.replace(/\D/g, '').length < 9) return { erreur: 'numéro de téléphone incomplet' };
     if (/^email/.test(champ) && v && !/^[^\s@]+@[^\s@]+\.[^\s@]+(\s*[;,]\s*[^\s@]+@[^\s@]+\.[^\s@]+)*$/.test(v)) return { erreur: 'adresse email invalide' };
     return { valeur: v, affiche: v };
   }
@@ -179,7 +199,13 @@
   function executerActionDossierAgent(e, d, prep) {
     switch (e.action) {
       case 'piece_recue': avecConfirmationAccordee(() => validerPieceManuellement(d.id, prep.piece.cle, prep.piece.label)); return;
-      case 'engagement_fait': avecConfirmationAccordee(() => basculerEngagementFait(d.id, prep.index)); return;
+      case 'engagement_fait': {
+        // Retrouvé au moment du clic (un autre poste a pu changer la liste pendant que la carte attendait).
+        const i = (d.analyseJuridique && d.analyseJuridique.engagements || []).indexOf(prep.engagement);
+        if (i < 0 || etatEngagementAnalyse(d, prep.engagement).fait) throw new Error('l’engagement a changé entre-temps');
+        avecConfirmationAccordee(() => basculerEngagementFait(d.id, i));
+        return;
+      }
       case 'echeance_ajouter':
         d.autres = d.autres || [];
         d.autres.push({ label: String(e.libelle).trim().slice(0, 120), date: e.date, page: null });
@@ -188,7 +214,12 @@
         notifierDateAjoutee(d, String(e.libelle).trim(), e.date, '');
         render();
         return;
-      case 'echeance_supprimer': avecConfirmationAccordee(() => supprimerEcheanceAutre(d.id, prep.index)); return;
+      case 'echeance_supprimer': {
+        const i = (d.autres || []).findIndex(a => a.label === prep.libelle);
+        if (i < 0) throw new Error('l’échéance n’est plus sur la fiche');
+        avecConfirmationAccordee(() => supprimerEcheanceAutre(d.id, i));
+        return;
+      }
       case 'date_effacer': avecConfirmationAccordee(() => supprimerDateEcheance(d.id, e.champ)); return;
       case 'sans_pret': avecConfirmationAccordee(() => marquerSansPret(d.id)); return;
       case 'champ_fiche': {
@@ -238,6 +269,7 @@
     const collaborateur = COLLABORATEURS_AGENT[e.collaborateur];
     if (!collaborateur) return { erreur: 'collaborateur : Bastien, Julie ou Jérémy' };
     if (!String(e.texte || '').trim()) return { erreur: 'texte = ce qu’il faut faire' };
+    if (/\[à compléter\]/.test(String(e.texte))) return { erreur: 'la demande cite un nom inconnu : reformule-la' };
     const d = e.dossier_id ? dossiers.find(x => x.id === e.dossier_id) : null;
     if (e.dossier_id && !d) return { erreur: 'dossier introuvable' };
     const soiMeme = collaborateur === utilisateurPoste;

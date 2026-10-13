@@ -314,6 +314,7 @@ function creerRouteurNotifications(parametresRepo, envoyerFn, options = {}) {
     if (!collaborateur || !texte) return res.status(400).json({ erreur: 'collaborateur ou texte manquant.' });
     const reglages = parametresRepo.lireReglages();
     if (!envoiConfigure(reglages)) return res.json({ ok: true, ignore: true });
+    if (!Object.prototype.hasOwnProperty.call(reglages.emailsResponsables || {}, collaborateur)) return res.status(400).json({ erreur: 'collaborateur inconnu.' });
     const message = texteDemandeCollaborateur(t(c.auteur, 80), texte, t(c.dossierNom, 160), /^\d{4}-\d{2}-\d{2}$/.test(c.date || '') ? c.date : '');
     res.json(await envoyerAuResponsable(parametresRepo, envoyer, reglages, collaborateur, message, { sansCopiePour: reglages.emailsResponsables[t(c.auteur, 80)] || null }));
   });
@@ -326,6 +327,7 @@ function creerRouteurNotifications(parametresRepo, envoyerFn, options = {}) {
     if (!demandeur || !texte) return res.status(400).json({ erreur: 'demandeur ou texte manquant.' });
     const reglages = parametresRepo.lireReglages();
     if (!envoiConfigure(reglages)) return res.json({ ok: true, ignore: true });
+    if (!Object.prototype.hasOwnProperty.call(reglages.emailsResponsables || {}, demandeur)) return res.status(400).json({ erreur: 'demandeur inconnu.' });
     const qui = t(c.auteur, 80) || 'Le collaborateur';
     const message = `✅ CLAIRE — ${qui} a fait ce que vous lui aviez demandé : ${texte}${t(c.dossierNom, 160) ? ` (${t(c.dossierNom, 160)})` : ''}.`;
     res.json(await envoyerAuResponsable(parametresRepo, envoyer, reglages, demandeur, message, { sansCopiePour: reglages.emailsResponsables[t(c.auteur, 80)] || null }));

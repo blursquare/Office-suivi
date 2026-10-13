@@ -66,5 +66,6 @@
   "64-aide-redaction.js",
   "65-assistant-documents-rendus.js",
   "66-assistant-pieces-jointes.js",
-  "67-assistant-actions.js"
+  "67-assistant-actions.js",
+  "68-assistant-outils.js"
 ]

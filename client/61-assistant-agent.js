@@ -14,7 +14,7 @@
     taches_du_jour: 'Je regarde « À faire »…', agenda: 'Je consulte l’agenda…', depuis_hier: 'Je regarde ce qui est arrivé…',
     documents_recents: 'Je regarde les derniers documents…', ouvrir_documents: 'Je prépare les documents…',
     documents_du_dossier: 'Je parcours le dossier du NAS…', lire_document: 'Je lis le document…', rediger_document: 'Je rédige le document…',
-    action_dossier: 'Je prépare l’action…', demander_collaborateur: 'Je prépare la demande…',
+    outil_claire: 'J’utilise l’outil…', action_dossier: 'Je prépare l’action…', demander_collaborateur: 'Je prépare la demande…',
     faire_geste: 'Je m’en occupe…'
   };
 
@@ -202,6 +202,7 @@
     if (nom === 'documents_du_dossier') return documentsDuDossierAgent(typeof e.dossier_id === 'string' ? e.dossier_id : '');
     if (nom === 'lire_document') return lireDocumentAgent(e.document_id, e.page_debut, e.page_fin);
     if (nom === 'rediger_document') return redigerDocumentAgent(e);
+    if (nom === 'outil_claire') return outilClaireAgent(e);
     if (nom === 'action_dossier') return actionDossierAgent(e);
     if (nom === 'demander_collaborateur') return demanderCollaborateurAgent(e);
     if (nom === 'faire_geste') return faireGesteAgent(e);

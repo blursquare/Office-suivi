@@ -28,9 +28,9 @@ test('préparer une action : ce qui sera fait, ou pourquoi non', () => {
   assert.equal(p.piece.cle, piece.cle);
   assert.match(p.description, /Marquer reçue/);
   assert.ok(app.preparerActionDossierAgent({ action: 'piece_recue', piece: 'pièce qui n’existe pas du tout' }, d).erreur);
-  assert.equal(app.preparerActionDossierAgent({ action: 'engagement_fait', numero: 1 }, d).index, 0);
+  assert.ok(app.preparerActionDossierAgent({ action: 'engagement_fait', numero: 1 }, d).engagement);
   assert.ok(app.preparerActionDossierAgent({ action: 'engagement_fait', numero: 2 }, d).erreur);
-  assert.equal(app.preparerActionDossierAgent({ action: 'echeance_supprimer', libelle: 'diagnostic AMIANTE' }, d).index, 0);
+  assert.equal(app.preparerActionDossierAgent({ action: 'echeance_supprimer', libelle: 'diagnostic AMIANTE' }, d).libelle, 'Diagnostic amiante');
   assert.ok(app.preparerActionDossierAgent({ action: 'echeance_ajouter', libelle: 'X', date: '20/10' }, d).erreur, 'date ISO exigée');
   assert.match(app.preparerActionDossierAgent({ action: 'date_effacer', champ: 'pret' }, d).description, /sans prêt/);
   assert.ok(app.preparerActionDossierAgent({ action: 'date_effacer', champ: 'ventebien' }, d).erreur, 'date déjà vide');
@@ -59,4 +59,38 @@ test('demande à un collaborateur : la tâche posée dans sa liste, avec qui l�
   assert.match(r.id, /^dem-[a-z0-9]+-[a-z0-9]+$/);
   assert.match(app.htmlAutorisationAgent('Faire <x>', ''), /À autoriser.*Faire &lt;x&gt;/);
   assert.match(app.htmlAutorisationAgent('Faire', 'refuse'), /Refusé/);
+});
+
+test('relecture 13/10 : engagement déjà réalisé refusé, échéance retrouvée par son libellé, valeurs inconnues refusées', () => {
+  const d = dossier({ analyseJuridique: { engagements: [{ texte: 'Fournir le certificat', fait: true }] } });
+  assert.match(app.preparerActionDossierAgent({ action: 'engagement_fait', numero: 1 }, d).erreur, /déjà réalisé/);
+  assert.equal(app.preparerActionDossierAgent({ action: 'echeance_supprimer', libelle: 'diagnostic amiante' }, dossier()).libelle, 'Diagnostic amiante');
+  assert.ok(app.valeurChampFicheAgent('email_vendeur', 'Monsieur [à compléter]').erreur);
+  assert.ok(app.valeurChampFicheAgent('telephone_vendeur', '06 12').erreur);
+  assert.equal(app.valeurChampFicheAgent('telephone_vendeur', '06 12 34 56 78').valeur, '06 12 34 56 78');
+  assert.ok(app.preparerActionDossierAgent({ action: 'note_historique', valeur: 'Appel de [à compléter]' }, dossier()).erreur);
+});
+
+test('relecture 13/10 : la carte d’une tâche du jour dit l’effet réel', () => {
+  const dossierT = dossier();
+  assert.match(app.descriptionTacheAgent('tache_executer', { titre: 'Envoyer le projet d’acte', type: 'projetEnvoye', geste: { type: 'marquer', champ: 'projetEnvoye' }, dossier: dossierT }), /Noter .* comme fait aujourd’hui \(rien n’est envoyé\)/);
+  assert.match(app.descriptionTacheAgent('tache_executer', { titre: 'Envoyer le projet d’acte', type: 'projetEnvoye', geste: { type: 'email' }, dossier: dossierT }), /rien ne part sans votre clic/);
+  assert.match(app.descriptionTacheAgent('tache_faite', { titre: 'Envoyer l’appel de fonds', type: 'appelFonds', dossier: dossierT }), /date d’envoi du jour est notée, rien n’est envoyé/);
+});
+
+test('outils de CLAIRE : répertoire cherché sur tous les mots, lecture d’un outil par dossier', () => {
+  const contacts = [{ organisme: 'Service de publicité foncière de Blois', theme: 'administrations', telephones: ['02 54 00 00 00'], emails: ['spf.blois@exemple.fr'] },
+    { organisme: 'Géomètre Exemple', adresse: 'VINEUIL (41350)', theme: 'géomètres' }];
+  const offices = [{ office: 'Office notarial Exemple', notaires: ['Paul EXEMPLE'], ville: 'BLOIS', codePostal: '41000', telephone: '02 54 11 11 11', email: 'office@exemple.fr' }];
+  const r = app.chercherRepertoireAgent('publicité foncière Blois', contacts, offices);
+  assert.equal(r.nombre, 1);
+  assert.equal(r.resultats[0].organisme, 'Service de publicité foncière de Blois');
+  assert.equal(r.resultats[0].telephones.join(), '02 54 00 00 00');
+  const n = app.chercherRepertoireAgent('notaire blois', contacts, offices);
+  assert.equal(n.resultats[0].sorte, 'notaire');
+  assert.ok(app.chercherRepertoireAgent('', contacts, offices).erreur);
+  assert.ok(app.lectureOutilClaireAgent('aide_redaction', null, '').erreur, 'dossier exigé');
+  assert.match(app.lectureOutilClaireAgent('controle_urbanisme', dossier(), '').analyse, /aucune analyse/);
+  assert.ok(Array.isArray(app.lectureOutilClaireAgent('aide_redaction', dossier({ rendezVousSignature: '2026-12-10' }), '').champs_de_l_acte));
+  assert.ok(app.lectureOutilClaireAgent('forfait_mobilier', dossier(), '').erreur, 'se lit pas : à ouvrir');
 });

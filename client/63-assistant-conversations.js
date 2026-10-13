@@ -74,6 +74,8 @@
     // Changement de collaborateur sur le poste : la conversation affichée n'est pas la sienne.
     if (cleConversationsChargees !== null) {
       ecrireConversationsAssistant();
+      // Une carte d'autorisation en attente vaut refus (relecture 13/10 : la boucle de l'agent restait suspendue, l'assistant bloqué).
+      refuserAutorisationEnAttente();
       assistantMessages = []; assistantContexte = { dossierId: '', attente: null, historique: [], echanges: [] }; assistantAgentConversation = '';
       mentionsChoisiesAssistant = []; oublierDocumentsAgent();
     }

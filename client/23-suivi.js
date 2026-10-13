@@ -2184,11 +2184,12 @@
     if (!r) return;
     r.fait = !r.fait;
     r.faitLe = r.fait ? new Date().toISOString() : '';
+    // Tâche demandée par un collaborateur via « Demander à CLAIRE » (13/10) : il est prévenu sur Teams quand elle est faite — une
+    // fois : le repère est enregistré avec la tâche (relecture : décocher puis recocher renvoyait le message).
+    if (r.fait) prevenirDemandeurTacheFaite(r);
     renderAlertesDashboard(dossiersPerimetreDashboard());
     enregistrerRappelPerso(r);
     if (r.fait && r.agendaItemId && !r.agendaSupprimeLe) retirerTacheDeLAgenda(r);
-    // Tâche demandée par un collaborateur via « Demander à CLAIRE » (13/10) : il est prévenu sur Teams quand elle est faite.
-    if (r.fait) prevenirDemandeurTacheFaite(r);
   }
 
   // Tâche relevée dans l'agenda de l'office (rendez-vous rouge « JV - … », étude 04/10, serveur tachesAgenda.js) :

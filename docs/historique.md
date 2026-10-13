@@ -19579,3 +19579,15 @@ faire quelque chose ? » Choix de l'étude (questions posées) : **toute action 
   Les réponses Teams ne sont pas lues (Graph indisponible).
 Pas encore couvert : ranger un scan, relier un dossier au NAS, ajouter/modifier une personne, réglages. Essai Chromium (agent simulé) :
 action autorisée faite, refusée non faite, tâche de Julie enregistrée et message Teams parti. Point terrain `agent-demande-collaborateur`.
+
+Même version, avant l'envoi. **Relecture indépendante** (défauts corrigés) : engagement déjà réalisé refusé (le geste de l'écran
+bascule) ; échéance et engagement retrouvés au moment du clic, pas par leur rang ; la carte d'une tâche du jour dit l'effet réel
+(`descriptionTacheAgent` : « Noter … comme fait aujourd'hui (rien n'est envoyé) ») ; carte en attente refusée au changement de
+collaborateur du poste ; `demandeurPrevenu` gardé par le serveur (un seul message « c'est fait ») ; code inventé par l'IA refusé dans un
+champ, une note ou une demande ; téléphone incomplet refusé ; routes de demande : collaborateur des Réglages seulement.
+**Tous les outils** (étude 13/10 : « Claire doit pouvoir utiliser tous les outils que l'on a créés ») : outil `outil_claire`
+(`client/68-assistant-outils.js`) — « lire » : aide_redaction (`valeursActeDossier`), controle_urbanisme (droits, patrimoine, travaux,
+Sitadel enregistrés sur la fiche), quotites (`prefillQuotites`), repertoire (`chercherRepertoireAgent` : contacts + offices de notaires,
+tous les mots) ; « ouvrir » : un bouton dans la conversation qui ouvre l'outil pré-rempli (Aide à la rédaction, Contrôle de l'urbanisme,
+Quotités, Appel de fonds, Provision, Prorata, Forfait mobilier, Relecture d'actes, Répertoire, Claire Scan, Nouveau dossier) — jamais
+d'écran changé sans clic. Essai Chromium : lecture de l'aide à la rédaction et des quotités, « Ouvrir Quotités » pré-rempli.
