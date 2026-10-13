@@ -469,3 +469,17 @@ test('rédaction de l’acte (étude 07/10) : proposée quand Authentic dit « N
   const commun = require('../commun/planning.js');
   assert.strictEqual(commun.echeanceRedaction(Object.assign({}, sansRdv), '2026-10-01'), '2026-11-15');
 });
+
+// Étude 13/10 : des tâches datées plus tard, non cochées, n'apparaissaient nulle part (la carte ne montre plus l'à venir).
+test('tâches à venir : comptées pour le lien de la carte', () => {
+  const app2 = require('./helpers/load-app.js').chargerApplication();
+  const r = app2.rappelsDuJour([
+    { id: 'a', texte: 'Relancer', echeance: '2026-10-20', fait: false, creeLe: '2026-10-06T09:00:00' },
+    { id: 'b', texte: 'Échue', echeance: '2026-10-08', fait: false, creeLe: '2026-10-06T09:00:00' }
+  ], '2026-10-13');
+  assert.equal(r.aVenir.length, 1);
+  assert.equal(r.aFaire.length, 1);
+  assert.equal(app2.libelleLienTachesAVenir(1), '1 tâche à venir — voir toutes les tâches');
+  assert.equal(app2.libelleLienTachesAVenir(3), '3 tâches à venir — voir toutes les tâches');
+  assert.equal(app2.libelleLienTachesAVenir(0), '');
+});

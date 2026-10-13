@@ -1154,8 +1154,26 @@
 
   function renderListeJour(actions, traites, global) {
     const rappels = utilisateurPoste ? renderRappelsJour(isoAujourdhuiLocal()) : '';
-    if (!actions.length && !traites.length && !rappels) return '<p class="jour-vide jour-vide-ok">✓ Rien à faire aujourd’hui sur vos dossiers.</p>';
-    return `<ul class="ja-liste ja-taches">${rappels}${renderActionsJour(actions, global, traites)}</ul>`;
+    const liste = !actions.length && !traites.length && !rappels
+      ? '<p class="jour-vide jour-vide-ok">✓ Rien à faire aujourd’hui sur vos dossiers.</p>'
+      : `<ul class="ja-liste ja-taches">${rappels}${renderActionsJour(actions, global, traites)}</ul>`;
+    return liste + renderTachesAVenirJour();
+  }
+
+  // Mes tâches datées après aujourd'hui (étude 13/10 : « j'ai ajouté des tâches il y a une semaine, pas encore validées, je ne les
+  // vois pas » — la carte ne montre plus les tâches à venir depuis le 07/10) : listées avec leur date sous « À faire » dans la
+  // fenêtre de toutes les tâches, que la carte ouvre par « N à venir ».
+  function renderTachesAVenirJour() {
+    if (!utilisateurPoste) return '';
+    const n = rappelsDuJour(rappelsPerso, isoAujourdhuiLocal()).aVenir.length;
+    if (!n) return '';
+    return `<h3 class="jour-section-titre jour-section-avenir">À venir <span class="jour-onglet-nb">${n}</span></h3>
+      <ul class="ja-liste ja-taches">${renderRappelsJour(isoAujourdhuiLocal(), false, 'avenir')}</ul>`;
+  }
+
+  // Pure : le lien de la carte « Aujourd'hui » vers toutes les tâches, avec le nombre de tâches à venir ('' sans tâche à venir).
+  function libelleLienTachesAVenir(n) {
+    return n ? `${n} tâche${n > 1 ? 's' : ''} à venir — voir toutes les tâches` : '';
   }
 
   function executerActionJourFiche(cle) {
@@ -1265,7 +1283,7 @@
       // tâches faites aujourd'hui (mes rappels cochés, tâches des dossiers traitées) barrées à la suite.
       const rappelsJour = utilisateurPoste ? renderRappelsJour(aujourdhui, true, 'aFaire') : '';
       const rappelsCoches = utilisateurPoste ? renderRappelsJour(aujourdhui, true, 'faits') : '';
-      const mesRappels = utilisateurPoste ? rappelsDuJour(rappelsPerso, aujourdhui) : { aFaire: [], faits: [] };
+      const mesRappels = utilisateurPoste ? rappelsDuJour(rappelsPerso, aujourdhui) : { aFaire: [], faits: [], aVenir: [] };
       // « Plus tard » (reporté à demain) n'est pas une tâche faite (audit 12/10 : il déclenchait la fête).
       const faitsDuJour = traites.filter(t => t.etat !== 'Reporté à demain').length + mesRappels.faits.length;
       if (journeeBouclee(actions.length, mesRappels.aFaire.length, faitsDuJour)) feteHtml = renderFeteJour(feteJourAAnimer(aujourdhui), faitsDuJour);
@@ -1274,7 +1292,7 @@
         : '<p class="jour-vide jour-vide-ok">✓ Rien à faire aujourd’hui sur vos dossiers.</p>';
       corps = `${feteHtml}${liste}
         <div class="w-section dash-rappels-bloc">
-          <div class="rappels-perso" data-ajuster="0" data-garder>${renderMesRappels(perimetreActifs, 'ajout')}</div>
+          <div class="rappels-perso" data-ajuster="0" data-garder>${mesRappels.aVenir && mesRappels.aVenir.length ? `<button type="button" class="lien-discret w-fixe jour-lien-avenir" onclick="${versPage}">${escapeHtml(libelleLienTachesAVenir(mesRappels.aVenir.length))}</button>` : ''}${renderMesRappels(perimetreActifs, 'ajout')}</div>
         </div>`;
     }
     // Une tâche en cours de saisie survit au redessin (audit 12/10 : effacée au premier rafraîchissement).

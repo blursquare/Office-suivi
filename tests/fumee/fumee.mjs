@@ -104,6 +104,23 @@ try {
         for (const o of ONGLETS_FICHE) { await geste(page, `fiche ${id} › ${o}`, (x) => definirOngletFiche(x), o); await pause(150); await boutonsIntacts(page, `fiche ${id} › ${o}`); }
         await page.evaluate(() => { try { fermerDossierDrawer(); } catch (e) { /* déjà fermée */ } });
       }
+      // Tâches à venir (13/10) : visibles par le lien de la carte « Aujourd'hui », listées dans la grande fenêtre de toutes les tâches.
+      const avenir = await geste(page, 'tâches à venir', () => {
+        definirOnglet('dashboard');
+        const plusTard = new Date(); plusTard.setDate(plusTard.getDate() + 6);
+        rappelsPerso = [{ id: 'r-avenir', auteur: utilisateurPoste, texte: 'Relancer le syndic', echeance: plusTard.toISOString().slice(0, 10), fait: false, creeLe: new Date().toISOString() }];
+        renderAlertesDashboard(dossiersPerimetreDashboard());
+        const lien = document.querySelector('.jour-lien-avenir');
+        if (!lien) return 'pas de lien';
+        lien.click();
+        const f = document.getElementById('aujourdhui-fenetre-contenu');
+        const r = { liste: /Relancer le syndic/.test(f.textContent), haut: Math.round(f.getBoundingClientRect().height), large: Math.round(f.getBoundingClientRect().width) };
+        fermerFenetreAujourdhui();
+        rappelsPerso = [];
+        renderAlertesDashboard(dossiersPerimetreDashboard());
+        return r;
+      });
+      verifier(avenir && avenir.liste && avenir.haut >= 800 && avenir.large >= 1000, `tâches à venir : lien, liste et grande fenêtre (${JSON.stringify(avenir)})`);
       // Dates sur les cartes du Tableau (13/10) : crayon → champ date → ✓ écrit la date sur la fiche, par le vrai clic.
       await geste(page, 'carte : ouvrir la fiche', () => { ouvrirDossierDepuisDashboard('f1'); definirOngletFiche('tableau'); });
       await pause(300);

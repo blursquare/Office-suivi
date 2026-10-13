@@ -19476,3 +19476,12 @@ et du projet, échéances ajoutées `autre-N` ; jamais SAFER, DIA, rédaction, a
 `enregistrerDateEcheanceSaisie` (extrait de `validerEditionDate`, voie unique avec le crayon de la liste : historique, notification,
 agenda de l'office, rendez-vous déplacé) ; suppression par `supprimerEcheanceAutre` / `supprimerDateEcheance` (effacer le prêt = sans
 prêt, comme la liste ; pas de croix sur le prêt dont l'offre est reçue). Échap annule la saisie sans fermer la fiche. Une carte en saisie ne se glisse pas ; un redessin garde la valeur tapée.
+
+### 13/10/2026 (soir) — 0.225.1 : tâches à venir de nouveau visibles, fenêtre de toutes les tâches agrandie
+
+Étude : « J'ai ajouté des tâches il y a une semaine qui ne sont pas encore validées mais je ne les vois pas. Quand on affiche toutes
+les tâches, mettre une fenêtre plus grande. » Depuis le 07/10 la carte « Aujourd'hui » ne montre que les tâches échues, du jour ou
+sans date : une tâche datée plus tard n'apparaissait plus nulle part (ni sur la carte, ni dans la fenêtre « Voir N de plus »). La carte
+porte désormais, au-dessus de « Ajouter une tâche », le lien « N tâches à venir — voir toutes les tâches » (`libelleLienTachesAVenir`),
+qui ouvre la fenêtre des tâches ; celle-ci liste sous « À faire » une section « À venir » (`renderTachesAVenirJour`, date de chaque
+tâche). Fenêtre des tâches seules : 1 040 px de large, hauteur de l'écran moins 48 px (plein écran sur téléphone).
