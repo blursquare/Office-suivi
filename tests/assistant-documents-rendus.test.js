@@ -58,3 +58,15 @@ test('courrier : signature « Me … » à droite en fin de lettre, espace aprè
   assert.match(corps, /w:after="60"\/>.*- un/);
   assert.match(corps, /w:after="200"\/><w:ind w:left="284"\/><w:jc w:val="both"\/><\/w:pPr><w:r><w:t xml:space="preserve">- deux/);
 });
+
+test('pièces jointes : PDF et images seulement, jamais le nom du fichier dans la phrase envoyée', () => {
+  assert.equal(app.sortePieceJointeAssistant('Compromis DUPONT.pdf', ''), 'pdf');
+  assert.equal(app.sortePieceJointeAssistant('scan', 'application/pdf'), 'pdf');
+  assert.equal(app.sortePieceJointeAssistant('capture.PNG', ''), 'image');
+  assert.equal(app.sortePieceJointeAssistant('x', 'image/jpeg'), 'image');
+  assert.equal(app.sortePieceJointeAssistant('acte.docx', ''), '');
+  const m = app.mentionPiecesJointesAgent([{ id: 'pj1', nom: 'Compromis DUPONT.pdf', sorte: 'pdf' }, { id: 'pj2', nom: 'MARTIN.png', sorte: 'image' }]);
+  assert.match(m, /pj1 — PDF ; pj2 — image/);
+  assert.doesNotMatch(m, /DUPONT|MARTIN/);
+  assert.equal(app.mentionPiecesJointesAgent([]), '');
+});

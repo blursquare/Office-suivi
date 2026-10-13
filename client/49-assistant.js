@@ -19,6 +19,7 @@
     chargerDisponibiliteAssistant();
     const champ = document.getElementById('assistant-saisie');
     if (champ) setTimeout(() => champ.focus({ preventScroll: true }), 0);
+    initPiecesJointesAssistant();
   }
 
   async function chargerDisponibiliteAssistant() {
@@ -327,15 +328,22 @@
 
   async function envoyerDemandeAssistantSuite(texteForce) {
     const champ = document.getElementById('assistant-saisie');
-    const texte = String(texteForce || (champ ? champ.value : '') || '').trim();
+    const joints = !texteForce && piecesJointesAssistant.length > 0;
+    const texte = String(texteForce || (champ ? champ.value : '') || '').trim() || (joints ? 'Lisez la pièce jointe et dites-moi ce qu’il faut en retenir.' : '');
     if (!texte || assistantEnCours) return;
+    // Pièces jointes (13/10) : lues par l'agent seulement ; sans lui, elles restent dans la saisie et on le dit.
+    if (joints && !assistantDisponibilite.agent) {
+      afficherToast('Les pièces jointes se lisent avec l’agent (Claude ou Mistral, Réglages › IA et relecture d’actes) : il n’est pas disponible.', 'OK', null);
+      return;
+    }
+    const pieces = joints ? prendrePiecesJointesAssistant() : [];
     if (champ && !texteForce) champ.value = '';
     if (champ) champ.style.height = '';
     fermerMentionAssistant();
     const impose = dossierMentionneAssistant(texte, mentionsChoisiesAssistant);
     mentionsChoisiesAssistant = [];
     if (impose && dossiers.some(x => x.id === impose)) assistantContexte.dossierId = impose;
-    poserMessageAssistant('moi', escapeHtml(texte));
+    poserMessageAssistant('moi', escapeHtml(texte) + (pieces.length ? `<div class="asst-pj-liste">${pieces.map(p => htmlPuceJointeAssistant(p, false)).join('')}</div>` : ''));
     noterEchangeAssistant('moi', texte);
     // On attendait le nom d'un dossier : la phrase est ce nom, on reprend la demande précédente.
     if (assistantContexte.attente && assistantContexte.attente.type === 'dossier') {
@@ -347,7 +355,8 @@
       // Sinon, c'est une nouvelle demande : on continue normalement.
     }
     // L'agent (11/10) d'abord : Claude lit les dossiers et enchaîne les étapes ; sans lui, la compréhension d'une phrase.
-    if (assistantDisponibilite.agent && !assistantContexte.attente && await envoyerAgentAssistant(texte, impose)) return;
+    if (assistantDisponibilite.agent && (pieces.length || !assistantContexte.attente) && await envoyerAgentAssistant(texte + mentionPiecesJointesAgent(pieces), impose)) return;
+    if (pieces.length) { poserMessageAssistant('claire', '<p>Je n’ai pas pu lire la pièce jointe : l’agent n’a pas répondu. Réessayez dans un instant.</p>'); return; }
     assistantEnCours = true;
     renderAssistant();
     try {

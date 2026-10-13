@@ -53,10 +53,16 @@ var MAX_RENDUS_AGENT = 12;                  // documents produits gardés dans l
     const doc = documentsAgentConnus[documentId];
     if (!doc) return { erreur: 'document inconnu : prends un document_id rendu par documents_du_dossier ou documents_recents' };
     if (doc.sorte === 'scan') return { erreur: 'scan pas encore rangé : il se lit dans Claire Scan, pas ici' };
-    if (!doc.chemin) return { erreur: 'fichier pas encore localisé sur le NAS' };
+    // Pièce jointe au message (client/66) : le fichier est dans la fenêtre, jamais sur le NAS.
+    if (doc.sorte === 'joint' && doc.sortePiece === 'image') return lireImageJointeAgent(doc.fichier);
+    if (doc.sorte !== 'joint' && !doc.chemin) return { erreur: 'fichier pas encore localisé sur le NAS' };
     if (typeof pdfjsLib === 'undefined') return { erreur: 'lecteur PDF du poste non chargé (bibliothèque en ligne injoignable)' };
     let pdf;
-    try { pdf = await ouvrirPdfNas(doc.chemin); } catch (e) {
+    try {
+      pdf = doc.sorte === 'joint'
+        ? await pdfjsLib.getDocument({ data: await doc.fichier.arrayBuffer(), verbosity: (pdfjsLib.VerbosityLevel ? pdfjsLib.VerbosityLevel.ERRORS : 0) }).promise
+        : await ouvrirPdfNas(doc.chemin);
+    } catch (e) {
       noterVerificationPoste('agent-lecture-document', { ok: false, message: 'PDF illisible' });
       return { erreur: 'PDF illisible : ' + String(e && e.message || e).slice(0, 120) };
     }

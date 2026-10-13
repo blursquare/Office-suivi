@@ -97,7 +97,7 @@ const OUTILS_AGENT = [
   },
   {
     name: 'lire_document',
-    description: 'Le texte d’un PDF du NAS (document_id rendu par documents_du_dossier ou documents_recents), page par page, noms masqués comme le reste. Un scan sans texte est lu par reconnaissance de caractères (plus lent, qualité variable : dis-le si le texte paraît abîmé). 30 pages au plus par appel : pour un long acte, lis-le par tranches (page_debut, page_fin). Lis le document avant d’en parler ; cite la page.',
+    description: 'Le texte d’un PDF du NAS (document_id rendu par documents_du_dossier ou documents_recents) ou d’une pièce jointe au message de l’utilisateur (pj1, pj2… : PDF ou image), page par page, noms masqués comme le reste. Un scan sans texte est lu par reconnaissance de caractères (plus lent, qualité variable : dis-le si le texte paraît abîmé). 30 pages au plus par appel : pour un long acte, lis-le par tranches (page_debut, page_fin). Lis le document avant d’en parler ; cite la page.',
     input_schema: { type: 'object', additionalProperties: false, required: ['document_id', 'page_debut', 'page_fin'],
       properties: { document_id: chaine('document_id'), page_debut: { type: 'integer', description: '1 pour la première page' }, page_fin: { type: 'integer', description: 'dernière page voulue (0 = jusqu’à 30 pages après le début)' } } }
   },
@@ -137,6 +137,7 @@ const SYSTEME_AGENT = `Tu es CLAIRE, l'assistante intégrée au logiciel de suiv
 
 Comment tu travailles :
 - Tu as des outils pour lire les dossiers de CLAIRE, la liste « À faire », l'agenda de l'office, les derniers documents reçus (pièces du NAS, scans du copieur), TOUS les PDF du dossier client sur le NAS (documents_du_dossier) et leur texte (lire_document), pour produire un document Word (rediger_document) et pour faire des gestes. Pour montrer un document, propose-le avec ouvrir_documents.
+- Pièces jointes : quand le message cite « Pièces jointes à ce message » (pj1, pj2…), LIS-les avec lire_document avant de répondre.
 - Documents : pour analyser un compromis, une offre de prêt, un état daté, un diagnostic… liste les documents du dossier, LIS ceux qui comptent (par tranches de 30 pages pour un long acte) et appuie chaque constat sur la page. Pour une synthèse, un tableau, une note ou un courrier demandé, produis-le avec rediger_document (forme « courrier » pour toute lettre : elle sort sur le papier à en-tête de l'office) plutôt que de le recopier dans ta réponse ; ta réponse dit alors en une ou deux phrases ce que contient le document. Sers-t'en dès qu'une question touche un dossier, une date, une tâche : ne réponds jamais de mémoire et n'invente aucun fait (date, pièce, montant, nom, statut). Enchaîne les outils autant que nécessaire (chercher le dossier, puis lire sa fiche, puis comparer…), plusieurs à la fois quand ils sont indépendants.
 - Si plusieurs dossiers correspondent et que la question ne permet pas de choisir, demande lequel en les citant.
 - Les noms des personnes, adresses, agences, notaires, emails et téléphones t'arrivent remplacés par des codes ([NOM1], [EMAIL2], [TEL1], [REF1]…). Utilise-les tels quels dans tes réponses et dans les outils : ils sont rétablis avant d'être montrés. N'essaie jamais de deviner ce qu'ils cachent.

@@ -1581,14 +1581,17 @@
       <div class="asst-relances" id="assistant-relances"></div>
       <form class="asst-saisie" onsubmit="event.preventDefault(); envoyerDemandeAssistant();">
         <div class="asst-mention" id="assistant-mention" role="listbox" aria-label="Dossiers" style="display:none;"></div>
+        <div class="asst-pj-liste asst-pj-saisie" id="assistant-pieces" style="display:none;"></div>
+        <input type="file" id="assistant-fichiers" accept="application/pdf,.pdf,image/*" multiple hidden onchange="ajouterPiecesJointesAssistant(this.files)">
         <textarea id="assistant-saisie" rows="1" placeholder="Message à CLAIRE… tapez @ pour citer un dossier" aria-label="Votre demande à CLAIRE" onkeydown="toucheSaisieAssistant(event)" onblur="setTimeout(fermerMentionAssistant, 150)" oninput="this.style.height = ''; this.style.height = Math.min(160, this.scrollHeight) + 'px'; majMentionAssistant();"></textarea>
         <div class="asst-barre">
           <wa-button appearance="plain" size="s" class="bouton-icone asst-arobase" type="button" onmousedown="event.preventDefault()" onclick="insererArobaseAssistant()" title="Citer un dossier" aria-label="Citer un dossier">@</wa-button>
+          <wa-button appearance="plain" size="s" class="bouton-icone" type="button" onclick="choisirPiecesJointesAssistant()" title="Joindre un PDF ou une image (ou glissez-le, ou collez-le)" aria-label="Joindre un fichier"><span id="icon-assistant-joindre" aria-hidden="true"></span></wa-button>
           <span class="asst-astuce">Entrée pour envoyer · Maj + Entrée pour aller à la ligne</span>
           <wa-button variant="brand" size="s" type="submit" class="asst-envoyer">Envoyer <span id="icon-assistant-envoyer" aria-hidden="true"></span></wa-button>
         </div>
       </form>
-      <p class="asst-pied">Les emails s’ouvrent dans la fenêtre d’envoi, l’agenda demande une confirmation ; le reste se fait tout de suite et s’annule d’un clic. Avec une IA en ligne, seule la phrase part, les noms masqués.</p>
+      <p class="asst-pied">Les emails s’ouvrent dans la fenêtre d’envoi, l’agenda demande une confirmation ; le reste se fait tout de suite et s’annule d’un clic. Avec une IA en ligne, seuls la phrase et le texte lu des documents partent, les noms masqués.</p>
     </div>
     </div>
   </div>
@@ -2765,5 +2768,6 @@
 <script src="client/63-assistant-conversations.js"></script>
 <script src="client/64-aide-redaction.js"></script>
 <script src="client/65-assistant-documents-rendus.js"></script>
+<script src="client/66-assistant-pieces-jointes.js"></script>
 </body>
 </html>

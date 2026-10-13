@@ -19523,3 +19523,15 @@ lecture (`pdf.destroy`), 12 rendus gardés au plus ; 6 pages d'OCR par appel, pa
 le dossier du NAS relié à la fiche (`dossierId`, `depot.trouverParId`), jamais un chemin du poste, et écarte les noms réservés de
 Windows ; code inventé par l'IA → « [à compléter] » dans le Word. **Mistral OCR** (question de l'étude) : non branché — il exige
 d'envoyer le scan lui-même, en clair ; proposé comme réglage à activer, en attente de la décision de l'étude.
+
+### 13/10/2026 (soir) — 0.227.0 : pièces jointes dans « Demander à CLAIRE »
+
+Étude : « Demander à CLAIRE peut recevoir des pièces jointes maintenant ? » — « oui ajoute les pièces jointes ».
+`client/66-assistant-pieces-jointes.js` : trombone (`#assistant-fichiers`), glisser-déposer sur la page, Ctrl+V d'un fichier ou
+d'une capture dans la saisie ; PDF et images seulement (`sortePieceJointeAssistant`), 5 par message, 25 Mo chacune ; puces au-dessus
+de la saisie (retirables) et sous le message envoyé. À l'envoi, chaque pièce est connue de l'agent par un identifiant (`pj1`…,
+`documentsAgentConnus`, sorte `joint`) et la phrase reçoit « (Pièces jointes à ce message, à lire avec lire_document : pj1 — PDF.) »
+(`mentionPiecesJointesAgent`) — jamais le nom du fichier ; `lire_document` lit le PDF depuis la fenêtre (pdf.js, OCR des pages sans
+texte) ou l'image par OCR (`lireImageJointeAgent`), texte masqué par le serveur comme tout résultat. Sans agent disponible : la pièce
+reste dans la saisie et un message le dit. Rien n'est gardé (oublié avec la conversation). Essai Chromium (agent simulé) : PDF joint par
+le trombone, lu, réponse affichée, nom du fichier absent de ce qui part.

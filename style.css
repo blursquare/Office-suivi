@@ -9317,6 +9317,14 @@ table.pr-zt td.pr-zt-retenue select { min-width: 120px; min-height: 32px; height
 .asst-page .asst-saisie textarea#assistant-saisie:focus { outline: none; box-shadow: none; }
 .asst-barre { display: flex; align-items: center; gap: 8px; padding: 4px 6px 6px 8px; }
 .asst-arobase { font-weight: 600; font-size: var(--texte-base); }
+/* Pièces jointes (13/10) : puces au-dessus de la saisie et sous le message envoyé ; la page entière accepte le dépôt d'un fichier. */
+.asst-pj-liste { display: flex; flex-wrap: wrap; gap: 6px; }
+.asst-pj-saisie { padding: 8px 12px 0; }
+.asst-texte .asst-pj-liste { margin-top: 6px; }
+.asst-pj { display: inline-flex; align-items: center; gap: 6px; max-width: 280px; padding: 2px 4px 2px 8px; font-size: var(--texte-s); color: var(--ink-soft); background: var(--paper-sunk); border: 1px solid var(--line); border-radius: var(--rayon-s); }
+.asst-pj-nom { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.asst-texte .asst-pj { padding-right: 8px; }
+#onglet-assistant.asst-depot .asst-saisie { border-color: var(--focus); box-shadow: 0 0 0 2px var(--focus); }
 .asst-astuce { flex: 1 1 auto; color: var(--muted); font-size: var(--texte-xs); text-align: right; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .asst-envoyer { flex: 0 0 auto; }
 .asst-envoyer .icone { width: 16px; height: 16px; }
