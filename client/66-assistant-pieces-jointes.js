@@ -101,6 +101,7 @@
     if (!worker) return { erreur: 'reconnaissance de caractères indisponible sur ce poste (bibliothèque en ligne injoignable)' };
     try {
       const r = await Promise.race([worker.recognize(fichier), new Promise(resolve => setTimeout(() => resolve(null), 60000))]);
+      if (!r) return { erreur: 'lecture de l’image trop longue (plus d’une minute) : texte non lu' };
       const texte = String((r && r.data && r.data.text) || '').trim().slice(0, MAX_CARACTERES_LECTURE_AGENT);
       return { pages_total: 1, pages_lues: '1-1', pages: [{ page: 1, lue_par_ocr: true, texte: texte || '(image sans texte lisible)' }] };
     } finally { try { await worker.terminate(); } catch (e) { /* déjà arrêté */ } }

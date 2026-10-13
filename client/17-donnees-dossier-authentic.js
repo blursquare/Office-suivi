@@ -297,6 +297,24 @@
         ${infoBulle(pieces.map(p => p.label).join(' · '))}</label>`;
   }
 
+  // Oublie ce qu'un compromis précédent a posé dans « Nouveau dossier », sans quitter le mode ni le dossier visé (complément) ni le
+  // dossier d'Authentic retenu par « Créer ». Le responsable choisi reste.
+  function oublierCompromisPrecedent() {
+    const garde = { modeImport, complementDossierId, choixComplement, complementFichierNas, authenticRetenuPourPdf, groupeAuthenticRetenu,
+      responsable: (document.getElementById('f-responsable') || {}).value || '' };
+    reinitialiserFormulaire();
+    modeImport = garde.modeImport;
+    complementDossierId = garde.complementDossierId;
+    choixComplement = garde.complementDossierId ? garde.choixComplement : {};
+    complementFichierNas = garde.complementFichierNas;
+    authenticRetenuPourPdf = garde.authenticRetenuPourPdf;
+    groupeAuthenticRetenu = garde.groupeAuthenticRetenu;
+    const resp = document.getElementById('f-responsable');
+    if (resp && garde.responsable) resp.value = garde.responsable;
+    majEnteteComplement();
+    renderChoixImport();
+  }
+
   async function traiterFichierPdf(file) {
     const status = document.getElementById('pdf-status');
 
@@ -306,6 +324,10 @@
       return;
     }
 
+    // Un compromis REMPLACE un autre déjà lu (relecture 13/10 : le second dossier partait avec les emails, l'adresse, l'agence et
+    // les notaires du premier — un champ que le nouveau compromis ne donne pas gardait l'ancienne valeur, masquée dans « Vérifier ») :
+    // tout ce que l'ancien avait posé est oublié ; le mode, le dossier à compléter et le dossier d'Authentic retenu restent.
+    if (dernierTexteTraite || extractionActuelle) oublierCompromisPrecedent();
     status.className = 'pdf-status loading';
     status.textContent = `Lecture de « ${file.name} » en cours…`;
     majProgression(2);
@@ -314,6 +336,9 @@
     correctionsRevision = {};
     verificationsRevision = {};
     generationImportActuel++; // invalide les relances IA d’un import précédent
+    // « Annuler », un autre compromis ou une reprise d'Authentic pendant la lecture (l'OCR d'un scan dure plus d'une minute) :
+    // le texte de CE fichier n'est plus appliqué (relecture 13/10).
+    const monImport = generationImportActuel;
 
     try {
       const buffer = await file.arrayBuffer();
@@ -338,6 +363,7 @@
               : `Document scanné : lecture de l’image, page ${numero} sur ${total} (quelques secondes par page)…`;
           }
         });
+      if (monImport !== generationImportActuel) return;
       const texteComplet = textesParPage.slice(0, dernierePageUtile).join('\n');
       frontieresPagesActuelles = calculerFrontieresPages(textesParPage, dernierePageUtile);
       pageParType = { pret: null, acte: null, ventebien: null };
@@ -364,6 +390,7 @@
       document.getElementById('pdf-viewer-title').textContent =
         `${file.name} — compromis (${dernierePageUtile} page${dernierePageUtile > 1 ? 's' : ''} sur ${pdf.numPages}, annexes non affichées)`;
       await chargerToutesLesPagesPdf();
+      if (monImport !== generationImportActuel) return;
       // Bug corrigé : traiterTexte() (donc afficherAnalyseJuridique()) tourne plus haut, avant que
       // pdfActuel soit renseigné — chaque bouton "👁 p.X" d'un engagement du vendeur (voir
       // renderEngagement) évaluait alors pdfActuel comme encore null et retombait sur le simple

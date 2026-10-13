@@ -172,7 +172,7 @@
         bouton: existant
           ? { libelle: 'Ouvrir la fiche', onclick: `ouvrirDossierDepuisDashboard('${escapeOnclickArg(existant.id)}')` }
           : estRepris ? null
-            : { libelle: avecPdf ? 'Compléter' : g.aCreer ? 'Créer' : 'Reprendre', onclick: `creerDepuisAuthentic(${i})`, icone: icone('plus') }
+            : { libelle: avecPdf && !exportAuthenticActuel ? 'Compléter' : g.aCreer ? 'Créer' : 'Reprendre', onclick: `creerDepuisAuthentic(${i})`, icone: icone('plus') }
       });
     };
     // Compromis lu : le dossier d'Authentic qui lui correspond est PROPOSÉ en tête (étude 05/10 : « proposer un dossier trouvé
@@ -198,16 +198,16 @@
       ${lignes ? `<ul class="ja-liste">${lignes}</ul>` : `<p class="authentic-releves-vide">Aucun ${lignesACreer ? 'autre ' : ''}dossier ouvert dans Authentic aujourd’hui. Ouvrez-y la page du dossier, puis les fiches vendeur, acquéreur et bien : il apparaîtra ici${modeImport === 'pdf' ? ' — ou continuez sans Authentic' : ''}.</p>`}`;
   }
 
-  function creerDepuisAuthentic(i) {
+  function creerDepuisAuthentic(i, confirme) {
     const g = groupesAuthenticRecents[i];
     if (!g) return;
     const donnees = g.export;
     // Une succession n'a pas d'acte initial : toujours reprise « seule » (parties et biens).
     const succession = typeAffaireAuthentic(donnees) === 'succession';
-    // Sans compromis lu, c'est une création « Depuis Authentic » ; une succession l'est toujours.
-    if (succession || !dernierTexteTraite) modeImport = 'seul';
-    // Un avant-contrat déjà lu : Authentic le complète (parties, bien, téléphones, pièces).
-    if (!succession && modeImport !== 'seul' && dernierTexteTraite && !exportAuthenticActuel) {
+    // Un avant-contrat déjà lu : Authentic le complète (parties, bien, téléphones, pièces) — quelle que soit la carte choisie
+    // ensuite (relecture 13/10 : « Compléter » depuis la carte « Depuis Authentic » effaçait le compromis lu).
+    if (!succession && dernierTexteTraite && !exportAuthenticActuel) {
+      modeImport = 'pdf';
       exportAuthenticActuel = donnees;
       recalculerExtractionRegex();
       appliquerTypeVenteAuthentic(donnees);
@@ -216,26 +216,25 @@
       definirEtapeWizard(2);
       return;
     }
+    // Reprise d'un AUTRE dossier d'Authentic alors qu'un compromis est lu : il serait oublié — on le demande.
+    if (dernierTexteTraite && !confirme) {
+      demanderConfirmation('Reprendre ce dossier d’Authentic ? Le compromis déjà lu et le dossier d’Authentic repris seront oubliés.', () => creerDepuisAuthentic(i, true));
+      return;
+    }
     reinitialiserFormulaire();
+    // Après la remise à zéro (relecture 13/10 : posé avant, le mode était effacé — une succession recevait le message d'une vente
+    // et « ← Précédent » ne montrait plus aucune entrée) : sans compromis, c'est une reprise « Depuis Authentic ».
+    modeImport = 'seul';
     exportAuthenticActuel = donnees;
     compromisNomFichierImporte = '';
     correctionsRevision = {};
     verificationsRevision = {};
-    pageParType = { pret: null, acte: null, ventebien: null };
-    ambiguiteParType = { pret: false, acte: false, ventebien: false };
-    approxParType = { pret: false, acte: false, ventebien: false };
     frontieresPagesActuelles = null;
     recalculerExtractionRegex();
     majProgression(-1);
     appliquerTypeVenteAuthentic(donnees);
     // Sans compromis (« Dossier Authentic seul ») : directement à « Vérifier ».
-    if (modeImport === 'seul') {
-      afficherImportAuthentic(donnees, succession ? 'succession : parties et biens repris d’Authentic.' : 'sans compromis : dates butoir à saisir si besoin.');
-      renderChoixImport();
-      definirEtapeWizard(2);
-      return;
-    }
-    afficherImportAuthentic(donnees, 'dates butoir à saisir si besoin.');
+    afficherImportAuthentic(donnees, succession ? 'succession : parties et biens repris d’Authentic.' : 'sans compromis : dates butoir à saisir si besoin.');
     renderChoixImport();
     definirEtapeWizard(2);
   }

@@ -19535,3 +19535,25 @@ de la saisie (retirables) et sous le message envoyé. À l'envoi, chaque pièce 
 texte) ou l'image par OCR (`lireImageJointeAgent`), texte masqué par le serveur comme tout résultat. Sans agent disponible : la pièce
 reste dans la saisie et un message le dit. Rien n'est gardé (oublié avec la conversation). Essai Chromium (agent simulé) : PDF joint par
 le trombone, lu, réponse affichée, nom du fichier absent de ce qui part.
+
+### 13/10/2026 (soir) — 0.227.1 : relecture indépendante de « Nouveau dossier » (demandée par l'étude) et corrections
+
+Étude : « passe le lecteur indépendant sur l'outil de création de dossier ». Défauts confirmés (scripts de preuve) et corrigés :
+1. **Compromis remplacé par un autre** : `traiterFichierPdf` ne vidait que les dates ; un champ que le second compromis ne donnait pas
+   gardait la valeur du premier (emails, adresse, agence, honoraires, dépôt, mobilier, notaires, échéances « Autre », rôle), masquée
+   dans « Vérifier » — un dossier ROBERT / PETIT était enregistré avec les emails de DURAND / MARTIN. Désormais
+   `oublierCompromisPrecedent` (client/17) remet le formulaire à zéro avant de lire un second compromis, en gardant le mode, le dossier
+   à compléter, le dossier d'Authentic retenu et le responsable. Vérifié dans Chromium (deux PDF inventés).
+2. **« Compléter » depuis la carte « Depuis Authentic »** après un compromis lu : la branche exigeait `modeImport !== 'seul'`, le clic
+   remettait tout à zéro (dates butoir et engagements perdus, sans alerte). La branche « compromis + Authentic » se prend dès qu'un
+   compromis est lu ; reprendre un AUTRE dossier d'Authentic alors qu'un compromis est lu se confirme (« Reprendre » au lieu de
+   « Compléter » sur la ligne).
+3. **Mode oublié après une reprise d'Authentic** : posé avant `reinitialiserFormulaire()` qui le remettait à vide (succession avec le
+   message d'une vente, « ← Précédent » sans entrée) ; posé après.
+4. **Pages du compromis précédent** (`pageParType`, `ambiguiteParType`, `approxParType`) remises à zéro par `reinitialiserFormulaire`.
+5. Probable, corrigé : la lecture d'un PDF poursuivie après « Annuler » (OCR long) n'applique plus son texte (`monImport`).
+6. Réserve corrigée : doublon à la création comparé sans espaces ni ponctuation (`dossierDejaPresentPourCreation`).
+Réserves laissées (à décider) : double création si la réponse du serveur se perd après un enregistrement réussi ; répertoire des
+notaires pas encore chargé → tout nom accepté ; Ctrl+S crée dès l'étape 1 (existant).
+Même version, relecture des pièces jointes (0.227.0) : pièces gardées après « Lequel ? », délai de l'OCR d'une image dit comme une
+erreur, phrase par défaut que le masquage ne touche pas.

@@ -114,6 +114,10 @@
     definirEcheanceActive('ventebien', false);
     dateCompromisDetectee = '';
     dateCompromisEstimee = false;
+    // Pages et ambiguïtés des dates du compromis précédent (relecture 13/10 : une date tapée à la main était enregistrée « lue page 4 »).
+    pageParType = { pret: null, acte: null, ventebien: null };
+    ambiguiteParType = { pret: false, acte: false, ventebien: false };
+    approxParType = { pret: false, acte: false, ventebien: false };
     dernierTexteTraite = '';
     detectedDates = [];
     autresEnCours = [];
@@ -174,12 +178,14 @@
   // Pure : un dossier en cours déjà présent pour une création — même référence Authentic (« A 2026 00247 »),
   // ou même nom (sans accents ni casse). Jamais par le rang « 1 » de « 1 - Vente … » (étude, 03/10 : « Créer
   // un second dossier ? DORLÉAC existe déjà » pour MERCIER). null sinon.
+  // Noms comparés sans espaces ni ponctuation (relecture 13/10 : « DURAND / MARTIN » ne trouvait pas « DURAND/MARTIN »).
   function dossierDejaPresentPourCreation(nom, reference, liste) {
-    const cle = normaliserPourRecherche(String(nom || '').trim());
+    const compact = (t) => normaliserPourRecherche(String(t || '')).replace(/[^a-z0-9]+/g, '');
+    const cle = compact(nom);
     const ref = referenceAuthenticValide(reference) ? reference : '';
     return (liste || []).find(x => x && !x.deleted && !x.archive && (
       (ref && x.referenceAuthentic === ref)
-      || (cle && normaliserPourRecherche(String(x.nom || '').trim()) === cle))) || null;
+      || (cle && compact(x.nom) === cle))) || null;
   }
 
   // ---- Compléter un dossier existant avec son compromis (étude, 03/10 : « Authentic crée le dossier, le

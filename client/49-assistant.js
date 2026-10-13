@@ -329,7 +329,7 @@
   async function envoyerDemandeAssistantSuite(texteForce) {
     const champ = document.getElementById('assistant-saisie');
     const joints = !texteForce && piecesJointesAssistant.length > 0;
-    const texte = String(texteForce || (champ ? champ.value : '') || '').trim() || (joints ? 'Lisez la pièce jointe et dites-moi ce qu’il faut en retenir.' : '');
+    const texte = String(texteForce || (champ ? champ.value : '') || '').trim() || (joints ? 'Que contient la pièce jointe et que faut-il en retenir ?' : '');
     if (!texte || assistantEnCours) return;
     // Pièces jointes (13/10) : lues par l'agent seulement ; sans lui, elles restent dans la saisie et on le dit.
     if (joints && !assistantDisponibilite.agent) {
@@ -346,6 +346,8 @@
     poserMessageAssistant('moi', escapeHtml(texte) + (pieces.length ? `<div class="asst-pj-liste">${pieces.map(p => htmlPuceJointeAssistant(p, false)).join('')}</div>` : ''));
     noterEchangeAssistant('moi', texte);
     // On attendait le nom d'un dossier : la phrase est ce nom, on reprend la demande précédente.
+    // Avec des pièces jointes, la phrase va à l'agent qui les lit (relecture 13/10 : elles étaient perdues après « Lequel ? »).
+    if (pieces.length) assistantContexte.attente = null;
     if (assistantContexte.attente && assistantContexte.attente.type === 'dossier') {
       const r = impose ? { dossier: impose, candidats: [] } : reconnaitreDossier(texte, dossiersPourAssistant(dossiers));
       const attente = assistantContexte.attente;
