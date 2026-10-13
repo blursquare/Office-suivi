@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.227.1';
+  const VERSION_APP = '0.228.0';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.228.0', date: '2026-10-13 22:02', resume: "« Demander à CLAIRE » fait les actions de CLAIRE avec votre autorisation : chaque action qui modifie (pièce reçue, engagement réalisé, échéance ajoutée ou supprimée, date effacée, sans prêt, champ de la fiche, note, fonds reçus, tâche du jour faite ou lancée, NAS revérifié, désarchivage, rappel, coche, date, archivage, responsable) s'affiche d'abord dans une carte « Autoriser / Refuser ». Et elle peut demander à un collaborateur de faire quelque chose : message Teams et tâche dans sa liste « Aujourd'hui » ; quand il la coche, vous êtes prévenu sur Teams." },
     { version: '0.227.1', date: '2026-10-13 21:49', resume: "Nouveau dossier : un compromis remplacé par un autre ne laisse plus les emails, l'adresse, l'agence ni les notaires du premier client ; « Compléter » depuis la carte « Depuis Authentic » ne fait plus oublier le compromis lu (et reprendre un autre dossier d'Authentic le demande) ; la reprise d'Authentic garde son entrée ; une date tapée à la main n'est plus dite « lue page N » ; « DURAND / MARTIN » et « DURAND/MARTIN » sont reconnus comme le même dossier. Demander à CLAIRE : une pièce jointe n'est plus perdue après « Lequel ? »." },
     { version: '0.227.0', date: '2026-10-13 21:45', resume: "« Demander à CLAIRE » reçoit des pièces jointes : un PDF ou une image (jusqu'à 5, 25 Mo chacun) joint par le trombone, glissé sur la page ou collé (Ctrl+V, captures comprises) est lu par l'agent — texte du PDF, ou reconnaissance de caractères pour une image ou un scan. Le fichier reste sur le poste, son nom ne part jamais, le texte part masqué." },
     { version: '0.226.0', date: '2026-10-13 21:29', resume: "« Demander à CLAIRE » lit les documents du dossier et produit des rendus : l'agent (Mistral ou Claude) liste tous les PDF du dossier sur le NAS, en lit le texte (scans par OCR, noms masqués avant l'envoi), et rédige un document Word — synthèse, tableau, note, ou courrier sur le papier à en-tête de l'office, comme l'appel de fonds — avec « Télécharger » et « Ranger dans le dossier du NAS » (sur votre clic, jamais d'écrasement). Il enchaîne plus d'étapes et écrit des réponses plus longues." },

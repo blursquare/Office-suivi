@@ -19557,3 +19557,25 @@ Réserves laissées (à décider) : double création si la réponse du serveur s
 notaires pas encore chargé → tout nom accepté ; Ctrl+S crée dès l'étape 1 (existant).
 Même version, relecture des pièces jointes (0.227.0) : pièces gardées après « Lequel ? », délai de l'OCR d'une image dit comme une
 erreur, phrase par défaut que le masquage ne touche pas.
+
+### 13/10/2026 (soir) — 0.228.0 : « Demander à CLAIRE » fait les actions avec autorisation, et demande à un collaborateur (Teams + tâche)
+
+Étude : « Autorise Demander à CLAIRE à faire toutes les actions que l'on peut faire à la main ou qui sont automatiques dans CLAIRE.
+Avec une autorisation avant exécution. Peut-on connecter Demander à CLAIRE à Teams pour lui demander de demander à un collaborateur de
+faire quelque chose ? » Choix de l'étude (questions posées) : **toute action qui modifie** passe par une carte « Autoriser / Refuser »
+(les lectures restent libres) ; une demande à un collaborateur = **message Teams + tâche dans sa liste « Aujourd'hui »**.
+`client/67-assistant-actions.js` :
+- carte d'autorisation (`demanderAutorisationAgent`, `htmlAutorisationAgent`) devant les gestes de faire_geste qui modifiaient tout de
+  suite (`GESTES_AVEC_AUTORISATION_AGENT` : rappel, coche/décoche, date, archivage, responsable — l'email garde sa fenêtre, l'agenda sa
+  confirmation) et devant les nouveaux outils ; refus rendu à l'agent (« ne le refais pas ») ; une nouvelle conversation refuse la
+  carte en attente ;
+- outil `action_dossier` : piece_recue, engagement_fait, echeance_ajouter/supprimer, date_effacer, sans_pret, champ_fiche (emails,
+  téléphones, adresse, prix — `eurosDepuisSaisie` —, agence, notaires — répertoire seulement —, date de l'avant-contrat), note_historique,
+  fonds_valides, tache_faite / tache_executer (`tache_id` rendu par taches_du_jour, non masqué), nas_reverifier, desarchiver — chacune
+  par la fonction de l'écran, sa propre confirmation accordée d'office (`avecConfirmationAccordee`) ;
+- outil `demander_collaborateur` : tâche posée dans la liste du collaborateur (`rappels-perso`, `demandePar` gardé par
+  `assainirRappelPerso`) + `POST /api/notifications/demande-collaborateur` (Teams par la passerelle des rappels internes,
+  `texteDemandeCollaborateur`) ; cochée par lui → `POST /api/notifications/demande-faite` au demandeur (`prevenirDemandeurTacheFaite`).
+  Les réponses Teams ne sont pas lues (Graph indisponible).
+Pas encore couvert : ranger un scan, relier un dossier au NAS, ajouter/modifier une personne, réglages. Essai Chromium (agent simulé) :
+action autorisée faite, refusée non faite, tâche de Julie enregistrée et message Teams parti. Point terrain `agent-demande-collaborateur`.

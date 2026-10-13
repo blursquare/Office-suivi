@@ -14,6 +14,7 @@
     taches_du_jour: 'Je regarde « À faire »…', agenda: 'Je consulte l’agenda…', depuis_hier: 'Je regarde ce qui est arrivé…',
     documents_recents: 'Je regarde les derniers documents…', ouvrir_documents: 'Je prépare les documents…',
     documents_du_dossier: 'Je parcours le dossier du NAS…', lire_document: 'Je lis le document…', rediger_document: 'Je rédige le document…',
+    action_dossier: 'Je prépare l’action…', demander_collaborateur: 'Je prépare la demande…',
     faire_geste: 'Je m’en occupe…'
   };
 
@@ -117,7 +118,7 @@
     const rappel = r => ({ texte: r.texte, date: r.echeance || '', dossier_id: r.dossierId || '' });
     return {
       collaborateur: utilisateurPoste || '',
-      taches: actions.slice(0, 60).map(a => ({ tache: a.titre, dossier_id: a.dossier ? a.dossier.id : '', dossier: a.dossier ? libelleDossierAffiche(a.dossier) : '', precision: a.contexte || '' })),
+      taches: actions.slice(0, 60).map(a => ({ tache_id: a.cle, tache: a.titre, dossier_id: a.dossier ? a.dossier.id : '', dossier: a.dossier ? libelleDossierAffiche(a.dossier) : '', precision: a.contexte || '' })),
       rappels_a_faire: aFaire.map(rappel), rappels_a_venir: aVenir.slice(0, 20).map(rappel)
     };
   }
@@ -171,6 +172,10 @@
     if (!geste) return { erreur: 'geste inconnu' };
     const d = entree.dossier_id ? dossiers.find(x => x.id === entree.dossier_id) : null;
     if (geste.dossier && !d) return { erreur: 'dossier introuvable : cherche-le d’abord (chercher_dossiers) et passe son id' };
+    // Autorisation avant exécution (étude 13/10) pour tout geste qui modifie tout de suite (client/67).
+    if (GESTES_AVEC_AUTORISATION_AGENT.includes(entree.geste) && !(await demanderAutorisationAgent(descriptionGesteAgent(entree, d)))) {
+      return { refuse: true, message: 'l’utilisateur a refusé : ne le refais pas sans nouvelle demande' };
+    }
     const dernier = assistantMessages[assistantMessages.length - 1];
     await executerDemandeAssistant({ intention: geste.cle, parametres: entree.parametres || {}, dossier: d ? d.id : '', candidats: [], texte: (entree.parametres && entree.parametres.texte) || '', source: 'agent' });
     const ajout = assistantMessages.slice(assistantMessages.indexOf(dernier) + 1).filter(m => m.role === 'claire').map(m => {
@@ -197,6 +202,8 @@
     if (nom === 'documents_du_dossier') return documentsDuDossierAgent(typeof e.dossier_id === 'string' ? e.dossier_id : '');
     if (nom === 'lire_document') return lireDocumentAgent(e.document_id, e.page_debut, e.page_fin);
     if (nom === 'rediger_document') return redigerDocumentAgent(e);
+    if (nom === 'action_dossier') return actionDossierAgent(e);
+    if (nom === 'demander_collaborateur') return demanderCollaborateurAgent(e);
     if (nom === 'faire_geste') return faireGesteAgent(e);
     return { erreur: 'outil inconnu' };
   }
@@ -268,4 +275,4 @@
     }
   }
 
-  function oublierConversationAgent() { assistantAgentConversation = ''; oublierDocumentsAgent(); }
+  function oublierConversationAgent() { assistantAgentConversation = ''; oublierDocumentsAgent(); refuserAutorisationEnAttente(); }

@@ -62,6 +62,8 @@ const VERIFICATIONS_TERRAIN = [
     comment: 'Coché à la première pièce lue ; en échec si la pièce ne s’ouvre pas. Les valeurs lues par l’OCR sont à comparer à la pièce les premières fois.' },
   { id: 'aide-redaction-ia', depuis: '0.218.0', source: 'serveur', titre: 'Aide à la rédaction : l’IA désigne le champ des blancs « --- » d’une trame inconnue',
     comment: 'Coché à la première réponse de l’IA ; en échec si l’IA ne répond pas ou hors format. Seuls le passage (noms masqués) et la liste des champs partent.' },
+  { id: 'agent-demande-collaborateur', depuis: '0.228.0', source: 'poste', titre: '« Demander à CLAIRE » : une demande à un collaborateur — message Teams reçu et tâche dans sa liste « Aujourd’hui »',
+    comment: 'Coché à la première demande où la tâche est enregistrée et le message parti ; en échec sinon. Vérifier une fois que le message arrive bien dans Teams chez le collaborateur, et que celui qui demande est prévenu quand la tâche est cochée.' },
   { id: 'agent-lecture-document', depuis: '0.226.0', source: 'poste', titre: '« Demander à CLAIRE » : un PDF du dossier du NAS lu par l’agent (texte masqué, OCR des scans)',
     comment: 'Coché à la première lecture réussie d’un document par l’agent ; en échec si le PDF ne s’ouvre pas. Comparer la première fois ce que l’agent dit du document au document lui-même.' },
   { id: 'agent-document-nas', depuis: '0.226.0', source: 'poste', titre: '« Demander à CLAIRE » : un document Word produit par l’agent rangé à la racine du dossier client',

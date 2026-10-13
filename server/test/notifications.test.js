@@ -239,3 +239,21 @@ test('POST pieces-recues deux fois pour la même pièce (deux fenêtres) : un se
   assert.equal(envois.length, nbApresPremier);
   assert.equal(r2.dejaNotifiees, true);
 });
+
+test('« Demander à CLAIRE » (13/10) : demande à un collaborateur sur Teams, puis « c’est fait » à celui qui l’a demandée', async () => {
+  envois.length = 0;
+  await appeler('/api/reglages', {
+    method: 'PUT',
+    body: JSON.stringify({ emailActif: true, smtpHote: 'smtp.test', emailPasserelle: 'passerelle@etude.fr', copieEmail: '', emailsResponsables: { 'Bastien ANGLUMENT': 'bastien@etude.fr', 'Julie VASSELIN': 'julie@etude.fr' } })
+  });
+  let reponse = await appeler('/api/notifications/demande-collaborateur', { method: 'POST', body: JSON.stringify({ collaborateur: 'Julie VASSELIN', auteur: 'Bastien ANGLUMENT', texte: 'Appeler la banque pour l’offre', dossierNom: 'VTE - DUPONT / MARTIN', date: '2026-10-15' }) });
+  assert.equal((await reponse.json()).envoyeResponsable, true);
+  assert.deepEqual(envois.map((e) => e.destinataire), ['julie@etude.fr']);
+  assert.equal(envois[0].texte, '📌 CLAIRE — Bastien ANGLUMENT vous demande : Appeler la banque pour l’offre (dossier VTE - DUPONT / MARTIN), pour le 15 octobre 2026. La tâche est dans votre liste « Aujourd’hui » de CLAIRE.');
+  envois.length = 0;
+  reponse = await appeler('/api/notifications/demande-faite', { method: 'POST', body: JSON.stringify({ demandeur: 'Bastien ANGLUMENT', auteur: 'Julie VASSELIN', texte: 'Appeler la banque pour l’offre', dossierNom: 'VTE - DUPONT / MARTIN' }) });
+  assert.equal((await reponse.json()).envoyeResponsable, true);
+  assert.deepEqual(envois.map((e) => e.destinataire), ['bastien@etude.fr']);
+  assert.match(envois[0].texte, /Julie VASSELIN a fait ce que vous lui aviez demandé : Appeler la banque/);
+  assert.equal((await appeler('/api/notifications/demande-collaborateur', { method: 'POST', body: JSON.stringify({ collaborateur: 'Julie VASSELIN' }) })).status, 400);
+});

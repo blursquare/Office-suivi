@@ -304,7 +304,39 @@ function creerRouteurNotifications(parametresRepo, envoyerFn, options = {}) {
     res.json(await envoyerAuResponsable(parametresRepo, envoyer, reglages, responsable, message, { sansCopiePour }));
   });
 
+  // « Demander à CLAIRE » (étude 13/10) : un collaborateur demande à un autre de faire quelque chose — message Teams au collaborateur
+  // (la tâche est posée dans sa liste « Aujourd'hui » par le poste) ; puis, quand il la coche, message à celui qui l'a demandée.
+  router.post('/notifications/demande-collaborateur', async (req, res) => {
+    const c = req.body || {};
+    const t = (v, n) => (typeof v === 'string' ? v.replace(/\s+/g, ' ').trim().slice(0, n) : '');
+    const collaborateur = t(c.collaborateur, 80);
+    const texte = t(c.texte, 300);
+    if (!collaborateur || !texte) return res.status(400).json({ erreur: 'collaborateur ou texte manquant.' });
+    const reglages = parametresRepo.lireReglages();
+    if (!envoiConfigure(reglages)) return res.json({ ok: true, ignore: true });
+    const message = texteDemandeCollaborateur(t(c.auteur, 80), texte, t(c.dossierNom, 160), /^\d{4}-\d{2}-\d{2}$/.test(c.date || '') ? c.date : '');
+    res.json(await envoyerAuResponsable(parametresRepo, envoyer, reglages, collaborateur, message, { sansCopiePour: reglages.emailsResponsables[t(c.auteur, 80)] || null }));
+  });
+
+  router.post('/notifications/demande-faite', async (req, res) => {
+    const c = req.body || {};
+    const t = (v, n) => (typeof v === 'string' ? v.replace(/\s+/g, ' ').trim().slice(0, n) : '');
+    const demandeur = t(c.demandeur, 80);
+    const texte = t(c.texte, 300);
+    if (!demandeur || !texte) return res.status(400).json({ erreur: 'demandeur ou texte manquant.' });
+    const reglages = parametresRepo.lireReglages();
+    if (!envoiConfigure(reglages)) return res.json({ ok: true, ignore: true });
+    const qui = t(c.auteur, 80) || 'Le collaborateur';
+    const message = `✅ CLAIRE — ${qui} a fait ce que vous lui aviez demandé : ${texte}${t(c.dossierNom, 160) ? ` (${t(c.dossierNom, 160)})` : ''}.`;
+    res.json(await envoyerAuResponsable(parametresRepo, envoyer, reglages, demandeur, message, { sansCopiePour: reglages.emailsResponsables[t(c.auteur, 80)] || null }));
+  });
+
   return router;
 }
 
-module.exports = { creerRouteurNotifications, dedoublonnerPieces, texteNotificationPieces, htmlNotificationPieces, texteDossierComplet, texteDateAjoutee, texteTacheFaite, texteRendezVousAgenda, envoyerAuResponsable };
+// Pure : le message Teams d'une demande à un collaborateur.
+function texteDemandeCollaborateur(auteur, texte, dossierNom, date) {
+  return `📌 CLAIRE — ${auteur || 'Un collaborateur'} vous demande : ${texte}${dossierNom ? ` (dossier ${dossierNom})` : ''}${date ? `, pour le ${dateLongueFr(date)}` : ''}. La tâche est dans votre liste « Aujourd’hui » de CLAIRE.`;
+}
+
+module.exports = { texteDemandeCollaborateur, creerRouteurNotifications, dedoublonnerPieces, texteNotificationPieces, htmlNotificationPieces, texteDossierComplet, texteDateAjoutee, texteTacheFaite, texteRendezVousAgenda, envoyerAuResponsable };

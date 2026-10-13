@@ -9317,6 +9317,12 @@ table.pr-zt td.pr-zt-retenue select { min-width: 120px; min-height: 32px; height
 .asst-page .asst-saisie textarea#assistant-saisie:focus { outline: none; box-shadow: none; }
 .asst-barre { display: flex; align-items: center; gap: 8px; padding: 4px 6px 6px 8px; }
 .asst-arobase { font-weight: 600; font-size: var(--texte-base); }
+/* Autorisation avant exécution (13/10) : la carte d'une action que CLAIRE propose. */
+.asst-autorisation { padding: 10px 12px; background: var(--paper-sunk); border: 1px solid var(--line); border-radius: var(--rayon-m); }
+.asst-autorisation p { margin: 4px 0 0; }
+.asst-autorisation-etat { font-size: var(--texte-xs); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.asst-autorisation-etat.ok { color: var(--success); }
+.asst-autorisation-etat.non { color: var(--urgent); }
 /* Pièces jointes (13/10) : puces au-dessus de la saisie et sous le message envoyé ; la page entière accepte le dépôt d'un fichier. */
 .asst-pj-liste { display: flex; flex-wrap: wrap; gap: 6px; }
 .asst-pj-saisie { padding: 8px 12px 0; }
