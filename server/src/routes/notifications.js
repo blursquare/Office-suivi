@@ -304,9 +304,17 @@ function creerRouteurNotifications(parametresRepo, envoyerFn, options = {}) {
     res.json(await envoyerAuResponsable(parametresRepo, envoyer, reglages, responsable, message, { sansCopiePour }));
   });
 
+  const envoisRecents = [];
+  function demandesDansLaMinute(maintenant) {
+    while (envoisRecents.length && maintenant - envoisRecents[0] > 60000) envoisRecents.shift();
+    if (envoisRecents.length >= 20) return false;
+    envoisRecents.push(maintenant);
+    return true;
+  }
+
   // « Demander à CLAIRE » (étude 13/10) : un collaborateur demande à un autre de faire quelque chose — message Teams au collaborateur
   // (la tâche est posée dans sa liste « Aujourd'hui » par le poste) ; puis, quand il la coche, message à celui qui l'a demandée.
-  router.post('/notifications/demande-collaborateur', async (req, res) => {
+  router.post('/notifications/demande-collaborateur', async (req, res) => { try {
     const c = req.body || {};
     const t = (v, n) => (typeof v === 'string' ? v.replace(/\s+/g, ' ').trim().slice(0, n) : '');
     const collaborateur = t(c.collaborateur, 80);
@@ -315,11 +323,14 @@ function creerRouteurNotifications(parametresRepo, envoyerFn, options = {}) {
     const reglages = parametresRepo.lireReglages();
     if (!envoiConfigure(reglages)) return res.json({ ok: true, ignore: true });
     if (!Object.prototype.hasOwnProperty.call(reglages.emailsResponsables || {}, collaborateur)) return res.status(400).json({ erreur: 'collaborateur inconnu.' });
+    // Auteur : un collaborateur des Réglages, et pas plus de 20 demandes par minute (audit 13/10 : messages usurpés ou en rafale).
+    if (c.auteur && !Object.prototype.hasOwnProperty.call(reglages.emailsResponsables || {}, t(c.auteur, 80))) return res.status(400).json({ erreur: 'auteur inconnu.' });
+    if (!demandesDansLaMinute(horloge())) return res.status(429).json({ erreur: 'trop de demandes : réessayez dans une minute.' });
     const message = texteDemandeCollaborateur(t(c.auteur, 80), texte, t(c.dossierNom, 160), /^\d{4}-\d{2}-\d{2}$/.test(c.date || '') ? c.date : '');
     res.json(await envoyerAuResponsable(parametresRepo, envoyer, reglages, collaborateur, message, { sansCopiePour: reglages.emailsResponsables[t(c.auteur, 80)] || null }));
-  });
+  } catch (e) { console.error('[CLAIRE] Demande à un collaborateur :', e && e.message); if (!res.headersSent) res.status(500).json({ erreur: 'Envoi impossible.' }); } });
 
-  router.post('/notifications/demande-faite', async (req, res) => {
+  router.post('/notifications/demande-faite', async (req, res) => { try {
     const c = req.body || {};
     const t = (v, n) => (typeof v === 'string' ? v.replace(/\s+/g, ' ').trim().slice(0, n) : '');
     const demandeur = t(c.demandeur, 80);
@@ -328,10 +339,12 @@ function creerRouteurNotifications(parametresRepo, envoyerFn, options = {}) {
     const reglages = parametresRepo.lireReglages();
     if (!envoiConfigure(reglages)) return res.json({ ok: true, ignore: true });
     if (!Object.prototype.hasOwnProperty.call(reglages.emailsResponsables || {}, demandeur)) return res.status(400).json({ erreur: 'demandeur inconnu.' });
+    if (c.auteur && !Object.prototype.hasOwnProperty.call(reglages.emailsResponsables || {}, t(c.auteur, 80))) return res.status(400).json({ erreur: 'auteur inconnu.' });
+    if (!demandesDansLaMinute(horloge())) return res.status(429).json({ erreur: 'trop de demandes : réessayez dans une minute.' });
     const qui = t(c.auteur, 80) || 'Le collaborateur';
     const message = `✅ CLAIRE — ${qui} a fait ce que vous lui aviez demandé : ${texte}${t(c.dossierNom, 160) ? ` (${t(c.dossierNom, 160)})` : ''}.`;
     res.json(await envoyerAuResponsable(parametresRepo, envoyer, reglages, demandeur, message, { sansCopiePour: reglages.emailsResponsables[t(c.auteur, 80)] || null }));
-  });
+  } catch (e) { console.error('[CLAIRE] Demande faite :', e && e.message); if (!res.headersSent) res.status(500).json({ erreur: 'Envoi impossible.' }); } });
 
   return router;
 }

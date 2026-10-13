@@ -21,7 +21,7 @@
     nouveau_dossier: { libelle: 'Nouveau dossier', onglet: 'nouveau' }
   };
   var MAX_RESULTATS_REPERTOIRE_AGENT = 15;
-  var RE_CHAMP_ACTE_NOMINATIF = /(notaire|banque|operateur|nom|prenom|vendeur|acquereur|adresse|ville|agence|syndic|geometre|commune|lieu|partie|personne|societe|representant)/;
+  var RE_CHAMP_ACTE_NOMINATIF = /(notaire|banque|operateur|nom|prenom|vendeur|acquereur|adresse|ville|agence|syndic|geometre|commune|lieu|partie|personne|societe|representant|certification|numero|diag_)/;
 
   // Pure : l'outil porte-t-il déjà un travail sur un AUTRE dossier (quotités saisies, relecture lancée, appel de fonds) ? Le
   // pré-remplir le perdrait (relecture 13/10) : on le demande d'abord. Même dossier : l'outil est seulement affiché, tel quel.
@@ -31,12 +31,13 @@
     if (outil === 'quotites') return autre(e.quotites);
     if (outil === 'relecture_actes') return autre(e.relecture) || (!!e.relectureLancee && !(d && e.relecture === d.id));
     if (outil === 'appel_fonds') return autre(e.appelFonds);
+    if (outil === 'controle_urbanisme') return autre(e.urbanisme);
     return false;
   }
 
   function dossierDejaDansOutilAgent(outil, d, etat) {
     const e = etat || {};
-    const id = outil === 'quotites' ? e.quotites : outil === 'relecture_actes' ? e.relecture : outil === 'appel_fonds' ? e.appelFonds : '';
+    const id = outil === 'quotites' ? e.quotites : outil === 'relecture_actes' ? e.relecture : outil === 'appel_fonds' ? e.appelFonds : outil === 'controle_urbanisme' ? e.urbanisme : '';
     return !!(d && id && id === d.id);
   }
 
@@ -44,7 +45,8 @@
   function ouvrirOutilClaireAgent(outil, d, confirme) {
     const o = OUTILS_CLAIRE_AGENT[outil];
     if (!o) return;
-    const etat = { quotites: qtDossierLie || '', relecture: auditDossierLie ? auditDossierLie.id : '', relectureLancee: !!analyseClaudeRelecture, appelFonds: afDossierLie || '' };
+    const etat = { quotites: qtDossierLie || '', relecture: auditDossierLie ? auditDossierLie.id : '', relectureLancee: !!analyseClaudeRelecture, appelFonds: afDossierLie || '',
+      urbanisme: prEtat && prEtat.dossierId ? prEtat.dossierId : '' };
     if (!confirme && travailEnCoursOutilAgent(outil, d, etat)) {
       demanderConfirmation(`Remplacer le travail en cours dans l’outil ${o.libelle} ? Il porte sur un autre dossier et sera perdu.`, () => ouvrirOutilClaireAgent(outil, d, true));
       return;

@@ -26,6 +26,13 @@
     adresse_bien: 'adresseBien', prix_vente: 'prixVente', agence: 'nomAgence', notaire_vendeur: 'notaireVendeur', notaire_acquereur: 'notaireAcquereur',
     date_avant_contrat: 'dateAvantContrat'
   };
+  var ECRITURES_CHAMPS_FICHE_AGENT = {
+    email_vendeur: (id, v) => changerEmailVendeur(id, v), email_acquereur: (id, v) => changerEmailAcquereur(id, v),
+    telephone_vendeur: (id, v) => changerTelephoneDossier(id, 'vendeur', v), telephone_acquereur: (id, v) => changerTelephoneDossier(id, 'acquereur', v),
+    adresse_bien: (id, v) => changerAdresseBien(id, v), prix_vente: (id, v) => changerPrixVente(id, String(v)),
+    date_avant_contrat: (id, v) => changerDateAvantContrat(id, v),
+    notaire_vendeur: (id, v) => affecterNotaire(id, 'vendeur', v), notaire_acquereur: (id, v) => affecterNotaire(id, 'acquereur', v)
+  };
   var LIBELLES_DATES_AGENT = { pret: 'obtention du prêt', ventebien: 'vente préalable', acte: 'date butoir', appelFonds: 'envoi de l’appel de fonds',
     projetEnvoye: 'envoi du projet', rendezVousSignature: 'rendez-vous de signature' };
 
@@ -102,8 +109,11 @@
     if (!cible) return null;
     let liste = [];
     try { liste = checklistPieces(d.typeVente, d); } catch (e) { return null; }
-    return liste.find(p => normaliserPourRecherche(p.label) === cible)
-      || liste.find(p => normaliserPourRecherche(p.label).includes(cible) || cible.includes(normaliserPourRecherche(p.label))) || null;
+    // Libellé exact, sinon une partie d'au moins 6 lettres contenue dans UNE seule pièce (audit 13/10 : « de » désignait la première).
+    const exacte = liste.find(p => normaliserPourRecherche(p.label) === cible);
+    if (exacte || cible.length < 6) return exacte || null;
+    const partielles = liste.filter(p => normaliserPourRecherche(p.label).includes(cible));
+    return partielles.length === 1 ? partielles[0] : null;
   }
 
   // Pure : ce que fera une action — { description, erreur }.
@@ -174,23 +184,29 @@
     if (g.type === 'marquer') return `Noter « ${a.titre} » comme fait aujourd’hui (rien n’est envoyé)${dossier}.`;
     if (g.type === 'email') return `Ouvrir l’email de la tâche « ${a.titre} » (rien ne part sans votre clic sur « Envoyer »)${dossier}.`;
     if (g.type === 'fiche') return `Ouvrir la fiche pour la tâche « ${a.titre} »${dossier}.`;
+    if (g.type === 'valider') return `Cocher l’échéance de la tâche « ${a.titre} »${dossier}.`;
     return `Faire la tâche « ${a.titre} »${dossier}.`;
   }
 
   // Pure : la valeur d'un champ de fiche, contrôlée comme une saisie — { valeur, affiche } ou { erreur }.
   function valeurChampFicheAgent(champ, brute) {
     const v = String(brute == null ? '' : brute).trim();
+    // Un code que l'IA a inventé n'est jamais écrit, quel que soit le champ (audit 13/10 : une adresse passait).
+    if (/\[à compléter\]/.test(v)) return { erreur: 'valeur inconnue : demande-la à l’utilisateur' };
     if (champ === 'prix_vente') {
       const n = eurosDepuisSaisie(v);
       return n ? { valeur: n, affiche: formaterPrix(n) } : { erreur: 'prix illisible' };
     }
     if (champ === 'date_avant_contrat') return /^\d{4}-\d{2}-\d{2}$/.test(v) ? { valeur: v, affiche: formatDateFr(v) } : { erreur: 'date au format AAAA-MM-JJ' };
     if (champ === 'adresse_bien') return v ? { valeur: normaliserAdresse(v), affiche: normaliserAdresse(v) } : { erreur: 'adresse vide' };
+    // Audit 13/10 (Haut) : notaireDuRepertoire rend un BOOLÉEN, et « vrai » sans annuaire — le nom complété est vérifié contre
+    // l'annuaire chargé, et c'est le NOM qui est écrit (par affecterNotaire, qui recalcule le côté qui reçoit l'acte).
     if (champ === 'notaire_vendeur' || champ === 'notaire_acquereur') {
-      const n = typeof notaireDuRepertoire === 'function' ? notaireDuRepertoire(v) : '';
-      return n ? { valeur: n, affiche: n } : { erreur: 'ce nom ne désigne pas un seul notaire du répertoire' };
+      if (!v) return { erreur: 'nom du notaire vide' };
+      if (!Array.isArray(carnetConfreres) || !carnetConfreres.length) return { erreur: 'annuaire des notaires pas encore chargé : réessaie dans un instant' };
+      const complet = completerNomNotaire(v, carnetConfreres);
+      return complet && notaireDuRepertoire(complet, carnetConfreres) ? { valeur: complet, affiche: complet } : { erreur: 'ce nom ne désigne pas un seul notaire du répertoire' };
     }
-    if (/\[à compléter\]/.test(v)) return { erreur: 'valeur inconnue : demande-la à l’utilisateur' };
     if (/^telephone/.test(champ) && v && v.replace(/\D/g, '').length < 9) return { erreur: 'numéro de téléphone incomplet' };
     if (/^email/.test(champ) && v && !/^[^\s@]+@[^\s@]+\.[^\s@]+(\s*[;,]\s*[^\s@]+@[^\s@]+\.[^\s@]+)*$/.test(v)) return { erreur: 'adresse email invalide' };
     return { valeur: v, affiche: v };
@@ -223,7 +239,10 @@
       case 'date_effacer': avecConfirmationAccordee(() => supprimerDateEcheance(d.id, e.champ)); return;
       case 'sans_pret': avecConfirmationAccordee(() => marquerSansPret(d.id)); return;
       case 'champ_fiche': {
-        d[prep.cle] = prep.valeur;
+        // Par la fonction de l'écran (audit 13/10 : une seule règle par champ — historique, côté du notaire, normalisation).
+        const ecrire = ECRITURES_CHAMPS_FICHE_AGENT[e.champ];
+        if (ecrire) { ecrire(d.id, prep.valeur); return; }
+        d[prep.cle] = prep.valeur;   // agence : pas de fonction d'écran
         ajouterHistorique(d, `« ${LIBELLES_CHAMPS_FICHE_AGENT[e.champ]} » modifié : ${prep.avant} → ${prep.affiche}`);
         sauvegarder(d);
         render();
@@ -298,8 +317,10 @@
   // La tâche demandée par un autre est cochée : il est prévenu sur Teams (une fois).
   function prevenirDemandeurTacheFaite(r) {
     if (!r || !r.fait || !r.demandePar || r.demandePar === utilisateurPoste || r.demandeurPrevenu) return;
-    r.demandeurPrevenu = true;
     const d = r.dossierId ? dossiers.find(x => x.id === r.dossierId) : null;
+    // Le repère n'est posé qu'une fois le message parti (audit 13/10 : un échec le rendait muet pour toujours).
     fetchAvecAuth('/api/notifications/demande-faite', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ demandeur: r.demandePar, auteur: utilisateurPoste || '', texte: String(r.texte || '').replace(/\s*\(demandé par [^)]*\)$/, ''), dossierNom: d ? libelleDossierAffiche(d) : '' }) }).catch(() => {});
+      body: JSON.stringify({ demandeur: r.demandePar, auteur: utilisateurPoste || '', texte: String(r.texte || '').replace(/\s*\(demandé par [^)]*\)$/, ''), dossierNom: d ? libelleDossierAffiche(d) : '' }) })
+      .then(rep => { if (rep.ok && r.fait) { r.demandeurPrevenu = true; enregistrerRappelPerso(r); } })
+      .catch(e => console.warn('Demande faite : Teams non prévenu', e && e.message));
   }

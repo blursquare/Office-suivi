@@ -105,3 +105,16 @@ test('outils de CLAIRE : jamais un travail en cours sur un autre dossier écras�
   assert.equal(app.dossierDejaDansOutilAgent('appel_fonds', d, { appelFonds: 'd1' }), true);
   assert.equal(app.travailEnCoursOutilAgent('repertoire', d, {}), false);
 });
+
+test('audit 13/10 : notaire écrit par son nom et seulement s’il est du répertoire ; pièce désignée sans ambiguïté', () => {
+  app.carnetConfreres.length = 0;
+  assert.ok(app.valeurChampFicheAgent('notaire_vendeur', 'Maître Paul EXEMPLE').erreur, 'annuaire pas chargé : refusé');
+  app.carnetConfreres.push({ id: 'o1', office: 'Office Exemple', notaires: ['Paul EXEMPLE'], ville: 'BLOIS', codePostal: '41000' });
+  const ok = app.valeurChampFicheAgent('notaire_vendeur', 'Paul EXEMPLE');
+  assert.equal(typeof ok.valeur, 'string', 'jamais un booléen : ' + JSON.stringify(ok));
+  assert.ok(app.valeurChampFicheAgent('notaire_vendeur', 'Maître Inventé TOTALEMENT (NULLEPART)').erreur);
+  app.carnetConfreres.length = 0;
+  assert.ok(app.valeurChampFicheAgent('adresse_bien', '12 rue [à compléter]').erreur);
+  const d = { id: 'd1', typeVente: 'maison', pieces: {} };
+  assert.equal(app.pieceChecklistParLibelle(d, 'de'), null, 'deux lettres ne désignent rien');
+});
