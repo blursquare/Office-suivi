@@ -532,41 +532,14 @@
         <span class="reglages-option-texte"><span class="reglages-option-titre">Lire les emails des dossiers</span></span>
         <wa-switch class="switch reglages-switch" id="emails-dossiers-actif" ${e.reglages.actif ? 'checked' : ''} onchange="basculerEmailsDossiers({ actif: this.checked })"></wa-switch>
       </label>
-      <label class="reglages-option" for="emails-dossiers-rangement-auto">
-        <span class="reglages-option-texte"><span class="reglages-option-titre">Ranger seul les pièces jointes sur le NAS${infoBulle('Éteint : aucune pièce jointe n’est copiée sur le NAS sans votre geste — « Ranger… » dans la fenêtre de lecture reste disponible. Allumé : toute pièce jointe reçue est rangée dans le dossier client (pièce reconnue dans son sous-dossier, sinon sous son nom).')}</span></span>
-        <wa-switch class="switch reglages-switch" id="emails-dossiers-rangement-auto" ${e.reglages.rangementAuto ? 'checked' : ''} onchange="basculerEmailsDossiers({ rangementAuto: this.checked })"></wa-switch>
-      </label>
       <ul class="emails-boites">
         ${ligneBoite('Boîte de réception du compte relié', e.recus || {})}
         ${(e.envoyes || []).map(b => ligneBoite(`Éléments envoyés — ${b.collaborateur}`, b)).join('')}
       </ul>
       <p class="hint">${e.nombre.recus} reçu(s) et ${e.nombre.envoyes} envoyé(s) rattachés aux dossiers${e.dernierTour ? ` · dernier tour ${escapeHtml(ilYaActivite(e.dernierTour, Date.now()))}` : ''}${e.erreur ? ` · ${escapeHtml(e.erreur)}` : ''}</p>
-      <wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="lireEmailsDossiersMaintenant(this)">Lire maintenant</wa-button>
-      <div class="reglages-champ">
-        <div class="reglages-champ-libelle"><label for="reglages-emails-exclus">Écartés du résumé du matin</label>${infoBulle('Déjà écartés d’office : SPF et SPFE, CRIDON, INFN, INAFON, publicités et lettres d’information. Ajoutez ici d’autres expéditeurs (adresse, domaine ou nom) ou mots de l’objet, séparés par des virgules. Ces emails sont comptés, jamais listés ni lus par l’IA.')}</div>
-        <input type="text" id="reglages-emails-exclus" placeholder="ex. adnov.fr, Notaires de France, webinaire">
-      </div>
-      <wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="enregistrerExclusionsResume(this)">Enregistrer</wa-button>`;
-    try {
-      const r = await fetchAvecAuth('/api/emails-matin/exclusions');
-      const champ = document.getElementById('reglages-emails-exclus');
-      if (r.ok && champ) champ.value = ((await r.json()).termes || []).join(', ');
-    } catch (_) { /* champ laissé vide */ }
-  }
-
-  async function enregistrerExclusionsResume(bouton) {
-    const champ = document.getElementById('reglages-emails-exclus');
-    if (!champ) return;
-    const termes = champ.value.split(/[,;\n]/).map(x => x.trim()).filter(Boolean);
-    if (bouton) bouton.disabled = true;
-    try {
-      const r = await fetchAvecAuth('/api/emails-matin/exclusions', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ termes }) });
-      if (!r.ok) throw new Error('statut ' + r.status);
-      champ.value = ((await r.json()).termes || []).join(', ');
-      afficherToast('Exclusions enregistrées : elles s’appliquent à la prochaine lecture de la boîte.', 'OK', null);
-    } catch (e) {
-      afficherToast('Enregistrement impossible : ' + e.message, 'OK', null);
-    } finally { if (bouton) bouton.disabled = false; }
+      <wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="lireEmailsDossiersMaintenant(this)">Lire maintenant</wa-button>`;
+    // Retirés le 13/10 (tri des réglages, étude) : « Ranger seul les pièces jointes sur le NAS » (coupé depuis le 03/10, emails reçus plus
+    // affichés depuis le 07/10) et « Écartés du résumé du matin » (résumé retiré le 07/10). Le code serveur reste, pour les rétablir.
   }
 
   async function basculerEmailsDossiers(reglage) {

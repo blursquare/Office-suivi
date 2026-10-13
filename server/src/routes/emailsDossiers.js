@@ -62,7 +62,8 @@ function creerRouteurEmailsDossiers(parametresRepo, depot, options = {}) {
   routeur.post('/emails-dossiers/reglages', (req, res) => {
     const etat = lireEtat(parametresRepo);
     if (req.body && typeof req.body.actif === 'boolean') etat.reglages.actif = req.body.actif;
-    if (req.body && typeof req.body.rangementAuto === 'boolean') etat.reglages.rangementAuto = req.body.rangementAuto;
+    // Rangement automatique des pièces jointes retiré des Réglages le 13/10 : toujours éteint (un réglage allumé avant est coupé).
+    if (req.body && typeof req.body.rangementAuto === 'boolean') etat.reglages.rangementAuto = false;
     res.json({ reglages: ecrireEtat(parametresRepo, etat).reglages });
   });
 

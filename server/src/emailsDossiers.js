@@ -104,7 +104,8 @@ function assainirEmailsDossiers(brut) {
   return {
     // `rangementAuto` : pièces jointes rangées seules sur le NAS — ÉTEINT par défaut (étude 03/10 : « pas encore au
     // point ») ; « Ranger… » à la main reste possible. Un réglage absent (état d'avant) vaut éteint.
-    reglages: { actif: !(b.reglages && b.reglages.actif === false), rangementAuto: !!(b.reglages && b.reglages.rangementAuto === true) },
+    // Rangement automatique des pièces jointes : retiré des Réglages le 13/10 (étude, tri des réglages) — toujours éteint.
+    reglages: { actif: !(b.reglages && b.reglages.actif === false), rangementAuto: false },
     etat: { dernierTour: dateIso(etat.dernierTour), erreur: etat.erreur ? texte(etat.erreur, 300) : null, recus: assainirEtatBoite(etat.recus), envoyes,
       // Adresses des fiches déjà relues sur 30 jours (null : jamais initialisé — la première lecture de 7 jours suffit).
       adressesVues: Array.isArray(etat.adressesVues) ? [...new Set(etat.adressesVues.filter((a) => typeof a === 'string' && /@/.test(a)).map((a) => a.toLowerCase().slice(0, 200)))].slice(-MAX_ADRESSES_VUES) : null,

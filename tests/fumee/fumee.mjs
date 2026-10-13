@@ -193,8 +193,12 @@ try {
       });
       await page.evaluate(() => { utilisateurPoste = 'Bastien ANGLUMENT'; assistantDisponibilite.agent = true; assistantDisponibilite.quand = Date.now(); definirOnglet('assistant'); });
       const avantAgent = erreurs.length;
-      await geste(page, 'agent : question', () => envoyerDemandeAssistant('Où en est MOREAU ?'));
+      // La question part sans attendre : le rappel demande une autorisation (13/10), cliquée comme le ferait l'utilisateur.
+      await geste(page, 'agent : question', () => { window.__questionAgent = envoyerDemandeAssistant('Où en est MOREAU ?'); return true; });
+      const carte = page.locator('#assistant-messages wa-button:has-text("Autoriser")').last();
+      await carte.waitFor({ timeout: 8000 }).then(() => carte.click()).catch(() => erreurs.push('agent : la carte « Autoriser » n’est pas apparue'));
       await page.waitForFunction(() => !assistantEnCours, null, { timeout: 8000 }).catch(() => {});
+      verifier(await page.evaluate(() => /Autorisé/.test(assistantMessages.map(m => m.html).join(''))), 'agent : le rappel n’est posé qu’après « Autoriser »');
       const agentFin = await page.evaluate(() => ({ dernier: (assistantMessages[assistantMessages.length - 1] || {}).html || '', rappel: rappelsPerso.some(x => x.texte === 'Relancer la banque') }));
       const parId = Object.fromEntries(resultatsAgent.map((x) => [x.id, x]));
       verifier(erreurs.length === avantAgent, 'agent : aucun outil ne lève d’erreur dans la page');
