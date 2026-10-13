@@ -19465,3 +19465,14 @@ Relecture indépendante : délai d'attente du signal porté de 5 à 8 s (PowerSh
 ### 13/10/2026 20 h 49 — 0.224.4 Fiche : seulement la préemption (DPU et SAFER) à droite du Tableau
 
 Étude, sur la 0.224.3 : « retire, et mets plutôt uniquement les dates d'échéance du droit de préemption urbain et de la SAFER ». « Toutes les échéances, dates et rappels » revient replié sous le tableau (comme avant le 13/10) ; à droite, `aside.tf-preemption` (320 px, `renderPreemptionTableauFiche`) : « Réponse à la DIA » (envoi relevé dans Authentic + 2 mois) et « Délai SAFER », lignes tirées de `lignesPreemptionFiche` — extraites d'`echeancesOrdonneesFiche`, qui les utilise toujours, donc identiques dans les deux listes. Sans date : l'état en un mot (DPU : non applicable / ✓ renonciation reçue / DIA pas encore envoyée ; SAFER : non applicable / ✓ non-préemption / pas de notification / notifiée, date d'envoi non relevée). Rien en participation ni en succession (`.tf-disposition.sans-cote`, le tableau garde toute la largeur). Test `tests/fiche-preemption-tableau.test.js`.
+
+### 13/10/2026 (soir) — 0.225.0 : dates modifiables et supprimables sur les cartes du Tableau
+
+Étude : « Permettre de modifier les dates d'échéances dans les cartes ou de les supprimer. » Chaque carte d'échéance du Tableau de la fiche
+porte, au bout de sa ligne de date, un crayon (champ date sur la carte, Entrée/✓ pour enregistrer, Échap/× pour annuler) et une croix
+(même confirmation que la liste). `dateModifiableCarteFiche` (pure, client/57) dit quelle date la carte touche : prêt, vente préalable,
+date butoir (« Fixer le rendez-vous » à faire), rendez-vous de signature (« Rendez-vous placé » fait), dates d'envoi de l'appel de fonds
+et du projet, échéances ajoutées `autre-N` ; jamais SAFER, DIA, rédaction, acte signé, ni un dossier archivé. Enregistrement par
+`enregistrerDateEcheanceSaisie` (extrait de `validerEditionDate`, voie unique avec le crayon de la liste : historique, notification,
+agenda de l'office, rendez-vous déplacé) ; suppression par `supprimerEcheanceAutre` / `supprimerDateEcheance` (effacer le prêt = sans
+prêt, comme la liste ; pas de croix sur le prêt dont l'offre est reçue). Échap annule la saisie sans fermer la fiche. Une carte en saisie ne se glisse pas ; un redessin garde la valeur tapée.

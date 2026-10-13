@@ -2397,7 +2397,12 @@
     const idBase = `tabdate-${dossierId}-${cle}`;
     const input = document.getElementById(idBase + '-input');
     if (!input) return;
-    const nouvelleDate = input.value || '';
+    enregistrerDateEcheanceSaisie(dossierId, cle, input.value || '');
+  }
+
+  // Enregistre une date saisie à la main (crayon de la liste des échéances, crayon d'une carte du Tableau) : `cle` = type ou
+  // « autre-<index> ». Vider la date du rendez-vous le supprime (même confirmation que la croix).
+  function enregistrerDateEcheanceSaisie(dossierId, cle, nouvelleDate) {
     const d = dossiers.find(x => x.id === dossierId);
     if (!d) return;
 

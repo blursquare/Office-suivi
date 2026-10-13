@@ -164,3 +164,56 @@ test('animations : une valeur inchangée ne s’anime pas, une première apparit
   assert.deepEqual(JSON.parse(JSON.stringify(app.etapeProgression(40, 75))), { de: 40, a: 75, anime: true });
   assert.deepEqual(JSON.parse(JSON.stringify(app.etapeProgression(undefined, 0))), { de: 0, a: 0, anime: false });
 });
+
+// Étude 13/10 : « permettre de modifier les dates d'échéances dans les cartes ou de les supprimer ».
+test('tableau : les cartes d’échéance portent la date à corriger, jamais un délai calculé ni un dossier archivé', () => {
+  const d = dossier({ ventebien: '2026-11-01', autres: [{ label: 'Diagnostic amiante', date: '2026-10-12' }, { label: 'Tâche faite', date: '2026-10-01' }], echeancesValidees: { 'autre-1': true } });
+  const cartes = Object.values(app.cartesTableauFiche(d, AUJ, [])).flat();
+  const par = (cle) => cartes.find(c => c.cle === cle);
+  assert.equal(par('echeance:pret').date.cle, 'pret');
+  assert.equal(par('echeance:pret').date.iso, '2026-11-20');
+  assert.equal(par('echeance:pret').date.supprimable, true);
+  assert.equal(par('echeance:ventebien').date.cle, 'ventebien');
+  assert.equal(par('echeance:autre-0').date.cle, 'autre-0');
+  assert.equal(par('echeance:autre-1').date.cle, 'autre-1', 'échéance ajoutée déjà faite : encore modifiable');
+  cartes.filter(c => c.cle.startsWith('piece:')).forEach(c => assert.equal(c.date, null));
+  const archive = Object.values(app.cartesTableauFiche(Object.assign({}, d, { archive: true }), AUJ, [])).flat();
+  archive.forEach(c => assert.equal(c.date, null, c.cle));
+});
+
+test('tableau : quelle date une carte modifie (pure)', () => {
+  const d = dossier({ appelFonds: '', autres: [{ label: 'X', date: '' }] });
+  assert.equal(app.dateModifiableCarteFiche(d, 'fixerRdv', null, false).cle, 'acte');
+  assert.equal(app.dateModifiableCarteFiche(d, 'fixerRdv', null, true).cle, 'rendezVousSignature');
+  const af = app.dateModifiableCarteFiche(d, 'appelFonds', null, false);
+  assert.equal(af.envoi, true);
+  assert.equal(af.supprimable, false, 'rien à effacer sans date d’envoi');
+  assert.equal(app.dateModifiableCarteFiche(d, 'safer', null, false), null);
+  assert.equal(app.dateModifiableCarteFiche(d, 'dia', null, false), null);
+  assert.equal(app.dateModifiableCarteFiche(d, 'redaction', null, false), null);
+  assert.equal(app.dateModifiableCarteFiche(d, 'signature', null, true), null);
+  assert.equal(app.dateModifiableCarteFiche(d, 'autre', 0, false).supprimable, true, 'une échéance ajoutée se retire même sans date');
+  assert.equal(app.dateModifiableCarteFiche(d, 'autre', 5, false), null);
+});
+
+test('tableau : la carte montre le crayon et la croix, puis le champ date en saisie', () => {
+  const c = { cle: 'echeance:pret', titre: 'Obtention du prêt', iso: '2026-11-20', jours: 41, sous: '', categorie: 'pret', fait: false, coche: null, bouton: null, onglet: '', date: { cle: 'pret', iso: '2026-11-20', supprimable: true, envoi: false } };
+  const html = app.renderCarteTableauFiche(c, false, 'd1');
+  assert.match(html, /modifierDateCarteFiche\('d1', 'echeance:pret'\)/);
+  assert.match(html, /supprimerDateCarteFiche\('d1', 'pret'\)/);
+  app.dateCarteEnEditionFiche = 'd1|echeance:pret';
+  const edition = app.renderCarteTableauFiche(c, false, 'd1');
+  app.dateCarteEnEditionFiche = '';
+  assert.match(edition, /type="date" id="tf-date-saisie" data-carte="echeance:pret" value="2026-11-20"/);
+  assert.match(edition, /validerDateCarteFiche\('d1', 'pret'\)/);
+  assert.doesNotMatch(edition, /draggable/);
+});
+
+test('tableau : pas de croix sur le prêt dont l’offre est reçue, Échap n’atteint pas la fiche', () => {
+  assert.equal(app.dateModifiableCarteFiche(dossier({ offrePretStatut: 'recue' }), 'pret', null, true).supprimable, false);
+  const c = { cle: 'echeance:pret', titre: 'Prêt', iso: '2026-11-20', jours: 1, date: { cle: 'pret', iso: '2026-11-20', supprimable: true, envoi: false } };
+  app.dateCarteEnEditionFiche = 'd1|echeance:pret';
+  const html = app.renderCarteTableauFiche(c, false, 'd1');
+  app.dateCarteEnEditionFiche = '';
+  assert.match(html, /stopPropagation\(\); annulerDateCarteFiche/);
+});

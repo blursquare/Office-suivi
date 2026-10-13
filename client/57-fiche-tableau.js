@@ -25,14 +25,36 @@ var LIBELLES_CATEGORIE_FICHE = {
   engagement: 'Engagement', acte: 'Signature'
 };
 var RE_PIECE_D_UN_TIERS = /pr[ée]emption|safer|\bdia\b|offre/i;
+// Dates posées sur la fiche qu'une carte peut corriger ou effacer (étude 13/10 : « modifier les dates d'échéances dans les cartes ou
+// les supprimer ») — les mêmes que le crayon et la croix de la liste des échéances (renderLigneEcheance). Les délais CALCULÉS
+// (SAFER, réponse à la DIA, rédaction, échéance de l'appel de fonds à J-10) ne se modifient pas : ils suivent leur source.
+var DATES_MODIFIABLES_CARTE_FICHE = ['pret', 'ventebien', 'acte', 'appelFonds', 'projetEnvoye', 'rendezVousSignature'];
 
 // Pure : l'écart en jours (négatif = dépassé) d'une date ISO, null sans date.
 function joursCarteTableau(iso, aujourdhuiIso) {
   return iso ? ecartJours(aujourdhuiIso, iso) : null;
 }
 
+// Pure : la date qu'une carte d'échéance permet de modifier — { cle, iso, supprimable, envoi } — ou null.
+//   `type` : type de l'échéance ou de l'étape (planning / etapesAvancement), `index` : rang dans d.autres pour une échéance ajoutée.
+// « Fixer le rendez-vous » porte la date butoir (acte) tant qu'il est à faire, le rendez-vous de signature une fois fait.
+function dateModifiableCarteFiche(d, type, index, fait) {
+  if (!d || d.archive) return null;
+  if (type === 'autre') {
+    const a = (d.autres || [])[index];
+    return a ? { cle: 'autre-' + index, iso: a.date || '', supprimable: true, envoi: false } : null;
+  }
+  const cle = type === 'fixerRdv' ? (fait ? 'rendezVousSignature' : 'acte') : type;
+  if (!DATES_MODIFIABLES_CARTE_FICHE.includes(cle)) return null;
+  const iso = d[cle] || '';
+  // Offre de prêt reçue : effacer la date du prêt passerait le dossier « sans prêt » — pas de croix (la date reste corrigeable).
+  const supprimable = !!iso && !(cle === 'pret' && d.offrePretStatut === 'recue');
+  return { cle, iso, supprimable, envoi: cle === 'appelFonds' || cle === 'projetEnvoye' };
+}
+
 // Pure : { obtenir, faire, attente, fait } — les cartes d'un dossier, chacune
-//   { cle, titre, sous, iso, jours, gravite, categorie, fait, auto, coche, bouton, onglet }.
+//   { cle, titre, sous, iso, jours, gravite, categorie, fait, auto, coche, bouton, onglet, date }.
+// `date` (dateModifiableCarteFiche) : la date de la fiche que la carte corrige (crayon) ou efface (croix), sinon null.
 // `coche` { onclick, libelle } : le geste de la case ronde (absent = rien à cocher ici : lue dans le NAS, Authentic ou l'agenda) ;
 // `bouton` { onclick, libelle, icone } : le geste principal d'une action du jour ; `onglet` : où mène le titre.
 // `actions` : les gestes du jour de ce dossier (actionsFicheDossier), passés pour que le calcul reste pur.
@@ -42,10 +64,10 @@ function cartesTableauFiche(d, aujourdhuiIso, actions) {
   const figee = !!d.archive;
   const id = escapeOnclickArg(d.id);
   const ajouter = (col, c) => {
-    const carte = Object.assign({ cle: '', titre: '', sous: '', iso: '', jours: null, gravite: '', categorie: '', fait: false, auto: false, coche: null, bouton: null, onglet: '' }, c);
+    const carte = Object.assign({ cle: '', titre: '', sous: '', iso: '', jours: null, gravite: '', categorie: '', fait: false, auto: false, coche: null, bouton: null, onglet: '', date: null }, c);
     carte.jours = joursCarteTableau(carte.iso, aujourdhuiIso);
     if (!carte.gravite && !carte.fait && carte.jours !== null) carte.gravite = carte.jours < 0 ? 'critique' : (carte.jours <= 3 ? 'vigilance' : '');
-    if (figee) { carte.coche = null; carte.bouton = null; }
+    if (figee) { carte.coche = null; carte.bouton = null; carte.date = null; }
     colonnes[col].push(carte);
   };
   const etapes = etapesAvancement(d, aujourdhuiIso);
@@ -108,6 +130,7 @@ function cartesTableauFiche(d, aujourdhuiIso, actions) {
     ajouter(attente ? 'attente' : 'faire', {
       cle: 'echeance:' + cle, titre: it.label, iso: it.iso || '', categorie: it.type === 'autre' ? 'autre' : it.type,
       sous: it.iso ? formatDateFr(it.iso) : '', onglet: it.type === 'safer' || it.type === 'dia' ? 'pieces' : '',
+      date: dateModifiableCarteFiche(d, it.type, it.index, false),
       coche: it.type === 'autre' || TYPES_ECHEANCE_COCHABLES_FICHE.includes(it.type) ? { onclick: `basculerEcheance('${id}', '${escapeOnclickArg(cle)}')`, libelle: 'Marquer fait' } : null
     });
   });
@@ -119,6 +142,7 @@ function cartesTableauFiche(d, aujourdhuiIso, actions) {
     ajouter('fait', {
       cle: 'etape:' + e.type, titre: e.type === 'fixerRdv' ? 'Rendez-vous de signature placé' : (e.type === 'signature' ? 'Acte signé' : e.label),
       iso: e.iso || '', sous: e.iso ? formatDateFr(e.iso) : '', categorie: e.type, fait: true, auto: !cochable,
+      date: dateModifiableCarteFiche(d, e.type, null, true),
       coche: cochable ? { onclick: `basculerEcheance('${id}', '${escapeOnclickArg(e.type)}')`, libelle: 'Rouvrir' } : null
     });
   });
@@ -128,7 +152,7 @@ function cartesTableauFiche(d, aujourdhuiIso, actions) {
   }
   (d.autres || []).forEach((a, i) => {
     if (!echeanceValidee(d, 'autre-' + i)) return;
-    ajouter('fait', { cle: 'echeance:autre-' + i, titre: a.label, iso: a.date || '', sous: a.date ? formatDateFr(a.date) : '', categorie: 'autre', fait: true, coche: { onclick: `basculerEcheance('${id}', 'autre-${i}')`, libelle: 'Rouvrir' } });
+    ajouter('fait', { cle: 'echeance:autre-' + i, titre: a.label, iso: a.date || '', sous: a.date ? formatDateFr(a.date) : '', categorie: 'autre', fait: true, date: dateModifiableCarteFiche(d, 'autre', i, true), coche: { onclick: `basculerEcheance('${id}', 'autre-${i}')`, libelle: 'Rouvrir' } });
   });
 
   // Ordre : à faire — les gestes du jour d'abord (déjà triés par urgence), puis les échéances par date ; les autres colonnes par date,
@@ -181,7 +205,65 @@ function classeDelaiCarteFiche(c) {
   return c.jours < 0 ? 'retard' : (c.jours <= 3 ? 'bientot' : '');
 }
 
-function renderCarteTableauFiche(c, changee) {
+// La carte dont la date est en cours de saisie (« <id du dossier>|<clé de la carte> »), '' sinon : un seul champ à la fois.
+var dateCarteEnEditionFiche = '';
+
+// Les gestes de date d'une carte : en saisie, le champ date + ✓ / annuler ; sinon le crayon et la croix.
+function renderDateCarteFiche(c, dossierId) {
+  const dt = c.date;
+  if (!dt || !dossierId) return { edition: '', icones: '' };
+  const id = escapeOnclickArg(dossierId);
+  const cleCarte = escapeOnclickArg(c.cle);
+  if (dateCarteEnEditionFiche === dossierId + '|' + c.cle) {
+    // Un redessin pendant la saisie (relecture des dossiers, relevé d'Authentic) garde ce qui est déjà tapé.
+    const enCours = document.getElementById('tf-date-saisie');
+    const valeur = enCours && typeof enCours.value === 'string' && enCours.dataset && enCours.dataset.carte === c.cle ? enCours.value : dt.iso;
+    return {
+      edition: `<div class="tf-date-edition">
+        <input type="date" id="tf-date-saisie" data-carte="${escapeAttr(c.cle)}" value="${escapeAttr(valeur)}" aria-label="${escapeAttr((dt.envoi ? 'Date d’envoi : ' : 'Date : ') + c.titre)}"
+          onkeydown="if (event.key === 'Enter') { event.preventDefault(); validerDateCarteFiche('${id}', '${escapeOnclickArg(dt.cle)}'); } else if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); annulerDateCarteFiche(); }">
+        <wa-button appearance="plain" size="s" type="button" class="bouton-icone" onclick="validerDateCarteFiche('${id}', '${escapeOnclickArg(dt.cle)}')" title="Enregistrer la date" aria-label="Enregistrer la date">${icone('check')}</wa-button>
+        <wa-button appearance="plain" size="s" type="button" class="bouton-icone" onclick="annulerDateCarteFiche()" title="Annuler" aria-label="Annuler">${icone('x')}</wa-button>
+      </div>`,
+      icones: ''
+    };
+  }
+  const libelleCrayon = dt.iso ? (dt.envoi ? 'Corriger la date d’envoi' : 'Modifier la date') : (dt.envoi ? 'Saisir la date d’envoi' : 'Saisir la date');
+  const crayon = `<wa-button appearance="plain" size="s" type="button" class="bouton-icone tf-ico" onclick="modifierDateCarteFiche('${id}', '${cleCarte}')" title="${escapeAttr(libelleCrayon)}" aria-label="${escapeAttr(libelleCrayon + ' : ' + c.titre)}">${icone('pencil')}</wa-button>`;
+  const suppr = dt.supprimable
+    ? `<wa-button appearance="plain" size="s" type="button" class="bouton-icone tf-ico tf-ico-suppr" onclick="supprimerDateCarteFiche('${id}', '${escapeOnclickArg(dt.cle)}')" title="${dt.cle.indexOf('autre-') === 0 ? 'Supprimer cette échéance' : 'Supprimer cette date'}" aria-label="${escapeAttr((dt.cle.indexOf('autre-') === 0 ? 'Supprimer l’échéance : ' : 'Supprimer la date : ') + c.titre)}">${icone('x')}</wa-button>`
+    : '';
+  return { edition: '', icones: `<span class="tf-ico-groupe">${crayon}${suppr}</span>` };
+}
+
+function modifierDateCarteFiche(dossierId, cleCarte) {
+  dateCarteEnEditionFiche = dossierId + '|' + cleCarte;
+  render();
+  const champ = document.getElementById('tf-date-saisie');
+  if (champ) champ.focus();
+}
+
+function annulerDateCarteFiche() {
+  dateCarteEnEditionFiche = '';
+  render();
+}
+
+// Même voie que le crayon de la liste des échéances (historique, notification, agenda de l'office, rendez-vous déplacé).
+function validerDateCarteFiche(dossierId, cle) {
+  const champ = document.getElementById('tf-date-saisie');
+  const nouvelleDate = champ ? champ.value || '' : '';
+  dateCarteEnEditionFiche = '';
+  enregistrerDateEcheanceSaisie(dossierId, cle, nouvelleDate);
+}
+
+// Même confirmation que la croix de la liste : une échéance ajoutée est retirée, une date de la fiche est vidée.
+function supprimerDateCarteFiche(dossierId, cle) {
+  dateCarteEnEditionFiche = '';
+  if (cle.indexOf('autre-') === 0) supprimerEcheanceAutre(dossierId, parseInt(cle.slice(6), 10));
+  else supprimerDateEcheance(dossierId, cle);
+}
+
+function renderCarteTableauFiche(c, changee, dossierId) {
   const rond = c.coche
     ? `<button type="button" class="tf-rond${c.fait ? ' on' : ''}" onclick="${c.coche.onclick}" aria-label="${escapeAttr(c.coche.libelle + ' : ' + c.titre)}" title="${escapeAttr(c.coche.libelle)}">${icone('check')}</button>`
     : `<span class="tf-rond tf-rond-auto" title="${escapeAttr(c.auto ? 'Lu automatiquement' : 'Se met à jour tout seul')}" aria-hidden="true">${icone(c.fait ? 'check' : 'clock')}</span>`;
@@ -197,10 +279,12 @@ function renderCarteTableauFiche(c, changee) {
   const date = c.jours !== null && !c.fait ? `<span class="tf-date">${escapeHtml(formatDateFr(c.iso))}</span>` : '';
   const libelleCategorie = LIBELLES_CATEGORIE_FICHE[c.categorie] || '';
   const categorie = libelleCategorie ? `<span class="dot-label dl-${escapeAttr(c.fait ? 'success' : (c.categorie || 'neutre'))} tf-categorie"><span class="dot"></span>${escapeHtml(libelleCategorie)}</span>` : '';
-  return `<article class="tf-carte${changee ? ' changee' : ''}${c.coche ? ' deplacable' : ''}${c.fait ? ' fait' : ''}${c.gravite ? ' ' + c.gravite : ''}" data-cle="${escapeAttr(c.cle)}"${c.coche ? ' draggable="true"' : ''}>
+  const gestesDate = renderDateCarteFiche(c, dossierId);
+  const deplacable = c.coche && !gestesDate.edition;
+  return `<article class="tf-carte${changee ? ' changee' : ''}${deplacable ? ' deplacable' : ''}${c.fait ? ' fait' : ''}${c.gravite ? ' ' + c.gravite : ''}" data-cle="${escapeAttr(c.cle)}"${deplacable ? ' draggable="true"' : ''}>
     ${categorie}
     <div class="tf-ligne">${rond}${titre}</div>
-    ${delai || sous || date ? `<div class="tf-meta">${delai}${date}${sous}</div>` : ''}
+    ${gestesDate.edition || (delai || sous || date || gestesDate.icones ? `<div class="tf-meta">${delai}${date}${sous}${gestesDate.icones}</div>` : '')}
     ${geste}
   </article>`;
 }
@@ -230,7 +314,7 @@ function renderTableauFiche(d, actions) {
     const liste = cartes[col.cle];
     return `<section class="tf-colonne" role="listitem" data-colonne="${col.cle}" aria-label="${escapeAttr(col.nom)}">
       <header class="tf-colonne-tete"><h3>${escapeHtml(col.nom)}</h3><span class="tf-nb">${liste.length}</span></header>
-      <div class="tf-cartes">${liste.length ? liste.map(c => renderCarteTableauFiche(c, changees.has(c.cle))).join('') : `<p class="tf-vide">${escapeHtml(col.vide)}</p>`}</div>
+      <div class="tf-cartes">${liste.length ? liste.map(c => renderCarteTableauFiche(c, changees.has(c.cle), d.id)).join('') : `<p class="tf-vide">${escapeHtml(col.vide)}</p>`}</div>
     </section>`;
   }).join('')}</div>`;
 }

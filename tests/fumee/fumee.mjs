@@ -104,6 +104,20 @@ try {
         for (const o of ONGLETS_FICHE) { await geste(page, `fiche ${id} › ${o}`, (x) => definirOngletFiche(x), o); await pause(150); await boutonsIntacts(page, `fiche ${id} › ${o}`); }
         await page.evaluate(() => { try { fermerDossierDrawer(); } catch (e) { /* déjà fermée */ } });
       }
+      // Dates sur les cartes du Tableau (13/10) : crayon → champ date → ✓ écrit la date sur la fiche, par le vrai clic.
+      await geste(page, 'carte : ouvrir la fiche', () => { ouvrirDossierDepuisDashboard('f1'); definirOngletFiche('tableau'); });
+      await pause(300);
+      await page.click('.tf-carte[data-cle="echeance:pret"] .tf-ico:not(.tf-ico-suppr)').catch((e) => erreurs.push('carte : crayon introuvable — ' + e.message.split('\n')[0]));
+      await pause(200);
+      const dateCarte = await geste(page, 'carte : saisir la date', () => {
+        const champ = document.getElementById('tf-date-saisie');
+        if (!champ) return 'pas de champ';
+        champ.value = '2027-01-15';
+        champ.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+        return dossiers.find(x => x.id === 'f1').pret;
+      });
+      verifier(dateCarte === '2027-01-15', `carte du Tableau : date du prêt modifiée (${dateCarte})`);
+      await page.evaluate(() => { try { fermerDossierDrawer(); } catch (e) { /* déjà fermée */ } });
       // Onglets de travail (11/10) : outil et fiches en onglets, la fiche en page masque l'écran, fermer rend l'écran d'avant,
       // les raccourcis de l'agenda ne jouent pas derrière une fiche, passer d'une fiche à l'autre vide les notifications.
       await page.evaluate(() => { try { localStorage.removeItem('claire-onglets-travail'); } catch (e) { /* sans stockage */ } ongletsTravail = []; });

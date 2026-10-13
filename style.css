@@ -4039,6 +4039,13 @@
   .tf-delai.fini { font-weight: 400; color: var(--muted); }
   .tf-date { font-variant-numeric: tabular-nums; }
   .tf-geste { align-self: flex-end; }
+  /* Date d'une carte : crayon et croix au bout de la ligne de date, discrets jusqu'au survol (toujours visibles au doigt). */
+  .tf-ico-groupe { display: inline-flex; gap: 0; margin-left: auto; opacity: 0.45; transition: opacity 0.15s; }
+  .tf-carte:hover .tf-ico-groupe, .tf-ico-groupe:focus-within { opacity: 1; }
+  @media (hover: none) { .tf-ico-groupe { opacity: 1; } }
+  .tf-ico-suppr:hover { color: var(--urgent); }
+  .tf-date-edition { display: flex; align-items: center; gap: 4px; padding-left: 28px; }
+  .tf-date-edition input[type="date"] { flex: 1 1 auto; min-width: 0; height: 32px; }
   .tf-repliable { margin-top: 16px; }
   /* Préemption (DPU, SAFER) à droite du tableau (étude 13/10) ; dessous quand la place manque. */
   .tf-disposition { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; align-items: start; }
