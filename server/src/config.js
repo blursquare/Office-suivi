@@ -77,6 +77,8 @@ function resoudreConfigExecutable(dossierExe, fsImpl = fs) {
       // fonctionnalité désactivée avec un message explicite, jamais un chemin deviné.
       nasRacine: brut.nasRacine || '',
       nasScans: brut.nasScans || '',
+      // Noms de machine acceptés en plus des adresses IP et de localhost (audit 13/10, voir securiteHote.js) — vide par défaut.
+      hotesAutorises: Array.isArray(brut.hotesAutorises) ? brut.hotesAutorises.filter((x) => typeof x === 'string') : [],
       authActive: brut.authActive === true,
       genere: false
     };

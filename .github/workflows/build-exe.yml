@@ -37,6 +37,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - uses: actions/setup-node@v4
         with:
@@ -88,7 +90,10 @@ jobs:
           CLAIRE_COMMIT: ${{ github.sha }}
         run: npm run build:exe
 
+      # Seule `main` publie (étude 14/10) : une release est installée seule au bureau dans les 10 minutes ; une construction
+      # lancée à la main depuis une autre branche vérifie le code sans rien publier.
       - name: Publier une release GitHub avec l'exécutable
+        if: github.ref == 'refs/heads/main'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |

@@ -19624,3 +19624,12 @@ contrôlées, deux expressions régulières à retour arrière exponentiel born�
 tesseract. Les points Moyen restants et leur plan sont dans le rapport.
 Relecture indépendante des correctifs : trois régressions corrigées avant l'envoi (fonds d'une société ou d'un nom sans capitales,
 rôles de l'acte masqués dans la relecture, « DIA » seul gardé pour ne pas décocher des renonciations reçues).
+
+### 14/10/2026 — 0.228.3 : réponses de l'étude à l'audit
+
+Étude : postes par « IP et localhost » ; « oui » pour interdire une construction d'une autre branche ; « non » au plafond de coût de
+l'IA et à la protection du relais Word. `server/src/securiteHote.js` (monté en tête d'`app.js`) : Host refusé (421) s'il n'est ni une
+IP, ni localhost, ni un nom de `hotesAutorises` (config.json, vide par défaut) — ferme le rebond DNS ; requête qui écrit refusée (403)
+si son Origin est une page d'un autre site (sans Origin, `moz-extension:` acceptés). Workflow : release publiée seulement sur `main`,
+`persist-credentials: false`. Tests `server/test/securite-hote.test.js`. Point terrain : postes qui ouvriraient CLAIRE par un nom de
+machine (à ajouter alors à `hotesAutorises`).

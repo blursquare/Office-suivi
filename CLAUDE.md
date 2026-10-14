@@ -17,7 +17,8 @@ durable, l'architecture ou « Ce qui reste ouvert » change.
 
 - **`main`** = la seule branche de travail : la **version serveur intranet** (Express +
   `node:sqlite`), distribuée à l'étude sous forme de `CLAIRE-serveur.exe` (Node SEA, Windows),
-  reconstruit et publié en release par `.github/workflows/build-exe.yml` à chaque push sur `main`.
+  reconstruit et publié en release par `.github/workflows/build-exe.yml` à chaque push sur `main` (**seule `main` publie** —
+  étude 14/10 : une construction lancée à la main depuis une autre branche vérifie sans publier).
 - **`sauvegarde`** = copie de `main` pour les essais de l'étude, sans développement propre.
 - **Session programmée « relecture des rapports techniques » (12 h 05 / 17 h 05) : JAMAIS de push sur `main`** (étude,
   03/10 — rappel après le commit direct `9ab862e` du 02/10). Un push sur `main` construit un `.exe` installé **seul** sur le
@@ -117,7 +118,10 @@ dans `index.html`** (le test `structure-client` refuse tout décalage).
    jamais d'auteur de signalement, de capture, de nom de dossier ni de valeur de champ) — tout ajout
    au rapport passe par `anonymiserTexte` et un test « aucun nom ne sort » ; **tout texte d'acte cité passe par `anonymiserClause`**
    (09/10 : nom après une civilité, adresse, commune, lieu-dit entre guillemets — un prénom et un domicile absents des fiches sortaient).
-2. **Accès sans mot de passe par défaut** (le réseau du bureau protège l'accès ;
+2. **Accès sans mot de passe par défaut** (le réseau du bureau protège l'accès ; **adresse IP ou localhost seulement** —
+   étude 14/10, `server/src/securiteHote.js` : Host d'un autre nom refusé (421, `hotesAutorises` de config.json en secours), requête
+   qui écrit venue d'une page d'un autre site refusée (403) ; une nouvelle voie d'accès au serveur (relais, script) envoie sans
+   Origin ou depuis l'adresse IP ;
    `"authActive": true` dans `config.json` le rétablit). Pas de compte par collaborateur : le
    collaborateur du poste est choisi une fois (`localStorage`), ses préférences vivent en base.
 3. **Le serveur lit le NAS** (`config.nasRacine`, jamais devinée). L'API File System Access du

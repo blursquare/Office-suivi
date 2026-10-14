@@ -722,10 +722,12 @@ test('décompte du confrère (étude 06/10) : demandé à J-10 (07/10) quand un 
   assert.ok(app.echangesSelonStade(base({}), '2026-09-20').autres.includes('relanceDecompteConfrere'));
   assert.ok(app.echangesSelonStade(base({ relanceDecompteConfrerePour: '2026-10-13', relanceDecompteConfrereLe: '2026-10-06' }), '2026-10-07').utiles.includes('relanceDecompteConfrere'));
   assert.ok(!app.echangesSelonStade(base({ notaireVendeur: 'Maître Sophie GOSSART (BLOIS)' }), '2026-10-06').utiles.concat().includes('relanceDecompteConfrere'));
-  const fonds = app.renderFondsDossier(base({}));
+  // L'onglet se dessine à la date du jour : rendez-vous dans 6 jours (le 13/10 fixé plus haut est passé depuis).
+  const rdvProche = app.addDays(app.isoAujourdhuiLocal(), 6);
+  const fonds = app.renderFondsDossier(base({ rendezVousSignature: rdvProche }));
   assert.match(fonds, /Demander son décompte au confrère/);
   assert.match(fonds, /envoyerRelanceCiblee\('d1', 'relanceDecompteConfrere'\)/);
-  assert.doesNotMatch(app.renderEchangesDossier(base({})), /Demander son décompte au confrère/);
-  assert.match(app.renderFondsDossier(base({ relanceDecompteConfrerePour: '2026-10-13', relanceDecompteConfrereLe: '2026-10-06' })), /Envoyé le 6 octobre 2026/);
-  assert.doesNotMatch(app.renderFondsDossier(base({ emailConfrereVendeur: '' })), /Demander son décompte au confrère/);
+  assert.doesNotMatch(app.renderEchangesDossier(base({ rendezVousSignature: rdvProche })), /Demander son décompte au confrère/);
+  assert.match(app.renderFondsDossier(base({ rendezVousSignature: rdvProche, relanceDecompteConfrerePour: rdvProche, relanceDecompteConfrereLe: '2026-10-06' })), /Envoyé le 6 octobre 2026/);
+  assert.doesNotMatch(app.renderFondsDossier(base({ rendezVousSignature: rdvProche, emailConfrereVendeur: '' })), /Demander son décompte au confrère/);
 });

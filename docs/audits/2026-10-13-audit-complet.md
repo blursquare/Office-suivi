@@ -84,3 +84,14 @@ mots dans la recherche des fonds (`nomsRecus` aussi) ; la relecture d'actes masq
 GENERALES », « Honoraires TTC »… (le bruit dont l'étude se plaint) ; retirer « DIA » seul aurait fait repasser « manquante » une
 renonciation déjà cochée par un fichier ainsi nommé. Hypothèses laissées (Bas) : un NAS noté par son IP et une sauvegarde par son nom
 de machine sont vus comme deux machines ; une adresse Exchange retapée autrement oublie le mot de passe enregistré.
+
+## Réponses de l'étude (14/10) et suite
+
+- **Adresse des postes** : « IP et localhost ». CLAIRE refuse désormais toute requête dont l'en-tête Host n'est ni une adresse IP
+  ni localhost (`server/src/securiteHote.js`, 421 avec un message qui le dit ; `hotesAutorises` dans config.json en secours), et
+  toute requête qui écrit venue d'une page d'un autre site (403 ; Word, PowerShell, 3CX et l'extension Firefox passent) — 0.228.3.
+- **Construction depuis une autre branche** : « Oui, l'interdire ». Le pas « Publier une release » ne tourne plus que sur `main` ;
+  le jeton GitHub n'est plus laissé dans le dépôt cloné (`persist-credentials: false`) — 0.228.3.
+- **Plafond de coût de l'IA** : « Non ». Rien n'est changé.
+- **Relais Word sans session** : « Non ». Rien n'est changé.
+- **Prêt attendu sans date** : expliqué à l'étude, décision attendue.

@@ -5,6 +5,7 @@
 
 const express = require('express');
 const path = require('node:path');
+const { creerControleHote } = require('./securiteHote');
 const fsp = require('node:fs/promises');
 
 const { creerGestionnaireAuth } = require('./auth');
@@ -134,6 +135,8 @@ function seaOuNull() {
 
 function creerApp({ db, config, envoyerEmailFn, creerClientClaude, appelerMistral, testerMistral, miseAJour, agenda, emailsMatin, rapportTechnique, sondages, exchange, emailsDossiers, urbanisme, assistant, relaisWord }) {
   const app = express();
+  // Avant tout : adresse et origine de la requête (securiteHote.js, audit 13/10).
+  app.use(creerControleHote(config));
   const depot = creerDepot(db);
   const parametresRepo = creerRepoParametres(db);
   // Journal technique (erreurs, événements des postes) : alimente le rapport technique GitHub.
