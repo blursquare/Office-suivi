@@ -322,8 +322,12 @@
       // Parcelle à cheval sur plusieurs zones (ou touchant la voisine) : les autres familles comptent aussi (audit 12/10 :
       // seule la première zone rendue était lue).
       const autresFamilles = [...new Set(((r && r.zones) || []).slice(1).map(x => familleZonePreemption(x && x.typezone)).filter(f => f && f !== lue))];
+      // Les autres zones rendues par le Géoportail (même de la même famille), pour les montrer à côté de la première (étude 14/10 :
+      // EB 469 « est en zone N », l'écran n'en montrait qu'une).
+      const autresZones = ((r && r.zones) || []).slice(1).filter(x => x && x.libelle && x.libelle !== (zone && zone.libelle))
+        .map(x => ({ libelle: x.libelle, typezone: x.typezone || '', libelong: x.libelong || '', famille: familleZonePreemption(x.typezone) }));
       return {
-        autresFamilles,
+        autresFamilles, autresZones,
         cle, libelle: `${z.section} ${Number(z.numero) || z.numero}`, statut: z.statut, erreur: z.erreur || '',
         zone: zone ? zone.libelle : '', typezone: zone ? zone.typezone : '', libelong: zone ? zone.libelong || '' : '',
         lue, famille: choix[cle] || lue, choisie: !!choix[cle],

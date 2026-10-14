@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.228.8';
+  const VERSION_APP = '0.228.10';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,8 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.228.10', date: '2026-10-14 15:48', resume: "Authentic : « Formulaire A - DIA auprès de la SAFER » envoyé le 10/08 avec réponse de non-préemption le 13/10 — la date d'envoi est la première (le délai part du 10/08), la réponse la seconde ; cette ligne ne marque plus, à tort, une demande de renonciation à la DIA de la mairie." },
+    { version: '0.228.9', date: '2026-10-14 15:46', resume: "Contrôle de l'urbanisme : le tableau des parcelles montre aussi les autres zones que le Géoportail rend pour une parcelle (« Touche aussi N »), pas seulement la première ; avant, une parcelle à cheval sur une zone U et une zone N n'affichait que la première." },
     { version: '0.228.8', date: '2026-10-14 15:31', resume: "Authentic : une pièce à l'état « Prêt pour envoi » (comme « Envoyé ») n'est plus marquée reçue dans CLAIRE ; seul « Prêt pour envoi » passait encore, « envoi » n'étant pas reconnu comme « envoy… »." },
     { version: '0.228.7', date: '2026-10-14 11:36', resume: "Appels 3CX : Réglages › Téléphonie 3CX propose un second fichier .reg, à faire importer par l'administrateur (Fichorga), qui autorise Chrome et Edge à ouvrir le lien de CLAIRE depuis son adresse sans demander confirmation à chaque appel." },
     { version: '0.228.6', date: '2026-10-14 11:05', resume: "Fiche, Tableau : la carte « Confirmer la réception des fonds » (cochable à la main) est aussi montrée pour un dossier en participation, sans attendre un appel de fonds noté envoyé." },

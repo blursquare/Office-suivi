@@ -345,7 +345,7 @@
         <td class="pr-zt-parcelle">${escapeHtml(l.libelle)}</td>
         <td class="pr-zt-zone">${l.statut === 'lecture' ? `<span class="hint">${icone('spinner')} Lecture…</span>`
           : l.statut === 'erreur' ? `<span class="pr-zt-erreur" title="${escapeAttr(l.erreur)}">${icone('alert-triangle')} ${escapeHtml(l.erreur)}</span>`
-          : l.zone ? `<strong>${escapeHtml(l.zone)}</strong>${l.libelong ? ` <span class="pr-zt-long" title="${escapeAttr(l.libelong)}">${escapeHtml(l.libelong)}</span>` : ''}` : '<span class="hint">aucune zone lue</span>'}</td>
+          : l.zone ? `<strong>${escapeHtml(l.zone)}</strong>${l.libelong ? ` <span class="pr-zt-long" title="${escapeAttr(l.libelong)}">${escapeHtml(l.libelong)}</span>` : ''}${(l.autresZones || []).length ? `<div class="pr-zt-aussi"><span class="dot-label dl-pret"><span class="dot"></span>Touche aussi</span> ${l.autresZones.map(z => `<strong>${escapeHtml(z.libelle)}</strong>${z.famille ? ` (${escapeHtml(z.famille)})` : ''}`).join(', ')}</div>` : ''}` : '<span class="hint">aucune zone lue</span>'}</td>
         <td class="pr-zt-retenue"><select aria-label="Zone retenue pour ${escapeAttr(l.libelle)}" onchange="choisirZoneParcellePreemption('${escapeOnclickArg(l.cle)}', this.value)">
           <option value="">${l.lue ? escapeHtml(l.lue) + ' (lue)' : 'Inconnue'}</option>
           ${ZONES_PREEMPTION.map(z => `<option value="${z.cle}"${l.choisie && l.famille === z.cle ? ' selected' : ''}>${escapeHtml(z.libelle)}</option>`).join('')}

@@ -860,6 +860,8 @@
     (lignes || []).forEach(l => {
       const titre = String(l.titre || '');
       const net = normaliserPourRecherche(titre);
+      // « Formulaire A - DIA auprès de la SAFER » : la notification à la SAFER, suivie à part, jamais la DIA de la mairie.
+      if (/safer/.test(net)) return;
       const estDemande = RE_DEMANDE_AUTHENTIC.test(net) || /envoy|attente|demand/.test(normaliserPourRecherche(l.etat || ''));
       let cle = '';
       if (/intention\s+d.?\s*alien|(?:^|[^a-z])dia(?:[^a-z]|$)/.test(net)) cle = 'renonciationPreemption';
@@ -1038,9 +1040,15 @@
       const texte = normaliserPourRecherche(l.texte || '');
       if (/pris(?:e)?\s+en\s+compte/.test(texte)) r.priseEnCompte = 'oui';
       const dates = l.dates || (l.date ? [l.date] : []);
+      // Ligne de RÉPONSE à deux dates (étude 14/10 : « envoyé le 10/08 et réponse de non-préemption reçue le 13/10 ») : envoi puis
+      // réponse, pas création puis envoi — le délai part de la première.
+      const reponseDeuxDates = dates.length === 2 && (RE_SAFER_NON_PREEMPTION.test(texte) || RE_SAFER_PREEMPTION_EXERCEE.test(texte));
       if (!r.envoyeeLe && dates.length) {
-        if (dates.length >= 2) r.creeeLe = dates[0];
-        r.envoyeeLe = dates.length >= 2 ? dates[1] : dates[0];
+        if (reponseDeuxDates) r.envoyeeLe = dates[0];
+        else {
+          if (dates.length >= 2) r.creeeLe = dates[0];
+          r.envoyeeLe = dates.length >= 2 ? dates[1] : dates[0];
+        }
         r.notifieeLe = r.envoyeeLe;
       }
       const mPec = /(?:pris(?:e)?\s+en\s+compte|retour)\s*(?:le)?\D{0,6}(\d{1,2}[\/.-]\d{1,2}[\/.-]\d{4})/.exec(texte);
@@ -1048,7 +1056,7 @@
       else if (!r.priseEnCompteLe && dates[2]) r.priseEnCompteLe = dates[2];
       // L'état (« Pris en compte », « Non préemption SAFER ») suit les dates sans date propre : la date
       // de la décision n'est connue que sur une ligne de réponse à une seule date, ou en 3e date.
-      const dateDecision = dates.length === 1 ? dates[0] : (dates[2] || '');
+      const dateDecision = dates.length === 1 ? dates[0] : (reponseDeuxDates ? dates[1] : (dates[2] || ''));
       if (RE_SAFER_NON_PREEMPTION.test(texte)) { r.decision = 'non_preemption'; r.decisionLe = dateDecision || r.decisionLe; }
       else if (!r.decision && RE_SAFER_PREEMPTION_EXERCEE.test(texte)) { r.decision = 'preemption'; r.decisionLe = dateDecision; }
     });

@@ -215,7 +215,8 @@ test('suiviSaferAuthentic et suiviRhfAuthentic : notifiée, prise en compte, ré
   assert.equal([sa.creeeLe, sa.envoyeeLe, sa.priseEnCompte, sa.priseEnCompteLe, sa.decision].join('|'), '2026-09-10|2026-09-15|oui||');
   assert.equal(app.echeanceSaferTacite(sa), '2026-11-15');
   const np = app.suiviSaferAuthentic(app.lignesDocumentsAuthentic(gestion));
-  assert.equal([np.decision, np.envoyeeLe, np.decisionLe].join('|'), 'non_preemption|2026-09-25|');
+  // Étude 14/10 : une ligne de décision à deux dates = envoi puis réponse (« envoyé le 10/08, non-préemption reçue le 13/10 »).
+  assert.equal([np.decision, np.envoyeeLe, np.decisionLe].join('|'), 'non_preemption|2026-09-10|2026-09-25');
   // Ligne de réponse à une seule date : c'est la date de la décision.
   assert.equal(app.suiviSaferAuthentic([{ titre: 'Réponse SAFER non préemption', dates: ['2026-09-25'], etat: 'Reçu', texte: 'Réponse SAFER non préemption · 25/09/2026 · Reçu' }]).decisionLe, '2026-09-25');
   // Relevé d'avant cette règle (sans envoyeeLe) : sa « prise en compte » était l'envoi.
@@ -1542,4 +1543,21 @@ test('Authentic : une pièce « Prêt pour envoi » ou « Envoyé » n’est jam
   });
   assert.equal(app.ligneAuthenticRecue({ titre: 'Acte de naissance', etat: 'Reçu' }), true);
   assert.equal(app.etatEtatCivilAuthentic({ titre: 'ECV - Acte de naissance', etat: 'Positif', texte: '' }), 'positif');
+});
+
+test('Authentic : DIA auprès de la SAFER, envoyée le 10/08 et non-préemption reçue le 13/10 (étude 14/10)', () => {
+  const titre = 'Formulaire A - DIA auprès de la safer Centre';
+  const ligne = { titre, date: '2026-08-10', dates: ['2026-08-10', '2026-10-13'], etat: 'Non préemption SAFER', texte: titre + ' · 10/08/2026 · 13/10/2026 · Non préemption SAFER' };
+  const s = app.suiviSaferAuthentic([ligne]);
+  assert.equal(s.envoyeeLe, '2026-08-10');
+  assert.equal(s.creeeLe, '');
+  assert.equal(s.decision, 'non_preemption');
+  assert.equal(s.decisionLe, '2026-10-13');
+  // Pièce « Réponse SAFER » reçue, jamais une demande de renonciation de la mairie.
+  assert.equal(app.piecesRecuesAuthentic([ligne], [], 'vente').map(p => p.label).join(), 'Réponse SAFER');
+  assert.equal(Object.keys(app.demandesUrbanismeAuthentic([ligne])).length, 0);
+  // Une ligne « pris en compte » à deux dates garde création puis envoi (étude 02/10).
+  const pec = app.suiviSaferAuthentic([{ titre, dates: ['2026-08-01', '2026-08-10'], etat: 'Pris en compte', texte: titre + ' Pris en compte' }]);
+  assert.equal(pec.envoyeeLe, '2026-08-10');
+  assert.equal(pec.creeeLe, '2026-08-01');
 });

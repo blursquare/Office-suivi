@@ -327,3 +327,14 @@ test('preemptionAutoAFaire : une lecture automatique d’avant les monuments his
   d.preemption.signature = app.signaturePreemptionDossier(d);
   assert.strictEqual(app.preemptionAutoAFaire(d), false, 'patrimoine gardé, même non lu → pas de boucle');
 });
+
+test('zonage : les autres zones touchées par une parcelle sont montrées avec leur famille (étude 14/10)', () => {
+  const zonages = [{ section: 'EB', numero: '0469', statut: 'ok', resultat: { zones: [
+    { libelle: 'Uv3', libelong: 'Secteur Village resserre', typezone: 'U' },
+    { libelle: 'N', libelong: 'Zone naturelle', typezone: 'N' }
+  ], parcelle: { contenance: 670 } } }];
+  const l = app.lignesZonageParcelles(zonages, {})[0];
+  assert.equal(l.zone, 'Uv3');
+  assert.equal(l.autresZones.map(z => `${z.libelle}:${z.famille}`).join(), 'N:N');
+  assert.equal(app.lignesZonageParcelles([{ section: 'EB', numero: '0468', statut: 'ok', resultat: { zones: [{ libelle: 'Uv3', typezone: 'U' }] } }], {})[0].autresZones.length, 0);
+});

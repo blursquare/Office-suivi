@@ -9202,6 +9202,7 @@ table.pr-zt tbody tr:last-child td { border-bottom: 0; }
 table.pr-zt tfoot td { border-top: 1px solid var(--line); border-bottom: 0; font-weight: 500; }
 .pr-zt-parcelle { white-space: nowrap; font-variant-numeric: tabular-nums; font-weight: 500; }
 .pr-zt-zone { min-width: 0; }
+.pr-zt-aussi { margin-top: 4px; font-size: var(--texte-s); }
 .pr-zt-long { color: var(--muted); display: inline-block; max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: bottom; }
 .pr-zt-erreur { color: var(--urgent); display: inline-flex; gap: 4px; align-items: center; }
 table.pr-zt td.pr-zt-retenue select { min-width: 120px; min-height: 32px; height: 32px; padding: 2px 8px; font-size: var(--texte-m); }
