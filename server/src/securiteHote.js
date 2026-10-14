@@ -39,8 +39,13 @@ function origineAutorisee(origine, hote, autres) {
   let url;
   try { url = new URL(o); } catch (_) { return false; }
   if (url.protocol !== 'http:' && url.protocol !== 'https:') return false;
-  const nom = nomHote(url.host);
-  return nom === nomHote(hote) || hoteAutorise(url.host, autres);
+  // Même adresse ET même port que la requête (la page de CLAIRE elle-même) — relecture 13/10 : accepter toute IP laissait passer
+  // une page hébergée sur une IP publique, ou un autre service du serveur. Un nom de `hotesAutorises` reste accepté.
+  const port = (h) => { const m = /:(\d+)$/.exec(String(h || '').replace(/^\[[^\]]*\]/, '')); return m ? m[1] : ''; };
+  const portOrigine = url.port || (url.protocol === 'https:' ? '443' : '80');
+  const portHote = port(hote) || '80';
+  if (nomHote(url.host) === nomHote(hote) && portOrigine === portHote) return true;
+  return (autres || []).map((x) => nomHote(x)).filter(Boolean).includes(nomHote(url.host));
 }
 
 /** Middleware Express. @param {{ hotesAutorises?: string[] }} [config] */

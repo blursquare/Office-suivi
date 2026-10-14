@@ -388,3 +388,13 @@ test('fonds reçus : une société, un nom sans capitales et les noms saisis gar
   const saisi = { id: 'n', nom: 'X / Y', nomsRecus: 'Jean', parties: [{ nom: 'Jean MARTIN', role: 'ACQUEREUR' }] };
   assert.ok(app.motsPayeurDossier(saisi, []).includes('jean'));
 });
+
+test('planning : prêt attendu sans date ni rendez-vous → « Obtention du prêt » à la date butoir, jamais l’appel de fonds (étude 14/10)', () => {
+  const P = require('../commun/planning');
+  const d = { id: 'p', nom: 'A / B', acte: '2026-12-15', pieces: {}, echeancesValidees: {} };
+  const items = P.echeancesPlanning(d);
+  assert.equal(items.map(it => `${it.type}@${it.iso}`).join(','), 'pret@2026-12-15');
+  // Sans prêt : l'étape suivante garde le filet d'avant.
+  const sans = P.echeancesPlanning({ ...d, sansPret: true });
+  assert.ok(!sans.some(it => it.type === 'pret'), sans.map(it => it.type).join(','));
+});

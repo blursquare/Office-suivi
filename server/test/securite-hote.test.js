@@ -19,6 +19,13 @@ test('Origin d’une requête qui écrit : CLAIRE, l’extension, aucune origine
   assert.equal(origineAutorisee('moz-extension://1234-abcd', '192.168.60.10:3000'), true);
   assert.equal(origineAutorisee('https://site-piege.exemple', '192.168.60.10:3000'), false);
   assert.equal(origineAutorisee('null', '192.168.60.10:3000'), false);
+  // Relecture 13/10 : une autre IP, ou un autre port du même serveur, n'est pas CLAIRE.
+  assert.equal(origineAutorisee('http://203.0.113.5', '192.168.60.10:3000'), false);
+  assert.equal(origineAutorisee('http://192.168.60.10:8080', '192.168.60.10:3000'), false);
+  assert.equal(origineAutorisee('http://127.0.0.1:9999', 'localhost:3000'), false);
+  assert.equal(origineAutorisee('http://192.168.60.10', '192.168.60.10'), true);
+  assert.equal(origineAutorisee('http://[::1]:3000', '[::1]:3000'), true);
+  assert.equal(origineAutorisee('http://srv-claire:3000', '192.168.60.10:3000', ['srv-claire']), true);
 });
 
 test('middleware : 421 sur un nom extérieur, 403 sur un POST venu d’ailleurs, sinon la requête passe', async () => {

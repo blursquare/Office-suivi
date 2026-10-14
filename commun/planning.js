@@ -315,8 +315,12 @@
     // dossier visible en ancrant cette étape sur la date butoir — seule échéance opérante tant
     // qu'aucun rendez-vous ne la remplace. Ciblé sur ce seul cas : jamais une échéance sur le butoir
     // quand le dossier a déjà autre chose à surveiller (prêt, vente préalable…).
-    if (!reels.length && etape && !etape.iso && d.acte && !d.rendezVousSignature && !echeanceValidee(d, 'acte')) {
-      reels = [Object.assign({}, etape, { iso: d.acte })];
+    // Prêt attendu sans date d'obtention saisie (étude 14/10, audit) : c'est LUI qu'on ancre sur la date butoir — avant, l'étape
+    // « Envoi appel de fonds » prenait sa place (et son rappel Teams) alors que le rendez-vous n'est même pas fixé.
+    const pretSansDate = items.find(it => it.type === 'pret' && !it.iso);
+    if (!reels.length && d.acte && !d.rendezVousSignature && !echeanceValidee(d, 'acte')) {
+      if (pretSansDate && !d.sansPret && !echeanceValidee(d, 'pret')) reels = [Object.assign({}, pretSansDate, { iso: d.acte })];
+      else if (etape && !etape.iso) reels = [Object.assign({}, etape, { iso: d.acte })];
     }
     return reels;
   }

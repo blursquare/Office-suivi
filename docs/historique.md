@@ -19633,3 +19633,7 @@ IP, ni localhost, ni un nom de `hotesAutorises` (config.json, vide par défaut) 
 si son Origin est une page d'un autre site (sans Origin, `moz-extension:` acceptés). Workflow : release publiée seulement sur `main`,
 `persist-credentials: false`. Tests `server/test/securite-hote.test.js`. Point terrain : postes qui ouvriraient CLAIRE par un nom de
 machine (à ajouter alors à `hotesAutorises`).
+Étude : « Oui, affiche Obtention du prêt à la date butoir » — dossier au prêt attendu sans date d'obtention saisie ni rendez-vous :
+le filet de `echeancesPlanning` ancre « Obtention du prêt » sur la date butoir (rappels J-15/J-7 du prêt) au lieu de « Envoi appel de
+fonds ». Relecture : Origin d'une écriture = exactement l'adresse et le port de CLAIRE (ou un nom de `hotesAutorises`) ; release
+`--target` sur le commit construit.

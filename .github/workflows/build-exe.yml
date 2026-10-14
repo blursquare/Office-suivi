@@ -99,5 +99,6 @@ jobs:
         run: |
           gh release create "serveur-exe-${{ github.run_number }}" \
             server/build/CLAIRE-serveur.exe \
+            --target "${{ github.sha }}" \
             --title "CLAIRE-serveur.exe (build ${{ github.run_number }})" \
             --notes "Exécutable Windows autonome du serveur intranet CLAIRE, généré automatiquement depuis le commit ${{ github.sha }}. Voir server/README.md pour l'installation et l'avertissement SmartScreen (exécutable non signé)."

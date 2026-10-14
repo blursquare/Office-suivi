@@ -94,4 +94,7 @@ de machine sont vus comme deux machines ; une adresse Exchange retapée autremen
   le jeton GitHub n'est plus laissé dans le dépôt cloné (`persist-credentials: false`) — 0.228.3.
 - **Plafond de coût de l'IA** : « Non ». Rien n'est changé.
 - **Relais Word sans session** : « Non ». Rien n'est changé.
-- **Prêt attendu sans date** : expliqué à l'étude, décision attendue.
+- **Prêt attendu sans date** : « Oui, affiche Obtention du prêt à la date butoir ». Le filet du planning (`commun/planning.js`) ancre
+  désormais le prêt attendu sur la date butoir, plus l'appel de fonds — 0.228.3.
+- Relecture de la 0.228.3 : l'origine d'une écriture doit être exactement l'adresse de CLAIRE, port compris (une autre IP était
+  acceptée) ; la release est posée sur le commit construit (`--target`).
