@@ -17,17 +17,20 @@ const HAUTEUR = 800;
 const MAX_ELEMENTS = 160;
 const MAX_TEXTE_PAGE = 9000;
 const MAX_DOCUMENTS = 20;
+const MAX_OCTETS_DOCUMENT = 25 * 1024 * 1024;
 const TYPES_DOCUMENTS = /^(application\/pdf|application\/x-pdf|image\/(png|jpe?g|gif|tiff))/i;
 
-/** Pure : l'hôte d'une adresse est-il dans la liste (le domaine lui-même ou un sous-domaine) ? Seul https (et http d'un hôte listé).
+/** Pure : l'hôte d'une adresse est-il dans la liste (le domaine lui-même ou un sous-domaine) ? https seulement (http pour la seule
+ * boucle locale, celle des essais) ; ni data:, ni blob:, ni identifiants dans l'adresse (audit 0.229.0).
  * @param {string} adresse @param {string[]} domaines */
 function adresseAutorisee(adresse, domaines) {
-  if (/^(about:blank|data:)/i.test(String(adresse || ''))) return true;
+  if (String(adresse || '') === 'about:blank') return true;
   let u;
   try { u = new URL(String(adresse)); } catch (_) { return false; }
-  if (u.protocol !== 'https:' && u.protocol !== 'http:') return false;
-  if (u.username || u.password) return false;
   const hote = u.hostname.toLowerCase().replace(/\.$/, '');
+  const boucleLocale = hote === '127.0.0.1' || hote === 'localhost';
+  if (u.protocol !== 'https:' && !(u.protocol === 'http:' && boucleLocale)) return false;
+  if (u.username || u.password) return false;
   return domaines.some((d) => hote === d || hote.endsWith('.' + d));
 }
 
@@ -87,11 +90,12 @@ const TOUCHES = {
 const attendre = (ms) => new Promise((r) => setTimeout(r, ms));
 
 class SessionNavigation {
-  /** @param {any} lancement rendu par lancerNavigateur @param {{ domaines: string[] }} o */
+  /** @param {any} lancement rendu par lancerNavigateur @param {{ domaines: string[], refuserAdresse?: (adresse: string) => boolean }} o */
   constructor(lancement, o) {
     this.lancement = lancement;
     this.cdp = lancement.cdp;
     this.domaines = o.domaines;
+    this.refuserAdresse = o.refuserAdresse || (() => false);
     /** @type {Array<{ cible: string, session: string, ouvreur: string }>} */
     this.onglets = [];
     /** @type {Array<{ id: string, nom: string, type: string, octets: Buffer, adresse: string, le: number }>} */
@@ -101,20 +105,29 @@ class SessionNavigation {
     this.compteurDocuments = 0;
     /** @type {Array<{ methode: string, corps: string, adresse: string }>} */
     this.envois = [];
+    /** Mots de passe tapés pendant la séance : aucune capture tant que l'un d'eux se lit en clair à l'écran. @type {string[]} */
+    this.secrets = [];
     this.arreterEcoute = this.cdp.ecouter((m) => { this.surEvenement(m).catch(() => {}); });
   }
 
-  /** Lance un navigateur et ouvre un premier onglet. @param {{ profil: string, chemin?: string, domaines: string[], lancer?: Function }} o */
+  /** Lance un navigateur et ouvre un premier onglet.
+   * @param {{ profil: string, chemin?: string, domaines: string[], lancer?: Function, refuserAdresse?: (adresse: string) => boolean }} o */
   static async ouvrir(o) {
     const lancement = await (o.lancer || lancerNavigateur)({ profil: o.profil, chemin: o.chemin, largeur: LARGEUR, hauteur: HAUTEUR });
-    const s = new SessionNavigation(lancement, { domaines: o.domaines });
-    await s.cdp.envoyer('Browser.setDownloadBehavior', { behavior: 'deny' }).catch(() => {});
-    await s.cdp.envoyer('Target.setAutoAttach', { autoAttach: true, waitForDebuggerOnStart: true, flatten: true });
-    // L'onglet que Chrome ouvre au démarrage sert d'onglet de travail (un second, vide, resterait derrière : fermer une fenêtre
-    // ouverte par le site ramènerait sur lui).
-    for (let i = 0; i < 40 && !s.onglets.length; i++) await attendre(50);
-    if (!s.onglets.length) await s.nouvelOnglet();
-    return s;
+    const s = new SessionNavigation(lancement, { domaines: o.domaines, refuserAdresse: o.refuserAdresse });
+    try {
+      await s.cdp.envoyer('Browser.setDownloadBehavior', { behavior: 'deny' }).catch(() => {});
+      await s.cdp.envoyer('Target.setAutoAttach', { autoAttach: true, waitForDebuggerOnStart: true, flatten: true });
+      // L'onglet que Chrome ouvre au démarrage sert d'onglet de travail (un second, vide, resterait derrière : fermer une fenêtre
+      // ouverte par le site ramènerait sur lui).
+      for (let i = 0; i < 40 && !s.onglets.length; i++) await attendre(50);
+      if (!s.onglets.length) await s.nouvelOnglet();
+      return s;
+    } catch (e) {
+      // Jamais un Chrome laissé ouvert : il garderait le profil et bloquerait toutes les consultations suivantes (relecture 0.229.0).
+      await s.fermer().catch(() => {});
+      throw e;
+    }
   }
 
   /** @param {any} m */
@@ -122,7 +135,14 @@ class SessionNavigation {
     if (m.method === 'Target.attachedToTarget') {
       const info = m.params.targetInfo || {};
       const session = m.params.sessionId;
-      if (info.type !== 'page') { await this.cdp.envoyer('Runtime.runIfWaitingForDebugger', {}, session).catch(() => {}); return; }
+      if (info.type !== 'page') {
+        // Un cadre d'un autre site (hors processus) passe sous le même filtre que la page ; sans filtre, il est fermé.
+        if (info.type === 'iframe' && !(await this.filtrer(session))) { await this.cdp.envoyer('Target.detachFromTarget', { sessionId: session }).catch(() => {}); return; }
+        await this.cdp.envoyer('Runtime.runIfWaitingForDebugger', {}, session).catch(() => {});
+        return;
+      }
+      // Le filtre de la liste blanche d'abord : un onglet qui ne peut pas être filtré est fermé (audit 0.229.0, jamais ouvert « sans filtre »).
+      if (!(await this.filtrer(session))) { await this.cdp.envoyer('Target.closeTarget', { targetId: info.targetId }).catch(() => {}); return; }
       await this.preparerOnglet(session);
       if (!this.onglets.some((o) => o.cible === info.targetId)) this.onglets.push({ cible: info.targetId, session, ouvreur: info.openerId || '' });
       await this.cdp.envoyer('Runtime.runIfWaitingForDebugger', {}, session).catch(() => {});
@@ -135,19 +155,28 @@ class SessionNavigation {
     if (m.method === 'Fetch.requestPaused') await this.surRequete(m.sessionId, m.params);
   }
 
+  /** Le filtre de la liste blanche sur un onglet ou un cadre. Rend faux s'il n'a pas pu être posé. @param {string} session */
+  async filtrer(session) {
+    try {
+      // Documents (pages, cadres) à la requête et à la réponse ; les PDF demandés par un script seulement (pas les tuiles des cartes).
+      await this.cdp.envoyer('Fetch.enable', { patterns: [
+        { urlPattern: '*', resourceType: 'Document', requestStage: 'Request' },
+        { urlPattern: '*', resourceType: 'Document', requestStage: 'Response' },
+        { urlPattern: '*.pdf*', resourceType: 'XHR', requestStage: 'Response' },
+        { urlPattern: '*.pdf*', resourceType: 'Fetch', requestStage: 'Response' }
+      ] }, session);
+      await this.cdp.envoyer('Target.setAutoAttach', { autoAttach: true, waitForDebuggerOnStart: true, flatten: true }, session).catch(() => {});
+      return true;
+    } catch (_) { return false; }
+  }
+
   /** @param {string} session */
   async preparerOnglet(session) {
     await Promise.all([
       this.cdp.envoyer('Page.enable', {}, session),
       this.cdp.envoyer('Emulation.setDeviceMetricsOverride', { width: LARGEUR, height: HAUTEUR, deviceScaleFactor: 1, mobile: false }, session),
-      this.cdp.envoyer('Fetch.enable', { patterns: [
-        { urlPattern: '*', resourceType: 'Document', requestStage: 'Request' },
-        { urlPattern: '*', resourceType: 'Document', requestStage: 'Response' },
-        { urlPattern: '*', resourceType: 'XHR', requestStage: 'Response' },
-        { urlPattern: '*', resourceType: 'Fetch', requestStage: 'Response' }
-      ] }, session),
-      this.cdp.envoyer('Emulation.setTimezoneOverride', { timezoneId: 'Europe/Paris' }, session).catch(() => {})
-    ]).catch(() => {});
+      this.cdp.envoyer('Emulation.setTimezoneOverride', { timezoneId: 'Europe/Paris' }, session)
+    ].map((p) => p.catch(() => {})));
   }
 
   /** @param {string} session @param {any} p */
@@ -156,13 +185,15 @@ class SessionNavigation {
     try {
       if (p.responseStatusCode === undefined && p.responseErrorReason === undefined) {
         // Étape « requête » d'un document : hors liste, refusé.
-        if (!adresseAutorisee(adresse, this.domaines)) {
+        if (!adresseAutorisee(adresse, this.domaines) || this.refuserAdresse(adresse)) {
           this.bloques.push(adresse.slice(0, 200));
           await this.cdp.envoyer('Fetch.failRequest', { requestId: p.requestId, errorReason: 'BlockedByClient' }, session);
           return;
         }
-        if (p.request && p.request.method === 'POST') this.envois.push({ methode: 'POST', corps: String(p.request.postData || '').slice(0, 20000), adresse: adresse.slice(0, 300) });
-        if (this.envois.length > 30) this.envois.shift();
+        // Seule l'emprise imprimée envoyée par le site du cadastre est gardée (jamais le corps d'une connexion).
+        const corps = p.request && p.request.method === 'POST' ? String(p.request.postData || '') : '';
+        if (/(^|&)MAPBBOX=/.test(corps)) this.envois.push({ methode: 'POST', corps: corps.slice(0, 20000), adresse: adresse.slice(0, 300) });
+        if (this.envois.length > 10) this.envois.shift();
         await this.cdp.envoyer('Fetch.continueRequest', { requestId: p.requestId }, session);
         return;
       }
@@ -170,11 +201,12 @@ class SessionNavigation {
       const type = String((entetes.find((h) => /^content-type$/i.test(h.name)) || {}).value || '');
       const enPieceJointe = entetes.some((h) => /^content-disposition$/i.test(h.name) && /attachment/i.test(h.value));
       const ok = Number(p.responseStatusCode) >= 200 && Number(p.responseStatusCode) < 300;
-      if (ok && (TYPES_DOCUMENTS.test(type) || (enPieceJointe && /octet-stream/i.test(type))) && (p.resourceType === 'Document' || TYPES_DOCUMENTS.test(type) && /pdf/i.test(type))) {
+      const longueur = Number((entetes.find((h) => /^content-length$/i.test(h.name)) || {}).value || 0);
+      if (ok && longueur <= MAX_OCTETS_DOCUMENT && (TYPES_DOCUMENTS.test(type) || (enPieceJointe && /octet-stream/i.test(type))) && (p.resourceType === 'Document' || /pdf/i.test(type))) {
         const corps = await this.cdp.envoyer('Fetch.getResponseBody', { requestId: p.requestId }, session).catch(() => null);
         if (corps) {
           const octets = Buffer.from(corps.body || '', corps.base64Encoded ? 'base64' : 'utf8');
-          if (octets.length) this.garderDocument(nomFichierReponse(entetes, adresse), type.split(';')[0].trim() || 'application/octet-stream', octets, adresse);
+          if (octets.length && octets.length <= MAX_OCTETS_DOCUMENT) this.garderDocument(nomFichierReponse(entetes, adresse), type.split(';')[0].trim() || 'application/octet-stream', octets, adresse);
         }
       }
       await this.cdp.envoyer('Fetch.continueRequest', { requestId: p.requestId }, session);
@@ -281,7 +313,9 @@ class SessionNavigation {
       e.scrollIntoView({ block: 'center', inline: 'center' }); const r = e.getBoundingClientRect();
       const t = (e.getAttribute('type') || '').toLowerCase();
       return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2), balise: e.tagName.toLowerCase(), type: t,
-        libelle: String(e.getAttribute('aria-label') || e.getAttribute('title') || e.innerText || e.value || e.getAttribute('alt') || '').replace(/\\s+/g, ' ').trim().slice(0, 120),
+        libelle: String(e.getAttribute('aria-label') || (e.labels && e.labels[0] ? e.labels[0].innerText : '') || e.getAttribute('placeholder') || e.getAttribute('title')
+          || e.innerText || e.value || e.getAttribute('alt') || (e.querySelector && e.querySelector('img[alt]') ? e.querySelector('img[alt]').getAttribute('alt') : '')
+          || e.getAttribute('name') || '').replace(/\\s+/g, ' ').trim().slice(0, 120),
         lien: e.tagName === 'A' ? String(e.href || '') : '' }; })()`);
     if (!r) throw Object.assign(new Error(`élément ${n} introuvable (relire la page)`), { refus: true });
     return r;
@@ -321,9 +355,36 @@ class SessionNavigation {
     await attendre(400);
   }
 
-  /** Écrit un secret (mot de passe, identifiant) : la valeur n'est jamais rendue ni journalisée. @param {number} ref @param {string} secret */
-  async saisirSecret(ref, secret) {
+  /** Écrit un secret (mot de passe, identifiant) : la valeur n'est jamais rendue ni journalisée. Le CODE vérifie avant de taper
+   * (audit 0.229.0) : page principale (pas un cadre), site autorisé, et un vrai champ de connexion — type « password » pour le mot de
+   * passe ; email/texte d'un formulaire (ou marqué identifiant) pour l'identifiant. Sinon refus, rien n'est tapé.
+   * @param {number} ref @param {string} secret @param {'identifiant'|'motDePasse'} genre */
+  async saisirSecret(ref, secret, genre) {
+    const n = Math.max(0, Math.floor(Number(ref) || 0));
+    const info = await this.evaluer(`(() => { const e = document.querySelector('[data-claire-ref="${n}"]');
+      if (!e || e.tagName !== 'INPUT' || window.top !== window) return null;
+      return { adresse: location.href, type: String(e.type || '').toLowerCase(), ac: String(e.autocomplete || '').toLowerCase(),
+        nom: String(e.name || e.id || '').toLowerCase(), formulaire: !!e.form, avecMotDePasse: !!(e.form && e.form.querySelector('input[type=password]')) }; })()`);
+    const siteOk = !!info && adresseAutorisee(info.adresse, this.domaines) && info.adresse !== 'about:blank';
+    const champOk = !!info && (genre === 'motDePasse'
+      ? info.type === 'password'
+      : ['email', 'text'].includes(info.type) && (info.avecMotDePasse || /username|email/.test(info.ac) || /(login|user|email|mail|identifiant|compte)/.test(info.nom)));
+    if (!siteOk || !champOk) throw Object.assign(new Error('refusé : ce champ n’est pas un champ de connexion du site autorisé — rien n’a été tapé'), { refus: true });
+    if (genre === 'motDePasse' && secret && !this.secrets.includes(secret)) this.secrets.push(secret);
     await this.saisir(ref, secret);
+  }
+
+  /** Ce qui est sous un point de l'écran (pour refuser un clic d'achat fait par position). @param {number} x @param {number} y */
+  async elementSousPosition(x, y) {
+    return this.evaluer(`(() => { const e = document.elementFromPoint(${Math.round(Number(x) || 0)}, ${Math.round(Number(y) || 0)});
+      const c = e && (e.closest('a,button,[role=button],input,[onclick],label') || e);
+      return c ? { libelle: String(c.innerText || c.value || c.getAttribute('aria-label') || c.title || '').replace(/\\s+/g, ' ').slice(0, 200), lien: String(c.href || '') } : null; })()`);
+  }
+
+  /** Le formulaire du champ actif : ce qu'Entrée enverrait (adresse et libellés des boutons d'envoi). */
+  async formulaireActif() {
+    return this.evaluer(`(() => { const e = document.activeElement; const f = e && e.form; if (!f) return null;
+      return { action: String(f.action || ''), boutons: [...f.querySelectorAll('button, input[type=submit]')].map((b) => String(b.innerText || b.value || '')).join(' | ').slice(0, 300) }; })()`);
   }
 
   /** Choisit une option d'une liste (par son texte, ou sa valeur). @param {number} ref @param {string} option */
@@ -361,14 +422,24 @@ class SessionNavigation {
     await attendre(900);
   }
 
-  /** Capture de l'écran de l'onglet actif (JPEG, base64). */
+  /** Un secret tapé se lit-il en clair dans la page (champ hors « password », bouton « afficher le mot de passe ») ? */
+  async secretVisible() {
+    if (!this.secrets.length) return false;
+    return !!(await this.evaluer(`(() => { const s = ${JSON.stringify(this.secrets)};
+      return [...document.querySelectorAll('input, textarea')].some((e) => String(e.type || '').toLowerCase() !== 'password' && s.some((x) => String(e.value || '').includes(x)))
+        || s.some((x) => (document.body ? document.body.innerText : '').includes(x)); })()`).catch(() => true));
+  }
+
+  /** Capture de l'écran de l'onglet actif (JPEG, base64). Refusée si le mot de passe s'y lirait (relecture 0.229.0). */
   async capture() {
+    if (await this.secretVisible()) throw Object.assign(new Error('capture refusée : le mot de passe se lit en clair à l’écran'), { refus: true });
     const r = await this.cdp.envoyer('Page.captureScreenshot', { format: 'jpeg', quality: 72 }, this.ongletActif().session);
     return String(r.data || '');
   }
 
   /** Capture PNG nette (pour un document gardé). */
   async capturePng() {
+    if (await this.secretVisible()) throw Object.assign(new Error('capture refusée : le mot de passe se lit en clair à l’écran'), { refus: true });
     const r = await this.cdp.envoyer('Page.captureScreenshot', { format: 'png' }, this.ongletActif().session);
     return Buffer.from(String(r.data || ''), 'base64');
   }

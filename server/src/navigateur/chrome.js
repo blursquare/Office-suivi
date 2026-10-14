@@ -60,10 +60,12 @@ function argumentsLancement(profil, taille) {
   return [
     '--headless=new', '--remote-debugging-pipe', `--user-data-dir=${profil}`,
     '--no-first-run', '--no-default-browser-check', '--disable-extensions', '--disable-sync', '--disable-background-networking',
-    '--disable-component-update', '--disable-default-apps', '--disable-features=Translate,MediaRouter,OptimizationHints',
+    '--disable-component-update', '--disable-default-apps',
     '--mute-audio', '--hide-scrollbars', '--lang=fr-FR', `--window-size=${taille.largeur},${taille.hauteur}`,
     // Cartes en WebGL (Géofoncier) : dessinées par le processeur, sans carte graphique.
     '--use-angle=swiftshader', '--enable-unsafe-swiftshader',
+    // Les cadres d'autres sites restent dans le processus de la page, sous son filtre de liste blanche (audit 0.229.0).
+    '--disable-site-isolation-trials', '--disable-features=IsolateOrigins,site-per-process',
     'about:blank'
   ];
 }
@@ -81,17 +83,22 @@ class ConnexionCdp {
     /** @type {Array<(m: any) => void>} */
     this.ecouteurs = [];
     this.ferme = false;
-    let reste = Buffer.alloc(0);
+    // Morceaux gardés en liste, réunis seulement à l'arrivée d'un octet nul (une capture ou un PDF arrive en centaines de morceaux).
+    /** @type {Buffer[]} */
+    let morceaux = [];
     lecture.on('data', (morceau) => {
-      reste = Buffer.concat([reste, morceau]);
+      let debut = 0;
       let i;
-      while ((i = reste.indexOf(0)) >= 0) {
-        const brut = reste.subarray(0, i).toString('utf8');
-        reste = reste.subarray(i + 1);
+      while ((i = morceau.indexOf(0, debut)) >= 0) {
+        morceaux.push(morceau.subarray(debut, i));
+        const brut = Buffer.concat(morceaux).toString('utf8');
+        morceaux = [];
+        debut = i + 1;
         let m;
         try { m = JSON.parse(brut); } catch (_) { continue; }
         this.recevoir(m);
       }
+      if (debut < morceau.length) morceaux.push(morceau.subarray(debut));
     });
     lecture.on('close', () => this.fermer('navigateur arrêté'));
     lecture.on('error', () => this.fermer('navigateur arrêté'));

@@ -19,6 +19,8 @@ const RE_ACHAT = /(?<![a-zà-ÿ])(payer|paiement|acheter|achat|commander|command
 const RE_COMPTE = /(supprimer (mon|le) compte|changer (le|mon) mot de passe|modifier (mon|le) mot de passe|d[ée]sinscri|r[ée]silier)/i;
 
 const MAX_TOURS = 45;
+// Plafond de coût d'UNE consultation (audit 0.229.0) : au-delà, l'agent doit conclure avec ce qu'il a.
+const PLAFOND_COUT_USD = 3;
 const DUREE_MAX_MS = 10 * 60 * 1000;
 const MAX_JETONS = 6000;
 const IMAGES_GARDEES = 2;
@@ -70,6 +72,14 @@ const OUTILS_NAVIGATION = [
       } } }
 ];
 
+/** Pure : une adresse qui mène à un achat (panier, commande, paiement, abonnement) — le navigateur ne la charge pas. @param {string} adresse */
+function adresseAchat(adresse) {
+  let chemin = '';
+  // « afficherPanier.do » → « afficher Panier do » : les mots collés d'une adresse sont séparés avant la recherche.
+  try { const u = new URL(String(adresse)); chemin = decodeURIComponent(u.pathname + ' ' + u.search).replace(/([a-zà-ÿ])([A-Z])/g, '$1 $2').replace(/[/_.?=&-]+/g, ' '); } catch (_) { return false; }
+  return RE_ACHAT.test(chemin);
+}
+
 /** Pure : un élément cliquable qui parle d'achat ou du compte est refusé. @param {string} libelle @param {string} [lien] */
 function clicRefuse(libelle, lien) {
   const t = `${libelle || ''} ${lien || ''}`;
@@ -120,7 +130,11 @@ function masquerIdentifiants(blocs, id) {
   return blocs.map((b) => {
     if (!b || b.type !== 'text') return b;
     let t = b.text;
-    for (const x of secrets) t = t.split(x).join(x === id.motDePasse ? '••••' : '[identifiant de l’étude]');
+    for (const x of secrets) {
+      const remplace = x === id.motDePasse ? '••••' : '[identifiant de l’étude]';
+      // La valeur telle quelle et ses formes encodées dans une adresse (audit 0.229.0).
+      for (const forme of new Set([x, encodeURIComponent(x), encodeURIComponent(x).replace(/%20/g, '+')])) t = t.split(forme).join(remplace);
+    }
     return { ...b, text: t };
   });
 }
@@ -146,7 +160,9 @@ MISSION :
 ${o.demande}`;
 }
 
-/** Pure : la requête envoyée à Claude. @param {string} modele @param {string} systeme @param {any[]} messages @param {{ conclure?: boolean, secours?: boolean }} [o] */
+/** Pure : la requête envoyée à Claude. Pour conclure, aucun outil n'est imposé (la réflexion adaptative ne l'accepte pas — relecture
+ * 0.229.0) : la consigne de terminer est ajoutée au dernier message par consulterSite, outils et historique inchangés.
+ * @param {string} modele @param {string} systeme @param {any[]} messages @param {{ secours?: boolean }} [o] */
 function requeteNavigation(modele, systeme, messages, o = {}) {
   /** @type {any} */
   const r = {
@@ -154,7 +170,6 @@ function requeteNavigation(modele, systeme, messages, o = {}) {
     system: [{ type: 'text', text: systeme, cache_control: { type: 'ephemeral' } }],
     tools: OUTILS_NAVIGATION, cache_control: { type: 'ephemeral' }, messages
   };
-  if (o.conclure) r.tool_choice = { type: 'tool', name: 'terminer' };
   if (o.secours) { r.betas = ['server-side-fallback-2026-07-01']; r.fallbacks = 'default'; }
   return r;
 }
@@ -176,11 +191,18 @@ async function consulterSite(s, o) {
   /** @type {Array<{ titre: string, legende: string, png: Buffer }>} */
   const ecrans = [];
   let coutUsd = 0;
+  let dernierTexte = '';
   const t = o.tarif || { entree: 4, sortie: 20, lectureCache: 0.4 };
   for (let tour = 0; tour <= MAX_TOURS; tour++) {
     if (o.annule && o.annule()) throw Object.assign(new Error('Consultation arrêtée.'), { annule: true });
-    const conclure = tour >= MAX_TOURS || maintenant() - debut > DUREE_MAX_MS;
-    const message = await o.client.beta.messages.create(requeteNavigation(o.modele, systeme, allegerHistorique(messages), { conclure, secours: o.secours }));
+    const conclure = tour >= MAX_TOURS || maintenant() - debut > DUREE_MAX_MS || coutUsd >= PLAFOND_COUT_USD;
+    if (conclure) {
+      const dernier = messages[messages.length - 1];
+      const consigne = { type: 'text', text: 'Limite atteinte : termine MAINTENANT par l’outil terminer, avec ce que tu as relevé.' };
+      if (dernier && dernier.role === 'user' && Array.isArray(dernier.content)) dernier.content.push(consigne);
+      else messages.push({ role: 'user', content: [consigne] });
+    }
+    const message = await o.client.beta.messages.create(requeteNavigation(o.modele, systeme, allegerHistorique(messages), { secours: o.secours }));
     const u = message.usage || {};
     coutUsd += ((u.input_tokens || 0) * t.entree + (u.cache_creation_input_tokens || 0) * t.entree * 1.25
       + (u.cache_read_input_tokens || 0) * (t.lectureCache || t.entree * 0.1) + (u.output_tokens || 0) * t.sortie) / 1e6;
@@ -189,10 +211,14 @@ async function consulterSite(s, o) {
     const fin = appels.find((a) => a.name === 'terminer');
     if (fin) return { fini: true, resultat: fin.input || {}, ecrans, coutUsd, tours: tour + 1 };
     if (!appels.length) {
+      const texteLibre = (message.content || []).filter((b) => b && b.type === 'text').map((b) => b.text).join('\n').trim();
+      if (conclure) break;
       // Une réponse en texte sans outil : on rappelle de terminer par l'outil prévu.
       messages.push({ role: 'user', content: 'Termine par l’outil terminer (compte rendu structuré).' });
+      if (texteLibre) dernierTexte = texteLibre;
       continue;
     }
+    if (conclure) break;
     const resultats = [];
     for (const a of appels) {
       let contenu;
@@ -203,7 +229,15 @@ async function consulterSite(s, o) {
     }
     messages.push({ role: 'user', content: resultats });
   }
-  return { fini: false, resultat: { compte_rendu: 'Consultation interrompue : trop de gestes sans conclusion.', zonages: [], monuments_historiques: { statut: 'non_lu', detail: '' }, bornages: [], a_signaler: 'À refaire ou à faire à la main.' }, ecrans, coutUsd, tours: MAX_TOURS };
+  return { fini: false, resultat: { compte_rendu: dernierTexte || 'Consultation interrompue : limite de gestes, de temps ou de coût atteinte sans conclusion.', zonages: [], monuments_historiques: { statut: 'non_lu', detail: '' }, bornages: [], a_signaler: 'À refaire ou à faire à la main.' }, ecrans, coutUsd, tours: MAX_TOURS };
+}
+
+/** Entrée, sauf si elle enverrait un formulaire d'achat (adresse ou bouton d'envoi qui parle de payer, commander…). @param {any} s */
+async function toucheEntreeSure(s) {
+  const f = await s.formulaireActif().catch(() => null);
+  const refus = f ? clicRefuse(f.boutons, f.action) : '';
+  if (refus) throw new Error(refus);
+  await s.touche('Entree');
 }
 
 /** Un geste de Claude, exécuté par le navigateur. Rend le contenu du résultat (blocs texte / image). @param {any} s @param {string} nom @param {any} e @param {any} ctx */
@@ -218,6 +252,7 @@ async function executerGeste(s, nom, e, ctx) {
     case 'voir_ecran': { ctx.etape('Regarde l’écran'); return [{ type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: await s.capture() } }]; }
     case 'aller_a': {
       const adresse = String(e.adresse || '');
+      if (adresseAchat(adresse)) throw new Error('refusé : cette adresse mène à un achat ou une commande — à faire par l’étude elle-même');
       ctx.etape(`Ouvre ${adresse.replace(/^https?:\/\//, '').slice(0, 60)}`);
       await s.aller(adresse);
       return apres('Page ouverte.');
@@ -231,6 +266,10 @@ async function executerGeste(s, nom, e, ctx) {
       return apres(r.nouvelOnglet ? 'Clic fait : une nouvelle fenêtre s’est ouverte.' : 'Clic fait.');
     }
     case 'cliquer_position': {
+      // Le refus d'achat vaut aussi pour un clic par position (audit 0.229.0) : ce qui est sous le point est lu avant.
+      const sous = await s.elementSousPosition(e.x, e.y).catch(() => null);
+      const refus = sous ? clicRefuse(sous.libelle, sous.lien) : '';
+      if (refus) throw new Error(refus);
       ctx.etape('Clique sur l’écran');
       const r = await s.cliquerPosition(e.x, e.y);
       return apres(r.nouvelOnglet ? 'Clic fait : une nouvelle fenêtre s’est ouverte.' : 'Clic fait.');
@@ -239,7 +278,7 @@ async function executerGeste(s, nom, e, ctx) {
       const valeur = String(e.texte || '').slice(0, 300);
       ctx.etape(`Écrit « ${valeur.slice(0, 40)} »`);
       await s.saisir(e.ref, valeur);
-      if (e.valider) await s.touche('Entree');
+      if (e.valider) await toucheEntreeSure(s);
       return apres('Texte écrit.');
     }
     case 'ecrire_identifiant':
@@ -248,12 +287,15 @@ async function executerGeste(s, nom, e, ctx) {
       const valeur = nom === 'ecrire_identifiant' ? id.identifiant : id.motDePasse;
       if (!valeur) throw new Error(`aucun ${nom === 'ecrire_identifiant' ? 'identifiant' : 'mot de passe'} enregistré pour ce site dans les Réglages de CLAIRE : arrête-toi et dis-le`);
       ctx.etape(nom === 'ecrire_identifiant' ? 'Écrit l’identifiant de l’étude' : 'Écrit le mot de passe');
-      await s.saisirSecret(e.ref, valeur);
-      if (e.valider) await s.touche('Entree');
+      await s.saisirSecret(e.ref, valeur, nom === 'ecrire_identifiant' ? 'identifiant' : 'motDePasse');
+      if (e.valider) await toucheEntreeSure(s);
       return apres(nom === 'ecrire_identifiant' ? 'Identifiant écrit.' : 'Mot de passe écrit.');
     }
     case 'choisir': { ctx.etape(`Choisit « ${String(e.option || '').slice(0, 40)} »`); await s.choisir(e.ref, String(e.option || '')); return apres('Option choisie.'); }
-    case 'touche': { await s.touche(String(e.touche || '')); return apres(`Touche ${e.touche}.`); }
+    case 'touche': {
+      if (e.touche === 'Entree') await toucheEntreeSure(s); else await s.touche(String(e.touche || ''));
+      return apres(`Touche ${e.touche}.`);
+    }
     case 'defiler': {
       ctx.etape(e.sens === 'haut' ? 'Remonte / zoome' : 'Descend / dézoome');
       await s.defiler(e.sens === 'haut' ? 'haut' : 'bas', Number(e.x) >= 0 ? e.x : undefined, Number(e.y) >= 0 ? e.y : undefined);
@@ -273,4 +315,4 @@ async function executerGeste(s, nom, e, ctx) {
   }
 }
 
-module.exports = { OUTILS_NAVIGATION, consulterSite, executerGeste, clicRefuse, pageEnTexte, allegerHistorique, masquerIdentifiants, systemeNavigation, requeteNavigation, MAX_TOURS };
+module.exports = { OUTILS_NAVIGATION, consulterSite, executerGeste, clicRefuse, adresseAchat, PLAFOND_COUT_USD, pageEnTexte, allegerHistorique, masquerIdentifiants, systemeNavigation, requeteNavigation, MAX_TOURS };

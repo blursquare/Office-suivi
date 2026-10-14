@@ -9,7 +9,7 @@
     { cle: 2000, libelle: '1/2000' }, { cle: 5000, libelle: '1/5000' }];
   var STATUTS_MONUMENTS_GEOFONCIER = { oui: 'En zone protégée', non: 'Hors zone protégée', non_lu: 'Non lu' };
   var minuteriesSites = {};       // genre ('plan' | 'geofoncier') → minuterie du suivi
-  var capturesSites = {};         // genre → URL d'objet de la dernière capture (libérée à la suivante)
+  var capturesSites = {};         // genre → { id: tâche, url: URL d'objet de la dernière capture (libérée à la suivante) }
 
   // L'état des deux consultations, rangé dans l'état de l'outil (oublié avec lui au changement de dossier).
   function etatSitesPreemption() {
@@ -23,6 +23,12 @@
     if (!e || !e.insee) return 'Choisissez d’abord la commune (code postal) dans « Parcelle et zonage ».';
     if (!parcellesDepuisTexte(e.parcelles).length) return 'Indiquez d’abord les parcelles (section et numéro) dans « Parcelle et zonage ».';
     return '';
+  }
+
+  // Pure : les parcelles telles que l'outil les a lues (« AB 12 et 13 », « AB 12, 13 » → « AB 12, AB 13 ») — le serveur reçoit
+  // toujours cette forme (relecture 0.229.0 : son lecteur ne connaît pas les formes abrégées).
+  function parcellesNormaliseesSites(texte) {
+    return parcellesDepuisTexte(texte).map(p => `${p.section} ${p.numero}`).join(', ');
   }
 
   // Pure : nom de la commune choisie dans l'outil.
@@ -43,7 +49,7 @@
     renderSitesPreemption();
     try {
       const r = await fetchAvecAuth(`/api/navigation/plan-cadastre`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ insee: e.insee, parcelles: e.parcelles, echelle: st.echelle, dossierId: e.dossierId || '' }) });
+        body: JSON.stringify({ insee: e.insee, parcelles: parcellesNormaliseesSites(e.parcelles), echelle: st.echelle, dossierId: e.dossierId || '' }) });
       const j = await r.json().catch(() => ({}));
       if (!r.ok || !j.id) throw new Error(j.erreur || `réponse ${r.status}`);
       st.plan = { id: j.id, etat: 'attente', etapes: [], documents: [] };
@@ -63,7 +69,7 @@
     renderSitesPreemption();
     try {
       const r = await fetchAvecAuth(`/api/navigation/consultation`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ site: 'geofoncier', insee: e.insee, commune: communeOutilSites(e), parcelles: e.parcelles, demande: st.precision || '', dossierId: e.dossierId || '' }) });
+        body: JSON.stringify({ site: 'geofoncier', insee: e.insee, commune: communeOutilSites(e), parcelles: parcellesNormaliseesSites(e.parcelles), demande: st.precision || '', dossierId: e.dossierId || '' }) });
       const j = await r.json().catch(() => ({}));
       if (!r.ok || !j.id) throw new Error(j.erreur || `réponse ${r.status}`);
       st.geofoncier = { id: j.id, etat: 'attente', etapes: [], documents: [] };
@@ -87,7 +93,7 @@
         const j = await r.json();
         if (etatSitesPreemption()[genre] !== t) return;      // relancée ou outil changé entre-temps
         st[genre] = j;
-        if (j.avecCapture && (j.etat === 'en-cours' || !capturesSites[genre])) await chargerCaptureSite(genre, j.id);
+        if (j.avecCapture && (j.etat === 'en-cours' || !capturesSites[genre] || capturesSites[genre].id !== j.id)) await chargerCaptureSite(genre, j.id);
       } catch (_) { /* une relecture manquée : la suivante */ }
       renderSitesPreemption();
       const etat = (etatSitesPreemption()[genre] || {}).etat;
@@ -101,8 +107,8 @@
       const r = await fetchAvecAuth(`/api/navigation/taches/${encodeURIComponent(id)}/capture`);
       if (!r.ok) return;
       const url = URL.createObjectURL(await r.blob());
-      if (capturesSites[genre]) URL.revokeObjectURL(capturesSites[genre]);
-      capturesSites[genre] = url;
+      if (capturesSites[genre]) URL.revokeObjectURL(capturesSites[genre].url);
+      capturesSites[genre] = { id, url };
     } catch (_) { /* pas de capture cette fois */ }
   }
 
@@ -172,11 +178,19 @@
     renderSitesPreemption();
   }
 
+  // Pure : une ligne par plan tiré (échelle, parcelles ; échelle demandée relevée dite).
+  function lignesPlansSites(resultat) {
+    const r = resultat || {};
+    const plans = Array.isArray(r.plans) && r.plans.length ? r.plans : [{ echelle: r.echelle, echelleRelevee: r.echelleRelevee, parcelles: r.parcelles }];
+    return plans.map((p, i) => `${plans.length > 1 ? `Plan ${i + 1}/${plans.length} : ` : 'Extrait '}au 1/${p.echelle || ''} — parcelles ${p.parcelles || ''}${p.echelleRelevee ? ' (échelle demandée trop fine pour tout faire tenir)' : ''}.`);
+  }
+
   // Les étapes et la capture d'une consultation en cours.
   function renderSuiviTacheSite(genre, t) {
     const enCours = t.etat === 'attente' || t.etat === 'en-cours' || t.etat === 'envoi';
     const etapes = (t.etapes || []).slice(-6);
-    const capture = capturesSites[genre];
+    // La capture de CETTE consultation seulement (jamais celle d'un autre dossier restée affichée).
+    const capture = capturesSites[genre] && capturesSites[genre].id === t.id ? capturesSites[genre].url : '';
     return `<div class="sites-suivi">
         ${capture && (enCours || genre === 'geofoncier') ? `<img class="sites-capture" src="${escapeAttr(capture)}" alt="Ce que CLAIRE voit sur le site">` : ''}
         <ol class="sites-etapes">${etapes.map((x, i) => `<li class="${i === etapes.length - 1 && enCours ? 'sites-etape-courante' : ''}">${escapeHtml(x.texte)}</li>`).join('')
@@ -246,16 +260,16 @@
           <wa-button variant="brand" size="s" onclick="lancerPlanSituation()"${manque || enCours(plan) ? ' disabled' : ''}${enCours(plan) ? ' loading' : ''}>${icone('map-pin')} Tirer le plan de situation</wa-button>
         </div>
         ${plan ? (enCours(plan) ? renderSuiviTacheSite('plan', plan)
-          : plan.etat === 'fini' ? `<p class="hint">${icone('check')} Extrait au 1/${escapeHtml(String((plan.resultat || {}).echelle || ''))}${(plan.resultat || {}).echelleRelevee ? ' (échelle demandée trop grande pour tout faire tenir)' : ''} — parcelles ${escapeHtml((plan.resultat || {}).parcelles || '')}.</p>
+          : plan.etat === 'fini' ? `${lignesPlansSites(plan.resultat).map(l => `<p class="hint">${icone('check')} ${escapeHtml(l)}</p>`).join('')}
               ${renderDocumentsSite(plan)}`
           : `<p class="pr-erreur">${icone('alert-triangle')} ${escapeHtml(plan.erreur || 'Consultation arrêtée.')}</p>`) : ''}
       </div>
       <div class="sites-carte">
         <div class="sites-carte-tete"><span class="sites-carte-titre">${icone('search')} Géofoncier — compte de l’étude</span>
-          ${infoBulle('CLAIRE se connecte avec le compte enregistré dans les Réglages, cherche chaque parcelle et relève le zonage (part de chaque zone), les monuments historiques, les bornages, puis garde un plan aérien avec les numéros de parcelles. L’IA (Claude) conduit la consultation ; elle ne voit jamais le mot de passe et ne commande rien.')}</div>
+          ${infoBulle('CLAIRE se connecte avec le compte enregistré dans les Réglages, cherche chaque parcelle et relève le zonage (part de chaque zone), les monuments historiques, les bornages, puis garde un plan aérien avec les numéros de parcelles. L’IA (Claude) conduit la consultation à partir des pages et des captures du site : elle ne voit jamais le mot de passe, ne commande et ne paie rien. Une consultation coûte quelques dizaines de centimes à 3 $ au plus.')}</div>
         <div class="sites-ligne">
           <div class="calc-champ sites-precision"><label for="sites-precision">Précision (facultatif)</label>
-            <input type="text" id="sites-precision" value="${escapeAttr(st.precision || '')}" placeholder="ex. vérifier aussi l’emplacement réservé" onchange="changerPrecisionSites(this.value)" autocomplete="off"></div>
+            <input type="text" id="sites-precision" value="${escapeAttr(st.precision || '')}" placeholder="ex. vérifier aussi l’emplacement réservé" oninput="changerPrecisionSites(this.value)" autocomplete="off"></div>
           <wa-button variant="brand" size="s" onclick="lancerGeofoncier()"${manque || enCours(geo) ? ' disabled' : ''}${enCours(geo) ? ' loading' : ''}>${icone('search')} Consulter Géofoncier</wa-button>
         </div>
         ${geo ? (enCours(geo) ? renderSuiviTacheSite('geofoncier', geo)
@@ -283,7 +297,7 @@
     const erreur = await lireCommunesEtatPreemption(e);
     if (erreur) return { erreur };
     if (!e.insee) return { erreur: 'commune du bien non reconnue (code postal ou adresse de la fiche) : ouvrir le Contrôle de l’urbanisme' };
-    return { insee: e.insee, commune: communeOutilSites(e), parcelles: e.parcelles };
+    return { insee: e.insee, commune: communeOutilSites(e), parcelles: parcellesNormaliseesSites(e.parcelles) };
   }
 
   // Lance la consultation, attend qu'elle finisse (12 minutes au plus), propose les PDF dans la conversation, rend le compte rendu.
@@ -293,13 +307,19 @@
     if (e.site !== 'cadastre' && e.site !== 'geofoncier') return { erreur: 'site inconnu' };
     const p = await parametresSitesDossier(d);
     if (p.erreur) return { erreur: p.erreur };
+    // Géofoncier se connecte au compte payant de l'étude et coûte une consultation de Claude : l'utilisateur l'autorise d'abord
+    // (audit 0.229.0, même carte que les gestes qui modifient). Le plan du cadastre, gratuit et sans compte, part tout de suite.
+    if (e.site === 'geofoncier' && !(await demanderAutorisationAgent(`Consulter Géofoncier avec le compte de l’étude — ${libelleDossierAffiche(d)}, parcelles ${p.parcelles}${e.precision ? ` (précision : ${String(e.precision).slice(0, 200)})` : ''}.`))) {
+      return { refuse: true, message: 'l’utilisateur a refusé : ne le refais pas sans nouvelle demande' };
+    }
     const corps = e.site === 'cadastre'
       ? { url: '/api/navigation/plan-cadastre', body: { insee: p.insee, parcelles: p.parcelles, echelle: 0, dossierId: d.id } }
       : { url: '/api/navigation/consultation', body: { site: 'geofoncier', insee: p.insee, commune: p.commune, parcelles: p.parcelles, demande: String(e.precision || '').slice(0, 500), dossierId: d.id } };
     const r = await fetchAvecAuth(corps.url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corps.body) });
     const j = await r.json().catch(() => ({}));
     if (!r.ok || !j.id) return { erreur: j.erreur || `le serveur a répondu ${r.status}` };
-    const fin = Date.now() + 12 * 60 * 1000;
+    // La file passe une consultation après l'autre : derrière une consultation Géofoncier (10 min au plus), l'attente reste couverte.
+    const fin = Date.now() + 22 * 60 * 1000;
     let t = null;
     while (Date.now() < fin) {
       await new Promise(ok => setTimeout(ok, 2000));
@@ -322,7 +342,7 @@
     }
     if (boutons.length) poserMessageAssistant('claire', `<p>${e.site === 'cadastre' ? 'Plan de situation tiré de cadastre.gouv.fr' : 'Documents rapportés de Géofoncier'} — ${escapeHtml(libelleDossierAffiche(d))} :</p>`, boutons);
     if (e.site === 'cadastre') {
-      return { fait: true, echelle: `1/${(t.resultat || {}).echelle || ''}`, parcelles: (t.resultat || {}).parcelles || '',
+      return { fait: true, plans: lignesPlansSites(t.resultat),
         documents: (t.documents || []).map(x => x.titre), affiche_a_l_utilisateur: 'boutons Ouvrir / Ranger dans la conversation' };
     }
     const g = geofoncierPourFiche(t.resultat);
@@ -340,7 +360,6 @@
       const champ = (id, v) => { const el = document.getElementById(id); if (el) el.value = v || ''; };
       champ('sites-geo-identifiant', g.identifiant);
       champ('sites-geo-adresse', g.adresse);
-      champ('sites-navigateur', j.navigateur);
       champ('sites-geo-motdepasse', '');
       const mdp = document.getElementById('sites-geo-motdepasse');
       if (mdp) mdp.placeholder = g.motDePasseEnregistre ? 'Enregistré — laisser vide pour le garder' : 'Aucun mot de passe enregistré';
@@ -355,7 +374,7 @@
     const note = document.getElementById('sites-reglages-etat');
     try {
       const r = await fetchAvecAuth(`/api/navigation/reglages`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corps) });
-      if (!r.ok) throw new Error(`réponse ${r.status}`);
+      if (!r.ok) throw new Error((await r.json().catch(() => ({}))).erreur || `réponse ${r.status}`);
       if (note) note.textContent = 'Enregistré.';
       await chargerReglagesSites();
     } catch (err) {
@@ -368,7 +387,7 @@
     const geofoncier = { identifiant: val('sites-geo-identifiant').trim(), adresse: val('sites-geo-adresse').trim() };
     // Mot de passe vide = garder celui enregistré (jamais renvoyé par le serveur) ; « Effacer » l'efface explicitement.
     if (val('sites-geo-motdepasse')) geofoncier.motDePasse = val('sites-geo-motdepasse');
-    ecrireReglagesSites({ geofoncier, navigateur: val('sites-navigateur').trim() });
+    ecrireReglagesSites({ geofoncier });
   }
 
   function effacerMotDePasseGeofoncier() {

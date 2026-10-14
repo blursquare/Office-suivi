@@ -8,7 +8,7 @@
 // Le placement vient de l'emprise imprimée (MAPBBOX) et de l'échelle : la carte de l'extrait A4 portrait du site est toujours
 // centrée au même point de la page (relevé le 14/10 sur des extraits au 1/500 et au 1/1000, croix du quadrillage à 0,1 pt près).
 
-const { PDFDocument, rgb, BlendMode, LineCapStyle, pushGraphicsState, popGraphicsState, moveTo, lineTo, closePath, clip, endPath } = require('pdf-lib');
+const { PDFDocument, rgb, BlendMode, LineCapStyle, pushGraphicsState, popGraphicsState, moveTo, lineTo, closePath, clipEvenOdd, endPath } = require('pdf-lib');
 
 const PT_PAR_MM = 72 / 25.4;
 // Centre de la carte dans la page A4 portrait (595 × 842 pt), en points depuis le HAUT de la page.
@@ -70,7 +70,7 @@ function passesSurligneur(contour, graine) {
 /**
  * Le PDF du site avec les parcelles surlignées. Rend les octets du nouveau PDF.
  * @param {Uint8Array | Buffer} pdf @param {{ emprisePlan: number[] | null, centre: [number, number], echelle: number,
- *   parcelles: Array<{ section: string, numero: string, anneaux: Array<Array<[number, number]>> }> }} plan
+ *   parcelles: Array<{ section: string, numero: string, anneaux: Array<Array<[number, number]>>, trous?: Array<Array<[number, number]>> }> }} plan
  */
 async function surlignerParcelles(pdf, plan) {
   const doc = await PDFDocument.load(pdf);
@@ -80,24 +80,29 @@ async function surlignerParcelles(pdf, plan) {
   // Sans l'emprise envoyée par le site, le centre du clic (la zone d'impression s'y centre) et la taille du cadre suffisent.
   const emprise = plan.emprisePlan || [plan.centre[0] - 1, plan.centre[1] - 1, plan.centre[0] + 1, plan.centre[1] + 1];
   for (const p of plan.parcelles) {
-    for (const [i, anneau] of p.anneaux.entries()) {
-      const contour = /** @type {Array<[number, number]>} */ (anneau.map((q) => pointPage(q, emprise, plan.echelle, height)));
-      if (contour.length < 3) continue;
-      // Découpe : la parcelle seule.
-      page.pushOperators(pushGraphicsState(), moveTo(contour[0][0], contour[0][1]),
-        ...contour.slice(1).map((q) => lineTo(q[0], q[1])), closePath(), clip(), endPath());
+    const versPage = (anneau) => /** @type {Array<[number, number]>} */ (anneau.map((q) => pointPage(q, emprise, plan.echelle, height)));
+    const contours = p.anneaux.map(versPage).filter((c) => c.length >= 3);
+    // Trous (une parcelle qui en entoure une autre, relecture 0.229.0) : jamais surlignés.
+    const trous = (p.trous || []).map(versPage).filter((c) => c.length >= 3);
+    if (!contours.length) continue;
+    // Découpe : la parcelle seule, contours et trous en pair-impair.
+    const chemin = [...contours, ...trous].flatMap((c) => [moveTo(c[0][0], c[0][1]), ...c.slice(1).map((q) => lineTo(q[0], q[1])), closePath()]);
+    page.pushOperators(pushGraphicsState(), ...chemin, clipEvenOdd(), endPath());
+    for (const [i, contour] of contours.entries()) {
       for (const [x1, y1, x2, y2, ep] of passesSurligneur(contour, `${p.section}${p.numero}-${i}`)) {
         page.drawLine({ start: { x: x1, y: y1 }, end: { x: x2, y: y2 }, thickness: ep, color: JAUNE_FLUO, opacity: 0.42,
           blendMode: BlendMode.Multiply, lineCap: LineCapStyle.Round });
       }
-      // Le long du bord intérieur, comme on repasse les angles : la moitié intérieure du trait seulement (découpe).
+    }
+    // Le long des bords intérieurs, comme on repasse les angles : la moitié intérieure du trait seulement (découpe).
+    for (const contour of [...contours, ...trous]) {
       for (let j = 0; j < contour.length; j++) {
         const a = contour[j]; const b = contour[(j + 1) % contour.length];
         page.drawLine({ start: { x: a[0], y: a[1] }, end: { x: b[0], y: b[1] }, thickness: 7, color: JAUNE_FLUO, opacity: 0.38,
           blendMode: BlendMode.Multiply, lineCap: LineCapStyle.Round });
       }
-      page.pushOperators(popGraphicsState());
     }
+    page.pushOperators(popGraphicsState());
   }
   doc.setProducer('CLAIRE (surlignage) — extrait du plan cadastral cadastre.gouv.fr');
   return Buffer.from(await doc.save());

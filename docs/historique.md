@@ -19720,3 +19720,20 @@ la route, gardé si le champ est vide, « Effacer le mot de passe »), adresse d
 « Demander à CLAIRE » : outil `consulter_site` (cadastre | geofoncier) pour un dossier ; les PDF arrivent en boutons dans la conversation.
 Points terrain `plan-cadastre-surligne`, `agent-geofoncier`.
 
+**Plusieurs plans** (étude 14/10, même soir : « Si plusieurs parcelles proches, les mettre sur le même plan. Si trop éloignées faire
+plusieurs plans. Idem si pas lisible ou trop petite ») : `groupesPlans` regroupe de proche en proche à partir de la première parcelle ;
+une parcelle rejoint un plan si toutes y tiennent encore (60 % du cadre) ET restent lisibles — plus grand côté de chaque parcelle d'au
+moins 12 mm sur le papier (`LISIBLE_MM`) ; au 1/500 une parcelle plus petite reste sur ce plan (pas de meilleure échelle) ; 8 plans au
+plus. Un PDF surligné et un extrait officiel par plan (« Plan de situation surligné 1/2 — AL 694, AL 887 »). Rejoué sur le vrai site :
+AL 694 + AL 887 (voisines) sur un plan, CV 50 (à 6 km) sur un second, chacune au 1/500.
+
+**Relecture indépendante et audit** (rapport `docs/audits/2026-10-14-0.229.0.md`) : 2 points Haut corrigés avant l'envoi — le chemin du
+navigateur n'est plus réglable par le réseau (un poste aurait fait exécuter un programme au serveur) ; le mot de passe n'est tapé que dans
+un champ « password » de la page principale d'un site autorisé (plus de page `data:`, https seul), capture refusée s'il se lit en clair.
+Moyens corrigés : refus d'achat sur tous les gestes (clic par position, adresse, Entrée) et dans le navigateur lui-même ; précision libre
+citée comme donnée, noms masqués, accord demandé avant une consultation Géofoncier par l'agent ; file de 3 consultations, plafond de 3 $
+par consultation ; onglet non filtrable fermé, cadres filtrés ; seules les réponses « document » interceptées, PDF de 25 Mo au plus.
+Relecture : « AB 12 et 13 » ne perd plus la 13, trous des parcelles respectés, conclusion compatible avec la réflexion, Chrome fermé si
+l'ouverture échoue, rangement dans le seul dossier de la consultation, panne de l'IGN dite. Reste à l'étude : les conditions
+d'utilisation de Géofoncier et de cadastre.gouv.fr pour une consultation automatisée.
+

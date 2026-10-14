@@ -10,11 +10,12 @@ const path = require('node:path');
 const { SessionNavigation } = require('./session');
 const { planCadastre, DOMAINES_CADASTRE } = require('./planCadastre');
 const { surlignerParcelles } = require('./surlignage');
-const { consulterSite } = require('./agentNavigation');
+const { consulterSite, adresseAchat } = require('./agentNavigation');
 
 const CLE_REGLAGES = 'sites-agent';
 const DUREE_TACHE_MS = 2 * 3600 * 1000;
 const MAX_TACHES = 30;
+const MAX_EN_ATTENTE = 3;
 
 // Les sites que l'agent peut consulter. `domaines` : la liste blanche du navigateur pour ce site.
 const SITES = {
@@ -35,8 +36,7 @@ Un document ou un rapport à commander ou à payer à l’unité ne se commande 
 /** Pure : les réglages tels qu'une route peut les rendre (aucun secret). @param {any} r */
 function reglagesPublics(r) {
   const g = (r && r.geofoncier) || {};
-  return { geofoncier: { identifiant: String(g.identifiant || ''), motDePasseEnregistre: !!g.motDePasse, adresse: String(g.adresse || '') },
-    navigateur: String((r && r.navigateur) || '') };
+  return { geofoncier: { identifiant: String(g.identifiant || ''), motDePasseEnregistre: !!g.motDePasse, adresse: String(g.adresse || '') } };
 }
 
 /** Pure : réglages enregistrés après un formulaire — mot de passe absent = gardé, chaîne vide = effacé. @param {any} avant @param {any} b */
@@ -51,7 +51,6 @@ function fusionnerReglages(avant, b) {
       // Seulement une adresse https de Géofoncier : jamais un autre site par ce biais.
       adresse: /^https:\/\/([a-z0-9-]+\.)*geofoncier\.fr(\/|$)/i.test(adresse) ? adresse : ''
     },
-    navigateur: typeof (b && b.navigateur) === 'string' ? String(b.navigateur).trim().slice(0, 400) : String((avant && avant.navigateur) || '')
   };
 }
 
@@ -71,7 +70,8 @@ function creerGestionnaireTaches(o) {
   function purger() {
     const limite = Date.now() - DUREE_TACHE_MS;
     for (const [id, t] of taches) if (t.fini && t.fini < limite) taches.delete(id);
-    while (taches.size > MAX_TACHES) { const plusVieille = taches.keys().next().value; if (plusVieille === undefined) break; taches.delete(plusVieille); }
+    // Jamais une tâche encore en attente ou en cours (elle tournerait sans pouvoir être suivie ni arrêtée).
+    for (const [id, t] of taches) { if (taches.size <= MAX_TACHES) break; if (t.fini) taches.delete(id); }
   }
 
   /** Vue publique d'une tâche (sans octets). @param {any} t */
@@ -84,6 +84,7 @@ function creerGestionnaireTaches(o) {
   /** Lance une tâche à la suite des autres. @param {string} type @param {string} titre @param {(t: any, s: any) => Promise<void>} faire @param {string[]} domaines */
   function lancer(type, titre, faire, domaines) {
     purger();
+    if ([...taches.values()].filter((x) => !x.fini).length >= MAX_EN_ATTENTE) throw Object.assign(new Error('Trop de consultations en attente : réessayer dans quelques minutes.'), { statut: 429 });
     const t = { id: crypto.randomUUID(), type, titre, etat: 'attente', etapes: [], documents: [], cree: Date.now(), fini: 0, capture: '', annule: false, coutUsd: 0, resultat: null, erreur: '' };
     taches.set(t.id, t);
     const etape = (texte) => { t.etapes.push({ texte: String(texte).slice(0, 160), le: Date.now() }); };
@@ -94,7 +95,7 @@ function creerGestionnaireTaches(o) {
       let s = null;
       try {
         etape('Ouvre le navigateur de CLAIRE');
-        s = await SessionNavigation.ouvrir({ profil, chemin: lireReglages().navigateur || undefined, domaines, lancer: inj.lancer });
+        s = await SessionNavigation.ouvrir({ profil, domaines, lancer: inj.lancer, refuserAdresse: adresseAchat });
         // Capture régulière pour l'écran du poste (« voir CLAIRE travailler »).
         const minuterie = setInterval(() => { if (s) s.capture().then((c) => { t.capture = c; }).catch(() => {}); }, 2500);
         try { await faire(t, s); } finally { clearInterval(minuterie); }
@@ -120,13 +121,22 @@ function creerGestionnaireTaches(o) {
   function lancerPlanCadastre(d) {
     const libelle = d.parcelles.map((p) => `${p.section} ${Number(p.numero) || p.numero}`).join(', ');
     return lancer('plan-cadastre', `Plan de situation — ${d.commune} ${libelle}`, async (t, s) => {
-      const plan = await planCadastre(s, d, t.etape);
+      // « Arrêter » : vérifié à chaque étape du parcours.
+      const etapeOuArret = (x) => { if (t.annule) throw Object.assign(new Error('Consultation arrêtée.'), { annule: true }); t.etape(x); };
+      const { plans } = await planCadastre(s, d, etapeOuArret);
       t.etape('Surligne les parcelles en jaune fluo');
-      const surligne = await surlignerParcelles(plan.pdf, plan);
-      const base = `Plan de situation ${d.commune} ${libelle}`.replace(/[\\/:*?"<>|]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 110);
-      t.documents.push({ id: 'plan', titre: 'Plan de situation surligné', nom: `${base}.pdf`, type: 'application/pdf', octets: surligne });
-      t.documents.push({ id: 'officiel', titre: 'Extrait officiel (sans surlignage)', nom: `${base} - extrait cadastre.gouv.fr.pdf`, type: 'application/pdf', octets: plan.pdf });
-      t.resultat = { echelle: plan.echelle, echelleRelevee: plan.relevee, parcelles: libelle, commune: d.commune, dossierId: d.dossierId || '' };
+      const plusieurs = plans.length > 1;
+      for (const [n, plan] of plans.entries()) {
+        const surligne = await surlignerParcelles(plan.pdf, plan);
+        const ses = plan.parcelles.map((p) => `${p.section} ${Number(p.numero) || p.numero}`).join(', ');
+        const base = `Plan de situation ${d.commune} ${ses}`.replace(/[\\/:*?"<>|]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 110);
+        const rang = plusieurs ? ` ${n + 1}/${plans.length}` : '';
+        // Le premier plan garde les identifiants « plan » / « officiel » (l'écran et « Demander à CLAIRE » les connaissent).
+        t.documents.push({ id: n ? `plan${n + 1}` : 'plan', titre: `Plan de situation surligné${rang} — ${ses}`, nom: `${base}.pdf`, type: 'application/pdf', octets: surligne });
+        t.documents.push({ id: n ? `officiel${n + 1}` : 'officiel', titre: `Extrait officiel${rang} (sans surlignage)`, nom: `${base} - extrait cadastre.gouv.fr.pdf`, type: 'application/pdf', octets: plan.pdf });
+      }
+      t.resultat = { plans: plans.map((p) => ({ echelle: p.echelle, echelleRelevee: p.relevee, parcelles: p.parcelles.map((x) => `${x.section} ${Number(x.numero) || x.numero}`).join(', ') })),
+        echelle: plans[0].echelle, echelleRelevee: plans.some((p) => p.relevee), parcelles: libelle, commune: d.commune, dossierId: d.dossierId || '' };
     }, DOMAINES_CADASTRE);
   }
 

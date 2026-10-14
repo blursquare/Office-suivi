@@ -70,29 +70,68 @@ async function attendreCarte(s, maxMs = 20000) {
   return false;
 }
 
+// Lisibilité (étude 14/10 : « idem si pas lisible ou trop petite ») : sur le papier, le plus grand côté de chaque parcelle mesure au
+// moins 12 mm ; sinon elle part sur un plan à elle, plus rapproché. Au 1/500 (l'échelle la plus fine retenue) une parcelle plus
+// petite reste sur ce plan : on ne peut pas faire mieux.
+const LISIBLE_MM = 12;
+const MAX_PLANS = 8;
+
 /**
- * Le plan (PDF officiel) des parcelles. Rend { pdf, emprisePlan, echelle, relevee, zone, parcelles: [{ section, numero, anneaux (CC) }] }.
- * @param {any} s SessionNavigation ouverte sur les domaines du cadastre
- * @param {{ commune: string, insee: string, parcelles: Array<{ section: string, numero: string, anneaux: Array<Array<[number, number]>> }>, echelle?: number }} demande
- * @param {(texte: string) => void} [etape] ce que CLAIRE fait, pour l'écran
+ * Pure : les plans à tirer (étude 14/10 : « si plusieurs parcelles proches, les mettre sur le même plan ; si trop éloignées faire
+ * plusieurs plans ; idem si pas lisible ou trop petite »). Regroupe de proche en proche, à partir de la première parcelle : une
+ * parcelle rejoint le plan si toutes y tiennent encore ET restent lisibles. Rend [{ indices, echelle }] ou { erreur }.
+ * @param {Array<{ anneaux: Array<Array<[number, number]>> }>} parcellesCC
  */
-async function planCadastre(s, demande, etape = () => {}) {
-  const parcelles = (demande.parcelles || []).filter((p) => p && p.section && p.numero && Array.isArray(p.anneaux) && p.anneaux.length);
-  if (!parcelles.length) throw new Error('Aucune parcelle à placer (contours introuvables au cadastre de l’IGN).');
+function groupesPlans(parcellesCC) {
+  const infos = parcellesCC.map((p, i) => {
+    const e = /** @type {[number, number, number, number]} */ (emprisePoints(p.anneaux));
+    return { i, e, taille: Math.max(e[2] - e[0], e[3] - e[1]), c: [(e[0] + e[2]) / 2, (e[1] + e[3]) / 2] };
+  });
+  const emprise = (g) => /** @type {[number, number, number, number]} */ ([Math.min(...g.map((x) => x.e[0])), Math.min(...g.map((x) => x.e[1])),
+    Math.max(...g.map((x) => x.e[2])), Math.max(...g.map((x) => x.e[3]))]);
+  const echelleSi = (g) => {
+    const choix = echelleExtrait(emprise(g));
+    if ('erreur' in choix) return 0;
+    const lisible = Math.max(ECHELLE_MIN, (Math.min(...g.map((x) => x.taille)) * 1000) / LISIBLE_MM);
+    return choix.echelle <= lisible ? choix.echelle : 0;
+  };
+  const restants = infos.slice();
+  const groupes = [];
+  while (restants.length) {
+    if (groupes.length >= MAX_PLANS) return { erreur: `Plus de ${MAX_PLANS} plans seraient nécessaires : choisir moins de parcelles.` };
+    const g = [/** @type {any} */ (restants.shift())];
+    for (;;) {
+      const e = emprise(g);
+      const centre = [(e[0] + e[2]) / 2, (e[1] + e[3]) / 2];
+      const proches = restants.slice().sort((a, b) => Math.hypot(a.c[0] - centre[0], a.c[1] - centre[1]) - Math.hypot(b.c[0] - centre[0], b.c[1] - centre[1]));
+      const ajout = proches.find((x) => echelleSi([...g, x]));
+      if (!ajout) break;
+      g.push(ajout);
+      restants.splice(restants.indexOf(ajout), 1);
+    }
+    const seule = echelleExtrait(emprise(g));
+    if ('erreur' in seule) return { erreur: 'Une parcelle est trop grande pour tenir sur une page A4 au 1/5000.' };
+    groupes.push({ indices: g.map((x) => x.i), echelle: echelleSi(g) || seule.echelle });
+  }
+  return groupes;
+}
+
+/** Ouvre la carte du site sur une parcelle (recherche par références cadastrales). @param {any} s @param {{ commune: string, insee: string }} demande
+ * @param {{ section: string, numero: string }} p @param {(t: string) => void} etape */
+async function ouvrirCarteParcelle(s, demande, p, etape) {
   const dep = departementDepuisInsee(demande.insee);
   etape('Ouvre cadastre.gouv.fr');
   await s.aller(ACCUEIL);
   const lienRecherche = await s.evaluer(`(() => { const a = document.querySelector('a[href*="afficherRechercherPlanCad"]'); return a ? a.getAttribute('href') : ''; })()`);
   if (!lienRecherche) throw new Error('Le site du cadastre a changé : recherche par références cadastrales introuvable.');
   await s.aller(new URL(lienRecherche, ACCUEIL).href);
-  const p0 = parcelles[0];
-  etape(`Cherche la parcelle ${p0.section} ${Number(p0.numero) || p0.numero} à ${demande.commune}`);
+  etape(`Cherche la parcelle ${p.section} ${Number(p.numero) || p.numero} à ${demande.commune}`);
   const rempli = await s.evaluer(`(() => { const f = document.getElementById('rech'); if (!f || !f.ville) return 'formulaire';
     f.ville.value = ${JSON.stringify(String(demande.commune || ''))};
     const o = [...f.codeDepartement.options].find((x) => x.text.trim().startsWith(${JSON.stringify(dep + ' -')}));
     if (!o) return 'département'; f.codeDepartement.value = o.value;
     const rp = [...f.querySelectorAll('input[name=rechercheType]')][0]; if (rp) rp.checked = true;
-    f.sectionLibelle.value = ${JSON.stringify(p0.section)}; f.numeroParcelle.value = ${JSON.stringify(String(Number(p0.numero) || p0.numero))};
+    f.sectionLibelle.value = ${JSON.stringify(p.section)}; f.numeroParcelle.value = ${JSON.stringify(String(Number(p.numero) || p.numero))};
     f.submit(); return ''; })()`);
   if (rempli) throw new Error(`Le site du cadastre a changé : ${rempli} de la recherche introuvable.`);
   await s.attendreStable();
@@ -101,28 +140,28 @@ async function planCadastre(s, demande, etape = () => {}) {
   if (!m) {
     const page = await s.instantane().catch(() => ({ texte: '' }));
     const motif = /aucun|introuvable|pas de r/i.exec(page.texte || '') ? 'parcelle inconnue du site pour cette commune' : 'plusieurs communes ou aucun résultat';
-    throw new Error(`cadastre.gouv.fr : ${motif} (${demande.commune}, ${p0.section} ${p0.numero}).`);
+    throw new Error(`cadastre.gouv.fr : ${motif} (${demande.commune}, ${p.section} ${p.numero}).`);
   }
   etape('Ouvre la carte de la parcelle');
   await s.aller(new URL(m[1], ACCUEIL).href);
   if (!await attendreCarte(s)) throw new Error('La carte du cadastre ne s’est pas affichée.');
   const zone = zoneCCDepuisSrs(await s.evaluer('String(carte.getSRS())'));
   if (!zone) throw new Error('Système de coordonnées du site non reconnu.');
-  /** @type {Array<{ section: string, numero: string, anneaux: Array<Array<[number, number]>> }>} */
-  const parcellesCC = parcelles.map((p) => ({ section: p.section, numero: p.numero,
-    anneaux: p.anneaux.map((a) => /** @type {Array<[number, number]>} */ (a.map((q) => versCC(q, zone)).filter(Boolean))) }));
-  const emprise = /** @type {[number, number, number, number]} */ (emprisePoints(parcellesCC.flatMap((p) => p.anneaux)));
-  const choix = echelleExtrait(emprise, demande.echelle);
-  if ('erreur' in choix) throw new Error(String(choix.erreur));
+  return zone;
+}
+
+/** L'extrait A4 portrait centré sur un groupe de parcelles, la carte du site étant ouverte. Rend { pdf, emprisePlan, centre }.
+ * @param {any} s @param {[number, number, number, number]} emprise @param {number} echelle @param {(t: string) => void} etape */
+async function extraitSurCarte(s, emprise, echelle, etape) {
   const cx = (emprise[0] + emprise[2]) / 2;
   const cy = (emprise[1] + emprise[3]) / 2;
   // Vue de la carte : la zone imprimée et un peu autour, pour que le clic tombe au bon endroit.
-  const demiL = (CADRE_A4_PORTRAIT_MM.largeur * choix.echelle) / 1000 * 0.75;
-  const demiH = (CADRE_A4_PORTRAIT_MM.hauteur * choix.echelle) / 1000 * 0.75;
+  const demiL = (CADRE_A4_PORTRAIT_MM.largeur * echelle) / 1000 * 0.75;
+  const demiH = (CADRE_A4_PORTRAIT_MM.hauteur * echelle) / 1000 * 0.75;
   await s.evaluer(`(() => { const b = carte.getViewGeoBox().clone(); b.minX = ${cx - demiL}; b.maxX = ${cx + demiL}; b.minY = ${cy - demiH}; b.maxY = ${cy + demiH};
     carte.setViewGeoBox(b); carte.reload(); })()`);
   await attendreCarte(s);
-  etape(`Prépare l’extrait de plan A4 portrait au 1/${choix.echelle}`);
+  etape(`Prépare l’extrait de plan A4 portrait au 1/${echelle}`);
   if (!await s.evaluer('!!window.myMenu')) throw new Error('Le site du cadastre a changé : menu des outils introuvable.');
   await s.evaluer('myMenu.avance(); myMenu.impression();');
   // Le panneau « Imprimer » se dessine après coup : on attend que l'outil « Extrait de plan » y soit.
@@ -135,18 +174,14 @@ async function planCadastre(s, demande, etape = () => {}) {
   await attendre(1500);
   const reglage = await s.evaluer(`(() => {
     const ech = document.querySelector('select[name=scale]'); if (!ech) return 'échelle';
-    const o = [...ech.options].find((x) => Number(x.value) === ${choix.echelle} || x.text.replace(/\\s/g, '') === '1/${choix.echelle}');
-    if (!o) return 'échelle 1/${choix.echelle}';
+    const o = [...ech.options].find((x) => Number(x.value) === ${echelle} || x.text.replace(/\\s/g, '') === '1/${echelle}');
+    if (!o) return 'échelle 1/${echelle}';
     ech.value = o.value; ech.dispatchEvent(new Event('change', { bubbles: true }));
     const rot = document.querySelector('select[name=rotation]'); if (rot) { const z = [...rot.options].find((x) => /^0/.test(x.text.trim())); if (z) { rot.value = z.value; rot.dispatchEvent(new Event('change', { bubbles: true })); } }
-    const radio = (nom, texte) => { const r = [...document.querySelectorAll('input[type=radio][name="' + nom + '"]')]
-      .find((x) => (x.parentElement ? x.parentElement.innerText : '').includes(texte) || (x.nextSibling && String(x.nextSibling.textContent || '').includes(texte)));
-      if (r && !r.checked) r.click(); return !!r; };
     const a4 = [...document.querySelectorAll('input[type=radio]')].find((x) => /A4/.test((x.nextSibling && x.nextSibling.textContent) || '') || x.value === 'A4');
     if (a4 && !a4.checked) a4.click();
     const portrait = document.querySelector('input[type=radio][name=orient][value="1"]'); if (portrait && !portrait.checked) portrait.click();
     const sansDrapeau = document.querySelector('input[type=radio][name=drapeau][value="false"]'); if (sansDrapeau && !sansDrapeau.checked) sansDrapeau.click();
-    radio('format', 'A4');
     return ''; })()`);
   if (reglage) throw new Error(`Le site du cadastre a changé : réglage « ${reglage} » introuvable.`);
   await attendre(800);
@@ -167,11 +202,43 @@ async function planCadastre(s, demande, etape = () => {}) {
   const doc = s.documents.slice(avant).find((d) => /pdf/i.test(d.type));
   if (!doc) throw new Error('Le site du cadastre n’a pas rendu de PDF (service lent ou en panne : réessayer plus tard).');
   const envoi = s.envois.slice(envoisAvant).reverse().find((e) => /MAPBBOX=/.test(e.corps));
-  const emprisePlan = envoi ? emprisePlanDepuisEnvoi(envoi.corps) : null;
   if (s.onglets.length > 1) await s.fermerOngletActif();
   /** @type {[number, number]} */
   const centre = [cx, cy];
-  return { pdf: doc.octets, emprisePlan, echelle: choix.echelle, relevee: choix.relevee, zone, centre, parcelles: parcellesCC };
+  return { pdf: doc.octets, emprisePlan: envoi ? emprisePlanDepuisEnvoi(envoi.corps) : null, centre };
 }
 
-module.exports = { planCadastre, echelleExtrait, emprisePlanDepuisEnvoi, departementDepuisInsee, DOMAINES_CADASTRE, ECHELLES_EXTRAIT, CADRE_A4_PORTRAIT_MM };
+/**
+ * Les plans (PDF officiels) des parcelles : un par groupe de parcelles proches et lisibles ensemble (groupesPlans).
+ * Rend { zone, plans: [{ pdf, emprisePlan, echelle, relevee, centre, parcelles: [{ section, numero, anneaux (CC) }] }] }.
+ * @param {any} s SessionNavigation ouverte sur les domaines du cadastre
+ * @param {{ commune: string, insee: string, parcelles: Array<{ section: string, numero: string, anneaux: Array<Array<[number, number]>>, trous?: Array<Array<[number, number]>> }>, echelle?: number }} demande
+ * @param {(texte: string) => void} [etape] ce que CLAIRE fait, pour l'écran
+ */
+async function planCadastre(s, demande, etape = () => {}) {
+  const parcelles = (demande.parcelles || []).filter((p) => p && p.section && p.numero && Array.isArray(p.anneaux) && p.anneaux.length);
+  if (!parcelles.length) throw new Error('Aucune parcelle à placer (contours introuvables au cadastre de l’IGN).');
+  const zone = await ouvrirCarteParcelle(s, demande, parcelles[0], etape);
+  const projeter = (a) => /** @type {Array<[number, number]>} */ (a.map((q) => versCC(q, zone)).filter(Boolean));
+  /** @type {Array<{ section: string, numero: string, anneaux: Array<Array<[number, number]>>, trous: Array<Array<[number, number]>> }>} */
+  const parcellesCC = parcelles.map((p) => ({ section: p.section, numero: p.numero, anneaux: p.anneaux.map(projeter), trous: (p.trous || []).map(projeter) }));
+  const groupes = groupesPlans(parcellesCC);
+  if (!Array.isArray(groupes)) throw new Error(groupes.erreur);
+  if (groupes.length > 1) etape(`${groupes.length} plans : parcelles trop éloignées ou trop petites pour un seul`);
+  const plans = [];
+  for (const [n, g] of groupes.entries()) {
+    const membres = g.indices.map((i) => parcellesCC[i]);
+    if (groupes.length > 1) etape(`Plan ${n + 1}/${groupes.length} : ${membres.map((p) => `${p.section} ${Number(p.numero) || p.numero}`).join(', ')}`);
+    // Le premier groupe commence par la parcelle déjà ouverte ; les suivants rouvrent la carte sur leur première parcelle.
+    if (n > 0) await ouvrirCarteParcelle(s, demande, membres[0], etape);
+    const emprise = /** @type {[number, number, number, number]} */ (emprisePoints(membres.flatMap((p) => p.anneaux)));
+    // Une échelle demandée par l'étude est gardée si tout le groupe y tient ; sinon celle du regroupement.
+    const voulue = ECHELLES_EXTRAIT.includes(Number(demande.echelle)) ? echelleExtrait(emprise, demande.echelle) : null;
+    const echelle = voulue && !('erreur' in voulue) && !voulue.relevee ? voulue.echelle : g.echelle;
+    const extrait = await extraitSurCarte(s, emprise, echelle, etape);
+    plans.push({ ...extrait, echelle, relevee: !!demande.echelle && echelle !== Number(demande.echelle), parcelles: membres });
+  }
+  return { zone, plans };
+}
+
+module.exports = { planCadastre, groupesPlans, echelleExtrait, emprisePlanDepuisEnvoi, departementDepuisInsee, DOMAINES_CADASTRE, ECHELLES_EXTRAIT, CADRE_A4_PORTRAIT_MM, LISIBLE_MM };
