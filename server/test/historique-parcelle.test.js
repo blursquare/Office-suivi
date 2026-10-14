@@ -71,3 +71,10 @@ test('autorisationsSitadel : lignes des parcelles cherchées seules, sans demand
   assert.ok(urls.every(u => !u.includes('DENOM_DEM')), 'colonne du demandeur jamais demandée');
   assert.ok(urls.some(u => u.includes('COMM=eq:41018') && u.includes('NUM_CADASTRE1=in:839%2C0839')));
 });
+
+test('Sitadel : la raison d’un échec est dite en un mot, sans rien de personnel (rapport technique)', () => {
+  assert.equal(H.raisonEchecSitadel(Object.assign(new Error('x'), { name: 'TimeoutError' })), 'Sitadel : délai dépassé');
+  assert.equal(H.raisonEchecSitadel(Object.assign(new Error('x'), { statut: 503 })), 'Sitadel : réponse 503');
+  assert.equal(H.raisonEchecSitadel(Object.assign(new Error('fetch failed'), { cause: { code: 'ENOTFOUND' } })), 'Sitadel : réseau (ENOTFOUND)');
+  assert.equal(H.raisonEchecSitadel(new Error('adresse secrète 12 rue X')), 'Sitadel injoignable');
+});

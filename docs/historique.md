@@ -19662,3 +19662,6 @@ Retour de l'étude : le .reg `claire-devant:` fonctionne mais Chrome demande con
 
 ### 14/10/2026 — 0.228.11 : bouton « Dossier NAS » sur la fiche
 Étude : « mettre un bouton ouvrir le dossier NAS dans les fiches dossier ». Un navigateur ne peut pas lancer l'Explorateur de Windows (liens `file://` bloqués depuis une page `http://`), et l'ouverture par un lien de protocole (.reg + PowerShell, comme `claire-devant:`) n'est pas posée sur les postes : `ouvrirDossierNas` copie l'emplacement réseau (`cheminReseauDossierNas` : racine de `GET /api/nas/etat` + dossier relié) et affiche la marche à suivre. Un vrai « ouvrir » = un lien de protocole de plus à installer par poste ; non fait sans demande.
+
+### 14/10/2026 — 0.228.12 : Sitadel, la cause d'un échec dite dans le rapport (relecture de 17 h)
+Rapports #21 à #31 : « Sitadel injoignable » (4 échecs, jamais un succès noté au bureau). Rejoué ici avec le vrai site : `autorisationsSitadel` répond (13 s pour 5 parcelles, 1 autorisation lue) — le code est bon, le blocage est propre au bureau (réseau, proxy, lenteur) ; le message unique ne le disait pas. `raisonEchecSitadel` : « délai dépassé » / « réponse N » / « réseau (CODE) » / « injoignable ». Rien de personnel dans le message (testé). Non vérifié au bureau.

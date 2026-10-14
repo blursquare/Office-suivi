@@ -5,7 +5,7 @@
 
 const express = require('express');
 const { communesDuCodePostal, zonageParcelle } = require('../urbanisme');
-const { vueParcelles, photoAerienne, autorisationsSitadel } = require('../historiqueParcelle');
+const { vueParcelles, photoAerienne, autorisationsSitadel, raisonEchecSitadel } = require('../historiqueParcelle');
 const { noterVerification } = require('../verificationsTerrain');
 
 function creerRouteurUrbanisme(parametresRepo, injections = {}) {
@@ -61,7 +61,7 @@ function creerRouteurUrbanisme(parametresRepo, injections = {}) {
       noterVerification(parametresRepo, 'sitadel-parcelle', { detail: `${s.autorisations.length} autorisation(s)` });
       res.json(s);
     } catch (e) {
-      noterVerification(parametresRepo, 'sitadel-parcelle', { ok: false, message: 'Sitadel injoignable' });
+      noterVerification(parametresRepo, 'sitadel-parcelle', { ok: false, message: raisonEchecSitadel(e) });
       res.status(502).json({ erreur: 'Sitadel injoignable : chercher à la main sur le site du ministère.' });
     }
   });

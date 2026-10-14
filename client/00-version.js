@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.228.11';
+  const VERSION_APP = '0.228.12';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.228.12', date: '2026-10-14 17:08', resume: "Contrôle de l'urbanisme : quand Sitadel ne répond pas, le rapport technique dit pourquoi (délai dépassé, réponse d'erreur du site, ou réseau du bureau) au lieu de « injoignable » seul." },
     { version: '0.228.11', date: '2026-10-14 15:51', resume: "Fiche dossier : bouton « Dossier NAS » dans l'en-tête et sur la ligne « Dossier NAS » de l'onglet Dossier. Une page web ne peut pas ouvrir l'Explorateur de Windows : le bouton copie l'emplacement réseau du dossier et dit où le coller (Win + E, Ctrl + L, Ctrl + V)." },
     { version: '0.228.10', date: '2026-10-14 15:48', resume: "Authentic : « Formulaire A - DIA auprès de la SAFER » envoyé le 10/08 avec réponse de non-préemption le 13/10 — la date d'envoi est la première (le délai part du 10/08), la réponse la seconde ; cette ligne ne marque plus, à tort, une demande de renonciation à la DIA de la mairie." },
     { version: '0.228.9', date: '2026-10-14 15:46', resume: "Contrôle de l'urbanisme : le tableau des parcelles montre aussi les autres zones que le Géoportail rend pour une parcelle (« Touche aussi N »), pas seulement la première ; avant, une parcelle à cheval sur une zone U et une zone N n'affichait que la première." },

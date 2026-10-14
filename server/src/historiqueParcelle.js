@@ -218,7 +218,17 @@ async function autorisationsSitadel(insee, parcelles, injections) {
 
 function viderCacheHistorique() { cache.clear(); }
 
+/** Pure : la raison d'un échec d'appel à Sitadel, en un mot sans rien de personnel (rapport technique : « injoignable » ne disait pas si le
+ * bureau n'atteint pas le site, si la réponse est trop lente ou si Sitadel a répondu une erreur). @param {any} e */
+function raisonEchecSitadel(e) {
+  if (e && (e.name === 'TimeoutError' || e.name === 'AbortError')) return 'Sitadel : délai dépassé';
+  if (e && Number.isInteger(e.statut)) return `Sitadel : réponse ${e.statut}`;
+  const code = e && ((e.cause && e.cause.code) || e.code);
+  if (typeof code === 'string' && /^[A-Z0-9_]{3,40}$/.test(code)) return `Sitadel : réseau (${code})`;
+  return 'Sitadel injoignable';
+}
+
 module.exports = {
-  COUCHES_ORTHO, parcellesDepuisListe, anneauxGeometrie, empriseContours, empriseValide, vueParcelles, imageVide, photoAerienne,
+  raisonEchecSitadel, COUCHES_ORTHO, parcellesDepuisListe, anneauxGeometrie, empriseContours, empriseValide, vueParcelles, imageVide, photoAerienne,
   autorisationSitadel, ligneSurParcelles, autorisationsSitadel, viderCacheHistorique
 };
