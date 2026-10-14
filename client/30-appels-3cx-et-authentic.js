@@ -325,7 +325,7 @@
   // « APR » en tête (étude, 02/10) : demande d'état civil envoyée par papier — jamais une pièce reçue
   // (« ECV », état civil virtuel, l'est).
   var RE_DEMANDE_AUTHENTIC = /^\s*(?:demande|courrier|lettre|relance|envoi|envoy|requisition|réquisition|mail|e-?mail|convocation|projet|modele|modèle|apr(?![a-z0-9]))/i;
-  var RE_ETAT_NON_RECU_AUTHENTIC = /attente|demand|envoy|a recevoir|à recevoir|relanc|non re[cç]u|manquant|a faire|à faire/i;
+  var RE_ETAT_NON_RECU_AUTHENTIC = /attente|demand|envoy|envoi|pret\s+pour|a recevoir|à recevoir|relanc|non re[cç]u|manquant|a faire|à faire/i;
   // État civil ajouté aux pièces : naissance et mariage pour une vente ; décès et livret de famille
   // seulement pour une succession (étude, 02/10).
   var RE_ETAT_CIVIL_VENTE_AUTHENTIC = /acte\s+de\s+(?:naissance|mariage)/i;
@@ -827,7 +827,7 @@
     const t = normaliserPourRecherche([l.etat, l.texte].filter(Boolean).join(' '));
     if (/negati/.test(t)) return 'negatif';
     if (/positi|re[cç]u|delivr/.test(t)) return 'positif';
-    if (/pris(?:e)?\s+en\s+compte|attente|en\s+cours|envoy|transmis|demand/.test(t)) return 'attente';
+    if (/pris(?:e)?\s+en\s+compte|attente|en\s+cours|envoy|envoi|pret\s+pour|transmis|demand/.test(t)) return 'attente';
     return /^\s*ecv(?![a-z0-9])/i.test(l.titre || '') ? 'attente' : 'positif';
   }
 

@@ -1534,3 +1534,12 @@ test('SAFER : l’analyse dit « non » (zone U…) → ni délai SAFER ni atten
   d.preemption.droits[0].statut = 'oui';
   assert.equal(app.saferLevee(d), false);
 });
+
+test('Authentic : une pièce « Prêt pour envoi » ou « Envoyé » n’est jamais reçue (étude 14/10)', () => {
+  ['Prêt pour envoi', 'Envoyé', 'Envoi en cours', 'Prêt pour l’envoi'].forEach(etat => {
+    assert.equal(app.ligneAuthenticRecue({ titre: 'Acte de naissance', etat }), false, etat);
+    assert.equal(app.etatEtatCivilAuthentic({ titre: 'ECV - Acte de naissance', etat, texte: '' }), 'attente', etat);
+  });
+  assert.equal(app.ligneAuthenticRecue({ titre: 'Acte de naissance', etat: 'Reçu' }), true);
+  assert.equal(app.etatEtatCivilAuthentic({ titre: 'ECV - Acte de naissance', etat: 'Positif', texte: '' }), 'positif');
+});
