@@ -46,7 +46,7 @@ test('tableau : tous les types de dossier sont calculés sans erreur, quatre col
     assert.equal(new Set(cles).size, cles.length, `${nom} : carte en double (${cles.join(', ')})`);
     Object.values(cartes).flat().forEach(c => {
       assert.ok(c.titre, `${nom} : carte sans titre (${c.cle})`);
-      if (c.coche) assert.match(c.coche.onclick, /^(validerPieceManuellement|basculerEngagementFait|basculerDocumentAnalyseRecu|basculerEcheance|marquerFaitJour)\(/, `${nom} : geste inattendu`);
+      if (c.coche) assert.match(c.coche.onclick, /^(validerPieceManuellement|basculerEngagementFait|basculerDocumentAnalyseRecu|basculerEcheance|basculerConfirmationFondsFiche|marquerFaitJour)\(/, `${nom} : geste inattendu`);
     });
     const b = app.bandeauFiche(d, AUJ, [], null);
     assert.ok(b.pieces && b.signature && b.maintenant, nom);
@@ -216,4 +216,14 @@ test('tableau : pas de croix sur le prêt dont l’offre est reçue, Échap n’
   const html = app.renderCarteTableauFiche(c, false, 'd1');
   app.dateCarteEnEditionFiche = '';
   assert.match(html, /stopPropagation\(\); annulerDateCarteFiche/);
+});
+
+test('tableau : confirmation des fonds cochable à la main, en participation aussi, jamais en succession', () => {
+  const cle = (c) => Object.values(c).flat().map(x => x.cle);
+  const part = app.cartesTableauFiche(dossier({ roleNotaire: 'participant' }), AUJ, []);
+  assert.ok(cle(part).includes('fonds-confirmer'));
+  const faite = app.cartesTableauFiche(dossier({ roleNotaire: 'participant', receptionFondsConfirmeeLe: '2026-10-14' }), AUJ, []);
+  assert.ok(faite.fait.some(x => x.cle === 'fonds-confirmes'));
+  const succ = app.cartesTableauFiche(dossier({ typeAffaire: 'succession' }), AUJ, []);
+  assert.ok(!cle(succ).some(k => k.startsWith('fonds-conf')));
 });

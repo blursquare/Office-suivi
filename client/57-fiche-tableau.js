@@ -136,8 +136,8 @@ function cartesTableauFiche(d, aujourdhuiIso, actions) {
   });
 
   // --- Confirmation de la réception des fonds au client (étude 14/10 : confirmée par un autre email, à cocher à la main) : visible dès
-  // l'appel de fonds envoyé, sans attendre J-3. Fonds pas tous reçus → en attente ; tous reçus → à faire ; confirmée → fait.
-  if (!succession && d.roleNotaire !== 'participant' && !notaireParticipantRepresenteAcquereur(d) && echeanceValidee(d, 'appelFonds')) {
+  // l'appel de fonds envoyé (en participation : toujours, étude 14/10 « aussi »), sans attendre J-3. Fonds pas tous reçus → en attente ; tous reçus → à faire ; confirmée → fait.
+  if (!succession && (d.roleNotaire === 'participant' || (!notaireParticipantRepresenteAcquereur(d) && echeanceValidee(d, 'appelFonds')))) {
     const cocheFonds = (libelle) => ({ onclick: `basculerConfirmationFondsFiche('${escapeOnclickArg(id)}')`, libelle });
     if (d.receptionFondsConfirmeeLe) {
       ajouter('fait', { cle: 'fonds-confirmes', titre: 'Réception des fonds confirmée au client', iso: String(d.receptionFondsConfirmeeLe).slice(0, 10), sous: formatDateFr(String(d.receptionFondsConfirmeeLe).slice(0, 10)), categorie: 'appelFonds', fait: true, onglet: 'fonds', coche: cocheFonds('Rouvrir') });

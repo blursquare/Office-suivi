@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.228.5';
+  const VERSION_APP = '0.228.6';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.228.6', date: '2026-10-14 11:05', resume: "Fiche, Tableau : la carte « Confirmer la réception des fonds » (cochable à la main) est aussi montrée pour un dossier en participation, sans attendre un appel de fonds noté envoyé." },
     { version: '0.228.5', date: '2026-10-14 09:50', resume: "Fiche, Tableau : « Confirmer la réception des fonds » est visible dès l'appel de fonds envoyé (en attente tant que les fonds ne sont pas tous reçus, à faire ensuite) et se coche à la main quand la confirmation est partie par un autre email ; avant, la tâche n'apparaissait qu'à 3 jours du rendez-vous." },
     { version: '0.228.4', date: '2026-10-14 09:28', resume: "Copie de l'acte au client (fichier de plus de 21 Mo) : CLAIRE ne télécharge plus les PDF. Elle ouvre WeTransfer et affiche, à copier en un clic, le destinataire, le titre, le message et l'emplacement réseau des PDF à ajouter ; le lien obtenu se colle dans CLAIRE et prend la place du lien dans l'email. WeTransfer lui-même ne peut pas être prérempli par CLAIRE." },
     { version: '0.228.3', date: '2026-10-14 07:24', resume: "Sécurité (réponses de l'étude à l'audit) : CLAIRE ne répond plus qu'à son adresse IP ou à localhost — une page web extérieure ne peut plus l'atteindre ni y écrire ; seule la branche principale publie une version installée au bureau. Planning : un prêt attendu sans date d'obtention saisie ni rendez-vous apparaît « Obtention du prêt » à la date butoir (avant : « Envoi appel de fonds », avec son rappel Teams)." },

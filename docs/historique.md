@@ -19644,3 +19644,6 @@ Demande de l'étude : « Lors de l'envoi de la copie d'acte au client, ne pas t�
 
 ### 14/10/2026 — 0.228.5 : confirmation des fonds cochable à la main dans le Tableau
 Étude : fonds reçus, confirmation envoyée par Sophie dans un autre email, aucune tâche à cocher dans « En attente » (la tâche d'« À faire » ne vient qu'à J-3, `JOURS_CONFIRMATION_FONDS`). `cartesTableauFiche` (client/57) ajoute, dès l'appel de fonds envoyé (ni succession, ni participation, ni confrère à l'acquéreur), la carte « Confirmer la réception des fonds » : en attente tant que `fondsCompletsAConfirmer` est faux, à faire ensuite, « Fait » une fois `receptionFondsConfirmeeLe` posée ; la coche `basculerConfirmationFondsFiche` pose/retire cette date (historique). Pas de doublon avec le geste d'« À faire » (`type: 'fonds'`).
+
+### 14/10/2026 — 0.228.6 : confirmation des fonds aussi en participation
+Étude : « un dossier en participation : si aussi ». La carte du Tableau « Confirmer la réception des fonds » (0.228.5) est montrée aussi quand `d.roleNotaire === 'participant'`, sans exiger `echeanceValidee(d, 'appelFonds')` (l'appel de fonds vient du confrère) ni l'exclusion « confrère à l'acquéreur ». Jamais en succession.
