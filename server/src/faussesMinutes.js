@@ -92,10 +92,11 @@ let cache = null;
 async function faussesMinutes(config, fsImpl = fsp, maintenant = Date.now()) {
   const dossier = await trouverDossierFaussesMinutes(config, fsImpl);
   if (!dossier) return { trouve: false, fichiers: [] };
-  if (cache && cache.dossier === dossier && maintenant - cache.le < DUREE_CACHE_MS) return { trouve: true, nom: path.basename(dossier), fichiers: cache.fichiers };
+  // `dossier` : chemin du partage, pour que le poste donne à WeTransfer l'emplacement des PDF (étude 14/10 : rien n'est téléchargé).
+  if (cache && cache.dossier === dossier && maintenant - cache.le < DUREE_CACHE_MS) return { trouve: true, nom: path.basename(dossier), dossier, fichiers: cache.fichiers };
   const fichiers = await listerFaussesMinutes(dossier, fsImpl);
   cache = { dossier, le: maintenant, fichiers };
-  return { trouve: true, nom: path.basename(dossier), fichiers };
+  return { trouve: true, nom: path.basename(dossier), dossier, fichiers };
 }
 function oublierCacheFaussesMinutes() { cache = null; }
 

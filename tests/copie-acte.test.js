@@ -72,3 +72,13 @@ test('fausses minutes : un sous-dossier au nom du dossier propose tous ses PDF (
   assert.equal(app.dossierFausseMinute('2026/VTE MARTEL FOURNIER/Copie.pdf'), '2026/VTE MARTEL FOURNIER');
   assert.equal(app.dossierFausseMinute('Copie.pdf'), '');
 });
+
+test('WeTransfer : emplacement réseau des PDF et champs à recopier, rien de téléchargé', () => {
+  assert.equal(app.cheminReseauFausseMinute('\\\\srv\\Fausses minutes', '2026/VTE X.pdf'), '\\\\srv\\Fausses minutes\\2026\\VTE X.pdf');
+  assert.equal(app.cheminReseauFausseMinute('', 'a.pdf'), '');
+  const c = app.champsWeTransferCopieActe(DOSSIER, ['copie'], [{ nom: 'VTE.pdf', chemin: '2026/VTE.pdf' }], '\\\\srv\\Fausses minutes', 'bastien@exemple.fr');
+  assert.equal(c.destinataires.join(), 'martel@exemple.fr');
+  assert.equal(c.fichiers[0].chemin, '\\\\srv\\Fausses minutes\\2026\\VTE.pdf');
+  assert.match(c.titre, /^Copie de l’acte de vente — /);
+  assert.match(c.message, /signée le/);
+});

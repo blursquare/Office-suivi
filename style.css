@@ -9178,6 +9178,8 @@ label.copie-acte-fichier input { grid-row: 1 / span 2; }
 label.copie-acte-fichier wa-button.bouton-icone { grid-column: 3; grid-row: 1 / span 2; }
 .copie-acte-nom { font-size: var(--texte-m); font-weight: 600; overflow-wrap: anywhere; }
 .copie-acte-meta { grid-column: 2; font-size: var(--texte-s); color: var(--muted); }
+.copie-acte-champ { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--line); }
+.copie-acte-champ .copie-acte-nom { font-weight: 400; min-width: 0; }
 .copie-acte-total { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 4px 0 0; font-size: var(--texte-m); }
 
 /* ===== Outil « Droits de préemption » (client/46-droits-preemption.js, étude 06/10) ===== */

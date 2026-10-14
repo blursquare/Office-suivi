@@ -84,6 +84,30 @@
     return { sujet: `${Quoi} — ${libelleDossierAffiche(d)}`, corps: corps.join('\n\n') };
   }
 
+  // Pure : l'emplacement réseau d'un PDF des fausses minutes (partage « \\\\serveur\\… » : antislashs ; sinon chemin tel quel).
+  function cheminReseauFausseMinute(dossier, chemin) {
+    const base = String(dossier || '').replace(/[\\/]+$/, '');
+    const rel = String(chemin || '');
+    if (!base) return '';
+    const win = base.includes('\\') || /^[A-Za-z]:/.test(base);
+    return base + (win ? '\\' : '/') + (win ? rel.replace(/\//g, '\\') : rel);
+  }
+
+  // Pure : ce que l'on recopie dans WeTransfer (aucun site tiers ne se préremplit depuis CLAIRE : valeurs à copier en un clic).
+  function champsWeTransferCopieActe(d, types, choisis, dossier, emailExpediteur) {
+    const { sujet } = construireEmailCopieActe(d, types, true);
+    const copie = (types || []).includes('copie'), attestation = (types || []).includes('attestation');
+    const quoi = copie && attestation ? 'la copie de l’acte et l’attestation de vente' : attestation ? 'l’attestation de vente' : 'la copie de l’acte de vente';
+    const vente = d.rendezVousSignature ? ` de la vente signée le ${formatDateFr(d.rendezVousSignature)}` : '';
+    return {
+      destinataires: clientsParticipation(d).map(c => c.email).filter(Boolean),
+      expediteur: emailExpediteur || '',
+      titre: sujet,
+      message: `Veuillez trouver ci-joint ${quoi}${vente}.\n\nVous en souhaitant bonne réception.\n\nBien cordialement,`,
+      fichiers: (choisis || []).map(f => ({ nom: f.nom, chemin: cheminReseauFausseMinute(dossier, f.chemin) }))
+    };
+  }
+
   function renderEnvoiCopieActe(d) {
     if (!estDossierParticipation(d)) return '';
     const base = { categorie: 'neutre', categorieLabel: 'Après la signature', titre: 'Envoyer la copie de l’acte / l’attestation de vente' };
@@ -96,18 +120,18 @@
     }
     if (!emails.length) return renderLigneAction(Object.assign(base, { sous: 'Renseignez l’email du client.' }));
     return renderLigneAction(Object.assign(base, {
-      sous: 'Lue dans les fausses minutes · jointe jusqu’à 21 Mo, sinon un lien WeTransfer',
+      sous: 'Lue dans les fausses minutes · jointe jusqu’à 21 Mo, sinon WeTransfer (rien n’est téléchargé)',
       bouton: { libelle: 'Choisir', icone: icone('file-text'), onclick: `ouvrirEnvoiCopieActe('${escapeOnclickArg(d.id)}')` }
     }));
   }
 
-  var envoiCopieActe = { id: '', fichiers: [], tous: [], choisis: new Set(), recherche: '', etat: '' };
+  var envoiCopieActe = { id: '', fichiers: [], tous: [], choisis: new Set(), recherche: '', etat: '', dossierReseau: '', wetransfer: null };
 
   async function ouvrirEnvoiCopieActe(id) {
     const d = dossiers.find(x => x.id === id);
     const overlay = document.getElementById('copie-acte-overlay');
     if (!d || !overlay) return;
-    envoiCopieActe = { id, fichiers: [], tous: [], choisis: new Set(), recherche: '', etat: 'chargement' };
+    envoiCopieActe = { id, fichiers: [], tous: [], choisis: new Set(), recherche: '', etat: 'chargement', dossierReseau: '', wetransfer: null };
     overlay.style.display = 'flex';
     renderEnvoiCopieActeFenetre();
     try {
@@ -119,6 +143,7 @@
         noterVerificationPoste('fausses-minutes', { ok: false, message: 'dossier des fausses minutes introuvable' });
       } else {
         envoiCopieActe.tous = corps.fichiers || [];
+        envoiCopieActe.dossierReseau = corps.dossier || '';
         envoiCopieActe.fichiers = faussesMinutesPourDossier(envoiCopieActe.tous, d);
         envoiCopieActe.fichiers.forEach(f => envoiCopieActe.choisis.add(f.chemin));
         if (envoiCopieActe.fichiers.length > 1) {
@@ -177,6 +202,7 @@
     const d = dossiers.find(x => x.id === envoiCopieActe.id);
     const zone = document.getElementById('copie-acte-contenu');
     if (!zone || !d) return;
+    if (envoiCopieActe.wetransfer) { zone.innerHTML = renderPanneauWeTransferCopieActe(d); return; }
     const tous = envoiCopieActe.tous;
     const choisis = tous.filter(f => envoiCopieActe.choisis.has(f.chemin));
     const total = choisis.reduce((t, f) => t + (Number(f.taille) || 0), 0);
@@ -194,14 +220,14 @@
           </label>`).join('')
       : `<p class="nas-choix-vide">${envoiCopieActe.recherche ? 'Aucun PDF à ce nom.' : 'Aucun PDF ni dossier au nom du dossier : cherchez-le ci-dessus.'}</p>`;
     zone.innerHTML = `
-      <p class="copie-acte-titre">${escapeHtml(libelleDossierAffiche(d))} ${infoBulle('PDF du dossier « Fausses minutes » dont le nom, ou celui du sous-dossier qui les contient, porte un nom du dossier. Moins de 21 Mo au total : joints à l’email. Au-delà : CLAIRE ouvre WeTransfer et télécharge les PDF pour les y déposer, l’email est préparé avec la place du lien.')}</p>
+      <p class="copie-acte-titre">${escapeHtml(libelleDossierAffiche(d))} ${infoBulle('PDF du dossier « Fausses minutes » dont le nom, ou celui du sous-dossier qui les contient, porte un nom du dossier. Moins de 21 Mo au total : joints à l’email. Au-delà : CLAIRE ouvre WeTransfer et vous donne, à copier, les champs à remplir et l’emplacement des PDF (rien n’est téléchargé) ; vous collez ensuite le lien dans CLAIRE pour préparer l’email.')}</p>
       <p class="hint">À : ${escapeHtml(dest || '—')}</p>
       <input type="search" id="copie-acte-recherche" class="authentic-choix-recherche" placeholder="Chercher un PDF ou un dossier dans les fausses minutes" autocomplete="off" value="${escapeAttr(envoiCopieActe.recherche)}" oninput="rechercherCopieActe(this.value)" ${envoiCopieActe.etat === 'pret' ? '' : 'style="display:none;"'}>
       <div class="nas-choix-liste copie-acte-liste">${liste}</div>
       ${choisis.length ? `<p class="copie-acte-total"><span class="dot-label ${lourd ? 'dl-pret' : 'dl-success'}"><span class="dot"></span>${choisis.length} fichier${choisis.length > 1 ? 's' : ''} · ${tailleLisible(total)}</span>${lourd ? ' <span class="hint">Plus de 21 Mo : lien WeTransfer</span>' : ''}</p>` : ''}
       <div class="confirm-actions">
         <wa-button appearance="outlined" class="btn-annuler" onclick="fermerEnvoiCopieActe()">Annuler</wa-button>
-        <wa-button variant="brand" class="primary" onclick="preparerEnvoiCopieActe()" ${choisis.length && dest ? '' : 'disabled'}>${lourd ? 'Ouvrir WeTransfer et préparer l’email' : 'Préparer l’email'}</wa-button>
+        <wa-button variant="brand" class="primary" onclick="preparerEnvoiCopieActe()" ${choisis.length && dest ? '' : 'disabled'}>${lourd ? 'Ouvrir WeTransfer' : 'Préparer l’email'}</wa-button>
       </div>`;
     if (garderFocus) {
       const champ = document.getElementById('copie-acte-recherche');
@@ -217,7 +243,15 @@
     if (!choisis.length || !destinataire) return;
     const total = choisis.reduce((t, f) => t + (Number(f.taille) || 0), 0);
     const types = [...new Set(choisis.map(f => typeFausseMinute(f.nom)))];
-    const lien = total > LIMITE_PIECES_JOINTES_OCTETS;
+    if (total > LIMITE_PIECES_JOINTES_OCTETS) {
+      // Étude 14/10 : rien n'est téléchargé. WeTransfer s'ouvre (un site tiers ne se préremplit pas depuis CLAIRE) et le panneau
+      // donne à copier ce qu'il demande ; le lien obtenu se colle ensuite ici pour préparer l'email.
+      const mails = (reglagesEnregistres && reglagesEnregistres.emailsResponsables) || {};
+      window.open(ADRESSE_WETRANSFER, '_blank', 'noopener');
+      envoiCopieActe.wetransfer = { champs: champsWeTransferCopieActe(d, types, choisis, envoiCopieActe.dossierReseau, mails[d.responsable] || ''), types, noms: choisis.map(f => f.nom) };
+      renderEnvoiCopieActeFenetre();
+      return;
+    }
     const adresse = (f) => '/api/nas/fausses-minutes/fichier?chemin=' + encodeURIComponent(f.chemin);
     const telechargerTous = async () => {
       for (const f of choisis) {
@@ -228,10 +262,7 @@
     };
     let pieces = [];
     try {
-      if (lien) {
-        window.open(ADRESSE_WETRANSFER, '_blank', 'noopener');
-        await telechargerTous();
-      } else if (modeEmailPoste() !== 'mailto') {
+      if (modeEmailPoste() !== 'mailto') {
         for (const f of choisis) {
           const r = await fetchAvecAuth(adresse(f));
           if (!r.ok) throw new Error(`« ${f.nom} » illisible`);
@@ -242,18 +273,63 @@
       afficherToast('Fausses minutes : ' + e.message + '.', 'OK', null);
       return;
     }
-    const { sujet, corps } = emailDepuisModele('copieActe', d, null, contexteCopieActe(d, types, lien));
+    const { sujet, corps } = emailDepuisModele('copieActe', d, null, contexteCopieActe(d, types, false));
     const r = await livrerEmailDossier({ destinataire, sujet, corps, pieces, responsableSignature: d.responsable, dossierId: d.id, geste: 'copieActe' });
     if (!r.ok) { if (!r.annule) afficherToast(r.message || "L'email n'a pas pu être préparé.", 'OK', null); return; }
-    if (r.mode === 'mailto' && !lien) { try { await telechargerTous(); } catch (e) { /* signalé ci-dessous */ } }
+    if (r.mode === 'mailto') { try { await telechargerTous(); } catch (e) { /* signalé ci-dessous */ } }
+    terminerEnvoiCopieActe(d, r, types, choisis.map(f => f.nom), false);
+    annoncerEmailPret(r, r.mode === 'envoye', r.mode === 'envoye' ? '' : r.mode === 'mailto' ? 'Joignez les PDF qui viennent d’être téléchargés.' : '');
+  }
+
+  function terminerEnvoiCopieActe(d, r, types, noms, lien) {
     fermerEnvoiCopieActe();
     d.copieActeEnvoyeeLe = isoAujourdhuiLocal();
-    d.copieActeEnvoyee = { types, fichiers: choisis.map(f => f.nom).slice(0, 10), lien };
+    d.copieActeEnvoyee = { types, fichiers: noms.slice(0, 10), lien };
     ajouterHistorique(d, `${libelleEmailFait(r)} — ${types.length > 1 ? 'copie de l’acte et attestation de vente' : types[0] === 'attestation' ? 'attestation de vente' : 'copie de l’acte'} au client${lien ? ' (lien WeTransfer)' : ''}`);
     sauvegarder(d);
     render();
-    annoncerEmailPret(r, r.mode === 'envoye', r.mode === 'envoye' ? '' : lien ? 'Déposez sur WeTransfer les PDF téléchargés, puis collez le lien dans l’email.'
-      : r.mode === 'mailto' ? 'Joignez les PDF qui viennent d’être téléchargés.' : '');
+  }
+
+  // Suite de WeTransfer : le lien collé remplace la place du lien dans le texte de l'email.
+  async function preparerEmailCopieActeWeTransfer() {
+    const d = dossiers.find(x => x.id === envoiCopieActe.id);
+    const w = envoiCopieActe.wetransfer;
+    if (!d || !w) return;
+    const destinataire = w.champs.destinataires.join(', ');
+    const champ = document.getElementById('copie-acte-lien');
+    const lienColle = champ ? String(champ.value || '').trim() : '';
+    if (lienColle && !/^https?:\/\/\S+$/i.test(lienColle)) { afficherToast('Le lien WeTransfer doit commencer par https://', 'OK', null); return; }
+    const modele = emailDepuisModele('copieActe', d, null, contexteCopieActe(d, w.types, true));
+    const corps = lienColle ? modele.corps.replace('[lien WeTransfer à coller ici]', lienColle) : modele.corps;
+    const r = await livrerEmailDossier({ destinataire, sujet: modele.sujet, corps, pieces: [], responsableSignature: d.responsable, dossierId: d.id, geste: 'copieActe' });
+    if (!r.ok) { if (!r.annule) afficherToast(r.message || "L'email n'a pas pu être préparé.", 'OK', null); return; }
+    terminerEnvoiCopieActe(d, r, w.types, w.noms, true);
+    annoncerEmailPret(r, r.mode === 'envoye', r.mode === 'envoye' || lienColle ? '' : 'Collez le lien WeTransfer dans l’email avant de l’envoyer.');
+  }
+
+  function copierChampWeTransfer(cle, i) {
+    const w = envoiCopieActe.wetransfer;
+    if (!w) return;
+    const c = w.champs;
+    const texte = cle === 'destinataires' ? c.destinataires.join('; ') : cle === 'fichier' ? (c.fichiers[i] || {}).chemin : c[cle];
+    afficherToast(copierTexteSilencieux(String(texte || '')) ? 'Copié.' : 'Copie impossible : sélectionnez le texte à la main.', 'OK', null);
+  }
+
+  function renderPanneauWeTransferCopieActe(d) {
+    const c = envoiCopieActe.wetransfer.champs;
+    const ligne = (libelle, valeur, appel) => `<div class="copie-acte-champ"><span class="copie-acte-nom"><strong>${escapeHtml(libelle)}</strong> ${escapeHtml(valeur || '—')}</span>${valeur ? `<wa-button appearance="outlined" size="s" type="button" onclick="${appel}">Copier</wa-button>` : ''}</div>`;
+    return `
+      <p class="copie-acte-titre">${escapeHtml(libelleDossierAffiche(d))} — à recopier dans WeTransfer ${infoBulle('WeTransfer s’est ouvert dans un autre onglet. Un site tiers ne se laisse pas préremplir depuis CLAIRE : chaque valeur se copie ici en un clic. Pour les fichiers, « Ajouter vos fichiers » ouvre l’explorateur de Windows : collez l’emplacement dans « Nom du fichier ». Rien n’est téléchargé.')}</p>
+      ${ligne('Destinataire(s) :', c.destinataires.join('; '), "copierChampWeTransfer('destinataires')")}
+      ${c.expediteur ? ligne('Votre email :', c.expediteur, "copierChampWeTransfer('expediteur')") : ''}
+      ${ligne('Titre :', c.titre, "copierChampWeTransfer('titre')")}
+      <div class="copie-acte-champ"><span class="copie-acte-nom"><strong>Message :</strong> ${escapeHtml(c.message).replace(/\n+/g, ' · ')}</span><wa-button appearance="outlined" size="s" type="button" onclick="copierChampWeTransfer('message')">Copier</wa-button></div>
+      ${c.fichiers.map((f, i) => ligne('Fichier ' + (i + 1) + ' :', f.chemin || f.nom, `copierChampWeTransfer('fichier', ${i})`)).join('')}
+      <label class="copie-acte-champ"><span class="copie-acte-nom"><strong>Lien WeTransfer obtenu :</strong></span><input type="url" id="copie-acte-lien" class="authentic-choix-recherche" placeholder="https://we.tl/…" autocomplete="off"></label>
+      <div class="confirm-actions">
+        <wa-button appearance="outlined" class="btn-annuler" onclick="fermerEnvoiCopieActe()">Annuler</wa-button>
+        <wa-button variant="brand" class="primary" onclick="preparerEmailCopieActeWeTransfer()">Préparer l’email</wa-button>
+      </div>`;
   }
 
   function renderQuestionnaireSatisfaction(d) {
