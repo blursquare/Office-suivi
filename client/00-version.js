@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.229.1';
+  const VERSION_APP = '0.230.0';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.230.0', date: '2026-10-14 21:40', resume: "Pièces du dossier : le plan cadastral est attendu pour toute vente (maison, copropriété, terrain, terre). Il est retrouvé seul sur le commun par le nom du fichier (« Plan cadastral », « Extrait cadastral », « Plan de situation » — celui que CLAIRE tire de cadastre.gouv.fr compris) et reconnu par Claire Scan." },
     { version: '0.229.1', date: '2026-10-14 21:36', resume: "Contrôle de l'urbanisme : la consultation de Géofoncier par l'IA est retirée (elle consommait des jetons) ; le plan de situation de cadastre.gouv.fr reste, sans IA et sans coût. Un mot de passe Géofoncier déjà enregistré est effacé." },
     { version: '0.229.0', date: '2026-10-14 21:13', resume: "Contrôle de l'urbanisme : CLAIRE va elle-même sur les sites. « Tirer le plan de situation » : extrait officiel du plan cadastral de cadastre.gouv.fr en A4 portrait, toutes les parcelles en entier, sans cercle, surligné en jaune fluo dans leurs limites, à ouvrir ou ranger dans le dossier du NAS ; des parcelles proches sur un même plan, éloignées ou trop petites pour être lisibles ensemble sur des plans à part. « Consulter Géofoncier » : CLAIRE se connecte avec le compte de l'étude (Réglages › Sites consultés par CLAIRE), relève le zonage avec la part de chaque zone, les monuments historiques, les bornages et garde un plan aérien avec les numéros ; compte rendu enregistrable sur la fiche. Aussi depuis « Demander à CLAIRE »." },
     { version: '0.228.12', date: '2026-10-14 17:08', resume: "Contrôle de l'urbanisme : quand Sitadel ne répond pas, le rapport technique dit pourquoi (délai dépassé, réponse d'erreur du site, ou réseau du bureau) au lieu de « injoignable » seul." },

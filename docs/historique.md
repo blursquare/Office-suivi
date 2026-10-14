@@ -19748,3 +19748,17 @@ navigateur (`adresseAchat`, session.js). Gardé tel quel : plan de situation de 
 l'étude, non engagée : zonage avec la part de chaque zone, monuments historiques et plan aérien avec les numéros calculés gratuitement
 depuis les données publiques de l'IGN et de la Culture.
 
+### 14/10/2026 — 0.230.0 : plan cadastral dans les pièces de toute vente
+Étude : « Rajouter le plan cadastral de base dans les pièces à avoir quel que soit le dossier. À retrouver sur le commun aussi ». Pièce
+standard `planCadastral` (« Plan cadastral ») ajoutée à `PIECES_AUTRES` (commun/pieces.js) : maison, copropriété, terrain et terre (les
+listes du terrain et de la terre en dérivent) ; succession inchangée (pièces personnalisées seules). Reconnue par le NOM du fichier sur le
+commun : `motifNom` (« plan cadastral », « plan du cadastre », « extrait (du plan) cadastral », « plan de situation », « cadastre.gouv »),
+formes tolérantes, exemples (Réglages › Pièces et Claire Scan), termes élargis de l'outil des noms ; jamais « cadastre » seul (relevé de
+propriété, matrice cadastrale ne sont pas le plan). Le plan de situation que CLAIRE tire de cadastre.gouv.fr et range à la racine du
+dossier (« Plan de situation BLOIS AL 694.pdf ») coche donc la pièce au parcours suivant du NAS. Claire Scan : type « Plan cadastral »
+(« extrait du plan cadastral » ou « plan de situation » en tête de page 1), rubrique AAE. Effet sur les dossiers en cours : ceux sans
+plan cadastral sur le NAS repassent « Attente de pièces » jusqu'à ce qu'il soit trouvé ou validé à la main (ou la pièce retirée).
+Relecture du retrait de Géofoncier (0.229.1) : rien de cassé ; gestes du navigateur que seul l'agent utilisait retirés, aide du point
+terrain corrigée (plus de champ « chemin du navigateur »). À dire à l'étude : les sauvegardes quotidiennes faites pendant la 0.229.0
+peuvent contenir le mot de passe Géofoncier saisi alors — le changer sur Géofoncier si besoin.
+

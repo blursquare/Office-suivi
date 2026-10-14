@@ -91,7 +91,12 @@
     // l'étude) ; le groupe optionnel ne fait qu'accepter EN PLUS "titre de propriété"/"titre
     // vendeur" sans les exiger. \s? après chaque accent de "propriété" : même précaution que
     // "numérotage"/"foncière" ci-dessus (deux positions ici, "propri[é]" et "t[é]").
-    { cle: 'titrePropriete', label: 'Titre de propriété', motifNom: /titre(?:\s+de\s+propri[ée]\s?t[ée]\s?|\s+vendeur)?/i }
+    { cle: 'titrePropriete', label: 'Titre de propriété', motifNom: /titre(?:\s+de\s+propri[ée]\s?t[ée]\s?|\s+vendeur)?/i },
+    // Étude 14/10 : « rajouter le plan cadastral de base dans les pièces à avoir quel que soit le dossier, à retrouver sur le commun
+    // aussi ». Reconnu par le nom : « Plan cadastral », « Extrait (du plan) cadastral », « Plan de situation » (celui que CLAIRE tire de
+    // cadastre.gouv.fr et range dans le dossier : « Plan de situation BLOIS AL 694.pdf »). Jamais « cadastre » seul : un relevé de
+    // propriété, une matrice cadastrale ne sont pas le plan.
+    { cle: 'planCadastral', label: 'Plan cadastral', motifNom: /plan\s+(?:de\s+|du\s+)?cadastr|extraits?\s+(?:du\s+|de\s+)?(?:plan\s+)?cadastr|plan\s+de\s+situation|cadastre\.gouv/i }
   ];
   var PIECES_COPROPRIETE = [
     // Un pré-état daté n'est pas un état daté (voir RE_PRE_ETAT_DATE) : « Pré-état daté.pdf » ne

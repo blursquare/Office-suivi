@@ -1,7 +1,7 @@
 // @ts-check
 'use strict';
 // Une séance de navigation : les onglets du navigateur de CLAIRE et les gestes qu'on y fait (aller à une adresse, lire la page,
-// cliquer, écrire, choisir, appuyer sur une touche, faire défiler, capturer l'écran) — voir chrome.js pour le lancement.
+// cliquer à une position, capturer l'écran) — voir chrome.js pour le lancement.
 //
 // Garde-fous TENUS PAR LE CODE (l'IA ne peut pas les contourner) :
 // - liste blanche : une page (ou un cadre) hors des sites autorisés n'est pas chargée (Fetch, étape « requête », type Document) ;
@@ -87,16 +87,6 @@ const SCRIPT_INSTANTANE = `(() => {
   const texte = net(document.body ? document.body.innerText.replace(/\\n+/g, ' ¶ ') : '').replace(/( ¶ )+/g, '\\n').slice(0, ${MAX_TEXTE_PAGE});
   return { titre: document.title, url: location.href, texte, elements: out, defile: { haut: Math.round(scrollY), total: Math.round(document.documentElement.scrollHeight), vue: innerHeight } };
 })()`;
-
-const TOUCHES = {
-  Entree: { key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, text: '\r' },
-  Echap: { key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 },
-  Tab: { key: 'Tab', code: 'Tab', windowsVirtualKeyCode: 9 },
-  Bas: { key: 'ArrowDown', code: 'ArrowDown', windowsVirtualKeyCode: 40 },
-  Haut: { key: 'ArrowUp', code: 'ArrowUp', windowsVirtualKeyCode: 38 },
-  PageSuivante: { key: 'PageDown', code: 'PageDown', windowsVirtualKeyCode: 34 },
-  Retour: { key: 'Backspace', code: 'Backspace', windowsVirtualKeyCode: 8 }
-};
 
 const attendre = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -301,11 +291,6 @@ class SessionNavigation {
     await this.attendreStable();
   }
 
-  async revenir() {
-    await this.evaluer('history.back()').catch(() => {});
-    await this.attendreStable();
-  }
-
   /** La page lue : titre, adresse, texte, éléments numérotés. */
   async instantane() {
     let dernier;
@@ -313,21 +298,6 @@ class SessionNavigation {
       try { return await this.evaluer(SCRIPT_INSTANTANE); } catch (e) { dernier = e; await attendre(500); }
     }
     throw dernier;
-  }
-
-  /** Centre d'un élément numéroté (amené dans la vue). @param {number} ref */
-  async elementRef(ref) {
-    const n = Math.max(0, Math.floor(Number(ref) || 0));
-    const r = await this.evaluer(`(() => { const e = document.querySelector('[data-claire-ref="${n}"]'); if (!e) return null;
-      e.scrollIntoView({ block: 'center', inline: 'center' }); const r = e.getBoundingClientRect();
-      const t = (e.getAttribute('type') || '').toLowerCase();
-      return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2), balise: e.tagName.toLowerCase(), type: t,
-        libelle: String(e.getAttribute('aria-label') || (e.labels && e.labels[0] ? e.labels[0].innerText : '') || e.getAttribute('placeholder') || e.getAttribute('title')
-          || e.innerText || e.value || e.getAttribute('alt') || (e.querySelector && e.querySelector('img[alt]') ? e.querySelector('img[alt]').getAttribute('alt') : '')
-          || e.getAttribute('name') || '').replace(/\\s+/g, ' ').trim().slice(0, 120),
-        lien: e.tagName === 'A' ? String(e.href || '') : '' }; })()`);
-    if (!r) throw Object.assign(new Error(`élément ${n} introuvable (relire la page)`), { refus: true });
-    return r;
   }
 
   /** @param {number} x @param {number} y */
@@ -343,62 +313,6 @@ class SessionNavigation {
     return { nouvelOnglet: this.onglets.length > avant };
   }
 
-  /** @param {number} ref */
-  async cliquer(ref) {
-    const e = await this.elementRef(ref);
-    return this.cliquerPosition(e.x, e.y);
-  }
-
-  /** Écrit un texte dans un champ (le contenu précédent est remplacé). @param {number} ref @param {string} texte */
-  async saisir(ref, texte) {
-    const n = Math.max(0, Math.floor(Number(ref) || 0));
-    const ok = await this.evaluer(`(() => { const e = document.querySelector('[data-claire-ref="${n}"]'); if (!e) return false;
-      e.scrollIntoView({ block: 'center' }); e.focus();
-      if (typeof e.select === 'function') e.select(); else if (e.isContentEditable) document.execCommand('selectAll');
-      return true; })()`);
-    if (!ok) throw Object.assign(new Error(`champ ${n} introuvable (relire la page)`), { refus: true });
-    const s = this.ongletActif().session;
-    const t = String(texte || '');
-    if (t) await this.cdp.envoyer('Input.insertText', { text: t }, s);
-    else await this.touche('Retour');
-    await attendre(400);
-  }
-
-  /** Choisit une option d'une liste (par son texte, ou sa valeur). @param {number} ref @param {string} option */
-  async choisir(ref, option) {
-    const n = Math.max(0, Math.floor(Number(ref) || 0));
-    const voulu = JSON.stringify(String(option || ''));
-    const r = await this.evaluer(`(() => { const e = document.querySelector('[data-claire-ref="${n}"]'); if (!e || e.tagName !== 'SELECT') return 'pas une liste';
-      const norm = (t) => String(t || '').normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').replace(/\\s+/g, ' ').trim().toLowerCase();
-      const v = norm(${voulu});
-      const opts = [...e.options];
-      const o = opts.find((x) => norm(x.text) === v) || opts.find((x) => norm(x.value) === v) || opts.find((x) => norm(x.text).includes(v));
-      if (!o) return 'option introuvable';
-      e.value = o.value; e.dispatchEvent(new Event('input', { bubbles: true })); e.dispatchEvent(new Event('change', { bubbles: true }));
-      return ''; })()`);
-    if (r) throw Object.assign(new Error(r), { refus: true });
-    await this.attendreStable(8000);
-  }
-
-  /** @param {string} nom une clé de TOUCHES */
-  async touche(nom) {
-    const t = /** @type {any} */ (TOUCHES)[nom];
-    if (!t) throw Object.assign(new Error('touche inconnue'), { refus: true });
-    const s = this.ongletActif().session;
-    await this.cdp.envoyer('Input.dispatchKeyEvent', { type: t.text ? 'keyDown' : 'rawKeyDown', ...t }, s);
-    await this.cdp.envoyer('Input.dispatchKeyEvent', { type: 'keyUp', key: t.key, code: t.code, windowsVirtualKeyCode: t.windowsVirtualKeyCode }, s);
-    await this.attendreStable(8000);
-  }
-
-  /** Fait défiler la page (ou zoome une carte sous le pointeur). @param {'bas'|'haut'} sens @param {number} [x] @param {number} [y] */
-  async defiler(sens, x, y) {
-    const s = this.ongletActif().session;
-    const px = Number.isFinite(Number(x)) ? Number(x) : LARGEUR / 2;
-    const py = Number.isFinite(Number(y)) ? Number(y) : HAUTEUR / 2;
-    await this.cdp.envoyer('Input.dispatchMouseEvent', { type: 'mouseWheel', x: px, y: py, deltaX: 0, deltaY: sens === 'haut' ? -600 : 600 }, s);
-    await attendre(900);
-  }
-
   /** Capture de l'écran de l'onglet actif (JPEG, base64), pour suivre CLAIRE en direct sur le poste. */
   async capture() {
     const r = await this.cdp.envoyer('Page.captureScreenshot', { format: 'jpeg', quality: 72 }, this.ongletActif().session);
@@ -411,4 +325,4 @@ class SessionNavigation {
   }
 }
 
-module.exports = { SessionNavigation, adresseAutorisee, adresseAchat, nomFichierReponse, TOUCHES, LARGEUR, HAUTEUR };
+module.exports = { SessionNavigation, adresseAutorisee, adresseAchat, nomFichierReponse };

@@ -71,6 +71,8 @@
     { cle: 'vidangeFosse', label: 'Vidange de la fosse septique', piece: 'vidangeFosse', motif: /vidange|fosse (septique|toutes eaux)/, rubriques: ['aae'] },
     { cle: 'garantieDecennale', label: 'Garantie décennale', piece: 'garantieDecennale', motif: /decennale/, rubriques: ['travaux', 'aae'] },
     { cle: 'dommageOuvrage', label: 'Assurance dommage-ouvrage', piece: 'dommageOuvrage', motif: /dommages?[- ]ouvrage/, rubriques: ['travaux', 'aae'] },
+    // L'extrait de plan du site cadastre.gouv.fr (DGFiP) porte en tête « EXTRAIT DU PLAN CADASTRAL » ou « PLAN DE SITUATION ».
+    { cle: 'planCadastral', label: 'Plan cadastral', piece: 'planCadastral', motif: /extrait du plan cadastral|plan de situation/, rubriques: ['aae'] },
     { cle: 'titrePropriete', label: 'Titre de propriété', piece: 'titrePropriete', motif: /attestation (immobiliere|de propriete)|titre de propriete/, rubriques: ['titre'] },
     { cle: 'identite', label: "Pièce d'identité", motif: /carte nationale d'identite|passeport|titre de sejour|permis de conduire|identity card/, rubriques: [], parPartie: true },
     { cle: 'etatCivil', label: 'État civil', motif: /livret de famille|acte de (naissance|mariage|deces)|pacte civil de solidarite|contrat de mariage|jugement de divorce/, rubriques: [], parPartie: true },

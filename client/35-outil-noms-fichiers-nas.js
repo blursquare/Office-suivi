@@ -23,6 +23,7 @@
     erp: ['erp', 'ernmt', 'ermt', 'esris', 'risque', 'pollution', 'georisque', 'sismi', 'radon', 'ial'],
     avisTaxeFonciere: ['tf', 'taxe', 'fonciere', 'foncier', 'impot'],
     titrePropriete: ['titre', 'propriete', 'acquisition', 'origine'],
+    planCadastral: ['cadastr', 'situation', 'parcellaire'],
     etudeSol: ['sol', 'sols', 'g1', 'g2', 'geotechni'],
     ramonage: ['ramonage', 'cheminee', 'conduit', 'poele', 'insert'],
     entretienChaudiere: ['chaudiere', 'chauffage'],

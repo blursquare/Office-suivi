@@ -65,7 +65,7 @@ test('checklistPieces("maison") ne contient pas les pièces propres à la coprop
   assert.deepEqual(cles, [
     'certificatUrbanisme', 'certificatAlignement', 'certificatNumerotage',
     'reponseAssainissement', 'renonciationPreemption',
-    'diagnosticsTechniques', 'erp', 'avisTaxeFonciere', 'titrePropriete'
+    'diagnosticsTechniques', 'erp', 'avisTaxeFonciere', 'titrePropriete', 'planCadastral'
   ]);
 });
 
@@ -496,3 +496,20 @@ test('motifNom reconnaît le certificat d\'alignement pris sous forme d\'arrêt�
     assert.ok(!app.correspondancePieceNom(alignement, n), nom);
   }
 });
+
+test('plan cadastral (étude 14/10) : pièce de toute vente — maison, copropriété, terrain, terre — reconnue par son nom sur le commun', () => {
+  const app = chargerApplication();
+  for (const type of ['maison', 'copropriete', 'terrain', 'terre']) {
+    assert.ok(app.checklistPieces(type).some(p => p.cle === 'planCadastral'), type);
+  }
+  const motif = app.checklistPieces('maison').find(p => p.cle === 'planCadastral').motifNom;
+  const nom = (n) => motif.test(app.normaliserNomPourMotif(n));
+  assert.ok(nom('Plan cadastral.pdf'));
+  assert.ok(nom('Extrait_du_plan_cadastral.pdf'));
+  assert.ok(nom('Plan de situation BLOIS AL 694.pdf'), 'le plan tiré par CLAIRE et rangé dans le dossier');
+  assert.ok(nom('Plan de situation Blois AL 694 - extrait cadastre.gouv.fr.pdf'));
+  assert.ok(!nom('Relevé de propriété.pdf'));
+  assert.ok(!nom('Matrice cadastrale.pdf'));
+  assert.ok(!nom('Titre de propriété.pdf'));
+});
+
