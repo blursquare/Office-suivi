@@ -15,7 +15,7 @@
     documents_recents: 'Je regarde les derniers documents…', ouvrir_documents: 'Je prépare les documents…',
     documents_du_dossier: 'Je parcours le dossier du NAS…', lire_document: 'Je lis le document…', rediger_document: 'Je rédige le document…',
     outil_claire: 'J’utilise l’outil…', action_dossier: 'Je prépare l’action…', demander_collaborateur: 'Je prépare la demande…',
-    faire_geste: 'Je m’en occupe…'
+    faire_geste: 'Je m’en occupe…', consulter_site: 'Je vais sur le site…'
   };
 
   // Pure : la réponse de l'agent (texte avec « - » en liste et **gras**) en HTML échappé.
@@ -229,6 +229,7 @@
     if (nom === 'action_dossier') return actionDossierAgent(e);
     if (nom === 'demander_collaborateur') return demanderCollaborateurAgent(e);
     if (nom === 'faire_geste') return faireGesteAgent(e);
+    if (nom === 'consulter_site') return consulterSiteAgent(e);
     return { erreur: 'outil inconnu' };
   }
 

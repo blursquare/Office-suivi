@@ -47,7 +47,8 @@
       { cle: 'bien', libelle: 'Bien', fait: () => !!(prEtat && prEtat.reponses.bien) },
       { cle: 'rural', libelle: 'Agricole et forestier' },
       { cle: 'resultat', libelle: 'Droits', fait: () => !!(prEtat && !analyserPreemption(reponsesPreemption(prEtat)).manques.length) },
-      { cle: 'travaux', libelle: 'Travaux', fait: () => !!(prEtat && prEtat.travaux && prEtat.travaux.liste) }
+      { cle: 'travaux', libelle: 'Travaux', fait: () => !!(prEtat && prEtat.travaux && prEtat.travaux.liste) },
+      { cle: 'sites', libelle: 'Plan et Géofoncier', fait: () => !!(prEtat && prEtat.sites && prEtat.sites.plan && prEtat.sites.plan.etat === 'fini') }
     ],
     inventaire: [
       { cle: 'droits', libelle: 'Droits simulés', fait: () => !!(valeurChamp('inv-droits-sans') && valeurChamp('inv-droits-avec')) },

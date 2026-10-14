@@ -425,3 +425,25 @@ test('outil_claire (13/10) : rien de nominatif ne part — répertoire, valeurs 
   assert.match(envoye, /245 000,00 EUR/, 'les montants partent');
   assert.equal(r.reponse, 'Voilà.');
 });
+
+test('consulter_site (14/10) : outil proposé ; le compte rendu rapporté du site part masqué, tiers compris', async () => {
+  assert.ok(OUTILS_AGENT.some((t) => t.name === 'consulter_site'), 'outil consulter_site proposé');
+  const client = fauxClient([
+    { stop_reason: 'tool_use', usage, content: [outil('t1', 'consulter_site', { site: 'geofoncier', dossier_id: 'd1', precision: '' })] },
+    { stop_reason: 'end_turn', usage, content: [texte('Zone UB.')] }
+  ]);
+  const o = { cle: 'k', client };
+  let r = await tourAgent({ texte: 'Regarde Géofoncier pour le dossier Fournier', dossiers: D, contexte: {} }, o);
+  assert.deepEqual(r.appels.map((a) => a.nom), ['consulter_site']);
+  r = await tourAgent({ conversation: r.conversation, resultats: [{ id: 't1', contenu: {
+    fait: true, compte_rendu: 'Parcelle de M. FOURNIER en zone UB à 100 %. Bornage par le cabinet Lucie BERNARD en 2019.',
+    zonages: [{ parcelle: 'AL 694', zone: 'UB', libelle: 'Zone urbaine', pourcentage: 100 }],
+    monuments_historiques: { statut: 'non', detail: '' },
+    bornages: [{ parcelle: 'AL 694', nature: 'Bornage', date: '2019', geometre: 'Cabinet Lucie BERNARD', reference: 'B-2019-117' }]
+  } }] }, o);
+  const envoye = JSON.stringify(client.requetes[1].messages);
+  assert.doesNotMatch(envoye, /FOURNIER|Fournier|Lucie|BERNARD/, 'aucun nom : ' + envoye.slice(-700));
+  assert.match(envoye, /AL 694/, 'les parcelles partent');
+  assert.match(envoye, /100/, 'les pourcentages partent');
+  assert.equal(r.reponse, 'Zone UB.');
+});

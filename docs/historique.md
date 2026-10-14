@@ -19665,3 +19665,58 @@ Retour de l'étude : le .reg `claire-devant:` fonctionne mais Chrome demande con
 
 ### 14/10/2026 — 0.228.12 : Sitadel, la cause d'un échec dite dans le rapport (relecture de 17 h)
 Rapports #21 à #31 : « Sitadel injoignable » (4 échecs, jamais un succès noté au bureau). Rejoué ici avec le vrai site : `autorisationsSitadel` répond (13 s pour 5 parcelles, 1 autorisation lue) — le code est bon, le blocage est propre au bureau (réseau, proxy, lenteur) ; le message unique ne le disait pas. `raisonEchecSitadel` : « délai dépassé » / « réponse N » / « réseau (CODE) » / « injoignable ». Rien de personnel dans le message (testé). Non vérifié au bureau.
+
+### 14/10/2026 — 0.229.0 : CLAIRE consulte cadastre.gouv.fr et Géofoncier (navigateur du serveur, agent IA)
+Demande de l'étude : « compléter l'outil urbanisme avec le site geofoncier.fr pour confirmer le zonage des parcelles et la situation en
+monument historique. Sortir un plan aérien avec les numéros de parcelles. Vérifier s'il y a des bornages à récupérer sur les parcelles
+vendues. Consulter le site cadastre.gouv.fr et sortir un plan de situation des parcelles et les surligner en fluo jaune pour les repérer
+comme si c'était fait à la main sans dépasser » ; « la version payante donne le pourcentage de zonage par parcelle et si situé en monument
+historique. Je veux que l'on passe par ce site » ; « A4 portrait. Il faut passer par le site du cadastre » ; « N'essaie pas de refaire la
+même chose, il faut les documents et informations de ces sites. Il faut que Claire puisse accéder à Géofoncier avec les identifiants.
+Claire doit pouvoir naviguer sur le site, remplir les champs et apporter des réponses. Claire doit devenir un vrai agent IA autonome qui
+travaille comme un clerc de notaire » ; « Il ne faut pas de gros rond et bien voir toutes les parcelles en entier ». Un premier essai du
+navigateur avait été bloqué par le contrôle de sécurité de l'environnement de développement ; l'étude a autorisé ce type d'action.
+
+**Navigateur de CLAIRE** (`server/src/navigateur/chrome.js`, `session.js`) : le serveur lance le Chrome (sinon l'Edge) déjà installé,
+sans fenêtre (`--headless=new`), profil `data/navigateur` à côté de la base (la session Géofoncier y reste), piloté par le protocole
+DevTools sur des TUYAUX (`--remote-debugging-pipe`, aucun port ouvert, aucune bibliothèque à embarquer). Garde-fous tenus par le code :
+liste blanche des domaines par Fetch (un document hors liste n'est pas chargé, une adresse avec identifiants ou un autre protocole est
+refusée), aucun téléchargement sur le disque (un PDF reçu est gardé en mémoire), aucun script de l'IA exécuté dans la page.
+
+**Plan de situation** (`planCadastre.js`, `lambert.js`, `surlignage.js`) : parcours ÉCRIT À L'AVANCE (aucune IA ne décide des clics),
+relevé sur le site le 14/10 : recherche par références cadastrales (commune, département, section, numéro) → carte de la parcelle →
+outils avancés › Imprimer › « Extrait de plan » (l'outil « Plan de situation » du site entoure la sélection d'un grand cercle : écarté à
+la demande de l'étude), A4, portrait, rotation 0°, sans drapeau → clic au centre des parcelles (`carte.geoToPixel`, la zone imprimée s'y
+centre) → « Aperçu et édition (PDF) ». Échelle : la plus grande des échelles du site (1/500 à 1/5000) où toutes les parcelles tiennent en
+occupant au plus 60 % du cadre de 195,5 × 211 mm (`echelleExtrait`) ; une échelle demandée trop grande est relevée ; parcelles trop
+éloignées → refus dit. Contours des parcelles : API Carto de l'IGN (déjà utilisée), convertis en Lambert CC du site (`versCC`, zone lue
+dans la visionneuse : CC48 pour le 41 ; écart de 2 cm sur un point relevé). Surlignage avec pdf-lib (dépendance ajoutée au serveur,
+embarquée dans le .exe) : chaque parcelle est un chemin de DÉCOUPE (rien ne déborde), passes obliques de surligneur un peu irrégulières
+(reproductibles par parcelle) puis une passe le long du bord intérieur, jaune fluo translucide en mode « produit » (traits et numéros
+lisibles dessous). Placement : la carte de l'extrait A4 portrait est toujours centrée au même point de la page (296,7 ; 524,3 pt depuis
+le haut), vérifié sur des extraits réels au 1/500 et au 1/1000 (croix du quadrillage mesurée à 600 dpi : écart < 0,1 pt). Rejoué ici
+sur le vrai site (Blois, parcelles du domaine public de la place René Coty, aucune donnée de dossier) : 13 à 14 s par plan, deux PDF
+(surligné et extrait officiel).
+
+**Géofoncier par l'agent** (`agentNavigation.js`, `taches.js`) : Claude (modèle de l'agent des Réglages, Opus 5.5 par défaut) VOIT
+l'écran et LIT la page (texte + éléments numérotés) puis choisit un geste ; le serveur l'exécute. Outils : lire_page, voir_ecran,
+aller_a, cliquer, cliquer_position, ecrire, ecrire_identifiant, ecrire_mot_de_passe (le SERVEUR tape la valeur enregistrée ; elle n'est
+jamais rendue à Claude — champ « •••• », identifiant et mot de passe remplacés dans tout texte rendu), choisir, touche, defiler, revenir,
+fermer_onglet, attendre, garder_ecran (remis en PDF A4 portrait avec titre et source), terminer (compte rendu structuré : zonages avec
+pourcentage, monuments historiques, bornages, à signaler). Refusés par le code : tout bouton qui parle d'achat, de commande, de panier,
+d'abonnement, de tarif… (mots entiers : « carte » n'est pas « cart ») et toute modification du compte. 45 gestes et 10 minutes au plus,
+deux captures gardées dans l'historique. Ce qui part chez Claude : la mission (commune, code INSEE, parcelles, précision facultative),
+le texte et les captures des pages de Géofoncier. Mécanique vérifiée ici avec le vrai navigateur sur un faux site local conduit par un
+faux Claude : connexion, identifiants jamais vus par Claude, « Commander » refusé, google.com refusé, écran gardé en PDF A4.
+**Pas pu vérifier** : la connexion au vrai compte Géofoncier ni le parcours dans la version payante (pas de compte ici), le comportement
+d'une vraie IA (pas de clé ici) — point terrain `agent-geofoncier`.
+
+**Écran** : Contrôle de l'urbanisme › « Plan de situation et Géofoncier » (`client/69-sites-claire.js`) : échelle, « Tirer le plan de
+situation », « Consulter Géofoncier » (précision facultative), suivi en direct (étapes + capture de l'écran du navigateur toutes les
+2,5 s, « Arrêter »), PDF à ouvrir ou à RANGER DANS LE DOSSIER DU NAS sur clic (copie à la racine du dossier client, `copierDansDossierClient`,
+jamais par-dessus un fichier), compte rendu Géofoncier enregistrable sur la fiche (`d.geofoncier`, affiché sous le Contrôle de l'urbanisme).
+Réglages › Sites consultés par CLAIRE : navigateur trouvé, chemin facultatif, identifiant et mot de passe Géofoncier (jamais renvoyé par
+la route, gardé si le champ est vide, « Effacer le mot de passe »), adresse de connexion facultative (geofoncier.fr en https seulement).
+« Demander à CLAIRE » : outil `consulter_site` (cadastre | geofoncier) pour un dossier ; les PDF arrivent en boutons dans la conversation.
+Points terrain `plan-cadastre-surligne`, `agent-geofoncier`.
+

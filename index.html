@@ -1644,6 +1644,8 @@
       <div id="pr-resultat"></div>
       <h2 class="outil-section-tete" data-etape="travaux">Travaux et autorisations</h2>
       <div id="pr-travaux"></div>
+      <h2 class="outil-section-tete" data-etape="sites">Plan de situation et Géofoncier <span class="info-i" tabindex="0" data-info="CLAIRE va elle-même sur cadastre.gouv.fr et Géofoncier, dans le navigateur du serveur. Seuls la commune et les numéros de parcelle partent vers ces sites."></span></h2>
+      <div id="pr-sites"></div>
     </div>
   </div>
 </div>
@@ -1708,6 +1710,7 @@
       <button type="button" class="reglages-nav-btn" role="tab" id="reglages-onglet-agenda" aria-controls="reglages-panneau-agenda" aria-selected="false" onclick="definirSousOngletReglages('agenda')">Agenda et Outlook</button>
       <button type="button" class="reglages-nav-btn" role="tab" id="reglages-onglet-telephonie" aria-controls="reglages-panneau-telephonie" aria-selected="false" onclick="definirSousOngletReglages('telephonie')">Téléphonie 3CX</button>
       <button type="button" class="reglages-nav-btn" role="tab" id="reglages-onglet-authentic" aria-controls="reglages-panneau-authentic" aria-selected="false" onclick="definirSousOngletReglages('authentic')">Authentic</button>
+      <button type="button" class="reglages-nav-btn" role="tab" id="reglages-onglet-sites" aria-controls="reglages-panneau-sites" aria-selected="false" onclick="definirSousOngletReglages('sites')">Sites consultés par CLAIRE</button>
       <div class="reglages-nav-groupe" role="presentation">Dossiers et actes</div>
       <button type="button" class="reglages-nav-btn" role="tab" id="reglages-onglet-pieces" aria-controls="reglages-panneau-pieces" aria-selected="false" onclick="definirSousOngletReglages('pieces')">Pièces et Claire Scan</button>
       <button type="button" class="reglages-nav-btn" role="tab" id="reglages-onglet-noms-nas" aria-controls="reglages-panneau-noms-nas" aria-selected="false" onclick="definirSousOngletReglages('noms-nas')">Noms de fichiers du NAS</button>
@@ -1907,6 +1910,40 @@
       <h3 class="reglages-section-titre">Pages lues dans Authentic <span class="info-i" tabindex="0" data-info="Chaque page d'Authentic relevée par l'extension Firefox : le poste qui l'a envoyée, la fenêtre CLAIRE qui l'a lue (celle du même poste d'abord) et ce qu'elle en a fait. « Aucun dossier » : ni le numéro ni les noms de l'intitulé n'ont désigné un dossier — « Choisir le dossier » la range à la main, et le numéro d'Authentic est retenu pour la suite. Une page n'est lue que si une fenêtre CLAIRE est ouverte (même réduite). Journal en mémoire du serveur : 12 heures, vidé au redémarrage."></span></h3>
       <div class="authentic-fenetres" id="reglages-authentic-fenetres"></div>
       <div id="reglages-authentic-journal"></div>
+    </div>
+  </section>
+
+  <!-- ===== Sites consultés par CLAIRE (étude 14/10) : compte Géofoncier de l'étude et navigateur du serveur — voir
+       client/69-sites-claire.js et server/src/navigateur/. Le mot de passe n'est jamais renvoyé par le serveur. ===== -->
+  <section class="reglages-panneau" id="reglages-panneau-sites" role="tabpanel" aria-labelledby="reglages-onglet-sites" hidden>
+    <h2 class="reglages-titre">Sites consultés par CLAIRE</h2>
+    <div class="reglages-section">
+      <h3 class="reglages-section-titre">Navigateur du serveur <span class="info-i" tabindex="0" data-info="CLAIRE consulte cadastre.gouv.fr et Géofoncier dans le Chrome (ou l'Edge) déjà installé sur le serveur, sans fenêtre. Il ne peut ouvrir que ces sites ; il ne paie, ne commande ni ne modifie rien."></span></h3>
+      <div id="sites-navigateur-etat" class="sites-etat-navigateur"></div>
+      <div class="reglages-champ">
+        <div class="reglages-champ-libelle"><label for="sites-navigateur">Chemin du navigateur</label><span class="info-i" tabindex="0" data-info="Vide : Chrome puis Edge, aux emplacements habituels. À remplir seulement si le navigateur est installé ailleurs (chemin complet de chrome.exe ou msedge.exe)."></span></div>
+        <input type="text" id="sites-navigateur" autocomplete="off" placeholder="C:\Program Files\Google\Chrome\Application\chrome.exe">
+      </div>
+    </div>
+    <div class="reglages-section">
+      <h3 class="reglages-section-titre">Compte Géofoncier de l'étude <span class="info-i" tabindex="0" data-info="CLAIRE tape l'identifiant et le mot de passe elle-même dans Géofoncier ; l'IA qui conduit la consultation ne les voit jamais. Le mot de passe n'est jamais réaffiché."></span></h3>
+      <div class="reglages-champ">
+        <div class="reglages-champ-libelle"><label for="sites-geo-identifiant">Identifiant</label></div>
+        <input type="text" id="sites-geo-identifiant" autocomplete="off" placeholder="adresse email du compte">
+      </div>
+      <div class="reglages-champ">
+        <div class="reglages-champ-libelle"><label for="sites-geo-motdepasse">Mot de passe</label></div>
+        <input type="password" id="sites-geo-motdepasse" autocomplete="new-password" placeholder="Laisser vide pour conserver l'actuel">
+      </div>
+      <div class="reglages-champ">
+        <div class="reglages-champ-libelle"><label for="sites-geo-adresse">Adresse de connexion</label><span class="info-i" tabindex="0" data-info="Facultatif : la page où commence la consultation (par exemple celle de la version payante). Vide : la page d'accueil de geofoncier.fr. Seule une adresse geofoncier.fr est acceptée."></span></div>
+        <input type="text" inputmode="url" id="sites-geo-adresse" autocomplete="off" placeholder="https://www.geofoncier.fr/">
+      </div>
+      <div class="reglages-actions">
+        <wa-button variant="brand" onclick="enregistrerReglagesSites()">Enregistrer</wa-button>
+        <wa-button appearance="outlined" onclick="effacerMotDePasseGeofoncier()">Effacer le mot de passe</wa-button>
+        <span class="hint" id="sites-reglages-etat"></span>
+      </div>
     </div>
   </section>
 
@@ -2772,5 +2809,6 @@
 <script src="client/66-assistant-pieces-jointes.js"></script>
 <script src="client/67-assistant-actions.js"></script>
 <script src="client/68-assistant-outils.js"></script>
+<script src="client/69-sites-claire.js"></script>
 </body>
 </html>

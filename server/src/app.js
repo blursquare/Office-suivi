@@ -20,6 +20,7 @@ const { creerRouteurScans } = require('./routes/scans');
 const { creerRouteurReglages } = require('./routes/reglages');
 const { creerRouteurSauvegarde } = require('./routes/sauvegarde');
 const { creerRouteurUrbanisme } = require('./routes/urbanisme');
+const { creerRouteurNavigation } = require('./routes/navigation');
 const { creerRouteurNotifications } = require('./routes/notifications');
 const { creerRouteurExclusionsPieces } = require('./routes/exclusionsPieces');
 const { creerRouteurCorrectionsApprises } = require('./routes/correctionsApprises');
@@ -133,7 +134,7 @@ function seaOuNull() {
   try { return require('node:sea'); } catch (_) { return null; }
 }
 
-function creerApp({ db, config, envoyerEmailFn, creerClientClaude, appelerMistral, testerMistral, miseAJour, agenda, emailsMatin, rapportTechnique, sondages, exchange, emailsDossiers, urbanisme, assistant, relaisWord }) {
+function creerApp({ db, config, envoyerEmailFn, creerClientClaude, appelerMistral, testerMistral, miseAJour, agenda, emailsMatin, rapportTechnique, sondages, exchange, emailsDossiers, urbanisme, assistant, relaisWord, navigation }) {
   const app = express();
   // Avant tout : adresse et origine de la requête (securiteHote.js, audit 13/10).
   app.use(creerControleHote(config));
@@ -227,6 +228,8 @@ function creerApp({ db, config, envoyerEmailFn, creerClientClaude, appelerMistra
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurAppelsFonds(parametresRepo));
   // Zonage d'une parcelle (outil « Droits de préemption ») : API Carto de l'IGN, voir urbanisme.js.
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurUrbanisme(parametresRepo, urbanisme || {}));
+  // Sites consultés par CLAIRE (cadastre.gouv.fr, Géofoncier) dans le navigateur du serveur : voir navigateur/taches.js.
+  app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurNavigation(config, parametresRepo, depot, navigation || {}));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurConfreres(parametresRepo));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurPoste());
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurVerificationsTerrain(parametresRepo));

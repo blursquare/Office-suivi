@@ -15,7 +15,8 @@
     "express": "^5.2.1",
     "fast-xml-parser": "^5.11.2",
     "httpntlm": "^1.8.13",
-    "nodemailer": "^10.0.9"
+    "nodemailer": "^10.0.9",
+    "pdf-lib": "^1.17.1"
   },
   "devDependencies": {
     "@resvg/resvg-js": "^2.6.2",

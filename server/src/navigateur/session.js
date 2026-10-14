@@ -110,7 +110,10 @@ class SessionNavigation {
     const s = new SessionNavigation(lancement, { domaines: o.domaines });
     await s.cdp.envoyer('Browser.setDownloadBehavior', { behavior: 'deny' }).catch(() => {});
     await s.cdp.envoyer('Target.setAutoAttach', { autoAttach: true, waitForDebuggerOnStart: true, flatten: true });
-    await s.nouvelOnglet();
+    // L'onglet que Chrome ouvre au démarrage sert d'onglet de travail (un second, vide, resterait derrière : fermer une fenêtre
+    // ouverte par le site ramènerait sur lui).
+    for (let i = 0; i < 40 && !s.onglets.length; i++) await attendre(50);
+    if (!s.onglets.length) await s.nouvelOnglet();
     return s;
   }
 
@@ -233,6 +236,19 @@ class SessionNavigation {
       await attendre(250);
     }
     await attendre(700);
+    await this.verifierAdresseAffichee();
+  }
+
+  /** Seconde barrière : la page AFFICHÉE (après redirections) doit être sur un site autorisé, sinon elle est remplacée par une
+   * page vide et le geste échoue. */
+  async verifierAdresseAffichee() {
+    const o = this.onglets[this.onglets.length - 1];
+    if (!o) return;
+    const adresse = await this.evaluer('location.href', o.session).catch(() => '');
+    if (!adresse || adresseAutorisee(adresse, this.domaines)) return;
+    this.bloques.push(String(adresse).slice(0, 200));
+    await this.cdp.envoyer('Page.navigate', { url: 'about:blank' }, o.session).catch(() => {});
+    throw Object.assign(new Error('page hors des sites autorisés : fermée'), { refus: true });
   }
 
   /** @param {string} adresse */

@@ -148,15 +148,25 @@ async function lancerNavigateur(o) {
   // Un Chrome précédent arrêté brutalement laisse un verrou sur le profil : le nouveau refuserait de démarrer.
   for (const verrou of ['SingletonLock', 'SingletonSocket', 'SingletonCookie']) await fs.promises.rm(path.join(o.profil, verrou), { force: true }).catch(() => {});
   const lancer = o.spawnFn || spawn;
-  const processus = lancer(chemin, argumentsLancement(o.profil, { largeur: o.largeur || 1280, hauteur: o.hauteur || 800 }),
-    { stdio: ['ignore', 'ignore', 'ignore', 'pipe', 'pipe'], windowsHide: true });
+  const args = argumentsLancement(o.profil, { largeur: o.largeur || 1280, hauteur: o.hauteur || 800 });
+  // Linux de développement lancé en root : Chrome refuse de démarrer avec son bac à sable (jamais le cas sur le serveur Windows).
+  if (process.platform === 'linux' && typeof process.getuid === 'function' && process.getuid() === 0) args.unshift('--no-sandbox');
+  const processus = lancer(chemin, args, { stdio: ['ignore', 'ignore', 'pipe', 'pipe', 'pipe'], windowsHide: true });
+  let journal = '';
+  if (processus.stderr) processus.stderr.on('data', (d) => { journal = (journal + String(d)).slice(-2000); });
   const ecriture = /** @type {any} */ (processus.stdio[3]);
   const lecture = /** @type {any} */ (processus.stdio[4]);
+  ecriture.on('error', () => {});
   const cdp = new ConnexionCdp(ecriture, lecture);
   processus.on('exit', () => cdp.fermer('navigateur arrêté'));
   processus.on('error', () => cdp.fermer('navigateur arrêté'));
   // Le navigateur répond dès qu'il est prêt.
-  const version = await cdp.envoyer('Browser.getVersion', {}, undefined, 30000).catch((e) => { try { processus.kill(); } catch (_) { /* déjà arrêté */ } throw e; });
+  const version = await cdp.envoyer('Browser.getVersion', {}, undefined, 30000).catch((e) => {
+    try { processus.kill(); } catch (_) { /* déjà arrêté */ }
+    // La dernière ligne d'erreur du navigateur dit pourquoi il n'a pas démarré (sans chemin de profil : il est déjà connu).
+    const cause = journal.split('\n').map((l) => l.trim()).filter(Boolean).pop() || '';
+    throw new Error(`le navigateur n’a pas démarré${cause ? ` (${cause.slice(0, 160)})` : ''} : ${e.message}`);
+  });
   return {
     cdp, processus, chemin, version: String(version.product || ''),
     async arreter() {
