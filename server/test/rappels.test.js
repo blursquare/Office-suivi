@@ -738,3 +738,14 @@ test('succession (miroir de echeancesPlanning) : seulement la signature placée 
   assert.equal(toutesEcheances(d).map(e => `${e.type}:${e.iso}`).join(','), 'autre-0:2027-01-15');
   assert.equal(toutesEcheances(Object.assign({}, d, { rendezVousSignature: '2026-11-05' })).map(e => e.type).join(','), 'rendezVousSignature,autre-0');
 });
+
+test('prêt ancré sur la date butoir : son rappel n’empêche pas celui de la vraie date saisie ensuite (relecture 14/10)', () => {
+  const d = { id: 'd9', responsable: 'Bastien ANGLUMENT', nom: 'A / B', acte: '2026-12-15', pieces: {}, echeancesValidees: {} };
+  const premier = calculerRappelsDus([d], '2026-11-30', new Set());
+  assert.equal(premier.length, 1);
+  assert.equal(premier[0].reminderKey, 'pret:15@2026-12-15');
+  const envoyes = new Set([`d9:${premier[0].reminderKey}`]);
+  const ensuite = calculerRappelsDus([{ ...d, pret: '2026-11-25' }], '2026-11-10', envoyes);
+  assert.equal(ensuite.length, 1);
+  assert.equal(ensuite[0].reminderKey, 'pret:15');
+});

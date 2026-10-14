@@ -19637,3 +19637,4 @@ machine (à ajouter alors à `hotesAutorises`).
 le filet de `echeancesPlanning` ancre « Obtention du prêt » sur la date butoir (rappels J-15/J-7 du prêt) au lieu de « Envoi appel de
 fonds ». Relecture : Origin d'une écriture = exactement l'adresse et le port de CLAIRE (ou un nom de `hotesAutorises`) ; release
 `--target` sur le commit construit.
+Relecture : la clé du rappel Teams d'une échéance ancrée sur la date butoir porte la date (`pret:15@AAAA-MM-JJ`) — un rappel parti sur la date butoir n'empêche plus celui de la vraie date de prêt saisie ensuite.

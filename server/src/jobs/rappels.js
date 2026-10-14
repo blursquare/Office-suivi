@@ -101,7 +101,7 @@ function calculerRappelsDus(dossiers, aujourdHui, dejaEnvoyes) {
       const j = joursRestants(e.iso, aujourdHui);
       for (const seuil of seuilsPourType(e.type)) {
         if (j !== seuil) continue;
-        const reminderKey = `${e.type}:${seuil}`;
+        const reminderKey = `${e.type}:${seuil}${e.ancreButoir ? `@${e.iso}` : ''}`;
         if (dejaEnvoyes && dejaEnvoyes.has(`${d.id}:${reminderKey}`)) continue;
         dus.push({
           dossierId: d.id,

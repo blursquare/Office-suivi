@@ -244,7 +244,7 @@
   // ex æquo, le tri se faisant par date.
   /**
    * Une échéance du planning : `iso` AAAA-MM-JJ (null = étape sans date propre), `index` pour une échéance personnalisée.
-   * @typedef {{ type: string, label: string, iso: (string|null), index?: number }} Echeance
+   * @typedef {{ type: string, label: string, iso: (string|null), index?: number, ancreButoir?: boolean }} Echeance
    */
   /** @returns {Echeance[]} */
   function echeancesPlanning(d) {
@@ -314,13 +314,15 @@
     // date, et qu'une date butoir existe (sans rendez-vous ni butoir déjà validé), on garde le
     // dossier visible en ancrant cette étape sur la date butoir — seule échéance opérante tant
     // qu'aucun rendez-vous ne la remplace. Ciblé sur ce seul cas : jamais une échéance sur le butoir
-    // quand le dossier a déjà autre chose à surveiller (prêt, vente préalable…).
+    // quand le dossier a déjà autre chose de daté à surveiller ; un prêt attendu SANS date y est ancré lui-même (étude 14/10).
     // Prêt attendu sans date d'obtention saisie (étude 14/10, audit) : c'est LUI qu'on ancre sur la date butoir — avant, l'étape
     // « Envoi appel de fonds » prenait sa place (et son rappel Teams) alors que le rendez-vous n'est même pas fixé.
     const pretSansDate = items.find(it => it.type === 'pret' && !it.iso);
     if (!reels.length && d.acte && !d.rendezVousSignature && !echeanceValidee(d, 'acte')) {
-      if (pretSansDate && !d.sansPret && !echeanceValidee(d, 'pret')) reels = [Object.assign({}, pretSansDate, { iso: d.acte })];
-      else if (etape && !etape.iso) reels = [Object.assign({}, etape, { iso: d.acte })];
+      // `ancreButoir` : la date n'est pas celle de l'échéance — le rappel Teams l'inscrit dans sa clé (relecture 14/10 : sinon un
+      // rappel parti sur la date butoir empêchait celui de la vraie date saisie ensuite).
+      if (pretSansDate && !d.sansPret && !echeanceValidee(d, 'pret')) reels = [Object.assign({}, pretSansDate, { iso: d.acte, ancreButoir: true })];
+      else if (etape && !etape.iso) reels = [Object.assign({}, etape, { iso: d.acte, ancreButoir: true })];
     }
     return reels;
   }
