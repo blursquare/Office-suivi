@@ -135,6 +135,18 @@ function cartesTableauFiche(d, aujourdhuiIso, actions) {
     });
   });
 
+  // --- Confirmation de la réception des fonds au client (étude 14/10 : confirmée par un autre email, à cocher à la main) : visible dès
+  // l'appel de fonds envoyé, sans attendre J-3. Fonds pas tous reçus → en attente ; tous reçus → à faire ; confirmée → fait.
+  if (!succession && d.roleNotaire !== 'participant' && !notaireParticipantRepresenteAcquereur(d) && echeanceValidee(d, 'appelFonds')) {
+    const cocheFonds = (libelle) => ({ onclick: `basculerConfirmationFondsFiche('${escapeOnclickArg(id)}')`, libelle });
+    if (d.receptionFondsConfirmeeLe) {
+      ajouter('fait', { cle: 'fonds-confirmes', titre: 'Réception des fonds confirmée au client', iso: String(d.receptionFondsConfirmeeLe).slice(0, 10), sous: formatDateFr(String(d.receptionFondsConfirmeeLe).slice(0, 10)), categorie: 'appelFonds', fait: true, onglet: 'fonds', coche: cocheFonds('Rouvrir') });
+    } else if (!gestes.some(a => a.type === 'fonds')) {
+      const recus = fondsCompletsAConfirmer(d);
+      ajouter(recus ? 'faire' : 'attente', { cle: 'fonds-confirmer', titre: 'Confirmer la réception des fonds', sous: recus ? 'Tous les fonds sont reçus' : 'Fonds pas encore tous reçus', categorie: 'appelFonds', onglet: 'fonds', coche: cocheFonds('Confirmée — valider à la main') });
+    }
+  }
+
   // --- Fait : les étapes déjà passées (on peut décocher celles qui se cochent), puis les échéances ajoutées à la main et cochées.
   etapes.filter(e => e.fait).forEach(e => {
     // Prêt levé par l'offre reçue : « Rouvrir » ne changerait rien (audit 12/10) — étape faite d'elle-même.
@@ -437,3 +449,18 @@ function initGlisserDeposerFiche() {
   });
 }
 initGlisserDeposerFiche();
+
+// Coche / décoche à la main la confirmation de la réception des fonds (faite hors de CLAIRE, par un autre email).
+function basculerConfirmationFondsFiche(dossierId) {
+  const d = dossiers.find(x => x.id === dossierId);
+  if (!d) return;
+  if (d.receptionFondsConfirmeeLe) {
+    d.receptionFondsConfirmeeLe = null;
+    ajouterHistorique(d, 'Confirmation de la réception des fonds retirée (rouverte à la main)');
+  } else {
+    d.receptionFondsConfirmeeLe = isoAujourdhuiLocal();
+    ajouterHistorique(d, 'Réception des fonds confirmée au client (marquée à la main)');
+  }
+  sauvegarder(d);
+  render();
+}
