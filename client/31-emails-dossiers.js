@@ -628,6 +628,24 @@
     renderReglages3cx();
   }
 
+  // Fichier .reg pour l'administrateur (Fichorga) : le navigateur n'a plus à confirmer le lien à chaque appel (étude 14/10).
+  async function telechargerAutorisationLien3cx() {
+    try {
+      const r = await fetchAvecAuth('/api/appels/relais/autorisation');
+      if (!r.ok) throw new Error('statut ' + r.status);
+      const lien = document.createElement('a');
+      lien.href = URL.createObjectURL(await r.blob());
+      lien.download = 'CLAIRE-autoriser-lien-3CX.reg';
+      document.body.appendChild(lien);
+      lien.click();
+      document.body.removeChild(lien);
+      setTimeout(() => URL.revokeObjectURL(lien.href), 60000);
+      afficherInfoAction('Fichier téléchargé', 'À faire importer par Fichorga (compte administrateur, Chrome et Edge fermés puis rouverts) : le navigateur ouvre alors le lien de CLAIRE sans demander confirmation à chaque appel.');
+    } catch (e) {
+      afficherToast('Téléchargement impossible : ' + e.message, 'OK', null);
+    }
+  }
+
   // Relais retiré pour ce collaborateur : l'onglet de 3CX affiche de nouveau CLAIRE quand la fenêtre est cachée.
   async function retirerRelaisAppel3cx(i) {
     const nom = RESPONSABLES[i];

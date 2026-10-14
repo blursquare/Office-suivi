@@ -260,3 +260,12 @@ test('reconnaitreAppelant : le téléphone d’un confrère saisi sur la fiche r
   assert.deepEqual(reconnaitreAppelant('0611223344', { dossiers }).dossiers, [{ id: 'd2', partie: 'confrere', archive: true }]);
   assert.deepEqual(reconnaitreAppelant('0699999999', { dossiers }).dossiers, []);
 });
+
+test('autorisation du lien claire-devant : stratégie Chrome et Edge limitée à l’adresse du serveur', () => {
+  const { fichierRegAutorisationLien, octetsRegAutorisationLien } = require('../src/relaisAppelReg');
+  const t = fichierRegAutorisationLien({ origine: 'http://192.168.1.10:3000/' });
+  assert.match(t, /HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Google\\Chrome\\AutoLaunchProtocolsFromOrigins/);
+  assert.match(t, /HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Edge\\AutoLaunchProtocolsFromOrigins/);
+  assert.match(t, /"1"="\{\\"allowed_origins\\":\[\\"http:\/\/192\.168\.1\.10:3000\\"\],\\"protocol\\":\\"claire-devant\\"\}"/);
+  assert.equal(octetsRegAutorisationLien({ origine: 'http://x:1' }).readUInt16LE(0), 0xFEFF);
+});

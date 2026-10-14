@@ -93,4 +93,29 @@ function octetsRegRelaisAppel(o) {
   return Buffer.from('﻿' + fichierRegRelaisAppel(o), 'utf16le');
 }
 
-module.exports = { PROTOCOLE_RELAIS_REG, scriptRelaisReg, commandeRelaisReg, fichierRegRelaisAppel, octetsRegRelaisAppel };
+// Pure : le fichier .reg (HKLM, droits d'administrateur : à passer par Fichorga) qui autorise le navigateur à ouvrir le lien
+// `claire-devant:` depuis CLAIRE sans demander confirmation à chaque appel (stratégie AutoLaunchProtocolsFromOrigins de Chrome et
+// d'Edge, limitée à l'adresse du serveur et à ce seul lien). Étude 14/10 : « le reg a fonctionné, il demande confirmation à chaque fois ».
+/** @param {{ origine: string }} o @returns {string} */
+function fichierRegAutorisationLien({ origine }) {
+  const o = String(origine || '').replace(/\/+$/, '');
+  const regle = JSON.stringify({ allowed_origins: [o], protocol: PROTOCOLE_RELAIS_REG });
+  const bloc = (editeur) => ['[HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\' + editeur + '\\AutoLaunchProtocolsFromOrigins]', '"1"=' + valeurReg(regle), ''];
+  return [
+    'Windows Registry Editor Version 5.00',
+    '',
+    '; CLAIRE : le navigateur ouvre le lien « ' + PROTOCOLE_RELAIS_REG + ': » depuis ' + o + ' sans demander confirmation.',
+    '; A importer avec un compte administrateur. Pour le retirer : supprimer la valeur « 1 » de ces deux cles (puis redemarrer le navigateur).',
+    '; Si la cle existe deja avec d\'autres regles, ajouter la regle sous un autre numero au lieu d\'importer ce fichier.',
+    '',
+    ...bloc('Google\\Chrome'),
+    ...bloc('Microsoft\\Edge')
+  ].join('\r\n');
+}
+
+/** @param {{ origine: string }} o @returns {Buffer} */
+function octetsRegAutorisationLien(o) {
+  return Buffer.from('\uFEFF' + fichierRegAutorisationLien(o), 'utf16le');
+}
+
+module.exports = { fichierRegAutorisationLien, octetsRegAutorisationLien, PROTOCOLE_RELAIS_REG, scriptRelaisReg, commandeRelaisReg, fichierRegRelaisAppel, octetsRegRelaisAppel };

@@ -19,7 +19,7 @@ const { creerEntreeAppel, pageSonnerie, clePoste, valeur3cx } = require('../appe
 const { noterVerification, formeNumero } = require('../verificationsTerrain');
 const { adressesLan } = require('../reseau');
 const { officesAnnuaire } = require('../annuaireNotaires');
-const { octetsRegRelaisAppel } = require('../relaisAppelReg');
+const { octetsRegRelaisAppel, octetsRegAutorisationLien } = require('../relaisAppelReg');
 const { adresseClairePoste } = require('../installationPoste');
 
 // Le carnet, suivi des offices de l'annuaire qui n'y sont pas déjà (même identifiant).
@@ -143,6 +143,14 @@ function creerRouteurAppels(parametresRepo, etat) {
     res.setHeader('Content-Type', 'application/octet-stream');
     res.setHeader('Content-Disposition', 'attachment; filename="CLAIRE-appels-3CX.reg"');
     res.send(octetsRegRelaisAppel({ url, profil: local ? 'ClaireServeur' : 'Claire' }));
+  });
+  // Le fichier .reg (administrateur, Fichorga) qui supprime la confirmation du navigateur à chaque appel (étude 14/10).
+  routeur.get('/appels/relais/autorisation', (req, res) => {
+    const url = adresseClairePoste(req.protocol, req.get('host'));
+    if (!url) { res.status(400).json({ error: 'Adresse du serveur illisible.' }); return; }
+    res.setHeader('Content-Type', 'application/octet-stream');
+    res.setHeader('Content-Disposition', 'attachment; filename="CLAIRE-autoriser-lien-3CX.reg"');
+    res.send(octetsRegAutorisationLien({ origine: url }));
   });
   routeur.get('/appels/nouveaux', (req, res) => {
     if (posteCoupe(parametresRepo, req.query.poste)) { res.json({ appels: [], serverTime: new Date().toISOString(), coupe: true }); return; }

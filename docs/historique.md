@@ -19647,3 +19647,6 @@ Demande de l'étude : « Lors de l'envoi de la copie d'acte au client, ne pas t�
 
 ### 14/10/2026 — 0.228.6 : confirmation des fonds aussi en participation
 Étude : « un dossier en participation : si aussi ». La carte du Tableau « Confirmer la réception des fonds » (0.228.5) est montrée aussi quand `d.roleNotaire === 'participant'`, sans exiger `echeanceValidee(d, 'appelFonds')` (l'appel de fonds vient du confrère) ni l'exclusion « confrère à l'acquéreur ». Jamais en succession.
+
+### 14/10/2026 — 0.228.7 : appels 3CX, fin de la confirmation à chaque appel
+Retour de l'étude : le .reg `claire-devant:` fonctionne mais Chrome demande confirmation à chaque appel ; l'onglet s'ouvre puis la fenêtre revient sur le tableau de bord. Confirmation : stratégie `AutoLaunchProtocolsFromOrigins` (HKLM, Chrome et Edge), fichier `GET /api/appels/relais/autorisation` (`fichierRegAutorisationLien`), bouton « Fichier pour supprimer la confirmation (administrateur) » dans Réglages › Téléphonie 3CX — à importer par Fichorga ; non vérifié au bureau (une stratégie HKLM n'est lue que si le navigateur la prend en compte : `chrome://policy`). Retour sur le tableau de bord : pas de défaut trouvé dans le code (la fiche ne s'ouvre que pour un appelant reconnu d'UN dossier en cours, jamais pendant une saisie) ; en attente de savoir si l'appelant était reconnu.
