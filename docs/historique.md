@@ -19737,3 +19737,14 @@ Relecture : « AB 12 et 13 » ne perd plus la 13, trous des parcelles respectés
 l'ouverture échoue, rangement dans le seul dossier de la consultation, panne de l'IGN dite. Reste à l'étude : les conditions
 d'utilisation de Géofoncier et de cadastre.gouv.fr pour une consultation automatisée.
 
+### 14/10/2026 — 0.229.1 : Géofoncier retiré, plan de situation gardé
+Étude : « Si j'utilise l'outil cadastre seul ça utilise des tokens ? » (non : parcours écrit à l'avance, sans IA) puis « Retire alors la
+partie Géofoncier ». Retirés : l'agent de navigation (`agentNavigation.js`), la route `POST /api/navigation/consultation`, les réglages du
+compte Géofoncier (`PUT /api/navigation/reglages`, champs de Réglages › Sites consultés par CLAIRE, qui ne montre plus que l'état du
+navigateur du serveur), la carte « Géofoncier » du Contrôle de l'urbanisme, le compte rendu sur la fiche, le point terrain
+`agent-geofoncier`, l'option `geofoncier` de l'outil `consulter_site` de « Demander à CLAIRE » (plan de situation seulement). La clé
+`sites-agent` (identifiant et mot de passe saisis pendant la 0.229.0) est vidée au démarrage. Le refus des adresses d'achat reste dans le
+navigateur (`adresseAchat`, session.js). Gardé tel quel : plan de situation de cadastre.gouv.fr (sans IA, aucun jeton). Piste dite à
+l'étude, non engagée : zonage avec la part de chaque zone, monuments historiques et plan aérien avec les numéros calculés gratuitement
+depuis les données publiques de l'IGN et de la Culture.
+

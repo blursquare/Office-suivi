@@ -570,7 +570,7 @@
           <span class="pr-fiche-titre">${escapeHtml(l.titre)}${infoBulle(AIDE_PATRIMOINE)}</span>
           <span class="hint">${escapeHtml(l.motif)}${l.conseil ? ' — ' + escapeHtml(l.conseil) : ''}</span>
         </div>` : '';
-        })()}${renderTravauxFicheUrbanisme(p)}${renderGeofoncierFicheUrbanisme(d)}</div>
+        })()}${renderTravauxFicheUrbanisme(p)}</div>
       ${questions.length ? `<div class="pr-fiche-questions">${questions.map(q => `<div class="pr-question pr-question-due">
           <span class="pr-question-texte">${escapeHtml(q.libelle)}${q.aide ? infoBulle(q.aide) : ''}</span>
           ${boutonsReponsePreemption(v => `repondrePreemptionFiche('${escapeOnclickArg(d.id)}', '${q.cle}', ${JSON.stringify(v).replace(/"/g, '&quot;')})`, (p.reponses || {})[q.cle], q.valeurs)}

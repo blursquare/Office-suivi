@@ -1644,7 +1644,7 @@
       <div id="pr-resultat"></div>
       <h2 class="outil-section-tete" data-etape="travaux">Travaux et autorisations</h2>
       <div id="pr-travaux"></div>
-      <h2 class="outil-section-tete" data-etape="sites">Plan de situation et Géofoncier <span class="info-i" tabindex="0" data-info="CLAIRE va elle-même sur cadastre.gouv.fr et Géofoncier, dans le navigateur du serveur. Seuls la commune et les numéros de parcelle partent vers ces sites."></span></h2>
+      <h2 class="outil-section-tete" data-etape="sites">Plan de situation <span class="info-i" tabindex="0" data-info="CLAIRE va elle-même sur cadastre.gouv.fr, dans le navigateur du serveur, sans IA. Seuls la commune et les numéros de parcelle partent vers ce site."></span></h2>
       <div id="pr-sites"></div>
     </div>
   </div>
@@ -1913,33 +1913,13 @@
     </div>
   </section>
 
-  <!-- ===== Sites consultés par CLAIRE (étude 14/10) : compte Géofoncier de l'étude et navigateur du serveur — voir
-       client/69-sites-claire.js et server/src/navigateur/. Le mot de passe n'est jamais renvoyé par le serveur. ===== -->
+  <!-- ===== Sites consultés par CLAIRE (étude 14/10) : état du navigateur du serveur qui tire le plan de situation de
+       cadastre.gouv.fr — voir client/69-sites-claire.js et server/src/navigateur/. ===== -->
   <section class="reglages-panneau" id="reglages-panneau-sites" role="tabpanel" aria-labelledby="reglages-onglet-sites" hidden>
     <h2 class="reglages-titre">Sites consultés par CLAIRE</h2>
     <div class="reglages-section">
-      <h3 class="reglages-section-titre">Navigateur du serveur <span class="info-i" tabindex="0" data-info="CLAIRE consulte cadastre.gouv.fr et Géofoncier dans le Chrome (ou l'Edge) déjà installé sur le serveur, à son emplacement habituel, sans fenêtre. Il ne peut ouvrir que ces sites ; il ne paie, ne commande ni ne modifie rien."></span></h3>
+      <h3 class="reglages-section-titre">Navigateur du serveur <span class="info-i" tabindex="0" data-info="CLAIRE tire le plan de situation de cadastre.gouv.fr dans le Chrome (ou l'Edge) déjà installé sur le serveur, à son emplacement habituel, sans fenêtre et sans IA. Il ne peut ouvrir que ce site ; il ne paie, ne commande ni ne modifie rien."></span></h3>
       <div id="sites-navigateur-etat" class="sites-etat-navigateur"></div>
-    </div>
-    <div class="reglages-section">
-      <h3 class="reglages-section-titre">Compte Géofoncier de l'étude <span class="info-i" tabindex="0" data-info="CLAIRE tape l'identifiant et le mot de passe elle-même dans Géofoncier. L'IA qui conduit la consultation ne voit jamais le mot de passe ; l'identifiant peut apparaître sur une capture de page (« connecté en tant que… »). Le mot de passe n'est jamais réaffiché."></span></h3>
-      <div class="reglages-champ">
-        <div class="reglages-champ-libelle"><label for="sites-geo-identifiant">Identifiant</label></div>
-        <input type="text" id="sites-geo-identifiant" autocomplete="off" placeholder="adresse email du compte">
-      </div>
-      <div class="reglages-champ">
-        <div class="reglages-champ-libelle"><label for="sites-geo-motdepasse">Mot de passe</label></div>
-        <input type="password" id="sites-geo-motdepasse" autocomplete="new-password" placeholder="Laisser vide pour conserver l'actuel">
-      </div>
-      <div class="reglages-champ">
-        <div class="reglages-champ-libelle"><label for="sites-geo-adresse">Adresse de connexion</label><span class="info-i" tabindex="0" data-info="Facultatif : la page où commence la consultation (par exemple celle de la version payante). Vide : la page d'accueil de geofoncier.fr. Seule une adresse geofoncier.fr est acceptée."></span></div>
-        <input type="text" inputmode="url" id="sites-geo-adresse" autocomplete="off" placeholder="https://www.geofoncier.fr/">
-      </div>
-      <div class="reglages-actions">
-        <wa-button variant="brand" onclick="enregistrerReglagesSites()">Enregistrer</wa-button>
-        <wa-button appearance="outlined" onclick="effacerMotDePasseGeofoncier()">Effacer le mot de passe</wa-button>
-        <span class="hint" id="sites-reglages-etat"></span>
-      </div>
     </div>
   </section>
 

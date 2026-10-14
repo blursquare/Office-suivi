@@ -228,7 +228,7 @@ function creerApp({ db, config, envoyerEmailFn, creerClientClaude, appelerMistra
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurAppelsFonds(parametresRepo));
   // Zonage d'une parcelle (outil « Droits de préemption ») : API Carto de l'IGN, voir urbanisme.js.
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurUrbanisme(parametresRepo, urbanisme || {}));
-  // Sites consultés par CLAIRE (cadastre.gouv.fr, Géofoncier) dans le navigateur du serveur : voir navigateur/taches.js.
+  // Plan de situation tiré de cadastre.gouv.fr dans le navigateur du serveur : voir navigateur/taches.js.
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurNavigation(config, parametresRepo, depot, navigation || {}));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurConfreres(parametresRepo));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurPoste());

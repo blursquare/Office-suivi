@@ -1,20 +1,20 @@
-  // ===== Sites consultés par CLAIRE (étude 14/10 : « Claire doit pouvoir naviguer sur le site, remplir les champs et apporter des
-  // réponses » ; plan de situation de cadastre.gouv.fr surligné en jaune fluo, « A4 portrait », « pas de gros rond, toutes les
-  // parcelles en entier » ; Géofoncier avec le compte de l'étude : zonage en %, monuments historiques, bornages, plan aérien).
-  // Le SERVEUR conduit son navigateur (server/src/navigateur/) ; le poste lance, suit en direct (étapes + capture d'écran), affiche
-  // le résultat, ouvre les PDF, les range dans le dossier du NAS sur clic et garde le compte rendu Géofoncier sur la fiche
-  // (d.geofoncier). Section « Plan de situation et Géofoncier » du Contrôle de l'urbanisme, et Réglages › Sites consultés par CLAIRE. =====
+  // ===== Plan de situation tiré de cadastre.gouv.fr (étude 14/10 : « consulter le site du cadastre et sortir un plan de situation
+  // des parcelles, les surligner en fluo jaune pour les repérer comme si c'était fait à la main sans dépasser », « A4 portrait »,
+  // « pas de gros rond, toutes les parcelles en entier », « si trop éloignées faire plusieurs plans »). Le SERVEUR conduit son
+  // navigateur (server/src/navigateur/), SANS IA ; le poste lance, suit en direct (étapes + capture d'écran), ouvre les PDF et les
+  // range dans le dossier du NAS sur clic. Section « Plan de situation » du Contrôle de l'urbanisme, outil consulter_site de
+  // « Demander à CLAIRE », état du navigateur dans Réglages › Sites consultés par CLAIRE. (Géofoncier par un agent Claude : retiré
+  // le 14/10 au soir par l'étude, « ça utilise des tokens ».) =====
 
   var ECHELLES_PLAN_SITUATION = [{ cle: 0, libelle: 'Automatique' }, { cle: 500, libelle: '1/500' }, { cle: 1000, libelle: '1/1000' },
     { cle: 2000, libelle: '1/2000' }, { cle: 5000, libelle: '1/5000' }];
-  var STATUTS_MONUMENTS_GEOFONCIER = { oui: 'En zone protégée', non: 'Hors zone protégée', non_lu: 'Non lu' };
-  var minuteriesSites = {};       // genre ('plan' | 'geofoncier') → minuterie du suivi
+  var minuteriesSites = {};       // genre ('plan') → minuterie du suivi
   var capturesSites = {};         // genre → { id: tâche, url: URL d'objet de la dernière capture (libérée à la suivante) }
 
   // L'état des deux consultations, rangé dans l'état de l'outil (oublié avec lui au changement de dossier).
   function etatSitesPreemption() {
-    if (!prEtat) return { echelle: 0, precision: '', plan: null, geofoncier: null };
-    if (!prEtat.sites) prEtat.sites = { echelle: 0, precision: '', plan: null, geofoncier: null };
+    if (!prEtat) return { echelle: 0, plan: null };
+    if (!prEtat.sites) prEtat.sites = { echelle: 0, plan: null };
     return prEtat.sites;
   }
 
@@ -38,7 +38,6 @@
   }
 
   function changerEchelleSites(valeur) { etatSitesPreemption().echelle = Number(valeur) || 0; }
-  function changerPrecisionSites(valeur) { etatSitesPreemption().precision = String(valeur || '').slice(0, 500); }
 
   async function lancerPlanSituation() {
     const e = prEtat;
@@ -56,26 +55,6 @@
       suivreTacheSite('plan');
     } catch (err) {
       st.plan = { id: '', etat: 'erreur', erreur: err.message, etapes: [], documents: [] };
-      renderSitesPreemption();
-    }
-  }
-
-  async function lancerGeofoncier() {
-    const e = prEtat;
-    const manque = manqueConsultationSites(e);
-    if (manque) { afficherToast(manque); return; }
-    const st = etatSitesPreemption();
-    st.geofoncier = { id: '', etat: 'envoi', etapes: [], documents: [] };
-    renderSitesPreemption();
-    try {
-      const r = await fetchAvecAuth(`/api/navigation/consultation`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ site: 'geofoncier', insee: e.insee, commune: communeOutilSites(e), parcelles: parcellesNormaliseesSites(e.parcelles), demande: st.precision || '', dossierId: e.dossierId || '' }) });
-      const j = await r.json().catch(() => ({}));
-      if (!r.ok || !j.id) throw new Error(j.erreur || `réponse ${r.status}`);
-      st.geofoncier = { id: j.id, etat: 'attente', etapes: [], documents: [] };
-      suivreTacheSite('geofoncier');
-    } catch (err) {
-      st.geofoncier = { id: '', etat: 'erreur', erreur: err.message, etapes: [], documents: [] };
       renderSitesPreemption();
     }
   }
@@ -148,36 +127,6 @@
     }
   }
 
-  // Pure : le compte rendu Géofoncier tel qu'il est gardé sur la fiche (rien d'autre que ce que l'agent a lu).
-  function geofoncierPourFiche(resultat, maintenant) {
-    const r = resultat || {};
-    const texte = (x, n) => String(x || '').slice(0, n);
-    return {
-      le: (maintenant || new Date()).toISOString(),
-      compteRendu: texte(r.compte_rendu, 3000),
-      zonages: (Array.isArray(r.zonages) ? r.zonages : []).slice(0, 40).map(z => ({ parcelle: texte(z.parcelle, 20), zone: texte(z.zone, 20),
-        libelle: texte(z.libelle, 120), pourcentage: typeof z.pourcentage === 'number' && z.pourcentage >= 0 ? Math.round(z.pourcentage * 10) / 10 : null })),
-      monuments: { statut: ['oui', 'non', 'non_lu'].includes(r.monuments_historiques && r.monuments_historiques.statut) ? r.monuments_historiques.statut : 'non_lu',
-        detail: texte(r.monuments_historiques && r.monuments_historiques.detail, 400) },
-      bornages: (Array.isArray(r.bornages) ? r.bornages : []).slice(0, 30).map(b => ({ parcelle: texte(b.parcelle, 20), nature: texte(b.nature, 80),
-        date: texte(b.date, 30), geometre: texte(b.geometre, 120), reference: texte(b.reference, 60) })),
-      aSignaler: texte(r.a_signaler, 600),
-      complet: r.complet !== false
-    };
-  }
-
-  function enregistrerGeofoncierFiche() {
-    const d = prEtat && prEtat.dossierId ? dossiers.find(x => x.id === prEtat.dossierId) : null;
-    const t = etatSitesPreemption().geofoncier;
-    if (!d || !t || !t.resultat) return;
-    d.geofoncier = geofoncierPourFiche(t.resultat);
-    const z = d.geofoncier.zonages.map(x => `${x.parcelle} ${x.zone}${x.pourcentage !== null ? ' ' + x.pourcentage + ' %' : ''}`).join(', ');
-    ajouterHistorique(d, `Géofoncier consulté par CLAIRE${z ? ' : ' + z : ''}${d.geofoncier.monuments.statut === 'oui' ? ' — monument historique' : ''}${d.geofoncier.bornages.length ? ` — ${d.geofoncier.bornages.length} opération(s) de géomètre` : ''}`);
-    sauvegarder(d);
-    afficherToast('Compte rendu Géofoncier enregistré sur la fiche.');
-    renderSitesPreemption();
-  }
-
   // Pure : une ligne par plan tiré (échelle, parcelles ; échelle demandée relevée dite).
   function lignesPlansSites(resultat) {
     const r = resultat || {};
@@ -192,7 +141,7 @@
     // La capture de CETTE consultation seulement (jamais celle d'un autre dossier restée affichée).
     const capture = capturesSites[genre] && capturesSites[genre].id === t.id ? capturesSites[genre].url : '';
     return `<div class="sites-suivi">
-        ${capture && (enCours || genre === 'geofoncier') ? `<img class="sites-capture" src="${escapeAttr(capture)}" alt="Ce que CLAIRE voit sur le site">` : ''}
+        ${capture && enCours ? `<img class="sites-capture" src="${escapeAttr(capture)}" alt="Ce que CLAIRE voit sur le site">` : ''}
         <ol class="sites-etapes">${etapes.map((x, i) => `<li class="${i === etapes.length - 1 && enCours ? 'sites-etape-courante' : ''}">${escapeHtml(x.texte)}</li>`).join('')
           || `<li class="sites-etape-courante">${t.etat === 'envoi' ? 'Envoi de la demande…' : 'En attente de la consultation précédente…'}</li>`}</ol>
         ${enCours && t.id ? `<wa-button appearance="outlined" size="s" onclick="arreterTacheSite('${genre}')">Arrêter</wa-button>` : ''}
@@ -210,35 +159,6 @@
     return lignes ? `<ul class="sites-docs">${lignes}</ul>` : '';
   }
 
-  function renderResultatGeofoncier(t) {
-    const r = geofoncierPourFiche(t.resultat);
-    const d = prEtat && prEtat.dossierId ? dossiers.find(x => x.id === prEtat.dossierId) : null;
-    return `${r.compteRendu ? `<p class="sites-compte-rendu">${escapeHtml(r.compteRendu)}</p>` : ''}
-      ${renderTableauxGeofoncier(r)}
-      ${r.aSignaler ? `<p class="pr-erreur">${icone('alert-triangle')} ${escapeHtml(r.aSignaler)}</p>` : ''}
-      ${t.coutUsd ? `<p class="hint">Coût de la consultation : ${escapeHtml(String(t.coutUsd).replace('.', ','))} $</p>` : ''}
-      ${d ? `<div class="reglages-actions"><wa-button variant="brand" size="s" onclick="enregistrerGeofoncierFiche()">${icone('check')} Enregistrer sur la fiche</wa-button>
-        ${d.geofoncier && d.geofoncier.le ? `<span class="hint">Enregistré le ${escapeHtml(formatDateFr(d.geofoncier.le.slice(0, 10)))}</span>` : ''}</div>` : ''}`;
-  }
-
-  // Zonages, monuments historiques, bornages : même présentation dans l'outil et sur la fiche.
-  function renderTableauxGeofoncier(r) {
-    const zonages = r.zonages.length ? `<table class="sites-table"><thead><tr><th>Parcelle</th><th>Zone</th><th>Part</th></tr></thead><tbody>
-        ${r.zonages.map(z => `<tr><td>${escapeHtml(z.parcelle)}</td><td>${escapeHtml(z.zone)}${z.libelle ? ` <span class="hint">${escapeHtml(z.libelle)}</span>` : ''}</td>
-          <td class="sites-nombre">${z.pourcentage !== null ? escapeHtml(String(z.pourcentage).replace('.', ',')) + ' %' : '—'}</td></tr>`).join('')}</tbody></table>`
-      : '<p class="hint">Zonage : non lu sur Géofoncier.</p>';
-    const mh = r.monuments;
-    const classe = mh.statut === 'oui' ? 'dl-pret' : mh.statut === 'non' ? 'dl-success' : 'dl-neutre';
-    const bornages = r.bornages.length ? `<ul class="sites-bornages">${r.bornages.map(b => `<li><span class="pr-fiche-titre">${escapeHtml([b.parcelle, b.nature].filter(Boolean).join(' · '))}</span>
-        <span class="hint">${escapeHtml([b.date, b.geometre, b.reference ? 'réf. ' + b.reference : ''].filter(Boolean).join(' — '))}</span></li>`).join('')}</ul>`
-      : '<p class="hint">Aucune opération de géomètre relevée.</p>';
-    return `<div class="section-eyebrow">Zonage d’urbanisme</div>${zonages}
-      <div class="section-eyebrow">Monuments historiques</div>
-      <div class="pr-fiche-ligne"><span class="dot-label ${classe}"><span class="dot"></span>${escapeHtml(STATUTS_MONUMENTS_GEOFONCIER[mh.statut])}</span>
-        <span class="hint">${escapeHtml(mh.detail)}</span></div>
-      <div class="section-eyebrow">Bornages et opérations de géomètres</div>${bornages}`;
-  }
-
   // La section de l'outil.
   function renderSitesPreemption() {
     const zone = document.getElementById('pr-sites');
@@ -247,7 +167,6 @@
     const st = etatSitesPreemption();
     const manque = manqueConsultationSites(e);
     const plan = st.plan;
-    const geo = st.geofoncier;
     const enCours = (t) => !!t && (t.etat === 'attente' || t.etat === 'en-cours' || t.etat === 'envoi');
     const actif = document.activeElement && document.activeElement.id;
     zone.innerHTML = `${manque ? `<p class="hint">${escapeHtml(manque)}</p>` : ''}
@@ -263,32 +182,11 @@
           : plan.etat === 'fini' ? `${lignesPlansSites(plan.resultat).map(l => `<p class="hint">${icone('check')} ${escapeHtml(l)}</p>`).join('')}
               ${renderDocumentsSite(plan)}`
           : `<p class="pr-erreur">${icone('alert-triangle')} ${escapeHtml(plan.erreur || 'Consultation arrêtée.')}</p>`) : ''}
-      </div>
-      <div class="sites-carte">
-        <div class="sites-carte-tete"><span class="sites-carte-titre">${icone('search')} Géofoncier — compte de l’étude</span>
-          ${infoBulle('CLAIRE se connecte avec le compte enregistré dans les Réglages, cherche chaque parcelle et relève le zonage (part de chaque zone), les monuments historiques, les bornages, puis garde un plan aérien avec les numéros de parcelles. L’IA (Claude) conduit la consultation à partir des pages et des captures du site : elle ne voit jamais le mot de passe, ne commande et ne paie rien. Une consultation coûte quelques dizaines de centimes à 3 $ au plus.')}</div>
-        <div class="sites-ligne">
-          <div class="calc-champ sites-precision"><label for="sites-precision">Précision (facultatif)</label>
-            <input type="text" id="sites-precision" value="${escapeAttr(st.precision || '')}" placeholder="ex. vérifier aussi l’emplacement réservé" oninput="changerPrecisionSites(this.value)" autocomplete="off"></div>
-          <wa-button variant="brand" size="s" onclick="lancerGeofoncier()"${manque || enCours(geo) ? ' disabled' : ''}${enCours(geo) ? ' loading' : ''}>${icone('search')} Consulter Géofoncier</wa-button>
-        </div>
-        ${geo ? (enCours(geo) ? renderSuiviTacheSite('geofoncier', geo)
-          : geo.etat === 'fini' ? `${renderResultatGeofoncier(geo)}${renderDocumentsSite(geo)}`
-          : `<p class="pr-erreur">${icone('alert-triangle')} ${escapeHtml(geo.erreur || 'Consultation arrêtée.')}</p>${renderSuiviTacheSite('geofoncier', geo)}`) : ''}
       </div>`;
     if (actif) { const el = document.getElementById(actif); if (el && el.focus) el.focus(); }
   }
 
-  // Sur la fiche, sous le Contrôle de l'urbanisme : le dernier compte rendu Géofoncier enregistré.
-  function renderGeofoncierFicheUrbanisme(d) {
-    const g = d && d.geofoncier;
-    if (!g || !g.le) return '';
-    const r = Object.assign({ zonages: [], bornages: [], monuments: { statut: 'non_lu', detail: '' } }, g);
-    return `<div class="pr-fiche-geofoncier"><div class="section-eyebrow">Géofoncier — lu par CLAIRE le ${escapeHtml(formatDateFr(String(g.le).slice(0, 10)))}${g.compteRendu ? infoBulle(g.compteRendu) : ''}</div>
-      ${renderTableauxGeofoncier(r)}${g.aSignaler ? `<p class="hint">${escapeHtml(g.aSignaler)}</p>` : ''}</div>`;
-  }
-
-  // ===== « Demander à CLAIRE » : l'outil consulter_site de l'agent (étude 14/10 : « vrai agent IA autonome ») =====
+  // ===== « Demander à CLAIRE » : l'outil consulter_site de l'agent (plan de situation seulement) =====
 
   // Commune (INSEE + nom) et parcelles d'un dossier, comme l'outil les reprend de la fiche.
   async function parametresSitesDossier(d) {
@@ -300,96 +198,51 @@
     return { insee: e.insee, commune: communeOutilSites(e), parcelles: parcellesNormaliseesSites(e.parcelles) };
   }
 
-  // Lance la consultation, attend qu'elle finisse (12 minutes au plus), propose les PDF dans la conversation, rend le compte rendu.
+  // Tire le plan de situation, attend qu'il soit prêt, propose les PDF dans la conversation, rend ce qui a été fait.
   async function consulterSiteAgent(e) {
     const d = e && e.dossier_id ? dossiers.find(x => x.id === e.dossier_id) : null;
     if (!d) return { erreur: 'dossier introuvable : cherche-le d’abord (chercher_dossiers)' };
-    if (e.site !== 'cadastre' && e.site !== 'geofoncier') return { erreur: 'site inconnu' };
+    if (e.site !== 'cadastre') return { erreur: 'site inconnu : seul le plan de situation de cadastre.gouv.fr est disponible' };
     const p = await parametresSitesDossier(d);
     if (p.erreur) return { erreur: p.erreur };
-    // Géofoncier se connecte au compte payant de l'étude et coûte une consultation de Claude : l'utilisateur l'autorise d'abord
-    // (audit 0.229.0, même carte que les gestes qui modifient). Le plan du cadastre, gratuit et sans compte, part tout de suite.
-    if (e.site === 'geofoncier' && !(await demanderAutorisationAgent(`Consulter Géofoncier avec le compte de l’étude — ${libelleDossierAffiche(d)}, parcelles ${p.parcelles}${e.precision ? ` (précision : ${String(e.precision).slice(0, 200)})` : ''}.`))) {
-      return { refuse: true, message: 'l’utilisateur a refusé : ne le refais pas sans nouvelle demande' };
-    }
-    const corps = e.site === 'cadastre'
-      ? { url: '/api/navigation/plan-cadastre', body: { insee: p.insee, parcelles: p.parcelles, echelle: 0, dossierId: d.id } }
-      : { url: '/api/navigation/consultation', body: { site: 'geofoncier', insee: p.insee, commune: p.commune, parcelles: p.parcelles, demande: String(e.precision || '').slice(0, 500), dossierId: d.id } };
-    const r = await fetchAvecAuth(corps.url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corps.body) });
+    const r = await fetchAvecAuth('/api/navigation/plan-cadastre', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ insee: p.insee, parcelles: p.parcelles, echelle: 0, dossierId: d.id }) });
     const j = await r.json().catch(() => ({}));
     if (!r.ok || !j.id) return { erreur: j.erreur || `le serveur a répondu ${r.status}` };
-    // La file passe une consultation après l'autre : derrière une consultation Géofoncier (10 min au plus), l'attente reste couverte.
-    const fin = Date.now() + 22 * 60 * 1000;
+    // La file passe un plan après l'autre : l'attente couvre deux ou trois demandes devant.
+    const fin = Date.now() + 10 * 60 * 1000;
     let t = null;
     while (Date.now() < fin) {
       await new Promise(ok => setTimeout(ok, 2000));
       try {
         const rt = await fetchAvecAuth(`/api/navigation/taches/${encodeURIComponent(j.id)}`);
-        if (rt.status === 404) return { erreur: 'consultation oubliée par le serveur (redémarré ?)' };
+        if (rt.status === 404) return { erreur: 'plan oublié par le serveur (redémarré ?)' };
         t = await rt.json();
       } catch (_) { continue; }
       const derniere = (t.etapes || []).slice(-1)[0];
-      assistantEtapeAgent = `${e.site === 'cadastre' ? 'cadastre.gouv.fr' : 'Géofoncier'} : ${derniere ? derniere.texte : 'en attente…'}`;
+      assistantEtapeAgent = `cadastre.gouv.fr : ${derniere ? derniere.texte : 'en attente…'}`;
       renderAssistant();
       if (t.etat !== 'attente' && t.etat !== 'en-cours') break;
     }
-    if (!t || (t.etat !== 'fini' && t.etat !== 'erreur' && t.etat !== 'annule')) return { erreur: 'la consultation dure trop : elle continue sur le serveur, voir le Contrôle de l’urbanisme' };
-    if (t.etat !== 'fini') return { erreur: t.erreur || 'consultation arrêtée' };
+    if (!t || (t.etat !== 'fini' && t.etat !== 'erreur' && t.etat !== 'annule')) return { erreur: 'le plan prend trop de temps : il continue sur le serveur, voir le Contrôle de l’urbanisme' };
+    if (t.etat !== 'fini') return { erreur: t.erreur || 'plan arrêté' };
     const boutons = [];
     for (const doc of t.documents || []) {
       boutons.push({ libelle: `Ouvrir « ${doc.titre} »`, action: () => ouvrirDocumentSite(t.id, doc.id) });
       if (d.nasDossier) boutons.push({ libelle: `Ranger « ${doc.titre} » dans le dossier du NAS`, action: () => rangerDocumentSite(t.id, doc.id, d.id) });
     }
-    if (boutons.length) poserMessageAssistant('claire', `<p>${e.site === 'cadastre' ? 'Plan de situation tiré de cadastre.gouv.fr' : 'Documents rapportés de Géofoncier'} — ${escapeHtml(libelleDossierAffiche(d))} :</p>`, boutons);
-    if (e.site === 'cadastre') {
-      return { fait: true, plans: lignesPlansSites(t.resultat),
-        documents: (t.documents || []).map(x => x.titre), affiche_a_l_utilisateur: 'boutons Ouvrir / Ranger dans la conversation' };
-    }
-    const g = geofoncierPourFiche(t.resultat);
-    return { fait: true, compte_rendu: g.compteRendu, zonages: g.zonages, monuments_historiques: g.monuments, bornages: g.bornages, a_signaler: g.aSignaler,
-      complet: g.complet, documents: (t.documents || []).map(x => x.titre), cout_usd: t.coutUsd };
+    if (boutons.length) poserMessageAssistant('claire', `<p>Plan de situation tiré de cadastre.gouv.fr — ${escapeHtml(libelleDossierAffiche(d))} :</p>`, boutons);
+    return { fait: true, plans: lignesPlansSites(t.resultat), documents: (t.documents || []).map(x => x.titre), affiche_a_l_utilisateur: 'boutons Ouvrir / Ranger dans la conversation' };
   }
 
-  // ===== Réglages › Sites consultés par CLAIRE =====
+  // ===== Réglages › Sites consultés par CLAIRE : le navigateur du serveur =====
   async function chargerReglagesSites() {
     const etat = document.getElementById('sites-navigateur-etat');
     try {
       const r = await fetchAvecAuth(`/api/navigation/reglages`);
       const j = await r.json();
-      const g = j.geofoncier || {};
-      const champ = (id, v) => { const el = document.getElementById(id); if (el) el.value = v || ''; };
-      champ('sites-geo-identifiant', g.identifiant);
-      champ('sites-geo-adresse', g.adresse);
-      champ('sites-geo-motdepasse', '');
-      const mdp = document.getElementById('sites-geo-motdepasse');
-      if (mdp) mdp.placeholder = g.motDePasseEnregistre ? 'Enregistré — laisser vide pour le garder' : 'Aucun mot de passe enregistré';
-      if (etat) etat.innerHTML = `<span class="dot-label ${j.navigateurTrouve ? 'dl-success' : 'dl-pret'}"><span class="dot"></span>${j.navigateurTrouve ? escapeHtml(j.navigateurNom) + ' trouvé sur le serveur' : 'Ni Chrome ni Edge trouvé sur le serveur'}</span>
-        <span class="dot-label ${j.cleClaude ? 'dl-success' : 'dl-neutre'}"><span class="dot"></span>${j.cleClaude ? 'Clé Claude enregistrée (Géofoncier possible)' : 'Pas de clé Claude : Géofoncier impossible, le plan de situation reste possible'}</span>`;
+      if (etat) etat.innerHTML = `<span class="dot-label ${j.navigateurTrouve ? 'dl-success' : 'dl-pret'}"><span class="dot"></span>${j.navigateurTrouve ? escapeHtml(j.navigateurNom) + ' trouvé sur le serveur' : 'Ni Chrome ni Edge trouvé sur le serveur : le plan de situation est impossible'}</span>`;
     } catch (err) {
-      if (etat) etat.textContent = `Réglages illisibles : ${err.message}`;
+      if (etat) etat.textContent = `État illisible : ${err.message}`;
     }
-  }
-
-  async function ecrireReglagesSites(corps) {
-    const note = document.getElementById('sites-reglages-etat');
-    try {
-      const r = await fetchAvecAuth(`/api/navigation/reglages`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corps) });
-      if (!r.ok) throw new Error((await r.json().catch(() => ({}))).erreur || `réponse ${r.status}`);
-      if (note) note.textContent = 'Enregistré.';
-      await chargerReglagesSites();
-    } catch (err) {
-      if (note) note.textContent = `Non enregistré : ${err.message}`;
-    }
-  }
-
-  function enregistrerReglagesSites() {
-    const val = (id) => { const el = document.getElementById(id); return el ? el.value : ''; };
-    const geofoncier = { identifiant: val('sites-geo-identifiant').trim(), adresse: val('sites-geo-adresse').trim() };
-    // Mot de passe vide = garder celui enregistré (jamais renvoyé par le serveur) ; « Effacer » l'efface explicitement.
-    if (val('sites-geo-motdepasse')) geofoncier.motDePasse = val('sites-geo-motdepasse');
-    ecrireReglagesSites({ geofoncier });
-  }
-
-  function effacerMotDePasseGeofoncier() {
-    ecrireReglagesSites({ geofoncier: { motDePasse: '' } });
   }

@@ -7,8 +7,8 @@
 // - liste blanche : une page (ou un cadre) hors des sites autorisés n'est pas chargée (Fetch, étape « requête », type Document) ;
 //   les ressources d'une page autorisée (tuiles de carte, polices, scripts) passent ;
 // - aucun téléchargement sur le disque : un PDF (ou une image) reçu comme document est gardé en mémoire et rendu à l'appelant ;
-// - aucun code de l'IA n'est exécuté dans la page : seuls les scripts écrits ici le sont ;
-// - un mot de passe est tapé par `saisirSecret`, jamais rendu par `instantane` (un champ mot de passe y vaut « •••• »).
+// - seuls les scripts écrits ici sont exécutés dans la page (aucune IA ne conduit ce navigateur : parcours écrits à l'avance) ;
+// - aucune adresse d'achat (panier, commande, paiement, abonnement) n'est chargée (`adresseAchat`).
 
 const { lancerNavigateur } = require('./chrome');
 
@@ -32,6 +32,17 @@ function adresseAutorisee(adresse, domaines) {
   if (u.protocol !== 'https:' && !(u.protocol === 'http:' && boucleLocale)) return false;
   if (u.username || u.password) return false;
   return domaines.some((d) => hote === d || hote.endsWith('.' + d));
+}
+
+// Mots entiers d'un achat (« carte » n'est pas « cart ») ; lettres accentuées comprises.
+const RE_ACHAT = /(?<![a-zà-ÿ])(payer|paiement|acheter|achat|commander|commande|commandes|panier|souscri\w*|abonn\w*|carte bancaire|r[ée]gler|tarifs?|devis|factures?|checkout|purchase|buy|cart)(?![a-zà-ÿ])/i;
+
+/** Pure : une adresse qui mène à un achat (panier, commande, paiement, abonnement) — le navigateur ne la charge pas. @param {string} adresse */
+function adresseAchat(adresse) {
+  let chemin = '';
+  // « afficherPanier.do » → « afficher Panier do » : les mots collés d'une adresse sont séparés avant la recherche.
+  try { const u = new URL(String(adresse)); chemin = decodeURIComponent(u.pathname + ' ' + u.search).replace(/([a-zà-ÿ])([A-Z])/g, '$1 $2').replace(/[/_.?=&-]+/g, ' '); } catch (_) { return false; }
+  return RE_ACHAT.test(chemin);
 }
 
 /** Pure : nom de fichier d'une réponse (Content-Disposition, sinon fin de l'adresse). @param {Array<{ name: string, value: string }>} entetes @param {string} adresse */
@@ -105,8 +116,6 @@ class SessionNavigation {
     this.compteurDocuments = 0;
     /** @type {Array<{ methode: string, corps: string, adresse: string }>} */
     this.envois = [];
-    /** Mots de passe tapés pendant la séance : aucune capture tant que l'un d'eux se lit en clair à l'écran. @type {string[]} */
-    this.secrets = [];
     this.arreterEcoute = this.cdp.ecouter((m) => { this.surEvenement(m).catch(() => {}); });
   }
 
@@ -355,38 +364,6 @@ class SessionNavigation {
     await attendre(400);
   }
 
-  /** Écrit un secret (mot de passe, identifiant) : la valeur n'est jamais rendue ni journalisée. Le CODE vérifie avant de taper
-   * (audit 0.229.0) : page principale (pas un cadre), site autorisé, et un vrai champ de connexion — type « password » pour le mot de
-   * passe ; email/texte d'un formulaire (ou marqué identifiant) pour l'identifiant. Sinon refus, rien n'est tapé.
-   * @param {number} ref @param {string} secret @param {'identifiant'|'motDePasse'} genre */
-  async saisirSecret(ref, secret, genre) {
-    const n = Math.max(0, Math.floor(Number(ref) || 0));
-    const info = await this.evaluer(`(() => { const e = document.querySelector('[data-claire-ref="${n}"]');
-      if (!e || e.tagName !== 'INPUT' || window.top !== window) return null;
-      return { adresse: location.href, type: String(e.type || '').toLowerCase(), ac: String(e.autocomplete || '').toLowerCase(),
-        nom: String(e.name || e.id || '').toLowerCase(), formulaire: !!e.form, avecMotDePasse: !!(e.form && e.form.querySelector('input[type=password]')) }; })()`);
-    const siteOk = !!info && adresseAutorisee(info.adresse, this.domaines) && info.adresse !== 'about:blank';
-    const champOk = !!info && (genre === 'motDePasse'
-      ? info.type === 'password'
-      : ['email', 'text'].includes(info.type) && (info.avecMotDePasse || /username|email/.test(info.ac) || /(login|user|email|mail|identifiant|compte)/.test(info.nom)));
-    if (!siteOk || !champOk) throw Object.assign(new Error('refusé : ce champ n’est pas un champ de connexion du site autorisé — rien n’a été tapé'), { refus: true });
-    if (genre === 'motDePasse' && secret && !this.secrets.includes(secret)) this.secrets.push(secret);
-    await this.saisir(ref, secret);
-  }
-
-  /** Ce qui est sous un point de l'écran (pour refuser un clic d'achat fait par position). @param {number} x @param {number} y */
-  async elementSousPosition(x, y) {
-    return this.evaluer(`(() => { const e = document.elementFromPoint(${Math.round(Number(x) || 0)}, ${Math.round(Number(y) || 0)});
-      const c = e && (e.closest('a,button,[role=button],input,[onclick],label') || e);
-      return c ? { libelle: String(c.innerText || c.value || c.getAttribute('aria-label') || c.title || '').replace(/\\s+/g, ' ').slice(0, 200), lien: String(c.href || '') } : null; })()`);
-  }
-
-  /** Le formulaire du champ actif : ce qu'Entrée enverrait (adresse et libellés des boutons d'envoi). */
-  async formulaireActif() {
-    return this.evaluer(`(() => { const e = document.activeElement; const f = e && e.form; if (!f) return null;
-      return { action: String(f.action || ''), boutons: [...f.querySelectorAll('button, input[type=submit]')].map((b) => String(b.innerText || b.value || '')).join(' | ').slice(0, 300) }; })()`);
-  }
-
   /** Choisit une option d'une liste (par son texte, ou sa valeur). @param {number} ref @param {string} option */
   async choisir(ref, option) {
     const n = Math.max(0, Math.floor(Number(ref) || 0));
@@ -422,42 +399,10 @@ class SessionNavigation {
     await attendre(900);
   }
 
-  /** Un secret tapé se lit-il en clair dans la page (champ hors « password », bouton « afficher le mot de passe ») ? */
-  async secretVisible() {
-    if (!this.secrets.length) return false;
-    return !!(await this.evaluer(`(() => { const s = ${JSON.stringify(this.secrets)};
-      return [...document.querySelectorAll('input, textarea')].some((e) => String(e.type || '').toLowerCase() !== 'password' && s.some((x) => String(e.value || '').includes(x)))
-        || s.some((x) => (document.body ? document.body.innerText : '').includes(x)); })()`).catch(() => true));
-  }
-
-  /** Capture de l'écran de l'onglet actif (JPEG, base64). Refusée si le mot de passe s'y lirait (relecture 0.229.0). */
+  /** Capture de l'écran de l'onglet actif (JPEG, base64), pour suivre CLAIRE en direct sur le poste. */
   async capture() {
-    if (await this.secretVisible()) throw Object.assign(new Error('capture refusée : le mot de passe se lit en clair à l’écran'), { refus: true });
     const r = await this.cdp.envoyer('Page.captureScreenshot', { format: 'jpeg', quality: 72 }, this.ongletActif().session);
     return String(r.data || '');
-  }
-
-  /** Capture PNG nette (pour un document gardé). */
-  async capturePng() {
-    if (await this.secretVisible()) throw Object.assign(new Error('capture refusée : le mot de passe se lit en clair à l’écran'), { refus: true });
-    const r = await this.cdp.envoyer('Page.captureScreenshot', { format: 'png' }, this.ongletActif().session);
-    return Buffer.from(String(r.data || ''), 'base64');
-  }
-
-  /** Un PDF A4 portrait fabriqué à partir d'un HTML écrit par CLAIRE (onglet à part, refermé ensuite). @param {string} html */
-  async pdfDepuisHtml(html) {
-    const o = await this.nouvelOnglet();
-    try {
-      const { frameTree } = await this.cdp.envoyer('Page.getFrameTree', {}, o.session);
-      await this.cdp.envoyer('Page.setDocumentContent', { frameId: frameTree.frame.id, html }, o.session);
-      await attendre(600);
-      const r = await this.cdp.envoyer('Page.printToPDF', { paperWidth: 8.27, paperHeight: 11.69, marginTop: 0, marginBottom: 0, marginLeft: 0, marginRight: 0,
-        printBackground: true, preferCSSPageSize: true }, o.session, 60000);
-      return Buffer.from(String(r.data || ''), 'base64');
-    } finally {
-      await this.cdp.envoyer('Target.closeTarget', { targetId: o.cible }).catch(() => {});
-      this.onglets = this.onglets.filter((x) => x !== o);
-    }
   }
 
   async fermer() {
@@ -466,4 +411,4 @@ class SessionNavigation {
   }
 }
 
-module.exports = { SessionNavigation, adresseAutorisee, nomFichierReponse, TOUCHES, LARGEUR, HAUTEUR };
+module.exports = { SessionNavigation, adresseAutorisee, adresseAchat, nomFichierReponse, TOUCHES, LARGEUR, HAUTEUR };

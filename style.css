@@ -9432,26 +9432,18 @@ table.pr-zt td.pr-zt-retenue select { min-width: 120px; min-height: 32px; height
 .pr-eyebrow { display: flex; align-items: center; gap: 6px; margin: 20px 0 8px; }
 .pr-vide { display: flex; align-items: center; gap: 6px; margin: 0; color: var(--success); font-size: var(--texte-m); }
 .pr-travaux { display: flex; flex-direction: column; gap: 8px; }
-/* ==== Sites consultés par CLAIRE (étude 14/10, client/69-sites-claire.js) : plan de situation de cadastre.gouv.fr et
-   Géofoncier, suivis en direct (étapes + capture de l'écran du navigateur du serveur) ==== */
+/* ==== Sites consultés par CLAIRE (étude 14/10, client/69-sites-claire.js) : plan de situation de cadastre.gouv.fr,
+   suivi en direct (étapes + capture de l'écran du navigateur du serveur) ==== */
 .sites-carte { display: flex; flex-direction: column; gap: 10px; padding: 12px 14px; margin-bottom: 12px; border-radius: var(--rayon-m); border: 1px solid var(--line); background: var(--paper-card); }
 .sites-carte-tete { display: flex; align-items: center; gap: 6px; }
 .sites-carte-titre { display: inline-flex; align-items: center; gap: 6px; font-size: var(--texte-base); font-weight: 500; color: var(--ink); }
 .sites-ligne { display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap; }
 .sites-ligne > * { min-width: 0; }
 .sites-ligne .calc-champ { margin: 0; }
-.sites-precision { flex: 1 1 240px; }
 .sites-suivi { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; }
 .sites-capture { width: 100%; max-width: 640px; border-radius: var(--rayon-s); border: 1px solid var(--line); background: var(--paper-sunk); }
 .sites-etapes { margin: 0; padding-left: 20px; font-size: var(--texte-s); color: var(--muted); display: flex; flex-direction: column; gap: 2px; }
 .sites-etape-courante { color: var(--ink); font-weight: 500; }
-.sites-compte-rendu { margin: 0; font-size: var(--texte-m); color: var(--ink); white-space: pre-line; }
-.sites-table { width: 100%; border-collapse: collapse; font-size: var(--texte-m); }
-.sites-table th { text-align: left; font-size: var(--texte-xs); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); padding: 4px 8px; border-bottom: 1px solid var(--line); }
-.sites-table td { padding: 4px 8px; border-bottom: 1px solid var(--line); }
-.sites-nombre { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.sites-bornages { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 4px; font-size: var(--texte-m); }
-.sites-bornages .hint { margin-left: 6px; }
 .sites-etat-navigateur { display: flex; flex-wrap: wrap; gap: 6px 16px; padding: 8px 0; }
 .sites-docs { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .sites-doc { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; align-items: center; gap: 8px; padding: 6px 8px; border-radius: var(--rayon-s); background: var(--paper-sunk); }
@@ -9459,7 +9451,6 @@ table.pr-zt td.pr-zt-retenue select { min-width: 120px; min-height: 32px; height
 .sites-doc-texte { display: flex; flex-direction: column; min-width: 0; }
 .sites-doc-titre { font-size: var(--texte-m); color: var(--ink); overflow-wrap: anywhere; }
 .sites-doc .hint { margin: 0; }
-.pr-fiche-geofoncier { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line); }
 
 .pr-travail { padding: 12px 14px; border-radius: var(--rayon-m); border: 1px solid var(--line); background: var(--paper-card); }
 .pr-zone-abf { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 12px; font-size: var(--texte-m); }

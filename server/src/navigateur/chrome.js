@@ -1,10 +1,10 @@
 // @ts-check
 'use strict';
-// Le navigateur de CLAIRE (étude 14/10 : « Claire doit pouvoir naviguer sur le site, remplir les champs et apporter des réponses »,
-// « devenir un vrai agent IA autonome qui travaille comme un clerc de notaire »).
+// Le navigateur de CLAIRE (étude 14/10 : « consulter le site du cadastre et sortir un plan de situation des parcelles » ; l'agent IA
+// sur Géofoncier, d'abord construit, a été retiré le même soir par l'étude — il consommait des jetons).
 //
 // Le SERVEUR lance le Chrome (ou l'Edge) déjà installé sur sa machine, SANS FENÊTRE (--headless), avec un profil à lui
-// (data/navigateur, à côté de la base : la session Géofoncier y reste ouverte d'une consultation à l'autre), et le pilote par le
+// (data/navigateur, à côté de la base), et le pilote par le
 // protocole DevTools de Chrome (CDP) sur des tuyaux — aucun port ouvert, aucune bibliothèque à embarquer dans le .exe.
 // Les messages CDP sont des objets JSON séparés par un octet nul : écrits sur le descripteur 3, lus sur le descripteur 4.
 
@@ -62,7 +62,7 @@ function argumentsLancement(profil, taille) {
     '--no-first-run', '--no-default-browser-check', '--disable-extensions', '--disable-sync', '--disable-background-networking',
     '--disable-component-update', '--disable-default-apps',
     '--mute-audio', '--hide-scrollbars', '--lang=fr-FR', `--window-size=${taille.largeur},${taille.hauteur}`,
-    // Cartes en WebGL (Géofoncier) : dessinées par le processeur, sans carte graphique.
+    // Cartes en WebGL : dessinées par le processeur, sans carte graphique.
     '--use-angle=swiftshader', '--enable-unsafe-swiftshader',
     // Les cadres d'autres sites restent dans le processus de la page, sous son filtre de liste blanche (audit 0.229.0).
     '--disable-site-isolation-trials', '--disable-features=IsolateOrigins,site-per-process',
