@@ -1991,13 +1991,15 @@
         ? `Ouvrir « ${d.compromisNomFichier} », le fichier importé à la création du dossier`
         : "Rechercher et ouvrir l'avant-contrat dans le dossier NAS relié (aucun nom de fichier mémorisé pour ce dossier)";
       const boutonOuvrirCompromis = `<wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="ouvrirCompromisTrouve('${escapeOnclickArg(d.id)}', this)" title="${escapeAttr(titreOuvrirCompromis)}">${icone('file-text')} Ouvrir</wa-button>`;
+      const boutonDossierNas = d.dossierLie && d.nasDossier
+        ? `<wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="ouvrirDossierNas('${escapeOnclickArg(d.id)}')" title="Copier l’emplacement du dossier du NAS pour l’ouvrir dans l’Explorateur">${icone('folder')} Dossier NAS</wa-button>` : '';
       // Le nom du dossier NAS relié est affiché dans l'infobulle : le vérifier ne doit pas demander
       // d'ouvrir la fenêtre de choix.
-      const boutonsDossierLocal = d.dossierLie
+      const boutonsDossierLocal = boutonDossierNas + (d.dossierLie
           ? `<wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="changerDossierLocal('${escapeOnclickArg(d.id)}')" title="${escapeAttr('Dossier NAS relié : ' + (d.nasDossier || '—') + ' — cliquez pour en choisir un autre')}">Changer</wa-button>`
           // Même sans prêt (achat comptant), le dossier NAS reste nécessaire pour suivre
           // la checklist de pièces (urbanisme...) — voir renderPiecesDossier ci-dessous.
-          : `<wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="lierDossierLocal('${escapeOnclickArg(d.id)}')" title="Relier ce dossier à son dossier du NAS">${icone('link')} Relier</wa-button>`;
+          : `<wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="lierDossierLocal('${escapeOnclickArg(d.id)}')" title="Relier ce dossier à son dossier du NAS">${icone('link')} Relier</wa-button>`);
       // Statut de l'offre sous la date de la carte "Obtention du prêt" (voir renderLigneEcheance, paramètre
       // offreBloc). Une puce de couleur plutôt qu'une phrase : le décompte juste au-dessus dit déjà
       // "✓ Offre reçue" en toutes lettres, la puce ne fait que confirmer d'un coup d'œil sans
@@ -2108,6 +2110,7 @@
                 ${d.adresseBien ? `<span class="fiche-entete-texte">${escapeHtml(normaliserAdresse(d.adresseBien))}</span>` : ''}
                 ${d.prixVente ? `<strong class="fiche-entete-prix">${escapeHtml(formaterPrix(d.prixVente))}</strong>` : ''}
                 ${estSuccession(d) ? '' : boutonOuvrirCompromis}
+                ${boutonDossierNas}
               </div>
               </div>
             </header>

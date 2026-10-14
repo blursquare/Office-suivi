@@ -197,3 +197,11 @@ test('avant-contrat : « SRU seul » ne reprend pas un fichier écarté', () => 
   const choix = app.choisirAvantContratNas([projetSru, relectureSru], null, ctx);
   assert.equal(`${choix.methode}:${choix.fichier && choix.fichier.chemin}`, 'sru-seul:8 - SRU/Acte 2026.pdf');
 });
+
+test('dossier NAS : emplacement réseau à coller dans l’Explorateur (étude 14/10)', () => {
+  const app = chargerApplication();
+  assert.equal(app.cheminReseauDossierNas('\\\\srv\\Commun\\Dossiers\\', 'MAISON/VTE X Y'), '\\\\srv\\Commun\\Dossiers\\MAISON\\VTE X Y');
+  assert.equal(app.cheminReseauDossierNas('Z:\\Clients', '\\VTE X'), 'Z:\\Clients\\VTE X');
+  assert.equal(app.cheminReseauDossierNas('/mnt/nas', 'VTE X'), '/mnt/nas/VTE X');
+  assert.equal(app.cheminReseauDossierNas('', 'VTE X'), '');
+});
