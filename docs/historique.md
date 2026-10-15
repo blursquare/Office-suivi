@@ -19861,3 +19861,8 @@ d'intention d'aliéner » ; réponse : aucune liste nationale (ni data.gouv.fr n
 - Clé `memoire-reglages` `{ fausseMinutes }` (éteinte par défaut), `PUT /api/memoire/reglages`, interrupteur dans Réglages › Mémoire de CLAIRE. Éteinte : `parcourirMemoire({ ignorer })` saute le dossier, `memoire.definirExclues` retire la rubrique de `aLire` et de `chercher` (le texte déjà lu reste en base).
 - Lecture d'un PDF des fausses minutes par le poste : arrêt AU tableau de signature (page incluse, `detecteSignatureActe`) et jamais une page d'annexe (`estDebutPageAnnexe`) — l'OCR ne tourne donc pas sur les annexes. Lecture retenue de la demande : « pas les annexes des actes » ; si l'étude voulait ignorer entièrement les actes qui ont des annexes, à dire.
 - Non vérifié ici : lecture réelle d'un PDF d'acte (NAS, OCR, motifs de signature sur de vrais actes).
+
+### 0.236.1 — 15/10/2026 (retour du test du build 775 : email libre, adresse, agence, prix du compromis scanné)
+- OCR : `¬` → `€` à la sortie de `ocrPage`. `detecterPrixVente` : second motif `RE_PRIX_MONTANT_AVANT` (« aura lieu moyennant le prix [principal] de MONTANT € »). `adresseDesBiensEtiquetee` : repli « Localisation … CP COMMUNE ». `detecterNomAgence` : repli « Le Mandataire » + ligne en capitales.
+- Agent : `faire_geste` email sans dossier mais avec destinataire valide ouvre `livrerEmailDossier` directement ; consigne : jamais d'action annoncée sans appel d'outil (Mistral affirmait « la fenêtre va s'ouvrir » sans appeler l'outil, observé 15/10).
+- Non traité : date d'obtention du prêt (15/08 proposée, fiche au 17/10 — passage du texte non vu) ; titre d'option « avec Pose » (le verbe pris pour un nom) ; durée de lecture (4 min pour 120 pages).

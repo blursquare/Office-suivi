@@ -198,8 +198,15 @@
   // Étiquette sans ambiguïté : passe avant tout, car l'en-tête de ces compromis porte l'adresse de L'AGENCE, qui était prise
   // pour celle du bien.
   var RE_ADRESSE_DES_BIENS = /Adresse\s+des?\s+biens?\s*:\s*([^:]{5,160}?)\s*\.(?=\s|$)/i;
+  // Compromis d'agence scanné (15/10) : « Localisation  1 rue de Chauchy 41320 LA CHAPELLE MONTMARTIN » en page 2 — l'adresse du
+  // garant de l'agence (page 1) était prise à sa place. Commune en capitales, qui ferme l'adresse.
+  var RE_ADRESSE_LOCALISATION = /\b[Ll]ocalisation\s*:?\s*((?:(?![Ll]ocalisation)[^:]){5,120}?\b\d{5}\s+[A-ZÀ-Ü][A-ZÀ-Ü'’-]*(?:[ -][A-ZÀ-Ü][A-ZÀ-Ü'’-]*){0,4})/;
   function adresseDesBiensEtiquetee(source) {
-    const m = RE_ADRESSE_DES_BIENS.exec(source);
+    let m = RE_ADRESSE_DES_BIENS.exec(source);
+    if (!m) {
+      m = RE_ADRESSE_LOCALISATION.exec(source);
+      if (m) m[1] = m[1].replace(/\s+/g, ' ').trim();
+    }
     if (!m) return null;
     const adresse = parserAdresse(m[1].replace(/\s+/g, ' ').trim());
     if (!adresse.codePostal) return null;

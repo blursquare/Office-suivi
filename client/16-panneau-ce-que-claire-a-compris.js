@@ -692,7 +692,8 @@
         worker.recognize(canvas),
         new Promise(resolve => setTimeout(() => resolve(null), DELAI_MAX_OCR))
       ]);
-      return (resultat && resultat.data && resultat.data.text) ? resultat.data.text : '';
+      // L'OCR lit parfois « € » comme « ¬ » (compromis scanné BOURNOUVEAU, 15/10) : le prix n'était plus reconnu.
+      return (resultat && resultat.data && resultat.data.text) ? resultat.data.text.replace(/¬/g, '€') : '';
     } catch (e) {
       console.error('Erreur OCR', e);
       return '';

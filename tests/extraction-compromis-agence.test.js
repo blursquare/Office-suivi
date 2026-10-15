@@ -127,3 +127,12 @@ test('adresse du bien : l’adresse du garant financier de l’agence est écart
   const r = app.detecterAdresseBienStructuree(t);
   assert.ok(!/Suffren/i.test(r.adresse.adresseComplete || ''), r.adresse.adresseComplete);
 });
+
+test('compromis d’agence scanné : prix avant sa reprise en lettres, adresse sous « Localisation », agence sous « Le Mandataire » (15/10)', () => {
+  const t = "Le Mandataire\nVILLEFRANCHE IMMOBILIER\n26 avenue de Suffren 75015 PARIS garantie financière\nLocalisation 1 rue de Chauchy 41320 LA CHAPELLE MONTMARTIN\nPrix de vente\nLa vente, si elle se réalise, aura lieu moyennant le prix principal de\n\n120 000,00 € (cent vingt mille euros)\nCe prix s'applique :\nAux biens mobiliers à concurrence de\n\n4 000,00 € (quatre mille euros)";
+  assert.equal(app.detecterPrixVente(t), 120000);
+  assert.equal(app.detecterNomAgence(t), 'VILLEFRANCHE IMMOBILIER');
+  const a = app.detecterAdresseBienStructuree(t).adresse;
+  assert.match(a.adresseComplete || '', /Chauchy/i);
+  assert.match(a.adresseComplete || '', /41320/);
+});
