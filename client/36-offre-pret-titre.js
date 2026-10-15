@@ -104,7 +104,8 @@
   // ligne. Toujours ancré en DÉBUT DE LIGNE, et le deux-points est obligatoire dans le second cas
   // — sans quoi « les garanties sont acquises au prêteur » au fil d'une phrase passerait pour un
   // titre de paragraphe.
-  var RE_TITRE_GARANTIES = /^[^\S\n]*(?:(?:article|art\.?|§)[^\S\n]*)?\d{0,2}[^\S\n]*[-–—.)]?[^\S\n]*(?:(?:les|des)[^\S\n]+)?(?:garanties?|garantie\(s\)|s[ûu]ret[ée]s?|s[ûu]ret[ée]\(s\))(?:[^\S\n]+(?:du[^\S\n]+pr[êe]t|exig[ée]es?|r[ée]elles?))?[^\S\n]*(?::|$)/gim;
+  // Un complément entre parenthèses est toléré après le titre : « Garanties (constatées par acte(s) séparé(s)) : » (Société Générale, 15/10).
+  var RE_TITRE_GARANTIES = /^[^\S\n]*(?:(?:article|art\.?|§)[^\S\n]*)?\d{0,2}[^\S\n]*[-–—.)]?[^\S\n]*(?:(?:les|des)[^\S\n]+)?(?:garanties?|garantie\(s\)|s[ûu]ret[ée]s?|s[ûu]ret[ée]\(s\))(?:[^\S\n]+(?:du[^\S\n]+pr[êe]t|exig[ée]es?|r[ée]elles?))?(?:[^\S\n]*\([^\n]{0,80}\))?[^\S\n]*(?::|$)/gim;
   // Fin du paragraphe : le titre de section suivant, ou à défaut une fenêtre généreuse — une
   // énumération de garanties tient largement dedans.
   // Le motif précédent (« une ligne courte entièrement en capitales ») exigeait une MAJUSCULE

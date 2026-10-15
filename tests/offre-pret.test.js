@@ -294,3 +294,21 @@ test('garantiesPretAffichees : « Garantie non identifiée » quand l’offre es
   assert.equal(g({ offrePretStatut: 'attente', garantiesPret: [] }), 'null', 'avant l’offre : rien');
   assert.equal(g({ sansPret: true, offrePretStatut: 'recue' }), 'null');
 });
+
+test('titre « Garanties (constatées par acte(s) séparé(s)) : » : la caution Crédit Logement est lue (offre Société Générale, 15/10)', () => {
+  const app = chargerApplication();
+  const texte = [
+    'Mme CAMILLE EXEMPLE 100% du montant total du crédit.',
+    'Formalité(s) d\'adhésion Sogécap par acte séparé.',
+    'Garanties (constatées par acte(s) séparé(s)) :',
+    'Caution de Crédit Logement à hauteur de 192 000,00 euros. Commission de caution 650,00',
+    'Versement au Fonds 1 938,80',
+    'Mutuel de Garantie',
+    'L\'octroi du crédit n\'est pas conditionné à la domiciliation des salaires.',
+    'TAUX ANNUEL EFFECTIF GLOBAL',
+    'Une hypothèque conventionnelle pourrait être demandée à défaut.'
+  ].join('\n');
+  assert.equal(app.detecterGarantiesPret(texte).join(','), 'caution', 'la suite après « TAUX ANNUEL… » n’est pas lue');
+  // Une phrase courante qui parle de garanties avec des parenthèses ne devient pas un titre.
+  assert.equal(app.detecterGarantiesPret('Les garanties (voir ci-dessous) sont acquises au prêteur : caution.').join(','), '');
+});

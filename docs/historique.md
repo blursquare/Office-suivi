@@ -19841,3 +19841,6 @@ d'intention d'aliéner » ; réponse : aucune liste nationale (ni data.gouv.fr n
 
 ### 0.233.2 — 15/10/2026 (étude : « quand je demande une tâche à Julie via Demander à CLAIRE, la faire remonter dans Aujourd'hui »)
 - `rappelsDuJour` : un rappel `demandePar` est « à faire » dès son arrivée (même échéance à venir), en tête (`rappelsAffiches`), jamais en « À venir » ; ligne « Pour {date} » ; `chargerRappelsPerso` toutes les 30 s sur tout écran et `annoncerDemandesRecues` (toast une fois à l'arrivée, pas au premier chargement). Cause probable du « ne remonte pas » : relecture toutes les 2 min seulement sur le tableau de bord, et date à venir classée « À venir ».
+
+### 0.233.3 — 15/10/2026 (étude : « caution pas reconnue pour cette offre de prêt », offre Société Générale rejouée)
+- Le titre « Garanties (constatées par acte(s) séparé(s)) : » n'était pas reconnu par `RE_TITRE_GARANTIES` (complément entre parenthèses) ; toléré (80 caractères au plus, ancré en début de ligne, deux-points obligatoire). Rejoué sur le PDF réel : `garanties: ['caution']` ; test avec texte inventé. Un rapport technique préparé sur `claude/rapport-2026-10-15-12h` portait aussi une 0.233.3 : à renuméroter (0.233.4) à son installation.
