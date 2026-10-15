@@ -74,6 +74,23 @@
     return (Array.isArray(d && d.parties) ? d.parties : []).filter(p => p && p.nom && !(nomDefunt && (memePersonneParNom(p.nom, nomDefunt) || normaliserPourRecherche(p.nom) === normaliserPourRecherche(nomDefunt))));
   }
 
+  // Pure : l'état civil d'une personne d'après sa fiche client d'Authentic, en une ligne (naissance, nationalité, profession, domicile,
+  // situation matrimoniale) — '' sans fiche lue.
+  function etatCivilFicheSuccession(f) {
+    if (!f) return '';
+    const naissance = [f.dateNaissance ? 'né(e) le ' + formatDateFr(f.dateNaissance) : '', f.lieuNaissance ? 'à ' + f.lieuNaissance : '', f.paysNaissance && !/^france$/i.test(f.paysNaissance) ? '(' + f.paysNaissance + ')' : ''].filter(Boolean).join(' ');
+    return [naissance, f.nationalite, f.profession, f.domicile ? 'domicile : ' + normaliserAdresse(f.domicile) : '', f.situationMatrimoniale ? libelleSituationMatrimoniale(f.situationMatrimoniale) : '']
+      .filter(Boolean).join(' · ');
+  }
+
+  // Pure : un bien d'Authentic en une ligne de détail (type, désignation, parcelles avec nature et surface, lots).
+  function detailBienSuccession(im) {
+    if (!im) return '';
+    const parcelles = (im.parcelles || []).map(p => [[p.prefixe, p.section, p.numero].filter(Boolean).join(' '), p.lieuDit, p.nature, p.surface ? contenanceEcrite(p.surface) : ''].filter(Boolean).join(' '));
+    const lots = (im.lots || []).map(l => 'lot ' + l.numero + (l.type ? ' ' + l.type : ''));
+    return [im.type, im.description, parcelles.join(' ; '), lots.join(', ')].filter(Boolean).join(' · ');
+  }
+
   // Pure : l'état d'un acte en pastille { texte, dl }.
   function pastilleActeSuccession(a) {
     if (a.etat === 'signe') return { texte: a.signeLe ? `Signé le ${formatDateFr(a.signeLe)}` : 'Signé', dl: 'dl-success' };
@@ -110,7 +127,12 @@
     const conjoint = conjointSurvivant(d);
     const heritiers = heritiersSuccession(d);
     const coordonnees = (p) => [...(p.telephones || []), ...(p.emails || [])].map(escapeHtml).join(' · ');
-    const biens = Array.isArray(d.biens) ? d.biens : [];
+    const etatCivil = (nom) => { const t = etatCivilFicheSuccession(ficheClientPourPersonneConstitution(d, nom)); return t ? `<span class="succ-etat-civil hint">${escapeHtml(t)}</span>` : ''; };
+    const nomDefunt = [c.prenoms, c.nom].filter(Boolean).join(' ');
+    const ficheDefunt = nomDefunt ? ficheClientPourPersonneConstitution(d, nomDefunt) : null;
+    const immeubles = (d.authentic && d.authentic.immeubles) || [];
+    const biens = immeubles.length ? immeubles.map(im => ({ adresse: im.adresse, detail: detailBienSuccession(im) }))
+      : (Array.isArray(d.biens) ? d.biens : []).map(b => ({ adresse: b.adresse, detail: [b.type, b.parcelles].filter(Boolean).join(' · ') }));
 
     return `<div class="fiche-proprietes-bloc">
       <dl class="fiche-proprietes">
@@ -128,6 +150,8 @@
         ${ligne('user', 'Défunt', `<span class="succ-identite">${civilite}${texte('prenoms', c.prenoms, 'Prénoms', 'Prénoms du défunt')}${texte('nom', c.nom, 'NOM', 'Nom du défunt')}</span>`, null, 'prop-pleine')}
         ${ligne('calendar', 'Décès', `<span class="succ-identite">${date('decesDate', c.decesDate, 'Date du décès', 'changerDefuntFiche')}${texte('decesLieu', c.decesLieu, 'Lieu du décès', 'Lieu du décès')}</span>`, null, 'prop-pleine')}
         ${ligne('home', 'Domicile', texte('domicile', c.domicile, 'COMMUNE (CP), voie', 'Domicile du défunt'), null, 'prop-pleine')}
+        ${ligne('calendar', 'Naissance', `<span class="succ-identite">${date('naissanceDate', c.naissanceDate, 'Date de naissance du défunt', 'changerDefuntFiche')}${texte('naissanceLieu', c.naissanceLieu, 'Lieu de naissance', 'Lieu de naissance du défunt')}</span>`, null, 'prop-pleine')}
+        ${ficheDefunt && (ficheDefunt.nationalite || ficheDefunt.profession) ? ligne('user', 'Autres', `<span class="hint">${escapeHtml([ficheDefunt.nationalite, ficheDefunt.profession].filter(Boolean).join(' · '))}</span>`, null, 'prop-pleine') : ''}
         ${ligne('key', 'Régime', texte('regime', c.regime, 'Régime matrimonial (communauté légale…)', 'Régime matrimonial du défunt'), null, 'prop-pleine')}
         ${ligne('users', 'Conjoint', `<span class="succ-identite">${lien}${texte('conjointNom', c.conjointNom, 'Monsieur Prénom NOM', 'Conjoint du défunt')}</span>`, null, 'prop-pleine')}
         ${ligne('users', 'Survivant', `<select class="prop-champ" aria-label="Conjoint survivant" onchange="changerSuccession('${idJs}', 'conjointSurvivant', this.value)">${[['', `Déduit : ${conjoint ? 'oui' : 'non'}`], ['oui', 'Oui'], ['non', 'Non']].map(([v, l]) => `<option value="${v}"${(s.conjointSurvivant === true ? 'oui' : s.conjointSurvivant === false ? 'non' : '') === v ? ' selected' : ''}>${l}</option>`).join('')}</select> ${infoBulle('Avec un conjoint survivant, les fonds ne sont pas débloqués : les comptes sont transférés à son profit.')}`, null)}
@@ -142,11 +166,11 @@
       </dl>
       <div class="section-eyebrow fiche-sous-titre">Héritiers <span class="hint">· ${heritiers.length}</span></div>
       <dl class="fiche-proprietes fiche-coordonnees">
-        ${heritiers.length ? heritiers.map((p, i) => ligne(i ? 'users' : 'user', i ? '' : 'Héritiers', `<span class="prop-texte">${escapeHtml(p.nom)}${p.nomUsage ? ` <span class="hint">(${escapeHtml(p.nomUsage)})</span>` : ''}</span>${coordonnees(p) ? ` <span class="hint">${coordonnees(p)}</span>` : ''}`, null, 'prop-pleine')).join('')
+        ${heritiers.length ? heritiers.map((p, i) => ligne(i ? 'users' : 'user', i ? '' : 'Héritiers', `<span class="succ-personne"><span class="prop-texte">${escapeHtml(p.nom)}${p.nomUsage ? ` <span class="hint">(${escapeHtml(p.nomUsage)})</span>` : ''}</span>${coordonnees(p) ? ` <span class="hint">${coordonnees(p)}</span>` : ''}${etatCivil(p.nom)}</span>`, null, 'prop-pleine')).join('')
           : ligne('users', 'Héritiers', '<span class="prop-texte vide">Aucun — ouvrez les fiches client dans Authentic</span>', null, 'prop-pleine')}
       </dl>
       <dl class="fiche-proprietes">
-        ${biens.length ? biens.map((b, i) => ligne('map-pin', i ? '' : (biens.length > 1 ? 'Biens' : 'Bien'), `<span class="prop-texte">${escapeHtml(b.adresse || 'Adresse non relevée')}</span>${b.parcelles ? ` <span class="hint">· ${escapeHtml(b.parcelles)}</span>` : ''}`, null, 'prop-pleine')).join('')
+        ${biens.length ? biens.map((b, i) => ligne('map-pin', i ? '' : (biens.length > 1 ? 'Biens' : 'Bien'), `<span class="succ-personne"><span class="prop-texte">${escapeHtml(b.adresse || 'Adresse non relevée')}</span>${b.detail ? `<span class="hint">${escapeHtml(b.detail)}</span>` : ''}</span>`, null, 'prop-pleine')).join('')
           : ligne('map-pin', 'Bien', `<span class="prop-texte vide">${immobilier ? 'Bien immobilier noté' : 'Aucun bien immobilier relevé'}</span>`, null, 'prop-pleine')}
       </dl></div>`;
   }
@@ -427,3 +451,92 @@
     return `<div class="section-eyebrow fiche-sous-titre">FCDDV ${infoBulle('Réponse du fichier central des dispositions de dernières volontés, lue dans le dossier du NAS : inscriptions (testament, donation entre époux…) et notaire dépositaire. Un email par confrère pour lui demander la nature de l’acte et son coût.')}</div>
       <div class="fcddv-bloc"><div class="fcddv-etat">${etat}${bouton}</div>${lignes}${ajout}</div>`;
   }
+
+  // ---- Lecture d'Authentic propre aux successions (appelée par appliquerReleveSurDossierBrut, client/30) ----
+
+  // Modifie d : la fiche bien d'une SUCCESSION (étude 15/10 : « tout vient d'Authentic ; stocker toutes les données sur le bien ») —
+  // gardée entière parmi les immeubles du dossier (`d.authentic.immeubles` : adresse, type, désignation, parcelles avec nature, surface,
+  // lieu-dit, commune, préfixe ; lots et tantièmes), fusionnée avec le même bien (même adresse ou une parcelle commune) ; la liste des
+  // biens de la fiche (`d.biens`) suit. Aucune adresse « du dossier » à contredire : une succession a souvent plusieurs biens.
+  function appliquerBienSuccession(d, bien, noter, resultat) {
+    if (!bien) return resultat;
+    const a = bien.adresse || {};
+    const details = (p) => Object.assign({ section: String(p.section || '').toUpperCase(), numero: String(p.numero || '') },
+      Object.fromEntries(['prefixe', 'commune', 'lieuDit', 'nature', 'surface'].filter(k => p[k]).map(k => [k, String(p[k]).slice(0, 60)])));
+    const fiche = {
+      adresse: a.texte ? normaliserAdresse(a.texte) : '', codePostal: a.codePostal || '', commune: a.commune || '',
+      type: bien.type || '', description: String(bien.description || '').slice(0, 160),
+      parcelles: (bien.parcelles || []).slice(0, 40).map(details)
+    };
+    if ((bien.lots || []).length) { fiche.lots = bien.lots.slice(0, 40); if (bien.tantiemesTotal != null) fiche.tantiemesTotal = bien.tantiemesTotal; }
+    const avant = d.authentic || {};
+    const immeubles = (avant.immeubles || []).slice();
+    const net = (t) => normaliserPourRecherche(t || '').replace(/[^a-z0-9]+/g, ' ').trim();
+    const cles = (im) => new Set((im.parcelles || []).map(p => cleParcelle(p.section, p.numero)).filter(Boolean));
+    const clesFiche = cles(fiche);
+    const i = immeubles.findIndex(im => (fiche.adresse && net(im.adresse) === net(fiche.adresse)) || [...cles(im)].some(c => clesFiche.has(c)));
+    let fusion = fiche;
+    if (i >= 0) {
+      const ancien = immeubles[i];
+      const parcelles = (ancien.parcelles || []).map(p => Object.assign({}, p, (fiche.parcelles.find(q => cleParcelle(q.section, q.numero) === cleParcelle(p.section, p.numero)) || {})));
+      fiche.parcelles.forEach(q => { if (!parcelles.some(p => cleParcelle(p.section, p.numero) === cleParcelle(q.section, q.numero))) parcelles.push(q); });
+      fusion = Object.assign({}, ancien, Object.fromEntries(Object.entries(fiche).filter(([, v]) => v !== '' && v != null && !(Array.isArray(v) && !v.length))), { parcelles });
+      if (JSON.stringify(fusion) === JSON.stringify(ancien)) return resultat;
+      immeubles[i] = fusion;
+    } else {
+      if (!fiche.adresse && !fiche.parcelles.length && !(fiche.lots || []).length) return resultat;
+      immeubles.push(fiche);
+    }
+    d.authentic = Object.assign({}, avant, { immeubles: immeubles.slice(0, 12) });
+    // La liste affichée : un bien par immeuble, les biens notés autrement (anciens dossiers) gardés.
+    const affiche = (im) => ({ adresse: im.adresse || '', type: im.type || '', parcelles: (im.parcelles || []).map(p => `${p.section} ${p.numero}`).join(', '), description: im.description || '' });
+    const anciens = (Array.isArray(d.biens) ? d.biens : []).filter(b => !immeubles.some(im => (b.adresse && net(b.adresse) === net(im.adresse)) || (b.parcelles && (im.parcelles || []).some(p => net(b.parcelles).includes(net(p.section + ' ' + p.numero))))));
+    d.biens = immeubles.map(affiche).concat(anciens).slice(0, 20);
+    noter(`Bien relevé dans Authentic${i >= 0 ? ' (complété)' : ''} : ${fusion.adresse || fusion.parcelles.map(p => p.section + ' ' + p.numero).join(', ')}${fusion.type ? ' — ' + fusion.type : ''}`);
+    resultat.modifie = true;
+    return resultat;
+  }
+
+  // Pure : les actes d'une SUCCESSION relevés dans le tableau « Rédaction » de la page du dossier (étude 15/10 : « des actes peuvent
+  // venir se rajouter, tu les auras dans le dossier Authentic : délivrance de legs, convention de quasi-usufruit ») —
+  // [{ intitule, etat: 'a_rediger' | 'redaction' | 'signe' | '', signeLe }]. Ni courrier, ni demande, ni procuration.
+  function actesSuccessionAuthentic(capture) {
+    const actes = [];
+    ((capture && capture.tableaux) || []).forEach(t => {
+      const titre = [t.titre, ...(t.entete || [])].join(' ');
+      if (!/r[ée]daction/i.test(titre)) return;
+      (t.lignes || []).forEach(l => {
+        const cellules = (l || []).map(x => String(x == null ? '' : x).replace(/\s+/g, ' ').trim()).filter(x => x && !/^⟦icône⟧/.test(x));
+        const textes = cellules.filter(x => !/^\d{1,2}[\/.-]\d{1,2}[\/.-]\d{4}$/.test(x));
+        if (!textes.length) return;
+        const intitule = textes[0];
+        if (/courrier|e-?mail|lettre|demande|procuration|convocation|mandat/i.test(intitule) || actes.some(a => a.intitule === intitule)) return;
+        const signe = cellules.map(x => RE_SIGNE_LE_AUTHENTIC.exec(x)).find(Boolean);
+        const etatTexte = textes.length > 1 ? textes[textes.length - 1] : '';
+        const etat = signe || /^sign[ée]/i.test(etatTexte) ? 'signe' : (/^en\s+cours/i.test(etatTexte) ? 'redaction' : (/^(?:non|pas\s+encore)\s+r[ée]dig/i.test(etatTexte) ? 'a_rediger' : ''));
+        actes.push({ intitule, etat, signeLe: signe ? dateIsoDepuisFr(signe[1]) : '' });
+      });
+    });
+    return actes;
+  }
+
+  // Pure : les pièces d'une SUCCESSION reçues d'après Authentic (étude 15/10 : « acte de naissance et EHF sont validés si envoyés et
+  // réceptionnés depuis Authentic ») — actes de naissance : toutes les demandes d'actes de naissance vues revenues « positif »
+  // (Comedec) ; EHF : la réquisition hors formalité envoyée ET revenue. { actesNaissance: { recue, total, recus }, ehf: { recue, envoyeeLe, retourLe } }.
+  function piecesSuccessionAuthentic(infos) {
+    // Une demande par personne (même libellé = même acte, relevé deux fois).
+    const parLibelle = new Map();
+    Object.values((infos && infos.etatsCivils) || {}).filter(e => e && /naissance/i.test(e.label || '')).forEach(e => {
+      const cle = normaliserPourRecherche(e.label).replace(/[^a-z0-9]+/g, ' ').trim();
+      const deja = parLibelle.get(cle);
+      if (!deja || e.etat === 'positif') parLibelle.set(cle, e);
+    });
+    const naissances = [...parLibelle.values()];
+    const recus = naissances.filter(e => e.etat === 'positif').length;
+    const rhf = (infos && infos.rhf) || {};
+    return {
+      actesNaissance: { recue: naissances.length > 0 && recus === naissances.length, total: naissances.length, recus },
+      ehf: { recue: !!(rhf.envoyeeLe && rhf.retourLe), envoyeeLe: rhf.envoyeeLe || '', retourLe: rhf.retourLe || '' }
+    };
+  }
+

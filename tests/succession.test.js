@@ -223,3 +223,33 @@ test('Authentic : actes de naissance reçus quand toutes les demandes sont reven
   assert.ok(!(d.piecesPersonnalisees || []).some(p => /naissance/i.test(p.label)));
   assert.equal(app.appliquerReleveSurDossier(d, capture, '2026-10-15T11:00:00Z', [d]).textes.filter(t => /Reçue dans Authentic/.test(t)).length, 0);
 });
+
+test('Authentic : la fiche bien d’une succession est gardée entière (parcelles, nature, surface), fusionnée avec le même bien', () => {
+  const d = base({ id: 's10', biens: [{ adresse: 'Ancien bien noté à la main' }] });
+  const noter = () => {};
+  const bien = { id: 'b1', adresse: { texte: 'BRACIEUX (41250), 31 rue des Écoles', codePostal: '41250', commune: 'BRACIEUX' }, type: 'Maison individuelle', description: 'Une maison',
+    parcelles: [{ section: 'AB', numero: '12', nature: 'S', surface: '512', lieuDit: 'Le Bourg' }], lots: [] };
+  app.appliquerBienSuccession(d, bien, noter, { modifie: false });
+  assert.equal(d.authentic.immeubles.length, 1);
+  assert.equal(JSON.stringify(d.authentic.immeubles[0].parcelles[0]), '{"section":"AB","numero":"12","lieuDit":"Le Bourg","nature":"S","surface":"512"}');
+  assert.equal(d.biens.map(b => b.adresse).join('|'), 'BRACIEUX (41250), 31 rue des Écoles|Ancien bien noté à la main');
+  // Même bien relu avec une parcelle de plus : complété, pas doublé.
+  app.appliquerBienSuccession(d, Object.assign({}, bien, { parcelles: bien.parcelles.concat({ section: 'AB', numero: '13' }) }), noter, { modifie: false });
+  assert.deepEqual([d.authentic.immeubles.length, d.authentic.immeubles[0].parcelles.length], [1, 2]);
+  // Un autre bien : ajouté.
+  app.appliquerBienSuccession(d, { adresse: { texte: 'BLOIS (41000), 2 rue X' }, type: 'Appartement', parcelles: [{ section: 'CK', numero: '4' }], lots: [{ numero: '7', type: 'Appartement' }] }, noter, { modifie: false });
+  assert.equal(d.authentic.immeubles.length, 2);
+  assert.match(app.detailBienSuccession(d.authentic.immeubles[0]), /Maison individuelle · Une maison · AB 12 Le Bourg S 5 a 12 ca/);
+});
+
+test('fiche client d’une succession : tout l’état civil gardé (nationalité, profession, coordonnées) et montré sous l’héritier', () => {
+  const d = base({ id: 's11', parties: [{ nom: 'Marc DURAND', role: 'PARTIE' }] });
+  const personne = { nom: 'DURAND', prenom: 'Marc', civilite: 'Monsieur', dateNaissance: '1960-04-02', lieuNaissance: '41000 BLOIS', nationalite: 'Française', profession: 'Retraité',
+    adresse: { texte: '3 rue X 41000 BLOIS' }, emails: ['marc@x.fr'], telephones: ['06 00 00 00 00'], situationMatrimoniale: { situation: 'Marié(e)', regime: 'Communauté légale' } };
+  const r = app.appliquerClientSuccession(d, personne, () => {}, { modifie: false }, '2026-10-15T10:00:00Z');
+  assert.ok(r.modifie);
+  const f = Object.values(d.authentic.fichesClients)[0];
+  assert.deepEqual([f.nationalite, f.profession, f.emails[0], f.telephones[0]], ['Française', 'Retraité', 'marc@x.fr', '06 00 00 00 00']);
+  assert.equal(d.parties[0].emails[0], 'marc@x.fr');
+  assert.match(app.etatCivilFicheSuccession(f), /né\(e\) le .*1960 à 41000 BLOIS · Française · Retraité · domicile : .* · Marié\(e\)/);
+});

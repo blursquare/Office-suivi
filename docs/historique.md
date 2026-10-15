@@ -20024,3 +20024,17 @@ bout de 4 à 6 mois. »
   positive) : tout passe par la pièce « Actes de naissance ». Sous la pièce non reçue : « Authentic : k/n revenus » / « Réquisition
   envoyée le …, pas encore revenue ».
 - Non vérifié sur une vraie page de succession d'Authentic.
+
+### 15/10/2026 22:25 — Successions : tout vient d'Authentic, état civil et biens gardés entiers (0.246.3)
+
+Étude : « Comme pour les ventes. Pas d'analyse pour les successions et aucun document n'est uploadé avant comme un compromis : tout
+vient d'Authentic. Stocker toutes les données d'état civil et sur le bien. »
+- Fiche client (`retenirFicheClientAuthentic`, tous dossiers) : nationalité, profession, téléphones, emails en plus de l'identité,
+  naissance, domicile, décès et situation matrimoniale déjà gardés. Succession : la partie déjà sur la fiche reçoit ses téléphones,
+  emails et civilité manquants.
+- Fiche bien d'une succession (`appliquerBienSuccession`) : gardée entière dans `d.authentic.immeubles` (adresse, type, désignation,
+  parcelles avec préfixe, commune, lieu-dit, nature, surface ; lots et tantièmes), fusionnée avec le même bien (même adresse ou une
+  parcelle commune), d'autres biens ajoutés ; `d.biens` (affichage) suit, les biens notés autrement gardés. Jamais « autre adresse
+  que le dossier » : une succession a souvent plusieurs biens.
+- Fiche : état civil sous chaque héritier (`etatCivilFicheSuccession`), naissance du défunt, nationalité et profession ; biens avec
+  leur détail (`detailBienSuccession`). Plus de bloc « extraction » (renderExtractionDossier) ni d'analyse pour une succession.

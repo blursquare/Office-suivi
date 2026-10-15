@@ -2173,7 +2173,7 @@
               </div>
               <div class="fiche-fin-repliables">
                 ${avecPieces ? `${renderAuthenticDossier(d)}${renderDiagnosticParcours(d)}` : ''}
-                ${renderExtractionDossier(d)}
+                ${estSuccession(d) ? '' : renderExtractionDossier(d)}
               </div>
             </section>
 

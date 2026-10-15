@@ -1228,49 +1228,6 @@
     return etat;
   }
 
-  // Pure : les actes d'une SUCCESSION relevés dans le tableau « Rédaction » de la page du dossier (étude 15/10 : « des actes peuvent
-  // venir se rajouter, tu les auras dans le dossier Authentic : délivrance de legs, convention de quasi-usufruit ») —
-  // [{ intitule, etat: 'a_rediger' | 'redaction' | 'signe' | '', signeLe }]. Ni courrier, ni demande, ni procuration.
-  function actesSuccessionAuthentic(capture) {
-    const actes = [];
-    ((capture && capture.tableaux) || []).forEach(t => {
-      const titre = [t.titre, ...(t.entete || [])].join(' ');
-      if (!/r[ée]daction/i.test(titre)) return;
-      (t.lignes || []).forEach(l => {
-        const cellules = (l || []).map(x => String(x == null ? '' : x).replace(/\s+/g, ' ').trim()).filter(x => x && !/^⟦icône⟧/.test(x));
-        const textes = cellules.filter(x => !/^\d{1,2}[\/.-]\d{1,2}[\/.-]\d{4}$/.test(x));
-        if (!textes.length) return;
-        const intitule = textes[0];
-        if (/courrier|e-?mail|lettre|demande|procuration|convocation|mandat/i.test(intitule) || actes.some(a => a.intitule === intitule)) return;
-        const signe = cellules.map(x => RE_SIGNE_LE_AUTHENTIC.exec(x)).find(Boolean);
-        const etatTexte = textes.length > 1 ? textes[textes.length - 1] : '';
-        const etat = signe || /^sign[ée]/i.test(etatTexte) ? 'signe' : (/^en\s+cours/i.test(etatTexte) ? 'redaction' : (/^(?:non|pas\s+encore)\s+r[ée]dig/i.test(etatTexte) ? 'a_rediger' : ''));
-        actes.push({ intitule, etat, signeLe: signe ? dateIsoDepuisFr(signe[1]) : '' });
-      });
-    });
-    return actes;
-  }
-
-  // Pure : les pièces d'une SUCCESSION reçues d'après Authentic (étude 15/10 : « acte de naissance et EHF sont validés si envoyés et
-  // réceptionnés depuis Authentic ») — actes de naissance : toutes les demandes d'actes de naissance vues revenues « positif »
-  // (Comedec) ; EHF : la réquisition hors formalité envoyée ET revenue. { actesNaissance: { recue, total, recus }, ehf: { recue, envoyeeLe, retourLe } }.
-  function piecesSuccessionAuthentic(infos) {
-    // Une demande par personne (même libellé = même acte, relevé deux fois).
-    const parLibelle = new Map();
-    Object.values((infos && infos.etatsCivils) || {}).filter(e => e && /naissance/i.test(e.label || '')).forEach(e => {
-      const cle = normaliserPourRecherche(e.label).replace(/[^a-z0-9]+/g, ' ').trim();
-      const deja = parLibelle.get(cle);
-      if (!deja || e.etat === 'positif') parLibelle.set(cle, e);
-    });
-    const naissances = [...parLibelle.values()];
-    const recus = naissances.filter(e => e.etat === 'positif').length;
-    const rhf = (infos && infos.rhf) || {};
-    return {
-      actesNaissance: { recue: naissances.length > 0 && recus === naissances.length, total: naissances.length, recus },
-      ehf: { recue: !!(rhf.envoyeeLe && rhf.retourLe), envoyeeLe: rhf.envoyeeLe || '', retourLe: rhf.retourLe || '' }
-    };
-  }
-
   // Pure : le prix de vente — champ « Capital » (Informations financières).
   function prixAuthentic(capture) {
     const c = capture || {};
@@ -1692,7 +1649,10 @@
       dateNaissance: personne.dateNaissance || '', lieuNaissance: personne.lieuNaissance || '', paysNaissance: personne.paysNaissance || '',
       domicile: adresse && adresse.texte ? adresse.texte : '',
       adresse: adresse ? { codePostal: adresse.codePostal || '', commune: adresse.commune || '', departement: adresse.departement || '' } : null,
-      deces: personne.deces || null, situationMatrimoniale: personne.situationMatrimoniale || null
+      deces: personne.deces || null, situationMatrimoniale: personne.situationMatrimoniale || null,
+      // Tout l'état civil de la fiche (étude 15/10 : « stocker toutes les données d'état civil »).
+      nationalite: personne.nationalite || '', profession: personne.profession || '',
+      emails: (personne.emails || []).slice(0, 3), telephones: (personne.telephones || []).slice(0, 3)
     };
     const avant = d.authentic || {};
     const reg = Object.assign({}, avant.fichesClients || {});
@@ -1732,6 +1692,17 @@
         emails: (personne.emails || []).slice(0, 3), telephones: (personne.telephones || []).slice(0, 3)
       }, civiliteDepuisTexte(personne.civilite) ? { civilite: civiliteDepuisTexte(personne.civilite) } : {}, personne.nomUsage ? { nomUsage: personne.nomUsage } : {}));
       noter(`Personne ajoutée d’après sa fiche Authentic : ${complet}`);
+    }
+    // Partie déjà sur la fiche : ses coordonnées et sa civilité manquantes viennent d'Authentic.
+    if (!partie.nouvelle) {
+      const p = (d.parties || []).find(x => x === partie);
+      if (p) {
+        const ajouts = [];
+        if (!(p.emails || []).length && (personne.emails || []).length) { p.emails = personne.emails.slice(0, 3); ajouts.push('email'); }
+        if (!(p.telephones || []).length && (personne.telephones || []).length) { p.telephones = personne.telephones.slice(0, 3); ajouts.push('téléphone'); }
+        if (!p.civilite && civiliteDepuisTexte(personne.civilite)) { p.civilite = civiliteDepuisTexte(personne.civilite); ajouts.push('civilité'); }
+        if (ajouts.length) { noter(`${complet} : ${ajouts.join(', ')} repris d’Authentic`); resultat.modifie = true; }
+      }
     }
     const ancienne = d.authentic && d.authentic.fichesClients && d.authentic.fichesClients[cleFicheClientAuthentic(personne)];
     if (retenirFicheClientAuthentic(d, personne, maintenant)) {
@@ -2192,7 +2163,7 @@
       if (!personneComparantAuthentic(d, personne, role)) return resultat;
       return appliquerClientAuthentic(d, personne, role, noter, resultat, maintenant);
     }
-    if (type === 'bien') return appliquerBienAuthentic(d, bienDepuisFicheAuthentic(capture), noter, resultat);
+    if (type === 'bien') return estSuccession(d) ? appliquerBienSuccession(d, bienDepuisFicheAuthentic(capture), noter, resultat) : appliquerBienAuthentic(d, bienDepuisFicheAuthentic(capture), noter, resultat);
 
     // Pièces reçues (page de gestion). Succession : actes de naissance et EHF suivent leur propre règle (plus bas), jamais une ligne seule.
     const pieces = (type === 'gestion' ? piecesAuthenticAAppliquer(d, capture) : [])

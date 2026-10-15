@@ -9566,6 +9566,7 @@ table.pr-zt td.pr-zt-retenue select { min-width: 120px; min-height: 32px; height
 .cst-edition-corps textarea { width: 100%; resize: vertical; }
 .cst-rep-resultats { display: flex; flex-direction: column; max-height: 132px; overflow: auto; margin-top: 4px; }
 .cst-rep-resultats .dash-recherche-nom { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.succ-personne { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .succ-actes { display: flex; flex-wrap: wrap; gap: 8px 16px; }
 .succ-acte { display: inline-flex; align-items: center; gap: 6px; }
 .succ-identite { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; width: 100%; }
