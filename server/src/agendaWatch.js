@@ -181,6 +181,14 @@ function marquerSignatureAReplacer(d, det, jour) {
   return true;
 }
 
+// Le rendez-vous de cette date a-t-il été retiré de l'agenda Outlook par CLAIRE (note d'historique écrite au succès du retrait) il y a plus de
+// 10 minutes ? Pure. @param {any} d @param {string} dateIso @param {number} [maintenant]
+function retraitAgendaReussiAvant(d, dateIso, maintenant = Date.now()) {
+  const attendu = `Rendez-vous de signature du ${formatDateFr(dateIso)} retiré de l'agenda Outlook de l'office.`;
+  return (Array.isArray(d && d.historique) ? d.historique : []).some((h) => h && String(h.texte || '') === attendu
+    && maintenant - new Date(h.date).getTime() > 10 * 60 * 1000);
+}
+
 function appliquerRendezVousAgenda(depot, detections, resultat, categoriesRdv) {
   const plusProche = new Map();
   const jour = dateDuJourParis();
@@ -208,7 +216,10 @@ function appliquerRendezVousAgenda(depot, detections, resultat, categoriesRdv) {
     // sur la fiche ; seule une AUTRE date le relève à nouveau.
     if (!actuel && d.detectionsAgenda.rendezVousRetire === det.dateIso) {
       // Sorti du jaune dans Outlook à la même date : le rendez-vous est maintenu, la fiche le reprend.
-      if (!(d.rendezVousARemplacer && d.rendezVousARemplacer.date === det.dateIso)) continue;
+      // Retiré dans CLAIRE ET de l'agenda avec succès (historique « … retiré de l'agenda Outlook »), il y a plus de 10 minutes : un
+      // rendez-vous de cette date est alors un NOUVEAU, recréé dans Outlook (étude 15/10, CHEYMOL / QUEVA & ROY : retiré le 07/10,
+      // recréé le 08/10 au même jour, jamais repris) — la fiche le reprend.
+      if (!(d.rendezVousARemplacer && d.rendezVousARemplacer.date === det.dateIso) && !retraitAgendaReussiAvant(d, det.dateIso)) continue;
     }
     if (actuel === det.dateIso) {
       // Même date : l'heure, l'heure de fin et le lieu suivent l'agenda (affichés dans l'agenda du

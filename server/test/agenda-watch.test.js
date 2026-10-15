@@ -578,3 +578,21 @@ test('corrigerRendezVousEcritsParAgenda : date donnée à tort par l\'agenda ou 
   assert.equal(corrigerRendezVousEcritsParAgenda(depot, stock, '2026-10-07').length, 0);
   db.close();
 });
+
+test('rendez-vous retiré dans CLAIRE et de l’agenda, puis recréé dans Outlook à la même date : la fiche le reprend (15/10)', () => {
+  const db = ouvrirDb(':memory:');
+  const depot = creerDepot(db);
+  const det = { dossierId: 'd1', dossierNom: 'x', reference: 'CHEYMOL', dateIso: '2099-11-18', rendezVous: true, appelFonds: false, projetEnvoye: false, heure: '17:00', categories: [] };
+  // Retiré à l'instant, ou sans que l'agenda ait pu suivre : le repère garde la fiche vide.
+  depot.creer({ id: 'd1', nom: 'CHEYMOL', rendezVousSignature: '', detectionsAgenda: { rendezVousRetire: '2099-11-18' },
+    historique: [{ date: new Date().toISOString(), texte: 'Rendez-vous de signature du 18/11/2099 retiré de l\'agenda Outlook de l\'office.' }] });
+  appliquerDetectionsAgenda(depot, [det], '2026-10-15');
+  assert.equal(depot.trouverParId('d1').rendezVousSignature, '', 'retrait de moins de 10 minutes : pas repris');
+  // Retrait réussi la veille : le rendez-vous présent à cette date est un nouveau.
+  const d = depot.trouverParId('d1');
+  d.historique = [{ date: new Date(Date.now() - 24 * 3600 * 1000).toISOString(), texte: 'Rendez-vous de signature du 18/11/2099 retiré de l\'agenda Outlook de l\'office.' }];
+  depot.remplacer('d1', d);
+  appliquerDetectionsAgenda(depot, [det], '2026-10-15');
+  assert.equal(depot.trouverParId('d1').rendezVousSignature, '2099-11-18');
+  db.close();
+});
