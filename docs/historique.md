@@ -19792,3 +19792,31 @@ comparer et créer le pourcentage ».
   publiée (ni data.gouv.fr, ni ministère) ; chaque commune ou intercommunalité a le sien (Cart@DS de l'ATIP, GNAU d'agglomération, portails
   « DIA » réservés aux notaires à Toulouse, Aix-Marseille, Paris via FranceConnect…), souvent limité aux périmètres DPU/DPUR/ZAD. Rien n'est construit.
 
+## 15/10/2026 — Où déposer la DIA, Loir-et-Cher / Loiret / Indre-et-Loire / Indre / Cher (0.232.0)
+
+Demande de l'étude : « rechercher les guichets uniques (GNAU) des communes de France pour savoir où faire les demandes de déclaration
+d'intention d'aliéner » ; réponse : aucune liste nationale (ni data.gouv.fr ni ministère) ; proposition d'une base par département,
+« fais-le pour le Loir-et-Cher et le 45, 37, 36, 18 ».
+
+- `server/src/depotDia.js`, `routes/depotDia.js` (`GET /api/urbanisme/depot-dia?insee=`, `PUT|DELETE …/:insee`), base livrée
+  `server/src/data/depot-dia.json` (1 391 communes, 70 intercommunalités, découpage administratif Etalab) construite par
+  `server/scripts/assembler-depot-dia.js` à partir de `server/scripts/depot-dia/*.recherche.json` (recherches par département,
+  chaque entrée avec la page lue et sa date). Une commune hérite de son intercommunalité, sauf exception ; **un mode annoncé sans
+  page lue, ou un guichet sans adresse, redevient « à vérifier »** (testé) ; corrections de l'étude (clé `depot-dia`, 400 au plus) passent
+  devant ; fiche de la mairie lue dans l'annuaire du service public (`api-lannuaire.service-public.fr`, ne part que le code INSEE).
+- Poste : `client/70-depot-dia.js`, section « Où déposer la DIA » du Contrôle de l'urbanisme (étape « Dépôt DIA »), lien d'ouverture du
+  guichet (https seulement), copie du courriel, « Corriger » / « Revenir à la base ». Point terrain `depot-dia-mairie`.
+- **Ce que la recherche a donné — peu** : sur 70 intercommunalités, 8 avec un guichet lu sur une page (Val-de-Cher-Controis, Territoires Vendômois,
+  Sologne des Rivières, Terres du Val de Loire, Montargoise, Quatre Vallées, Touraine-Est Vallées, Orléans Métropole), dont 4 seulement
+  « pour certaines communes » (Orléans Métropole, Territoires Vendômois, Touraine-Est Vallées, Terres du Val de Loire : les autres communes
+  restent « à vérifier », `partiel`) ; côté communes, Tours (GNAU, page relue : « doivent être déposées sur le GNAU »), Orléans et
+  Joué-lès-Tours (en mairie) ; Blois : la page ne dit pas comment transmettre (service de l'Urbanisme réglementaire), « à vérifier ». Les 62 autres : « à vérifier »
+  (moteur de recherche pauvre pour ces départements, plusieurs sites en 403/503, portails en JavaScript). **Agglopolys, Beauce Val de
+  Loire et Grand Chambord ont un GNAU Operis pour les autorisations, mais aucune page lue ne cite la DIA** : laissés « à vérifier ».
+  Contrôlé par moi : Blois et Tours (pages relues). Aucun courriel de dépôt DIA n'a été relevé nulle part.
+- À compléter par l'usage (bouton « Corriger ») ou par un second passage avec un autre accès web.
+
+- Relecture indépendante : aucun défaut grave ; corrigés — guichet lu pour une partie seulement des communes (plus d'héritage affirmé,
+  `scripts/depot-dia/ajustements.json`), communes dites hors guichet par la page, Blois (mode non étayé), correction de l'étude qui perdait le
+  périmètre (et ne s'affiche plus « page lue »), doublon d'intercommunalité entre départements, cache négatif de l'annuaire (5 min),
+  double clic sur « Enregistrer », apostrophes doublées d'un nom d'EPCI.

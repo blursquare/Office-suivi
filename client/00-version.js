@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.231.0';
+  const VERSION_APP = '0.232.0';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.232.0', date: '2026-10-15 10:07', resume: "Contrôle de l'urbanisme : « Où déposer la DIA ». Pour la commune choisie (Loir-et-Cher, Loiret, Indre-et-Loire, Indre, Cher — 1 391 communes), le guichet numérique, le courriel ou le courrier pour déposer une déclaration d'intention d'aliéner, d'après les pages officielles lues, avec le lien vers la page et la date de lecture, plus la fiche de la mairie (adresse, téléphone, courriel, site) de l'annuaire du service public. La procédure est celle de l'intercommunalité de la commune, sauf exception. Les cas non relevés sont dits « à vérifier » — rien n'est déduit — et l'étude corrige une commune en un clic (« Corriger », « Revenir à la base »)." },
     { version: '0.231.0', date: '2026-10-15 08:18', resume: "Contrôle de l'urbanisme : « Tirer le plan aérien ». Photographie aérienne de l'IGN en A4 portrait, les parcelles du dossier surlignées en jaune fluo avec leur numéro, les parcelles voisines numérotées pour comparer avec le plan du cadastre, contour des zones du document d'urbanisme en pointillés. Sous le plan, la part de chaque zone dans chaque parcelle (« UA 70 % · N 30 % », calculée par la géométrie, à titre indicatif) et la protection du patrimoine (monument historique…). Parcelles proches sur un même plan, éloignées sur des plans à part. Services ouverts de l'IGN : ni navigateur, ni IA, ni jeton ; seuls le code INSEE, la section et le numéro des parcelles quittent le bureau. Rangeable dans le dossier du NAS sur clic. Les photos aériennes à comparer (Travaux et autorisations) portent aussi les numéros de parcelles — celles du dossier en gras, les voisines en filet blanc — pour repérer les constructions d'une date à l'autre." },
     { version: '0.230.0', date: '2026-10-14 21:40', resume: "Pièces du dossier : le plan cadastral est attendu pour toute vente (maison, copropriété, terrain, terre). Il est retrouvé seul sur le commun par le nom du fichier (« Plan cadastral », « Extrait cadastral », « Plan de situation » — celui que CLAIRE tire de cadastre.gouv.fr compris) et reconnu par Claire Scan." },
     { version: '0.229.1', date: '2026-10-14 21:36', resume: "Contrôle de l'urbanisme : la consultation de Géofoncier par l'IA est retirée (elle consommait des jetons) ; le plan de situation de cadastre.gouv.fr reste, sans IA et sans coût. Un mot de passe Géofoncier déjà enregistré est effacé." },

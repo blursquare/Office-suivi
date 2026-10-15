@@ -22,6 +22,7 @@ const { creerRouteurSauvegarde } = require('./routes/sauvegarde');
 const { creerRouteurUrbanisme } = require('./routes/urbanisme');
 const { creerRouteurNavigation } = require('./routes/navigation');
 const { creerRouteurPlanAerien } = require('./routes/planAerien');
+const { creerRouteurDepotDia } = require('./routes/depotDia');
 const { creerRouteurNotifications } = require('./routes/notifications');
 const { creerRouteurExclusionsPieces } = require('./routes/exclusionsPieces');
 const { creerRouteurCorrectionsApprises } = require('./routes/correctionsApprises');
@@ -229,6 +230,8 @@ function creerApp({ db, config, envoyerEmailFn, creerClientClaude, appelerMistra
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurAppelsFonds(parametresRepo));
   // Zonage d'une parcelle (outil « Droits de préemption ») : API Carto de l'IGN, voir urbanisme.js.
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurUrbanisme(parametresRepo, urbanisme || {}));
+  // Où déposer la DIA (guichet, courriel, courrier ; fiche de la mairie) : voir depotDia.js.
+  app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurDepotDia(parametresRepo, urbanisme || {}));
   // Plan aérien IGN des parcelles (numéros, pourcentage de zonage) : services ouverts de l'IGN, voir planAerien.js.
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurPlanAerien(config, parametresRepo, depot, urbanisme || {}));
   // Plan de situation tiré de cadastre.gouv.fr dans le navigateur du serveur : voir navigateur/taches.js.

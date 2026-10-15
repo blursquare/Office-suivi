@@ -47,6 +47,7 @@
       { cle: 'bien', libelle: 'Bien', fait: () => !!(prEtat && prEtat.reponses.bien) },
       { cle: 'rural', libelle: 'Agricole et forestier' },
       { cle: 'resultat', libelle: 'Droits', fait: () => !!(prEtat && !analyserPreemption(reponsesPreemption(prEtat)).manques.length) },
+      { cle: 'depot', libelle: 'Dépôt DIA', fait: () => !!(prEtat && prEtat.depotDia && prEtat.depotDia.etat === 'ok' && prEtat.depotDia.donnees && prEtat.depotDia.donnees.depot && prEtat.depotDia.donnees.depot.mode !== 'inconnu') },
       { cle: 'travaux', libelle: 'Travaux', fait: () => !!(prEtat && prEtat.travaux && prEtat.travaux.liste) },
       { cle: 'sites', libelle: 'Plan de situation', fait: () => !!(prEtat && prEtat.sites && prEtat.sites.plan && prEtat.sites.plan.etat === 'fini') }
     ],

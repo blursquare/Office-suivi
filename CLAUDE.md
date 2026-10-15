@@ -83,6 +83,8 @@ server/                              Serveur (son propre package.json ; le packa
                                      routes/navigation.js ; poste : client/69-sites-claire.js
   src/planAerien.js, routes/planAerien.js  Plan aérien IGN (15/10) : photo WMS + parcelles numérotées + part de chaque zone du GPU par parcelle,
                                      services ouverts de l'IGN, sans navigateur ni IA ; poste : client/69-sites-claire.js
+  src/depotDia.js, routes/depotDia.js  Où déposer la DIA (15/10) : base par commune/intercommunalité (data/depot-dia.json, scripts/assembler-depot-dia.js),
+                                     fiche de la mairie (annuaire du service public), corrections de l'étude ; poste : client/70-depot-dia.js
   src/appels3cx.js, routes/appels.js Appels reçus par 3CX (sonnerie → journal, appelant reconnu, fiche ouverte)
   src/nas.js, nasWatch.js            Lecture du NAS par le serveur, surveillance périodique
   src/scans.js, routes/scans.js      Classeur des scans du copieur (dossier « Scan » → dossiers clients)

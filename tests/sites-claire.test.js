@@ -52,3 +52,15 @@ test('photos à comparer : les numéros de parcelles sont placés en % de l’im
   assert.ok(l[0].dossier && Math.abs(l[0].x - 50) < 0.01 && Math.abs(l[0].y - 50) < 0.01);
   assert.ok(!l[1].dossier && Math.abs(l[1].x - 90) < 0.01 && Math.abs(l[1].y - 90) < 0.01);
 });
+
+test('où déposer la DIA : lignes lisibles selon le mode, lien seulement en http(s), libellé du mode', () => {
+  assert.strictEqual(app.lienDepotDiaSur('javascript:alert(1)'), '');
+  assert.strictEqual(app.lienDepotDiaSur('https://guichet.exemple.fr/gnau'), 'https://guichet.exemple.fr/gnau');
+  assert.strictEqual(app.libelleModeDepotDia('guichet'), 'Guichet numérique');
+  assert.strictEqual(app.libelleModeDepotDia('autre'), 'À vérifier');
+  const g = app.lignesDepotDia({ depot: { mode: 'guichet', plateforme: 'Cart@DS', notairesSeulement: true, perimetre: 'DPU', note: 'Page non datée.' } }).join(' | ');
+  assert.strictEqual(g, 'Dépôt sur le guichet numérique (Cart@DS). | Réservé aux notaires. | Périmètre : DPU | Page non datée.');
+  assert.strictEqual(app.lignesDepotDia({ depot: { mode: 'courriel', courriel: 'dia@mairie.fr' } }).join(' | '), 'Dépôt par courriel à dia@mairie.fr.');
+  assert.match(app.lignesDepotDia({ depot: { mode: 'inconnu' } })[0], /non relevée.*vérifier/);
+  assert.match(app.lignesDepotDia(null)[0], /non relevée/);
+});
