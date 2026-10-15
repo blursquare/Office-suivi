@@ -1203,6 +1203,8 @@ garde tous les validés (`tousValides`) ; l'impression A4 garde `renderCompteRen
   (`PIECES_SUCCESSION`, par le nom du fichier) ; notoriété retenue par acte de décès, actes de naissance, FCDDV, donation entre époux et testament tranchés. Étapes cochées
   dans `d.echeancesValidees` (`echeanceValidee` délègue à `etapeSuccessionValidee`). Défunt = `defuntConstitution` (Authentic, corrections dans `d.defunt`, régime compris).
   **Courriers : jamais de soulignement repris des modèles** (le bleu souligné marquait les variables d'Authentic).
+  **Pièces d'après Authentic** (étude 15/10) : « Actes de naissance » cochée quand TOUTES les demandes d'actes de naissance vues sont revenues « positif »,
+  « EHF » quand la réquisition hors formalité est envoyée ET revenue (`piecesSuccessionAuthentic`) ; jamais une pièce par acte de naissance.
   **FCDDV** (étude 15/10, 0.246.0) : la réponse (pièce `fcddv` trouvée sur le NAS) est lue sur le poste à l'ouverture de la fiche (`analyseFcddv` :
   une inscription par nature — testament, donation entre époux… —, notaire dépositaire, date, CRPCEN, ville ; « aucune inscription » ; jamais l'office demandeur) →
   `d.succession.fcddv` ; testament / donation entre époux répondus s'ils sont vides ; un email par notaire dépositaire (`emailConfrereFcddv`, premier jet de CLAIRE :

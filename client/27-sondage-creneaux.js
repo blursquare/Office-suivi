@@ -1502,6 +1502,12 @@
   function etatAuthenticPiece(d, p) {
     const a = (d && d.authentic) || {};
     if (/safer/i.test(p.label) && a.safer) return { texte: suiviSaferPiece(d), classe: '' };
+    // Succession : actes de naissance et EHF suivis dans Authentic (étude 15/10) — ce qui est revenu, ce qui est attendu.
+    if (estSuccession(d) && (p.cle === 'actesNaissance' || p.cle === 'ehf') && !(d.pieces && d.pieces[p.cle] === 'recue')) {
+      const ps = piecesSuccessionAuthentic(a);
+      if (p.cle === 'actesNaissance' && ps.actesNaissance.total) return { texte: `Authentic : ${ps.actesNaissance.recus}/${ps.actesNaissance.total} revenu${ps.actesNaissance.recus > 1 ? 's' : ''}`, classe: 'dl-pret' };
+      if (p.cle === 'ehf' && ps.ehf.envoyeeLe) return { texte: `Réquisition envoyée le ${formatDateFr(ps.ehf.envoyeeLe)}, pas encore revenue`, classe: 'dl-pret' };
+    }
     const ec = (a.etatsCivils || {})[p.cle];
     if (ec) {
       if (ec.etat === 'negatif') return { texte: 'Comedec : négatif — erreur, document non délivré', classe: 'dl-urgent' };

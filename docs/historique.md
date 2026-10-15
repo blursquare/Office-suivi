@@ -20013,3 +20013,14 @@ bout de 4 à 6 mois. »
 - Type notoriété + DS : une seule étape « Signature de l'acte de notoriété et de la déclaration de succession », butoir à 6 mois,
   fenêtre affichée « entre le (4 mois) et le (6 mois) » ; faite quand l'un des deux actes est signé (coche ou Authentic) ; plus d'étape
   séparée de déclaration. Classique inchangé (notoriété à 1 mois, AI + DS à 6 mois).
+
+### 15/10/2026 22:21 — Successions : actes de naissance et EHF d'après Authentic (0.246.2)
+
+Étude : « Les pièces acte de naissance et EHF sont validées si envoyées et réceptionnées depuis Authentic. »
+- `piecesSuccessionAuthentic` (client/30) : actes de naissance = toutes les demandes vues (état civil, Comedec) revenues « positif »
+  (une par personne, même libellé relevé deux fois compté une fois) ; EHF = réquisition hors formalité envoyée ET revenue (`rhf`).
+  Appliqué par `appliquerReleveSurDossierBrut` sur une page de succession : pièce cochée « dans Authentic », notifiée, une fois.
+- Plus de pièce « Acte de naissance de … » ajoutée une par une pour une succession (ni par l'état civil en attente, ni par une ligne
+  positive) : tout passe par la pièce « Actes de naissance ». Sous la pièce non reçue : « Authentic : k/n revenus » / « Réquisition
+  envoyée le …, pas encore revenue ».
+- Non vérifié sur une vraie page de succession d'Authentic.

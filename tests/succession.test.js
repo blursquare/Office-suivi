@@ -201,3 +201,25 @@ test('FCDDV : un email par notaire dépositaire, la nature et le coût de l’ac
   assert.match(e.corps, /la nature exacte de ces actes et le coût de vos actes/);
   assert.doesNotMatch(e.corps, /Mon Cher Maître|Sauf erreur/);
 });
+
+test('Authentic : actes de naissance reçus quand toutes les demandes sont revenues positives ; EHF quand la réquisition est envoyée et revenue', () => {
+  const ps = app.piecesSuccessionAuthentic({
+    etatsCivils: { a: { label: 'Acte de naissance de Paul DURAND', etat: 'positif' }, b: { label: 'Acte de naissance de Léa DURAND', etat: 'attente' }, c: { label: 'Acte de décès', etat: 'positif' } },
+    rhf: { envoyeeLe: '2026-10-02', retourLe: '' }
+  });
+  assert.deepEqual([ps.actesNaissance.recue, ps.actesNaissance.recus, ps.actesNaissance.total, ps.ehf.recue], [false, 1, 2, false]);
+  const ok = app.piecesSuccessionAuthentic({ etatsCivils: { a: { label: 'Acte de naissance de Paul DURAND', etat: 'positif' } }, rhf: { envoyeeLe: '2026-10-02', retourLe: '2026-10-12' } });
+  assert.deepEqual([ok.actesNaissance.recue, ok.ehf.recue], [true, true]);
+  assert.equal(app.piecesSuccessionAuthentic({}).actesNaissance.recue, false);
+  // Sur la fiche : la pièce cochée « dans Authentic », une seule fois.
+  const d = base({ id: 's9', biens: [{ adresse: 'X' }], authentic: { etatsCivils: { a: { label: 'Acte de naissance de Paul DURAND', etat: 'positif' } } } });
+  const capture = { titre: 'Authentic', champs: [], texte: '1 - Succession Paul DURAND\nComparants\nImmeubles', tableaux: [{ titre: 'Etat civil', entete: ['Intitulé', 'Date', 'État'], lignes: [['ECV Acte de naissance de Paul DURAND', '01/10/2026', 'Réponse positive']] },
+    { titre: 'Demande', entete: ['Intitulé', 'Date', 'Date', 'État'], lignes: [['Réquisition hors formalité', '02/10/2026', '12/10/2026', 'Retour']] }] };
+  assert.equal(app.typePageAuthentic(capture), 'gestion');
+  const r = app.appliquerReleveSurDossier(d, capture, '2026-10-15T10:00:00Z', [d]);
+  assert.equal(JSON.stringify(d.pieces), '{"actesNaissance":"recue","ehf":"recue"}');
+  assert.ok(r.textes.some(t => /« Actes de naissance » \(1\/1 reçus\)/.test(t)));
+  // Aucune pièce « Acte de naissance de … » ajoutée à part.
+  assert.ok(!(d.piecesPersonnalisees || []).some(p => /naissance/i.test(p.label)));
+  assert.equal(app.appliquerReleveSurDossier(d, capture, '2026-10-15T11:00:00Z', [d]).textes.filter(t => /Reçue dans Authentic/.test(t)).length, 0);
+});

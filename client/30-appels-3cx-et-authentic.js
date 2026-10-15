@@ -1251,6 +1251,26 @@
     return actes;
   }
 
+  // Pure : les pièces d'une SUCCESSION reçues d'après Authentic (étude 15/10 : « acte de naissance et EHF sont validés si envoyés et
+  // réceptionnés depuis Authentic ») — actes de naissance : toutes les demandes d'actes de naissance vues revenues « positif »
+  // (Comedec) ; EHF : la réquisition hors formalité envoyée ET revenue. { actesNaissance: { recue, total, recus }, ehf: { recue, envoyeeLe, retourLe } }.
+  function piecesSuccessionAuthentic(infos) {
+    // Une demande par personne (même libellé = même acte, relevé deux fois).
+    const parLibelle = new Map();
+    Object.values((infos && infos.etatsCivils) || {}).filter(e => e && /naissance/i.test(e.label || '')).forEach(e => {
+      const cle = normaliserPourRecherche(e.label).replace(/[^a-z0-9]+/g, ' ').trim();
+      const deja = parLibelle.get(cle);
+      if (!deja || e.etat === 'positif') parLibelle.set(cle, e);
+    });
+    const naissances = [...parLibelle.values()];
+    const recus = naissances.filter(e => e.etat === 'positif').length;
+    const rhf = (infos && infos.rhf) || {};
+    return {
+      actesNaissance: { recue: naissances.length > 0 && recus === naissances.length, total: naissances.length, recus },
+      ehf: { recue: !!(rhf.envoyeeLe && rhf.retourLe), envoyeeLe: rhf.envoyeeLe || '', retourLe: rhf.retourLe || '' }
+    };
+  }
+
   // Pure : le prix de vente — champ « Capital » (Informations financières).
   function prixAuthentic(capture) {
     const c = capture || {};
@@ -2174,8 +2194,9 @@
     }
     if (type === 'bien') return appliquerBienAuthentic(d, bienDepuisFicheAuthentic(capture), noter, resultat);
 
-    // Pièces reçues (page de gestion).
-    const pieces = type === 'gestion' ? piecesAuthenticAAppliquer(d, capture) : [];
+    // Pièces reçues (page de gestion). Succession : actes de naissance et EHF suivent leur propre règle (plus bas), jamais une ligne seule.
+    const pieces = (type === 'gestion' ? piecesAuthenticAAppliquer(d, capture) : [])
+      .filter(p => !estSuccession(d) || !(['actesNaissance', 'ehf'].includes(p.cle) || /naissance|hors\s+formalit|(?:^|[^a-z])ehf(?![a-z])/i.test(p.label || '')));
     d.pieces = d.pieces || {};
     pieces.forEach(p => {
       if (p.nouvelle && !(d.piecesPersonnalisees || []).some(x => x.cle === p.cle)) {
@@ -2253,6 +2274,8 @@
       Object.entries(infos.etatsCivils || {}).forEach(([cle, ec]) => {
         const ancien = ((avant.etatsCivils || {})[cle] || {}).etat;
         if (ec.etat === 'positif' || d.pieces[cle] === 'recue') return;
+        // Succession : les actes de naissance vont dans la pièce « Actes de naissance » (règle plus bas), pas une pièce par acte.
+        if (estSuccession(d) && /naissance/i.test(ec.label || '')) return;
         if (!(d.piecesPersonnalisees || []).some(x => x.cle === cle)) d.piecesPersonnalisees = (d.piecesPersonnalisees || []).concat({ cle, label: ec.label });
         if (!d.pieces[cle]) d.pieces[cle] = 'manquante';
         if (ancien !== ec.etat) {
@@ -2268,6 +2291,23 @@
       noter(`Demande envoyée${dm.date ? ` le ${formatDateFr(dm.date)}` : ''} : « ${dm.titre} » (Authentic)`);
     });
 
+    // Succession (étude 15/10) : actes de naissance (tous revenus positifs) et EHF (réquisition envoyée et revenue) cochés d'après Authentic.
+    let piecesSuccessionChangees = false;
+    if (estSuccession(d) && type === 'gestion' && d.roleNotaire !== 'participant') {
+      const ps = piecesSuccessionAuthentic(apres);
+      const retirees = new Set(d.piecesRetirees || []);
+      [['actesNaissance', 'Actes de naissance', ps.actesNaissance.recue, `${ps.actesNaissance.recus}/${ps.actesNaissance.total} reçus`],
+        ['ehf', 'État hypothécaire hors formalité (EHF)', ps.ehf.recue, `envoyé le ${formatDateFr(ps.ehf.envoyeeLe)}, revenu le ${formatDateFr(ps.ehf.retourLe)}`]].forEach(([cle, label, recue, detail]) => {
+        if (!recue || retirees.has(cle) || d.pieces[cle] === 'recue') return;
+        d.pieces[cle] = 'recue';
+        d.piecesValideesManuellement = Array.from(new Set([...(d.piecesValideesManuellement || []), cle]));
+        d.piecesAuthentic = Array.from(new Set([...(d.piecesAuthentic || []), cle]));
+        d.piecesTrouveesLe = Object.assign({}, d.piecesTrouveesLe, { [cle]: maintenant });
+        d.piecesNotifications = Array.from(new Set([...(d.piecesNotifications || []), cle]));
+        noter(`Reçue dans Authentic : « ${label} » (${detail})`);
+        piecesSuccessionChangees = true;
+      });
+    }
     // Succession (étude 15/10) : les actes du tableau « Rédaction » (notoriété, déclaration, attestation, délivrance de legs…) et leur état.
     let actesChanges = false;
     if (estSuccession(d) && type === 'gestion') {
@@ -2283,7 +2323,7 @@
         actesChanges = true;
       }
     }
-    if (Object.keys(infos).length || pieces.length || etatsChanges || actesChanges || apres.saferPieceAjoutee !== avant.saferPieceAjoutee) {
+    if (Object.keys(infos).length || pieces.length || etatsChanges || actesChanges || piecesSuccessionChangees || apres.saferPieceAjoutee !== avant.saferPieceAjoutee) {
       apres.releveLe = maintenant;
       d.authentic = apres;
       resultat.modifie = true;
