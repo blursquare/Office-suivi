@@ -19841,3 +19841,6 @@ d'intention d'aliéner » ; réponse : aucune liste nationale (ni data.gouv.fr n
 
 ### 0.233.2 — 15/10/2026 (étude : « quand je demande une tâche à Julie via Demander à CLAIRE, la faire remonter dans Aujourd'hui »)
 - `rappelsDuJour` : un rappel `demandePar` est « à faire » dès son arrivée (même échéance à venir), en tête (`rappelsAffiches`), jamais en « À venir » ; ligne « Pour {date} » ; `chargerRappelsPerso` toutes les 30 s sur tout écran et `annoncerDemandesRecues` (toast une fois à l'arrivée, pas au premier chargement). Cause probable du « ne remonte pas » : relecture toutes les 2 min seulement sur le tableau de bord, et date à venir classée « À venir ».
+
+### 0.233.3 — 15/10/2026 (rapport technique de 12 h : « Sitadel : réponse 429 », 6 échecs)
+- `autorisationsSitadel` lançait 12 requêtes en même temps ; `parallelismeLimite` (3 à la fois) et `avecReprise` (429/503 : 2 reprises, `Retry-After` 4 s au plus). Test avec faux Sitadel. Branche `claude/rapport-2026-10-15-12h`, à installer sur accord de l'étude.

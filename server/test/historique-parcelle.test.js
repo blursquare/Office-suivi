@@ -93,3 +93,33 @@ test('Sitadel : la raison d’un échec est dite en un mot, sans rien de personn
   assert.equal(H.raisonEchecSitadel(Object.assign(new Error('fetch failed'), { cause: { code: 'ENOTFOUND' } })), 'Sitadel : réseau (ENOTFOUND)');
   assert.equal(H.raisonEchecSitadel(new Error('adresse secrète 12 rue X')), 'Sitadel injoignable');
 });
+
+test('Sitadel : trois requêtes à la fois au plus, reprise sur « trop de demandes » (429), échec dit après deux reprises (rapport 15/10)', async () => {
+  const datasets = { datafiles: [
+    { rid: 'lgt', title: "Liste des autorisations d'urbanisme créant des logements", millesimes: [{ millesime: '2026-09', columns: [{ name: 'NUM_DAU' }, { name: 'SEC_CADASTRE1' }, { name: 'NUM_CADASTRE1' }] }] },
+    { rid: 'pa', title: "Liste des permis d'aménager", millesimes: [{ millesime: '2026-09', columns: [{ name: 'NUM_PA' }, { name: 'SEC_CADASTRE1' }, { name: 'NUM_CADASTRE1' }] }] },
+    { rid: 'pd', title: 'Liste des permis de démolir', millesimes: [{ millesime: '2026-09', columns: [{ name: 'NUM_PD' }, { name: 'SEC_CADASTRE1' }, { name: 'NUM_CADASTRE1' }] }] },
+    { rid: 'loc', title: 'Liste des locaux non résidentiels', millesimes: [{ millesime: '2026-09', columns: [{ name: 'NUM_DAU' }, { name: 'SEC_CADASTRE1' }, { name: 'NUM_CADASTRE1' }] }] }
+  ] };
+  H.viderCacheHistorique();
+  let enCours = 0; let maxEnCours = 0; const vus = new Map(); const pauses = [];
+  const reponse = (status, corps, entetes = {}) => ({ ok: status < 400, status, headers: { get: (k) => entetes[k] || null }, json: async () => corps });
+  const fetch = async (url) => {
+    if (url.includes('/datasets/')) return reponse(200, datasets);
+    enCours++; maxEnCours = Math.max(maxEnCours, enCours);
+    await new Promise((ok) => setImmediate(ok));
+    enCours--;
+    const n = (vus.get(url) || 0) + 1; vus.set(url, n);
+    return n === 1 ? reponse(429, {}, { 'retry-after': '2' }) : reponse(200, { data: [] });
+  };
+  const s = await H.autorisationsSitadel('41018', 'AL 839', { fetch, attendre: async (ms) => { pauses.push(ms); } });
+  assert.ok(!s.erreur && Array.isArray(s.autorisations));
+  assert.ok(maxEnCours <= 3, 'jamais plus de trois requêtes à la fois : ' + maxEnCours);
+  assert.ok(pauses.length >= 12 && pauses.every((ms) => ms === 2000), 'Retry-After suivi : ' + pauses.slice(0, 3));
+  // Toujours 429 : l'échec garde son statut après deux reprises.
+  H.viderCacheHistorique();
+  let appels = 0;
+  const toujours = async (url) => { if (url.includes('/datasets/')) return reponse(200, datasets); appels++; return reponse(429, {}); };
+  await assert.rejects(() => H.autorisationsSitadel('41018', 'AL 839', { fetch: toujours, attendre: async () => {} }), (e) => e.statut === 429);
+  assert.ok(appels <= 3 * 3 + 3, 'reprises bornées : ' + appels);
+});

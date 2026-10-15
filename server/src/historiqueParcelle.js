@@ -228,6 +228,31 @@ function ligneSurParcelles(l, liste) {
 }
 
 /** Les autorisations de Sitadel sur des parcelles d'une commune. @param {string} insee @param {string} parcelles @param {any} [injections] */
+/** Pure : les résultats de `fn` sur chaque élément, `limite` appels en cours au plus, dans l'ordre. @template T @template R @param {T[]} elements @param {number} limite @param {(x: T) => Promise<R>} fn */
+async function parallelismeLimite(elements, limite, fn) {
+  /** @type {R[]} */
+  const sortie = new Array(elements.length);
+  let suivant = 0;
+  const ouvriers = Array.from({ length: Math.min(limite, elements.length) }, async () => {
+    for (let k = suivant++; k < elements.length; k = suivant++) sortie[k] = await fn(elements[k]);
+  });
+  await Promise.all(ouvriers);
+  return sortie;
+}
+
+/** Un appel repris (2 fois au plus) quand le service répond 429 ou 503 : attente de « Retry-After » (4 s au plus) ou 1 s puis 2 s.
+ * `injections.attendre(ms)` : tests. @param {any} injections @param {string} url @param {any} options */
+async function avecReprise(injections, url, options) {
+  const attendre = (injections && injections.attendre) || ((ms) => new Promise((ok) => setTimeout(ok, ms)));
+  let r = await fetchDe(injections)(url, options);
+  for (let essai = 1; essai <= 2 && (r.status === 429 || r.status === 503); essai++) {
+    const dit = Number(r.headers && r.headers.get ? r.headers.get('retry-after') : 0);
+    await attendre(Math.min(4000, dit > 0 ? dit * 1000 : essai * 1000));
+    r = await fetchDe(injections)(url, options);
+  }
+  return r;
+}
+
 async function autorisationsSitadel(insee, parcelles, injections) {
   const code = String(insee || '').trim().toUpperCase();
   const liste = parcellesDepuisListe(parcelles);
@@ -237,14 +262,16 @@ async function autorisationsSitadel(insee, parcelles, injections) {
     const sections = [...new Set(liste.flatMap((p) => [p.section, p.section.replace(/^0/, '')]))].join(',');
     const numeros = [...new Set(liste.flatMap((p) => [String(Number(p.numero)), p.numero]))].join(',');
     const requetes = fichiers.flatMap((f) => [1, 2, 3].map((i) => ({ f, i })));
-    const lignes = await Promise.all(requetes.map(async ({ f, i }) => {
+    // Trois requêtes à la fois au plus, chacune reprise si Sitadel répond « trop de demandes » (rapport technique 15/10 : « Sitadel : réponse 429 »,
+    // 6 échecs — douze requêtes partaient en même temps).
+    const lignes = await parallelismeLimite(requetes, 3, async ({ f, i }) => {
       const url = `${DIDO}/datafiles/${f.rid}/rows?millesime=${encodeURIComponent(f.millesime)}&pageSize=100&COMM=eq:${code}`
         + `&SEC_CADASTRE${i}=in:${encodeURIComponent(sections)}&NUM_CADASTRE${i}=in:${encodeURIComponent(numeros)}&columns=${f.colonnes.join(',')}`;
-      const r = await fetchDe(injections)(url, { signal: AbortSignal.timeout(DELAI_MS), headers: { Accept: 'application/json' } });
+      const r = await avecReprise(injections, url, { signal: AbortSignal.timeout(DELAI_MS), headers: { Accept: 'application/json' } });
       if (!r.ok) throw Object.assign(new Error(`Sitadel : réponse ${r.status}`), { statut: r.status });
       const d = await r.json();
       return (Array.isArray(d && d.data) ? d.data : []).filter((l) => ligneSurParcelles(l, liste)).map((l) => autorisationSitadel(l, f.sorte));
-    }));
+    });
     const vus = new Set();
     const autorisations = lignes.flat().filter((a) => {
       const cle = a.type + a.numero;
@@ -269,6 +296,6 @@ function raisonEchecSitadel(e) {
 }
 
 module.exports = {
-  raisonEchecSitadel, COUCHES_ORTHO, parcellesDepuisListe, anneauxGeometrie, empriseContours, empriseValide, vueParcelles, imageVide, photoAerienne,
+  parallelismeLimite, avecReprise, raisonEchecSitadel, COUCHES_ORTHO, parcellesDepuisListe, anneauxGeometrie, empriseContours, empriseValide, vueParcelles, imageVide, photoAerienne,
   autorisationSitadel, ligneSurParcelles, autorisationsSitadel, viderCacheHistorique
 };
