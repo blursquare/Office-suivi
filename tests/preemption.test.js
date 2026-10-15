@@ -123,6 +123,11 @@ test('DPU renforcé de Blois : parcelle AL 839, rues du centre-ville (à vérifi
   assert.strictEqual(app.dpurBlois('41018', [], 'BLOIS (41000), 12 rue Porte Côté').statut, 'probable');
   assert.strictEqual(app.dpurBlois('41018', [], 'BLOIS (41000), 4 rue des Orfèvres').statut, 'probable');
   assert.strictEqual(app.dpurBlois('41018', [], 'BLOIS (41000), 3 rue des Lices').statut, 'non');
+  // Secteur Coty : un secteur, pas la seule parcelle AL 839 (étude 15/10).
+  assert.strictEqual(app.dpurBlois('41018', [], 'BLOIS (41000), 8 rue Jean Perrin').statut, 'probable');
+  assert.match(app.dpurBlois('41018', [], 'BLOIS (41000), 8 rue Buffon').motif, /secteur Coty/);
+  assert.strictEqual(app.dpurBlois('41018', [], 'BLOIS (41000), 20 avenue de la Somme').statut, 'probable');
+  assert.strictEqual(app.dpurBlois('41018', [], 'BLOIS (41000), 2 rue Pierre et Marie Curie').statut, 'probable');
   assert.strictEqual(app.dpurBlois('41269', [{ section: 'AL', numero: '839' }], '').statut, '');
 });
 

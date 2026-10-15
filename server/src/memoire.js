@@ -249,7 +249,9 @@ const SCHEMA = `
     UNIQUE (rubrique, chemin)
   );
   CREATE INDEX IF NOT EXISTS idx_memoire_documents_statut ON memoire_documents(statut, ext);
-  CREATE VIRTUAL TABLE IF NOT EXISTS memoire_fts USING fts5(texte, doc UNINDEXED, page UNINDEXED, tokenize = 'unicode61 remove_diacritics 2');
+  CREATE TABLE IF NOT EXISTS memoire_passages (id INTEGER PRIMARY KEY AUTOINCREMENT, doc INTEGER NOT NULL, page INTEGER NOT NULL);
+  CREATE INDEX IF NOT EXISTS idx_memoire_passages_doc ON memoire_passages(doc);
+  CREATE VIRTUAL TABLE IF NOT EXISTS memoire_fts USING fts5(texte, tokenize = 'unicode61 remove_diacritics 2');
 `;
 
 /** La mémoire sur la base du serveur. @param {any} db base node:sqlite */
@@ -258,8 +260,17 @@ function creerMemoire(db) {
   const trouverStmt = db.prepare('SELECT * FROM memoire_documents WHERE rubrique = ? AND chemin = ?');
   const ajouterStmt = db.prepare('INSERT INTO memoire_documents (rubrique, chemin, nom, ext, taille, modifie_ms, statut) VALUES (?, ?, ?, ?, ?, ?, ?)');
   const changerStmt = db.prepare("UPDATE memoire_documents SET nom = ?, taille = ?, modifie_ms = ?, statut = ?, erreur = '' WHERE id = ?");
-  const retirerFtsStmt = db.prepare('DELETE FROM memoire_fts WHERE doc = ?');
-  const insererFtsStmt = db.prepare('INSERT INTO memoire_fts (texte, doc, page) VALUES (?, ?, ?)');
+  // Un passage = une ligne de memoire_passages (indexée par document) et la ligne de même rowid de memoire_fts : retirer un document
+  // ne balaie jamais l'index plein texte (audit 15/10 : un DELETE sur une colonne non indexée lisait toute la table).
+  const idsPassagesStmt = db.prepare('SELECT id FROM memoire_passages WHERE doc = ?');
+  const retirerFtsLigneStmt = db.prepare('DELETE FROM memoire_fts WHERE rowid = ?');
+  const retirerPassagesStmt = db.prepare('DELETE FROM memoire_passages WHERE doc = ?');
+  const insererPassageStmt = db.prepare('INSERT INTO memoire_passages (doc, page) VALUES (?, ?)');
+  const insererFtsStmt = db.prepare('INSERT INTO memoire_fts (rowid, texte) VALUES (?, ?)');
+  function retirerPassages(doc) {
+    for (const l of idsPassagesStmt.all(Number(doc))) retirerFtsLigneStmt.run(l.id);
+    retirerPassagesStmt.run(Number(doc));
+  }
   const lireStmt = db.prepare('SELECT * FROM memoire_documents WHERE id = ?');
   const supprimerStmt = db.prepare('DELETE FROM memoire_documents WHERE id = ?');
 
@@ -275,7 +286,7 @@ function creerMemoire(db) {
       const statutInitial = taille > TAILLE_MAX_OCTETS ? 'trop_gros' : 'a_lire';
       if (!ex) { ajouterStmt.run(rubrique, chemin, nom, ext, taille, modifieMs, statutInitial); return 'nouveau'; }
       if (ex.taille === taille && ex.modifie_ms === modifieMs) return 'inchange';
-      transaction(() => { retirerFtsStmt.run(String(ex.id)); changerStmt.run(nom, taille, modifieMs, statutInitial, ex.id); });
+      transaction(() => { retirerPassages(ex.id); changerStmt.run(nom, taille, modifieMs, statutInitial, ex.id); });
       return 'change';
     },
     /** Retire de la mémoire les fichiers d'une rubrique qui n'étaient plus au dernier parcours. */
@@ -284,7 +295,7 @@ function creerMemoire(db) {
       let n = 0;
       for (const d of db.prepare('SELECT id, chemin FROM memoire_documents WHERE rubrique = ?').all(rubrique)) {
         if (vus.has(d.chemin)) continue;
-        transaction(() => { retirerFtsStmt.run(String(d.id)); supprimerStmt.run(d.id); });
+        transaction(() => { retirerPassages(d.id); supprimerStmt.run(d.id); });
         n++;
       }
       return n;
@@ -295,8 +306,8 @@ function creerMemoire(db) {
       if (!d) return { erreur: 'document inconnu' };
       const passages = passagesDesPages(pages);
       transaction(() => {
-        retirerFtsStmt.run(String(id));
-        for (const p of passages) insererFtsStmt.run(p.texte, String(id), p.page);
+        retirerPassages(id);
+        for (const p of passages) insererFtsStmt.run(Number(insererPassageStmt.run(id, p.page).lastInsertRowid), p.texte);
         db.prepare('UPDATE memoire_documents SET statut = ?, pages = ?, ocr = ?, erreur = ?, lu_le = ? WHERE id = ?')
           .run(passages.length ? 'lu' : 'vide', pages.length, ocr ? 1 : 0, '', Date.now(), id);
       });
@@ -311,6 +322,10 @@ function creerMemoire(db) {
       const filtre = type === 'pdf' ? "ext = 'pdf'" : "ext != 'pdf'";
       return db.prepare(`SELECT * FROM memoire_documents WHERE statut = 'a_lire' AND ${filtre} ORDER BY id LIMIT ?`).all(Math.max(1, Math.min(50, Number(limite) || 1)));
     },
+    /** Au début de chaque parcours : les Word et textes en erreur sont retentés (NAS indisponible un instant, fichier verrouillé). */
+    retenterErreursServeur() {
+      return db.prepare("UPDATE memoire_documents SET statut = 'a_lire', erreur = '' WHERE statut = 'erreur' AND ext != 'pdf'").run().changes;
+    },
     /** Remet à lire les documents en erreur ou vides (après une correction de l'outil de lecture). */
     reessayer() {
       return db.prepare("UPDATE memoire_documents SET statut = 'a_lire', erreur = '' WHERE statut IN ('erreur', 'vide')").run().changes;
@@ -318,7 +333,7 @@ function creerMemoire(db) {
     /** Comptes par rubrique et par statut. */
     etat() {
       const lignes = db.prepare('SELECT rubrique, statut, ext, COUNT(*) AS n, COALESCE(SUM(ocr), 0) AS ocr FROM memoire_documents GROUP BY rubrique, statut, ext').all();
-      const passages = db.prepare('SELECT COUNT(*) AS n FROM memoire_fts').get().n;
+      const passages = db.prepare('SELECT COUNT(*) AS n FROM memoire_passages').get().n;
       return { lignes, passages };
     },
     /** Cherche des passages : tous les mots d'abord, puis n'importe lequel ; chaque passage nomme sa rubrique et sa page, jamais son fichier. */
@@ -327,8 +342,8 @@ function creerMemoire(db) {
       if (!mots.length) return { mots, passages: [] };
       const max = Math.max(1, Math.min(15, Number(limite) || 8));
       const filtreRubrique = rubrique ? ' AND d.rubrique = ?' : '';
-      const sql = `SELECT f.rowid AS rowid, f.texte AS texte, f.page AS page, f.doc AS doc, d.rubrique AS rubrique
-        FROM memoire_fts f JOIN memoire_documents d ON d.id = CAST(f.doc AS INTEGER)
+      const sql = `SELECT f.rowid AS rowid, f.texte AS texte, p.page AS page, p.doc AS doc, d.rubrique AS rubrique
+        FROM memoire_fts f JOIN memoire_passages p ON p.id = f.rowid JOIN memoire_documents d ON d.id = p.doc
         WHERE memoire_fts MATCH ?${filtreRubrique} ORDER BY rank LIMIT ?`;
       const vus = new Set();
       /** @type {Array<{ doc: number, rubrique: string, page: number, extrait: string }>} */
@@ -359,11 +374,13 @@ function creerMemoire(db) {
 async function listerFichiersMemoire(racine, fsImpl = fsp) {
   /** @type {Array<{ chemin: string, nom: string, ext: string, taille: number, modifieMs: number }>} */
   const fichiers = [];
+  // Faux dès qu'un dossier n'a pas répondu ou que le plafond est atteint : le listage est alors incomplet (jamais de retrait d'après lui).
+  let complet = true;
   const file = [{ chemin: racine, profondeur: 0 }];
   while (file.length && fichiers.length < MAX_FICHIERS_PAR_RUBRIQUE) {
     const courant = /** @type {{ chemin: string, profondeur: number }} */ (file.shift());
     let entrees;
-    try { entrees = await fsImpl.readdir(courant.chemin, { withFileTypes: true }); } catch (_) { continue; }
+    try { entrees = await fsImpl.readdir(courant.chemin, { withFileTypes: true }); } catch (_) { complet = false; continue; }
     for (const e of entrees) {
       const absolu = path.join(courant.chemin, e.name);
       if (e.isDirectory()) { if (courant.profondeur < PROFONDEUR_MAX && !/^[.#@$~]/.test(e.name)) file.push({ chemin: absolu, profondeur: courant.profondeur + 1 }); continue; }
@@ -371,11 +388,12 @@ async function listerFichiersMemoire(racine, fsImpl = fsp) {
       // Fichiers temporaires de Word (« ~$… ») et fichiers cachés : jamais lus.
       if (!ext || /^[.~]/.test(e.name) || fichiers.length >= MAX_FICHIERS_PAR_RUBRIQUE) continue;
       let st = null;
-      try { st = await fsImpl.stat(absolu); } catch (_) { continue; }
+      try { st = await fsImpl.stat(absolu); } catch (_) { complet = false; continue; }
       fichiers.push({ chemin: path.relative(racine, absolu).split(path.sep).join('/'), nom: e.name, ext, taille: st.size, modifieMs: Math.round(st.mtimeMs) });
     }
   }
-  return fichiers;
+  if (file.length) complet = false;
+  return { fichiers, complet };
 }
 
 /** Le fichier d'un document de la mémoire, confiné à son dossier (liens symboliques résolus). null si hors du dossier. @param {string} racine @param {string} relatif @param {any} [fsImpl] */
@@ -403,21 +421,25 @@ async function parcourirMemoire(o) {
     const dossiers = await trouverDossiersMemoire(o.config, fsImpl);
     etat.dossiers = dossiers.map((d) => ({ cle: d.cle, libelle: d.libelle }));
     for (const d of dossiers) {
-      const fichiers = await listerFichiersMemoire(d.chemin, fsImpl);
+      const { fichiers, complet } = await listerFichiersMemoire(d.chemin, fsImpl);
       for (const f of fichiers) {
         const r = o.memoire.voirFichier(d.cle, f.chemin, f.nom, f.ext, f.taille, f.modifieMs);
         etat.vus++;
         if (r === 'nouveau') etat.nouveaux++; else if (r === 'change') etat.changes++;
       }
-      // Seulement si le dossier a répondu : un NAS qui ne répond pas ne vide pas la mémoire.
-      if (fichiers.length || (await fsImpl.readdir(d.chemin).catch(() => null))) etat.retires += o.memoire.retirerAbsents(d.cle, fichiers.map((f) => f.chemin));
+      // Seulement si tout le dossier a répondu : un NAS qui ne répond pas, même en partie, ne vide pas la mémoire.
+      if (complet && (fichiers.length || (await fsImpl.readdir(d.chemin).catch(() => null)))) etat.retires += o.memoire.retirerAbsents(d.cle, fichiers.map((f) => f.chemin));
     }
     // Word et texte : lus ici, un à un.
     const racines = Object.fromEntries(dossiers.map((d) => [d.cle, d.chemin]));
-    for (let doc = o.memoire.aLire('serveur', 1)[0]; doc; doc = o.memoire.aLire('serveur', 1)[0]) {
+    o.memoire.retenterErreursServeur();
+    const tentes = new Set();
+    for (let doc = o.memoire.aLire('serveur', 50).find((x) => !tentes.has(x.id)); doc; doc = o.memoire.aLire('serveur', 50).find((x) => !tentes.has(x.id))) {
+      tentes.add(doc.id);
       const racine = racines[doc.rubrique];
+      // Dossier ou fichier introuvable à ce tour (NAS indisponible) : le document reste « à lire », retenté au prochain parcours.
       const cible = racine ? await cheminDocumentMemoire(racine, doc.chemin, fsImpl) : null;
-      if (!cible) { o.memoire.marquerErreur(doc.id, 'fichier introuvable'); etat.erreurs++; continue; }
+      if (!cible) continue;
       try {
         const buf = await fsImpl.readFile(cible);
         const texte = doc.ext === 'docx' ? await texteDocx(buf) : buf.toString('utf8');
@@ -438,7 +460,16 @@ async function parcourirMemoire(o) {
   return etat;
 }
 
+/** Pure : retire d'un extrait ce que le masquage des fiches ne reconnaît pas — naissances, adresses postales, codes postaux (audit 15/10 :
+ * FAUSSES MINUTES contient des actes de clients). @param {string} texte */
+function expurgerExtrait(texte) {
+  return String(texte || '')
+    .replace(/\b(n[ée]e?)\s+(?:à\s+[^,;()]{1,40}?\s+)?le\s+(?:\d{1,2}(?:er)?\s+\p{L}+\s+\d{4}|\d{1,2}[/.]\d{1,2}[/.]\d{2,4})/giu, '$1 [date de naissance]')
+    .replace(/\b\d{1,4}(?:\s?(?:bis|ter))?,?\s+(?:rue|avenue|av\.|boulevard|bd|chemin|impasse|place|all[ée]e|route|quai|cours|square|lieu[- ]?dit|résidence|residence)\s+[^,;.()]{1,60}/giu, '[adresse]')
+    .replace(/\b\d{5}\s+[A-ZÀ-Ý][A-Za-zÀ-ÿ'’-]{2,}(?:[ -][A-ZÀ-Ý][A-Za-zÀ-ÿ'’-]+)*/g, '[code postal et commune]');
+}
+
 module.exports = {
-  RUBRIQUES_MEMOIRE, normaliserNom, rubriqueDuNom, extensionLue, trouverDossiersMemoire, entreesZip, contenuZip, texteDocumentXml, texteDocx,
+  expurgerExtrait, RUBRIQUES_MEMOIRE, normaliserNom, rubriqueDuNom, extensionLue, trouverDossiersMemoire, entreesZip, contenuZip, texteDocumentXml, texteDocx,
   decouperTexte, passagesDesPages, motsDeRecherche, requeteFts, extraitAutour, creerMemoire, listerFichiersMemoire, cheminDocumentMemoire, parcourirMemoire
 };

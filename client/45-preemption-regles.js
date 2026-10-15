@@ -286,7 +286,11 @@
     delegataire: 'la Ville de Blois (DPU renforcé délégué par Agglopolys, délibération A_D2025_200 du 07/10/2025)',
     parcelles: ['AL0839'],
     // Rues lues sur le plan du centre-ville (périmètre Action Cœur de Ville / ORT) : une rue peut n'être couverte qu'en partie.
-    rues: ['PORTE COTE', 'COMMERCE', 'SAINT MARTIN', 'ORFEVRES', 'DENIS PAPIN', 'EMILE LAURENS', 'HENRI DRUSSY', 'HAUTE', 'JUIFS', 'SAINT HONORE']
+    rues: ['PORTE COTE', 'COMMERCE', 'SAINT MARTIN', 'ORFEVRES', 'DENIS PAPIN', 'EMILE LAURENS', 'HENRI DRUSSY', 'HAUTE', 'JUIFS', 'SAINT HONORE'],
+    // Secteur Coty (étude 15/10 : « il n'y a pas que AL 839 ») : le plan de la délibération trace un SECTEUR, la parcelle AL 839 n'en est
+    // que le bien cité. Rues lues sur ce plan : Jean Perrin et Buffon sont dans le secteur ; Michel Bégon, avenue de la Somme, Pierre et
+    // Marie Curie et Monge en suivent le bord (une rue n'est alors couverte qu'en partie) — « probable, à vérifier sur le plan ».
+    ruesCoty: ['JEAN PERRIN', 'BUFFON', 'MICHEL BEGON', 'DE LA SOMME', 'PIERRE ET MARIE CURIE', 'MONGE']
   };
 
   // Pure : « AL 839 » / « al839 » → « AL0839 ».
@@ -298,15 +302,18 @@
   }
 
   // Pure : le bien est-il dans un périmètre de DPU renforcé de Blois ? → { statut: 'oui'|'probable'|'non'|'', motif }.
-  // La parcelle AL 839 l'est ; une adresse sur une rue du plan du centre-ville l'est probablement (à vérifier sur le plan).
+  // La parcelle AL 839 l'est ; une adresse sur une rue du plan du centre-ville ou du secteur Coty l'est probablement (à vérifier sur le plan).
   function dpurBlois(insee, parcelles, adresse) {
     if (String(insee || '') !== DPUR_BLOIS.insee) return { statut: '', motif: '' };
     const cles = (parcelles || []).map(p => cleParcelle(p.section, p.numero)).filter(Boolean);
     if (cles.some(c => DPUR_BLOIS.parcelles.includes(c))) return { statut: 'oui', motif: 'parcelle AL 839 (immeuble Marignan, quartier Coty)' };
     const a = String(adresse || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().replace(/[-']/g, ' ').replace(/\s+/g, ' ');
-    const rue = DPUR_BLOIS.rues.find(nom => new RegExp(`(^|[^A-Z])(RUE|PLACE|QUAI)( (DE LA|DE L|DES|DU|DE))? ${nom}([^A-Z]|$)`).test(a));
+    const surRue = nom => new RegExp(`(^|[^A-Z])(RUE|PLACE|QUAI|AVENUE|AV|BOULEVARD|BD)( (DE LA|DE L|DES|DU|DE))? ${nom}([^A-Z]|$)`).test(a);
+    const rue = DPUR_BLOIS.rues.find(surRue);
     if (rue) return { statut: 'probable', motif: `adresse sur une rue du périmètre du centre-ville (${rue.toLowerCase()}) — à vérifier sur le plan` };
-    return { statut: 'non', motif: 'hors des périmètres de DPU renforcé de Blois (centre-ville, AL 839) — à vérifier sur le plan si le bien est au centre' };
+    const rueCoty = DPUR_BLOIS.ruesCoty.find(surRue);
+    if (rueCoty) return { statut: 'probable', motif: `adresse sur une rue du secteur Coty (${rueCoty.toLowerCase()}) — à vérifier sur le plan` };
+    return { statut: 'non', motif: 'hors des périmètres connus de DPU renforcé de Blois (centre-ville, secteur Coty) — à vérifier sur les plans si le bien est au centre ou près de la place René Coty' };
   }
 
   // ---- Plusieurs parcelles (étude 06/10 : « le zonage doit être détecté par parcelle, il peut y en avoir plusieurs ») ----

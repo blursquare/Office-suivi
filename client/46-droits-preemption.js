@@ -418,7 +418,7 @@
         ${blois.statut ? `<p class="hint pr-blois">${icone(blois.statut === 'oui' ? 'check' : 'info')} DPU renforcé de Blois : ${escapeHtml(blois.motif)}. <a href="#" onclick="event.preventDefault(); basculerPlansDpurBlois()">Voir les plans</a></p>
           <div id="pr-plans-dpur" class="pr-plans" style="display:none;">
             <figure><img src="vendor/plans/dpur-blois-centre-ville.jpg" alt="Plan du périmètre du DPU renforcé, centre-ville de Blois" loading="lazy"><figcaption>Centre-ville (Action Cœur de Ville / ORT)</figcaption></figure>
-            <figure><img src="vendor/plans/dpur-blois-coty.jpg" alt="Plan du périmètre du DPU renforcé, secteur Coty" loading="lazy"><figcaption>Secteur Coty — parcelle AL 839</figcaption></figure>
+            <figure><img src="vendor/plans/dpur-blois-coty.jpg" alt="Plan du périmètre du DPU renforcé, secteur Coty" loading="lazy"><figcaption>Secteur Coty (parcelle AL 839 et alentours)</figcaption></figure>
           </div>` : ''}`;
       if (actif) { const el = document.getElementById(actif); if (el && el.focus) el.focus(); }
     }

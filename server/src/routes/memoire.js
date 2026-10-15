@@ -21,13 +21,18 @@ const MAX_PAGES_DOCUMENT = 2000;
 /** @param {any} config @param {any} db @param {any} parametresRepo @param {{ fsImpl?: any }} [injections] */
 function creerRouteurMemoire(config, db, parametresRepo, injections = {}) {
   const routeur = express.Router();
-  const memoire = creerMemoire(db);
+  // Un index plein texte indisponible (FTS5 absent, base en lecture seule) ne doit jamais empêcher CLAIRE de démarrer (audit 15/10).
+  /** @type {any} */
+  let memoire = null;
+  try { memoire = creerMemoire(db); } catch (e) { console.error('[memoire] index indisponible :', e && e.message ? e.message : e); }
+  routeur.use('/memoire', (req, res, next) => { if (memoire) next(); else res.status(503).json({ erreur: 'Mémoire indisponible sur ce serveur.' }); });
   /** @type {any} */
   const etat = { enCours: false, debut: 0, fin: 0, dossiers: [], vus: 0, nouveaux: 0, changes: 0, retires: 0, luServeur: 0, erreurs: 0, erreur: '' };
   let minuteur = null;
 
   async function lancerParcours() {
     if (etat.enCours) return false;
+    if (!memoire) return false;
     parcourirMemoire({ config, memoire, fsImpl: injections.fsImpl, etat }).then(() => {
       noterVerification(parametresRepo, 'memoire-parcours', etat.erreur ? { ok: false, message: 'parcours en erreur' } : { detail: `${etat.vus} fichiers vus` });
     }).catch(() => { /* déjà journalisé par parcourirMemoire */ });

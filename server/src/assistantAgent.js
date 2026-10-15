@@ -18,6 +18,7 @@ const crypto = require('node:crypto');
 const A = require('../../commun/assistant');
 const { MODELES_AGENT, MODELE_AGENT_DEFAUT, MODELES_AGENT_MISTRAL, MODELE_AGENT_MISTRAL_DEFAUT, BASES, masquer, motsSensiblesDossiers, retablirTexte, noterUsageAssistant } = require('./assistantMistral');
 const { nettoyerParametresIa, dateEnFrancais } = require('./assistant');
+const { expurgerExtrait } = require('./memoire');
 
 // Étude 13/10 (« tout son potentiel… sans limite ») : lire des documents entiers et rédiger un rendu demande plus de place et de temps.
 const DELAI_AGENT_MS = 180 * 1000;
@@ -363,7 +364,8 @@ async function tourAgent(entree, o) {
     const blocs = conv.attendus.map((id) => {
       const r = parId.get(id);
       if (!r) return { id, contenu: 'Aucun résultat reçu du poste.', erreur: true };
-      let contenu = JSON.stringify(masquerValeur(r.contenu === undefined ? null : r.contenu, conv.sensibles, conv.table));
+      const brut = (conv.nomsAppels || {})[id] === 'chercher_dans_la_memoire' ? expurgerResultatMemoire(r.contenu) : r.contenu;
+      let contenu = JSON.stringify(masquerValeur(brut === undefined ? null : brut, conv.sensibles, conv.table));
       if ((conv.nomsAppels || {})[id] === 'lire_document' && !r.erreur) {
         if ((conv.caracteresLus || 0) + contenu.length > MAX_CARACTERES_DOCUMENTS_CONVERSATION) {
           return { id, contenu: 'Limite de lecture de cette conversation atteinte : conclus avec ce que tu as déjà lu, ou propose à l’utilisateur une nouvelle conversation pour la suite.', erreur: true };
@@ -412,6 +414,12 @@ async function tourAgent(entree, o) {
 }
 
 /** Ajoute les résultats d'outils à l'historique, au format du fournisseur. @param {any} conv @param {Array<{ id: string, contenu: string, erreur?: boolean }>} blocs */
+/** Les extraits de la mémoire de l'étude : naissances, adresses et codes postaux retirés avant le masquage habituel. */
+function expurgerResultatMemoire(contenu) {
+  if (!contenu || typeof contenu !== 'object' || !Array.isArray(contenu.passages)) return contenu;
+  return { ...contenu, passages: contenu.passages.map((p) => (p && typeof p.extrait === 'string' ? { ...p, extrait: expurgerExtrait(p.extrait) } : p)) };
+}
+
 function pousserResultats(conv, blocs) {
   if (conv.fournisseur === 'mistral') {
     const noms = new Map((conv.appelsMistral || []).map((a) => [a.id, a.nom]));

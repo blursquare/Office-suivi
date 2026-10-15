@@ -314,3 +314,30 @@ test('plans (étude 15/10) : dix parcelles de 17 à 113 m sur 415 × 330 m tienn
   const deux = groupesPlans([carre(0, 0, 60), carre(540, 0, 6)]);
   assert.equal(deux.length, 2);
 });
+
+test('plan en niveaux de gris (étude 15/10) : couleurs RVB et CMJN réécrites en gris, image en ligne laissée telle quelle', () => {
+  const { griserContenu } = require('../src/navigateur/surlignage');
+  assert.equal(griserContenu('1 0 0 rg 0 0 10 10 re f'), '0.299 g 0 0 10 10 re f');
+  assert.equal(griserContenu('0 0 1 RG 2 w'), '0.114 G 2 w');
+  assert.equal(griserContenu('0.5 0.5 0.5 rg'), '0.5 g');
+  assert.equal(griserContenu('0 0 0 1 k'), '0 g');
+  assert.equal(griserContenu('0 1 1 0 K'), '0.299 G');                                  // rouge pur (cyan 0) : luminance 0,299
+  assert.equal(griserContenu('/Cs1 cs 0.2 0.4 0.6 scn'), '/Cs1 cs 0.363 0.363 0.363 scn');
+  assert.equal(griserContenu('q 1 0 0 rg BI /W 1 ID xx EI Q'), null);
+  assert.equal(griserContenu('0.2 w 1 0 0 1 5 5 cm'), '0.2 w 1 0 0 1 5 5 cm');   // « cm » n'est pas une couleur
+});
+
+test('plan en niveaux de gris : le PDF surligné n’a plus les couleurs d’origine, seulement le jaune fluo (relu par pdf-lib)', async () => {
+  const { PDFDocument, rgb, decodePDFRawStream, PDFArray } = require('pdf-lib');
+  const { surlignerParcelles } = require('../src/navigateur/surlignage');
+  const d = await PDFDocument.create(); const p = d.addPage([595, 842]);
+  p.drawRectangle({ x: 100, y: 300, width: 200, height: 150, color: rgb(0.9, 0.5, 0.1), borderColor: rgb(0.8, 0, 0), borderWidth: 3 });
+  const plan = { emprisePlan: [-500, -500, 500, 500], centre: [0, 0], echelle: 2500, parcelles: [{ section: 'HE', numero: '1', anneaux: [[[-60, -60], [60, -60], [60, 60], [-60, 60]]] }] };
+  const sortie = await PDFDocument.load(await surlignerParcelles(Buffer.from(await d.save()), plan));
+  const c = sortie.getPage(0).node.Contents();
+  const flux = c instanceof PDFArray ? c.asArray().map((r) => sortie.context.lookup(r)) : [c];
+  const texte = flux.map((f) => Buffer.from(decodePDFRawStream(/** @type {any} */ (f)).decode()).toString('latin1')).join('\n');
+  assert.doesNotMatch(texte, /0\.9 0\.5 0\.1|0\.8 0 0 RG/);
+  assert.match(texte, /0\.574 g/);           // l'orange, en gris de même clarté
+  assert.match(texte, /1 0\.95 0\.05 RG|1 0\.95 0\.05 rg/);   // le jaune fluo, lui, reste en couleur
+});

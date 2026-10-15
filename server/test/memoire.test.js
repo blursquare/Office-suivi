@@ -196,3 +196,49 @@ test('agent : l’outil existe ; un tiers cité dans un extrait ne part pas chez
   assert.doesNotMatch(envoye, /LEMAIRE|Gérard|MARTIN|g\.lemaire|02 54 12 34 56/, envoye.slice(-700));
   assert.match(envoye, /dix ans/);
 });
+
+test('extraits d’actes : naissances, adresses et codes postaux retirés (audit 15/10)', () => {
+  const t = M.expurgerExtrait('Madame Léa DURAND, née à Tours le 12 mars 1980, demeurant 12 bis rue des Tanneurs, 41000 BLOIS. Prix : 245 000 euros, acte du 20 novembre 2026.');
+  assert.doesNotMatch(t, /1980|Tanneurs|41000|BLOIS|Tours/);
+  assert.match(t, /245 000 euros/);
+  assert.match(t, /20 novembre 2026/);
+});
+
+test('NAS indisponible un instant : un Word reste à lire et le listage incomplet ne retire rien (audit 15/10)', async () => {
+  const { racine, config } = nasInvente();
+  const memoire = M.creerMemoire(new DatabaseSync(':memory:'));
+  const etat = {};
+  await M.parcourirMemoire({ config, memoire, etat });
+  assert.equal(memoire.chercher('vigifoncier').passages.length, 1);
+  // Un sous-dossier qui ne répond plus : rien n'est retiré.
+  const fsPanne = { ...require('node:fs/promises'), readdir: async (c, o) => { if (/RAPPEL/.test(c)) throw new Error('NAS'); return require('node:fs/promises').readdir(c, o); } };
+  await M.parcourirMemoire({ config, memoire, etat, fsImpl: fsPanne });
+  assert.equal(etat.retires, 0);
+  assert.equal(memoire.chercher('vigifoncier').passages.length, 1);
+  // Un fichier illisible : « erreur », retenté au parcours suivant.
+  fs.writeFileSync(path.join(racine, 'RAPPEL DE PROCEDURES', 'cassé.docx'), 'pas un zip');
+  await M.parcourirMemoire({ config, memoire, etat });
+  assert.equal(etat.erreurs, 1);
+  fs.writeFileSync(path.join(racine, 'RAPPEL DE PROCEDURES', 'cassé.docx'), docx(['Réparé : procédure de purge']), { flag: 'w' });
+  const t = new Date(Date.now() + 5000); fs.utimesSync(path.join(racine, 'RAPPEL DE PROCEDURES', 'cassé.docx'), t, t);
+  await M.parcourirMemoire({ config, memoire, etat });
+  assert.equal(memoire.chercher('purge procédure').passages.length >= 1, true);
+  fs.rmSync(racine, { recursive: true, force: true });
+});
+
+test('index plein texte : retirer un document ne touche pas aux autres ; mémoire indisponible → 503 sans empêcher le démarrage', async () => {
+  const memoire = M.creerMemoire(new DatabaseSync(':memory:'));
+  memoire.voirFichier('decennales', 'a.pdf', 'a.pdf', 'pdf', 10, 1); memoire.voirFichier('decennales', 'b.pdf', 'b.pdf', 'pdf', 10, 1);
+  const [a, b] = memoire.aLire('pdf', 5);
+  memoire.enregistrerTexte(a.id, [{ n: 1, texte: 'alpha maçonnerie' }]); memoire.enregistrerTexte(b.id, [{ n: 1, texte: 'beta maçonnerie' }]);
+  memoire.retirerAbsents('decennales', ['b.pdf']);
+  const r = memoire.chercher('maçonnerie');
+  assert.equal(r.passages.length, 1);
+  assert.equal(r.passages[0].doc, b.id);
+  // Base sans FTS5 exploitable : le routeur se monte quand même.
+  const cassee = { exec() { throw new Error('no such module: fts5'); }, prepare() { throw new Error('x'); } };
+  const routeur = creerRouteurMemoire({}, cassee, { ecrire() {}, lire() {} });
+  const app = express(); app.use('/api', routeur);
+  const serveur = await new Promise((ok) => { const s = app.listen(0, '127.0.0.1', () => ok(s)); });
+  try { assert.equal((await fetch(`http://127.0.0.1:${serveur.address().port}/api/memoire/etat`)).status, 503); } finally { serveur.close(); }
+});
