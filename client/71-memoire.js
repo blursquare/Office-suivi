@@ -52,6 +52,13 @@
           if (worker === null) worker = (await creerWorkerOcr()) || false;
           if (worker) { texte = String(await ocrPage(pdf, p, worker) || '').trim(); ocr++; }
         }
+        // FAUSSES MINUTES (étude 15/10) : l'acte seulement, jusqu'au tableau de signature ; les annexes qui suivent ne sont jamais lues.
+        if (doc.rubrique === 'fausses-minutes') {
+          if (p > 1 && estDebutPageAnnexe(texte)) break;
+          pages.push({ n: p, texte });
+          if (detecteSignatureActe(texte)) break;
+          continue;
+        }
         pages.push({ n: p, texte });
       }
     } finally {
@@ -95,6 +102,15 @@
     await chargerEtatMemoire();
   }
 
+  async function basculerFausseMinutesMemoire(actif) {
+    memoireMessage = actif ? 'Lecture des fausses minutes activée : « Parcourir les dossiers » puis « Lire les PDF ».' : 'Lecture des fausses minutes éteinte (le texte déjà lu est gardé mais n’est plus cherché).';
+    try {
+      const r = await fetchAvecAuth('/api/memoire/reglages', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fausseMinutes: actif === true }) });
+      if (!r.ok) throw new Error(String(r.status));
+    } catch (e) { memoireMessage = 'Réglage non enregistré : serveur injoignable.'; }
+    await chargerEtatMemoire();
+  }
+
   async function reessayerMemoire() {
     try { await fetchAvecAuth('/api/memoire/reessayer', { method: 'POST' }); } catch (e) { /* relu ci-dessous */ }
     await chargerEtatMemoire();
@@ -104,15 +120,18 @@
     const zone = document.getElementById('memoire-corps');
     if (!zone) return;
     const e = memoireEtat;
+    const fmActif = !!(e && e.reglages && e.reglages.fausseMinutes);
     const lignes = e ? e.rubriques.map(r => {
-      const etat = !r.trouve ? '<span class="hint">dossier introuvable sur le NAS</span>'
+      const etat = r.cle === 'fausses-minutes' && !fmActif ? '<span class="hint">lecture éteinte (option ci-dessous)</span>' : !r.trouve ? '<span class="hint">dossier introuvable sur le NAS</span>'
         : `${r.lus} lu${r.lus > 1 ? 's' : ''} sur ${r.fichiers}${r.aLire ? ` · <strong>${r.aLire} à lire</strong>` : ''}${r.ocr ? ` · ${r.ocr} par OCR` : ''}${r.vides ? ` · ${r.vides} sans texte` : ''}${r.erreurs ? ` · ${r.erreurs} en erreur` : ''}${r.tropGros ? ` · ${r.tropGros} trop gros` : ''}`;
       return `<div class="reglages-option"><div><strong>${escapeHtml(r.nom)}</strong><div class="hint">${etat}</div></div></div>`;
     }).join('') : '';
     const parcours = e && e.parcours.enCours ? '<p class="hint">Parcours en cours…</p>' : '';
     const resume = e ? `<p class="hint">${e.passages} passage${e.passages > 1 ? 's' : ''} en mémoire.</p>` : '';
-    const aLire = e ? e.rubriques.reduce((s, r) => s + r.aLire, 0) : 0;
-    zone.innerHTML = `${lignes}${resume}${parcours}
+    const aLire = e ? e.rubriques.filter(r => r.cle !== 'fausses-minutes' || fmActif).reduce((s, r) => s + r.aLire, 0) : 0;
+    const optionFm = e ? `<div class="reglages-option"><div><strong>Lire les fausses minutes</strong>${infoBulle('Option. Quand elle est allumée, les PDF du dossier FAUSSES MINUTES sont lus par le poste, uniquement jusqu’au tableau de signature de l’acte : les annexes qui suivent ne sont pas lues.')}</div>
+        <wa-switch id="memoire-fausses-minutes" ${fmActif ? 'checked ' : ''}onchange="basculerFausseMinutesMemoire(this.checked)"></wa-switch></div>` : '';
+    zone.innerHTML = `${optionFm}${lignes}${resume}${parcours}
       <div class="reglages-actions">
         <wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="parcourirMemoireNas()">Parcourir les dossiers</wa-button>
         <wa-button ${aLire && !memoireLectureEnCours ? '' : 'disabled '}variant="brand" size="s" pill type="button" class="action-rapide" onclick="lirePdfMemoireTous()">Lire les PDF${aLire ? ` (${aLire})` : ''}</wa-button>

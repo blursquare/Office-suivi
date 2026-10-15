@@ -272,6 +272,10 @@ function creerMemoire(db) {
     retirerPassagesStmt.run(Number(doc));
   }
   const lireStmt = db.prepare('SELECT * FROM memoire_documents WHERE id = ?');
+  // Rubriques mises « en option » et éteintes (15/10 : scan des fausses minutes) : ni lues, ni cherchées, mais gardées en base.
+  /** @type {string[]} */
+  let exclues = [];
+  const sansExclues = (colonne) => (exclues.length ? ` AND ${colonne} NOT IN (${exclues.map(() => '?').join(',')})` : '');
   const supprimerStmt = db.prepare('DELETE FROM memoire_documents WHERE id = ?');
 
   function transaction(fn) {
@@ -318,9 +322,10 @@ function creerMemoire(db) {
     },
     document(id) { return lireStmt.get(id) || null; },
     /** Les documents à lire (statut « a_lire »), du type demandé ('pdf' pour le poste, 'serveur' pour Word et texte). */
+    definirExclues(liste) { exclues = (Array.isArray(liste) ? liste : []).filter((x) => typeof x === 'string'); },
     aLire(type, limite) {
       const filtre = type === 'pdf' ? "ext = 'pdf'" : "ext != 'pdf'";
-      return db.prepare(`SELECT * FROM memoire_documents WHERE statut = 'a_lire' AND ${filtre} ORDER BY id LIMIT ?`).all(Math.max(1, Math.min(50, Number(limite) || 1)));
+      return db.prepare(`SELECT * FROM memoire_documents WHERE statut = 'a_lire' AND ${filtre}${sansExclues('rubrique')} ORDER BY id LIMIT ?`).all(...exclues, Math.max(1, Math.min(50, Number(limite) || 1)));
     },
     /** Au début de chaque parcours : les Word et textes en erreur sont retentés (NAS indisponible un instant, fichier verrouillé). */
     retenterErreursServeur() {
@@ -341,7 +346,7 @@ function creerMemoire(db) {
       const mots = motsDeRecherche(question);
       if (!mots.length) return { mots, passages: [] };
       const max = Math.max(1, Math.min(15, Number(limite) || 8));
-      const filtreRubrique = rubrique ? ' AND d.rubrique = ?' : '';
+      const filtreRubrique = (rubrique ? ' AND d.rubrique = ?' : '') + sansExclues('d.rubrique');
       const sql = `SELECT f.rowid AS rowid, f.texte AS texte, p.page AS page, p.doc AS doc, d.rubrique AS rubrique
         FROM memoire_fts f JOIN memoire_passages p ON p.id = f.rowid JOIN memoire_documents d ON d.id = p.doc
         WHERE memoire_fts MATCH ?${filtreRubrique} ORDER BY rank LIMIT ?`;
@@ -353,6 +358,7 @@ function creerMemoire(db) {
         /** @type {Array<string | number>} */
         const params = [requeteFts(mots, /** @type {'et' | 'ou'} */ (mode))];
         if (rubrique) params.push(rubrique);
+        params.push(...exclues);
         params.push(max * 3);
         let lignes = [];
         try { lignes = db.prepare(sql).all(...params); } catch (_) { lignes = []; }
@@ -411,7 +417,7 @@ async function cheminDocumentMemoire(racine, relatif, fsImpl = fsp) {
 
 /**
  * Un tour : parcourt les dossiers, inscrit les fichiers, retire les absents, lit les Word et textes. Les PDF restent « à lire » pour le poste.
- * @param {{ config: any, memoire: ReturnType<typeof creerMemoire>, fsImpl?: any, etat: any }} o
+ * @param {{ config: any, memoire: ReturnType<typeof creerMemoire>, fsImpl?: any, etat: any, ignorer?: string[] }} o
  */
 async function parcourirMemoire(o) {
   const fsImpl = o.fsImpl || fsp;
@@ -421,6 +427,7 @@ async function parcourirMemoire(o) {
     const dossiers = await trouverDossiersMemoire(o.config, fsImpl);
     etat.dossiers = dossiers.map((d) => ({ cle: d.cle, libelle: d.libelle }));
     for (const d of dossiers) {
+      if ((o.ignorer || []).includes(d.cle)) continue; // rubrique en option, éteinte
       const { fichiers, complet } = await listerFichiersMemoire(d.chemin, fsImpl);
       for (const f of fichiers) {
         const r = o.memoire.voirFichier(d.cle, f.chemin, f.nom, f.ext, f.taille, f.modifieMs);

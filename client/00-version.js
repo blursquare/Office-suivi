@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.235.0';
+  const VERSION_APP = '0.236.0';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.236.0', date: '2026-10-15 18:44', resume: "Mémoire de CLAIRE : la lecture des fausses minutes devient une option (Réglages › Mémoire de CLAIRE, éteinte par défaut). Allumée, chaque acte n'est lu que jusqu'au tableau de signature : les annexes qui suivent ne sont pas lues (ni passées à l'OCR). Éteinte, ces documents ne sont ni parcourus, ni lus, ni cherchés par l'agent." },
     { version: '0.235.0', date: '2026-10-15 18:29', resume: "« Demander à CLAIRE » (retour de test) : l'agent sait poser plusieurs options de rendez-vous dans l'agenda sans email (il ouvrait un seul rendez-vous ferme), remplit l'email libre avec le destinataire, l'objet et le texte demandés, et ne dit plus qu'une chose est faite quand une fenêtre ou une confirmation attend encore l'utilisateur. Compromis : le compteur de lecture ne dépasse plus le total (« page 120 sur 60 »), l'adresse du garant financier de l'agence n'est plus prise pour l'adresse du bien, une clause (« le MANDATAIRE La rémunération… ») n'est plus prise pour le nom de l'agence. Sitadel : trois requêtes à la fois et reprise sur la limite de débit (429)." },
     { version: '0.234.1', date: '2026-10-15 16:46', resume: "Rendez-vous décalé, supprimé puis recréé dans Outlook : le lieu lu dans l'agenda est comparé à ce que CLAIRE a noté — si la mention « appel de fonds / projet envoyé » ou le nom du notaire en est absent, ils sont remis (une note de plus de 15 minutes ne vaut plus devant un lieu relevé qui la contredit)." },
     { version: '0.234.0', date: '2026-10-15 16:38', resume: "Agenda : dès que l'offre de prêt est reçue (ou la vente préalable réalisée, la date effacée, le dossier archivé), le serveur retire lui-même la date butoir posée dans l'agenda Outlook, à son tour de lecture suivant — sans attendre le démarrage d'un poste. Elle reste récupérable dans les éléments supprimés d'Outlook." },

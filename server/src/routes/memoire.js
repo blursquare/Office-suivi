@@ -30,10 +30,19 @@ function creerRouteurMemoire(config, db, parametresRepo, injections = {}) {
   const etat = { enCours: false, debut: 0, fin: 0, dossiers: [], vus: 0, nouveaux: 0, changes: 0, retires: 0, luServeur: 0, erreurs: 0, erreur: '' };
   let minuteur = null;
 
+  // Réglages (15/10) : le scan des fausses minutes est une option, éteinte tant que l'étude ne l'allume pas.
+  const CLE_REGLAGES = 'memoire-reglages';
+  const lireReglages = () => {
+    const brut = parametresRepo.lireJsonBrut ? parametresRepo.lireJsonBrut(CLE_REGLAGES, {}) : {};
+    return { fausseMinutes: !!(brut && brut.fausseMinutes === true) };
+  };
+  const appliquerReglages = () => { if (memoire) memoire.definirExclues(lireReglages().fausseMinutes ? [] : ['fausses-minutes']); };
+  appliquerReglages();
+
   async function lancerParcours() {
     if (etat.enCours) return false;
     if (!memoire) return false;
-    parcourirMemoire({ config, memoire, fsImpl: injections.fsImpl, etat }).then(() => {
+    parcourirMemoire({ config, memoire, fsImpl: injections.fsImpl, etat, ignorer: lireReglages().fausseMinutes ? [] : ['fausses-minutes'] }).then(() => {
       noterVerification(parametresRepo, 'memoire-parcours', etat.erreur ? { ok: false, message: 'parcours en erreur' } : { detail: `${etat.vus} fichiers vus` });
     }).catch(() => { /* déjà journalisé par parcourirMemoire */ });
     return true;
@@ -49,7 +58,13 @@ function creerRouteurMemoire(config, db, parametresRepo, injections = {}) {
         fichiers: l.reduce((s, x) => s + x.n, 0), lus: n('lu'), aLire: n('a_lire'), vides: n('vide'), erreurs: n('erreur'), tropGros: n('trop_gros'),
         ocr: l.reduce((s, x) => s + x.ocr, 0) };
     });
-    res.json({ rubriques, passages, parcours: { enCours: etat.enCours, debut: etat.debut, fin: etat.fin, vus: etat.vus, nouveaux: etat.nouveaux, changes: etat.changes, retires: etat.retires, erreur: etat.erreur } });
+    res.json({ reglages: lireReglages(), rubriques, passages, parcours: { enCours: etat.enCours, debut: etat.debut, fin: etat.fin, vus: etat.vus, nouveaux: etat.nouveaux, changes: etat.changes, retires: etat.retires, erreur: etat.erreur } });
+  }));
+
+  routeur.put('/memoire/reglages', routeAsync(async (req, res) => {
+    parametresRepo.ecrireJsonBrut(CLE_REGLAGES, { fausseMinutes: !!(req.body && req.body.fausseMinutes === true) });
+    appliquerReglages();
+    res.json(lireReglages());
   }));
 
   routeur.post('/memoire/parcourir', routeAsync(async (req, res) => { res.json({ lance: await lancerParcours() }); }));

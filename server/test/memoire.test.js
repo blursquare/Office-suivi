@@ -242,3 +242,17 @@ test('index plein texte : retirer un document ne touche pas aux autres ; mémoir
   const serveur = await new Promise((ok) => { const s = app.listen(0, '127.0.0.1', () => ok(s)); });
   try { assert.equal((await fetch(`http://127.0.0.1:${serveur.address().port}/api/memoire/etat`)).status, 503); } finally { serveur.close(); }
 });
+
+test('option « fausses minutes » éteinte : ni à lire, ni cherchée, ni parcourue ; allumée, tout revient (15/10)', async () => {
+  const memoire = M.creerMemoire(new DatabaseSync(':memory:'));
+  memoire.voirFichier('fausses-minutes', 'Acte.pdf', 'Acte.pdf', 'pdf', 1000, 1);
+  memoire.voirFichier('decennales', 'Att.pdf', 'Att.pdf', 'pdf', 1000, 1);
+  const fm = memoire.aLire('pdf', 5).find((d) => d.rubrique === 'fausses-minutes');
+  memoire.enregistrerTexte(fm.id, [{ n: 1, texte: 'Clause spéciale de servitude de passage.' }]);
+  assert.equal(memoire.chercher('servitude passage').passages.length, 1);
+  memoire.definirExclues(['fausses-minutes']);
+  assert.equal(memoire.chercher('servitude passage').passages.length, 0);
+  assert.deepEqual(memoire.aLire('pdf', 5).map((d) => d.rubrique), ['decennales']);
+  memoire.definirExclues([]);
+  assert.equal(memoire.chercher('servitude passage').passages.length, 1);
+});
