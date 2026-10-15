@@ -77,6 +77,10 @@
              d.piecesNotifications dans script.js) : masqué tant qu'il n'y a rien à signaler. -->
         <span class="sidebar-badge-notif" id="badge-notif-suivi" style="display:none;"></span>
       </button>
+      <!-- Constitution de dossier (étude 15/10 ; sous le Suivi des dossiers depuis 0.249.0) : les courriers d'interrogation d'une vente ou d'une succession, d'après la fiche et Authentic. -->
+      <button type="button" id="tab-constitution" class="sidebar-link" role="tab" aria-selected="false" onclick="definirOnglet('constitution')">
+        <span class="sidebar-link-icone" id="icon-nav-constitution" aria-hidden="true"></span>Constitution de dossier
+      </button>
       <!-- Agenda de l'office (page Agenda, 30/09), sous le Suivi des dossiers (étude 09/10). -->
       <button type="button" id="tab-agenda" class="sidebar-link" role="tab" aria-selected="false" onclick="definirOnglet('agenda')">
         <span class="sidebar-link-icone" id="icon-nav-agenda" aria-hidden="true"></span>Agenda
@@ -94,21 +98,14 @@
         </button>
       </div>
       <div class="sidebar-sousmenu" id="sidebar-sousmenu-outils">
+        <!-- Deux catégories (étude 15/10 : « scinde les outils succession et vente en deux catégories ») : un titre chacune, masqué
+             barre repliée (un trait les sépare alors). Dans chaque catégorie, ordre alphabétique. -->
+        <div class="sidebar-sousmenu-titre" id="sidebar-outils-vente">Vente</div>
         <!-- Générateur d'appel de fonds : la convocation au rendez-vous de signature, avec le
              décompte des sommes à virer. Relié à Outil 1 — « Préparer l'appel de fonds » sur une
              fiche dossier ouvre cet onglet déjà prérempli (voir prefillAppelFonds). -->
         <button type="button" id="tab-appel-fonds" class="sidebar-link sidebar-sousmenu-item" role="tab" aria-selected="false" onclick="definirOnglet('appel-fonds')">
           <span class="sidebar-link-icone" id="icon-nav-appel-fonds" aria-hidden="true"></span>Appel de fonds
-        </button>
-        <!-- Constitution de dossier (étude 15/10) : les courriers d'interrogation d'une vente ou d'une succession, d'après la fiche et Authentic. -->
-        <button type="button" id="tab-constitution" class="sidebar-link sidebar-sousmenu-item" role="tab" aria-selected="false" onclick="definirOnglet('constitution')">
-          <span class="sidebar-link-icone" id="icon-nav-constitution" aria-hidden="true"></span>Constitution de dossier
-        </button>
-        <!-- Arbitrage du forfait mobilier : la prisée d'un commissaire de justice écarte le forfait
-             de 5 % de l'art. 764 CGI, mais elle a un coût — l'outil compare les deux. Sans dossier,
-             comme les deux simulateurs voisins : rien n'est enregistré. -->
-        <button type="button" id="tab-inventaire" class="sidebar-link sidebar-sousmenu-item" role="tab" aria-selected="false" onclick="definirOnglet('inventaire')">
-          <span class="sidebar-link-icone" id="icon-nav-inventaire" aria-hidden="true"></span>Arbitrage forfait mobilier
         </button>
         <!-- Droits de préemption (étude 06/10) : DPU/DPUR, SAFER, bois et forêts selon le zonage de la parcelle et le bien
              vendu ; résultat enregistré sur la fiche (client/45-preemption-regles.js, 46-droits-preemption.js). -->
@@ -129,13 +126,15 @@
         <button type="button" id="tab-analyse-ia" class="sidebar-link sidebar-sousmenu-item" style="display:none;" role="tab" aria-selected="false" onclick="definirOnglet('analyse-ia')">
           <span class="sidebar-link-icone" id="icon-nav-analyse-ia" aria-hidden="true"></span>Relecture d'actes<span class="stade-badge stade-badge-nav" title="Alpha : outil encore en test, à utiliser avec le mode commentaires.">Alpha</span>
         </button>
-        <!-- Répertoire : offices notariaux (carnet des confrères, server/src/carnetConfreres.js) et
-             autres interlocuteurs de l'étude par thème (server/src/repertoire.js), partagés en base. -->
-        <button type="button" id="tab-confreres" class="sidebar-link sidebar-sousmenu-item" role="tab" aria-selected="false" onclick="definirOnglet('confreres')">
-          <span class="sidebar-link-icone" id="icon-nav-confreres" aria-hidden="true"></span>Répertoire
-        </button>
         <button type="button" id="tab-calculateur" class="sidebar-link sidebar-sousmenu-item" role="tab" aria-selected="false" onclick="definirOnglet('calculateur')">
           <span class="sidebar-link-icone" id="icon-nav-calculateur" aria-hidden="true"></span>Simulateur de provision
+        </button>
+        <div class="sidebar-sousmenu-titre" id="sidebar-outils-succession">Succession</div>
+        <!-- Arbitrage du forfait mobilier : la prisée d'un commissaire de justice écarte le forfait
+             de 5 % de l’art. 764 CGI, mais elle a un coût — l’outil compare les deux. Ouvert depuis une fiche de succession,
+             le résultat s’enregistre sur la fiche (client/76). -->
+        <button type="button" id="tab-inventaire" class="sidebar-link sidebar-sousmenu-item" role="tab" aria-selected="false" onclick="definirOnglet('inventaire')">
+          <span class="sidebar-link-icone" id="icon-nav-inventaire" aria-hidden="true"></span>Arbitrage forfait mobilier
         </button>
       </div>
       </div>
@@ -146,6 +145,11 @@
         <span class="sidebar-link-icone" id="icon-nav-assistant" aria-hidden="true"></span>Demander à CLAIRE
       </button>
 
+      <!-- Répertoire (au-dessus des Réglages depuis 0.249.0, étude 15/10) : offices notariaux (carnet des confrères, server/src/carnetConfreres.js) et
+           autres interlocuteurs de l'étude par thème (server/src/repertoire.js), partagés en base. -->
+      <button type="button" id="tab-confreres" class="sidebar-link" role="tab" aria-selected="false" onclick="definirOnglet('confreres')">
+        <span class="sidebar-link-icone" id="icon-nav-confreres" aria-hidden="true"></span>Répertoire
+      </button>
       <!-- Réglages de l'étude (URL du flux Power Automate + adresse email de chaque collaborateur) :
            une donnée métier que l'étude doit pouvoir modifier elle-même, sans passer par un fichier
            de configuration ni redemander à Claude Code — voir server/src/parametresRepo.js. -->
@@ -1333,6 +1337,7 @@
       <div class="inv-actions">
         <wa-button appearance="outlined" class="secondary" onclick="imprimerNoteInventaire()">Imprimer la note</wa-button>
         <wa-button appearance="outlined" class="secondary" onclick="reinitialiserInventaire()">Réinitialiser</wa-button>
+        <wa-button variant="brand" class="primary" id="inv-enregistrer-fiche" style="display:none;" onclick="enregistrerArbitrageSurFiche()">Enregistrer sur la fiche</wa-button>
       </div>
     </div>
   </div>
@@ -2774,5 +2779,6 @@
 <script src="client/73-courrier-fidele.js"></script>
 <script src="client/74-fiche-succession.js"></script>
 <script src="client/75-factures-succession.js"></script>
+<script src="client/76-succession-agenda-arbitrage.js"></script>
 </body>
 </html>

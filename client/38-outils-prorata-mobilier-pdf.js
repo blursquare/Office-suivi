@@ -240,6 +240,8 @@
       });
     const coche = document.getElementById('inv-trajet-actif');
     if (coche) coche.checked = false;
+    // Plus rattaché à la fiche d'une succession (client/76).
+    if (typeof majBoutonArbitrageFiche === 'function') { arbitrageDossierId = ''; majBoutonArbitrageFiche(); }
     basculerTrajetsInventaire();
   }
 

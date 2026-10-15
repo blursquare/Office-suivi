@@ -344,3 +344,27 @@ test('onglet « Factures » de la fiche succession : à régler puis réglées, 
   assert.ok(html.indexOf('EHPAD TEST') < html.indexOf('EDF'), 'à régler en tête');
   assert.match(html, /Ajouter une facture/);
 });
+
+test('agenda et arbitrage reliés à la fiche succession : rendez-vous proposé par étape, arbitrage gardé sur la fiche', () => {
+  const d = base({ id: 's15', nom: 'DURAND', succession: { ouvertureLe: '' } });
+  // Ouverture pas fixée : rendez-vous proposé dans 7 jours, sans case « signature ».
+  const o = app.rdvAgendaSuccession(d, 'ouvertureSuccession', '2026-10-15');
+  assert.deepEqual([o.titre, o.date, o.signature], ['SUCC - DURAND - Ouverture avec Sophie', '2026-10-22', false]);
+  // Ouverture fixée : plus rien à placer pour elle ; la notoriété est proposée à sa date butoir (1 mois), case « signature » cochée.
+  d.succession.ouvertureLe = '2026-10-10';
+  assert.equal(app.rdvAgendaSuccession(d, 'ouvertureSuccession', '2026-10-15'), null);
+  const n = app.rdvAgendaSuccession(d, 'notoriete', '2026-10-15');
+  assert.deepEqual([n.titre, n.date, n.signature], ['SUCC - DURAND - Acte de notoriété', '2026-11-10', true]);
+  // Rendez-vous déjà placé : plus de bouton.
+  assert.equal(app.rdvAgendaSuccession(Object.assign({}, d, { rendezVousSignature: '2026-11-05' }), 'notoriete', '2026-10-15'), null);
+  const cartes = [];
+  app.cartesEtapesSuccessionFiche(d, '2026-10-15', (col, c) => cartes.push(c));
+  assert.match(cartes.find(c => c.cle === 'succession:notoriete').bouton.onclick, /placerRdvSuccessionAgenda\('s15', 'notoriete'\)/);
+  assert.match(cartes.find(c => c.cle === 'succession:controleDroits').bouton.onclick, /ouvrirArbitrageDepuisFiche\('s15'\)/);
+
+  // Arbitrage : rien d'enregistré tant que les deux simulations de droits manquent ; sinon le verdict et la saisie.
+  assert.equal(app.arbitrageAEnregistrer({ droitsSans: '', droitsAvec: '5000' }, '2026-10-15T10:00:00Z', 'Bastien ANGLUMENT'), null);
+  const a = app.arbitrageAEnregistrer({ droitsSans: '8000', droitsAvec: '5000', fraisOuverture: '300', prisee: '600', fraisCloture: '300', sermentNb: '1', sermentUnit: '240', trajetActif: false }, '2026-10-15T10:00:00Z', 'Bastien ANGLUMENT');
+  assert.deepEqual([a.verdict, a.net, a.le, a.saisie.droitsSans], ['favorable', 1560, '2026-10-15', '8000']);
+  assert.match(app.ligneArbitrageFiche(Object.assign({}, d, { succession: { arbitrage: a } })), /Intéressant pour le client.*Revoir l’arbitrage/);
+});

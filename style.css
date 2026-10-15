@@ -968,6 +968,10 @@
   .sidebar-sousmenu-item ~ .sidebar-sousmenu-item::before { top: calc(-50% - 16px); height: calc(100% + 16px); }
   /* Fermé (repli du groupe, pas de la sidebar entière) : masqué, le trait avec. */
   .sidebar-sousmenu.ferme { display: none; }
+  /* Deux catégories d'outils, Vente et Succession (étude 15/10) : un titre en capitales ; le liseré repart sous chacun. */
+  .sidebar-sousmenu-titre { padding: 8px 4px 2px 8px; font-size: var(--texte-xs); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+  .sidebar-sousmenu-titre:first-child { padding-top: 4px; }
+  .sidebar-sousmenu-titre + .sidebar-sousmenu-item::before { top: -8px; height: calc(50% + 8px); }
 
   /* Compteur de pièces reçues pas encore vues (voir majBadgeNotificationsSidebar() dans script.js) —
      seul badge à fond plein de la sidebar, volontairement : c'est un signal à remarquer d'un coup
@@ -1089,6 +1093,9 @@
     .sidebar.repliee .sidebar-outils-groupe:has(.sidebar-sousmenu:not(.ferme)) { padding: 2px 2px 4px; }
     .sidebar.repliee .sidebar-sousmenu .sidebar-link.sidebar-sousmenu-item { font-size: 0; justify-content: center; gap: 0; padding: 10px 0; }
     .sidebar.repliee .sidebar-sousmenu .sidebar-link-icone { font-size: var(--texte-xl); }
+    /* Barre repliée : les titres des catégories disparaissent, un trait sépare Vente et Succession. */
+    .sidebar.repliee .sidebar-sousmenu-titre { display: none; }
+    .sidebar.repliee .sidebar-sousmenu-titre ~ .sidebar-sousmenu-titre { display: block; height: 1px; margin: 4px 8px; padding: 0; font-size: 0; background: var(--sidebar-trait); }
   }
   /* Bulle du libellé d'une icône de la barre repliée (et de la bannette Claire Scan). */
   .sidebar-infobulle {

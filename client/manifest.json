@@ -74,5 +74,6 @@
   "72-constitution-dossier.js",
   "73-courrier-fidele.js",
   "74-fiche-succession.js",
-  "75-factures-succession.js"
+  "75-factures-succession.js",
+  "76-succession-agenda-arbitrage.js"
 ]

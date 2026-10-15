@@ -2235,12 +2235,14 @@
     const d = dossiers.find(x => x.id === val('agenda-creation-dossier')) || null;
     const signature = !!(d && document.getElementById('agenda-creation-signature') && document.getElementById('agenda-creation-signature').checked);
     if (!sujet || !/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^\d{2}:\d{2}$/.test(heure)) { afficherToast('Titre, date et heure sont nécessaires.', 'OK', null); return; }
+    // Rendez-vous ouvert depuis une fiche de succession (client/76) : l'ouverture est notée sur la fiche après la création.
+    const lienFiche = agendaModale && agendaModale.lien;
     const creer = async () => {
       const bouton = document.getElementById('agenda-creation-ok');
       if (bouton) { bouton.disabled = true; bouton.textContent = 'Création…'; }
       const ok = await posterEvenementAgenda({ sujet, date, heure, dureeMinutes, lieu, typeRdv, dossier: d, signature, notes });
       if (bouton) { bouton.disabled = false; }
-      if (ok) { agendaModale = null; renderPageAgenda(); chargerAgendaSemaine(); }
+      if (ok) { if (lienFiche) noterRdvAgendaSuccession(lienFiche, date); agendaModale = null; renderPageAgenda(); chargerAgendaSemaine(); }
     };
     // Règles de l'étude (9 h, 12 h – 14 h, après 18 h, 6 rendez-vous par jour) : une exception reste
     // possible, mais elle se confirme.

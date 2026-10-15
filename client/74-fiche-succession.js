@@ -193,6 +193,7 @@
       <dl class="fiche-proprietes">
         ${ligne('banknote', 'Droits dus', choixOuiNon('droitsDus', s.droitsDus, 'Droits de succession dus'), null)}
         ${ligne('list-check', 'Inventaire', choixOuiNon('inventaireNecessaire', s.inventaireNecessaire, 'Inventaire nécessaire'), null)}
+        ${ligne('scale', 'Forfait mobilier', ligneArbitrageFiche(d), null, 'prop-pleine')}
       </dl>
       <div class="section-eyebrow fiche-sous-titre">Héritiers <span class="hint">· ${heritiers.length}${compsLus ? ' · d’après les comparants d’Authentic' : ''}</span>${compsLus ? '' : ' ' + infoBulle('Les comparants de la page du dossier d’Authentic (qualité « Défunt » / « Héritier ») ne sont pas encore lus : ouvrez la page du dossier dans Authentic. En attendant, toutes les personnes du dossier sauf le défunt sont montrées.')}</div>
       <dl class="fiche-proprietes fiche-coordonnees">
@@ -219,6 +220,10 @@
       const champDate = e.type === 'ouvertureSuccession' ? 'ouvertureLe' : (e.fait && e.type === 'notoriete' ? 'notorieteSigneeLe' : (e.fait && e.type === 'declarationSuccession' ? 'declarationSigneeLe' : ''));
       const date = champDate && !e.authentic ? { cle: 'succession:' + champDate, iso: s[champDate] || '', supprimable: !!s[champDate], envoi: false } : null;
       const base = { cle: 'succession:' + e.type, titre: e.label, iso: e.iso || '', sous: e.iso ? formatDateFr(e.iso) : '', categorie: 'succession', coche, date };
+      // Agenda relié à la fiche (étude 15/10) : le rendez-vous de l'étape se place d'ici, prérempli.
+      if (rdvAgendaSuccession(d, e.type, aujourdhuiIso)) base.bouton = { onclick: `placerRdvSuccessionAgenda('${idJs}', '${escapeOnclickArg(e.type)}')`, titre: 'Ouvrir l’agenda sur ce rendez-vous, prérempli', icone: icone('calendar'), libelle: 'Placer dans l’agenda' };
+      // Arbitrage du forfait mobilier relié au contrôle à 2 mois (étude 15/10).
+      if (e.type === 'controleDroits' && !e.fait) base.bouton = { onclick: `ouvrirArbitrageDepuisFiche('${idJs}')`, titre: 'Comparer le forfait mobilier de 5 % au coût d’un inventaire avec prisée', icone: icone('scale'), libelle: s.arbitrage ? 'Revoir l’arbitrage' : 'Arbitrage forfait mobilier' };
       if (e.fait) { ajouter('fait', Object.assign(base, { fait: true, auto: !cochable })); return; }
       if (e.type === 'ouvertureSuccession' && !e.iso) { ajouter('faire', Object.assign(base, { titre: 'Fixer le rendez-vous d’ouverture avec Sophie', sous: 'Les délais (1, 2 et 6 mois) partent de lui' })); return; }
       if (!e.active) { ajouter('attente', Object.assign(base, { iso: '', sous: e.type === 'receptionFonds' ? 'Après le déblocage des fonds' : 'Après l’acte de notoriété' })); return; }
