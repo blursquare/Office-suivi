@@ -11,6 +11,7 @@
   const EPCI_AGGLOPOLYS = '200030385';
   const EPCI_GRAND_CHAMBORD = '244100798';
   const INSEE_CHAILLES = '41032';
+  const URL_GNAU_CHAILLES = 'https://portail-usager.sirap.com/041032/connexion';
   /** Courriel du service qui reçoit, pour les notaires, les demandes de numérotage et d'alignement à Blois (dicté par l'étude, à confirmer). */
   const COURRIEL_GEOMETRE_BLOIS = 'geometre@blois.fr';
 
@@ -53,7 +54,7 @@
 
   /** Pure : la particularité d'une commune pour le CU et la DIA (guichets uniques), ou ''. @param {string} insee */
   function noteGuichetCommune(insee) {
-    if (String(insee || '') === INSEE_CHAILLES) return 'Chailles a son propre guichet unique (GNAU), différent de celui d’Agglopolys (adresse du portail non publiée : à demander à la mairie, 78 rue Nationale).';
+    if (String(insee || '') === INSEE_CHAILLES) return 'Chailles a son propre guichet unique (GNAU), différent de celui d’Agglopolys (portail SIRAP de la commune).';
     return '';
   }
 
@@ -213,7 +214,7 @@
     return { lien, nom: conjoint };
   }
 
-  exporter({ INSEE_BLOIS, EPCI_AGGLOPOLYS, EPCI_GRAND_CHAMBORD, INSEE_CHAILLES, COURRIEL_GEOMETRE_BLOIS, COURRIERS_VENTE, DESTINATAIRES_CONNUS, ORDRE_SUCCESSION_PAR_DEFAUT,
+  exporter({ URL_GNAU_CHAILLES, INSEE_BLOIS, EPCI_AGGLOPOLYS, EPCI_GRAND_CHAMBORD, INSEE_CHAILLES, COURRIEL_GEOMETRE_BLOIS, COURRIERS_VENTE, DESTINATAIRES_CONNUS, ORDRE_SUCCESSION_PAR_DEFAUT,
     circuitCourrierVente, noteGuichetCommune, centiaresDepuisContenance, contenanceDepuisCentiares, contenanceTotale, lignePersonneProprietaire, tableauParcelles,
     questionnaireAssainissement, contenuCourrierVente, nomFichierCourrierVente, defuntDepuisFiches, conjointDefunt });
 })(function (api) {

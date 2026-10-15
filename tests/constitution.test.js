@@ -29,6 +29,7 @@ test('circuits : autre commune d’Agglopolys = papier à la mairie sauf l’ass
 test('Chailles : un guichet unique à part, dit ; les autres communes n’ont pas de note', () => {
   assert.match(K.noteGuichetCommune('41032'), /Chailles/);
   assert.equal(K.noteGuichetCommune('41018'), '');
+  assert.match(K.URL_GNAU_CHAILLES, /sirap\.com\/041032/);
 });
 
 test('contenances : lues, additionnées, écrites ; une contenance illisible interdit le total', () => {

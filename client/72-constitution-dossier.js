@@ -697,8 +697,9 @@
         const info = g.info || {};
         const depot = info.depot || {};
         const note = noteGuichetCommune(info.insee);
-        const lien = lienDepotDiaSur(depot.url);
-        const ligne = depot.mode === 'guichet' || depot.plateforme ? `${escapeHtml(depot.plateforme || 'Guichet unique')}${lien ? ` — <a href="${escapeAttr(lien)}" target="_blank" rel="noopener">ouvrir</a>` : ''}` : 'guichet non relevé : à vérifier auprès de la mairie';
+        const chailles = String(info.insee || '') === INSEE_CHAILLES;
+        const lien = chailles ? URL_GNAU_CHAILLES : lienDepotDiaSur(depot.url);
+        const ligne = chailles ? `Guichet unique de Chailles (SIRAP) — <a href="${escapeAttr(URL_GNAU_CHAILLES)}" target="_blank" rel="noopener">ouvrir</a>` : depot.mode === 'guichet' || depot.plateforme ? `${escapeHtml(depot.plateforme || 'Guichet unique')}${lien ? ` — <a href="${escapeAttr(lien)}" target="_blank" rel="noopener">ouvrir</a>` : ''}` : 'guichet non relevé : à vérifier auprès de la mairie';
         return `<div class="cst-doc cst-off"><div class="cst-doc-tete"><strong>Certificat d’urbanisme et DIA — ${escapeHtml(g.commune)}</strong> <span class="dot-label dl-success"><span class="dot"></span>Sur le GNAU</span></div>
           <p class="hint">Pas de courrier : ${ligne}.${note ? ' ' + escapeHtml(note) : ''}</p></div>`;
       }).join('');

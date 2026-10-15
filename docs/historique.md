@@ -19903,3 +19903,6 @@ Reçues de l'étude sur un dossier de succession (intitulé « A AAAA NNNNN SUCC
 
 ### 0.240.1 — 15/10/2026 (étude : réponses sur Constitution de dossier)
 - Grand Chambord : adresse trouvée sur grandchambord.fr (22 avenue de la Sablière, 41250 Bracieux ; intitulé « Eau & Assainissements », **nom exact du service et courriel non publiés**, modifiable et retenu dans l'outil). Chailles : portail GNAU introuvable en ligne, mairie 78 rue Nationale. Services alignement/numérotage distincts des grosses communes : non trouvés en ligne, à saisir (adresses retenues). Page de questionnaire d'assainissement : confirmée par l'étude.
+
+### 0.240.2 — 15/10/2026 (étude : portail de Chailles)
+- Guichet unique de Chailles : https://portail-usager.sirap.com/041032/connexion (fourni par l'étude), lien « ouvrir » dans Constitution de dossier (`URL_GNAU_CHAILLES`).
