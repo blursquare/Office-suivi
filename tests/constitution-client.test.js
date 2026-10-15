@@ -153,3 +153,29 @@ test('blocsPdfDepuisContenu : un « Me … » en fin de courrier porte le tampon
   assert.ok(types.includes('tampon'));
   assert.ok(types.includes('saut'));
 });
+
+test('rechercheRepertoireConstitution : tous les mots, dans le nom, le service ou la ville', () => {
+  const contacts = [
+    { id: 'a', organisme: 'Crédit Agricole Val de France', service: 'Successions', adresse: '41000 BLOIS' },
+    { id: 'b', organisme: 'Harmonie Mutuelle', adresse: '75015 PARIS' },
+    { id: 'c', organisme: 'Banque Populaire', adresse: '41000 BLOIS' }
+  ];
+  assert.equal(Array.from(app.rechercheRepertoireConstitution('credit blois', contacts), c => c.id).join(','), 'a');
+  assert.equal(Array.from(app.rechercheRepertoireConstitution('harmonie', contacts), c => c.id).join(','), 'b');
+  assert.equal(app.rechercheRepertoireConstitution('', contacts).length, 0);
+});
+
+test('apercuHtmlConstitution : destinataire en tête, tableau, tampon après « Me … », texte échappé', () => {
+  const html = app.apercuHtmlConstitution('MAIRIE\n41000 <BLOIS>\n\nBlois, le 15 octobre 2026\n\n| Section | N° |\n| AB | 12 |\n\nMe Sophie GOSSART', 'REF', { tampon: 'data:image/png;base64,AA' });
+  assert.match(html, /cst-apercu-dest">MAIRIE<br>41000 &lt;BLOIS&gt;/);
+  assert.match(html, /<th>Section<\/th>/);
+  assert.match(html, /af-tampon-signature"><img class="af-tampon"/);
+  assert.ok(!/<BLOIS>/.test(html));
+});
+
+test('resumeDonneesConstitution et resumeDestinataireConstitution', () => {
+  const e = { type: 'vente', proprietaires: [{}, {}], groupes: [{ parcelles: [{ actif: true }, { actif: false }] }] };
+  assert.equal(app.resumeDonneesConstitution(e), '2 vendeurs · 1 parcelle · 1 commune');
+  assert.equal(app.resumeDestinataireConstitution({ lignes: ['CPAM', 'Assurance maladie', '41000 BLOIS'] }), 'CPAM, Assurance maladie');
+  assert.equal(app.resumeDestinataireConstitution({ lignes: [] }), '');
+});

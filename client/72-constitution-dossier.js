@@ -223,6 +223,9 @@
   function initConstitution() {
     if (authToken && !repertoireContacts.length) chargerRepertoire().then(() => { if (cstEtat && cstEtat.type === 'succession') { reconstruireDocumentsConstitution(true); renderConstitution(); } });
     if (authToken) chargerAdressesRetenuesConstitution().then(() => { if (cstEtat) { reconstruireDocumentsConstitution(false); renderConstitution(); } });
+    if (typeof chargerModeleAppelFonds === 'function' && !(window.APPEL_FONDS_MODELE && window.APPEL_FONDS_MODELE.assets)) {
+      chargerModeleAppelFonds().catch(() => null).then(() => majApercuConstitution());
+    }
     renderConstitution();
   }
 
@@ -249,7 +252,7 @@
     const d = dossiers.find(x => x.id === id);
     if (!d) return;
     const type = estSuccession(d) ? 'succession' : 'vente';
-    cstEtat = { dossierId: id, type, message: '', formats: { pdf: true, docx: false }, sorties: {}, enCours: false, documents: [], proprietaires: [], groupes: [], defunt: null, nouveauModele: '' };
+    cstEtat = { dossierId: id, type, message: '', formats: { pdf: true, docx: false }, sorties: {}, enCours: false, documents: [], proprietaires: [], groupes: [], defunt: null, selection: '', compteur: 0 };
     if (type === 'vente') {
       cstEtat.proprietaires = proprietairesConstitution(d);
       cstEtat.groupes = groupesParcellesConstitution(d).map(g => Object.assign(g, { info: { etat: 'chargement' } }));
@@ -323,7 +326,10 @@
     const docs = [];
     ORDRE_SUCCESSION_PAR_DEFAUT.forEach(modele => docs.push(construire(modele, 1)));
     // Les courriers ajoutés (un second établissement bancaire, la mutuelle) restent.
-    e.documents.filter(x => x.ajoute).forEach(x => { docs.push(Object.assign({}, x)); });
+    e.documents.filter(x => x.ajoute).forEach(x => {
+      const apres = docs.map(y => y.modele).lastIndexOf(x.modele);
+      docs.splice(apres >= 0 ? apres + 1 : docs.length, 0, Object.assign({}, x));
+    });
     e.documents = docs;
   }
 
@@ -451,19 +457,32 @@
     x.contactId = c.id;
     renderConstitution();
   }
+  // Un courrier de succession de plus (la mutuelle, une seconde banque) : destinataire vide, à chercher dans le répertoire.
+  function ajouterDocSuccessionConstitution(modele, vide) {
+    const m = modeleCourrierSuccession(modele);
+    if (!m) return null;
+    cstEtat.compteur = (cstEtat.compteur || 0) + 1;
+    const doc = { id: `s:${modele}:a${cstEtat.compteur}`, genre: 'succession', modele, libelle: m.libelle, mode: 'papier', courriel: '', note: '', destinataire: modele, actif: true,
+      lignes: vide ? [] : m.destinataire.slice(), origine: !vide && m.destinataire.length ? 'Adresse type du modèle' : '', modifie: !!vide, ajoute: true, contactId: '' };
+    const dernier = cstEtat.documents.map(x => x.modele).lastIndexOf(modele);
+    cstEtat.documents.splice(dernier >= 0 ? dernier + 1 : cstEtat.documents.length, 0, doc);
+    cstEtat.selection = doc.id;
+    return doc;
+  }
   function cstAjouterDoc() {
     if (!cstEtat || cstEtat.type !== 'succession') return;
     const modele = String((document.getElementById('cst-ajout-modele') || {}).value || '');
-    const m = modeleCourrierSuccession(modele);
-    if (!m) return;
-    const n = cstEtat.documents.filter(x => x.modele === modele).length + 1;
-    cstEtat.documents.push({ id: `s:${modele}:${n}`, genre: 'succession', modele, libelle: m.libelle, mode: 'papier', courriel: '', note: '', destinataire: modele, actif: true, lignes: m.destinataire.slice(),
-      origine: m.destinataire.length ? 'Adresse type du modèle' : '', modifie: false, ajoute: true, contactId: '' });
-    renderConstitution();
+    if (ajouterDocSuccessionConstitution(modele, false)) renderConstitution();
+  }
+  function cstDupliquerDoc(id) {
+    const x = documentConstitution(id);
+    if (!x || x.genre !== 'succession') return;
+    if (ajouterDocSuccessionConstitution(x.modele, true)) { renderConstitution(); const q = document.getElementById('cst-rep-q'); if (q) q.focus(); }
   }
   function cstRetirerDoc(id) {
     if (!cstEtat) return;
     cstEtat.documents = cstEtat.documents.filter(x => !(x.id === id && x.ajoute));
+    if (cstEtat.selection === id) cstEtat.selection = '';
     renderConstitution();
   }
   function cstFormat(format, actif) { if (cstEtat && cstEtat.formats[format] !== undefined) { cstEtat.formats[format] = !!actif; renderConstitution(); } }
@@ -589,6 +608,9 @@
   }
 
   // ---- Affichage ----
+  // Deux colonnes (étude 15/10 : « moins haut, regarder les courriers sur la droite, comme l'appel de fonds ») : à gauche le dossier,
+  // ses données repliées et la liste compacte des courriers ; à droite le courrier choisi — destinataire, recherche dans le répertoire —
+  // et son aperçu sur le papier de l'office.
 
   function puceSourceConstitution(source) {
     return source ? `<span class="dot-label dl-success cst-source" title="Repris de la fiche client d’Authentic"><span class="dot"></span>${escapeHtml(source)}</span>`
@@ -602,114 +624,124 @@
   }
 
   function renderDossierConstitution(d) {
-    const recherche = `<div class="pr-dossier-recherche-bloc"><input type="search" id="cst-recherche" class="nas-choix-recherche" autocomplete="off" placeholder="Rechercher un dossier de vente ou de succession…" oninput="rechercherDossierConstitution(this.value)" aria-label="Rechercher un dossier"><div id="cst-resultats" class="dash-recherche-resultats" style="display:none;"></div></div>`;
-    if (!d) return `${recherche}<p class="hint">Rattachez un dossier : ses parties, son bien et ses références viennent de sa fiche, qui tient les données d’Authentic.</p>`;
+    const recherche = `<div class="pr-dossier-recherche-bloc cst-recherche"><input type="search" id="cst-recherche" class="nas-choix-recherche" autocomplete="off" placeholder="${d ? 'Changer de dossier…' : 'Rechercher un dossier de vente ou de succession…'}" oninput="rechercherDossierConstitution(this.value)" aria-label="Rechercher un dossier"><div id="cst-resultats" class="dash-recherche-resultats" style="display:none;"></div></div>`;
+    if (!d) return `<div class="cst-barre">${recherche}</div><p class="hint cst-vide">Rattachez un dossier : ses parties, son bien et ses références viennent de sa fiche, qui tient les données d’Authentic.</p>`;
     const typeTexte = cstEtat.type === 'succession' ? 'Succession' : 'Vente';
-    return `${recherche}<div class="cst-dossier">
-      <div class="cst-dossier-titre"><strong>${escapeHtml(libelleDossierAffiche(d))}</strong> <span class="dot-label dl-neutre"><span class="dot"></span>${typeTexte}</span></div>
-      <div class="cst-dossier-infos">
-        <span>Référence : <strong>${escapeHtml(d.referenceAuthentic || '— (pas encore relevée dans Authentic)')}</strong></span>
-        <span>En charge : <strong>${escapeHtml(d.responsable || '—')}</strong></span>
-        <span>Dossier du NAS : <strong>${d.nasDossier ? 'relié' : 'non relié'}</strong></span>
-        <wa-button appearance="plain" size="s" type="button" class="bouton-discret" onclick="ouvrirDossierDrawer('${escapeOnclickArg(d.id)}')">Ouvrir la fiche</wa-button>
-      </div></div>`;
+    return `<div class="cst-barre">
+        <div class="cst-dossier">
+          <strong class="cst-dossier-titre">${escapeHtml(libelleDossierAffiche(d))}</strong>
+          <span class="dot-label dl-neutre"><span class="dot"></span>${typeTexte}</span>
+          <span class="cst-dossier-info">Réf. <strong>${escapeHtml(d.referenceAuthentic || '—')}</strong></span>
+          <span class="cst-dossier-info">${escapeHtml(d.responsable || '—')}</span>
+          <span class="cst-dossier-info">NAS <strong>${d.nasDossier ? 'relié' : 'non relié'}</strong></span>
+          <wa-button appearance="plain" size="s" type="button" class="bouton-discret" onclick="ouvrirDossierDrawer('${escapeOnclickArg(d.id)}')">Ouvrir la fiche</wa-button>
+        </div>${recherche}</div>`;
+  }
+
+  // Pure : le résumé d'une ligne des données (le volet replié) — « 2 vendeurs · 3 parcelles · 2 communes ».
+  function resumeDonneesConstitution(e) {
+    if (!e) return '';
+    if (e.type === 'vente') {
+      const parcelles = e.groupes.reduce((n, g) => n + g.parcelles.filter(p => p.actif).length, 0);
+      return [`${e.proprietaires.length} vendeur${e.proprietaires.length > 1 ? 's' : ''}`, `${parcelles} parcelle${parcelles > 1 ? 's' : ''}`, `${e.groupes.length} commune${e.groupes.length > 1 ? 's' : ''}`].join(' · ');
+    }
+    const c = e.defunt.champs;
+    return [[c.prenoms, c.nom].filter(Boolean).join(' ') || 'Défunt à saisir', c.decesDate ? 'décès le ' + formatDateFr(c.decesDate) : 'date de décès à saisir'].join(' · ');
   }
 
   function renderDonneesVenteConstitution(d) {
     const e = cstEtat;
     const proprios = e.proprietaires.map((p, i) => `<div class="cst-ligne">
-        <select class="prop-champ cst-civilite" onchange="cstProprietaire(${i}, 'civilite', this.value)" aria-label="Civilité">${['', 'Monsieur', 'Madame', 'Mademoiselle'].map(c => `<option value="${c}"${p.civilite === c ? ' selected' : ''}>${c || '—'}</option>`).join('')}</select>
-        <input type="text" class="prop-champ" value="${escapeAttr(p.nom)}" oninput="cstProprietaire(${i}, 'nom', this.value)" aria-label="Nom du vendeur">
-        <input type="text" class="prop-champ cst-domicile" value="${escapeAttr(p.domicile)}" placeholder="${p.morale ? 'Siège de la société' : 'Domicile : COMMUNE (CP), voie'}" oninput="cstProprietaire(${i}, 'domicile', this.value)" onchange="renderConstitution()" aria-label="Domicile">
-        ${puceSourceConstitution(p.source)}
+        <select class="prop-champ cst-civilite" onchange="cstProprietaire(${i}, 'civilite', this.value); majApercuConstitution()" aria-label="Civilité">${['', 'Monsieur', 'Madame', 'Mademoiselle'].map(c => `<option value="${c}"${p.civilite === c ? ' selected' : ''}>${c ? c.replace('Monsieur', 'M.').replace('Mademoiselle', 'Mlle').replace('Madame', 'Mme') : '—'}</option>`).join('')}</select>
+        <input type="text" class="prop-champ" value="${escapeAttr(p.nom)}" oninput="cstProprietaire(${i}, 'nom', this.value); majApercuConstitution()" aria-label="Nom du vendeur">
+        <input type="text" class="prop-champ cst-domicile" value="${escapeAttr(p.domicile)}" placeholder="${p.morale ? 'Siège de la société' : 'Domicile : COMMUNE (CP), voie'}" oninput="cstProprietaire(${i}, 'domicile', this.value); majApercuConstitution()" aria-label="Domicile" title="${escapeAttr(p.source ? 'Domicile repris de la fiche client d’Authentic' : 'Domicile à saisir')}">
+        <span class="cst-pastille ${p.source ? 'ok' : 'manque'}" title="${p.source ? 'Repris d’Authentic' : 'À compléter'}"></span>
         <wa-button appearance="plain" size="s" type="button" class="bouton-icone" title="Retirer ce vendeur" onclick="cstRetirerProprietaire(${i})">${icone('x')}</wa-button></div>`).join('');
     const groupes = e.groupes.map(g => {
       const info = g.info || {};
-      const etat = info.etat === 'chargement' ? '<span class="hint">Commune en cours de recherche…</span>'
-        : info.etat === 'ok' ? `<span class="cst-puces"><span class="dot-label dl-neutre"><span class="dot"></span>INSEE ${escapeHtml(info.insee)}</span>${info.epci ? `<span class="dot-label dl-neutre"><span class="dot"></span>${escapeHtml(info.epci.nom)}</span>` : ''}${info.mairieLue ? '' : '<span class="dot-label dl-urgent"><span class="dot"></span>Mairie : annuaire injoignable</span>'}</span>`
-        : `<span class="dot-label dl-urgent"><span class="dot"></span>Commune non retrouvée${info.ambigu && info.ambigu.length ? ' (plusieurs possibles)' : ''} : l’adresse de la mairie est à saisir</span>`;
+      const etat = info.etat === 'chargement' ? '<span class="hint">recherche…</span>'
+        : info.etat === 'ok' ? `<span class="hint">INSEE ${escapeHtml(info.insee)}${info.epci ? ' · ' + escapeHtml(info.epci.nom) : ''}</span>`
+        : '<span class="dot-label dl-urgent"><span class="dot"></span>Commune non retrouvée</span>';
       const lignes = g.parcelles.map((p, i) => `<label class="cst-parcelle${p.actif ? '' : ' cst-off'}"><input type="checkbox"${p.actif ? ' checked' : ''} onchange="cstParcelleActive('${escapeOnclickArg(g.cle)}', ${i}, this.checked)">
-          <span class="cst-parcelle-ref">${escapeHtml([p.prefixe, p.section, p.numero].filter(Boolean).join(' '))}</span><span class="cst-parcelle-lieu">${escapeHtml(p.lieuDit)}</span><span class="cst-parcelle-surf">${escapeHtml(p.surface)}</span>
-          <span class="dot-label ${p.origine === 'Saisie' ? 'dl-urgent' : 'dl-success'} cst-source"><span class="dot"></span>${escapeHtml(p.origine)}</span></label>`).join('');
+          <span class="cst-parcelle-ref">${escapeHtml([p.prefixe, p.section, p.numero].filter(Boolean).join(' '))}</span><span class="cst-parcelle-lieu">${escapeHtml(p.lieuDit)}</span><span class="cst-parcelle-surf">${escapeHtml(/^\s*\d+\s*$/.test(String(p.surface || '')) ? contenanceDepuisCentiares(Number(p.surface)) : p.surface)}</span>
+          <span class="cst-pastille ${p.origine === 'Saisie' ? 'manque' : 'ok'}" title="${escapeAttr(p.origine)}"></span></label>`).join('');
       const k = escapeOnclickArg(g.cle);
       const idc = escapeAttr(g.cle);
-      return `<div class="cst-commune"><div class="cst-commune-tete"><strong>${escapeHtml(g.commune)}${g.cp ? ' (' + escapeHtml(g.cp) + ')' : ''}</strong>${g.principale ? ' <span class="hint">commune du bien</span>' : ''} ${etat}</div>
-        <div class="calc-champ cst-large"><label>Adresse de l’immeuble, telle qu’elle s’écrit dans les courriers</label><input type="text" class="prop-champ" value="${escapeAttr(g.adresseImmeuble)}" oninput="cstGroupe('${k}', 'adresseImmeuble', this.value)"></div>
-        <div class="cst-parcelles">${lignes || '<p class="hint">Aucune parcelle relevée dans Authentic pour cette commune : ajoutez-la.</p>'}</div>
-        <div class="cst-ajout"><input type="text" class="prop-champ" id="cst-np-section-${idc}" placeholder="Section" maxlength="3" aria-label="Section"><input type="text" class="prop-champ" id="cst-np-numero-${idc}" placeholder="N°" maxlength="5" aria-label="Numéro">
-          <input type="text" class="prop-champ" id="cst-np-lieudit-${idc}" placeholder="Adresse ou lieu-dit" aria-label="Lieu-dit"><input type="text" class="prop-champ" id="cst-np-surface-${idc}" placeholder="18 a 22 ca" aria-label="Contenance">
-          <wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="cstAjouterParcelle('${k}')">Ajouter la parcelle</wa-button></div></div>`;
+      return `<div class="cst-commune"><div class="cst-commune-tete"><strong>${escapeHtml(g.commune)}${g.cp ? ' (' + escapeHtml(g.cp) + ')' : ''}</strong> ${etat}</div>
+        <input type="text" class="prop-champ" value="${escapeAttr(g.adresseImmeuble)}" oninput="cstGroupe('${k}', 'adresseImmeuble', this.value); majApercuConstitution()" aria-label="Adresse de l’immeuble dans les courriers" title="Adresse de l’immeuble, telle qu’elle s’écrit dans les courriers">
+        <div class="cst-parcelles">${lignes || '<p class="hint">Aucune parcelle relevée dans Authentic : ajoutez-la.</p>'}</div>
+        <div class="cst-ajout cst-ajout-parcelle"><input type="text" class="prop-champ" id="cst-np-section-${idc}" placeholder="Sect." maxlength="3" aria-label="Section"><input type="text" class="prop-champ" id="cst-np-numero-${idc}" placeholder="N°" maxlength="5" aria-label="Numéro">
+          <input type="text" class="prop-champ" id="cst-np-lieudit-${idc}" placeholder="Lieu-dit" aria-label="Lieu-dit"><input type="text" class="prop-champ" id="cst-np-surface-${idc}" placeholder="5 a 12 ca" aria-label="Contenance">
+          <wa-button appearance="plain" size="s" type="button" class="bouton-icone" title="Ajouter la parcelle" onclick="cstAjouterParcelle('${k}')">+</wa-button></div></div>`;
     }).join('');
-    const autres = (d && d.authentic && Array.isArray(d.authentic.immeubles) && d.authentic.immeubles.length > 1)
-      ? `<p class="hint">Authentic compte ${d.authentic.immeubles.length} immeubles : toutes leurs parcelles sont reprises ci-dessous.</p>` : '';
-    return `<h3 class="cst-sous-titre">Vendeurs <span class="info-i" tabindex="0" data-info="Tous les vendeurs de la fiche, avec le domicile de leur fiche client d’Authentic. Une fiche non lue : ouvrez-la dans Authentic ou saisissez le domicile.">i</span></h3>
+    return `<div class="cst-bloc-titre">Vendeurs ${infoBulle('Tous les vendeurs de la fiche, avec le domicile de leur fiche client d’Authentic (pastille verte). Pastille rouge : à saisir.')}</div>
       ${proprios || '<p class="hint">Aucun vendeur sur la fiche.</p>'}
-      <div class="cst-ajout"><wa-button appearance="outlined" class="bouton-ajout" type="button" onclick="cstAjouterProprietaire()"><span slot="start" class="bouton-ajout-plus">+</span>Ajouter un vendeur</wa-button></div>
-      <h3 class="cst-sous-titre">Immeuble et parcelles par commune</h3>${autres}${groupes}
-      <div class="cst-ajout"><input type="text" class="prop-champ" id="cst-nc-nom" placeholder="Autre commune du bien" aria-label="Autre commune"><input type="text" class="prop-champ" id="cst-nc-cp" placeholder="Code postal" maxlength="5" aria-label="Code postal">
-        <wa-button appearance="outlined" class="bouton-ajout" type="button" onclick="cstAjouterCommune()"><span slot="start" class="bouton-ajout-plus">+</span>Ajouter une commune</wa-button></div>`;
+      <wa-button appearance="plain" size="s" type="button" class="bouton-discret" onclick="cstAjouterProprietaire()">+ Vendeur</wa-button>
+      <div class="cst-bloc-titre">Parcelles par commune ${infoBulle('Toutes les parcelles de tous les immeubles d’Authentic. Une série de courriers par commune.')}</div>${groupes}
+      <div class="cst-ajout"><input type="text" class="prop-champ" id="cst-nc-nom" placeholder="Autre commune" aria-label="Autre commune"><input type="text" class="prop-champ cst-cp" id="cst-nc-cp" placeholder="CP" maxlength="5" aria-label="Code postal">
+        <wa-button appearance="plain" size="s" type="button" class="bouton-discret" onclick="cstAjouterCommune()">+ Commune</wa-button></div>`;
   }
 
   function renderDonneesSuccessionConstitution() {
     const df = cstEtat.defunt;
     const c = df.champs;
     const civ = `<div class="calc-champ"><label>Civilité</label><select class="prop-champ" onchange="cstDefunt('civilite', this.value); cstDefuntFin()"><option${c.civilite === 'Madame' ? ' selected' : ''}>Madame</option><option${c.civilite === 'Monsieur' ? ' selected' : ''}>Monsieur</option></select></div>`;
-    const f = (champ, libelle, type, placeholder, large) => champConstitution(libelle, c[champ], `cstDefunt.bind(null, '${champ}')`, { type, placeholder, large, fin: 'cstDefuntFin()' });
-    return `<p class="cst-source-ligne">${puceSourceConstitution(df.source)} <span class="hint">${df.source ? 'Date de décès, naissance, domicile et situation : lus dans la fiche du défunt dans Authentic.' : ''}</span></p>
+    const f = (champ, libelle, type, placeholder, large) => champConstitution(libelle, c[champ], `cstDefuntApercu.bind(null, '${champ}')`, { type, placeholder, large, fin: 'cstDefuntFin()' });
+    return `<p class="cst-source-ligne">${puceSourceConstitution(df.source)}${df.regime || df.situation ? ` <span class="hint">${escapeHtml(df.situation || '')}${df.regime ? ' · régime : ' : ''}${df.regime ? `<strong>${escapeHtml(df.regime)}</strong>` : ''}</span>` : ' <span class="hint">Régime matrimonial non renseigné dans Authentic.</span>'}</p>
       ${df.avertissements.map(a => `<p class="cst-alerte">${escapeHtml(a)}</p>`).join('')}
       <div class="calc-champs cst-grille">${civ}${f('prenoms', 'Prénoms', 'text', 'Alice Marcelle')}${f('nom', 'Nom', 'text', 'FRA')}
         ${f('domicile', 'Domicile', 'text', 'BRACIEUX (41250), 31 rue de Candy', true)}
-        ${f('naissanceDate', 'Date de naissance', 'date')}${f('naissanceLieu', 'Lieu de naissance', 'text', 'SAINT SOUPLET (59360)')}
-        ${f('decesDate', 'Date de décès', 'date')}${f('decesLieu', 'Lieu de décès', 'text', 'BRACIEUX (41250)')}
-        <div class="calc-champ"><label>Situation</label><select class="prop-champ" onchange="cstDefunt('conjointLien', this.value)">${['', 'Veuve de', 'Veuf de', 'Épouse de', 'Époux de', 'Divorcée de', 'Divorcé de'].map(l => `<option value="${escapeAttr(l)}"${c.conjointLien === l ? ' selected' : ''}>${l || '— (aucune ligne)'}</option>`).join('')}</select></div>
-        ${f('conjointNom', 'Conjoint', 'text', 'Monsieur Maurice Charles FISCHER')}</div>
-      ${df.regime || df.situation ? `<p class="hint cst-regime">Situation matrimoniale d’Authentic : ${escapeHtml(df.situation || '—')}${df.regime ? ` · régime : <strong>${escapeHtml(df.regime)}</strong>` : ''}</p>` : '<p class="hint cst-regime">Régime matrimonial : non renseigné dans Authentic.</p>'}`;
+        ${f('naissanceDate', 'Né(e) le', 'date')}${f('naissanceLieu', 'à', 'text', 'SAINT SOUPLET (59360)')}
+        ${f('decesDate', 'Décédé(e) le', 'date')}${f('decesLieu', 'à', 'text', 'BRACIEUX (41250)')}
+        <div class="calc-champ"><label>Situation</label><select class="prop-champ" onchange="cstDefunt('conjointLien', this.value); majApercuConstitution()">${['', 'Veuve de', 'Veuf de', 'Épouse de', 'Époux de', 'Divorcée de', 'Divorcé de'].map(l => `<option value="${escapeAttr(l)}"${c.conjointLien === l ? ' selected' : ''}>${l || '—'}</option>`).join('')}</select></div>
+        ${f('conjointNom', 'Conjoint', 'text', 'Monsieur Maurice Charles FISCHER')}</div>`;
+  }
+  function cstDefuntApercu(champ, valeur) { cstDefunt(champ, valeur); majApercuConstitution(); }
+
+  // Pure : la ligne de destinataire montrée dans la liste (sa première ligne), « À compléter » si vide.
+  function resumeDestinataireConstitution(doc) {
+    if (doc.mode === 'en-ligne') return doc.note || '';
+    return (doc.lignes || []).filter(Boolean).slice(0, 2).join(', ');
   }
 
-  function renderDocumentConstitution(doc) {
+  function renderItemConstitution(doc) {
     const idDoc = escapeOnclickArg(doc.id);
-    const modeTexte = doc.mode === 'courriel' ? 'Par courriel' : doc.mode === 'en-ligne' ? 'Sur le site de la Ville' : 'Papier';
-    const puceMode = `<span class="dot-label ${doc.mode === 'papier' ? 'dl-neutre' : 'dl-success'}"><span class="dot"></span>${modeTexte}</span>`;
-    if (doc.mode === 'en-ligne') return `<div class="cst-doc cst-off"><div class="cst-doc-tete"><strong>${escapeHtml(doc.libelle)}</strong> ${puceMode}</div><p class="hint">${escapeHtml(doc.note)}</p></div>`;
-    const contacts = doc.genre === 'succession' ? candidatsRepertoireConstitution(doc.modele, typeof repertoireContacts !== 'undefined' ? repertoireContacts : []) : [];
-    const choix = contacts.length
-      ? `<select class="prop-champ cst-contact" onchange="cstChoisirContact('${idDoc}', this.value)" aria-label="Destinataire du répertoire"><option value="">Choisir dans le répertoire…</option>${contacts.map(c => `<option value="${escapeAttr(c.id)}"${doc.contactId === c.id ? ' selected' : ''}>${escapeHtml([c.organisme, c.service].filter(Boolean).join(' — '))}</option>`).join('')}</select>` : '';
-    const retenir = doc.genre === 'vente' ? doc.modeleRetenu : true;
-    const aSortie = cstEtat.sorties[doc.id] || {};
-    return `<div class="cst-doc${doc.actif ? '' : ' cst-off'}"><div class="cst-doc-tete"><wa-switch${doc.actif ? ' checked' : ''} onchange="cstBasculerDoc('${idDoc}', this.checked)"></wa-switch>
-        <strong>${escapeHtml(doc.libelle)}</strong> ${puceMode}${doc.origine ? ` <span class="hint">${escapeHtml(doc.origine)}</span>` : ''}
-        ${doc.ajoute ? `<wa-button appearance="plain" size="s" type="button" class="bouton-icone" title="Retirer ce courrier" onclick="cstRetirerDoc('${idDoc}')">${icone('x')}</wa-button>` : ''}</div>
-      ${doc.note ? `<p class="hint">${escapeHtml(doc.note)}</p>` : ''}
-      <div class="cst-doc-corps"><div class="calc-champ"><label>Destinataire (une ligne par ligne d’adresse)</label>
-          <textarea class="prop-champ" rows="${Math.max(3, Math.min(6, doc.lignes.length + 1))}" oninput="cstLignesDoc('${idDoc}', this.value)" placeholder="Nom de l’organisme, adresse…">${escapeHtml(doc.lignes.join('\n'))}</textarea>${choix}</div>
-        <div class="cst-doc-actions">
-          ${doc.courriel ? `<span class="hint">${escapeHtml(doc.courriel)}</span><wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="emailDocumentConstitution('${idDoc}')">Préparer l’email</wa-button>` : ''}
-          ${retenir && doc.actif ? `<wa-button appearance="plain" size="s" type="button" class="bouton-discret" onclick="cstRetenirAdresse('${idDoc}')" title="Garder cette adresse pour les prochains dossiers">Retenir l’adresse</wa-button>` : ''}
-          <wa-button appearance="plain" size="s" type="button" class="bouton-discret" onclick="telechargerDocumentConstitution('${idDoc}', 'pdf')">PDF</wa-button>
-          <wa-button appearance="plain" size="s" type="button" class="bouton-discret" onclick="telechargerDocumentConstitution('${idDoc}', 'docx')">Word</wa-button>
-          ${aSortie.pdf || aSortie.docx ? '<span class="dot-label dl-success"><span class="dot"></span>Prêt</span>' : ''}</div></div></div>`;
+    const choisi = cstEtat.selection === doc.id;
+    const dest = resumeDestinataireConstitution(doc);
+    if (doc.mode === 'en-ligne') {
+      return `<div class="cst-item cst-off"><span class="cst-item-switch"></span><span class="cst-item-texte"><span class="cst-item-titre">${escapeHtml(doc.libelle)}</span><span class="cst-item-dest">${escapeHtml(dest)}</span></span><span class="dot-label dl-success"><span class="dot"></span>En ligne</span></div>`;
+    }
+    const mode = doc.mode === 'courriel' ? '<span class="dot-label dl-success"><span class="dot"></span>Courriel</span>' : '';
+    const memes = cstEtat.documents.filter(x => x.modele === doc.modele && x.genre === doc.genre && x.groupe === doc.groupe);
+    const rang = memes.length > 1 ? ` ${memes.indexOf(doc) + 1}` : '';
+    return `<div class="cst-item${choisi ? ' choisi' : ''}${doc.actif ? '' : ' cst-off'}" onclick="cstChoisirDoc('${idDoc}')">
+        <span class="cst-item-switch" onclick="event.stopPropagation()"><wa-switch size="small"${doc.actif ? ' checked' : ''} onchange="cstBasculerDoc('${idDoc}', this.checked)" aria-label="Préparer ce courrier"></wa-switch></span>
+        <span class="cst-item-texte"><span class="cst-item-titre">${escapeHtml(doc.libelle)}${rang}</span>
+          <span class="cst-item-dest${dest ? '' : ' manque'}">${escapeHtml(dest || 'Destinataire à compléter')}</span></span>
+        ${mode}
+        ${doc.genre === 'succession' ? `<wa-button appearance="plain" size="s" type="button" class="bouton-icone" title="Un autre courrier du même genre (une seconde banque…)" onclick="event.stopPropagation(); cstDupliquerDoc('${idDoc}')">+</wa-button>` : ''}
+        ${doc.ajoute ? `<wa-button appearance="plain" size="s" type="button" class="bouton-icone" title="Retirer ce courrier" onclick="event.stopPropagation(); cstRetirerDoc('${idDoc}')">${icone('x')}</wa-button>` : ''}
+      </div>`;
   }
 
-  function renderCourriersConstitution(d) {
+  function renderListeCourriersConstitution() {
     const e = cstEtat;
     if (e.type === 'vente') {
+      const parCommune = e.groupes.map(g => `<div class="cst-liste-titre">${escapeHtml(g.commune)}</div>${e.documents.filter(x => x.groupe === g.cle).map(renderItemConstitution).join('')}`).join('');
       const gnau = e.groupes.map(g => {
         const info = g.info || {};
         const depot = info.depot || {};
-        const note = noteGuichetCommune(info.insee);
         const chailles = String(info.insee || '') === INSEE_CHAILLES;
         const lien = chailles ? URL_GNAU_CHAILLES : lienDepotDiaSur(depot.url);
-        const ligne = chailles ? `Guichet unique de Chailles (SIRAP) — <a href="${escapeAttr(URL_GNAU_CHAILLES)}" target="_blank" rel="noopener">ouvrir</a>` : depot.mode === 'guichet' || depot.plateforme ? `${escapeHtml(depot.plateforme || 'Guichet unique')}${lien ? ` — <a href="${escapeAttr(lien)}" target="_blank" rel="noopener">ouvrir</a>` : ''}` : 'guichet non relevé : à vérifier auprès de la mairie';
-        return `<div class="cst-doc cst-off"><div class="cst-doc-tete"><strong>Certificat d’urbanisme et DIA — ${escapeHtml(g.commune)}</strong> <span class="dot-label dl-success"><span class="dot"></span>Sur le GNAU</span></div>
-          <p class="hint">Pas de courrier : ${ligne}.${note ? ' ' + escapeHtml(note) : ''}</p></div>`;
+        const nom = chailles ? 'Guichet de Chailles (SIRAP)' : (depot.plateforme || (depot.mode === 'guichet' ? 'Guichet unique' : 'Guichet non relevé'));
+        return `<div class="cst-gnau"><span>CU et DIA — ${escapeHtml(g.commune)} : ${escapeHtml(nom)}</span>${lien ? `<a href="${escapeAttr(lien)}" target="_blank" rel="noopener">Ouvrir</a>` : ''}</div>`;
       }).join('');
-      return e.groupes.map(g => `<h3 class="cst-sous-titre">${escapeHtml(g.commune)}</h3>${e.documents.filter(x => x.groupe === g.cle).map(renderDocumentConstitution).join('')}`).join('') + `<h3 class="cst-sous-titre">Guichets uniques</h3>${gnau}`;
+      return parCommune + `<div class="cst-liste-titre">Guichets uniques ${infoBulle('Le certificat d’urbanisme et la DIA ne sont pas des courriers : ils se déposent sur le guichet de la commune.')}</div>${gnau}`;
     }
     const modeles = MODELES_COURRIER_SUCCESSION.map(m => `<option value="${escapeAttr(m.cle)}"${m.cle === 'mutuelle' ? ' selected' : ''}>${escapeHtml(m.libelle)}</option>`).join('');
-    return `${e.documents.map(renderDocumentConstitution).join('')}
-      <div class="cst-ajout"><select class="prop-champ" id="cst-ajout-modele" aria-label="Courrier à ajouter">${modeles}</select>
-        <wa-button appearance="outlined" class="bouton-ajout" type="button" onclick="cstAjouterDoc()"><span slot="start" class="bouton-ajout-plus">+</span>Ajouter un courrier</wa-button>
-        <span class="hint">un second établissement bancaire, la mutuelle…</span></div>`;
+    return `${e.documents.map(renderItemConstitution).join('')}
+      <div class="cst-ajout cst-ajout-courrier"><select class="prop-champ" id="cst-ajout-modele" aria-label="Courrier à ajouter">${modeles}</select>
+        <wa-button appearance="outlined" size="s" class="bouton-ajout" type="button" onclick="cstAjouterDoc()"><span slot="start" class="bouton-ajout-plus">+</span>Ajouter</wa-button></div>`;
   }
 
   function renderSortieConstitution(d) {
@@ -717,31 +749,157 @@
     const manques = manquesConstitution(e);
     const n = documentsAGenererConstitution().length;
     const pdfOk = typeof genererPdfAAppelFonds === 'function';
-    return `${manques.length ? `<div class="cst-alerte-bloc"><strong>À vérifier avant d’envoyer</strong>${manques.map(m => `<p class="cst-alerte">${escapeHtml(m)}</p>`).join('')}</div>` : ''}
-      <div class="cst-formats"><label class="reglages-option"><span>PDF signé et tamponné (PDF/A)</span><wa-switch${e.formats.pdf ? ' checked' : ''} onchange="cstFormat('pdf', this.checked)"></wa-switch></label>
-        <label class="reglages-option"><span>Word (tamponné aussi, à retoucher)</span><wa-switch${e.formats.docx ? ' checked' : ''} onchange="cstFormat('docx', this.checked)"></wa-switch></label></div>
-      <div class="reglages-actions">
-        <wa-button variant="brand" pill type="button" ${e.enCours || !n || !pdfOk ? 'disabled ' : ''}onclick="genererConstitution('telecharger')">${e.enCours ? 'Préparation…' : `Tout générer (${n} courrier${n > 1 ? 's' : ''})`}</wa-button>
-        <wa-button appearance="outlined" pill type="button" ${e.enCours || !n ? 'disabled ' : ''}onclick="genererConstitution('imprimer')" title="Les courriers en un seul PDF, ouvert pour l’impression">Imprimer d’un coup</wa-button>
-        <wa-button appearance="outlined" pill type="button" ${e.enCours || !n || !d.nasDossier ? 'disabled ' : ''}onclick="genererConstitution('ranger')" title="${d.nasDossier ? 'À la racine du dossier du NAS, sans écraser' : 'Dossier non relié au NAS'}">Ranger dans le dossier du NAS</wa-button>
+    return `${manques.length ? `<details class="cst-manques"><summary>${manques.length} point${manques.length > 1 ? 's' : ''} à vérifier</summary>${manques.map(m => `<p class="cst-alerte">${escapeHtml(m)}</p>`).join('')}</details>` : ''}
+      <div class="cst-formats"><label><wa-switch size="small"${e.formats.pdf ? ' checked' : ''} onchange="cstFormat('pdf', this.checked)"></wa-switch> PDF/A signé</label>
+        <label><wa-switch size="small"${e.formats.docx ? ' checked' : ''} onchange="cstFormat('docx', this.checked)"></wa-switch> Word</label></div>
+      <div class="cst-actions">
+        <wa-button variant="brand" pill type="button" ${e.enCours || !n || !pdfOk ? 'disabled ' : ''}onclick="genererConstitution('telecharger')">${e.enCours ? 'Préparation…' : `Tout générer (${n})`}</wa-button>
+        <wa-button appearance="outlined" pill type="button" ${e.enCours || !n ? 'disabled ' : ''}onclick="genererConstitution('imprimer')" title="Les courriers en un seul PDF, ouvert pour l’impression">Imprimer</wa-button>
+        <wa-button appearance="outlined" pill type="button" ${e.enCours || !n || !d.nasDossier ? 'disabled ' : ''}onclick="genererConstitution('ranger')" title="${d.nasDossier ? 'À la racine du dossier du NAS, sans écraser' : 'Dossier non relié au NAS'}">Ranger sur le NAS</wa-button>
       </div>
-      <p class="hint" id="cst-message">${escapeHtml(e.message || '')}</p>
-      <p class="hint">Rien ne part tout seul : les courriers sont préparés, vous les relisez, les imprimez ou les envoyez.</p>`;
+      <p class="hint" id="cst-message">${escapeHtml(e.message || '')}</p>`;
+  }
+
+  // Pure : les contacts du répertoire qui répondent à une recherche (organisme, service, personne, ville), 8 au plus.
+  function rechercheRepertoireConstitution(q, contacts) {
+    const mots = normaliserPourRecherche(String(q || '')).split(/[^a-z0-9]+/).filter(m => m.length >= 2);
+    if (!mots.length) return [];
+    return (contacts || []).filter(c => {
+      const t = normaliserPourRecherche([c.organisme, c.service, (c.personnes || []).join(' '), c.adresse, c.theme].filter(Boolean).join(' '));
+      return mots.every(m => t.includes(m));
+    }).slice(0, 8);
+  }
+
+  function lignesContactsConstitution(liste, idDoc) {
+    return liste.map(c => `<button type="button" class="dash-recherche-ligne" onclick="cstChoisirContact('${idDoc}', '${escapeOnclickArg(c.id)}')">
+        <span class="dash-recherche-nom">${escapeHtml([c.organisme, c.service].filter(Boolean).join(' — ') || (c.personnes || [])[0] || '')}</span>
+        <span class="dash-recherche-resp">${escapeHtml(String(c.adresse || '').split(/\n|,/).slice(-1)[0] || '')}</span></button>`).join('');
+  }
+
+  function cstRechercheRepertoire(valeur) {
+    const doc = documentConstitution(cstEtat && cstEtat.selection);
+    const boite = document.getElementById('cst-rep-resultats');
+    if (!doc || !boite) return;
+    const contacts = typeof repertoireContacts !== 'undefined' ? repertoireContacts : [];
+    const q = String(valeur || '').trim();
+    const liste = q ? rechercheRepertoireConstitution(q, contacts) : candidatsRepertoireConstitution(doc.modele, contacts).slice(0, 6);
+    boite.innerHTML = liste.length ? lignesContactsConstitution(liste, escapeOnclickArg(doc.id)) : `<div class="dash-recherche-vide">${q ? 'Rien dans le répertoire pour cette recherche.' : 'Tapez un nom pour chercher dans le répertoire.'}</div>`;
+  }
+
+  function renderEditeurConstitution(doc) {
+    if (!doc) return '<p class="hint">Choisissez un courrier dans la liste.</p>';
+    const idDoc = escapeOnclickArg(doc.id);
+    if (doc.mode === 'en-ligne') return `<div class="cst-edition"><strong>${escapeHtml(doc.libelle)}</strong><p class="hint">${escapeHtml(doc.note)}</p></div>`;
+    const retenir = doc.genre === 'vente' ? doc.modeleRetenu : true;
+    const g = doc.genre === 'vente' ? groupeDuDocumentConstitution(doc) : null;
+    return `<div class="cst-edition">
+      <div class="cst-edition-tete"><strong>${escapeHtml(doc.libelle)}${g ? ' — ' + escapeHtml(g.commune) : ''}</strong>${doc.origine ? ` <span class="hint">${escapeHtml(doc.origine)}</span>` : ''}
+        <span class="cst-edition-actions">
+          ${doc.courriel ? `<wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="emailDocumentConstitution('${idDoc}')" title="${escapeAttr(doc.courriel)}">Préparer l’email</wa-button>` : ''}
+          <wa-button appearance="plain" size="s" type="button" class="bouton-discret" onclick="telechargerDocumentConstitution('${idDoc}', 'pdf')">PDF</wa-button>
+          <wa-button appearance="plain" size="s" type="button" class="bouton-discret" onclick="telechargerDocumentConstitution('${idDoc}', 'docx')">Word</wa-button>
+        </span></div>
+      ${doc.note ? `<p class="hint">${escapeHtml(doc.note)}</p>` : ''}
+      <div class="cst-edition-corps">
+        <div class="calc-champ"><label>Destinataire</label>
+          <textarea class="prop-champ" id="cst-dest" rows="4" oninput="cstLignesDoc('${idDoc}', this.value); majApercuConstitution(); majItemConstitution()" placeholder="Nom de l’organisme&#10;Service&#10;Adresse&#10;CP VILLE">${escapeHtml(doc.lignes.join('\n'))}</textarea>
+          ${retenir ? `<wa-button appearance="plain" size="s" type="button" class="bouton-discret" onclick="cstRetenirAdresse('${idDoc}')" title="Garder cette adresse pour les prochains dossiers">Retenir l’adresse</wa-button>` : ''}</div>
+        <div class="calc-champ cst-rep"><label>Chercher dans le répertoire</label>
+          <input type="search" class="nas-choix-recherche" id="cst-rep-q" autocomplete="off" placeholder="Nom, ville… (Crédit Agricole, Harmonie…)" oninput="cstRechercheRepertoire(this.value)">
+          <div id="cst-rep-resultats" class="cst-rep-resultats"></div></div>
+      </div></div>`;
+  }
+
+  // Pure : l'aperçu HTML d'un courrier sur le papier de l'office (en-tête, colonne de gauche, corps, tampon) — le contenu est le même
+  // que celui du Word et du PDF (blocsDocumentAgent). Tout texte est échappé.
+  function apercuHtmlConstitution(contenu, ref, assets) {
+    const a = assets || {};
+    const img = (src, cls, alt) => src ? `<img class="${cls}" src="${escapeAttr(src)}" alt="${escapeAttr(alt)}">` : '';
+    const gras = (t) => morceauxGrasAgent(t).map(m => m.gras ? `<b>${escapeHtml(m.texte)}</b>` : escapeHtml(m.texte)).join('').replace(/\n/g, '<br>');
+    const blocs = blocsDocumentAgent(contenu, true);
+    let html = '';
+    let page = 0;
+    blocs.forEach((b, i) => {
+      if (b.type === 'saut') { page++; html += '<div class="cst-saut">Page suivante</div>'; return; }
+      if (b.type === 'tableau') {
+        html += `<table class="cst-apercu-table">${b.lignes.map((l, k) => `<tr>${l.map(c => k === 0 ? `<th>${escapeHtml(c)}</th>` : `<td>${escapeHtml(c)}</td>`).join('')}</tr>`).join('')}</table>`;
+        return;
+      }
+      if (b.type === 'puce' || b.type === 'numero') { html += `<p class="cst-apercu-puce">${b.type === 'puce' ? '- ' : escapeHtml(b.numero) + '. '}${gras(b.texte)}</p>`; return; }
+      if (b.type === 'titre1' || b.type === 'titre2') { html += `<p><b>${escapeHtml(b.texte)}</b></p>`; return; }
+      if (i === 0 && page === 0) { html += `<div class="af-entete-droite cst-apercu-dest">${gras(b.texte)}</div>`; return; }
+      if (RE_LIEU_DATE_COURRIER.test(b.texte) && b.texte.length < 80) { html += `<div class="af-entete-droite cst-apercu-date">${escapeHtml(b.texte)}</div>`; return; }
+      if (/^Me\s/.test(b.texte) && (i === blocs.length - 1 || (blocs[i + 1] && blocs[i + 1].type === 'saut'))) {
+        html += `<div class="af-signature">${escapeHtml(b.texte)}</div><div class="af-tampon-signature">${img(a.tampon, 'af-tampon', '')}${img(a.signature, 'af-signature-image', '')}</div>`;
+        return;
+      }
+      html += `<p>${gras(b.texte)}</p>`;
+    });
+    return `<div class="af-lettre cst-lettre">
+      <div class="af-topbar">${img(a.logoNotaires, 'af-logo-notaires', 'Notaires de France')}<div class="af-office-id">${img(a.logoOffice, 'af-logo-office', 'Me Sophie GOSSART')}<div class="af-office-addr">3 RUE DU BOUT DES HAIES – 41000 BLOIS</div></div></div>
+      <div class="af-lettre-grid"><aside class="af-lettre-aside">
+          <div class="af-aside-bloc"><div class="af-aside-titre">NOUS CONTACTER</div><div class="af-aside-ligne">02 54 78 61 70</div><div class="af-aside-ligne"><span class="af-aside-lien">office.gossart@notaires.fr</span></div><div class="af-aside-ligne">3 rue du Bout des Haies<br>41000 BLOIS</div></div>
+          <div class="af-aside-bloc"><div class="af-aside-ligne">Nos Réf : ${escapeHtml(ref || '')}</div></div>
+          <div class="af-aside-bloc"><div class="af-aside-titre">HORAIRES</div><div class="af-aside-ligne">Du lundi au vendredi</div><div class="af-aside-ligne">9 h – 12 h, 14 h – 18 h</div></div>
+        </aside><div class="af-lettre-corps">${html}</div></div></div>`;
+  }
+
+  function majApercuConstitution() {
+    const zone = document.getElementById('cst-apercu');
+    const doc = documentConstitution(cstEtat && cstEtat.selection);
+    const d = dossierConstitution();
+    if (!zone) return;
+    if (!doc || !d || doc.mode === 'en-ligne') { zone.innerHTML = '<p class="hint cst-vide">Pas de courrier à montrer.</p>'; return; }
+    try {
+      const assets = (window.APPEL_FONDS_MODELE && window.APPEL_FONDS_MODELE.assets) || {};
+      zone.innerHTML = apercuHtmlConstitution(contenuDocumentConstitution(doc), d.nom || '', assets);
+    } catch (e) { zone.innerHTML = '<p class="hint">Aperçu impossible.</p>'; console.error(e); }
+  }
+
+  // La ligne du courrier choisi dans la liste suit la saisie du destinataire, sans redessiner l'écran (la saisie garde le curseur).
+  function majItemConstitution() {
+    const doc = documentConstitution(cstEtat && cstEtat.selection);
+    const el = document.querySelector('.cst-item.choisi .cst-item-dest');
+    if (!doc || !el) return;
+    const dest = resumeDestinataireConstitution(doc);
+    el.textContent = dest || 'Destinataire à compléter';
+    el.classList.toggle('manque', !dest);
+  }
+
+  function cstChoisirDoc(id) {
+    if (!cstEtat || !documentConstitution(id)) return;
+    cstEtat.selection = id;
+    renderConstitution();
   }
 
   function renderConstitution() {
     const zone = document.getElementById('cst-corps');
     if (!zone) return;
     const d = dossierConstitution();
-    if (!cstEtat || !d) {
-      zone.innerHTML = `<div class="calc-card"><h2 class="outil-section-tete" data-etape="dossier">Dossier</h2>${renderDossierConstitution(null)}</div>`;
-      if (typeof majSommaireOutil === 'function') majSommaireOutil('constitution');
-      return;
+    if (!cstEtat || !d) { zone.innerHTML = renderDossierConstitution(null); return; }
+    if (!documentConstitution(cstEtat.selection)) {
+      const premier = cstEtat.documents.find(x => x.actif && x.mode !== 'en-ligne') || cstEtat.documents.find(x => x.mode !== 'en-ligne');
+      cstEtat.selection = premier ? premier.id : '';
     }
-    zone.innerHTML = `
-      <div class="calc-card"><h2 class="outil-section-tete" data-etape="dossier">Dossier</h2>${renderDossierConstitution(d)}</div>
-      <div class="calc-card"><h2 class="outil-section-tete" data-etape="donnees">${cstEtat.type === 'vente' ? 'Vendeurs et parcelles' : 'Le défunt'}</h2>${cstEtat.type === 'vente' ? renderDonneesVenteConstitution(d) : renderDonneesSuccessionConstitution()}</div>
-      <div class="calc-card"><h2 class="outil-section-tete" data-etape="courriers">Courriers</h2>${renderCourriersConstitution(d)}</div>
-      <div class="calc-card"><h2 class="outil-section-tete" data-etape="sortie">Sortie</h2>${renderSortieConstitution(d)}</div>`;
-    if (typeof majSommaireOutil === 'function') majSommaireOutil('constitution');
+    const volet = zone.querySelector('.cst-donnees');
+    if (volet && volet.dataset.dossier === cstEtat.dossierId) cstEtat.donneesOuvertes = !!volet.open;
+    const ouvert = cstEtat.donneesOuvertes !== undefined ? cstEtat.donneesOuvertes : manquesConstitution(cstEtat).some(m => !/parcelle/i.test(m));
+    const doc = documentConstitution(cstEtat.selection);
+    zone.innerHTML = `${renderDossierConstitution(d)}
+      <div class="cst-plan">
+        <div class="cst-gauche">
+          <wa-details class="cst-donnees" data-dossier="${escapeAttr(cstEtat.dossierId)}"${ouvert ? ' open' : ''}>
+            <span slot="summary" class="cst-donnees-resume"><strong>${cstEtat.type === 'vente' ? 'Vendeurs et parcelles' : 'Le défunt'}</strong> <span class="hint">${escapeHtml(resumeDonneesConstitution(cstEtat))}</span></span>
+            ${cstEtat.type === 'vente' ? renderDonneesVenteConstitution(d) : renderDonneesSuccessionConstitution()}
+          </wa-details>
+          <div class="calc-card cst-courriers"><div class="cst-bloc-titre">Courriers <span class="hint">${documentsAGenererConstitution().length} à préparer</span></div>${renderListeCourriersConstitution()}</div>
+          <div class="calc-card cst-sortie">${renderSortieConstitution(d)}</div>
+        </div>
+        <div class="cst-droite">
+          <div class="calc-card cst-editeur">${renderEditeurConstitution(doc)}</div>
+          <div class="cst-apercu" id="cst-apercu"></div>
+        </div>
+      </div>`;
+    majApercuConstitution();
+    if (doc && doc.mode !== 'en-ligne') cstRechercheRepertoire('');
   }

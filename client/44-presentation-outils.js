@@ -19,12 +19,6 @@
       { cle: 'financement', libelle: 'Financement' },
       { cle: 'courrier', libelle: 'Courrier', fait: () => !!afHistoriqueId }
     ],
-    constitution: [
-      { cle: 'dossier', libelle: 'Dossier', fait: () => !!cstEtat },
-      { cle: 'donnees', libelle: 'Données', fait: () => !!cstEtat && manquesConstitution(cstEtat).length === 0 },
-      { cle: 'courriers', libelle: 'Courriers', fait: () => !!cstEtat && documentsAGenererConstitution().length > 0 },
-      { cle: 'sortie', libelle: 'Sortie', fait: () => !!cstEtat && Object.keys(cstEtat.sorties || {}).length > 0 }
-    ],
     quotites: [
       { cle: 'dossier', libelle: 'Dossier', fait: () => !!(document.getElementById('qt-dossier-pill') || {}).innerHTML },
       { cle: 'bien', libelle: 'Bien' },

@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.240.4';
+  const VERSION_APP = '0.241.0';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.241.0', date: '2026-10-15 21:02', resume: "Constitution de dossier en deux colonnes : à gauche les données (repliées) et la liste compacte des courriers, à droite le courrier choisi avec son aperçu sur le papier de l'office. Un « + » crée un second courrier du même genre (deux banques, deux mutuelles) et une recherche par nom dans le répertoire remplit le destinataire." },
     { version: '0.240.4', date: '2026-10-15 20:49', resume: "Constitution de dossier : contenance des parcelles écrite en ares et centiares (surface d'Authentic en m²), destinataire « À compléter » bien placé dans le PDF, texte de Blois mis à jour." },
     { version: '0.240.3', date: '2026-10-15 20:37', resume: "Constitution de dossier : adresse du service des géomètres de Blois corrigée (geometres.notaires@blois.fr) pour les demandes d'alignement et de numérotage." },
     { version: '0.240.2', date: '2026-10-15 20:35', resume: "Constitution de dossier : lien vers le guichet unique de Chailles (portail SIRAP) pour le certificat d'urbanisme et la DIA." },
