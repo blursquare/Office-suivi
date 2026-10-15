@@ -17,6 +17,21 @@ const { envoyerEmail, envoiConfigure, memeAdresseEmail } = require('../envoiEmai
 const { mettreCopiesEnAttente } = require('../nettoyageGmail');
 const { urlLienPiece, baseDepuisRequete } = require('../liensPieces');
 const { adressesLan } = require('../reseau');
+const { formaterMontantEuros } = require('../../../commun/montants');
+
+// Factures des successions (étude 15/10 : « simplifier la comptabilité pour Sophie et lui permettre de suivre s'il y a des factures en
+// attente de règlement ») : chaque facture rangée par Claire Scan dans « Factures à régler » est annoncée sur Teams à Sophie GOSSART
+// (adresse réglée avec celles des collaborateurs), avec le dossier, l'organisme et le montant. Pures.
+const DESTINATAIRE_FACTURES_SUCCESSION = 'Sophie GOSSART';
+function texteFactureSuccession(dossierNom, organisme, montant, url) {
+  const m = Number.isFinite(montant) && montant > 0 ? formaterMontantEuros(montant) : 'montant non lu';
+  return `🧾 CLAIRE — Facture à régler · ${dossierNom} : ${organisme || 'organisme non lu'} — ${m}.${url ? `\n${url}` : ''}`;
+}
+function htmlFactureSuccession(dossierNom, organisme, montant, url) {
+  const m = Number.isFinite(montant) && montant > 0 ? formaterMontantEuros(montant) : 'montant non lu';
+  const e = (x) => String(x == null ? '' : x).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  return `🧾 CLAIRE — Facture à régler sur la succession <b>${e(dossierNom)}</b> :<br>• Organisme : ${e(organisme || 'non lu')}<br>• Montant : <b>${e(m)}</b>${url ? `<br>• <a href="${e(url)}">Ouvrir la facture</a>` : ''}`;
+}
 
 // Fonction pure et testable : le corps du message, séparé de l'envoi lui-même. Pas d'objet à
 // construire — celui de l'email transporte l'adresse du destinataire, lue par le flux pour router
@@ -304,6 +319,28 @@ function creerRouteurNotifications(parametresRepo, envoyerFn, options = {}) {
     res.json(await envoyerAuResponsable(parametresRepo, envoyer, reglages, responsable, message, { sansCopiePour }));
   });
 
+  router.post('/notifications/facture-succession', async (req, res) => { try {
+    const c = req.body || {};
+    const t = (v, n) => (typeof v === 'string' ? v.replace(/\s+/g, ' ').trim().slice(0, n) : '');
+    const dossierNom = t(c.dossierNom, 160);
+    const chemin = t(c.chemin, 400);
+    if (!dossierNom) return res.status(400).json({ erreur: 'dossierNom manquant.' });
+    const montant = Number(c.montant);
+    const organisme = t(c.organisme, 120);
+    const reglages = parametresRepo.lireReglages();
+    if (!envoiConfigure(reglages)) return res.json({ ok: true, ignore: true });
+    // Une même facture (même fichier) n'est annoncée qu'une fois, comme une pièce trouvée.
+    if (chemin && typeof parametresRepo.lirePiecesNotifiees === 'function') {
+      const r = dedoublonnerPieces(parametresRepo.lirePiecesNotifiees(), t(c.dossierId, 80) || dossierNom, [{ label: 'facture-succession', chemin }], horloge());
+      parametresRepo.ecrirePiecesNotifiees(r.registre);
+      if (!r.aEnvoyer.length) return res.json({ ok: true, ignore: true, dejaNotifiee: true });
+    }
+    let url = '';
+    if (chemin && typeof parametresRepo.lireSecretLiens === 'function') url = urlLienPiece(baseDepuisRequete(req, adresses), parametresRepo.lireSecretLiens(), chemin);
+    const message = { texte: texteFactureSuccession(dossierNom, organisme, Number.isFinite(montant) ? montant : null, url), html: htmlFactureSuccession(dossierNom, organisme, Number.isFinite(montant) ? montant : null, url) };
+    res.json(await envoyerAuResponsable(parametresRepo, envoyer, reglages, DESTINATAIRE_FACTURES_SUCCESSION, message));
+  } catch (e) { console.error('[CLAIRE] Facture de succession :', e && e.message); if (!res.headersSent) res.status(500).json({ erreur: 'Envoi impossible.' }); } });
+
   const envoisRecents = [];
   function demandesDansLaMinute(maintenant) {
     while (envoisRecents.length && maintenant - envoisRecents[0] > 60000) envoisRecents.shift();
@@ -354,4 +391,4 @@ function texteDemandeCollaborateur(auteur, texte, dossierNom, date) {
   return `📌 CLAIRE — ${auteur || 'Un collaborateur'} vous demande : ${texte}${dossierNom ? ` (dossier ${dossierNom})` : ''}${date ? `, pour le ${dateLongueFr(date)}` : ''}. La tâche est dans votre liste « Aujourd’hui » de CLAIRE.`;
 }
 
-module.exports = { texteDemandeCollaborateur, creerRouteurNotifications, dedoublonnerPieces, texteNotificationPieces, htmlNotificationPieces, texteDossierComplet, texteDateAjoutee, texteTacheFaite, texteRendezVousAgenda, envoyerAuResponsable };
+module.exports = { texteFactureSuccession, htmlFactureSuccession, DESTINATAIRE_FACTURES_SUCCESSION, texteDemandeCollaborateur, creerRouteurNotifications, dedoublonnerPieces, texteNotificationPieces, htmlNotificationPieces, texteDossierComplet, texteDateAjoutee, texteTacheFaite, texteRendezVousAgenda, envoyerAuResponsable };

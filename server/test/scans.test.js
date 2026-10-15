@@ -307,3 +307,32 @@ test('trouverDossierScans : racine d’un partage Windows acceptée avec la barr
   const vide = { stat: async () => { throw new Error('ENOENT'); }, readdir: async () => { throw new Error('ENOENT'); } };
   assert.equal(await trouverDossierScans(config, vide), null);
 });
+
+test('rangerScan : sous-dossier d’une succession (« Factures à régler », « Courrier reçu ») créé s’il manque, repris sinon ; tout autre nom refusé', async () => {
+  const base = fs.mkdtempSync(path.join(os.tmpdir(), 'claire-succ-'));
+  const nasS = path.join(base, 'nas');
+  const scanS = path.join(base, 'Scan');
+  fs.mkdirSync(path.join(nasS, 'SUCC DURAND Jeanne', 'courrier recu'), { recursive: true });
+  fs.mkdirSync(scanS);
+  try {
+    fs.writeFileSync(path.join(scanS, 'A.pdf'), '%PDF facture inventée');
+    let r = await rangerScan({ dossierScans: scanS, nasRacine: nasS, nom: 'A.pdf', dossierNas: 'SUCC DURAND Jeanne', rubriques: [], nomCible: 'Facture - POMPES FUNEBRES TEST - Claire Scan', sousDossier: 'Factures à régler' });
+    assert.equal(r.rubrique, 'Factures à régler');
+    assert.ok(fs.existsSync(path.join(nasS, 'SUCC DURAND Jeanne', 'Factures à régler', 'Facture - POMPES FUNEBRES TEST - Claire Scan.pdf')));
+    fs.writeFileSync(path.join(scanS, 'B.pdf'), '%PDF courrier inventé');
+    r = await rangerScan({ dossierScans: scanS, nasRacine: nasS, nom: 'B.pdf', dossierNas: 'SUCC DURAND Jeanne', rubriques: [], nomCible: 'Courrier - Claire Scan', sousDossier: 'Courrier reçu' });
+    assert.equal(r.rubrique, 'courrier recu', 'le dossier existant (casse, accents) est repris');
+    fs.writeFileSync(path.join(scanS, 'C.pdf'), '%PDF');
+    r = await rangerScan({ dossierScans: scanS, nasRacine: nasS, nom: 'C.pdf', dossierNas: 'SUCC DURAND Jeanne', rubriques: [], nomCible: 'x', sousDossier: '../ailleurs' });
+    assert.equal(r.statut, 400);
+    assert.ok(fs.existsSync(path.join(scanS, 'C.pdf')), 'refusé : l’original reste');
+  } finally { fs.rmSync(base, { recursive: true, force: true }); }
+});
+
+test('notification Teams d’une facture de succession : dossier, organisme, montant, lien', () => {
+  const { texteFactureSuccession, htmlFactureSuccession, DESTINATAIRE_FACTURES_SUCCESSION } = require('../src/routes/notifications');
+  assert.equal(DESTINATAIRE_FACTURES_SUCCESSION, 'Sophie GOSSART');
+  assert.equal(texteFactureSuccession('SUCC - DURAND', 'POMPES FUNÈBRES TEST', 2345, '').replace(/\s/g, ' '), '🧾 CLAIRE — Facture à régler · SUCC - DURAND : POMPES FUNÈBRES TEST — 2.345,00 €.');
+  assert.match(texteFactureSuccession('SUCC - DURAND', '', null, ''), /organisme non lu — montant non lu/);
+  assert.match(htmlFactureSuccession('SUCC - <X>', 'A & B', 12.5, 'http://h/l'), /SUCC - &lt;X&gt;.*A &amp; B.*12,50\s€.*href="http:\/\/h\/l"/);
+});

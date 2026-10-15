@@ -294,3 +294,41 @@ test('comparants d’une succession : la qualité « Défunt » / « Héritier �
   assert.match(app.noterComparantsSuccession([], c)[0], /défunt DURAND Jeanne ; 3 héritiers/);
   assert.equal(app.noterComparantsSuccession(c, c).length, 0);
 });
+
+test('Claire Scan dans une succession : facture → « Factures à régler » (organisme, montant), courrier et renonciation → « Courrier reçu »', () => {
+  const facture = 'POMPES FUNÈBRES DU VAL — 12 rue des Lilas 41000 BLOIS\nFACTURE N° 2026-118 du 03/10/2026\nObsèques de Madame Jeanne DURAND\nCercueil 1 450,00\nTotal HT 1 980,00\nTVA 396,00\nTotal TTC 2 376,00 €\nNet à payer 2 376,00 €';
+  assert.equal(app.montantFactureScan(facture), 2376);
+  assert.equal(app.montantFactureScan('Montant TTC : 89.90 EUR le 12/10/2026'), 89.9);
+  assert.equal(app.montantFactureScan('Montant à régler 1.234,56 €'), 1234.56);
+  assert.equal(app.montantFactureScan('Aucun montant ici, date 12/10/2026'), null);
+  assert.equal(app.organismeFactureScan(facture, []), 'POMPES FUNÈBRES DU VAL');
+  // Un organisme du répertoire cité en tête l'emporte.
+  assert.equal(app.organismeFactureScan('EHPAD LES TILLEULS\nFacture de septembre', [{ organisme: 'EHPAD Les Tilleuls' }]), 'EHPAD Les Tilleuls');
+
+  const r = app.rangementScanSuccession({ page1: facture, texte: facture }, 'facture', []);
+  assert.deepEqual([r.sousDossier, r.nomCible, r.facture.organisme, r.facture.montant], ['Factures à régler', 'Facture - POMPES FUNÈBRES DU VAL - Claire Scan', 'POMPES FUNÈBRES DU VAL', 2376]);
+  const courrier = 'CRÉDIT AGRICOLE\nSuccession de Madame Jeanne DURAND\nMaître, nous vous informons du solde des comptes…';
+  assert.equal(app.rangementScanSuccession({ page1: courrier }, null, []).sousDossier, 'Courrier reçu');
+  assert.equal(app.rangementScanSuccession({ page1: courrier }, null, []).facture, null);
+  assert.equal(app.rangementScanSuccession({ page1: 'Greffe du tribunal judiciaire\nDéclaration de renonciation à succession' }, 'renonciationSuccession', []).nomCible, 'Renonciation à succession - Claire Scan');
+  // Les pièces d'état civil gardent leur rangement habituel.
+  assert.equal(app.rangementScanSuccession({ page1: 'Acte de naissance' }, 'etatCivil', []), null);
+
+  // Proposition complète : dossier de succession reconnu, rangé seul (même sans type), sous-dossier choisi.
+  const d = base({ id: 's13', nasDossier: 'SUCC DURAND', parties: [{ nom: 'Jeanne DURAND', role: 'PARTIE' }, { nom: 'Marc DURAND', role: 'PARTIE' }] });
+  const p = app.propositionScan({ page1: courrier.replace('Jeanne DURAND', 'Jeanne DURAND et Monsieur Marc DURAND'), texte: courrier.replace('Jeanne DURAND', 'Jeanne DURAND et Monsieur Marc DURAND') }, [d], '2026-10-15T10:00:00Z');
+  assert.deepEqual([p.dossierId, p.sousDossier, p.automatique], ['s13', 'Courrier reçu', true]);
+  const pv = app.propositionScan({ page1: courrier, texte: courrier }, [base({ id: 'v1', typeAffaire: 'vente', nasDossier: 'X', parties: [{ nom: 'Jeanne DURAND', role: 'VENDEUR' }, { nom: 'Marc DURAND', role: 'VENDEUR' }] })], '');
+  assert.equal(pv.sousDossier, undefined, 'une vente garde ses rubriques');
+
+  // Fiche : facture notée une fois par fichier, en attente jusqu'à « réglée » ; liste de l'étude.
+  const f = app.noterFactureSuccession(d, r.facture, 'SUCC DURAND/Factures à régler/Facture.pdf', '2026-10-15T10:00:00Z');
+  assert.equal(app.noterFactureSuccession(d, r.facture, 'SUCC DURAND/Factures à régler/Facture.pdf', '2026-10-15T11:00:00Z'), null);
+  assert.equal(app.facturesARegler(d).length, 1);
+  assert.equal(app.facturesAReglerEtude([d, base({ id: 'v2', typeAffaire: 'vente' })]).map(x => x.f.organisme).join(), 'POMPES FUNÈBRES DU VAL');
+  f.regleeLe = '2026-10-20';
+  assert.equal(app.facturesARegler(d).length, 0);
+  const cartes = [];
+  app.cartesFacturesSuccessionFiche(Object.assign({}, d, { succession: { factures: [Object.assign({}, f, { regleeLe: '' })] } }), (col, c) => cartes.push(col + ':' + c.titre + ':' + c.sous));
+  assert.match(cartes[0], /^faire:Régler la facture — POMPES FUNÈBRES DU VAL:2\.376,00\s€ · reçue le/);
+});

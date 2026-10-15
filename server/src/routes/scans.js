@@ -119,7 +119,8 @@ function creerRouteurScans(config, parametresRepo, horloge = () => Date.now()) {
         dossierScans, nasRacine: config.nasRacine, nom,
         dossierNas: typeof b.dossierNas === 'string' ? b.dossierNas : '',
         rubriques: Array.isArray(b.rubriques) ? b.rubriques.filter((x) => typeof x === 'string').slice(0, 5) : [],
-        nomCible: typeof b.nomCible === 'string' ? b.nomCible : ''
+        nomCible: typeof b.nomCible === 'string' ? b.nomCible : '',
+        sousDossier: typeof b.sousDossier === 'string' && b.sousDossier ? b.sousDossier : ''
       });
       if (r.erreur) { res.status(r.statut || 400).json({ erreur: r.erreur }); return; }
       const entree = {

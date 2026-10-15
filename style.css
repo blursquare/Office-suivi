@@ -9578,6 +9578,18 @@ table.pr-zt td.pr-zt-retenue select { min-width: 120px; min-height: 32px; height
 .fcddv-notaire { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--rayon-m); }
 .fcddv-liste { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
 .fcddv-insc { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.succ-factures { list-style: none; margin: 4px 0 12px; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.succ-facture { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.succ-facture .succ-facture-organisme { flex: 1 1 180px; min-width: 0; }
+.succ-facture .succ-facture-montant { flex: 0 1 120px; min-width: 0; font-variant-numeric: tabular-nums; }
+.succ-facture.reglee .prop-champ { text-decoration: line-through; color: var(--muted); }
+.succ-factures-vide { margin: 4px 0 12px; }
+.scans-factures { margin-bottom: 16px; }
+.scans-factures ul { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.scans-factures li { display: grid; grid-template-columns: auto minmax(0, 1fr) minmax(0, 1fr) auto auto; gap: 10px; align-items: center; font-size: var(--texte-m); }
+.scans-factures li > * { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.scans-factures li strong { font-variant-numeric: tabular-nums; }
+@media (max-width: 640px) { .scans-factures li { grid-template-columns: auto minmax(0, 1fr) auto; } .scans-factures li > .hint { display: none; } }
 .fcddv-email, .fcddv-ajout { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .fcddv-email .prop-champ, .fcddv-ajout input.prop-champ { flex: 1 1 200px; min-width: 0; }
 .fcddv-ajout select.prop-champ { flex: 0 1 220px; min-width: 0; }

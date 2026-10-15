@@ -50,6 +50,8 @@
     { cle: 'certificatNumerotage', label: 'Certificat de numérotage', piece: 'certificatNumerotage', motif: /numerotage/, rubriques: ['aae'] },
     // Une DIA envoyée, une notification à la SAFER ou une demande au SPANC ne sont pas des réponses (audit 12/10 : cochées
     // comme reçues) : la pièce n'est cochée que sur une réponse (renonciation, décision) ; sinon le type sans pièce qui suit.
+    // Succession (étude 15/10) : une renonciation d'héritier va dans « Courrier reçu » (voir client/75-factures-succession.js).
+    { cle: 'renonciationSuccession', label: 'Renonciation à succession', motif: /renonc\S* (purement et simplement )?a (la |sa |une )?succession|declaration de renonciation|acte de renonciation/, rubriques: [] },
     { cle: 'renonciationPreemption', label: 'Renonciation au droit de préemption', piece: 'renonciationPreemption', motif: /preemption|intention d'aliener/, exige: /renonc|ne pas (exercer|preempter|faire usage)|non[- ]?exercice|n'entend pas|ne preemptera|decide de ne pas|pas usage/, refuse: /veuillez (nous|me) (adresser|transmettre|faire parvenir)|nous vous (serions|saurions) gre|nous vous prions de bien vouloir|je vous prie de bien vouloir (me|nous) (adresser|transmettre|faire parvenir)|cerfa|(?<!votre )(?<!vu la )demande de (certificat|controle|raccordement)/, rubriques: ['aae'] },
     { cle: 'demandePreemption', label: "Déclaration d'intention d'aliéner (DIA) ou notification", motif: /preemption|intention d'aliener|safer/, rubriques: ['aae'] },
     { cle: 'reponseAssainissement', label: 'Courrier réponse assainissement', piece: 'reponseAssainissement', motif: /assainissement|spanc/, refuse: /veuillez (nous|me) (adresser|transmettre|faire parvenir)|nous vous (serions|saurions) gre|nous vous prions de bien vouloir|je vous prie de bien vouloir (me|nous) (adresser|transmettre|faire parvenir)|cerfa|(?<!votre )(?<!vu la )demande de (certificat|controle|raccordement)/, rubriques: ['aae'] },
@@ -288,11 +290,15 @@
     const personne = id.personnes && id.personnes.length === 1 ? id.personnes[0] : '';
     const rubriques = rubriquesScan(type, id.role);
     const relie = !!(d && d.nasDossier);
-    return {
+    const p = {
       dossierId: d ? d.id : null, dossierSur: id.sur, score: id.score, second: id.second, raisons: id.raisons, candidats: id.candidats,
       type: type ? type.cle : null, rubriques, nomCible: nomCibleScan(type, { date: dateIso, personne }),
       relie, automatique: !!(id.sur && type && relie)
     };
+    // Succession (étude 15/10) : courrier → « Courrier reçu », facture → « Factures à régler » ; rangé seul même sans type reconnu.
+    appliquerRangementSuccessionScan(p, d, lecture, p.type, typeof repertoireContacts !== 'undefined' ? repertoireContacts : []);
+    if (p.sousDossier) p.automatique = !!(id.sur && relie);
+    return p;
   }
   // --- fin du socle pur des scans ---------------------------------------------------------------
 
@@ -508,7 +514,7 @@
             }), DUREE_MAX_LECTURE_SCAN_MS);
             const proposition = propositionScan(lecture, dossiersCandidatsScans(), scan.date);
             noterJournalTechnique({ categorie: 'scan-lu', dureeMs: Date.now() - debutLecture, ocr: !!lecture.viaOcr, reconnu: !!(proposition && proposition.type), sur: !!(proposition && proposition.automatique), type: (proposition && proposition.type) || '' });
-            lecturesScans[cle] = { statut: 'pret', lecture: { viaOcr: lecture.viaOcr, pages: lecture.pages, texte: lecture.texte }, proposition, choix: choixDepuisProposition(proposition) };
+            lecturesScans[cle] = { statut: 'pret', lecture: { viaOcr: lecture.viaOcr, pages: lecture.pages, texte: lecture.texte, page1: lecture.page1 }, proposition, choix: choixDepuisProposition(proposition) };
           } catch (e) {
             lecturesScans[cle] = { statut: 'erreur', erreur: e.message || 'Lecture impossible', choix: choixDepuisProposition(null, scan.date) };
           }
@@ -527,7 +533,8 @@
   // Ce que l'étude valide : dossier, type, nom de la copie (les rubriques suivent le type).
   function choixDepuisProposition(p, date) {
     if (!p) return { dossierId: '', type: '', nomCible: nomCibleScan(null, { date }), rubriques: [] };
-    return { dossierId: p.dossierId || '', type: p.type || '', nomCible: p.nomCible, rubriques: p.rubriques.slice() };
+    return { dossierId: p.dossierId || '', type: p.type || '', nomCible: p.nomCible, rubriques: p.rubriques.slice(),
+      sousDossier: p.sousDossier || '', facture: p.facture ? Object.assign({}, p.facture) : null };
   }
 
   function scanParNom(nom) { return (etatScans.scans || []).find(s => s.nom === nom) || null; }
@@ -546,6 +553,8 @@
       const id = d ? scoreDossierScan(d, texteMotsScan((l.lecture && l.lecture.texte) || '')) : null;
       l.choix.rubriques = rubriquesScan(type, id ? id.role : null);
       l.choix.nomCible = nomCibleScan(type, { date: scan.date, personne: id && id.personnes.length === 1 ? id.personnes[0] : '' });
+      appliquerRangementSuccessionScan(l.choix, d, l.lecture, l.choix.type, typeof repertoireContacts !== 'undefined' ? repertoireContacts : []);
+      if (!l.choix.sousDossier) { l.choix.sousDossier = ''; l.choix.facture = null; }
     }
     renderScans();
   }
@@ -565,7 +574,7 @@
     try {
       const r = await fetchAvecAuth('/api/scans/ranger', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nom, dossierNas: d.nasDossier, rubriques: choix.rubriques, nomCible: choix.nomCible,
+        body: JSON.stringify({ nom, dossierNas: d.nasDossier, rubriques: choix.rubriques, nomCible: choix.nomCible, sousDossier: choix.sousDossier || '',
           dossierId: d.id, dossier: libelleDossierAffiche(d), type: choix.type, auteur: auto ? 'CLAIRE' : (utilisateurPoste || ''), auto: !!auto,
           score: l && l.proposition && l.proposition.dossierId === d.id ? l.proposition.score : null })
       });
@@ -580,7 +589,7 @@
       // Pièce ajoutée/cochée et responsable prévenu tout de suite, sans attendre le parcours du NAS
       // (relancé ensuite pour le reste : il ne renotifie pas une pièce déjà « reçue »). Ni l'un ni
       // l'autre ne retient plus l'écran (étude, 01/10 : « c'est lors du clic que c'est long »).
-      enregistrerPieceRangee(d, choix, corps, auto)
+      (choix.sousDossier ? enregistrerScanSuccession(d, choix, corps, auto) : enregistrerPieceRangee(d, choix, corps, auto))
         .catch(e => console.warn('Pièce rangée non enregistrée :', e.message))
         .then(() => { if (typeof verifierDossierLocal === 'function') verifierDossierLocal(d.id, false).catch(() => {}); });
     } finally {
@@ -946,7 +955,7 @@
         <label class="scan-champ scan-champ-large"><span>Nom de la copie</span><input type="text" value="${escapeAttr(c.nomCible)}" oninput="changerChoixScan('${nomArg}', 'nomCible', this.value)" onchange="renderScans()"${bloque}></label>
       </div>
       <div class="scan-actions">
-        <span class="hint">Rubrique : ${escapeHtml(libelleRubriquesScan(c.rubriques))}</span>
+        <span class="hint">${c.sousDossier ? `Sous-dossier : ${escapeHtml(c.sousDossier)}${c.facture ? ` · ${escapeHtml(c.facture.organisme || 'organisme à préciser')} · ${c.facture.montant ? escapeHtml(formaterPrixCentimes(c.facture.montant)) : 'montant non lu'}` : ''}` : `Rubrique : ${escapeHtml(libelleRubriquesScan(c.rubriques))}`}</span>
         <wa-button appearance="outlined" class="secondary scan-bouton" onclick="ecarterScan('${nomArg}')"${bloque}>${ecart ? `${icone('spinner', null, true)} Déplacement…` : 'Laisser dans Scan'}</wa-button>
         <wa-button variant="brand" class="primary scan-bouton" onclick="rangerScanChoisi('${nomArg}', false)"${occupe || !c.dossierId ? ' disabled' : ''}>${enCours ? `${icone('spinner', null, true)} Rangement…` : 'Ranger'}</wa-button>
       </div>
@@ -982,7 +991,7 @@
     const ecartesHtml = ecartes.length ? `<details class="scans-ecartes"><summary>Laissés dans Scan (${ecartes.length})</summary>
         <ul>${ecartes.map(s => `<li><span>${escapeHtml(s.nom)}</span><button type="button" class="lien-action" onclick="retablirScan('${escapeOnclickArg(s.nom)}')">Reproposer</button></li>`).join('')}</ul>
       </details>` : '';
-    zone.innerHTML = `<div class="calc-card">${liste}${ecartesHtml}</div>${journalHtml}`;
+    zone.innerHTML = `${renderFacturesAReglerScans()}<div class="calc-card">${liste}${ecartesHtml}</div>${journalHtml}`;
   }
 
   function initScans() {

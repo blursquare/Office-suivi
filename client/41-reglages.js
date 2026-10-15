@@ -29,6 +29,10 @@
   // reprise ici telle quelle plutôt que de refactoriser les <select> existants du formulaire/de la
   // fiche dossier, qui n'ont pas besoin de cette liste sous forme de variable.
   var RESPONSABLES = ['Bastien ANGLUMENT', 'Julie VASSELIN', 'Jérémy SAUJOT'];
+  // Sophie GOSSART n'est pas responsable de dossiers, mais reçoit sur Teams les factures des successions rangées par Claire Scan
+  // (étude 15/10) : son adresse est réglée avec celles des collaborateurs.
+  var NOTAIRE_TEAMS = 'Sophie GOSSART';
+  var PERSONNES_EMAILS_REGLAGES = RESPONSABLES.concat([NOTAIRE_TEAMS]);
 
   // Seul transport d'envoi proposé depuis l'écran Réglages : un compte Gmail avec mot de passe
   // d'application, port 587 en STARTTLS. Microsoft 365 est écarté (pas de droits d'administration
@@ -235,15 +239,15 @@
   // fonction, écrite sous son nom dans la signature de ses emails.
   function renderReglagesEmails(emailsResponsables, fonctionsResponsables) {
     const fonctions = fonctionsResponsables || {};
-    document.getElementById('reglages-emails-liste').innerHTML = RESPONSABLES.map((nom, i) => `
+    document.getElementById('reglages-emails-liste').innerHTML = PERSONNES_EMAILS_REGLAGES.map((nom, i) => `
       <div class="reglages-champ reglages-champ-haut">
-        <div class="reglages-champ-libelle"><label for="reglages-email-${i}">${escapeHtml(nom)}</label></div>
+        <div class="reglages-champ-libelle"><label for="reglages-email-${i}">${escapeHtml(nom)}</label>${nom === NOTAIRE_TEAMS ? ' ' + infoBulle('Reçoit sur Teams chaque facture d’une succession rangée par Claire Scan dans « Factures à régler » (dossier, organisme, montant).') : ''}</div>
         <div class="reglages-champ-pile">
           <div class="reglages-champ-ligne">
             <input type="email" id="reglages-email-${i}" data-responsable="${escapeAttr(nom)}" placeholder="prenom.nom@notaires.fr" value="${escapeAttr(emailsResponsables[nom] || '')}">
             <wa-button appearance="outlined" class="secondary" onclick="testerEnvoiResponsable('${escapeOnclickArg(nom)}')">Tester</wa-button>
           </div>
-          <input type="text" id="reglages-fonction-${i}" class="reglages-fonction" aria-label="Fonction de ${escapeAttr(nom)} dans la signature" placeholder="Fonction dans la signature : ${escapeAttr(FONCTIONS_SIGNATURE_DEFAUT[nom] || 'Collaborateur')}" value="${escapeAttr(fonctions[nom] || '')}">
+          ${nom === NOTAIRE_TEAMS ? '' : `<input type="text" id="reglages-fonction-${i}" class="reglages-fonction" aria-label="Fonction de ${escapeAttr(nom)} dans la signature" placeholder="Fonction dans la signature : ${escapeAttr(FONCTIONS_SIGNATURE_DEFAUT[nom] || 'Collaborateur')}" value="${escapeAttr(fonctions[nom] || '')}">`}
           <p class="hint reglages-email-resultat" id="reglages-email-resultat-${i}"></p>
         </div>
       </div>
@@ -348,7 +352,7 @@
   function reglagesFormulaireVersObjet() {
     const emailsResponsables = {};
     const fonctionsResponsables = {};
-    RESPONSABLES.forEach((nom, i) => {
+    PERSONNES_EMAILS_REGLAGES.forEach((nom, i) => {
       const champ = document.getElementById(`reglages-email-${i}`);
       const valeur = champ ? champ.value.trim() : '';
       if (valeur) emailsResponsables[nom] = valeur;
@@ -420,7 +424,7 @@
   }
 
   async function testerEnvoiResponsable(nom, malgreAvertissement) {
-    const i = RESPONSABLES.indexOf(nom);
+    const i = PERSONNES_EMAILS_REGLAGES.indexOf(nom);
     const resultat = document.getElementById(`reglages-email-resultat-${i}`);
     const champ = document.getElementById(`reglages-email-${i}`);
     const saisie = champ ? champ.value.trim() : '';

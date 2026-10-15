@@ -245,7 +245,7 @@ async function cheminLibre(dossier, nomFichier, fsImpl = fsp) {
 // Copie du scan dans le dossier client, puis déplacement de l'original dans l'archive du dossier
 // Scan. Renvoie les chemins utiles au journal. Toute erreur avant la fin de la copie laisse
 // l'original en place (et retire une copie partielle).
-async function rangerScan({ dossierScans, nasRacine, nom, dossierNas, rubriques, nomCible, maintenant = new Date() }, fsImpl = fsp) {
+async function rangerScan({ dossierScans, nasRacine, nom, dossierNas, rubriques, nomCible, sousDossier, maintenant = new Date() }, fsImpl = fsp) {
   if (!nomScanValide(nom)) return { erreur: 'Nom de scan invalide.', statut: 400 };
   const source = path.join(dossierScans, nom);
   if (!(await existe(source, fsImpl))) return { erreur: 'Ce scan n’est plus dans le dossier Scan (déjà rangé ?).', statut: 404 };
@@ -256,7 +256,13 @@ async function rangerScan({ dossierScans, nasRacine, nom, dossierNas, rubriques,
   try { st = await fsImpl.stat(dossierClient); } catch (_) { st = null; }
   if (!st || !st.isDirectory()) return { erreur: 'Dossier client introuvable sur le NAS.', statut: 404 };
 
-  const rubrique = await resoudreRubrique(dossierClient, rubriques, (d) => listerSousDossiers(d, fsImpl));
+  let rubrique = await resoudreRubrique(dossierClient, rubriques, (d) => listerSousDossiers(d, fsImpl));
+  // Succession (étude 15/10) : « Courrier reçu » ou « Factures à régler », créé s'il manque.
+  if (sousDossier) {
+    const r = await sousDossierCree(dossierClient, sousDossier, fsImpl);
+    if (r.erreur) return r;
+    rubrique = r.rubrique;
+  }
   const dossierCible = path.join(dossierClient, rubrique);
   const cible = await cheminLibre(dossierCible, nomFichierSur(nomCible), fsImpl);
   let dateSource = '';
@@ -309,7 +315,21 @@ function extensionPieceJointe(nom) {
 
 // Sous-dossiers que CLAIRE peut CRÉER dans un dossier client (liste fermée, jamais un nom venu du poste) : « Constitution » reçoit
 // les courriers de « Constitution de dossier » (étude 15/10 : « un nouveau dossier sur le commun qui s'appelle Constitution »).
-const SOUS_DOSSIERS_CREES = ['Constitution'];
+// « Courrier reçu » et « Factures à régler » reçoivent les scans d'une succession (étude 15/10 : simplifier la comptabilité de Sophie).
+const SOUS_DOSSIERS_CREES = ['Constitution', 'Courrier reçu', 'Factures à régler'];
+
+// Le sous-dossier `sousDossier` (de la liste fermée) du dossier client : un dossier du même nom déjà là (casse ou accents près :
+// « CONSTITUTION », « Courrier recu ») est repris tel quel ; sinon il est créé. → { rubrique } ou { erreur, statut }.
+async function sousDossierCree(dossierClient, sousDossier, fsImpl = fsp) {
+  if (!SOUS_DOSSIERS_CREES.includes(sousDossier)) return { erreur: 'Sous-dossier non permis.', statut: 400 };
+  const cle = (n) => nomRubriqueNormalise(n);
+  const existant = (await listerSousDossiers(dossierClient, fsImpl)).find((n) => cle(n) === cle(sousDossier));
+  if (existant) return { rubrique: existant };
+  try { await fsImpl.mkdir(path.join(dossierClient, sousDossier)); } catch (e) {
+    if (!(e && e.code === 'EEXIST')) return { erreur: 'Création du dossier « ' + sousDossier + ' » impossible : ' + (e && e.code ? e.code : 'erreur'), statut: 500 };
+  }
+  return { rubrique: sousDossier };
+}
 
 async function copierDansDossierClient({ nasRacine, dossierNas, rubriques, nomCible, extension, contenu, sousDossier }, fsImpl = fsp) {
   if (!Buffer.isBuffer(contenu) || !contenu.length) return { erreur: 'Pièce jointe vide.', statut: 400 };
@@ -322,15 +342,9 @@ async function copierDansDossierClient({ nasRacine, dossierNas, rubriques, nomCi
   if (!st || !st.isDirectory()) return { erreur: 'Dossier client introuvable sur le NAS.', statut: 404 };
   let rubrique = await resoudreRubrique(dossierClient, rubriques, (d) => listerSousDossiers(d, fsImpl));
   if (sousDossier) {
-    if (!SOUS_DOSSIERS_CREES.includes(sousDossier)) return { erreur: 'Sous-dossier non permis.', statut: 400 };
-    // Un dossier du même nom déjà là (« CONSTITUTION », « constitution ») est repris tel quel ; sinon il est créé.
-    const existant = (await listerSousDossiers(dossierClient, fsImpl)).find((n) => n.toLowerCase() === sousDossier.toLowerCase());
-    rubrique = existant || sousDossier;
-    if (!existant) {
-      try { await fsImpl.mkdir(path.join(dossierClient, rubrique)); } catch (e) {
-        if (!(e && e.code === 'EEXIST')) return { erreur: 'Création du dossier « ' + sousDossier + ' » impossible : ' + (e && e.code ? e.code : 'erreur'), statut: 500 };
-      }
-    }
+    const r = await sousDossierCree(dossierClient, sousDossier, fsImpl);
+    if (r.erreur) return r;
+    rubrique = r.rubrique;
   }
   const base = nomFichierSur(nomCible, 'Pièce jointe').replace(/\.pdf$/i, '');
   const cible = await cheminLibre(path.join(dossierClient, rubrique), `${base}.${extension}`, fsImpl);
@@ -351,7 +365,7 @@ function ajouterAuJournal(journal, entree) {
 }
 
 module.exports = {
-  copierDansDossierClient, extensionPieceJointe, EXTENSIONS_PIECE_JOINTE, SOUS_DOSSIERS_CREES,
+  copierDansDossierClient, extensionPieceJointe, EXTENSIONS_PIECE_JOINTE, SOUS_DOSSIERS_CREES, sousDossierCree,
   trouverDossierScans, parentsCandidats, partagesScansCandidats, depuisMsScans, nomScanValide, listerScans, oublierScansAnciens, nomRubriqueNormalise,
   resoudreRubrique, nomFichierSur, cheminLibre, rangerScan, ajouterAuJournal,
   RUBRIQUES_SCANS, NOM_ARCHIVE_SCANS, DELAI_STABILITE_MS, MAX_JOURNAL
