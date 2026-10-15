@@ -2236,7 +2236,7 @@
     const signature = !!(d && document.getElementById('agenda-creation-signature') && document.getElementById('agenda-creation-signature').checked);
     if (!sujet || !/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^\d{2}:\d{2}$/.test(heure)) { afficherToast('Titre, date et heure sont nécessaires.', 'OK', null); return; }
     // Rendez-vous ouvert depuis une fiche de succession (client/76) : l'ouverture est notée sur la fiche après la création.
-    const lienFiche = agendaModale && agendaModale.lien;
+    const lienFiche = agendaModale && agendaModale.lien && d && agendaModale.lien.dossierId === d.id ? agendaModale.lien : null;
     const creer = async () => {
       const bouton = document.getElementById('agenda-creation-ok');
       if (bouton) { bouton.disabled = true; bouton.textContent = 'Création…'; }

@@ -914,7 +914,7 @@
     if (!e) return { html: '<p>Le barème n’a pas pu être appliqué à ce prix.</p>' };
     const libelleType = type === 'condo' ? 'immeuble en copropriété' : type === 'land' ? 'terrain à bâtir' : 'immeuble hors copropriété';
     const ouvrir = () => {
-      definirOnglet('calculateur');
+      ouvrirProvisionSansDossier();
       const champ = id => document.getElementById(id);
       if (champ('calc-price')) champ('calc-price').value = String(prix);
       if (champ('calc-dept')) champ('calc-dept').value = dept;

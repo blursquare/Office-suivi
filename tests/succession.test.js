@@ -397,3 +397,38 @@ test('vente : agenda et outils reliés à la fiche (placer le rendez-vous, provi
   assert.equal(app.renderProvisionFondsFiche(v), '');
   assert.match(app.renderProvisionFondsFiche(Object.assign({}, v, { provision: p })), /ouvrirProvisionDepuisFiche\('v9'\)/);
 });
+
+test('relecture 15/10 : prénom composé, veuve héritière, montant de facture, scan sans type, rendez-vous de la déclaration', () => {
+  const C = require('../commun/constitution');
+  // Le fils « Jean-Pierre » n'est pas le père « Jean » ; « Jean-Pierre » et « Jean Pierre » restent la même personne.
+  assert.equal(C.memePersonneNommee('Jean-Pierre DUPONT', 'DUPONT Jean'), false);
+  assert.equal(C.memePersonneNommee('Marie-Claire DUPONT', 'DUPONT Marie'), false);
+  assert.equal(C.memePersonneNommee('Jean-Pierre DUPONT', 'DUPONT Jean Pierre'), true);
+  assert.equal(C.memePersonneNommee('DUPONT Jean-Pierre', 'Jean-Pierre DUPONT'), true);
+  assert.equal(C.memePersonneNommee('Marie DUPONT', 'DUPONT Marie'), true);
+  // Défunt « DUPONT Jean » : la fiche du fils lue en premier n'est pas prise pour la sienne.
+  const d = base({ authentic: { comparants: [{ nom: 'DUPONT Jean', role: 'DEFUNT' }, { nom: 'DUPONT Jean-Pierre', role: 'HERITIER' }],
+    fichesClients: { a: { nom: 'Jean-Pierre DUPONT', prenom: 'Jean-Pierre', nomFamille: 'DUPONT' }, b: { nom: 'Jean DUPONT', prenom: 'Jean', nomFamille: 'DUPONT', deces: { date: '2026-03-01' } } } } });
+  assert.equal(C.defuntDepuisFiches(d).fiche.nom, 'Jean DUPONT');
+
+  // Une héritière « veuve de » le défunt, ou « épouse de » lui : conjoint survivant.
+  assert.equal(S.conjointSurvivant(base({ authentic: { comparants: [{ nom: 'DUPONT Jean', role: 'DEFUNT' }, { nom: 'DUPONT Marie', role: 'HERITIER', lien: 'Veuve de', conjoint: 'Monsieur DUPONT Jean' }] } })), true);
+  assert.equal(S.conjointSurvivant(base({ authentic: { comparants: [{ nom: 'DUPONT Jean', role: 'DEFUNT' }, { nom: 'DUPONT Marie', role: 'HERITIER', lien: 'Épouse de', conjoint: 'Monsieur DUPONT Jean' }] } })), true);
+  // L'épouse d'un AUTRE (un héritier marié ailleurs) n'en est pas une.
+  assert.equal(S.conjointSurvivant(base({ authentic: { comparants: [{ nom: 'DUPONT Jean', role: 'DEFUNT' }, { nom: 'MARTIN Léa', role: 'HERITIER', lien: 'Épouse de', conjoint: 'Monsieur MARTIN Paul' }] } })), false);
+
+  // Montant d'une facture corrigé à la main : les centimes restent.
+  assert.equal(app.montantSaisiAppelFonds('1.234,56 €'), 1234.56);
+
+  // Réponse du FCDDV scannée : nommée pour que la pièce « FCDDV » se coche (et soit lue).
+  const fcddv = app.rangementScanSuccession({ page1: 'FICHIER CENTRAL DES DISPOSITIONS DE DERNIÈRES VOLONTÉS Réponse à l\'interrogation' }, null, []);
+  assert.equal(fcddv.nomCible, 'Réponse FCDDV - Claire Scan');
+  assert.match(fcddv.nomCible, S.PIECES_SUCCESSION.find(x => x.cle === 'fcddv').motifNom);
+
+  // Déclaration de succession après la notoriété signée : la case « signature » est cochée (la fiche apprend le rendez-vous).
+  const ds = base({ id: 's41', succession: { ouvertureLe: '2026-06-01', type: 'classique' }, echeancesValidees: { notoriete: true }, rendezVousSignature: '2026-07-10' });
+  const r = app.rdvAgendaSuccession(ds, 'declarationSuccession', '2026-10-15');
+  assert.equal(r.apresNotoriete, true);
+  // Le rendez-vous de la déclaration placé (après aujourd'hui) : plus rien à placer.
+  assert.equal(app.rdvAgendaSuccession(Object.assign({}, ds, { rendezVousSignature: '2026-11-20' }), 'declarationSuccession', '2026-10-15'), null);
+});

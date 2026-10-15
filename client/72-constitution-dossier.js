@@ -265,6 +265,12 @@
   function choisirDossierConstitution(id) {
     const d = dossiers.find(x => x.id === id);
     if (!d) return;
+    // Courriers en préparation (plan cadastral attendu, rangement sur le NAS…) : ils sont faits pour CE dossier — pas de changement avant la fin.
+    if (cstEtat && cstEtat.enCours) {
+      const enCours = dossiers.find(x => x.id === cstEtat.dossierId);
+      afficherToast(`Courriers de ${enCours ? libelleDossierAffiche(enCours) : 'l’autre dossier'} en préparation : attendez la fin pour changer de dossier.`);
+      return;
+    }
     const type = estSuccession(d) ? 'succession' : 'vente';
     cstEtat = { dossierId: id, type, message: '', formats: { pdf: true, docx: false }, signe: true, sorties: {}, enCours: false, documents: [], proprietaires: [], groupes: [], defunt: null, selection: '', compteur: 0 };
     if (type === 'vente') {
@@ -690,6 +696,7 @@
 
   // Un courrier par email : le texte du courrier dans le corps, la fenêtre d'email s'ouvre pour relire et envoyer (rien ne part seul).
   async function emailDocumentConstitution(id) {
+    const e = cstEtat;
     const doc = documentConstitution(id);
     const d = dossierConstitution();
     if (!doc || !d) return { ok: false };
@@ -704,8 +711,12 @@
       }
       // Courrier de vente : le plan cadastral surligné de la commune joint (étude 15/10).
       if (doc.genre === 'vente') {
-        for (const p of await plansPdfConstitution(groupeDuDocumentConstitution(doc))) pieces.push({ nom: p.nom, type: 'application/pdf', contenuBase64: await base64DepuisBlob(p.blob) });
+        const g = groupeDuDocumentConstitution(doc);
+        if (g && g.plan && g.plan.etat !== 'fini') majMessageConstitution(`Plan cadastral de ${g.commune} : attente de cadastre.gouv.fr…`);
+        for (const p of await plansPdfConstitution(g)) pieces.push({ nom: p.nom, type: 'application/pdf', contenuBase64: await base64DepuisBlob(p.blob) });
       }
+      // Un autre dossier choisi pendant l'attente : rien n'est préparé avec un mélange des deux.
+      if (cstEtat !== e) return { ok: false };
       const r = await livrerEmailDossier({ destinataire: doc.courriel, sujet: objetEmailConstitution(doc, d, cstEtat.defunt && cstEtat.defunt.champs, groupeDuDocumentConstitution(doc)),
         corps: texte + (suite ? '\n\nVous trouverez ci-joint le questionnaire à nous retourner.' : ''), pieces, responsableSignature: d.responsable, dossierId: d.id, geste: 'constitution' });
       if (r && r.ok) {
@@ -723,14 +734,19 @@
     if (!cstEtat || cstEtat.enCours) return;
     const docs = documentsAGenererConstitution().filter(x => x.mode === 'courriel');
     if (!docs.length) { afficherToast('Aucun courrier coché par email.'); return; }
+    const e = cstEtat;
     let faits = 0;
-    for (const doc of docs) {
-      cstEtat.selection = doc.id;
-      renderConstitution();
-      const r = await emailDocumentConstitution(doc.id);
-      if (!r || !r.ok) break;
-      faits++;
-    }
+    e.enCours = true;
+    try {
+      for (const doc of docs) {
+        e.selection = doc.id;
+        renderConstitution();
+        const r = await emailDocumentConstitution(doc.id);
+        if (!r || !r.ok) break;
+        faits++;
+      }
+    } finally { e.enCours = false; }
+    renderConstitution();
     majMessageConstitution(`${faits} email${faits > 1 ? 's' : ''} sur ${docs.length} préparé${faits > 1 ? 's' : ''}.`);
   }
 

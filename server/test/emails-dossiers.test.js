@@ -43,6 +43,9 @@ test('pur : objet normalisé, email préparé retrouvé dans les envois (objet, 
   assert.equal(E.texteSansCitation('Merci, voici le RIB.\n\nLe 1 oct. 2026, Office a écrit :\n> Bonjour'), 'Merci, voici le RIB.');
   const boites = E.boitesEnvoyes({ email: 'Bastien@office.fr' }, { emailsResponsables: { 'Bastien ANGLUMENT': 'bastien@office.fr', 'Julie VASSELIN': 'julie@office.fr' } });
   assert.equal(boites.map((b) => `${b.collaborateur}:${b.propre}`).join(','), 'Bastien ANGLUMENT:true,Julie VASSELIN:false');
+  // L'adresse de Sophie, gardée pour Teams (factures de succession), n'est jamais une boîte lue.
+  const avecSophie = E.boitesEnvoyes({ email: 'bastien@office.fr' }, { emailsResponsables: { 'Bastien ANGLUMENT': 'bastien@office.fr', 'Sophie GOSSART': 'sophie@office.fr' } });
+  assert.equal(avecSophie.map((b) => b.collaborateur).join(','), 'Bastien ANGLUMENT');
 });
 
 test('tour : reçu rattaché (texte jamais gardé, pièces jointes listées), envoyés relus, accès refusé signalé, préparé confirmé', async () => {

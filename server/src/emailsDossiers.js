@@ -187,12 +187,16 @@ function texteSansCitation(t) {
   return (fin > 0 ? lignes.slice(0, fin) : lignes).join('\n').replace(/\n{3,}/g, '\n\n').trim();
 }
 
+// Adresses gardées dans les Réglages pour Teams seulement (étude 15/10 : factures de succession à Sophie) — jamais une boîte lue.
+const PERSONNES_TEAMS_SEULEMENT = ['Sophie GOSSART'];
+
 // Boîtes dont les envois sont lus : le compte relié, puis chaque collaborateur qui a une adresse.
 function boitesEnvoyes(reglagesExchange, reglagesRappels) {
   const compte = String(reglagesExchange.email || '').trim().toLowerCase();
   const parAdresse = new Map();
   const emails = (reglagesRappels && reglagesRappels.emailsResponsables) || {};
   for (const [nom, adr] of Object.entries(emails)) {
+    if (PERSONNES_TEAMS_SEULEMENT.includes(nom)) continue;
     const a = String(adr || '').trim().toLowerCase();
     if (/@/.test(a) && !parAdresse.has(a)) parAdresse.set(a, nom);
   }

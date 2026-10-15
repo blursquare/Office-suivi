@@ -245,7 +245,14 @@
     if (!ma.length || !mb.length) return false;
     const [court, long] = ma.length <= mb.length ? [ma, mb] : [mb, ma];
     if (court.length < 2 && long.length >= 2) return false;
-    return court.every((m) => long.includes(m));
+    if (!court.every((m) => long.includes(m))) return false;
+    // Prénom composé (relecture 15/10) : « Jean-Pierre DUPONT » n'est pas « Jean DUPONT » (le fils pris pour le père défunt) ;
+    // « Jean-Pierre » = « Jean Pierre » reste vrai.
+    const composes = (/** @type {string} */ t) => (String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().match(/[a-z0-9]+(?:-[a-z0-9]+)+/g) || []);
+    const ca = composes(a), cb = composes(b);
+    const couvre = (/** @type {string[]} */ comp, /** @type {string[]} */ mots, /** @type {string[]} */ compAutre) =>
+      comp.every((c) => compAutre.includes(c) || c.split('-').filter((m) => m.length >= 2).every((m) => mots.includes(m)));
+    return couvre(ca, mb, cb) && couvre(cb, ma, ca);
   }
 
   /**

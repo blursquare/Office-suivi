@@ -88,6 +88,10 @@
     }
     if (typeCle && TYPES_SCAN_HORS_COURRIER_SUCCESSION.includes(typeCle)) return null;
     if (typeCle === 'renonciationSuccession') return { sousDossier: SOUS_DOSSIER_COURRIER_SUCCESSION, nomCible: `Renonciation à succession - ${SUFFIXE_NOM_SCAN}`, facture: null };
+    // Réponse du fichier central des dernières volontés (relecture 15/10) : nommée pour que la pièce « FCDDV » se coche et soit lue.
+    if (/dispositions\s+de\s+derni[èe]res\s+volont|fichier\s+central\s+des\s+dispositions|\bFCDDV\b/i.test(page1)) {
+      return { sousDossier: SOUS_DOSSIER_COURRIER_SUCCESSION, nomCible: `Réponse FCDDV - ${SUFFIXE_NOM_SCAN}`, facture: null };
+    }
     const organisme = organismeFactureScan(page1, contacts);
     return { sousDossier: SOUS_DOSSIER_COURRIER_SUCCESSION, nomCible: `Courrier${organisme ? ' - ' + organisme : ''} - ${SUFFIXE_NOM_SCAN}`, facture: null };
   }
@@ -181,8 +185,8 @@
     const f = d && factureSuccessionParId(d, factureId);
     if (!f || !['organisme', 'montant'].includes(champ)) return;
     if (champ === 'montant') {
-      const n = eurosDepuisSaisie(valeur);
-      f.montant = Number.isFinite(n) && n > 0 ? n : null;
+      const n = montantSaisiAppelFonds(valeur);
+      f.montant = Number.isFinite(n) && n > 0 ? Math.round(n * 100) / 100 : null;
     } else f.organisme = String(valeur || '').trim().slice(0, 120);
     sauvegarder(d);
     render();

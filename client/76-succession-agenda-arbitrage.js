@@ -23,7 +23,8 @@
     let date = etape === 'ouvertureSuccession' ? (auj ? addDays(auj, 7) : auj) : (e.fenetreDebut || e.iso || auj);
     if (date < auj) date = auj;
     const suffixe = etape === 'notoriete' && /declaration/i.test(normaliserPourRecherche(e.label)) ? 'Notoriété et déclaration de succession' : def.suffixe;
-    return { titre: `${libelleDossierAffiche(d)} - ${suffixe}`, date, signature: def.signature };
+    const noto = etapesSuccession(d, auj).find(x => x.type === 'notoriete');
+    return { titre: `${libelleDossierAffiche(d)} - ${suffixe}`, date, signature: def.signature, apresNotoriete: etape === 'declarationSuccession' && !!(noto && noto.fait) };
   }
 
   // Ouvre l'Agenda sur « Nouveau rendez-vous » prérempli pour cette étape (dossier, titre, date, case « signature »).
@@ -41,7 +42,8 @@
     if (titre) titre.value = r.titre;
     majCaseSignatureCreationAgenda();
     const sig = document.getElementById('agenda-creation-signature');
-    if (sig) sig.checked = r.signature && !d.rendezVousSignature;
+    // La notoriété signée, la date de signature de la fiche est la sienne : le rendez-vous de la déclaration la remplace.
+    if (sig) sig.checked = r.signature && (!d.rendezVousSignature || r.apresNotoriete);
   }
 
   // Après la création d'un rendez-vous ouvert depuis la fiche : la date de l'ouverture notée sur la succession (l'acte, lui, passe
@@ -57,6 +59,13 @@
 
   // ---- Arbitrage du forfait mobilier ----
   var arbitrageDossierId = '';
+
+  // Depuis la barre latérale : une simulation libre, rattachée à aucune succession.
+  function ouvrirArbitrageSansDossier() {
+    arbitrageDossierId = '';
+    definirOnglet('inventaire');
+    majBoutonArbitrageFiche();
+  }
 
   function ouvrirArbitrageDepuisFiche(dossierId) {
     const d = dossiers.find(x => x.id === dossierId);

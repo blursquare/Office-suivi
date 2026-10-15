@@ -20095,3 +20095,23 @@ surligné (`plan`, `plan2`…) ET l'extrait officiel sans surlignage (`officiel`
 documents, d'où deux PDF par commune dans l'archive, l'impression, les emails et « Constitution ». `plansSurlignesConstitution` ne garde
 que les plans surlignés (comptage, « Voir », fichiers joints). Plusieurs plans restent possibles seulement quand les parcelles d'une
 commune sont trop éloignées pour tenir sur un plan.
+
+### 15/10/2026 23 h 50 — 0.252.2 : corrections de la relecture indépendante (0.246.4 → 0.252.1)
+
+Étude : « Passe l'agent indépendant sur les nouvelles fonctionnalités. » Relecture par un second agent (lecture seule) des versions
+0.246.4 à 0.252.1 ; 10 défauts rapportés, tous relus et confirmés, tous corrigés :
+- **Haut** — Constitution : pendant l'attente du plan cadastral (jusqu'à 6 min par commune), choisir un autre dossier faisait composer et
+  ranger les courriers du premier dans le dossier NAS du second. `choisirDossierConstitution` refuse tant que `cstEtat.enCours` (toast) ;
+  « Envoyer les emails » pose `enCours` ; un email seul vérifie que le dossier n'a pas changé après l'attente du plan et dit l'attente.
+- `memePersonneNommee` : un prénom composé n'est plus réduit à son premier mot (« Jean-Pierre DUPONT » ≠ « DUPONT Jean » ; « Jean-Pierre » =
+  « Jean Pierre ») — le fils n'est plus pris pour le père défunt.
+- Provision / arbitrage : `ouvrirProvisionSansDossier` aussi depuis « Demander à CLAIRE », `ouvrirArbitrageSansDossier` depuis la barre latérale.
+- Déclaration de succession : case « signature » cochée une fois la notoriété signée (`apresNotoriete`) ; une notoriété cochée sans date ne fait
+  plus passer son rendez-vous passé pour celui de la déclaration (`placee` : après aujourd'hui).
+- `boitesEnvoyes` : `PERSONNES_TEAMS_SEULEMENT` (Sophie GOSSART) jamais lue comme boîte d'envois.
+- Facture corrigée à la main : `montantSaisiAppelFonds` (centimes gardés).
+- Scan d'une succession : la réponse du FCDDV est nommée « Réponse FCDDV - Claire Scan » (pièce cochée, lecture lancée) ; les autres courriers
+  sans type restent rangés seuls dans « Courrier reçu » (demande de l'étude).
+- `conjointSurvivant` : héritier « Veuve / Veuf de », ou « Époux / Épouse de » le défunt.
+- Agenda : la date d'ouverture n'est notée que si le rendez-vous reste celui de la succession ouverte depuis sa fiche.
+- Plan cadastral gardé par dossier + commune (`plansConstitutionGardes`) : revenir sur un dossier ne relance plus le navigateur du serveur.

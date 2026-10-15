@@ -6,6 +6,8 @@
   // (une fois par commune) et mis dans l'archive téléchargée. Le courrier PDF/A reste un fichier à part (le plan n'est pas en PDF/A).
 
   var DELAI_ATTENTE_PLAN_CONSTITUTION_MS = 6 * 60 * 1000;
+  // Plans déjà demandés, par dossier + commune : revenir sur un dossier ne relance pas le navigateur du serveur (3 plans en attente au plus).
+  var plansConstitutionGardes = {};
 
   // Pure : les parcelles du plan d'une commune (« AB 12, AB 13 »), cochées seulement, 12 au plus (limite du serveur).
   function parcellesPlanConstitution(g) {
@@ -42,7 +44,16 @@
     if (['sans-commune', 'sans-parcelle'].includes(etat.etat)) return;
     if (!force && ['attente', 'en-cours', 'fini'].includes(etat.etat)) return;
     const parcelles = parcellesPlanConstitution(g);
+    const cleGarde = `${d.id}|${g.cle}`;
+    const garde = plansConstitutionGardes[cleGarde];
+    if (!force && garde && garde.id && garde.parcelles === parcelles && ['attente', 'en-cours', 'fini'].includes(garde.etat)) {
+      g.plan = garde;
+      renderConstitution();
+      if (garde.etat !== 'fini') suivrePlanConstitution(e, g);
+      return;
+    }
     g.plan = { id: '', etat: 'attente', parcelles, documents: [] };
+    plansConstitutionGardes[cleGarde] = g.plan;
     renderConstitution();
     try {
       const r = await fetchAvecAuth('/api/navigation/plan-cadastre', { method: 'POST', headers: { 'Content-Type': 'application/json' },

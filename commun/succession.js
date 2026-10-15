@@ -128,7 +128,17 @@
     const comps = d && d.authentic && Array.isArray(d.authentic.comparants) ? d.authentic.comparants : [];
     if (comps.some((/** @type {any} */ c) => c && c.role === 'HERITIER' && /survivant/i.test(String(c.qualite || '')))) return true;
     const defunt = comps.find((/** @type {any} */ c) => c && c.role === 'DEFUNT');
-    return !!(defunt && /^[ée]pou(?:x|se)\b/i.test(String(defunt.lien || '')));
+    if (defunt && /^[ée]pou(?:x|se)\b/i.test(String(defunt.lien || ''))) return true;
+    // Un héritier « veuve / veuf de » (relecture 15/10), ou « époux / épouse de » le défunt (nom de famille du défunt dans le nom du conjoint).
+    const motsDefunt = String((defunt && defunt.nom) || '').toLowerCase().split(/[^a-zà-ÿ]+/).filter((m) => m.length >= 3);
+    return comps.some((/** @type {any} */ c) => {
+      if (!c || c.role !== 'HERITIER') return false;
+      const lien = String(c.lien || '');
+      if (/^veu(?:ve|f)\b/i.test(lien)) return true;
+      if (!/^[ée]pou(?:x|se)\b/i.test(lien) || !motsDefunt.length) return false;
+      const conjoint = String(c.conjoint || '').toLowerCase();
+      return motsDefunt.some((m) => conjoint.split(/[^a-zà-ÿ]+/).includes(m));
+    });
   }
 
   /** @param {any} d @param {string} type */
@@ -190,7 +200,9 @@
     if (type.actes.includes('declaration') && !ensemble) {
       const ds = acteSigneSuccession(d, 'declaration');
       const label = type.actes.includes('attestation') ? 'Signature de l’attestation immobilière et de la déclaration de succession' : 'Signature de la déclaration de succession';
-      const placee = rdv && noto.fait && (!noto.iso || rdv > noto.iso) ? rdv : '';
+      // Le rendez-vous de la fiche est celui de la déclaration s'il vient après la notoriété ; notoriété cochée sans date : après aujourd'hui
+      // (un rendez-vous passé est celui de la notoriété elle-même — relecture 15/10).
+      const placee = rdv && noto.fait && (noto.iso ? rdv > noto.iso : rdv > auj) ? rdv : '';
       const butoir = plus(MOIS_DECLARATION_SUCCESSION);
       etapes.push({ type: 'declarationSuccession', label, iso: ds.fait ? ds.iso : (placee || butoir), fait: ds.fait, attente: false, active: true, butoir: !ds.fait && !placee && !!butoir, rdvPlace: !ds.fait && !!placee });
     }
