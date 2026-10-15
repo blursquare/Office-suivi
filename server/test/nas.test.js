@@ -354,3 +354,17 @@ test('deposer-document : un PDF (courriers de « Constitution de dossier ») se 
   assert.equal((await poster({ dossierId: 'n1', nom: 'x', contenu: docx, format: 'pdf' })).status, 400, 'un Word n’est pas un PDF');
   assert.equal((await poster({ dossierId: 'n1', nom: 'x', contenu: pdf })).status, 400, 'sans format, seul le Word passe');
 });
+
+test('deposer-document : sousDossier « Constitution » créé dans le dossier client, repris ensuite ; tout autre nom = racine', async () => {
+  const poster = (corps) => fetch(`${baseUrl}/api/nas/deposer-document`, { method: 'POST', headers: { Authorization: `Bearer ${jeton}`, 'Content-Type': 'application/json' }, body: JSON.stringify(corps) });
+  const pdf = Buffer.from('%PDF-1.7\ncontenu inventé').toString('base64');
+  let r = await poster({ dossierId: 'n1', nom: 'Assainissement - COMMUNE', contenu: pdf, format: 'pdf', sousDossier: 'Constitution' });
+  assert.equal(r.status, 200);
+  let chemin = (await r.json()).chemin;
+  assert.equal(path.dirname(path.join(racine, chemin)), path.join(racine, '2024-118 DUPONT MARTIN', 'Constitution'));
+  r = await poster({ dossierId: 'n1', nom: 'Assainissement - COMMUNE', contenu: pdf, format: 'pdf', sousDossier: 'Constitution' });
+  assert.equal(path.basename((await r.json()).chemin), 'Assainissement - COMMUNE (2).pdf', 'dossier repris, rien écrasé');
+  r = await poster({ dossierId: 'n1', nom: 'Autre', contenu: pdf, format: 'pdf', sousDossier: '../../ailleurs' });
+  chemin = (await r.json()).chemin;
+  assert.equal(path.dirname(path.join(racine, chemin)), path.join(racine, '2024-118 DUPONT MARTIN'), 'un autre nom ne crée rien');
+});

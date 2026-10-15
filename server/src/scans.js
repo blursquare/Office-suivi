@@ -307,7 +307,11 @@ function extensionPieceJointe(nom) {
   return m && EXTENSIONS_PIECE_JOINTE.includes(m[1]) ? m[1] : null;
 }
 
-async function copierDansDossierClient({ nasRacine, dossierNas, rubriques, nomCible, extension, contenu }, fsImpl = fsp) {
+// Sous-dossiers que CLAIRE peut CRÉER dans un dossier client (liste fermée, jamais un nom venu du poste) : « Constitution » reçoit
+// les courriers de « Constitution de dossier » (étude 15/10 : « un nouveau dossier sur le commun qui s'appelle Constitution »).
+const SOUS_DOSSIERS_CREES = ['Constitution'];
+
+async function copierDansDossierClient({ nasRacine, dossierNas, rubriques, nomCible, extension, contenu, sousDossier }, fsImpl = fsp) {
   if (!Buffer.isBuffer(contenu) || !contenu.length) return { erreur: 'Pièce jointe vide.', statut: 400 };
   if (!extension || !EXTENSIONS_PIECE_JOINTE.includes(extension)) return { erreur: 'Type de fichier non rangé.', statut: 400 };
   if (!dossierNas || !String(dossierNas).trim()) return { erreur: 'Dossier client manquant.', statut: 400 };
@@ -316,7 +320,18 @@ async function copierDansDossierClient({ nasRacine, dossierNas, rubriques, nomCi
   let st;
   try { st = await fsImpl.stat(dossierClient); } catch (_) { st = null; }
   if (!st || !st.isDirectory()) return { erreur: 'Dossier client introuvable sur le NAS.', statut: 404 };
-  const rubrique = await resoudreRubrique(dossierClient, rubriques, (d) => listerSousDossiers(d, fsImpl));
+  let rubrique = await resoudreRubrique(dossierClient, rubriques, (d) => listerSousDossiers(d, fsImpl));
+  if (sousDossier) {
+    if (!SOUS_DOSSIERS_CREES.includes(sousDossier)) return { erreur: 'Sous-dossier non permis.', statut: 400 };
+    // Un dossier du même nom déjà là (« CONSTITUTION », « constitution ») est repris tel quel ; sinon il est créé.
+    const existant = (await listerSousDossiers(dossierClient, fsImpl)).find((n) => n.toLowerCase() === sousDossier.toLowerCase());
+    rubrique = existant || sousDossier;
+    if (!existant) {
+      try { await fsImpl.mkdir(path.join(dossierClient, rubrique)); } catch (e) {
+        if (!(e && e.code === 'EEXIST')) return { erreur: 'Création du dossier « ' + sousDossier + ' » impossible : ' + (e && e.code ? e.code : 'erreur'), statut: 500 };
+      }
+    }
+  }
   const base = nomFichierSur(nomCible, 'Pièce jointe').replace(/\.pdf$/i, '');
   const cible = await cheminLibre(path.join(dossierClient, rubrique), `${base}.${extension}`, fsImpl);
   try {
@@ -336,7 +351,7 @@ function ajouterAuJournal(journal, entree) {
 }
 
 module.exports = {
-  copierDansDossierClient, extensionPieceJointe, EXTENSIONS_PIECE_JOINTE,
+  copierDansDossierClient, extensionPieceJointe, EXTENSIONS_PIECE_JOINTE, SOUS_DOSSIERS_CREES,
   trouverDossierScans, parentsCandidats, partagesScansCandidats, depuisMsScans, nomScanValide, listerScans, oublierScansAnciens, nomRubriqueNormalise,
   resoudreRubrique, nomFichierSur, cheminLibre, rangerScan, ajouterAuJournal,
   RUBRIQUES_SCANS, NOM_ARCHIVE_SCANS, DELAI_STABILITE_MS, MAX_JOURNAL

@@ -252,7 +252,7 @@
     const d = dossiers.find(x => x.id === id);
     if (!d) return;
     const type = estSuccession(d) ? 'succession' : 'vente';
-    cstEtat = { dossierId: id, type, message: '', formats: { pdf: true, docx: false }, sorties: {}, enCours: false, documents: [], proprietaires: [], groupes: [], defunt: null, selection: '', compteur: 0 };
+    cstEtat = { dossierId: id, type, message: '', formats: { pdf: true, docx: false }, signe: true, sorties: {}, enCours: false, documents: [], proprietaires: [], groupes: [], defunt: null, selection: '', compteur: 0 };
     if (type === 'vente') {
       cstEtat.proprietaires = proprietairesConstitution(d);
       cstEtat.groupes = groupesParcellesConstitution(d).map(g => Object.assign(g, { info: { etat: 'chargement' } }));
@@ -362,11 +362,14 @@
     const d = dossierConstitution();
     const nom = nomFichierDocumentConstitution(doc);
     const contenu = contenuDocumentConstitution(doc);
+    // Signé : tampon de l'office et signature « p/o » ; non signé : le même courrier sans eux (étude 15/10 : « signé ou non signé »).
+    const signe = !cstEtat || cstEtat.signe !== false;
     if (format === 'pdf') {
-      const { blob } = await genererPdfAAppelFonds(null, nom + '.docx', { blocs: blocsPdfDepuisContenu(contenu), ref: d.nom || '' });
+      const blocs = blocsPdfDepuisContenu(contenu).filter(b => signe || b.type !== 'tampon');
+      const { blob } = await genererPdfAAppelFonds(null, nom + '.docx', { blocs, ref: d.nom || '' });
       return { blob, nom: nom + '.pdf', format };
     }
-    const blob = await courrierRenduAgent(contenu, d, { signe: true });
+    const blob = await courrierRenduAgent(contenu, d, { signe });
     return { blob, nom: nom + '.docx', format };
   }
 
@@ -521,7 +524,7 @@
     const d = dossierConstitution();
     if (!e || !d || e.enCours) return;
     const docs = documentsAGenererConstitution();
-    const formats = formatsChoisisConstitution();
+    const formats = action === 'imprimer' ? ['pdf'] : formatsChoisisConstitution();
     if (!docs.length) { afficherToast('Aucun courrier coché.'); return; }
     if (!formats.length) { afficherToast('Choisissez PDF ou Word.'); return; }
     e.enCours = true;
@@ -572,13 +575,14 @@
     for (const s of fichiers) {
       majMessageConstitution(`Rangement de « ${s.nom} » dans le dossier du NAS…`);
       const r = await fetchAvecAuth('/api/nas/deposer-document', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ dossierId: d.id, nom: s.nom.replace(/\.(pdf|docx)$/i, ''), contenu: await base64DepuisBlob(s.blob), format: s.format }) });
+        body: JSON.stringify({ dossierId: d.id, nom: s.nom.replace(/\.(pdf|docx)$/i, ''), contenu: await base64DepuisBlob(s.blob), format: s.format, sousDossier: 'Constitution' }) });
       if (!r.ok) { const j = await r.json().catch(() => ({})); throw new Error(j.erreur || `le serveur a répondu ${r.status}`); }
       ranges++;
     }
-    ajouterHistorique(d, `${ranges} courrier${ranges > 1 ? 's' : ''} de constitution de dossier rangé${ranges > 1 ? 's' : ''} dans le dossier du NAS`);
+    ajouterHistorique(d, `${ranges} courrier${ranges > 1 ? 's' : ''} de constitution de dossier enregistré${ranges > 1 ? 's' : ''} dans le dossier « Constitution » du NAS`);
     sauvegarder(d);
-    majMessageConstitution(`${ranges} fichier${ranges > 1 ? 's' : ''} rangé${ranges > 1 ? 's' : ''} à la racine du dossier du NAS.`);
+    majMessageConstitution(`${ranges} fichier${ranges > 1 ? 's' : ''} enregistré${ranges > 1 ? 's' : ''} dans « Constitution », dans le dossier du NAS.`);
+    afficherToast(`${ranges} courrier${ranges > 1 ? 's' : ''} dans le dossier « Constitution » du NAS.`);
   }
 
   async function telechargerDocumentConstitution(id, format) {
@@ -749,16 +753,23 @@
     const manques = manquesConstitution(e);
     const n = documentsAGenererConstitution().length;
     const pdfOk = typeof genererPdfAAppelFonds === 'function';
+    const nas = !!d.nasDossier;
+    const bascule = (actif, geste, libelle) => `<wa-button size="s" appearance="outlined" class="vue-bascule-btn${actif ? ' actif' : ''}" type="button" onclick="${geste}">${libelle}</wa-button>`;
+    const bloque = e.enCours || !n || !pdfOk || !formatsChoisisConstitution().length;
     return `${manques.length ? `<details class="cst-manques"><summary>${manques.length} point${manques.length > 1 ? 's' : ''} à vérifier</summary>${manques.map(m => `<p class="cst-alerte">${escapeHtml(m)}</p>`).join('')}</details>` : ''}
-      <div class="cst-formats"><label><wa-switch size="small"${e.formats.pdf ? ' checked' : ''} onchange="cstFormat('pdf', this.checked)"></wa-switch> PDF/A signé</label>
-        <label><wa-switch size="small"${e.formats.docx ? ' checked' : ''} onchange="cstFormat('docx', this.checked)"></wa-switch> Word</label></div>
-      <div class="cst-actions">
-        <wa-button variant="brand" pill type="button" ${e.enCours || !n || !pdfOk ? 'disabled ' : ''}onclick="genererConstitution('telecharger')">${e.enCours ? 'Préparation…' : `Tout générer (${n})`}</wa-button>
-        <wa-button appearance="outlined" pill type="button" ${e.enCours || !n ? 'disabled ' : ''}onclick="genererConstitution('imprimer')" title="Les courriers en un seul PDF, ouvert pour l’impression">Imprimer</wa-button>
-        <wa-button appearance="outlined" pill type="button" ${e.enCours || !n || !d.nasDossier ? 'disabled ' : ''}onclick="genererConstitution('ranger')" title="${d.nasDossier ? 'À la racine du dossier du NAS, sans écraser' : 'Dossier non relié au NAS'}">Ranger sur le NAS</wa-button>
+      <div class="cst-choix">
+        <wa-button-group label="Format">${bascule(e.formats.pdf, "cstFormat('pdf', !cstEtat.formats.pdf)", 'PDF')}${bascule(e.formats.docx, "cstFormat('docx', !cstEtat.formats.docx)", 'Word')}</wa-button-group>
+        <wa-button-group label="Signature">${bascule(e.signe !== false, 'cstSigne(true)', 'Signé')}${bascule(e.signe === false, 'cstSigne(false)', 'Non signé')}</wa-button-group>
       </div>
+      <div class="cst-actions">
+        <wa-button variant="brand" pill type="button" ${bloque || !nas ? 'disabled ' : ''}onclick="genererConstitution('ranger')" title="${nas ? 'Dans le dossier « Constitution » du dossier client, créé s’il manque ; rien n’est écrasé' : 'Dossier non relié au NAS : utilisez « Télécharger »'}">${e.enCours ? 'Préparation…' : `Enregistrer dans « Constitution » (${n})`}</wa-button>
+        <wa-button appearance="outlined" pill type="button" ${bloque ? 'disabled ' : ''}onclick="genererConstitution('telecharger')">Télécharger</wa-button>
+        <wa-button appearance="outlined" pill type="button" ${e.enCours || !n || !pdfOk ? 'disabled ' : ''}onclick="genererConstitution('imprimer')" title="Les courriers en un seul PDF, ouvert pour l’impression">Imprimer</wa-button>
+      </div>
+      ${nas ? '' : '<p class="hint">Dossier non relié au NAS : reliez-le sur la fiche pour enregistrer dans « Constitution ».</p>'}
       <p class="hint" id="cst-message">${escapeHtml(e.message || '')}</p>`;
   }
+  function cstSigne(oui) { if (cstEtat) { cstEtat.signe = !!oui; renderConstitution(); } }
 
   // Pure : les contacts du répertoire qui répondent à une recherche (organisme, service, personne, ville), 8 au plus.
   function rechercheRepertoireConstitution(q, contacts) {
@@ -851,7 +862,8 @@
     if (!zone) return;
     if (!doc || !d || doc.mode === 'en-ligne') { zone.innerHTML = '<p class="hint cst-vide">Pas de courrier à montrer.</p>'; return; }
     try {
-      const assets = (window.APPEL_FONDS_MODELE && window.APPEL_FONDS_MODELE.assets) || {};
+      const tous = (window.APPEL_FONDS_MODELE && window.APPEL_FONDS_MODELE.assets) || {};
+      const assets = cstEtat.signe === false ? Object.assign({}, tous, { tampon: '', signature: '' }) : tous;
       zone.innerHTML = apercuHtmlConstitution(contenuDocumentConstitution(doc), d.nom || '', assets);
     } catch (e) { zone.innerHTML = '<p class="hint">Aperçu impossible.</p>'; console.error(e); }
   }

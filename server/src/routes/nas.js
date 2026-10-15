@@ -114,7 +114,9 @@ function creerRouteurNas(config, depot) {
     let nom = typeof b.nom === 'string' ? b.nom.slice(0, 120) : '';
     if (/^\s*(con|prn|aux|nul|com\d|lpt\d)\s*$/i.test(nom)) nom = 'Document ' + nom.trim();
     const r = await copierDansDossierClient({ nasRacine: config.nasRacine, dossierNas: String(d.nasDossier),
-      rubriques: [], nomCible: nom || 'Document CLAIRE', extension: pdf ? 'pdf' : 'docx', contenu });
+      rubriques: [], nomCible: nom || 'Document CLAIRE', extension: pdf ? 'pdf' : 'docx', contenu,
+      // « Constitution » (étude 15/10) : le seul sous-dossier qu'un poste peut demander, créé s'il manque ; sinon la racine.
+      sousDossier: b.sousDossier === 'Constitution' ? 'Constitution' : '' });
     if (r.erreur) { res.status(r.statut || 400).json({ erreur: r.erreur }); return; }
     res.json({ ok: true, chemin: r.chemin });
   }));
