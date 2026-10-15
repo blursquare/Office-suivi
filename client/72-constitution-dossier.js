@@ -290,6 +290,8 @@
     } catch (e) { if (cstEtat !== suivi) return; g.info = { etat: 'erreur' }; }
     reconstruireDocumentsConstitution(false);
     renderConstitution();
+    // Le plan cadastral surligné de la commune, joint à chacun de ses courriers (étude 15/10, client/78) : demandé tout de suite.
+    if (g.info.etat === 'ok') lancerPlanConstitution(g.cle, false);
   }
 
   // Les courriers du dossier. `neuf` : repartir des réglages d'origine ; sinon une adresse déjà modifiée à la main ou une case décochée
@@ -587,6 +589,8 @@
     retenirDefuntSaisiConstitution();
     const fichiers = [];
     try {
+      // Plan cadastral surligné de chaque commune (client/78), joint à ses courriers.
+      const plans = await plansDesCourriersConstitution(docs);
       for (const doc of docs) {
         for (const f of formats) {
           majMessageConstitution(`Préparation de « ${doc.libelle} »${doc.groupe ? ' — ' + ((groupeDuDocumentConstitution(doc) || {}).commune || '') : ''} (${f === 'pdf' ? 'PDF' : 'Word'})…`);
@@ -599,8 +603,14 @@
       if (formats.includes('pdf')) noterVerificationPoste('constitution-pdf', { detail: 'PDF/A signé' });
       ajouterHistorique(d, `Courriers de constitution de dossier préparés : ${docs.map(x => x.libelle + (x.groupe ? ' (' + ((groupeDuDocumentConstitution(x) || {}).commune || '') + ')' : '')).join(', ')}`);
       sauvegarder(d);
+      // Le plan d'une commune une fois dans les fichiers (enregistrés, téléchargés).
+      plans.forEach(liste => liste.forEach(p => fichiers.push({ blob: p.blob, nom: p.nom, format: 'pdf' })));
       if (action === 'imprimer') {
-        const pdfs = docs.filter(x => x.mode !== 'courriel').map(x => e.sorties[x.id] && e.sorties[x.id].pdf && e.sorties[x.id].pdf.blob).filter(Boolean);
+        // Chaque courrier suivi du plan cadastral de sa commune.
+        const pdfs = docs.filter(x => x.mode !== 'courriel').flatMap(x => {
+          const courrier = e.sorties[x.id] && e.sorties[x.id].pdf && e.sorties[x.id].pdf.blob;
+          return courrier ? [courrier].concat((plans.get(x.groupe) || []).map(p => p.blob)) : [];
+        });
         if (!pdfs.length) { majMessageConstitution('Cochez « PDF » pour imprimer.'); }
         else { const fusion = await fusionnerPdfConstitution(pdfs); window.open(URL.createObjectURL(fusion), '_blank'); majMessageConstitution(`${pdfs.length} courrier${pdfs.length > 1 ? 's' : ''} dans un seul PDF, ouvert pour l’impression.`); }
       } else if (action === 'ranger') {
@@ -691,6 +701,10 @@
       if (suite || cstEtat.joindrePdf) {
         const s = await genererDocumentConstitution(doc, 'pdf');
         pieces.push({ nom: s.nom, type: 'application/pdf', contenuBase64: await base64DepuisBlob(s.blob) });
+      }
+      // Courrier de vente : le plan cadastral surligné de la commune joint (étude 15/10).
+      if (doc.genre === 'vente') {
+        for (const p of await plansPdfConstitution(groupeDuDocumentConstitution(doc))) pieces.push({ nom: p.nom, type: 'application/pdf', contenuBase64: await base64DepuisBlob(p.blob) });
       }
       const r = await livrerEmailDossier({ destinataire: doc.courriel, sujet: objetEmailConstitution(doc, d, cstEtat.defunt && cstEtat.defunt.champs, groupeDuDocumentConstitution(doc)),
         corps: texte + (suite ? '\n\nVous trouverez ci-joint le questionnaire à nous retourner.' : ''), pieces, responsableSignature: d.responsable, dossierId: d.id, geste: 'constitution' });
@@ -799,6 +813,7 @@
       return `<div class="cst-commune"><div class="cst-commune-tete"><strong>${escapeHtml(g.commune)}${g.cp ? ' (' + escapeHtml(g.cp) + ')' : ''}</strong> ${etat}</div>
         <input type="text" class="prop-champ" value="${escapeAttr(g.adresseImmeuble)}" oninput="cstGroupe('${k}', 'adresseImmeuble', this.value); majApercuConstitution()" aria-label="Adresse de l’immeuble dans les courriers" title="Adresse de l’immeuble, telle qu’elle s’écrit dans les courriers">
         <div class="cst-parcelles">${lignes || '<p class="hint">Aucune parcelle relevée dans Authentic : ajoutez-la.</p>'}</div>
+        ${renderPlanCommuneConstitution(g)}
         <div class="cst-ajout cst-ajout-parcelle"><input type="text" class="prop-champ" id="cst-np-section-${idc}" placeholder="Sect." maxlength="3" aria-label="Section"><input type="text" class="prop-champ" id="cst-np-numero-${idc}" placeholder="N°" maxlength="5" aria-label="Numéro">
           <input type="text" class="prop-champ" id="cst-np-lieudit-${idc}" placeholder="Lieu-dit" aria-label="Lieu-dit"><input type="text" class="prop-champ" id="cst-np-surface-${idc}" placeholder="5 a 12 ca" aria-label="Contenance">
           <wa-button appearance="plain" size="s" type="button" class="bouton-icone" title="Ajouter la parcelle" onclick="cstAjouterParcelle('${k}')">+</wa-button></div></div>`;

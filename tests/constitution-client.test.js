@@ -235,3 +235,18 @@ test('departementDeTexteConstitution : le code postal, jamais le numéro d’une
   assert.equal(app.departementDeTexteConstitution('19 avenue de Vendôme, CS 72301, 41023 BLOIS CEDEX'), '41');
   assert.equal(app.departementDeTexteConstitution('BRACIEUX (41250), 31 rue des Écoles'), '41');
 });
+
+test('plan cadastral surligné de chaque commune joint aux courriers de vente : parcelles et état', () => {
+  const g = { cle: 'blois', commune: 'BLOIS', info: { etat: 'ok', insee: '41018' }, parcelles: [
+    { section: 'ab', numero: '12', actif: true }, { section: 'AB', numero: '13', actif: false }, { section: 'CK', numero: '4', actif: true }] };
+  assert.equal(app.parcellesPlanConstitution(g), 'AB 12, CK 4');
+  assert.equal(app.etatPlanConstitution(g).etat, 'a-tirer');
+  assert.equal(app.etatPlanConstitution(Object.assign({}, g, { info: { etat: 'introuvable' } })).etat, 'sans-commune');
+  assert.equal(app.etatPlanConstitution(Object.assign({}, g, { parcelles: [] })).etat, 'sans-parcelle');
+  assert.equal(app.etatPlanConstitution(Object.assign({}, g, { plan: { etat: 'fini', parcelles: 'AB 12, CK 4', documents: [{ id: 'd1' }, { id: 'd2' }] } })).texte, '2 plans cadastraux prêts');
+  assert.equal(app.etatPlanConstitution(Object.assign({}, g, { plan: { etat: 'fini', parcelles: 'AB 12', documents: [{ id: 'd1' }] } })).etat, 'perime');
+  assert.match(app.etatPlanConstitution(Object.assign({}, g, { plan: { etat: 'erreur', parcelles: 'AB 12, CK 4', erreur: 'Cadastre injoignable' } })).texte, /Plan non tiré : Cadastre injoignable/);
+  // 12 parcelles au plus (limite du serveur).
+  const beaucoup = Object.assign({}, g, { parcelles: Array.from({ length: 15 }, (_, i) => ({ section: 'A', numero: String(i + 1), actif: true })) });
+  assert.equal(app.parcellesPlanConstitution(beaucoup).split(', ').length, 12);
+});

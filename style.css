@@ -9585,6 +9585,7 @@ table.pr-zt td.pr-zt-retenue select { min-width: 120px; min-height: 32px; height
 .fcddv-notaire { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--rayon-m); }
 .fcddv-liste { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
 .fcddv-insc { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.cst-plan { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 6px 0 2px; font-size: var(--texte-s); }
 .succ-factures { list-style: none; margin: 4px 0 12px; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .succ-facture { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .succ-facture .succ-facture-organisme { flex: 1 1 180px; min-width: 0; }

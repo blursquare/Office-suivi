@@ -76,6 +76,8 @@ const VERIFICATIONS_TERRAIN = [
     comment: 'Coché au premier message parti ; en échec si l’adresse de Sophie GOSSART manque dans Réglages › Collaborateurs. Comparer le message reçu avec la facture.' },
   { id: 'fcddv-lu', depuis: '0.246.0', source: 'poste', titre: 'Successions : la réponse du FCDDV est lue (inscriptions et notaire dépositaire, ou « aucune inscription »)',
     comment: 'Coché à la première réponse reconnue ; en échec si la réponse lue ne montre ni inscription ni « aucune ». Comparer ce qui est affiché sur la fiche avec le PDF du FCDDV, et l’email du confrère proposé.' },
+  { id: 'constitution-plan-cadastral', depuis: '0.251.0', source: 'poste', titre: 'Constitution de dossier : le plan cadastral surligné de chaque commune est tiré et joint aux courriers de vente',
+    comment: 'Coché au premier plan prêt ; en échec si cadastre.gouv.fr refuse la demande. Vérifier sur l’impression qu’il suit chaque courrier, qu’il est joint à l’email et enregistré dans « Constitution ».' },
   { id: 'constitution-pdf', depuis: '0.240.0', source: 'poste', titre: 'Constitution de dossier : un courrier sort en PDF/A sur le papier de l’office, avec tampon et signature',
     comment: 'Coché au premier PDF créé. Ouvrir un PDF : en-tête, adresse, texte de l’étude, tampon et signature « p/o » à vérifier ; le contrôler dans Authentic si le courrier y est déposé.' },
   { id: 'constitution-commune', depuis: '0.240.0', source: 'serveur', titre: 'Constitution de dossier : la commune du bien est retrouvée (INSEE, intercommunalité, fiche de la mairie)',

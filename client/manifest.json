@@ -76,5 +76,6 @@
   "74-fiche-succession.js",
   "75-factures-succession.js",
   "76-succession-agenda-arbitrage.js",
-  "77-vente-outils-fiche.js"
+  "77-vente-outils-fiche.js",
+  "78-constitution-plan-cadastral.js"
 ]
