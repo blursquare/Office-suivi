@@ -76,6 +76,8 @@ const VERIFICATIONS_TERRAIN = [
     comment: 'Coché au premier message parti ; en échec si l’adresse de Sophie GOSSART manque dans Réglages › Collaborateurs. Comparer le message reçu avec la facture.' },
   { id: 'fcddv-lu', depuis: '0.246.0', source: 'poste', titre: 'Successions : la réponse du FCDDV est lue (inscriptions et notaire dépositaire, ou « aucune inscription »)',
     comment: 'Coché à la première réponse reconnue ; en échec si la réponse lue ne montre ni inscription ni « aucune ». Comparer ce qui est affiché sur la fiche avec le PDF du FCDDV, et l’email du confrère proposé.' },
+  { id: 'prorata-avis-nas', depuis: '0.252.0', source: 'poste', titre: 'Prorata ouvert depuis une fiche : l’avis de taxe foncière du dossier du NAS est lu seul et son montant posé',
+    comment: 'Coché au premier avis lu ; en échec si le montant n’a pas pu être lu. Comparer le montant retenu à celui de l’avis.' },
   { id: 'constitution-plan-cadastral', depuis: '0.251.0', source: 'poste', titre: 'Constitution de dossier : le plan cadastral surligné de chaque commune est tiré et joint aux courriers de vente',
     comment: 'Coché au premier plan prêt ; en échec si cadastre.gouv.fr refuse la demande. Vérifier sur l’impression qu’il suit chaque courrier, qu’il est joint à l’email et enregistré dans « Constitution ».' },
   { id: 'constitution-pdf', depuis: '0.240.0', source: 'poste', titre: 'Constitution de dossier : un courrier sort en PDF/A sur le papier de l’office, avec tampon et signature',

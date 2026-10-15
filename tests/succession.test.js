@@ -383,4 +383,17 @@ test('vente : agenda et outils reliés à la fiche (placer le rendez-vous, provi
   assert.equal(place[0].libelle, 'Voir dans l’agenda');
   assert.ok(!place.some(o => o.cle === 'quotites'), 'un seul acquéreur : pas de quotités');
   assert.equal(app.outilsVenteFiche(base()).length, 0);
+
+  // Provision gardée sur la fiche : rien sans prix ni département ; sinon le total du barème, assiette hors mobilier.
+  assert.equal(app.provisionAEnregistrer({ prix: 0, dept: '41', type: 'condo' }, '2026-10-15T10:00:00Z', 'Bastien ANGLUMENT'), null);
+  assert.equal(app.provisionAEnregistrer({ prix: 245000, dept: '', type: 'condo' }, '2026-10-15T10:00:00Z', ''), null);
+  const p = app.provisionAEnregistrer({ prix: 245000, mobilier: 5000, dept: '41', type: 'condo', primo: false, residencePrincipale: true }, '2026-10-15T10:00:00Z', 'Bastien ANGLUMENT');
+  const attendu = app.estimerFraisActe(240000, '41', 'condo', false);
+  assert.deepEqual([p.total, p.assiette, p.le, p.par], [attendu.total, 240000, '2026-10-15', 'Bastien ANGLUMENT']);
+  assert.match(app.ligneProvisionFiche(Object.assign({}, v, { provision: p })), /provision estimée le 15 octobre 2026/);
+  assert.doesNotMatch(app.ligneProvisionFiche(Object.assign({}, v, { provision: p })), /Prix changé/);
+  assert.match(app.ligneProvisionFiche(Object.assign({}, v, { prixVente: 250000, provision: p })), /Prix changé depuis/);
+  assert.equal(app.ligneProvisionFiche(v), '');
+  assert.equal(app.renderProvisionFondsFiche(v), '');
+  assert.match(app.renderProvisionFondsFiche(Object.assign({}, v, { provision: p })), /ouvrirProvisionDepuisFiche\('v9'\)/);
 });

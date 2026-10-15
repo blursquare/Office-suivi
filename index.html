@@ -126,7 +126,7 @@
         <button type="button" id="tab-analyse-ia" class="sidebar-link sidebar-sousmenu-item" style="display:none;" role="tab" aria-selected="false" onclick="definirOnglet('analyse-ia')">
           <span class="sidebar-link-icone" id="icon-nav-analyse-ia" aria-hidden="true"></span>Relecture d'actes<span class="stade-badge stade-badge-nav" title="Alpha : outil encore en test, à utiliser avec le mode commentaires.">Alpha</span>
         </button>
-        <button type="button" id="tab-calculateur" class="sidebar-link sidebar-sousmenu-item" role="tab" aria-selected="false" onclick="definirOnglet('calculateur')">
+        <button type="button" id="tab-calculateur" class="sidebar-link sidebar-sousmenu-item" role="tab" aria-selected="false" onclick="ouvrirProvisionSansDossier()">
           <span class="sidebar-link-icone" id="icon-nav-calculateur" aria-hidden="true"></span>Simulateur de provision
         </button>
         <div class="sidebar-sousmenu-titre" id="sidebar-outils-succession">Succession</div>
@@ -783,6 +783,7 @@
         <tr><td><strong>Total provisionnel</strong></td><td id="calc-total2"></td></tr>
       </table>
       <p class="calc-regime" id="calc-regime"></p>
+      <wa-button variant="brand" id="calc-enregistrer-fiche" class="calc-enregistrer" style="display:none;" onclick="enregistrerProvisionSurFiche()">Enregistrer sur la fiche</wa-button>
     </div>
 
   </div>

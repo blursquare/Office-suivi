@@ -20069,3 +20069,21 @@ vient d'Authentic. Stocker toutes les données d'état civil et sur le bien. »
 ### 0.251.0 — 15/10/2026 (étude : « Pour la constitution de dossier, il faut envoyer avec chaque courrier de vente un plan cadastral surligné »)
 - `client/78-constitution-plan-cadastral.js` : un plan par commune, celui du navigateur du serveur (cadastre.gouv.fr, parcelles surlignées en jaune fluo, A4 portrait, plusieurs plans si éloignées — `POST /api/navigation/plan-cadastre`), demandé seul dès que la commune est retrouvée (`chargerCommuneConstitution` → `lancerPlanConstitution`), suivi toutes les 2 s (`suivrePlanConstitution`) ; `parcellesPlanConstitution` (cochées, 12 au plus), `etatPlanConstitution` (pures : à tirer, en attente, en cours, prêt, parcelles changées → à refaire, erreur).
 - Joint à chaque courrier de vente : impression (chaque courrier suivi des plans de sa commune, `fusionnerPdfConstitution`), email (`emailDocumentConstitution` : plans en pièces jointes), « Enregistrer dans « Constitution » » et archive téléchargée (une fois par commune, « Plan cadastral - COMMUNE.pdf ») — `plansDesCourriersConstitution` attend un plan en cours jusqu'à 6 minutes, le relance s'il est à refaire, et dit ce qui manque. Le courrier PDF/A reste un fichier à part (le plan n'est pas en PDF/A). Préfixe de commune absorbée non transmis (le serveur lit « section numéro »). Point terrain `constitution-plan-cadastral`.
+
+### 15/10/2026 23 h 34 — 0.252.0 : prorata lu sur le NAS, provision gardée sur la fiche
+
+Demande de l'étude (« oui » aux deux idées proposées après 0.250.0) : remplir le prorata seul à partir de l'avis de taxe foncière
+trouvé sur le NAS, et garder le résultat de la provision sur la fiche comme l'arbitrage d'une succession.
+
+- **Prorata** (`client/77-vente-outils-fiche.js`, `ouvrirProrataDepuisFiche` → `reprendreAvisNasProrata`) : à l'ouverture depuis la
+  fiche, l'avis de taxe foncière du dossier du NAS est trouvé par la même règle que l'appel de fonds (`fichierPieceNasAppelFonds` :
+  fichier retenu par la checklist, sinon le plus récent dont le nom dit la pièce), lu par `importerAvisTaxeFonciere('prorata', …)`
+  (même lecteur et même bloc qu'un avis déposé, plusieurs biens → choix demandé) ; montant et année civile posés, toast avec le nom
+  du fichier. Jamais par-dessus un avis déjà déposé ; l'avis d'un autre dossier est effacé à l'ouverture (`prorataDossierTf`).
+  Point terrain `prorata-avis-nas`.
+- **Provision** : `provisionDossierId` + bouton « Enregistrer sur la fiche … » sous le résultat du simulateur (visible seulement
+  ouvert depuis une fiche ; le lien de la barre latérale passe par `ouvrirProvisionSansDossier`, simulation libre) ;
+  `provisionAEnregistrer` (pure) → `d.provision` `{ le, par, total, emoluments, tresor, prix, mobilier, assiette, dept, type, saisie }` ;
+  ligne « Provision » de l'onglet Dossier et bloc « Provision » de l'onglet Fonds (`ligneProvisionFiche`, `renderProvisionFondsFiche`,
+  « Refaire »), « Prix changé depuis » si le prix de la fiche n'est plus celui de la simulation ; primo-accédant et destination
+  repris de la dernière simulation gardée.

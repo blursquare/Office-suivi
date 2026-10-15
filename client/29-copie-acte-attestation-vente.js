@@ -609,6 +609,7 @@
         ${utiles.length ? `<ul class="ja-liste">${utiles.join('')}</ul>` : '<p class="fiche-vide">Rien à faire sur les fonds à ce stade.</p>'}
       </div>
       ${renderRappelOffrePretFonds(d)}
+      ${renderProvisionFondsFiche(d)}
       ${renderAppelsFondsDossier(d)}
       ${renderAutresEchanges(autres)}`;
   }

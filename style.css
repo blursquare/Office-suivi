@@ -9641,3 +9641,7 @@ table.pr-zt td.pr-zt-retenue select { min-width: 120px; min-height: 32px; height
   .cst-parcelle { grid-template-columns: auto 64px minmax(0, 1fr) 10px; }
   .cst-parcelle-surf { display: none; }
 }
+
+/* Simulateur de provision ouvert depuis une fiche : « Enregistrer sur la fiche » (0.252.0) */
+.calc-card .calc-enregistrer { margin-top: 16px; }
+.fonds-provision { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }

@@ -1216,6 +1216,7 @@ garde tous les validés (`tousValides`) ; l'impression A4 garde `renderCompteRen
   une inscription par nature — testament, donation entre époux… —, notaire dépositaire, date, CRPCEN, ville ; « aucune inscription » ; jamais l'office demandeur) →
   `d.succession.fcddv` ; testament / donation entre époux répondus s'ils sont vides ; un email par notaire dépositaire (`emailConfrereFcddv`, premier jet de CLAIRE :
   nature de l'acte et coût ; adresse par l'annuaire, sinon le CRPCEN dans l'adresse de l'office). **Forme de la réponse supposée, aucun exemple réel reçu** (point `fcddv-lu`).
+- **Outils reliés à la fiche d'une vente** (0.250.0 / 0.252.0, `client/77-vente-outils-fiche.js`) : ligne « Outils » de l'onglet Dossier ; le Prorata ouvert depuis la fiche lit seul l'avis de taxe foncière du NAS (même règle que l'appel de fonds, jamais par-dessus un avis déposé) ; la provision du simulateur s'enregistre sur la fiche (`d.provision`, onglets Dossier et Fonds, « Prix changé depuis »).
 - **Successions** : créées depuis Authentic (voir « Successions » plus haut), « SUCC - NOM »
   (`libelleDossierAffiche`, `PREFIXES_TYPE_AFFAIRE`, miroir serveur `libelleDossier`). Reste à définir avec l'étude :
   échéances (déclaration de succession…), checklist de pièces, emails, qualité des parties (défunt, héritiers) — la
