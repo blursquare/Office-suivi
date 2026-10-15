@@ -24,7 +24,7 @@
   /** Adresses des destinataires connus de l'étude (celles du modèle Word) ; le reste se saisit et se retient (clé `constitution-adresses`). */
   const DESTINATAIRES_CONNUS = {
     agglopolys: { libelle: 'Agglopolys — Service de l’Assainissement', lignes: ['AGGLOPOLYS', 'Service de l’Assainissement', '1 rue Honoré de Balzac', '41000 BLOIS'] },
-    'grand-chambord': { libelle: 'Communauté de communes du Grand Chambord', lignes: ['COMMUNAUTÉ DE COMMUNES DU GRAND CHAMBORD', 'Service de l’Assainissement'] }
+    'grand-chambord': { libelle: 'Communauté de communes du Grand Chambord', lignes: ['COMMUNAUTÉ DE COMMUNES DU GRAND CHAMBORD', 'Service Eau et Assainissement', '22 avenue de la Sablière', '41250 BRACIEUX'] }
   };
 
   /**
@@ -53,7 +53,7 @@
 
   /** Pure : la particularité d'une commune pour le CU et la DIA (guichets uniques), ou ''. @param {string} insee */
   function noteGuichetCommune(insee) {
-    if (String(insee || '') === INSEE_CHAILLES) return 'Chailles a son propre guichet unique (GNAU), différent de celui d’Agglopolys.';
+    if (String(insee || '') === INSEE_CHAILLES) return 'Chailles a son propre guichet unique (GNAU), différent de celui d’Agglopolys (adresse du portail non publiée : à demander à la mairie, 78 rue Nationale).';
     return '';
   }
 
