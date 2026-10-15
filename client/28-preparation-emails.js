@@ -85,7 +85,7 @@
     while (paragraphes.length && !paragraphes[paragraphes.length - 1].trim()) paragraphes.pop();
     if (!confrere) {
       const dernier = paragraphes.length ? paragraphes[paragraphes.length - 1].trim() : '';
-      if (!/cordialement|d[ée]vou[ée]/i.test(dernier)) paragraphes.push(FORMULE_CLOTURE_CLIENT);
+      if (!/cordialement|d[ée]vou[ée]|salutations|sentiments distingu/i.test(dernier)) paragraphes.push(FORMULE_CLOTURE_CLIENT);
       return paragraphes.join('\n\n');
     }
     if (paragraphes.length && RE_FORMULE_APPEL_EMAIL.test(paragraphes[0].trim())) paragraphes.shift();

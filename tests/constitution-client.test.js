@@ -179,3 +179,27 @@ test('resumeDonneesConstitution et resumeDestinataireConstitution', () => {
   assert.equal(app.resumeDestinataireConstitution({ lignes: ['CPAM', 'Assurance maladie', '41000 BLOIS'] }), 'CPAM, Assurance maladie');
   assert.equal(app.resumeDestinataireConstitution({ lignes: [] }), '');
 });
+
+test('corpsEmailCourrierConstitution : le texte du courrier sans destinataire, date ni signature ; questionnaire signalé', () => {
+  const contenu = 'MAIRIE\n41000 BLOIS\n\nBlois, le 15 octobre 2026\n\n**Objet : Contrôle**\n\nMadame, Monsieur,\n\n| Préfixe | Section | N° |\n|  | AB | 12 |\n\n- Un certificat\n- Un autre\n\nMe Sophie GOSSART\n\n<<saut de page>>\n\nQuestionnaire';
+  const r = app.corpsEmailCourrierConstitution(contenu);
+  assert.ok(!/MAIRIE|Blois, le|Me Sophie|Questionnaire|\*\*|Préfixe/.test(r.texte));
+  assert.match(r.texte, /^Objet : Contrôle\n\nMadame, Monsieur,\n\nAB — 12\n\n- Un certificat\n- Un autre$/);
+  assert.equal(r.suite, true);
+  assert.equal(app.corpsEmailCourrierConstitution('X\n\nBonjour\n\nMe A').suite, false);
+});
+
+test('emailsContactConstitution : « Libellé : adresse » et adresses invalides écartées', () => {
+  const e = app.emailsContactConstitution({ emails: ['tiers@carsat-centre.fr', 'Première demande : notaires.premieredemande@carsat-centre.fr', 'pas une adresse'] });
+  assert.equal(Array.from(e, x => x.libelle + '|' + x.adresse).join(','), '|tiers@carsat-centre.fr,Première demande|notaires.premieredemande@carsat-centre.fr');
+});
+
+test('objetEmailConstitution : défunt et référence', () => {
+  assert.equal(app.objetEmailConstitution({ genre: 'succession' }, { referenceAuthentic: 'A 2026 00398' }, { civilite: 'Madame', prenoms: 'Alice', nom: 'FISCHER' }),
+    'Succession de Madame Alice FISCHER — Réf. A 2026 00398');
+});
+
+test('departementDeTexteConstitution : le code postal, jamais le numéro d’une CS ou d’une BP', () => {
+  assert.equal(app.departementDeTexteConstitution('19 avenue de Vendôme, CS 72301, 41023 BLOIS CEDEX'), '41');
+  assert.equal(app.departementDeTexteConstitution('BRACIEUX (41250), 31 rue des Écoles'), '41');
+});

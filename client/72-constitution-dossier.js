@@ -128,8 +128,10 @@
 
   // Pure : le département d'un texte d'adresse (« BRACIEUX (41250), … » → « 41 »), ''.
   function departementDeTexteConstitution(texte) {
-    const m = /\b(\d{5})\b/.exec(String(texte || ''));
-    return m ? (m[1].startsWith('97') ? m[1].slice(0, 3) : m[1].slice(0, 2)) : '';
+    // Le DERNIER nombre de cinq chiffres : celui d'une « CS 72301 » ou d'une « BP » vient avant le code postal.
+    const tous = String(texte || '').match(/\b\d{5}\b/g) || [];
+    const cp = tous.length ? tous[tous.length - 1] : '';
+    return cp ? (cp.startsWith('97') ? cp.slice(0, 3) : cp.slice(0, 2)) : '';
   }
 
   // Pure : l'établissement cité dans le domicile du défunt (« EHPAD La Bonne Eure, 31 rue de Candy ») → { nom, lignes } ou null.
@@ -159,6 +161,8 @@
       const parCommune = candidats.filter(c => normaliserPourRecherche([c.organisme, c.service].join(' ')).replace(/[^a-z0-9]+/g, ' ').includes(nomCommune));
       if (parCommune.length === 1) return parCommune[0];
     }
+    // Un seul organisme de ce genre dans le répertoire (la CARSAT Centre, régionale) : c'est lui, quel que soit le département.
+    if (candidats.length === 1 && cle !== 'impots') return candidats[0];
     if (!dep) return null;
     const memeDep = candidats.filter(c => departementDeTexteConstitution(c.adresse) === dep);
     return memeDep.length === 1 ? memeDep[0] : null;
@@ -294,7 +298,11 @@
           const id = `v:${g.cle}:${c.cle}`;
           const ancien = anciens.get(id);
           const lignes = lignesDestinataireVente(circuit, g, info.mairie, cstAdressesRetenues);
-          docs.push({ id, genre: 'vente', modele: c.cle, groupe: g.cle, libelle: c.libelle, mode: circuit.mode, courriel: circuit.courriel, note: circuit.note, destinataire: circuit.destinataire,
+          const retenueV = cstAdressesRetenues[circuit.destinataire];
+          const courrielDefaut = circuit.courriel || (retenueV && retenueV.courriel) || '';
+          const modeDefaut = circuit.mode === 'en-ligne' ? 'en-ligne' : (ancien && ancien.modeChoisi ? ancien.mode : circuit.mode);
+          docs.push({ id, genre: 'vente', modele: c.cle, groupe: g.cle, libelle: c.libelle, mode: modeDefaut, modeChoisi: !!(ancien && ancien.modeChoisi),
+            courriel: ancien && ancien.modeChoisi ? ancien.courriel : courrielDefaut, emails: courrielDefaut ? [{ libelle: '', adresse: courrielDefaut }] : [], note: circuit.note, destinataire: circuit.destinataire,
             actif: circuit.mode === 'en-ligne' ? false : (ancien ? ancien.actif : true),
             lignes: ancien && ancien.modifie ? ancien.lignes : lignes, modifie: !!(ancien && ancien.modifie), modeleRetenu: circuit.destinataire !== 'mairie' && circuit.destinataire !== 'blois-en-ligne' });
         });
@@ -319,7 +327,11 @@
       const retenue = cstAdressesRetenues['succession-' + modele];
       if (!contact && retenue && retenue.lignes && retenue.lignes.length) { lignes = retenue.lignes.slice(); origine = 'Adresse retenue par l’étude'; }
       const horsDep = !contact && m && m.destinataire.length && dep && dep !== '41' && ['impots', 'cpam', 'msa', 'carsat'].includes(modele);
-      return { id, genre: 'succession', modele, libelle: m ? m.libelle : modele, mode: 'papier', courriel: '', note: horsDep ? 'Adresse type du Loir-et-Cher : à vérifier pour un défunt domicilié ailleurs.' : '', destinataire: modele,
+      // Par email dès qu'une adresse est connue (étude 15/10 : banques, impôts, CARSAT, MSA « quasiment que par mail ») ; sinon papier.
+      const contactRetenu = ancien && ancien.contactId ? contacts.find(c => c && c.id === ancien.contactId) : contact;
+      const emails = contactRetenu ? emailsContactConstitution(contactRetenu) : (retenue && retenue.courriel ? [{ libelle: '', adresse: retenue.courriel }] : []);
+      const envoi = ancien && ancien.modeChoisi ? { mode: ancien.mode, courriel: ancien.courriel } : { mode: emails.length ? 'courriel' : 'papier', courriel: emails.length ? emails[0].adresse : '' };
+      return { id, genre: 'succession', modele, libelle: m ? m.libelle : modele, mode: envoi.mode, courriel: envoi.courriel, emails, modeChoisi: !!(ancien && ancien.modeChoisi), note: horsDep ? 'Adresse type du Loir-et-Cher : à vérifier pour un défunt domicilié ailleurs.' : '', destinataire: modele,
         actif: ancien ? ancien.actif : ORDRE_SUCCESSION_PAR_DEFAUT.includes(modele), lignes: ancien && ancien.modifie ? ancien.lignes : lignes, origine: ancien && ancien.modifie ? 'Saisi à la main' : origine,
         modifie: !!(ancien && ancien.modifie), contactId: ancien && ancien.contactId ? ancien.contactId : (contact ? contact.id : '') };
     };
@@ -458,6 +470,11 @@
     x.modifie = true;
     x.origine = 'Répertoire';
     x.contactId = c.id;
+    x.emails = emailsContactConstitution(c);
+    if (!x.modeChoisi || x.mode === 'courriel') {
+      x.courriel = x.emails.length ? x.emails[0].adresse : (x.mode === 'courriel' ? x.courriel : '');
+      if (!x.modeChoisi) x.mode = x.emails.length ? 'courriel' : 'papier';
+    }
     renderConstitution();
   }
   // Un courrier de succession de plus (la mutuelle, une seconde banque) : destinataire vide, à chercher dans le répertoire.
@@ -465,7 +482,7 @@
     const m = modeleCourrierSuccession(modele);
     if (!m) return null;
     cstEtat.compteur = (cstEtat.compteur || 0) + 1;
-    const doc = { id: `s:${modele}:a${cstEtat.compteur}`, genre: 'succession', modele, libelle: m.libelle, mode: 'papier', courriel: '', note: '', destinataire: modele, actif: true,
+    const doc = { id: `s:${modele}:a${cstEtat.compteur}`, genre: 'succession', modele, libelle: m.libelle, mode: 'papier', courriel: '', emails: [], note: '', destinataire: modele, actif: true,
       lignes: vide ? [] : m.destinataire.slice(), origine: !vide && m.destinataire.length ? 'Adresse type du modèle' : '', modifie: !!vide, ajoute: true, contactId: '' };
     const dernier = cstEtat.documents.map(x => x.modele).lastIndexOf(modele);
     cstEtat.documents.splice(dernier >= 0 ? dernier + 1 : cstEtat.documents.length, 0, doc);
@@ -545,7 +562,7 @@
       ajouterHistorique(d, `Courriers de constitution de dossier préparés : ${docs.map(x => x.libelle + (x.groupe ? ' (' + ((groupeDuDocumentConstitution(x) || {}).commune || '') + ')' : '')).join(', ')}`);
       sauvegarder(d);
       if (action === 'imprimer') {
-        const pdfs = docs.map(x => e.sorties[x.id] && e.sorties[x.id].pdf && e.sorties[x.id].pdf.blob).filter(Boolean);
+        const pdfs = docs.filter(x => x.mode !== 'courriel').map(x => e.sorties[x.id] && e.sorties[x.id].pdf && e.sorties[x.id].pdf.blob).filter(Boolean);
         if (!pdfs.length) { majMessageConstitution('Cochez « PDF » pour imprimer.'); }
         else { const fusion = await fusionnerPdfConstitution(pdfs); window.open(URL.createObjectURL(fusion), '_blank'); majMessageConstitution(`${pdfs.length} courrier${pdfs.length > 1 ? 's' : ''} dans un seul PDF, ouvert pour l’impression.`); }
       } else if (action === 'ranger') {
@@ -597,18 +614,109 @@
     } catch (err) { console.error(err); afficherToast('Courrier impossible à préparer : ' + (err && err.message ? err.message : 'erreur')); }
   }
 
-  // Courrier par courriel (Blois : numérotage et alignement) : le PDF signé en pièce jointe, texte à relire dans la fenêtre d'email.
+  // Pure : les adresses email d'un contact du répertoire — « Libellé : adresse » gardé en libellé. [{ libelle, adresse }].
+  function emailsContactConstitution(c) {
+    return ((c && c.emails) || []).map(e => {
+      const t = String(e || '').trim();
+      const m = /^(.*?)\s*:\s*([^\s:]+@[^\s:]+)$/.exec(t);
+      return m ? { libelle: m[1].trim(), adresse: m[2] } : { libelle: '', adresse: t };
+    }).filter(x => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(x.adresse));
+  }
+
+  // Pure : le texte d'un courrier pour le corps d'un email (étude 15/10 : « reprendre le contenu du courrier, juste le contenu texte, sans
+  // l'en-tête ») — sans le bloc du destinataire, ni « Blois, le … », ni la signature « Me … » (la signature de l'email la remplace) ; un
+  // tableau en lignes ; ce qui suit un saut de page (questionnaire) n'est pas repris : `suite` le dit, le PDF est alors joint.
+  function corpsEmailCourrierConstitution(contenu) {
+    const blocs = blocsDocumentAgent(contenu, true);
+    const sortie = [];
+    let suite = false;
+    for (let i = 0; i < blocs.length; i++) {
+      const b = blocs[i];
+      if (b.type === 'saut') { suite = blocs.slice(i + 1).length > 0; break; }
+      if (i === 0 && b.type === 'para') continue;
+      const texte = String(b.texte || '').replace(/\*\*/g, '');
+      if (b.type === 'para' && RE_LIEU_DATE_COURRIER.test(texte) && texte.length < 80) continue;
+      if (b.type === 'para' && /^Me\s/.test(texte) && (i === blocs.length - 1 || (blocs[i + 1] && blocs[i + 1].type === 'saut'))) continue;
+      if (b.type === 'tableau') {
+        // La ligne d'en-tête (Préfixe, Section…) ne sert qu'au tableau : chaque parcelle s'écrit « AB — 123 — Les Vignes — 5 a 12 ca ».
+        sortie.push(b.lignes.slice(1).map(l => l.filter(Boolean).join(' — ')).filter(Boolean).join('\n'));
+        continue;
+      }
+      if (b.type === 'puce') { sortie.push('- ' + texte); continue; }
+      if (b.type === 'numero') { sortie.push(b.numero + '. ' + texte); continue; }
+      sortie.push(texte);
+    }
+    // Les puces qui se suivent restent groupées (une ligne chacune), le reste en paragraphes.
+    const texte = sortie.reduce((acc, t, k) => acc + (k === 0 ? '' : (/^- /.test(t) && /^- /.test(sortie[k - 1]) ? '\n' : '\n\n')) + t, '');
+    return { texte, suite };
+  }
+
+  // Pure : l'objet de l'email d'un courrier.
+  function objetEmailConstitution(doc, d, defunt, groupe) {
+    const ref = d && d.referenceAuthentic ? ` — Réf. ${d.referenceAuthentic}` : '';
+    if (doc.genre === 'succession' && defunt) {
+      const qui = [defunt.civilite, defunt.prenoms, defunt.nom].filter(Boolean).join(' ');
+      return `Succession de ${qui || 'à compléter'}${ref}`;
+    }
+    return `${doc.libelle}${groupe && groupe.adresseImmeuble ? ' — ' + groupe.adresseImmeuble : ''}${ref}`;
+  }
+
+  // Un courrier par email : le texte du courrier dans le corps, la fenêtre d'email s'ouvre pour relire et envoyer (rien ne part seul).
   async function emailDocumentConstitution(id) {
     const doc = documentConstitution(id);
     const d = dossierConstitution();
-    if (!doc || !d || !doc.courriel) return;
+    if (!doc || !d) return { ok: false };
+    if (!doc.courriel) { afficherToast('Adresse email du destinataire à saisir.'); return { ok: false }; }
     try {
-      const s = await genererDocumentConstitution(doc, 'pdf');
-      const g = groupeDuDocumentConstitution(doc);
-      const corps = `Bonjour,\n\nVeuillez trouver ci-joint notre demande de certificat de numérotage et d'alignement concernant l'immeuble situé à ${g ? g.adresseImmeuble : ''}.\n\nNous vous remercions de bien vouloir nous répondre à cette adresse.\n\nBien cordialement,`;
-      await livrerEmailDossier({ destinataire: doc.courriel, sujet: `Demande de certificat de numérotage et d'alignement — ${libelleDossierAffiche(d)}`, corps,
-        pieces: [{ nom: s.nom, type: 'application/pdf', contenuBase64: await base64DepuisBlob(s.blob) }], responsableSignature: d.responsable, dossierId: d.id, geste: 'constitution' });
-    } catch (err) { console.error(err); afficherToast('Email impossible à préparer : ' + (err && err.message ? err.message : 'erreur')); }
+      retenirDefuntSaisiConstitution();
+      const { texte, suite } = corpsEmailCourrierConstitution(contenuDocumentConstitution(doc));
+      const pieces = [];
+      if (suite || cstEtat.joindrePdf) {
+        const s = await genererDocumentConstitution(doc, 'pdf');
+        pieces.push({ nom: s.nom, type: 'application/pdf', contenuBase64: await base64DepuisBlob(s.blob) });
+      }
+      const r = await livrerEmailDossier({ destinataire: doc.courriel, sujet: objetEmailConstitution(doc, d, cstEtat.defunt && cstEtat.defunt.champs, groupeDuDocumentConstitution(doc)),
+        corps: texte + (suite ? '\n\nVous trouverez ci-joint le questionnaire à nous retourner.' : ''), pieces, responsableSignature: d.responsable, dossierId: d.id, geste: 'constitution' });
+      if (r && r.ok) {
+        doc.envoyeLe = new Date().toISOString();
+        ajouterHistorique(d, `Courrier « ${doc.libelle} » préparé par email pour ${doc.courriel}`);
+        sauvegarder(d);
+        renderConstitution();
+      }
+      return r || { ok: false };
+    } catch (err) { console.error(err); afficherToast('Email impossible à préparer : ' + (err && err.message ? err.message : 'erreur')); return { ok: false }; }
+  }
+
+  // Tous les courriers cochés « par email », l'un après l'autre (chaque fenêtre se relit et s'envoie ; « Annuler » arrête la série).
+  async function emailsConstitution() {
+    if (!cstEtat || cstEtat.enCours) return;
+    const docs = documentsAGenererConstitution().filter(x => x.mode === 'courriel');
+    if (!docs.length) { afficherToast('Aucun courrier coché par email.'); return; }
+    let faits = 0;
+    for (const doc of docs) {
+      cstEtat.selection = doc.id;
+      renderConstitution();
+      const r = await emailDocumentConstitution(doc.id);
+      if (!r || !r.ok) break;
+      faits++;
+    }
+    majMessageConstitution(`${faits} email${faits > 1 ? 's' : ''} sur ${docs.length} préparé${faits > 1 ? 's' : ''}.`);
+  }
+
+  function cstModeEnvoi(id, mode) {
+    const x = documentConstitution(id);
+    if (!x || x.mode === 'en-ligne' || !['papier', 'courriel'].includes(mode)) return;
+    x.mode = mode;
+    x.modeChoisi = true;
+    if (mode === 'courriel' && !x.courriel && x.emails && x.emails.length) x.courriel = x.emails[0].adresse;
+    renderConstitution();
+  }
+  function cstCourriel(id, valeur) {
+    const x = documentConstitution(id);
+    if (!x) return;
+    x.courriel = String(valeur || '').trim();
+    x.modeChoisi = true;
+    majItemConstitution();
   }
 
   // ---- Affichage ----
@@ -715,7 +823,8 @@
     if (doc.mode === 'en-ligne') {
       return `<div class="cst-item cst-off"><span class="cst-item-switch"></span><span class="cst-item-texte"><span class="cst-item-titre">${escapeHtml(doc.libelle)}</span><span class="cst-item-dest">${escapeHtml(dest)}</span></span><span class="dot-label dl-success"><span class="dot"></span>En ligne</span></div>`;
     }
-    const mode = doc.mode === 'courriel' ? '<span class="dot-label dl-success"><span class="dot"></span>Courriel</span>' : '';
+    const mode = doc.envoyeLe ? '<span class="dot-label dl-success"><span class="dot"></span>Email préparé</span>'
+      : doc.mode === 'courriel' ? `<span class="dot-label ${doc.courriel ? 'dl-acte' : 'dl-urgent'}"><span class="dot"></span>Email</span>` : '<span class="dot-label dl-neutre"><span class="dot"></span>Papier</span>';
     const memes = cstEtat.documents.filter(x => x.modele === doc.modele && x.genre === doc.genre && x.groupe === doc.groupe);
     const rang = memes.length > 1 ? ` ${memes.indexOf(doc) + 1}` : '';
     return `<div class="cst-item${choisi ? ' choisi' : ''}${doc.actif ? '' : ' cst-off'}" onclick="cstChoisirDoc('${idDoc}')">
@@ -752,6 +861,8 @@
     const e = cstEtat;
     const manques = manquesConstitution(e);
     const n = documentsAGenererConstitution().length;
+    const nEmail = documentsAGenererConstitution().filter(x => x.mode === 'courriel').length;
+    const nPapier = n - nEmail;
     const pdfOk = typeof genererPdfAAppelFonds === 'function';
     const nas = !!d.nasDossier;
     const bascule = (actif, geste, libelle) => `<wa-button size="s" appearance="outlined" class="vue-bascule-btn${actif ? ' actif' : ''}" type="button" onclick="${geste}">${libelle}</wa-button>`;
@@ -764,7 +875,8 @@
       <div class="cst-actions">
         <wa-button variant="brand" pill type="button" ${bloque || !nas ? 'disabled ' : ''}onclick="genererConstitution('ranger')" title="${nas ? 'Dans le dossier « Constitution » du dossier client, créé s’il manque ; rien n’est écrasé' : 'Dossier non relié au NAS : utilisez « Télécharger »'}">${e.enCours ? 'Préparation…' : `Enregistrer dans « Constitution » (${n})`}</wa-button>
         <wa-button appearance="outlined" pill type="button" ${bloque ? 'disabled ' : ''}onclick="genererConstitution('telecharger')">Télécharger</wa-button>
-        <wa-button appearance="outlined" pill type="button" ${e.enCours || !n || !pdfOk ? 'disabled ' : ''}onclick="genererConstitution('imprimer')" title="Les courriers en un seul PDF, ouvert pour l’impression">Imprimer</wa-button>
+        <wa-button appearance="outlined" pill type="button" ${e.enCours || !nPapier || !pdfOk ? 'disabled ' : ''}onclick="genererConstitution('imprimer')" title="Les courriers papier en un seul PDF, ouvert pour l’impression">Imprimer (${nPapier})</wa-button>
+        <wa-button appearance="outlined" pill type="button" ${e.enCours || !nEmail ? 'disabled ' : ''}onclick="emailsConstitution()" title="Une fenêtre d’email par courrier, à relire et envoyer">Envoyer les emails (${nEmail})</wa-button>
       </div>
       ${nas ? '' : '<p class="hint">Dossier non relié au NAS : reliez-le sur la fiche pour enregistrer dans « Constitution ».</p>'}
       <p class="hint" id="cst-message">${escapeHtml(e.message || '')}</p>`;
@@ -806,11 +918,17 @@
     return `<div class="cst-edition">
       <div class="cst-edition-tete"><strong>${escapeHtml(doc.libelle)}${g ? ' — ' + escapeHtml(g.commune) : ''}</strong>${doc.origine ? ` <span class="hint">${escapeHtml(doc.origine)}</span>` : ''}
         <span class="cst-edition-actions">
-          ${doc.courriel ? `<wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="emailDocumentConstitution('${idDoc}')" title="${escapeAttr(doc.courriel)}">Préparer l’email</wa-button>` : ''}
+          ${doc.mode === 'courriel' ? `<wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="emailDocumentConstitution('${idDoc}')">Préparer l’email</wa-button>` : ''}
           <wa-button appearance="plain" size="s" type="button" class="bouton-discret" onclick="telechargerDocumentConstitution('${idDoc}', 'pdf')">PDF</wa-button>
           <wa-button appearance="plain" size="s" type="button" class="bouton-discret" onclick="telechargerDocumentConstitution('${idDoc}', 'docx')">Word</wa-button>
         </span></div>
       ${doc.note ? `<p class="hint">${escapeHtml(doc.note)}</p>` : ''}
+      <div class="cst-envoi">
+        <wa-button-group label="Envoi"><wa-button size="s" appearance="outlined" class="vue-bascule-btn${doc.mode === 'papier' ? ' actif' : ''}" type="button" onclick="cstModeEnvoi('${idDoc}', 'papier')">Papier</wa-button><wa-button size="s" appearance="outlined" class="vue-bascule-btn${doc.mode === 'courriel' ? ' actif' : ''}" type="button" onclick="cstModeEnvoi('${idDoc}', 'courriel')">Email</wa-button></wa-button-group>
+        ${doc.mode === 'courriel' ? `<input type="email" class="prop-champ cst-courriel" list="cst-emails-proposes" value="${escapeAttr(doc.courriel || '')}" placeholder="adresse@organisme.fr" oninput="cstCourriel('${idDoc}', this.value)" aria-label="Adresse email du destinataire">
+          <datalist id="cst-emails-proposes">${(doc.emails || []).map(e => `<option value="${escapeAttr(e.adresse)}">${escapeHtml(e.libelle)}</option>`).join('')}</datalist>
+          <span class="hint">Le texte du courrier, sans l’en-tête${corpsEmailCourrierConstitution(contenuDocumentConstitution(doc)).suite ? ', avec le questionnaire joint en PDF' : ''}.</span>` : ''}
+      </div>
       <div class="cst-edition-corps">
         <div class="calc-champ"><label>Destinataire</label>
           <textarea class="prop-champ" id="cst-dest" rows="4" oninput="cstLignesDoc('${idDoc}', this.value); majApercuConstitution(); majItemConstitution()" placeholder="Nom de l’organisme&#10;Service&#10;Adresse&#10;CP VILLE">${escapeHtml(doc.lignes.join('\n'))}</textarea>

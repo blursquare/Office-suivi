@@ -9560,6 +9560,9 @@ table.pr-zt td.pr-zt-retenue select { min-width: 120px; min-height: 32px; height
 .cst-edition-tete { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .cst-edition-actions { display: inline-flex; flex-wrap: wrap; gap: 4px; margin-left: auto; }
 .cst-edition-corps { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; align-items: start; }
+.cst-envoi { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.cst-envoi .cst-courriel { flex: 1 1 220px; min-width: 0; }
+.cst-envoi .hint { flex: 1 1 100%; margin: 0; }
 .cst-edition-corps textarea { width: 100%; resize: vertical; }
 .cst-rep-resultats { display: flex; flex-direction: column; max-height: 132px; overflow: auto; margin-top: 4px; }
 .cst-rep-resultats .dash-recherche-nom { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
