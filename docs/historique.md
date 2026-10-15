@@ -20038,3 +20038,10 @@ vient d'Authentic. Stocker toutes les données d'état civil et sur le bien. »
   que le dossier » : une succession a souvent plusieurs biens.
 - Fiche : état civil sous chaque héritier (`etatCivilFicheSuccession`), naissance du défunt, nationalité et profession ; biens avec
   leur détail (`detailBienSuccession`). Plus de bloc « extraction » (renderExtractionDossier) ni d'analyse pour une succession.
+
+### 0.246.4 — 15/10/2026 (étude : « j'ai l'impression que dans la structure tu ne sais pas qui est défunt et héritier ? »)
+- Constat : la rubrique « Comparants » d'une succession porte la qualité à droite (« Défunt », « Héritier », structure du 15/10) mais `comparantsAuthentic` ne lisait que Vendeur/Acquéreur ; le défunt n'était connu que par une fiche client portant une date de décès, et les héritiers = toutes les parties sauf lui.
+- `comparantsAuthentic` (client/52) lit aussi défunt(e), héritier(e)(s), légataire (universel), conjoint survivant → rôle `DEFUNT` / `HERITIER` + `qualite`, `civilite`, `lien` (« Veuve de »…) et `conjoint` (`personneComparantSuccession`) ; « Tiers » ferme la rubrique. Vente inchangée (testé). `authenticPersistable` garde ces rôles.
+- `defuntDepuisFiches` (commun/constitution.js) : le comparant « Défunt » passe avant la date de décès — sa fiche client est celle du défunt même sans date ; sans fiche, `defuntConstitution` en tire civilité, prénoms, NOM et conjoint (`nomPrenomsComparant`, `memePersonneNommee`).
+- `personnesSuccession` (client/74) : héritiers = comparants « Héritier » (rapprochés des parties, sinon montrés « fiche client pas encore lue »), qualité en pastille hors « Héritier » ; « Autres » = personnes du dossier hors comparants. `conjointSurvivant` lit aussi un héritier « conjoint survivant » ou un défunt « époux/épouse de ». Historique « Comparants lus dans Authentic : défunt … ; n héritiers » (`noterComparantsSuccession`).
+- Non vérifié sur une vraie page : disposition exacte de la qualité (seule sur sa ligne ou en fin de ligne, les deux sont lues) et libellés autres que « Défunt » / « Héritier ».

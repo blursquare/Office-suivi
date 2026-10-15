@@ -253,3 +253,44 @@ test('fiche client d’une succession : tout l’état civil gardé (nationalit�
   assert.equal(d.parties[0].emails[0], 'marc@x.fr');
   assert.match(app.etatCivilFicheSuccession(f), /né\(e\) le .*1960 à 41000 BLOIS · Française · Retraité · domicile : .* · Marié\(e\)/);
 });
+
+test('comparants d’une succession : la qualité « Défunt » / « Héritier » d’Authentic désigne le défunt et les héritiers', () => {
+  const capture = { texte: [
+    'Comparants (4)',
+    'Mme DURAND Jeanne veuve de M. DURAND Pierre', 'Défunt',
+    'M. DURAND Marc', 'Héritier',
+    'Mme LEROY Sophie épouse de M. LEROY Alain   Héritier',
+    'M. PETIT Louis', 'Légataire universel',
+    'Immeubles (1)', 'BLOIS (41000), 1 rue X'
+  ].join('\n') };
+  const c = app.comparantsAuthentic(capture);
+  assert.equal(c.map(x => `${x.role}:${x.nom}:${x.qualite}`).join('|'),
+    'DEFUNT:DURAND Jeanne:Défunt|HERITIER:DURAND Marc:Héritier|HERITIER:LEROY Sophie:Héritier|HERITIER:PETIT Louis:Légataire universel');
+  assert.deepEqual([c[0].civilite, c[0].lien, c[0].conjoint], ['Mme', 'Veuve de', 'Monsieur DURAND Pierre']);
+  // Une vente garde sa lecture (aucun champ en plus).
+  assert.equal(JSON.stringify(app.comparantsAuthentic({ texte: 'Comparants (2)\nM. MARTEL Alexandre\nVendeur\nMme ROY Léa\nAcquéreur' })),
+    '[{"nom":"MARTEL Alexandre","role":"VENDEUR"},{"nom":"ROY Léa","role":"ACQUEREUR"}]');
+
+  // Sur la fiche : le défunt vient des comparants (sans fiche client lue), ses parties sont rangées.
+  const d = base({ id: 's12', parties: [
+    { nom: 'Jeanne DURAND', role: 'PARTIE' }, { nom: 'Marc DURAND', role: 'PARTIE' }, { nom: 'Sophie LEROY', role: 'PARTIE' }, { nom: 'Alain LEROY', role: 'PARTIE' }
+  ], authentic: { comparants: c } });
+  const df = app.defuntConstitution(d);
+  assert.deepEqual([df.champs.civilite, df.champs.prenoms, df.champs.nom, df.champs.conjointLien, df.champs.conjointNom], ['Madame', 'Jeanne', 'DURAND', 'Veuve de', 'Monsieur DURAND Pierre']);
+  assert.match(df.source, /Comparants/);
+  const { heritiers, autres } = app.personnesSuccession(d);
+  assert.equal(heritiers.map(h => h.nom + (h.qualite ? ` [${h.qualite}]` : '') + (h.comparant ? ' *' : '')).join('|'), 'Marc DURAND|Sophie LEROY|Louis PETIT [Légataire universel] *');
+  assert.equal(autres.map(p => p.nom).join('|'), 'Alain LEROY');
+  // Veuve : pas de conjoint survivant (fonds débloqués, pas de transfert des comptes).
+  assert.equal(S.conjointSurvivant(d), false);
+  assert.equal(S.conjointSurvivant(base({ authentic: { comparants: [{ nom: 'X Y', role: 'HERITIER', qualite: 'Conjoint survivant' }] } })), true);
+
+  // Une fiche client lue avant la date de décès : retenue comme celle du défunt parce que les comparants la nomment.
+  d.authentic.fichesClients = { 'jeanne durand': { nom: 'Jeanne DURAND', prenom: 'Jeanne', nomFamille: 'DURAND', civilite: 'Mme', domicile: 'BLOIS (41000), 1 rue X' },
+    'marc durand': { nom: 'Marc DURAND', prenom: 'Marc', nomFamille: 'DURAND', deces: { date: '2026-01-01' } } };
+  const df2 = app.defuntConstitution(d);
+  assert.equal(df2.champs.domicile, 'BLOIS (41000), 1 rue X');
+  assert.match(df2.avertissements.join(' '), /défunt retenu est celui des comparants/);
+  assert.match(app.noterComparantsSuccession([], c)[0], /défunt DURAND Jeanne ; 3 héritiers/);
+  assert.equal(app.noterComparantsSuccession(c, c).length, 0);
+});

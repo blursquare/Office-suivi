@@ -202,12 +202,61 @@
    * Pure : le défunt d'un dossier d'après les fiches client retenues d'Authentic (`d.authentic.fichesClients`) : la personne dont la fiche
    * porte une date de décès. Aucune fiche n'est devinée : sans date de décès, personne. `autres` = d'autres fiches avec décès (à signaler).
    * @param {any} d
-   * @returns {{ fiche: any, autres: any[] }}
+   * @returns {{ fiche: any, autres: any[], comparant: any }}
    */
   function defuntDepuisFiches(d) {
     const reg = (d && d.authentic && d.authentic.fichesClients) || {};
-    const decedes = Object.values(reg).filter((f) => f && f.deces && f.deces.date);
-    return { fiche: decedes[0] || null, autres: decedes.slice(1) };
+    const fiches = Object.values(reg).filter(Boolean);
+    const decedes = fiches.filter((f) => f.deces && f.deces.date);
+    // Étude 15/10 : la rubrique « Comparants » d'Authentic dit qui est le défunt (qualité « Défunt ») — elle passe avant la date de
+    // décès d'une fiche : la fiche qui porte son nom est celle du défunt, même lue avant que la date de décès n'y soit.
+    const comparant = comparantsSuccession(d).find((c) => c.role === 'DEFUNT') || null;
+    if (comparant) {
+      const fiche = fiches.find((f) => [f.nom, [f.prenom, f.nomUsage].filter(Boolean).join(' ')].some((n) => memePersonneNommee(n, comparant.nom))) || null;
+      return { fiche, autres: fiche ? decedes.filter((f) => f !== fiche) : decedes, comparant };
+    }
+    return { fiche: decedes[0] || null, autres: decedes.slice(1), comparant: null };
+  }
+
+  /**
+   * Pure : les comparants d'une succession relevés dans Authentic (`d.authentic.comparants`, rôle DEFUNT ou HERITIER).
+   * @param {any} d
+   * @returns {any[]}
+   */
+  function comparantsSuccession(d) {
+    const c = d && d.authentic && Array.isArray(d.authentic.comparants) ? d.authentic.comparants : [];
+    return c.filter((x) => x && x.nom && (x.role === 'DEFUNT' || x.role === 'HERITIER'));
+  }
+
+  /** @param {string} t */
+  function motsPersonne(t) {
+    return String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim().split(' ')
+      .filter((m) => m.length >= 2 && !/^(m|mme|mlle|monsieur|madame|mademoiselle|mr)$/.test(m));
+  }
+
+  /**
+   * Pure : vrai si deux libellés désignent la même personne, mots dans n'importe quel ordre (« DUPONT Marie » = « Marie DUPONT ») :
+   * tous les mots du plus court se retrouvent dans l'autre, deux mots au moins (un nom de famille seul ne suffit pas, sauf seul des deux côtés).
+   * @param {string} a
+   * @param {string} b
+   */
+  function memePersonneNommee(a, b) {
+    const ma = motsPersonne(a), mb = motsPersonne(b);
+    if (!ma.length || !mb.length) return false;
+    const [court, long] = ma.length <= mb.length ? [ma, mb] : [mb, ma];
+    if (court.length < 2 && long.length >= 2) return false;
+    return court.every((m) => long.includes(m));
+  }
+
+  /**
+   * Pure : « DUPONT Marie Jeanne » (forme des comparants : nom en capitales, puis prénoms) → { nom, prenoms }.
+   * @param {string} libelle
+   */
+  function nomPrenomsComparant(libelle) {
+    const mots = String(libelle || '').trim().split(/\s+/).filter(Boolean);
+    const maj = mots.filter((m) => m.length >= 2 && m === m.toUpperCase() && /[A-ZÀ-Þ]/.test(m));
+    if (!maj.length) return { nom: '', prenoms: mots.join(' ') };
+    return { nom: maj.join(' '), prenoms: mots.filter((m) => !maj.includes(m)).join(' ') };
   }
 
   /**
@@ -232,7 +281,7 @@
 
   exporter({ URL_GNAU_CHAILLES, INSEE_BLOIS, EPCI_AGGLOPOLYS, EPCI_GRAND_CHAMBORD, INSEE_CHAILLES, COURRIEL_GEOMETRE_BLOIS, COURRIERS_VENTE, DESTINATAIRES_CONNUS, ORDRE_SUCCESSION_PAR_DEFAUT, GRILLE_PARCELLES,
     circuitCourrierVente, noteGuichetCommune, centiaresDepuisContenance, contenanceDepuisCentiares, contenanceTotale, contenanceEcrite, lignePersonneProprietaire,
-    tableauParcellesCourrier, documentCourrierVente, texteCorpsDocument, nomFichierCourrierVente, defuntDepuisFiches, conjointDefunt });
+    tableauParcellesCourrier, documentCourrierVente, texteCorpsDocument, nomFichierCourrierVente, defuntDepuisFiches, conjointDefunt, comparantsSuccession, memePersonneNommee, nomPrenomsComparant });
 })(function (api) {
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else Object.assign(/** @type {any} */ (globalThis), api);

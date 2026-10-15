@@ -1203,6 +1203,7 @@ garde tous les validés (`tousValides`) ; l'impression A4 garde `renderCompteRen
   (`PIECES_SUCCESSION`, par le nom du fichier) ; notoriété retenue par acte de décès, actes de naissance, FCDDV, donation entre époux et testament tranchés. Étapes cochées
   dans `d.echeancesValidees` (`echeanceValidee` délègue à `etapeSuccessionValidee`). Défunt = `defuntConstitution` (Authentic, corrections dans `d.defunt`, régime compris).
   **Courriers : jamais de soulignement repris des modèles** (le bleu souligné marquait les variables d'Authentic).
+  **Défunt et héritiers = qualité des comparants d'Authentic** (étude 15/10, 0.246.4 : « Défunt », « Héritier », légataire, conjoint survivant — `comparantsAuthentic` rôles `DEFUNT`/`HERITIER`, `defuntDepuisFiches` les fait passer avant la date de décès d'une fiche, `personnesSuccession`) ; sans comparants lus, défunt = fiche avec date de décès, héritiers = les autres parties.
   **Tout vient d'Authentic, aucune analyse** (étude 15/10) : pas d'analyse ni d'extraction sur la fiche ; fiche client gardée ENTIÈRE (`retenirFicheClientAuthentic` :
   naissance, nationalité, profession, domicile, situation, téléphones, emails) ; fiche bien gardée entière parmi `d.authentic.immeubles` (`appliquerBienSuccession` :
   plusieurs biens, fusion par adresse ou parcelle commune ; `d.biens` suit).

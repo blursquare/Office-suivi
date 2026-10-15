@@ -67,11 +67,40 @@
     render();
   }
 
-  // Pure : les héritiers — les parties de la succession, sans le défunt.
-  function heritiersSuccession(d) {
+  // Pure : les personnes de la succession, rangées d'après la rubrique « Comparants » d'Authentic (étude 15/10 : qualité « Défunt » /
+  // « Héritier ») → { heritiers, autres }. Un héritier comparant sans fiche sur le dossier est montré quand même (`comparant: true`) ;
+  // `autres` = personnes du dossier qu'Authentic ne range pas parmi les comparants. Sans comparants relevés : toutes les parties
+  // hors défunt sont les héritiers (comme avant).
+  function personnesSuccession(d) {
     const df = defuntConstitution(d).champs;
     const nomDefunt = [df.prenoms, df.nom].filter(Boolean).join(' ');
-    return (Array.isArray(d && d.parties) ? d.parties : []).filter(p => p && p.nom && !(nomDefunt && (memePersonneParNom(p.nom, nomDefunt) || normaliserPourRecherche(p.nom) === normaliserPourRecherche(nomDefunt))));
+    const comps = comparantsSuccession(d);
+    const defComp = comps.find(c => c.role === 'DEFUNT');
+    const estDefunt = (n) => (nomDefunt && (memePersonneParNom(n, nomDefunt) || memePersonneNommee(n, nomDefunt) || normaliserPourRecherche(n) === normaliserPourRecherche(nomDefunt)))
+      || (defComp && memePersonneNommee(n, defComp.nom));
+    const parties = (Array.isArray(d && d.parties) ? d.parties : []).filter(p => p && p.nom && !estDefunt(p.nom) && !(p.nomUsage && defComp && memePersonneNommee([p.nom, p.nomUsage].join(' '), defComp.nom)));
+    const her = comps.filter(c => c.role === 'HERITIER');
+    if (!her.length) return { heritiers: parties, autres: [] };
+    const heritiers = [], vus = new Set();
+    her.forEach(c => {
+      const p = parties.find(x => !vus.has(x) && (memePersonneNommee(x.nom, c.nom) || (x.nomUsage && memePersonneNommee([x.nom, x.nomUsage].join(' '), c.nom))));
+      const qualite = /^h[ée]riti/i.test(c.qualite || '') ? '' : (c.qualite || '');
+      if (p) { vus.add(p); heritiers.push(Object.assign({}, p, { qualite })); return; }
+      const np = nomPrenomsComparant(c.nom);
+      heritiers.push({ nom: [np.prenoms, np.nom].filter(Boolean).join(' ') || c.nom, civilite: c.civilite || '', qualite, comparant: true });
+    });
+    return { heritiers, autres: parties.filter(p => !vus.has(p)) };
+  }
+
+  // Pure : les lignes d'historique quand les comparants d'une succession changent dans Authentic → textes.
+  function noterComparantsSuccession(avant, apres) {
+    const cle = (l) => (Array.isArray(l) ? l : []).filter(c => c && (c.role === 'DEFUNT' || c.role === 'HERITIER')).map(c => c.role + ':' + c.nom).sort().join('|');
+    if (cle(avant) === cle(apres)) return [];
+    const l = (Array.isArray(apres) ? apres : []);
+    const def = l.find(c => c.role === 'DEFUNT');
+    const her = l.filter(c => c.role === 'HERITIER');
+    if (!def && !her.length) return [];
+    return [`Comparants lus dans Authentic : ${def ? 'défunt ' + def.nom : 'défunt non indiqué'}${her.length ? ` ; ${her.length} héritier${her.length > 1 ? 's' : ''} (${her.map(c => c.nom).join(', ')})` : ''}`];
   }
 
   // Pure : l'état civil d'une personne d'après sa fiche client d'Authentic, en une ligne (naissance, nationalité, profession, domicile,
@@ -125,7 +154,8 @@
     const civilite = `<select class="prop-champ succ-civilite" aria-label="Civilité du défunt" onchange="changerDefuntFiche('${idJs}', 'civilite', this.value)">${['Madame', 'Monsieur'].map(v => `<option${c.civilite === v ? ' selected' : ''}>${v}</option>`).join('')}</select>`;
     const lien = `<select class="prop-champ succ-civilite" aria-label="Lien avec le conjoint" onchange="changerDefuntFiche('${idJs}', 'conjointLien', this.value)">${['', 'Veuve de', 'Veuf de', 'Épouse de', 'Époux de', 'Divorcée de', 'Divorcé de'].map(v => `<option value="${escapeAttr(v)}"${c.conjointLien === v ? ' selected' : ''}>${v || '—'}</option>`).join('')}</select>`;
     const conjoint = conjointSurvivant(d);
-    const heritiers = heritiersSuccession(d);
+    const { heritiers, autres } = personnesSuccession(d);
+    const compsLus = comparantsSuccession(d).length > 0;
     const coordonnees = (p) => [...(p.telephones || []), ...(p.emails || [])].map(escapeHtml).join(' · ');
     const etatCivil = (nom) => { const t = etatCivilFicheSuccession(ficheClientPourPersonneConstitution(d, nom)); return t ? `<span class="succ-etat-civil hint">${escapeHtml(t)}</span>` : ''; };
     const nomDefunt = [c.prenoms, c.nom].filter(Boolean).join(' ');
@@ -164,10 +194,11 @@
         ${ligne('banknote', 'Droits dus', choixOuiNon('droitsDus', s.droitsDus, 'Droits de succession dus'), null)}
         ${ligne('list-check', 'Inventaire', choixOuiNon('inventaireNecessaire', s.inventaireNecessaire, 'Inventaire nécessaire'), null)}
       </dl>
-      <div class="section-eyebrow fiche-sous-titre">Héritiers <span class="hint">· ${heritiers.length}</span></div>
+      <div class="section-eyebrow fiche-sous-titre">Héritiers <span class="hint">· ${heritiers.length}${compsLus ? ' · d’après les comparants d’Authentic' : ''}</span>${compsLus ? '' : ' ' + infoBulle('Les comparants de la page du dossier d’Authentic (qualité « Défunt » / « Héritier ») ne sont pas encore lus : ouvrez la page du dossier dans Authentic. En attendant, toutes les personnes du dossier sauf le défunt sont montrées.')}</div>
       <dl class="fiche-proprietes fiche-coordonnees">
-        ${heritiers.length ? heritiers.map((p, i) => ligne(i ? 'users' : 'user', i ? '' : 'Héritiers', `<span class="succ-personne"><span class="prop-texte">${escapeHtml(p.nom)}${p.nomUsage ? ` <span class="hint">(${escapeHtml(p.nomUsage)})</span>` : ''}</span>${coordonnees(p) ? ` <span class="hint">${coordonnees(p)}</span>` : ''}${etatCivil(p.nom)}</span>`, null, 'prop-pleine')).join('')
-          : ligne('users', 'Héritiers', '<span class="prop-texte vide">Aucun — ouvrez les fiches client dans Authentic</span>', null, 'prop-pleine')}
+        ${heritiers.length ? heritiers.map((p, i) => ligne(i ? 'users' : 'user', i ? '' : 'Héritiers', `<span class="succ-personne"><span class="prop-texte">${escapeHtml(p.nom)}${p.nomUsage ? ` <span class="hint">(${escapeHtml(p.nomUsage)})</span>` : ''}${p.qualite ? ` <span class="dot-label dl-neutre"><span class="dot"></span>${escapeHtml(p.qualite)}</span>` : ''}</span>${coordonnees(p) ? ` <span class="hint">${coordonnees(p)}</span>` : ''}${p.comparant ? '<span class="succ-etat-civil hint">Fiche client pas encore lue dans Authentic</span>' : etatCivil(p.nom)}</span>`, null, 'prop-pleine')).join('')
+          : ligne('users', 'Héritiers', '<span class="prop-texte vide">Aucun — ouvrez la page du dossier dans Authentic</span>', null, 'prop-pleine')}
+        ${autres.length ? ligne('users', 'Autres', `<span class="succ-personne"><span class="prop-texte">${autres.map(p => escapeHtml(p.nom)).join(', ')}</span><span class="hint">Ni défunt ni héritier dans les comparants d’Authentic</span></span>`, null, 'prop-pleine') : ''}
       </dl>
       <dl class="fiche-proprietes">
         ${biens.length ? biens.map((b, i) => ligne('map-pin', i ? '' : (biens.length > 1 ? 'Biens' : 'Bien'), `<span class="succ-personne"><span class="prop-texte">${escapeHtml(b.adresse || 'Adresse non relevée')}</span>${b.detail ? `<span class="hint">${escapeHtml(b.detail)}</span>` : ''}</span>`, null, 'prop-pleine')).join('')

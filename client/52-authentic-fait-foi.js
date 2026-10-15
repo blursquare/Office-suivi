@@ -361,14 +361,37 @@
   // civil et qui est vendeur et acquéreur » — une vendeuse seule propriétaire avait reçu son mari, une acquéreuse seule son
   // partenaire pacsé, tous deux repris de leur fiche client par le conjoint). Rubrique « Comparants (N) » de la page du dossier :
   // une ligne de noms (« M. MARTEL Alexandre et Mme MARTEL Nadia »), puis la qualité (« Vendeur », « Acquéreur »). ----
-  var RE_QUALITE_COMPARANT = /^(vendeurs?|promettants?|c[ée]dants?|acqu[ée]reurs?|b[ée]n[ée]ficiaires?|cessionnaires?|(?:autres?\s+)?intervenants?)$/i;
-  var RE_FIN_COMPARANTS = /^(informations?\s+financi|parties?\s+prenantes?|immeubles?|documents?|pi[eè]ces|notes?|historique|formalit)/i;
+  // Succession (étude 15/10 : « tu ne sais pas qui est défunt et héritier ») : la qualité de la rubrique est « Défunt » ou « Héritier »
+  // (légataire et conjoint survivant comptés avec les héritiers, leur qualité gardée telle quelle).
+  var QUALITES_COMPARANT = 'vendeurs?|promettants?|c[ée]dants?|acqu[ée]reurs?|b[ée]n[ée]ficiaires?|cessionnaires?|(?:autres?\\s+)?intervenants?'
+    + '|d[ée]funte?s?|h[ée]riti[eè]re?s?|l[ée]gataires?(?:\\s+universel(?:le)?s?)?|conjoint\\s+survivant|conjointe\\s+survivante';
+  var RE_QUALITE_COMPARANT = new RegExp('^(' + QUALITES_COMPARANT + ')$', 'i');
+  var RE_FIN_COMPARANTS = /^(informations?\s+financi|parties?\s+prenantes?|immeubles?|tiers\b|documents?|pi[eè]ces|notes?|historique|formalit)/i;
 
   // « Mme X épouse de M. Y », « veuve de », « divorcé de », « époux de » : la personne vend ou achète SEULE — le conjoint cité après
   // « de » n'est pas comparant par ce seul fait (étude 09/10) ; il l'est s'il figure lui-même plus bas comme vendeur ou acquéreur.
   var RE_LIEN_CONJOINT_COMPARANT = /\s+(?:[ée]pouse|[ée]poux|veuve|veuf|divorc[ée]e?|s[ée]par[ée]e?)\s+(?:de\s|d['’]).*$/i;
 
-  // Pure : [{ nom, role }] des comparants vendeurs et acquéreurs, [] si la rubrique n'est pas sur la page.
+  // Pure : un comparant de succession tel qu'Authentic l'écrit (« Mme DUPONT Marie veuve de M. DUPONT Jean ») →
+  // { nom: 'DUPONT Marie', civilite: 'Mme', lien: 'Veuve de', conjoint: 'Monsieur DUPONT Jean' } ; null sans nom.
+  function personneComparantSuccession(texte) {
+    let t = String(texte || '').replace(/^\s*et\s+/i, '').trim();
+    const civ = /^(M\.|Mme|Mlle|Monsieur|Madame|Mademoiselle|Mr)\s+/i.exec(t);
+    const civilite = civ ? (/^(mme|madame|mlle|mademoiselle)/i.test(civ[1]) ? 'Mme' : 'M') : '';
+    if (civ) t = t.slice(civ[0].length);
+    const l = /\s+([ée]pouse|[ée]poux|veuve|veuf|divorc[ée]e?|s[ée]par[ée]e?)\s+(?:de\s+|d['’])(.*)$/i.exec(t);
+    const r = { nom: (l ? t.slice(0, l.index) : t).trim().slice(0, 120), civilite };
+    if (r.nom.length < 2) return null;
+    if (l) {
+      const mot = l[1].toLowerCase().replace(/^e/, 'é');
+      r.lien = mot.charAt(0).toUpperCase() + mot.slice(1) + ' de';
+      r.conjoint = l[2].replace(/^(M\.|Mr)\s+/i, 'Monsieur ').replace(/^Mme\s+/i, 'Madame ').trim().slice(0, 120);
+    }
+    return r;
+  }
+
+  // Pure : [{ nom, role }] des comparants vendeurs et acquéreurs (et, d'une succession, défunt et héritiers : { nom, role, qualite,
+  // civilite, lien?, conjoint? }), [] si la rubrique n'est pas sur la page.
   function comparantsAuthentic(capture) {
     const lignes = String((capture && capture.texte) || '').split(/\n+/).map(l => l.replace(/\s+/g, ' ').trim()).filter(Boolean);
     const debut = lignes.findIndex(l => /^comparants?\b/i.test(l));
@@ -381,13 +404,21 @@
       let l = l0;
       let q = RE_QUALITE_COMPARANT.exec(l);
       if (!q) {
-        const fin = /^(.*\S)\s+(vendeurs?|promettants?|c[ée]dants?|acqu[ée]reurs?|b[ée]n[ée]ficiaires?|cessionnaires?|(?:autres?\s+)?intervenants?)$/i.exec(l);
+        const fin = new RegExp('^(.*\\S)\\s+(' + QUALITES_COMPARANT + ')$', 'i').exec(l);
         if (fin) { l = fin[1]; q = [fin[2], fin[2]]; noms.push(l); }
       }
       if (!q) { noms.push(l); continue; }
       // « Autre intervenant » : une personne qui n'est ni vendeur ni acquéreur (étude 09/10) — jamais reprise dans la fiche, et ses noms
       // ne se collent pas à la qualité suivante.
       if (/intervenant/i.test(q[1])) { noms = []; continue; }
+      if (/^(d[ée]f|h[ée]r|l[ée]g|conj)/i.test(q[1])) {
+        const role = /^d[ée]f/i.test(q[1]) ? 'DEFUNT' : 'HERITIER';
+        const qualite = q[1].replace(/\s+/g, ' ').replace(/^./, x => x.toUpperCase());
+        noms.join(' et ').split(/\s+et\s+/i).map(n => personneComparantSuccession(n)).filter(Boolean)
+          .forEach(p => r.push(Object.assign({ role, qualite }, p)));
+        noms = [];
+        continue;
+      }
       const role = /^(vend|prom|c[ée]d)/i.test(q[1]) ? 'VENDEUR' : 'ACQUEREUR';
       // « M. X et Mme Y » = deux personnes du même côté (un couple qui vend ou achète à deux) ; « et » en début ou fin de ligne ignoré.
       noms.join(' et ').split(/\s+et\s+/i).map(n => n.replace(RE_LIEN_CONJOINT_COMPARANT, '')).map(n => n.replace(/^(?:et\s+)?(?:M\.|Mme|Mlle|Monsieur|Madame|Mademoiselle|Mr)\s+/i, '').replace(/^et\s+/i, '').trim())

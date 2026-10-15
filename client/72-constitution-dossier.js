@@ -171,19 +171,23 @@
   // Pure : le défunt du dossier — les champs saisis sur la fiche (d.defunt) l'emportent ; sinon la fiche client d'Authentic qui porte une
   // date de décès. { champs, source, avertissements, regime, relations }.
   function defuntConstitution(d) {
-    const { fiche, autres } = defuntDepuisFiches(d);
+    const { fiche, autres, comparant } = defuntDepuisFiches(d);
     const saisi = (d && d.defunt) || {};
     const sm = fiche && fiche.situationMatrimoniale ? fiche.situationMatrimoniale : null;
-    const civilite = civiliteLibelleConstitution(saisi.civilite || (fiche && fiche.civilite)) || 'Madame';
-    const conj = conjointDefunt(sm, civilite);
-    const prenoms = saisi.prenoms != null ? saisi.prenoms : (fiche ? [fiche.prenom, fiche.autresPrenoms].filter(Boolean).join(' ') : '');
+    // Sans fiche lue, le défunt nommé par les comparants d'Authentic (« Mme DUPONT Marie veuve de M. DUPONT Jean », qualité « Défunt »).
+    const np = !fiche && comparant ? nomPrenomsComparant(comparant.nom) : null;
+    const civilite = civiliteLibelleConstitution(saisi.civilite || (fiche && fiche.civilite) || (comparant && comparant.civilite)) || 'Madame';
+    const conjFiche = conjointDefunt(sm, civilite);
+    const conj = conjFiche.lien || conjFiche.nom || !comparant || !comparant.lien ? conjFiche
+      : { lien: comparant.lien, nom: comparant.conjoint || '' };
+    const prenoms = saisi.prenoms != null ? saisi.prenoms : (fiche ? [fiche.prenom, fiche.autresPrenoms].filter(Boolean).join(' ') : (np ? np.prenoms : ''));
     const v = (cle, depuis) => (saisi[cle] != null ? String(saisi[cle]) : String(depuis || ''));
     // « 67000 STRASBOURG » (Authentic) s'écrit « STRASBOURG (67000) », comme dans les courriers de l'étude.
     const lieu = (t) => String(t || '').replace(/^\s*(\d{5})\s+(.+?)\s*$/, '$2 ($1)');
     const lieuNaissance = fiche ? [lieu(fiche.lieuNaissance), fiche.paysNaissance && !/^france$/i.test(fiche.paysNaissance) ? fiche.paysNaissance : ''].filter(Boolean).join(', ') : '';
     const lieuDeces = fiche && fiche.deces ? [lieu(fiche.deces.lieu), fiche.deces.pays && !/^france$/i.test(fiche.deces.pays) ? fiche.deces.pays : ''].filter(Boolean).join(', ') : '';
     const champs = {
-      civilite, prenoms, nom: v('nom', fiche && fiche.nomFamille),
+      civilite, prenoms, nom: v('nom', fiche ? fiche.nomFamille : (np ? np.nom : '')),
       domicile: v('domicile', fiche && fiche.domicile ? normaliserAdresse(fiche.domicile) : ''),
       naissanceDate: v('naissanceDate', fiche && fiche.dateNaissance), naissanceLieu: v('naissanceLieu', lieuNaissance),
       decesDate: v('decesDate', fiche && fiche.deces && fiche.deces.date), decesLieu: v('decesLieu', lieuDeces),
@@ -192,10 +196,12 @@
       regime: v('regime', sm ? [sm.regime, sm.contrat && !/^sans/i.test(sm.contrat) && sm.contrat !== sm.regime ? sm.contrat : ''].filter(Boolean).join(' — ') : '')
     };
     const avertissements = [];
-    if (!fiche) avertissements.push('Aucune fiche de défunt n’a été lue dans Authentic (la fiche de la personne décédée, avec sa date de décès) : saisissez-le ci-dessous ou ouvrez sa fiche dans Authentic.');
-    if (autres.length) avertissements.push(`Plusieurs fiches portent une date de décès (${[fiche].concat(autres).map(f => f.nom).join(', ')}) : vérifiez que c’est bien le défunt retenu.`);
+    if (!fiche && comparant) avertissements.push('Défunt indiqué par les comparants d’Authentic ; sa fiche client n’est pas encore lue (date et lieu de décès, domicile, régime) : ouvrez-la dans Authentic ou saisissez ci-dessous.');
+    else if (!fiche) avertissements.push('Aucune fiche de défunt n’a été lue dans Authentic (la fiche de la personne décédée, avec sa date de décès) : saisissez-le ci-dessous ou ouvrez sa fiche dans Authentic.');
+    if (autres.length && comparant) avertissements.push(`Une autre fiche porte une date de décès (${autres.map(f => f.nom).join(', ')}) : le défunt retenu est celui des comparants d’Authentic.`);
+    else if (autres.length) avertissements.push(`Plusieurs fiches portent une date de décès (${[fiche].concat(autres).map(f => f.nom).join(', ')}) : vérifiez que c’est bien le défunt retenu.`);
     if (fiche && !(fiche.deces && fiche.deces.date)) avertissements.push('La date de décès est absente de la fiche.');
-    return { champs, source: fiche ? `Fiche Authentic de ${fiche.nom}` : '', avertissements,
+    return { champs, source: fiche ? `Fiche Authentic de ${fiche.nom}${comparant ? ' (défunt dans les comparants)' : ''}` : (comparant ? 'Comparants d’Authentic' : ''), avertissements,
       regime: sm ? [sm.regime, sm.contrat && !/^sans/i.test(sm.contrat) && sm.contrat !== sm.regime ? sm.contrat : ''].filter(Boolean).join(' — ') : '', situation: sm ? libelleSituationMatrimoniale(sm) : '' };
   }
 

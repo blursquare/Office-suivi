@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.246.3';
+  const VERSION_APP = '0.246.4';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.246.4', date: '2026-10-15 22:32', resume: "Successions : le défunt et les héritiers viennent de la qualité « Défunt » / « Héritier » des comparants d'Authentic (légataire et conjoint survivant compris) — défunt nommé même avant la lecture de sa fiche, conjoint (« veuve de … ») repris, héritiers listés avec leur qualité, personnes hors comparants à part." },
     { version: '0.246.3', date: '2026-10-15 22:25', resume: "Successions : tout vient d'Authentic, sans analyse ni document lu avant. Chaque fiche client est gardée entière (naissance, nationalité, profession, domicile, situation matrimoniale, téléphones, emails) et montrée sous l'héritier ; le défunt a sa date et son lieu de naissance. Chaque fiche bien est gardée entière (type, désignation, parcelles avec nature, lieu-dit et contenance, lots), fusionnée avec le même bien ; plusieurs biens possibles. Plus de bloc d'analyse ni d'« extraction » sur la fiche d'une succession." },
     { version: '0.246.2', date: '2026-10-15 22:21', resume: "Successions : « Actes de naissance » se coche seule quand toutes les demandes vues dans Authentic sont revenues positives (Comedec), et « EHF » quand la réquisition hors formalité est envoyée et revenue ; en attendant, la pièce dit « Authentic : 1/3 revenus » ou « Réquisition envoyée le …, pas encore revenue ». Plus de pièce « Acte de naissance de … » ajoutée une par une." },
     { version: '0.246.1', date: '2026-10-15 22:08', resume: "Successions : la signature de l'acte de notoriété à 1 mois est une date butoir, dite comme telle, que le rendez-vous placé dans l'agenda vient confirmer. Notoriété + déclaration de succession : les deux actes sont signés ensemble, entre 4 et 6 mois après l'ouverture (une seule étape, plus de notoriété à 1 mois)." },

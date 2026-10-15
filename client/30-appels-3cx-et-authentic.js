@@ -2300,6 +2300,7 @@
       resultat.modifie = true;
     }
     if (infos.comparants && retirerPartiesHorsComparants(d, noter)) resultat.modifie = true;
+    if (infos.comparants && estSuccession(d)) noterComparantsSuccession(avant.comparants, infos.comparants).forEach(noter);
     // Prix « Capital » : Authentic d'abord, puis la fiche ne bouge plus (après d.authentic = apres : le registre des valeurs y vit).
     if (apres.prix) {
       const r = poserChampAuthentic(d, { cle: 'prixVente', champ: 'prixVente', libelle: 'Prix de vente', valeur: apres.prix, maintenant, egal: (a, b) => Number(a) === Number(b), formater: v => Number(v) > 0 ? formaterPrix(v) : '' });

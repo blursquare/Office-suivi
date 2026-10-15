@@ -123,7 +123,12 @@
     const s = infoSuccession(d);
     if (s.conjointSurvivant === true || s.conjointSurvivant === false) return s.conjointSurvivant;
     const lien = String((d && d.defunt && d.defunt.conjointLien) || '');
-    return /^[ée]pou(?:x|se)\b/i.test(lien);
+    if (lien) return /^[ée]pou(?:x|se)\b/i.test(lien);
+    // Comparants d'Authentic (étude 15/10) : un héritier « conjoint survivant », ou le défunt « époux/épouse de ».
+    const comps = d && d.authentic && Array.isArray(d.authentic.comparants) ? d.authentic.comparants : [];
+    if (comps.some((/** @type {any} */ c) => c && c.role === 'HERITIER' && /survivant/i.test(String(c.qualite || '')))) return true;
+    const defunt = comps.find((/** @type {any} */ c) => c && c.role === 'DEFUNT');
+    return !!(defunt && /^[ée]pou(?:x|se)\b/i.test(String(defunt.lien || '')));
   }
 
   /** @param {any} d @param {string} type */
