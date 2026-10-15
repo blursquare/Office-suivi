@@ -19909,3 +19909,7 @@ Reçues de l'étude sur un dossier de succession (intitulé « A AAAA NNNNN SUCC
 
 ### 0.240.3 — 15/10/2026 (étude : capture de l'expéditeur)
 - Blois, alignement/numérotage : le courriel est `geometres.notaires@blois.fr` (capture d'un email reçu de ce service par l'étude) ; la dictée « geomètre@blois.fr » était fausse.
+
+### 0.240.4 — 15/10/2026 (rendu montré à l'étude)
+- Rendu joué dans Chromium sur des dossiers inventés (vente à deux immeubles Vineuil + Blois, succession) : PDF et Word produits, Word converti par LibreOffice pour l'œil.
+- Corrigé : contenance d'Authentic (nombre seul, m²) écrite « 5 a 12 ca » et totalisée ; PDF dont le destinataire est vide (« À compléter » sur une ligne) : le premier bloc est toujours le bloc d'adresse (il glissait à côté de l'en-tête et le bloc du défunt remontait dans le cadre) ; Blois : « service des géomètres », plus « adresse à confirmer ».

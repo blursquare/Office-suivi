@@ -90,3 +90,10 @@ test('défunt : la fiche qui porte une date de décès, jamais une autre ; conjo
 test('nom de fichier sûr', () => {
   assert.equal(K.nomFichierCourrierVente('assainissement', 'SAINT SULPICE', 'VTE - X/Y'), 'Assainissement - SAINT SULPICE - VTE - X Y');
 });
+
+test('tableauParcelles : la surface d\'Authentic (m², nombre seul) s\'écrit en contenance, totalisée', () => {
+  const t = K.tableauParcelles([{ section: 'AB', numero: '123', surface: '512' }, { section: 'AB', numero: '124', surface: '80' }]);
+  assert.match(t, /\| 5 a 12 ca \|/);
+  assert.match(t, /\| 80 ca \|/);
+  assert.match(t, /Contenance totale \| 5 a 92 ca/);
+});

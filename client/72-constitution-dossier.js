@@ -122,7 +122,7 @@
     const retenue = (cle) => retenues && retenues[cle] && retenues[cle].lignes && retenues[cle].lignes.length ? retenues[cle].lignes : null;
     if (circuit.destinataire === 'agglopolys') return retenue('agglopolys') || DESTINATAIRES_CONNUS.agglopolys.lignes.slice();
     if (circuit.destinataire === 'grand-chambord') return retenue('grand-chambord') || DESTINATAIRES_CONNUS['grand-chambord'].lignes.slice();
-    if (circuit.destinataire === 'blois-geometre') return retenue('blois-geometre') || ['VILLE DE BLOIS', 'Service du géomètre — demandes des notaires', 'Envoi par courriel'];
+    if (circuit.destinataire === 'blois-geometre') return retenue('blois-geometre') || ['VILLE DE BLOIS', 'Service des géomètres — demandes des notaires', 'Envoi par courriel'];
     return lignesMairieConstitution(groupe, mairie);
   }
 

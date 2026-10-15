@@ -108,7 +108,7 @@
         return;
       }
       if (b.type === 'titre1' || b.type === 'titre2') { sortie.push({ type: 'para', runs: [t(b.texte, { b: true })], avant: 6, apres: 6 }); return; }
-      if (i === 0 && /\n/.test(b.texte)) { sortie.push({ type: 'para', runs: [t(b.texte), t('\n\n\n\n\n')], avant: 10, apres: 4, habillage: true }); return; }
+      if (i === 0 && b.type !== 'tableau') { sortie.push({ type: 'para', runs: [t(b.texte), t('\n\n\n\n\n')], avant: 10, apres: 4, habillage: true }); return; }
       if (RE_LIEU_DATE_COURRIER.test(b.texte) && b.texte.length < 80) { sortie.push({ type: 'para', runs: [t(b.texte + '\n\n')], avant: 15, apres: 15, habillage: true }); return; }
       if (/^Me\s/.test(b.texte) && (i === blocs.length - 1 || (blocs[i + 1] && blocs[i + 1].type === 'saut'))) {
         sortie.push({ type: 'para', runs: [t(b.texte)], avant: 20, apres: 0, jc: 'right', avecSuivant: true });

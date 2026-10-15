@@ -43,7 +43,7 @@
       return { mode: 'en-ligne', destinataire: 'blois-en-ligne', courriel: '', note: 'À Blois, la demande se fait sur le site de la Ville dédié aux notaires : pas de courrier.' };
     }
     if (cle === 'alignement' && insee === INSEE_BLOIS) {
-      return { mode: 'courriel', destinataire: 'blois-geometre', courriel: COURRIEL_GEOMETRE_BLOIS, note: 'À Blois, par courriel au service dédié aux notaires (adresse à confirmer).' };
+      return { mode: 'courriel', destinataire: 'blois-geometre', courriel: COURRIEL_GEOMETRE_BLOIS, note: 'À Blois, par courriel au service des géomètres dédié aux notaires.' };
     }
     if (cle === 'assainissement') {
       if (epci === EPCI_AGGLOPOLYS) return { mode: 'papier', destinataire: 'agglopolys', courriel: '', note: 'Commune d’Agglopolys : le courrier d’assainissement part à Agglopolys.' };
@@ -61,6 +61,8 @@
   /** Pure : « 18 a 22 ca » / « 1 ha 05 a 10 ca » → centiares, ou null. @param {string} t */
   function centiaresDepuisContenance(t) {
     const s = String(t || '').toLowerCase().replace(/\s+/g, ' ').trim();
+    // Colonne « surface » du cadastre d'Authentic : un nombre seul, en m² (= centiares).
+    if (/^\d+$/.test(s)) return Number(s);
     const m = /^(?:(\d+)\s*ha)?\s*(?:(\d+)\s*a)?\s*(?:(\d+)\s*ca)?$/.exec(s);
     if (!m || (!m[1] && !m[2] && !m[3])) return null;
     return (Number(m[1] || 0) * 10000) + (Number(m[2] || 0) * 100) + Number(m[3] || 0);
@@ -98,7 +100,7 @@
   function tableauParcelles(parcelles) {
     const cellule = (t) => String(t == null ? '' : t).replace(/\|/g, '/').trim();
     const lignes = ['| Préfixe | Section | N° | Adresse ou lieudit | Contenance |'];
-    (parcelles || []).forEach((p) => lignes.push(`| ${cellule(p.prefixe)} | ${cellule(p.section)} | ${cellule(p.numero)} | ${cellule(p.lieuDit)} | ${cellule(p.surface)} |`));
+    (parcelles || []).forEach((p) => lignes.push(`| ${cellule(p.prefixe)} | ${cellule(p.section)} | ${cellule(p.numero)} | ${cellule(p.lieuDit)} | ${cellule(/^\s*\d+\s*$/.test(String(p.surface || '')) ? contenanceDepuisCentiares(Number(p.surface)) : p.surface)} |`));
     const total = contenanceTotale(parcelles);
     if (total) lignes.push(`| | | | Contenance totale | ${total} |`);
     return lignes.join('\n');
