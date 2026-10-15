@@ -565,9 +565,15 @@
   const AGENCE_RE = /(?:l['’]interm[ée]diaire\s+de\s+(?:l['’]agence\s+)?|par\s+l['’]entremise\s+de\s+(?:l['’]agence\s+)?|n[ée]goci[ée]e?s?\s+par\s+(?:l['’]agence\s+)?|mandat[ée]?e?\s+[àa]\s+l['’]agence\s+|l['’]agence\s+immobili[èe]re\s+)(?:l['’](?=agence))?["«“]?\s*([A-Z0-9][^,.\n(;"»”]{1,60}?)\s*["»”]?(?=\s*[,.;\n(]|\s+(?:sise|situ[ée]e?|dont|repr[ée]sent[ée]e?|immatricul[ée]e?|exploit[ée]e?|avec\s+le\s+concours|qu['’](?:elles?|ils?))(?![A-Za-zÀ-ɏ]))/i;
 
   function detecterNomAgence(texte) {
-    const m = AGENCE_RE.exec(texte);
-    if (!m) return null;
-    return m[1].replace(/\s+/g, ' ').trim().replace(/[,\s]+$/, '');
+    // Un « nom » qui est une clause (« le MANDATAIRE La rémunération… », compromis scanné de 128 pages, 15/10) n'est pas une agence :
+    // on passe à l'occurrence suivante.
+    const re = new RegExp(AGENCE_RE.source, 'gi');
+    let m;
+    while ((m = re.exec(texte)) !== null) {
+      const nom = m[1].replace(/\s+/g, ' ').trim().replace(/[,\s]+$/, '');
+      if (nom && !/^(?:le|la|les|l['’])\s*(?:mandataire|r[ée]mun[ée]ration)|r[ée]mun[ée]ration|\bmandataire\b|\bmandant\b/i.test(nom)) return nom;
+    }
+    return null;
   }
   // ---- Honoraires de négociation (demandé par l'étude le 29/09) --------------------------------
   // Qui a négocié la vente (agence ou confrère), combien (TTC) et à la charge de qui. Structure réelle

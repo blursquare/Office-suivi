@@ -205,7 +205,7 @@ try {
       verifier(['o1', 'o2', 'o3', 'o4', 'o5', 'o6', 'o7', 'o8'].every((id) => parId[id] && !parId[id].erreur), `agent : les 8 outils ont rendu un résultat (${Object.keys(parId).join(',')})`);
       verifier(parId.o2 && /MOREAU/.test(JSON.stringify(parId.o2.contenu)) && Array.isArray(parId.o2.contenu.echeances), 'agent : la fiche lue porte le dossier et ses échéances');
       verifier(parId.o1 && parId.o1.contenu.dossiers.length >= 1, 'agent : la recherche trouve MOREAU');
-      verifier(agentFin.rappel && parId.o8 && parId.o8.contenu.fait, 'agent : le rappel est posé par le geste habituel');
+      verifier(agentFin.rappel && parId.o8 && parId.o8.contenu.statut === 'fait', 'agent : le rappel est posé par le geste habituel');
       verifier(/<b>MOREAU<\/b>/.test(agentFin.dernier) && /<li>/.test(agentFin.dernier), 'agent : la réponse s’affiche mise en forme');
       verifier(parId.o9 && Array.isArray(parId.o9.contenu.pieces_recues) && parId.o9.contenu.fichiers_recents_du_dossier_nas !== undefined
         && parId.o10 && Array.isArray(parId.o10.contenu.scans_a_ranger), 'agent : les derniers documents se lisent (dossier et tous)');

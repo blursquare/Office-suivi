@@ -116,3 +116,14 @@ test('Fiche : un champ notaire n’accepte qu’un notaire du répertoire (étud
   assert.equal(app.notaireDuRepertoire('', carnet), false);
   assert.equal(app.notaireDuRepertoire('Maître Inconnu DUPONT', []), true, 'annuaire pas encore chargé : rien où vérifier');
 });
+
+test('nom d’agence : une clause n’est pas une agence, l’occurrence suivante est lue (15/10)', () => {
+  const t = "négociées par l'intermédiaire du MANDATAIRE La rémunération est due. Les présentes ont été négociées par l'agence VILLEFRANCHE IMMOBILIER, exploitée par la société X.";
+  assert.equal(app.detecterNomAgence(t), 'VILLEFRANCHE IMMOBILIER');
+});
+
+test('adresse du bien : l’adresse du garant financier de l’agence est écartée (15/10)', () => {
+  const t = "Garantie financière auprès de GALIAN, 26 avenue de Suffren, 75015 PARIS. Le bien est situé 1 rue de Chauchy 41320 LA CHAPELLE MONTMARTIN.";
+  const r = app.detecterAdresseBienStructuree(t);
+  assert.ok(!/Suffren/i.test(r.adresse.adresseComplete || ''), r.adresse.adresseComplete);
+});

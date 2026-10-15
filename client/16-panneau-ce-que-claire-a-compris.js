@@ -824,7 +824,7 @@
     let ocrPlafonne = false;
     const PLAFOND_SECURITE = 60;
     const TAMPON_SIGNATURE = 2; // doit rester cohérent avec calculerDernierePageUtile
-    const totalAffiche = Math.min(pdf.numPages, PLAFOND_SECURITE);
+    const totalAffiche = Math.min(pdf.numPages, PLAFOND_SECURITE * 2); // la boucle va jusqu'à 2 × le plafond (« page 120 sur 60 », 15/10)
 
     try {
     for (let i = 1; i <= pdf.numPages; i++) {

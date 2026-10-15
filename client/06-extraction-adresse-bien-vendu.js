@@ -19,7 +19,7 @@
   // profession. Le disqualifiant peut précéder la capture comme la suivre : c'est « aux fins de
   // recevoir la notification », placé APRÈS, qui faisait passer une élection de domicile pour le
   // bien vendu sur un autre acte du corpus.
-  var RE_ADRESSE_HORS_BIEN = /demeurant|domicili[ée]|r[ée]sidant|notaires?\s+[àa]\b|office\s+notarial|\bSCP\b|[ée]lection\s+de\s+domicile|aux\s+fins\s+de\s+recevoir|si[èe]ge\s+(?:social\s+)?(?:est|se\s+trouve|sis)?/i;
+  var RE_ADRESSE_HORS_BIEN = /demeurant|domicili[ée]|r[ée]sidant|notaires?\s+[àa]\b|office\s+notarial|\bSCP\b|[ée]lection\s+de\s+domicile|aux\s+fins\s+de\s+recevoir|si[èe]ge\s+(?:social\s+)?(?:est|se\s+trouve|sis)?|garant(?:ie)?\s+financi[èe]re|garant\s+financier|carte\s+professionnelle|caisse\s+de\s+garantie|assureur|courtier/i;
 
   // La PARTIE NORMALISÉE d'un acte authentique présente le cadastre en TABLEAU, que pdf.js rend à
   // plat : « Figurant ainsi au cadastre : Section N° Lieudit BH 81 9 RUE D ESCURES » — l'en-tête

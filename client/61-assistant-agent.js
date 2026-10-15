@@ -206,7 +206,12 @@
     }).join(' ');
     // Le jour de la date du geste, pour que l'agent voie un « vendredi 5 novembre » qui est un jeudi (12/10).
     const date = entree.parametres && /^\d{4}-\d{2}-\d{2}$/.test(entree.parametres.date || '') ? entree.parametres.date : '';
-    return { fait: true, affiche_a_l_utilisateur: ajout.slice(0, 1500), ...(date ? { date_du_geste: new Date(date + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) } : {}) };
+    // Ce qui s'est vraiment passé (audit 15/10 : « les créneaux ont été ajoutés » alors qu'un formulaire attendait) : les gestes qui ouvrent
+    // une fenêtre, un formulaire ou une confirmation ne sont pas faits tant que l'utilisateur n'a pas validé.
+    const emailFini = entree.geste === 'email' && /Email envoyé|Email annulé|fermée sans envoi/i.test(ajout);
+    const attente = !emailFini && (GESTES_EN_ATTENTE_AGENT.includes(entree.geste) || /confirmez|valid(ez|er)|formulaire|choisissez/i.test(ajout));
+    const echec = (/impossible|n’a pas pu|introuvable|pas relié|aucun email|déjà|Email annulé|fermée sans envoi/i.test(ajout)) && !(attente && !/impossible|pas relié|aucun email|déjà/i.test(ajout));
+    return { statut: echec ? 'echec' : attente ? 'en_attente_utilisateur' : 'fait', ...(attente ? { note: 'rien n’est encore fait : l’utilisateur doit valider la fenêtre ou la confirmation' } : {}), affiche_a_l_utilisateur: ajout.slice(0, 1500), ...(date ? { date_du_geste: new Date(date + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) } : {}) };
   }
 
   async function executerOutilAgent(nom, entree) {

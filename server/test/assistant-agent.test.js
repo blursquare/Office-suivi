@@ -432,3 +432,12 @@ test('consulter_site (14/10) : plan de situation du cadastre seulement (Géofonc
   assert.deepEqual(o.input_schema.properties.site.enum, ['cadastre']);
   assert.doesNotMatch(JSON.stringify(o), /geofoncier/i);
 });
+
+test('faire_geste : options de rendez-vous et email libre gardent créneaux, destinataire, objet, corps', () => {
+  const e = entreeOutilPourPoste('faire_geste', { geste: 'options_rendez_vous', dossier_id: 'd1', parametres: {
+    creneaux: [{ date: '2026-11-03', heure: '10:00' }, { date: 'x', heure: '10:00' }], destinataire: 'a@b.fr', objet: 'Test', corps: 'Bonjour [NOM3]' } });
+  assert.equal(e.geste, 'options_rendez_vous');
+  assert.deepEqual(e.parametres.creneaux, [{ date: '2026-11-03', heure: '10:00' }]);
+  assert.equal(e.parametres.destinataire, 'a@b.fr');
+  assert.equal(e.parametres.corps, 'Bonjour [à compléter]');
+});

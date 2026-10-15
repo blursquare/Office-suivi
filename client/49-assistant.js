@@ -699,15 +699,17 @@
       // pas celui de la fiche ; la fiche, elle, ne change pas (placer la signature reste un geste confirmé).
       const rdvPhrase = p.date && MODELES_RDV_ASSISTANT.includes(modele) && (p.date !== String(d.rendezVousSignature || '').slice(0, 10) || (p.heure && p.heure !== d.rendezVousSignatureHeure))
         ? { date: p.date, heure: p.heure || '' } : null;
-      envoyerRelanceCiblee(d.id, modele, true, { ...(dest.email ? { destinataire: dest.email, confrere: dest.confrere } : {}), ...(rdvPhrase ? { rendezVous: rdvPhrase } : {}) });
+      envoyerRelanceCiblee(d.id, modele, true, { ...(/^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(String(p.destinataire || '').trim()) ? { destinataire: String(p.destinataire).trim(), confrere: dest.confrere } : dest.email ? { destinataire: dest.email, confrere: dest.confrere } : {}), ...(rdvPhrase ? { rendezVous: rdvPhrase } : {}) });
       const qui = dest.libelle ? ` à ${escapeHtml(dest.libelle)}` : '';
       const quand = rdvPhrase ? `<p>Rendez-vous écrit dans l’email : <b>${escapeHtml(formatDateFr(rdvPhrase.date))}${rdvPhrase.heure ? ' à ' + escapeHtml(rdvPhrase.heure.replace(':', ' h ')) : ''}</b> — pas encore sur la fiche ni dans l’agenda.</p>` : '';
       return { html: `<p>Fenêtre d’email ouverte${qui} — modèle « ${escapeHtml(MODELES_EMAIL_RELANCE[modele].libelle)} », ${escapeHtml(libelleDossierAffiche(d))}. Rien ne part sans « Envoyer ».</p>${quand}`,
         boutons: rdvPhrase ? [{ libelle: 'Placer la signature à cette date', action: () => executerDemandeAssistant({ intention: 'rendez_vous_placer', parametres: p, dossier: d.id, candidats: [], texte: '' }) }] : [] };
     }
     // Pas de modèle reconnu : email libre au client, texte de la phrase en premier jet si elle en porte un.
-    const destinataire = emailDestinataireRelance(d) || d.emailVendeur || '';
-    const r = await livrerEmailDossier({ destinataire, sujet: '', corps: '', confrere: notaireParticipantRepresenteAcquereur(d), responsableSignature: d.responsable, dossierId: d.id, geste: 'assistant' });
+    // Destinataire, objet et texte donnés par l'agent (audit 15/10 : l'adresse demandée était remplacée par celle du client, objet et texte vides).
+    const destinataireDit = /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(String(p.destinataire || '').trim()) ? String(p.destinataire).trim() : '';
+    const destinataire = destinataireDit || emailDestinataireRelance(d) || d.emailVendeur || '';
+    const r = await livrerEmailDossier({ destinataire, sujet: String(p.objet || ''), corps: String(p.corps || ''), confrere: notaireParticipantRepresenteAcquereur(d), responsableSignature: d.responsable, dossierId: d.id, geste: 'assistant' });
     if (r && r.ok) { ajouterHistorique(d, 'Email envoyé depuis « Demander à CLAIRE »'); sauvegarder(d); }
     return { html: r && r.ok ? '<p>Email envoyé.</p>' : (r && r.annule ? '<p>Email annulé.</p>' : `<p>${escapeHtml((r && r.message) || 'Fenêtre d’email fermée sans envoi.')}</p>`) };
   }

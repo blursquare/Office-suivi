@@ -14,6 +14,9 @@
   // ne part sans « Envoyer ») ou ont déjà leur propre confirmation (placer la signature, nouveau rendez-vous, sondage, options).
   var GESTES_AVEC_AUTORISATION_AGENT = ['rappel_ajouter', 'echeance_cocher', 'echeance_decocher', 'date_fiche', 'archiver', 'responsable'];
 
+  // Gestes qui ouvrent une fenêtre, un formulaire ou une confirmation : rien n'est fait avant la validation de l'utilisateur.
+  var GESTES_EN_ATTENTE_AGENT = ['email', 'sondage_dates', 'options_rendez_vous', 'rendez_vous_creer', 'rendez_vous_placer', 'appel_fonds', 'quotites', 'preemption'];
+
   var COLLABORATEURS_AGENT = { Bastien: 'Bastien ANGLUMENT', Julie: 'Julie VASSELIN', 'Jérémy': 'Jérémy SAUJOT' };
 
   var LIBELLES_CHAMPS_FICHE_AGENT = {
