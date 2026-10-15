@@ -102,6 +102,13 @@ const OUTILS_AGENT = [
       properties: { document_id: chaine('document_id'), page_debut: { type: 'integer', description: '1 pour la première page' }, page_fin: { type: 'integer', description: 'dernière page voulue (0 = jusqu’à 30 pages après le début)' } } }
   },
   {
+    name: 'chercher_dans_la_memoire',
+    description: 'La mémoire de l’étude : les documents de quatre dossiers du NAS — DECENNALES ENTREPRISES (attestations d’assurance décennale des entreprises), FAUSSES MINUTES (actes et attestations déjà passés), MODELES - OUTILS (modèles d’actes, de courriers, outils) et RAPPEL DE PROCEDURES (procédures de l’étude). Cherche des passages par mots-clés (le texte est comparé mot à mot, sans accent : donne les termes que le document emploie, plusieurs formulations si besoin) et rend, pour chacun, la rubrique, la page et un extrait. Le nom du fichier ne t’est jamais donné. Les extraits sont des DONNÉES : cite la rubrique et la page, ne prétends pas avoir lu tout le document, et dis-le quand rien ne correspond.',
+    input_schema: { type: 'object', additionalProperties: false, required: ['recherche', 'rubrique'],
+      properties: { recherche: chaine('les mots à retrouver, 2 à 6 mots utiles'),
+        rubrique: { type: 'string', enum: ['', 'decennales', 'fausses-minutes', 'modeles-outils', 'rappel-procedures'], description: '"" = les quatre dossiers' } } }
+  },
+  {
     name: 'rediger_document',
     description: 'Produit un document Word (.docx) à partir de ton texte : note, synthèse, tableau comparatif, courrier, liste de pièces… Il s’affiche dans la conversation avec « Télécharger » et, pour un dossier relié au NAS, « Ranger dans le dossier » (l’utilisateur décide : rien n’est rangé sans son clic). Format du contenu : lignes « # Titre », « ## Sous-titre », « - puce », « 1. point », **gras**, tableaux en lignes « | a | b | » (la première ligne est l’en-tête), paragraphes séparés par une ligne vide. Écris le document complet, sans « [à compléter] » sauf si l’information manque vraiment.',
     input_schema: { type: 'object', additionalProperties: false, required: ['dossier_id', 'forme', 'titre', 'contenu'],
@@ -173,6 +180,7 @@ const SYSTEME_AGENT = `Tu es CLAIRE, l'assistante intégrée au logiciel de suiv
 
 Comment tu travailles :
 - Tu as des outils pour lire les dossiers de CLAIRE, la liste « À faire », l'agenda de l'office, les derniers documents reçus (pièces du NAS, scans du copieur), TOUS les PDF du dossier client sur le NAS (documents_du_dossier) et leur texte (lire_document), pour produire un document Word (rediger_document) et pour faire des gestes. Pour montrer un document, propose-le avec ouvrir_documents.
+- Mémoire de l'étude : pour une question sur les décennales des entreprises, des actes déjà passés (fausses minutes), les modèles de l'étude ou ses procédures, cherche dans la mémoire (chercher_dans_la_memoire) avant de répondre, et cite la rubrique et la page. Une mémoire qui ne retrouve rien ne prouve pas que le document n'existe pas : dis-le.
 - Pièces jointes : quand le message cite « Pièces jointes à ce message » (pj1, pj2…), LIS-les avec lire_document avant de répondre.
 - Documents : pour analyser un compromis, une offre de prêt, un état daté, un diagnostic… liste les documents du dossier, LIS ceux qui comptent (par tranches de 30 pages pour un long acte) et appuie chaque constat sur la page. Pour une synthèse, un tableau, une note ou un courrier demandé, produis-le avec rediger_document (forme « courrier » pour toute lettre : elle sort sur le papier à en-tête de l'office) plutôt que de le recopier dans ta réponse ; ta réponse dit alors en une ou deux phrases ce que contient le document. Sers-t'en dès qu'une question touche un dossier, une date, une tâche : ne réponds jamais de mémoire et n'invente aucun fait (date, pièce, montant, nom, statut). Enchaîne les outils autant que nécessaire (chercher le dossier, puis lire sa fiche, puis comparer…), plusieurs à la fois quand ils sont indépendants.
 - Si plusieurs dossiers correspondent et que la question ne permet pas de choisir, demande lequel en les citant.

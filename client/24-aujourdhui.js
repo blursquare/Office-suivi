@@ -534,6 +534,22 @@
     return [...parCle.values()].filter(x => !(annulees.has(x.cle) && annulees.get(x.cle) >= x.t)).sort((a, b) => b.t - a.t);
   }
 
+  // Pure : les clés des tâches « traitées » dont la validation a été annulée dans la fiche du dossier APRÈS leur coche
+  // (historique « … : validation annulée », `annule` de TACHES_JOUR_PAR_TYPE). Une coche sans horodatage (`le`) n'est jamais défaite.
+  function traitesDecochesDansFiche(traites, dossiersPerimetre) {
+    const cles = [];
+    for (const t of traites || []) {
+      if (!t || !t.le || typeof t.cle !== 'string') continue;
+      const type = t.cle.slice(t.cle.lastIndexOf(':') + 1);
+      const regle = TACHES_JOUR_PAR_TYPE[type === 'point-confirmer-la-vente-prealable' ? 'ventePrealable' : type];
+      if (!regle || !regle.annule) continue;
+      const d = (dossiersPerimetre || []).find(x => x && x.id === t.dossierId);
+      if (!d) continue;
+      if ((d.historique || []).some(e => e && typeof e.texte === 'string' && regle.annule.test(e.texte) && new Date(e.date).getTime() > t.le)) cles.push(t.cle);
+    }
+    return cles;
+  }
+
   // Les actions du jour telles que les écrans les montrent : sans celles reportées à demain.
   function etatAujourdhui() {
     const aujourdhui = isoAujourdhuiLocal();
@@ -542,6 +558,12 @@
     const reportees = calcul.actions.filter(a => etat.reports[a.cle]);
     // Une action déjà traitée aujourd'hui (« Déjà fait », brouillon ouvert…) ne reste pas dans
     // « À faire » en plus de sa ligne cochée — c'était le doublon signalé par l'étude le 28/09.
+    // Une tâche cochée aujourd'hui puis DÉCOCHÉE dans la fiche du dossier (validation annulée) redevient à faire (étude 15/10).
+    const decochees = traitesDecochesDansFiche(etat.traites.liste, dossiersPerimetreJour());
+    if (decochees.length) {
+      etat.traites.liste = etat.traites.liste.filter(t => !decochees.includes(t.cle));
+      ecrireEtatJour(etat);
+    }
     const traitees = new Set(etat.traites.liste.map(t => t.cle));
     const actions = calcul.actions.filter(a => !etat.reports[a.cle] && !traitees.has(a.cle));
     // Ce qui n'a pas été fait la veille revient aujourd'hui (la liste est recalculée chaque jour
@@ -616,6 +638,7 @@
     etat.traites.liste.unshift(Object.assign({
       cle: action.cle, titre: action.titre, dossier: libelleDossierAffiche(action.dossier), dossierId: action.dossier.id,
       categorie: action.categorie, etat: etatTexte,
+      le: Date.now(),
       heure: `${String(dt.getHours()).padStart(2, '0')} h ${String(dt.getMinutes()).padStart(2, '0')}`
     }, annulation || {}));
     etat.traites.liste = etat.traites.liste.slice(0, 50);

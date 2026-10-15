@@ -23,6 +23,7 @@ const { creerRouteurUrbanisme } = require('./routes/urbanisme');
 const { creerRouteurNavigation } = require('./routes/navigation');
 const { creerRouteurPlanAerien } = require('./routes/planAerien');
 const { creerRouteurDepotDia } = require('./routes/depotDia');
+const { creerRouteurMemoire } = require('./routes/memoire');
 const { creerRouteurNotifications } = require('./routes/notifications');
 const { creerRouteurExclusionsPieces } = require('./routes/exclusionsPieces');
 const { creerRouteurCorrectionsApprises } = require('./routes/correctionsApprises');
@@ -136,7 +137,7 @@ function seaOuNull() {
   try { return require('node:sea'); } catch (_) { return null; }
 }
 
-function creerApp({ db, config, envoyerEmailFn, creerClientClaude, appelerMistral, testerMistral, miseAJour, agenda, emailsMatin, rapportTechnique, sondages, exchange, emailsDossiers, urbanisme, assistant, relaisWord, navigation }) {
+function creerApp({ db, config, envoyerEmailFn, creerClientClaude, appelerMistral, testerMistral, miseAJour, agenda, emailsMatin, rapportTechnique, sondages, exchange, emailsDossiers, urbanisme, assistant, relaisWord, navigation, memoire }) {
   const app = express();
   // Avant tout : adresse et origine de la requête (securiteHote.js, audit 13/10).
   app.use(creerControleHote(config));
@@ -232,6 +233,9 @@ function creerApp({ db, config, envoyerEmailFn, creerClientClaude, appelerMistra
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurUrbanisme(parametresRepo, urbanisme || {}));
   // Où déposer la DIA (guichet, courriel, courrier ; fiche de la mairie) : voir depotDia.js.
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurDepotDia(parametresRepo, urbanisme || {}));
+  // Mémoire de CLAIRE (Décennales, Fausses minutes, Modèles - outils, Rappel de procédures) : voir memoire.js.
+  const routeurMemoire = creerRouteurMemoire(config, db, parametresRepo, memoire || {});
+  app.use('/api', gestionnaireAuth.middlewareAuth, routeurMemoire);
   // Plan aérien IGN des parcelles (numéros, pourcentage de zonage) : services ouverts de l'IGN, voir planAerien.js.
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurPlanAerien(config, parametresRepo, depot, urbanisme || {}));
   // Plan de situation tiré de cadastre.gouv.fr dans le navigateur du serveur : voir navigateur/taches.js.
@@ -285,7 +289,7 @@ function creerApp({ db, config, envoyerEmailFn, creerClientClaude, appelerMistra
     res.status(statut).json({ erreur: statut === 413 ? 'Requête trop volumineuse.' : statut === 400 ? 'Requête invalide.' : 'Erreur interne du serveur.' });
   });
 
-  return { app, depot, parametresRepo, gestionnaireAuth, journalTechnique, routeurMiseAJour };
+  return { app, depot, parametresRepo, gestionnaireAuth, journalTechnique, routeurMiseAJour, routeurMemoire };
 }
 
 // creerMiddlewareAssetsSea/ASSETS_STATIQUES exposées pour les tests uniquement (voir

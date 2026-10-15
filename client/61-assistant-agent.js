@@ -13,7 +13,7 @@
     chercher_dossiers: 'Je cherche le dossier…', lister_dossiers: 'Je parcours les dossiers…', lire_dossier: 'Je lis la fiche…',
     taches_du_jour: 'Je regarde « À faire »…', agenda: 'Je consulte l’agenda…', depuis_hier: 'Je regarde ce qui est arrivé…',
     documents_recents: 'Je regarde les derniers documents…', ouvrir_documents: 'Je prépare les documents…',
-    documents_du_dossier: 'Je parcours le dossier du NAS…', lire_document: 'Je lis le document…', rediger_document: 'Je rédige le document…',
+    documents_du_dossier: 'Je parcours le dossier du NAS…', lire_document: 'Je lis le document…', chercher_dans_la_memoire: 'Je cherche dans la mémoire de l’étude…', rediger_document: 'Je rédige le document…',
     outil_claire: 'J’utilise l’outil…', action_dossier: 'Je prépare l’action…', demander_collaborateur: 'Je prépare la demande…',
     faire_geste: 'Je m’en occupe…', consulter_site: 'Je vais sur le site…'
   };
@@ -224,6 +224,7 @@
     if (nom === 'ouvrir_documents') return ouvrirDocumentsAgent(e.documents);
     if (nom === 'documents_du_dossier') return documentsDuDossierAgent(typeof e.dossier_id === 'string' ? e.dossier_id : '');
     if (nom === 'lire_document') return lireDocumentAgent(e.document_id, e.page_debut, e.page_fin);
+    if (nom === 'chercher_dans_la_memoire') return chercherDansLaMemoireAgent(e);
     if (nom === 'rediger_document') return redigerDocumentAgent(e);
     if (nom === 'outil_claire') return outilClaireAgent(e);
     if (nom === 'action_dossier') return actionDossierAgent(e);

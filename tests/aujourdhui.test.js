@@ -483,3 +483,20 @@ test('tâches à venir : comptées pour le lien de la carte', () => {
   assert.equal(app2.libelleLienTachesAVenir(3), '3 tâches à venir — voir toutes les tâches');
   assert.equal(app2.libelleLienTachesAVenir(0), '');
 });
+
+test('tâche cochée dans « Aujourd’hui » puis décochée dans la fiche : elle redevient à faire (15/10)', () => {
+  const coche = Date.now() - 60000;
+  const traites = [
+    { cle: 'd1:appelFonds', dossierId: 'd1', le: coche },
+    { cle: 'd1:projetEnvoye', dossierId: 'd1', le: coche },
+    { cle: 'd2:appelFonds', dossierId: 'd2' },                       // sans horodatage : jamais défaite
+    { cle: 'd1:rib', dossierId: 'd1', le: coche }                    // pas une échéance de la fiche
+  ];
+  const d1 = { id: 'd1', historique: [
+    { date: new Date(coche - 5000).toISOString(), texte: 'Envoi projet : validation annulée' },   // avant la coche : ne compte pas
+    { date: new Date(coche + 20000).toISOString(), texte: 'Envoi appel de fonds : validation annulée' }
+  ] };
+  const d2 = { id: 'd2', historique: [{ date: new Date().toISOString(), texte: 'Envoi appel de fonds : validation annulée' }] };
+  assert.equal(app.traitesDecochesDansFiche(traites, [d1, d2]).join(','), 'd1:appelFonds');
+  assert.equal(app.traitesDecochesDansFiche(traites, []).length, 0);
+});

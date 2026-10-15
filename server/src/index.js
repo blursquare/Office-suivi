@@ -239,7 +239,7 @@ function demarrer() {
   const { db, reparee } = config.cheminDb === ':memory:' ? { db: ouvrirDb(config.cheminDb), reparee: null } : ouvrirDbVerifiee(config.cheminDb, ouvrirDb);
   if (reparee) console.warn(`[CLAIRE] Base illisible avec son journal (${reparee.controle}) : journal écarté, base rouverte seule. Copie gardée : ${reparee.copie}`);
   let serveur = null;
-  const { app, depot, parametresRepo, journalTechnique, routeurMiseAJour } = creerApp({
+  const { app, depot, parametresRepo, journalTechnique, routeurMiseAJour, routeurMemoire } = creerApp({
     db,
     config,
     miseAJour: { redemarrer: () => redemarrerApresMiseAJour(serveur, db) }
@@ -250,6 +250,8 @@ function demarrer() {
   // effet sur les tests qui montent `creerApp()` directement — ce minuteur ne démarre qu'ici, au
   // vrai point d'entrée du serveur.
   demarrerSurveillanceNas(depot, config);
+  // Mémoire de CLAIRE : parcours des quatre dossiers du NAS (toutes les 6 h), voir memoire.js.
+  routeurMemoire.demarrerAuto();
 
   // Lecture périodique de l'agenda de l'office par EWS (voir agendaWatch.js) : silencieuse tant que
   // la connexion Exchange n'est pas configurée dans Réglages › Agenda — même principe

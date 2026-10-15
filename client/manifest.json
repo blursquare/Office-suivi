@@ -69,5 +69,6 @@
   "67-assistant-actions.js",
   "68-assistant-outils.js",
   "69-sites-claire.js",
-  "70-depot-dia.js"
+  "70-depot-dia.js",
+  "71-memoire.js"
 ]

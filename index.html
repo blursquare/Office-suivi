@@ -1716,6 +1716,7 @@
       <div class="reglages-nav-groupe" role="presentation">Dossiers et actes</div>
       <button type="button" class="reglages-nav-btn" role="tab" id="reglages-onglet-pieces" aria-controls="reglages-panneau-pieces" aria-selected="false" onclick="definirSousOngletReglages('pieces')">Pièces et Claire Scan</button>
       <button type="button" class="reglages-nav-btn" role="tab" id="reglages-onglet-noms-nas" aria-controls="reglages-panneau-noms-nas" aria-selected="false" onclick="definirSousOngletReglages('noms-nas')">Noms de fichiers du NAS</button>
+      <button type="button" class="reglages-nav-btn" role="tab" id="reglages-onglet-memoire" aria-controls="reglages-panneau-memoire" aria-selected="false" onclick="definirSousOngletReglages('memoire')">Mémoire de CLAIRE</button>
       <button type="button" class="reglages-nav-btn" role="tab" id="reglages-onglet-relecture" aria-controls="reglages-panneau-relecture" aria-selected="false" onclick="definirSousOngletReglages('relecture')">IA et relecture d'actes</button>
       <button type="button" class="reglages-nav-btn" role="tab" id="reglages-onglet-apprentissage" aria-controls="reglages-panneau-apprentissage" aria-selected="false" onclick="definirSousOngletReglages('apprentissage')">Ce que CLAIRE a appris</button>
       <div class="reglages-nav-groupe" role="presentation">Maintenance</div>
@@ -2211,6 +2212,12 @@
       <nav class="rep-nav noms-nas-pieces" id="noms-nas-pieces" aria-label="Pièces"></nav>
       <div id="noms-nas-groupes"></div>
     </div>
+  </section>
+
+  <!-- Mémoire de CLAIRE (étude 15/10) : quatre dossiers du NAS lus et indexés pour « Demander à CLAIRE ». Voir server/src/memoire.js, client/71-memoire.js. -->
+  <section class="reglages-panneau" id="reglages-panneau-memoire" role="tabpanel" aria-labelledby="reglages-onglet-memoire" hidden>
+    <h2 class="reglages-titre">Mémoire de CLAIRE <span class="info-i" tabindex="0" data-info="CLAIRE lit les dossiers DECENNALES ENTREPRISES, FAUSSES MINUTES, MODELES - OUTILS et RAPPEL DE PROCEDURES du NAS (Word par le serveur, PDF et scans par ce poste) et les garde sur le serveur du bureau. « Demander à CLAIRE » y cherche des extraits : le texte est masqué avant d'être envoyé à l'IA, jamais un nom de fichier."></span></h2>
+    <div class="reglages-section" id="memoire-corps"></div>
   </section>
 
   <!-- ===== Signalements des collaborateurs (bouton « Signaler un problème ») : l'étude les trie ici
@@ -2789,5 +2796,6 @@
 <script src="client/68-assistant-outils.js"></script>
 <script src="client/69-sites-claire.js"></script>
 <script src="client/70-depot-dia.js"></script>
+<script src="client/71-memoire.js"></script>
 </body>
 </html>
